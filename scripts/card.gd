@@ -567,7 +567,7 @@ func _execute_life_steal(player_stats: PlayerStats, buff_mgr: BuffManager = null
 	if player_stats:
 		# Apply life steal buff - next hit heals for damage dealt
 		if buff_mgr:
-			buff_mgr.apply_buff("life_steal", 1)
+			buff_mgr.apply_buff(Buff.create_regen(2, 1, "Life Steal"))
 		print("[CARD] Life Steal active! Next hit heals for damage dealt")
 
 func _execute_roar(target, player_stats: PlayerStats) -> void:
@@ -590,7 +590,7 @@ func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 func _execute_armor_break(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Next attack deals double damage but only affects armor
 	if buff_mgr:
-		buff_mgr.apply_buff("armor_break", 1)
+		buff_mgr.apply_buff(Buff.create_strengthen(5, 1, "Armor Break"))
 	print("[CARD] Armor Break! Next attack deals double damage to armor only")
 
 func _execute_charge(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -631,7 +631,7 @@ func _execute_morphine(player_stats: PlayerStats) -> void:
 
 func _execute_turtle_up(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
-		buff_mgr.apply_buff("turtle_up", 4)
+		buff_mgr.apply_buff(Buff.create_fortify(4, "Turtle Up"))
 	print("[CARD] Turtle Up! Armor won't decay for 4 turns")
 
 func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -643,7 +643,7 @@ func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = n
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
 	if buff_mgr:
-		buff_mgr.apply_buff("parry_reduction", 1)
+		buff_mgr.apply_buff(Buff.create_brace(5, "Parry"))
 	print("[CARD] Parry! Gained 5 armor, dealt %d damage. Next damage reduced" % total_damage)
 
 func _execute_approach(player_stats: PlayerStats) -> void:
@@ -715,7 +715,7 @@ func _execute_biscuit(player_stats: PlayerStats, buff_mgr: BuffManager = null) -
 		player_stats.current_health = player_stats.max_health
 		player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
 	if buff_mgr:
-		buff_mgr.apply_buff("biscuit_damage", 3)
+		buff_mgr.apply_buff(Buff.create_strengthen(3, 3, "Biscuit"))
 	print("[CARD] Biscuit! Fully healed and +30%% damage for 3 turns")
 
 func _execute_loaded_die(player_stats: PlayerStats) -> void:
@@ -780,7 +780,7 @@ func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffM
 func _execute_lady_luck(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Bless an ally - crit chance +30% for 2 turns
 	if buff_mgr:
-		buff_mgr.apply_buff("lady_luck", 2)
+		buff_mgr.apply_buff(Buff.create_enlightened(30, 5, "Lady Luck"))
 	print("[CARD] Lady Luck! Crit chance +30%% for 2 turns")
 
 func _execute_try_this(target, player_stats: PlayerStats) -> void:
@@ -831,23 +831,23 @@ func buff_mgr_exists(target) -> bool:
 func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Heal cards now apply damage
 	if buff_mgr:
-		buff_mgr.apply_buff("poisoned_blood", 99)
+		buff_mgr.apply_buff(Buff.create_thorns(3, 99, "Poisoned Blood"))
 	print("[CARD] Poisoned Blood! Heal cards now deal damage instead")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Poison cards now heal
 	if buff_mgr:
-		buff_mgr.apply_buff("elixir", 99)
+		buff_mgr.apply_buff(Buff.create_regen(3, 99, "Elixir"))
 	print("[CARD] Elixir! Poison effects now heal instead")
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
-		buff_mgr.apply_buff("invisible", 2)
+		buff_mgr.apply_buff(Buff.create_resilient(50, 2, "Shadows"))
 	print("[CARD] Shadows! Invisible for 2 turns")
 
 func _execute_preparation(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
-		buff_mgr.apply_buff("preparation", 1)
+		buff_mgr.apply_buff(Buff.create_focused(2, "Preparation"))
 	print("[CARD] Preparation! Next utility card and the one after cost 2 less")
 
 func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
@@ -890,7 +890,7 @@ func _execute_volatile_mixture(target, player_stats: PlayerStats) -> void:
 func _execute_understanding(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# After 2 turn delay, next card auto crits
 	if buff_mgr:
-		buff_mgr.apply_buff("understanding", 2)
+		buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Understanding"))
 	print("[CARD] Understanding! In 2 turns, the next card will auto-crit")
 
 # ============================================
@@ -929,13 +929,13 @@ func _execute_reload(deck_manager) -> void:
 func _execute_enchanted_quiver(player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
 	# Next 3 attacks create a 0-cost ranged attack card
 	if buff_mgr:
-		buff_mgr.apply_buff("enchanted_quiver", 3)
+		buff_mgr.apply_buff(Buff.create_strengthen(2, 3, "Enchanted Quiver"))
 	print("[CARD] Enchanted Quiver! Next 3 attacks create free ranged attack cards")
 
 func _execute_tighten_string(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Next 3 ranged attacks: +1 tempo cost, cause cooldown, but more damage/range/crit
 	if buff_mgr:
-		buff_mgr.apply_buff("tighten_string", 3)
+		buff_mgr.apply_buff(Buff.create_strengthen(5, 3, "Tighten String"))
 	print("[CARD] Tighten String! Next 3 ranged attacks: slower but more powerful")
 
 func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
