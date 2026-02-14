@@ -14,7 +14,7 @@ enum CardType { ATTACK, DEFENSE, UTILITY }
 @export var damage: int = 10
 @export var block: int = 0
 @export var heal_amount: int = 0
-@export var tempo_cost: int = 1
+@export var tempo_cost: int = 4
 var is_enhanced: bool = false  
 var base_damage: int = 10
 var base_block: int = 0
@@ -245,7 +245,7 @@ static func create_slash() -> Card:
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 1
-	card.tempo_cost = 1  # Standard attack
+	card.tempo_cost = 4  # Standard attack
 	card.damage = 10
 	card.base_damage = 10
 	card.block = 0
@@ -261,7 +261,7 @@ static func create_block() -> Card:
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 1
-	card.tempo_cost = 1  # Standard defense
+	card.tempo_cost = 2  # Standard defense
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 5
@@ -277,7 +277,7 @@ static func create_discard() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
-	card.tempo_cost = 0  # Quick action
+	card.tempo_cost = 1  # Quick action
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -293,7 +293,7 @@ static func create_draw() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
-	card.tempo_cost = 0  # Quick action
+	card.tempo_cost = 1  # Quick action
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -309,7 +309,7 @@ static func create_empower() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
-	card.tempo_cost = 1  # Setup action
+	card.tempo_cost = 2  # Setup action
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -325,7 +325,7 @@ static func create_blink() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
-	card.tempo_cost = 0  # Instant teleport
+	card.tempo_cost = 1  # Quick/instant
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -341,7 +341,7 @@ static func create_heal() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
-	card.tempo_cost = 1  # Takes effort to heal
+	card.tempo_cost = 2  # Takes effort to heal
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -357,7 +357,7 @@ static func create_gain_mana() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
-	card.tempo_cost = 0  # Free energy burst
+	card.tempo_cost = 1  # Quick action
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -373,7 +373,7 @@ static func create_healing_potion() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
-	card.tempo_cost = 0  # Quick drink
+	card.tempo_cost = 1  # Quick action
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -389,7 +389,7 @@ static func create_dagger_throw() -> Card:
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 1
-	card.tempo_cost = 0  # Quick throw
+	card.tempo_cost = 1  # Quick action
 	card.damage = 5
 	card.base_damage = 5
 	card.block = 0

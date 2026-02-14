@@ -21,18 +21,19 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=yellow]How Tempo Works:[/color]
 - Every action (playing cards, moving) adds to your tempo counter
-- When tempo reaches the threshold (default: 5), enemies take their turn
+- When tempo reaches the threshold (default: 20), enemies take their turn
 - The counter then resets (overflow carries over)
-- Some actions cost 0 tempo (instant actions like Blink, Draw)
+- Quick actions cost 1 tempo, attacks cost 4, defense costs 2
 
 [color=yellow]Tempo Costs:[/color]
-- Standard actions: 1 tempo
-- Powerful actions: 2+ tempo
-- Quick actions: 0 tempo
+- Standard Attack: 4 tempo
+- Standard Defense: 2 tempo
+- Powerful Action: 4+ tempo (e.g., Sweeping Kick)
+- Quick/Instant: 1 tempo (e.g., Blink, Draw, Discard)
 - Movement: Free moves based on Agility, then 1 tempo per extra move
 
 [color=yellow]Strategic Implications:[/color]
-- Chain multiple 0-tempo actions before enemies respond
+- Chain quick (1 tempo) actions for efficient turns
 - Balance powerful moves against giving enemies more turns
 - Use Steady buff to skip tempo on key actions
 - Weighted debuff increases your tempo costs
@@ -60,8 +61,8 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Faster card draws
 
 [color=cyan]Agility (AGI)[/color]
-- Free moves = 1 + floor(AGI/5)
-- AGI 5 = 2 free moves, AGI 10 = 3 free moves
+- Movements per tempo = floor(AGI/5)
+- AGI 5 = 1 free move, AGI 10 = 2 free moves
 
 [color=orange]Determination (DET)[/color]
 - Modifies other stats at low health

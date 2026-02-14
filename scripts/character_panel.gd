@@ -1,7 +1,7 @@
 class_name CharacterPanel
 extends CanvasLayer
 
-## Character stats and equipment panel (toggle with C key)
+## Character stats and equipment panel (toggle with I key)
 
 signal closed
 
@@ -15,8 +15,27 @@ signal closed
 var player_stats: PlayerStats
 var inventory: Inventory
 var item_tooltip: ItemTooltip
+var _original_tooltip_parent: Node = null
 
 func _ready() -> void:
+	# Ensure the panel renders on top of everything
+	layer = 100
+
+	# Make panel fully opaque with a solid background
+	if panel:
+		var style = StyleBoxFlat.new()
+		style.bg_color = Color(0.12, 0.12, 0.15, 1.0)
+		style.border_width_left = 2
+		style.border_width_right = 2
+		style.border_width_top = 2
+		style.border_width_bottom = 2
+		style.border_color = Color(0.4, 0.4, 0.5)
+		style.corner_radius_top_left = 4
+		style.corner_radius_top_right = 4
+		style.corner_radius_bottom_left = 4
+		style.corner_radius_bottom_right = 4
+		panel.add_theme_stylebox_override("panel", style)
+
 	hide_panel()
 	close_button.pressed.connect(_on_close_pressed)
 
@@ -180,11 +199,18 @@ func _add_equipment_section(section_name: String, slot_data: Dictionary) -> void
 func _on_item_hover(item: ItemData) -> void:
 	if item_tooltip:
 		var mouse_pos = get_viewport().get_mouse_position()
+		# Reparent tooltip to this CanvasLayer so it renders on top
+		if item_tooltip.get_parent() != panel:
+			_original_tooltip_parent = item_tooltip.get_parent()
+			item_tooltip.reparent(panel)
 		item_tooltip.show_item(item, mouse_pos)
-		
+
 func _on_item_hover_end() -> void:
 	if item_tooltip:
 		item_tooltip.hide_tooltip()
+		# Return tooltip to original parent
+		if _original_tooltip_parent and item_tooltip.get_parent() != _original_tooltip_parent:
+			item_tooltip.reparent(_original_tooltip_parent)
 		
 func _on_close_pressed() -> void:
 	hide_panel()

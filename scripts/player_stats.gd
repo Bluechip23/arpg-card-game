@@ -229,8 +229,9 @@ func is_overburdened() -> bool:
 # ============================================
 
 func get_movement_per_turn() -> int:
-	# Uses effective agility
-	return 1 + floori(agility / 5.0)
+	# Every 5 AGI grants 1 movement per tempo
+	# AGI 5 = 1 move, AGI 10 = 2 moves, etc.
+	return max(1, floori(agility / 5.0))
 
 # ============================================
 # DEXTERITY / ATTACK SPEED
