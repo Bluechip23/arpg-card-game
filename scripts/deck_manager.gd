@@ -67,17 +67,25 @@ func _create_default_deck(character: CharacterData) -> void:
 		draw_pile.append(Card.create_block())
 	for i in range(2):
 		draw_pile.append(Card.create_heal())
-	
+
 	draw_pile.append(Card.create_draw())
 	draw_pile.append(Card.create_discard())
 	draw_pile.append(Card.create_gain_mana())
-	
+
 	# Add character's unique card (2 copies)
 	if character.unique_card_id != "":
 		for i in range(2):
 			var unique_card = _create_card_from_id(character.unique_card_id)
 			if unique_card:
 				draw_pile.append(unique_card)
+
+	# Add character-specific cards (1 copy each)
+	for card_id in character.starting_card_ids:
+		var card = _create_card_from_id(card_id)
+		if card:
+			draw_pile.append(card)
+		else:
+			print("[DECK] WARNING: Unknown card_id in starting deck: %s" % card_id)
 var current_overflow_mode: OverflowMode = OverflowMode.JAILED
 
 func set_overflow_mode(mode: OverflowMode) -> void:
@@ -109,6 +117,7 @@ func set_overflow_mode(mode: OverflowMode) -> void:
 	print("[DECK] Overflow mode set to: %s" % OverflowMode.keys()[mode])
 func _create_card_from_id(card_id: String) -> Card:
 	match card_id:
+		# Base cards
 		"slash": return Card.create_slash()
 		"block": return Card.create_block()
 		"discard": return Card.create_discard()
@@ -119,6 +128,72 @@ func _create_card_from_id(card_id: String) -> Card:
 		"gain_mana": return Card.create_gain_mana()
 		"healing_potion": return Card.create_healing_potion()
 		"dagger_throw": return Card.create_dagger_throw()
+		# Brad cards
+		"life_swap": return Card.create_life_swap()
+		"wear_down": return Card.create_wear_down()
+		"taunt": return Card.create_taunt()
+		"life_steal": return Card.create_life_steal()
+		"roar": return Card.create_roar()
+		"poke": return Card.create_poke()
+		"armor_break": return Card.create_armor_break()
+		"charge": return Card.create_charge()
+		"heroic_leap": return Card.create_heroic_leap()
+		"morphine": return Card.create_morphine()
+		"turtle_up": return Card.create_turtle_up()
+		"parry": return Card.create_parry()
+		"approach": return Card.create_approach()
+		"hold_the_line": return Card.create_hold_the_line()
+		# Jeremy cards
+		"trick_shot": return Card.create_trick_shot()
+		"surrounding_ice": return Card.create_surrounding_ice()
+		"risk_it": return Card.create_risk_it()
+		"biscuit": return Card.create_biscuit()
+		"loaded_die": return Card.create_loaded_die()
+		"worst_that_could_happen": return Card.create_worst_that_could_happen()
+		"oops": return Card.create_oops()
+		"house_money": return Card.create_house_money()
+		"hope_this_works": return Card.create_hope_this_works()
+		"lady_luck": return Card.create_lady_luck()
+		"try_this": return Card.create_try_this()
+		"if_pigs_could_fly": return Card.create_if_pigs_could_fly()
+		"snowballs_chance": return Card.create_snowballs_chance()
+		# Ryan cards
+		"raged_circulation": return Card.create_raged_circulation()
+		"poisoned_blood": return Card.create_poisoned_blood()
+		"elixir": return Card.create_elixir()
+		"ryan_heal": return Card.create_ryan_heal()
+		"shadows": return Card.create_shadows()
+		"preparation": return Card.create_preparation()
+		"exacerbate_wounds": return Card.create_exacerbate_wounds()
+		"reposition": return Card.create_reposition()
+		"ryan_dagger_throw": return Card.create_ryan_dagger_throw()
+		"volatile_mixture": return Card.create_volatile_mixture()
+		"understanding": return Card.create_understanding()
+		# Stephen cards
+		"mark": return Card.create_mark()
+		"rise": return Card.create_rise()
+		"quick_shot": return Card.create_quick_shot()
+		"reload": return Card.create_reload()
+		"enchanted_quiver": return Card.create_enchanted_quiver()
+		"tighten_string": return Card.create_tighten_string()
+		"down_town": return Card.create_down_town()
+		"barricade": return Card.create_barricade()
+		"sky_fall": return Card.create_sky_fall()
+		"sky_attack": return Card.create_sky_attack()
+		"lead_arrow": return Card.create_lead_arrow()
+		"last_breath": return Card.create_last_breath()
+		"mixed_bag": return Card.create_mixed_bag()
+		# Cory cards
+		"round_em_up": return Card.create_round_em_up()
+		"trip": return Card.create_trip()
+		"choke": return Card.create_choke()
+		"push": return Card.create_push()
+		"defensive_awareness": return Card.create_defensive_awareness()
+		"sweeping_disarm": return Card.create_sweeping_disarm()
+		"cory_blink": return Card.create_cory_blink()
+		"consecutive_snap": return Card.create_consecutive_snap()
+		"swap": return Card.create_swap()
+		"meditate": return Card.create_meditate()
 	return null
 
 func _create_card_from_data(card_data: Dictionary) -> Card:
