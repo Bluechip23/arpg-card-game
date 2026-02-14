@@ -79,6 +79,11 @@ func _build_legend() -> void:
 	_add_keyword("Peak", "See the next card on draw pile (doesn't block other effects)")
 	_add_keyword("Overcharge", "Triggers an effect when overflow occurs (doesn't block other effects)")
 	
+	# Range Section
+	_add_section_header("RANGE")
+	_add_keyword("Melee", "Card must be used at close range (default for all cards)", Color(0.9, 0.6, 0.3))
+	_add_keyword("Ranged", "Card can be used at distance. Base range = 5 tiles. Ranged +X = 5+X, Ranged -X = 5-X", Color(0.3, 0.8, 0.9))
+
 	# Card Types Section
 	_add_section_header("CARD TYPES")
 	_add_keyword("Attack", "Offensive cards that deal damage", Color(1, 0.3, 0.3))

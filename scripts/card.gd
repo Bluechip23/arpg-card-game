@@ -30,7 +30,9 @@ var rng_roll_turn: int = 0  # Turn when RNG was last rolled
 var turns_in_hand: int = 0  # How long card has been in hand
 var sticky: int = 0  # Turns card stays in hand before auto-discarding (0 = normal)
 var duration: int = 0  # Effect duration in turns
-var card_range: float = 0.0  # Range for ranged attacks (0 = melee)
+var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
+var range_modifier: int = 0  # Modifies base range: +2 = 7 range, -2 = 3 range
+var card_range: float = 0.0  # Legacy range for specific overrides
 var target_type: String = "enemy"  # "enemy", "ally", "self", "point", "all_nearby"
 var consecutive_uses: int = 0  # Track how many times card played in sequence
 var requires_high_ground: bool = false  # Needs elevated position
@@ -57,6 +59,24 @@ func has_chance_effect() -> bool:
 func should_reroll_rng(current_turn: int) -> bool:
 	# Reroll every 3 turns in hand
 	return current_turn - rng_roll_turn >= 3
+
+func get_effective_range() -> int:
+	# Melee cards have 0 range. Ranged cards have base 5 + modifier.
+	if not is_ranged:
+		return 0
+	return 5 + range_modifier
+
+func get_range_display() -> String:
+	# Returns display string for card range keyword
+	if not is_ranged:
+		return "Melee"
+	var effective = get_effective_range()
+	if range_modifier == 0:
+		return "Ranged"
+	elif range_modifier > 0:
+		return "Ranged +%d" % range_modifier
+	else:
+		return "Ranged %d" % range_modifier
 
 func increment_turns_in_hand() -> void:
 	turns_in_hand += 1
