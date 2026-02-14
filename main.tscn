@@ -19,6 +19,7 @@
 [ext_resource type="Script" uid="uid://c5c5ntadnjjru" path="res://scripts/help_panel.gd" id="17_074og"]
 [ext_resource type="Script" uid="uid://bowopvb7tnvs6" path="res://scripts/help_button.gd" id="17_cegan"]
 [ext_resource type="Script" uid="uid://bwhleeil4d864" path="res://scripts/buff_bar_ui.gd" id="17_yaehf"]
+[ext_resource type="PackedScene" uid="uid://bb1b2leqflyno" path="res://scenes/item_tooltip.tscn" id="18_tooltip"]
 
 [node name="Main" type="Node2D" unique_id=805844600]
 script = ExtResource("1_main")
@@ -234,3 +235,15 @@ metadata/_custom_type_script = "uid://bowopvb7tnvs6"
 [node name="GauntletSkillsContainer" type="HBoxContainer" parent="UI" unique_id=1433405863]
 offset_right = 40.0
 offset_bottom = 40.0
+
+[node name="SelectedLabel" type="Label" parent="UI"]
+offset_left = 124.0
+offset_top = 487.0
+offset_right = 604.0
+offset_bottom = 517.0
+theme_override_colors/font_color = Color(1, 1, 0.5, 1)
+theme_override_font_sizes/font_size = 18
+text = "Press A/S/D/F/G to select a card"
+
+[node name="ItemTooltip" parent="UI" instance=ExtResource("18_tooltip")]
+visible = false
