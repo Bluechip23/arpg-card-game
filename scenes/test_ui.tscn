@@ -1,0 +1,99 @@
+[gd_scene format=3 uid="uid://di2l17wxml8wg"]
+
+[node name="TestUi" type="CanvasLayer" unique_id=1353033193]
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=494866081]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=1207934765]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Panel/VBox" unique_id=1784315016]
+layout_mode = 2
+text = "Title Controls
+"
+
+[node name="HSeparator" type="HSeparator" parent="Panel/VBox" unique_id=834432381]
+layout_mode = 2
+
+[node name="EnemyCountLabel" type="Label" parent="Panel/VBox" unique_id=2060532554]
+layout_mode = 2
+text = "Enemies: "
+
+[node name="WaveButton" type="Button" parent="Panel/VBox" unique_id=744094287]
+layout_mode = 2
+text = "Wave Button"
+
+[node name="EliteButton" type="Button" parent="Panel/VBox" unique_id=525823818]
+layout_mode = 2
+text = "Spawn Elite
+"
+
+[node name="HSeparator2" type="HSeparator" parent="Panel/VBox" unique_id=1171983095]
+layout_mode = 2
+
+[node name="ItemLabel" type="Label" parent="Panel/VBox" unique_id=532894431]
+layout_mode = 2
+text = "Give Item:"
+
+[node name="ItemDropdown" type="OptionButton" parent="Panel/VBox" unique_id=2055357897]
+layout_mode = 2
+
+[node name="GiveItemButton" type="Button" parent="Panel/VBox" unique_id=132329439]
+layout_mode = 2
+text = "Give Item:"
+
+[node name="HSeparator3" type="HSeparator" parent="Panel/VBox" unique_id=1893340698]
+layout_mode = 2
+
+[node name="CardLabel" type="Label" parent="Panel/VBox" unique_id=319041291]
+layout_mode = 2
+text = "Give Card:"
+
+[node name="CardDropdown" type="OptionButton" parent="Panel/VBox" unique_id=1147857316]
+layout_mode = 2
+
+[node name="GiveCardButton" type="Button" parent="Panel/VBox" unique_id=741562014]
+layout_mode = 2
+text = "Give Card:"
+
+[node name="HSeparator4" type="HSeparator" parent="Panel/VBox" unique_id=730151848]
+layout_mode = 2
+
+[node name="DebuffLabel" type="Label" parent="Panel/VBox" unique_id=1772580697]
+layout_mode = 2
+
+[node name="DebuffDropdown" type="OptionButton" parent="Panel/VBox" unique_id=971541258]
+layout_mode = 2
+
+[node name="ApplyDebuffButton" type="Button" parent="Panel/VBox" unique_id=1165579996]
+layout_mode = 2
+
+[node name="OverflowLabel" type="Label" parent="Panel/VBox" unique_id=1749151173]
+layout_mode = 2
+
+[node name="OverflowDropdown" type="OptionButton" parent="Panel/VBox" unique_id=324068860]
+layout_mode = 2
+
+[node name="ApplyOverflowButton" type="Button" parent="Panel/VBox" unique_id=1073404753]
+layout_mode = 2
+
+[node name="HSeparator5" type="HSeparator" parent="Panel/VBox" unique_id=765297511]
+layout_mode = 2
+
+[node name="BuffLabel" type="Label" parent="Panel/VBox" unique_id=1404117021]
+layout_mode = 2
+text = "\"Apply Buff:\""
+
+[node name="BuffDropdownButton" type="OptionButton" parent="Panel/VBox" unique_id=37752158]
+layout_mode = 2
+
+[node name="ApplyBuffButton" type="Button" parent="Panel/VBox" unique_id=1325504661]
+layout_mode = 2
+text = "Apply Buff:"
+
+[node name="ToggleButton" type="Button" parent="." unique_id=244613046]
+offset_right = 8.0
+offset_bottom = 8.0
+text = "collapse"

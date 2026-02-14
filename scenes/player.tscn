@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://gmlwi1eaeh72"]
+
+[ext_resource type="Script" uid="uid://biyt2e2xyguyc" path="res://scripts/player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://cf20y16acauch" path="res://scripts/player_stats.gd" id="2_g2els"]
+[ext_resource type="Script" uid="uid://dyjc65plcl5x6" path="res://scripts/inventory.gd" id="3_qhqgy"]
+[ext_resource type="Script" uid="uid://04714ofy2ci0" path="res://scripts/buff_manager.gd" id="4_dqkch"]
+[ext_resource type="Script" uid="uid://bwfg4patn2ib7" path="res://scripts/debuff_manager.gd" id="5_qlg0r"]
+
+[node name="Player" type="CharacterBody2D" unique_id=807153945]
+script = ExtResource("1_player")
+
+[node name="Sprite" type="ColorRect" parent="." unique_id=385058118]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="PlayerLabel" type="Label" parent="." unique_id=1390665846]
+offset_left = -30.0
+offset_top = 25.0
+offset_right = 30.0
+offset_bottom = 45.0
+text = "PLAYER"
+horizontal_alignment = 1
+
+[node name="PlayerStats" type="Node" parent="." unique_id=1039619962]
+script = ExtResource("2_g2els")
+
+[node name="Inventory" type="Node" parent="." unique_id=1435846726]
+script = ExtResource("3_qhqgy")
+
+[node name="BuffManager" type="Node" parent="." unique_id=813646469]
+script = ExtResource("4_dqkch")
+
+[node name="DebuffManager" type="Node" parent="." unique_id=1254178767]
+script = ExtResource("5_qlg0r")

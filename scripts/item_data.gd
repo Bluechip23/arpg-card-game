@@ -1,0 +1,457 @@
+class_name ItemData
+extends Resource
+
+## Defines an item's properties
+
+enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON }
+enum WeaponHand { MAIN_HAND, OFF_HAND, TWO_HAND }
+enum SpecialEffect { 
+	NONE, 
+	OVERFLOW_HEAL_ARMOR,
+	GRANT_BLINK_CARD,
+	INCREASE_HAND_SIZE,
+	CHANCE_BOOST,
+	GRANT_CARDS
+}
+
+# Ring trigger conditions
+enum RingTrigger {
+	NONE,
+	ON_ENEMY_KILL,
+	ON_GAIN_ARMOR_THRESHOLD,
+	ON_TAKE_DAMAGE,
+	ON_HEAL,
+	ON_PLAY_ATTACK_CARD,
+	ON_PLAY_UTILITY_CARD,
+	ON_DRAW_CARD,
+	ON_DISCARD_CARD,
+	ON_LOW_HEALTH,
+	ON_FULL_MANA
+}
+
+# Ring trigger effects
+enum RingEffect {
+	NONE,
+	HEAL_TO_FULL,
+	GAIN_ARMOR,
+	GAIN_MANA,
+	DRAW_CARD,
+	DEAL_DAMAGE_ALL_ENEMIES,
+	REDUCE_COOLDOWNS,
+	GAIN_TEMP_STRENGTH
+}
+
+# Gauntlet skill types
+enum GauntletSkillType {
+	NONE,
+	ACTIVE,
+	PASSIVE
+}
+
+@export var item_name: String = "Unknown Item"
+@export var item_type: ItemType = ItemType.WEAPON
+@export var item_type_name: String = "Weapon"
+
+# Stats
+@export var weight: int = 0
+@export var strength_bonus: int = 0
+@export var dexterity_bonus: int = 0
+@export var intelligence_bonus: int = 0
+@export var wisdom_bonus: int = 0
+@export var determination_bonus: int = 0
+@export var agility_bonus: int = 0
+@export var health_bonus: int = 0
+@export var mana_bonus: int = 0
+@export var armor_bonus: int = 0
+@export var hand_size_bonus: int = 0
+
+# Percentage bonuses (for off-hand, etc.)
+@export var damage_percent_bonus: float = 0.0
+@export var fire_damage_percent: float = 0.0
+@export var ice_damage_percent: float = 0.0
+@export var lightning_damage_percent: float = 0.0
+
+# Weapon specific
+@export var weapon_damage: int = 0
+@export var weapon_hand: WeaponHand = WeaponHand.MAIN_HAND
+@export var is_two_handed: bool = false
+
+# Special effects
+@export var special_effect: SpecialEffect = SpecialEffect.NONE
+@export var special_effect_value: int = 0
+@export var special_effect_value_2: int = 0
+@export var granted_card_ids: Array[String] = []
+
+# Ring trigger system
+@export var ring_trigger: RingTrigger = RingTrigger.NONE
+@export var ring_trigger_threshold: int = 0  # For threshold-based triggers (e.g., gain 10 armor)
+@export var ring_effect: RingEffect = RingEffect.NONE
+@export var ring_effect_value: int = 0  # Value for the effect (armor amount, mana amount, etc.)
+
+# Gauntlet skill system
+@export var gauntlet_skill_type: GauntletSkillType = GauntletSkillType.NONE
+@export var gauntlet_skill_name: String = ""
+@export var gauntlet_skill_description: String = ""
+@export var gauntlet_skill_cooldown: int = 0  # Turns for active skills
+@export var gauntlet_skill_mana_cost: int = 0  # For active skills
+@export var gauntlet_skill_effect_id: String = ""  # Identifier for the effect
+
+# Runtime tracking
+var current_cooldown: int = 0  # Current cooldown remaining
+
+# Description
+@export var description: String = ""
+
+func get_type_name() -> String:
+	match item_type:
+		ItemType.HELM: return "Helm"
+		ItemType.CHEST: return "Chest"
+		ItemType.RING: return "Ring"
+		ItemType.BELT: return "Belt"
+		ItemType.BOOTS: return "Boots"
+		ItemType.GAUNTLETS: return "Gauntlets"
+		ItemType.WEAPON: return "Weapon"
+	return "Unknown"
+
+func get_ring_trigger_name() -> String:
+	match ring_trigger:
+		RingTrigger.ON_ENEMY_KILL: return "On Enemy Kill"
+		RingTrigger.ON_GAIN_ARMOR_THRESHOLD: return "On Gain %d+ Armor" % ring_trigger_threshold
+		RingTrigger.ON_TAKE_DAMAGE: return "On Take Damage"
+		RingTrigger.ON_HEAL: return "On Heal"
+		RingTrigger.ON_PLAY_ATTACK_CARD: return "On Play Attack"
+		RingTrigger.ON_PLAY_UTILITY_CARD: return "On Play Utility"
+		RingTrigger.ON_DRAW_CARD: return "On Draw Card"
+		RingTrigger.ON_DISCARD_CARD: return "On Discard"
+		RingTrigger.ON_LOW_HEALTH: return "On Low Health"
+		RingTrigger.ON_FULL_MANA: return "On Full Mana"
+	return ""
+
+func get_ring_effect_name() -> String:
+	match ring_effect:
+		RingEffect.HEAL_TO_FULL: return "Heal to Full"
+		RingEffect.GAIN_ARMOR: return "Gain %d Armor" % ring_effect_value
+		RingEffect.GAIN_MANA: return "Gain %d Mana" % ring_effect_value
+		RingEffect.DRAW_CARD: return "Draw %d Card(s)" % ring_effect_value
+		RingEffect.DEAL_DAMAGE_ALL_ENEMIES: return "Deal %d to All" % ring_effect_value
+		RingEffect.REDUCE_COOLDOWNS: return "Reduce Cooldowns by %d" % ring_effect_value
+		RingEffect.GAIN_TEMP_STRENGTH: return "+%d STR this turn" % ring_effect_value
+	return ""
+
+func is_on_cooldown() -> bool:
+	return current_cooldown > 0
+
+func reduce_cooldown() -> bool:
+	# Returns true if skill just came off cooldown
+	if current_cooldown > 0:
+		current_cooldown -= 1
+		if current_cooldown == 0:
+			return true
+	return false
+
+func activate_skill() -> void:
+	if gauntlet_skill_type == GauntletSkillType.ACTIVE:
+		current_cooldown = gauntlet_skill_cooldown
+
+func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Dictionary:
+	# Returns stats with off-hand penalty/bonus applied
+	var modifier = 1.0
+	if is_off_hand:
+		modifier = off_hand_modifier
+	
+	return {
+		"strength_bonus": floori(strength_bonus * modifier),
+		"dexterity_bonus": floori(dexterity_bonus * modifier),
+		"intelligence_bonus": floori(intelligence_bonus * modifier),
+		"wisdom_bonus": floori(wisdom_bonus * modifier),
+		"determination_bonus": floori(determination_bonus * modifier),
+		"agility_bonus": floori(agility_bonus * modifier),
+		"health_bonus": floori(health_bonus * modifier),
+		"mana_bonus": floori(mana_bonus * modifier),
+		"armor_bonus": floori(armor_bonus * modifier),
+		"damage_percent_bonus": damage_percent_bonus * modifier,
+		"fire_damage_percent": fire_damage_percent * modifier,
+		"ice_damage_percent": ice_damage_percent * modifier,
+		"lightning_damage_percent": lightning_damage_percent * modifier,
+		"weapon_damage": floori(weapon_damage * modifier)
+	}
+
+# ============================================
+# CHARACTER STARTING ITEMS
+# ============================================
+
+static func create_brad_chest() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Bloodbound Plate"
+	item.item_type = ItemType.CHEST
+	item.item_type_name = "Chest"
+	item.weight = 5
+	item.determination_bonus = 2
+	item.special_effect = SpecialEffect.OVERFLOW_HEAL_ARMOR
+	item.special_effect_value = 2
+	item.special_effect_value_2 = 1
+	item.description = "+2 DET. Overflow: Heal 2, +1 Armor"
+	return item
+
+static func create_stephen_boots() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Flickerstep Boots"
+	item.item_type = ItemType.BOOTS
+	item.item_type_name = "Boots"
+	item.weight = 2
+	item.dexterity_bonus = 2
+	item.special_effect = SpecialEffect.GRANT_BLINK_CARD
+	item.special_effect_value = 1
+	item.description = "+2 DEX. Grants 1 Blink card"
+	return item
+
+static func create_cory_gauntlets() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Grasping Gauntlets"
+	item.item_type = ItemType.GAUNTLETS
+	item.item_type_name = "Gauntlets"
+	item.weight = 3
+	item.hand_size_bonus = 2
+	item.special_effect = SpecialEffect.INCREASE_HAND_SIZE
+	item.special_effect_value = 2
+	# Active skill: Power Grip
+	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
+	item.gauntlet_skill_name = "Power Grip"
+	item.gauntlet_skill_description = "Deal 8 damage"
+	item.gauntlet_skill_cooldown = 3
+	item.gauntlet_skill_mana_cost = 2
+	item.gauntlet_skill_effect_id = "power_grip"
+	item.description = "+2 Hand Size. Skill: Power Grip"
+	return item
+
+static func create_jeremy_ring() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Scholar's Signet"
+	item.item_type = ItemType.RING
+	item.item_type_name = "Ring"
+	item.weight = 0
+	item.intelligence_bonus = 3
+	item.special_effect = SpecialEffect.CHANCE_BOOST
+	item.special_effect_value = 3
+	# Ring trigger: On play utility card, gain mana
+	item.ring_trigger = RingTrigger.ON_PLAY_UTILITY_CARD
+	item.ring_effect = RingEffect.GAIN_MANA
+	item.ring_effect_value = 1
+	item.description = "+3 INT. +3% chance. On Utility: +1 Mana"
+	return item
+
+static func create_ryan_belt() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Adventurer's Belt"
+	item.item_type = ItemType.BELT
+	item.item_type_name = "Belt"
+	item.weight = 1
+	item.special_effect = SpecialEffect.GRANT_CARDS
+	item.granted_card_ids = ["healing_potion", "dagger_throw"]
+	item.description = "Grants Healing Potion & Dagger Throw"
+	return item
+
+# ============================================
+# SAMPLE RINGS WITH TRIGGERS
+# ============================================
+
+static func create_ring_of_vengeance() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Ring of Vengeance"
+	item.item_type = ItemType.RING
+	item.item_type_name = "Ring"
+	item.weight = 0
+	item.strength_bonus = 1
+	item.ring_trigger = RingTrigger.ON_ENEMY_KILL
+	item.ring_effect = RingEffect.HEAL_TO_FULL
+	item.description = "+1 STR. On Kill: Heal to Full"
+	return item
+
+static func create_ring_of_fortitude() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Ring of Fortitude"
+	item.item_type = ItemType.RING
+	item.item_type_name = "Ring"
+	item.weight = 0
+	item.determination_bonus = 2
+	item.ring_trigger = RingTrigger.ON_GAIN_ARMOR_THRESHOLD
+	item.ring_trigger_threshold = 10
+	item.ring_effect = RingEffect.GAIN_MANA
+	item.ring_effect_value = 3
+	item.description = "+2 DET. On Gain 10+ Armor: +3 Mana"
+	return item
+
+static func create_ring_of_the_scholar() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Ring of the Scholar"
+	item.item_type = ItemType.RING
+	item.item_type_name = "Ring"
+	item.weight = 0
+	item.intelligence_bonus = 2
+	item.ring_trigger = RingTrigger.ON_DRAW_CARD
+	item.ring_effect = RingEffect.GAIN_MANA
+	item.ring_effect_value = 1
+	item.description = "+2 INT. On Draw: +1 Mana"
+	return item
+
+# ============================================
+# SAMPLE GAUNTLETS WITH SKILLS
+# ============================================
+
+static func create_berserker_gauntlets() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Berserker Gauntlets"
+	item.item_type = ItemType.GAUNTLETS
+	item.item_type_name = "Gauntlets"
+	item.weight = 4
+	item.strength_bonus = 2
+	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
+	item.gauntlet_skill_name = "Rage Strike"
+	item.gauntlet_skill_description = "Deal 15 damage, take 3 damage"
+	item.gauntlet_skill_cooldown = 4
+	item.gauntlet_skill_mana_cost = 3
+	item.gauntlet_skill_effect_id = "rage_strike"
+	item.description = "+2 STR. Skill: Rage Strike"
+	return item
+
+static func create_guardian_gauntlets() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Guardian Gauntlets"
+	item.item_type = ItemType.GAUNTLETS
+	item.item_type_name = "Gauntlets"
+	item.weight = 5
+	item.armor_bonus = 2
+	item.gauntlet_skill_type = GauntletSkillType.PASSIVE
+	item.gauntlet_skill_name = "Stalwart"
+	item.gauntlet_skill_description = "Armor decays 1 less per turn"
+	item.gauntlet_skill_effect_id = "stalwart"
+	item.description = "+2 Armor. Passive: -1 Armor Decay"
+	return item
+
+# ============================================
+# SAMPLE OFF-HAND WEAPONS
+# ============================================
+
+static func create_flame_dagger() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Flame Dagger"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Off-hand"
+	item.weight = 3
+	item.weapon_damage = 5
+	item.fire_damage_percent = 10.0
+	item.weapon_hand = WeaponHand.OFF_HAND
+	item.description = "5 dmg, +10% Fire Damage"
+	return item
+
+static func create_frost_orb() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Frost Orb"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Off-hand"
+	item.weight = 2
+	item.health_bonus = 100
+	item.ice_damage_percent = 10.0
+	item.weapon_hand = WeaponHand.OFF_HAND
+	item.description = "+100 HP, +10% Ice Damage"
+	return item
+
+# ============================================
+# GENERIC ITEMS
+# ============================================
+
+static func create_iron_helm() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Iron Helm"
+	item.item_type = ItemType.HELM
+	item.item_type_name = "Helm"
+	item.weight = 3
+	item.armor_bonus = 2
+	item.description = "+2 Armor"
+	return item
+
+static func create_leather_chest() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Leather Chest"
+	item.item_type = ItemType.CHEST
+	item.item_type_name = "Chest"
+	item.weight = 5
+	item.armor_bonus = 3
+	item.health_bonus = 2
+	item.description = "+3 Armor, +2 HP"
+	return item
+
+static func create_iron_sword() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Iron Sword"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weight = 8
+	item.weapon_damage = 10
+	item.weapon_hand = WeaponHand.MAIN_HAND
+	item.description = "10 damage, Weight 8"
+	return item
+
+static func create_wooden_shield() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Wooden Shield"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Off-hand"
+	item.weight = 4
+	item.armor_bonus = 2
+	item.weapon_hand = WeaponHand.OFF_HAND
+	item.description = "+2 Armor"
+	return item
+
+static func create_gold_ring() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Gold Ring"
+	item.item_type = ItemType.RING
+	item.item_type_name = "Ring"
+	item.weight = 0
+	item.mana_bonus = 2
+	item.description = "+2 Mana"
+	return item
+
+static func create_heavy_greatsword() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Heavy Greatsword"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weight = 18
+	item.weapon_damage = 25
+	item.weapon_hand = WeaponHand.TWO_HAND
+	item.is_two_handed = true
+	item.description = "25 damage, Weight 18, Two-handed"
+	return item
+
+static func create_leather_boots() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Leather Boots"
+	item.item_type = ItemType.BOOTS
+	item.item_type_name = "Boots"
+	item.weight = 2
+	item.agility_bonus = 2
+	item.description = "+2 Agility"
+	return item
+
+static func create_iron_gauntlets() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Iron Gauntlets"
+	item.item_type = ItemType.GAUNTLETS
+	item.item_type_name = "Gauntlets"
+	item.weight = 3
+	item.strength_bonus = 1
+	item.armor_bonus = 1
+	item.description = "+1 Strength, +1 Armor"
+	return item
+
+static func create_utility_belt() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Utility Belt"
+	item.item_type = ItemType.BELT
+	item.item_type_name = "Belt"
+	item.weight = 1
+	item.wisdom_bonus = 1
+	item.description = "+1 Wisdom"
+	return item

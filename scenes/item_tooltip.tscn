@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://bb1b2leqflyno"]
+
+[ext_resource type="Script" uid="uid://fk5lfivhtwac" path="res://scripts/item_tooltip.gd" id="1_3gh8j"]
+
+[node name="ItemTooltip" type="PanelContainer" unique_id=1557791348]
+script = ExtResource("1_3gh8j")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1233986098]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer" unique_id=1751132842]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="MarginContainer/VBox" unique_id=318209188]
+layout_mode = 2
+
+[node name="TypeLabel" type="Label" parent="MarginContainer/VBox" unique_id=1323833608]
+layout_mode = 2
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBox" unique_id=317952607]
+layout_mode = 2
+
+[node name="StatsLabel" type="Label" parent="MarginContainer/VBox" unique_id=1307713479]
+layout_mode = 2
+
+[node name="EffectLabel" type="Label" parent="MarginContainer/VBox" unique_id=923353796]
+layout_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="MarginContainer/VBox" unique_id=1559587211]
+layout_mode = 2
+
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/VBox" unique_id=785867807]
+layout_mode = 2

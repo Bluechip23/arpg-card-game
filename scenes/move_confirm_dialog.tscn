@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://cpkn0agpgdjlg"]
+
+[ext_resource type="Script" uid="uid://bjlcbvehxukfh" path="res://scripts/move_confirm_dialog.gd" id="1_3snws"]
+
+[node name="MoveConfirmDialog" type="CanvasLayer" unique_id=1236181644]
+script = ExtResource("1_3snws")
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=588240146]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=880887289]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/VBox" unique_id=1204915198]
+layout_mode = 2
+text = "Move X Spaces?"
+
+[node name="Buttons" type="HBoxContainer" parent="Panel/VBox" unique_id=1897406355]
+layout_mode = 2
+
+[node name="YesButton" type="Button" parent="Panel/VBox/Buttons" unique_id=1975480168]
+layout_mode = 2
+text = "Yes"
+
+[node name="NoButton" type="Button" parent="Panel/VBox/Buttons" unique_id=362463378]
+layout_mode = 2
+text = "No"

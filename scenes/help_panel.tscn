@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://c678mip6samfq"]
+
+[ext_resource type="Script" uid="uid://c5c5ntadnjjru" path="res://scripts/help_panel.gd" id="1_qdojy"]
+[ext_resource type="Script" uid="uid://dqbihavysh8oj" path="res://scripts/keyword_legend.gd" id="2_qqh8e"]
+[ext_resource type="Script" uid="uid://x10g2mby5byo" path="res://scripts/gameplay_walkthrough.gd" id="3_1xcf2"]
+
+[node name="HelpPanel" type="CanvasLayer" unique_id=1161948430]
+script = ExtResource("1_qdojy")
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=1301120916]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="CloseButton" type="Button" parent="Panel" unique_id=1293055588]
+layout_mode = 2
+
+[node name="TabContainer" type="TabContainer" parent="Panel" unique_id=319236502]
+layout_mode = 2
+current_tab = 0
+
+[node name="KeywordLegend" type="ScrollContainer" parent="Panel/TabContainer" unique_id=1767088158]
+layout_mode = 2
+script = ExtResource("2_qqh8e")
+metadata/_tab_index = 0
+
+[node name="Content" type="VBoxContainer" parent="Panel/TabContainer/KeywordLegend" unique_id=1960185911]
+layout_mode = 2
+
+[node name="GameplayWalkthrough" type="ScrollContainer" parent="Panel/TabContainer" unique_id=1792420454]
+visible = false
+layout_mode = 2
+script = ExtResource("3_1xcf2")
+metadata/_tab_index = 1
+
+[node name="Content" type="RichTextLabel" parent="Panel/TabContainer/GameplayWalkthrough" unique_id=571175346]
+layout_mode = 2

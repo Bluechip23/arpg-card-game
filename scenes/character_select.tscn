@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://vvkvkloqk4r5"]
+
+[ext_resource type="Script" uid="uid://ceobwoedcdv1n" path="res://scripts/character_select.gd" id="1_x8mhf"]
+
+[node name="CharacterSelect" type="Control" unique_id=317028216]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_x8mhf")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1612375272]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="CharacterContainer" type="HBoxContainer" parent="VBox" unique_id=101367948]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="VBox" unique_id=839287902]
+layout_mode = 2
+text = "Choose Your Character"
