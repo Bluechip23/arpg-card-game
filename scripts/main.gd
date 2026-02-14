@@ -102,7 +102,7 @@ func _on_walkthrough_pressed() -> void:
 func _on_help_closed() -> void:
 	pass  # Resume game if needed
 func _setup_overflow_buttons() -> void:
-	var modes = ["Jailed", "Enhance", "Peak", "Transferred"]
+	var modes = ["Jailed", "Enhance", "Peak", "Transferred", "Overcharge", "Manifest"]
 	
 	for i in range(modes.size()):
 		var button = Button.new()
@@ -144,6 +144,10 @@ func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 	if inventory.use_gauntlet_skill(gauntlet, target):
 		tempo_manager.add_tempo(1)  # Skills cost 1 tempo
 		_update_gauntlet_skills_ui()
+
+func _on_gauntlet_skill_ready(_gauntlet: ItemData) -> void:
+	_update_gauntlet_skills_ui()
+
 func select_character(character: CharacterData) -> void:
 	current_character = character
 	
@@ -170,6 +174,10 @@ func select_character(character: CharacterData) -> void:
 	
 	deck_manager.initialize_deck(character)
 	_setup_gauntlet_skills_ui()
+	# Connect gauntlet cooldown signal so UI updates when skills come off cooldown
+	var inventory = player.get_inventory()
+	if inventory and not inventory.gauntlet_skill_ready.is_connected(_on_gauntlet_skill_ready):
+		inventory.gauntlet_skill_ready.connect(_on_gauntlet_skill_ready)
 	_on_hand_updated()
 	update_deck_info()
 	update_selected_display()
@@ -265,20 +273,28 @@ func _on_overflow_button_pressed(mode_index: int) -> void:
 func _on_hand_updated() -> void:
 	for child in hand_container.get_children():
 		child.queue_free()
-	
+
 	var debuff_mgr = player.get_debuff_manager()
-	
+
 	# Assign Hexed/Locked cards if needed
 	deck_manager.assign_hexed_locked_cards(debuff_mgr)
-	
+
+	# Roll RNG for cards that haven't been rolled yet
+	var enemies = enemy_spawner.get_living_enemies()
+	var chance_boost = player.get_stats().chance_boost
+	for card in deck_manager.hand:
+		if card.has_chance_effect() and card.rng_outcomes.is_empty():
+			card.roll_rng(enemies, chance_boost)
+			card.rng_roll_turn = turn_manager.current_turn
+
 	for i in range(deck_manager.hand.size()):
 		var card_ui = CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
 		card_ui.setup(deck_manager.hand[i], i, debuff_mgr)
-	
+
 	if selected_card_index >= deck_manager.hand.size():
 		selected_card_index = -1
-	
+
 	update_deck_info()
 	update_selected_display()
 	update_card_highlights()
@@ -438,14 +454,17 @@ func _apply_magnetize_pull(tiles: int) -> void:
 func _reroll_card_rng() -> void:
 	var enemies = enemy_spawner.get_living_enemies()
 	var chance_boost = player.get_stats().chance_boost
-	
+
 	for card in deck_manager.hand:
 		if card.has_chance_effect():
 			if card.should_reroll_rng(turn_manager.current_turn):
 				card.roll_rng(enemies, chance_boost)
 				card.rng_roll_turn = turn_manager.current_turn
-	
-	_on_hand_updated()	
+
+	# Update chance displays on existing card UIs
+	for child in hand_container.get_children():
+		if child is CardUI:
+			child.update_chance_display()
 	
 func _on_tempo_changed(current: int, threshold: int) -> void:
 	update_turn_display()
