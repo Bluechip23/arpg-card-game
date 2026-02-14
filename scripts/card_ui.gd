@@ -8,7 +8,7 @@ extends PanelContainer
 @onready var desc_label: Label = $Panel/VBox/DescLabel
 @onready var cost_label: Label = $Panel/VBox/CostLabel
 @onready var keybind_label: Label = $Panel/VBox/KeybindLabel
-@onready var chance_label: Label = $VBox/ChanceLabel
+@onready var chance_label: Label = $Panel/VBox/ChanceLabel
 
 var _card: Card
 var _index: int
