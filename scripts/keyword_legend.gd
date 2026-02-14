@@ -22,7 +22,7 @@ func _build_legend() -> void:
 	_add_keyword("Dexterity (DEX)", "-1 attack speed counter per point. At 0 counter: next attack costs 2 less mana + no tempo")
 	_add_keyword("Intelligence (INT)", "+1 spell damage per point, +1 mana regen per 5 points")
 	_add_keyword("Wisdom (WIS)", "+1 hand size per 5 points, -0.25 draw timer per point")
-	_add_keyword("Agility (AGI)", "Determines free movements before tempo is added. Free moves = 1 + floor(AGI/5)")
+	_add_keyword("Agility (AGI)", "Determines movements per tempo. Every 5 AGI = 1 free movement. AGI 5 = 1, AGI 10 = 2, etc.")
 	_add_keyword("Determination (DET)", "Modifies STR/DEX/INT/WIS/AGI at low health thresholds")
 	
 	# Debuffs Section

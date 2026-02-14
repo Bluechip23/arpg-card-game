@@ -49,4 +49,4 @@ layout_mode = 2
 
 [node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBox" unique_id=355204369]
 layout_mode = 2
-text = "Close [C]"
+text = "Close [I]"

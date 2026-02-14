@@ -7,7 +7,7 @@ signal tempo_changed(current: int, threshold: int)
 signal tempo_threshold_reached(times: int)  # How many times threshold was crossed
 signal turn_triggered  # A "turn" now means tempo threshold reached
 
-@export var tempo_threshold: int = 5
+@export var tempo_threshold: int = 20
 
 var current_tempo: int = 0
 var movements_since_tempo: int = 0  # Track movements for AGI-based free moves
@@ -62,9 +62,9 @@ func add_movement_tempo() -> void:
 func get_free_moves_from_agility() -> int:
 	if not player_stats:
 		return 1
-	# Base 1 free move + 1 per 5 AGI
-	# AGI 5 = 2 free moves, AGI 10 = 3 free moves, etc.
-	return 1 + floori(player_stats.agility / 5.0)
+	# Every 5 AGI grants 1 movement per tempo
+	# AGI 5 = 1 free move, AGI 10 = 2 free moves, etc.
+	return max(1, floori(player_stats.agility / 5.0))
 
 func reset_movement_counter() -> void:
 	# Call this at start of player action phase if needed

@@ -54,7 +54,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 			cost_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
 		elif is_hexed:
 			cost_label.add_theme_color_override("font_color", Color(0.6, 0.0, 0.6))
-		elif card.tempo_cost == 0:
+		elif card.tempo_cost <= 1:
 			cost_label.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 		else:
 			cost_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
@@ -76,18 +76,55 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 
 var _is_hexed: bool = false
 var _is_locked: bool = false
+var _base_position_y: float = 0.0
+var _position_initialized: bool = false
 
 func _update_visual() -> void:
+	# Store base position on first call
+	if not _position_initialized:
+		_base_position_y = position.y
+		_position_initialized = true
+
 	if _is_locked:
 		modulate = Color(0.4, 0.4, 0.4, 0.7)  # Grayed out
+		position.y = _base_position_y
+		_clear_gold_trim()
 	elif _selected:
-		modulate = Color(1, 1, 0.5)
+		modulate = Color(1, 1, 1)
+		# Raise the card up
+		position.y = _base_position_y - 12
+		# Apply gold trim border
+		_apply_gold_trim()
 	elif _is_hexed:
 		modulate = Color(0.8, 0.5, 0.8)  # Purple tint
+		position.y = _base_position_y
+		_clear_gold_trim()
 	elif _card and _card.is_enhanced:
 		modulate = Color(0.5, 1, 0.5)
+		position.y = _base_position_y
+		_clear_gold_trim()
 	else:
 		modulate = Color(1, 1, 1)
+		position.y = _base_position_y
+		_clear_gold_trim()
+
+func _apply_gold_trim() -> void:
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.15, 0.15, 0.2, 1.0)
+	style.border_width_left = 3
+	style.border_width_right = 3
+	style.border_width_top = 3
+	style.border_width_bottom = 3
+	style.border_color = Color(1.0, 0.84, 0.0)  # Gold
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	add_theme_stylebox_override("panel", style)
+
+func _clear_gold_trim() -> void:
+	if has_theme_stylebox_override("panel"):
+		remove_theme_stylebox_override("panel")
 
 func _get_keybind_text(index: int) -> String:
 	if index >= 0 and index < KEYBIND_LABELS.size():

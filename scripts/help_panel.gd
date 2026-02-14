@@ -6,8 +6,8 @@ extends CanvasLayer
 signal closed
 
 @onready var panel: PanelContainer = $Panel
-@onready var tab_container: TabContainer = $Panel/TabContainer
-@onready var close_button: Button = $Panel/CloseButton
+@onready var tab_container: TabContainer = $Panel/MarginContainer/VBox/TabContainer
+@onready var close_button: Button = $Panel/MarginContainer/VBox/CloseButton
 
 func _ready() -> void:
 	visible = false

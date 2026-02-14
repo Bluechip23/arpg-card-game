@@ -171,7 +171,7 @@ text = "A/S/D/F/G - Select card
 Left-click enemy - Play card
 Right-click - Move player
 ESC - Deselect card
-C - Character Panel"
+I - Character Panel"
 horizontal_alignment = 2
 
 [node name="CharacterButtons" type="HBoxContainer" parent="UI" unique_id=1795835475]
