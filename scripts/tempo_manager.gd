@@ -7,7 +7,7 @@ signal tempo_changed(current: int, threshold: int)
 signal tempo_threshold_reached(times: int)  # How many times threshold was crossed
 signal turn_triggered  # A "turn" now means tempo threshold reached
 
-@export var tempo_threshold: int = 20
+@export var tempo_threshold: int = 5
 
 var current_tempo: int = 0
 var movements_since_tempo: int = 0  # Track movements for AGI-based free moves

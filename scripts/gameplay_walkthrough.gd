@@ -21,7 +21,7 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=yellow]How Tempo Works:[/color]
 - Every action (playing cards, moving) adds to your tempo counter
-- When tempo reaches the threshold (default: 20), enemies take their turn
+- When tempo reaches the threshold (default: 5), enemies take their turn
 - The counter then resets (overflow carries over)
 - Quick actions cost 1 tempo, attacks cost 4, defense costs 2
 
