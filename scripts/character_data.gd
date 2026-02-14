@@ -21,7 +21,7 @@ extends Resource
 @export var base_hand_size: int = 6
 
 @export var unique_card_id: String = ""
-var starting_card_ids: Array[String] = []  # Character-specific cards added to starting deck
+var starting_card_ids: Array = []  # Character-specific cards added to starting deck
 
 # Calculate derived stats from core stats
 func get_max_hand_size() -> int:
