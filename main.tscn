@@ -14,12 +14,12 @@
 [ext_resource type="Script" uid="uid://6ty571lmt7o4" path="res://scripts/debuff_bar_ui.gd" id="11_ycdy4"]
 [ext_resource type="Script" uid="uid://gux66qga1qrl" path="res://scripts/overflow_manager.gd" id="12_w48qg"]
 [ext_resource type="Script" uid="uid://lu2qeaha3ydo" path="res://scripts/aoe_indicator.gd" id="13_cegan"]
-[ext_resource type="Script" uid="uid://cdke2k3urlbfy" path="res://scripts/manifest_ui.gd" id="15_2cqfq"]
-[ext_resource type="Script" uid="uid://u4eaeebqma3m" path="res://scripts/overflow_ui.gd" id="16_yaehf"]
-[ext_resource type="Script" uid="uid://c5c5ntadnjjru" path="res://scripts/help_panel.gd" id="17_074og"]
-[ext_resource type="Script" uid="uid://bowopvb7tnvs6" path="res://scripts/help_button.gd" id="17_cegan"]
 [ext_resource type="Script" uid="uid://bwhleeil4d864" path="res://scripts/buff_bar_ui.gd" id="17_yaehf"]
 [ext_resource type="PackedScene" uid="uid://bb1b2leqflyno" path="res://scenes/item_tooltip.tscn" id="18_tooltip"]
+[ext_resource type="PackedScene" uid="uid://c678mip6samfq" path="res://scenes/help_panel.tscn" id="19_help"]
+[ext_resource type="PackedScene" uid="uid://dj67nrwolfc4p" path="res://scenes/overflow_ui.tscn" id="20_overflow"]
+[ext_resource type="PackedScene" uid="uid://3cxn1hbdk2os" path="res://scenes/manifest_ui.tscn" id="21_manifest"]
+[ext_resource type="PackedScene" uid="uid://dmw2cplrsglq1" path="res://scenes/help_buttons.tscn" id="22_helpbtn"]
 
 [node name="Main" type="Node2D" unique_id=805844600]
 script = ExtResource("1_main")
@@ -55,9 +55,7 @@ color = Color(0.15, 0.15, 0.2, 1)
 [node name="OverflowManager" type="Node" parent="." unique_id=1610084088]
 script = ExtResource("12_w48qg")
 
-[node name="HelpPanel" type="CanvasLayer" parent="." unique_id=1333283261]
-script = ExtResource("17_074og")
-metadata/_custom_type_script = "uid://c5c5ntadnjjru"
+[node name="HelpPanel" parent="." unique_id=1333283261 instance=ExtResource("19_help")]
 
 [node name="AOEIndicator" type="Node2D" parent="." unique_id=405332433]
 script = ExtResource("13_cegan")
@@ -202,11 +200,7 @@ text = "Tempo:"
 [node name="TempoBar" type="ProgressBar" parent="UI/TempoContainer" unique_id=1788856226]
 layout_mode = 2
 
-[node name="OverflowUI" type="PanelContainer" parent="UI" unique_id=1611580908]
-offset_right = 40.0
-offset_bottom = 40.0
-script = ExtResource("16_yaehf")
-metadata/_custom_type_script = "uid://u4eaeebqma3m"
+[node name="OverflowUI" parent="UI" unique_id=1611580908 instance=ExtResource("20_overflow")]
 
 [node name="DebuffBar" type="HBoxContainer" parent="UI" unique_id=365070236]
 offset_right = 40.0
@@ -218,19 +212,13 @@ offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("17_yaehf")
 
-[node name="ManifestUI" type="PanelContainer" parent="UI" unique_id=1531259538]
+[node name="ManifestUI" parent="UI" unique_id=1531259538 instance=ExtResource("21_manifest")]
 offset_left = 185.0
 offset_top = 47.0
 offset_right = 185.0
 offset_bottom = 47.0
-script = ExtResource("15_2cqfq")
-metadata/_custom_type_script = "uid://cdke2k3urlbfy"
 
-[node name="HelpButtons" type="HBoxContainer" parent="UI" unique_id=451421031]
-offset_right = 40.0
-offset_bottom = 40.0
-script = ExtResource("17_cegan")
-metadata/_custom_type_script = "uid://bowopvb7tnvs6"
+[node name="HelpButtons" parent="UI" unique_id=451421031 instance=ExtResource("22_helpbtn")]
 
 [node name="GauntletSkillsContainer" type="HBoxContainer" parent="UI" unique_id=1433405863]
 offset_right = 40.0
