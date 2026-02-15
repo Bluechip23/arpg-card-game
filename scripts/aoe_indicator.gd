@@ -100,7 +100,8 @@ func _create_enemy_indicator(enemy, success: bool) -> void:
 	var indicator = ColorRect.new()
 	indicator.size = Vector2(60, 10)
 	indicator.position = enemy.global_position + Vector2(-30, 40)
-	indicator.color = Color(0, 1, 0, 0.7) if success else Color(1, 0, 0, 0.7)
+	# AOE uses shaded/muted versions of the colors
+	indicator.color = Color(0.3, 0.8, 0.4, 0.55) if success else Color(0.8, 0.3, 0.3, 0.55)
 	get_tree().root.add_child(indicator)
 	enemy_indicators[enemy.get_instance_id()] = indicator
 

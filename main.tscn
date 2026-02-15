@@ -221,8 +221,17 @@ offset_bottom = 47.0
 [node name="HelpButtons" parent="UI" unique_id=451421031 instance=ExtResource("22_helpbtn")]
 
 [node name="GauntletSkillsContainer" type="HBoxContainer" parent="UI" unique_id=1433405863]
-offset_right = 40.0
-offset_bottom = 40.0
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 200.0
+offset_top = -200.0
+offset_right = -200.0
+offset_bottom = -170.0
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 1
 
 [node name="SelectedLabel" type="Label" parent="UI"]
 offset_left = 124.0

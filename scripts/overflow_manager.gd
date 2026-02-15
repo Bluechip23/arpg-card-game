@@ -209,12 +209,12 @@ func _process_enhance(card: Card, effect: OverflowEffect) -> void:
 		remove_overflow_effect(effect)
 
 func _process_transferred(card: Card, effect: OverflowEffect) -> void:
-	# TODO: Transfer to ally if ally system exists
+	# Transferred cards go straight to the discard pile
 	if deck_manager:
 		deck_manager.discard_pile.append(card)
-	
-	print("[OVERFLOW] Transferred: %s (discarded - no ally)" % card.card_name)
-	
+
+	print("[OVERFLOW] Transferred: %s sent to discard pile" % card.card_name)
+
 	if effect.use_charge():
 		remove_overflow_effect(effect)
 

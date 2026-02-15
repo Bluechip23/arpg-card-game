@@ -75,10 +75,15 @@ func _build_legend() -> void:
 	_add_keyword("Jailed", "Card goes to jail for 3 turns, cannot be played")
 	_add_keyword("Manifest", "Card goes to manifest zone as a token. Click to activate the manifest effect, then card is discarded")
 	_add_keyword("Enhance", "Attack cards gain +X bonus damage, then discarded")
-	_add_keyword("Transferred", "Card is given to an ally (or discarded if no ally)")
+	_add_keyword("Transferred", "Overflow card is sent to the discard pile")
 	_add_keyword("Peak", "See the next card on draw pile (doesn't block other effects)")
 	_add_keyword("Overcharge", "Triggers an effect when overflow occurs (doesn't block other effects)")
 	
+	# Range Section
+	_add_section_header("RANGE")
+	_add_keyword("Melee", "Card must be used at close range (default for all cards)", Color(0.9, 0.6, 0.3))
+	_add_keyword("Ranged", "Card can be used at distance. Base range = 5 tiles. Ranged +X = 5+X, Ranged -X = 5-X", Color(0.3, 0.8, 0.9))
+
 	# Card Types Section
 	_add_section_header("CARD TYPES")
 	_add_keyword("Attack", "Offensive cards that deal damage", Color(1, 0.3, 0.3))

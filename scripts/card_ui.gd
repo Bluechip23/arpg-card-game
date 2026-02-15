@@ -5,6 +5,7 @@ extends PanelContainer
 
 @onready var name_label: Label = $Panel/VBox/NameLabel
 @onready var type_label: Label = $Panel/VBox/TypeLabel
+@onready var range_label: Label = $Panel/VBox/RangeLabel
 @onready var desc_label: Label = $Panel/VBox/DescLabel
 @onready var cost_label: Label = $Panel/VBox/CostLabel
 @onready var keybind_label: Label = $Panel/VBox/KeybindLabel
@@ -33,9 +34,16 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 			Card.CardType.UTILITY:
 				type_label.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
 	
+	if range_label:
+		range_label.text = card.get_range_display()
+		if card.is_ranged:
+			range_label.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
+		else:
+			range_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.3))
+
 	if desc_label:
 		desc_label.text = card.description
-	
+
 	# Calculate displayed mana cost with debuff modifiers
 	var display_mana = card.mana_cost
 	var is_hexed = false

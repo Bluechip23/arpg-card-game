@@ -30,14 +30,14 @@ func update_display() -> void:
 	_on_cooldown = gauntlet.is_on_cooldown()
 	
 	if _on_cooldown:
-		# Shadowed/disabled look
-		modulate = Color(0.4, 0.4, 0.4, 0.8)
+		# Transparent/faded look so player knows it's unavailable
+		modulate = Color(0.5, 0.5, 0.5, 0.35)
 		disabled = true
 		if cooldown_label:
 			cooldown_label.visible = true
 			cooldown_label.text = str(gauntlet.current_cooldown)
 	else:
-		# Active look
+		# Active and fully visible
 		modulate = Color(1, 1, 1, 1)
 		disabled = false
 		if cooldown_label:
