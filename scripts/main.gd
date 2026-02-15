@@ -14,7 +14,7 @@ extends Node2D
 @onready var item_tooltip: ItemTooltip = $UI/ItemTooltip
 @onready var aoe_indicator: AOEIndicator = $AOEIndicator
 @onready var debuff_bar: DebuffBarUI = $UI/DebuffBar
-@onready var hand_container: HBoxContainer = $UI/HandArea/HandContainer
+@onready var hand_container: Control = $UI/HandArea/HandContainer
 @onready var draw_label: Label = $UI/DeckInfo/DrawPileLabel
 @onready var discard_label: Label = $UI/DeckInfo/DiscardPileLabel
 @onready var jail_label: Label = $UI/DeckInfo/JailPileLabel
@@ -127,8 +127,8 @@ func _setup_hand_area_background() -> void:
 	style.border_width_top = 2
 	style.border_color = Color(0.3, 0.3, 0.4, 1.0)
 	hand_area.add_theme_stylebox_override("panel", style)
-	# Ensure hand area clips content and sits on top
-	hand_area.clip_contents = true
+	# Do NOT clip - cards need to pop up above the hand area on hover
+	hand_area.clip_contents = false
 
 func _setup_deck_list_button() -> void:
 	var hand_area = $UI/HandArea as PanelContainer
@@ -537,10 +537,52 @@ func _on_hand_updated() -> void:
 			card.roll_rng(enemies, chance_boost)
 			card.rng_roll_turn = turn_manager.current_turn
 
-	for i in range(deck_manager.hand.size()):
+	var hand_size = deck_manager.hand.size()
+	if hand_size == 0:
+		if selected_card_index >= 0:
+			selected_card_index = -1
+		update_deck_info()
+		update_selected_display()
+		update_card_highlights()
+		return
+
+	var card_width: float = 120.0
+	var card_height: float = 160.0
+	var container_width: float = hand_container.size.x
+	if container_width <= 0:
+		container_width = 1080.0  # fallback
+
+	# Calculate spacing: fit all cards proportionally within the container
+	# If cards would fit without overlap, space them evenly
+	# If not, overlap them so they all fit
+	var total_cards_width = card_width * hand_size
+	var spacing: float
+	if total_cards_width <= container_width:
+		# Cards fit - distribute evenly across the space
+		if hand_size == 1:
+			spacing = 0.0
+		else:
+			spacing = (container_width - card_width) / (hand_size - 1)
+		# Cap spacing so cards don't spread too far apart
+		spacing = min(spacing, card_width + 8.0)
+	else:
+		# Cards overlap - shrink spacing to fit
+		spacing = (container_width - card_width) / max(hand_size - 1, 1)
+
+	# Center the hand within the container
+	var total_hand_width = card_width + spacing * max(hand_size - 1, 0)
+	var start_x = (container_width - total_hand_width) / 2.0
+	var card_y = (hand_container.size.y - card_height) / 2.0
+	if card_y < 0:
+		card_y = 0.0
+
+	for i in range(hand_size):
 		var card_ui = CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
 		card_ui.setup(deck_manager.hand[i], i, debuff_mgr)
+		card_ui.position = Vector2(start_x + i * spacing, card_y)
+		card_ui.z_index = i
+		card_ui.store_base_position()
 
 	if selected_card_index >= deck_manager.hand.size():
 		selected_card_index = -1

@@ -13,6 +13,11 @@ extends PanelContainer
 var _card: Card
 var _index: int
 var _selected: bool = false
+var _is_hexed: bool = false
+var _is_locked: bool = false
+var _is_hovered: bool = false
+var _base_y: float = 0.0
+var _base_z: int = 0
 
 const KEYBIND_LABELS = ["A", "S", "D", "F", "G", "Q", "W", "E", "R", "T", "Z", "X", "C", "V", "B"]
 
@@ -73,11 +78,22 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 	_is_locked = is_locked
 	_update_visual()
 
-var _is_hexed: bool = false
-var _is_locked: bool = false
-var _base_position_y: float = 0.0
-var _position_initialized: bool = false
-var _is_hovered: bool = false
+func _ready() -> void:
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+
+func store_base_position() -> void:
+	_base_y = position.y
+	_base_z = z_index
+
+func _on_mouse_entered() -> void:
+	_is_hovered = true
+	_update_visual()
+
+func _on_mouse_exited() -> void:
+	_is_hovered = false
+	_update_visual()
 
 func _update_description() -> void:
 	if not desc_label or not _card:
@@ -93,36 +109,35 @@ func update_chance_display() -> void:
 	_update_description()
 
 func _update_visual() -> void:
-	# Store base position on first call
-	if not _position_initialized:
-		_base_position_y = position.y
-		_position_initialized = true
-
 	if _is_locked:
-		modulate = Color(0.4, 0.4, 0.4, 0.7)  # Grayed out
-		position.y = _base_position_y
+		modulate = Color(0.4, 0.4, 0.4, 0.7)
+		position.y = _base_y
+		z_index = _base_z
 		_clear_gold_trim()
 	elif _selected:
 		modulate = Color(1, 1, 1)
-		# Raise the card up
-		position.y = _base_position_y - 30
-		# Apply gold trim border
+		position.y = _base_y - 40
+		z_index = 100
 		_apply_gold_trim()
 	elif _is_hovered:
 		modulate = Color(1, 1, 1)
-		position.y = _base_position_y - 20
+		position.y = _base_y - 30
+		z_index = 99
 		_clear_gold_trim()
 	elif _is_hexed:
-		modulate = Color(0.8, 0.5, 0.8)  # Purple tint
-		position.y = _base_position_y
+		modulate = Color(0.8, 0.5, 0.8)
+		position.y = _base_y
+		z_index = _base_z
 		_clear_gold_trim()
 	elif _card and _card.is_enhanced:
 		modulate = Color(0.5, 1, 0.5)
-		position.y = _base_position_y
+		position.y = _base_y
+		z_index = _base_z
 		_clear_gold_trim()
 	else:
 		modulate = Color(1, 1, 1)
-		position.y = _base_position_y
+		position.y = _base_y
+		z_index = _base_z
 		_clear_gold_trim()
 
 func _apply_gold_trim() -> void:
@@ -147,18 +162,6 @@ func _get_keybind_text(index: int) -> String:
 	if index >= 0 and index < KEYBIND_LABELS.size():
 		return "[%s]" % KEYBIND_LABELS[index]
 	return ""
-
-func _ready() -> void:
-	mouse_entered.connect(_on_mouse_entered)
-	mouse_exited.connect(_on_mouse_exited)
-
-func _on_mouse_entered() -> void:
-	_is_hovered = true
-	_update_visual()
-
-func _on_mouse_exited() -> void:
-	_is_hovered = false
-	_update_visual()
 
 func set_selected(selected: bool) -> void:
 	_selected = selected
