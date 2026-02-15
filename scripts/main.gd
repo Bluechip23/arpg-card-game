@@ -593,8 +593,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Taunted %d enemies for 2 turns" % nearby.size())
 
 		"charge":
-			# Move player toward mouse position, damage all enemies in path, knock them back
-			var snapped_target = grid_manager.snap_to_grid(mouse_pos)
+			# Move player toward targeted enemy, damage all enemies in path, knock them back
+			var charge_dest = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var snapped_target = grid_manager.snap_to_grid(charge_dest)
 			var start_pos = player.position
 			# Teleport player to charge destination (no tempo for this movement)
 			player.position = snapped_target

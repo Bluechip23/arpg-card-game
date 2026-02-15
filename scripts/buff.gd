@@ -19,7 +19,8 @@ enum BuffType {
 	BRACE,
 	RESILIENT,
 	LIFE_STEAL,
-	MORPHINE
+	MORPHINE,
+	WEAR_DOWN
 }
 
 var buff_type: BuffType
@@ -88,6 +89,9 @@ func _set_name_and_description() -> void:
 		BuffType.MORPHINE:
 			buff_name = "Morphine"
 			description = "Temp HP active. Lose %d armor and take 2 damage when expired" % value
+		BuffType.WEAR_DOWN:
+			buff_name = "Wear Down"
+			description = "Each attack reduces target's attack by 1 (stacks) for %d turns" % duration
 
 func tick() -> bool:
 	# Called each turn. Returns true if buff expired by duration.
@@ -132,6 +136,7 @@ func get_icon_color() -> Color:
 		BuffType.RESILIENT: return Color(0.7, 0.6, 0.9)
 		BuffType.LIFE_STEAL: return Color(0.9, 0.2, 0.4)
 		BuffType.MORPHINE: return Color(1.0, 0.6, 0.8)
+		BuffType.WEAR_DOWN: return Color(0.9, 0.6, 0.3)
 	return Color.WHITE
 
 func get_short_display() -> String:
@@ -233,5 +238,10 @@ static func create_life_steal(source: String = "") -> Buff:
 
 static func create_morphine(armor_amount: int = 4, duration: int = 3, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.MORPHINE, armor_amount, duration)
+	buff.source_name = source
+	return buff
+
+static func create_wear_down(duration: int = 3, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.WEAR_DOWN, 0, duration)
 	buff.source_name = source
 	return buff

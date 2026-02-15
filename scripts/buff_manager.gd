@@ -168,6 +168,9 @@ func on_attacked(attacker) -> void:
 		thorns_triggered.emit(thorns_damage)
 		print("[BUFF] Thorns deals %d damage to attacker!" % thorns_damage)
 
+func has_wear_down() -> bool:
+	return has_buff(Buff.BuffType.WEAR_DOWN)
+
 func has_life_steal() -> bool:
 	return has_buff(Buff.BuffType.LIFE_STEAL)
 
