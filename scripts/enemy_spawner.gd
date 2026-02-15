@@ -88,5 +88,27 @@ func get_enemy_at_position(pos: Vector2, radius: float = 50.0) -> Enemy:
 				return enemy
 	return null
 
+func get_enemies_in_radius(pos: Vector2, radius: float) -> Array[Enemy]:
+	var result: Array[Enemy] = []
+	for enemy in enemies:
+		if is_instance_valid(enemy) and enemy.is_alive():
+			if enemy.position.distance_to(pos) <= radius:
+				result.append(enemy)
+	return result
+
+func get_enemies_in_line(start: Vector2, end: Vector2, width: float = 40.0) -> Array[Enemy]:
+	var result: Array[Enemy] = []
+	var line_dir = (end - start).normalized()
+	var line_length = start.distance_to(end)
+	for enemy in enemies:
+		if is_instance_valid(enemy) and enemy.is_alive():
+			var to_enemy = enemy.position - start
+			var projection = to_enemy.dot(line_dir)
+			if projection >= 0 and projection <= line_length:
+				var closest_point = start + line_dir * projection
+				if enemy.position.distance_to(closest_point) <= width:
+					result.append(enemy)
+	return result
+
 func get_enemy_count() -> int:
 	return get_living_enemies().size()

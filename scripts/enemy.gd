@@ -26,6 +26,12 @@ var is_dead: bool = false
 
 var grid_manager: GridManager
 
+# Status effects applied by player cards
+var taunt_target: Node2D = null
+var taunt_turns: int = 0
+var attack_reduction: int = 0
+var attack_reduction_turns: int = 0
+
 @onready var sprite: ColorRect = $Sprite2D
 @onready var health_bar: ProgressBar = $HealthBar
 @onready var health_label: Label = $HealthLabel
@@ -128,22 +134,37 @@ func take_turn(player_node: Node2D) -> void:
 	if is_dead:
 		turn_completed.emit()
 		return
-	
+
 	if not player_node:
 		turn_completed.emit()
 		return
-	
-	var distance_to_player = position.distance_to(player_node.position)
-	
-	# If in attack range, attack
-	if distance_to_player <= attack_range:
-		attack_player(player_node)
+
+	# Tick down status effects
+	if taunt_turns > 0:
+		taunt_turns -= 1
+		if taunt_turns <= 0:
+			taunt_target = null
+			print("[%s] Taunt expired" % enemy_name)
+
+	if attack_reduction_turns > 0:
+		attack_reduction_turns -= 1
+		if attack_reduction_turns <= 0:
+			attack_reduction = 0
+			print("[%s] Wear Down expired" % enemy_name)
+
+	# Determine who to move toward / attack
+	var move_target = player_node
+	if taunt_target and is_instance_valid(taunt_target):
+		move_target = taunt_target
+
+	var distance_to_target = position.distance_to(move_target.position)
+
+	if distance_to_target <= attack_range:
+		attack_player(move_target)
 		turn_completed.emit()
-	# If in aggro range, move toward player
-	elif distance_to_player <= aggro_range:
-		move_towards_target(player_node.position)
+	elif distance_to_target <= aggro_range:
+		move_towards_target(move_target.position)
 	else:
-		# Idle
 		turn_completed.emit()
 
 func move_towards_target(pos: Vector2) -> void:
@@ -158,12 +179,13 @@ func move_towards_target(pos: Vector2) -> void:
 	is_moving = true
 
 func attack_player(player_node: Node2D) -> void:
-	print("[%s] Attacks for %d damage!" % [enemy_name, attack_damage])
-	
+	var effective_damage = max(0, attack_damage - attack_reduction)
+	print("[%s] Attacks for %d damage! (base %d, reduction %d)" % [enemy_name, effective_damage, attack_damage, attack_reduction])
+
 	if player_node.has_method("get_stats"):
 		var player_stats = player_node.get_stats()
-		if player_stats:
-			player_stats.take_damage(attack_damage)
+		if player_stats and effective_damage > 0:
+			player_stats.take_damage(effective_damage)
 			
 			# Trigger ring effect for taking damage
 			if player_node.has_method("get_inventory"):
@@ -216,3 +238,24 @@ func die() -> void:
 
 func is_alive() -> bool:
 	return not is_dead
+
+func knockback(away_from: Vector2, spaces: int = 1) -> void:
+	if is_dead:
+		return
+	var direction = (position - away_from).normalized()
+	var new_pos = position + direction * (spaces * 64.0)  # 64 = grid_size
+	if grid_manager:
+		new_pos = grid_manager.snap_to_grid(new_pos)
+	position = new_pos
+	target_position = new_pos
+	print("[%s] Knocked back %d space(s)" % [enemy_name, spaces])
+
+func apply_taunt(taunter: Node2D, turns: int) -> void:
+	taunt_target = taunter
+	taunt_turns = turns
+	print("[%s] Taunted for %d turns" % [enemy_name, turns])
+
+func apply_wear_down(turns: int) -> void:
+	attack_reduction += 1
+	attack_reduction_turns = max(attack_reduction_turns, turns)
+	print("[%s] Wear Down! Attack reduced by %d for %d turns" % [enemy_name, attack_reduction, attack_reduction_turns])
