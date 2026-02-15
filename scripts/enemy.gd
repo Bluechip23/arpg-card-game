@@ -30,7 +30,7 @@ var grid_manager: GridManager
 var taunt_target: Node2D = null
 var taunt_turns: int = 0
 var attack_reduction: int = 0
-var attack_reduction_turns: int = 0
+var wear_down_turns: int = 0  # While active, each hit reduces attack by 1 more
 
 @onready var sprite: ColorRect = $Sprite2D
 @onready var health_bar: ProgressBar = $HealthBar
@@ -146,11 +146,11 @@ func take_turn(player_node: Node2D) -> void:
 			taunt_target = null
 			print("[%s] Taunt expired" % enemy_name)
 
-	if attack_reduction_turns > 0:
-		attack_reduction_turns -= 1
-		if attack_reduction_turns <= 0:
+	if wear_down_turns > 0:
+		wear_down_turns -= 1
+		if wear_down_turns <= 0:
 			attack_reduction = 0
-			print("[%s] Wear Down expired" % enemy_name)
+			print("[%s] Wear Down expired, attack restored" % enemy_name)
 
 	# Determine who to move toward / attack
 	var move_target = player_node
@@ -202,7 +202,12 @@ func attack_player(player_node: Node2D) -> void:
 func take_damage(amount: int) -> void:
 	if is_dead:
 		return
-	
+
+	# Wear Down: each hit while active reduces attack by 1 more
+	if wear_down_turns > 0:
+		attack_reduction += 1
+		print("[%s] Wear Down stacks! Attack reduced by %d" % [enemy_name, attack_reduction])
+
 	current_health -= amount
 	current_health = max(0, current_health)
 	damaged.emit(amount)
@@ -256,6 +261,5 @@ func apply_taunt(taunter: Node2D, turns: int) -> void:
 	print("[%s] Taunted for %d turns" % [enemy_name, turns])
 
 func apply_wear_down(turns: int) -> void:
-	attack_reduction += 1
-	attack_reduction_turns = max(attack_reduction_turns, turns)
-	print("[%s] Wear Down! Attack reduced by %d for %d turns" % [enemy_name, attack_reduction, attack_reduction_turns])
+	wear_down_turns = max(wear_down_turns, turns)
+	print("[%s] Wear Down applied! Each hit will reduce attack by 1 for %d turns" % [enemy_name, wear_down_turns])
