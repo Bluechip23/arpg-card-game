@@ -6,10 +6,9 @@ extends PanelContainer
 @onready var name_label: Label = $Panel/VBox/NameLabel
 @onready var type_label: Label = $Panel/VBox/TypeLabel
 @onready var range_label: Label = $Panel/VBox/RangeLabel
-@onready var desc_label: Label = $Panel/VBox/DescLabel
+@onready var desc_label: RichTextLabel = $Panel/VBox/DescLabel
 @onready var cost_label: Label = $Panel/VBox/CostLabel
 @onready var keybind_label: Label = $Panel/VBox/KeybindLabel
-@onready var chance_label: Label = $Panel/VBox/ChanceLabel
 
 var _card: Card
 var _index: int
@@ -20,10 +19,10 @@ const KEYBIND_LABELS = ["A", "S", "D", "F", "G", "Q", "W", "E", "R", "T", "Z", "
 func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 	_card = card
 	_index = index
-	
+
 	if name_label:
 		name_label.text = card.card_name
-	
+
 	if type_label:
 		type_label.text = card.card_type_name
 		match card.card_type:
@@ -33,31 +32,31 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 				type_label.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
 			Card.CardType.UTILITY:
 				type_label.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
-	
+
 	if range_label:
-		range_label.text = card.get_range_display()
 		if card.is_ranged:
+			range_label.visible = true
+			range_label.text = card.get_range_display()
 			range_label.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
 		else:
-			range_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.3))
+			range_label.visible = false
 
-	if desc_label:
-		desc_label.text = card.description
+	_update_description()
 
 	# Calculate displayed mana cost with debuff modifiers
 	var display_mana = card.mana_cost
 	var is_hexed = false
 	var is_locked = false
-	
+
 	if debuff_mgr:
 		if debuff_mgr.is_card_hexed(index):
 			display_mana += debuff_mgr.get_hexed_mana_increase()
 			is_hexed = true
 		is_locked = debuff_mgr.is_card_locked(index)
-	
+
 	if cost_label:
 		cost_label.text = "%dM %dT" % [display_mana, card.tempo_cost]
-		
+
 		if is_locked:
 			cost_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
 		elif is_hexed:
@@ -66,18 +65,10 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 			cost_label.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 		else:
 			cost_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-	
+
 	if keybind_label:
 		keybind_label.text = _get_keybind_text(index)
-	
-	if chance_label:
-		if card.has_chance_effect():
-			chance_label.visible = true
-			chance_label.text = "%.0f%% %s" % [card.chance_effect_percent, card.chance_effect_description]
-			update_chance_display()
-		else:
-			chance_label.visible = false
-	
+
 	_is_hexed = is_hexed
 	_is_locked = is_locked
 	_update_visual()
@@ -86,6 +77,19 @@ var _is_hexed: bool = false
 var _is_locked: bool = false
 var _base_position_y: float = 0.0
 var _position_initialized: bool = false
+
+func _update_description() -> void:
+	if not desc_label or not _card:
+		return
+	# Use colored BBCode description if card has multi-outcome RNG data
+	if _card.rng_outcomes_data.size() > 0 and _card.has_been_rolled():
+		desc_label.text = _card.get_colored_description()
+	else:
+		desc_label.text = _card.description
+
+func update_chance_display() -> void:
+	# Called when RNG re-rolls happen - update the description colors
+	_update_description()
 
 func _update_visual() -> void:
 	# Store base position on first call
@@ -142,23 +146,3 @@ func _get_keybind_text(index: int) -> String:
 func set_selected(selected: bool) -> void:
 	_selected = selected
 	_update_visual()
-func update_chance_display() -> void:
-	if not chance_label or not _card or not _card.has_chance_effect():
-		return
-	
-	# Check if any RNG outcome is success (for single target, check if any enemy will succeed)
-	var any_success = false
-	for outcome in _card.rng_outcomes.values():
-		if outcome:
-			any_success = true
-			break
-	
-	if _card.rng_outcomes.is_empty():
-		# No roll yet - neutral color
-		chance_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	elif any_success:
-		# Will trigger on at least one target - green
-		chance_label.add_theme_color_override("font_color", Color(0.2, 1, 0.2))
-	else:
-		# Won't trigger - red
-		chance_label.add_theme_color_override("font_color", Color(1, 0.2, 0.2))

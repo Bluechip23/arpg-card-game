@@ -20,14 +20,20 @@ var base_damage: int = 10
 var base_block: int = 0
 var bonus_damage: int = 0
 var jail_time_remaining: int = 0
-var chance_effect_percent: float = 0.0  # e.g., 30 for 30%
-var chance_effect_description: String = ""
 var is_aoe: bool = false
 var aoe_shape: String = ""  # "cone", "circle", "line"
 var aoe_range: float = 100.0
-var rng_outcomes: Dictionary = {}  # enemy_id -> bool (will effect trigger?)
+var chance_effect_percent: float = 0.0  # For AOE per-enemy rolls
+var rng_outcomes: Dictionary = {}  # enemy_id -> bool (for AOE per-enemy indicators)
 var rng_roll_turn: int = 0  # Turn when RNG was last rolled
 var turns_in_hand: int = 0  # How long card has been in hand
+
+# RNG outcome system - percentages that appear in the card description
+# Each entry: {percent: float} matching a "XX%" in the description
+# Binary (1 entry): rolls success/fail for that single percentage
+# Multi (2+ entries): weighted random picks which outcome triggers
+var rng_outcomes_data: Array = []
+var rng_selected_index: int = -1  # -1=not rolled, >=0=which outcome won, -2=binary fail
 var sticky: int = 0  # Turns card stays in hand before auto-discarding (0 = normal)
 var duration: int = 0  # Effect duration in turns
 var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
@@ -36,23 +42,36 @@ var card_range: float = 0.0  # Legacy range for specific overrides
 var target_type: String = "enemy"  # "enemy", "ally", "self", "point", "all_nearby"
 var consecutive_uses: int = 0  # Track how many times card played in sequence
 var requires_high_ground: bool = false  # Needs elevated position
-func roll_rng(enemies: Array, chance_boost: float = 0.0) -> void:
+func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 	rng_outcomes.clear()
-	var effective_chance = chance_effect_percent + chance_boost
 
-	# Always do a base roll for the card itself (key 0 = card-level outcome)
-	var base_roll = randf() * 100.0
-	var base_success = base_roll < effective_chance
-	rng_outcomes[0] = base_success
-	print("[CARD] %s RNG base: %.1f%% → %s" % [card_name, effective_chance, "SUCCESS" if base_success else "FAIL"])
+	if rng_outcomes_data.size() == 1:
+		# Binary: single percentage, success or fail
+		var roll = randf() * 100.0
+		if roll < rng_outcomes_data[0].percent:
+			rng_selected_index = 0  # Success
+		else:
+			rng_selected_index = -2  # Fail
+		print("[CARD] %s RNG: %.0f%% → %s" % [card_name, rng_outcomes_data[0].percent, "SUCCESS" if rng_selected_index == 0 else "FAIL"])
+	elif rng_outcomes_data.size() > 1:
+		# Multi-outcome: weighted random selection
+		var roll = randf() * 100.0
+		var cumulative = 0.0
+		rng_selected_index = rng_outcomes_data.size() - 1
+		for i in range(rng_outcomes_data.size()):
+			cumulative += rng_outcomes_data[i].percent
+			if roll < cumulative:
+				rng_selected_index = i
+				break
+		print("[CARD] %s RNG: rolled outcome %d (%.0f%%)" % [card_name, rng_selected_index, rng_outcomes_data[rng_selected_index].percent])
 
-	# Additionally roll per-enemy for AOE cards
-	for enemy in enemies:
-		if is_instance_valid(enemy):
-			var roll = randf() * 100.0
-			var success = roll < effective_chance
-			rng_outcomes[enemy.get_instance_id()] = success
-			print("[CARD] %s RNG for %s: %.1f%% → %s" % [card_name, enemy.enemy_name, effective_chance, "SUCCESS" if success else "FAIL"])
+	# AOE per-enemy rolls
+	if chance_effect_percent > 0.0:
+		var effective_chance = chance_effect_percent + chance_boost
+		for enemy in enemies:
+			if is_instance_valid(enemy):
+				var enemy_roll = randf() * 100.0
+				rng_outcomes[enemy.get_instance_id()] = enemy_roll < effective_chance
 
 func get_rng_outcome(enemy) -> bool:
 	if not enemy:
@@ -61,11 +80,60 @@ func get_rng_outcome(enemy) -> bool:
 	return rng_outcomes.get(id, false)
 
 func has_chance_effect() -> bool:
-	return chance_effect_percent > 0.0
+	return rng_outcomes_data.size() > 0
+
+func has_been_rolled() -> bool:
+	return rng_selected_index != -1
 
 func should_reroll_rng(current_turn: int) -> bool:
-	# Reroll every 3 turns in hand
 	return current_turn - rng_roll_turn >= 3
+
+func get_colored_description() -> String:
+	# No outcomes or not rolled yet - return plain description
+	if rng_outcomes_data.is_empty() or not has_been_rolled():
+		return description
+
+	# Find each outcome's percentage in the original description and color it
+	var result = description
+	var search_from = 0
+
+	for i in range(rng_outcomes_data.size()):
+		var percent_str = "%.0f%%" % rng_outcomes_data[i].percent
+		var pos = _find_standalone_percent(result, percent_str, search_from)
+		if pos < 0:
+			continue
+
+		if rng_outcomes_data.size() == 1:
+			# Binary: green if success, red if fail
+			var color = "green" if rng_selected_index == 0 else "red"
+			var colored = "[color=%s]%s[/color]" % [color, percent_str]
+			result = result.substr(0, pos) + colored + result.substr(pos + percent_str.length())
+			search_from = pos + colored.length()
+		else:
+			# Multi: green if this outcome was rolled, red otherwise
+			var color = "green" if i == rng_selected_index else "red"
+			var colored = "[color=%s]%s[/color]" % [color, percent_str]
+			result = result.substr(0, pos) + colored + result.substr(pos + percent_str.length())
+			search_from = pos + colored.length()
+
+	return result
+
+func _find_standalone_percent(text: String, percent_str: String, from: int) -> int:
+	# Find a percentage like "30%" but not inside "-30%" or "130%"
+	var pos = text.find(percent_str, from)
+	while pos >= 0:
+		if pos > 0:
+			var char_before = text.unicode_at(pos - 1)
+			# Skip if preceded by a digit (0-9) or minus sign
+			if (char_before >= 48 and char_before <= 57) or char_before == 45:
+				pos = text.find(percent_str, pos + 1)
+				continue
+		# Also skip if inside a BBCode tag
+		if pos > 0 and text.substr(max(0, pos - 7), 7).find("[color") >= 0:
+			pos = text.find(percent_str, pos + 1)
+			continue
+		return pos
+	return -1
 
 func get_effective_range() -> int:
 	# Melee cards have 0 range. Ranged cards have base 5 + modifier.
@@ -1335,8 +1403,7 @@ static func create_trick_shot() -> Card:
 	card.tempo_cost = 4
 	card.damage = 8
 	card.base_damage = 8
-	card.chance_effect_percent = 80.0
-	card.chance_effect_description = "bounce"
+	card.rng_outcomes_data = [{percent = 80.0}]
 	card.target_type = "enemy"
 	return card
 
@@ -1352,7 +1419,7 @@ static func create_surrounding_ice() -> Card:
 	card.damage = 15
 	card.base_damage = 15
 	card.chance_effect_percent = 70.0
-	card.chance_effect_description = "hit"
+	card.rng_outcomes_data = [{percent = 30.0}]
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_type = "all_nearby"
@@ -1367,8 +1434,7 @@ static func create_risk_it() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 0
-	card.chance_effect_percent = 30.0
-	card.chance_effect_description = "biscuit"
+	card.rng_outcomes_data = [{percent = 30.0}]
 	card.target_type = "self"
 	return card
 
@@ -1408,8 +1474,7 @@ static func create_worst_that_could_happen() -> Card:
 	card.tempo_cost = 7
 	card.damage = 5
 	card.base_damage = 5
-	card.chance_effect_percent = 50.0
-	card.chance_effect_description = "+15 dmg"
+	card.rng_outcomes_data = [{percent = 50.0}, {percent = 50.0}]
 	card.target_type = "enemy"
 	return card
 
@@ -1424,6 +1489,7 @@ static func create_oops() -> Card:
 	card.tempo_cost = 4
 	card.damage = 4
 	card.base_damage = 4
+	card.rng_outcomes_data = [{percent = 30.0}, {percent = 40.0}, {percent = 30.0}]
 	card.target_type = "enemy"
 	return card
 
@@ -1448,8 +1514,7 @@ static func create_hope_this_works() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
 	card.tempo_cost = 3
-	card.chance_effect_percent = 50.0
-	card.chance_effect_description = "heal+STR"
+	card.rng_outcomes_data = [{percent = 50.0}]
 	card.duration = 3
 	card.target_type = "ally"
 	return card
@@ -1476,8 +1541,7 @@ static func create_try_this() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 4
-	card.chance_effect_percent = 10.0
-	card.chance_effect_description = "reverse"
+	card.rng_outcomes_data = [{percent = 10.0}]
 	card.duration = 2
 	card.target_type = "ally"
 	return card
@@ -1508,7 +1572,7 @@ static func create_snowballs_chance() -> Card:
 	card.damage = 10
 	card.base_damage = 10
 	card.chance_effect_percent = 50.0
-	card.chance_effect_description = "snowballs"
+	card.rng_outcomes_data = [{percent = 50.0}]
 	card.is_aoe = true
 	card.aoe_shape = "cone"
 	card.target_type = "enemy"
