@@ -496,6 +496,7 @@ static func create_slash() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
+	card.target_type = "enemy"
 	return card
 
 static func create_block() -> Card:
@@ -512,6 +513,7 @@ static func create_block() -> Card:
 	card.block = 5
 	card.base_block = 5
 	card.heal_amount = 0
+	card.target_type = "self"
 	return card
 
 static func create_discard() -> Card:
@@ -528,6 +530,7 @@ static func create_discard() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
+	card.target_type = "self"
 	return card
 
 static func create_draw() -> Card:
@@ -544,6 +547,7 @@ static func create_draw() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
+	card.target_type = "self"
 	return card
 
 static func create_empower() -> Card:

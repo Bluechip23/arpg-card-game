@@ -574,6 +574,18 @@ func play_selected_card(target) -> void:
 		_on_hand_updated()
 		update_deck_info()
 
+func _is_target_in_card_range(card: Card, target) -> bool:
+	if not target or not target is Node2D:
+		return true
+	var distance_px = player.position.distance_to(target.position)
+	var distance_tiles = distance_px / grid_manager.grid_size
+	if card.is_ranged:
+		var max_range = 5 + card.range_modifier
+		return distance_tiles <= max_range + 0.5  # Small tolerance
+	else:
+		# Melee: must be adjacent (within ~1.5 tiles)
+		return distance_tiles <= 1.5
+
 func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_global_mouse_position()
 
@@ -663,7 +675,11 @@ func _input(event: InputEvent) -> void:
 				"enemy":
 					var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
 					if enemy:
-						play_selected_card(enemy)
+						if _is_target_in_card_range(card, enemy):
+							play_selected_card(enemy)
+						else:
+							var range_type = "ranged" if card.is_ranged else "melee"
+							print("[INPUT] Enemy is out of %s range!" % range_type)
 					else:
 						print("[INPUT] No enemy at that position!")
 				_:
