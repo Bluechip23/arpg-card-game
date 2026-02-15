@@ -596,18 +596,25 @@ func _input(event: InputEvent) -> void:
 		if selected_card_index >= 0:
 			var card = deck_manager.hand[selected_card_index]
 			var mouse_pos = get_global_mouse_position()
-			
-			if card.card_id == "blink":
-				play_selected_card(player)
-			elif card.card_id in ["discard", "draw", "empower", "heal", "block", "healing_potion", "gain_mana"]:
-				play_selected_card(null)
-			else:
-				# Attack cards - find enemy at click position
-				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
-				if enemy:
-					play_selected_card(enemy)
-				else:
-					print("[INPUT] No enemy at that position!")
+
+			match card.target_type:
+				"self":
+					play_selected_card(player)
+				"ally":
+					# TODO: ally selection - for now target self
+					play_selected_card(player)
+				"point":
+					play_selected_card(player)
+				"all_nearby":
+					play_selected_card(player)
+				"enemy":
+					var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
+					if enemy:
+						play_selected_card(enemy)
+					else:
+						print("[INPUT] No enemy at that position!")
+				_:
+					play_selected_card(null)
 	
 	# Right click - movement
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:

@@ -317,38 +317,51 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 		clumsy_triggered = true
 	
 	hand.remove_at(index)
-	
+
 	if debuff_mgr:
 		if debuff_mgr.get_hexed_card_index() == index:
 			debuff_mgr.remove_debuff(Debuff.DebuffType.HEXED)
 		if debuff_mgr.get_locked_card_index() == index:
 			debuff_mgr.remove_debuff(Debuff.DebuffType.LOCKED)
 		_update_debuff_card_indices(debuff_mgr, index)
-	
+
 	var damage_reduction = 0
 	var self_damage_percent = 0.0
 	var buff_mgr = null
-	
+
 	if debuff_mgr:
 		damage_reduction = debuff_mgr.get_damage_reduction()
 		self_damage_percent = debuff_mgr.get_self_damage_percent()
-	
+
 	if player_node and player_node.has_method("get_buff_manager"):
 		buff_mgr = player_node.get_buff_manager()
-	
+
 	card.execute(target, player_stats, self, damage_reduction, self_damage_percent, buff_mgr)
-	
+
 	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
 		debuff_mgr.on_attack()
-	
+
 	if card.card_id == "blink" and player_node:
 		player_node.blink_to_mouse()
-	
+
 	if inventory:
 		inventory.on_card_played(card)
-	
-	discard_pile.append(card)
-	card_discarded.emit(card)
+
+	# Sticky cards stay in hand until played enough times
+	if card.sticky > 0:
+		card.consecutive_uses += 1
+		if card.consecutive_uses >= card.sticky:
+			# Fully used up - discard
+			discard_pile.append(card)
+			card_discarded.emit(card)
+			print("[DECK] %s sticky exhausted (%d/%d uses) - discarded" % [card.card_name, card.consecutive_uses, card.sticky])
+		else:
+			# Put back in hand
+			hand.insert(min(index, hand.size()), card)
+			print("[DECK] %s sticky (%d/%d uses) - stays in hand" % [card.card_name, card.consecutive_uses, card.sticky])
+	else:
+		discard_pile.append(card)
+		card_discarded.emit(card)
 	
 	if clumsy_triggered and hand.size() > 0:
 		var random_index = randi() % hand.size()
