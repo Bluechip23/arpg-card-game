@@ -17,7 +17,9 @@ enum BuffType {
 	SMITH,
 	STEADY,
 	BRACE,
-	RESILIENT
+	RESILIENT,
+	LIFE_STEAL,
+	MORPHINE
 }
 
 var buff_type: BuffType
@@ -80,6 +82,12 @@ func _set_name_and_description() -> void:
 		BuffType.RESILIENT:
 			buff_name = "Resilient"
 			description = "Reduce incoming damage by %d%% for %d attacks" % [value, charges]
+		BuffType.LIFE_STEAL:
+			buff_name = "Life Steal"
+			description = "Next attack heals you for damage dealt"
+		BuffType.MORPHINE:
+			buff_name = "Morphine"
+			description = "Temp HP active. Lose %d armor and take 2 damage when expired" % value
 
 func tick() -> bool:
 	# Called each turn. Returns true if buff expired by duration.
@@ -97,7 +105,7 @@ func use_charge() -> bool:
 
 func is_charge_based() -> bool:
 	match buff_type:
-		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.RESILIENT, BuffType.BRACE, BuffType.STEADY:
+		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.RESILIENT, BuffType.BRACE, BuffType.STEADY, BuffType.LIFE_STEAL:
 			return true
 	return false
 
@@ -122,6 +130,8 @@ func get_icon_color() -> Color:
 		BuffType.STEADY: return Color(0.6, 0.8, 0.6)
 		BuffType.BRACE: return Color(0.5, 0.5, 0.8)
 		BuffType.RESILIENT: return Color(0.7, 0.6, 0.9)
+		BuffType.LIFE_STEAL: return Color(0.9, 0.2, 0.4)
+		BuffType.MORPHINE: return Color(1.0, 0.6, 0.8)
 	return Color.WHITE
 
 func get_short_display() -> String:
@@ -213,5 +223,15 @@ static func create_brace(damage_reduction: int = 5, source: String = "") -> Buff
 
 static func create_resilient(percent_reduction: int = 25, attacks: int = 3, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.RESILIENT, percent_reduction, -1, attacks)
+	buff.source_name = source
+	return buff
+
+static func create_life_steal(source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.LIFE_STEAL, 0, -1, 1)  # 1 charge - next attack
+	buff.source_name = source
+	return buff
+
+static func create_morphine(armor_amount: int = 4, duration: int = 3, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.MORPHINE, armor_amount, duration)
 	buff.source_name = source
 	return buff

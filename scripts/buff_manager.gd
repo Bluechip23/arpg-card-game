@@ -138,10 +138,18 @@ func process_turn_end() -> void:
 				expired.append(buff)
 	
 	for buff in expired:
+		# Morphine penalty on expiry: lose the temp HP and take 2 damage
+		if buff.buff_type == Buff.BuffType.MORPHINE and owner_stats:
+			var armor_to_remove = buff.value
+			owner_stats.current_armor = max(0, owner_stats.current_armor - armor_to_remove)
+			owner_stats.armor_changed.emit(owner_stats.current_armor)
+			owner_stats.take_damage(2)
+			print("[BUFF] Morphine expired! Lost %d armor and took 2 damage" % armor_to_remove)
+
 		buffs.erase(buff)
 		buff_removed.emit(buff)
 		print("[BUFF] Expired: %s" % buff.buff_name)
-	
+
 	if expired.size() > 0:
 		buffs_changed.emit()
 
@@ -159,6 +167,20 @@ func on_attacked(attacker) -> void:
 		attacker.take_damage(thorns_damage)
 		thorns_triggered.emit(thorns_damage)
 		print("[BUFF] Thorns deals %d damage to attacker!" % thorns_damage)
+
+func has_life_steal() -> bool:
+	return has_buff(Buff.BuffType.LIFE_STEAL)
+
+func consume_life_steal(damage_dealt: int) -> int:
+	var life_steal = get_buff(Buff.BuffType.LIFE_STEAL)
+	if life_steal:
+		if life_steal.use_charge():
+			remove_buff(Buff.BuffType.LIFE_STEAL)
+		if owner_stats:
+			owner_stats.heal(damage_dealt)
+			print("[BUFF] Life Steal healed %d HP!" % damage_dealt)
+		return damage_dealt
+	return 0
 
 func get_strengthen_bonus() -> int:
 	var strengthen = get_buff(Buff.BuffType.STRENGTHEN)

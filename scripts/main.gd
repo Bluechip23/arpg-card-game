@@ -545,32 +545,84 @@ func play_selected_card(target) -> void:
 	if selected_card_index < 0:
 		print("[INPUT] No card selected!")
 		return
-	
+
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
-	
+
 	var debuff_mgr = player.get_debuff_manager()
 	var buff_mgr = player.get_buff_manager()
-	
+
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
-	
+
 	var result = deck_manager.play_card(selected_card_index, target, player)
-	
+
 	if result["played"]:
 		selected_card_index = -1
-		
+
+		# Apply world effects (knockback, movement, AOE) that need game-level access
+		_apply_card_world_effects(card, target)
+
 		if not result["free_turn"]:
-			# Check Steady buff
 			if buff_mgr and buff_mgr.consume_steady():
 				print("[MAIN] Steady! No tempo added.")
 			else:
 				tempo_manager.add_card_tempo(tempo_cost)
 		else:
 			print("[MAIN] Free attack! No tempo added.")
-		
+
 		_on_hand_updated()
 		update_deck_info()
+
+func _apply_card_world_effects(card: Card, target) -> void:
+	var mouse_pos = get_global_mouse_position()
+
+	match card.card_id:
+		"roar":
+			# Knock all nearby enemies back 1 space
+			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
+			for enemy in nearby:
+				enemy.knockback(player.position, 1)
+			print("[MAIN] Roar knocked back %d enemies" % nearby.size())
+
+		"taunt":
+			# Force nearby enemies to target this player for 2 turns
+			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
+			for enemy in nearby:
+				enemy.apply_taunt(player, 2)
+			print("[MAIN] Taunted %d enemies for 2 turns" % nearby.size())
+
+		"charge":
+			# Move player toward mouse position, damage all enemies in path, knock them back
+			var snapped_target = grid_manager.snap_to_grid(mouse_pos)
+			var start_pos = player.position
+			# Teleport player to charge destination (no tempo for this movement)
+			player.position = snapped_target
+			player.target_position = snapped_target
+			# Find and damage all enemies along the charge path
+			var enemies_hit = enemy_spawner.get_enemies_in_line(start_pos, snapped_target, 50.0)
+			for enemy in enemies_hit:
+				enemy.take_damage(card.last_damage_dealt)
+				enemy.knockback(snapped_target, 1)
+			print("[MAIN] Charge: moved to %s, hit %d enemies for %d damage" % [snapped_target, enemies_hit.size(), card.last_damage_dealt])
+
+		"heroic_leap":
+			# Jump to click position based on STR, deal AOE damage on landing
+			var stats = player.get_stats()
+			var leap_distance = 3
+			if stats:
+				leap_distance = max(2, stats.strength / 3)
+			var direction = (mouse_pos - player.position).normalized()
+			var leap_target = player.position + direction * (leap_distance * grid_manager.grid_size)
+			leap_target = grid_manager.snap_to_grid(leap_target)
+			# Teleport player to landing spot (no tempo for this movement)
+			player.position = leap_target
+			player.target_position = leap_target
+			# Deal AOE damage to enemies at landing
+			var landing_enemies = enemy_spawner.get_enemies_in_radius(leap_target, 100.0)
+			for enemy in landing_enemies:
+				enemy.take_damage(card.last_damage_dealt)
+			print("[MAIN] Heroic Leap: jumped %d tiles to %s, hit %d enemies for %d damage" % [leap_distance, leap_target, landing_enemies.size(), card.last_damage_dealt])
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Character panel toggle

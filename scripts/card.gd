@@ -42,6 +42,7 @@ var card_range: float = 0.0  # Legacy range for specific overrides
 var target_type: String = "enemy"  # "enemy", "ally", "self", "point", "all_nearby"
 var consecutive_uses: int = 0  # Track how many times card played in sequence
 var requires_high_ground: bool = false  # Needs elevated position
+var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
 func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 	rng_outcomes.clear()
 
@@ -160,6 +161,7 @@ func reset_hand_tracking() -> void:
 	turns_in_hand = 0
 	rng_outcomes.clear()
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction: int = 0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+	last_damage_dealt = 0
 	var is_empowered = false
 	if player_stats and player_stats.is_empowered():
 		is_empowered = player_stats.consume_empower()
@@ -204,7 +206,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"heroic_leap":
 			_execute_heroic_leap(target, player_stats, buff_mgr)
 		"morphine":
-			_execute_morphine(player_stats)
+			_execute_morphine(player_stats, buff_mgr)
 		"turtle_up":
 			_execute_turtle_up(player_stats, buff_mgr)
 		"parry":
@@ -313,7 +315,15 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_meditate(player_stats, deck_manager)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
-			
+
+	# Life Steal: if an attack dealt damage and we have life steal buff, heal for damage dealt
+	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_life_steal():
+		if target and target.has_method("is_alive"):
+			# Estimate damage dealt from the enemy's health change
+			var dealt = last_damage_dealt if last_damage_dealt > 0 else damage
+			if dealt > 0:
+				buff_mgr.consume_life_steal(dealt)
+
 func _execute_gain_mana(player_stats: PlayerStats) -> void:
 	if player_stats:
 		var amount = 2
@@ -345,16 +355,17 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 	total_damage = max(1, total_damage - damage_reduction)
 	
 	print("[CARD] %s deals %d damage!" % [card_name, total_damage])
-	
+	last_damage_dealt = total_damage
+
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
-		
+
 		# Thorns check - if target has buff_manager
 		if target.has_method("get_buff_manager"):
 			var target_buff = target.get_buff_manager()
 			if target_buff:
 				target_buff.on_attacked(player_stats.owner_node if player_stats else null)
-	
+
 	if self_damage_percent > 0.0 and player_stats:
 		var self_dmg = floori(total_damage * self_damage_percent)
 		if self_dmg > 0:
@@ -648,25 +659,21 @@ func _execute_life_swap(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	print("[CARD] Life Swap! HP: %d→%d, Mana: %d→%d, dealt %d damage" % [old_health, new_health, old_mana, new_mana, life_lost])
 
 func _execute_wear_down(target, _player_stats: PlayerStats) -> void:
-	# Decrease enemy attack by 1 per consecutive attack. Lasts 3 turns.
-	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("wear_down", 3)
-	print("[CARD] Wear Down applied! Enemy attack decreased per consecutive hit for 3 turns")
+	if target and target.has_method("apply_wear_down"):
+		target.apply_wear_down(3)
+	print("[CARD] Wear Down applied! Enemy attack -1 for 3 turns")
 
-func _execute_taunt(target, _player_stats: PlayerStats) -> void:
-	# Taunt enemies around you - they must target you
-	print("[CARD] Taunt! Nearby enemies must target you")
-	# This would be handled by the enemy AI system
+func _execute_taunt(_target, _player_stats: PlayerStats) -> void:
+	# Taunt effect applied via world effects in main.gd (needs enemy_spawner)
+	print("[CARD] Taunt! Nearby enemies must target you for 2 turns")
 
 func _execute_life_steal(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	if player_stats:
-		# Apply life steal buff - next hit heals for damage dealt
-		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_regen(2, 1, "Life Steal"))
-		print("[CARD] Life Steal active! Next hit heals for damage dealt")
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_life_steal("Life Steal"))
+	print("[CARD] Life Steal active! Next hit heals for damage dealt")
 
-func _execute_roar(target, player_stats: PlayerStats) -> void:
-	# Knock enemies back 1 space
+func _execute_roar(_target, _player_stats: PlayerStats) -> void:
+	# Knockback applied via world effects in main.gd (needs enemy_spawner)
 	print("[CARD] Roar! Enemies knocked back 1 space")
 
 func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -678,6 +685,7 @@ func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 		if buff_mgr.roll_crit():
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
+	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
 	print("[CARD] Poke deals %d damage!" % total_damage)
@@ -688,7 +696,8 @@ func _execute_armor_break(player_stats: PlayerStats, buff_mgr: BuffManager = nul
 		buff_mgr.apply_buff(Buff.create_strengthen(5, 1, "Armor Break"))
 	print("[CARD] Armor Break! Next attack deals double damage to armor only")
 
-func _execute_charge(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+func _execute_charge(_target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Damage calculated here, movement + multi-hit + knockback handled by main.gd
 	var total_damage = base_damage + bonus_damage
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
@@ -697,32 +706,32 @@ func _execute_charge(target, player_stats: PlayerStats, buff_mgr: BuffManager = 
 		if buff_mgr.roll_crit():
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
-	# Charge forward dealing damage and knockback
-	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
-	print("[CARD] Charge! Deals %d damage and knocks enemies back" % total_damage)
+	last_damage_dealt = total_damage
+	print("[CARD] Charge! %d damage to all enemies in path" % total_damage)
 
-func _execute_heroic_leap(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var leap_distance = 3  # Base distance
-	var total_damage = base_damage + bonus_damage
+func _execute_heroic_leap(_target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Calculate leap distance from STR, damage from distance. Jump handled by main.gd
+	var leap_distance = 3
 	if player_stats:
 		leap_distance = max(2, player_stats.strength / 3)
-		total_damage = player_stats.get_effective_physical_damage(leap_distance * 3)
+	var total_damage = leap_distance * 3
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
-	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
-	print("[CARD] Heroic Leap! Jumped %d paces, dealt %d damage on landing" % [leap_distance, total_damage])
+	last_damage_dealt = total_damage
+	print("[CARD] Heroic Leap! %d paces, %d damage on landing" % [leap_distance, total_damage])
 
-func _execute_morphine(player_stats: PlayerStats) -> void:
+func _execute_morphine(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if not player_stats:
 		return
-	var temp_hp = max(3, player_stats.strength)
-	player_stats.add_armor(temp_hp)
-	print("[CARD] Morphine! Gained %d temp HP. Will lose it and take 2 damage later" % temp_hp)
+	player_stats.add_armor(4)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_morphine(4, 3, "Morphine"))
+	print("[CARD] Morphine! Gained 4 temp HP. Will lose it and take 2 damage in 3 turns")
 
 func _execute_turtle_up(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -1302,7 +1311,7 @@ static func create_charge() -> Card:
 	card.tempo_cost = 4
 	card.damage = 8
 	card.base_damage = 8
-	card.target_type = "enemy"
+	card.target_type = "point"
 	card.is_aoe = true
 	card.aoe_shape = "line"
 	return card
@@ -1325,7 +1334,7 @@ static func create_morphine() -> Card:
 	var card = Card.new()
 	card.card_id = "morphine"
 	card.card_name = "Morphine"
-	card.description = "Gain X temp HP. After a delay, lose it and take 2 damage."
+	card.description = "Gain 4 temp HP. After 3 turns, lose it and take 2 damage."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
