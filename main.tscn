@@ -95,17 +95,17 @@ theme_override_font_sizes/font_size = 18
 text = "Jail: 0"
 
 [node name="OverflowLabel" type="Label" parent="UI" unique_id=42290239]
-offset_left = 398.0
+offset_left = 393.0
 offset_top = 14.0
-offset_right = 578.0
+offset_right = 573.0
 offset_bottom = 39.0
 text = "Overflow Mode:"
 
 [node name="OverflowButtons" type="HBoxContainer" parent="UI" unique_id=1556317601]
-offset_left = 207.0
-offset_top = 36.0
-offset_right = 687.0
-offset_bottom = 76.0
+offset_left = 537.0
+offset_top = 6.0
+offset_right = 1017.0
+offset_bottom = 46.0
 
 [node name="PeakedLabel" type="Label" parent="UI" unique_id=2017257914]
 offset_left = 124.0
@@ -123,16 +123,16 @@ offset_bottom = 37.0
 text = "Mana: 10/10"
 
 [node name="PlayerArmorLabel" type="Label" parent="UI" unique_id=1122428204]
-offset_left = 372.0
-offset_top = 24.0
-offset_right = 412.0
-offset_bottom = 47.0
+offset_left = 172.0
+offset_top = 41.0
+offset_right = 212.0
+offset_bottom = 64.0
 
 [node name="TurnLabel" type="Label" parent="UI" unique_id=1944835916]
-offset_left = 312.0
-offset_top = 119.0
-offset_right = 461.0
-offset_bottom = 142.0
+offset_left = 297.0
+offset_top = 40.0
+offset_right = 446.0
+offset_bottom = 63.0
 text = "Turn: 0 | Draw in: 5"
 
 [node name="PlayerHealthLabel" type="Label" parent="UI" unique_id=16104265]
@@ -162,13 +162,12 @@ alignment = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -280.0
-offset_top = 20.0
-offset_right = -20.0
-offset_bottom = 120.0
+offset_left = -269.0
+offset_top = 14.0
+offset_right = -9.0
+offset_bottom = 115.0
 grow_horizontal = 0
-text = "A/S/D/F/G - Select card
-Left-click enemy - Play card
+text = "Left-click enemy - Play card
 Right-click - Move player
 ESC - Deselect card
 I - Character Panel"
@@ -181,11 +180,10 @@ offset_right = 357.0
 offset_bottom = 60.0
 
 [node name="CharacterLabel" type="Label" parent="UI" unique_id=391044964]
-offset_left = 1089.0
-offset_top = 528.0
-offset_right = 1170.0
-offset_bottom = 551.0
-text = "Character:"
+offset_left = 1163.0
+offset_top = 133.0
+offset_right = 1244.0
+offset_bottom = 156.0
 
 [node name="TempoContainer" type="HBoxContainer" parent="UI" unique_id=1277989852]
 offset_left = 811.0
@@ -194,10 +192,12 @@ offset_right = 877.0
 offset_bottom = 50.0
 
 [node name="TempoLabel" type="Label" parent="UI/TempoContainer" unique_id=254984687]
+visible = false
 layout_mode = 2
 text = "Tempo:"
 
 [node name="TempoBar" type="ProgressBar" parent="UI/TempoContainer" unique_id=1788856226]
+visible = false
 layout_mode = 2
 
 [node name="OverflowUI" parent="UI" unique_id=1611580908 instance=ExtResource("20_overflow")]
@@ -219,21 +219,25 @@ offset_right = 185.0
 offset_bottom = 47.0
 
 [node name="HelpButtons" parent="UI" unique_id=451421031 instance=ExtResource("22_helpbtn")]
+offset_left = 1083.0
+offset_top = 116.0
+offset_right = 1275.0
+offset_bottom = 182.0
 
 [node name="GauntletSkillsContainer" type="HBoxContainer" parent="UI" unique_id=1433405863]
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 200.0
-offset_top = -200.0
-offset_right = -200.0
-offset_bottom = -170.0
+offset_left = 519.0
+offset_top = -196.0
+offset_right = 119.0
+offset_bottom = -166.0
 grow_horizontal = 2
 grow_vertical = 0
 alignment = 1
 
-[node name="SelectedLabel" type="Label" parent="UI"]
+[node name="SelectedLabel" type="Label" parent="UI" unique_id=2129284463]
 offset_left = 124.0
 offset_top = 487.0
 offset_right = 604.0
@@ -242,5 +246,5 @@ theme_override_colors/font_color = Color(1, 1, 0.5, 1)
 theme_override_font_sizes/font_size = 18
 text = "Press A/S/D/F/G to select a card"
 
-[node name="ItemTooltip" parent="UI" instance=ExtResource("18_tooltip")]
+[node name="ItemTooltip" parent="UI" unique_id=1519930807 instance=ExtResource("18_tooltip")]
 visible = false
