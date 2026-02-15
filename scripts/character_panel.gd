@@ -42,7 +42,13 @@ func _ready() -> void:
 func connect_stats(stats: PlayerStats, inv: Inventory) -> void:
 	player_stats = stats
 	inventory = inv
-	
+
+	if player_stats:
+		player_stats.health_changed.connect(_on_stats_changed)
+		player_stats.mana_changed.connect(_on_mana_changed)
+		player_stats.armor_changed.connect(_on_armor_changed)
+		player_stats.stats_updated.connect(_on_stats_changed)
+
 	if inventory:
 		inventory.equipment_changed.connect(_on_equipment_changed)
 	item_tooltip = get_node_or_null("/root/Main/UI/ItemTooltip")
@@ -215,6 +221,18 @@ func _on_item_hover_end() -> void:
 func _on_close_pressed() -> void:
 	hide_panel()
 	closed.emit()
+
+func _on_stats_changed(_a = null, _b = null) -> void:
+	if panel.visible:
+		update_display()
+
+func _on_mana_changed(_a = null, _b = null) -> void:
+	if panel.visible:
+		update_display()
+
+func _on_armor_changed(_a = null) -> void:
+	if panel.visible:
+		update_display()
 
 func _on_equipment_changed() -> void:
 	if panel.visible:

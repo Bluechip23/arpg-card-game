@@ -47,7 +47,6 @@ const CARD_KEYS = [
 var selected_card_index: int = -1
 var current_character: CharacterData = null
 var starting_character: CharacterData = null
-var pending_turns: int = 0
 
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
@@ -62,6 +61,7 @@ func _ready() -> void:
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
 	player.move_completed.connect(_on_player_move_completed)
+	player.tile_reached.connect(_on_player_tile_reached)
 	player.set_grid_manager(grid_manager)
 	
 	move_dialog.confirmed.connect(_on_move_confirmed)
@@ -199,11 +199,12 @@ func trigger_multiple_turns(count: int) -> void:
 	for i in range(count):
 		trigger_turn()
 
+func _on_player_tile_reached() -> void:
+	# Tempo accumulates per tile in real time
+	tempo_manager.add_movement_tempo()
+
 func _on_player_move_completed() -> void:
-	# Each tile moved adds to tempo (gated by AGI)
-	for i in range(pending_turns):
-		tempo_manager.add_movement_tempo()
-	pending_turns = 0
+	pass
 
 func _on_move_confirmed(target_pos: Vector2, spaces: int) -> void:
 	var debuff_mgr = player.get_debuff_manager()
@@ -214,7 +215,6 @@ func _on_move_confirmed(target_pos: Vector2, spaces: int) -> void:
 			print("[MAIN] Cannot move - Tethered! Out of range.")
 			return
 	
-	pending_turns = spaces
 	player.move_to_grid(target_pos, spaces)
 
 func _on_move_cancelled() -> void:
@@ -388,44 +388,53 @@ func _on_apply_buff(buff_name: String) -> void:
 
 func _on_tempo_threshold_reached(times: int) -> void:
 	print("[MAIN] === TEMPO THRESHOLD × %d ===" % times)
-	
+
+	# Pause player movement while enemies act
+	var was_moving = player.is_moving
+	if was_moving:
+		player.pause_movement()
+
 	for i in range(times):
 		var debuff_mgr = player.get_debuff_manager()
 		var buff_mgr = player.get_buff_manager()
-		
+
 		# Process buff effects at turn start
 		if buff_mgr:
 			var buff_result = buff_mgr.process_turn_start()
-			
+
 			# Extra draws from Blessed
 			if buff_result["extra_draws"] > 0:
 				for d in range(buff_result["extra_draws"]):
 					deck_manager.attempt_draw()
-		
+
 		# Process debuffs
 		if debuff_mgr:
 			debuff_mgr.process_turn_start()
-		
+
 		deck_manager.process_turn()
-		
+
 		# Pass both managers to turn processing
 		var stats = player.get_stats()
 		stats.process_turn(debuff_mgr, buff_mgr)
-		
+
 		turn_manager.take_turn()
 		enemy_spawner.process_enemy_turns()
-		
+
 		# Process end of turn
 		if debuff_mgr:
 			debuff_mgr.process_turn_end()
 		if buff_mgr:
 			buff_mgr.process_turn_end()
-	
+
 	_update_gauntlet_skills_ui()
 	update_turn_display()
 	_update_enemy_count()
 	_reroll_card_rng()
 	_on_hand_updated()
+
+	# Resume player movement after enemies finish
+	if was_moving:
+		player.resume_movement()
 func _apply_magnetize_pull(tiles: int) -> void:
 	var enemies = enemy_spawner.get_living_enemies()
 	if enemies.size() == 0:
@@ -609,7 +618,6 @@ func _input(event: InputEvent) -> void:
 			if spaces == 0:
 				print("[INPUT] Already at that location")
 			elif spaces == 1:
-				pending_turns = 1
 				player.move_to_grid(mouse_pos, 1)
 			else:
 				move_dialog.show_dialog(mouse_pos, spaces)
