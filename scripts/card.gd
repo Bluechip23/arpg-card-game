@@ -39,7 +39,14 @@ var requires_high_ground: bool = false  # Needs elevated position
 func roll_rng(enemies: Array, chance_boost: float = 0.0) -> void:
 	rng_outcomes.clear()
 	var effective_chance = chance_effect_percent + chance_boost
-	
+
+	# Always do a base roll for the card itself (key 0 = card-level outcome)
+	var base_roll = randf() * 100.0
+	var base_success = base_roll < effective_chance
+	rng_outcomes[0] = base_success
+	print("[CARD] %s RNG base: %.1f%% → %s" % [card_name, effective_chance, "SUCCESS" if base_success else "FAIL"])
+
+	# Additionally roll per-enemy for AOE cards
 	for enemy in enemies:
 		if is_instance_valid(enemy):
 			var roll = randf() * 100.0
@@ -1329,6 +1336,7 @@ static func create_trick_shot() -> Card:
 	card.damage = 8
 	card.base_damage = 8
 	card.chance_effect_percent = 80.0
+	card.chance_effect_description = "bounce"
 	card.target_type = "enemy"
 	return card
 
@@ -1344,6 +1352,7 @@ static func create_surrounding_ice() -> Card:
 	card.damage = 15
 	card.base_damage = 15
 	card.chance_effect_percent = 70.0
+	card.chance_effect_description = "hit"
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_type = "all_nearby"
@@ -1359,6 +1368,7 @@ static func create_risk_it() -> Card:
 	card.mana_cost = 1
 	card.tempo_cost = 0
 	card.chance_effect_percent = 30.0
+	card.chance_effect_description = "biscuit"
 	card.target_type = "self"
 	return card
 
@@ -1399,6 +1409,7 @@ static func create_worst_that_could_happen() -> Card:
 	card.damage = 5
 	card.base_damage = 5
 	card.chance_effect_percent = 50.0
+	card.chance_effect_description = "+15 dmg"
 	card.target_type = "enemy"
 	return card
 
@@ -1438,6 +1449,7 @@ static func create_hope_this_works() -> Card:
 	card.mana_cost = 2
 	card.tempo_cost = 3
 	card.chance_effect_percent = 50.0
+	card.chance_effect_description = "heal+STR"
 	card.duration = 3
 	card.target_type = "ally"
 	return card
@@ -1465,6 +1477,7 @@ static func create_try_this() -> Card:
 	card.mana_cost = 3
 	card.tempo_cost = 4
 	card.chance_effect_percent = 10.0
+	card.chance_effect_description = "reverse"
 	card.duration = 2
 	card.target_type = "ally"
 	return card
@@ -1495,6 +1508,7 @@ static func create_snowballs_chance() -> Card:
 	card.damage = 10
 	card.base_damage = 10
 	card.chance_effect_percent = 50.0
+	card.chance_effect_description = "snowballs"
 	card.is_aoe = true
 	card.aoe_shape = "cone"
 	card.target_type = "enemy"

@@ -59,6 +59,7 @@ func initialize_character(data: CharacterData) -> void:
 	stats.initialize(data)
 	inventory.initialize(data.character_name)
 	inventory.connect_player_stats(stats)
+	inventory.equip_starting_item()
 	debuff_manager.initialize(stats, self)
 	buff_manager.initialize(stats, self)
 	buff_manager.connect_debuff_manager(debuff_manager)  # For Cleanse
