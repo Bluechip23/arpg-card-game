@@ -283,7 +283,7 @@ func _on_hand_updated() -> void:
 	var enemies = enemy_spawner.get_living_enemies()
 	var chance_boost = player.get_stats().chance_boost
 	for card in deck_manager.hand:
-		if card.has_chance_effect() and card.rng_outcomes.is_empty():
+		if card.has_chance_effect() and not card.has_been_rolled():
 			card.roll_rng(enemies, chance_boost)
 			card.rng_roll_turn = turn_manager.current_turn
 

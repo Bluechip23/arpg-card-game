@@ -62,13 +62,11 @@ horizontal_alignment = 1
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="DescLabel" type="Label" parent="Panel/VBox" unique_id=1611160183]
-custom_minimum_size = Vector2(0.1, 0)
+[node name="DescLabel" type="RichTextLabel" parent="Panel/VBox" unique_id=1611160183]
+custom_minimum_size = Vector2(0.1, 40)
 layout_mode = 2
-theme_override_font_sizes/font_size = 13
+bbcode_enabled = true
+theme_override_font_sizes/normal_font_size = 12
 text = "Deal 10 damage to enemy"
-horizontal_alignment = 1
-autowrap_mode = 2
-
-[node name="ChanceLabel" type="Label" parent="Panel/VBox" unique_id=710110580]
-layout_mode = 2
+fit_content = true
+scroll_active = false
