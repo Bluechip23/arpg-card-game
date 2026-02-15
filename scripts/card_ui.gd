@@ -77,6 +77,7 @@ var _is_hexed: bool = false
 var _is_locked: bool = false
 var _base_position_y: float = 0.0
 var _position_initialized: bool = false
+var _is_hovered: bool = false
 
 func _update_description() -> void:
 	if not desc_label or not _card:
@@ -104,9 +105,13 @@ func _update_visual() -> void:
 	elif _selected:
 		modulate = Color(1, 1, 1)
 		# Raise the card up
-		position.y = _base_position_y - 12
+		position.y = _base_position_y - 30
 		# Apply gold trim border
 		_apply_gold_trim()
+	elif _is_hovered:
+		modulate = Color(1, 1, 1)
+		position.y = _base_position_y - 20
+		_clear_gold_trim()
 	elif _is_hexed:
 		modulate = Color(0.8, 0.5, 0.8)  # Purple tint
 		position.y = _base_position_y
@@ -142,6 +147,18 @@ func _get_keybind_text(index: int) -> String:
 	if index >= 0 and index < KEYBIND_LABELS.size():
 		return "[%s]" % KEYBIND_LABELS[index]
 	return ""
+
+func _ready() -> void:
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
+
+func _on_mouse_entered() -> void:
+	_is_hovered = true
+	_update_visual()
+
+func _on_mouse_exited() -> void:
+	_is_hovered = false
+	_update_visual()
 
 func set_selected(selected: bool) -> void:
 	_selected = selected

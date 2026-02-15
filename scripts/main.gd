@@ -47,6 +47,10 @@ const CARD_KEYS = [
 var selected_card_index: int = -1
 var current_character: CharacterData = null
 var starting_character: CharacterData = null
+var deck_list_panel: PanelContainer = null
+var deck_list_container: VBoxContainer = null
+var deck_list_visible: bool = false
+var deck_list_card_preview: PanelContainer = null
 
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
@@ -90,6 +94,11 @@ func _ready() -> void:
 	else:
 		select_character(CharacterData.create_ryan())
 	
+	# Style the hand area with solid background so battlefield doesn't bleed through
+	_setup_hand_area_background()
+	_setup_deck_list_button()
+	_setup_deck_list_panel()
+
 	# Spawn initial test wave
 	enemy_spawner.spawn_test_arena()
 	_update_enemy_count()
@@ -111,6 +120,247 @@ func _setup_overflow_buttons() -> void:
 		button.button_pressed = (i == 0)
 		button.pressed.connect(_on_overflow_button_pressed.bind(i))
 		overflow_buttons.add_child(button)
+func _setup_hand_area_background() -> void:
+	var hand_area = $UI/HandArea as PanelContainer
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.13, 0.16, 1.0)
+	style.border_width_top = 2
+	style.border_color = Color(0.3, 0.3, 0.4, 1.0)
+	hand_area.add_theme_stylebox_override("panel", style)
+	# Ensure hand area clips content and sits on top
+	hand_area.clip_contents = true
+
+func _setup_deck_list_button() -> void:
+	var hand_area = $UI/HandArea as PanelContainer
+	var deck_btn = Button.new()
+	deck_btn.name = "DeckListButton"
+	deck_btn.text = "Deck"
+	deck_btn.custom_minimum_size = Vector2(50, 30)
+	deck_btn.pressed.connect(_on_deck_list_button_pressed)
+	# Place button to the right of the hand area
+	var ui = $UI as CanvasLayer
+	var btn_container = Control.new()
+	btn_container.name = "DeckButtonContainer"
+	ui.add_child(btn_container)
+	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	btn_container.offset_left = -95.0
+	btn_container.offset_top = -40.0
+	btn_container.offset_right = -5.0
+	btn_container.offset_bottom = -5.0
+	btn_container.add_child(deck_btn)
+	deck_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+func _setup_deck_list_panel() -> void:
+	var ui = $UI as CanvasLayer
+	# Main panel
+	deck_list_panel = PanelContainer.new()
+	deck_list_panel.name = "DeckListPanel"
+	ui.add_child(deck_list_panel)
+	deck_list_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	deck_list_panel.offset_left = -280.0
+	deck_list_panel.offset_top = -250.0
+	deck_list_panel.offset_right = -10.0
+	deck_list_panel.offset_bottom = 250.0
+	deck_list_panel.custom_minimum_size = Vector2(270, 400)
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.4, 0.4, 0.5)
+	panel_style.corner_radius_top_left = 6
+	panel_style.corner_radius_top_right = 6
+	panel_style.corner_radius_bottom_left = 6
+	panel_style.corner_radius_bottom_right = 6
+	panel_style.content_margin_left = 10.0
+	panel_style.content_margin_right = 10.0
+	panel_style.content_margin_top = 10.0
+	panel_style.content_margin_bottom = 10.0
+	deck_list_panel.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.layout_mode = 1
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	deck_list_panel.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	margin.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "Deck Contents"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	vbox.add_child(title)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 350)
+	vbox.add_child(scroll)
+
+	deck_list_container = VBoxContainer.new()
+	deck_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(deck_list_container)
+
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.pressed.connect(_on_deck_list_button_pressed)
+	vbox.add_child(close_btn)
+
+	deck_list_panel.visible = false
+
+	# Card preview popup (shown on hover over deck list entries)
+	deck_list_card_preview = PanelContainer.new()
+	deck_list_card_preview.name = "DeckListCardPreview"
+	ui.add_child(deck_list_card_preview)
+	deck_list_card_preview.custom_minimum_size = Vector2(180, 0)
+	var preview_style = StyleBoxFlat.new()
+	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
+	preview_style.border_width_left = 2
+	preview_style.border_width_right = 2
+	preview_style.border_width_top = 2
+	preview_style.border_width_bottom = 2
+	preview_style.border_color = Color(0.5, 0.5, 0.6)
+	preview_style.corner_radius_top_left = 4
+	preview_style.corner_radius_top_right = 4
+	preview_style.corner_radius_bottom_left = 4
+	preview_style.corner_radius_bottom_right = 4
+	preview_style.content_margin_left = 8.0
+	preview_style.content_margin_right = 8.0
+	preview_style.content_margin_top = 8.0
+	preview_style.content_margin_bottom = 8.0
+	deck_list_card_preview.add_theme_stylebox_override("panel", preview_style)
+	deck_list_card_preview.visible = false
+
+func _on_deck_list_button_pressed() -> void:
+	deck_list_visible = !deck_list_visible
+	deck_list_panel.visible = deck_list_visible
+	if deck_list_visible:
+		_populate_deck_list()
+	else:
+		deck_list_card_preview.visible = false
+
+func _populate_deck_list() -> void:
+	# Clear existing entries
+	for child in deck_list_container.get_children():
+		child.queue_free()
+
+	# Count cards across all piles
+	var card_counts: Dictionary = {}
+	var card_refs: Dictionary = {}  # Store a reference card for each name
+	var all_cards: Array = []
+	all_cards.append_array(deck_manager.draw_pile)
+	all_cards.append_array(deck_manager.hand)
+	all_cards.append_array(deck_manager.discard_pile)
+	if deck_manager.has_method("get_jail_pile"):
+		all_cards.append_array(deck_manager.jail_pile)
+	else:
+		all_cards.append_array(deck_manager.jail_pile)
+
+	for card in all_cards:
+		if card.card_name in card_counts:
+			card_counts[card.card_name] += 1
+		else:
+			card_counts[card.card_name] = 1
+			card_refs[card.card_name] = card
+
+	# Sort by name
+	var names = card_counts.keys()
+	names.sort()
+
+	for card_name in names:
+		var count = card_counts[card_name]
+		var card_ref = card_refs[card_name]
+		var entry = Button.new()
+		entry.text = "%s (%d)" % [card_name, count]
+		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.flat = true
+		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		entry.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
+		entry.add_theme_font_size_override("font_size", 14)
+		entry.mouse_entered.connect(_on_deck_list_entry_hovered.bind(card_ref, entry))
+		entry.mouse_exited.connect(_on_deck_list_entry_unhovered)
+		deck_list_container.add_child(entry)
+
+func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
+	# Clear previous preview content
+	for child in deck_list_card_preview.get_children():
+		child.queue_free()
+
+	var vbox = VBoxContainer.new()
+	deck_list_card_preview.add_child(vbox)
+
+	var name_lbl = Label.new()
+	name_lbl.text = card.card_name
+	name_lbl.add_theme_font_size_override("font_size", 16)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	vbox.add_child(name_lbl)
+
+	var type_lbl = Label.new()
+	type_lbl.text = card.card_type_name
+	type_lbl.add_theme_font_size_override("font_size", 12)
+	match card.card_type:
+		Card.CardType.ATTACK:
+			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+		Card.CardType.DEFENSE:
+			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
+		Card.CardType.UTILITY:
+			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+	vbox.add_child(type_lbl)
+
+	var cost_lbl = Label.new()
+	cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+	cost_lbl.add_theme_font_size_override("font_size", 12)
+	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	vbox.add_child(cost_lbl)
+
+	if card.is_ranged:
+		var range_lbl = Label.new()
+		range_lbl.text = card.get_range_display()
+		range_lbl.add_theme_font_size_override("font_size", 12)
+		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
+		vbox.add_child(range_lbl)
+	else:
+		var melee_lbl = Label.new()
+		melee_lbl.text = "Melee"
+		melee_lbl.add_theme_font_size_override("font_size", 12)
+		melee_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
+		vbox.add_child(melee_lbl)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var desc_lbl = RichTextLabel.new()
+	desc_lbl.bbcode_enabled = true
+	desc_lbl.text = card.description
+	desc_lbl.fit_content = true
+	desc_lbl.scroll_active = false
+	desc_lbl.custom_minimum_size = Vector2(160, 0)
+	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
+	vbox.add_child(desc_lbl)
+
+	if card.sticky > 0:
+		var sticky_lbl = Label.new()
+		sticky_lbl.text = "Sticky %d" % card.sticky
+		sticky_lbl.add_theme_font_size_override("font_size", 12)
+		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
+		vbox.add_child(sticky_lbl)
+
+	# Position preview to the left of the deck list panel
+	var entry_rect = entry.get_global_rect()
+	deck_list_card_preview.position = Vector2(
+		deck_list_panel.position.x - deck_list_card_preview.size.x - 10,
+		entry_rect.position.y
+	)
+	deck_list_card_preview.visible = true
+
+func _on_deck_list_entry_unhovered() -> void:
+	deck_list_card_preview.visible = false
+
 func _setup_gauntlet_skills_ui() -> void:
 	# Clear existing
 	for child in gauntlet_skills_container.get_children():
