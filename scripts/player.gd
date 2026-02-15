@@ -5,6 +5,7 @@ extends CharacterBody2D
 
 signal move_completed
 signal move_started(spaces: int)
+signal tile_reached  # Emitted each time the player reaches a single tile
 
 @export var move_speed: float = 300.0
 
@@ -20,6 +21,7 @@ var spaces_to_move: int = 0
 var spaces_moved: int = 0
 var move_path: Array[Vector2] = []
 
+var movement_paused: bool = false  # Pause movement while enemies act
 var grid_manager: GridManager
 
 func _ready() -> void:
@@ -64,18 +66,27 @@ func initialize_character(data: CharacterData) -> void:
 	buff_manager.initialize(stats, self)
 	buff_manager.connect_debuff_manager(debuff_manager)  # For Cleanse
 
+func pause_movement() -> void:
+	movement_paused = true
+
+func resume_movement() -> void:
+	movement_paused = false
+
 func _physics_process(delta: float) -> void:
-	if is_moving:
+	if is_moving and not movement_paused:
 		var direction = (target_position - position).normalized()
 		var distance = position.distance_to(target_position)
-		
+
 		if distance < 5.0:
 			position = target_position
 			spaces_moved += 1
-			
+
 			# Trigger bleed damage on movement
 			debuff_manager.on_movement(1)
-			
+
+			# Emit per-tile signal so tempo updates in real time
+			tile_reached.emit()
+
 			if move_path.size() > 0:
 				target_position = move_path.pop_front()
 			else:
@@ -86,7 +97,7 @@ func _physics_process(delta: float) -> void:
 			velocity = direction * move_speed
 	else:
 		velocity = Vector2.ZERO
-	
+
 	move_and_slide()
 
 func calculate_path_to(target_pos: Vector2) -> Array[Vector2]:
