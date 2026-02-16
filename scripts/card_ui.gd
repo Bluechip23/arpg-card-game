@@ -3,6 +3,9 @@ extends PanelContainer
 
 ## Visual representation of a card in hand
 
+signal card_hovered(card: Card, card_ui: CardUI)
+signal card_unhovered()
+
 @onready var name_label: Label = $Panel/VBox/NameLabel
 @onready var type_label: Label = $Panel/VBox/TypeLabel
 @onready var range_label: Label = $Panel/VBox/RangeLabel
@@ -90,10 +93,13 @@ func store_base_position() -> void:
 func _on_mouse_entered() -> void:
 	_is_hovered = true
 	_update_visual()
+	if _card:
+		card_hovered.emit(_card, self)
 
 func _on_mouse_exited() -> void:
 	_is_hovered = false
 	_update_visual()
+	card_unhovered.emit()
 
 func _update_description() -> void:
 	if not desc_label or not _card:
@@ -121,7 +127,7 @@ func _update_visual() -> void:
 		_apply_gold_trim()
 	elif _is_hovered:
 		modulate = Color(1, 1, 1)
-		position.y = _base_y - 30
+		position.y = _base_y
 		z_index = 99
 		_clear_gold_trim()
 	elif _is_hexed:

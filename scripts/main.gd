@@ -51,6 +51,7 @@ var deck_list_panel: PanelContainer = null
 var deck_list_container: VBoxContainer = null
 var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
+var hand_card_preview: PanelContainer = null
 
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
@@ -98,6 +99,7 @@ func _ready() -> void:
 	_setup_hand_area_background()
 	_setup_deck_list_button()
 	_setup_deck_list_panel()
+	_setup_hand_card_preview()
 
 	# Spawn initial test wave
 	enemy_spawner.spawn_test_arena()
@@ -361,6 +363,127 @@ func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
 func _on_deck_list_entry_unhovered() -> void:
 	deck_list_card_preview.visible = false
 
+func _setup_hand_card_preview() -> void:
+	var ui = $UI
+	hand_card_preview = PanelContainer.new()
+	hand_card_preview.name = "HandCardPreview"
+	ui.add_child(hand_card_preview)
+	hand_card_preview.custom_minimum_size = Vector2(200, 0)
+	var preview_style = StyleBoxFlat.new()
+	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
+	preview_style.border_width_left = 2
+	preview_style.border_width_right = 2
+	preview_style.border_width_top = 2
+	preview_style.border_width_bottom = 2
+	preview_style.border_color = Color(0.5, 0.5, 0.6)
+	preview_style.corner_radius_top_left = 4
+	preview_style.corner_radius_top_right = 4
+	preview_style.corner_radius_bottom_left = 4
+	preview_style.corner_radius_bottom_right = 4
+	preview_style.content_margin_left = 10.0
+	preview_style.content_margin_right = 10.0
+	preview_style.content_margin_top = 10.0
+	preview_style.content_margin_bottom = 10.0
+	hand_card_preview.add_theme_stylebox_override("panel", preview_style)
+	hand_card_preview.visible = false
+	hand_card_preview.z_index = 200
+
+func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
+	# Clear previous preview content
+	for child in hand_card_preview.get_children():
+		child.queue_free()
+
+	var vbox = VBoxContainer.new()
+	hand_card_preview.add_child(vbox)
+
+	# Card name (gold)
+	var name_lbl = Label.new()
+	name_lbl.text = card.card_name
+	name_lbl.add_theme_font_size_override("font_size", 16)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	vbox.add_child(name_lbl)
+
+	# Card type (color-coded)
+	var type_lbl = Label.new()
+	type_lbl.text = card.card_type_name
+	type_lbl.add_theme_font_size_override("font_size", 12)
+	match card.card_type:
+		Card.CardType.ATTACK:
+			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+		Card.CardType.DEFENSE:
+			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
+		Card.CardType.UTILITY:
+			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+	vbox.add_child(type_lbl)
+
+	# Cost
+	var cost_lbl = Label.new()
+	cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+	cost_lbl.add_theme_font_size_override("font_size", 12)
+	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	vbox.add_child(cost_lbl)
+
+	# Range/Melee
+	if card.is_ranged:
+		var range_lbl = Label.new()
+		range_lbl.text = card.get_range_display()
+		range_lbl.add_theme_font_size_override("font_size", 12)
+		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
+		vbox.add_child(range_lbl)
+	else:
+		var melee_lbl = Label.new()
+		melee_lbl.text = "Melee"
+		melee_lbl.add_theme_font_size_override("font_size", 12)
+		melee_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
+		vbox.add_child(melee_lbl)
+
+	# Separator
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	# Description
+	var desc_lbl = RichTextLabel.new()
+	desc_lbl.bbcode_enabled = true
+	if card.rng_outcomes_data.size() > 0 and card.has_been_rolled():
+		desc_lbl.text = card.get_colored_description()
+	else:
+		desc_lbl.text = card.description
+	desc_lbl.fit_content = true
+	desc_lbl.scroll_active = false
+	desc_lbl.custom_minimum_size = Vector2(180, 0)
+	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
+	vbox.add_child(desc_lbl)
+
+	# Sticky indicator
+	if card.sticky > 0:
+		var sticky_lbl = Label.new()
+		sticky_lbl.text = "Sticky %d" % card.sticky
+		sticky_lbl.add_theme_font_size_override("font_size", 12)
+		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
+		vbox.add_child(sticky_lbl)
+
+	# Position popup above the hand area, centered on the hovered card
+	var hand_area = $UI/HandArea as PanelContainer
+	var card_global_rect = card_ui.get_global_rect()
+	var card_center_x = card_global_rect.position.x + card_global_rect.size.x / 2.0
+
+	# Wait a frame for the preview to calculate its size, then position
+	await get_tree().process_frame
+	var preview_width = hand_card_preview.size.x
+	var popup_x = card_center_x - preview_width / 2.0
+
+	# Clamp to screen bounds
+	var screen_width = get_viewport().get_visible_rect().size.x
+	popup_x = clamp(popup_x, 4.0, screen_width - preview_width - 4.0)
+
+	# Place above the hand area
+	var popup_y = hand_area.global_position.y - hand_card_preview.size.y - 8.0
+	hand_card_preview.global_position = Vector2(popup_x, popup_y)
+	hand_card_preview.visible = true
+
+func _on_hand_card_unhovered() -> void:
+	hand_card_preview.visible = false
+
 func _setup_gauntlet_skills_ui() -> void:
 	# Clear existing
 	for child in gauntlet_skills_container.get_children():
@@ -521,6 +644,8 @@ func _on_overflow_button_pressed(mode_index: int) -> void:
 	update_peaked_display()
 
 func _on_hand_updated() -> void:
+	if hand_card_preview:
+		hand_card_preview.visible = false
 	for child in hand_container.get_children():
 		child.queue_free()
 
@@ -583,6 +708,8 @@ func _on_hand_updated() -> void:
 		card_ui.position = Vector2(start_x + i * spacing, card_y)
 		card_ui.z_index = i
 		card_ui.store_base_position()
+		card_ui.card_hovered.connect(_on_hand_card_hovered)
+		card_ui.card_unhovered.connect(_on_hand_card_unhovered)
 
 	if selected_card_index >= deck_manager.hand.size():
 		selected_card_index = -1
