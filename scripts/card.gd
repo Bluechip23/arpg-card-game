@@ -1111,10 +1111,23 @@ func _execute_lead_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	print("[CARD] Lead Arrow! 1.8x damage from high ground: %d" % total_damage)
 
 func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Buff: next ranged attack consumes all remaining mana and converts to bonus damage
+	# Consume all remaining mana, deal 3 damage per mana spent
+	var mana_used = 0
+	if player_stats:
+		mana_used = int(player_stats.current_mana)
+		if mana_used > 0:
+			player_stats.spend_mana(mana_used)
+	var total_damage = mana_used * 3
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
 	if buff_mgr:
-		buff_mgr.last_breath_active = true
-	print("[CARD] Last Breath! Next shot will consume all remaining mana for bonus damage")
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			buff_mgr.consume_enlightened()
+	if target and target.has_method("take_damage"):
+		target.take_damage(total_damage)
+	print("[CARD] Last Breath! Consumed %d mana for %d damage" % [mana_used, total_damage])
 
 func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -1917,12 +1930,14 @@ static func create_last_breath() -> Card:
 	var card = Card.new()
 	card.card_id = "last_breath"
 	card.card_name = "Last Breath"
-	card.description = "Next ranged attack consumes all remaining mana and converts it to bonus damage."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
-	card.mana_cost = 2
-	card.tempo_cost = 3
-	card.target_types = ["self"]
+	card.description = "Consume all remaining mana. Deal 3 damage per mana spent."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 0
+	card.tempo_cost = 5
+	card.is_ranged = true
+	card.range_modifier = 5
+	card.target_types = ["enemy"]
 	return card
 
 static func create_mixed_bag() -> Card:

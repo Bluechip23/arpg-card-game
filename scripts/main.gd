@@ -1061,14 +1061,6 @@ func play_selected_card(target) -> void:
 		buff_mgr.apply_buff(Buff.create_enlightened(20, 1, "Tighten String"))
 		tighten_applied = true
 
-	# Last Breath: next ranged attack consumes all remaining mana for bonus damage
-	var last_breath_mana = 0
-	if buff_mgr and buff_mgr.last_breath_active and is_ranged_attack:
-		var stats = player.get_stats()
-		if stats:
-			last_breath_mana = int(stats.current_mana)
-			card.bonus_damage += last_breath_mana * 3
-
 	var result = deck_manager.play_card(selected_card_index, target, player)
 
 	if result["played"]:
@@ -1084,18 +1076,6 @@ func play_selected_card(target) -> void:
 			card.range_modifier -= 6
 			if buff_mgr.tighten_string_charges <= 0:
 				print("[MAIN] Tighten String expired!")
-
-		# Last Breath: consume all remaining mana and clear buff
-		if last_breath_mana > 0:
-			var stats = player.get_stats()
-			if stats:
-				# play_card already spent the card's own mana cost, spend whatever is left
-				var remaining_mana = int(stats.current_mana)
-				if remaining_mana > 0:
-					stats.spend_mana(remaining_mana)
-			buff_mgr.last_breath_active = false
-			card.bonus_damage -= last_breath_mana * 3
-			print("[MAIN] Last Breath consumed %d mana for +%d bonus damage!" % [last_breath_mana, last_breath_mana * 3])
 
 		# Enchanted Quiver: create a free arrow card after ranged attacks
 		if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and is_ranged_attack:
@@ -1120,8 +1100,6 @@ func play_selected_card(target) -> void:
 		if tighten_applied:
 			card.bonus_damage -= 6
 			card.range_modifier -= 6
-		if last_breath_mana > 0:
-			card.bonus_damage -= last_breath_mana * 3
 
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node2D:
