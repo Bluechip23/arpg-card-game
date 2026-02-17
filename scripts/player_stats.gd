@@ -54,6 +54,8 @@ var empowered_cards_remaining: int = 0
 var empower_damage_bonus: int = 3
 var empower_block_reduction: int = 3
 var chance_boost: float = 0.0
+var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
+var healing_boost_turns: int = 0
 var inventory: Inventory = null
 
 # ============================================
@@ -318,7 +320,10 @@ func get_effective_spell_damage(base_damage: int) -> int:
 
 func get_effective_heal_amount(base_heal: int) -> int:
 	# INT also boosts healing (flat)
-	return base_heal + get_intelligence_spell_bonus()
+	var amount = base_heal + get_intelligence_spell_bonus()
+	if healing_boost_percent > 0.0:
+		amount = floori(amount * (1.0 + healing_boost_percent))
+	return amount
 
 # ============================================
 # TURN PROCESSING
@@ -342,10 +347,17 @@ func process_turn(debuff_mgr: DebuffManager = null, buff_mgr: BuffManager = null
 			current_armor = max(0, current_armor - decay)
 			armor_changed.emit(current_armor)
 	
+	# Tick healing boost
+	if healing_boost_turns > 0:
+		healing_boost_turns -= 1
+		if healing_boost_turns <= 0:
+			healing_boost_percent = 0.0
+			print("[STATS] Healing boost expired")
+
 	var mana_regen = get_effective_mana_regen()
 	current_mana = min(current_mana + mana_regen, max_mana)
 	mana_changed.emit(current_mana, max_mana)
-	
+
 	recalculate_derived_stats()
 
 # ============================================

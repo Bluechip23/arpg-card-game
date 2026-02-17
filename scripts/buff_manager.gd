@@ -14,6 +14,11 @@ var buffs: Array[Buff] = []
 var owner_stats: PlayerStats
 var owner_node: Node2D
 var debuff_manager: DebuffManager  # Reference to remove debuffs with Cleanse
+var poisoned_blood_active: bool = false
+var poisoned_blood_turns: int = 0
+var understanding_turns: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
+var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
+var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
 
 func initialize(stats: PlayerStats = null, owner: Node2D = null) -> void:
 	owner_stats = stats
@@ -129,8 +134,22 @@ func process_turn_start() -> Dictionary:
 	return result
 
 func process_turn_end() -> void:
+	# Tick poisoned blood
+	if poisoned_blood_turns > 0:
+		poisoned_blood_turns -= 1
+		if poisoned_blood_turns <= 0:
+			poisoned_blood_active = false
+			print("[BUFF] Poisoned Blood expired")
+
+	# Tick understanding delayed crit
+	if understanding_turns > 0:
+		understanding_turns -= 1
+		if understanding_turns <= 0:
+			apply_buff(Buff.create_enlightened(100, 1, "Understanding"))
+			print("[BUFF] Understanding ready! Next attack will auto-crit")
+
 	var expired: Array[Buff] = []
-	
+
 	for buff in buffs:
 		if not buff.is_charge_based():
 			buff_ticked.emit(buff)

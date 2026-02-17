@@ -53,11 +53,13 @@ var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
+var pending_sky_falls: Array = []  # [{position: Vector2, damage: int, turns_remaining: int}]
 
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.card_peaked.connect(_on_card_peaked)
+	deck_manager.card_discarded.connect(_on_card_discarded)
 	test_ui.apply_overflow_requested.connect(_on_apply_overflow)
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
 	tempo_manager.tempo_threshold_reached.connect(_on_tempo_threshold_reached)
@@ -745,6 +747,21 @@ func _on_hand_updated() -> void:
 	update_selected_display()
 	update_card_highlights()
 
+func _on_card_discarded(card: Card) -> void:
+	# Volatile Mixture: deal damage to a random nearby enemy when discarded
+	if card.card_id == "volatile_mixture":
+		var stats = player.get_stats()
+		var total_damage = card.damage
+		if stats:
+			total_damage = stats.get_effective_spell_damage(card.damage)
+		var nearby = enemy_spawner.get_enemies_in_radius(player.position, 300.0)
+		if nearby.size() > 0:
+			var target_enemy = nearby[randi() % nearby.size()]
+			target_enemy.take_damage(total_damage)
+			print("[MAIN] Volatile Mixture discarded! Dealt %d damage to %s" % [total_damage, target_enemy.enemy_name])
+		else:
+			print("[MAIN] Volatile Mixture discarded! No enemies nearby to damage")
+
 func _on_deck_shuffled() -> void:
 	update_deck_info()
 
@@ -872,6 +889,12 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		if buff_mgr:
 			buff_mgr.process_turn_end()
 
+		# Process pending Sky Falls
+		_process_pending_sky_falls()
+
+	# Volatile Mixture: if still in hand at end of turn, deal self-damage and discard
+	_check_volatile_mixture_in_hand()
+
 	_update_gauntlet_skills_ui()
 	update_turn_display()
 	_update_enemy_count()
@@ -881,6 +904,33 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	# Resume player movement after enemies finish
 	if was_moving:
 		player.resume_movement()
+func _check_volatile_mixture_in_hand() -> void:
+	var stats = player.get_stats()
+	for i in range(deck_manager.hand.size() - 1, -1, -1):
+		var card = deck_manager.hand[i]
+		if card.card_id == "volatile_mixture":
+			var self_damage = card.damage
+			if stats:
+				self_damage = stats.get_effective_spell_damage(card.damage)
+				stats.take_damage(self_damage)
+			deck_manager.hand.remove_at(i)
+			deck_manager.discard_pile.append(card)
+			print("[MAIN] Volatile Mixture still in hand! Took %d self-damage" % self_damage)
+
+func _process_pending_sky_falls() -> void:
+	for i in range(pending_sky_falls.size() - 1, -1, -1):
+		var sf = pending_sky_falls[i]
+		sf.turns_remaining -= 1
+		if sf.turns_remaining <= 0:
+			# Arrow lands! Deal AOE damage at stored position
+			var enemies_hit = enemy_spawner.get_enemies_in_radius(sf.position, 100.0)
+			for enemy in enemies_hit:
+				enemy.take_damage(sf.damage)
+			pending_sky_falls.remove_at(i)
+			print("[MAIN] Sky Fall landed at %s! Hit %d enemies for %d damage" % [sf.position, enemies_hit.size(), sf.damage])
+		else:
+			print("[MAIN] Sky Fall: %d turn(s) until landing at %s" % [sf.turns_remaining, sf.position])
+
 func _apply_magnetize_pull(tiles: int) -> void:
 	var enemies = enemy_spawner.get_living_enemies()
 	if enemies.size() == 0:
@@ -994,12 +1044,22 @@ func play_selected_card(target) -> void:
 
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
+	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
 
 	var debuff_mgr = player.get_debuff_manager()
 	var buff_mgr = player.get_buff_manager()
 
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
+
+	# Tighten String: +3 tempo, +6 damage, +6 range, +20% crit on ranged attacks
+	var tighten_applied = false
+	if buff_mgr and buff_mgr.tighten_string_charges > 0 and is_ranged_attack:
+		tempo_cost += 3
+		card.bonus_damage += 6
+		card.range_modifier += 6
+		buff_mgr.apply_buff(Buff.create_enlightened(20, 1, "Tighten String"))
+		tighten_applied = true
 
 	var result = deck_manager.play_card(selected_card_index, target, player)
 
@@ -1008,6 +1068,22 @@ func play_selected_card(target) -> void:
 
 		# Apply world effects (knockback, movement, AOE) that need game-level access
 		_apply_card_world_effects(card, target)
+
+		# Tighten String: decrement charges and undo temporary card mods
+		if tighten_applied:
+			buff_mgr.tighten_string_charges -= 1
+			card.bonus_damage -= 6
+			card.range_modifier -= 6
+			if buff_mgr.tighten_string_charges <= 0:
+				print("[MAIN] Tighten String expired!")
+
+		# Enchanted Quiver: create a free arrow card after ranged attacks
+		if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and is_ranged_attack:
+			var arrow = Card.create_quick_arrow()
+			deck_manager.hand.append(arrow)
+			buff_mgr.enchanted_quiver_charges -= 1
+			deck_manager.hand_updated.emit()
+			print("[MAIN] Enchanted Quiver: Quick Arrow added to hand! (%d charges left)" % buff_mgr.enchanted_quiver_charges)
 
 		if not result["free_turn"]:
 			if buff_mgr and buff_mgr.consume_steady():
@@ -1019,6 +1095,11 @@ func play_selected_card(target) -> void:
 
 		_on_hand_updated()
 		update_deck_info()
+	else:
+		# Card didn't play - undo temporary modifications
+		if tighten_applied:
+			card.bonus_damage -= 6
+			card.range_modifier -= 6
 
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node2D:
@@ -1027,6 +1108,10 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 	var distance_tiles = distance_px / grid_manager.grid_size
 	if card.is_ranged:
 		var max_range = 5 + card.range_modifier
+		# Tighten String: +6 range on ranged attacks
+		var buff_mgr = player.get_buff_manager() if player else null
+		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
+			max_range += 6
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
 		# Melee: must be adjacent (within ~1.5 tiles)
@@ -1082,6 +1167,78 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			for enemy in landing_enemies:
 				enemy.take_damage(card.last_damage_dealt)
 			print("[MAIN] Heroic Leap: jumped %d tiles to %s, hit %d enemies for %d damage" % [leap_distance, leap_target, landing_enemies.size(), card.last_damage_dealt])
+
+		"surrounding_ice":
+			# AOE circle around player - roll independently for each enemy
+			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
+			var hits = 0
+			var misses = 0
+			for enemy in nearby:
+				if randf() <= 0.7:  # 70% hit chance (30% miss)
+					enemy.take_damage(card.last_damage_dealt)
+					hits += 1
+				else:
+					misses += 1
+			print("[MAIN] Surrounding Ice: %d hits, %d misses out of %d enemies" % [hits, misses, nearby.size()])
+
+		"snowballs_chance":
+			# Searing fire line 3 spaces forward - always hits
+			var direction = (mouse_pos - player.position).normalized()
+			var fire_end = player.position + direction * card.aoe_range
+			var fire_enemies = enemy_spawner.get_enemies_in_line(player.position, fire_end, 50.0)
+			for enemy in fire_enemies:
+				enemy.take_damage(card.last_damage_dealt)
+			print("[MAIN] Snowball's Chance: fire line hit %d enemies for %d damage" % [fire_enemies.size(), card.last_damage_dealt])
+			# 50% to also spread snowball cone
+			if randf() < 0.5:
+				var cone_enemies = enemy_spawner.get_enemies_in_cone(player.position, direction, card.aoe_range, 45.0)
+				var extra_hits = 0
+				for enemy in cone_enemies:
+					if not enemy in fire_enemies:
+						enemy.take_damage(card.last_damage_dealt)
+						extra_hits += 1
+				print("[MAIN] Snowball's Chance: snowball cone hit %d additional enemies!" % extra_hits)
+
+		"sky_fall":
+			# Store position for delayed 2-turn landing
+			var landing_pos = grid_manager.snap_to_grid(mouse_pos)
+			pending_sky_falls.append({
+				"position": landing_pos,
+				"damage": card.last_damage_dealt,
+				"turns_remaining": 2
+			})
+			print("[MAIN] Sky Fall: arrow launched! Will land at %s in 2 turns for %d damage" % [landing_pos, card.last_damage_dealt])
+
+		"round_em_up":
+			# Pull enemies within 2 squares of clicked point 1 square toward that point
+			var center = grid_manager.snap_to_grid(mouse_pos)
+			var radius = 2.0 * grid_manager.grid_size
+			var nearby = enemy_spawner.get_enemies_in_radius(center, radius)
+			for enemy in nearby:
+				var dir_to_center = (center - enemy.position).normalized()
+				var new_pos = enemy.position + dir_to_center * grid_manager.grid_size
+				new_pos = grid_manager.snap_to_grid(new_pos)
+				enemy.position = new_pos
+				enemy.target_position = new_pos
+			print("[MAIN] Round 'Em Up: pulled %d enemies toward %s" % [nearby.size(), center])
+
+		"push":
+			# Push enemy 3 spaces away from the player
+			if target and target.has_method("knockback"):
+				target.knockback(player.position, 3)
+			print("[MAIN] Push: enemy pushed 3 spaces away")
+
+		"swap":
+			# Swap positions between player and target
+			if target and target is Node2D:
+				var player_pos = player.position
+				var target_pos = target.position
+				player.position = target_pos
+				player.target_position = target_pos
+				target.position = player_pos
+				target.target_position = player_pos
+				print("[MAIN] Swap: swapped positions with %s" % target.name)
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Character panel toggle

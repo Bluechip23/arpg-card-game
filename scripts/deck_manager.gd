@@ -26,6 +26,7 @@ var peaked_card: Card = null
 
 var next_attack_free: bool = false
 var next_attack_mana_discount: int = 0
+var prep_utility_discount: int = 0  # Preparation: reduces next utility card cost
 
 func connect_player_stats(stats: PlayerStats) -> void:
 	player_stats = stats
@@ -176,6 +177,7 @@ func _create_card_from_id(card_id: String) -> Card:
 		"lead_arrow": return Card.create_lead_arrow()
 		"last_breath": return Card.create_last_breath()
 		"mixed_bag": return Card.create_mixed_bag()
+		"quick_arrow": return Card.create_quick_arrow()
 		# Cory cards
 		"round_em_up": return Card.create_round_em_up()
 		"trip": return Card.create_trip()
@@ -283,27 +285,40 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 				return { "played": false, "free_turn": false }
 	
 	var mana_cost = card.mana_cost - next_attack_mana_discount
-	
+
+	# Preparation: utility cards cost less
+	if prep_utility_discount > 0 and card.card_type == Card.CardType.UTILITY:
+		mana_cost -= prep_utility_discount
+		print("[DECK] Preparation discount: -%d mana" % prep_utility_discount)
+
 	if debuff_mgr:
 		if card.card_type == Card.CardType.ATTACK:
 			mana_cost += debuff_mgr.get_attack_mana_increase()
-		
+
 		if debuff_mgr.is_card_hexed(index):
 			mana_cost += debuff_mgr.get_hexed_mana_increase()
-	
+
 	mana_cost = max(0, mana_cost)
-	
+
 	if player_stats and not player_stats.has_mana(mana_cost):
 		print("[DECK] Not enough mana! Need %d, have %d" % [mana_cost, int(player_stats.current_mana)])
 		return { "played": false, "free_turn": false }
-	
+
 	if player_stats and mana_cost > 0:
 		player_stats.spend_mana(mana_cost)
-	
+
 	var was_free_turn = next_attack_free and card.card_type == Card.CardType.ATTACK
-	
+
 	next_attack_free = false
 	next_attack_mana_discount = 0
+
+	# Preparation chain: if utility was played, keep discount for next card; otherwise clear
+	if prep_utility_discount > 0:
+		if card.card_type == Card.CardType.UTILITY:
+			pass  # Keep prep_utility_discount for next card (chain continues)
+		else:
+			prep_utility_discount = 0
+			print("[DECK] Preparation chain broken (non-utility played)")
 	
 	var clumsy_triggered = false
 	if debuff_mgr and debuff_mgr.roll_clumsy():

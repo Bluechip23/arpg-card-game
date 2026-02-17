@@ -110,5 +110,19 @@ func get_enemies_in_line(start: Vector2, end: Vector2, width: float = 40.0) -> A
 					result.append(enemy)
 	return result
 
+func get_enemies_in_cone(origin: Vector2, direction: Vector2, length: float, half_angle_deg: float = 30.0) -> Array[Enemy]:
+	var result: Array[Enemy] = []
+	var dir_normalized = direction.normalized()
+	var cos_threshold = cos(deg_to_rad(half_angle_deg))
+	for enemy in enemies:
+		if is_instance_valid(enemy) and enemy.is_alive():
+			var to_enemy = enemy.position - origin
+			var dist = to_enemy.length()
+			if dist > 0 and dist <= length:
+				var dot = to_enemy.normalized().dot(dir_normalized)
+				if dot >= cos_threshold:
+					result.append(enemy)
+	return result
+
 func get_enemy_count() -> int:
 	return get_living_enemies().size()
