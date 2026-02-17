@@ -1209,6 +1209,36 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			})
 			print("[MAIN] Sky Fall: arrow launched! Will land at %s in 2 turns for %d damage" % [landing_pos, card.last_damage_dealt])
 
+		"round_em_up":
+			# Pull enemies within 2 squares of clicked point 1 square toward that point
+			var center = grid_manager.snap_to_grid(mouse_pos)
+			var radius = 2.0 * grid_manager.grid_size
+			var nearby = enemy_spawner.get_enemies_in_radius(center, radius)
+			for enemy in nearby:
+				var dir_to_center = (center - enemy.position).normalized()
+				var new_pos = enemy.position + dir_to_center * grid_manager.grid_size
+				new_pos = grid_manager.snap_to_grid(new_pos)
+				enemy.position = new_pos
+				enemy.target_position = new_pos
+			print("[MAIN] Round 'Em Up: pulled %d enemies toward %s" % [nearby.size(), center])
+
+		"push":
+			# Push enemy 3 spaces away from the player
+			if target and target.has_method("knockback"):
+				target.knockback(player.position, 3)
+			print("[MAIN] Push: enemy pushed 3 spaces away")
+
+		"swap":
+			# Swap positions between player and target
+			if target and target is Node2D:
+				var player_pos = player.position
+				var target_pos = target.position
+				player.position = target_pos
+				player.target_position = target_pos
+				target.position = player_pos
+				target.target_position = player_pos
+				print("[MAIN] Swap: swapped positions with %s" % target.name)
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Character panel toggle
