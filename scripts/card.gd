@@ -804,13 +804,9 @@ func _execute_surrounding_ice(target, player_stats: PlayerStats, buff_mgr: BuffM
 	var total_damage = base_damage + bonus_damage
 	if player_stats:
 		total_damage = player_stats.get_effective_spell_damage(total_damage)
-	# 30% chance to miss each enemy
-	if target and target.has_method("take_damage"):
-		if randf() > 0.3:
-			target.take_damage(total_damage)
-			print("[CARD] Surrounding Ice hits for %d damage!" % total_damage)
-		else:
-			print("[CARD] Surrounding Ice missed!")
+	# Store damage for main.gd AOE handling (independent roll per enemy)
+	last_damage_dealt = total_damage
+	print("[CARD] Surrounding Ice prepared! %d damage per hit (rolls per enemy in main)" % total_damage)
 
 func _execute_risk_it(player_stats: PlayerStats, deck_manager = null) -> void:
 	# 30% chance to receive the biscuit
@@ -834,8 +830,8 @@ func _execute_biscuit(player_stats: PlayerStats, buff_mgr: BuffManager = null) -
 
 func _execute_loaded_die(player_stats: PlayerStats) -> void:
 	if player_stats:
-		player_stats.chance_boost += 20.0
-	print("[CARD] Loaded Die! Next card's odds increased by 20%%")
+		player_stats.chance_boost += 10.0
+	print("[CARD] Loaded Die! Next card's odds increased by 10%%")
 
 func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = 5
@@ -846,10 +842,11 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 		if buff_mgr.roll_crit():
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
+	# Always deal base 5 damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
-	# 50% for +15 damage, 50% for stun
-	if randf() < 0.5:
+	# Use pre-rolled RNG: index 0 = +15 damage, index 1 = stun
+	if rng_selected_index == 0:
 		if target and target.has_method("take_damage"):
 			target.take_damage(15)
 		print("[CARD] What's the worst? +15 bonus damage! Total: %d" % (total_damage + 15))
@@ -921,13 +918,9 @@ func _execute_snowballs_chance(target, player_stats: PlayerStats, buff_mgr: Buff
 	var total_damage = base_damage + bonus_damage
 	if player_stats:
 		total_damage = player_stats.get_effective_spell_damage(total_damage)
-	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
-	# 50% to spread snowball cone
-	if randf() < 0.5:
-		print("[CARD] A Snowball's Chance! Searing fire + snowball cone spread! %d damage" % total_damage)
-	else:
-		print("[CARD] A Snowball's Chance! Searing fire for %d damage" % total_damage)
+	# Store damage for main.gd AOE handling (fire line + optional cone)
+	last_damage_dealt = total_damage
+	print("[CARD] A Snowball's Chance prepared! %d damage (AOE in main)" % total_damage)
 
 # ============================================
 # RYAN CARD EXECUTE FUNCTIONS
@@ -1475,7 +1468,7 @@ static func create_loaded_die() -> Card:
 	var card = Card.new()
 	card.card_id = "loaded_die"
 	card.card_name = "Loaded Die"
-	card.description = "Increase positive odds for the next card played."
+	card.description = "Next card with a probability has +10%% higher chance."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
@@ -1586,7 +1579,7 @@ static func create_snowballs_chance() -> Card:
 	var card = Card.new()
 	card.card_id = "snowballs_chance"
 	card.card_name = "A Snowball's Chance"
-	card.description = "Searing fire. 50%% to also spread snowballs in a cone."
+	card.description = "Searing fire 3 spaces forward. 50%% to also spread snowballs in a cone."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 2
@@ -1596,8 +1589,9 @@ static func create_snowballs_chance() -> Card:
 	card.chance_effect_percent = 50.0
 	card.rng_outcomes_data = [{percent = 50.0}]
 	card.is_aoe = true
-	card.aoe_shape = "cone"
-	card.target_types = ["all_nearby"]
+	card.aoe_shape = "line"
+	card.aoe_range = 192.0  # 3 grid spaces (64px each)
+	card.target_types = ["point"]
 	return card
 
 # ============================================

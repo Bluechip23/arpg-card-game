@@ -1082,6 +1082,38 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			for enemy in landing_enemies:
 				enemy.take_damage(card.last_damage_dealt)
 			print("[MAIN] Heroic Leap: jumped %d tiles to %s, hit %d enemies for %d damage" % [leap_distance, leap_target, landing_enemies.size(), card.last_damage_dealt])
+
+		"surrounding_ice":
+			# AOE circle around player - roll independently for each enemy
+			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
+			var hits = 0
+			var misses = 0
+			for enemy in nearby:
+				if randf() <= 0.7:  # 70% hit chance (30% miss)
+					enemy.take_damage(card.last_damage_dealt)
+					hits += 1
+				else:
+					misses += 1
+			print("[MAIN] Surrounding Ice: %d hits, %d misses out of %d enemies" % [hits, misses, nearby.size()])
+
+		"snowballs_chance":
+			# Searing fire line 3 spaces forward - always hits
+			var direction = (mouse_pos - player.position).normalized()
+			var fire_end = player.position + direction * card.aoe_range
+			var fire_enemies = enemy_spawner.get_enemies_in_line(player.position, fire_end, 50.0)
+			for enemy in fire_enemies:
+				enemy.take_damage(card.last_damage_dealt)
+			print("[MAIN] Snowball's Chance: fire line hit %d enemies for %d damage" % [fire_enemies.size(), card.last_damage_dealt])
+			# 50% to also spread snowball cone
+			if randf() < 0.5:
+				var cone_enemies = enemy_spawner.get_enemies_in_cone(player.position, direction, card.aoe_range, 45.0)
+				var extra_hits = 0
+				for enemy in cone_enemies:
+					if not enemy in fire_enemies:
+						enemy.take_damage(card.last_damage_dealt)
+						extra_hits += 1
+				print("[MAIN] Snowball's Chance: snowball cone hit %d additional enemies!" % extra_hits)
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Character panel toggle
