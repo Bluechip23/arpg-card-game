@@ -39,7 +39,7 @@ var duration: int = 0  # Effect duration in turns
 var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
 var range_modifier: int = 0  # Modifies base range: +2 = 7 range, -2 = 3 range
 var card_range: float = 0.0  # Legacy range for specific overrides
-var target_type: String = "enemy"  # "enemy", "ally", "self", "point", "all_nearby"
+var target_types: Array = ["enemy"]  # "enemy", "ally", "self", "point", "all_nearby"
 var consecutive_uses: int = 0  # Track how many times card played in sequence
 var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
@@ -496,7 +496,7 @@ static func create_slash() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_block() -> Card:
@@ -513,7 +513,7 @@ static func create_block() -> Card:
 	card.block = 5
 	card.base_block = 5
 	card.heal_amount = 0
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_discard() -> Card:
@@ -530,7 +530,7 @@ static func create_discard() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_draw() -> Card:
@@ -547,7 +547,7 @@ static func create_draw() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_empower() -> Card:
@@ -1228,7 +1228,7 @@ static func create_life_swap() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 4
 	card.tempo_cost = 4
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_wear_down() -> Card:
@@ -1241,7 +1241,7 @@ static func create_wear_down() -> Card:
 	card.mana_cost = 0
 	card.tempo_cost = 1
 	card.duration = 3
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_taunt() -> Card:
@@ -1253,7 +1253,7 @@ static func create_taunt() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 4
 	card.tempo_cost = 0
-	card.target_type = "all_nearby"
+	card.target_types = ["all_nearby"]
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	return card
@@ -1267,7 +1267,7 @@ static func create_life_steal() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 2
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_roar() -> Card:
@@ -1279,7 +1279,7 @@ static func create_roar() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 2
-	card.target_type = "all_nearby"
+	card.target_types = ["all_nearby"]
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	return card
@@ -1295,7 +1295,7 @@ static func create_poke() -> Card:
 	card.tempo_cost = 0
 	card.damage = 2
 	card.base_damage = 2
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_armor_break() -> Card:
@@ -1307,7 +1307,7 @@ static func create_armor_break() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 4
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_charge() -> Card:
@@ -1321,7 +1321,7 @@ static func create_charge() -> Card:
 	card.tempo_cost = 4
 	card.damage = 8
 	card.base_damage = 8
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	card.is_aoe = true
 	card.aoe_shape = "line"
 	return card
@@ -1337,7 +1337,7 @@ static func create_heroic_leap() -> Card:
 	card.tempo_cost = 5
 	card.damage = 12
 	card.base_damage = 12
-	card.target_type = "point"
+	card.target_types = ["point"]
 	return card
 
 static func create_morphine() -> Card:
@@ -1349,7 +1349,7 @@ static func create_morphine() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 0
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_turtle_up() -> Card:
@@ -1362,7 +1362,7 @@ static func create_turtle_up() -> Card:
 	card.mana_cost = 3
 	card.tempo_cost = 0
 	card.duration = 4
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_parry() -> Card:
@@ -1378,7 +1378,7 @@ static func create_parry() -> Card:
 	card.base_damage = 5
 	card.block = 5
 	card.base_block = 5
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_approach() -> Card:
@@ -1390,7 +1390,7 @@ static func create_approach() -> Card:
 	card.card_type_name = "Defense"
 	card.mana_cost = 1
 	card.tempo_cost = 3
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_hold_the_line() -> Card:
@@ -1404,7 +1404,7 @@ static func create_hold_the_line() -> Card:
 	card.tempo_cost = 5
 	card.block = 5
 	card.base_block = 5
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 # ============================================
@@ -1424,7 +1424,7 @@ static func create_trick_shot() -> Card:
 	card.base_damage = 8
 	card.rng_outcomes_data = [{percent = 80.0}]
 	card.is_ranged = true
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_surrounding_ice() -> Card:
@@ -1442,7 +1442,7 @@ static func create_surrounding_ice() -> Card:
 	card.rng_outcomes_data = [{percent = 30.0}]
 	card.is_aoe = true
 	card.aoe_shape = "circle"
-	card.target_type = "all_nearby"
+	card.target_types = ["all_nearby"]
 	return card
 
 static func create_risk_it() -> Card:
@@ -1455,7 +1455,7 @@ static func create_risk_it() -> Card:
 	card.mana_cost = 1
 	card.tempo_cost = 0
 	card.rng_outcomes_data = [{percent = 30.0}]
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_biscuit() -> Card:
@@ -1468,7 +1468,7 @@ static func create_biscuit() -> Card:
 	card.mana_cost = 2
 	card.tempo_cost = 0
 	card.duration = 3
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_loaded_die() -> Card:
@@ -1480,7 +1480,7 @@ static func create_loaded_die() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 1
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_worst_that_could_happen() -> Card:
@@ -1495,7 +1495,7 @@ static func create_worst_that_could_happen() -> Card:
 	card.damage = 5
 	card.base_damage = 5
 	card.rng_outcomes_data = [{percent = 50.0}, {percent = 50.0}]
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_oops() -> Card:
@@ -1510,7 +1510,7 @@ static func create_oops() -> Card:
 	card.damage = 4
 	card.base_damage = 4
 	card.rng_outcomes_data = [{percent = 30.0}, {percent = 40.0}, {percent = 30.0}]
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_house_money() -> Card:
@@ -1522,7 +1522,7 @@ static func create_house_money() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 4
 	card.tempo_cost = 5
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_hope_this_works() -> Card:
@@ -1536,7 +1536,7 @@ static func create_hope_this_works() -> Card:
 	card.tempo_cost = 3
 	card.rng_outcomes_data = [{percent = 50.0}]
 	card.duration = 3
-	card.target_type = "ally"
+	card.target_types = ["ally"]
 	return card
 
 static func create_lady_luck() -> Card:
@@ -1549,7 +1549,7 @@ static func create_lady_luck() -> Card:
 	card.mana_cost = 4
 	card.tempo_cost = 1
 	card.duration = 2
-	card.target_type = "ally"
+	card.target_types = ["ally"]
 	return card
 
 static func create_try_this() -> Card:
@@ -1563,7 +1563,7 @@ static func create_try_this() -> Card:
 	card.tempo_cost = 4
 	card.rng_outcomes_data = [{percent = 10.0}]
 	card.duration = 2
-	card.target_type = "ally"
+	card.target_types = ["ally"]
 	return card
 
 static func create_if_pigs_could_fly() -> Card:
@@ -1579,7 +1579,7 @@ static func create_if_pigs_could_fly() -> Card:
 	card.base_damage = 15
 	card.is_ranged = true
 	card.range_modifier = 2
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_snowballs_chance() -> Card:
@@ -1597,7 +1597,7 @@ static func create_snowballs_chance() -> Card:
 	card.rng_outcomes_data = [{percent = 50.0}]
 	card.is_aoe = true
 	card.aoe_shape = "cone"
-	card.target_type = "all_nearby"
+	card.target_types = ["all_nearby"]
 	return card
 
 # ============================================
@@ -1614,7 +1614,7 @@ static func create_raged_circulation() -> Card:
 	card.mana_cost = 2
 	card.tempo_cost = 2
 	card.is_ranged = true
-	card.target_type = "ally"
+	card.target_types = ["ally"]
 	return card
 
 static func create_poisoned_blood() -> Card:
@@ -1626,7 +1626,7 @@ static func create_poisoned_blood() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 2
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_elixir() -> Card:
@@ -1638,7 +1638,7 @@ static func create_elixir() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 2
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_ryan_heal() -> Card:
@@ -1652,7 +1652,7 @@ static func create_ryan_heal() -> Card:
 	card.tempo_cost = 3
 	card.heal_amount = 6
 	card.is_ranged = true
-	card.target_type = "ally"
+	card.target_types = ["ally"]
 	return card
 
 static func create_shadows() -> Card:
@@ -1665,7 +1665,7 @@ static func create_shadows() -> Card:
 	card.mana_cost = 1
 	card.tempo_cost = 4
 	card.duration = 2
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_preparation() -> Card:
@@ -1677,7 +1677,7 @@ static func create_preparation() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 3
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_exacerbate_wounds() -> Card:
@@ -1689,7 +1689,7 @@ static func create_exacerbate_wounds() -> Card:
 	card.card_type_name = "Attack"
 	card.mana_cost = 0
 	card.tempo_cost = 7
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_reposition() -> Card:
@@ -1701,7 +1701,7 @@ static func create_reposition() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 2
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_ryan_dagger_throw() -> Card:
@@ -1717,7 +1717,7 @@ static func create_ryan_dagger_throw() -> Card:
 	card.base_damage = 5
 	card.is_ranged = true
 	card.range_modifier = 3
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_volatile_mixture() -> Card:
@@ -1733,7 +1733,7 @@ static func create_volatile_mixture() -> Card:
 	card.base_damage = 8
 	card.is_ranged = true
 	card.range_modifier = 1
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_understanding() -> Card:
@@ -1746,7 +1746,7 @@ static func create_understanding() -> Card:
 	card.mana_cost = 5
 	card.tempo_cost = 1
 	card.duration = 2
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 # ============================================
@@ -1762,7 +1762,7 @@ static func create_mark() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 0
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_rise() -> Card:
@@ -1774,7 +1774,7 @@ static func create_rise() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 4
-	card.target_type = "point"
+	card.target_types = ["point"]
 	return card
 
 static func create_quick_shot() -> Card:
@@ -1789,7 +1789,7 @@ static func create_quick_shot() -> Card:
 	card.damage = 6
 	card.base_damage = 6
 	card.is_ranged = true
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_reload() -> Card:
@@ -1801,7 +1801,7 @@ static func create_reload() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 3
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_enchanted_quiver() -> Card:
@@ -1814,7 +1814,7 @@ static func create_enchanted_quiver() -> Card:
 	card.mana_cost = 4
 	card.tempo_cost = 5
 	card.duration = 3
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_tighten_string() -> Card:
@@ -1827,7 +1827,7 @@ static func create_tighten_string() -> Card:
 	card.mana_cost = 3
 	card.tempo_cost = 3
 	card.duration = 3
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_down_town() -> Card:
@@ -1843,7 +1843,7 @@ static func create_down_town() -> Card:
 	card.base_damage = 12
 	card.is_ranged = true
 	card.range_modifier = 8
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_barricade() -> Card:
@@ -1855,7 +1855,7 @@ static func create_barricade() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 2
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_sky_fall() -> Card:
@@ -1872,7 +1872,7 @@ static func create_sky_fall() -> Card:
 	card.duration = 2
 	card.is_ranged = true
 	card.range_modifier = 4
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_sky_attack() -> Card:
@@ -1887,7 +1887,7 @@ static func create_sky_attack() -> Card:
 	card.damage = 10
 	card.base_damage = 10
 	card.is_ranged = true
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_lead_arrow() -> Card:
@@ -1903,7 +1903,7 @@ static func create_lead_arrow() -> Card:
 	card.base_damage = 10
 	card.is_ranged = true
 	card.requires_high_ground = true
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_last_breath() -> Card:
@@ -1919,7 +1919,7 @@ static func create_last_breath() -> Card:
 	card.base_damage = 0
 	card.is_ranged = true
 	card.range_modifier = 5
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_mixed_bag() -> Card:
@@ -1935,7 +1935,7 @@ static func create_mixed_bag() -> Card:
 	card.base_damage = 7
 	card.is_ranged = true
 	card.range_modifier = 3
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 # ============================================
@@ -1951,7 +1951,7 @@ static func create_round_em_up() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
 	card.tempo_cost = 3
-	card.target_type = "point"
+	card.target_types = ["point"]
 	card.is_ranged = true
 	card.range_modifier = 3
 	card.is_aoe = true
@@ -1969,7 +1969,7 @@ static func create_trip() -> Card:
 	card.tempo_cost = 4
 	card.damage = 5
 	card.base_damage = 5
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_choke() -> Card:
@@ -1984,7 +1984,7 @@ static func create_choke() -> Card:
 	card.sticky = 3
 	card.duration = 3
 	card.is_ranged = true
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_push() -> Card:
@@ -1998,7 +1998,7 @@ static func create_push() -> Card:
 	card.tempo_cost = 1
 	card.is_ranged = true
 	card.range_modifier = 1
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_defensive_awareness() -> Card:
@@ -2010,7 +2010,7 @@ static func create_defensive_awareness() -> Card:
 	card.card_type_name = "Defense"
 	card.mana_cost = 3
 	card.tempo_cost = 2
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card
 
 static func create_sweeping_disarm() -> Card:
@@ -2026,7 +2026,7 @@ static func create_sweeping_disarm() -> Card:
 	card.base_damage = 3
 	card.is_aoe = true
 	card.aoe_shape = "circle"
-	card.target_type = "all_nearby"
+	card.target_types = ["all_nearby"]
 	return card
 
 static func create_cory_blink() -> Card:
@@ -2038,7 +2038,7 @@ static func create_cory_blink() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 1
-	card.target_type = "point"
+	card.target_types = ["point"]
 	return card
 
 static func create_consecutive_snap() -> Card:
@@ -2055,7 +2055,7 @@ static func create_consecutive_snap() -> Card:
 	card.sticky = 3
 	card.is_ranged = true
 	card.range_modifier = -2
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_swap() -> Card:
@@ -2069,7 +2069,7 @@ static func create_swap() -> Card:
 	card.tempo_cost = 3
 	card.is_ranged = true
 	card.range_modifier = 4
-	card.target_type = "enemy"
+	card.target_types = ["enemy"]
 	return card
 
 static func create_meditate() -> Card:
@@ -2081,5 +2081,5 @@ static func create_meditate() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
 	card.tempo_cost = 6
-	card.target_type = "self"
+	card.target_types = ["self"]
 	return card

@@ -52,6 +52,7 @@ var deck_list_container: VBoxContainer = null
 var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
 var hand_card_preview: PanelContainer = null
+var _hand_hover_id: int = 0
 
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
@@ -387,8 +388,12 @@ func _setup_hand_card_preview() -> void:
 	hand_card_preview.add_theme_stylebox_override("panel", preview_style)
 	hand_card_preview.visible = false
 	hand_card_preview.z_index = 200
+	hand_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
+	_hand_hover_id += 1
+	var my_hover_id = _hand_hover_id
+
 	# Clear previous preview content
 	for child in hand_card_preview.get_children():
 		child.queue_free()
@@ -469,6 +474,11 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 
 	# Wait a frame for the preview to calculate its size, then position
 	await get_tree().process_frame
+
+	# If hover changed while we waited, abort (fixes flickering when scrolling across cards)
+	if my_hover_id != _hand_hover_id:
+		return
+
 	var preview_width = hand_card_preview.size.x
 	var popup_x = card_center_x - preview_width / 2.0
 
@@ -482,6 +492,7 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	hand_card_preview.visible = true
 
 func _on_hand_card_unhovered() -> void:
+	_hand_hover_id += 1
 	hand_card_preview.visible = false
 
 func _setup_gauntlet_skills_ui() -> void:
@@ -1081,27 +1092,35 @@ func _input(event: InputEvent) -> void:
 			var card = deck_manager.hand[selected_card_index]
 			var mouse_pos = get_global_mouse_position()
 
-			match card.target_type:
-				"self":
+			var tt = card.target_types
+			var _card_played = false
+
+			# Try enemy targeting first if card supports it
+			if "enemy" in tt:
+				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
+				if enemy:
+					_card_played = true
+					if _is_target_in_card_range(card, enemy):
+						play_selected_card(enemy)
+					else:
+						var range_type = "ranged" if card.is_ranged else "melee"
+						print("[INPUT] Enemy is out of %s range!" % range_type)
+
+			# Fall through to other target types if no enemy was clicked
+			if not _card_played:
+				if "self" in tt:
 					play_selected_card(player)
-				"ally":
+				elif "ally" in tt:
 					# TODO: ally selection - for now target self
 					play_selected_card(player)
-				"point":
+				elif "all_nearby" in tt:
 					play_selected_card(player)
-				"all_nearby":
+				elif "point" in tt:
 					play_selected_card(player)
-				"enemy":
-					var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
-					if enemy:
-						if _is_target_in_card_range(card, enemy):
-							play_selected_card(enemy)
-						else:
-							var range_type = "ranged" if card.is_ranged else "melee"
-							print("[INPUT] Enemy is out of %s range!" % range_type)
-					else:
-						print("[INPUT] No enemy at that position!")
-				_:
+				elif "enemy" in tt:
+					# Enemy-only card but no enemy was clicked
+					print("[INPUT] No enemy at that position!")
+				else:
 					play_selected_card(null)
 	
 	# Right click - movement

@@ -127,7 +127,7 @@ static func create_your_card_name() -> Card:
     card.block = 0                         # Armor gained
     card.base_block = 0                    # Must match block
     card.heal_amount = 0                   # HP healed
-    card.target_type = "enemy"             # "enemy", "ally", "self", "point", "all_nearby"
+    card.target_types = ["enemy"]           # Array of: "enemy", "ally", "self", "point", "all_nearby"
 
     # === OPTIONAL FIELDS (set only what applies) ===
     card.is_ranged = false                 # true = ranged attack (base range 5)
