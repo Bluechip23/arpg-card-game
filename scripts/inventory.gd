@@ -154,6 +154,7 @@ func _init_slot_arrays() -> void:
 
 func connect_player_stats(stats: PlayerStats) -> void:
 	player_stats = stats
+	stats.inventory = self
 
 func connect_deck_manager(deck: DeckManager) -> void:
 	deck_manager = deck

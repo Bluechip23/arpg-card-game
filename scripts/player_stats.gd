@@ -54,6 +54,7 @@ var empowered_cards_remaining: int = 0
 var empower_damage_bonus: int = 3
 var empower_block_reduction: int = 3
 var chance_boost: float = 0.0
+var inventory: Inventory = null
 
 # ============================================
 # EFFECTIVE STATS (with determination modifier)
@@ -333,6 +334,9 @@ func process_turn(debuff_mgr: DebuffManager = null, buff_mgr: BuffManager = null
 		
 		if should_decay:
 			var decay = armor_decay_per_turn
+			if inventory and inventory.has_passive_effect("stalwart"):
+				decay = max(0, decay - 1)
+				print("[STATS] Stalwart reduces armor decay by 1")
 			if debuff_mgr:
 				decay = debuff_mgr.process_armor_decay(decay)
 			current_armor = max(0, current_armor - decay)
@@ -418,10 +422,16 @@ func heal(amount: int) -> void:
 		recalculate_derived_stats()
 		stats_updated.emit()
 
+	if actual_heal > 0 and inventory:
+		inventory.on_healed()
+
 func add_armor(amount: int) -> void:
 	current_armor += amount
 	armor_changed.emit(current_armor)
 	print("[STATS] Gained %d armor! Armor: %d" % [amount, current_armor])
+	if inventory:
+		inventory.on_armor_gained(amount)
+
 func add_armor_with_bolster(amount: int, buff_mgr: BuffManager = null) -> void:
 	var total = amount
 	if buff_mgr:
@@ -429,6 +439,8 @@ func add_armor_with_bolster(amount: int, buff_mgr: BuffManager = null) -> void:
 	current_armor += total
 	armor_changed.emit(current_armor)
 	print("[STATS] Gained %d armor (incl. bolster)! Armor: %d" % [total, current_armor])
+	if inventory:
+		inventory.on_armor_gained(total)
 
 func spend_mana(amount: int) -> bool:
 	if current_mana >= amount:
