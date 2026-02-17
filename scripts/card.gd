@@ -306,6 +306,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_last_breath(target, player_stats, buff_mgr)
 		"mixed_bag":
 			_execute_mixed_bag(target, player_stats, buff_mgr)
+		"quick_arrow":
+			_execute_quick_arrow(target, player_stats, buff_mgr)
 		# === Cory Cards ===
 		"round_em_up":
 			_execute_round_em_up(target, player_stats)
@@ -1047,16 +1049,16 @@ func _execute_reload(deck_manager) -> void:
 	print("[CARD] Reload! Drew 3 cards")
 
 func _execute_enchanted_quiver(player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
-	# Next 3 attacks create a 0-cost ranged attack card
+	# Next 3 ranged attacks create a 0-cost ranged attack card (4 damage)
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_strengthen(2, 3, "Enchanted Quiver"))
-	print("[CARD] Enchanted Quiver! Next 3 attacks create free ranged attack cards")
+		buff_mgr.enchanted_quiver_charges = 3
+	print("[CARD] Enchanted Quiver! Next 3 ranged attacks create free arrow cards")
 
 func _execute_tighten_string(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Next 3 ranged attacks: +1 tempo cost, cause cooldown, but more damage/range/crit
+	# Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_strengthen(5, 3, "Tighten String"))
-	print("[CARD] Tighten String! Next 3 ranged attacks: slower but more powerful")
+		buff_mgr.tighten_string_charges = 3
+	print("[CARD] Tighten String! Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20%% crit")
 
 func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -1067,10 +1069,9 @@ func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager
 		if buff_mgr.roll_crit():
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
-	total_damage = floori(total_damage * 1.5)  # Long range bonus
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
-	print("[CARD] Down Town! Very long range shot for %d damage" % total_damage)
+	print("[CARD] Down Town! Long range (+7) shot for %d damage" % total_damage)
 
 func _execute_barricade(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Barricade! Land barrier created in front of you")
@@ -1079,7 +1080,7 @@ func _execute_sky_fall(target, player_stats: PlayerStats, buff_mgr: BuffManager 
 	var total_damage = base_damage + bonus_damage
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	# Delayed 2 turns - damage applied later
+	last_damage_dealt = total_damage
 	print("[CARD] Sky Fall! Arrow shot upward. In 2 turns, it lands for %d damage" % total_damage)
 
 func _execute_sky_attack(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1110,22 +1111,10 @@ func _execute_lead_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	print("[CARD] Lead Arrow! 1.8x damage from high ground: %d" % total_damage)
 
 func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var mana_used = 0
-	if player_stats:
-		mana_used = int(player_stats.current_mana)
-		# Mana already spent by play_card, so we use the card's mana cost as reference
-		# The actual effect scales with total mana pool
-	var total_damage = mana_used * 3
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
+	# Buff: next ranged attack consumes all remaining mana and converts to bonus damage
 	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
-			buff_mgr.consume_enlightened()
-	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
-	print("[CARD] Last Breath! Used all mana for %d damage" % total_damage)
+		buff_mgr.last_breath_active = true
+	print("[CARD] Last Breath! Next shot will consume all remaining mana for bonus damage")
 
 func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -1140,6 +1129,19 @@ func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
 	print("[CARD] Mixed Bag! Standard arrow for %d damage" % total_damage)
+
+func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	var total_damage = base_damage + bonus_damage
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			buff_mgr.consume_enlightened()
+	if target and target.has_method("take_damage"):
+		target.take_damage(total_damage)
+	print("[CARD] Quick Arrow! Free arrow for %d damage" % total_damage)
 
 # ============================================
 # CORY CARD EXECUTE FUNCTIONS
@@ -1813,7 +1815,7 @@ static func create_enchanted_quiver() -> Card:
 	var card = Card.new()
 	card.card_id = "enchanted_quiver"
 	card.card_name = "Enchanted Quiver"
-	card.description = "Next 3 attacks create free ranged attack cards for your hand."
+	card.description = "Next 3 ranged attacks create a free 0-cost Quick Arrow (4 damage) in your hand."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 4
@@ -1826,7 +1828,7 @@ static func create_tighten_string() -> Card:
 	var card = Card.new()
 	card.card_id = "tighten_string"
 	card.card_name = "Tighten String"
-	card.description = "Next 3 ranged attacks: +1 tempo, cooldown, but +damage/range/crit."
+	card.description = "Next 3 ranged attacks: +3 tempo cost, +6 damage, +6 range, +20%% crit chance."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
@@ -1839,7 +1841,7 @@ static func create_down_town() -> Card:
 	var card = Card.new()
 	card.card_id = "down_town"
 	card.card_name = "Down Town"
-	card.description = "Shoot a very long range shot."
+	card.description = "Shoot a very long range (+7) shot."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
@@ -1847,7 +1849,7 @@ static func create_down_town() -> Card:
 	card.damage = 12
 	card.base_damage = 12
 	card.is_ranged = true
-	card.range_modifier = 8
+	card.range_modifier = 7
 	card.target_types = ["enemy"]
 	return card
 
@@ -1867,17 +1869,17 @@ static func create_sky_fall() -> Card:
 	var card = Card.new()
 	card.card_id = "sky_fall"
 	card.card_name = "Sky Fall"
-	card.description = "Shoot an arrow upward. In 2 turns, it lands dealing X damage."
+	card.description = "Shoot an arrow upward. In 2 turns, it lands at the designated location dealing 18 damage."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
 	card.tempo_cost = 5
-	card.damage = 15
-	card.base_damage = 15
+	card.damage = 18
+	card.base_damage = 18
 	card.duration = 2
 	card.is_ranged = true
 	card.range_modifier = 4
-	card.target_types = ["enemy"]
+	card.target_types = ["point"]
 	return card
 
 static func create_sky_attack() -> Card:
@@ -1915,16 +1917,12 @@ static func create_last_breath() -> Card:
 	var card = Card.new()
 	card.card_id = "last_breath"
 	card.card_name = "Last Breath"
-	card.description = "Use all mana. Gain X damage per mana spent."
-	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
-	card.mana_cost = 0  # Uses all remaining mana
-	card.tempo_cost = 5
-	card.damage = 0
-	card.base_damage = 0
-	card.is_ranged = true
-	card.range_modifier = 5
-	card.target_types = ["enemy"]
+	card.description = "Next ranged attack consumes all remaining mana and converts it to bonus damage."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 2
+	card.tempo_cost = 3
+	card.target_types = ["self"]
 	return card
 
 static func create_mixed_bag() -> Card:
@@ -1940,6 +1938,21 @@ static func create_mixed_bag() -> Card:
 	card.base_damage = 7
 	card.is_ranged = true
 	card.range_modifier = 3
+	card.target_types = ["enemy"]
+	return card
+
+static func create_quick_arrow() -> Card:
+	var card = Card.new()
+	card.card_id = "quick_arrow"
+	card.card_name = "Quick Arrow"
+	card.description = "A free ranged attack created by Enchanted Quiver. Deal 4 damage."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 0
+	card.tempo_cost = 2
+	card.damage = 4
+	card.base_damage = 4
+	card.is_ranged = true
 	card.target_types = ["enemy"]
 	return card
 

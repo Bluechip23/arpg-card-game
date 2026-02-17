@@ -177,6 +177,7 @@ func _create_card_from_id(card_id: String) -> Card:
 		"lead_arrow": return Card.create_lead_arrow()
 		"last_breath": return Card.create_last_breath()
 		"mixed_bag": return Card.create_mixed_bag()
+		"quick_arrow": return Card.create_quick_arrow()
 		# Cory cards
 		"round_em_up": return Card.create_round_em_up()
 		"trip": return Card.create_trip()

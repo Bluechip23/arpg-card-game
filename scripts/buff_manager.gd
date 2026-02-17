@@ -17,6 +17,9 @@ var debuff_manager: DebuffManager  # Reference to remove debuffs with Cleanse
 var poisoned_blood_active: bool = false
 var poisoned_blood_turns: int = 0
 var understanding_turns: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
+var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
+var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
+var last_breath_active: bool = false  # Next ranged attack consumes all mana for bonus damage
 
 func initialize(stats: PlayerStats = null, owner: Node2D = null) -> void:
 	owner_stats = stats

@@ -53,6 +53,7 @@ var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
+var pending_sky_falls: Array = []  # [{position: Vector2, damage: int, turns_remaining: int}]
 
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
@@ -888,6 +889,9 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		if buff_mgr:
 			buff_mgr.process_turn_end()
 
+		# Process pending Sky Falls
+		_process_pending_sky_falls()
+
 	# Volatile Mixture: if still in hand at end of turn, deal self-damage and discard
 	_check_volatile_mixture_in_hand()
 
@@ -912,6 +916,20 @@ func _check_volatile_mixture_in_hand() -> void:
 			deck_manager.hand.remove_at(i)
 			deck_manager.discard_pile.append(card)
 			print("[MAIN] Volatile Mixture still in hand! Took %d self-damage" % self_damage)
+
+func _process_pending_sky_falls() -> void:
+	for i in range(pending_sky_falls.size() - 1, -1, -1):
+		var sf = pending_sky_falls[i]
+		sf.turns_remaining -= 1
+		if sf.turns_remaining <= 0:
+			# Arrow lands! Deal AOE damage at stored position
+			var enemies_hit = enemy_spawner.get_enemies_in_radius(sf.position, 100.0)
+			for enemy in enemies_hit:
+				enemy.take_damage(sf.damage)
+			pending_sky_falls.remove_at(i)
+			print("[MAIN] Sky Fall landed at %s! Hit %d enemies for %d damage" % [sf.position, enemies_hit.size(), sf.damage])
+		else:
+			print("[MAIN] Sky Fall: %d turn(s) until landing at %s" % [sf.turns_remaining, sf.position])
 
 func _apply_magnetize_pull(tiles: int) -> void:
 	var enemies = enemy_spawner.get_living_enemies()
@@ -1026,12 +1044,30 @@ func play_selected_card(target) -> void:
 
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
+	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
 
 	var debuff_mgr = player.get_debuff_manager()
 	var buff_mgr = player.get_buff_manager()
 
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
+
+	# Tighten String: +3 tempo, +6 damage, +6 range, +20% crit on ranged attacks
+	var tighten_applied = false
+	if buff_mgr and buff_mgr.tighten_string_charges > 0 and is_ranged_attack:
+		tempo_cost += 3
+		card.bonus_damage += 6
+		card.range_modifier += 6
+		buff_mgr.apply_buff(Buff.create_enlightened(20, 1, "Tighten String"))
+		tighten_applied = true
+
+	# Last Breath: next ranged attack consumes all remaining mana for bonus damage
+	var last_breath_mana = 0
+	if buff_mgr and buff_mgr.last_breath_active and is_ranged_attack:
+		var stats = player.get_stats()
+		if stats:
+			last_breath_mana = int(stats.current_mana)
+			card.bonus_damage += last_breath_mana * 3
 
 	var result = deck_manager.play_card(selected_card_index, target, player)
 
@@ -1040,6 +1076,34 @@ func play_selected_card(target) -> void:
 
 		# Apply world effects (knockback, movement, AOE) that need game-level access
 		_apply_card_world_effects(card, target)
+
+		# Tighten String: decrement charges and undo temporary card mods
+		if tighten_applied:
+			buff_mgr.tighten_string_charges -= 1
+			card.bonus_damage -= 6
+			card.range_modifier -= 6
+			if buff_mgr.tighten_string_charges <= 0:
+				print("[MAIN] Tighten String expired!")
+
+		# Last Breath: consume all remaining mana and clear buff
+		if last_breath_mana > 0:
+			var stats = player.get_stats()
+			if stats:
+				# play_card already spent the card's own mana cost, spend whatever is left
+				var remaining_mana = int(stats.current_mana)
+				if remaining_mana > 0:
+					stats.spend_mana(remaining_mana)
+			buff_mgr.last_breath_active = false
+			card.bonus_damage -= last_breath_mana * 3
+			print("[MAIN] Last Breath consumed %d mana for +%d bonus damage!" % [last_breath_mana, last_breath_mana * 3])
+
+		# Enchanted Quiver: create a free arrow card after ranged attacks
+		if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and is_ranged_attack:
+			var arrow = Card.create_quick_arrow()
+			deck_manager.hand.append(arrow)
+			buff_mgr.enchanted_quiver_charges -= 1
+			deck_manager.hand_updated.emit()
+			print("[MAIN] Enchanted Quiver: Quick Arrow added to hand! (%d charges left)" % buff_mgr.enchanted_quiver_charges)
 
 		if not result["free_turn"]:
 			if buff_mgr and buff_mgr.consume_steady():
@@ -1051,6 +1115,13 @@ func play_selected_card(target) -> void:
 
 		_on_hand_updated()
 		update_deck_info()
+	else:
+		# Card didn't play - undo temporary modifications
+		if tighten_applied:
+			card.bonus_damage -= 6
+			card.range_modifier -= 6
+		if last_breath_mana > 0:
+			card.bonus_damage -= last_breath_mana * 3
 
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node2D:
@@ -1059,6 +1130,10 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 	var distance_tiles = distance_px / grid_manager.grid_size
 	if card.is_ranged:
 		var max_range = 5 + card.range_modifier
+		# Tighten String: +6 range on ranged attacks
+		var buff_mgr = player.get_buff_manager() if player else null
+		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
+			max_range += 6
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
 		# Melee: must be adjacent (within ~1.5 tiles)
@@ -1145,6 +1220,16 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						enemy.take_damage(card.last_damage_dealt)
 						extra_hits += 1
 				print("[MAIN] Snowball's Chance: snowball cone hit %d additional enemies!" % extra_hits)
+
+		"sky_fall":
+			# Store position for delayed 2-turn landing
+			var landing_pos = grid_manager.snap_to_grid(mouse_pos)
+			pending_sky_falls.append({
+				"position": landing_pos,
+				"damage": card.last_damage_dealt,
+				"turns_remaining": 2
+			})
+			print("[MAIN] Sky Fall: arrow launched! Will land at %s in 2 turns for %d damage" % [landing_pos, card.last_damage_dealt])
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
