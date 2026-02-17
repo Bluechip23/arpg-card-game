@@ -179,7 +179,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"blink":
 			_execute_blink(target)
 		"heal":
-			_execute_heal(player_stats)
+			if buff_mgr and buff_mgr.poisoned_blood_active and target and target.has_method("take_damage") and not target.has_method("get_stats"):
+				var dmg = heal_amount
+				if player_stats:
+					dmg = player_stats.get_effective_heal_amount(heal_amount)
+				target.take_damage(dmg)
+				print("[CARD] Poisoned Blood: Heal dealt %d damage!" % dmg)
+			else:
+				_execute_heal(player_stats)
 		"gain_mana":
 			_execute_gain_mana(player_stats)
 		"healing_potion":
@@ -250,11 +257,18 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"elixir":
 			_execute_elixir(player_stats, buff_mgr)
 		"ryan_heal":
-			_execute_heal(player_stats)
+			if buff_mgr and buff_mgr.poisoned_blood_active and target and target.has_method("take_damage") and not target.has_method("get_stats"):
+				var dmg = heal_amount
+				if player_stats:
+					dmg = player_stats.get_effective_heal_amount(heal_amount)
+				target.take_damage(dmg)
+				print("[CARD] Poisoned Blood: Heal dealt %d damage!" % dmg)
+			else:
+				_execute_heal(player_stats)
 		"shadows":
 			_execute_shadows(player_stats, buff_mgr)
 		"preparation":
-			_execute_preparation(player_stats, buff_mgr)
+			_execute_preparation(player_stats, deck_manager)
 		"exacerbate_wounds":
 			_execute_exacerbate_wounds(target, player_stats, deck_manager, buff_mgr)
 		"reposition":
@@ -927,19 +941,21 @@ func _execute_snowballs_chance(target, player_stats: PlayerStats, buff_mgr: Buff
 # ============================================
 
 func _execute_raged_circulation(target, player_stats: PlayerStats) -> void:
-	# Increase target health regen and healing effects
-	if buff_mgr_exists(target):
-		pass  # Apply to target's buff manager
-	print("[CARD] Raged Circulation! Target's healing effects increased")
+	# +30% healing effectiveness for 3 turns
+	if player_stats:
+		player_stats.healing_boost_percent = 0.3
+		player_stats.healing_boost_turns = 3
+	print("[CARD] Raged Circulation! Healing +30%% for 3 turns")
 
 func buff_mgr_exists(target) -> bool:
 	return target and target.has_method("get_buff_manager") and target.get_buff_manager() != null
 
 func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Heal cards now apply damage
+	# Heal cards now deal damage instead of healing for 3 turns
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_thorns(3, 99, "Poisoned Blood"))
-	print("[CARD] Poisoned Blood! Heal cards now deal damage instead")
+		buff_mgr.poisoned_blood_active = true
+		buff_mgr.poisoned_blood_turns = 3
+	print("[CARD] Poisoned Blood! Heal cards now deal damage instead for 3 turns")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Poison cards now heal
@@ -952,10 +968,11 @@ func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -
 		buff_mgr.apply_buff(Buff.create_resilient(50, 2, "Shadows"))
 	print("[CARD] Shadows! Invisible for 2 turns")
 
-func _execute_preparation(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_focused(2, "Preparation"))
-	print("[CARD] Preparation! Next utility card and the one after cost 2 less")
+func _execute_preparation(player_stats: PlayerStats, deck_manager = null) -> void:
+	# Next utility card costs 2 less; chains while playing utilities
+	if deck_manager:
+		deck_manager.prep_utility_discount = 2
+	print("[CARD] Preparation! Next utility cards cost 2 less (chains while playing utilities)")
 
 func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
 	var discard_count = 0
@@ -986,19 +1003,15 @@ func _execute_reposition(deck_manager) -> void:
 			print("[CARD] Reposition! Discarded %s, drew a new card" % discarded.card_name)
 
 func _execute_volatile_mixture(target, player_stats: PlayerStats) -> void:
-	# When discarded, throws corrosive at enemy. If not discarded, damages self.
-	print("[CARD] Volatile Mixture played! Corrosive substance thrown")
-	var total_damage = 8
-	if player_stats:
-		total_damage = player_stats.get_effective_spell_damage(8)
-	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+	# Playing the card safely removes it from hand (no effect)
+	# The real effects are: discard -> damage enemy, end of turn in hand -> self-damage
+	print("[CARD] Volatile Mixture played! Safely disposed of")
 
 func _execute_understanding(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# After 2 turn delay, next card auto crits
+	# Start a 2-turn countdown; when it expires, next attack auto-crits
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Understanding"))
-	print("[CARD] Understanding! In 2 turns, the next card will auto-crit")
+		buff_mgr.understanding_turns = 2
+	print("[CARD] Understanding! In 2 turns, the next attack will auto-crit")
 
 # ============================================
 # STEPHEN CARD EXECUTE FUNCTIONS
@@ -1602,7 +1615,7 @@ static func create_raged_circulation() -> Card:
 	var card = Card.new()
 	card.card_id = "raged_circulation"
 	card.card_name = "Raged Circulation"
-	card.description = "Increase target's health regen and healing effects."
+	card.description = "Target receives 30%% more from healing and regen for 3 turns."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
@@ -1639,14 +1652,14 @@ static func create_ryan_heal() -> Card:
 	var card = Card.new()
 	card.card_id = "ryan_heal"
 	card.card_name = "Heal"
-	card.description = "Heal target for X health."
+	card.description = "Heal target for 6 health. Deals damage instead with Poisoned Blood."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 3
 	card.heal_amount = 6
 	card.is_ranged = true
-	card.target_types = ["ally"]
+	card.target_types = ["ally", "enemy"]
 	return card
 
 static func create_shadows() -> Card:
@@ -1718,16 +1731,14 @@ static func create_volatile_mixture() -> Card:
 	var card = Card.new()
 	card.card_id = "volatile_mixture"
 	card.card_name = "Volatile Mixture"
-	card.description = "When discarded, throw corrosive at enemy. If not discarded by turn end, take self-damage."
+	card.description = "Discard: deal 8 damage to enemy. End of turn in hand: 8 self-damage."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
 	card.tempo_cost = 0
 	card.damage = 8
 	card.base_damage = 8
-	card.is_ranged = true
-	card.range_modifier = 1
-	card.target_types = ["enemy"]
+	card.target_types = ["self"]
 	return card
 
 static func create_understanding() -> Card:

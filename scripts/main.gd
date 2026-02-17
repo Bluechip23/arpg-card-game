@@ -58,6 +58,7 @@ func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.card_peaked.connect(_on_card_peaked)
+	deck_manager.card_discarded.connect(_on_card_discarded)
 	test_ui.apply_overflow_requested.connect(_on_apply_overflow)
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
 	tempo_manager.tempo_threshold_reached.connect(_on_tempo_threshold_reached)
@@ -745,6 +746,21 @@ func _on_hand_updated() -> void:
 	update_selected_display()
 	update_card_highlights()
 
+func _on_card_discarded(card: Card) -> void:
+	# Volatile Mixture: deal damage to a random nearby enemy when discarded
+	if card.card_id == "volatile_mixture":
+		var stats = player.get_stats()
+		var total_damage = card.damage
+		if stats:
+			total_damage = stats.get_effective_spell_damage(card.damage)
+		var nearby = enemy_spawner.get_enemies_in_radius(player.position, 300.0)
+		if nearby.size() > 0:
+			var target_enemy = nearby[randi() % nearby.size()]
+			target_enemy.take_damage(total_damage)
+			print("[MAIN] Volatile Mixture discarded! Dealt %d damage to %s" % [total_damage, target_enemy.enemy_name])
+		else:
+			print("[MAIN] Volatile Mixture discarded! No enemies nearby to damage")
+
 func _on_deck_shuffled() -> void:
 	update_deck_info()
 
@@ -872,6 +888,9 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		if buff_mgr:
 			buff_mgr.process_turn_end()
 
+	# Volatile Mixture: if still in hand at end of turn, deal self-damage and discard
+	_check_volatile_mixture_in_hand()
+
 	_update_gauntlet_skills_ui()
 	update_turn_display()
 	_update_enemy_count()
@@ -881,6 +900,19 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	# Resume player movement after enemies finish
 	if was_moving:
 		player.resume_movement()
+func _check_volatile_mixture_in_hand() -> void:
+	var stats = player.get_stats()
+	for i in range(deck_manager.hand.size() - 1, -1, -1):
+		var card = deck_manager.hand[i]
+		if card.card_id == "volatile_mixture":
+			var self_damage = card.damage
+			if stats:
+				self_damage = stats.get_effective_spell_damage(card.damage)
+				stats.take_damage(self_damage)
+			deck_manager.hand.remove_at(i)
+			deck_manager.discard_pile.append(card)
+			print("[MAIN] Volatile Mixture still in hand! Took %d self-damage" % self_damage)
+
 func _apply_magnetize_pull(tiles: int) -> void:
 	var enemies = enemy_spawner.get_living_enemies()
 	if enemies.size() == 0:
