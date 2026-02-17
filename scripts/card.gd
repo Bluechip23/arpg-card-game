@@ -1200,7 +1200,7 @@ func _execute_sweeping_disarm(target, player_stats: PlayerStats, buff_mgr: BuffM
 	print("[CARD] Sweeping Disarm! %d damage, surrounding enemies disarmed" % total_damage)
 
 func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var snap_damage = base_damage + (consecutive_uses * base_damage)
+	var snap_damage = base_damage + (consecutive_uses * 9)
 	if player_stats:
 		snap_damage = player_stats.get_effective_physical_damage(snap_damage)
 	if buff_mgr:
@@ -1211,9 +1211,9 @@ func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: Buff
 	if target and target.has_method("take_damage"):
 		target.take_damage(snap_damage)
 	consecutive_uses += 1
-	# Cost increases by 1m/1t each use
-	mana_cost = 3 + consecutive_uses
-	tempo_cost = 3 + consecutive_uses
+	# Cost decreases by 1m/1t each use
+	mana_cost = max(0, 3 - consecutive_uses)
+	tempo_cost = max(0, 3 - consecutive_uses)
 	print("[CARD] Consecutive Snap! %d damage (use #%d). Next costs %dm/%dt" % [snap_damage, consecutive_uses, mana_cost, tempo_cost])
 
 func _execute_swap(target, _player_stats: PlayerStats) -> void:
@@ -2078,13 +2078,13 @@ static func create_consecutive_snap() -> Card:
 	var card = Card.new()
 	card.card_id = "consecutive_snap"
 	card.card_name = "Consecutive Snap"
-	card.description = "6 damage. Each reuse: +6 damage, +1m/+1t cost. Sticky 3."
+	card.description = "3 damage. Each reuse: +9 damage, -1m/-1t cost. Sticky 3."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
 	card.tempo_cost = 3
-	card.damage = 6
-	card.base_damage = 6
+	card.damage = 3
+	card.base_damage = 3
 	card.sticky = 3
 	card.is_ranged = true
 	card.range_modifier = -2
