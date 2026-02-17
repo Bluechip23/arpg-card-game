@@ -1211,10 +1211,13 @@ func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: Buff
 	if target and target.has_method("take_damage"):
 		target.take_damage(snap_damage)
 	consecutive_uses += 1
-	# Cost decreases by 1m/1t each use
+	# Cost decreases by 1m/1t each use (max 3 uses via sticky)
 	mana_cost = max(0, 3 - consecutive_uses)
 	tempo_cost = max(0, 3 - consecutive_uses)
-	print("[CARD] Consecutive Snap! %d damage (use #%d). Next costs %dm/%dt" % [snap_damage, consecutive_uses, mana_cost, tempo_cost])
+	if consecutive_uses >= sticky:
+		print("[CARD] Consecutive Snap! %d damage (final use #%d)" % [snap_damage, consecutive_uses])
+	else:
+		print("[CARD] Consecutive Snap! %d damage (use #%d). Next costs %dm/%dt" % [snap_damage, consecutive_uses, mana_cost, tempo_cost])
 
 func _execute_swap(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Swap! Switched positions with target")
