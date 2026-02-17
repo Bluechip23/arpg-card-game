@@ -8,7 +8,6 @@ signal selected(character: CharacterData)
 @onready var name_label: Label = $VBox/NameLabel
 @onready var stats_label: Label = $VBox/StatsBox/StatsLabel
 @onready var derived_label: Label = $VBox/StatsBox/DerivedLabel
-@onready var unique_card_label: Label = $VBox/UniqueCardLabel
 @onready var select_button: Button = $VBox/SelectButton
 
 var character_data: CharacterData
@@ -37,20 +36,8 @@ func setup(character: CharacterData) -> void:
 			character.base_draw_timer
 		]
 	
-	if unique_card_label:
-		unique_card_label.text = "Card: %s" % _get_unique_card_name(character.unique_card_id)
-	
 	if select_button:
 		select_button.pressed.connect(_on_select_pressed)
-
-func _get_unique_card_name(card_id: String) -> String:
-	match card_id:
-		"discard": return "Discard"
-		"draw": return "Draw"
-		"empower": return "Empower"
-		"blink": return "Blink"
-		"heal": return "Heal"
-	return "Unknown"
 
 func _on_select_pressed() -> void:
 	selected.emit(character_data)

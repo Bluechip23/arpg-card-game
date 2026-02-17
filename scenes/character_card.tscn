@@ -26,13 +26,6 @@ layout_mode = 2
 [node name="DerivedLabel" type="Label" parent="VBox/StatsBox" unique_id=884697902]
 layout_mode = 2
 
-[node name="Separator2" type="HSeparator" parent="VBox" unique_id=243314221]
-layout_mode = 2
-
-[node name="UniqueCardLabel" type="Label" parent="VBox" unique_id=1568087920]
-layout_mode = 2
-text = "Unique Card:"
-
 [node name="Spacer" type="Control" parent="VBox" unique_id=1460299796]
 layout_mode = 2
 

@@ -72,14 +72,7 @@ func _create_default_deck(character: CharacterData) -> void:
 	draw_pile.append(Card.create_discard())
 	draw_pile.append(Card.create_gain_mana())
 
-	# Add character's unique card (2 copies)
-	if character.unique_card_id != "":
-		for i in range(2):
-			var unique_card = _create_card_from_id(character.unique_card_id)
-			if unique_card:
-				draw_pile.append(unique_card)
-
-	# Add character-specific cards (1 copy each)
+	# Add character-specific cards
 	for card_id in character.starting_card_ids:
 		var card = _create_card_from_id(card_id)
 		if card:

@@ -85,6 +85,7 @@ func _ready() -> void:
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_apply_default_style()
 
 func store_base_position() -> void:
 	_base_y = position.y
@@ -160,9 +161,22 @@ func _apply_gold_trim() -> void:
 	style.corner_radius_bottom_right = 4
 	add_theme_stylebox_override("panel", style)
 
+func _apply_default_style() -> void:
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.15, 0.15, 0.2, 1.0)
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.3, 0.3, 0.4)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	add_theme_stylebox_override("panel", style)
+
 func _clear_gold_trim() -> void:
-	if has_theme_stylebox_override("panel"):
-		remove_theme_stylebox_override("panel")
+	_apply_default_style()
 
 func _get_keybind_text(index: int) -> String:
 	if index >= 0 and index < KEYBIND_LABELS.size():
