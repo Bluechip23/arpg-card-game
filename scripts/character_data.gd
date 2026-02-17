@@ -20,7 +20,6 @@ extends Resource
 @export var base_draw_timer: int = 5  # Turns between draws
 @export var base_hand_size: int = 6
 
-@export var unique_card_id: String = ""
 var starting_card_ids: Array = []  # Character-specific cards added to starting deck
 
 # Calculate derived stats from core stats
@@ -50,8 +49,8 @@ static func create_ryan() -> CharacterData:
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 4
 	data.base_hand_size = 8
-	data.unique_card_id = "discard"
 	data.starting_card_ids = [
+		"discard", "discard",
 		"raged_circulation", "poisoned_blood", "elixir", "ryan_heal",
 		"shadows", "preparation", "exacerbate_wounds", "reposition",
 		"ryan_dagger_throw", "volatile_mixture", "understanding"
@@ -72,8 +71,8 @@ static func create_jeremy() -> CharacterData:
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
 	data.base_hand_size = 10
-	data.unique_card_id = "draw"
 	data.starting_card_ids = [
+		"draw", "draw",
 		"trick_shot", "surrounding_ice", "risk_it", "biscuit",
 		"loaded_die", "worst_that_could_happen", "oops", "house_money",
 		"hope_this_works", "lady_luck", "try_this", "if_pigs_could_fly",
@@ -95,8 +94,8 @@ static func create_stephen() -> CharacterData:
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 6
 	data.base_hand_size = 6
-	data.unique_card_id = "empower"
 	data.starting_card_ids = [
+		"empower", "empower",
 		"mark", "rise", "quick_shot", "reload", "enchanted_quiver",
 		"tighten_string", "down_town", "barricade", "sky_fall",
 		"sky_attack", "lead_arrow", "last_breath", "mixed_bag"
@@ -117,8 +116,8 @@ static func create_cory() -> CharacterData:
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 3
 	data.base_hand_size = 14
-	data.unique_card_id = "blink"
 	data.starting_card_ids = [
+		"blink", "blink",
 		"round_em_up", "trip", "choke", "push", "defensive_awareness",
 		"sweeping_disarm", "cory_blink", "consecutive_snap", "swap", "meditate"
 	]
@@ -138,8 +137,8 @@ static func create_brad() -> CharacterData:
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
 	data.base_hand_size = 5
-	data.unique_card_id = "heal"
 	data.starting_card_ids = [
+		"heal", "heal",
 		"life_swap", "wear_down", "taunt", "life_steal", "roar",
 		"poke", "armor_break", "charge", "heroic_leap", "morphine",
 		"turtle_up", "parry", "approach", "hold_the_line"
