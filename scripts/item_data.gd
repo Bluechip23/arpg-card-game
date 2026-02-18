@@ -247,7 +247,7 @@ static func create_ryan_belt() -> ItemData:
 	item.item_type_name = "Belt"
 	item.weight = 1
 	item.special_effect = SpecialEffect.GRANT_CARDS
-	item.granted_card_ids = ["healing_potion", "dagger_throw"]
+	item.granted_card_ids.assign(["healing_potion", "dagger_throw"])
 	item.description = "Grants Healing Potion & Dagger Throw"
 	return item
 
