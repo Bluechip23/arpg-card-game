@@ -51,7 +51,7 @@ static func create_ryan() -> CharacterData:
 	data.base_hand_size = 8
 	data.starting_card_ids = [
 		"discard", "discard",
-		"raged_circulation", "poisoned_blood", "elixir", "ryan_heal",
+		"raged_circulation", "poisoned_blood", "elixir", "heal",
 		"shadows", "preparation", "exacerbate_wounds", "reposition",
 		"ryan_dagger_throw", "volatile_mixture", "understanding"
 	]
