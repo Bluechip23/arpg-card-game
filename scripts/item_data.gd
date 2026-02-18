@@ -180,20 +180,20 @@ func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Diction
 # CHARACTER STARTING ITEMS
 # ============================================
 
-static func create_brad_chest() -> ItemData:
+static func create_bloodbound_plate() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Bloodbound Plate"
 	item.item_type = ItemType.CHEST
 	item.item_type_name = "Chest"
 	item.weight = 5
-	item.determination_bonus = 2
+	item.dexterity_bonus = 2
 	item.special_effect = SpecialEffect.OVERFLOW_HEAL_ARMOR
-	item.special_effect_value = 2
-	item.special_effect_value_2 = 1
-	item.description = "+2 DET. Overflow: Heal 2, +1 Armor"
+	item.special_effect_value = 2    # Heal 2 on overflow
+	item.special_effect_value_2 = 1  # +1 Armor whenever armor is gained
+	item.description = "+2 DEX. Overflow: Heal 2. +1 Armor on Armor Gain"
 	return item
 
-static func create_stephen_boots() -> ItemData:
+static func create_flickerstep_boots() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Flickerstep Boots"
 	item.item_type = ItemType.BOOTS
@@ -205,7 +205,7 @@ static func create_stephen_boots() -> ItemData:
 	item.description = "+2 DEX. Grants 1 Blink card"
 	return item
 
-static func create_cory_gauntlets() -> ItemData:
+static func create_grasping_gauntlets() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Grasping Gauntlets"
 	item.item_type = ItemType.GAUNTLETS
@@ -224,7 +224,7 @@ static func create_cory_gauntlets() -> ItemData:
 	item.description = "+2 Hand Size. Skill: Power Grip"
 	return item
 
-static func create_jeremy_ring() -> ItemData:
+static func create_scholars_signet() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Scholar's Signet"
 	item.item_type = ItemType.RING
@@ -240,7 +240,7 @@ static func create_jeremy_ring() -> ItemData:
 	item.description = "+3 INT. +3% chance. On Utility: +1 Mana"
 	return item
 
-static func create_ryan_belt() -> ItemData:
+static func create_adventurers_belt() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Adventurer's Belt"
 	item.item_type = ItemType.BELT
