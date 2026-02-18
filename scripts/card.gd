@@ -611,6 +611,7 @@ static func create_heal() -> Card:
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
+	card.target_types =  ["self", "ally"]
 	card.heal_amount = 4
 	return card
 
@@ -1785,6 +1786,8 @@ static func create_mark() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 0
+	card.is_ranged = true
+	card.range_modifier = 7
 	card.target_types = ["enemy"]
 	return card
 

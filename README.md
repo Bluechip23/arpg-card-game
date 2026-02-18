@@ -197,45 +197,45 @@ Add a new `static func create_your_item() -> ItemData` in `item_data.gd`:
 
 ```gdscript
 static func create_your_item_name() -> ItemData:
-    var item = ItemData.new()
+	var item = ItemData.new()
 
-    # === REQUIRED FIELDS ===
-    item.item_name = "Your Item Name"
-    item.item_type = ItemType.HELM          # HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON
-    item.item_type_name = "Helm"            # Display name for the slot
-    item.weight = 3                         # Item weight
-    item.description = "+2 Armor"           # Short description of what it does
+	# === REQUIRED FIELDS ===
+	item.item_name = "Your Item Name"
+	item.item_type = ItemType.HELM          # HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON
+	item.item_type_name = "Helm"            # Display name for the slot
+	item.weight = 3                         # Item weight
+	item.description = "+2 Armor"           # Short description of what it does
 
-    # === STAT BONUSES (set any that apply) ===
-    item.strength_bonus = 0
-    item.dexterity_bonus = 0
-    item.intelligence_bonus = 0
-    item.wisdom_bonus = 0
-    item.determination_bonus = 0
-    item.agility_bonus = 0
-    item.health_bonus = 0
-    item.mana_bonus = 0
-    item.armor_bonus = 0
-    item.hand_size_bonus = 0
+	# === STAT BONUSES (set any that apply) ===
+	item.strength_bonus = 0
+	item.dexterity_bonus = 0
+	item.intelligence_bonus = 0
+	item.wisdom_bonus = 0
+	item.determination_bonus = 0
+	item.agility_bonus = 0
+	item.health_bonus = 0
+	item.mana_bonus = 0
+	item.armor_bonus = 0
+	item.hand_size_bonus = 0
 
-    # === WEAPON-SPECIFIC (only for weapons) ===
-    item.weapon_damage = 0
-    item.weapon_hand = WeaponHand.MAIN_HAND  # MAIN_HAND, OFF_HAND, or TWO_HAND
-    item.is_two_handed = false
-    item.damage_percent_bonus = 0.0
-    item.fire_damage_percent = 0.0
-    item.ice_damage_percent = 0.0
-    item.lightning_damage_percent = 0.0
+	# === WEAPON-SPECIFIC (only for weapons) ===
+	item.weapon_damage = 0
+	item.weapon_hand = WeaponHand.MAIN_HAND  # MAIN_HAND, OFF_HAND, or TWO_HAND
+	item.is_two_handed = false
+	item.damage_percent_bonus = 0.0
+	item.fire_damage_percent = 0.0
+	item.ice_damage_percent = 0.0
+	item.lightning_damage_percent = 0.0
 
-    # === SPECIAL EFFECTS (optional) ===
-    item.special_effect = SpecialEffect.NONE
-    # Available: OVERFLOW_HEAL_ARMOR, GRANT_BLINK_CARD, INCREASE_HAND_SIZE,
-    #            CHANCE_BOOST, GRANT_CARDS
-    item.special_effect_value = 0
-    item.special_effect_value_2 = 0
-    item.granted_card_ids = []              # For GRANT_CARDS effect
+	# === SPECIAL EFFECTS (optional) ===
+	item.special_effect = SpecialEffect.NONE
+	# Available: OVERFLOW_HEAL_ARMOR, GRANT_BLINK_CARD, INCREASE_HAND_SIZE,
+	#            CHANCE_BOOST, GRANT_CARDS
+	item.special_effect_value = 0
+	item.special_effect_value_2 = 0
+	item.granted_card_ids = []              # For GRANT_CARDS effect
 
-    return item
+	return item
 ```
 
 ### Ring Trigger System

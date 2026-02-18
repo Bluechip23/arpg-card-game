@@ -1,1 +1,7 @@
+res://scenes/help_buttons.tscn
+res://scripts/card.gd
+res://scripts/character_data.gd
+res://scenes/manifest_ui.tscn
+res://scripts/player_stats.gd
 res://main.tscn
+res://README.md

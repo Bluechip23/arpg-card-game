@@ -280,8 +280,8 @@ func get_attacks_until_proc() -> int:
 # ============================================
 
 func get_intelligence_spell_bonus() -> int:
-	# Every 1 point = +1 spell damage (flat, like strength)
-	return intelligence
+	# Every 2 point = +1 spell damage (flat, like strength)
+	return floori(intelligence / 2.0)
 
 func get_intelligence_mana_regen_bonus() -> float:
 	# Every 5 points = +1 mana regen

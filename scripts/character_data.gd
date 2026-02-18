@@ -38,17 +38,17 @@ func get_mana_regen() -> float:
 static func create_ryan() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Ryan"
-	data.strength = 8
-	data.dexterity = 15
-	data.intelligence = 8
-	data.wisdom = 10
-	data.determination = 10
-	data.agility = 10
-	data.base_health = 6
-	data.base_mana = 10
+	data.strength = 5
+	data.dexterity = 5
+	data.intelligence = 5
+	data.wisdom = 5
+	data.determination = 5
+	data.agility = 5
+	data.base_health = 5
+	data.base_mana = 5
 	data.base_mana_regen = 1.0
-	data.base_draw_timer = 4
-	data.base_hand_size = 8
+	data.base_draw_timer = 5
+	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"discard", "discard",
 		"raged_circulation", "poisoned_blood", "elixir", "ryan_heal",
@@ -60,17 +60,17 @@ static func create_ryan() -> CharacterData:
 static func create_jeremy() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Jeremy"
-	data.strength = 8
-	data.dexterity = 10
-	data.intelligence = 12
-	data.wisdom = 14
-	data.determination = 8
-	data.agility = 8
-	data.base_health = 8
-	data.base_mana = 12
+	data.strength = 5
+	data.dexterity = 5
+	data.intelligence = 5
+	data.wisdom = 5
+	data.determination = 5
+	data.agility = 5
+	data.base_health = 5
+	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.base_hand_size = 10
+	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"draw", "draw",
 		"trick_shot", "surrounding_ice", "risk_it", "biscuit",
@@ -83,17 +83,17 @@ static func create_jeremy() -> CharacterData:
 static func create_stephen() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Stephen"
-	data.strength = 14
-	data.dexterity = 8
-	data.intelligence = 10
-	data.wisdom = 10
-	data.determination = 4
-	data.agility = 12
+	data.strength = 5
+	data.dexterity = 5
+	data.intelligence = 5
+	data.wisdom = 5
+	data.determination = 5
+	data.agility = 5
 	data.base_health = 5
-	data.base_mana = 8
+	data.base_mana = 5
 	data.base_mana_regen = 1.0
-	data.base_draw_timer = 6
-	data.base_hand_size = 6
+	data.base_draw_timer = 5
+	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"empower", "empower",
 		"mark", "rise", "quick_shot", "reload", "enchanted_quiver",
@@ -105,17 +105,17 @@ static func create_stephen() -> CharacterData:
 static func create_cory() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Cory"
-	data.strength = 10
-	data.dexterity = 12
-	data.intelligence = 6
-	data.wisdom = 12
-	data.determination = 12
-	data.agility = 10
-	data.base_health = 12
-	data.base_mana = 14
+	data.strength = 5
+	data.dexterity = 5
+	data.intelligence = 5
+	data.wisdom = 5
+	data.determination = 5
+	data.agility = 5
+	data.base_health = 5
+	data.base_mana = 5
 	data.base_mana_regen = 1.0
-	data.base_draw_timer = 3
-	data.base_hand_size = 14
+	data.base_draw_timer = 5
+	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"blink", "blink",
 		"round_em_up", "trip", "choke", "push", "defensive_awareness",
@@ -126,14 +126,14 @@ static func create_cory() -> CharacterData:
 static func create_brad() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Brad"
-	data.strength = 12
-	data.dexterity = 6
-	data.intelligence = 8
-	data.wisdom = 6
-	data.determination = 16
-	data.agility = 10
-	data.base_health = 16
-	data.base_mana = 8
+	data.strength = 5
+	data.dexterity = 5
+	data.intelligence = 5
+	data.wisdom = 5
+	data.determination = 5
+	data.agility = 5
+	data.base_health = 5
+	data.base_mana = 4
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
 	data.base_hand_size = 5
