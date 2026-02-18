@@ -174,6 +174,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_discard(deck_manager)
 		"draw":
 			_execute_draw(deck_manager)
+		"potion_of_continuance":
+			_execute_potion_of_continuance(deck_manager)
 		"empower":
 			_execute_empower(player_stats)
 		"blink":
@@ -423,6 +425,12 @@ func _execute_draw(deck_manager) -> void:
 	if deck_manager:
 		deck_manager.draw_card()
 		print("[CARD] Drew a card!")
+
+func _execute_potion_of_continuance(deck_manager) -> void:
+	if deck_manager:
+		deck_manager.draw_card()
+		deck_manager.draw_card()
+		print("[CARD] Potion of Continuance: Drew 2 cards!")
 
 func _execute_empower(player_stats: PlayerStats) -> void:
 	if player_stats:
@@ -2064,5 +2072,22 @@ static func create_meditate() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
 	card.tempo_cost = 6
+	card.target_types = ["self"]
+	return card
+
+static func create_potion_of_continuance() -> Card:
+	var card = Card.new()
+	card.card_id = "potion_of_continuance"
+	card.card_name = "Potion of Continuance"
+	card.description = "Draw 2 cards."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
 	card.target_types = ["self"]
 	return card

@@ -346,6 +346,7 @@ func _create_card_by_id(card_id: String) -> Card:
 		"blink": return Card.create_blink()
 		"slash": return Card.create_slash()
 		"block": return Card.create_block()
+		"potion_of_continuance": return Card.create_potion_of_continuance()
 	return null
 
 func apply_starting_item_card_effects() -> void:
@@ -408,6 +409,13 @@ func process_turn() -> void:
 					player_stats.gain_mana(1)
 					print("[INVENTORY] Cory passive: Gained 1 mana from cooldown")
 
+	# Grant armor-per-turn from chest items (e.g. Leather Chest)
+	if player_stats:
+		for item in equipped_chests:
+			if item and item.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN:
+				player_stats.add_armor(item.special_effect_value)
+				print("[INVENTORY] %s: +%d armor per turn" % [item.item_name, item.special_effect_value])
+
 # ============================================
 # RING TRIGGER SYSTEM
 # ============================================
@@ -465,13 +473,22 @@ func on_armor_gained(amount: int) -> void:
 	armor_gained_this_turn += amount
 	trigger_rings(ItemData.RingTrigger.ON_GAIN_ARMOR_THRESHOLD, armor_gained_this_turn)
 
-	# Bloodbound Plate: grant +1 armor per armor instance gained
+	# Apply armor-on-armor-gain passives across all equipment slots
 	if not _applying_armor_instance_bonus and player_stats:
 		_applying_armor_instance_bonus = true
-		for item in equipped_chests:
-			if item and item.special_effect == ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR and item.special_effect_value_2 > 0:
-				player_stats.add_armor(item.special_effect_value_2)
-				print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value_2])
+		var all_slots = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons]
+		for slot in all_slots:
+			for item in slot:
+				if not item:
+					continue
+				# Bloodbound Plate uses OVERFLOW_HEAL_ARMOR with special_effect_value_2
+				if item.special_effect == ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR and item.special_effect_value_2 > 0:
+					player_stats.add_armor(item.special_effect_value_2)
+					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value_2])
+				# General armor-on-armor-gain items (helm, shield, gauntlets, etc.)
+				elif item.special_effect == ItemData.SpecialEffect.ARMOR_ON_ARMOR_GAIN:
+					player_stats.add_armor(item.special_effect_value)
+					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value])
 		_applying_armor_instance_bonus = false
 
 func on_enemy_killed() -> void:
