@@ -195,10 +195,10 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	
 	slot_array[slot_index] = item
 	
-	# Check if this is an off-hand weapon
-	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and 
-					   item.weapon_hand == ItemData.WeaponHand.OFF_HAND)
-	
+	# Slot index > 0 means off-hand; two-handed weapons never get the penalty
+	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
+					   slot_index > 0 and not item.is_two_handed)
+
 	_apply_item_bonuses(item, true, is_off_hand)
 	_apply_special_effect(item, true)
 	
@@ -219,9 +219,9 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	if item == null:
 		return null
 	
-	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and 
-					   item.weapon_hand == ItemData.WeaponHand.OFF_HAND)
-	
+	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
+					   slot_index > 0 and not item.is_two_handed)
+
 	slot_array[slot_index] = null
 	_apply_item_bonuses(item, false, is_off_hand)
 	_apply_special_effect(item, false)
@@ -619,9 +619,10 @@ func get_total_weight() -> int:
 
 func get_total_weapon_damage() -> int:
 	var total = 0
-	for weapon in equipped_weapons:
+	for i in range(equipped_weapons.size()):
+		var weapon = equipped_weapons[i]
 		if weapon:
-			var is_off_hand = weapon.weapon_hand == ItemData.WeaponHand.OFF_HAND
+			var is_off_hand = (i > 0 and not weapon.is_two_handed)
 			if is_off_hand:
 				total += floori(weapon.weapon_damage * get_off_hand_modifier())
 			else:

@@ -4,7 +4,7 @@ extends Resource
 ## Defines an item's properties
 
 enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON }
-enum WeaponHand { MAIN_HAND, OFF_HAND, TWO_HAND }
+enum WeaponHand { ONE_HAND, TWO_HAND }
 enum SpecialEffect {
 	NONE,
 	OVERFLOW_HEAL_ARMOR,
@@ -75,7 +75,7 @@ enum GauntletSkillType {
 
 # Weapon specific
 @export var weapon_damage: int = 0
-@export var weapon_hand: WeaponHand = WeaponHand.MAIN_HAND
+@export var weapon_hand: WeaponHand = WeaponHand.ONE_HAND
 @export var is_two_handed: bool = false
 
 # Special effects
@@ -338,11 +338,11 @@ static func create_flame_dagger() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Flame Dagger"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Off-hand"
+	item.item_type_name = "Weapon"
 	item.weight = 3
 	item.weapon_damage = 5
 	item.fire_damage_percent = 10.0
-	item.weapon_hand = WeaponHand.OFF_HAND
+	item.weapon_hand = WeaponHand.ONE_HAND
 	item.description = "5 dmg, +10% Fire Damage"
 	return item
 
@@ -350,11 +350,11 @@ static func create_frost_orb() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Frost Orb"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Off-hand"
+	item.item_type_name = "Weapon"
 	item.weight = 2
 	item.health_bonus = 100
 	item.ice_damage_percent = 10.0
-	item.weapon_hand = WeaponHand.OFF_HAND
+	item.weapon_hand = WeaponHand.ONE_HAND
 	item.description = "+100 HP, +10% Ice Damage"
 	return item
 
@@ -392,7 +392,7 @@ static func create_iron_sword() -> ItemData:
 	item.item_type_name = "Weapon"
 	item.weight = 80
 	item.weapon_damage = 10
-	item.weapon_hand = WeaponHand.MAIN_HAND
+	item.weapon_hand = WeaponHand.ONE_HAND
 	item.description = "+10 Melee Attack damage. Weight 80"
 	return item
 
@@ -400,11 +400,11 @@ static func create_wooden_shield() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Wooden Shield"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Off-hand"
+	item.item_type_name = "Weapon"
 	item.weight = 4
 	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
 	item.special_effect_value = 2
-	item.weapon_hand = WeaponHand.OFF_HAND
+	item.weapon_hand = WeaponHand.ONE_HAND
 	item.description = "+2 Armor on every Armor gain"
 	return item
 
