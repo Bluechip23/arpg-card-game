@@ -386,7 +386,7 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 		if target.has_method("get_buff_manager"):
 			var target_buff = target.get_buff_manager()
 			if target_buff:
-				target_buff.on_attacked(player_stats.owner_node if player_stats else null)
+				target_buff.on_attacked(buff_mgr.owner_node if buff_mgr else null)
 
 	if self_damage_percent > 0.0 and player_stats:
 		var self_dmg = floori(total_damage * self_damage_percent)

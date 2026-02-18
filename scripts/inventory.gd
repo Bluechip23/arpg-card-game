@@ -345,6 +345,40 @@ func _create_card_by_id(card_id: String) -> Card:
 		"block": return Card.create_block()
 	return null
 
+func apply_starting_item_card_effects() -> void:
+	## Re-apply card-granting effects from equipped items after deck initialization.
+	## Called after deck_manager is connected and deck is initialized.
+	if not deck_manager:
+		return
+
+	var cards_added = false
+
+	for item_array in [equipped_belts, equipped_boots, equipped_helms, equipped_chests, equipped_rings, equipped_gauntlets, equipped_weapons]:
+		for item in item_array:
+			if not item:
+				continue
+			match item.special_effect:
+				ItemData.SpecialEffect.GRANT_CARDS:
+					for card_id in item.granted_card_ids:
+						var card = _create_card_by_id(card_id)
+						if card:
+							if item.item_type == ItemData.ItemType.BELT and belt_card_mana_reduction > 0:
+								card.mana_cost = max(0, card.mana_cost - belt_card_mana_reduction)
+								print("[INVENTORY] %s mana cost reduced to %d (belt bonus)" % [card.card_name, card.mana_cost])
+							deck_manager.draw_pile.append(card)
+							print("[INVENTORY] Starting item added %s to deck" % card.card_name)
+							cards_added = true
+				ItemData.SpecialEffect.GRANT_BLINK_CARD:
+					for i in range(item.special_effect_value):
+						var blink_card = Card.create_blink()
+						deck_manager.draw_pile.append(blink_card)
+						print("[INVENTORY] Starting item added Blink to deck")
+						cards_added = true
+
+	if cards_added:
+		deck_manager.shuffle_draw_pile()
+		print("[INVENTORY] Shuffled deck after adding starting item cards")
+
 func _recalculate_total_weapon_weight() -> void:
 	# This now just triggers carry load recalculation
 	_recalculate_carry_load()

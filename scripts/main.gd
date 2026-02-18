@@ -643,6 +643,7 @@ func select_character(character: CharacterData) -> void:
 	character_panel.connect_stats(player.get_stats(), player.get_inventory())
 	
 	deck_manager.initialize_deck(character)
+	player.get_inventory().apply_starting_item_card_effects()
 	_setup_gauntlet_skills_ui()
 	# Connect gauntlet cooldown signal so UI updates when skills come off cooldown
 	var inventory = player.get_inventory()

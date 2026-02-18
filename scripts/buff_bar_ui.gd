@@ -7,6 +7,9 @@ const BuffIconScene = preload("res://scenes/buff_icon_ui.tscn")
 
 var buff_manager: BuffManager
 
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_PASS
+
 func connect_manager(manager: BuffManager) -> void:
 	buff_manager = manager
 	buff_manager.buffs_changed.connect(_on_buffs_changed)
