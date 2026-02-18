@@ -53,7 +53,7 @@ static func create_ryan() -> CharacterData:
 		"discard", "discard",
 		"raged_circulation", "poisoned_blood", "elixir", "heal",
 		"shadows", "preparation", "exacerbate_wounds", "reposition",
-		"ryan_dagger_throw", "volatile_mixture", "understanding"
+		"dagger_throw", "volatile_mixture", "understanding"
 	]
 	return data
 
@@ -119,7 +119,7 @@ static func create_cory() -> CharacterData:
 	data.starting_card_ids = [
 		"blink", "blink",
 		"round_em_up", "trip", "choke", "push", "defensive_awareness",
-		"sweeping_disarm", "cory_blink", "consecutive_snap", "swap", "meditate"
+		"sweeping_disarm", "consecutive_snap", "swap", "meditate"
 	]
 	return data
 

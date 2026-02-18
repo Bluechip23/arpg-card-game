@@ -36,6 +36,7 @@ theme_override_constants/line_spacing = 3
 theme_override_constants/paragraph_spacing = 0
 theme_override_font_sizes/font_size = 14
 text = "1M/1T"
+horizontal_alignment = 2
 
 [node name="NameLabel" type="Label" parent="Panel/VBox" unique_id=609047350]
 layout_mode = 2
@@ -52,7 +53,7 @@ theme_override_font_sizes/font_size = 12
 text = "Attack"
 horizontal_alignment = 1
 
-[node name="RangeLabel" type="Label" parent="Panel/VBox"]
+[node name="RangeLabel" type="Label" parent="Panel/VBox" unique_id=89761572]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "Melee"
@@ -65,8 +66,8 @@ size_flags_vertical = 3
 [node name="DescLabel" type="RichTextLabel" parent="Panel/VBox" unique_id=1611160183]
 custom_minimum_size = Vector2(0.1, 40)
 layout_mode = 2
-bbcode_enabled = true
 theme_override_font_sizes/normal_font_size = 12
+bbcode_enabled = true
 text = "Deal 10 damage to enemy"
 fit_content = true
 scroll_active = false

@@ -159,7 +159,7 @@ func _create_card_from_id(card_id: String) -> Card:
 		"preparation": return Card.create_preparation()
 		"exacerbate_wounds": return Card.create_exacerbate_wounds()
 		"reposition": return Card.create_reposition()
-		"ryan_dagger_throw": return Card.create_ryan_dagger_throw()
+		"dagger_throw": return Card.create_dagger_throw()
 		"volatile_mixture": return Card.create_volatile_mixture()
 		"understanding": return Card.create_understanding()
 		# Stephen cards
@@ -184,7 +184,6 @@ func _create_card_from_id(card_id: String) -> Card:
 		"push": return Card.create_push()
 		"defensive_awareness": return Card.create_defensive_awareness()
 		"sweeping_disarm": return Card.create_sweeping_disarm()
-		"cory_blink": return Card.create_cory_blink()
 		"consecutive_snap": return Card.create_consecutive_snap()
 		"swap": return Card.create_swap()
 		"meditate": return Card.create_meditate()

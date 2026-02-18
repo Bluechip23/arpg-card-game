@@ -665,6 +665,9 @@ func select_character(character: CharacterData) -> void:
 
 func trigger_turn() -> void:
 	deck_manager.process_turn()
+	var stats = player.get_stats()
+	if stats:
+		stats.process_turn()
 	turn_manager.take_turn()
 	update_turn_display()
 	_update_enemy_count()

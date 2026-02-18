@@ -39,7 +39,6 @@ func _process_player_turn() -> void:
 		deck_manager.inventory.process_turn()
 	
 	if player_stats:
-		player_stats.process_turn()
 		draw_every_x_turns = player_stats.get_effective_draw_timer()
 	
 	turns_until_draw -= 1.0

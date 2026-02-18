@@ -1,7 +1,7 @@
-res://scenes/help_buttons.tscn
+res://scenes/card_ui.tscn
+res://scenes/character_panel.tscn
+res://scripts/main.gd
+res://scripts/turn_manager.gd
 res://scripts/card.gd
+res://scripts/deck_manager.gd
 res://scripts/character_data.gd
-res://scenes/manifest_ui.tscn
-res://scripts/player_stats.gd
-res://main.tscn
-res://README.md

@@ -257,8 +257,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_exacerbate_wounds(target, player_stats, deck_manager, buff_mgr)
 		"reposition":
 			_execute_reposition(deck_manager)
-		"ryan_dagger_throw":
-			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction, self_damage_percent)
 		"volatile_mixture":
 			_execute_volatile_mixture(target, player_stats)
 		"understanding":
@@ -305,8 +303,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_defensive_awareness(player_stats, buff_mgr)
 		"sweeping_disarm":
 			_execute_sweeping_disarm(target, player_stats, buff_mgr)
-		"cory_blink":
-			_execute_blink(target)
 		"consecutive_snap":
 			_execute_consecutive_snap(target, player_stats, buff_mgr)
 		"swap":
@@ -582,6 +578,7 @@ static func create_blink() -> Card:
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
+	card.target_types = ["point"]
 	card.heal_amount = 0
 	return card
 
@@ -1705,22 +1702,6 @@ static func create_reposition() -> Card:
 	card.target_types = ["self"]
 	return card
 
-static func create_ryan_dagger_throw() -> Card:
-	var card = Card.new()
-	card.card_id = "ryan_dagger_throw"
-	card.card_name = "Dagger Throw"
-	card.description = "Deal X damage at range."
-	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
-	card.mana_cost = 1
-	card.tempo_cost = 2
-	card.damage = 5
-	card.base_damage = 5
-	card.is_ranged = true
-	card.range_modifier = 3
-	card.target_types = ["enemy"]
-	return card
-
 static func create_volatile_mixture() -> Card:
 	var card = Card.new()
 	card.card_id = "volatile_mixture"
@@ -2041,18 +2022,6 @@ static func create_sweeping_disarm() -> Card:
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_types = ["all_nearby"]
-	return card
-
-static func create_cory_blink() -> Card:
-	var card = Card.new()
-	card.card_id = "cory_blink"
-	card.card_name = "Blink"
-	card.description = "Blink a distance."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
-	card.mana_cost = 1
-	card.tempo_cost = 1
-	card.target_types = ["point"]
 	return card
 
 static func create_consecutive_snap() -> Card:
