@@ -44,6 +44,9 @@ var equipped_weapons: Array[ItemData] = []
 var ring_triggered_this_turn: bool = false
 var armor_gained_this_turn: int = 0
 
+# Prevents infinite loop when granting armor-on-armor-gain bonuses
+var _applying_armor_instance_bonus: bool = false
+
 # References
 var player_stats = null  # PlayerStats - untyped to avoid circular dependency
 var deck_manager = null  # DeckManager - untyped to avoid circular dependency
@@ -166,15 +169,15 @@ func get_off_hand_modifier() -> float:
 func equip_starting_item() -> void:
 	match character_name:
 		"Brad":
-			equip_item(ItemData.create_brad_chest(), 0)
+			equip_item(ItemData.create_bloodbound_plate(), 0)
 		"Stephen":
-			equip_item(ItemData.create_stephen_boots(), 0)
+			equip_item(ItemData.create_flickerstep_boots(), 0)
 		"Cory":
-			equip_item(ItemData.create_cory_gauntlets(), 0)
+			equip_item(ItemData.create_grasping_gauntlets(), 0)
 		"Jeremy":
-			equip_item(ItemData.create_jeremy_ring(), 0)
+			equip_item(ItemData.create_scholars_signet(), 0)
 		"Ryan":
-			equip_item(ItemData.create_ryan_belt(), 0)
+			equip_item(ItemData.create_adventurers_belt(), 0)
 	
 	print("[INVENTORY] Equipped starting item for %s" % character_name)
 
@@ -192,10 +195,10 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	
 	slot_array[slot_index] = item
 	
-	# Check if this is an off-hand weapon
-	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and 
-					   item.weapon_hand == ItemData.WeaponHand.OFF_HAND)
-	
+	# Slot index > 0 means off-hand; two-handed weapons never get the penalty
+	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
+					   slot_index > 0 and not item.is_two_handed)
+
 	_apply_item_bonuses(item, true, is_off_hand)
 	_apply_special_effect(item, true)
 	
@@ -216,9 +219,9 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	if item == null:
 		return null
 	
-	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and 
-					   item.weapon_hand == ItemData.WeaponHand.OFF_HAND)
-	
+	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
+					   slot_index > 0 and not item.is_two_handed)
+
 	slot_array[slot_index] = null
 	_apply_item_bonuses(item, false, is_off_hand)
 	_apply_special_effect(item, false)
@@ -343,6 +346,7 @@ func _create_card_by_id(card_id: String) -> Card:
 		"blink": return Card.create_blink()
 		"slash": return Card.create_slash()
 		"block": return Card.create_block()
+		"potion_of_continuance": return Card.create_potion_of_continuance()
 	return null
 
 func apply_starting_item_card_effects() -> void:
@@ -405,6 +409,13 @@ func process_turn() -> void:
 					player_stats.gain_mana(1)
 					print("[INVENTORY] Cory passive: Gained 1 mana from cooldown")
 
+	# Grant armor-per-turn from chest items (e.g. Leather Chest)
+	if player_stats:
+		for item in equipped_chests:
+			if item and item.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN:
+				player_stats.add_armor(item.special_effect_value)
+				print("[INVENTORY] %s: +%d armor per turn" % [item.item_name, item.special_effect_value])
+
 # ============================================
 # RING TRIGGER SYSTEM
 # ============================================
@@ -461,6 +472,24 @@ func _execute_ring_effect(ring: ItemData) -> void:
 func on_armor_gained(amount: int) -> void:
 	armor_gained_this_turn += amount
 	trigger_rings(ItemData.RingTrigger.ON_GAIN_ARMOR_THRESHOLD, armor_gained_this_turn)
+
+	# Apply armor-on-armor-gain passives across all equipment slots
+	if not _applying_armor_instance_bonus and player_stats:
+		_applying_armor_instance_bonus = true
+		var all_slots = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons]
+		for slot in all_slots:
+			for item in slot:
+				if not item:
+					continue
+				# Bloodbound Plate uses OVERFLOW_HEAL_ARMOR with special_effect_value_2
+				if item.special_effect == ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR and item.special_effect_value_2 > 0:
+					player_stats.add_armor(item.special_effect_value_2)
+					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value_2])
+				# General armor-on-armor-gain items (helm, shield, gauntlets, etc.)
+				elif item.special_effect == ItemData.SpecialEffect.ARMOR_ON_ARMOR_GAIN:
+					player_stats.add_armor(item.special_effect_value)
+					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value])
+		_applying_armor_instance_bonus = false
 
 func on_enemy_killed() -> void:
 	trigger_rings(ItemData.RingTrigger.ON_ENEMY_KILL)
@@ -549,13 +578,11 @@ func check_overflow_effects() -> void:
 	for item in equipped_chests:
 		if item and item.special_effect == ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR:
 			var heal_amount = item.special_effect_value
-			var armor_amount = item.special_effect_value_2
-			
+
 			if player_stats:
 				player_stats.heal(heal_amount)
-				player_stats.add_armor(armor_amount)
-				overflow_heal_armor_triggered.emit(heal_amount, armor_amount)
-				print("[INVENTORY] Overflow effect: Healed %d, gained %d armor" % [heal_amount, armor_amount])
+				overflow_heal_armor_triggered.emit(heal_amount, 0)
+				print("[INVENTORY] Overflow effect: Healed %d" % heal_amount)
 
 # ============================================
 # UTILITY
@@ -592,9 +619,10 @@ func get_total_weight() -> int:
 
 func get_total_weapon_damage() -> int:
 	var total = 0
-	for weapon in equipped_weapons:
+	for i in range(equipped_weapons.size()):
+		var weapon = equipped_weapons[i]
 		if weapon:
-			var is_off_hand = weapon.weapon_hand == ItemData.WeaponHand.OFF_HAND
+			var is_off_hand = (i > 0 and not weapon.is_two_handed)
 			if is_off_hand:
 				total += floori(weapon.weapon_damage * get_off_hand_modifier())
 			else:

@@ -4,14 +4,16 @@ extends Resource
 ## Defines an item's properties
 
 enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON }
-enum WeaponHand { MAIN_HAND, OFF_HAND, TWO_HAND }
-enum SpecialEffect { 
-	NONE, 
+enum WeaponHand { ONE_HAND, TWO_HAND }
+enum SpecialEffect {
+	NONE,
 	OVERFLOW_HEAL_ARMOR,
 	GRANT_BLINK_CARD,
 	INCREASE_HAND_SIZE,
 	CHANCE_BOOST,
-	GRANT_CARDS
+	GRANT_CARDS,
+	ARMOR_ON_ARMOR_GAIN,
+	ARMOR_PER_TURN
 }
 
 # Ring trigger conditions
@@ -73,7 +75,7 @@ enum GauntletSkillType {
 
 # Weapon specific
 @export var weapon_damage: int = 0
-@export var weapon_hand: WeaponHand = WeaponHand.MAIN_HAND
+@export var weapon_hand: WeaponHand = WeaponHand.ONE_HAND
 @export var is_two_handed: bool = false
 
 # Special effects
@@ -180,7 +182,7 @@ func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Diction
 # CHARACTER STARTING ITEMS
 # ============================================
 
-static func create_brad_chest() -> ItemData:
+static func create_bloodbound_plate() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Bloodbound Plate"
 	item.item_type = ItemType.CHEST
@@ -188,12 +190,12 @@ static func create_brad_chest() -> ItemData:
 	item.weight = 5
 	item.determination_bonus = 2
 	item.special_effect = SpecialEffect.OVERFLOW_HEAL_ARMOR
-	item.special_effect_value = 2
-	item.special_effect_value_2 = 1
-	item.description = "+2 DET. Overflow: Heal 2, +1 Armor"
+	item.special_effect_value = 2    # Heal 2 on overflow
+	item.special_effect_value_2 = 1  # +1 Armor whenever armor is gained
+	item.description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
 	return item
 
-static func create_stephen_boots() -> ItemData:
+static func create_flickerstep_boots() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Flickerstep Boots"
 	item.item_type = ItemType.BOOTS
@@ -205,7 +207,7 @@ static func create_stephen_boots() -> ItemData:
 	item.description = "+2 DEX. Grants 1 Blink card"
 	return item
 
-static func create_cory_gauntlets() -> ItemData:
+static func create_grasping_gauntlets() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Grasping Gauntlets"
 	item.item_type = ItemType.GAUNTLETS
@@ -224,7 +226,7 @@ static func create_cory_gauntlets() -> ItemData:
 	item.description = "+2 Hand Size. Skill: Power Grip"
 	return item
 
-static func create_jeremy_ring() -> ItemData:
+static func create_scholars_signet() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Scholar's Signet"
 	item.item_type = ItemType.RING
@@ -240,7 +242,7 @@ static func create_jeremy_ring() -> ItemData:
 	item.description = "+3 INT. +3% chance. On Utility: +1 Mana"
 	return item
 
-static func create_ryan_belt() -> ItemData:
+static func create_adventurers_belt() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Adventurer's Belt"
 	item.item_type = ItemType.BELT
@@ -336,11 +338,11 @@ static func create_flame_dagger() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Flame Dagger"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Off-hand"
+	item.item_type_name = "Weapon"
 	item.weight = 3
 	item.weapon_damage = 5
 	item.fire_damage_percent = 10.0
-	item.weapon_hand = WeaponHand.OFF_HAND
+	item.weapon_hand = WeaponHand.ONE_HAND
 	item.description = "5 dmg, +10% Fire Damage"
 	return item
 
@@ -348,11 +350,11 @@ static func create_frost_orb() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Frost Orb"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Off-hand"
+	item.item_type_name = "Weapon"
 	item.weight = 2
 	item.health_bonus = 100
 	item.ice_damage_percent = 10.0
-	item.weapon_hand = WeaponHand.OFF_HAND
+	item.weapon_hand = WeaponHand.ONE_HAND
 	item.description = "+100 HP, +10% Ice Damage"
 	return item
 
@@ -366,8 +368,9 @@ static func create_iron_helm() -> ItemData:
 	item.item_type = ItemType.HELM
 	item.item_type_name = "Helm"
 	item.weight = 3
-	item.armor_bonus = 2
-	item.description = "+2 Armor"
+	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
+	item.special_effect_value = 2
+	item.description = "+2 Armor on every Armor gain"
 	return item
 
 static func create_leather_chest() -> ItemData:
@@ -376,9 +379,10 @@ static func create_leather_chest() -> ItemData:
 	item.item_type = ItemType.CHEST
 	item.item_type_name = "Chest"
 	item.weight = 5
-	item.armor_bonus = 3
 	item.health_bonus = 2
-	item.description = "+3 Armor, +2 HP"
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 3
+	item.description = "+3 Armor per turn, +2 Max HP"
 	return item
 
 static func create_iron_sword() -> ItemData:
@@ -386,21 +390,22 @@ static func create_iron_sword() -> ItemData:
 	item.item_name = "Iron Sword"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
-	item.weight = 8
+	item.weight = 80
 	item.weapon_damage = 10
-	item.weapon_hand = WeaponHand.MAIN_HAND
-	item.description = "10 damage, Weight 8"
+	item.weapon_hand = WeaponHand.ONE_HAND
+	item.description = "+10 Melee Attack damage. Weight 80"
 	return item
 
 static func create_wooden_shield() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Wooden Shield"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Off-hand"
+	item.item_type_name = "Weapon"
 	item.weight = 4
-	item.armor_bonus = 2
-	item.weapon_hand = WeaponHand.OFF_HAND
-	item.description = "+2 Armor"
+	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
+	item.special_effect_value = 2
+	item.weapon_hand = WeaponHand.ONE_HAND
+	item.description = "+2 Armor on every Armor gain"
 	return item
 
 static func create_gold_ring() -> ItemData:
@@ -410,7 +415,10 @@ static func create_gold_ring() -> ItemData:
 	item.item_type_name = "Ring"
 	item.weight = 0
 	item.mana_bonus = 2
-	item.description = "+2 Mana"
+	item.ring_trigger = RingTrigger.ON_ENEMY_KILL
+	item.ring_effect = RingEffect.DRAW_CARD
+	item.ring_effect_value = 1
+	item.description = "+2 Mana. On Kill: Draw 1 card"
 	return item
 
 static func create_heavy_greatsword() -> ItemData:
@@ -418,11 +426,11 @@ static func create_heavy_greatsword() -> ItemData:
 	item.item_name = "Heavy Greatsword"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
-	item.weight = 18
+	item.weight = 130
 	item.weapon_damage = 25
 	item.weapon_hand = WeaponHand.TWO_HAND
 	item.is_two_handed = true
-	item.description = "25 damage, Weight 18, Two-handed"
+	item.description = "+25 Melee Attack damage. Weight 130. Two-handed (takes both slots, no penalty)"
 	return item
 
 static func create_leather_boots() -> ItemData:
@@ -442,8 +450,9 @@ static func create_iron_gauntlets() -> ItemData:
 	item.item_type_name = "Gauntlets"
 	item.weight = 3
 	item.strength_bonus = 1
-	item.armor_bonus = 1
-	item.description = "+1 Strength, +1 Armor"
+	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
+	item.special_effect_value = 1
+	item.description = "+1 Strength. +1 Armor on every Armor gain"
 	return item
 
 static func create_utility_belt() -> ItemData:
@@ -453,5 +462,7 @@ static func create_utility_belt() -> ItemData:
 	item.item_type_name = "Belt"
 	item.weight = 1
 	item.wisdom_bonus = 1
-	item.description = "+1 Wisdom"
+	item.special_effect = SpecialEffect.GRANT_CARDS
+	item.granted_card_ids.assign(["dagger_throw", "potion_of_continuance"])
+	item.description = "+1 Wisdom. Grants Dagger Throw & Potion of Continuance"
 	return item
