@@ -7,6 +7,9 @@ const DebuffIconScene = preload("res://scenes/debuff_icon_ui.tscn")
 
 var debuff_manager: DebuffManager
 
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_PASS
+
 func connect_manager(manager: DebuffManager) -> void:
 	debuff_manager = manager
 	debuff_manager.debuffs_changed.connect(_on_debuffs_changed)
