@@ -1,5 +1,5 @@
 class_name BuffBarUI
-extends HBoxContainer
+extends VBoxContainer
 
 ## Displays all active buffs on a character
 

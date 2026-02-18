@@ -183,6 +183,10 @@ func _get_keybind_text(index: int) -> String:
 		return "[%s]" % KEYBIND_LABELS[index]
 	return ""
 
+func set_hovered_external(hovered: bool) -> void:
+	_is_hovered = hovered
+	_update_visual()
+
 func set_selected(selected: bool) -> void:
 	_selected = selected
 	_update_visual()

@@ -45,8 +45,8 @@ var ring_triggered_this_turn: bool = false
 var armor_gained_this_turn: int = 0
 
 # References
-var player_stats: PlayerStats
-var deck_manager: DeckManager
+var player_stats = null  # PlayerStats - untyped to avoid circular dependency
+var deck_manager = null  # DeckManager - untyped to avoid circular dependency
 
 func initialize(char_name: String) -> void:
 	character_name = char_name
@@ -152,11 +152,11 @@ func _init_slot_arrays() -> void:
 	equipped_gauntlets.resize(gauntlets_slots)
 	equipped_weapons.resize(weapon_slots)
 
-func connect_player_stats(stats: PlayerStats) -> void:
+func connect_player_stats(stats) -> void:
 	player_stats = stats
 	stats.inventory = self
 
-func connect_deck_manager(deck: DeckManager) -> void:
+func connect_deck_manager(deck) -> void:
 	deck_manager = deck
 
 func get_off_hand_modifier() -> float:

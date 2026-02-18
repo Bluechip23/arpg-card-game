@@ -54,6 +54,8 @@ var deck_list_card_preview: PanelContainer = null
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector2, damage: int, turns_remaining: int}]
+var _card_ui_instances: Array = []
+var _current_hand_hover_index: int = -1
 
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
@@ -115,6 +117,75 @@ func _on_walkthrough_pressed() -> void:
 
 func _on_help_closed() -> void:
 	pass  # Resume game if needed
+
+func _process(_delta: float) -> void:
+	_update_hand_hover()
+
+func _update_hand_hover() -> void:
+	if _card_ui_instances.is_empty():
+		if _current_hand_hover_index != -1:
+			_set_hand_hover(-1)
+		return
+
+	var mouse_pos = hand_container.get_local_mouse_position()
+
+	# Expanded detection area - generous vertical padding for easier targeting
+	var in_bounds = (
+		mouse_pos.y >= -30.0 and
+		mouse_pos.y <= hand_container.size.y + 10.0 and
+		mouse_pos.x >= -20.0 and
+		mouse_pos.x <= hand_container.size.x + 20.0
+	)
+
+	if not in_bounds:
+		if _current_hand_hover_index != -1:
+			_set_hand_hover(-1)
+		return
+
+	# Find closest card by center X position
+	var best_index = -1
+	var best_dist = INF
+	var card_half_width = 60.0  # 120 / 2
+
+	for i in range(_card_ui_instances.size()):
+		var card_ui = _card_ui_instances[i]
+		if not is_instance_valid(card_ui):
+			continue
+		var center_x = card_ui.position.x + card_half_width
+		var dist = abs(mouse_pos.x - center_x)
+		if dist < best_dist:
+			best_dist = dist
+			best_index = i
+
+	# Don't hover if mouse is too far from any card
+	if best_dist > card_half_width + 30.0:
+		if _current_hand_hover_index != -1:
+			_set_hand_hover(-1)
+		return
+
+	if best_index != _current_hand_hover_index:
+		_set_hand_hover(best_index)
+
+func _set_hand_hover(new_index: int) -> void:
+	# Unhover previous card
+	if _current_hand_hover_index >= 0 and _current_hand_hover_index < _card_ui_instances.size():
+		var old_ui = _card_ui_instances[_current_hand_hover_index]
+		if is_instance_valid(old_ui):
+			old_ui.set_hovered_external(false)
+
+	# Always trigger unhover callback when changing cards
+	if _current_hand_hover_index != -1:
+		_on_hand_card_unhovered()
+
+	_current_hand_hover_index = new_index
+
+	# Hover new card
+	if new_index >= 0 and new_index < _card_ui_instances.size():
+		var new_ui = _card_ui_instances[new_index]
+		if is_instance_valid(new_ui) and new_index < deck_manager.hand.size():
+			new_ui.set_hovered_external(true)
+			_on_hand_card_hovered(deck_manager.hand[new_index], new_ui)
+
 func _setup_overflow_buttons() -> void:
 	var modes = ["Jailed", "Enhance", "Peak", "Transferred", "Overcharge", "Manifest"]
 	
@@ -675,6 +746,8 @@ func _on_overflow_button_pressed(mode_index: int) -> void:
 func _on_hand_updated() -> void:
 	if hand_card_preview:
 		hand_card_preview.visible = false
+	_card_ui_instances.clear()
+	_current_hand_hover_index = -1
 	for child in hand_container.get_children():
 		child.queue_free()
 
@@ -737,8 +810,9 @@ func _on_hand_updated() -> void:
 		card_ui.position = Vector2(start_x + i * spacing, card_y)
 		card_ui.z_index = i
 		card_ui.store_base_position()
-		card_ui.card_hovered.connect(_on_hand_card_hovered)
-		card_ui.card_unhovered.connect(_on_hand_card_unhovered)
+		# Disable per-card mouse detection; position-based hover in _process handles it
+		card_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_card_ui_instances.append(card_ui)
 
 	if selected_card_index >= deck_manager.hand.size():
 		selected_card_index = -1

@@ -18,9 +18,9 @@ var hand: Array[Card] = []
 var discard_pile: Array[Card] = []
 var jail_pile: Array[Card] = []
 
-var player_stats: PlayerStats
-var inventory: Inventory
-var overflow_manager: OverflowManager
+var player_stats = null  # PlayerStats - untyped to avoid circular dependency
+var inventory = null  # Inventory - untyped to avoid circular dependency
+var overflow_manager = null  # OverflowManager - untyped to avoid circular dependency
 
 var peaked_card: Card = null
 
@@ -28,13 +28,13 @@ var next_attack_free: bool = false
 var next_attack_mana_discount: int = 0
 var prep_utility_discount: int = 0  # Preparation: reduces next utility card cost
 
-func connect_player_stats(stats: PlayerStats) -> void:
+func connect_player_stats(stats) -> void:
 	player_stats = stats
 
-func connect_inventory(inv: Inventory) -> void:
+func connect_inventory(inv) -> void:
 	inventory = inv
 
-func connect_overflow_manager(om: OverflowManager) -> void:
+func connect_overflow_manager(om) -> void:
 	overflow_manager = om
 	overflow_manager.connect_deck_manager(self)
 

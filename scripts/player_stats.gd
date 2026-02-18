@@ -56,7 +56,7 @@ var empower_block_reduction: int = 3
 var chance_boost: float = 0.0
 var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
 var healing_boost_turns: int = 0
-var inventory: Inventory = null
+var inventory = null  # Inventory - untyped to avoid circular dependency
 
 # ============================================
 # EFFECTIVE STATS (with determination modifier)
@@ -329,7 +329,7 @@ func get_effective_heal_amount(base_heal: int) -> int:
 # TURN PROCESSING
 # ============================================
 
-func process_turn(debuff_mgr: DebuffManager = null, buff_mgr: BuffManager = null) -> void:
+func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 	# Armor decay (check Fortify)
 	if current_armor > 0:
 		var should_decay = true
@@ -364,7 +364,7 @@ func process_turn(debuff_mgr: DebuffManager = null, buff_mgr: BuffManager = null
 # RESOURCE MANAGEMENT
 # ============================================
 
-func take_damage(amount: int, debuff_mgr: DebuffManager = null, buff_mgr: BuffManager = null) -> void:
+func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 	var remaining = amount
 	
 	# Apply Vulnerable modifier from debuffs
@@ -444,7 +444,7 @@ func add_armor(amount: int) -> void:
 	if inventory:
 		inventory.on_armor_gained(amount)
 
-func add_armor_with_bolster(amount: int, buff_mgr: BuffManager = null) -> void:
+func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 	var total = amount
 	if buff_mgr:
 		total += buff_mgr.consume_bolster()
