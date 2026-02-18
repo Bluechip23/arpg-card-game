@@ -10,7 +10,7 @@ signal debuffs_changed
 signal magnetize_pull(tiles: int, direction: Vector2)
 
 var debuffs: Array[Debuff] = []
-var owner_stats: PlayerStats
+var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
 var owner_node: Node2D
 
 # For Tethered - tracks starting position
@@ -19,7 +19,7 @@ var tether_origin: Vector2 = Vector2.ZERO
 # For tracking linked ally damage sharing
 var linked_ally: Node2D = null
 
-func initialize(stats: PlayerStats = null, owner: Node2D = null) -> void:
+func initialize(stats = null, owner: Node2D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
 	debuffs.clear()

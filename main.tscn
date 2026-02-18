@@ -206,9 +206,14 @@ offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("11_ycdy4")
 
-[node name="BuffBar" type="HBoxContainer" parent="UI" unique_id=595001552]
-offset_right = 40.0
-offset_bottom = 40.0
+[node name="BuffBar" type="VBoxContainer" parent="UI" unique_id=595001552]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 5.0
+offset_top = -163.0
+offset_right = 95.0
+offset_bottom = 0.0
+grow_vertical = 0
 script = ExtResource("17_yaehf")
 
 [node name="ManifestUI" parent="UI" unique_id=1531259538 instance=ExtResource("21_manifest")]

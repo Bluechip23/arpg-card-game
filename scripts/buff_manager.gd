@@ -11,21 +11,21 @@ signal thorns_triggered(damage: int)
 signal cleanse_triggered(count: int)
 
 var buffs: Array[Buff] = []
-var owner_stats: PlayerStats
+var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
 var owner_node: Node2D
-var debuff_manager: DebuffManager  # Reference to remove debuffs with Cleanse
+var debuff_manager = null  # DebuffManager - untyped to avoid circular dependency
 var poisoned_blood_active: bool = false
 var poisoned_blood_turns: int = 0
 var understanding_turns: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
 var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
 var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
 
-func initialize(stats: PlayerStats = null, owner: Node2D = null) -> void:
+func initialize(stats = null, owner: Node2D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
 	buffs.clear()
 
-func connect_debuff_manager(dm: DebuffManager) -> void:
+func connect_debuff_manager(dm) -> void:
 	debuff_manager = dm
 
 # ============================================
