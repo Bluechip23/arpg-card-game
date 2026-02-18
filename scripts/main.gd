@@ -1340,7 +1340,14 @@ func _input(event: InputEvent) -> void:
 			var card = deck_manager.hand[selected_card_index]
 			var mouse_pos = get_global_mouse_position()
 
-			var tt = card.target_types
+			var tt = card.target_types.duplicate()
+
+			# Poison Blood: heal cards can also target enemies
+			var buff_mgr = player.get_buff_manager() if player else null
+			if buff_mgr and buff_mgr.poisoned_blood_active and card.heal_amount > 0:
+				if "enemy" not in tt:
+					tt.append("enemy")
+
 			var _card_played = false
 
 			# Try enemy targeting first if card supports it

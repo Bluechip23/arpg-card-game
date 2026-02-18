@@ -155,7 +155,6 @@ func _create_card_from_id(card_id: String) -> Card:
 		"raged_circulation": return Card.create_raged_circulation()
 		"poisoned_blood": return Card.create_poisoned_blood()
 		"elixir": return Card.create_elixir()
-		"ryan_heal": return Card.create_ryan_heal()
 		"shadows": return Card.create_shadows()
 		"preparation": return Card.create_preparation()
 		"exacerbate_wounds": return Card.create_exacerbate_wounds()

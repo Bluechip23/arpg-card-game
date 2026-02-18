@@ -179,18 +179,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"blink":
 			_execute_blink(target)
 		"heal":
-			if buff_mgr and buff_mgr.poisoned_blood_active and target and target.has_method("take_damage") and not target.has_method("get_stats"):
-				var dmg = heal_amount
-				if player_stats:
-					dmg = player_stats.get_effective_heal_amount(heal_amount)
-				target.take_damage(dmg)
-				print("[CARD] Poisoned Blood: Heal dealt %d damage!" % dmg)
-			else:
-				_execute_heal(player_stats)
+			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"gain_mana":
 			_execute_gain_mana(player_stats)
 		"healing_potion":
-			_execute_healing_potion(player_stats)
+			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"dagger_throw":
 			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction, self_damage_percent)
 		# === Brad Cards ===
@@ -256,15 +249,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_poisoned_blood(player_stats, buff_mgr)
 		"elixir":
 			_execute_elixir(player_stats, buff_mgr)
-		"ryan_heal":
-			if buff_mgr and buff_mgr.poisoned_blood_active and target and target.has_method("take_damage") and not target.has_method("get_stats"):
-				var dmg = heal_amount
-				if player_stats:
-					dmg = player_stats.get_effective_heal_amount(heal_amount)
-				target.take_damage(dmg)
-				print("[CARD] Poisoned Blood: Heal dealt %d damage!" % dmg)
-			else:
-				_execute_heal(player_stats)
 		"shadows":
 			_execute_shadows(player_stats, buff_mgr)
 		"preparation":
@@ -454,15 +438,18 @@ func _execute_blink(player_node) -> void:
 		player_node.blink_to_mouse()
 		print("[CARD] Blinked!")
 
-func _execute_heal(player_stats: PlayerStats) -> void:
-	if player_stats:
-		player_stats.heal(heal_amount)
-		print("[CARD] Heal restored health!")
-		
-func _execute_healing_potion(player_stats: PlayerStats) -> void:
-	if player_stats:
-		player_stats.heal(heal_amount)
-		print("[CARD] Healing Potion restored health!")
+func _execute_heal_with_poison_check(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# General healing logic: if Poison Blood is active and target is an enemy, deal damage instead
+	if buff_mgr and buff_mgr.poisoned_blood_active and target and target.has_method("take_damage") and not target.has_method("get_stats"):
+		var dmg = heal_amount
+		if player_stats:
+			dmg = player_stats.get_effective_heal_amount(heal_amount)
+		target.take_damage(dmg)
+		print("[CARD] Poisoned Blood: %s dealt %d damage!" % [card_name, dmg])
+	else:
+		if player_stats:
+			player_stats.heal(heal_amount)
+			print("[CARD] %s restored health!" % card_name)
 
 func enhance(amount: int) -> bool:
 	# Only enhance attack cards, and only once
@@ -602,7 +589,7 @@ static func create_heal() -> Card:
 	var card = Card.new()
 	card.card_id = "heal"
 	card.card_name = "Heal"
-	card.description = "Restore 4 HP"
+	card.description = "Restore 4 HP. Deals damage instead with Poisoned Blood."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
@@ -613,6 +600,7 @@ static func create_heal() -> Card:
 	card.base_block = 0
 	card.target_types =  ["self", "ally"]
 	card.heal_amount = 4
+	card.target_types = ["self"]
 	return card
 
 static func create_gain_mana() -> Card:
@@ -635,7 +623,7 @@ static func create_healing_potion() -> Card:
 	var card = Card.new()
 	card.card_id = "healing_potion"
 	card.card_name = "Healing Potion"
-	card.description = "Heal 5"
+	card.description = "Heal 5. Deals damage instead with Poisoned Blood."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
@@ -645,6 +633,7 @@ static func create_healing_potion() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 5
+	card.target_types = ["self"]
 	return card
 
 static func create_dagger_throw() -> Card:
@@ -1665,20 +1654,6 @@ static func create_elixir() -> Card:
 	card.mana_cost = 1
 	card.tempo_cost = 2
 	card.target_types = ["self"]
-	return card
-
-static func create_ryan_heal() -> Card:
-	var card = Card.new()
-	card.card_id = "ryan_heal"
-	card.card_name = "Heal"
-	card.description = "Heal target for 6 health. Deals damage instead with Poisoned Blood."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
-	card.mana_cost = 1
-	card.tempo_cost = 3
-	card.heal_amount = 6
-	card.is_ranged = true
-	card.target_types = ["ally", "enemy"]
 	return card
 
 static func create_shadows() -> Card:
