@@ -22,6 +22,12 @@ extends Resource
 
 var starting_card_ids: Array = []  # Character-specific cards added to starting deck
 
+# Selection screen display info
+var passive_description: String = ""
+var starting_item_name: String = ""
+var starting_item_description: String = ""
+var slot_specialty: String = ""
+
 # Calculate derived stats from core stats
 func get_max_hand_size() -> int:
 	# Wisdom adds to hand size: every 5 wisdom = +1 hand size
@@ -55,6 +61,10 @@ static func create_ryan() -> CharacterData:
 		"shadows", "preparation", "exacerbate_wounds", "reposition",
 		"dagger_throw", "volatile_mixture", "understanding"
 	]
+	data.passive_description = "Belt cards cost 1 less mana"
+	data.starting_item_name = "Adventurer's Belt"
+	data.starting_item_description = "Grants: Healing Potion & Dagger Throw"
+	data.slot_specialty = "4 belt slots"
 	return data
 
 static func create_jeremy() -> CharacterData:
@@ -78,6 +88,10 @@ static func create_jeremy() -> CharacterData:
 		"hope_this_works", "lady_luck", "try_this", "if_pigs_could_fly",
 		"snowballs_chance"
 	]
+	data.passive_description = "First ring trigger per turn triggers twice"
+	data.starting_item_name = "Scholar's Signet"
+	data.starting_item_description = "+3 INT. +3% chance. On Utility: +1 Mana"
+	data.slot_specialty = "4 ring slots"
 	return data
 
 static func create_stephen() -> CharacterData:
@@ -100,6 +114,10 @@ static func create_stephen() -> CharacterData:
 		"tighten_string", "down_town", "barricade", "sky_fall",
 		"sky_attack", "lead_arrow", "last_breath", "mixed_bag"
 	]
+	data.passive_description = "+10% off-hand enchantments (others get -10%)"
+	data.starting_item_name = "Flickerstep Boots"
+	data.starting_item_description = "+2 DEX. Grants 1 Blink card"
+	data.slot_specialty = "4 weapon slots, 3 ring slots"
 	return data
 
 static func create_cory() -> CharacterData:
@@ -121,6 +139,10 @@ static func create_cory() -> CharacterData:
 		"round_em_up", "trip", "choke", "push", "defensive_awareness",
 		"sweeping_disarm", "consecutive_snap", "swap", "meditate"
 	]
+	data.passive_description = "Gain 1 mana when gauntlet skill comes off cooldown"
+	data.starting_item_name = "Grasping Gauntlets"
+	data.starting_item_description = "+2 Hand Size. Skill: Power Grip (8 dmg, CD 3, Cost 2)"
+	data.slot_specialty = "2 gauntlet slots"
 	return data
 
 static func create_brad() -> CharacterData:
@@ -143,6 +165,10 @@ static func create_brad() -> CharacterData:
 		"poke", "armor_break", "charge", "heroic_leap", "morphine",
 		"turtle_up", "parry", "approach", "hold_the_line"
 	]
+	data.passive_description = "Chest items weigh 15% less"
+	data.starting_item_name = "Bloodbound Plate"
+	data.starting_item_description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
+	data.slot_specialty = "8 weapon slots"
 	return data
 
 static func get_all_characters() -> Array[CharacterData]:
