@@ -59,5 +59,6 @@ metadata/_tab_index = 1
 
 [node name="Content" type="RichTextLabel" parent="Panel/MarginContainer/VBox/TabContainer/GameplayWalkthrough" unique_id=571175346]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 fit_content = true
