@@ -331,18 +331,18 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 			debuff_mgr.remove_debuff(Debuff.DebuffType.LOCKED)
 		_update_debuff_card_indices(debuff_mgr, index)
 
-	var damage_reduction = 0
+	var damage_reduction_pct = 0.0
 	var self_damage_percent = 0.0
 	var buff_mgr = null
 
 	if debuff_mgr:
-		damage_reduction = debuff_mgr.get_damage_reduction()
+		damage_reduction_pct = debuff_mgr.get_damage_reduction_percent()
 		self_damage_percent = debuff_mgr.get_self_damage_percent()
 
 	if player_node and player_node.has_method("get_buff_manager"):
 		buff_mgr = player_node.get_buff_manager()
 
-	card.execute(target, player_stats, self, damage_reduction, self_damage_percent, buff_mgr)
+	card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 
 	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
 		debuff_mgr.on_attack()

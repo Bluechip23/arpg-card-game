@@ -160,14 +160,14 @@ func increment_turns_in_hand() -> void:
 func reset_hand_tracking() -> void:
 	turns_in_hand = 0
 	rng_outcomes.clear()
-func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction: int = 0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
 	var is_empowered = false
 	if player_stats and player_stats.is_empowered():
 		is_empowered = player_stats.consume_empower()
 	match card_id:
 		"slash":
-			_execute_slash(target, is_empowered, player_stats, damage_reduction, self_damage_percent, buff_mgr)
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"block":
 			_execute_block(player_stats, is_empowered, buff_mgr)
 		"discard":
@@ -187,7 +187,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"healing_potion":
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"dagger_throw":
-			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction, self_damage_percent)
+			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent)
 		# === Brad Cards ===
 		"life_swap":
 			_execute_life_swap(target, player_stats, buff_mgr)
@@ -334,27 +334,29 @@ func _execute_gain_mana(player_stats: PlayerStats) -> void:
 		player_stats.gain_mana(amount)
 		print("[CARD] Gained %d mana!" % amount)
 		
-func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction: int = 0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
-	
+
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
 		player_stats.register_attack()
-	
+
 	if is_empowered and player_stats:
 		total_damage += player_stats.empower_damage_bonus
-	
+
 	# Strengthen bonus
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
-		
+
 		# Crit check with Enlightened
 		if buff_mgr.roll_crit():
 			total_damage = floori(total_damage * 2.0)
 			print("[CARD] CRITICAL HIT! Damage doubled!")
 			buff_mgr.consume_enlightened()
-	
-	total_damage = max(1, total_damage - damage_reduction)
+
+	# Cursed: reduce damage dealt by percentage
+	if damage_reduction_pct > 0.0:
+		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
 	
 	print("[CARD] %s deals %d damage!" % [card_name, total_damage])
 	last_damage_dealt = total_damage
@@ -373,16 +375,18 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 		if self_dmg > 0:
 			player_stats.take_damage(self_dmg)
 			print("[CARD] Cursed: took %d self-damage!" % self_dmg)
-func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction: int = 0, self_damage_percent: float = 0.0) -> void:
+func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0) -> void:
 	var total_damage = base_damage + bonus_damage
-	
+
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	
+
 	if is_empowered and player_stats:
 		total_damage += player_stats.empower_damage_bonus
-	
-	total_damage = max(1, total_damage - damage_reduction)
+
+	# Cursed: reduce damage dealt by percentage
+	if damage_reduction_pct > 0.0:
+		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
 	
 	print("[CARD] Dagger Throw deals %d damage!" % total_damage)
 	
