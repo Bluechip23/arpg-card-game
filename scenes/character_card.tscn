@@ -3,32 +3,6 @@
 [ext_resource type="Script" uid="uid://sbp16jei6vyi" path="res://scripts/character_card.gd" id="1_dn5fd"]
 
 [node name="CharacterCard" type="PanelContainer" unique_id=1533970128]
-offset_right = 40.0
-offset_bottom = 40.0
+offset_right = 280.0
+offset_bottom = 400.0
 script = ExtResource("1_dn5fd")
-
-[node name="VBox" type="VBoxContainer" parent="." unique_id=901365095]
-layout_mode = 2
-
-[node name="NameLabel" type="Label" parent="VBox" unique_id=356537482]
-layout_mode = 2
-text = "Character Name:"
-
-[node name="Separator1" type="HSeparator" parent="VBox" unique_id=700390768]
-layout_mode = 2
-
-[node name="StatsBox" type="VBoxContainer" parent="VBox" unique_id=1558865611]
-layout_mode = 2
-
-[node name="StatsLabel" type="Label" parent="VBox/StatsBox" unique_id=1459905945]
-layout_mode = 2
-
-[node name="DerivedLabel" type="Label" parent="VBox/StatsBox" unique_id=884697902]
-layout_mode = 2
-
-[node name="Spacer" type="Control" parent="VBox" unique_id=1460299796]
-layout_mode = 2
-
-[node name="SelectButton" type="Button" parent="VBox" unique_id=480008192]
-layout_mode = 2
-text = "Select"
