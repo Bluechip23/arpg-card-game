@@ -160,14 +160,14 @@ func increment_turns_in_hand() -> void:
 func reset_hand_tracking() -> void:
 	turns_in_hand = 0
 	rng_outcomes.clear()
-func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction: int = 0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
 	var is_empowered = false
 	if player_stats and player_stats.is_empowered():
 		is_empowered = player_stats.consume_empower()
 	match card_id:
 		"slash":
-			_execute_slash(target, is_empowered, player_stats, damage_reduction, self_damage_percent, buff_mgr)
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"block":
 			_execute_block(player_stats, is_empowered, buff_mgr)
 		"discard":
@@ -187,7 +187,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"healing_potion":
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"dagger_throw":
-			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction, self_damage_percent)
+			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent)
 		# === Brad Cards ===
 		"life_swap":
 			_execute_life_swap(target, player_stats, buff_mgr)
@@ -214,7 +214,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"parry":
 			_execute_parry(target, player_stats, buff_mgr)
 		"approach":
-			_execute_approach(player_stats)
+			_execute_approach(player_stats, buff_mgr)
 		"hold_the_line":
 			_execute_hold_the_line(player_stats, buff_mgr)
 		# === Jeremy Cards ===
@@ -316,11 +316,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 
 	# Life Steal: if an attack dealt damage and we have life steal buff, heal for damage dealt
 	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_life_steal():
-		if target and target.has_method("is_alive"):
-			# Estimate damage dealt from the enemy's health change
-			var dealt = last_damage_dealt if last_damage_dealt > 0 else damage
-			if dealt > 0:
-				buff_mgr.consume_life_steal(dealt)
+		var dealt = last_damage_dealt if last_damage_dealt > 0 else damage
+		if dealt > 0:
+			buff_mgr.consume_life_steal(dealt)
 
 	# Wear Down: if an attack hit an enemy and we have wear_down buff, apply wear_down to that enemy
 	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
@@ -336,27 +334,29 @@ func _execute_gain_mana(player_stats: PlayerStats) -> void:
 		player_stats.gain_mana(amount)
 		print("[CARD] Gained %d mana!" % amount)
 		
-func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction: int = 0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
-	
+
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
 		player_stats.register_attack()
-	
+
 	if is_empowered and player_stats:
 		total_damage += player_stats.empower_damage_bonus
-	
+
 	# Strengthen bonus
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
-		
+
 		# Crit check with Enlightened
 		if buff_mgr.roll_crit():
 			total_damage = floori(total_damage * 2.0)
 			print("[CARD] CRITICAL HIT! Damage doubled!")
 			buff_mgr.consume_enlightened()
-	
-	total_damage = max(1, total_damage - damage_reduction)
+
+	# Cursed: reduce damage dealt by percentage
+	if damage_reduction_pct > 0.0:
+		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
 	
 	print("[CARD] %s deals %d damage!" % [card_name, total_damage])
 	last_damage_dealt = total_damage
@@ -375,16 +375,18 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 		if self_dmg > 0:
 			player_stats.take_damage(self_dmg)
 			print("[CARD] Cursed: took %d self-damage!" % self_dmg)
-func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction: int = 0, self_damage_percent: float = 0.0) -> void:
+func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0) -> void:
 	var total_damage = base_damage + bonus_damage
-	
+
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	
+
 	if is_empowered and player_stats:
 		total_damage += player_stats.empower_damage_bonus
-	
-	total_damage = max(1, total_damage - damage_reduction)
+
+	# Cursed: reduce damage dealt by percentage
+	if damage_reduction_pct > 0.0:
+		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
 	
 	print("[CARD] Dagger Throw deals %d damage!" % total_damage)
 	
@@ -768,14 +770,17 @@ func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = n
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_brace(5, "Parry"))
+		buff_mgr.apply_buff(Buff.create_brace(30, 1, "Parry"))
 	print("[CARD] Parry! Gained 5 armor, dealt %d damage. Next damage reduced" % total_damage)
 
-func _execute_approach(player_stats: PlayerStats) -> void:
-	# Lose 2 movement but gain 5 block per movement taken
-	if player_stats:
-		player_stats.add_armor(5)
-	print("[CARD] Approach! -2 movement, gain 5 block per movement taken")
+func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Slow self for 2 turns, gain 5 armor per movement taken
+	if buff_mgr and buff_mgr.debuff_manager:
+		buff_mgr.debuff_manager.apply_debuff(Debuff.create_slowed(2, 2, "Approach"))
+	if buff_mgr:
+		buff_mgr.approach_armor_per_move = 5
+		buff_mgr.approach_turns_remaining = 2
+	print("[CARD] Approach! Slowed for 2 turns, gain 5 armor per movement")
 
 func _execute_hold_the_line(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# All allies gain 5 armor, 2 determination, 2 strength
@@ -1404,7 +1409,7 @@ static func create_approach() -> Card:
 	var card = Card.new()
 	card.card_id = "approach"
 	card.card_name = "Approach"
-	card.description = "Lose 2 movement. For each movement taken, gain 5 block."
+	card.description = "Slowed for 2 turns. For each movement taken, gain 5 armor."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 1

@@ -19,6 +19,9 @@ var tether_origin: Vector2 = Vector2.ZERO
 # For tracking linked ally damage sharing
 var linked_ally: Node2D = null
 
+# For Burn - damage doubles each turn
+var burn_damage_next: int = 1
+
 func initialize(stats = null, owner: Node2D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
@@ -36,11 +39,15 @@ func apply_debuff(debuff: Debuff) -> void:
 		print("[DEBUFF] %s stacked to %d (value: %d)" % [debuff.debuff_name, existing.stacks, existing.value])
 	else:
 		debuffs.append(debuff)
-		
+
 		# Special handling for Hexed and Locked - pick random card
 		if debuff.debuff_type == Debuff.DebuffType.HEXED or debuff.debuff_type == Debuff.DebuffType.LOCKED:
 			_assign_random_card_to_debuff(debuff)
-		
+
+		# Reset burn damage tracker when burn is first applied
+		if debuff.debuff_type == Debuff.DebuffType.BURN:
+			burn_damage_next = 1
+
 		print("[DEBUFF] Applied: %s for %d turns" % [debuff.debuff_name, debuff.duration])
 	
 	debuff_applied.emit(debuff)
@@ -87,50 +94,56 @@ func process_turn_start() -> Dictionary:
 		"pull_direction": Vector2.ZERO,
 		"pull_tiles": 0
 	}
-	
-	for debuff in debuffs:
-		match debuff.debuff_type:
-			Debuff.DebuffType.BURN:
-				result["damage_taken"] += debuff.value
-				print("[DEBUFF] Burn deals %d damage" % debuff.value)
-			
-			Debuff.DebuffType.POISON:
-				result["damage_taken"] += debuff.value
-				print("[DEBUFF] Poison deals %d damage" % debuff.value)
-			
-			Debuff.DebuffType.DRAIN:
-				result["mana_lost"] += debuff.value
-				print("[DEBUFF] Drain steals %d mana" % debuff.value)
-			
-			Debuff.DebuffType.SHOCKED:
-				result["ally_damage"] += debuff.value
-				print("[DEBUFF] Shocked deals %d to nearby allies" % debuff.value)
-			
-			Debuff.DebuffType.MAGNETIZED:
-				var pull_info = _calculate_magnetize_pull(debuff.value)
-				result["pull_direction"] = pull_info["direction"]
-				result["pull_tiles"] = pull_info["tiles"]
-				print("[DEBUFF] Magnetized pulls %d tiles" % debuff.value)
-			
-			Debuff.DebuffType.BRITTLE:
-				# Extra armor decay handled in process_armor_decay
-				pass
-	
-	# Apply damage (with Vulnerable modifier)
+
+	# Burn: damage doubles each turn (1, 2, 4, 8...)
+	var burn = get_debuff(Debuff.DebuffType.BURN)
+	if burn:
+		result["damage_taken"] += burn_damage_next
+		print("[DEBUFF] Burn deals %d damage (doubles next turn)" % burn_damage_next)
+		burn_damage_next *= 2
+
+	# Poison: deal value damage, then lose 1 poison
+	var poison = get_debuff(Debuff.DebuffType.POISON)
+	if poison:
+		result["damage_taken"] += poison.value
+		print("[DEBUFF] Poison deals %d damage" % poison.value)
+		poison.value -= 1
+		poison._set_name_and_description()
+		if poison.value <= 0:
+			remove_debuff(Debuff.DebuffType.POISON)
+			print("[DEBUFF] Poison expired (0 stacks)")
+
+	# Drain: lose 1 mana, then lose 1 drain stack
+	var drain = get_debuff(Debuff.DebuffType.DRAIN)
+	if drain:
+		result["mana_lost"] += 1
+		print("[DEBUFF] Drain steals 1 mana")
+		drain.value -= 1
+		drain._set_name_and_description()
+		if drain.value <= 0:
+			remove_debuff(Debuff.DebuffType.DRAIN)
+			print("[DEBUFF] Drain expired (0 stacks)")
+
+	# Shocked: deal value damage to nearby allies, then lose 1 shocked
+	var shocked = get_debuff(Debuff.DebuffType.SHOCKED)
+	if shocked:
+		result["ally_damage"] += shocked.value
+		print("[DEBUFF] Shocked deals %d to nearby allies" % shocked.value)
+		shocked.value -= 1
+		shocked._set_name_and_description()
+		if shocked.value <= 0:
+			remove_debuff(Debuff.DebuffType.SHOCKED)
+			print("[DEBUFF] Shocked expired (0 stacks)")
+
+	# Apply DOT damage (no Vulnerable modifier - that only applies to attacks)
 	var damage = result["damage_taken"]
-	if damage > 0:
-		damage = _apply_vulnerable_modifier(damage)
-		if owner_stats:
-			owner_stats.take_damage(damage)
-	
+	if damage > 0 and owner_stats:
+		owner_stats.take_damage(damage)
+
 	if owner_stats and result["mana_lost"] > 0:
 		owner_stats.current_mana = max(0, owner_stats.current_mana - result["mana_lost"])
 		owner_stats.mana_changed.emit(owner_stats.current_mana, owner_stats.max_mana)
-	
-	# Emit magnetize signal for movement handling
-	if result["pull_tiles"] > 0:
-		magnetize_pull.emit(result["pull_tiles"], result["pull_direction"])
-	
+
 	return result
 
 func _calculate_magnetize_pull(tiles: int) -> Dictionary:
@@ -142,28 +155,48 @@ func _calculate_magnetize_pull(tiles: int) -> Dictionary:
 	return {"direction": Vector2.ZERO, "tiles": tiles}
 
 func process_turn_end() -> void:
+	# Magnetized: pull toward nearest enemy at end of turn
+	var magnetized = get_debuff(Debuff.DebuffType.MAGNETIZED)
+	if magnetized:
+		var pull_info = _calculate_magnetize_pull(magnetized.value)
+		if pull_info["tiles"] > 0:
+			magnetize_pull.emit(pull_info["tiles"], pull_info["direction"])
+			print("[DEBUFF] Magnetized pulls %d tiles toward enemy" % magnetized.value)
+
+	# Brittle: consume 1 stack per turn
+	var brittle = get_debuff(Debuff.DebuffType.BRITTLE)
+	if brittle:
+		brittle.value -= 1
+		brittle._set_name_and_description()
+		if brittle.value <= 0:
+			remove_debuff(Debuff.DebuffType.BRITTLE)
+			print("[DEBUFF] Brittle expired (0 stacks)")
+
 	var expired: Array[Debuff] = []
-	
+
 	for debuff in debuffs:
 		debuff_ticked.emit(debuff)
 		if debuff.tick():
 			expired.append(debuff)
-	
+
 	for debuff in expired:
+		# Reset burn damage tracker when burn expires
+		if debuff.debuff_type == Debuff.DebuffType.BURN:
+			burn_damage_next = 1
 		debuffs.erase(debuff)
 		debuff_removed.emit(debuff)
 		print("[DEBUFF] Expired: %s" % debuff.debuff_name)
-	
+
 	if expired.size() > 0:
 		debuffs_changed.emit()
 
 func process_armor_decay(base_decay: int) -> int:
-	# Returns total armor decay including Brittle
+	# Returns total armor decay including Brittle (always extra 2 per stack)
 	var total_decay = base_decay
 	var brittle = get_debuff(Debuff.DebuffType.BRITTLE)
 	if brittle:
-		total_decay += brittle.value
-		print("[DEBUFF] Brittle adds %d armor decay" % brittle.value)
+		total_decay += 2
+		print("[DEBUFF] Brittle adds 2 armor decay")
 	return total_decay
 
 # ============================================
@@ -171,18 +204,30 @@ func process_armor_decay(base_decay: int) -> int:
 # ============================================
 
 func _apply_vulnerable_modifier(damage: int) -> int:
+	# Vulnerable: always 30% more damage, consume 1 stack
 	var vulnerable = get_debuff(Debuff.DebuffType.VULNERABLE)
 	if vulnerable:
-		var increase = floori(damage * vulnerable.value / 100.0)
+		var increase = floori(damage * 30.0 / 100.0)
 		damage += increase
-		print("[DEBUFF] Vulnerable increases damage by %d" % increase)
+		print("[DEBUFF] Vulnerable increases damage by 30%% (%d)" % increase)
+		vulnerable.value -= 1
+		vulnerable._set_name_and_description()
+		if vulnerable.value <= 0:
+			remove_debuff(Debuff.DebuffType.VULNERABLE)
+			print("[DEBUFF] Vulnerable expired (0 stacks)")
 	return damage
 
 func get_armor_effectiveness() -> float:
-	# Returns multiplier for armor (1.0 = full, 0.5 = half effective)
+	# Returns multiplier for armor (1.0 = full, 0.7 = 30% less effective)
+	# Exposed: always 30% armor penalty, consume 1 stack on hit
 	var exposed = get_debuff(Debuff.DebuffType.EXPOSED)
 	if exposed:
-		return max(0.0, 1.0 - (exposed.value / 100.0))
+		exposed.value -= 1
+		exposed._set_name_and_description()
+		if exposed.value <= 0:
+			remove_debuff(Debuff.DebuffType.EXPOSED)
+			print("[DEBUFF] Exposed expired (0 stacks)")
+		return 0.7  # 30% less armor effectiveness
 	return 1.0
 
 func modify_incoming_damage(damage: int) -> int:
@@ -190,10 +235,16 @@ func modify_incoming_damage(damage: int) -> int:
 	return _apply_vulnerable_modifier(damage)
 
 func calculate_linked_damage(damage: int) -> int:
-	# Returns damage to share with linked ally
+	# Returns damage to share with linked ally, then consume 1 stack
 	var linked = get_debuff(Debuff.DebuffType.LINKED)
 	if linked:
-		return floori(damage * linked.value / 100.0)
+		var shared = floori(damage * linked.value / 100.0)
+		linked.value -= 1
+		linked._set_name_and_description()
+		if linked.value <= 0:
+			remove_debuff(Debuff.DebuffType.LINKED)
+			print("[DEBUFF] Linked expired (0 stacks)")
+		return shared
 	return 0
 
 # ============================================
@@ -317,20 +368,18 @@ func roll_clumsy() -> bool:
 			return true
 	return false
 
-func get_damage_reduction() -> int:
-	var reduction = 0
-	var poison = get_debuff(Debuff.DebuffType.POISON)
+func get_damage_reduction_percent() -> float:
+	# Cursed: always 20% less damage dealt
 	var cursed = get_debuff(Debuff.DebuffType.CURSED)
-	if poison:
-		reduction += poison.value
 	if cursed:
-		reduction += cursed.value
-	return reduction
+		return 0.2
+	return 0.0
 
 func get_self_damage_percent() -> float:
+	# Cursed: always 20% damage to self
 	var cursed = get_debuff(Debuff.DebuffType.CURSED)
 	if cursed:
-		return cursed.value * 0.1
+		return 0.2
 	return 0.0
 
 # ============================================
@@ -341,7 +390,6 @@ func on_movement(tiles_moved: int) -> int:
 	var bleed = get_debuff(Debuff.DebuffType.BLEED)
 	if bleed:
 		var damage = bleed.value * tiles_moved
-		damage = _apply_vulnerable_modifier(damage)
 		if owner_stats:
 			owner_stats.take_damage(damage)
 		print("[DEBUFF] Bleed triggered: %d damage from %d tiles" % [damage, tiles_moved])
@@ -351,11 +399,11 @@ func on_movement(tiles_moved: int) -> int:
 func on_attack() -> int:
 	var burn = get_debuff(Debuff.DebuffType.BURN)
 	if burn:
-		var damage = _apply_vulnerable_modifier(burn.value)
+		# Burn on-attack uses the current burn_damage_next value
 		if owner_stats:
-			owner_stats.take_damage(damage)
-		print("[DEBUFF] Burn triggered on attack: %d damage" % damage)
-		return damage
+			owner_stats.take_damage(burn_damage_next)
+		print("[DEBUFF] Burn triggered on attack: %d damage" % burn_damage_next)
+		return burn_damage_next
 	return 0
 
 # ============================================

@@ -133,8 +133,8 @@ Rings have passive effects that trigger on events:
 - Watch your tempo! Multiple actions = more enemy turns
 - DEX builds reward patience - wait for DEX procs
 - Armor decays each turn unless you have Fortify
-- Stack damage reduction: Resilient (%) applies before Brace (flat)
-- Thorns punishes aggressive enemies
+- Stack damage reduction: Resilient (15%/turn) applies before Brace (30%/attack)
+- Thorns punishes aggressive enemies (loses 1 stack per hit)
 - Use Cleanse to remove dangerous debuffs
 - Manifest tokens are free effects - use overflow to your advantage!
 """

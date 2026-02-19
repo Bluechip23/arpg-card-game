@@ -917,10 +917,10 @@ func _on_apply_buff(buff_name: String) -> void:
 			buff = Buff.create_smith(2, 3, "Test")
 		"Steady":
 			buff = Buff.create_steady("Test")
-		"Brace (5)":
-			buff = Buff.create_brace(5, "Test")
-		"Resilient (25%, 3)":
-			buff = Buff.create_resilient(25, 3, "Test")
+		"Brace (30%, 1)":
+			buff = Buff.create_brace(30, 1, "Test")
+		"Resilient (15%, 3)":
+			buff = Buff.create_resilient(15, 3, "Test")
 	
 	if buff and buff_mgr:
 		buff_mgr.apply_buff(buff)

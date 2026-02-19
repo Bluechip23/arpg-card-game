@@ -63,16 +63,16 @@ func _set_name_and_description() -> void:
 			description = "Cannot play spell cards"
 		DebuffType.BURN:
 			debuff_name = "Burn"
-			description = "Take %d damage per turn and on attack" % value
+			description = "Burn damage doubles each turn (1, 2, 4, 8...)"
 		DebuffType.POISON:
 			debuff_name = "Poison"
-			description = "Take %d damage per turn, -%d damage dealt" % [value, value]
+			description = "Take %d damage per turn, lose 1 poison each turn" % value
 		DebuffType.INEBRIATE:
 			debuff_name = "Inebriate"
 			description = "Movement direction is randomized"
 		DebuffType.CURSED:
 			debuff_name = "Cursed"
-			description = "Deal %d less damage, deal %d%% damage to self" % [value, value * 10]
+			description = "Deal 20%% less damage and deal 20%% damage to self"
 		DebuffType.FROZEN:
 			debuff_name = "Frozen"
 			description = "Cannot play cards"
@@ -81,7 +81,7 @@ func _set_name_and_description() -> void:
 			description = "Cannot draw cards"
 		DebuffType.SHOCKED:
 			debuff_name = "Shocked"
-			description = "Deal %d damage to nearby allies per turn" % value
+			description = "Deal %d damage to nearby allies per turn, lose 1 per turn" % value
 		DebuffType.SLOWED:
 			debuff_name = "Slowed"
 			description = "Lose %d movement per turn" % value
@@ -90,7 +90,7 @@ func _set_name_and_description() -> void:
 			description = "Attack cards cost %d more mana" % value
 		DebuffType.DRAIN:
 			debuff_name = "Drain"
-			description = "Lose %d mana per turn" % value
+			description = "Lose 1 mana per turn, lose 1 drain per turn"
 		DebuffType.WEIGHTED:
 			debuff_name = "Weighted"
 			description = "Cards cost %d more tempo" % value
@@ -117,13 +117,13 @@ func _set_name_and_description() -> void:
 			description = "%d%% chance to discard random card when playing" % value
 		DebuffType.VULNERABLE:
 			debuff_name = "Vulnerable"
-			description = "Take %d%% more damage" % value
+			description = "Take 30%% more damage on next %d attack(s)" % value
 		DebuffType.EXPOSED:
 			debuff_name = "Exposed"
-			description = "Armor effectiveness reduced by %d%%" % value
+			description = "Remove 30%% more armor when hit, %d stack(s)" % value
 		DebuffType.BRITTLE:
 			debuff_name = "Brittle"
-			description = "Armor decays %d additional per turn" % value
+			description = "Armor decays extra 2 per turn, %d stack(s)" % value
 
 func tick() -> bool:
 	# Called each turn. Returns true if debuff expired.
@@ -168,3 +168,8 @@ func get_short_display() -> String:
 
 static func create(type: DebuffType, val: int = 0, dur: int = 3) -> Debuff:
 	return Debuff.new(type, val, dur)
+
+static func create_slowed(movement_loss: int = 2, duration: int = 2, source: String = "") -> Debuff:
+	var debuff = Debuff.new(DebuffType.SLOWED, movement_loss, duration)
+	debuff.source_name = source
+	return debuff
