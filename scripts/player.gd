@@ -84,6 +84,9 @@ func _physics_process(delta: float) -> void:
 			# Trigger bleed damage on movement
 			debuff_manager.on_movement(1)
 
+			# Trigger buff effects on movement (e.g. Approach armor)
+			buff_manager.on_movement(1)
+
 			# Emit per-tile signal so tempo updates in real time
 			tile_reached.emit()
 

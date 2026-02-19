@@ -168,3 +168,8 @@ func get_short_display() -> String:
 
 static func create(type: DebuffType, val: int = 0, dur: int = 3) -> Debuff:
 	return Debuff.new(type, val, dur)
+
+static func create_slowed(movement_loss: int = 2, duration: int = 2, source: String = "") -> Debuff:
+	var debuff = Debuff.new(DebuffType.SLOWED, movement_loss, duration)
+	debuff.source_name = source
+	return debuff

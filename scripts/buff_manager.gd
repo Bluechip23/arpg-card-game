@@ -14,6 +14,8 @@ var buffs: Array[Buff] = []
 var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
 var owner_node: Node2D
 var debuff_manager = null  # DebuffManager - untyped to avoid circular dependency
+var approach_armor_per_move: int = 0
+var approach_turns_remaining: int = 0
 var poisoned_blood_active: bool = false
 var poisoned_blood_turns: int = 0
 var understanding_turns: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
@@ -134,6 +136,13 @@ func process_turn_start() -> Dictionary:
 	return result
 
 func process_turn_end() -> void:
+	# Tick approach armor-on-move
+	if approach_turns_remaining > 0:
+		approach_turns_remaining -= 1
+		if approach_turns_remaining <= 0:
+			approach_armor_per_move = 0
+			print("[BUFF] Approach expired")
+
 	# Tick poisoned blood
 	if poisoned_blood_turns > 0:
 		poisoned_blood_turns -= 1
@@ -148,6 +157,18 @@ func process_turn_end() -> void:
 			apply_buff(Buff.create_enlightened(100, 1, "Understanding"))
 			print("[BUFF] Understanding ready! Next attack will auto-crit")
 
+	# Regen: lose 1 regen value at end of turn
+	var regen = get_buff(Buff.BuffType.REGEN)
+	if regen:
+		regen.value -= 1
+		regen._set_name_and_description()
+		if regen.value <= 0:
+			remove_buff(Buff.BuffType.REGEN)
+			print("[BUFF] Regen expired (0 stacks remaining)")
+		else:
+			print("[BUFF] Regen decayed to %d" % regen.value)
+			buffs_changed.emit()
+
 	var expired: Array[Buff] = []
 
 	for buff in buffs:
@@ -155,7 +176,7 @@ func process_turn_end() -> void:
 			buff_ticked.emit(buff)
 			if buff.tick():
 				expired.append(buff)
-	
+
 	for buff in expired:
 		# Morphine penalty on expiry: lose the temp HP and take 2 damage
 		if buff.buff_type == Buff.BuffType.MORPHINE and owner_stats:
@@ -181,11 +202,19 @@ func get_thorns_damage() -> int:
 	return thorns.value if thorns else 0
 
 func on_attacked(attacker) -> void:
-	var thorns_damage = get_thorns_damage()
-	if thorns_damage > 0 and attacker and attacker.has_method("take_damage"):
-		attacker.take_damage(thorns_damage)
-		thorns_triggered.emit(thorns_damage)
-		print("[BUFF] Thorns deals %d damage to attacker!" % thorns_damage)
+	var thorns = get_buff(Buff.BuffType.THORNS)
+	if thorns and thorns.value > 0 and attacker and attacker.has_method("take_damage"):
+		attacker.take_damage(thorns.value)
+		thorns_triggered.emit(thorns.value)
+		print("[BUFF] Thorns deals %d damage to attacker!" % thorns.value)
+		# Lose 1 thorn after each hit
+		thorns.value -= 1
+		thorns._set_name_and_description()
+		if thorns.value <= 0:
+			remove_buff(Buff.BuffType.THORNS)
+			print("[BUFF] Thorns expired (0 stacks remaining)")
+		else:
+			buffs_changed.emit()
 
 func has_wear_down() -> bool:
 	return has_buff(Buff.BuffType.WEAR_DOWN)
@@ -270,6 +299,15 @@ func get_haste_bonus() -> int:
 func get_extra_movement_per_tempo() -> int:
 	return get_haste_bonus()
 
+func on_movement(tiles: int) -> int:
+	var armor_gained = 0
+	if approach_armor_per_move > 0 and approach_turns_remaining > 0:
+		armor_gained = approach_armor_per_move * tiles
+		if owner_stats:
+			owner_stats.add_armor(armor_gained)
+			print("[BUFF] Approach grants %d armor from movement" % armor_gained)
+	return armor_gained
+
 # ============================================
 # ARMOR QUERIES
 # ============================================
@@ -325,13 +363,13 @@ func get_brace_reduction() -> int:
 	return brace.value if brace else 0
 
 func consume_brace() -> int:
-	# Returns flat damage reduction and uses charge
+	# Returns percent damage reduction and uses charge
 	var brace = get_buff(Buff.BuffType.BRACE)
 	if brace:
-		var reduction = brace.value
+		var percent = brace.value
 		if brace.use_charge():
 			remove_buff(Buff.BuffType.BRACE)
-		return reduction
+		return percent
 	return 0
 
 func get_resilient_percent() -> int:
@@ -349,23 +387,24 @@ func consume_resilient() -> int:
 	return 0
 
 func calculate_damage_reduction(incoming_damage: int) -> int:
-	# Calculate total damage after Brace and Resilient
+	# Calculate total damage after Resilient and Brace
 	var damage = incoming_damage
-	
-	# Resilient: percentage reduction first
-	var resilient_percent = consume_resilient()
+
+	# Resilient: percentage reduction first (turn-based, always active while buff exists)
+	var resilient_percent = get_resilient_percent()
 	if resilient_percent > 0:
 		var reduction = floori(damage * resilient_percent / 100.0)
 		damage -= reduction
 		print("[BUFF] Resilient reduces damage by %d%% (%d)" % [resilient_percent, reduction])
-	
-	# Brace: flat reduction second
-	var brace_reduction = consume_brace()
-	if brace_reduction > 0:
-		damage = max(0, damage - brace_reduction)
-		print("[BUFF] Brace reduces damage by %d" % brace_reduction)
-	
-	return damage
+
+	# Brace: percentage reduction second (charge-based, consumes a charge)
+	var brace_percent = consume_brace()
+	if brace_percent > 0:
+		var reduction = floori(damage * brace_percent / 100.0)
+		damage -= reduction
+		print("[BUFF] Brace reduces damage by %d%% (%d)" % [brace_percent, reduction])
+
+	return max(0, damage)
 	
 # ============================================
 # TEMPO QUERIES (Steady)

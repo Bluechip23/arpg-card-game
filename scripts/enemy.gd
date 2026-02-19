@@ -185,8 +185,14 @@ func attack_player(player_node: Node2D) -> void:
 	if player_node.has_method("get_stats"):
 		var player_stats = player_node.get_stats()
 		if player_stats and effective_damage > 0:
-			player_stats.take_damage(effective_damage)
-			
+			var debuff_mgr = null
+			var buff_mgr = null
+			if player_node.has_method("get_debuff_manager"):
+				debuff_mgr = player_node.get_debuff_manager()
+			if player_node.has_method("get_buff_manager"):
+				buff_mgr = player_node.get_buff_manager()
+			player_stats.take_damage(effective_damage, debuff_mgr, buff_mgr)
+
 			# Trigger ring effect for taking damage
 			if player_node.has_method("get_inventory"):
 				var inventory = player_node.get_inventory()

@@ -79,10 +79,10 @@ func _set_name_and_description() -> void:
 			description = "Next action does not add tempo"
 		BuffType.BRACE:
 			buff_name = "Brace"
-			description = "Reduce next incoming attack by %d" % value
+			description = "Reduce incoming attack damage by %d%% for %d attacks" % [value, charges]
 		BuffType.RESILIENT:
 			buff_name = "Resilient"
-			description = "Reduce incoming damage by %d%% for %d attacks" % [value, charges]
+			description = "Reduce all incoming damage by %d%% for %d turns" % [value, duration]
 		BuffType.LIFE_STEAL:
 			buff_name = "Life Steal"
 			description = "Next attack heals you for damage dealt"
@@ -109,7 +109,7 @@ func use_charge() -> bool:
 
 func is_charge_based() -> bool:
 	match buff_type:
-		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.RESILIENT, BuffType.BRACE, BuffType.STEADY, BuffType.LIFE_STEAL:
+		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, BuffType.LIFE_STEAL:
 			return true
 	return false
 
@@ -221,13 +221,13 @@ static func create_steady(source: String = "") -> Buff:
 	buff.source_name = source
 	return buff
 
-static func create_brace(damage_reduction: int = 5, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.BRACE, damage_reduction, -1, 1)  # 1 charge
+static func create_brace(percent_reduction: int = 30, attacks: int = 1, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.BRACE, percent_reduction, -1, attacks)
 	buff.source_name = source
 	return buff
 
-static func create_resilient(percent_reduction: int = 25, attacks: int = 3, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.RESILIENT, percent_reduction, -1, attacks)
+static func create_resilient(percent_reduction: int = 15, turns: int = 3, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.RESILIENT, percent_reduction, turns)
 	buff.source_name = source
 	return buff
 
