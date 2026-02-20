@@ -135,13 +135,13 @@ func _build_ui() -> void:
 	vbox.add_child(_make_section_header("UNIQUE PASSIVE"))
 
 	_passive_label = Label.new()
-	_passive_label.autowrap_mode = TextServer.AUTOWRAP_WORD_ONLY
+	_passive_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_passive_label.add_theme_font_size_override("font_size", 12)
 	_passive_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 	vbox.add_child(_passive_label)
 
 	_slot_label = Label.new()
-	_slot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_ONLY
+	_slot_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_slot_label.add_theme_font_size_override("font_size", 11)
 	_slot_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.75))
 	vbox.add_child(_slot_label)
@@ -157,7 +157,7 @@ func _build_ui() -> void:
 	vbox.add_child(_inventory_name_label)
 
 	_inventory_desc_label = Label.new()
-	_inventory_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_ONLY
+	_inventory_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_inventory_desc_label.add_theme_font_size_override("font_size", 11)
 	_inventory_desc_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
 	vbox.add_child(_inventory_desc_label)
