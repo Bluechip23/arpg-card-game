@@ -263,6 +263,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_volatile_mixture(target, player_stats)
 		"understanding":
 			_execute_understanding(player_stats, buff_mgr)
+		"shuriken_pouch":
+			_execute_shuriken_pouch(player_stats)
+		"shuriken":
+			_execute_shuriken(target, player_stats)
 		# === Stephen Cards ===
 		"mark":
 			_execute_mark(target, player_stats, buff_mgr)
@@ -292,6 +296,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_mixed_bag(target, player_stats, buff_mgr)
 		"quick_arrow":
 			_execute_quick_arrow(target, player_stats, buff_mgr)
+		"bottomless_quiver":
+			_execute_bottomless_quiver(player_stats)
 		# === Cory Cards ===
 		"round_em_up":
 			_execute_round_em_up(target, player_stats)
@@ -1015,6 +1021,20 @@ func _execute_understanding(player_stats: PlayerStats, buff_mgr: BuffManager = n
 		buff_mgr.understanding_turns = 2
 	print("[CARD] Understanding! In 2 turns, the next attack will auto-crit")
 
+func _execute_shuriken_pouch(player_stats: PlayerStats) -> void:
+	# Signal handled in main.gd: adds MANIFEST overflow effect (shuriken, 3 charges)
+	print("[CARD] Shuriken Pouch! Next 3 overflow cards become Shuriken")
+
+func _execute_shuriken(target, player_stats: PlayerStats) -> void:
+	# Deals 3 damage to target enemy (ranged, counts as attack)
+	var total_damage = 3
+	if player_stats:
+		player_stats.register_attack()
+	if target and target.has_method("take_damage"):
+		target.take_damage(total_damage)
+	last_damage_dealt = total_damage
+	print("[CARD] Shuriken! Dealt %d damage" % total_damage)
+
 # ============================================
 # STEPHEN CARD EXECUTE FUNCTIONS
 # ============================================
@@ -1155,6 +1175,10 @@ func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManag
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
 	print("[CARD] Quick Arrow! Free arrow for %d damage" % total_damage)
+
+func _execute_bottomless_quiver(_player_stats: PlayerStats) -> void:
+	# Signal handled in main.gd: adds QUIVER overflow effect (5 charges)
+	print("[CARD] Bottomless Quiver! Next 5 overflow attack cards go to the quiver")
 
 # ============================================
 # CORY CARD EXECUTE FUNCTIONS
@@ -1742,6 +1766,33 @@ static func create_understanding() -> Card:
 	card.target_types = ["self"]
 	return card
 
+static func create_shuriken_pouch() -> Card:
+	var card = Card.new()
+	card.card_id = "shuriken_pouch"
+	card.card_name = "Shuriken Pouch"
+	card.description = "Manifest 3: Overflow cards become Shuriken. Each Shuriken deals 3 damage to a random enemy (free, ranged, counts as attack)."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
+	card.tempo_cost = 2
+	card.target_types = ["self"]
+	return card
+
+static func create_shuriken() -> Card:
+	var card = Card.new()
+	card.card_id = "shuriken"
+	card.card_name = "Shuriken"
+	card.description = "Deal 3 damage to a random enemy. Free."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 3
+	card.base_damage = 3
+	card.is_ranged = true
+	card.target_types = ["enemy"]
+	return card
+
 # ============================================
 # STEPHEN CARD FACTORY METHODS
 # ============================================
@@ -1944,6 +1995,18 @@ static func create_quick_arrow() -> Card:
 	card.base_damage = 4
 	card.is_ranged = true
 	card.target_types = ["enemy"]
+	return card
+
+static func create_bottomless_quiver() -> Card:
+	var card = Card.new()
+	card.card_id = "bottomless_quiver"
+	card.card_name = "Bottomless Quiver"
+	card.description = "Manifest 5: Overflow attack cards are stored in the quiver and can be played at full cost. Non-attack overflow cards are discarded."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 4
+	card.tempo_cost = 4
+	card.target_types = ["self"]
 	return card
 
 # ============================================

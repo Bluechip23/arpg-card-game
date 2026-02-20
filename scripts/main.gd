@@ -34,6 +34,7 @@ extends Node2D
 @onready var overflow_ui: OverflowUI = $UI/OverflowUI
 @onready var help_panel: HelpPanel = $HelpPanel
 @onready var help_buttons: HelpButtons = $UI/HelpButtons
+@onready var quiver_ui: QuiverUI = $UI/QuiverUI
 
 const GauntletSkillUIScene = preload("res://scenes/gauntlet_skill_ui.tscn")
 const CardUIScene = preload("res://scenes/card_ui.tscn")
@@ -56,6 +57,10 @@ var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector2, damage: int, turns_remaining: int}]
 var _card_ui_instances: Array = []
 var _current_hand_hover_index: int = -1
+# Pending quiver card play state
+var _pending_quiver_card: Card = null
+var _pending_quiver_index: int = -1
+var _pending_quiver_target_type: String = ""
 
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
@@ -69,6 +74,7 @@ func _ready() -> void:
 	turn_manager.turn_ended.connect(_on_turn_ended)
 	turn_manager.enemy_turn_started.connect(_on_enemy_turn)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
+	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
 	player.move_completed.connect(_on_player_move_completed)
 	player.tile_reached.connect(_on_player_tile_reached)
@@ -635,6 +641,7 @@ func select_character(character: CharacterData) -> void:
 	buff_bar.connect_manager(player.get_buff_manager())
 	manifest_ui.connect_overflow_manager(overflow_manager)
 	overflow_ui.connect_overflow_manager(overflow_manager)
+	quiver_ui.connect_overflow_manager(overflow_manager)
 	player.get_stats().health_changed.connect(_on_player_health_changed)
 	player.get_stats().mana_changed.connect(_on_player_mana_changed)
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
@@ -1163,6 +1170,18 @@ func play_selected_card(target) -> void:
 			deck_manager.hand_updated.emit()
 			print("[MAIN] Enchanted Quiver: Quick Arrow added to hand! (%d charges left)" % buff_mgr.enchanted_quiver_charges)
 
+		# Shuriken Pouch: add manifest overflow effect (3 charges of shuriken)
+		if card.card_id == "shuriken_pouch":
+			var shuriken_effect = OverflowEffect.create_manifest_shuriken(3, "Shuriken Pouch")
+			overflow_manager.add_overflow_effect(shuriken_effect)
+
+		# Bottomless Quiver: add quiver overflow effect (5 charges)
+		if card.card_id == "bottomless_quiver":
+			var quiver_effect = OverflowEffect.create_quiver(5, "Bottomless Quiver")
+			overflow_manager.add_overflow_effect(quiver_effect)
+			if quiver_ui:
+				quiver_ui.refresh()
+
 		if not result["free_turn"]:
 			if buff_mgr and buff_mgr.consume_steady():
 				print("[MAIN] Steady! No tempo added.")
@@ -1332,6 +1351,9 @@ func _input(event: InputEvent) -> void:
 		
 		if event.keycode == KEY_ESCAPE:
 			selected_card_index = -1
+			_pending_quiver_card = null
+			_pending_quiver_index = -1
+			_pending_quiver_target_type = ""
 			update_selected_display()
 			update_card_highlights()
 			move_dialog.hide_dialog()
@@ -1339,6 +1361,19 @@ func _input(event: InputEvent) -> void:
 	
 	# Left click - play card or use gauntlet skill
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# Quiver card pending targeting
+		if _pending_quiver_card != null:
+			var mouse_pos = get_global_mouse_position()
+			if _pending_quiver_target_type == "enemy":
+				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
+				if enemy:
+					play_quiver_card(_pending_quiver_card, _pending_quiver_index, enemy)
+				else:
+					print("[MAIN] Quiver: click on an enemy to fire %s" % _pending_quiver_card.card_name)
+			elif _pending_quiver_target_type == "point":
+				play_quiver_card(_pending_quiver_card, _pending_quiver_index, player)
+			return
+
 		if selected_card_index >= 0:
 			var card = deck_manager.hand[selected_card_index]
 			var mouse_pos = get_global_mouse_position()
@@ -1479,6 +1514,19 @@ func _on_manifest_card_clicked(index: int) -> void:
 			var enemies = enemy_spawner.get_living_enemies()
 			if enemies.size() > 0:
 				enemies[0].take_damage(result["manifest_value"])
+		"shuriken":
+			# Deal 3 damage to a random enemy; counts as a ranged attack
+			var enemies = enemy_spawner.get_living_enemies()
+			if enemies.size() > 0:
+				var rand_enemy = enemies[randi() % enemies.size()]
+				rand_enemy.take_damage(result["manifest_value"])
+				# Count as an attack towards the attack counter
+				var stats = player.get_stats()
+				if stats:
+					stats.register_attack()
+				print("[MAIN] Shuriken! Dealt %d damage to %s" % [result["manifest_value"], rand_enemy.enemy_name])
+			else:
+				print("[MAIN] Shuriken thrown but no enemies present")
 		_:
 			print("[MAIN] Unknown manifest effect: %s" % result["manifest_id"])
 	
@@ -1487,6 +1535,57 @@ func _on_manifest_card_clicked(index: int) -> void:
 		tempo_manager.add_tempo(result["tempo_cost"])
 	
 	manifest_ui.refresh()
+
+func _on_quiver_card_targeting_selected(card: Card, index: int, target_type: String) -> void:
+	# "self" targeting plays immediately; enemy/point wait for a click
+	if target_type == "self":
+		play_quiver_card(card, index, player)
+	else:
+		_pending_quiver_card = card
+		_pending_quiver_index = index
+		_pending_quiver_target_type = target_type
+		print("[MAIN] Quiver: waiting for %s target click for %s" % [target_type, card.card_name])
+
+func play_quiver_card(card: Card, index: int, target) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Check and deduct mana
+	var mana_cost = card.mana_cost
+	if not stats.has_mana(mana_cost):
+		print("[MAIN] Quiver: not enough mana to play %s (need %d)" % [card.card_name, mana_cost])
+		return
+	if mana_cost > 0:
+		stats.spend_mana(mana_cost)
+
+	# Execute the card
+	var buff_mgr = player.get_buff_manager()
+	var debuff_mgr = player.get_debuff_manager()
+	var damage_reduction = debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
+	var self_damage = debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
+	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
+
+	# Apply tempo
+	var tempo_cost = card.tempo_cost
+	if debuff_mgr:
+		tempo_cost += debuff_mgr.get_tempo_increase()
+	tempo_manager.add_card_tempo(tempo_cost)
+
+	# Apply card world effects
+	_apply_card_world_effects(card, target)
+
+	# Remove the card from the quiver and discard it
+	overflow_manager.remove_quiver_card(index)
+	deck_manager.discard_pile.append(card)
+
+	_pending_quiver_card = null
+	_pending_quiver_index = -1
+	_pending_quiver_target_type = ""
+
+	quiver_ui.refresh()
+	update_deck_info()
+	print("[MAIN] Quiver: played %s from quiver" % card.card_name)
 
 func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 	match effect_id:
