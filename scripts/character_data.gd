@@ -27,6 +27,7 @@ var passive_description: String = ""
 var starting_item_name: String = ""
 var starting_item_description: String = ""
 var slot_specialty: String = ""
+var sprite_path: String = ""
 
 # Calculate derived stats from core stats
 func get_max_hand_size() -> int:
@@ -65,6 +66,7 @@ static func create_ryan() -> CharacterData:
 	data.starting_item_name = "Adventurer's Belt"
 	data.starting_item_description = "Grants: Healing Potion & Dagger Throw"
 	data.slot_specialty = "4 belt slots"
+	data.sprite_path = "res://assets/characters/ryan_south.png"
 	return data
 
 static func create_jeremy() -> CharacterData:
@@ -92,6 +94,7 @@ static func create_jeremy() -> CharacterData:
 	data.starting_item_name = "Scholar's Signet"
 	data.starting_item_description = "+3 INT. +3% chance. On Utility: +1 Mana"
 	data.slot_specialty = "4 ring slots"
+	data.sprite_path = "res://assets/characters/jeremy_south.png"
 	return data
 
 static func create_stephen() -> CharacterData:
@@ -118,6 +121,7 @@ static func create_stephen() -> CharacterData:
 	data.starting_item_name = "Flickerstep Boots"
 	data.starting_item_description = "+2 DEX. Grants 1 Blink card"
 	data.slot_specialty = "4 weapon slots, 3 ring slots"
+	data.sprite_path = "res://assets/characters/stephen_south.png"
 	return data
 
 static func create_cory() -> CharacterData:
@@ -143,6 +147,7 @@ static func create_cory() -> CharacterData:
 	data.starting_item_name = "Grasping Gauntlets"
 	data.starting_item_description = "+2 Hand Size. Skill: Power Grip (8 dmg, CD 3, Cost 2)"
 	data.slot_specialty = "2 gauntlet slots"
+	data.sprite_path = "res://assets/characters/cory_south.png"
 	return data
 
 static func create_brad() -> CharacterData:
@@ -169,6 +174,7 @@ static func create_brad() -> CharacterData:
 	data.starting_item_name = "Bloodbound Plate"
 	data.starting_item_description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
 	data.slot_specialty = "8 weapon slots"
+	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data
 
 static func get_all_characters() -> Array[CharacterData]:

@@ -10,6 +10,7 @@ var character_data: CharacterData
 # UI nodes built programmatically
 var _name_label: Label
 var _stat_labels: Dictionary = {}
+var _sprite_texture: TextureRect
 var _sprite_label: Label
 var _passive_label: Label
 var _slot_label: Label
@@ -120,6 +121,13 @@ func _build_ui() -> void:
 	sprite_panel.add_theme_stylebox_override("panel", sp_style)
 	content_row.add_child(sprite_panel)
 
+	_sprite_texture = TextureRect.new()
+	_sprite_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_sprite_texture.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sprite_texture.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_sprite_texture.visible = false
+	sprite_panel.add_child(_sprite_texture)
+
 	_sprite_label = Label.new()
 	_sprite_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sprite_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -207,6 +215,11 @@ func setup(character: CharacterData) -> void:
 
 	if _sprite_label:
 		_sprite_label.text = character.character_name.left(1)
+
+	if _sprite_texture and character.sprite_path != "" and ResourceLoader.exists(character.sprite_path):
+		_sprite_texture.texture = load(character.sprite_path)
+		_sprite_texture.visible = true
+		_sprite_label.visible = false
 
 	# Core stats
 	var core_values = {
