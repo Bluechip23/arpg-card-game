@@ -9,7 +9,8 @@ enum OverflowType {
 	ENHANCE,
 	TRANSFERRED,
 	PEAK,
-	OVERCHARGE
+	OVERCHARGE,
+	QUIVER
 }
 
 var overflow_type: OverflowType
@@ -53,6 +54,7 @@ func get_type_name() -> String:
 		OverflowType.TRANSFERRED: return "Transferred"
 		OverflowType.PEAK: return "Peak"
 		OverflowType.OVERCHARGE: return "Overcharge"
+		OverflowType.QUIVER: return "Quiver"
 	return "Unknown"
 
 func get_display_text() -> String:
@@ -71,7 +73,9 @@ func get_display_text() -> String:
 			return "Peak (%s)" % charge_text
 		OverflowType.OVERCHARGE:
 			return "Overcharge: %s (%s)" % [effect_name, charge_text]
-	
+		OverflowType.QUIVER:
+			return "Bottomless Quiver (%s)" % charge_text
+
 	return "Unknown"
 
 # ============================================
@@ -114,6 +118,14 @@ static func create_manifest_spirit(charges: int = 3, source: String = "") -> Ove
 	effect.effect_value = 1
 	return effect
 
+static func create_manifest_shuriken(charges: int = 3, source: String = "") -> OverflowEffect:
+	var effect = create_manifest("Shuriken", "shuriken", charges, source)
+	effect.manifest_description = "Deal 3 damage to a random enemy (free, ranged, counts as attack)"
+	effect.manifest_mana_cost = 0
+	effect.manifest_tempo_cost = 0
+	effect.effect_value = 3
+	return effect
+
 static func create_enhance(bonus_damage: int = 3, charges: int = 3, source: String = "") -> OverflowEffect:
 	var effect = OverflowEffect.new(OverflowType.ENHANCE, "Enhance", bonus_damage, charges)
 	effect.source_name = source
@@ -146,3 +158,8 @@ static func create_overcharge_armor(value: int = 2, charges: int = -1, source: S
 
 static func create_overcharge_damage(value: int = 3, charges: int = -1, source: String = "") -> OverflowEffect:
 	return create_overcharge("%d Damage All" % value, "damage_all", value, charges, source)
+
+static func create_quiver(charges: int = 5, source: String = "") -> OverflowEffect:
+	var effect = OverflowEffect.new(OverflowType.QUIVER, "Bottomless Quiver", 0, charges)
+	effect.source_name = source
+	return effect

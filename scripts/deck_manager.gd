@@ -162,6 +162,8 @@ func _create_card_from_id(card_id: String) -> Card:
 		"dagger_throw": return Card.create_dagger_throw()
 		"volatile_mixture": return Card.create_volatile_mixture()
 		"understanding": return Card.create_understanding()
+		"shuriken_pouch": return Card.create_shuriken_pouch()
+		"shuriken": return Card.create_shuriken()
 		# Stephen cards
 		"mark": return Card.create_mark()
 		"rise": return Card.create_rise()
@@ -177,6 +179,7 @@ func _create_card_from_id(card_id: String) -> Card:
 		"last_breath": return Card.create_last_breath()
 		"mixed_bag": return Card.create_mixed_bag()
 		"quick_arrow": return Card.create_quick_arrow()
+		"bottomless_quiver": return Card.create_bottomless_quiver()
 		# Cory cards
 		"round_em_up": return Card.create_round_em_up()
 		"trip": return Card.create_trip()

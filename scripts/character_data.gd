@@ -60,7 +60,8 @@ static func create_ryan() -> CharacterData:
 		"discard", "discard",
 		"raged_circulation", "poisoned_blood", "elixir", "heal",
 		"shadows", "preparation", "exacerbate_wounds", "reposition",
-		"dagger_throw", "volatile_mixture", "understanding"
+		"dagger_throw", "volatile_mixture", "understanding",
+		"shuriken_pouch"
 	]
 	data.passive_description = "Belt cards cost 1 less mana"
 	data.starting_item_name = "Adventurer's Belt"
@@ -115,7 +116,8 @@ static func create_stephen() -> CharacterData:
 		"empower", "empower",
 		"mark", "rise", "quick_shot", "reload", "enchanted_quiver",
 		"tighten_string", "down_town", "barricade", "sky_fall",
-		"sky_attack", "lead_arrow", "last_breath", "mixed_bag"
+		"sky_attack", "lead_arrow", "last_breath", "mixed_bag",
+		"bottomless_quiver"
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
 	data.starting_item_name = "Flickerstep Boots"

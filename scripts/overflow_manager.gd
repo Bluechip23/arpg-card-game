@@ -9,12 +9,16 @@ signal overflow_effects_changed
 signal manifest_card_added(manifest_name: String, card: Card)
 signal overcharge_triggered(effect_id: String, value: int)
 signal peak_triggered(card: Card)
+signal quiver_changed
 
 # Active overflow effects
 var overflow_effects: Array[OverflowEffect] = []
 
 # Manifest zone - stores cards with their manifest effect info
 var manifest_zone: Array[Dictionary] = []  # { "card": Card, "effect": OverflowEffect }
+
+# Quiver zone - stores attack cards from Bottomless Quiver overflow
+var quiver_zone: Array[Card] = []
 
 # For application order tracking
 var _application_counter: int = 0
@@ -27,6 +31,7 @@ func initialize(p_stats: PlayerStats) -> void:
 	player_stats = p_stats
 	overflow_effects.clear()
 	manifest_zone.clear()
+	quiver_zone.clear()
 	_application_counter = 0
 
 func connect_deck_manager(dm) -> void:
@@ -111,24 +116,29 @@ func process_overflow(card: Card) -> void:
 		_process_secondary_effects(card)
 		return
 	
-	# Priority 2: Manifest or Enhance (whichever was applied first)
+	# Priority 2: Quiver, Manifest, or Enhance (use application order)
+	var quiver_effect = get_first_effect_of_type(OverflowEffect.OverflowType.QUIVER)
 	var manifest_effect = get_first_effect_of_type(OverflowEffect.OverflowType.MANIFEST)
 	var enhance_effect = get_first_effect_of_type(OverflowEffect.OverflowType.ENHANCE)
-	
-	if manifest_effect and enhance_effect:
-		# Use application order
-		if manifest_effect.application_order < enhance_effect.application_order:
-			_process_manifest(card, manifest_effect)
+
+	# Build list of active priority-2 effects to sort by application order
+	var p2_effects: Array = []
+	if quiver_effect:
+		p2_effects.append(quiver_effect)
+	if manifest_effect:
+		p2_effects.append(manifest_effect)
+	if enhance_effect:
+		p2_effects.append(enhance_effect)
+
+	if p2_effects.size() > 0:
+		p2_effects.sort_custom(func(a, b): return a.application_order < b.application_order)
+		var first = p2_effects[0]
+		if first.overflow_type == OverflowEffect.OverflowType.QUIVER:
+			_process_quiver(card, first)
+		elif first.overflow_type == OverflowEffect.OverflowType.MANIFEST:
+			_process_manifest(card, first)
 		else:
-			_process_enhance(card, enhance_effect)
-		_process_secondary_effects(card)
-		return
-	elif manifest_effect:
-		_process_manifest(card, manifest_effect)
-		_process_secondary_effects(card)
-		return
-	elif enhance_effect:
-		_process_enhance(card, enhance_effect)
+			_process_enhance(card, first)
 		_process_secondary_effects(card)
 		return
 	
@@ -218,6 +228,20 @@ func _process_transferred(card: Card, effect: OverflowEffect) -> void:
 	if effect.use_charge():
 		remove_overflow_effect(effect)
 
+func _process_quiver(card: Card, effect: OverflowEffect) -> void:
+	# Bottomless Quiver: attack cards go to quiver, non-attacks are discarded
+	if card.card_type == Card.CardType.ATTACK:
+		quiver_zone.append(card)
+		quiver_changed.emit()
+		print("[OVERFLOW] Bottomless Quiver: %s stored in quiver (%d cards)" % [card.card_name, quiver_zone.size()])
+	else:
+		if deck_manager:
+			deck_manager.discard_pile.append(card)
+		print("[OVERFLOW] Bottomless Quiver: %s discarded (not an attack card)" % card.card_name)
+
+	if effect.use_charge():
+		remove_overflow_effect(effect)
+
 func _process_peak(effect: OverflowEffect) -> void:
 	if deck_manager and deck_manager.draw_pile.size() > 0:
 		var next_card = deck_manager.draw_pile.back()
@@ -298,6 +322,34 @@ func clear_manifest_zone() -> void:
 			deck_manager.discard_pile.append(entry["card"])
 	manifest_zone.clear()
 	overflow_effects_changed.emit()
+
+# ============================================
+# QUIVER ZONE FUNCTIONS
+# ============================================
+
+func get_quiver_zone() -> Array[Card]:
+	return quiver_zone
+
+func get_quiver_count() -> int:
+	return quiver_zone.size()
+
+func has_quiver_cards() -> bool:
+	return quiver_zone.size() > 0
+
+func remove_quiver_card(index: int) -> Card:
+	if index < 0 or index >= quiver_zone.size():
+		return null
+	var card = quiver_zone[index]
+	quiver_zone.remove_at(index)
+	quiver_changed.emit()
+	return card
+
+func clear_quiver_zone() -> void:
+	if deck_manager:
+		for card in quiver_zone:
+			deck_manager.discard_pile.append(card)
+	quiver_zone.clear()
+	quiver_changed.emit()
 
 # ============================================
 # DISPLAY

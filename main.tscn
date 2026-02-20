@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" uid="uid://dj67nrwolfc4p" path="res://scenes/overflow_ui.tscn" id="20_overflow"]
 [ext_resource type="PackedScene" uid="uid://3cxn1hbdk2os" path="res://scenes/manifest_ui.tscn" id="21_manifest"]
 [ext_resource type="PackedScene" uid="uid://dmw2cplrsglq1" path="res://scenes/help_buttons.tscn" id="22_helpbtn"]
+[ext_resource type="PackedScene" path="res://scenes/quiver_ui.tscn" id="23_quiver"]
 
 [node name="Main" type="Node2D" unique_id=805844600]
 script = ExtResource("1_main")
@@ -220,6 +221,13 @@ offset_left = 185.0
 offset_top = 47.0
 offset_right = 185.0
 offset_bottom = 47.0
+
+[node name="QuiverUI" parent="UI" instance=ExtResource("23_quiver")]
+offset_left = 185.0
+offset_top = 47.0
+offset_right = 550.0
+offset_bottom = 47.0
+visible = false
 
 [node name="HelpButtons" parent="UI" unique_id=451421031 instance=ExtResource("22_helpbtn")]
 offset_left = 1083.0
