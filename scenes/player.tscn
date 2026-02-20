@@ -9,12 +9,7 @@
 [node name="Player" type="CharacterBody2D" unique_id=807153945]
 script = ExtResource("1_player")
 
-[node name="Sprite" type="ColorRect" parent="." unique_id=385058118]
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-color = Color(0.2, 0.6, 1, 1)
+[node name="Sprite" type="Sprite2D" parent="." unique_id=385058118]
 
 [node name="PlayerLabel" type="Label" parent="." unique_id=1390665846]
 offset_left = -30.0

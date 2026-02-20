@@ -9,7 +9,7 @@ signal tile_reached  # Emitted each time the player reaches a single tile
 
 @export var move_speed: float = 300.0
 
-@onready var sprite: ColorRect = $Sprite
+@onready var sprite: Sprite2D = $Sprite
 @onready var stats: PlayerStats = $PlayerStats
 @onready var inventory: Inventory = $Inventory
 @onready var debuff_manager: DebuffManager = $DebuffManager
@@ -65,6 +65,18 @@ func initialize_character(data: CharacterData) -> void:
 	debuff_manager.initialize(stats, self)
 	buff_manager.initialize(stats, self)
 	buff_manager.connect_debuff_manager(debuff_manager)  # For Cleanse
+	_load_sprite(data)
+
+func _load_sprite(data: CharacterData) -> void:
+	if not sprite or data.sprite_path == "" or not ResourceLoader.exists(data.sprite_path):
+		return
+	var tex: Texture2D = load(data.sprite_path)
+	sprite.texture = tex
+	# Scale to fit within 56px (just under the 64px grid cell)
+	var longest_side = max(tex.get_width(), tex.get_height())
+	if longest_side > 0:
+		var scale_factor = 56.0 / longest_side
+		sprite.scale = Vector2(scale_factor, scale_factor)
 
 func pause_movement() -> void:
 	movement_paused = true
