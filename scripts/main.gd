@@ -71,8 +71,8 @@ func _ready() -> void:
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
 	tempo_manager.tempo_threshold_reached.connect(_on_tempo_threshold_reached)
 	tempo_manager.tempo_changed.connect(_on_tempo_changed)
+	tempo_manager.tempo_advanced.connect(_on_tempo_advanced)
 	turn_manager.turn_ended.connect(_on_turn_ended)
-	turn_manager.enemy_turn_started.connect(_on_enemy_turn)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
@@ -100,7 +100,8 @@ func _ready() -> void:
 	help_panel.closed.connect(_on_help_closed)
 	
 	_setup_overflow_buttons()
-	
+	_setup_wait_button()
+
 	if starting_character:
 		select_character(starting_character)
 	else:
@@ -211,6 +212,30 @@ func _setup_hand_area_background() -> void:
 	hand_area.add_theme_stylebox_override("panel", style)
 	# Do NOT clip - cards need to pop up above the hand area on hover
 	hand_area.clip_contents = false
+
+func _setup_wait_button() -> void:
+	var ui = $UI as CanvasLayer
+	var wait_btn = Button.new()
+	wait_btn.name = "WaitButton"
+	wait_btn.text = "Wait (+1 Tempo)"
+	wait_btn.custom_minimum_size = Vector2(130, 36)
+	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
+	wait_btn.pressed.connect(_on_wait_pressed)
+
+	var btn_container = Control.new()
+	btn_container.name = "WaitButtonContainer"
+	ui.add_child(btn_container)
+	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	btn_container.offset_left = 8.0
+	btn_container.offset_top = -44.0
+	btn_container.offset_right = 140.0
+	btn_container.offset_bottom = -8.0
+	btn_container.add_child(wait_btn)
+	wait_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+func _on_wait_pressed() -> void:
+	print("[MAIN] Wait - advancing tempo by 1")
+	tempo_manager.add_tempo(1)
 
 func _setup_deck_list_button() -> void:
 	var hand_area = $UI/HandArea as PanelContainer
@@ -671,17 +696,12 @@ func select_character(character: CharacterData) -> void:
 	print("[MAIN] Selected character: %s" % character.character_name)
 
 func trigger_turn() -> void:
-	deck_manager.process_turn()
-	var stats = player.get_stats()
-	if stats:
-		stats.process_turn()
-	turn_manager.take_turn()
-	update_turn_display()
-	_update_enemy_count()
+	# Simulate one full tempo cycle (5 global tempo) for testing
+	tempo_manager.add_tempo(5)
 
 func trigger_multiple_turns(count: int) -> void:
-	for i in range(count):
-		trigger_turn()
+	# Each "turn" = 5 global tempo (one cycle)
+	tempo_manager.add_tempo(5 * count)
 
 func _on_player_tile_reached() -> void:
 	# Tempo accumulates per tile in real time
@@ -704,8 +724,20 @@ func _on_move_confirmed(target_pos: Vector2, spaces: int) -> void:
 func _on_move_cancelled() -> void:
 	print("[INPUT] Movement cancelled")
 
-func _on_enemy_turn() -> void:
-	enemy_spawner.process_enemy_turns()
+## Fires on every global tempo addition - routes to per-system handlers.
+func _on_tempo_advanced(global_total: int, amount: int) -> void:
+	# Each enemy manages its own action counter independently
+	enemy_spawner.on_tempo_advanced(amount)
+
+	# Mana regen on the player's own tempo interval
+	var stats = player.get_stats()
+	if stats:
+		stats.process_tempo(amount)
+
+	# Card draw is tracked by turn_manager against its own tempo interval
+	turn_manager.process_tempo(amount)
+
+	update_turn_display()
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s" % enemy.enemy_name)
@@ -738,11 +770,9 @@ func _on_dexterity_proc() -> void:
 
 func update_turn_display() -> void:
 	if turn_label:
-		turn_label.text = "Turn: %d | Tempo: %d/%d | Draw: %.1f | Atk: %d" % [
-			turn_manager.current_turn,
-			tempo_manager.get_tempo(),
-			tempo_manager.get_threshold(),
-			turn_manager.get_turns_until_draw(),
+		turn_label.text = "Global Tempo: %d | Draw in: %.0f | Atk Sp proc: %d" % [
+			tempo_manager.get_global_tempo(),
+			turn_manager.get_tempo_until_draw(),
 			player.get_stats().get_attacks_until_proc()
 		]
 
@@ -934,10 +964,12 @@ func _on_apply_buff(buff_name: String) -> void:
 		print("[MAIN] Applied buff: %s" % buff_name)
 	
 
+## Fires every 5 global tempo (one tempo cycle).
+## Handles buff/debuff effects, armor decay, deck upkeep, sky falls, etc.
+## Enemy actions and mana regen are handled in _on_tempo_advanced instead.
 func _on_tempo_threshold_reached(times: int) -> void:
-	print("[MAIN] === TEMPO THRESHOLD × %d ===" % times)
+	print("[MAIN] === TEMPO CYCLE × %d ===" % times)
 
-	# Pause player movement while enemies act
 	var was_moving = player.is_moving
 	if was_moving:
 		player.pause_movement()
@@ -946,47 +978,41 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		var debuff_mgr = player.get_debuff_manager()
 		var buff_mgr = player.get_buff_manager()
 
-		# Process buff effects at turn start
+		# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
 		if buff_mgr:
 			var buff_result = buff_mgr.process_turn_start()
-
-			# Extra draws from Blessed
 			if buff_result["extra_draws"] > 0:
 				for d in range(buff_result["extra_draws"]):
 					deck_manager.attempt_draw()
 
-		# Process debuffs
+		# Debuff cycle-start effects (BURN damage, POISON, DRAIN, SHOCKED)
 		if debuff_mgr:
 			debuff_mgr.process_turn_start()
 
 		deck_manager.process_turn()
 
-		# Pass both managers to turn processing
+		# Armor decay and healing boost tick (mana regen is handled by process_tempo)
 		var stats = player.get_stats()
 		stats.process_turn(debuff_mgr, buff_mgr)
 
+		# Advance cycle counter and process inventory
 		turn_manager.take_turn()
-		enemy_spawner.process_enemy_turns()
 
-		# Process end of turn
+		# Buff/debuff cycle-end effects (MAGNETIZE pull, BRITTLE decay, duration ticks)
 		if debuff_mgr:
 			debuff_mgr.process_turn_end()
 		if buff_mgr:
 			buff_mgr.process_turn_end()
 
-		# Process pending Sky Falls
 		_process_pending_sky_falls()
 
-	# Volatile Mixture: if still in hand at end of turn, deal self-damage and discard
 	_check_volatile_mixture_in_hand()
-
 	_update_gauntlet_skills_ui()
 	update_turn_display()
 	_update_enemy_count()
 	_reroll_card_rng()
 	_on_hand_updated()
 
-	# Resume player movement after enemies finish
 	if was_moving:
 		player.resume_movement()
 func _check_volatile_mixture_in_hand() -> void:

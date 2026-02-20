@@ -44,6 +44,11 @@ var current_attack_counter: int = 0
 var base_draw_timer: float = 5.0
 var hand_size: int = 6
 
+## Mana regen fires every this many global tempo (default 5 = every tempo cycle)
+var mana_regen_tempo_interval: float = 5.0
+## Accumulator for tempo-based mana regen
+var _tempo_until_mana_regen: float = 0.0
+
 var current_armor: int = 0
 var armor_decay_per_turn: int = 2
 
@@ -115,6 +120,7 @@ func initialize(data: CharacterData) -> void:
 	current_carry_load = 0
 	empowered_cards_remaining = 0
 	chance_boost = 0.0
+	_tempo_until_mana_regen = mana_regen_tempo_interval
 	
 	# Calculate derived stats
 	recalculate_derived_stats()
@@ -329,6 +335,17 @@ func get_effective_heal_amount(base_heal: int) -> int:
 # TURN PROCESSING
 # ============================================
 
+## Called every global tempo advance. Handles mana regen on its own interval.
+func process_tempo(amount: int) -> void:
+	_tempo_until_mana_regen -= float(amount)
+	if _tempo_until_mana_regen <= 0.0:
+		_tempo_until_mana_regen += mana_regen_tempo_interval
+		var mana_regen = get_effective_mana_regen()
+		current_mana = min(current_mana + mana_regen, max_mana)
+		mana_changed.emit(current_mana, max_mana)
+		print("[STATS] Mana regen: +%.1f → %d/%d" % [mana_regen, int(current_mana), max_mana])
+
+## Called once per tempo cycle (every 5 global tempo). Handles armor decay and misc upkeep.
 func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 	# Armor decay (check Fortify)
 	if current_armor > 0:
@@ -336,7 +353,7 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 		if buff_mgr and buff_mgr.should_ignore_armor_decay():
 			should_decay = false
 			print("[STATS] Fortify prevents armor decay")
-		
+
 		if should_decay:
 			var decay = armor_decay_per_turn
 			if inventory and inventory.has_passive_effect("stalwart"):
@@ -346,17 +363,13 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 				decay = debuff_mgr.process_armor_decay(decay)
 			current_armor = max(0, current_armor - decay)
 			armor_changed.emit(current_armor)
-	
+
 	# Tick healing boost
 	if healing_boost_turns > 0:
 		healing_boost_turns -= 1
 		if healing_boost_turns <= 0:
 			healing_boost_percent = 0.0
 			print("[STATS] Healing boost expired")
-
-	var mana_regen = get_effective_mana_regen()
-	current_mana = min(current_mana + mana_regen, max_mana)
-	mana_changed.emit(current_mana, max_mana)
 
 	recalculate_derived_stats()
 

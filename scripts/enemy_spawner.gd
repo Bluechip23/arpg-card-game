@@ -56,10 +56,16 @@ func get_living_enemies() -> Array[Enemy]:
 			living.append(enemy)
 	return living
 
-func process_enemy_turns() -> void:
+## Called every time global tempo advances.
+## Each enemy manages its own action counter independently.
+func on_tempo_advanced(amount: int) -> void:
 	var living = get_living_enemies()
 	for enemy in living:
-		enemy.take_turn(player)
+		enemy.on_tempo_advanced(amount, player)
+
+## Legacy method kept for any existing references.
+func process_enemy_turns() -> void:
+	pass
 
 func _on_enemy_died(enemy: Enemy) -> void:
 	enemy_killed.emit(enemy)
