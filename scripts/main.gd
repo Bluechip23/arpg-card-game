@@ -770,8 +770,7 @@ func _on_dexterity_proc() -> void:
 
 func update_turn_display() -> void:
 	if turn_label:
-		turn_label.text = "Cycle: %d | Global Tempo: %d | Draw in: %.0f | Atk: %d" % [
-			turn_manager.current_turn,
+		turn_label.text = "Global Tempo: %d | Draw in: %.0f | Atk Sp proc: %d" % [
 			tempo_manager.get_global_tempo(),
 			turn_manager.get_tempo_until_draw(),
 			player.get_stats().get_attacks_until_proc()
