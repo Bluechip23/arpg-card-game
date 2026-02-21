@@ -21,22 +21,9 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=yellow]How Tempo Works:[/color]
 - Every action (playing cards, moving) adds to your tempo counter
-- When tempo reaches the threshold (default: 5), enemies take their turn
-- The counter then resets (overflow carries over)
-- Quick actions cost 1 tempo, attacks cost 4, defense costs 2
-
-[color=yellow]Tempo Costs:[/color]
-- Standard Attack: 4 tempo
-- Standard Defense: 2 tempo
-- Powerful Action: 4+ tempo (e.g., Sweeping Kick)
-- Quick/Instant: 1 tempo (e.g., Blink, Draw, Discard)
-- Movement: Free moves based on Agility, then 1 tempo per extra move
-
-[color=yellow]Strategic Implications:[/color]
-- Chain quick (1 tempo) actions for efficient turns
-- Balance powerful moves against giving enemies more turns
-- Use Steady buff to skip tempo on key actions
-- Weighted debuff increases your tempo costs
+- Each enemy has a tempo threshold. When crossed, they take action
+- Advanced enemies have moves with different tempo thresholds (channel, cast fireball).
+- If the character plays 4 tempo, and the enemies threshold is 2, the enemy acts twice.
 
 [font_size=18][color=cyan]━━━ STAT SYSTEM ━━━[/color][/font_size]
 
@@ -128,13 +115,11 @@ Rings have passive effects that trigger on events:
 [color=purple]Stephen:[/color] +10% off-hand bonuses (others get -10%)
 [color=orange]Cory:[/color] Gain 1 mana when gauntlet skill comes off cooldown
 
-[font_size=18][color=cyan]━━━ COMBAT TIPS ━━━[/color][/font_size]
+[font_size=18][color=cyan]━━━ RNG ━━━[/color][/font_size]
 
-- Watch your tempo! Multiple actions = more enemy turns
-- DEX builds reward patience - wait for DEX procs
-- Armor decays each turn unless you have Fortify
-- Stack damage reduction: Resilient (15%/turn) applies before Brace (30%/attack)
-- Thorns punishes aggressive enemies (loses 1 stack per hit)
-- Use Cleanse to remove dangerous debuffs
-- Manifest tokens are free effects - use overflow to your advantage!
+- RNG is determined when cards enter your hand. 
+- The card indicates the outcome with green numbers (positive) or red (failure)
+- RNG with AOE will be rolled PER ENEMY and be designated with green or red shadow under each enemy
+- The RNG for the card re rolls after 15 tempo is played. 
+
 """

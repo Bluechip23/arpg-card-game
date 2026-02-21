@@ -538,7 +538,7 @@ static func create_discard() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
-	card.tempo_cost = 1  # Quick action
+	card.tempo_cost = 1 
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -555,7 +555,7 @@ static func create_draw() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
-	card.tempo_cost = 1  # Quick action
+	card.tempo_cost = 1  
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -577,6 +577,7 @@ static func create_empower() -> Card:
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
+	card.target_types = ["self"]
 	card.heal_amount = 0
 	return card
 
@@ -601,7 +602,7 @@ static func create_heal() -> Card:
 	var card = Card.new()
 	card.card_id = "heal"
 	card.card_name = "Heal"
-	card.description = "Restore 4 HP. Deals damage instead with Poisoned Blood."
+	card.description = "Restore 4 HP."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
@@ -623,11 +624,12 @@ static func create_gain_mana() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
-	card.tempo_cost = 1  # Quick action
+	card.tempo_cost = 1  
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
+	card.target_types = ["self"]
 	card.heal_amount = 0
 	return card
 
@@ -635,11 +637,11 @@ static func create_healing_potion() -> Card:
 	var card = Card.new()
 	card.card_id = "healing_potion"
 	card.card_name = "Healing Potion"
-	card.description = "Heal 5. Deals damage instead with Poisoned Blood."
+	card.description = "Heal 5. "
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
-	card.tempo_cost = 1  # Quick action
+	card.tempo_cost = 1  
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -656,11 +658,13 @@ static func create_dagger_throw() -> Card:
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 1
-	card.tempo_cost = 1  # Quick action
+	card.tempo_cost = 1  
 	card.damage = 5
 	card.base_damage = 5
 	card.block = 0
 	card.base_block = 0
+	card.is_ranged = true
+	card.target_types = ["enemy"]
 	card.heal_amount = 0
 	return card
 
@@ -1196,7 +1200,7 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 
 func _execute_choke(target, _player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("silenced", 3)  # Sticky 3
+		target.apply_debuff("silenced", 3) 
 		target.apply_debuff("choke_dot", 3)
 	print("[CARD] Choke! Enemy silenced and taking damage per round. Sticky 3")
 
@@ -2047,7 +2051,7 @@ static func create_choke() -> Card:
 	var card = Card.new()
 	card.card_id = "choke"
 	card.card_name = "Choke"
-	card.description = "Silence enemy and deal damage per round. Sticky 3."
+	card.description = "Silence enemy and deal damage per round."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
@@ -2104,7 +2108,7 @@ static func create_consecutive_snap() -> Card:
 	var card = Card.new()
 	card.card_id = "consecutive_snap"
 	card.card_name = "Consecutive Snap"
-	card.description = "3 damage. Each reuse: +9 damage, -1m/-1t cost. Sticky 3."
+	card.description = "3 damage. Each reuse: +9 damage, -1m/-1t cost."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
@@ -2135,7 +2139,7 @@ static func create_meditate() -> Card:
 	var card = Card.new()
 	card.card_id = "meditate"
 	card.card_name = "Meditate"
-	card.description = "Discard hand, draw to full -2, heal to 80%%. Skip next turn."
+	card.description = "Discard hand, draw to full -2, heal to 80%. Skip next turn."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0

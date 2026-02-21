@@ -222,12 +222,12 @@ offset_top = 47.0
 offset_right = 185.0
 offset_bottom = 47.0
 
-[node name="QuiverUI" parent="UI" instance=ExtResource("23_quiver")]
+[node name="QuiverUI" parent="UI" unique_id=1067035566 instance=ExtResource("23_quiver")]
+visible = false
 offset_left = 185.0
 offset_top = 47.0
 offset_right = 550.0
 offset_bottom = 47.0
-visible = false
 
 [node name="HelpButtons" parent="UI" unique_id=451421031 instance=ExtResource("22_helpbtn")]
 offset_left = 1083.0
