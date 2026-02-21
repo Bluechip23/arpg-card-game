@@ -170,7 +170,7 @@ Regen  %.1f/t""" % [
 		player_stats.current_mana,
 		player_stats.max_mana,
 		player_stats.current_armor,
-		player_stats.armor_decay_per_turn,
+		player_stats.armor_decay_per_cycle,
 		player_stats.current_carry_load,
 		player_stats.get_carry_capacity(),
 		player_stats.get_effective_mana_regen()

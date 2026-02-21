@@ -19,7 +19,7 @@ var tether_origin: Vector2 = Vector2.ZERO
 # For tracking linked ally damage sharing
 var linked_ally: Node2D = null
 
-# For Burn - damage doubles each turn
+# For Burn - damage doubles each cycle
 var burn_damage_next: int = 1
 
 func initialize(stats = null, owner: Node2D = null) -> void:
@@ -48,7 +48,7 @@ func apply_debuff(debuff: Debuff) -> void:
 		if debuff.debuff_type == Debuff.DebuffType.BURN:
 			burn_damage_next = 1
 
-		print("[DEBUFF] Applied: %s for %d turns" % [debuff.debuff_name, debuff.duration])
+		print("[DEBUFF] Applied: %s for %d tempo" % [debuff.debuff_name, debuff.duration])
 	
 	debuff_applied.emit(debuff)
 	debuffs_changed.emit()
@@ -95,11 +95,11 @@ func process_turn_start() -> Dictionary:
 		"pull_tiles": 0
 	}
 
-	# Burn: damage doubles each turn (1, 2, 4, 8...)
+	# Burn: damage doubles each cycle (1, 2, 4, 8...)
 	var burn = get_debuff(Debuff.DebuffType.BURN)
 	if burn:
 		result["damage_taken"] += burn_damage_next
-		print("[DEBUFF] Burn deals %d damage (doubles next turn)" % burn_damage_next)
+		print("[DEBUFF] Burn deals %d damage (doubles next cycle)" % burn_damage_next)
 		burn_damage_next *= 2
 
 	# Poison: deal value damage, then lose 1 poison
@@ -163,7 +163,7 @@ func process_turn_end() -> void:
 			magnetize_pull.emit(pull_info["tiles"], pull_info["direction"])
 			print("[DEBUFF] Magnetized pulls %d tiles toward enemy" % magnetized.value)
 
-	# Brittle: consume 1 stack per turn
+	# Brittle: consume 1 stack per cycle
 	var brittle = get_debuff(Debuff.DebuffType.BRITTLE)
 	if brittle:
 		brittle.value -= 1

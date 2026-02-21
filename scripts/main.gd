@@ -54,7 +54,7 @@ var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
-var pending_sky_falls: Array = []  # [{position: Vector2, damage: int, turns_remaining: int}]
+var pending_sky_falls: Array = []  # [{position: Vector2, damage: int, tempo_remaining: int}]
 var _card_ui_instances: Array = []
 var _current_hand_hover_index: int = -1
 # Pending quiver card play state
@@ -931,15 +931,15 @@ func _on_apply_buff(buff_name: String) -> void:
 	
 	match buff_name:
 		"Thorns (3 dmg)":
-			buff = Buff.create_thorns(3, 3, "Test")
+			buff = Buff.create_thorns(3, 15, "Test")
 		"Focused":
-			buff = Buff.create_focused(3, "Test")
+			buff = Buff.create_focused(15, "Test")
 		"Regen (2)":
-			buff = Buff.create_regen(2, 3, "Test")
+			buff = Buff.create_regen(2, 15, "Test")
 		"Blessed (1)":
-			buff = Buff.create_blessed(1, 3, "Test")
+			buff = Buff.create_blessed(1, 15, "Test")
 		"Fortify":
-			buff = Buff.create_fortify(3, "Test")
+			buff = Buff.create_fortify(15, "Test")
 		"Enlightened (25%, 3)":
 			buff = Buff.create_enlightened(25, 3, "Test")
 		"Strengthen (+3, 3)":
@@ -947,17 +947,17 @@ func _on_apply_buff(buff_name: String) -> void:
 		"Bolster (+2, 3)":
 			buff = Buff.create_bolster(2, 3, "Test")
 		"Haste (+1)":
-			buff = Buff.create_haste(1, 3, "Test")
+			buff = Buff.create_haste(1, 15, "Test")
 		"Cleanse (1)":
 			buff = Buff.create_cleanse(1, "Test")
 		"Smith (2)":
-			buff = Buff.create_smith(2, 3, "Test")
+			buff = Buff.create_smith(2, 15, "Test")
 		"Steady":
 			buff = Buff.create_steady("Test")
 		"Brace (30%, 1)":
 			buff = Buff.create_brace(30, 1, "Test")
 		"Resilient (15%, 3)":
-			buff = Buff.create_resilient(15, 3, "Test")
+			buff = Buff.create_resilient(15, 15, "Test")
 	
 	if buff and buff_mgr:
 		buff_mgr.apply_buff(buff)
@@ -1031,8 +1031,8 @@ func _check_volatile_mixture_in_hand() -> void:
 func _process_pending_sky_falls() -> void:
 	for i in range(pending_sky_falls.size() - 1, -1, -1):
 		var sf = pending_sky_falls[i]
-		sf.turns_remaining -= 1
-		if sf.turns_remaining <= 0:
+		sf.tempo_remaining -= 5
+		if sf.tempo_remaining <= 0:
 			# Arrow lands! Deal AOE damage at stored position
 			var enemies_hit = enemy_spawner.get_enemies_in_radius(sf.position, 100.0)
 			for enemy in enemies_hit:
@@ -1040,7 +1040,7 @@ func _process_pending_sky_falls() -> void:
 			pending_sky_falls.remove_at(i)
 			print("[MAIN] Sky Fall landed at %s! Hit %d enemies for %d damage" % [sf.position, enemies_hit.size(), sf.damage])
 		else:
-			print("[MAIN] Sky Fall: %d turn(s) until landing at %s" % [sf.turns_remaining, sf.position])
+			print("[MAIN] Sky Fall: %d tempo until landing at %s" % [sf.tempo_remaining, sf.position])
 
 func _apply_magnetize_pull(tiles: int) -> void:
 	var enemies = enemy_spawner.get_living_enemies()
@@ -1328,9 +1328,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			pending_sky_falls.append({
 				"position": landing_pos,
 				"damage": card.last_damage_dealt,
-				"turns_remaining": 2
+				"tempo_remaining": 10
 			})
-			print("[MAIN] Sky Fall: arrow launched! Will land at %s in 2 turns for %d damage" % [landing_pos, card.last_damage_dealt])
+			print("[MAIN] Sky Fall: arrow launched! Will land at %s in 10 tempo for %d damage" % [landing_pos, card.last_damage_dealt])
 
 		"round_em_up":
 			# Pull enemies within 2 squares of clicked point 1 square toward that point

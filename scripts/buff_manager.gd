@@ -15,10 +15,10 @@ var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
 var owner_node: Node2D
 var debuff_manager = null  # DebuffManager - untyped to avoid circular dependency
 var approach_armor_per_move: int = 0
-var approach_turns_remaining: int = 0
+var approach_tempo_remaining: int = 0
 var poisoned_blood_active: bool = false
-var poisoned_blood_turns: int = 0
-var understanding_turns: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
+var poisoned_blood_tempo: int = 0
+var understanding_tempo: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
 var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
 var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
 
@@ -137,23 +137,23 @@ func process_turn_start() -> Dictionary:
 
 func process_turn_end() -> void:
 	# Tick approach armor-on-move
-	if approach_turns_remaining > 0:
-		approach_turns_remaining -= 1
-		if approach_turns_remaining <= 0:
+	if approach_tempo_remaining > 0:
+		approach_tempo_remaining -= 5
+		if approach_tempo_remaining <= 0:
 			approach_armor_per_move = 0
 			print("[BUFF] Approach expired")
 
 	# Tick poisoned blood
-	if poisoned_blood_turns > 0:
-		poisoned_blood_turns -= 1
-		if poisoned_blood_turns <= 0:
+	if poisoned_blood_tempo > 0:
+		poisoned_blood_tempo -= 5
+		if poisoned_blood_tempo <= 0:
 			poisoned_blood_active = false
 			print("[BUFF] Poisoned Blood expired")
 
 	# Tick understanding delayed crit
-	if understanding_turns > 0:
-		understanding_turns -= 1
-		if understanding_turns <= 0:
+	if understanding_tempo > 0:
+		understanding_tempo -= 5
+		if understanding_tempo <= 0:
 			apply_buff(Buff.create_enlightened(100, 1, "Understanding"))
 			print("[BUFF] Understanding ready! Next attack will auto-crit")
 
@@ -301,7 +301,7 @@ func get_extra_movement_per_tempo() -> int:
 
 func on_movement(tiles: int) -> int:
 	var armor_gained = 0
-	if approach_armor_per_move > 0 and approach_turns_remaining > 0:
+	if approach_armor_per_move > 0 and approach_tempo_remaining > 0:
 		armor_gained = approach_armor_per_move * tiles
 		if owner_stats:
 			owner_stats.add_armor(armor_gained)

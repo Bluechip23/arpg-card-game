@@ -34,7 +34,7 @@ func get_max_hand_size() -> int:
 	# Wisdom adds to hand size: every 5 wisdom = +1 hand size
 	return base_hand_size + floori(wisdom / 5.0)
 
-func get_movement_per_turn() -> int:
+func get_movement_per_cycle() -> int:
 	# Agility determines movement: base 1, +1 per 8 agility
 	return 1 + floori(agility / 8.0)
 
