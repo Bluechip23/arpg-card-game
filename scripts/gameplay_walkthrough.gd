@@ -1,8 +1,6 @@
 class_name GameplayWalkthrough
 extends ScrollContainer
 
-## Displays gameplay overview and tutorials
-
 @onready var content: RichTextLabel = $Content
 
 func _ready() -> void:
