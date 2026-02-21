@@ -26,7 +26,7 @@ var aoe_range: float = 100.0
 var chance_effect_percent: float = 0.0  # For AOE per-enemy rolls
 var rng_outcomes: Dictionary = {}  # enemy_id -> bool (for AOE per-enemy indicators)
 var rng_roll_tempo: int = 0  # Global tempo when RNG was last rolled
-var turns_in_hand: int = 0  # How long card has been in hand
+var cycles_in_hand: int = 0  # How many tempo cycles card has been in hand
 
 # RNG outcome system - percentages that appear in the card description
 # Each entry: {percent: float} matching a "XX%" in the description
@@ -34,8 +34,8 @@ var turns_in_hand: int = 0  # How long card has been in hand
 # Multi (2+ entries): weighted random picks which outcome triggers
 var rng_outcomes_data: Array = []
 var rng_selected_index: int = -1  # -1=not rolled, >=0=which outcome won, -2=binary fail
-var sticky: int = 0  # Turns card stays in hand before auto-discarding (0 = normal)
-var duration: int = 0  # Effect duration in turns
+var sticky: int = 0  # Uses before card auto-discards (0 = normal)
+var duration: int = 0  # Effect duration in tempo
 var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
 var range_modifier: int = 0  # Modifies base range: +2 = 7 range, -2 = 3 range
 var card_range: float = 0.0  # Legacy range for specific overrides
@@ -154,11 +154,11 @@ func get_range_display() -> String:
 	else:
 		return "Ranged %d" % range_modifier
 
-func increment_turns_in_hand() -> void:
-	turns_in_hand += 1
+func increment_cycles_in_hand() -> void:
+	cycles_in_hand += 1
 
 func reset_hand_tracking() -> void:
-	turns_in_hand = 0
+	cycles_in_hand = 0
 	rng_outcomes.clear()
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
@@ -485,15 +485,15 @@ func is_jailed() -> bool:
 
 # This is now handled by deck_manager.process_turn()
 # Can remove update_jail or keep for compatibility
-func update_jail_turn() -> void:
+func update_jail_tempo() -> void:
 	if jail_time_remaining > 0:
-		jail_time_remaining -= 1
+		jail_time_remaining -= 5
 		if jail_time_remaining <= 0:
 			print("[CARD] %s released from jail!" % card_name)
 
-func jail(duration: int) -> void:
-	jail_time_remaining = duration
-	print("[CARD] %s jailed for %d turns" % [card_name, duration])
+func jail(dur: int) -> void:
+	jail_time_remaining = dur
+	print("[CARD] %s jailed for %d tempo" % [card_name, dur])
 
 # Factory methods
 static func create_slash() -> Card:
@@ -688,12 +688,12 @@ func _execute_life_swap(target, player_stats: PlayerStats, buff_mgr: BuffManager
 
 func _execute_wear_down(_target, _player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_wear_down(3, "Wear Down"))
-	print("[CARD] Wear Down active! Each attack reduces enemy's attack by 1 for 3 turns")
+		buff_mgr.apply_buff(Buff.create_wear_down(15, "Wear Down"))
+	print("[CARD] Wear Down active! Each attack reduces enemy's attack by 1 for 15 tempo")
 
 func _execute_taunt(_target, _player_stats: PlayerStats) -> void:
 	# Taunt effect applied via world effects in main.gd (needs enemy_spawner)
-	print("[CARD] Taunt! Nearby enemies must target you for 2 turns")
+	print("[CARD] Taunt! Nearby enemies must target you for 10 tempo")
 
 func _execute_life_steal(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -758,13 +758,13 @@ func _execute_morphine(player_stats: PlayerStats, buff_mgr: BuffManager = null) 
 		return
 	player_stats.add_armor(4)
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_morphine(4, 3, "Morphine"))
-	print("[CARD] Morphine! Gained 4 temp HP. Will lose it and take 2 damage in 3 turns")
+		buff_mgr.apply_buff(Buff.create_morphine(4, 15, "Morphine"))
+	print("[CARD] Morphine! Gained 4 temp HP. Will lose it and take 2 damage in 15 tempo")
 
 func _execute_turtle_up(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_fortify(4, "Turtle Up"))
-	print("[CARD] Turtle Up! Armor won't decay for 4 turns")
+		buff_mgr.apply_buff(Buff.create_fortify(20, "Turtle Up"))
+	print("[CARD] Turtle Up! Armor won't decay for 20 tempo")
 
 func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if player_stats:
@@ -779,13 +779,13 @@ func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = n
 	print("[CARD] Parry! Gained 5 armor, dealt %d damage. Next damage reduced" % total_damage)
 
 func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Slow self for 2 turns, gain 5 armor per movement taken
+	# Slow self for 10 tempo (2 cycles), gain 5 armor per movement taken
 	if buff_mgr and buff_mgr.debuff_manager:
-		buff_mgr.debuff_manager.apply_debuff(Debuff.create_slowed(2, 2, "Approach"))
+		buff_mgr.debuff_manager.apply_debuff(Debuff.create_slowed(2, 10, "Approach"))
 	if buff_mgr:
 		buff_mgr.approach_armor_per_move = 5
-		buff_mgr.approach_turns_remaining = 2
-	print("[CARD] Approach! Slowed for 2 turns, gain 5 armor per movement")
+		buff_mgr.approach_tempo_remaining = 10
+	print("[CARD] Approach! Slowed for 10 tempo, gain 5 armor per movement")
 
 func _execute_hold_the_line(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# All allies gain 5 armor, 2 determination, 2 strength
@@ -847,7 +847,7 @@ func _execute_biscuit(player_stats: PlayerStats, buff_mgr: BuffManager = null) -
 		player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_strengthen(3, 3, "Biscuit"))
-	print("[CARD] Biscuit! Fully healed and +30%% damage for 3 turns")
+	print("[CARD] Biscuit! Fully healed and +3 damage for 3 attacks")
 
 func _execute_loaded_die(player_stats: PlayerStats) -> void:
 	if player_stats:
@@ -898,25 +898,25 @@ func _execute_house_money(player_stats: PlayerStats) -> void:
 	print("[CARD] House Money! Next odds will automatically trigger")
 
 func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# 50% to heal ally and provide strength for 3 turns
+	# 50% to heal ally and provide strength for 3 attacks
 	if randf() < 0.5:
 		if player_stats:
 			var heal_amt = max(3, player_stats.intelligence)
 			player_stats.heal(heal_amt)
 			player_stats.base_strength += 2
 			player_stats.recalculate_derived_stats()
-		print("[CARD] Hope This Works... it worked! Healed and +STR for 3 turns")
+		print("[CARD] Hope This Works... it worked! Healed and +STR for 3 attacks")
 	else:
 		print("[CARD] Hope This Works... it didn't work")
 
 func _execute_lady_luck(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Bless an ally - crit chance +30% for 2 turns
+	# Bless an ally - crit chance +30% for 5 attacks
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_enlightened(30, 5, "Lady Luck"))
-	print("[CARD] Lady Luck! Crit chance +30%% for 2 turns")
+	print("[CARD] Lady Luck! Crit chance +30%% for 5 attacks")
 
 func _execute_try_this(target, player_stats: PlayerStats) -> void:
-	# Increase ally mana pool by 3 and hand size by 2 for 2 turns. 10% reverse
+	# Increase ally mana pool by 3 and hand size by 2 for 10 tempo. 10% reverse
 	if player_stats:
 		if randf() < 0.1:
 			player_stats.max_mana = max(1, player_stats.max_mana - 3)
@@ -925,7 +925,7 @@ func _execute_try_this(target, player_stats: PlayerStats) -> void:
 		else:
 			player_stats.max_mana += 3
 			player_stats.hand_size += 2
-			print("[CARD] Try This! +3 mana pool, +2 hand size for 2 turns")
+			print("[CARD] Try This! +3 mana pool, +2 hand size for 10 tempo")
 
 func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = 15
@@ -948,32 +948,32 @@ func _execute_snowballs_chance(target, player_stats: PlayerStats, buff_mgr: Buff
 # ============================================
 
 func _execute_raged_circulation(target, player_stats: PlayerStats) -> void:
-	# +30% healing effectiveness for 3 turns
+	# +30% healing effectiveness for 15 tempo (3 cycles)
 	if player_stats:
 		player_stats.healing_boost_percent = 0.3
-		player_stats.healing_boost_turns = 3
-	print("[CARD] Raged Circulation! Healing +30%% for 3 turns")
+		player_stats.healing_boost_tempo = 15
+	print("[CARD] Raged Circulation! Healing +30%% for 15 tempo")
 
 func buff_mgr_exists(target) -> bool:
 	return target and target.has_method("get_buff_manager") and target.get_buff_manager() != null
 
 func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Heal cards now deal damage instead of healing for 3 turns
+	# Heal cards now deal damage instead of healing for 15 tempo (3 cycles)
 	if buff_mgr:
 		buff_mgr.poisoned_blood_active = true
-		buff_mgr.poisoned_blood_turns = 3
-	print("[CARD] Poisoned Blood! Heal cards now deal damage instead for 3 turns")
+		buff_mgr.poisoned_blood_tempo = 15
+	print("[CARD] Poisoned Blood! Heal cards now deal damage instead for 15 tempo")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Poison cards now heal
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_regen(3, 99, "Elixir"))
+		buff_mgr.apply_buff(Buff.create_regen(3, 495, "Elixir"))
 	print("[CARD] Elixir! Poison effects now heal instead")
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_resilient(50, 2, "Shadows"))
-	print("[CARD] Shadows! Invisible for 2 turns")
+		buff_mgr.apply_buff(Buff.create_resilient(50, 10, "Shadows"))
+	print("[CARD] Shadows! Invisible for 10 tempo")
 
 func _execute_preparation(player_stats: PlayerStats, deck_manager = null) -> void:
 	# Next utility card costs 2 less; chains while playing utilities
@@ -1016,10 +1016,10 @@ func _execute_volatile_mixture(target, player_stats: PlayerStats) -> void:
 	print("[CARD] Volatile Mixture played! Safely disposed of")
 
 func _execute_understanding(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Start a 2-turn countdown; when it expires, next attack auto-crits
+	# Start a 10 tempo countdown; when it expires, next attack auto-crits
 	if buff_mgr:
-		buff_mgr.understanding_turns = 2
-	print("[CARD] Understanding! In 2 turns, the next attack will auto-crit")
+		buff_mgr.understanding_tempo = 10
+	print("[CARD] Understanding! In 10 tempo, the next attack will auto-crit")
 
 func _execute_shuriken_pouch(player_stats: PlayerStats) -> void:
 	# Signal handled in main.gd: adds MANIFEST overflow effect (shuriken, 3 charges)
@@ -1281,12 +1281,12 @@ static func create_wear_down() -> Card:
 	var card = Card.new()
 	card.card_id = "wear_down"
 	card.card_name = "Wear Down"
-	card.description = "Decrease enemy attack by 1 per consecutive hit. Lasts 3 turns."
+	card.description = "Decrease enemy attack by 1 per consecutive hit. Lasts 15 tempo."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
 	card.tempo_cost = 1
-	card.duration = 3
+	card.duration = 15
 	card.target_types = ["self"]
 	return card
 
@@ -1402,12 +1402,12 @@ static func create_turtle_up() -> Card:
 	var card = Card.new()
 	card.card_id = "turtle_up"
 	card.card_name = "Turtle Up"
-	card.description = "Armor does not decay for 4 turns."
+	card.description = "Armor does not decay for 20 tempo."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 3
 	card.tempo_cost = 0
-	card.duration = 4
+	card.duration = 20
 	card.target_types = ["self"]
 	return card
 
@@ -1431,7 +1431,7 @@ static func create_approach() -> Card:
 	var card = Card.new()
 	card.card_id = "approach"
 	card.card_name = "Approach"
-	card.description = "Slowed for 2 turns. For each movement taken, gain 5 armor."
+	card.description = "Slowed for 10 tempo. For each movement taken, gain 5 armor."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 1
@@ -1508,12 +1508,12 @@ static func create_biscuit() -> Card:
 	var card = Card.new()
 	card.card_id = "biscuit"
 	card.card_name = "Biscuit"
-	card.description = "Fully heal yourself and gain 30%% damage for 3 turns."
+	card.description = "Fully heal yourself and gain +3 damage for 3 attacks."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
 	card.tempo_cost = 0
-	card.duration = 3
+	card.duration = 15
 	card.target_types = ["self"]
 	return card
 
@@ -1575,13 +1575,13 @@ static func create_hope_this_works() -> Card:
 	var card = Card.new()
 	card.card_id = "hope_this_works"
 	card.card_name = "Hope This Works"
-	card.description = "50%% to heal ally and provide STR for 3 turns."
+	card.description = "50%% to heal ally and provide STR for 3 attacks."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
 	card.tempo_cost = 3
 	card.rng_outcomes_data = [{percent = 50.0}]
-	card.duration = 3
+	card.duration = 15
 	card.target_types = ["ally"]
 	return card
 
@@ -1589,12 +1589,12 @@ static func create_lady_luck() -> Card:
 	var card = Card.new()
 	card.card_id = "lady_luck"
 	card.card_name = "Lady Luck"
-	card.description = "Bless an ally. Crit chance +30%% for 2 turns."
+	card.description = "Bless an ally. Crit chance +30%% for 5 attacks."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 4
 	card.tempo_cost = 1
-	card.duration = 2
+	card.duration = 10
 	card.target_types = ["ally"]
 	return card
 
@@ -1602,13 +1602,13 @@ static func create_try_this() -> Card:
 	var card = Card.new()
 	card.card_id = "try_this"
 	card.card_name = "Try This!"
-	card.description = "Ally +3 mana pool, +2 hand size for 2 turns. 10%% chance reverse."
+	card.description = "Ally +3 mana pool, +2 hand size for 10 tempo. 10%% chance reverse."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.tempo_cost = 4
 	card.rng_outcomes_data = [{percent = 10.0}]
-	card.duration = 2
+	card.duration = 10
 	card.target_types = ["ally"]
 	return card
 
@@ -1655,7 +1655,7 @@ static func create_raged_circulation() -> Card:
 	var card = Card.new()
 	card.card_id = "raged_circulation"
 	card.card_name = "Raged Circulation"
-	card.description = "Target receives 30%% more from healing and regen for 3 turns."
+	card.description = "Target receives 30%% more from healing and regen for 15 tempo."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
@@ -1692,12 +1692,12 @@ static func create_shadows() -> Card:
 	var card = Card.new()
 	card.card_id = "shadows"
 	card.card_name = "Shadows"
-	card.description = "Go invisible for 2 turns."
+	card.description = "Go invisible for 10 tempo."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
 	card.tempo_cost = 4
-	card.duration = 2
+	card.duration = 10
 	card.target_types = ["self"]
 	return card
 
@@ -1755,12 +1755,12 @@ static func create_understanding() -> Card:
 	var card = Card.new()
 	card.card_id = "understanding"
 	card.card_name = "Understanding"
-	card.description = "After 2 turn delay, next card auto-crits."
+	card.description = "After 10 tempo delay, next card auto-crits."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 5
 	card.tempo_cost = 1
-	card.duration = 2
+	card.duration = 10
 	card.target_types = ["self"]
 	return card
 
@@ -1906,14 +1906,14 @@ static func create_sky_fall() -> Card:
 	var card = Card.new()
 	card.card_id = "sky_fall"
 	card.card_name = "Sky Fall"
-	card.description = "Shoot an arrow upward. In 2 turns, it lands at the designated location dealing 18 damage."
+	card.description = "Shoot an arrow upward. In 10 tempo, it lands at the designated location dealing 18 damage."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
 	card.tempo_cost = 5
 	card.damage = 18
 	card.base_damage = 18
-	card.duration = 2
+	card.duration = 10
 	card.is_ranged = true
 	card.range_modifier = 4
 	card.target_types = ["point"]

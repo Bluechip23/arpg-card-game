@@ -27,12 +27,12 @@ var buff_type: BuffType
 var buff_name: String
 var description: String
 var value: int = 0            # The 'x' value (damage, bonus, etc.)
-var duration: int = 0         # Turns remaining (-1 for until depleted)
+var duration: int = 0         # Tempo remaining (-1 for until depleted)
 var charges: int = -1         # For charge-based buffs (attacks, armor gains, etc.)
 var source_name: String = ""  # What applied this buff
 var stacks: int = 1           # Some buffs can stack
 
-func _init(type: BuffType, val: int = 0, dur: int = 3, chrg: int = -1) -> void:
+func _init(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) -> void:
 	buff_type = type
 	value = val
 	duration = dur
@@ -46,13 +46,13 @@ func _set_name_and_description() -> void:
 			description = "Deal %d damage back to attackers" % value
 		BuffType.FOCUSED:
 			buff_name = "Focused"
-			description = "Gain 1 extra mana per turn"
+			description = "Gain 1 extra mana per cycle"
 		BuffType.REGEN:
 			buff_name = "Regen"
-			description = "Heal %d HP per turn" % value
+			description = "Heal %d HP per cycle" % value
 		BuffType.BLESSED:
 			buff_name = "Blessed"
-			description = "Draw %d additional card(s) per turn" % value
+			description = "Draw %d additional card(s) per cycle" % value
 		BuffType.FORTIFY:
 			buff_name = "Fortify"
 			description = "Armor does not decay"
@@ -73,7 +73,7 @@ func _set_name_and_description() -> void:
 			description = "Remove %d negative effect(s)" % value
 		BuffType.SMITH:
 			buff_name = "Smith"
-			description = "Gain %d armor per turn" % value
+			description = "Gain %d armor per cycle" % value
 		BuffType.STEADY:
 			buff_name = "Steady"
 			description = "Next action does not add tempo"
@@ -82,7 +82,7 @@ func _set_name_and_description() -> void:
 			description = "Reduce incoming attack damage by %d%% for %d attacks" % [value, charges]
 		BuffType.RESILIENT:
 			buff_name = "Resilient"
-			description = "Reduce all incoming damage by %d%% for %d turns" % [value, duration]
+			description = "Reduce all incoming damage by %d%% for %d tempo" % [value, duration]
 		BuffType.LIFE_STEAL:
 			buff_name = "Life Steal"
 			description = "Next attack heals you for damage dealt"
@@ -91,13 +91,13 @@ func _set_name_and_description() -> void:
 			description = "Temp HP active. Lose %d armor and take 2 damage when expired" % value
 		BuffType.WEAR_DOWN:
 			buff_name = "Wear Down"
-			description = "Each attack reduces target's attack by 1 (stacks) for %d turns" % duration
+			description = "Each attack reduces target's attack by 1 (stacks) for %d tempo" % duration
 
 func tick() -> bool:
-	# Called each turn. Returns true if buff expired by duration.
+	# Called each cycle (5 tempo). Returns true if buff expired by duration.
 	if duration > 0:
-		duration -= 1
-	return duration == 0
+		duration -= 5
+	return duration <= 0
 
 func use_charge() -> bool:
 	# Called when charge-based buff is used. Returns true if depleted.
@@ -116,7 +116,7 @@ func is_charge_based() -> bool:
 func is_expired() -> bool:
 	if is_charge_based():
 		return charges <= 0
-	return duration == 0
+	return duration <= 0
 
 func get_icon_color() -> Color:
 	match buff_type:
@@ -151,36 +151,37 @@ func get_duration_display() -> String:
 		return "%d charges" % charges
 	elif duration < 0:
 		return "∞"
-	return "%d turns" % duration
+	return "%d tempo" % duration
 
 # ============================================
 # FACTORY METHODS
 # ============================================
 
-static func create(type: BuffType, val: int = 0, dur: int = 3, chrg: int = -1) -> Buff:
+static func create(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) -> Buff:
 	return Buff.new(type, val, dur, chrg)
 
-static func create_thorns(damage: int = 3, duration: int = 3, source: String = "") -> Buff:
+static func create_thorns(damage: int = 3, duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.THORNS, damage, duration)
 	buff.source_name = source
 	return buff
 
-static func create_focused(duration: int = 3, source: String = "") -> Buff:
+static func create_focused(duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.FOCUSED, 1, duration)
 	buff.source_name = source
 	return buff
 
-static func create_regen(heal_per_turn: int = 2, duration: int = 3, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.REGEN, heal_per_turn, duration)
+static func create_regen(heal_per_cycle: int = 2, duration: int = 15, source: String = "") -> Buff:
+
+	var buff = Buff.new(BuffType.REGEN, heal_per_cycle, duration)
 	buff.source_name = source
 	return buff
 
-static func create_blessed(extra_draws: int = 1, duration: int = 3, source: String = "") -> Buff:
+static func create_blessed(extra_draws: int = 1, duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.BLESSED, extra_draws, duration)
 	buff.source_name = source
 	return buff
 
-static func create_fortify(duration: int = 3, source: String = "") -> Buff:
+static func create_fortify(duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.FORTIFY, 0, duration)
 	buff.source_name = source
 	return buff
@@ -200,7 +201,7 @@ static func create_bolster(extra_armor: int = 2, times: int = 3, source: String 
 	buff.source_name = source
 	return buff
 
-static func create_haste(extra_movement: int = 1, duration: int = 3, source: String = "") -> Buff:
+static func create_haste(extra_movement: int = 1, duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.HASTE, extra_movement, duration)
 	buff.source_name = source
 	return buff
@@ -211,8 +212,8 @@ static func create_cleanse(debuffs_to_remove: int = 1, source: String = "") -> B
 	buff.source_name = source
 	return buff
 
-static func create_smith(armor_per_turn: int = 2, duration: int = 3, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.SMITH, armor_per_turn, duration)
+static func create_smith(armor_per_cycle: int = 2, duration: int = 15, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.SMITH, armor_per_cycle, duration)
 	buff.source_name = source
 	return buff
 
@@ -226,8 +227,8 @@ static func create_brace(percent_reduction: int = 30, attacks: int = 1, source: 
 	buff.source_name = source
 	return buff
 
-static func create_resilient(percent_reduction: int = 15, turns: int = 3, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.RESILIENT, percent_reduction, turns)
+static func create_resilient(percent_reduction: int = 15, tempo: int = 15, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.RESILIENT, percent_reduction, tempo)
 	buff.source_name = source
 	return buff
 
@@ -236,12 +237,12 @@ static func create_life_steal(source: String = "") -> Buff:
 	buff.source_name = source
 	return buff
 
-static func create_morphine(armor_amount: int = 4, duration: int = 3, source: String = "") -> Buff:
+static func create_morphine(armor_amount: int = 4, duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.MORPHINE, armor_amount, duration)
 	buff.source_name = source
 	return buff
 
-static func create_wear_down(duration: int = 3, source: String = "") -> Buff:
+static func create_wear_down(duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.WEAR_DOWN, 0, duration)
 	buff.source_name = source
 	return buff

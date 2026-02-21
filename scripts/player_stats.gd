@@ -50,7 +50,7 @@ var mana_regen_tempo_interval: float = 5.0
 var _tempo_until_mana_regen: float = 0.0
 
 var current_armor: int = 0
-var armor_decay_per_turn: int = 2
+var armor_decay_per_cycle: int = 2
 
 # ============================================
 # BUFF TRACKING
@@ -60,7 +60,7 @@ var empower_damage_bonus: int = 3
 var empower_block_reduction: int = 3
 var chance_boost: float = 0.0
 var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
-var healing_boost_turns: int = 0
+var healing_boost_tempo: int = 0
 var inventory = null  # Inventory - untyped to avoid circular dependency
 
 # ============================================
@@ -153,8 +153,8 @@ func _print_stats() -> void:
 		get_carry_capacity(), get_strength_damage_bonus()
 	])
 	print("[STATS] Attack Speed Threshold: %d" % get_attack_speed_threshold())
-	print("[STATS] Movement/Turn: %d | Hand Size: %d | Draw Timer: %.2f" % [
-		get_movement_per_turn(), hand_size, get_effective_draw_timer()
+	print("[STATS] Movement/Cycle: %d | Hand Size: %d | Draw Timer: %.2f" % [
+		get_movement_per_cycle(), hand_size, get_effective_draw_timer()
 	])
 
 # ============================================
@@ -237,7 +237,7 @@ func is_overburdened() -> bool:
 # AGILITY CALCULATIONS
 # ============================================
 
-func get_movement_per_turn() -> int:
+func get_movement_per_cycle() -> int:
 	# Every 5 AGI grants 1 movement per tempo
 	# AGI 5 = 1 move, AGI 10 = 2 moves, etc.
 	return max(1, floori(agility / 5.0))
@@ -355,7 +355,7 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 			print("[STATS] Fortify prevents armor decay")
 
 		if should_decay:
-			var decay = armor_decay_per_turn
+			var decay = armor_decay_per_cycle
 			if inventory and inventory.has_passive_effect("stalwart"):
 				decay = max(0, decay - 1)
 				print("[STATS] Stalwart reduces armor decay by 1")
@@ -365,9 +365,9 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 			armor_changed.emit(current_armor)
 
 	# Tick healing boost
-	if healing_boost_turns > 0:
-		healing_boost_turns -= 1
-		if healing_boost_turns <= 0:
+	if healing_boost_tempo > 0:
+		healing_boost_tempo -= 5
+		if healing_boost_tempo <= 0:
 			healing_boost_percent = 0.0
 			print("[STATS] Healing boost expired")
 

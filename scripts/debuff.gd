@@ -35,13 +35,13 @@ var debuff_type: DebuffType
 var debuff_name: String
 var description: String
 var value: int = 0           # The 'x' value (damage, reduction, etc.)
-var duration: int = 0        # Turns remaining (-1 for until cleansed)
+var duration: int = 0        # Tempo remaining (-1 for until cleansed)
 var source_name: String = "" # What applied this debuff
 
 # For tracking
 var stacks: int = 1          # Some debuffs can stack
 
-func _init(type: DebuffType, val: int = 0, dur: int = 3) -> void:
+func _init(type: DebuffType, val: int = 0, dur: int = 15) -> void:
 	debuff_type = type
 	value = val
 	duration = dur
@@ -63,10 +63,10 @@ func _set_name_and_description() -> void:
 			description = "Cannot play spell cards"
 		DebuffType.BURN:
 			debuff_name = "Burn"
-			description = "Burn damage doubles each turn (1, 2, 4, 8...)"
+			description = "Burn damage doubles each cycle (1, 2, 4, 8...)"
 		DebuffType.POISON:
 			debuff_name = "Poison"
-			description = "Take %d damage per turn, lose 1 poison each turn" % value
+			description = "Take %d damage per cycle, lose 1 poison each cycle" % value
 		DebuffType.INEBRIATE:
 			debuff_name = "Inebriate"
 			description = "Movement direction is randomized"
@@ -81,16 +81,16 @@ func _set_name_and_description() -> void:
 			description = "Cannot draw cards"
 		DebuffType.SHOCKED:
 			debuff_name = "Shocked"
-			description = "Deal %d damage to nearby allies per turn, lose 1 per turn" % value
+			description = "Deal %d damage to nearby allies per cycle, lose 1 per cycle" % value
 		DebuffType.SLOWED:
 			debuff_name = "Slowed"
-			description = "Lose %d movement per turn" % value
+			description = "Lose %d movement per cycle" % value
 		DebuffType.STAGGERED:
 			debuff_name = "Staggered"
 			description = "Attack cards cost %d more mana" % value
 		DebuffType.DRAIN:
 			debuff_name = "Drain"
-			description = "Lose 1 mana per turn, lose 1 drain per turn"
+			description = "Lose 1 mana per cycle, lose 1 drain per cycle"
 		DebuffType.WEIGHTED:
 			debuff_name = "Weighted"
 			description = "Cards cost %d more tempo" % value
@@ -108,7 +108,7 @@ func _set_name_and_description() -> void:
 			description = "Cannot move more than %d tiles from start" % value
 		DebuffType.MAGNETIZED:
 			debuff_name = "Magnetized"
-			description = "Pulled %d tiles toward nearest enemy each turn" % value
+			description = "Pulled %d tiles toward nearest enemy each cycle" % value
 		DebuffType.LINKED:
 			debuff_name = "Linked"
 			description = "Share %d%% damage taken with nearest ally" % value
@@ -123,13 +123,13 @@ func _set_name_and_description() -> void:
 			description = "Remove 30%% more armor when hit, %d stack(s)" % value
 		DebuffType.BRITTLE:
 			debuff_name = "Brittle"
-			description = "Armor decays extra 2 per turn, %d stack(s)" % value
+			description = "Armor decays extra 2 per cycle, %d stack(s)" % value
 
 func tick() -> bool:
-	# Called each turn. Returns true if debuff expired.
+	# Called each cycle (5 tempo). Returns true if debuff expired.
 	if duration > 0:
-		duration -= 1
-	return duration == 0
+		duration -= 5
+	return duration <= 0
 
 func get_icon_color() -> Color:
 	match debuff_type:
@@ -166,10 +166,10 @@ func get_short_display() -> String:
 		return "%s(%d)" % [debuff_name, value]
 	return debuff_name
 
-static func create(type: DebuffType, val: int = 0, dur: int = 3) -> Debuff:
+static func create(type: DebuffType, val: int = 0, dur: int = 15) -> Debuff:
 	return Debuff.new(type, val, dur)
 
-static func create_slowed(movement_loss: int = 2, duration: int = 2, source: String = "") -> Debuff:
+static func create_slowed(movement_loss: int = 2, duration: int = 10, source: String = "") -> Debuff:
 	var debuff = Debuff.new(DebuffType.SLOWED, movement_loss, duration)
 	debuff.source_name = source
 	return debuff

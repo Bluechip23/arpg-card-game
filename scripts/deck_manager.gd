@@ -431,7 +431,7 @@ func process_turn() -> void:
 	discards_this_cycle = 0
 	for i in range(jail_pile.size() - 1, -1, -1):
 		var card = jail_pile[i]
-		card.jail_time_remaining -= 1
+		card.jail_time_remaining -= 5
 		if card.jail_time_remaining <= 0:
 			jail_pile.remove_at(i)
 			discard_pile.append(card)

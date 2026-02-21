@@ -172,12 +172,12 @@ func _process_secondary_effects(card: Card) -> void:
 		_process_overcharge(effect)
 
 func _process_jailed(card: Card, effect: OverflowEffect) -> void:
-	card.jail_time_remaining = 3
+	card.jail_time_remaining = 15
 	if deck_manager:
 		deck_manager.jail_pile.append(card)
 		deck_manager.card_jailed.emit(card)
-	
-	print("[OVERFLOW] Jailed: %s for 3 turns" % card.card_name)
+
+	print("[OVERFLOW] Jailed: %s for 15 tempo" % card.card_name)
 	
 	if effect.use_charge():
 		remove_overflow_effect(effect)
