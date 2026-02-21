@@ -215,16 +215,25 @@ func draw_card() -> Card:
 		if draw_pile.size() == 0:
 			print("[DECK] No cards to draw!")
 			return null
-	
+
 	var card = draw_pile.pop_back()
+
+	# Reset sticky card state when drawn into hand
+	if card.sticky > 0:
+		card.consecutive_uses = 0
+		# Restore original mana/tempo costs for cards that modify them during use
+		if card.card_id == "consecutive_snap":
+			card.mana_cost = 3
+			card.tempo_cost = 3
+
 	hand.append(card)
 	peaked_card = null
 	card_drawn.emit(card)
 	hand_updated.emit()
-	
+
 	if inventory:
 		inventory.on_card_drawn()
-	
+
 	print("[DECK] Drew: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
 	return card
 

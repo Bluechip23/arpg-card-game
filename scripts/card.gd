@@ -1191,7 +1191,7 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("slow", 1)  # -4 movement
+		target.apply_debuff("slow", 4)  # -4 movement (4 grid spaces)
 	print("[CARD] Trip! %d damage, enemy movement -4" % total_damage)
 
 func _execute_choke(target, _player_stats: PlayerStats) -> void:
@@ -1204,23 +1204,25 @@ func _execute_push(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Push! Unit pushed away from you")
 
 func _execute_defensive_awareness(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Gain 3 armor per enemy within 2 spaces
-	var armor_gain = 3  # Base (would multiply by nearby enemy count)
-	if player_stats:
-		player_stats.add_armor(armor_gain)
-	print("[CARD] Defensive Awareness! Gained %d armor (3 per nearby enemy)" % armor_gain)
+	# Armor is applied by main.gd _apply_card_world_effects which has access to enemy positions
+	print("[CARD] Defensive Awareness! (armor applied via world effects)")
 
 func _execute_sweeping_disarm(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = 3
+	# Store effective damage for main.gd world effects to apply to all nearby enemies
+	var total_damage = base_damage
 	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(3)
-	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
-	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("disarmed", 1)
+		total_damage = player_stats.get_effective_physical_damage(base_damage)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			buff_mgr.consume_enlightened()
+	last_damage_dealt = total_damage
+	# Actual damage and disarm applied by main.gd _apply_card_world_effects to all nearby enemies
 	print("[CARD] Sweeping Disarm! %d damage, surrounding enemies disarmed" % total_damage)
 
 func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# consecutive_uses tracks how many times played so far (incremented by play_card after execute)
 	var snap_damage = base_damage + (consecutive_uses * 9)
 	if player_stats:
 		snap_damage = player_stats.get_effective_physical_damage(snap_damage)
@@ -1231,14 +1233,14 @@ func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: Buff
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(snap_damage)
-	consecutive_uses += 1
-	# Cost decreases by 1m/1t each use (max 3 uses via sticky)
-	mana_cost = max(0, 3 - consecutive_uses)
-	tempo_cost = max(0, 3 - consecutive_uses)
-	if consecutive_uses >= sticky:
-		print("[CARD] Consecutive Snap! %d damage (final use #%d)" % [snap_damage, consecutive_uses])
+	# Cost decreases by 1m/1t each use (use consecutive_uses+1 since play_card increments after)
+	var next_uses = consecutive_uses + 1
+	mana_cost = max(0, 3 - next_uses)
+	tempo_cost = max(0, 3 - next_uses)
+	if next_uses >= sticky:
+		print("[CARD] Consecutive Snap! %d damage (final use #%d)" % [snap_damage, next_uses])
 	else:
-		print("[CARD] Consecutive Snap! %d damage (use #%d). Next costs %dm/%dt" % [snap_damage, consecutive_uses, mana_cost, tempo_cost])
+		print("[CARD] Consecutive Snap! %d damage (use #%d). Next costs %dm/%dt" % [snap_damage, next_uses, mana_cost, tempo_cost])
 
 func _execute_swap(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Swap! Switched positions with target")
