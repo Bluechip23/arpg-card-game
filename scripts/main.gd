@@ -1577,8 +1577,24 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	if not stats:
 		return
 
-	# Check and deduct mana
+	var buff_mgr = player.get_buff_manager()
+	var debuff_mgr = player.get_debuff_manager()
+
+	# Debuff checks - quiver cards are always attacks
+	if debuff_mgr:
+		if not debuff_mgr.can_play_cards():
+			print("[MAIN] Quiver: cannot play cards - Stunned or Frozen!")
+			return
+		if not debuff_mgr.can_play_attack_cards():
+			print("[MAIN] Quiver: cannot play attack cards - Disarmed!")
+			return
+
+	# Check and deduct mana (with Staggered debuff modifier)
 	var mana_cost = card.mana_cost
+	if debuff_mgr:
+		mana_cost += debuff_mgr.get_attack_mana_increase()
+	mana_cost = max(0, mana_cost)
+
 	if not stats.has_mana(mana_cost):
 		print("[MAIN] Quiver: not enough mana to play %s (need %d)" % [card.card_name, mana_cost])
 		return
@@ -1586,11 +1602,17 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 		stats.spend_mana(mana_cost)
 
 	# Execute the card
-	var buff_mgr = player.get_buff_manager()
-	var debuff_mgr = player.get_debuff_manager()
 	var damage_reduction = debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
 	var self_damage = debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
 	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
+
+	# Register attack for attack speed counter (DEX proc)
+	if card.card_type == Card.CardType.ATTACK:
+		stats.register_attack()
+
+	# Notify debuffs of attack
+	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
+		debuff_mgr.on_attack()
 
 	# Apply tempo
 	var tempo_cost = card.tempo_cost
@@ -1600,6 +1622,10 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	# Apply card world effects
 	_apply_card_world_effects(card, target)
+
+	# Notify inventory
+	if deck_manager.inventory:
+		deck_manager.inventory.on_card_played(card)
 
 	# Remove the card from the quiver and discard it
 	overflow_manager.remove_quiver_card(index)
@@ -1611,7 +1637,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	quiver_ui.refresh()
 	update_deck_info()
-	print("[MAIN] Quiver: played %s from quiver" % card.card_name)
+	print("[MAIN] Quiver: played %s from quiver (cost %d mana, %d tempo)" % [card.card_name, mana_cost, tempo_cost])
 
 func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 	match effect_id:

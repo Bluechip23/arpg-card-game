@@ -345,7 +345,6 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
-		player_stats.register_attack()
 
 	if is_empowered and player_stats:
 		total_damage += player_stats.empower_damage_bonus
@@ -1028,8 +1027,6 @@ func _execute_shuriken_pouch(player_stats: PlayerStats) -> void:
 func _execute_shuriken(target, player_stats: PlayerStats) -> void:
 	# Deals 3 damage to target enemy (ranged, counts as attack)
 	var total_damage = 3
-	if player_stats:
-		player_stats.register_attack()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
 	last_damage_dealt = total_damage
@@ -1153,7 +1150,6 @@ func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	var total_damage = base_damage + bonus_damage
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
-		player_stats.register_attack()
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():

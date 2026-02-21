@@ -347,6 +347,10 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 
 	card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 
+	# Register attack for attack speed counter (DEX proc) - all attack cards count
+	if card.card_type == Card.CardType.ATTACK and player_stats:
+		player_stats.register_attack()
+
 	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
 		debuff_mgr.on_attack()
 
