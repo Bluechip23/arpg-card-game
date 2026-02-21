@@ -25,7 +25,7 @@ var aoe_shape: String = ""  # "cone", "circle", "line"
 var aoe_range: float = 100.0
 var chance_effect_percent: float = 0.0  # For AOE per-enemy rolls
 var rng_outcomes: Dictionary = {}  # enemy_id -> bool (for AOE per-enemy indicators)
-var rng_roll_turn: int = 0  # Turn when RNG was last rolled
+var rng_roll_tempo: int = 0  # Global tempo when RNG was last rolled
 var turns_in_hand: int = 0  # How long card has been in hand
 
 # RNG outcome system - percentages that appear in the card description
@@ -86,8 +86,8 @@ func has_chance_effect() -> bool:
 func has_been_rolled() -> bool:
 	return rng_selected_index != -1
 
-func should_reroll_rng(current_turn: int) -> bool:
-	return current_turn - rng_roll_turn >= 3
+func should_reroll_rng(current_tempo: int) -> bool:
+	return current_tempo - rng_roll_tempo >= 15
 
 func get_colored_description() -> String:
 	# No outcomes or not rolled yet - return plain description
@@ -345,7 +345,6 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
-		player_stats.register_attack()
 
 	if is_empowered and player_stats:
 		total_damage += player_stats.empower_damage_bonus
@@ -985,7 +984,7 @@ func _execute_preparation(player_stats: PlayerStats, deck_manager = null) -> voi
 func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
 	var discard_count = 0
 	if deck_manager:
-		discard_count = deck_manager.discard_pile.size()
+		discard_count = deck_manager.discards_this_cycle
 	var total_damage = discard_count * 2
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
@@ -996,7 +995,7 @@ func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager 
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
-	print("[CARD] Exacerbate Wounds! %d cards discarded this turn = %d damage" % [discard_count, total_damage])
+	print("[CARD] Exacerbate Wounds! %d cards discarded this cycle = %d damage" % [discard_count, total_damage])
 
 func _execute_reposition(deck_manager) -> void:
 	# Discard a selected card and draw
@@ -1006,6 +1005,7 @@ func _execute_reposition(deck_manager) -> void:
 			var discarded = deck_manager.hand[random_index]
 			deck_manager.hand.remove_at(random_index)
 			deck_manager.discard_pile.append(discarded)
+			deck_manager.discards_this_cycle += 1
 			deck_manager.draw_card()
 			deck_manager.hand_updated.emit()
 			print("[CARD] Reposition! Discarded %s, drew a new card" % discarded.card_name)
@@ -1028,8 +1028,6 @@ func _execute_shuriken_pouch(player_stats: PlayerStats) -> void:
 func _execute_shuriken(target, player_stats: PlayerStats) -> void:
 	# Deals 3 damage to target enemy (ranged, counts as attack)
 	var total_damage = 3
-	if player_stats:
-		player_stats.register_attack()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage)
 	last_damage_dealt = total_damage
@@ -1153,7 +1151,6 @@ func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	var total_damage = base_damage + bonus_damage
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
-		player_stats.register_attack()
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
@@ -1252,6 +1249,7 @@ func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
 		while deck_manager.hand.size() > 0:
 			var card = deck_manager.hand.pop_back()
 			deck_manager.discard_pile.append(card)
+			deck_manager.discards_this_cycle += 1
 		var draw_count = max(0, deck_manager.get_hand_cap() - 2)
 		for i in range(draw_count):
 			deck_manager.draw_card()
