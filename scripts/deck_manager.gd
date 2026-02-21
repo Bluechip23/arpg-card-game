@@ -27,6 +27,7 @@ var peaked_card: Card = null
 var next_attack_free: bool = false
 var next_attack_mana_discount: int = 0
 var prep_utility_discount: int = 0  # Preparation: reduces next utility card cost
+var discards_this_cycle: int = 0  # Cards discarded since last tempo cycle
 
 func connect_player_stats(stats) -> void:
 	player_stats = stats
@@ -366,6 +367,7 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 		if card.consecutive_uses >= card.sticky:
 			# Fully used up - discard
 			discard_pile.append(card)
+			discards_this_cycle += 1
 			card_discarded.emit(card)
 			print("[DECK] %s sticky exhausted (%d/%d uses) - discarded" % [card.card_name, card.consecutive_uses, card.sticky])
 		else:
@@ -374,13 +376,15 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 			print("[DECK] %s sticky (%d/%d uses) - stays in hand" % [card.card_name, card.consecutive_uses, card.sticky])
 	else:
 		discard_pile.append(card)
+		discards_this_cycle += 1
 		card_discarded.emit(card)
-	
+
 	if clumsy_triggered and hand.size() > 0:
 		var random_index = randi() % hand.size()
 		var discarded_card = hand[random_index]
 		hand.remove_at(random_index)
 		discard_pile.append(discarded_card)
+		discards_this_cycle += 1
 		print("[DECK] Clumsy discarded: %s" % discarded_card.card_name)
 		
 		if debuff_mgr:
@@ -424,6 +428,7 @@ func apply_dex_proc_bonus() -> void:
 	print("[DECK] Next attack: FREE TURN + 2 mana discount!")
 
 func process_turn() -> void:
+	discards_this_cycle = 0
 	for i in range(jail_pile.size() - 1, -1, -1):
 		var card = jail_pile[i]
 		card.jail_time_remaining -= 1

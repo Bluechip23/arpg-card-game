@@ -803,7 +803,7 @@ func _on_hand_updated() -> void:
 	for card in deck_manager.hand:
 		if card.has_chance_effect() and not card.has_been_rolled():
 			card.roll_rng(enemies, chance_boost)
-			card.rng_roll_turn = turn_manager.current_turn
+			card.rng_roll_tempo = tempo_manager.global_tempo
 
 	var hand_size = deck_manager.hand.size()
 	if hand_size == 0:
@@ -1073,9 +1073,9 @@ func _reroll_card_rng() -> void:
 
 	for card in deck_manager.hand:
 		if card.has_chance_effect():
-			if card.should_reroll_rng(turn_manager.current_turn):
+			if card.should_reroll_rng(tempo_manager.global_tempo):
 				card.roll_rng(enemies, chance_boost)
-				card.rng_roll_turn = turn_manager.current_turn
+				card.rng_roll_tempo = tempo_manager.global_tempo
 
 	# Update chance displays on existing card UIs
 	for child in hand_container.get_children():
