@@ -1362,6 +1362,27 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				target.target_position = player_pos
 				print("[MAIN] Swap: swapped positions with %s" % target.name)
 
+		"defensive_awareness":
+			# Gain 3 armor per enemy within 2 spaces of the player
+			var da_radius = 2.0 * grid_manager.grid_size
+			var da_nearby = enemy_spawner.get_enemies_in_radius(player.position, da_radius)
+			var enemy_count = da_nearby.size()
+			var armor_gain = 3 * enemy_count
+			if armor_gain > 0:
+				var stats = player.get_stats()
+				if stats:
+					stats.add_armor(armor_gain)
+			print("[MAIN] Defensive Awareness: %d enemies within 2 spaces, gained %d armor" % [enemy_count, armor_gain])
+
+		"sweeping_disarm":
+			# Deal damage and disarm all enemies within melee range (1 space)
+			var sd_radius = 1.5 * grid_manager.grid_size
+			var sd_nearby = enemy_spawner.get_enemies_in_radius(player.position, sd_radius)
+			for enemy in sd_nearby:
+				enemy.take_damage(card.last_damage_dealt)
+				enemy.apply_debuff("disarmed", 1)
+			print("[MAIN] Sweeping Disarm: hit %d nearby enemies for %d damage, disarmed" % [sd_nearby.size(), card.last_damage_dealt])
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Character panel toggle

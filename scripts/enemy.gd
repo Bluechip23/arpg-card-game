@@ -35,6 +35,10 @@ var taunt_target: Node2D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
 var attack_reduction: int = 0
 var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
+var slow_amount: int = 0       # Movement reduction from slow debuff
+var slow_tempo: int = 0        # Remaining tempo cycles for slow
+var is_disarmed: bool = false   # Cannot attack when disarmed
+var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 
 # ============================================
 # TEMPO ACTION SYSTEM
@@ -158,6 +162,18 @@ func _tick_status_durations() -> void:
 			attack_reduction = 0
 			print("[%s] Wear Down expired, attack restored" % enemy_name)
 
+	if slow_tempo > 0:
+		slow_tempo -= 1
+		if slow_tempo <= 0:
+			slow_amount = 0
+			print("[%s] Slow expired, movement restored" % enemy_name)
+
+	if disarmed_tempo > 0:
+		disarmed_tempo -= 1
+		if disarmed_tempo <= 0:
+			is_disarmed = false
+			print("[%s] Disarm expired, can attack again" % enemy_name)
+
 func _check_and_fire_actions(player_node: Node2D) -> void:
 	if not player_node:
 		return
@@ -188,6 +204,9 @@ func _execute_action(action_name: String, move_target: Node2D) -> bool:
 			return false
 
 func _try_attack(target_node: Node2D) -> bool:
+	if is_disarmed:
+		print("[%s] Disarmed - cannot attack!" % enemy_name)
+		return false
 	var distance = position.distance_to(target_node.position)
 	if distance <= attack_range:
 		attack_player(target_node)
@@ -235,7 +254,15 @@ func set_target(new_target: Node2D) -> void:
 
 func move_towards_target(pos: Vector2) -> void:
 	var direction = (pos - position).normalized()
-	var new_target = position + direction * move_distance
+	var effective_move = move_distance
+	if slow_amount > 0 and grid_manager:
+		effective_move = max(0, move_distance - slow_amount * grid_manager.grid_size)
+	elif slow_amount > 0:
+		effective_move = max(0, move_distance - slow_amount * 64)
+	if effective_move <= 0:
+		print("[%s] Too slowed to move!" % enemy_name)
+		return
+	var new_target = position + direction * effective_move
 
 	if grid_manager:
 		new_target = grid_manager.snap_to_grid(new_target)
@@ -307,6 +334,23 @@ func apply_taunt(taunter: Node2D, cycles: int) -> void:
 func apply_wear_down(cycles: int) -> void:
 	wear_down_tempo = max(wear_down_tempo, cycles)
 	print("[%s] Wear Down applied for %d tempo cycles" % [enemy_name, wear_down_tempo])
+
+func apply_debuff(debuff_name: String, value: int) -> void:
+	match debuff_name:
+		"slow":
+			slow_amount = value
+			slow_tempo = 2  # Lasts 2 tempo cycles
+			print("[%s] Slowed by %d movement for 2 tempo cycles" % [enemy_name, value])
+		"disarmed":
+			is_disarmed = true
+			disarmed_tempo = value
+			print("[%s] Disarmed for %d tempo cycles" % [enemy_name, value])
+		"silenced":
+			print("[%s] Silenced for %d tempo cycles" % [enemy_name, value])
+		"choke_dot":
+			print("[%s] Choke DoT for %d tempo cycles" % [enemy_name, value])
+		_:
+			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 
 func knockback(away_from: Vector2, spaces: int = 1) -> void:
 	if is_dead:
