@@ -58,6 +58,7 @@ var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_rem
 var _card_ui_instances: Array = []
 var _current_hand_hover_index: int = -1
 # Pending quiver card play state
+var _block_button: Button = null
 var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
@@ -100,7 +101,7 @@ func _ready() -> void:
 	help_panel.closed.connect(_on_help_closed)
 	
 	_setup_overflow_buttons()
-	_setup_wait_button()
+	_setup_action_buttons()
 
 	if starting_character:
 		select_character(starting_character)
@@ -233,29 +234,167 @@ func _setup_hand_area_background() -> void:
 	# Do NOT clip - cards need to pop up above the hand area on hover
 	hand_area.clip_contents = false
 
-func _setup_wait_button() -> void:
+func _setup_action_buttons() -> void:
 	var ui = $UI as CanvasLayer
+
+	var btn_container = Control.new()
+	btn_container.name = "ActionButtonContainer"
+	ui.add_child(btn_container)
+	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	btn_container.offset_left = 8.0
+	btn_container.offset_top = -124.0
+	btn_container.offset_right = 140.0
+	btn_container.offset_bottom = -8.0
+
+	var vbox = VBoxContainer.new()
+	vbox.name = "ActionButtons"
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.alignment = BoxContainer.ALIGNMENT_END
+	vbox.add_theme_constant_override("separation", 4)
+	btn_container.add_child(vbox)
+
+	# Attack button (top)
+	var attack_btn = Button.new()
+	attack_btn.name = "AttackButton"
+	attack_btn.text = "Attack (5T)"
+	attack_btn.custom_minimum_size = Vector2(130, 36)
+	attack_btn.tooltip_text = "Basic melee attack: STR modifier damage. Costs 5 tempo."
+	attack_btn.pressed.connect(_on_attack_pressed)
+	vbox.add_child(attack_btn)
+
+	# Block button (middle, only visible if shield equipped)
+	_block_button = Button.new()
+	_block_button.name = "BlockButton"
+	_block_button.text = "Block (5T)"
+	_block_button.custom_minimum_size = Vector2(130, 36)
+	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
+	_block_button.pressed.connect(_on_block_pressed)
+	_block_button.visible = false
+	vbox.add_child(_block_button)
+
+	# Wait button (bottom)
 	var wait_btn = Button.new()
 	wait_btn.name = "WaitButton"
 	wait_btn.text = "Wait (+1 Tempo)"
 	wait_btn.custom_minimum_size = Vector2(130, 36)
 	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
+	vbox.add_child(wait_btn)
 
-	var btn_container = Control.new()
-	btn_container.name = "WaitButtonContainer"
-	ui.add_child(btn_container)
-	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	btn_container.offset_left = 8.0
-	btn_container.offset_top = -44.0
-	btn_container.offset_right = 140.0
-	btn_container.offset_bottom = -8.0
-	btn_container.add_child(wait_btn)
-	wait_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+func _on_attack_pressed() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	var debuff_mgr = player.get_debuff_manager()
+	if debuff_mgr:
+		if not debuff_mgr.can_play_cards():
+			print("[MAIN] Basic Attack - Cannot attack while Stunned or Frozen!")
+			return
+		if not debuff_mgr.can_play_attack_cards():
+			print("[MAIN] Basic Attack - Cannot attack while Disarmed!")
+			return
+
+	# Find closest enemy in melee range (~1.5 tiles)
+	var nearby = enemy_spawner.get_enemies_in_radius(player.position, 1.5)
+	if nearby.is_empty():
+		print("[MAIN] Basic Attack - No enemy in melee range!")
+		return
+
+	var target = nearby[0]
+	var closest_dist = INF
+	for enemy in nearby:
+		var diff = player.position - enemy.position
+		var dist = Vector3(diff.x, 0, diff.z).length()
+		if dist < closest_dist:
+			closest_dist = dist
+			target = enemy
+
+	# Damage: 0 base + strength modifier
+	var damage = stats.get_effective_physical_damage(0)
+
+	var buff_mgr = player.get_buff_manager()
+	if buff_mgr:
+		damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			damage = floori(damage * 2.0)
+			buff_mgr.consume_enlightened()
+
+	# Debuff damage reduction
+	if debuff_mgr:
+		var reduction = debuff_mgr.get_damage_reduction_percent()
+		if reduction > 0.0:
+			damage = max(1, floori(damage * (1.0 - reduction)))
+
+	target.take_damage(damage)
+
+	# Register attack for DEX proc counter
+	stats.register_attack()
+
+	if debuff_mgr:
+		debuff_mgr.on_attack()
+
+	# Tempo cost
+	var tempo_cost = 5
+	if debuff_mgr:
+		tempo_cost += debuff_mgr.get_tempo_increase()
+
+	if buff_mgr and buff_mgr.consume_steady():
+		print("[MAIN] Steady! No tempo added for basic attack.")
+	else:
+		tempo_manager.add_tempo(tempo_cost)
+
+	print("[MAIN] Basic Attack: dealt %d damage to %s (%d tempo)" % [damage, target.enemy_name, tempo_cost])
+
+func _on_block_pressed() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	var debuff_mgr = player.get_debuff_manager()
+	if debuff_mgr and not debuff_mgr.can_play_cards():
+		print("[MAIN] Basic Block - Cannot block while Stunned or Frozen!")
+		return
+
+	var inventory = player.get_inventory()
+	if not inventory:
+		return
+
+	var shield = inventory.get_equipped_shield()
+	if not shield:
+		print("[MAIN] Basic Block - No shield equipped!")
+		return
+
+	var block_amount = shield.armor_bonus
+	if block_amount <= 0:
+		block_amount = 3  # Fallback for shields without armor_bonus
+
+	stats.add_armor(block_amount)
+
+	var tempo_cost = 5
+	if debuff_mgr:
+		tempo_cost += debuff_mgr.get_tempo_increase()
+
+	tempo_manager.add_tempo(tempo_cost)
+
+	print("[MAIN] Basic Block: gained %d armor from %s (%d tempo)" % [block_amount, shield.item_name, tempo_cost])
 
 func _on_wait_pressed() -> void:
 	print("[MAIN] Wait - advancing tempo by 1")
 	tempo_manager.add_tempo(1)
+
+func _update_block_button_visibility() -> void:
+	if not _block_button:
+		return
+	var inventory = player.get_inventory()
+	if inventory and inventory.has_shield_equipped():
+		var shield = inventory.get_equipped_shield()
+		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
+		_block_button.text = "Block (5T)"
+		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs 5 tempo." % [shield.item_name, block_val]
+		_block_button.visible = true
+	else:
+		_block_button.visible = false
 
 func _setup_deck_list_button() -> void:
 	var hand_area = $UI/HandArea as PanelContainer
@@ -668,6 +807,7 @@ func _on_gauntlet_skill_ready(_gauntlet: ItemData) -> void:
 
 func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
+	_update_block_button_visibility()
 
 func select_character(character: CharacterData) -> void:
 	current_character = character
@@ -712,7 +852,8 @@ func select_character(character: CharacterData) -> void:
 	_on_player_health_changed(player.get_stats().current_health, player.get_stats().max_health)
 	_on_player_mana_changed(player.get_stats().current_mana, player.get_stats().max_mana)
 	_on_player_armor_changed(player.get_stats().current_armor)
-	
+	_update_block_button_visibility()
+
 	print("[MAIN] Selected character: %s" % character.character_name)
 
 func trigger_turn() -> void:
