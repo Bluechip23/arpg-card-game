@@ -1,113 +1,132 @@
 class_name AOEIndicator
-extends Node2D
+extends Node3D
 
-## Visual indicator for AOE effects
+## Visual indicator for AOE effects rendered on the ground plane (Y=0)
 
 var shape: String = "cone"  # "cone", "circle", "line"
-var aoe_range: float = 100.0
+var aoe_range: float = 2.0  # In world units (grid cells)
 var cone_angle: float = 60.0  # degrees for cone
 var color: Color = Color(1, 0.4, 0.8, 0.3)  # Pink with transparency
 
-var enemy_indicators: Dictionary = {}  # enemy_id -> ColorRect
+var _mesh_instance: MeshInstance3D
+var _material: StandardMaterial3D
 
-func _draw() -> void:
+## Stores the mouse world position (XZ plane), updated from main.gd
+var mouse_world_pos: Vector3 = Vector3.ZERO
+
+func _ready() -> void:
+	_mesh_instance = MeshInstance3D.new()
+	add_child(_mesh_instance)
+	_material = StandardMaterial3D.new()
+	_material.albedo_color = color
+	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_material.no_depth_test = true
+	_mesh_instance.material_override = _material
+
+func _rebuild_mesh() -> void:
 	match shape:
 		"cone":
-			_draw_cone()
+			_build_cone_mesh()
 		"circle":
-			_draw_circle()
+			_build_circle_mesh()
 		"line":
-			_draw_line_shape()
+			_build_line_mesh()
 
-func _draw_cone() -> void:
-	var mouse_pos = get_local_mouse_position()
-	var direction = mouse_pos.normalized()
-	var angle = direction.angle()
-	
+func _build_cone_mesh() -> void:
+	var mesh = ImmediateMesh.new()
+	_mesh_instance.mesh = mesh
+
+	var local_mouse = mouse_world_pos - global_position
+	var dir = Vector3(local_mouse.x, 0, local_mouse.z).normalized()
+	if dir.length() < 0.01:
+		dir = Vector3(0, 0, -1)
+	var angle = atan2(dir.x, -dir.z)  # angle on XZ plane
+
 	var half_angle = deg_to_rad(cone_angle / 2.0)
-	var points = PackedVector2Array()
-	points.append(Vector2.ZERO)
-	
 	var segments = 16
+
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_FAN)
+	mesh.surface_add_vertex(Vector3(0, 0.02, 0))
 	for i in range(segments + 1):
 		var segment_angle = angle - half_angle + (half_angle * 2.0 * i / segments)
-		points.append(Vector2.from_angle(segment_angle) * aoe_range)
-	
-	draw_colored_polygon(points, color)
+		var x = sin(segment_angle) * aoe_range
+		var z = -cos(segment_angle) * aoe_range
+		mesh.surface_add_vertex(Vector3(x, 0.02, z))
+	mesh.surface_end()
 
-func _draw_circle() -> void:
-	draw_circle(Vector2.ZERO, aoe_range, color)
+func _build_circle_mesh() -> void:
+	var mesh = ImmediateMesh.new()
+	_mesh_instance.mesh = mesh
 
-func _draw_line_shape() -> void:
-	var mouse_pos = get_local_mouse_position()
-	var direction = mouse_pos.normalized()
-	var end_pos = direction * aoe_range
-	var perpendicular = direction.rotated(PI / 2) * 20  # Width of line
-	
-	var points = PackedVector2Array([
-		-perpendicular,
-		perpendicular,
-		end_pos + perpendicular,
-		end_pos - perpendicular
-	])
-	draw_colored_polygon(points, color)
+	var segments = 32
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_FAN)
+	mesh.surface_add_vertex(Vector3(0, 0.02, 0))
+	for i in range(segments + 1):
+		var a = TAU * i / segments
+		mesh.surface_add_vertex(Vector3(cos(a) * aoe_range, 0.02, sin(a) * aoe_range))
+	mesh.surface_end()
+
+func _build_line_mesh() -> void:
+	var mesh = ImmediateMesh.new()
+	_mesh_instance.mesh = mesh
+
+	var local_mouse = mouse_world_pos - global_position
+	var dir = Vector3(local_mouse.x, 0, local_mouse.z).normalized()
+	if dir.length() < 0.01:
+		dir = Vector3(0, 0, -1)
+	var end_pos = dir * aoe_range
+	var perp = Vector3(-dir.z, 0, dir.x) * 0.3  # Line width
+
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+	mesh.surface_add_vertex(Vector3(-perp.x, 0.02, -perp.z))
+	mesh.surface_add_vertex(Vector3(perp.x, 0.02, perp.z))
+	mesh.surface_add_vertex(Vector3(end_pos.x - perp.x, 0.02, end_pos.z - perp.z))
+	mesh.surface_add_vertex(Vector3(end_pos.x + perp.x, 0.02, end_pos.z + perp.z))
+	mesh.surface_end()
 
 func update_indicator(new_shape: String, new_range: float) -> void:
 	shape = new_shape
 	aoe_range = new_range
-	queue_redraw()
+	_rebuild_mesh()
 
 func show_indicator() -> void:
 	visible = true
-	queue_redraw()
+	_rebuild_mesh()
 
 func hide_indicator() -> void:
 	visible = false
-	clear_enemy_indicators()
 
 func _process(delta: float) -> void:
 	if visible:
-		queue_redraw()
+		_rebuild_mesh()
+
+func set_mouse_world_position(pos: Vector3) -> void:
+	mouse_world_pos = pos
 
 func update_enemy_rng_indicators(enemies: Array, card: Card) -> void:
-	clear_enemy_indicators()
-	
+	# RNG indicators are handled in the UI layer now - no 3D indicators needed
 	if not card.has_chance_effect():
 		return
-	
-	for enemy in enemies:
-		if is_instance_valid(enemy) and _is_enemy_in_aoe(enemy):
-			var success = card.get_rng_outcome(enemy)
-			_create_enemy_indicator(enemy, success)
+	# The RNG visual feedback is shown through the card UI system
 
 func _is_enemy_in_aoe(enemy) -> bool:
-	var enemy_local = to_local(enemy.global_position)
-	var distance = enemy_local.length()
-	
+	var diff = enemy.global_position - global_position
+	var flat_diff = Vector3(diff.x, 0, diff.z)
+	var distance = flat_diff.length()
+
 	if distance > aoe_range:
 		return false
-	
+
 	if shape == "cone":
-		var mouse_pos = get_local_mouse_position()
-		var direction = mouse_pos.normalized()
-		var enemy_direction = enemy_local.normalized()
-		var angle_diff = abs(direction.angle_to(enemy_direction))
-		return angle_diff <= deg_to_rad(cone_angle / 2.0)
-	
+		var local_mouse = mouse_world_pos - global_position
+		var direction = Vector3(local_mouse.x, 0, local_mouse.z).normalized()
+		var enemy_direction = flat_diff.normalized()
+		if direction.length() < 0.01 or enemy_direction.length() < 0.01:
+			return false
+		var dot = direction.dot(enemy_direction)
+		var angle_threshold = cos(deg_to_rad(cone_angle / 2.0))
+		return dot >= angle_threshold
+
 	return true  # Circle and line - just check range
-
-func _create_enemy_indicator(enemy, success: bool) -> void:
-	var indicator = ColorRect.new()
-	indicator.size = Vector2(60, 10)
-	indicator.position = enemy.global_position + Vector2(-30, 40)
-	# AOE uses shaded/muted versions of the colors
-	indicator.color = Color(0.3, 0.8, 0.4, 0.55) if success else Color(0.8, 0.3, 0.3, 0.55)
-	get_tree().root.add_child(indicator)
-	enemy_indicators[enemy.get_instance_id()] = indicator
-
-func clear_enemy_indicators() -> void:
-	for id in enemy_indicators:
-		var indicator = enemy_indicators[id]
-		if is_instance_valid(indicator):
-			indicator.queue_free()
-	enemy_indicators.clear()

@@ -7,22 +7,22 @@ signal debuff_applied(debuff: Debuff)
 signal debuff_removed(debuff: Debuff)
 signal debuff_ticked(debuff: Debuff)
 signal debuffs_changed
-signal magnetize_pull(tiles: int, direction: Vector2)
+signal magnetize_pull(tiles: int, direction: Vector3)
 
 var debuffs: Array[Debuff] = []
 var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
-var owner_node: Node2D
+var owner_node: Node3D
 
 # For Tethered - tracks starting position
-var tether_origin: Vector2 = Vector2.ZERO
+var tether_origin: Vector3 = Vector3.ZERO
 
 # For tracking linked ally damage sharing
-var linked_ally: Node2D = null
+var linked_ally: Node3D = null
 
 # For Burn - damage doubles each cycle
 var burn_damage_next: int = 1
 
-func initialize(stats = null, owner: Node2D = null) -> void:
+func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
 	debuffs.clear()
@@ -91,7 +91,7 @@ func process_turn_start() -> Dictionary:
 		"damage_taken": 0,
 		"mana_lost": 0,
 		"ally_damage": 0,
-		"pull_direction": Vector2.ZERO,
+		"pull_direction": Vector3.ZERO,
 		"pull_tiles": 0
 	}
 
@@ -148,11 +148,11 @@ func process_turn_start() -> Dictionary:
 
 func _calculate_magnetize_pull(tiles: int) -> Dictionary:
 	if not owner_node:
-		return {"direction": Vector2.ZERO, "tiles": 0}
-	
+		return {"direction": Vector3.ZERO, "tiles": 0}
+
 	# Find nearest enemy - this requires access to enemy list
 	# We'll emit a signal and let main.gd handle the actual movement
-	return {"direction": Vector2.ZERO, "tiles": tiles}
+	return {"direction": Vector3.ZERO, "tiles": tiles}
 
 func process_turn_end() -> void:
 	# Magnetized: pull toward nearest enemy at end of turn
@@ -272,17 +272,19 @@ func get_tether_range() -> int:
 	var tethered = get_debuff(Debuff.DebuffType.TETHERED)
 	return tethered.value if tethered else 0
 
-func set_tether_origin(pos: Vector2) -> void:
+func set_tether_origin(pos: Vector3) -> void:
 	tether_origin = pos
 
-func get_tether_origin() -> Vector2:
+func get_tether_origin() -> Vector3:
 	return tether_origin
 
-func is_within_tether_range(target_pos: Vector2, grid_size: int = 64) -> bool:
+func is_within_tether_range(target_pos: Vector3, grid_size: float = 1.0) -> bool:
 	if not is_tethered():
 		return true
-	
-	var distance_tiles = floori(tether_origin.distance_to(target_pos) / grid_size)
+
+	var diff = tether_origin - target_pos
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	var distance_tiles = floori(flat_dist / grid_size)
 	return distance_tiles <= get_tether_range()
 
 # ============================================
