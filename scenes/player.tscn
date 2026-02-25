@@ -6,27 +6,43 @@
 [ext_resource type="Script" uid="uid://04714ofy2ci0" path="res://scripts/buff_manager.gd" id="4_dqkch"]
 [ext_resource type="Script" uid="uid://bwfg4patn2ib7" path="res://scripts/debuff_manager.gd" id="5_qlg0r"]
 
-[node name="Player" type="CharacterBody2D" unique_id=807153945]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.3
+height = 1.0
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
+radius = 0.3
+height = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
+albedo_color = Color(0.2, 0.5, 0.9, 1)
+
+[node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_player")
 
-[node name="Sprite" type="Sprite2D" parent="." unique_id=385058118]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("CapsuleShape3D_1")
 
-[node name="PlayerLabel" type="Label" parent="." unique_id=1390665846]
-offset_left = -30.0
-offset_top = 25.0
-offset_right = 30.0
-offset_bottom = 45.0
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("CapsuleMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="PlayerLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+billboard = 1
 text = "PLAYER"
-horizontal_alignment = 1
+font_size = 32
 
-[node name="PlayerStats" type="Node" parent="." unique_id=1039619962]
+[node name="PlayerStats" type="Node" parent="."]
 script = ExtResource("2_g2els")
 
-[node name="Inventory" type="Node" parent="." unique_id=1435846726]
+[node name="Inventory" type="Node" parent="."]
 script = ExtResource("3_qhqgy")
 
-[node name="BuffManager" type="Node" parent="." unique_id=813646469]
+[node name="BuffManager" type="Node" parent="."]
 script = ExtResource("4_dqkch")
 
-[node name="DebuffManager" type="Node" parent="." unique_id=1254178767]
+[node name="DebuffManager" type="Node" parent="."]
 script = ExtResource("5_qlg0r")

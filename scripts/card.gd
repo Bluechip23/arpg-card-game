@@ -22,7 +22,7 @@ var bonus_damage: int = 0
 var jail_time_remaining: int = 0
 var is_aoe: bool = false
 var aoe_shape: String = ""  # "cone", "circle", "line"
-var aoe_range: float = 100.0
+var aoe_range: float = 1.5  # In world units (grid cells)
 var chance_effect_percent: float = 0.0  # For AOE per-enemy rolls
 var rng_outcomes: Dictionary = {}  # enemy_id -> bool (for AOE per-enemy indicators)
 var rng_roll_tempo: int = 0  # Global tempo when RNG was last rolled
@@ -1649,7 +1649,7 @@ static func create_snowballs_chance() -> Card:
 	card.rng_outcomes_data = [{percent = 50.0}]
 	card.is_aoe = true
 	card.aoe_shape = "line"
-	card.aoe_range = 192.0  # 3 grid spaces (64px each)
+	card.aoe_range = 3.0  # 3 grid spaces
 	card.target_types = ["point"]
 	return card
 

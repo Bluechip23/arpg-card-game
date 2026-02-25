@@ -19,27 +19,27 @@ func initialize(gm: GridManager, p: Player) -> void:
 func spawn_test_arena() -> void:
 	# Clear existing enemies
 	clear_enemies()
-	
-	# Spawn minions in various positions
-	spawn_enemy(Enemy.EnemyType.MINION, Vector2(800, 200))
-	spawn_enemy(Enemy.EnemyType.MINION, Vector2(900, 350))
-	spawn_enemy(Enemy.EnemyType.MINION, Vector2(750, 500))
-	spawn_enemy(Enemy.EnemyType.MINION, Vector2(1000, 250))
-	
+
+	# Spawn minions in various positions (world units, 1 unit = 1 grid cell)
+	spawn_enemy(Enemy.EnemyType.MINION, Vector3(12.5, 0, 3.0))
+	spawn_enemy(Enemy.EnemyType.MINION, Vector3(14.0, 0, 5.5))
+	spawn_enemy(Enemy.EnemyType.MINION, Vector3(11.5, 0, 8.0))
+	spawn_enemy(Enemy.EnemyType.MINION, Vector3(15.5, 0, 4.0))
+
 	# Spawn elite in the back
-	spawn_enemy(Enemy.EnemyType.ELITE, Vector2(1050, 400))
-	
+	spawn_enemy(Enemy.EnemyType.ELITE, Vector3(16.5, 0, 6.0))
+
 	print("[SPAWNER] Test arena spawned: %d enemies" % enemies.size())
 
-func spawn_enemy(type: Enemy.EnemyType, pos: Vector2) -> Enemy:
+func spawn_enemy(type: Enemy.EnemyType, pos: Vector3) -> Enemy:
 	var enemy = EnemyScene.instantiate() as Enemy
 	get_parent().add_child(enemy)
-	
+
 	enemy.position = pos
 	enemy.initialize(type, grid_manager)
 	enemy.died.connect(_on_enemy_died)
 	enemy.turn_completed.connect(_on_enemy_turn_completed)
-	
+
 	enemies.append(enemy)
 	return enemy
 
@@ -69,16 +69,16 @@ func process_enemy_turns() -> void:
 
 func _on_enemy_died(enemy: Enemy) -> void:
 	enemy_killed.emit(enemy)
-	
+
 	# Trigger ring effects
 	if player:
 		var inventory = player.get_inventory()
 		if inventory:
 			inventory.on_enemy_killed()
-	
+
 	# Check if all enemies defeated
 	await get_tree().create_timer(0.6).timeout  # Wait for death animation
-	
+
 	var living = get_living_enemies()
 	if living.size() == 0:
 		all_enemies_defeated.emit()
@@ -87,45 +87,54 @@ func _on_enemy_died(enemy: Enemy) -> void:
 func _on_enemy_turn_completed() -> void:
 	pass  # Can add logic here for sequential turns
 
-func get_enemy_at_position(pos: Vector2, radius: float = 50.0) -> Enemy:
+func get_enemy_at_position(pos: Vector3, radius: float = 1.0) -> Enemy:
 	for enemy in enemies:
 		if is_instance_valid(enemy) and enemy.is_alive():
-			if enemy.position.distance_to(pos) <= radius:
+			var diff = enemy.position - pos
+			var flat_dist = Vector3(diff.x, 0, diff.z).length()
+			if flat_dist <= radius:
 				return enemy
 	return null
 
-func get_enemies_in_radius(pos: Vector2, radius: float) -> Array[Enemy]:
+func get_enemies_in_radius(pos: Vector3, radius: float) -> Array[Enemy]:
 	var result: Array[Enemy] = []
 	for enemy in enemies:
 		if is_instance_valid(enemy) and enemy.is_alive():
-			if enemy.position.distance_to(pos) <= radius:
+			var diff = enemy.position - pos
+			var flat_dist = Vector3(diff.x, 0, diff.z).length()
+			if flat_dist <= radius:
 				result.append(enemy)
 	return result
 
-func get_enemies_in_line(start: Vector2, end: Vector2, width: float = 40.0) -> Array[Enemy]:
+func get_enemies_in_line(start: Vector3, end: Vector3, width: float = 0.6) -> Array[Enemy]:
 	var result: Array[Enemy] = []
-	var line_dir = (end - start).normalized()
-	var line_length = start.distance_to(end)
+	var line_vec = end - start
+	var line_dir = Vector3(line_vec.x, 0, line_vec.z).normalized()
+	var line_length = Vector3(line_vec.x, 0, line_vec.z).length()
 	for enemy in enemies:
 		if is_instance_valid(enemy) and enemy.is_alive():
 			var to_enemy = enemy.position - start
-			var projection = to_enemy.dot(line_dir)
+			var to_enemy_flat = Vector3(to_enemy.x, 0, to_enemy.z)
+			var projection = to_enemy_flat.dot(line_dir)
 			if projection >= 0 and projection <= line_length:
 				var closest_point = start + line_dir * projection
-				if enemy.position.distance_to(closest_point) <= width:
+				var diff = enemy.position - closest_point
+				var perpendicular_dist = Vector3(diff.x, 0, diff.z).length()
+				if perpendicular_dist <= width:
 					result.append(enemy)
 	return result
 
-func get_enemies_in_cone(origin: Vector2, direction: Vector2, length: float, half_angle_deg: float = 30.0) -> Array[Enemy]:
+func get_enemies_in_cone(origin: Vector3, direction: Vector3, length: float, half_angle_deg: float = 30.0) -> Array[Enemy]:
 	var result: Array[Enemy] = []
-	var dir_normalized = direction.normalized()
+	var dir_flat = Vector3(direction.x, 0, direction.z).normalized()
 	var cos_threshold = cos(deg_to_rad(half_angle_deg))
 	for enemy in enemies:
 		if is_instance_valid(enemy) and enemy.is_alive():
 			var to_enemy = enemy.position - origin
-			var dist = to_enemy.length()
+			var to_enemy_flat = Vector3(to_enemy.x, 0, to_enemy.z)
+			var dist = to_enemy_flat.length()
 			if dist > 0 and dist <= length:
-				var dot = to_enemy.normalized().dot(dir_normalized)
+				var dot = to_enemy_flat.normalized().dot(dir_flat)
 				if dot >= cos_threshold:
 					result.append(enemy)
 	return result

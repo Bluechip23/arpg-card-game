@@ -170,7 +170,7 @@ card.rng_outcomes_data = [
 
 ### A Note on Using AI to Create Cards
 
-If you are using an AI to help you make a card, **be very detailed about what you want**. You will most likely have to give a much more detailed description than you think.
+If you are using an AI to help you make a card, **be very detailed about what you want**. You will most likely have to give a more detailed description than you think.
 
 Don't just say "make a card that does fire damage." Actually envision yourself playing the card and describe everything that happens:
 
@@ -183,7 +183,7 @@ Don't just say "make a card that does fire damage." Actually envision yourself p
 - What happens on success? What happens on failure?
 - Does the card interact with any existing mechanics (armor, mana, movement)?
 
-The AI can absolutely make the card, but it needs more context than you think. More than what you think is actually happening. Walk through the full play experience in your head, and describe that.
+The AI can make the card, but it needs more context than you think. More than what you think is actually happening. Walk through the full play experience in your head, and describe that.
 
 ---
 
