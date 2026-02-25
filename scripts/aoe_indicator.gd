@@ -47,13 +47,14 @@ func _build_cone_mesh() -> void:
 	var half_angle = deg_to_rad(cone_angle / 2.0)
 	var segments = 16
 
-	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_FAN)
-	mesh.surface_add_vertex(Vector3(0, 0.02, 0))
-	for i in range(segments + 1):
-		var segment_angle = angle - half_angle + (half_angle * 2.0 * i / segments)
-		var x = sin(segment_angle) * aoe_range
-		var z = -cos(segment_angle) * aoe_range
-		mesh.surface_add_vertex(Vector3(x, 0.02, z))
+	var center = Vector3(0, 0.02, 0)
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(segments):
+		var a0 = angle - half_angle + (half_angle * 2.0 * i / segments)
+		var a1 = angle - half_angle + (half_angle * 2.0 * (i + 1) / segments)
+		mesh.surface_add_vertex(center)
+		mesh.surface_add_vertex(Vector3(sin(a0) * aoe_range, 0.02, -cos(a0) * aoe_range))
+		mesh.surface_add_vertex(Vector3(sin(a1) * aoe_range, 0.02, -cos(a1) * aoe_range))
 	mesh.surface_end()
 
 func _build_circle_mesh() -> void:
@@ -61,11 +62,14 @@ func _build_circle_mesh() -> void:
 	_mesh_instance.mesh = mesh
 
 	var segments = 32
-	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_FAN)
-	mesh.surface_add_vertex(Vector3(0, 0.02, 0))
-	for i in range(segments + 1):
-		var a = TAU * i / segments
-		mesh.surface_add_vertex(Vector3(cos(a) * aoe_range, 0.02, sin(a) * aoe_range))
+	var center = Vector3(0, 0.02, 0)
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(segments):
+		var a0 = TAU * i / segments
+		var a1 = TAU * (i + 1) / segments
+		mesh.surface_add_vertex(center)
+		mesh.surface_add_vertex(Vector3(cos(a0) * aoe_range, 0.02, sin(a0) * aoe_range))
+		mesh.surface_add_vertex(Vector3(cos(a1) * aoe_range, 0.02, sin(a1) * aoe_range))
 	mesh.surface_end()
 
 func _build_line_mesh() -> void:
