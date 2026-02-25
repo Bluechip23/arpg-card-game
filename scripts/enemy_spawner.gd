@@ -20,14 +20,17 @@ func spawn_test_arena() -> void:
 	# Clear existing enemies
 	clear_enemies()
 
-	# Spawn minions in various positions (world units, 1 unit = 1 grid cell)
-	spawn_enemy(Enemy.EnemyType.MINION, Vector3(12.5, 0, 3.0))
-	spawn_enemy(Enemy.EnemyType.MINION, Vector3(14.0, 0, 5.5))
-	spawn_enemy(Enemy.EnemyType.MINION, Vector3(11.5, 0, 8.0))
-	spawn_enemy(Enemy.EnemyType.MINION, Vector3(15.5, 0, 4.0))
+	# 3 Wererats (fast, aggressive)
+	spawn_enemy(Enemy.EnemyType.WERERAT, Vector3(12.5, 0, 3.0))
+	spawn_enemy(Enemy.EnemyType.WERERAT, Vector3(14.0, 0, 5.5))
+	spawn_enemy(Enemy.EnemyType.WERERAT, Vector3(11.5, 0, 8.0))
 
-	# Spawn elite in the back
-	spawn_enemy(Enemy.EnemyType.ELITE, Vector3(16.5, 0, 6.0))
+	# 2 Skeletons (slow but sturdy)
+	spawn_enemy(Enemy.EnemyType.SKELETON, Vector3(15.5, 0, 4.0))
+	spawn_enemy(Enemy.EnemyType.SKELETON, Vector3(15.0, 0, 7.0))
+
+	# 1 Armored Troll (elite, regenerating)
+	spawn_enemy(Enemy.EnemyType.ARMORED_TROLL, Vector3(17.0, 0, 6.0))
 
 	print("[SPAWNER] Test arena spawned: %d enemies" % enemies.size())
 
