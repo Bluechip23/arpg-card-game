@@ -588,6 +588,15 @@ func check_overflow_effects() -> void:
 # UTILITY
 # ============================================
 
+func get_equipped_shield() -> ItemData:
+	for weapon in equipped_weapons:
+		if weapon and "Shield" in weapon.item_name:
+			return weapon
+	return null
+
+func has_shield_equipped() -> bool:
+	return get_equipped_shield() != null
+
 func get_total_weight() -> int:
 	var total = 0
 	

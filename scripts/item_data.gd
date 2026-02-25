@@ -402,10 +402,11 @@ static func create_wooden_shield() -> ItemData:
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
 	item.weight = 4
+	item.armor_bonus = 5  # Block value when using basic block action
 	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
 	item.special_effect_value = 2
 	item.weapon_hand = WeaponHand.ONE_HAND
-	item.description = "+2 Armor on every Armor gain"
+	item.description = "Block: 5. +2 Armor on every Armor gain"
 	return item
 
 static func create_gold_ring() -> ItemData:
