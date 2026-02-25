@@ -1,4 +1,4 @@
-extends Node2D
+extends Node3D
 
 ## Main game scene - turn-based card ARPG
 
@@ -54,7 +54,7 @@ var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
-var pending_sky_falls: Array = []  # [{position: Vector2, damage: int, tempo_remaining: int}]
+var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
 var _card_ui_instances: Array = []
 var _current_hand_hover_index: int = -1
 # Pending quiver card play state
@@ -116,6 +116,23 @@ func _ready() -> void:
 	# Spawn initial test wave
 	enemy_spawner.spawn_test_arena()
 	_update_enemy_count()
+
+## Raycast from camera through mouse position to the ground plane (Y=0).
+## Returns the 3D world position on the ground.
+func get_mouse_world_position() -> Vector3:
+	var camera = get_viewport().get_camera_3d()
+	if not camera:
+		return Vector3.ZERO
+	var mouse_pos = get_viewport().get_mouse_position()
+	var from = camera.project_ray_origin(mouse_pos)
+	var dir = camera.project_ray_normal(mouse_pos)
+	if abs(dir.y) < 0.001:
+		return Vector3.ZERO
+	var t = -from.y / dir.y
+	if t < 0:
+		return Vector3.ZERO
+	return from + dir * t
+
 func _on_keywords_pressed() -> void:
 	help_panel.show_panel(0)  # Keywords tab
 
@@ -127,6 +144,9 @@ func _on_help_closed() -> void:
 
 func _process(_delta: float) -> void:
 	_update_hand_hover()
+	# Feed mouse world position to AOE indicator for cone/line direction
+	if aoe_indicator and aoe_indicator.visible:
+		aoe_indicator.set_mouse_world_position(get_mouse_world_position())
 
 func _update_hand_hover() -> void:
 	if _card_ui_instances.is_empty():
@@ -710,7 +730,7 @@ func _on_player_tile_reached() -> void:
 func _on_player_move_completed() -> void:
 	pass
 
-func _on_move_confirmed(target_pos: Vector2, spaces: int) -> void:
+func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	var debuff_mgr = player.get_debuff_manager()
 	
 	# Check Tethered range
@@ -869,7 +889,7 @@ func _on_card_discarded(card: Card) -> void:
 		var total_damage = card.damage
 		if stats:
 			total_damage = stats.get_effective_spell_damage(card.damage)
-		var nearby = enemy_spawner.get_enemies_in_radius(player.position, 300.0)
+		var nearby = enemy_spawner.get_enemies_in_radius(player.position, 5.0)
 		if nearby.size() > 0:
 			var target_enemy = nearby[randi() % nearby.size()]
 			target_enemy.take_damage(total_damage)
@@ -1034,7 +1054,7 @@ func _process_pending_sky_falls() -> void:
 		sf.tempo_remaining -= 5
 		if sf.tempo_remaining <= 0:
 			# Arrow lands! Deal AOE damage at stored position
-			var enemies_hit = enemy_spawner.get_enemies_in_radius(sf.position, 100.0)
+			var enemies_hit = enemy_spawner.get_enemies_in_radius(sf.position, 1.5)
 			for enemy in enemies_hit:
 				enemy.take_damage(sf.damage)
 			pending_sky_falls.remove_at(i)
@@ -1049,16 +1069,19 @@ func _apply_magnetize_pull(tiles: int) -> void:
 	
 	# Find nearest enemy
 	var nearest_enemy = enemies[0]
-	var nearest_dist = player.position.distance_to(nearest_enemy.position)
-	
+	var diff = player.position - nearest_enemy.position
+	var nearest_dist = Vector3(diff.x, 0, diff.z).length()
+
 	for enemy in enemies:
-		var dist = player.position.distance_to(enemy.position)
+		var e_diff = player.position - enemy.position
+		var dist = Vector3(e_diff.x, 0, e_diff.z).length()
 		if dist < nearest_dist:
 			nearest_dist = dist
 			nearest_enemy = enemy
-	
+
 	# Calculate pull direction
-	var direction = (nearest_enemy.position - player.position).normalized()
+	var pull_diff = nearest_enemy.position - player.position
+	var direction = Vector3(pull_diff.x, 0, pull_diff.z).normalized()
 	var pull_distance = tiles * grid_manager.grid_size
 	var new_pos = player.position + direction * pull_distance
 	new_pos = grid_manager.snap_to_grid(new_pos)
@@ -1225,10 +1248,11 @@ func play_selected_card(target) -> void:
 			card.range_modifier -= 6
 
 func _is_target_in_card_range(card: Card, target) -> bool:
-	if not target or not target is Node2D:
+	if not target or not target is Node3D:
 		return true
-	var distance_px = player.position.distance_to(target.position)
-	var distance_tiles = distance_px / grid_manager.grid_size
+	var diff = player.position - target.position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	var distance_tiles = flat_dist / grid_manager.grid_size
 	if card.is_ranged:
 		var max_range = 5 + card.range_modifier
 		# Tighten String: +6 range on ranged attacks
@@ -1241,7 +1265,7 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		return distance_tiles <= 1.5
 
 func _apply_card_world_effects(card: Card, target) -> void:
-	var mouse_pos = get_global_mouse_position()
+	var mouse_pos = get_mouse_world_position()
 
 	match card.card_id:
 		"roar":
@@ -1267,7 +1291,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			player.position = snapped_target
 			player.target_position = snapped_target
 			# Find and damage all enemies along the charge path
-			var enemies_hit = enemy_spawner.get_enemies_in_line(start_pos, snapped_target, 50.0)
+			var enemies_hit = enemy_spawner.get_enemies_in_line(start_pos, snapped_target, 0.8)
 			for enemy in enemies_hit:
 				enemy.take_damage(card.last_damage_dealt)
 				enemy.knockback(snapped_target, 1)
@@ -1279,14 +1303,15 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var leap_distance = 3
 			if stats:
 				leap_distance = max(2, stats.strength / 3)
-			var direction = (mouse_pos - player.position).normalized()
+			var diff = mouse_pos - player.position
+			var direction = Vector3(diff.x, 0, diff.z).normalized()
 			var leap_target = player.position + direction * (leap_distance * grid_manager.grid_size)
 			leap_target = grid_manager.snap_to_grid(leap_target)
 			# Teleport player to landing spot (no tempo for this movement)
 			player.position = leap_target
 			player.target_position = leap_target
 			# Deal AOE damage to enemies at landing
-			var landing_enemies = enemy_spawner.get_enemies_in_radius(leap_target, 100.0)
+			var landing_enemies = enemy_spawner.get_enemies_in_radius(leap_target, 1.5)
 			for enemy in landing_enemies:
 				enemy.take_damage(card.last_damage_dealt)
 			print("[MAIN] Heroic Leap: jumped %d tiles to %s, hit %d enemies for %d damage" % [leap_distance, leap_target, landing_enemies.size(), card.last_damage_dealt])
@@ -1306,9 +1331,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"snowballs_chance":
 			# Searing fire line 3 spaces forward - always hits
-			var direction = (mouse_pos - player.position).normalized()
+			var sbc_diff = mouse_pos - player.position
+			var direction = Vector3(sbc_diff.x, 0, sbc_diff.z).normalized()
 			var fire_end = player.position + direction * card.aoe_range
-			var fire_enemies = enemy_spawner.get_enemies_in_line(player.position, fire_end, 50.0)
+			var fire_enemies = enemy_spawner.get_enemies_in_line(player.position, fire_end, 0.8)
 			for enemy in fire_enemies:
 				enemy.take_damage(card.last_damage_dealt)
 			print("[MAIN] Snowball's Chance: fire line hit %d enemies for %d damage" % [fire_enemies.size(), card.last_damage_dealt])
@@ -1335,10 +1361,11 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"round_em_up":
 			# Pull enemies within 2 squares of clicked point 1 square toward that point
 			var center = grid_manager.snap_to_grid(mouse_pos)
-			var radius = 2.0 * grid_manager.grid_size
-			var nearby = enemy_spawner.get_enemies_in_radius(center, radius)
+			var reu_radius = 2.0 * grid_manager.grid_size
+			var nearby = enemy_spawner.get_enemies_in_radius(center, reu_radius)
 			for enemy in nearby:
-				var dir_to_center = (center - enemy.position).normalized()
+				var reu_diff = center - enemy.position
+				var dir_to_center = Vector3(reu_diff.x, 0, reu_diff.z).normalized()
 				var new_pos = enemy.position + dir_to_center * grid_manager.grid_size
 				new_pos = grid_manager.snap_to_grid(new_pos)
 				enemy.position = new_pos
@@ -1353,7 +1380,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"swap":
 			# Swap positions between player and target
-			if target and target is Node2D:
+			if target and target is Node3D:
 				var player_pos = player.position
 				var target_pos = target.position
 				player.position = target_pos
@@ -1364,7 +1391,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"defensive_awareness":
 			# Gain 3 armor per enemy within 2 spaces of the player
-			var da_radius = 2.0 * grid_manager.grid_size
+			var da_radius = 2.0
 			var da_nearby = enemy_spawner.get_enemies_in_radius(player.position, da_radius)
 			var enemy_count = da_nearby.size()
 			var armor_gain = 3 * enemy_count
@@ -1376,7 +1403,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"sweeping_disarm":
 			# Deal damage and disarm all enemies within melee range (1 space)
-			var sd_radius = 1.5 * grid_manager.grid_size
+			var sd_radius = 1.5
 			var sd_nearby = enemy_spawner.get_enemies_in_radius(player.position, sd_radius)
 			for enemy in sd_nearby:
 				enemy.take_damage(card.last_damage_dealt)
@@ -1410,7 +1437,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		# Quiver card pending targeting
 		if _pending_quiver_card != null:
-			var mouse_pos = get_global_mouse_position()
+			var mouse_pos = get_mouse_world_position()
 			if _pending_quiver_target_type == "enemy":
 				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
 				if enemy:
@@ -1423,7 +1450,7 @@ func _input(event: InputEvent) -> void:
 
 		if selected_card_index >= 0:
 			var card = deck_manager.hand[selected_card_index]
-			var mouse_pos = get_global_mouse_position()
+			var mouse_pos = get_mouse_world_position()
 
 			var tt = card.target_types.duplicate()
 
@@ -1466,7 +1493,7 @@ func _input(event: InputEvent) -> void:
 	# Right click - movement
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		if not player.is_moving:
-			var mouse_pos = get_global_mouse_position()
+			var mouse_pos = get_mouse_world_position()
 			var spaces = grid_manager.get_distance_in_cells(player.position, mouse_pos)
 			
 			if spaces == 0:
@@ -1486,7 +1513,7 @@ func _on_spawn_wave() -> void:
 	print("[MAIN] Spawned new wave!")
 
 func _on_spawn_elite() -> void:
-	var pos = Vector2(randf_range(600, 1000), randf_range(150, 500))
+	var pos = Vector3(randf_range(9, 16), 0, randf_range(2, 8))
 	enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, pos)
 	_update_enemy_count()
 	print("[MAIN] Spawned elite enemy!")
@@ -1670,12 +1697,12 @@ func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 
 func _spawn_summoned_creature(creature_type: String, count: int) -> void:
 	for i in range(count):
-		var offset = Vector2(randf_range(-80, 80), randf_range(-80, 80))
+		var offset = Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
 		var spawn_pos = player.position + offset
-		
+
 		if grid_manager:
 			spawn_pos = grid_manager.snap_to_grid(spawn_pos)
-		
+
 		match creature_type:
 			"skeleton":
 				_create_ally_marker("Skeleton", spawn_pos, Color(0.9, 0.9, 0.8))
@@ -1683,21 +1710,26 @@ func _spawn_summoned_creature(creature_type: String, count: int) -> void:
 				_create_ally_marker("Spirit", spawn_pos, Color(0.6, 0.8, 1.0))
 			"golem":
 				_create_ally_marker("Golem", spawn_pos, Color(0.6, 0.5, 0.4))
-		
+
 		print("[MAIN] Summoned %s at %s" % [creature_type, spawn_pos])
 
-func _create_ally_marker(ally_name: String, pos: Vector2, color: Color) -> void:
-	var marker = ColorRect.new()
-	marker.size = Vector2(40, 40)
-	marker.position = pos - Vector2(20, 20)
-	marker.color = color
-	marker.modulate.a = 0.8
+func _create_ally_marker(ally_name: String, pos: Vector3, color: Color) -> void:
+	var marker = MeshInstance3D.new()
+	var mesh = BoxMesh.new()
+	mesh.size = Vector3(0.5, 0.5, 0.5)
+	marker.mesh = mesh
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color.a = 0.8
+	marker.material_override = mat
+	marker.position = Vector3(pos.x, 0.25, pos.z)
 	add_child(marker)
-	
-	var label = Label.new()
+
+	var label = Label3D.new()
 	label.text = ally_name
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.position = Vector2(-10, -20)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.position = Vector3(0, 0.5, 0)
 	marker.add_child(label)
 func _on_apply_overflow(overflow_name: String) -> void:
 	var effect: OverflowEffect = null

@@ -3,7 +3,7 @@ extends CanvasLayer
 
 ## Confirmation dialog for multi-space movement
 
-signal confirmed(target_position: Vector2, spaces: int)
+signal confirmed(target_position: Vector3, spaces: int)
 signal cancelled
 
 @onready var panel: PanelContainer = $Panel
@@ -11,7 +11,7 @@ signal cancelled
 @onready var yes_button: Button = $Panel/VBox/Buttons/YesButton
 @onready var no_button: Button = $Panel/VBox/Buttons/NoButton
 
-var pending_position: Vector2
+var pending_position: Vector3
 var pending_spaces: int
 
 func _ready() -> void:
@@ -19,7 +19,7 @@ func _ready() -> void:
 	yes_button.pressed.connect(_on_yes_pressed)
 	no_button.pressed.connect(_on_no_pressed)
 
-func show_dialog(target_pos: Vector2, spaces: int) -> void:
+func show_dialog(target_pos: Vector3, spaces: int) -> void:
 	pending_position = target_pos
 	pending_spaces = spaces
 	label.text = "Move %d space%s?" % [spaces, "s" if spaces > 1 else ""]

@@ -1,5 +1,5 @@
 class_name Enemy
-extends CharacterBody2D
+extends CharacterBody3D
 
 ## Enemy that acts based on its own tempo counter.
 ## Each enemy has an independent action_tempo_counter that increments with global tempo.
@@ -16,22 +16,22 @@ enum EnemyType { MINION, ELITE, BOSS }
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
 @export var max_health: int = 30
-@export var move_speed: float = 150.0
+@export var move_speed: float = 2.5   # Units per second
 @export var attack_damage: int = 2
-@export var attack_range: float = 80.0
-@export var aggro_range: float = 500.0
-@export var move_distance: float = 50.0  # Pixels per action
+@export var attack_range: float = 1.5  # In world units (grid cells)
+@export var aggro_range: float = 8.0   # In world units
+@export var move_distance: float = 1.0 # Units per action (1 grid cell)
 
 var current_health: int = 30
-var target: Node2D = null
+var target: Node3D = null
 var is_moving: bool = false
-var target_position: Vector2
+var target_position: Vector3
 var is_dead: bool = false
 
 var grid_manager: GridManager
 
 # Status effects applied by player cards (duration in tempo cycles, 1 cycle = 5 global tempo)
-var taunt_target: Node2D = null
+var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
 var attack_reduction: int = 0
 var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
@@ -56,11 +56,10 @@ var _cycle_accumulator: int = 0
 ## Extend this for new enemy types: mages add "fireball", necromancers add "raise_dead", etc.
 var actions: Array[Dictionary] = []
 
-@onready var sprite: ColorRect = $Sprite2D
-@onready var health_bar: ProgressBar = $HealthBar
-@onready var health_label: Label = $HealthLabel
-@onready var name_label: Label = $NameLabel
-@onready var outline: ColorRect = $Outline
+@onready var mesh: MeshInstance3D = $MeshInstance3D
+@onready var health_label: Label3D = $HealthLabel
+@onready var name_label: Label3D = $NameLabel
+@onready var outline: MeshInstance3D = $Outline
 
 func _ready() -> void:
 	current_health = max_health
@@ -78,25 +77,31 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			enemy_name = "Minion"
 			max_health = 25
 			attack_damage = 3
-			move_distance = 50.0
-			if sprite:
-				sprite.color = Color(0.8, 0.2, 0.2)  # Red
+			move_distance = 1.0
+			if mesh:
+				var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+				if mat:
+					mat.albedo_color = Color(0.8, 0.2, 0.2)  # Red
 
 		EnemyType.ELITE:
 			enemy_name = "Elite"
 			max_health = 80
 			attack_damage = 6
-			move_distance = 40.0
-			if sprite:
-				sprite.color = Color(0.6, 0.1, 0.1)  # Dark red
+			move_distance = 0.8
+			if mesh:
+				var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+				if mat:
+					mat.albedo_color = Color(0.6, 0.1, 0.1)  # Dark red
 
 		EnemyType.BOSS:
 			enemy_name = "Boss"
 			max_health = 200
 			attack_damage = 10
-			move_distance = 30.0
-			if sprite:
-				sprite.color = Color(0.4, 0.0, 0.2)  # Purple-ish
+			move_distance = 0.5
+			if mesh:
+				var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+				if mat:
+					mat.albedo_color = Color(0.4, 0.0, 0.2)  # Purple-ish
 
 	current_health = max_health
 	update_health_display()
@@ -135,7 +140,7 @@ func _setup_actions() -> void:
 
 ## Called by EnemySpawner whenever global tempo advances.
 ## Increments this enemy's personal counter and fires actions when thresholds are met.
-func on_tempo_advanced(amount: int, player_node: Node2D) -> void:
+func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	if is_dead:
 		return
 
@@ -174,7 +179,7 @@ func _tick_status_durations() -> void:
 			is_disarmed = false
 			print("[%s] Disarm expired, can attack again" % enemy_name)
 
-func _check_and_fire_actions(player_node: Node2D) -> void:
+func _check_and_fire_actions(player_node: Node3D) -> void:
 	if not player_node:
 		return
 
@@ -183,8 +188,6 @@ func _check_and_fire_actions(player_node: Node2D) -> void:
 		move_target = taunt_target
 
 	# Actions are already sorted ascending by tempo_threshold in _setup_actions.
-	# The lowest threshold (attack) is checked first. If the enemy can attack, it does.
-	# If it can't (not in range), the next action (move) is checked.
 	for action_def in actions:
 		if action_tempo_counter >= action_def["tempo_threshold"]:
 			if _execute_action(action_def["name"], move_target):
@@ -192,8 +195,7 @@ func _check_and_fire_actions(player_node: Node2D) -> void:
 				return  # One action per tempo check
 
 ## Execute a named action. Returns true if the action was performed, false if it couldn't fire.
-## Add new action types here for future enemy variants (fireball, raise_dead, etc.)
-func _execute_action(action_name: String, move_target: Node2D) -> bool:
+func _execute_action(action_name: String, move_target: Node3D) -> bool:
 	match action_name:
 		"attack":
 			return _try_attack(move_target)
@@ -203,20 +205,22 @@ func _execute_action(action_name: String, move_target: Node2D) -> bool:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false
 
-func _try_attack(target_node: Node2D) -> bool:
+func _try_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
 		print("[%s] Disarmed - cannot attack!" % enemy_name)
 		return false
-	var distance = position.distance_to(target_node.position)
-	if distance <= attack_range:
+	var diff = target_node.position - position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	if flat_dist <= attack_range:
 		attack_player(target_node)
 		turn_completed.emit()
 		return true
 	return false
 
-func _try_move(target_node: Node2D) -> bool:
-	var distance = position.distance_to(target_node.position)
-	if distance <= aggro_range:
+func _try_move(target_node: Node3D) -> bool:
+	var diff = target_node.position - position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	if flat_dist <= aggro_range:
 		move_towards_target(target_node.position)
 		return true
 	return false  # Out of aggro range - idle
@@ -230,18 +234,19 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if is_moving:
-		var direction = (target_position - position).normalized()
-		var distance = position.distance_to(target_position)
+		var diff = target_position - position
+		var flat_diff = Vector3(diff.x, 0, diff.z)
+		var distance = flat_diff.length()
 
-		if distance < 5.0:
+		if distance < 0.1:
 			position = target_position
 			is_moving = false
-			velocity = Vector2.ZERO
+			velocity = Vector3.ZERO
 			turn_completed.emit()
 		else:
-			velocity = direction * move_speed
+			velocity = flat_diff.normalized() * move_speed
 	else:
-		velocity = Vector2.ZERO
+		velocity = Vector3.ZERO
 
 	move_and_slide()
 
@@ -249,16 +254,17 @@ func _physics_process(delta: float) -> void:
 # MOVEMENT & COMBAT
 # ============================================
 
-func set_target(new_target: Node2D) -> void:
+func set_target(new_target: Node3D) -> void:
 	target = new_target
 
-func move_towards_target(pos: Vector2) -> void:
-	var direction = (pos - position).normalized()
+func move_towards_target(pos: Vector3) -> void:
+	var diff = pos - position
+	var direction = Vector3(diff.x, 0, diff.z).normalized()
 	var effective_move = move_distance
 	if slow_amount > 0 and grid_manager:
 		effective_move = max(0, move_distance - slow_amount * grid_manager.grid_size)
 	elif slow_amount > 0:
-		effective_move = max(0, move_distance - slow_amount * 64)
+		effective_move = max(0, move_distance - slow_amount * 1.0)
 	if effective_move <= 0:
 		print("[%s] Too slowed to move!" % enemy_name)
 		return
@@ -270,7 +276,7 @@ func move_towards_target(pos: Vector2) -> void:
 	target_position = new_target
 	is_moving = true
 
-func attack_player(player_node: Node2D) -> void:
+func attack_player(player_node: Node3D) -> void:
 	var effective_damage = max(0, attack_damage - attack_reduction)
 	print("[%s] Attacks for %d damage! (base %d, reduction %d)" % [enemy_name, effective_damage, attack_damage, attack_reduction])
 
@@ -286,14 +292,17 @@ func attack_player(player_node: Node2D) -> void:
 			player_stats.take_damage(effective_damage, debuff_mgr, buff_mgr)
 
 			if player_node.has_method("get_inventory"):
-				var inventory = player_node.get_inventory()
-				if inventory:
-					inventory.on_damage_taken()
+				var p_inventory = player_node.get_inventory()
+				if p_inventory:
+					p_inventory.on_damage_taken()
 
-	if sprite:
+	if mesh:
 		var tween = create_tween()
-		tween.tween_property(sprite, "modulate", Color.ORANGE, 0.1)
-		tween.tween_property(sprite, "modulate", Color.WHITE, 0.1)
+		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		if mat:
+			var orig_color = mat.albedo_color
+			tween.tween_property(mat, "albedo_color", Color.ORANGE, 0.1)
+			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
 # ============================================
 # TAKING DAMAGE
@@ -312,10 +321,13 @@ func take_damage(amount: int) -> void:
 	damaged.emit(amount)
 	update_health_display()
 
-	if sprite:
+	if mesh:
 		var tween = create_tween()
-		tween.tween_property(sprite, "modulate", Color.RED, 0.1)
-		tween.tween_property(sprite, "modulate", Color.WHITE, 0.1)
+		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		if mat:
+			var orig_color = mat.albedo_color
+			tween.tween_property(mat, "albedo_color", Color.RED, 0.1)
+			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
 	print("[%s] Took %d damage! Health: %d/%d" % [enemy_name, amount, current_health, max_health])
 
@@ -326,7 +338,7 @@ func take_damage(amount: int) -> void:
 # STATUS EFFECTS
 # ============================================
 
-func apply_taunt(taunter: Node2D, cycles: int) -> void:
+func apply_taunt(taunter: Node3D, cycles: int) -> void:
 	taunt_target = taunter
 	taunt_tempo = cycles
 	print("[%s] Taunted for %d tempo cycles" % [enemy_name, cycles])
@@ -352,11 +364,12 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 
-func knockback(away_from: Vector2, spaces: int = 1) -> void:
+func knockback(away_from: Vector3, spaces: int = 1) -> void:
 	if is_dead:
 		return
-	var direction = (position - away_from).normalized()
-	var new_pos = position + direction * (spaces * 64.0)
+	var diff = position - away_from
+	var direction = Vector3(diff.x, 0, diff.z).normalized()
+	var new_pos = position + direction * (spaces * 1.0)
 	if grid_manager:
 		new_pos = grid_manager.snap_to_grid(new_pos)
 	position = new_pos
@@ -368,21 +381,22 @@ func knockback(away_from: Vector2, spaces: int = 1) -> void:
 # ============================================
 
 func update_health_display() -> void:
-	if health_bar:
-		health_bar.value = (float(current_health) / float(max_health)) * 100
 	if health_label:
 		health_label.text = "%d / %d" % [current_health, max_health]
 
 func update_outline() -> void:
 	if not outline:
 		return
+	var mat = outline.get_surface_override_material(0) as StandardMaterial3D
 	match enemy_type:
 		EnemyType.ELITE:
 			outline.visible = true
-			outline.color = Color(1.0, 0.85, 0.0, 0.8)
+			if mat:
+				mat.albedo_color = Color(1.0, 0.85, 0.0, 0.8)
 		EnemyType.BOSS:
 			outline.visible = true
-			outline.color = Color(0.8, 0.0, 0.8, 0.8)
+			if mat:
+				mat.albedo_color = Color(0.8, 0.0, 0.8, 0.8)
 		_:
 			outline.visible = false
 
@@ -391,19 +405,18 @@ func update_name_display() -> void:
 		name_label.text = enemy_name
 		match enemy_type:
 			EnemyType.ELITE:
-				name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+				name_label.modulate = Color(1.0, 0.85, 0.0)
 			EnemyType.BOSS:
-				name_label.add_theme_color_override("font_color", Color(0.8, 0.0, 0.8))
+				name_label.modulate = Color(0.8, 0.0, 0.8)
 
 func die() -> void:
 	is_dead = true
 	print("[%s] Defeated!" % enemy_name)
 	died.emit(self)
 
-	if sprite:
-		var tween = create_tween()
-		tween.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.5)
-		tween.tween_callback(queue_free)
+	var tween = create_tween()
+	tween.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.5)
+	tween.tween_callback(queue_free)
 
 func is_alive() -> bool:
 	return not is_dead
