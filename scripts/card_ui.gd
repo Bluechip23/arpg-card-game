@@ -40,6 +40,10 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 				type_label.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
 			Card.CardType.UTILITY:
 				type_label.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+			Card.CardType.REACTION:
+				type_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+			Card.CardType.UNPLAYABLE:
+				type_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 
 	if range_label:
 		if card.is_ranged:

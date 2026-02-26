@@ -548,6 +548,12 @@ func _try_smash(target_node: Node3D) -> bool:
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= attack_range:
 		_deal_damage_to_player(target_node, 10, "Smash")
+		# Inject Lightly Dazed card into player's hand
+		if target_node.has_method("get_deck_manager"):
+			var dm = target_node.get_deck_manager()
+			if dm:
+				dm.add_card_to_hand(Card.create_lightly_dazed())
+				print("[%s] Smash added Lightly Dazed to player's hand!" % enemy_name)
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)

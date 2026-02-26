@@ -198,11 +198,16 @@ func blink_to(target_pos: Vector3) -> void:
 	move_path.clear()
 	print("[PLAYER] Blinked to %s" % target_pos)
 
+var deck_manager_ref: DeckManager = null
+
 func get_stats() -> PlayerStats:
 	return stats
 func connect_deck_to_inventory(deck: DeckManager) -> void:
+	deck_manager_ref = deck
 	if inventory:
 		inventory.connect_deck_manager(deck)
+func get_deck_manager() -> DeckManager:
+	return deck_manager_ref
 func get_inventory() -> Inventory:
 	return inventory
 

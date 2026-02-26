@@ -3,7 +3,7 @@ extends Resource
 
 ## Card resource that holds card data
 
-enum CardType { ATTACK, DEFENSE, UTILITY }
+enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE }
 
 @export var card_id: String = "slash"
 @export var card_name: String = "Slash"
@@ -43,6 +43,9 @@ var target_types: Array = ["enemy"]  # "enemy", "ally", "self", "point", "all_ne
 var consecutive_uses: int = 0  # Track how many times card played in sequence
 var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
+var has_on_draw: bool = false  # Card triggers an effect when drawn
+var on_draw_effect: String = ""  # Description of the on-draw effect
+var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 	rng_outcomes.clear()
 
@@ -319,6 +322,13 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_swap(target, player_stats)
 		"meditate":
 			_execute_meditate(player_stats, deck_manager)
+		# === New Card Types ===
+		"spider_senses":
+			_execute_spider_senses(player_stats)
+		"thrown_stone":
+			_execute_thrown_stone(target, player_stats, buff_mgr)
+		"lightly_dazed":
+			pass  # Unplayable card - no execute logic
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -2214,3 +2224,78 @@ static func create_potion_of_continuance() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["self"]
 	return card
+
+# === Reaction / Unplayable / On Draw Cards ===
+
+static func create_spider_senses() -> Card:
+	var card = Card.new()
+	card.card_id = "spider_senses"
+	card.card_name = "Spider Senses"
+	card.description = "When you take damage, gain 5 armor."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 5
+	card.base_block = 5
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	card.reaction_trigger = "on_damage_taken"
+	return card
+
+static func create_lightly_dazed() -> Card:
+	var card = Card.new()
+	card.card_id = "lightly_dazed"
+	card.card_name = "Lightly Dazed"
+	card.description = "This card cannot be played."
+	card.card_type = CardType.UNPLAYABLE
+	card.card_type_name = "Unplayable"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_thrown_stone() -> Card:
+	var card = Card.new()
+	card.card_id = "thrown_stone"
+	card.card_name = "Thrown Stone"
+	card.description = "On Draw: Deal 4 damage to a random enemy. Deal 4 damage to an enemy."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 4
+	card.base_damage = 4
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	card.has_on_draw = true
+	card.on_draw_effect = "deal_4_random_enemy"
+	return card
+
+func _execute_spider_senses(player_stats: PlayerStats) -> void:
+	if player_stats:
+		player_stats.add_armor(5)
+		print("[CARD] Spider Senses! Gained 5 armor")
+
+func _execute_thrown_stone(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	var total_damage = base_damage + bonus_damage
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			print("[CARD] Thrown Stone CRIT!")
+	if target and target.has_method("take_damage"):
+		target.take_damage(total_damage, true)
+		last_damage_dealt = total_damage
+		print("[CARD] Thrown Stone dealt %d damage!" % total_damage)
