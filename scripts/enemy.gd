@@ -20,6 +20,7 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL }
 @export var attack_range: float = 1.5  # In world units (grid cells)
 @export var aggro_range: float = 8.0   # In world units
 @export var move_distance: float = 1.0 # Units per action (1 grid cell)
+var xp_reward: int = 5                 # XP granted to player on kill
 
 var current_health: int = 30
 var max_armor: int = 0
@@ -100,6 +101,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			max_health = 25
 			attack_damage = 3
 			move_distance = 1.0
+			xp_reward = 5
 			_set_mesh_color(Color(0.8, 0.2, 0.2))
 
 		EnemyType.ELITE:
@@ -107,6 +109,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			max_health = 80
 			attack_damage = 6
 			move_distance = 0.8
+			xp_reward = 10
 			_set_mesh_color(Color(0.6, 0.1, 0.1))
 
 		EnemyType.BOSS:
@@ -114,6 +117,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			max_health = 200
 			attack_damage = 10
 			move_distance = 0.5
+			xp_reward = 25
 			_set_mesh_color(Color(0.4, 0.0, 0.2))
 
 		EnemyType.WERERAT:
@@ -121,6 +125,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			max_health = 15
 			attack_damage = 3
 			move_distance = 1.0
+			xp_reward = 5
 			_set_mesh_color(Color(0.5, 0.35, 0.2))  # Brown
 
 		EnemyType.SKELETON:
@@ -129,6 +134,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			max_armor = 10
 			attack_damage = 5
 			move_distance = 1.0
+			xp_reward = 5
 			_set_mesh_color(Color(0.85, 0.85, 0.75))  # Bone white
 
 		EnemyType.ARMORED_TROLL:
@@ -137,6 +143,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			max_armor = 30
 			attack_damage = 4
 			move_distance = 1.0
+			xp_reward = 8
 			_set_mesh_color(Color(0.2, 0.4, 0.15))  # Dark green
 
 	current_health = max_health

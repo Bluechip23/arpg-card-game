@@ -26,6 +26,7 @@ extends Node3D
 @onready var player_health_label: Label = $UI/PlayerHealthLabel
 @onready var player_mana_label: Label = $UI/PlayerManaLabel
 @onready var player_armor_label: Label = $UI/PlayerArmorLabel
+@onready var player_xp_label: Label = $UI/PlayerXPLabel
 @onready var turn_label: Label = $UI/TurnLabel
 @onready var player: Player = $Player
 @onready var tempo_manager: TempoManager = $TempoManager
@@ -36,6 +37,7 @@ extends Node3D
 @onready var help_buttons: HelpButtons = $UI/HelpButtons
 @onready var quiver_ui: QuiverUI = $UI/QuiverUI
 @onready var sphere_grid_ui: SphereGridUI = $SphereGridUI
+@onready var sphere_inventory: SphereInventory = $SphereInventory
 
 const GauntletSkillUIScene = preload("res://scenes/gauntlet_skill_ui.tscn")
 const CardUIScene = preload("res://scenes/card_ui.tscn")
@@ -101,6 +103,9 @@ func _ready() -> void:
 	help_buttons.walkthrough_pressed.connect(_on_walkthrough_pressed)
 	help_panel.closed.connect(_on_help_closed)
 	
+	# Sphere inventory + grid connection
+	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
+
 	_setup_overflow_buttons()
 	_setup_action_buttons()
 
@@ -855,6 +860,17 @@ func select_character(character: CharacterData) -> void:
 	_on_player_armor_changed(player.get_stats().current_armor)
 	_update_block_button_visibility()
 
+	# XP / Leveling
+	player.get_stats().leveled_up.connect(_on_player_leveled_up)
+	player.get_stats().xp_changed.connect(_on_player_xp_changed)
+	_update_xp_display()
+
+	# Give starting spheres (level 1 rewards)
+	var starting_rewards = SphereInventory.get_level_rewards(1)
+	for reward in starting_rewards:
+		sphere_inventory.add_sphere(reward[0], reward[1])
+	print("[MAIN] Granted starting spheres for level 1")
+
 	print("[MAIN] Selected character: %s" % character.character_name)
 
 func trigger_turn() -> void:
@@ -902,11 +918,23 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	update_turn_display()
 
 func _on_enemy_killed(enemy: Enemy) -> void:
-	print("[MAIN] Enemy killed: %s" % enemy.enemy_name)
+	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
+	player.get_stats().gain_xp(enemy.xp_reward)
 	_update_enemy_count()
 
 func _on_all_enemies_defeated() -> void:
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
+
+func _on_player_leveled_up(new_level: int) -> void:
+	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
+	# Grant sphere rewards for this level
+	var rewards = SphereInventory.get_level_rewards(new_level)
+	for reward in rewards:
+		sphere_inventory.add_sphere(reward[0], reward[1])
+	print("[MAIN] Granted level %d sphere rewards" % new_level)
+
+func _on_player_xp_changed(current_xp: int, xp_to_next: int) -> void:
+	_update_xp_display()
 
 func _update_enemy_count() -> void:
 	test_ui.update_enemy_count(enemy_spawner.get_enemy_count())
@@ -925,6 +953,11 @@ func _on_player_mana_changed(current: float, max_mana: int) -> void:
 func _on_player_armor_changed(current: int) -> void:
 	if player_armor_label:
 		player_armor_label.text = "Armor: %d" % current
+
+func _update_xp_display() -> void:
+	if player_xp_label:
+		var stats = player.get_stats()
+		player_xp_label.text = "Lv %d | XP: %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
 
 func _on_dexterity_proc() -> void:
 	print("[MAIN] Dexterity proc! Next attack is free + 2 mana discount!")

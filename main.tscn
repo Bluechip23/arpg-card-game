@@ -22,6 +22,7 @@
 [ext_resource type="PackedScene" uid="uid://dmw2cplrsglq1" path="res://scenes/help_buttons.tscn" id="22_helpbtn"]
 [ext_resource type="PackedScene" path="res://scenes/quiver_ui.tscn" id="23_quiver"]
 [ext_resource type="PackedScene" path="res://scenes/sphere_grid.tscn" id="24_sphere"]
+[ext_resource type="Script" path="res://scripts/sphere_inventory.gd" id="25_sphere_inv"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
 size = Vector2(20, 12)
@@ -96,6 +97,9 @@ script = ExtResource("12_w48qg")
 
 [node name="SphereGridUI" parent="." instance=ExtResource("24_sphere")]
 
+[node name="SphereInventory" type="Node" parent="."]
+script = ExtResource("25_sphere_inv")
+
 [node name="AOEIndicator" type="Node3D" parent="." unique_id=405332433]
 script = ExtResource("13_cegan")
 
@@ -166,6 +170,13 @@ offset_left = 172.0
 offset_top = 41.0
 offset_right = 212.0
 offset_bottom = 64.0
+
+[node name="PlayerXPLabel" type="Label" parent="UI"]
+offset_left = 272.0
+offset_top = 41.0
+offset_right = 420.0
+offset_bottom = 64.0
+text = "Lv 1 | XP: 0/10"
 
 [node name="TurnLabel" type="Label" parent="UI" unique_id=1944835916]
 offset_left = 297.0
