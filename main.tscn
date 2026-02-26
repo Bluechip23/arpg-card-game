@@ -21,6 +21,7 @@
 [ext_resource type="PackedScene" uid="uid://3cxn1hbdk2os" path="res://scenes/manifest_ui.tscn" id="21_manifest"]
 [ext_resource type="PackedScene" uid="uid://dmw2cplrsglq1" path="res://scenes/help_buttons.tscn" id="22_helpbtn"]
 [ext_resource type="PackedScene" path="res://scenes/quiver_ui.tscn" id="23_quiver"]
+[ext_resource type="PackedScene" path="res://scenes/sphere_grid.tscn" id="24_sphere"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
 size = Vector2(20, 12)
@@ -92,6 +93,8 @@ script = ExtResource("9_4c57u")
 script = ExtResource("12_w48qg")
 
 [node name="HelpPanel" parent="." unique_id=1333283261 instance=ExtResource("19_help")]
+
+[node name="SphereGridUI" parent="." instance=ExtResource("24_sphere")]
 
 [node name="AOEIndicator" type="Node3D" parent="." unique_id=405332433]
 script = ExtResource("13_cegan")
@@ -203,7 +206,8 @@ offset_right = -9.0
 offset_bottom = 115.0
 grow_horizontal = 0
 text = "Right-click - Move player
-I - Character Panel"
+I - Character Panel
+L - Sphere Grid"
 horizontal_alignment = 2
 
 [node name="CharacterButtons" type="HBoxContainer" parent="UI" unique_id=1795835475]
