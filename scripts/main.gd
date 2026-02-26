@@ -35,6 +35,7 @@ extends Node3D
 @onready var help_panel: HelpPanel = $HelpPanel
 @onready var help_buttons: HelpButtons = $UI/HelpButtons
 @onready var quiver_ui: QuiverUI = $UI/QuiverUI
+@onready var sphere_grid_ui: SphereGridUI = $SphereGridUI
 
 const GauntletSkillUIScene = preload("res://scenes/gauntlet_skill_ui.tscn")
 const CardUIScene = preload("res://scenes/card_ui.tscn")
@@ -1557,7 +1558,12 @@ func _input(event: InputEvent) -> void:
 		if event.keycode == KEY_I:
 			character_panel.toggle_panel()
 			return
-		
+
+		# Sphere grid toggle
+		if event.keycode == KEY_L:
+			sphere_grid_ui.toggle_panel()
+			return
+
 		# Card selection
 		for i in range(CARD_KEYS.size()):
 			if event.keycode == CARD_KEYS[i]:
@@ -1573,6 +1579,7 @@ func _input(event: InputEvent) -> void:
 			update_card_highlights()
 			move_dialog.hide_dialog()
 			character_panel.hide_panel()
+			sphere_grid_ui.hide_panel()
 	
 	# Left click - play card or use gauntlet skill
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
