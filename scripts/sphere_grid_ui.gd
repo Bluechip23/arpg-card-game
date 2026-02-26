@@ -25,7 +25,7 @@ var _zoom: float = 1.0
 # Node drawing constants
 const NODE_RADIUS_BASE: float = 16.0
 const NODE_RADIUS_START: float = 22.0
-const LINE_WIDTH: float = 2.0
+const LINE_WIDTH: float = 3.0
 const HOVER_GROW: float = 4.0
 
 # Colors by node type
@@ -38,8 +38,8 @@ const COLOR_PASSIVE := Color(0.9, 0.5, 0.2, 1.0)
 const COLOR_CARD := Color(0.8, 0.3, 0.9, 1.0)
 const COLOR_HEALTH := Color(0.9, 0.2, 0.2, 1.0)
 const COLOR_MANA := Color(0.2, 0.5, 1.0, 1.0)
-const COLOR_LINE := Color(0.25, 0.25, 0.35, 0.7)
-const COLOR_LINE_UNLOCKED := Color(0.2, 0.7, 0.3, 0.6)
+const COLOR_LINE := Color(0.4, 0.4, 0.55, 0.85)
+const COLOR_LINE_UNLOCKED := Color(0.3, 0.85, 0.4, 0.9)
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.95)
 const COLOR_HOVER_RING := Color(1.0, 1.0, 0.6, 0.8)
 
