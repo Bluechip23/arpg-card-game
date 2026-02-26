@@ -837,6 +837,8 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().mana_changed.connect(_on_player_mana_changed)
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
+	player.get_stats().damage_taken.connect(_on_player_damage_taken)
+	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	
 	character_panel.connect_stats(player.get_stats(), player.get_inventory())
 	
@@ -1942,3 +1944,21 @@ func _on_apply_overflow(overflow_name: String) -> void:
 	if effect:
 		overflow_manager.add_overflow_effect(effect)
 		print("[MAIN] Applied overflow: %s" % overflow_name)
+
+# === Reaction & On Draw handlers ===
+
+func _on_player_damage_taken(_amount: int) -> void:
+	var triggered = deck_manager.trigger_reactions("on_damage_taken")
+	for card in triggered:
+		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+
+func _on_card_on_draw_triggered(card: Card) -> void:
+	match card.on_draw_effect:
+		"deal_4_random_enemy":
+			var enemies = enemy_spawner.get_living_enemies()
+			if enemies.size() > 0:
+				var random_enemy = enemies[randi() % enemies.size()]
+				random_enemy.take_damage(4, true)
+				print("[MAIN] %s On Draw: dealt 4 damage to %s" % [card.card_name, random_enemy.enemy_name])
+			else:
+				print("[MAIN] %s On Draw: no enemies to damage" % card.card_name)

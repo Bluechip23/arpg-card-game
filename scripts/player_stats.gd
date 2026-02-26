@@ -11,6 +11,7 @@ signal dexterity_proc
 signal stats_updated
 signal xp_changed(current_xp: int, xp_to_next: int)
 signal leveled_up(new_level: int)
+signal damage_taken(amount: int)
 
 var character_data: CharacterData
 
@@ -425,9 +426,12 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 		if _crossed_threshold(old_pct, get_health_percent()):
 			recalculate_derived_stats()
 	
+	# Emit damage_taken for reaction card triggers
+	damage_taken.emit(amount)
+
 	if current_health <= 0:
 		died.emit()
-		
+
 func _crossed_threshold(old_pct: float, new_pct: float) -> bool:
 	var thresholds = [0.8, 0.6, 0.4, 0.1]
 	for t in thresholds:

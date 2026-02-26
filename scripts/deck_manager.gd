@@ -10,6 +10,8 @@ signal card_jailed(card: Card)
 signal deck_shuffled
 signal card_peaked(card: Card)
 signal overflow_triggered(mode: String, card: Card)
+signal on_draw_triggered(card: Card)
+signal reaction_triggered(card: Card)
 
 enum OverflowMode { JAILED, ENHANCE, PEAK, TRANSFERRED, OVERCHARGE, MANIFEST }
 
@@ -192,6 +194,10 @@ func _create_card_from_id(card_id: String) -> Card:
 		"consecutive_snap": return Card.create_consecutive_snap()
 		"swap": return Card.create_swap()
 		"meditate": return Card.create_meditate()
+		# New card types
+		"spider_senses": return Card.create_spider_senses()
+		"lightly_dazed": return Card.create_lightly_dazed()
+		"thrown_stone": return Card.create_thrown_stone()
 	return null
 
 func _create_card_from_data(card_data: Dictionary) -> Card:
@@ -235,6 +241,11 @@ func draw_card() -> Card:
 	if inventory:
 		inventory.on_card_drawn()
 
+	# Trigger on-draw effects (card stays in hand unless stated otherwise)
+	if card.has_on_draw:
+		on_draw_triggered.emit(card)
+		print("[DECK] On Draw triggered: %s" % card.card_name)
+
 	print("[DECK] Drew: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
 	return card
 
@@ -272,6 +283,14 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 	
 	if card.is_jailed():
 		print("[DECK] Cannot play jailed card!")
+		return { "played": false, "free_turn": false }
+
+	if card.card_type == Card.CardType.UNPLAYABLE:
+		print("[DECK] Cannot play unplayable card: %s" % card.card_name)
+		return { "played": false, "free_turn": false }
+
+	if card.card_type == Card.CardType.REACTION:
+		print("[DECK] Reaction cards trigger automatically, cannot be played manually: %s" % card.card_name)
 		return { "played": false, "free_turn": false }
 	
 	var debuff_mgr = null
@@ -458,3 +477,22 @@ func get_discard_pile_size() -> int:
 
 func get_jail_pile_size() -> int:
 	return jail_pile.size()
+
+func add_card_to_hand(card: Card) -> void:
+	hand.append(card)
+	hand_updated.emit()
+	print("[DECK] Card added to hand: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
+
+func trigger_reactions(trigger_type: String) -> Array[Card]:
+	var triggered: Array[Card] = []
+	for i in range(hand.size() - 1, -1, -1):
+		var card = hand[i]
+		if card.card_type == Card.CardType.REACTION and card.reaction_trigger == trigger_type:
+			hand.remove_at(i)
+			triggered.append(card)
+			discard_pile.append(card)
+			reaction_triggered.emit(card)
+			print("[DECK] Reaction triggered: %s" % card.card_name)
+	if triggered.size() > 0:
+		hand_updated.emit()
+	return triggered
