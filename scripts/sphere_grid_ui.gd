@@ -15,7 +15,7 @@ signal node_unlocked(node_id: int)
 @onready var points_label: Label = $Panel/PointsLabel
 
 var sphere_grid: SphereGrid
-var skill_points: int = 0
+var sphere_inventory: SphereInventory
 var _hovered_node_id: int = -1
 var _camera_offset: Vector2 = Vector2.ZERO
 var _dragging: bool = false
@@ -54,6 +54,11 @@ func _ready() -> void:
 	grid_canvas.gui_input.connect(_on_grid_input)
 	grid_canvas.mouse_filter = Control.MOUSE_FILTER_STOP
 
+func connect_sphere_inventory(inv: SphereInventory) -> void:
+	sphere_inventory = inv
+	sphere_inventory.spheres_changed.connect(_update_points_label)
+	_update_points_label()
+
 func _apply_styles() -> void:
 	# Panel background
 	var style = StyleBoxFlat.new()
@@ -72,7 +77,7 @@ func _apply_styles() -> void:
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	# Info label (bottom, shows hovered node info)
-	info_label.text = "Hover over a node to see details. Click an adjacent unlocked node to spend a skill point."
+	info_label.text = "Hover over a node to see details. Click an adjacent node to unlock with a sphere."
 	info_label.add_theme_font_size_override("font_size", 14)
 	info_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -116,13 +121,29 @@ func toggle_panel() -> void:
 	else:
 		show_panel()
 
-func add_skill_points(amount: int) -> void:
-	skill_points += amount
-	_update_points_label()
-
 func _update_points_label() -> void:
-	if points_label:
-		points_label.text = "Skill Points: %d" % skill_points
+	if not points_label:
+		return
+	if not sphere_inventory:
+		points_label.text = "Spheres: --"
+		return
+	var parts: Array[String] = []
+	var stat_count = sphere_inventory.get_count(SphereInventory.SphereType.STAT)
+	var passive_count = sphere_inventory.get_count(SphereInventory.SphereType.PASSIVE)
+	var card_count = sphere_inventory.get_count(SphereInventory.SphereType.CARD)
+	var any_count = sphere_inventory.get_count(SphereInventory.SphereType.ANY)
+	var swap_count = sphere_inventory.get_count(SphereInventory.SphereType.SWAP)
+	var rune_count = sphere_inventory.upgrade_runes
+	if stat_count > 0: parts.append("Stat:%d" % stat_count)
+	if passive_count > 0: parts.append("Passive:%d" % passive_count)
+	if card_count > 0: parts.append("Card:%d" % card_count)
+	if any_count > 0: parts.append("Any:%d" % any_count)
+	if swap_count > 0: parts.append("Swap:%d" % swap_count)
+	if rune_count > 0: parts.append("Runes:%d" % rune_count)
+	if parts.is_empty():
+		points_label.text = "Spheres: None"
+	else:
+		points_label.text = "Spheres: " + " | ".join(parts)
 
 func _world_to_screen(world_pos: Vector2) -> Vector2:
 	var canvas_center = grid_canvas.size / 2.0
@@ -338,21 +359,31 @@ func _on_grid_input(event: InputEvent) -> void:
 			grid_canvas.queue_redraw()
 
 func _try_unlock_node(id: int) -> void:
-	if skill_points <= 0:
-		_set_info("No skill points available!")
-		return
-	if not sphere_grid.is_unlockable(id):
-		var node = sphere_grid.get_node_by_id(id)
-		if node and node.unlocked:
-			_set_info("Already unlocked: %s" % node.label)
-		else:
-			_set_info("Cannot unlock — must be adjacent to an unlocked node.")
+	var node = sphere_grid.get_node_by_id(id)
+	if not node:
 		return
 
+	if node.unlocked:
+		_set_info("Already unlocked: %s" % node.label)
+		return
+
+	if not sphere_grid.is_unlockable(id):
+		_set_info("Cannot unlock — must be adjacent to an unlocked node.")
+		return
+
+	if not sphere_inventory:
+		_set_info("No sphere inventory connected!")
+		return
+
+	if not sphere_inventory.has_sphere_for_node(node.node_type):
+		var required_type = SphereInventory.get_required_sphere_type(node.node_type)
+		var type_name = SphereInventory.get_sphere_name(required_type) if required_type >= 0 else "Unknown"
+		_set_info("Need a %s or Any sphere to unlock this node!" % type_name)
+		return
+
+	sphere_inventory.spend_sphere_for_node(node.node_type)
 	sphere_grid.unlock_node(id)
-	skill_points -= 1
 	_update_points_label()
-	var node = sphere_grid.get_node_by_id(id)
 	_set_info("Unlocked: %s — %s" % [node.label, node.description])
 	node_unlocked.emit(id)
 	grid_canvas.queue_redraw()
@@ -366,7 +397,12 @@ func _update_info_label() -> void:
 		return
 	var status = "UNLOCKED" if node.unlocked else ("AVAILABLE" if sphere_grid.is_unlockable(node.id) else "LOCKED")
 	var type_name = _get_type_name(node.node_type)
-	info_label.text = "[%s] %s (%s) — %s" % [status, node.label, type_name, node.description]
+	var sphere_hint = ""
+	if not node.unlocked and node.node_type != SphereGrid.NodeType.START:
+		var req = SphereInventory.get_required_sphere_type(node.node_type)
+		if req >= 0:
+			sphere_hint = " [Requires: %s sphere]" % SphereInventory.get_sphere_name(req)
+	info_label.text = "[%s] %s (%s) — %s%s" % [status, node.label, type_name, node.description, sphere_hint]
 
 func _set_info(text: String) -> void:
 	info_label.text = text
