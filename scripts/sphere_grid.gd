@@ -23,6 +23,20 @@ class GridNode:
 	var unlocked: bool = false
 	var ring: int = 0               # Which ring this node belongs to (0=center)
 
+	# Card nodes: which card this grants
+	var card_id: String = ""        # e.g. "slash", "heal" — empty for non-card nodes
+
+	# Upgrade paths (2 per node for card/passive nodes)
+	# Each entry: { "label": String, "description": String }
+	var upgrade_paths: Array = []
+
+	# Transmute paths (2 per card/passive node)
+	# Each entry: { "label": String, "description": String }
+	var transmute_paths: Array = []
+
+	# Upgrade level (0 = base, incremented by upgrade runes)
+	var upgrade_level: int = 0
+
 	func _init(p_id: int, p_type: NodeType, p_label: String, p_desc: String, p_pos: Vector2, p_ring: int = 0) -> void:
 		id = p_id
 		node_type = p_type
@@ -37,6 +51,7 @@ var _node_map: Dictionary = {}  # id -> GridNode lookup
 
 func _init() -> void:
 	_build_grid()
+	_assign_node_details()
 
 func get_node_by_id(id: int) -> GridNode:
 	return _node_map.get(id, null)
@@ -269,3 +284,308 @@ func _create_ring(start_id: int, count: int, radius: float, center: Vector2, typ
 		var data = type_data[i % type_data.size()]
 		var node = GridNode.new(start_id + i, data[0], data[1], data[2], pos, ring)
 		_add_node(node)
+
+func _assign_node_details() -> void:
+	## Assigns card IDs, upgrade paths, and transmute paths to card/passive nodes.
+	## Called after the grid is fully built.
+
+	# --- Card node assignments ---
+	# Ring 3 card nodes: IDs 19, 22, 25, 28, 31, 34
+	_assign_card(19, "life_steal", "Life Steal",
+		[{"label": "Life Steal+", "description": "Steal 8 HP instead of 5"},
+		 {"label": "Life Steal++", "description": "Steal 12 HP and gain 3 armor"}],
+		[{"label": "Soul Drain", "description": "Drain 4 HP from all nearby enemies"},
+		 {"label": "Blood Pact", "description": "Sacrifice 5 HP to deal 20 damage"}])
+
+	_assign_card(22, "wear_down", "Wear Down",
+		[{"label": "Wear Down+", "description": "Reduce enemy attack by 3 instead of 2"},
+		 {"label": "Wear Down++", "description": "Reduce enemy attack by 4 for double duration"}],
+		[{"label": "Cripple", "description": "Reduce enemy attack by 2 and slow by 50%"},
+		 {"label": "Shatter Arms", "description": "Reduce enemy attack by 5 for 1 cycle"}])
+
+	_assign_card(25, "surrounding_ice", "Surrounding Ice",
+		[{"label": "Surrounding Ice+", "description": "Increased damage and range"},
+		 {"label": "Surrounding Ice++", "description": "Also slows all hit enemies"}],
+		[{"label": "Frost Nova", "description": "Freeze nearby enemies for 1 cycle"},
+		 {"label": "Blizzard", "description": "AOE ice damage over 3 cycles"}])
+
+	_assign_card(28, "empower", "Empower",
+		[{"label": "Empower+", "description": "Empower 3 cards instead of 2"},
+		 {"label": "Empower++", "description": "Empower 4 cards with +4 bonus"}],
+		[{"label": "War Cry", "description": "Empower 2 cards and gain 5 armor"},
+		 {"label": "Channel Power", "description": "Empower 1 card with +8 bonus damage"}])
+
+	_assign_card(31, "preparation", "Preparation",
+		[{"label": "Preparation+", "description": "Draw 3 cards instead of 2"},
+		 {"label": "Preparation++", "description": "Draw 3 cards and reduce their cost by 1"}],
+		[{"label": "Scheme", "description": "Draw 2 cards and peek at 2 more"},
+		 {"label": "Mastermind", "description": "Draw 2 cards and gain 3 mana"}])
+
+	_assign_card(34, "armor_break", "Armor Break",
+		[{"label": "Armor Break+", "description": "Remove 8 armor instead of 5"},
+		 {"label": "Armor Break++", "description": "Remove all armor and deal 5 damage"}],
+		[{"label": "Sunder", "description": "Remove 5 armor and apply Exposed"},
+		 {"label": "Demolish", "description": "Remove 10 armor from target"}])
+
+	# Ring 4 card nodes: IDs 40, 44, 48, 52, 56, 60
+	_assign_card(40, "charge", "Charge",
+		[{"label": "Charge+", "description": "Charge deals 15 damage instead of 10"},
+		 {"label": "Charge++", "description": "Charge deals 20 damage and stuns"}],
+		[{"label": "Bull Rush", "description": "Charge through enemies, damaging all in path"},
+		 {"label": "Blitz", "description": "Charge to enemy and gain 2 free tempo"}])
+
+	_assign_card(44, "trick_shot", "Trick Shot",
+		[{"label": "Trick Shot+", "description": "Bounces to 3 targets instead of 2"},
+		 {"label": "Trick Shot++", "description": "Bounces to 4 targets with no damage falloff"}],
+		[{"label": "Ricochet", "description": "Bounce 3 times, each hit gains +2 damage"},
+		 {"label": "Piercing Shot", "description": "Hit all enemies in a line"}])
+
+	_assign_card(48, "volatile_mixture", "Volatile Mixture",
+		[{"label": "Volatile Mixture+", "description": "Increased damage and larger radius"},
+		 {"label": "Volatile Mixture++", "description": "Also applies burn to hit enemies"}],
+		[{"label": "Acid Flask", "description": "AOE that removes enemy armor over time"},
+		 {"label": "Poison Cloud", "description": "AOE that deals damage over 3 cycles"}])
+
+	_assign_card(52, "meditate", "Meditate",
+		[{"label": "Meditate+", "description": "Restore 6 mana instead of 4"},
+		 {"label": "Meditate++", "description": "Restore 8 mana and draw a card"}],
+		[{"label": "Inner Peace", "description": "Restore 4 mana and cleanse 1 debuff"},
+		 {"label": "Enlightenment", "description": "Restore 3 mana and reduce next card cost to 0"}])
+
+	_assign_card(56, "heroic_leap", "Heroic Leap",
+		[{"label": "Heroic Leap+", "description": "Leap further and deal 8 damage on land"},
+		 {"label": "Heroic Leap++", "description": "Leap deals 12 AOE damage on land"}],
+		[{"label": "Death From Above", "description": "Leap and deal damage based on distance"},
+		 {"label": "Shockwave Land", "description": "Leap and stun all enemies at destination"}])
+
+	_assign_card(60, "reposition", "Reposition",
+		[{"label": "Reposition+", "description": "Move further and gain 3 armor"},
+		 {"label": "Reposition++", "description": "Move further, gain 5 armor, draw a card"}],
+		[{"label": "Tactical Retreat", "description": "Move away and gain 8 armor"},
+		 {"label": "Flanking Strike", "description": "Move and deal 8 damage to adjacent enemy"}])
+
+	# Ring 5 card nodes: IDs 61, 68, 73, 77, 82, 86, 90, 94, 98
+	_assign_card(61, "last_breath", "Last Breath",
+		[{"label": "Last Breath+", "description": "Increased damage multiplier at low HP"},
+		 {"label": "Last Breath++", "description": "Massive damage at low HP, heal on kill"}],
+		[{"label": "Death Wish", "description": "Deal damage equal to missing HP"},
+		 {"label": "Undying Fury", "description": "At low HP: deal 30 damage and heal 10"}])
+
+	_assign_card(68, "sky_fall", "Sky Fall",
+		[{"label": "Sky Fall+", "description": "Larger impact radius"},
+		 {"label": "Sky Fall++", "description": "Larger radius and leaves burning ground"}],
+		[{"label": "Meteor", "description": "Massive single-target sky damage"},
+		 {"label": "Rain of Fire", "description": "Multiple smaller impacts over area"}])
+
+	_assign_card(73, "round_em_up", "Round Em Up",
+		[{"label": "Round Em Up+", "description": "Pull enemies closer with more force"},
+		 {"label": "Round Em Up++", "description": "Pull and stun all gathered enemies"}],
+		[{"label": "Vortex", "description": "Pull enemies to a target point"},
+		 {"label": "Graviton Surge", "description": "Pull and deal damage based on enemies caught"}])
+
+	_assign_card(77, "shadows", "Shadows",
+		[{"label": "Shadows+", "description": "Longer stealth duration"},
+		 {"label": "Shadows++", "description": "Longer stealth and next attack from stealth crits"}],
+		[{"label": "Vanish", "description": "Enter stealth and cleanse all debuffs"},
+		 {"label": "Shadow Strike", "description": "Enter stealth, next attack deals double"}])
+
+	_assign_card(82, "consecutive_snap", "Consecutive Snap",
+		[{"label": "Consecutive Snap+", "description": "Each snap deals +2 more damage"},
+		 {"label": "Consecutive Snap++", "description": "Each snap deals +3 more and costs 1 less"}],
+		[{"label": "Rapid Fire", "description": "Fire 4 quick shots at random enemies"},
+		 {"label": "Barrage", "description": "Each snap also hits adjacent enemies"}])
+
+	_assign_card(86, "sweeping_disarm", "Sweeping Disarm",
+		[{"label": "Sweeping Disarm+", "description": "Disarm lasts longer"},
+		 {"label": "Sweeping Disarm++", "description": "Disarm all nearby enemies"}],
+		[{"label": "Mass Disarm", "description": "Disarm all enemies for 1 cycle"},
+		 {"label": "Weapon Break", "description": "Disarm target and reduce their damage permanently by 1"}])
+
+	_assign_card(90, "elixir", "Elixir",
+		[{"label": "Elixir+", "description": "Heal 15 HP instead of 10"},
+		 {"label": "Elixir++", "description": "Heal 20 HP and gain 5 armor"}],
+		[{"label": "Rejuvenation", "description": "Heal 8 HP over 3 cycles"},
+		 {"label": "Phoenix Tears", "description": "Heal 10 HP, if this would kill you, heal to 1 instead"}])
+
+	_assign_card(94, "mark", "Mark",
+		[{"label": "Mark+", "description": "Marked enemy takes +4 bonus damage"},
+		 {"label": "Mark++", "description": "Marked enemy takes +6 bonus damage from all sources"}],
+		[{"label": "Death Mark", "description": "Mark: after 3 hits, deal 15 bonus damage"},
+		 {"label": "Hunter's Mark", "description": "Mark: all ranged attacks gain +3 damage vs target"}])
+
+	_assign_card(98, "defensive_awareness", "Defensive Awareness",
+		[{"label": "Defensive Awareness+", "description": "Gain 8 armor instead of 5"},
+		 {"label": "Defensive Awareness++", "description": "Gain 10 armor and reduce next damage taken by 50%"}],
+		[{"label": "Iron Skin", "description": "Gain armor equal to 50% of max HP"},
+		 {"label": "Fortress", "description": "Gain 5 armor and block all damage for 1 hit"}])
+
+	# --- Passive node upgrade/transmute paths ---
+	# Ring 2 passives
+	_assign_passive(8, [
+		{"label": "On kill: heal 2 HP", "description": "Upgraded healing on kill"},
+		{"label": "On kill: heal 3 HP", "description": "Major healing on kill"}],
+		[{"label": "On kill: gain 2 mana", "description": "Mana on kill instead of healing"},
+		 {"label": "On kill: heal 1 HP and gain 1 armor", "description": "Hybrid defense on kill"}])
+
+	_assign_passive(11, [
+		{"label": "On card play: 8% draw extra", "description": "Increased draw chance"},
+		{"label": "On card play: 12% draw extra", "description": "Major draw chance"}],
+		[{"label": "On card play: 5% reduce next cost by 1", "description": "Chance for cost reduction"},
+		 {"label": "On card play: 5% draw extra and gain 1 mana", "description": "Draw with mana bonus"}])
+
+	_assign_passive(14, [
+		{"label": "On move: gain 2 armor", "description": "More armor per move"},
+		{"label": "On move: gain 3 armor", "description": "Major armor per move"}],
+		[{"label": "On move: gain 2 life regen and 7 thorns", "description": "Regen and thorns on move"},
+		 {"label": "On move: next card costs 1 less", "description": "Cost reduction on move"}])
+
+	_assign_passive(17, [
+		{"label": "On cycle: regen 2 mana", "description": "Improved mana regen"},
+		{"label": "On cycle: regen 3 mana", "description": "Major mana regen"}],
+		[{"label": "On cycle: regen 1 mana and heal 1 HP", "description": "Hybrid regen each cycle"},
+		 {"label": "On cycle: regen 1 mana and draw a card", "description": "Mana regen with card draw"}])
+
+	# Ring 3 passives
+	_assign_passive(21, [
+		{"label": "On attack: 15% apply bleed", "description": "Increased bleed chance"},
+		{"label": "On attack: 20% apply bleed", "description": "Major bleed chance"}],
+		[{"label": "On attack: 10% apply poison", "description": "Poison instead of bleed"},
+		 {"label": "On attack: 10% apply bleed and slow", "description": "Bleed with slow"}])
+
+	_assign_passive(24, [
+		{"label": "On dodge: gain 3 tempo", "description": "More tempo on dodge"},
+		{"label": "On dodge: gain 4 tempo", "description": "Major tempo on dodge"}],
+		[{"label": "On dodge: counterattack for 5 damage", "description": "Counter on dodge"},
+		 {"label": "On dodge: gain 3 tempo and 2 armor", "description": "Tempo and armor on dodge"}])
+
+	_assign_passive(30, [
+		{"label": "On heal: 20% cleanse debuff", "description": "Increased cleanse chance"},
+		{"label": "On heal: 30% cleanse debuff", "description": "Major cleanse chance"}],
+		[{"label": "On heal: 15% cleanse debuff and gain 2 armor", "description": "Cleanse with armor"},
+		 {"label": "On heal: always cleanse weakest debuff", "description": "Guaranteed cleanse on heal"}])
+
+	_assign_passive(36, [
+		{"label": "On block: reflect 3 damage", "description": "Increased reflect"},
+		{"label": "On block: reflect 5 damage", "description": "Major reflect"}],
+		[{"label": "On block: reflect 2 and gain 1 armor", "description": "Reflect with armor gain"},
+		 {"label": "On block: 30% stun attacker", "description": "Chance to stun on block"}])
+
+	# Ring 4 passives
+	_assign_passive(37, [
+		{"label": "On crit: deal 75% bonus", "description": "Increased crit bonus"},
+		{"label": "On crit: deal 100% bonus", "description": "Double damage on crit"}],
+		[{"label": "On crit: deal 50% bonus and heal 2", "description": "Crit with lifesteal"},
+		 {"label": "On crit: deal 50% bonus and gain 2 tempo", "description": "Crit with tempo"}])
+
+	_assign_passive(41, [
+		{"label": "On kill: draw 2 cards", "description": "Draw more on kill"},
+		{"label": "On kill: draw 2 cards and gain 1 mana", "description": "Major on-kill draw"}],
+		[{"label": "On kill: draw 1 card and reduce its cost by 1", "description": "Discounted draw on kill"},
+		 {"label": "On kill: draw 1 card and gain 3 armor", "description": "Draw with armor on kill"}])
+
+	_assign_passive(45, [
+		{"label": "On spell cast: 15% refund mana", "description": "Increased refund chance"},
+		{"label": "On spell cast: 20% refund mana", "description": "Major refund chance"}],
+		[{"label": "On spell cast: 10% refund mana and deal 3 bonus damage", "description": "Refund with bonus damage"},
+		 {"label": "On spell cast: 10% cast twice", "description": "Chance to double cast"}])
+
+	_assign_passive(49, [
+		{"label": "On tempo cycle: all enemies -2 armor", "description": "Increased armor shred"},
+		{"label": "On tempo cycle: all enemies -3 armor", "description": "Major armor shred"}],
+		[{"label": "On tempo cycle: all enemies -1 armor and take 1 damage", "description": "Shred with damage"},
+		 {"label": "On tempo cycle: nearest enemy -5 armor", "description": "Focused armor shred"}])
+
+	_assign_passive(53, [
+		{"label": "On discard: 30% return to hand", "description": "Increased return chance"},
+		{"label": "On discard: 40% return to hand", "description": "Major return chance"}],
+		[{"label": "On discard: 20% return and gain 1 mana", "description": "Return with mana"},
+		 {"label": "On discard: deal 3 damage to random enemy", "description": "Damage on discard"}])
+
+	_assign_passive(57, [
+		{"label": "On move: 15% gain haste", "description": "Increased haste chance"},
+		{"label": "On move: 20% gain haste", "description": "Major haste chance"}],
+		[{"label": "On move: 10% gain haste and 3 armor", "description": "Haste with armor"},
+		 {"label": "On move: 10% gain haste and draw a card", "description": "Haste with draw"}])
+
+	# Ring 5 passives: IDs 62, 65, 69, 72, 76, 80, 83, 87, 91, 95, 99
+	_assign_passive(62, [
+		{"label": "On attack: 8% stun enemy", "description": "Increased stun chance"},
+		{"label": "On attack: 12% stun enemy", "description": "Major stun chance"}],
+		[{"label": "On attack: 5% stun and deal 3 bonus damage", "description": "Stun with bonus damage"},
+		 {"label": "On attack: 5% freeze enemy for 1 cycle", "description": "Chance to freeze instead of stun"}])
+
+	_assign_passive(65, [
+		{"label": "On kill: gain 5 armor", "description": "More armor on kill"},
+		{"label": "On kill: gain 7 armor", "description": "Major armor on kill"}],
+		[{"label": "On kill: gain 3 armor and heal 2", "description": "Hybrid on kill defense"},
+		 {"label": "On kill: gain 3 armor and 2 tempo", "description": "Armor and tempo on kill"}])
+
+	_assign_passive(69, [
+		{"label": "On block: 20% counterattack", "description": "Increased counter chance"},
+		{"label": "On block: 25% counterattack", "description": "Major counter chance"}],
+		[{"label": "On block: 15% counterattack for double damage", "description": "Powerful counter"},
+		 {"label": "On block: 15% counterattack and gain 2 armor", "description": "Counter with armor"}])
+
+	_assign_passive(72, [
+		{"label": "On spell cast: 8% double cast", "description": "Increased double cast chance"},
+		{"label": "On spell cast: 12% double cast", "description": "Major double cast chance"}],
+		[{"label": "On spell cast: 5% double cast and refund mana", "description": "Double cast with refund"},
+		 {"label": "On spell cast: 5% triple cast", "description": "Chance to triple cast"}])
+
+	_assign_passive(76, [
+		{"label": "On draw: 15% draw costs 0 mana", "description": "Increased free draw chance"},
+		{"label": "On draw: 20% draw costs 0 mana", "description": "Major free draw chance"}],
+		[{"label": "On draw: 10% draw costs 0 and draw an extra card", "description": "Free draw with bonus"},
+		 {"label": "On draw: 10% draw costs 0 and gain 2 armor", "description": "Free draw with armor"}])
+
+	_assign_passive(80, [
+		{"label": "On cycle: 30% gain empower", "description": "Increased empower chance"},
+		{"label": "On cycle: 40% gain empower", "description": "Major empower chance"}],
+		[{"label": "On cycle: 20% gain empower and draw a card", "description": "Empower with draw"},
+		 {"label": "On cycle: 20% gain double empower", "description": "Chance for double empower"}])
+
+	_assign_passive(83, [
+		{"label": "On heal: overheal becomes 150% armor", "description": "Better overheal conversion"},
+		{"label": "On heal: overheal becomes 200% armor", "description": "Major overheal conversion"}],
+		[{"label": "On heal: overheal becomes armor and gain 1 mana", "description": "Overheal with mana"},
+		 {"label": "On heal: overheal becomes armor, excess armor deals damage", "description": "Offensive overheal"}])
+
+	_assign_passive(87, [
+		{"label": "On crit: heal 5 HP", "description": "Increased crit healing"},
+		{"label": "On crit: heal 7 HP", "description": "Major crit healing"}],
+		[{"label": "On crit: heal 3 HP and gain 2 mana", "description": "Crit healing with mana"},
+		 {"label": "On crit: heal 3 HP and gain 3 armor", "description": "Crit healing with armor"}])
+
+	_assign_passive(91, [
+		{"label": "On discard: deal 5 to random enemy", "description": "Increased discard damage"},
+		{"label": "On discard: deal 7 to random enemy", "description": "Major discard damage"}],
+		[{"label": "On discard: deal 3 to all enemies", "description": "AOE discard damage"},
+		 {"label": "On discard: deal 3 to random enemy and gain 1 mana", "description": "Discard damage with mana"}])
+
+	_assign_passive(95, [
+		{"label": "On move: next card costs 2 less", "description": "Bigger cost reduction on move"},
+		{"label": "On move: next card costs 3 less", "description": "Major cost reduction on move"}],
+		[{"label": "On move: next card costs 1 less and deals +3 damage", "description": "Move to empower"},
+		 {"label": "On move: next card is free", "description": "Free next card on move"}])
+
+	_assign_passive(99, [
+		{"label": "On tempo cycle: draw 2 cards", "description": "Draw more per cycle"},
+		{"label": "On tempo cycle: draw 2 cards and gain 1 mana", "description": "Major cycle draw"}],
+		[{"label": "On tempo cycle: draw 1 card and gain 2 mana", "description": "Balanced cycle reward"},
+		 {"label": "On tempo cycle: draw 1 card and gain 3 armor", "description": "Defensive cycle"}])
+
+func _assign_card(node_id: int, p_card_id: String, card_label: String, upgrades: Array, transmutes: Array) -> void:
+	var node = get_node_by_id(node_id)
+	if not node:
+		return
+	node.card_id = p_card_id
+	node.label = card_label
+	node.upgrade_paths = upgrades
+	node.transmute_paths = transmutes
+
+func _assign_passive(node_id: int, upgrades: Array, transmutes: Array) -> void:
+	var node = get_node_by_id(node_id)
+	if not node or node.node_type != NodeType.PASSIVE:
+		return
+	node.upgrade_paths = upgrades
+	node.transmute_paths = transmutes
