@@ -165,6 +165,7 @@ func _create_card_from_id(card_id: String) -> Card:
 		"understanding": return Card.create_understanding()
 		"shuriken_pouch": return Card.create_shuriken_pouch()
 		"shuriken": return Card.create_shuriken()
+		"premeditated": return Card.create_premeditated()
 		# Stephen cards
 		"mark": return Card.create_mark()
 		"rise": return Card.create_rise()

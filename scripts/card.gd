@@ -267,6 +267,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_shuriken_pouch(player_stats)
 		"shuriken":
 			_execute_shuriken(target, player_stats)
+		"premeditated":
+			_execute_premeditated(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Stephen Cards ===
 		"mark":
 			_execute_mark(target, player_stats, buff_mgr)
@@ -1037,6 +1039,41 @@ func _execute_shuriken(target, player_stats: PlayerStats) -> void:
 	last_damage_dealt = total_damage
 	print("[CARD] Shuriken! Dealt %d damage" % total_damage)
 
+func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+	var total_damage = base_damage + bonus_damage
+
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+
+	if is_empowered and player_stats:
+		total_damage += player_stats.empower_damage_bonus
+
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			print("[CARD] CRITICAL HIT! Damage doubled!")
+			buff_mgr.consume_enlightened()
+
+	if damage_reduction_pct > 0.0:
+		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
+
+	print("[CARD] Premeditated deals %d damage!" % total_damage)
+	last_damage_dealt = total_damage
+
+	if target and target.has_method("take_damage"):
+		var just_exposed = target.take_damage(total_damage)
+		# If this attack broke the enemy's armor, mark them for bonus damage
+		if just_exposed and target.has_method("is_alive") and target.is_alive():
+			target.bonus_damage_next_hit = 15
+			print("[CARD] Premeditated EXPOSED the target! Next attack deals +15 damage!")
+
+	if self_damage_percent > 0.0 and player_stats:
+		var self_dmg = floori(total_damage * self_damage_percent)
+		if self_dmg > 0:
+			player_stats.take_damage(self_dmg)
+			print("[CARD] Cursed: took %d self-damage!" % self_dmg)
+
 # ============================================
 # STEPHEN CARD EXECUTE FUNCTIONS
 # ============================================
@@ -1794,6 +1831,20 @@ static func create_shuriken() -> Card:
 	card.damage = 3
 	card.base_damage = 3
 	card.is_ranged = true
+	card.target_types = ["enemy"]
+	return card
+
+static func create_premeditated() -> Card:
+	var card = Card.new()
+	card.card_id = "premeditated"
+	card.card_name = "Premeditated"
+	card.description = "Deal 8 damage. If this Exposes the enemy, your next attack to that enemy deals 15 damage."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 4
+	card.damage = 8
+	card.base_damage = 8
 	card.target_types = ["enemy"]
 	return card
 

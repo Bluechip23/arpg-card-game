@@ -22,6 +22,10 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL }
 @export var move_distance: float = 1.0 # Units per action (1 grid cell)
 
 var current_health: int = 30
+var max_armor: int = 0
+var current_armor: int = 0
+var is_exposed: bool = false          # True once armor has been broken to 0
+var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
 var target: Node3D = null
 var is_moving: bool = false
 var target_position: Vector3
@@ -67,6 +71,12 @@ var _tempo_bar_bg: MeshInstance3D
 var _tempo_bar_fg: MeshInstance3D
 var _action_label: Label3D
 var _tempo_bar_width: float = 0.6
+
+# Armor bar visuals (gray bar below health, only for armored enemies)
+var _armor_bar_bg: MeshInstance3D
+var _armor_bar_fg: MeshInstance3D
+var _armor_label: Label3D
+var _armor_bar_width: float = 0.6
 
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var health_label: Label3D = $HealthLabel
@@ -116,6 +126,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 		EnemyType.SKELETON:
 			enemy_name = "Skeleton"
 			max_health = 18
+			max_armor = 10
 			attack_damage = 5
 			move_distance = 1.0
 			_set_mesh_color(Color(0.85, 0.85, 0.75))  # Bone white
@@ -123,16 +134,19 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 		EnemyType.ARMORED_TROLL:
 			enemy_name = "Armored Troll"
 			max_health = 45
+			max_armor = 30
 			attack_damage = 4
 			move_distance = 1.0
 			_set_mesh_color(Color(0.2, 0.4, 0.15))  # Dark green
 
 	current_health = max_health
+	current_armor = max_armor
 	update_health_display()
 	update_name_display()
 	update_outline()
 	_setup_actions()
 	_setup_tempo_bar()
+	_setup_armor_bar()
 
 	if grid_manager:
 		position = grid_manager.snap_to_grid(position)
@@ -229,6 +243,76 @@ func _setup_tempo_bar() -> void:
 	# Move name label up to make room for the tempo bar
 	if name_label:
 		name_label.position.y = 1.35
+
+func _setup_armor_bar() -> void:
+	if max_armor <= 0:
+		return
+
+	# Background bar (dark)
+	_armor_bar_bg = MeshInstance3D.new()
+	var bg_quad = QuadMesh.new()
+	bg_quad.size = Vector2(_armor_bar_width, 0.06)
+	_armor_bar_bg.mesh = bg_quad
+	var bg_mat = StandardMaterial3D.new()
+	bg_mat.albedo_color = Color(0.15, 0.15, 0.15, 0.7)
+	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	bg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bg_mat.no_depth_test = true
+	_armor_bar_bg.material_override = bg_mat
+	_armor_bar_bg.position = Vector3(0, 0.75, 0)
+	add_child(_armor_bar_bg)
+
+	# Foreground bar (gray fill)
+	_armor_bar_fg = MeshInstance3D.new()
+	var fg_quad = QuadMesh.new()
+	fg_quad.size = Vector2(_armor_bar_width, 0.06)
+	_armor_bar_fg.mesh = fg_quad
+	var fg_mat = StandardMaterial3D.new()
+	fg_mat.albedo_color = Color(0.6, 0.6, 0.6, 0.9)  # Gray
+	fg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fg_mat.no_depth_test = true
+	_armor_bar_fg.material_override = fg_mat
+	_armor_bar_fg.position = Vector3(0, 0.75, 0.001)
+	add_child(_armor_bar_fg)
+
+	# Armor value label
+	_armor_label = Label3D.new()
+	_armor_label.position = Vector3(0, 0.75, 0.002)
+	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_armor_label.font_size = 14
+	_armor_label.modulate = Color(0.9, 0.9, 0.9)
+	add_child(_armor_label)
+
+	_update_armor_bar()
+
+func _update_armor_bar() -> void:
+	if not _armor_bar_bg:
+		return
+
+	if max_armor <= 0 or current_armor <= 0:
+		_armor_bar_bg.visible = max_armor > 0  # Keep BG visible if enemy had armor (shows empty)
+		_armor_bar_fg.visible = false
+		if _armor_label:
+			_armor_label.text = "0" if max_armor > 0 else ""
+		return
+
+	_armor_bar_bg.visible = true
+	_armor_bar_fg.visible = true
+
+	var progress = clampf(float(current_armor) / float(max_armor), 0.0, 1.0)
+	var current_width = _armor_bar_width * progress
+
+	var fg_mesh = _armor_bar_fg.mesh as QuadMesh
+	if fg_mesh:
+		fg_mesh.size.x = max(0.01, current_width)
+
+	_armor_bar_fg.position.x = -(_armor_bar_width - current_width) / 2.0
+
+	if _armor_label:
+		_armor_label.text = str(current_armor)
 
 # ============================================
 # TEMPO-DRIVEN ACTION HANDLING
@@ -608,16 +692,41 @@ func attack_player(player_node: Node3D) -> void:
 # TAKING DAMAGE
 # ============================================
 
-func take_damage(amount: int) -> void:
+## Deal damage to this enemy. Armor absorbs first, remainder hits health.
+## Returns true if the enemy was just Exposed (armor broken to 0).
+func take_damage(amount: int) -> bool:
 	if is_dead:
-		return
+		return false
 
 	if wear_down_tempo > 0:
 		attack_reduction += 1
 		print("[%s] Wear Down stacks! Attack reduced by %d" % [enemy_name, attack_reduction])
 
-	current_health -= amount
-	current_health = max(0, current_health)
+	# Apply premeditated bonus damage
+	if bonus_damage_next_hit > 0:
+		print("[%s] Premeditated bonus: +%d damage!" % [enemy_name, bonus_damage_next_hit])
+		amount += bonus_damage_next_hit
+		bonus_damage_next_hit = 0
+
+	# Armor absorbs damage first
+	var just_exposed = false
+	if current_armor > 0:
+		var was_armored = current_armor > 0
+		var armor_absorbed = min(current_armor, amount)
+		current_armor -= armor_absorbed
+		amount -= armor_absorbed
+		print("[%s] Armor absorbed %d damage! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
+		_update_armor_bar()
+		if was_armored and current_armor <= 0:
+			just_exposed = true
+			is_exposed = true
+			print("[%s] EXPOSED! Armor broken!" % enemy_name)
+
+	# Remaining damage hits health
+	if amount > 0:
+		current_health -= amount
+		current_health = max(0, current_health)
+
 	damaged.emit(amount)
 	update_health_display()
 
@@ -629,10 +738,12 @@ func take_damage(amount: int) -> void:
 			tween.tween_property(mat, "albedo_color", Color.RED, 0.1)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
-	print("[%s] Took %d damage! Health: %d/%d" % [enemy_name, amount, current_health, max_health])
+	print("[%s] Took damage! Health: %d/%d, Armor: %d/%d" % [enemy_name, current_health, max_health, current_armor, max_armor])
 
 	if current_health <= 0:
 		die()
+
+	return just_exposed
 
 # ============================================
 # STATUS EFFECTS
@@ -730,6 +841,13 @@ func die() -> void:
 		_tempo_bar_fg.visible = false
 	if _action_label:
 		_action_label.text = ""
+	# Hide armor bar on death
+	if _armor_bar_bg:
+		_armor_bar_bg.visible = false
+	if _armor_bar_fg:
+		_armor_bar_fg.visible = false
+	if _armor_label:
+		_armor_label.text = ""
 
 	var tween = create_tween()
 	tween.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.5)
