@@ -693,8 +693,9 @@ func attack_player(player_node: Node3D) -> void:
 # ============================================
 
 ## Deal damage to this enemy. Armor absorbs first, remainder hits health.
+## Set from_player = true when the damage originates from the player's card/attack.
 ## Returns true if the enemy was just Exposed (armor broken to 0).
-func take_damage(amount: int) -> bool:
+func take_damage(amount: int, from_player: bool = false) -> bool:
 	if is_dead:
 		return false
 
@@ -702,8 +703,8 @@ func take_damage(amount: int) -> bool:
 		attack_reduction += 1
 		print("[%s] Wear Down stacks! Attack reduced by %d" % [enemy_name, attack_reduction])
 
-	# Apply premeditated bonus damage
-	if bonus_damage_next_hit > 0:
+	# Apply premeditated bonus damage (only from player attacks)
+	if from_player and bonus_damage_next_hit > 0:
 		print("[%s] Premeditated bonus: +%d damage!" % [enemy_name, bonus_damage_next_hit])
 		amount += bonus_damage_next_hit
 		bonus_damage_next_hit = 0

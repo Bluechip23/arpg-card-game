@@ -550,12 +550,12 @@ func _execute_gauntlet_skill(gauntlet: ItemData, target) -> void:
 	match gauntlet.gauntlet_skill_effect_id:
 		"power_grip":
 			if target and target.has_method("take_damage"):
-				target.take_damage(8)
+				target.take_damage(8, true)
 				print("[SKILL] Power Grip deals 8 damage!")
-		
+
 		"rage_strike":
 			if target and target.has_method("take_damage"):
-				target.take_damage(15)
+				target.take_damage(15, true)
 			if player_stats:
 				player_stats.take_damage(3)
 			print("[SKILL] Rage Strike deals 15 damage, costs 3 HP!")
