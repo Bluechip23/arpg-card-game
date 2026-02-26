@@ -3,6 +3,7 @@ extends CanvasLayer
 
 ## Full-screen sphere grid overlay for the leveling system.
 ## Toggle with L key. Renders 100 nodes in concentric rings with connection lines.
+## Click a node to open a detail popup showing card/passive info, upgrade paths, etc.
 
 signal closed
 signal node_unlocked(node_id: int)
@@ -21,6 +22,11 @@ var _camera_offset: Vector2 = Vector2.ZERO
 var _dragging: bool = false
 var _drag_start: Vector2 = Vector2.ZERO
 var _zoom: float = 1.0
+
+# Detail popup state
+var _popup_node_id: int = -1  # Which node's popup is open (-1 = none)
+var _detail_panel: PanelContainer = null
+var _unlock_button: Button = null
 
 # Node drawing constants
 const NODE_RADIUS_BASE: float = 16.0
@@ -42,6 +48,13 @@ const COLOR_LINE := Color(0.4, 0.4, 0.55, 0.85)
 const COLOR_LINE_UNLOCKED := Color(0.3, 0.85, 0.4, 0.9)
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.95)
 const COLOR_HOVER_RING := Color(1.0, 1.0, 0.6, 0.8)
+
+# Detail popup colors
+const COLOR_POPUP_BG := Color(0.08, 0.08, 0.12, 0.97)
+const COLOR_UPGRADE := Color(0.3, 0.8, 1.0)
+const COLOR_TRANSMUTE := Color(1.0, 0.6, 0.2)
+const COLOR_SECTION_HEADER := Color(0.7, 0.7, 0.8)
+const COLOR_DIM_TEXT := Color(0.55, 0.55, 0.65)
 
 func _ready() -> void:
 	layer = 110
@@ -110,9 +123,11 @@ func show_panel() -> void:
 	visible = true
 	_camera_offset = Vector2.ZERO
 	_zoom = 1.0
+	_close_detail_popup()
 	grid_canvas.queue_redraw()
 
 func hide_panel() -> void:
+	_close_detail_popup()
 	visible = false
 
 func toggle_panel() -> void:
@@ -231,15 +246,18 @@ func _on_grid_draw() -> void:
 
 		# Hover highlight
 		var is_hovered = (node.id == _hovered_node_id)
-		if is_hovered:
+		# Selected node highlight (popup open)
+		var is_selected = (node.id == _popup_node_id)
+		if is_hovered or is_selected:
 			radius += HOVER_GROW * _zoom
 
 		# Draw shape
 		match shape:
 			"circle":
 				grid_canvas.draw_circle(pos, radius, color)
-				if is_hovered:
-					grid_canvas.draw_arc(pos, radius + 2 * _zoom, 0, TAU, 32, COLOR_HOVER_RING, 2.0 * _zoom)
+				if is_hovered or is_selected:
+					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
+					grid_canvas.draw_arc(pos, radius + 2 * _zoom, 0, TAU, 32, ring_color, 2.0 * _zoom)
 			"diamond":
 				var pts = PackedVector2Array([
 					pos + Vector2(0, -radius),
@@ -248,15 +266,17 @@ func _on_grid_draw() -> void:
 					pos + Vector2(-radius, 0),
 				])
 				grid_canvas.draw_colored_polygon(pts, color)
-				if is_hovered:
+				if is_hovered or is_selected:
 					var outline = pts.duplicate()
 					outline.append(pts[0])
-					grid_canvas.draw_polyline(outline, COLOR_HOVER_RING, 2.0 * _zoom)
+					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
+					grid_canvas.draw_polyline(outline, ring_color, 2.0 * _zoom)
 			"square":
 				var rect = Rect2(pos - Vector2(radius, radius), Vector2(radius * 2, radius * 2))
 				grid_canvas.draw_rect(rect, color)
-				if is_hovered:
-					grid_canvas.draw_rect(rect.grow(2 * _zoom), COLOR_HOVER_RING, false, 2.0 * _zoom)
+				if is_hovered or is_selected:
+					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
+					grid_canvas.draw_rect(rect.grow(2 * _zoom), ring_color, false, 2.0 * _zoom)
 
 		# Draw unlocked checkmark or lock
 		if node.unlocked and node.id != 0:
@@ -336,61 +356,333 @@ func _on_grid_input(event: InputEvent) -> void:
 				_update_info_label()
 				grid_canvas.queue_redraw()
 
-	# Mouse button — click to unlock, middle/right drag to pan, scroll to zoom
+	# Mouse button — click opens detail popup, middle/right drag to pan, scroll to zoom
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed:
-				var local_pos = grid_canvas.get_local_mouse_position()
-				var clicked_id = _get_node_at_screen(local_pos)
-				if clicked_id >= 0:
-					_try_unlock_node(clicked_id)
-			# Also start drag on left for convenience
+		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			var local_pos = grid_canvas.get_local_mouse_position()
+			var clicked_id = _get_node_at_screen(local_pos)
+			if clicked_id >= 0:
+				_open_detail_popup(clicked_id)
+			else:
+				# Clicked empty space — close popup
+				_close_detail_popup()
+
 		if event.button_index == MOUSE_BUTTON_RIGHT or event.button_index == MOUSE_BUTTON_MIDDLE:
 			_dragging = event.pressed
 			if event.pressed:
 				_drag_start = event.position
+				_close_detail_popup()
 
 		# Scroll zoom
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_zoom = clampf(_zoom * 1.1, 0.4, 2.5)
+			_close_detail_popup()
 			grid_canvas.queue_redraw()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_zoom = clampf(_zoom / 1.1, 0.4, 2.5)
+			_close_detail_popup()
 			grid_canvas.queue_redraw()
 
-func _try_unlock_node(id: int) -> void:
-	var node = sphere_grid.get_node_by_id(id)
+# ============================================
+# NODE DETAIL POPUP
+# ============================================
+
+func _open_detail_popup(node_id: int) -> void:
+	var node = sphere_grid.get_node_by_id(node_id)
 	if not node:
 		return
 
-	if node.unlocked:
-		_set_info("Already unlocked: %s" % node.label)
+	# Close existing popup
+	_close_detail_popup()
+	_popup_node_id = node_id
+	grid_canvas.queue_redraw()
+
+	# Build the popup panel
+	_detail_panel = PanelContainer.new()
+	_detail_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var popup_style = StyleBoxFlat.new()
+	popup_style.bg_color = COLOR_POPUP_BG
+	popup_style.border_width_left = 2
+	popup_style.border_width_right = 2
+	popup_style.border_width_top = 2
+	popup_style.border_width_bottom = 2
+	popup_style.border_color = _get_type_color(node).lerp(Color.WHITE, 0.3)
+	popup_style.corner_radius_top_left = 6
+	popup_style.corner_radius_top_right = 6
+	popup_style.corner_radius_bottom_left = 6
+	popup_style.corner_radius_bottom_right = 6
+	popup_style.content_margin_left = 14
+	popup_style.content_margin_right = 14
+	popup_style.content_margin_top = 10
+	popup_style.content_margin_bottom = 10
+	_detail_panel.add_theme_stylebox_override("panel", popup_style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	_detail_panel.add_child(vbox)
+
+	# --- Header: node name + type ---
+	var type_name = _get_type_name(node.node_type)
+	var status_text = "UNLOCKED" if node.unlocked else ("AVAILABLE" if sphere_grid.is_unlockable(node.id) else "LOCKED")
+	_add_popup_label(vbox, node.label, 18, _get_type_color(node))
+	_add_popup_label(vbox, "%s  |  %s  |  Ring %d" % [type_name, status_text, node.ring], 12, COLOR_DIM_TEXT)
+
+	# --- Separator ---
+	_add_popup_separator(vbox)
+
+	# --- Content based on node type ---
+	match node.node_type:
+		SphereGrid.NodeType.CARD:
+			_build_card_popup_content(vbox, node)
+		SphereGrid.NodeType.PASSIVE:
+			_build_passive_popup_content(vbox, node)
+		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA:
+			_build_stat_popup_content(vbox, node)
+		SphereGrid.NodeType.START:
+			_add_popup_label(vbox, "Starting node — always unlocked.", 13, Color(0.8, 0.8, 0.85))
+
+	# --- Unlock button (if unlockable and not yet unlocked) ---
+	if not node.unlocked and node.node_type != SphereGrid.NodeType.START:
+		_add_popup_separator(vbox)
+		_add_unlock_section(vbox, node)
+
+	# --- Close hint ---
+	_add_popup_label(vbox, "Click elsewhere or right-click to close", 10, Color(0.4, 0.4, 0.5))
+
+	# Add popup to the panel (not grid_canvas, so it sits on top)
+	panel.add_child(_detail_panel)
+
+	# Position near the node but keep on screen
+	_position_popup(node)
+
+func _close_detail_popup() -> void:
+	if _detail_panel and is_instance_valid(_detail_panel):
+		_detail_panel.queue_free()
+	_detail_panel = null
+	_unlock_button = null
+	_popup_node_id = -1
+	grid_canvas.queue_redraw()
+
+func _position_popup(node: SphereGrid.GridNode) -> void:
+	if not _detail_panel:
 		return
 
-	if not sphere_grid.is_unlockable(id):
-		_set_info("Cannot unlock — must be adjacent to an unlocked node.")
+	# Wait one frame for the popup to compute its size
+	await get_tree().process_frame
+
+	if not is_instance_valid(_detail_panel):
 		return
 
-	if not sphere_inventory:
-		_set_info("No sphere inventory connected!")
-		return
+	var node_screen_pos = _world_to_screen(node.position)
+	var popup_size = _detail_panel.size
+	var screen_size = panel.size
 
-	if not sphere_inventory.has_sphere_for_node(node.node_type):
-		var required_type = SphereInventory.get_required_sphere_type(node.node_type)
-		var type_name = SphereInventory.get_sphere_name(required_type) if required_type >= 0 else "Unknown"
-		_set_info("Need a %s or Any sphere to unlock this node!" % type_name)
+	# Default: to the right of the node
+	var px = node_screen_pos.x + 30
+	var py = node_screen_pos.y - popup_size.y / 2.0
+
+	# Clamp to screen
+	if px + popup_size.x > screen_size.x - 10:
+		px = node_screen_pos.x - popup_size.x - 30
+	if py < 45:
+		py = 45
+	if py + popup_size.y > screen_size.y - 40:
+		py = screen_size.y - 40 - popup_size.y
+
+	_detail_panel.position = Vector2(px, py)
+
+# ============================================
+# POPUP CONTENT BUILDERS
+# ============================================
+
+func _build_card_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
+	# Show card info
+	if node.card_id != "":
+		var card = _try_create_card(node.card_id)
+		if card:
+			_add_popup_label(vbox, card.card_name, 16, Color(0.95, 0.95, 1.0))
+			var cost_text = "Cost: %d Mana  |  %d Tempo" % [card.mana_cost, card.tempo_cost]
+			_add_popup_label(vbox, cost_text, 12, COLOR_DIM_TEXT)
+			_add_popup_label(vbox, card.description, 13, Color(0.8, 0.8, 0.9))
+
+			if card.card_type == Card.CardType.ATTACK and card.damage > 0:
+				_add_popup_label(vbox, "Damage: %d" % card.damage, 12, Color(1.0, 0.5, 0.5))
+			if card.card_type == Card.CardType.DEFENSE and card.block > 0:
+				_add_popup_label(vbox, "Block: %d" % card.block, 12, Color(0.5, 0.7, 1.0))
+			if card.heal_amount > 0:
+				_add_popup_label(vbox, "Heal: %d" % card.heal_amount, 12, Color(0.5, 1.0, 0.5))
+			if card.is_ranged:
+				_add_popup_label(vbox, "Ranged  |  %s" % card.get_range_display(), 12, Color(0.8, 0.8, 0.5))
+		else:
+			_add_popup_label(vbox, "Card: %s" % node.card_id, 14, Color(0.8, 0.8, 0.9))
+	else:
+		_add_popup_label(vbox, node.description, 14, Color(0.8, 0.8, 0.9))
+
+	# Upgrade paths
+	if node.upgrade_paths.size() > 0:
+		_add_popup_separator(vbox)
+		_add_popup_label(vbox, "UPGRADE PATHS", 12, COLOR_SECTION_HEADER)
+		for i in range(node.upgrade_paths.size()):
+			var path = node.upgrade_paths[i]
+			_add_popup_label(vbox, "%d. %s" % [i + 1, path["label"]], 13, COLOR_UPGRADE)
+			_add_popup_label(vbox, "   %s" % path["description"], 11, COLOR_DIM_TEXT)
+
+	# Transmute paths
+	if node.transmute_paths.size() > 0:
+		_add_popup_separator(vbox)
+		_add_popup_label(vbox, "TRANSMUTE PATHS", 12, COLOR_SECTION_HEADER)
+		for i in range(node.transmute_paths.size()):
+			var path = node.transmute_paths[i]
+			_add_popup_label(vbox, "%d. %s" % [i + 1, path["label"]], 13, COLOR_TRANSMUTE)
+			_add_popup_label(vbox, "   %s" % path["description"], 11, COLOR_DIM_TEXT)
+
+func _build_passive_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
+	_add_popup_label(vbox, node.description, 14, Color(0.95, 0.8, 0.5))
+
+	# Upgrade paths
+	if node.upgrade_paths.size() > 0:
+		_add_popup_separator(vbox)
+		_add_popup_label(vbox, "UPGRADE PATHS", 12, COLOR_SECTION_HEADER)
+		for i in range(node.upgrade_paths.size()):
+			var path = node.upgrade_paths[i]
+			_add_popup_label(vbox, "%d. %s" % [i + 1, path["label"]], 13, COLOR_UPGRADE)
+			_add_popup_label(vbox, "   %s" % path["description"], 11, COLOR_DIM_TEXT)
+
+	# Transmute paths
+	if node.transmute_paths.size() > 0:
+		_add_popup_separator(vbox)
+		_add_popup_label(vbox, "TRANSMUTE PATHS", 12, COLOR_SECTION_HEADER)
+		for i in range(node.transmute_paths.size()):
+			var path = node.transmute_paths[i]
+			_add_popup_label(vbox, "%d. %s" % [i + 1, path["label"]], 13, COLOR_TRANSMUTE)
+			_add_popup_label(vbox, "   %s" % path["description"], 11, COLOR_DIM_TEXT)
+
+func _build_stat_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
+	_add_popup_label(vbox, node.description, 15, Color(0.8, 0.9, 1.0))
+
+	# Provide context on what the stat does
+	var stat_detail = _get_stat_detail(node.label)
+	if stat_detail != "":
+		_add_popup_label(vbox, stat_detail, 11, COLOR_DIM_TEXT)
+
+func _get_stat_detail(label: String) -> String:
+	if label.begins_with("STR"):
+		return "Strength: +carry capacity, +physical damage"
+	elif label.begins_with("DEX"):
+		return "Dexterity: faster attack speed proc"
+	elif label.begins_with("INT"):
+		return "Intelligence: +spell damage, +mana regen"
+	elif label.begins_with("WIS"):
+		return "Wisdom: +hand size, faster card draw"
+	elif label.begins_with("AGI"):
+		return "Agility: +movement per tempo cycle"
+	elif label.begins_with("DET"):
+		return "Determination: stats scale with missing HP"
+	elif label.begins_with("HP"):
+		return "Increases maximum health pool"
+	elif label.begins_with("Mana"):
+		return "Increases maximum mana pool"
+	return ""
+
+func _add_unlock_section(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
+	var req_type = SphereInventory.get_required_sphere_type(node.node_type)
+	var type_name = SphereInventory.get_sphere_name(req_type) if req_type >= 0 else "Unknown"
+
+	var can_unlock = sphere_grid.is_unlockable(node.id) and sphere_inventory and sphere_inventory.has_sphere_for_node(node.node_type)
+
+	if not sphere_grid.is_unlockable(node.id):
+		_add_popup_label(vbox, "Must be adjacent to an unlocked node", 12, Color(0.7, 0.3, 0.3))
+	elif not sphere_inventory or not sphere_inventory.has_sphere_for_node(node.node_type):
+		_add_popup_label(vbox, "Requires: %s sphere (or Any)" % type_name, 12, Color(0.7, 0.3, 0.3))
+	else:
+		_add_popup_label(vbox, "Costs 1 %s sphere" % type_name, 12, Color(0.5, 0.8, 0.5))
+
+	_unlock_button = Button.new()
+	_unlock_button.text = "Unlock Node" if can_unlock else "Cannot Unlock"
+	_unlock_button.disabled = not can_unlock
+	_unlock_button.add_theme_font_size_override("font_size", 14)
+	_unlock_button.custom_minimum_size = Vector2(180, 32)
+
+	var btn_style = StyleBoxFlat.new()
+	btn_style.corner_radius_top_left = 4
+	btn_style.corner_radius_top_right = 4
+	btn_style.corner_radius_bottom_left = 4
+	btn_style.corner_radius_bottom_right = 4
+	if can_unlock:
+		btn_style.bg_color = Color(0.15, 0.4, 0.2)
+		btn_style.border_color = Color(0.3, 0.7, 0.4)
+	else:
+		btn_style.bg_color = Color(0.2, 0.2, 0.2)
+		btn_style.border_color = Color(0.35, 0.35, 0.35)
+	btn_style.border_width_left = 1
+	btn_style.border_width_right = 1
+	btn_style.border_width_top = 1
+	btn_style.border_width_bottom = 1
+	_unlock_button.add_theme_stylebox_override("normal", btn_style)
+
+	var btn_hover = btn_style.duplicate()
+	btn_hover.bg_color = Color(0.2, 0.5, 0.3) if can_unlock else Color(0.2, 0.2, 0.2)
+	_unlock_button.add_theme_stylebox_override("hover", btn_hover)
+
+	_unlock_button.pressed.connect(_on_unlock_pressed)
+	vbox.add_child(_unlock_button)
+
+func _on_unlock_pressed() -> void:
+	if _popup_node_id < 0:
+		return
+	var node = sphere_grid.get_node_by_id(_popup_node_id)
+	if not node or node.unlocked:
+		return
+	if not sphere_grid.is_unlockable(_popup_node_id):
+		return
+	if not sphere_inventory or not sphere_inventory.has_sphere_for_node(node.node_type):
 		return
 
 	sphere_inventory.spend_sphere_for_node(node.node_type)
-	sphere_grid.unlock_node(id)
+	sphere_grid.unlock_node(_popup_node_id)
 	_update_points_label()
 	_set_info("Unlocked: %s — %s" % [node.label, node.description])
-	node_unlocked.emit(id)
-	grid_canvas.queue_redraw()
+	node_unlocked.emit(_popup_node_id)
+
+	# Refresh popup to show new state
+	var node_id = _popup_node_id
+	_close_detail_popup()
+	_open_detail_popup(node_id)
+
+# ============================================
+# POPUP HELPERS
+# ============================================
+
+func _add_popup_label(parent: VBoxContainer, text: String, font_size: int, color: Color) -> Label:
+	var label = Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size.x = 280
+	parent.add_child(label)
+	return label
+
+func _add_popup_separator(parent: VBoxContainer) -> void:
+	var sep = HSeparator.new()
+	sep.add_theme_stylebox_override("separator", StyleBoxLine.new())
+	sep.add_theme_constant_override("separation", 4)
+	parent.add_child(sep)
+
+func _try_create_card(card_id: String) -> Card:
+	## Try to instantiate a card by ID so we can show its details.
+	var method_name = "create_" + card_id
+	if Card.has_method(method_name):
+		return Card.call(method_name)
+	return null
+
+# ============================================
+# INFO LABEL / HELPERS
+# ============================================
 
 func _update_info_label() -> void:
 	if _hovered_node_id < 0:
-		info_label.text = "Hover over a node to see details. Click to unlock adjacent nodes."
+		info_label.text = "Hover over a node to see details. Click to open node details."
 		return
 	var node = sphere_grid.get_node_by_id(_hovered_node_id)
 	if not node:
