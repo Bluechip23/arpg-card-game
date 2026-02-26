@@ -61,7 +61,7 @@ static func create_ryan() -> CharacterData:
 		"raged_circulation", "poisoned_blood", "elixir", "heal",
 		"shadows", "preparation", "exacerbate_wounds", "reposition",
 		"dagger_throw", "volatile_mixture", "understanding",
-		"shuriken_pouch"
+		"shuriken_pouch", "premeditated"
 	]
 	data.passive_description = "Belt cards cost 1 less mana"
 	data.starting_item_name = "Adventurer's Belt"

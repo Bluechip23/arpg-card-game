@@ -267,6 +267,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_shuriken_pouch(player_stats)
 		"shuriken":
 			_execute_shuriken(target, player_stats)
+		"premeditated":
+			_execute_premeditated(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Stephen Cards ===
 		"mark":
 			_execute_mark(target, player_stats, buff_mgr)
@@ -367,7 +369,7 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 	last_damage_dealt = total_damage
 
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 
 		# Thorns check - if target has buff_manager
 		if target.has_method("get_buff_manager"):
@@ -396,7 +398,7 @@ func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats
 	print("[CARD] Dagger Throw deals %d damage!" % total_damage)
 	
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	
 	if self_damage_percent > 0.0 and player_stats:
 		var self_dmg = floori(total_damage * self_damage_percent)
@@ -455,7 +457,7 @@ func _execute_heal_with_poison_check(target, player_stats: PlayerStats, buff_mgr
 		var dmg = heal_amount
 		if player_stats:
 			dmg = player_stats.get_effective_heal_amount(heal_amount)
-		target.take_damage(dmg)
+		target.take_damage(dmg, true)
 		print("[CARD] Poisoned Blood: %s dealt %d damage!" % [card_name, dmg])
 	else:
 		if player_stats:
@@ -687,7 +689,7 @@ func _execute_life_swap(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	player_stats.mana_changed.emit(player_stats.current_mana, player_stats.max_mana)
 	# Deal damage equal to life lost
 	if life_lost > 0 and target and target.has_method("take_damage"):
-		target.take_damage(life_lost)
+		target.take_damage(life_lost, true)
 	print("[CARD] Life Swap! HP: %d→%d, Mana: %d→%d, dealt %d damage" % [old_health, new_health, old_mana, new_mana, life_lost])
 
 func _execute_wear_down(_target, _player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -719,7 +721,7 @@ func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] Poke deals %d damage!" % total_damage)
 
 func _execute_armor_break(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -777,7 +779,7 @@ func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = n
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(5)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_brace(30, 1, "Parry"))
 	print("[CARD] Parry! Gained 5 armor, dealt %d damage. Next damage reduced" % total_damage)
@@ -814,7 +816,7 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	# 80% bounce chance, -20% per bounce
 	var bounce_chance = 80.0
 	var bounces = 0
@@ -869,11 +871,11 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 			buff_mgr.consume_enlightened()
 	# Always deal base 5 damage
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	# Use pre-rolled RNG: index 0 = +15 damage, index 1 = stun
 	if rng_selected_index == 0:
 		if target and target.has_method("take_damage"):
-			target.take_damage(15)
+			target.take_damage(15, true)
 		print("[CARD] What's the worst? +15 bonus damage! Total: %d" % (total_damage + 15))
 	else:
 		if target and target.has_method("apply_debuff"):
@@ -893,7 +895,7 @@ func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 		hits = 3
 	for i in range(hits):
 		if target and target.has_method("take_damage"):
-			target.take_damage(hit_damage)
+			target.take_damage(hit_damage, true)
 	print("[CARD] Oops! Hit %d times for %d each (total: %d)" % [hits, hit_damage, hits * hit_damage])
 
 func _execute_house_money(player_stats: PlayerStats) -> void:
@@ -936,7 +938,7 @@ func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: Buf
 	if player_stats:
 		total_damage = player_stats.get_effective_spell_damage(15)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] If Pigs Could Fly! Flying pig explodes for %d damage!" % total_damage)
 
 func _execute_snowballs_chance(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -998,7 +1000,7 @@ func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager 
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] Exacerbate Wounds! %d cards discarded this cycle = %d damage" % [discard_count, total_damage])
 
 func _execute_reposition(deck_manager) -> void:
@@ -1033,9 +1035,44 @@ func _execute_shuriken(target, player_stats: PlayerStats) -> void:
 	# Deals 3 damage to target enemy (ranged, counts as attack)
 	var total_damage = 3
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	last_damage_dealt = total_damage
 	print("[CARD] Shuriken! Dealt %d damage" % total_damage)
+
+func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+	var total_damage = base_damage + bonus_damage
+
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+
+	if is_empowered and player_stats:
+		total_damage += player_stats.empower_damage_bonus
+
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			print("[CARD] CRITICAL HIT! Damage doubled!")
+			buff_mgr.consume_enlightened()
+
+	if damage_reduction_pct > 0.0:
+		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
+
+	print("[CARD] Premeditated deals %d damage!" % total_damage)
+	last_damage_dealt = total_damage
+
+	if target and target.has_method("take_damage"):
+		var just_exposed = target.take_damage(total_damage)
+		# If this attack broke the enemy's armor, mark them for bonus damage
+		if just_exposed and target.has_method("is_alive") and target.is_alive():
+			target.bonus_damage_next_hit = 15
+			print("[CARD] Premeditated EXPOSED the target! Next attack deals +15 damage!")
+
+	if self_damage_percent > 0.0 and player_stats:
+		var self_dmg = floori(total_damage * self_damage_percent)
+		if self_dmg > 0:
+			player_stats.take_damage(self_dmg)
+			print("[CARD] Cursed: took %d self-damage!" % self_dmg)
 
 # ============================================
 # STEPHEN CARD EXECUTE FUNCTIONS
@@ -1059,7 +1096,7 @@ func _execute_quick_shot(target, player_stats: PlayerStats, deck_manager = null,
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	if deck_manager:
 		deck_manager.draw_card()
 	print("[CARD] Quick Shot! %d damage + drew a card" % total_damage)
@@ -1092,7 +1129,7 @@ func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] Down Town! Long range (+7) shot for %d damage" % total_damage)
 
 func _execute_barricade(target, _player_stats: PlayerStats) -> void:
@@ -1115,7 +1152,7 @@ func _execute_sky_attack(target, player_stats: PlayerStats, buff_mgr: BuffManage
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] Sky Attack! Leaped and shot from above for %d damage (High Ground)" % total_damage)
 
 func _execute_lead_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1129,7 +1166,7 @@ func _execute_lead_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManage
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] Lead Arrow! 1.8x damage from high ground: %d" % total_damage)
 
 func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1148,7 +1185,7 @@ func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManag
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] Last Breath! Consumed %d mana for %d damage" % [mana_used, total_damage])
 
 func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1161,7 +1198,7 @@ func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] Mixed Bag! Standard arrow for %d damage" % total_damage)
 
 func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1174,7 +1211,7 @@ func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManag
 			total_damage = floori(total_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	print("[CARD] Quick Arrow! Free arrow for %d damage" % total_damage)
 
 func _execute_bottomless_quiver(_player_stats: PlayerStats) -> void:
@@ -1193,7 +1230,7 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(5)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage)
+		target.take_damage(total_damage, true)
 	if target and target.has_method("apply_debuff"):
 		target.apply_debuff("slow", 4)  # -4 movement (4 grid spaces)
 	print("[CARD] Trip! %d damage, enemy movement -4" % total_damage)
@@ -1236,7 +1273,7 @@ func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: Buff
 			snap_damage = floori(snap_damage * 2.0)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
-		target.take_damage(snap_damage)
+		target.take_damage(snap_damage, true)
 	# Cost decreases by 1m/1t each use (use consecutive_uses+1 since play_card increments after)
 	var next_uses = consecutive_uses + 1
 	mana_cost = max(0, 3 - next_uses)
@@ -1794,6 +1831,20 @@ static func create_shuriken() -> Card:
 	card.damage = 3
 	card.base_damage = 3
 	card.is_ranged = true
+	card.target_types = ["enemy"]
+	return card
+
+static func create_premeditated() -> Card:
+	var card = Card.new()
+	card.card_id = "premeditated"
+	card.card_name = "Premeditated"
+	card.description = "Deal 8 damage. If this Exposes the enemy, your next attack to that enemy deals 15 damage."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 4
+	card.damage = 8
+	card.base_damage = 8
 	card.target_types = ["enemy"]
 	return card
 

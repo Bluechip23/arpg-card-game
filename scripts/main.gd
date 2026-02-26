@@ -326,7 +326,7 @@ func _on_attack_pressed() -> void:
 		if reduction > 0.0:
 			damage = max(1, floori(damage * (1.0 - reduction)))
 
-	target.take_damage(damage)
+	target.take_damage(damage, true)
 
 	# Register attack for DEX proc counter
 	stats.register_attack()
@@ -1033,7 +1033,7 @@ func _on_card_discarded(card: Card) -> void:
 		var nearby = enemy_spawner.get_enemies_in_radius(player.position, 5.0)
 		if nearby.size() > 0:
 			var target_enemy = nearby[randi() % nearby.size()]
-			target_enemy.take_damage(total_damage)
+			target_enemy.take_damage(total_damage, true)
 			print("[MAIN] Volatile Mixture discarded! Dealt %d damage to %s" % [total_damage, target_enemy.enemy_name])
 		else:
 			print("[MAIN] Volatile Mixture discarded! No enemies nearby to damage")
@@ -1197,7 +1197,7 @@ func _process_pending_sky_falls() -> void:
 			# Arrow lands! Deal AOE damage at stored position
 			var enemies_hit = enemy_spawner.get_enemies_in_radius(sf.position, 1.5)
 			for enemy in enemies_hit:
-				enemy.take_damage(sf.damage)
+				enemy.take_damage(sf.damage, true)
 			pending_sky_falls.remove_at(i)
 			print("[MAIN] Sky Fall landed at %s! Hit %d enemies for %d damage" % [sf.position, enemies_hit.size(), sf.damage])
 		else:
@@ -1434,7 +1434,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Find and damage all enemies along the charge path
 			var enemies_hit = enemy_spawner.get_enemies_in_line(start_pos, snapped_target, 0.8)
 			for enemy in enemies_hit:
-				enemy.take_damage(card.last_damage_dealt)
+				enemy.take_damage(card.last_damage_dealt, true)
 				enemy.knockback(snapped_target, 1)
 			print("[MAIN] Charge: moved to %s, hit %d enemies for %d damage" % [snapped_target, enemies_hit.size(), card.last_damage_dealt])
 
@@ -1454,7 +1454,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Deal AOE damage to enemies at landing
 			var landing_enemies = enemy_spawner.get_enemies_in_radius(leap_target, 1.5)
 			for enemy in landing_enemies:
-				enemy.take_damage(card.last_damage_dealt)
+				enemy.take_damage(card.last_damage_dealt, true)
 			print("[MAIN] Heroic Leap: jumped %d tiles to %s, hit %d enemies for %d damage" % [leap_distance, leap_target, landing_enemies.size(), card.last_damage_dealt])
 
 		"surrounding_ice":
@@ -1464,7 +1464,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var misses = 0
 			for enemy in nearby:
 				if randf() <= 0.7:  # 70% hit chance (30% miss)
-					enemy.take_damage(card.last_damage_dealt)
+					enemy.take_damage(card.last_damage_dealt, true)
 					hits += 1
 				else:
 					misses += 1
@@ -1477,7 +1477,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var fire_end = player.position + direction * card.aoe_range
 			var fire_enemies = enemy_spawner.get_enemies_in_line(player.position, fire_end, 0.8)
 			for enemy in fire_enemies:
-				enemy.take_damage(card.last_damage_dealt)
+				enemy.take_damage(card.last_damage_dealt, true)
 			print("[MAIN] Snowball's Chance: fire line hit %d enemies for %d damage" % [fire_enemies.size(), card.last_damage_dealt])
 			# 50% to also spread snowball cone
 			if randf() < 0.5:
@@ -1485,7 +1485,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var extra_hits = 0
 				for enemy in cone_enemies:
 					if not enemy in fire_enemies:
-						enemy.take_damage(card.last_damage_dealt)
+						enemy.take_damage(card.last_damage_dealt, true)
 						extra_hits += 1
 				print("[MAIN] Snowball's Chance: snowball cone hit %d additional enemies!" % extra_hits)
 
@@ -1547,7 +1547,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var sd_radius = 1.5
 			var sd_nearby = enemy_spawner.get_enemies_in_radius(player.position, sd_radius)
 			for enemy in sd_nearby:
-				enemy.take_damage(card.last_damage_dealt)
+				enemy.take_damage(card.last_damage_dealt, true)
 				enemy.apply_debuff("disarmed", 1)
 			print("[MAIN] Sweeping Disarm: hit %d nearby enemies for %d damage, disarmed" % [sd_nearby.size(), card.last_damage_dealt])
 
@@ -1728,13 +1728,13 @@ func _on_manifest_card_clicked(index: int) -> void:
 		"deal_damage":
 			var enemies = enemy_spawner.get_living_enemies()
 			if enemies.size() > 0:
-				enemies[0].take_damage(result["manifest_value"])
+				enemies[0].take_damage(result["manifest_value"], true)
 		"shuriken":
 			# Deal 3 damage to a random enemy; counts as a ranged attack
 			var enemies = enemy_spawner.get_living_enemies()
 			if enemies.size() > 0:
 				var rand_enemy = enemies[randi() % enemies.size()]
-				rand_enemy.take_damage(result["manifest_value"])
+				rand_enemy.take_damage(result["manifest_value"], true)
 				# Count as an attack towards the attack counter
 				var stats = player.get_stats()
 				if stats:
@@ -1833,7 +1833,7 @@ func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 		"damage_all":
 			var enemies = enemy_spawner.get_living_enemies()
 			for enemy in enemies:
-				enemy.take_damage(value)
+				enemy.take_damage(value, true)
 			print("[MAIN] Overcharge: Dealt %d damage to %d enemies" % [value, enemies.size()])
 
 func _spawn_summoned_creature(creature_type: String, count: int) -> void:
