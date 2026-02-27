@@ -46,6 +46,33 @@ var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damag
 var has_on_draw: bool = false  # Card triggers an effect when drawn
 var on_draw_effect: String = ""  # Description of the on-draw effect
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
+
+# Card-item slot system
+enum SlotCompatibility { PICKY, LOOSE }
+var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = same item type only, Loose = any item type
+var source_item_type: int = -1  # ItemData.ItemType the card was first extracted from (-1 = no restriction yet)
+var is_molded: bool = false  # Card is locked into the item and cannot be extracted
+var slotted_in_item = null  # Reference to the ItemData this card is slotted in (null = not slotted)
+
+func is_slotted() -> bool:
+	return slotted_in_item != null
+
+func get_on_self_bonus() -> Dictionary:
+	# Returns the on-self bonus from the item this card is slotted in
+	if slotted_in_item and slotted_in_item.has_method("get_on_self_bonus"):
+		return slotted_in_item.get_on_self_bonus()
+	return {"damage": 0, "block": 0, "heal": 0, "mana_reduction": 0}
+
+func get_slot_keyword() -> String:
+	if is_molded:
+		return "Molded"
+	match slot_compatibility:
+		SlotCompatibility.PICKY:
+			return "Picky"
+		SlotCompatibility.LOOSE:
+			return "Loose"
+	return "Picky"
+
 func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 	rng_outcomes.clear()
 
@@ -168,6 +195,22 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	var is_empowered = false
 	if player_stats and player_stats.is_empowered():
 		is_empowered = player_stats.consume_empower()
+
+	# Apply on-self bonuses from the item this card is slotted in
+	var on_self = get_on_self_bonus()
+	var on_self_dmg = on_self["damage"]
+	var on_self_blk = on_self["block"]
+	var on_self_hl = on_self["heal"]
+	if on_self_dmg > 0:
+		bonus_damage += on_self_dmg
+		print("[CARD] On-Self: +%d damage from %s" % [on_self_dmg, slotted_in_item.item_name])
+	if on_self_blk > 0:
+		block += on_self_blk
+		print("[CARD] On-Self: +%d block from %s" % [on_self_blk, slotted_in_item.item_name])
+	if on_self_hl > 0:
+		heal_amount += on_self_hl
+		print("[CARD] On-Self: +%d heal from %s" % [on_self_hl, slotted_in_item.item_name])
+
 	match card_id:
 		"slash":
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -343,6 +386,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if target and target.has_method("apply_wear_down"):
 			target.apply_wear_down(3)
 			print("[CARD] Wear Down triggered! Enemy attack reduced")
+
+	# Clean up on-self bonuses so they don't stack permanently
+	if on_self_dmg > 0:
+		bonus_damage -= on_self_dmg
+	if on_self_blk > 0:
+		block -= on_self_blk
+	if on_self_hl > 0:
+		heal_amount -= on_self_hl
 
 func _execute_gain_mana(player_stats: PlayerStats) -> void:
 	if player_stats:
