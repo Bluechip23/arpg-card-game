@@ -9,6 +9,7 @@ signal item_unequipped(item: ItemData, slot_type: String, slot_index: int)
 signal overflow_heal_armor_triggered(heal: int, armor: int)
 signal ring_triggered(item: ItemData, effect: String)
 signal gauntlet_skill_ready(item: ItemData)
+signal storage_changed
 
 # Slot configuration
 var helm_slots: int = 1
@@ -39,6 +40,10 @@ var equipped_belts: Array[ItemData] = []
 var equipped_boots: Array[ItemData] = []
 var equipped_gauntlets: Array[ItemData] = []
 var equipped_weapons: Array[ItemData] = []
+
+# Non-equipped item storage (grid inventory)
+var stored_items: Array[ItemData] = []
+var max_storage_slots: int = 20
 
 # Ring trigger tracking
 var ring_triggered_this_turn: bool = false
@@ -648,3 +653,67 @@ func get_slot_info() -> Dictionary:
 		"gauntlets": {"max": gauntlets_slots, "equipped": equipped_gauntlets},
 		"weapon": {"max": weapon_slots, "equipped": equipped_weapons}
 	}
+
+# ============================================
+# ITEM STORAGE (NON-EQUIPPED INVENTORY)
+# ============================================
+
+func store_item(item: ItemData) -> bool:
+	if stored_items.size() >= max_storage_slots:
+		print("[INVENTORY] Storage full! (%d/%d)" % [stored_items.size(), max_storage_slots])
+		return false
+	stored_items.append(item)
+	storage_changed.emit()
+	print("[INVENTORY] Stored %s (%d/%d)" % [item.item_name, stored_items.size(), max_storage_slots])
+	return true
+
+func remove_stored_item(index: int) -> ItemData:
+	if index < 0 or index >= stored_items.size():
+		return null
+	var item = stored_items[index]
+	stored_items.remove_at(index)
+	storage_changed.emit()
+	print("[INVENTORY] Removed %s from storage (%d/%d)" % [item.item_name, stored_items.size(), max_storage_slots])
+	return item
+
+func get_stored_item(index: int) -> ItemData:
+	if index < 0 or index >= stored_items.size():
+		return null
+	return stored_items[index]
+
+func get_stored_item_count() -> int:
+	return stored_items.size()
+
+func is_storage_full() -> bool:
+	return stored_items.size() >= max_storage_slots
+
+func equip_from_storage(storage_index: int, slot_index: int) -> bool:
+	var item = get_stored_item(storage_index)
+	if item == null:
+		return false
+	var slot_array = _get_slot_array(item.item_type)
+	var max_slots = _get_max_slots(item.item_type)
+	if slot_index < 0 or slot_index >= max_slots:
+		return false
+	if slot_array[slot_index] != null:
+		# Swap: unequip current item into the storage slot, then equip the new one
+		var old_item = unequip_item(item.item_type, slot_index)
+		if old_item:
+			stored_items[storage_index] = old_item
+			storage_changed.emit()
+		else:
+			remove_stored_item(storage_index)
+	else:
+		remove_stored_item(storage_index)
+	equip_item(item, slot_index)
+	return true
+
+func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
+	if is_storage_full():
+		print("[INVENTORY] Cannot unequip - storage full!")
+		return false
+	var item = unequip_item(item_type, slot_index)
+	if item == null:
+		return false
+	store_item(item)
+	return true
