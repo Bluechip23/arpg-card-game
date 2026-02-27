@@ -1718,18 +1718,22 @@ func _on_give_item(item_name: String) -> void:
 		"Guardian Gauntlets": item = ItemData.create_guardian_gauntlets()
 	
 	if item:
-		var inventory = player.get_inventory()
-		# Find first empty slot
-		var slot_array = inventory._get_slot_array(item.item_type)
-		var max_slots = inventory._get_max_slots(item.item_type)
-		
+		var inv = player.get_inventory()
+		# Find first empty equipment slot
+		var slot_array = inv._get_slot_array(item.item_type)
+		var max_slots = inv._get_max_slots(item.item_type)
+
 		for i in range(max_slots):
 			if slot_array[i] == null:
-				inventory.equip_item(item, i)
-				print("[MAIN] Gave item: %s" % item_name)
+				inv.equip_item(item, i)
+				print("[MAIN] Gave item: %s (equipped)" % item_name)
 				return
-		
-		print("[MAIN] No empty slot for %s!" % item_name)
+
+		# No equipment slot available - store in inventory
+		if inv.store_item(item):
+			print("[MAIN] Gave item: %s (stored in inventory)" % item_name)
+		else:
+			print("[MAIN] Cannot give %s - equipment and storage full!" % item_name)
 
 func _on_give_card(card_name: String) -> void:
 	var card: Card = null
