@@ -85,6 +85,15 @@ func refresh() -> void:
 			header_square.gui_input.connect(_on_group_click.bind(type_name))
 			top_row.add_child(header_square)
 
+			# Count badge to the right of the square
+			var badge = Label.new()
+			badge.text = "x%d" % enemies_arr.size()
+			badge.add_theme_font_size_override("font_size", 11)
+			badge.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9))
+			badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			top_row.add_child(badge)
+
 			# Expanded sub-portraits container (horizontal)
 			var sub_container = HBoxContainer.new()
 			sub_container.add_theme_constant_override("separation", 4)
@@ -134,7 +143,7 @@ func _create_single_entry(enemy: Enemy) -> VBoxContainer:
 # ============================================
 
 func _create_group_square(type_name: String, count: int) -> PanelContainer:
-	## Clickable square with type abbreviation and "xN" badge.
+	## Clickable square with type abbreviation.
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(SQUARE_SIZE, SQUARE_SIZE)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -162,19 +171,6 @@ func _create_group_square(type_name: String, count: int) -> PanelContainer:
 	type_lbl.add_theme_color_override("font_color", color)
 	type_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(type_lbl)
-
-	# Count badge (bottom-right corner)
-	var badge = Label.new()
-	badge.text = "x%d" % count
-	badge.add_theme_font_size_override("font_size", 11)
-	badge.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9))
-	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	badge.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	badge.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	badge.offset_left = -28.0
-	badge.offset_top = -16.0
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(badge)
 
 	return panel
 
