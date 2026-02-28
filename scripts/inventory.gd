@@ -726,7 +726,7 @@ func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
 
 func enchant_card(card: Card, item: ItemData) -> bool:
 	## Puts a card into an item's card slot (Enchant).
-	## Validates Picky/Loose compatibility and slot availability.
+	## Validates Picky/Pliable compatibility and slot availability.
 	## The card is removed from the deck and stored in the item.
 	if not item.has_card_slots():
 		print("[INVENTORY] %s has no card slots!" % item.item_name)

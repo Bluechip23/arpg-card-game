@@ -81,7 +81,6 @@ func _build_legend() -> void:
 	_add_keyword("Transferred", "Overflow card is sent to the discard pile")
 	_add_keyword("Peak", "See the next card on draw pile (doesn't block other effects)")
 	_add_keyword("Overcharge", "Triggers an effect when overflow occurs (doesn't block other effects)")
-	_add_keyword("Quiver", "Overflow attack cards are stored in the quiver and can be played at full cost. Non-attack overflow cards are discarded")
 
 	# Range Section
 	_add_section_header("RANGE")
@@ -100,8 +99,12 @@ func _build_legend() -> void:
 	_add_keyword("Extract", "Removes a card from an item. Must destroy either the item or the card to do so", Color(1.0, 0.4, 0.4))
 	_add_keyword("Molded", "Card is locked into the item and cannot be removed (extracted)", Color(0.6, 0.6, 0.6))
 	_add_keyword("Picky", "Card can only be re-equipped to an item of the same type it was extracted from", Color(1.0, 0.8, 0.3))
-	_add_keyword("Loose", "Card can be re-equipped to an item of any type", Color(0.3, 1.0, 0.7))
+	_add_keyword("Pliable", "Card can be re-equipped to an item of any type", Color(0.3, 1.0, 0.7))
 	_add_keyword("On-Self", "Bonus effects that apply to cards slotted in that specific item, on top of the item's base bonuses", Color(0.6, 0.9, 0.6))
+
+	# Movement Section
+	_add_section_header("MOVEMENT")
+	_add_keyword("Pass-Through", "Moving through a tile occupied by another unit always costs 2 tempo, regardless of movement speed or free moves", Color(1.0, 0.5, 0.5))
 
 	# Card Types Section
 	_add_section_header("CARD TYPES")

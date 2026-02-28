@@ -64,6 +64,11 @@ func add_movement_tempo() -> void:
 		movements_since_tempo = 1
 		add_tempo(1)
 
+func add_pass_through_tempo() -> void:
+	## Moving through an occupied tile always costs 2 tempo regardless of movement speed.
+	print("[TEMPO] Pass-through occupied tile — forced 2 tempo")
+	add_tempo(2)
+
 func get_free_moves_from_agility() -> int:
 	if not player_stats:
 		return 1

@@ -48,8 +48,8 @@ var on_draw_effect: String = ""  # Description of the on-draw effect
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 
 # Card-item slot system
-enum SlotCompatibility { PICKY, LOOSE }
-var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = same item type only, Loose = any item type
+enum SlotCompatibility { PICKY, PLIABLE }
+var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = same item type only, Pliable = any item type
 var source_item_type: int = -1  # ItemData.ItemType the card was first extracted from (-1 = no restriction yet)
 var is_molded: bool = false  # Card is locked into the item and cannot be extracted
 var slotted_in_item = null  # Reference to the ItemData this card is slotted in (null = not slotted)
@@ -69,8 +69,8 @@ func get_slot_keyword() -> String:
 	match slot_compatibility:
 		SlotCompatibility.PICKY:
 			return "Picky"
-		SlotCompatibility.LOOSE:
-			return "Loose"
+		SlotCompatibility.PLIABLE:
+			return "Pliable"
 	return "Picky"
 
 func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
