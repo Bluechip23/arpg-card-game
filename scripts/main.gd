@@ -40,6 +40,8 @@ extends Node3D
 @onready var sphere_inventory: SphereInventory = $SphereInventory
 @onready var range_indicator: RangeIndicator = $RangeIndicator
 
+var unit_tracker: UnitTrackerUI = null
+
 var battle_log_label: RichTextLabel = null
 var battle_log_panel: PanelContainer = null
 var _battle_log_toggle_btn: Button = null
@@ -145,9 +147,13 @@ func _ready() -> void:
 	_setup_deck_list_panel()
 	_setup_hand_card_preview()
 
+	# Unit tracker (left side panel)
+	_setup_unit_tracker()
+
 	# Spawn initial test wave
 	enemy_spawner.spawn_test_arena()
 	_update_enemy_count()
+	_refresh_unit_tracker()
 
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
@@ -950,6 +956,24 @@ func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
 	_update_block_button_visibility()
 
+func _setup_unit_tracker() -> void:
+	var ui = $UI as CanvasLayer
+	unit_tracker = UnitTrackerUI.new()
+	unit_tracker.name = "UnitTracker"
+	ui.add_child(unit_tracker)
+	unit_tracker.initialize(enemy_spawner)
+
+	# Anchor to left side of screen, below top
+	unit_tracker.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	unit_tracker.offset_left = 5.0
+	unit_tracker.offset_top = 10.0
+	unit_tracker.offset_right = 200.0
+	unit_tracker.offset_bottom = -180.0
+
+func _refresh_unit_tracker() -> void:
+	if unit_tracker:
+		unit_tracker.refresh()
+
 func select_character(character: CharacterData) -> void:
 	current_character = character
 	
@@ -1065,14 +1089,17 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 				_set_player_invisible(false)
 
 	update_turn_display()
+	_refresh_unit_tracker()
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
 	player.get_stats().gain_xp(enemy.xp_reward)
 	_update_enemy_count()
+	_refresh_unit_tracker()
 
 func _on_all_enemies_defeated() -> void:
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
+	_refresh_unit_tracker()
 
 func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
@@ -1623,6 +1650,7 @@ func play_selected_card(target) -> void:
 
 		_on_hand_updated()
 		update_deck_info()
+		_refresh_unit_tracker()
 	else:
 		# Card didn't play - undo temporary modifications
 		if tighten_applied:
@@ -1958,12 +1986,14 @@ func _input(event: InputEvent) -> void:
 func _on_spawn_wave() -> void:
 	enemy_spawner.spawn_test_arena()
 	_update_enemy_count()
+	_refresh_unit_tracker()
 	print("[MAIN] Spawned new wave!")
 
 func _on_spawn_elite() -> void:
 	var pos = Vector3(randf_range(9, 16), 0, randf_range(2, 8))
 	enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, pos)
 	_update_enemy_count()
+	_refresh_unit_tracker()
 	print("[MAIN] Spawned elite enemy!")
 
 func _on_give_item(item_name: String) -> void:
@@ -2230,6 +2260,7 @@ func _spawn_barricade() -> void:
 		var obstacle = _create_obstacle_box(pos, 3)
 		barricade_obstacles.append(obstacle)
 
+	_sync_blocked_tiles()
 	print("[MAIN] Barricade: spawned 3 obstacles in front of player")
 
 func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
@@ -2263,6 +2294,7 @@ func damage_barricade_at(world_pos: Vector3, damage: int) -> bool:
 			if obs["health"] <= 0:
 				obs["node"].queue_free()
 				barricade_obstacles.remove_at(i)
+				_sync_blocked_tiles()
 				print("[MAIN] Barricade block destroyed!")
 			else:
 				obs["label"].text = "HP: %d" % obs["health"]
@@ -2277,6 +2309,15 @@ func is_barricade_at(world_pos: Vector3) -> bool:
 		if obs_grid == target_grid:
 			return true
 	return false
+
+func _sync_blocked_tiles() -> void:
+	## Syncs the barricade positions to the player and all enemies for pathfinding.
+	var tiles: Array[Vector2i] = []
+	for obs in barricade_obstacles:
+		tiles.append(grid_manager.world_to_grid(obs["position"]))
+	player.blocked_tiles = tiles
+	for enemy in enemy_spawner.get_living_enemies():
+		enemy.blocked_tiles = tiles
 
 # ============================================
 # RISE PILLAR
