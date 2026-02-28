@@ -93,7 +93,9 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Example: Choke (sticky 3) can be played 3 times before leaving your hand
 
 [color=yellow]High Ground:[/color]
-- Some cards require you to be on elevated terrain
+- Being elevated (e.g., standing on a pillar from Rise) grants combat bonuses
+- Ranged attacks from high ground deal [color=green]+4 damage[/color] and gain [color=green]+2 range[/color]
+- Some cards like Lead Arrow require high ground to be played
 - Example: Lead Arrow does 1.8x damage but requires high ground
 
 [color=yellow]AOE (Area of Effect):[/color]

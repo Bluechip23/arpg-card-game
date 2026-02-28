@@ -1037,7 +1037,7 @@ func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) ->
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_resilient(50, 10, "Shadows"))
+		buff_mgr.apply_buff(Buff.create_invisible(10, "Shadows"))
 	print("[CARD] Shadows! Invisible for 10 tempo")
 
 func _execute_preparation(player_stats: PlayerStats, deck_manager = null) -> void:

@@ -65,6 +65,8 @@ var deck_list_card_preview: PanelContainer = null
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
+var barricade_obstacles: Array = []  # [{node: MeshInstance3D, health: int}]
+var active_pillars: Array = []  # [{node: Node3D, position: Vector3, tempo_remaining: int}]
 var _card_ui_instances: Array = []
 var _current_hand_hover_index: int = -1
 # Pending quiver card play state
@@ -1050,6 +1052,18 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Card draw is tracked by turn_manager against its own tempo interval
 	turn_manager.process_tempo(amount)
 
+	# Process pillar durations
+	_process_pillars(amount)
+
+	# Check if invisibility expired and restore player opacity
+	var buff_mgr = player.get_buff_manager()
+	if buff_mgr and not buff_mgr.is_invisible():
+		var mesh_node = player.mesh
+		if mesh_node:
+			var mat = mesh_node.get_surface_override_material(0) as StandardMaterial3D
+			if mat and mat.albedo_color.a < 1.0:
+				_set_player_invisible(false)
+
 	update_turn_display()
 
 func _on_enemy_killed(enemy: Enemy) -> void:
@@ -1497,6 +1511,9 @@ func select_card(index: int) -> void:
 		var buff_mgr = player.get_buff_manager() if player else null
 		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
 			effective_range += 6
+		# Include High Ground bonus if on pillar
+		if card.card_type == Card.CardType.ATTACK and is_on_pillar(player.position):
+			effective_range += 2
 		range_indicator.position = player.position
 		range_indicator.show_range(effective_range)
 		add_battle_log("%s selected — Range: %d tiles" % [card.card_name, int(effective_range)], Color(0.6, 0.85, 1.0))
@@ -1537,6 +1554,15 @@ func play_selected_card(target) -> void:
 		buff_mgr.apply_buff(Buff.create_enlightened(20, 1, "Tighten String"))
 		tighten_applied = true
 
+	# High Ground: +4 damage, +2 range when shooting from elevated position
+	var high_ground_applied = false
+	if is_ranged_attack and is_on_pillar(player.position):
+		card.bonus_damage += 4
+		card.range_modifier += 2
+		high_ground_applied = true
+		add_battle_log("High Ground! +4 damage, +2 range", Color(1.0, 0.9, 0.4))
+		print("[MAIN] High Ground bonus applied: +4 damage, +2 range")
+
 	var result = deck_manager.play_card(selected_card_index, target, player)
 
 	if result["played"]:
@@ -1561,6 +1587,11 @@ func play_selected_card(target) -> void:
 			card.range_modifier -= 6
 			if buff_mgr.tighten_string_charges <= 0:
 				print("[MAIN] Tighten String expired!")
+
+		# High Ground: undo temporary card mods
+		if high_ground_applied:
+			card.bonus_damage -= 4
+			card.range_modifier -= 2
 
 		# Enchanted Quiver: create a free arrow card after ranged attacks
 		if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and is_ranged_attack:
@@ -1597,6 +1628,9 @@ func play_selected_card(target) -> void:
 		if tighten_applied:
 			card.bonus_damage -= 6
 			card.range_modifier -= 6
+		if high_ground_applied:
+			card.bonus_damage -= 4
+			card.range_modifier -= 2
 
 func _get_distance_to_target(target) -> int:
 	if not target or not target is Node3D:
@@ -1617,6 +1651,9 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		var buff_mgr = player.get_buff_manager() if player else null
 		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
 			max_range += 6
+		# High Ground: +2 range
+		if card.card_type == Card.CardType.ATTACK and is_on_pillar(player.position):
+			max_range += 2
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
 		# Melee: must be adjacent (within ~1.5 tiles)
@@ -1769,6 +1806,16 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				enemy.take_damage(card.last_damage_dealt, true)
 				enemy.apply_debuff("disarmed", 1)
 			print("[MAIN] Sweeping Disarm: hit %d nearby enemies for %d damage, disarmed" % [sd_nearby.size(), card.last_damage_dealt])
+
+		"shadows":
+			_set_player_invisible(true)
+
+		"barricade":
+			_spawn_barricade()
+
+		"rise":
+			var rise_pos = grid_manager.snap_to_grid(get_mouse_world_position())
+			_spawn_pillar(rise_pos)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -2136,6 +2183,192 @@ func _create_ally_marker(ally_name: String, pos: Vector3, color: Color) -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = Vector3(0, 0.5, 0)
 	marker.add_child(label)
+
+# ============================================
+# INVISIBILITY
+# ============================================
+
+func _set_player_invisible(invisible: bool) -> void:
+	var mesh_node = player.mesh
+	if not mesh_node:
+		return
+	var mat = mesh_node.get_surface_override_material(0) as StandardMaterial3D
+	if not mat:
+		return
+	if invisible:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color.a = 0.25
+		print("[MAIN] Player is now invisible (transparent)")
+	else:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+		mat.albedo_color.a = 1.0
+		print("[MAIN] Player is no longer invisible")
+
+# ============================================
+# BARRICADE OBSTACLES
+# ============================================
+
+func _spawn_barricade() -> void:
+	## Spawns 3 brown obstacle boxes in the 3 tiles directly in front of the player
+	## (based on the direction from player to mouse cursor), completing a wall.
+	var mouse_pos = get_mouse_world_position()
+	var diff = mouse_pos - player.position
+	var forward = Vector3(diff.x, 0, diff.z).normalized()
+
+	# Get the perpendicular direction for the wall spread
+	var right = Vector3(-forward.z, 0, forward.x)
+
+	# Place the center block 1 tile forward, then one on each side
+	var center = player.position + forward * grid_manager.grid_size
+	var positions = [
+		grid_manager.snap_to_grid(center - right * grid_manager.grid_size),
+		grid_manager.snap_to_grid(center),
+		grid_manager.snap_to_grid(center + right * grid_manager.grid_size),
+	]
+
+	for pos in positions:
+		var obstacle = _create_obstacle_box(pos, 3)
+		barricade_obstacles.append(obstacle)
+
+	print("[MAIN] Barricade: spawned 3 obstacles in front of player")
+
+func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
+	var marker = MeshInstance3D.new()
+	var box_mesh = BoxMesh.new()
+	box_mesh.size = Vector3(0.9, 0.9, 0.9)
+	marker.mesh = box_mesh
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.35, 0.15)  # Brown
+	marker.material_override = mat
+	marker.position = Vector3(pos.x, 0.45, pos.z)
+	add_child(marker)
+
+	var label = Label3D.new()
+	label.text = "HP: %d" % health
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 24
+	label.position = Vector3(0, 0.7, 0)
+	marker.add_child(label)
+
+	return {"node": marker, "health": health, "position": pos, "label": label}
+
+func damage_barricade_at(world_pos: Vector3, damage: int) -> bool:
+	## Called when an enemy attacks a barricade obstacle. Returns true if blocked.
+	for i in range(barricade_obstacles.size() - 1, -1, -1):
+		var obs = barricade_obstacles[i]
+		var obs_grid = grid_manager.world_to_grid(obs["position"])
+		var target_grid = grid_manager.world_to_grid(world_pos)
+		if obs_grid == target_grid:
+			obs["health"] -= damage
+			if obs["health"] <= 0:
+				obs["node"].queue_free()
+				barricade_obstacles.remove_at(i)
+				print("[MAIN] Barricade block destroyed!")
+			else:
+				obs["label"].text = "HP: %d" % obs["health"]
+				print("[MAIN] Barricade block hit! HP: %d" % obs["health"])
+			return true
+	return false
+
+func is_barricade_at(world_pos: Vector3) -> bool:
+	for obs in barricade_obstacles:
+		var obs_grid = grid_manager.world_to_grid(obs["position"])
+		var target_grid = grid_manager.world_to_grid(world_pos)
+		if obs_grid == target_grid:
+			return true
+	return false
+
+# ============================================
+# RISE PILLAR
+# ============================================
+
+func _spawn_pillar(pos: Vector3) -> void:
+	## Creates a brown cylinder pillar at the target position.
+	## If a character is on that tile, they get elevated on top.
+	## Pillar disappears after 5 tempo.
+	var pillar_root = Node3D.new()
+	pillar_root.position = Vector3(pos.x, 0, pos.z)
+	add_child(pillar_root)
+
+	var pillar_mesh = MeshInstance3D.new()
+	var cylinder = CylinderMesh.new()
+	cylinder.top_radius = 0.4
+	cylinder.bottom_radius = 0.4
+	cylinder.height = 2.0
+	pillar_mesh.mesh = cylinder
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.35, 0.15)  # Brown
+	pillar_mesh.material_override = mat
+	pillar_mesh.position = Vector3(0, 1.0, 0)  # Center of cylinder at Y=1
+	pillar_root.add_child(pillar_mesh)
+
+	var label = Label3D.new()
+	label.text = "Pillar"
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 24
+	label.position = Vector3(0, 2.3, 0)
+	pillar_root.add_child(label)
+
+	var pillar_data = {"node": pillar_root, "position": pos, "tempo_remaining": 5}
+	active_pillars.append(pillar_data)
+
+	# Check if player is on this tile and elevate them
+	var pillar_grid = grid_manager.world_to_grid(pos)
+	var player_grid = grid_manager.world_to_grid(player.position)
+	if pillar_grid == player_grid:
+		player.position.y = 2.0
+		player.target_position.y = 2.0
+		print("[MAIN] Rise: player elevated on pillar!")
+
+	# Check if any enemy is on this tile and elevate them
+	var enemies = enemy_spawner.get_living_enemies()
+	for enemy in enemies:
+		var enemy_grid = grid_manager.world_to_grid(enemy.position)
+		if enemy_grid == pillar_grid:
+			enemy.position.y = 2.0
+			enemy.target_position = enemy.position
+			print("[MAIN] Rise: %s elevated on pillar!" % enemy.enemy_name)
+
+	print("[MAIN] Rise: pillar created at %s (5 tempo duration)" % pos)
+
+func _process_pillars(tempo_amount: int) -> void:
+	for i in range(active_pillars.size() - 1, -1, -1):
+		var pillar = active_pillars[i]
+		pillar["tempo_remaining"] -= tempo_amount
+		if pillar["tempo_remaining"] <= 0:
+			_remove_pillar(pillar)
+			active_pillars.remove_at(i)
+
+func _remove_pillar(pillar: Dictionary) -> void:
+	var pos = pillar["position"]
+	var pillar_grid = grid_manager.world_to_grid(pos)
+
+	# Lower any characters that were on the pillar
+	var player_grid = grid_manager.world_to_grid(player.position)
+	if pillar_grid == player_grid and player.position.y > 0.1:
+		player.position.y = 0.0
+		player.target_position.y = 0.0
+		print("[MAIN] Pillar expired: player lowered")
+
+	var enemies = enemy_spawner.get_living_enemies()
+	for enemy in enemies:
+		var enemy_grid = grid_manager.world_to_grid(enemy.position)
+		if enemy_grid == pillar_grid and enemy.position.y > 0.1:
+			enemy.position.y = 0.0
+			enemy.target_position = enemy.position
+			print("[MAIN] Pillar expired: %s lowered" % enemy.enemy_name)
+
+	pillar["node"].queue_free()
+	print("[MAIN] Pillar at %s expired and removed" % pos)
+
+func is_on_pillar(world_pos: Vector3) -> bool:
+	var check_grid = grid_manager.world_to_grid(world_pos)
+	for pillar in active_pillars:
+		var pillar_grid = grid_manager.world_to_grid(pillar["position"])
+		if pillar_grid == check_grid:
+			return true
+	return false
+
 func _on_apply_overflow(overflow_name: String) -> void:
 	var effect: OverflowEffect = null
 	

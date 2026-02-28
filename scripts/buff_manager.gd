@@ -219,6 +219,9 @@ func on_attacked(attacker) -> void:
 func has_wear_down() -> bool:
 	return has_buff(Buff.BuffType.WEAR_DOWN)
 
+func is_invisible() -> bool:
+	return has_buff(Buff.BuffType.INVISIBLE)
+
 func has_life_steal() -> bool:
 	return has_buff(Buff.BuffType.LIFE_STEAL)
 

@@ -119,7 +119,7 @@ func _build_legend() -> void:
 	_add_keyword("Empower", "Buffs the next X cards played: +3 damage for attacks, -3 mana cost for defense", Color(1, 0.85, 0.3))
 	_add_keyword("On-Draw", "Card triggers an effect when drawn into hand (e.g., deal damage to a random enemy)", Color(0.5, 0.9, 0.5))
 	_add_keyword("Sticky", "Card stays in hand for X uses before being discarded. Does not leave hand after playing", Color(0.8, 0.8, 0.3))
-	_add_keyword("High Ground", "Card requires an elevated position to be played", Color(0.6, 0.4, 0.2))
+	_add_keyword("High Ground", "Ranged attacks from elevated positions deal +4 damage and gain +2 range. Some cards require high ground", Color(0.6, 0.4, 0.2))
 	_add_keyword("Cycle", "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks, and armor decay all happen per cycle", Color(0.7, 0.7, 0.9))
 
 func _add_section_header(title: String) -> void:
