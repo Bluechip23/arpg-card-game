@@ -377,6 +377,12 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 	if not player_node:
 		return
 
+	# Skip actions if player is invisible
+	if player_node.has_method("get_buff_manager"):
+		var p_buff_mgr = player_node.get_buff_manager()
+		if p_buff_mgr and p_buff_mgr.is_invisible():
+			return
+
 	# Choose action if we don't have one yet
 	if chosen_action.is_empty():
 		_choose_action(player_node)
