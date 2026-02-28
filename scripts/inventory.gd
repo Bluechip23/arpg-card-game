@@ -10,6 +10,8 @@ signal overflow_heal_armor_triggered(heal: int, armor: int)
 signal ring_triggered(item: ItemData, effect: String)
 signal gauntlet_skill_ready(item: ItemData)
 signal storage_changed
+signal card_enchanted(card: Card, item: ItemData)
+signal card_extracted(card: Card, item: ItemData, destroyed_item: bool)
 
 # Slot configuration
 var helm_slots: int = 1
@@ -717,3 +719,131 @@ func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
 		return false
 	store_item(item)
 	return true
+
+# ============================================
+# CARD ENCHANT / EXTRACT SYSTEM
+# ============================================
+
+func enchant_card(card: Card, item: ItemData) -> bool:
+	## Puts a card into an item's card slot (Enchant).
+	## Validates Picky/Loose compatibility and slot availability.
+	## The card is removed from the deck and stored in the item.
+	if not item.has_card_slots():
+		print("[INVENTORY] %s has no card slots!" % item.item_name)
+		return false
+
+	if not item.can_slot_card(card):
+		if item.get_free_card_slots() <= 0:
+			print("[INVENTORY] %s has no free card slots! (%d/%d)" % [item.item_name, item.slotted_cards.size(), item.card_slots])
+		else:
+			print("[INVENTORY] Card '%s' is Picky and cannot be slotted into %s (requires %s)" % [card.card_name, item.get_type_name(), ItemData.ItemType.keys()[card.source_item_type] if card.source_item_type >= 0 else "any"])
+		return false
+
+	# Remove card from all deck piles
+	if deck_manager:
+		deck_manager.remove_card_from_all_piles(card)
+
+	# Slot the card into the item
+	item.slot_card(card)
+
+	card_enchanted.emit(card, item)
+	equipment_changed.emit()
+	print("[INVENTORY] Enchanted '%s' into %s" % [card.card_name, item.item_name])
+	return true
+
+func extract_card(item: ItemData, card_index: int, destroy_item: bool) -> Card:
+	## Extracts a card from an item (Extract).
+	## Must destroy either the item or the card to do so.
+	## destroy_item=true: item is destroyed, card is returned to discard pile.
+	## destroy_item=false: card is destroyed, item keeps its slot freed up.
+	## Returns the surviving card if destroy_item=true, null otherwise.
+	## Returns null if card is Molded (cannot be extracted).
+	if card_index < 0 or card_index >= item.slotted_cards.size():
+		print("[INVENTORY] Invalid card slot index %d for %s" % [card_index, item.item_name])
+		return null
+
+	var card = item.slotted_cards[card_index]
+	if card.is_molded:
+		print("[INVENTORY] Cannot extract '%s' from %s - card is Molded!" % [card.card_name, item.item_name])
+		return null
+
+	if destroy_item:
+		# Destroy the item, keep the card
+		# Track source item type for Picky re-enchanting
+		if card.source_item_type < 0:
+			card.source_item_type = item.item_type
+		card.slotted_in_item = null
+		item.slotted_cards.remove_at(card_index)
+
+		# Add card back to discard pile
+		if deck_manager:
+			deck_manager.discard_pile.append(card)
+			print("[INVENTORY] Extracted '%s' - added to discard pile" % card.card_name)
+
+		# Unequip and destroy the item
+		_destroy_equipped_item(item)
+
+		card_extracted.emit(card, item, true)
+		equipment_changed.emit()
+		print("[INVENTORY] Destroyed %s to extract '%s'" % [item.item_name, card.card_name])
+		return card
+	else:
+		# Destroy the card, keep the item
+		var card_name = card.card_name
+		card.slotted_in_item = null
+		item.slotted_cards.remove_at(card_index)
+
+		card_extracted.emit(card, item, false)
+		equipment_changed.emit()
+		print("[INVENTORY] Destroyed card '%s' to free slot in %s" % [card_name, item.item_name])
+		# Card is destroyed - return null
+		return null
+
+func _destroy_equipped_item(item: ItemData) -> void:
+	## Finds and removes an equipped item from all slot arrays, reversing its bonuses.
+	var all_slots = [
+		[equipped_helms, ItemData.ItemType.HELM],
+		[equipped_chests, ItemData.ItemType.CHEST],
+		[equipped_rings, ItemData.ItemType.RING],
+		[equipped_belts, ItemData.ItemType.BELT],
+		[equipped_boots, ItemData.ItemType.BOOTS],
+		[equipped_gauntlets, ItemData.ItemType.GAUNTLETS],
+		[equipped_weapons, ItemData.ItemType.WEAPON]
+	]
+
+	for slot_info in all_slots:
+		var slot_array = slot_info[0]
+		for i in range(slot_array.size()):
+			if slot_array[i] == item:
+				unequip_item(slot_info[1], i)
+				print("[INVENTORY] Destroyed item: %s" % item.item_name)
+				return
+
+	# Check storage too
+	for i in range(stored_items.size()):
+		if stored_items[i] == item:
+			stored_items.remove_at(i)
+			storage_changed.emit()
+			print("[INVENTORY] Destroyed stored item: %s" % item.item_name)
+			return
+
+func get_all_items_with_card_slots() -> Array[ItemData]:
+	## Returns all equipped items that have card slots.
+	var result: Array[ItemData] = []
+	var all_arrays = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons]
+	for slot_array in all_arrays:
+		for item in slot_array:
+			if item and item.has_card_slots():
+				result.append(item)
+	return result
+
+func get_all_slotted_cards() -> Array:
+	## Returns all cards currently slotted in any equipped item.
+	var result: Array = []
+	var all_arrays = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons]
+	for slot_array in all_arrays:
+		for item in slot_array:
+			if item:
+				for card in item.slotted_cards:
+					result.append(card)
+	return result

@@ -296,6 +296,39 @@ func _add_equipment_section(section_name: String, slot_data: Dictionary) -> void
 			skill_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 			equipment_container.add_child(skill_label)
 
+		# Card slot info
+		if item.has_card_slots():
+			var slot_header := Label.new()
+			slot_header.text = "    Cards: %d/%d" % [item.slotted_cards.size(), item.card_slots]
+			slot_header.add_theme_font_size_override("font_size", 11)
+			slot_header.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
+			equipment_container.add_child(slot_header)
+
+			for card in item.slotted_cards:
+				var card_label := Label.new()
+				var tag = " [Molded]" if card.is_molded else " [%s]" % card.get_slot_keyword()
+				card_label.text = "      > %s%s" % [card.card_name, tag]
+				card_label.add_theme_font_size_override("font_size", 10)
+				card_label.add_theme_color_override("font_color", Color(0.7, 0.55, 0.9))
+				equipment_container.add_child(card_label)
+
+			# On-self bonuses
+			var on_self_parts: Array[String] = []
+			if item.on_self_damage > 0:
+				on_self_parts.append("+%d dmg" % item.on_self_damage)
+			if item.on_self_block > 0:
+				on_self_parts.append("+%d block" % item.on_self_block)
+			if item.on_self_heal > 0:
+				on_self_parts.append("+%d heal" % item.on_self_heal)
+			if item.on_self_mana_reduction > 0:
+				on_self_parts.append("-%d mana" % item.on_self_mana_reduction)
+			if on_self_parts.size() > 0:
+				var on_self_label := Label.new()
+				on_self_label.text = "    On-Self: %s" % ", ".join(on_self_parts)
+				on_self_label.add_theme_font_size_override("font_size", 10)
+				on_self_label.add_theme_color_override("font_color", Color(0.6, 0.9, 0.6))
+				equipment_container.add_child(on_self_label)
+
 func _make_separator() -> HSeparator:
 	var sep = HSeparator.new()
 	sep.add_theme_color_override("color", Color(0.3, 0.3, 0.45))

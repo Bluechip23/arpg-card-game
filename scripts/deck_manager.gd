@@ -317,6 +317,13 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 	
 	var mana_cost = card.mana_cost - next_attack_mana_discount
 
+	# On-Self mana reduction from item card slot
+	if card.is_slotted():
+		var on_self = card.get_on_self_bonus()
+		if on_self["mana_reduction"] > 0:
+			mana_cost -= on_self["mana_reduction"]
+			print("[DECK] On-Self mana reduction: -%d from %s" % [on_self["mana_reduction"], card.slotted_in_item.item_name])
+
 	# Preparation: utility cards cost less
 	if prep_utility_discount > 0 and card.card_type == Card.CardType.UTILITY:
 		mana_cost -= prep_utility_discount
@@ -496,3 +503,33 @@ func trigger_reactions(trigger_type: String) -> Array[Card]:
 	if triggered.size() > 0:
 		hand_updated.emit()
 	return triggered
+
+func remove_card_from_all_piles(card: Card) -> bool:
+	## Removes a specific card instance from draw pile, hand, discard pile, or jail.
+	## Used when enchanting a card into an item.
+	for i in range(hand.size() - 1, -1, -1):
+		if hand[i] == card:
+			hand.remove_at(i)
+			hand_updated.emit()
+			print("[DECK] Removed '%s' from hand for enchanting" % card.card_name)
+			return true
+
+	for i in range(draw_pile.size() - 1, -1, -1):
+		if draw_pile[i] == card:
+			draw_pile.remove_at(i)
+			print("[DECK] Removed '%s' from draw pile for enchanting" % card.card_name)
+			return true
+
+	for i in range(discard_pile.size() - 1, -1, -1):
+		if discard_pile[i] == card:
+			discard_pile.remove_at(i)
+			print("[DECK] Removed '%s' from discard pile for enchanting" % card.card_name)
+			return true
+
+	for i in range(jail_pile.size() - 1, -1, -1):
+		if jail_pile[i] == card:
+			jail_pile.remove_at(i)
+			print("[DECK] Removed '%s' from jail for enchanting" % card.card_name)
+			return true
+
+	return false

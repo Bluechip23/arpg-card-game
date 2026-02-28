@@ -113,7 +113,30 @@ func _build_effect_text(item: ItemData) -> String:
 			lines.append("[Passive] +%d%% chance effects" % item.special_effect_value)
 		ItemData.SpecialEffect.GRANT_CARDS:
 			lines.append("[Equip] Grants cards: %s" % ", ".join(item.granted_card_ids))
-	
+
+	# Card slot info
+	if item.has_card_slots():
+		lines.append("[Card Slots] %d/%d" % [item.slotted_cards.size(), item.card_slots])
+		for card in item.slotted_cards:
+			var tags = ""
+			if card.is_molded:
+				tags = " (Molded)"
+			else:
+				tags = " (%s)" % card.get_slot_keyword()
+			lines.append("  > %s%s" % [card.card_name, tags])
+		# On-self bonuses
+		var on_self_parts: Array[String] = []
+		if item.on_self_damage > 0:
+			on_self_parts.append("+%d dmg" % item.on_self_damage)
+		if item.on_self_block > 0:
+			on_self_parts.append("+%d block" % item.on_self_block)
+		if item.on_self_heal > 0:
+			on_self_parts.append("+%d heal" % item.on_self_heal)
+		if item.on_self_mana_reduction > 0:
+			on_self_parts.append("-%d mana" % item.on_self_mana_reduction)
+		if on_self_parts.size() > 0:
+			lines.append("[On-Self] %s" % ", ".join(on_self_parts))
+
 	return "\n".join(lines)
 
 func hide_tooltip() -> void:

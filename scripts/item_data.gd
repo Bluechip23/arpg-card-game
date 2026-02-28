@@ -98,6 +98,16 @@ enum GauntletSkillType {
 @export var gauntlet_skill_mana_cost: int = 0  # For active skills
 @export var gauntlet_skill_effect_id: String = ""  # Identifier for the effect
 
+# Card slot system
+@export var card_slots: int = 0  # Number of card slots this item has
+var slotted_cards: Array = []  # Cards currently in the slots
+
+# On-self bonuses (extra bonuses applied to cards slotted in this item)
+@export var on_self_damage: int = 0
+@export var on_self_block: int = 0
+@export var on_self_heal: int = 0
+@export var on_self_mana_reduction: int = 0
+
 # Runtime tracking
 var current_cooldown: int = 0  # Current cooldown remaining
 
@@ -179,6 +189,74 @@ func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Diction
 	}
 
 # ============================================
+# CARD SLOT SYSTEM
+# ============================================
+
+func has_card_slots() -> bool:
+	return card_slots > 0
+
+func get_free_card_slots() -> int:
+	return max(0, card_slots - slotted_cards.size())
+
+func can_slot_card(card) -> bool:
+	if slotted_cards.size() >= card_slots:
+		return false
+	# Check Picky compatibility: card must go into same item type it came from
+	if card.slot_compatibility == 0 and card.source_item_type >= 0:  # PICKY = 0
+		if card.source_item_type != item_type:
+			return false
+	return true
+
+func slot_card(card) -> bool:
+	if not can_slot_card(card):
+		return false
+	slotted_cards.append(card)
+	card.slotted_in_item = self
+	print("[ITEM] %s: slotted card '%s' (%d/%d slots)" % [item_name, card.card_name, slotted_cards.size(), card_slots])
+	return true
+
+func unslot_card(card_index: int):
+	if card_index < 0 or card_index >= slotted_cards.size():
+		return null
+	var card = slotted_cards[card_index]
+	if card.is_molded:
+		print("[ITEM] %s: cannot remove '%s' - card is Molded!" % [item_name, card.card_name])
+		return null
+	slotted_cards.remove_at(card_index)
+	card.slotted_in_item = null
+	# Track source item type for Picky cards
+	if card.source_item_type < 0:
+		card.source_item_type = item_type
+	print("[ITEM] %s: unslotted card '%s' (%d/%d slots)" % [item_name, card.card_name, slotted_cards.size(), card_slots])
+	return card
+
+func get_on_self_bonus() -> Dictionary:
+	return {
+		"damage": on_self_damage,
+		"block": on_self_block,
+		"heal": on_self_heal,
+		"mana_reduction": on_self_mana_reduction
+	}
+
+func get_card_slot_summary() -> String:
+	if card_slots == 0:
+		return ""
+	var parts: Array[String] = []
+	parts.append("Slots: %d/%d" % [slotted_cards.size(), card_slots])
+	for card in slotted_cards:
+		var suffix = " [Molded]" if card.is_molded else ""
+		parts.append("  - %s%s" % [card.card_name, suffix])
+	if on_self_damage > 0:
+		parts.append("On-Self: +%d damage" % on_self_damage)
+	if on_self_block > 0:
+		parts.append("On-Self: +%d block" % on_self_block)
+	if on_self_heal > 0:
+		parts.append("On-Self: +%d heal" % on_self_heal)
+	if on_self_mana_reduction > 0:
+		parts.append("On-Self: -%d mana cost" % on_self_mana_reduction)
+	return "\n".join(parts)
+
+# ============================================
 # CHARACTER STARTING ITEMS
 # ============================================
 
@@ -250,7 +328,9 @@ static func create_adventurers_belt() -> ItemData:
 	item.weight = 1
 	item.special_effect = SpecialEffect.GRANT_CARDS
 	item.granted_card_ids.assign(["healing_potion", "dagger_throw"])
-	item.description = "Grants Healing Potion & Dagger Throw"
+	item.card_slots = 2
+	item.on_self_heal = 1
+	item.description = "Grants Healing Potion & Dagger Throw. 2 card slots, On-Self: +1 heal"
 	return item
 
 # ============================================
@@ -343,7 +423,9 @@ static func create_flame_dagger() -> ItemData:
 	item.weapon_damage = 5
 	item.fire_damage_percent = 10.0
 	item.weapon_hand = WeaponHand.ONE_HAND
-	item.description = "5 dmg, +10% Fire Damage"
+	item.card_slots = 1
+	item.on_self_damage = 1
+	item.description = "5 dmg, +10% Fire Damage. 1 card slot, On-Self: +1 dmg"
 	return item
 
 static func create_frost_orb() -> ItemData:
@@ -370,7 +452,9 @@ static func create_iron_helm() -> ItemData:
 	item.weight = 3
 	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
 	item.special_effect_value = 2
-	item.description = "+2 Armor on every Armor gain"
+	item.card_slots = 1
+	item.on_self_block = 1
+	item.description = "+2 Armor on every Armor gain. 1 card slot, On-Self: +1 block"
 	return item
 
 static func create_leather_chest() -> ItemData:
@@ -393,7 +477,9 @@ static func create_iron_sword() -> ItemData:
 	item.weight = 80
 	item.weapon_damage = 10
 	item.weapon_hand = WeaponHand.ONE_HAND
-	item.description = "+10 Melee Attack damage. Weight 80"
+	item.card_slots = 1
+	item.on_self_damage = 2
+	item.description = "+10 Melee Attack damage. Weight 80. 1 card slot, On-Self: +2 dmg"
 	return item
 
 static func create_wooden_shield() -> ItemData:
@@ -406,7 +492,9 @@ static func create_wooden_shield() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
 	item.special_effect_value = 2
 	item.weapon_hand = WeaponHand.ONE_HAND
-	item.description = "Block: 5. +2 Armor on every Armor gain"
+	item.card_slots = 1
+	item.on_self_block = 2
+	item.description = "Block: 5. +2 Armor on every Armor gain. 1 card slot, On-Self: +2 block"
 	return item
 
 static func create_gold_ring() -> ItemData:
@@ -431,7 +519,9 @@ static func create_heavy_greatsword() -> ItemData:
 	item.weapon_damage = 25
 	item.weapon_hand = WeaponHand.TWO_HAND
 	item.is_two_handed = true
-	item.description = "+25 Melee Attack damage. Weight 130. Two-handed (takes both slots, no penalty)"
+	item.card_slots = 2
+	item.on_self_damage = 3
+	item.description = "+25 Melee Attack damage. Weight 130. Two-handed. 2 card slots, On-Self: +3 dmg"
 	return item
 
 static func create_leather_boots() -> ItemData:
@@ -441,7 +531,9 @@ static func create_leather_boots() -> ItemData:
 	item.item_type_name = "Boots"
 	item.weight = 2
 	item.agility_bonus = 2
-	item.description = "+2 Agility"
+	item.card_slots = 1
+	item.on_self_mana_reduction = 1
+	item.description = "+2 Agility. 1 card slot, On-Self: -1 mana cost"
 	return item
 
 static func create_iron_gauntlets() -> ItemData:
