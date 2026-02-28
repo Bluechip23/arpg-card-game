@@ -41,6 +41,7 @@ func refresh() -> void:
 		prev_expanded[type_name] = _group_entries[type_name].get("expanded", false)
 
 	for child in _content.get_children():
+		_content.remove_child(child)
 		child.queue_free()
 	_group_entries.clear()
 	_enemy_to_panel.clear()
@@ -345,12 +346,8 @@ func _clear_all_highlights() -> void:
 # STATUS ICON
 # ============================================
 
-func _create_status_icon(color: Color, stacks: int) -> Control:
+func _create_status_icon(color: Color, stacks: int) -> PanelContainer:
 	var sz = 14
-	var container = Control.new()
-	container.custom_minimum_size = Vector2(sz + 6, sz + 4)
-	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
 	var circle = PanelContainer.new()
 	circle.custom_minimum_size = Vector2(sz, sz)
 	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -361,18 +358,18 @@ func _create_status_icon(color: Color, stacks: int) -> Control:
 	circle_style.corner_radius_bottom_left = int(sz / 2)
 	circle_style.corner_radius_bottom_right = int(sz / 2)
 	circle.add_theme_stylebox_override("panel", circle_style)
-	container.add_child(circle)
 
 	if stacks > 0:
 		var count = Label.new()
 		count.text = str(stacks)
 		count.add_theme_font_size_override("font_size", 9)
 		count.add_theme_color_override("font_color", Color.WHITE)
-		count.position = Vector2(sz * 0.55, sz * 0.4)
+		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		count.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(count)
+		circle.add_child(count)
 
-	return container
+	return circle
 
 # ============================================
 # HELPERS
