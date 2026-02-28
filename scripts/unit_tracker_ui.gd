@@ -11,10 +11,12 @@ signal enemy_unhovered()              # Emitted when leaving a portrait
 
 var enemy_spawner = null
 var _content: VBoxContainer
+var _toggle_btn: Button
 var _group_entries: Dictionary = {}
 # Maps Enemy instance_id -> portrait panel for reverse-lookup from battlefield hover
 var _enemy_to_panel: Dictionary = {}
 var _highlighted_enemy: Enemy = null  # Currently highlighted enemy (from either direction)
+var collapsed: bool = true  # Start collapsed
 
 const SQUARE_SIZE: float = 48.0
 const SUB_SQUARE_SIZE: float = 38.0
@@ -23,9 +25,35 @@ const MAX_STATUS_ICONS: int = 5
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+	# Toggle button at top
+	_toggle_btn = Button.new()
+	_toggle_btn.text = "+ Enemies"
+	_toggle_btn.custom_minimum_size = Vector2(90, 22)
+	_toggle_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.12, 0.12, 0.18, 0.9)
+	btn_style.border_color = Color(0.3, 0.3, 0.45, 0.6)
+	btn_style.border_width_bottom = 1
+	btn_style.border_width_top = 1
+	btn_style.border_width_left = 1
+	btn_style.border_width_right = 1
+	btn_style.corner_radius_top_left = 3
+	btn_style.corner_radius_top_right = 3
+	btn_style.corner_radius_bottom_left = 3
+	btn_style.corner_radius_bottom_right = 3
+	_toggle_btn.add_theme_stylebox_override("normal", btn_style)
+	var btn_hover = btn_style.duplicate()
+	btn_hover.bg_color = Color(0.18, 0.18, 0.25, 0.95)
+	_toggle_btn.add_theme_stylebox_override("hover", btn_hover)
+	_toggle_btn.add_theme_font_size_override("font_size", 11)
+	_toggle_btn.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	_toggle_btn.pressed.connect(_on_toggle)
+	add_child(_toggle_btn)
+
 	_content = VBoxContainer.new()
 	_content.add_theme_constant_override("separation", 6)
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_content.visible = not collapsed
 	add_child(_content)
 
 func initialize(spawner) -> void:
@@ -51,6 +79,8 @@ func refresh() -> void:
 		visible = false
 		return
 	visible = true
+	_content.visible = not collapsed
+	_update_toggle_text(living.size())
 
 	# Group enemies by type
 	var groups: Dictionary = {}
@@ -118,6 +148,20 @@ func _on_group_click(event: InputEvent, type_name: String) -> void:
 			data["expanded"] = not data["expanded"]
 			if data.has("sub_container"):
 				data["sub_container"].visible = data["expanded"]
+
+func _on_toggle() -> void:
+	collapsed = not collapsed
+	_content.visible = not collapsed
+	var count = 0
+	if enemy_spawner:
+		count = enemy_spawner.get_living_enemies().size()
+	_update_toggle_text(count)
+
+func _update_toggle_text(count: int = 0) -> void:
+	if collapsed:
+		_toggle_btn.text = "+ Enemies (%d)" % count
+	else:
+		_toggle_btn.text = "_ Enemies (%d)" % count
 
 # ============================================
 # SINGLE ENEMY ENTRY (square + info below)

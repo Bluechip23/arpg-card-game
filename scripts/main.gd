@@ -41,6 +41,7 @@ extends Node3D
 @onready var range_indicator: RangeIndicator = $RangeIndicator
 
 var unit_tracker: UnitTrackerUI = null
+var _item_panel_toggle_btn: Button = null
 
 var battle_log_label: RichTextLabel = null
 var battle_log_panel: PanelContainer = null
@@ -149,6 +150,9 @@ func _ready() -> void:
 
 	# Unit tracker (left side panel)
 	_setup_unit_tracker()
+
+	# Item panel toggle button (right side)
+	_setup_item_panel_toggle()
 
 	# Spawn initial test wave
 	enemy_spawner.spawn_test_arena()
@@ -1005,6 +1009,53 @@ func _setup_unit_tracker() -> void:
 	unit_tracker.enemy_hovered.connect(_on_tracker_enemy_hovered)
 	unit_tracker.enemy_unhovered.connect(_on_tracker_enemy_unhovered)
 
+func _setup_item_panel_toggle() -> void:
+	var ui = $UI as CanvasLayer
+	_item_panel_toggle_btn = Button.new()
+	_item_panel_toggle_btn.name = "ItemPanelToggle"
+	_item_panel_toggle_btn.text = "+ Items [I]"
+	_item_panel_toggle_btn.custom_minimum_size = Vector2(90, 22)
+	_item_panel_toggle_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.12, 0.12, 0.18, 0.9)
+	btn_style.border_color = Color(0.3, 0.3, 0.45, 0.6)
+	btn_style.border_width_bottom = 1
+	btn_style.border_width_top = 1
+	btn_style.border_width_left = 1
+	btn_style.border_width_right = 1
+	btn_style.corner_radius_top_left = 3
+	btn_style.corner_radius_top_right = 3
+	btn_style.corner_radius_bottom_left = 3
+	btn_style.corner_radius_bottom_right = 3
+	_item_panel_toggle_btn.add_theme_stylebox_override("normal", btn_style)
+	var btn_hover = btn_style.duplicate()
+	btn_hover.bg_color = Color(0.18, 0.18, 0.25, 0.95)
+	_item_panel_toggle_btn.add_theme_stylebox_override("hover", btn_hover)
+	_item_panel_toggle_btn.add_theme_font_size_override("font_size", 11)
+	_item_panel_toggle_btn.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	_item_panel_toggle_btn.pressed.connect(_on_item_panel_toggle)
+	ui.add_child(_item_panel_toggle_btn)
+
+	# Position at top-right area, below help buttons
+	_item_panel_toggle_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_item_panel_toggle_btn.offset_left = -100.0
+	_item_panel_toggle_btn.offset_top = 40.0
+	_item_panel_toggle_btn.offset_right = -8.0
+	_item_panel_toggle_btn.offset_bottom = 62.0
+
+func _on_item_panel_toggle() -> void:
+	character_panel.toggle_panel()
+	_update_item_panel_toggle_text()
+
+func _update_item_panel_toggle_text() -> void:
+	if character_panel.panel.visible:
+		_item_panel_toggle_btn.text = "_ Items [I]"
+	else:
+		_item_panel_toggle_btn.text = "+ Items [I]"
+
+func _on_character_panel_closed() -> void:
+	_update_item_panel_toggle_text()
+
 var _battlefield_hovered_enemy: Enemy = null
 
 func _on_tracker_enemy_hovered(enemy: Enemy) -> void:
@@ -1071,7 +1122,8 @@ func select_character(character: CharacterData) -> void:
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	
 	character_panel.connect_stats(player.get_stats(), player.get_inventory())
-	
+	character_panel.closed.connect(_on_character_panel_closed)
+
 	deck_manager.initialize_deck(character)
 	player.get_inventory().apply_starting_item_card_effects()
 	_setup_gauntlet_skills_ui()
@@ -1922,6 +1974,7 @@ func _input(event: InputEvent) -> void:
 		# Character panel toggle
 		if event.keycode == KEY_I:
 			character_panel.toggle_panel()
+			_update_item_panel_toggle_text()
 			return
 
 		# Sphere grid toggle
@@ -1956,6 +2009,7 @@ func _input(event: InputEvent) -> void:
 			update_card_highlights()
 			move_dialog.hide_dialog()
 			character_panel.hide_panel()
+			_update_item_panel_toggle_text()
 			sphere_grid_ui.hide_panel()
 	
 	# Left click - play card or use gauntlet skill
