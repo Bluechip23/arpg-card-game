@@ -12,22 +12,26 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
-[node name="GridCanvas" type="Control" parent="Panel"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
+[node name="GridCanvas" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 0
 
-[node name="TitleLabel" type="Label" parent="Panel"]
-layout_mode = 2
-size_flags_horizontal = 4
+[node name="TitleLabel" type="Label" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
 offset_top = 8.0
 offset_bottom = 38.0
+grow_horizontal = 2
 text = "SPHERE GRID"
+horizontal_alignment = 1
 
-[node name="InfoLabel" type="Label" parent="Panel"]
-layout_mode = 2
+[node name="InfoLabel" type="Label" parent="."]
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
@@ -38,16 +42,14 @@ grow_vertical = 0
 text = "Hover over a node for details"
 horizontal_alignment = 1
 
-[node name="PointsLabel" type="Label" parent="Panel"]
-layout_mode = 2
+[node name="PointsLabel" type="Label" parent="."]
 offset_left = 20.0
 offset_top = 12.0
 offset_right = 500.0
 offset_bottom = 35.0
 text = "Spheres: --"
 
-[node name="CloseButton" type="Button" parent="Panel"]
-layout_mode = 2
+[node name="CloseButton" type="Button" parent="."]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
