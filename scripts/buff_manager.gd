@@ -219,6 +219,17 @@ func on_attacked(attacker) -> void:
 func has_wear_down() -> bool:
 	return has_buff(Buff.BuffType.WEAR_DOWN)
 
+func has_armor_break() -> bool:
+	return has_buff(Buff.BuffType.ARMOR_BREAK)
+
+func consume_armor_break() -> bool:
+	var ab = get_buff(Buff.BuffType.ARMOR_BREAK)
+	if ab:
+		if ab.use_charge():
+			remove_buff(Buff.BuffType.ARMOR_BREAK)
+		return true
+	return false
+
 func is_invisible() -> bool:
 	return has_buff(Buff.BuffType.INVISIBLE)
 

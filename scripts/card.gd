@@ -217,6 +217,15 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			target.apply_wear_down(3)
 			print("[CARD] Wear Down triggered! Enemy attack will be reduced")
 
+	# Armor Break: flag enemy so take_damage uses armor-only double-damage logic
+	var armor_break_consumed = false
+	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_armor_break():
+		if target and target.has_method("set_armor_break_incoming"):
+			target.set_armor_break_incoming(true)
+			buff_mgr.consume_armor_break()
+			armor_break_consumed = true
+			print("[CARD] Armor Break! Double damage to armor only")
+
 	match card_id:
 		"slash":
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -386,6 +395,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		var dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 		if dealt > 0:
 			buff_mgr.consume_life_steal(dealt)
+
+	# Clear armor break flag on target after attack resolves
+	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
+		target.set_armor_break_incoming(false)
 
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
@@ -786,7 +799,7 @@ func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 func _execute_armor_break(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Next attack deals double damage but only affects armor
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_strengthen(5, 1, "Armor Break"))
+		buff_mgr.apply_buff(Buff.create_armor_break("Armor Break"))
 	print("[CARD] Armor Break! Next attack deals double damage to armor only")
 
 func _execute_charge(_target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
