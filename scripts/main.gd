@@ -1461,6 +1461,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	_update_enemy_count()
 	_reroll_card_rng()
 	_on_hand_updated()
+	_refresh_unit_tracker()
 
 	if was_moving:
 		player.resume_movement()
@@ -2238,6 +2239,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	quiver_ui.refresh()
 	update_deck_info()
+	_refresh_unit_tracker()
 	print("[MAIN] Quiver: played %s from quiver (cost %d mana, %d tempo)" % [card.card_name, mana_cost, tempo_cost])
 
 func _on_overcharge_triggered(effect_id: String, value: int) -> void:
@@ -2518,6 +2520,8 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var triggered = deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+	if triggered.size() > 0:
+		_refresh_unit_tracker()
 
 func _on_card_on_draw_triggered(card: Card) -> void:
 	match card.on_draw_effect:
