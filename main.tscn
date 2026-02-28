@@ -21,9 +21,9 @@
 [ext_resource type="PackedScene" uid="uid://3cxn1hbdk2os" path="res://scenes/manifest_ui.tscn" id="21_manifest"]
 [ext_resource type="PackedScene" uid="uid://dmw2cplrsglq1" path="res://scenes/help_buttons.tscn" id="22_helpbtn"]
 [ext_resource type="PackedScene" path="res://scenes/quiver_ui.tscn" id="23_quiver"]
-[ext_resource type="PackedScene" path="res://scenes/sphere_grid.tscn" id="24_sphere"]
+[ext_resource type="PackedScene" uid="uid://dri62oqig0hgl" path="res://scenes/sphere_grid.tscn" id="24_sphere"]
 [ext_resource type="Script" uid="uid://bvysoyp02lh3d" path="res://scripts/sphere_inventory.gd" id="25_sphere_inv"]
-[ext_resource type="Script" path="res://scripts/range_indicator.gd" id="26_range_ind"]
+[ext_resource type="Script" uid="uid://c8uffvcxq5tgl" path="res://scripts/range_indicator.gd" id="26_range_ind"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_top_color = Color(0.05, 0.05, 0.1, 1)
@@ -104,7 +104,7 @@ script = ExtResource("25_sphere_inv")
 [node name="AOEIndicator" type="Node3D" parent="." unique_id=405332433]
 script = ExtResource("13_cegan")
 
-[node name="RangeIndicator" type="Node3D" parent="."]
+[node name="RangeIndicator" type="Node3D" parent="." unique_id=1694803749]
 visible = false
 script = ExtResource("26_range_ind")
 
@@ -177,10 +177,10 @@ offset_right = 212.0
 offset_bottom = 64.0
 
 [node name="PlayerXPLabel" type="Label" parent="UI" unique_id=2079740689]
-offset_left = 470.0
-offset_top = 40.0
-offset_right = 618.0
-offset_bottom = 63.0
+offset_left = 42.0
+offset_top = 13.0
+offset_right = 190.0
+offset_bottom = 36.0
 text = "Lv 1 | XP: 0/10"
 
 [node name="TurnLabel" type="Label" parent="UI" unique_id=1944835916]
