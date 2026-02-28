@@ -12,7 +12,8 @@ signal node_unlocked(node_id: int)
 @onready var grid_canvas: Control = $GridCanvas
 @onready var close_button: Button = $CloseButton
 @onready var title_label: Label = $TitleLabel
-@onready var info_label: Label = $InfoLabel
+@onready var info_panel: PanelContainer = $InfoPanel
+@onready var info_label: Label = $InfoPanel/MarginContainer/InfoLabel
 @onready var points_label: Label = $PointsLabel
 
 var sphere_grid: SphereGrid
@@ -95,11 +96,30 @@ func _apply_styles() -> void:
 	title_label.add_theme_color_override("font_color", Color(0.9, 0.85, 0.5))
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-	# Info label (bottom, shows hovered node info)
-	info_label.text = "Hover over a node to see details. Click an adjacent node to unlock with a sphere."
-	info_label.add_theme_font_size_override("font_size", 14)
-	info_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Info panel (bottom-left, opaque background for hover descriptions)
+	var info_style = StyleBoxFlat.new()
+	info_style.bg_color = Color(0.08, 0.08, 0.12, 1.0)
+	info_style.border_width_left = 2
+	info_style.border_width_right = 2
+	info_style.border_width_top = 2
+	info_style.border_width_bottom = 2
+	info_style.border_color = Color(0.35, 0.35, 0.55)
+	info_style.corner_radius_top_left = 6
+	info_style.corner_radius_top_right = 6
+	info_style.corner_radius_bottom_left = 6
+	info_style.corner_radius_bottom_right = 6
+	info_style.content_margin_left = 10.0
+	info_style.content_margin_right = 10.0
+	info_style.content_margin_top = 8.0
+	info_style.content_margin_bottom = 8.0
+	info_panel.add_theme_stylebox_override("panel", info_style)
+
+	info_label.text = "Hover over a node to see details."
+	info_label.add_theme_font_size_override("font_size", 13)
+	info_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info_label.custom_minimum_size = Vector2(340, 0)
 
 	# Points label
 	_update_points_label()
@@ -702,19 +722,58 @@ func _try_create_card(card_id: String) -> Card:
 
 func _update_info_label() -> void:
 	if _hovered_node_id < 0:
-		info_label.text = "Hover over a node to see details. Click to open node details."
+		info_label.text = "Hover over a node to see details.\nClick a node to open full details."
 		return
 	var node = sphere_grid.get_node_by_id(_hovered_node_id)
 	if not node:
 		return
-	var status = "UNLOCKED" if node.unlocked else ("AVAILABLE" if sphere_grid.is_unlockable(node.id) else "LOCKED")
+
+	var lines: Array[String] = []
+
+	# Node name and type
 	var type_name = _get_type_name(node.node_type)
-	var sphere_hint = ""
+	lines.append("%s  (%s)" % [node.label, type_name])
+
+	# Status
+	var status = "UNLOCKED" if node.unlocked else ("AVAILABLE" if sphere_grid.is_unlockable(node.id) else "LOCKED")
+	lines.append("Status: %s" % status)
+
+	# Description
+	lines.append(node.description)
+
+	# Card info (if card node)
+	if node.node_type == SphereGrid.NodeType.CARD and node.card_id != "":
+		var card = _try_create_card(node.card_id)
+		if card:
+			lines.append("Card: %s — Cost: %dM / %dT" % [card.card_name, card.mana_cost, card.tempo_cost])
+			if card.description != "":
+				lines.append(card.description)
+
+	# Upgrade paths preview
+	if node.upgrade_paths.size() > 0:
+		var path_names: Array[String] = []
+		for p in node.upgrade_paths:
+			path_names.append(p["label"])
+		lines.append("Upgrades: %s" % ", ".join(path_names))
+
+	# Transmute paths preview
+	if node.transmute_paths.size() > 0:
+		var path_names: Array[String] = []
+		for p in node.transmute_paths:
+			path_names.append(p["label"])
+		lines.append("Transmutes: %s" % ", ".join(path_names))
+
+	# Sphere requirement
 	if not node.unlocked and node.node_type != SphereGrid.NodeType.START:
 		var req = SphereInventory.get_required_sphere_type(node.node_type)
 		if req >= 0:
-			sphere_hint = " [Requires: %s sphere]" % SphereInventory.get_sphere_name(req)
-	info_label.text = "[%s] %s (%s) — %s%s" % [status, node.label, type_name, node.description, sphere_hint]
+			var req_name = SphereInventory.get_sphere_name(req)
+			var have = 0
+			if sphere_inventory:
+				have = sphere_inventory.get_count(req)
+			lines.append("Requires: %s sphere (have: %d)" % [req_name, have])
+
+	info_label.text = "\n".join(lines)
 
 func _set_info(text: String) -> void:
 	info_label.text = text

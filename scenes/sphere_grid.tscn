@@ -31,16 +31,22 @@ grow_horizontal = 2
 text = "SPHERE GRID"
 horizontal_alignment = 1
 
-[node name="InfoLabel" type="Label" parent="."]
-anchors_preset = 12
+[node name="InfoPanel" type="PanelContainer" parent="."]
 anchor_top = 1.0
-anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -30.0
-grow_horizontal = 2
+offset_left = 16.0
+offset_top = -160.0
+offset_right = 380.0
+offset_bottom = -16.0
 grow_vertical = 0
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="InfoPanel"]
+layout_mode = 2
+
+[node name="InfoLabel" type="Label" parent="InfoPanel/MarginContainer"]
+layout_mode = 2
 text = "Hover over a node for details"
-horizontal_alignment = 1
 
 [node name="PointsLabel" type="Label" parent="."]
 offset_left = 20.0
