@@ -935,6 +935,13 @@ func _on_player_leveled_up(new_level: int) -> void:
 		sphere_inventory.add_sphere(reward[0], reward[1])
 	print("[MAIN] Granted level %d sphere rewards" % new_level)
 
+	# Force-refresh health and mana UI to guarantee display shows full restore
+	var stats = player.get_stats()
+	if stats:
+		_on_player_health_changed(stats.current_health, stats.max_health)
+		_on_player_mana_changed(stats.current_mana, stats.max_mana)
+		_update_xp_display()
+
 func _on_player_xp_changed(current_xp: int, xp_to_next: int) -> void:
 	_update_xp_display()
 

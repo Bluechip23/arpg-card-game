@@ -23,6 +23,9 @@ var move_path: Array[Vector3] = []
 
 var movement_paused: bool = false  # Pause movement while enemies act
 var grid_manager: GridManager
+var _last_position: Vector3 = Vector3.ZERO
+var _stuck_frames: int = 0
+const STUCK_THRESHOLD: int = 10  # Cancel movement after this many frames with no progress
 
 func _ready() -> void:
 	target_position = position
@@ -91,6 +94,7 @@ func _physics_process(delta: float) -> void:
 		if distance < 0.1:
 			position = target_position
 			spaces_moved += 1
+			_stuck_frames = 0
 
 			# Trigger bleed damage on movement
 			debuff_manager.on_movement(1)
@@ -110,6 +114,25 @@ func _physics_process(delta: float) -> void:
 		else:
 			var direction = flat_diff.normalized()
 			velocity = direction * move_speed
+
+			# Detect if stuck (collision blocking progress toward target)
+			var moved_dist = (position - _last_position).length()
+			if moved_dist < 0.01:
+				_stuck_frames += 1
+				if _stuck_frames >= STUCK_THRESHOLD:
+					print("[PLAYER] Movement blocked - cancelling path")
+					# Snap to nearest grid cell and stop
+					if grid_manager:
+						position = grid_manager.snap_to_grid(position)
+						target_position = position
+					is_moving = false
+					velocity = Vector3.ZERO
+					move_path.clear()
+					_stuck_frames = 0
+					move_completed.emit()
+			else:
+				_stuck_frames = 0
+		_last_position = position
 	else:
 		velocity = Vector3.ZERO
 
@@ -177,6 +200,8 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 	if move_path.size() > 0:
 		spaces_to_move = move_path.size()
 		spaces_moved = 0
+		_stuck_frames = 0
+		_last_position = position
 		target_position = move_path.pop_front()
 		is_moving = true
 		move_started.emit(spaces_to_move)
