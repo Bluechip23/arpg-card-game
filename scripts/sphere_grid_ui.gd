@@ -9,11 +9,11 @@ signal closed
 signal node_unlocked(node_id: int)
 
 @onready var panel: PanelContainer = $Panel
-@onready var grid_canvas: Control = $Panel/GridCanvas
-@onready var close_button: Button = $Panel/CloseButton
-@onready var title_label: Label = $Panel/TitleLabel
-@onready var info_label: Label = $Panel/InfoLabel
-@onready var points_label: Label = $Panel/PointsLabel
+@onready var grid_canvas: Control = $GridCanvas
+@onready var close_button: Button = $CloseButton
+@onready var title_label: Label = $TitleLabel
+@onready var info_label: Label = $InfoLabel
+@onready var points_label: Label = $PointsLabel
 
 var sphere_grid: SphereGrid
 var sphere_inventory: SphereInventory
@@ -168,13 +168,19 @@ func _update_points_label() -> void:
 	else:
 		points_label.text = "Spheres: " + " | ".join(parts)
 
+func _get_canvas_size() -> Vector2:
+	var sz = grid_canvas.size
+	if sz.x < 1 or sz.y < 1:
+		sz = get_viewport().get_visible_rect().size
+	return sz
+
 func _world_to_screen(world_pos: Vector2) -> Vector2:
-	var canvas_center = grid_canvas.size / 2.0
+	var canvas_center = _get_canvas_size() / 2.0
 	var grid_center = Vector2(640, 360)
 	return canvas_center + (world_pos - grid_center + _camera_offset) * _zoom
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
-	var canvas_center = grid_canvas.size / 2.0
+	var canvas_center = _get_canvas_size() / 2.0
 	var grid_center = Vector2(640, 360)
 	return (screen_pos - canvas_center) / _zoom - _camera_offset + grid_center
 
@@ -462,8 +468,8 @@ func _open_detail_popup(node_id: int) -> void:
 	# --- Close hint ---
 	_add_popup_label(vbox, "Click elsewhere or right-click to close", 10, Color(0.4, 0.4, 0.5))
 
-	# Add popup to the panel (not grid_canvas, so it sits on top)
-	panel.add_child(_detail_panel)
+	# Add popup directly to the CanvasLayer so it sits on top of everything
+	add_child(_detail_panel)
 
 	# Position near the node but keep on screen
 	_position_popup(node)
@@ -488,7 +494,7 @@ func _position_popup(node: SphereGrid.GridNode) -> void:
 
 	var node_screen_pos = _world_to_screen(node.position)
 	var popup_size = _detail_panel.size
-	var screen_size = panel.size
+	var screen_size = get_viewport().get_visible_rect().size
 
 	# Default: to the right of the node
 	var px = node_screen_pos.x + 30
