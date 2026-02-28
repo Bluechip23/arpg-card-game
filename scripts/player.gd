@@ -23,6 +23,7 @@ var move_path: Array[Vector3] = []
 
 var movement_paused: bool = false  # Pause movement while enemies act
 var grid_manager: GridManager
+var enemy_spawner = null  # Set by main.gd so pathfinding can avoid enemy tiles
 var _last_position: Vector3 = Vector3.ZERO
 var _stuck_frames: int = 0
 const STUCK_THRESHOLD: int = 10  # Cancel movement after this many frames with no progress
@@ -142,6 +143,13 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 	if not grid_manager:
 		return [target_pos]
 
+	# Build set of enemy-occupied grid cells
+	var occupied: Array[Vector2i] = []
+	if enemy_spawner:
+		var living = enemy_spawner.get_living_enemies()
+		for enemy in living:
+			occupied.append(grid_manager.world_to_grid(enemy.position))
+
 	var path: Array[Vector3] = []
 	var current_grid = grid_manager.world_to_grid(position)
 	var target_grid = grid_manager.world_to_grid(target_pos)
@@ -152,11 +160,17 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 		var diff_x = target_grid.x - current.x
 		var diff_y = target_grid.y - current.y
 
+		var next = current
 		if diff_x != 0:
-			current.x += signi(diff_x)
+			next.x += signi(diff_x)
 		elif diff_y != 0:
-			current.y += signi(diff_y)
+			next.y += signi(diff_y)
 
+		# Stop before walking onto an enemy-occupied tile
+		if next in occupied:
+			break
+
+		current = next
 		path.append(grid_manager.grid_to_world(current))
 
 	return path
