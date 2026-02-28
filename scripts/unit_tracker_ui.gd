@@ -16,7 +16,7 @@ var _group_entries: Dictionary = {}
 # Maps Enemy instance_id -> portrait panel for reverse-lookup from battlefield hover
 var _enemy_to_panel: Dictionary = {}
 var _highlighted_enemy: Enemy = null  # Currently highlighted enemy (from either direction)
-var collapsed: bool = true  # Start collapsed
+var collapsed: bool = false  # Start expanded
 
 const SQUARE_SIZE: float = 48.0
 const SUB_SQUARE_SIZE: float = 38.0
@@ -27,7 +27,7 @@ func _ready() -> void:
 
 	# Toggle button at top
 	_toggle_btn = Button.new()
-	_toggle_btn.text = "+ Enemies"
+	_toggle_btn.text = "_ Enemies"
 	_toggle_btn.custom_minimum_size = Vector2(90, 22)
 	_toggle_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	var btn_style = StyleBoxFlat.new()

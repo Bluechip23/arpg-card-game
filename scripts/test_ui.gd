@@ -21,11 +21,15 @@ signal apply_overflow_requested(overflow_name: String)
 @onready var give_card_button: Button = $Panel/VBox/GiveCardButton
 @onready var toggle_button: Button = $ToggleButton
 
-var is_visible: bool = true
+var is_visible: bool = false
 
 func _ready() -> void:
 	_setup_buttons()
 	_setup_dropdowns()
+	# Start collapsed
+	panel.visible = false
+	if toggle_button:
+		toggle_button.text = ">>"
 
 func _setup_buttons() -> void:
 	if wave_button:
