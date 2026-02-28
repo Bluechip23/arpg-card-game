@@ -71,6 +71,20 @@ var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
 
+# Camera orbit state
+var _camera_focus: Vector3 = Vector3(10, 0, 6)  # Center of the 20x12 grid
+var _camera_yaw: float = 0.0       # Horizontal rotation (radians)
+var _camera_pitch: float = -0.785  # Vertical angle (radians), -45° default
+var _camera_distance: float = 17.0 # Distance from focus point
+var _camera_orbiting: bool = false  # True while left-dragging to orbit
+var _camera_drag_start: Vector2 = Vector2.ZERO
+const CAMERA_PITCH_MIN: float = -1.4   # ~-80° (nearly top-down)
+const CAMERA_PITCH_MAX: float = -0.15  # ~-9° (nearly level)
+const CAMERA_ZOOM_MIN: float = 6.0
+const CAMERA_ZOOM_MAX: float = 35.0
+const CAMERA_ZOOM_STEP: float = 2.0
+const CAMERA_ORBIT_SENSITIVITY: float = 0.005
+
 func _ready() -> void:
 	deck_manager.hand_updated.connect(_on_hand_updated)
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
@@ -155,6 +169,19 @@ func _on_walkthrough_pressed() -> void:
 
 func _on_help_closed() -> void:
 	pass  # Resume game if needed
+
+func _update_camera() -> void:
+	var camera = get_viewport().get_camera_3d()
+	if not camera:
+		return
+	# Compute camera position on a sphere around the focus point
+	var offset = Vector3(
+		sin(_camera_yaw) * cos(_camera_pitch) * _camera_distance,
+		-sin(_camera_pitch) * _camera_distance,
+		cos(_camera_yaw) * cos(_camera_pitch) * _camera_distance
+	)
+	camera.position = _camera_focus + offset
+	camera.look_at(_camera_focus, Vector3.UP)
 
 func _process(_delta: float) -> void:
 	_update_hand_hover()
@@ -1716,6 +1743,16 @@ func _input(event: InputEvent) -> void:
 			sphere_grid_ui.toggle_panel()
 			return
 
+		# Camera zoom: < (comma) = zoom in, > (period) = zoom out
+		if event.keycode == KEY_COMMA:
+			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
+			_update_camera()
+			return
+		if event.keycode == KEY_PERIOD:
+			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
+			_update_camera()
+			return
+
 		# Card selection
 		for i in range(CARD_KEYS.size()):
 			if event.keycode == CARD_KEYS[i]:
@@ -1804,13 +1841,29 @@ func _input(event: InputEvent) -> void:
 		if not player.is_moving:
 			var mouse_pos = get_mouse_world_position()
 			var spaces = grid_manager.get_distance_in_cells(player.position, mouse_pos)
-			
+
 			if spaces == 0:
 				print("[INPUT] Already at that location")
 			elif spaces == 1:
 				player.move_to_grid(mouse_pos, 1)
 			else:
 				move_dialog.show_dialog(mouse_pos, spaces)
+
+	# Camera orbit - left click drag when no card is selected
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			# Only start orbiting if no card action is pending
+			if selected_card_index < 0 and _pending_quiver_card == null:
+				_camera_orbiting = true
+				_camera_drag_start = event.position
+		else:
+			_camera_orbiting = false
+
+	if event is InputEventMouseMotion and _camera_orbiting:
+		var delta = event.relative
+		_camera_yaw += delta.x * CAMERA_ORBIT_SENSITIVITY
+		_camera_pitch = clamp(_camera_pitch + delta.y * CAMERA_ORBIT_SENSITIVITY, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX)
+		_update_camera()
 
 # ============================================
 # TEST UI HANDLERS
