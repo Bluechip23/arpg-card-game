@@ -33,6 +33,7 @@ var target_position: Vector3
 var is_dead: bool = false
 
 var grid_manager: GridManager
+var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
 
 # Status effects applied by player cards (duration in tempo cycles, 1 cycle = 5 global tempo)
 var taunt_target: Node3D = null
@@ -43,6 +44,8 @@ var slow_amount: int = 0       # Movement reduction from slow debuff
 var slow_tempo: int = 0        # Remaining tempo cycles for slow
 var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
+var is_marked: bool = false    # Takes extra damage from player attacks
+var marked_tempo: int = 0      # Remaining tempo for mark
 
 # ============================================
 # TEMPO ACTION SYSTEM
@@ -373,6 +376,14 @@ func _tick_status_durations() -> void:
 			is_disarmed = false
 			print("[%s] Disarm expired, can attack again" % enemy_name)
 
+	if marked_tempo > 0:
+		marked_tempo -= 1
+		if marked_tempo <= 0:
+			is_marked = false
+			print("[%s] Mark expired" % enemy_name)
+
+	_update_status_indicators()
+
 func _check_and_fire_actions(player_node: Node3D) -> void:
 	if not player_node:
 		return
@@ -700,6 +711,11 @@ func move_towards_target(pos: Vector3) -> void:
 
 	if grid_manager:
 		new_target = grid_manager.snap_to_grid(new_target)
+		# Don't walk into barricade tiles
+		var target_cell = grid_manager.world_to_grid(new_target)
+		if target_cell in blocked_tiles:
+			print("[%s] Path blocked by barricade!" % enemy_name)
+			return
 
 	target_position = new_target
 	is_moving = true
@@ -773,10 +789,12 @@ func apply_taunt(taunter: Node3D, cycles: int) -> void:
 	taunt_target = taunter
 	taunt_tempo = cycles
 	print("[%s] Taunted for %d tempo cycles" % [enemy_name, cycles])
+	_update_status_indicators()
 
 func apply_wear_down(cycles: int) -> void:
 	wear_down_tempo = max(wear_down_tempo, cycles)
 	print("[%s] Wear Down applied for %d tempo cycles" % [enemy_name, wear_down_tempo])
+	_update_status_indicators()
 
 func apply_debuff(debuff_name: String, value: int) -> void:
 	match debuff_name:
@@ -788,12 +806,17 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			is_disarmed = true
 			disarmed_tempo = value
 			print("[%s] Disarmed for %d tempo cycles" % [enemy_name, value])
+		"marked":
+			is_marked = true
+			marked_tempo = value
+			print("[%s] Marked for %d tempo cycles" % [enemy_name, value])
 		"silenced":
 			print("[%s] Silenced for %d tempo cycles" % [enemy_name, value])
 		"choke_dot":
 			print("[%s] Choke DoT for %d tempo cycles" % [enemy_name, value])
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
+	_update_status_indicators()
 
 func knockback(away_from: Vector3, spaces: int = 1) -> void:
 	if is_dead:
@@ -875,3 +898,112 @@ func die() -> void:
 
 func is_alive() -> bool:
 	return not is_dead
+
+# ============================================
+# STATUS EFFECT DATA & VISUAL INDICATORS
+# ============================================
+
+## Status indicator container (circles above enemy head)
+var _status_container: Node3D = null
+var _status_nodes: Array = []  # [{node: Node3D, ...}]
+const MAX_VISIBLE_STATUS: int = 5
+
+## Returns a list of active status effects as dictionaries.
+## Each: { "name": String, "color": Color, "stacks": int }
+func get_active_effects() -> Array[Dictionary]:
+	var effects: Array[Dictionary] = []
+
+	if taunt_tempo > 0:
+		effects.append({"name": "Taunt", "color": Color(1.0, 0.6, 0.0), "stacks": taunt_tempo})
+	if wear_down_tempo > 0:
+		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": attack_reduction})
+	if slow_tempo > 0:
+		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_amount})
+	if is_disarmed and disarmed_tempo > 0:
+		effects.append({"name": "Disarm", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_tempo})
+	if is_marked and marked_tempo > 0:
+		effects.append({"name": "Marked", "color": Color(1.0, 0.2, 0.2), "stacks": marked_tempo})
+	if is_exposed:
+		effects.append({"name": "Exposed", "color": Color(1.0, 1.0, 0.3), "stacks": 1})
+
+	return effects
+
+func _update_status_indicators() -> void:
+	## Renders colored circles above the enemy's head for active buffs/debuffs.
+	## Each circle has a small number showing stacks, positioned at the bottom-right.
+	## Caps at MAX_VISIBLE_STATUS on the battlefield; shows "+" if more exist.
+	if not is_instance_valid(self):
+		return
+
+	# Create the container on first use
+	if not _status_container:
+		_status_container = Node3D.new()
+		_status_container.position = Vector3(0, 1.9, 0)
+		add_child(_status_container)
+
+	# Remove old nodes
+	for entry in _status_nodes:
+		if is_instance_valid(entry["node"]):
+			entry["node"].queue_free()
+	_status_nodes.clear()
+
+	var effects = get_active_effects()
+	if effects.is_empty():
+		return
+
+	var show_count = min(effects.size(), MAX_VISIBLE_STATUS)
+	var has_overflow = effects.size() > MAX_VISIBLE_STATUS
+	var total_slots = show_count + (1 if has_overflow else 0)
+
+	var circle_size: float = 0.12
+	var spacing: float = 0.28
+	var start_x: float = -(total_slots - 1) * spacing / 2.0
+
+	for i in range(show_count):
+		var eff = effects[i]
+		var node = _create_status_circle(eff["color"], eff["stacks"], circle_size)
+		node.position = Vector3(start_x + i * spacing, 0, 0)
+		_status_container.add_child(node)
+		_status_nodes.append({"node": node})
+
+	# Overflow indicator "+"
+	if has_overflow:
+		var plus_label = Label3D.new()
+		plus_label.text = "+"
+		plus_label.font_size = 20
+		plus_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		plus_label.modulate = Color(1, 1, 1)
+		plus_label.position = Vector3(start_x + show_count * spacing, 0, 0)
+		_status_container.add_child(plus_label)
+		_status_nodes.append({"node": plus_label})
+
+func _create_status_circle(color: Color, stacks: int, radius: float) -> Node3D:
+	## Creates a billboard colored circle with a stack count number at the bottom-right.
+	var root = Node3D.new()
+
+	# Circle mesh (flat disc facing camera via billboard)
+	var circle_mesh = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 0.3
+	circle_mesh.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	circle_mesh.material_override = mat
+	root.add_child(circle_mesh)
+
+	# Stack count label (bottom-right of circle)
+	if stacks > 0:
+		var label = Label3D.new()
+		label.text = str(stacks)
+		label.font_size = 16
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.modulate = Color(1, 1, 1)
+		label.outline_modulate = Color(0, 0, 0)
+		label.outline_size = 4
+		label.position = Vector3(radius * 0.6, -radius * 0.5, 0.01)
+		root.add_child(label)
+
+	return root

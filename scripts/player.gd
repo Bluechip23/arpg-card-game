@@ -24,6 +24,7 @@ var move_path: Array[Vector3] = []
 var movement_paused: bool = false  # Pause movement while enemies act
 var grid_manager: GridManager
 var enemy_spawner = null  # Set by main.gd so pathfinding can avoid enemy tiles
+var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
 var _last_position: Vector3 = Vector3.ZERO
 var _stuck_frames: int = 0
 const STUCK_THRESHOLD: int = 10  # Cancel movement after this many frames with no progress
@@ -143,12 +144,13 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 	if not grid_manager:
 		return [target_pos]
 
-	# Build set of enemy-occupied grid cells
+	# Build set of impassable grid cells (enemies + barricades)
 	var occupied: Array[Vector2i] = []
 	if enemy_spawner:
 		var living = enemy_spawner.get_living_enemies()
 		for enemy in living:
 			occupied.append(grid_manager.world_to_grid(enemy.position))
+	occupied.append_array(blocked_tiles)
 
 	var path: Array[Vector3] = []
 	var current_grid = grid_manager.world_to_grid(position)
@@ -166,7 +168,7 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 		elif diff_y != 0:
 			next.y += signi(diff_y)
 
-		# Stop before walking onto an enemy-occupied tile
+		# Stop before walking onto an occupied or blocked tile
 		if next in occupied:
 			break
 
