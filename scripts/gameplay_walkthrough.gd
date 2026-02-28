@@ -58,6 +58,7 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Movements per tempo = floor(AGI / 5)
 - AGI 5 = 1 free move, AGI 10 = 2 free moves
 - Movement beyond free moves costs 1 tempo
+- [color=red]Pass-Through:[/color] Moving through a tile occupied by another unit (ally or enemy) always costs 2 tempo, regardless of movement speed or free moves
 
 [color=orange]Determination (DET)[/color]
 - Modifies STR/DEX/INT/WIS/AGI at low health
@@ -130,11 +131,6 @@ When your hand is full and you try to draw, the overflow system activates.
 - Card stays on top of draw pile
 - Triggers alongside other overflow effects
 
-[color=yellow]Quiver (Bottomless Quiver):[/color]
-- Overflow attack cards are stored in the quiver
-- Stored cards can be played later at full mana cost
-- Non-attack overflow cards are discarded
-
 [color=yellow]Sources:[/color]
 - Cards can apply overflow effects: "Next 3 overdraw: Manifest Skeleton"
 - Equipment can provide permanent effects
@@ -179,7 +175,7 @@ Rings have passive effects that trigger on events:
 - Items may have On-Self bonuses (+damage, +block, +heal, -mana cost) for slotted cards
 - Molded cards are locked in and cannot be extracted
 - Picky cards can only re-equip to the same item type
-- Loose cards can re-equip to any item type
+- Pliable cards can re-equip to any item type
 - Extracting requires destroying the item or the card
 
 [font_size=18][color=cyan]━━━ CHARACTER PASSIVES ━━━[/color][/font_size]
@@ -212,5 +208,30 @@ Rings have passive effects that trigger on events:
 - Gain XP from killing enemies
 - XP to next level = current level × 10
 - On level up: HP and Mana fully restored
+- On level up: gain spheres to place on the Sphere Grid
+
+[color=yellow]Sphere Grid:[/color]
+- The sphere grid is how characters advance their passives, cards, and stats
+- Place spheres on connected nodes to unlock new abilities and stat bonuses
+- Nodes radiate outward in rings from a central starting point
+
+[color=yellow]Sphere Types:[/color]
+- [color=red]Stat Sphere[/color] - Grants flat stat bonuses (STR, DEX, INT, WIS, AGI, DET)
+- [color=green]Passive Sphere[/color] - Grants a triggered passive ability (e.g., "On kill: heal 1 HP")
+- [color=purple]Card Sphere[/color] - Unlocks a new card for your deck
+- [color=coral]Health Sphere[/color] - Increases max health
+- [color=cyan]Mana Sphere[/color] - Increases max mana
+
+[color=yellow]Upgrading Spheres:[/color]
+- Each sphere can be upgraded to increase its benefit
+- Upgrading a [color=red]Stat Sphere[/color] increases the stat benefit (e.g., STR +1 becomes STR +2)
+- Upgrading a [color=purple]Card Sphere[/color] makes the card stronger (e.g., more damage, lower cost, extra effects)
+- Upgrading a [color=green]Passive Sphere[/color] improves the passive trigger (e.g., higher chance, stronger effect)
+
+[color=yellow]Mutating Spheres:[/color]
+- Card and Passive spheres can also be mutated (transmuted) instead of upgraded
+- Mutating transforms the ability into a different version that fits your play style
+- Each Card and Passive node has 2 possible mutations to choose from
+- Example: "On kill: heal 1 HP" can mutate into "On kill: gain 2 mana" or "On kill: heal 1 HP and gain 1 armor"
 
 """
