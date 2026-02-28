@@ -42,6 +42,8 @@ extends Node3D
 
 var battle_log_label: RichTextLabel = null
 var battle_log_panel: PanelContainer = null
+var _battle_log_toggle_btn: Button = null
+var _battle_log_minimized: bool = false
 const BATTLE_LOG_MAX_LINES: int = 50
 
 const GauntletSkillUIScene = preload("res://scenes/gauntlet_skill_ui.tscn")
@@ -324,18 +326,47 @@ func _setup_action_buttons() -> void:
 func _setup_battle_log() -> void:
 	var ui = $UI as CanvasLayer
 
+	# Outer container to hold toggle button + log panel vertically
+	var outer = VBoxContainer.new()
+	outer.name = "BattleLogOuter"
+	ui.add_child(outer)
+	outer.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	outer.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	outer.offset_left = -200.0
+	outer.offset_top = -120.0
+	outer.offset_right = -8.0
+	outer.offset_bottom = 120.0
+	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# Minimize / expand toggle button
+	_battle_log_toggle_btn = Button.new()
+	_battle_log_toggle_btn.name = "BattleLogToggle"
+	_battle_log_toggle_btn.text = "_ Log"
+	_battle_log_toggle_btn.custom_minimum_size = Vector2(60, 22)
+	_battle_log_toggle_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_battle_log_toggle_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.12, 0.12, 0.18, 0.9)
+	btn_style.border_color = Color(0.3, 0.3, 0.45, 0.6)
+	btn_style.border_width_bottom = 1
+	btn_style.border_width_top = 1
+	btn_style.border_width_left = 1
+	btn_style.border_width_right = 1
+	btn_style.corner_radius_top_left = 3
+	btn_style.corner_radius_top_right = 3
+	btn_style.corner_radius_bottom_left = 0
+	btn_style.corner_radius_bottom_right = 0
+	_battle_log_toggle_btn.add_theme_stylebox_override("normal", btn_style)
+	_battle_log_toggle_btn.add_theme_font_size_override("font_size", 11)
+	_battle_log_toggle_btn.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	_battle_log_toggle_btn.pressed.connect(_on_battle_log_toggle)
+	outer.add_child(_battle_log_toggle_btn)
+
 	battle_log_panel = PanelContainer.new()
 	battle_log_panel.name = "BattleLogPanel"
-	ui.add_child(battle_log_panel)
-
-	# Position: right side, middle of screen
-	battle_log_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	battle_log_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	battle_log_panel.offset_left = -280.0
-	battle_log_panel.offset_top = -120.0
-	battle_log_panel.offset_right = -8.0
-	battle_log_panel.offset_bottom = 120.0
+	battle_log_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	battle_log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	outer.add_child(battle_log_panel)
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.06, 0.1, 0.85)
@@ -362,6 +393,14 @@ func _setup_battle_log() -> void:
 	battle_log_label.add_theme_font_size_override("normal_font_size", 13)
 	battle_log_label.add_theme_color_override("default_color", Color(0.8, 0.8, 0.85))
 	battle_log_panel.add_child(battle_log_label)
+
+func _on_battle_log_toggle() -> void:
+	_battle_log_minimized = not _battle_log_minimized
+	battle_log_panel.visible = not _battle_log_minimized
+	if _battle_log_minimized:
+		_battle_log_toggle_btn.text = "+ Log"
+	else:
+		_battle_log_toggle_btn.text = "_ Log"
 
 func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
 	if not battle_log_label:
@@ -1861,8 +1900,8 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventMouseMotion and _camera_orbiting:
 		var delta = event.relative
-		_camera_yaw += delta.x * CAMERA_ORBIT_SENSITIVITY
-		_camera_pitch = clamp(_camera_pitch + delta.y * CAMERA_ORBIT_SENSITIVITY, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX)
+		_camera_yaw -= delta.x * CAMERA_ORBIT_SENSITIVITY
+		_camera_pitch = clamp(_camera_pitch - delta.y * CAMERA_ORBIT_SENSITIVITY, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX)
 		_update_camera()
 
 # ============================================
