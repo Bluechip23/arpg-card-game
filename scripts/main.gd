@@ -195,6 +195,7 @@ func _update_camera() -> void:
 
 func _process(_delta: float) -> void:
 	_update_hand_hover()
+	_update_battlefield_enemy_hover()
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
 		aoe_indicator.set_mouse_world_position(get_mouse_world_position())
@@ -263,6 +264,36 @@ func _set_hand_hover(new_index: int) -> void:
 		if is_instance_valid(new_ui) and new_index < deck_manager.hand.size():
 			new_ui.set_hovered_external(true)
 			_on_hand_card_hovered(deck_manager.hand[new_index], new_ui)
+
+var _prev_battlefield_hover: Enemy = null
+
+func _update_battlefield_enemy_hover() -> void:
+	## Check if mouse is hovering over a battlefield enemy and highlight its panel entry.
+	var mouse_pos = get_mouse_world_position()
+	var closest: Enemy = null
+	var closest_dist: float = 1.2  # Must be within ~1 tile
+
+	for enemy in enemy_spawner.get_living_enemies():
+		var diff = mouse_pos - enemy.position
+		var dist = Vector3(diff.x, 0, diff.z).length()
+		if dist < closest_dist:
+			closest_dist = dist
+			closest = enemy
+
+	if closest != _prev_battlefield_hover:
+		# Unhighlight previous
+		if _prev_battlefield_hover and is_instance_valid(_prev_battlefield_hover):
+			_set_enemy_highlight(_prev_battlefield_hover, false)
+		if unit_tracker:
+			unit_tracker.clear_highlight()
+
+		# Highlight new
+		if closest:
+			_set_enemy_highlight(closest, true)
+			if unit_tracker:
+				unit_tracker.highlight_enemy(closest)
+
+		_prev_battlefield_hover = closest
 
 func _setup_overflow_buttons() -> void:
 	var modes = ["Jailed", "Enhance", "Peak", "Transferred", "Overcharge", "Manifest"]
@@ -963,12 +994,52 @@ func _setup_unit_tracker() -> void:
 	ui.add_child(unit_tracker)
 	unit_tracker.initialize(enemy_spawner)
 
-	# Anchor to left side of screen, below top
-	unit_tracker.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	unit_tracker.offset_left = 5.0
-	unit_tracker.offset_top = 10.0
-	unit_tracker.offset_right = 200.0
-	unit_tracker.offset_bottom = -180.0
+	# Anchor to left side, vertically centered
+	unit_tracker.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	unit_tracker.offset_left = 8.0
+	unit_tracker.offset_top = -200.0
+	unit_tracker.offset_right = 250.0
+	unit_tracker.offset_bottom = 200.0
+
+	# Connect hover signals for bidirectional highlighting
+	unit_tracker.enemy_hovered.connect(_on_tracker_enemy_hovered)
+	unit_tracker.enemy_unhovered.connect(_on_tracker_enemy_unhovered)
+
+var _battlefield_hovered_enemy: Enemy = null
+
+func _on_tracker_enemy_hovered(enemy: Enemy) -> void:
+	## Panel portrait hovered → highlight enemy on battlefield
+	if is_instance_valid(enemy):
+		# Clear previous battlefield hover so it doesn't conflict
+		if _prev_battlefield_hover and _prev_battlefield_hover != enemy and is_instance_valid(_prev_battlefield_hover):
+			_set_enemy_highlight(_prev_battlefield_hover, false)
+		_set_enemy_highlight(enemy, true)
+
+func _on_tracker_enemy_unhovered() -> void:
+	## Panel portrait unhovered → clear battlefield highlight
+	if _battlefield_hovered_enemy and is_instance_valid(_battlefield_hovered_enemy):
+		_set_enemy_highlight(_battlefield_hovered_enemy, false)
+		_battlefield_hovered_enemy = null
+	# Clear all highlights
+	for enemy in enemy_spawner.get_living_enemies():
+		_set_enemy_highlight(enemy, false)
+
+func _set_enemy_highlight(enemy: Enemy, highlighted: bool) -> void:
+	## Toggle a bright highlight outline on a battlefield enemy.
+	if not enemy or not is_instance_valid(enemy):
+		return
+	if not enemy.outline:
+		return
+	var mat = enemy.outline.get_surface_override_material(0) as StandardMaterial3D
+	if not mat:
+		return
+	if highlighted:
+		enemy.outline.visible = true
+		mat.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
+		_battlefield_hovered_enemy = enemy
+	else:
+		# Restore original outline state
+		enemy.update_outline()
 
 func _refresh_unit_tracker() -> void:
 	if unit_tracker:
