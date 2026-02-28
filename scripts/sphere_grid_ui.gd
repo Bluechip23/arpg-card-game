@@ -66,6 +66,12 @@ func _ready() -> void:
 	grid_canvas.draw.connect(_on_grid_draw)
 	grid_canvas.gui_input.connect(_on_grid_input)
 	grid_canvas.mouse_filter = Control.MOUSE_FILTER_STOP
+	grid_canvas.resized.connect(_on_canvas_resized)
+
+func _on_canvas_resized() -> void:
+	# Redraw when the canvas gets its proper size (e.g. first time shown)
+	if visible and grid_canvas.size.x > 0 and grid_canvas.size.y > 0:
+		grid_canvas.queue_redraw()
 
 func connect_sphere_inventory(inv: SphereInventory) -> void:
 	sphere_inventory = inv
@@ -124,7 +130,9 @@ func show_panel() -> void:
 	_camera_offset = Vector2.ZERO
 	_zoom = 1.0
 	_close_detail_popup()
-	grid_canvas.queue_redraw()
+	_update_points_label()
+	# Defer redraw to ensure layout is computed and canvas has its actual size
+	grid_canvas.call_deferred("queue_redraw")
 
 func hide_panel() -> void:
 	_close_detail_popup()
@@ -217,6 +225,11 @@ func _get_node_shape(node: SphereGrid.GridNode) -> String:
 
 func _on_grid_draw() -> void:
 	if not sphere_grid:
+		return
+
+	# Skip drawing if canvas hasn't been laid out yet; the resized signal will retrigger
+	if grid_canvas.size.x < 1 or grid_canvas.size.y < 1:
+		grid_canvas.call_deferred("queue_redraw")
 		return
 
 	var all_nodes = sphere_grid.get_all_nodes()
