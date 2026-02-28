@@ -114,12 +114,13 @@ func _apply_styles() -> void:
 	info_style.content_margin_bottom = 8.0
 	info_panel.add_theme_stylebox_override("panel", info_style)
 
-	info_label.text = "Hover over a node to see details."
+	info_label.text = ""
 	info_label.add_theme_font_size_override("font_size", 13)
 	info_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info_label.custom_minimum_size = Vector2(340, 0)
+	info_label.custom_minimum_size = Vector2(260, 0)
+	info_panel.visible = false
 
 	# Points label
 	_update_points_label()
@@ -722,11 +723,13 @@ func _try_create_card(card_id: String) -> Card:
 
 func _update_info_label() -> void:
 	if _hovered_node_id < 0:
-		info_label.text = "Hover over a node to see details.\nClick a node to open full details."
+		info_panel.visible = false
 		return
 	var node = sphere_grid.get_node_by_id(_hovered_node_id)
 	if not node:
+		info_panel.visible = false
 		return
+	info_panel.visible = true
 
 	var lines: Array[String] = []
 
