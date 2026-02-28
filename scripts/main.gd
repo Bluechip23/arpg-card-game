@@ -38,6 +38,11 @@ extends Node3D
 @onready var quiver_ui: QuiverUI = $UI/QuiverUI
 @onready var sphere_grid_ui: SphereGridUI = $SphereGridUI
 @onready var sphere_inventory: SphereInventory = $SphereInventory
+@onready var range_indicator: RangeIndicator = $RangeIndicator
+
+var battle_log_label: RichTextLabel = null
+var battle_log_panel: PanelContainer = null
+const BATTLE_LOG_MAX_LINES: int = 50
 
 const GauntletSkillUIScene = preload("res://scenes/gauntlet_skill_ui.tscn")
 const CardUIScene = preload("res://scenes/card_ui.tscn")
@@ -83,7 +88,8 @@ func _ready() -> void:
 	player.move_completed.connect(_on_player_move_completed)
 	player.tile_reached.connect(_on_player_tile_reached)
 	player.set_grid_manager(grid_manager)
-	
+	player.enemy_spawner = enemy_spawner
+
 	move_dialog.confirmed.connect(_on_move_confirmed)
 	move_dialog.cancelled.connect(_on_move_cancelled)
 	
@@ -108,6 +114,7 @@ func _ready() -> void:
 
 	_setup_overflow_buttons()
 	_setup_action_buttons()
+	_setup_battle_log()
 
 	if starting_character:
 		select_character(starting_character)
@@ -287,6 +294,62 @@ func _setup_action_buttons() -> void:
 	wait_btn.pressed.connect(_on_wait_pressed)
 	vbox.add_child(wait_btn)
 
+func _setup_battle_log() -> void:
+	var ui = $UI as CanvasLayer
+
+	battle_log_panel = PanelContainer.new()
+	battle_log_panel.name = "BattleLogPanel"
+	ui.add_child(battle_log_panel)
+
+	# Position: right side, middle of screen
+	battle_log_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	battle_log_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	battle_log_panel.offset_left = -280.0
+	battle_log_panel.offset_top = -120.0
+	battle_log_panel.offset_right = -8.0
+	battle_log_panel.offset_bottom = 120.0
+	battle_log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.06, 0.1, 0.85)
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.3, 0.3, 0.45, 0.6)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 8.0
+	style.content_margin_right = 8.0
+	style.content_margin_top = 6.0
+	style.content_margin_bottom = 6.0
+	battle_log_panel.add_theme_stylebox_override("panel", style)
+
+	battle_log_label = RichTextLabel.new()
+	battle_log_label.name = "BattleLogLabel"
+	battle_log_label.bbcode_enabled = true
+	battle_log_label.scroll_following = true
+	battle_log_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	battle_log_label.add_theme_font_size_override("normal_font_size", 13)
+	battle_log_label.add_theme_color_override("default_color", Color(0.8, 0.8, 0.85))
+	battle_log_panel.add_child(battle_log_label)
+
+func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
+	if not battle_log_label:
+		return
+	var hex = color.to_html(false)
+	battle_log_label.append_text("[color=#%s]%s[/color]\n" % [hex, msg])
+	# Trim old lines
+	if battle_log_label.get_parsed_text().count("\n") > BATTLE_LOG_MAX_LINES:
+		var text = battle_log_label.get_parsed_text()
+		var lines = text.split("\n")
+		if lines.size() > BATTLE_LOG_MAX_LINES:
+			battle_log_label.clear()
+			for i in range(lines.size() - BATTLE_LOG_MAX_LINES, lines.size()):
+				battle_log_label.append_text(lines[i] + "\n")
+
 func _on_attack_pressed() -> void:
 	var stats = player.get_stats()
 	if not stats:
@@ -295,15 +358,18 @@ func _on_attack_pressed() -> void:
 	var debuff_mgr = player.get_debuff_manager()
 	if debuff_mgr:
 		if not debuff_mgr.can_play_cards():
+			add_battle_log("Cannot attack — Stunned or Frozen!", Color(1.0, 0.4, 0.4))
 			print("[MAIN] Basic Attack - Cannot attack while Stunned or Frozen!")
 			return
 		if not debuff_mgr.can_play_attack_cards():
+			add_battle_log("Cannot attack — Disarmed!", Color(1.0, 0.4, 0.4))
 			print("[MAIN] Basic Attack - Cannot attack while Disarmed!")
 			return
 
 	# Find closest enemy in melee range (~1.5 tiles)
 	var nearby = enemy_spawner.get_enemies_in_radius(player.position, 1.5)
 	if nearby.is_empty():
+		add_battle_log("No enemy in melee range!", Color(1.0, 0.6, 0.3))
 		print("[MAIN] Basic Attack - No enemy in melee range!")
 		return
 
@@ -350,6 +416,7 @@ func _on_attack_pressed() -> void:
 	else:
 		tempo_manager.add_tempo(tempo_cost)
 
+	add_battle_log("Basic Attack: %d damage to %s" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
 	print("[MAIN] Basic Attack: dealt %d damage to %s (%d tempo)" % [damage, target.enemy_name, tempo_cost])
 
 func _on_block_pressed() -> void:
@@ -1336,29 +1403,54 @@ func select_card(index: int) -> void:
 		selected_card_index = -1
 		if aoe_indicator:
 			aoe_indicator.hide_indicator()
+		if range_indicator:
+			range_indicator.hide_range()
 		update_selected_display()
 		return
-	
+
 	selected_card_index = index
 	update_selected_display()
-	
+
 	# Show AOE indicator if applicable
 	var card = deck_manager.hand[selected_card_index]
 	if card.is_aoe and aoe_indicator:
 		aoe_indicator.update_indicator(card.aoe_shape, card.aoe_range)
 		aoe_indicator.position = player.position
 		aoe_indicator.show_indicator()
-		
+
 		# Update enemy RNG indicators
 		var enemies = enemy_spawner.get_living_enemies()
 		aoe_indicator.update_enemy_rng_indicators(enemies, card)
 	elif aoe_indicator:
 		aoe_indicator.hide_indicator()
 
+	# Show range indicator for ranged / spell cards (not melee)
+	if card.is_ranged and range_indicator:
+		var effective_range = float(card.get_effective_range())
+		# Include Tighten String bonus if active
+		var buff_mgr = player.get_buff_manager() if player else null
+		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
+			effective_range += 6
+		range_indicator.position = player.position
+		range_indicator.show_range(effective_range)
+		add_battle_log("%s selected — Range: %d tiles" % [card.card_name, int(effective_range)], Color(0.6, 0.85, 1.0))
+	elif card.is_aoe and not card.is_ranged and range_indicator:
+		# AOE spells centered on player — show the AOE range
+		range_indicator.position = player.position
+		range_indicator.show_range(card.aoe_range)
+		add_battle_log("%s selected — Radius: %d tiles" % [card.card_name, int(card.aoe_range)], Color(0.7, 0.6, 1.0))
+	elif range_indicator:
+		range_indicator.hide_range()
+
 func play_selected_card(target) -> void:
 	if selected_card_index < 0:
+		add_battle_log("No card selected!", Color(1.0, 0.6, 0.3))
 		print("[INPUT] No card selected!")
 		return
+
+	# Hide range indicator when playing a card
+	if range_indicator:
+		range_indicator.hide_range()
 
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
@@ -1383,6 +1475,15 @@ func play_selected_card(target) -> void:
 
 	if result["played"]:
 		selected_card_index = -1
+
+		# Log the card play
+		var target_name = ""
+		if target is Enemy:
+			target_name = " on %s" % target.enemy_name
+		if card.last_damage_dealt > 0:
+			add_battle_log("Played %s%s — %d damage" % [card.card_name, target_name, card.last_damage_dealt], Color(0.4, 1.0, 0.5))
+		else:
+			add_battle_log("Played %s%s" % [card.card_name, target_name], Color(0.4, 1.0, 0.5))
 
 		# Apply world effects (knockback, movement, AOE) that need game-level access
 		_apply_card_world_effects(card, target)
@@ -1430,6 +1531,13 @@ func play_selected_card(target) -> void:
 		if tighten_applied:
 			card.bonus_damage -= 6
 			card.range_modifier -= 6
+
+func _get_distance_to_target(target) -> int:
+	if not target or not target is Node3D:
+		return 0
+	var diff = player.position - target.position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	return roundi(flat_dist / grid_manager.grid_size)
 
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node3D:
@@ -1619,6 +1727,8 @@ func _input(event: InputEvent) -> void:
 			_pending_quiver_card = null
 			_pending_quiver_index = -1
 			_pending_quiver_target_type = ""
+			if range_indicator:
+				range_indicator.hide_range()
 			update_selected_display()
 			update_card_highlights()
 			move_dialog.hide_dialog()
@@ -1663,6 +1773,12 @@ func _input(event: InputEvent) -> void:
 						play_selected_card(enemy)
 					else:
 						var range_type = "ranged" if card.is_ranged else "melee"
+						var dist = _get_distance_to_target(enemy)
+						if card.is_ranged:
+							var max_r = card.get_effective_range()
+							add_battle_log("Out of range! %s is %d tiles away (max range: %d)" % [enemy.enemy_name, dist, max_r], Color(1.0, 0.4, 0.4))
+						else:
+							add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [enemy.enemy_name, dist], Color(1.0, 0.4, 0.4))
 						print("[INPUT] Enemy is out of %s range!" % range_type)
 
 			# Fall through to other target types if no enemy was clicked
@@ -1678,6 +1794,7 @@ func _input(event: InputEvent) -> void:
 					play_selected_card(player)
 				elif "enemy" in tt:
 					# Enemy-only card but no enemy was clicked
+					add_battle_log("No enemy at that position!", Color(1.0, 0.6, 0.3))
 					print("[INPUT] No enemy at that position!")
 				else:
 					play_selected_card(null)

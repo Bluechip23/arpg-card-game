@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" path="res://scenes/quiver_ui.tscn" id="23_quiver"]
 [ext_resource type="PackedScene" path="res://scenes/sphere_grid.tscn" id="24_sphere"]
 [ext_resource type="Script" uid="uid://bvysoyp02lh3d" path="res://scripts/sphere_inventory.gd" id="25_sphere_inv"]
+[ext_resource type="Script" path="res://scripts/range_indicator.gd" id="26_range_ind"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_top_color = Color(0.05, 0.05, 0.1, 1)
@@ -102,6 +103,10 @@ script = ExtResource("25_sphere_inv")
 
 [node name="AOEIndicator" type="Node3D" parent="." unique_id=405332433]
 script = ExtResource("13_cegan")
+
+[node name="RangeIndicator" type="Node3D" parent="."]
+visible = false
+script = ExtResource("26_range_ind")
 
 [node name="Player" parent="." unique_id=1080438815 instance=ExtResource("4_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 6)
