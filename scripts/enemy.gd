@@ -35,6 +35,9 @@ var is_dead: bool = false
 var grid_manager: GridManager
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
 
+# Armor Break: set by card.execute() before attack, cleared after
+var armor_break_incoming: bool = false
+
 # Status effects applied by player cards (duration in tempo cycles, 1 cycle = 5 global tempo)
 var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
@@ -745,9 +748,21 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 		amount += bonus_damage_next_hit
 		bonus_damage_next_hit = 0
 
-	# Armor absorbs damage first
+	# Armor Break: double damage to armor, no health damage
 	var just_exposed = false
-	if current_armor > 0:
+	if armor_break_incoming and current_armor > 0:
+		var doubled = amount * 2
+		var armor_absorbed = min(current_armor, doubled)
+		current_armor -= armor_absorbed
+		print("[%s] Armor Break! %d doubled damage to armor! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
+		_update_armor_bar()
+		if current_armor <= 0:
+			just_exposed = true
+			is_exposed = true
+			print("[%s] EXPOSED! Armor broken!" % enemy_name)
+		amount = 0  # No spillover to health
+	elif current_armor > 0:
+		# Normal armor absorbs damage first
 		var was_armored = current_armor > 0
 		var armor_absorbed = min(current_armor, amount)
 		current_armor -= armor_absorbed
@@ -759,7 +774,7 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 			is_exposed = true
 			print("[%s] EXPOSED! Armor broken!" % enemy_name)
 
-	# Remaining damage hits health
+	# Remaining damage hits health (skipped if armor break consumed all damage)
 	if amount > 0:
 		current_health -= amount
 		current_health = max(0, current_health)
@@ -791,6 +806,9 @@ func apply_taunt(taunter: Node3D, cycles: int) -> void:
 	taunt_tempo = cycles
 	print("[%s] Taunted for %d tempo cycles" % [enemy_name, cycles])
 	_update_status_indicators()
+
+func set_armor_break_incoming(value: bool) -> void:
+	armor_break_incoming = value
 
 func apply_wear_down(cycles: int) -> void:
 	wear_down_tempo = max(wear_down_tempo, cycles)

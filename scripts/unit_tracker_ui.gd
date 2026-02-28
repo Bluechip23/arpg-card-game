@@ -291,7 +291,7 @@ func _create_info_column(enemy: Enemy, font_sz: int) -> VBoxContainer:
 		var show_count = min(effects.size(), MAX_STATUS_ICONS)
 		for i in range(show_count):
 			var eff = effects[i]
-			var icon = _create_status_icon(eff["color"], eff["stacks"])
+			var icon = _create_status_icon(eff["color"], eff["stacks"], eff["name"])
 			row.add_child(icon)
 		if effects.size() > MAX_STATUS_ICONS:
 			var plus = Label.new()
@@ -346,11 +346,16 @@ func _clear_all_highlights() -> void:
 # STATUS ICON
 # ============================================
 
-func _create_status_icon(color: Color, stacks: int) -> PanelContainer:
+func _create_status_icon(color: Color, stacks: int, effect_name: String = "") -> PanelContainer:
 	var sz = 14
 	var circle = PanelContainer.new()
 	circle.custom_minimum_size = Vector2(sz, sz)
-	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	circle.mouse_filter = Control.MOUSE_FILTER_STOP
+	if effect_name != "":
+		var tip = effect_name
+		if stacks > 0:
+			tip += " (%d)" % stacks
+		circle.tooltip_text = tip
 	var circle_style = StyleBoxFlat.new()
 	circle_style.bg_color = color
 	circle_style.corner_radius_top_left = int(sz / 2)
