@@ -50,7 +50,7 @@ func _build_legend() -> void:
 	_add_keyword("Linked", "Share X% damage taken with nearest ally", Color(0.8, 0.4, 0.4))
 	_add_keyword("Clumsy", "X% chance to discard random card when playing", Color(0.9, 0.6, 0.2))
 	_add_keyword("Vulnerable", "Take 30% more damage on next attack, lose 1 stack per hit", Color(1.0, 0.3, 0.3))
-	_add_keyword("Exposed", "Remove 30% more armor when hit, lose 1 stack per hit", Color(0.9, 0.7, 0.5))
+	_add_keyword("Exposed", "Triggered when an enemy's armor is reduced to zero", Color(0.9, 0.7, 0.5))
 	_add_keyword("Brittle", "Armor decays extra 2 per turn, lose 1 stack per turn", Color(0.7, 0.7, 0.6))
 	
 	# Buffs Section
@@ -86,6 +86,15 @@ func _build_legend() -> void:
 	_add_section_header("RANGE")
 	_add_keyword("Melee", "Card must be used at close range (default for all cards)", Color(0.9, 0.6, 0.3))
 	_add_keyword("Ranged", "Card can be used at distance. Base range = 5 tiles. Ranged +X = 5+X, Ranged -X = 5-X", Color(0.3, 0.8, 0.9))
+
+	# Card-Item Slot Section
+	_add_section_header("CARD-ITEM SLOTS")
+	_add_keyword("Enchant", "Places a card into an item's card slot. Card is removed from the deck. Picky cards must match item type", Color(0.8, 0.6, 1.0))
+	_add_keyword("Extract", "Removes a card from an item. Must destroy either the item or the card to do so", Color(1.0, 0.4, 0.4))
+	_add_keyword("Molded", "Card is locked into the item and cannot be removed (extracted)", Color(0.6, 0.6, 0.6))
+	_add_keyword("Picky", "Card can only be re-equipped to an item of the same type it was extracted from", Color(1.0, 0.8, 0.3))
+	_add_keyword("Loose", "Card can be re-equipped to an item of any type", Color(0.3, 1.0, 0.7))
+	_add_keyword("On-Self", "Bonus effects that apply to cards slotted in that specific item, on top of the item's base bonuses", Color(0.6, 0.9, 0.6))
 
 	# Card Types Section
 	_add_section_header("CARD TYPES")

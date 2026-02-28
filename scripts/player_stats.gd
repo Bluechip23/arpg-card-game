@@ -9,6 +9,9 @@ signal armor_changed(current: int)
 signal died
 signal dexterity_proc
 signal stats_updated
+signal xp_changed(current_xp: int, xp_to_next: int)
+signal leveled_up(new_level: int)
+signal damage_taken(amount: int)
 
 var character_data: CharacterData
 
@@ -62,6 +65,13 @@ var chance_boost: float = 0.0
 var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
 var healing_boost_tempo: int = 0
 var inventory = null  # Inventory - untyped to avoid circular dependency
+
+# ============================================
+# EXPERIENCE / LEVEL
+# ============================================
+var current_level: int = 1
+var current_xp: int = 0
+var total_xp: int = 0  # Lifetime XP earned
 
 # ============================================
 # EFFECTIVE STATS (with determination modifier)
@@ -416,9 +426,12 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 		if _crossed_threshold(old_pct, get_health_percent()):
 			recalculate_derived_stats()
 	
+	# Emit damage_taken for reaction card triggers
+	damage_taken.emit(amount)
+
 	if current_health <= 0:
 		died.emit()
-		
+
 func _crossed_threshold(old_pct: float, new_pct: float) -> bool:
 	var thresholds = [0.8, 0.6, 0.4, 0.1]
 	for t in thresholds:
@@ -530,11 +543,45 @@ DEX: %d (base %d) → proc in %d atks
 INT: %d (base %d) → +%d spell dmg, +%.0f regen
 WIS: %d (base %d) → +%d hand, -%.1f draw
 AGI: %d (base %d) → %d free moves/tempo
-DET: %d → %s""" % [
+DET: %d → %s
+Level: %d | XP: %d / %d""" % [
 		strength, base_strength, strength * 10, get_strength_damage_bonus(),
 		dexterity, base_dexterity, get_attacks_until_proc(),
 		intelligence, base_intelligence, get_intelligence_spell_bonus(), get_intelligence_mana_regen_bonus(),
 		wisdom, base_wisdom, get_wisdom_hand_bonus(), get_wisdom_draw_bonus(),
 		agility, base_agility, free_moves,
-		determination, get_determination_description()
+		determination, get_determination_description(),
+		current_level, current_xp, get_xp_to_next_level()
 	]
+
+# ============================================
+# EXPERIENCE / LEVELING
+# ============================================
+
+func get_xp_to_next_level() -> int:
+	## XP needed for the NEXT level: 10 for level 1→2, 20 for 2→3, 30 for 3→4, etc.
+	return current_level * 10
+
+func gain_xp(amount: int) -> void:
+	current_xp += amount
+	total_xp += amount
+	print("[STATS] Gained %d XP! (%d / %d to level %d)" % [amount, current_xp, get_xp_to_next_level(), current_level + 1])
+	xp_changed.emit(current_xp, get_xp_to_next_level())
+
+	# Check for level up (can level multiple times from one XP gain)
+	while current_xp >= get_xp_to_next_level():
+		_level_up()
+
+func _level_up() -> void:
+	current_xp -= get_xp_to_next_level()
+	current_level += 1
+
+	# Full health and mana on level up
+	current_health = max_health
+	current_mana = max_mana
+	health_changed.emit(current_health, max_health)
+	mana_changed.emit(current_mana, max_mana)
+
+	print("[STATS] *** LEVEL UP! *** Now level %d! HP and Mana fully restored." % current_level)
+	leveled_up.emit(current_level)
+	xp_changed.emit(current_xp, get_xp_to_next_level())

@@ -10,6 +10,8 @@ signal card_jailed(card: Card)
 signal deck_shuffled
 signal card_peaked(card: Card)
 signal overflow_triggered(mode: String, card: Card)
+signal on_draw_triggered(card: Card)
+signal reaction_triggered(card: Card)
 
 enum OverflowMode { JAILED, ENHANCE, PEAK, TRANSFERRED, OVERCHARGE, MANIFEST }
 
@@ -165,6 +167,7 @@ func _create_card_from_id(card_id: String) -> Card:
 		"understanding": return Card.create_understanding()
 		"shuriken_pouch": return Card.create_shuriken_pouch()
 		"shuriken": return Card.create_shuriken()
+		"premeditated": return Card.create_premeditated()
 		# Stephen cards
 		"mark": return Card.create_mark()
 		"rise": return Card.create_rise()
@@ -191,6 +194,10 @@ func _create_card_from_id(card_id: String) -> Card:
 		"consecutive_snap": return Card.create_consecutive_snap()
 		"swap": return Card.create_swap()
 		"meditate": return Card.create_meditate()
+		# New card types
+		"spider_senses": return Card.create_spider_senses()
+		"lightly_dazed": return Card.create_lightly_dazed()
+		"thrown_stone": return Card.create_thrown_stone()
 	return null
 
 func _create_card_from_data(card_data: Dictionary) -> Card:
@@ -234,6 +241,11 @@ func draw_card() -> Card:
 	if inventory:
 		inventory.on_card_drawn()
 
+	# Trigger on-draw effects (card stays in hand unless stated otherwise)
+	if card.has_on_draw:
+		on_draw_triggered.emit(card)
+		print("[DECK] On Draw triggered: %s" % card.card_name)
+
 	print("[DECK] Drew: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
 	return card
 
@@ -272,6 +284,14 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 	if card.is_jailed():
 		print("[DECK] Cannot play jailed card!")
 		return { "played": false, "free_turn": false }
+
+	if card.card_type == Card.CardType.UNPLAYABLE:
+		print("[DECK] Cannot play unplayable card: %s" % card.card_name)
+		return { "played": false, "free_turn": false }
+
+	if card.card_type == Card.CardType.REACTION:
+		print("[DECK] Reaction cards trigger automatically, cannot be played manually: %s" % card.card_name)
+		return { "played": false, "free_turn": false }
 	
 	var debuff_mgr = null
 	if player_node and player_node.has_method("get_debuff_manager"):
@@ -296,6 +316,13 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 				return { "played": false, "free_turn": false }
 	
 	var mana_cost = card.mana_cost - next_attack_mana_discount
+
+	# On-Self mana reduction from item card slot
+	if card.is_slotted():
+		var on_self = card.get_on_self_bonus()
+		if on_self["mana_reduction"] > 0:
+			mana_cost -= on_self["mana_reduction"]
+			print("[DECK] On-Self mana reduction: -%d from %s" % [on_self["mana_reduction"], card.slotted_in_item.item_name])
 
 	# Preparation: utility cards cost less
 	if prep_utility_discount > 0 and card.card_type == Card.CardType.UTILITY:
@@ -363,9 +390,6 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 
 	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
 		debuff_mgr.on_attack()
-
-	if card.card_id == "blink" and player_node:
-		player_node.blink_to_mouse()
 
 	if inventory:
 		inventory.on_card_played(card)
@@ -457,3 +481,52 @@ func get_discard_pile_size() -> int:
 
 func get_jail_pile_size() -> int:
 	return jail_pile.size()
+
+func add_card_to_hand(card: Card) -> void:
+	hand.append(card)
+	hand_updated.emit()
+	print("[DECK] Card added to hand: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
+
+func trigger_reactions(trigger_type: String) -> Array[Card]:
+	var triggered: Array[Card] = []
+	for i in range(hand.size() - 1, -1, -1):
+		var card = hand[i]
+		if card.card_type == Card.CardType.REACTION and card.reaction_trigger == trigger_type:
+			hand.remove_at(i)
+			triggered.append(card)
+			discard_pile.append(card)
+			reaction_triggered.emit(card)
+			print("[DECK] Reaction triggered: %s" % card.card_name)
+	if triggered.size() > 0:
+		hand_updated.emit()
+	return triggered
+
+func remove_card_from_all_piles(card: Card) -> bool:
+	## Removes a specific card instance from draw pile, hand, discard pile, or jail.
+	## Used when enchanting a card into an item.
+	for i in range(hand.size() - 1, -1, -1):
+		if hand[i] == card:
+			hand.remove_at(i)
+			hand_updated.emit()
+			print("[DECK] Removed '%s' from hand for enchanting" % card.card_name)
+			return true
+
+	for i in range(draw_pile.size() - 1, -1, -1):
+		if draw_pile[i] == card:
+			draw_pile.remove_at(i)
+			print("[DECK] Removed '%s' from draw pile for enchanting" % card.card_name)
+			return true
+
+	for i in range(discard_pile.size() - 1, -1, -1):
+		if discard_pile[i] == card:
+			discard_pile.remove_at(i)
+			print("[DECK] Removed '%s' from discard pile for enchanting" % card.card_name)
+			return true
+
+	for i in range(jail_pile.size() - 1, -1, -1):
+		if jail_pile[i] == card:
+			jail_pile.remove_at(i)
+			print("[DECK] Removed '%s' from jail for enchanting" % card.card_name)
+			return true
+
+	return false

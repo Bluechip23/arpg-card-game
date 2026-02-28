@@ -1,3 +1,6 @@
 res://main.tscn
+res://scripts/sphere_grid_ui.gd
 res://scripts/card.gd
-res://scripts/gameplay_walkthrough.gd
+res://scripts/main.gd
+res://scripts/enemy.gd
+res://scripts/deck_manager.gd

@@ -113,6 +113,7 @@ func connect_stats(stats: PlayerStats, inv: Inventory) -> void:
 
 	if inventory:
 		inventory.equipment_changed.connect(_on_equipment_changed)
+		inventory.storage_changed.connect(_on_storage_changed)
 	item_tooltip = get_node_or_null("/root/Main/UI/ItemTooltip")
 
 func show_panel() -> void:
@@ -219,6 +220,9 @@ func _update_equipment_display() -> void:
 	weight_label.add_theme_color_override("font_color", Color(0.65, 0.65, 0.7))
 	equipment_container.add_child(weight_label)
 
+	# Inventory storage grid
+	_update_storage_grid()
+
 func _get_character_passive() -> String:
 	if not inventory:
 		return ""
@@ -292,6 +296,39 @@ func _add_equipment_section(section_name: String, slot_data: Dictionary) -> void
 			skill_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 			equipment_container.add_child(skill_label)
 
+		# Card slot info
+		if item.has_card_slots():
+			var slot_header := Label.new()
+			slot_header.text = "    Cards: %d/%d" % [item.slotted_cards.size(), item.card_slots]
+			slot_header.add_theme_font_size_override("font_size", 11)
+			slot_header.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
+			equipment_container.add_child(slot_header)
+
+			for card in item.slotted_cards:
+				var card_label := Label.new()
+				var tag = " [Molded]" if card.is_molded else " [%s]" % card.get_slot_keyword()
+				card_label.text = "      > %s%s" % [card.card_name, tag]
+				card_label.add_theme_font_size_override("font_size", 10)
+				card_label.add_theme_color_override("font_color", Color(0.7, 0.55, 0.9))
+				equipment_container.add_child(card_label)
+
+			# On-self bonuses
+			var on_self_parts: Array[String] = []
+			if item.on_self_damage > 0:
+				on_self_parts.append("+%d dmg" % item.on_self_damage)
+			if item.on_self_block > 0:
+				on_self_parts.append("+%d block" % item.on_self_block)
+			if item.on_self_heal > 0:
+				on_self_parts.append("+%d heal" % item.on_self_heal)
+			if item.on_self_mana_reduction > 0:
+				on_self_parts.append("-%d mana" % item.on_self_mana_reduction)
+			if on_self_parts.size() > 0:
+				var on_self_label := Label.new()
+				on_self_label.text = "    On-Self: %s" % ", ".join(on_self_parts)
+				on_self_label.add_theme_font_size_override("font_size", 10)
+				on_self_label.add_theme_color_override("font_color", Color(0.6, 0.9, 0.6))
+				equipment_container.add_child(on_self_label)
+
 func _make_separator() -> HSeparator:
 	var sep = HSeparator.new()
 	sep.add_theme_color_override("color", Color(0.3, 0.3, 0.45))
@@ -337,3 +374,102 @@ func _on_armor_changed(_a = null) -> void:
 func _on_equipment_changed() -> void:
 	if panel.visible:
 		update_display()
+
+func _on_storage_changed() -> void:
+	if panel.visible:
+		update_display()
+
+func _update_storage_grid() -> void:
+	if not equipment_container or not inventory:
+		return
+
+	equipment_container.add_child(_make_separator())
+
+	var storage_header = _make_section_header("INVENTORY (%d/%d)" % [inventory.get_stored_item_count(), inventory.max_storage_slots])
+	equipment_container.add_child(storage_header)
+
+	var grid = GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 4)
+	grid.add_theme_constant_override("v_separation", 4)
+	equipment_container.add_child(grid)
+
+	for i in range(inventory.max_storage_slots):
+		var cell = _create_storage_cell(i)
+		grid.add_child(cell)
+
+func _create_storage_cell(index: int) -> PanelContainer:
+	var cell = PanelContainer.new()
+	cell.custom_minimum_size = Vector2(62, 48)
+
+	var style = StyleBoxFlat.new()
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
+
+	var item: ItemData = null
+	if index < inventory.stored_items.size():
+		item = inventory.stored_items[index]
+
+	if item:
+		style.bg_color = Color(0.18, 0.18, 0.25, 1.0)
+		style.border_width_left = 1
+		style.border_width_right = 1
+		style.border_width_top = 1
+		style.border_width_bottom = 1
+		style.border_color = _get_item_type_color(item.item_type)
+	else:
+		style.bg_color = Color(0.1, 0.1, 0.12, 1.0)
+		style.border_width_left = 1
+		style.border_width_right = 1
+		style.border_width_top = 1
+		style.border_width_bottom = 1
+		style.border_color = Color(0.2, 0.2, 0.25)
+
+	cell.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 0)
+	cell.add_child(vbox)
+
+	var type_label = Label.new()
+	type_label.add_theme_font_size_override("font_size", 9)
+	type_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	var name_label = Label.new()
+	name_label.add_theme_font_size_override("font_size", 10)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+
+	if item:
+		type_label.text = item.get_type_name()
+		type_label.add_theme_color_override("font_color", _get_item_type_color(item.item_type))
+		name_label.text = item.item_name
+		name_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+
+		cell.mouse_entered.connect(_on_item_hover.bind(item))
+		cell.mouse_exited.connect(_on_item_hover_end)
+		cell.mouse_filter = Control.MOUSE_FILTER_STOP
+	else:
+		type_label.text = ""
+		name_label.text = ""
+
+	vbox.add_child(type_label)
+	vbox.add_child(name_label)
+
+	return cell
+
+func _get_item_type_color(item_type: ItemData.ItemType) -> Color:
+	match item_type:
+		ItemData.ItemType.WEAPON:
+			return Color(1.0, 0.4, 0.4)
+		ItemData.ItemType.HELM, ItemData.ItemType.CHEST, ItemData.ItemType.BOOTS:
+			return Color(0.4, 0.6, 1.0)
+		ItemData.ItemType.RING:
+			return Color(1.0, 0.85, 0.3)
+		ItemData.ItemType.BELT:
+			return Color(0.6, 0.45, 0.3)
+		ItemData.ItemType.GAUNTLETS:
+			return Color(0.9, 0.6, 0.2)
+	return Color(0.5, 0.5, 0.5)

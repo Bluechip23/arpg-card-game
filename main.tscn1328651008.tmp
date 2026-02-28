@@ -172,16 +172,16 @@ offset_right = 212.0
 offset_bottom = 64.0
 
 [node name="PlayerXPLabel" type="Label" parent="UI" unique_id=2079740689]
-offset_left = 470.0
-offset_top = 40.0
-offset_right = 618.0
-offset_bottom = 63.0
+offset_left = 272.0
+offset_top = 41.0
+offset_right = 420.0
+offset_bottom = 64.0
 text = "Lv 1 | XP: 0/10"
 
 [node name="TurnLabel" type="Label" parent="UI" unique_id=1944835916]
-offset_left = 302.0
+offset_left = 297.0
 offset_top = 40.0
-offset_right = 451.0
+offset_right = 446.0
 offset_bottom = 63.0
 text = "Turn: 0 | Draw in: 5"
 
@@ -216,8 +216,9 @@ offset_top = 14.0
 offset_right = -9.0
 offset_bottom = 115.0
 grow_horizontal = 0
-text = "I - Character Panel
-L - Level Progress"
+text = "Right-click - Move player
+I - Character Panel
+L - Sphere Grid"
 horizontal_alignment = 2
 
 [node name="CharacterButtons" type="HBoxContainer" parent="UI" unique_id=1795835475]
