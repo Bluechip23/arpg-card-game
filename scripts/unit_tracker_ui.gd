@@ -1,48 +1,32 @@
 class_name UnitTrackerUI
-extends PanelContainer
+extends Control
 
-## Left-side panel that tracks all enemy units on the battlefield.
-## Groups enemies by type: single enemies show full info;
-## multiples show a clickable portrait that expands to sub-portraits.
+## Left-side unit tracker — minimal portrait squares for each enemy type.
+## Single enemy types show info directly beneath the square.
+## Multiple enemy types show a clickable square with "xN" that expands
+## horizontally into individual sub-portraits.
 
-signal enemy_clicked(enemy: Enemy)
+signal enemy_hovered(enemy: Enemy)    # Emitted when hovering a portrait
+signal enemy_unhovered()              # Emitted when leaving a portrait
 
-var enemy_spawner = null  # Set by main.gd
+var enemy_spawner = null
 var _content: VBoxContainer
-var _group_entries: Dictionary = {}  # type_name -> { "container": Control, "expanded": bool, "enemies": Array }
-var _scroll: ScrollContainer
+var _group_entries: Dictionary = {}
+# Maps Enemy instance_id -> portrait panel for reverse-lookup from battlefield hover
+var _enemy_to_panel: Dictionary = {}
+var _highlighted_enemy: Enemy = null  # Currently highlighted enemy (from either direction)
 
-const PORTRAIT_HEIGHT: float = 80.0
-const SUB_PORTRAIT_HEIGHT: float = 64.0
+const SQUARE_SIZE: float = 48.0
+const SUB_SQUARE_SIZE: float = 38.0
 const MAX_STATUS_ICONS: int = 5
 
 func _ready() -> void:
-	# Panel styling
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.08, 0.12, 0.9)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.3, 0.3, 0.4)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 4.0
-	style.content_margin_right = 4.0
-	style.content_margin_top = 4.0
-	style.content_margin_bottom = 4.0
-	add_theme_stylebox_override("panel", style)
-
-	_scroll = ScrollContainer.new()
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	add_child(_scroll)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	_content = VBoxContainer.new()
-	_content.add_theme_constant_override("separation", 4)
-	_scroll.add_child(_content)
+	_content.add_theme_constant_override("separation", 6)
+	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_content)
 
 func initialize(spawner) -> void:
 	enemy_spawner = spawner
@@ -51,10 +35,15 @@ func refresh() -> void:
 	if not enemy_spawner:
 		return
 
-	# Clear existing entries
+	# Save expanded states before clearing
+	var prev_expanded: Dictionary = {}
+	for type_name in _group_entries:
+		prev_expanded[type_name] = _group_entries[type_name].get("expanded", false)
+
 	for child in _content.get_children():
 		child.queue_free()
 	_group_entries.clear()
+	_enemy_to_panel.clear()
 
 	var living = enemy_spawner.get_living_enemies()
 	if living.is_empty():
@@ -62,54 +51,57 @@ func refresh() -> void:
 		return
 	visible = true
 
-	# Group enemies by type name
-	var groups: Dictionary = {}  # type_name -> Array[Enemy]
+	# Group enemies by type
+	var groups: Dictionary = {}
 	for enemy in living:
 		var type_name = _get_type_name(enemy)
 		if not groups.has(type_name):
 			groups[type_name] = []
 		groups[type_name].append(enemy)
 
-	# Create UI for each group
 	for type_name in groups:
-		var enemies_in_group = groups[type_name]
-		var group_data = {"enemies": enemies_in_group, "expanded": false}
+		var enemies_arr = groups[type_name]
+		var group_data = {"enemies": enemies_arr, "expanded": prev_expanded.get(type_name, false)}
 
-		if enemies_in_group.size() == 1:
-			# Single enemy: show full portrait directly
-			var portrait = _create_portrait(enemies_in_group[0], false)
-			_content.add_child(portrait)
-			group_data["container"] = portrait
+		if enemies_arr.size() == 1:
+			# Single enemy — show square with info underneath
+			var entry = _create_single_entry(enemies_arr[0])
+			_content.add_child(entry)
+			group_data["container"] = entry
 		else:
-			# Multiple: clickable group header + expandable sub-portraits
+			# Multiple — clickable group square + expandable sub-portraits
 			var group_box = VBoxContainer.new()
 			group_box.add_theme_constant_override("separation", 2)
+			group_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_content.add_child(group_box)
 
-			var header = _create_group_header(type_name, enemies_in_group.size())
-			header.gui_input.connect(_on_group_header_input.bind(type_name))
-			group_box.add_child(header)
+			# Top row: group square + expand area
+			var top_row = HBoxContainer.new()
+			top_row.add_theme_constant_override("separation", 4)
+			top_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			group_box.add_child(top_row)
 
-			# Sub-portrait container (hidden by default)
+			var header_square = _create_group_square(type_name, enemies_arr.size())
+			header_square.gui_input.connect(_on_group_click.bind(type_name))
+			top_row.add_child(header_square)
+
+			# Expanded sub-portraits container (horizontal)
 			var sub_container = HBoxContainer.new()
 			sub_container.add_theme_constant_override("separation", 4)
-			sub_container.visible = false
-			group_box.add_child(sub_container)
+			sub_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			sub_container.visible = group_data["expanded"]
+			top_row.add_child(sub_container)
 
-			for enemy in enemies_in_group:
-				var sub_portrait = _create_portrait(enemy, true)
-				sub_container.add_child(sub_portrait)
+			for enemy in enemies_arr:
+				var sub = _create_sub_portrait(enemy)
+				sub_container.add_child(sub)
 
 			group_data["container"] = group_box
 			group_data["sub_container"] = sub_container
-			# Carry over previous expanded state
-			if _group_entries.has(type_name) and _group_entries[type_name].get("expanded", false):
-				group_data["expanded"] = true
-				sub_container.visible = true
 
 		_group_entries[type_name] = group_data
 
-func _on_group_header_input(event: InputEvent, type_name: String) -> void:
+func _on_group_click(event: InputEvent, type_name: String) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _group_entries.has(type_name):
 			var data = _group_entries[type_name]
@@ -117,191 +109,255 @@ func _on_group_header_input(event: InputEvent, type_name: String) -> void:
 			if data.has("sub_container"):
 				data["sub_container"].visible = data["expanded"]
 
-func _create_group_header(type_name: String, count: int) -> PanelContainer:
-	## Creates a clickable header showing the enemy type and count.
+# ============================================
+# SINGLE ENEMY ENTRY (square + info below)
+# ============================================
+
+func _create_single_entry(enemy: Enemy) -> VBoxContainer:
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# Portrait square
+	var square = _create_portrait_square(enemy, SQUARE_SIZE)
+	vbox.add_child(square)
+	_enemy_to_panel[enemy.get_instance_id()] = square
+
+	# Info underneath
+	var info = _create_info_column(enemy, 11)
+	vbox.add_child(info)
+
+	return vbox
+
+# ============================================
+# GROUP SQUARE (for multiple of same type)
+# ============================================
+
+func _create_group_square(type_name: String, count: int) -> PanelContainer:
+	## Clickable square with type abbreviation and "xN" badge.
 	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(180, 40)
+	panel.custom_minimum_size = Vector2(SQUARE_SIZE, SQUARE_SIZE)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 
+	var color = _get_type_color_by_name(type_name)
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.22, 0.95)
-	style.border_width_bottom = 1
-	style.border_color = Color(0.4, 0.4, 0.5)
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
-	style.content_margin_left = 6.0
-	style.content_margin_right = 6.0
-	style.content_margin_top = 4.0
-	style.content_margin_bottom = 4.0
+	style.bg_color = color.darkened(0.55)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = color
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
 	panel.add_theme_stylebox_override("panel", style)
 
-	var hbox = HBoxContainer.new()
-	panel.add_child(hbox)
+	# Type abbreviation centered
+	var type_lbl = Label.new()
+	type_lbl.text = type_name.left(3).to_upper()
+	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	type_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	type_lbl.add_theme_font_size_override("font_size", 14)
+	type_lbl.add_theme_color_override("font_color", color)
+	type_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(type_lbl)
 
-	# Type name square (placeholder portrait)
-	var type_box = _create_type_square(type_name, Vector2(32, 32))
-	hbox.add_child(type_box)
-
-	var info = VBoxContainer.new()
-	info.add_theme_constant_override("separation", 0)
-	hbox.add_child(info)
-
-	var name_label = Label.new()
-	name_label.text = "%s (x%d)" % [type_name, count]
-	name_label.add_theme_font_size_override("font_size", 13)
-	name_label.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
-	info.add_child(name_label)
-
-	var hint = Label.new()
-	hint.text = "Click to expand"
-	hint.add_theme_font_size_override("font_size", 10)
-	hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
-	info.add_child(hint)
+	# Count badge (bottom-right corner)
+	var badge = Label.new()
+	badge.text = "x%d" % count
+	badge.add_theme_font_size_override("font_size", 11)
+	badge.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9))
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	badge.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	badge.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	badge.offset_left = -28.0
+	badge.offset_top = -16.0
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(badge)
 
 	return panel
 
-func _create_portrait(enemy: Enemy, is_sub: bool) -> PanelContainer:
-	## Creates a full portrait for a single enemy showing name, HP, armor, tempo, effects.
-	var height = SUB_PORTRAIT_HEIGHT if is_sub else PORTRAIT_HEIGHT
-	var width = 140 if is_sub else 180
-	var font_sz = 11 if is_sub else 12
+# ============================================
+# SUB-PORTRAIT (individual enemy in expanded group)
+# ============================================
 
-	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(width, height)
-
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.18, 0.95)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.3, 0.3, 0.4)
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
-	style.content_margin_left = 4.0
-	style.content_margin_right = 4.0
-	style.content_margin_top = 3.0
-	style.content_margin_bottom = 3.0
-	panel.add_theme_stylebox_override("panel", style)
-
+func _create_sub_portrait(enemy: Enemy) -> VBoxContainer:
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 2)
-	panel.add_child(vbox)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# Row 1: Type square + name
-	var top_row = HBoxContainer.new()
-	top_row.add_theme_constant_override("separation", 4)
-	vbox.add_child(top_row)
+	var square = _create_portrait_square(enemy, SUB_SQUARE_SIZE)
+	vbox.add_child(square)
+	_enemy_to_panel[enemy.get_instance_id()] = square
 
-	var sq_size = 22 if is_sub else 28
-	var type_square = _create_type_square(_get_type_name(enemy), Vector2(sq_size, sq_size))
-	top_row.add_child(type_square)
+	var info = _create_info_column(enemy, 10)
+	vbox.add_child(info)
 
-	var name_lbl = Label.new()
-	name_lbl.text = enemy.enemy_name
-	name_lbl.add_theme_font_size_override("font_size", font_sz)
-	name_lbl.add_theme_color_override("font_color", _get_type_color(enemy))
-	top_row.add_child(name_lbl)
+	return vbox
 
-	# Row 2: HP and Armor bars
-	var stats_row = HBoxContainer.new()
-	stats_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(stats_row)
+# ============================================
+# PORTRAIT SQUARE (per-enemy, with hover)
+# ============================================
 
-	var hp_label = Label.new()
-	hp_label.text = "HP: %d/%d" % [enemy.current_health, enemy.max_health]
-	hp_label.add_theme_font_size_override("font_size", font_sz)
-	hp_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
-	stats_row.add_child(hp_label)
+func _create_portrait_square(enemy: Enemy, sz: float) -> PanelContainer:
+	var panel = PanelContainer.new()
+	panel.custom_minimum_size = Vector2(sz, sz)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 
+	var color = _get_type_color(enemy)
+	var style = StyleBoxFlat.new()
+	style.bg_color = color.darkened(0.55)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = color
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	panel.add_theme_stylebox_override("panel", style)
+
+	# Store reference for highlight lookups
+	panel.set_meta("enemy_ref", enemy)
+	panel.set_meta("base_border_color", color)
+
+	var type_lbl = Label.new()
+	type_lbl.text = _get_type_name(enemy).left(3).to_upper()
+	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	type_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	type_lbl.add_theme_font_size_override("font_size", int(sz * 0.3))
+	type_lbl.add_theme_color_override("font_color", color)
+	type_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(type_lbl)
+
+	# Hover signals
+	panel.mouse_entered.connect(_on_portrait_hover.bind(enemy))
+	panel.mouse_exited.connect(_on_portrait_unhover)
+
+	return panel
+
+func _on_portrait_hover(enemy: Enemy) -> void:
+	enemy_hovered.emit(enemy)
+
+func _on_portrait_unhover() -> void:
+	enemy_unhovered.emit()
+
+# ============================================
+# INFO COLUMN (HP, armor, tempo, status icons below a square)
+# ============================================
+
+func _create_info_column(enemy: Enemy, font_sz: int) -> VBoxContainer:
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 1)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# HP
+	var hp = Label.new()
+	hp.text = "%d/%d" % [enemy.current_health, enemy.max_health]
+	hp.add_theme_font_size_override("font_size", font_sz)
+	hp.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
+	hp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(hp)
+
+	# Armor (only show if relevant)
 	if enemy.current_armor > 0 or enemy.max_armor > 0:
-		var armor_label = Label.new()
-		armor_label.text = "ARM: %d" % enemy.current_armor
-		armor_label.add_theme_font_size_override("font_size", font_sz)
-		armor_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.8))
-		stats_row.add_child(armor_label)
+		var arm = Label.new()
+		arm.text = "ARM %d" % enemy.current_armor
+		arm.add_theme_font_size_override("font_size", font_sz)
+		arm.add_theme_color_override("font_color", Color(0.6, 0.6, 0.8))
+		arm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(arm)
 
-	# Row 3: Tempo bar
-	var tempo_row = HBoxContainer.new()
-	tempo_row.add_theme_constant_override("separation", 4)
-	vbox.add_child(tempo_row)
-
-	var tempo_label = Label.new()
+	# Tempo / action
+	var tempo = Label.new()
 	var action_name = enemy.chosen_action.get("name", "idle").capitalize()
 	var tempo_cost = enemy.chosen_action.get("tempo_cost", 0)
 	if tempo_cost > 0:
-		tempo_label.text = "%s: %d/%d" % [action_name, enemy.action_tempo_counter, tempo_cost]
+		tempo.text = "%s %d/%d" % [action_name, enemy.action_tempo_counter, tempo_cost]
 	else:
-		tempo_label.text = "Idle"
-	tempo_label.add_theme_font_size_override("font_size", font_sz - 1)
-	tempo_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.9))
-	tempo_row.add_child(tempo_label)
+		tempo.text = "Idle"
+	tempo.add_theme_font_size_override("font_size", font_sz - 1)
+	tempo.add_theme_color_override("font_color", Color(0.7, 0.7, 0.9))
+	tempo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(tempo)
 
-	# Row 4: Status effects (buffs on left, debuffs on right — for enemies, all are debuffs)
+	# Status icons
 	var effects = enemy.get_active_effects()
 	if effects.size() > 0:
-		var effects_row = HBoxContainer.new()
-		effects_row.add_theme_constant_override("separation", 2)
-		vbox.add_child(effects_row)
+		var row = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 2)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(row)
 
 		var show_count = min(effects.size(), MAX_STATUS_ICONS)
 		for i in range(show_count):
 			var eff = effects[i]
-			var icon = _create_status_icon(eff["color"], eff["stacks"], is_sub)
-			effects_row.add_child(icon)
-
+			var icon = _create_status_icon(eff["color"], eff["stacks"])
+			row.add_child(icon)
 		if effects.size() > MAX_STATUS_ICONS:
 			var plus = Label.new()
 			plus.text = "+"
 			plus.add_theme_font_size_override("font_size", 10)
 			plus.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-			effects_row.add_child(plus)
+			plus.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(plus)
 
-	return panel
+	return vbox
 
-func _create_type_square(type_name: String, sz: Vector2) -> PanelContainer:
-	## Creates a colored square with the enemy type name inside.
-	var square = PanelContainer.new()
-	square.custom_minimum_size = sz
+# ============================================
+# HIGHLIGHT (called by main.gd for bidirectional hover)
+# ============================================
 
-	var color = _get_type_color_by_name(type_name)
-	var style = StyleBoxFlat.new()
-	style.bg_color = color.darkened(0.5)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = color
-	style.corner_radius_top_left = 2
-	style.corner_radius_top_right = 2
-	style.corner_radius_bottom_left = 2
-	style.corner_radius_bottom_right = 2
-	square.add_theme_stylebox_override("panel", style)
+func highlight_enemy(enemy: Enemy) -> void:
+	## Highlight the portrait panel for this enemy.
+	_clear_all_highlights()
+	_highlighted_enemy = enemy
+	if not enemy:
+		return
+	var eid = enemy.get_instance_id()
+	if _enemy_to_panel.has(eid):
+		var panel = _enemy_to_panel[eid] as PanelContainer
+		if is_instance_valid(panel):
+			var style = panel.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+			style.border_color = Color(1.0, 1.0, 1.0, 0.95)
+			style.border_width_left = 3
+			style.border_width_right = 3
+			style.border_width_top = 3
+			style.border_width_bottom = 3
+			panel.add_theme_stylebox_override("panel", style)
 
-	var lbl = Label.new()
-	lbl.text = type_name.left(3).to_upper()
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", int(sz.y * 0.4))
-	lbl.add_theme_color_override("font_color", color)
-	square.add_child(lbl)
+func clear_highlight() -> void:
+	_clear_all_highlights()
+	_highlighted_enemy = null
 
-	return square
+func _clear_all_highlights() -> void:
+	for eid in _enemy_to_panel:
+		var panel = _enemy_to_panel[eid] as PanelContainer
+		if is_instance_valid(panel) and panel.has_meta("base_border_color"):
+			var color = panel.get_meta("base_border_color") as Color
+			var style = panel.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+			style.border_color = color
+			style.border_width_left = 2
+			style.border_width_right = 2
+			style.border_width_top = 2
+			style.border_width_bottom = 2
+			panel.add_theme_stylebox_override("panel", style)
 
-func _create_status_icon(color: Color, stacks: int, is_small: bool) -> Control:
-	## Creates a small colored circle with a stack count at bottom-right.
-	var sz = 14 if is_small else 18
+# ============================================
+# STATUS ICON
+# ============================================
+
+func _create_status_icon(color: Color, stacks: int) -> Control:
+	var sz = 14
 	var container = Control.new()
 	container.custom_minimum_size = Vector2(sz + 6, sz + 4)
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# Circle (colored rect with rounded corners as approximation)
 	var circle = PanelContainer.new()
 	circle.custom_minimum_size = Vector2(sz, sz)
-	circle.position = Vector2(0, 0)
+	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var circle_style = StyleBoxFlat.new()
 	circle_style.bg_color = color
 	circle_style.corner_radius_top_left = int(sz / 2)
@@ -311,16 +367,20 @@ func _create_status_icon(color: Color, stacks: int, is_small: bool) -> Control:
 	circle.add_theme_stylebox_override("panel", circle_style)
 	container.add_child(circle)
 
-	# Stack count number (bottom-right, half on/half off the circle)
 	if stacks > 0:
 		var count = Label.new()
 		count.text = str(stacks)
-		count.add_theme_font_size_override("font_size", 9 if is_small else 10)
+		count.add_theme_font_size_override("font_size", 9)
 		count.add_theme_color_override("font_color", Color.WHITE)
 		count.position = Vector2(sz * 0.55, sz * 0.4)
+		count.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(count)
 
 	return container
+
+# ============================================
+# HELPERS
+# ============================================
 
 func _get_type_name(enemy: Enemy) -> String:
 	match enemy.enemy_type:
