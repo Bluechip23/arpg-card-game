@@ -737,6 +737,7 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 	if wear_down_tempo > 0:
 		attack_reduction += 1
 		print("[%s] Wear Down stacks! Attack reduced by %d" % [enemy_name, attack_reduction])
+		_update_status_indicators()
 
 	# Apply premeditated bonus damage (only from player attacks)
 	if from_player and bonus_damage_next_hit > 0:
@@ -916,7 +917,8 @@ func get_active_effects() -> Array[Dictionary]:
 	if taunt_tempo > 0:
 		effects.append({"name": "Taunt", "color": Color(1.0, 0.6, 0.0), "stacks": taunt_tempo})
 	if wear_down_tempo > 0:
-		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": attack_reduction})
+		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_tempo
+		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
 	if slow_tempo > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_amount})
 	if is_disarmed and disarmed_tempo > 0:

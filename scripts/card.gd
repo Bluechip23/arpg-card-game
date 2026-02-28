@@ -211,6 +211,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		heal_amount += on_self_hl
 		print("[CARD] On-Self: +%d heal from %s" % [on_self_hl, slotted_in_item.item_name])
 
+	# Wear Down: apply debuff BEFORE attack execution so the first hit stacks reduction
+	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
+		if target and target.has_method("apply_wear_down"):
+			target.apply_wear_down(3)
+			print("[CARD] Wear Down triggered! Enemy attack will be reduced")
+
 	match card_id:
 		"slash":
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -380,12 +386,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		var dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 		if dealt > 0:
 			buff_mgr.consume_life_steal(dealt)
-
-	# Wear Down: if an attack hit an enemy and we have wear_down buff, apply wear_down to that enemy
-	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
-		if target and target.has_method("apply_wear_down"):
-			target.apply_wear_down(3)
-			print("[CARD] Wear Down triggered! Enemy attack reduced")
 
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
