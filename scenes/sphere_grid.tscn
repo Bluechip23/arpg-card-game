@@ -28,7 +28,6 @@ anchor_right = 1.0
 offset_top = 8.0
 offset_bottom = 38.0
 grow_horizontal = 2
-text = "SPHERE GRID"
 horizontal_alignment = 1
 
 [node name="InfoPanel" type="PanelContainer" parent="." unique_id=1723314812]

@@ -22,6 +22,9 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Each enemy has a tempo threshold. When crossed, they take action
 - Advanced enemies have moves with different tempo thresholds (channel, cast fireball)
 - If the character plays 4 tempo, and the enemy's threshold is 2, the enemy acts twice
+- Important: A unit taking an action does not prohibit other units from taking actions 
+- If an enemy begins moving towards you, or attacking you, you can still play cards, move, or take other actions
+- Also, if a player takes an action, say move, that player is able to take other actions, say dagger throw or heal, during that move.
 
 [color=yellow]Cycles (every 5 tempo):[/color]
 - Every 5 global tempo completes one cycle
