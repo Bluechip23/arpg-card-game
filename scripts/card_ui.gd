@@ -44,6 +44,8 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 				type_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
 			Card.CardType.UNPLAYABLE:
 				type_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+			Card.CardType.POWER:
+				type_label.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 
 	if range_label:
 		if card.is_ranged:
@@ -67,7 +69,10 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 		is_locked = debuff_mgr.is_card_locked(index)
 
 	if cost_label:
-		cost_label.text = "%dM %dT" % [display_mana, card.tempo_cost]
+		if card.maintain_cost > 0:
+			cost_label.text = "%dM %dT | Maintain: %dM" % [display_mana, card.tempo_cost, card.maintain_cost]
+		else:
+			cost_label.text = "%dM %dT" % [display_mana, card.tempo_cost]
 
 		if is_locked:
 			cost_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))

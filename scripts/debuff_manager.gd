@@ -154,6 +154,8 @@ func process_turn_start() -> Dictionary:
 	if owner_stats and result["mana_lost"] > 0:
 		owner_stats.current_mana = max(0, owner_stats.current_mana - result["mana_lost"])
 		owner_stats.mana_changed.emit(owner_stats.current_mana, owner_stats.max_mana)
+		if owner_stats.current_mana <= 0 and owner_stats.maintained_mana > 0:
+			owner_stats._break_maintained_cards()
 
 	return result
 

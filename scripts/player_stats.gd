@@ -12,6 +12,8 @@ signal stats_updated
 signal xp_changed(current_xp: int, xp_to_next: int)
 signal leveled_up(new_level: int)
 signal damage_taken(amount: int)
+signal health_damage_taken(amount: int)  # Emitted with the HP-only portion of damage (after armor absorbs)
+signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards should be discarded
 
 var character_data: CharacterData
 
@@ -34,6 +36,7 @@ var current_health: int = 10
 var max_mana: int = 10
 var current_mana: float = 10.0
 var base_mana_regen: float = 1.0
+var maintained_mana: int = 0  # Mana reserved by maintained Power cards
 
 # ============================================
 # DERIVED STATS
@@ -132,6 +135,7 @@ func initialize(data: CharacterData) -> void:
 	current_carry_load = 0
 	empowered_cards_remaining = 0
 	chance_boost = 0.0
+	maintained_mana = 0
 	_tempo_until_mana_regen = mana_regen_tempo_interval
 	
 	# Calculate derived stats
@@ -357,9 +361,9 @@ func process_tempo(amount: int) -> void:
 	if _tempo_until_mana_regen <= 0.0:
 		_tempo_until_mana_regen += mana_regen_tempo_interval
 		var mana_regen = get_effective_mana_regen()
-		current_mana = min(current_mana + mana_regen, max_mana)
+		current_mana = min(current_mana + mana_regen, get_available_max_mana())
 		mana_changed.emit(current_mana, max_mana)
-		print("[STATS] Mana regen: +%.1f → %d/%d" % [mana_regen, int(current_mana), max_mana])
+		print("[STATS] Mana regen: +%.1f → %d/%d (reserved: %d)" % [mana_regen, int(current_mana), max_mana, maintained_mana])
 
 ## Called once per tempo cycle (every 5 global tempo). Handles armor decay and misc upkeep.
 func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
@@ -428,10 +432,11 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 		var old_pct = get_health_percent()
 		current_health = max(0, current_health - remaining)
 		health_changed.emit(current_health, max_health)
-		
+		health_damage_taken.emit(remaining)
+
 		if _crossed_threshold(old_pct, get_health_percent()):
 			recalculate_derived_stats()
-	
+
 	# Emit damage_taken for reaction card triggers
 	damage_taken.emit(amount)
 
@@ -490,6 +495,8 @@ func spend_mana(amount: int) -> bool:
 	if current_mana >= amount:
 		current_mana -= amount
 		mana_changed.emit(current_mana, max_mana)
+		if current_mana <= 0 and maintained_mana > 0:
+			_break_maintained_cards()
 		return true
 	return false
 
@@ -497,9 +504,37 @@ func has_mana(amount: int) -> bool:
 	return current_mana >= amount
 
 func gain_mana(amount: int) -> void:
-	current_mana = min(current_mana + amount, max_mana)
+	current_mana = min(current_mana + amount, get_available_max_mana())
 	mana_changed.emit(current_mana, max_mana)
-	print("[STATS] Gained %d mana! Mana: %d/%d" % [amount, int(current_mana), max_mana])
+	print("[STATS] Gained %d mana! Mana: %d/%d (reserved: %d)" % [amount, int(current_mana), max_mana, maintained_mana])
+
+# ============================================
+# MAINTAIN SYSTEM (Power Cards)
+# ============================================
+
+func get_available_max_mana() -> int:
+	## Max mana minus mana reserved by maintained cards
+	return max(0, max_mana - maintained_mana)
+
+func reserve_mana(amount: int) -> void:
+	## Reserve mana for a maintained Power card
+	maintained_mana += amount
+	# Cap current mana to new available max
+	current_mana = min(current_mana, get_available_max_mana())
+	mana_changed.emit(current_mana, max_mana)
+	print("[STATS] Reserved %d mana for maintain. Available max: %d/%d" % [amount, get_available_max_mana(), max_mana])
+
+func release_mana(amount: int) -> void:
+	## Release reserved mana when a maintained card is discarded
+	maintained_mana = max(0, maintained_mana - amount)
+	mana_changed.emit(current_mana, max_mana)
+	print("[STATS] Released %d maintained mana. Available max: %d/%d" % [amount, get_available_max_mana(), max_mana])
+
+func _break_maintained_cards() -> void:
+	## Called when current mana hits 0 - all maintained cards lose their effect
+	print("[STATS] Mana hit 0! All maintained cards are broken!")
+	maintained_mana = 0
+	maintained_cards_broken.emit()
 
 # ============================================
 # EMPOWER SYSTEM

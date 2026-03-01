@@ -112,6 +112,7 @@ func _build_legend() -> void:
 	_add_keyword("Attack", "Offensive cards that deal damage", Color(1, 0.3, 0.3))
 	_add_keyword("Defense", "Protective cards that grant armor or block", Color(0.3, 0.5, 1))
 	_add_keyword("Utility", "Support cards for draw, healing, buffs, etc.", Color(0.3, 1, 0.3))
+	_add_keyword("Power", "Persistent effect cards with a Maintain cost. Reserves mana from your max pool while active. If mana drops to 0, all maintained cards are discarded", Color(0.8, 0.5, 1.0))
 	_add_keyword("Reaction", "Triggers automatically from hand when a condition is met (e.g., on damage taken). Costs 0 mana and 0 tempo", Color(1, 0.8, 0.2))
 	_add_keyword("Unplayable", "Cannot be played. Takes up a hand slot (e.g., Lightly Dazed)", Color(0.5, 0.5, 0.5))
 
@@ -127,6 +128,7 @@ func _build_legend() -> void:
 	_add_keyword("On-Draw", "Card triggers an effect when drawn into hand (e.g., deal damage to a random enemy)", Color(0.5, 0.9, 0.5))
 	_add_keyword("Sticky", "Card stays in hand for X uses before being discarded. Does not leave hand after playing", Color(0.8, 0.8, 0.3))
 	_add_keyword("High Ground", "Ranged attacks from elevated positions deal +4 damage and gain +2 range. Some cards require high ground", Color(0.6, 0.4, 0.2))
+	_add_keyword("Maintain", "Reserves X mana from your max mana pool while the card is active. The effect persists each cycle. If your mana drops to 0 by any means, all maintained cards are discarded and their effects end", Color(0.8, 0.5, 1.0))
 	_add_keyword("Cycle", "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks, and armor decay all happen per cycle", Color(0.7, 0.7, 0.9))
 
 func _add_section_header(title: String) -> void:

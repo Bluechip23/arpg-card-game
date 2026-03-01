@@ -3,7 +3,7 @@ extends Resource
 
 ## Card resource that holds card data
 
-enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE }
+enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER }
 enum CardKeyword { NONE, ARROW, POCKET, GEM }
 
 @export var card_id: String = "slash"
@@ -46,6 +46,7 @@ var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
 var has_on_draw: bool = false  # Card triggers an effect when drawn
 var on_draw_effect: String = ""  # Description of the on-draw effect
+var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
 
@@ -185,6 +186,148 @@ func get_range_display() -> String:
 		return "Ranged +%d" % range_modifier
 	else:
 		return "Ranged %d" % range_modifier
+
+## Returns all known game keywords and their descriptions for tooltip display.
+static func get_keyword_definitions() -> Dictionary:
+	return {
+		# Card Types
+		"attack": "Offensive cards that deal damage",
+		"defense": "Protective cards that grant armor or block",
+		"utility": "Support cards for draw, healing, buffs, etc.",
+		"power": "Persistent effect cards with a Maintain cost. Reserves mana while active",
+		"reaction": "Triggers automatically from hand when a condition is met. Costs 0 mana and 0 tempo",
+		"unplayable": "Cannot be played. Takes up a hand slot",
+		# Card Mechanics
+		"maintain": "Reserves X mana from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
+		"empower": "Buffs the next X cards played: +3 damage for attacks, -3 mana cost for defense",
+		"on-draw": "Card triggers an effect when drawn into hand",
+		"sticky": "Card stays in hand for X uses before being discarded",
+		"high ground": "Ranged attacks from elevated positions deal +4 damage and gain +2 range",
+		"cycle": "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks all happen per cycle",
+		# Buffs
+		"thorns": "Deal X damage back to attackers, lose 1 thorn per hit",
+		"focused": "Gain 1 extra mana per cycle",
+		"regen": "Heal X HP per cycle, lose 1 regen per cycle",
+		"blessed": "Draw X additional card(s) per cycle",
+		"fortify": "Armor does not decay",
+		"enlightened": "+X% crit chance for next Y attacks",
+		"strengthen": "+X damage on next Y attacks",
+		"bolster": "+X armor next Y times you gain armor",
+		"haste": "+X movement per tempo spent",
+		"cleanse": "Remove X negative effects (instant)",
+		"smith": "Gain X armor per cycle",
+		"steady": "Next action does not add tempo",
+		"brace": "Reduce incoming attack damage by X% for Y attacks",
+		"resilient": "Reduce all incoming damage by X% for Y tempo",
+		"life steal": "Next attack heals you for damage dealt",
+		"morphine": "Gain temp HP. Lose it and take 2 damage when expired",
+		"wear down": "Each attack reduces target's attack by 1 (stacks) for X tempo",
+		"armor break": "Next attack deals double damage to armor only",
+		# Debuffs
+		"bleed": "On movement: take X damage per tile moved",
+		"stun": "Cannot take any actions",
+		"disarm": "Cannot play attack cards",
+		"silence": "Cannot play spell cards",
+		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...)",
+		"poison": "Take X damage per cycle, lose 1 poison each cycle",
+		"inebriate": "Movement direction is randomized",
+		"cursed": "Deal 20% less damage and deal 20% damage to self",
+		"frozen": "Cannot play cards",
+		"cuffed": "Cannot draw cards",
+		"shocked": "Deal X damage to nearby allies per cycle, lose 1 per cycle",
+		"slowed": "Lose X movement per cycle",
+		"staggered": "Attack cards cost X more mana",
+		"drain": "Lose 1 mana per cycle, lose 1 drain per cycle",
+		"weighted": "Cards cost X more tempo",
+		"hexed": "One random card costs +X mana",
+		"locked": "One random card cannot be played",
+		"rooted": "Cannot move",
+		"tethered": "Cannot move more than X tiles from origin",
+		"magnetized": "Pulled X tiles toward nearest enemy each cycle",
+		"linked": "Share X% damage taken with nearest ally",
+		"clumsy": "X% chance to discard random card when playing",
+		"vulnerable": "Take 30% more damage on next X attack(s)",
+		"exposed": "Remove 30% more armor when hit",
+		"brittle": "Armor decays extra 2 per cycle",
+		"cold": "Stacking debuff. At 5 stacks, enemy becomes Frozen",
+		# Overflow
+		"jailed": "Card goes to jail for 3 turns, cannot be played",
+		"manifest": "Card goes to manifest zone as a token. Click to activate",
+		"enhance": "Attack cards gain +X bonus damage, then discarded",
+		"transferred": "Overflow card is sent to the discard pile",
+		"peak": "See the next card on draw pile",
+		"overcharge": "Triggers an effect when overflow occurs",
+		# Range / AOE
+		"melee": "Card must be used at close range",
+		"ranged": "Card can be used at distance. Base range = 5 tiles",
+		"aoe": "Area of Effect - hits multiple targets in a shape",
+		# Card-Item Slots
+		"enchant": "Places a card into an item's card slot",
+		"extract": "Removes a card from an item (destroys item or card)",
+		"molded": "Card is locked into the item and cannot be extracted",
+		"picky": "Card can only be re-equipped to same item type",
+		"pliable": "Card can be re-equipped to any item type",
+		# Card Keywords
+		"arrow": "Requires a bow/quiver to slot. Ranged bow attack card",
+		"pocket": "Small items like daggers and potions. Slots into belts",
+	}
+
+## Scans this card's properties and description for matching keywords.
+## Returns an array of {keyword: String, definition: String} dictionaries.
+func get_matching_keywords() -> Array:
+	var all_keywords = Card.get_keyword_definitions()
+	var matches: Array = []
+	var found_keys: Dictionary = {}  # Avoid duplicates
+
+	# Build a searchable text from the card
+	var search_text = description.to_lower()
+
+	# Also check card type name and properties
+	if card_type == CardType.POWER:
+		_add_keyword_match(found_keys, matches, all_keywords, "power")
+	if card_type == CardType.REACTION:
+		_add_keyword_match(found_keys, matches, all_keywords, "reaction")
+	if maintain_cost > 0:
+		_add_keyword_match(found_keys, matches, all_keywords, "maintain")
+	if sticky > 0:
+		_add_keyword_match(found_keys, matches, all_keywords, "sticky")
+	if has_on_draw:
+		_add_keyword_match(found_keys, matches, all_keywords, "on-draw")
+	if requires_high_ground:
+		_add_keyword_match(found_keys, matches, all_keywords, "high ground")
+	if is_ranged:
+		_add_keyword_match(found_keys, matches, all_keywords, "ranged")
+	if is_aoe:
+		_add_keyword_match(found_keys, matches, all_keywords, "aoe")
+
+	# Scan the description for keyword mentions
+	for keyword in all_keywords:
+		if keyword in found_keys:
+			continue
+		# Match whole words to avoid false positives
+		var kw_lower = keyword.to_lower()
+		var pos = search_text.find(kw_lower)
+		while pos >= 0:
+			# Check word boundary before
+			var before_ok = (pos == 0) or not _is_letter(search_text[pos - 1])
+			# Check word boundary after
+			var end_pos = pos + kw_lower.length()
+			var after_ok = (end_pos >= search_text.length()) or not _is_letter(search_text[end_pos])
+			if before_ok and after_ok:
+				_add_keyword_match(found_keys, matches, all_keywords, keyword)
+				break
+			pos = search_text.find(kw_lower, pos + 1)
+
+	return matches
+
+static func _add_keyword_match(found_keys: Dictionary, matches: Array, all_keywords: Dictionary, keyword: String) -> void:
+	if keyword not in found_keys:
+		found_keys[keyword] = true
+		matches.append({"keyword": keyword.capitalize(), "definition": all_keywords[keyword]})
+
+static func _is_letter(c: String) -> bool:
+	var code = c.unicode_at(0)
+	return (code >= 65 and code <= 90) or (code >= 97 and code <= 122)
 
 func increment_cycles_in_hand() -> void:
 	cycles_in_hand += 1
@@ -398,6 +541,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"lightly_dazed":
 			pass  # Unplayable card - no execute logic
+		# === Power Cards (Maintain) ===
+		"halo":
+			_execute_halo(player_stats, buff_mgr)
+		"armored_discipline":
+			_execute_armored_discipline(player_stats, buff_mgr)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -2436,3 +2584,58 @@ func _execute_thrown_stone(target, player_stats: PlayerStats, buff_mgr: BuffMana
 		target.take_damage(total_damage, true)
 		last_damage_dealt = total_damage
 		print("[CARD] Thrown Stone dealt %d damage!" % total_damage)
+
+# ============================================
+# POWER CARDS (Maintain keyword)
+# ============================================
+
+static func create_halo() -> Card:
+	var card = Card.new()
+	card.card_id = "halo"
+	card.card_name = "Halo"
+	card.description = "Maintain 3M: Every cycle, heal all allies in AOE for 3 HP"
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 3  # Initial cast cost
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 3
+	card.maintain_cost = 3  # 3 mana reserved from max while active
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 3.0
+	card.target_types = ["self"]
+	return card
+
+func _execute_halo(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Halo's heal-per-cycle effect is handled by the maintain system in DeckManager.
+	# On play, we just log activation. The maintained_cards processing does the healing.
+	if player_stats:
+		print("[CARD] Halo activated! Reserving %d mana. Heals allies in AOE each cycle." % maintain_cost)
+
+static func create_armored_discipline() -> Card:
+	var card = Card.new()
+	card.card_id = "armored_discipline"
+	card.card_name = "Armored Discipline"
+	card.description = "Maintain 5M: When you take damage to your health, gain that much armor"
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 3
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.maintain_cost = 5
+	card.target_types = ["self"]
+	return card
+
+func _execute_armored_discipline(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Armored Discipline's armor-on-HP-damage effect is handled by the maintain system.
+	# On play, we just log activation.
+	if player_stats:
+		print("[CARD] Armored Discipline activated! Reserving %d mana. Gain armor when taking HP damage." % maintain_cost)
