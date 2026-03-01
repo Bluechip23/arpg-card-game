@@ -75,6 +75,8 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 [color=green]Utility:[/color] Support cards for draw, healing, buffs, movement, etc.
 [color=yellow]Reaction:[/color] Triggers automatically from hand when a condition is met (e.g., on damage taken). Costs 0 mana and 0 tempo
 [color=gray]Unplayable:[/color] Cannot be played. Takes up a hand slot (e.g., Lightly Dazed from enemies)
+[color=green]Power:[/color] Generally requiring Maintain, these cards act as passives as long as you have the resources to maintain them.
+
 
 [font_size=18][color=cyan]━━━ CARD MECHANICS ━━━[/color][/font_size]
 
@@ -108,6 +110,17 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Melee: Must be adjacent to target (default for all cards)
 - Ranged: Base range = 5 tiles. Ranged +X = 5+X, Ranged -X = 5-X
 
+[color=yellow]Maintain:[/color]
+- Define a resource required to keep a card persistant.
+- If Maintain: 3, 3 of the players mana will be reserved for this card to stay in play
+- When mana drops to 0, card is immediately discarded and effect goes away
+
+[color=yellow]Card Types:[/color]
+- Some cards will be designated with a type (arrow, pocket, gem, etc)
+- These types desginate which items the card can be slctted into
+- Arrow: Quivers, Pocket: Belts, Gem: Gauntlets, Rings
+- Card types may come with other effects as well
+
 [font_size=18][color=cyan]━━━ OVERFLOW SYSTEM ━━━[/color][/font_size]
 
 When your hand is full and you try to draw, the overflow system activates.
@@ -125,13 +138,14 @@ When your hand is full and you try to draw, the overflow system activates.
 - The original card doesn't matter - only the manifest effect
 
 [color=yellow]Enhance:[/color]
-- Overflow attack cards gain +X bonus damage, then are discarded
-- Non-attack cards just get discarded
+- Card recieves an effect, and remains at the top of the deck.
+- Effect can be positive or negative. 
 
 [color=yellow]Overcharge:[/color]
 - An effect triggers immediately (e.g., gain health, mana, armor, or deal damage to all)
 - Card stays on top of draw pile
 - Triggers alongside other overflow effects
+- Allies can provide overflow to allies.
 
 [color=yellow]Sources:[/color]
 - Cards can apply overflow effects: "Next 3 overdraw: Manifest Skeleton"
@@ -178,6 +192,10 @@ Rings have passive effects that trigger on events:
 - Molded cards are locked in and cannot be extracted
 - Picky cards can only re-equip to the same item type
 - Pliable cards can re-equip to any item type
+- Some cards will be limited to which items they can be slotted in
+	- Arrow - Can on be on quivers
+	- Gem - can only be placed in gem slots
+	- Pocket - can only be used in belts
 - Extracting requires destroying the item or the card
 
 [font_size=18][color=cyan]━━━ CHARACTER PASSIVES ━━━[/color][/font_size]
@@ -234,6 +252,6 @@ Rings have passive effects that trigger on events:
 - Card and Passive spheres can also be mutated (transmuted) instead of upgraded
 - Mutating transforms the ability into a different version that fits your play style
 - Each Card and Passive node has 2 possible mutations to choose from
-- Example: "On kill: heal 1 HP" can mutate into "On kill: gain 2 mana" or "On kill: heal 1 HP and gain 1 armor"
+- Example: "On kill: heal 1 HP" can mutate into "On kill: gain 2 mana" or "On kill: gain 2 armor"
 
 """
