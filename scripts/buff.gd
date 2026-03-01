@@ -90,7 +90,7 @@ func _set_name_and_description() -> void:
 			description = "Next attack heals you for damage dealt"
 		BuffType.MORPHINE:
 			buff_name = "Morphine"
-			description = "Temp HP active. Lose %d armor and take 2 damage when expired" % value
+			description = "Temp HP active. Lose %d HP and take 2 damage when expired" % value
 		BuffType.WEAR_DOWN:
 			buff_name = "Wear Down"
 			description = "Each attack reduces target's attack by 1 (stacks) for %d tempo" % duration

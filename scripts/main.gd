@@ -1779,38 +1779,82 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Taunted %d enemies for 2 turns" % nearby.size())
 
 		"charge":
-			# Move player toward targeted enemy, damage all enemies in path, knock them back
+			# Move player forward 5 spaces, damaging enemies and interacting with obstacles
 			var charge_dest = target.position if target else grid_manager.snap_to_grid(mouse_pos)
-			var snapped_target = grid_manager.snap_to_grid(charge_dest)
 			var start_pos = player.position
-			# Teleport player to charge destination (no tempo for this movement)
-			player.position = snapped_target
-			player.target_position = snapped_target
-			# Find and damage all enemies along the charge path
-			var enemies_hit = enemy_spawner.get_enemies_in_line(start_pos, snapped_target, 0.8)
-			for enemy in enemies_hit:
-				enemy.take_damage(card.last_damage_dealt, true)
-				enemy.knockback(snapped_target, 1)
-			print("[MAIN] Charge: moved to %s, hit %d enemies for %d damage" % [snapped_target, enemies_hit.size(), card.last_damage_dealt])
+			var charge_diff = charge_dest - start_pos
+			var charge_dir = Vector3(charge_diff.x, 0, charge_diff.z).normalized()
+			var charge_distance = 5
+			var final_pos = start_pos
+			var charge_stopped = false
+			var enemies_hit_count = 0
+
+			for step in range(1, charge_distance + 1):
+				if charge_stopped:
+					break
+				var next_pos = grid_manager.snap_to_grid(start_pos + charge_dir * (step * grid_manager.grid_size))
+
+				# Check for obstacles (barricades) at this position
+				var hit_obstacle = false
+				for i in range(barricade_obstacles.size() - 1, -1, -1):
+					var obs = barricade_obstacles[i]
+					var obs_grid = grid_manager.world_to_grid(obs["position"])
+					var next_grid = grid_manager.world_to_grid(next_pos)
+					if obs_grid == next_grid:
+						obs["health"] -= card.last_damage_dealt
+						if obs["health"] <= 0:
+							obs["node"].queue_free()
+							barricade_obstacles.remove_at(i)
+							_sync_blocked_tiles()
+							print("[MAIN] Charge smashed through obstacle!")
+						else:
+							obs["label"].text = "HP: %d" % obs["health"]
+							print("[MAIN] Charge stopped by obstacle! Obstacle HP: %d" % obs["health"])
+							charge_stopped = true
+							hit_obstacle = true
+						break
+				if hit_obstacle and charge_stopped:
+					break
+
+				# Check for enemies at this position and push them back
+				var enemies_at_pos = enemy_spawner.get_enemies_in_radius(next_pos, 0.6)
+				for enemy in enemies_at_pos:
+					enemy.take_damage(card.last_damage_dealt, true)
+					enemy.knockback(start_pos, 2)
+					enemies_hit_count += 1
+
+				final_pos = next_pos
+
+			# Move player to final position
+			final_pos = grid_manager.snap_to_grid(final_pos)
+			player.position = final_pos
+			player.target_position = final_pos
+			print("[MAIN] Charge: moved to %s, hit %d enemies for %d damage" % [final_pos, enemies_hit_count, card.last_damage_dealt])
 
 		"heroic_leap":
 			# Jump to click position based on STR, deal AOE damage on landing
+			# Leaps up to the character's full strength in tiles, passing through all units
 			var stats = player.get_stats()
 			var leap_distance = 3
 			if stats:
-				leap_distance = max(2, stats.strength / 3)
+				leap_distance = max(2, stats.strength)
 			var diff = mouse_pos - player.position
 			var direction = Vector3(diff.x, 0, diff.z).normalized()
-			var leap_target = player.position + direction * (leap_distance * grid_manager.grid_size)
+			# Clamp leap to the actual distance to mouse if closer than max leap
+			var mouse_dist = Vector3(diff.x, 0, diff.z).length()
+			var actual_leap = mini(leap_distance, ceili(mouse_dist / grid_manager.grid_size))
+			if actual_leap < 1:
+				actual_leap = 1
+			var leap_target = player.position + direction * (actual_leap * grid_manager.grid_size)
 			leap_target = grid_manager.snap_to_grid(leap_target)
-			# Teleport player to landing spot (no tempo for this movement)
+			# Teleport player to landing spot (passes through all units freely)
 			player.position = leap_target
 			player.target_position = leap_target
 			# Deal AOE damage to enemies at landing
 			var landing_enemies = enemy_spawner.get_enemies_in_radius(leap_target, 1.5)
 			for enemy in landing_enemies:
 				enemy.take_damage(card.last_damage_dealt, true)
-			print("[MAIN] Heroic Leap: jumped %d tiles to %s, hit %d enemies for %d damage" % [leap_distance, leap_target, landing_enemies.size(), card.last_damage_dealt])
+			print("[MAIN] Heroic Leap: jumped %d tiles to %s, hit %d enemies for %d damage" % [actual_leap, leap_target, landing_enemies.size(), card.last_damage_dealt])
 
 		"surrounding_ice":
 			# AOE circle around player - roll independently for each enemy

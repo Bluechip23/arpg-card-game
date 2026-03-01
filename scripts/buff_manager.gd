@@ -180,11 +180,11 @@ func process_turn_end() -> void:
 	for buff in expired:
 		# Morphine penalty on expiry: lose the temp HP and take 2 damage
 		if buff.buff_type == Buff.BuffType.MORPHINE and owner_stats:
-			var armor_to_remove = buff.value
-			owner_stats.current_armor = max(0, owner_stats.current_armor - armor_to_remove)
-			owner_stats.armor_changed.emit(owner_stats.current_armor)
+			var hp_to_remove = buff.value
+			owner_stats.current_health = max(0, owner_stats.current_health - hp_to_remove)
+			owner_stats.health_changed.emit(owner_stats.current_health, owner_stats.max_health)
 			owner_stats.take_damage(2)
-			print("[BUFF] Morphine expired! Lost %d armor and took 2 damage" % armor_to_remove)
+			print("[BUFF] Morphine expired! Lost %d temp HP and took 2 damage" % hp_to_remove)
 
 		buffs.erase(buff)
 		buff_removed.emit(buff)
