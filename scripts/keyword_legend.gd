@@ -70,7 +70,7 @@ func _build_legend() -> void:
 	_add_keyword("Brace", "Reduce incoming attack damage by X% for Y attacks", Color(0.5, 0.5, 0.8))
 	_add_keyword("Resilient", "Reduce all incoming damage by X% for Y tempo", Color(0.7, 0.6, 0.9))
 	_add_keyword("Life Steal", "Next attack heals you for damage dealt", Color(0.9, 0.2, 0.4))
-	_add_keyword("Morphine", "Gain temp armor. Lose it and take 2 damage when expired", Color(1.0, 0.6, 0.8))
+	_add_keyword("Morphine", "Gain temp HP. Lose it and take 2 damage when expired", Color(1.0, 0.6, 0.8))
 	_add_keyword("Wear Down", "Each attack reduces target's attack by 1 (stacks) for X tempo", Color(0.9, 0.6, 0.3))
 
 	# Overflow Section

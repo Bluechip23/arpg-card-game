@@ -819,7 +819,7 @@ func _execute_heroic_leap(_target, player_stats: PlayerStats, buff_mgr: BuffMana
 	# Calculate leap distance from STR, damage from distance. Jump handled by main.gd
 	var leap_distance = 3
 	if player_stats:
-		leap_distance = max(2, player_stats.strength / 3)
+		leap_distance = max(2, player_stats.strength)
 	var total_damage = leap_distance * 3
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
@@ -834,7 +834,9 @@ func _execute_heroic_leap(_target, player_stats: PlayerStats, buff_mgr: BuffMana
 func _execute_morphine(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if not player_stats:
 		return
-	player_stats.add_armor(4)
+	# Add 4 temp HP (can exceed max health)
+	player_stats.current_health += 4
+	player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_morphine(4, 15, "Morphine"))
 	print("[CARD] Morphine! Gained 4 temp HP. Will lose it and take 2 damage in 15 tempo")
