@@ -12,6 +12,7 @@ extends Node3D
 @onready var vendor_item_list: VBoxContainer = $UI/VendorPanel/MarginContainer/VBox/ScrollContainer/ItemList
 @onready var town_label: Label = $UI/TownLabel
 @onready var fight_button: Button = $UI/FightButton
+@onready var back_button: Button = $UI/BackButton
 
 const INTERACT_DISTANCE: float = 2.5  # Max tiles from vendor to interact
 
@@ -64,6 +65,7 @@ func _ready() -> void:
 
 	vendor_close_button.pressed.connect(_close_vendor)
 	fight_button.pressed.connect(_go_to_battle)
+	back_button.pressed.connect(_on_back_pressed)
 
 	interact_prompt.text = ""
 	vendor_panel.visible = false
@@ -629,6 +631,13 @@ func _build_modal_slots(item: ItemData) -> String:
 		if kw_names.size() > 0:
 			lines.append("  Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(lines)
+
+func _on_back_pressed() -> void:
+	if vendor_open:
+		_close_vendor()
+	var title_scene = load("res://scenes/title_menu.tscn").instantiate()
+	get_tree().root.add_child(title_scene)
+	queue_free()
 
 func _close_vendor() -> void:
 	vendor_open = false
