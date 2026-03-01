@@ -17,6 +17,7 @@ var _menu_buttons: Array[Button] = []
 var _menu_items: Array[Dictionary] = [
 	{"text": "Single Player", "action": "_on_single_player"},
 	{"text": "Multiplayer", "action": "_on_multiplayer"},
+	{"text": "Compendium", "action": "_on_compendium"},
 	{"text": "Settings", "action": "_on_settings"},
 	{"text": "Help", "action": "_on_help"},
 	{"text": "Quit", "action": "_on_quit"},
@@ -137,13 +138,19 @@ func _on_multiplayer() -> void:
 	get_tree().root.add_child(select_scene)
 	queue_free()
 
+func _on_compendium() -> void:
+	var compendium_scene = load("res://scenes/compendium_page.tscn").instantiate()
+	get_tree().root.add_child(compendium_scene)
+	queue_free()
+
 func _on_settings() -> void:
 	# Placeholder - settings not yet implemented
 	print("[MENU] Settings selected (not yet implemented)")
 
 func _on_help() -> void:
-	# Placeholder - help not yet implemented
-	print("[MENU] Help selected (not yet implemented)")
+	var help_scene = load("res://scenes/help_page.tscn").instantiate()
+	get_tree().root.add_child(help_scene)
+	queue_free()
 
 func _on_quit() -> void:
 	get_tree().quit()
