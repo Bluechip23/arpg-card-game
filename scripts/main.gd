@@ -22,7 +22,6 @@ extends Node3D
 @onready var peaked_label: Label = $UI/PeakedLabel
 @onready var tempo_label: Label = $UI/TempoContainer/TempoLabel
 @onready var tempo_bar: ProgressBar = $UI/TempoContainer/TempoBar
-@onready var overflow_buttons: HBoxContainer = $UI/OverflowButtons
 @onready var player_health_label: Label = $UI/PlayerHealthLabel
 @onready var player_mana_label: Label = $UI/PlayerManaLabel
 @onready var player_armor_label: Label = $UI/PlayerArmorLabel
@@ -146,7 +145,6 @@ func _ready() -> void:
 	# Sphere inventory + grid connection
 	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
 
-	_setup_overflow_buttons()
 	_setup_action_buttons()
 	_setup_battle_log()
 
@@ -319,16 +317,6 @@ func _update_battlefield_enemy_hover() -> void:
 
 		_prev_battlefield_hover = closest
 
-func _setup_overflow_buttons() -> void:
-	var modes = ["Jailed", "Enhance", "Peak", "Transferred", "Overcharge", "Manifest"]
-	
-	for i in range(modes.size()):
-		var button = Button.new()
-		button.text = modes[i]
-		button.toggle_mode = true
-		button.button_pressed = (i == 0)
-		button.pressed.connect(_on_overflow_button_pressed.bind(i))
-		overflow_buttons.add_child(button)
 func _setup_hand_area_background() -> void:
 	var hand_area = $UI/HandArea as PanelContainer
 	var style = StyleBoxFlat.new()
@@ -1659,14 +1647,6 @@ func update_turn_display() -> void:
 			turn_manager.get_tempo_until_draw(),
 			player.get_stats().get_attacks_until_proc()
 		]
-
-func _on_overflow_button_pressed(mode_index: int) -> void:
-	for i in range(overflow_buttons.get_child_count()):
-		var button = overflow_buttons.get_child(i) as Button
-		button.button_pressed = (i == mode_index)
-	
-	deck_manager.set_overflow_mode(mode_index as DeckManager.OverflowMode)
-	update_peaked_display()
 
 func _on_hand_updated() -> void:
 	if hand_card_preview:
