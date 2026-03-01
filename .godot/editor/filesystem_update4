@@ -1,2 +1,3 @@
 res://main.tscn
 res://scripts/gameplay_walkthrough.gd
+res://scripts/main.gd

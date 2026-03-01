@@ -158,10 +158,10 @@ offset_bottom = 37.0
 text = "Mana: 10/10"
 
 [node name="PlayerArmorLabel" type="Label" parent="UI" unique_id=1122428204]
-offset_left = 172.0
-offset_top = 41.0
-offset_right = 212.0
-offset_bottom = 64.0
+offset_left = 385.0
+offset_top = 15.0
+offset_right = 425.0
+offset_bottom = 38.0
 
 [node name="PlayerXPLabel" type="Label" parent="UI" unique_id=2079740689]
 offset_left = 42.0
@@ -171,10 +171,10 @@ offset_bottom = 36.0
 text = "Lv 1 | XP: 0/10"
 
 [node name="TurnLabel" type="Label" parent="UI" unique_id=1944835916]
-offset_left = 302.0
-offset_top = 40.0
-offset_right = 451.0
-offset_bottom = 63.0
+offset_left = 502.0
+offset_top = 96.0
+offset_right = 651.0
+offset_bottom = 119.0
 text = "Turn: 0 | Draw in: 5"
 
 [node name="PlayerHealthLabel" type="Label" parent="UI" unique_id=16104265]
