@@ -124,6 +124,7 @@ func _setup_dropdowns() -> void:
 		card_dropdown.add_item("Dagger Throw")
 		card_dropdown.add_item("Gain Mana")
 		card_dropdown.add_item("Halo")
+		card_dropdown.add_item("Armored Discipline")
 	if has_node("Panel/VBox/BuffDropdown"):
 		var buff_dropdown = $Panel/VBox/BuffDropdown as OptionButton
 		buff_dropdown.clear()

@@ -12,6 +12,7 @@ signal stats_updated
 signal xp_changed(current_xp: int, xp_to_next: int)
 signal leveled_up(new_level: int)
 signal damage_taken(amount: int)
+signal health_damage_taken(amount: int)  # Emitted with the HP-only portion of damage (after armor absorbs)
 signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards should be discarded
 
 var character_data: CharacterData
@@ -431,10 +432,11 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 		var old_pct = get_health_percent()
 		current_health = max(0, current_health - remaining)
 		health_changed.emit(current_health, max_health)
-		
+		health_damage_taken.emit(remaining)
+
 		if _crossed_threshold(old_pct, get_health_percent()):
 			recalculate_derived_stats()
-	
+
 	# Emit damage_taken for reaction card triggers
 	damage_taken.emit(amount)
 

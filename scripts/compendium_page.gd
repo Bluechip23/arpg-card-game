@@ -170,6 +170,7 @@ func _build_all_cards() -> void:
 		Card.create_gulped_potion(),
 		# Power cards
 		Card.create_halo(),
+		Card.create_armored_discipline(),
 	]
 
 func _build_all_items() -> void:
@@ -549,6 +550,29 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 	desc_lbl.custom_minimum_size = Vector2(230, 0)
 	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
 	vbox.add_child(desc_lbl)
+
+	# Keyword tooltips
+	var keywords = card.get_matching_keywords()
+	if keywords.size() > 0:
+		var kw_sep = HSeparator.new()
+		vbox.add_child(kw_sep)
+
+		var kw_header = Label.new()
+		kw_header.text = "Keywords:"
+		kw_header.add_theme_font_size_override("font_size", 11)
+		kw_header.add_theme_color_override("font_color", Color(0.9, 0.8, 0.4))
+		vbox.add_child(kw_header)
+
+		for kw in keywords:
+			var kw_label = RichTextLabel.new()
+			kw_label.bbcode_enabled = true
+			kw_label.text = "[color=#cc88ff]%s[/color]: %s" % [kw["keyword"], kw["definition"]]
+			kw_label.fit_content = true
+			kw_label.scroll_active = false
+			kw_label.custom_minimum_size = Vector2(230, 0)
+			kw_label.add_theme_font_size_override("normal_font_size", 10)
+			kw_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			vbox.add_child(kw_label)
 
 	_show_hover_popup(entry)
 

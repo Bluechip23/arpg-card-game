@@ -204,6 +204,7 @@ func _create_card_from_id(card_id: String) -> Card:
 		"thrown_stone": return Card.create_thrown_stone()
 		# Power cards (Maintain)
 		"halo": return Card.create_halo()
+		"armored_discipline": return Card.create_armored_discipline()
 	return null
 
 func _create_card_from_data(card_data: Dictionary) -> Card:

@@ -825,6 +825,8 @@ func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
 		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		vbox.add_child(sticky_lbl)
 
+	_append_keyword_tooltips(vbox, card)
+
 	# Position preview to the left of the deck list panel, above the hand area
 	var entry_rect = entry.get_global_rect()
 	var preview_x = deck_list_panel.position.x - deck_list_card_preview.size.x - 10
@@ -951,6 +953,8 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 		sticky_lbl.add_theme_font_size_override("font_size", 12)
 		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		vbox.add_child(sticky_lbl)
+
+	_append_keyword_tooltips(vbox, card)
 
 	# Position popup above the hand area, centered on the hovered card
 	var hand_area = $UI/HandArea as PanelContainer
@@ -1103,6 +1107,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
+	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	
 	character_panel.connect_stats(player.get_stats(), player.get_inventory())
@@ -1489,6 +1494,8 @@ func _build_p2_card_preview_content(card: Card, preview: PanelContainer) -> void
 	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
 	vbox.add_child(desc_lbl)
 
+	_append_keyword_tooltips(vbox, card)
+
 func _position_p2_preview(preview: PanelContainer, panel: PanelContainer, entry: Button) -> void:
 	var entry_rect = entry.get_global_rect()
 	var preview_x = panel.position.x - preview.size.x - 10
@@ -1634,6 +1641,16 @@ func _on_maintained_cards_broken() -> void:
 	## Called when player's mana hits 0 - all maintained Power cards are discarded
 	deck_manager.break_all_maintained_cards()
 	print("[MAIN] All maintained cards broken due to mana depletion!")
+
+func _on_player_health_damage_taken(hp_amount: int) -> void:
+	## Process maintained card effects that trigger on HP damage
+	if hp_amount <= 0:
+		return
+	var stats = player.get_stats()
+	for card in deck_manager.get_maintained_cards():
+		if card.card_id == "armored_discipline":
+			stats.add_armor(hp_amount)
+			print("[MAIN] Armored Discipline: gained %d armor from %d HP damage!" % [hp_amount, hp_amount])
 
 func update_turn_display() -> void:
 	if turn_label:
@@ -1896,6 +1913,32 @@ func _process_maintained_card_effects() -> void:
 			heal_amount = stats.get_effective_heal_amount(heal_amount)
 		stats.heal(heal_amount)
 		print("[MAIN] Maintained cards healed for %d HP" % heal_amount)
+
+func _append_keyword_tooltips(parent: VBoxContainer, card: Card) -> void:
+	## Scan a card for keyword matches and append tooltip labels to the parent container.
+	var keywords = card.get_matching_keywords()
+	if keywords.size() == 0:
+		return
+
+	var sep = HSeparator.new()
+	parent.add_child(sep)
+
+	var header = Label.new()
+	header.text = "Keywords:"
+	header.add_theme_font_size_override("font_size", 11)
+	header.add_theme_color_override("font_color", Color(0.9, 0.8, 0.4))
+	parent.add_child(header)
+
+	for kw in keywords:
+		var kw_label = RichTextLabel.new()
+		kw_label.bbcode_enabled = true
+		kw_label.text = "[color=#cc88ff]%s[/color]: %s" % [kw["keyword"], kw["definition"]]
+		kw_label.fit_content = true
+		kw_label.scroll_active = false
+		kw_label.custom_minimum_size = Vector2(220, 0)
+		kw_label.add_theme_font_size_override("normal_font_size", 10)
+		kw_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		parent.add_child(kw_label)
 
 func _check_volatile_mixture_in_hand() -> void:
 	var stats = player.get_stats()
@@ -2605,6 +2648,7 @@ func _on_give_card(card_name: String) -> void:
 		"Dagger Throw": card = Card.create_dagger_throw()
 		"Gain Mana": card = Card.create_gain_mana()
 		"Halo": card = Card.create_halo()
+		"Armored Discipline": card = Card.create_armored_discipline()
 
 	if card:
 		deck_manager.hand.append(card)
