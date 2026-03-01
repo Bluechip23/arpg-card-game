@@ -52,6 +52,7 @@ func _build_legend() -> void:
 	_add_keyword("Vulnerable", "Take 30% more damage on next X attack(s), lose 1 stack per hit", Color(1.0, 0.3, 0.3))
 	_add_keyword("Exposed", "Remove 30% more armor when hit, lose 1 stack per hit", Color(0.9, 0.7, 0.5))
 	_add_keyword("Brittle", "Armor decays extra 2 per cycle, lose 1 stack per cycle", Color(0.7, 0.7, 0.6))
+	_add_keyword("Cold", "Stacking debuff. At 5 stacks, enemy becomes Frozen for 1 turn", Color(0.4, 0.7, 1.0))
 
 	# Buffs Section
 	_add_section_header("BUFFS")
@@ -113,6 +114,12 @@ func _build_legend() -> void:
 	_add_keyword("Utility", "Support cards for draw, healing, buffs, etc.", Color(0.3, 1, 0.3))
 	_add_keyword("Reaction", "Triggers automatically from hand when a condition is met (e.g., on damage taken). Costs 0 mana and 0 tempo", Color(1, 0.8, 0.2))
 	_add_keyword("Unplayable", "Cannot be played. Takes up a hand slot (e.g., Lightly Dazed)", Color(0.5, 0.5, 0.5))
+
+	# Card Keywords Section
+	_add_section_header("CARD KEYWORDS")
+	_add_keyword("Arrow", "Requires a bow/quiver to slot. Ranged bow attack cards (e.g., Down Town, Lead Arrow)", Color(0.3, 0.8, 0.9))
+	_add_keyword("Pocket", "Small items like daggers and potions. Slots into belts and similar equipment", Color(0.8, 0.6, 0.3))
+	_add_keyword("Gem", "Gem cards for special equipment. Not yet available", Color(0.6, 0.3, 0.9))
 
 	# Card Mechanics Section
 	_add_section_header("CARD MECHANICS")

@@ -21,6 +21,7 @@ var belt_slots: int = 1
 var boots_slots: int = 1
 var gauntlets_slots: int = 1
 var weapon_slots: int = 2
+var quiver_slots: int = 1
 
 # Special modifiers
 var chest_weight_reduction: float = 0.0  # Brad
@@ -42,6 +43,7 @@ var equipped_belts: Array[ItemData] = []
 var equipped_boots: Array[ItemData] = []
 var equipped_gauntlets: Array[ItemData] = []
 var equipped_weapons: Array[ItemData] = []
+var equipped_quivers: Array[ItemData] = []
 
 # Non-equipped item storage (grid inventory)
 var stored_items: Array[ItemData] = []
@@ -153,7 +155,8 @@ func _init_slot_arrays() -> void:
 	equipped_boots.clear()
 	equipped_gauntlets.clear()
 	equipped_weapons.clear()
-	
+	equipped_quivers.clear()
+
 	equipped_helms.resize(helm_slots)
 	equipped_chests.resize(chest_slots)
 	equipped_rings.resize(ring_slots)
@@ -161,6 +164,7 @@ func _init_slot_arrays() -> void:
 	equipped_boots.resize(boots_slots)
 	equipped_gauntlets.resize(gauntlets_slots)
 	equipped_weapons.resize(weapon_slots)
+	equipped_quivers.resize(quiver_slots)
 
 func connect_player_stats(stats) -> void:
 	player_stats = stats
@@ -257,6 +261,7 @@ func _get_slot_array(item_type: ItemData.ItemType) -> Array:
 		ItemData.ItemType.BOOTS: return equipped_boots
 		ItemData.ItemType.GAUNTLETS: return equipped_gauntlets
 		ItemData.ItemType.WEAPON: return equipped_weapons
+		ItemData.ItemType.QUIVER: return equipped_quivers
 	return []
 
 func _get_max_slots(item_type: ItemData.ItemType) -> int:
@@ -268,6 +273,7 @@ func _get_max_slots(item_type: ItemData.ItemType) -> int:
 		ItemData.ItemType.BOOTS: return boots_slots
 		ItemData.ItemType.GAUNTLETS: return gauntlets_slots
 		ItemData.ItemType.WEAPON: return weapon_slots
+		ItemData.ItemType.QUIVER: return quiver_slots
 	return 0
 
 func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = false) -> void:
@@ -300,7 +306,17 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	
 	# Hand size from item (direct bonus)
 	player_stats.hand_size += item.hand_size_bonus * multiplier
-	
+
+	# Ranged damage bonus (from quivers)
+	if item.ranged_damage_bonus > 0:
+		player_stats.ranged_damage_bonus += item.ranged_damage_bonus * multiplier
+		print("[INVENTORY] Ranged damage bonus now: +%d" % player_stats.ranged_damage_bonus)
+
+	# Healing bonus (from belts)
+	if item.healing_bonus > 0:
+		player_stats.healing_bonus += item.healing_bonus * multiplier
+		print("[INVENTORY] Healing bonus now: +%d" % player_stats.healing_bonus)
+
 	# Recalculate derived stats
 	player_stats.recalculate_derived_stats()
 	
@@ -354,6 +370,7 @@ func _create_card_by_id(card_id: String) -> Card:
 		"slash": return Card.create_slash()
 		"block": return Card.create_block()
 		"potion_of_continuance": return Card.create_potion_of_continuance()
+		"gulped_potion": return Card.create_gulped_potion()
 	return null
 
 func apply_starting_item_card_effects() -> void:
@@ -364,7 +381,7 @@ func apply_starting_item_card_effects() -> void:
 
 	var cards_added = false
 
-	for item_array in [equipped_belts, equipped_boots, equipped_helms, equipped_chests, equipped_rings, equipped_gauntlets, equipped_weapons]:
+	for item_array in [equipped_belts, equipped_boots, equipped_helms, equipped_chests, equipped_rings, equipped_gauntlets, equipped_weapons, equipped_quivers]:
 		for item in item_array:
 			if not item:
 				continue
@@ -483,7 +500,7 @@ func on_armor_gained(amount: int) -> void:
 	# Apply armor-on-armor-gain passives across all equipment slots
 	if not _applying_armor_instance_bonus and player_stats:
 		_applying_armor_instance_bonus = true
-		var all_slots = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons]
+		var all_slots = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons, equipped_quivers]
 		for slot in all_slots:
 			for item in slot:
 				if not item:
@@ -630,7 +647,10 @@ func get_total_weight() -> int:
 	
 	for item in equipped_weapons:
 		if item: total += item.weight
-	
+
+	for item in equipped_quivers:
+		if item: total += item.weight
+
 	return total
 
 func get_total_weapon_damage() -> int:
@@ -653,7 +673,8 @@ func get_slot_info() -> Dictionary:
 		"belt": {"max": belt_slots, "equipped": equipped_belts},
 		"boots": {"max": boots_slots, "equipped": equipped_boots},
 		"gauntlets": {"max": gauntlets_slots, "equipped": equipped_gauntlets},
-		"weapon": {"max": weapon_slots, "equipped": equipped_weapons}
+		"weapon": {"max": weapon_slots, "equipped": equipped_weapons},
+		"quiver": {"max": quiver_slots, "equipped": equipped_quivers}
 	}
 
 # ============================================
@@ -808,7 +829,8 @@ func _destroy_equipped_item(item: ItemData) -> void:
 		[equipped_belts, ItemData.ItemType.BELT],
 		[equipped_boots, ItemData.ItemType.BOOTS],
 		[equipped_gauntlets, ItemData.ItemType.GAUNTLETS],
-		[equipped_weapons, ItemData.ItemType.WEAPON]
+		[equipped_weapons, ItemData.ItemType.WEAPON],
+		[equipped_quivers, ItemData.ItemType.QUIVER]
 	]
 
 	for slot_info in all_slots:
@@ -830,7 +852,7 @@ func _destroy_equipped_item(item: ItemData) -> void:
 func get_all_items_with_card_slots() -> Array[ItemData]:
 	## Returns all equipped items that have card slots.
 	var result: Array[ItemData] = []
-	var all_arrays = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons]
+	var all_arrays = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons, equipped_quivers]
 	for slot_array in all_arrays:
 		for item in slot_array:
 			if item and item.has_card_slots():
@@ -840,7 +862,7 @@ func get_all_items_with_card_slots() -> Array[ItemData]:
 func get_all_slotted_cards() -> Array:
 	## Returns all cards currently slotted in any equipped item.
 	var result: Array = []
-	var all_arrays = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons]
+	var all_arrays = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons, equipped_quivers]
 	for slot_array in all_arrays:
 		for item in slot_array:
 			if item:

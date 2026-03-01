@@ -50,6 +50,17 @@ func apply_debuff(debuff: Debuff) -> void:
 
 		print("[DEBUFF] Applied: %s for %d tempo" % [debuff.debuff_name, debuff.duration])
 	
+	# Cold -> Frozen conversion: at 5 stacks, become Frozen for 1 turn
+	if debuff.debuff_type == Debuff.DebuffType.COLD:
+		var cold = get_debuff(Debuff.DebuffType.COLD)
+		if cold and cold.stacks >= 5:
+			remove_debuff(Debuff.DebuffType.COLD)
+			var frozen = Debuff.create(Debuff.DebuffType.FROZEN, 0, 5)
+			frozen.source_name = "Cold"
+			apply_debuff(frozen)
+			print("[DEBUFF] Cold reached 5 stacks! Enemy is now Frozen!")
+			return
+
 	debuff_applied.emit(debuff)
 	debuffs_changed.emit()
 

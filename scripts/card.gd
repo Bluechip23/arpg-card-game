@@ -4,6 +4,7 @@ extends Resource
 ## Card resource that holds card data
 
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE }
+enum CardKeyword { NONE, ARROW, POCKET, GEM }
 
 @export var card_id: String = "slash"
 @export var card_name: String = "Slash"
@@ -46,6 +47,7 @@ var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damag
 var has_on_draw: bool = false  # Card triggers an effect when drawn
 var on_draw_effect: String = ""  # Description of the on-draw effect
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
+var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
 
 # Card-item slot system
 enum SlotCompatibility { PICKY, PLIABLE }
@@ -210,6 +212,13 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if on_self_hl > 0:
 		heal_amount += on_self_hl
 		print("[CARD] On-Self: +%d heal from %s" % [on_self_hl, slotted_in_item.item_name])
+
+	# Apply ranged damage bonus from equipped items (quivers)
+	var _ranged_bonus_applied = 0
+	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.ranged_damage_bonus > 0:
+		_ranged_bonus_applied = player_stats.ranged_damage_bonus
+		bonus_damage += _ranged_bonus_applied
+		print("[CARD] Ranged bonus: +%d damage from equipment" % _ranged_bonus_applied)
 
 	# Wear Down: apply debuff BEFORE attack execution so the first hit stacks reduction
 	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
@@ -385,6 +394,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_spider_senses(player_stats)
 		"thrown_stone":
 			_execute_thrown_stone(target, player_stats, buff_mgr)
+		"gulped_potion":
+			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"lightly_dazed":
 			pass  # Unplayable card - no execute logic
 		_:
@@ -400,6 +411,32 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
 		target.set_armor_break_incoming(false)
 
+	# Apply on-self debuffs (burn/cold from quivers) to target after attack
+	if card_type == CardType.ATTACK and target and last_damage_dealt > 0:
+		var on_self_burn = on_self.get("apply_burn", 0)
+		var on_self_cold = on_self.get("apply_cold", 0)
+		var source_name = slotted_in_item.item_name if slotted_in_item else "Equipment"
+		if on_self_burn > 0:
+			if target.has_method("get_debuff_manager"):
+				var target_debuff_mgr = target.get_debuff_manager()
+				if target_debuff_mgr:
+					var burn = Debuff.create(Debuff.DebuffType.BURN, on_self_burn, 15)
+					burn.source_name = source_name
+					target_debuff_mgr.apply_debuff(burn)
+			elif target.has_method("apply_debuff"):
+				target.apply_debuff("burn", on_self_burn)
+			print("[CARD] On-Self: Applied %d Burn to target from %s" % [on_self_burn, source_name])
+		if on_self_cold > 0:
+			if target.has_method("get_debuff_manager"):
+				var target_debuff_mgr = target.get_debuff_manager()
+				if target_debuff_mgr:
+					var cold = Debuff.create(Debuff.DebuffType.COLD, 1, 30)
+					cold.source_name = source_name
+					target_debuff_mgr.apply_debuff(cold)
+			elif target.has_method("apply_debuff"):
+				target.apply_debuff("cold", on_self_cold)
+			print("[CARD] On-Self: Applied %d Cold to target from %s" % [on_self_cold, source_name])
+
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
 		bonus_damage -= on_self_dmg
@@ -407,6 +444,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		block -= on_self_blk
 	if on_self_hl > 0:
 		heal_amount -= on_self_hl
+
+	# Clean up ranged bonus
+	if _ranged_bonus_applied > 0:
+		bonus_damage -= _ranged_bonus_applied
 
 func _execute_gain_mana(player_stats: PlayerStats) -> void:
 	if player_stats:
@@ -715,13 +756,14 @@ static func create_healing_potion() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
-	card.tempo_cost = 1  
+	card.tempo_cost = 1
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 5
 	card.target_types = ["self"]
+	card.card_keyword = CardKeyword.POCKET
 	return card
 
 static func create_dagger_throw() -> Card:
@@ -732,7 +774,7 @@ static func create_dagger_throw() -> Card:
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 1
-	card.tempo_cost = 1  
+	card.tempo_cost = 1
 	card.damage = 5
 	card.base_damage = 5
 	card.block = 0
@@ -740,6 +782,7 @@ static func create_dagger_throw() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.heal_amount = 0
+	card.card_keyword = CardKeyword.POCKET
 	return card
 
 # ============================================
@@ -1501,6 +1544,9 @@ static func create_heroic_leap() -> Card:
 	card.damage = 12
 	card.base_damage = 12
 	card.target_types = ["point"]
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 1.5
 	return card
 
 static func create_morphine() -> Card:
@@ -1965,6 +2011,7 @@ static func create_quick_shot() -> Card:
 	card.base_damage = 6
 	card.is_ranged = true
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.ARROW
 	return card
 
 static func create_reload() -> Card:
@@ -2019,6 +2066,7 @@ static func create_down_town() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 7
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.ARROW
 	return card
 
 static func create_barricade() -> Card:
@@ -2048,6 +2096,7 @@ static func create_sky_fall() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 4
 	card.target_types = ["point"]
+	card.card_keyword = CardKeyword.ARROW
 	return card
 
 static func create_sky_attack() -> Card:
@@ -2063,6 +2112,7 @@ static func create_sky_attack() -> Card:
 	card.base_damage = 10
 	card.is_ranged = true
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.ARROW
 	return card
 
 static func create_lead_arrow() -> Card:
@@ -2079,6 +2129,7 @@ static func create_lead_arrow() -> Card:
 	card.is_ranged = true
 	card.requires_high_ground = true
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.ARROW
 	return card
 
 static func create_last_breath() -> Card:
@@ -2093,6 +2144,7 @@ static func create_last_breath() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 5
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.ARROW
 	return card
 
 static func create_mixed_bag() -> Card:
@@ -2109,6 +2161,7 @@ static func create_mixed_bag() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 3
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.ARROW
 	return card
 
 static func create_quick_arrow() -> Card:
@@ -2124,6 +2177,7 @@ static func create_quick_arrow() -> Card:
 	card.base_damage = 4
 	card.is_ranged = true
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.ARROW
 	return card
 
 static func create_bottomless_quiver() -> Card:
@@ -2343,6 +2397,25 @@ static func create_thrown_stone() -> Card:
 	card.target_types = ["enemy"]
 	card.has_on_draw = true
 	card.on_draw_effect = "deal_4_random_enemy"
+	return card
+
+static func create_gulped_potion() -> Card:
+	var card = Card.new()
+	card.card_id = "gulped_potion"
+	card.card_name = "Gulped Potion"
+	card.description = "Heal 1, 3 times. Targets: ally, self."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 1
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 1
+	card.sticky = 3
+	card.target_types = ["self", "ally"]
+	card.card_keyword = CardKeyword.POCKET
 	return card
 
 func _execute_spider_senses(player_stats: PlayerStats) -> void:

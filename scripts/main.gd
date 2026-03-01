@@ -198,7 +198,13 @@ func _process(_delta: float) -> void:
 	_update_battlefield_enemy_hover()
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
-		aoe_indicator.set_mouse_world_position(get_mouse_world_position())
+		var mouse_world = get_mouse_world_position()
+		aoe_indicator.set_mouse_world_position(mouse_world)
+		# Point-targeting AOE: move the indicator to follow the cursor
+		if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size():
+			var card = deck_manager.hand[selected_card_index]
+			if card.is_aoe and "point" in card.target_types and mouse_world != Vector3.ZERO:
+				aoe_indicator.position = grid_manager.snap_to_grid(mouse_world)
 
 func _update_hand_hover() -> void:
 	if _card_ui_instances.is_empty():
@@ -1595,7 +1601,12 @@ func select_card(index: int) -> void:
 	var card = deck_manager.hand[selected_card_index]
 	if card.is_aoe and aoe_indicator:
 		aoe_indicator.update_indicator(card.aoe_shape, card.aoe_range)
-		aoe_indicator.position = player.position
+		# Point-targeting AOE cards: position indicator at cursor instead of player
+		if "point" in card.target_types:
+			var mouse_pos = get_mouse_world_position()
+			aoe_indicator.position = grid_manager.snap_to_grid(mouse_pos) if mouse_pos != Vector3.ZERO else player.position
+		else:
+			aoe_indicator.position = player.position
 		aoe_indicator.show_indicator()
 
 		# Update enemy RNG indicators
