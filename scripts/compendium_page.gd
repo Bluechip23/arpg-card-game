@@ -298,6 +298,7 @@ func _build_cards_tab() -> void:
 	var cards_tab = tab_container.get_child(0)  # "Cards" tab
 
 	var vbox = VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cards_tab.add_child(vbox)
@@ -543,6 +544,7 @@ func _build_items_tab() -> void:
 	var items_tab = tab_container.get_child(1)  # "Items" tab
 
 	var vbox = VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	items_tab.add_child(vbox)
@@ -817,6 +819,7 @@ func _build_enemies_tab() -> void:
 	var enemies_tab = tab_container.get_child(2)  # "Enemies" tab
 
 	var vbox = VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	enemies_tab.add_child(vbox)
