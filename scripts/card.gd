@@ -3,7 +3,7 @@ extends Resource
 
 ## Card resource that holds card data
 
-enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE }
+enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER }
 enum CardKeyword { NONE, ARROW, POCKET, GEM }
 
 @export var card_id: String = "slash"
@@ -46,6 +46,7 @@ var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
 var has_on_draw: bool = false  # Card triggers an effect when drawn
 var on_draw_effect: String = ""  # Description of the on-draw effect
+var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
 
@@ -398,6 +399,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"lightly_dazed":
 			pass  # Unplayable card - no execute logic
+		# === Power Cards (Maintain) ===
+		"halo":
+			_execute_halo(player_stats, buff_mgr)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -2436,3 +2440,34 @@ func _execute_thrown_stone(target, player_stats: PlayerStats, buff_mgr: BuffMana
 		target.take_damage(total_damage, true)
 		last_damage_dealt = total_damage
 		print("[CARD] Thrown Stone dealt %d damage!" % total_damage)
+
+# ============================================
+# POWER CARDS (Maintain keyword)
+# ============================================
+
+static func create_halo() -> Card:
+	var card = Card.new()
+	card.card_id = "halo"
+	card.card_name = "Halo"
+	card.description = "Maintain 3M: Every cycle, heal all allies in AOE for 3 HP"
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 3  # Initial cast cost
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 3
+	card.maintain_cost = 3  # 3 mana reserved from max while active
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 3.0
+	card.target_types = ["self"]
+	return card
+
+func _execute_halo(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Halo's heal-per-cycle effect is handled by the maintain system in DeckManager.
+	# On play, we just log activation. The maintained_cards processing does the healing.
+	if player_stats:
+		print("[CARD] Halo activated! Reserving %d mana. Heals allies in AOE each cycle." % maintain_cost)

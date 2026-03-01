@@ -12,6 +12,8 @@ signal card_peaked(card: Card)
 signal overflow_triggered(mode: String, card: Card)
 signal on_draw_triggered(card: Card)
 signal reaction_triggered(card: Card)
+signal maintained_card_activated(card: Card)
+signal maintained_cards_cleared
 
 enum OverflowMode { JAILED, ENHANCE, PEAK, TRANSFERRED, OVERCHARGE, MANIFEST }
 
@@ -19,6 +21,7 @@ var draw_pile: Array[Card] = []
 var hand: Array[Card] = []
 var discard_pile: Array[Card] = []
 var jail_pile: Array[Card] = []
+var maintained_cards: Array[Card] = []  # Active Power cards reserving mana
 
 var player_stats = null  # PlayerStats - untyped to avoid circular dependency
 var inventory = null  # Inventory - untyped to avoid circular dependency
@@ -51,6 +54,7 @@ func initialize_deck(character: CharacterData) -> void:
 	hand.clear()
 	discard_pile.clear()
 	jail_pile.clear()
+	maintained_cards.clear()
 	peaked_card = null
 	
 	# Create default starter deck based on character
@@ -198,6 +202,8 @@ func _create_card_from_id(card_id: String) -> Card:
 		"spider_senses": return Card.create_spider_senses()
 		"lightly_dazed": return Card.create_lightly_dazed()
 		"thrown_stone": return Card.create_thrown_stone()
+		# Power cards (Maintain)
+		"halo": return Card.create_halo()
 	return null
 
 func _create_card_from_data(card_data: Dictionary) -> Card:
@@ -310,7 +316,7 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 			print("[DECK] Cannot play attack cards - Disarmed!")
 			return { "played": false, "free_turn": false }
 		
-		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+		if (card.card_type == Card.CardType.UTILITY or card.card_type == Card.CardType.POWER) and card.mana_cost > 0:
 			if not debuff_mgr.can_play_spell_cards():
 				print("[DECK] Cannot play spell cards - Silenced!")
 				return { "played": false, "free_turn": false }
@@ -394,8 +400,15 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 	if inventory:
 		inventory.on_card_played(card)
 
+	# Power cards with maintain go to the maintained pile instead of discard
+	if card.card_type == Card.CardType.POWER and card.maintain_cost > 0:
+		maintained_cards.append(card)
+		if player_stats:
+			player_stats.reserve_mana(card.maintain_cost)
+		maintained_card_activated.emit(card)
+		print("[DECK] %s maintained! Reserving %dM. Active maintains: %d" % [card.card_name, card.maintain_cost, maintained_cards.size()])
 	# Sticky cards stay in hand until played enough times
-	if card.sticky > 0:
+	elif card.sticky > 0:
 		card.consecutive_uses += 1
 		if card.consecutive_uses >= card.sticky:
 			# Fully used up - discard
@@ -529,4 +542,59 @@ func remove_card_from_all_piles(card: Card) -> bool:
 			print("[DECK] Removed '%s' from jail for enchanting" % card.card_name)
 			return true
 
+	for i in range(maintained_cards.size() - 1, -1, -1):
+		if maintained_cards[i] == card:
+			maintained_cards.remove_at(i)
+			if player_stats:
+				player_stats.release_mana(card.maintain_cost)
+			print("[DECK] Removed '%s' from maintained cards for enchanting" % card.card_name)
+			return true
+
 	return false
+
+# ============================================
+# MAINTAINED CARDS (Power / Maintain keyword)
+# ============================================
+
+func get_maintained_cards() -> Array[Card]:
+	return maintained_cards
+
+func get_maintained_card_count() -> int:
+	return maintained_cards.size()
+
+func process_maintained_cards() -> Dictionary:
+	## Called each tempo cycle. Processes ongoing effects from maintained Power cards.
+	## Returns a summary of effects applied.
+	var result = {"heals": 0, "total_heal": 0}
+	for card in maintained_cards:
+		match card.card_id:
+			"halo":
+				result["heals"] += 1
+				result["total_heal"] += card.heal_amount
+	return result
+
+func break_all_maintained_cards() -> void:
+	## Discard all maintained cards and release all reserved mana.
+	## Called when player's mana drops to 0.
+	if maintained_cards.size() == 0:
+		return
+	print("[DECK] === ALL MAINTAINED CARDS BROKEN ===")
+	for card in maintained_cards:
+		discard_pile.append(card)
+		card_discarded.emit(card)
+		print("[DECK] Maintained card discarded: %s (released %dM)" % [card.card_name, card.maintain_cost])
+	maintained_cards.clear()
+	# Note: PlayerStats already reset maintained_mana to 0 when it emitted the signal
+	maintained_cards_cleared.emit()
+
+func dismiss_maintained_card(index: int) -> void:
+	## Player voluntarily dismisses a maintained card to free up mana.
+	if index < 0 or index >= maintained_cards.size():
+		return
+	var card = maintained_cards[index]
+	maintained_cards.remove_at(index)
+	discard_pile.append(card)
+	card_discarded.emit(card)
+	if player_stats:
+		player_stats.release_mana(card.maintain_cost)
+	print("[DECK] Dismissed maintained card: %s (freed %dM)" % [card.card_name, card.maintain_cost])

@@ -168,6 +168,8 @@ func _build_all_cards() -> void:
 		Card.create_thrown_stone(),
 		Card.create_lightly_dazed(),
 		Card.create_gulped_potion(),
+		# Power cards
+		Card.create_halo(),
 	]
 
 func _build_all_items() -> void:
@@ -329,11 +331,12 @@ func _populate_cards(filter: String) -> void:
 
 	# Group cards by type
 	var type_groups: Dictionary = {}
-	var type_order = [Card.CardType.ATTACK, Card.CardType.DEFENSE, Card.CardType.UTILITY, Card.CardType.REACTION, Card.CardType.UNPLAYABLE]
+	var type_order = [Card.CardType.ATTACK, Card.CardType.DEFENSE, Card.CardType.UTILITY, Card.CardType.POWER, Card.CardType.REACTION, Card.CardType.UNPLAYABLE]
 	var type_names = {
 		Card.CardType.ATTACK: "Attack",
 		Card.CardType.DEFENSE: "Defense",
 		Card.CardType.UTILITY: "Utility",
+		Card.CardType.POWER: "Power",
 		Card.CardType.REACTION: "Reaction",
 		Card.CardType.UNPLAYABLE: "Unplayable",
 	}
@@ -341,6 +344,7 @@ func _populate_cards(filter: String) -> void:
 		Card.CardType.ATTACK: Color(1, 0.3, 0.3),
 		Card.CardType.DEFENSE: Color(0.3, 0.5, 1),
 		Card.CardType.UTILITY: Color(0.3, 1, 0.3),
+		Card.CardType.POWER: Color(0.8, 0.5, 1.0),
 		Card.CardType.REACTION: Color(1, 0.8, 0.2),
 		Card.CardType.UNPLAYABLE: Color(0.5, 0.5, 0.5),
 	}
@@ -461,6 +465,8 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
 		Card.CardType.UTILITY:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+		Card.CardType.POWER:
+			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 		Card.CardType.REACTION:
 			type_lbl.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
 		Card.CardType.UNPLAYABLE:
@@ -468,7 +474,10 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 	vbox.add_child(type_lbl)
 
 	var cost_lbl = Label.new()
-	cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+	if card.maintain_cost > 0:
+		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
+	else:
+		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
 	cost_lbl.add_theme_font_size_override("font_size", 13)
 	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	vbox.add_child(cost_lbl)
@@ -521,6 +530,13 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 		od_lbl.add_theme_font_size_override("font_size", 12)
 		od_lbl.add_theme_color_override("font_color", Color(0.5, 0.9, 0.5))
 		vbox.add_child(od_lbl)
+
+	if card.maintain_cost > 0:
+		var maintain_lbl = Label.new()
+		maintain_lbl.text = "Maintain: %dM" % card.maintain_cost
+		maintain_lbl.add_theme_font_size_override("font_size", 12)
+		maintain_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+		vbox.add_child(maintain_lbl)
 
 	var sep = HSeparator.new()
 	vbox.add_child(sep)

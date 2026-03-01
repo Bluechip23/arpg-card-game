@@ -780,10 +780,15 @@ func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
 		Card.CardType.UTILITY:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+		Card.CardType.POWER:
+			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 	vbox.add_child(type_lbl)
 
 	var cost_lbl = Label.new()
-	cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+	if card.maintain_cost > 0:
+		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
+	else:
+		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
 	cost_lbl.add_theme_font_size_override("font_size", 12)
 	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	vbox.add_child(cost_lbl)
@@ -894,11 +899,16 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
 		Card.CardType.UTILITY:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+		Card.CardType.POWER:
+			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 	vbox.add_child(type_lbl)
 
 	# Cost
 	var cost_lbl = Label.new()
-	cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+	if card.maintain_cost > 0:
+		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
+	else:
+		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
 	cost_lbl.add_theme_font_size_override("font_size", 12)
 	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	vbox.add_child(cost_lbl)
@@ -1092,6 +1102,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
+	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	
 	character_panel.connect_stats(player.get_stats(), player.get_inventory())
@@ -1440,10 +1451,15 @@ func _build_p2_card_preview_content(card: Card, preview: PanelContainer) -> void
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
 		Card.CardType.UTILITY:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+		Card.CardType.POWER:
+			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 	vbox.add_child(type_lbl)
 
 	var cost_lbl = Label.new()
-	cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+	if card.maintain_cost > 0:
+		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
+	else:
+		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
 	cost_lbl.add_theme_font_size_override("font_size", 12)
 	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	vbox.add_child(cost_lbl)
@@ -1595,7 +1611,11 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 
 func _on_player_mana_changed(current: float, max_mana: int) -> void:
 	if player_mana_label:
-		player_mana_label.text = "Mana: %d / %d" % [int(current), max_mana]
+		var stats = player.get_stats()
+		if stats and stats.maintained_mana > 0:
+			player_mana_label.text = "Mana: %d / %d (%dM reserved)" % [int(current), max_mana, stats.maintained_mana]
+		else:
+			player_mana_label.text = "Mana: %d / %d" % [int(current), max_mana]
 
 func _on_player_armor_changed(current: int) -> void:
 	if player_armor_label:
@@ -1609,6 +1629,11 @@ func _update_xp_display() -> void:
 func _on_dexterity_proc() -> void:
 	print("[MAIN] Dexterity proc! Next attack is free + 2 mana discount!")
 	deck_manager.apply_dex_proc_bonus()
+
+func _on_maintained_cards_broken() -> void:
+	## Called when player's mana hits 0 - all maintained Power cards are discarded
+	deck_manager.break_all_maintained_cards()
+	print("[MAIN] All maintained cards broken due to mana depletion!")
 
 func update_turn_display() -> void:
 	if turn_label:
@@ -1820,6 +1845,9 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		var debuff_mgr = player.get_debuff_manager()
 		var buff_mgr = player.get_buff_manager()
 
+		# Maintained Power card effects (Halo healing, etc.)
+		_process_maintained_card_effects()
+
 		# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
 		if buff_mgr:
 			var buff_result = buff_mgr.process_turn_start()
@@ -1858,6 +1886,17 @@ func _on_tempo_threshold_reached(times: int) -> void:
 
 	if was_moving:
 		player.resume_movement()
+func _process_maintained_card_effects() -> void:
+	## Process ongoing effects from maintained Power cards each tempo cycle.
+	var maintained_result = deck_manager.process_maintained_cards()
+	var stats = player.get_stats()
+	if maintained_result["total_heal"] > 0 and stats:
+		var heal_amount = maintained_result["total_heal"]
+		if stats:
+			heal_amount = stats.get_effective_heal_amount(heal_amount)
+		stats.heal(heal_amount)
+		print("[MAIN] Maintained cards healed for %d HP" % heal_amount)
+
 func _check_volatile_mixture_in_hand() -> void:
 	var stats = player.get_stats()
 	for i in range(deck_manager.hand.size() - 1, -1, -1):
@@ -1944,7 +1983,10 @@ func update_deck_info() -> void:
 	if discard_label:
 		discard_label.text = "Discard: %d" % deck_manager.get_discard_pile_size()
 	if jail_label:
-		jail_label.text = "Jail: %d" % deck_manager.get_jail_pile_size()
+		var jail_text = "Jail: %d" % deck_manager.get_jail_pile_size()
+		if deck_manager.get_maintained_card_count() > 0:
+			jail_text += " | Maintained: %d" % deck_manager.get_maintained_card_count()
+		jail_label.text = jail_text
 
 func update_selected_display() -> void:
 	if selected_label:
@@ -2562,7 +2604,8 @@ func _on_give_card(card_name: String) -> void:
 		"Healing Potion": card = Card.create_healing_potion()
 		"Dagger Throw": card = Card.create_dagger_throw()
 		"Gain Mana": card = Card.create_gain_mana()
-	
+		"Halo": card = Card.create_halo()
+
 	if card:
 		deck_manager.hand.append(card)
 		deck_manager.hand_updated.emit()
