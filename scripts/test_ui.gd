@@ -44,6 +44,10 @@ func _setup_buttons() -> void:
 		toggle_button.pressed.connect(_on_toggle_pressed)
 	if has_node("Panel/VBox/ApplyDebuffButton"):
 		$Panel/VBox/ApplyDebuffButton.pressed.connect(_on_apply_debuff_pressed)
+	if has_node("Panel/VBox/ApplyOverflowButton"):
+		$Panel/VBox/ApplyOverflowButton.pressed.connect(_on_apply_overflow_pressed)
+	if has_node("Panel/VBox/ApplyBuffButton"):
+		$Panel/VBox/ApplyBuffButton.pressed.connect(_on_apply_buff_pressed)
 func _on_apply_debuff_pressed() -> void:
 	if has_node("Panel/VBox/DebuffDropdown"):
 		var dropdown = $Panel/VBox/DebuffDropdown as OptionButton
