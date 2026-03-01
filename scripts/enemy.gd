@@ -34,6 +34,7 @@ var is_dead: bool = false
 
 var grid_manager: GridManager
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
+var pillar_tiles: Array[Vector2i] = []   # Set by main.gd for rise pillars (traps enemy on top)
 
 # Armor Break: set by card.execute() before attack, cleared after
 var armor_break_incoming: bool = false
@@ -608,13 +609,34 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
 ## Dash multiple tiles toward a position in one action.
+## Stops at any barricade tile encountered along the path.
 func _dash_towards_target(pos: Vector3, tiles: int) -> void:
+	# Enemies trapped on a rise pillar cannot dash
+	if grid_manager:
+		var current_cell = grid_manager.world_to_grid(position)
+		if current_cell in pillar_tiles:
+			print("[%s] Trapped on pillar - cannot dash!" % enemy_name)
+			return
+
 	var diff = pos - position
 	var direction = Vector3(diff.x, 0, diff.z).normalized()
-	var new_target = position + direction * (tiles * 1.0)
 	if grid_manager:
-		new_target = grid_manager.snap_to_grid(new_target)
-	target_position = new_target
+		# Step tile by tile and stop before any blocked tile
+		var last_valid = position
+		for i in range(1, tiles + 1):
+			var step_pos = position + direction * (i * 1.0)
+			step_pos = grid_manager.snap_to_grid(step_pos)
+			var step_cell = grid_manager.world_to_grid(step_pos)
+			if step_cell in blocked_tiles:
+				print("[%s] Dash blocked by barricade at tile %d!" % [enemy_name, i])
+				break
+			last_valid = step_pos
+		if last_valid == position:
+			return  # Can't move at all
+		target_position = last_valid
+	else:
+		var new_target = position + direction * (tiles * 1.0)
+		target_position = new_target
 	is_moving = true
 
 ## Armored Troll passive: heal HP with green flash.
@@ -700,6 +722,13 @@ func set_target(new_target: Node3D) -> void:
 	target = new_target
 
 func move_towards_target(pos: Vector3) -> void:
+	# Enemies trapped on a rise pillar cannot move until it expires
+	if grid_manager:
+		var current_cell = grid_manager.world_to_grid(position)
+		if current_cell in pillar_tiles:
+			print("[%s] Trapped on pillar - cannot move!" % enemy_name)
+			return
+
 	var diff = pos - position
 	var direction = Vector3(diff.x, 0, diff.z).normalized()
 	var effective_move = move_distance
