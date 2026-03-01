@@ -50,6 +50,10 @@ var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
 var marked_tempo: int = 0      # Remaining tempo for mark
+var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen
+var is_frozen: bool = false    # Cannot act when frozen
+var frozen_tempo: int = 0      # Remaining tempo for frozen
+var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
 
 # ============================================
 # TEMPO ACTION SYSTEM
@@ -862,6 +866,17 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			print("[%s] Silenced for %d tempo cycles" % [enemy_name, value])
 		"choke_dot":
 			print("[%s] Choke DoT for %d tempo cycles" % [enemy_name, value])
+		"burn":
+			burn_stacks += value
+			print("[%s] Burning! Stacks: %d" % [enemy_name, burn_stacks])
+		"cold":
+			cold_stacks += value
+			print("[%s] Cold applied! Stacks: %d/5" % [enemy_name, cold_stacks])
+			if cold_stacks >= 5:
+				cold_stacks = 0
+				is_frozen = true
+				frozen_tempo = 5  # Frozen for 1 turn (5 tempo)
+				print("[%s] FROZEN! Cold reached 5 stacks!" % enemy_name)
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	_update_status_indicators()

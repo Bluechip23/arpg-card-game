@@ -28,7 +28,8 @@ enum DebuffType {
 	VULNERABLE,
 	LINKED,
 	BRITTLE,
-	EXPOSED
+	EXPOSED,
+	COLD
 }
 
 var debuff_type: DebuffType
@@ -124,6 +125,9 @@ func _set_name_and_description() -> void:
 		DebuffType.BRITTLE:
 			debuff_name = "Brittle"
 			description = "Armor decays extra 2 per cycle, %d stack(s)" % value
+		DebuffType.COLD:
+			debuff_name = "Cold"
+			description = "At 5 stacks, become Frozen for 1 turn. Current: %d stack(s)" % value
 
 func tick() -> bool:
 	# Called each cycle (5 tempo). Returns true if debuff expired.
@@ -159,6 +163,7 @@ func get_icon_color() -> Color:
 		DebuffType.VULNERABLE: return Color(1.0, 0.3, 0.3)
 		DebuffType.EXPOSED: return Color(0.9, 0.7, 0.5)
 		DebuffType.BRITTLE: return Color(0.7, 0.7, 0.6)
+		DebuffType.COLD: return Color(0.4, 0.7, 1.0)
 	return Color.WHITE
 
 func get_short_display() -> String:

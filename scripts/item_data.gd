@@ -3,7 +3,7 @@ extends Resource
 
 ## Defines an item's properties
 
-enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON }
+enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON, QUIVER }
 enum WeaponHand { ONE_HAND, TWO_HAND }
 enum SpecialEffect {
 	NONE,
@@ -101,12 +101,21 @@ enum GauntletSkillType {
 # Card slot system
 @export var card_slots: int = 0  # Number of card slots this item has
 var slotted_cards: Array = []  # Cards currently in the slots
+var allowed_card_keywords: Array = []  # Empty = any card allowed. e.g. [Card.CardKeyword.ARROW] = only arrow cards
 
 # On-self bonuses (extra bonuses applied to cards slotted in this item)
 @export var on_self_damage: int = 0
 @export var on_self_block: int = 0
 @export var on_self_heal: int = 0
 @export var on_self_mana_reduction: int = 0
+
+# On-self debuff application (for quivers, etc.)
+@export var on_self_apply_burn: int = 0  # Apply X burn stacks on hit
+@export var on_self_apply_cold: int = 0  # Apply X cold stacks on hit
+
+# Passive bonuses
+@export var ranged_damage_bonus: int = 0  # +X damage to all ranged attacks
+@export var healing_bonus: int = 0  # +X to all healing effects
 
 # Runtime tracking
 var current_cooldown: int = 0  # Current cooldown remaining
@@ -123,6 +132,7 @@ func get_type_name() -> String:
 		ItemType.BOOTS: return "Boots"
 		ItemType.GAUNTLETS: return "Gauntlets"
 		ItemType.WEAPON: return "Weapon"
+		ItemType.QUIVER: return "Quiver"
 	return "Unknown"
 
 func get_ring_trigger_name() -> String:
@@ -205,6 +215,9 @@ func can_slot_card(card) -> bool:
 	if card.slot_compatibility == 0 and card.source_item_type >= 0:  # PICKY = 0
 		if card.source_item_type != item_type:
 			return false
+	# Check card keyword compatibility (Arrow, Pocket, Gem restrictions)
+	if allowed_card_keywords.size() > 0 and card.card_keyword not in allowed_card_keywords:
+		return false
 	return true
 
 func slot_card(card) -> bool:
@@ -235,7 +248,9 @@ func get_on_self_bonus() -> Dictionary:
 		"damage": on_self_damage,
 		"block": on_self_block,
 		"heal": on_self_heal,
-		"mana_reduction": on_self_mana_reduction
+		"mana_reduction": on_self_mana_reduction,
+		"apply_burn": on_self_apply_burn,
+		"apply_cold": on_self_apply_cold
 	}
 
 func get_card_slot_summary() -> String:
@@ -254,6 +269,19 @@ func get_card_slot_summary() -> String:
 		parts.append("On-Self: +%d heal" % on_self_heal)
 	if on_self_mana_reduction > 0:
 		parts.append("On-Self: -%d mana cost" % on_self_mana_reduction)
+	if on_self_apply_burn > 0:
+		parts.append("On-Self: Apply %d Burn on hit" % on_self_apply_burn)
+	if on_self_apply_cold > 0:
+		parts.append("On-Self: Apply %d Cold on hit" % on_self_apply_cold)
+	if allowed_card_keywords.size() > 0:
+		var kw_names: Array[String] = []
+		for kw in allowed_card_keywords:
+			match kw:
+				1: kw_names.append("Arrow")  # Card.CardKeyword.ARROW
+				2: kw_names.append("Pocket")  # Card.CardKeyword.POCKET
+				3: kw_names.append("Gem")  # Card.CardKeyword.GEM
+		if kw_names.size() > 0:
+			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(parts)
 
 # ============================================
@@ -558,4 +586,53 @@ static func create_utility_belt() -> ItemData:
 	item.special_effect = SpecialEffect.GRANT_CARDS
 	item.granted_card_ids.assign(["dagger_throw", "potion_of_continuance"])
 	item.description = "+1 Wisdom. Grants Dagger Throw & Potion of Continuance"
+	return item
+
+# ============================================
+# QUIVERS
+# ============================================
+
+static func create_ice_quiver() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Ice Quiver"
+	item.item_type = ItemType.QUIVER
+	item.item_type_name = "Quiver"
+	item.weight = 2
+	item.ranged_damage_bonus = 1
+	item.on_self_apply_cold = 1
+	item.card_slots = 3
+	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
+	item.description = "All ranged attacks gain +1 damage. On-Self (Arrow): Apply 1 Cold on hit. 3 Arrow card slots."
+	return item
+
+static func create_fire_quiver() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Fire Quiver"
+	item.item_type = ItemType.QUIVER
+	item.item_type_name = "Quiver"
+	item.weight = 2
+	item.ranged_damage_bonus = 2
+	item.on_self_apply_burn = 1
+	item.card_slots = 1
+	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
+	item.description = "All ranged attacks gain +2 damage. On-Self (Arrow): Apply 1 Burn on hit. 1 Arrow card slot."
+	return item
+
+# ============================================
+# SPECIAL BELTS
+# ============================================
+
+static func create_belt_of_greater_healing() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Belt of Greater Healing"
+	item.item_type = ItemType.BELT
+	item.item_type_name = "Belt"
+	item.weight = 2
+	item.healing_bonus = 2
+	item.on_self_heal = 1
+	item.special_effect = SpecialEffect.GRANT_CARDS
+	item.granted_card_ids.assign(["gulped_potion"])
+	item.card_slots = 2
+	item.allowed_card_keywords = [Card.CardKeyword.POCKET]
+	item.description = "All healing effects get +2. Grants Gulped Potion. On-Self: Heal 1 to all allies. 2 Pocket card slots."
 	return item

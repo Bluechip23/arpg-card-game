@@ -64,6 +64,8 @@ var empower_block_reduction: int = 3
 var chance_boost: float = 0.0
 var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
 var healing_boost_tempo: int = 0
+var ranged_damage_bonus: int = 0  # Flat bonus to all ranged attacks (from quivers, etc.)
+var healing_bonus: int = 0  # Flat bonus to all healing effects (from belts, etc.)
 var inventory = null  # Inventory - untyped to avoid circular dependency
 
 # ============================================
@@ -330,13 +332,17 @@ func get_effective_physical_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus()
 	return max(1, damage)
 
+func get_effective_ranged_damage(base_damage: int) -> int:
+	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus
+	return max(1, damage)
+
 func get_effective_spell_damage(base_damage: int) -> int:
 	# INT: +1 damage per point (flat)
 	return max(1, base_damage + get_intelligence_spell_bonus())
 
 func get_effective_heal_amount(base_heal: int) -> int:
-	# INT also boosts healing (flat)
-	var amount = base_heal + get_intelligence_spell_bonus()
+	# INT also boosts healing (flat) + flat healing_bonus from equipment
+	var amount = base_heal + get_intelligence_spell_bonus() + healing_bonus
 	if healing_boost_percent > 0.0:
 		amount = floori(amount * (1.0 + healing_boost_percent))
 	return amount

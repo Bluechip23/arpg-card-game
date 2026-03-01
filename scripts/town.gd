@@ -194,6 +194,32 @@ func _get_mouse_world_position() -> Vector3:
 
 	return ray_origin + ray_dir * t
 
+func _get_vendor_items(vendor_type: String) -> Array[ItemData]:
+	var items: Array[ItemData] = []
+	match vendor_type:
+		"armory":
+			items.append(ItemData.create_iron_sword())
+			items.append(ItemData.create_heavy_greatsword())
+			items.append(ItemData.create_flame_dagger())
+			items.append(ItemData.create_frost_orb())
+			items.append(ItemData.create_wooden_shield())
+			items.append(ItemData.create_iron_helm())
+			items.append(ItemData.create_leather_chest())
+			items.append(ItemData.create_iron_gauntlets())
+			items.append(ItemData.create_berserker_gauntlets())
+			items.append(ItemData.create_guardian_gauntlets())
+		"accessory":
+			items.append(ItemData.create_ice_quiver())
+			items.append(ItemData.create_fire_quiver())
+			items.append(ItemData.create_belt_of_greater_healing())
+			items.append(ItemData.create_utility_belt())
+			items.append(ItemData.create_leather_boots())
+			items.append(ItemData.create_gold_ring())
+			items.append(ItemData.create_ring_of_vengeance())
+			items.append(ItemData.create_ring_of_fortitude())
+			items.append(ItemData.create_ring_of_the_scholar())
+	return items
+
 func _open_vendor(vendor_node: StaticBody3D) -> void:
 	var info = vendor_info.get(vendor_node.name, null)
 	if not info:
@@ -201,15 +227,51 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 
 	vendor_open = true
 	vendor_name_label.text = info["name"]
-	vendor_inventory_label.text = info["description"] + "\n\nInventory is empty."
 
 	# Clear old items from list
 	for child in vendor_item_list.get_children():
 		child.queue_free()
 
+	# Populate vendor inventory
+	var shop_items = _get_vendor_items(info["type"])
+	if shop_items.is_empty():
+		vendor_inventory_label.text = info["description"] + "\n\nInventory is empty."
+	else:
+		vendor_inventory_label.text = info["description"]
+		for item in shop_items:
+			_add_vendor_item_row(item)
+
 	vendor_panel.visible = true
 	interact_prompt.text = ""
-	print("[TOWN] Opened vendor: %s" % info["name"])
+	print("[TOWN] Opened vendor: %s (%d items)" % [info["name"], shop_items.size()])
+
+func _add_vendor_item_row(item: ItemData) -> void:
+	var hbox = HBoxContainer.new()
+	hbox.custom_minimum_size.y = 36
+
+	var name_label = Label.new()
+	name_label.text = item.item_name
+	name_label.add_theme_font_size_override("font_size", 14)
+	name_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	name_label.custom_minimum_size.x = 180
+	hbox.add_child(name_label)
+
+	var type_label = Label.new()
+	type_label.text = "[%s]" % item.get_type_name()
+	type_label.add_theme_font_size_override("font_size", 12)
+	type_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	type_label.custom_minimum_size.x = 80
+	hbox.add_child(type_label)
+
+	var desc_label = Label.new()
+	desc_label.text = item.description
+	desc_label.add_theme_font_size_override("font_size", 11)
+	desc_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(desc_label)
+
+	vendor_item_list.add_child(hbox)
 
 func _close_vendor() -> void:
 	vendor_open = false
