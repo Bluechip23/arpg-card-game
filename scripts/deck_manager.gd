@@ -601,6 +601,7 @@ func process_maintained_cards() -> Dictionary:
 	## Called each tempo cycle. Processes ongoing effects from maintained Power cards.
 	## Returns a summary of effects applied.
 	var result = {"heals": 0, "total_heal": 0, "fountain_self_damage": 0, "fountain_draws": 0}
+	var result = {"heals": 0, "total_heal": 0, "self_damage": 0}
 	for card in maintained_cards:
 		match card.card_id:
 			"halo":
@@ -609,6 +610,8 @@ func process_maintained_cards() -> Dictionary:
 			"fountain_of_life":
 				result["fountain_self_damage"] += card.damage
 				result["fountain_draws"] += 1
+			"cultish_wounds":
+				result["self_damage"] += 1
 	return result
 
 func break_all_maintained_cards() -> void:
