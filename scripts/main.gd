@@ -1097,7 +1097,8 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
-	
+	deck_manager.card_erased.connect(_on_card_erased)
+
 	character_panel.connect_stats(player.get_stats(), player.get_inventory())
 
 
@@ -1894,6 +1895,17 @@ func _process_maintained_card_effects() -> void:
 		stats.heal(heal_amount)
 		print("[MAIN] Maintained cards healed for %d HP" % heal_amount)
 
+	# Fountain of Life: deal damage to self and draw a card each cycle
+	if maintained_result["fountain_self_damage"] > 0 and stats:
+		stats.take_damage(maintained_result["fountain_self_damage"])
+		add_battle_log("Fountain of Life: took %d damage!" % maintained_result["fountain_self_damage"], Color(1.0, 0.3, 0.3))
+		print("[MAIN] Fountain of Life dealt %d self-damage" % maintained_result["fountain_self_damage"])
+	if maintained_result["fountain_draws"] > 0:
+		for i in range(maintained_result["fountain_draws"]):
+			deck_manager.draw_card()
+		add_battle_log("Fountain of Life: drew %d card(s)!" % maintained_result["fountain_draws"], Color(0.4, 0.8, 1.0))
+		print("[MAIN] Fountain of Life drew %d card(s)" % maintained_result["fountain_draws"])
+
 func _append_keyword_tooltips(parent: VBoxContainer, card: Card) -> void:
 	## Scan a card for keyword matches and append tooltip labels to the parent container.
 	var keywords = card.get_matching_keywords()
@@ -2174,6 +2186,33 @@ func play_selected_card(target) -> void:
 			overflow_manager.add_overflow_effect(quiver_effect)
 			if quiver_ui:
 				quiver_ui.refresh()
+
+		# Reckless Strike: add 2 Minor Wounds to the deck
+		if card.card_id == "reckless_strike":
+			for i in range(2):
+				var wound = Card.create_minor_wounds()
+				deck_manager.discard_pile.append(wound)
+			add_battle_log("Reckless Strike: 2 Minor Wounds added to deck!", Color(1.0, 0.5, 0.3))
+			print("[MAIN] Reckless Strike: added 2 Minor Wounds to discard pile")
+
+		# Collect Arrows: move up to 2 attack cards from discard pile to hand
+		if card.card_id == "collect_arrows":
+			var collected = 0
+			for i in range(deck_manager.discard_pile.size() - 1, -1, -1):
+				if collected >= 2:
+					break
+				var discard_card = deck_manager.discard_pile[i]
+				if discard_card.card_type == Card.CardType.ATTACK:
+					deck_manager.discard_pile.remove_at(i)
+					deck_manager.hand.append(discard_card)
+					collected += 1
+					print("[MAIN] Collect Arrows: retrieved %s from discard" % discard_card.card_name)
+			if collected > 0:
+				deck_manager.hand_updated.emit()
+				add_battle_log("Collect Arrows: retrieved %d attack card(s)!" % collected, Color(0.4, 0.8, 1.0))
+			else:
+				add_battle_log("Collect Arrows: no attack cards in discard pile!", Color(1.0, 0.6, 0.3))
+			print("[MAIN] Collect Arrows: collected %d attack cards" % collected)
 
 		if not result["free_turn"]:
 			if buff_mgr and buff_mgr.consume_steady():
@@ -3059,3 +3098,14 @@ func _on_card_on_draw_triggered(card: Card) -> void:
 				print("[MAIN] %s On Draw: dealt 4 damage to %s" % [card.card_name, random_enemy.enemy_name])
 			else:
 				print("[MAIN] %s On Draw: no enemies to damage" % card.card_name)
+		"deal_2_self":
+			var stats = player.get_stats()
+			if stats:
+				stats.take_damage(2)
+				add_battle_log("Minor Wounds: took 2 damage!", Color(1.0, 0.3, 0.3))
+				print("[MAIN] %s On Draw: dealt 2 damage to self" % card.card_name)
+
+func _on_card_erased(card: Card) -> void:
+	add_battle_log("%s erased from deck!" % card.card_name, Color(0.7, 0.7, 0.7))
+	update_deck_info()
+	_on_hand_updated()

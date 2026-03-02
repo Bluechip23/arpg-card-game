@@ -14,6 +14,7 @@ signal on_draw_triggered(card: Card)
 signal reaction_triggered(card: Card)
 signal maintained_card_activated(card: Card)
 signal maintained_cards_cleared
+signal card_erased(card: Card)
 
 enum OverflowMode { JAILED, ENHANCE, PEAK, TRANSFERRED, OVERCHARGE, MANIFEST }
 
@@ -205,6 +206,11 @@ func _create_card_from_id(card_id: String) -> Card:
 		# Power cards (Maintain)
 		"halo": return Card.create_halo()
 		"armored_discipline": return Card.create_armored_discipline()
+		# New cards
+		"reckless_strike": return Card.create_reckless_strike()
+		"minor_wounds": return Card.create_minor_wounds()
+		"collect_arrows": return Card.create_collect_arrows()
+		"fountain_of_life": return Card.create_fountain_of_life()
 	return null
 
 func _create_card_from_data(card_data: Dictionary) -> Card:
@@ -484,6 +490,34 @@ func process_turn() -> void:
 			discard_pile.append(card)
 			print("[DECK] Released from jail: %s" % card.card_name)
 
+	# Process Erase: tick down erase timers on all cards and delete expired ones
+	_process_erase_timers()
+
+func _process_erase_timers() -> void:
+	## Tick down erase_tempo_remaining on all cards with erase_tempo > 0.
+	## When a card's erase timer hits 0, permanently remove it from the deck.
+	var piles = [
+		{"pile": draw_pile, "name": "draw pile"},
+		{"pile": hand, "name": "hand"},
+		{"pile": discard_pile, "name": "discard pile"},
+		{"pile": jail_pile, "name": "jail"},
+	]
+	var hand_changed = false
+	for pile_info in piles:
+		var pile = pile_info["pile"]
+		for i in range(pile.size() - 1, -1, -1):
+			var card = pile[i]
+			if card.erase_tempo > 0:
+				card.erase_tempo_remaining -= 5
+				if card.erase_tempo_remaining <= 0:
+					pile.remove_at(i)
+					card_erased.emit(card)
+					if pile_info["name"] == "hand":
+						hand_changed = true
+					print("[DECK] Erased '%s' from %s (Erase: %d tempo expired)" % [card.card_name, pile_info["name"], card.erase_tempo])
+	if hand_changed:
+		hand_updated.emit()
+
 func get_peaked_card() -> Card:
 	return peaked_card
 
@@ -566,12 +600,15 @@ func get_maintained_card_count() -> int:
 func process_maintained_cards() -> Dictionary:
 	## Called each tempo cycle. Processes ongoing effects from maintained Power cards.
 	## Returns a summary of effects applied.
-	var result = {"heals": 0, "total_heal": 0}
+	var result = {"heals": 0, "total_heal": 0, "fountain_self_damage": 0, "fountain_draws": 0}
 	for card in maintained_cards:
 		match card.card_id:
 			"halo":
 				result["heals"] += 1
 				result["total_heal"] += card.heal_amount
+			"fountain_of_life":
+				result["fountain_self_damage"] += card.damage
+				result["fountain_draws"] += 1
 	return result
 
 func break_all_maintained_cards() -> void:
