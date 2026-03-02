@@ -47,6 +47,8 @@ var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damag
 var has_on_draw: bool = false  # Card triggers an effect when drawn
 var on_draw_effect: String = ""  # Description of the on-draw effect
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
+var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
+var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
@@ -201,6 +203,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"unplayable": "Cannot be played. Takes up a hand slot",
 		# Card Mechanics
 		"maintain": "Reserves X mana from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
+		"erase": "After X tempo, this card is permanently deleted from the deck",
 		"empower": "Buffs the next X cards played: +3 damage for attacks, -3 mana cost for defense",
 		"on-draw": "Card triggers an effect when drawn into hand",
 		"sticky": "Card stays in hand for X uses before being discarded",
@@ -294,6 +297,8 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "reaction")
 	if maintain_cost > 0:
 		_add_keyword_match(found_keys, matches, all_keywords, "maintain")
+	if erase_tempo > 0:
+		_add_keyword_match(found_keys, matches, all_keywords, "erase")
 	if sticky > 0:
 		_add_keyword_match(found_keys, matches, all_keywords, "sticky")
 	if has_on_draw:
@@ -2669,6 +2674,20 @@ func _execute_armored_discipline(player_stats: PlayerStats, buff_mgr: BuffManage
 		print("[CARD] Armored Discipline activated! Reserving %d mana. Gain armor when taking HP damage." % maintain_cost)
 
 # ============================================
+# RECKLESS STRIKE
+# ============================================
+
+static func create_reckless_strike() -> Card:
+	var card = Card.new()
+	card.card_id = "reckless_strike"
+	card.card_name = "Reckless Strike"
+	card.description = "Deal 15 damage. Add 2 Minor Wounds to your deck."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 1
+	card.tempo_cost = 4
+	card.damage = 15
+	card.base_damage = 15
 # NEW CARDS
 # ============================================
 
@@ -2687,6 +2706,45 @@ static func create_blade_barrage() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	return card
+
+# ============================================
+# MINOR WOUNDS (Status card with Erase)
+# ============================================
+
+static func create_minor_wounds() -> Card:
+	var card = Card.new()
+	card.card_id = "minor_wounds"
+	card.card_name = "Minor Wounds"
+	card.description = "On draw, deal 2 damage to self. Erase: 40"
+	card.card_type = CardType.UNPLAYABLE
+	card.card_type_name = "Status"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 2
+	card.base_damage = 2
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.has_on_draw = true
+	card.on_draw_effect = "deal_2_self"
+	card.erase_tempo = 40
+	card.erase_tempo_remaining = 40
+	card.target_types = []
+	return card
+
+# ============================================
+# COLLECT ARROWS
+# ============================================
+
+static func create_collect_arrows() -> Card:
+	var card = Card.new()
+	card.card_id = "collect_arrows"
+	card.card_name = "Collect Arrows"
+	card.description = "Place two attack cards from your discard pile back into your hand."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
 	card.glut_tempo = 15
 	return card
 
@@ -2752,6 +2810,33 @@ static func create_self_infliction() -> Card:
 	card.target_types = ["self"]
 	return card
 
+# ============================================
+# FOUNTAIN OF LIFE (Power card with Maintain)
+# ============================================
+
+static func create_fountain_of_life() -> Card:
+	var card = Card.new()
+	card.card_id = "fountain_of_life"
+	card.card_name = "Fountain of Life"
+	card.description = "Maintain 3M: Every cycle, deal 2 damage to self and draw a card."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 3
+	card.tempo_cost = 4
+	card.damage = 2
+	card.base_damage = 2
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.maintain_cost = 3
+	card.target_types = ["self"]
+	return card
+
+func _execute_fountain_of_life(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Fountain of Life's per-cycle effect is handled by process_maintained_cards in DeckManager.
+	# On play, we just log activation.
+	if player_stats:
+		print("[CARD] Fountain of Life activated! Reserving %d mana. Deal 2 damage to self and draw a card each cycle." % maintain_cost)
 func _execute_self_infliction(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if player_stats:
 		var self_damage = floori(player_stats.current_health * 0.8)
