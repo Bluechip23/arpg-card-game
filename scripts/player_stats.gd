@@ -443,6 +443,20 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 	if current_health <= 0:
 		died.emit()
 
+func take_direct_damage(amount: int) -> void:
+	## Deal damage directly to HP, bypassing armor entirely.
+	if amount <= 0:
+		return
+	var old_pct = get_health_percent()
+	current_health = max(0, current_health - amount)
+	health_changed.emit(current_health, max_health)
+	health_damage_taken.emit(amount)
+	if _crossed_threshold(old_pct, get_health_percent()):
+		recalculate_derived_stats()
+	damage_taken.emit(amount)
+	if current_health <= 0:
+		died.emit()
+
 func _crossed_threshold(old_pct: float, new_pct: float) -> bool:
 	var thresholds = [0.8, 0.6, 0.4, 0.1]
 	for t in thresholds:
