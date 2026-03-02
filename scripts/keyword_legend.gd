@@ -130,6 +130,9 @@ func _build_legend() -> void:
 	_add_keyword("High Ground", "Ranged attacks from elevated positions deal +4 damage and gain +2 range. Some cards require high ground", Color(0.6, 0.4, 0.2))
 	_add_keyword("Maintain", "Reserves X mana from your max mana pool while the card is active. The effect persists each cycle. If your mana drops to 0 by any means, all maintained cards are discarded and their effects end", Color(0.8, 0.5, 1.0))
 	_add_keyword("Cycle", "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks, and armor decay all happen per cycle", Color(0.7, 0.7, 0.9))
+	_add_keyword("Glut", "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo", Color(0.9, 0.4, 0.4))
+	_add_keyword("Delay", "Tempo until the effect takes place", Color(0.6, 0.6, 0.9))
+	_add_keyword("Instant", "Card triggers automatically from hand when its condition is met. Costs 0 mana", Color(1.0, 1.0, 0.5))
 
 func _add_section_header(title: String) -> void:
 	var header = Label.new()

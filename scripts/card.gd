@@ -49,6 +49,8 @@ var on_draw_effect: String = ""  # Description of the on-draw effect
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
+var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
+var delay_tempo: int = 0  # Tempo until the card's effect takes place
 
 # Card-item slot system
 enum SlotCompatibility { PICKY, PLIABLE }
@@ -204,6 +206,9 @@ static func get_keyword_definitions() -> Dictionary:
 		"sticky": "Card stays in hand for X uses before being discarded",
 		"high ground": "Ranged attacks from elevated positions deal +4 damage and gain +2 range",
 		"cycle": "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks all happen per cycle",
+		"glut": "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo",
+		"delay": "Tempo until the effect takes place",
+		"instant": "Card triggers automatically from hand when its condition is met. Costs 0 mana",
 		# Buffs
 		"thorns": "Deal X damage back to attackers, lose 1 thorn per hit",
 		"focused": "Gain 1 extra mana per cycle",
@@ -299,6 +304,10 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "ranged")
 	if is_aoe:
 		_add_keyword_match(found_keys, matches, all_keywords, "aoe")
+	if glut_tempo > 0:
+		_add_keyword_match(found_keys, matches, all_keywords, "glut")
+	if delay_tempo > 0:
+		_add_keyword_match(found_keys, matches, all_keywords, "delay")
 
 	# Scan the description for keyword mentions
 	for keyword in all_keywords:
@@ -546,6 +555,25 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_halo(player_stats, buff_mgr)
 		"armored_discipline":
 			_execute_armored_discipline(player_stats, buff_mgr)
+		# === New Cards ===
+		"blade_barrage":
+			_execute_blade_barrage(target, player_stats, deck_manager, buff_mgr)
+		"cultish_wounds":
+			_execute_cultish_wounds(player_stats, buff_mgr)
+		"self_infliction":
+			_execute_self_infliction(player_stats, buff_mgr)
+		"bob_and_weave":
+			_execute_bob_and_weave(player_stats, deck_manager, buff_mgr)
+		"absorb_essence":
+			_execute_absorb_essence(player_stats, buff_mgr)
+		"energy_ball":
+			_execute_energy_ball(target, player_stats, buff_mgr)
+		"cover":
+			_execute_cover(player_stats, deck_manager)
+		"fortify_alliance":
+			_execute_fortify_alliance(target, player_stats, buff_mgr)
+		"communal_donation":
+			_execute_communal_donation(player_stats, buff_mgr)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -2639,3 +2667,268 @@ func _execute_armored_discipline(player_stats: PlayerStats, buff_mgr: BuffManage
 	# On play, we just log activation.
 	if player_stats:
 		print("[CARD] Armored Discipline activated! Reserving %d mana. Gain armor when taking HP damage." % maintain_cost)
+
+# ============================================
+# NEW CARDS
+# ============================================
+
+static func create_blade_barrage() -> Card:
+	var card = Card.new()
+	card.card_id = "blade_barrage"
+	card.card_name = "Blade Barrage"
+	card.description = "Deal X*10 damage where X = the number of attack cards in your hand. Glut: 15 tempo."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 4
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	card.glut_tempo = 15
+	return card
+
+func _execute_blade_barrage(target, player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:
+	# Count attack cards in hand (deck_manager.hand is accessible)
+	var attack_count = 0
+	if deck_manager and deck_manager.hand:
+		for c in deck_manager.hand:
+			if c.card_type == CardType.ATTACK:
+				attack_count += 1
+	var total_damage = attack_count * 10
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			print("[CARD] Blade Barrage CRIT!")
+	if target and target.has_method("take_damage"):
+		target.take_damage(total_damage, true)
+		last_damage_dealt = total_damage
+	print("[CARD] Blade Barrage: %d attack cards in hand, dealt %d damage! Glut: 15 tempo" % [attack_count, total_damage])
+
+static func create_cultish_wounds() -> Card:
+	var card = Card.new()
+	card.card_id = "cultish_wounds"
+	card.card_name = "Cultish Wounds"
+	card.description = "Maintain 2M: Deal 1 damage to self ignoring armor. Repeat every 5 tempo."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 1
+	card.base_damage = 1
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.maintain_cost = 2
+	card.target_types = ["self"]
+	return card
+
+func _execute_cultish_wounds(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# On play, deal 1 damage to self ignoring armor and activate maintain.
+	# The repeating effect is handled by process_maintained_cards in deck_manager.
+	if player_stats:
+		player_stats.take_direct_damage(1)
+		print("[CARD] Cultish Wounds activated! Took 1 HP damage (ignoring armor). Reserving %dM. Repeats every cycle." % maintain_cost)
+
+static func create_self_infliction() -> Card:
+	var card = Card.new()
+	card.card_id = "self_infliction"
+	card.card_name = "Self Infliction"
+	card.description = "Deal 80%% remaining health in damage to self. Gain 5 determination and 5 strength."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 2
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+func _execute_self_infliction(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	if player_stats:
+		var self_damage = floori(player_stats.current_health * 0.8)
+		player_stats.take_direct_damage(self_damage)
+		player_stats.determination += 5
+		player_stats.strength += 5
+		print("[CARD] Self Infliction: dealt %d damage to self (80%% of %d HP). Gained +5 DET, +5 STR" % [self_damage, player_stats.current_health + self_damage])
+
+static func create_bob_and_weave() -> Card:
+	var card = Card.new()
+	card.card_id = "bob_and_weave"
+	card.card_name = "Bob and Weave"
+	card.description = "Gain 5 armor and draw a card."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 2
+	card.tempo_cost = 1
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 5
+	card.base_block = 5
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+func _execute_bob_and_weave(player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:
+	if player_stats:
+		var armor = base_block
+		if buff_mgr:
+			armor += buff_mgr.consume_bolster()
+		player_stats.add_armor(armor)
+		print("[CARD] Bob and Weave: gained %d armor" % armor)
+	if deck_manager and deck_manager.has_method("draw_card"):
+		deck_manager.draw_card()
+		print("[CARD] Bob and Weave: drew a card")
+
+static func create_absorb_essence() -> Card:
+	var card = Card.new()
+	card.card_id = "absorb_essence"
+	card.card_name = "Absorb Essence"
+	card.description = "Deal 1 damage to ALL things on the battlefield. Delay: 10 tempo, obtain Energy Ball."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 5
+	card.tempo_cost = 5
+	card.damage = 1
+	card.base_damage = 1
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["all_nearby"]
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 100.0
+	card.delay_tempo = 10
+	return card
+
+func _execute_absorb_essence(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# The AOE damage to all things is handled in main.gd _apply_card_world_effects.
+	# Energy Ball creation after 10 tempo delay is also handled in main.gd.
+	print("[CARD] Absorb Essence activated! Dealing 1 damage to ALL things. Energy Ball in 10 tempo.")
+
+static func create_energy_ball() -> Card:
+	var card = Card.new()
+	card.card_id = "energy_ball"
+	card.card_name = "Energy Ball"
+	card.description = "Deal X damage where X = total damage done by Absorb Essence."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 1
+	card.tempo_cost = 1
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.range_modifier = 5
+	card.target_types = ["enemy"]
+	return card
+
+func _execute_energy_ball(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Damage is set dynamically when Energy Ball is created (based on Absorb Essence hits)
+	var total_damage = damage
+	if player_stats:
+		total_damage = player_stats.get_effective_spell_damage(total_damage)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			print("[CARD] Energy Ball CRIT!")
+	if target and target.has_method("take_damage"):
+		target.take_damage(total_damage, true)
+		last_damage_dealt = total_damage
+	print("[CARD] Energy Ball dealt %d damage (from Absorb Essence)!" % total_damage)
+
+static func create_cover() -> Card:
+	var card = Card.new()
+	card.card_id = "cover"
+	card.card_name = "Cover"
+	card.description = "Instant: When an ally within 2 spaces takes damage, reduce it by the number of cards in your hand."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["ally"]
+	card.reaction_trigger = "on_ally_damage_taken"
+	return card
+
+func _execute_cover(player_stats: PlayerStats, deck_manager = null) -> void:
+	# Cover's damage reduction is calculated based on hand size at time of trigger.
+	# The actual interception is handled in main.gd.
+	var hand_size = 0
+	if deck_manager:
+		hand_size = deck_manager.hand.size()
+	print("[CARD] Cover triggered! Reducing ally damage by %d (cards in hand)" % hand_size)
+
+static func create_fortify_alliance() -> Card:
+	var card = Card.new()
+	card.card_id = "fortify_alliance"
+	card.card_name = "Fortify Alliance"
+	card.description = "Heal an ally for 5 and give yourself 5 armor."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 2
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 5
+	card.base_block = 5
+	card.heal_amount = 5
+	card.is_ranged = true
+	card.range_modifier = 2
+	card.target_types = ["ally"]
+	return card
+
+func _execute_fortify_alliance(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Heal the targeted ally for 5
+	if target and target.has_method("get_stats"):
+		var ally_stats = target.get_stats()
+		if ally_stats:
+			ally_stats.heal(heal_amount)
+			print("[CARD] Fortify Alliance: healed ally for %d" % heal_amount)
+	elif target and target.has_method("heal"):
+		target.heal(heal_amount)
+		print("[CARD] Fortify Alliance: healed ally for %d" % heal_amount)
+	# Give self 5 armor
+	if player_stats:
+		var armor = base_block
+		if buff_mgr:
+			armor += buff_mgr.consume_bolster()
+		player_stats.add_armor(armor)
+		print("[CARD] Fortify Alliance: gained %d armor" % armor)
+
+static func create_communal_donation() -> Card:
+	var card = Card.new()
+	card.card_id = "communal_donation"
+	card.card_name = "Communal Donation"
+	card.description = "Deal damage to yourself and heal allies based on the damage done. Choose amount and allocation."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+func _execute_communal_donation(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# The actual self-damage amount and ally healing allocation is handled in main.gd
+	# via a UI prompt where the player enters damage amount and distributes healing.
+	print("[CARD] Communal Donation activated! Player will choose self-damage and ally healing allocation.")

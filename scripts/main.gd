@@ -80,6 +80,8 @@ var deck_list_card_preview: PanelContainer = null
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
+var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining: int}]
+var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
 var barricade_obstacles: Array = []  # [{node: MeshInstance3D, health: int}]
 var active_pillars: Array = []  # [{node: Node3D, position: Vector3, tempo_remaining: int}]
 var _card_ui_instances: Array = []
@@ -1872,6 +1874,8 @@ func _on_tempo_threshold_reached(times: int) -> void:
 			buff_mgr.process_turn_end()
 
 		_process_pending_sky_falls()
+		_process_pending_absorb_essences()
+		_process_glut_countdown()
 
 	_check_volatile_mixture_in_hand()
 	_update_gauntlet_skills_ui()
@@ -1893,6 +1897,9 @@ func _process_maintained_card_effects() -> void:
 			heal_amount = stats.get_effective_heal_amount(heal_amount)
 		stats.heal(heal_amount)
 		print("[MAIN] Maintained cards healed for %d HP" % heal_amount)
+	if maintained_result["self_damage"] > 0 and stats:
+		stats.take_direct_damage(maintained_result["self_damage"])
+		print("[MAIN] Cultish Wounds: dealt %d damage to self (ignoring armor)" % maintained_result["self_damage"])
 
 func _append_keyword_tooltips(parent: VBoxContainer, card: Card) -> void:
 	## Scan a card for keyword matches and append tooltip labels to the parent container.
@@ -1946,6 +1953,33 @@ func _process_pending_sky_falls() -> void:
 			print("[MAIN] Sky Fall landed at %s! Hit %d enemies for %d damage" % [sf.position, enemies_hit.size(), sf.damage])
 		else:
 			print("[MAIN] Sky Fall: %d tempo until landing at %s" % [sf.tempo_remaining, sf.position])
+
+func _process_pending_absorb_essences() -> void:
+	for i in range(pending_absorb_essences.size() - 1, -1, -1):
+		var ae = pending_absorb_essences[i]
+		ae.tempo_remaining -= 5
+		if ae.tempo_remaining <= 0:
+			# Create Energy Ball card and add to hand
+			var energy_ball = Card.create_energy_ball()
+			energy_ball.damage = ae.total_damage
+			energy_ball.base_damage = ae.total_damage
+			deck_manager.hand.append(energy_ball)
+			deck_manager.hand_updated.emit()
+			pending_absorb_essences.remove_at(i)
+			add_battle_log("Energy Ball obtained! (%d damage)" % ae.total_damage, Color(0.5, 0.8, 1.0))
+			print("[MAIN] Absorb Essence: Energy Ball created with %d damage!" % ae.total_damage)
+		else:
+			print("[MAIN] Absorb Essence: %d tempo until Energy Ball" % ae.tempo_remaining)
+
+func _process_glut_countdown() -> void:
+	if glut_tempo_remaining > 0:
+		glut_tempo_remaining -= 5
+		if glut_tempo_remaining <= 0:
+			glut_tempo_remaining = 0
+			add_battle_log("Glut expired! You can play cards again.", Color(0.4, 1.0, 0.5))
+			print("[MAIN] Glut expired!")
+		else:
+			print("[MAIN] Glut: %d tempo remaining" % glut_tempo_remaining)
 
 func _apply_magnetize_pull(tiles: int) -> void:
 	var enemies = enemy_spawner.get_living_enemies()
@@ -2093,6 +2127,12 @@ func play_selected_card(target) -> void:
 		print("[INPUT] No card selected!")
 		return
 
+	# Glut: cannot play cards while glutted
+	if glut_tempo_remaining > 0:
+		add_battle_log("Glutted! Cannot play cards for %d more tempo." % glut_tempo_remaining, Color(1.0, 0.3, 0.3))
+		print("[INPUT] Cannot play cards - Glutted for %d more tempo!" % glut_tempo_remaining)
+		return
+
 	# Hide range indicator when playing a card
 	if range_indicator:
 		range_indicator.hide_range()
@@ -2174,6 +2214,12 @@ func play_selected_card(target) -> void:
 			overflow_manager.add_overflow_effect(quiver_effect)
 			if quiver_ui:
 				quiver_ui.refresh()
+
+		# Glut: apply card lockout if the card has glut_tempo
+		if card.glut_tempo > 0:
+			glut_tempo_remaining = card.glut_tempo
+			add_battle_log("Glutted for %d tempo! Cannot play cards." % card.glut_tempo, Color(1.0, 0.4, 0.4))
+			print("[MAIN] Glut activated: %d tempo lockout" % card.glut_tempo)
 
 		if not result["free_turn"]:
 			if buff_mgr and buff_mgr.consume_steady():
@@ -2423,6 +2469,42 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"rise":
 			var rise_pos = grid_manager.snap_to_grid(get_mouse_world_position())
 			_spawn_pillar(rise_pos)
+
+		"absorb_essence":
+			# Deal 1 damage to ALL things on the battlefield (enemies, obstacles, allies)
+			var absorb_total_damage = 0
+			var all_enemies = enemy_spawner.get_living_enemies()
+			for enemy in all_enemies:
+				enemy.take_damage(1, true)
+				absorb_total_damage += 1
+			# Damage obstacles (barricades)
+			for i in range(barricade_obstacles.size() - 1, -1, -1):
+				var obs = barricade_obstacles[i]
+				obs["health"] -= 1
+				absorb_total_damage += 1
+				if obs["health"] <= 0:
+					obs["node"].queue_free()
+					barricade_obstacles.remove_at(i)
+					_sync_blocked_tiles()
+				else:
+					obs["label"].text = "HP: %d" % obs["health"]
+			# Self damage (1 to player)
+			var abs_stats = player.get_stats()
+			if abs_stats:
+				abs_stats.take_direct_damage(1)
+				absorb_total_damage += 1
+			# Queue delayed Energy Ball creation
+			pending_absorb_essences.append({
+				"total_damage": absorb_total_damage,
+				"tempo_remaining": 10
+			})
+			print("[MAIN] Absorb Essence: dealt 1 damage to %d things. Energy Ball in 10 tempo (damage: %d)" % [absorb_total_damage, absorb_total_damage])
+
+		"communal_donation":
+			# Self-damage is handled via UI prompt in a future implementation.
+			# For now, the card's execute function logs the activation.
+			# TODO: Add UI for player to enter self-damage amount and allocate healing to allies.
+			pass
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
