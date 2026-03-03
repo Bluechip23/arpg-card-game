@@ -92,6 +92,14 @@ var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
 
+# Communal Donation UI state
+var _donation_panel: PanelContainer = null
+var _donation_slider: HSlider = null
+var _donation_amount_label: Label = null
+var _donation_ally_container: VBoxContainer = null
+var _donation_active: bool = false
+var _donation_ally_sliders: Array = []  # [{slider: HSlider, label: Label, name: String}]
+
 # Camera orbit state
 var _camera_focus: Vector3 = Vector3(10, 0, 6)  # Center of the 20x12 grid
 var _camera_yaw: float = 0.0       # Horizontal rotation (radians)
@@ -160,6 +168,7 @@ func _ready() -> void:
 	_setup_deck_list_button()
 	_setup_deck_list_panel()
 	_setup_hand_card_preview()
+	_setup_donation_panel()
 
 	# Multiplayer: initialize P2 deck and UI buttons
 	if is_multiplayer and player2_character:
@@ -2536,12 +2545,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Absorb Essence: dealt 1 damage to %d things. Energy Ball in 10 tempo (damage: %d)" % [absorb_total_damage, absorb_total_damage])
 
 		"communal_donation":
-			# Self-damage is handled via UI prompt in a future implementation.
-			# For now, the card's execute function logs the activation.
-			# TODO: Add UI for player to enter self-damage amount and allocate healing to allies.
-			pass
+			_open_donation_panel()
 
 func _input(event: InputEvent) -> void:
+	# Block game input while donation panel is open
+	if _donation_active:
+		return
+
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Character panel toggle
 		if event.keycode == KEY_I:
@@ -2916,6 +2926,234 @@ func _create_ally_marker(ally_name: String, pos: Vector3, color: Color) -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = Vector3(0, 0.5, 0)
 	marker.add_child(label)
+
+# ============================================
+# COMMUNAL DONATION UI
+# ============================================
+
+func _setup_donation_panel() -> void:
+	var ui = $UI as CanvasLayer
+	_donation_panel = PanelContainer.new()
+	_donation_panel.name = "DonationPanel"
+	ui.add_child(_donation_panel)
+	_donation_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_donation_panel.offset_left = -180.0
+	_donation_panel.offset_top = -160.0
+	_donation_panel.offset_right = 180.0
+	_donation_panel.offset_bottom = 160.0
+	_donation_panel.custom_minimum_size = Vector2(360, 320)
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.08, 0.12, 0.95)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.8, 0.3, 0.3)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 12.0
+	style.content_margin_bottom = 12.0
+	_donation_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	_donation_panel.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "Communal Donation"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	vbox.add_child(title)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var desc = Label.new()
+	desc.text = "Choose how much HP to sacrifice.\nHealing is split among your allies."
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	desc.add_theme_font_size_override("font_size", 12)
+	desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	vbox.add_child(desc)
+
+	# HP donation slider
+	var slider_hbox = HBoxContainer.new()
+	slider_hbox.add_theme_constant_override("separation", 8)
+	vbox.add_child(slider_hbox)
+
+	var slider_label = Label.new()
+	slider_label.text = "HP to donate:"
+	slider_label.add_theme_font_size_override("font_size", 14)
+	slider_hbox.add_child(slider_label)
+
+	_donation_slider = HSlider.new()
+	_donation_slider.min_value = 1
+	_donation_slider.max_value = 10
+	_donation_slider.step = 1
+	_donation_slider.value = 1
+	_donation_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_donation_slider.custom_minimum_size = Vector2(150, 0)
+	_donation_slider.value_changed.connect(_on_donation_slider_changed)
+	slider_hbox.add_child(_donation_slider)
+
+	_donation_amount_label = Label.new()
+	_donation_amount_label.text = "1"
+	_donation_amount_label.add_theme_font_size_override("font_size", 16)
+	_donation_amount_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	_donation_amount_label.custom_minimum_size = Vector2(30, 0)
+	slider_hbox.add_child(_donation_amount_label)
+
+	var sep2 = HSeparator.new()
+	vbox.add_child(sep2)
+
+	# Ally allocation section (populated when panel opens)
+	_donation_ally_container = VBoxContainer.new()
+	_donation_ally_container.add_theme_constant_override("separation", 6)
+	vbox.add_child(_donation_ally_container)
+
+	# Buttons
+	var btn_hbox = HBoxContainer.new()
+	btn_hbox.add_theme_constant_override("separation", 12)
+	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_hbox)
+
+	var confirm_btn = Button.new()
+	confirm_btn.text = "Donate"
+	confirm_btn.add_theme_font_size_override("font_size", 14)
+	confirm_btn.custom_minimum_size = Vector2(100, 30)
+	confirm_btn.pressed.connect(_on_donation_confirmed)
+	btn_hbox.add_child(confirm_btn)
+
+	var cancel_btn = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.add_theme_font_size_override("font_size", 14)
+	cancel_btn.custom_minimum_size = Vector2(100, 30)
+	cancel_btn.pressed.connect(_on_donation_cancelled)
+	btn_hbox.add_child(cancel_btn)
+
+	_donation_panel.visible = false
+
+func _get_ally_names() -> Array:
+	## Returns names of all living allies that can receive healing.
+	var allies: Array = []
+	# Player 2 in multiplayer
+	if is_multiplayer and player2_character:
+		allies.append(player2_character.character_name)
+	# Summoned creatures (ally markers)
+	for child in get_children():
+		if child is MeshInstance3D and child.has_node("Label3D"):
+			var label_node = child.get_node("Label3D") as Label3D
+			if label_node:
+				allies.append(label_node.text)
+	# If no allies exist, allow self-heal as fallback
+	if allies.size() == 0:
+		allies.append("Self")
+	return allies
+
+func _open_donation_panel() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+	_donation_active = true
+
+	# Set slider max to current HP - 1 (can't kill yourself)
+	var max_donate = max(1, stats.current_health - 1)
+	_donation_slider.max_value = max_donate
+	_donation_slider.value = min(5, max_donate)
+	_donation_amount_label.text = str(int(_donation_slider.value))
+
+	# Build ally allocation rows
+	for child in _donation_ally_container.get_children():
+		child.queue_free()
+	_donation_ally_sliders.clear()
+
+	var ally_names = _get_ally_names()
+	for ally_name in ally_names:
+		var row = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		_donation_ally_container.add_child(row)
+
+		var name_lbl = Label.new()
+		name_lbl.text = ally_name
+		name_lbl.custom_minimum_size = Vector2(100, 0)
+		name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
+		row.add_child(name_lbl)
+
+		var slider = HSlider.new()
+		slider.min_value = 0
+		slider.max_value = int(_donation_slider.value)
+		slider.step = 1
+		slider.value = int(_donation_slider.value) / ally_names.size()
+		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slider.custom_minimum_size = Vector2(120, 0)
+		row.add_child(slider)
+
+		var val_lbl = Label.new()
+		val_lbl.text = str(int(slider.value))
+		val_lbl.custom_minimum_size = Vector2(25, 0)
+		val_lbl.add_theme_font_size_override("font_size", 13)
+		val_lbl.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
+		row.add_child(val_lbl)
+
+		slider.value_changed.connect(func(v): val_lbl.text = str(int(v)))
+
+		_donation_ally_sliders.append({"slider": slider, "label": val_lbl, "name": ally_name})
+
+	_donation_panel.visible = true
+
+func _on_donation_slider_changed(value: float) -> void:
+	_donation_amount_label.text = str(int(value))
+	# Update ally slider maximums to match total pool
+	for entry in _donation_ally_sliders:
+		entry["slider"].max_value = int(value)
+
+func _on_donation_confirmed() -> void:
+	_donation_panel.visible = false
+	_donation_active = false
+
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	var self_damage = int(_donation_slider.value)
+	if self_damage <= 0:
+		return
+
+	# Deal self-damage (ignores armor)
+	stats.take_direct_damage(self_damage)
+	add_battle_log("Communal Donation: sacrificed %d HP!" % self_damage, Color(1.0, 0.3, 0.3))
+	print("[MAIN] Communal Donation: player took %d self-damage" % self_damage)
+
+	# Distribute healing to allies
+	var total_healed = 0
+	for entry in _donation_ally_sliders:
+		var heal_amount = int(entry["slider"].value)
+		if heal_amount <= 0:
+			continue
+		var ally_name: String = entry["name"]
+		if ally_name == "Self":
+			stats.heal(heal_amount)
+			add_battle_log("Communal Donation: healed self for %d" % heal_amount, Color(0.3, 1.0, 0.3))
+		else:
+			# Heal summoned allies / P2 (future: route to actual ally stats)
+			add_battle_log("Communal Donation: healed %s for %d" % [ally_name, heal_amount], Color(0.3, 1.0, 0.3))
+		total_healed += heal_amount
+		print("[MAIN] Communal Donation: healed %s for %d" % [ally_name, heal_amount])
+
+	var wasted = self_damage - total_healed
+	if wasted > 0:
+		add_battle_log("Communal Donation: %d HP unallocated (wasted)" % wasted, Color(0.7, 0.7, 0.3))
+
+func _on_donation_cancelled() -> void:
+	_donation_panel.visible = false
+	_donation_active = false
+	add_battle_log("Communal Donation cancelled.", Color(0.7, 0.7, 0.7))
 
 # ============================================
 # INVISIBILITY

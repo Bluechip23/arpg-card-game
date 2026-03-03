@@ -836,9 +836,12 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 		amount += bonus_damage_next_hit
 		bonus_damage_next_hit = 0
 
-	# Armor Break: double damage to armor, no health damage
+	# Armor Break: double damage to armor, no health damage. Zero effect on unarmored.
 	var just_exposed = false
-	if armor_break_incoming and current_armor > 0:
+	if armor_break_incoming and current_armor <= 0:
+		amount = 0
+		print("[%s] Armor Break: no armor to break, no damage dealt" % enemy_name)
+	elif armor_break_incoming and current_armor > 0:
 		var doubled = amount * 2
 		var armor_absorbed = min(current_armor, doubled)
 		current_armor -= armor_absorbed
