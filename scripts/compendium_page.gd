@@ -83,95 +83,15 @@ func _build_data() -> void:
 	_build_all_enemies()
 
 func _build_all_cards() -> void:
-	_all_cards = [
-		# Base cards
-		Card.create_slash(),
-		Card.create_block(),
-		Card.create_discard(),
-		Card.create_draw(),
-		Card.create_empower(),
-		Card.create_blink(),
-		Card.create_heal(),
-		Card.create_gain_mana(),
-		Card.create_healing_potion(),
-		Card.create_dagger_throw(),
-		Card.create_potion_of_continuance(),
-		# Brad's cards
-		Card.create_life_swap(),
-		Card.create_wear_down(),
-		Card.create_taunt(),
-		Card.create_life_steal(),
-		Card.create_roar(),
-		Card.create_poke(),
-		Card.create_armor_break(),
-		Card.create_charge(),
-		Card.create_heroic_leap(),
-		Card.create_morphine(),
-		Card.create_turtle_up(),
-		Card.create_parry(),
-		Card.create_approach(),
-		Card.create_hold_the_line(),
-		# Jeremy's cards
-		Card.create_trick_shot(),
-		Card.create_surrounding_ice(),
-		Card.create_risk_it(),
-		Card.create_biscuit(),
-		Card.create_loaded_die(),
-		Card.create_worst_that_could_happen(),
-		Card.create_oops(),
-		Card.create_house_money(),
-		Card.create_hope_this_works(),
-		Card.create_lady_luck(),
-		Card.create_try_this(),
-		Card.create_if_pigs_could_fly(),
-		Card.create_snowballs_chance(),
-		# Ryan's cards
-		Card.create_raged_circulation(),
-		Card.create_poisoned_blood(),
-		Card.create_elixir(),
-		Card.create_shadows(),
-		Card.create_preparation(),
-		Card.create_exacerbate_wounds(),
-		Card.create_reposition(),
-		Card.create_volatile_mixture(),
-		Card.create_understanding(),
-		Card.create_shuriken_pouch(),
-		Card.create_shuriken(),
-		Card.create_premeditated(),
-		# Stephen's cards
-		Card.create_mark(),
-		Card.create_rise(),
-		Card.create_quick_shot(),
-		Card.create_reload(),
-		Card.create_enchanted_quiver(),
-		Card.create_tighten_string(),
-		Card.create_down_town(),
-		Card.create_barricade(),
-		Card.create_sky_fall(),
-		Card.create_sky_attack(),
-		Card.create_lead_arrow(),
-		Card.create_last_breath(),
-		Card.create_mixed_bag(),
-		Card.create_quick_arrow(),
-		Card.create_bottomless_quiver(),
-		# Cory's cards
-		Card.create_round_em_up(),
-		Card.create_trip(),
-		Card.create_choke(),
-		Card.create_push(),
-		Card.create_defensive_awareness(),
-		Card.create_sweeping_disarm(),
-		Card.create_consecutive_snap(),
-		Card.create_swap(),
-		Card.create_meditate(),
-		Card.create_spider_senses(),
-		Card.create_thrown_stone(),
-		Card.create_lightly_dazed(),
-		Card.create_gulped_potion(),
-		# Power cards
-		Card.create_halo(),
-		Card.create_armored_discipline(),
-	]
+	# Auto-discover all cards by calling every static create_ method on Card
+	_all_cards = []
+	var card_script: Script = Card
+	for method in card_script.get_script_method_list():
+		var method_name: String = method["name"]
+		if method_name.begins_with("create_") and method["args"].size() == 0:
+			var card = card_script.call(method_name)
+			if card is Card:
+				_all_cards.append(card)
 
 func _build_all_items() -> void:
 	_all_items = [
