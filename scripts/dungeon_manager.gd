@@ -10,6 +10,7 @@ signal player_entered_zone(zone_index: int)
 
 const GRID_W: int = 20
 const GRID_H: int = 12
+const FOG_REVEAL_RADIUS: int = 4  # Tiles revealed around the player
 
 # Tile types
 enum Tile { FLOOR, WALL }
@@ -27,13 +28,21 @@ var _parent: Node3D
 # Track which zones the player has triggered
 var _zones_triggered: Array[bool] = []
 
+# Fog of war
+var _revealed: Array = []        # 2D bool array [x][z] - permanently revealed
+var _fog_nodes: Array = []       # 2D array [x][z] of MeshInstance3D (fog planes)
+var _fog_initialized: bool = false
+
 func initialize(gm: GridManager, parent: Node3D) -> void:
 	grid_manager = gm
 	_parent = parent
 	_generate_layout()
 	_build_walls()
+	_build_fog()
 	_place_chests()
 	_define_spawn_zones()
+	# Reveal around the starting position
+	reveal_around(player_start)
 
 func _generate_layout() -> void:
 	# Initialize all as wall
@@ -139,6 +148,83 @@ func _has_adjacent_floor(x: int, z: int) -> bool:
 				if grid[nx][nz] == Tile.FLOOR:
 					return true
 	return false
+
+# ============================================
+# FOG OF WAR
+# ============================================
+
+func _build_fog() -> void:
+	# Initialize revealed grid (all false)
+	_revealed.clear()
+	for x in range(GRID_W):
+		var col: Array = []
+		for z in range(GRID_H):
+			col.append(false)
+		_revealed.append(col)
+
+	# Create fog planes for every tile that could matter (floors + walls adjacent to floors)
+	_fog_nodes.clear()
+
+	var fog_mat = StandardMaterial3D.new()
+	fog_mat.albedo_color = Color(0.02, 0.02, 0.05, 0.95)
+	fog_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fog_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fog_mat.no_depth_test = true
+	fog_mat.render_priority = 10  # Draw on top
+
+	for x in range(GRID_W):
+		var col: Array = []
+		for z in range(GRID_H):
+			var should_fog = (grid[x][z] == Tile.FLOOR) or _has_adjacent_floor(x, z)
+			if should_fog:
+				var fog = MeshInstance3D.new()
+				var plane = PlaneMesh.new()
+				plane.size = Vector2(1.05, 1.05)  # Slightly oversized to avoid seams
+				fog.mesh = plane
+				fog.material_override = fog_mat.duplicate()
+				fog.position = Vector3(x + 0.5, 1.3, z + 0.5)  # Above walls
+				fog.visible = true
+				_parent.add_child(fog)
+				col.append(fog)
+			else:
+				col.append(null)
+		_fog_nodes.append(col)
+
+	_fog_initialized = true
+	print("[DUNGEON] Fog of war initialized")
+
+func reveal_around(center: Vector2i) -> void:
+	## Permanently reveals tiles within FOG_REVEAL_RADIUS of center.
+	if not _fog_initialized:
+		return
+
+	for dx in range(-FOG_REVEAL_RADIUS, FOG_REVEAL_RADIUS + 1):
+		for dz in range(-FOG_REVEAL_RADIUS, FOG_REVEAL_RADIUS + 1):
+			# Use circular reveal (Euclidean distance)
+			if dx * dx + dz * dz > FOG_REVEAL_RADIUS * FOG_REVEAL_RADIUS:
+				continue
+			var nx = center.x + dx
+			var nz = center.y + dz
+			if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H:
+				if not _revealed[nx][nz]:
+					_revealed[nx][nz] = true
+					# Hide the fog plane
+					var fog_node = _fog_nodes[nx][nz]
+					if fog_node and is_instance_valid(fog_node):
+						fog_node.visible = false
+
+func is_revealed(grid_pos: Vector2i) -> bool:
+	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
+		return false
+	return _revealed[grid_pos.x][grid_pos.y]
+
+func update_enemy_fog_visibility(enemies: Array, gm: GridManager) -> void:
+	## Hides enemies that are in unrevealed tiles.
+	for enemy in enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var enemy_grid = gm.world_to_grid(enemy.position)
+		enemy.visible = is_revealed(enemy_grid)
 
 func _place_chests() -> void:
 	# Chest 1: In room 3 (treasure room)
@@ -400,15 +486,18 @@ func open_chest(index: int) -> Dictionary:
 	return chest_nodes[index]["contents"]
 
 func update_chest_prompts(player_grid: Vector2i) -> void:
-	## Show/hide interact labels based on player proximity.
+	## Show/hide interact labels based on player proximity and fog reveal.
 	for i in range(chest_nodes.size()):
+		var chest_pos: Vector2i = chest_nodes[i]["grid_pos"]
+		var revealed = is_revealed(chest_pos)
+		# Hide entire chest node if not revealed
+		chest_nodes[i]["node"].visible = revealed
 		if chest_nodes[i]["opened"]:
 			continue
-		var chest_pos: Vector2i = chest_nodes[i]["grid_pos"]
 		var dist = absi(player_grid.x - chest_pos.x) + absi(player_grid.y - chest_pos.y)
 		var label = chest_nodes[i]["node"].get_node_or_null("InteractLabel")
 		if label:
-			label.visible = dist <= 2
+			label.visible = revealed and dist <= 2
 
 func get_player_start_world() -> Vector3:
 	return grid_manager.grid_to_world(player_start)
@@ -424,4 +513,12 @@ func clear() -> void:
 	chest_nodes.clear()
 	spawn_zones.clear()
 	_zones_triggered.clear()
+	# Clean up fog
+	for col in _fog_nodes:
+		for fog in col:
+			if fog and is_instance_valid(fog):
+				fog.queue_free()
+	_fog_nodes.clear()
+	_revealed.clear()
+	_fog_initialized = false
 	grid.clear()

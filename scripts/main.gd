@@ -234,10 +234,13 @@ func _update_camera() -> void:
 func _process(_delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
-	# Update chest interact prompts
+	# Update chest interact prompts and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
 		dungeon_manager.update_chest_prompts(pg)
+		dungeon_manager.update_enemy_fog_visibility(
+			enemy_spawner.get_living_enemies(), grid_manager
+		)
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
 		var mouse_world = get_mouse_world_position()
@@ -1550,6 +1553,8 @@ func _on_player_tile_reached() -> void:
 	tempo_manager.add_movement_tempo()
 	# Check if player entered a new dungeon zone
 	_check_dungeon_zones()
+	# Reveal fog of war around the player
+	_update_fog_of_war()
 	# Update camera focus to follow player
 	if dungeon_manager:
 		_camera_focus = player.position + Vector3(2, 0, 0)
@@ -1558,6 +1563,7 @@ func _on_player_tile_reached() -> void:
 func _on_player_move_completed() -> void:
 	# Final zone check at destination
 	_check_dungeon_zones()
+	_update_fog_of_war()
 
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	var debuff_mgr = player.get_debuff_manager()
@@ -2789,8 +2795,24 @@ func _spawn_dungeon_zone(zone_index: int) -> void:
 	_update_enemy_count()
 	_refresh_unit_tracker()
 
+	# Hide newly spawned enemies that are in fog
+	if dungeon_manager:
+		dungeon_manager.update_enemy_fog_visibility(
+			enemy_spawner.get_living_enemies(), grid_manager
+		)
+
 	add_battle_log("Enemies appear!", Color(1.0, 0.4, 0.4))
 	print("[MAIN] Dungeon zone %d triggered! Spawned %d enemies." % [zone_index, count])
+
+func _update_fog_of_war() -> void:
+	if not dungeon_manager:
+		return
+	var player_grid = grid_manager.world_to_grid(player.position)
+	dungeon_manager.reveal_around(player_grid)
+	# Update enemy visibility based on revealed tiles
+	dungeon_manager.update_enemy_fog_visibility(
+		enemy_spawner.get_living_enemies(), grid_manager
+	)
 
 func _setup_gold_label() -> void:
 	var ui = $UI as CanvasLayer
