@@ -711,14 +711,10 @@ func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats
 			player_stats.take_damage(self_dmg)
 func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_mgr: BuffManager = null) -> void:
 	var armor_amount = block
-	
+
 	if is_empowered and player_stats:
 		armor_amount = max(1, armor_amount - player_stats.empower_block_reduction)
-	
-	# Bolster bonus
-	if buff_mgr:
-		armor_amount += buff_mgr.consume_bolster()
-	
+
 	if player_stats:
 		player_stats.add_armor(armor_amount)
 	
@@ -3065,13 +3061,9 @@ static func create_shield_ready() -> Card:
 	return card
 
 func _execute_shield_ready(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Immediate: gain 5 armor
 	if player_stats:
-		var armor = base_block
-		if buff_mgr:
-			armor += buff_mgr.consume_bolster()
-		player_stats.add_armor(armor)
-		print("[CARD] Shield Ready: gained %d armor now" % armor)
+		player_stats.add_armor(base_block)
+		print("[CARD] Shield Ready: gained %d armor now" % base_block)
 	# Delayed: buff that grants 5 more armor after 5 tempo (handled by main.gd tick)
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_shield_ready(5, 5, "Shield Ready"))
