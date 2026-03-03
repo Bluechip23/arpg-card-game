@@ -213,6 +213,61 @@ func _setup_actions() -> void:
 			]
 
 # ============================================
+# COMPENDIUM DATA
+# ============================================
+
+static func get_all_enemy_data() -> Array:
+	## Returns compendium-friendly data for every enemy type.
+	## Single source of truth — compendium reads from here.
+	var _type_display := {
+		EnemyType.MINION: "Minion",
+		EnemyType.ELITE: "Elite",
+		EnemyType.BOSS: "Boss",
+		EnemyType.WERERAT: "Minion",
+		EnemyType.SKELETON: "Minion",
+		EnemyType.ARMORED_TROLL: "Elite",
+	}
+	var _stats := {
+		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
+		EnemyType.ELITE: {"name": "Elite", "health": 80, "armor": 0, "damage": 6, "xp": 10},
+		EnemyType.BOSS: {"name": "Boss", "health": 200, "armor": 0, "damage": 10, "xp": 25},
+		EnemyType.WERERAT: {"name": "Wererat", "health": 15, "armor": 0, "damage": 3, "xp": 5},
+		EnemyType.SKELETON: {"name": "Skeleton", "health": 18, "armor": 10, "damage": 5, "xp": 5},
+		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 45, "armor": 30, "damage": 4, "xp": 8},
+	}
+	var _actions := {
+		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
+		EnemyType.ELITE: [{"name": "Attack", "tempo": 4}, {"name": "Move", "tempo": 6}],
+		EnemyType.BOSS: [{"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 8}],
+		EnemyType.WERERAT: [{"name": "Move", "tempo": 2}, {"name": "Bite", "tempo": 2}, {"name": "Scurry", "tempo": 4}],
+		EnemyType.SKELETON: [{"name": "Move", "tempo": 5}, {"name": "Attack", "tempo": 4}],
+		EnemyType.ARMORED_TROLL: [{"name": "Move", "tempo": 4}, {"name": "Kick", "tempo": 3}, {"name": "Smash", "tempo": 6}],
+	}
+	var _specials := {
+		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
+		EnemyType.ELITE: "Stronger than minions.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
+		EnemyType.BOSS: "High health and damage.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
+		EnemyType.WERERAT: "Fast and evasive.\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
+		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
+		EnemyType.ARMORED_TROLL: "Regenerates 2 HP every 6 global tempo.\nAt range ≤1: 60% Smash / 40% Kick.\nOtherwise: Moves toward player.",
+	}
+
+	var result: Array = []
+	for enemy_type in EnemyType.values():
+		var s = _stats[enemy_type]
+		result.append({
+			"name": s["name"],
+			"type": _type_display[enemy_type],
+			"health": s["health"],
+			"armor": s["armor"],
+			"damage": s["damage"],
+			"xp": s["xp"],
+			"actions": _actions[enemy_type],
+			"special": _specials[enemy_type],
+		})
+	return result
+
+# ============================================
 # TEMPO BAR SETUP
 # ============================================
 

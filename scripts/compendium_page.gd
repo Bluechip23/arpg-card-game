@@ -94,124 +94,17 @@ func _build_all_cards() -> void:
 				_all_cards.append(card)
 
 func _build_all_items() -> void:
-	_all_items = [
-		# Character starting items
-		ItemData.create_bloodbound_plate(),
-		ItemData.create_scholars_signet(),
-		ItemData.create_flickerstep_boots(),
-		ItemData.create_grasping_gauntlets(),
-		ItemData.create_adventurers_belt(),
-		# Rings
-		ItemData.create_ring_of_vengeance(),
-		ItemData.create_ring_of_fortitude(),
-		ItemData.create_ring_of_the_scholar(),
-		ItemData.create_gold_ring(),
-		# Gauntlets
-		ItemData.create_berserker_gauntlets(),
-		ItemData.create_guardian_gauntlets(),
-		# Weapons
-		ItemData.create_iron_sword(),
-		ItemData.create_wooden_shield(),
-		ItemData.create_heavy_greatsword(),
-		ItemData.create_flame_dagger(),
-		ItemData.create_frost_orb(),
-		# Armor
-		ItemData.create_iron_helm(),
-		ItemData.create_leather_chest(),
-		ItemData.create_leather_boots(),
-		ItemData.create_iron_gauntlets(),
-		# Belts
-		ItemData.create_utility_belt(),
-		ItemData.create_belt_of_greater_healing(),
-		# Quivers
-		ItemData.create_ice_quiver(),
-		ItemData.create_fire_quiver(),
-	]
+	_all_items = []
+	var item_script: Script = ItemData
+	for method in item_script.get_script_method_list():
+		var method_name: String = method["name"]
+		if method_name.begins_with("create_") and method["args"].size() == 0:
+			var item = item_script.call(method_name)
+			if item is ItemData:
+				_all_items.append(item)
 
 func _build_all_enemies() -> void:
-	# Build enemy data entries (not actual Enemy nodes, just data dictionaries)
-	_all_enemies = [
-		{
-			"name": "Armored Troll",
-			"type": "Elite",
-			"health": 45,
-			"armor": 30,
-			"damage": 4,
-			"xp": 8,
-			"actions": [
-				{"name": "Move", "tempo": 4},
-				{"name": "Kick", "tempo": 3},
-				{"name": "Smash", "tempo": 6},
-			],
-			"special": "Regenerates 2 HP every 6 global tempo.\nAt range ≤1: 60% Smash / 40% Kick.\nOtherwise: Moves toward player.",
-		},
-		{
-			"name": "Boss",
-			"type": "Boss",
-			"health": 200,
-			"armor": 0,
-			"damage": 10,
-			"xp": 25,
-			"actions": [
-				{"name": "Attack", "tempo": 5},
-				{"name": "Move", "tempo": 8},
-			],
-			"special": "High health and damage.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		},
-		{
-			"name": "Elite",
-			"type": "Elite",
-			"health": 80,
-			"armor": 0,
-			"damage": 6,
-			"xp": 10,
-			"actions": [
-				{"name": "Attack", "tempo": 4},
-				{"name": "Move", "tempo": 6},
-			],
-			"special": "Stronger than minions.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		},
-		{
-			"name": "Minion",
-			"type": "Minion",
-			"health": 25,
-			"armor": 0,
-			"damage": 3,
-			"xp": 5,
-			"actions": [
-				{"name": "Attack", "tempo": 3},
-				{"name": "Move", "tempo": 5},
-			],
-			"special": "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		},
-		{
-			"name": "Skeleton",
-			"type": "Minion",
-			"health": 18,
-			"armor": 10,
-			"damage": 5,
-			"xp": 5,
-			"actions": [
-				{"name": "Move", "tempo": 5},
-				{"name": "Attack", "tempo": 4},
-			],
-			"special": "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		},
-		{
-			"name": "Wererat",
-			"type": "Minion",
-			"health": 15,
-			"armor": 0,
-			"damage": 3,
-			"xp": 5,
-			"actions": [
-				{"name": "Move", "tempo": 2},
-				{"name": "Bite", "tempo": 2},
-				{"name": "Scurry", "tempo": 4},
-			],
-			"special": "Fast and evasive.\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
-		},
-	]
+	_all_enemies = Enemy.get_all_enemy_data()
 
 # ============================================
 # CARDS TAB

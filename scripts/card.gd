@@ -787,14 +787,6 @@ func get_total_damage() -> int:
 func is_jailed() -> bool:
 	return jail_time_remaining > 0
 
-# This is now handled by deck_manager.process_turn()
-# Can remove update_jail or keep for compatibility
-func update_jail_tempo() -> void:
-	if jail_time_remaining > 0:
-		jail_time_remaining -= 5
-		if jail_time_remaining <= 0:
-			print("[CARD] %s released from jail!" % card_name)
-
 func jail(dur: int) -> void:
 	jail_time_remaining = dur
 	print("[CARD] %s jailed for %d tempo" % [card_name, dur])
