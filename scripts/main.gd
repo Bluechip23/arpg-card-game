@@ -716,10 +716,7 @@ func _populate_deck_list() -> void:
 	all_cards.append_array(deck_manager.draw_pile)
 	all_cards.append_array(deck_manager.hand)
 	all_cards.append_array(deck_manager.discard_pile)
-	if deck_manager.has_method("get_jail_pile"):
-		all_cards.append_array(deck_manager.jail_pile)
-	else:
-		all_cards.append_array(deck_manager.jail_pile)
+	all_cards.append_array(deck_manager.jail_pile)
 
 	for card in all_cards:
 		if card.card_name in card_counts:
