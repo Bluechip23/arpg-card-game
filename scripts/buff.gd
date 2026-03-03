@@ -22,7 +22,11 @@ enum BuffType {
 	MORPHINE,
 	WEAR_DOWN,
 	INVISIBLE,
-	ARMOR_BREAK
+	ARMOR_BREAK,
+	SHIELD_READY,
+	REPELLED_BLOCK,
+	SHIELD_OF_GROWTH,
+	PHOENIX_GRACE
 }
 
 var buff_type: BuffType
@@ -100,6 +104,18 @@ func _set_name_and_description() -> void:
 		BuffType.ARMOR_BREAK:
 			buff_name = "Armor Break"
 			description = "Next attack deals double damage to armor only (no health damage)"
+		BuffType.SHIELD_READY:
+			buff_name = "Shield Ready"
+			description = "Gain %d more armor in %d tempo" % [value, duration]
+		BuffType.REPELLED_BLOCK:
+			buff_name = "Repelled Block"
+			description = "If next melee attack is fully blocked by armor, negate damage and push enemy back 4 spaces"
+		BuffType.SHIELD_OF_GROWTH:
+			buff_name = "Shield of Growth"
+			description = "All damage taken increases armor by that amount for %d tempo" % duration
+		BuffType.PHOENIX_GRACE:
+			buff_name = "Phoenix Grace"
+			description = "When HP drops below 50%%, heal to 80%% and apply 5 burn to nearest enemy"
 
 func tick() -> bool:
 	# Called each cycle (5 tempo). Returns true if buff expired by duration.
@@ -117,7 +133,7 @@ func use_charge() -> bool:
 
 func is_charge_based() -> bool:
 	match buff_type:
-		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK:
+		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, BuffType.PHOENIX_GRACE:
 			return true
 	return false
 
@@ -147,6 +163,10 @@ func get_icon_color() -> Color:
 		BuffType.WEAR_DOWN: return Color(0.9, 0.6, 0.3)
 		BuffType.INVISIBLE: return Color(0.5, 0.5, 0.7)
 		BuffType.ARMOR_BREAK: return Color(0.8, 0.6, 0.2)
+		BuffType.SHIELD_READY: return Color(0.4, 0.6, 0.9)
+		BuffType.REPELLED_BLOCK: return Color(0.3, 0.5, 1.0)
+		BuffType.SHIELD_OF_GROWTH: return Color(0.3, 0.8, 0.5)
+		BuffType.PHOENIX_GRACE: return Color(1.0, 0.5, 0.2)
 	return Color.WHITE
 
 func get_short_display() -> String:
@@ -264,5 +284,25 @@ static func create_armor_break(source: String = "") -> Buff:
 
 static func create_invisible(tempo: int = 10, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.INVISIBLE, 0, tempo)
+	buff.source_name = source
+	return buff
+
+static func create_shield_ready(armor: int = 5, delay: int = 5, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.SHIELD_READY, armor, delay)
+	buff.source_name = source
+	return buff
+
+static func create_repelled_block(source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.REPELLED_BLOCK, 0, -1, 1)  # 1 charge
+	buff.source_name = source
+	return buff
+
+static func create_shield_of_growth(duration: int = 10, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.SHIELD_OF_GROWTH, 0, duration)
+	buff.source_name = source
+	return buff
+
+static func create_phoenix_grace(source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.PHOENIX_GRACE, 0, -1, 1)  # 1 charge
 	buff.source_name = source
 	return buff

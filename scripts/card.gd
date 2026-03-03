@@ -579,6 +579,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_fortify_alliance(target, player_stats, buff_mgr)
 		"communal_donation":
 			_execute_communal_donation(player_stats, buff_mgr)
+		"shield_ready":
+			_execute_shield_ready(player_stats, buff_mgr)
+		"repelled_block":
+			_execute_repelled_block(player_stats, buff_mgr)
+		"shield_of_growth":
+			_execute_shield_of_growth(player_stats, buff_mgr)
+		"gift_from_the_phoenix":
+			_execute_gift_from_the_phoenix(player_stats, buff_mgr)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3019,3 +3027,107 @@ func _execute_communal_donation(player_stats: PlayerStats, buff_mgr: BuffManager
 	# The actual self-damage amount and ally healing allocation is handled in main.gd
 	# via a UI prompt where the player enters damage amount and distributes healing.
 	print("[CARD] Communal Donation activated! Player will choose self-damage and ally healing allocation.")
+
+# ============================================
+# SHIELD READY
+# ============================================
+static func create_shield_ready() -> Card:
+	var card = Card.new()
+	card.card_id = "shield_ready"
+	card.card_name = "Shield Ready"
+	card.description = "Gain 5 armor. In 5 tempo, gain 5 more armor."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 2
+	card.tempo_cost = 4
+	card.block = 5
+	card.base_block = 5
+	card.delay_tempo = 5
+	card.target_types = ["self"]
+	return card
+
+func _execute_shield_ready(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Immediate: gain 5 armor
+	if player_stats:
+		var armor = base_block
+		if buff_mgr:
+			armor += buff_mgr.consume_bolster()
+		player_stats.add_armor(armor)
+		print("[CARD] Shield Ready: gained %d armor now" % armor)
+	# Delayed: buff that grants 5 more armor after 5 tempo (handled by main.gd tick)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_shield_ready(5, 5, "Shield Ready"))
+		print("[CARD] Shield Ready: will gain 5 more armor in 5 tempo")
+
+# ============================================
+# REPELLED BLOCK
+# ============================================
+static func create_repelled_block() -> Card:
+	var card = Card.new()
+	card.card_id = "repelled_block"
+	card.card_name = "Repelled Block"
+	card.description = "Gain 5 armor. If the enemy's next melee attack is fully blocked by your armor, take 0 damage and push the enemy back 4 spaces. If you reduce your armor to 0, take the damage."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 3
+	card.tempo_cost = 3
+	card.block = 5
+	card.base_block = 5
+	card.target_types = ["self"]
+	return card
+
+func _execute_repelled_block(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Gain 5 armor
+	if player_stats:
+		var armor = base_block
+		if buff_mgr:
+			armor += buff_mgr.consume_bolster()
+		player_stats.add_armor(armor)
+		print("[CARD] Repelled Block: gained %d armor" % armor)
+	# Apply repelled block buff - triggers on next melee attack (handled by main.gd)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_repelled_block("Repelled Block"))
+		print("[CARD] Repelled Block: next melee attack fully blocked will push enemy back 4 spaces")
+
+# ============================================
+# SHIELD OF GROWTH
+# ============================================
+static func create_shield_of_growth() -> Card:
+	var card = Card.new()
+	card.card_id = "shield_of_growth"
+	card.card_name = "Shield of Growth"
+	card.description = "For the next 10 tempo, all damage done to you increases your armor count."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 4
+	card.tempo_cost = 5
+	card.duration = 10
+	card.target_types = ["self"]
+	return card
+
+func _execute_shield_of_growth(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_shield_of_growth(10, "Shield of Growth"))
+		print("[CARD] Shield of Growth: all damage taken will increase armor for 10 tempo")
+
+# ============================================
+# GIFT FROM THE PHOENIX
+# ============================================
+static func create_gift_from_the_phoenix() -> Card:
+	var card = Card.new()
+	card.card_id = "gift_from_the_phoenix"
+	card.card_name = "Gift from the Phoenix"
+	card.description = "Instant: When your life drops below 50%%, heal up to 80%% and apply 5 burn to the nearest enemy."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.reaction_trigger = "on_hp_below_50"
+	card.target_types = ["self"]
+	return card
+
+func _execute_gift_from_the_phoenix(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Apply phoenix grace buff - triggers when HP drops below 50% (handled by main.gd)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_phoenix_grace("Gift from the Phoenix"))
+		print("[CARD] Gift from the Phoenix: will heal to 80%% and burn nearest enemy when HP drops below 50%%")
