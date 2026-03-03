@@ -2688,6 +2688,8 @@ static func create_reckless_strike() -> Card:
 	card.tempo_cost = 4
 	card.damage = 15
 	card.base_damage = 15
+	return card
+
 # NEW CARDS
 # ============================================
 
