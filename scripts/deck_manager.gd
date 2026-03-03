@@ -134,7 +134,8 @@ func _build_card_factory_map() -> void:
 func _create_card_from_id(card_id: String) -> Card:
 	_build_card_factory_map()
 	if card_id in _card_factory_map:
-		return Card.call(_card_factory_map[card_id])
+		var card_script: Script = Card
+		return card_script.call(_card_factory_map[card_id])
 	print("[DECK] Unknown card_id: %s" % card_id)
 	return null
 
