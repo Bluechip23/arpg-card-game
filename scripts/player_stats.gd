@@ -15,6 +15,7 @@ signal damage_taken(amount: int)
 signal health_damage_taken(amount: int)  # Emitted with the HP-only portion of damage (after armor absorbs)
 signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards should be discarded
 signal gold_changed(amount: int)
+signal healed(amount: int)
 
 var character_data: CharacterData
 
@@ -480,7 +481,9 @@ func heal(amount: int) -> void:
 	current_health = min(current_health, max_health)
 	var actual_heal = current_health - old_health
 	health_changed.emit(current_health, max_health)
-	
+	if actual_heal > 0:
+		healed.emit(actual_heal)
+
 	var new_health_pct = get_health_percent()
 	print("[STATS] Healed %d (base %d)! Health: %d/%d" % [actual_heal, amount, current_health, max_health])
 	

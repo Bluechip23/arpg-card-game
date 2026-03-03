@@ -261,3 +261,67 @@ func get_buff_manager() -> BuffManager:
 func on_attacked_by(attacker) -> void:
 	# Called when this player is attacked
 	buff_manager.on_attacked(attacker)
+
+# ============================================
+# FLOATING NUMBERS
+# ============================================
+
+func spawn_damage_number(amount: int) -> void:
+	if amount <= 0:
+		return
+	var label = Label3D.new()
+	label.text = str(amount)
+	label.font_size = 26
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.render_priority = 50
+	label.modulate = Color(1.0, 0.3, 0.3)
+	label.position = position + Vector3(randf_range(-0.3, 0.3), 1.8, 0)
+	get_parent().add_child(label)
+
+	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y + 1.2, 0.7)
+	tween.tween_property(label, "modulate:a", 0.0, 0.5).set_delay(0.3)
+	tween.chain()
+	tween.tween_callback(label.queue_free)
+
+func spawn_heal_number(amount: int) -> void:
+	if amount <= 0:
+		return
+	var label = Label3D.new()
+	label.text = "+" + str(amount)
+	label.font_size = 24
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.render_priority = 50
+	label.modulate = Color(0.3, 1.0, 0.4)
+	label.position = position + Vector3(randf_range(-0.2, 0.2), 1.8, 0)
+	get_parent().add_child(label)
+
+	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y + 1.0, 0.7)
+	tween.tween_property(label, "modulate:a", 0.0, 0.5).set_delay(0.3)
+	tween.chain()
+	tween.tween_callback(label.queue_free)
+
+func spawn_armor_number(amount: int) -> void:
+	if amount <= 0:
+		return
+	var label = Label3D.new()
+	label.text = "+" + str(amount) + " Armor"
+	label.font_size = 20
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.render_priority = 50
+	label.modulate = Color(0.5, 0.7, 1.0)
+	label.position = position + Vector3(randf_range(-0.2, 0.2), 1.6, 0)
+	get_parent().add_child(label)
+
+	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y + 0.8, 0.6)
+	tween.tween_property(label, "modulate:a", 0.0, 0.4).set_delay(0.3)
+	tween.chain()
+	tween.tween_callback(label.queue_free)

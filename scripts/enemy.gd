@@ -873,6 +873,9 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 	damaged.emit(amount)
 	update_health_display()
 
+	# Floating damage number
+	_spawn_damage_number(amount, just_exposed)
+
 	if mesh:
 		var tween = create_tween()
 		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
@@ -887,6 +890,52 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 		die()
 
 	return just_exposed
+
+# ============================================
+# FLOATING DAMAGE NUMBERS
+# ============================================
+
+func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
+	if amount <= 0:
+		return
+
+	var label = Label3D.new()
+	label.text = str(amount)
+	label.font_size = 28 if amount >= 10 else 22
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.render_priority = 50
+
+	# Color based on damage significance
+	if was_exposed:
+		label.modulate = Color(1.0, 0.5, 0.0)  # Orange for armor break
+		label.font_size = 32
+		label.text = str(amount) + "!"
+	elif amount >= 15:
+		label.modulate = Color(1.0, 0.2, 0.2)  # Bright red for big hits
+		label.font_size = 32
+	elif amount >= 8:
+		label.modulate = Color(1.0, 0.5, 0.3)  # Orange-red for medium hits
+	else:
+		label.modulate = Color(1.0, 0.85, 0.5)  # Yellow for small hits
+
+	# Random horizontal offset to avoid stacking
+	var x_offset = randf_range(-0.3, 0.3)
+	label.position = position + Vector3(x_offset, 1.5, 0)
+	get_parent().add_child(label)
+
+	# Animate: float up and fade out
+	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y + 1.5, 0.8)
+	tween.tween_property(label, "modulate:a", 0.0, 0.6).set_delay(0.3)
+	# Slight scale up then down
+	tween.tween_property(label, "font_size", label.font_size + 6, 0.1)
+	tween.chain()
+	tween.tween_property(label, "font_size", label.font_size, 0.3)
+
+	tween.chain()
+	tween.tween_callback(label.queue_free)
 
 # ============================================
 # STATUS EFFECTS

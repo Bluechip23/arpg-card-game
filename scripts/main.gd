@@ -42,6 +42,10 @@ extends Node3D
 var dungeon_manager: DungeonManager = null
 var unit_tracker: UnitTrackerUI = null
 
+# Card animation tracking
+var _prev_hand_card_ids: Array[String] = []  # Card IDs from last hand update
+var _card_play_animating: bool = false        # Block input during card play animation
+
 # Chest loot modal state
 var _chest_modal: PanelContainer = null
 var _chest_modal_open: bool = false
@@ -1122,6 +1126,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
+	player.get_stats().healed.connect(_on_player_healed)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	deck_manager.card_erased.connect(_on_card_erased)
 
@@ -1678,11 +1683,15 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 	## Process maintained card effects that trigger on HP damage
 	if hp_amount <= 0:
 		return
+	player.spawn_damage_number(hp_amount)
 	var stats = player.get_stats()
 	for card in deck_manager.get_maintained_cards():
 		if card.card_id == "armored_discipline":
 			stats.add_armor(hp_amount)
 			print("[MAIN] Armored Discipline: gained %d armor from %d HP damage!" % [hp_amount, hp_amount])
+
+func _on_player_healed(amount: int) -> void:
+	player.spawn_heal_number(amount)
 
 func update_turn_display() -> void:
 	if turn_label:
@@ -1695,10 +1704,28 @@ func update_turn_display() -> void:
 func _on_hand_updated() -> void:
 	if hand_card_preview:
 		hand_card_preview.visible = false
-	_card_ui_instances.clear()
 	_current_hand_hover_index = -1
+
+	# Snapshot current hand card IDs to detect which are new
+	var new_card_ids: Array[String] = []
+	for card in deck_manager.hand:
+		new_card_ids.append(card.card_id + "_" + str(card.get_instance_id()))
+
+	# Determine which cards are newly drawn
+	var new_indices: Array[int] = []
+	for i in range(new_card_ids.size()):
+		if not new_card_ids[i] in _prev_hand_card_ids:
+			new_indices.append(i)
+
+	_prev_hand_card_ids = new_card_ids
+
+	# Remove old card UI nodes that aren't animating out
 	for child in hand_container.get_children():
-		child.queue_free()
+		if child is CardUI and not child._is_animating_out:
+			child.queue_free()
+		elif not child is CardUI:
+			child.queue_free()
+	_card_ui_instances.clear()
 
 	var debuff_mgr = player.get_debuff_manager()
 
@@ -1728,39 +1755,61 @@ func _on_hand_updated() -> void:
 	if container_width <= 0:
 		container_width = 1080.0  # fallback
 
-	# Calculate spacing: fit all cards proportionally within the container
-	# If cards would fit without overlap, space them evenly
-	# If not, overlap them so they all fit
+	# Calculate spacing
 	var total_cards_width = card_width * hand_size
 	var spacing: float
 	if total_cards_width <= container_width:
-		# Cards fit - distribute evenly across the space
 		if hand_size == 1:
 			spacing = 0.0
 		else:
 			spacing = (container_width - card_width) / (hand_size - 1)
-		# Cap spacing so cards don't spread too far apart
 		spacing = min(spacing, card_width + 8.0)
 	else:
-		# Cards overlap - shrink spacing to fit
 		spacing = (container_width - card_width) / max(hand_size - 1, 1)
 
-	# Center the hand within the container
+	# Center the hand
 	var total_hand_width = card_width + spacing * max(hand_size - 1, 0)
 	var start_x = (container_width - total_hand_width) / 2.0
 	var card_y = (hand_container.size.y - card_height) / 2.0
 	if card_y < 0:
 		card_y = 0.0
 
+	# Fan rotation: slight arc for cards in hand
+	var max_fan_angle: float = 3.0  # Max degrees for outermost card
+	if hand_size <= 1:
+		max_fan_angle = 0.0
+
+	# Draw pile position for draw animation origin (bottom-left of screen)
+	var draw_origin = Vector2(-80, card_y + 40)
+
 	for i in range(hand_size):
 		var card_ui = CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
 		card_ui.setup(deck_manager.hand[i], i, debuff_mgr)
-		card_ui.position = Vector2(start_x + i * spacing, card_y)
+
+		var final_pos = Vector2(start_x + i * spacing, card_y)
+
+		# Fan rotation: arc from left to right
+		var fan_t = 0.0
+		if hand_size > 1:
+			fan_t = float(i) / float(hand_size - 1) * 2.0 - 1.0  # -1..1
+		var fan_angle = fan_t * max_fan_angle
+		card_ui.set_fan_rotation(fan_angle)
+
 		card_ui.z_index = i
-		card_ui.store_base_position()
-		# Disable per-card mouse detection; position-based hover in _process handles it
 		card_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+		if i in new_indices:
+			# New card: animate sliding in from draw pile area
+			card_ui.position = final_pos  # Set base for store
+			card_ui.store_base_position()
+			var delay = new_indices.find(i) * 0.08
+			card_ui.animate_draw_in(draw_origin, final_pos, delay)
+		else:
+			# Existing card: slide to new position
+			card_ui.position = final_pos
+			card_ui.store_base_position()
+
 		_card_ui_instances.append(card_ui)
 
 	if selected_card_index >= deck_manager.hand.size():
@@ -1787,6 +1836,7 @@ func _on_card_discarded(card: Card) -> void:
 
 func _on_deck_shuffled() -> void:
 	update_deck_info()
+	_animate_shuffle()
 
 func _on_card_peaked(card: Card) -> void:
 	update_peaked_display()
@@ -2218,9 +2268,19 @@ func play_selected_card(target) -> void:
 		add_battle_log("High Ground! +4 damage, +2 range", Color(1.0, 0.9, 0.4))
 		print("[MAIN] High Ground bonus applied: +4 damage, +2 range")
 
+	# Capture the card UI before playing for animation
+	var played_card_ui: CardUI = null
+	if selected_card_index >= 0 and selected_card_index < _card_ui_instances.size():
+		played_card_ui = _card_ui_instances[selected_card_index]
+
 	var result = deck_manager.play_card(selected_card_index, target, player)
 
 	if result["played"]:
+		# Animate the played card flying to target
+		if played_card_ui and is_instance_valid(played_card_ui):
+			var fly_target = _get_card_play_target_pos(target)
+			played_card_ui.animate_play(fly_target)
+
 		selected_card_index = -1
 
 		# Log the card play
@@ -2346,6 +2406,41 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 	else:
 		# Melee: must be adjacent (within ~1.5 tiles)
 		return distance_tiles <= 1.5
+
+func _get_card_play_target_pos(target) -> Vector2:
+	## Returns a screen position to animate the card toward (in hand_container local coords).
+	var cam = get_viewport().get_camera_3d()
+	if target is Enemy and is_instance_valid(target) and cam:
+		var screen_pos = cam.unproject_position(target.position + Vector3(0, 0.5, 0))
+		var container_global = hand_container.get_global_rect().position
+		return screen_pos - container_global
+	# Default: fly upward toward center of screen
+	var vp_size = get_viewport().get_visible_rect().size
+	var container_global = hand_container.get_global_rect().position
+	return Vector2(vp_size.x * 0.5, vp_size.y * 0.3) - container_global
+
+func _get_discard_pile_pos() -> Vector2:
+	## Returns discard pile area position in hand_container local coords for discard animation.
+	if discard_label:
+		var label_global = discard_label.get_global_rect().position
+		var container_global = hand_container.get_global_rect().position
+		return label_global - container_global + Vector2(40, 0)
+	return Vector2(-100, 0)
+
+func _animate_shuffle() -> void:
+	## Shakes the draw pile label to indicate a shuffle.
+	if not draw_label:
+		return
+	var original_pos = draw_label.position
+	var tween = create_tween()
+	for i in range(4):
+		var offset = Vector2(randf_range(-4, 4), randf_range(-2, 2))
+		tween.tween_property(draw_label, "position", original_pos + offset, 0.05)
+	tween.tween_property(draw_label, "position", original_pos, 0.05)
+	# Flash color
+	var color_tween = create_tween()
+	color_tween.tween_property(draw_label, "modulate", Color(1.0, 0.9, 0.4), 0.1)
+	color_tween.tween_property(draw_label, "modulate", Color(1, 1, 1), 0.2)
 
 func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_mouse_world_position()
