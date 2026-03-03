@@ -555,11 +555,15 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"lightly_dazed":
 			pass  # Unplayable card - no execute logic
+		"reckless_strike":
+			_execute_reckless_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Power Cards (Maintain) ===
 		"halo":
 			_execute_halo(player_stats, buff_mgr)
 		"armored_discipline":
 			_execute_armored_discipline(player_stats, buff_mgr)
+		"fountain_of_life":
+			_execute_fountain_of_life(player_stats, buff_mgr)
 		# === New Cards ===
 		"blade_barrage":
 			_execute_blade_barrage(target, player_stats, deck_manager, buff_mgr)
@@ -640,11 +644,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 
 func _execute_gain_mana(player_stats: PlayerStats) -> void:
 	if player_stats:
-		var amount = 2
-		# Intelligence boosts mana gain via spell multiplier
-		amount = player_stats.get_effective_heal_amount(amount)
-		player_stats.gain_mana(amount)
-		print("[CARD] Gained %d mana!" % amount)
+		player_stats.gain_mana(2)
+		print("[CARD] Gained 2 mana!")
 		
 func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -885,11 +886,13 @@ static func create_blink() -> Card:
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
-	card.tempo_cost = 1  # Quick/instant
+	card.tempo_cost = 1
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
+	card.is_ranged = true
+	card.range_modifier = 3
 	card.target_types = ["point"]
 	card.heal_amount = 0
 	return card
@@ -975,8 +978,8 @@ func _execute_life_swap(target, player_stats: PlayerStats, buff_mgr: BuffManager
 		return
 	var old_health = player_stats.current_health
 	var old_mana = int(player_stats.current_mana)
-	# Swap health and mana pools
-	var new_health = min(old_mana, player_stats.max_health)
+	# Swap health and mana pools (never drop HP to 0)
+	var new_health = max(1, min(old_mana, player_stats.max_health))
 	var new_mana = min(old_health, player_stats.max_mana)
 	var life_lost = max(0, old_health - new_health)
 	player_stats.current_health = new_health
@@ -1115,15 +1118,19 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
-	# 80% bounce chance, -20% per bounce
+		last_damage_dealt = total_damage
+	# 80% bounce chance, -20% per bounce, each bounce deals 8 damage
 	var bounce_chance = 80.0
 	var bounces = 0
 	while randf() * 100.0 < bounce_chance:
 		bounces += 1
+		if target and target.has_method("take_damage"):
+			target.take_damage(8, true)
+			last_damage_dealt += 8
 		bounce_chance -= 20.0
 		if bounce_chance <= 0:
 			break
-	print("[CARD] Trick Shot! Dealt %d damage, bounced %d times" % [total_damage, bounces])
+	print("[CARD] Trick Shot! Dealt %d damage, bounced %d times (8 each)" % [total_damage, bounces])
 
 func _execute_surrounding_ice(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -1280,10 +1287,10 @@ func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -
 	print("[CARD] Shadows! Invisible for 10 tempo")
 
 func _execute_preparation(player_stats: PlayerStats, deck_manager = null) -> void:
-	# Next utility card costs 2 less; chains while playing utilities
 	if deck_manager:
 		deck_manager.prep_utility_discount = 2
-	print("[CARD] Preparation! Next utility cards cost 2 less (chains while playing utilities)")
+		deck_manager.prep_utility_charges = 2
+	print("[CARD] Preparation! Next 2 utility cards cost 2 less")
 
 func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
 	var discard_count = 0
@@ -1378,8 +1385,8 @@ func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats
 
 func _execute_mark(target, _player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("marked", 99)
-	print("[CARD] Mark! Target receives extra damage from your attacks")
+		target.apply_debuff("marked", 25)
+	print("[CARD] Mark! Target receives extra damage for 25 tempo")
 
 func _execute_rise(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Rise! Earth structure created on the map")
@@ -1689,12 +1696,14 @@ static func create_armor_break() -> Card:
 	var card = Card.new()
 	card.card_id = "armor_break"
 	card.card_name = "Armor Break"
-	card.description = "Next attack deals double damage, but only affects armor."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
+	card.description = "Next attack deals double damage to armor only. Does nothing to unarmored enemies."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
 	card.mana_cost = 3
 	card.tempo_cost = 4
-	card.target_types = ["enemy"]
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
 	return card
 
 static func create_charge() -> Card:
@@ -2548,7 +2557,7 @@ static func create_lightly_dazed() -> Card:
 	var card = Card.new()
 	card.card_id = "lightly_dazed"
 	card.card_name = "Lightly Dazed"
-	card.description = "This card cannot be played."
+	card.description = "This card cannot be played. Erases from deck after 40 tempo."
 	card.card_type = CardType.UNPLAYABLE
 	card.card_type_name = "Unplayable"
 	card.mana_cost = 0
@@ -2558,6 +2567,8 @@ static func create_lightly_dazed() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
+	card.erase_tempo = 40
+	card.erase_tempo_remaining = 40
 	card.target_types = ["self"]
 	return card
 
@@ -2688,7 +2699,30 @@ static func create_reckless_strike() -> Card:
 	card.tempo_cost = 4
 	card.damage = 15
 	card.base_damage = 15
+	card.target_types = ["enemy"]
 	return card
+
+func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float, self_damage_percent: float, buff_mgr: BuffManager = null) -> void:
+	var total_damage = base_damage + bonus_damage
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+	if is_empowered and player_stats:
+		total_damage += player_stats.empower_damage_bonus
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			buff_mgr.consume_enlightened()
+	if damage_reduction_pct > 0.0:
+		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
+	last_damage_dealt = total_damage
+	if target and target.has_method("take_damage"):
+		target.take_damage(total_damage, true)
+	if self_damage_percent > 0.0 and player_stats:
+		var self_dmg = floori(total_damage * self_damage_percent)
+		if self_dmg > 0:
+			player_stats.take_damage(self_dmg)
+	print("[CARD] Reckless Strike! Dealt %d damage" % total_damage)
 
 # NEW CARDS
 # ============================================
@@ -2866,11 +2900,8 @@ static func create_bob_and_weave() -> Card:
 
 func _execute_bob_and_weave(player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:
 	if player_stats:
-		var armor = base_block
-		if buff_mgr:
-			armor += buff_mgr.consume_bolster()
-		player_stats.add_armor(armor)
-		print("[CARD] Bob and Weave: gained %d armor" % armor)
+		player_stats.add_armor(base_block)
+		print("[CARD] Bob and Weave: gained %d armor" % base_block)
 	if deck_manager and deck_manager.has_method("draw_card"):
 		deck_manager.draw_card()
 		print("[CARD] Bob and Weave: drew a card")
@@ -2966,8 +2997,8 @@ static func create_fortify_alliance() -> Card:
 	card.card_id = "fortify_alliance"
 	card.card_name = "Fortify Alliance"
 	card.description = "Heal an ally for 5 and give yourself 5 armor."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
 	card.mana_cost = 2
 	card.tempo_cost = 3
 	card.damage = 0
@@ -2981,7 +3012,6 @@ static func create_fortify_alliance() -> Card:
 	return card
 
 func _execute_fortify_alliance(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Heal the targeted ally for 5
 	if target and target.has_method("get_stats"):
 		var ally_stats = target.get_stats()
 		if ally_stats:
@@ -2990,13 +3020,9 @@ func _execute_fortify_alliance(target, player_stats: PlayerStats, buff_mgr: Buff
 	elif target and target.has_method("heal"):
 		target.heal(heal_amount)
 		print("[CARD] Fortify Alliance: healed ally for %d" % heal_amount)
-	# Give self 5 armor
 	if player_stats:
-		var armor = base_block
-		if buff_mgr:
-			armor += buff_mgr.consume_bolster()
-		player_stats.add_armor(armor)
-		print("[CARD] Fortify Alliance: gained %d armor" % armor)
+		player_stats.add_armor(base_block)
+		print("[CARD] Fortify Alliance: gained %d armor" % base_block)
 
 static func create_communal_donation() -> Card:
 	var card = Card.new()
@@ -3058,7 +3084,7 @@ static func create_repelled_block() -> Card:
 	var card = Card.new()
 	card.card_id = "repelled_block"
 	card.card_name = "Repelled Block"
-	card.description = "Gain 5 armor. If the enemy's next melee attack is fully blocked by your armor, take 0 damage and push the enemy back 4 spaces. If you reduce your armor to 0, take the damage."
+	card.description = "Gain 5 armor. If the enemy's next melee attack is fully blocked by your armor, take 0 damage, push the enemy back 4 spaces, and push yourself back 2 spaces. If your armor is reduced to 0, take the damage."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 3
@@ -3069,17 +3095,12 @@ static func create_repelled_block() -> Card:
 	return card
 
 func _execute_repelled_block(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Gain 5 armor
 	if player_stats:
-		var armor = base_block
-		if buff_mgr:
-			armor += buff_mgr.consume_bolster()
-		player_stats.add_armor(armor)
-		print("[CARD] Repelled Block: gained %d armor" % armor)
-	# Apply repelled block buff - triggers on next melee attack (handled by main.gd)
+		player_stats.add_armor(base_block)
+		print("[CARD] Repelled Block: gained %d armor" % base_block)
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_repelled_block("Repelled Block"))
-		print("[CARD] Repelled Block: next melee attack fully blocked will push enemy back 4 spaces")
+		print("[CARD] Repelled Block: next melee attack fully blocked pushes enemy 4 + self back 2")
 
 # ============================================
 # SHIELD OF GROWTH
@@ -3088,7 +3109,7 @@ static func create_shield_of_growth() -> Card:
 	var card = Card.new()
 	card.card_id = "shield_of_growth"
 	card.card_name = "Shield of Growth"
-	card.description = "For the next 10 tempo, all damage done to you increases your armor count."
+	card.description = "For the next 10 tempo, all damage done to you increases your armor count. Disarms self for the duration."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 4
@@ -3100,7 +3121,11 @@ static func create_shield_of_growth() -> Card:
 func _execute_shield_of_growth(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_shield_of_growth(10, "Shield of Growth"))
-		print("[CARD] Shield of Growth: all damage taken will increase armor for 10 tempo")
+		if buff_mgr.debuff_manager:
+			var disarm = Debuff.create(Debuff.DebuffType.DISARM, 0, 10)
+			disarm.source_name = "Shield of Growth"
+			buff_mgr.debuff_manager.apply_debuff(disarm)
+		print("[CARD] Shield of Growth: all damage taken increases armor for 10 tempo. Disarmed for 10 tempo.")
 
 # ============================================
 # GIFT FROM THE PHOENIX

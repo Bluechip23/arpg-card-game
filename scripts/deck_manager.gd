@@ -33,6 +33,7 @@ var peaked_card: Card = null
 var next_attack_free: bool = false
 var next_attack_mana_discount: int = 0
 var prep_utility_discount: int = 0  # Preparation: reduces next utility card cost
+var prep_utility_charges: int = 0   # How many more utility cards get the discount
 var discards_this_cycle: int = 0  # Cards discarded since last tempo cycle
 
 func connect_player_stats(stats) -> void:
@@ -263,10 +264,10 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 			mana_cost -= on_self["mana_reduction"]
 			print("[DECK] On-Self mana reduction: -%d from %s" % [on_self["mana_reduction"], card.slotted_in_item.item_name])
 
-	# Preparation: utility cards cost less
-	if prep_utility_discount > 0 and card.card_type == Card.CardType.UTILITY:
+	# Preparation: utility cards cost less (limited charges)
+	if prep_utility_discount > 0 and prep_utility_charges > 0 and card.card_type == Card.CardType.UTILITY:
 		mana_cost -= prep_utility_discount
-		print("[DECK] Preparation discount: -%d mana" % prep_utility_discount)
+		print("[DECK] Preparation discount: -%d mana (%d charges left)" % [prep_utility_discount, prep_utility_charges])
 
 	if debuff_mgr:
 		if card.card_type == Card.CardType.ATTACK:
@@ -289,12 +290,17 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 	next_attack_free = false
 	next_attack_mana_discount = 0
 
-	# Preparation chain: if utility was played, keep discount for next card; otherwise clear
+	# Preparation chain: consume a charge when utility played, clear if non-utility or depleted
 	if prep_utility_discount > 0:
 		if card.card_type == Card.CardType.UTILITY:
-			pass  # Keep prep_utility_discount for next card (chain continues)
+			prep_utility_charges -= 1
+			if prep_utility_charges <= 0:
+				prep_utility_discount = 0
+				prep_utility_charges = 0
+				print("[DECK] Preparation charges depleted")
 		else:
 			prep_utility_discount = 0
+			prep_utility_charges = 0
 			print("[DECK] Preparation chain broken (non-utility played)")
 	
 	var clumsy_triggered = false
