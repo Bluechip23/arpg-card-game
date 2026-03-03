@@ -173,7 +173,8 @@ Mana %.0f/%d
 Armor  %d
 Decay  -%d/t
 Carry  %d/%d
-Regen  %.1f/t""" % [
+Regen  %.1f/t
+Gold   %d""" % [
 		player_stats.current_health,
 		player_stats.max_health,
 		player_stats.current_mana,
@@ -182,7 +183,8 @@ Regen  %.1f/t""" % [
 		player_stats.armor_decay_per_cycle,
 		player_stats.current_carry_load,
 		player_stats.get_carry_capacity(),
-		player_stats.get_effective_mana_regen()
+		player_stats.get_effective_mana_regen(),
+		player_stats.gold
 	]
 
 func _update_equipment_display() -> void:

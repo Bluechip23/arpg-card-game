@@ -39,7 +39,17 @@ extends Node3D
 @onready var sphere_inventory: SphereInventory = $SphereInventory
 @onready var range_indicator: RangeIndicator = $RangeIndicator
 
+var dungeon_manager: DungeonManager = null
 var unit_tracker: UnitTrackerUI = null
+
+# Chest loot modal state
+var _chest_modal: PanelContainer = null
+var _chest_modal_open: bool = false
+var _chest_modal_contents: Dictionary = {}
+var _chest_interact_prompt: Label3D = null
+
+# Gold HUD label
+var _gold_label: Label = null
 
 var battle_log_label: RichTextLabel = null
 var battle_log_panel: PanelContainer = null
@@ -177,8 +187,9 @@ func _ready() -> void:
 	# Unit tracker (left side panel)
 	_setup_unit_tracker()
 
-	# Spawn initial test wave
-	enemy_spawner.spawn_test_arena()
+	# Initialize dungeon
+	_setup_dungeon()
+	_setup_gold_label()
 	_update_enemy_count()
 	_refresh_unit_tracker()
 
@@ -223,6 +234,10 @@ func _update_camera() -> void:
 func _process(_delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
+	# Update chest interact prompts
+	if dungeon_manager and grid_manager:
+		var pg = grid_manager.world_to_grid(player.position)
+		dungeon_manager.update_chest_prompts(pg)
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
 		var mouse_world = get_mouse_world_position()
@@ -1130,6 +1145,10 @@ func select_character(character: CharacterData) -> void:
 	_on_player_armor_changed(player.get_stats().current_armor)
 	_update_block_button_visibility()
 
+	# Gold
+	player.get_stats().gold_changed.connect(_on_player_gold_changed)
+	_update_gold_display()
+
 	# XP / Leveling
 	player.get_stats().leveled_up.connect(_on_player_leveled_up)
 	player.get_stats().xp_changed.connect(_on_player_xp_changed)
@@ -1529,9 +1548,16 @@ func trigger_multiple_turns(count: int) -> void:
 func _on_player_tile_reached() -> void:
 	# Tempo accumulates per tile in real time
 	tempo_manager.add_movement_tempo()
+	# Check if player entered a new dungeon zone
+	_check_dungeon_zones()
+	# Update camera focus to follow player
+	if dungeon_manager:
+		_camera_focus = player.position + Vector3(2, 0, 0)
+		_update_camera()
 
 func _on_player_move_completed() -> void:
-	pass
+	# Final zone check at destination
+	_check_dungeon_zones()
 
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	var debuff_mgr = player.get_debuff_manager()
@@ -1624,6 +1650,9 @@ func _on_player_mana_changed(current: float, max_mana: int) -> void:
 func _on_player_armor_changed(current: int) -> void:
 	if player_armor_label:
 		player_armor_label.text = "Armor: %d" % current
+
+func _on_player_gold_changed(_amount: int) -> void:
+	_update_gold_display()
 
 func _update_xp_display() -> void:
 	if player_xp_label:
@@ -2552,7 +2581,18 @@ func _input(event: InputEvent) -> void:
 	if _donation_active:
 		return
 
+	# Block game input while chest modal is open
+	if _chest_modal_open:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_close_chest_modal()
+		return
+
 	if event is InputEventKey and event.pressed and not event.echo:
+		# Chest interaction (Shift key)
+		if event.keycode == KEY_SHIFT:
+			_try_interact_chest()
+			return
+
 		# Character panel toggle
 		if event.keycode == KEY_I:
 			character_panel.toggle_panel()
@@ -2684,6 +2724,421 @@ func _input(event: InputEvent) -> void:
 		_camera_yaw -= delta.x * CAMERA_ORBIT_SENSITIVITY
 		_camera_pitch = clamp(_camera_pitch - delta.y * CAMERA_ORBIT_SENSITIVITY, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX)
 		_update_camera()
+
+# ============================================
+# DUNGEON SYSTEM
+# ============================================
+
+func _setup_dungeon() -> void:
+	dungeon_manager = DungeonManager.new()
+	dungeon_manager.name = "DungeonManager"
+	add_child(dungeon_manager)
+	dungeon_manager.initialize(grid_manager, self)
+
+	# Move player to dungeon start
+	var start_pos = dungeon_manager.get_player_start_world()
+	player.position = start_pos
+	player.target_position = start_pos
+
+	# Sync wall tiles as blocked tiles for pathfinding
+	_sync_dungeon_blocked_tiles()
+
+	# Center camera on player start
+	_camera_focus = start_pos + Vector3(3, 0, 0)
+	_update_camera()
+
+	print("[MAIN] Dungeon initialized, player at %s" % start_pos)
+
+func _sync_dungeon_blocked_tiles() -> void:
+	## Combines dungeon wall tiles with barricade tiles for pathfinding.
+	var tiles: Array[Vector2i] = []
+	if dungeon_manager:
+		tiles.append_array(dungeon_manager.get_wall_tiles())
+	for obs in barricade_obstacles:
+		tiles.append(grid_manager.world_to_grid(obs["position"]))
+	player.blocked_tiles = tiles
+	for enemy in enemy_spawner.get_living_enemies():
+		enemy.blocked_tiles = tiles
+
+func _check_dungeon_zones() -> void:
+	## Check if player has entered any new spawn zones.
+	if not dungeon_manager:
+		return
+	var player_grid = grid_manager.world_to_grid(player.position)
+	dungeon_manager.update_chest_prompts(player_grid)
+
+	var triggered = dungeon_manager.check_player_position(player_grid)
+	for zone_idx in triggered:
+		_spawn_dungeon_zone(zone_idx)
+
+func _spawn_dungeon_zone(zone_index: int) -> void:
+	var zone = dungeon_manager.get_spawn_zone(zone_index)
+	if zone.is_empty():
+		return
+
+	var spawn_points: Array = zone["spawn_points"]
+	var enemy_types: Array = zone["enemy_types"]
+	var count = mini(spawn_points.size(), enemy_types.size())
+
+	for i in range(count):
+		var world_pos = grid_manager.grid_to_world(spawn_points[i])
+		enemy_spawner.spawn_enemy(enemy_types[i], world_pos)
+
+	_sync_dungeon_blocked_tiles()
+	_sync_pillar_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+
+	add_battle_log("Enemies appear!", Color(1.0, 0.4, 0.4))
+	print("[MAIN] Dungeon zone %d triggered! Spawned %d enemies." % [zone_index, count])
+
+func _setup_gold_label() -> void:
+	var ui = $UI as CanvasLayer
+	_gold_label = Label.new()
+	_gold_label.name = "GoldLabel"
+	_gold_label.text = "Gold: 0"
+	_gold_label.add_theme_font_size_override("font_size", 16)
+	_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	ui.add_child(_gold_label)
+	_gold_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_gold_label.offset_left = 8.0
+	_gold_label.offset_top = 8.0
+
+func _update_gold_display() -> void:
+	if _gold_label:
+		_gold_label.text = "Gold: %d" % player.get_stats().gold
+
+# ============================================
+# CHEST LOOT MODAL
+# ============================================
+
+func _try_interact_chest() -> void:
+	if not dungeon_manager:
+		return
+	if _chest_modal_open:
+		return
+
+	var player_grid = grid_manager.world_to_grid(player.position)
+	var chest_idx = dungeon_manager.get_nearby_chest(player_grid)
+	if chest_idx < 0:
+		return
+
+	var contents = dungeon_manager.open_chest(chest_idx)
+	if contents.is_empty():
+		return
+
+	# Grant gold immediately
+	var gold_amount = contents.get("gold", 0)
+	if gold_amount > 0:
+		player.get_stats().gain_gold(gold_amount)
+		_update_gold_display()
+
+	_show_chest_modal(contents)
+
+func _show_chest_modal(contents: Dictionary) -> void:
+	_chest_modal_open = true
+	_chest_modal_contents = contents
+
+	var ui = $UI as CanvasLayer
+
+	# Dimmed overlay
+	var overlay = ColorRect.new()
+	overlay.name = "ChestOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.55)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.gui_input.connect(_on_chest_overlay_input)
+	ui.add_child(overlay)
+
+	# Modal panel
+	_chest_modal = PanelContainer.new()
+	_chest_modal.name = "ChestModal"
+	_chest_modal.custom_minimum_size = Vector2(420, 0)
+	_chest_modal.set_anchors_preset(Control.PRESET_CENTER)
+	_chest_modal.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_chest_modal.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.08, 0.07, 0.1, 0.98)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.7, 0.55, 0.2)
+	panel_style.corner_radius_top_left = 10
+	panel_style.corner_radius_top_right = 10
+	panel_style.corner_radius_bottom_left = 10
+	panel_style.corner_radius_bottom_right = 10
+	_chest_modal.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	_chest_modal.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	margin.add_child(vbox)
+
+	# Title
+	var title = Label.new()
+	title.text = "Treasure Chest!"
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	vbox.add_child(HSeparator.new())
+
+	# Gold
+	var gold_amount = contents.get("gold", 0)
+	if gold_amount > 0:
+		var gold_lbl = Label.new()
+		gold_lbl.text = "+ %d Gold" % gold_amount
+		gold_lbl.add_theme_font_size_override("font_size", 18)
+		gold_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		gold_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(gold_lbl)
+
+	# Item reward
+	var item: ItemData = contents.get("item")
+	if item:
+		vbox.add_child(HSeparator.new())
+		var item_container = _build_chest_item_display(item)
+		vbox.add_child(item_container)
+
+		var pick_up_btn = Button.new()
+		pick_up_btn.text = "Pick Up Item"
+		pick_up_btn.custom_minimum_size = Vector2(160, 36)
+		pick_up_btn.add_theme_font_size_override("font_size", 15)
+		_style_chest_button(pick_up_btn, Color(0.15, 0.4, 0.15), Color(0.3, 0.7, 0.3))
+		pick_up_btn.pressed.connect(_on_chest_pick_up_item.bind(item))
+		vbox.add_child(pick_up_btn)
+
+	# Card reward
+	var card: Card = contents.get("card")
+	if card:
+		vbox.add_child(HSeparator.new())
+		var card_container = _build_chest_card_display(card)
+		vbox.add_child(card_container)
+
+		var btn_hbox = HBoxContainer.new()
+		btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		btn_hbox.add_theme_constant_override("separation", 12)
+
+		var add_deck_btn = Button.new()
+		add_deck_btn.text = "Add to Deck"
+		add_deck_btn.custom_minimum_size = Vector2(140, 36)
+		add_deck_btn.add_theme_font_size_override("font_size", 15)
+		_style_chest_button(add_deck_btn, Color(0.15, 0.3, 0.45), Color(0.3, 0.5, 0.8))
+		add_deck_btn.pressed.connect(_on_chest_add_card_to_deck.bind(card))
+		btn_hbox.add_child(add_deck_btn)
+
+		# Check if card can be slotted into any weapon
+		var inv = player.get_inventory()
+		var compatible_items = _get_compatible_items_for_card(card, inv)
+		if compatible_items.size() > 0:
+			var slot_btn = Button.new()
+			slot_btn.text = "Slot into Weapon"
+			slot_btn.custom_minimum_size = Vector2(150, 36)
+			slot_btn.add_theme_font_size_override("font_size", 15)
+			_style_chest_button(slot_btn, Color(0.4, 0.25, 0.1), Color(0.7, 0.5, 0.2))
+			slot_btn.pressed.connect(_on_chest_slot_card.bind(card, compatible_items))
+			btn_hbox.add_child(slot_btn)
+
+		vbox.add_child(btn_hbox)
+
+	vbox.add_child(HSeparator.new())
+
+	# Close button
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(120, 34)
+	close_btn.add_theme_font_size_override("font_size", 14)
+	_style_chest_button(close_btn, Color(0.3, 0.15, 0.15), Color(0.6, 0.3, 0.3))
+	close_btn.pressed.connect(_close_chest_modal)
+	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(close_btn)
+
+	ui.add_child(_chest_modal)
+
+func _build_chest_item_display(item: ItemData) -> VBoxContainer:
+	var container = VBoxContainer.new()
+	container.add_theme_constant_override("separation", 4)
+
+	var name_lbl = Label.new()
+	name_lbl.text = item.item_name
+	name_lbl.add_theme_font_size_override("font_size", 18)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(name_lbl)
+
+	var type_lbl = Label.new()
+	type_lbl.text = "[%s]" % item.get_type_name()
+	type_lbl.add_theme_font_size_override("font_size", 13)
+	type_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(type_lbl)
+
+	# Stats (build same as town modal)
+	var stats_text = _build_chest_item_stats(item)
+	if stats_text != "":
+		var stats_lbl = Label.new()
+		stats_lbl.text = stats_text
+		stats_lbl.add_theme_font_size_override("font_size", 13)
+		stats_lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
+		container.add_child(stats_lbl)
+
+	if item.description != "":
+		var desc_lbl = Label.new()
+		desc_lbl.text = item.description
+		desc_lbl.add_theme_font_size_override("font_size", 12)
+		desc_lbl.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		container.add_child(desc_lbl)
+
+	return container
+
+func _build_chest_item_stats(item: ItemData) -> String:
+	var lines: Array[String] = []
+	if item.strength_bonus != 0:
+		lines.append("+%d Strength" % item.strength_bonus if item.strength_bonus > 0 else "%d Strength" % item.strength_bonus)
+	if item.dexterity_bonus != 0:
+		lines.append("+%d Dexterity" % item.dexterity_bonus if item.dexterity_bonus > 0 else "%d Dexterity" % item.dexterity_bonus)
+	if item.intelligence_bonus != 0:
+		lines.append("+%d Intelligence" % item.intelligence_bonus if item.intelligence_bonus > 0 else "%d Intelligence" % item.intelligence_bonus)
+	if item.weapon_damage > 0:
+		lines.append("%d Weapon Damage" % item.weapon_damage)
+	if item.armor_bonus > 0:
+		lines.append("+%d Armor" % item.armor_bonus)
+	if item.health_bonus > 0:
+		lines.append("+%d Health" % item.health_bonus)
+	if item.mana_bonus > 0:
+		lines.append("+%d Mana" % item.mana_bonus)
+	if item.weight > 0:
+		lines.append("Weight: %d" % item.weight)
+	return "\n".join(lines)
+
+func _build_chest_card_display(card: Card) -> VBoxContainer:
+	var container = VBoxContainer.new()
+	container.add_theme_constant_override("separation", 4)
+
+	var name_lbl = Label.new()
+	name_lbl.text = card.card_name
+	name_lbl.add_theme_font_size_override("font_size", 18)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(name_lbl)
+
+	var type_lbl = Label.new()
+	type_lbl.text = card.card_type_name
+	type_lbl.add_theme_font_size_override("font_size", 13)
+	match card.card_type:
+		Card.CardType.ATTACK:
+			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+		Card.CardType.DEFENSE:
+			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
+		Card.CardType.UTILITY:
+			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+		Card.CardType.POWER:
+			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(type_lbl)
+
+	var cost_lbl = Label.new()
+	cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+	cost_lbl.add_theme_font_size_override("font_size", 12)
+	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(cost_lbl)
+
+	var desc_lbl = Label.new()
+	desc_lbl.text = card.description
+	desc_lbl.add_theme_font_size_override("font_size", 13)
+	desc_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(desc_lbl)
+
+	return container
+
+func _get_compatible_items_for_card(card: Card, inv: Inventory) -> Array[ItemData]:
+	var result: Array[ItemData] = []
+	var items = inv.get_all_items_with_card_slots()
+	for item in items:
+		if item.can_slot_card(card):
+			result.append(item)
+	return result
+
+func _on_chest_pick_up_item(item: ItemData) -> void:
+	var inv = player.get_inventory()
+	if inv.store_item(item):
+		add_battle_log("Picked up %s!" % item.item_name, Color(1.0, 0.85, 0.3))
+	else:
+		add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))
+	_close_chest_modal()
+
+func _on_chest_add_card_to_deck(card: Card) -> void:
+	deck_manager.discard_pile.append(card)
+	add_battle_log("Added %s to deck!" % card.card_name, Color(0.3, 0.8, 1.0))
+	_close_chest_modal()
+
+func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
+	# For simplicity, slot into first compatible item
+	if compatible_items.size() > 0:
+		var target_item = compatible_items[0]
+		var inv = player.get_inventory()
+		if inv.enchant_card(card, target_item):
+			add_battle_log("Slotted %s into %s!" % [card.card_name, target_item.item_name], Color(0.8, 0.6, 1.0))
+		else:
+			# Fallback: add to deck
+			deck_manager.discard_pile.append(card)
+			add_battle_log("Could not slot card. Added %s to deck instead." % card.card_name, Color(1.0, 0.6, 0.3))
+	_close_chest_modal()
+
+func _on_chest_overlay_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_close_chest_modal()
+
+func _close_chest_modal() -> void:
+	_chest_modal_open = false
+	_chest_modal_contents = {}
+	var ui = $UI as CanvasLayer
+	var overlay = ui.get_node_or_null("ChestOverlay")
+	if overlay:
+		overlay.queue_free()
+	if _chest_modal and is_instance_valid(_chest_modal):
+		_chest_modal.queue_free()
+		_chest_modal = null
+
+func _style_chest_button(btn: Button, bg_color: Color, border_color: Color) -> void:
+	var normal = StyleBoxFlat.new()
+	normal.bg_color = bg_color
+	normal.border_width_left = 2
+	normal.border_width_right = 2
+	normal.border_width_top = 2
+	normal.border_width_bottom = 2
+	normal.border_color = border_color
+	normal.corner_radius_top_left = 6
+	normal.corner_radius_top_right = 6
+	normal.corner_radius_bottom_left = 6
+	normal.corner_radius_bottom_right = 6
+	btn.add_theme_stylebox_override("normal", normal)
+
+	var hover = StyleBoxFlat.new()
+	hover.bg_color = bg_color.lightened(0.15)
+	hover.border_width_left = 2
+	hover.border_width_right = 2
+	hover.border_width_top = 2
+	hover.border_width_bottom = 2
+	hover.border_color = border_color.lightened(0.2)
+	hover.corner_radius_top_left = 6
+	hover.corner_radius_top_right = 6
+	hover.corner_radius_bottom_left = 6
+	hover.corner_radius_bottom_right = 6
+	btn.add_theme_stylebox_override("hover", hover)
 
 # ============================================
 # TEST UI HANDLERS
@@ -3252,8 +3707,10 @@ func is_barricade_at(world_pos: Vector3) -> bool:
 	return false
 
 func _sync_blocked_tiles() -> void:
-	## Syncs the barricade positions to the player and all enemies for pathfinding.
+	## Syncs the barricade positions + dungeon walls to the player and all enemies for pathfinding.
 	var tiles: Array[Vector2i] = []
+	if dungeon_manager:
+		tiles.append_array(dungeon_manager.get_wall_tiles())
 	for obs in barricade_obstacles:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
 	player.blocked_tiles = tiles
