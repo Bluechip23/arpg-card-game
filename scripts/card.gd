@@ -3139,8 +3139,7 @@ static func create_gift_from_the_phoenix() -> Card:
 	card.target_types = ["self"]
 	return card
 
-func _execute_gift_from_the_phoenix(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Apply phoenix grace buff - triggers when HP drops below 50% (handled by main.gd)
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_phoenix_grace("Gift from the Phoenix"))
-		print("[CARD] Gift from the Phoenix: will heal to 80%% and burn nearest enemy when HP drops below 50%%")
+func _execute_gift_from_the_phoenix(_player_stats: PlayerStats, _buff_mgr: BuffManager = null) -> void:
+	# Instant/Reaction card - effect is handled by main.gd when HP drops below 50%
+	# This function is kept for the execute dispatch but does nothing on manual play
+	print("[CARD] Gift from the Phoenix is an instant card - triggers automatically from hand")

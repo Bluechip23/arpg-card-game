@@ -1893,29 +1893,29 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 	if player_health_label:
 		player_health_label.text = "HP: %d / %d" % [current, max_hp]
 
-	# Check Gift of the Phoenix: heal to 80% and burn nearest enemy when HP < 50%
+	# Trigger instant reaction cards when HP drops below 50%
 	var stats = player.get_stats()
 	if stats and current > 0 and current < max_hp * 0.5:
-		var buff_mgr = player.get_buff_manager()
-		if buff_mgr and buff_mgr.has_buff(Buff.BuffType.PHOENIX_GRACE):
-			buff_mgr.remove_buff(Buff.BuffType.PHOENIX_GRACE)
-			var heal_target = int(max_hp * 0.8)
-			var heal_amount = heal_target - current
-			if heal_amount > 0:
-				stats.heal(heal_amount)
-			# Apply 5 burn to nearest enemy
-			var nearest_enemy: Enemy = null
-			var nearest_dist = INF
-			for e in enemy_spawner.get_living_enemies():
-				var d = (e.position - player.position).length()
-				if d < nearest_dist:
-					nearest_dist = d
-					nearest_enemy = e
-			if nearest_enemy:
-				nearest_enemy.apply_debuff("burn", 5)
-				print("[MAIN] Gift of the Phoenix: applied 5 burn to %s" % nearest_enemy.enemy_name)
-			add_battle_log("Gift of the Phoenix! Healed to 80%% HP!", Color(1.0, 0.5, 0.2))
-			print("[MAIN] Gift of the Phoenix triggered! Healed %d HP to %d/%d" % [heal_amount, heal_target, max_hp])
+		var triggered = deck_manager.trigger_reactions("on_hp_below_50")
+		for card in triggered:
+			if card.card_id == "gift_from_the_phoenix":
+				var heal_target = int(max_hp * 0.8)
+				var heal_amount = heal_target - current
+				if heal_amount > 0:
+					stats.heal(heal_amount)
+				# Apply 5 burn to nearest enemy
+				var nearest_enemy: Enemy = null
+				var nearest_dist = INF
+				for e in enemy_spawner.get_living_enemies():
+					var d = (e.position - player.position).length()
+					if d < nearest_dist:
+						nearest_dist = d
+						nearest_enemy = e
+				if nearest_enemy:
+					nearest_enemy.apply_debuff("burn", 5)
+					print("[MAIN] Gift of the Phoenix: applied 5 burn to %s" % nearest_enemy.enemy_name)
+				add_battle_log("Gift of the Phoenix! Healed to 80%% HP!", Color(1.0, 0.5, 0.2))
+				print("[MAIN] Gift of the Phoenix triggered! Healed %d HP to %d/%d" % [heal_amount, heal_target, max_hp])
 
 func _on_player_mana_changed(current: float, max_mana: int) -> void:
 	if player_mana_label:
