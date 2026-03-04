@@ -652,6 +652,28 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 				debuff_mgr = player_node.get_debuff_manager()
 			if player_node.has_method("get_buff_manager"):
 				buff_mgr = player_node.get_buff_manager()
+
+			# Check Repelled Block: if armor fully blocks the attack, negate damage and push
+			if buff_mgr and buff_mgr.has_buff(Buff.BuffType.REPELLED_BLOCK):
+				if player_stats_ref.current_armor >= effective_damage:
+					# Fully blocked - consume the buff, negate damage, push enemy back 4 and player back 2
+					var rb = buff_mgr.get_buff(Buff.BuffType.REPELLED_BLOCK)
+					rb.use_charge()
+					if rb.is_expired():
+						buff_mgr.remove_buff(Buff.BuffType.REPELLED_BLOCK)
+					# Push enemy away from player
+					knockback(player_node.position, 4)
+					# Push player away from enemy
+					if player_node.has_method("blink_to") and grid_manager:
+						var player_diff = player_node.position - position
+						var player_dir = Vector3(player_diff.x, 0, player_diff.z).normalized()
+						var player_new_pos = player_node.position + player_dir * 2.0
+						player_new_pos = grid_manager.snap_to_grid(player_new_pos)
+						player_node.position = player_new_pos
+						player_node.target_position = player_new_pos
+					print("[%s] Repelled Block triggered! Enemy pushed back 4, player pushed back 2" % enemy_name)
+					return  # Skip damage entirely
+
 			player_stats_ref.take_damage(effective_damage, debuff_mgr, buff_mgr)
 
 			if player_node.has_method("get_inventory"):
@@ -991,11 +1013,27 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 func knockback(away_from: Vector3, spaces: int = 1) -> void:
 	if is_dead:
 		return
+	if not grid_manager:
+		return
 	var diff = position - away_from
-	var direction = Vector3(diff.x, 0, diff.z).normalized()
-	var new_pos = position + direction * (spaces * 1.0)
-	if grid_manager:
-		new_pos = grid_manager.snap_to_grid(new_pos)
+	# Determine grid direction: allow diagonal by using sign of each axis
+	var dir_x = 0
+	var dir_z = 0
+	if abs(diff.x) > 0.1:
+		dir_x = 1 if diff.x > 0 else -1
+	if abs(diff.z) > 0.1:
+		dir_z = 1 if diff.z > 0 else -1
+	if dir_x == 0 and dir_z == 0:
+		return
+	# Step tile-by-tile, stopping at blocked tiles
+	var current_cell = grid_manager.world_to_grid(position)
+	var last_valid_cell = current_cell
+	for i in range(spaces):
+		var next_cell = Vector2i(current_cell.x + dir_x * (i + 1), current_cell.y + dir_z * (i + 1))
+		if next_cell in blocked_tiles:
+			break
+		last_valid_cell = next_cell
+	var new_pos = grid_manager.grid_to_world(last_valid_cell)
 	position = new_pos
 	target_position = new_pos
 	print("[%s] Knocked back %d space(s)" % [enemy_name, spaces])

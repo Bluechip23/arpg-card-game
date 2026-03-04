@@ -2907,8 +2907,8 @@ static func create_absorb_essence() -> Card:
 	card.card_id = "absorb_essence"
 	card.card_name = "Absorb Essence"
 	card.description = "Deal 1 damage to ALL things on the battlefield. Delay: 10 tempo, obtain Energy Ball."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
 	card.mana_cost = 5
 	card.tempo_cost = 5
 	card.damage = 1
@@ -2932,7 +2932,7 @@ static func create_energy_ball() -> Card:
 	var card = Card.new()
 	card.card_id = "energy_ball"
 	card.card_name = "Energy Ball"
-	card.description = "Deal X damage where X = total damage done by Absorb Essence."
+	card.description = "Deal X damage where X = total damage done by Absorb Essence. Erased after use."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 1
@@ -2945,6 +2945,8 @@ static func create_energy_ball() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 5
 	card.target_types = ["enemy"]
+	card.erase_tempo = 1
+	card.erase_tempo_remaining = 1
 	return card
 
 func _execute_energy_ball(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
