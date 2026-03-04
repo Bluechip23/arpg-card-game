@@ -49,6 +49,9 @@ var equipped_quivers: Array[ItemData] = []
 var stored_items: Array[ItemData] = []
 var max_storage_slots: int = 20
 
+# Consumables
+var culling_stones: int = 99  # Used to permanently remove cards from deck
+
 # Ring trigger tracking
 var ring_triggered_this_turn: bool = false
 var armor_gained_this_turn: int = 0
@@ -739,6 +742,21 @@ func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
 	if item == null:
 		return false
 	store_item(item)
+	return true
+
+# ============================================
+# CULLING STONES (CONSUMABLE)
+# ============================================
+
+func get_culling_stone_count() -> int:
+	return culling_stones
+
+func use_culling_stone() -> bool:
+	if culling_stones <= 0:
+		print("[INVENTORY] No culling stones remaining!")
+		return false
+	culling_stones -= 1
+	print("[INVENTORY] Used culling stone (%d remaining)" % culling_stones)
 	return true
 
 # ============================================

@@ -22,6 +22,7 @@ extends Resource
 
 var starting_card_ids: Array = []  # Character-specific cards added to starting deck
 var purchased_card_ids: Array = []  # Cards bought from the card shop
+var removed_card_ids: Array = []    # Cards culled from the deck (base or starting cards)
 
 # Selection screen display info
 var passive_description: String = ""

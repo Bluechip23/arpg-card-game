@@ -250,17 +250,23 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 	vendor_inventory_label.text = info["description"]
 
 	if info["type"] == "card_dealer":
-		# Card shop: show all available cards
+		# Show culling stone count
+		var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+		var stones = inventory.get_culling_stone_count() if inventory else 0
+		_add_info_label("Culling Stones: %d" % stones, Color(0.8, 0.5, 1.0))
+
+		# Card shop: show all available cards for purchase
+		_add_section_separator("Available Cards")
 		var all_cards = _get_all_cards()
 		for card in all_cards:
 			_add_vendor_card_row(card, false)
 
-		# Show purchased cards for selling
-		if starting_character and starting_character.purchased_card_ids.size() > 0:
-			_add_section_separator("Your Purchased Cards")
-			for i in range(starting_character.purchased_card_ids.size()):
-				var card_id = starting_character.purchased_card_ids[i]
-				var card = _create_card_from_id(card_id)
+		# Show the player's full deck (base + starting + purchased - removed)
+		var deck_ids = _get_current_deck_card_ids()
+		if deck_ids.size() > 0:
+			_add_section_separator("Your Deck (%d cards)" % deck_ids.size())
+			for i in range(deck_ids.size()):
+				var card = _create_card_from_id(deck_ids[i])
 				if card:
 					_add_vendor_card_row(card, true, i)
 	else:
@@ -336,6 +342,46 @@ func _add_vendor_item_row(item: ItemData) -> void:
 # ============================================
 # CARD SHOP HELPERS
 # ============================================
+
+func _add_info_label(text: String, color: Color) -> void:
+	var lbl = Label.new()
+	lbl.text = "  %s" % text
+	lbl.add_theme_font_size_override("font_size", 15)
+	lbl.add_theme_color_override("font_color", color)
+	vendor_item_list.add_child(lbl)
+
+func _get_current_deck_card_ids() -> Array:
+	## Builds the full list of card_ids that would be in the player's battle deck.
+	if not starting_character:
+		return []
+
+	var all_ids: Array = []
+
+	# Base cards
+	for i in range(4):
+		all_ids.append("slash")
+	for i in range(3):
+		all_ids.append("block")
+	for i in range(2):
+		all_ids.append("heal")
+	all_ids.append("draw")
+	all_ids.append("discard")
+	all_ids.append("gain_mana")
+
+	# Character starting cards
+	all_ids.append_array(starting_character.starting_card_ids)
+
+	# Purchased cards
+	all_ids.append_array(starting_character.purchased_card_ids)
+
+	# Remove culled cards
+	var removals = starting_character.removed_card_ids.duplicate()
+	for removal_id in removals:
+		var idx = all_ids.find(removal_id)
+		if idx >= 0:
+			all_ids.remove_at(idx)
+
+	return all_ids
 
 func _get_all_cards() -> Array[Card]:
 	## Discovers all Card.create_* factory methods and returns one of each card.
@@ -857,10 +903,16 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 
 	var action_btn = Button.new()
 	if is_sell:
-		action_btn.text = "Remove from Deck"
-		action_btn.custom_minimum_size = Vector2(160, 36)
+		var inv = player.get_inventory() if player.has_method("get_inventory") else null
+		var stones = inv.get_culling_stone_count() if inv else 0
+		action_btn.text = "Cull from Deck (1 Stone)"
+		action_btn.custom_minimum_size = Vector2(200, 36)
 		action_btn.add_theme_font_size_override("font_size", 14)
-		_style_action_button(action_btn, Color(0.5, 0.2, 0.1), Color(0.65, 0.3, 0.15), Color(0.8, 0.4, 0.2))
+		if stones > 0:
+			_style_action_button(action_btn, Color(0.5, 0.2, 0.1), Color(0.65, 0.3, 0.15), Color(0.8, 0.4, 0.2))
+		else:
+			_style_action_button(action_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
+			action_btn.disabled = true
 		action_btn.pressed.connect(_on_sell_card_confirmed)
 	else:
 		action_btn.text = "Add to Deck"
@@ -894,14 +946,34 @@ func _on_buy_card_confirmed() -> void:
 	_refresh_vendor_panel()
 
 func _on_sell_card_confirmed() -> void:
-	if not starting_character or _detail_sell_slot_index < 0:
+	if not starting_character or _detail_sell_slot_index < 0 or not _detail_card:
 		_close_detail_modal()
 		return
 
-	if _detail_sell_slot_index < starting_character.purchased_card_ids.size():
-		var card_id = starting_character.purchased_card_ids[_detail_sell_slot_index]
-		starting_character.purchased_card_ids.remove_at(_detail_sell_slot_index)
-		print("[TOWN] Removed %s from deck" % card_id)
+	# Require a culling stone
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory or not inventory.use_culling_stone():
+		print("[TOWN] No culling stones! Cannot remove card from deck.")
+		_close_detail_modal()
+		return
+
+	# Get the card_id from the deck list at this index
+	var deck_ids = _get_current_deck_card_ids()
+	if _detail_sell_slot_index >= deck_ids.size():
+		_close_detail_modal()
+		return
+
+	var card_id = deck_ids[_detail_sell_slot_index]
+
+	# Try to remove from purchased_card_ids first
+	var purchased_idx = starting_character.purchased_card_ids.find(card_id)
+	if purchased_idx >= 0:
+		starting_character.purchased_card_ids.remove_at(purchased_idx)
+		print("[TOWN] Culled purchased card: %s" % card_id)
+	else:
+		# It's a base or starting card — track as a removal
+		starting_character.removed_card_ids.append(card_id)
+		print("[TOWN] Culled base/starting card: %s (removals: %d)" % [card_id, starting_character.removed_card_ids.size()])
 
 	_close_detail_modal()
 	_refresh_vendor_panel()
