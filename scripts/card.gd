@@ -49,6 +49,7 @@ var on_draw_effect: String = ""  # Description of the on-draw effect
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
+var linger: bool = false  # If true, status card can exceed hand size limit when added
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
@@ -2553,7 +2554,7 @@ static func create_lightly_dazed() -> Card:
 	var card = Card.new()
 	card.card_id = "lightly_dazed"
 	card.card_name = "Lightly Dazed"
-	card.description = "This card cannot be played. Erases from deck after 40 tempo."
+	card.description = "This card cannot be played. Linger. Erases from deck after 40 tempo."
 	card.card_type = CardType.UNPLAYABLE
 	card.card_type_name = "Unplayable"
 	card.mana_cost = 0
@@ -2565,6 +2566,7 @@ static func create_lightly_dazed() -> Card:
 	card.heal_amount = 0
 	card.erase_tempo = 40
 	card.erase_tempo_remaining = 40
+	card.linger = true
 	card.target_types = ["self"]
 	return card
 
@@ -2907,8 +2909,8 @@ static func create_absorb_essence() -> Card:
 	card.card_id = "absorb_essence"
 	card.card_name = "Absorb Essence"
 	card.description = "Deal 1 damage to ALL things on the battlefield. Delay: 10 tempo, obtain Energy Ball."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
 	card.mana_cost = 5
 	card.tempo_cost = 5
 	card.damage = 1
@@ -2932,7 +2934,7 @@ static func create_energy_ball() -> Card:
 	var card = Card.new()
 	card.card_id = "energy_ball"
 	card.card_name = "Energy Ball"
-	card.description = "Deal X damage where X = total damage done by Absorb Essence."
+	card.description = "Deal X damage where X = total damage done by Absorb Essence. Erased after use."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 1
@@ -2945,6 +2947,8 @@ static func create_energy_ball() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 5
 	card.target_types = ["enemy"]
+	card.erase_tempo = 1
+	card.erase_tempo_remaining = 1
 	return card
 
 func _execute_energy_ball(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -3135,8 +3139,7 @@ static func create_gift_from_the_phoenix() -> Card:
 	card.target_types = ["self"]
 	return card
 
-func _execute_gift_from_the_phoenix(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Apply phoenix grace buff - triggers when HP drops below 50% (handled by main.gd)
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_phoenix_grace("Gift from the Phoenix"))
-		print("[CARD] Gift from the Phoenix: will heal to 80%% and burn nearest enemy when HP drops below 50%%")
+func _execute_gift_from_the_phoenix(_player_stats: PlayerStats, _buff_mgr: BuffManager = null) -> void:
+	# Instant/Reaction card - effect is handled by main.gd when HP drops below 50%
+	# This function is kept for the execute dispatch but does nothing on manual play
+	print("[CARD] Gift from the Phoenix is an instant card - triggers automatically from hand")

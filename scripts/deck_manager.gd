@@ -481,6 +481,10 @@ func get_jail_pile_size() -> int:
 	return jail_pile.size()
 
 func add_card_to_hand(card: Card) -> void:
+	# Linger cards can exceed hand size; non-linger cards are blocked at capacity
+	if not card.linger and hand.size() >= get_hand_cap():
+		print("[DECK] Hand full, cannot add %s (no Linger)" % card.card_name)
+		return
 	hand.append(card)
 	hand_updated.emit()
 	print("[DECK] Card added to hand: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])

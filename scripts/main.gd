@@ -52,8 +52,6 @@ var _chest_modal_open: bool = false
 var _chest_modal_contents: Dictionary = {}
 var _chest_interact_prompt: Label3D = null
 
-# Gold HUD label
-var _gold_label: Label = null
 
 var battle_log_label: RichTextLabel = null
 var battle_log_panel: PanelContainer = null
@@ -91,6 +89,12 @@ var deck_list_panel: PanelContainer = null
 var deck_list_container: VBoxContainer = null
 var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
+
+var maintained_list_panel: PanelContainer = null
+var maintained_list_container: VBoxContainer = null
+var maintained_list_visible: bool = false
+var maintained_list_card_preview: PanelContainer = null
+var maintained_btn: Button = null
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
@@ -181,6 +185,8 @@ func _ready() -> void:
 	_setup_hand_area_background()
 	_setup_deck_list_button()
 	_setup_deck_list_panel()
+	_setup_maintained_list_button()
+	_setup_maintained_list_panel()
 	_setup_hand_card_preview()
 	_setup_donation_panel()
 
@@ -193,7 +199,6 @@ func _ready() -> void:
 
 	# Initialize dungeon
 	_setup_dungeon()
-	_setup_gold_label()
 	_update_enemy_count()
 	_refresh_unit_tracker()
 
@@ -864,6 +869,239 @@ func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
 func _on_deck_list_entry_unhovered() -> void:
 	deck_list_card_preview.visible = false
 
+# ============================================
+# MAINTAINED CARDS LIST (expandable button)
+# ============================================
+
+func _setup_maintained_list_button() -> void:
+	var ui = $UI as CanvasLayer
+	maintained_btn = Button.new()
+	maintained_btn.name = "MaintainedListButton"
+	maintained_btn.text = "Maintained: 0"
+	maintained_btn.custom_minimum_size = Vector2(110, 30)
+	maintained_btn.pressed.connect(_on_maintained_list_button_pressed)
+	var btn_container = Control.new()
+	btn_container.name = "MaintainedButtonContainer"
+	ui.add_child(btn_container)
+	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	btn_container.offset_left = -210.0
+	btn_container.offset_top = -40.0
+	btn_container.offset_right = -100.0
+	btn_container.offset_bottom = -5.0
+	btn_container.add_child(maintained_btn)
+	maintained_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+func _setup_maintained_list_panel() -> void:
+	var ui = $UI as CanvasLayer
+	maintained_list_panel = PanelContainer.new()
+	maintained_list_panel.name = "MaintainedListPanel"
+	ui.add_child(maintained_list_panel)
+	maintained_list_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	maintained_list_panel.offset_left = -280.0
+	maintained_list_panel.offset_top = -200.0
+	maintained_list_panel.offset_right = -10.0
+	maintained_list_panel.offset_bottom = 200.0
+	maintained_list_panel.custom_minimum_size = Vector2(270, 300)
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.6, 0.3, 0.8)
+	panel_style.corner_radius_top_left = 6
+	panel_style.corner_radius_top_right = 6
+	panel_style.corner_radius_bottom_left = 6
+	panel_style.corner_radius_bottom_right = 6
+	panel_style.content_margin_left = 10.0
+	panel_style.content_margin_right = 10.0
+	panel_style.content_margin_top = 10.0
+	panel_style.content_margin_bottom = 10.0
+	maintained_list_panel.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.layout_mode = 1
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	maintained_list_panel.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	margin.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "Maintained Cards"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+	vbox.add_child(title)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 250)
+	vbox.add_child(scroll)
+
+	maintained_list_container = VBoxContainer.new()
+	maintained_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(maintained_list_container)
+
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.pressed.connect(_on_maintained_list_button_pressed)
+	vbox.add_child(close_btn)
+
+	maintained_list_panel.visible = false
+
+	# Card preview popup for maintained list
+	maintained_list_card_preview = PanelContainer.new()
+	maintained_list_card_preview.name = "MaintainedListCardPreview"
+	ui.add_child(maintained_list_card_preview)
+	maintained_list_card_preview.custom_minimum_size = Vector2(180, 0)
+	var preview_style = StyleBoxFlat.new()
+	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
+	preview_style.border_width_left = 2
+	preview_style.border_width_right = 2
+	preview_style.border_width_top = 2
+	preview_style.border_width_bottom = 2
+	preview_style.border_color = Color(0.6, 0.3, 0.8)
+	preview_style.corner_radius_top_left = 4
+	preview_style.corner_radius_top_right = 4
+	preview_style.corner_radius_bottom_left = 4
+	preview_style.corner_radius_bottom_right = 4
+	preview_style.content_margin_left = 8.0
+	preview_style.content_margin_right = 8.0
+	preview_style.content_margin_top = 8.0
+	preview_style.content_margin_bottom = 8.0
+	maintained_list_card_preview.add_theme_stylebox_override("panel", preview_style)
+	maintained_list_card_preview.visible = false
+	maintained_list_card_preview.z_index = 200
+	maintained_list_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+func _update_maintained_button() -> void:
+	if maintained_btn:
+		var count = deck_manager.get_maintained_card_count()
+		maintained_btn.text = "Maintained: %d" % count
+		maintained_btn.visible = count > 0
+	if maintained_list_visible:
+		_populate_maintained_list()
+
+func _on_maintained_list_button_pressed() -> void:
+	maintained_list_visible = !maintained_list_visible
+	maintained_list_panel.visible = maintained_list_visible
+	if maintained_list_visible:
+		_populate_maintained_list()
+	else:
+		maintained_list_card_preview.visible = false
+
+func _populate_maintained_list() -> void:
+	for child in maintained_list_container.get_children():
+		child.queue_free()
+
+	var maintained_cards = deck_manager.get_maintained_cards()
+	if maintained_cards.size() == 0:
+		var empty_lbl = Label.new()
+		empty_lbl.text = "No maintained cards."
+		empty_lbl.add_theme_font_size_override("font_size", 14)
+		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		maintained_list_container.add_child(empty_lbl)
+		return
+
+	for i in range(maintained_cards.size()):
+		var card = maintained_cards[i]
+		var hbox = HBoxContainer.new()
+		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+		var entry = Button.new()
+		entry.text = "%s (%dM)" % [card.card_name, card.maintain_cost]
+		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.flat = true
+		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		entry.add_theme_color_override("font_hover_color", Color(0.8, 0.5, 1.0))
+		entry.add_theme_font_size_override("font_size", 14)
+		entry.mouse_entered.connect(_on_maintained_list_entry_hovered.bind(card, entry))
+		entry.mouse_exited.connect(_on_maintained_list_entry_unhovered)
+		hbox.add_child(entry)
+
+		var dismiss_btn = Button.new()
+		dismiss_btn.text = "X"
+		dismiss_btn.custom_minimum_size = Vector2(28, 28)
+		dismiss_btn.add_theme_font_size_override("font_size", 14)
+		var dismiss_style = StyleBoxFlat.new()
+		dismiss_style.bg_color = Color(0.6, 0.15, 0.15, 0.9)
+		dismiss_style.corner_radius_top_left = 4
+		dismiss_style.corner_radius_top_right = 4
+		dismiss_style.corner_radius_bottom_left = 4
+		dismiss_style.corner_radius_bottom_right = 4
+		dismiss_btn.add_theme_stylebox_override("normal", dismiss_style)
+		var dismiss_hover = StyleBoxFlat.new()
+		dismiss_hover.bg_color = Color(0.8, 0.2, 0.2, 0.95)
+		dismiss_hover.corner_radius_top_left = 4
+		dismiss_hover.corner_radius_top_right = 4
+		dismiss_hover.corner_radius_bottom_left = 4
+		dismiss_hover.corner_radius_bottom_right = 4
+		dismiss_btn.add_theme_stylebox_override("hover", dismiss_hover)
+		dismiss_btn.pressed.connect(_on_maintained_card_dismiss.bind(i))
+		hbox.add_child(dismiss_btn)
+
+		maintained_list_container.add_child(hbox)
+
+func _on_maintained_card_dismiss(index: int) -> void:
+	deck_manager.dismiss_maintained_card(index)
+	_populate_maintained_list()
+	_update_maintained_button()
+	update_deck_info()
+	add_battle_log("Dismissed a maintained card.", Color(0.8, 0.5, 1.0))
+
+func _on_maintained_list_entry_hovered(card: Card, entry: Button) -> void:
+	for child in maintained_list_card_preview.get_children():
+		child.queue_free()
+
+	var vbox = VBoxContainer.new()
+	maintained_list_card_preview.add_child(vbox)
+
+	var name_lbl = Label.new()
+	name_lbl.text = card.card_name
+	name_lbl.add_theme_font_size_override("font_size", 16)
+	name_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+	vbox.add_child(name_lbl)
+
+	var type_lbl = Label.new()
+	type_lbl.text = card.card_type_name
+	type_lbl.add_theme_font_size_override("font_size", 12)
+	type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+	vbox.add_child(type_lbl)
+
+	var cost_lbl = Label.new()
+	cost_lbl.text = "Maintain: %dM reserved" % card.maintain_cost
+	cost_lbl.add_theme_font_size_override("font_size", 12)
+	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	vbox.add_child(cost_lbl)
+
+	var desc_lbl = Label.new()
+	desc_lbl.text = card.description
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_lbl.custom_minimum_size = Vector2(160, 0)
+	desc_lbl.add_theme_font_size_override("font_size", 12)
+	desc_lbl.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	vbox.add_child(desc_lbl)
+
+	_append_keyword_tooltips(vbox, card)
+
+	var entry_rect = entry.get_global_rect()
+	var preview_x = maintained_list_panel.position.x - maintained_list_card_preview.size.x - 10
+	var preview_y = entry_rect.position.y
+	var hand_area = $UI/HandArea as PanelContainer
+	var max_y = hand_area.global_position.y - maintained_list_card_preview.size.y - 8.0
+	preview_y = min(preview_y, max_y)
+	preview_y = max(preview_y, 4.0)
+	maintained_list_card_preview.global_position = Vector2(preview_x, preview_y)
+	maintained_list_card_preview.visible = true
+
+func _on_maintained_list_entry_unhovered() -> void:
+	maintained_list_card_preview.visible = false
+
 func _setup_hand_card_preview() -> void:
 	var ui = $UI
 	hand_card_preview = PanelContainer.new()
@@ -1152,10 +1390,6 @@ func select_character(character: CharacterData) -> void:
 	_on_player_mana_changed(player.get_stats().current_mana, player.get_stats().max_mana)
 	_on_player_armor_changed(player.get_stats().current_armor)
 	_update_block_button_visibility()
-
-	# Gold
-	player.get_stats().gold_changed.connect(_on_player_gold_changed)
-	_update_gold_display()
 
 	# XP / Leveling
 	player.get_stats().leveled_up.connect(_on_player_leveled_up)
@@ -1659,6 +1893,30 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 	if player_health_label:
 		player_health_label.text = "HP: %d / %d" % [current, max_hp]
 
+	# Trigger instant reaction cards when HP drops below 50%
+	var stats = player.get_stats()
+	if stats and current > 0 and current < max_hp * 0.5:
+		var triggered = deck_manager.trigger_reactions("on_hp_below_50")
+		for card in triggered:
+			if card.card_id == "gift_from_the_phoenix":
+				var heal_target = int(max_hp * 0.8)
+				var heal_amount = heal_target - current
+				if heal_amount > 0:
+					stats.heal(heal_amount)
+				# Apply 5 burn to nearest enemy
+				var nearest_enemy: Enemy = null
+				var nearest_dist = INF
+				for e in enemy_spawner.get_living_enemies():
+					var d = (e.position - player.position).length()
+					if d < nearest_dist:
+						nearest_dist = d
+						nearest_enemy = e
+				if nearest_enemy:
+					nearest_enemy.apply_debuff("burn", 5)
+					print("[MAIN] Gift of the Phoenix: applied 5 burn to %s" % nearest_enemy.enemy_name)
+				add_battle_log("Gift of the Phoenix! Healed to 80%% HP!", Color(1.0, 0.5, 0.2))
+				print("[MAIN] Gift of the Phoenix triggered! Healed %d HP to %d/%d" % [heal_amount, heal_target, max_hp])
+
 func _on_player_mana_changed(current: float, max_mana: int) -> void:
 	if player_mana_label:
 		var stats = player.get_stats()
@@ -1670,9 +1928,6 @@ func _on_player_mana_changed(current: float, max_mana: int) -> void:
 func _on_player_armor_changed(current: int) -> void:
 	if player_armor_label:
 		player_armor_label.text = "Armor: %d" % current
-
-func _on_player_gold_changed(_amount: int) -> void:
-	_update_gold_display()
 
 func _update_xp_display() -> void:
 	if player_xp_label:
@@ -2152,10 +2407,8 @@ func update_deck_info() -> void:
 	if discard_label:
 		discard_label.text = "Discard: %d" % deck_manager.get_discard_pile_size()
 	if jail_label:
-		var jail_text = "Jail: %d" % deck_manager.get_jail_pile_size()
-		if deck_manager.get_maintained_card_count() > 0:
-			jail_text += " | Maintained: %d" % deck_manager.get_maintained_card_count()
-		jail_label.text = jail_text
+		jail_label.text = "Jail: %d" % deck_manager.get_jail_pile_size()
+	_update_maintained_button()
 
 func update_selected_display() -> void:
 	if selected_label:
@@ -2604,7 +2857,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Round 'Em Up: pulled %d enemies toward %s" % [nearby.size(), center])
 		"blink":
 			var blink_pos = grid_manager.snap_to_grid(mouse_pos)
-			player.blink_to(blink_pos)
+			var blink_cell = grid_manager.world_to_grid(blink_pos)
+			# Prevent blinking into walls or obstacles
+			if blink_cell in player.blocked_tiles:
+				add_battle_log("Cannot blink into a wall or obstacle!", Color(1.0, 0.4, 0.4))
+				print("[MAIN] Blink blocked: target tile is a wall/obstacle")
+			else:
+				player.blink_to(blink_pos)
 		"push":
 			# Push enemy 3 spaces away from the player
 			if target and target.has_method("knockback"):
@@ -2918,21 +3177,6 @@ func _update_fog_of_war() -> void:
 		enemy_spawner.get_living_enemies(), grid_manager
 	)
 
-func _setup_gold_label() -> void:
-	var ui = $UI as CanvasLayer
-	_gold_label = Label.new()
-	_gold_label.name = "GoldLabel"
-	_gold_label.text = "Gold: 0"
-	_gold_label.add_theme_font_size_override("font_size", 16)
-	_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-	ui.add_child(_gold_label)
-	_gold_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_gold_label.offset_left = 8.0
-	_gold_label.offset_top = 8.0
-
-func _update_gold_display() -> void:
-	if _gold_label:
-		_gold_label.text = "Gold: %d" % player.get_stats().gold
 
 # ============================================
 # CHEST LOOT MODAL
@@ -2957,7 +3201,6 @@ func _try_interact_chest() -> void:
 	var gold_amount = contents.get("gold", 0)
 	if gold_amount > 0:
 		player.get_stats().gain_gold(gold_amount)
-		_update_gold_display()
 
 	_show_chest_modal(contents)
 
