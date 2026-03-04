@@ -70,25 +70,43 @@ func initialize_deck(character: CharacterData) -> void:
 	print("[DECK] Initialized with %d cards. Hand: %d" % [draw_pile.size() + hand.size(), hand.size()])
 
 func _create_default_deck(character: CharacterData) -> void:
+	# Build full card id list: base + starting + purchased
+	var all_card_ids: Array = []
+
 	# Base cards for everyone
 	for i in range(4):
-		draw_pile.append(Card.create_slash())
+		all_card_ids.append("slash")
 	for i in range(3):
-		draw_pile.append(Card.create_block())
+		all_card_ids.append("block")
 	for i in range(2):
-		draw_pile.append(Card.create_heal())
+		all_card_ids.append("heal")
+	all_card_ids.append("draw")
+	all_card_ids.append("discard")
+	all_card_ids.append("gain_mana")
 
-	draw_pile.append(Card.create_draw())
-	draw_pile.append(Card.create_discard())
-	draw_pile.append(Card.create_gain_mana())
+	# Character-specific cards
+	all_card_ids.append_array(character.starting_card_ids)
 
-	# Add character-specific cards
-	for card_id in character.starting_card_ids:
+	# Purchased cards
+	all_card_ids.append_array(character.purchased_card_ids)
+
+	# Remove culled cards (each entry in removed_card_ids removes one matching card)
+	var removals = character.removed_card_ids.duplicate()
+	for removal_id in removals:
+		var idx = all_card_ids.find(removal_id)
+		if idx >= 0:
+			all_card_ids.remove_at(idx)
+			print("[DECK] Culled card skipped: %s" % removal_id)
+		else:
+			print("[DECK] WARNING: Culled card not found in deck: %s" % removal_id)
+
+	# Create actual Card objects from remaining ids
+	for card_id in all_card_ids:
 		var card = _create_card_from_id(card_id)
 		if card:
 			draw_pile.append(card)
 		else:
-			print("[DECK] WARNING: Unknown card_id in starting deck: %s" % card_id)
+			print("[DECK] WARNING: Unknown card_id: %s" % card_id)
 var current_overflow_mode: OverflowMode = OverflowMode.JAILED
 
 func set_overflow_mode(mode: OverflowMode) -> void:
