@@ -144,36 +144,45 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 	if not grid_manager:
 		return [target_pos]
 
-	# Build set of impassable grid cells (enemies + barricades)
-	var occupied: Array[Vector2i] = []
-	if enemy_spawner:
-		var living = enemy_spawner.get_living_enemies()
-		for enemy in living:
-			occupied.append(grid_manager.world_to_grid(enemy.position))
-	occupied.append_array(blocked_tiles)
-
-	var path: Array[Vector3] = []
 	var current_grid = grid_manager.world_to_grid(position)
 	var target_grid = grid_manager.world_to_grid(target_pos)
 
-	var current = current_grid
+	if current_grid == target_grid:
+		return []
 
-	while current != target_grid:
-		var diff_x = target_grid.x - current.x
-		var diff_y = target_grid.y - current.y
+	# BFS pathfinding — walls/barricades are impassable, enemy tiles are passable
+	var frontier: Array[Vector2i] = [current_grid]
+	var came_from: Dictionary = {}
+	came_from[current_grid] = current_grid
 
-		var next = current
-		if diff_x != 0:
-			next.x += signi(diff_x)
-		elif diff_y != 0:
-			next.y += signi(diff_y)
+	var directions = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
-		# Stop before walking onto an occupied or blocked tile
-		if next in occupied:
+	while frontier.size() > 0:
+		var current = frontier.pop_front()
+
+		if current == target_grid:
 			break
 
-		current = next
-		path.append(grid_manager.grid_to_world(current))
+		for dir in directions:
+			var next = current + dir
+			if came_from.has(next):
+				continue
+			if next in blocked_tiles:
+				continue
+			if next.x < 0 or next.x >= grid_manager.grid_width or next.y < 0 or next.y >= grid_manager.grid_height:
+				continue
+			came_from[next] = current
+			frontier.append(next)
+
+	if not came_from.has(target_grid):
+		return []  # No path found
+
+	# Reconstruct path from target back to start
+	var path: Array[Vector3] = []
+	var trace = target_grid
+	while trace != current_grid:
+		path.push_front(grid_manager.grid_to_world(trace))
+		trace = came_from[trace]
 
 	return path
 

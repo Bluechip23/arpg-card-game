@@ -1554,7 +1554,16 @@ func trigger_multiple_turns(count: int) -> void:
 	tempo_manager.add_tempo(5 * count)
 
 func _on_player_tile_reached() -> void:
-	# Tempo accumulates per tile in real time
+	# Check if the player stepped onto an enemy-occupied tile (pass-through costs 2 tempo)
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var passed_through_enemy = false
+	for enemy in enemy_spawner.get_living_enemies():
+		if grid_manager.world_to_grid(enemy.position) == player_cell:
+			passed_through_enemy = true
+			break
+	if passed_through_enemy:
+		tempo_manager.add_pass_through_tempo()
+	# Normal per-tile tempo
 	tempo_manager.add_movement_tempo()
 	# Check if player entered a new dungeon zone
 	_check_dungeon_zones()
