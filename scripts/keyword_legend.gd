@@ -133,6 +133,7 @@ func _build_legend() -> void:
 	_add_keyword("Glut", "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo", Color(0.9, 0.4, 0.4))
 	_add_keyword("Delay", "Tempo until the effect takes place", Color(0.6, 0.6, 0.9))
 	_add_keyword("Instant", "Card triggers automatically from hand when its condition is met. Costs 0 mana", Color(1.0, 1.0, 0.5))
+	_add_keyword("Linger", "Enemy status card can exceed hand size limit. While lingering, normal draws trigger overflow. Counts toward hand size for overflow, manifest, etc.", Color(0.7, 0.3, 0.3))
 
 func _add_section_header(title: String) -> void:
 	var header = Label.new()

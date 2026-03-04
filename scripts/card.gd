@@ -49,6 +49,7 @@ var on_draw_effect: String = ""  # Description of the on-draw effect
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
+var linger: bool = false  # If true, status card can exceed hand size limit when added
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
@@ -2553,7 +2554,7 @@ static func create_lightly_dazed() -> Card:
 	var card = Card.new()
 	card.card_id = "lightly_dazed"
 	card.card_name = "Lightly Dazed"
-	card.description = "This card cannot be played. Erases from deck after 40 tempo."
+	card.description = "This card cannot be played. Linger. Erases from deck after 40 tempo."
 	card.card_type = CardType.UNPLAYABLE
 	card.card_type_name = "Unplayable"
 	card.mana_cost = 0
@@ -2565,6 +2566,7 @@ static func create_lightly_dazed() -> Card:
 	card.heal_amount = 0
 	card.erase_tempo = 40
 	card.erase_tempo_remaining = 40
+	card.linger = true
 	card.target_types = ["self"]
 	return card
 
