@@ -480,6 +480,17 @@ func get_discard_pile_size() -> int:
 func get_jail_pile_size() -> int:
 	return jail_pile.size()
 
+func add_card_to_deck_from_id(card_id: String) -> bool:
+	## Creates a card from its ID and adds it to the discard pile (available next shuffle).
+	## Used by the sphere grid when unlocking card nodes.
+	var card = _create_card_from_id(card_id)
+	if card:
+		discard_pile.append(card)
+		print("[DECK] Sphere grid unlocked card: %s (added to discard pile)" % card.card_name)
+		return true
+	print("[DECK] WARNING: Sphere grid tried to unlock unknown card: %s" % card_id)
+	return false
+
 func add_card_to_hand(card: Card) -> void:
 	# Linger cards can exceed hand size; non-linger cards are blocked at capacity
 	if not card.linger and hand.size() >= get_hand_cap():

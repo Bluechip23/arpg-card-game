@@ -74,6 +74,23 @@ var healing_bonus: int = 0  # Flat bonus to all healing effects (from belts, etc
 var inventory = null  # Inventory - untyped to avoid circular dependency
 
 # ============================================
+# SPHERE GRID BONUSES (tracked separately from equipment)
+# ============================================
+var sphere_grid_passives: Array[Dictionary] = []  # Active passives from sphere grid
+# Each entry: { "node_id": int, "trigger": String, "effect": String, "value": int/float, "chance": float }
+# Triggers: "on_kill", "on_card_play", "on_move", "on_cycle", "on_attack", "on_dodge",
+#           "on_heal", "on_block", "on_crit", "on_spell_cast", "on_discard", "on_draw",
+#           "on_tempo_cycle"
+var sphere_bonus_strength: int = 0
+var sphere_bonus_dexterity: int = 0
+var sphere_bonus_intelligence: int = 0
+var sphere_bonus_wisdom: int = 0
+var sphere_bonus_agility: int = 0
+var sphere_bonus_determination: int = 0
+var sphere_bonus_health: int = 0
+var sphere_bonus_mana: int = 0
+
+# ============================================
 # EXPERIENCE / LEVEL
 # ============================================
 var current_level: int = 1
@@ -595,6 +612,60 @@ func add_base_stat(stat_name: String, amount: int) -> void:
 		"agility": base_agility += amount
 		"determination": determination += amount
 	recalculate_derived_stats()
+
+func apply_sphere_grid_stat(stat_name: String, amount: int) -> void:
+	## Applies a stat bonus from an unlocked sphere grid node.
+	match stat_name:
+		"strength":
+			sphere_bonus_strength += amount
+			base_strength += amount
+		"dexterity":
+			sphere_bonus_dexterity += amount
+			base_dexterity += amount
+		"intelligence":
+			sphere_bonus_intelligence += amount
+			base_intelligence += amount
+		"wisdom":
+			sphere_bonus_wisdom += amount
+			base_wisdom += amount
+		"agility":
+			sphere_bonus_agility += amount
+			base_agility += amount
+		"determination":
+			sphere_bonus_determination += amount
+			determination += amount
+	recalculate_derived_stats()
+	stats_updated.emit()
+	print("[STATS] Sphere grid bonus: %s +%d" % [stat_name, amount])
+
+func apply_sphere_grid_health(amount: int) -> void:
+	## Increases max health from a sphere grid node.
+	sphere_bonus_health += amount
+	max_health += amount
+	current_health += amount  # Also heal the gained amount
+	health_changed.emit(current_health, max_health)
+	print("[STATS] Sphere grid: Max HP +%d (now %d)" % [amount, max_health])
+
+func apply_sphere_grid_mana(amount: int) -> void:
+	## Increases max mana from a sphere grid node.
+	sphere_bonus_mana += amount
+	max_mana += amount
+	current_mana = min(current_mana + amount, get_available_max_mana())
+	mana_changed.emit(current_mana, max_mana)
+	print("[STATS] Sphere grid: Max Mana +%d (now %d)" % [amount, max_mana])
+
+func add_sphere_grid_passive(passive_data: Dictionary) -> void:
+	## Registers a passive from an unlocked sphere grid node.
+	sphere_grid_passives.append(passive_data)
+	print("[STATS] Sphere grid passive added: %s → %s" % [passive_data.get("trigger", "?"), passive_data.get("effect", "?")])
+
+func get_sphere_grid_passives_for_trigger(trigger: String) -> Array[Dictionary]:
+	## Returns all sphere grid passives that match a given trigger.
+	var result: Array[Dictionary] = []
+	for passive in sphere_grid_passives:
+		if passive.get("trigger", "") == trigger:
+			result.append(passive)
+	return result
 
 # ============================================
 # DEBUG / DISPLAY
