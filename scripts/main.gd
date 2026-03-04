@@ -174,6 +174,7 @@ func _ready() -> void:
 	# Sphere inventory + grid connection
 	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
 	sphere_grid_ui.node_unlocked.connect(_on_sphere_grid_node_unlocked)
+	sphere_grid_ui.sphere_grid.constellation_completed.connect(_on_constellation_completed)
 
 	_setup_action_buttons()
 	_setup_battle_log()
@@ -1407,6 +1408,10 @@ func select_character(character: CharacterData) -> void:
 	# Apply any already-unlocked sphere grid nodes to the character
 	_apply_all_unlocked_sphere_nodes()
 
+	# Check and apply any already-completed constellations
+	sphere_grid_ui.sphere_grid.check_constellation_completion()
+	_apply_all_constellation_bonuses()
+
 	print("[MAIN] Selected character: %s" % character.character_name)
 
 # ============================================
@@ -2093,6 +2098,104 @@ func _parse_passive_description(desc: String, node_id: int) -> Dictionary:
 	passive["description"] = desc
 	return passive
 
+# ============================================
+# CONSTELLATION COMPLETION
+# ============================================
+
+var _active_constellations: Array[String] = []  # IDs of completed constellations
+
+func _on_constellation_completed(constellation_id: String) -> void:
+	## Called when the player completes a constellation on the sphere grid.
+	var grid = sphere_grid_ui.sphere_grid
+	var c = grid.get_constellation(constellation_id)
+	if not c:
+		return
+
+	_active_constellations.append(constellation_id)
+	_apply_constellation_bonus(constellation_id)
+	add_battle_log("CONSTELLATION COMPLETE: %s" % c.name, c.color)
+	add_battle_log("Bonus: %s" % c.bonus_description, Color(0.9, 0.85, 0.5))
+	print("[MAIN] Constellation completed: %s — %s" % [c.name, c.bonus_description])
+
+func _apply_constellation_bonus(constellation_id: String) -> void:
+	## Applies the permanent bonus from a completed constellation.
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	match constellation_id:
+		"iron_will":
+			# On kill: gain 3 armor and heal 2 HP — register as a sphere passive
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_kill", "effect": "iron_will",
+				"value": 0, "chance": 1.0,
+				"description": "Iron Will: On kill: gain 3 armor and heal 2 HP"
+			})
+		"blood_hunter":
+			# +15% bleed on attacks, bleed +2/tick — register as a sphere passive
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_attack", "effect": "blood_hunter",
+				"value": 0, "chance": 0.15,
+				"description": "Blood Hunter: 15% bleed on attacks, bleed +2/tick"
+			})
+		"arcane_current":
+			# Spell cards deal +5 bonus damage — register as a sphere passive
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_spell_cast", "effect": "arcane_current",
+				"value": 5, "chance": 1.0,
+				"description": "Arcane Current: Spell cards deal +5 bonus damage"
+			})
+		"mind_weaver":
+			# On spell cast: 20% draw a card. +3 max mana
+			stats.apply_sphere_grid_mana(3)
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_spell_cast", "effect": "draw_card",
+				"value": 1, "chance": 0.20,
+				"description": "Mind Weaver: 20% chance to draw a card on spell cast"
+			})
+		"windwalker":
+			# +1 movement, first card after moving costs 1 less
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_move", "effect": "reduce_cost",
+				"value": 1, "chance": 1.0,
+				"description": "Windwalker: First card after moving costs 1 less"
+			})
+			# +1 movement via agility
+			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
+		"storm_runner":
+			# +1 movement, gain 2 mana on move
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_move", "effect": "gain_mana",
+				"value": 2, "chance": 1.0,
+				"description": "Storm Runner: Gain 2 mana on each move"
+			})
+			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
+		"sages_insight":
+			# Draw 1 extra card per tempo cycle
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_cycle", "effect": "draw_card",
+				"value": 1, "chance": 1.0,
+				"description": "Sage's Insight: Draw 1 extra card per tempo cycle"
+			})
+		"unyielding":
+			# Below 50% HP: gain 3 armor each cycle, +20% determination
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_cycle", "effect": "unyielding",
+				"value": 3, "chance": 1.0,
+				"description": "Unyielding: Below 50% HP: gain 3 armor each cycle"
+			})
+			stats.apply_sphere_grid_stat("determination", 2)
+
+func _apply_all_constellation_bonuses() -> void:
+	## Re-applies all completed constellation bonuses (called after character select).
+	var grid = sphere_grid_ui.sphere_grid
+	if not grid:
+		return
+	for c in grid.get_all_constellations():
+		if c.completed and c.id not in _active_constellations:
+			_active_constellations.append(c.id)
+			_apply_constellation_bonus(c.id)
+
 func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void:
 	## Fires all sphere grid passives matching the trigger.
 	## context may contain: "target" (enemy), "card" (Card), "damage" (int), etc.
@@ -2213,6 +2316,28 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 				deck_manager.prep_utility_discount = 99
 				deck_manager.prep_utility_charges = 1
 				add_battle_log("Passive: Next card costs 0", Color(0.8, 0.8, 0.3))
+			"iron_will":
+				# Constellation: On kill: gain 3 armor and heal 2 HP
+				stats.add_armor(3)
+				stats.heal(2)
+				add_battle_log("Iron Will: +3 armor, healed 2 HP", Color(0.9, 0.45, 0.25))
+			"blood_hunter":
+				# Constellation: 15% chance to apply bleed on attack
+				var target = context.get("target", null)
+				if target and target.has_method("apply_bleed"):
+					target.apply_bleed(4)  # Base 2 + 2 bonus from constellation
+					add_battle_log("Blood Hunter: Applied enhanced bleed!", Color(0.75, 0.15, 0.15))
+			"arcane_current":
+				# Constellation: +5 spell damage — applied as bonus damage on the card
+				var card = context.get("card", null)
+				if card:
+					card.bonus_damage += 5
+					add_battle_log("Arcane Current: +5 spell damage", Color(0.5, 0.2, 0.85))
+			"unyielding":
+				# Constellation: Below 50% HP: gain 3 armor each cycle
+				if stats.current_health <= stats.max_health / 2:
+					stats.add_armor(value)
+					add_battle_log("Unyielding: +%d armor (low HP)" % value, Color(0.85, 0.7, 0.2))
 			_:
 				print("[MAIN] Unhandled sphere passive effect: %s" % effect)
 
