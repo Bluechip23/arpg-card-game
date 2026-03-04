@@ -954,41 +954,37 @@ func _build_card_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -
 	# Upgrade paths
 	if node.upgrade_paths.size() > 0:
 		_add_popup_separator(vbox)
-		_add_popup_label(vbox, "UPGRADE PATHS", 12, COLOR_SECTION_HEADER)
-		for i in range(node.upgrade_paths.size()):
-			var path = node.upgrade_paths[i]
-			_add_popup_label(vbox, "%d. %s" % [i + 1, path["label"]], 13, COLOR_UPGRADE)
-			_add_popup_label(vbox, "   %s" % path["description"], 11, COLOR_DIM_TEXT)
+		_add_popup_label(vbox, "UPGRADE PATH", 12, COLOR_SECTION_HEADER)
+		for path in node.upgrade_paths:
+			_add_popup_label(vbox, path["label"], 13, COLOR_UPGRADE)
+			_add_popup_label(vbox, "  %s" % path["description"], 11, COLOR_DIM_TEXT)
 
-	# Transmute paths
+	# Transmute path
 	if node.transmute_paths.size() > 0:
 		_add_popup_separator(vbox)
-		_add_popup_label(vbox, "TRANSMUTE PATHS", 12, COLOR_SECTION_HEADER)
-		for i in range(node.transmute_paths.size()):
-			var path = node.transmute_paths[i]
-			_add_popup_label(vbox, "%d. %s" % [i + 1, path["label"]], 13, COLOR_TRANSMUTE)
-			_add_popup_label(vbox, "   %s" % path["description"], 11, COLOR_DIM_TEXT)
+		_add_popup_label(vbox, "TRANSMUTE PATH", 12, COLOR_SECTION_HEADER)
+		for path in node.transmute_paths:
+			_add_popup_label(vbox, path["label"], 13, COLOR_TRANSMUTE)
+			_add_popup_label(vbox, "  %s" % path["description"], 11, COLOR_DIM_TEXT)
 
 func _build_passive_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
 	_add_popup_label(vbox, node.description, 14, Color(0.95, 0.8, 0.5))
 
-	# Upgrade paths
+	# Upgrade path
 	if node.upgrade_paths.size() > 0:
 		_add_popup_separator(vbox)
-		_add_popup_label(vbox, "UPGRADE PATHS", 12, COLOR_SECTION_HEADER)
-		for i in range(node.upgrade_paths.size()):
-			var path = node.upgrade_paths[i]
-			_add_popup_label(vbox, "%d. %s" % [i + 1, path["label"]], 13, COLOR_UPGRADE)
-			_add_popup_label(vbox, "   %s" % path["description"], 11, COLOR_DIM_TEXT)
+		_add_popup_label(vbox, "UPGRADE PATH", 12, COLOR_SECTION_HEADER)
+		for path in node.upgrade_paths:
+			_add_popup_label(vbox, path["label"], 13, COLOR_UPGRADE)
+			_add_popup_label(vbox, "  %s" % path["description"], 11, COLOR_DIM_TEXT)
 
-	# Transmute paths
+	# Transmute path
 	if node.transmute_paths.size() > 0:
 		_add_popup_separator(vbox)
-		_add_popup_label(vbox, "TRANSMUTE PATHS", 12, COLOR_SECTION_HEADER)
-		for i in range(node.transmute_paths.size()):
-			var path = node.transmute_paths[i]
-			_add_popup_label(vbox, "%d. %s" % [i + 1, path["label"]], 13, COLOR_TRANSMUTE)
-			_add_popup_label(vbox, "   %s" % path["description"], 11, COLOR_DIM_TEXT)
+		_add_popup_label(vbox, "TRANSMUTE PATH", 12, COLOR_SECTION_HEADER)
+		for path in node.transmute_paths:
+			_add_popup_label(vbox, path["label"], 13, COLOR_TRANSMUTE)
+			_add_popup_label(vbox, "  %s" % path["description"], 11, COLOR_DIM_TEXT)
 
 func _build_stat_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
 	_add_popup_label(vbox, node.description, 15, Color(0.8, 0.9, 1.0))
