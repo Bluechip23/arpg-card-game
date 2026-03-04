@@ -152,14 +152,14 @@ func _process(_delta: float) -> void:
 	if nearby_vendor:
 		var info = vendor_info.get(nearby_vendor.name, null)
 		var display_name = info["name"] if info else nearby_vendor.name
-		interact_prompt.text = "Press [A] to interact with %s" % display_name
+		interact_prompt.text = "Press [Shift] to interact with %s" % display_name
 	else:
 		interact_prompt.text = ""
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
-			KEY_A:
+			KEY_SHIFT:
 				if _modal_open or vendor_open:
 					return
 				if nearby_vendor:

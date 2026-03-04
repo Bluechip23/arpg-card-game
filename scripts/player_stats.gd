@@ -14,6 +14,8 @@ signal leveled_up(new_level: int)
 signal damage_taken(amount: int)
 signal health_damage_taken(amount: int)  # Emitted with the HP-only portion of damage (after armor absorbs)
 signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards should be discarded
+signal gold_changed(amount: int)
+signal healed(amount: int)
 
 var character_data: CharacterData
 
@@ -77,6 +79,11 @@ var inventory = null  # Inventory - untyped to avoid circular dependency
 var current_level: int = 1
 var current_xp: int = 0
 var total_xp: int = 0  # Lifetime XP earned
+
+# ============================================
+# GOLD
+# ============================================
+var gold: int = 0
 
 # ============================================
 # EFFECTIVE STATS (with determination modifier)
@@ -474,7 +481,9 @@ func heal(amount: int) -> void:
 	current_health = min(current_health, max_health)
 	var actual_heal = current_health - old_health
 	health_changed.emit(current_health, max_health)
-	
+	if actual_heal > 0:
+		healed.emit(actual_heal)
+
 	var new_health_pct = get_health_percent()
 	print("[STATS] Healed %d (base %d)! Health: %d/%d" % [actual_heal, amount, current_health, max_health])
 	
@@ -616,6 +625,11 @@ Level: %d | XP: %d / %d""" % [
 func get_xp_to_next_level() -> int:
 	## XP needed for the NEXT level: 10 for level 1→2, 20 for 2→3, 30 for 3→4, etc.
 	return current_level * 10
+
+func gain_gold(amount: int) -> void:
+	gold += amount
+	gold_changed.emit(gold)
+	print("[STATS] Gained %d gold! (Total: %d)" % [amount, gold])
 
 func gain_xp(amount: int) -> void:
 	current_xp += amount
