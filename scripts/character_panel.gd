@@ -173,8 +173,7 @@ Mana %.0f/%d
 Armor  %d
 Decay  -%d/t
 Carry  %d/%d
-Regen  %.1f/t
-Gold   %d""" % [
+Regen  %.1f/t""" % [
 		player_stats.current_health,
 		player_stats.max_health,
 		player_stats.current_mana,
@@ -183,8 +182,7 @@ Gold   %d""" % [
 		player_stats.armor_decay_per_cycle,
 		player_stats.current_carry_load,
 		player_stats.get_carry_capacity(),
-		player_stats.get_effective_mana_regen(),
-		player_stats.gold
+		player_stats.get_effective_mana_regen()
 	]
 
 func _update_equipment_display() -> void:
@@ -649,8 +647,37 @@ func _update_storage_grid() -> void:
 
 	equipment_container.add_child(_make_separator())
 
+	# Inventory header row: "INVENTORY (X/20)" on left, "Gold: X" and "Culling Stones: X" on right
+	var inv_header_hbox = HBoxContainer.new()
+
 	var storage_header = _make_section_header("INVENTORY (%d/%d)" % [inventory.get_stored_item_count(), inventory.max_storage_slots])
-	equipment_container.add_child(storage_header)
+	inv_header_hbox.add_child(storage_header)
+
+	var spacer = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inv_header_hbox.add_child(spacer)
+
+	var gold_label = Label.new()
+	gold_label.text = "Gold: %d" % player_stats.gold
+	gold_label.add_theme_font_size_override("font_size", 10)
+	gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	inv_header_hbox.add_child(gold_label)
+
+	equipment_container.add_child(inv_header_hbox)
+
+	# Culling stones row
+	var stones_hbox = HBoxContainer.new()
+	var stones_spacer = Control.new()
+	stones_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stones_hbox.add_child(stones_spacer)
+
+	var stones_label = Label.new()
+	stones_label.text = "Culling Stones: %d" % inventory.get_culling_stone_count()
+	stones_label.add_theme_font_size_override("font_size", 10)
+	stones_label.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+	stones_hbox.add_child(stones_label)
+
+	equipment_container.add_child(stones_hbox)
 
 	var grid = GridContainer.new()
 	grid.columns = 4
