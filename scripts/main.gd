@@ -137,6 +137,7 @@ func _ready() -> void:
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.card_peaked.connect(_on_card_peaked)
 	deck_manager.card_discarded.connect(_on_card_discarded)
+	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	test_ui.apply_overflow_requested.connect(_on_apply_overflow)
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
 	tempo_manager.tempo_threshold_reached.connect(_on_tempo_threshold_reached)
@@ -172,6 +173,8 @@ func _ready() -> void:
 	
 	# Sphere inventory + grid connection
 	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
+	sphere_grid_ui.node_unlocked.connect(_on_sphere_grid_node_unlocked)
+	sphere_grid_ui.sphere_grid.constellation_completed.connect(_on_constellation_completed)
 
 	_setup_action_buttons()
 	_setup_battle_log()
@@ -1402,6 +1405,13 @@ func select_character(character: CharacterData) -> void:
 		sphere_inventory.add_sphere(reward[0], reward[1])
 	print("[MAIN] Granted starting spheres for level 1")
 
+	# Apply any already-unlocked sphere grid nodes to the character
+	_apply_all_unlocked_sphere_nodes()
+
+	# Check and apply any already-completed constellations
+	sphere_grid_ui.sphere_grid.check_constellation_completion()
+	_apply_all_constellation_bonuses()
+
 	print("[MAIN] Selected character: %s" % character.character_name)
 
 # ============================================
@@ -1812,6 +1822,8 @@ func _on_player_move_completed() -> void:
 	# Final zone check at destination
 	_check_dungeon_zones()
 	_update_fog_of_war()
+	# Sphere grid passive triggers for movement
+	_trigger_sphere_passives("on_move", {})
 
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	var debuff_mgr = player.get_debuff_manager()
@@ -1860,6 +1872,8 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	player.get_stats().gain_xp(enemy.xp_reward)
 	_update_enemy_count()
 	_refresh_unit_tracker()
+	# Sphere grid passive triggers for kills
+	_trigger_sphere_passives("on_kill", {"target": enemy})
 
 func _on_all_enemies_defeated() -> void:
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
@@ -1882,6 +1896,450 @@ func _on_player_leveled_up(new_level: int) -> void:
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int) -> void:
 	_update_xp_display()
+
+# ============================================
+# SPHERE GRID → CHARACTER SYNC
+# ============================================
+
+func _on_sphere_grid_node_unlocked(node_id: int) -> void:
+	## Called when the player unlocks a node on the sphere grid.
+	## Applies the node's effect to the character immediately.
+	var grid = sphere_grid_ui.sphere_grid
+	var node = grid.get_node_by_id(node_id)
+	if not node:
+		return
+	_apply_sphere_grid_node(node)
+
+func _apply_sphere_grid_node(node) -> void:
+	## Applies a single sphere grid node's effect to the character.
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	match node.node_type:
+		SphereGrid.NodeType.STAT_BONUS:
+			var parsed = _parse_stat_label(node.label)
+			if parsed.size() > 0:
+				stats.apply_sphere_grid_stat(parsed["stat"], parsed["value"])
+				add_battle_log("Sphere Grid: %s" % node.label, Color(0.4, 0.6, 1.0))
+
+		SphereGrid.NodeType.HEALTH:
+			var amount = _parse_numeric_value(node.label)
+			if amount > 0:
+				stats.apply_sphere_grid_health(amount)
+				add_battle_log("Sphere Grid: Max HP +%d" % amount, Color(0.9, 0.2, 0.2))
+
+		SphereGrid.NodeType.MANA:
+			var amount = _parse_numeric_value(node.label)
+			if amount > 0:
+				stats.apply_sphere_grid_mana(amount)
+				add_battle_log("Sphere Grid: Max Mana +%d" % amount, Color(0.2, 0.5, 1.0))
+
+		SphereGrid.NodeType.CARD:
+			if node.card_id != "":
+				if deck_manager.add_card_to_deck_from_id(node.card_id):
+					add_battle_log("Sphere Grid: Unlocked card — %s" % node.card_id.replace("_", " ").capitalize(), Color(0.8, 0.3, 0.9))
+					update_deck_info()
+
+		SphereGrid.NodeType.PASSIVE:
+			var passive = _parse_passive_description(node.description, node.id)
+			if passive.size() > 0:
+				stats.add_sphere_grid_passive(passive)
+				add_battle_log("Sphere Grid: %s" % node.description, Color(0.9, 0.5, 0.2))
+
+	print("[MAIN] Sphere grid node %d applied: [%s] %s" % [node.id, SphereGrid.NodeType.keys()[node.node_type], node.label])
+
+func _apply_all_unlocked_sphere_nodes() -> void:
+	## Applies all already-unlocked sphere grid nodes to the character.
+	## Called after character selection to sync grid state.
+	var grid = sphere_grid_ui.sphere_grid
+	if not grid:
+		return
+	for node in grid.get_all_nodes():
+		if node.unlocked and node.node_type != SphereGrid.NodeType.START:
+			_apply_sphere_grid_node(node)
+
+func _parse_stat_label(label: String) -> Dictionary:
+	## Parses labels like "STR +3" → { "stat": "strength", "value": 3 }
+	var stat_map = {
+		"STR": "strength",
+		"DEX": "dexterity",
+		"INT": "intelligence",
+		"WIS": "wisdom",
+		"AGI": "agility",
+		"DET": "determination",
+	}
+	for abbr in stat_map:
+		if label.begins_with(abbr):
+			var value = _parse_numeric_value(label)
+			if value > 0:
+				return { "stat": stat_map[abbr], "value": value }
+	return {}
+
+func _parse_numeric_value(label: String) -> int:
+	## Extracts the first integer from a label like "HP +10" or "Mana +5"
+	var regex = RegEx.new()
+	regex.compile("\\+(\\d+)")
+	var result = regex.search(label)
+	if result:
+		return int(result.get_string(1))
+	# Try without + sign
+	regex.compile("(\\d+)")
+	result = regex.search(label)
+	if result:
+		return int(result.get_string(1))
+	return 0
+
+func _parse_passive_description(desc: String, node_id: int) -> Dictionary:
+	## Parses passive descriptions like "On kill: heal 1 HP" into structured data.
+	## Returns { "node_id": int, "trigger": String, "effect": String, "value": float, "chance": float }
+	var passive: Dictionary = { "node_id": node_id, "trigger": "", "effect": "", "value": 0, "chance": 1.0 }
+
+	# Extract trigger (everything before the colon)
+	var colon_idx = desc.find(":")
+	if colon_idx < 0:
+		return {}
+
+	var trigger_part = desc.substr(0, colon_idx).strip_edges().to_lower()
+	var effect_part = desc.substr(colon_idx + 1).strip_edges().to_lower()
+
+	# Map trigger text to trigger ID
+	var trigger_map = {
+		"on kill": "on_kill",
+		"on card play": "on_card_play",
+		"on move": "on_move",
+		"on cycle": "on_cycle",
+		"on tempo cycle": "on_tempo_cycle",
+		"on attack": "on_attack",
+		"on dodge": "on_dodge",
+		"on heal": "on_heal",
+		"on block": "on_block",
+		"on crit": "on_crit",
+		"on spell cast": "on_spell_cast",
+		"on discard": "on_discard",
+		"on draw": "on_draw",
+	}
+
+	for text in trigger_map:
+		if trigger_part == text:
+			passive["trigger"] = trigger_map[text]
+			break
+
+	if passive["trigger"] == "":
+		return {}
+
+	# Check for percentage chance (e.g., "5% draw extra" or "10% apply bleed")
+	var chance_regex = RegEx.new()
+	chance_regex.compile("(\\d+)%\\s*(.*)")
+	var chance_match = chance_regex.search(effect_part)
+	if chance_match:
+		passive["chance"] = float(chance_match.get_string(1)) / 100.0
+		effect_part = chance_match.get_string(2)
+
+	# Parse the effect and value
+	var value_regex = RegEx.new()
+	value_regex.compile("(\\d+)")
+	var value_match = value_regex.search(effect_part)
+	if value_match:
+		passive["value"] = int(value_match.get_string(1))
+
+	# Categorize the effect
+	if "heal" in effect_part and "hp" in effect_part:
+		passive["effect"] = "heal"
+	elif "heal" in effect_part:
+		passive["effect"] = "heal"
+	elif "draw" in effect_part:
+		passive["effect"] = "draw_card"
+	elif "armor" in effect_part:
+		passive["effect"] = "gain_armor"
+	elif "mana" in effect_part and "regen" in effect_part:
+		passive["effect"] = "regen_mana"
+	elif "mana" in effect_part and "gain" in effect_part:
+		passive["effect"] = "gain_mana"
+	elif "mana" in effect_part:
+		passive["effect"] = "gain_mana"
+	elif "bleed" in effect_part:
+		passive["effect"] = "apply_bleed"
+	elif "tempo" in effect_part:
+		passive["effect"] = "gain_tempo"
+	elif "cleanse" in effect_part:
+		passive["effect"] = "cleanse_debuff"
+	elif "reflect" in effect_part:
+		passive["effect"] = "reflect_damage"
+	elif "bonus" in effect_part and "damage" in effect_part:
+		passive["effect"] = "bonus_damage"
+	elif "deal" in effect_part and "damage" in effect_part:
+		passive["effect"] = "deal_damage"
+	elif "stun" in effect_part:
+		passive["effect"] = "stun_enemy"
+	elif "counterattack" in effect_part:
+		passive["effect"] = "counterattack"
+	elif "haste" in effect_part:
+		passive["effect"] = "gain_haste"
+	elif "empower" in effect_part:
+		passive["effect"] = "gain_empower"
+	elif "double cast" in effect_part:
+		passive["effect"] = "double_cast"
+	elif "refund" in effect_part:
+		passive["effect"] = "refund_mana"
+	elif "return" in effect_part:
+		passive["effect"] = "return_to_hand"
+	elif "cost" in effect_part and "less" in effect_part:
+		passive["effect"] = "reduce_cost"
+	elif "freeze" in effect_part:
+		passive["effect"] = "freeze_enemy"
+	elif "overheal" in effect_part:
+		passive["effect"] = "overheal_armor"
+	elif "costs 0" in effect_part:
+		passive["effect"] = "free_draw"
+	else:
+		passive["effect"] = effect_part  # Store raw text as fallback
+
+	passive["description"] = desc
+	return passive
+
+# ============================================
+# CONSTELLATION COMPLETION
+# ============================================
+
+var _active_constellations: Array[String] = []  # IDs of completed constellations
+
+func _on_constellation_completed(constellation_id: String) -> void:
+	## Called when the player completes a constellation on the sphere grid.
+	var grid = sphere_grid_ui.sphere_grid
+	var c = grid.get_constellation(constellation_id)
+	if not c:
+		return
+
+	_active_constellations.append(constellation_id)
+	_apply_constellation_bonus(constellation_id)
+	add_battle_log("CONSTELLATION COMPLETE: %s" % c.name, c.color)
+	add_battle_log("Bonus: %s" % c.bonus_description, Color(0.9, 0.85, 0.5))
+	print("[MAIN] Constellation completed: %s — %s" % [c.name, c.bonus_description])
+
+func _apply_constellation_bonus(constellation_id: String) -> void:
+	## Applies the permanent bonus from a completed constellation.
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	match constellation_id:
+		"iron_will":
+			# On kill: gain 3 armor and heal 2 HP — register as a sphere passive
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_kill", "effect": "iron_will",
+				"value": 0, "chance": 1.0,
+				"description": "Iron Will: On kill: gain 3 armor and heal 2 HP"
+			})
+		"blood_hunter":
+			# +15% bleed on attacks, bleed +2/tick — register as a sphere passive
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_attack", "effect": "blood_hunter",
+				"value": 0, "chance": 0.15,
+				"description": "Blood Hunter: 15% bleed on attacks, bleed +2/tick"
+			})
+		"arcane_current":
+			# Spell cards deal +5 bonus damage — register as a sphere passive
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_spell_cast", "effect": "arcane_current",
+				"value": 5, "chance": 1.0,
+				"description": "Arcane Current: Spell cards deal +5 bonus damage"
+			})
+		"mind_weaver":
+			# On spell cast: 20% draw a card. +3 max mana
+			stats.apply_sphere_grid_mana(3)
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_spell_cast", "effect": "draw_card",
+				"value": 1, "chance": 0.20,
+				"description": "Mind Weaver: 20% chance to draw a card on spell cast"
+			})
+		"windwalker":
+			# +1 movement, first card after moving costs 1 less
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_move", "effect": "reduce_cost",
+				"value": 1, "chance": 1.0,
+				"description": "Windwalker: First card after moving costs 1 less"
+			})
+			# +1 movement via agility
+			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
+		"storm_runner":
+			# +1 movement, gain 2 mana on move
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_move", "effect": "gain_mana",
+				"value": 2, "chance": 1.0,
+				"description": "Storm Runner: Gain 2 mana on each move"
+			})
+			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
+		"sages_insight":
+			# Draw 1 extra card per tempo cycle
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_cycle", "effect": "draw_card",
+				"value": 1, "chance": 1.0,
+				"description": "Sage's Insight: Draw 1 extra card per tempo cycle"
+			})
+		"unyielding":
+			# Below 50% HP: gain 3 armor each cycle, +20% determination
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_cycle", "effect": "unyielding",
+				"value": 3, "chance": 1.0,
+				"description": "Unyielding: Below 50% HP: gain 3 armor each cycle"
+			})
+			stats.apply_sphere_grid_stat("determination", 2)
+
+func _apply_all_constellation_bonuses() -> void:
+	## Re-applies all completed constellation bonuses (called after character select).
+	var grid = sphere_grid_ui.sphere_grid
+	if not grid:
+		return
+	for c in grid.get_all_constellations():
+		if c.completed and c.id not in _active_constellations:
+			_active_constellations.append(c.id)
+			_apply_constellation_bonus(c.id)
+
+func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void:
+	## Fires all sphere grid passives matching the trigger.
+	## context may contain: "target" (enemy), "card" (Card), "damage" (int), etc.
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	var passives = stats.get_sphere_grid_passives_for_trigger(trigger)
+	for passive in passives:
+		# Roll chance
+		var chance = passive.get("chance", 1.0)
+		if chance < 1.0 and randf() > chance:
+			continue
+
+		var value = passive.get("value", 0)
+		var effect = passive.get("effect", "")
+
+		match effect:
+			"heal":
+				if value > 0:
+					stats.heal(value)
+					add_battle_log("Passive: Healed %d HP" % value, Color(0.5, 1.0, 0.5))
+			"draw_card":
+				if value <= 0:
+					value = 1
+				for i in range(value):
+					deck_manager.attempt_draw()
+				add_battle_log("Passive: Drew %d card(s)" % value, Color(0.3, 0.8, 1.0))
+			"gain_armor":
+				if value > 0:
+					stats.add_armor(value)
+					add_battle_log("Passive: Gained %d armor" % value, Color(0.6, 0.6, 0.8))
+			"regen_mana", "gain_mana":
+				if value > 0:
+					stats.gain_mana(value)
+					add_battle_log("Passive: Gained %d mana" % value, Color(0.2, 0.5, 1.0))
+			"apply_bleed":
+				var target = context.get("target", null)
+				if target and target.has_method("apply_bleed"):
+					target.apply_bleed(value if value > 0 else 2)
+					add_battle_log("Passive: Applied bleed", Color(0.9, 0.3, 0.3))
+			"gain_tempo":
+				if value > 0:
+					tempo_manager.add_tempo(-value)  # Negative tempo = gain turns
+					add_battle_log("Passive: Gained %d tempo" % value, Color(0.9, 0.85, 0.2))
+			"cleanse_debuff":
+				if player.has_method("get_debuff_manager"):
+					var dbm = player.get_debuff_manager()
+					if dbm and dbm.has_method("remove_random_debuff"):
+						dbm.remove_random_debuff()
+						add_battle_log("Passive: Cleansed a debuff", Color(0.5, 1.0, 0.8))
+			"reflect_damage":
+				var target = context.get("target", null)
+				if target and value > 0 and target.has_method("take_damage"):
+					target.take_damage(value)
+					add_battle_log("Passive: Reflected %d damage" % value, Color(1.0, 0.5, 0.2))
+			"deal_damage":
+				# Deal damage to a random enemy or specified target
+				var target = context.get("target", null)
+				if not target:
+					var enemies = enemy_spawner.get_alive_enemies() if enemy_spawner else []
+					if enemies.size() > 0:
+						target = enemies[randi() % enemies.size()]
+				if target and value > 0 and target.has_method("take_damage"):
+					target.take_damage(value)
+					add_battle_log("Passive: Dealt %d damage" % value, Color(1.0, 0.4, 0.4))
+			"stun_enemy":
+				var target = context.get("target", null)
+				if target and target.has_method("apply_stun"):
+					target.apply_stun()
+					add_battle_log("Passive: Stunned enemy", Color(1.0, 1.0, 0.3))
+			"gain_haste":
+				if player.has_method("get_buff_manager"):
+					var bm = player.get_buff_manager()
+					if bm and bm.has_method("apply_buff"):
+						bm.apply_buff(Buff.create_haste(5))
+						add_battle_log("Passive: Gained haste", Color(0.3, 1.0, 0.5))
+			"gain_empower":
+				stats.apply_empower(1)
+				add_battle_log("Passive: Gained empower", Color(1.0, 0.8, 0.3))
+			"refund_mana":
+				var card = context.get("card", null)
+				if card:
+					stats.gain_mana(card.mana_cost)
+					add_battle_log("Passive: Refunded %d mana" % card.mana_cost, Color(0.2, 0.5, 1.0))
+			"return_to_hand":
+				var card = context.get("card", null)
+				if card:
+					# Move from discard back to hand
+					var idx = deck_manager.discard_pile.find(card)
+					if idx >= 0:
+						deck_manager.discard_pile.remove_at(idx)
+						deck_manager.add_card_to_hand(card)
+						add_battle_log("Passive: %s returned to hand" % card.card_name, Color(0.7, 0.7, 1.0))
+			"reduce_cost":
+				# Reduce next card cost by value
+				if value > 0:
+					deck_manager.prep_utility_discount = value
+					deck_manager.prep_utility_charges = 1
+					add_battle_log("Passive: Next card costs %d less" % value, Color(0.8, 0.8, 0.3))
+			"bonus_damage":
+				# Handled at damage calculation time via context
+				pass
+			"counterattack":
+				var target = context.get("target", null)
+				if target and target.has_method("take_damage"):
+					var dmg = stats.get_effective_physical_damage(5)
+					target.take_damage(dmg)
+					add_battle_log("Passive: Counterattack for %d" % dmg, Color(1.0, 0.5, 0.2))
+			"overheal_armor":
+				# This is handled in the heal flow — check overheal and convert
+				var overheal = context.get("overheal", 0)
+				if overheal > 0:
+					stats.add_armor(overheal)
+					add_battle_log("Passive: Overheal → %d armor" % overheal, Color(0.6, 0.8, 1.0))
+			"free_draw":
+				# Next drawn card costs 0 — apply via prep system
+				deck_manager.prep_utility_discount = 99
+				deck_manager.prep_utility_charges = 1
+				add_battle_log("Passive: Next card costs 0", Color(0.8, 0.8, 0.3))
+			"iron_will":
+				# Constellation: On kill: gain 3 armor and heal 2 HP
+				stats.add_armor(3)
+				stats.heal(2)
+				add_battle_log("Iron Will: +3 armor, healed 2 HP", Color(0.9, 0.45, 0.25))
+			"blood_hunter":
+				# Constellation: 15% chance to apply bleed on attack
+				var target = context.get("target", null)
+				if target and target.has_method("apply_bleed"):
+					target.apply_bleed(4)  # Base 2 + 2 bonus from constellation
+					add_battle_log("Blood Hunter: Applied enhanced bleed!", Color(0.75, 0.15, 0.15))
+			"arcane_current":
+				# Constellation: +5 spell damage — applied as bonus damage on the card
+				var card = context.get("card", null)
+				if card:
+					card.bonus_damage += 5
+					add_battle_log("Arcane Current: +5 spell damage", Color(0.5, 0.2, 0.85))
+			"unyielding":
+				# Constellation: Below 50% HP: gain 3 armor each cycle
+				if stats.current_health <= stats.max_health / 2:
+					stats.add_armor(value)
+					add_battle_log("Unyielding: +%d armor (low HP)" % value, Color(0.85, 0.7, 0.2))
+			_:
+				print("[MAIN] Unhandled sphere passive effect: %s" % effect)
 
 func _update_enemy_count() -> void:
 	test_ui.update_enemy_count(enemy_spawner.get_enemy_count())
@@ -1946,6 +2404,8 @@ func _on_maintained_cards_broken() -> void:
 func _on_player_health_damage_taken(hp_amount: int) -> void:
 	## Process maintained card effects that trigger on HP damage
 	if hp_amount <= 0:
+		# Damage was fully absorbed by armor → trigger on_block passives
+		_trigger_sphere_passives("on_block", {})
 		return
 	player.spawn_damage_number(hp_amount)
 	var stats = player.get_stats()
@@ -1956,6 +2416,12 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 
 func _on_player_healed(amount: int) -> void:
 	player.spawn_heal_number(amount)
+	# Sphere grid passive triggers for healing
+	var stats = player.get_stats()
+	var overheal = 0
+	if stats and stats.current_health >= stats.max_health:
+		overheal = amount  # approximate overheal
+	_trigger_sphere_passives("on_heal", {"overheal": overheal})
 
 func update_turn_display() -> void:
 	if turn_label:
@@ -2084,6 +2550,8 @@ func _on_hand_updated() -> void:
 	update_card_highlights()
 
 func _on_card_discarded(card: Card) -> void:
+	# Sphere grid passive triggers for discard
+	_trigger_sphere_passives("on_discard", {"card": card})
 	# Volatile Mixture: deal damage to a random nearby enemy when discarded
 	if card.card_id == "volatile_mixture":
 		var stats = player.get_stats()
@@ -2097,6 +2565,9 @@ func _on_card_discarded(card: Card) -> void:
 			print("[MAIN] Volatile Mixture discarded! Dealt %d damage to %s" % [total_damage, target_enemy.enemy_name])
 		else:
 			print("[MAIN] Volatile Mixture discarded! No enemies nearby to damage")
+
+func _on_card_drawn_sphere_passive(card: Card) -> void:
+	_trigger_sphere_passives("on_draw", {"card": card})
 
 func _on_deck_shuffled() -> void:
 	update_deck_info()
@@ -2232,6 +2703,10 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		_process_pending_sky_falls()
 		_process_pending_absorb_essences()
 		_process_glut_countdown()
+
+	# Sphere grid passive triggers for tempo cycle
+	_trigger_sphere_passives("on_cycle", {})
+	_trigger_sphere_passives("on_tempo_cycle", {})
 
 	_check_volatile_mixture_in_hand()
 	_update_gauntlet_skills_ui()
@@ -2553,6 +3028,13 @@ func play_selected_card(target) -> void:
 			add_battle_log("Played %s%s — %d damage" % [card.card_name, target_name, card.last_damage_dealt], Color(0.4, 1.0, 0.5))
 		else:
 			add_battle_log("Played %s%s" % [card.card_name, target_name], Color(0.4, 1.0, 0.5))
+
+		# Sphere grid passive triggers for card play
+		_trigger_sphere_passives("on_card_play", {"card": card, "target": target})
+		if card.card_type == Card.CardType.ATTACK:
+			_trigger_sphere_passives("on_attack", {"card": card, "target": target})
+		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+			_trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
 
 		# Apply world effects (knockback, movement, AOE) that need game-level access
 		_apply_card_world_effects(card, target)

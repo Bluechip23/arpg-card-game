@@ -46,12 +46,39 @@ class GridNode:
 		connections = []
 		ring = p_ring
 
+# ============================================
+# CONSTELLATION SYSTEM
+# ============================================
+
+class Constellation:
+	var id: String                    # Unique identifier
+	var name: String                  # Display name
+	var node_ids: Array[int]          # Required node IDs
+	var bonus_name: String            # Short passive name
+	var bonus_description: String     # Full description of the bonus
+	var color: Color                  # Constellation color for lines/shading
+	var completed: bool = false
+
+	func _init(p_id: String, p_name: String, p_nodes: Array[int], p_bonus_name: String, p_bonus_desc: String, p_color: Color) -> void:
+		id = p_id
+		name = p_name
+		node_ids = p_nodes
+		bonus_name = p_bonus_name
+		bonus_description = p_bonus_desc
+		color = p_color
+
+signal constellation_completed(constellation_id: String)
+
+var constellations: Array[Constellation] = []
+var _constellation_map: Dictionary = {}  # id -> Constellation
+
 var nodes: Array = []  # Array of GridNode
 var _node_map: Dictionary = {}  # id -> GridNode lookup
 
 func _init() -> void:
 	_build_grid()
 	_assign_node_details()
+	_build_constellations()
 
 func get_node_by_id(id: int) -> GridNode:
 	return _node_map.get(id, null)
@@ -573,6 +600,159 @@ func _assign_node_details() -> void:
 		{"label": "On tempo cycle: draw 2 cards and gain 1 mana", "description": "Major cycle draw"}],
 		[{"label": "On tempo cycle: draw 1 card and gain 2 mana", "description": "Balanced cycle reward"},
 		 {"label": "On tempo cycle: draw 1 card and gain 3 armor", "description": "Defensive cycle"}])
+
+# ============================================
+# CONSTELLATION DEFINITIONS
+# ============================================
+
+func _build_constellations() -> void:
+	constellations.clear()
+	_constellation_map.clear()
+
+	# --- PAIR 1: STR Sector — Iron Will vs Blood Hunter ---
+	# Shared nodes: 1 (STR+1), 8 (On kill: heal)
+	# Iron Will goes toward HP/Life Steal; Blood Hunter toward Bleed/Wear Down
+	_add_constellation(Constellation.new(
+		"iron_will", "Iron Will",
+		[1, 7, 8, 19, 20] as Array[int],
+		"Iron Will",
+		"On kill: gain 3 armor and heal 2 HP",
+		Color(0.9, 0.45, 0.25)  # warm red-orange
+	))
+	_add_constellation(Constellation.new(
+		"blood_hunter", "Blood Hunter",
+		[1, 8, 9, 21, 22] as Array[int],
+		"Blood Hunter",
+		"Attacks have +15% chance to apply bleed. Bleed deals +2 per tick",
+		Color(0.75, 0.15, 0.15)  # dark crimson
+	))
+
+	# --- PAIR 2: INT Sector — Arcane Current vs Mind Weaver ---
+	# Shared nodes: 3 (INT+1), 11 (On card play: draw)
+	# Arcane Current goes toward raw spell power; Mind Weaver toward card economy
+	_add_constellation(Constellation.new(
+		"arcane_current", "Arcane Current",
+		[3, 11, 12, 25, 26] as Array[int],
+		"Arcane Current",
+		"Spell cards deal +5 bonus damage",
+		Color(0.5, 0.2, 0.85)  # deep purple
+	))
+	_add_constellation(Constellation.new(
+		"mind_weaver", "Mind Weaver",
+		[3, 10, 11, 23, 24] as Array[int],
+		"Mind Weaver",
+		"On spell cast: 20% chance to draw a card. +3 max mana",
+		Color(0.7, 0.5, 0.95)  # lavender
+	))
+
+	# --- PAIR 3: AGI Sector — Windwalker vs Storm Runner ---
+	# Shared nodes: 5 (AGI+1), 16 (Mana+3), 32 (AGI+3)
+	# Windwalker goes toward card draw/prep; Storm Runner toward mana sustain
+	# Storm Runner also shares node 17 with Unyielding — creating a 3-way conflict
+	_add_constellation(Constellation.new(
+		"windwalker", "Windwalker",
+		[5, 15, 16, 31, 32] as Array[int],
+		"Windwalker",
+		"+1 movement per cycle. First card played after moving costs 1 less",
+		Color(0.3, 0.85, 0.4)  # light green
+	))
+	_add_constellation(Constellation.new(
+		"storm_runner", "Storm Runner",
+		[5, 16, 17, 32, 33] as Array[int],
+		"Storm Runner",
+		"+1 movement per cycle. Gain 2 mana on each move",
+		Color(0.2, 0.55, 0.95)  # electric blue
+	))
+
+	# --- STANDALONE: WIS Sector — Sage's Insight ---
+	_add_constellation(Constellation.new(
+		"sages_insight", "Sage's Insight",
+		[4, 13, 14, 28, 29] as Array[int],
+		"Sage's Insight",
+		"Draw 1 extra card per tempo cycle",
+		Color(0.2, 0.75, 0.65)  # teal
+	))
+
+	# --- STANDALONE: DET Sector — Unyielding ---
+	# Shares node 17 with Storm Runner
+	_add_constellation(Constellation.new(
+		"unyielding", "Unyielding",
+		[6, 17, 18, 35, 36] as Array[int],
+		"Unyielding",
+		"Below 50% HP: gain 3 armor each cycle. Determination scaling +20%",
+		Color(0.85, 0.7, 0.2)  # dark gold
+	))
+
+func _add_constellation(c: Constellation) -> void:
+	constellations.append(c)
+	_constellation_map[c.id] = c
+
+func get_constellation(id: String) -> Constellation:
+	return _constellation_map.get(id, null)
+
+func get_all_constellations() -> Array[Constellation]:
+	return constellations
+
+func is_constellation_complete(id: String) -> bool:
+	var c = get_constellation(id)
+	if not c:
+		return false
+	for node_id in c.node_ids:
+		var node = get_node_by_id(node_id)
+		if not node or not node.unlocked:
+			return false
+	return true
+
+func check_constellation_completion() -> Array[String]:
+	## Checks all constellations and returns IDs of any newly completed ones.
+	var newly_completed: Array[String] = []
+	for c in constellations:
+		if c.completed:
+			continue
+		if is_constellation_complete(c.id):
+			c.completed = true
+			newly_completed.append(c.id)
+			constellation_completed.emit(c.id)
+			print("[SPHERE GRID] Constellation completed: %s — %s" % [c.name, c.bonus_description])
+	return newly_completed
+
+func get_constellations_for_node(node_id: int) -> Array[Constellation]:
+	## Returns all constellations that include this node.
+	var result: Array[Constellation] = []
+	for c in constellations:
+		if node_id in c.node_ids:
+			result.append(c)
+	return result
+
+func get_constellation_progress(id: String) -> Dictionary:
+	## Returns { "unlocked": int, "total": int, "node_ids": Array, "unlocked_ids": Array }
+	var c = get_constellation(id)
+	if not c:
+		return { "unlocked": 0, "total": 0, "node_ids": [], "unlocked_ids": [] }
+	var unlocked_ids: Array[int] = []
+	for node_id in c.node_ids:
+		var node = get_node_by_id(node_id)
+		if node and node.unlocked:
+			unlocked_ids.append(node_id)
+	return { "unlocked": unlocked_ids.size(), "total": c.node_ids.size(), "node_ids": c.node_ids, "unlocked_ids": unlocked_ids }
+
+func get_constellation_edges(id: String) -> Array:
+	## Returns all grid edges [node_a_id, node_b_id] between nodes in this constellation.
+	var c = get_constellation(id)
+	if not c:
+		return []
+	var edges: Array = []
+	var node_set = {}
+	for nid in c.node_ids:
+		node_set[nid] = true
+	for nid in c.node_ids:
+		var node = get_node_by_id(nid)
+		if not node:
+			continue
+		for conn_id in node.connections:
+			if conn_id in node_set and conn_id > nid:
+				edges.append([nid, conn_id])
+	return edges
 
 func _assign_card(node_id: int, p_card_id: String, card_label: String, upgrades: Array, transmutes: Array) -> void:
 	var node = get_node_by_id(node_id)
