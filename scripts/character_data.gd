@@ -21,6 +21,7 @@ extends Resource
 @export var base_hand_size: int = 6
 
 var starting_card_ids: Array = []  # Character-specific cards added to starting deck
+var purchased_card_ids: Array = []  # Cards bought from the card shop
 
 # Selection screen display info
 var passive_description: String = ""

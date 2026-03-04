@@ -631,6 +631,14 @@ func gain_gold(amount: int) -> void:
 	gold_changed.emit(gold)
 	print("[STATS] Gained %d gold! (Total: %d)" % [amount, gold])
 
+func spend_gold(amount: int) -> bool:
+	if gold < amount:
+		return false
+	gold -= amount
+	gold_changed.emit(gold)
+	print("[STATS] Spent %d gold! (Total: %d)" % [amount, gold])
+	return true
+
 func gain_xp(amount: int) -> void:
 	current_xp += amount
 	total_xp += amount

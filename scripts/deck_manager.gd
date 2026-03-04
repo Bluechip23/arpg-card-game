@@ -89,6 +89,15 @@ func _create_default_deck(character: CharacterData) -> void:
 			draw_pile.append(card)
 		else:
 			print("[DECK] WARNING: Unknown card_id in starting deck: %s" % card_id)
+
+	# Add cards purchased from the card shop
+	for card_id in character.purchased_card_ids:
+		var card = _create_card_from_id(card_id)
+		if card:
+			draw_pile.append(card)
+			print("[DECK] Added purchased card: %s" % card.card_name)
+		else:
+			print("[DECK] WARNING: Unknown purchased card_id: %s" % card_id)
 var current_overflow_mode: OverflowMode = OverflowMode.JAILED
 
 func set_overflow_mode(mode: OverflowMode) -> void:

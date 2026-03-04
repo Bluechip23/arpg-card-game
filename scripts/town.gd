@@ -23,7 +23,12 @@ var vendor_open: bool = false
 # Item detail modal (built dynamically)
 var _detail_modal: PanelContainer = null
 var _detail_item: ItemData = null
+var _detail_card: Card = null
+var _detail_is_sell: bool = false  # Whether the modal is for selling
+var _detail_sell_slot_type: int = -1  # ItemData.ItemType for sell
+var _detail_sell_slot_index: int = -1  # Slot index for sell
 var _modal_open: bool = false
+var _current_vendor_type: String = ""
 
 # Vendor metadata: node name -> display info
 var vendor_info: Dictionary = {
@@ -235,24 +240,45 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 		return
 
 	vendor_open = true
+	_current_vendor_type = info["type"]
 	vendor_name_label.text = info["name"]
 
 	# Clear old items from list
 	for child in vendor_item_list.get_children():
 		child.queue_free()
 
-	# Populate vendor inventory
-	var shop_items = _get_vendor_items(info["type"])
-	if shop_items.is_empty():
-		vendor_inventory_label.text = info["description"] + "\n\nInventory is empty."
+	vendor_inventory_label.text = info["description"]
+
+	if info["type"] == "card_dealer":
+		# Card shop: show all available cards
+		var all_cards = _get_all_cards()
+		for card in all_cards:
+			_add_vendor_card_row(card, false)
+
+		# Show purchased cards for selling
+		if starting_character and starting_character.purchased_card_ids.size() > 0:
+			_add_section_separator("Your Purchased Cards")
+			for i in range(starting_character.purchased_card_ids.size()):
+				var card_id = starting_character.purchased_card_ids[i]
+				var card = _create_card_from_id(card_id)
+				if card:
+					_add_vendor_card_row(card, true, i)
 	else:
-		vendor_inventory_label.text = info["description"]
+		# Item shops: show shop inventory
+		var shop_items = _get_vendor_items(info["type"])
 		for item in shop_items:
 			_add_vendor_item_row(item)
 
+		# Show player's matching items for selling
+		var sell_items = _get_player_items_for_vendor(info["type"])
+		if sell_items.size() > 0:
+			_add_section_separator("Your Equipment")
+			for entry in sell_items:
+				_add_sell_item_row(entry["item"], entry["slot_type"], entry["slot_index"])
+
 	vendor_panel.visible = true
 	interact_prompt.text = ""
-	print("[TOWN] Opened vendor: %s (%d items)" % [info["name"], shop_items.size()])
+	print("[TOWN] Opened vendor: %s" % info["name"])
 
 func _add_vendor_item_row(item: ItemData) -> void:
 	var btn = Button.new()
@@ -308,18 +334,204 @@ func _add_vendor_item_row(item: ItemData) -> void:
 	vendor_item_list.add_child(btn)
 
 # ============================================
+# CARD SHOP HELPERS
+# ============================================
+
+func _get_all_cards() -> Array[Card]:
+	## Discovers all Card.create_* factory methods and returns one of each card.
+	var cards: Array[Card] = []
+	var card_script: Script = Card
+	for method in card_script.get_script_method_list():
+		var method_name: String = method["name"]
+		if method_name.begins_with("create_") and method["args"].size() == 0:
+			var card = card_script.call(method_name)
+			if card is Card:
+				cards.append(card)
+	# Sort by card type then name
+	cards.sort_custom(func(a, b):
+		if a.card_type_name != b.card_type_name:
+			return a.card_type_name < b.card_type_name
+		return a.card_name < b.card_name
+	)
+	return cards
+
+func _create_card_from_id(card_id: String) -> Card:
+	var card_script: Script = Card
+	for method in card_script.get_script_method_list():
+		var method_name: String = method["name"]
+		if method_name.begins_with("create_") and method["args"].size() == 0:
+			var card = card_script.call(method_name)
+			if card is Card and card.card_id == card_id:
+				return card
+	return null
+
+func _add_vendor_card_row(card: Card, is_sell: bool, sell_index: int = -1) -> void:
+	var btn = Button.new()
+	btn.custom_minimum_size.y = 40
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+	var prefix = "[SELL] " if is_sell else ""
+	btn.text = "  %s%s   [%s]   %dM   %s" % [prefix, card.card_name, card.card_type_name, card.mana_cost, card.description]
+	btn.add_theme_font_size_override("font_size", 13)
+
+	# Style
+	var normal = StyleBoxFlat.new()
+	normal.bg_color = Color(0.12, 0.12, 0.18, 0.9) if not is_sell else Color(0.18, 0.12, 0.12, 0.9)
+	normal.border_width_bottom = 1
+	normal.border_color = Color(0.25, 0.25, 0.3)
+	normal.corner_radius_top_left = 4
+	normal.corner_radius_top_right = 4
+	normal.corner_radius_bottom_left = 4
+	normal.corner_radius_bottom_right = 4
+	normal.content_margin_left = 8
+	normal.content_margin_right = 8
+	btn.add_theme_stylebox_override("normal", normal)
+
+	var hover = StyleBoxFlat.new()
+	hover.bg_color = Color(0.2, 0.2, 0.28, 0.95) if not is_sell else Color(0.28, 0.18, 0.18, 0.95)
+	hover.border_width_bottom = 1
+	hover.border_width_left = 2
+	hover.border_color = Color(0.5, 0.45, 0.7) if not is_sell else Color(0.7, 0.4, 0.4)
+	hover.corner_radius_top_left = 4
+	hover.corner_radius_top_right = 4
+	hover.corner_radius_bottom_left = 4
+	hover.corner_radius_bottom_right = 4
+	hover.content_margin_left = 8
+	hover.content_margin_right = 8
+	btn.add_theme_stylebox_override("hover", hover)
+
+	var type_color = _get_card_type_color(card)
+	btn.add_theme_color_override("font_color", type_color)
+	btn.add_theme_color_override("font_hover_color", type_color.lightened(0.2))
+
+	if is_sell:
+		btn.pressed.connect(_on_sell_card_clicked.bind(card, sell_index))
+	else:
+		btn.pressed.connect(_on_buy_card_clicked.bind(card))
+	vendor_item_list.add_child(btn)
+
+func _get_card_type_color(card: Card) -> Color:
+	match card.card_type:
+		Card.CardType.ATTACK: return Color(1.0, 0.6, 0.6)
+		Card.CardType.DEFENSE: return Color(0.6, 0.8, 1.0)
+		Card.CardType.UTILITY: return Color(0.6, 1.0, 0.6)
+		Card.CardType.POWER: return Color(1.0, 0.8, 0.4)
+		Card.CardType.REACTION: return Color(0.9, 0.6, 1.0)
+	return Color(0.8, 0.8, 0.8)
+
+# ============================================
+# SELL HELPERS
+# ============================================
+
+func _get_player_items_for_vendor(vendor_type: String) -> Array[Dictionary]:
+	## Returns player's equipped items matching the vendor type.
+	var result: Array[Dictionary] = []
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		return result
+
+	var slot_types: Array = []
+	match vendor_type:
+		"armory":
+			slot_types = [
+				ItemData.ItemType.WEAPON, ItemData.ItemType.HELM,
+				ItemData.ItemType.CHEST, ItemData.ItemType.GAUNTLETS
+			]
+		"accessory":
+			slot_types = [
+				ItemData.ItemType.RING, ItemData.ItemType.BELT,
+				ItemData.ItemType.BOOTS, ItemData.ItemType.QUIVER
+			]
+		"blacksmith":
+			slot_types = [
+				ItemData.ItemType.WEAPON, ItemData.ItemType.HELM,
+				ItemData.ItemType.CHEST, ItemData.ItemType.GAUNTLETS,
+				ItemData.ItemType.RING, ItemData.ItemType.BELT,
+				ItemData.ItemType.BOOTS, ItemData.ItemType.QUIVER
+			]
+
+	for slot_type in slot_types:
+		var slot_array = inventory._get_slot_array(slot_type)
+		for i in range(slot_array.size()):
+			if slot_array[i] != null:
+				result.append({"item": slot_array[i], "slot_type": slot_type, "slot_index": i})
+
+	# Also include stored items
+	for i in range(inventory.stored_items.size()):
+		var item = inventory.stored_items[i]
+		if item and item.item_type in slot_types:
+			result.append({"item": item, "slot_type": -1, "slot_index": i})
+
+	return result
+
+func _add_section_separator(title: String) -> void:
+	var sep = HSeparator.new()
+	sep.add_theme_constant_override("separation", 8)
+	vendor_item_list.add_child(sep)
+
+	var lbl = Label.new()
+	lbl.text = "  — %s —" % title
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.4))
+	vendor_item_list.add_child(lbl)
+
+func _add_sell_item_row(item: ItemData, slot_type: int, slot_index: int) -> void:
+	var btn = Button.new()
+	btn.custom_minimum_size.y = 40
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+	var location = "equipped" if slot_type >= 0 else "stored"
+	btn.text = "  [SELL] %s   [%s]   (%s)" % [item.item_name, item.get_type_name(), location]
+	btn.add_theme_font_size_override("font_size", 13)
+
+	var normal = StyleBoxFlat.new()
+	normal.bg_color = Color(0.18, 0.12, 0.12, 0.9)
+	normal.border_width_bottom = 1
+	normal.border_color = Color(0.3, 0.2, 0.2)
+	normal.corner_radius_top_left = 4
+	normal.corner_radius_top_right = 4
+	normal.corner_radius_bottom_left = 4
+	normal.corner_radius_bottom_right = 4
+	normal.content_margin_left = 8
+	normal.content_margin_right = 8
+	btn.add_theme_stylebox_override("normal", normal)
+
+	var hover = StyleBoxFlat.new()
+	hover.bg_color = Color(0.28, 0.18, 0.18, 0.95)
+	hover.border_width_bottom = 1
+	hover.border_width_left = 2
+	hover.border_color = Color(0.7, 0.4, 0.4)
+	hover.corner_radius_top_left = 4
+	hover.corner_radius_top_right = 4
+	hover.corner_radius_bottom_left = 4
+	hover.corner_radius_bottom_right = 4
+	hover.content_margin_left = 8
+	hover.content_margin_right = 8
+	btn.add_theme_stylebox_override("hover", hover)
+
+	btn.add_theme_color_override("font_color", Color(1.0, 0.7, 0.6))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.85, 0.75))
+
+	btn.pressed.connect(_on_sell_item_clicked.bind(item, slot_type, slot_index))
+	vendor_item_list.add_child(btn)
+
+# ============================================
 # ITEM DETAIL MODAL
 # ============================================
 
 func _on_vendor_item_clicked(item: ItemData) -> void:
 	_show_detail_modal(item)
 
-func _show_detail_modal(item: ItemData) -> void:
+func _show_detail_modal(item: ItemData, is_sell: bool = false, slot_type: int = -1, slot_index: int = -1) -> void:
 	# Close existing modal if open
 	if _detail_modal and is_instance_valid(_detail_modal):
 		_detail_modal.queue_free()
 
 	_detail_item = item
+	_detail_card = null
+	_detail_is_sell = is_sell
+	_detail_sell_slot_type = slot_type
+	_detail_sell_slot_index = slot_index
 	_modal_open = true
 
 	# --- Dimmed background overlay ---
@@ -426,13 +638,20 @@ func _show_detail_modal(item: ItemData) -> void:
 	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	btn_hbox.add_theme_constant_override("separation", 16)
 
-	var buy_btn = Button.new()
-	buy_btn.text = "Buy"
-	buy_btn.custom_minimum_size = Vector2(120, 36)
-	buy_btn.add_theme_font_size_override("font_size", 16)
-	_style_action_button(buy_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
-	buy_btn.pressed.connect(_on_buy_pressed)
-	btn_hbox.add_child(buy_btn)
+	var action_btn = Button.new()
+	if is_sell:
+		action_btn.text = "Sell"
+		action_btn.custom_minimum_size = Vector2(120, 36)
+		action_btn.add_theme_font_size_override("font_size", 16)
+		_style_action_button(action_btn, Color(0.5, 0.2, 0.1), Color(0.65, 0.3, 0.15), Color(0.8, 0.4, 0.2))
+		action_btn.pressed.connect(_on_sell_item_confirmed)
+	else:
+		action_btn.text = "Buy"
+		action_btn.custom_minimum_size = Vector2(120, 36)
+		action_btn.add_theme_font_size_override("font_size", 16)
+		_style_action_button(action_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
+		action_btn.pressed.connect(_on_buy_pressed)
+	btn_hbox.add_child(action_btn)
 
 	var close_btn = Button.new()
 	close_btn.text = "Close"
@@ -455,6 +674,10 @@ func _on_overlay_input(event: InputEvent) -> void:
 func _close_detail_modal() -> void:
 	_modal_open = false
 	_detail_item = null
+	_detail_card = null
+	_detail_is_sell = false
+	_detail_sell_slot_type = -1
+	_detail_sell_slot_index = -1
 	# Remove overlay
 	var overlay = $UI.get_node_or_null("ModalOverlay")
 	if overlay:
@@ -495,6 +718,202 @@ func _on_buy_pressed() -> void:
 			print("[TOWN] Inventory full! Cannot buy %s" % _detail_item.item_name)
 
 	_close_detail_modal()
+	_refresh_vendor_panel()
+
+func _on_sell_item_clicked(item: ItemData, slot_type: int, slot_index: int) -> void:
+	_show_detail_modal(item, true, slot_type, slot_index)
+
+func _on_sell_item_confirmed() -> void:
+	if not _detail_item:
+		_close_detail_modal()
+		return
+
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		_close_detail_modal()
+		return
+
+	if _detail_sell_slot_type >= 0:
+		# Equipped item — unequip it
+		inventory.unequip_item(_detail_sell_slot_type, _detail_sell_slot_index)
+		print("[TOWN] Sold equipped item: %s" % _detail_item.item_name)
+	else:
+		# Stored item — remove from storage
+		inventory.remove_stored_item(_detail_sell_slot_index)
+		print("[TOWN] Sold stored item: %s" % _detail_item.item_name)
+
+	_close_detail_modal()
+	_refresh_vendor_panel()
+
+func _on_buy_card_clicked(card: Card) -> void:
+	_show_card_detail_modal(card, false)
+
+func _on_sell_card_clicked(card: Card, sell_index: int) -> void:
+	_show_card_detail_modal(card, true, sell_index)
+
+func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) -> void:
+	if _detail_modal and is_instance_valid(_detail_modal):
+		_detail_modal.queue_free()
+
+	_detail_card = card
+	_detail_item = null
+	_detail_is_sell = is_sell
+	_detail_sell_slot_index = sell_index
+	_modal_open = true
+
+	# --- Dimmed background overlay ---
+	var overlay = ColorRect.new()
+	overlay.name = "ModalOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.5)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.gui_input.connect(_on_overlay_input)
+
+	# --- Modal panel ---
+	_detail_modal = PanelContainer.new()
+	_detail_modal.custom_minimum_size = Vector2(420, 0)
+	_detail_modal.set_anchors_preset(Control.PRESET_CENTER)
+	_detail_modal.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_detail_modal.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.08, 0.08, 0.12, 0.98)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.5, 0.45, 0.65)
+	panel_style.corner_radius_top_left = 10
+	panel_style.corner_radius_top_right = 10
+	panel_style.corner_radius_bottom_left = 10
+	panel_style.corner_radius_bottom_right = 10
+	_detail_modal.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	_detail_modal.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	margin.add_child(vbox)
+
+	# --- Card name ---
+	var name_lbl = Label.new()
+	name_lbl.text = card.card_name
+	name_lbl.add_theme_font_size_override("font_size", 22)
+	name_lbl.add_theme_color_override("font_color", _get_card_type_color(card))
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_lbl)
+
+	# --- Card type + cost ---
+	var type_lbl = Label.new()
+	type_lbl.text = "%s  |  %d Mana  |  %d Tempo" % [card.card_type_name, card.mana_cost, card.tempo_cost]
+	type_lbl.add_theme_font_size_override("font_size", 14)
+	type_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(type_lbl)
+
+	vbox.add_child(HSeparator.new())
+
+	# --- Description ---
+	var desc_lbl = Label.new()
+	desc_lbl.text = card.description
+	desc_lbl.add_theme_font_size_override("font_size", 15)
+	desc_lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(desc_lbl)
+
+	# --- Extra info ---
+	var extras: Array[String] = []
+	if card.is_ranged:
+		extras.append("Ranged (range %d)" % (5 + card.range_modifier))
+	if card.is_aoe:
+		extras.append("AOE: %s" % card.aoe_shape)
+	if card.sticky > 0:
+		extras.append("Sticky (%d uses)" % card.sticky)
+	if card.maintain_cost > 0:
+		extras.append("Maintain: %d mana" % card.maintain_cost)
+	if card.card_keyword != Card.CardKeyword.NONE:
+		var kw_names = {1: "Arrow", 2: "Pocket", 3: "Gem"}
+		extras.append("Keyword: %s" % kw_names.get(card.card_keyword, "Unknown"))
+	if extras.size() > 0:
+		var extra_lbl = Label.new()
+		extra_lbl.text = "\n".join(extras)
+		extra_lbl.add_theme_font_size_override("font_size", 13)
+		extra_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 1.0))
+		extra_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(extra_lbl)
+
+	vbox.add_child(HSeparator.new())
+
+	# --- Buttons ---
+	var btn_hbox = HBoxContainer.new()
+	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_hbox.add_theme_constant_override("separation", 16)
+
+	var action_btn = Button.new()
+	if is_sell:
+		action_btn.text = "Remove from Deck"
+		action_btn.custom_minimum_size = Vector2(160, 36)
+		action_btn.add_theme_font_size_override("font_size", 14)
+		_style_action_button(action_btn, Color(0.5, 0.2, 0.1), Color(0.65, 0.3, 0.15), Color(0.8, 0.4, 0.2))
+		action_btn.pressed.connect(_on_sell_card_confirmed)
+	else:
+		action_btn.text = "Add to Deck"
+		action_btn.custom_minimum_size = Vector2(140, 36)
+		action_btn.add_theme_font_size_override("font_size", 14)
+		_style_action_button(action_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
+		action_btn.pressed.connect(_on_buy_card_confirmed)
+	btn_hbox.add_child(action_btn)
+
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(100, 36)
+	close_btn.add_theme_font_size_override("font_size", 14)
+	_style_action_button(close_btn, Color(0.3, 0.15, 0.15), Color(0.45, 0.2, 0.2), Color(0.6, 0.3, 0.3))
+	close_btn.pressed.connect(_close_detail_modal)
+	btn_hbox.add_child(close_btn)
+
+	vbox.add_child(btn_hbox)
+
+	$UI.add_child(overlay)
+	$UI.add_child(_detail_modal)
+
+func _on_buy_card_confirmed() -> void:
+	if not _detail_card or not starting_character:
+		_close_detail_modal()
+		return
+
+	starting_character.purchased_card_ids.append(_detail_card.card_id)
+	print("[TOWN] Added %s to deck (purchased_card_ids: %d)" % [_detail_card.card_name, starting_character.purchased_card_ids.size()])
+	_close_detail_modal()
+	_refresh_vendor_panel()
+
+func _on_sell_card_confirmed() -> void:
+	if not starting_character or _detail_sell_slot_index < 0:
+		_close_detail_modal()
+		return
+
+	if _detail_sell_slot_index < starting_character.purchased_card_ids.size():
+		var card_id = starting_character.purchased_card_ids[_detail_sell_slot_index]
+		starting_character.purchased_card_ids.remove_at(_detail_sell_slot_index)
+		print("[TOWN] Removed %s from deck" % card_id)
+
+	_close_detail_modal()
+	_refresh_vendor_panel()
+
+func _refresh_vendor_panel() -> void:
+	## Re-opens the current vendor to refresh the item list after buy/sell.
+	if not vendor_open or not nearby_vendor:
+		return
+	# Re-populate by closing and re-opening
+	vendor_panel.visible = false
+	vendor_open = false
+	_open_vendor(nearby_vendor)
 
 func _style_action_button(btn: Button, normal_color: Color, hover_color: Color, border_color: Color) -> void:
 	var normal = StyleBoxFlat.new()
