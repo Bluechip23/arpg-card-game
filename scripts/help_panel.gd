@@ -24,6 +24,11 @@ func show_panel(tab_index: int = 0) -> void:
 		tab_container.current_tab = tab_index
 
 func _input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("ui_cancel"):
+	if not visible:
+		return
+	if event.is_action_pressed("ui_cancel"):
+		_on_close_pressed()
+		get_viewport().set_input_as_handled()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_H:
 		_on_close_pressed()
 		get_viewport().set_input_as_handled()

@@ -33,7 +33,6 @@ extends Node3D
 @onready var manifest_ui: ManifestUI = $UI/ManifestUI
 @onready var overflow_ui: OverflowUI = $UI/OverflowUI
 @onready var help_panel: HelpPanel = $HelpPanel
-@onready var help_buttons: HelpButtons = $UI/HelpButtons
 @onready var quiver_ui: QuiverUI = $UI/QuiverUI
 @onready var sphere_grid_ui: SphereGridUI = $SphereGridUI
 @onready var sphere_inventory: SphereInventory = $SphereInventory
@@ -167,8 +166,6 @@ func _ready() -> void:
 	test_ui.give_card_requested.connect(_on_give_card)
 	test_ui.apply_buff_requested.connect(_on_apply_buff)
 	
-	help_buttons.keywords_pressed.connect(_on_keywords_pressed)
-	help_buttons.walkthrough_pressed.connect(_on_walkthrough_pressed)
 	help_panel.closed.connect(_on_help_closed)
 	
 	# Sphere inventory + grid connection
@@ -220,12 +217,6 @@ func get_mouse_world_position() -> Vector3:
 	if t < 0:
 		return Vector3.ZERO
 	return from + dir * t
-
-func _on_keywords_pressed() -> void:
-	help_panel.show_panel(0)  # Keywords tab
-
-func _on_walkthrough_pressed() -> void:
-	help_panel.show_panel(1)  # Walkthrough tab
 
 func _on_help_closed() -> void:
 	pass  # Resume game if needed
@@ -3452,6 +3443,15 @@ func _input(event: InputEvent) -> void:
 		# Sphere grid toggle
 		if event.keycode == KEY_L:
 			sphere_grid_ui.toggle_panel()
+			return
+
+		# Help panel toggle
+		if event.keycode == KEY_H:
+			if help_panel.visible:
+				help_panel.visible = false
+				help_panel.closed.emit()
+			else:
+				help_panel.show_panel(0)
 			return
 
 		# Camera zoom: < (comma) = zoom in, > (period) = zoom out

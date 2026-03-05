@@ -213,6 +213,8 @@ static func get_keyword_definitions() -> Dictionary:
 		"glut": "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo",
 		"delay": "Tempo until the effect takes place",
 		"instant": "Card triggers automatically from hand when its condition is met. Costs 0 mana",
+		"linger": "Enemy status card can exceed hand size limit. While lingering, normal draws trigger overflow",
+		"on-self": "Bonus effects that apply to cards slotted in a specific item, on top of the item's base bonuses",
 		# Buffs
 		"thorns": "Deal X damage back to attackers, lose 1 thorn per hit",
 		"focused": "Gain 1 extra mana per cycle",
@@ -279,6 +281,7 @@ static func get_keyword_definitions() -> Dictionary:
 		# Card Keywords
 		"arrow": "Requires a bow/quiver to slot. Ranged bow attack card",
 		"pocket": "Small items like daggers and potions. Slots into belts",
+		"gem": "Gem cards for special equipment slots like gauntlets and rings",
 	}
 
 ## Scans this card's properties and description for matching keywords.

@@ -95,6 +95,10 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - They can be used X times before being auto-discarded
 - Example: Choke (sticky 3) can be played 3 times before leaving your hand
 
+[color=yellow]Erase:[/color]
+- After X tempo, this card is permanently deleted from the deck
+- Unlike discard, erased cards cannot be recovered
+
 [color=yellow]High Ground:[/color]
 - Being elevated (e.g., standing on a pillar from Rise) grants combat bonuses
 - Ranged attacks from high ground deal [color=green]+4 damage[/color] and gain [color=green]+2 range[/color]
