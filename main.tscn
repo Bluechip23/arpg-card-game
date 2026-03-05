@@ -19,7 +19,6 @@
 [ext_resource type="PackedScene" uid="uid://c678mip6samfq" path="res://scenes/help_panel.tscn" id="19_help"]
 [ext_resource type="PackedScene" uid="uid://dj67nrwolfc4p" path="res://scenes/overflow_ui.tscn" id="20_overflow"]
 [ext_resource type="PackedScene" uid="uid://3cxn1hbdk2os" path="res://scenes/manifest_ui.tscn" id="21_manifest"]
-[ext_resource type="PackedScene" uid="uid://dmw2cplrsglq1" path="res://scenes/help_buttons.tscn" id="22_helpbtn"]
 [ext_resource type="PackedScene" path="res://scenes/quiver_ui.tscn" id="23_quiver"]
 [ext_resource type="PackedScene" uid="uid://dri62oqig0hgl" path="res://scenes/sphere_grid.tscn" id="24_sphere"]
 [ext_resource type="Script" uid="uid://bvysoyp02lh3d" path="res://scripts/sphere_inventory.gd" id="25_sphere_inv"]
@@ -209,7 +208,8 @@ offset_right = -9.0
 offset_bottom = 115.0
 grow_horizontal = 0
 text = "I - Character Panel
-L - Level Progress"
+L - Level Progress
+H - Help"
 horizontal_alignment = 2
 
 [node name="CharacterButtons" type="HBoxContainer" parent="UI" unique_id=1795835475]
@@ -268,12 +268,6 @@ offset_left = 185.0
 offset_top = 47.0
 offset_right = 550.0
 offset_bottom = 47.0
-
-[node name="HelpButtons" parent="UI" unique_id=451421031 instance=ExtResource("22_helpbtn")]
-offset_left = 1083.0
-offset_top = 116.0
-offset_right = 1275.0
-offset_bottom = 182.0
 
 [node name="GauntletSkillsContainer" type="HBoxContainer" parent="UI" unique_id=1433405863]
 anchors_preset = 12

@@ -73,6 +73,7 @@ func _build_legend() -> void:
 	_add_keyword("Life Steal", "Next attack heals you for damage dealt", Color(0.9, 0.2, 0.4))
 	_add_keyword("Morphine", "Gain temp HP. Lose it and take 2 damage when expired", Color(1.0, 0.6, 0.8))
 	_add_keyword("Wear Down", "Each attack reduces target's attack by 1 (stacks) for X tempo", Color(0.9, 0.6, 0.3))
+	_add_keyword("Armor Break", "Next attack deals double damage to armor only", Color(0.8, 0.6, 0.2))
 
 	# Overflow Section
 	_add_section_header("OVERFLOW MODES")
@@ -125,6 +126,7 @@ func _build_legend() -> void:
 	# Card Mechanics Section
 	_add_section_header("CARD MECHANICS")
 	_add_keyword("Empower", "Buffs the next X cards played: +3 damage for attacks, -3 mana cost for defense", Color(1, 0.85, 0.3))
+	_add_keyword("Erase", "After X tempo, this card is permanently deleted from the deck", Color(0.9, 0.2, 0.2))
 	_add_keyword("On-Draw", "Card triggers an effect when drawn into hand (e.g., deal damage to a random enemy)", Color(0.5, 0.9, 0.5))
 	_add_keyword("Sticky", "Card stays in hand for X uses before being discarded. Does not leave hand after playing", Color(0.8, 0.8, 0.3))
 	_add_keyword("High Ground", "Ranged attacks from elevated positions deal +4 damage and gain +2 range. Some cards require high ground", Color(0.6, 0.4, 0.2))

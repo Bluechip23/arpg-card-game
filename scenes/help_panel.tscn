@@ -33,7 +33,7 @@ layout_mode = 2
 
 [node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBox" unique_id=1293055588]
 layout_mode = 2
-text = "Close [ESC]"
+text = "Close [H / ESC]"
 
 [node name="TabContainer" type="TabContainer" parent="Panel/MarginContainer/VBox" unique_id=319236502]
 layout_mode = 2
