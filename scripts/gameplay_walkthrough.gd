@@ -77,20 +77,18 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 [color=dodgerblue]Defense:[/color] Protective cards that grant armor or block
 [color=green]Utility:[/color] Support cards for draw, healing, buffs, movement, etc.
 [color=yellow]Reaction:[/color] Triggers automatically from hand when a condition is met (e.g., on damage taken). Costs 0 mana and 0 tempo
-[color=gray]Unplayable:[/color] Cannot be played. Takes up a hand slot (e.g., Lightly Dazed from enemies)
+[color=gray]Unplayable:[/color] Cannot be played. Takes up a hand slot if card is designated by Linger. If not, character can have an infinite amount of the Unplayable card + a standard hand.
 [color=green]Power:[/color] Generally requiring Maintain, these cards act as passives as long as you have the resources to maintain them.
 
 
 [font_size=18][color=cyan]━━━ CARD MECHANICS ━━━[/color][/font_size]
 
-[color=yellow]Empower:[/color]
-- Playing Empower buffs the next X cards you play
-- Attack cards gain +3 bonus damage
-- Defense cards cost 3 less mana
-
 [color=yellow]On-Draw:[/color]
 - Some cards trigger an effect the moment they are drawn into your hand
 - Example: Thrown Stone deals 4 damage to a random enemy when drawn
+
+[color=yellow]Glut:[/color]
+- Puts the player on cooldown. If Glut: 5, the player will not be able to play cards for 5 tempo after playing the card.
 
 [color=yellow]Sticky:[/color]
 - Sticky cards stay in your hand after being played
@@ -124,6 +122,11 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Arrow: Quivers, Pocket: Belts, Gem: Gauntlets, Rings
 - Card types may come with other effects as well
 
+[color=yellow]Culling Stone:[/color]
+- Culling stones are used to remove cards from your deck. 
+- Culling stones can be collected in the wilderness from chests or enemy drops.
+
+
 [font_size=18][color=cyan]━━━ OVERFLOW SYSTEM ━━━[/color][/font_size]
 
 When your hand is full and you try to draw, the overflow system activates.
@@ -148,7 +151,7 @@ When your hand is full and you try to draw, the overflow system activates.
 - An effect triggers immediately (e.g., gain health, mana, armor, or deal damage to all)
 - Card stays on top of draw pile
 - Triggers alongside other overflow effects
-- Allies can provide overflow to allies.
+- Allies can provide overflow to allies by making them draw.
 
 [color=yellow]Sources:[/color]
 - Cards can apply overflow effects: "Next 3 overdraw: Manifest Skeleton"
@@ -164,7 +167,7 @@ When your hand is full and you try to draw, the overflow system activates.
 
 [color=yellow]Off-Hand Penalty:[/color]
 - Default: 90% effectiveness for off-hand items
-- Stephen's Passive: 110% effectiveness (+20% swing!)
+- Items do not make distinctions between being a main hand or off-hand
 
 [color=yellow]Ring Triggers:[/color]
 Rings have passive effects that trigger on events:
@@ -186,7 +189,6 @@ Rings have passive effects that trigger on events:
 [color=yellow]Gauntlet Skills:[/color]
 - Active skills: have a mana cost and cooldown (e.g., Power Grip: 8 dmg, CD 3, Cost 2)
 - Passive skills: always active (e.g., Stalwart: -1 armor decay per cycle)
-- Cory gains 1 mana when a gauntlet skill comes off cooldown
 
 [color=yellow]Card-Item Slots:[/color]
 - Some items have card slots where you can enchant cards
@@ -237,6 +239,11 @@ Rings have passive effects that trigger on events:
 - The sphere grid is how characters advance their passives, cards, and stats
 - Place spheres on connected nodes to unlock new abilities and stat bonuses
 - Nodes radiate outward in rings from a central starting point
+
+[color=yellow]Sphere Constellations:[/color]
+- Connecting certain spheres together will unlock constellations on the grid
+- Each constellation provides the player with a new buff
+- Nodes CAN NOT be used in more than one constellation causing players to make grid decisions. 
 
 [color=yellow]Sphere Types:[/color]
 - [color=red]Stat Sphere[/color] - Grants flat stat bonuses (STR, DEX, INT, WIS, AGI, DET)
