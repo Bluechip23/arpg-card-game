@@ -55,6 +55,11 @@ var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g.,
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
 var delay_tempo: int = 0  # Tempo until the card's effect takes place
+var has_burden: bool = false  # If true, cost increases by 1m/1t each time played. Can jail to reset.
+var burden_plays: int = 0  # How many times this burden card has been played (increases cost)
+var burden_jail_duration: int = 30  # Tempo to jail this card to reset burden
+var burden_jail_cost_mana: int = 1  # Mana cost to jail a burden card
+var burden_jail_cost_tempo: int = 1  # Tempo cost to jail a burden card
 var has_on_discard: bool = false  # Card triggers an effect when discarded
 var on_discard_effect: String = ""  # Description of the on-discard effect
 var in_hand_debuff: String = ""  # Debuff applied while this card is in hand (e.g., "slowed_2")
@@ -218,6 +223,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"cycle": "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks all happen per cycle",
 		"glut": "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo",
 		"delay": "Tempo until the effect takes place",
+		"burden": "Each time played, cost increases by 1m/1t. Jail the card for 30 tempo to reset (costs 1m/1t). Can only jail from hand",
 		"instant": "Card triggers automatically from hand when its condition is met. Costs 0 mana",
 		"linger": "Enemy status card can exceed hand size limit. While lingering, normal draws trigger overflow",
 		"on-self": "Bonus effects that apply to cards slotted in a specific item, on top of the item's base bonuses",
@@ -327,6 +333,8 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "glut")
 	if delay_tempo > 0:
 		_add_keyword_match(found_keys, matches, all_keywords, "delay")
+	if has_burden:
+		_add_keyword_match(found_keys, matches, all_keywords, "burden")
 
 	# Scan the description for keyword mentions
 	for keyword in all_keywords:
@@ -812,6 +820,27 @@ func is_jailed() -> bool:
 func jail(dur: int) -> void:
 	jail_time_remaining = dur
 	print("[CARD] %s jailed for %d tempo" % [card_name, dur])
+
+func get_burden_mana_cost() -> int:
+	if has_burden:
+		return mana_cost + burden_plays
+	return mana_cost
+
+func get_burden_tempo_cost() -> int:
+	if has_burden:
+		return tempo_cost + burden_plays
+	return tempo_cost
+
+func apply_burden() -> void:
+	if has_burden:
+		burden_plays += 1
+		print("[CARD] %s burden increased! Plays: %d (+%dm/+%dt)" % [card_name, burden_plays, burden_plays, burden_plays])
+
+func jail_burden() -> void:
+	if has_burden:
+		burden_plays = 0
+		jail_time_remaining = burden_jail_duration
+		print("[CARD] %s burden reset! Jailed for %d tempo" % [card_name, burden_jail_duration])
 
 # Factory methods
 static func create_slash() -> Card:
@@ -3357,5 +3386,22 @@ static func create_down_but_not_out() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_healthy_habit() -> Card:
+	var card = Card.new()
+	card.card_id = "healthy_habit"
+	card.card_name = "Healthy Habit"
+	card.description = "Draw 2 cards. Gain 2 mana. Burden."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 2
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.has_burden = true
 	card.target_types = ["self"]
 	return card
