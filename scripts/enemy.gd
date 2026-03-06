@@ -53,7 +53,10 @@ var marked_tempo: int = 0      # Remaining tempo for mark
 var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen
 var is_frozen: bool = false    # Cannot act when frozen
 var frozen_tempo: int = 0      # Remaining tempo for frozen
+var is_stunned: bool = false   # Cannot act when stunned
+var stun_tempo: int = 0        # Remaining tempo cycles for stun
 var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
+var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 
 # ============================================
 # TEMPO ACTION SYSTEM
@@ -445,10 +448,40 @@ func _tick_status_durations() -> void:
 			is_marked = false
 			print("[%s] Mark expired" % enemy_name)
 
+	if frozen_tempo > 0:
+		frozen_tempo -= 1
+		if frozen_tempo <= 0:
+			is_frozen = false
+			print("[%s] Frozen expired, can act again" % enemy_name)
+
+	if stun_tempo > 0:
+		stun_tempo -= 1
+		if stun_tempo <= 0:
+			is_stunned = false
+			print("[%s] Stun expired, can act again" % enemy_name)
+
+	# Burn: deal doubling damage each cycle (1, 2, 4, 8...)
+	if burn_stacks > 0:
+		take_damage(burn_damage_next, false)
+		print("[%s] Burn deals %d damage (doubles next cycle)" % [enemy_name, burn_damage_next])
+		burn_damage_next *= 2
+		burn_stacks -= 1
+		if burn_stacks <= 0:
+			burn_damage_next = 1
+			print("[%s] Burn expired" % enemy_name)
+
 	_update_status_indicators()
 
 func _check_and_fire_actions(player_node: Node3D) -> void:
 	if not player_node:
+		return
+
+	# Skip actions if stunned or frozen
+	if is_stunned:
+		print("[%s] Stunned - cannot act!" % enemy_name)
+		return
+	if is_frozen:
+		print("[%s] Frozen - cannot act!" % enemy_name)
 		return
 
 	# Skip actions if player is invisible
@@ -979,6 +1012,13 @@ func apply_wear_down(cycles: int) -> void:
 
 func apply_debuff(debuff_name: String, value: int) -> void:
 	match debuff_name:
+		"stun":
+			is_stunned = true
+			stun_tempo = max(stun_tempo, value)
+			# Reset action tempo counter so stun delays their next action
+			action_tempo_counter = 0
+			chosen_action = {}
+			print("[%s] Stunned for %d tempo cycles!" % [enemy_name, stun_tempo])
 		"slow":
 			slow_amount = value
 			slow_tempo = 2  # Lasts 2 tempo cycles
@@ -1004,11 +1044,17 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			if cold_stacks >= 5:
 				cold_stacks = 0
 				is_frozen = true
-				frozen_tempo = 5  # Frozen for 1 turn (5 tempo)
+				frozen_tempo = max(frozen_tempo, 1)  # Frozen for 1 tempo cycle
+				# Reset action tempo counter so frozen delays their next action
+				action_tempo_counter = 0
+				chosen_action = {}
 				print("[%s] FROZEN! Cold reached 5 stacks!" % enemy_name)
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	_update_status_indicators()
+
+func apply_stun(tempo_cycles: int = 1) -> void:
+	apply_debuff("stun", tempo_cycles)
 
 func knockback(away_from: Vector3, spaces: int = 1) -> void:
 	if is_dead:
@@ -1134,6 +1180,14 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Marked", "color": Color(1.0, 0.2, 0.2), "stacks": marked_tempo})
 	if is_exposed:
 		effects.append({"name": "Exposed", "color": Color(1.0, 1.0, 0.3), "stacks": 1})
+	if is_stunned and stun_tempo > 0:
+		effects.append({"name": "Stun", "color": Color(1.0, 1.0, 0.0), "stacks": stun_tempo})
+	if is_frozen and frozen_tempo > 0:
+		effects.append({"name": "Frozen", "color": Color(0.5, 0.8, 1.0), "stacks": frozen_tempo})
+	if burn_stacks > 0:
+		effects.append({"name": "Burn", "color": Color(1.0, 0.5, 0.0), "stacks": burn_stacks})
+	if cold_stacks > 0:
+		effects.append({"name": "Cold", "color": Color(0.4, 0.7, 1.0), "stacks": cold_stacks})
 
 	return effects
 

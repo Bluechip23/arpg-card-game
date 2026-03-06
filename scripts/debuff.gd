@@ -41,6 +41,7 @@ var source_name: String = "" # What applied this debuff
 
 # For tracking
 var stacks: int = 1          # Some debuffs can stack
+var affected_card_index: int = -1  # For Hexed/Locked - which card in hand is affected
 
 func _init(type: DebuffType, val: int = 0, dur: int = 15) -> void:
 	debuff_type = type

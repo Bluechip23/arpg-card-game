@@ -575,6 +575,7 @@ func _on_block_pressed() -> void:
 
 	var debuff_mgr = player.get_debuff_manager()
 	if debuff_mgr and not debuff_mgr.can_play_cards():
+		add_battle_log("Cannot block — Stunned or Frozen!", Color(1.0, 0.4, 0.4))
 		print("[MAIN] Basic Block - Cannot block while Stunned or Frozen!")
 		return
 
@@ -1340,6 +1341,7 @@ func select_character(character: CharacterData) -> void:
 	deck_manager.connect_player_stats(player.get_stats())
 
 	debuff_bar.connect_manager(player.get_debuff_manager())
+	deck_manager.connect_debuff_manager(player.get_debuff_manager())
 	deck_manager.connect_inventory(player.get_inventory())
 	player.connect_deck_to_inventory(deck_manager)
 	tempo_manager.initialize(player.get_stats())
