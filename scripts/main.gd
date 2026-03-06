@@ -2558,6 +2558,25 @@ func _on_card_discarded(card: Card) -> void:
 			print("[MAIN] Volatile Mixture discarded! Dealt %d damage to %s" % [total_damage, target_enemy.enemy_name])
 		else:
 			print("[MAIN] Volatile Mixture discarded! No enemies nearby to damage")
+	# Generic on-discard effects
+	if card.has_on_discard:
+		_handle_on_discard_effect(card)
+
+func _handle_on_discard_effect(card: Card) -> void:
+	match card.on_discard_effect:
+		"discard_2_cards":
+			if deck_manager and deck_manager.hand.size() > 0:
+				var cards_to_discard = mini(2, deck_manager.hand.size())
+				for i in range(cards_to_discard):
+					var random_index = randi() % deck_manager.hand.size()
+					var discarded = deck_manager.hand[random_index]
+					deck_manager.hand.remove_at(random_index)
+					deck_manager.discard_pile.append(discarded)
+					deck_manager.discards_this_cycle += 1
+					deck_manager.card_discarded.emit(discarded)
+					print("[MAIN] %s On Discard: discarded %s" % [card.card_name, discarded.card_name])
+				deck_manager.hand_updated.emit()
+				add_battle_log("%s discarded! Lost %d cards!" % [card.card_name, cards_to_discard], Color(1.0, 0.5, 0.3))
 
 func _on_card_drawn_sphere_passive(card: Card) -> void:
 	_trigger_sphere_passives("on_draw", {"card": card})
@@ -2702,6 +2721,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	_trigger_sphere_passives("on_tempo_cycle", {})
 
 	_check_volatile_mixture_in_hand()
+	_apply_in_hand_debuffs()
 	_update_gauntlet_skills_ui()
 	update_turn_display()
 	_update_enemy_count()
@@ -2774,6 +2794,16 @@ func _check_volatile_mixture_in_hand() -> void:
 			deck_manager.hand.remove_at(i)
 			deck_manager.discard_pile.append(card)
 			print("[MAIN] Volatile Mixture still in hand! Took %d self-damage" % self_damage)
+
+func _apply_in_hand_debuffs() -> void:
+	var debuff_mgr = player.get_buff_manager().debuff_manager if player.get_buff_manager() else null
+	if not debuff_mgr:
+		return
+	for card in deck_manager.hand:
+		if card.in_hand_debuff != "":
+			match card.in_hand_debuff:
+				"slowed_2":
+					debuff_mgr.apply_debuff(Debuff.create_slowed(2, 6, card.card_name))
 
 func _process_pending_sky_falls() -> void:
 	for i in range(pending_sky_falls.size() - 1, -1, -1):
@@ -4730,6 +4760,12 @@ func _on_card_on_draw_triggered(card: Card) -> void:
 				stats.take_damage(2)
 				add_battle_log("Minor Wounds: took 2 damage!", Color(1.0, 0.3, 0.3))
 				print("[MAIN] %s On Draw: dealt 2 damage to self" % card.card_name)
+		"draw_3_cards":
+			if deck_manager:
+				for i in range(3):
+					deck_manager.draw_card()
+				add_battle_log("%s On Draw: drew 3 cards!" % card.card_name, Color(0.5, 0.9, 0.5))
+				print("[MAIN] %s On Draw: drew 3 cards" % card.card_name)
 
 func _on_card_erased(card: Card) -> void:
 	add_battle_log("%s erased from deck!" % card.card_name, Color(0.7, 0.7, 0.7))
