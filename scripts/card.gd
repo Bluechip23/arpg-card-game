@@ -46,6 +46,7 @@ var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
 var has_on_draw: bool = false  # Card triggers an effect when drawn
 var on_draw_effect: String = ""  # Description of the on-draw effect
+var discard_on_draw: bool = false  # If true, card is discarded immediately after on-draw effect
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
@@ -54,6 +55,9 @@ var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g.,
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
 var delay_tempo: int = 0  # Tempo until the card's effect takes place
+var has_on_discard: bool = false  # Card triggers an effect when discarded
+var on_discard_effect: String = ""  # Description of the on-discard effect
+var in_hand_debuff: String = ""  # Debuff applied while this card is in hand (e.g., "slowed_2")
 
 # Card-item slot system
 enum SlotCompatibility { PICKY, PLIABLE }
@@ -207,6 +211,8 @@ static func get_keyword_definitions() -> Dictionary:
 		"erase": "After X tempo, this card is permanently deleted from the deck",
 		"empower": "Buffs the next X cards played: +3 damage for attacks, -3 mana cost for defense",
 		"on-draw": "Card triggers an effect when drawn into hand",
+		"on-discard": "Card triggers an effect when discarded",
+		"in-hand": "Card applies a persistent effect while it remains in your hand",
 		"sticky": "Card stays in hand for X uses before being discarded",
 		"high ground": "Ranged attacks from elevated positions deal +4 damage and gain +2 range",
 		"cycle": "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks all happen per cycle",
@@ -307,6 +313,10 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "sticky")
 	if has_on_draw:
 		_add_keyword_match(found_keys, matches, all_keywords, "on-draw")
+	if has_on_discard:
+		_add_keyword_match(found_keys, matches, all_keywords, "on-discard")
+	if in_hand_debuff != "":
+		_add_keyword_match(found_keys, matches, all_keywords, "in-hand")
 	if requires_high_ground:
 		_add_keyword_match(found_keys, matches, all_keywords, "high ground")
 	if is_ranged:
@@ -3146,3 +3156,53 @@ func _execute_gift_from_the_phoenix(_player_stats: PlayerStats, _buff_mgr: BuffM
 	# Instant/Reaction card - effect is handled by main.gd when HP drops below 50%
 	# This function is kept for the execute dispatch but does nothing on manual play
 	print("[CARD] Gift from the Phoenix is an instant card - triggers automatically from hand")
+
+# ============================================
+# PETEY THE PET ROCK
+# ============================================
+
+static func create_petey_the_pet_rock() -> Card:
+	var card = Card.new()
+	card.card_id = "petey_the_pet_rock"
+	card.card_name = "Petey the Pet Rock"
+	card.description = "On Draw: Draw 3 cards. On Discard: Discard 2 cards. While in hand: Slowed 2."
+	card.card_type = CardType.UNPLAYABLE
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.has_on_draw = true
+	card.on_draw_effect = "draw_3_cards"
+	card.has_on_discard = true
+	card.on_discard_effect = "discard_2_cards"
+	card.in_hand_debuff = "slowed_2"
+	card.target_types = []
+	return card
+
+# ============================================
+# ARMOR PATCH
+# ============================================
+
+static func create_armor_patch() -> Card:
+	var card = Card.new()
+	card.card_id = "armor_patch"
+	card.card_name = "Armor Patch"
+	card.description = "On Draw: Gain 3 armor, Cleanse 1. Immediately discarded."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 3
+	card.base_block = 3
+	card.heal_amount = 0
+	card.has_on_draw = true
+	card.on_draw_effect = "gain_3_armor_cleanse_1"
+	card.discard_on_draw = true
+	card.target_types = []
+	return card

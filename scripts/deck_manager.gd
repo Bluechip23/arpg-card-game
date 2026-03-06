@@ -27,6 +27,7 @@ var maintained_cards: Array[Card] = []  # Active Power cards reserving mana
 var player_stats = null  # PlayerStats - untyped to avoid circular dependency
 var inventory = null  # Inventory - untyped to avoid circular dependency
 var overflow_manager = null  # OverflowManager - untyped to avoid circular dependency
+var debuff_manager = null  # DebuffManager - for checking Cuffed on draw
 
 var peaked_card: Card = null
 
@@ -45,6 +46,9 @@ func connect_inventory(inv) -> void:
 func connect_overflow_manager(om) -> void:
 	overflow_manager = om
 	overflow_manager.connect_deck_manager(self)
+
+func connect_debuff_manager(dm) -> void:
+	debuff_manager = dm
 
 func get_hand_cap() -> int:
 	if player_stats:
@@ -203,13 +207,28 @@ func draw_card() -> Card:
 	if card.has_on_draw:
 		on_draw_triggered.emit(card)
 		print("[DECK] On Draw triggered: %s" % card.card_name)
+		# Some cards discard immediately after their on-draw effect
+		if card.discard_on_draw:
+			var idx = hand.find(card)
+			if idx >= 0:
+				hand.remove_at(idx)
+				discard_pile.append(card)
+				discards_this_cycle += 1
+				card_discarded.emit(card)
+				hand_updated.emit()
+				print("[DECK] %s discarded after on-draw effect" % card.card_name)
 
 	print("[DECK] Drew: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
 	return card
 
 func attempt_draw() -> void:
 	peaked_card = null
-	
+
+	# Cuffed: cannot draw cards
+	if debuff_manager and debuff_manager.has_method("can_draw_cards") and not debuff_manager.can_draw_cards():
+		print("[DECK] Cannot draw - Cuffed!")
+		return
+
 	if hand.size() >= get_hand_cap():
 		handle_overflow()
 	else:

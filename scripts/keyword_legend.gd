@@ -128,6 +128,8 @@ func _build_legend() -> void:
 	_add_keyword("Empower", "Buffs the next X cards played: +3 damage for attacks, -3 mana cost for defense", Color(1, 0.85, 0.3))
 	_add_keyword("Erase", "After X tempo, this card is permanently deleted from the deck", Color(0.9, 0.2, 0.2))
 	_add_keyword("On-Draw", "Card triggers an effect when drawn into hand (e.g., deal damage to a random enemy)", Color(0.5, 0.9, 0.5))
+	_add_keyword("On-Discard", "Card triggers an effect when discarded from hand", Color(1.0, 0.5, 0.3))
+	_add_keyword("In-Hand", "Card applies a persistent effect while it remains in your hand", Color(0.7, 0.5, 0.9))
 	_add_keyword("Sticky", "Card stays in hand for X uses before being discarded. Does not leave hand after playing", Color(0.8, 0.8, 0.3))
 	_add_keyword("High Ground", "Ranged attacks from elevated positions deal +4 damage and gain +2 range. Some cards require high ground", Color(0.6, 0.4, 0.2))
 	_add_keyword("Maintain", "Reserves X mana from your max mana pool while the card is active. The effect persists each cycle. If your mana drops to 0 by any means, all maintained cards are discarded and their effects end", Color(0.8, 0.5, 1.0))
