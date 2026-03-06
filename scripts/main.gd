@@ -352,9 +352,9 @@ func _update_battlefield_enemy_hover() -> void:
 func _setup_hand_area_background() -> void:
 	var hand_area = $UI/HandArea as PanelContainer
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.13, 0.16, 1.0)
-	style.border_width_top = 2
-	style.border_color = Color(0.3, 0.3, 0.4, 1.0)
+	style.bg_color = Color(0, 0, 0, 0)
+	style.border_width_top = 0
+	style.border_color = Color(0, 0, 0, 0)
 	hand_area.add_theme_stylebox_override("panel", style)
 	# Do NOT clip - cards need to pop up above the hand area on hover
 	hand_area.clip_contents = false
