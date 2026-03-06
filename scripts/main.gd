@@ -117,6 +117,10 @@ var _donation_ally_container: VBoxContainer = null
 var _donation_active: bool = false
 var _donation_ally_sliders: Array = []  # [{slider: HSlider, label: Label, name: String}]
 
+# Lethal Recall: track the last instant card played and its target for replay
+var _last_played_card: Card = null
+var _last_played_target = null
+
 # Camera orbit state
 var _camera_focus: Vector3 = Vector3(10, 0, 6)  # Center of the 20x12 grid
 var _camera_yaw: float = 0.0       # Horizontal rotation (radians)
@@ -3121,6 +3125,28 @@ func play_selected_card(target) -> void:
 			else:
 				add_battle_log("Collect Arrows: no attack cards in discard pile!", Color(1.0, 0.6, 0.3))
 			print("[MAIN] Collect Arrows: collected %d attack cards" % collected)
+		# Track last played card for Lethal Recall (skip lethal_recall itself to avoid loops)
+		if card.card_id != "lethal_recall":
+			_last_played_card = card
+			_last_played_target = target
+
+		# Lethal Recall: replay last instant card's effect 2 times
+		if card.card_id == "lethal_recall" and _last_played_card:
+			var replay_card = _last_played_card
+			var replay_target = _last_played_target
+			var stats = player.get_stats()
+			var damage_reduction = 0.0
+			var self_damage = 0.0
+			var debuff_mgr = player.get_debuff_manager()
+			if debuff_mgr:
+				damage_reduction = debuff_mgr.get_damage_reduction_percent()
+				self_damage = debuff_mgr.get_self_damage_percent()
+			for i in range(2):
+				replay_card.execute(replay_target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
+				_apply_card_world_effects(replay_card, replay_target)
+				print("[MAIN] Lethal Recall: replayed %s (repeat %d/2)" % [replay_card.card_name, i + 1])
+			add_battle_log("Lethal Recall: %s triggered 2 times!" % replay_card.card_name, Color(0.8, 0.4, 1.0))
+
 		# Glut: apply card lockout if the card has glut_tempo
 		if card.glut_tempo > 0:
 			glut_tempo_remaining = card.glut_tempo
@@ -4175,11 +4201,22 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 		mana_cost += debuff_mgr.get_attack_mana_increase()
 	mana_cost = max(0, mana_cost)
 
-	if not stats.has_mana(mana_cost):
+	# Demonic Rage: quiver mana costs use health instead
+	var quiver_demonic_rage = buff_mgr and buff_mgr.has_demonic_rage() and mana_cost > 0
+	if quiver_demonic_rage:
+		if stats.current_health <= mana_cost:
+			print("[MAIN] Quiver: Demonic Rage - not enough health to pay %d!" % mana_cost)
+			return
+	elif not stats.has_mana(mana_cost):
 		print("[MAIN] Quiver: not enough mana to play %s (need %d)" % [card.card_name, mana_cost])
 		return
 	if mana_cost > 0:
-		stats.spend_mana(mana_cost)
+		if quiver_demonic_rage:
+			stats.take_damage(mana_cost)
+			buff_mgr.consume_demonic_rage()
+			print("[MAIN] Quiver: Demonic Rage paid %d health instead of mana" % mana_cost)
+		else:
+			stats.spend_mana(mana_cost)
 
 	# Execute the card
 	var damage_reduction = debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
