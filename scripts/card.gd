@@ -605,6 +605,17 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_shield_of_growth(player_stats, buff_mgr)
 		"gift_from_the_phoenix":
 			_execute_gift_from_the_phoenix(player_stats, buff_mgr)
+		# === New Utility / Defense Cards ===
+		"bloodlust":
+			_execute_bloodlust(player_stats, buff_mgr)
+		"lethal_recall":
+			_execute_lethal_recall(target, player_stats, deck_manager, buff_mgr)
+		"demonic_rage":
+			_execute_demonic_rage(player_stats, buff_mgr)
+		"smith_thy_soul":
+			_execute_smith_thy_soul(player_stats, buff_mgr)
+		"down_but_not_out":
+			_execute_down_but_not_out(player_stats, buff_mgr)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3158,6 +3169,59 @@ func _execute_gift_from_the_phoenix(_player_stats: PlayerStats, _buff_mgr: BuffM
 	print("[CARD] Gift from the Phoenix is an instant card - triggers automatically from hand")
 
 # ============================================
+# NEW UTILITY / DEFENSE CARD EXECUTE FUNCTIONS
+# ============================================
+
+func _execute_bloodlust(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Apply 3 Vulnerable to self
+	if buff_mgr and buff_mgr.debuff_manager:
+		var vulnerable = Debuff.create(Debuff.DebuffType.VULNERABLE, 3, -1)
+		vulnerable.source_name = "Bloodlust"
+		buff_mgr.debuff_manager.apply_debuff(vulnerable)
+		print("[CARD] Bloodlust: Applied 3 Vulnerable to self")
+	# Gain 3 mana
+	if player_stats:
+		player_stats.gain_mana(3)
+		print("[CARD] Bloodlust: Gained 3 mana")
+	# Gain 3 Strengthen for 20 tempo (applied as attacks-based buff)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_strengthen(3, 3, "Bloodlust"))
+		print("[CARD] Bloodlust: Gained 3 Strengthen")
+
+func _execute_lethal_recall(_target, _player_stats: PlayerStats, _deck_manager = null, _buff_mgr: BuffManager = null) -> void:
+	# Trigger last instant card's effect 2 times
+	# The actual replay logic requires access to the last played card history in main.gd
+	# This is dispatched here but the replay is handled by main.gd post-execute
+	print("[CARD] Lethal Recall: Triggering last instant card's effect 2 times (handled by main.gd)")
+
+func _execute_demonic_rage(_player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Your next 5 uses of mana use health instead
+	# This applies a buff that main.gd checks when spending mana
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_demonic_rage(5, "Demonic Rage"))
+		print("[CARD] Demonic Rage: Next 5 mana costs use health instead")
+
+func _execute_smith_thy_soul(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Gain armor equal to half the sum of your health and mana
+	if player_stats:
+		var total = player_stats.current_health + int(player_stats.current_mana)
+		var armor_gain = total / 2
+		player_stats.add_armor_with_bolster(armor_gain, buff_mgr)
+		print("[CARD] Smith thy Soul: HP(%d) + Mana(%d) = %d, gained %d armor" % [player_stats.current_health, int(player_stats.current_mana), total, armor_gain])
+
+func _execute_down_but_not_out(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Heal 1 health for each stack of debuff on your character
+	var total_stacks = 0
+	if buff_mgr and buff_mgr.debuff_manager:
+		for debuff in buff_mgr.debuff_manager.debuffs:
+			total_stacks += debuff.stacks
+	if player_stats and total_stacks > 0:
+		player_stats.heal(total_stacks)
+		print("[CARD] Down but not out: %d debuff stacks, healed %d HP" % [total_stacks, total_stacks])
+	else:
+		print("[CARD] Down but not out: No debuff stacks, no healing")
+
+# ============================================
 # PETEY THE PET ROCK
 # ============================================
 
@@ -3205,4 +3269,93 @@ static func create_armor_patch() -> Card:
 	card.on_draw_effect = "gain_3_armor_cleanse_1"
 	card.discard_on_draw = true
 	card.target_types = []
+	return card
+
+# ============================================
+# NEW UTILITY / DEFENSE CARDS
+# ============================================
+
+static func create_bloodlust() -> Card:
+	var card = Card.new()
+	card.card_id = "bloodlust"
+	card.card_name = "Bloodlust"
+	card.description = "Apply 3 Vulnerable to self. Gain 3 mana. Gain 3 Strengthen for 20 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_lethal_recall() -> Card:
+	var card = Card.new()
+	card.card_id = "lethal_recall"
+	card.card_name = "Lethal Recall"
+	card.description = "Trigger your last instant card's effect 2 times."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 2
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_demonic_rage() -> Card:
+	var card = Card.new()
+	card.card_id = "demonic_rage"
+	card.card_name = "Demonic Rage"
+	card.description = "Your next 5 uses of mana use health instead."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 5
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_smith_thy_soul() -> Card:
+	var card = Card.new()
+	card.card_id = "smith_thy_soul"
+	card.card_name = "Smith thy Soul"
+	card.description = "Gain armor equal to half the sum of your health and mana."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 1
+	card.tempo_cost = 6
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_down_but_not_out() -> Card:
+	var card = Card.new()
+	card.card_id = "down_but_not_out"
+	card.card_name = "Down but not out"
+	card.description = "Heal 1 health for each stack of debuff on your character."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 5
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
 	return card

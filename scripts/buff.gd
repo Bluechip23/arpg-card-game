@@ -26,7 +26,8 @@ enum BuffType {
 	SHIELD_READY,
 	REPELLED_BLOCK,
 	SHIELD_OF_GROWTH,
-	PHOENIX_GRACE
+	PHOENIX_GRACE,
+	DEMONIC_RAGE
 }
 
 var buff_type: BuffType
@@ -116,6 +117,9 @@ func _set_name_and_description() -> void:
 		BuffType.PHOENIX_GRACE:
 			buff_name = "Phoenix Grace"
 			description = "When HP drops below 50%%, heal to 80%% and apply 5 burn to nearest enemy"
+		BuffType.DEMONIC_RAGE:
+			buff_name = "Demonic Rage"
+			description = "Next %d mana costs use health instead" % charges
 
 func tick() -> bool:
 	# Called each cycle (5 tempo). Returns true if buff expired by duration.
@@ -133,7 +137,7 @@ func use_charge() -> bool:
 
 func is_charge_based() -> bool:
 	match buff_type:
-		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, BuffType.PHOENIX_GRACE:
+		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, BuffType.PHOENIX_GRACE, BuffType.DEMONIC_RAGE:
 			return true
 	return false
 
@@ -167,6 +171,7 @@ func get_icon_color() -> Color:
 		BuffType.REPELLED_BLOCK: return Color(0.3, 0.5, 1.0)
 		BuffType.SHIELD_OF_GROWTH: return Color(0.3, 0.8, 0.5)
 		BuffType.PHOENIX_GRACE: return Color(1.0, 0.5, 0.2)
+		BuffType.DEMONIC_RAGE: return Color(0.8, 0.1, 0.2)
 	return Color.WHITE
 
 func get_short_display() -> String:
@@ -304,5 +309,10 @@ static func create_shield_of_growth(duration: int = 10, source: String = "") -> 
 
 static func create_phoenix_grace(source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.PHOENIX_GRACE, 0, -1, 1)  # 1 charge
+	buff.source_name = source
+	return buff
+
+static func create_demonic_rage(uses: int = 5, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.DEMONIC_RAGE, 0, -1, uses)  # charge-based: N mana uses
 	buff.source_name = source
 	return buff

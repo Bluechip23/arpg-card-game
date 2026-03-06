@@ -435,3 +435,19 @@ func consume_steady() -> bool:
 			remove_buff(Buff.BuffType.STEADY)
 		return true
 	return false
+
+# ============================================
+# DEMONIC RAGE (mana costs use health instead)
+# ============================================
+
+func has_demonic_rage() -> bool:
+	return has_buff(Buff.BuffType.DEMONIC_RAGE)
+
+func consume_demonic_rage() -> bool:
+	# Consume one charge. Returns true if buff was active.
+	var dr = get_buff(Buff.BuffType.DEMONIC_RAGE)
+	if dr:
+		if dr.use_charge():
+			remove_buff(Buff.BuffType.DEMONIC_RAGE)
+		return true
+	return false

@@ -315,12 +315,31 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 
 	mana_cost = max(0, mana_cost)
 
-	if player_stats and not player_stats.has_mana(mana_cost):
-		print("[DECK] Not enough mana! Need %d, have %d" % [mana_cost, int(player_stats.current_mana)])
-		return { "played": false, "free_turn": false }
+	# Demonic Rage: mana costs use health instead
+	var demonic_rage_active = false
+	if mana_cost > 0 and player_node and player_node.has_method("get_buff_manager"):
+		var dr_buff_mgr = player_node.get_buff_manager()
+		if dr_buff_mgr and dr_buff_mgr.has_demonic_rage():
+			demonic_rage_active = true
+			# Check if player has enough health (must survive)
+			if player_stats and player_stats.current_health <= mana_cost:
+				print("[DECK] Demonic Rage: not enough health to pay %d!" % mana_cost)
+				return { "played": false, "free_turn": false }
+
+	if not demonic_rage_active:
+		if player_stats and not player_stats.has_mana(mana_cost):
+			print("[DECK] Not enough mana! Need %d, have %d" % [mana_cost, int(player_stats.current_mana)])
+			return { "played": false, "free_turn": false }
 
 	if player_stats and mana_cost > 0:
-		player_stats.spend_mana(mana_cost)
+		if demonic_rage_active:
+			# Spend health instead of mana
+			var dr_buff_mgr = player_node.get_buff_manager()
+			player_stats.take_damage(mana_cost)
+			dr_buff_mgr.consume_demonic_rage()
+			print("[DECK] Demonic Rage: paid %d health instead of mana (%d charges left)" % [mana_cost, dr_buff_mgr.get_buff(Buff.BuffType.DEMONIC_RAGE).charges if dr_buff_mgr.has_demonic_rage() else 0])
+		else:
+			player_stats.spend_mana(mana_cost)
 
 	var was_free_turn = next_attack_free and card.card_type == Card.CardType.ATTACK
 
