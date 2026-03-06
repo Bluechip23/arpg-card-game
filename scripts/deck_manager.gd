@@ -207,6 +207,16 @@ func draw_card() -> Card:
 	if card.has_on_draw:
 		on_draw_triggered.emit(card)
 		print("[DECK] On Draw triggered: %s" % card.card_name)
+		# Some cards discard immediately after their on-draw effect
+		if card.discard_on_draw:
+			var idx = hand.find(card)
+			if idx >= 0:
+				hand.remove_at(idx)
+				discard_pile.append(card)
+				discards_this_cycle += 1
+				card_discarded.emit(card)
+				hand_updated.emit()
+				print("[DECK] %s discarded after on-draw effect" % card.card_name)
 
 	print("[DECK] Drew: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
 	return card

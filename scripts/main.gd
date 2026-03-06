@@ -4766,6 +4766,15 @@ func _on_card_on_draw_triggered(card: Card) -> void:
 					deck_manager.draw_card()
 				add_battle_log("%s On Draw: drew 3 cards!" % card.card_name, Color(0.5, 0.9, 0.5))
 				print("[MAIN] %s On Draw: drew 3 cards" % card.card_name)
+		"gain_3_armor_cleanse_1":
+			var stats = player.get_stats()
+			var buff_mgr = player.get_buff_manager()
+			if stats:
+				stats.add_armor(3)
+			if buff_mgr:
+				buff_mgr.apply_buff(Buff.create_cleanse(1, card.card_name))
+			add_battle_log("%s: +3 armor, cleanse 1!" % card.card_name, Color(0.5, 0.7, 1.0))
+			print("[MAIN] %s On Draw: gained 3 armor, cleansed 1 debuff" % card.card_name)
 
 func _on_card_erased(card: Card) -> void:
 	add_battle_log("%s erased from deck!" % card.card_name, Color(0.7, 0.7, 0.7))

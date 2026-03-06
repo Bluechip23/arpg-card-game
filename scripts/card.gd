@@ -46,6 +46,7 @@ var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
 var has_on_draw: bool = false  # Card triggers an effect when drawn
 var on_draw_effect: String = ""  # Description of the on-draw effect
+var discard_on_draw: bool = false  # If true, card is discarded immediately after on-draw effect
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
@@ -3179,5 +3180,29 @@ static func create_petey_the_pet_rock() -> Card:
 	card.has_on_discard = true
 	card.on_discard_effect = "discard_2_cards"
 	card.in_hand_debuff = "slowed_2"
+	card.target_types = []
+	return card
+
+# ============================================
+# ARMOR PATCH
+# ============================================
+
+static func create_armor_patch() -> Card:
+	var card = Card.new()
+	card.card_id = "armor_patch"
+	card.card_name = "Armor Patch"
+	card.description = "On Draw: Gain 3 armor, Cleanse 1. Immediately discarded."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 3
+	card.base_block = 3
+	card.heal_amount = 0
+	card.has_on_draw = true
+	card.on_draw_effect = "gain_3_armor_cleanse_1"
+	card.discard_on_draw = true
 	card.target_types = []
 	return card
