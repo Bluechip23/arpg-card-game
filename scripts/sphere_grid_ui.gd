@@ -51,7 +51,7 @@ const COLOR_PASSIVE := Color(0.9, 0.5, 0.2, 1.0)
 const COLOR_CARD := Color(0.8, 0.3, 0.9, 1.0)
 const COLOR_HEALTH := Color(0.9, 0.2, 0.2, 1.0)
 const COLOR_MANA := Color(0.2, 0.5, 1.0, 1.0)
-const COLOR_CULLING := Color(0.8, 0.5, 1.0, 1.0)
+const COLOR_CULLING := Color(1.0, 0.15, 0.45, 1.0)  # Crimson/hot-pink - distinct from purple passives
 const COLOR_LINE := Color(0.4, 0.4, 0.55, 0.85)
 const COLOR_LINE_UNLOCKED := Color(0.3, 0.85, 0.4, 0.9)
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.95)
@@ -256,7 +256,7 @@ func _get_node_shape(node: SphereGrid.GridNode) -> String:
 		SphereGrid.NodeType.CARD:
 			return "square"
 		SphereGrid.NodeType.CULLING_STONE:
-			return "diamond"
+			return "hexagon"
 		_:
 			return "circle"
 
@@ -355,6 +355,17 @@ func _on_grid_draw() -> void:
 				if is_hovered or is_selected:
 					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
 					grid_canvas.draw_rect(rect.grow(2 * _zoom), ring_color, false, 2.0 * _zoom)
+			"hexagon":
+				var hex_pts = PackedVector2Array()
+				for hi in range(6):
+					var ha = TAU / 6.0 * hi - PI / 6.0  # Flat-top hexagon
+					hex_pts.append(pos + Vector2(cos(ha), sin(ha)) * radius)
+				grid_canvas.draw_colored_polygon(hex_pts, color)
+				if is_hovered or is_selected:
+					var outline = hex_pts.duplicate()
+					outline.append(hex_pts[0])
+					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
+					grid_canvas.draw_polyline(outline, ring_color, 2.0 * _zoom)
 
 		# Draw unlocked checkmark or lock
 		if node.unlocked and node.id != 0:
@@ -386,7 +397,7 @@ func _draw_legend() -> void:
 		[COLOR_CARD, "square", "Card"],
 		[COLOR_HEALTH, "circle", "Health"],
 		[COLOR_MANA, "circle", "Mana"],
-		[COLOR_CULLING, "diamond", "Culling Stone"],
+		[COLOR_CULLING, "hexagon", "Culling Stone"],
 		[COLOR_UNLOCKED, "circle", "Unlocked"],
 		[COLOR_UNLOCKABLE, "circle", "Available"],
 		[COLOR_LOCKED, "circle", "Locked"],
@@ -411,6 +422,12 @@ func _draw_legend() -> void:
 				grid_canvas.draw_colored_polygon(pts, color)
 			"square":
 				grid_canvas.draw_rect(Rect2(legend_x + 2, y - 6, 12, 12), color)
+			"hexagon":
+				var hex_pts = PackedVector2Array()
+				for hi in range(6):
+					var ha = TAU / 6.0 * hi - PI / 6.0
+					hex_pts.append(Vector2(legend_x + 8, y) + Vector2(cos(ha), sin(ha)) * 6)
+				grid_canvas.draw_colored_polygon(hex_pts, color)
 
 		grid_canvas.draw_string(font, Vector2(legend_x + 22, y + 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.8, 0.8, 0.85))
 
@@ -878,7 +895,7 @@ func _open_detail_popup(node_id: int) -> void:
 		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA:
 			_build_stat_popup_content(vbox, node)
 		SphereGrid.NodeType.CULLING_STONE:
-			_add_popup_label(vbox, "Grants 1 Culling Stone", 14, Color(0.8, 0.5, 1.0))
+			_add_popup_label(vbox, "Grants 1 Culling Stone", 14, COLOR_CULLING)
 			_add_popup_label(vbox, "Use at the Card Dealer to remove a card from your deck.", 12, COLOR_DIM_TEXT)
 		SphereGrid.NodeType.START:
 			_add_popup_label(vbox, "Starting node — always unlocked.", 13, Color(0.8, 0.8, 0.85))
