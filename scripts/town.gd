@@ -19,6 +19,9 @@ const INTERACT_DISTANCE: float = 2.5  # Max tiles from vendor to interact
 var starting_character: CharacterData = null
 var nearby_vendor: StaticBody3D = null
 var vendor_open: bool = false
+var quest_manager: QuestManager = null
+var _quest_panel: PanelContainer = null
+var _quest_panel_open: bool = false
 
 # Item detail modal (built dynamically)
 var _detail_modal: PanelContainer = null
@@ -56,6 +59,11 @@ var vendor_info: Dictionary = {
 		"name": "Stash",
 		"description": "Store items and cards for later use.",
 		"type": "stash"
+	},
+	"Olorin": {
+		"name": "Olorin",
+		"description": "A wise old man with quests for brave adventurers.",
+		"type": "quest_giver"
 	}
 }
 
@@ -74,6 +82,14 @@ func _ready() -> void:
 
 	interact_prompt.text = ""
 	vendor_panel.visible = false
+
+	# Create quest manager
+	quest_manager = QuestManager.new()
+	quest_manager.name = "QuestManager"
+	add_child(quest_manager)
+
+	# Create Olorin NPC
+	_create_olorin_npc()
 
 func _apply_styles() -> void:
 	# Town label
@@ -248,6 +264,10 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 		child.queue_free()
 
 	vendor_inventory_label.text = info["description"]
+
+	if info["type"] == "quest_giver":
+		_open_quest_dialog(vendor_node)
+		return
 
 	if info["type"] == "card_dealer":
 		# Show culling stone count
@@ -1122,6 +1142,145 @@ func _build_modal_slots(item: ItemData) -> String:
 		if kw_names.size() > 0:
 			lines.append("  Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(lines)
+
+func _create_olorin_npc() -> void:
+	var olorin = StaticBody3D.new()
+	olorin.name = "Olorin"
+	olorin.position = Vector3(14, 0, 8)
+
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(1.4, 1.8, 1.4)
+	mesh.mesh = box
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.3, 0.2, 0.5)  # Purple robe
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mesh.material_override = mat
+	mesh.position = Vector3(0, 0.9, 0)
+	olorin.add_child(mesh)
+
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(1.4, 1.8, 1.4)
+	collision.shape = shape
+	collision.position = Vector3(0, 0.9, 0)
+	olorin.add_child(collision)
+
+	var label = Label3D.new()
+	label.text = "OLORIN"
+	label.font_size = 28
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(0.8, 0.6, 1.0)
+	label.outline_size = 8
+	label.position = Vector3(0, 2.2, 0)
+	olorin.add_child(label)
+
+	# Quest indicator
+	var quest_indicator = Label3D.new()
+	quest_indicator.name = "QuestIndicator"
+	quest_indicator.text = "!"
+	quest_indicator.font_size = 40
+	quest_indicator.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	quest_indicator.modulate = Color(1.0, 0.85, 0.0)
+	quest_indicator.outline_size = 12
+	quest_indicator.position = Vector3(0, 2.8, 0)
+	olorin.add_child(quest_indicator)
+
+	$Vendors.add_child(olorin)
+	print("[TOWN] Created Olorin NPC at position %s" % olorin.position)
+
+func _open_quest_dialog(vendor_node: StaticBody3D) -> void:
+	var info = vendor_info.get(vendor_node.name, null)
+	if not info:
+		return
+
+	vendor_open = true
+	_current_vendor_type = info["type"]
+	vendor_name_label.text = info["name"]
+
+	# Clear old items from list
+	for child in vendor_item_list.get_children():
+		child.queue_free()
+
+	vendor_inventory_label.text = info["description"]
+
+	# Check for turnable quests
+	if quest_manager.has_complete_quest_for("Olorin"):
+		var quest = quest_manager.get_turnable_quest_for("Olorin")
+		if quest:
+			_add_info_label("Quest Complete: %s" % quest.name, Color(0.5, 1.0, 0.5))
+			var turn_in_btn = Button.new()
+			turn_in_btn.text = "Turn In Quest"
+			turn_in_btn.custom_minimum_size = Vector2(200, 40)
+			turn_in_btn.add_theme_font_size_override("font_size", 16)
+			turn_in_btn.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
+			turn_in_btn.pressed.connect(_on_turn_in_quest.bind(quest.id))
+			vendor_item_list.add_child(turn_in_btn)
+
+	# Check for available quests
+	elif not quest_manager.has_active_quest_from("Olorin"):
+		var available = quest_manager.get_available_quests_from("Olorin")
+		for quest in available:
+			_add_info_label(quest.name, Color(1.0, 0.85, 0.3))
+			var desc_lbl = Label.new()
+			desc_lbl.text = "  %s" % quest.description
+			desc_lbl.add_theme_font_size_override("font_size", 13)
+			desc_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			vendor_item_list.add_child(desc_lbl)
+
+			var obj_lbl = Label.new()
+			obj_lbl.text = "  Objective: %s" % quest.get_objective_text()
+			obj_lbl.add_theme_font_size_override("font_size", 13)
+			obj_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
+			vendor_item_list.add_child(obj_lbl)
+
+			var reward_text = "  Rewards:"
+			if quest.rewards.has("gold"):
+				reward_text += " %d Gold" % quest.rewards["gold"]
+			if quest.rewards.has("xp"):
+				reward_text += ", %d XP" % quest.rewards["xp"]
+			var reward_lbl = Label.new()
+			reward_lbl.text = reward_text
+			reward_lbl.add_theme_font_size_override("font_size", 13)
+			reward_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+			vendor_item_list.add_child(reward_lbl)
+
+			var accept_btn = Button.new()
+			accept_btn.text = "Accept Quest"
+			accept_btn.custom_minimum_size = Vector2(200, 40)
+			accept_btn.add_theme_font_size_override("font_size", 16)
+			accept_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+			accept_btn.pressed.connect(_on_accept_quest.bind(quest.id))
+			vendor_item_list.add_child(accept_btn)
+	else:
+		# Quest is active but not complete
+		_add_info_label("Come back when you've dealt with those wererats!", Color(0.7, 0.7, 0.7))
+
+	vendor_panel.visible = true
+	interact_prompt.text = ""
+	print("[TOWN] Opened quest dialog with Olorin")
+
+func _on_accept_quest(quest_id: String) -> void:
+	if quest_manager.accept_quest(quest_id):
+		print("[TOWN] Quest accepted: %s" % quest_id)
+		_close_vendor()
+
+func _on_turn_in_quest(quest_id: String) -> void:
+	var rewards = quest_manager.turn_in_quest(quest_id)
+	if rewards.is_empty():
+		return
+
+	# Apply rewards
+	var stats = player.get_stats() if player.has_method("get_stats") else null
+	if stats:
+		if rewards.has("gold"):
+			stats.gain_gold(rewards["gold"])
+		if rewards.has("xp"):
+			stats.gain_xp(rewards["xp"])
+
+	print("[TOWN] Quest turned in! Rewards: %s" % rewards)
+	_close_vendor()
 
 func _on_back_pressed() -> void:
 	if vendor_open:

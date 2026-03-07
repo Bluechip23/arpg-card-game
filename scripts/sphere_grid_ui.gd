@@ -51,6 +51,7 @@ const COLOR_PASSIVE := Color(0.9, 0.5, 0.2, 1.0)
 const COLOR_CARD := Color(0.8, 0.3, 0.9, 1.0)
 const COLOR_HEALTH := Color(0.9, 0.2, 0.2, 1.0)
 const COLOR_MANA := Color(0.2, 0.5, 1.0, 1.0)
+const COLOR_CULLING := Color(0.8, 0.5, 1.0, 1.0)
 const COLOR_LINE := Color(0.4, 0.4, 0.55, 0.85)
 const COLOR_LINE_UNLOCKED := Color(0.3, 0.85, 0.4, 0.9)
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.95)
@@ -244,6 +245,8 @@ func _get_type_color(node: SphereGrid.GridNode) -> Color:
 			return COLOR_HEALTH
 		SphereGrid.NodeType.MANA:
 			return COLOR_MANA
+		SphereGrid.NodeType.CULLING_STONE:
+			return COLOR_CULLING
 	return COLOR_LOCKED
 
 func _get_node_shape(node: SphereGrid.GridNode) -> String:
@@ -252,6 +255,8 @@ func _get_node_shape(node: SphereGrid.GridNode) -> String:
 			return "diamond"
 		SphereGrid.NodeType.CARD:
 			return "square"
+		SphereGrid.NodeType.CULLING_STONE:
+			return "diamond"
 		_:
 			return "circle"
 
@@ -381,6 +386,7 @@ func _draw_legend() -> void:
 		[COLOR_CARD, "square", "Card"],
 		[COLOR_HEALTH, "circle", "Health"],
 		[COLOR_MANA, "circle", "Mana"],
+		[COLOR_CULLING, "diamond", "Culling Stone"],
 		[COLOR_UNLOCKED, "circle", "Unlocked"],
 		[COLOR_UNLOCKABLE, "circle", "Available"],
 		[COLOR_LOCKED, "circle", "Locked"],
@@ -871,6 +877,9 @@ func _open_detail_popup(node_id: int) -> void:
 			_build_passive_popup_content(vbox, node)
 		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA:
 			_build_stat_popup_content(vbox, node)
+		SphereGrid.NodeType.CULLING_STONE:
+			_add_popup_label(vbox, "Grants 1 Culling Stone", 14, Color(0.8, 0.5, 1.0))
+			_add_popup_label(vbox, "Use at the Card Dealer to remove a card from your deck.", 12, COLOR_DIM_TEXT)
 		SphereGrid.NodeType.START:
 			_add_popup_label(vbox, "Starting node — always unlocked.", 13, Color(0.8, 0.8, 0.85))
 
@@ -1184,6 +1193,7 @@ func _get_type_name(t: SphereGrid.NodeType) -> String:
 		SphereGrid.NodeType.HEALTH: return "Health"
 		SphereGrid.NodeType.MANA: return "Mana"
 		SphereGrid.NodeType.START: return "Start"
+		SphereGrid.NodeType.CULLING_STONE: return "Culling Stone"
 	return "Unknown"
 
 func _on_close_pressed() -> void:

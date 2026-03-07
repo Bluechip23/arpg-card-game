@@ -1,10 +1,11 @@
 class_name EnemySpawner
 extends Node
 
-## Spawns and manages enemies in the test arena
+## Spawns and manages enemies in the dungeon
 
 signal all_enemies_defeated
 signal enemy_killed(enemy: Enemy)
+signal loot_dropped(loot: Dictionary, position: Vector3)
 
 const EnemyScene = preload("res://scenes/enemy.tscn")
 
@@ -73,6 +74,11 @@ func process_enemy_turns() -> void:
 func _on_enemy_died(enemy: Enemy) -> void:
 	enemy_killed.emit(enemy)
 
+	# Generate and emit loot
+	var loot = _generate_loot(enemy)
+	if not loot.is_empty():
+		loot_dropped.emit(loot, enemy.position)
+
 	# Trigger ring effects
 	if player:
 		var inventory = player.get_inventory()
@@ -89,6 +95,101 @@ func _on_enemy_died(enemy: Enemy) -> void:
 
 func _on_enemy_turn_completed() -> void:
 	pass  # Can add logic here for sequential turns
+
+# ============================================
+# LOOT DROP SYSTEM
+# ============================================
+
+func _generate_loot(enemy: Enemy) -> Dictionary:
+	var loot: Dictionary = {"gold": 0, "item": null, "card": null}
+
+	# Gold drop (always) - amount based on enemy type
+	match enemy.enemy_type:
+		Enemy.EnemyType.MINION:
+			loot["gold"] = randi_range(2, 8)
+		Enemy.EnemyType.WERERAT:
+			loot["gold"] = randi_range(3, 10)
+		Enemy.EnemyType.SKELETON:
+			loot["gold"] = randi_range(5, 15)
+		Enemy.EnemyType.ARMORED_TROLL:
+			loot["gold"] = randi_range(10, 25)
+		Enemy.EnemyType.ELITE:
+			loot["gold"] = randi_range(15, 40)
+		Enemy.EnemyType.BOSS:
+			loot["gold"] = randi_range(30, 80)
+
+	# Item drop chance (varies by enemy type)
+	var item_chance = _get_item_drop_chance(enemy.enemy_type)
+	if randf() < item_chance:
+		loot["item"] = _get_random_loot_item(enemy.enemy_type)
+
+	# Card drop chance (rarer than items)
+	var card_chance = _get_card_drop_chance(enemy.enemy_type)
+	if randf() < card_chance:
+		loot["card"] = _get_random_loot_card()
+
+	return loot
+
+func _get_item_drop_chance(type: Enemy.EnemyType) -> float:
+	match type:
+		Enemy.EnemyType.MINION: return 0.05
+		Enemy.EnemyType.WERERAT: return 0.08
+		Enemy.EnemyType.SKELETON: return 0.12
+		Enemy.EnemyType.ARMORED_TROLL: return 0.20
+		Enemy.EnemyType.ELITE: return 0.30
+		Enemy.EnemyType.BOSS: return 0.80
+	return 0.05
+
+func _get_card_drop_chance(type: Enemy.EnemyType) -> float:
+	match type:
+		Enemy.EnemyType.MINION: return 0.03
+		Enemy.EnemyType.WERERAT: return 0.05
+		Enemy.EnemyType.SKELETON: return 0.08
+		Enemy.EnemyType.ARMORED_TROLL: return 0.12
+		Enemy.EnemyType.ELITE: return 0.20
+		Enemy.EnemyType.BOSS: return 0.60
+	return 0.03
+
+func _get_random_loot_item(type: Enemy.EnemyType) -> ItemData:
+	var item_creators: Array[Callable] = [
+		ItemData.create_iron_helm,
+		ItemData.create_leather_chest,
+		ItemData.create_iron_sword,
+		ItemData.create_wooden_shield,
+		ItemData.create_gold_ring,
+		ItemData.create_leather_boots,
+		ItemData.create_iron_gauntlets,
+		ItemData.create_utility_belt,
+	]
+	# Better enemies drop better items
+	if type == Enemy.EnemyType.ELITE or type == Enemy.EnemyType.BOSS or type == Enemy.EnemyType.ARMORED_TROLL:
+		item_creators.append(ItemData.create_flame_dagger)
+		item_creators.append(ItemData.create_frost_orb)
+		item_creators.append(ItemData.create_ice_quiver)
+		item_creators.append(ItemData.create_fire_quiver)
+		item_creators.append(ItemData.create_belt_of_greater_healing)
+	var idx = randi() % item_creators.size()
+	return item_creators[idx].call()
+
+func _get_random_loot_card() -> Card:
+	var card_creators: Array[Callable] = [
+		Card.create_slash,
+		Card.create_block,
+		Card.create_heal,
+		Card.create_draw,
+		Card.create_empower,
+		Card.create_healing_potion,
+		Card.create_dagger_throw,
+		Card.create_gain_mana,
+		Card.create_halo,
+		Card.create_blink,
+	]
+	var idx = randi() % card_creators.size()
+	return card_creators[idx].call()
+
+# ============================================
+# SPATIAL QUERIES
+# ============================================
 
 func get_enemy_at_position(pos: Vector3, radius: float = 1.0) -> Enemy:
 	for enemy in enemies:

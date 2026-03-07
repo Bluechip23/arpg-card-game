@@ -24,6 +24,8 @@ func _ready() -> void:
 	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_material.no_depth_test = true
 	_mesh_instance.material_override = _material
+	# Start hidden so the indicator doesn't flash at origin (0,0,0) / upper-left
+	visible = false
 
 func _rebuild_mesh() -> void:
 	match shape:
@@ -96,6 +98,9 @@ func update_indicator(new_shape: String, new_range: float) -> void:
 	_rebuild_mesh()
 
 func show_indicator() -> void:
+	# Only show if position has been set (not at origin/upper-left)
+	if global_position.length() < 0.01 and mouse_world_pos.length() < 0.01:
+		return
 	visible = true
 	_rebuild_mesh()
 
