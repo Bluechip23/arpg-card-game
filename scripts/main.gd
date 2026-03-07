@@ -40,6 +40,22 @@ extends Node3D
 
 var dungeon_manager: DungeonManager = null
 var unit_tracker: UnitTrackerUI = null
+var quest_manager: QuestManager = null
+var current_world_level: int = 1
+
+# Minimap UI
+var _minimap_panel: PanelContainer = null
+var _minimap_texture_rect: TextureRect = null
+var _minimap_image: Image = null
+const MINIMAP_SIZE: int = 160
+const MINIMAP_PIXEL_SCALE: int = 4
+
+# Tab menu (quest log / map)
+var _tab_menu_panel: PanelContainer = null
+var _tab_menu_visible: bool = false
+var _tab_menu_current_tab: int = 0  # 0=quest log, 1=map
+var _tab_quest_container: VBoxContainer = null
+var _tab_map_container: VBoxContainer = null
 
 # Card animation tracking
 var _prev_hand_card_ids: Array[String] = []  # Card IDs from last hand update
@@ -162,6 +178,7 @@ func _ready() -> void:
 	enemy_spawner.initialize(grid_manager, player)
 	enemy_spawner.enemy_killed.connect(_on_enemy_killed)
 	enemy_spawner.all_enemies_defeated.connect(_on_all_enemies_defeated)
+	enemy_spawner.loot_dropped.connect(_on_loot_dropped)
 	
 	# Test UI
 	test_ui.spawn_wave_requested.connect(_on_spawn_wave)
@@ -241,13 +258,15 @@ func _update_camera() -> void:
 func _process(_delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
-	# Update chest interact prompts and enemy fog visibility
+	# Update chest interact prompts, waypoints, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
 		dungeon_manager.update_chest_prompts(pg)
+		dungeon_manager.update_waypoint_prompts(pg)
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
+		_update_minimap()
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
 		var mouse_world = get_mouse_world_position()
@@ -1871,6 +1890,9 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	_refresh_unit_tracker()
 	# Sphere grid passive triggers for kills
 	_trigger_sphere_passives("on_kill", {"target": enemy})
+	# Quest tracking
+	if quest_manager:
+		quest_manager.on_enemy_killed(enemy.enemy_name)
 
 func _on_all_enemies_defeated() -> void:
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
@@ -1943,6 +1965,12 @@ func _apply_sphere_grid_node(node) -> void:
 			if passive.size() > 0:
 				stats.add_sphere_grid_passive(passive)
 				add_battle_log("Sphere Grid: %s" % node.description, Color(0.9, 0.5, 0.2))
+
+		SphereGrid.NodeType.CULLING_STONE:
+			var inventory = player.get_inventory()
+			if inventory:
+				inventory.culling_stones += 1
+				add_battle_log("Sphere Grid: Obtained Culling Stone!", Color(0.8, 0.5, 1.0))
 
 	print("[MAIN] Sphere grid node %d applied: [%s] %s" % [node.id, SphereGrid.NodeType.keys()[node.node_type], node.label])
 
@@ -3488,9 +3516,16 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
-		# Chest interaction (Shift key)
+		# Chest / waypoint interaction (Shift key)
 		if event.keycode == KEY_SHIFT:
+			if _try_interact_waypoint():
+				return
 			_try_interact_chest()
+			return
+
+		# Tab menu toggle (quest log / map)
+		if event.keycode == KEY_TAB:
+			_toggle_tab_menu()
 			return
 
 		# Character panel toggle
@@ -3642,7 +3677,7 @@ func _setup_dungeon() -> void:
 	dungeon_manager = DungeonManager.new()
 	dungeon_manager.name = "DungeonManager"
 	add_child(dungeon_manager)
-	dungeon_manager.initialize(grid_manager, self)
+	dungeon_manager.initialize(grid_manager, self, current_world_level)
 
 	# Move player to dungeon start
 	var start_pos = dungeon_manager.get_player_start_world()
@@ -3656,7 +3691,22 @@ func _setup_dungeon() -> void:
 	_camera_focus = start_pos + Vector3(3, 0, 0)
 	_update_camera()
 
-	print("[MAIN] Dungeon initialized, player at %s" % start_pos)
+	# Setup quest manager
+	if not quest_manager:
+		quest_manager = QuestManager.new()
+		quest_manager.name = "QuestManager"
+		add_child(quest_manager)
+
+	# Setup minimap
+	_setup_minimap()
+
+	# Setup tab menu
+	_setup_tab_menu()
+
+	# Build ground plane to match world size
+	_build_ground_plane()
+
+	print("[MAIN] Dungeon initialized (World %d), player at %s" % [current_world_level, start_pos])
 
 func _sync_dungeon_blocked_tiles() -> void:
 	## Combines dungeon wall tiles with barricade tiles for pathfinding.
@@ -4817,3 +4867,450 @@ func _on_card_erased(card: Card) -> void:
 	add_battle_log("%s erased from deck!" % card.card_name, Color(0.7, 0.7, 0.7))
 	update_deck_info()
 	_on_hand_updated()
+
+# ============================================
+# LOOT DROP SYSTEM
+# ============================================
+
+func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
+	var messages: Array[String] = []
+
+	# Gold
+	var gold = loot.get("gold", 0)
+	if gold > 0:
+		player.get_stats().gain_gold(gold)
+		messages.append("+%d Gold" % gold)
+
+	# Item drop
+	var item: ItemData = loot.get("item")
+	if item:
+		var inventory = player.get_inventory()
+		if inventory:
+			if inventory.store_item(item):
+				messages.append("Item: %s" % item.item_name)
+			else:
+				messages.append("Item dropped (inventory full): %s" % item.item_name)
+
+	# Card drop
+	var card: Card = loot.get("card")
+	if card:
+		if deck_manager:
+			deck_manager.discard_pile.append(card)
+			messages.append("Card: %s" % card.card_name)
+
+	if messages.size() > 0:
+		var loot_text = "Loot: " + ", ".join(messages)
+		add_battle_log(loot_text, Color(1.0, 0.85, 0.2))
+		print("[MAIN] %s" % loot_text)
+
+# ============================================
+# WAYPOINT TRAVEL
+# ============================================
+
+func _try_interact_waypoint() -> bool:
+	if not dungeon_manager:
+		return false
+	var player_grid = grid_manager.world_to_grid(player.position)
+	var wp_idx = dungeon_manager.get_nearby_waypoint(player_grid)
+	if wp_idx < 0:
+		return false
+
+	var target = dungeon_manager.get_waypoint_target(wp_idx)
+	match target:
+		"town":
+			_travel_to_town()
+		"next_world":
+			_travel_to_world(current_world_level + 1)
+		"prev_world":
+			_travel_to_world(current_world_level - 1)
+	return true
+
+func _travel_to_town() -> void:
+	print("[MAIN] Traveling to town!")
+	var town_scene = load("res://scenes/town.tscn").instantiate()
+	town_scene.starting_character = starting_character
+	get_tree().root.add_child(town_scene)
+	queue_free()
+
+func _travel_to_world(level: int) -> void:
+	print("[MAIN] Traveling to World %d!" % level)
+	var main_scene = load("res://main.tscn").instantiate()
+	main_scene.starting_character = starting_character
+	main_scene.current_world_level = level
+	get_tree().root.add_child(main_scene)
+	queue_free()
+
+func _build_ground_plane() -> void:
+	# Remove existing ground if any and build one matching world size
+	var existing = get_node_or_null("GroundPlane")
+	if existing:
+		existing.queue_free()
+
+	var ground = MeshInstance3D.new()
+	ground.name = "GroundPlane"
+	var plane_mesh = PlaneMesh.new()
+	plane_mesh.size = Vector2(dungeon_manager.GRID_W, dungeon_manager.GRID_H)
+	ground.mesh = plane_mesh
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.15, 0.12, 0.1)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	ground.material_override = mat
+	ground.position = Vector3(dungeon_manager.GRID_W / 2.0, -0.01, dungeon_manager.GRID_H / 2.0)
+	add_child(ground)
+
+# ============================================
+# MINIMAP
+# ============================================
+
+func _setup_minimap() -> void:
+	if _minimap_panel and is_instance_valid(_minimap_panel):
+		_minimap_panel.queue_free()
+
+	var ui = $UI as CanvasLayer
+
+	_minimap_panel = PanelContainer.new()
+	_minimap_panel.name = "MinimapPanel"
+	ui.add_child(_minimap_panel)
+
+	# Position in upper-left
+	_minimap_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_minimap_panel.offset_left = 8.0
+	_minimap_panel.offset_top = 8.0
+	_minimap_panel.offset_right = 8.0 + MINIMAP_SIZE + 8
+	_minimap_panel.offset_bottom = 8.0 + MINIMAP_SIZE + 8
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.05, 0.08, 0.85)
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.3, 0.3, 0.45, 0.8)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 4
+	style.content_margin_right = 4
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	_minimap_panel.add_theme_stylebox_override("panel", style)
+
+	_minimap_texture_rect = TextureRect.new()
+	_minimap_texture_rect.custom_minimum_size = Vector2(MINIMAP_SIZE, MINIMAP_SIZE)
+	_minimap_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_minimap_panel.add_child(_minimap_texture_rect)
+
+	# Create initial minimap image
+	_minimap_image = Image.create(dungeon_manager.GRID_W * MINIMAP_PIXEL_SCALE, dungeon_manager.GRID_H * MINIMAP_PIXEL_SCALE, false, Image.FORMAT_RGBA8)
+	_minimap_image.fill(Color(0.02, 0.02, 0.05, 1.0))
+
+func _update_minimap() -> void:
+	if not _minimap_image or not dungeon_manager or not _minimap_texture_rect:
+		return
+
+	var gw = dungeon_manager.GRID_W
+	var gh = dungeon_manager.GRID_H
+	var s = MINIMAP_PIXEL_SCALE
+
+	# Clear
+	_minimap_image.fill(Color(0.02, 0.02, 0.05, 1.0))
+
+	# Draw revealed floor tiles
+	for x in range(gw):
+		for z in range(gh):
+			if dungeon_manager.is_revealed(Vector2i(x, z)):
+				var col: Color
+				if dungeon_manager.is_floor(Vector2i(x, z)):
+					col = Color(0.25, 0.22, 0.2, 1.0)
+				else:
+					col = Color(0.12, 0.1, 0.15, 1.0)
+				for px in range(s):
+					for pz in range(s):
+						var ix = x * s + px
+						var iz = z * s + pz
+						if ix < _minimap_image.get_width() and iz < _minimap_image.get_height():
+							_minimap_image.set_pixel(ix, iz, col)
+
+	# Draw waypoints
+	for wp in dungeon_manager.waypoint_nodes:
+		var wp_pos: Vector2i = wp["grid_pos"]
+		var wp_col = Color(0.3, 0.7, 1.0)
+		if wp["target"] == "next_world":
+			wp_col = Color(0.3, 1.0, 0.4)
+		elif wp["target"] == "prev_world":
+			wp_col = Color(1.0, 0.8, 0.3)
+		for px in range(s):
+			for pz in range(s):
+				var ix = wp_pos.x * s + px
+				var iz = wp_pos.y * s + pz
+				if ix < _minimap_image.get_width() and iz < _minimap_image.get_height():
+					_minimap_image.set_pixel(ix, iz, wp_col)
+
+	# Draw enemies
+	for enemy in enemy_spawner.get_living_enemies():
+		if not enemy.visible:
+			continue
+		var eg = grid_manager.world_to_grid(enemy.position)
+		for px in range(s):
+			for pz in range(s):
+				var ix = eg.x * s + px
+				var iz = eg.y * s + pz
+				if ix >= 0 and ix < _minimap_image.get_width() and iz >= 0 and iz < _minimap_image.get_height():
+					_minimap_image.set_pixel(ix, iz, Color(1.0, 0.2, 0.2))
+
+	# Draw player (slightly larger)
+	var pg = grid_manager.world_to_grid(player.position)
+	for px in range(-1, s + 1):
+		for pz in range(-1, s + 1):
+			var ix = pg.x * s + px
+			var iz = pg.y * s + pz
+			if ix >= 0 and ix < _minimap_image.get_width() and iz >= 0 and iz < _minimap_image.get_height():
+				_minimap_image.set_pixel(ix, iz, Color(0.2, 1.0, 0.4))
+
+	var tex = ImageTexture.create_from_image(_minimap_image)
+	_minimap_texture_rect.texture = tex
+
+# ============================================
+# TAB MENU (QUEST LOG / MAP)
+# ============================================
+
+func _setup_tab_menu() -> void:
+	if _tab_menu_panel and is_instance_valid(_tab_menu_panel):
+		_tab_menu_panel.queue_free()
+
+	var ui = $UI as CanvasLayer
+
+	_tab_menu_panel = PanelContainer.new()
+	_tab_menu_panel.name = "TabMenuPanel"
+	ui.add_child(_tab_menu_panel)
+	_tab_menu_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_tab_menu_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_tab_menu_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_tab_menu_panel.custom_minimum_size = Vector2(600, 450)
+	_tab_menu_panel.visible = false
+
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.06, 0.06, 0.1, 0.95)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.4, 0.35, 0.55)
+	panel_style.corner_radius_top_left = 8
+	panel_style.corner_radius_top_right = 8
+	panel_style.corner_radius_bottom_left = 8
+	panel_style.corner_radius_bottom_right = 8
+	_tab_menu_panel.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	_tab_menu_panel.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+
+	# Tab buttons row
+	var tab_hbox = HBoxContainer.new()
+	tab_hbox.add_theme_constant_override("separation", 8)
+	vbox.add_child(tab_hbox)
+
+	var quest_tab_btn = Button.new()
+	quest_tab_btn.text = "Quest Log"
+	quest_tab_btn.custom_minimum_size = Vector2(120, 32)
+	quest_tab_btn.add_theme_font_size_override("font_size", 16)
+	quest_tab_btn.pressed.connect(_on_tab_quest_pressed)
+	tab_hbox.add_child(quest_tab_btn)
+
+	var map_tab_btn = Button.new()
+	map_tab_btn.text = "World Map"
+	map_tab_btn.custom_minimum_size = Vector2(120, 32)
+	map_tab_btn.add_theme_font_size_override("font_size", 16)
+	map_tab_btn.pressed.connect(_on_tab_map_pressed)
+	tab_hbox.add_child(map_tab_btn)
+
+	# World label
+	var world_lbl = Label.new()
+	world_lbl.text = "World %d" % current_world_level
+	world_lbl.add_theme_font_size_override("font_size", 16)
+	world_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	world_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	world_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	tab_hbox.add_child(world_lbl)
+
+	vbox.add_child(HSeparator.new())
+
+	# Quest log content
+	var quest_scroll = ScrollContainer.new()
+	quest_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	quest_scroll.custom_minimum_size = Vector2(0, 300)
+	vbox.add_child(quest_scroll)
+
+	_tab_quest_container = VBoxContainer.new()
+	_tab_quest_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	quest_scroll.add_child(_tab_quest_container)
+
+	# Map content (hidden by default)
+	_tab_map_container = VBoxContainer.new()
+	_tab_map_container.visible = false
+	_tab_map_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(_tab_map_container)
+
+	# Close button
+	var close_btn = Button.new()
+	close_btn.text = "Close [Tab]"
+	close_btn.custom_minimum_size = Vector2(120, 32)
+	close_btn.add_theme_font_size_override("font_size", 14)
+	close_btn.pressed.connect(_toggle_tab_menu)
+	vbox.add_child(close_btn)
+
+func _toggle_tab_menu() -> void:
+	_tab_menu_visible = not _tab_menu_visible
+	if _tab_menu_panel:
+		_tab_menu_panel.visible = _tab_menu_visible
+	if _tab_menu_visible:
+		_refresh_tab_menu()
+
+func _on_tab_quest_pressed() -> void:
+	_tab_menu_current_tab = 0
+	_refresh_tab_menu()
+
+func _on_tab_map_pressed() -> void:
+	_tab_menu_current_tab = 1
+	_refresh_tab_menu()
+
+func _refresh_tab_menu() -> void:
+	if not _tab_quest_container or not _tab_map_container:
+		return
+
+	if _tab_menu_current_tab == 0:
+		_tab_quest_container.get_parent().visible = true
+		_tab_map_container.visible = false
+		_refresh_quest_log()
+	else:
+		_tab_quest_container.get_parent().visible = false
+		_tab_map_container.visible = true
+		_refresh_world_map()
+
+func _refresh_quest_log() -> void:
+	for child in _tab_quest_container.get_children():
+		child.queue_free()
+
+	if not quest_manager:
+		var no_quests = Label.new()
+		no_quests.text = "No quests available."
+		no_quests.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		_tab_quest_container.add_child(no_quests)
+		return
+
+	# Active quests
+	var active = quest_manager.get_active_quests()
+	if active.size() > 0:
+		var header = Label.new()
+		header.text = "Active Quests"
+		header.add_theme_font_size_override("font_size", 18)
+		header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		_tab_quest_container.add_child(header)
+
+		for quest in active:
+			var quest_panel = _create_quest_entry(quest)
+			_tab_quest_container.add_child(quest_panel)
+
+	# Completed quests
+	var completed = quest_manager.get_completed_quests()
+	if completed.size() > 0:
+		_tab_quest_container.add_child(HSeparator.new())
+		var header2 = Label.new()
+		header2.text = "Completed Quests"
+		header2.add_theme_font_size_override("font_size", 18)
+		header2.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
+		_tab_quest_container.add_child(header2)
+
+		for quest in completed:
+			var quest_panel = _create_quest_entry(quest)
+			_tab_quest_container.add_child(quest_panel)
+
+	if active.is_empty() and completed.is_empty():
+		var no_quests = Label.new()
+		no_quests.text = "No quests yet. Talk to NPCs in town!"
+		no_quests.add_theme_font_size_override("font_size", 14)
+		no_quests.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		_tab_quest_container.add_child(no_quests)
+
+func _create_quest_entry(quest) -> PanelContainer:
+	var panel = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.14, 0.8)
+	style.border_width_left = 1
+	style.border_color = Color(0.3, 0.3, 0.4)
+	style.corner_radius_top_left = 4
+	style.corner_radius_bottom_left = 4
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	panel.add_child(vbox)
+
+	var name_lbl = Label.new()
+	name_lbl.text = quest.name
+	name_lbl.add_theme_font_size_override("font_size", 16)
+	if quest.is_complete:
+		name_lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
+	else:
+		name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	vbox.add_child(name_lbl)
+
+	var desc_lbl = Label.new()
+	desc_lbl.text = quest.description
+	desc_lbl.add_theme_font_size_override("font_size", 13)
+	desc_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(desc_lbl)
+
+	var progress_lbl = Label.new()
+	progress_lbl.text = quest.get_objective_text()
+	progress_lbl.add_theme_font_size_override("font_size", 14)
+	if quest.is_complete:
+		progress_lbl.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
+	else:
+		progress_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
+	vbox.add_child(progress_lbl)
+
+	return panel
+
+func _refresh_world_map() -> void:
+	for child in _tab_map_container.get_children():
+		child.queue_free()
+
+	var title = Label.new()
+	title.text = "World Map"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	_tab_map_container.add_child(title)
+
+	# Show world list with current highlighted
+	for i in range(1, 6):
+		var world_btn = Button.new()
+		world_btn.text = "World %d" % i
+		if i == current_world_level:
+			world_btn.text += " (Current)"
+		world_btn.custom_minimum_size = Vector2(200, 36)
+		world_btn.add_theme_font_size_override("font_size", 15)
+		if i == current_world_level:
+			world_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		_tab_map_container.add_child(world_btn)
+
+	# Town button
+	var town_btn = Button.new()
+	town_btn.text = "Town"
+	town_btn.custom_minimum_size = Vector2(200, 36)
+	town_btn.add_theme_font_size_override("font_size", 15)
+	town_btn.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
+	_tab_map_container.add_child(town_btn)

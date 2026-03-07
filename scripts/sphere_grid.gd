@@ -10,7 +10,8 @@ enum NodeType {
 	CARD,          # Grants a new card
 	HEALTH,        # Max health increase
 	MANA,          # Max mana increase
-	START          # Starting node (already unlocked)
+	START,         # Starting node (already unlocked)
+	CULLING_STONE  # Grants a culling stone to remove a card from deck
 }
 
 class GridNode:
@@ -133,16 +134,16 @@ func _build_grid() -> void:
 	n0.unlocked = true
 	_add_node(n0)
 
-	# === Ring 1: 6 nodes at radius 70 ===
+	# === Ring 1: 6 nodes at radius 90 (pushed out from 70) ===
 	var ring1_types = [
-		[NodeType.STAT_BONUS, "STR +1", "Strength +1"],
-		[NodeType.STAT_BONUS, "DEX +1", "Dexterity +1"],
-		[NodeType.STAT_BONUS, "INT +1", "Intelligence +1"],
-		[NodeType.STAT_BONUS, "WIS +1", "Wisdom +1"],
-		[NodeType.STAT_BONUS, "AGI +1", "Agility +1"],
-		[NodeType.STAT_BONUS, "DET +1", "Determination +1"],
+		[NodeType.STAT_BONUS, "STR +2", "Strength +2"],
+		[NodeType.STAT_BONUS, "DEX +2", "Dexterity +2"],
+		[NodeType.STAT_BONUS, "INT +2", "Intelligence +2"],
+		[NodeType.STAT_BONUS, "WIS +2", "Wisdom +2"],
+		[NodeType.STAT_BONUS, "AGI +2", "Agility +2"],
+		[NodeType.STAT_BONUS, "DET +2", "Determination +2"],
 	]
-	_create_ring(1, 6, 70.0, center, ring1_types, 1)
+	_create_ring(1, 6, 90.0, center, ring1_types, 1)
 
 	# Connect ring 1 to center
 	for i in range(6):
@@ -151,22 +152,22 @@ func _build_grid() -> void:
 	for i in range(6):
 		_connect_nodes(1 + i, 1 + ((i + 1) % 6))
 
-	# === Ring 2: 12 nodes at radius 140 ===
+	# === Ring 2: 12 nodes at radius 170 (pushed out from 140) ===
 	var ring2_types = [
-		[NodeType.HEALTH, "HP +5", "Max Health +5"],
+		[NodeType.HEALTH, "HP +10", "Max Health +10"],
 		[NodeType.PASSIVE, "Passive", "On kill: heal 1 HP"],
-		[NodeType.STAT_BONUS, "STR +2", "Strength +2"],
-		[NodeType.MANA, "Mana +3", "Max Mana +3"],
+		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
+		[NodeType.MANA, "Mana +5", "Max Mana +5"],
 		[NodeType.PASSIVE, "Passive", "On card play: 5% draw extra"],
-		[NodeType.STAT_BONUS, "DEX +2", "Dexterity +2"],
-		[NodeType.HEALTH, "HP +5", "Max Health +5"],
+		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
+		[NodeType.HEALTH, "HP +10", "Max Health +10"],
 		[NodeType.PASSIVE, "Passive", "On move: gain 1 armor"],
-		[NodeType.STAT_BONUS, "INT +2", "Intelligence +2"],
-		[NodeType.MANA, "Mana +3", "Max Mana +3"],
+		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
+		[NodeType.MANA, "Mana +5", "Max Mana +5"],
 		[NodeType.PASSIVE, "Passive", "On cycle: regen 1 mana"],
-		[NodeType.STAT_BONUS, "WIS +2", "Wisdom +2"],
+		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 	]
-	_create_ring(7, 12, 140.0, center, ring2_types, 2)
+	_create_ring(7, 12, 170.0, center, ring2_types, 2)
 
 	# Connect ring 2 to ring 1 (each ring1 node connects to 2 ring2 nodes)
 	for i in range(6):
@@ -183,7 +184,7 @@ func _build_grid() -> void:
 		[NodeType.PASSIVE, "Passive", "On attack: 10% apply bleed"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
 		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
-		[NodeType.PASSIVE, "Passive", "On dodge: gain 2 tempo"],
+		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],
@@ -197,7 +198,7 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.PASSIVE, "Passive", "On block: reflect 2 damage"],
 	]
-	_create_ring(19, 18, 210.0, center, ring3_types, 3)
+	_create_ring(19, 18, 260.0, center, ring3_types, 3)
 
 	# Connect ring 3 to ring 2
 	for i in range(12):
@@ -226,7 +227,7 @@ func _build_grid() -> void:
 		[NodeType.MANA, "Mana +8", "Max Mana +8"],
 		[NodeType.STAT_BONUS, "WIS +4", "Wisdom +4"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
-		[NodeType.PASSIVE, "Passive", "On discard: 20% return to hand"],
+		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.HEALTH, "HP +15", "Max Health +15"],
 		[NodeType.STAT_BONUS, "AGI +4", "Agility +4"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
@@ -235,7 +236,7 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "DET +4", "Determination +4"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
 	]
-	_create_ring(37, 24, 280.0, center, ring4_types, 4)
+	_create_ring(37, 24, 350.0, center, ring4_types, 4)
 
 	# Connect ring 4 to ring 3
 	for i in range(18):
@@ -258,7 +259,7 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "DEX +5", "Dexterity +5"],
 		[NodeType.MANA, "Mana +10", "Max Mana +10"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
-		[NodeType.PASSIVE, "Passive", "On block: 15% counterattack"],
+		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.STAT_BONUS, "INT +5", "Intelligence +5"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
 		[NodeType.PASSIVE, "Passive", "On spell cast: 5% double cast"],
@@ -280,7 +281,7 @@ func _build_grid() -> void:
 		[NodeType.HEALTH, "HP +25", "Max Health +25"],
 		[NodeType.STAT_BONUS, "DEX +6", "Dexterity +6"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
-		[NodeType.PASSIVE, "Passive", "On discard: deal 3 to random enemy"],
+		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.MANA, "Mana +12", "Max Mana +12"],
 		[NodeType.STAT_BONUS, "INT +6", "Intelligence +6"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
@@ -293,7 +294,7 @@ func _build_grid() -> void:
 	for entry in r5_labels:
 		ring5_types.append(entry)
 
-	_create_ring(61, 39, 340.0, center, ring5_types, 5)
+	_create_ring(61, 39, 440.0, center, ring5_types, 5)
 
 	# Connect ring 5 to ring 4
 	for i in range(24):
@@ -427,9 +428,7 @@ func _assign_node_details() -> void:
 		[{"label": "On attack: 20% apply bleed", "description": "Major bleed chance"}],
 		[{"label": "On attack: 10% apply poison", "description": "Poison instead of bleed"}])
 
-	_assign_passive(24,
-		[{"label": "On dodge: gain 4 tempo", "description": "Major tempo on dodge"}],
-		[{"label": "On dodge: counterattack for 5 damage", "description": "Counter on dodge"}])
+	# Node 24 is now a Culling Stone — no passive to assign
 
 	_assign_passive(30,
 		[{"label": "On heal: 30% cleanse debuff", "description": "Major cleanse chance"}],
@@ -456,9 +455,7 @@ func _assign_node_details() -> void:
 		[{"label": "On tempo cycle: all enemies -3 armor", "description": "Major armor shred"}],
 		[{"label": "On tempo cycle: all enemies -1 armor and take 1 damage", "description": "Shred with damage"}])
 
-	_assign_passive(53,
-		[{"label": "On discard: 40% return to hand", "description": "Major return chance"}],
-		[{"label": "On discard: deal 3 damage to random enemy", "description": "Damage on discard"}])
+	# Node 53 is now a Culling Stone — no passive to assign
 
 	_assign_passive(57,
 		[{"label": "On move: 20% gain haste", "description": "Major haste chance"}],

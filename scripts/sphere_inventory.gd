@@ -93,7 +93,7 @@ static func get_required_sphere_type(node_type: SphereGrid.NodeType) -> int:
 	## Returns the SphereType required to unlock a given grid node type.
 	## Returns -1 for START (cannot be unlocked with a sphere).
 	match node_type:
-		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA:
+		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA, SphereGrid.NodeType.CULLING_STONE:
 			return SphereType.STAT
 		SphereGrid.NodeType.PASSIVE:
 			return SphereType.PASSIVE

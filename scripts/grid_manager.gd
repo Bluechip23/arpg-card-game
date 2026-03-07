@@ -15,6 +15,13 @@ var _mesh_instance: MeshInstance3D
 func _ready() -> void:
 	_draw_grid()
 
+func redraw_grid() -> void:
+	## Rebuilds the grid lines after dimensions have changed.
+	if _mesh_instance and is_instance_valid(_mesh_instance):
+		_mesh_instance.queue_free()
+		_mesh_instance = null
+	_draw_grid()
+
 func _draw_grid() -> void:
 	_mesh_instance = MeshInstance3D.new()
 	add_child(_mesh_instance)
