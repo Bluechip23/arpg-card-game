@@ -17,7 +17,6 @@ var _menu_buttons: Array[Button] = []
 
 var _menu_items: Array[Dictionary] = [
 	{"text": "Single Player", "action": "_on_single_player"},
-	{"text": "Character Quiz", "action": "_on_character_quiz"},
 	{"text": "Multiplayer", "action": "_on_multiplayer"},
 	{"text": "Compendium", "action": "_on_compendium"},
 	{"text": "Settings", "action": "_on_settings"},

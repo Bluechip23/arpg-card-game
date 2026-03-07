@@ -17,8 +17,10 @@ signal character_selected(character: CharacterData)
 @onready var cancel_button: Button = $ConfirmOverlay/ConfirmPanel/VBox/ButtonContainer/CancelButton
 
 const CharacterCardScene = preload("res://scenes/character_card.tscn")
+const QuestionnaireScene = preload("res://scenes/character_questionnaire.tscn")
 
 var game_mode: String = "single_player"  # "single_player" or "multiplayer"
+var _is_quiz_character: bool = false  # Track if selected character is the quiz option
 var _selected_character: CharacterData = null
 
 # Multiplayer state
@@ -175,8 +177,35 @@ func _apply_styles() -> void:
 		cancel_button.add_theme_stylebox_override("hover", cancel_hover)
 
 func _setup_characters() -> void:
-	var characters = CharacterData.get_all_characters()
+	# Add "Customize from Inquiry" as the first option (quiz character)
+	var quiz_data = CharacterData.new()
+	quiz_data.character_name = "Customize"
+	quiz_data.strength = 5
+	quiz_data.dexterity = 5
+	quiz_data.intelligence = 5
+	quiz_data.wisdom = 5
+	quiz_data.determination = 5
+	quiz_data.agility = 5
+	quiz_data.base_health = 5
+	quiz_data.base_mana = 5
+	quiz_data.base_mana_regen = 1.0
+	quiz_data.base_draw_timer = 5
+	quiz_data.base_hand_size = 5
+	quiz_data.passive_description = "Determined by your answers"
+	quiz_data.starting_item_name = "Determined by quiz"
+	quiz_data.starting_item_description = "Answer 11 questions to build your character"
+	quiz_data.slot_specialty = "Determined by quiz"
+	quiz_data.sprite_path = ""
 
+	var quiz_card = CharacterCardScene.instantiate()
+	character_container.add_child(quiz_card)
+	quiz_card.setup(quiz_data)
+	# Override the sprite label to show "?" instead of "C"
+	quiz_card._sprite_label.text = "?"
+	quiz_card.selected.connect(_on_character_selected)
+
+	# Add the 5 preset characters
+	var characters = CharacterData.get_all_characters()
 	for character in characters:
 		var card = CharacterCardScene.instantiate()
 		character_container.add_child(card)
@@ -185,7 +214,14 @@ func _setup_characters() -> void:
 
 func _on_character_selected(character: CharacterData) -> void:
 	print("[SELECT] Character selected: %s" % character.character_name)
+
+	# If the quiz option was selected, launch the questionnaire
+	if character.character_name == "Customize":
+		_launch_questionnaire()
+		return
+
 	_selected_character = character
+	_is_quiz_character = false
 	character_selected.emit(character)
 
 	# Show proceed/cancel confirmation
@@ -197,6 +233,11 @@ func _on_character_selected(character: CharacterData) -> void:
 		confirm_title.text = "Confirm Selection"
 		confirm_subtitle.text = "Playing as %s" % character.character_name
 	confirm_overlay.visible = true
+
+func _launch_questionnaire() -> void:
+	var quiz_scene = QuestionnaireScene.instantiate()
+	get_tree().root.add_child(quiz_scene)
+	queue_free()
 
 func _on_proceed_pressed() -> void:
 	if not _selected_character:
