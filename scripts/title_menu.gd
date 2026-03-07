@@ -4,6 +4,7 @@ extends Control
 ## Title menu screen - Rock USA
 
 const CharacterSelectScene = preload("res://scenes/character_select.tscn")
+const QuestionnaireScene = preload("res://scenes/character_questionnaire.tscn")
 
 @onready var title_label: Label = $VBox/TitleLabel
 @onready var menu_container: VBoxContainer = $VBox/MenuContainer
@@ -16,6 +17,7 @@ var _menu_buttons: Array[Button] = []
 
 var _menu_items: Array[Dictionary] = [
 	{"text": "Single Player", "action": "_on_single_player"},
+	{"text": "Character Quiz", "action": "_on_character_quiz"},
 	{"text": "Multiplayer", "action": "_on_multiplayer"},
 	{"text": "Compendium", "action": "_on_compendium"},
 	{"text": "Settings", "action": "_on_settings"},
@@ -130,6 +132,11 @@ func _on_single_player() -> void:
 	var select_scene = CharacterSelectScene.instantiate()
 	select_scene.game_mode = "single_player"
 	get_tree().root.add_child(select_scene)
+	queue_free()
+
+func _on_character_quiz() -> void:
+	var quiz_scene = QuestionnaireScene.instantiate()
+	get_tree().root.add_child(quiz_scene)
 	queue_free()
 
 func _on_multiplayer() -> void:
