@@ -2,9 +2,10 @@ class_name QuestionnaireData
 extends RefCounted
 
 ## Character questionnaire - 11 personality questions that build a unique custom character.
-## Each answer contributes stat bonuses and archetype affinity points.
-## The final character gets custom stats, mixed starting cards from existing character
-## card pools, and an existing starting item/passive/slot specialty from one of the 5 characters.
+## Each answer contributes +1 stat bonus (10 total across 11 questions) and archetype affinity.
+## The final character gets custom stats, a deck of 20 cards (7 slash, 6 block, 2 heal,
+## 1 draw, 1 discard, 1 energy from base + 2 quiz cards), and an existing starting
+## item/passive/slot specialty from one of the 5 characters.
 ## Nothing is invented - all cards, items, passives, and slots come from existing characters.
 
 ## Archetypes map directly to existing characters:
@@ -16,21 +17,23 @@ static func get_questions() -> Array[Dictionary]:
 	#   "text" - display text
 	#   "stats" - stat bonuses: { "strength": 1, "dexterity": 2, etc. }
 	#   "archetypes" - archetype affinity: { Archetype.WARRIOR: 2, etc. }
+	# Each answer gives +1 to exactly one stat. 10 of 11 questions give stats (10 total).
+	# The last question only affects archetype affinity.
 	return [
 		{
 			"question": "When facing a challenge, your first instinct is to...",
 			"answers": [
 				{"text": "Charge in head-first",
-					"stats": {"strength": 1, "determination": 1},
+					"stats": {"strength": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MONK: 1}},
 				{"text": "Plan carefully before acting",
-					"stats": {"intelligence": 1, "wisdom": 1},
+					"stats": {"intelligence": 1},
 					"archetypes": {Archetype.ARCHER: 2, Archetype.MAGE: 1}},
 				{"text": "Find a creative workaround",
-					"stats": {"dexterity": 1, "agility": 1},
+					"stats": {"dexterity": 1},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.MAGE: 1}},
 				{"text": "Seek allies to help",
-					"stats": {"wisdom": 1, "determination": 1},
+					"stats": {"wisdom": 1},
 					"archetypes": {Archetype.MONK: 1, Archetype.WARRIOR: 1, Archetype.ARCHER: 1}},
 			],
 		},
@@ -38,16 +41,16 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "What matters most in a companion?",
 			"answers": [
 				{"text": "Loyalty",
-					"stats": {"determination": 1, "strength": 1},
+					"stats": {"determination": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MONK: 1}},
 				{"text": "Intelligence",
-					"stats": {"intelligence": 2},
+					"stats": {"intelligence": 1},
 					"archetypes": {Archetype.MAGE: 2, Archetype.ARCHER: 1}},
 				{"text": "Strength",
-					"stats": {"strength": 2},
+					"stats": {"strength": 1},
 					"archetypes": {Archetype.MONK: 2, Archetype.WARRIOR: 1}},
 				{"text": "Independence",
-					"stats": {"agility": 1, "dexterity": 1},
+					"stats": {"agility": 1},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.ARCHER: 1}},
 			],
 		},
@@ -55,16 +58,16 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "What's your biggest fear?",
 			"answers": [
 				{"text": "Being powerless",
-					"stats": {"strength": 1, "determination": 1},
+					"stats": {"strength": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MONK: 1}},
 				{"text": "Being alone",
-					"stats": {"wisdom": 1, "intelligence": 1},
+					"stats": {"wisdom": 1},
 					"archetypes": {Archetype.MAGE: 1, Archetype.WARRIOR: 1}},
 				{"text": "Being forgotten",
-					"stats": {"dexterity": 1, "agility": 1},
+					"stats": {"dexterity": 1},
 					"archetypes": {Archetype.ARCHER: 2, Archetype.ROGUE: 1}},
 				{"text": "Being wrong",
-					"stats": {"intelligence": 1, "wisdom": 1},
+					"stats": {"intelligence": 1},
 					"archetypes": {Archetype.MAGE: 2, Archetype.MONK: 1}},
 			],
 		},
@@ -72,16 +75,16 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "How do you handle failure?",
 			"answers": [
 				{"text": "Get back up immediately",
-					"stats": {"determination": 2},
+					"stats": {"determination": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MONK: 1}},
 				{"text": "Analyze what went wrong",
-					"stats": {"intelligence": 1, "dexterity": 1},
+					"stats": {"intelligence": 1},
 					"archetypes": {Archetype.ARCHER: 2, Archetype.MAGE: 1}},
 				{"text": "Change approach entirely",
-					"stats": {"agility": 1, "dexterity": 1},
+					"stats": {"agility": 1},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.MAGE: 1}},
 				{"text": "Seek help from others",
-					"stats": {"wisdom": 2},
+					"stats": {"wisdom": 1},
 					"archetypes": {Archetype.MONK: 1, Archetype.WARRIOR: 1}},
 			],
 		},
@@ -89,16 +92,16 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "What legacy do you want to leave?",
 			"answers": [
 				{"text": "Stories of bravery",
-					"stats": {"strength": 1, "determination": 1},
+					"stats": {"determination": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MONK: 1}},
 				{"text": "Knowledge and wisdom",
-					"stats": {"intelligence": 1, "wisdom": 1},
+					"stats": {"wisdom": 1},
 					"archetypes": {Archetype.MAGE: 2, Archetype.ARCHER: 1}},
 				{"text": "A better world for everyone",
-					"stats": {"wisdom": 1, "agility": 1},
+					"stats": {"agility": 1},
 					"archetypes": {Archetype.MONK: 2, Archetype.ARCHER: 1}},
 				{"text": "Personal mastery of your craft",
-					"stats": {"dexterity": 1, "determination": 1},
+					"stats": {"dexterity": 1},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.MONK: 1}},
 			],
 		},
@@ -106,16 +109,16 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "If you were the dictator of a country, you would prioritize:",
 			"answers": [
 				{"text": "Equality",
-					"stats": {"wisdom": 1, "strength": 1},
+					"stats": {"wisdom": 1},
 					"archetypes": {Archetype.MONK: 2, Archetype.WARRIOR: 1}},
 				{"text": "Individual agency",
-					"stats": {"agility": 1, "dexterity": 1},
+					"stats": {"agility": 1},
 					"archetypes": {Archetype.ARCHER: 2, Archetype.ROGUE: 1}},
 				{"text": "Power",
-					"stats": {"strength": 1, "intelligence": 1},
+					"stats": {"strength": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MAGE: 1}},
 				{"text": "I would give up the throne",
-					"stats": {"agility": 1, "wisdom": 1},
+					"stats": {"dexterity": 1},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.MAGE: 1}},
 			],
 		},
@@ -123,16 +126,16 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "What kind of puzzles are most exciting to you?",
 			"answers": [
 				{"text": "Competitive - Chess",
-					"stats": {"intelligence": 1, "determination": 1},
+					"stats": {"intelligence": 1},
 					"archetypes": {Archetype.MONK: 2, Archetype.ARCHER: 1}},
 				{"text": "Repetitive, but complicated - Tetris",
-					"stats": {"determination": 1, "strength": 1},
+					"stats": {"determination": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.ROGUE: 1}},
 				{"text": "Clue and people oriented - Escape rooms",
-					"stats": {"dexterity": 1, "wisdom": 1},
+					"stats": {"dexterity": 1},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.MONK: 1}},
 				{"text": "Verbal - Poetry or philosophy",
-					"stats": {"intelligence": 1, "wisdom": 1},
+					"stats": {"wisdom": 1},
 					"archetypes": {Archetype.MAGE: 2, Archetype.ARCHER: 1}},
 			],
 		},
@@ -140,16 +143,16 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "If you could have any pet, what would it be?",
 			"answers": [
 				{"text": "Lion",
-					"stats": {"strength": 2},
+					"stats": {"strength": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MONK: 1}},
 				{"text": "Rhinoceros",
-					"stats": {"determination": 1, "strength": 1},
+					"stats": {"determination": 1},
 					"archetypes": {Archetype.MONK: 2, Archetype.WARRIOR: 1}},
 				{"text": "Falcon",
-					"stats": {"dexterity": 2},
+					"stats": {"dexterity": 1},
 					"archetypes": {Archetype.ARCHER: 2, Archetype.ROGUE: 1}},
 				{"text": "Monkey",
-					"stats": {"agility": 1, "intelligence": 1},
+					"stats": {"agility": 1},
 					"archetypes": {Archetype.MAGE: 2, Archetype.ROGUE: 1}},
 			],
 		},
@@ -157,16 +160,16 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "Where would you most like to live?",
 			"answers": [
 				{"text": "Above ground, on land",
-					"stats": {"strength": 1, "determination": 1},
+					"stats": {"strength": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MONK: 1}},
 				{"text": "In the air",
-					"stats": {"dexterity": 1, "agility": 1},
+					"stats": {"agility": 1},
 					"archetypes": {Archetype.ARCHER: 2, Archetype.MAGE: 1}},
 				{"text": "Underground",
-					"stats": {"agility": 1, "dexterity": 1},
+					"stats": {"dexterity": 1},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.MONK: 1}},
 				{"text": "Underwater",
-					"stats": {"intelligence": 1, "wisdom": 1},
+					"stats": {"intelligence": 1},
 					"archetypes": {Archetype.MAGE: 2, Archetype.ARCHER: 1}},
 			],
 		},
@@ -174,33 +177,33 @@ static func get_questions() -> Array[Dictionary]:
 			"question": "If you were at a party, would you...",
 			"answers": [
 				{"text": "Be the life of it",
-					"stats": {"strength": 1, "wisdom": 1},
+					"stats": {"determination": 1},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MAGE: 1}},
 				{"text": "Find particular people you want to speak with",
-					"stats": {"dexterity": 1, "intelligence": 1},
+					"stats": {"intelligence": 1},
 					"archetypes": {Archetype.ARCHER: 2, Archetype.MONK: 1}},
 				{"text": "Keep to yourself, wait for people to join you",
-					"stats": {"agility": 1, "determination": 1},
+					"stats": {"agility": 1},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.ARCHER: 1}},
 				{"text": "Ignore the people, be there for the goodies",
-					"stats": {"intelligence": 1, "agility": 1},
+					"stats": {"dexterity": 1},
 					"archetypes": {Archetype.MAGE: 2, Archetype.ROGUE: 1}},
 			],
 		},
-		{
+		{   # Q11: archetype only, no stat bonus (keeps total at 10)
 			"question": "What would be most offending to you?",
 			"answers": [
 				{"text": "Calling you stupid",
-					"stats": {"intelligence": 2},
+					"stats": {},
 					"archetypes": {Archetype.MAGE: 2, Archetype.ARCHER: 1}},
 				{"text": "Someone scolding a kid who is not yours",
-					"stats": {"determination": 1, "wisdom": 1},
+					"stats": {},
 					"archetypes": {Archetype.WARRIOR: 2, Archetype.MONK: 1}},
 				{"text": "Challenging your individual commitment to something",
-					"stats": {"determination": 2},
+					"stats": {},
 					"archetypes": {Archetype.MONK: 2, Archetype.ROGUE: 1}},
 				{"text": "Breaking your trust",
-					"stats": {"wisdom": 1, "agility": 1},
+					"stats": {},
 					"archetypes": {Archetype.ROGUE: 2, Archetype.WARRIOR: 1}},
 			],
 		},
@@ -365,25 +368,27 @@ static func compute_result(answer_indices: Array[int]) -> Dictionary:
 	var title_matrix = _get_title_matrix()
 	var title: String = title_matrix.get([primary, secondary], "The Adventurer")
 
-	# Mix starting cards from primary and secondary character card pools
+	# Build starting_card_ids: 3 extra slash + 3 extra block + 2 quiz cards
+	# (base deck already provides 4 slash, 3 block, 2 heal, 1 draw, 1 discard, 1 energy = 12)
+	# This brings total to: 7 slash, 6 block, 2 heal, 1 draw, 1 discard, 1 energy, 2 quiz = 20
 	var card_pool = _get_card_pool()
 	var primary_cards: Array = card_pool[primary].duplicate()
 	var secondary_cards: Array = card_pool[secondary].duplicate()
 	primary_cards.shuffle()
 	secondary_cards.shuffle()
 
-	var starting_card_ids: Array = []
-	# Take up to 5 from primary character's card pool
-	for j in range(mini(5, primary_cards.size())):
-		starting_card_ids.append(primary_cards[j])
-	# Take up to 3 from secondary character's card pool (avoid duplicates)
-	var added: int = 0
+	var starting_card_ids: Array = [
+		"slash", "slash", "slash",   # 3 extra slash (base has 4, total = 7)
+		"block", "block", "block",   # 3 extra block (base has 3, total = 6)
+	]
+	# 1 card from primary archetype's pool
+	if primary_cards.size() > 0:
+		starting_card_ids.append(primary_cards[0])
+	# 1 card from secondary archetype's pool (avoid duplicate)
 	for j in range(secondary_cards.size()):
-		if added >= 3:
-			break
 		if secondary_cards[j] not in starting_card_ids:
 			starting_card_ids.append(secondary_cards[j])
-			added += 1
+			break
 
 	# Get existing item/passive/slot data from the primary archetype's character
 	var item_names = _get_archetype_item_name()

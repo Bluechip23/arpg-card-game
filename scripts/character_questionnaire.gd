@@ -450,9 +450,11 @@ func _on_back() -> void:
 		_progress_label.visible = true
 		_show_question(_current_index)
 	else:
+		# Go back to character select (quiz is accessed from there)
 		back_pressed.emit()
-		var title_scene = load("res://scenes/title_menu.tscn").instantiate()
-		get_tree().root.add_child(title_scene)
+		var select_scene = load("res://scenes/character_select.tscn").instantiate()
+		select_scene.game_mode = "single_player"
+		get_tree().root.add_child(select_scene)
 		queue_free()
 
 # ---- Styling helpers ----
