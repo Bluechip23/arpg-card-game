@@ -3,10 +3,12 @@ extends RefCounted
 
 ## Character questionnaire - 11 personality questions that build a unique custom character.
 ## Each answer contributes stat bonuses and archetype affinity points.
-## The final character gets custom stats, starting cards, a starting item with passive,
-## and an auto-generated title based on the dominant archetype combination.
+## The final character gets custom stats, mixed starting cards from existing character
+## card pools, and an existing starting item/passive/slot specialty from one of the 5 characters.
+## Nothing is invented - all cards, items, passives, and slots come from existing characters.
 
-## Archetypes determine card pool and starting item selection.
+## Archetypes map directly to existing characters:
+## WARRIOR = Brad, ROGUE = Ryan, MAGE = Jeremy, ARCHER = Stephen, MONK = Cory
 enum Archetype { WARRIOR, ROGUE, MAGE, ARCHER, MONK }
 
 static func get_questions() -> Array[Dictionary]:
@@ -204,74 +206,82 @@ static func get_questions() -> Array[Dictionary]:
 		},
 	]
 
-# ---- Card pools by archetype ----
+# ---- Card pools: exact starting_card_ids from each existing character ----
+# These are the real cards each character starts with (from character_data.gd).
 
 static func _get_card_pool() -> Dictionary:
 	return {
-		Archetype.WARRIOR: [
-			"taunt", "life_steal", "roar", "turtle_up", "parry",
-			"charge", "heroic_leap", "morphine", "armor_break",
-			"hold_the_line", "approach", "wear_down", "life_swap", "poke",
+		Archetype.WARRIOR: [  # Brad's cards
+			"heal", "heal",
+			"life_swap", "wear_down", "taunt", "life_steal", "roar",
+			"poke", "armor_break", "charge", "heroic_leap", "morphine",
+			"turtle_up", "parry", "approach", "hold_the_line",
 		],
-		Archetype.ROGUE: [
+		Archetype.ROGUE: [  # Ryan's cards
+			"discard", "discard",
+			"raged_circulation", "poisoned_blood", "elixir", "heal",
 			"shadows", "preparation", "exacerbate_wounds", "reposition",
-			"dagger_throw", "volatile_mixture", "poisoned_blood",
-			"raged_circulation", "shuriken_pouch", "premeditated", "elixir",
+			"dagger_throw", "volatile_mixture", "understanding",
+			"shuriken_pouch", "premeditated",
 		],
-		Archetype.MAGE: [
-			"trick_shot", "surrounding_ice", "risk_it", "loaded_die",
-			"energy_ball", "hope_this_works", "lady_luck",
-			"snowballs_chance", "worst_that_could_happen", "biscuit",
+		Archetype.MAGE: [  # Jeremy's cards
+			"draw", "draw",
+			"trick_shot", "surrounding_ice", "risk_it", "biscuit",
+			"loaded_die", "worst_that_could_happen", "oops", "house_money",
+			"hope_this_works", "lady_luck", "try_this", "if_pigs_could_fly",
+			"snowballs_chance",
 		],
-		Archetype.ARCHER: [
-			"mark", "quick_shot", "reload", "enchanted_quiver",
-			"tighten_string", "sky_fall", "sky_attack", "lead_arrow",
-			"last_breath", "bottomless_quiver", "rise", "down_town", "mixed_bag",
+		Archetype.ARCHER: [  # Stephen's cards
+			"empower", "empower",
+			"mark", "rise", "quick_shot", "reload", "enchanted_quiver",
+			"tighten_string", "down_town", "barricade", "sky_fall",
+			"sky_attack", "lead_arrow", "last_breath", "mixed_bag",
+			"bottomless_quiver",
 		],
-		Archetype.MONK: [
+		Archetype.MONK: [  # Cory's cards
+			"blink", "blink",
 			"round_em_up", "trip", "choke", "push", "defensive_awareness",
-			"sweeping_disarm", "consecutive_snap", "swap", "meditate", "blink",
+			"sweeping_disarm", "consecutive_snap", "swap", "meditate",
 		],
 	}
 
-# ---- Starting items by archetype ----
-# Each archetype has a unique starting item defined inline.
-# The item is created using ItemData's factory methods or constructed manually.
+# ---- Existing character properties mapped to archetypes ----
+# All values below are taken directly from the 5 existing characters in character_data.gd.
 
-static func _get_archetype_item_id() -> Dictionary:
+static func _get_archetype_passive() -> Dictionary:
 	return {
-		Archetype.WARRIOR: "questionnaire_warrior_item",
-		Archetype.ROGUE: "questionnaire_rogue_item",
-		Archetype.MAGE: "questionnaire_mage_item",
-		Archetype.ARCHER: "questionnaire_archer_item",
-		Archetype.MONK: "questionnaire_monk_item",
+		Archetype.WARRIOR: "Chest items weigh 15% less",               # Brad
+		Archetype.ROGUE: "Belt cards cost 1 less mana",                # Ryan
+		Archetype.MAGE: "First ring trigger per turn triggers twice",  # Jeremy
+		Archetype.ARCHER: "+10% off-hand enchantments (others get -10%)",  # Stephen
+		Archetype.MONK: "Gain 1 mana when gauntlet skill comes off cooldown",  # Cory
 	}
 
 static func _get_archetype_item_name() -> Dictionary:
 	return {
-		Archetype.WARRIOR: "Ironclad Crest",
-		Archetype.ROGUE: "Shadowstep Sash",
-		Archetype.MAGE: "Arcane Focus Ring",
-		Archetype.ARCHER: "Windrunner Boots",
-		Archetype.MONK: "Discipline Wraps",
+		Archetype.WARRIOR: "Bloodbound Plate",    # Brad
+		Archetype.ROGUE: "Adventurer's Belt",      # Ryan
+		Archetype.MAGE: "Scholar's Signet",        # Jeremy
+		Archetype.ARCHER: "Flickerstep Boots",     # Stephen
+		Archetype.MONK: "Grasping Gauntlets",      # Cory
 	}
 
-static func _get_archetype_passive_description() -> Dictionary:
+static func _get_archetype_item_description() -> Dictionary:
 	return {
-		Archetype.WARRIOR: "Gain 2 armor at the start of each cycle",
-		Archetype.ROGUE: "First attack each turn deals 20% bonus damage",
-		Archetype.MAGE: "Gain 1 mana when you play a utility card",
-		Archetype.ARCHER: "Ranged attacks have +1 range",
-		Archetype.MONK: "Draw 1 extra card every other cycle",
+		Archetype.WARRIOR: "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain",  # Brad
+		Archetype.ROGUE: "Grants: Healing Potion & Dagger Throw",                # Ryan
+		Archetype.MAGE: "+3 INT. +3% chance. On Utility: +1 Mana",              # Jeremy
+		Archetype.ARCHER: "+2 DEX. Grants 1 Blink card",                         # Stephen
+		Archetype.MONK: "+2 Hand Size. Skill: Power Grip (8 dmg, CD 3, Cost 2)", # Cory
 	}
 
 static func _get_archetype_slot_specialty() -> Dictionary:
 	return {
-		Archetype.WARRIOR: "Versatile: 4 weapon slots, 2 chest slots",
-		Archetype.ROGUE: "Versatile: 4 belt slots, 2 ring slots",
-		Archetype.MAGE: "Versatile: 4 ring slots, 2 belt slots",
-		Archetype.ARCHER: "Versatile: 3 weapon slots, 3 ring slots",
-		Archetype.MONK: "Versatile: 3 gauntlet slots, 3 boot slots",
+		Archetype.WARRIOR: "8 weapon slots",                   # Brad
+		Archetype.ROGUE: "4 belt slots",                       # Ryan
+		Archetype.MAGE: "4 ring slots",                        # Jeremy
+		Archetype.ARCHER: "4 weapon slots, 3 ring slots",     # Stephen
+		Archetype.MONK: "2 gauntlet slots",                    # Cory
 	}
 
 # ---- Title generation ----
@@ -320,6 +330,8 @@ static func _get_archetype_flavor() -> Dictionary:
 # ---- Core computation ----
 
 ## Given answer indices, build a complete custom character result.
+## The starting cards are mixed from two existing character card pools.
+## The item, passive, and slot specialty come from one existing character.
 static func compute_result(answer_indices: Array[int]) -> Dictionary:
 	var questions = get_questions()
 
@@ -338,10 +350,8 @@ static func compute_result(answer_indices: Array[int]) -> Dictionary:
 		var chosen = answer_indices[i]
 		if chosen >= 0 and chosen < q["answers"].size():
 			var answer = q["answers"][chosen]
-			# Add stat bonuses
 			for stat_name in answer["stats"]:
 				stat_bonuses[stat_name] += answer["stats"][stat_name]
-			# Add archetype affinity
 			for arch in answer["archetypes"]:
 				archetype_scores[arch] += answer["archetypes"][arch]
 
@@ -355,7 +365,7 @@ static func compute_result(answer_indices: Array[int]) -> Dictionary:
 	var title_matrix = _get_title_matrix()
 	var title: String = title_matrix.get([primary, secondary], "The Adventurer")
 
-	# Select starting cards: 5 from primary pool, 3 from secondary pool
+	# Mix starting cards from primary and secondary character card pools
 	var card_pool = _get_card_pool()
 	var primary_cards: Array = card_pool[primary].duplicate()
 	var secondary_cards: Array = card_pool[secondary].duplicate()
@@ -363,10 +373,10 @@ static func compute_result(answer_indices: Array[int]) -> Dictionary:
 	secondary_cards.shuffle()
 
 	var starting_card_ids: Array = []
-	# Take up to 5 from primary
+	# Take up to 5 from primary character's card pool
 	for j in range(mini(5, primary_cards.size())):
 		starting_card_ids.append(primary_cards[j])
-	# Take up to 3 from secondary (avoid duplicates)
+	# Take up to 3 from secondary character's card pool (avoid duplicates)
 	var added: int = 0
 	for j in range(secondary_cards.size()):
 		if added >= 3:
@@ -375,9 +385,10 @@ static func compute_result(answer_indices: Array[int]) -> Dictionary:
 			starting_card_ids.append(secondary_cards[j])
 			added += 1
 
-	# Get item and passive info
+	# Get existing item/passive/slot data from the primary archetype's character
 	var item_names = _get_archetype_item_name()
-	var passive_descs = _get_archetype_passive_description()
+	var item_descs = _get_archetype_item_description()
+	var passives = _get_archetype_passive()
 	var slot_specs = _get_archetype_slot_specialty()
 	var flavors = _get_archetype_flavor()
 
@@ -389,7 +400,8 @@ static func compute_result(answer_indices: Array[int]) -> Dictionary:
 		"archetype_scores": archetype_scores,
 		"starting_card_ids": starting_card_ids,
 		"starting_item_name": item_names[primary],
-		"passive_description": passive_descs[primary],
+		"starting_item_description": item_descs[primary],
+		"passive_description": passives[primary],
 		"slot_specialty": slot_specs[primary],
 		"flavor_text": flavors[primary],
 	}
@@ -408,20 +420,20 @@ static func build_character(result: Dictionary) -> CharacterData:
 	data.determination = 5 + bonuses["determination"]
 	data.agility = 5 + bonuses["agility"]
 
-	# Derived stats
+	# Derived stats (same as all existing characters)
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
 	data.base_hand_size = 5
 
-	# Starting cards from questionnaire
+	# Mixed starting cards from two existing character card pools
 	data.starting_card_ids = result["starting_card_ids"]
 
-	# Display info
+	# Display info (all from existing characters)
 	data.passive_description = result["passive_description"]
 	data.starting_item_name = result["starting_item_name"]
-	data.starting_item_description = result["passive_description"]
+	data.starting_item_description = result["starting_item_description"]
 	data.slot_specialty = result["slot_specialty"]
 	data.sprite_path = ""  # Custom character has no preset sprite
 
@@ -435,4 +447,14 @@ static func get_archetype_name(arch: int) -> String:
 		Archetype.MAGE: return "Mage"
 		Archetype.ARCHER: return "Archer"
 		Archetype.MONK: return "Monk"
+		_: return "Unknown"
+
+## Get the existing character name for an archetype.
+static func get_character_for_archetype(arch: int) -> String:
+	match arch:
+		Archetype.WARRIOR: return "Brad"
+		Archetype.ROGUE: return "Ryan"
+		Archetype.MAGE: return "Jeremy"
+		Archetype.ARCHER: return "Stephen"
+		Archetype.MONK: return "Cory"
 		_: return "Unknown"

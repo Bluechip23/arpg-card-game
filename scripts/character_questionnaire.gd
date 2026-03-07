@@ -318,6 +318,13 @@ func _show_result() -> void:
 	item_name.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
 	right_col.add_child(item_name)
 
+	var item_desc = Label.new()
+	item_desc.text = _last_result["starting_item_description"]
+	item_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	item_desc.add_theme_font_size_override("font_size", 13)
+	item_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	right_col.add_child(item_desc)
+
 	# Passive
 	var passive_title = Label.new()
 	passive_title.text = "Passive Ability"
