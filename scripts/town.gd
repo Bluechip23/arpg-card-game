@@ -23,6 +23,8 @@ var vendor_open: bool = false
 var quest_manager: QuestManager = null
 var _quest_panel: PanelContainer = null
 var _quest_panel_open: bool = false
+var _town_waypoint_node: Node3D = null
+var _near_town_waypoint: bool = false
 
 # Item detail modal (built dynamically)
 var _detail_modal: PanelContainer = null
@@ -91,6 +93,9 @@ func _ready() -> void:
 
 	# Create Olorin NPC
 	_create_olorin_npc()
+
+	# Create battle waypoint portal
+	_create_town_waypoint()
 
 func _apply_styles() -> void:
 	# Town label
@@ -171,7 +176,19 @@ func _process(_delta: float) -> void:
 
 	nearby_vendor = closest_vendor
 
-	if nearby_vendor:
+	# Check proximity to battle waypoint
+	_near_town_waypoint = false
+	if _town_waypoint_node:
+		var wp_dist = player.position.distance_to(_town_waypoint_node.position)
+		if wp_dist < INTERACT_DISTANCE:
+			_near_town_waypoint = true
+		var wp_label = _town_waypoint_node.get_node_or_null("InteractLabel")
+		if wp_label:
+			wp_label.visible = wp_dist < INTERACT_DISTANCE + 1
+
+	if _near_town_waypoint:
+		interact_prompt.text = "Press [Shift] to enter the dungeon"
+	elif nearby_vendor:
 		var info = vendor_info.get(nearby_vendor.name, null)
 		var display_name = info["name"] if info else nearby_vendor.name
 		interact_prompt.text = "Press [Shift] to interact with %s" % display_name
@@ -183,6 +200,9 @@ func _input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_SHIFT:
 				if _modal_open or vendor_open:
+					return
+				if _near_town_waypoint:
+					_go_to_battle()
 					return
 				if nearby_vendor:
 					_open_vendor(nearby_vendor)
@@ -1189,6 +1209,53 @@ func _create_olorin_npc() -> void:
 
 	$Vendors.add_child(olorin)
 	print("[TOWN] Created Olorin NPC at position %s" % olorin.position)
+
+func _create_town_waypoint() -> void:
+	## Creates a waypoint portal in town that takes the player back to battle.
+	_town_waypoint_node = Node3D.new()
+	_town_waypoint_node.name = "BattleWaypoint"
+
+	# Glowing pillar (green to match dungeon world portals)
+	var pillar = MeshInstance3D.new()
+	var cyl = CylinderMesh.new()
+	cyl.top_radius = 0.3
+	cyl.bottom_radius = 0.4
+	cyl.height = 2.0
+	pillar.mesh = cyl
+	var pillar_mat = StandardMaterial3D.new()
+	pillar_mat.albedo_color = Color(0.3, 1.0, 0.4, 1.0)
+	pillar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pillar_mat.emission_enabled = true
+	pillar_mat.emission = Color(0.3, 1.0, 0.4)
+	pillar_mat.emission_energy_multiplier = 0.5
+	pillar.material_override = pillar_mat
+	pillar.position = Vector3(0, 1.0, 0)
+	_town_waypoint_node.add_child(pillar)
+
+	# Name label
+	var label = Label3D.new()
+	label.text = "Battle Portal"
+	label.font_size = 20
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(0.3, 1.0, 0.5)
+	label.position = Vector3(0, 2.5, 0)
+	_town_waypoint_node.add_child(label)
+
+	# Interact label
+	var interact_label = Label3D.new()
+	interact_label.name = "InteractLabel"
+	interact_label.text = "[Shift] Enter Dungeon"
+	interact_label.font_size = 16
+	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	interact_label.modulate = Color(1.0, 0.9, 0.4)
+	interact_label.position = Vector3(0, 3.0, 0)
+	interact_label.visible = false
+	_town_waypoint_node.add_child(interact_label)
+
+	# Position near the town entrance area
+	_town_waypoint_node.position = Vector3(4, 0, 10)
+	add_child(_town_waypoint_node)
+	print("[TOWN] Created battle waypoint portal")
 
 func _open_quest_dialog(vendor_node: StaticBody3D) -> void:
 	var info = vendor_info.get(vendor_node.name, null)
