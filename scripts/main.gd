@@ -3729,6 +3729,9 @@ func _setup_dungeon() -> void:
 		quest_manager = QuestManager.new()
 		quest_manager.name = "QuestManager"
 		add_child(quest_manager)
+		# Auto-accept available quests so they appear in the quest log
+		for quest_id in quest_manager.available_quests.keys():
+			quest_manager.accept_quest(quest_id)
 
 	# Setup minimap
 	_setup_minimap()
@@ -4977,7 +4980,8 @@ func _check_waypoint_discovery(player_grid: Vector2i) -> void:
 		add_battle_log("Waypoint discovered: %s" % wp["display_name"], Color(0.3, 0.9, 1.0))
 
 func _try_interact_waypoint() -> bool:
-	## Opens the waypoint teleport menu if near a discovered waypoint.
+	## Handles Shift near a waypoint. Green/yellow portals travel directly.
+	## Blue town waypoints open the teleport menu.
 	if not dungeon_manager:
 		return false
 	var player_grid = grid_manager.world_to_grid(player.position)
@@ -4988,7 +4992,16 @@ func _try_interact_waypoint() -> bool:
 	if not dungeon_manager.waypoint_nodes[wp_idx]["discovered"]:
 		add_battle_log("Walk onto the waypoint to discover it first.", Color(0.8, 0.8, 0.5))
 		return true
-	# Open teleport menu
+	# Next/prev world portals travel directly (original behavior)
+	var target = dungeon_manager.waypoint_nodes[wp_idx]["target"]
+	match target:
+		"next_world":
+			_travel_to_world(current_world_level + 1)
+			return true
+		"prev_world":
+			_travel_to_world(current_world_level - 1)
+			return true
+	# Town waypoint opens the teleport menu
 	_open_waypoint_menu()
 	return true
 
@@ -5011,6 +5024,7 @@ func _open_waypoint_menu() -> void:
 	_waypoint_menu_panel.offset_right = (1280.0 + wp_w) / 2.0
 	_waypoint_menu_panel.offset_bottom = (720.0 + wp_h) / 2.0
 	_waypoint_menu_panel.custom_minimum_size = Vector2(wp_w, wp_h)
+	_waypoint_menu_panel.z_index = 100  # Sit on top of cards and other UI
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.06, 0.12, 0.95)
@@ -5286,6 +5300,7 @@ func _setup_tab_menu() -> void:
 	_tab_menu_panel.offset_bottom = (720.0 + tab_h) / 2.0
 	_tab_menu_panel.custom_minimum_size = Vector2(tab_w, tab_h)
 	_tab_menu_panel.visible = false
+	_tab_menu_panel.z_index = 100  # Sit on top of cards and other UI
 
 	var panel_style = StyleBoxFlat.new()
 	panel_style.bg_color = Color(0.06, 0.06, 0.1, 0.95)
