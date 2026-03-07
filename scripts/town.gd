@@ -18,6 +18,7 @@ const INTERACT_DISTANCE: float = 2.5  # Max tiles from vendor to interact
 
 var starting_character: CharacterData = null
 var discovered_waypoints: Array = []
+var quest_state: Dictionary = {}
 var nearby_vendor: StaticBody3D = null
 var vendor_open: bool = false
 var quest_manager: QuestManager = null
@@ -90,6 +91,9 @@ func _ready() -> void:
 	quest_manager = QuestManager.new()
 	quest_manager.name = "QuestManager"
 	add_child(quest_manager)
+	# Restore quest state from battle scene
+	if not quest_state.is_empty():
+		quest_manager.load_state(quest_state)
 
 	# Create Olorin NPC
 	_create_olorin_npc()
@@ -1322,8 +1326,22 @@ func _open_quest_dialog(vendor_node: StaticBody3D) -> void:
 			accept_btn.pressed.connect(_on_accept_quest.bind(quest.id))
 			vendor_item_list.add_child(accept_btn)
 	else:
-		# Quest is active but not complete
-		_add_info_label("Come back when you've dealt with those wererats!", Color(0.7, 0.7, 0.7))
+		# Quest is active but not complete — show progress
+		for quest in quest_manager.get_active_quests():
+			if quest.giver == "Olorin":
+				_add_info_label(quest.name, Color(0.5, 1.0, 0.5))
+				var progress_lbl = Label.new()
+				progress_lbl.text = "  %s" % quest.get_objective_text()
+				progress_lbl.add_theme_font_size_override("font_size", 14)
+				progress_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
+				vendor_item_list.add_child(progress_lbl)
+
+				var accepted_lbl = Label.new()
+				accepted_lbl.text = "Accepted"
+				accepted_lbl.add_theme_font_size_override("font_size", 16)
+				accepted_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+				vendor_item_list.add_child(accepted_lbl)
+				break
 
 	vendor_panel.visible = true
 	interact_prompt.text = ""
@@ -1332,7 +1350,21 @@ func _open_quest_dialog(vendor_node: StaticBody3D) -> void:
 func _on_accept_quest(quest_id: String) -> void:
 	if quest_manager.accept_quest(quest_id):
 		print("[TOWN] Quest accepted: %s" % quest_id)
-		_close_vendor()
+		# Refresh the dialog to show "Accepted" state instead of closing
+		_refresh_quest_dialog_after_accept(quest_id)
+
+func _refresh_quest_dialog_after_accept(_quest_id: String) -> void:
+	## Replace the accept button with a green "Accepted" label in the current dialog.
+	# Find and remove the accept button, replace with accepted label
+	for child in vendor_item_list.get_children():
+		if child is Button and child.text == "Accept Quest":
+			var accepted_lbl = Label.new()
+			accepted_lbl.text = "Accepted"
+			accepted_lbl.add_theme_font_size_override("font_size", 16)
+			accepted_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+			vendor_item_list.add_child(accepted_lbl)
+			child.queue_free()
+			break
 
 func _on_turn_in_quest(quest_id: String) -> void:
 	var rewards = quest_manager.turn_in_quest(quest_id)
@@ -1367,8 +1399,10 @@ func _go_to_battle() -> void:
 		_close_vendor()
 
 	print("[TOWN] Heading to battle!")
+	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var main_scene = load("res://main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.discovered_waypoints = discovered_waypoints
+	main_scene.quest_state = saved_quest_state
 	get_tree().root.add_child(main_scene)
 	queue_free()

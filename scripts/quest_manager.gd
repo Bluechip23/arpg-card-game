@@ -120,6 +120,48 @@ func has_active_quest_from(giver_name: String) -> bool:
 			return true
 	return false
 
+func save_state() -> Dictionary:
+	## Serialize quest state for passing between scenes.
+	var state: Dictionary = {"accepted_ids": [], "completed_ids": [], "kill_counts": {}}
+	for quest in active_quests:
+		state["accepted_ids"].append(quest.id)
+		if quest.objective_type == "kill":
+			state["kill_counts"][quest.objective_target] = quest.current_count
+	for quest in completed_quests:
+		state["completed_ids"].append(quest.id)
+	return state
+
+func load_state(state: Dictionary) -> void:
+	## Restore quest state from a saved dictionary.
+	if state.is_empty():
+		return
+	var accepted_ids: Array = state.get("accepted_ids", [])
+	var completed_ids: Array = state.get("completed_ids", [])
+	var kill_counts: Dictionary = state.get("kill_counts", {})
+
+	# Accept quests that were previously accepted
+	for quest_id in accepted_ids:
+		if quest_id in available_quests:
+			accept_quest(quest_id)
+
+	# Restore kill counts
+	for quest in active_quests:
+		if quest.objective_type == "kill" and quest.objective_target in kill_counts:
+			quest.current_count = kill_counts[quest.objective_target]
+			if quest.current_count >= quest.objective_count:
+				quest.is_complete = true
+
+	# Mark completed quests
+	for quest_id in completed_ids:
+		# Move from active to completed if still there
+		for i in range(active_quests.size() - 1, -1, -1):
+			if active_quests[i].id == quest_id:
+				active_quests[i].is_complete = true
+				active_quests[i].is_turned_in = true
+				completed_quests.append(active_quests[i])
+				active_quests.remove_at(i)
+				break
+
 func get_turnable_quest_for(giver_name: String) -> Quest:
 	for quest in active_quests:
 		if quest.giver == giver_name and quest.is_complete and not quest.is_turned_in:
