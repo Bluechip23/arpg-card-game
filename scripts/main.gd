@@ -5003,10 +5003,14 @@ func _open_waypoint_menu() -> void:
 	_waypoint_menu_panel = PanelContainer.new()
 	_waypoint_menu_panel.name = "WaypointMenu"
 	ui.add_child(_waypoint_menu_panel)
-	_waypoint_menu_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_waypoint_menu_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_waypoint_menu_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_waypoint_menu_panel.custom_minimum_size = Vector2(350, 200)
+	# Explicitly center on 1280x720 screen
+	var wp_w = 350.0
+	var wp_h = 300.0
+	_waypoint_menu_panel.offset_left = (1280.0 - wp_w) / 2.0
+	_waypoint_menu_panel.offset_top = (720.0 - wp_h) / 2.0
+	_waypoint_menu_panel.offset_right = (1280.0 + wp_w) / 2.0
+	_waypoint_menu_panel.offset_bottom = (720.0 + wp_h) / 2.0
+	_waypoint_menu_panel.custom_minimum_size = Vector2(wp_w, wp_h)
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.06, 0.12, 0.95)
@@ -5161,12 +5165,12 @@ func _setup_minimap() -> void:
 	_minimap_panel.name = "MinimapPanel"
 	ui.add_child(_minimap_panel)
 
-	# Position in upper-right corner (avoids unit tracker on left)
-	_minimap_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_minimap_panel.offset_left = -(MINIMAP_SIZE + 16)
-	_minimap_panel.offset_top = 8.0
-	_minimap_panel.offset_right = -8.0
-	_minimap_panel.offset_bottom = 8.0 + MINIMAP_SIZE + 8
+	# Position in upper-left corner
+	_minimap_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_minimap_panel.offset_left = 8.0
+	_minimap_panel.offset_top = 40.0
+	_minimap_panel.offset_right = 8.0 + MINIMAP_SIZE + 8
+	_minimap_panel.offset_bottom = 40.0 + MINIMAP_SIZE + 8
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.05, 0.08, 0.85)
@@ -5273,10 +5277,14 @@ func _setup_tab_menu() -> void:
 	_tab_menu_panel = PanelContainer.new()
 	_tab_menu_panel.name = "TabMenuPanel"
 	ui.add_child(_tab_menu_panel)
-	_tab_menu_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_tab_menu_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_tab_menu_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_tab_menu_panel.custom_minimum_size = Vector2(750, 550)
+	# Explicitly center on 1280x720 screen
+	var tab_w = 750.0
+	var tab_h = 550.0
+	_tab_menu_panel.offset_left = (1280.0 - tab_w) / 2.0
+	_tab_menu_panel.offset_top = (720.0 - tab_h) / 2.0
+	_tab_menu_panel.offset_right = (1280.0 + tab_w) / 2.0
+	_tab_menu_panel.offset_bottom = (720.0 + tab_h) / 2.0
+	_tab_menu_panel.custom_minimum_size = Vector2(tab_w, tab_h)
 	_tab_menu_panel.visible = false
 
 	var panel_style = StyleBoxFlat.new()
