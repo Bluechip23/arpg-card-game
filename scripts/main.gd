@@ -3673,6 +3673,15 @@ func _input(event: InputEvent) -> void:
 			else:
 				move_dialog.show_dialog(mouse_pos, spaces)
 
+	# Mouse wheel zoom
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
+			_update_camera()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
+			_update_camera()
+
 	# Camera orbit - left click drag when no card is selected
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:

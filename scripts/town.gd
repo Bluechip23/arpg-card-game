@@ -27,6 +27,20 @@ var _quest_panel_open: bool = false
 var _town_waypoint_node: Node3D = null
 var _near_town_waypoint: bool = false
 
+# Camera orbit state (same as main scene)
+var _camera_focus: Vector3 = Vector3(10, 0, 6)
+var _camera_yaw: float = 0.0
+var _camera_pitch: float = -0.785
+var _camera_distance: float = 17.0
+var _camera_orbiting: bool = false
+var _camera_drag_start: Vector2 = Vector2.ZERO
+const CAMERA_PITCH_MIN: float = -1.4
+const CAMERA_PITCH_MAX: float = -0.15
+const CAMERA_ZOOM_MIN: float = 6.0
+const CAMERA_ZOOM_MAX: float = 35.0
+const CAMERA_ZOOM_STEP: float = 2.0
+const CAMERA_ORBIT_SENSITIVITY: float = 0.005
+
 # Item detail modal (built dynamically)
 var _detail_modal: PanelContainer = null
 var _detail_item: ItemData = null
@@ -100,6 +114,22 @@ func _ready() -> void:
 
 	# Create battle waypoint portal
 	_create_town_waypoint()
+
+	# Initialize camera
+	_camera_focus = player.position + Vector3(3, 0, 0)
+	_update_camera()
+
+func _update_camera() -> void:
+	var camera = get_viewport().get_camera_3d()
+	if not camera:
+		return
+	var offset = Vector3(
+		sin(_camera_yaw) * cos(_camera_pitch) * _camera_distance,
+		-sin(_camera_pitch) * _camera_distance,
+		cos(_camera_yaw) * cos(_camera_pitch) * _camera_distance
+	)
+	camera.position = _camera_focus + offset
+	camera.look_at(_camera_focus, Vector3.UP)
 
 func _apply_styles() -> void:
 	# Town label
@@ -215,6 +245,36 @@ func _input(event: InputEvent) -> void:
 					_close_detail_modal()
 				elif vendor_open:
 					_close_vendor()
+			KEY_COMMA:
+				_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
+				_update_camera()
+			KEY_PERIOD:
+				_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
+				_update_camera()
+
+	# Mouse wheel zoom
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
+			_update_camera()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
+			_update_camera()
+
+	# Camera orbit - left click drag
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if not vendor_open and not _modal_open:
+				_camera_orbiting = true
+				_camera_drag_start = event.position
+		else:
+			_camera_orbiting = false
+
+	if event is InputEventMouseMotion and _camera_orbiting:
+		var delta = event.relative
+		_camera_yaw -= delta.x * CAMERA_ORBIT_SENSITIVITY
+		_camera_pitch = clamp(_camera_pitch - delta.y * CAMERA_ORBIT_SENSITIVITY, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX)
+		_update_camera()
 
 	# Right-click movement (simplified town movement)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
