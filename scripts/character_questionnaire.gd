@@ -2,7 +2,7 @@ class_name CharacterQuestionnaire
 extends Control
 
 ## Character questionnaire UI - presents 11 personality questions one at a time,
-## then shows the recommended character with an option to proceed or retake.
+## then shows a custom-built character with stats, cards, item, and title.
 
 signal character_recommended(character: CharacterData)
 signal back_pressed
@@ -10,6 +10,7 @@ signal back_pressed
 var _questions: Array[Dictionary] = []
 var _current_index: int = 0
 var _answers: Array[int] = []
+var _last_result: Dictionary = {}
 
 # UI references (built dynamically)
 var _background: ColorRect
@@ -22,9 +23,11 @@ var _back_button: Button
 
 # Result screen references
 var _result_panel: VBoxContainer = null
-var _result_name_label: Label = null
-var _result_desc_label: Label = null
-var _score_container: VBoxContainer = null
+var _result_title_label: Label = null
+var _result_flavor_label: Label = null
+var _stats_container: HBoxContainer = null
+var _archetype_container: VBoxContainer = null
+var _details_container: VBoxContainer = null
 
 func _ready() -> void:
 	_questions = QuestionnaireData.get_questions()
@@ -50,7 +53,7 @@ func _build_ui() -> void:
 	_back_button.pressed.connect(_on_back)
 	add_child(_back_button)
 
-	# Main content container (centered vertically)
+	# Main content container
 	_main_vbox = VBoxContainer.new()
 	_main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_main_vbox.offset_left = 80.0
@@ -60,7 +63,7 @@ func _build_ui() -> void:
 	_main_vbox.add_theme_constant_override("separation", 24)
 	add_child(_main_vbox)
 
-	# Progress label (e.g. "Question 3 of 11")
+	# Progress label
 	_progress_label = Label.new()
 	_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_progress_label.add_theme_font_size_override("font_size", 14)
@@ -89,7 +92,7 @@ func _build_ui() -> void:
 	_answers_vbox.add_theme_constant_override("separation", 12)
 	answer_center.add_child(_answers_vbox)
 
-	# Create 4 answer buttons (reused for each question)
+	# Create 4 answer buttons
 	for i in range(4):
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(600, 50)
@@ -105,7 +108,6 @@ func _show_question(index: int) -> void:
 	if index < 0 or index >= _questions.size():
 		return
 
-	# Hide result panel if showing
 	if _result_panel:
 		_result_panel.visible = false
 	_answers_vbox.get_parent().visible = true
@@ -134,165 +136,271 @@ func _on_answer_selected(answer_index: int) -> void:
 		_show_question(_current_index)
 
 func _show_result() -> void:
-	var result = QuestionnaireData.compute_result(_answers)
-	var recommended: String = result["recommended"]
-	var scores: Dictionary = result["scores"]
+	_last_result = QuestionnaireData.compute_result(_answers)
 
 	# Hide question UI
 	_question_label.visible = false
 	_progress_label.visible = false
 	_answers_vbox.get_parent().visible = false
 
-	# Build or reuse result panel
-	if not _result_panel:
-		_result_panel = VBoxContainer.new()
-		_result_panel.add_theme_constant_override("separation", 16)
-		_main_vbox.add_child(_result_panel)
+	# Remove old result panel if retaking
+	if _result_panel:
+		_result_panel.queue_free()
+		_result_panel = null
 
-		var title = Label.new()
-		title.text = "Your Character Recommendation"
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.add_theme_font_size_override("font_size", 28)
-		title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-		_result_panel.add_child(title)
+	_result_panel = VBoxContainer.new()
+	_result_panel.add_theme_constant_override("separation", 12)
+	_main_vbox.add_child(_result_panel)
 
-		# Character name
-		_result_name_label = Label.new()
-		_result_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_result_name_label.add_theme_font_size_override("font_size", 36)
-		_result_name_label.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
-		_result_panel.add_child(_result_name_label)
+	# ---- Title Section ----
+	var header = Label.new()
+	header.text = "Your Character"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.add_theme_font_size_override("font_size", 22)
+	header.add_theme_color_override("font_color", Color(0.6, 0.6, 0.72))
+	_result_panel.add_child(header)
 
-		# Description
-		_result_desc_label = Label.new()
-		_result_desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_result_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_result_desc_label.add_theme_font_size_override("font_size", 16)
-		_result_desc_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-		_result_panel.add_child(_result_desc_label)
+	_result_title_label = Label.new()
+	_result_title_label.text = _last_result["title"]
+	_result_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_result_title_label.add_theme_font_size_override("font_size", 36)
+	_result_title_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	_result_panel.add_child(_result_title_label)
 
-		# Spacer
-		var sp = Control.new()
-		sp.custom_minimum_size = Vector2(0, 8)
-		_result_panel.add_child(sp)
+	# Flavor text
+	_result_flavor_label = Label.new()
+	_result_flavor_label.text = _last_result["flavor_text"]
+	_result_flavor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_result_flavor_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_result_flavor_label.add_theme_font_size_override("font_size", 14)
+	_result_flavor_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	_result_panel.add_child(_result_flavor_label)
 
-		# Score breakdown title
-		var score_title = Label.new()
-		score_title.text = "Affinity Scores"
-		score_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		score_title.add_theme_font_size_override("font_size", 18)
-		score_title.add_theme_color_override("font_color", Color(0.6, 0.6, 0.72))
-		_result_panel.add_child(score_title)
+	# ---- Two-column layout: Stats + Archetype on left, Details on right ----
+	var columns = HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 40)
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_result_panel.add_child(columns)
 
-		# Score bars container
-		var score_center = CenterContainer.new()
-		_result_panel.add_child(score_center)
-		_score_container = VBoxContainer.new()
-		_score_container.add_theme_constant_override("separation", 6)
-		score_center.add_child(_score_container)
+	# Left column: Stats
+	var left_col = VBoxContainer.new()
+	left_col.add_theme_constant_override("separation", 8)
+	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(left_col)
 
-		# Spacer
-		var sp2 = Control.new()
-		sp2.custom_minimum_size = Vector2(0, 12)
-		_result_panel.add_child(sp2)
+	var stats_title = Label.new()
+	stats_title.text = "Stats"
+	stats_title.add_theme_font_size_override("font_size", 18)
+	stats_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	left_col.add_child(stats_title)
 
-		# Buttons row
-		var btn_center = CenterContainer.new()
-		_result_panel.add_child(btn_center)
-		var btn_hbox = HBoxContainer.new()
-		btn_hbox.add_theme_constant_override("separation", 30)
-		btn_center.add_child(btn_hbox)
+	var stat_bonuses: Dictionary = _last_result["stat_bonuses"]
+	var stat_display_names: Dictionary = {
+		"strength": "STR", "dexterity": "DEX", "intelligence": "INT",
+		"wisdom": "WIS", "agility": "AGI", "determination": "DET",
+	}
+	var stat_colors: Dictionary = {
+		"strength": Color(1.0, 0.4, 0.4),
+		"dexterity": Color(0.4, 1.0, 0.4),
+		"intelligence": Color(0.4, 0.6, 1.0),
+		"wisdom": Color(0.9, 0.8, 0.3),
+		"agility": Color(0.3, 0.9, 0.8),
+		"determination": Color(0.9, 0.5, 0.2),
+	}
 
-		var proceed_btn = Button.new()
-		proceed_btn.text = "Play as %s" % recommended
-		proceed_btn.custom_minimum_size = Vector2(200, 50)
-		proceed_btn.add_theme_font_size_override("font_size", 18)
-		_style_button_flat(proceed_btn, Color(0.15, 0.3, 0.15), Color(0.2, 0.4, 0.2), Color(0.3, 0.6, 0.3), Color(0.4, 0.8, 0.4))
-		proceed_btn.pressed.connect(_on_proceed.bind(recommended))
-		btn_hbox.add_child(proceed_btn)
+	for stat_key in ["strength", "dexterity", "intelligence", "wisdom", "agility", "determination"]:
+		var total = 5 + stat_bonuses[stat_key]
+		var bonus = stat_bonuses[stat_key]
 
-		var choose_btn = Button.new()
-		choose_btn.text = "Choose Myself"
-		choose_btn.custom_minimum_size = Vector2(200, 50)
-		choose_btn.add_theme_font_size_override("font_size", 18)
-		_style_button_flat(choose_btn, Color(0.15, 0.15, 0.3), Color(0.2, 0.2, 0.4), Color(0.3, 0.3, 0.6), Color(0.4, 0.4, 0.8))
-		choose_btn.pressed.connect(_on_choose_myself)
-		btn_hbox.add_child(choose_btn)
-
-		var retake_btn = Button.new()
-		retake_btn.text = "Retake Quiz"
-		retake_btn.custom_minimum_size = Vector2(200, 50)
-		retake_btn.add_theme_font_size_override("font_size", 18)
-		_style_button_flat(retake_btn, Color(0.25, 0.2, 0.1), Color(0.35, 0.28, 0.15), Color(0.5, 0.4, 0.2), Color(0.7, 0.55, 0.3))
-		retake_btn.pressed.connect(_on_retake)
-		btn_hbox.add_child(retake_btn)
-
-	_result_panel.visible = true
-	_result_name_label.text = recommended
-	_result_desc_label.text = QuestionnaireData.get_character_description(recommended)
-
-	# Update the proceed button text
-	var btn_hbox = _result_panel.get_child(_result_panel.get_child_count() - 1).get_child(0)
-	var proceed_btn = btn_hbox.get_child(0) as Button
-	proceed_btn.text = "Play as %s" % recommended
-	# Reconnect signal to pass correct name
-	if proceed_btn.pressed.is_connected(_on_proceed):
-		proceed_btn.pressed.disconnect(_on_proceed)
-	proceed_btn.pressed.connect(_on_proceed.bind(recommended))
-
-	# Update score bars
-	for child in _score_container.get_children():
-		child.queue_free()
-
-	# Sort scores descending
-	var sorted_names: Array = scores.keys()
-	sorted_names.sort_custom(func(a, b): return scores[a] > scores[b])
-
-	var max_score: int = 1
-	for s in scores.values():
-		if s > max_score:
-			max_score = s
-
-	for char_name in sorted_names:
 		var hbox = HBoxContainer.new()
-		hbox.add_theme_constant_override("separation", 10)
-		_score_container.add_child(hbox)
+		hbox.add_theme_constant_override("separation", 8)
+		left_col.add_child(hbox)
 
-		var name_label = Label.new()
-		name_label.text = char_name
-		name_label.custom_minimum_size = Vector2(80, 0)
-		name_label.add_theme_font_size_override("font_size", 15)
-		if char_name == recommended:
-			name_label.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
-		else:
-			name_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-		hbox.add_child(name_label)
+		var stat_label = Label.new()
+		stat_label.text = stat_display_names[stat_key]
+		stat_label.custom_minimum_size = Vector2(40, 0)
+		stat_label.add_theme_font_size_override("font_size", 14)
+		stat_label.add_theme_color_override("font_color", stat_colors[stat_key])
+		hbox.add_child(stat_label)
 
-		# Score bar background
+		# Stat bar
 		var bar_bg = ColorRect.new()
-		bar_bg.custom_minimum_size = Vector2(300, 18)
-		bar_bg.color = Color(0.15, 0.15, 0.2)
+		bar_bg.custom_minimum_size = Vector2(180, 16)
+		bar_bg.color = Color(0.12, 0.12, 0.18)
 		hbox.add_child(bar_bg)
 
-		# Score bar fill
 		var bar_fill = ColorRect.new()
-		var fill_width = int(290.0 * scores[char_name] / max_score) + 10
-		bar_fill.custom_minimum_size = Vector2(fill_width, 14)
+		# Max possible per stat is ~11 (5 base + up to 6 bonus from 11 questions)
+		var fill_pct = clampf(float(total) / 11.0, 0.05, 1.0)
+		bar_fill.custom_minimum_size = Vector2(int(174.0 * fill_pct) + 4, 12)
 		bar_fill.position = Vector2(2, 2)
-		if char_name == recommended:
-			bar_fill.color = Color(0.3, 0.75, 0.4)
+		bar_fill.color = stat_colors[stat_key].lerp(Color(0.2, 0.2, 0.3), 0.4)
+		bar_bg.add_child(bar_fill)
+
+		var value_label = Label.new()
+		if bonus > 0:
+			value_label.text = "%d (5+%d)" % [total, bonus]
 		else:
-			bar_fill.color = Color(0.3, 0.3, 0.5)
+			value_label.text = str(total)
+		value_label.add_theme_font_size_override("font_size", 13)
+		value_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+		hbox.add_child(value_label)
+
+	# Archetype scores
+	var arch_title = Label.new()
+	arch_title.text = "Archetype Affinity"
+	arch_title.add_theme_font_size_override("font_size", 18)
+	arch_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	left_col.add_child(arch_title)
+
+	var arch_scores: Dictionary = _last_result["archetype_scores"]
+	var primary_arch: int = _last_result["primary_archetype"]
+	var max_arch: int = 1
+	for v in arch_scores.values():
+		if v > max_arch:
+			max_arch = v
+
+	var arch_order: Array = arch_scores.keys()
+	arch_order.sort_custom(func(a, b): return arch_scores[a] > arch_scores[b])
+
+	for arch in arch_order:
+		var hbox = HBoxContainer.new()
+		hbox.add_theme_constant_override("separation", 8)
+		left_col.add_child(hbox)
+
+		var name_label = Label.new()
+		name_label.text = QuestionnaireData.get_archetype_name(arch)
+		name_label.custom_minimum_size = Vector2(65, 0)
+		name_label.add_theme_font_size_override("font_size", 13)
+		if arch == primary_arch:
+			name_label.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
+		else:
+			name_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		hbox.add_child(name_label)
+
+		var bar_bg = ColorRect.new()
+		bar_bg.custom_minimum_size = Vector2(150, 14)
+		bar_bg.color = Color(0.12, 0.12, 0.18)
+		hbox.add_child(bar_bg)
+
+		var bar_fill = ColorRect.new()
+		var fill_w = int(144.0 * arch_scores[arch] / max_arch) + 4
+		bar_fill.custom_minimum_size = Vector2(fill_w, 10)
+		bar_fill.position = Vector2(2, 2)
+		if arch == primary_arch:
+			bar_fill.color = Color(0.3, 0.7, 0.4)
+		else:
+			bar_fill.color = Color(0.3, 0.3, 0.45)
 		bar_bg.add_child(bar_fill)
 
 		var score_label = Label.new()
-		score_label.text = str(scores[char_name])
-		score_label.add_theme_font_size_override("font_size", 14)
-		score_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		score_label.text = str(arch_scores[arch])
+		score_label.add_theme_font_size_override("font_size", 12)
+		score_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 		hbox.add_child(score_label)
 
-func _on_proceed(char_name: String) -> void:
-	var character = QuestionnaireData.get_character_by_name(char_name)
+	# Right column: Starting gear and cards
+	var right_col = VBoxContainer.new()
+	right_col.add_theme_constant_override("separation", 8)
+	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(right_col)
+
+	# Starting Item
+	var item_title = Label.new()
+	item_title.text = "Starting Item"
+	item_title.add_theme_font_size_override("font_size", 18)
+	item_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	right_col.add_child(item_title)
+
+	var item_name = Label.new()
+	item_name.text = _last_result["starting_item_name"]
+	item_name.add_theme_font_size_override("font_size", 16)
+	item_name.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
+	right_col.add_child(item_name)
+
+	# Passive
+	var passive_title = Label.new()
+	passive_title.text = "Passive Ability"
+	passive_title.add_theme_font_size_override("font_size", 18)
+	passive_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	right_col.add_child(passive_title)
+
+	var passive_desc = Label.new()
+	passive_desc.text = _last_result["passive_description"]
+	passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	passive_desc.add_theme_font_size_override("font_size", 14)
+	passive_desc.add_theme_color_override("font_color", Color(0.8, 0.75, 0.5))
+	right_col.add_child(passive_desc)
+
+	# Starting Cards
+	var cards_title = Label.new()
+	cards_title.text = "Starting Cards"
+	cards_title.add_theme_font_size_override("font_size", 18)
+	cards_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	right_col.add_child(cards_title)
+
+	var card_ids: Array = _last_result["starting_card_ids"]
+	var cards_text: String = ""
+	for j in range(card_ids.size()):
+		var card_name: String = card_ids[j].replace("_", " ").capitalize()
+		if j > 0:
+			cards_text += ",  "
+		cards_text += card_name
+	cards_text += "\n+ Base deck (Slash x4, Block x3, Heal x2, Draw, Discard, Energy)"
+
+	var cards_label = Label.new()
+	cards_label.text = cards_text
+	cards_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cards_label.add_theme_font_size_override("font_size", 13)
+	cards_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	right_col.add_child(cards_label)
+
+	# Slot specialty
+	var slot_title = Label.new()
+	slot_title.text = "Equipment Slots"
+	slot_title.add_theme_font_size_override("font_size", 18)
+	slot_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	right_col.add_child(slot_title)
+
+	var slot_label = Label.new()
+	slot_label.text = _last_result["slot_specialty"]
+	slot_label.add_theme_font_size_override("font_size", 14)
+	slot_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	right_col.add_child(slot_label)
+
+	# ---- Action Buttons ----
+	var btn_center = CenterContainer.new()
+	_result_panel.add_child(btn_center)
+	var btn_hbox = HBoxContainer.new()
+	btn_hbox.add_theme_constant_override("separation", 30)
+	btn_center.add_child(btn_hbox)
+
+	var proceed_btn = Button.new()
+	proceed_btn.text = "Play as %s" % _last_result["title"]
+	proceed_btn.custom_minimum_size = Vector2(220, 50)
+	proceed_btn.add_theme_font_size_override("font_size", 18)
+	_style_button_flat(proceed_btn, Color(0.15, 0.3, 0.15), Color(0.2, 0.4, 0.2), Color(0.3, 0.6, 0.3), Color(0.4, 0.8, 0.4))
+	proceed_btn.pressed.connect(_on_proceed)
+	btn_hbox.add_child(proceed_btn)
+
+	var choose_btn = Button.new()
+	choose_btn.text = "Choose Preset"
+	choose_btn.custom_minimum_size = Vector2(200, 50)
+	choose_btn.add_theme_font_size_override("font_size", 18)
+	_style_button_flat(choose_btn, Color(0.15, 0.15, 0.3), Color(0.2, 0.2, 0.4), Color(0.3, 0.3, 0.6), Color(0.4, 0.4, 0.8))
+	choose_btn.pressed.connect(_on_choose_myself)
+	btn_hbox.add_child(choose_btn)
+
+	var retake_btn = Button.new()
+	retake_btn.text = "Retake Quiz"
+	retake_btn.custom_minimum_size = Vector2(200, 50)
+	retake_btn.add_theme_font_size_override("font_size", 18)
+	_style_button_flat(retake_btn, Color(0.25, 0.2, 0.1), Color(0.35, 0.28, 0.15), Color(0.5, 0.4, 0.2), Color(0.7, 0.55, 0.3))
+	retake_btn.pressed.connect(_on_retake)
+	btn_hbox.add_child(retake_btn)
+
+func _on_proceed() -> void:
+	var character = QuestionnaireData.build_character(_last_result)
 	character_recommended.emit(character)
 	# Navigate to character select with this character pre-selected, show mode select
 	var select_scene = load("res://scenes/character_select.tscn").instantiate()
@@ -304,7 +412,6 @@ func _on_proceed(char_name: String) -> void:
 	select_scene._show_mode_select()
 
 func _on_choose_myself() -> void:
-	# Go to normal character select screen
 	var select_scene = load("res://scenes/character_select.tscn").instantiate()
 	select_scene.game_mode = "single_player"
 	get_tree().root.add_child(select_scene)
@@ -314,23 +421,28 @@ func _on_retake() -> void:
 	_current_index = 0
 	_answers.fill(-1)
 	if _result_panel:
-		_result_panel.visible = false
+		_result_panel.queue_free()
+		_result_panel = null
+	_answers_vbox.get_parent().visible = true
+	_question_label.visible = true
+	_progress_label.visible = true
 	_show_question(0)
 
 func _on_back() -> void:
 	if _current_index > 0 and (_result_panel == null or not _result_panel.visible):
-		# Go back one question
 		_current_index -= 1
 		_answers[_current_index] = -1
 		_show_question(_current_index)
 	elif _result_panel and _result_panel.visible:
-		# From result screen, go back to last question
-		_result_panel.visible = false
+		_result_panel.queue_free()
+		_result_panel = null
 		_current_index = _questions.size() - 1
 		_answers[_current_index] = -1
+		_answers_vbox.get_parent().visible = true
+		_question_label.visible = true
+		_progress_label.visible = true
 		_show_question(_current_index)
 	else:
-		# Go back to title menu
 		back_pressed.emit()
 		var title_scene = load("res://scenes/title_menu.tscn").instantiate()
 		get_tree().root.add_child(title_scene)
