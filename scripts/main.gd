@@ -3180,7 +3180,6 @@ func play_selected_card(target) -> void:
 			var stats = player.get_stats()
 			var damage_reduction = 0.0
 			var self_damage = 0.0
-			var debuff_mgr = player.get_debuff_manager()
 			if debuff_mgr:
 				damage_reduction = debuff_mgr.get_damage_reduction_percent()
 				self_damage = debuff_mgr.get_self_damage_percent()

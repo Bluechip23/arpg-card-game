@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://ci6ffd10jlxgc"]
 
-[ext_resource type="Script" path="res://scripts/title_menu.gd" id="1_menu"]
+[ext_resource type="Script" uid="uid://cf2gr55g5k3pm" path="res://scripts/title_menu.gd" id="1_menu"]
 
-[node name="TitleMenu" type="Control"]
+[node name="TitleMenu" type="Control" unique_id=177954885]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=1727743107]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,7 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.05, 0.05, 0.08, 1)
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1025801792]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -29,27 +29,26 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="TopSpacer" type="Control" parent="VBox"]
+[node name="TopSpacer" type="Control" parent="VBox" unique_id=456462991]
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 2.0
 
-[node name="TitleLabel" type="Label" parent="VBox"]
+[node name="TitleLabel" type="Label" parent="VBox" unique_id=1044388344]
 layout_mode = 2
 text = "Rock USA"
 horizontal_alignment = 1
 
-[node name="MidSpacer" type="Control" parent="VBox"]
+[node name="MidSpacer" type="Control" parent="VBox" unique_id=253312796]
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 1.5
 
-[node name="MenuContainer" type="VBoxContainer" parent="VBox"]
+[node name="MenuContainer" type="VBoxContainer" parent="VBox" unique_id=1476881777]
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_constants/separation = 12
 
-[node name="BottomSpacer" type="Control" parent="VBox"]
+[node name="BottomSpacer" type="Control" parent="VBox" unique_id=846575228]
 layout_mode = 2
 size_flags_vertical = 3
-size_flags_stretch_ratio = 1.0
