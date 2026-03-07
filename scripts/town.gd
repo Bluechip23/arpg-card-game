@@ -17,6 +17,7 @@ extends Node3D
 const INTERACT_DISTANCE: float = 2.5  # Max tiles from vendor to interact
 
 var starting_character: CharacterData = null
+var discovered_waypoints: Array = []
 var nearby_vendor: StaticBody3D = null
 var vendor_open: bool = false
 var quest_manager: QuestManager = null
@@ -1301,5 +1302,6 @@ func _go_to_battle() -> void:
 	print("[TOWN] Heading to battle!")
 	var main_scene = load("res://main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.discovered_waypoints = discovered_waypoints
 	get_tree().root.add_child(main_scene)
 	queue_free()

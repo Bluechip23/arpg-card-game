@@ -698,7 +698,10 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 		"node": wp_root,
 		"grid_pos": grid_pos,
 		"target": target,
-		"label_node": interact_label
+		"display_name": display_name,
+		"label_node": interact_label,
+		"discovered": false,
+		"pillar_mesh": pillar
 	})
 
 func get_nearby_waypoint(player_grid: Vector2i) -> int:
@@ -715,13 +718,48 @@ func get_waypoint_target(index: int) -> String:
 		return waypoint_nodes[index]["target"]
 	return ""
 
+func discover_waypoint(index: int) -> bool:
+	## Marks a waypoint as discovered. Returns true if newly discovered.
+	if index < 0 or index >= waypoint_nodes.size():
+		return false
+	if waypoint_nodes[index]["discovered"]:
+		return false
+	waypoint_nodes[index]["discovered"] = true
+	# Visual change: make pillar brighter/opaque to show it's activated
+	var pillar = waypoint_nodes[index]["pillar_mesh"] as MeshInstance3D
+	if pillar and pillar.material_override:
+		var mat = pillar.material_override as StandardMaterial3D
+		if mat:
+			mat.albedo_color.a = 1.0
+			mat.emission_enabled = true
+			mat.emission = Color(mat.albedo_color.r, mat.albedo_color.g, mat.albedo_color.b)
+			mat.emission_energy_multiplier = 0.5
+	# Update interact label text
+	var lbl = waypoint_nodes[index]["label_node"] as Label3D
+	if lbl:
+		lbl.text = "[Shift] Teleport"
+	print("[DUNGEON] Waypoint discovered: %s" % waypoint_nodes[index]["display_name"])
+	return true
+
+func get_waypoint_on_tile(player_grid: Vector2i) -> int:
+	## Returns the index of a waypoint the player is standing on, or -1.
+	for i in range(waypoint_nodes.size()):
+		if waypoint_nodes[i]["grid_pos"] == player_grid:
+			return i
+	return -1
+
 func update_waypoint_prompts(player_grid: Vector2i) -> void:
 	for wp in waypoint_nodes:
 		var wp_pos: Vector2i = wp["grid_pos"]
 		var dist = absi(player_grid.x - wp_pos.x) + absi(player_grid.y - wp_pos.y)
 		var interact_lbl = wp["label_node"]
 		if interact_lbl:
-			interact_lbl.visible = dist <= 2
+			if wp["discovered"]:
+				interact_lbl.visible = dist <= 2
+			else:
+				# Undiscovered: show "Walk here to discover" hint
+				interact_lbl.text = "Walk here to discover"
+				interact_lbl.visible = dist <= 3
 
 # ============================================
 # MINIMAP DATA

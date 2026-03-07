@@ -43,19 +43,28 @@ var unit_tracker: UnitTrackerUI = null
 var quest_manager: QuestManager = null
 var current_world_level: int = 1
 
+# Global waypoint discovery tracking (persists across world transitions)
+# Each entry: { "world": int, "target": String, "display_name": String }
+var discovered_waypoints: Array = []
+
+# Waypoint teleport menu state
+var _waypoint_menu_panel: PanelContainer = null
+var _waypoint_menu_visible: bool = false
+
 # Minimap UI
 var _minimap_panel: PanelContainer = null
 var _minimap_texture_rect: TextureRect = null
 var _minimap_image: Image = null
-const MINIMAP_SIZE: int = 160
+const MINIMAP_SIZE: int = 100
 const MINIMAP_PIXEL_SCALE: int = 4
 
 # Tab menu (quest log / map)
 var _tab_menu_panel: PanelContainer = null
 var _tab_menu_visible: bool = false
-var _tab_menu_current_tab: int = 0  # 0=quest log, 1=map
+var _tab_menu_current_tab: int = 0  # 0=map, 1=quest log
 var _tab_quest_container: VBoxContainer = null
 var _tab_map_container: VBoxContainer = null
+var _tab_map_texture_rect: TextureRect = null
 
 # Card animation tracking
 var _prev_hand_card_ids: Array[String] = []  # Card IDs from last hand update
@@ -1829,6 +1838,8 @@ func _on_player_tile_reached() -> void:
 	_check_dungeon_zones()
 	# Reveal fog of war around the player
 	_update_fog_of_war()
+	# Check if player stepped onto a waypoint to discover it
+	_check_waypoint_discovery(player_cell)
 	# Update camera focus to follow player
 	if dungeon_manager:
 		_camera_focus = player.position + Vector3(2, 0, 0)
@@ -3509,6 +3520,12 @@ func _input(event: InputEvent) -> void:
 	if _donation_active:
 		return
 
+	# Block game input while waypoint menu is open
+	if _waypoint_menu_visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_close_waypoint_menu()
+		return
+
 	# Block game input while chest modal is open
 	if _chest_modal_open:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
@@ -3690,6 +3707,22 @@ func _setup_dungeon() -> void:
 	# Center camera on player start
 	_camera_focus = start_pos + Vector3(3, 0, 0)
 	_update_camera()
+
+	# Ensure town waypoint is always in discovered list
+	var has_town = false
+	for d in discovered_waypoints:
+		if d["target"] == "town":
+			has_town = true
+			break
+	if not has_town:
+		discovered_waypoints.append({
+			"world": current_world_level,
+			"target": "town",
+			"display_name": "Town Portal"
+		})
+
+	# Restore previously discovered waypoints for this world
+	_restore_discovered_waypoints()
 
 	# Setup quest manager
 	if not quest_manager:
@@ -4907,28 +4940,183 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 # WAYPOINT TRAVEL
 # ============================================
 
+func _restore_discovered_waypoints() -> void:
+	## Marks waypoints in the current dungeon as discovered if they were previously found.
+	if not dungeon_manager:
+		return
+	for i in range(dungeon_manager.waypoint_nodes.size()):
+		var wp = dungeon_manager.waypoint_nodes[i]
+		for d in discovered_waypoints:
+			if d["world"] == current_world_level and d["target"] == wp["target"]:
+				dungeon_manager.discover_waypoint(i)
+				break
+
+func _check_waypoint_discovery(player_grid: Vector2i) -> void:
+	## Discover any waypoint the player is standing on.
+	if not dungeon_manager:
+		return
+	var wp_idx = dungeon_manager.get_waypoint_on_tile(player_grid)
+	if wp_idx < 0:
+		return
+	if dungeon_manager.discover_waypoint(wp_idx):
+		var wp = dungeon_manager.waypoint_nodes[wp_idx]
+		# Register in global discovered list
+		var entry = {
+			"world": current_world_level,
+			"target": wp["target"],
+			"display_name": wp["display_name"]
+		}
+		# Check if already registered (e.g. from a previous visit)
+		var already = false
+		for d in discovered_waypoints:
+			if d["world"] == entry["world"] and d["target"] == entry["target"]:
+				already = true
+				break
+		if not already:
+			discovered_waypoints.append(entry)
+		add_battle_log("Waypoint discovered: %s" % wp["display_name"], Color(0.3, 0.9, 1.0))
+
 func _try_interact_waypoint() -> bool:
+	## Opens the waypoint teleport menu if near a discovered waypoint.
 	if not dungeon_manager:
 		return false
 	var player_grid = grid_manager.world_to_grid(player.position)
 	var wp_idx = dungeon_manager.get_nearby_waypoint(player_grid)
 	if wp_idx < 0:
 		return false
+	# Must be discovered to use
+	if not dungeon_manager.waypoint_nodes[wp_idx]["discovered"]:
+		add_battle_log("Walk onto the waypoint to discover it first.", Color(0.8, 0.8, 0.5))
+		return true
+	# Open teleport menu
+	_open_waypoint_menu()
+	return true
 
-	var target = dungeon_manager.get_waypoint_target(wp_idx)
+func _open_waypoint_menu() -> void:
+	## Shows a centered panel listing all discovered waypoints for teleportation.
+	if _waypoint_menu_visible:
+		_close_waypoint_menu()
+		return
+
+	var ui = $UI as CanvasLayer
+
+	_waypoint_menu_panel = PanelContainer.new()
+	_waypoint_menu_panel.name = "WaypointMenu"
+	ui.add_child(_waypoint_menu_panel)
+	_waypoint_menu_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_waypoint_menu_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_waypoint_menu_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_waypoint_menu_panel.custom_minimum_size = Vector2(350, 200)
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.06, 0.12, 0.95)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.3, 0.6, 1.0, 0.8)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	_waypoint_menu_panel.add_theme_stylebox_override("panel", style)
+
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	_waypoint_menu_panel.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	margin.add_child(vbox)
+
+	# Title
+	var title = Label.new()
+	title.text = "Teleport to Waypoint"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	vbox.add_child(HSeparator.new())
+
+	# List all discovered waypoints
+	for wp in discovered_waypoints:
+		var btn = Button.new()
+		var label_text = wp["display_name"]
+		if wp["world"] == current_world_level and wp["target"] != "town":
+			label_text += " (Current World)"
+		btn.text = label_text
+		btn.custom_minimum_size = Vector2(280, 36)
+		btn.add_theme_font_size_override("font_size", 15)
+
+		# Color-code by type
+		match wp["target"]:
+			"town":
+				btn.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
+			"next_world", "prev_world":
+				btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+
+		# Capture values for the lambda
+		var target = wp["target"]
+		var world = wp["world"]
+		btn.pressed.connect(func():
+			_close_waypoint_menu()
+			_teleport_to_waypoint(target, world)
+		)
+		vbox.add_child(btn)
+
+	if discovered_waypoints.is_empty():
+		var empty_lbl = Label.new()
+		empty_lbl.text = "No waypoints discovered yet."
+		empty_lbl.add_theme_font_size_override("font_size", 14)
+		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		vbox.add_child(empty_lbl)
+
+	# Close button
+	var close_btn = Button.new()
+	close_btn.text = "Cancel [Esc]"
+	close_btn.custom_minimum_size = Vector2(120, 32)
+	close_btn.add_theme_font_size_override("font_size", 14)
+	close_btn.pressed.connect(_close_waypoint_menu)
+	vbox.add_child(close_btn)
+
+	_waypoint_menu_visible = true
+
+func _close_waypoint_menu() -> void:
+	if _waypoint_menu_panel and is_instance_valid(_waypoint_menu_panel):
+		_waypoint_menu_panel.queue_free()
+		_waypoint_menu_panel = null
+	_waypoint_menu_visible = false
+
+func _teleport_to_waypoint(target: String, world: int) -> void:
 	match target:
 		"town":
 			_travel_to_town()
-		"next_world":
-			_travel_to_world(current_world_level + 1)
-		"prev_world":
-			_travel_to_world(current_world_level - 1)
-	return true
+		_:
+			if world == current_world_level:
+				# Same world: teleport to the waypoint position within the dungeon
+				for wp in dungeon_manager.waypoint_nodes:
+					if wp["target"] == target:
+						var wp_world_pos = grid_manager.grid_to_world(wp["grid_pos"])
+						player.position = wp_world_pos
+						player.target_position = wp_world_pos
+						_camera_focus = wp_world_pos + Vector3(3, 0, 0)
+						_update_camera()
+						_update_fog_of_war()
+						add_battle_log("Teleported to %s" % wp["display_name"], Color(0.3, 0.9, 1.0))
+						return
+			else:
+				_travel_to_world(world)
 
 func _travel_to_town() -> void:
 	print("[MAIN] Traveling to town!")
 	var town_scene = load("res://scenes/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
+	if "discovered_waypoints" in town_scene:
+		town_scene.discovered_waypoints = discovered_waypoints
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
@@ -4937,6 +5125,7 @@ func _travel_to_world(level: int) -> void:
 	var main_scene = load("res://main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.current_world_level = level
+	main_scene.discovered_waypoints = discovered_waypoints
 	get_tree().root.add_child(main_scene)
 	queue_free()
 
@@ -4972,11 +5161,11 @@ func _setup_minimap() -> void:
 	_minimap_panel.name = "MinimapPanel"
 	ui.add_child(_minimap_panel)
 
-	# Position in upper-left
-	_minimap_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_minimap_panel.offset_left = 8.0
+	# Position in upper-right corner (avoids unit tracker on left)
+	_minimap_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_minimap_panel.offset_left = -(MINIMAP_SIZE + 16)
 	_minimap_panel.offset_top = 8.0
-	_minimap_panel.offset_right = 8.0 + MINIMAP_SIZE + 8
+	_minimap_panel.offset_right = -8.0
 	_minimap_panel.offset_bottom = 8.0 + MINIMAP_SIZE + 8
 
 	var style = StyleBoxFlat.new()
@@ -5087,7 +5276,7 @@ func _setup_tab_menu() -> void:
 	_tab_menu_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_tab_menu_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_tab_menu_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_tab_menu_panel.custom_minimum_size = Vector2(600, 450)
+	_tab_menu_panel.custom_minimum_size = Vector2(750, 550)
 	_tab_menu_panel.visible = false
 
 	var panel_style = StyleBoxFlat.new()
@@ -5119,19 +5308,19 @@ func _setup_tab_menu() -> void:
 	tab_hbox.add_theme_constant_override("separation", 8)
 	vbox.add_child(tab_hbox)
 
+	var map_tab_btn = Button.new()
+	map_tab_btn.text = "Dungeon Map"
+	map_tab_btn.custom_minimum_size = Vector2(140, 32)
+	map_tab_btn.add_theme_font_size_override("font_size", 16)
+	map_tab_btn.pressed.connect(_on_tab_map_pressed)
+	tab_hbox.add_child(map_tab_btn)
+
 	var quest_tab_btn = Button.new()
 	quest_tab_btn.text = "Quest Log"
 	quest_tab_btn.custom_minimum_size = Vector2(120, 32)
 	quest_tab_btn.add_theme_font_size_override("font_size", 16)
 	quest_tab_btn.pressed.connect(_on_tab_quest_pressed)
 	tab_hbox.add_child(quest_tab_btn)
-
-	var map_tab_btn = Button.new()
-	map_tab_btn.text = "World Map"
-	map_tab_btn.custom_minimum_size = Vector2(120, 32)
-	map_tab_btn.add_theme_font_size_override("font_size", 16)
-	map_tab_btn.pressed.connect(_on_tab_map_pressed)
-	tab_hbox.add_child(map_tab_btn)
 
 	# World label
 	var world_lbl = Label.new()
@@ -5144,21 +5333,30 @@ func _setup_tab_menu() -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	# Quest log content
+	# Map content (shown by default — tab 0)
+	_tab_map_container = VBoxContainer.new()
+	_tab_map_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_tab_map_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(_tab_map_container)
+
+	# Large map texture rect for dungeon map
+	_tab_map_texture_rect = TextureRect.new()
+	_tab_map_texture_rect.custom_minimum_size = Vector2(400, 350)
+	_tab_map_texture_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_tab_map_texture_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tab_map_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_tab_map_container.add_child(_tab_map_texture_rect)
+
+	# Quest log content (hidden by default — tab 1)
 	var quest_scroll = ScrollContainer.new()
 	quest_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	quest_scroll.custom_minimum_size = Vector2(0, 300)
+	quest_scroll.custom_minimum_size = Vector2(0, 400)
+	quest_scroll.visible = false
 	vbox.add_child(quest_scroll)
 
 	_tab_quest_container = VBoxContainer.new()
 	_tab_quest_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quest_scroll.add_child(_tab_quest_container)
-
-	# Map content (hidden by default)
-	_tab_map_container = VBoxContainer.new()
-	_tab_map_container.visible = false
-	_tab_map_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(_tab_map_container)
 
 	# Close button
 	var close_btn = Button.new()
@@ -5168,6 +5366,9 @@ func _setup_tab_menu() -> void:
 	close_btn.pressed.connect(_toggle_tab_menu)
 	vbox.add_child(close_btn)
 
+	# Default to map tab
+	_tab_menu_current_tab = 0
+
 func _toggle_tab_menu() -> void:
 	_tab_menu_visible = not _tab_menu_visible
 	if _tab_menu_panel:
@@ -5175,11 +5376,11 @@ func _toggle_tab_menu() -> void:
 	if _tab_menu_visible:
 		_refresh_tab_menu()
 
-func _on_tab_quest_pressed() -> void:
+func _on_tab_map_pressed() -> void:
 	_tab_menu_current_tab = 0
 	_refresh_tab_menu()
 
-func _on_tab_map_pressed() -> void:
+func _on_tab_quest_pressed() -> void:
 	_tab_menu_current_tab = 1
 	_refresh_tab_menu()
 
@@ -5188,13 +5389,15 @@ func _refresh_tab_menu() -> void:
 		return
 
 	if _tab_menu_current_tab == 0:
-		_tab_quest_container.get_parent().visible = true
-		_tab_map_container.visible = false
-		_refresh_quest_log()
-	else:
-		_tab_quest_container.get_parent().visible = false
+		# Dungeon Map tab
 		_tab_map_container.visible = true
-		_refresh_world_map()
+		_tab_quest_container.get_parent().visible = false
+		_refresh_expanded_map()
+	else:
+		# Quest Log tab
+		_tab_map_container.visible = false
+		_tab_quest_container.get_parent().visible = true
+		_refresh_quest_log()
 
 func _refresh_quest_log() -> void:
 	for child in _tab_quest_container.get_children():
@@ -5285,32 +5488,78 @@ func _create_quest_entry(quest) -> PanelContainer:
 
 	return panel
 
-func _refresh_world_map() -> void:
-	for child in _tab_map_container.get_children():
-		child.queue_free()
+func _refresh_expanded_map() -> void:
+	## Renders a large dungeon map into the tab menu map texture rect.
+	if not dungeon_manager or not _tab_map_texture_rect:
+		return
 
-	var title = Label.new()
-	title.text = "World Map"
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	_tab_map_container.add_child(title)
+	var gw = dungeon_manager.GRID_W
+	var gh = dungeon_manager.GRID_H
+	var scale = 8  # Larger pixel scale for expanded view
+	var img = Image.create(gw * scale, gh * scale, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.02, 0.02, 0.05, 1.0))
 
-	# Show world list with current highlighted
-	for i in range(1, 6):
-		var world_btn = Button.new()
-		world_btn.text = "World %d" % i
-		if i == current_world_level:
-			world_btn.text += " (Current)"
-		world_btn.custom_minimum_size = Vector2(200, 36)
-		world_btn.add_theme_font_size_override("font_size", 15)
-		if i == current_world_level:
-			world_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-		_tab_map_container.add_child(world_btn)
+	# Draw tiles
+	for x in range(gw):
+		for z in range(gh):
+			if dungeon_manager.is_revealed(Vector2i(x, z)):
+				var col: Color
+				if dungeon_manager.is_floor(Vector2i(x, z)):
+					col = Color(0.25, 0.22, 0.2, 1.0)
+				else:
+					col = Color(0.12, 0.1, 0.15, 1.0)
+				for px in range(scale):
+					for pz in range(scale):
+						img.set_pixel(x * scale + px, z * scale + pz, col)
 
-	# Town button
-	var town_btn = Button.new()
-	town_btn.text = "Town"
-	town_btn.custom_minimum_size = Vector2(200, 36)
-	town_btn.add_theme_font_size_override("font_size", 15)
-	town_btn.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
-	_tab_map_container.add_child(town_btn)
+	# Draw waypoints (larger in expanded view)
+	for wp in dungeon_manager.waypoint_nodes:
+		var wp_pos: Vector2i = wp["grid_pos"]
+		var wp_col = Color(0.3, 0.7, 1.0)
+		if wp["target"] == "next_world":
+			wp_col = Color(0.3, 1.0, 0.4)
+		elif wp["target"] == "prev_world":
+			wp_col = Color(1.0, 0.8, 0.3)
+		for px in range(scale):
+			for pz in range(scale):
+				var ix = wp_pos.x * scale + px
+				var iz = wp_pos.y * scale + pz
+				if ix < img.get_width() and iz < img.get_height():
+					img.set_pixel(ix, iz, wp_col)
+
+	# Draw chests
+	for chest in dungeon_manager.chest_nodes:
+		var cp: Vector2i = chest["grid_pos"]
+		if not dungeon_manager.is_revealed(cp):
+			continue
+		var cc = Color(0.9, 0.7, 0.2) if not chest["opened"] else Color(0.4, 0.35, 0.2)
+		for px in range(scale):
+			for pz in range(scale):
+				var ix = cp.x * scale + px
+				var iz = cp.y * scale + pz
+				if ix < img.get_width() and iz < img.get_height():
+					img.set_pixel(ix, iz, cc)
+
+	# Draw enemies
+	for enemy in enemy_spawner.get_living_enemies():
+		if not enemy.visible:
+			continue
+		var eg = grid_manager.world_to_grid(enemy.position)
+		for px in range(scale):
+			for pz in range(scale):
+				var ix = eg.x * scale + px
+				var iz = eg.y * scale + pz
+				if ix >= 0 and ix < img.get_width() and iz >= 0 and iz < img.get_height():
+					img.set_pixel(ix, iz, Color(1.0, 0.2, 0.2))
+
+	# Draw player (slightly larger)
+	var pg = grid_manager.world_to_grid(player.position)
+	for px in range(-1, scale + 1):
+		for pz in range(-1, scale + 1):
+			var ix = pg.x * scale + px
+			var iz = pg.y * scale + pz
+			if ix >= 0 and ix < img.get_width() and iz >= 0 and iz < img.get_height():
+				img.set_pixel(ix, iz, Color(0.2, 1.0, 0.4))
+
+	var tex = ImageTexture.create_from_image(img)
+	_tab_map_texture_rect.texture = tex
