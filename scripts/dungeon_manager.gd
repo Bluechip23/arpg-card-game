@@ -447,13 +447,13 @@ func _define_world1_zones(mid_z: int) -> void:
 		"spawned": false
 	})
 
-	# Zone 2: Treasure room guard - 2 minions
+	# Zone 2: Treasure room guard - 1 wererat + 1 minion
 	spawn_zones.append({
 		"trigger_rect": Rect2i(GRID_W - 13, mid_z + 2, 4, 4),
 		"spawn_points": [
 			Vector2i(GRID_W - 10, mid_z + 4), Vector2i(GRID_W - 9, mid_z + 5)
 		],
-		"enemy_types": [Enemy.EnemyType.MINION, Enemy.EnemyType.MINION],
+		"enemy_types": [Enemy.EnemyType.WERERAT, Enemy.EnemyType.MINION],
 		"spawned": false
 	})
 

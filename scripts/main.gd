@@ -47,6 +47,10 @@ var current_world_level: int = 1
 # Each entry: { "world": int, "target": String, "display_name": String }
 var discovered_waypoints: Array = []
 
+# Quest state that persists across world transitions
+# { "kill_counts": { "Wererat": 3, ... }, "accepted_ids": ["olorin_kill_wererats"], "completed_ids": [] }
+var quest_state: Dictionary = {}
+
 # Waypoint teleport menu state
 var _waypoint_menu_panel: PanelContainer = null
 var _waypoint_menu_visible: bool = false
@@ -3729,9 +3733,13 @@ func _setup_dungeon() -> void:
 		quest_manager = QuestManager.new()
 		quest_manager.name = "QuestManager"
 		add_child(quest_manager)
-		# Auto-accept available quests so they appear in the quest log
-		for quest_id in quest_manager.available_quests.keys():
-			quest_manager.accept_quest(quest_id)
+		# Restore quest state from previous scene (persists kills across worlds)
+		if not quest_state.is_empty():
+			quest_manager.load_state(quest_state)
+		else:
+			# First time: auto-accept available quests so they appear in quest log
+			for quest_id in quest_manager.available_quests.keys():
+				quest_manager.accept_quest(quest_id)
 
 	# Setup minimap
 	_setup_minimap()
@@ -5131,19 +5139,24 @@ func _teleport_to_waypoint(target: String, world: int) -> void:
 
 func _travel_to_town() -> void:
 	print("[MAIN] Traveling to town!")
+	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var town_scene = load("res://scenes/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
 	if "discovered_waypoints" in town_scene:
 		town_scene.discovered_waypoints = discovered_waypoints
+	if "quest_state" in town_scene:
+		town_scene.quest_state = saved_quest_state
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
 func _travel_to_world(level: int) -> void:
 	print("[MAIN] Traveling to World %d!" % level)
+	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var main_scene = load("res://main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.current_world_level = level
 	main_scene.discovered_waypoints = discovered_waypoints
+	main_scene.quest_state = saved_quest_state
 	get_tree().root.add_child(main_scene)
 	queue_free()
 
