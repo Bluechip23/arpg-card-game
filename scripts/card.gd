@@ -1697,8 +1697,8 @@ static func create_taunt() -> Card:
 	card.card_id = "taunt"
 	card.card_name = "Taunt"
 	card.description = "Taunt enemies around you. They must target you."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
 	card.mana_cost = 4
 	card.tempo_cost = 0
 	card.target_types = ["all_nearby"]
@@ -1723,8 +1723,8 @@ static func create_roar() -> Card:
 	card.card_id = "roar"
 	card.card_name = "Roar"
 	card.description = "Knock enemies back 1 space."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
 	card.mana_cost = 1
 	card.tempo_cost = 2
 	card.target_types = ["all_nearby"]
@@ -1851,8 +1851,8 @@ static func create_hold_the_line() -> Card:
 	card.card_id = "hold_the_line"
 	card.card_name = "Hold the Line"
 	card.description = "All allies gain 5 armor, +2 DET, and +2 STR."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
 	card.mana_cost = 4
 	card.tempo_cost = 5
 	card.block = 5
@@ -1931,6 +1931,7 @@ static func create_loaded_die() -> Card:
 	card.description = "Next card with a probability has +10%% higher chance."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
+	card.card_keyword = CardKeyword.GEM
 	card.mana_cost = 1
 	card.tempo_cost = 1
 	card.target_types = ["self"]
