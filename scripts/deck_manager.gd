@@ -187,6 +187,10 @@ func draw_card() -> Card:
 
 	var card = draw_pile.pop_back()
 
+	# Reset enchantment cycle counter when drawn into hand
+	if card.card_type == Card.CardType.ENCHANTMENT:
+		card.cycles_in_hand = 0
+
 	# Reset sticky card state when drawn into hand
 	if card.sticky > 0:
 		card.consecutive_uses = 0

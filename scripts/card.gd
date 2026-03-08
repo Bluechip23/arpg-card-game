@@ -212,7 +212,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"power": "Persistent effect cards with a Maintain cost. Reserves mana while active",
 		"reaction": "Triggers automatically from hand when a condition is met. Costs 0 mana and 0 tempo",
 		"unplayable": "Cannot be played. Takes up a hand slot",
-		"enchantment": "Cannot be played. Provides a passive buff while in your hand. Effect is lost when the card leaves your hand",
+		"enchantment": "Cannot be played. Provides a passive buff while in your hand. Auto-discards after 2 cycles. Effect is lost when the card leaves your hand",
 		# Card Mechanics
 		"maintain": "Reserves X mana from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
 		"erase": "After X tempo, this card is permanently deleted from the deck",
@@ -3401,7 +3401,7 @@ static func create_enchantment_defense() -> Card:
 	var card = Card.new()
 	card.card_id = "enchantment_defense"
 	card.card_name = "Enchantment: Defense"
-	card.description = "Gain +3 block from cards and effects while this is in your hand."
+	card.description = "Gain +3 block from cards and effects while this is in your hand. Discards after 2 cycles."
 	card.card_type = CardType.ENCHANTMENT
 	card.card_type_name = "Enchantment"
 	card.mana_cost = 0
@@ -3419,7 +3419,7 @@ static func create_enchantment_attack() -> Card:
 	var card = Card.new()
 	card.card_id = "enchantment_attack"
 	card.card_name = "Enchantment: Attack"
-	card.description = "Cards deal +3 damage while this is in your hand."
+	card.description = "Cards deal +3 damage while this is in your hand. Discards after 2 cycles."
 	card.card_type = CardType.ENCHANTMENT
 	card.card_type_name = "Enchantment"
 	card.mana_cost = 0
@@ -3437,7 +3437,7 @@ static func create_enchantment_movement() -> Card:
 	var card = Card.new()
 	card.card_id = "enchantment_movement"
 	card.card_name = "Enchantment: Movement"
-	card.description = "Gain +1 movement per Tempo while this is in your hand."
+	card.description = "Gain +1 movement per Tempo while this is in your hand. Discards after 2 cycles."
 	card.card_type = CardType.ENCHANTMENT
 	card.card_type_name = "Enchantment"
 	card.mana_cost = 0
@@ -3455,7 +3455,7 @@ static func create_enchantment_mana_regen() -> Card:
 	var card = Card.new()
 	card.card_id = "enchantment_mana_regen"
 	card.card_name = "Enchantment: Mana Regen"
-	card.description = "Gain +1 mana regen while this is in your hand."
+	card.description = "Gain +1 mana regen while this is in your hand. Discards after 2 cycles."
 	card.card_type = CardType.ENCHANTMENT
 	card.card_type_name = "Enchantment"
 	card.mana_cost = 0

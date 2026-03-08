@@ -2778,6 +2778,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 
 	_check_volatile_mixture_in_hand()
 	_apply_in_hand_debuffs()
+	_process_enchantment_cycles()
 	_update_gauntlet_skills_ui()
 	update_turn_display()
 	_update_enemy_count()
@@ -2891,6 +2892,23 @@ func _apply_in_hand_debuffs() -> void:
 			match card.in_hand_debuff:
 				"slowed_2":
 					debuff_mgr.apply_debuff(Debuff.create_slowed(2, 6, card.card_name))
+
+func _process_enchantment_cycles() -> void:
+	var hand_changed = false
+	for i in range(deck_manager.hand.size() - 1, -1, -1):
+		var card = deck_manager.hand[i]
+		if card.card_type != Card.CardType.ENCHANTMENT:
+			continue
+		card.cycles_in_hand += 1
+		if card.cycles_in_hand >= 2:
+			deck_manager.hand.remove_at(i)
+			deck_manager.discard_pile.append(card)
+			card.cycles_in_hand = 0
+			hand_changed = true
+			add_battle_log("%s faded away" % card.card_name, Color(0.2, 0.9, 0.8))
+			print("[MAIN] Enchantment '%s' auto-discarded after 2 cycles" % card.card_name)
+	if hand_changed:
+		deck_manager.hand_updated.emit()
 
 func _process_pending_sky_falls() -> void:
 	for i in range(pending_sky_falls.size() - 1, -1, -1):
