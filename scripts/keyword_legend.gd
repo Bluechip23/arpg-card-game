@@ -98,10 +98,11 @@ func _build_legend() -> void:
 	# Card-Item Slot Section
 	_add_section_header("CARD-ITEM SLOTS")
 	_add_keyword("Enchant", "Places a card into an item's card slot. Card is removed from the deck. Picky cards must match item type", Color(0.8, 0.6, 1.0))
-	_add_keyword("Extract", "Removes a card from an item. Must destroy either the item or the card to do so", Color(1.0, 0.4, 0.4))
+	_add_keyword("Extract", "Removes a card from an item's card slot and returns it to the discard pile", Color(1.0, 0.4, 0.4))
 	_add_keyword("Molded", "Card is locked into the item and cannot be removed (extracted)", Color(0.6, 0.6, 0.6))
 	_add_keyword("Picky", "Card can only be re-equipped to an item of the same type it was extracted from", Color(1.0, 0.8, 0.3))
 	_add_keyword("Pliable", "Card can be re-equipped to an item of any type", Color(0.3, 1.0, 0.7))
+	_add_keyword("Chisel", "Card must be slotted in an item to be played. Cannot be played from hand alone", Color(0.9, 0.7, 0.3))
 	_add_keyword("On-Self", "Bonus effects that apply to cards slotted in that specific item, on top of the item's base bonuses", Color(0.6, 0.9, 0.6))
 
 	# Movement Section

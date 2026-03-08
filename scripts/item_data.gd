@@ -298,6 +298,7 @@ func get_card_slot_summary() -> String:
 				1: kw_names.append("Arrow")  # Card.CardKeyword.ARROW
 				2: kw_names.append("Pocket")  # Card.CardKeyword.POCKET
 				3: kw_names.append("Gem")  # Card.CardKeyword.GEM
+				4: kw_names.append("Chisel")  # Card.CardKeyword.CHISEL
 		if kw_names.size() > 0:
 			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(parts)

@@ -205,7 +205,8 @@ Rings have passive effects that trigger on events:
 	- Arrow - Can on be on quivers
 	- Gem - can only be placed in gem slots
 	- Pocket - can only be used in belts
-- Extracting requires destroying the item or the card
+- Extracting removes a card from an item and returns it to the discard pile
+- Chisel cards can only be played when slotted in an item
 
 [font_size=18][color=cyan]━━━ CHARACTER PASSIVES ━━━[/color][/font_size]
 

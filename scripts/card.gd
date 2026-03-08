@@ -4,7 +4,7 @@ extends Resource
 ## Card resource that holds card data
 
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
-enum CardKeyword { NONE, ARROW, POCKET, GEM }
+enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL }
 
 @export var card_id: String = "slash"
 @export var card_name: String = "Slash"
@@ -52,7 +52,8 @@ var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many te
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
-var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
+var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
+var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
 var delay_tempo: int = 0  # Tempo until the card's effect takes place
 var has_burden: bool = false  # If true, cost increases by 1m/1t each time played. Can jail to reset.
@@ -288,7 +289,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"aoe": "Area of Effect - hits multiple targets in a shape",
 		# Card-Item Slots
 		"enchant": "Places a card into an item's card slot",
-		"extract": "Removes a card from an item (destroys item or card)",
+		"extract": "Removes a card from an item's card slot",
 		"molded": "Card is locked into the item and cannot be extracted",
 		"picky": "Card can only be re-equipped to same item type",
 		"pliable": "Card can be re-equipped to any item type",
@@ -296,6 +297,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"arrow": "Requires a bow/quiver to slot. Ranged bow attack card",
 		"pocket": "Small items like daggers and potions. Slots into belts",
 		"gem": "Gem cards for special equipment slots like gauntlets and rings",
+		"chisel": "Card must be slotted in an item to be played. Cannot be played from hand alone",
 	}
 
 ## Scans this card's properties and description for matching keywords.
@@ -339,6 +341,8 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "delay")
 	if has_burden:
 		_add_keyword_match(found_keys, matches, all_keywords, "burden")
+	if is_chisel:
+		_add_keyword_match(found_keys, matches, all_keywords, "chisel")
 
 	# Scan the description for keyword mentions
 	for keyword in all_keywords:
