@@ -187,6 +187,10 @@ func draw_card() -> Card:
 
 	var card = draw_pile.pop_back()
 
+	# Reset enchantment cycle counter when drawn into hand
+	if card.card_type == Card.CardType.ENCHANTMENT:
+		card.cycles_in_hand = 0
+
 	# Reset sticky card state when drawn into hand
 	if card.sticky > 0:
 		card.consecutive_uses = 0
@@ -264,6 +268,10 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 
 	if card.card_type == Card.CardType.UNPLAYABLE:
 		print("[DECK] Cannot play unplayable card: %s" % card.card_name)
+		return { "played": false, "free_turn": false }
+
+	if card.card_type == Card.CardType.ENCHANTMENT:
+		print("[DECK] Enchantment cards cannot be played — they provide passive buffs while in hand: %s" % card.card_name)
 		return { "played": false, "free_turn": false }
 
 	if card.card_type == Card.CardType.REACTION:

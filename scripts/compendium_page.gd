@@ -145,13 +145,14 @@ func _populate_cards(filter: String) -> void:
 
 	# Group cards by type
 	var type_groups: Dictionary = {}
-	var type_order = [Card.CardType.ATTACK, Card.CardType.DEFENSE, Card.CardType.UTILITY, Card.CardType.POWER, Card.CardType.REACTION, Card.CardType.UNPLAYABLE]
+	var type_order = [Card.CardType.ATTACK, Card.CardType.DEFENSE, Card.CardType.UTILITY, Card.CardType.POWER, Card.CardType.REACTION, Card.CardType.ENCHANTMENT, Card.CardType.UNPLAYABLE]
 	var type_names = {
 		Card.CardType.ATTACK: "Attack",
 		Card.CardType.DEFENSE: "Defense",
 		Card.CardType.UTILITY: "Utility",
 		Card.CardType.POWER: "Power",
 		Card.CardType.REACTION: "Reaction",
+		Card.CardType.ENCHANTMENT: "Enchantment",
 		Card.CardType.UNPLAYABLE: "Unplayable",
 	}
 	var type_colors = {
@@ -160,6 +161,7 @@ func _populate_cards(filter: String) -> void:
 		Card.CardType.UTILITY: Color(0.3, 1, 0.3),
 		Card.CardType.POWER: Color(0.8, 0.5, 1.0),
 		Card.CardType.REACTION: Color(1, 0.8, 0.2),
+		Card.CardType.ENCHANTMENT: Color(0.2, 0.9, 0.8),
 		Card.CardType.UNPLAYABLE: Color(0.5, 0.5, 0.5),
 	}
 
@@ -283,6 +285,8 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 		Card.CardType.REACTION:
 			type_lbl.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
+		Card.CardType.ENCHANTMENT:
+			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 		Card.CardType.UNPLAYABLE:
 			type_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	vbox.add_child(type_lbl)
