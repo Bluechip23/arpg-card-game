@@ -72,7 +72,7 @@ func add_pass_through_tempo() -> void:
 func get_free_moves_from_agility() -> int:
 	if not player_stats:
 		return 1
-	return max(1, floori(player_stats.agility / 5.0))
+	return max(1, floori(player_stats.agility / 5.0) + player_stats.enchantment_movement_bonus)
 
 func reset_movement_counter() -> void:
 	movements_since_tempo = 0

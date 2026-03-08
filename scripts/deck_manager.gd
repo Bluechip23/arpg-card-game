@@ -266,6 +266,10 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 		print("[DECK] Cannot play unplayable card: %s" % card.card_name)
 		return { "played": false, "free_turn": false }
 
+	if card.card_type == Card.CardType.ENCHANTMENT:
+		print("[DECK] Enchantment cards cannot be played — they provide passive buffs while in hand: %s" % card.card_name)
+		return { "played": false, "free_turn": false }
+
 	if card.card_type == Card.CardType.REACTION:
 		print("[DECK] Reaction cards trigger automatically, cannot be played manually: %s" % card.card_name)
 		return { "played": false, "free_turn": false }

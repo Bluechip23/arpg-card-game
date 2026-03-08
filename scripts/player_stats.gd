@@ -71,6 +71,12 @@ var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
 var healing_boost_tempo: int = 0
 var ranged_damage_bonus: int = 0  # Flat bonus to all ranged attacks (from quivers, etc.)
 var healing_bonus: int = 0  # Flat bonus to all healing effects (from belts, etc.)
+
+# Enchantment bonuses (applied while enchantment cards are in hand)
+var enchantment_damage_bonus: int = 0  # Flat bonus to all damage from enchantments
+var enchantment_block_bonus: int = 0  # Flat bonus to all block from enchantments
+var enchantment_mana_regen_bonus: float = 0.0  # Bonus mana regen from enchantments
+var enchantment_movement_bonus: int = 0  # Bonus free moves from enchantments
 var inventory = null  # Inventory - untyped to avoid circular dependency
 
 # ============================================
@@ -354,19 +360,19 @@ func get_effective_draw_timer() -> float:
 # ============================================
 
 func get_effective_mana_regen() -> float:
-	return base_mana_regen + get_intelligence_mana_regen_bonus()
+	return base_mana_regen + get_intelligence_mana_regen_bonus() + enchantment_mana_regen_bonus
 
 func get_effective_physical_damage(base_damage: int) -> int:
-	var damage = base_damage + get_strength_damage_bonus()
+	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus
 	return max(1, damage)
 
 func get_effective_ranged_damage(base_damage: int) -> int:
-	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus
+	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus
 	return max(1, damage)
 
 func get_effective_spell_damage(base_damage: int) -> int:
 	# INT: +1 damage per point (flat)
-	return max(1, base_damage + get_intelligence_spell_bonus())
+	return max(1, base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus)
 
 func get_effective_heal_amount(base_heal: int) -> int:
 	# INT also boosts healing (flat) + flat healing_bonus from equipment
@@ -515,19 +521,23 @@ func heal(amount: int) -> void:
 		inventory.on_healed()
 
 func add_armor(amount: int) -> void:
-	current_armor += amount
+	var total = amount + enchantment_block_bonus
+	current_armor += total
 	armor_changed.emit(current_armor)
-	print("[STATS] Gained %d armor! Armor: %d" % [amount, current_armor])
+	if enchantment_block_bonus > 0:
+		print("[STATS] Gained %d armor (+%d enchantment)! Armor: %d" % [amount, enchantment_block_bonus, current_armor])
+	else:
+		print("[STATS] Gained %d armor! Armor: %d" % [total, current_armor])
 	if inventory:
-		inventory.on_armor_gained(amount)
+		inventory.on_armor_gained(total)
 
 func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
-	var total = amount
+	var total = amount + enchantment_block_bonus
 	if buff_mgr:
 		total += buff_mgr.consume_bolster()
 	current_armor += total
 	armor_changed.emit(current_armor)
-	print("[STATS] Gained %d armor (incl. bolster)! Armor: %d" % [total, current_armor])
+	print("[STATS] Gained %d armor (incl. bolster/enchantment)! Armor: %d" % [total, current_armor])
 	if inventory:
 		inventory.on_armor_gained(total)
 

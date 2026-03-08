@@ -568,6 +568,7 @@ func _get_card_type_color(card: Card) -> Color:
 		Card.CardType.UTILITY: return Color(0.6, 1.0, 0.6)
 		Card.CardType.POWER: return Color(1.0, 0.8, 0.4)
 		Card.CardType.REACTION: return Color(0.9, 0.6, 1.0)
+		Card.CardType.ENCHANTMENT: return Color(0.2, 0.9, 0.8)
 	return Color(0.8, 0.8, 0.8)
 
 # ============================================

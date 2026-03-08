@@ -836,6 +836,8 @@ func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
 		Card.CardType.POWER:
 			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+		Card.CardType.ENCHANTMENT:
+			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 	vbox.add_child(type_lbl)
 
 	var cost_lbl = Label.new()
@@ -1190,6 +1192,8 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
 		Card.CardType.POWER:
 			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+		Card.CardType.ENCHANTMENT:
+			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 	vbox.add_child(type_lbl)
 
 	# Cost
@@ -1755,6 +1759,8 @@ func _build_p2_card_preview_content(card: Card, preview: PanelContainer) -> void
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
 		Card.CardType.POWER:
 			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+		Card.CardType.ENCHANTMENT:
+			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 	vbox.add_child(type_lbl)
 
 	var cost_lbl = Label.new()
@@ -2502,6 +2508,9 @@ func _on_hand_updated() -> void:
 	# Assign Hexed/Locked cards if needed
 	deck_manager.assign_hexed_locked_cards(debuff_mgr)
 
+	# Recalculate enchantment bonuses based on current hand contents
+	_recalculate_enchantment_bonuses()
+
 	# Roll RNG for cards that haven't been rolled yet
 	var enemies = enemy_spawner.get_living_enemies()
 	var chance_boost = player.get_stats().chance_boost
@@ -2841,6 +2850,37 @@ func _check_volatile_mixture_in_hand() -> void:
 			deck_manager.hand.remove_at(i)
 			deck_manager.discard_pile.append(card)
 			print("[MAIN] Volatile Mixture still in hand! Took %d self-damage" % self_damage)
+
+func _recalculate_enchantment_bonuses() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+	var damage_bonus: int = 0
+	var block_bonus: int = 0
+	var mana_regen_bonus: float = 0.0
+	var movement_bonus: int = 0
+	for card in deck_manager.hand:
+		if card.in_hand_buff == "":
+			continue
+		match card.in_hand_buff:
+			"damage_3":
+				damage_bonus += 3
+			"block_3":
+				block_bonus += 3
+			"movement_1":
+				movement_bonus += 1
+			"mana_regen_1":
+				mana_regen_bonus += 1.0
+	var changed = (stats.enchantment_damage_bonus != damage_bonus
+		or stats.enchantment_block_bonus != block_bonus
+		or stats.enchantment_mana_regen_bonus != mana_regen_bonus
+		or stats.enchantment_movement_bonus != movement_bonus)
+	if changed:
+		stats.enchantment_damage_bonus = damage_bonus
+		stats.enchantment_block_bonus = block_bonus
+		stats.enchantment_mana_regen_bonus = mana_regen_bonus
+		stats.enchantment_movement_bonus = movement_bonus
+		print("[MAIN] Enchantment bonuses updated — DMG: +%d, BLK: +%d, MOVE: +%d, MANA REGEN: +%.1f" % [damage_bonus, block_bonus, movement_bonus, mana_regen_bonus])
 
 func _apply_in_hand_debuffs() -> void:
 	var debuff_mgr = player.get_buff_manager().debuff_manager if player.get_buff_manager() else null
@@ -4055,6 +4095,8 @@ func _build_chest_card_display(card: Card) -> VBoxContainer:
 			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
 		Card.CardType.POWER:
 			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+		Card.CardType.ENCHANTMENT:
+			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	container.add_child(type_lbl)
 

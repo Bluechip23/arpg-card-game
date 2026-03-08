@@ -3,7 +3,7 @@ extends Resource
 
 ## Card resource that holds card data
 
-enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER }
+enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
 enum CardKeyword { NONE, ARROW, POCKET, GEM }
 
 @export var card_id: String = "slash"
@@ -63,6 +63,7 @@ var burden_jail_cost_tempo: int = 1  # Tempo cost to jail a burden card
 var has_on_discard: bool = false  # Card triggers an effect when discarded
 var on_discard_effect: String = ""  # Description of the on-discard effect
 var in_hand_debuff: String = ""  # Debuff applied while this card is in hand (e.g., "slowed_2")
+var in_hand_buff: String = ""  # Buff applied while this card is in hand (Enchantment cards)
 
 # Card-item slot system
 enum SlotCompatibility { PICKY, PLIABLE }
@@ -211,6 +212,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"power": "Persistent effect cards with a Maintain cost. Reserves mana while active",
 		"reaction": "Triggers automatically from hand when a condition is met. Costs 0 mana and 0 tempo",
 		"unplayable": "Cannot be played. Takes up a hand slot",
+		"enchantment": "Cannot be played. Provides a passive buff while in your hand. Effect is lost when the card leaves your hand",
 		# Card Mechanics
 		"maintain": "Reserves X mana from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
 		"erase": "After X tempo, this card is permanently deleted from the deck",
@@ -321,8 +323,10 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "on-draw")
 	if has_on_discard:
 		_add_keyword_match(found_keys, matches, all_keywords, "on-discard")
-	if in_hand_debuff != "":
+	if in_hand_debuff != "" or in_hand_buff != "":
 		_add_keyword_match(found_keys, matches, all_keywords, "in-hand")
+	if card_type == CardType.ENCHANTMENT:
+		_add_keyword_match(found_keys, matches, all_keywords, "enchantment")
 	if requires_high_ground:
 		_add_keyword_match(found_keys, matches, all_keywords, "high ground")
 	if is_ranged:
@@ -3387,6 +3391,82 @@ static func create_down_but_not_out() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	return card
+
+# ============================================
+# ENCHANTMENT CARDS
+# ============================================
+
+static func create_enchantment_defense() -> Card:
+	var card = Card.new()
+	card.card_id = "enchantment_defense"
+	card.card_name = "Enchantment: Defense"
+	card.description = "Gain +3 block from cards and effects while this is in your hand."
+	card.card_type = CardType.ENCHANTMENT
+	card.card_type_name = "Enchantment"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.in_hand_buff = "block_3"
+	card.target_types = []
+	return card
+
+static func create_enchantment_attack() -> Card:
+	var card = Card.new()
+	card.card_id = "enchantment_attack"
+	card.card_name = "Enchantment: Attack"
+	card.description = "Cards deal +3 damage while this is in your hand."
+	card.card_type = CardType.ENCHANTMENT
+	card.card_type_name = "Enchantment"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.in_hand_buff = "damage_3"
+	card.target_types = []
+	return card
+
+static func create_enchantment_movement() -> Card:
+	var card = Card.new()
+	card.card_id = "enchantment_movement"
+	card.card_name = "Enchantment: Movement"
+	card.description = "Gain +1 movement per Tempo while this is in your hand."
+	card.card_type = CardType.ENCHANTMENT
+	card.card_type_name = "Enchantment"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.in_hand_buff = "movement_1"
+	card.target_types = []
+	return card
+
+static func create_enchantment_mana_regen() -> Card:
+	var card = Card.new()
+	card.card_id = "enchantment_mana_regen"
+	card.card_name = "Enchantment: Mana Regen"
+	card.description = "Gain +1 mana regen while this is in your hand."
+	card.card_type = CardType.ENCHANTMENT
+	card.card_type_name = "Enchantment"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.in_hand_buff = "mana_regen_1"
+	card.target_types = []
 	return card
 
 static func create_healthy_habit() -> Card:
