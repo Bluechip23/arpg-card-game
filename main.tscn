@@ -215,8 +215,7 @@ offset_right = -9.0
 offset_bottom = 115.0
 grow_horizontal = 0
 text = "I - Character Panel
-K - Skill Tree
-L - Sphere Grid
+L - Level Progress
 H - Help"
 horizontal_alignment = 2
 

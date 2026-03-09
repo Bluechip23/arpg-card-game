@@ -1,9 +1,8 @@
 class_name SkillTreeUI
 extends CanvasLayer
 
-## Full-screen skill tree overlay showing character-specific progression.
-## Displays a table: each row = one level, 4 chooseable options + 1 auto-granted.
-## Toggle with K key.
+## Combined Level Progress panel with two tabs: Skill Tree (default) and Sphere Grid.
+## Toggle with L key. Both views share the same full-screen overlay.
 
 signal closed
 signal option_chosen(level: int, option_index: int)
@@ -19,16 +18,24 @@ var skill_tree: SkillTreeData = null
 var player_level: int = 1
 var character_name: String = ""
 
+# Tab state
+enum Tab { SKILL_TREE, SPHERE_GRID }
+var _current_tab: Tab = Tab.SKILL_TREE
+var _sphere_grid_ui: SphereGridUI = null  # Reference set by main.gd
+var _tab_btn_skill_tree: Button = null
+var _tab_btn_sphere_grid: Button = null
+var _tab_bar: HBoxContainer = null
+
 # UI state
 var _hovered_row: int = -1
-var _hovered_col: int = -1  # 0-3 = chooseable options, 4 = auto-grant
-var _row_panels: Dictionary = {}  # level -> Dictionary of UI elements
+var _hovered_col: int = -1
+var _row_panels: Dictionary = {}
 
 # Stat allocation state
 var _stat_alloc_panel: PanelContainer = null
 var _stat_alloc_level: int = -1
 var _stat_points_remaining: int = 0
-var _stat_allocations: Dictionary = {}  # "strength" -> amount, etc.
+var _stat_allocations: Dictionary = {}
 
 # Style constants
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.95)
@@ -58,6 +65,9 @@ const COLOR_TYPE_STAT := Color(0.7, 0.7, 1.0)
 const COLOR_TYPE_UPGRADE := Color(0.3, 0.8, 1.0)
 const COLOR_AUTO_TEXT := Color(1.0, 0.85, 0.4)
 const COLOR_LEVEL_LABEL := Color(0.6, 0.6, 0.75)
+const COLOR_TAB_ACTIVE := Color(0.15, 0.15, 0.25)
+const COLOR_TAB_INACTIVE := Color(0.08, 0.08, 0.12)
+const COLOR_TAB_HOVER := Color(0.2, 0.2, 0.3)
 
 const ROW_HEIGHT: float = 90.0
 const OPTION_WIDTH: float = 200.0
@@ -67,30 +77,42 @@ const ROW_GAP: float = 4.0
 const HEADER_HEIGHT: float = 36.0
 
 func _ready() -> void:
-	layer = 115  # Above sphere grid (110)
+	layer = 115
 	visible = false
 	_apply_styles()
+	_build_tab_bar()
 
 	close_button.pressed.connect(_on_close_pressed)
+
+## Connect the sphere grid UI so we can manage its visibility from our tabs.
+func connect_sphere_grid(grid_ui: SphereGridUI) -> void:
+	_sphere_grid_ui = grid_ui
+	# Disconnect the sphere grid's own close button from hiding itself independently
+	# We'll manage its visibility through our tab system
+	# Hide it by default since we start on skill tree tab
+	_sphere_grid_ui.visible = false
 
 func set_skill_tree(tree: SkillTreeData) -> void:
 	skill_tree = tree
 	character_name = tree.character_name
-	_rebuild_table()
+	if _current_tab == Tab.SKILL_TREE:
+		_rebuild_table()
 
 func set_player_level(level: int) -> void:
 	player_level = level
-	_rebuild_table()
+	if _current_tab == Tab.SKILL_TREE:
+		_rebuild_table()
 
 func show_panel() -> void:
 	visible = true
-	_rebuild_table()
-	# Scroll to the latest unlocked row
-	_scroll_to_current_level()
+	_switch_to_tab(_current_tab)
 
 func hide_panel() -> void:
 	_close_stat_alloc_panel()
 	visible = false
+	# Also hide sphere grid when we close
+	if _sphere_grid_ui:
+		_sphere_grid_ui.hide_panel()
 
 func toggle_panel() -> void:
 	if visible:
@@ -101,6 +123,96 @@ func toggle_panel() -> void:
 func _on_close_pressed() -> void:
 	hide_panel()
 	closed.emit()
+
+# ============================================
+# TAB SYSTEM
+# ============================================
+
+func _build_tab_bar() -> void:
+	_tab_bar = HBoxContainer.new()
+	_tab_bar.add_theme_constant_override("separation", 4)
+	# Position below title, above content
+	_tab_bar.anchors_preset = Control.PRESET_TOP_WIDE
+	_tab_bar.offset_left = 16.0
+	_tab_bar.offset_top = 40.0
+	_tab_bar.offset_right = -120.0  # Leave room for close button
+	_tab_bar.offset_bottom = 72.0
+
+	_tab_btn_skill_tree = _make_tab_button("Skill Tree", true)
+	_tab_btn_skill_tree.pressed.connect(_on_tab_skill_tree)
+	_tab_bar.add_child(_tab_btn_skill_tree)
+
+	_tab_btn_sphere_grid = _make_tab_button("Sphere Grid", false)
+	_tab_btn_sphere_grid.pressed.connect(_on_tab_sphere_grid)
+	_tab_bar.add_child(_tab_btn_sphere_grid)
+
+	add_child(_tab_bar)
+
+func _make_tab_button(text: String, active: bool) -> Button:
+	var btn = Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(140, 28)
+	btn.add_theme_font_size_override("font_size", 14)
+	_apply_tab_style(btn, active)
+	return btn
+
+func _apply_tab_style(btn: Button, active: bool) -> void:
+	var style = StyleBoxFlat.new()
+	style.bg_color = COLOR_TAB_ACTIVE if active else COLOR_TAB_INACTIVE
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 0 if active else 2
+	style.border_color = COLOR_BORDER if active else Color(0.2, 0.2, 0.3)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 4.0
+	style.content_margin_bottom = 4.0
+	btn.add_theme_stylebox_override("normal", style)
+
+	var hover_style = style.duplicate() as StyleBoxFlat
+	hover_style.bg_color = COLOR_TAB_ACTIVE if active else COLOR_TAB_HOVER
+	btn.add_theme_stylebox_override("hover", hover_style)
+
+	var pressed_style = style.duplicate() as StyleBoxFlat
+	pressed_style.bg_color = COLOR_TAB_ACTIVE
+	btn.add_theme_stylebox_override("pressed", pressed_style)
+
+	btn.add_theme_color_override("font_color", COLOR_TITLE if active else COLOR_DIM)
+	btn.add_theme_color_override("font_hover_color", COLOR_TITLE)
+
+func _on_tab_skill_tree() -> void:
+	_switch_to_tab(Tab.SKILL_TREE)
+
+func _on_tab_sphere_grid() -> void:
+	_switch_to_tab(Tab.SPHERE_GRID)
+
+func _switch_to_tab(tab: Tab) -> void:
+	_current_tab = tab
+
+	# Update tab button styles
+	_apply_tab_style(_tab_btn_skill_tree, tab == Tab.SKILL_TREE)
+	_apply_tab_style(_tab_btn_sphere_grid, tab == Tab.SPHERE_GRID)
+
+	if tab == Tab.SKILL_TREE:
+		# Show skill tree content, hide sphere grid
+		scroll_container.visible = true
+		_rebuild_table()
+		_scroll_to_current_level()
+		_update_title()
+		if _sphere_grid_ui:
+			_sphere_grid_ui.hide_panel()
+	elif tab == Tab.SPHERE_GRID:
+		# Hide skill tree content, show sphere grid
+		scroll_container.visible = false
+		_close_stat_alloc_panel()
+		_update_title()
+		if _sphere_grid_ui:
+			_sphere_grid_ui.show_panel()
 
 # ============================================
 # STYLING
@@ -124,7 +236,7 @@ func _apply_styles() -> void:
 	_update_title()
 
 	# Close button
-	close_button.text = "Close [K]"
+	close_button.text = "Close [L]"
 	close_button.add_theme_font_size_override("font_size", 14)
 	var btn_style = StyleBoxFlat.new()
 	btn_style.bg_color = Color(0.15, 0.15, 0.2)
@@ -142,14 +254,19 @@ func _apply_styles() -> void:
 	btn_hover.bg_color = Color(0.25, 0.25, 0.35)
 	close_button.add_theme_stylebox_override("hover", btn_hover)
 
-	# ScrollContainer styling
+	# ScrollContainer styling - shift down to make room for tab bar
 	scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll_container.offset_top = 76.0  # Below tab bar
 
 func _update_title() -> void:
-	if character_name != "":
-		title_label.text = "%s - SKILL TREE" % character_name.to_upper()
-	else:
-		title_label.text = "SKILL TREE"
+	match _current_tab:
+		Tab.SKILL_TREE:
+			if character_name != "":
+				title_label.text = "%s - SKILL TREE" % character_name.to_upper()
+			else:
+				title_label.text = "SKILL TREE"
+		Tab.SPHERE_GRID:
+			title_label.text = "SPHERE GRID"
 
 # ============================================
 # TABLE BUILDING
@@ -259,7 +376,6 @@ func _build_skill_row(row: SkillTreeData.SkillRow, is_locked: bool) -> void:
 			row_data["option_panels"].append(option_panel)
 			hbox.add_child(option_panel)
 		else:
-			# Empty placeholder
 			var empty = _build_empty_panel()
 			hbox.add_child(empty)
 
@@ -281,12 +397,10 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	panel_node.custom_minimum_size = Vector2(OPTION_WIDTH, ROW_HEIGHT)
 	panel_node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	# Determine state
 	var is_chosen = row.is_chosen() and row.chosen_index == index
 	var is_blacked_out = row.is_chosen() and row.chosen_index != index
 	var is_available = not row.is_chosen() and not is_locked and row.level <= player_level
 
-	# Style based on state
 	var style = StyleBoxFlat.new()
 	style.corner_radius_top_left = 6
 	style.corner_radius_top_right = 6
@@ -319,15 +433,12 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 
 	panel_node.add_theme_stylebox_override("panel", style)
 
-	# Content VBox
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 2)
 
-	# Type tag + name row
 	var top_hbox = HBoxContainer.new()
 	top_hbox.add_theme_constant_override("separation", 6)
 
-	# Type tag
 	var type_label = Label.new()
 	type_label.text = "[%s]" % option.get_type_label()
 	type_label.add_theme_font_size_override("font_size", 11)
@@ -339,7 +450,6 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	type_label.add_theme_color_override("font_color", type_color)
 	top_hbox.add_child(type_label)
 
-	# Name
 	var name_label = Label.new()
 	name_label.text = option.name
 	name_label.add_theme_font_size_override("font_size", 13)
@@ -356,7 +466,6 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 
 	vbox.add_child(top_hbox)
 
-	# Description
 	var desc_label = Label.new()
 	desc_label.text = option.description
 	desc_label.add_theme_font_size_override("font_size", 11)
@@ -369,7 +478,6 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 		desc_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 	vbox.add_child(desc_label)
 
-	# Status indicator
 	var status_label = Label.new()
 	status_label.add_theme_font_size_override("font_size", 10)
 	if is_chosen:
@@ -388,7 +496,6 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 
 	panel_node.add_child(vbox)
 
-	# Make clickable if available
 	if is_available:
 		panel_node.mouse_filter = Control.MOUSE_FILTER_STOP
 		panel_node.gui_input.connect(_on_option_input.bind(row.level, index))
@@ -407,7 +514,7 @@ func _build_auto_grant_panel(row: SkillTreeData.SkillRow, is_locked: bool) -> Pa
 	if not auto:
 		return panel_node
 
-	var is_claimed = row.level <= player_level  # Auto-grants are claimed when you reach the level
+	var is_claimed = row.level <= player_level
 
 	var style = StyleBoxFlat.new()
 	style.corner_radius_top_left = 6
@@ -438,14 +545,12 @@ func _build_auto_grant_panel(row: SkillTreeData.SkillRow, is_locked: bool) -> Pa
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 2)
 
-	# Auto icon/label
 	var auto_tag = Label.new()
 	auto_tag.text = "AUTO"
 	auto_tag.add_theme_font_size_override("font_size", 10)
 	auto_tag.add_theme_color_override("font_color", COLOR_AUTO_TEXT if not is_locked else COLOR_DIM)
 	vbox.add_child(auto_tag)
 
-	# Grant name
 	var name_label = Label.new()
 	name_label.text = auto.name
 	name_label.add_theme_font_size_override("font_size", 13)
@@ -457,7 +562,6 @@ func _build_auto_grant_panel(row: SkillTreeData.SkillRow, is_locked: bool) -> Pa
 		name_label.add_theme_color_override("font_color", COLOR_AUTO_TEXT)
 	vbox.add_child(name_label)
 
-	# Grant description
 	var desc_label = Label.new()
 	desc_label.text = auto.description
 	desc_label.add_theme_font_size_override("font_size", 11)
@@ -468,7 +572,6 @@ func _build_auto_grant_panel(row: SkillTreeData.SkillRow, is_locked: bool) -> Pa
 		desc_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 	vbox.add_child(desc_label)
 
-	# Status
 	var status_label = Label.new()
 	status_label.add_theme_font_size_override("font_size", 10)
 	if is_claimed:
@@ -479,7 +582,6 @@ func _build_auto_grant_panel(row: SkillTreeData.SkillRow, is_locked: bool) -> Pa
 		status_label.add_theme_color_override("font_color", COLOR_DIM)
 	vbox.add_child(status_label)
 
-	# Make stat allocation clickable if it requires interaction
 	if is_claimed and auto.grant_type == SkillTreeData.AutoGrantType.STAT_ALLOCATION:
 		panel_node.mouse_filter = Control.MOUSE_FILTER_STOP
 		panel_node.gui_input.connect(_on_auto_grant_input.bind(row.level))
@@ -510,7 +612,6 @@ func _on_option_input(event: InputEvent, level: int, option_index: int) -> void:
 func _on_option_hover(panel_node: PanelContainer, entered: bool) -> void:
 	if not is_instance_valid(panel_node):
 		return
-	# Brighten border on hover
 	var style = panel_node.get_theme_stylebox("panel") as StyleBoxFlat
 	if not style:
 		return
@@ -595,12 +696,10 @@ func _open_stat_allocation(level: int) -> void:
 	remaining_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(remaining_label)
 
-	# Stat rows
 	for stat_name in ["strength", "dexterity", "intelligence", "wisdom", "agility", "determination"]:
 		var stat_row = _build_stat_alloc_row(stat_name)
 		vbox.add_child(stat_row)
 
-	# Confirm button
 	var confirm_btn = Button.new()
 	confirm_btn.text = "Confirm"
 	confirm_btn.add_theme_font_size_override("font_size", 14)
@@ -609,7 +708,6 @@ func _open_stat_allocation(level: int) -> void:
 
 	_stat_alloc_panel.add_child(vbox)
 
-	# Position in center of screen
 	_stat_alloc_panel.anchors_preset = Control.PRESET_CENTER
 	_stat_alloc_panel.custom_minimum_size = Vector2(300, 350)
 
@@ -667,10 +765,8 @@ func _refresh_stat_alloc_display() -> void:
 	if not is_instance_valid(_stat_alloc_panel):
 		return
 
-	# Update remaining label
 	var remaining = _stat_alloc_panel.get_node_or_null("VBoxContainer/RemainingLabel")
 	if not remaining:
-		# Try finding through children
 		for child in _stat_alloc_panel.get_children():
 			if child is VBoxContainer:
 				for sub in child.get_children():
@@ -680,10 +776,8 @@ func _refresh_stat_alloc_display() -> void:
 	if remaining:
 		remaining.text = "Remaining: %d" % _stat_points_remaining
 
-	# Update value labels
 	for stat_name in _stat_allocations:
 		var value_node_name = "Value_" + stat_name
-		# Search through the stat rows
 		for child in _stat_alloc_panel.get_children():
 			if child is VBoxContainer:
 				for sub in child.get_children():
@@ -722,11 +816,9 @@ func _get_type_color(option_type: SkillTreeData.OptionType) -> Color:
 	return COLOR_TEXT
 
 func _scroll_to_current_level() -> void:
-	# Scroll so the current level's row is visible
 	if not is_instance_valid(scroll_container):
 		return
-	# Calculate approximate scroll position
-	var target_row = player_level - 1  # 0-indexed row
+	var target_row = player_level - 1
 	var scroll_y = max(0, (target_row - 3) * (ROW_HEIGHT + ROW_GAP))
 	scroll_container.call_deferred("set_v_scroll", int(scroll_y))
 
@@ -734,7 +826,7 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_K:
+		if event.keycode == KEY_L:
 			hide_panel()
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_ESCAPE:
