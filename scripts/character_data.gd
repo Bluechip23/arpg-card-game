@@ -51,22 +51,20 @@ static func create_ryan() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Ryan"
 	data.strength = 5
-	data.dexterity = 5
+	data.dexterity = 12
 	data.intelligence = 5
 	data.wisdom = 5
 	data.determination = 5
-	data.agility = 5
+	data.agility = 8
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
 	data.base_hand_size = 5
 	data.starting_card_ids = [
+		"slash", "slash", "slash",
+		"block", "block", "block",
 		"discard", "discard",
-		"raged_circulation", "poisoned_blood", "elixir", "heal",
-		"shadows", "preparation", "exacerbate_wounds", "reposition",
-		"dagger_throw", "volatile_mixture", "understanding",
-		"shuriken_pouch", "premeditated"
 	]
 	data.archetypes = [
 		{"name": "Relentless Blade", "description": "Constant pressure, and 1000 cuts is how you fight. Aggression, and lacerations are your north star."},
@@ -86,8 +84,8 @@ static func create_jeremy() -> CharacterData:
 	data.character_name = "Jeremy"
 	data.strength = 5
 	data.dexterity = 5
-	data.intelligence = 5
-	data.wisdom = 5
+	data.intelligence = 12
+	data.wisdom = 8
 	data.determination = 5
 	data.agility = 5
 	data.base_health = 5
@@ -96,11 +94,9 @@ static func create_jeremy() -> CharacterData:
 	data.base_draw_timer = 5
 	data.base_hand_size = 5
 	data.starting_card_ids = [
+		"slash", "slash", "slash",
+		"block", "block", "block",
 		"draw", "draw",
-		"trick_shot", "surrounding_ice", "risk_it", "biscuit",
-		"loaded_die", "worst_that_could_happen", "oops", "house_money",
-		"hope_this_works", "lady_luck", "try_this", "if_pigs_could_fly",
-		"snowballs_chance"
 	]
 	data.archetypes = [
 		{"name": "Evocation", "description": "Master of the elements. Blasting enemies with power is your cup of tea."},
@@ -118,8 +114,8 @@ static func create_jeremy() -> CharacterData:
 static func create_stephen() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Stephen"
-	data.strength = 5
-	data.dexterity = 5
+	data.strength = 12
+	data.dexterity = 8
 	data.intelligence = 5
 	data.wisdom = 5
 	data.determination = 5
@@ -130,11 +126,9 @@ static func create_stephen() -> CharacterData:
 	data.base_draw_timer = 5
 	data.base_hand_size = 5
 	data.starting_card_ids = [
+		"slash", "slash", "slash",
+		"block", "block", "block",
 		"empower", "empower",
-		"mark", "rise", "quick_shot", "reload", "enchanted_quiver",
-		"tighten_string", "down_town", "barricade", "sky_fall",
-		"sky_attack", "lead_arrow", "last_breath", "mixed_bag",
-		"bottomless_quiver"
 	]
 	data.archetypes = [
 		{"name": "The Apex", "description": "The most efficient and dangerous killer. No tactic is out of question, master of all things offense."},
@@ -155,18 +149,18 @@ static func create_cory() -> CharacterData:
 	data.strength = 5
 	data.dexterity = 5
 	data.intelligence = 5
-	data.wisdom = 5
+	data.wisdom = 12
 	data.determination = 5
-	data.agility = 5
+	data.agility = 8
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
 	data.base_hand_size = 5
 	data.starting_card_ids = [
+		"slash", "slash", "slash",
+		"block", "block", "block",
 		"blink", "blink",
-		"round_em_up", "trip", "choke", "push", "defensive_awareness",
-		"sweeping_disarm", "consecutive_snap", "swap", "meditate"
 	]
 	data.archetypes = [
 		{"name": "Lurker", "description": "You gain strength from your enemies wounds, becoming stronger as they become weaker, trapping them, or holding them in place, preparing for you to devour."},
@@ -184,22 +178,21 @@ static func create_cory() -> CharacterData:
 static func create_brad() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Brad"
-	data.strength = 5
+	data.strength = 8
 	data.dexterity = 5
 	data.intelligence = 5
 	data.wisdom = 5
-	data.determination = 5
+	data.determination = 12
 	data.agility = 5
 	data.base_health = 5
-	data.base_mana = 4
+	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
 	data.base_hand_size = 5
 	data.starting_card_ids = [
+		"slash", "slash", "slash",
+		"block", "block", "block",
 		"heal", "heal",
-		"life_swap", "wear_down", "taunt", "life_steal", "roar",
-		"poke", "armor_break", "charge", "heroic_leap", "morphine",
-		"turtle_up", "parry", "approach", "hold_the_line"
 	]
 	data.archetypes = [
 		{"name": "Berserker", "description": "Health is simply an inconvenience. Pain is your greatest strength, causing you to get stronger as you edge near death."},
