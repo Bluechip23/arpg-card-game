@@ -42,7 +42,7 @@ func _update_title_for_mode() -> void:
 		_update_multiplayer_title()
 	else:
 		title_label.text = "Choose Your Character"
-		subtitle_label.text = "Each character brings a unique playstyle, passive, and starting equipment."
+		subtitle_label.text = "Each character brings a unique playstyle, passive, and starting equipment.\nNote: the archetypes are character guidelines. You will not be forced to follow any one path and will obtain options from all paths mixing and matching as you please."
 
 func _update_multiplayer_title() -> void:
 	if _selecting_player == 1:
@@ -280,9 +280,13 @@ func _on_back_pressed() -> void:
 		_update_multiplayer_title()
 		return
 
-	# Go back to title menu
-	var title_scene = load("res://scenes/title_menu.tscn").instantiate()
-	get_tree().root.add_child(title_scene)
+	# Go back to Load or New screen (single player) or title menu (other modes)
+	if game_mode == "single_player":
+		var load_or_new_scene = load("res://scenes/load_or_new.tscn").instantiate()
+		get_tree().root.add_child(load_or_new_scene)
+	else:
+		var title_scene = load("res://scenes/title_menu.tscn").instantiate()
+		get_tree().root.add_child(title_scene)
 	queue_free()
 
 # ---- Mode select (Town vs Fight) ----
