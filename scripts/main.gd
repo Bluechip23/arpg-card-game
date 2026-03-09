@@ -35,6 +35,7 @@ extends Node3D
 @onready var help_panel: HelpPanel = $HelpPanel
 @onready var quiver_ui: QuiverUI = $UI/QuiverUI
 @onready var sphere_grid_ui: SphereGridUI = $SphereGridUI
+@onready var skill_tree_ui: SkillTreeUI = $SkillTreeUI
 @onready var sphere_inventory: SphereInventory = $SphereInventory
 @onready var range_indicator: RangeIndicator = $RangeIndicator
 
@@ -206,6 +207,10 @@ func _ready() -> void:
 	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
 	sphere_grid_ui.node_unlocked.connect(_on_sphere_grid_node_unlocked)
 	sphere_grid_ui.sphere_grid.constellation_completed.connect(_on_constellation_completed)
+
+	# Skill tree connection
+	skill_tree_ui.option_chosen.connect(_on_skill_tree_option_chosen)
+	skill_tree_ui.auto_grant_claimed.connect(_on_skill_tree_auto_grant_claimed)
 
 	_setup_action_buttons()
 	_setup_battle_log()
@@ -1445,6 +1450,11 @@ func select_character(character: CharacterData) -> void:
 	sphere_grid_ui.sphere_grid.check_constellation_completion()
 	_apply_all_constellation_bonuses()
 
+	# Initialize character skill tree
+	var skill_tree = SkillTreeData.create_placeholder_tree(character.character_name)
+	skill_tree_ui.set_skill_tree(skill_tree)
+	skill_tree_ui.set_player_level(player.get_stats().current_level)
+
 	print("[MAIN] Selected character: %s" % character.character_name)
 
 # ============================================
@@ -1927,6 +1937,9 @@ func _on_player_leveled_up(new_level: int) -> void:
 		sphere_inventory.add_sphere(reward[0], reward[1])
 	print("[MAIN] Granted level %d sphere rewards" % new_level)
 
+	# Update skill tree with new level
+	skill_tree_ui.set_player_level(new_level)
+
 	# Force-refresh health and mana UI to guarantee display shows full restore
 	var stats = player.get_stats()
 	if stats:
@@ -2231,6 +2244,30 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"description": "Unyielding: Below 50% HP: gain 3 armor each cycle"
 			})
 			stats.apply_sphere_grid_stat("determination", 2)
+
+# ============================================
+# SKILL TREE → CHARACTER SYNC
+# ============================================
+
+func _on_skill_tree_option_chosen(level: int, option_index: int) -> void:
+	## Called when the player chooses one of the 4 options in a skill tree row.
+	var tree = skill_tree_ui.skill_tree
+	if not tree:
+		return
+	var row = tree.get_row_for_level(level)
+	if not row:
+		return
+	var option = row.get_chosen_option()
+	if not option:
+		return
+
+	print("[MAIN] Skill tree choice at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
+	# Future: apply the chosen option's effect (add card, grant passive, etc.)
+
+func _on_skill_tree_auto_grant_claimed(level: int) -> void:
+	## Called when a stat allocation or other auto-grant is confirmed.
+	print("[MAIN] Skill tree auto-grant claimed for level %d" % level)
+	# Future: apply stat allocations, card removals, upgrades, etc.
 
 func _apply_all_constellation_bonuses() -> void:
 	## Re-applies all completed constellation bonuses (called after character select).
@@ -3611,6 +3648,11 @@ func _input(event: InputEvent) -> void:
 			character_panel.toggle_panel()
 			return
 
+		# Skill tree toggle
+		if event.keycode == KEY_K:
+			skill_tree_ui.toggle_panel()
+			return
+
 		# Sphere grid toggle
 		if event.keycode == KEY_L:
 			sphere_grid_ui.toggle_panel()
@@ -3653,6 +3695,7 @@ func _input(event: InputEvent) -> void:
 			move_dialog.hide_dialog()
 			character_panel.hide_panel()
 			sphere_grid_ui.hide_panel()
+			skill_tree_ui.hide_panel()
 	
 	# Left click - play card or use gauntlet skill
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

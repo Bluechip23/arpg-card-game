@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" uid="uid://dri62oqig0hgl" path="res://scenes/sphere_grid.tscn" id="24_sphere"]
 [ext_resource type="Script" uid="uid://bvysoyp02lh3d" path="res://scripts/sphere_inventory.gd" id="25_sphere_inv"]
 [ext_resource type="Script" uid="uid://c8uffvcxq5tgl" path="res://scripts/range_indicator.gd" id="26_range_ind"]
+[ext_resource type="PackedScene" path="res://scenes/skill_tree.tscn" id="27_skill_tree"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_top_color = Color(0.05, 0.05, 0.1, 1)
@@ -96,6 +97,8 @@ script = ExtResource("12_w48qg")
 [node name="HelpPanel" parent="." unique_id=1333283261 instance=ExtResource("19_help")]
 
 [node name="SphereGridUI" parent="." unique_id=190786353 instance=ExtResource("24_sphere")]
+
+[node name="SkillTreeUI" parent="." instance=ExtResource("27_skill_tree")]
 
 [node name="SphereInventory" type="Node" parent="." unique_id=1227992805]
 script = ExtResource("25_sphere_inv")
@@ -212,7 +215,8 @@ offset_right = -9.0
 offset_bottom = 115.0
 grow_horizontal = 0
 text = "I - Character Panel
-L - Level Progress
+K - Skill Tree
+L - Sphere Grid
 H - Help"
 horizontal_alignment = 2
 
