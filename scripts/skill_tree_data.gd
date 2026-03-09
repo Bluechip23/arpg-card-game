@@ -132,6 +132,34 @@ func choose_option(level: int, option_index: int) -> bool:
 ## The chosen_index stays the same, but the extra pick is tracked in retrospective_picks.
 var retrospective_picks: Dictionary = {}  # level -> Array[int] of additional option indices
 
+## Free retrospective picks granted every 3rd level (3, 6, 9, 12, ...).
+## Tracks which levels have used their free retro pick.
+var free_retro_used: Dictionary = {}  # level_that_granted -> true (once used)
+
+## Check if a level is a retrospective level (every 3rd level starting at 3).
+static func is_retrospective_level(level: int) -> bool:
+	return level >= 3 and level % 3 == 0
+
+## Get the number of free retrospective picks available (granted but not yet used).
+func get_free_retro_picks_available(current_level: int) -> int:
+	var count: int = 0
+	for lvl in range(3, current_level + 1, 3):
+		if lvl not in free_retro_used:
+			count += 1
+	return count
+
+## Check if the player has any free retro pick available.
+func has_free_retro_pick(current_level: int) -> bool:
+	return get_free_retro_picks_available(current_level) > 0
+
+## Use one free retrospective pick. Returns true if successful.
+func use_free_retro_pick(current_level: int) -> bool:
+	for lvl in range(3, current_level + 1, 3):
+		if lvl not in free_retro_used:
+			free_retro_used[lvl] = true
+			return true
+	return false
+
 func can_retrospective_pick(level: int, option_index: int) -> bool:
 	var row = get_row_for_level(level)
 	if not row or not row.is_chosen():

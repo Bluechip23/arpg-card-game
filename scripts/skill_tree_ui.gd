@@ -290,6 +290,24 @@ func _rebuild_table() -> void:
 		child.queue_free()
 	_row_panels.clear()
 
+	# Show free retrospective picks info
+	var free_retro = skill_tree.get_free_retro_picks_available(player_level)
+	var token_retro = 0
+	if sphere_inventory:
+		token_retro = sphere_inventory.retrospective_tokens if sphere_inventory.has_retrospective_token() else 0
+	if free_retro > 0 or token_retro > 0:
+		var retro_label = Label.new()
+		var parts: Array[String] = []
+		if free_retro > 0:
+			parts.append("%d free retro pick%s (every 3rd level)" % [free_retro, "s" if free_retro > 1 else ""])
+		if token_retro > 0:
+			parts.append("%d sphere grid token%s" % [token_retro, "s" if token_retro > 1 else ""])
+		retro_label.text = "Retrospective: %s — reclaim a previously skipped option!" % " + ".join(parts)
+		retro_label.add_theme_font_size_override("font_size", 12)
+		retro_label.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
+		retro_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		table_container.add_child(retro_label)
+
 	# Add column header
 	_build_header_row()
 
@@ -361,6 +379,8 @@ func _build_skill_row(row: SkillTreeData.SkillRow, is_locked: bool) -> void:
 	level_style.corner_radius_bottom_left = 4
 	level_panel.add_theme_stylebox_override("panel", level_style)
 
+	var level_vbox = VBoxContainer.new()
+	level_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	var level_label = Label.new()
 	level_label.text = str(row.level)
 	level_label.add_theme_font_size_override("font_size", 18)
@@ -370,7 +390,15 @@ func _build_skill_row(row: SkillTreeData.SkillRow, is_locked: bool) -> void:
 		level_label.add_theme_color_override("font_color", COLOR_DIM)
 	elif row.level <= player_level:
 		level_label.add_theme_color_override("font_color", COLOR_TEXT)
-	level_panel.add_child(level_label)
+	level_vbox.add_child(level_label)
+	if SkillTreeData.is_retrospective_level(row.level):
+		var retro_indicator = Label.new()
+		retro_indicator.text = "R"
+		retro_indicator.add_theme_font_size_override("font_size", 10)
+		retro_indicator.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
+		retro_indicator.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		level_vbox.add_child(retro_indicator)
+	level_panel.add_child(level_vbox)
 	hbox.add_child(level_panel)
 
 	# 4 chooseable option columns
@@ -406,7 +434,7 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	var is_retro_picked = skill_tree.is_retrospective_picked(row.level, index)
 	var is_blacked_out = row.is_chosen() and row.chosen_index != index and not is_retro_picked
 	var is_available = not row.is_chosen() and not is_locked and row.level <= player_level
-	var has_retro_token = sphere_inventory and sphere_inventory.has_retrospective_token()
+	var has_retro_token = (sphere_inventory and sphere_inventory.has_retrospective_token()) or skill_tree.has_free_retro_pick(player_level)
 	var is_retro_available = is_blacked_out and has_retro_token and skill_tree.can_retrospective_pick(row.level, index)
 
 	var style = StyleBoxFlat.new()
@@ -677,14 +705,19 @@ func _on_retro_option_hover(panel_node: PanelContainer, entered: bool) -> void:
 	panel_node.add_theme_stylebox_override("panel", new_style)
 
 func _choose_retrospective(level: int, option_index: int) -> void:
-	if not skill_tree or not sphere_inventory:
-		return
-	if not sphere_inventory.has_retrospective_token():
+	if not skill_tree:
 		return
 	if not skill_tree.can_retrospective_pick(level, option_index):
 		return
 
-	sphere_inventory.spend_retrospective_token()
+	# Try free retro pick first (every 3rd level grants one), then sphere grid token
+	if skill_tree.has_free_retro_pick(player_level):
+		skill_tree.use_free_retro_pick(player_level)
+	elif sphere_inventory and sphere_inventory.has_retrospective_token():
+		sphere_inventory.spend_retrospective_token()
+	else:
+		return
+
 	skill_tree.retrospective_pick(level, option_index)
 	var row = skill_tree.get_row_for_level(level)
 	if row and option_index < row.options.size():
