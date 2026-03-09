@@ -4,6 +4,7 @@ extends Control
 ## Title menu screen - Rock USA
 
 const CharacterSelectScene = preload("res://scenes/character_select.tscn")
+const LoadOrNewScene = preload("res://scenes/load_or_new.tscn")
 const QuestionnaireScene = preload("res://scenes/character_questionnaire.tscn")
 
 @onready var title_label: Label = $VBox/TitleLabel
@@ -128,9 +129,8 @@ func _on_button_unhover(index: int) -> void:
 		_right_balls[index].visible = false
 
 func _on_single_player() -> void:
-	var select_scene = CharacterSelectScene.instantiate()
-	select_scene.game_mode = "single_player"
-	get_tree().root.add_child(select_scene)
+	var load_or_new = LoadOrNewScene.instantiate()
+	get_tree().root.add_child(load_or_new)
 	queue_free()
 
 func _on_character_quiz() -> void:

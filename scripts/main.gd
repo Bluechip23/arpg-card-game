@@ -210,8 +210,10 @@ func _ready() -> void:
 
 	# Skill tree connection — also link sphere grid into the tabbed panel
 	skill_tree_ui.connect_sphere_grid(sphere_grid_ui)
+	skill_tree_ui.sphere_inventory = sphere_inventory
 	skill_tree_ui.option_chosen.connect(_on_skill_tree_option_chosen)
 	skill_tree_ui.auto_grant_claimed.connect(_on_skill_tree_auto_grant_claimed)
+	skill_tree_ui.retrospective_chosen.connect(_on_skill_tree_retrospective_chosen)
 
 	_setup_action_buttons()
 	_setup_battle_log()
@@ -2269,6 +2271,18 @@ func _on_skill_tree_auto_grant_claimed(level: int) -> void:
 	## Called when a stat allocation or other auto-grant is confirmed.
 	print("[MAIN] Skill tree auto-grant claimed for level %d" % level)
 	# Future: apply stat allocations, card removals, upgrades, etc.
+
+func _on_skill_tree_retrospective_chosen(level: int, option_index: int) -> void:
+	## Called when the player uses a retrospective token to reclaim a skipped option.
+	var tree = skill_tree_ui.skill_tree
+	if not tree:
+		return
+	var row = tree.get_row_for_level(level)
+	if not row or option_index < 0 or option_index >= row.options.size():
+		return
+	var option = row.options[option_index]
+	print("[MAIN] Retrospective pick at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
+	# Future: apply the retrospective option's effect (add card, grant passive, etc.)
 
 func _apply_all_constellation_bonuses() -> void:
 	## Re-applies all completed constellation bonuses (called after character select).

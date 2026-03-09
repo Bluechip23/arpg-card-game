@@ -6,6 +6,7 @@ extends CanvasLayer
 
 signal closed
 signal option_chosen(level: int, option_index: int)
+signal retrospective_chosen(level: int, option_index: int)
 signal auto_grant_claimed(level: int)
 
 @onready var panel: PanelContainer = $Panel
@@ -22,6 +23,7 @@ var character_name: String = ""
 enum Tab { SKILL_TREE, SPHERE_GRID }
 var _current_tab: Tab = Tab.SKILL_TREE
 var _sphere_grid_ui: SphereGridUI = null  # Reference set by main.gd
+var sphere_inventory: SphereInventory = null  # Reference for retrospective tokens
 var _tab_btn_skill_tree: Button = null
 var _tab_btn_sphere_grid: Button = null
 var _tab_bar: HBoxContainer = null
@@ -68,6 +70,9 @@ const COLOR_LEVEL_LABEL := Color(0.6, 0.6, 0.75)
 const COLOR_TAB_ACTIVE := Color(0.15, 0.15, 0.25)
 const COLOR_TAB_INACTIVE := Color(0.08, 0.08, 0.12)
 const COLOR_TAB_HOVER := Color(0.2, 0.2, 0.3)
+const COLOR_RETRO_BG := Color(0.08, 0.18, 0.18, 1.0)
+const COLOR_RETRO_BORDER := Color(0.2, 0.7, 0.65)
+const COLOR_RETRO_TEXT := Color(0.3, 0.9, 0.85)
 
 const ROW_HEIGHT: float = 90.0
 const OPTION_WIDTH: float = 200.0
@@ -285,6 +290,21 @@ func _rebuild_table() -> void:
 		child.queue_free()
 	_row_panels.clear()
 
+	# Show retrospective info
+	var pending_retro = skill_tree.get_pending_retro_level(player_level)
+	var has_token = sphere_inventory and sphere_inventory.has_retrospective_token()
+	if pending_retro > 0 or has_token:
+		var retro_label = Label.new()
+		if pending_retro > 0:
+			retro_label.text = "Retrospective Level! You may choose a previously skipped option instead of a new one."
+		elif has_token:
+			var token_count = sphere_inventory.retrospective_tokens
+			retro_label.text = "Retrospective Token%s: %d — reclaim a skipped option as a bonus pick!" % ["s" if token_count > 1 else "", token_count]
+		retro_label.add_theme_font_size_override("font_size", 12)
+		retro_label.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
+		retro_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		table_container.add_child(retro_label)
+
 	# Add column header
 	_build_header_row()
 
@@ -356,6 +376,8 @@ func _build_skill_row(row: SkillTreeData.SkillRow, is_locked: bool) -> void:
 	level_style.corner_radius_bottom_left = 4
 	level_panel.add_theme_stylebox_override("panel", level_style)
 
+	var level_vbox = VBoxContainer.new()
+	level_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	var level_label = Label.new()
 	level_label.text = str(row.level)
 	level_label.add_theme_font_size_override("font_size", 18)
@@ -365,19 +387,66 @@ func _build_skill_row(row: SkillTreeData.SkillRow, is_locked: bool) -> void:
 		level_label.add_theme_color_override("font_color", COLOR_DIM)
 	elif row.level <= player_level:
 		level_label.add_theme_color_override("font_color", COLOR_TEXT)
-	level_panel.add_child(level_label)
+	level_vbox.add_child(level_label)
+	if SkillTreeData.is_retrospective_level(row.level):
+		var retro_indicator = Label.new()
+		retro_indicator.text = "R"
+		retro_indicator.add_theme_font_size_override("font_size", 10)
+		retro_indicator.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
+		retro_indicator.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		level_vbox.add_child(retro_indicator)
+	level_panel.add_child(level_vbox)
 	hbox.add_child(level_panel)
 
-	# 4 chooseable option columns
-	for i in range(4):
-		if i < row.options.size():
-			var option = row.options[i]
-			var option_panel = _build_option_panel(row, i, option, is_locked)
-			row_data["option_panels"].append(option_panel)
-			hbox.add_child(option_panel)
-		else:
-			var empty = _build_empty_panel()
-			hbox.add_child(empty)
+	# If this row used a retro choice (chose from a previous level), show a spanning message
+	if row.chosen_index == -2 and row.level in skill_tree.retro_level_choices:
+		var retro_info = skill_tree.retro_level_choices[row.level]
+		var source_row = skill_tree.get_row_for_level(retro_info["source_level"])
+		var source_name = "unknown"
+		if source_row and retro_info["option_index"] < source_row.options.size():
+			source_name = source_row.options[retro_info["option_index"]].name
+		var retro_panel = PanelContainer.new()
+		retro_panel.custom_minimum_size = Vector2(OPTION_WIDTH * 4 + COLUMN_GAP * 3, ROW_HEIGHT)
+		retro_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var retro_style = StyleBoxFlat.new()
+		retro_style.bg_color = COLOR_RETRO_BG
+		retro_style.border_color = COLOR_RETRO_BORDER
+		retro_style.corner_radius_top_left = 6
+		retro_style.corner_radius_top_right = 6
+		retro_style.corner_radius_bottom_left = 6
+		retro_style.corner_radius_bottom_right = 6
+		retro_style.border_width_left = 2
+		retro_style.border_width_right = 2
+		retro_style.border_width_top = 2
+		retro_style.border_width_bottom = 2
+		retro_style.content_margin_left = 12.0
+		retro_style.content_margin_top = 8.0
+		retro_panel.add_theme_stylebox_override("panel", retro_style)
+		var retro_vbox = VBoxContainer.new()
+		retro_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		var retro_title = Label.new()
+		retro_title.text = "RETROSPECTIVE — Chose from Level %d" % retro_info["source_level"]
+		retro_title.add_theme_font_size_override("font_size", 13)
+		retro_title.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
+		retro_vbox.add_child(retro_title)
+		var retro_desc = Label.new()
+		retro_desc.text = "Reclaimed: %s" % source_name
+		retro_desc.add_theme_font_size_override("font_size", 11)
+		retro_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+		retro_vbox.add_child(retro_desc)
+		retro_panel.add_child(retro_vbox)
+		hbox.add_child(retro_panel)
+	else:
+		# Normal 4 chooseable option columns
+		for i in range(4):
+			if i < row.options.size():
+				var option = row.options[i]
+				var option_panel = _build_option_panel(row, i, option, is_locked)
+				row_data["option_panels"].append(option_panel)
+				hbox.add_child(option_panel)
+			else:
+				var empty = _build_empty_panel()
+				hbox.add_child(empty)
 
 	# Vertical divider
 	var divider = VSeparator.new()
@@ -398,8 +467,15 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	panel_node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var is_chosen = row.is_chosen() and row.chosen_index == index
-	var is_blacked_out = row.is_chosen() and row.chosen_index != index
+	var is_retro_picked = skill_tree.is_retrospective_picked(row.level, index)
+	var is_blacked_out = row.is_chosen() and row.chosen_index != index and not is_retro_picked
 	var is_available = not row.is_chosen() and not is_locked and row.level <= player_level
+	# Retro availability: either a sphere grid token (bonus pick anytime) or
+	# the player is on a retro level and hasn't made their choice yet (free pick instead of current options)
+	var has_sphere_retro_token = sphere_inventory and sphere_inventory.has_retrospective_token()
+	var on_pending_retro_level = skill_tree.get_pending_retro_level(player_level) > 0
+	var has_retro_token = has_sphere_retro_token or on_pending_retro_level
+	var is_retro_available = is_blacked_out and has_retro_token and skill_tree.can_retrospective_pick(row.level, index)
 
 	var style = StyleBoxFlat.new()
 	style.corner_radius_top_left = 6
@@ -415,9 +491,12 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	style.content_margin_top = 6.0
 	style.content_margin_bottom = 6.0
 
-	if is_chosen:
+	if is_chosen or is_retro_picked:
 		style.bg_color = COLOR_OPTION_CHOSEN
 		style.border_color = COLOR_BORDER_CHOSEN
+	elif is_retro_available:
+		style.bg_color = COLOR_RETRO_BG
+		style.border_color = COLOR_RETRO_BORDER
 	elif is_blacked_out:
 		style.bg_color = COLOR_OPTION_BLACKED_OUT
 		style.border_color = COLOR_BORDER_BLACKED
@@ -443,7 +522,7 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	type_label.text = "[%s]" % option.get_type_label()
 	type_label.add_theme_font_size_override("font_size", 11)
 	var type_color = _get_type_color(option.option_type)
-	if is_blacked_out:
+	if is_blacked_out and not is_retro_available:
 		type_color = COLOR_BLACKED_TEXT
 	elif is_locked:
 		type_color = COLOR_DIM
@@ -453,8 +532,10 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	var name_label = Label.new()
 	name_label.text = option.name
 	name_label.add_theme_font_size_override("font_size", 13)
-	if is_chosen:
+	if is_chosen or is_retro_picked:
 		name_label.add_theme_color_override("font_color", COLOR_CHOSEN_TEXT)
+	elif is_retro_available:
+		name_label.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
 	elif is_blacked_out:
 		name_label.add_theme_color_override("font_color", COLOR_BLACKED_TEXT)
 	elif is_locked:
@@ -470,7 +551,7 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	desc_label.text = option.description
 	desc_label.add_theme_font_size_override("font_size", 11)
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if is_blacked_out:
+	if is_blacked_out and not is_retro_available:
 		desc_label.add_theme_color_override("font_color", COLOR_BLACKED_TEXT)
 	elif is_locked:
 		desc_label.add_theme_color_override("font_color", COLOR_DIM)
@@ -483,6 +564,12 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	if is_chosen:
 		status_label.text = "CHOSEN"
 		status_label.add_theme_color_override("font_color", COLOR_CHOSEN_TEXT)
+	elif is_retro_picked:
+		status_label.text = "RECLAIMED"
+		status_label.add_theme_color_override("font_color", COLOR_CHOSEN_TEXT)
+	elif is_retro_available:
+		status_label.text = "Click to reclaim (Retrospective)"
+		status_label.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
 	elif is_blacked_out:
 		status_label.text = "LOCKED"
 		status_label.add_theme_color_override("font_color", COLOR_BLACKED_TEXT)
@@ -501,6 +588,11 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 		panel_node.gui_input.connect(_on_option_input.bind(row.level, index))
 		panel_node.mouse_entered.connect(_on_option_hover.bind(panel_node, true))
 		panel_node.mouse_exited.connect(_on_option_hover.bind(panel_node, false))
+	elif is_retro_available:
+		panel_node.mouse_filter = Control.MOUSE_FILTER_STOP
+		panel_node.gui_input.connect(_on_retro_option_input.bind(row.level, index))
+		panel_node.mouse_entered.connect(_on_retro_option_hover.bind(panel_node, true))
+		panel_node.mouse_exited.connect(_on_retro_option_hover.bind(panel_node, false))
 	else:
 		panel_node.mouse_filter = Control.MOUSE_FILTER_PASS
 
@@ -635,6 +727,50 @@ func _choose_option(level: int, option_index: int) -> void:
 		print("[SKILL TREE] Chose option %d for level %d: %s" % [option_index + 1, level, row.options[option_index].name])
 		option_chosen.emit(level, option_index)
 		_rebuild_table()
+
+func _on_retro_option_input(event: InputEvent, level: int, option_index: int) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_choose_retrospective(level, option_index)
+
+func _on_retro_option_hover(panel_node: PanelContainer, entered: bool) -> void:
+	if not is_instance_valid(panel_node):
+		return
+	var new_style = (panel_node.get_theme_stylebox("panel") as StyleBoxFlat).duplicate() as StyleBoxFlat
+	if entered:
+		new_style.bg_color = Color(0.12, 0.25, 0.25, 1.0)
+		new_style.border_color = Color(0.3, 0.9, 0.85)
+	else:
+		new_style.bg_color = COLOR_RETRO_BG
+		new_style.border_color = COLOR_RETRO_BORDER
+	panel_node.add_theme_stylebox_override("panel", new_style)
+
+func _choose_retrospective(level: int, option_index: int) -> void:
+	if not skill_tree:
+		return
+	if not skill_tree.can_retrospective_pick(level, option_index):
+		return
+
+	# Check if this is a retro level free pick (counts as the level-up choice)
+	# or a sphere grid token bonus pick (extra on top of normal choice)
+	var pending_retro = skill_tree.get_pending_retro_level(player_level)
+	if pending_retro > 0:
+		# Free retro pick — choosing a previous option instead of current level's options
+		skill_tree.retro_level_choose_previous(pending_retro, level, option_index)
+		var row = skill_tree.get_row_for_level(level)
+		if row and option_index < row.options.size():
+			print("[SKILL TREE] Retro level %d: chose option %d from level %d (%s) instead" % [pending_retro, option_index + 1, level, row.options[option_index].name])
+	elif sphere_inventory and sphere_inventory.has_retrospective_token():
+		# Sphere grid token — bonus pick on top of normal choice
+		sphere_inventory.spend_retrospective_token()
+		skill_tree.retrospective_pick(level, option_index)
+		var row = skill_tree.get_row_for_level(level)
+		if row and option_index < row.options.size():
+			print("[SKILL TREE] Retro token: bonus pick option %d from level %d (%s)" % [option_index + 1, level, row.options[option_index].name])
+	else:
+		return
+
+	retrospective_chosen.emit(level, option_index)
+	_rebuild_table()
 
 func _on_auto_grant_input(event: InputEvent, level: int) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

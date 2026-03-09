@@ -26,6 +26,9 @@ var spheres: Dictionary = {
 # Upgrade runes (found in combat, can upgrade any unlocked node)
 var upgrade_runes: int = 0
 
+# Retrospective tokens (from sphere grid, lets player reclaim a skipped skill tree option)
+var retrospective_tokens: int = 0
+
 # ============================================
 # SPHERE MANAGEMENT
 # ============================================
@@ -86,6 +89,25 @@ func spend_upgrade_rune() -> bool:
 	return true
 
 # ============================================
+# RETROSPECTIVE TOKENS
+# ============================================
+
+func add_retrospective_token(amount: int = 1) -> void:
+	retrospective_tokens += amount
+	print("[SPHERES] Gained %d retrospective token(s). Total: %d" % [amount, retrospective_tokens])
+	spheres_changed.emit()
+
+func spend_retrospective_token() -> bool:
+	if retrospective_tokens <= 0:
+		return false
+	retrospective_tokens -= 1
+	spheres_changed.emit()
+	return true
+
+func has_retrospective_token() -> bool:
+	return retrospective_tokens > 0
+
+# ============================================
 # TYPE MAPPING
 # ============================================
 
@@ -99,6 +121,8 @@ static func get_required_sphere_type(node_type: SphereGrid.NodeType) -> int:
 			return SphereType.PASSIVE
 		SphereGrid.NodeType.CARD:
 			return SphereType.CARD
+		SphereGrid.NodeType.RETROSPECTIVE:
+			return SphereType.ANY
 		SphereGrid.NodeType.START:
 			return -1  # Already unlocked
 	return -1
