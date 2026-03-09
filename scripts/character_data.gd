@@ -195,10 +195,26 @@ static func create_brad() -> CharacterData:
 		"heal", "heal",
 	]
 	data.archetypes = [
-		{"name": "Berserker", "description": "Health is simply an inconvenience. Pain is your greatest strength, causing you to get stronger as you edge near death."},
-		{"name": "Warden", "description": "Specialize in the art of armor and tactic, finding your weakness is nearly impossible for enemies."},
-		{"name": "The Ancient", "description": "Thorns, armor and healing. You have a deep understanding of nature, and you use its essence to your advantage."},
-		{"name": "The Fallen", "description": "Once a child of god, your mistakes have left you deserted. You have devoted yourself to find a way back."},
+		{"name": "Berserker", "description": "Health is simply an inconvenience. Pain is your greatest strength, causing you to get stronger as you edge near death.", "abilities": [
+			{"name": "Enraged Will", "description": "When you drop below 10% health, perform a free basic attack"},
+			{"name": "Directed Strength", "description": "Lose 5 strength when above 50% health, gain 5 when below"},
+			{"name": "Life Steal", "description": "All attacks life steal by 5%"},
+		]},
+		{"name": "Warden", "description": "Specialize in the art of armor and tactic, finding your weakness is nearly impossible for enemies.", "abilities": [
+			{"name": "In the Trenches", "description": "While wearing a shield, you knock back melee enemies when attacked"},
+			{"name": "The Way of the Plate", "description": "Every third Defense card costs -1m/-1t"},
+			{"name": "Pristine Armor", "description": "Cards provide +2 armor"},
+		]},
+		{"name": "The Ancient", "description": "Thorns, armor and healing. You have a deep understanding of nature, and you use its essence to your advantage.", "abilities": [
+			{"name": "Stone Skin", "description": "Gain 10% Fire, Physical and Lightning resistance"},
+			{"name": "Ancestral Aid", "description": "Gain 3 HP regen per 5 tempo"},
+			{"name": "Wrapped in Thorny Vine", "description": "Whenever you heal, gain 3 thorns"},
+		]},
+		{"name": "The Fallen", "description": "Once a child of god, your mistakes have left you deserted. You have devoted yourself to find a way back.", "abilities": [
+			{"name": "Point to Prove", "description": "When being stunned or disarmed, you have the option to sacrifice health to ignore the ailment"},
+			{"name": "Redemption", "description": "When healing an ally, 10% crit chance"},
+			{"name": "Dark Forces", "description": "When exposed, gain 3 damage to your next strike"},
+		]},
 	]
 	data.passive_description = "Chest items weigh 15% less"
 	data.starting_item_name = "Bloodbound Plate"
