@@ -297,6 +297,104 @@ static func create_placeholder_tree(char_name: String, max_level: int = 20) -> S
 
 	return tree
 
+## Brad-specific skill tree with archetype abilities at key levels.
+## Tier 1 abilities at level 5, Tier 2 at level 10, Tier 3 at level 15.
+## Each tier offers one ability per archetype (Berserker / Warden / The Ancient / The Fallen).
+static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
+	var tree = SkillTreeData.new()
+	tree.character_name = "Brad"
+
+	# Archetype ability data: [archetype_index][tier] -> {name, description}
+	var archetype_abilities := [
+		# Berserker
+		[
+			{"name": "Enraged Will", "description": "When you drop below 10% health, perform a free basic attack"},
+			{"name": "Directed Strength", "description": "Lose 5 strength when above 50% health, gain 5 when below"},
+			{"name": "Life Steal", "description": "All attacks life steal by 5%"},
+		],
+		# Warden
+		[
+			{"name": "In the Trenches", "description": "While wearing a shield, you knock back melee enemies when attacked"},
+			{"name": "The Way of the Plate", "description": "Every third Defense card costs -1m/-1t"},
+			{"name": "Pristine Armor", "description": "Cards provide +2 armor"},
+		],
+		# The Ancient
+		[
+			{"name": "Stone Skin", "description": "Gain 10% Fire, Physical and Lightning resistance"},
+			{"name": "Ancestral Aid", "description": "Gain 3 HP regen per 5 tempo"},
+			{"name": "Wrapped in Thorny Vine", "description": "Whenever you heal, gain 3 thorns"},
+		],
+		# The Fallen
+		[
+			{"name": "Point to Prove", "description": "When being stunned or disarmed, you have the option to sacrifice health to ignore the ailment"},
+			{"name": "Redemption", "description": "When healing an ally, 10% crit chance"},
+			{"name": "Dark Forces", "description": "When exposed, gain 3 damage to your next strike"},
+		],
+	]
+
+	var archetype_names := ["Berserker", "Warden", "The Ancient", "The Fallen"]
+	var archetype_colors := [
+		Color(0.9, 0.3, 0.3),   # Berserker - Red
+		Color(0.3, 0.7, 1.0),   # Warden - Blue
+		Color(0.4, 0.9, 0.4),   # The Ancient - Green
+		Color(0.8, 0.4, 0.9),   # The Fallen - Purple
+	]
+
+	# Levels where archetype abilities appear (one tier per level)
+	var ability_levels := [5, 10, 15]
+
+	for lvl in range(2, max_level + 1):
+		var row = SkillRow.new()
+		row.level = lvl
+
+		var tier_index := ability_levels.find(lvl)
+		if tier_index >= 0:
+			# Archetype ability row — 4 options, one per archetype
+			for i in range(4):
+				var opt = SkillOption.new()
+				var ability = archetype_abilities[i][tier_index]
+				opt.name = ability["name"]
+				opt.description = "%s: %s" % [archetype_names[i], ability["description"]]
+				opt.option_type = OptionType.PASSIVE
+				opt.passive_id = ability["name"].to_lower().replace(" ", "_")
+				opt.icon_color = archetype_colors[i]
+				row.options.append(opt)
+		else:
+			# Placeholder row for non-archetype levels
+			for i in range(4):
+				var opt = SkillOption.new()
+				opt.name = "Brad Lv%d Option %d" % [lvl, i + 1]
+				opt.description = "Placeholder - to be defined"
+				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
+				opt.icon_color = _get_option_color(i)
+				row.options.append(opt)
+
+		# Create auto-grant based on level schedule
+		var auto = AutoGrant.new()
+		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
+		match auto.grant_type:
+			AutoGrantType.STAT_ALLOCATION:
+				auto.name = "Stat Points"
+				auto.description = "Allocate 5 stat points"
+				auto.stat_points = 5
+			AutoGrantType.CARD_REMOVAL:
+				auto.name = "Culling Stone"
+				auto.description = "Remove 1 card from your deck"
+			AutoGrantType.UPGRADE_CARD:
+				auto.name = "Card Upgrade"
+				auto.description = "Upgrade an existing card"
+			AutoGrantType.MUTATE_CARD:
+				auto.name = "Card Mutation"
+				auto.description = "Mutate an existing card"
+			_:
+				auto.name = "Bonus"
+				auto.description = "Level bonus"
+		row.auto_grant = auto
+
+		tree.rows.append(row)
+
+	return tree
+
 static func _get_option_color(index: int) -> Color:
 	match index:
 		0: return Color(0.3, 0.7, 1.0)    # Blue
