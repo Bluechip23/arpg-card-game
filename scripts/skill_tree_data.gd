@@ -297,77 +297,82 @@ static func create_placeholder_tree(char_name: String, max_level: int = 20) -> S
 
 	return tree
 
-## Brad-specific skill tree with archetype abilities at key levels.
-## Tier 1 abilities at level 5, Tier 2 at level 10, Tier 3 at level 15.
-## Each tier offers one ability per archetype (Berserker / Warden / The Ancient / The Fallen).
+## Brad-specific skill tree with archetype abilities spread across levels.
+## Each archetype ability appears as one of the 4 options on its row,
+## mixed in alongside other option types at various levels.
 static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 	var tree = SkillTreeData.new()
 	tree.character_name = "Brad"
 
-	# Archetype ability data: [archetype_index][tier] -> {name, description}
-	var archetype_abilities := [
-		# Berserker
-		[
-			{"name": "Enraged Will", "description": "When you drop below 10% health, perform a free basic attack"},
-			{"name": "Directed Strength", "description": "Lose 5 strength when above 50% health, gain 5 when below"},
-			{"name": "Life Steal", "description": "All attacks life steal by 5%"},
-		],
-		# Warden
-		[
-			{"name": "In the Trenches", "description": "While wearing a shield, you knock back melee enemies when attacked"},
-			{"name": "The Way of the Plate", "description": "Every third Defense card costs -1m/-1t"},
-			{"name": "Pristine Armor", "description": "Cards provide +2 armor"},
-		],
-		# The Ancient
-		[
-			{"name": "Stone Skin", "description": "Gain 10% Fire, Physical and Lightning resistance"},
-			{"name": "Ancestral Aid", "description": "Gain 3 HP regen per 5 tempo"},
-			{"name": "Wrapped in Thorny Vine", "description": "Whenever you heal, gain 3 thorns"},
-		],
-		# The Fallen
-		[
-			{"name": "Point to Prove", "description": "When being stunned or disarmed, you have the option to sacrifice health to ignore the ailment"},
-			{"name": "Redemption", "description": "When healing an ally, 10% crit chance"},
-			{"name": "Dark Forces", "description": "When exposed, gain 3 damage to your next strike"},
-		],
+	# Archetype ability pool — each entry: {level, slot, archetype, name, description, color}
+	# Spread across levels so passives can appear at any level
+	var ability_placements := [
+		{level = 2, slot = 0, archetype = "Berserker", name = "Enraged Will",
+			description = "When you drop below 10% health, perform a free basic attack",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 3, slot = 1, archetype = "Warden", name = "In the Trenches",
+			description = "While wearing a shield, you knock back melee enemies when attacked",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 4, slot = 2, archetype = "The Ancient", name = "Stone Skin",
+			description = "Gain 10% Fire, Physical and Lightning resistance",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 5, slot = 3, archetype = "The Fallen", name = "Point to Prove",
+			description = "When being stunned or disarmed, you have the option to sacrifice health to ignore the ailment",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 7, slot = 1, archetype = "Berserker", name = "Directed Strength",
+			description = "Lose 5 strength when above 50% health, gain 5 when below",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 8, slot = 0, archetype = "Warden", name = "The Way of the Plate",
+			description = "Every third Defense card costs -1m/-1t",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 9, slot = 3, archetype = "The Ancient", name = "Ancestral Aid",
+			description = "Gain 3 HP regen per 5 tempo",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 11, slot = 2, archetype = "The Fallen", name = "Redemption",
+			description = "When healing an ally, 10% crit chance",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 13, slot = 0, archetype = "Berserker", name = "Life Steal",
+			description = "All attacks life steal by 5%",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 14, slot = 2, archetype = "Warden", name = "Pristine Armor",
+			description = "Cards provide +2 armor",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 16, slot = 1, archetype = "The Ancient", name = "Wrapped in Thorny Vine",
+			description = "Whenever you heal, gain 3 thorns",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 18, slot = 3, archetype = "The Fallen", name = "Dark Forces",
+			description = "When exposed, gain 3 damage to your next strike",
+			color = Color(0.8, 0.4, 0.9)},
 	]
 
-	var archetype_names := ["Berserker", "Warden", "The Ancient", "The Fallen"]
-	var archetype_colors := [
-		Color(0.9, 0.3, 0.3),   # Berserker - Red
-		Color(0.3, 0.7, 1.0),   # Warden - Blue
-		Color(0.4, 0.9, 0.4),   # The Ancient - Green
-		Color(0.8, 0.4, 0.9),   # The Fallen - Purple
-	]
-
-	# Levels where archetype abilities appear (one tier per level)
-	var ability_levels := [5, 10, 15]
+	# Index placements by level for quick lookup
+	var placements_by_level := {}  # level -> {slot -> placement}
+	for p in ability_placements:
+		if p.level not in placements_by_level:
+			placements_by_level[p.level] = {}
+		placements_by_level[p.level][p.slot] = p
 
 	for lvl in range(2, max_level + 1):
 		var row = SkillRow.new()
 		row.level = lvl
 
-		var tier_index := ability_levels.find(lvl)
-		if tier_index >= 0:
-			# Archetype ability row — 4 options, one per archetype
-			for i in range(4):
-				var opt = SkillOption.new()
-				var ability = archetype_abilities[i][tier_index]
-				opt.name = ability["name"]
-				opt.description = "%s: %s" % [archetype_names[i], ability["description"]]
+		var level_placements = placements_by_level.get(lvl, {})
+
+		for i in range(4):
+			var opt = SkillOption.new()
+			if i in level_placements:
+				var p = level_placements[i]
+				opt.name = p.name
+				opt.description = "%s: %s" % [p.archetype, p.description]
 				opt.option_type = OptionType.PASSIVE
-				opt.passive_id = ability["name"].to_lower().replace(" ", "_")
-				opt.icon_color = archetype_colors[i]
-				row.options.append(opt)
-		else:
-			# Placeholder row for non-archetype levels
-			for i in range(4):
-				var opt = SkillOption.new()
+				opt.passive_id = p.name.to_lower().replace(" ", "_")
+				opt.icon_color = p.color
+			else:
 				opt.name = "Brad Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
 				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
 				opt.icon_color = _get_option_color(i)
-				row.options.append(opt)
+			row.options.append(opt)
 
 		# Create auto-grant based on level schedule
 		var auto = AutoGrant.new()
