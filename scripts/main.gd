@@ -208,7 +208,8 @@ func _ready() -> void:
 	sphere_grid_ui.node_unlocked.connect(_on_sphere_grid_node_unlocked)
 	sphere_grid_ui.sphere_grid.constellation_completed.connect(_on_constellation_completed)
 
-	# Skill tree connection
+	# Skill tree connection — also link sphere grid into the tabbed panel
+	skill_tree_ui.connect_sphere_grid(sphere_grid_ui)
 	skill_tree_ui.option_chosen.connect(_on_skill_tree_option_chosen)
 	skill_tree_ui.auto_grant_claimed.connect(_on_skill_tree_auto_grant_claimed)
 
@@ -3648,14 +3649,9 @@ func _input(event: InputEvent) -> void:
 			character_panel.toggle_panel()
 			return
 
-		# Skill tree toggle
-		if event.keycode == KEY_K:
-			skill_tree_ui.toggle_panel()
-			return
-
-		# Sphere grid toggle
+		# Level progress panel toggle (skill tree + sphere grid tabs)
 		if event.keycode == KEY_L:
-			sphere_grid_ui.toggle_panel()
+			skill_tree_ui.toggle_panel()
 			return
 
 		# Help panel toggle
@@ -3694,7 +3690,6 @@ func _input(event: InputEvent) -> void:
 			update_card_highlights()
 			move_dialog.hide_dialog()
 			character_panel.hide_panel()
-			sphere_grid_ui.hide_panel()
 			skill_tree_ui.hide_panel()
 	
 	# Left click - play card or use gauntlet skill

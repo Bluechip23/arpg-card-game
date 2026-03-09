@@ -78,6 +78,10 @@ func _ready() -> void:
 
 	_build_constellation_list_panel()
 
+	# Hide our own title/close button — the parent SkillTreeUI provides those
+	title_label.visible = false
+	close_button.visible = false
+
 func _on_canvas_resized() -> void:
 	# Redraw when the canvas gets its proper size (e.g. first time shown)
 	if visible and grid_canvas.size.x > 0 and grid_canvas.size.y > 0:
