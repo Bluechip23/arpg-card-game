@@ -24,6 +24,9 @@ var starting_card_ids: Array = []  # Character-specific cards added to starting 
 var purchased_card_ids: Array = []  # Cards bought from the card shop
 var removed_card_ids: Array = []    # Cards culled from the deck (base or starting cards)
 
+# Archetypes - categorize card and passive options
+var archetypes: Array[Dictionary] = []  # [{name: String, description: String}, ...]
+
 # Selection screen display info
 var passive_description: String = ""
 var starting_item_name: String = ""
@@ -65,6 +68,12 @@ static func create_ryan() -> CharacterData:
 		"dagger_throw", "volatile_mixture", "understanding",
 		"shuriken_pouch", "premeditated"
 	]
+	data.archetypes = [
+		{"name": "Relentless Blade", "description": "Constant pressure, and 1000 cuts is how you fight. Aggression, and lacerations are your north star."},
+		{"name": "Light Foot", "description": "Always aware, constantly alert, enemies struggle hitting you, and when they do, your next move is planned."},
+		{"name": "Apothecary", "description": "Manipulation of potions and ailments, enemies (and allies) never know what you are throwing at them."},
+		{"name": "Shadow Blade", "description": "Hidden in the shadows, weaving in and out of combat, striking enemies when they least expect it, and where they are the weakest."},
+	]
 	data.passive_description = "Belt cards cost 1 less mana"
 	data.starting_item_name = "Adventurer's Belt"
 	data.starting_item_description = "Grants: Healing Potion & Dagger Throw"
@@ -92,6 +101,12 @@ static func create_jeremy() -> CharacterData:
 		"loaded_die", "worst_that_could_happen", "oops", "house_money",
 		"hope_this_works", "lady_luck", "try_this", "if_pigs_could_fly",
 		"snowballs_chance"
+	]
+	data.archetypes = [
+		{"name": "Evocation", "description": "Master of the elements. Blasting enemies with power is your cup of tea."},
+		{"name": "Abjurer", "description": "Defense first is what you were taught. Outlasting, fast recovery, and small strikes is your way to victory."},
+		{"name": "Shepherd", "description": "Summoner who focuses on the greater good. Your strength is your selflessness, sometimes sacrificing your own health for your friends."},
+		{"name": "Poltergeist", "description": "Master of death and hatred, instilling sheer agony on your enemies is your main objective."},
 	]
 	data.passive_description = "First ring trigger per turn triggers twice"
 	data.starting_item_name = "Scholar's Signet"
@@ -121,6 +136,12 @@ static func create_stephen() -> CharacterData:
 		"sky_attack", "lead_arrow", "last_breath", "mixed_bag",
 		"bottomless_quiver"
 	]
+	data.archetypes = [
+		{"name": "The Apex", "description": "The most efficient and dangerous killer. No tactic is out of question, master of all things offense."},
+		{"name": "Sentinel", "description": "Melee engagements are your bread and butter. No one can out duel you, scratching your armor is a feat itself."},
+		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger."},
+		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital."},
+	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
 	data.starting_item_name = "Flickerstep Boots"
 	data.starting_item_description = "+2 DEX. Grants 1 Blink card"
@@ -146,6 +167,12 @@ static func create_cory() -> CharacterData:
 		"blink", "blink",
 		"round_em_up", "trip", "choke", "push", "defensive_awareness",
 		"sweeping_disarm", "consecutive_snap", "swap", "meditate"
+	]
+	data.archetypes = [
+		{"name": "Lurker", "description": "You gain strength from your enemies wounds, becoming stronger as they become weaker, trapping them, or holding them in place, preparing for you to devour."},
+		{"name": "Monk", "description": "Immersed in your surroundings, calm, collected. Always ready to help an ally, either directly or by hindering the enemy."},
+		{"name": "Druid", "description": "One with the world, you use your surroundings (literally) to aid you in battle."},
+		{"name": "Atrophist", "description": "Your touch withers the enemy, making them weaker and frail the longer you are engaged."},
 	]
 	data.passive_description = "Gain 1 mana when gauntlet skill comes off cooldown"
 	data.starting_item_name = "Grasping Gauntlets"
@@ -173,6 +200,12 @@ static func create_brad() -> CharacterData:
 		"life_swap", "wear_down", "taunt", "life_steal", "roar",
 		"poke", "armor_break", "charge", "heroic_leap", "morphine",
 		"turtle_up", "parry", "approach", "hold_the_line"
+	]
+	data.archetypes = [
+		{"name": "Berserker", "description": "Health is simply an inconvenience. Pain is your greatest strength, causing you to get stronger as you edge near death."},
+		{"name": "Warden", "description": "Specialize in the art of armor and tactic, finding your weakness is nearly impossible for enemies."},
+		{"name": "The Ancient", "description": "Thorns, armor and healing. You have a deep understanding of nature, and you use its essence to your advantage."},
+		{"name": "The Fallen", "description": "Once a child of god, your mistakes have left you deserted. You have devoted yourself to find a way back."},
 	]
 	data.passive_description = "Chest items weigh 15% less"
 	data.starting_item_name = "Bloodbound Plate"
