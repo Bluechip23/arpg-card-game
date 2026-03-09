@@ -16,6 +16,8 @@ var _passive_label: Label
 var _slot_label: Label
 var _inventory_name_label: Label
 var _inventory_desc_label: Label
+var _archetypes_header_label: Label
+var _archetype_labels: Array[Label] = []
 var _select_button: Button
 
 func _ready() -> void:
@@ -170,6 +172,32 @@ func _build_ui() -> void:
 	_inventory_desc_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
 	vbox.add_child(_inventory_desc_label)
 
+	vbox.add_child(_make_separator())
+
+	# ── Archetypes ──────────────────────────────
+	_archetypes_header_label = Label.new()
+	_archetypes_header_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_archetypes_header_label.add_theme_font_size_override("font_size", 10)
+	_archetypes_header_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
+	_archetypes_header_label.text = "ARCHETYPES"
+	vbox.add_child(_archetypes_header_label)
+
+	var playstyle_label = Label.new()
+	playstyle_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	playstyle_label.add_theme_font_size_override("font_size", 11)
+	playstyle_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
+	playstyle_label.text = "Play this character for a playstyle fitting the following archetypes:"
+	playstyle_label.name = "PlaystyleLabel"
+	vbox.add_child(playstyle_label)
+
+	for i in range(4):
+		var arch_label = Label.new()
+		arch_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+		arch_label.add_theme_font_size_override("font_size", 11)
+		arch_label.add_theme_color_override("font_color", Color(0.9, 0.75, 0.5))
+		vbox.add_child(arch_label)
+		_archetype_labels.append(arch_label)
+
 	# ── Spacer ───────────────────────────────────
 	var spacer = Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -255,6 +283,15 @@ func setup(character: CharacterData) -> void:
 		_inventory_name_label.text = character.starting_item_name
 	if _inventory_desc_label:
 		_inventory_desc_label.text = character.starting_item_description
+
+	# Archetypes
+	for i in range(_archetype_labels.size()):
+		if i < character.archetypes.size():
+			var arch = character.archetypes[i]
+			_archetype_labels[i].text = "%s - %s" % [arch["name"], arch["description"]]
+			_archetype_labels[i].visible = true
+		else:
+			_archetype_labels[i].visible = false
 
 func _on_select_pressed() -> void:
 	selected.emit(character_data)
