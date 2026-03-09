@@ -82,7 +82,7 @@ class SkillRow:
 	var chosen_index: int = -1            # Which option was chosen (-1 = not yet chosen)
 
 	func is_chosen() -> bool:
-		return chosen_index >= 0
+		return chosen_index >= 0 or chosen_index == -2  # -2 = chose from a previous level
 
 	func get_chosen_option() -> SkillOption:
 		if chosen_index >= 0 and chosen_index < options.size():
@@ -128,37 +128,62 @@ func choose_option(level: int, option_index: int) -> bool:
 	row.chosen_index = option_index
 	return true
 
-## Use a retrospective token to pick an additional option from an already-chosen row.
+## Use a retrospective token (from sphere grid) to pick an ADDITIONAL option
+## from an already-chosen row. This is a bonus on top of the normal choice.
 ## The chosen_index stays the same, but the extra pick is tracked in retrospective_picks.
 var retrospective_picks: Dictionary = {}  # level -> Array[int] of additional option indices
 
-## Free retrospective picks granted every 3rd level (3, 6, 9, 12, ...).
-## Tracks which levels have used their free retro pick.
-var free_retro_used: Dictionary = {}  # level_that_granted -> true (once used)
+## Tracks which retro level was used when a player chose a previous option instead
+## of their current level's options. Maps retro_level -> {source_level, option_index}.
+var retro_level_choices: Dictionary = {}  # retro_level -> {source_level: int, option_index: int}
 
 ## Check if a level is a retrospective level (every 3rd level starting at 3).
+## On these levels, the player can choose a previously skipped option instead of
+## one of their current 4 options. This counts as their choice for the level.
 static func is_retrospective_level(level: int) -> bool:
 	return level >= 3 and level % 3 == 0
 
-## Get the number of free retrospective picks available (granted but not yet used).
-func get_free_retro_picks_available(current_level: int) -> int:
-	var count: int = 0
-	for lvl in range(3, current_level + 1, 3):
-		if lvl not in free_retro_used:
-			count += 1
-	return count
+## Check if a retro level's choice has been used (player picked a previous option).
+func is_retro_level_used(retro_level: int) -> bool:
+	return retro_level in retro_level_choices
 
-## Check if the player has any free retro pick available.
-func has_free_retro_pick(current_level: int) -> bool:
-	return get_free_retro_picks_available(current_level) > 0
+## Get the current retro level that hasn't been chosen yet (if the player is on one).
+## Returns the retro level if the player is on one and hasn't chosen yet, else -1.
+func get_pending_retro_level(current_level: int) -> int:
+	if not is_retrospective_level(current_level):
+		return -1
+	var row = get_row_for_level(current_level)
+	if not row:
+		return -1
+	# If the current row already has a normal choice, retro option is gone
+	if row.is_chosen():
+		return -1
+	# If already used the retro choice for this level, it's gone too
+	if is_retro_level_used(current_level):
+		return -1
+	return current_level
 
-## Use one free retrospective pick. Returns true if successful.
-func use_free_retro_pick(current_level: int) -> bool:
-	for lvl in range(3, current_level + 1, 3):
-		if lvl not in free_retro_used:
-			free_retro_used[lvl] = true
-			return true
-	return false
+## Use the retro level's free pick — choose a previous skipped option instead of
+## the current level's options. This also marks the current retro level row as chosen
+## (with chosen_index = -2 to indicate "chose retrospectively").
+func retro_level_choose_previous(retro_level: int, source_level: int, option_index: int) -> bool:
+	if not is_retrospective_level(retro_level):
+		return false
+	if is_retro_level_used(retro_level):
+		return false
+	var retro_row = get_row_for_level(retro_level)
+	if not retro_row or retro_row.is_chosen():
+		return false
+	if not can_retrospective_pick(source_level, option_index):
+		return false
+	# Mark the retro level as used with a retrospective choice
+	retro_level_choices[retro_level] = {"source_level": source_level, "option_index": option_index}
+	retro_row.chosen_index = -2  # Special value: "chose from a previous level"
+	# Track the actual pick on the source row
+	if source_level not in retrospective_picks:
+		retrospective_picks[source_level] = []
+	retrospective_picks[source_level].append(option_index)
+	return true
 
 func can_retrospective_pick(level: int, option_index: int) -> bool:
 	var row = get_row_for_level(level)

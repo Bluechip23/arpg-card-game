@@ -290,19 +290,16 @@ func _rebuild_table() -> void:
 		child.queue_free()
 	_row_panels.clear()
 
-	# Show free retrospective picks info
-	var free_retro = skill_tree.get_free_retro_picks_available(player_level)
-	var token_retro = 0
-	if sphere_inventory:
-		token_retro = sphere_inventory.retrospective_tokens if sphere_inventory.has_retrospective_token() else 0
-	if free_retro > 0 or token_retro > 0:
+	# Show retrospective info
+	var pending_retro = skill_tree.get_pending_retro_level(player_level)
+	var has_token = sphere_inventory and sphere_inventory.has_retrospective_token()
+	if pending_retro > 0 or has_token:
 		var retro_label = Label.new()
-		var parts: Array[String] = []
-		if free_retro > 0:
-			parts.append("%d free retro pick%s (every 3rd level)" % [free_retro, "s" if free_retro > 1 else ""])
-		if token_retro > 0:
-			parts.append("%d sphere grid token%s" % [token_retro, "s" if token_retro > 1 else ""])
-		retro_label.text = "Retrospective: %s — reclaim a previously skipped option!" % " + ".join(parts)
+		if pending_retro > 0:
+			retro_label.text = "Retrospective Level! You may choose a previously skipped option instead of a new one."
+		elif has_token:
+			var token_count = sphere_inventory.retrospective_tokens
+			retro_label.text = "Retrospective Token%s: %d — reclaim a skipped option as a bonus pick!" % ["s" if token_count > 1 else "", token_count]
 		retro_label.add_theme_font_size_override("font_size", 12)
 		retro_label.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
 		retro_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -401,16 +398,55 @@ func _build_skill_row(row: SkillTreeData.SkillRow, is_locked: bool) -> void:
 	level_panel.add_child(level_vbox)
 	hbox.add_child(level_panel)
 
-	# 4 chooseable option columns
-	for i in range(4):
-		if i < row.options.size():
-			var option = row.options[i]
-			var option_panel = _build_option_panel(row, i, option, is_locked)
-			row_data["option_panels"].append(option_panel)
-			hbox.add_child(option_panel)
-		else:
-			var empty = _build_empty_panel()
-			hbox.add_child(empty)
+	# If this row used a retro choice (chose from a previous level), show a spanning message
+	if row.chosen_index == -2 and row.level in skill_tree.retro_level_choices:
+		var retro_info = skill_tree.retro_level_choices[row.level]
+		var source_row = skill_tree.get_row_for_level(retro_info["source_level"])
+		var source_name = "unknown"
+		if source_row and retro_info["option_index"] < source_row.options.size():
+			source_name = source_row.options[retro_info["option_index"]].name
+		var retro_panel = PanelContainer.new()
+		retro_panel.custom_minimum_size = Vector2(OPTION_WIDTH * 4 + COLUMN_GAP * 3, ROW_HEIGHT)
+		retro_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var retro_style = StyleBoxFlat.new()
+		retro_style.bg_color = COLOR_RETRO_BG
+		retro_style.border_color = COLOR_RETRO_BORDER
+		retro_style.corner_radius_top_left = 6
+		retro_style.corner_radius_top_right = 6
+		retro_style.corner_radius_bottom_left = 6
+		retro_style.corner_radius_bottom_right = 6
+		retro_style.border_width_left = 2
+		retro_style.border_width_right = 2
+		retro_style.border_width_top = 2
+		retro_style.border_width_bottom = 2
+		retro_style.content_margin_left = 12.0
+		retro_style.content_margin_top = 8.0
+		retro_panel.add_theme_stylebox_override("panel", retro_style)
+		var retro_vbox = VBoxContainer.new()
+		retro_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		var retro_title = Label.new()
+		retro_title.text = "RETROSPECTIVE — Chose from Level %d" % retro_info["source_level"]
+		retro_title.add_theme_font_size_override("font_size", 13)
+		retro_title.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
+		retro_vbox.add_child(retro_title)
+		var retro_desc = Label.new()
+		retro_desc.text = "Reclaimed: %s" % source_name
+		retro_desc.add_theme_font_size_override("font_size", 11)
+		retro_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+		retro_vbox.add_child(retro_desc)
+		retro_panel.add_child(retro_vbox)
+		hbox.add_child(retro_panel)
+	else:
+		# Normal 4 chooseable option columns
+		for i in range(4):
+			if i < row.options.size():
+				var option = row.options[i]
+				var option_panel = _build_option_panel(row, i, option, is_locked)
+				row_data["option_panels"].append(option_panel)
+				hbox.add_child(option_panel)
+			else:
+				var empty = _build_empty_panel()
+				hbox.add_child(empty)
 
 	# Vertical divider
 	var divider = VSeparator.new()
@@ -434,7 +470,11 @@ func _build_option_panel(row: SkillTreeData.SkillRow, index: int, option: SkillT
 	var is_retro_picked = skill_tree.is_retrospective_picked(row.level, index)
 	var is_blacked_out = row.is_chosen() and row.chosen_index != index and not is_retro_picked
 	var is_available = not row.is_chosen() and not is_locked and row.level <= player_level
-	var has_retro_token = (sphere_inventory and sphere_inventory.has_retrospective_token()) or skill_tree.has_free_retro_pick(player_level)
+	# Retro availability: either a sphere grid token (bonus pick anytime) or
+	# the player is on a retro level and hasn't made their choice yet (free pick instead of current options)
+	var has_sphere_retro_token = sphere_inventory and sphere_inventory.has_retrospective_token()
+	var on_pending_retro_level = skill_tree.get_pending_retro_level(player_level) > 0
+	var has_retro_token = has_sphere_retro_token or on_pending_retro_level
 	var is_retro_available = is_blacked_out and has_retro_token and skill_tree.can_retrospective_pick(row.level, index)
 
 	var style = StyleBoxFlat.new()
@@ -710,18 +750,25 @@ func _choose_retrospective(level: int, option_index: int) -> void:
 	if not skill_tree.can_retrospective_pick(level, option_index):
 		return
 
-	# Try free retro pick first (every 3rd level grants one), then sphere grid token
-	if skill_tree.has_free_retro_pick(player_level):
-		skill_tree.use_free_retro_pick(player_level)
+	# Check if this is a retro level free pick (counts as the level-up choice)
+	# or a sphere grid token bonus pick (extra on top of normal choice)
+	var pending_retro = skill_tree.get_pending_retro_level(player_level)
+	if pending_retro > 0:
+		# Free retro pick — choosing a previous option instead of current level's options
+		skill_tree.retro_level_choose_previous(pending_retro, level, option_index)
+		var row = skill_tree.get_row_for_level(level)
+		if row and option_index < row.options.size():
+			print("[SKILL TREE] Retro level %d: chose option %d from level %d (%s) instead" % [pending_retro, option_index + 1, level, row.options[option_index].name])
 	elif sphere_inventory and sphere_inventory.has_retrospective_token():
+		# Sphere grid token — bonus pick on top of normal choice
 		sphere_inventory.spend_retrospective_token()
+		skill_tree.retrospective_pick(level, option_index)
+		var row = skill_tree.get_row_for_level(level)
+		if row and option_index < row.options.size():
+			print("[SKILL TREE] Retro token: bonus pick option %d from level %d (%s)" % [option_index + 1, level, row.options[option_index].name])
 	else:
 		return
 
-	skill_tree.retrospective_pick(level, option_index)
-	var row = skill_tree.get_row_for_level(level)
-	if row and option_index < row.options.size():
-		print("[SKILL TREE] Retrospective pick: option %d for level %d: %s" % [option_index + 1, level, row.options[option_index].name])
 	retrospective_chosen.emit(level, option_index)
 	_rebuild_table()
 
