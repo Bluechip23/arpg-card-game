@@ -13,7 +13,11 @@ enum SpecialEffect {
 	CHANCE_BOOST,
 	GRANT_CARDS,
 	ARMOR_ON_ARMOR_GAIN,
-	ARMOR_PER_TURN
+	ARMOR_PER_TURN,
+	THORNS_PER_TEMPO,
+	ON_TEMPO_MOVEMENT_DAMAGE,
+	ON_KILL_INVISIBLE,
+	CRIT_ZERO_MANA_CARDS
 }
 
 # Ring trigger conditions
@@ -116,6 +120,14 @@ var allowed_card_keywords: Array = []  # Empty = any card allowed. e.g. [Card.Ca
 # Passive bonuses
 @export var ranged_damage_bonus: int = 0  # +X damage to all ranged attacks
 @export var healing_bonus: int = 0  # +X to all healing effects
+@export var block_bonus_to_defense_cards: int = 0  # +X block to all defense cards
+@export var damage_bonus_to_attack_cards: int = 0  # +X damage to all attack cards
+@export var fire_resistance_percent: float = 0.0  # X% fire resistance
+@export var movement_per_tempo_bonus: int = 0  # +X movement per tempo
+
+# On-self special effects (beyond flat bonuses)
+@export var on_self_thorns: int = 0  # Card grants X thorns on play
+@export var on_self_upgrade: bool = false  # Card upgrades on play (requires gem)
 
 # Runtime tracking
 var current_cooldown: int = 0  # Current cooldown remaining
@@ -250,7 +262,9 @@ func get_on_self_bonus() -> Dictionary:
 		"heal": on_self_heal,
 		"mana_reduction": on_self_mana_reduction,
 		"apply_burn": on_self_apply_burn,
-		"apply_cold": on_self_apply_cold
+		"apply_cold": on_self_apply_cold,
+		"thorns": on_self_thorns,
+		"upgrade": on_self_upgrade
 	}
 
 func get_card_slot_summary() -> String:
@@ -273,6 +287,10 @@ func get_card_slot_summary() -> String:
 		parts.append("On-Self: Apply %d Burn on hit" % on_self_apply_burn)
 	if on_self_apply_cold > 0:
 		parts.append("On-Self: Apply %d Cold on hit" % on_self_apply_cold)
+	if on_self_thorns > 0:
+		parts.append("On-Self: Gain %d Thorns on play" % on_self_thorns)
+	if on_self_upgrade:
+		parts.append("On-Self: Upgrade card on play")
 	if allowed_card_keywords.size() > 0:
 		var kw_names: Array[String] = []
 		for kw in allowed_card_keywords:
@@ -280,6 +298,7 @@ func get_card_slot_summary() -> String:
 				1: kw_names.append("Arrow")  # Card.CardKeyword.ARROW
 				2: kw_names.append("Pocket")  # Card.CardKeyword.POCKET
 				3: kw_names.append("Gem")  # Card.CardKeyword.GEM
+				4: kw_names.append("Chisel")  # Card.CardKeyword.CHISEL
 		if kw_names.size() > 0:
 			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(parts)
@@ -635,4 +654,108 @@ static func create_belt_of_greater_healing() -> ItemData:
 	item.card_slots = 2
 	item.allowed_card_keywords = [Card.CardKeyword.POCKET]
 	item.description = "All healing effects get +2. Grants Gulped Potion. On-Self: Heal 1 to all allies. 2 Pocket card slots."
+	return item
+
+# ============================================
+# WEAPON ITEMS
+# ============================================
+
+static func create_spiked_shield() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Spiked Shield"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weight = 40
+	item.weapon_hand = WeaponHand.ONE_HAND
+	item.special_effect = SpecialEffect.THORNS_PER_TEMPO
+	item.special_effect_value = 3  # Gain 3 thorns
+	item.special_effect_value_2 = 5  # Every 5 tempo
+	item.on_self_thorns = 3
+	item.block_bonus_to_defense_cards = 1
+	item.card_slots = 1
+	item.description = "Gain 3 Thorns every 5 tempo. On-Self: +3 Thorns on play. +1 block to defense cards. Weight 40."
+	return item
+
+static func create_bow_of_true_sight() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Bow of True Sight"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weight = 30
+	item.weapon_hand = WeaponHand.ONE_HAND
+	item.weapon_damage = 3
+	item.ranged_damage_bonus = 3
+	item.on_self_damage = 3
+	item.movement_per_tempo_bonus = -2
+	item.card_slots = 1
+	item.description = "+3 damage. +3 range. -2 movement/tempo. Weight 30. 1 card slot."
+	return item
+
+static func create_bow_of_deep_wounds() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Bow of Deep Wounds"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weight = 50
+	item.weapon_hand = WeaponHand.ONE_HAND
+	item.weapon_damage = 10
+	item.on_self_damage = 3
+	item.card_slots = 2
+	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
+	item.description = "+10 damage. On-Self: +3 damage +1 tempo. Weight 50. 2 Arrow card slots."
+	return item
+
+static func create_club() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Club"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weight = 25
+	item.weapon_hand = WeaponHand.ONE_HAND
+	item.weapon_damage = 1
+	item.description = "+1 damage. Weight 25."
+	return item
+
+static func create_cyclops_ring() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Cyclops Ring"
+	item.item_type = ItemType.RING
+	item.item_type_name = "Ring"
+	item.weight = 0
+	item.fire_resistance_percent = 15.0
+	item.block_bonus_to_defense_cards = 2
+	item.damage_bonus_to_attack_cards = 2
+	item.on_self_upgrade = true
+	item.card_slots = 1
+	item.allowed_card_keywords = [Card.CardKeyword.GEM]
+	item.description = "15% Fire Resistance. +2 block to defense cards. +2 damage to attack cards. On-Self (Gem): Upgrade card. 1 Gem card slot."
+	return item
+
+static func create_trailblazers() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Trailblazers"
+	item.item_type = ItemType.BOOTS
+	item.item_type_name = "Boots"
+	item.weight = 10
+	item.special_effect = SpecialEffect.ON_TEMPO_MOVEMENT_DAMAGE
+	item.special_effect_value = 5  # Deal 5 damage
+	item.card_slots = 1
+	item.description = "When causing tempo with movement, deal 5 damage to nearest enemy. Weight 10. 1 card slot."
+	return item
+
+static func create_shadow_dagger() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Shadow Dagger"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weight = 10
+	item.weapon_hand = WeaponHand.ONE_HAND
+	item.weapon_damage = 4
+	item.special_effect = SpecialEffect.ON_KILL_INVISIBLE
+	item.special_effect_value = 75  # Cooldown 75 tempo
+	item.special_effect_value_2 = 10  # Crit chance %
+	item.on_self_damage = 4
+	item.card_slots = 1
+	item.allowed_card_keywords = [Card.CardKeyword.POCKET]
+	item.description = "+4 damage. On Kill: Become invisible (75 tempo cooldown). On-Self (Pocket): Zero mana cards gain 10% extra crit chance. Weight 10."
 	return item

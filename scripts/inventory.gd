@@ -790,13 +790,10 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 	print("[INVENTORY] Enchanted '%s' into %s" % [card.card_name, item.item_name])
 	return true
 
-func extract_card(item: ItemData, card_index: int, destroy_item: bool) -> Card:
+func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) -> Card:
 	## Extracts a card from an item (Extract).
-	## Must destroy either the item or the card to do so.
-	## destroy_item=true: item is destroyed, card is returned to discard pile.
-	## destroy_item=false: card is destroyed, item keeps its slot freed up.
-	## Returns the surviving card if destroy_item=true, null otherwise.
-	## Returns null if card is Molded (cannot be extracted).
+	## Removes the card from the item's slot and returns it to the discard pile.
+	## Returns the extracted card, or null if card is Molded (cannot be extracted).
 	if card_index < 0 or card_index >= item.slotted_cards.size():
 		print("[INVENTORY] Invalid card slot index %d for %s" % [card_index, item.item_name])
 		return null
@@ -806,37 +803,21 @@ func extract_card(item: ItemData, card_index: int, destroy_item: bool) -> Card:
 		print("[INVENTORY] Cannot extract '%s' from %s - card is Molded!" % [card.card_name, item.item_name])
 		return null
 
-	if destroy_item:
-		# Destroy the item, keep the card
-		# Track source item type for Picky re-enchanting
-		if card.source_item_type < 0:
-			card.source_item_type = item.item_type
-		card.slotted_in_item = null
-		item.slotted_cards.remove_at(card_index)
+	# Track source item type for Picky re-enchanting
+	if card.source_item_type < 0:
+		card.source_item_type = item.item_type
+	card.slotted_in_item = null
+	item.slotted_cards.remove_at(card_index)
 
-		# Add card back to discard pile
-		if deck_manager:
-			deck_manager.discard_pile.append(card)
-			print("[INVENTORY] Extracted '%s' - added to discard pile" % card.card_name)
+	# Add card back to discard pile
+	if deck_manager:
+		deck_manager.discard_pile.append(card)
+		print("[INVENTORY] Extracted '%s' - added to discard pile" % card.card_name)
 
-		# Unequip and destroy the item
-		_destroy_equipped_item(item)
-
-		card_extracted.emit(card, item, true)
-		equipment_changed.emit()
-		print("[INVENTORY] Destroyed %s to extract '%s'" % [item.item_name, card.card_name])
-		return card
-	else:
-		# Destroy the card, keep the item
-		var card_name = card.card_name
-		card.slotted_in_item = null
-		item.slotted_cards.remove_at(card_index)
-
-		card_extracted.emit(card, item, false)
-		equipment_changed.emit()
-		print("[INVENTORY] Destroyed card '%s' to free slot in %s" % [card_name, item.item_name])
-		# Card is destroyed - return null
-		return null
+	card_extracted.emit(card, item, false)
+	equipment_changed.emit()
+	print("[INVENTORY] Extracted '%s' from %s" % [card.card_name, item.item_name])
+	return card
 
 func _destroy_equipped_item(item: ItemData) -> void:
 	## Finds and removes an equipped item from all slot arrays, reversing its bonuses.

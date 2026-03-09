@@ -4,7 +4,7 @@ extends Resource
 ## Card resource that holds card data
 
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
-enum CardKeyword { NONE, ARROW, POCKET, GEM }
+enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL }
 
 @export var card_id: String = "slash"
 @export var card_name: String = "Slash"
@@ -52,7 +52,8 @@ var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many te
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
-var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem - determines which items can slot this card
+var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
+var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
 var delay_tempo: int = 0  # Tempo until the card's effect takes place
 var has_burden: bool = false  # If true, cost increases by 1m/1t each time played. Can jail to reset.
@@ -288,7 +289,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"aoe": "Area of Effect - hits multiple targets in a shape",
 		# Card-Item Slots
 		"enchant": "Places a card into an item's card slot",
-		"extract": "Removes a card from an item (destroys item or card)",
+		"extract": "Removes a card from an item's card slot",
 		"molded": "Card is locked into the item and cannot be extracted",
 		"picky": "Card can only be re-equipped to same item type",
 		"pliable": "Card can be re-equipped to any item type",
@@ -296,6 +297,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"arrow": "Requires a bow/quiver to slot. Ranged bow attack card",
 		"pocket": "Small items like daggers and potions. Slots into belts",
 		"gem": "Gem cards for special equipment slots like gauntlets and rings",
+		"chisel": "Card must be slotted in an item to be played. Cannot be played from hand alone",
 	}
 
 ## Scans this card's properties and description for matching keywords.
@@ -339,6 +341,8 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "delay")
 	if has_burden:
 		_add_keyword_match(found_keys, matches, all_keywords, "burden")
+	if is_chisel:
+		_add_keyword_match(found_keys, matches, all_keywords, "chisel")
 
 	# Scan the description for keyword mentions
 	for keyword in all_keywords:
@@ -628,6 +632,25 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_smith_thy_soul(player_stats, buff_mgr)
 		"down_but_not_out":
 			_execute_down_but_not_out(player_stats, buff_mgr)
+		# === New Cards (Weapon Items Update) ===
+		"anticipation":
+			_execute_anticipation(player_stats, deck_manager)
+		"prepare":
+			_execute_prepare(deck_manager)
+		"meister_of_faustmesser":
+			_execute_meister_of_faustmesser(deck_manager)
+		"item_mastery":
+			_execute_item_mastery(player_stats, deck_manager)
+		"mirror_mirror":
+			_execute_mirror_mirror(deck_manager)
+		"harness_lightning":
+			_execute_harness_lightning(player_stats, buff_mgr)
+		"deep_pockets":
+			_execute_deep_pockets(deck_manager)
+		"best_offense":
+			_execute_best_offense(player_stats, deck_manager, buff_mgr)
+		"vengeful_shield":
+			_execute_vengeful_shield(player_stats, buff_mgr)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3256,6 +3279,101 @@ func _execute_down_but_not_out(player_stats: PlayerStats, buff_mgr: BuffManager 
 		print("[CARD] Down but not out: No debuff stacks, no healing")
 
 # ============================================
+# NEW CARD EXECUTE FUNCTIONS (Weapon Items Update)
+# ============================================
+
+func _execute_anticipation(player_stats: PlayerStats, deck_manager = null) -> void:
+	# Gain 1 mana, shuffle a Prepare into the deck
+	if player_stats:
+		player_stats.gain_mana(1)
+		print("[CARD] Anticipation: Gained 1 mana")
+	if deck_manager and deck_manager.has_method("shuffle_card_into_deck"):
+		var prepare_card = Card.create_prepare()
+		deck_manager.shuffle_card_into_deck(prepare_card)
+		print("[CARD] Anticipation: Shuffled Prepare into deck")
+	elif deck_manager and deck_manager.has_method("add_card_to_deck"):
+		var prepare_card = Card.create_prepare()
+		deck_manager.add_card_to_deck(prepare_card)
+		print("[CARD] Anticipation: Added Prepare to deck")
+
+func _execute_prepare(deck_manager = null) -> void:
+	# Draw 3 cards
+	if deck_manager and deck_manager.has_method("draw_cards"):
+		deck_manager.draw_cards(3)
+		print("[CARD] Prepare: Drew 3 cards")
+	elif deck_manager and deck_manager.has_method("draw_card"):
+		for i in range(3):
+			deck_manager.draw_card()
+		print("[CARD] Prepare: Drew 3 cards")
+
+func _execute_meister_of_faustmesser(deck_manager = null) -> void:
+	# Put all zero mana cost cards from discard pile into hand
+	if deck_manager and deck_manager.has_method("get_discard_pile"):
+		var discard = deck_manager.get_discard_pile()
+		var zero_cost_cards: Array = []
+		for card in discard:
+			if card.mana_cost == 0:
+				zero_cost_cards.append(card)
+		for card in zero_cost_cards:
+			if deck_manager.has_method("move_from_discard_to_hand"):
+				deck_manager.move_from_discard_to_hand(card)
+		print("[CARD] Meister of Faustmesser: Moved %d zero-cost cards from discard to hand" % zero_cost_cards.size())
+
+func _execute_item_mastery(player_stats: PlayerStats, deck_manager = null) -> void:
+	# Place all cards from items into hand - handled by main.gd
+	print("[CARD] Item Mastery: Requesting all item cards be placed into hand")
+
+func _execute_mirror_mirror(deck_manager = null) -> void:
+	# Duplicate a card in hand with Erase: 5 - selection handled by main.gd
+	print("[CARD] Mirror Mirror: Requesting card duplication with Erase: 5")
+
+func _execute_harness_lightning(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Create lightning orb effect - handled by main.gd
+	print("[CARD] Harness Lightning: Creating lightning orb (4 dmg / 5 tempo / 3 range / 30 tempo duration)")
+
+func _execute_deep_pockets(deck_manager = null) -> void:
+	# Draw cards until one costs more than 0 mana
+	if deck_manager and deck_manager.has_method("draw_card"):
+		var max_draws = 20  # Safety limit
+		var draws = 0
+		while draws < max_draws:
+			var drawn = null
+			if deck_manager.has_method("draw_card_and_return"):
+				drawn = deck_manager.draw_card_and_return()
+			else:
+				deck_manager.draw_card()
+				draws += 1
+				break
+			draws += 1
+			if drawn and drawn.mana_cost > 0:
+				break
+		print("[CARD] Deep Pockets: Drew %d card(s)" % draws)
+
+func _execute_best_offense(player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
+	# Gain 3 smith for 25 tempo, or 6 smith if holding no attack cards
+	var smith_amount = 3
+	if deck_manager and deck_manager.has_method("get_hand"):
+		var hand = deck_manager.get_hand()
+		var has_attack = false
+		for card in hand:
+			if card.card_type == CardType.ATTACK:
+				has_attack = true
+				break
+		if not has_attack:
+			smith_amount = 6
+			print("[CARD] Best Offense: No attack cards in hand! Gaining 6 Smith instead of 3")
+	if buff_mgr:
+		var smith_buff = Buff.create_smith(smith_amount, 25, "Best Offense")
+		buff_mgr.apply_buff(smith_buff)
+		print("[CARD] Best Offense: Gained %d Smith for 25 tempo" % smith_amount)
+
+func _execute_vengeful_shield(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	# Reaction: stun enemy + gain 5 armor - stun is handled by main.gd
+	if player_stats:
+		player_stats.gain_armor(5)
+		print("[CARD] Vengeful Shield: Gained 5 armor")
+
+# ============================================
 # PETEY THE PET ROCK
 # ============================================
 
@@ -3484,5 +3602,166 @@ static func create_healthy_habit() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.has_burden = true
+	card.target_types = ["self"]
+	return card
+
+# ============================================
+# NEW UTILITY / DEFENSE / REACTION CARDS
+# ============================================
+
+static func create_anticipation() -> Card:
+	var card = Card.new()
+	card.card_id = "anticipation"
+	card.card_name = "Anticipation"
+	card.description = "Gain 1 mana. Shuffle a Prepare into your deck."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_prepare() -> Card:
+	var card = Card.new()
+	card.card_id = "prepare"
+	card.card_name = "Prepare"
+	card.description = "Draw 3 cards. Erase: 1"
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.erase_tempo = 1
+	card.erase_tempo_remaining = 1
+	card.target_types = ["self"]
+	return card
+
+static func create_meister_of_faustmesser() -> Card:
+	var card = Card.new()
+	card.card_id = "meister_of_faustmesser"
+	card.card_name = "Meister of Faustmesser"
+	card.description = "Put all zero mana cost cards from discard pile into your hand."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_item_mastery() -> Card:
+	var card = Card.new()
+	card.card_id = "item_mastery"
+	card.card_name = "Item Mastery"
+	card.description = "Place all your cards from items, or slotted in an item, into your hand."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 5
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_mirror_mirror() -> Card:
+	var card = Card.new()
+	card.card_id = "mirror_mirror"
+	card.card_name = "Mirror Mirror"
+	card.description = "Duplicate a card in your hand. The duplicate has Erase: 5."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 4
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_harness_lightning() -> Card:
+	var card = Card.new()
+	card.card_id = "harness_lightning"
+	card.card_name = "Harness Lightning"
+	card.description = "Create an orb of lightning that circles you. Deals 4 damage every 5 tempo to a random enemy within 3 spaces. Lasts 30 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
+	card.tempo_cost = 4
+	card.damage = 4
+	card.base_damage = 4
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.duration = 30
+	card.target_types = ["self"]
+	return card
+
+static func create_deep_pockets() -> Card:
+	var card = Card.new()
+	card.card_id = "deep_pockets"
+	card.card_name = "Deep Pockets"
+	card.description = "Draw a card. Draw again until a card has a mana cost more than 0."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 4
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_best_offense() -> Card:
+	var card = Card.new()
+	card.card_id = "best_offense"
+	card.card_name = "Best Offense is a Good Defense"
+	card.description = "Gain 3 Smith for 25 tempo. If holding no attack cards, gain 6 Smith instead."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 4
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_vengeful_shield() -> Card:
+	var card = Card.new()
+	card.card_id = "vengeful_shield"
+	card.card_name = "Vengeful Shield"
+	card.description = "When taking damage that exposes the player, stun an enemy within melee range and gain 5 armor."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 5
+	card.base_block = 5
+	card.heal_amount = 0
+	card.reaction_trigger = "on_exposed"
 	card.target_types = ["self"]
 	return card
