@@ -52,6 +52,7 @@ const COLOR_CARD := Color(0.8, 0.3, 0.9, 1.0)
 const COLOR_HEALTH := Color(0.9, 0.2, 0.2, 1.0)
 const COLOR_MANA := Color(0.2, 0.5, 1.0, 1.0)
 const COLOR_CULLING := Color(1.0, 0.15, 0.45, 1.0)  # Crimson/hot-pink - distinct from purple passives
+const COLOR_RETROSPECTIVE := Color(0.2, 0.9, 0.85, 1.0)  # Teal/cyan - retrospective nodes
 const COLOR_LINE := Color(0.4, 0.4, 0.55, 0.85)
 const COLOR_LINE_UNLOCKED := Color(0.3, 0.85, 0.4, 0.9)
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.95)
@@ -198,6 +199,8 @@ func _update_points_label() -> void:
 	if any_count > 0: parts.append("Any:%d" % any_count)
 	if swap_count > 0: parts.append("Swap:%d" % swap_count)
 	if rune_count > 0: parts.append("Runes:%d" % rune_count)
+	var retro_count = sphere_inventory.retrospective_tokens
+	if retro_count > 0: parts.append("Retro:%d" % retro_count)
 	if parts.is_empty():
 		points_label.text = "Spheres: None"
 	else:
@@ -251,6 +254,8 @@ func _get_type_color(node: SphereGrid.GridNode) -> Color:
 			return COLOR_MANA
 		SphereGrid.NodeType.CULLING_STONE:
 			return COLOR_CULLING
+		SphereGrid.NodeType.RETROSPECTIVE:
+			return COLOR_RETROSPECTIVE
 	return COLOR_LOCKED
 
 func _get_node_shape(node: SphereGrid.GridNode) -> String:
@@ -261,6 +266,8 @@ func _get_node_shape(node: SphereGrid.GridNode) -> String:
 			return "square"
 		SphereGrid.NodeType.CULLING_STONE:
 			return "hexagon"
+		SphereGrid.NodeType.RETROSPECTIVE:
+			return "star"
 		_:
 			return "circle"
 
@@ -370,6 +377,18 @@ func _on_grid_draw() -> void:
 					outline.append(hex_pts[0])
 					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
 					grid_canvas.draw_polyline(outline, ring_color, 2.0 * _zoom)
+			"star":
+				var star_pts = PackedVector2Array()
+				for si in range(10):
+					var sa = TAU / 10.0 * si - PI / 2.0
+					var sr = radius if si % 2 == 0 else radius * 0.5
+					star_pts.append(pos + Vector2(cos(sa), sin(sa)) * sr)
+				grid_canvas.draw_colored_polygon(star_pts, color)
+				if is_hovered or is_selected:
+					var outline = star_pts.duplicate()
+					outline.append(star_pts[0])
+					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
+					grid_canvas.draw_polyline(outline, ring_color, 2.0 * _zoom)
 
 		# Draw unlocked checkmark or lock
 		if node.unlocked and node.id != 0:
@@ -402,6 +421,7 @@ func _draw_legend() -> void:
 		[COLOR_HEALTH, "circle", "Health"],
 		[COLOR_MANA, "circle", "Mana"],
 		[COLOR_CULLING, "hexagon", "Culling Stone"],
+		[COLOR_RETROSPECTIVE, "star", "Retrospective"],
 		[COLOR_UNLOCKED, "circle", "Unlocked"],
 		[COLOR_UNLOCKABLE, "circle", "Available"],
 		[COLOR_LOCKED, "circle", "Locked"],
@@ -432,6 +452,13 @@ func _draw_legend() -> void:
 					var ha = TAU / 6.0 * hi - PI / 6.0
 					hex_pts.append(Vector2(legend_x + 8, y) + Vector2(cos(ha), sin(ha)) * 6)
 				grid_canvas.draw_colored_polygon(hex_pts, color)
+			"star":
+				var star_pts = PackedVector2Array()
+				for si in range(10):
+					var sa = TAU / 10.0 * si - PI / 2.0
+					var sr = 6.0 if si % 2 == 0 else 3.0
+					star_pts.append(Vector2(legend_x + 8, y) + Vector2(cos(sa), sin(sa)) * sr)
+				grid_canvas.draw_colored_polygon(star_pts, color)
 
 		grid_canvas.draw_string(font, Vector2(legend_x + 22, y + 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.8, 0.8, 0.85))
 
@@ -901,6 +928,9 @@ func _open_detail_popup(node_id: int) -> void:
 		SphereGrid.NodeType.CULLING_STONE:
 			_add_popup_label(vbox, "Grants 1 Culling Stone", 14, COLOR_CULLING)
 			_add_popup_label(vbox, "Use at the Card Dealer to remove a card from your deck.", 12, COLOR_DIM_TEXT)
+		SphereGrid.NodeType.RETROSPECTIVE:
+			_add_popup_label(vbox, "Grants 1 Retrospective Token", 14, COLOR_RETROSPECTIVE)
+			_add_popup_label(vbox, "Use in the Skill Tree to reclaim a reward you previously skipped. Pick one of the blacked-out options from any past level.", 12, COLOR_DIM_TEXT)
 		SphereGrid.NodeType.START:
 			_add_popup_label(vbox, "Starting node — always unlocked.", 13, Color(0.8, 0.8, 0.85))
 
@@ -1103,6 +1133,10 @@ func _on_unlock_pressed() -> void:
 	_set_info("Unlocked: %s — %s" % [node.label, node.description])
 	node_unlocked.emit(_popup_node_id)
 
+	# Grant retrospective token if this was a retrospective node
+	if node.node_type == SphereGrid.NodeType.RETROSPECTIVE:
+		sphere_inventory.add_retrospective_token()
+
 	# Check for newly completed constellations
 	sphere_grid.check_constellation_completion()
 
@@ -1215,6 +1249,7 @@ func _get_type_name(t: SphereGrid.NodeType) -> String:
 		SphereGrid.NodeType.MANA: return "Mana"
 		SphereGrid.NodeType.START: return "Start"
 		SphereGrid.NodeType.CULLING_STONE: return "Culling Stone"
+		SphereGrid.NodeType.RETROSPECTIVE: return "Retrospective"
 	return "Unknown"
 
 func _on_close_pressed() -> void:

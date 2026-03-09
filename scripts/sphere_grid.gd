@@ -11,7 +11,8 @@ enum NodeType {
 	HEALTH,        # Max health increase
 	MANA,          # Max mana increase
 	START,         # Starting node (already unlocked)
-	CULLING_STONE  # Grants a culling stone to remove a card from deck
+	CULLING_STONE, # Grants a culling stone to remove a card from deck
+	RETROSPECTIVE  # Grants ability to pick from a previously skipped skill tree option
 }
 
 class GridNode:
@@ -160,7 +161,7 @@ func _build_grid() -> void:
 		[NodeType.MANA, "Mana +5", "Max Mana +5"],
 		[NodeType.PASSIVE, "Passive", "On card play: 5% draw extra"],
 		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
-		[NodeType.HEALTH, "HP +10", "Max Health +10"],
+		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.PASSIVE, "Passive", "On move: gain 1 armor"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.MANA, "Mana +5", "Max Mana +5"],
@@ -187,7 +188,7 @@ func _build_grid() -> void:
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
-		[NodeType.HEALTH, "HP +10", "Max Health +10"],
+		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.PASSIVE, "Passive", "On heal: 15% cleanse debuff"],
@@ -219,7 +220,7 @@ func _build_grid() -> void:
 		[NodeType.MANA, "Mana +5", "Max Mana +5"],
 		[NodeType.STAT_BONUS, "DEX +4", "Dexterity +4"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
-		[NodeType.PASSIVE, "Passive", "On spell cast: 10% refund mana"],
+		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.HEALTH, "HP +15", "Max Health +15"],
 		[NodeType.STAT_BONUS, "INT +4", "Intelligence +4"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
@@ -269,7 +270,7 @@ func _build_grid() -> void:
 		[NodeType.PASSIVE, "Passive", "On draw: 10% draw costs 0 mana"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],
 		[NodeType.STAT_BONUS, "AGI +5", "Agility +5"],
-		[NodeType.HEALTH, "HP +25", "Max Health +25"],
+		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.PASSIVE, "Passive", "On cycle: 20% gain empower"],
 		[NodeType.STAT_BONUS, "DET +5", "Determination +5"],
 		[NodeType.CARD, "Card", "Unlocks a new card"],

@@ -128,6 +128,52 @@ func choose_option(level: int, option_index: int) -> bool:
 	row.chosen_index = option_index
 	return true
 
+## Use a retrospective token to pick an additional option from an already-chosen row.
+## The chosen_index stays the same, but the extra pick is tracked in retrospective_picks.
+var retrospective_picks: Dictionary = {}  # level -> Array[int] of additional option indices
+
+func can_retrospective_pick(level: int, option_index: int) -> bool:
+	var row = get_row_for_level(level)
+	if not row or not row.is_chosen():
+		return false
+	if option_index == row.chosen_index:
+		return false  # Already the chosen option
+	if option_index < 0 or option_index >= row.options.size():
+		return false
+	# Check if already retrospective-picked this option
+	if level in retrospective_picks:
+		if option_index in retrospective_picks[level]:
+			return false
+	return true
+
+func retrospective_pick(level: int, option_index: int) -> bool:
+	if not can_retrospective_pick(level, option_index):
+		return false
+	if level not in retrospective_picks:
+		retrospective_picks[level] = []
+	retrospective_picks[level].append(option_index)
+	return true
+
+func is_retrospective_picked(level: int, option_index: int) -> bool:
+	if level not in retrospective_picks:
+		return false
+	return option_index in retrospective_picks[level]
+
+func get_rows_with_skipped_options(max_level: int) -> Array[SkillRow]:
+	## Returns rows that have been chosen but still have unpicked options available.
+	var result: Array[SkillRow] = []
+	for row in rows:
+		if row.level > max_level:
+			continue
+		if not row.is_chosen():
+			continue
+		# Check if there are any unchosen, non-retrospective-picked options
+		for i in range(row.options.size()):
+			if i != row.chosen_index and not is_retrospective_picked(row.level, i):
+				result.append(row)
+				break
+	return result
+
 ## Get the auto-grant type for a given level based on the schedule:
 ## Levels 1, 4, 8, 12, 16, 20 ... → Stat Allocation (5 points)
 ## Levels 2, 5, 10, 15, 20 ...    → Card Removal
