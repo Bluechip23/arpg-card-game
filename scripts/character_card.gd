@@ -18,7 +18,6 @@ var _inventory_name_label: Label
 var _inventory_desc_label: Label
 var _archetypes_header_label: Label
 var _archetype_labels: Array[Label] = []
-var _ability_containers: Array[VBoxContainer] = []
 var _select_button: Button
 
 func _ready() -> void:
@@ -199,11 +198,6 @@ func _build_ui() -> void:
 		vbox.add_child(arch_label)
 		_archetype_labels.append(arch_label)
 
-		var ability_box = VBoxContainer.new()
-		ability_box.add_theme_constant_override("separation", 1)
-		vbox.add_child(ability_box)
-		_ability_containers.append(ability_box)
-
 	# ── Spacer ───────────────────────────────────
 	var spacer = Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -296,24 +290,8 @@ func setup(character: CharacterData) -> void:
 			var arch = character.archetypes[i]
 			_archetype_labels[i].text = "%s - %s" % [arch["name"], arch["description"]]
 			_archetype_labels[i].visible = true
-
-			# Clear previous ability labels
-			for child in _ability_containers[i].get_children():
-				child.queue_free()
-			_ability_containers[i].visible = true
-
-			# Add ability labels if present
-			if arch.has("abilities"):
-				for ability in arch["abilities"]:
-					var ability_label = Label.new()
-					ability_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-					ability_label.add_theme_font_size_override("font_size", 9)
-					ability_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.6))
-					ability_label.text = "  • %s: %s" % [ability["name"], ability["description"]]
-					_ability_containers[i].add_child(ability_label)
 		else:
 			_archetype_labels[i].visible = false
-			_ability_containers[i].visible = false
 
 func _on_select_pressed() -> void:
 	selected.emit(character_data)
