@@ -7,12 +7,12 @@ extends Resource
 enum NodeType {
 	STAT_BONUS,    # Flat stat increase (STR, DEX, INT, WIS, AGI, DET)
 	PASSIVE,       # Triggered passive (everytime you do X, Y happens)
-	CARD,          # Grants a new card
 	HEALTH,        # Max health increase
 	MANA,          # Max mana increase
 	START,         # Starting node (already unlocked)
 	CULLING_STONE, # Grants a culling stone to remove a card from deck
-	RETROSPECTIVE  # Grants ability to pick from a previously skipped skill tree option
+	RETROSPECTIVE, # Grants ability to pick from a previously skipped skill tree option
+	COMBAT_BONUS   # Neutral combat stat boost (Block, Thorns, Damage, Heal Power, Crit, Armor)
 }
 
 class GridNode:
@@ -25,10 +25,7 @@ class GridNode:
 	var unlocked: bool = false
 	var ring: int = 0               # Which ring this node belongs to (0=center)
 
-	# Card nodes: which card this grants
-	var card_id: String = ""        # e.g. "slash", "heal" — empty for non-card nodes
-
-	# Upgrade paths (2 per node for card/passive nodes)
+	# Upgrade paths (2 per node for passive nodes)
 	# Each entry: { "label": String, "description": String }
 	var upgrade_paths: Array = []
 
@@ -180,22 +177,22 @@ func _build_grid() -> void:
 
 	# === Ring 3: 18 nodes at radius 210 ===
 	var ring3_types = [
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
 		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
 		[NodeType.PASSIVE, "Passive", "On attack: 10% apply bleed"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Damage +2", "All attacks deal +2 bonus damage"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Heal +2", "Heal cards restore +2 additional HP"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.PASSIVE, "Passive", "On heal: 15% cleanse debuff"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Crit +3%", "Critical hit chance +3%"],
 		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],
 		[NodeType.MANA, "Mana +5", "Max Mana +5"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Armor +2", "Start each combat with +2 armor"],
 		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.PASSIVE, "Passive", "On block: reflect 2 damage"],
 	]
@@ -215,27 +212,27 @@ func _build_grid() -> void:
 		[NodeType.PASSIVE, "Passive", "On crit: deal 50% bonus"],
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],
 		[NodeType.STAT_BONUS, "STR +4", "Strength +4"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Block +2", "Block cards grant +2 additional block"],
 		[NodeType.PASSIVE, "Passive", "On kill: draw 1 card"],
 		[NodeType.MANA, "Mana +5", "Max Mana +5"],
 		[NodeType.STAT_BONUS, "DEX +4", "Dexterity +4"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Thorns +2", "Deal 2 damage to attackers when hit"],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.HEALTH, "HP +15", "Max Health +15"],
 		[NodeType.STAT_BONUS, "INT +4", "Intelligence +4"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Damage +3", "All attacks deal +3 bonus damage"],
 		[NodeType.PASSIVE, "Passive", "On tempo cycle: all enemies -1 armor"],
 		[NodeType.MANA, "Mana +8", "Max Mana +8"],
 		[NodeType.STAT_BONUS, "WIS +4", "Wisdom +4"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Heal +3", "Heal cards restore +3 additional HP"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.HEALTH, "HP +15", "Max Health +15"],
 		[NodeType.STAT_BONUS, "AGI +4", "Agility +4"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Crit +5%", "Critical hit chance +5%"],
 		[NodeType.PASSIVE, "Passive", "On move: 10% gain haste"],
 		[NodeType.MANA, "Mana +8", "Max Mana +8"],
 		[NodeType.STAT_BONUS, "DET +4", "Determination +4"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Armor +3", "Start each combat with +3 armor"],
 	]
 	_create_ring(37, 24, 350.0, center, ring4_types, 4)
 
@@ -252,44 +249,44 @@ func _build_grid() -> void:
 	# IDs 61..99 (39 nodes to reach 100 total)
 	var ring5_types: Array = []
 	var r5_labels = [
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Block +3", "Block cards grant +3 additional block"],
 		[NodeType.PASSIVE, "Passive", "On attack: 5% stun enemy"],
 		[NodeType.STAT_BONUS, "STR +5", "Strength +5"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
 		[NodeType.PASSIVE, "Passive", "On kill: gain 3 armor"],
 		[NodeType.STAT_BONUS, "DEX +5", "Dexterity +5"],
 		[NodeType.MANA, "Mana +10", "Max Mana +10"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Thorns +3", "Deal 3 damage to attackers when hit"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.STAT_BONUS, "INT +5", "Intelligence +5"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
 		[NodeType.PASSIVE, "Passive", "On spell cast: 5% double cast"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Damage +4", "All attacks deal +4 bonus damage"],
 		[NodeType.STAT_BONUS, "WIS +5", "Wisdom +5"],
 		[NodeType.MANA, "Mana +10", "Max Mana +10"],
 		[NodeType.PASSIVE, "Passive", "On draw: 10% draw costs 0 mana"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Heal +4", "Heal cards restore +4 additional HP"],
 		[NodeType.STAT_BONUS, "AGI +5", "Agility +5"],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.PASSIVE, "Passive", "On cycle: 20% gain empower"],
 		[NodeType.STAT_BONUS, "DET +5", "Determination +5"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Crit +5%", "Critical hit chance +5%"],
 		[NodeType.PASSIVE, "Passive", "On heal: overheal becomes armor"],
 		[NodeType.MANA, "Mana +12", "Max Mana +12"],
 		[NodeType.STAT_BONUS, "STR +6", "Strength +6"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Armor +4", "Start each combat with +4 armor"],
 		[NodeType.PASSIVE, "Passive", "On crit: heal 3 HP"],
 		[NodeType.HEALTH, "HP +25", "Max Health +25"],
 		[NodeType.STAT_BONUS, "DEX +6", "Dexterity +6"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Block +4", "Block cards grant +4 additional block"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.MANA, "Mana +12", "Max Mana +12"],
 		[NodeType.STAT_BONUS, "INT +6", "Intelligence +6"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Thorns +4", "Deal 4 damage to attackers when hit"],
 		[NodeType.PASSIVE, "Passive", "On move: next card costs 1 less"],
 		[NodeType.HEALTH, "HP +30", "Max Health +30"],
 		[NodeType.STAT_BONUS, "WIS +6", "Wisdom +6"],
-		[NodeType.CARD, "Card", "Unlocks a new card"],
+		[NodeType.COMBAT_BONUS, "Damage +5", "All attacks deal +5 bonus damage"],
 		[NodeType.PASSIVE, "Passive", "On tempo cycle: draw 1 card"],
 	]
 	for entry in r5_labels:
@@ -315,96 +312,8 @@ func _create_ring(start_id: int, count: int, radius: float, center: Vector2, typ
 		_add_node(node)
 
 func _assign_node_details() -> void:
-	## Assigns card IDs, upgrade paths, and transmute paths to card/passive nodes.
+	## Assigns upgrade paths and transmute paths to passive nodes.
 	## Called after the grid is fully built.
-
-	# --- Card node assignments ---
-	# Ring 3 card nodes: IDs 19, 22, 25, 28, 31, 34
-	_assign_card(19, "life_steal", "Life Steal",
-		[{"label": "Life Steal+", "description": "Steal 8 HP instead of 5 and gain 3 armor"}],
-		[{"label": "Soul Drain", "description": "Drain 4 HP from all nearby enemies"}])
-
-	_assign_card(22, "wear_down", "Wear Down",
-		[{"label": "Wear Down+", "description": "Reduce enemy attack by 4 for double duration"}],
-		[{"label": "Cripple", "description": "Reduce enemy attack by 2 and slow by 50%"}])
-
-	_assign_card(25, "surrounding_ice", "Surrounding Ice",
-		[{"label": "Surrounding Ice+", "description": "Increased damage, range, and slows hit enemies"}],
-		[{"label": "Frost Nova", "description": "Freeze nearby enemies for 1 cycle"}])
-
-	_assign_card(28, "empower", "Empower",
-		[{"label": "Empower+", "description": "Empower 3 cards with +4 bonus damage"}],
-		[{"label": "War Cry", "description": "Empower 2 cards and gain 5 armor"}])
-
-	_assign_card(31, "preparation", "Preparation",
-		[{"label": "Preparation+", "description": "Draw 3 cards and reduce their cost by 1"}],
-		[{"label": "Mastermind", "description": "Draw 2 cards and gain 3 mana"}])
-
-	_assign_card(34, "armor_break", "Armor Break",
-		[{"label": "Armor Break+", "description": "Remove all armor and deal 5 damage"}],
-		[{"label": "Sunder", "description": "Remove 5 armor and apply Exposed"}])
-
-	# Ring 4 card nodes: IDs 40, 44, 48, 52, 56, 60
-	_assign_card(40, "charge", "Charge",
-		[{"label": "Charge+", "description": "Charge deals 20 damage and stuns"}],
-		[{"label": "Bull Rush", "description": "Charge through enemies, damaging all in path"}])
-
-	_assign_card(44, "trick_shot", "Trick Shot",
-		[{"label": "Trick Shot+", "description": "Bounces to 4 targets with no damage falloff"}],
-		[{"label": "Ricochet", "description": "Bounce 3 times, each hit gains +2 damage"}])
-
-	_assign_card(48, "volatile_mixture", "Volatile Mixture",
-		[{"label": "Volatile Mixture+", "description": "Increased damage, larger radius, applies burn"}],
-		[{"label": "Acid Flask", "description": "AOE that removes enemy armor over time"}])
-
-	_assign_card(52, "meditate", "Meditate",
-		[{"label": "Meditate+", "description": "Restore 8 mana and draw a card"}],
-		[{"label": "Inner Peace", "description": "Restore 4 mana and cleanse 1 debuff"}])
-
-	_assign_card(56, "heroic_leap", "Heroic Leap",
-		[{"label": "Heroic Leap+", "description": "Leap deals 12 AOE damage on landing"}],
-		[{"label": "Death From Above", "description": "Leap and deal damage based on distance"}])
-
-	_assign_card(60, "reposition", "Reposition",
-		[{"label": "Reposition+", "description": "Move further, gain 5 armor, draw a card"}],
-		[{"label": "Flanking Strike", "description": "Move and deal 8 damage to adjacent enemy"}])
-
-	# Ring 5 card nodes: IDs 61, 68, 73, 77, 82, 86, 90, 94, 98
-	_assign_card(61, "last_breath", "Last Breath",
-		[{"label": "Last Breath+", "description": "Massive damage at low HP, heal on kill"}],
-		[{"label": "Death Wish", "description": "Deal damage equal to missing HP"}])
-
-	_assign_card(68, "sky_fall", "Sky Fall",
-		[{"label": "Sky Fall+", "description": "Larger radius and leaves burning ground"}],
-		[{"label": "Meteor", "description": "Massive single-target sky damage"}])
-
-	_assign_card(73, "round_em_up", "Round Em Up",
-		[{"label": "Round Em Up+", "description": "Pull and stun all gathered enemies"}],
-		[{"label": "Graviton Surge", "description": "Pull and deal damage based on enemies caught"}])
-
-	_assign_card(77, "shadows", "Shadows",
-		[{"label": "Shadows+", "description": "Longer stealth and next attack from stealth crits"}],
-		[{"label": "Vanish", "description": "Enter stealth and cleanse all debuffs"}])
-
-	_assign_card(82, "consecutive_snap", "Consecutive Snap",
-		[{"label": "Consecutive Snap+", "description": "Each snap deals +3 more and costs 1 less"}],
-		[{"label": "Rapid Fire", "description": "Fire 4 quick shots at random enemies"}])
-
-	_assign_card(86, "sweeping_disarm", "Sweeping Disarm",
-		[{"label": "Sweeping Disarm+", "description": "Disarm all nearby enemies"}],
-		[{"label": "Weapon Break", "description": "Disarm target and reduce their damage permanently by 1"}])
-
-	_assign_card(90, "elixir", "Elixir",
-		[{"label": "Elixir+", "description": "Heal 20 HP and gain 5 armor"}],
-		[{"label": "Phoenix Tears", "description": "Heal 10 HP, if this would kill you, heal to 1 instead"}])
-
-	_assign_card(94, "mark", "Mark",
-		[{"label": "Mark+", "description": "Marked enemy takes +6 bonus damage from all sources"}],
-		[{"label": "Death Mark", "description": "Mark: after 3 hits, deal 15 bonus damage"}])
-
-	_assign_card(98, "defensive_awareness", "Defensive Awareness",
-		[{"label": "Defensive Awareness+", "description": "Gain 10 armor and reduce next damage taken by 50%"}],
-		[{"label": "Fortress", "description": "Gain 5 armor and block all damage for 1 hit"}])
 
 	# --- Passive node upgrade/transmute paths ---
 	# Ring 2 passives
@@ -659,15 +568,6 @@ func get_constellation_edges(id: String) -> Array:
 			if conn_id in node_set and conn_id > nid:
 				edges.append([nid, conn_id])
 	return edges
-
-func _assign_card(node_id: int, p_card_id: String, card_label: String, upgrades: Array, transmutes: Array) -> void:
-	var node = get_node_by_id(node_id)
-	if not node:
-		return
-	node.card_id = p_card_id
-	node.label = card_label
-	node.upgrade_paths = upgrades
-	node.transmute_paths = transmutes
 
 func _assign_passive(node_id: int, upgrades: Array, transmutes: Array) -> void:
 	var node = get_node_by_id(node_id)

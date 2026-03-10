@@ -7,9 +7,8 @@ extends Node
 signal spheres_changed
 
 enum SphereType {
-	STAT,       # Can unlock STAT_BONUS, HEALTH, MANA nodes
+	STAT,       # Can unlock STAT_BONUS, HEALTH, MANA, COMBAT_BONUS nodes
 	PASSIVE,    # Can unlock PASSIVE nodes
-	CARD,       # Can unlock CARD nodes
 	ANY,        # Can unlock any node type
 	SWAP,       # Special: swap one unlocked node for another of the same type (rare)
 }
@@ -18,7 +17,6 @@ enum SphereType {
 var spheres: Dictionary = {
 	SphereType.STAT: 0,
 	SphereType.PASSIVE: 0,
-	SphereType.CARD: 0,
 	SphereType.ANY: 0,
 	SphereType.SWAP: 0,
 }
@@ -115,12 +113,10 @@ static func get_required_sphere_type(node_type: SphereGrid.NodeType) -> int:
 	## Returns the SphereType required to unlock a given grid node type.
 	## Returns -1 for START (cannot be unlocked with a sphere).
 	match node_type:
-		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA, SphereGrid.NodeType.CULLING_STONE:
+		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA, SphereGrid.NodeType.CULLING_STONE, SphereGrid.NodeType.COMBAT_BONUS:
 			return SphereType.STAT
 		SphereGrid.NodeType.PASSIVE:
 			return SphereType.PASSIVE
-		SphereGrid.NodeType.CARD:
-			return SphereType.CARD
 		SphereGrid.NodeType.RETROSPECTIVE:
 			return SphereType.ANY
 		SphereGrid.NodeType.START:
@@ -131,7 +127,6 @@ static func get_sphere_name(type: SphereType) -> String:
 	match type:
 		SphereType.STAT: return "Stat"
 		SphereType.PASSIVE: return "Passive"
-		SphereType.CARD: return "Card"
 		SphereType.ANY: return "Any"
 		SphereType.SWAP: return "Swap"
 	return "Unknown"
@@ -140,7 +135,6 @@ static func get_sphere_color(type: SphereType) -> Color:
 	match type:
 		SphereType.STAT: return Color(0.4, 0.6, 1.0)
 		SphereType.PASSIVE: return Color(0.9, 0.5, 0.2)
-		SphereType.CARD: return Color(0.8, 0.3, 0.9)
 		SphereType.ANY: return Color(1.0, 1.0, 0.6)
 		SphereType.SWAP: return Color(0.2, 0.9, 0.9)
 	return Color.WHITE

@@ -96,6 +96,14 @@ var sphere_bonus_determination: int = 0
 var sphere_bonus_health: int = 0
 var sphere_bonus_mana: int = 0
 
+# Combat bonuses from sphere grid (neutral bonuses)
+var sphere_bonus_block: int = 0       # Extra block from block cards
+var sphere_bonus_thorns: int = 0      # Damage dealt to attackers when hit
+var sphere_bonus_damage: int = 0      # Flat bonus to all attacks
+var sphere_bonus_heal_power: int = 0  # Extra HP from heal cards
+var sphere_bonus_crit: float = 0.0    # Extra crit chance (percentage points)
+var sphere_bonus_armor: int = 0       # Starting armor each combat
+
 # ============================================
 # EXPERIENCE / LEVEL
 # ============================================
@@ -363,20 +371,20 @@ func get_effective_mana_regen() -> float:
 	return base_mana_regen + get_intelligence_mana_regen_bonus() + enchantment_mana_regen_bonus
 
 func get_effective_physical_damage(base_damage: int) -> int:
-	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus
+	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage
 	return max(1, damage)
 
 func get_effective_ranged_damage(base_damage: int) -> int:
-	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus
+	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage
 	return max(1, damage)
 
 func get_effective_spell_damage(base_damage: int) -> int:
 	# INT: +1 damage per point (flat)
-	return max(1, base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus)
+	return max(1, base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage)
 
 func get_effective_heal_amount(base_heal: int) -> int:
-	# INT also boosts healing (flat) + flat healing_bonus from equipment
-	var amount = base_heal + get_intelligence_spell_bonus() + healing_bonus
+	# INT also boosts healing (flat) + flat healing_bonus from equipment + sphere grid heal bonus
+	var amount = base_heal + get_intelligence_spell_bonus() + healing_bonus + sphere_bonus_heal_power
 	if healing_boost_percent > 0.0:
 		amount = floori(amount * (1.0 + healing_boost_percent))
 	return amount
@@ -521,18 +529,19 @@ func heal(amount: int) -> void:
 		inventory.on_healed()
 
 func add_armor(amount: int) -> void:
-	var total = amount + enchantment_block_bonus
+	var total = amount + enchantment_block_bonus + sphere_bonus_block
 	current_armor += total
 	armor_changed.emit(current_armor)
-	if enchantment_block_bonus > 0:
-		print("[STATS] Gained %d armor (+%d enchantment)! Armor: %d" % [amount, enchantment_block_bonus, current_armor])
+	var bonus = enchantment_block_bonus + sphere_bonus_block
+	if bonus > 0:
+		print("[STATS] Gained %d armor (+%d bonus)! Armor: %d" % [amount, bonus, current_armor])
 	else:
 		print("[STATS] Gained %d armor! Armor: %d" % [total, current_armor])
 	if inventory:
 		inventory.on_armor_gained(total)
 
 func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
-	var total = amount + enchantment_block_bonus
+	var total = amount + enchantment_block_bonus + sphere_bonus_block
 	if buff_mgr:
 		total += buff_mgr.consume_bolster()
 	current_armor += total
@@ -663,6 +672,35 @@ func apply_sphere_grid_mana(amount: int) -> void:
 	current_mana = min(current_mana + amount, get_available_max_mana())
 	mana_changed.emit(current_mana, max_mana)
 	print("[STATS] Sphere grid: Max Mana +%d (now %d)" % [amount, max_mana])
+
+func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void:
+	## Applies a neutral combat bonus from a sphere grid node.
+	## Parses labels like "Block +2", "Thorns +1", "Damage +3", "Heal +2", "Crit +5%", "Armor +3"
+	var regex = RegEx.new()
+	regex.compile("(\\w+)\\s*\\+(\\d+)")
+	var result = regex.search(label)
+	if not result:
+		return
+	var bonus_type = result.get_string(1).to_lower()
+	var value = int(result.get_string(2))
+	match bonus_type:
+		"block":
+			sphere_bonus_block += value
+		"thorns":
+			sphere_bonus_thorns += value
+		"damage":
+			sphere_bonus_damage += value
+		"heal":
+			sphere_bonus_heal_power += value
+		"crit":
+			sphere_bonus_crit += float(value)
+		"armor":
+			sphere_bonus_armor += value
+			# Immediately grant the armor
+			current_armor += value
+			armor_changed.emit(current_armor)
+	stats_updated.emit()
+	print("[STATS] Sphere grid combat bonus: %s" % label)
 
 func add_sphere_grid_passive(passive_data: Dictionary) -> void:
 	## Registers a passive from an unlocked sphere grid node.

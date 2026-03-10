@@ -48,7 +48,7 @@ const COLOR_UNLOCKABLE := Color(0.9, 0.85, 0.2, 1.0)
 const COLOR_START := Color(1.0, 1.0, 1.0, 1.0)
 const COLOR_STAT := Color(0.4, 0.6, 1.0, 1.0)
 const COLOR_PASSIVE := Color(0.9, 0.5, 0.2, 1.0)
-const COLOR_CARD := Color(0.8, 0.3, 0.9, 1.0)
+const COLOR_COMBAT := Color(0.9, 0.7, 0.2, 1.0)  # Gold/amber for combat bonus nodes
 const COLOR_HEALTH := Color(0.9, 0.2, 0.2, 1.0)
 const COLOR_MANA := Color(0.2, 0.5, 1.0, 1.0)
 const COLOR_CULLING := Color(1.0, 0.15, 0.45, 1.0)  # Crimson/hot-pink - distinct from purple passives
@@ -189,13 +189,11 @@ func _update_points_label() -> void:
 	var parts: Array[String] = []
 	var stat_count = sphere_inventory.get_count(SphereInventory.SphereType.STAT)
 	var passive_count = sphere_inventory.get_count(SphereInventory.SphereType.PASSIVE)
-	var card_count = sphere_inventory.get_count(SphereInventory.SphereType.CARD)
 	var any_count = sphere_inventory.get_count(SphereInventory.SphereType.ANY)
 	var swap_count = sphere_inventory.get_count(SphereInventory.SphereType.SWAP)
 	var rune_count = sphere_inventory.upgrade_runes
 	if stat_count > 0: parts.append("Stat:%d" % stat_count)
 	if passive_count > 0: parts.append("Passive:%d" % passive_count)
-	if card_count > 0: parts.append("Card:%d" % card_count)
 	if any_count > 0: parts.append("Any:%d" % any_count)
 	if swap_count > 0: parts.append("Swap:%d" % swap_count)
 	if rune_count > 0: parts.append("Runes:%d" % rune_count)
@@ -246,8 +244,8 @@ func _get_type_color(node: SphereGrid.GridNode) -> Color:
 			return COLOR_STAT
 		SphereGrid.NodeType.PASSIVE:
 			return COLOR_PASSIVE
-		SphereGrid.NodeType.CARD:
-			return COLOR_CARD
+		SphereGrid.NodeType.COMBAT_BONUS:
+			return COLOR_COMBAT
 		SphereGrid.NodeType.HEALTH:
 			return COLOR_HEALTH
 		SphereGrid.NodeType.MANA:
@@ -262,7 +260,7 @@ func _get_node_shape(node: SphereGrid.GridNode) -> String:
 	match node.node_type:
 		SphereGrid.NodeType.PASSIVE:
 			return "diamond"
-		SphereGrid.NodeType.CARD:
+		SphereGrid.NodeType.COMBAT_BONUS:
 			return "square"
 		SphereGrid.NodeType.CULLING_STONE:
 			return "hexagon"
@@ -417,7 +415,7 @@ func _draw_legend() -> void:
 	var entries = [
 		[COLOR_STAT, "circle", "Stat Bonus"],
 		[COLOR_PASSIVE, "diamond", "Passive"],
-		[COLOR_CARD, "square", "Card"],
+		[COLOR_COMBAT, "square", "Combat Bonus"],
 		[COLOR_HEALTH, "circle", "Health"],
 		[COLOR_MANA, "circle", "Mana"],
 		[COLOR_CULLING, "hexagon", "Culling Stone"],
@@ -919,11 +917,9 @@ func _open_detail_popup(node_id: int) -> void:
 
 	# --- Content based on node type ---
 	match node.node_type:
-		SphereGrid.NodeType.CARD:
-			_build_card_popup_content(vbox, node)
 		SphereGrid.NodeType.PASSIVE:
 			_build_passive_popup_content(vbox, node)
-		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA:
+		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA, SphereGrid.NodeType.COMBAT_BONUS:
 			_build_stat_popup_content(vbox, node)
 		SphereGrid.NodeType.CULLING_STONE:
 			_add_popup_label(vbox, "Grants 1 Culling Stone", 14, COLOR_CULLING)
@@ -988,44 +984,6 @@ func _position_popup(node: SphereGrid.GridNode) -> void:
 # POPUP CONTENT BUILDERS
 # ============================================
 
-func _build_card_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
-	# Show card info
-	if node.card_id != "":
-		var card = _try_create_card(node.card_id)
-		if card:
-			_add_popup_label(vbox, card.card_name, 16, Color(0.95, 0.95, 1.0))
-			var cost_text = "Cost: %d Mana  |  %d Tempo" % [card.mana_cost, card.tempo_cost]
-			_add_popup_label(vbox, cost_text, 12, COLOR_DIM_TEXT)
-			_add_popup_label(vbox, card.description, 13, Color(0.8, 0.8, 0.9))
-
-			if card.card_type == Card.CardType.ATTACK and card.damage > 0:
-				_add_popup_label(vbox, "Damage: %d" % card.damage, 12, Color(1.0, 0.5, 0.5))
-			if card.card_type == Card.CardType.DEFENSE and card.block > 0:
-				_add_popup_label(vbox, "Block: %d" % card.block, 12, Color(0.5, 0.7, 1.0))
-			if card.heal_amount > 0:
-				_add_popup_label(vbox, "Heal: %d" % card.heal_amount, 12, Color(0.5, 1.0, 0.5))
-			if card.is_ranged:
-				_add_popup_label(vbox, "Ranged  |  %s" % card.get_range_display(), 12, Color(0.8, 0.8, 0.5))
-		else:
-			_add_popup_label(vbox, "Card: %s" % node.card_id, 14, Color(0.8, 0.8, 0.9))
-	else:
-		_add_popup_label(vbox, node.description, 14, Color(0.8, 0.8, 0.9))
-
-	# Upgrade paths
-	if node.upgrade_paths.size() > 0:
-		_add_popup_separator(vbox)
-		_add_popup_label(vbox, "UPGRADE PATH", 12, COLOR_SECTION_HEADER)
-		for path in node.upgrade_paths:
-			_add_popup_label(vbox, path["label"], 13, COLOR_UPGRADE)
-			_add_popup_label(vbox, "  %s" % path["description"], 11, COLOR_DIM_TEXT)
-
-	# Transmute path
-	if node.transmute_paths.size() > 0:
-		_add_popup_separator(vbox)
-		_add_popup_label(vbox, "TRANSMUTE PATH", 12, COLOR_SECTION_HEADER)
-		for path in node.transmute_paths:
-			_add_popup_label(vbox, path["label"], 13, COLOR_TRANSMUTE)
-			_add_popup_label(vbox, "  %s" % path["description"], 11, COLOR_DIM_TEXT)
 
 func _build_passive_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
 	_add_popup_label(vbox, node.description, 14, Color(0.95, 0.8, 0.5))
@@ -1168,14 +1126,6 @@ func _add_popup_separator(parent: VBoxContainer) -> void:
 	sep.add_theme_constant_override("separation", 4)
 	parent.add_child(sep)
 
-func _try_create_card(card_id: String) -> Card:
-	## Try to instantiate a card by ID so we can show its details.
-	var method_name = "create_" + card_id
-	var temp = Card.new()
-	if temp.has_method(method_name):
-		return temp.call(method_name)
-	return null
-
 # ============================================
 # INFO LABEL / HELPERS
 # ============================================
@@ -1202,14 +1152,6 @@ func _update_info_label() -> void:
 
 	# Description
 	lines.append(node.description)
-
-	# Card info (if card node)
-	if node.node_type == SphereGrid.NodeType.CARD and node.card_id != "":
-		var card = _try_create_card(node.card_id)
-		if card:
-			lines.append("Card: %s — Cost: %dM / %dT" % [card.card_name, card.mana_cost, card.tempo_cost])
-			if card.description != "":
-				lines.append(card.description)
 
 	# Upgrade paths preview
 	if node.upgrade_paths.size() > 0:
@@ -1244,7 +1186,7 @@ func _get_type_name(t: SphereGrid.NodeType) -> String:
 	match t:
 		SphereGrid.NodeType.STAT_BONUS: return "Stat Bonus"
 		SphereGrid.NodeType.PASSIVE: return "Passive"
-		SphereGrid.NodeType.CARD: return "Card"
+		SphereGrid.NodeType.COMBAT_BONUS: return "Combat Bonus"
 		SphereGrid.NodeType.HEALTH: return "Health"
 		SphereGrid.NodeType.MANA: return "Mana"
 		SphereGrid.NodeType.START: return "Start"

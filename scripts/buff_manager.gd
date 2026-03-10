@@ -202,6 +202,16 @@ func get_thorns_damage() -> int:
 	return thorns.value if thorns else 0
 
 func on_attacked(attacker) -> void:
+	# Sphere grid passive thorns (permanent, doesn't decay)
+	var sphere_thorns = 0
+	if owner_stats and "sphere_bonus_thorns" in owner_stats:
+		sphere_thorns = owner_stats.sphere_bonus_thorns
+	if sphere_thorns > 0 and attacker and attacker.has_method("take_damage"):
+		attacker.take_damage(sphere_thorns)
+		thorns_triggered.emit(sphere_thorns)
+		print("[BUFF] Sphere Grid thorns deals %d damage to attacker!" % sphere_thorns)
+
+	# Buff-based thorns (temporary, decays per hit)
 	var thorns = get_buff(Buff.BuffType.THORNS)
 	if thorns and thorns.value > 0 and attacker and attacker.has_method("take_damage"):
 		attacker.take_damage(thorns.value)
@@ -276,7 +286,10 @@ func consume_enlightened() -> int:
 	return 0
 
 func roll_crit(base_crit_chance: int = 0) -> bool:
-	var total_chance = base_crit_chance + get_enlightened_crit_chance()
+	var sphere_crit = 0.0
+	if owner_stats and "sphere_bonus_crit" in owner_stats:
+		sphere_crit = owner_stats.sphere_bonus_crit
+	var total_chance = base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit)
 	if total_chance <= 0:
 		return false
 	
