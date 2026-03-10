@@ -25,7 +25,7 @@ var purchased_card_ids: Array = []  # Cards bought from the card shop
 var removed_card_ids: Array = []    # Cards culled from the deck (base or starting cards)
 
 # Archetypes - categorize card and passive options
-var archetypes: Array[Dictionary] = []  # [{name: String, description: String}, ...]
+var archetypes: Array = []  # [{name: String, description: String}, ...]
 
 # Selection screen display info
 var passive_description: String = ""
