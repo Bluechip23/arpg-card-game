@@ -302,6 +302,109 @@ static func create_placeholder_tree(char_name: String, max_level: int = 20, arch
 
 	return tree
 
+## Brad-specific skill tree with archetype abilities spread across levels.
+## Each archetype ability appears as one of the 4 options on its row,
+## mixed in alongside other option types at various levels.
+static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
+	var tree = SkillTreeData.new()
+	tree.character_name = "Brad"
+
+	# Archetype ability pool — each entry: {level, slot, archetype, name, description, color}
+	# Spread across levels so passives can appear at any level
+	var ability_placements := [
+		{level = 2, slot = 0, archetype = "Berserker", name = "Enraged Will",
+			description = "When you drop below 10% health, perform a free basic attack",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 3, slot = 1, archetype = "Warden", name = "In the Trenches",
+			description = "While wearing a shield, you knock back melee enemies when attacked",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 4, slot = 2, archetype = "The Ancient", name = "Stone Skin",
+			description = "Gain 10% Fire, Physical and Lightning resistance",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 5, slot = 3, archetype = "The Fallen", name = "Point to Prove",
+			description = "When being stunned or disarmed, you have the option to sacrifice health to ignore the ailment",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 7, slot = 1, archetype = "Berserker", name = "Directed Strength",
+			description = "Lose 5 strength when above 50% health, gain 5 when below",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 8, slot = 0, archetype = "Warden", name = "The Way of the Plate",
+			description = "Every third Defense card costs -1m/-1t",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 9, slot = 3, archetype = "The Ancient", name = "Ancestral Aid",
+			description = "Gain 3 HP regen per 5 tempo",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 11, slot = 2, archetype = "The Fallen", name = "Redemption",
+			description = "When healing an ally, 10% crit chance",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 13, slot = 0, archetype = "Berserker", name = "Life Steal",
+			description = "All attacks life steal by 5%",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 14, slot = 2, archetype = "Warden", name = "Pristine Armor",
+			description = "Cards provide +2 armor",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 16, slot = 1, archetype = "The Ancient", name = "Wrapped in Thorny Vine",
+			description = "Whenever you heal, gain 3 thorns",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 18, slot = 3, archetype = "The Fallen", name = "Dark Forces",
+			description = "When exposed, gain 3 damage to your next strike",
+			color = Color(0.8, 0.4, 0.9)},
+	]
+
+	# Index placements by level for quick lookup
+	var placements_by_level := {}  # level -> {slot -> placement}
+	for p in ability_placements:
+		if p.level not in placements_by_level:
+			placements_by_level[p.level] = {}
+		placements_by_level[p.level][p.slot] = p
+
+	for lvl in range(2, max_level + 1):
+		var row = SkillRow.new()
+		row.level = lvl
+
+		var level_placements = placements_by_level.get(lvl, {})
+
+		for i in range(4):
+			var opt = SkillOption.new()
+			if i in level_placements:
+				var p = level_placements[i]
+				opt.name = p.name
+				opt.description = "%s: %s" % [p.archetype, p.description]
+				opt.option_type = OptionType.PASSIVE
+				opt.passive_id = p.name.to_lower().replace(" ", "_")
+				opt.icon_color = p.color
+			else:
+				opt.name = "Brad Lv%d Option %d" % [lvl, i + 1]
+				opt.description = "Placeholder - to be defined"
+				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
+				opt.icon_color = _get_option_color(i)
+			row.options.append(opt)
+
+		# Create auto-grant based on level schedule
+		var auto = AutoGrant.new()
+		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
+		match auto.grant_type:
+			AutoGrantType.STAT_ALLOCATION:
+				auto.name = "Stat Points"
+				auto.description = "Allocate 5 stat points"
+				auto.stat_points = 5
+			AutoGrantType.CARD_REMOVAL:
+				auto.name = "Culling Stone"
+				auto.description = "Remove 1 card from your deck"
+			AutoGrantType.UPGRADE_CARD:
+				auto.name = "Card Upgrade"
+				auto.description = "Upgrade an existing card"
+			AutoGrantType.MUTATE_CARD:
+				auto.name = "Card Mutation"
+				auto.description = "Mutate an existing card"
+			_:
+				auto.name = "Bonus"
+				auto.description = "Level bonus"
+		row.auto_grant = auto
+
+		tree.rows.append(row)
+
+	return tree
+
 static func _get_option_color(index: int) -> Color:
 	match index:
 		0: return Color(0.3, 0.7, 1.0)    # Blue
