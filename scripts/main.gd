@@ -1997,11 +1997,9 @@ func _apply_sphere_grid_node(node) -> void:
 				stats.apply_sphere_grid_mana(amount)
 				add_battle_log("Sphere Grid: Max Mana +%d" % amount, Color(0.2, 0.5, 1.0))
 
-		SphereGrid.NodeType.CARD:
-			if node.card_id != "":
-				if deck_manager.add_card_to_deck_from_id(node.card_id):
-					add_battle_log("Sphere Grid: Unlocked card — %s" % node.card_id.replace("_", " ").capitalize(), Color(0.8, 0.3, 0.9))
-					update_deck_info()
+		SphereGrid.NodeType.COMBAT_BONUS:
+			stats.apply_sphere_grid_combat_bonus(node.label, node.description)
+			add_battle_log("Sphere Grid: %s" % node.label, Color(0.9, 0.7, 0.2))
 
 		SphereGrid.NodeType.PASSIVE:
 			var passive = _parse_passive_description(node.description, node.id)
