@@ -440,13 +440,13 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			description = "If you have played 4 attacks in a row, your 5th will be played twice",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 14, slot = 2, archetype = "Sentinel", name = "Sword Specialist",
-			description = "Gain 25% extra block when only wielding swords as weapons",
+			description = "Gain 25% extra block when only wielding swords as equipped weapons (other gear slots unaffected)",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 16, slot = 1, archetype = "Ranger", name = "Laced Arrow",
 			description = "+1 burn, +1 shock, +1 cold on ranged attacks",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 18, slot = 3, archetype = "Avenger", name = "Dominate",
-			description = "When triggering an attack speed proc, gain a 0m/0t basic attack card",
+			description = "When triggering an attack speed proc, the proc resolves normally and you also gain a 0m/0t basic attack card",
 			color = Color(0.8, 0.4, 0.9)},
 	]
 
