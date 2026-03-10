@@ -30,8 +30,18 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 		tether_origin = owner_node.position
 
 func apply_debuff(debuff: Debuff) -> void:
+	# Point to Prove (Brad): sacrifice HP to ignore stun/disarm
+	if owner_stats and owner_stats.has_method("has_skill_tree_passive"):
+		if owner_stats.has_skill_tree_passive("point_to_prove"):
+			if debuff.debuff_type == Debuff.DebuffType.STUN or debuff.debuff_type == Debuff.DebuffType.DISARM:
+				var cost = 5
+				if owner_stats.current_health > cost:
+					owner_stats.take_direct_damage(cost)
+					print("[DEBUFF] Point to Prove: sacrificed %d HP to ignore %s!" % [cost, debuff.debuff_name])
+					return  # Don't apply the debuff
+
 	var existing = get_debuff(debuff.debuff_type)
-	
+
 	if existing:
 		existing.duration = max(existing.duration, debuff.duration)
 		existing.stacks += 1

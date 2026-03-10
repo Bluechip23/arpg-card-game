@@ -115,6 +115,14 @@ var st_from_hip_card: Card = null     # From the Hip: the card currently discoun
 var st_from_hip_original_cost: int = 0  # From the Hip: original mana cost to restore
 var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which enemies have been struck
 
+# Brad passive tracking
+var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-3rd discount
+var st_dark_forces_bonus: int = 0     # Dark Forces: +3 damage stored when exposed
+
+# Stephen passive tracking
+var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive attack cards played
+var st_enemy_last_move_tempo: Dictionary = {}  # Scouted: tracks last tempo each enemy moved
+
 func has_skill_tree_passive(passive_id: String) -> bool:
 	return passive_id in skill_tree_passives
 
@@ -456,7 +464,11 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 
 func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 	var remaining = amount
-	
+
+	# Stone Skin: 10% damage resistance (Fire, Physical, Lightning)
+	if has_skill_tree_passive("stone_skin"):
+		remaining = floori(remaining * 0.9)
+
 	# Apply Vulnerable modifier from debuffs
 	if debuff_mgr:
 		remaining = debuff_mgr.modify_incoming_damage(remaining)
@@ -549,6 +561,9 @@ func heal(amount: int) -> void:
 
 func add_armor(amount: int) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
+	# Sword Specialist: +25% block when only wielding swords
+	if has_skill_tree_passive("sword_specialist") and inventory and inventory.has_only_swords_equipped():
+		total = floori(total * 1.25)
 	current_armor += total
 	armor_changed.emit(current_armor)
 	var bonus = enchantment_block_bonus + sphere_bonus_block
@@ -563,6 +578,9 @@ func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
 	if buff_mgr:
 		total += buff_mgr.consume_bolster()
+	# Sword Specialist: +25% block when only wielding swords
+	if has_skill_tree_passive("sword_specialist") and inventory and inventory.has_only_swords_equipped():
+		total = floori(total * 1.25)
 	current_armor += total
 	armor_changed.emit(current_armor)
 	print("[STATS] Gained %d armor (incl. bolster/enchantment)! Armor: %d" % [total, current_armor])
