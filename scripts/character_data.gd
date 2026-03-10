@@ -131,10 +131,26 @@ static func create_stephen() -> CharacterData:
 		"empower", "empower",
 	]
 	data.archetypes = [
-		{"name": "The Apex", "description": "The most efficient and dangerous killer. No tactic is out of question, master of all things offense."},
-		{"name": "Sentinel", "description": "Melee engagements are your bread and butter. No one can out duel you, scratching your armor is a feat itself."},
-		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger."},
-		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital."},
+		{"name": "The Apex", "description": "The most efficient and dangerous killer. No tactic is out of question, master of all things offense.", "abilities": [
+			{"name": "Deadly", "description": "+3 damage"},
+			{"name": "Easy Target", "description": "When exposing your enemy, deal your damage again"},
+			{"name": "Skilled Momentum", "description": "If you have played 4 attacks in a row, your 5th will be played twice"},
+		]},
+		{"name": "Sentinel", "description": "Melee engagements are your bread and butter. No one can out duel you, scratching your armor is a feat itself.", "abilities": [
+			{"name": "Disarm Mastery", "description": "When applying disarm, apply 1 more"},
+			{"name": "Phalanx", "description": "When struck with a melee attack, deal damage back equal to the number of Defense cards in your hand"},
+			{"name": "Sword Specialist", "description": "Gain 25% extra block when only wielding swords as weapons"},
+		]},
+		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger.", "abilities": [
+			{"name": "Eagle Eye", "description": "+2 range on ranged attacks"},
+			{"name": "Scouted", "description": "If an enemy has not moved in 10 tempo, gain +3 damage when attacking them"},
+			{"name": "Laced Arrow", "description": "+1 burn, +1 shock, +1 cold on ranged attacks"},
+		]},
+		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
+			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to an enemy in melee range and halve the Glut"},
+			{"name": "Swing for the Fences", "description": "Cards that have >4 tempo cost deal their tempo cost as additional damage"},
+			{"name": "Dominate", "description": "When triggering an attack speed proc, gain a 0m/0t basic attack card"},
+		]},
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
 	data.starting_item_name = "Flickerstep Boots"

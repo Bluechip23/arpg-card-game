@@ -405,6 +405,106 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 
 	return tree
 
+static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
+	var tree = SkillTreeData.new()
+	tree.character_name = "Stephen"
+
+	# Archetype ability pool — spread across levels so passives appear at various points
+	# Colors: The Apex = red, Sentinel = blue, Ranger = green, Avenger = purple
+	var ability_placements := [
+		{level = 2, slot = 0, archetype = "The Apex", name = "Deadly",
+			description = "+3 damage",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 3, slot = 1, archetype = "Sentinel", name = "Disarm Mastery",
+			description = "When applying disarm, apply 1 more",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 4, slot = 2, archetype = "Ranger", name = "Eagle Eye",
+			description = "+2 range on ranged attacks",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 5, slot = 3, archetype = "Avenger", name = "Patience is a Virtue",
+			description = "When receiving Glut, deal that much damage to an enemy in melee range and halve the Glut",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 7, slot = 1, archetype = "The Apex", name = "Easy Target",
+			description = "When exposing your enemy, deal your damage again",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 8, slot = 0, archetype = "Sentinel", name = "Phalanx",
+			description = "When struck with a melee attack, deal damage back equal to the number of Defense cards in your hand",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 9, slot = 3, archetype = "Ranger", name = "Scouted",
+			description = "If an enemy has not moved in 10 tempo, gain +3 damage when attacking them",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 11, slot = 2, archetype = "Avenger", name = "Swing for the Fences",
+			description = "Cards that have >4 tempo cost deal their tempo cost as additional damage",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 13, slot = 0, archetype = "The Apex", name = "Skilled Momentum",
+			description = "If you have played 4 attacks in a row, your 5th will be played twice",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 14, slot = 2, archetype = "Sentinel", name = "Sword Specialist",
+			description = "Gain 25% extra block when only wielding swords as weapons",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 16, slot = 1, archetype = "Ranger", name = "Laced Arrow",
+			description = "+1 burn, +1 shock, +1 cold on ranged attacks",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 18, slot = 3, archetype = "Avenger", name = "Dominate",
+			description = "When triggering an attack speed proc, gain a 0m/0t basic attack card",
+			color = Color(0.8, 0.4, 0.9)},
+	]
+
+	# Index placements by level for quick lookup
+	var placements_by_level := {}
+	for p in ability_placements:
+		if p.level not in placements_by_level:
+			placements_by_level[p.level] = {}
+		placements_by_level[p.level][p.slot] = p
+
+	for lvl in range(2, max_level + 1):
+		var row = SkillRow.new()
+		row.level = lvl
+
+		var level_placements = placements_by_level.get(lvl, {})
+
+		for i in range(4):
+			var opt = SkillOption.new()
+			if i in level_placements:
+				var p = level_placements[i]
+				opt.name = p.name
+				opt.description = "%s: %s" % [p.archetype, p.description]
+				opt.option_type = OptionType.PASSIVE
+				opt.passive_id = p.name.to_lower().replace(" ", "_")
+				opt.icon_color = p.color
+			else:
+				opt.name = "Stephen Lv%d Option %d" % [lvl, i + 1]
+				opt.description = "Placeholder - to be defined"
+				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
+				opt.icon_color = _get_option_color(i)
+			row.options.append(opt)
+
+		# Create auto-grant based on level schedule
+		var auto = AutoGrant.new()
+		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
+		match auto.grant_type:
+			AutoGrantType.STAT_ALLOCATION:
+				auto.name = "Stat Points"
+				auto.description = "Allocate 5 stat points"
+				auto.stat_points = 5
+			AutoGrantType.CARD_REMOVAL:
+				auto.name = "Culling Stone"
+				auto.description = "Remove 1 card from your deck"
+			AutoGrantType.UPGRADE_CARD:
+				auto.name = "Card Upgrade"
+				auto.description = "Upgrade an existing card"
+			AutoGrantType.MUTATE_CARD:
+				auto.name = "Card Mutation"
+				auto.description = "Mutate an existing card"
+			_:
+				auto.name = "Bonus"
+				auto.description = "Level bonus"
+		row.auto_grant = auto
+
+		tree.rows.append(row)
+
+	return tree
+
 static func _get_option_color(index: int) -> Color:
 	match index:
 		0: return Color(0.3, 0.7, 1.0)    # Blue
