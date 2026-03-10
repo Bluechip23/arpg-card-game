@@ -1460,6 +1460,8 @@ func select_character(character: CharacterData) -> void:
 		skill_tree = SkillTreeData.create_brad_tree()
 	elif character.character_name == "Stephen":
 		skill_tree = SkillTreeData.create_stephen_tree()
+	elif character.character_name == "Ryan":
+		skill_tree = SkillTreeData.create_ryan_tree()
 	else:
 		skill_tree = SkillTreeData.create_placeholder_tree(character.character_name)
 
