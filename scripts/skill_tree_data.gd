@@ -254,7 +254,7 @@ static func get_default_auto_grant_type_for_level(level: int) -> AutoGrantType:
 # These create empty/placeholder skill trees with proper structure.
 # The actual options will be filled in later.
 
-static func create_placeholder_tree(char_name: String, max_level: int = 20) -> SkillTreeData:
+static func create_placeholder_tree(char_name: String, max_level: int = 20, archetypes: Array = []) -> SkillTreeData:
 	var tree = SkillTreeData.new()
 	tree.character_name = char_name
 
@@ -262,11 +262,16 @@ static func create_placeholder_tree(char_name: String, max_level: int = 20) -> S
 		var row = SkillRow.new()
 		row.level = lvl
 
-		# Create 4 placeholder options
+		# Create 4 placeholder options, named by archetype if available
 		for i in range(4):
 			var opt = SkillOption.new()
-			opt.name = "%s Lv%d Option %d" % [char_name, lvl, i + 1]
-			opt.description = "Placeholder - to be defined"
+			if i < archetypes.size():
+				var arch = archetypes[i]
+				opt.name = "%s Lv%d" % [arch["name"], lvl]
+				opt.description = arch["description"]
+			else:
+				opt.name = "%s Lv%d Option %d" % [char_name, lvl, i + 1]
+				opt.description = "Placeholder - to be defined"
 			opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
 			opt.icon_color = _get_option_color(i)
 			row.options.append(opt)
