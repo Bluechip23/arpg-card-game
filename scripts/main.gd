@@ -193,6 +193,7 @@ func _ready() -> void:
 	enemy_spawner.enemy_killed.connect(_on_enemy_killed)
 	enemy_spawner.all_enemies_defeated.connect(_on_all_enemies_defeated)
 	enemy_spawner.loot_dropped.connect(_on_loot_dropped)
+	enemy_spawner.enemy_spawned.connect(_on_enemy_spawned_connect_debuffs)
 	
 	# Test UI
 	test_ui.spawn_wave_requested.connect(_on_spawn_wave)
@@ -592,6 +593,11 @@ func _on_attack_pressed() -> void:
 			damage = max(1, floori(damage * (1.0 - reduction)))
 
 	target.take_damage(damage, true)
+
+	# Skill tree crit check for basic attack
+	if buff_mgr and buff_mgr.last_crit_hit:
+		buff_mgr.last_crit_hit = false
+		_trigger_skill_tree_on_crit(target)
 
 	# Register attack for DEX proc counter
 	stats.register_attack()
@@ -1923,9 +1929,22 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 			var mat = mesh_node.get_surface_override_material(0) as StandardMaterial3D
 			if mat and mat.albedo_color.a < 1.0:
 				_set_player_invisible(false)
+				# Reappearing from invisibility counts as displacement
+				_trigger_skill_tree_on_displacement()
 
 	update_turn_display()
 	_refresh_unit_tracker()
+
+func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
+	## Connect debuff signals for skill tree passives (Toxic Fumes, Pop Rocks).
+	enemy.debuff_applied.connect(_on_enemy_debuff_applied)
+	enemy.debuff_expired.connect(_on_enemy_debuff_expired)
+
+func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
+	_trigger_skill_tree_on_debuff_applied(enemy, debuff_name, value)
+
+func _on_enemy_debuff_expired(enemy: Enemy, debuff_name: String) -> void:
+	_trigger_skill_tree_on_debuff_expired(enemy)
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
@@ -2273,7 +2292,7 @@ func _on_skill_tree_option_chosen(level: int, option_index: int) -> void:
 		return
 
 	print("[MAIN] Skill tree choice at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
-	# Future: apply the chosen option's effect (add card, grant passive, etc.)
+	_apply_skill_tree_option(option)
 
 func _on_skill_tree_auto_grant_claimed(level: int) -> void:
 	## Called when a stat allocation or other auto-grant is confirmed.
@@ -2290,7 +2309,218 @@ func _on_skill_tree_retrospective_chosen(level: int, option_index: int) -> void:
 		return
 	var option = row.options[option_index]
 	print("[MAIN] Retrospective pick at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
-	# Future: apply the retrospective option's effect (add card, grant passive, etc.)
+	_apply_skill_tree_option(option)
+
+func _apply_skill_tree_option(option) -> void:
+	## Applies a chosen skill tree option's effect to the player.
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	if option.option_type == SkillTreeData.OptionType.PASSIVE or option.option_type == SkillTreeData.OptionType.PASSIVE_MUTATION:
+		var pid = option.passive_id
+		if pid == "":
+			pid = option.name.to_lower().replace(" ", "_")
+
+		# Special handling for stat-granting passives
+		if pid == "ladder_work":
+			# +3 dexterity and +3 agility
+			stats.base_dexterity += 3
+			stats.base_agility += 3
+			stats.stats_updated.emit()
+			add_battle_log("Ladder Work: +3 DEX, +3 AGI", Color(0.3, 0.7, 1.0))
+		else:
+			stats.add_skill_tree_passive(pid)
+			add_battle_log("Passive unlocked: %s" % option.name, Color(0.9, 0.7, 0.2))
+
+	elif option.option_type == SkillTreeData.OptionType.STAT_BONUS:
+		if option.stat_type != "" and option.stat_amount > 0:
+			match option.stat_type:
+				"strength": stats.base_strength += option.stat_amount
+				"dexterity": stats.base_dexterity += option.stat_amount
+				"intelligence": stats.base_intelligence += option.stat_amount
+				"wisdom": stats.base_wisdom += option.stat_amount
+				"agility": stats.base_agility += option.stat_amount
+				"determination": stats.determination += option.stat_amount
+			stats.stats_updated.emit()
+			add_battle_log("+%d %s" % [option.stat_amount, option.stat_type.capitalize()], Color(0.3, 0.8, 1.0))
+
+	elif option.option_type == SkillTreeData.OptionType.CARD:
+		if option.card_id != "":
+			if deck_manager.add_card_to_deck_from_id(option.card_id):
+				add_battle_log("Card added: %s" % option.name, Color(0.5, 1.0, 0.5))
+
+# ============================================
+# SKILL TREE PASSIVE TRIGGERS
+# ============================================
+
+func _trigger_skill_tree_on_discard(card: Card) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Keep Them Guessing: -1t from a random card in hand
+	if stats.has_skill_tree_passive("keep_them_guessing"):
+		if deck_manager and deck_manager.hand.size() > 0:
+			var random_idx = randi() % deck_manager.hand.size()
+			var target_card = deck_manager.hand[random_idx]
+			if target_card.tempo_cost > 0:
+				target_card.tempo_cost -= 1
+				add_battle_log("Keep Them Guessing: %s -1t" % target_card.card_name, Color(0.9, 0.3, 0.3))
+
+func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# From the Hip: clear the discount when any card is played
+	if stats.has_skill_tree_passive("from_the_hip") and stats.st_from_hip_card != null:
+		var discounted = stats.st_from_hip_card
+		if is_instance_valid(discounted):
+			discounted.mana_cost = stats.st_from_hip_original_cost
+		stats.st_from_hip_card = null
+		stats.st_from_hip_original_cost = 0
+
+	# Nimble Assault: no Defense cards in hand → draw on attack
+	if stats.has_skill_tree_passive("nimble_assault") and card.card_type == Card.CardType.ATTACK:
+		var has_defense = false
+		for c in deck_manager.hand:
+			if c.card_type == Card.CardType.DEFENSE:
+				has_defense = true
+				break
+		if not has_defense:
+			deck_manager.attempt_draw()
+			add_battle_log("Nimble Assault: drew a card!", Color(0.9, 0.3, 0.3))
+
+	# Quick Step: instant played from hand → +5 armor
+	if stats.has_skill_tree_passive("quick_step"):
+		if card.card_type == Card.CardType.REACTION or card.tempo_cost == 0:
+			stats.add_armor(5)
+			add_battle_log("Quick Step: +5 armor", Color(0.3, 0.7, 1.0))
+
+func _trigger_skill_tree_on_draw(card: Card) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# From the Hip: if an attack card, discount the most recently drawn card by -1m
+	if stats.has_skill_tree_passive("from_the_hip") and card.card_type == Card.CardType.ATTACK:
+		# Clear previous discount if any
+		if stats.st_from_hip_card != null and is_instance_valid(stats.st_from_hip_card):
+			stats.st_from_hip_card.mana_cost = stats.st_from_hip_original_cost
+		# Apply new discount
+		if card.mana_cost > 0:
+			stats.st_from_hip_original_cost = card.mana_cost
+			card.mana_cost -= 1
+			stats.st_from_hip_card = card
+			add_battle_log("From the Hip: %s -1m" % card.card_name, Color(0.9, 0.3, 0.3))
+
+func _trigger_skill_tree_on_attack(card: Card, target) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Surprise Opener: bonus damage on first strike per enemy
+	if stats.has_skill_tree_passive("surprise_opener") and target and target is Enemy:
+		var enemy_id = target.get_instance_id()
+		if enemy_id not in stats.st_enemy_first_strikes:
+			stats.st_enemy_first_strikes[enemy_id] = true
+			var bonus = 2
+			if target.current_armor <= 0:
+				bonus += 2
+			# Check if this is the enemy's first source of damage (full HP = no prior damage)
+			if target.current_health >= target.max_health:
+				bonus += 2
+			target.take_damage(bonus, true)
+			add_battle_log("Surprise Opener: +%d bonus damage!" % bonus, Color(0.8, 0.4, 0.9))
+
+func _trigger_skill_tree_on_crit(target) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Eye Scrape: every 3rd crit → invisibility
+	if stats.has_skill_tree_passive("eye_scrape"):
+		stats.st_crit_counter += 1
+		if stats.st_crit_counter >= 3:
+			stats.st_crit_counter = 0
+			var buff_mgr = player.get_buff_manager()
+			if buff_mgr:
+				buff_mgr.apply_buff(Buff.create_invisible(10, "Eye Scrape"))
+				_set_player_invisible(true)
+				add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
+
+func _trigger_skill_tree_on_cycle() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Pop Rocks: check all enemies for expired debuffs — handled per enemy in tempo processing
+	# (See _process_enemy_debuff_expiry)
+
+	# Let's Dance: movement cycle → +3 armor (handled in movement section)
+	pass
+
+func _trigger_skill_tree_on_heal_ally(ally_name: String) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Field Medic: when Ryan heals an ally, +2 STR for 10 tempo to the ally
+	if stats.has_skill_tree_passive("field_medic"):
+		add_battle_log("Field Medic: %s gains +2 STR (10t)" % ally_name, Color(0.4, 0.9, 0.4))
+		# Ally buff would be applied through the ally's buff system when allies are implemented
+
+func _trigger_skill_tree_on_displacement() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Now You See Me: displacement → invisibility
+	if stats.has_skill_tree_passive("now_you_see_me"):
+		var buff_mgr = player.get_buff_manager()
+		if buff_mgr:
+			buff_mgr.apply_buff(Buff.create_invisible(10, "Now You See Me"))
+			_set_player_invisible(true)
+			add_battle_log("Now You See Me: Invisibility!", Color(0.8, 0.4, 0.9))
+
+var _toxic_fumes_spreading: bool = false  # Guard against infinite spread loops
+
+func _trigger_skill_tree_on_debuff_applied(target, debuff_name: String, value: int) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Toxic Fumes: spread debuffs to nearby enemies (guard against recursive spread)
+	if stats.has_skill_tree_passive("toxic_fumes") and target and not _toxic_fumes_spreading:
+		_toxic_fumes_spreading = true
+		var nearby = enemy_spawner.get_enemies_in_radius(target.position, 3.0)
+		for enemy in nearby:
+			if enemy != target and enemy.has_method("apply_debuff"):
+				enemy.apply_debuff(debuff_name, value)
+		if nearby.size() > 1:
+			add_battle_log("Toxic Fumes: %s spread to %d enemies" % [debuff_name, nearby.size() - 1], Color(0.4, 0.9, 0.4))
+		_toxic_fumes_spreading = false
+
+func _trigger_skill_tree_on_debuff_expired(target) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Pop Rocks: deal 2 damage when debuffs expire on enemy
+	if stats.has_skill_tree_passive("pop_rocks") and target and target.has_method("take_damage"):
+		target.take_damage(2, true)
+		add_battle_log("Pop Rocks: 2 damage!", Color(0.4, 0.9, 0.4))
+
+func _trigger_skill_tree_on_movement_cycle() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Let's Dance: movement triggers a cycle → +3 armor
+	if stats.has_skill_tree_passive("let's_dance"):
+		stats.add_armor(3)
+		add_battle_log("Let's Dance: +3 armor", Color(0.3, 0.7, 1.0))
 
 func _apply_all_constellation_bonuses() -> void:
 	## Re-applies all completed constellation bonuses (called after character select).
@@ -2661,6 +2891,8 @@ func _on_hand_updated() -> void:
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
 	_trigger_sphere_passives("on_discard", {"card": card})
+	# Skill tree passive triggers for discard
+	_trigger_skill_tree_on_discard(card)
 	# Volatile Mixture: deal damage to a random nearby enemy when discarded
 	if card.card_id == "volatile_mixture":
 		var stats = player.get_stats()
@@ -2696,6 +2928,7 @@ func _handle_on_discard_effect(card: Card) -> void:
 
 func _on_card_drawn_sphere_passive(card: Card) -> void:
 	_trigger_sphere_passives("on_draw", {"card": card})
+	_trigger_skill_tree_on_draw(card)
 
 func _on_deck_shuffled() -> void:
 	update_deck_info()
@@ -2835,6 +3068,11 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	# Sphere grid passive triggers for tempo cycle
 	_trigger_sphere_passives("on_cycle", {})
 	_trigger_sphere_passives("on_tempo_cycle", {})
+
+	# Skill tree passive triggers for tempo cycle
+	_trigger_skill_tree_on_cycle()
+	if tempo_manager.last_tempo_source == "movement":
+		_trigger_skill_tree_on_movement_cycle()
 
 	_check_volatile_mixture_in_hand()
 	_apply_in_hand_debuffs()
@@ -3224,6 +3462,16 @@ func play_selected_card(target) -> void:
 		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
 			_trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
 
+		# Skill tree passive triggers for card play
+		_trigger_skill_tree_on_card_play(card, target)
+		if card.card_type == Card.CardType.ATTACK:
+			_trigger_skill_tree_on_attack(card, target)
+
+		# Check for crit-based skill tree passives (Eye Scrape)
+		if buff_mgr and buff_mgr.last_crit_hit:
+			buff_mgr.last_crit_hit = false
+			_trigger_skill_tree_on_crit(target)
+
 		# Apply world effects (knockback, movement, AOE) that need game-level access
 		_apply_card_world_effects(card, target)
 
@@ -3555,6 +3803,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				print("[MAIN] Blink blocked: target tile is a wall/obstacle")
 			else:
 				player.blink_to(blink_pos)
+				_trigger_skill_tree_on_displacement()
 		"push":
 			# Push enemy 3 spaces away from the player
 			if target and target.has_method("knockback"):
@@ -3571,6 +3820,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				target.position = player_pos
 				target.target_position = player_pos
 				print("[MAIN] Swap: swapped positions with %s" % target.name)
+				_trigger_skill_tree_on_displacement()
 
 		"defensive_awareness":
 			# Gain 3 armor per enemy within 2 spaces of the player

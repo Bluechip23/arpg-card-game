@@ -5,6 +5,7 @@ extends Node
 
 signal all_enemies_defeated
 signal enemy_killed(enemy: Enemy)
+signal enemy_spawned(enemy: Enemy)
 signal loot_dropped(loot: Dictionary, position: Vector3)
 
 const EnemyScene = preload("res://scenes/enemy.tscn")
@@ -45,6 +46,7 @@ func spawn_enemy(type: Enemy.EnemyType, pos: Vector3) -> Enemy:
 	enemy.turn_completed.connect(_on_enemy_turn_completed)
 
 	enemies.append(enemy)
+	enemy_spawned.emit(enemy)
 	return enemy
 
 func clear_enemies() -> void:

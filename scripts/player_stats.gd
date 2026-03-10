@@ -105,6 +105,25 @@ var sphere_bonus_crit: float = 0.0    # Extra crit chance (percentage points)
 var sphere_bonus_armor: int = 0       # Starting armor each combat
 
 # ============================================
+# SKILL TREE PASSIVES (from archetype choices)
+# ============================================
+var skill_tree_passives: Array[String] = []  # Active passive IDs from skill tree choices
+
+# Stateful tracking for skill tree passives
+var st_crit_counter: int = 0          # Eye Scrape: tracks crits toward every-3rd invisibility
+var st_from_hip_card: Card = null     # From the Hip: the card currently discounted
+var st_from_hip_original_cost: int = 0  # From the Hip: original mana cost to restore
+var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which enemies have been struck
+
+func has_skill_tree_passive(passive_id: String) -> bool:
+	return passive_id in skill_tree_passives
+
+func add_skill_tree_passive(passive_id: String) -> void:
+	if passive_id not in skill_tree_passives:
+		skill_tree_passives.append(passive_id)
+		print("[STATS] Skill tree passive added: %s" % passive_id)
+
+# ============================================
 # EXPERIENCE / LEVEL
 # ============================================
 var current_level: int = 1

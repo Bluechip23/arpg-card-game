@@ -522,7 +522,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When Ryan heals an ally, also give them +2 strength for 10 tempo",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 5, slot = 3, archetype = "Shadow Blade", name = "Now You See Me",
-			description = "Displacing yourself on the map grants you invisibility",
+			description = "Displacing yourself (reappearing from invisibility, blinking, being swapped, or other non-visible movement) grants you invisibility",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 7, slot = 1, archetype = "Relentless Blade", name = "From the Hip",
 			description = "If an attack, your most recently drawn card has -1 mana cost. The discount is lost when any card is played",
