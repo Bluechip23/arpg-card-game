@@ -313,7 +313,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 	# Spread across levels so passives can appear at any level
 	var ability_placements := [
 		{level = 2, slot = 0, archetype = "Berserker", name = "Enraged Will",
-			description = "When you drop below 10% HP, perform an AOE swing hitting all nearby enemies. Gain 1 mana per kill",
+			description = "When you drop below 10% HP, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 3, slot = 1, archetype = "Warden", name = "In the Trenches",
 			description = "When an enemy enters an adjacent square, perform a free attack. When an enemy attacks you from adjacent, knock them back. 2 charges, 10 tempo cooldown",

@@ -2602,10 +2602,10 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 	if not stats:
 		return
 
-	# Enraged Will: below 10% HP → AOE swing + gain 1 mana per kill
+	# Enraged Will: below 10% HP → Reach AOE swing + gain 1 mana per kill
 	if stats.has_skill_tree_passive("enraged_will"):
 		if stats.get_health_percent() <= 0.10 and stats.current_health > 0:
-			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 2.0) if enemy_spawner else []
+			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 3.0) if enemy_spawner else []
 			if enemies.size() > 0:
 				var dmg = stats.get_effective_physical_damage(0)
 				var kills = 0
@@ -4272,8 +4272,11 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 			max_range += 2
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
-		# Melee: must be adjacent (within ~1.5 tiles)
-		return distance_tiles <= 1.5
+		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square
+		var melee_range = 1.5
+		if card.has_reach:
+			melee_range += 1.0
+		return distance_tiles <= melee_range
 
 func _get_nearest_enemy() -> Enemy:
 	## Returns the nearest living enemy to the player, or null if none.
