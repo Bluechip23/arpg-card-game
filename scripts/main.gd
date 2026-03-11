@@ -2602,10 +2602,10 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 	if not stats:
 		return
 
-	# Enraged Will: below 10% HP → Reach AOE swing + gain 1 mana per kill
+	# Enraged Will: below 10% HP → Reach AOE swing (1 base + 1 Reach = 2 range) + gain 1 mana per kill
 	if stats.has_skill_tree_passive("enraged_will"):
 		if stats.get_health_percent() <= 0.10 and stats.current_health > 0:
-			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 3.0) if enemy_spawner else []
+			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 2.0) if enemy_spawner else []
 			if enemies.size() > 0:
 				var dmg = stats.get_effective_physical_damage(0)
 				var kills = 0
