@@ -217,7 +217,7 @@ static func create_brad() -> CharacterData:
 			{"name": "Life Steal", "description": "All attacks life steal by 5%"},
 		]},
 		{"name": "Warden", "description": "Specialize in the art of armor and tactic, finding your weakness is nearly impossible for enemies.", "abilities": [
-			{"name": "In the Trenches", "description": "While wearing a shield, you knock back melee enemies when attacked"},
+			{"name": "In the Trenches", "description": "When an enemy enters an adjacent square, perform a free attack. When an enemy attacks you from adjacent, knock them back. 2 charges, 10 tempo cooldown"},
 			{"name": "The Way of the Plate", "description": "Every third Defense card costs -1m/-1t"},
 			{"name": "Pristine Armor", "description": "Cards provide +2 armor"},
 		]},

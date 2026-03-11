@@ -1984,6 +1984,9 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 	_enemy_melee_state[enemy_id] = in_melee
 	if in_melee != was_in_melee:
 		_trigger_skill_tree_cory_on_enemy_enter_melee(enemy)
+		# Brad: In the Trenches — free attack when enemy enters adjacent square
+		if in_melee:
+			_trigger_skill_tree_brad_itt_on_enter(enemy)
 
 func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 	_trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
@@ -2625,12 +2628,40 @@ func _trigger_skill_tree_brad_on_attacked(attacker) -> void:
 	if not stats:
 		return
 
-	# In the Trenches: wearing a shield → knock back melee enemies when attacked
+	# In the Trenches: when attacked from adjacent, knock attacker back (consumes 1 charge)
 	if stats.has_skill_tree_passive("in_the_trenches"):
-		if stats.inventory and stats.inventory.has_shield_equipped():
+		_itt_try_refresh_charges(stats)
+		if stats.st_itt_charges > 0:
 			if attacker and attacker.has_method("knockback"):
+				stats.st_itt_charges -= 1
 				attacker.knockback(player.position)
-				add_battle_log("In the Trenches: knocked back %s!" % attacker.enemy_name, Color(0.3, 0.7, 1.0))
+				add_battle_log("In the Trenches: knocked back %s! (%d charge(s) left)" % [attacker.enemy_name, stats.st_itt_charges], Color(0.3, 0.7, 1.0))
+				if stats.st_itt_charges <= 0:
+					stats.st_itt_last_used_tempo = tempo_manager.get_global_tempo()
+
+func _trigger_skill_tree_brad_itt_on_enter(enemy: Enemy) -> void:
+	## In the Trenches: free attack when an enemy enters an adjacent square (consumes 1 charge)
+	var stats = player.get_stats()
+	if not stats:
+		return
+	if not stats.has_skill_tree_passive("in_the_trenches"):
+		return
+	_itt_try_refresh_charges(stats)
+	if stats.st_itt_charges <= 0:
+		return
+	stats.st_itt_charges -= 1
+	var dmg = stats.get_effective_physical_damage(0)
+	enemy.take_damage(dmg, true)
+	add_battle_log("In the Trenches: free attack on %s for %d! (%d charge(s) left)" % [enemy.enemy_name, dmg, stats.st_itt_charges], Color(0.3, 0.7, 1.0))
+	if stats.st_itt_charges <= 0:
+		stats.st_itt_last_used_tempo = tempo_manager.get_global_tempo()
+
+func _itt_try_refresh_charges(stats: PlayerStats) -> void:
+	## Refresh In the Trenches charges if 10 tempo has passed since last exhaustion.
+	if stats.st_itt_charges <= 0:
+		var elapsed = tempo_manager.get_global_tempo() - stats.st_itt_last_used_tempo
+		if elapsed >= 10:
+			stats.st_itt_charges = 2
 
 func _trigger_skill_tree_brad_on_defense_card_play(card: Card) -> void:
 	var stats = player.get_stats()

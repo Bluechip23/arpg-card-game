@@ -316,7 +316,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When you drop below 10% HP, perform an AOE swing hitting all nearby enemies. Gain 1 mana per kill",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 3, slot = 1, archetype = "Warden", name = "In the Trenches",
-			description = "While wearing a shield, you knock back melee enemies when attacked",
+			description = "When an enemy enters an adjacent square, perform a free attack. When an enemy attacks you from adjacent, knock them back. 2 charges, 10 tempo cooldown",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 4, slot = 2, archetype = "The Ancient", name = "Stone Skin",
 			description = "Gain 10% Fire, Physical and Lightning resistance",

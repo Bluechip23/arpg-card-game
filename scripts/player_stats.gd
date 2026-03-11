@@ -120,6 +120,8 @@ var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which ene
 var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount
 var st_dark_forces_bonus: int = 0     # Dark Forces: +3 damage stored when exposed
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
+var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
+var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when charges were last exhausted
 
 # Stephen passive tracking
 var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive attack cards played
