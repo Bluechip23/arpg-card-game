@@ -874,8 +874,12 @@ func move_towards_target(pos: Vector3) -> void:
 
 	if grid_manager:
 		new_target = grid_manager.snap_to_grid(new_target)
-		# Don't walk into barricade tiles
 		var target_cell = grid_manager.world_to_grid(new_target)
+		# Don't walk onto the player's tile - stop adjacent instead
+		var player_cell = grid_manager.world_to_grid(pos)
+		if target_cell == player_cell:
+			return
+		# Don't walk into barricade tiles
 		if target_cell in blocked_tiles:
 			print("[%s] Path blocked by barricade!" % enemy_name)
 			return
