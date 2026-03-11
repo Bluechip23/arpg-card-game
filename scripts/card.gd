@@ -2848,6 +2848,25 @@ static func create_minor_wounds() -> Card:
 	card.target_types = []
 	return card
 
+static func create_energy_barrier() -> Card:
+	var card = Card.new()
+	card.card_id = "energy_barrier"
+	card.card_name = "Energy Barrier"
+	card.description = "Gain 5 armor. Erase 1."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 5
+	card.base_block = 5
+	card.heal_amount = 0
+	card.erase_tempo = 1
+	card.erase_tempo_remaining = 1
+	card.target_types = ["self"]
+	return card
+
 # ============================================
 # COLLECT ARROWS
 # ============================================

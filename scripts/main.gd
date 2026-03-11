@@ -1415,6 +1415,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
 	player.get_stats().healed.connect(_on_player_healed)
+	player.get_stats().mana_gained.connect(_on_player_mana_gained)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	deck_manager.card_erased.connect(_on_card_erased)
 
@@ -1941,8 +1942,12 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.debuff_expired.connect(_on_enemy_debuff_expired)
 	enemy.exposed.connect(_on_enemy_exposed)
 	enemy.attacked_player.connect(_on_enemy_attacked_player)
+	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
+	enemy.movement_completed.connect(_on_enemy_movement_completed)
 
 var _disarm_mastery_applying: bool = false  # Guard against recursive disarm
+var _wither_applying: bool = false  # Guard against recursive wither
+var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee range state
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
 	_trigger_skill_tree_on_debuff_applied(enemy, debuff_name, value)
@@ -1951,12 +1956,35 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 		_disarm_mastery_applying = true
 		_trigger_skill_tree_stephen_on_disarm_applied(enemy, value)
 		_disarm_mastery_applying = false
+	# Cory: Wither — +1 charge to all debuffs applied (guarded against recursion)
+	if not _wither_applying:
+		var stats = player.get_stats()
+		if stats and stats.has_skill_tree_passive("wither"):
+			_wither_applying = true
+			if enemy.has_method("apply_debuff"):
+				enemy.apply_debuff(debuff_name, 1)
+			_wither_applying = false
+	# Cory: Prey on the Weak — bonus damage on debuff to low HP enemy
+	_trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value)
 
 func _on_enemy_debuff_expired(enemy: Enemy, debuff_name: String) -> void:
 	_trigger_skill_tree_on_debuff_expired(enemy)
 
 func _on_enemy_exposed(enemy: Enemy) -> void:
 	_trigger_skill_tree_stephen_on_expose(enemy)
+
+func _on_enemy_movement_completed(enemy: Enemy) -> void:
+	# Cory: Territorial Death — check if enemy entered or left melee range
+	var dist = player.position.distance_to(enemy.position)
+	var in_melee = dist <= 1.8  # Slightly larger than 1.5 to catch edge cases
+	var enemy_id = enemy.get_instance_id()
+	var was_in_melee = _enemy_melee_state.get(enemy_id, false)
+	_enemy_melee_state[enemy_id] = in_melee
+	if in_melee != was_in_melee:
+		_trigger_skill_tree_cory_on_enemy_enter_melee(enemy)
+
+func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
+	_trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
 
 func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	_trigger_skill_tree_brad_on_attacked(enemy)
@@ -1969,6 +1997,8 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	_refresh_unit_tracker()
 	# Sphere grid passive triggers for kills
 	_trigger_sphere_passives("on_kill", {"target": enemy})
+	# Cory: Eat — heal on kill
+	_trigger_skill_tree_cory_on_kill(enemy)
 	# Quest tracking
 	if quest_manager:
 		quest_manager.on_enemy_killed(enemy.enemy_name)
@@ -2809,6 +2839,201 @@ func _trigger_skill_tree_stephen_on_dex_proc() -> void:
 		deck_manager.hand_updated.emit()
 		add_battle_log("Dominate: free 0m/0t attack card!", Color(0.8, 0.4, 0.9))
 
+# ============================================
+# CORY SKILL TREE PASSIVE TRIGGERS
+# ============================================
+
+func _trigger_skill_tree_cory_on_mana_gain(amount: int, is_regen: bool) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Energy Barrier: every 3rd non-regen mana gain → put Energy Barrier in hand
+	if stats.has_skill_tree_passive("energy_barrier") and not is_regen and amount > 0:
+		stats.st_mana_gain_counter += 1
+		if stats.st_mana_gain_counter >= 3:
+			stats.st_mana_gain_counter = 0
+			var barrier = Card.create_energy_barrier()
+			deck_manager.hand.append(barrier)
+			deck_manager.hand_updated.emit()
+			add_battle_log("Energy Barrier: defense card added to hand!", Color(0.9, 0.3, 0.3))
+
+func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Self Reliance: 3 cards in one tempo cycle → next card costs -1m
+	if stats.has_skill_tree_passive("self_reliance"):
+		stats.st_cards_this_cycle.append(card.card_type_name)
+		if stats.st_cards_this_cycle.size() >= 3 and not stats.st_self_reliance_discount:
+			stats.st_self_reliance_discount = true
+			add_battle_log("Self Reliance: next card costs -1m!", Color(0.9, 0.3, 0.3))
+
+	# Self Reliance: consume discount
+	if stats.st_self_reliance_discount and card.mana_cost > 0:
+		stats.gain_mana(1)  # Refund 1 mana as discount
+		stats.st_self_reliance_discount = false
+		add_battle_log("Self Reliance: -1m applied!", Color(0.9, 0.3, 0.3))
+
+	# Budding: track card types (no back-to-back same type)
+	if stats.has_skill_tree_passive("budding"):
+		var ctype = ""
+		match card.card_type:
+			Card.CardType.ATTACK: ctype = "attack"
+			Card.CardType.DEFENSE: ctype = "defense"
+			Card.CardType.UTILITY: ctype = "utility"
+
+		if ctype != "":
+			if ctype == stats.st_budding_last_type:
+				# Back-to-back same type — reset tracking
+				stats.st_budding_types.clear()
+				stats.st_budding_types.append(ctype)
+			else:
+				if ctype not in stats.st_budding_types:
+					stats.st_budding_types.append(ctype)
+			stats.st_budding_last_type = ctype
+
+			# Check if all 3 types played
+			if stats.st_budding_types.has("attack") and stats.st_budding_types.has("defense") and stats.st_budding_types.has("utility"):
+				stats.heal(2)
+				stats.add_armor(3)  # Temp HP represented as armor
+				stats.st_budding_types.clear()
+				stats.st_budding_last_type = ""
+				add_battle_log("Budding: healed 2, +3 temp HP!", Color(0.8, 0.4, 0.9))
+
+func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Expel Negativity: transfer a debuff to enemy when dropping below 50% HP
+	if stats.has_skill_tree_passive("expel_negativity") and not stats.st_expel_triggered:
+		if stats.get_health_percent() <= 0.5:
+			stats.st_expel_triggered = true
+			var debuff_mgr = player.get_debuff_manager()
+			if debuff_mgr and debuff_mgr.debuffs.size() > 0:
+				var debuff = debuff_mgr.debuffs[randi() % debuff_mgr.debuffs.size()]
+				var target = _get_nearest_enemy()
+				if target and target.has_method("apply_debuff"):
+					target.apply_debuff(debuff.debuff_name.to_lower(), debuff.value)
+					debuff_mgr.remove_debuff(debuff.debuff_type)
+					add_battle_log("Expel Negativity: transferred %s to %s!" % [debuff.debuff_name, target.enemy_name], Color(0.9, 0.3, 0.3))
+
+func _trigger_skill_tree_cory_on_heal() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Expel Negativity: reset trigger when healed above 50%
+	if stats.has_skill_tree_passive("expel_negativity") and stats.st_expel_triggered:
+		if stats.get_health_percent() > 0.5:
+			stats.st_expel_triggered = false
+
+func _trigger_skill_tree_cory_on_kill(enemy: Enemy) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Eat: killing enemies heals 10% max HP
+	if stats.has_skill_tree_passive("eat"):
+		var heal_amount = max(1, floori(stats.max_health * 0.10))
+		stats.heal(heal_amount)
+		add_battle_log("Eat: healed %d HP!" % heal_amount, Color(0.3, 0.7, 1.0))
+
+func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Serial Killer: first time enemy drops below 10% HP → player invisible to them
+	if stats.has_skill_tree_passive("serial_killer") and enemy.is_alive():
+		var enemy_id = enemy.get_instance_id()
+		if enemy_id not in stats.st_serial_killer_enemies:
+			var hp_pct = float(enemy.current_health) / float(enemy.max_health)
+			if hp_pct <= 0.10:
+				stats.st_serial_killer_enemies[enemy_id] = true
+				# Make this enemy lose sight of the player by resetting its target
+				enemy.target = null
+				add_battle_log("Serial Killer: invisible to %s!" % enemy.enemy_name, Color(0.3, 0.7, 1.0))
+
+func _trigger_skill_tree_cory_on_debuff_applied(target, debuff_name: String, value: int) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Prey on the Weak: debuff on enemy below 50% HP → deal 3 damage
+	if stats.has_skill_tree_passive("prey_on_the_weak") and target and target is Enemy:
+		var hp_pct = float(target.current_health) / float(target.max_health)
+		if hp_pct < 0.5 and target.has_method("take_damage"):
+			target.take_damage(3, true)
+			add_battle_log("Prey on the Weak: 3 damage to %s!" % target.enemy_name, Color(0.3, 0.7, 1.0))
+
+func _trigger_skill_tree_cory_on_cycle() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Self Reliance: reset cards-this-cycle counter
+	stats.st_cards_this_cycle.clear()
+
+	# Regrowth: tick cooldown
+	if stats.st_regrowth_cooldown > 0:
+		stats.st_regrowth_cooldown -= 5
+
+	# Death as Lifeblood: heal for each nearby debuffed enemy
+	if stats.has_skill_tree_passive("death_as_lifeblood"):
+		var nearby = enemy_spawner.get_enemies_in_radius(player.position, 5.0) if enemy_spawner else []
+		var debuffed_count = 0
+		for enemy in nearby:
+			if enemy.has_method("get_active_effects"):
+				var effects = enemy.get_active_effects()
+				if effects.size() > 0:
+					debuffed_count += 1
+		if debuffed_count > 0:
+			stats.heal(debuffed_count)
+			add_battle_log("Death as Lifeblood: healed %d HP" % debuffed_count, Color(0.4, 0.9, 0.4))
+
+func _trigger_skill_tree_cory_on_hand_empty() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Regrowth: draw 4 cards when hand is empty (cooldown 25 tempo)
+	if stats.has_skill_tree_passive("regrowth") and stats.st_regrowth_cooldown <= 0:
+		stats.st_regrowth_cooldown = 25
+		for i in range(4):
+			deck_manager.attempt_draw()
+		add_battle_log("Regrowth: drew 4 cards!", Color(0.8, 0.4, 0.9))
+
+func _trigger_skill_tree_cory_on_shuffle() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Circle of Life: gain 15 armor and +3 damage for 3 attacks
+	if stats.has_skill_tree_passive("circle_of_life"):
+		stats.add_armor(15)
+		var buff_mgr = player.get_buff_manager()
+		if buff_mgr:
+			buff_mgr.apply_buff(Buff.new(Buff.BuffType.STRENGTHEN, 3, -1, 3))
+		add_battle_log("Circle of Life: +15 armor, +3 damage (3 attacks)!", Color(0.8, 0.4, 0.9))
+
+func _trigger_skill_tree_cory_on_enemy_enter_melee(enemy: Enemy) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Territorial Death: re-apply 1 random existing debuff
+	if stats.has_skill_tree_passive("territorial_death") and enemy.has_method("get_active_effects"):
+		var effects = enemy.get_active_effects()
+		if effects.size() > 0:
+			var random_effect = effects[randi() % effects.size()]
+			var debuff_name = random_effect.get("name", "").to_lower()
+			if debuff_name != "" and enemy.has_method("apply_debuff"):
+				enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
+				add_battle_log("Territorial Death: re-applied %s to %s!" % [random_effect.get("name", "?"), enemy.enemy_name], Color(0.4, 0.9, 0.4))
+
 func _apply_all_constellation_bonuses() -> void:
 	## Re-applies all completed constellation bonuses (called after character select).
 	var grid = sphere_grid_ui.sphere_grid
@@ -3039,8 +3264,9 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 			stats.add_armor(hp_amount)
 			print("[MAIN] Armored Discipline: gained %d armor from %d HP damage!" % [hp_amount, hp_amount])
 
-	# Brad skill tree passive triggers on damage taken
+	# Skill tree passive triggers on damage taken
 	_trigger_skill_tree_brad_on_damage_taken(hp_amount)
+	_trigger_skill_tree_cory_on_damage_taken(hp_amount)
 
 func _on_player_healed(amount: int) -> void:
 	player.spawn_heal_number(amount)
@@ -3051,8 +3277,13 @@ func _on_player_healed(amount: int) -> void:
 		overheal = amount  # approximate overheal
 	_trigger_sphere_passives("on_heal", {"overheal": overheal})
 
-	# Brad skill tree passive: Vines Codependence
+	# Skill tree passive triggers on heal
 	_trigger_skill_tree_brad_on_heal()
+	_trigger_skill_tree_cory_on_heal()
+
+func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
+	# Cory: Energy Barrier — track non-regen mana gains
+	_trigger_skill_tree_cory_on_mana_gain(amount, is_regen)
 
 func update_turn_display() -> void:
 	if turn_label:
@@ -3066,6 +3297,10 @@ func _on_hand_updated() -> void:
 	if hand_card_preview:
 		hand_card_preview.visible = false
 	_current_hand_hover_index = -1
+
+	# Cory: Regrowth — draw 4 when hand is empty
+	if deck_manager.hand.is_empty():
+		_trigger_skill_tree_cory_on_hand_empty()
 
 	# Snapshot current hand card IDs to detect which are new
 	var new_card_ids: Array[String] = []
@@ -3228,6 +3463,8 @@ func _on_card_drawn_sphere_passive(card: Card) -> void:
 func _on_deck_shuffled() -> void:
 	update_deck_info()
 	_animate_shuffle()
+	# Cory: Circle of Life
+	_trigger_skill_tree_cory_on_shuffle()
 
 func _on_card_peaked(card: Card) -> void:
 	update_peaked_display()
@@ -3367,6 +3604,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	# Skill tree passive triggers for tempo cycle
 	_trigger_skill_tree_on_cycle()
 	_trigger_skill_tree_brad_on_cycle()
+	_trigger_skill_tree_cory_on_cycle()
 	if tempo_manager.last_tempo_source == "movement":
 		_trigger_skill_tree_on_movement_cycle()
 
@@ -3765,6 +4003,7 @@ func play_selected_card(target) -> void:
 		# Skill tree passive triggers for card play
 		_trigger_skill_tree_on_card_play(card, target)
 		_trigger_skill_tree_stephen_on_card_play(card)
+		_trigger_skill_tree_cory_on_card_play(card)
 		if card.card_type == Card.CardType.ATTACK:
 			_trigger_skill_tree_on_attack(card, target)
 			# Brad/Stephen attack passives (bonus damage applied to target)
