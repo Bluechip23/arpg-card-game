@@ -9,6 +9,10 @@ extends CharacterBody3D
 signal damaged(amount: int)
 signal died(enemy: Enemy)
 signal turn_completed  # Kept for compat
+signal debuff_applied(enemy: Enemy, debuff_name: String, value: int)
+signal debuff_expired(enemy: Enemy, debuff_name: String)
+signal exposed(enemy: Enemy)
+signal attacked_player(enemy: Enemy)
 
 enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL }
 
@@ -435,30 +439,35 @@ func _tick_status_durations() -> void:
 		if slow_tempo <= 0:
 			slow_amount = 0
 			print("[%s] Slow expired, movement restored" % enemy_name)
+			debuff_expired.emit(self, "slow")
 
 	if disarmed_tempo > 0:
 		disarmed_tempo -= 1
 		if disarmed_tempo <= 0:
 			is_disarmed = false
 			print("[%s] Disarm expired, can attack again" % enemy_name)
+			debuff_expired.emit(self, "disarmed")
 
 	if marked_tempo > 0:
 		marked_tempo -= 1
 		if marked_tempo <= 0:
 			is_marked = false
 			print("[%s] Mark expired" % enemy_name)
+			debuff_expired.emit(self, "marked")
 
 	if frozen_tempo > 0:
 		frozen_tempo -= 1
 		if frozen_tempo <= 0:
 			is_frozen = false
 			print("[%s] Frozen expired, can act again" % enemy_name)
+			debuff_expired.emit(self, "frozen")
 
 	if stun_tempo > 0:
 		stun_tempo -= 1
 		if stun_tempo <= 0:
 			is_stunned = false
 			print("[%s] Stun expired, can act again" % enemy_name)
+			debuff_expired.emit(self, "stun")
 
 	# Burn: deal doubling damage each cycle (1, 2, 4, 8...)
 	if burn_stacks > 0:
@@ -469,6 +478,7 @@ func _tick_status_durations() -> void:
 		if burn_stacks <= 0:
 			burn_damage_next = 1
 			print("[%s] Burn expired" % enemy_name)
+			debuff_expired.emit(self, "burn")
 
 	_update_status_indicators()
 
@@ -714,6 +724,11 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 				if p_inventory:
 					p_inventory.on_damage_taken()
 
+			# Trigger on_attacked passives (thorns, In the Trenches, Phalanx, etc.)
+			if player_node.has_method("on_attacked_by"):
+				player_node.on_attacked_by(self)
+			attacked_player.emit(self)
+
 	if mesh:
 		var tween = create_tween()
 		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
@@ -941,6 +956,9 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 
 	print("[%s] Took damage! Health: %d/%d, Armor: %d/%d" % [enemy_name, current_health, max_health, current_armor, max_armor])
 
+	if just_exposed:
+		exposed.emit(self)
+
 	if current_health <= 0:
 		die()
 
@@ -1051,6 +1069,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 				print("[%s] FROZEN! Cold reached 5 stacks!" % enemy_name)
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
+	debuff_applied.emit(self, debuff_name, value)
 	_update_status_indicators()
 
 func apply_stun(tempo_cycles: int = 1) -> void:

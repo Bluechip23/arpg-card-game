@@ -624,6 +624,16 @@ func get_equipped_shield() -> ItemData:
 func has_shield_equipped() -> bool:
 	return get_equipped_shield() != null
 
+func has_only_swords_equipped() -> bool:
+	## Returns true if all equipped weapons are swords (or no weapons equipped).
+	var has_weapon = false
+	for weapon in equipped_weapons:
+		if weapon:
+			has_weapon = true
+			if "Sword" not in weapon.item_name and "sword" not in weapon.item_name:
+				return false
+	return has_weapon
+
 func get_total_weight() -> int:
 	var total = 0
 	

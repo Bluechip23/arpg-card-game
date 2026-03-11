@@ -21,6 +21,7 @@ var poisoned_blood_tempo: int = 0
 var understanding_tempo: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
 var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
 var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
+var last_crit_hit: bool = false      # Set true when roll_crit succeeds, cleared after checking
 
 func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
@@ -298,7 +299,8 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	
 	if is_crit:
 		print("[BUFF] CRITICAL HIT! (rolled %d < %d)" % [roll, total_chance])
-	
+		last_crit_hit = true
+
 	return is_crit
 
 func get_bolster_bonus() -> int:

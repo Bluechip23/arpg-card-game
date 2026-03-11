@@ -15,6 +15,7 @@ signal tempo_advanced(global_total: int, amount: int)  # Fires on every tempo ad
 var current_tempo: int = 0   # Accumulator for the UI bar (resets at each cycle)
 var global_tempo: int = 0    # Ever-increasing universal tempo clock
 var movements_since_tempo: int = 0
+var last_tempo_source: String = ""  # Tracks what caused the last tempo addition ("movement", "card", etc.)
 
 var player_stats: PlayerStats
 
@@ -53,6 +54,7 @@ func _check_threshold() -> void:
 		tempo_changed.emit(current_tempo, tempo_threshold)
 
 func add_card_tempo(tempo_cost: int) -> void:
+	last_tempo_source = "card"
 	add_tempo(tempo_cost)
 
 func add_movement_tempo() -> void:
@@ -62,6 +64,7 @@ func add_movement_tempo() -> void:
 
 	if movements_since_tempo > free_moves:
 		movements_since_tempo = 1
+		last_tempo_source = "movement"
 		add_tempo(1)
 
 func add_pass_through_tempo() -> void:
