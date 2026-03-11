@@ -313,16 +313,10 @@ func _rebuild_table() -> void:
 	sep.add_theme_constant_override("separation", 2)
 	table_container.add_child(sep)
 
-	# Build rows for each level
-	var rows = skill_tree.get_rows_up_to_level(player_level)
-	# Also show next level row as locked preview if it exists
-	var next_row = skill_tree.get_row_for_level(player_level + 1)
-
-	for row in rows:
-		_build_skill_row(row, false)
-
-	if next_row:
-		_build_skill_row(next_row, true)
+	# Build rows for ALL levels so the player can see future choices
+	for row in skill_tree.rows:
+		var is_locked = row.level > player_level
+		_build_skill_row(row, is_locked)
 
 func _build_header_row() -> void:
 	var hbox = HBoxContainer.new()
