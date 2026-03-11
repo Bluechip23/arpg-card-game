@@ -8,6 +8,7 @@ signal debuff_removed(debuff: Debuff)
 signal debuff_ticked(debuff: Debuff)
 signal debuffs_changed
 signal magnetize_pull(tiles: int, direction: Vector3)
+signal point_to_prove_triggered(debuff: Debuff)  # Emitted when stun/disarm hits with Point to Prove active
 
 var debuffs: Array[Debuff] = []
 var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
@@ -30,16 +31,6 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 		tether_origin = owner_node.position
 
 func apply_debuff(debuff: Debuff) -> void:
-	# Point to Prove (Brad): sacrifice HP to ignore stun/disarm
-	if owner_stats and owner_stats.has_method("has_skill_tree_passive"):
-		if owner_stats.has_skill_tree_passive("point_to_prove"):
-			if debuff.debuff_type == Debuff.DebuffType.STUN or debuff.debuff_type == Debuff.DebuffType.DISARM:
-				var cost = 5
-				if owner_stats.current_health > cost:
-					owner_stats.take_direct_damage(cost)
-					print("[DEBUFF] Point to Prove: sacrificed %d HP to ignore %s!" % [cost, debuff.debuff_name])
-					return  # Don't apply the debuff
-
 	var existing = get_debuff(debuff.debuff_type)
 
 	if existing:
@@ -73,6 +64,13 @@ func apply_debuff(debuff: Debuff) -> void:
 
 	debuff_applied.emit(debuff)
 	debuffs_changed.emit()
+
+	# Point to Prove: signal that player can choose to sacrifice HP to remove stun/disarm
+	if owner_stats and owner_stats.has_method("has_skill_tree_passive"):
+		if owner_stats.has_skill_tree_passive("point_to_prove"):
+			if debuff.debuff_type == Debuff.DebuffType.STUN or debuff.debuff_type == Debuff.DebuffType.DISARM:
+				if owner_stats.current_health > 5:
+					point_to_prove_triggered.emit(debuff)
 
 func _assign_random_card_to_debuff(debuff: Debuff) -> void:
 	# This will be called from deck_manager which has access to hand

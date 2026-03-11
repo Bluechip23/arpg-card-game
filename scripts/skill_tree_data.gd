@@ -313,34 +313,34 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 	# Spread across levels so passives can appear at any level
 	var ability_placements := [
 		{level = 2, slot = 0, archetype = "Berserker", name = "Enraged Will",
-			description = "When you drop below 10% health, perform a free basic attack",
+			description = "When you drop below 10% HP, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 3, slot = 1, archetype = "Warden", name = "In the Trenches",
-			description = "While wearing a shield, you knock back melee enemies when attacked",
+			description = "When an enemy enters an adjacent square, perform a free attack. When an enemy attacks you from adjacent, knock them back. 2 charges, 10 tempo cooldown",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 4, slot = 2, archetype = "The Ancient", name = "Stone Skin",
 			description = "Gain 10% Fire, Physical and Lightning resistance",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 5, slot = 3, archetype = "The Fallen", name = "Point to Prove",
-			description = "When being stunned or disarmed, you have the option to sacrifice health to ignore the ailment",
+			description = "When stunned or disarmed, choose to sacrifice 5 HP to ignore the ailment",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 7, slot = 1, archetype = "Berserker", name = "Directed Strength",
 			description = "Lose 5 strength when above 50% health, gain 5 when below",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 8, slot = 0, archetype = "Warden", name = "The Way of the Plate",
-			description = "Every third Defense card costs -1m/-1t",
+			description = "Every other Defense card refunds 1 mana and 1 tempo",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 9, slot = 3, archetype = "The Ancient", name = "Ancestral Aid",
-			description = "Gain 3 HP regen per 5 tempo",
+			description = "Each cycle: more attacks in hand → discount a random attack by 2m. More defense → heal 3 HP",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 11, slot = 2, archetype = "The Fallen", name = "Redemption",
-			description = "When healing an ally, gain 10% crit chance on your next attack",
+			description = "When healing (self or ally), gain crit chance on your next attack",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 13, slot = 0, archetype = "Berserker", name = "Life Steal",
 			description = "All attacks life steal by 5%",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 14, slot = 2, archetype = "Warden", name = "Pristine Armor",
-			description = "Cards provide +2 armor",
+			description = "Defense cards grant +2 armor. Playing 3 defense cards in a row grants an additional +5 armor",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 16, slot = 1, archetype = "The Ancient", name = "Vines Codependence",
 			description = "Whenever you heal, gain 3 thorns",
@@ -574,6 +574,106 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 				opt.icon_color = p.color
 			else:
 				opt.name = "Ryan Lv%d Option %d" % [lvl, i + 1]
+				opt.description = "Placeholder - to be defined"
+				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
+				opt.icon_color = _get_option_color(i)
+			row.options.append(opt)
+
+		# Create auto-grant based on level schedule
+		var auto = AutoGrant.new()
+		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
+		match auto.grant_type:
+			AutoGrantType.STAT_ALLOCATION:
+				auto.name = "Stat Points"
+				auto.description = "Allocate 5 stat points"
+				auto.stat_points = 5
+			AutoGrantType.CARD_REMOVAL:
+				auto.name = "Culling Stone"
+				auto.description = "Remove 1 card from your deck"
+			AutoGrantType.UPGRADE_CARD:
+				auto.name = "Card Upgrade"
+				auto.description = "Upgrade an existing card"
+			AutoGrantType.MUTATE_CARD:
+				auto.name = "Card Mutation"
+				auto.description = "Mutate an existing card"
+			_:
+				auto.name = "Bonus"
+				auto.description = "Level bonus"
+		row.auto_grant = auto
+
+		tree.rows.append(row)
+
+	return tree
+
+static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
+	var tree = SkillTreeData.new()
+	tree.character_name = "Cory"
+
+	# Archetype ability pool — spread across levels
+	# Colors: Monk = red, Lurker = blue, Atrophist = green, Druid = purple
+	var ability_placements := [
+		{level = 2, slot = 0, archetype = "Monk", name = "Energy Barrier",
+			description = "Every 3rd time you gain mana from a source other than mana regen, put an Energy Barrier in your hand (0m/0t, gain 5 armor, erase 1)",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 3, slot = 1, archetype = "Lurker", name = "Prey on the Weak",
+			description = "When applying a debuff to an enemy below 50% health, deal 3 damage to them",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 4, slot = 2, archetype = "Atrophist", name = "Wither",
+			description = "Add +1 charge to all debuffs applied to enemies",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 5, slot = 3, archetype = "Druid", name = "Budding",
+			description = "When playing an attack, a utility, and a defense in any order (none back to back), heal 2 and gain 3 temp HP for 15 tempo",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 7, slot = 1, archetype = "Lurker", name = "Eat",
+			description = "Killing enemies heals you 10% of your max health",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 8, slot = 0, archetype = "Monk", name = "Expel Negativity",
+			description = "Transfer a debuff to an enemy when you drop below 50% health",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 9, slot = 3, archetype = "Druid", name = "Circle of Life",
+			description = "When you shuffle your deck, gain 15 armor and +3 damage for 3 attacks",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 11, slot = 2, archetype = "Atrophist", name = "Territorial Death",
+			description = "When enemies enter or leave melee range, re-apply 1 random debuff they already have",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 13, slot = 0, archetype = "Monk", name = "Self Reliance",
+			description = "When you play 3 cards in a single tempo cycle, your next card costs -1m",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 14, slot = 2, archetype = "Atrophist", name = "Death as Lifeblood",
+			description = "Regenerate health for each enemy with a debuff near you",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 16, slot = 1, archetype = "Lurker", name = "Serial Killer",
+			description = "The first time an enemy drops below 10% health, you become invisible to them",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 18, slot = 3, archetype = "Druid", name = "Regrowth",
+			description = "When emptying your hand, draw 4 cards. Cooldown 25 tempo",
+			color = Color(0.8, 0.4, 0.9)},
+	]
+
+	# Index placements by level for quick lookup
+	var placements_by_level := {}
+	for p in ability_placements:
+		if p.level not in placements_by_level:
+			placements_by_level[p.level] = {}
+		placements_by_level[p.level][p.slot] = p
+
+	for lvl in range(2, max_level + 1):
+		var row = SkillRow.new()
+		row.level = lvl
+
+		var level_placements = placements_by_level.get(lvl, {})
+
+		for i in range(4):
+			var opt = SkillOption.new()
+			if i in level_placements:
+				var p = level_placements[i]
+				opt.name = p.name
+				opt.description = "%s: %s" % [p.archetype, p.description]
+				opt.option_type = OptionType.PASSIVE
+				opt.passive_id = p.name.to_lower().replace(" ", "_")
+				opt.icon_color = p.color
+			else:
+				opt.name = "Cory Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
 				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
 				opt.icon_color = _get_option_color(i)

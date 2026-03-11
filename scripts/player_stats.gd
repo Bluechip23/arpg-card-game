@@ -13,6 +13,7 @@ signal xp_changed(current_xp: int, xp_to_next: int)
 signal leveled_up(new_level: int)
 signal damage_taken(amount: int)
 signal health_damage_taken(amount: int)  # Emitted with the HP-only portion of damage (after armor absorbs)
+signal mana_gained(amount: int, is_regen: bool)  # Emitted when mana is gained (for Energy Barrier tracking)
 signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards should be discarded
 signal gold_changed(amount: int)
 signal healed(amount: int)
@@ -116,12 +117,25 @@ var st_from_hip_original_cost: int = 0  # From the Hip: original mana cost to re
 var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which enemies have been struck
 
 # Brad passive tracking
-var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-3rd discount
+var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount
 var st_dark_forces_bonus: int = 0     # Dark Forces: +3 damage stored when exposed
+var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
+var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
+var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when charges were last exhausted
 
 # Stephen passive tracking
 var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive attack cards played
 var st_enemy_last_move_tempo: Dictionary = {}  # Scouted: tracks last tempo each enemy moved
+
+# Cory passive tracking
+var st_mana_gain_counter: int = 0     # Energy Barrier: counts non-regen mana gains toward every-3rd
+var st_expel_triggered: bool = false   # Expel Negativity: tracks if already triggered this threshold cross
+var st_cards_this_cycle: Array[String] = []  # Self Reliance: card types played this tempo cycle
+var st_self_reliance_discount: bool = false   # Self Reliance: next card costs -1m
+var st_budding_types: Array[String] = []     # Budding: card types played (no back-to-back)
+var st_budding_last_type: String = ""         # Budding: last card type to prevent back-to-back
+var st_serial_killer_enemies: Dictionary = {} # Serial Killer: enemies already triggered (enemy_id -> true)
+var st_regrowth_cooldown: int = 0     # Regrowth: remaining cooldown tempo
 
 func has_skill_tree_passive(passive_id: String) -> bool:
 	return passive_id in skill_tree_passives
@@ -428,6 +442,7 @@ func process_tempo(amount: int) -> void:
 		var mana_regen = get_effective_mana_regen()
 		current_mana = min(current_mana + mana_regen, get_available_max_mana())
 		mana_changed.emit(current_mana, max_mana)
+		mana_gained.emit(int(mana_regen), true)
 		print("[STATS] Mana regen: +%.1f → %d/%d (reserved: %d)" % [mana_regen, int(current_mana), max_mana, maintained_mana])
 
 ## Called once per tempo cycle (every 5 global tempo). Handles armor decay and misc upkeep.
@@ -602,6 +617,7 @@ func has_mana(amount: int) -> bool:
 func gain_mana(amount: int) -> void:
 	current_mana = min(current_mana + amount, get_available_max_mana())
 	mana_changed.emit(current_mana, max_mana)
+	mana_gained.emit(amount, false)
 	print("[STATS] Gained %d mana! Mana: %d/%d (reserved: %d)" % [amount, int(current_mana), max_mana, maintained_mana])
 
 # ============================================

@@ -54,6 +54,7 @@ var linger: bool = false  # If true, status card can exceed hand size limit when
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
+var has_reach: bool = false  # Reach: adds 1 square to melee attack range
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
 var delay_tempo: int = 0  # Tempo until the card's effect takes place
 var has_burden: bool = false  # If true, cost increases by 1m/1t each time played. Can jail to reset.
@@ -287,6 +288,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"melee": "Card must be used at close range",
 		"ranged": "Card can be used at distance. Base range = 5 tiles",
 		"aoe": "Area of Effect - hits multiple targets in a shape",
+		"reach": "Adds 1 square to melee attack range",
 		# Card-Item Slots
 		"enchant": "Places a card into an item's card slot",
 		"extract": "Removes a card from an item's card slot",
@@ -343,6 +345,8 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "burden")
 	if is_chisel:
 		_add_keyword_match(found_keys, matches, all_keywords, "chisel")
+	if has_reach:
+		_add_keyword_match(found_keys, matches, all_keywords, "reach")
 
 	# Scan the description for keyword mentions
 	for keyword in all_keywords:
@@ -2846,6 +2850,25 @@ static func create_minor_wounds() -> Card:
 	card.erase_tempo = 40
 	card.erase_tempo_remaining = 40
 	card.target_types = []
+	return card
+
+static func create_energy_barrier() -> Card:
+	var card = Card.new()
+	card.card_id = "energy_barrier"
+	card.card_name = "Energy Barrier"
+	card.description = "Gain 5 armor. Erase 1."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 5
+	card.base_block = 5
+	card.heal_amount = 0
+	card.erase_tempo = 1
+	card.erase_tempo_remaining = 1
+	card.target_types = ["self"]
 	return card
 
 # ============================================

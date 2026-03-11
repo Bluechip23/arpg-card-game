@@ -13,6 +13,7 @@ signal debuff_applied(enemy: Enemy, debuff_name: String, value: int)
 signal debuff_expired(enemy: Enemy, debuff_name: String)
 signal exposed(enemy: Enemy)
 signal attacked_player(enemy: Enemy)
+signal movement_completed(enemy: Enemy)
 
 enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL }
 
@@ -835,6 +836,7 @@ func _physics_process(delta: float) -> void:
 			position = target_position
 			is_moving = false
 			velocity = Vector3.ZERO
+			movement_completed.emit(self)
 			turn_completed.emit()
 		else:
 			velocity = flat_diff.normalized() * move_speed
