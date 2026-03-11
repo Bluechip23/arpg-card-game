@@ -7,6 +7,7 @@ extends Node3D
 @onready var turn_manager: TurnManager = $TurnManager
 @onready var grid_manager: GridManager = $GridManager
 @onready var move_dialog: MoveConfirmDialog = $MoveConfirmDialog
+@onready var point_to_prove_dialog: PointToProveDialog = $PointToProveDialog
 @onready var character_panel: CharacterPanel = $CharacterPanel
 @onready var enemy_spawner: EnemySpawner = $EnemySpawner
 @onready var test_ui: TestUI = $TestUi
@@ -1396,6 +1397,7 @@ func select_character(character: CharacterData) -> void:
 
 	debuff_bar.connect_manager(player.get_debuff_manager())
 	deck_manager.connect_debuff_manager(player.get_debuff_manager())
+	player.get_debuff_manager().point_to_prove_triggered.connect(_on_point_to_prove_triggered)
 	deck_manager.connect_inventory(player.get_inventory())
 	player.connect_deck_to_inventory(deck_manager)
 	tempo_manager.initialize(player.get_stats())
@@ -2597,14 +2599,20 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 	if not stats:
 		return
 
-	# Enraged Will: below 10% HP → perform a free basic attack
+	# Enraged Will: below 10% HP → AOE swing + gain 1 mana per kill
 	if stats.has_skill_tree_passive("enraged_will"):
 		if stats.get_health_percent() <= 0.10 and stats.current_health > 0:
-			var target = _get_nearest_enemy()
-			if target:
+			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 2.0) if enemy_spawner else []
+			if enemies.size() > 0:
 				var dmg = stats.get_effective_physical_damage(0)
-				target.take_damage(dmg, true)
-				add_battle_log("Enraged Will: free attack for %d!" % dmg, Color(0.9, 0.3, 0.3))
+				var kills = 0
+				for enemy in enemies:
+					enemy.take_damage(dmg, true)
+					if not enemy.is_alive():
+						kills += 1
+				if kills > 0:
+					stats.gain_mana(kills)
+				add_battle_log("Enraged Will: AOE swing for %d! (+%d mana)" % [dmg, kills], Color(0.9, 0.3, 0.3))
 
 	# Dark Forces: when exposed (armor broken to 0), gain +3 damage to next strike
 	if stats.has_skill_tree_passive("dark_forces"):
@@ -2629,20 +2637,26 @@ func _trigger_skill_tree_brad_on_defense_card_play(card: Card) -> void:
 	if not stats:
 		return
 
-	# The Way of the Plate: every 3rd Defense card costs -1m/-1t
+	# The Way of the Plate: every other Defense card costs -1m/-1t
 	if stats.has_skill_tree_passive("the_way_of_the_plate"):
 		stats.st_defense_cards_played += 1
-		if stats.st_defense_cards_played >= 3:
+		if stats.st_defense_cards_played >= 2:
 			stats.st_defense_cards_played = 0
 			# Refund 1 mana and 1 tempo
 			stats.gain_mana(1)
 			tempo_manager.add_tempo(-1)
 			add_battle_log("Way of the Plate: -1m/-1t refund!", Color(0.3, 0.7, 1.0))
 
-	# Pristine Armor: defense cards provide +2 armor
+	# Pristine Armor: +2 armor on defense cards, +5 bonus for 3 in a row
 	if stats.has_skill_tree_passive("pristine_armor"):
 		stats.add_armor(2)
-		add_battle_log("Pristine Armor: +2 armor", Color(0.3, 0.7, 1.0))
+		stats.st_consecutive_defense += 1
+		if stats.st_consecutive_defense >= 3:
+			stats.st_consecutive_defense = 0
+			stats.add_armor(5)
+			add_battle_log("Pristine Armor: +2 armor, +5 bonus (3 in a row)!", Color(0.3, 0.7, 1.0))
+		else:
+			add_battle_log("Pristine Armor: +2 armor", Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_brad_on_heal() -> void:
 	var stats = player.get_stats()
@@ -2656,27 +2670,53 @@ func _trigger_skill_tree_brad_on_heal() -> void:
 			buff_mgr.apply_buff(Buff.new(Buff.BuffType.THORNS, 3, 30))
 			add_battle_log("Vines Codependence: +3 thorns", Color(0.4, 0.9, 0.4))
 
-func _trigger_skill_tree_brad_on_heal_ally(ally_name: String) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Redemption: when healing an ally, gain 10% crit chance on next attack
+	# Redemption: gain crit buff when healing (self or ally)
 	if stats.has_skill_tree_passive("redemption"):
 		var buff_mgr = player.get_buff_manager()
 		if buff_mgr:
 			buff_mgr.apply_buff(Buff.create_focused(10, "Redemption"))
-			add_battle_log("Redemption: +10%% crit on next attack", Color(0.8, 0.4, 0.9))
+			add_battle_log("Redemption: crit on next attack!", Color(0.8, 0.4, 0.9))
+
+func _trigger_skill_tree_brad_on_heal_ally(ally_name: String) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+	# Redemption for ally heals is now handled in _trigger_skill_tree_brad_on_heal
+	# which fires on all heals (self and ally). This function remains for
+	# ally-specific effects from other characters (e.g. Field Medic).
+	pass
 
 func _trigger_skill_tree_brad_on_cycle() -> void:
 	var stats = player.get_stats()
 	if not stats:
 		return
 
-	# Ancestral Aid: gain 3 HP regen per 5 tempo
+	# Ancestral Aid: depends on hand composition — more attacks = -2m to attack, more defense = +3 HP regen
 	if stats.has_skill_tree_passive("ancestral_aid"):
-		stats.heal(3)
-		add_battle_log("Ancestral Aid: +3 HP", Color(0.4, 0.9, 0.4))
+		var attack_count = 0
+		var defense_count = 0
+		for c in deck_manager.hand:
+			if c.card_type == Card.CardType.ATTACK:
+				attack_count += 1
+			elif c.card_type == Card.CardType.DEFENSE:
+				defense_count += 1
+		if attack_count > defense_count:
+			# Discount a random attack card by 2 mana
+			var attacks: Array[Card] = []
+			for c in deck_manager.hand:
+				if c.card_type == Card.CardType.ATTACK and c.mana_cost >= 2:
+					attacks.append(c)
+			if attacks.size() > 0:
+				var target_card = attacks[randi() % attacks.size()]
+				target_card.mana_cost -= 2
+				add_battle_log("Ancestral Aid: %s -2m (offense)" % target_card.card_name, Color(0.4, 0.9, 0.4))
+		elif defense_count > attack_count:
+			stats.heal(3)
+			add_battle_log("Ancestral Aid: +3 HP regen (defense)", Color(0.4, 0.9, 0.4))
+		else:
+			# Tied — small heal
+			stats.heal(1)
+			add_battle_log("Ancestral Aid: +1 HP (balanced)", Color(0.4, 0.9, 0.4))
 
 	# Directed Strength is checked at attack time, not per-cycle
 
@@ -2707,6 +2747,41 @@ func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 		add_battle_log("Dark Forces: +%d damage!" % bonus, Color(0.8, 0.4, 0.9))
 
 	return bonus
+
+var _ptp_confirmed_callable: Callable
+var _ptp_declined_callable: Callable
+
+func _on_point_to_prove_triggered(debuff: Debuff) -> void:
+	## Show dialog asking the player if they want to sacrifice HP to ignore the debuff.
+	# Disconnect any previous one-shot connections
+	if _ptp_confirmed_callable.is_valid() and point_to_prove_dialog.confirmed.is_connected(_ptp_confirmed_callable):
+		point_to_prove_dialog.confirmed.disconnect(_ptp_confirmed_callable)
+	if _ptp_declined_callable.is_valid() and point_to_prove_dialog.declined.is_connected(_ptp_declined_callable):
+		point_to_prove_dialog.declined.disconnect(_ptp_declined_callable)
+
+	var debuff_name = Debuff.DebuffType.keys()[debuff.debuff_type].capitalize()
+	var cost = 5
+	point_to_prove_dialog.show_dialog(debuff_name, debuff.debuff_type, cost)
+	_ptp_confirmed_callable = _on_point_to_prove_confirmed.bind(debuff)
+	_ptp_declined_callable = _on_point_to_prove_declined
+	point_to_prove_dialog.confirmed.connect(_ptp_confirmed_callable, CONNECT_ONE_SHOT)
+	point_to_prove_dialog.declined.connect(_ptp_declined_callable, CONNECT_ONE_SHOT)
+
+func _on_point_to_prove_confirmed(debuff_type: int, debuff: Debuff) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+	# Sacrifice HP to remove the debuff
+	stats.take_direct_damage(5)
+	var debuff_mgr = player.get_debuff_manager()
+	if debuff_mgr:
+		debuff_mgr.remove_debuff(debuff.debuff_type)
+	var debuff_name = Debuff.DebuffType.keys()[debuff_type].capitalize()
+	add_battle_log("Point to Prove: Sacrificed 5 HP to ignore %s!" % debuff_name, Color(0.9, 0.7, 0.3))
+
+func _on_point_to_prove_declined(debuff_type: int) -> void:
+	var debuff_name = Debuff.DebuffType.keys()[debuff_type].capitalize()
+	add_battle_log("Point to Prove: Accepted %s." % debuff_name, Color(0.6, 0.6, 0.6))
 
 # ============================================
 # STEPHEN SKILL TREE PASSIVE TRIGGERS
@@ -4016,6 +4091,11 @@ func play_selected_card(target) -> void:
 				_trigger_skill_tree_stephen_on_ranged_attack(card, target)
 		if card.card_type == Card.CardType.DEFENSE:
 			_trigger_skill_tree_brad_on_defense_card_play(card)
+		else:
+			# Reset Pristine Armor consecutive defense counter on non-defense card
+			var pa_stats = player.get_stats()
+			if pa_stats:
+				pa_stats.st_consecutive_defense = 0
 
 		# Check for crit-based skill tree passives (Eye Scrape)
 		if buff_mgr and buff_mgr.last_crit_hit:

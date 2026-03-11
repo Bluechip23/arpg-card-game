@@ -117,8 +117,9 @@ var st_from_hip_original_cost: int = 0  # From the Hip: original mana cost to re
 var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which enemies have been struck
 
 # Brad passive tracking
-var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-3rd discount
+var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount
 var st_dark_forces_bonus: int = 0     # Dark Forces: +3 damage stored when exposed
+var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
 
 # Stephen passive tracking
 var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive attack cards played

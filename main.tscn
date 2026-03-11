@@ -24,6 +24,7 @@
 [ext_resource type="Script" uid="uid://bvysoyp02lh3d" path="res://scripts/sphere_inventory.gd" id="25_sphere_inv"]
 [ext_resource type="Script" uid="uid://c8uffvcxq5tgl" path="res://scripts/range_indicator.gd" id="26_range_ind"]
 [ext_resource type="PackedScene" path="res://scenes/skill_tree.tscn" id="27_skill_tree"]
+[ext_resource type="PackedScene" path="res://scenes/point_to_prove_dialog.tscn" id="28_ptp"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_top_color = Color(0.05, 0.05, 0.1, 1)
@@ -85,6 +86,8 @@ script = ExtResource("4_7mycd")
 script = ExtResource("8_kek77")
 
 [node name="MoveConfirmDialog" parent="." unique_id=1236181644 instance=ExtResource("5_272bh")]
+
+[node name="PointToProveDialog" parent="." instance=ExtResource("28_ptp")]
 
 [node name="CharacterPanel" parent="." unique_id=8242285 instance=ExtResource("8_5vw27")]
 
