@@ -5,6 +5,7 @@ extends Resource
 
 enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON, QUIVER }
 enum WeaponHand { ONE_HAND, TWO_HAND }
+enum WeaponSubtype { SWORD, BOW, SHIELD, OTHER }
 enum SpecialEffect {
 	NONE,
 	OVERFLOW_HEAL_ARMOR,
@@ -80,6 +81,7 @@ enum GauntletSkillType {
 # Weapon specific
 @export var weapon_damage: int = 0
 @export var weapon_hand: WeaponHand = WeaponHand.ONE_HAND
+@export var weapon_subtype: WeaponSubtype = WeaponSubtype.SWORD
 @export var is_two_handed: bool = false
 
 # Special effects
@@ -227,10 +229,33 @@ func can_slot_card(card) -> bool:
 	if card.slot_compatibility == 0 and card.source_item_type >= 0:  # PICKY = 0
 		if card.source_item_type != item_type:
 			return false
-	# Check card keyword compatibility (Arrow, Pocket, Gem restrictions)
-	if allowed_card_keywords.size() > 0 and card.card_keyword not in allowed_card_keywords:
-		return false
+	# Check card keyword compatibility
+	# If item has explicit allowed_card_keywords, use those
+	if allowed_card_keywords.size() > 0:
+		if card.card_keyword not in allowed_card_keywords:
+			return false
+	else:
+		# Default restrictions based on item type
+		var required = _get_default_keyword_for_item_type()
+		if required >= 0 and card.card_keyword != required:
+			return false
 	return true
+
+## Returns the default required card keyword for this item type (-1 = any card allowed).
+func _get_default_keyword_for_item_type() -> int:
+	match item_type:
+		ItemType.BELT: return 2      # POCKET
+		ItemType.BOOTS: return 5     # SWIFT
+		ItemType.RING: return 3      # GEM
+		ItemType.HELM: return 7      # CROWN
+		ItemType.GAUNTLETS: return 8 # FIST
+		ItemType.QUIVER: return 1    # ARROW
+		ItemType.WEAPON:
+			match weapon_subtype:
+				WeaponSubtype.SHIELD: return 6  # BUCKLER
+				WeaponSubtype.BOW: return -1     # ARROW + standard attacks (handled by allowed_card_keywords)
+				_: return -1  # Swords and other weapons accept any card
+	return -1  # CHEST and others accept any card
 
 func slot_card(card) -> bool:
 	if not can_slot_card(card):
@@ -295,10 +320,14 @@ func get_card_slot_summary() -> String:
 		var kw_names: Array[String] = []
 		for kw in allowed_card_keywords:
 			match kw:
-				1: kw_names.append("Arrow")  # Card.CardKeyword.ARROW
-				2: kw_names.append("Pocket")  # Card.CardKeyword.POCKET
-				3: kw_names.append("Gem")  # Card.CardKeyword.GEM
-				4: kw_names.append("Chisel")  # Card.CardKeyword.CHISEL
+				1: kw_names.append("Arrow")
+				2: kw_names.append("Pocket")
+				3: kw_names.append("Gem")
+				4: kw_names.append("Chisel")
+				5: kw_names.append("Swift")
+				6: kw_names.append("Buckler")
+				7: kw_names.append("Crown")
+				8: kw_names.append("Fist")
 		if kw_names.size() > 0:
 			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(parts)
@@ -533,12 +562,13 @@ static func create_wooden_shield() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Wooden Shield"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Weapon"
+	item.item_type_name = "Shield"
 	item.weight = 4
 	item.armor_bonus = 5  # Block value when using basic block action
 	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
 	item.special_effect_value = 2
 	item.weapon_hand = WeaponHand.ONE_HAND
+	item.weapon_subtype = WeaponSubtype.SHIELD
 	item.card_slots = 1
 	item.on_self_block = 2
 	item.description = "Block: 5. +2 Armor on every Armor gain. 1 card slot, On-Self: +2 block"
@@ -664,7 +694,8 @@ static func create_spiked_shield() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Spiked Shield"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Weapon"
+	item.item_type_name = "Shield"
+	item.weapon_subtype = WeaponSubtype.SHIELD
 	item.weight = 40
 	item.weapon_hand = WeaponHand.ONE_HAND
 	item.special_effect = SpecialEffect.THORNS_PER_TEMPO
@@ -680,7 +711,8 @@ static func create_bow_of_true_sight() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Bow of True Sight"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Weapon"
+	item.item_type_name = "Bow"
+	item.weapon_subtype = WeaponSubtype.BOW
 	item.weight = 30
 	item.weapon_hand = WeaponHand.ONE_HAND
 	item.weapon_damage = 3
@@ -688,14 +720,16 @@ static func create_bow_of_true_sight() -> ItemData:
 	item.on_self_damage = 3
 	item.movement_per_tempo_bonus = -2
 	item.card_slots = 1
-	item.description = "+3 damage. +3 range. -2 movement/tempo. Weight 30. 1 card slot."
+	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
+	item.description = "+3 damage. +3 range. -2 movement/tempo. Weight 30. 1 Arrow card slot."
 	return item
 
 static func create_bow_of_deep_wounds() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Bow of Deep Wounds"
 	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Weapon"
+	item.item_type_name = "Bow"
+	item.weapon_subtype = WeaponSubtype.BOW
 	item.weight = 50
 	item.weapon_hand = WeaponHand.ONE_HAND
 	item.weapon_damage = 10

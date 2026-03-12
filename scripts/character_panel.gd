@@ -620,10 +620,14 @@ func _open_card_slot_panel(item: ItemData) -> void:
 		var keyword_names: Array[String] = []
 		for kw in item.allowed_card_keywords:
 			match kw:
-				1: keyword_names.append("Arrow")  # Card.CardKeyword.ARROW
+				1: keyword_names.append("Arrow")
 				2: keyword_names.append("Pocket")
 				3: keyword_names.append("Gem")
 				4: keyword_names.append("Chisel")
+				5: keyword_names.append("Swift")
+				6: keyword_names.append("Buckler")
+				7: keyword_names.append("Crown")
+				8: keyword_names.append("Fist")
 		restrict_label.text = "Accepts: %s cards only" % ", ".join(keyword_names)
 		restrict_label.add_theme_font_size_override("font_size", 11)
 		restrict_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
@@ -732,6 +736,10 @@ func _open_card_slot_panel(item: ItemData) -> void:
 						2: kw_name = "Pocket"
 						3: kw_name = "Gem"
 						4: kw_name = "Chisel"
+						5: kw_name = "Swift"
+						6: kw_name = "Buckler"
+						7: kw_name = "Crown"
+						8: kw_name = "Fist"
 					info += " [%s]" % kw_name
 				card_label.text = info
 				card_label.add_theme_font_size_override("font_size", 12)
