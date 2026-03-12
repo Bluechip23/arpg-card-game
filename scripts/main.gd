@@ -6233,6 +6233,28 @@ func _restore_player_progression(progression: Dictionary) -> void:
 		sphere_inventory.upgrade_runes = inv_data.get("upgrade_runes", 0)
 		sphere_inventory.retrospective_tokens = inv_data.get("retrospective_tokens", 0)
 
+	# Restore deck from saved card IDs (replaces the default starter deck)
+	if progression.has("deck_card_ids") and progression["deck_card_ids"].size() > 0:
+		deck_manager.initialize_deck_from_ids(progression["deck_card_ids"])
+		_on_hand_updated()
+		update_deck_info()
+
+	# Restore equipped and stored items
+	if progression.has("inventory"):
+		var inv = player.get_inventory()
+		var inv_data = progression["inventory"]
+		if inv:
+			inv.equipped_helms = inv_data.get("equipped_helms", inv.equipped_helms)
+			inv.equipped_chests = inv_data.get("equipped_chests", inv.equipped_chests)
+			inv.equipped_rings = inv_data.get("equipped_rings", inv.equipped_rings)
+			inv.equipped_belts = inv_data.get("equipped_belts", inv.equipped_belts)
+			inv.equipped_boots = inv_data.get("equipped_boots", inv.equipped_boots)
+			inv.equipped_gauntlets = inv_data.get("equipped_gauntlets", inv.equipped_gauntlets)
+			inv.equipped_weapons = inv_data.get("equipped_weapons", inv.equipped_weapons)
+			inv.equipped_quivers = inv_data.get("equipped_quivers", inv.equipped_quivers)
+			inv.stored_items = inv_data.get("stored_items", inv.stored_items)
+			inv.equipment_changed.emit()
+
 	# Update UI displays
 	_on_player_health_changed(stats.current_health, stats.max_health)
 	_on_player_mana_changed(stats.current_mana, stats.max_mana)
@@ -6256,9 +6278,26 @@ func _save_player_progression() -> Dictionary:
 		"upgrade_runes": sphere_inv.upgrade_runes,
 		"retrospective_tokens": sphere_inv.retrospective_tokens,
 	}
-	print("[MAIN] Saved player progression: Level %d, %d passives" % [
+	# Deck card IDs (all piles combined — reshuffled on restore)
+	progression["deck_card_ids"] = deck_manager.get_all_card_ids()
+	# Equipped items and stored items (Resource objects survive scene change)
+	var inv = player.get_inventory()
+	if inv:
+		progression["inventory"] = {
+			"equipped_helms": inv.equipped_helms.duplicate(),
+			"equipped_chests": inv.equipped_chests.duplicate(),
+			"equipped_rings": inv.equipped_rings.duplicate(),
+			"equipped_belts": inv.equipped_belts.duplicate(),
+			"equipped_boots": inv.equipped_boots.duplicate(),
+			"equipped_gauntlets": inv.equipped_gauntlets.duplicate(),
+			"equipped_weapons": inv.equipped_weapons.duplicate(),
+			"equipped_quivers": inv.equipped_quivers.duplicate(),
+			"stored_items": inv.stored_items.duplicate(),
+		}
+	print("[MAIN] Saved player progression: Level %d, %d passives, %d cards" % [
 		stats.current_level if stats else 0,
 		stats.skill_tree_passives.size() if stats else 0,
+		progression["deck_card_ids"].size(),
 	])
 	return progression
 

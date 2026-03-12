@@ -368,7 +368,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 			if i in level_placements:
 				var p = level_placements[i]
 				opt.name = p.name
-				opt.description = "%s: %s" % [p.archetype, p.description]
+				opt.description = "%s (%s): %s" % [p.name, p.archetype, p.description]
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
@@ -468,7 +468,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			if i in level_placements:
 				var p = level_placements[i]
 				opt.name = p.name
-				opt.description = "%s: %s" % [p.archetype, p.description]
+				opt.description = "%s (%s): %s" % [p.name, p.archetype, p.description]
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
@@ -568,7 +568,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			if i in level_placements:
 				var p = level_placements[i]
 				opt.name = p.name
-				opt.description = "%s: %s" % [p.archetype, p.description]
+				opt.description = "%s (%s): %s" % [p.name, p.archetype, p.description]
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
@@ -668,7 +668,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			if i in level_placements:
 				var p = level_placements[i]
 				opt.name = p.name
-				opt.description = "%s: %s" % [p.archetype, p.description]
+				opt.description = "%s (%s): %s" % [p.name, p.archetype, p.description]
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color

@@ -248,7 +248,10 @@ func save_progression() -> Dictionary:
 		"determination": determination,
 		# Resource caps (sphere grid can raise these)
 		"max_health": max_health,
+		"current_health": current_health,
 		"max_mana": max_mana,
+		"current_mana": current_mana,
+		"current_armor": current_armor,
 		"base_mana_regen": base_mana_regen,
 		"base_draw_timer": base_draw_timer,
 		# Sphere grid bonuses
@@ -286,11 +289,12 @@ func restore_progression(data: Dictionary) -> void:
 	base_wisdom = data.get("base_wisdom", base_wisdom)
 	base_agility = data.get("base_agility", base_agility)
 	determination = data.get("determination", determination)
-	# Resource caps
+	# Resources (preserve current HP/mana — no free heal on world transition)
 	max_health = data.get("max_health", max_health)
-	current_health = max_health  # Full heal on world transition
+	current_health = data.get("current_health", max_health)
 	max_mana = data.get("max_mana", max_mana)
-	current_mana = max_mana  # Full mana restore on world transition
+	current_mana = data.get("current_mana", max_mana)
+	current_armor = data.get("current_armor", 0)
 	base_mana_regen = data.get("base_mana_regen", base_mana_regen)
 	base_draw_timer = data.get("base_draw_timer", base_draw_timer)
 	# Sphere grid bonuses

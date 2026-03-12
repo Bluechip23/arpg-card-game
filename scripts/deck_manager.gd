@@ -55,6 +55,38 @@ func get_hand_cap() -> int:
 		return player_stats.hand_size
 	return 6
 
+## Get all card IDs across all piles (for saving progression).
+func get_all_card_ids() -> Array:
+	var ids: Array = []
+	for card in draw_pile:
+		ids.append(card.card_id)
+	for card in hand:
+		ids.append(card.card_id)
+	for card in discard_pile:
+		ids.append(card.card_id)
+	for card in jail_pile:
+		ids.append(card.card_id)
+	for card in maintained_cards:
+		ids.append(card.card_id)
+	return ids
+
+## Initialize deck from a saved list of card IDs (for restoring progression).
+func initialize_deck_from_ids(card_ids: Array) -> void:
+	draw_pile.clear()
+	hand.clear()
+	discard_pile.clear()
+	jail_pile.clear()
+	maintained_cards.clear()
+	peaked_card = null
+	for card_id in card_ids:
+		var card = _create_card_from_id(card_id)
+		if card:
+			draw_pile.append(card)
+	shuffle_draw_pile()
+	for i in range(min(get_hand_cap(), draw_pile.size())):
+		draw_card()
+	print("[DECK] Restored from save with %d cards. Hand: %d" % [draw_pile.size() + hand.size(), hand.size()])
+
 func initialize_deck(character: CharacterData) -> void:
 	draw_pile.clear()
 	hand.clear()
