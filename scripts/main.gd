@@ -3297,7 +3297,7 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 					add_battle_log("Arcane Current: +5 spell damage", Color(0.5, 0.2, 0.85))
 			"unyielding":
 				# Constellation: Below 50% HP: gain 3 armor each cycle
-				if stats.current_health <= stats.max_health / 2:
+				if stats.get_health_percent() <= 0.5:
 					stats.add_armor(value)
 					add_battle_log("Unyielding: +%d armor (low HP)" % value, Color(0.85, 0.7, 0.2))
 			_:

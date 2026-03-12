@@ -356,7 +356,7 @@ func _print_stats() -> void:
 func get_health_percent() -> float:
 	if max_health <= 0:
 		return 1.0
-	return float(current_health) / float(max_health)
+	return float(current_health + current_temp_health) / float(max_health)
 
 func get_determination_modifier() -> float:
 	# Returns multiplier for stats based on health % and determination
@@ -565,10 +565,13 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 	if current_temp_health > 0 and temp_health_tempo_remaining > 0:
 		temp_health_tempo_remaining -= 5
 		if temp_health_tempo_remaining <= 0:
+			var old_pct = get_health_percent()
 			current_temp_health = 0
 			temp_health_tempo_remaining = 0
 			temp_health_changed.emit(current_temp_health)
 			print("[STATS] Temp HP expired")
+			if _crossed_threshold(old_pct, get_health_percent()):
+				recalculate_derived_stats()
 
 	# Tick healing boost
 	if healing_boost_tempo > 0:
@@ -721,10 +724,13 @@ func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 		inventory.on_armor_gained(total)
 
 func add_temp_health(amount: int, duration_tempo: int) -> void:
+	var old_pct = get_health_percent()
 	current_temp_health += amount
 	temp_health_tempo_remaining = max(temp_health_tempo_remaining, duration_tempo)
 	temp_health_changed.emit(current_temp_health)
 	print("[STATS] Gained %d temp HP (duration: %d tempo)! Temp HP: %d" % [amount, duration_tempo, current_temp_health])
+	if _crossed_threshold(old_pct, get_health_percent()):
+		recalculate_derived_stats()
 
 func spend_mana(amount: int) -> bool:
 	if current_mana >= amount:
