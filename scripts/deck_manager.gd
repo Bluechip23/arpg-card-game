@@ -55,37 +55,56 @@ func get_hand_cap() -> int:
 		return player_stats.hand_size
 	return 6
 
-## Get all card IDs across all piles (for saving progression).
-func get_all_card_ids() -> Array:
-	var ids: Array = []
-	for card in draw_pile:
-		ids.append(card.card_id)
+## Save the full deck state across all piles (for world transitions).
+func save_deck_state() -> Dictionary:
+	var state := {}
+	state["hand"] = []
 	for card in hand:
-		ids.append(card.card_id)
+		state["hand"].append(card.card_id)
+	state["draw_pile"] = []
+	for card in draw_pile:
+		state["draw_pile"].append(card.card_id)
+	state["discard_pile"] = []
 	for card in discard_pile:
-		ids.append(card.card_id)
+		state["discard_pile"].append(card.card_id)
+	state["jail_pile"] = []
 	for card in jail_pile:
-		ids.append(card.card_id)
+		state["jail_pile"].append(card.card_id)
+	state["maintained"] = []
 	for card in maintained_cards:
-		ids.append(card.card_id)
-	return ids
+		state["maintained"].append(card.card_id)
+	return state
 
-## Initialize deck from a saved list of card IDs (for restoring progression).
-func initialize_deck_from_ids(card_ids: Array) -> void:
+## Restore deck state from saved piles (preserves hand, draw, discard, jail exactly).
+func restore_deck_state(state: Dictionary) -> void:
 	draw_pile.clear()
 	hand.clear()
 	discard_pile.clear()
 	jail_pile.clear()
 	maintained_cards.clear()
 	peaked_card = null
-	for card_id in card_ids:
+	for card_id in state.get("draw_pile", []):
 		var card = _create_card_from_id(card_id)
 		if card:
 			draw_pile.append(card)
-	shuffle_draw_pile()
-	for i in range(min(get_hand_cap(), draw_pile.size())):
-		draw_card()
-	print("[DECK] Restored from save with %d cards. Hand: %d" % [draw_pile.size() + hand.size(), hand.size()])
+	for card_id in state.get("hand", []):
+		var card = _create_card_from_id(card_id)
+		if card:
+			hand.append(card)
+	for card_id in state.get("discard_pile", []):
+		var card = _create_card_from_id(card_id)
+		if card:
+			discard_pile.append(card)
+	for card_id in state.get("jail_pile", []):
+		var card = _create_card_from_id(card_id)
+		if card:
+			jail_pile.append(card)
+	for card_id in state.get("maintained", []):
+		var card = _create_card_from_id(card_id)
+		if card:
+			maintained_cards.append(card)
+	hand_updated.emit()
+	print("[DECK] Restored deck state: hand=%d, draw=%d, discard=%d, jail=%d" % [hand.size(), draw_pile.size(), discard_pile.size(), jail_pile.size()])
 
 func initialize_deck(character: CharacterData) -> void:
 	draw_pile.clear()

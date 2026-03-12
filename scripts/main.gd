@@ -1429,7 +1429,7 @@ func select_character(character: CharacterData) -> void:
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	deck_manager.card_erased.connect(_on_card_erased)
 
-	character_panel.connect_stats(player.get_stats(), player.get_inventory())
+	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager)
 
 
 	deck_manager.initialize_deck(character)
@@ -6233,9 +6233,9 @@ func _restore_player_progression(progression: Dictionary) -> void:
 		sphere_inventory.upgrade_runes = inv_data.get("upgrade_runes", 0)
 		sphere_inventory.retrospective_tokens = inv_data.get("retrospective_tokens", 0)
 
-	# Restore deck from saved card IDs (replaces the default starter deck)
-	if progression.has("deck_card_ids") and progression["deck_card_ids"].size() > 0:
-		deck_manager.initialize_deck_from_ids(progression["deck_card_ids"])
+	# Restore deck state (preserves hand, draw, discard piles exactly)
+	if progression.has("deck_state") and not progression["deck_state"].is_empty():
+		deck_manager.restore_deck_state(progression["deck_state"])
 		_on_hand_updated()
 		update_deck_info()
 
@@ -6278,8 +6278,8 @@ func _save_player_progression() -> Dictionary:
 		"upgrade_runes": sphere_inv.upgrade_runes,
 		"retrospective_tokens": sphere_inv.retrospective_tokens,
 	}
-	# Deck card IDs (all piles combined — reshuffled on restore)
-	progression["deck_card_ids"] = deck_manager.get_all_card_ids()
+	# Deck state (each pile saved separately to preserve hand exactly)
+	progression["deck_state"] = deck_manager.save_deck_state()
 	# Equipped items and stored items (Resource objects survive scene change)
 	var inv = player.get_inventory()
 	if inv:
@@ -6294,10 +6294,12 @@ func _save_player_progression() -> Dictionary:
 			"equipped_quivers": inv.equipped_quivers.duplicate(),
 			"stored_items": inv.stored_items.duplicate(),
 		}
+	var deck_state = progression["deck_state"]
+	var total_cards = deck_state.get("hand", []).size() + deck_state.get("draw_pile", []).size() + deck_state.get("discard_pile", []).size() + deck_state.get("jail_pile", []).size()
 	print("[MAIN] Saved player progression: Level %d, %d passives, %d cards" % [
 		stats.current_level if stats else 0,
 		stats.skill_tree_passives.size() if stats else 0,
-		progression["deck_card_ids"].size(),
+		total_cards,
 	])
 	return progression
 

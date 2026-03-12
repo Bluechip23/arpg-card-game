@@ -4,6 +4,8 @@ extends CanvasLayer
 ## Character stats and equipment panel (toggle with I key)
 
 signal closed
+signal card_slotted(card: Card, item: ItemData)
+signal card_unslotted(card: Card, item: ItemData)
 
 @onready var panel: PanelContainer = $Panel
 @onready var name_label: Label = $Panel/MarginContainer/VBox/NameLabel
@@ -14,6 +16,7 @@ signal closed
 
 var player_stats: PlayerStats
 var inventory: Inventory
+var deck_manager = null  # DeckManager - untyped to avoid circular dependency
 var item_tooltip: ItemTooltip
 var _original_tooltip_parent: Node = null
 
@@ -23,6 +26,10 @@ var _detail_item: ItemData = null
 var _detail_item_type: ItemData.ItemType = ItemData.ItemType.HELM
 var _detail_slot_index: int = -1
 var _detail_storage_index: int = -1  # >= 0 means stored item, -1 means equipped
+
+# Card slot management panel state
+var _card_slot_panel: PanelContainer = null
+var _card_slot_item: ItemData = null
 
 func _ready() -> void:
 	layer = 100
@@ -108,9 +115,10 @@ func _apply_button_styles() -> void:
 	btn_hover.corner_radius_bottom_right = 4
 	close_button.add_theme_stylebox_override("hover", btn_hover)
 
-func connect_stats(stats: PlayerStats, inv: Inventory) -> void:
+func connect_stats(stats: PlayerStats, inv: Inventory, dm = null) -> void:
 	player_stats = stats
 	inventory = inv
+	deck_manager = dm
 
 	if player_stats:
 		player_stats.health_changed.connect(_on_stats_changed)
@@ -129,6 +137,7 @@ func show_panel() -> void:
 
 func hide_panel() -> void:
 	_close_detail_panel()
+	_close_card_slot_panel()
 	panel.visible = false
 
 func toggle_panel() -> void:
@@ -304,13 +313,17 @@ func _add_equipment_section(section_name: String, slot_data: Dictionary, item_ty
 			skill_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 			equipment_container.add_child(skill_label)
 
-		# Card slot info
+		# Card slot info (clickable to open card slot manager)
 		if item.has_card_slots():
-			var slot_header := Label.new()
-			slot_header.text = "    Cards: %d/%d" % [item.slotted_cards.size(), item.card_slots]
-			slot_header.add_theme_font_size_override("font_size", 11)
-			slot_header.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
-			equipment_container.add_child(slot_header)
+			var slot_btn := Button.new()
+			slot_btn.text = "    Cards: %d/%d" % [item.slotted_cards.size(), item.card_slots]
+			slot_btn.flat = true
+			slot_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			slot_btn.add_theme_font_size_override("font_size", 11)
+			slot_btn.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
+			slot_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.8, 1.0))
+			slot_btn.pressed.connect(_open_card_slot_panel.bind(item))
+			equipment_container.add_child(slot_btn)
 
 			for card in item.slotted_cards:
 				var card_label := Label.new()
@@ -459,6 +472,12 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		unequip_btn.pressed.connect(_on_unequip_item)
 		vbox.add_child(unequip_btn)
 
+	# Card slot management button (for equipped items with card slots)
+	if item.has_card_slots() and storage_index < 0:
+		var card_btn = _make_action_button("Manage Cards (%d/%d)" % [item.slotted_cards.size(), item.card_slots], Color(0.2, 0.15, 0.3), Color(0.6, 0.4, 0.9))
+		card_btn.pressed.connect(_open_card_slot_panel.bind(item))
+		vbox.add_child(card_btn)
+
 	# Close button
 	var close_btn = _make_action_button("Close", Color(0.15, 0.15, 0.2), Color(0.35, 0.35, 0.5))
 	close_btn.pressed.connect(_close_detail_panel)
@@ -548,6 +567,243 @@ func _close_detail_panel() -> void:
 	_detail_item = null
 	_detail_slot_index = -1
 	_detail_storage_index = -1
+
+# ============================================
+# CARD SLOT MANAGEMENT PANEL
+# ============================================
+
+func _open_card_slot_panel(item: ItemData) -> void:
+	_close_card_slot_panel()
+	_close_detail_panel()
+	_card_slot_item = item
+
+	_card_slot_panel = PanelContainer.new()
+	_card_slot_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.06, 0.14, 1.0)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.6, 0.4, 0.9)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 10.0
+	style.content_margin_bottom = 10.0
+	_card_slot_panel.add_theme_stylebox_override("panel", style)
+
+	var scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(300, 0)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_card_slot_panel.add_child(scroll)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+
+	# Header
+	var title = Label.new()
+	title.text = "%s - Card Slots (%d/%d)" % [item.item_name, item.slotted_cards.size(), item.card_slots]
+	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
+	vbox.add_child(title)
+
+	# Keyword restriction info
+	if item.allowed_card_keywords.size() > 0:
+		var restrict_label = Label.new()
+		var keyword_names: Array[String] = []
+		for kw in item.allowed_card_keywords:
+			match kw:
+				1: keyword_names.append("Arrow")  # Card.CardKeyword.ARROW
+				2: keyword_names.append("Pocket")
+				3: keyword_names.append("Gem")
+				4: keyword_names.append("Chisel")
+		restrict_label.text = "Accepts: %s cards only" % ", ".join(keyword_names)
+		restrict_label.add_theme_font_size_override("font_size", 11)
+		restrict_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
+		vbox.add_child(restrict_label)
+
+	vbox.add_child(_make_separator())
+
+	# === SLOTTED CARDS SECTION ===
+	var slotted_header = Label.new()
+	slotted_header.text = "SLOTTED CARDS"
+	slotted_header.add_theme_font_size_override("font_size", 11)
+	slotted_header.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
+	vbox.add_child(slotted_header)
+
+	if item.slotted_cards.size() == 0:
+		var empty_label = Label.new()
+		empty_label.text = "  (No cards slotted)"
+		empty_label.add_theme_font_size_override("font_size", 12)
+		empty_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
+		vbox.add_child(empty_label)
+	else:
+		for i in range(item.slotted_cards.size()):
+			var card = item.slotted_cards[i]
+			var row_hbox = HBoxContainer.new()
+			row_hbox.add_theme_constant_override("separation", 6)
+
+			var card_label = Label.new()
+			var tag = " [Molded]" if card.is_molded else " [%s]" % card.get_slot_keyword()
+			card_label.text = "%s%s" % [card.card_name, tag]
+			card_label.add_theme_font_size_override("font_size", 12)
+			card_label.add_theme_color_override("font_color", Color(0.7, 0.55, 0.9))
+			card_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row_hbox.add_child(card_label)
+
+			if not card.is_molded:
+				var remove_btn = Button.new()
+				remove_btn.text = "Remove"
+				remove_btn.add_theme_font_size_override("font_size", 11)
+				remove_btn.custom_minimum_size = Vector2(70, 24)
+				var btn_style = StyleBoxFlat.new()
+				btn_style.bg_color = Color(0.35, 0.15, 0.15)
+				btn_style.border_color = Color(0.7, 0.35, 0.35)
+				btn_style.border_width_left = 1
+				btn_style.border_width_right = 1
+				btn_style.border_width_top = 1
+				btn_style.border_width_bottom = 1
+				btn_style.corner_radius_top_left = 3
+				btn_style.corner_radius_top_right = 3
+				btn_style.corner_radius_bottom_left = 3
+				btn_style.corner_radius_bottom_right = 3
+				remove_btn.add_theme_stylebox_override("normal", btn_style)
+				var btn_hover = btn_style.duplicate()
+				btn_hover.bg_color = Color(0.45, 0.2, 0.2)
+				remove_btn.add_theme_stylebox_override("hover", btn_hover)
+				remove_btn.pressed.connect(_on_unslot_card.bind(item, i))
+				row_hbox.add_child(remove_btn)
+
+			vbox.add_child(row_hbox)
+
+	vbox.add_child(_make_separator())
+
+	# === AVAILABLE CARDS SECTION ===
+	var avail_header = Label.new()
+	avail_header.text = "AVAILABLE CARDS FROM DECK"
+	avail_header.add_theme_font_size_override("font_size", 11)
+	avail_header.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
+	vbox.add_child(avail_header)
+
+	var free_slots = item.get_free_card_slots()
+	if free_slots <= 0:
+		var full_label = Label.new()
+		full_label.text = "  (All slots filled)"
+		full_label.add_theme_font_size_override("font_size", 12)
+		full_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
+		vbox.add_child(full_label)
+	elif deck_manager:
+		# Gather all cards from all piles that can be slotted
+		var available_cards: Array = []
+		for card in deck_manager.draw_pile:
+			if item.can_slot_card(card) and not card.is_slotted():
+				available_cards.append(card)
+		for card in deck_manager.hand:
+			if item.can_slot_card(card) and not card.is_slotted():
+				available_cards.append(card)
+		for card in deck_manager.discard_pile:
+			if item.can_slot_card(card) and not card.is_slotted():
+				available_cards.append(card)
+
+		if available_cards.size() == 0:
+			var none_label = Label.new()
+			none_label.text = "  (No compatible cards in deck)"
+			none_label.add_theme_font_size_override("font_size", 12)
+			none_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
+			vbox.add_child(none_label)
+		else:
+			for card in available_cards:
+				var row_hbox = HBoxContainer.new()
+				row_hbox.add_theme_constant_override("separation", 6)
+
+				var card_label = Label.new()
+				var info = card.card_name
+				if card.card_keyword != 0:  # Not NONE
+					var kw_name = ""
+					match card.card_keyword:
+						1: kw_name = "Arrow"
+						2: kw_name = "Pocket"
+						3: kw_name = "Gem"
+						4: kw_name = "Chisel"
+					info += " [%s]" % kw_name
+				card_label.text = info
+				card_label.add_theme_font_size_override("font_size", 12)
+				card_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))
+				card_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row_hbox.add_child(card_label)
+
+				var slot_btn = Button.new()
+				slot_btn.text = "Slot"
+				slot_btn.add_theme_font_size_override("font_size", 11)
+				slot_btn.custom_minimum_size = Vector2(60, 24)
+				var btn_style2 = StyleBoxFlat.new()
+				btn_style2.bg_color = Color(0.15, 0.2, 0.35)
+				btn_style2.border_color = Color(0.4, 0.5, 0.9)
+				btn_style2.border_width_left = 1
+				btn_style2.border_width_right = 1
+				btn_style2.border_width_top = 1
+				btn_style2.border_width_bottom = 1
+				btn_style2.corner_radius_top_left = 3
+				btn_style2.corner_radius_top_right = 3
+				btn_style2.corner_radius_bottom_left = 3
+				btn_style2.corner_radius_bottom_right = 3
+				slot_btn.add_theme_stylebox_override("normal", btn_style2)
+				var btn_hover2 = btn_style2.duplicate()
+				btn_hover2.bg_color = Color(0.2, 0.25, 0.45)
+				slot_btn.add_theme_stylebox_override("hover", btn_hover2)
+				slot_btn.pressed.connect(_on_slot_card.bind(card, item))
+				row_hbox.add_child(slot_btn)
+
+				vbox.add_child(row_hbox)
+
+	vbox.add_child(_make_separator())
+
+	# Close button
+	var close_btn = _make_action_button("Close", Color(0.15, 0.15, 0.2), Color(0.35, 0.35, 0.5))
+	close_btn.pressed.connect(_close_card_slot_panel)
+	vbox.add_child(close_btn)
+
+	# Position to left of character panel
+	panel.add_sibling(_card_slot_panel)
+	_card_slot_panel.anchors_preset = Control.PRESET_TOP_RIGHT
+	_card_slot_panel.anchor_left = 1.0
+	_card_slot_panel.anchor_right = 1.0
+	_card_slot_panel.anchor_top = 0.0
+	_card_slot_panel.anchor_bottom = 1.0
+	_card_slot_panel.offset_left = -620.0
+	_card_slot_panel.offset_right = -305.0
+	_card_slot_panel.offset_top = 20.0
+	_card_slot_panel.offset_bottom = -20.0
+
+func _on_slot_card(card: Card, item: ItemData) -> void:
+	if not inventory:
+		return
+	if inventory.enchant_card(card, item):
+		card_slotted.emit(card, item)
+		_open_card_slot_panel(item)  # Refresh the panel
+		update_display()
+
+func _on_unslot_card(item: ItemData, card_index: int) -> void:
+	if not inventory:
+		return
+	var card = inventory.extract_card(item, card_index)
+	if card:
+		card_unslotted.emit(card, item)
+		_open_card_slot_panel(item)  # Refresh the panel
+		update_display()
+
+func _close_card_slot_panel() -> void:
+	if _card_slot_panel and is_instance_valid(_card_slot_panel):
+		_card_slot_panel.queue_free()
+	_card_slot_panel = null
+	_card_slot_item = null
 
 func _build_item_stats_text(item: ItemData) -> String:
 	var lines: Array[String] = []

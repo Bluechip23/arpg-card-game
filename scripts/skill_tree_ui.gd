@@ -716,8 +716,14 @@ func _choose_option(level: int, option_index: int) -> void:
 	var row = skill_tree.get_row_for_level(level)
 	if not row or row.is_chosen():
 		return
+	if option_index < 0 or option_index >= row.options.size():
+		return
+	_open_confirm_dialog(level, option_index, row.options[option_index])
 
+func _confirm_option(level: int, option_index: int) -> void:
+	_close_confirm_dialog()
 	if skill_tree.choose_option(level, option_index):
+		var row = skill_tree.get_row_for_level(level)
 		print("[SKILL TREE] Chose option %d for level %d: %s" % [option_index + 1, level, row.options[option_index].name])
 		option_chosen.emit(level, option_index)
 		_rebuild_table()
@@ -930,6 +936,99 @@ func _close_stat_alloc_panel() -> void:
 		_stat_alloc_panel.queue_free()
 	_stat_alloc_panel = null
 	_stat_alloc_level = -1
+
+# ============================================
+# OPTION CONFIRM DIALOG
+# ============================================
+
+var _confirm_panel: PanelContainer = null
+
+func _open_confirm_dialog(level: int, option_index: int, option: SkillTreeData.SkillOption) -> void:
+	_close_confirm_dialog()
+
+	_confirm_panel = PanelContainer.new()
+	_confirm_panel.z_index = 15
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.06, 0.12, 0.98)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.9, 0.85, 0.4)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_left = 20.0
+	style.content_margin_right = 20.0
+	style.content_margin_top = 16.0
+	style.content_margin_bottom = 16.0
+	_confirm_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+
+	var title = Label.new()
+	title.text = "Confirm Selection"
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.4))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var type_label = Label.new()
+	type_label.text = "[%s]" % option.get_type_label()
+	type_label.add_theme_font_size_override("font_size", 12)
+	type_label.add_theme_color_override("font_color", _get_type_color(option.option_type))
+	type_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(type_label)
+
+	var name_label = Label.new()
+	name_label.text = option.name
+	name_label.add_theme_font_size_override("font_size", 15)
+	name_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_label)
+
+	var desc_label = Label.new()
+	desc_label.text = option.description
+	desc_label.add_theme_font_size_override("font_size", 12)
+	desc_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_label.custom_minimum_size.x = 300
+	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(desc_label)
+
+	var spacer = Control.new()
+	spacer.custom_minimum_size.y = 4
+	vbox.add_child(spacer)
+
+	var button_hbox = HBoxContainer.new()
+	button_hbox.add_theme_constant_override("separation", 12)
+	button_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	var cancel_btn = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.custom_minimum_size = Vector2(100, 32)
+	cancel_btn.pressed.connect(_close_confirm_dialog)
+	button_hbox.add_child(cancel_btn)
+
+	var confirm_btn = Button.new()
+	confirm_btn.text = "Confirm"
+	confirm_btn.custom_minimum_size = Vector2(100, 32)
+	confirm_btn.pressed.connect(_confirm_option.bind(level, option_index))
+	button_hbox.add_child(confirm_btn)
+
+	vbox.add_child(button_hbox)
+	_confirm_panel.add_child(vbox)
+
+	panel.add_child(_confirm_panel)
+	_confirm_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_confirm_panel.position = panel.size / 2 - _confirm_panel.size / 2
+
+func _close_confirm_dialog() -> void:
+	if is_instance_valid(_confirm_panel):
+		_confirm_panel.queue_free()
+	_confirm_panel = null
 
 # ============================================
 # HELPERS
