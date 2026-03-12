@@ -53,6 +53,10 @@ var discovered_waypoints: Array = []
 # { "kill_counts": { "Wererat": 3, ... }, "accepted_ids": ["olorin_kill_wererats"], "completed_ids": [] }
 var quest_state: Dictionary = {}
 
+# Player progression that persists across world transitions
+# Contains: player_stats snapshot, skill_tree object, sphere_grid object, sphere inventory data
+var player_progression: Dictionary = {}
+
 # Waypoint teleport menu state
 var _waypoint_menu_panel: PanelContainer = null
 var _waypoint_menu_visible: bool = false
@@ -224,7 +228,11 @@ func _ready() -> void:
 		select_character(starting_character)
 	else:
 		select_character(CharacterData.create_ryan())
-	
+
+	# Restore player progression from a world transition (level, stats, passives, sphere grid, etc.)
+	if not player_progression.is_empty():
+		_restore_player_progression(player_progression)
+
 	# Style the hand area with solid background so battlefield doesn't bleed through
 	_setup_hand_area_background()
 	_setup_deck_list_button()
@@ -2334,18 +2342,15 @@ func _on_skill_tree_option_chosen(level: int, option_index: int) -> void:
 	## Called when the player chooses one of the 4 options in a skill tree row.
 	var tree = skill_tree_ui.skill_tree
 	if not tree:
-		print("[MAIN] ERROR: skill_tree_ui.skill_tree is null!")
 		return
 	var row = tree.get_row_for_level(level)
 	if not row:
-		print("[MAIN] ERROR: no row for level %d" % level)
 		return
 	var option = row.get_chosen_option()
 	if not option:
-		print("[MAIN] ERROR: no chosen option for level %d (chosen_index=%d)" % [level, row.chosen_index])
 		return
 
-	print("[MAIN] Skill tree choice at level %d: %s (%s, type=%d, passive_id='%s')" % [level, option.name, option.get_type_label(), option.option_type, option.passive_id])
+	print("[MAIN] Skill tree choice at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
 	_apply_skill_tree_option(option)
 
 func _on_skill_tree_auto_grant_claimed(level: int) -> void:
@@ -2369,10 +2374,8 @@ func _apply_skill_tree_option(option) -> void:
 	## Applies a chosen skill tree option's effect to the player.
 	var stats = player.get_stats()
 	if not stats:
-		print("[MAIN] ERROR: _apply_skill_tree_option - stats is null!")
 		return
 
-	print("[MAIN] _apply_skill_tree_option: name='%s', type=%d, PASSIVE=%d, PASSIVE_MUTATION=%d" % [option.name, option.option_type, SkillTreeData.OptionType.PASSIVE, SkillTreeData.OptionType.PASSIVE_MUTATION])
 	if option.option_type == SkillTreeData.OptionType.PASSIVE or option.option_type == SkillTreeData.OptionType.PASSIVE_MUTATION:
 		var pid = option.passive_id
 		if pid == "":
@@ -2608,7 +2611,6 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 		return
 
 	# Enraged Will: below 10% HP → Reach AOE swing (1 base + 1 Reach = 2 range) + gain 1 mana per kill
-	print("[BRAD] on_damage_taken: passives=%s, has enraged_will=%s, hp%%=%.2f" % [str(stats.skill_tree_passives), stats.has_skill_tree_passive("enraged_will"), stats.get_health_percent()])
 	if stats.has_skill_tree_passive("enraged_will"):
 		if stats.get_health_percent() <= 0.10 and stats.current_health > 0:
 			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 2.0) if enemy_spawner else []
@@ -2635,7 +2637,6 @@ func _trigger_skill_tree_brad_on_attacked(attacker) -> void:
 		return
 
 	# In the Trenches: when attacked from adjacent, knock attacker back (consumes 1 charge)
-	print("[BRAD] on_attacked: passives=%s, has in_the_trenches=%s" % [str(stats.skill_tree_passives), stats.has_skill_tree_passive("in_the_trenches")])
 	if stats.has_skill_tree_passive("in_the_trenches"):
 		_itt_try_refresh_charges(stats)
 		if stats.st_itt_charges > 0:
@@ -6208,26 +6209,84 @@ func _teleport_to_waypoint(target: String, world: int) -> void:
 			else:
 				_travel_to_world(world)
 
+func _restore_player_progression(progression: Dictionary) -> void:
+	## Restore persistent player state after a world transition.
+	var stats = player.get_stats()
+
+	# Restore stats (level, XP, base stats, sphere bonuses, skill tree passives)
+	if stats and progression.has("stats"):
+		stats.restore_progression(progression["stats"])
+
+	# Restore skill tree with all previous choices intact
+	if progression.has("skill_tree") and progression["skill_tree"] != null:
+		skill_tree_ui.set_skill_tree(progression["skill_tree"])
+		skill_tree_ui.set_player_level(stats.current_level if stats else 1)
+
+	# Restore sphere grid with all unlocked nodes intact
+	if progression.has("sphere_grid") and progression["sphere_grid"] != null:
+		sphere_grid_ui.sphere_grid = progression["sphere_grid"]
+
+	# Restore sphere inventory counts
+	if progression.has("sphere_inventory"):
+		var inv_data = progression["sphere_inventory"]
+		sphere_inventory.spheres = inv_data.get("spheres", sphere_inventory.spheres)
+		sphere_inventory.upgrade_runes = inv_data.get("upgrade_runes", 0)
+		sphere_inventory.retrospective_tokens = inv_data.get("retrospective_tokens", 0)
+
+	# Update UI displays
+	_on_player_health_changed(stats.current_health, stats.max_health)
+	_on_player_mana_changed(stats.current_mana, stats.max_mana)
+	_update_xp_display()
+	print("[MAIN] Player progression restored: Level %d, World %d" % [stats.current_level, current_world_level])
+
+func _save_player_progression() -> Dictionary:
+	## Capture all persistent player state before a world transition.
+	var stats = player.get_stats()
+	var progression := {}
+	if stats:
+		progression["stats"] = stats.save_progression()
+	# Skill tree with all chosen options (RefCounted — survives scene change)
+	progression["skill_tree"] = skill_tree_ui.skill_tree
+	# Sphere grid with all unlocked nodes (Resource — survives scene change)
+	progression["sphere_grid"] = sphere_grid_ui.sphere_grid
+	# Sphere inventory counts (Node gets destroyed, so snapshot the data)
+	var sphere_inv: SphereInventory = sphere_inventory
+	progression["sphere_inventory"] = {
+		"spheres": sphere_inv.spheres.duplicate(),
+		"upgrade_runes": sphere_inv.upgrade_runes,
+		"retrospective_tokens": sphere_inv.retrospective_tokens,
+	}
+	print("[MAIN] Saved player progression: Level %d, %d passives" % [
+		stats.current_level if stats else 0,
+		stats.skill_tree_passives.size() if stats else 0,
+	])
+	return progression
+
 func _travel_to_town() -> void:
 	print("[MAIN] Traveling to town!")
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	var saved_progression = _save_player_progression()
 	var town_scene = load("res://scenes/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
 	if "discovered_waypoints" in town_scene:
 		town_scene.discovered_waypoints = discovered_waypoints
 	if "quest_state" in town_scene:
 		town_scene.quest_state = saved_quest_state
+	if "player_progression" in town_scene:
+		town_scene.player_progression = saved_progression
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
 func _travel_to_world(level: int) -> void:
 	print("[MAIN] Traveling to World %d!" % level)
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	var saved_progression = _save_player_progression()
 	var main_scene = load("res://main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.current_world_level = level
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = saved_progression
 	get_tree().root.add_child(main_scene)
 	queue_free()
 
