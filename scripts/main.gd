@@ -3010,11 +3010,11 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 
 			# Check if all 3 types played
 			if stats.st_budding_types.has("attack") and stats.st_budding_types.has("defense") and stats.st_budding_types.has("utility"):
-				stats.heal(2)
-				stats.add_armor(3)  # Temp HP represented as armor
+				stats.heal(3)
+				stats.add_temp_health(5, 15)
 				stats.st_budding_types.clear()
 				stats.st_budding_last_type = ""
-				add_battle_log("Budding: healed 2, +3 temp HP!", Color(0.8, 0.4, 0.9))
+				add_battle_log("Budding: healed 3, +5 temp HP!", Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
 	var stats = player.get_stats()
@@ -3060,12 +3060,12 @@ func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> voi
 	if not stats:
 		return
 
-	# Serial Killer: first time enemy drops below 10% HP → player invisible to them
+	# Serial Killer: first time enemy drops below 25% HP → player invisible to them
 	if stats.has_skill_tree_passive("serial_killer") and enemy.is_alive():
 		var enemy_id = enemy.get_instance_id()
 		if enemy_id not in stats.st_serial_killer_enemies:
 			var hp_pct = float(enemy.current_health) / float(enemy.max_health)
-			if hp_pct <= 0.10:
+			if hp_pct <= 0.25:
 				stats.st_serial_killer_enemies[enemy_id] = true
 				# Make this enemy lose sight of the player by resetting its target
 				enemy.target = null

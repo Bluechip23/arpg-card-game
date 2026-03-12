@@ -6,6 +6,7 @@ extends Node
 signal health_changed(current: int, max_val: int)
 signal mana_changed(current: float, max_val: int)
 signal armor_changed(current: int)
+signal temp_health_changed(current: int)
 signal died
 signal dexterity_proc
 signal stats_updated
@@ -60,6 +61,9 @@ var _tempo_until_mana_regen: float = 0.0
 
 var current_armor: int = 0
 var armor_decay_per_cycle: int = 2
+
+var current_temp_health: int = 0
+var temp_health_tempo_remaining: int = 0
 
 # ============================================
 # BUFF TRACKING
@@ -211,6 +215,8 @@ func initialize(data: CharacterData) -> void:
 	
 	# Reset runtime values
 	current_armor = 0
+	current_temp_health = 0
+	temp_health_tempo_remaining = 0
 	current_carry_load = 0
 	empowered_cards_remaining = 0
 	chance_boost = 0.0
@@ -555,6 +561,15 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 			current_armor = max(0, current_armor - decay)
 			armor_changed.emit(current_armor)
 
+	# Temp health expiry
+	if current_temp_health > 0 and temp_health_tempo_remaining > 0:
+		temp_health_tempo_remaining -= 5
+		if temp_health_tempo_remaining <= 0:
+			current_temp_health = 0
+			temp_health_tempo_remaining = 0
+			temp_health_changed.emit(current_temp_health)
+			print("[STATS] Temp HP expired")
+
 	# Tick healing boost
 	if healing_boost_tempo > 0:
 		healing_boost_tempo -= 5
@@ -583,6 +598,18 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 	if buff_mgr:
 		remaining = buff_mgr.calculate_damage_reduction(remaining)
 	
+	# Temp health absorbs damage first
+	if current_temp_health > 0 and remaining > 0:
+		if current_temp_health >= remaining:
+			current_temp_health -= remaining
+			remaining = 0
+			print("[STATS] Temp HP absorbed damage. Temp HP: %d" % current_temp_health)
+		else:
+			remaining -= current_temp_health
+			current_temp_health = 0
+			print("[STATS] Temp HP broke! %d damage passes through" % remaining)
+		temp_health_changed.emit(current_temp_health)
+
 	# Armor absorption with Exposed modifier
 	if current_armor > 0:
 		var armor_effectiveness = 1.0
@@ -692,6 +719,12 @@ func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 	print("[STATS] Gained %d armor (incl. bolster/enchantment)! Armor: %d" % [total, current_armor])
 	if inventory:
 		inventory.on_armor_gained(total)
+
+func add_temp_health(amount: int, duration_tempo: int) -> void:
+	current_temp_health += amount
+	temp_health_tempo_remaining = max(temp_health_tempo_remaining, duration_tempo)
+	temp_health_changed.emit(current_temp_health)
+	print("[STATS] Gained %d temp HP (duration: %d tempo)! Temp HP: %d" % [amount, duration_tempo, current_temp_health])
 
 func spend_mana(amount: int) -> bool:
 	if current_mana >= amount:
