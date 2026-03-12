@@ -2334,15 +2334,18 @@ func _on_skill_tree_option_chosen(level: int, option_index: int) -> void:
 	## Called when the player chooses one of the 4 options in a skill tree row.
 	var tree = skill_tree_ui.skill_tree
 	if not tree:
+		print("[MAIN] ERROR: skill_tree_ui.skill_tree is null!")
 		return
 	var row = tree.get_row_for_level(level)
 	if not row:
+		print("[MAIN] ERROR: no row for level %d" % level)
 		return
 	var option = row.get_chosen_option()
 	if not option:
+		print("[MAIN] ERROR: no chosen option for level %d (chosen_index=%d)" % [level, row.chosen_index])
 		return
 
-	print("[MAIN] Skill tree choice at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
+	print("[MAIN] Skill tree choice at level %d: %s (%s, type=%d, passive_id='%s')" % [level, option.name, option.get_type_label(), option.option_type, option.passive_id])
 	_apply_skill_tree_option(option)
 
 func _on_skill_tree_auto_grant_claimed(level: int) -> void:
@@ -2366,8 +2369,10 @@ func _apply_skill_tree_option(option) -> void:
 	## Applies a chosen skill tree option's effect to the player.
 	var stats = player.get_stats()
 	if not stats:
+		print("[MAIN] ERROR: _apply_skill_tree_option - stats is null!")
 		return
 
+	print("[MAIN] _apply_skill_tree_option: name='%s', type=%d, PASSIVE=%d, PASSIVE_MUTATION=%d" % [option.name, option.option_type, SkillTreeData.OptionType.PASSIVE, SkillTreeData.OptionType.PASSIVE_MUTATION])
 	if option.option_type == SkillTreeData.OptionType.PASSIVE or option.option_type == SkillTreeData.OptionType.PASSIVE_MUTATION:
 		var pid = option.passive_id
 		if pid == "":
@@ -2603,6 +2608,7 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 		return
 
 	# Enraged Will: below 10% HP → Reach AOE swing (1 base + 1 Reach = 2 range) + gain 1 mana per kill
+	print("[BRAD] on_damage_taken: passives=%s, has enraged_will=%s, hp%%=%.2f" % [str(stats.skill_tree_passives), stats.has_skill_tree_passive("enraged_will"), stats.get_health_percent()])
 	if stats.has_skill_tree_passive("enraged_will"):
 		if stats.get_health_percent() <= 0.10 and stats.current_health > 0:
 			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 2.0) if enemy_spawner else []
@@ -2629,6 +2635,7 @@ func _trigger_skill_tree_brad_on_attacked(attacker) -> void:
 		return
 
 	# In the Trenches: when attacked from adjacent, knock attacker back (consumes 1 charge)
+	print("[BRAD] on_attacked: passives=%s, has in_the_trenches=%s" % [str(stats.skill_tree_passives), stats.has_skill_tree_passive("in_the_trenches")])
 	if stats.has_skill_tree_passive("in_the_trenches"):
 		_itt_try_refresh_charges(stats)
 		if stats.st_itt_charges > 0:
