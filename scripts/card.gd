@@ -4,7 +4,7 @@ extends Resource
 ## Card resource that holds card data
 
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
-enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL }
+enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL, SWIFT, BUCKLER, CROWN, FIST }
 
 @export var card_id: String = "slash"
 @export var card_name: String = "Slash"
@@ -298,8 +298,12 @@ static func get_keyword_definitions() -> Dictionary:
 		# Card Keywords
 		"arrow": "Requires a bow/quiver to slot. Ranged bow attack card",
 		"pocket": "Small items like daggers and potions. Slots into belts",
-		"gem": "Gem cards for special equipment slots like gauntlets and rings",
+		"gem": "Gem cards for rings",
 		"chisel": "Card must be slotted in an item to be played. Cannot be played from hand alone",
+		"swift": "Agility and movement cards. Slots into boots",
+		"buckler": "Defensive technique cards. Slots into shields",
+		"crown": "Mental and aura cards. Slots into helmets",
+		"fist": "Unarmed combat cards. Slots into gauntlets",
 	}
 
 ## Scans this card's properties and description for matching keywords.
@@ -1771,6 +1775,7 @@ static func create_poke() -> Card:
 	card.damage = 2
 	card.base_damage = 2
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.FIST
 	return card
 
 static func create_armor_break() -> Card:
@@ -2496,6 +2501,7 @@ static func create_trip() -> Card:
 	card.damage = 5
 	card.base_damage = 5
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.FIST
 	return card
 
 static func create_choke() -> Card:
@@ -2511,6 +2517,7 @@ static func create_choke() -> Card:
 	card.duration = 3
 	card.is_ranged = true
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.FIST
 	return card
 
 static func create_push() -> Card:
@@ -2525,6 +2532,7 @@ static func create_push() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 1
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.FIST
 	return card
 
 static func create_defensive_awareness() -> Card:
@@ -2553,6 +2561,7 @@ static func create_sweeping_disarm() -> Card:
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_types = ["all_nearby"]
+	card.card_keyword = CardKeyword.FIST
 	return card
 
 static func create_consecutive_snap() -> Card:
@@ -2570,6 +2579,7 @@ static func create_consecutive_snap() -> Card:
 	card.is_ranged = true
 	card.range_modifier = -2
 	card.target_types = ["enemy"]
+	card.card_keyword = CardKeyword.FIST
 	return card
 
 static func create_swap() -> Card:
@@ -2998,6 +3008,7 @@ static func create_bob_and_weave() -> Card:
 	card.base_block = 5
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.card_keyword = CardKeyword.FIST
 	return card
 
 func _execute_bob_and_weave(player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:
