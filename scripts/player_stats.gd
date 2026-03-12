@@ -227,8 +227,99 @@ func initialize(data: CharacterData) -> void:
 	health_changed.emit(current_health, max_health)
 	mana_changed.emit(current_mana, max_mana)
 	armor_changed.emit(current_armor)
-	
+
 	_print_stats()
+
+## Capture all persistent progression state into a dictionary for world transitions.
+## This preserves everything that accumulates during gameplay and must survive scene changes.
+func save_progression() -> Dictionary:
+	return {
+		# Level / XP
+		"current_level": current_level,
+		"current_xp": current_xp,
+		"total_xp": total_xp,
+		"gold": gold,
+		# Base stats (may have been boosted by sphere grid / skill tree)
+		"base_strength": base_strength,
+		"base_dexterity": base_dexterity,
+		"base_intelligence": base_intelligence,
+		"base_wisdom": base_wisdom,
+		"base_agility": base_agility,
+		"determination": determination,
+		# Resource caps (sphere grid can raise these)
+		"max_health": max_health,
+		"current_health": current_health,
+		"max_mana": max_mana,
+		"current_mana": current_mana,
+		"current_armor": current_armor,
+		"base_mana_regen": base_mana_regen,
+		"base_draw_timer": base_draw_timer,
+		# Sphere grid bonuses
+		"sphere_grid_passives": sphere_grid_passives.duplicate(true),
+		"sphere_bonus_strength": sphere_bonus_strength,
+		"sphere_bonus_dexterity": sphere_bonus_dexterity,
+		"sphere_bonus_intelligence": sphere_bonus_intelligence,
+		"sphere_bonus_wisdom": sphere_bonus_wisdom,
+		"sphere_bonus_agility": sphere_bonus_agility,
+		"sphere_bonus_health": sphere_bonus_health,
+		"sphere_bonus_mana": sphere_bonus_mana,
+		"sphere_bonus_block": sphere_bonus_block,
+		"sphere_bonus_thorns": sphere_bonus_thorns,
+		"sphere_bonus_damage": sphere_bonus_damage,
+		"sphere_bonus_heal_power": sphere_bonus_heal_power,
+		"sphere_bonus_crit": sphere_bonus_crit,
+		"sphere_bonus_armor": sphere_bonus_armor,
+		# Skill tree passives
+		"skill_tree_passives": skill_tree_passives.duplicate(),
+	}
+
+## Restore persistent progression state from a dictionary after scene transition.
+func restore_progression(data: Dictionary) -> void:
+	if data.is_empty():
+		return
+	# Level / XP
+	current_level = data.get("current_level", current_level)
+	current_xp = data.get("current_xp", current_xp)
+	total_xp = data.get("total_xp", total_xp)
+	gold = data.get("gold", gold)
+	# Base stats
+	base_strength = data.get("base_strength", base_strength)
+	base_dexterity = data.get("base_dexterity", base_dexterity)
+	base_intelligence = data.get("base_intelligence", base_intelligence)
+	base_wisdom = data.get("base_wisdom", base_wisdom)
+	base_agility = data.get("base_agility", base_agility)
+	determination = data.get("determination", determination)
+	# Resources (preserve current HP/mana — no free heal on world transition)
+	max_health = data.get("max_health", max_health)
+	current_health = data.get("current_health", max_health)
+	max_mana = data.get("max_mana", max_mana)
+	current_mana = data.get("current_mana", max_mana)
+	current_armor = data.get("current_armor", 0)
+	base_mana_regen = data.get("base_mana_regen", base_mana_regen)
+	base_draw_timer = data.get("base_draw_timer", base_draw_timer)
+	# Sphere grid bonuses
+	sphere_grid_passives = data.get("sphere_grid_passives", sphere_grid_passives)
+	sphere_bonus_strength = data.get("sphere_bonus_strength", sphere_bonus_strength)
+	sphere_bonus_dexterity = data.get("sphere_bonus_dexterity", sphere_bonus_dexterity)
+	sphere_bonus_intelligence = data.get("sphere_bonus_intelligence", sphere_bonus_intelligence)
+	sphere_bonus_wisdom = data.get("sphere_bonus_wisdom", sphere_bonus_wisdom)
+	sphere_bonus_agility = data.get("sphere_bonus_agility", sphere_bonus_agility)
+	sphere_bonus_health = data.get("sphere_bonus_health", sphere_bonus_health)
+	sphere_bonus_mana = data.get("sphere_bonus_mana", sphere_bonus_mana)
+	sphere_bonus_block = data.get("sphere_bonus_block", sphere_bonus_block)
+	sphere_bonus_thorns = data.get("sphere_bonus_thorns", sphere_bonus_thorns)
+	sphere_bonus_damage = data.get("sphere_bonus_damage", sphere_bonus_damage)
+	sphere_bonus_heal_power = data.get("sphere_bonus_heal_power", sphere_bonus_heal_power)
+	sphere_bonus_crit = data.get("sphere_bonus_crit", sphere_bonus_crit)
+	sphere_bonus_armor = data.get("sphere_bonus_armor", sphere_bonus_armor)
+	# Skill tree passives
+	skill_tree_passives = data.get("skill_tree_passives", skill_tree_passives)
+	# Recalculate derived stats with restored values
+	recalculate_derived_stats()
+	health_changed.emit(current_health, max_health)
+	mana_changed.emit(current_mana, max_mana)
+	armor_changed.emit(current_armor)
+	print("[STATS] Progression restored: Level %d, XP %d, %d passives" % [current_level, current_xp, skill_tree_passives.size()])
 
 func recalculate_derived_stats() -> void:
 	var base_hand = character_data.base_hand_size if character_data else 6

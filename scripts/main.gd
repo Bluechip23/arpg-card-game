@@ -53,6 +53,10 @@ var discovered_waypoints: Array = []
 # { "kill_counts": { "Wererat": 3, ... }, "accepted_ids": ["olorin_kill_wererats"], "completed_ids": [] }
 var quest_state: Dictionary = {}
 
+# Player progression that persists across world transitions
+# Contains: player_stats snapshot, skill_tree object, sphere_grid object, sphere inventory data
+var player_progression: Dictionary = {}
+
 # Waypoint teleport menu state
 var _waypoint_menu_panel: PanelContainer = null
 var _waypoint_menu_visible: bool = false
@@ -224,7 +228,11 @@ func _ready() -> void:
 		select_character(starting_character)
 	else:
 		select_character(CharacterData.create_ryan())
-	
+
+	# Restore player progression from a world transition (level, stats, passives, sphere grid, etc.)
+	if not player_progression.is_empty():
+		_restore_player_progression(player_progression)
+
 	# Style the hand area with solid background so battlefield doesn't bleed through
 	_setup_hand_area_background()
 	_setup_deck_list_button()
@@ -6201,26 +6209,123 @@ func _teleport_to_waypoint(target: String, world: int) -> void:
 			else:
 				_travel_to_world(world)
 
+func _restore_player_progression(progression: Dictionary) -> void:
+	## Restore persistent player state after a world transition.
+	var stats = player.get_stats()
+
+	# Restore stats (level, XP, base stats, sphere bonuses, skill tree passives)
+	if stats and progression.has("stats"):
+		stats.restore_progression(progression["stats"])
+
+	# Restore skill tree with all previous choices intact
+	if progression.has("skill_tree") and progression["skill_tree"] != null:
+		skill_tree_ui.set_skill_tree(progression["skill_tree"])
+		skill_tree_ui.set_player_level(stats.current_level if stats else 1)
+
+	# Restore sphere grid with all unlocked nodes intact
+	if progression.has("sphere_grid") and progression["sphere_grid"] != null:
+		sphere_grid_ui.sphere_grid = progression["sphere_grid"]
+
+	# Restore sphere inventory counts
+	if progression.has("sphere_inventory"):
+		var inv_data = progression["sphere_inventory"]
+		sphere_inventory.spheres = inv_data.get("spheres", sphere_inventory.spheres)
+		sphere_inventory.upgrade_runes = inv_data.get("upgrade_runes", 0)
+		sphere_inventory.retrospective_tokens = inv_data.get("retrospective_tokens", 0)
+
+	# Restore deck from saved card IDs (replaces the default starter deck)
+	if progression.has("deck_card_ids") and progression["deck_card_ids"].size() > 0:
+		deck_manager.initialize_deck_from_ids(progression["deck_card_ids"])
+		_on_hand_updated()
+		update_deck_info()
+
+	# Restore equipped and stored items
+	if progression.has("inventory"):
+		var inv = player.get_inventory()
+		var inv_data = progression["inventory"]
+		if inv:
+			inv.equipped_helms = inv_data.get("equipped_helms", inv.equipped_helms)
+			inv.equipped_chests = inv_data.get("equipped_chests", inv.equipped_chests)
+			inv.equipped_rings = inv_data.get("equipped_rings", inv.equipped_rings)
+			inv.equipped_belts = inv_data.get("equipped_belts", inv.equipped_belts)
+			inv.equipped_boots = inv_data.get("equipped_boots", inv.equipped_boots)
+			inv.equipped_gauntlets = inv_data.get("equipped_gauntlets", inv.equipped_gauntlets)
+			inv.equipped_weapons = inv_data.get("equipped_weapons", inv.equipped_weapons)
+			inv.equipped_quivers = inv_data.get("equipped_quivers", inv.equipped_quivers)
+			inv.stored_items = inv_data.get("stored_items", inv.stored_items)
+			inv.equipment_changed.emit()
+
+	# Update UI displays
+	_on_player_health_changed(stats.current_health, stats.max_health)
+	_on_player_mana_changed(stats.current_mana, stats.max_mana)
+	_update_xp_display()
+	print("[MAIN] Player progression restored: Level %d, World %d" % [stats.current_level, current_world_level])
+
+func _save_player_progression() -> Dictionary:
+	## Capture all persistent player state before a world transition.
+	var stats = player.get_stats()
+	var progression := {}
+	if stats:
+		progression["stats"] = stats.save_progression()
+	# Skill tree with all chosen options (RefCounted — survives scene change)
+	progression["skill_tree"] = skill_tree_ui.skill_tree
+	# Sphere grid with all unlocked nodes (Resource — survives scene change)
+	progression["sphere_grid"] = sphere_grid_ui.sphere_grid
+	# Sphere inventory counts (Node gets destroyed, so snapshot the data)
+	var sphere_inv: SphereInventory = sphere_inventory
+	progression["sphere_inventory"] = {
+		"spheres": sphere_inv.spheres.duplicate(),
+		"upgrade_runes": sphere_inv.upgrade_runes,
+		"retrospective_tokens": sphere_inv.retrospective_tokens,
+	}
+	# Deck card IDs (all piles combined — reshuffled on restore)
+	progression["deck_card_ids"] = deck_manager.get_all_card_ids()
+	# Equipped items and stored items (Resource objects survive scene change)
+	var inv = player.get_inventory()
+	if inv:
+		progression["inventory"] = {
+			"equipped_helms": inv.equipped_helms.duplicate(),
+			"equipped_chests": inv.equipped_chests.duplicate(),
+			"equipped_rings": inv.equipped_rings.duplicate(),
+			"equipped_belts": inv.equipped_belts.duplicate(),
+			"equipped_boots": inv.equipped_boots.duplicate(),
+			"equipped_gauntlets": inv.equipped_gauntlets.duplicate(),
+			"equipped_weapons": inv.equipped_weapons.duplicate(),
+			"equipped_quivers": inv.equipped_quivers.duplicate(),
+			"stored_items": inv.stored_items.duplicate(),
+		}
+	print("[MAIN] Saved player progression: Level %d, %d passives, %d cards" % [
+		stats.current_level if stats else 0,
+		stats.skill_tree_passives.size() if stats else 0,
+		progression["deck_card_ids"].size(),
+	])
+	return progression
+
 func _travel_to_town() -> void:
 	print("[MAIN] Traveling to town!")
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	var saved_progression = _save_player_progression()
 	var town_scene = load("res://scenes/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
 	if "discovered_waypoints" in town_scene:
 		town_scene.discovered_waypoints = discovered_waypoints
 	if "quest_state" in town_scene:
 		town_scene.quest_state = saved_quest_state
+	if "player_progression" in town_scene:
+		town_scene.player_progression = saved_progression
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
 func _travel_to_world(level: int) -> void:
 	print("[MAIN] Traveling to World %d!" % level)
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	var saved_progression = _save_player_progression()
 	var main_scene = load("res://main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.current_world_level = level
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = saved_progression
 	get_tree().root.add_child(main_scene)
 	queue_free()
 

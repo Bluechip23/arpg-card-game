@@ -19,6 +19,7 @@ const INTERACT_DISTANCE: float = 2.5  # Max tiles from vendor to interact
 var starting_character: CharacterData = null
 var discovered_waypoints: Array = []
 var quest_state: Dictionary = {}
+var player_progression: Dictionary = {}
 var nearby_vendor: StaticBody3D = null
 var vendor_open: bool = false
 var quest_manager: QuestManager = null
@@ -91,6 +92,13 @@ func _ready() -> void:
 	if starting_character:
 		player.initialize_character(starting_character)
 		print("[TOWN] Character loaded: %s" % starting_character.character_name)
+
+	# Restore player progression from world transition (level, stats, passives, etc.)
+	if not player_progression.is_empty():
+		var stats = player.get_stats()
+		if stats and player_progression.has("stats"):
+			stats.restore_progression(player_progression["stats"])
+			print("[TOWN] Restored progression: Level %d" % stats.current_level)
 
 	_apply_styles()
 
@@ -1461,9 +1469,15 @@ func _go_to_battle() -> void:
 
 	print("[TOWN] Heading to battle!")
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	# Save current player progression before transitioning
+	var stats = player.get_stats()
+	var saved_progression = player_progression.duplicate(true)
+	if stats:
+		saved_progression["stats"] = stats.save_progression()
 	var main_scene = load("res://main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = saved_progression
 	get_tree().root.add_child(main_scene)
 	queue_free()
