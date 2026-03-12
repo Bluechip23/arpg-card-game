@@ -143,8 +143,8 @@ static func create_stephen() -> CharacterData:
 		]},
 		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger.", "abilities": [
 			{"name": "Eagle Eye", "description": "+2 range on ranged attacks"},
-			{"name": "Scouted", "description": "If an enemy has not moved in 10 tempo, gain +3 damage when attacking them"},
-			{"name": "Laced Arrow", "description": "+1 burn, +1 shock, +1 cold on ranged attacks"},
+			{"name": "Scouted", "description": "Hitting the same enemy 3 times in a row grants +6 range on your next attack and it auto-crits, as long as you target the same enemy"},
+			{"name": "Laced Arrow", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
 		]},
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
 			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to an enemy in melee range and halve the Glut"},
