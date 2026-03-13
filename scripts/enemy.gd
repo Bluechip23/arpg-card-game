@@ -1130,6 +1130,11 @@ func update_health_display() -> void:
 	if health_label:
 		health_label.text = "%d / %d" % [current_health, max_health]
 
+func reduce_armor(amount: int) -> void:
+	if current_armor > 0:
+		current_armor = max(0, current_armor - amount)
+		_update_armor_bar()
+
 func update_outline() -> void:
 	if not outline:
 		return

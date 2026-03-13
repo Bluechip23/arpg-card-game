@@ -1947,7 +1947,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_refresh_unit_tracker()
 
 func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
-	## Connect debuff signals for skill tree passives (Toxic Fumes, Pop Rocks).
+	## Connect debuff signals for skill tree passives (Pop Rocks, etc.).
 	enemy.debuff_applied.connect(_on_enemy_debuff_applied)
 	enemy.debuff_expired.connect(_on_enemy_debuff_expired)
 	enemy.exposed.connect(_on_enemy_exposed)
@@ -2474,10 +2474,48 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 			stats.add_armor(5)
 			add_battle_log("Quick Step: +5 armor", Color(0.3, 0.7, 1.0))
 
-	# Stimulant: healing with a Pocket card → draw a card
-	if stats.has_skill_tree_passive("stimulant") and card.card_keyword == Card.CardKeyword.POCKET and card.heal_amount > 0:
+	# Stimulant: healing with a Pocket card → healed target draws a card (5 tempo cooldown)
+	if stats.has_skill_tree_passive("stimulant") and card.card_keyword == Card.CardKeyword.POCKET and card.heal_amount > 0 and stats.st_stimulant_cooldown <= 0:
+		stats.st_stimulant_cooldown = 5
 		deck_manager.attempt_draw()
-		add_battle_log("Stimulant: drew a card!", Color(0.4, 0.9, 0.4))
+		add_battle_log("Stimulant: healed target drew a card!", Color(0.4, 0.9, 0.4))
+
+	# Mad Scientist: last card played changes outcome of potion (POCKET) cards
+	if stats.has_skill_tree_passive("mad_scientist") and card.card_keyword == Card.CardKeyword.POCKET and _last_played_card:
+		var last_type = _last_played_card.card_type
+		var buff_mgr = player.get_buff_manager()
+		var is_heal_outcome = card.heal_amount > 0
+		var is_poison_outcome = false
+
+		# Poisoned Blood flips heal → poison outcome (regen = poison)
+		if buff_mgr and buff_mgr.poisoned_blood_active and card.heal_amount > 0:
+			is_heal_outcome = false
+			is_poison_outcome = true
+
+		if is_heal_outcome:
+			if last_type == Card.CardType.UTILITY:
+				# Utility → Heal: add 3 stacks of regen to the healed target
+				if buff_mgr:
+					buff_mgr.apply_buff(Buff.create_regen(3, 15, "Mad Scientist"))
+					add_battle_log("Mad Scientist: +3 regen!", Color(0.4, 0.9, 0.4))
+			elif last_type == Card.CardType.ATTACK:
+				# Attack → Heal: give healed target 3 strengthen
+				if buff_mgr:
+					buff_mgr.apply_buff(Buff.create_strengthen(3, 3, "Mad Scientist"))
+					add_battle_log("Mad Scientist: +3 strengthen!", Color(0.4, 0.9, 0.4))
+
+		elif is_poison_outcome:
+			if last_type == Card.CardType.UTILITY:
+				# Utility → Poison: add 3 additional stacks of poison
+				if target and target.has_method("apply_debuff"):
+					target.apply_debuff("poison", 3)
+					add_battle_log("Mad Scientist: +3 poison stacks!", Color(0.4, 0.9, 0.4))
+			elif last_type == Card.CardType.DEFENSE:
+				# Defense → Poison: lower enemy physical defense by 10%
+				if target and target is Enemy and target.current_armor > 0:
+					var armor_loss = max(1, target.current_armor / 10)
+					target.reduce_armor(armor_loss)
+					add_battle_log("Mad Scientist: -%d armor! (-10%%)" % armor_loss, Color(0.4, 0.9, 0.4))
 
 func _trigger_skill_tree_on_draw(card: Card) -> void:
 	var stats = player.get_stats()
@@ -2536,6 +2574,10 @@ func _trigger_skill_tree_on_cycle() -> void:
 	if not stats:
 		return
 
+	# Stimulant: tick cooldown
+	if stats.st_stimulant_cooldown > 0:
+		stats.st_stimulant_cooldown -= 5
+
 	# Let's Dance: movement cycle → +3 armor (handled in movement section)
 	pass
 
@@ -2560,8 +2602,6 @@ func _trigger_skill_tree_on_displacement() -> void:
 			_set_player_invisible(true)
 			add_battle_log("Now You See Me: Invisibility!", Color(0.8, 0.4, 0.9))
 
-var _toxic_fumes_spreading: bool = false  # Guard against infinite spread loops
-
 func _trigger_skill_tree_on_debuff_applied(target, debuff_name: String, value: int) -> void:
 	var stats = player.get_stats()
 	if not stats:
@@ -2574,17 +2614,6 @@ func _trigger_skill_tree_on_debuff_applied(target, debuff_name: String, value: i
 			var pop_damage = max(1, target.poison_stacks / 3)
 			target.take_damage(pop_damage, true)
 			add_battle_log("Pop Rocks: %d damage! (%d poison stacks)" % [pop_damage, target.poison_stacks], Color(0.4, 0.9, 0.4))
-
-	# Toxic Fumes: spread debuffs to nearby enemies (guard against recursive spread)
-	if stats.has_skill_tree_passive("toxic_fumes") and target and not _toxic_fumes_spreading:
-		_toxic_fumes_spreading = true
-		var nearby = enemy_spawner.get_enemies_in_radius(target.position, 3.0)
-		for enemy in nearby:
-			if enemy != target and enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, value)
-		if nearby.size() > 1:
-			add_battle_log("Toxic Fumes: %s spread to %d enemies" % [debuff_name, nearby.size() - 1], Color(0.4, 0.9, 0.4))
-		_toxic_fumes_spreading = false
 
 func _trigger_skill_tree_on_debuff_expired(target) -> void:
 	var stats = player.get_stats()

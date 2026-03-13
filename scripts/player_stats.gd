@@ -140,6 +140,7 @@ var st_budding_types: Array[String] = []     # Budding: card types played (no ba
 var st_budding_last_type: String = ""         # Budding: last card type to prevent back-to-back
 var st_serial_killer_enemies: Dictionary = {} # Serial Killer: enemies already triggered (enemy_id -> true)
 var st_regrowth_cooldown: int = 0     # Regrowth: remaining cooldown tempo
+var st_stimulant_cooldown: int = 0    # Stimulant: remaining cooldown tempo
 
 func has_skill_tree_passive(passive_id: String) -> bool:
 	return passive_id in skill_tree_passives
