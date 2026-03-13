@@ -62,6 +62,7 @@ var is_stunned: bool = false   # Cannot act when stunned
 var stun_tempo: int = 0        # Remaining tempo cycles for stun
 var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
 var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
+var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
 
 # ============================================
 # TEMPO ACTION SYSTEM
@@ -480,6 +481,15 @@ func _tick_status_durations() -> void:
 			burn_damage_next = 1
 			print("[%s] Burn expired" % enemy_name)
 			debuff_expired.emit(self, "burn")
+
+	# Poison: deal current stacks damage, then lose 1 stack per cycle
+	if poison_stacks > 0:
+		take_damage(poison_stacks, false)
+		print("[%s] Poison deals %d damage" % [enemy_name, poison_stacks])
+		poison_stacks -= 1
+		if poison_stacks <= 0:
+			print("[%s] Poison expired" % enemy_name)
+			debuff_expired.emit(self, "poison")
 
 	_update_status_indicators()
 
@@ -1073,6 +1083,9 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 				action_tempo_counter = 0
 				chosen_action = {}
 				print("[%s] FROZEN! Cold reached 5 stacks!" % enemy_name)
+		"poison":
+			poison_stacks += value
+			print("[%s] Poisoned! Stacks: %d" % [enemy_name, poison_stacks])
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	debuff_applied.emit(self, debuff_name, value)
@@ -1213,6 +1226,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Burn", "color": Color(1.0, 0.5, 0.0), "stacks": burn_stacks})
 	if cold_stacks > 0:
 		effects.append({"name": "Cold", "color": Color(0.4, 0.7, 1.0), "stacks": cold_stacks})
+	if poison_stacks > 0:
+		effects.append({"name": "Poison", "color": Color(0.2, 0.8, 0.2), "stacks": poison_stacks})
 
 	return effects
 

@@ -2474,6 +2474,11 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 			stats.add_armor(5)
 			add_battle_log("Quick Step: +5 armor", Color(0.3, 0.7, 1.0))
 
+	# Stimulant: healing with a Pocket card → draw a card
+	if stats.has_skill_tree_passive("stimulant") and card.card_keyword == Card.CardKeyword.POCKET and card.heal_amount > 0:
+		deck_manager.attempt_draw()
+		add_battle_log("Stimulant: drew a card!", Color(0.4, 0.9, 0.4))
+
 func _trigger_skill_tree_on_draw(card: Card) -> void:
 	var stats = player.get_stats()
 	if not stats:
@@ -2531,9 +2536,6 @@ func _trigger_skill_tree_on_cycle() -> void:
 	if not stats:
 		return
 
-	# Pop Rocks: check all enemies for expired debuffs — handled per enemy in tempo processing
-	# (See _process_enemy_debuff_expiry)
-
 	# Let's Dance: movement cycle → +3 armor (handled in movement section)
 	pass
 
@@ -2541,11 +2543,6 @@ func _trigger_skill_tree_on_heal_ally(ally_name: String) -> void:
 	var stats = player.get_stats()
 	if not stats:
 		return
-
-	# Field Medic: when Ryan heals an ally, +2 STR for 10 tempo to the ally
-	if stats.has_skill_tree_passive("field_medic"):
-		add_battle_log("Field Medic: %s gains +2 STR (10t)" % ally_name, Color(0.4, 0.9, 0.4))
-		# Ally buff would be applied through the ally's buff system when allies are implemented
 
 	# Brad: Redemption — heal ally → +10% crit on next attack
 	_trigger_skill_tree_brad_on_heal_ally(ally_name)
@@ -2570,6 +2567,14 @@ func _trigger_skill_tree_on_debuff_applied(target, debuff_name: String, value: i
 	if not stats:
 		return
 
+	# Pop Rocks: applying poison to already-poisoned enemy deals 1/3 current stacks as immediate damage
+	if stats.has_skill_tree_passive("pop_rocks") and debuff_name == "poison" and target and target.has_method("take_damage"):
+		var prev_stacks = target.poison_stacks - value
+		if prev_stacks > 0:
+			var pop_damage = max(1, target.poison_stacks / 3)
+			target.take_damage(pop_damage, true)
+			add_battle_log("Pop Rocks: %d damage! (%d poison stacks)" % [pop_damage, target.poison_stacks], Color(0.4, 0.9, 0.4))
+
 	# Toxic Fumes: spread debuffs to nearby enemies (guard against recursive spread)
 	if stats.has_skill_tree_passive("toxic_fumes") and target and not _toxic_fumes_spreading:
 		_toxic_fumes_spreading = true
@@ -2586,10 +2591,7 @@ func _trigger_skill_tree_on_debuff_expired(target) -> void:
 	if not stats:
 		return
 
-	# Pop Rocks: deal 4 damage when debuffs expire on enemy
-	if stats.has_skill_tree_passive("pop_rocks") and target and target.has_method("take_damage"):
-		target.take_damage(4, true)
-		add_battle_log("Pop Rocks: 4 damage!", Color(0.4, 0.9, 0.4))
+	pass
 
 func _trigger_skill_tree_on_movement_cycle() -> void:
 	var stats = player.get_stats()
