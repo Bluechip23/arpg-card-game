@@ -740,7 +740,7 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When spending 10 mana within 5 tempo, add a Mana Surge to your hand. Mana Surge: Attack, 0m/2t, deal 5 damage, gain 1 mana.",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 14, slot = 2, archetype = "Poltergeist", name = "Haunted Rebuke",
-			description = "When an enemy attacks you or an ally and you have 3 or more defensive cards in your hand, the enemy's next action takes +3 tempo. Cooldown: 10 tempo.",
+			description = "When an enemy attacks you and you have 3 or more defensive cards in your hand, the enemy's next action takes +3 tempo. Cooldown: 10 tempo.",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 16, slot = 1, archetype = "Shepherd", name = "Placeholder Shepherd 16",
 			description = "Placeholder - to be defined (replacing Friendship)",

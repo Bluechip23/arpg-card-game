@@ -130,7 +130,11 @@ var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when char
 
 # Stephen passive tracking
 var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive attack cards played
-var st_enemy_last_move_tempo: Dictionary = {}  # Scouted: tracks last tempo each enemy moved
+var st_scouted_target_id: int = -1    # Scouted: instance_id of the enemy being tracked
+var st_scouted_hits: int = 0          # Scouted: consecutive hits on the same enemy
+var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit ready
+var st_exposed_blind_spot_crit: int = 0  # Exposed Blind Spot: bonus crit % for next attack
+var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
 
 # Cory passive tracking
 var st_mana_gain_counter: int = 0     # Energy Barrier: counts non-regen mana gains toward every-3rd
@@ -152,6 +156,7 @@ var st_haunted_rebuke_cooldown: int = 0  # Haunted Rebuke: remaining cooldown te
 var st_kinetic_armor_tempo: int = 0   # Kinetic Armor: tempo since armor was last at 0
 var st_kinetic_armor_triggered: bool = false  # Kinetic Armor: already triggered this armor retention
 var st_i_heal_you_tempo: int = 0      # I Heal You: tempo counter for ally healing aura
+var st_seance_specters: Array = []    # Seance: active specters [{node, hp, tempo_remaining, position}]
 
 func has_skill_tree_passive(passive_id: String) -> bool:
 	return passive_id in skill_tree_passives

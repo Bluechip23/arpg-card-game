@@ -63,6 +63,8 @@ var stun_tempo: int = 0        # Remaining tempo cycles for stun
 var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
 var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
+var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
+var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
 
 # ============================================
 # TEMPO ACTION SYSTEM
@@ -491,6 +493,15 @@ func _tick_status_durations() -> void:
 			print("[%s] Poison expired" % enemy_name)
 			debuff_expired.emit(self, "poison")
 
+	# Shock: deal current stacks damage, then lose 1 stack per cycle
+	if shock_stacks > 0:
+		take_damage(shock_stacks, false)
+		print("[%s] Shock deals %d damage" % [enemy_name, shock_stacks])
+		shock_stacks -= 1
+		if shock_stacks <= 0:
+			print("[%s] Shock expired" % enemy_name)
+			debuff_expired.emit(self, "shock")
+
 	_update_status_indicators()
 
 func _check_and_fire_actions(player_node: Node3D) -> void:
@@ -510,6 +521,10 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 		var p_buff_mgr = player_node.get_buff_manager()
 		if p_buff_mgr and p_buff_mgr.is_invisible():
 			return
+
+	# Skip actions if this enemy is blind to this player (Serial Killer)
+	if player_node in invisible_to_players:
+		return
 
 	# Choose action if we don't have one yet
 	if chosen_action.is_empty():
@@ -1086,6 +1101,9 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"poison":
 			poison_stacks += value
 			print("[%s] Poisoned! Stacks: %d" % [enemy_name, poison_stacks])
+		"shock":
+			shock_stacks += value
+			print("[%s] Shocked! Stacks: %d" % [enemy_name, shock_stacks])
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	debuff_applied.emit(self, debuff_name, value)
@@ -1233,6 +1251,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Cold", "color": Color(0.4, 0.7, 1.0), "stacks": cold_stacks})
 	if poison_stacks > 0:
 		effects.append({"name": "Poison", "color": Color(0.2, 0.8, 0.2), "stacks": poison_stacks})
+	if shock_stacks > 0:
+		effects.append({"name": "Shock", "color": Color(1.0, 1.0, 0.3), "stacks": shock_stacks})
 
 	return effects
 

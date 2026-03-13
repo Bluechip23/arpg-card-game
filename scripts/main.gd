@@ -1962,6 +1962,7 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 
 var _disarm_mastery_applying: bool = false  # Guard against recursive disarm
 var _wither_applying: bool = false  # Guard against recursive wither
+var _laced_arrow_applying: bool = false  # Guard against recursive laced arrow
 var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee range state
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
@@ -1971,6 +1972,15 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 		_disarm_mastery_applying = true
 		_trigger_skill_tree_stephen_on_disarm_applied(enemy, value)
 		_disarm_mastery_applying = false
+	# Stephen: Laced Arrow — when applying burn, cold, or shock, apply +1 additional (guarded against recursion)
+	if not _laced_arrow_applying and debuff_name in ["burn", "cold", "shock"]:
+		var stats = player.get_stats()
+		if stats and stats.has_skill_tree_passive("laced_arrow"):
+			_laced_arrow_applying = true
+			if enemy.has_method("apply_debuff"):
+				enemy.apply_debuff(debuff_name, 1)
+				add_battle_log("Laced Arrow: +1 %s" % debuff_name, Color(0.4, 0.9, 0.4))
+			_laced_arrow_applying = false
 	# Cory: Wither — +1 charge to all debuffs applied (guarded against recursion)
 	if not _wither_applying:
 		var stats = player.get_stats()
@@ -1995,11 +2005,13 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 	var enemy_id = enemy.get_instance_id()
 	var was_in_melee = _enemy_melee_state.get(enemy_id, false)
 	_enemy_melee_state[enemy_id] = in_melee
-	if in_melee != was_in_melee:
+	if in_melee and not was_in_melee:
+		# Enemy entered melee range
 		_trigger_skill_tree_cory_on_enemy_enter_melee(enemy)
-		# Brad: In the Trenches — free attack when enemy enters adjacent square
-		if in_melee:
-			_trigger_skill_tree_brad_itt_on_enter(enemy)
+		_trigger_skill_tree_brad_itt_on_enter(enemy)
+	elif was_in_melee and not in_melee:
+		# Enemy left melee range — also triggers Territorial Death
+		_trigger_skill_tree_cory_on_enemy_leave_melee(enemy)
 
 func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 	_trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
@@ -2533,6 +2545,17 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 	if not stats:
 		return
 
+	# Clean Exchange: draw Defense after playing Attack (or vice versa) → drawn card gets -1t
+	if stats.has_skill_tree_passive("clean_exchange") and _last_played_card:
+		var drawn_is_defense = card.card_type == Card.CardType.DEFENSE
+		var drawn_is_attack = card.card_type == Card.CardType.ATTACK
+		var last_was_attack = _last_played_card.card_type == Card.CardType.ATTACK
+		var last_was_defense = _last_played_card.card_type == Card.CardType.DEFENSE
+		if (drawn_is_defense and last_was_attack) or (drawn_is_attack and last_was_defense):
+			if card.tempo_cost > 0:
+				card.tempo_cost -= 1
+				add_battle_log("Clean Exchange: %s -1t" % card.card_name, Color(0.3, 0.7, 1.0))
+
 	# From the Hip: if an attack card, discount the most recently drawn card by -1m
 	if stats.has_skill_tree_passive("from_the_hip") and card.card_type == Card.CardType.ATTACK:
 		# Clear previous discount if any
@@ -2882,14 +2905,29 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 	if stats.has_skill_tree_passive("deadly"):
 		bonus += 3
 
-	# Scouted: if enemy hasn't moved in 10+ tempo, +3 damage
+	# Scouted: hitting same enemy 3 times in a row → +6 range and auto-crit on next attack
 	if stats.has_skill_tree_passive("scouted") and target and target is Enemy:
 		var enemy_id = target.get_instance_id()
-		var last_move = stats.st_enemy_last_move_tempo.get(enemy_id, -999)
-		var current_tempo = tempo_manager.get_global_tempo()
-		if current_tempo - last_move >= 10:
-			bonus += 3
-			add_battle_log("Scouted: +3 damage (stationary target)", Color(0.4, 0.9, 0.4))
+		if stats.st_scouted_bonus_active and enemy_id == stats.st_scouted_target_id:
+			# Consume the bonus: auto-crit handled via Focused buff applied when bonus activated
+			stats.st_scouted_bonus_active = false
+			stats.st_scouted_hits = 1  # This hit counts as the first of a new streak
+			add_battle_log("Scouted: bonus consumed!", Color(0.4, 0.9, 0.4))
+		elif enemy_id == stats.st_scouted_target_id:
+			stats.st_scouted_hits += 1
+			if stats.st_scouted_hits >= 3:
+				stats.st_scouted_bonus_active = true
+				stats.st_scouted_hits = 0
+				# Grant auto-crit via Focused buff
+				var buff_mgr = player.get_buff_manager()
+				if buff_mgr:
+					buff_mgr.apply_buff(Buff.create_focused(15, "Scouted"))
+				add_battle_log("Scouted: 3 hits! +6 range and auto-crit on next attack!", Color(0.4, 0.9, 0.4))
+		else:
+			# Switched targets — reset streak
+			stats.st_scouted_target_id = enemy_id
+			stats.st_scouted_hits = 1
+			stats.st_scouted_bonus_active = false
 
 	# Skilled Momentum: 4 attacks in a row → 5th plays twice
 	if stats.has_skill_tree_passive("skilled_momentum") and card.card_type == Card.CardType.ATTACK:
@@ -2909,18 +2947,9 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 
 	return bonus
 
-func _trigger_skill_tree_stephen_on_ranged_attack(card: Card, target) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Laced Arrow: +1 burn, +1 shock, +1 cold on ranged attacks
-	if stats.has_skill_tree_passive("laced_arrow") and target and target is Enemy:
-		if target.has_method("apply_debuff"):
-			target.apply_debuff("burn", 1)
-			target.apply_debuff("shock", 1)
-			target.apply_debuff("cold", 1)
-			add_battle_log("Laced Arrow: +1 burn/shock/cold", Color(0.4, 0.9, 0.4))
+func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
+	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
+	pass
 
 func _trigger_skill_tree_stephen_on_expose(target) -> void:
 	var stats = player.get_stats()
@@ -2937,6 +2966,16 @@ func _trigger_skill_tree_stephen_on_attacked(attacker) -> void:
 	var stats = player.get_stats()
 	if not stats:
 		return
+
+	# Exposed Blind Spot: when struck with melee attack, gain crit chance = number of non-attack cards in hand
+	if stats.has_skill_tree_passive("exposed_blind_spot"):
+		var non_attack_count = 0
+		for c in deck_manager.hand:
+			if c.card_type != Card.CardType.ATTACK:
+				non_attack_count += 1
+		if non_attack_count > 0:
+			stats.st_exposed_blind_spot_crit = non_attack_count
+			add_battle_log("Exposed Blind Spot: +%d%% crit on next attack!" % non_attack_count, Color(0.3, 0.7, 1.0))
 
 	# Phalanx: melee attack → deal damage = number of Defense cards in hand
 	if stats.has_skill_tree_passive("phalanx") and attacker and attacker.has_method("take_damage"):
@@ -2956,6 +2995,19 @@ func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 	# Skilled Momentum: reset counter if non-attack card is played
 	if stats.has_skill_tree_passive("skilled_momentum") and card.card_type != Card.CardType.ATTACK:
 		stats.st_consecutive_attacks = 0
+
+	# Lethal Resourcefulness: 3 or less cards in hand + non-attack → free basic attack
+	if stats.has_skill_tree_passive("lethal_resourcefulness") and not stats.st_lethal_resource_attacking:
+		if card.card_type != Card.CardType.ATTACK and deck_manager.hand.size() <= 3:
+			var target = _get_nearest_enemy()
+			if target and target.has_method("take_damage"):
+				var dist = player.position.distance_to(target.position)
+				if dist <= 2.0:  # Melee range
+					stats.st_lethal_resource_attacking = true
+					var dmg = stats.get_effective_physical_damage(0)
+					target.take_damage(dmg, true)
+					add_battle_log("Lethal Resourcefulness: free attack for %d!" % dmg, Color(0.3, 0.7, 1.0))
+					stats.st_lethal_resource_attacking = false
 
 func _trigger_skill_tree_stephen_on_disarm_applied(target, value: int) -> void:
 	var stats = player.get_stats()
@@ -3105,15 +3157,17 @@ func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> voi
 	if not stats:
 		return
 
-	# Serial Killer: first time enemy drops below 25% HP → player invisible to them
+	# Serial Killer: first time enemy drops below 25% HP → player permanently invisible to them
 	if stats.has_skill_tree_passive("serial_killer") and enemy.is_alive():
 		var enemy_id = enemy.get_instance_id()
 		if enemy_id not in stats.st_serial_killer_enemies:
 			var hp_pct = float(enemy.current_health) / float(enemy.max_health)
 			if hp_pct <= 0.25:
 				stats.st_serial_killer_enemies[enemy_id] = true
-				# Make this enemy lose sight of the player by resetting its target
+				# Add player to enemy's ignore list so it never targets them again
 				enemy.target = null
+				if player not in enemy.invisible_to_players:
+					enemy.invisible_to_players.append(player)
 				add_battle_log("Serial Killer: invisible to %s!" % enemy.enemy_name, Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_cory_on_debuff_applied(target, debuff_name: String, value: int) -> void:
@@ -3193,6 +3247,21 @@ func _trigger_skill_tree_cory_on_enemy_enter_melee(enemy: Enemy) -> void:
 				enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
 				add_battle_log("Territorial Death: re-applied %s to %s!" % [random_effect.get("name", "?"), enemy.enemy_name], Color(0.4, 0.9, 0.4))
 
+func _trigger_skill_tree_cory_on_enemy_leave_melee(enemy: Enemy) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Territorial Death: re-apply 1 random existing debuff when enemy leaves melee range
+	if stats.has_skill_tree_passive("territorial_death") and enemy.has_method("get_active_effects"):
+		var effects = enemy.get_active_effects()
+		if effects.size() > 0:
+			var random_effect = effects[randi() % effects.size()]
+			var debuff_name = random_effect.get("name", "").to_lower()
+			if debuff_name != "" and enemy.has_method("apply_debuff"):
+				enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
+				add_battle_log("Territorial Death: re-applied %s to %s (leaving)!" % [random_effect.get("name", "?"), enemy.enemy_name], Color(0.4, 0.9, 0.4))
+
 # ============================================
 # JEREMY SKILL TREE PASSIVE TRIGGERS
 # ============================================
@@ -3238,6 +3307,80 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 			debuff_mgr.remove_debuff(removed.debuff_type)
 			add_battle_log("Fresh Start: cleansed %s!" % removed.debuff_name, Color(0.8, 0.4, 0.9))
 
+	# Seance: casting a spell that targets an empty tile → summon a Specter
+	if stats.has_skill_tree_passive("seance") and card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+		# Check if the spell targeted an empty tile (no enemy target)
+		if target == null or not (target is Enemy):
+			var spawn_pos = player.position + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
+			if grid_manager:
+				spawn_pos = grid_manager.snap_to_grid(spawn_pos)
+			_spawn_seance_specter(stats, spawn_pos)
+
+func _spawn_seance_specter(stats: PlayerStats, pos: Vector3) -> void:
+	## Spawns a Specter for Seance passive: 5 HP, 15 tempo, deals 4 damage to killer on death.
+	var marker = MeshInstance3D.new()
+	var mesh = BoxMesh.new()
+	mesh.size = Vector3(0.4, 0.8, 0.4)
+	marker.mesh = mesh
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.5, 0.3, 0.7, 0.7)  # Ghostly purple
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	marker.material_override = mat
+	marker.position = Vector3(pos.x, 0.4, pos.z)
+	add_child(marker)
+
+	var label = Label3D.new()
+	label.text = "Specter (5 HP)"
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 12
+	label.modulate = Color(0.7, 0.5, 1.0)
+	label.position = Vector3(0, 0.7, 0)
+	marker.add_child(label)
+
+	stats.st_seance_specters.append({
+		"node": marker,
+		"label": label,
+		"hp": 5,
+		"max_hp": 5,
+		"tempo_remaining": 15,
+		"position": pos,
+	})
+	add_battle_log("Seance: Specter summoned! (5 HP, 15 tempo)", Color(0.7, 0.5, 1.0))
+
+func _tick_seance_specters(stats: PlayerStats) -> void:
+	## Tick Seance specters: decrement tempo, remove expired ones.
+	var to_remove: Array = []
+	for specter in stats.st_seance_specters:
+		specter["tempo_remaining"] -= 5
+		if specter["tempo_remaining"] <= 0 or specter["hp"] <= 0:
+			to_remove.append(specter)
+		else:
+			# Update label
+			var label = specter.get("label")
+			if label and is_instance_valid(label):
+				label.text = "Specter (%d HP)" % specter["hp"]
+
+	for specter in to_remove:
+		# On death/expiry: deal 4 damage to nearest enemy
+		if specter["hp"] <= 0:
+			var enemies = enemy_spawner.get_living_enemies() if enemy_spawner else []
+			if enemies.size() > 0:
+				var nearest: Enemy = null
+				var nearest_dist = 999.0
+				for e in enemies:
+					var d = (e.position - specter["position"]).length()
+					if d < nearest_dist:
+						nearest_dist = d
+						nearest = e
+				if nearest:
+					nearest.take_damage(4, true)
+					add_battle_log("Seance: Specter destroyed! 4 damage to %s!" % nearest.enemy_name, Color(0.7, 0.5, 1.0))
+		# Remove the visual marker
+		var node = specter.get("node")
+		if node and is_instance_valid(node):
+			node.queue_free()
+		stats.st_seance_specters.erase(specter)
+
 func _trigger_skill_tree_jeremy_on_cycle() -> void:
 	var stats = player.get_stats()
 	if not stats:
@@ -3259,16 +3402,20 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 	if stats.st_haunted_rebuke_cooldown > 0:
 		stats.st_haunted_rebuke_cooldown -= 5
 
-	# I Heal You: heal nearby allies 3 HP every 5 tempo (fires each cycle = 5 tempo)
+	# I Heal You: heal nearby allies (summoned creatures) 3 HP every 5 tempo
 	if stats.has_skill_tree_passive("i_heal_you"):
-		# Allies are healed automatically — apply as a passive aura heal
-		# Since allies share the player's world, heal the player's companions
 		stats.st_i_heal_you_tempo += 5
 		if stats.st_i_heal_you_tempo >= 5:
 			stats.st_i_heal_you_tempo = 0
-			# Heal player too if they count as "near self"
-			stats.heal(3)
-			add_battle_log("I Heal You: healed 3 HP", Color(0.3, 0.7, 1.0))
+			# Heal summoned specters (Seance) within range
+			var healed_any = false
+			for specter in stats.st_seance_specters:
+				if specter.get("hp", 0) > 0:
+					var max_hp = specter.get("max_hp", 5)
+					specter["hp"] = min(max_hp, specter["hp"] + 3)
+					healed_any = true
+			if healed_any:
+				add_battle_log("I Heal You: healed allies 3 HP", Color(0.3, 0.7, 1.0))
 
 	# Kinetic Armor: track armor retention, apply shock after 25 tempo
 	if stats.has_skill_tree_passive("kinetic_armor"):
@@ -3297,20 +3444,24 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 							if d < nearest_dist:
 								nearest_dist = d
 								nearest_enemy = e
-						if nearest_enemy:
-							nearest_enemy.take_damage(defense_count, true)
+						if nearest_enemy and nearest_enemy.has_method("apply_debuff"):
+							nearest_enemy.apply_debuff("shock", defense_count)
 							add_battle_log("Kinetic Armor: %d shock to %s!" % [defense_count, nearest_enemy.enemy_name], Color(0.8, 0.4, 0.9))
 		else:
 			# Armor gone — reset tracking
 			stats.st_kinetic_armor_tempo = 0
 			stats.st_kinetic_armor_triggered = false
 
+	# Seance: tick specter durations
+	if stats.st_seance_specters.size() > 0:
+		_tick_seance_specters(stats)
+
 func _trigger_skill_tree_jeremy_on_enemy_attacked(enemy: Enemy) -> void:
 	var stats = player.get_stats()
 	if not stats:
 		return
 
-	# Haunted Rebuke: 3+ defense cards in hand → slow enemy's next action by +3 tempo
+	# Haunted Rebuke: when an enemy attacks you, 3+ defense cards in hand → slow enemy's next action by +3 tempo
 	if stats.has_skill_tree_passive("haunted_rebuke") and stats.st_haunted_rebuke_cooldown <= 0:
 		var defense_in_hand = 0
 		for card in deck_manager.hand:
@@ -4250,6 +4401,9 @@ func select_card(index: int) -> void:
 		var st_stats = player.get_stats()
 		if st_stats and st_stats.has_skill_tree_passive("eagle_eye"):
 			effective_range += 2
+		# Scouted: +6 range on next attack after 3 consecutive hits
+		if st_stats and st_stats.st_scouted_bonus_active:
+			effective_range += 6
 		range_indicator.position = player.position
 		range_indicator.show_range(effective_range)
 		add_battle_log("%s selected — Range: %d tiles" % [card.card_name, int(effective_range)], Color(0.6, 0.85, 1.0))
@@ -4522,6 +4676,9 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		var st_stats = player.get_stats()
 		if st_stats and st_stats.has_skill_tree_passive("eagle_eye"):
 			max_range += 2
+		# Scouted: +6 range on next attack after 3 consecutive hits
+		if st_stats and st_stats.st_scouted_bonus_active:
+			max_range += 6
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
 		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square
