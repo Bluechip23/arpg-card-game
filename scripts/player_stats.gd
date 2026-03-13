@@ -18,6 +18,7 @@ signal mana_gained(amount: int, is_regen: bool)  # Emitted when mana is gained (
 signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards should be discarded
 signal gold_changed(amount: int)
 signal healed(amount: int)
+signal shepherds_mark_triggered  # Whispers of the Flock: mark prevented lethal damage
 
 var character_data: CharacterData
 
@@ -129,7 +130,11 @@ var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when char
 
 # Stephen passive tracking
 var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive attack cards played
-var st_enemy_last_move_tempo: Dictionary = {}  # Scouted: tracks last tempo each enemy moved
+var st_scouted_target_id: int = -1    # Scouted: instance_id of the enemy being tracked
+var st_scouted_hits: int = 0          # Scouted: consecutive hits on the same enemy
+var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit ready
+var st_exposed_blind_spot_crit: int = 0  # Exposed Blind Spot: bonus crit % for next attack
+var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
 
 # Cory passive tracking
 var st_mana_gain_counter: int = 0     # Energy Barrier: counts non-regen mana gains toward every-3rd
@@ -140,6 +145,18 @@ var st_budding_types: Array[String] = []     # Budding: card types played (no ba
 var st_budding_last_type: String = ""         # Budding: last card type to prevent back-to-back
 var st_serial_killer_enemies: Dictionary = {} # Serial Killer: enemies already triggered (enemy_id -> true)
 var st_regrowth_cooldown: int = 0     # Regrowth: remaining cooldown tempo
+var st_stimulant_cooldown: int = 0    # Stimulant: remaining cooldown tempo
+
+# Jeremy passive tracking
+var st_mana_spent_window: Array = []  # Mana Surge: [{amount, tempo}] entries within 5 tempo window
+var st_whispers_cooldown: int = 0     # Whispers of the Flock: remaining cooldown tempo
+var st_whispers_active: bool = false  # Whispers of the Flock: mark currently active
+var st_whispers_tempo: int = 0        # Whispers of the Flock: remaining mark duration
+var st_haunted_rebuke_cooldown: int = 0  # Haunted Rebuke: remaining cooldown tempo
+var st_kinetic_armor_tempo: int = 0   # Kinetic Armor: tempo since armor was last at 0
+var st_kinetic_armor_triggered: bool = false  # Kinetic Armor: already triggered this armor retention
+var st_i_heal_you_tempo: int = 0      # I Heal You: tempo counter for ally healing aura
+var st_seance_specters: Array = []    # Seance: active specters [{node, hp, tempo_remaining, position}]
 
 func has_skill_tree_passive(passive_id: String) -> bool:
 	return passive_id in skill_tree_passives
@@ -645,6 +662,17 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 	# Emit damage_taken for reaction card triggers
 	damage_taken.emit(amount)
 
+	# Whispers of the Flock: Shepherd's Mark prevents lethal damage
+	if current_health <= 0 and st_whispers_active:
+		current_health = 1
+		add_armor(10)
+		st_whispers_active = false
+		st_whispers_tempo = 0
+		st_whispers_cooldown = 20
+		health_changed.emit(current_health, max_health)
+		shepherds_mark_triggered.emit()
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor")
+
 	if current_health <= 0:
 		died.emit()
 
@@ -659,6 +687,18 @@ func take_direct_damage(amount: int) -> void:
 	if _crossed_threshold(old_pct, get_health_percent()):
 		recalculate_derived_stats()
 	damage_taken.emit(amount)
+
+	# Whispers of the Flock: Shepherd's Mark prevents lethal damage (direct damage too)
+	if current_health <= 0 and st_whispers_active:
+		current_health = 1
+		add_armor(10)
+		st_whispers_active = false
+		st_whispers_tempo = 0
+		st_whispers_cooldown = 20
+		health_changed.emit(current_health, max_health)
+		shepherds_mark_triggered.emit()
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor")
+
 	if current_health <= 0:
 		died.emit()
 

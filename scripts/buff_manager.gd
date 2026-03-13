@@ -290,13 +290,21 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var sphere_crit = 0.0
 	if owner_stats and "sphere_bonus_crit" in owner_stats:
 		sphere_crit = owner_stats.sphere_bonus_crit
-	var total_chance = base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit)
+	# Exposed Blind Spot: one-time crit bonus from being attacked
+	var ebs_crit = 0
+	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats:
+		ebs_crit = owner_stats.st_exposed_blind_spot_crit
+	var total_chance = base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit
 	if total_chance <= 0:
 		return false
-	
+
 	var roll = randi() % 100
 	var is_crit = roll < total_chance
-	
+
+	# Consume Exposed Blind Spot bonus after rolling (win or lose)
+	if ebs_crit > 0 and owner_stats:
+		owner_stats.st_exposed_blind_spot_crit = 0
+
 	if is_crit:
 		print("[BUFF] CRITICAL HIT! (rolled %d < %d)" % [roll, total_chance])
 		last_crit_hit = true

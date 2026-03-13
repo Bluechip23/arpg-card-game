@@ -518,8 +518,8 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 3, slot = 1, archetype = "Light Foot", name = "Quick Step",
 			description = "Anytime an instant is played from your hand, gain 5 armor",
 			color = Color(0.3, 0.7, 1.0)},
-		{level = 4, slot = 2, archetype = "Apothecary", name = "Field Medic",
-			description = "When Ryan heals an ally, also give them +2 strength for 10 tempo",
+		{level = 4, slot = 2, archetype = "Apothecary", name = "Stimulant",
+			description = "When healing yourself or an ally with a Pocket card, the healed character draws a card. 5 tempo cooldown.",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 5, slot = 3, archetype = "Shadow Blade", name = "Now You See Me",
 			description = "Displacing yourself (reappearing from invisibility, blinking, being swapped, or other non-visible movement) grants you invisibility",
@@ -531,7 +531,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			description = "+3 dexterity and +3 agility",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 9, slot = 3, archetype = "Apothecary", name = "Pop Rocks",
-			description = "When debuffs expire on an enemy, deal 2 damage",
+			description = "When applying poison to an already poisoned enemy, deal immediate damage equal to 1/3 their current poison stacks",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 11, slot = 2, archetype = "Shadow Blade", name = "Surprise Opener",
 			description = "Your first strike on an enemy deals +2 damage. An additional +2 if they have no armor, and an additional +2 if you are their first source of damage",
@@ -542,8 +542,8 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 14, slot = 2, archetype = "Light Foot", name = "Let's Dance",
 			description = "When triggering a cycle with movement, gain 3 armor",
 			color = Color(0.3, 0.7, 1.0)},
-		{level = 16, slot = 1, archetype = "Apothecary", name = "Toxic Fumes",
-			description = "When debuffs are applied to an enemy, spread to nearby targets",
+		{level = 16, slot = 1, archetype = "Apothecary", name = "Mad Scientist",
+			description = "The last card you played changes the outcome of your potion cards. Utility→Heal: +3 regen. Attack→Heal: +3 strengthen. Utility→Poison: +3 poison stacks. Defense→Poison: -10% enemy physical defense.",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 18, slot = 3, archetype = "Shadow Blade", name = "Eye Scrape",
 			description = "Every third critical strike provides invisibility",
@@ -674,6 +674,106 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 				opt.icon_color = p.color
 			else:
 				opt.name = "Cory Lv%d Option %d" % [lvl, i + 1]
+				opt.description = "Placeholder - to be defined"
+				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
+				opt.icon_color = _get_option_color(i)
+			row.options.append(opt)
+
+		# Create auto-grant based on level schedule
+		var auto = AutoGrant.new()
+		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
+		match auto.grant_type:
+			AutoGrantType.STAT_ALLOCATION:
+				auto.name = "Stat Points"
+				auto.description = "Allocate 5 stat points"
+				auto.stat_points = 5
+			AutoGrantType.CARD_REMOVAL:
+				auto.name = "Culling Stone"
+				auto.description = "Remove 1 card from your deck"
+			AutoGrantType.UPGRADE_CARD:
+				auto.name = "Card Upgrade"
+				auto.description = "Upgrade an existing card"
+			AutoGrantType.MUTATE_CARD:
+				auto.name = "Card Mutation"
+				auto.description = "Mutate an existing card"
+			_:
+				auto.name = "Bonus"
+				auto.description = "Level bonus"
+		row.auto_grant = auto
+
+		tree.rows.append(row)
+
+	return tree
+
+static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
+	var tree = SkillTreeData.new()
+	tree.character_name = "Jeremy"
+
+	# Archetype ability pool — spread across levels
+	# Colors: Evocation = red, Shepherd = blue, Poltergeist = green, Abjurer = purple
+	var ability_placements := [
+		{level = 2, slot = 0, archetype = "Evocation", name = "Energy Spark",
+			description = "When casting a spell that costs more than 5 tempo, deal 3 damage to a random enemy",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 3, slot = 1, archetype = "Shepherd", name = "I Heal You",
+			description = "Allies near you are healed 3 health every 5 tempo",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 4, slot = 2, archetype = "Poltergeist", name = "Tricks of Death",
+			description = "Increase all % chances by 10",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 5, slot = 3, archetype = "Abjurer", name = "A Mage's Favor",
+			description = "When a card rerolls to a different outcome in your hand, put a Magic Barrier in your hand. 0m/0t Instant: when targeted by an enemy attack, gain 8 armor. Only triggers once per reroll batch.",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 7, slot = 1, archetype = "Evocation", name = "Harnessed Power",
+			description = "Cards gain 30% effectiveness when you have 2 or less cards in your hand",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 8, slot = 0, archetype = "Shepherd", name = "Whispers of the Flock",
+			description = "When you heal an ally, add a Shepherd's Mark card to your hand (Erase 10). Play it to mark yourself for 10 tempo. If you would take lethal damage while marked, survive at 1 HP and gain 10 armor instead. If the mark expires without triggering, take 8 damage. Cooldown: 20 tempo.",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 9, slot = 3, archetype = "Poltergeist", name = "Seance",
+			description = "When you cast a spell that targets an empty tile, summon a Specter on that tile for 15 tempo. 5 HP, cannot act. Enemies may target it based on proximity. When destroyed, deals 4 damage to its killer.",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 11, slot = 2, archetype = "Abjurer", name = "Kinetic Armor",
+			description = "While retaining armor for more than 25 tempo, apply shock to the nearest enemy equal to the number of defensive cards in your deck",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 13, slot = 0, archetype = "Evocation", name = "Mana Surge",
+			description = "When spending 10 mana within 5 tempo, add a Mana Surge to your hand. Mana Surge: Attack, 0m/2t, deal 5 damage, gain 1 mana.",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 14, slot = 2, archetype = "Poltergeist", name = "Haunted Rebuke",
+			description = "When an enemy attacks you and you have 3 or more defensive cards in your hand, the enemy's next action takes +3 tempo. Cooldown: 10 tempo.",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 16, slot = 1, archetype = "Shepherd", name = "Placeholder Shepherd 16",
+			description = "Placeholder - to be defined (replacing Friendship)",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 18, slot = 3, archetype = "Abjurer", name = "Fresh Start",
+			description = "When playing a card that leaves your hand empty, cleanse a debuff from yourself",
+			color = Color(0.8, 0.4, 0.9)},
+	]
+
+	# Index placements by level for quick lookup
+	var placements_by_level := {}
+	for p in ability_placements:
+		if p.level not in placements_by_level:
+			placements_by_level[p.level] = {}
+		placements_by_level[p.level][p.slot] = p
+
+	for lvl in range(2, max_level + 1):
+		var row = SkillRow.new()
+		row.level = lvl
+
+		var level_placements = placements_by_level.get(lvl, {})
+
+		for i in range(4):
+			var opt = SkillOption.new()
+			if i in level_placements:
+				var p = level_placements[i]
+				opt.name = p.name
+				opt.description = "%s (%s): %s" % [p.name, p.archetype, p.description]
+				opt.option_type = OptionType.PASSIVE
+				opt.passive_id = p.name.to_lower().replace(" ", "_")
+				opt.icon_color = p.color
+			else:
+				opt.name = "Jeremy Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
 				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
 				opt.icon_color = _get_option_color(i)
