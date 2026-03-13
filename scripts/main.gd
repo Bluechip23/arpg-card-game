@@ -2586,10 +2586,10 @@ func _trigger_skill_tree_on_debuff_expired(target) -> void:
 	if not stats:
 		return
 
-	# Pop Rocks: deal 2 damage when debuffs expire on enemy
+	# Pop Rocks: deal 4 damage when debuffs expire on enemy
 	if stats.has_skill_tree_passive("pop_rocks") and target and target.has_method("take_damage"):
-		target.take_damage(2, true)
-		add_battle_log("Pop Rocks: 2 damage!", Color(0.4, 0.9, 0.4))
+		target.take_damage(4, true)
+		add_battle_log("Pop Rocks: 4 damage!", Color(0.4, 0.9, 0.4))
 
 func _trigger_skill_tree_on_movement_cycle() -> void:
 	var stats = player.get_stats()

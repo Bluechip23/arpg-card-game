@@ -531,7 +531,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			description = "+3 dexterity and +3 agility",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 9, slot = 3, archetype = "Apothecary", name = "Pop Rocks",
-			description = "When debuffs expire on an enemy, deal 2 damage",
+			description = "When debuffs expire on an enemy, deal 4 damage",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 11, slot = 2, archetype = "Shadow Blade", name = "Surprise Opener",
 			description = "Your first strike on an enemy deals +2 damage. An additional +2 if they have no armor, and an additional +2 if you are their first source of damage",
