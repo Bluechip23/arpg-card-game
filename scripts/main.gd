@@ -1426,6 +1426,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
 	player.get_stats().healed.connect(_on_player_healed)
 	player.get_stats().mana_gained.connect(_on_player_mana_gained)
+	player.get_stats().shepherds_mark_triggered.connect(_on_shepherds_mark_triggered)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	deck_manager.card_erased.connect(_on_card_erased)
 
@@ -3338,11 +3339,18 @@ func _trigger_skill_tree_jeremy_on_heal_ally() -> void:
 	if not stats:
 		return
 
-	# Whispers of the Flock: mark healed ally for death prevention
+	# Whispers of the Flock: add Shepherd's Mark card to hand when healing an ally
 	if stats.has_skill_tree_passive("whispers_of_the_flock") and not stats.st_whispers_active and stats.st_whispers_cooldown <= 0:
-		stats.st_whispers_active = true
-		stats.st_whispers_tempo = 10
-		add_battle_log("Whispers of the Flock: ally marked for 10 tempo!", Color(0.3, 0.7, 1.0))
+		# Don't generate if already holding one
+		var already_holding = false
+		for c in deck_manager.hand:
+			if c.card_id == "shepherds_mark":
+				already_holding = true
+				break
+		if not already_holding:
+			var mark_card = Card.create_shepherds_mark()
+			deck_manager.add_card_to_hand(mark_card)
+			add_battle_log("Whispers of the Flock: Shepherd's Mark added to hand!", Color(0.3, 0.7, 1.0))
 
 func _get_jeremy_harnessed_power_multiplier() -> float:
 	## Returns the Harnessed Power effectiveness multiplier (1.0 = no bonus)
@@ -6219,6 +6227,9 @@ func _on_card_erased(card: Card) -> void:
 	add_battle_log("%s erased from deck!" % card.card_name, Color(0.7, 0.7, 0.7))
 	update_deck_info()
 	_on_hand_updated()
+
+func _on_shepherds_mark_triggered() -> void:
+	add_battle_log("Shepherd's Mark: Lethal damage prevented! 1 HP + 10 armor!", Color(0.3, 0.7, 1.0))
 
 # ============================================
 # LOOT DROP SYSTEM

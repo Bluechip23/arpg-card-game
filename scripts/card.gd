@@ -665,6 +665,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_mana_surge(target, player_stats, buff_mgr, damage_reduction_pct, self_damage_percent)
 		"magic_barrier":
 			_execute_magic_barrier(player_stats)
+		"shepherds_mark":
+			_execute_shepherds_mark(player_stats)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3441,6 +3443,12 @@ func _execute_magic_barrier(player_stats: PlayerStats) -> void:
 		player_stats.add_armor(8)
 	print("[CARD] Magic Barrier: +8 armor!")
 
+func _execute_shepherds_mark(player_stats: PlayerStats) -> void:
+	if player_stats:
+		player_stats.st_whispers_active = true
+		player_stats.st_whispers_tempo = 10
+	print("[CARD] Shepherd's Mark: marked for 10 tempo!")
+
 static func create_mana_surge() -> Card:
 	var card = Card.new()
 	card.card_id = "mana_surge"
@@ -3477,6 +3485,29 @@ static func create_magic_barrier() -> Card:
 	card.erase_tempo = 1
 	card.erase_tempo_remaining = 1
 	card.reaction_trigger = "on_damage_taken"
+	card.target_types = ["self"]
+	return card
+
+# ============================================
+# SHEPHERD'S MARK (Whispers of the Flock)
+# ============================================
+
+static func create_shepherds_mark() -> Card:
+	var card = Card.new()
+	card.card_id = "shepherds_mark"
+	card.card_name = "Shepherd's Mark"
+	card.description = "Mark yourself for 10 tempo. If you would take lethal damage, survive at 1 HP and gain 10 armor. If the mark expires, take 8 damage."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.erase_tempo = 10
+	card.erase_tempo_remaining = 10
 	card.target_types = ["self"]
 	return card
 

@@ -18,6 +18,7 @@ signal mana_gained(amount: int, is_regen: bool)  # Emitted when mana is gained (
 signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards should be discarded
 signal gold_changed(amount: int)
 signal healed(amount: int)
+signal shepherds_mark_triggered  # Whispers of the Flock: mark prevented lethal damage
 
 var character_data: CharacterData
 
@@ -656,6 +657,17 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 	# Emit damage_taken for reaction card triggers
 	damage_taken.emit(amount)
 
+	# Whispers of the Flock: Shepherd's Mark prevents lethal damage
+	if current_health <= 0 and st_whispers_active:
+		current_health = 1
+		add_armor(10)
+		st_whispers_active = false
+		st_whispers_tempo = 0
+		st_whispers_cooldown = 20
+		health_changed.emit(current_health, max_health)
+		shepherds_mark_triggered.emit()
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor")
+
 	if current_health <= 0:
 		died.emit()
 
@@ -670,6 +682,18 @@ func take_direct_damage(amount: int) -> void:
 	if _crossed_threshold(old_pct, get_health_percent()):
 		recalculate_derived_stats()
 	damage_taken.emit(amount)
+
+	# Whispers of the Flock: Shepherd's Mark prevents lethal damage (direct damage too)
+	if current_health <= 0 and st_whispers_active:
+		current_health = 1
+		add_armor(10)
+		st_whispers_active = false
+		st_whispers_tempo = 0
+		st_whispers_cooldown = 20
+		health_changed.emit(current_health, max_health)
+		shepherds_mark_triggered.emit()
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor")
+
 	if current_health <= 0:
 		died.emit()
 
