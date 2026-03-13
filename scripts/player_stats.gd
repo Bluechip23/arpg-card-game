@@ -663,6 +663,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 	damage_taken.emit(amount)
 
 	# Whispers of the Flock: Shepherd's Mark prevents lethal damage
+	# When triggered, the marked target survives but Jeremy takes 8 damage
 	if current_health <= 0 and st_whispers_active:
 		current_health = 1
 		add_armor(10)
@@ -671,7 +672,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 		st_whispers_cooldown = 20
 		health_changed.emit(current_health, max_health)
 		shepherds_mark_triggered.emit()
-		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor")
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor. Jeremy takes 8 damage.")
 
 	if current_health <= 0:
 		died.emit()
@@ -689,6 +690,7 @@ func take_direct_damage(amount: int) -> void:
 	damage_taken.emit(amount)
 
 	# Whispers of the Flock: Shepherd's Mark prevents lethal damage (direct damage too)
+	# When triggered, the marked target survives but Jeremy takes 8 damage
 	if current_health <= 0 and st_whispers_active:
 		current_health = 1
 		add_armor(10)
@@ -697,7 +699,7 @@ func take_direct_damage(amount: int) -> void:
 		st_whispers_cooldown = 20
 		health_changed.emit(current_health, max_health)
 		shepherds_mark_triggered.emit()
-		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor")
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor. Jeremy takes 8 damage.")
 
 	if current_health <= 0:
 		died.emit()

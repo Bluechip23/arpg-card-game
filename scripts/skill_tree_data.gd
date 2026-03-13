@@ -313,7 +313,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 	# Spread across levels so passives can appear at any level
 	var ability_placements := [
 		{level = 2, slot = 0, archetype = "Berserker", name = "Enraged Will",
-			description = "When you drop below 10% HP, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill",
+			description = "When you drop below 25% HP, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 3, slot = 1, archetype = "Warden", name = "In the Trenches",
 			description = "When an enemy enters an adjacent square, perform a free attack. When an enemy attacks you from adjacent, knock them back. 2 charges, 10 tempo cooldown",
@@ -625,7 +625,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When playing an attack, a utility, and a defense in any order (none back to back), heal 3 and gain 5 temp HP for 15 tempo",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 7, slot = 1, archetype = "Lurker", name = "Eat",
-			description = "Killing enemies heals you 10% of your max health",
+			description = "Killing enemies heals you 10% of the enemy's max health",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 8, slot = 0, archetype = "Monk", name = "Expel Negativity",
 			description = "Transfer a debuff to an enemy when you drop below 50% health",
@@ -728,7 +728,7 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			description = "Cards gain 30% effectiveness when you have 2 or less cards in your hand",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 8, slot = 0, archetype = "Shepherd", name = "Whispers of the Flock",
-			description = "When you heal an ally, add a Shepherd's Mark card to your hand (Erase 10). Play it to mark yourself for 10 tempo. If you would take lethal damage while marked, survive at 1 HP and gain 10 armor instead. If the mark expires without triggering, take 8 damage. Cooldown: 20 tempo.",
+			description = "When you heal an ally, add a Shepherd's Mark card to your hand (Erase 10). Play it on the healed ally to mark them for 10 tempo. If the marked ally would take lethal damage, they survive at 1 HP and gain 10 armor instead, but Jeremy takes 8 damage. Cooldown: 20 tempo.",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 9, slot = 3, archetype = "Poltergeist", name = "Seance",
 			description = "When you cast a spell that targets an empty tile, summon a Specter on that tile for 15 tempo. 5 HP, cannot act. Enemies may target it based on proximity. When destroyed, deals 4 damage to its killer.",

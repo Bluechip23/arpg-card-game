@@ -3444,10 +3444,12 @@ func _execute_magic_barrier(player_stats: PlayerStats) -> void:
 	print("[CARD] Magic Barrier: +8 armor!")
 
 func _execute_shepherds_mark(player_stats: PlayerStats) -> void:
+	# TODO: When ally targeting is implemented, this should mark the healed ally instead of Jeremy.
+	# For now, the mark is applied to the player (Jeremy) as the ally system isn't fully built out.
 	if player_stats:
 		player_stats.st_whispers_active = true
 		player_stats.st_whispers_tempo = 10
-	print("[CARD] Shepherd's Mark: marked for 10 tempo!")
+	print("[CARD] Shepherd's Mark: ally marked for 10 tempo!")
 
 static func create_mana_surge() -> Card:
 	var card = Card.new()
@@ -3496,7 +3498,7 @@ static func create_shepherds_mark() -> Card:
 	var card = Card.new()
 	card.card_id = "shepherds_mark"
 	card.card_name = "Shepherd's Mark"
-	card.description = "Mark yourself for 10 tempo. If you would take lethal damage, survive at 1 HP and gain 10 armor. If the mark expires, take 8 damage."
+	card.description = "Mark the healed ally for 10 tempo. If they would take lethal damage, they survive at 1 HP and gain 10 armor, but Jeremy takes 8 damage."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
