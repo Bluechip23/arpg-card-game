@@ -2678,9 +2678,9 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 	if not stats:
 		return
 
-	# Enraged Will: below 10% HP → Reach AOE swing (1 base + 1 Reach = 2 range) + gain 1 mana per kill
+	# Enraged Will: below 25% HP → Reach AOE swing (1 base + 1 Reach = 2 range) + gain 1 mana per kill
 	if stats.has_skill_tree_passive("enraged_will"):
-		if stats.get_health_percent() <= 0.10 and stats.current_health > 0:
+		if stats.get_health_percent() <= 0.25 and stats.current_health > 0:
 			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 2.0) if enemy_spawner else []
 			if enemies.size() > 0:
 				var dmg = stats.get_effective_physical_damage(0)
@@ -3146,9 +3146,9 @@ func _trigger_skill_tree_cory_on_kill(enemy: Enemy) -> void:
 	if not stats:
 		return
 
-	# Eat: killing enemies heals 10% max HP
+	# Eat: killing enemies heals 10% of the enemy's max HP
 	if stats.has_skill_tree_passive("eat"):
-		var heal_amount = max(1, floori(stats.max_health * 0.10))
+		var heal_amount = max(1, floori(enemy.max_health * 0.10))
 		stats.heal(heal_amount)
 		add_battle_log("Eat: healed %d HP!" % heal_amount, Color(0.3, 0.7, 1.0))
 
@@ -3391,9 +3391,8 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 		stats.st_whispers_tempo -= 5
 		if stats.st_whispers_tempo <= 0:
 			stats.st_whispers_active = false
-			# Mark expired — Jeremy takes 8 damage
-			stats.take_damage(8)
-			add_battle_log("Whispers of the Flock: mark expired, took 8 damage!", Color(0.3, 0.7, 1.0))
+			# Mark expired without triggering — no penalty
+			add_battle_log("Whispers of the Flock: mark expired.", Color(0.3, 0.7, 1.0))
 			stats.st_whispers_cooldown = 20
 	if stats.st_whispers_cooldown > 0:
 		stats.st_whispers_cooldown -= 5
@@ -6387,6 +6386,11 @@ func _on_card_erased(card: Card) -> void:
 
 func _on_shepherds_mark_triggered() -> void:
 	add_battle_log("Shepherd's Mark: Lethal damage prevented! 1 HP + 10 armor!", Color(0.3, 0.7, 1.0))
+	# Jeremy takes 8 damage as the cost of the mark triggering
+	var stats = player.get_stats()
+	if stats:
+		stats.take_direct_damage(8)
+		add_battle_log("Whispers of the Flock: Jeremy takes 8 damage!", Color(0.9, 0.3, 0.3))
 
 # ============================================
 # LOOT DROP SYSTEM
