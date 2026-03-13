@@ -99,11 +99,12 @@ func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 	if rng_outcomes_data.size() == 1:
 		# Binary: single percentage, success or fail
 		var roll = randf() * 100.0
-		if roll < rng_outcomes_data[0].percent:
+		var effective_percent = rng_outcomes_data[0].percent + chance_boost
+		if roll < effective_percent:
 			rng_selected_index = 0  # Success
 		else:
 			rng_selected_index = -2  # Fail
-		print("[CARD] %s RNG: %.0f%% → %s" % [card_name, rng_outcomes_data[0].percent, "SUCCESS" if rng_selected_index == 0 else "FAIL"])
+		print("[CARD] %s RNG: %.0f%% (boosted from %.0f%%) → %s" % [card_name, effective_percent, rng_outcomes_data[0].percent, "SUCCESS" if rng_selected_index == 0 else "FAIL"])
 	elif rng_outcomes_data.size() > 1:
 		# Multi-outcome: weighted random selection
 		var roll = randf() * 100.0
@@ -659,6 +660,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_best_offense(player_stats, deck_manager, buff_mgr)
 		"vengeful_shield":
 			_execute_vengeful_shield(player_stats, buff_mgr)
+		# === Jeremy Generated Cards ===
+		"mana_surge":
+			_execute_mana_surge(target, player_stats, buff_mgr, damage_reduction_pct, self_damage_percent)
+		"magic_barrier":
+			_execute_magic_barrier(player_stats)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3406,6 +3412,73 @@ func _execute_vengeful_shield(player_stats: PlayerStats, buff_mgr: BuffManager =
 	if player_stats:
 		player_stats.gain_armor(5)
 		print("[CARD] Vengeful Shield: Gained 5 armor")
+
+# ============================================
+# JEREMY GENERATED CARDS
+# ============================================
+
+func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0) -> void:
+	var total_damage = base_damage + bonus_damage
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = floori(total_damage * 2.0)
+			buff_mgr.consume_enlightened()
+	if damage_reduction_pct > 0:
+		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
+	if target and target.has_method("take_damage"):
+		target.take_damage(total_damage, true)
+		last_damage_dealt = total_damage
+	# Gain 1 mana
+	if player_stats:
+		player_stats.gain_mana(1)
+	print("[CARD] Mana Surge: %d damage, +1 mana!" % total_damage)
+
+func _execute_magic_barrier(player_stats: PlayerStats) -> void:
+	if player_stats:
+		player_stats.add_armor(8)
+	print("[CARD] Magic Barrier: +8 armor!")
+
+static func create_mana_surge() -> Card:
+	var card = Card.new()
+	card.card_id = "mana_surge"
+	card.card_name = "Mana Surge"
+	card.description = "Deal 5 damage, gain 1 mana."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 0
+	card.tempo_cost = 2
+	card.damage = 5
+	card.base_damage = 5
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.erase_tempo = 1
+	card.erase_tempo_remaining = 1
+	card.target_types = ["enemy"]
+	return card
+
+static func create_magic_barrier() -> Card:
+	var card = Card.new()
+	card.card_id = "magic_barrier"
+	card.card_name = "Magic Barrier"
+	card.description = "Gain 8 armor. Instant."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 8
+	card.base_block = 8
+	card.heal_amount = 0
+	card.erase_tempo = 1
+	card.erase_tempo_remaining = 1
+	card.reaction_trigger = "on_damage_taken"
+	card.target_types = ["self"]
+	return card
 
 # ============================================
 # PETEY THE PET ROCK

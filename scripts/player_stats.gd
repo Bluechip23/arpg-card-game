@@ -142,6 +142,16 @@ var st_serial_killer_enemies: Dictionary = {} # Serial Killer: enemies already t
 var st_regrowth_cooldown: int = 0     # Regrowth: remaining cooldown tempo
 var st_stimulant_cooldown: int = 0    # Stimulant: remaining cooldown tempo
 
+# Jeremy passive tracking
+var st_mana_spent_window: Array = []  # Mana Surge: [{amount, tempo}] entries within 5 tempo window
+var st_whispers_cooldown: int = 0     # Whispers of the Flock: remaining cooldown tempo
+var st_whispers_active: bool = false  # Whispers of the Flock: mark currently active
+var st_whispers_tempo: int = 0        # Whispers of the Flock: remaining mark duration
+var st_haunted_rebuke_cooldown: int = 0  # Haunted Rebuke: remaining cooldown tempo
+var st_kinetic_armor_tempo: int = 0   # Kinetic Armor: tempo since armor was last at 0
+var st_kinetic_armor_triggered: bool = false  # Kinetic Armor: already triggered this armor retention
+var st_i_heal_you_tempo: int = 0      # I Heal You: tempo counter for ally healing aura
+
 func has_skill_tree_passive(passive_id: String) -> bool:
 	return passive_id in skill_tree_passives
 

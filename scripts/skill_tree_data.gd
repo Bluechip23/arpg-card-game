@@ -705,6 +705,106 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 
 	return tree
 
+static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
+	var tree = SkillTreeData.new()
+	tree.character_name = "Jeremy"
+
+	# Archetype ability pool — spread across levels
+	# Colors: Evocation = red, Shepherd = blue, Poltergeist = green, Abjurer = purple
+	var ability_placements := [
+		{level = 2, slot = 0, archetype = "Evocation", name = "Energy Spark",
+			description = "When casting a spell that costs more than 5 tempo, deal 3 damage to a random enemy",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 3, slot = 1, archetype = "Shepherd", name = "I Heal You",
+			description = "Allies near you are healed 3 health every 5 tempo",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 4, slot = 2, archetype = "Poltergeist", name = "Tricks of Death",
+			description = "Increase all % chances by 10",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 5, slot = 3, archetype = "Abjurer", name = "A Mage's Favor",
+			description = "When a card rerolls to a different outcome in your hand, put a Magic Barrier in your hand. 0m/0t Instant: when targeted by an enemy attack, gain 8 armor. Only triggers once per reroll batch.",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 7, slot = 1, archetype = "Evocation", name = "Harnessed Power",
+			description = "Cards gain 30% effectiveness when you have 2 or less cards in your hand",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 8, slot = 0, archetype = "Shepherd", name = "Whispers of the Flock",
+			description = "When you heal an ally, put a Shepherd's Mark on them for 10 tempo. Marked allies who take lethal damage are instead reduced to 1 HP and gain 10 armor. When the Mark expires, Jeremy takes 8 damage. Cooldown: 20 tempo.",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 9, slot = 3, archetype = "Poltergeist", name = "Seance",
+			description = "When you cast a spell that targets an empty tile, summon a Specter on that tile for 15 tempo. 5 HP, cannot act, enemies adjacent can target it instead of an ally. When destroyed, deals 4 damage to its killer.",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 11, slot = 2, archetype = "Abjurer", name = "Kinetic Armor",
+			description = "While retaining armor for more than 25 tempo, apply shock to the nearest enemy equal to the number of defensive cards in your deck",
+			color = Color(0.8, 0.4, 0.9)},
+		{level = 13, slot = 0, archetype = "Evocation", name = "Mana Surge",
+			description = "When spending 10 mana within 5 tempo, add a Mana Surge to your hand. Mana Surge: Attack, 0m/2t, deal 5 damage, gain 1 mana.",
+			color = Color(0.9, 0.3, 0.3)},
+		{level = 14, slot = 2, archetype = "Poltergeist", name = "Haunted Rebuke",
+			description = "When an enemy attacks you or an ally and you have 3 or more defensive cards in your hand, the enemy's next action takes +3 tempo. Cooldown: 10 tempo.",
+			color = Color(0.4, 0.9, 0.4)},
+		{level = 16, slot = 1, archetype = "Shepherd", name = "Placeholder Shepherd 16",
+			description = "Placeholder - to be defined (replacing Friendship)",
+			color = Color(0.3, 0.7, 1.0)},
+		{level = 18, slot = 3, archetype = "Abjurer", name = "Fresh Start",
+			description = "When playing a card that leaves your hand empty, cleanse a debuff from yourself",
+			color = Color(0.8, 0.4, 0.9)},
+	]
+
+	# Index placements by level for quick lookup
+	var placements_by_level := {}
+	for p in ability_placements:
+		if p.level not in placements_by_level:
+			placements_by_level[p.level] = {}
+		placements_by_level[p.level][p.slot] = p
+
+	for lvl in range(2, max_level + 1):
+		var row = SkillRow.new()
+		row.level = lvl
+
+		var level_placements = placements_by_level.get(lvl, {})
+
+		for i in range(4):
+			var opt = SkillOption.new()
+			if i in level_placements:
+				var p = level_placements[i]
+				opt.name = p.name
+				opt.description = "%s (%s): %s" % [p.name, p.archetype, p.description]
+				opt.option_type = OptionType.PASSIVE
+				opt.passive_id = p.name.to_lower().replace(" ", "_")
+				opt.icon_color = p.color
+			else:
+				opt.name = "Jeremy Lv%d Option %d" % [lvl, i + 1]
+				opt.description = "Placeholder - to be defined"
+				opt.option_type = OptionType.CARD if i < 2 else OptionType.PASSIVE
+				opt.icon_color = _get_option_color(i)
+			row.options.append(opt)
+
+		# Create auto-grant based on level schedule
+		var auto = AutoGrant.new()
+		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
+		match auto.grant_type:
+			AutoGrantType.STAT_ALLOCATION:
+				auto.name = "Stat Points"
+				auto.description = "Allocate 5 stat points"
+				auto.stat_points = 5
+			AutoGrantType.CARD_REMOVAL:
+				auto.name = "Culling Stone"
+				auto.description = "Remove 1 card from your deck"
+			AutoGrantType.UPGRADE_CARD:
+				auto.name = "Card Upgrade"
+				auto.description = "Upgrade an existing card"
+			AutoGrantType.MUTATE_CARD:
+				auto.name = "Card Mutation"
+				auto.description = "Mutate an existing card"
+			_:
+				auto.name = "Bonus"
+				auto.description = "Level bonus"
+		row.auto_grant = auto
+
+		tree.rows.append(row)
+
+	return tree
+
 static func _get_option_color(index: int) -> Color:
 	match index:
 		0: return Color(0.3, 0.7, 1.0)    # Blue

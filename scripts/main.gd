@@ -1479,6 +1479,10 @@ func select_character(character: CharacterData) -> void:
 		skill_tree = SkillTreeData.create_stephen_tree()
 	elif character.character_name == "Ryan":
 		skill_tree = SkillTreeData.create_ryan_tree()
+	elif character.character_name == "Cory":
+		skill_tree = SkillTreeData.create_cory_tree()
+	elif character.character_name == "Jeremy":
+		skill_tree = SkillTreeData.create_jeremy_tree()
 	else:
 		skill_tree = SkillTreeData.create_placeholder_tree(character.character_name)
 
@@ -2002,6 +2006,7 @@ func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	_trigger_skill_tree_brad_on_attacked(enemy)
 	_trigger_skill_tree_stephen_on_attacked(enemy)
+	_trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
@@ -2405,6 +2410,11 @@ func _apply_skill_tree_option(option) -> void:
 				# Stephen: +25% block when only wielding swords (tracked via passive)
 				stats.add_skill_tree_passive(pid)
 				add_battle_log("Sword Specialist: +25%% block with swords only", Color(0.3, 0.7, 1.0))
+			"tricks_of_death":
+				# Jeremy: +10% to all % chances (permanent chance_boost)
+				stats.chance_boost += 10.0
+				stats.add_skill_tree_passive(pid)
+				add_battle_log("Tricks of Death: +10%% to all chances", Color(0.4, 0.9, 0.4))
 			_:
 				stats.add_skill_tree_passive(pid)
 				add_battle_log("Passive unlocked: %s" % option.name, Color(0.9, 0.7, 0.2))
@@ -2588,6 +2598,9 @@ func _trigger_skill_tree_on_heal_ally(ally_name: String) -> void:
 
 	# Brad: Redemption — heal ally → +10% crit on next attack
 	_trigger_skill_tree_brad_on_heal_ally(ally_name)
+
+	# Jeremy: Whispers of the Flock — mark healed ally
+	_trigger_skill_tree_jeremy_on_heal_ally()
 
 func _trigger_skill_tree_on_displacement() -> void:
 	var stats = player.get_stats()
@@ -3179,6 +3192,167 @@ func _trigger_skill_tree_cory_on_enemy_enter_melee(enemy: Enemy) -> void:
 				enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
 				add_battle_log("Territorial Death: re-applied %s to %s!" % [random_effect.get("name", "?"), enemy.enemy_name], Color(0.4, 0.9, 0.4))
 
+# ============================================
+# JEREMY SKILL TREE PASSIVE TRIGGERS
+# ============================================
+
+func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Energy Spark: spell costing >5 tempo → 3 damage to random enemy
+	if stats.has_skill_tree_passive("energy_spark") and card.card_type == Card.CardType.UTILITY and card.mana_cost > 0 and card.tempo_cost > 5:
+		var enemies = enemy_spawner.get_living_enemies()
+		if enemies.size() > 0:
+			var random_enemy = enemies[randi() % enemies.size()]
+			random_enemy.take_damage(3, true)
+			add_battle_log("Energy Spark: 3 damage to %s!" % random_enemy.enemy_name, Color(0.9, 0.3, 0.3))
+
+	# Mana Surge: track mana spending, 10 mana in 5 tempo → add Mana Surge card
+	if stats.has_skill_tree_passive("mana_surge") and card.mana_cost > 0:
+		var current_tempo = tempo_manager.global_tempo
+		stats.st_mana_spent_window.append({"amount": card.mana_cost, "tempo": current_tempo})
+		# Purge entries older than 5 tempo
+		var fresh: Array = []
+		for entry in stats.st_mana_spent_window:
+			if current_tempo - entry["tempo"] <= 5:
+				fresh.append(entry)
+		stats.st_mana_spent_window = fresh
+		# Check total
+		var total_spent = 0
+		for entry in stats.st_mana_spent_window:
+			total_spent += entry["amount"]
+		if total_spent >= 10:
+			stats.st_mana_spent_window.clear()
+			var surge = Card.create_mana_surge()
+			deck_manager.add_card_to_hand(surge)
+			add_battle_log("Mana Surge: card added to hand!", Color(0.9, 0.3, 0.3))
+
+	# Fresh Start: playing a card that empties hand → cleanse a debuff
+	if stats.has_skill_tree_passive("fresh_start") and deck_manager.hand.is_empty():
+		var debuff_mgr = player.get_debuff_manager()
+		if debuff_mgr and debuff_mgr.debuffs.size() > 0:
+			var removed = debuff_mgr.debuffs[0]
+			debuff_mgr.remove_debuff(removed.debuff_type)
+			add_battle_log("Fresh Start: cleansed %s!" % removed.debuff_name, Color(0.8, 0.4, 0.9))
+
+func _trigger_skill_tree_jeremy_on_cycle() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Whispers of the Flock: tick mark duration and cooldown
+	if stats.st_whispers_active:
+		stats.st_whispers_tempo -= 5
+		if stats.st_whispers_tempo <= 0:
+			stats.st_whispers_active = false
+			# Mark expired — Jeremy takes 8 damage
+			stats.take_damage(8)
+			add_battle_log("Whispers of the Flock: mark expired, took 8 damage!", Color(0.3, 0.7, 1.0))
+			stats.st_whispers_cooldown = 20
+	if stats.st_whispers_cooldown > 0:
+		stats.st_whispers_cooldown -= 5
+
+	# Haunted Rebuke: tick cooldown
+	if stats.st_haunted_rebuke_cooldown > 0:
+		stats.st_haunted_rebuke_cooldown -= 5
+
+	# I Heal You: heal nearby allies 3 HP every 5 tempo (fires each cycle = 5 tempo)
+	if stats.has_skill_tree_passive("i_heal_you"):
+		# Allies are healed automatically — apply as a passive aura heal
+		# Since allies share the player's world, heal the player's companions
+		stats.st_i_heal_you_tempo += 5
+		if stats.st_i_heal_you_tempo >= 5:
+			stats.st_i_heal_you_tempo = 0
+			# Heal player too if they count as "near self"
+			stats.heal(3)
+			add_battle_log("I Heal You: healed 3 HP", Color(0.3, 0.7, 1.0))
+
+	# Kinetic Armor: track armor retention, apply shock after 25 tempo
+	if stats.has_skill_tree_passive("kinetic_armor"):
+		if stats.current_armor > 0:
+			stats.st_kinetic_armor_tempo += 5
+			if stats.st_kinetic_armor_tempo >= 25 and not stats.st_kinetic_armor_triggered:
+				stats.st_kinetic_armor_triggered = true
+				# Count defense cards across entire deck
+				var defense_count = 0
+				for c in deck_manager.hand:
+					if c.card_type == Card.CardType.DEFENSE:
+						defense_count += 1
+				for c in deck_manager.draw_pile:
+					if c.card_type == Card.CardType.DEFENSE:
+						defense_count += 1
+				for c in deck_manager.discard_pile:
+					if c.card_type == Card.CardType.DEFENSE:
+						defense_count += 1
+				if defense_count > 0:
+					var enemies = enemy_spawner.get_living_enemies()
+					if enemies.size() > 0:
+						var nearest_enemy: Enemy = null
+						var nearest_dist = 999.0
+						for e in enemies:
+							var d = (e.position - player.position).length()
+							if d < nearest_dist:
+								nearest_dist = d
+								nearest_enemy = e
+						if nearest_enemy:
+							nearest_enemy.take_damage(defense_count, true)
+							add_battle_log("Kinetic Armor: %d shock to %s!" % [defense_count, nearest_enemy.enemy_name], Color(0.8, 0.4, 0.9))
+		else:
+			# Armor gone — reset tracking
+			stats.st_kinetic_armor_tempo = 0
+			stats.st_kinetic_armor_triggered = false
+
+func _trigger_skill_tree_jeremy_on_enemy_attacked(enemy: Enemy) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Haunted Rebuke: 3+ defense cards in hand → slow enemy's next action by +3 tempo
+	if stats.has_skill_tree_passive("haunted_rebuke") and stats.st_haunted_rebuke_cooldown <= 0:
+		var defense_in_hand = 0
+		for card in deck_manager.hand:
+			if card.card_type == Card.CardType.DEFENSE:
+				defense_in_hand += 1
+		if defense_in_hand >= 3:
+			stats.st_haunted_rebuke_cooldown = 10
+			# Slow the enemy's next action by adding to their action tempo counter
+			if enemy.has_method("apply_debuff"):
+				enemy.apply_debuff("slow", 3)
+			add_battle_log("Haunted Rebuke: %s slowed by 3 tempo!" % enemy.enemy_name, Color(0.4, 0.9, 0.4))
+
+func _trigger_skill_tree_jeremy_on_rng_reroll() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# A Mage's Favor: RNG reroll changed outcome → Magic Barrier to hand (once per batch)
+	if stats.has_skill_tree_passive("a_mage's_favor"):
+		var barrier = Card.create_magic_barrier()
+		deck_manager.add_card_to_hand(barrier)
+		add_battle_log("A Mage's Favor: Magic Barrier added!", Color(0.8, 0.4, 0.9))
+
+func _trigger_skill_tree_jeremy_on_heal_ally() -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+
+	# Whispers of the Flock: mark healed ally for death prevention
+	if stats.has_skill_tree_passive("whispers_of_the_flock") and not stats.st_whispers_active and stats.st_whispers_cooldown <= 0:
+		stats.st_whispers_active = true
+		stats.st_whispers_tempo = 10
+		add_battle_log("Whispers of the Flock: ally marked for 10 tempo!", Color(0.3, 0.7, 1.0))
+
+func _get_jeremy_harnessed_power_multiplier() -> float:
+	## Returns the Harnessed Power effectiveness multiplier (1.0 = no bonus)
+	var stats = player.get_stats()
+	if not stats:
+		return 1.0
+	if stats.has_skill_tree_passive("harnessed_power") and deck_manager.hand.size() <= 2:
+		return 1.3
+	return 1.0
+
 func _apply_all_constellation_bonuses() -> void:
 	## Re-applies all completed constellation bonuses (called after character select).
 	var grid = sphere_grid_ui.sphere_grid
@@ -3750,6 +3924,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	_trigger_skill_tree_on_cycle()
 	_trigger_skill_tree_brad_on_cycle()
 	_trigger_skill_tree_cory_on_cycle()
+	_trigger_skill_tree_jeremy_on_cycle()
 	if tempo_manager.last_tempo_source == "movement":
 		_trigger_skill_tree_on_movement_cycle()
 
@@ -3959,12 +4134,20 @@ func _apply_magnetize_pull(tiles: int) -> void:
 func _reroll_card_rng() -> void:
 	var enemies = enemy_spawner.get_living_enemies()
 	var chance_boost = player.get_stats().chance_boost
+	var any_outcome_changed = false
 
 	for card in deck_manager.hand:
 		if card.has_chance_effect():
 			if card.should_reroll_rng(tempo_manager.global_tempo):
+				var old_index = card.rng_selected_index
 				card.roll_rng(enemies, chance_boost)
 				card.rng_roll_tempo = tempo_manager.global_tempo
+				if card.rng_selected_index != old_index:
+					any_outcome_changed = true
+
+	# A Mage's Favor: reroll outcome changed → add Magic Barrier to hand
+	if any_outcome_changed:
+		_trigger_skill_tree_jeremy_on_rng_reroll()
 
 	# Update chance displays on existing card UIs
 	for child in hand_container.get_children():
@@ -4114,6 +4297,21 @@ func play_selected_card(target) -> void:
 		add_battle_log("High Ground! +4 damage, +2 range", Color(1.0, 0.9, 0.4))
 		print("[MAIN] High Ground bonus applied: +4 damage, +2 range")
 
+	# Harnessed Power: +30% effectiveness with 2 or fewer cards in hand
+	var harnessed_power_applied = false
+	var harnessed_bonus_damage = 0
+	var harnessed_bonus_heal = 0
+	var harnessed_bonus_block = 0
+	var hp_mult = _get_jeremy_harnessed_power_multiplier()
+	if hp_mult > 1.0:
+		harnessed_power_applied = true
+		harnessed_bonus_damage = floori(card.base_damage * (hp_mult - 1.0))
+		harnessed_bonus_heal = floori(card.heal_amount * (hp_mult - 1.0))
+		harnessed_bonus_block = floori(card.base_block * (hp_mult - 1.0))
+		card.bonus_damage += harnessed_bonus_damage
+		card.heal_amount += harnessed_bonus_heal
+		card.block += harnessed_bonus_block
+
 	# Capture the card UI before playing for animation
 	var played_card_ui: CardUI = null
 	if selected_card_index >= 0 and selected_card_index < _card_ui_instances.size():
@@ -4149,6 +4347,7 @@ func play_selected_card(target) -> void:
 		_trigger_skill_tree_on_card_play(card, target)
 		_trigger_skill_tree_stephen_on_card_play(card)
 		_trigger_skill_tree_cory_on_card_play(card)
+		_trigger_skill_tree_jeremy_on_card_play(card, target)
 		if card.card_type == Card.CardType.ATTACK:
 			_trigger_skill_tree_on_attack(card, target)
 			# Brad/Stephen attack passives (bonus damage applied to target)
@@ -4187,6 +4386,12 @@ func play_selected_card(target) -> void:
 		if high_ground_applied:
 			card.bonus_damage -= 4
 			card.range_modifier -= 2
+
+		# Harnessed Power: undo temporary card mods
+		if harnessed_power_applied:
+			card.bonus_damage -= harnessed_bonus_damage
+			card.heal_amount -= harnessed_bonus_heal
+			card.block -= harnessed_bonus_block
 
 		# Enchanted Quiver: create a free arrow card after ranged attacks
 		if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and is_ranged_attack:
