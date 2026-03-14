@@ -350,6 +350,24 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 			color = Color(0.8, 0.4, 0.9)},
 	]
 
+	# Card reward placements — character-specific cards offered as chooseable options
+	var card_placements := [
+		{level = 2, slot = 1, card_id = "poke", name = "Poke", description = "Deal 2 damage. (0 mana, 0 tempo)"},
+		{level = 3, slot = 0, card_id = "wear_down", name = "Wear Down", description = "Decrease enemy attack by 1 per consecutive hit. Lasts 15 tempo. (0 mana, 1 tempo)"},
+		{level = 4, slot = 1, card_id = "roar", name = "Roar", description = "Knock enemies back 1 space. (1 mana, 2 tempo)"},
+		{level = 5, slot = 0, card_id = "life_steal", name = "Life Steal", description = "Heal for the amount of damage done on next hit. (1 mana, 2 tempo)"},
+		{level = 6, slot = 0, card_id = "parry", name = "Parry", description = "Gain 5 armor, deal 5 damage. Next damage to you is reduced. (1 mana, 5 tempo)"},
+		{level = 7, slot = 0, card_id = "morphine", name = "Morphine", description = "Gain 4 temp HP. After 3 turns, lose it and take 2 damage. (3 mana, 0 tempo)"},
+		{level = 8, slot = 1, card_id = "approach", name = "Approach", description = "Slowed for 10 tempo. For each movement taken, gain 5 armor. (1 mana, 3 tempo)"},
+		{level = 9, slot = 0, card_id = "taunt", name = "Taunt", description = "Taunt enemies around you. They must target you. (4 mana, 0 tempo)"},
+		{level = 10, slot = 0, card_id = "charge", name = "Charge", description = "Charge forward, deal 8 damage to all enemies hit and knock them back. (2 mana, 4 tempo)"},
+		{level = 11, slot = 0, card_id = "turtle_up", name = "Turtle Up", description = "Armor does not decay for 20 tempo. (3 mana, 0 tempo)"},
+		{level = 12, slot = 0, card_id = "armor_break", name = "Armor Break", description = "Next attack deals double damage to armor only. (3 mana, 4 tempo)"},
+		{level = 14, slot = 0, card_id = "life_swap", name = "Life Swap", description = "Exchange HP and mana pools. Deal damage equal to HP lost. (4 mana, 4 tempo)"},
+		{level = 16, slot = 0, card_id = "heroic_leap", name = "Heroic Leap", description = "Jump based on STR. Deal 12 damage based on distance leaped. AOE circle. (4 mana, 5 tempo)"},
+		{level = 18, slot = 0, card_id = "hold_the_line", name = "Hold the Line", description = "All allies gain 5 armor, +2 DET, and +2 STR. (4 mana, 5 tempo)"},
+	]
+
 	# Index placements by level for quick lookup
 	var placements_by_level := {}  # level -> {slot -> placement}
 	for p in ability_placements:
@@ -357,11 +375,18 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 			placements_by_level[p.level] = {}
 		placements_by_level[p.level][p.slot] = p
 
+	var cards_by_level := {}  # level -> {slot -> card_placement}
+	for c in card_placements:
+		if c.level not in cards_by_level:
+			cards_by_level[c.level] = {}
+		cards_by_level[c.level][c.slot] = c
+
 	for lvl in range(2, max_level + 1):
 		var row = SkillRow.new()
 		row.level = lvl
 
 		var level_placements = placements_by_level.get(lvl, {})
+		var level_card_placements = cards_by_level.get(lvl, {})
 
 		for i in range(4):
 			var opt = SkillOption.new()
@@ -372,6 +397,13 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+			elif i in level_card_placements:
+				var c = level_card_placements[i]
+				opt.name = c.name
+				opt.description = "Card: %s" % c.description
+				opt.option_type = OptionType.CARD
+				opt.card_id = c.card_id
+				opt.icon_color = Color(1.0, 0.85, 0.3)
 			else:
 				opt.name = "Brad Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
@@ -450,6 +482,25 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			color = Color(0.8, 0.4, 0.9)},
 	]
 
+	# Card reward placements — Stephen's archer/ranger cards
+	var card_placements := [
+		{level = 2, slot = 1, card_id = "quick_shot", name = "Quick Shot", description = "Deal 6 damage, draw a card. Ranged, Arrow. (1 mana, 1 tempo)"},
+		{level = 3, slot = 0, card_id = "mixed_bag", name = "Mixed Bag", description = "Shoot a standard arrow, 7 damage. Ranged, Arrow. (1 mana, 1 tempo)"},
+		{level = 4, slot = 0, card_id = "rise", name = "Rise", description = "Lift the earth creating a structure on the map. (1 mana, 4 tempo)"},
+		{level = 5, slot = 0, card_id = "reload", name = "Reload", description = "Draw 3 cards. (3 mana, 3 tempo)"},
+		{level = 6, slot = 0, card_id = "mark", name = "Mark", description = "Target receives extra damage from your attacks. Ranged +7. (3 mana, 0 tempo)"},
+		{level = 7, slot = 0, card_id = "barricade", name = "Barricade", description = "Create a barricade of land in front of you. (3 mana, 2 tempo)"},
+		{level = 8, slot = 1, card_id = "tighten_string", name = "Tighten String", description = "Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20%% crit. (3 mana, 3 tempo)"},
+		{level = 9, slot = 0, card_id = "down_town", name = "Down Town", description = "Very long range (+7) shot, 12 damage. Arrow. (3 mana, 5 tempo)"},
+		{level = 10, slot = 0, card_id = "sky_attack", name = "Sky Attack", description = "Leap and shoot arrow down, 10 damage. High Ground bonus. Arrow. (1 mana, 4 tempo)"},
+		{level = 11, slot = 0, card_id = "enchanted_quiver", name = "Enchanted Quiver", description = "Next 3 ranged attacks create a free Quick Arrow in hand. (4 mana, 5 tempo)"},
+		{level = 12, slot = 0, card_id = "last_breath", name = "Last Breath", description = "Consume all remaining mana. Deal 3 damage per mana spent. Arrow. (0 mana, 5 tempo)"},
+		{level = 14, slot = 0, card_id = "sky_fall", name = "Sky Fall", description = "Shoot arrow upward. In 10 tempo, lands for 18 damage. Arrow. (3 mana, 5 tempo)"},
+		{level = 15, slot = 0, card_id = "lead_arrow", name = "Lead Arrow", description = "1.8x damage (10 base). Requires high ground, lower range. Arrow. (3 mana, 5 tempo)"},
+		{level = 16, slot = 0, card_id = "bottomless_quiver", name = "Bottomless Quiver", description = "Manifest 5: Overflow attack cards stored in quiver. (4 mana, 4 tempo)"},
+		{level = 18, slot = 0, card_id = "collect_arrows", name = "Collect Arrows", description = "Place 2 attack cards from discard pile into hand. Glut: 15 tempo. (3 mana)"},
+	]
+
 	# Index placements by level for quick lookup
 	var placements_by_level := {}
 	for p in ability_placements:
@@ -457,11 +508,18 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			placements_by_level[p.level] = {}
 		placements_by_level[p.level][p.slot] = p
 
+	var cards_by_level := {}
+	for c in card_placements:
+		if c.level not in cards_by_level:
+			cards_by_level[c.level] = {}
+		cards_by_level[c.level][c.slot] = c
+
 	for lvl in range(2, max_level + 1):
 		var row = SkillRow.new()
 		row.level = lvl
 
 		var level_placements = placements_by_level.get(lvl, {})
+		var level_card_placements = cards_by_level.get(lvl, {})
 
 		for i in range(4):
 			var opt = SkillOption.new()
@@ -472,6 +530,13 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+			elif i in level_card_placements:
+				var c = level_card_placements[i]
+				opt.name = c.name
+				opt.description = "Card: %s" % c.description
+				opt.option_type = OptionType.CARD
+				opt.card_id = c.card_id
+				opt.icon_color = Color(1.0, 0.85, 0.3)
 			else:
 				opt.name = "Stephen Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
@@ -550,6 +615,23 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			color = Color(0.8, 0.4, 0.9)},
 	]
 
+	# Card reward placements — Ryan's rogue/alchemist cards
+	var card_placements := [
+		{level = 2, slot = 1, card_id = "reposition", name = "Reposition", description = "Discard a card and draw a new one. (1 mana, 2 tempo)"},
+		{level = 3, slot = 0, card_id = "elixir", name = "Elixir", description = "Poison cards now heal instead. (1 mana, 2 tempo)"},
+		{level = 4, slot = 0, card_id = "poisoned_blood", name = "Poisoned Blood", description = "Heal cards now apply damage instead. (1 mana, 2 tempo)"},
+		{level = 5, slot = 0, card_id = "volatile_mixture", name = "Volatile Mixture", description = "Discard: deal 8 damage to enemy. End of turn in hand: 8 self-damage. (0 mana, 0 tempo)"},
+		{level = 6, slot = 0, card_id = "shadows", name = "Shadows", description = "Go invisible for 10 tempo. (1 mana, 4 tempo)"},
+		{level = 7, slot = 0, card_id = "preparation", name = "Preparation", description = "Next 2 utility cards cost 2 less. (3 mana, 3 tempo)"},
+		{level = 8, slot = 1, card_id = "raged_circulation", name = "Raged Circulation", description = "Target receives 30%% more from healing and regen for 15 tempo. Ranged. (2 mana, 2 tempo)"},
+		{level = 9, slot = 0, card_id = "exacerbate_wounds", name = "Exacerbate Wounds", description = "Deal damage for each card discarded this turn. (0 mana, 7 tempo)"},
+		{level = 10, slot = 0, card_id = "premeditated", name = "Premeditated", description = "Deal 8 damage. If this Exposes the enemy, next attack deals +15 damage. (2 mana, 4 tempo)"},
+		{level = 11, slot = 0, card_id = "shuriken_pouch", name = "Shuriken Pouch", description = "Manifest 3: Overflow cards become Shuriken (3 dmg, free, ranged). (3 mana, 2 tempo)"},
+		{level = 12, slot = 0, card_id = "bloodlust", name = "Bloodlust", description = "Apply 3 Vulnerable to self. Gain 3 mana. Gain 3 Strengthen for 20 tempo. (0 mana, 5 tempo)"},
+		{level = 14, slot = 0, card_id = "understanding", name = "Understanding", description = "After 10 tempo delay, next card auto-crits. (5 mana, 1 tempo)"},
+		{level = 16, slot = 0, card_id = "lethal_recall", name = "Lethal Recall", description = "Trigger your last instant card's effect 2 times. (2 mana, 4 tempo)"},
+	]
+
 	# Index placements by level for quick lookup
 	var placements_by_level := {}
 	for p in ability_placements:
@@ -557,11 +639,18 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			placements_by_level[p.level] = {}
 		placements_by_level[p.level][p.slot] = p
 
+	var cards_by_level := {}
+	for c in card_placements:
+		if c.level not in cards_by_level:
+			cards_by_level[c.level] = {}
+		cards_by_level[c.level][c.slot] = c
+
 	for lvl in range(2, max_level + 1):
 		var row = SkillRow.new()
 		row.level = lvl
 
 		var level_placements = placements_by_level.get(lvl, {})
+		var level_card_placements = cards_by_level.get(lvl, {})
 
 		for i in range(4):
 			var opt = SkillOption.new()
@@ -572,6 +661,13 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+			elif i in level_card_placements:
+				var c = level_card_placements[i]
+				opt.name = c.name
+				opt.description = "Card: %s" % c.description
+				opt.option_type = OptionType.CARD
+				opt.card_id = c.card_id
+				opt.icon_color = Color(1.0, 0.85, 0.3)
 			else:
 				opt.name = "Ryan Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
@@ -650,6 +746,21 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			color = Color(0.8, 0.4, 0.9)},
 	]
 
+	# Card reward placements — Cory's brawler/monk cards
+	var card_placements := [
+		{level = 2, slot = 1, card_id = "push", name = "Push", description = "Move a unit away from you X squares. Fist. (1 mana, 1 tempo)"},
+		{level = 3, slot = 0, card_id = "trip", name = "Trip", description = "Deal 5 damage. Decrease enemy movement by 4. Fist. (2 mana, 4 tempo)"},
+		{level = 4, slot = 0, card_id = "bob_and_weave", name = "Bob and Weave", description = "Gain 5 armor and draw a card. Fist. (2 mana, 1 tempo)"},
+		{level = 5, slot = 0, card_id = "swap", name = "Swap", description = "Switch positions with an enemy or ally. Ranged +4. (2 mana, 3 tempo)"},
+		{level = 6, slot = 0, card_id = "defensive_awareness", name = "Defensive Awareness", description = "Gain 3 armor for every enemy within 2 spaces. (3 mana, 2 tempo)"},
+		{level = 7, slot = 0, card_id = "consecutive_snap", name = "Consecutive Snap", description = "3 damage. Each reuse: +9 damage, -1m/-1t cost. Sticky 3. Fist. (3 mana, 3 tempo)"},
+		{level = 8, slot = 1, card_id = "round_em_up", name = "Round 'Em Up", description = "Pick a point. Enemies near it are displaced towards it. AOE circle, Ranged. (2 mana, 3 tempo)"},
+		{level = 9, slot = 0, card_id = "sweeping_disarm", name = "Sweeping Disarm", description = "Surrounding enemies disarmed, deal 3 damage. AOE circle, Fist. (2 mana, 5 tempo)"},
+		{level = 10, slot = 0, card_id = "choke", name = "Choke", description = "Silence enemy and deal damage per round. Sticky 3. Fist. (3 mana, 4 tempo)"},
+		{level = 12, slot = 0, card_id = "meditate", name = "Meditate", description = "Discard hand, draw to full -2, heal to 80%%. Skip next turn. (0 mana, 6 tempo)"},
+		{level = 14, slot = 0, card_id = "absorb_essence", name = "Absorb Essence", description = "Deal 1 damage to ALL things. Delay 10 tempo: obtain Energy Ball. AOE. (5 mana, 5 tempo)"},
+	]
+
 	# Index placements by level for quick lookup
 	var placements_by_level := {}
 	for p in ability_placements:
@@ -657,11 +768,18 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			placements_by_level[p.level] = {}
 		placements_by_level[p.level][p.slot] = p
 
+	var cards_by_level := {}
+	for c in card_placements:
+		if c.level not in cards_by_level:
+			cards_by_level[c.level] = {}
+		cards_by_level[c.level][c.slot] = c
+
 	for lvl in range(2, max_level + 1):
 		var row = SkillRow.new()
 		row.level = lvl
 
 		var level_placements = placements_by_level.get(lvl, {})
+		var level_card_placements = cards_by_level.get(lvl, {})
 
 		for i in range(4):
 			var opt = SkillOption.new()
@@ -672,6 +790,13 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+			elif i in level_card_placements:
+				var c = level_card_placements[i]
+				opt.name = c.name
+				opt.description = "Card: %s" % c.description
+				opt.option_type = OptionType.CARD
+				opt.card_id = c.card_id
+				opt.icon_color = Color(1.0, 0.85, 0.3)
 			else:
 				opt.name = "Cory Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
@@ -750,6 +875,22 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			color = Color(0.8, 0.4, 0.9)},
 	]
 
+	# Card reward placements — Jeremy's gambler/chaos mage cards
+	var card_placements := [
+		{level = 2, slot = 1, card_id = "risk_it", name = "Risk It", description = "30%% chance to receive the Biscuit. (1 mana, 0 tempo)"},
+		{level = 3, slot = 0, card_id = "loaded_die", name = "Loaded Die", description = "Next card with a probability has +10%% higher chance. Gem. (1 mana, 1 tempo)"},
+		{level = 4, slot = 0, card_id = "trick_shot", name = "Trick Shot", description = "Deal 8 damage. 80%% chance to bounce, -20%% per bounce. Ranged. (2 mana, 4 tempo)"},
+		{level = 5, slot = 0, card_id = "oops", name = "Oops", description = "4 damage per hit. 30%% for 5 hits, 40%% for 3 hits, 30%% for 2 hits. (3 mana, 4 tempo)"},
+		{level = 6, slot = 0, card_id = "hope_this_works", name = "Hope This Works", description = "50%% to heal ally and provide STR for 3 attacks. (2 mana, 3 tempo)"},
+		{level = 7, slot = 0, card_id = "surrounding_ice", name = "Surrounding Ice", description = "Ice stalagmites deal 15 damage around you. 30%% miss chance per enemy. AOE. (3 mana, 4 tempo)"},
+		{level = 8, slot = 1, card_id = "worst_that_could_happen", name = "What's the Worst?", description = "5 damage. 50%% for +15 damage, 50%% to stun target. (3 mana, 7 tempo)"},
+		{level = 10, slot = 0, card_id = "try_this", name = "Try This!", description = "Ally +3 mana pool, +2 hand size for 10 tempo. 10%% chance reverse. (3 mana, 4 tempo)"},
+		{level = 11, slot = 0, card_id = "snowballs_chance", name = "A Snowball's Chance", description = "Searing fire 3 spaces forward. 50%% to also spread snowballs in a cone. AOE line. (2 mana, 3 tempo)"},
+		{level = 12, slot = 0, card_id = "lady_luck", name = "Lady Luck", description = "Bless an ally. Crit chance +30%% for 5 attacks. (4 mana, 1 tempo)"},
+		{level = 14, slot = 0, card_id = "if_pigs_could_fly", name = "If Pigs Could Fly", description = "Summon a flying pig that explodes for 15 damage. Ranged. (3 mana, 0 tempo)"},
+		{level = 16, slot = 0, card_id = "house_money", name = "House Money", description = "Your next odds will automatically trigger. (4 mana, 5 tempo)"},
+	]
+
 	# Index placements by level for quick lookup
 	var placements_by_level := {}
 	for p in ability_placements:
@@ -757,11 +898,18 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			placements_by_level[p.level] = {}
 		placements_by_level[p.level][p.slot] = p
 
+	var cards_by_level := {}
+	for c in card_placements:
+		if c.level not in cards_by_level:
+			cards_by_level[c.level] = {}
+		cards_by_level[c.level][c.slot] = c
+
 	for lvl in range(2, max_level + 1):
 		var row = SkillRow.new()
 		row.level = lvl
 
 		var level_placements = placements_by_level.get(lvl, {})
+		var level_card_placements = cards_by_level.get(lvl, {})
 
 		for i in range(4):
 			var opt = SkillOption.new()
@@ -772,6 +920,13 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+			elif i in level_card_placements:
+				var c = level_card_placements[i]
+				opt.name = c.name
+				opt.description = "Card: %s" % c.description
+				opt.option_type = OptionType.CARD
+				opt.card_id = c.card_id
+				opt.icon_color = Color(1.0, 0.85, 0.3)
 			else:
 				opt.name = "Jeremy Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
