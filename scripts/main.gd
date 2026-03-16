@@ -2693,11 +2693,7 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 					stats.gain_mana(kills)
 				add_battle_log("Enraged Will: AOE swing for %d! (+%d mana)" % [dmg, kills], Color(0.9, 0.3, 0.3))
 
-	# Dark Forces: when exposed (armor broken to 0), gain +3 damage to next strike
-	if stats.has_skill_tree_passive("dark_forces"):
-		if stats.current_armor <= 0 and damage > 0:
-			stats.st_dark_forces_bonus = 3
-			add_battle_log("Dark Forces: +3 damage on next strike!", Color(0.8, 0.4, 0.9))
+	# Corrupted Strength: state is updated per cycle, no action needed on damage taken
 
 func _trigger_skill_tree_brad_on_attacked(attacker) -> void:
 	var stats = player.get_stats()
@@ -2827,6 +2823,23 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 
 	# Directed Strength is checked at attack time, not per-cycle
 
+	# Corrupted Strength: check nearby enemies, toggle active state, apply armor + HP drain
+	if stats.has_skill_tree_passive("corrupted_strength"):
+		var nearby_enemies = enemy_spawner.get_enemies_in_radius(player.position, 3.0) if enemy_spawner else []
+		var was_active = stats.st_corrupted_strength_active
+		stats.st_corrupted_strength_active = nearby_enemies.size() >= 3
+		stats.st_corrupted_strength_no_ally_heal = stats.st_corrupted_strength_active
+		if stats.st_corrupted_strength_active:
+			stats.add_armor(5)
+			stats.current_health = max(1, stats.current_health - 2)
+			stats.health_changed.emit(stats.current_health, stats.max_health)
+			if not was_active:
+				add_battle_log("Corrupted Strength: darkness surges! +5 dmg, +5 armor/cycle, no ally healing", Color(0.8, 0.4, 0.9))
+			else:
+				add_battle_log("Corrupted Strength: +5 armor, -2 HP", Color(0.8, 0.4, 0.9))
+		elif was_active:
+			add_battle_log("Corrupted Strength: darkness recedes", Color(0.6, 0.4, 0.6))
+
 func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 	## Returns bonus damage from Brad passives.
 	var stats = player.get_stats()
@@ -2847,11 +2860,10 @@ func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 		if buff_mgr and not buff_mgr.has_life_steal():
 			buff_mgr.apply_buff(Buff.create_life_steal("Life Steal (Passive)"))
 
-	# Dark Forces: consume stored bonus damage
-	if stats.has_skill_tree_passive("dark_forces") and stats.st_dark_forces_bonus > 0:
-		bonus += stats.st_dark_forces_bonus
-		stats.st_dark_forces_bonus = 0
-		add_battle_log("Dark Forces: +%d damage!" % bonus, Color(0.8, 0.4, 0.9))
+	# Corrupted Strength: +5 damage while active (3+ enemies within 2 tiles)
+	if stats.has_skill_tree_passive("corrupted_strength") and stats.st_corrupted_strength_active:
+		bonus += 5
+		add_battle_log("Corrupted Strength: +5 damage!", Color(0.8, 0.4, 0.9))
 
 	return bonus
 
@@ -3271,13 +3283,17 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 	if not stats:
 		return
 
-	# Energy Spark: spell costing >5 tempo → 3 damage to random enemy
-	if stats.has_skill_tree_passive("energy_spark") and card.card_type == Card.CardType.UTILITY and card.mana_cost > 0 and card.tempo_cost > 5:
-		var enemies = enemy_spawner.get_living_enemies()
-		if enemies.size() > 0:
-			var random_enemy = enemies[randi() % enemies.size()]
-			random_enemy.take_damage(3, true)
-			add_battle_log("Energy Spark: 3 damage to %s!" % random_enemy.enemy_name, Color(0.9, 0.3, 0.3))
+	# Arcane Overflow: consume discount if active, then check if we hit 0 mana for next spell
+	if stats.has_skill_tree_passive("arcane_overflow"):
+		# Apply stored discount from previous spell
+		if stats.st_arcane_overflow_discount and card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+			# Discount was already applied at card play time via _get_arcane_overflow_discount()
+			stats.st_arcane_overflow_discount = false
+			add_battle_log("Arcane Overflow: -1 tempo!", Color(0.9, 0.3, 0.3))
+		# Check if casting this spell left us at 0 mana → prime next spell
+		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0 and stats.current_mana == 0:
+			stats.st_arcane_overflow_discount = true
+			add_battle_log("Arcane Overflow: 0 mana! Next spell -1 tempo", Color(0.9, 0.3, 0.3))
 
 	# Mana Surge: track mana spending, 10 mana in 5 tempo → add Mana Surge card
 	if stats.has_skill_tree_passive("mana_surge") and card.mana_cost > 0:
@@ -4433,6 +4449,12 @@ func play_selected_card(target) -> void:
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
 	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
+
+	# Arcane Overflow: -1 tempo on spells when primed (had 0 mana after previous spell)
+	var ao_stats = player.get_stats()
+	if ao_stats and ao_stats.has_skill_tree_passive("arcane_overflow") and ao_stats.st_arcane_overflow_discount:
+		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+			tempo_cost = maxi(0, tempo_cost - 1)
 
 	var debuff_mgr = player.get_debuff_manager()
 	var buff_mgr = player.get_buff_manager()
