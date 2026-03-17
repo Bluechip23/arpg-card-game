@@ -123,7 +123,8 @@ var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which ene
 
 # Brad passive tracking
 var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount
-var st_dark_forces_bonus: int = 0     # Dark Forces: +3 damage stored when exposed
+var st_corrupted_strength_active: bool = false  # Corrupted Strength: true when 3+ enemies within 2 tiles
+var st_corrupted_strength_no_ally_heal: bool = false  # Corrupted Strength: blocks ally healing while active
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
 var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when charges were last exhausted
@@ -148,6 +149,7 @@ var st_regrowth_cooldown: int = 0     # Regrowth: remaining cooldown tempo
 var st_stimulant_cooldown: int = 0    # Stimulant: remaining cooldown tempo
 
 # Jeremy passive tracking
+var st_arcane_overflow_discount: bool = false  # Arcane Overflow: next spell costs -1 tempo
 var st_mana_spent_window: Array = []  # Mana Surge: [{amount, tempo}] entries within 5 tempo window
 var st_whispers_cooldown: int = 0     # Whispers of the Flock: remaining cooldown tempo
 var st_whispers_active: bool = false  # Whispers of the Flock: mark currently active
@@ -713,7 +715,10 @@ func _crossed_threshold(old_pct: float, new_pct: float) -> bool:
 			return true
 	return false
 
-func heal(amount: int) -> void:
+func heal(amount: int, from_ally: bool = false) -> void:
+	# Corrupted Strength: block ally healing while active
+	if from_ally and st_corrupted_strength_no_ally_heal:
+		return
 	var boosted_amount = get_effective_heal_amount(amount)
 	var old_health_pct = get_health_percent()
 	var old_health = current_health

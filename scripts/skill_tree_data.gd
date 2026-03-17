@@ -345,8 +345,8 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 16, slot = 1, archetype = "The Ancient", name = "Vines Codependence",
 			description = "Whenever you heal, gain 3 thorns",
 			color = Color(0.4, 0.9, 0.4)},
-		{level = 18, slot = 3, archetype = "The Fallen", name = "Dark Forces",
-			description = "When exposed, gain 3 damage to your next strike",
+		{level = 18, slot = 3, archetype = "The Fallen", name = "Corrupted Strength",
+			description = "When 3+ enemies are within 2 tiles: +5 damage on all attacks, +5 armor per tempo cycle, but cannot be healed by allies",
 			color = Color(0.8, 0.4, 0.9)},
 	]
 
@@ -837,8 +837,8 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 	# Archetype ability pool — spread across levels
 	# Colors: Evocation = red, Shepherd = blue, Poltergeist = green, Abjurer = purple
 	var ability_placements := [
-		{level = 2, slot = 0, archetype = "Evocation", name = "Energy Spark",
-			description = "When casting a spell that costs more than 5 tempo, deal 3 damage to a random enemy",
+		{level = 2, slot = 0, archetype = "Evocation", name = "Arcane Overflow",
+			description = "When you have 0 mana remaining after casting a spell, your next spell costs -1 tempo",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 3, slot = 1, archetype = "Shepherd", name = "I Heal You",
 			description = "Allies near you are healed 3 health every 5 tempo",
