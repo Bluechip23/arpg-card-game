@@ -631,16 +631,8 @@ func _define_world4plus_zones(mid_z: int) -> void:
 func _place_waypoints() -> void:
 	var mid_z = GRID_H / 2
 
-	# Waypoint to town (always present, in starting room)
-	_create_waypoint(Vector2i(2, mid_z + 2), "town", "Town Portal")
-
-	# Waypoint to next world (in the far room)
-	if world_level < 5:
-		_create_waypoint(Vector2i(GRID_W - 4, mid_z), "next_world", "World %d" % (world_level + 1))
-
-	# Waypoint to previous world
-	if world_level > 1:
-		_create_waypoint(Vector2i(2, mid_z - 2), "prev_world", "World %d" % (world_level - 1))
+	# Single transport portal in starting room — opens menu with all destinations
+	_create_waypoint(Vector2i(2, mid_z), "transport", "Transport Portal")
 
 func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) -> void:
 	var wp_root = Node3D.new()
@@ -655,6 +647,8 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	pillar.mesh = cyl
 	var pillar_mat = StandardMaterial3D.new()
 	match target:
+		"transport":
+			pillar_mat.albedo_color = Color(0.5, 0.7, 1.0, 0.9)
 		"town":
 			pillar_mat.albedo_color = Color(0.3, 0.7, 1.0, 0.8)
 		"next_world":

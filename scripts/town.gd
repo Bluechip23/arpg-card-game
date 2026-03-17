@@ -120,7 +120,7 @@ func _ready() -> void:
 	# Create Olorin NPC
 	_create_olorin_npc()
 
-	# Create battle waypoint portal
+	# Create transport portal
 	_create_town_waypoint()
 
 	# Initialize camera
@@ -229,7 +229,7 @@ func _process(_delta: float) -> void:
 			wp_label.visible = wp_dist < INTERACT_DISTANCE + 1
 
 	if _near_town_waypoint:
-		interact_prompt.text = "Press [Shift] to enter the dungeon"
+		interact_prompt.text = "Press [Shift] to use Transport Portal"
 	elif nearby_vendor:
 		var info = vendor_info.get(nearby_vendor.name, null)
 		var display_name = info["name"] if info else nearby_vendor.name
@@ -1284,9 +1284,9 @@ func _create_olorin_npc() -> void:
 	print("[TOWN] Created Olorin NPC at position %s" % olorin.position)
 
 func _create_town_waypoint() -> void:
-	## Creates a waypoint portal in town that takes the player back to battle.
+	## Creates the transport portal in town for returning to the dungeon.
 	_town_waypoint_node = Node3D.new()
-	_town_waypoint_node.name = "BattleWaypoint"
+	_town_waypoint_node.name = "TransportPortal"
 
 	# Glowing pillar (green to match dungeon world portals)
 	var pillar = MeshInstance3D.new()
@@ -1296,10 +1296,10 @@ func _create_town_waypoint() -> void:
 	cyl.height = 2.0
 	pillar.mesh = cyl
 	var pillar_mat = StandardMaterial3D.new()
-	pillar_mat.albedo_color = Color(0.3, 1.0, 0.4, 1.0)
+	pillar_mat.albedo_color = Color(0.5, 0.7, 1.0, 1.0)
 	pillar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	pillar_mat.emission_enabled = true
-	pillar_mat.emission = Color(0.3, 1.0, 0.4)
+	pillar_mat.emission = Color(0.5, 0.7, 1.0)
 	pillar_mat.emission_energy_multiplier = 0.5
 	pillar.material_override = pillar_mat
 	pillar.position = Vector3(0, 1.0, 0)
@@ -1307,17 +1307,17 @@ func _create_town_waypoint() -> void:
 
 	# Name label
 	var label = Label3D.new()
-	label.text = "Battle Portal"
+	label.text = "Transport Portal"
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.modulate = Color(0.3, 1.0, 0.5)
+	label.modulate = Color(0.5, 0.7, 1.0)
 	label.position = Vector3(0, 2.5, 0)
 	_town_waypoint_node.add_child(label)
 
 	# Interact label
 	var interact_label = Label3D.new()
 	interact_label.name = "InteractLabel"
-	interact_label.text = "[Shift] Enter Dungeon"
+	interact_label.text = "[Shift] Travel"
 	interact_label.font_size = 16
 	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
@@ -1328,7 +1328,7 @@ func _create_town_waypoint() -> void:
 	# Position near the town entrance area
 	_town_waypoint_node.position = Vector3(4, 0, 10)
 	add_child(_town_waypoint_node)
-	print("[TOWN] Created battle waypoint portal")
+	print("[TOWN] Created transport portal")
 
 func _open_quest_dialog(vendor_node: StaticBody3D) -> void:
 	var info = vendor_info.get(vendor_node.name, null)
