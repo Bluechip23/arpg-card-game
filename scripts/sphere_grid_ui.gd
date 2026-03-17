@@ -292,7 +292,7 @@ func _on_grid_draw() -> void:
 		if not is_active:
 			continue
 		var edges = sphere_grid.get_constellation_edges(c.id)
-		var alpha = 1.0 if c.completed else 0.5
+		var alpha = 1.0 if c.completed else 0.75
 		for edge in edges:
 			var key = "%d_%d" % [mini(edge[0], edge[1]), maxi(edge[0], edge[1])]
 			constellation_edge_colors[key] = Color(c.color.r, c.color.g, c.color.b, alpha)
@@ -313,7 +313,7 @@ func _on_grid_draw() -> void:
 					if edge_key in constellation_edge_colors:
 						line_color = constellation_edge_colors[edge_key]
 						# Draw constellation edges thicker and with glow
-						grid_canvas.draw_line(from_pos, to_pos, Color(line_color.r, line_color.g, line_color.b, 0.3), (LINE_WIDTH + 6) * _zoom)
+						grid_canvas.draw_line(from_pos, to_pos, Color(line_color.r, line_color.g, line_color.b, 0.5), (LINE_WIDTH + 6) * _zoom)
 						grid_canvas.draw_line(from_pos, to_pos, line_color, (LINE_WIDTH + 2) * _zoom)
 					elif node.unlocked and other.unlocked:
 						line_color = COLOR_LINE_UNLOCKED
@@ -488,13 +488,13 @@ func _draw_constellation_fills() -> void:
 		if hull.size() < 3:
 			continue
 
-		var fill_alpha = 0.15 if c.completed else 0.08
+		var fill_alpha = 0.25 if c.completed else 0.15
 		var fill_color = Color(c.color.r, c.color.g, c.color.b, fill_alpha)
 		var packed = PackedVector2Array(hull)
 		grid_canvas.draw_colored_polygon(packed, fill_color)
 
 		# Draw hull outline
-		var outline_alpha = 0.4 if c.completed else 0.2
+		var outline_alpha = 0.6 if c.completed else 0.35
 		var outline_color = Color(c.color.r, c.color.g, c.color.b, outline_alpha)
 		var outline = PackedVector2Array(hull)
 		outline.append(hull[0])  # Close the loop
@@ -632,7 +632,7 @@ func _create_constellation_entry(c: SphereGrid.Constellation, progress: Dictiona
 	var dot = ColorRect.new()
 	dot.custom_minimum_size = Vector2(10, 10)
 	dot.size = Vector2(10, 10)
-	dot.color = c.color if c.completed else Color(c.color.r, c.color.g, c.color.b, 0.5)
+	dot.color = c.color if c.completed else Color(c.color.r, c.color.g, c.color.b, 0.75)
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var dot_center = CenterContainer.new()
 	dot_center.custom_minimum_size = Vector2(12, 24)
@@ -654,7 +654,7 @@ func _create_constellation_entry(c: SphereGrid.Constellation, progress: Dictiona
 	if c.completed:
 		label.add_theme_color_override("font_color", Color(c.color.r * 0.8 + 0.2, c.color.g * 0.8 + 0.2, c.color.b * 0.8 + 0.2))
 	else:
-		label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))
 	hbox.add_child(label)
 
 	# Mouse hover handling

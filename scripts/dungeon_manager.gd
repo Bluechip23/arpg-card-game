@@ -631,8 +631,16 @@ func _define_world4plus_zones(mid_z: int) -> void:
 func _place_waypoints() -> void:
 	var mid_z = GRID_H / 2
 
-	# Single transport portal in starting room — opens menu with all destinations
+	# Transport portal in starting room — opens menu for town and discovered waypoints
 	_create_waypoint(Vector2i(2, mid_z), "transport", "Transport Portal")
+
+	# Exit to next world (in the far room)
+	if world_level < 5:
+		_create_waypoint(Vector2i(GRID_W - 4, mid_z), "next_world", "World %d" % (world_level + 1))
+
+	# Exit to previous world
+	if world_level > 1:
+		_create_waypoint(Vector2i(2, mid_z - 2), "prev_world", "World %d" % (world_level - 1))
 
 func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) -> void:
 	var wp_root = Node3D.new()

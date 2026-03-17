@@ -749,7 +749,15 @@ func _choose_retrospective(level: int, option_index: int) -> void:
 		return
 	if not skill_tree.can_retrospective_pick(level, option_index):
 		return
+	var row = skill_tree.get_row_for_level(level)
+	if not row or option_index >= row.options.size():
+		return
+	_open_confirm_dialog(level, option_index, row.options[option_index], true)
 
+func _confirm_retrospective(level: int, option_index: int) -> void:
+	_close_confirm_dialog()
+	if not skill_tree:
+		return
 	# Check if this is a retro level free pick (counts as the level-up choice)
 	# or a sphere grid token bonus pick (extra on top of normal choice)
 	var pending_retro = skill_tree.get_pending_retro_level(player_level)
@@ -944,7 +952,7 @@ func _close_stat_alloc_panel() -> void:
 var _confirm_panel: PanelContainer = null
 var _confirm_backdrop: ColorRect = null
 
-func _open_confirm_dialog(level: int, option_index: int, option: SkillTreeData.SkillOption) -> void:
+func _open_confirm_dialog(level: int, option_index: int, option: SkillTreeData.SkillOption, is_retro: bool = false) -> void:
 	_close_confirm_dialog()
 
 	_confirm_panel = PanelContainer.new()
@@ -1016,7 +1024,10 @@ func _open_confirm_dialog(level: int, option_index: int, option: SkillTreeData.S
 	var confirm_btn = Button.new()
 	confirm_btn.text = "Confirm"
 	confirm_btn.custom_minimum_size = Vector2(100, 32)
-	confirm_btn.pressed.connect(_confirm_option.bind(level, option_index))
+	if is_retro:
+		confirm_btn.pressed.connect(_confirm_retrospective.bind(level, option_index))
+	else:
+		confirm_btn.pressed.connect(_confirm_option.bind(level, option_index))
 	button_hbox.add_child(confirm_btn)
 
 	vbox.add_child(button_hbox)
