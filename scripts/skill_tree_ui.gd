@@ -942,6 +942,7 @@ func _close_stat_alloc_panel() -> void:
 # ============================================
 
 var _confirm_panel: PanelContainer = null
+var _confirm_backdrop: ColorRect = null
 
 func _open_confirm_dialog(level: int, option_index: int, option: SkillTreeData.SkillOption) -> void:
 	_close_confirm_dialog()
@@ -1021,11 +1022,27 @@ func _open_confirm_dialog(level: int, option_index: int, option: SkillTreeData.S
 	vbox.add_child(button_hbox)
 	_confirm_panel.add_child(vbox)
 
-	panel.add_child(_confirm_panel)
+	# Add a full-screen backdrop to block clicks on elements behind the modal
+	_confirm_backdrop = ColorRect.new()
+	_confirm_backdrop.name = "ConfirmBackdrop"
+	_confirm_backdrop.color = Color(0, 0, 0, 0.5)
+	_confirm_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_confirm_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_confirm_backdrop.z_index = 14
+	add_child(_confirm_backdrop)
+
+	_confirm_panel.z_index = 15
+	_confirm_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_confirm_panel)
 	_confirm_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_confirm_panel.position = panel.size / 2 - _confirm_panel.size / 2
+	await get_tree().process_frame
+	var vp_size = get_viewport().get_visible_rect().size
+	_confirm_panel.position = vp_size / 2 - _confirm_panel.size / 2
 
 func _close_confirm_dialog() -> void:
+	if is_instance_valid(_confirm_backdrop):
+		_confirm_backdrop.queue_free()
+	_confirm_backdrop = null
 	if is_instance_valid(_confirm_panel):
 		_confirm_panel.queue_free()
 	_confirm_panel = null

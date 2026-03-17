@@ -6490,8 +6490,7 @@ func _check_waypoint_discovery(player_grid: Vector2i) -> void:
 		add_battle_log("Waypoint discovered: %s" % wp["display_name"], Color(0.3, 0.9, 1.0))
 
 func _try_interact_waypoint() -> bool:
-	## Handles Shift near a waypoint. Green/yellow portals travel directly.
-	## Blue town waypoints open the teleport menu.
+	## Handles Shift near a waypoint. All portals open the transport menu.
 	if not dungeon_manager:
 		return false
 	var player_grid = grid_manager.world_to_grid(player.position)
@@ -6502,16 +6501,7 @@ func _try_interact_waypoint() -> bool:
 	if not dungeon_manager.waypoint_nodes[wp_idx]["discovered"]:
 		add_battle_log("Walk onto the waypoint to discover it first.", Color(0.8, 0.8, 0.5))
 		return true
-	# Next/prev world portals travel directly (original behavior)
-	var target = dungeon_manager.waypoint_nodes[wp_idx]["target"]
-	match target:
-		"next_world":
-			_travel_to_world(current_world_level + 1)
-			return true
-		"prev_world":
-			_travel_to_world(current_world_level - 1)
-			return true
-	# Town waypoint opens the teleport menu
+	# All portals open the transport menu
 	_open_waypoint_menu()
 	return true
 
@@ -6562,46 +6552,70 @@ func _open_waypoint_menu() -> void:
 
 	# Title
 	var title = Label.new()
-	title.text = "Teleport to Waypoint"
+	title.text = "Transport Portal"
 	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0))
+	title.add_theme_color_override("font_color", Color(0.5, 0.7, 1.0))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
 	vbox.add_child(HSeparator.new())
 
-	# List all discovered waypoints
+	# Always offer town as a destination
+	var town_btn = Button.new()
+	town_btn.text = "Town"
+	town_btn.custom_minimum_size = Vector2(280, 36)
+	town_btn.add_theme_font_size_override("font_size", 15)
+	town_btn.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
+	town_btn.pressed.connect(func():
+		_close_waypoint_menu()
+		_teleport_to_waypoint("town", 0)
+	)
+	vbox.add_child(town_btn)
+
+	# World portal destinations
+	if current_world_level > 1:
+		var prev_btn = Button.new()
+		prev_btn.text = "World %d (Previous)" % (current_world_level - 1)
+		prev_btn.custom_minimum_size = Vector2(280, 36)
+		prev_btn.add_theme_font_size_override("font_size", 15)
+		prev_btn.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
+		var prev_world = current_world_level - 1
+		prev_btn.pressed.connect(func():
+			_close_waypoint_menu()
+			_travel_to_world(prev_world)
+		)
+		vbox.add_child(prev_btn)
+
+	if current_world_level < 5:
+		var next_btn = Button.new()
+		next_btn.text = "World %d (Next)" % (current_world_level + 1)
+		next_btn.custom_minimum_size = Vector2(280, 36)
+		next_btn.add_theme_font_size_override("font_size", 15)
+		next_btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+		var next_world = current_world_level + 1
+		next_btn.pressed.connect(func():
+			_close_waypoint_menu()
+			_travel_to_world(next_world)
+		)
+		vbox.add_child(next_btn)
+
+	# Also list any other discovered waypoints from other worlds
 	for wp in discovered_waypoints:
+		if wp["target"] == "town" or wp["target"] == "transport":
+			continue
+		if wp["world"] == current_world_level:
+			continue  # Already covered by next/prev buttons above
 		var btn = Button.new()
-		var label_text = wp["display_name"]
-		if wp["world"] == current_world_level and wp["target"] != "town":
-			label_text += " (Current World)"
-		btn.text = label_text
+		btn.text = wp["display_name"]
 		btn.custom_minimum_size = Vector2(280, 36)
 		btn.add_theme_font_size_override("font_size", 15)
-
-		# Color-code by type
-		match wp["target"]:
-			"town":
-				btn.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
-			"next_world", "prev_world":
-				btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
-
-		# Capture values for the lambda
-		var target = wp["target"]
+		btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
 		var world = wp["world"]
 		btn.pressed.connect(func():
 			_close_waypoint_menu()
-			_teleport_to_waypoint(target, world)
+			_travel_to_world(world)
 		)
 		vbox.add_child(btn)
-
-	if discovered_waypoints.is_empty():
-		var empty_lbl = Label.new()
-		empty_lbl.text = "No waypoints discovered yet."
-		empty_lbl.add_theme_font_size_override("font_size", 14)
-		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
-		vbox.add_child(empty_lbl)
 
 	# Close button
 	var close_btn = Button.new()
