@@ -776,7 +776,7 @@ func use_culling_stone() -> bool:
 func enchant_card(card: Card, item: ItemData) -> bool:
 	## Puts a card into an item's card slot (Enchant).
 	## Validates Picky/Pliable compatibility and slot availability.
-	## The card is removed from the deck and stored in the item.
+	## The card remains in the deck and can still be played normally.
 	if not item.has_card_slots():
 		print("[INVENTORY] %s has no card slots!" % item.item_name)
 		return false
@@ -788,11 +788,7 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 			print("[INVENTORY] Card '%s' is Picky and cannot be slotted into %s (requires %s)" % [card.card_name, item.get_type_name(), ItemData.ItemType.keys()[card.source_item_type] if card.source_item_type >= 0 else "any"])
 		return false
 
-	# Remove card from all deck piles
-	if deck_manager:
-		deck_manager.remove_card_from_all_piles(card)
-
-	# Slot the card into the item
+	# Slot the card into the item (card stays in the deck)
 	item.slot_card(card)
 
 	card_enchanted.emit(card, item)
@@ -802,7 +798,7 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 
 func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) -> Card:
 	## Extracts a card from an item (Extract).
-	## Removes the card from the item's slot and returns it to the discard pile.
+	## Removes the card from the item's slot. Card remains in the deck as before.
 	## Returns the extracted card, or null if card is Molded (cannot be extracted).
 	if card_index < 0 or card_index >= item.slotted_cards.size():
 		print("[INVENTORY] Invalid card slot index %d for %s" % [card_index, item.item_name])
@@ -818,11 +814,6 @@ func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) 
 		card.source_item_type = item.item_type
 	card.slotted_in_item = null
 	item.slotted_cards.remove_at(card_index)
-
-	# Add card back to discard pile
-	if deck_manager:
-		deck_manager.discard_pile.append(card)
-		print("[INVENTORY] Extracted '%s' - added to discard pile" % card.card_name)
 
 	card_extracted.emit(card, item, false)
 	equipment_changed.emit()

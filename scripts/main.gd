@@ -1270,6 +1270,53 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 
 	_append_keyword_tooltips(vbox, card)
 
+	# On Self section for slotted cards
+	if card.is_slotted():
+		var on_self = card.get_on_self_bonus()
+		var on_self_parts: Array[String] = []
+		if on_self.get("damage", 0) > 0:
+			on_self_parts.append("+%d Damage" % on_self["damage"])
+		if on_self.get("block", 0) > 0:
+			on_self_parts.append("+%d Block" % on_self["block"])
+		if on_self.get("heal", 0) > 0:
+			on_self_parts.append("+%d Heal" % on_self["heal"])
+		if on_self.get("mana_reduction", 0) > 0:
+			on_self_parts.append("-%d Mana Cost" % on_self["mana_reduction"])
+		if on_self.get("apply_burn", false):
+			on_self_parts.append("Apply Burn")
+		if on_self.get("apply_cold", false):
+			on_self_parts.append("Apply Cold")
+		if on_self.get("thorns", 0) > 0:
+			on_self_parts.append("+%d Thorns" % on_self["thorns"])
+		if on_self.get("upgrade", false):
+			on_self_parts.append("Upgraded")
+		var on_self_sep = HSeparator.new()
+		vbox.add_child(on_self_sep)
+		var on_self_header = Label.new()
+		on_self_header.text = "\u2234 On Self"
+		on_self_header.add_theme_font_size_override("font_size", 13)
+		on_self_header.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
+		vbox.add_child(on_self_header)
+		if on_self_parts.size() > 0:
+			var on_self_lbl = Label.new()
+			on_self_lbl.text = ", ".join(on_self_parts)
+			on_self_lbl.add_theme_font_size_override("font_size", 12)
+			on_self_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+			on_self_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			on_self_lbl.custom_minimum_size.x = 180
+			vbox.add_child(on_self_lbl)
+		else:
+			var none_lbl = Label.new()
+			none_lbl.text = "No bonuses"
+			none_lbl.add_theme_font_size_override("font_size", 12)
+			none_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+			vbox.add_child(none_lbl)
+		var item_lbl = Label.new()
+		item_lbl.text = "Slotted in: %s" % card.slotted_in_item.item_name
+		item_lbl.add_theme_font_size_override("font_size", 11)
+		item_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+		vbox.add_child(item_lbl)
+
 	# Position popup above the hand area, centered on the hovered card
 	var hand_area = $UI/HandArea as PanelContainer
 	var card_global_rect = card_ui.get_global_rect()
@@ -6490,7 +6537,8 @@ func _check_waypoint_discovery(player_grid: Vector2i) -> void:
 		add_battle_log("Waypoint discovered: %s" % wp["display_name"], Color(0.3, 0.9, 1.0))
 
 func _try_interact_waypoint() -> bool:
-	## Handles Shift near a waypoint. All portals open the transport menu.
+	## Handles Shift near a waypoint. World exits travel directly,
+	## transport portal opens the menu.
 	if not dungeon_manager:
 		return false
 	var player_grid = grid_manager.world_to_grid(player.position)
@@ -6501,7 +6549,15 @@ func _try_interact_waypoint() -> bool:
 	if not dungeon_manager.waypoint_nodes[wp_idx]["discovered"]:
 		add_battle_log("Walk onto the waypoint to discover it first.", Color(0.8, 0.8, 0.5))
 		return true
-	# All portals open the transport menu
+	var target = dungeon_manager.waypoint_nodes[wp_idx]["target"]
+	match target:
+		"next_world":
+			_travel_to_world(current_world_level + 1)
+			return true
+		"prev_world":
+			_travel_to_world(current_world_level - 1)
+			return true
+	# Transport portal opens the menu
 	_open_waypoint_menu()
 	return true
 

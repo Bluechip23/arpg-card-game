@@ -96,7 +96,11 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 			cost_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
 
 	if keybind_label:
-		keybind_label.text = _get_keybind_text(index)
+		var kb_text = _get_keybind_text(index)
+		if card.is_slotted():
+			kb_text += " \u2234"  # Upside-down triangle dots (∴) for slotted cards
+			keybind_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
+		keybind_label.text = kb_text
 
 	_is_hexed = is_hexed
 	_is_locked = is_locked
