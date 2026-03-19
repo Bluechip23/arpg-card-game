@@ -43,6 +43,11 @@ extends Node3D
 var dungeon_manager: DungeonManager = null
 var unit_tracker: UnitTrackerUI = null
 var quest_manager: QuestManager = null
+var progression_triggers: ProgressionTriggers = null
+var chest_loot_ui: ChestLootUI = null
+var waypoint_mgr: WaypointManager = null
+var minimap_tab_ui: MinimapTabUI = null
+var player2_ui: Player2UI = null
 var current_world_level: int = 1
 
 # Global waypoint discovery tracking (persists across world transitions)
@@ -171,6 +176,27 @@ const CAMERA_ZOOM_STEP: float = 2.0
 const CAMERA_ORBIT_SENSITIVITY: float = 0.005
 
 func _ready() -> void:
+	# Initialize extracted managers
+	progression_triggers = ProgressionTriggers.new()
+	progression_triggers.init(self)
+	add_child(progression_triggers)
+
+	chest_loot_ui = ChestLootUI.new()
+	chest_loot_ui.init(self)
+	add_child(chest_loot_ui)
+
+	waypoint_mgr = WaypointManager.new()
+	waypoint_mgr.init(self)
+	add_child(waypoint_mgr)
+
+	minimap_tab_ui = MinimapTabUI.new()
+	minimap_tab_ui.init(self)
+	add_child(minimap_tab_ui)
+
+	player2_ui = Player2UI.new()
+	player2_ui.init(self)
+	add_child(player2_ui)
+
 	deck_manager.hand_updated.connect(_on_hand_updated)
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.card_peaked.connect(_on_card_peaked)
@@ -211,15 +237,15 @@ func _ready() -> void:
 	
 	# Sphere inventory + grid connection
 	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
-	sphere_grid_ui.node_unlocked.connect(_on_sphere_grid_node_unlocked)
-	sphere_grid_ui.sphere_grid.constellation_completed.connect(_on_constellation_completed)
+	sphere_grid_ui.node_unlocked.connect(progression_triggers._on_sphere_grid_node_unlocked)
+	sphere_grid_ui.sphere_grid.constellation_completed.connect(progression_triggers._on_constellation_completed)
 
 	# Skill tree connection — also link sphere grid into the tabbed panel
 	skill_tree_ui.connect_sphere_grid(sphere_grid_ui)
 	skill_tree_ui.sphere_inventory = sphere_inventory
-	skill_tree_ui.option_chosen.connect(_on_skill_tree_option_chosen)
-	skill_tree_ui.auto_grant_claimed.connect(_on_skill_tree_auto_grant_claimed)
-	skill_tree_ui.retrospective_chosen.connect(_on_skill_tree_retrospective_chosen)
+	skill_tree_ui.option_chosen.connect(progression_triggers._on_skill_tree_option_chosen)
+	skill_tree_ui.auto_grant_claimed.connect(progression_triggers._on_skill_tree_auto_grant_claimed)
+	skill_tree_ui.retrospective_chosen.connect(progression_triggers._on_skill_tree_retrospective_chosen)
 
 	_setup_action_buttons()
 	_setup_battle_log()
@@ -244,7 +270,7 @@ func _ready() -> void:
 
 	# Multiplayer: initialize P2 deck and UI buttons
 	if is_multiplayer and player2_character:
-		_initialize_player2()
+		player2_ui._initialize_player2()
 
 	# Unit tracker (left side panel)
 	_setup_unit_tracker()
@@ -297,7 +323,7 @@ func _process(_delta: float) -> void:
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
-		_update_minimap()
+		minimap_tab_ui._update_minimap()
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
 		var mouse_world = get_mouse_world_position()
@@ -606,7 +632,7 @@ func _on_attack_pressed() -> void:
 	# Skill tree crit check for basic attack
 	if buff_mgr and buff_mgr.last_crit_hit:
 		buff_mgr.last_crit_hit = false
-		_trigger_skill_tree_on_crit(target)
+		progression_triggers._trigger_skill_tree_on_crit(target)
 
 	# Register attack for DEX proc counter
 	stats.register_attack()
@@ -1452,7 +1478,7 @@ func select_character(character: CharacterData) -> void:
 
 	debuff_bar.connect_manager(player.get_debuff_manager())
 	deck_manager.connect_debuff_manager(player.get_debuff_manager())
-	player.get_debuff_manager().point_to_prove_triggered.connect(_on_point_to_prove_triggered)
+	player.get_debuff_manager().point_to_prove_triggered.connect(progression_triggers._on_point_to_prove_triggered)
 	deck_manager.connect_inventory(player.get_inventory())
 	player.connect_deck_to_inventory(deck_manager)
 	tempo_manager.initialize(player.get_stats())
@@ -1512,11 +1538,11 @@ func select_character(character: CharacterData) -> void:
 	print("[MAIN] Granted starting spheres for level 1")
 
 	# Apply any already-unlocked sphere grid nodes to the character
-	_apply_all_unlocked_sphere_nodes()
+	progression_triggers._apply_all_unlocked_sphere_nodes()
 
 	# Check and apply any already-completed constellations
 	sphere_grid_ui.sphere_grid.check_constellation_completion()
-	_apply_all_constellation_bonuses()
+	progression_triggers._apply_all_constellation_bonuses()
 
 
 	# Initialize character skill tree (use character-specific tree if available)
@@ -1543,378 +1569,10 @@ func select_character(character: CharacterData) -> void:
 # PLAYER 2 MULTIPLAYER SUPPORT
 # ============================================
 
-func _initialize_player2() -> void:
-	# Create a separate DeckManager for P2
-	_p2_deck_manager = DeckManager.new()
-	_p2_deck_manager.name = "P2DeckManager"
-	add_child(_p2_deck_manager)
-	_p2_deck_manager.initialize_deck(player2_character)
-	print("[MAIN] Player 2 initialized: %s (hand: %d cards)" % [player2_character.character_name, _p2_deck_manager.hand.size()])
 
-	_setup_p2_buttons()
-	_setup_p2_hand_panel()
-	_setup_p2_deck_panel()
+# Player 2 co-op UI moved to
+# scripts/ui/player2_ui.gd
 
-func _setup_p2_buttons() -> void:
-	var ui = $UI as CanvasLayer
-	var btn_container = Control.new()
-	btn_container.name = "P2ButtonContainer"
-	ui.add_child(btn_container)
-	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	btn_container.offset_left = -95.0
-	btn_container.offset_top = -110.0
-	btn_container.offset_right = -5.0
-	btn_container.offset_bottom = -45.0
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-	btn_container.add_child(vbox)
-	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-
-	var hand_btn = Button.new()
-	hand_btn.name = "P2HandButton"
-	hand_btn.text = "P2 Hand"
-	hand_btn.custom_minimum_size = Vector2(80, 28)
-	hand_btn.pressed.connect(_on_p2_hand_button_pressed)
-	vbox.add_child(hand_btn)
-
-	var deck_btn = Button.new()
-	deck_btn.name = "P2DeckButton"
-	deck_btn.text = "P2 Deck"
-	deck_btn.custom_minimum_size = Vector2(80, 28)
-	deck_btn.pressed.connect(_on_p2_deck_button_pressed)
-	vbox.add_child(deck_btn)
-
-func _setup_p2_hand_panel() -> void:
-	var ui = $UI as CanvasLayer
-
-	_p2_hand_panel = PanelContainer.new()
-	_p2_hand_panel.name = "P2HandPanel"
-	ui.add_child(_p2_hand_panel)
-	_p2_hand_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	_p2_hand_panel.offset_left = -280.0
-	_p2_hand_panel.offset_top = -250.0
-	_p2_hand_panel.offset_right = -10.0
-	_p2_hand_panel.offset_bottom = 250.0
-	_p2_hand_panel.custom_minimum_size = Vector2(270, 400)
-	_p2_hand_panel.add_theme_stylebox_override("panel", _make_p2_panel_style())
-
-	var margin = MarginContainer.new()
-	margin.layout_mode = 1
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_p2_hand_panel.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	margin.add_child(vbox)
-
-	var title = Label.new()
-	title.text = "Player 2 Hand"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.5, 0.3))
-	vbox.add_child(title)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var scroll = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 350)
-	vbox.add_child(scroll)
-
-	_p2_hand_container = VBoxContainer.new()
-	_p2_hand_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_p2_hand_container)
-
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.pressed.connect(_on_p2_hand_button_pressed)
-	vbox.add_child(close_btn)
-
-	_p2_hand_panel.visible = false
-
-	# Card preview for P2 hand hover
-	_p2_hand_card_preview = _make_p2_card_preview("P2HandCardPreview")
-	ui.add_child(_p2_hand_card_preview)
-
-func _setup_p2_deck_panel() -> void:
-	var ui = $UI as CanvasLayer
-
-	_p2_deck_panel = PanelContainer.new()
-	_p2_deck_panel.name = "P2DeckPanel"
-	ui.add_child(_p2_deck_panel)
-	_p2_deck_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	_p2_deck_panel.offset_left = -280.0
-	_p2_deck_panel.offset_top = -250.0
-	_p2_deck_panel.offset_right = -10.0
-	_p2_deck_panel.offset_bottom = 250.0
-	_p2_deck_panel.custom_minimum_size = Vector2(270, 400)
-	_p2_deck_panel.add_theme_stylebox_override("panel", _make_p2_panel_style())
-
-	var margin = MarginContainer.new()
-	margin.layout_mode = 1
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_p2_deck_panel.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	margin.add_child(vbox)
-
-	var title = Label.new()
-	title.text = "Player 2 Deck"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.5, 0.3))
-	vbox.add_child(title)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var scroll = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 350)
-	vbox.add_child(scroll)
-
-	_p2_deck_container = VBoxContainer.new()
-	_p2_deck_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_p2_deck_container)
-
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.pressed.connect(_on_p2_deck_button_pressed)
-	vbox.add_child(close_btn)
-
-	_p2_deck_panel.visible = false
-
-	# Card preview for P2 deck hover
-	_p2_deck_card_preview = _make_p2_card_preview("P2DeckCardPreview")
-	ui.add_child(_p2_deck_card_preview)
-
-func _make_p2_panel_style() -> StyleBoxFlat:
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.08, 0.08, 0.95)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.5, 0.35, 0.3)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 10.0
-	style.content_margin_bottom = 10.0
-	return style
-
-func _make_p2_card_preview(preview_name: String) -> PanelContainer:
-	var preview = PanelContainer.new()
-	preview.name = preview_name
-	preview.custom_minimum_size = Vector2(180, 0)
-	var preview_style = StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.15, 0.12, 0.12, 0.98)
-	preview_style.border_width_left = 2
-	preview_style.border_width_right = 2
-	preview_style.border_width_top = 2
-	preview_style.border_width_bottom = 2
-	preview_style.border_color = Color(0.5, 0.4, 0.35)
-	preview_style.corner_radius_top_left = 4
-	preview_style.corner_radius_top_right = 4
-	preview_style.corner_radius_bottom_left = 4
-	preview_style.corner_radius_bottom_right = 4
-	preview_style.content_margin_left = 8.0
-	preview_style.content_margin_right = 8.0
-	preview_style.content_margin_top = 8.0
-	preview_style.content_margin_bottom = 8.0
-	preview.add_theme_stylebox_override("panel", preview_style)
-	preview.visible = false
-	preview.z_index = 200
-	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return preview
-
-func _on_p2_hand_button_pressed() -> void:
-	_p2_hand_visible = !_p2_hand_visible
-	_p2_hand_panel.visible = _p2_hand_visible
-	if _p2_hand_visible:
-		# Hide other panels
-		if _p2_deck_visible:
-			_p2_deck_visible = false
-			_p2_deck_panel.visible = false
-			_p2_deck_card_preview.visible = false
-		if deck_list_visible:
-			deck_list_visible = false
-			deck_list_panel.visible = false
-			deck_list_card_preview.visible = false
-		_populate_p2_hand()
-	else:
-		_p2_hand_card_preview.visible = false
-
-func _on_p2_deck_button_pressed() -> void:
-	_p2_deck_visible = !_p2_deck_visible
-	_p2_deck_panel.visible = _p2_deck_visible
-	if _p2_deck_visible:
-		# Hide other panels
-		if _p2_hand_visible:
-			_p2_hand_visible = false
-			_p2_hand_panel.visible = false
-			_p2_hand_card_preview.visible = false
-		if deck_list_visible:
-			deck_list_visible = false
-			deck_list_panel.visible = false
-			deck_list_card_preview.visible = false
-		_populate_p2_deck()
-	else:
-		_p2_deck_card_preview.visible = false
-
-func _populate_p2_hand() -> void:
-	for child in _p2_hand_container.get_children():
-		child.queue_free()
-
-	if not _p2_deck_manager:
-		return
-
-	for i in range(_p2_deck_manager.hand.size()):
-		var card = _p2_deck_manager.hand[i]
-		var entry = Button.new()
-		entry.text = "%s (%dM / %dT)" % [card.card_name, card.mana_cost, card.tempo_cost]
-		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry.flat = true
-		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		entry.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.mouse_entered.connect(_on_p2_hand_entry_hovered.bind(card, entry))
-		entry.mouse_exited.connect(_on_p2_hand_entry_unhovered)
-		_p2_hand_container.add_child(entry)
-
-func _populate_p2_deck() -> void:
-	for child in _p2_deck_container.get_children():
-		child.queue_free()
-
-	if not _p2_deck_manager:
-		return
-
-	# Count cards across all piles
-	var card_counts: Dictionary = {}
-	var card_refs: Dictionary = {}
-	var all_cards: Array = []
-	all_cards.append_array(_p2_deck_manager.draw_pile)
-	all_cards.append_array(_p2_deck_manager.hand)
-	all_cards.append_array(_p2_deck_manager.discard_pile)
-	all_cards.append_array(_p2_deck_manager.jail_pile)
-
-	for card in all_cards:
-		if card.card_name in card_counts:
-			card_counts[card.card_name] += 1
-		else:
-			card_counts[card.card_name] = 1
-			card_refs[card.card_name] = card
-
-	var names = card_counts.keys()
-	names.sort()
-
-	for card_name in names:
-		var count = card_counts[card_name]
-		var card_ref = card_refs[card_name]
-		var entry = Button.new()
-		entry.text = "%s (%d)" % [card_name, count]
-		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry.flat = true
-		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		entry.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.mouse_entered.connect(_on_p2_deck_entry_hovered.bind(card_ref, entry))
-		entry.mouse_exited.connect(_on_p2_deck_entry_unhovered)
-		_p2_deck_container.add_child(entry)
-
-func _build_p2_card_preview_content(card: Card, preview: PanelContainer) -> void:
-	for child in preview.get_children():
-		child.queue_free()
-
-	var vbox = VBoxContainer.new()
-	preview.add_child(vbox)
-
-	var name_lbl = Label.new()
-	name_lbl.text = card.card_name
-	name_lbl.add_theme_font_size_override("font_size", 16)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
-	vbox.add_child(name_lbl)
-
-	var type_lbl = Label.new()
-	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 12)
-	match card.card_type:
-		Card.CardType.ATTACK:
-			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
-		Card.CardType.DEFENSE:
-			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
-		Card.CardType.UTILITY:
-			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
-		Card.CardType.POWER:
-			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-		Card.CardType.ENCHANTMENT:
-			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
-	vbox.add_child(type_lbl)
-
-	var cost_lbl = Label.new()
-	if card.maintain_cost > 0:
-		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
-	else:
-		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
-	cost_lbl.add_theme_font_size_override("font_size", 12)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	vbox.add_child(cost_lbl)
-
-	if card.is_ranged:
-		var range_lbl = Label.new()
-		range_lbl.text = card.get_range_display()
-		range_lbl.add_theme_font_size_override("font_size", 12)
-		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
-		vbox.add_child(range_lbl)
-	else:
-		var melee_lbl = Label.new()
-		melee_lbl.text = "Melee"
-		melee_lbl.add_theme_font_size_override("font_size", 12)
-		melee_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
-		vbox.add_child(melee_lbl)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var desc_lbl = RichTextLabel.new()
-	desc_lbl.bbcode_enabled = true
-	desc_lbl.text = card.description
-	desc_lbl.fit_content = true
-	desc_lbl.scroll_active = false
-	desc_lbl.custom_minimum_size = Vector2(160, 0)
-	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
-	vbox.add_child(desc_lbl)
-
-	_append_keyword_tooltips(vbox, card)
-
-func _position_p2_preview(preview: PanelContainer, panel: PanelContainer, entry: Button) -> void:
-	var entry_rect = entry.get_global_rect()
-	var preview_x = panel.position.x - preview.size.x - 10
-	var preview_y = entry_rect.position.y
-	var hand_area = $UI/HandArea as PanelContainer
-	var max_y = hand_area.global_position.y - preview.size.y - 8.0
-	preview_y = min(preview_y, max_y)
-	preview_y = max(preview_y, 4.0)
-	preview.global_position = Vector2(preview_x, preview_y)
-	preview.visible = true
-
-func _on_p2_hand_entry_hovered(card: Card, entry: Button) -> void:
-	_build_p2_card_preview_content(card, _p2_hand_card_preview)
-	_position_p2_preview(_p2_hand_card_preview, _p2_hand_panel, entry)
-
-func _on_p2_hand_entry_unhovered() -> void:
-	_p2_hand_card_preview.visible = false
-
-func _on_p2_deck_entry_hovered(card: Card, entry: Button) -> void:
-	_build_p2_card_preview_content(card, _p2_deck_card_preview)
-	_position_p2_preview(_p2_deck_card_preview, _p2_deck_panel, entry)
-
-func _on_p2_deck_entry_unhovered() -> void:
-	_p2_deck_card_preview.visible = false
 
 func trigger_turn() -> void:
 	# Simulate one full tempo cycle (5 global tempo) for testing
@@ -1941,7 +1599,7 @@ func _on_player_tile_reached() -> void:
 	# Reveal fog of war around the player
 	_update_fog_of_war()
 	# Check if player stepped onto a waypoint to discover it
-	_check_waypoint_discovery(player_cell)
+	waypoint_mgr._check_waypoint_discovery(player_cell)
 	# Update camera focus to follow player
 	if dungeon_manager:
 		_camera_focus = player.position + Vector3(2, 0, 0)
@@ -1952,7 +1610,7 @@ func _on_player_move_completed() -> void:
 	_check_dungeon_zones()
 	_update_fog_of_war()
 	# Sphere grid passive triggers for movement
-	_trigger_sphere_passives("on_move", {})
+	progression_triggers._trigger_sphere_passives("on_move", {})
 
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	var debuff_mgr = player.get_debuff_manager()
@@ -1993,7 +1651,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 			if mat and mat.albedo_color.a < 1.0:
 				_set_player_invisible(false)
 				# Reappearing from invisibility counts as displacement
-				_trigger_skill_tree_on_displacement()
+				progression_triggers._trigger_skill_tree_on_displacement()
 
 	update_turn_display()
 	_refresh_unit_tracker()
@@ -2013,11 +1671,11 @@ var _laced_arrow_applying: bool = false  # Guard against recursive laced arrow
 var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee range state
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
-	_trigger_skill_tree_on_debuff_applied(enemy, debuff_name, value)
+	progression_triggers._trigger_skill_tree_on_debuff_applied(enemy, debuff_name, value)
 	# Stephen: Disarm Mastery — extra disarm stack (guarded against recursion)
 	if debuff_name == "disarmed" and not _disarm_mastery_applying:
 		_disarm_mastery_applying = true
-		_trigger_skill_tree_stephen_on_disarm_applied(enemy, value)
+		progression_triggers._trigger_skill_tree_stephen_on_disarm_applied(enemy, value)
 		_disarm_mastery_applying = false
 	# Stephen: Laced Arrow — when applying burn, cold, or shock, apply +1 additional (guarded against recursion)
 	if not _laced_arrow_applying and debuff_name in ["burn", "cold", "shock"]:
@@ -2037,13 +1695,13 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 				enemy.apply_debuff(debuff_name, 1)
 			_wither_applying = false
 	# Cory: Prey on the Weak — bonus damage on debuff to low HP enemy
-	_trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value)
+	progression_triggers._trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value)
 
 func _on_enemy_debuff_expired(enemy: Enemy, debuff_name: String) -> void:
-	_trigger_skill_tree_on_debuff_expired(enemy)
+	progression_triggers._trigger_skill_tree_on_debuff_expired(enemy)
 
 func _on_enemy_exposed(enemy: Enemy) -> void:
-	_trigger_skill_tree_stephen_on_expose(enemy)
+	progression_triggers._trigger_skill_tree_stephen_on_expose(enemy)
 
 func _on_enemy_movement_completed(enemy: Enemy) -> void:
 	# Cory: Territorial Death — check if enemy entered or left melee range
@@ -2054,19 +1712,19 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 	_enemy_melee_state[enemy_id] = in_melee
 	if in_melee and not was_in_melee:
 		# Enemy entered melee range
-		_trigger_skill_tree_cory_on_enemy_enter_melee(enemy)
-		_trigger_skill_tree_brad_itt_on_enter(enemy)
+		progression_triggers._trigger_skill_tree_cory_on_enemy_enter_melee(enemy)
+		progression_triggers._trigger_skill_tree_brad_itt_on_enter(enemy)
 	elif was_in_melee and not in_melee:
 		# Enemy left melee range — also triggers Territorial Death
-		_trigger_skill_tree_cory_on_enemy_leave_melee(enemy)
+		progression_triggers._trigger_skill_tree_cory_on_enemy_leave_melee(enemy)
 
 func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
-	_trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
+	progression_triggers._trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
 
 func _on_enemy_attacked_player(enemy: Enemy) -> void:
-	_trigger_skill_tree_brad_on_attacked(enemy)
-	_trigger_skill_tree_stephen_on_attacked(enemy)
-	_trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
+	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
+	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
+	progression_triggers._trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
@@ -2074,9 +1732,9 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	# Sphere grid passive triggers for kills
-	_trigger_sphere_passives("on_kill", {"target": enemy})
+	progression_triggers._trigger_sphere_passives("on_kill", {"target": enemy})
 	# Cory: Eat — heal on kill
-	_trigger_skill_tree_cory_on_kill(enemy)
+	progression_triggers._trigger_skill_tree_cory_on_kill(enemy)
 	# Quest tracking
 	if quest_manager:
 		quest_manager.on_enemy_killed(enemy.enemy_name)
@@ -2110,1624 +1768,9 @@ func _on_player_xp_changed(current_xp: int, xp_to_next: int) -> void:
 # SPHERE GRID → CHARACTER SYNC
 # ============================================
 
-func _on_sphere_grid_node_unlocked(node_id: int) -> void:
-	## Called when the player unlocks a node on the sphere grid.
-	## Applies the node's effect to the character immediately.
-	var grid = sphere_grid_ui.sphere_grid
-	var node = grid.get_node_by_id(node_id)
-	if not node:
-		return
-	_apply_sphere_grid_node(node)
 
-func _apply_sphere_grid_node(node) -> void:
-	## Applies a single sphere grid node's effect to the character.
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	match node.node_type:
-		SphereGrid.NodeType.STAT_BONUS:
-			var parsed = _parse_stat_label(node.label)
-			if parsed.size() > 0:
-				stats.apply_sphere_grid_stat(parsed["stat"], parsed["value"])
-				add_battle_log("Sphere Grid: %s" % node.label, Color(0.4, 0.6, 1.0))
-
-		SphereGrid.NodeType.HEALTH:
-			var amount = _parse_numeric_value(node.label)
-			if amount > 0:
-				stats.apply_sphere_grid_health(amount)
-				add_battle_log("Sphere Grid: Max HP +%d" % amount, Color(0.9, 0.2, 0.2))
-
-		SphereGrid.NodeType.MANA:
-			var amount = _parse_numeric_value(node.label)
-			if amount > 0:
-				stats.apply_sphere_grid_mana(amount)
-				add_battle_log("Sphere Grid: Max Mana +%d" % amount, Color(0.2, 0.5, 1.0))
-
-		SphereGrid.NodeType.COMBAT_BONUS:
-			stats.apply_sphere_grid_combat_bonus(node.label, node.description)
-			add_battle_log("Sphere Grid: %s" % node.label, Color(0.9, 0.7, 0.2))
-
-		SphereGrid.NodeType.PASSIVE:
-			var passive = _parse_passive_description(node.description, node.id)
-			if passive.size() > 0:
-				stats.add_sphere_grid_passive(passive)
-				add_battle_log("Sphere Grid: %s" % node.description, Color(0.9, 0.5, 0.2))
-
-		SphereGrid.NodeType.CULLING_STONE:
-			var inventory = player.get_inventory()
-			if inventory:
-				inventory.culling_stones += 1
-				add_battle_log("Sphere Grid: Obtained Culling Stone!", Color(0.8, 0.5, 1.0))
-
-	print("[MAIN] Sphere grid node %d applied: [%s] %s" % [node.id, SphereGrid.NodeType.keys()[node.node_type], node.label])
-
-func _apply_all_unlocked_sphere_nodes() -> void:
-	## Applies all already-unlocked sphere grid nodes to the character.
-	## Called after character selection to sync grid state.
-	var grid = sphere_grid_ui.sphere_grid
-	if not grid:
-		return
-	for node in grid.get_all_nodes():
-		if node.unlocked and node.node_type != SphereGrid.NodeType.START:
-			_apply_sphere_grid_node(node)
-
-func _parse_stat_label(label: String) -> Dictionary:
-	## Parses labels like "STR +3" → { "stat": "strength", "value": 3 }
-	var stat_map = {
-		"STR": "strength",
-		"DEX": "dexterity",
-		"INT": "intelligence",
-		"WIS": "wisdom",
-		"AGI": "agility",
-		"DET": "determination",
-	}
-	for abbr in stat_map:
-		if label.begins_with(abbr):
-			var value = _parse_numeric_value(label)
-			if value > 0:
-				return { "stat": stat_map[abbr], "value": value }
-	return {}
-
-func _parse_numeric_value(label: String) -> int:
-	## Extracts the first integer from a label like "HP +10" or "Mana +5"
-	var regex = RegEx.new()
-	regex.compile("\\+(\\d+)")
-	var result = regex.search(label)
-	if result:
-		return int(result.get_string(1))
-	# Try without + sign
-	regex.compile("(\\d+)")
-	result = regex.search(label)
-	if result:
-		return int(result.get_string(1))
-	return 0
-
-func _parse_passive_description(desc: String, node_id: int) -> Dictionary:
-	## Parses passive descriptions like "On kill: heal 1 HP" into structured data.
-	## Returns { "node_id": int, "trigger": String, "effect": String, "value": float, "chance": float }
-	var passive: Dictionary = { "node_id": node_id, "trigger": "", "effect": "", "value": 0, "chance": 1.0 }
-
-	# Extract trigger (everything before the colon)
-	var colon_idx = desc.find(":")
-	if colon_idx < 0:
-		return {}
-
-	var trigger_part = desc.substr(0, colon_idx).strip_edges().to_lower()
-	var effect_part = desc.substr(colon_idx + 1).strip_edges().to_lower()
-
-	# Map trigger text to trigger ID
-	var trigger_map = {
-		"on kill": "on_kill",
-		"on card play": "on_card_play",
-		"on move": "on_move",
-		"on cycle": "on_cycle",
-		"on tempo cycle": "on_tempo_cycle",
-		"on attack": "on_attack",
-		"on dodge": "on_dodge",
-		"on heal": "on_heal",
-		"on block": "on_block",
-		"on crit": "on_crit",
-		"on spell cast": "on_spell_cast",
-		"on discard": "on_discard",
-		"on draw": "on_draw",
-	}
-
-	for text in trigger_map:
-		if trigger_part == text:
-			passive["trigger"] = trigger_map[text]
-			break
-
-	if passive["trigger"] == "":
-		return {}
-
-	# Check for percentage chance (e.g., "5% draw extra" or "10% apply bleed")
-	var chance_regex = RegEx.new()
-	chance_regex.compile("(\\d+)%\\s*(.*)")
-	var chance_match = chance_regex.search(effect_part)
-	if chance_match:
-		passive["chance"] = float(chance_match.get_string(1)) / 100.0
-		effect_part = chance_match.get_string(2)
-
-	# Parse the effect and value
-	var value_regex = RegEx.new()
-	value_regex.compile("(\\d+)")
-	var value_match = value_regex.search(effect_part)
-	if value_match:
-		passive["value"] = int(value_match.get_string(1))
-
-	# Categorize the effect
-	if "heal" in effect_part and "hp" in effect_part:
-		passive["effect"] = "heal"
-	elif "heal" in effect_part:
-		passive["effect"] = "heal"
-	elif "draw" in effect_part:
-		passive["effect"] = "draw_card"
-	elif "armor" in effect_part:
-		passive["effect"] = "gain_armor"
-	elif "mana" in effect_part and "regen" in effect_part:
-		passive["effect"] = "regen_mana"
-	elif "mana" in effect_part and "gain" in effect_part:
-		passive["effect"] = "gain_mana"
-	elif "mana" in effect_part:
-		passive["effect"] = "gain_mana"
-	elif "bleed" in effect_part:
-		passive["effect"] = "apply_bleed"
-	elif "tempo" in effect_part:
-		passive["effect"] = "gain_tempo"
-	elif "cleanse" in effect_part:
-		passive["effect"] = "cleanse_debuff"
-	elif "reflect" in effect_part:
-		passive["effect"] = "reflect_damage"
-	elif "bonus" in effect_part and "damage" in effect_part:
-		passive["effect"] = "bonus_damage"
-	elif "deal" in effect_part and "damage" in effect_part:
-		passive["effect"] = "deal_damage"
-	elif "stun" in effect_part:
-		passive["effect"] = "stun_enemy"
-	elif "counterattack" in effect_part:
-		passive["effect"] = "counterattack"
-	elif "haste" in effect_part:
-		passive["effect"] = "gain_haste"
-	elif "empower" in effect_part:
-		passive["effect"] = "gain_empower"
-	elif "double cast" in effect_part:
-		passive["effect"] = "double_cast"
-	elif "refund" in effect_part:
-		passive["effect"] = "refund_mana"
-	elif "return" in effect_part:
-		passive["effect"] = "return_to_hand"
-	elif "cost" in effect_part and "less" in effect_part:
-		passive["effect"] = "reduce_cost"
-	elif "freeze" in effect_part:
-		passive["effect"] = "freeze_enemy"
-	elif "overheal" in effect_part:
-		passive["effect"] = "overheal_armor"
-	elif "costs 0" in effect_part:
-		passive["effect"] = "free_draw"
-	else:
-		passive["effect"] = effect_part  # Store raw text as fallback
-
-	passive["description"] = desc
-	return passive
-
-# ============================================
-# CONSTELLATION COMPLETION
-# ============================================
-
-var _active_constellations: Array[String] = []  # IDs of completed constellations
-
-func _on_constellation_completed(constellation_id: String) -> void:
-	## Called when the player completes a constellation on the sphere grid.
-	var grid = sphere_grid_ui.sphere_grid
-	var c = grid.get_constellation(constellation_id)
-	if not c:
-		return
-
-	_active_constellations.append(constellation_id)
-	_apply_constellation_bonus(constellation_id)
-	add_battle_log("CONSTELLATION COMPLETE: %s" % c.name, c.color)
-	add_battle_log("Bonus: %s" % c.bonus_description, Color(0.9, 0.85, 0.5))
-	print("[MAIN] Constellation completed: %s — %s" % [c.name, c.bonus_description])
-
-func _apply_constellation_bonus(constellation_id: String) -> void:
-	## Applies the permanent bonus from a completed constellation.
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	match constellation_id:
-		"iron_will":
-			# On kill: gain 3 armor and heal 2 HP — register as a sphere passive
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_kill", "effect": "iron_will",
-				"value": 0, "chance": 1.0,
-				"description": "Iron Will: On kill: gain 3 armor and heal 2 HP"
-			})
-		"blood_hunter":
-			# +15% bleed on attacks, bleed +2/tick — register as a sphere passive
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_attack", "effect": "blood_hunter",
-				"value": 0, "chance": 0.15,
-				"description": "Blood Hunter: 15% bleed on attacks, bleed +2/tick"
-			})
-		"arcane_current":
-			# Spell cards deal +5 bonus damage — register as a sphere passive
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_spell_cast", "effect": "arcane_current",
-				"value": 5, "chance": 1.0,
-				"description": "Arcane Current: Spell cards deal +5 bonus damage"
-			})
-		"mind_weaver":
-			# On spell cast: 20% draw a card. +3 max mana
-			stats.apply_sphere_grid_mana(3)
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_spell_cast", "effect": "draw_card",
-				"value": 1, "chance": 0.20,
-				"description": "Mind Weaver: 20% chance to draw a card on spell cast"
-			})
-		"windwalker":
-			# +1 movement, first card after moving costs 1 less
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_move", "effect": "reduce_cost",
-				"value": 1, "chance": 1.0,
-				"description": "Windwalker: First card after moving costs 1 less"
-			})
-			# +1 movement via agility
-			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
-		"storm_runner":
-			# +1 movement, gain 2 mana on move
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_move", "effect": "gain_mana",
-				"value": 2, "chance": 1.0,
-				"description": "Storm Runner: Gain 2 mana on each move"
-			})
-			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
-		"sages_insight":
-			# Draw 1 extra card per tempo cycle
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_cycle", "effect": "draw_card",
-				"value": 1, "chance": 1.0,
-				"description": "Sage's Insight: Draw 1 extra card per tempo cycle"
-			})
-		"unyielding":
-			# Below 50% HP: gain 3 armor each cycle, +20% determination
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_cycle", "effect": "unyielding",
-				"value": 3, "chance": 1.0,
-				"description": "Unyielding: Below 50% HP: gain 3 armor each cycle"
-			})
-			stats.apply_sphere_grid_stat("determination", 2)
-
-# ============================================
-# SKILL TREE → CHARACTER SYNC
-# ============================================
-
-func _on_skill_tree_option_chosen(level: int, option_index: int) -> void:
-	## Called when the player chooses one of the 4 options in a skill tree row.
-	var tree = skill_tree_ui.skill_tree
-	if not tree:
-		return
-	var row = tree.get_row_for_level(level)
-	if not row:
-		return
-	var option = row.get_chosen_option()
-	if not option:
-		return
-
-	print("[MAIN] Skill tree choice at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
-	_apply_skill_tree_option(option)
-
-func _on_skill_tree_auto_grant_claimed(level: int) -> void:
-	## Called when a stat allocation or other auto-grant is confirmed.
-	print("[MAIN] Skill tree auto-grant claimed for level %d" % level)
-	# Future: apply stat allocations, card removals, upgrades, etc.
-
-func _on_skill_tree_retrospective_chosen(level: int, option_index: int) -> void:
-	## Called when the player uses a retrospective token to reclaim a skipped option.
-	var tree = skill_tree_ui.skill_tree
-	if not tree:
-		return
-	var row = tree.get_row_for_level(level)
-	if not row or option_index < 0 or option_index >= row.options.size():
-		return
-	var option = row.options[option_index]
-	print("[MAIN] Retrospective pick at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
-	_apply_skill_tree_option(option)
-
-func _apply_skill_tree_option(option) -> void:
-	## Applies a chosen skill tree option's effect to the player.
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	if option.option_type == SkillTreeData.OptionType.PASSIVE or option.option_type == SkillTreeData.OptionType.PASSIVE_MUTATION:
-		var pid = option.passive_id
-		if pid == "":
-			pid = option.name.to_lower().replace(" ", "_")
-
-		# Special handling for stat-granting passives (apply immediately + register)
-		match pid:
-			"ladder_work":
-				# Ryan: +3 dexterity and +3 agility
-				stats.base_dexterity += 3
-				stats.base_agility += 3
-				stats.stats_updated.emit()
-				add_battle_log("Ladder Work: +3 DEX, +3 AGI", Color(0.3, 0.7, 1.0))
-			"stone_skin":
-				# Brad: +10% Fire, Physical, Lightning resistance
-				stats.add_skill_tree_passive(pid)
-				add_battle_log("Stone Skin: +10%% Fire/Physical/Lightning resistance", Color(0.4, 0.9, 0.4))
-			"deadly":
-				# Stephen: +3 flat damage (tracked via passive, applied on attack)
-				stats.add_skill_tree_passive(pid)
-				add_battle_log("Deadly: +3 damage on all attacks", Color(0.9, 0.3, 0.3))
-			"eagle_eye":
-				# Stephen: +2 range on ranged attacks (tracked via passive)
-				stats.add_skill_tree_passive(pid)
-				add_battle_log("Eagle Eye: +2 range on ranged attacks", Color(0.4, 0.9, 0.4))
-			"sword_specialist":
-				# Stephen: +25% block when only wielding swords (tracked via passive)
-				stats.add_skill_tree_passive(pid)
-				add_battle_log("Sword Specialist: +25%% block with swords only", Color(0.3, 0.7, 1.0))
-			"tricks_of_death":
-				# Jeremy: +10% to all % chances (permanent chance_boost)
-				stats.chance_boost += 10.0
-				stats.add_skill_tree_passive(pid)
-				add_battle_log("Tricks of Death: +10%% to all chances", Color(0.4, 0.9, 0.4))
-			_:
-				stats.add_skill_tree_passive(pid)
-				add_battle_log("Passive unlocked: %s" % option.name, Color(0.9, 0.7, 0.2))
-
-	elif option.option_type == SkillTreeData.OptionType.STAT_BONUS:
-		if option.stat_type != "" and option.stat_amount > 0:
-			match option.stat_type:
-				"strength": stats.base_strength += option.stat_amount
-				"dexterity": stats.base_dexterity += option.stat_amount
-				"intelligence": stats.base_intelligence += option.stat_amount
-				"wisdom": stats.base_wisdom += option.stat_amount
-				"agility": stats.base_agility += option.stat_amount
-				"determination": stats.determination += option.stat_amount
-			stats.stats_updated.emit()
-			add_battle_log("+%d %s" % [option.stat_amount, option.stat_type.capitalize()], Color(0.3, 0.8, 1.0))
-
-	elif option.option_type == SkillTreeData.OptionType.CARD:
-		if option.card_id != "":
-			if deck_manager.add_card_to_deck_from_id(option.card_id):
-				add_battle_log("Card added: %s" % option.name, Color(0.5, 1.0, 0.5))
-
-# ============================================
-# SKILL TREE PASSIVE TRIGGERS
-# ============================================
-
-func _trigger_skill_tree_on_discard(card: Card) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Keep Them Guessing: -1t from a random card in hand
-	if stats.has_skill_tree_passive("keep_them_guessing"):
-		if deck_manager and deck_manager.hand.size() > 0:
-			var random_idx = randi() % deck_manager.hand.size()
-			var target_card = deck_manager.hand[random_idx]
-			if target_card.tempo_cost > 0:
-				target_card.tempo_cost -= 1
-				add_battle_log("Keep Them Guessing: %s -1t" % target_card.card_name, Color(0.9, 0.3, 0.3))
-
-func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# From the Hip: clear the discount when any card is played
-	if stats.has_skill_tree_passive("from_the_hip") and stats.st_from_hip_card != null:
-		var discounted = stats.st_from_hip_card
-		if is_instance_valid(discounted):
-			discounted.mana_cost = stats.st_from_hip_original_cost
-		stats.st_from_hip_card = null
-		stats.st_from_hip_original_cost = 0
-
-	# Nimble Assault: no Defense cards in hand → draw on attack
-	if stats.has_skill_tree_passive("nimble_assault") and card.card_type == Card.CardType.ATTACK:
-		var has_defense = false
-		for c in deck_manager.hand:
-			if c.card_type == Card.CardType.DEFENSE:
-				has_defense = true
-				break
-		if not has_defense:
-			deck_manager.attempt_draw()
-			add_battle_log("Nimble Assault: drew a card!", Color(0.9, 0.3, 0.3))
-
-	# Quick Step: instant played from hand → +5 armor
-	if stats.has_skill_tree_passive("quick_step"):
-		if card.card_type == Card.CardType.REACTION or card.tempo_cost == 0:
-			stats.add_armor(5)
-			add_battle_log("Quick Step: +5 armor", Color(0.3, 0.7, 1.0))
-
-	# Stimulant: healing with a Pocket card → healed target draws a card (5 tempo cooldown)
-	if stats.has_skill_tree_passive("stimulant") and card.card_keyword == Card.CardKeyword.POCKET and card.heal_amount > 0 and stats.st_stimulant_cooldown <= 0:
-		stats.st_stimulant_cooldown = 5
-		deck_manager.attempt_draw()
-		add_battle_log("Stimulant: healed target drew a card!", Color(0.4, 0.9, 0.4))
-
-	# Mad Scientist: last card played changes outcome of potion (POCKET) cards
-	if stats.has_skill_tree_passive("mad_scientist") and card.card_keyword == Card.CardKeyword.POCKET and _last_played_card:
-		var last_type = _last_played_card.card_type
-		var buff_mgr = player.get_buff_manager()
-		var is_heal_outcome = card.heal_amount > 0
-		var is_poison_outcome = false
-
-		# Poisoned Blood flips heal → poison outcome (regen = poison)
-		if buff_mgr and buff_mgr.poisoned_blood_active and card.heal_amount > 0:
-			is_heal_outcome = false
-			is_poison_outcome = true
-
-		if is_heal_outcome:
-			if last_type == Card.CardType.UTILITY:
-				# Utility → Heal: add 3 stacks of regen to the healed target
-				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_regen(3, 15, "Mad Scientist"))
-					add_battle_log("Mad Scientist: +3 regen!", Color(0.4, 0.9, 0.4))
-			elif last_type == Card.CardType.ATTACK:
-				# Attack → Heal: give healed target 3 strengthen
-				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_strengthen(3, 3, "Mad Scientist"))
-					add_battle_log("Mad Scientist: +3 strengthen!", Color(0.4, 0.9, 0.4))
-
-		elif is_poison_outcome:
-			if last_type == Card.CardType.UTILITY:
-				# Utility → Poison: add 3 additional stacks of poison
-				if target and target.has_method("apply_debuff"):
-					target.apply_debuff("poison", 3)
-					add_battle_log("Mad Scientist: +3 poison stacks!", Color(0.4, 0.9, 0.4))
-			elif last_type == Card.CardType.DEFENSE:
-				# Defense → Poison: lower enemy physical defense by 10%
-				if target and target is Enemy and target.current_armor > 0:
-					var armor_loss = max(1, target.current_armor / 10)
-					target.reduce_armor(armor_loss)
-					add_battle_log("Mad Scientist: -%d armor! (-10%%)" % armor_loss, Color(0.4, 0.9, 0.4))
-
-func _trigger_skill_tree_on_draw(card: Card) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Clean Exchange: draw Defense after playing Attack (or vice versa) → drawn card gets -1t
-	if stats.has_skill_tree_passive("clean_exchange") and _last_played_card:
-		var drawn_is_defense = card.card_type == Card.CardType.DEFENSE
-		var drawn_is_attack = card.card_type == Card.CardType.ATTACK
-		var last_was_attack = _last_played_card.card_type == Card.CardType.ATTACK
-		var last_was_defense = _last_played_card.card_type == Card.CardType.DEFENSE
-		if (drawn_is_defense and last_was_attack) or (drawn_is_attack and last_was_defense):
-			if card.tempo_cost > 0:
-				card.tempo_cost -= 1
-				add_battle_log("Clean Exchange: %s -1t" % card.card_name, Color(0.3, 0.7, 1.0))
-
-	# From the Hip: if an attack card, discount the most recently drawn card by -1m
-	if stats.has_skill_tree_passive("from_the_hip") and card.card_type == Card.CardType.ATTACK:
-		# Clear previous discount if any
-		if stats.st_from_hip_card != null and is_instance_valid(stats.st_from_hip_card):
-			stats.st_from_hip_card.mana_cost = stats.st_from_hip_original_cost
-		# Apply new discount
-		if card.mana_cost > 0:
-			stats.st_from_hip_original_cost = card.mana_cost
-			card.mana_cost -= 1
-			stats.st_from_hip_card = card
-			add_battle_log("From the Hip: %s -1m" % card.card_name, Color(0.9, 0.3, 0.3))
-
-func _trigger_skill_tree_on_attack(card: Card, target) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Surprise Opener: bonus damage on first strike per enemy
-	if stats.has_skill_tree_passive("surprise_opener") and target and target is Enemy:
-		var enemy_id = target.get_instance_id()
-		if enemy_id not in stats.st_enemy_first_strikes:
-			stats.st_enemy_first_strikes[enemy_id] = true
-			var bonus = 2
-			if target.current_armor <= 0:
-				bonus += 2
-			# Check if this is the enemy's first source of damage (full HP = no prior damage)
-			if target.current_health >= target.max_health:
-				bonus += 2
-			target.take_damage(bonus, true)
-			add_battle_log("Surprise Opener: +%d bonus damage!" % bonus, Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_on_crit(target) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Eye Scrape: every 3rd crit → invisibility
-	if stats.has_skill_tree_passive("eye_scrape"):
-		stats.st_crit_counter += 1
-		if stats.st_crit_counter >= 3:
-			stats.st_crit_counter = 0
-			var buff_mgr = player.get_buff_manager()
-			if buff_mgr:
-				buff_mgr.apply_buff(Buff.create_invisible(10, "Eye Scrape"))
-				_set_player_invisible(true)
-				add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_on_cycle() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Stimulant: tick cooldown
-	if stats.st_stimulant_cooldown > 0:
-		stats.st_stimulant_cooldown -= 5
-
-	# Let's Dance: movement cycle → +3 armor (handled in movement section)
-	pass
-
-func _trigger_skill_tree_on_heal_ally(ally_name: String) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Brad: Redemption — heal ally → +10% crit on next attack
-	_trigger_skill_tree_brad_on_heal_ally(ally_name)
-
-	# Jeremy: Whispers of the Flock — mark healed ally
-	_trigger_skill_tree_jeremy_on_heal_ally()
-
-func _trigger_skill_tree_on_displacement() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Now You See Me: displacement → invisibility
-	if stats.has_skill_tree_passive("now_you_see_me"):
-		var buff_mgr = player.get_buff_manager()
-		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_invisible(10, "Now You See Me"))
-			_set_player_invisible(true)
-			add_battle_log("Now You See Me: Invisibility!", Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_on_debuff_applied(target, debuff_name: String, value: int) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Pop Rocks: applying poison to already-poisoned enemy deals 1/3 current stacks as immediate damage
-	if stats.has_skill_tree_passive("pop_rocks") and debuff_name == "poison" and target and target.has_method("take_damage"):
-		var prev_stacks = target.poison_stacks - value
-		if prev_stacks > 0:
-			var pop_damage = max(1, target.poison_stacks / 3)
-			target.take_damage(pop_damage, true)
-			add_battle_log("Pop Rocks: %d damage! (%d poison stacks)" % [pop_damage, target.poison_stacks], Color(0.4, 0.9, 0.4))
-
-func _trigger_skill_tree_on_debuff_expired(target) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	pass
-
-func _trigger_skill_tree_on_movement_cycle() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Let's Dance: movement triggers a cycle → +3 armor
-	if stats.has_skill_tree_passive("let's_dance"):
-		stats.add_armor(3)
-		add_battle_log("Let's Dance: +3 armor", Color(0.3, 0.7, 1.0))
-
-# ============================================
-# BRAD SKILL TREE PASSIVE TRIGGERS
-# ============================================
-
-func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Enraged Will: below 25% HP → Reach AOE swing (1 base + 1 Reach = 2 range) + gain 1 mana per kill
-	if stats.has_skill_tree_passive("enraged_will"):
-		if stats.get_health_percent() <= 0.25 and stats.current_health > 0:
-			var enemies = enemy_spawner.get_enemies_in_radius(player.position, 2.0) if enemy_spawner else []
-			if enemies.size() > 0:
-				var dmg = stats.get_effective_physical_damage(0)
-				var kills = 0
-				for enemy in enemies:
-					enemy.take_damage(dmg, true)
-					if not enemy.is_alive():
-						kills += 1
-				if kills > 0:
-					stats.gain_mana(kills)
-				add_battle_log("Enraged Will: AOE swing for %d! (+%d mana)" % [dmg, kills], Color(0.9, 0.3, 0.3))
-
-	# Corrupted Strength: state is updated per cycle, no action needed on damage taken
-
-func _trigger_skill_tree_brad_on_attacked(attacker) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# In the Trenches: when attacked from adjacent, knock attacker back (consumes 1 charge)
-	if stats.has_skill_tree_passive("in_the_trenches"):
-		_itt_try_refresh_charges(stats)
-		if stats.st_itt_charges > 0:
-			if attacker and attacker.has_method("knockback"):
-				stats.st_itt_charges -= 1
-				attacker.knockback(player.position)
-				add_battle_log("In the Trenches: knocked back %s! (%d charge(s) left)" % [attacker.enemy_name, stats.st_itt_charges], Color(0.3, 0.7, 1.0))
-				if stats.st_itt_charges <= 0:
-					stats.st_itt_last_used_tempo = tempo_manager.get_global_tempo()
-
-func _trigger_skill_tree_brad_itt_on_enter(enemy: Enemy) -> void:
-	## In the Trenches: free attack when an enemy enters an adjacent square (consumes 1 charge)
-	var stats = player.get_stats()
-	if not stats:
-		return
-	if not stats.has_skill_tree_passive("in_the_trenches"):
-		return
-	_itt_try_refresh_charges(stats)
-	if stats.st_itt_charges <= 0:
-		return
-	stats.st_itt_charges -= 1
-	var dmg = stats.get_effective_physical_damage(0)
-	enemy.take_damage(dmg, true)
-	add_battle_log("In the Trenches: free attack on %s for %d! (%d charge(s) left)" % [enemy.enemy_name, dmg, stats.st_itt_charges], Color(0.3, 0.7, 1.0))
-	if stats.st_itt_charges <= 0:
-		stats.st_itt_last_used_tempo = tempo_manager.get_global_tempo()
-
-func _itt_try_refresh_charges(stats: PlayerStats) -> void:
-	## Refresh In the Trenches charges if 10 tempo has passed since last exhaustion.
-	if stats.st_itt_charges <= 0:
-		var elapsed = tempo_manager.get_global_tempo() - stats.st_itt_last_used_tempo
-		if elapsed >= 10:
-			stats.st_itt_charges = 2
-
-func _trigger_skill_tree_brad_on_defense_card_play(card: Card) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# The Way of the Plate: every other Defense card costs -1m/-1t
-	if stats.has_skill_tree_passive("the_way_of_the_plate"):
-		stats.st_defense_cards_played += 1
-		if stats.st_defense_cards_played >= 2:
-			stats.st_defense_cards_played = 0
-			# Refund 1 mana and 1 tempo
-			stats.gain_mana(1)
-			tempo_manager.add_tempo(-1)
-			add_battle_log("Way of the Plate: -1m/-1t refund!", Color(0.3, 0.7, 1.0))
-
-	# Pristine Armor: +2 armor on defense cards, +5 bonus for 3 in a row
-	if stats.has_skill_tree_passive("pristine_armor"):
-		stats.add_armor(2)
-		stats.st_consecutive_defense += 1
-		if stats.st_consecutive_defense >= 3:
-			stats.st_consecutive_defense = 0
-			stats.add_armor(5)
-			add_battle_log("Pristine Armor: +2 armor, +5 bonus (3 in a row)!", Color(0.3, 0.7, 1.0))
-		else:
-			add_battle_log("Pristine Armor: +2 armor", Color(0.3, 0.7, 1.0))
-
-func _trigger_skill_tree_brad_on_heal() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Vines Codependence: whenever you heal, gain 3 thorns
-	if stats.has_skill_tree_passive("vines_codependence"):
-		var buff_mgr = player.get_buff_manager()
-		if buff_mgr:
-			buff_mgr.apply_buff(Buff.new(Buff.BuffType.THORNS, 3, 30))
-			add_battle_log("Vines Codependence: +3 thorns", Color(0.4, 0.9, 0.4))
-
-	# Redemption: gain crit buff when healing (self or ally)
-	if stats.has_skill_tree_passive("redemption"):
-		var buff_mgr = player.get_buff_manager()
-		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_focused(10, "Redemption"))
-			add_battle_log("Redemption: crit on next attack!", Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_brad_on_heal_ally(ally_name: String) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-	# Redemption for ally heals is now handled in _trigger_skill_tree_brad_on_heal
-	# which fires on all heals (self and ally). This function remains for
-	# ally-specific effects from other characters (e.g. Field Medic).
-	pass
-
-func _trigger_skill_tree_brad_on_cycle() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Ancestral Aid: depends on hand composition — more attacks = -2m to attack, more defense = +3 HP regen
-	if stats.has_skill_tree_passive("ancestral_aid"):
-		var attack_count = 0
-		var defense_count = 0
-		for c in deck_manager.hand:
-			if c.card_type == Card.CardType.ATTACK:
-				attack_count += 1
-			elif c.card_type == Card.CardType.DEFENSE:
-				defense_count += 1
-		if attack_count > defense_count:
-			# Discount a random attack card by 2 mana
-			var attacks: Array[Card] = []
-			for c in deck_manager.hand:
-				if c.card_type == Card.CardType.ATTACK and c.mana_cost >= 2:
-					attacks.append(c)
-			if attacks.size() > 0:
-				var target_card = attacks[randi() % attacks.size()]
-				target_card.mana_cost -= 2
-				add_battle_log("Ancestral Aid: %s -2m (offense)" % target_card.card_name, Color(0.4, 0.9, 0.4))
-		elif defense_count > attack_count:
-			stats.heal(3)
-			add_battle_log("Ancestral Aid: +3 HP regen (defense)", Color(0.4, 0.9, 0.4))
-		else:
-			# Tied — small heal
-			stats.heal(1)
-			add_battle_log("Ancestral Aid: +1 HP (balanced)", Color(0.4, 0.9, 0.4))
-
-	# Directed Strength is checked at attack time, not per-cycle
-
-	# Corrupted Strength: check nearby enemies, toggle active state, apply armor + HP drain
-	if stats.has_skill_tree_passive("corrupted_strength"):
-		var nearby_enemies = enemy_spawner.get_enemies_in_radius(player.position, 3.0) if enemy_spawner else []
-		var was_active = stats.st_corrupted_strength_active
-		stats.st_corrupted_strength_active = nearby_enemies.size() >= 3
-		stats.st_corrupted_strength_no_ally_heal = stats.st_corrupted_strength_active
-		if stats.st_corrupted_strength_active:
-			stats.add_armor(5)
-			stats.current_health = max(1, stats.current_health - 2)
-			stats.health_changed.emit(stats.current_health, stats.max_health)
-			if not was_active:
-				add_battle_log("Corrupted Strength: darkness surges! +5 dmg, +5 armor/cycle, no ally healing", Color(0.8, 0.4, 0.9))
-			else:
-				add_battle_log("Corrupted Strength: +5 armor, -2 HP", Color(0.8, 0.4, 0.9))
-		elif was_active:
-			add_battle_log("Corrupted Strength: darkness recedes", Color(0.6, 0.4, 0.6))
-
-func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
-	## Returns bonus damage from Brad passives.
-	var stats = player.get_stats()
-	if not stats:
-		return 0
-	var bonus = 0
-
-	# Directed Strength: -5 STR above 50% HP, +5 STR below 50%
-	if stats.has_skill_tree_passive("directed_strength"):
-		if stats.get_health_percent() <= 0.5:
-			bonus += 5
-		else:
-			bonus -= 5
-
-	# Life Steal: all attacks life steal by 5%
-	if stats.has_skill_tree_passive("life_steal"):
-		var buff_mgr = player.get_buff_manager()
-		if buff_mgr and not buff_mgr.has_life_steal():
-			buff_mgr.apply_buff(Buff.create_life_steal("Life Steal (Passive)"))
-
-	# Corrupted Strength: +5 damage while active (3+ enemies within 2 tiles)
-	if stats.has_skill_tree_passive("corrupted_strength") and stats.st_corrupted_strength_active:
-		bonus += 5
-		add_battle_log("Corrupted Strength: +5 damage!", Color(0.8, 0.4, 0.9))
-
-	return bonus
-
-var _ptp_confirmed_callable: Callable
-var _ptp_declined_callable: Callable
-
-func _on_point_to_prove_triggered(debuff: Debuff) -> void:
-	## Show dialog asking the player if they want to sacrifice HP to ignore the debuff.
-	# Disconnect any previous one-shot connections
-	if _ptp_confirmed_callable.is_valid() and point_to_prove_dialog.confirmed.is_connected(_ptp_confirmed_callable):
-		point_to_prove_dialog.confirmed.disconnect(_ptp_confirmed_callable)
-	if _ptp_declined_callable.is_valid() and point_to_prove_dialog.declined.is_connected(_ptp_declined_callable):
-		point_to_prove_dialog.declined.disconnect(_ptp_declined_callable)
-
-	var debuff_name = Debuff.DebuffType.keys()[debuff.debuff_type].capitalize()
-	var cost = 5
-	point_to_prove_dialog.show_dialog(debuff_name, debuff.debuff_type, cost)
-	_ptp_confirmed_callable = _on_point_to_prove_confirmed.bind(debuff)
-	_ptp_declined_callable = _on_point_to_prove_declined
-	point_to_prove_dialog.confirmed.connect(_ptp_confirmed_callable, CONNECT_ONE_SHOT)
-	point_to_prove_dialog.declined.connect(_ptp_declined_callable, CONNECT_ONE_SHOT)
-
-func _on_point_to_prove_confirmed(debuff_type: int, debuff: Debuff) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-	# Sacrifice HP to remove the debuff
-	stats.take_direct_damage(5)
-	var debuff_mgr = player.get_debuff_manager()
-	if debuff_mgr:
-		debuff_mgr.remove_debuff(debuff.debuff_type)
-	var debuff_name = Debuff.DebuffType.keys()[debuff_type].capitalize()
-	add_battle_log("Point to Prove: Sacrificed 5 HP to ignore %s!" % debuff_name, Color(0.9, 0.7, 0.3))
-
-func _on_point_to_prove_declined(debuff_type: int) -> void:
-	var debuff_name = Debuff.DebuffType.keys()[debuff_type].capitalize()
-	add_battle_log("Point to Prove: Accepted %s." % debuff_name, Color(0.6, 0.6, 0.6))
-
-# ============================================
-# STEPHEN SKILL TREE PASSIVE TRIGGERS
-# ============================================
-
-func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
-	## Returns bonus damage from Stephen passives.
-	var stats = player.get_stats()
-	if not stats:
-		return 0
-	var bonus = 0
-
-	# Deadly: +3 flat damage on all attacks
-	if stats.has_skill_tree_passive("deadly"):
-		bonus += 3
-
-	# Scouted: hitting same enemy 3 times in a row → +6 range and auto-crit on next attack
-	if stats.has_skill_tree_passive("scouted") and target and target is Enemy:
-		var enemy_id = target.get_instance_id()
-		if stats.st_scouted_bonus_active and enemy_id == stats.st_scouted_target_id:
-			# Consume the bonus: auto-crit handled via Focused buff applied when bonus activated
-			stats.st_scouted_bonus_active = false
-			stats.st_scouted_hits = 1  # This hit counts as the first of a new streak
-			add_battle_log("Scouted: bonus consumed!", Color(0.4, 0.9, 0.4))
-		elif enemy_id == stats.st_scouted_target_id:
-			stats.st_scouted_hits += 1
-			if stats.st_scouted_hits >= 3:
-				stats.st_scouted_bonus_active = true
-				stats.st_scouted_hits = 0
-				# Grant auto-crit via Focused buff
-				var buff_mgr = player.get_buff_manager()
-				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_focused(15, "Scouted"))
-				add_battle_log("Scouted: 3 hits! +6 range and auto-crit on next attack!", Color(0.4, 0.9, 0.4))
-		else:
-			# Switched targets — reset streak
-			stats.st_scouted_target_id = enemy_id
-			stats.st_scouted_hits = 1
-			stats.st_scouted_bonus_active = false
-
-	# Skilled Momentum: 4 attacks in a row → 5th plays twice
-	if stats.has_skill_tree_passive("skilled_momentum") and card.card_type == Card.CardType.ATTACK:
-		stats.st_consecutive_attacks += 1
-		if stats.st_consecutive_attacks >= 5:
-			stats.st_consecutive_attacks = 0
-			# Deal the card's damage again
-			if target and target.has_method("take_damage"):
-				var extra_dmg = card.last_damage_dealt if card.last_damage_dealt > 0 else stats.get_effective_physical_damage(card.base_damage)
-				target.take_damage(extra_dmg, true)
-				add_battle_log("Skilled Momentum: double strike for %d!" % extra_dmg, Color(0.9, 0.3, 0.3))
-
-	# Swing for the Fences: cards with >4 tempo cost deal tempo cost as additional damage
-	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
-		bonus += card.tempo_cost
-		add_battle_log("Swing for the Fences: +%d damage!" % card.tempo_cost, Color(0.8, 0.4, 0.9))
-
-	return bonus
-
-func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
-	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
-	pass
-
-func _trigger_skill_tree_stephen_on_expose(target) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Easy Target: when exposing an enemy, deal your damage again
-	if stats.has_skill_tree_passive("easy_target") and target and target.has_method("take_damage"):
-		var dmg = stats.get_effective_physical_damage(0)
-		target.take_damage(dmg, true)
-		add_battle_log("Easy Target: %d bonus damage on expose!" % dmg, Color(0.9, 0.3, 0.3))
-
-func _trigger_skill_tree_stephen_on_attacked(attacker) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Exposed Blind Spot: when struck with melee attack, gain crit chance = number of non-attack cards in hand
-	if stats.has_skill_tree_passive("exposed_blind_spot"):
-		var non_attack_count = 0
-		for c in deck_manager.hand:
-			if c.card_type != Card.CardType.ATTACK:
-				non_attack_count += 1
-		if non_attack_count > 0:
-			stats.st_exposed_blind_spot_crit = non_attack_count
-			add_battle_log("Exposed Blind Spot: +%d%% crit on next attack!" % non_attack_count, Color(0.3, 0.7, 1.0))
-
-	# Phalanx: melee attack → deal damage = number of Defense cards in hand
-	if stats.has_skill_tree_passive("phalanx") and attacker and attacker.has_method("take_damage"):
-		var defense_count = 0
-		for c in deck_manager.hand:
-			if c.card_type == Card.CardType.DEFENSE:
-				defense_count += 1
-		if defense_count > 0:
-			attacker.take_damage(defense_count, true)
-			add_battle_log("Phalanx: %d damage back!" % defense_count, Color(0.3, 0.7, 1.0))
-
-func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Skilled Momentum: reset counter if non-attack card is played
-	if stats.has_skill_tree_passive("skilled_momentum") and card.card_type != Card.CardType.ATTACK:
-		stats.st_consecutive_attacks = 0
-
-	# Lethal Resourcefulness: 3 or less cards in hand + non-attack → free basic attack
-	if stats.has_skill_tree_passive("lethal_resourcefulness") and not stats.st_lethal_resource_attacking:
-		if card.card_type != Card.CardType.ATTACK and deck_manager.hand.size() <= 3:
-			var target = _get_nearest_enemy()
-			if target and target.has_method("take_damage"):
-				var dist = player.position.distance_to(target.position)
-				if dist <= 2.0:  # Melee range
-					stats.st_lethal_resource_attacking = true
-					var dmg = stats.get_effective_physical_damage(0)
-					target.take_damage(dmg, true)
-					add_battle_log("Lethal Resourcefulness: free attack for %d!" % dmg, Color(0.3, 0.7, 1.0))
-					stats.st_lethal_resource_attacking = false
-
-func _trigger_skill_tree_stephen_on_disarm_applied(target, value: int) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Disarm Mastery: when applying disarm, apply 1 more
-	if stats.has_skill_tree_passive("disarm_mastery") and target and target.has_method("apply_debuff"):
-		target.apply_debuff("disarmed", 1)
-		add_battle_log("Disarm Mastery: +1 disarm", Color(0.3, 0.7, 1.0))
-
-func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Patience is a Virtue: on receiving Glut, deal that much damage to melee enemy and halve Glut
-	if stats.has_skill_tree_passive("patience_is_a_virtue") and glut_amount > 0:
-		var target = _get_nearest_enemy()
-		if target and target.has_method("take_damage"):
-			var dist = player.position.distance_to(target.position)
-			if dist <= 2.0:  # Melee range
-				target.take_damage(glut_amount, true)
-				glut_tempo_remaining = max(0, glut_tempo_remaining / 2)
-				add_battle_log("Patience is a Virtue: %d damage, Glut halved!" % glut_amount, Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_stephen_on_dex_proc() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Dominate: on attack speed proc, gain a 0m/0t basic attack card
-	if stats.has_skill_tree_passive("dominate"):
-		var free_attack = Card.create_slash()
-		free_attack.mana_cost = 0
-		free_attack.tempo_cost = 0
-		free_attack.card_name = "Dominate Strike"
-		free_attack.description = "Free basic attack from Dominate"
-		deck_manager.hand.append(free_attack)
-		deck_manager.hand_updated.emit()
-		add_battle_log("Dominate: free 0m/0t attack card!", Color(0.8, 0.4, 0.9))
-
-# ============================================
-# CORY SKILL TREE PASSIVE TRIGGERS
-# ============================================
-
-func _trigger_skill_tree_cory_on_mana_gain(amount: int, is_regen: bool) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Energy Barrier: every 3rd non-regen mana gain → put Energy Barrier in hand
-	if stats.has_skill_tree_passive("energy_barrier") and not is_regen and amount > 0:
-		stats.st_mana_gain_counter += 1
-		if stats.st_mana_gain_counter >= 3:
-			stats.st_mana_gain_counter = 0
-			var barrier = Card.create_energy_barrier()
-			deck_manager.hand.append(barrier)
-			deck_manager.hand_updated.emit()
-			add_battle_log("Energy Barrier: defense card added to hand!", Color(0.9, 0.3, 0.3))
-
-func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Self Reliance: 3 cards in one tempo cycle → next card costs -1m
-	if stats.has_skill_tree_passive("self_reliance"):
-		stats.st_cards_this_cycle.append(card.card_type_name)
-		if stats.st_cards_this_cycle.size() >= 3 and not stats.st_self_reliance_discount:
-			stats.st_self_reliance_discount = true
-			add_battle_log("Self Reliance: next card costs -1m!", Color(0.9, 0.3, 0.3))
-
-	# Self Reliance: consume discount
-	if stats.st_self_reliance_discount and card.mana_cost > 0:
-		stats.gain_mana(1)  # Refund 1 mana as discount
-		stats.st_self_reliance_discount = false
-		add_battle_log("Self Reliance: -1m applied!", Color(0.9, 0.3, 0.3))
-
-	# Budding: track card types (no back-to-back same type)
-	if stats.has_skill_tree_passive("budding"):
-		var ctype = ""
-		match card.card_type:
-			Card.CardType.ATTACK: ctype = "attack"
-			Card.CardType.DEFENSE: ctype = "defense"
-			Card.CardType.UTILITY: ctype = "utility"
-
-		if ctype != "":
-			if ctype == stats.st_budding_last_type:
-				# Back-to-back same type — reset tracking
-				stats.st_budding_types.clear()
-				stats.st_budding_types.append(ctype)
-			else:
-				if ctype not in stats.st_budding_types:
-					stats.st_budding_types.append(ctype)
-			stats.st_budding_last_type = ctype
-
-			# Check if all 3 types played
-			if stats.st_budding_types.has("attack") and stats.st_budding_types.has("defense") and stats.st_budding_types.has("utility"):
-				stats.heal(3)
-				stats.add_temp_health(5, 15)
-				stats.st_budding_types.clear()
-				stats.st_budding_last_type = ""
-				add_battle_log("Budding: healed 3, +5 temp HP!", Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Expel Negativity: transfer a debuff to enemy when dropping below 50% HP
-	if stats.has_skill_tree_passive("expel_negativity") and not stats.st_expel_triggered:
-		if stats.get_health_percent() <= 0.5:
-			stats.st_expel_triggered = true
-			var debuff_mgr = player.get_debuff_manager()
-			if debuff_mgr and debuff_mgr.debuffs.size() > 0:
-				var debuff = debuff_mgr.debuffs[randi() % debuff_mgr.debuffs.size()]
-				var target = _get_nearest_enemy()
-				if target and target.has_method("apply_debuff"):
-					target.apply_debuff(debuff.debuff_name.to_lower(), debuff.value)
-					debuff_mgr.remove_debuff(debuff.debuff_type)
-					add_battle_log("Expel Negativity: transferred %s to %s!" % [debuff.debuff_name, target.enemy_name], Color(0.9, 0.3, 0.3))
-
-func _trigger_skill_tree_cory_on_heal() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Expel Negativity: reset trigger when healed above 50%
-	if stats.has_skill_tree_passive("expel_negativity") and stats.st_expel_triggered:
-		if stats.get_health_percent() > 0.5:
-			stats.st_expel_triggered = false
-
-func _trigger_skill_tree_cory_on_kill(enemy: Enemy) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Eat: killing enemies heals 10% of the enemy's max HP
-	if stats.has_skill_tree_passive("eat"):
-		var heal_amount = max(1, floori(enemy.max_health * 0.10))
-		stats.heal(heal_amount)
-		add_battle_log("Eat: healed %d HP!" % heal_amount, Color(0.3, 0.7, 1.0))
-
-func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Serial Killer: first time enemy drops below 25% HP → player permanently invisible to them
-	if stats.has_skill_tree_passive("serial_killer") and enemy.is_alive():
-		var enemy_id = enemy.get_instance_id()
-		if enemy_id not in stats.st_serial_killer_enemies:
-			var hp_pct = float(enemy.current_health) / float(enemy.max_health)
-			if hp_pct <= 0.25:
-				stats.st_serial_killer_enemies[enemy_id] = true
-				# Add player to enemy's ignore list so it never targets them again
-				enemy.target = null
-				if player not in enemy.invisible_to_players:
-					enemy.invisible_to_players.append(player)
-				add_battle_log("Serial Killer: invisible to %s!" % enemy.enemy_name, Color(0.3, 0.7, 1.0))
-
-func _trigger_skill_tree_cory_on_debuff_applied(target, debuff_name: String, value: int) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Prey on the Weak: debuff on enemy below 50% HP → deal 3 damage
-	if stats.has_skill_tree_passive("prey_on_the_weak") and target and target is Enemy:
-		var hp_pct = float(target.current_health) / float(target.max_health)
-		if hp_pct < 0.5 and target.has_method("take_damage"):
-			target.take_damage(3, true)
-			add_battle_log("Prey on the Weak: 3 damage to %s!" % target.enemy_name, Color(0.3, 0.7, 1.0))
-
-func _trigger_skill_tree_cory_on_cycle() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Self Reliance: reset cards-this-cycle counter
-	stats.st_cards_this_cycle.clear()
-
-	# Regrowth: tick cooldown
-	if stats.st_regrowth_cooldown > 0:
-		stats.st_regrowth_cooldown -= 5
-
-	# Death as Lifeblood: heal for each nearby debuffed enemy
-	if stats.has_skill_tree_passive("death_as_lifeblood"):
-		var nearby = enemy_spawner.get_enemies_in_radius(player.position, 5.0) if enemy_spawner else []
-		var debuffed_count = 0
-		for enemy in nearby:
-			if enemy.has_method("get_active_effects"):
-				var effects = enemy.get_active_effects()
-				if effects.size() > 0:
-					debuffed_count += 1
-		if debuffed_count > 0:
-			stats.heal(debuffed_count)
-			add_battle_log("Death as Lifeblood: healed %d HP" % debuffed_count, Color(0.4, 0.9, 0.4))
-
-func _trigger_skill_tree_cory_on_hand_empty() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Regrowth: draw 4 cards when hand is empty (cooldown 25 tempo)
-	if stats.has_skill_tree_passive("regrowth") and stats.st_regrowth_cooldown <= 0:
-		stats.st_regrowth_cooldown = 25
-		for i in range(4):
-			deck_manager.attempt_draw()
-		add_battle_log("Regrowth: drew 4 cards!", Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_cory_on_shuffle() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Circle of Life: gain 15 armor and +3 damage for 3 attacks
-	if stats.has_skill_tree_passive("circle_of_life"):
-		stats.add_armor(15)
-		var buff_mgr = player.get_buff_manager()
-		if buff_mgr:
-			buff_mgr.apply_buff(Buff.new(Buff.BuffType.STRENGTHEN, 3, -1, 3))
-		add_battle_log("Circle of Life: +15 armor, +3 damage (3 attacks)!", Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_cory_on_enemy_enter_melee(enemy: Enemy) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Territorial Death: re-apply 1 random existing debuff
-	if stats.has_skill_tree_passive("territorial_death") and enemy.has_method("get_active_effects"):
-		var effects = enemy.get_active_effects()
-		if effects.size() > 0:
-			var random_effect = effects[randi() % effects.size()]
-			var debuff_name = random_effect.get("name", "").to_lower()
-			if debuff_name != "" and enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
-				add_battle_log("Territorial Death: re-applied %s to %s!" % [random_effect.get("name", "?"), enemy.enemy_name], Color(0.4, 0.9, 0.4))
-
-func _trigger_skill_tree_cory_on_enemy_leave_melee(enemy: Enemy) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Territorial Death: re-apply 1 random existing debuff when enemy leaves melee range
-	if stats.has_skill_tree_passive("territorial_death") and enemy.has_method("get_active_effects"):
-		var effects = enemy.get_active_effects()
-		if effects.size() > 0:
-			var random_effect = effects[randi() % effects.size()]
-			var debuff_name = random_effect.get("name", "").to_lower()
-			if debuff_name != "" and enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
-				add_battle_log("Territorial Death: re-applied %s to %s (leaving)!" % [random_effect.get("name", "?"), enemy.enemy_name], Color(0.4, 0.9, 0.4))
-
-# ============================================
-# JEREMY SKILL TREE PASSIVE TRIGGERS
-# ============================================
-
-func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Arcane Overflow: consume discount if active, then check if we hit 0 mana for next spell
-	if stats.has_skill_tree_passive("arcane_overflow"):
-		# Apply stored discount from previous spell
-		if stats.st_arcane_overflow_discount and card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
-			# Discount was already applied at card play time via _get_arcane_overflow_discount()
-			stats.st_arcane_overflow_discount = false
-			add_battle_log("Arcane Overflow: -1 tempo!", Color(0.9, 0.3, 0.3))
-		# Check if casting this spell left us at 0 mana → prime next spell
-		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0 and stats.current_mana == 0:
-			stats.st_arcane_overflow_discount = true
-			add_battle_log("Arcane Overflow: 0 mana! Next spell -1 tempo", Color(0.9, 0.3, 0.3))
-
-	# Mana Surge: track mana spending, 10 mana in 5 tempo → add Mana Surge card
-	if stats.has_skill_tree_passive("mana_surge") and card.mana_cost > 0:
-		var current_tempo = tempo_manager.global_tempo
-		stats.st_mana_spent_window.append({"amount": card.mana_cost, "tempo": current_tempo})
-		# Purge entries older than 5 tempo
-		var fresh: Array = []
-		for entry in stats.st_mana_spent_window:
-			if current_tempo - entry["tempo"] <= 5:
-				fresh.append(entry)
-		stats.st_mana_spent_window = fresh
-		# Check total
-		var total_spent = 0
-		for entry in stats.st_mana_spent_window:
-			total_spent += entry["amount"]
-		if total_spent >= 10:
-			stats.st_mana_spent_window.clear()
-			var surge = Card.create_mana_surge()
-			deck_manager.add_card_to_hand(surge)
-			add_battle_log("Mana Surge: card added to hand!", Color(0.9, 0.3, 0.3))
-
-	# Fresh Start: playing a card that empties hand → cleanse a debuff
-	if stats.has_skill_tree_passive("fresh_start") and deck_manager.hand.is_empty():
-		var debuff_mgr = player.get_debuff_manager()
-		if debuff_mgr and debuff_mgr.debuffs.size() > 0:
-			var removed = debuff_mgr.debuffs[0]
-			debuff_mgr.remove_debuff(removed.debuff_type)
-			add_battle_log("Fresh Start: cleansed %s!" % removed.debuff_name, Color(0.8, 0.4, 0.9))
-
-	# Seance: casting a spell that targets an empty tile → summon a Specter
-	if stats.has_skill_tree_passive("seance") and card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
-		# Check if the spell targeted an empty tile (no enemy target)
-		if target == null or not (target is Enemy):
-			var spawn_pos = player.position + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
-			if grid_manager:
-				spawn_pos = grid_manager.snap_to_grid(spawn_pos)
-			_spawn_seance_specter(stats, spawn_pos)
-
-func _spawn_seance_specter(stats: PlayerStats, pos: Vector3) -> void:
-	## Spawns a Specter for Seance passive: 5 HP, 15 tempo, deals 4 damage to killer on death.
-	var marker = MeshInstance3D.new()
-	var mesh = BoxMesh.new()
-	mesh.size = Vector3(0.4, 0.8, 0.4)
-	marker.mesh = mesh
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.5, 0.3, 0.7, 0.7)  # Ghostly purple
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	marker.material_override = mat
-	marker.position = Vector3(pos.x, 0.4, pos.z)
-	add_child(marker)
-
-	var label = Label3D.new()
-	label.text = "Specter (5 HP)"
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size = 12
-	label.modulate = Color(0.7, 0.5, 1.0)
-	label.position = Vector3(0, 0.7, 0)
-	marker.add_child(label)
-
-	stats.st_seance_specters.append({
-		"node": marker,
-		"label": label,
-		"hp": 5,
-		"max_hp": 5,
-		"tempo_remaining": 15,
-		"position": pos,
-	})
-	add_battle_log("Seance: Specter summoned! (5 HP, 15 tempo)", Color(0.7, 0.5, 1.0))
-
-func _tick_seance_specters(stats: PlayerStats) -> void:
-	## Tick Seance specters: decrement tempo, remove expired ones.
-	var to_remove: Array = []
-	for specter in stats.st_seance_specters:
-		specter["tempo_remaining"] -= 5
-		if specter["tempo_remaining"] <= 0 or specter["hp"] <= 0:
-			to_remove.append(specter)
-		else:
-			# Update label
-			var label = specter.get("label")
-			if label and is_instance_valid(label):
-				label.text = "Specter (%d HP)" % specter["hp"]
-
-	for specter in to_remove:
-		# On death/expiry: deal 4 damage to nearest enemy
-		if specter["hp"] <= 0:
-			var enemies = enemy_spawner.get_living_enemies() if enemy_spawner else []
-			if enemies.size() > 0:
-				var nearest: Enemy = null
-				var nearest_dist = 999.0
-				for e in enemies:
-					var d = (e.position - specter["position"]).length()
-					if d < nearest_dist:
-						nearest_dist = d
-						nearest = e
-				if nearest:
-					nearest.take_damage(4, true)
-					add_battle_log("Seance: Specter destroyed! 4 damage to %s!" % nearest.enemy_name, Color(0.7, 0.5, 1.0))
-		# Remove the visual marker
-		var node = specter.get("node")
-		if node and is_instance_valid(node):
-			node.queue_free()
-		stats.st_seance_specters.erase(specter)
-
-func _trigger_skill_tree_jeremy_on_cycle() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Whispers of the Flock: tick mark duration and cooldown
-	if stats.st_whispers_active:
-		stats.st_whispers_tempo -= 5
-		if stats.st_whispers_tempo <= 0:
-			stats.st_whispers_active = false
-			# Mark expired without triggering — no penalty
-			add_battle_log("Whispers of the Flock: mark expired.", Color(0.3, 0.7, 1.0))
-			stats.st_whispers_cooldown = 20
-	if stats.st_whispers_cooldown > 0:
-		stats.st_whispers_cooldown -= 5
-
-	# Haunted Rebuke: tick cooldown
-	if stats.st_haunted_rebuke_cooldown > 0:
-		stats.st_haunted_rebuke_cooldown -= 5
-
-	# I Heal You: heal nearby allies (summoned creatures) 3 HP every 5 tempo
-	if stats.has_skill_tree_passive("i_heal_you"):
-		stats.st_i_heal_you_tempo += 5
-		if stats.st_i_heal_you_tempo >= 5:
-			stats.st_i_heal_you_tempo = 0
-			# Heal summoned specters (Seance) within range
-			var healed_any = false
-			for specter in stats.st_seance_specters:
-				if specter.get("hp", 0) > 0:
-					var max_hp = specter.get("max_hp", 5)
-					specter["hp"] = min(max_hp, specter["hp"] + 3)
-					healed_any = true
-			if healed_any:
-				add_battle_log("I Heal You: healed allies 3 HP", Color(0.3, 0.7, 1.0))
-
-	# Kinetic Armor: track armor retention, apply shock after 25 tempo
-	if stats.has_skill_tree_passive("kinetic_armor"):
-		if stats.current_armor > 0:
-			stats.st_kinetic_armor_tempo += 5
-			if stats.st_kinetic_armor_tempo >= 25 and not stats.st_kinetic_armor_triggered:
-				stats.st_kinetic_armor_triggered = true
-				# Count defense cards across entire deck
-				var defense_count = 0
-				for c in deck_manager.hand:
-					if c.card_type == Card.CardType.DEFENSE:
-						defense_count += 1
-				for c in deck_manager.draw_pile:
-					if c.card_type == Card.CardType.DEFENSE:
-						defense_count += 1
-				for c in deck_manager.discard_pile:
-					if c.card_type == Card.CardType.DEFENSE:
-						defense_count += 1
-				if defense_count > 0:
-					var enemies = enemy_spawner.get_living_enemies()
-					if enemies.size() > 0:
-						var nearest_enemy: Enemy = null
-						var nearest_dist = 999.0
-						for e in enemies:
-							var d = (e.position - player.position).length()
-							if d < nearest_dist:
-								nearest_dist = d
-								nearest_enemy = e
-						if nearest_enemy and nearest_enemy.has_method("apply_debuff"):
-							nearest_enemy.apply_debuff("shock", defense_count)
-							add_battle_log("Kinetic Armor: %d shock to %s!" % [defense_count, nearest_enemy.enemy_name], Color(0.8, 0.4, 0.9))
-		else:
-			# Armor gone — reset tracking
-			stats.st_kinetic_armor_tempo = 0
-			stats.st_kinetic_armor_triggered = false
-
-	# Seance: tick specter durations
-	if stats.st_seance_specters.size() > 0:
-		_tick_seance_specters(stats)
-
-func _trigger_skill_tree_jeremy_on_enemy_attacked(enemy: Enemy) -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Haunted Rebuke: when an enemy attacks you, 3+ defense cards in hand → slow enemy's next action by +3 tempo
-	if stats.has_skill_tree_passive("haunted_rebuke") and stats.st_haunted_rebuke_cooldown <= 0:
-		var defense_in_hand = 0
-		for card in deck_manager.hand:
-			if card.card_type == Card.CardType.DEFENSE:
-				defense_in_hand += 1
-		if defense_in_hand >= 3:
-			stats.st_haunted_rebuke_cooldown = 10
-			# Slow the enemy's next action by adding to their action tempo counter
-			if enemy.has_method("apply_debuff"):
-				enemy.apply_debuff("slow", 3)
-			add_battle_log("Haunted Rebuke: %s slowed by 3 tempo!" % enemy.enemy_name, Color(0.4, 0.9, 0.4))
-
-func _trigger_skill_tree_jeremy_on_rng_reroll() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# A Mage's Favor: RNG reroll changed outcome → Magic Barrier to hand (once per batch)
-	if stats.has_skill_tree_passive("a_mage's_favor"):
-		var barrier = Card.create_magic_barrier()
-		deck_manager.add_card_to_hand(barrier)
-		add_battle_log("A Mage's Favor: Magic Barrier added!", Color(0.8, 0.4, 0.9))
-
-func _trigger_skill_tree_jeremy_on_heal_ally() -> void:
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	# Whispers of the Flock: add Shepherd's Mark card to hand when healing an ally
-	if stats.has_skill_tree_passive("whispers_of_the_flock") and not stats.st_whispers_active and stats.st_whispers_cooldown <= 0:
-		# Don't generate if already holding one
-		var already_holding = false
-		for c in deck_manager.hand:
-			if c.card_id == "shepherds_mark":
-				already_holding = true
-				break
-		if not already_holding:
-			var mark_card = Card.create_shepherds_mark()
-			deck_manager.add_card_to_hand(mark_card)
-			add_battle_log("Whispers of the Flock: Shepherd's Mark added to hand!", Color(0.3, 0.7, 1.0))
-
-func _get_jeremy_harnessed_power_multiplier() -> float:
-	## Returns the Harnessed Power effectiveness multiplier (1.0 = no bonus)
-	var stats = player.get_stats()
-	if not stats:
-		return 1.0
-	if stats.has_skill_tree_passive("harnessed_power") and deck_manager.hand.size() <= 2:
-		return 1.3
-	return 1.0
-
-func _apply_all_constellation_bonuses() -> void:
-	## Re-applies all completed constellation bonuses (called after character select).
-	var grid = sphere_grid_ui.sphere_grid
-	if not grid:
-		return
-	for c in grid.get_all_constellations():
-		if c.completed and c.id not in _active_constellations:
-			_active_constellations.append(c.id)
-			_apply_constellation_bonus(c.id)
-
-func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void:
-	## Fires all sphere grid passives matching the trigger.
-	## context may contain: "target" (enemy), "card" (Card), "damage" (int), etc.
-	var stats = player.get_stats()
-	if not stats:
-		return
-
-	var passives = stats.get_sphere_grid_passives_for_trigger(trigger)
-	for passive in passives:
-		# Roll chance
-		var chance = passive.get("chance", 1.0)
-		if chance < 1.0 and randf() > chance:
-			continue
-
-		var value = passive.get("value", 0)
-		var effect = passive.get("effect", "")
-
-		match effect:
-			"heal":
-				if value > 0:
-					stats.heal(value)
-					add_battle_log("Passive: Healed %d HP" % value, Color(0.5, 1.0, 0.5))
-			"draw_card":
-				if value <= 0:
-					value = 1
-				for i in range(value):
-					deck_manager.attempt_draw()
-				add_battle_log("Passive: Drew %d card(s)" % value, Color(0.3, 0.8, 1.0))
-			"gain_armor":
-				if value > 0:
-					stats.add_armor(value)
-					add_battle_log("Passive: Gained %d armor" % value, Color(0.6, 0.6, 0.8))
-			"regen_mana", "gain_mana":
-				if value > 0:
-					stats.gain_mana(value)
-					add_battle_log("Passive: Gained %d mana" % value, Color(0.2, 0.5, 1.0))
-			"apply_bleed":
-				var target = context.get("target", null)
-				if target and target.has_method("apply_bleed"):
-					target.apply_bleed(value if value > 0 else 2)
-					add_battle_log("Passive: Applied bleed", Color(0.9, 0.3, 0.3))
-			"gain_tempo":
-				if value > 0:
-					tempo_manager.add_tempo(-value)  # Negative tempo = gain turns
-					add_battle_log("Passive: Gained %d tempo" % value, Color(0.9, 0.85, 0.2))
-			"cleanse_debuff":
-				if player.has_method("get_debuff_manager"):
-					var dbm = player.get_debuff_manager()
-					if dbm and dbm.has_method("remove_random_debuff"):
-						dbm.remove_random_debuff()
-						add_battle_log("Passive: Cleansed a debuff", Color(0.5, 1.0, 0.8))
-			"reflect_damage":
-				var target = context.get("target", null)
-				if target and value > 0 and target.has_method("take_damage"):
-					target.take_damage(value)
-					add_battle_log("Passive: Reflected %d damage" % value, Color(1.0, 0.5, 0.2))
-			"deal_damage":
-				# Deal damage to a random enemy or specified target
-				var target = context.get("target", null)
-				if not target:
-					var enemies = enemy_spawner.get_alive_enemies() if enemy_spawner else []
-					if enemies.size() > 0:
-						target = enemies[randi() % enemies.size()]
-				if target and value > 0 and target.has_method("take_damage"):
-					target.take_damage(value)
-					add_battle_log("Passive: Dealt %d damage" % value, Color(1.0, 0.4, 0.4))
-			"stun_enemy":
-				var target = context.get("target", null)
-				if target and target.has_method("apply_stun"):
-					target.apply_stun()
-					add_battle_log("Passive: Stunned enemy", Color(1.0, 1.0, 0.3))
-			"gain_haste":
-				if player.has_method("get_buff_manager"):
-					var bm = player.get_buff_manager()
-					if bm and bm.has_method("apply_buff"):
-						bm.apply_buff(Buff.create_haste(5))
-						add_battle_log("Passive: Gained haste", Color(0.3, 1.0, 0.5))
-			"gain_empower":
-				stats.apply_empower(1)
-				add_battle_log("Passive: Gained empower", Color(1.0, 0.8, 0.3))
-			"refund_mana":
-				var card = context.get("card", null)
-				if card:
-					stats.gain_mana(card.mana_cost)
-					add_battle_log("Passive: Refunded %d mana" % card.mana_cost, Color(0.2, 0.5, 1.0))
-			"return_to_hand":
-				var card = context.get("card", null)
-				if card:
-					# Move from discard back to hand
-					var idx = deck_manager.discard_pile.find(card)
-					if idx >= 0:
-						deck_manager.discard_pile.remove_at(idx)
-						deck_manager.add_card_to_hand(card)
-						add_battle_log("Passive: %s returned to hand" % card.card_name, Color(0.7, 0.7, 1.0))
-			"reduce_cost":
-				# Reduce next card cost by value
-				if value > 0:
-					deck_manager.prep_utility_discount = value
-					deck_manager.prep_utility_charges = 1
-					add_battle_log("Passive: Next card costs %d less" % value, Color(0.8, 0.8, 0.3))
-			"bonus_damage":
-				# Handled at damage calculation time via context
-				pass
-			"counterattack":
-				var target = context.get("target", null)
-				if target and target.has_method("take_damage"):
-					var dmg = stats.get_effective_physical_damage(5)
-					target.take_damage(dmg)
-					add_battle_log("Passive: Counterattack for %d" % dmg, Color(1.0, 0.5, 0.2))
-			"overheal_armor":
-				# This is handled in the heal flow — check overheal and convert
-				var overheal = context.get("overheal", 0)
-				if overheal > 0:
-					stats.add_armor(overheal)
-					add_battle_log("Passive: Overheal → %d armor" % overheal, Color(0.6, 0.8, 1.0))
-			"free_draw":
-				# Next drawn card costs 0 — apply via prep system
-				deck_manager.prep_utility_discount = 99
-				deck_manager.prep_utility_charges = 1
-				add_battle_log("Passive: Next card costs 0", Color(0.8, 0.8, 0.3))
-			"iron_will":
-				# Constellation: On kill: gain 3 armor and heal 2 HP
-				stats.add_armor(3)
-				stats.heal(2)
-				add_battle_log("Iron Will: +3 armor, healed 2 HP", Color(0.9, 0.45, 0.25))
-			"blood_hunter":
-				# Constellation: 15% chance to apply bleed on attack
-				var target = context.get("target", null)
-				if target and target.has_method("apply_bleed"):
-					target.apply_bleed(4)  # Base 2 + 2 bonus from constellation
-					add_battle_log("Blood Hunter: Applied enhanced bleed!", Color(0.75, 0.15, 0.15))
-			"arcane_current":
-				# Constellation: +5 spell damage — applied as bonus damage on the card
-				var card = context.get("card", null)
-				if card:
-					card.bonus_damage += 5
-					add_battle_log("Arcane Current: +5 spell damage", Color(0.5, 0.2, 0.85))
-			"unyielding":
-				# Constellation: Below 50% HP: gain 3 armor each cycle
-				if stats.get_health_percent() <= 0.5:
-					stats.add_armor(value)
-					add_battle_log("Unyielding: +%d armor (low HP)" % value, Color(0.85, 0.7, 0.2))
-			_:
-				print("[MAIN] Unhandled sphere passive effect: %s" % effect)
+# Progression triggers (sphere grid, skill tree, sphere passives) moved to
+# scripts/progression/progression_triggers.gd
 
 func _update_enemy_count() -> void:
 	test_ui.update_enemy_count(enemy_spawner.get_enemy_count())
@@ -3784,7 +1827,7 @@ func _on_dexterity_proc() -> void:
 	print("[MAIN] Dexterity proc! Next attack is free + 2 mana discount!")
 	deck_manager.apply_dex_proc_bonus()
 	# Stephen: Dominate — on dex proc, gain free attack card
-	_trigger_skill_tree_stephen_on_dex_proc()
+	progression_triggers._trigger_skill_tree_stephen_on_dex_proc()
 
 func _on_maintained_cards_broken() -> void:
 	## Called when player's mana hits 0 - all maintained Power cards are discarded
@@ -3795,7 +1838,7 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 	## Process maintained card effects that trigger on HP damage
 	if hp_amount <= 0:
 		# Damage was fully absorbed by armor → trigger on_block passives
-		_trigger_sphere_passives("on_block", {})
+		progression_triggers._trigger_sphere_passives("on_block", {})
 		return
 	player.spawn_damage_number(hp_amount)
 	var stats = player.get_stats()
@@ -3805,8 +1848,8 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 			print("[MAIN] Armored Discipline: gained %d armor from %d HP damage!" % [hp_amount, hp_amount])
 
 	# Skill tree passive triggers on damage taken
-	_trigger_skill_tree_brad_on_damage_taken(hp_amount)
-	_trigger_skill_tree_cory_on_damage_taken(hp_amount)
+	progression_triggers._trigger_skill_tree_brad_on_damage_taken(hp_amount)
+	progression_triggers._trigger_skill_tree_cory_on_damage_taken(hp_amount)
 
 func _on_player_healed(amount: int) -> void:
 	player.spawn_heal_number(amount)
@@ -3815,15 +1858,15 @@ func _on_player_healed(amount: int) -> void:
 	var overheal = 0
 	if stats and stats.current_health >= stats.max_health:
 		overheal = amount  # approximate overheal
-	_trigger_sphere_passives("on_heal", {"overheal": overheal})
+	progression_triggers._trigger_sphere_passives("on_heal", {"overheal": overheal})
 
 	# Skill tree passive triggers on heal
-	_trigger_skill_tree_brad_on_heal()
-	_trigger_skill_tree_cory_on_heal()
+	progression_triggers._trigger_skill_tree_brad_on_heal()
+	progression_triggers._trigger_skill_tree_cory_on_heal()
 
 func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
 	# Cory: Energy Barrier — track non-regen mana gains
-	_trigger_skill_tree_cory_on_mana_gain(amount, is_regen)
+	progression_triggers._trigger_skill_tree_cory_on_mana_gain(amount, is_regen)
 
 func update_turn_display() -> void:
 	if turn_label:
@@ -3840,7 +1883,7 @@ func _on_hand_updated() -> void:
 
 	# Cory: Regrowth — draw 4 when hand is empty
 	if deck_manager.hand.is_empty():
-		_trigger_skill_tree_cory_on_hand_empty()
+		progression_triggers._trigger_skill_tree_cory_on_hand_empty()
 
 	# Snapshot current hand card IDs to detect which are new
 	var new_card_ids: Array[String] = []
@@ -3960,9 +2003,9 @@ func _on_hand_updated() -> void:
 
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
-	_trigger_sphere_passives("on_discard", {"card": card})
+	progression_triggers._trigger_sphere_passives("on_discard", {"card": card})
 	# Skill tree passive triggers for discard
-	_trigger_skill_tree_on_discard(card)
+	progression_triggers._trigger_skill_tree_on_discard(card)
 	# Volatile Mixture: deal damage to a random nearby enemy when discarded
 	if card.card_id == "volatile_mixture":
 		var stats = player.get_stats()
@@ -3997,14 +2040,14 @@ func _handle_on_discard_effect(card: Card) -> void:
 				add_battle_log("%s discarded! Lost %d cards!" % [card.card_name, cards_to_discard], Color(1.0, 0.5, 0.3))
 
 func _on_card_drawn_sphere_passive(card: Card) -> void:
-	_trigger_sphere_passives("on_draw", {"card": card})
-	_trigger_skill_tree_on_draw(card)
+	progression_triggers._trigger_sphere_passives("on_draw", {"card": card})
+	progression_triggers._trigger_skill_tree_on_draw(card)
 
 func _on_deck_shuffled() -> void:
 	update_deck_info()
 	_animate_shuffle()
 	# Cory: Circle of Life
-	_trigger_skill_tree_cory_on_shuffle()
+	progression_triggers._trigger_skill_tree_cory_on_shuffle()
 
 func _on_card_peaked(card: Card) -> void:
 	update_peaked_display()
@@ -4138,16 +2181,16 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		_process_glut_countdown()
 
 	# Sphere grid passive triggers for tempo cycle
-	_trigger_sphere_passives("on_cycle", {})
-	_trigger_sphere_passives("on_tempo_cycle", {})
+	progression_triggers._trigger_sphere_passives("on_cycle", {})
+	progression_triggers._trigger_sphere_passives("on_tempo_cycle", {})
 
 	# Skill tree passive triggers for tempo cycle
-	_trigger_skill_tree_on_cycle()
-	_trigger_skill_tree_brad_on_cycle()
-	_trigger_skill_tree_cory_on_cycle()
-	_trigger_skill_tree_jeremy_on_cycle()
+	progression_triggers._trigger_skill_tree_on_cycle()
+	progression_triggers._trigger_skill_tree_brad_on_cycle()
+	progression_triggers._trigger_skill_tree_cory_on_cycle()
+	progression_triggers._trigger_skill_tree_jeremy_on_cycle()
 	if tempo_manager.last_tempo_source == "movement":
-		_trigger_skill_tree_on_movement_cycle()
+		progression_triggers._trigger_skill_tree_on_movement_cycle()
 
 	_check_volatile_mixture_in_hand()
 	_apply_in_hand_debuffs()
@@ -4368,7 +2411,7 @@ func _reroll_card_rng() -> void:
 
 	# A Mage's Favor: reroll outcome changed → add Magic Barrier to hand
 	if any_outcome_changed:
-		_trigger_skill_tree_jeremy_on_rng_reroll()
+		progression_triggers._trigger_skill_tree_jeremy_on_rng_reroll()
 
 	# Update chance displays on existing card UIs
 	for child in hand_container.get_children():
@@ -4532,7 +2575,7 @@ func play_selected_card(target) -> void:
 	var harnessed_bonus_damage = 0
 	var harnessed_bonus_heal = 0
 	var harnessed_bonus_block = 0
-	var hp_mult = _get_jeremy_harnessed_power_multiplier()
+	var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
 	if hp_mult > 1.0:
 		harnessed_power_applied = true
 		harnessed_bonus_damage = floori(card.base_damage * (hp_mult - 1.0))
@@ -4567,29 +2610,29 @@ func play_selected_card(target) -> void:
 			add_battle_log("Played %s%s" % [card.card_name, target_name], Color(0.4, 1.0, 0.5))
 
 		# Sphere grid passive triggers for card play
-		_trigger_sphere_passives("on_card_play", {"card": card, "target": target})
+		progression_triggers._trigger_sphere_passives("on_card_play", {"card": card, "target": target})
 		if card.card_type == Card.CardType.ATTACK:
-			_trigger_sphere_passives("on_attack", {"card": card, "target": target})
+			progression_triggers._trigger_sphere_passives("on_attack", {"card": card, "target": target})
 		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
-			_trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
+			progression_triggers._trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
 
 		# Skill tree passive triggers for card play
-		_trigger_skill_tree_on_card_play(card, target)
-		_trigger_skill_tree_stephen_on_card_play(card)
-		_trigger_skill_tree_cory_on_card_play(card)
-		_trigger_skill_tree_jeremy_on_card_play(card, target)
+		progression_triggers._trigger_skill_tree_on_card_play(card, target)
+		progression_triggers._trigger_skill_tree_stephen_on_card_play(card)
+		progression_triggers._trigger_skill_tree_cory_on_card_play(card)
+		progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target)
 		if card.card_type == Card.CardType.ATTACK:
-			_trigger_skill_tree_on_attack(card, target)
+			progression_triggers._trigger_skill_tree_on_attack(card, target)
 			# Brad/Stephen attack passives (bonus damage applied to target)
-			var brad_bonus = _trigger_skill_tree_brad_on_attack(card, target)
-			var stephen_bonus = _trigger_skill_tree_stephen_on_attack(card, target)
+			var brad_bonus = progression_triggers._trigger_skill_tree_brad_on_attack(card, target)
+			var stephen_bonus = progression_triggers._trigger_skill_tree_stephen_on_attack(card, target)
 			if (brad_bonus + stephen_bonus) > 0 and target and target.has_method("take_damage"):
 				target.take_damage(brad_bonus + stephen_bonus, true)
 			# Ranged attack passives (Stephen)
 			if card.is_ranged:
-				_trigger_skill_tree_stephen_on_ranged_attack(card, target)
+				progression_triggers._trigger_skill_tree_stephen_on_ranged_attack(card, target)
 		if card.card_type == Card.CardType.DEFENSE:
-			_trigger_skill_tree_brad_on_defense_card_play(card)
+			progression_triggers._trigger_skill_tree_brad_on_defense_card_play(card)
 		else:
 			# Reset Pristine Armor consecutive defense counter on non-defense card
 			var pa_stats = player.get_stats()
@@ -4599,7 +2642,7 @@ func play_selected_card(target) -> void:
 		# Check for crit-based skill tree passives (Eye Scrape)
 		if buff_mgr and buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
-			_trigger_skill_tree_on_crit(target)
+			progression_triggers._trigger_skill_tree_on_crit(target)
 
 		# Apply world effects (knockback, movement, AOE) that need game-level access
 		_apply_card_world_effects(card, target)
@@ -4696,7 +2739,7 @@ func play_selected_card(target) -> void:
 			add_battle_log("Glutted for %d tempo! Cannot play cards." % card.glut_tempo, Color(1.0, 0.4, 0.4))
 			print("[MAIN] Glut activated: %d tempo lockout" % card.glut_tempo)
 			# Stephen: Patience is a Virtue
-			_trigger_skill_tree_stephen_on_glut(card.glut_tempo)
+			progression_triggers._trigger_skill_tree_stephen_on_glut(card.glut_tempo)
 
 		if not result["free_turn"]:
 			if buff_mgr and buff_mgr.consume_steady():
@@ -4966,7 +3009,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				print("[MAIN] Blink blocked: target tile is a wall/obstacle")
 			else:
 				player.blink_to(blink_pos)
-				_trigger_skill_tree_on_displacement()
+				progression_triggers._trigger_skill_tree_on_displacement()
 		"push":
 			# Push enemy 3 spaces away from the player
 			if target and target.has_method("knockback"):
@@ -4983,7 +3026,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				target.position = player_pos
 				target.target_position = player_pos
 				print("[MAIN] Swap: swapped positions with %s" % target.name)
-				_trigger_skill_tree_on_displacement()
+				progression_triggers._trigger_skill_tree_on_displacement()
 
 		"defensive_awareness":
 			# Gain 3 armor per enemy within 2 spaces of the player
@@ -5057,26 +3100,26 @@ func _input(event: InputEvent) -> void:
 	# Block game input while waypoint menu is open
 	if _waypoint_menu_visible:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-			_close_waypoint_menu()
+			waypoint_mgr._close_waypoint_menu()
 		return
 
 	# Block game input while chest modal is open
 	if _chest_modal_open:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-			_close_chest_modal()
+			chest_loot_ui._close_chest_modal()
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Chest / waypoint interaction (Shift key)
 		if event.keycode == KEY_SHIFT:
-			if _try_interact_waypoint():
+			if waypoint_mgr._try_interact_waypoint():
 				return
-			_try_interact_chest()
+			chest_loot_ui._try_interact_chest()
 			return
 
 		# Tab menu toggle (quest log / map)
 		if event.keycode == KEY_TAB:
-			_toggle_tab_menu()
+			minimap_tab_ui._toggle_tab_menu()
 			return
 
 		# Character panel toggle
@@ -5265,7 +3308,7 @@ func _setup_dungeon() -> void:
 		})
 
 	# Restore previously discovered waypoints for this world
-	_restore_discovered_waypoints()
+	waypoint_mgr._restore_discovered_waypoints()
 
 	# Setup quest manager
 	if not quest_manager:
@@ -5281,10 +3324,10 @@ func _setup_dungeon() -> void:
 				quest_manager.accept_quest(quest_id)
 
 	# Setup minimap
-	_setup_minimap()
+	minimap_tab_ui._setup_minimap()
 
 	# Setup tab menu
-	_setup_tab_menu()
+	minimap_tab_ui._setup_tab_menu()
 
 	# Build ground plane to match world size
 	_build_ground_plane()
@@ -5355,334 +3398,9 @@ func _update_fog_of_war() -> void:
 # CHEST LOOT MODAL
 # ============================================
 
-func _try_interact_chest() -> void:
-	if not dungeon_manager:
-		return
-	if _chest_modal_open:
-		return
 
-	var player_grid = grid_manager.world_to_grid(player.position)
-	var chest_idx = dungeon_manager.get_nearby_chest(player_grid)
-	if chest_idx < 0:
-		return
-
-	var contents = dungeon_manager.open_chest(chest_idx)
-	if contents.is_empty():
-		return
-
-	# Grant gold immediately
-	var gold_amount = contents.get("gold", 0)
-	if gold_amount > 0:
-		player.get_stats().gain_gold(gold_amount)
-
-	_show_chest_modal(contents)
-
-func _show_chest_modal(contents: Dictionary) -> void:
-	_chest_modal_open = true
-	_chest_modal_contents = contents
-
-	var ui = $UI as CanvasLayer
-
-	# Dimmed overlay
-	var overlay = ColorRect.new()
-	overlay.name = "ChestOverlay"
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.color = Color(0, 0, 0, 0.55)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	overlay.gui_input.connect(_on_chest_overlay_input)
-	ui.add_child(overlay)
-
-	# Modal panel
-	_chest_modal = PanelContainer.new()
-	_chest_modal.name = "ChestModal"
-	_chest_modal.custom_minimum_size = Vector2(420, 0)
-	_chest_modal.set_anchors_preset(Control.PRESET_CENTER)
-	_chest_modal.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_chest_modal.grow_vertical = Control.GROW_DIRECTION_BOTH
-
-	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.08, 0.07, 0.1, 0.98)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.7, 0.55, 0.2)
-	panel_style.corner_radius_top_left = 10
-	panel_style.corner_radius_top_right = 10
-	panel_style.corner_radius_bottom_left = 10
-	panel_style.corner_radius_bottom_right = 10
-	_chest_modal.add_theme_stylebox_override("panel", panel_style)
-
-	var margin = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	_chest_modal.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	margin.add_child(vbox)
-
-	# Title
-	var title = Label.new()
-	title.text = "Treasure Chest!"
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	vbox.add_child(HSeparator.new())
-
-	# Gold
-	var gold_amount = contents.get("gold", 0)
-	if gold_amount > 0:
-		var gold_lbl = Label.new()
-		gold_lbl.text = "+ %d Gold" % gold_amount
-		gold_lbl.add_theme_font_size_override("font_size", 18)
-		gold_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-		gold_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		vbox.add_child(gold_lbl)
-
-	# Item reward
-	var item: ItemData = contents.get("item")
-	if item:
-		vbox.add_child(HSeparator.new())
-		var item_container = _build_chest_item_display(item)
-		vbox.add_child(item_container)
-
-		var pick_up_btn = Button.new()
-		pick_up_btn.text = "Pick Up Item"
-		pick_up_btn.custom_minimum_size = Vector2(160, 36)
-		pick_up_btn.add_theme_font_size_override("font_size", 15)
-		_style_chest_button(pick_up_btn, Color(0.15, 0.4, 0.15), Color(0.3, 0.7, 0.3))
-		pick_up_btn.pressed.connect(_on_chest_pick_up_item.bind(item))
-		vbox.add_child(pick_up_btn)
-
-	# Card reward
-	var card: Card = contents.get("card")
-	if card:
-		vbox.add_child(HSeparator.new())
-		var card_container = _build_chest_card_display(card)
-		vbox.add_child(card_container)
-
-		var btn_hbox = HBoxContainer.new()
-		btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-		btn_hbox.add_theme_constant_override("separation", 12)
-
-		var add_deck_btn = Button.new()
-		add_deck_btn.text = "Add to Deck"
-		add_deck_btn.custom_minimum_size = Vector2(140, 36)
-		add_deck_btn.add_theme_font_size_override("font_size", 15)
-		_style_chest_button(add_deck_btn, Color(0.15, 0.3, 0.45), Color(0.3, 0.5, 0.8))
-		add_deck_btn.pressed.connect(_on_chest_add_card_to_deck.bind(card))
-		btn_hbox.add_child(add_deck_btn)
-
-		# Check if card can be slotted into any weapon
-		var inv = player.get_inventory()
-		var compatible_items = _get_compatible_items_for_card(card, inv)
-		if compatible_items.size() > 0:
-			var slot_btn = Button.new()
-			slot_btn.text = "Slot into Weapon"
-			slot_btn.custom_minimum_size = Vector2(150, 36)
-			slot_btn.add_theme_font_size_override("font_size", 15)
-			_style_chest_button(slot_btn, Color(0.4, 0.25, 0.1), Color(0.7, 0.5, 0.2))
-			slot_btn.pressed.connect(_on_chest_slot_card.bind(card, compatible_items))
-			btn_hbox.add_child(slot_btn)
-
-		vbox.add_child(btn_hbox)
-
-	vbox.add_child(HSeparator.new())
-
-	# Close button
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.custom_minimum_size = Vector2(120, 34)
-	close_btn.add_theme_font_size_override("font_size", 14)
-	_style_chest_button(close_btn, Color(0.3, 0.15, 0.15), Color(0.6, 0.3, 0.3))
-	close_btn.pressed.connect(_close_chest_modal)
-	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	vbox.add_child(close_btn)
-
-	ui.add_child(_chest_modal)
-
-func _build_chest_item_display(item: ItemData) -> VBoxContainer:
-	var container = VBoxContainer.new()
-	container.add_theme_constant_override("separation", 4)
-
-	var name_lbl = Label.new()
-	name_lbl.text = item.item_name
-	name_lbl.add_theme_font_size_override("font_size", 18)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	container.add_child(name_lbl)
-
-	var type_lbl = Label.new()
-	type_lbl.text = "[%s]" % item.get_type_name()
-	type_lbl.add_theme_font_size_override("font_size", 13)
-	type_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	container.add_child(type_lbl)
-
-	# Stats (build same as town modal)
-	var stats_text = _build_chest_item_stats(item)
-	if stats_text != "":
-		var stats_lbl = Label.new()
-		stats_lbl.text = stats_text
-		stats_lbl.add_theme_font_size_override("font_size", 13)
-		stats_lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
-		container.add_child(stats_lbl)
-
-	if item.description != "":
-		var desc_lbl = Label.new()
-		desc_lbl.text = item.description
-		desc_lbl.add_theme_font_size_override("font_size", 12)
-		desc_lbl.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		container.add_child(desc_lbl)
-
-	return container
-
-func _build_chest_item_stats(item: ItemData) -> String:
-	var lines: Array[String] = []
-	if item.strength_bonus != 0:
-		lines.append("+%d Strength" % item.strength_bonus if item.strength_bonus > 0 else "%d Strength" % item.strength_bonus)
-	if item.dexterity_bonus != 0:
-		lines.append("+%d Dexterity" % item.dexterity_bonus if item.dexterity_bonus > 0 else "%d Dexterity" % item.dexterity_bonus)
-	if item.intelligence_bonus != 0:
-		lines.append("+%d Intelligence" % item.intelligence_bonus if item.intelligence_bonus > 0 else "%d Intelligence" % item.intelligence_bonus)
-	if item.weapon_damage > 0:
-		lines.append("%d Weapon Damage" % item.weapon_damage)
-	if item.armor_bonus > 0:
-		lines.append("+%d Armor" % item.armor_bonus)
-	if item.health_bonus > 0:
-		lines.append("+%d Health" % item.health_bonus)
-	if item.mana_bonus > 0:
-		lines.append("+%d Mana" % item.mana_bonus)
-	if item.weight > 0:
-		lines.append("Weight: %d" % item.weight)
-	return "\n".join(lines)
-
-func _build_chest_card_display(card: Card) -> VBoxContainer:
-	var container = VBoxContainer.new()
-	container.add_theme_constant_override("separation", 4)
-
-	var name_lbl = Label.new()
-	name_lbl.text = card.card_name
-	name_lbl.add_theme_font_size_override("font_size", 18)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	container.add_child(name_lbl)
-
-	var type_lbl = Label.new()
-	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 13)
-	match card.card_type:
-		Card.CardType.ATTACK:
-			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
-		Card.CardType.DEFENSE:
-			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
-		Card.CardType.UTILITY:
-			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
-		Card.CardType.POWER:
-			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-		Card.CardType.ENCHANTMENT:
-			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
-	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	container.add_child(type_lbl)
-
-	var cost_lbl = Label.new()
-	cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
-	cost_lbl.add_theme_font_size_override("font_size", 12)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	container.add_child(cost_lbl)
-
-	var desc_lbl = Label.new()
-	desc_lbl.text = card.description
-	desc_lbl.add_theme_font_size_override("font_size", 13)
-	desc_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	container.add_child(desc_lbl)
-
-	return container
-
-func _get_compatible_items_for_card(card: Card, inv: Inventory) -> Array[ItemData]:
-	var result: Array[ItemData] = []
-	var items = inv.get_all_items_with_card_slots()
-	for item in items:
-		if item.can_slot_card(card):
-			result.append(item)
-	return result
-
-func _on_chest_pick_up_item(item: ItemData) -> void:
-	var inv = player.get_inventory()
-	if inv.store_item(item):
-		add_battle_log("Picked up %s!" % item.item_name, Color(1.0, 0.85, 0.3))
-	else:
-		add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))
-	_close_chest_modal()
-
-func _on_chest_add_card_to_deck(card: Card) -> void:
-	deck_manager.discard_pile.append(card)
-	add_battle_log("Added %s to deck!" % card.card_name, Color(0.3, 0.8, 1.0))
-	_close_chest_modal()
-
-func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
-	# For simplicity, slot into first compatible item
-	if compatible_items.size() > 0:
-		var target_item = compatible_items[0]
-		var inv = player.get_inventory()
-		if inv.enchant_card(card, target_item):
-			add_battle_log("Slotted %s into %s!" % [card.card_name, target_item.item_name], Color(0.8, 0.6, 1.0))
-		else:
-			# Fallback: add to deck
-			deck_manager.discard_pile.append(card)
-			add_battle_log("Could not slot card. Added %s to deck instead." % card.card_name, Color(1.0, 0.6, 0.3))
-	_close_chest_modal()
-
-func _on_chest_overlay_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_close_chest_modal()
-
-func _close_chest_modal() -> void:
-	_chest_modal_open = false
-	_chest_modal_contents = {}
-	var ui = $UI as CanvasLayer
-	var overlay = ui.get_node_or_null("ChestOverlay")
-	if overlay:
-		overlay.queue_free()
-	if _chest_modal and is_instance_valid(_chest_modal):
-		_chest_modal.queue_free()
-		_chest_modal = null
-
-func _style_chest_button(btn: Button, bg_color: Color, border_color: Color) -> void:
-	var normal = StyleBoxFlat.new()
-	normal.bg_color = bg_color
-	normal.border_width_left = 2
-	normal.border_width_right = 2
-	normal.border_width_top = 2
-	normal.border_width_bottom = 2
-	normal.border_color = border_color
-	normal.corner_radius_top_left = 6
-	normal.corner_radius_top_right = 6
-	normal.corner_radius_bottom_left = 6
-	normal.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("normal", normal)
-
-	var hover = StyleBoxFlat.new()
-	hover.bg_color = bg_color.lightened(0.15)
-	hover.border_width_left = 2
-	hover.border_width_right = 2
-	hover.border_width_top = 2
-	hover.border_width_bottom = 2
-	hover.border_color = border_color.lightened(0.2)
-	hover.corner_radius_top_left = 6
-	hover.corner_radius_top_right = 6
-	hover.corner_radius_bottom_left = 6
-	hover.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("hover", hover)
+# Chest interaction and loot modal moved to
+# scripts/ui/chest_loot_ui.gd
 
 # ============================================
 # TEST UI HANDLERS
@@ -6500,214 +4218,9 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 # WAYPOINT TRAVEL
 # ============================================
 
-func _restore_discovered_waypoints() -> void:
-	## Marks waypoints in the current dungeon as discovered if they were previously found.
-	if not dungeon_manager:
-		return
-	for i in range(dungeon_manager.waypoint_nodes.size()):
-		var wp = dungeon_manager.waypoint_nodes[i]
-		for d in discovered_waypoints:
-			if d["world"] == current_world_level and d["target"] == wp["target"]:
-				dungeon_manager.discover_waypoint(i)
-				break
 
-func _check_waypoint_discovery(player_grid: Vector2i) -> void:
-	## Discover any waypoint the player is standing on.
-	if not dungeon_manager:
-		return
-	var wp_idx = dungeon_manager.get_waypoint_on_tile(player_grid)
-	if wp_idx < 0:
-		return
-	if dungeon_manager.discover_waypoint(wp_idx):
-		var wp = dungeon_manager.waypoint_nodes[wp_idx]
-		# Register in global discovered list
-		var entry = {
-			"world": current_world_level,
-			"target": wp["target"],
-			"display_name": wp["display_name"]
-		}
-		# Check if already registered (e.g. from a previous visit)
-		var already = false
-		for d in discovered_waypoints:
-			if d["world"] == entry["world"] and d["target"] == entry["target"]:
-				already = true
-				break
-		if not already:
-			discovered_waypoints.append(entry)
-		add_battle_log("Waypoint discovered: %s" % wp["display_name"], Color(0.3, 0.9, 1.0))
-
-func _try_interact_waypoint() -> bool:
-	## Handles Shift near a waypoint. World exits travel directly,
-	## transport portal opens the menu.
-	if not dungeon_manager:
-		return false
-	var player_grid = grid_manager.world_to_grid(player.position)
-	var wp_idx = dungeon_manager.get_nearby_waypoint(player_grid)
-	if wp_idx < 0:
-		return false
-	# Must be discovered to use
-	if not dungeon_manager.waypoint_nodes[wp_idx]["discovered"]:
-		add_battle_log("Walk onto the waypoint to discover it first.", Color(0.8, 0.8, 0.5))
-		return true
-	var target = dungeon_manager.waypoint_nodes[wp_idx]["target"]
-	match target:
-		"next_world":
-			_travel_to_world(current_world_level + 1)
-			return true
-		"prev_world":
-			_travel_to_world(current_world_level - 1)
-			return true
-	# Transport portal opens the menu
-	_open_waypoint_menu()
-	return true
-
-func _open_waypoint_menu() -> void:
-	## Shows a centered panel listing all discovered waypoints for teleportation.
-	if _waypoint_menu_visible:
-		_close_waypoint_menu()
-		return
-
-	var ui = $UI as CanvasLayer
-
-	_waypoint_menu_panel = PanelContainer.new()
-	_waypoint_menu_panel.name = "WaypointMenu"
-	ui.add_child(_waypoint_menu_panel)
-	# Explicitly center on 1280x720 screen
-	var wp_w = 350.0
-	var wp_h = 300.0
-	_waypoint_menu_panel.offset_left = (1280.0 - wp_w) / 2.0
-	_waypoint_menu_panel.offset_top = (720.0 - wp_h) / 2.0
-	_waypoint_menu_panel.offset_right = (1280.0 + wp_w) / 2.0
-	_waypoint_menu_panel.offset_bottom = (720.0 + wp_h) / 2.0
-	_waypoint_menu_panel.custom_minimum_size = Vector2(wp_w, wp_h)
-	_waypoint_menu_panel.z_index = 100  # Sit on top of cards and other UI
-
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.06, 0.12, 0.95)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.3, 0.6, 1.0, 0.8)
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
-	_waypoint_menu_panel.add_theme_stylebox_override("panel", style)
-
-	var margin = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	_waypoint_menu_panel.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
-	margin.add_child(vbox)
-
-	# Title
-	var title = Label.new()
-	title.text = "Transport Portal"
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(0.5, 0.7, 1.0))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	vbox.add_child(HSeparator.new())
-
-	# Always offer town as a destination
-	var town_btn = Button.new()
-	town_btn.text = "Town"
-	town_btn.custom_minimum_size = Vector2(280, 36)
-	town_btn.add_theme_font_size_override("font_size", 15)
-	town_btn.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
-	town_btn.pressed.connect(func():
-		_close_waypoint_menu()
-		_teleport_to_waypoint("town", 0)
-	)
-	vbox.add_child(town_btn)
-
-	# World portal destinations
-	if current_world_level > 1:
-		var prev_btn = Button.new()
-		prev_btn.text = "World %d (Previous)" % (current_world_level - 1)
-		prev_btn.custom_minimum_size = Vector2(280, 36)
-		prev_btn.add_theme_font_size_override("font_size", 15)
-		prev_btn.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
-		var prev_world = current_world_level - 1
-		prev_btn.pressed.connect(func():
-			_close_waypoint_menu()
-			_travel_to_world(prev_world)
-		)
-		vbox.add_child(prev_btn)
-
-	if current_world_level < 5:
-		var next_btn = Button.new()
-		next_btn.text = "World %d (Next)" % (current_world_level + 1)
-		next_btn.custom_minimum_size = Vector2(280, 36)
-		next_btn.add_theme_font_size_override("font_size", 15)
-		next_btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
-		var next_world = current_world_level + 1
-		next_btn.pressed.connect(func():
-			_close_waypoint_menu()
-			_travel_to_world(next_world)
-		)
-		vbox.add_child(next_btn)
-
-	# Also list any other discovered waypoints from other worlds
-	for wp in discovered_waypoints:
-		if wp["target"] == "town" or wp["target"] == "transport":
-			continue
-		if wp["world"] == current_world_level:
-			continue  # Already covered by next/prev buttons above
-		var btn = Button.new()
-		btn.text = wp["display_name"]
-		btn.custom_minimum_size = Vector2(280, 36)
-		btn.add_theme_font_size_override("font_size", 15)
-		btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
-		var world = wp["world"]
-		btn.pressed.connect(func():
-			_close_waypoint_menu()
-			_travel_to_world(world)
-		)
-		vbox.add_child(btn)
-
-	# Close button
-	var close_btn = Button.new()
-	close_btn.text = "Cancel [Esc]"
-	close_btn.custom_minimum_size = Vector2(120, 32)
-	close_btn.add_theme_font_size_override("font_size", 14)
-	close_btn.pressed.connect(_close_waypoint_menu)
-	vbox.add_child(close_btn)
-
-	_waypoint_menu_visible = true
-
-func _close_waypoint_menu() -> void:
-	if _waypoint_menu_panel and is_instance_valid(_waypoint_menu_panel):
-		_waypoint_menu_panel.queue_free()
-		_waypoint_menu_panel = null
-	_waypoint_menu_visible = false
-
-func _teleport_to_waypoint(target: String, world: int) -> void:
-	match target:
-		"town":
-			_travel_to_town()
-		_:
-			if world == current_world_level:
-				# Same world: teleport to the waypoint position within the dungeon
-				for wp in dungeon_manager.waypoint_nodes:
-					if wp["target"] == target:
-						var wp_world_pos = grid_manager.grid_to_world(wp["grid_pos"])
-						player.position = wp_world_pos
-						player.target_position = wp_world_pos
-						_camera_focus = wp_world_pos + Vector3(3, 0, 0)
-						_update_camera()
-						_update_fog_of_war()
-						add_battle_log("Teleported to %s" % wp["display_name"], Color(0.3, 0.9, 1.0))
-						return
-			else:
-				_travel_to_world(world)
+# Waypoint discovery, menu, and teleportation moved to
+# scripts/core/waypoint_manager.gd
 
 func _restore_player_progression(progression: Dictionary) -> void:
 	## Restore persistent player state after a world transition.
@@ -6853,420 +4366,7 @@ func _build_ground_plane() -> void:
 # MINIMAP
 # ============================================
 
-func _setup_minimap() -> void:
-	if _minimap_panel and is_instance_valid(_minimap_panel):
-		_minimap_panel.queue_free()
 
-	var ui = $UI as CanvasLayer
+# Minimap, tab menu, quest log, and expanded map moved to
+# scripts/ui/minimap_tab_ui.gd
 
-	_minimap_panel = PanelContainer.new()
-	_minimap_panel.name = "MinimapPanel"
-	ui.add_child(_minimap_panel)
-
-	# Position in upper-left corner
-	_minimap_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_minimap_panel.offset_left = 8.0
-	_minimap_panel.offset_top = 40.0
-	_minimap_panel.offset_right = 8.0 + MINIMAP_SIZE + 8
-	_minimap_panel.offset_bottom = 40.0 + MINIMAP_SIZE + 8
-
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.08, 0.85)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.3, 0.3, 0.45, 0.8)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 4
-	style.content_margin_right = 4
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
-	_minimap_panel.add_theme_stylebox_override("panel", style)
-
-	_minimap_texture_rect = TextureRect.new()
-	_minimap_texture_rect.custom_minimum_size = Vector2(MINIMAP_SIZE, MINIMAP_SIZE)
-	_minimap_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_minimap_panel.add_child(_minimap_texture_rect)
-
-	# Create initial minimap image
-	_minimap_image = Image.create(dungeon_manager.GRID_W * MINIMAP_PIXEL_SCALE, dungeon_manager.GRID_H * MINIMAP_PIXEL_SCALE, false, Image.FORMAT_RGBA8)
-	_minimap_image.fill(Color(0.02, 0.02, 0.05, 1.0))
-
-func _update_minimap() -> void:
-	if not _minimap_image or not dungeon_manager or not _minimap_texture_rect:
-		return
-
-	var gw = dungeon_manager.GRID_W
-	var gh = dungeon_manager.GRID_H
-	var s = MINIMAP_PIXEL_SCALE
-
-	# Clear
-	_minimap_image.fill(Color(0.02, 0.02, 0.05, 1.0))
-
-	# Draw revealed floor tiles
-	for x in range(gw):
-		for z in range(gh):
-			if dungeon_manager.is_revealed(Vector2i(x, z)):
-				var col: Color
-				if dungeon_manager.is_floor(Vector2i(x, z)):
-					col = Color(0.25, 0.22, 0.2, 1.0)
-				else:
-					col = Color(0.12, 0.1, 0.15, 1.0)
-				for px in range(s):
-					for pz in range(s):
-						var ix = x * s + px
-						var iz = z * s + pz
-						if ix < _minimap_image.get_width() and iz < _minimap_image.get_height():
-							_minimap_image.set_pixel(ix, iz, col)
-
-	# Draw waypoints
-	for wp in dungeon_manager.waypoint_nodes:
-		var wp_pos: Vector2i = wp["grid_pos"]
-		var wp_col = Color(0.3, 0.7, 1.0)
-		if wp["target"] == "next_world":
-			wp_col = Color(0.3, 1.0, 0.4)
-		elif wp["target"] == "prev_world":
-			wp_col = Color(1.0, 0.8, 0.3)
-		for px in range(s):
-			for pz in range(s):
-				var ix = wp_pos.x * s + px
-				var iz = wp_pos.y * s + pz
-				if ix < _minimap_image.get_width() and iz < _minimap_image.get_height():
-					_minimap_image.set_pixel(ix, iz, wp_col)
-
-	# Draw enemies
-	for enemy in enemy_spawner.get_living_enemies():
-		if not enemy.visible:
-			continue
-		var eg = grid_manager.world_to_grid(enemy.position)
-		for px in range(s):
-			for pz in range(s):
-				var ix = eg.x * s + px
-				var iz = eg.y * s + pz
-				if ix >= 0 and ix < _minimap_image.get_width() and iz >= 0 and iz < _minimap_image.get_height():
-					_minimap_image.set_pixel(ix, iz, Color(1.0, 0.2, 0.2))
-
-	# Draw player (slightly larger)
-	var pg = grid_manager.world_to_grid(player.position)
-	for px in range(-1, s + 1):
-		for pz in range(-1, s + 1):
-			var ix = pg.x * s + px
-			var iz = pg.y * s + pz
-			if ix >= 0 and ix < _minimap_image.get_width() and iz >= 0 and iz < _minimap_image.get_height():
-				_minimap_image.set_pixel(ix, iz, Color(0.2, 1.0, 0.4))
-
-	var tex = ImageTexture.create_from_image(_minimap_image)
-	_minimap_texture_rect.texture = tex
-
-# ============================================
-# TAB MENU (QUEST LOG / MAP)
-# ============================================
-
-func _setup_tab_menu() -> void:
-	if _tab_menu_panel and is_instance_valid(_tab_menu_panel):
-		_tab_menu_panel.queue_free()
-
-	var ui = $UI as CanvasLayer
-
-	_tab_menu_panel = PanelContainer.new()
-	_tab_menu_panel.name = "TabMenuPanel"
-	ui.add_child(_tab_menu_panel)
-	# Explicitly center on 1280x720 screen
-	var tab_w = 750.0
-	var tab_h = 550.0
-	_tab_menu_panel.offset_left = (1280.0 - tab_w) / 2.0
-	_tab_menu_panel.offset_top = (720.0 - tab_h) / 2.0
-	_tab_menu_panel.offset_right = (1280.0 + tab_w) / 2.0
-	_tab_menu_panel.offset_bottom = (720.0 + tab_h) / 2.0
-	_tab_menu_panel.custom_minimum_size = Vector2(tab_w, tab_h)
-	_tab_menu_panel.visible = false
-	_tab_menu_panel.z_index = 100  # Sit on top of cards and other UI
-
-	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.06, 0.06, 0.1, 0.95)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.4, 0.35, 0.55)
-	panel_style.corner_radius_top_left = 8
-	panel_style.corner_radius_top_right = 8
-	panel_style.corner_radius_bottom_left = 8
-	panel_style.corner_radius_bottom_right = 8
-	_tab_menu_panel.add_theme_stylebox_override("panel", panel_style)
-
-	var margin = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	_tab_menu_panel.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
-	margin.add_child(vbox)
-
-	# Tab buttons row
-	var tab_hbox = HBoxContainer.new()
-	tab_hbox.add_theme_constant_override("separation", 8)
-	vbox.add_child(tab_hbox)
-
-	var map_tab_btn = Button.new()
-	map_tab_btn.text = "Dungeon Map"
-	map_tab_btn.custom_minimum_size = Vector2(140, 32)
-	map_tab_btn.add_theme_font_size_override("font_size", 16)
-	map_tab_btn.pressed.connect(_on_tab_map_pressed)
-	tab_hbox.add_child(map_tab_btn)
-
-	var quest_tab_btn = Button.new()
-	quest_tab_btn.text = "Quest Log"
-	quest_tab_btn.custom_minimum_size = Vector2(120, 32)
-	quest_tab_btn.add_theme_font_size_override("font_size", 16)
-	quest_tab_btn.pressed.connect(_on_tab_quest_pressed)
-	tab_hbox.add_child(quest_tab_btn)
-
-	# World label
-	var world_lbl = Label.new()
-	world_lbl.text = "World %d" % current_world_level
-	world_lbl.add_theme_font_size_override("font_size", 16)
-	world_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	world_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	world_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	tab_hbox.add_child(world_lbl)
-
-	vbox.add_child(HSeparator.new())
-
-	# Map content (shown by default — tab 0)
-	_tab_map_container = VBoxContainer.new()
-	_tab_map_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tab_map_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(_tab_map_container)
-
-	# Large map texture rect for dungeon map
-	_tab_map_texture_rect = TextureRect.new()
-	_tab_map_texture_rect.custom_minimum_size = Vector2(400, 350)
-	_tab_map_texture_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tab_map_texture_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_tab_map_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_tab_map_container.add_child(_tab_map_texture_rect)
-
-	# Quest log content (hidden by default — tab 1)
-	var quest_scroll = ScrollContainer.new()
-	quest_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	quest_scroll.custom_minimum_size = Vector2(0, 400)
-	quest_scroll.visible = false
-	vbox.add_child(quest_scroll)
-
-	_tab_quest_container = VBoxContainer.new()
-	_tab_quest_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	quest_scroll.add_child(_tab_quest_container)
-
-	# Close button
-	var close_btn = Button.new()
-	close_btn.text = "Close [Tab]"
-	close_btn.custom_minimum_size = Vector2(120, 32)
-	close_btn.add_theme_font_size_override("font_size", 14)
-	close_btn.pressed.connect(_toggle_tab_menu)
-	vbox.add_child(close_btn)
-
-	# Default to map tab
-	_tab_menu_current_tab = 0
-
-func _toggle_tab_menu() -> void:
-	_tab_menu_visible = not _tab_menu_visible
-	if _tab_menu_panel:
-		_tab_menu_panel.visible = _tab_menu_visible
-	if _tab_menu_visible:
-		_refresh_tab_menu()
-
-func _on_tab_map_pressed() -> void:
-	_tab_menu_current_tab = 0
-	_refresh_tab_menu()
-
-func _on_tab_quest_pressed() -> void:
-	_tab_menu_current_tab = 1
-	_refresh_tab_menu()
-
-func _refresh_tab_menu() -> void:
-	if not _tab_quest_container or not _tab_map_container:
-		return
-
-	if _tab_menu_current_tab == 0:
-		# Dungeon Map tab
-		_tab_map_container.visible = true
-		_tab_quest_container.get_parent().visible = false
-		_refresh_expanded_map()
-	else:
-		# Quest Log tab
-		_tab_map_container.visible = false
-		_tab_quest_container.get_parent().visible = true
-		_refresh_quest_log()
-
-func _refresh_quest_log() -> void:
-	for child in _tab_quest_container.get_children():
-		child.queue_free()
-
-	if not quest_manager:
-		var no_quests = Label.new()
-		no_quests.text = "No quests available."
-		no_quests.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-		_tab_quest_container.add_child(no_quests)
-		return
-
-	# Active quests
-	var active = quest_manager.get_active_quests()
-	if active.size() > 0:
-		var header = Label.new()
-		header.text = "Active Quests"
-		header.add_theme_font_size_override("font_size", 18)
-		header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-		_tab_quest_container.add_child(header)
-
-		for quest in active:
-			var quest_panel = _create_quest_entry(quest)
-			_tab_quest_container.add_child(quest_panel)
-
-	# Completed quests
-	var completed = quest_manager.get_completed_quests()
-	if completed.size() > 0:
-		_tab_quest_container.add_child(HSeparator.new())
-		var header2 = Label.new()
-		header2.text = "Completed Quests"
-		header2.add_theme_font_size_override("font_size", 18)
-		header2.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
-		_tab_quest_container.add_child(header2)
-
-		for quest in completed:
-			var quest_panel = _create_quest_entry(quest)
-			_tab_quest_container.add_child(quest_panel)
-
-	if active.is_empty() and completed.is_empty():
-		var no_quests = Label.new()
-		no_quests.text = "No quests yet. Talk to NPCs in town!"
-		no_quests.add_theme_font_size_override("font_size", 14)
-		no_quests.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
-		_tab_quest_container.add_child(no_quests)
-
-func _create_quest_entry(quest) -> PanelContainer:
-	var panel = PanelContainer.new()
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.14, 0.8)
-	style.border_width_left = 1
-	style.border_color = Color(0.3, 0.3, 0.4)
-	style.corner_radius_top_left = 4
-	style.corner_radius_bottom_left = 4
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	panel.add_theme_stylebox_override("panel", style)
-
-	var vbox = VBoxContainer.new()
-	panel.add_child(vbox)
-
-	var name_lbl = Label.new()
-	name_lbl.text = quest.name
-	name_lbl.add_theme_font_size_override("font_size", 16)
-	if quest.is_complete:
-		name_lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
-	else:
-		name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
-	vbox.add_child(name_lbl)
-
-	var desc_lbl = Label.new()
-	desc_lbl.text = quest.description
-	desc_lbl.add_theme_font_size_override("font_size", 13)
-	desc_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(desc_lbl)
-
-	var progress_lbl = Label.new()
-	progress_lbl.text = quest.get_objective_text()
-	progress_lbl.add_theme_font_size_override("font_size", 14)
-	if quest.is_complete:
-		progress_lbl.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
-	else:
-		progress_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
-	vbox.add_child(progress_lbl)
-
-	return panel
-
-func _refresh_expanded_map() -> void:
-	## Renders a large dungeon map into the tab menu map texture rect.
-	if not dungeon_manager or not _tab_map_texture_rect:
-		return
-
-	var gw = dungeon_manager.GRID_W
-	var gh = dungeon_manager.GRID_H
-	var scale = 8  # Larger pixel scale for expanded view
-	var img = Image.create(gw * scale, gh * scale, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.02, 0.02, 0.05, 1.0))
-
-	# Draw tiles
-	for x in range(gw):
-		for z in range(gh):
-			if dungeon_manager.is_revealed(Vector2i(x, z)):
-				var col: Color
-				if dungeon_manager.is_floor(Vector2i(x, z)):
-					col = Color(0.25, 0.22, 0.2, 1.0)
-				else:
-					col = Color(0.12, 0.1, 0.15, 1.0)
-				for px in range(scale):
-					for pz in range(scale):
-						img.set_pixel(x * scale + px, z * scale + pz, col)
-
-	# Draw waypoints (larger in expanded view)
-	for wp in dungeon_manager.waypoint_nodes:
-		var wp_pos: Vector2i = wp["grid_pos"]
-		var wp_col = Color(0.3, 0.7, 1.0)
-		if wp["target"] == "next_world":
-			wp_col = Color(0.3, 1.0, 0.4)
-		elif wp["target"] == "prev_world":
-			wp_col = Color(1.0, 0.8, 0.3)
-		for px in range(scale):
-			for pz in range(scale):
-				var ix = wp_pos.x * scale + px
-				var iz = wp_pos.y * scale + pz
-				if ix < img.get_width() and iz < img.get_height():
-					img.set_pixel(ix, iz, wp_col)
-
-	# Draw chests
-	for chest in dungeon_manager.chest_nodes:
-		var cp: Vector2i = chest["grid_pos"]
-		if not dungeon_manager.is_revealed(cp):
-			continue
-		var cc = Color(0.9, 0.7, 0.2) if not chest["opened"] else Color(0.4, 0.35, 0.2)
-		for px in range(scale):
-			for pz in range(scale):
-				var ix = cp.x * scale + px
-				var iz = cp.y * scale + pz
-				if ix < img.get_width() and iz < img.get_height():
-					img.set_pixel(ix, iz, cc)
-
-	# Draw enemies
-	for enemy in enemy_spawner.get_living_enemies():
-		if not enemy.visible:
-			continue
-		var eg = grid_manager.world_to_grid(enemy.position)
-		for px in range(scale):
-			for pz in range(scale):
-				var ix = eg.x * scale + px
-				var iz = eg.y * scale + pz
-				if ix >= 0 and ix < img.get_width() and iz >= 0 and iz < img.get_height():
-					img.set_pixel(ix, iz, Color(1.0, 0.2, 0.2))
-
-	# Draw player (slightly larger)
-	var pg = grid_manager.world_to_grid(player.position)
-	for px in range(-1, scale + 1):
-		for pz in range(-1, scale + 1):
-			var ix = pg.x * scale + px
-			var iz = pg.y * scale + pz
-			if ix >= 0 and ix < img.get_width() and iz >= 0 and iz < img.get_height():
-				img.set_pixel(ix, iz, Color(0.2, 1.0, 0.4))
-
-	var tex = ImageTexture.create_from_image(img)
-	_tab_map_texture_rect.texture = tex
