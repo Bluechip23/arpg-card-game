@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://quiver_ui_001"]
+
+[ext_resource type="Script" path="res://scripts/cards/quiver_ui.gd" id="1_quiver"]
+
+[node name="QuiverUI" type="PanelContainer"]
+script = ExtResource("1_quiver")

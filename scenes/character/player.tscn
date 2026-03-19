@@ -1,0 +1,50 @@
+[gd_scene format=3 uid="uid://gmlwi1eaeh72"]
+
+[ext_resource type="Script" uid="uid://biyt2e2xyguyc" path="res://scripts/character/player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://cf20y16acauch" path="res://scripts/character/player_stats.gd" id="2_g2els"]
+[ext_resource type="Script" uid="uid://dyjc65plcl5x6" path="res://scripts/progression/inventory.gd" id="3_qhqgy"]
+[ext_resource type="Script" uid="uid://04714ofy2ci0" path="res://scripts/effects/buff_manager.gd" id="4_dqkch"]
+[ext_resource type="Script" uid="uid://bwfg4patn2ib7" path="res://scripts/effects/debuff_manager.gd" id="5_qlg0r"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.3
+height = 1.0
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
+radius = 0.3
+height = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
+albedo_color = Color(0.2, 0.5, 0.9, 1)
+
+[node name="Player" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("CapsuleMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="PlayerLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+billboard = 1
+text = "PLAYER"
+font_size = 32
+
+[node name="PlayerStats" type="Node" parent="."]
+script = ExtResource("2_g2els")
+
+[node name="Inventory" type="Node" parent="."]
+script = ExtResource("3_qhqgy")
+
+[node name="BuffManager" type="Node" parent="."]
+script = ExtResource("4_dqkch")
+
+[node name="DebuffManager" type="Node" parent="."]
+script = ExtResource("5_qlg0r")
