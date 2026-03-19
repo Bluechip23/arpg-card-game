@@ -1,0 +1,66 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/help_page.gd" id="1_help"]
+[ext_resource type="Script" uid="uid://dqbihavysh8oj" path="res://scripts/ui/keyword_legend.gd" id="2_kwleg"]
+[ext_resource type="Script" uid="uid://x10g2mby5byo" path="res://scripts/core/gameplay_walkthrough.gd" id="3_walk"]
+
+[node name="HelpPage" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_help")
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Panel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BackButton" type="Button" parent="Panel/MarginContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 0
+custom_minimum_size = Vector2(100, 35)
+text = "< Back"
+
+[node name="TabContainer" type="TabContainer" parent="Panel/MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Walkthrough" type="ScrollContainer" parent="Panel/MarginContainer/VBox/TabContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("3_walk")
+metadata/_tab_index = 0
+
+[node name="Content" type="RichTextLabel" parent="Panel/MarginContainer/VBox/TabContainer/Walkthrough"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+fit_content = true
+
+[node name="Keywords" type="ScrollContainer" parent="Panel/MarginContainer/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("2_kwleg")
+metadata/_tab_index = 1
+
+[node name="Content" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Keywords"]
+layout_mode = 2
+size_flags_horizontal = 3

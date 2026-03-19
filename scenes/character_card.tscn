@@ -1,8 +1,0 @@
-[gd_scene format=3 uid="uid://cnehvycp4awjc"]
-
-[ext_resource type="Script" uid="uid://sbp16jei6vyi" path="res://scripts/character_card.gd" id="1_dn5fd"]
-
-[node name="CharacterCard" type="PanelContainer" unique_id=1533970128]
-offset_right = 280.0
-offset_bottom = 400.0
-script = ExtResource("1_dn5fd")

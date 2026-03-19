@@ -1,0 +1,62 @@
+[gd_scene format=3 uid="uid://dqvt7fntcoc3k"]
+
+[ext_resource type="Script" uid="uid://cjtiy538j1eds" path="res://scripts/character/character_panel.gd" id="1_8w47t"]
+
+[node name="CharacterPanel" type="CanvasLayer" unique_id=8242285]
+layer = 100
+script = ExtResource("1_8w47t")
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=916648645]
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+grow_horizontal = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel" unique_id=601088143]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel/MarginContainer" unique_id=465680100]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="Panel/MarginContainer/VBox" unique_id=1050990662]
+layout_mode = 2
+text = "Character Name"
+
+[node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBox" unique_id=1752620559]
+layout_mode = 2
+
+[node name="StatsContainer" type="HBoxContainer" parent="Panel/MarginContainer/VBox" unique_id=1646276792]
+layout_mode = 2
+
+[node name="StatsLabel" type="Label" parent="Panel/MarginContainer/VBox/StatsContainer" unique_id=1199465601]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DerivedLabel" type="Label" parent="Panel/MarginContainer/VBox/StatsContainer" unique_id=874693489]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator2" type="HSeparator" parent="Panel/MarginContainer/VBox" unique_id=803222869]
+layout_mode = 2
+
+[node name="EquipmentLabel" type="Label" parent="Panel/MarginContainer/VBox" unique_id=848631976]
+layout_mode = 2
+text = "Equipment:"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBox" unique_id=999000001]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EquipmentContainer" type="VBoxContainer" parent="Panel/MarginContainer/VBox/ScrollContainer" unique_id=691638071]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Spacer" type="Control" parent="Panel/MarginContainer/VBox" unique_id=649769004]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBox" unique_id=355204369]
+layout_mode = 2
+text = "Close [I]"

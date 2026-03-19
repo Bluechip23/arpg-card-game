@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://nplkjqa3v30e"]
+
+[ext_resource type="Script" uid="uid://dxkbvglqexla1" path="res://scripts/effects/buff_icon_ui.gd" id="1_jjvjq"]
+
+[node name="BuffIconUi" type="PanelContainer" unique_id=287341626]
+script = ExtResource("1_jjvjq")
+
+[node name="IconRect" type="ColorRect" parent="." unique_id=373441288]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=388684602]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="VBox" unique_id=571879822]
+layout_mode = 2
+
+[node name="DurationLabel" type="Label" parent="VBox" unique_id=1029481896]
+layout_mode = 2

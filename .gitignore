@@ -1,0 +1,19 @@
+# Godot 4+ specific ignores
+.godot/
+
+# Godot editor temp/backup files
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+*.swp
+*.swo
+*~
+
+# Export builds
+export/
+build/

@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://3cxn1hbdk2os"]
+
+[ext_resource type="Script" uid="uid://cdke2k3urlbfy" path="res://scripts/cards/manifest_ui.gd" id="1_5mq7d"]
+
+[node name="ManifestUi" type="PanelContainer" unique_id=318935917]
+script = ExtResource("1_5mq7d")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=2055561183]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="VBox" unique_id=167434875]
+layout_mode = 2
+
+[node name="CardsContainer" type="HBoxContainer" parent="VBox" unique_id=272759027]
+layout_mode = 2
+
+[node name="CountLabel" type="Label" parent="VBox" unique_id=1046546002]
+layout_mode = 2
