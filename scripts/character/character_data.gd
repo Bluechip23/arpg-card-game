@@ -33,6 +33,7 @@ var starting_item_name: String = ""
 var starting_item_description: String = ""
 var slot_specialty: String = ""
 var sprite_path: String = ""
+var sprite_sheet_path: String = ""  # Path to full animation sprite sheet
 
 # Calculate derived stats from core stats
 func get_max_hand_size() -> int:
@@ -157,6 +158,7 @@ static func create_stephen() -> CharacterData:
 	data.starting_item_description = "+2 DEX. Grants 1 Blink card"
 	data.slot_specialty = "4 weapon slots, 3 ring slots"
 	data.sprite_path = "res://assets/characters/stephen_south.png"
+	data.sprite_sheet_path = "res://assets/characters/stephen_spritesheet.png"
 	return data
 
 static func create_cory() -> CharacterData:
