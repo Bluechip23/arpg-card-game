@@ -10,10 +10,15 @@ signal tile_reached  # Emitted each time the player reaches a single tile
 @export var move_speed: float = 5.0  # Units per second (1 unit = 1 grid cell)
 
 @onready var mesh: MeshInstance3D = $MeshInstance3D
+@onready var character_sprite: Sprite3D = $CharacterSprite
+@onready var animator: CharacterAnimator = $CharacterAnimator
 @onready var stats: PlayerStats = $PlayerStats
 @onready var inventory: Inventory = $Inventory
 @onready var debuff_manager: DebuffManager = $DebuffManager
 @onready var buff_manager: BuffManager = $BuffManager
+
+# Animation action map (game actions -> animation names)
+var _action_map: Dictionary = {}
 
 var target_position: Vector3
 var is_moving: bool = false
@@ -71,6 +76,7 @@ func initialize_character(data: CharacterData) -> void:
 	buff_manager.initialize(stats, self)
 	buff_manager.connect_debuff_manager(debuff_manager)  # For Cleanse
 	_load_mesh_color(data)
+	_initialize_animations(data)
 
 func _load_mesh_color(data: CharacterData) -> void:
 	# Apply a unique color per character to the mesh material
@@ -80,6 +86,46 @@ func _load_mesh_color(data: CharacterData) -> void:
 	if mat is StandardMaterial3D:
 		# Keep the default blue; characters will insert their own sprites later
 		pass
+
+func _initialize_animations(data: CharacterData) -> void:
+	if not animator or not character_sprite:
+		return
+
+	# Load character-specific animation data
+	var anim_data: Dictionary = {}
+	var sheet_path: String = ""
+
+	if data.character_name == "Stephen":
+		anim_data = StephenAnimations.get_animation_data()
+		_action_map = StephenAnimations.get_action_map()
+		sheet_path = StephenAnimations.SPRITE_SHEET_PATH
+	else:
+		# Other characters don't have sprite sheet animations yet
+		return
+
+	if sheet_path == "" or anim_data.is_empty():
+		return
+
+	animator.initialize(character_sprite, anim_data, sheet_path)
+
+	if animator.sprite_sheet_loaded:
+		# Hide the capsule mesh when sprite animations are active
+		mesh.visible = false
+		animator.animation_finished.connect(_on_animation_finished)
+	else:
+		# Keep capsule visible as fallback
+		character_sprite.visible = false
+
+func play_animation(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> void:
+	if not animator or not animator.sprite_sheet_loaded:
+		return
+	var anim_name = _action_map.get(action, action)
+	animator.play(anim_name, direction)
+
+func _on_animation_finished(anim_name: String) -> void:
+	# Return to idle/stance after one-shot animations complete
+	if anim_name != "stance" and anim_name != "walking" and anim_name != "running" and anim_name != "battle_stance":
+		animator.play("stance")
 
 func pause_movement() -> void:
 	movement_paused = true
@@ -112,10 +158,19 @@ func _physics_process(delta: float) -> void:
 			else:
 				is_moving = false
 				velocity = Vector3.ZERO
+				# Return to idle stance when movement completes
+				if animator and animator.sprite_sheet_loaded:
+					animator.play("stance")
 				move_completed.emit()
 		else:
 			var direction = flat_diff.normalized()
 			velocity = direction * move_speed
+
+			# Update animation direction and play walk animation
+			if animator and animator.sprite_sheet_loaded:
+				animator.set_direction_from_velocity(velocity)
+				if not animator.is_animation_playing("walking"):
+					animator.play("walking")
 
 			# Detect if stuck (collision blocking progress toward target)
 			var moved_dist = (position - _last_position).length()
@@ -131,6 +186,8 @@ func _physics_process(delta: float) -> void:
 					velocity = Vector3.ZERO
 					move_path.clear()
 					_stuck_frames = 0
+					if animator and animator.sprite_sheet_loaded:
+						animator.play("stance")
 					move_completed.emit()
 			else:
 				_stuck_frames = 0

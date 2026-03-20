@@ -1841,6 +1841,12 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 		progression_triggers._trigger_sphere_passives("on_block", {})
 		return
 	player.spawn_damage_number(hp_amount)
+	# Play hit animation when taking damage
+	if player.has_method("play_animation"):
+		if hp_amount >= 10:
+			player.play_animation("hit_heavy")
+		else:
+			player.play_animation("hit")
 	var stats = player.get_stats()
 	for card in deck_manager.get_maintained_cards():
 		if card.card_id == "armored_discipline":
@@ -2598,6 +2604,9 @@ func play_selected_card(target) -> void:
 			var fly_target = _get_card_play_target_pos(target)
 			played_card_ui.animate_play(fly_target)
 
+		# Trigger character sprite animation based on card type
+		_play_card_animation(card, target)
+
 		selected_card_index = -1
 
 		# Log the card play
@@ -2813,6 +2822,40 @@ func _get_nearest_enemy() -> Enemy:
 			nearest_dist = dist
 			nearest = enemy
 	return nearest
+
+func _play_card_animation(card: Card, target) -> void:
+	if not player or not player.has_method("play_animation"):
+		return
+	# Determine animation direction based on target position
+	var dir = CharacterAnimator.Direction.SOUTH
+	if target and target is Node3D and is_instance_valid(target):
+		var to_target = target.position - player.position
+		if abs(to_target.x) > abs(to_target.z):
+			dir = CharacterAnimator.Direction.EAST if to_target.x > 0 else CharacterAnimator.Direction.WEST
+		else:
+			dir = CharacterAnimator.Direction.SOUTH if to_target.z > 0 else CharacterAnimator.Direction.NORTH
+	# Map card type to animation action
+	match card.card_type:
+		Card.CardType.ATTACK:
+			if card.is_ranged:
+				player.play_animation("attack_ranged", dir)
+			else:
+				player.play_animation("attack_slash", dir)
+		Card.CardType.DEFENSE:
+			player.play_animation("block", dir)
+		Card.CardType.UTILITY:
+			if card.card_id == "blink":
+				player.play_animation("blink", dir)
+			elif card.card_id == "empower":
+				player.play_animation("empower", dir)
+			elif card.card_id == "draw":
+				player.play_animation("look_around", dir)
+			else:
+				player.play_animation("battle_ready", dir)
+		Card.CardType.REACTION:
+			player.play_animation("dodge", dir)
+		_:
+			player.play_animation("battle_ready", dir)
 
 func _get_card_play_target_pos(target) -> Vector2:
 	## Returns a screen position to animate the card toward (in hand_container local coords).

@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://dyjc65plcl5x6" path="res://scripts/progression/inventory.gd" id="3_qhqgy"]
 [ext_resource type="Script" uid="uid://04714ofy2ci0" path="res://scripts/effects/buff_manager.gd" id="4_dqkch"]
 [ext_resource type="Script" uid="uid://bwfg4patn2ib7" path="res://scripts/effects/debuff_manager.gd" id="5_qlg0r"]
+[ext_resource type="Script" path="res://scripts/character/character_animator.gd" id="6_anim"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.3
@@ -36,6 +37,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 billboard = 1
 text = "PLAYER"
 font_size = 32
+
+[node name="CharacterSprite" type="Sprite3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+billboard = 1
+pixel_size = 0.02
+region_enabled = true
+
+[node name="CharacterAnimator" type="Node" parent="."]
+script = ExtResource("6_anim")
 
 [node name="PlayerStats" type="Node" parent="."]
 script = ExtResource("2_g2els")
