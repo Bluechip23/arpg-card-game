@@ -231,7 +231,7 @@ func _build_fog() -> void:
 				plane.size = Vector2(1.05, 1.05)  # Slightly oversized to avoid seams
 				fog.mesh = plane
 				fog.material_override = fog_mat.duplicate()
-				fog.position = Vector3(x + 0.5, 1.3, z + 0.5)  # Above walls
+				fog.position = Vector3(x + 0.5, 3.5, z + 0.5)  # Above waypoints/portals/labels
 				fog.visible = true
 				_parent.add_child(fog)
 				col.append(fog)

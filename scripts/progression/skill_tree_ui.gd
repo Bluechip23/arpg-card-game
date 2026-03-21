@@ -205,6 +205,7 @@ func _switch_to_tab(tab: Tab) -> void:
 
 	if tab == Tab.SKILL_TREE:
 		# Show skill tree content, hide sphere grid
+		panel.visible = true
 		scroll_container.visible = true
 		_rebuild_table()
 		_scroll_to_current_level()
@@ -213,6 +214,7 @@ func _switch_to_tab(tab: Tab) -> void:
 			_sphere_grid_ui.hide_panel()
 	elif tab == Tab.SPHERE_GRID:
 		# Hide skill tree content, show sphere grid
+		panel.visible = false
 		scroll_container.visible = false
 		_close_stat_alloc_panel()
 		_update_title()
