@@ -215,8 +215,8 @@ func _build_fog() -> void:
 	_fog_nodes.clear()
 
 	var fog_mat = StandardMaterial3D.new()
-	fog_mat.albedo_color = Color(0.02, 0.02, 0.05, 0.95)
-	fog_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fog_mat.albedo_color = Color(0.02, 0.02, 0.05, 1.0)
+	fog_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	fog_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fog_mat.no_depth_test = true
 	fog_mat.render_priority = 10  # Draw on top
