@@ -958,7 +958,7 @@ func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 	# Lethal Resourcefulness: 3 or less cards in hand + non-attack → free basic attack
 	if stats.has_skill_tree_passive("lethal_resourcefulness") and not stats.st_lethal_resource_attacking:
 		if card.card_type != Card.CardType.ATTACK and main.deck_manager.hand.size() <= 3:
-			var target = _get_nearest_enemy()
+			var target = main._get_nearest_enemy()
 			if target and target.has_method("take_damage"):
 				var dist = main.player.position.distance_to(target.position)
 				if dist <= 2.0:  # Melee range
@@ -985,7 +985,7 @@ func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
 
 	# Patience is a Virtue: on receiving Glut, deal that much damage to melee enemy and halve Glut
 	if stats.has_skill_tree_passive("patience_is_a_virtue") and glut_amount > 0:
-		var target = _get_nearest_enemy()
+		var target = main._get_nearest_enemy()
 		if target and target.has_method("take_damage"):
 			var dist = main.player.position.distance_to(target.position)
 			if dist <= 2.0:  # Melee range
@@ -1084,7 +1084,7 @@ func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
 			var debuff_mgr = main.player.get_debuff_manager()
 			if debuff_mgr and debuff_mgr.debuffs.size() > 0:
 				var debuff = debuff_mgr.debuffs[randi() % debuff_mgr.debuffs.size()]
-				var target = _get_nearest_enemy()
+				var target = main._get_nearest_enemy()
 				if target and target.has_method("apply_debuff"):
 					target.apply_debuff(debuff.debuff_name.to_lower(), debuff.value)
 					debuff_mgr.remove_debuff(debuff.debuff_type)
