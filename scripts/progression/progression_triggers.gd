@@ -1275,8 +1275,8 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 		# Check if the spell targeted an empty tile (no enemy target)
 		if target == null or not (target is Enemy):
 			var spawn_pos = main.player.position + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
-			if grid_manager:
-				spawn_pos = grid_manager.snap_to_grid(spawn_pos)
+			if main.grid_manager:
+				spawn_pos = main.grid_manager.snap_to_grid(spawn_pos)
 			_spawn_seance_specter(stats, spawn_pos)
 
 func _spawn_seance_specter(stats: PlayerStats, pos: Vector3) -> void:
