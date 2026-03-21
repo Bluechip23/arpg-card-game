@@ -15,7 +15,7 @@ signal exposed(enemy: Enemy)
 signal attacked_player(enemy: Enemy)
 signal movement_completed(enemy: Enemy)
 
-enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL }
+enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_RAT }
 
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
@@ -168,6 +168,16 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			xp_reward = 8
 			_set_mesh_color(Color(0.2, 0.4, 0.15))  # Dark green
 
+		EnemyType.ARCHER_RAT:
+			enemy_name = "Archer Rat"
+			max_health = 5
+			max_armor = 0
+			attack_damage = 1
+			attack_range = 4.0  # Ranged attacker
+			move_distance = 2.0  # Moves 2 tiles when repositioning
+			xp_reward = 4
+			_set_mesh_color(Color(0.6, 0.4, 0.25))  # Light brown
+
 	current_health = max_health
 	current_armor = max_armor
 	update_health_display()
@@ -222,6 +232,12 @@ func _setup_actions() -> void:
 				{"name": "kick",  "tempo_cost": 3},
 				{"name": "smash", "tempo_cost": 6},
 			]
+		EnemyType.ARCHER_RAT:
+			actions = [
+				{"name": "shoot",          "tempo_cost": 5},
+				{"name": "scurry_away",    "tempo_cost": 2},
+				{"name": "get_into_range", "tempo_cost": 2},
+			]
 
 # ============================================
 # COMPENDIUM DATA
@@ -237,6 +253,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WERERAT: "Minion",
 		EnemyType.SKELETON: "Minion",
 		EnemyType.ARMORED_TROLL: "Elite",
+		EnemyType.ARCHER_RAT: "Minion",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -245,6 +262,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WERERAT: {"name": "Wererat", "health": 15, "armor": 0, "damage": 3, "xp": 5},
 		EnemyType.SKELETON: {"name": "Skeleton", "health": 18, "armor": 10, "damage": 5, "xp": 5},
 		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 45, "armor": 30, "damage": 4, "xp": 8},
+		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 5, "armor": 0, "damage": 1, "xp": 4},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -253,6 +271,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WERERAT: [{"name": "Move", "tempo": 2}, {"name": "Bite", "tempo": 2}, {"name": "Scurry", "tempo": 4}],
 		EnemyType.SKELETON: [{"name": "Move", "tempo": 5}, {"name": "Attack", "tempo": 4}],
 		EnemyType.ARMORED_TROLL: [{"name": "Move", "tempo": 4}, {"name": "Kick", "tempo": 3}, {"name": "Smash", "tempo": 6}],
+		EnemyType.ARCHER_RAT: [{"name": "Shoot", "tempo": 5}, {"name": "Scurry Away", "tempo": 2}, {"name": "Get Into Range", "tempo": 2}],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -261,6 +280,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WERERAT: "Fast and evasive.\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 2 HP every 6 global tempo.\nAt range ≤1: 60% Smash / 40% Kick.\nOtherwise: Moves toward player.",
+		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 1 damage.\nAt range >4: Moves 2 tiles closer.",
 	}
 
 	var result: Array = []
@@ -563,6 +583,8 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_skeleton_action(distance)
 		EnemyType.ARMORED_TROLL:
 			_choose_troll_action(distance)
+		EnemyType.ARCHER_RAT:
+			_choose_archer_rat_action(distance)
 		_:
 			_choose_legacy_action(distance)
 
@@ -599,6 +621,17 @@ func _choose_troll_action(distance: int) -> void:
 	else:
 		chosen_action = _get_action("move")
 
+func _choose_archer_rat_action(distance: int) -> void:
+	if distance <= 2:
+		# Too close! Scurry away to get distance
+		chosen_action = _get_action("scurry_away")
+	elif distance > 4:
+		# Out of range - move closer
+		chosen_action = _get_action("get_into_range")
+	else:
+		# In range (3-4 tiles) - shoot!
+		chosen_action = _get_action("shoot")
+
 func _choose_legacy_action(distance: int) -> void:
 	## Legacy behavior for MINION/ELITE/BOSS types.
 	if distance <= 1:
@@ -634,6 +667,12 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_kick(move_target)
 		"smash":
 			return _try_smash(move_target)
+		"shoot":
+			return _try_shoot(move_target)
+		"scurry_away":
+			return _try_scurry_away(move_target)
+		"get_into_range":
+			return _try_get_into_range(move_target)
 		_:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false
@@ -706,6 +745,84 @@ func _try_smash(target_node: Node3D) -> bool:
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)
+
+func _try_shoot(target_node: Node3D) -> bool:
+	## Archer Rat: Ranged attack at range 4.
+	if is_disarmed:
+		print("[%s] Disarmed - cannot shoot!" % enemy_name)
+		return _try_get_into_range(target_node)
+	var diff = target_node.position - position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	if flat_dist <= attack_range:
+		_deal_damage_to_player(target_node, attack_damage, "Arrow Shot")
+		turn_completed.emit()
+		return true
+	# Out of range, try to get closer
+	return _try_get_into_range(target_node)
+
+func _try_scurry_away(target_node: Node3D) -> bool:
+	## Archer Rat: Run 5 paces away from threat.
+	var diff = position - target_node.position  # Direction AWAY from target
+	var direction = Vector3(diff.x, 0, diff.z).normalized()
+	if direction.length() < 0.1:
+		direction = Vector3(1, 0, 0)  # Default direction if on top of target
+
+	var tiles = 5
+	var effective_tiles = tiles
+	if slow_amount > 0:
+		effective_tiles = max(1, tiles - slow_amount)
+
+	if grid_manager:
+		var last_valid = position
+		for i in range(1, effective_tiles + 1):
+			var step_pos = position + direction * (i * 1.0)
+			step_pos = grid_manager.snap_to_grid(step_pos)
+			var step_cell = grid_manager.world_to_grid(step_pos)
+			if step_cell in blocked_tiles:
+				break
+			last_valid = step_pos
+		if last_valid != position:
+			target_position = last_valid
+			is_moving = true
+	else:
+		target_position = position + direction * (effective_tiles * 1.0)
+		is_moving = true
+
+	print("[%s] Scurries %d tiles away from threat!" % [enemy_name, effective_tiles])
+	return true
+
+func _try_get_into_range(target_node: Node3D) -> bool:
+	## Archer Rat: Move 2 tiles toward target to get into shooting range.
+	var diff = target_node.position - position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	if flat_dist <= attack_range:
+		# Already in range, shoot instead
+		return _try_shoot(target_node)
+
+	var direction = Vector3(diff.x, 0, diff.z).normalized()
+	var tiles = 2
+	var effective_tiles = tiles
+	if slow_amount > 0:
+		effective_tiles = max(1, tiles - slow_amount)
+
+	if grid_manager:
+		var last_valid = position
+		for i in range(1, effective_tiles + 1):
+			var step_pos = position + direction * (i * 1.0)
+			step_pos = grid_manager.snap_to_grid(step_pos)
+			var step_cell = grid_manager.world_to_grid(step_pos)
+			if step_cell in blocked_tiles:
+				break
+			last_valid = step_pos
+		if last_valid != position:
+			target_position = last_valid
+			is_moving = true
+	else:
+		target_position = position + direction * (effective_tiles * 1.0)
+		is_moving = true
+
+	print("[%s] Moves %d tiles to get into range!" % [enemy_name, effective_tiles])
+	return true
 
 ## Deal damage to the player with attack flash.
 func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String) -> void:

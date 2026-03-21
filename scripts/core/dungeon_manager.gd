@@ -8,14 +8,16 @@ extends Node
 signal chest_interacted(chest_data: Dictionary)
 signal player_entered_zone(zone_index: int)
 
-var GRID_W: int = 30   # Default larger width (was 20)
-var GRID_H: int = 20   # Default larger height (was 12)
+var GRID_W: int = 50   # Default larger width
+var GRID_H: int = 35   # Default larger height
 const FOG_REVEAL_RADIUS: int = 5  # Tiles revealed around the player
 
 # Tile types
 enum Tile { FLOOR, WALL }
 
 var grid: Array = []  # 2D array [x][z] of Tile
+var elevation: Array = []  # 2D array [x][z] of int (0 = ground, 1+ = elevated)
+var elevation_nodes: Array[MeshInstance3D] = []  # Visual meshes for elevated terrain
 var wall_nodes: Array[MeshInstance3D] = []
 var chest_nodes: Array = []  # [{node: Node3D, grid_pos: Vector2i, opened: bool, contents: Dictionary}]
 var spawn_zones: Array = []  # [{rect: Rect2i, spawned: bool, enemies: Array}]
@@ -50,7 +52,9 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1) -> void:
 	if grid_manager.has_method("redraw_grid"):
 		grid_manager.redraw_grid()
 	_generate_layout()
+	_generate_elevation()
 	_build_walls()
+	_build_elevation_visuals()
 	_build_fog()
 	_place_chests()
 	_define_spawn_zones()
@@ -61,29 +65,29 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1) -> void:
 func _set_world_size() -> void:
 	match world_level:
 		1:
-			GRID_W = 30
-			GRID_H = 20
-			player_start = Vector2i(1, 10)
-		2:
-			GRID_W = 35
-			GRID_H = 24
-			player_start = Vector2i(1, 12)
-		3:
-			GRID_W = 40
-			GRID_H = 28
-			player_start = Vector2i(1, 14)
-		4:
-			GRID_W = 45
-			GRID_H = 32
-			player_start = Vector2i(1, 16)
-		5:
 			GRID_W = 50
-			GRID_H = 36
-			player_start = Vector2i(1, 18)
+			GRID_H = 35
+			player_start = Vector2i(2, 17)
+		2:
+			GRID_W = 60
+			GRID_H = 40
+			player_start = Vector2i(2, 20)
+		3:
+			GRID_W = 70
+			GRID_H = 45
+			player_start = Vector2i(2, 22)
+		4:
+			GRID_W = 80
+			GRID_H = 50
+			player_start = Vector2i(2, 25)
+		5:
+			GRID_W = 90
+			GRID_H = 55
+			player_start = Vector2i(2, 27)
 		_:
-			GRID_W = 30
-			GRID_H = 20
-			player_start = Vector2i(1, 10)
+			GRID_W = 50
+			GRID_H = 35
+			player_start = Vector2i(2, 17)
 
 func _generate_layout() -> void:
 	# Initialize all as wall
@@ -94,50 +98,110 @@ func _generate_layout() -> void:
 			col.append(Tile.WALL)
 		grid.append(col)
 
-	# Scaled layout based on world size
 	var mid_z = GRID_H / 2
 
-	# Room 1: Starting room (left side)
-	_carve_room(0, mid_z - 3, 5, 7)
+	# === STARTING AREA (left side) ===
+	# Room 1: Starting room
+	_carve_room(0, mid_z - 4, 6, 9)
 
-	# Corridor 1: East from starting room
-	_carve_corridor_h(5, 9, mid_z)
-	_carve_corridor_h(5, 9, mid_z + 1)  # 2 tiles wide
+	# Corridor east from starting room (2-wide)
+	_carve_corridor_h(6, 12, mid_z)
+	_carve_corridor_h(6, 12, mid_z + 1)
 
-	# Room 2: Small chamber (middle-left)
-	_carve_room(9, mid_z - 3, 5, 6)
+	# === FIRST HUB ===
+	# Room 2: First hub chamber
+	_carve_room(12, mid_z - 4, 7, 9)
 
-	# Corridor 2: South jog
-	_carve_corridor_v(12, mid_z + 2, mid_z + 6)
-	_carve_corridor_v(13, mid_z + 2, mid_z + 6)
+	# === SOUTH PATH from hub ===
+	# Corridor south from hub
+	_carve_corridor_v(15, mid_z + 5, mid_z + 10)
+	_carve_corridor_v(16, mid_z + 5, mid_z + 10)
 
-	# Corridor 3: East from the jog
-	_carve_corridor_h(12, GRID_W - 12, mid_z + 5)
-	_carve_corridor_h(12, GRID_W - 12, mid_z + 6)
+	# Room 3: Southern cave
+	_carve_room(12, mid_z + 10, 8, 6)
 
-	# Room 3: Treasure room (bottom right area)
-	_carve_room(GRID_W - 12, mid_z + 3, 5, 5)
+	# Corridor further south-east
+	_carve_corridor_h(20, 27, mid_z + 12)
+	_carve_corridor_h(20, 27, mid_z + 13)
 
-	# Corridor 4: North from room 3
-	_carve_corridor_v(GRID_W - 9, mid_z - 5, mid_z + 3)
-	_carve_corridor_v(GRID_W - 8, mid_z - 5, mid_z + 3)
+	# Room 4: Southern treasure room
+	_carve_room(27, mid_z + 10, 6, 6)
 
-	# Room 4: Upper corridor / arena (top right)
-	_carve_room(GRID_W - 12, mid_z - 8, 8, 5)
+	# === NORTH PATH from hub ===
+	# Corridor north from hub
+	_carve_corridor_v(15, mid_z - 9, mid_z - 4)
+	_carve_corridor_v(16, mid_z - 9, mid_z - 4)
 
-	# Corridor 5: Connect room 2 to room 4 via top
-	_carve_corridor_h(13, GRID_W - 12, mid_z - 4)
-	_carve_corridor_h(13, GRID_W - 12, mid_z - 3)
+	# Room 5: Northern chamber (elevated area - hill)
+	_carve_room(12, mid_z - 13, 8, 5)
 
-	# Small alcove for second chest
-	_carve_room(8, mid_z + 4, 3, 4)
+	# Corridor east from northern chamber
+	_carve_corridor_h(20, 26, mid_z - 11)
+	_carve_corridor_h(20, 26, mid_z - 10)
 
-	# Room 5: Extra room for higher worlds (waypoint room)
-	if world_level >= 1:
-		_carve_room(GRID_W - 6, mid_z - 2, 5, 5)
-		# Connect to room 4
-		_carve_corridor_h(GRID_W - 5, GRID_W - 2, mid_z - 3)
-		_carve_corridor_h(GRID_W - 5, GRID_W - 2, mid_z - 2)
+	# Room 6: Archer's perch (elevated)
+	_carve_room(26, mid_z - 14, 6, 7)
+
+	# === MAIN EAST CORRIDOR from hub ===
+	_carve_corridor_h(19, 30, mid_z)
+	_carve_corridor_h(19, 30, mid_z + 1)
+
+	# Room 7: Central crossroads
+	_carve_room(30, mid_z - 4, 8, 9)
+
+	# === SOUTHEAST PATH ===
+	_carve_corridor_v(34, mid_z + 5, mid_z + 10)
+	_carve_corridor_v(35, mid_z + 5, mid_z + 10)
+
+	# Room 8: Guard barracks
+	_carve_room(31, mid_z + 10, 8, 6)
+
+	# Small alcove off barracks
+	_carve_room(39, mid_z + 11, 4, 4)
+	_carve_corridor_h(39, 40, mid_z + 12)
+
+	# === NORTHEAST PATH ===
+	_carve_corridor_v(34, mid_z - 9, mid_z - 4)
+	_carve_corridor_v(35, mid_z - 9, mid_z - 4)
+
+	# Room 9: Armory (elevated)
+	_carve_room(31, mid_z - 13, 8, 5)
+
+	# === FAR EAST ===
+	_carve_corridor_h(38, GRID_W - 8, mid_z)
+	_carve_corridor_h(38, GRID_W - 8, mid_z + 1)
+
+	# Room 10: Pre-boss arena
+	_carve_room(GRID_W - 12, mid_z - 5, 8, 11)
+
+	# Room 11: Waypoint / exit room (far east)
+	_carve_room(GRID_W - 6, mid_z - 2, 5, 5)
+	_carve_corridor_h(GRID_W - 5, GRID_W - 2, mid_z)
+	_carve_corridor_h(GRID_W - 5, GRID_W - 2, mid_z + 1)
+
+	# === EXTRA PATHS connecting south and north ===
+	# Connect southern treasure room to guard barracks via corridor
+	_carve_corridor_h(33, 35, mid_z + 12)
+	_carve_corridor_v(33, mid_z + 12, mid_z + 14)
+	_carve_corridor_h(28, 33, mid_z + 14)
+	_carve_corridor_v(28, mid_z + 13, mid_z + 14)
+
+	# Connect archer perch to armory via top corridor
+	_carve_corridor_h(32, 35, mid_z - 12)
+	_carve_corridor_h(26, 31, mid_z - 12)
+
+	# Extra rooms for larger worlds
+	if world_level >= 2:
+		# Room 12: Hidden grotto (south-west)
+		_carve_room(3, mid_z + 8, 5, 5)
+		_carve_corridor_v(4, mid_z + 5, mid_z + 8)
+		_carve_corridor_v(5, mid_z + 5, mid_z + 8)
+
+	if world_level >= 3:
+		# Room 13: Upper overlook (north-west)
+		_carve_room(3, mid_z - 12, 6, 5)
+		_carve_corridor_v(5, mid_z - 8, mid_z - 4)
+		_carve_corridor_v(6, mid_z - 8, mid_z - 4)
 
 func _carve_room(start_x: int, start_z: int, width: int, height: int) -> void:
 	for x in range(start_x, mini(start_x + width, GRID_W)):
@@ -157,6 +221,93 @@ func _carve_corridor_v(x: int, from_z: int, to_z: int) -> void:
 	for z in range(min_z, mini(max_z + 1, GRID_H)):
 		if x >= 0 and x < GRID_W:
 			grid[x][z] = Tile.FLOOR
+
+func _generate_elevation() -> void:
+	# Initialize elevation grid (all 0 = ground level)
+	elevation.clear()
+	for x in range(GRID_W):
+		var col: Array = []
+		for z in range(GRID_H):
+			col.append(0)
+		elevation.append(col)
+
+	var mid_z = GRID_H / 2
+
+	# Elevate specific rooms to create hills / high ground
+	# Room 5: Northern chamber - elevation 1
+	_set_elevation_rect(12, mid_z - 13, 8, 5, 1)
+
+	# Room 6: Archer's perch - elevation 2
+	_set_elevation_rect(26, mid_z - 14, 6, 7, 2)
+
+	# Room 9: Armory - elevation 1
+	_set_elevation_rect(31, mid_z - 13, 8, 5, 1)
+
+	# Parts of pre-boss arena have a raised platform in the center
+	_set_elevation_rect(GRID_W - 10, mid_z - 2, 4, 5, 1)
+
+	# Southern treasure room has a small elevated section
+	_set_elevation_rect(29, mid_z + 11, 3, 3, 1)
+
+	# Extra elevation for larger worlds
+	if world_level >= 2:
+		# Hidden grotto has elevation
+		_set_elevation_rect(3, mid_z + 8, 5, 5, 1)
+
+	if world_level >= 3:
+		# Upper overlook is high up
+		_set_elevation_rect(3, mid_z - 12, 6, 5, 2)
+
+	print("[DUNGEON] Elevation generated")
+
+func _set_elevation_rect(start_x: int, start_z: int, width: int, height: int, elev: int) -> void:
+	for x in range(start_x, mini(start_x + width, GRID_W)):
+		for z in range(start_z, mini(start_z + height, GRID_H)):
+			if grid[x][z] == Tile.FLOOR:
+				elevation[x][z] = elev
+
+func get_elevation(grid_pos: Vector2i) -> int:
+	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
+		return 0
+	return elevation[grid_pos.x][grid_pos.y]
+
+func get_elevation_world_y(grid_pos: Vector2i) -> float:
+	## Returns the world Y position for the given grid tile based on elevation.
+	return get_elevation(grid_pos) * 0.5  # Each elevation level = 0.5 units up
+
+func is_higher_elevation(from_pos: Vector2i, to_pos: Vector2i) -> bool:
+	## Returns true if to_pos is at a higher elevation than from_pos.
+	return get_elevation(to_pos) > get_elevation(from_pos)
+
+func _build_elevation_visuals() -> void:
+	for node in elevation_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	elevation_nodes.clear()
+
+	var elev_mat_1 = StandardMaterial3D.new()
+	elev_mat_1.albedo_color = Color(0.22, 0.18, 0.15, 1.0)  # Slightly lighter than ground
+	elev_mat_1.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+
+	var elev_mat_2 = StandardMaterial3D.new()
+	elev_mat_2.albedo_color = Color(0.28, 0.22, 0.18, 1.0)  # Even lighter for level 2
+	elev_mat_2.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] == Tile.FLOOR and elevation[x][z] > 0:
+				var elev = elevation[x][z]
+				var height = elev * 0.5
+				var platform = MeshInstance3D.new()
+				var box = BoxMesh.new()
+				box.size = Vector3(1.02, height, 1.02)
+				platform.mesh = box
+				platform.material_override = (elev_mat_2 if elev >= 2 else elev_mat_1).duplicate()
+				platform.position = Vector3(x + 0.5, height / 2.0, z + 0.5)
+				_parent.add_child(platform)
+				elevation_nodes.append(platform)
+
+	print("[DUNGEON] Built %d elevation platforms" % elevation_nodes.size())
 
 func _build_walls() -> void:
 	for node in wall_nodes:
@@ -211,15 +362,16 @@ func _build_fog() -> void:
 			col.append(false)
 		_revealed.append(col)
 
-	# Create fog planes for every tile that could matter (floors + walls adjacent to floors)
+	# Create fog columns for every tile that could matter (floors + walls adjacent to floors)
+	# Using tall boxes instead of flat planes so fog can't be seen under from any camera angle
 	_fog_nodes.clear()
 
 	var fog_mat = StandardMaterial3D.new()
 	fog_mat.albedo_color = Color(0.02, 0.02, 0.05, 1.0)
 	fog_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	fog_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fog_mat.no_depth_test = true
-	fog_mat.render_priority = 10  # Draw on top
+
+	var fog_height: float = 10.0  # Tall enough to block any camera angle
 
 	for x in range(GRID_W):
 		var col: Array = []
@@ -227,12 +379,14 @@ func _build_fog() -> void:
 			var should_fog = (grid[x][z] == Tile.FLOOR) or _has_adjacent_floor(x, z)
 			if should_fog:
 				var fog = MeshInstance3D.new()
-				var plane = PlaneMesh.new()
-				plane.size = Vector2(1.05, 1.05)  # Slightly oversized to avoid seams
-				fog.mesh = plane
+				var box = BoxMesh.new()
+				box.size = Vector3(1.05, fog_height, 1.05)  # Slightly oversized to avoid seams
+				fog.mesh = box
 				fog.material_override = fog_mat.duplicate()
-				fog.position = Vector3(x + 0.5, 3.5, z + 0.5)  # Above waypoints/portals/labels
+				# Center the box so it spans from below ground to well above everything
+				fog.position = Vector3(x + 0.5, fog_height / 2.0 - 0.5, z + 0.5)
 				fog.visible = true
+				fog.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				_parent.add_child(fog)
 				col.append(fog)
 			else:
@@ -277,13 +431,32 @@ func update_enemy_fog_visibility(enemies: Array, gm: GridManager) -> void:
 
 func _place_chests() -> void:
 	var mid_z = GRID_H / 2
-	# Chest 1: In room 3 (treasure room)
-	_create_chest(Vector2i(GRID_W - 11, mid_z + 4))
-	# Chest 2: In the alcove
-	_create_chest(Vector2i(9, mid_z + 5))
-	# Extra chest for larger worlds
+	# Chest 1: Starting room bonus
+	_create_chest(Vector2i(4, mid_z + 3))
+	# Chest 2: First hub
+	_create_chest(Vector2i(16, mid_z - 2))
+	# Chest 3: Southern cave
+	_create_chest(Vector2i(15, mid_z + 12))
+	# Chest 4: Southern treasure room
+	_create_chest(Vector2i(30, mid_z + 12))
+	# Chest 5: Northern chamber (elevated)
+	_create_chest(Vector2i(16, mid_z - 11))
+	# Chest 6: Archer's perch (elevated)
+	_create_chest(Vector2i(28, mid_z - 12))
+	# Chest 7: Guard barracks
+	_create_chest(Vector2i(35, mid_z + 13))
+	# Chest 8: Barracks alcove
+	_create_chest(Vector2i(40, mid_z + 12))
+	# Chest 9: Armory (elevated)
+	_create_chest(Vector2i(35, mid_z - 11))
+	# Chest 10: Pre-boss arena
+	_create_chest(Vector2i(GRID_W - 9, mid_z + 3))
+	# Extra chests for larger worlds
 	if world_level >= 2:
-		_create_chest(Vector2i(GRID_W - 4, mid_z - 1))
+		_create_chest(Vector2i(5, mid_z + 10))   # Hidden grotto
+		_create_chest(Vector2i(GRID_W - 4, mid_z))  # Exit room
+	if world_level >= 3:
+		_create_chest(Vector2i(5, mid_z - 10))  # Upper overlook
 
 func _create_chest(grid_pos: Vector2i) -> void:
 	var chest_root = Node3D.new()
@@ -407,17 +580,8 @@ func _get_random_card() -> Card:
 func _define_spawn_zones() -> void:
 	var mid_z = GRID_H / 2
 
-	# World 1: fewer enemies, mostly wererats
-	# World 2+: progressively more and tougher enemies
-	match world_level:
-		1:
-			_define_world1_zones(mid_z)
-		2:
-			_define_world2_zones(mid_z)
-		3:
-			_define_world3_zones(mid_z)
-		_:
-			_define_world4plus_zones(mid_z)
+	# All worlds use the expanded layout with many zones
+	_define_common_zones(mid_z)
 
 	_zones_triggered.clear()
 	for _i in range(spawn_zones.size()):
@@ -425,202 +589,145 @@ func _define_spawn_zones() -> void:
 
 	print("[DUNGEON] Defined %d spawn zones for World %d" % [spawn_zones.size(), world_level])
 
-func _define_world1_zones(mid_z: int) -> void:
-	## World 1: Light enemies. 2 wererats in first zone, 1 wererat + 1 minion later, etc.
-	# Zone 0: Room 2 entrance - just 2 wererats
+func _define_common_zones(mid_z: int) -> void:
+	## Expanded spawn zones for the larger map layout.
+	## Enemy difficulty scales with world_level.
+
+	# Helper: scale enemy types based on world level
+	var base_melee = Enemy.EnemyType.WERERAT if world_level <= 2 else Enemy.EnemyType.SKELETON
+	var mid_melee = Enemy.EnemyType.SKELETON if world_level <= 2 else Enemy.EnemyType.ARMORED_TROLL
+	var heavy = Enemy.EnemyType.ARMORED_TROLL if world_level <= 3 else Enemy.EnemyType.ELITE
+	var ranged = Enemy.EnemyType.ARCHER_RAT
+
+	# Zone 0: East corridor from starting room - 2 wererats
 	spawn_zones.append({
-		"trigger_rect": Rect2i(6, mid_z - 2, 4, 4),
-		"spawn_points": [
-			Vector2i(10, mid_z - 1), Vector2i(11, mid_z + 1)
-		],
+		"trigger_rect": Rect2i(7, mid_z - 2, 4, 5),
+		"spawn_points": [Vector2i(10, mid_z - 1), Vector2i(11, mid_z + 2)],
 		"enemy_types": [Enemy.EnemyType.WERERAT, Enemy.EnemyType.WERERAT],
 		"spawned": false
 	})
 
-	# Zone 1: South corridor - 1 wererat + 1 minion
+	# Zone 1: First hub room
 	spawn_zones.append({
-		"trigger_rect": Rect2i(11, mid_z + 3, 4, 3),
-		"spawn_points": [
-			Vector2i(GRID_W - 13, mid_z + 5), Vector2i(GRID_W - 12, mid_z + 6)
-		],
-		"enemy_types": [Enemy.EnemyType.WERERAT, Enemy.EnemyType.MINION],
+		"trigger_rect": Rect2i(13, mid_z - 3, 5, 7),
+		"spawn_points": [Vector2i(15, mid_z - 2), Vector2i(17, mid_z + 1), Vector2i(16, mid_z + 3)],
+		"enemy_types": [base_melee, base_melee, ranged],
 		"spawned": false
 	})
 
-	# Zone 2: Treasure room guard - 1 wererat + 1 minion
+	# Zone 2: South corridor
 	spawn_zones.append({
-		"trigger_rect": Rect2i(GRID_W - 13, mid_z + 2, 4, 4),
-		"spawn_points": [
-			Vector2i(GRID_W - 10, mid_z + 4), Vector2i(GRID_W - 9, mid_z + 5)
-		],
-		"enemy_types": [Enemy.EnemyType.WERERAT, Enemy.EnemyType.MINION],
+		"trigger_rect": Rect2i(14, mid_z + 6, 3, 4),
+		"spawn_points": [Vector2i(15, mid_z + 8), Vector2i(16, mid_z + 9)],
+		"enemy_types": [base_melee, Enemy.EnemyType.WERERAT],
 		"spawned": false
 	})
 
-	# Zone 3: Upper area - 1 skeleton (mini-boss for world 1)
+	# Zone 3: Southern cave
 	spawn_zones.append({
-		"trigger_rect": Rect2i(GRID_W - 11, mid_z - 7, 4, 3),
-		"spawn_points": [
-			Vector2i(GRID_W - 8, mid_z - 6)
-		],
-		"enemy_types": [Enemy.EnemyType.SKELETON],
+		"trigger_rect": Rect2i(12, mid_z + 10, 7, 5),
+		"spawn_points": [Vector2i(14, mid_z + 11), Vector2i(16, mid_z + 13), Vector2i(18, mid_z + 12)],
+		"enemy_types": [mid_melee, base_melee, ranged],
 		"spawned": false
 	})
 
-	# Zone 4: Alcove - 1 wererat
+	# Zone 4: South-east corridor to treasure room
 	spawn_zones.append({
-		"trigger_rect": Rect2i(7, mid_z + 3, 3, 3),
-		"spawn_points": [
-			Vector2i(9, mid_z + 5)
-		],
-		"enemy_types": [Enemy.EnemyType.WERERAT],
+		"trigger_rect": Rect2i(21, mid_z + 11, 5, 3),
+		"spawn_points": [Vector2i(24, mid_z + 12), Vector2i(26, mid_z + 13)],
+		"enemy_types": [base_melee, ranged],
 		"spawned": false
 	})
 
-func _define_world2_zones(mid_z: int) -> void:
-	## World 2: More enemies, skeletons appear frequently
+	# Zone 5: Southern treasure room guards
 	spawn_zones.append({
-		"trigger_rect": Rect2i(6, mid_z - 2, 4, 4),
-		"spawn_points": [
-			Vector2i(10, mid_z - 1), Vector2i(11, mid_z + 1), Vector2i(12, mid_z)
-		],
-		"enemy_types": [Enemy.EnemyType.WERERAT, Enemy.EnemyType.WERERAT, Enemy.EnemyType.SKELETON],
+		"trigger_rect": Rect2i(27, mid_z + 10, 5, 5),
+		"spawn_points": [Vector2i(29, mid_z + 11), Vector2i(31, mid_z + 13), Vector2i(30, mid_z + 14)],
+		"enemy_types": [mid_melee, heavy, ranged],
 		"spawned": false
 	})
 
+	# Zone 6: North corridor
 	spawn_zones.append({
-		"trigger_rect": Rect2i(11, mid_z + 3, 4, 3),
-		"spawn_points": [
-			Vector2i(GRID_W - 13, mid_z + 5), Vector2i(GRID_W - 12, mid_z + 6), Vector2i(GRID_W - 11, mid_z + 5)
-		],
-		"enemy_types": [Enemy.EnemyType.SKELETON, Enemy.EnemyType.SKELETON, Enemy.EnemyType.MINION],
+		"trigger_rect": Rect2i(14, mid_z - 8, 3, 4),
+		"spawn_points": [Vector2i(15, mid_z - 7), Vector2i(16, mid_z - 6)],
+		"enemy_types": [base_melee, ranged],
 		"spawned": false
 	})
 
+	# Zone 7: Northern elevated chamber
 	spawn_zones.append({
-		"trigger_rect": Rect2i(GRID_W - 13, mid_z + 2, 4, 4),
-		"spawn_points": [
-			Vector2i(GRID_W - 10, mid_z + 4), Vector2i(GRID_W - 9, mid_z + 5), Vector2i(GRID_W - 10, mid_z + 6)
-		],
-		"enemy_types": [Enemy.EnemyType.MINION, Enemy.EnemyType.SKELETON, Enemy.EnemyType.WERERAT],
+		"trigger_rect": Rect2i(12, mid_z - 13, 7, 4),
+		"spawn_points": [Vector2i(14, mid_z - 12), Vector2i(17, mid_z - 11), Vector2i(15, mid_z - 10)],
+		"enemy_types": [mid_melee, ranged, ranged],
 		"spawned": false
 	})
 
+	# Zone 8: Archer's perch (elevated, mostly ranged enemies)
 	spawn_zones.append({
-		"trigger_rect": Rect2i(GRID_W - 11, mid_z - 7, 4, 3),
-		"spawn_points": [
-			Vector2i(GRID_W - 8, mid_z - 6), Vector2i(GRID_W - 7, mid_z - 5)
-		],
-		"enemy_types": [Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.SKELETON],
+		"trigger_rect": Rect2i(26, mid_z - 14, 5, 6),
+		"spawn_points": [Vector2i(28, mid_z - 13), Vector2i(30, mid_z - 11), Vector2i(29, mid_z - 9)],
+		"enemy_types": [ranged, ranged, base_melee],
 		"spawned": false
 	})
 
+	# Zone 9: Central crossroads
 	spawn_zones.append({
-		"trigger_rect": Rect2i(7, mid_z + 3, 3, 3),
-		"spawn_points": [
-			Vector2i(9, mid_z + 5), Vector2i(8, mid_z + 6)
-		],
-		"enemy_types": [Enemy.EnemyType.WERERAT, Enemy.EnemyType.WERERAT],
+		"trigger_rect": Rect2i(30, mid_z - 3, 7, 7),
+		"spawn_points": [Vector2i(32, mid_z - 2), Vector2i(35, mid_z), Vector2i(33, mid_z + 3), Vector2i(36, mid_z + 2)],
+		"enemy_types": [mid_melee, mid_melee, ranged, heavy],
 		"spawned": false
 	})
 
-func _define_world3_zones(mid_z: int) -> void:
-	## World 3: Elites and trolls appear
+	# Zone 10: Guard barracks
 	spawn_zones.append({
-		"trigger_rect": Rect2i(6, mid_z - 2, 4, 4),
-		"spawn_points": [
-			Vector2i(10, mid_z - 1), Vector2i(11, mid_z + 1), Vector2i(12, mid_z), Vector2i(11, mid_z - 2)
-		],
-		"enemy_types": [Enemy.EnemyType.SKELETON, Enemy.EnemyType.SKELETON, Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.WERERAT],
+		"trigger_rect": Rect2i(31, mid_z + 10, 7, 5),
+		"spawn_points": [Vector2i(33, mid_z + 11), Vector2i(35, mid_z + 13), Vector2i(37, mid_z + 12), Vector2i(34, mid_z + 14)],
+		"enemy_types": [mid_melee, heavy, ranged, base_melee],
 		"spawned": false
 	})
 
+	# Zone 11: Barracks alcove
 	spawn_zones.append({
-		"trigger_rect": Rect2i(11, mid_z + 3, 4, 3),
-		"spawn_points": [
-			Vector2i(GRID_W - 13, mid_z + 5), Vector2i(GRID_W - 12, mid_z + 6), Vector2i(GRID_W - 11, mid_z + 5)
-		],
-		"enemy_types": [Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.SKELETON, Enemy.EnemyType.ELITE],
+		"trigger_rect": Rect2i(39, mid_z + 11, 3, 3),
+		"spawn_points": [Vector2i(40, mid_z + 12), Vector2i(41, mid_z + 13)],
+		"enemy_types": [heavy, ranged],
 		"spawned": false
 	})
 
+	# Zone 12: Armory (elevated)
 	spawn_zones.append({
-		"trigger_rect": Rect2i(GRID_W - 13, mid_z + 2, 4, 4),
-		"spawn_points": [
-			Vector2i(GRID_W - 10, mid_z + 4), Vector2i(GRID_W - 9, mid_z + 5), Vector2i(GRID_W - 10, mid_z + 6)
-		],
-		"enemy_types": [Enemy.EnemyType.ELITE, Enemy.EnemyType.SKELETON, Enemy.EnemyType.ARMORED_TROLL],
+		"trigger_rect": Rect2i(31, mid_z - 13, 7, 4),
+		"spawn_points": [Vector2i(33, mid_z - 12), Vector2i(36, mid_z - 11), Vector2i(35, mid_z - 10)],
+		"enemy_types": [heavy, mid_melee, ranged],
 		"spawned": false
 	})
 
+	# Zone 13: Far east corridor
 	spawn_zones.append({
-		"trigger_rect": Rect2i(GRID_W - 11, mid_z - 7, 4, 3),
-		"spawn_points": [
-			Vector2i(GRID_W - 8, mid_z - 6), Vector2i(GRID_W - 7, mid_z - 5), Vector2i(GRID_W - 6, mid_z - 6)
-		],
-		"enemy_types": [Enemy.EnemyType.ELITE, Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL],
+		"trigger_rect": Rect2i(39, mid_z - 1, 4, 3),
+		"spawn_points": [Vector2i(41, mid_z), Vector2i(43, mid_z + 1)],
+		"enemy_types": [mid_melee, ranged],
 		"spawned": false
 	})
 
-	spawn_zones.append({
-		"trigger_rect": Rect2i(7, mid_z + 3, 3, 3),
-		"spawn_points": [
-			Vector2i(9, mid_z + 5), Vector2i(8, mid_z + 6), Vector2i(9, mid_z + 6)
-		],
-		"enemy_types": [Enemy.EnemyType.SKELETON, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARMORED_TROLL],
-		"spawned": false
-	})
-
-func _define_world4plus_zones(mid_z: int) -> void:
-	## World 4+: Heavy enemies, bosses appear
-	spawn_zones.append({
-		"trigger_rect": Rect2i(6, mid_z - 2, 4, 4),
-		"spawn_points": [
-			Vector2i(10, mid_z - 1), Vector2i(11, mid_z + 1), Vector2i(12, mid_z),
-			Vector2i(11, mid_z - 2), Vector2i(10, mid_z + 2)
-		],
-		"enemy_types": [Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.SKELETON,
-			Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL],
-		"spawned": false
-	})
+	# Zone 14: Pre-boss arena
+	var boss_types: Array = []
+	var boss_points: Array = []
+	if world_level >= 4:
+		boss_points = [Vector2i(GRID_W - 10, mid_z - 3), Vector2i(GRID_W - 8, mid_z), Vector2i(GRID_W - 10, mid_z + 3), Vector2i(GRID_W - 7, mid_z - 1)]
+		boss_types = [Enemy.EnemyType.BOSS, Enemy.EnemyType.ELITE, heavy, ranged]
+	elif world_level >= 2:
+		boss_points = [Vector2i(GRID_W - 10, mid_z - 2), Vector2i(GRID_W - 8, mid_z + 1), Vector2i(GRID_W - 9, mid_z + 3)]
+		boss_types = [Enemy.EnemyType.ELITE, heavy, ranged]
+	else:
+		boss_points = [Vector2i(GRID_W - 10, mid_z), Vector2i(GRID_W - 8, mid_z + 2)]
+		boss_types = [Enemy.EnemyType.SKELETON, mid_melee]
 
 	spawn_zones.append({
-		"trigger_rect": Rect2i(11, mid_z + 3, 4, 3),
-		"spawn_points": [
-			Vector2i(GRID_W - 13, mid_z + 5), Vector2i(GRID_W - 12, mid_z + 6),
-			Vector2i(GRID_W - 11, mid_z + 5), Vector2i(GRID_W - 14, mid_z + 6)
-		],
-		"enemy_types": [Enemy.EnemyType.ELITE, Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.SKELETON],
-		"spawned": false
-	})
-
-	spawn_zones.append({
-		"trigger_rect": Rect2i(GRID_W - 13, mid_z + 2, 4, 4),
-		"spawn_points": [
-			Vector2i(GRID_W - 10, mid_z + 4), Vector2i(GRID_W - 9, mid_z + 5),
-			Vector2i(GRID_W - 10, mid_z + 6), Vector2i(GRID_W - 8, mid_z + 4)
-		],
-		"enemy_types": [Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.ELITE, Enemy.EnemyType.SKELETON],
-		"spawned": false
-	})
-
-	# Boss room
-	spawn_zones.append({
-		"trigger_rect": Rect2i(GRID_W - 11, mid_z - 7, 4, 3),
-		"spawn_points": [
-			Vector2i(GRID_W - 8, mid_z - 6), Vector2i(GRID_W - 7, mid_z - 5)
-		],
-		"enemy_types": [Enemy.EnemyType.BOSS, Enemy.EnemyType.ELITE],
-		"spawned": false
-	})
-
-	spawn_zones.append({
-		"trigger_rect": Rect2i(7, mid_z + 3, 3, 3),
-		"spawn_points": [
-			Vector2i(9, mid_z + 5), Vector2i(8, mid_z + 6),
-			Vector2i(9, mid_z + 6), Vector2i(8, mid_z + 5)
-		],
-		"enemy_types": [Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.ELITE, Enemy.EnemyType.SKELETON, Enemy.EnemyType.WERERAT],
+		"trigger_rect": Rect2i(GRID_W - 12, mid_z - 4, 7, 9),
+		"spawn_points": boss_points,
+		"enemy_types": boss_types,
 		"spawned": false
 	})
 
@@ -631,16 +738,16 @@ func _define_world4plus_zones(mid_z: int) -> void:
 func _place_waypoints() -> void:
 	var mid_z = GRID_H / 2
 
-	# Transport portal in starting room — opens menu for town and discovered waypoints
-	_create_waypoint(Vector2i(2, mid_z), "transport", "Transport Portal")
+	# Transport portal in starting room
+	_create_waypoint(Vector2i(3, mid_z), "transport", "Transport Portal")
 
-	# Exit to next world (in the far room)
+	# Exit to next world (in the far exit room)
 	if world_level < 5:
 		_create_waypoint(Vector2i(GRID_W - 4, mid_z), "next_world", "World %d" % (world_level + 1))
 
 	# Exit to previous world
 	if world_level > 1:
-		_create_waypoint(Vector2i(2, mid_z - 2), "prev_world", "World %d" % (world_level - 1))
+		_create_waypoint(Vector2i(3, mid_z - 3), "prev_world", "World %d" % (world_level - 1))
 
 func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) -> void:
 	var wp_root = Node3D.new()
@@ -874,6 +981,10 @@ func clear() -> void:
 		if is_instance_valid(node):
 			node.queue_free()
 	wall_nodes.clear()
+	for node in elevation_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	elevation_nodes.clear()
 	for chest in chest_nodes:
 		if is_instance_valid(chest["node"]):
 			chest["node"].queue_free()
@@ -893,3 +1004,4 @@ func clear() -> void:
 	_revealed.clear()
 	_fog_initialized = false
 	grid.clear()
+	elevation.clear()

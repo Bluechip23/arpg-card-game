@@ -124,13 +124,13 @@ func _show_chest_modal(contents: Dictionary) -> void:
 		btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 		btn_hbox.add_theme_constant_override("separation", 12)
 
-		var add_deck_btn = Button.new()
-		add_deck_btn.text = "Add to Deck"
-		add_deck_btn.custom_minimum_size = Vector2(140, 36)
-		add_deck_btn.add_theme_font_size_override("font_size", 15)
-		_style_chest_button(add_deck_btn, Color(0.15, 0.3, 0.45), Color(0.3, 0.5, 0.8))
-		add_deck_btn.pressed.connect(_on_chest_add_card_to_deck.bind(card))
-		btn_hbox.add_child(add_deck_btn)
+		var add_inv_btn = Button.new()
+		add_inv_btn.text = "Take Card"
+		add_inv_btn.custom_minimum_size = Vector2(140, 36)
+		add_inv_btn.add_theme_font_size_override("font_size", 15)
+		_style_chest_button(add_inv_btn, Color(0.15, 0.3, 0.45), Color(0.3, 0.5, 0.8))
+		add_inv_btn.pressed.connect(_on_chest_take_card.bind(card))
+		btn_hbox.add_child(add_inv_btn)
 
 		# Check if card can be slotted into any weapon
 		var inv = main.player.get_inventory()
@@ -278,9 +278,12 @@ func _on_chest_pick_up_item(item: ItemData) -> void:
 		main.add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))
 	_close_chest_modal()
 
-func _on_chest_add_card_to_deck(card: Card) -> void:
-	main.deck_manager.discard_pile.append(card)
-	main.add_battle_log("Added %s to deck!" % card.card_name, Color(0.3, 0.8, 1.0))
+func _on_chest_take_card(card: Card) -> void:
+	var inv = main.player.get_inventory()
+	if inv and inv.store_card(card):
+		main.add_battle_log("Took %s (card inventory)" % card.card_name, Color(0.3, 0.8, 1.0))
+	else:
+		main.add_battle_log("Card inventory full! Could not take %s." % card.card_name, Color(1.0, 0.4, 0.4))
 	_close_chest_modal()
 
 func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
@@ -291,9 +294,9 @@ func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
 		if inv.enchant_card(card, target_item):
 			main.add_battle_log("Slotted %s into %s!" % [card.card_name, target_item.item_name], Color(0.8, 0.6, 1.0))
 		else:
-			# Fallback: add to deck
-			main.deck_manager.discard_pile.append(card)
-			main.add_battle_log("Could not slot card. Added %s to deck instead." % card.card_name, Color(1.0, 0.6, 0.3))
+			# Fallback: add to card inventory
+			if inv.store_card(card):
+				main.add_battle_log("Could not slot card. Added %s to card inventory." % card.card_name, Color(1.0, 0.6, 0.3))
 	_close_chest_modal()
 
 func _on_chest_overlay_input(event: InputEvent) -> void:

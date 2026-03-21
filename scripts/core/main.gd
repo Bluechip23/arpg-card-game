@@ -76,10 +76,11 @@ const MINIMAP_PIXEL_SCALE: int = 4
 # Tab menu (quest log / map)
 var _tab_menu_panel: PanelContainer = null
 var _tab_menu_visible: bool = false
-var _tab_menu_current_tab: int = 0  # 0=map, 1=quest log
+var _tab_menu_current_tab: int = 0  # 0=map, 1=quest log, 2=card inventory
 var _tab_quest_container: VBoxContainer = null
 var _tab_map_container: VBoxContainer = null
 var _tab_map_texture_rect: TextureRect = null
+var _tab_card_inv_container: VBoxContainer = null
 
 # Card animation tracking
 var _prev_hand_card_ids: Array[String] = []  # Card IDs from last hand update
@@ -1582,6 +1583,8 @@ func trigger_multiple_turns(count: int) -> void:
 	# Each "turn" = 5 global tempo (one cycle)
 	tempo_manager.add_tempo(5 * count)
 
+var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
+
 func _on_player_tile_reached() -> void:
 	# Check if the player stepped onto an enemy-occupied tile (pass-through costs 2 tempo)
 	var player_cell = grid_manager.world_to_grid(player.position)
@@ -1592,6 +1595,24 @@ func _on_player_tile_reached() -> void:
 			break
 	if passed_through_enemy:
 		tempo_manager.add_pass_through_tempo()
+
+	# Climbing penalty: going to higher elevation costs +1 extra tempo per tile
+	if dungeon_manager and _player_last_grid_cell.x >= 0:
+		var prev_elev = dungeon_manager.get_elevation(_player_last_grid_cell)
+		var curr_elev = dungeon_manager.get_elevation(player_cell)
+		if curr_elev > prev_elev:
+			var climb_cost = curr_elev - prev_elev
+			tempo_manager.add_tempo(climb_cost)
+			add_battle_log("Climbing! +%d tempo" % climb_cost, Color(0.8, 0.7, 0.4))
+			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
+	_player_last_grid_cell = player_cell
+
+	# Adjust player Y position based on elevation
+	if dungeon_manager:
+		var elev_y = dungeon_manager.get_elevation_world_y(player_cell)
+		player.position.y = elev_y
+		player.target_position.y = elev_y
+
 	# Normal per-tile tempo
 	tempo_manager.add_movement_tempo()
 	# Check if player entered a new dungeon zone
@@ -2505,8 +2526,8 @@ func select_card(index: int) -> void:
 		var buff_mgr = player.get_buff_manager() if player else null
 		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
 			effective_range += 6
-		# Include High Ground bonus if on pillar
-		if card.card_type == Card.CardType.ATTACK and is_on_pillar(player.position):
+		# Include High Ground bonus if on pillar or elevated terrain
+		if card.card_type == Card.CardType.ATTACK and _is_on_high_ground(player.position):
 			effective_range += 2
 		# Eagle Eye: +2 range on ranged attacks
 		var st_stats = player.get_stats()
@@ -2567,9 +2588,9 @@ func play_selected_card(target) -> void:
 		buff_mgr.apply_buff(Buff.create_enlightened(20, 1, "Tighten String"))
 		tighten_applied = true
 
-	# High Ground: +4 damage, +2 range when shooting from elevated position
+	# High Ground: +4 damage, +2 range when shooting from elevated position (pillar or terrain elevation)
 	var high_ground_applied = false
-	if is_ranged_attack and is_on_pillar(player.position):
+	if is_ranged_attack and _has_high_ground(player.position, target):
 		card.bonus_damage += 4
 		card.range_modifier += 2
 		high_ground_applied = true
@@ -2790,7 +2811,7 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
 			max_range += 6
 		# High Ground: +2 range
-		if card.card_type == Card.CardType.ATTACK and is_on_pillar(player.position):
+		if card.card_type == Card.CardType.ATTACK and _is_on_high_ground(player.position):
 			max_range += 2
 		# Eagle Eye: +2 range on ranged attacks
 		var st_stats = player.get_stats()
@@ -4137,6 +4158,25 @@ func is_on_pillar(world_pos: Vector3) -> bool:
 			return true
 	return false
 
+func _is_on_high_ground(world_pos: Vector3) -> bool:
+	## Returns true if the position is elevated (pillar or terrain elevation > 0).
+	if is_on_pillar(world_pos):
+		return true
+	if dungeon_manager:
+		var grid_pos = grid_manager.world_to_grid(world_pos)
+		return dungeon_manager.get_elevation(grid_pos) > 0
+	return false
+
+func _has_high_ground(attacker_pos: Vector3, target) -> bool:
+	## Returns true if attacker is at higher elevation than target.
+	if is_on_pillar(attacker_pos):
+		return true
+	if dungeon_manager and target and is_instance_valid(target):
+		var attacker_grid = grid_manager.world_to_grid(attacker_pos)
+		var target_grid = grid_manager.world_to_grid(target.position)
+		return dungeon_manager.get_elevation(attacker_grid) > dungeon_manager.get_elevation(target_grid)
+	return false
+
 func _on_apply_overflow(overflow_name: String) -> void:
 	var effect: OverflowEffect = null
 	
@@ -4235,6 +4275,14 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 		player.get_stats().gain_gold(gold)
 		messages.append("+%d Gold" % gold)
 
+	# Culling stones
+	var culling_stones = loot.get("culling_stones", 0)
+	if culling_stones > 0:
+		var inventory = player.get_inventory()
+		if inventory:
+			inventory.culling_stones += culling_stones
+			messages.append("+%d Culling Stone" % culling_stones)
+
 	# Item drop
 	var item: ItemData = loot.get("item")
 	if item:
@@ -4245,12 +4293,15 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 			else:
 				messages.append("Item dropped (inventory full): %s" % item.item_name)
 
-	# Card drop
+	# Card drop - goes to INVENTORY, not deck
 	var card: Card = loot.get("card")
 	if card:
-		if deck_manager:
-			deck_manager.discard_pile.append(card)
-			messages.append("Card: %s" % card.card_name)
+		var inventory = player.get_inventory()
+		if inventory:
+			if inventory.store_card(card):
+				messages.append("Card: %s (inventory)" % card.card_name)
+			else:
+				messages.append("Card dropped (inventory full): %s" % card.card_name)
 
 	if messages.size() > 0:
 		var loot_text = "Loot: " + ", ".join(messages)
@@ -4309,6 +4360,8 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.equipped_weapons = inv_data.get("equipped_weapons", inv.equipped_weapons)
 			inv.equipped_quivers = inv_data.get("equipped_quivers", inv.equipped_quivers)
 			inv.stored_items = inv_data.get("stored_items", inv.stored_items)
+			inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
+			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 			inv.equipment_changed.emit()
 
 	# Update UI displays
@@ -4349,6 +4402,8 @@ func _save_player_progression() -> Dictionary:
 			"equipped_weapons": inv.equipped_weapons.duplicate(),
 			"equipped_quivers": inv.equipped_quivers.duplicate(),
 			"stored_items": inv.stored_items.duplicate(),
+			"stored_cards": inv.stored_cards.duplicate(),
+			"culling_stones": inv.culling_stones,
 		}
 	var deck_state = progression["deck_state"]
 	var total_cards = deck_state.get("hand", []).size() + deck_state.get("draw_pile", []).size() + deck_state.get("discard_pile", []).size() + deck_state.get("jail_pile", []).size()

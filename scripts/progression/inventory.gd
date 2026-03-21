@@ -49,6 +49,10 @@ var equipped_quivers: Array[ItemData] = []
 var stored_items: Array[ItemData] = []
 var max_storage_slots: int = 20
 
+# Card inventory - cards picked up from loot go here (not directly to deck)
+var stored_cards: Array = []  # Array of Card objects
+var max_card_storage: int = 20
+
 # Consumables
 var culling_stones: int = 99  # Used to permanently remove cards from deck
 
@@ -753,6 +757,49 @@ func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
 		return false
 	store_item(item)
 	return true
+
+# ============================================
+# CARD INVENTORY
+# ============================================
+
+func store_card(card) -> bool:
+	if stored_cards.size() >= max_card_storage:
+		print("[INVENTORY] Card storage full! (%d/%d)" % [stored_cards.size(), max_card_storage])
+		return false
+	stored_cards.append(card)
+	storage_changed.emit()
+	print("[INVENTORY] Stored card: %s (%d/%d)" % [card.card_name, stored_cards.size(), max_card_storage])
+	return true
+
+func remove_stored_card(index: int):
+	if index < 0 or index >= stored_cards.size():
+		return null
+	var card = stored_cards[index]
+	stored_cards.remove_at(index)
+	storage_changed.emit()
+	print("[INVENTORY] Removed card from storage: %s (%d/%d)" % [card.card_name, stored_cards.size(), max_card_storage])
+	return card
+
+func get_stored_card(index: int):
+	if index < 0 or index >= stored_cards.size():
+		return null
+	return stored_cards[index]
+
+func get_stored_card_count() -> int:
+	return stored_cards.size()
+
+func add_card_to_deck(card_index: int, dm) -> bool:
+	## Moves a card from inventory to the player's discard pile.
+	var card = remove_stored_card(card_index)
+	if card == null:
+		return false
+	if dm:
+		dm.discard_pile.append(card)
+		print("[INVENTORY] Card '%s' added to discard pile from inventory" % card.card_name)
+		return true
+	# If no deck manager, put card back
+	stored_cards.insert(card_index, card)
+	return false
 
 # ============================================
 # CULLING STONES (CONSUMABLE)
