@@ -276,16 +276,17 @@ func _on_chest_pick_up_item(item: ItemData) -> void:
 		main.add_battle_log("Picked up %s!" % item.item_name, Color(1.0, 0.85, 0.3))
 	else:
 		main.add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))
-	main._chest_modal_contents["_item_claimed"] = true
 	_close_chest_modal()
 
 func _on_chest_take_card(card: Card) -> void:
 	var inv = main.player.get_inventory()
+	print("[CHEST] Take card pressed: %s, inv=%s" % [card.card_name if card else "null", inv])
 	if inv and inv.store_card(card):
-		main.add_battle_log("Took %s (card inventory)" % card.card_name, Color(0.3, 0.8, 1.0))
+		main.add_battle_log("Added %s to card inventory!" % card.card_name, Color(0.3, 0.8, 1.0))
+		print("[CHEST] Card stored successfully: %s (now %d cards)" % [card.card_name, inv.get_stored_card_count()])
 	else:
 		main.add_battle_log("Card inventory full! Could not take %s." % card.card_name, Color(1.0, 0.4, 0.4))
-	main._chest_modal_contents["_card_claimed"] = true
+		print("[CHEST] Failed to store card: %s" % [card.card_name if card else "null"])
 	_close_chest_modal()
 
 func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
@@ -299,7 +300,6 @@ func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
 			# Fallback: add to card inventory
 			if inv.store_card(card):
 				main.add_battle_log("Could not slot card. Added %s to card inventory." % card.card_name, Color(1.0, 0.6, 0.3))
-	main._chest_modal_contents["_card_claimed"] = true
 	_close_chest_modal()
 
 func _on_chest_overlay_input(event: InputEvent) -> void:
@@ -307,23 +307,6 @@ func _on_chest_overlay_input(event: InputEvent) -> void:
 		_close_chest_modal()
 
 func _close_chest_modal() -> void:
-	# Auto-collect any unclaimed items/cards before closing
-	var contents = main._chest_modal_contents
-	if not contents.is_empty():
-		var inv = main.player.get_inventory()
-		var item: ItemData = contents.get("item")
-		if item and not contents.get("_item_claimed", false):
-			if inv.store_item(item):
-				main.add_battle_log("Picked up %s!" % item.item_name, Color(1.0, 0.85, 0.3))
-			else:
-				main.add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))
-		var card: Card = contents.get("card")
-		if card and not contents.get("_card_claimed", false):
-			if inv and inv.store_card(card):
-				main.add_battle_log("Took %s (card inventory)" % card.card_name, Color(0.3, 0.8, 1.0))
-			else:
-				main.add_battle_log("Card inventory full! Could not take %s." % card.card_name, Color(1.0, 0.4, 0.4))
-
 	main._chest_modal_open = false
 	main._chest_modal_contents = {}
 	var ui = main.get_node("UI") as CanvasLayer
