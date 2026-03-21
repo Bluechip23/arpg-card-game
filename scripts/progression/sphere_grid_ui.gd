@@ -42,20 +42,20 @@ const LINE_WIDTH: float = 3.0
 const HOVER_GROW: float = 4.0
 
 # Colors by node type
-const COLOR_LOCKED := Color(0.45, 0.45, 0.5, 1.0)
-const COLOR_UNLOCKED := Color(0.3, 0.9, 0.4, 1.0)
-const COLOR_UNLOCKABLE := Color(1.0, 0.95, 0.3, 1.0)
+const COLOR_LOCKED := Color(0.65, 0.65, 0.72, 1.0)
+const COLOR_UNLOCKED := Color(0.35, 1.0, 0.5, 1.0)
+const COLOR_UNLOCKABLE := Color(1.0, 0.95, 0.35, 1.0)
 const COLOR_START := Color(1.0, 1.0, 1.0, 1.0)
-const COLOR_STAT := Color(0.5, 0.7, 1.0, 1.0)
-const COLOR_PASSIVE := Color(1.0, 0.6, 0.25, 1.0)
-const COLOR_COMBAT := Color(1.0, 0.8, 0.25, 1.0)  # Gold/amber for combat bonus nodes
-const COLOR_HEALTH := Color(1.0, 0.3, 0.3, 1.0)
-const COLOR_MANA := Color(0.3, 0.6, 1.0, 1.0)
-const COLOR_CULLING := Color(1.0, 0.25, 0.55, 1.0)  # Crimson/hot-pink - distinct from purple passives
-const COLOR_RETROSPECTIVE := Color(0.3, 1.0, 0.9, 1.0)  # Teal/cyan - retrospective nodes
-const COLOR_LINE := Color(0.5, 0.5, 0.65, 1.0)
-const COLOR_LINE_UNLOCKED := Color(0.4, 0.9, 0.5, 1.0)
-const COLOR_BG := Color(0.12, 0.12, 0.18, 0.97)
+const COLOR_STAT := Color(0.6, 0.8, 1.0, 1.0)
+const COLOR_PASSIVE := Color(1.0, 0.7, 0.35, 1.0)
+const COLOR_COMBAT := Color(1.0, 0.85, 0.35, 1.0)  # Gold/amber for combat bonus nodes
+const COLOR_HEALTH := Color(1.0, 0.4, 0.4, 1.0)
+const COLOR_MANA := Color(0.4, 0.7, 1.0, 1.0)
+const COLOR_CULLING := Color(1.0, 0.35, 0.65, 1.0)  # Crimson/hot-pink - distinct from purple passives
+const COLOR_RETROSPECTIVE := Color(0.4, 1.0, 0.95, 1.0)  # Teal/cyan - retrospective nodes
+const COLOR_LINE := Color(0.65, 0.65, 0.8, 1.0)
+const COLOR_LINE_UNLOCKED := Color(0.5, 1.0, 0.6, 1.0)
+const COLOR_BG := Color(0.08, 0.08, 0.13, 0.97)
 const COLOR_HOVER_RING := Color(1.0, 1.0, 0.6, 0.9)
 
 # Detail popup colors

@@ -76,7 +76,7 @@ func _open_waypoint_menu() -> void:
 		_close_waypoint_menu()
 		return
 
-	var ui = $UI as CanvasLayer
+	var ui = main.get_node("UI") as CanvasLayer
 
 	main._waypoint_menu_panel = PanelContainer.new()
 	main._waypoint_menu_panel.name = "WaypointMenu"
