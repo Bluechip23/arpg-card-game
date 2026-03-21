@@ -33,7 +33,6 @@ func _draw_grid() -> void:
 	mat.albedo_color = grid_color
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.no_depth_test = true
 	_mesh_instance.material_override = mat
 
 	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
