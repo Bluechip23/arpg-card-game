@@ -1125,8 +1125,8 @@ func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> voi
 				stats.st_serial_killer_enemies[enemy_id] = true
 				# Add player to enemy's ignore list so it never targets them again
 				enemy.target = null
-				if player not in enemy.invisible_to_players:
-					enemy.invisible_to_players.append(player)
+				if main.player not in enemy.invisible_to_players:
+					enemy.invisible_to_players.append(main.player)
 				main.add_battle_log("Serial Killer: invisible to %s!" % enemy.enemy_name, Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_cory_on_debuff_applied(target, debuff_name: String, value: int) -> void:
