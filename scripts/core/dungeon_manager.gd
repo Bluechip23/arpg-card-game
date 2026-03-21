@@ -211,15 +211,16 @@ func _build_fog() -> void:
 			col.append(false)
 		_revealed.append(col)
 
-	# Create fog planes for every tile that could matter (floors + walls adjacent to floors)
+	# Create fog columns for every tile that could matter (floors + walls adjacent to floors)
+	# Using tall boxes instead of flat planes so fog can't be seen under from any camera angle
 	_fog_nodes.clear()
 
 	var fog_mat = StandardMaterial3D.new()
 	fog_mat.albedo_color = Color(0.02, 0.02, 0.05, 1.0)
 	fog_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	fog_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fog_mat.no_depth_test = true
-	fog_mat.render_priority = 10  # Draw on top
+
+	var fog_height: float = 10.0  # Tall enough to block any camera angle
 
 	for x in range(GRID_W):
 		var col: Array = []
@@ -227,12 +228,14 @@ func _build_fog() -> void:
 			var should_fog = (grid[x][z] == Tile.FLOOR) or _has_adjacent_floor(x, z)
 			if should_fog:
 				var fog = MeshInstance3D.new()
-				var plane = PlaneMesh.new()
-				plane.size = Vector2(1.05, 1.05)  # Slightly oversized to avoid seams
-				fog.mesh = plane
+				var box = BoxMesh.new()
+				box.size = Vector3(1.05, fog_height, 1.05)  # Slightly oversized to avoid seams
+				fog.mesh = box
 				fog.material_override = fog_mat.duplicate()
-				fog.position = Vector3(x + 0.5, 3.5, z + 0.5)  # Above waypoints/portals/labels
+				# Center the box so it spans from below ground to well above everything
+				fog.position = Vector3(x + 0.5, fog_height / 2.0 - 0.5, z + 0.5)
 				fog.visible = true
+				fog.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				_parent.add_child(fog)
 				col.append(fog)
 			else:
