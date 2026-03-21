@@ -6,6 +6,10 @@ extends Node
 ## Extracted from main.gd to reduce god-object complexity.
 
 var main  # Reference to the Main scene node
+var _p2_hand_visible: bool = false
+var _p2_deck_visible: bool = false
+var _p2_hand_container: VBoxContainer = null
+var _p2_deck_container: VBoxContainer = null
 
 func init(main_ref) -> void:
 	main = main_ref
@@ -15,8 +19,8 @@ func _initialize_player2() -> void:
 	main._p2_deck_manager = DeckManager.new()
 	main._p2_deck_manager.name = "P2DeckManager"
 	add_child(main._p2_deck_manager)
-	main._p2_deck_manager.initialize_deck(player2_character)
-	print("[MAIN] Player 2 initialized: %s (hand: %d cards)" % [player2_character.character_name, main._p2_deck_manager.hand.size()])
+	main._p2_deck_manager.initialize_deck(main.player2_character)
+	print("[MAIN] Player 2 initialized: %s (hand: %d cards)" % [main.player2_character.character_name, main._p2_deck_manager.hand.size()])
 
 	_setup_p2_buttons()
 	_setup_p2_hand_panel()
@@ -208,10 +212,10 @@ func _on_p2_hand_button_pressed() -> void:
 			_p2_deck_visible = false
 			main._p2_deck_panel.visible = false
 			main._p2_deck_card_preview.visible = false
-		if deck_list_visible:
-			deck_list_visible = false
-			deck_list_panel.visible = false
-			deck_list_card_preview.visible = false
+		if main.deck_list_visible:
+			main.deck_list_visible = false
+			main.deck_list_panel.visible = false
+			main.deck_list_card_preview.visible = false
 		_populate_p2_hand()
 	else:
 		main._p2_hand_card_preview.visible = false
@@ -225,10 +229,10 @@ func _on_p2_deck_button_pressed() -> void:
 			_p2_hand_visible = false
 			main._p2_hand_panel.visible = false
 			main._p2_hand_card_preview.visible = false
-		if deck_list_visible:
-			deck_list_visible = false
-			deck_list_panel.visible = false
-			deck_list_card_preview.visible = false
+		if main.deck_list_visible:
+			main.deck_list_visible = false
+			main.deck_list_panel.visible = false
+			main.deck_list_card_preview.visible = false
 		_populate_p2_deck()
 	else:
 		main._p2_deck_card_preview.visible = false
@@ -356,7 +360,7 @@ func _build_p2_card_preview_content(card: Card, preview: PanelContainer) -> void
 	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
 	vbox.add_child(desc_lbl)
 
-	_append_keyword_tooltips(vbox, card)
+	main._append_keyword_tooltips(vbox, card)
 
 func _position_p2_preview(preview: PanelContainer, panel: PanelContainer, entry: Button) -> void:
 	var entry_rect = entry.get_global_rect()
