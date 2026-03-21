@@ -186,6 +186,13 @@ func _setup_tab_menu() -> void:
 	quest_tab_btn.pressed.connect(_on_tab_quest_pressed)
 	tab_hbox.add_child(quest_tab_btn)
 
+	var card_inv_tab_btn = Button.new()
+	card_inv_tab_btn.text = "Card Inventory"
+	card_inv_tab_btn.custom_minimum_size = Vector2(140, 32)
+	card_inv_tab_btn.add_theme_font_size_override("font_size", 16)
+	card_inv_tab_btn.pressed.connect(_on_tab_card_inv_pressed)
+	tab_hbox.add_child(card_inv_tab_btn)
+
 	# World label
 	var world_lbl = Label.new()
 	world_lbl.text = "World %d" % main.current_world_level
@@ -222,6 +229,17 @@ func _setup_tab_menu() -> void:
 	main._tab_quest_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quest_scroll.add_child(main._tab_quest_container)
 
+	# Card inventory content (hidden by default — tab 2)
+	var card_inv_scroll = ScrollContainer.new()
+	card_inv_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card_inv_scroll.custom_minimum_size = Vector2(0, 400)
+	card_inv_scroll.visible = false
+	vbox.add_child(card_inv_scroll)
+
+	main._tab_card_inv_container = VBoxContainer.new()
+	main._tab_card_inv_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_inv_scroll.add_child(main._tab_card_inv_container)
+
 	# Close button
 	var close_btn = Button.new()
 	close_btn.text = "Close [Tab]"
@@ -248,20 +266,33 @@ func _on_tab_quest_pressed() -> void:
 	main._tab_menu_current_tab = 1
 	_refresh_tab_menu()
 
+func _on_tab_card_inv_pressed() -> void:
+	main._tab_menu_current_tab = 2
+	_refresh_tab_menu()
+
 func _refresh_tab_menu() -> void:
 	if not main._tab_quest_container or not main._tab_map_container:
 		return
 
+	# Hide all tabs
+	main._tab_map_container.visible = false
+	main._tab_quest_container.get_parent().visible = false
+	if main._tab_card_inv_container:
+		main._tab_card_inv_container.get_parent().visible = false
+
 	if main._tab_menu_current_tab == 0:
 		# Dungeon Map tab
 		main._tab_map_container.visible = true
-		main._tab_quest_container.get_parent().visible = false
 		_refresh_expanded_map()
-	else:
+	elif main._tab_menu_current_tab == 1:
 		# Quest Log tab
-		main._tab_map_container.visible = false
 		main._tab_quest_container.get_parent().visible = true
 		_refresh_quest_log()
+	elif main._tab_menu_current_tab == 2:
+		# Card Inventory tab
+		if main._tab_card_inv_container:
+			main._tab_card_inv_container.get_parent().visible = true
+			_refresh_card_inventory()
 
 func _refresh_quest_log() -> void:
 	for child in main._tab_quest_container.get_children():
@@ -427,3 +458,106 @@ func _refresh_expanded_map() -> void:
 
 	var tex = ImageTexture.create_from_image(img)
 	main._tab_map_texture_rect.texture = tex
+
+# ============================================
+# CARD INVENTORY TAB
+# ============================================
+
+func _refresh_card_inventory() -> void:
+	if not main._tab_card_inv_container:
+		return
+
+	for child in main._tab_card_inv_container.get_children():
+		child.queue_free()
+
+	var inv = main.player.get_inventory()
+	if not inv:
+		return
+
+	# Header
+	var header = Label.new()
+	header.text = "Card Inventory (%d/%d)" % [inv.get_stored_card_count(), inv.max_card_storage]
+	header.add_theme_font_size_override("font_size", 18)
+	header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	main._tab_card_inv_container.add_child(header)
+
+	var desc = Label.new()
+	desc.text = "Cards from enemy loot. Add to your deck or keep for later."
+	desc.add_theme_font_size_override("font_size", 12)
+	desc.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	main._tab_card_inv_container.add_child(desc)
+
+	main._tab_card_inv_container.add_child(HSeparator.new())
+
+	if inv.stored_cards.size() == 0:
+		var empty_lbl = Label.new()
+		empty_lbl.text = "No cards in inventory."
+		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		main._tab_card_inv_container.add_child(empty_lbl)
+		return
+
+	for i in range(inv.stored_cards.size()):
+		var card = inv.stored_cards[i]
+		var card_row = HBoxContainer.new()
+		card_row.add_theme_constant_override("separation", 12)
+		main._tab_card_inv_container.add_child(card_row)
+
+		# Card name
+		var name_lbl = Label.new()
+		name_lbl.text = card.card_name
+		name_lbl.custom_minimum_size = Vector2(150, 0)
+		name_lbl.add_theme_font_size_override("font_size", 14)
+		name_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
+		card_row.add_child(name_lbl)
+
+		# Card type
+		var type_lbl = Label.new()
+		var type_names = ["ATK", "DEF", "UTIL", "REACT", "UNPLAY", "POWER", "ENCH"]
+		var type_idx = card.card_type as int
+		type_lbl.text = type_names[type_idx] if type_idx < type_names.size() else "???"
+		type_lbl.custom_minimum_size = Vector2(50, 0)
+		type_lbl.add_theme_font_size_override("font_size", 12)
+		type_lbl.add_theme_color_override("font_color", Color(0.6, 0.7, 0.9))
+		card_row.add_child(type_lbl)
+
+		# Mana cost
+		var cost_lbl = Label.new()
+		cost_lbl.text = "%d mana" % card.mana_cost
+		cost_lbl.custom_minimum_size = Vector2(60, 0)
+		cost_lbl.add_theme_font_size_override("font_size", 12)
+		cost_lbl.add_theme_color_override("font_color", Color(0.4, 0.6, 1.0))
+		card_row.add_child(cost_lbl)
+
+		# Add to Deck button
+		var add_btn = Button.new()
+		add_btn.text = "Add to Deck"
+		add_btn.custom_minimum_size = Vector2(100, 28)
+		add_btn.add_theme_font_size_override("font_size", 12)
+		var card_idx = i
+		add_btn.pressed.connect(_on_add_card_to_deck.bind(card_idx))
+		card_row.add_child(add_btn)
+
+		# Destroy button
+		var destroy_btn = Button.new()
+		destroy_btn.text = "Destroy"
+		destroy_btn.custom_minimum_size = Vector2(80, 28)
+		destroy_btn.add_theme_font_size_override("font_size", 12)
+		destroy_btn.pressed.connect(_on_destroy_stored_card.bind(card_idx))
+		card_row.add_child(destroy_btn)
+
+func _on_add_card_to_deck(card_index: int) -> void:
+	var inv = main.player.get_inventory()
+	if inv and main.deck_manager:
+		var card = inv.get_stored_card(card_index)
+		if card:
+			if inv.add_card_to_deck(card_index, main.deck_manager):
+				main.add_battle_log("Added %s to deck (discard pile)" % card.card_name, Color(0.4, 1.0, 0.5))
+				_refresh_card_inventory()
+
+func _on_destroy_stored_card(card_index: int) -> void:
+	var inv = main.player.get_inventory()
+	if inv:
+		var card = inv.remove_stored_card(card_index)
+		if card:
+			main.add_battle_log("Destroyed %s" % card.card_name, Color(1.0, 0.4, 0.3))
+			_refresh_card_inventory()

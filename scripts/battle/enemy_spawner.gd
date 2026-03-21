@@ -103,7 +103,7 @@ func _on_enemy_turn_completed() -> void:
 # ============================================
 
 func _generate_loot(enemy: Enemy) -> Dictionary:
-	var loot: Dictionary = {"gold": 0, "item": null, "card": null}
+	var loot: Dictionary = {"gold": 0, "item": null, "card": null, "culling_stones": 0}
 
 	# Gold drop (always) - amount based on enemy type
 	match enemy.enemy_type:
@@ -111,6 +111,8 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 			loot["gold"] = randi_range(2, 8)
 		Enemy.EnemyType.WERERAT:
 			loot["gold"] = randi_range(3, 10)
+		Enemy.EnemyType.ARCHER_RAT:
+			loot["gold"] = randi_range(2, 6)
 		Enemy.EnemyType.SKELETON:
 			loot["gold"] = randi_range(5, 15)
 		Enemy.EnemyType.ARMORED_TROLL:
@@ -119,6 +121,11 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 			loot["gold"] = randi_range(15, 40)
 		Enemy.EnemyType.BOSS:
 			loot["gold"] = randi_range(30, 80)
+
+	# Culling stone drop chance
+	var culling_chance = _get_culling_stone_drop_chance(enemy.enemy_type)
+	if randf() < culling_chance:
+		loot["culling_stones"] = 1
 
 	# Item drop chance (varies by enemy type)
 	var item_chance = _get_item_drop_chance(enemy.enemy_type)
@@ -136,6 +143,7 @@ func _get_item_drop_chance(type: Enemy.EnemyType) -> float:
 	match type:
 		Enemy.EnemyType.MINION: return 0.05
 		Enemy.EnemyType.WERERAT: return 0.08
+		Enemy.EnemyType.ARCHER_RAT: return 0.06
 		Enemy.EnemyType.SKELETON: return 0.12
 		Enemy.EnemyType.ARMORED_TROLL: return 0.20
 		Enemy.EnemyType.ELITE: return 0.30
@@ -146,11 +154,23 @@ func _get_card_drop_chance(type: Enemy.EnemyType) -> float:
 	match type:
 		Enemy.EnemyType.MINION: return 0.03
 		Enemy.EnemyType.WERERAT: return 0.05
+		Enemy.EnemyType.ARCHER_RAT: return 0.04
 		Enemy.EnemyType.SKELETON: return 0.08
 		Enemy.EnemyType.ARMORED_TROLL: return 0.12
 		Enemy.EnemyType.ELITE: return 0.20
 		Enemy.EnemyType.BOSS: return 0.60
 	return 0.03
+
+func _get_culling_stone_drop_chance(type: Enemy.EnemyType) -> float:
+	match type:
+		Enemy.EnemyType.MINION: return 0.02
+		Enemy.EnemyType.WERERAT: return 0.03
+		Enemy.EnemyType.ARCHER_RAT: return 0.03
+		Enemy.EnemyType.SKELETON: return 0.05
+		Enemy.EnemyType.ARMORED_TROLL: return 0.08
+		Enemy.EnemyType.ELITE: return 0.15
+		Enemy.EnemyType.BOSS: return 0.40
+	return 0.02
 
 func _get_random_loot_item(type: Enemy.EnemyType) -> ItemData:
 	var item_creators: Array[Callable] = [
