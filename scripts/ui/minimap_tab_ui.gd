@@ -14,7 +14,7 @@ func _setup_minimap() -> void:
 	if main._minimap_panel and is_instance_valid(main._minimap_panel):
 		main._minimap_panel.queue_free()
 
-	var ui = $UI as CanvasLayer
+	var ui = main.get_node("UI") as CanvasLayer
 
 	main._minimap_panel = PanelContainer.new()
 	main._minimap_panel.name = "MinimapPanel"
@@ -127,7 +127,7 @@ func _setup_tab_menu() -> void:
 	if main._tab_menu_panel and is_instance_valid(main._tab_menu_panel):
 		main._tab_menu_panel.queue_free()
 
-	var ui = $UI as CanvasLayer
+	var ui = main.get_node("UI") as CanvasLayer
 
 	main._tab_menu_panel = PanelContainer.new()
 	main._tab_menu_panel.name = "TabMenuPanel"

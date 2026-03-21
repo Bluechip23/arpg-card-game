@@ -27,7 +27,7 @@ func _initialize_player2() -> void:
 	_setup_p2_deck_panel()
 
 func _setup_p2_buttons() -> void:
-	var ui = $UI as CanvasLayer
+	var ui = main.get_node("UI") as CanvasLayer
 	var btn_container = Control.new()
 	btn_container.name = "P2ButtonContainer"
 	ui.add_child(btn_container)
@@ -57,7 +57,7 @@ func _setup_p2_buttons() -> void:
 	vbox.add_child(deck_btn)
 
 func _setup_p2_hand_panel() -> void:
-	var ui = $UI as CanvasLayer
+	var ui = main.get_node("UI") as CanvasLayer
 
 	main._p2_hand_panel = PanelContainer.new()
 	main._p2_hand_panel.name = "P2HandPanel"
@@ -109,7 +109,7 @@ func _setup_p2_hand_panel() -> void:
 	ui.add_child(main._p2_hand_card_preview)
 
 func _setup_p2_deck_panel() -> void:
-	var ui = $UI as CanvasLayer
+	var ui = main.get_node("UI") as CanvasLayer
 
 	main._p2_deck_panel = PanelContainer.new()
 	main._p2_deck_panel.name = "P2DeckPanel"
@@ -366,7 +366,7 @@ func _position_p2_preview(preview: PanelContainer, panel: PanelContainer, entry:
 	var entry_rect = entry.get_global_rect()
 	var preview_x = panel.position.x - preview.size.x - 10
 	var preview_y = entry_rect.position.y
-	var hand_area = $UI/HandArea as PanelContainer
+	var hand_area = main.get_node("UI/HandArea") as PanelContainer
 	var max_y = hand_area.global_position.y - preview.size.y - 8.0
 	preview_y = min(preview_y, max_y)
 	preview_y = max(preview_y, 4.0)

@@ -35,7 +35,7 @@ func _show_chest_modal(contents: Dictionary) -> void:
 	main._chest_modal_open = true
 	main._chest_modal_contents = contents
 
-	var ui = $UI as CanvasLayer
+	var ui = main.get_node("UI") as CanvasLayer
 
 	# Dimmed overlay
 	var overlay = ColorRect.new()
@@ -303,7 +303,7 @@ func _on_chest_overlay_input(event: InputEvent) -> void:
 func _close_chest_modal() -> void:
 	main._chest_modal_open = false
 	main._chest_modal_contents = {}
-	var ui = $UI as CanvasLayer
+	var ui = main.get_node("UI") as CanvasLayer
 	var overlay = ui.get_node_or_null("ChestOverlay")
 	if overlay:
 		overlay.queue_free()
