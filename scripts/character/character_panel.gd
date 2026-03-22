@@ -1163,7 +1163,7 @@ func _show_card_confirm_modal(card: Card) -> void:
 	# Keywords / special properties
 	var keywords := []
 	if card.is_ranged:
-		keywords.append(card.get_range_label())
+		keywords.append(card.get_range_display())
 	if card.is_aoe:
 		keywords.append("AOE (%s)" % card.aoe_shape if card.aoe_shape != "" else "AOE")
 	if card.has_burden:
