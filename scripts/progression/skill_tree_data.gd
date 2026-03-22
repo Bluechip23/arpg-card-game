@@ -782,6 +782,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 15, slot = 0, card_id = "misery_loves_company", name = "Misery Loves Company", description = "Your next AOE attack spreads the debuffs on yourself and all enemies hit, to all the enemies that are hit. (5 mana, 1 tempo)"},
 		{level = 17, slot = 0, card_id = "release_tension", name = "Release Tension", description = "Remove a stack of debuffs from the enemy and heal for the amount of debuffs removed x3. Choose which debuff. (3 mana, 5 tempo)"},
 		{level = 19, slot = 0, card_id = "vines", name = "Vines", description = "Summon vines holding an enemy in place for 3 turns. Deal 4 damage per turn the enemy is held still. (2 mana, 3 tempo)"},
+		{level = 20, slot = 0, card_id = "exposed_artery", name = "Exposed Artery", description = "Deal damage equal to 0.5x the enemy's missing health %%. (5 mana, 2 tempo)"},
 	]
 
 	# Index placements by level for quick lookup
