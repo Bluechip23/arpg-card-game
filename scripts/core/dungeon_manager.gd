@@ -376,21 +376,17 @@ func _build_fog() -> void:
 	for x in range(GRID_W):
 		var col: Array = []
 		for z in range(GRID_H):
-			var should_fog = (grid[x][z] == Tile.FLOOR) or _has_adjacent_floor(x, z)
-			if should_fog:
-				var fog = MeshInstance3D.new()
-				var box = BoxMesh.new()
-				box.size = Vector3(1.05, fog_height, 1.05)  # Slightly oversized to avoid seams
-				fog.mesh = box
-				fog.material_override = fog_mat.duplicate()
-				# Center the box so it spans from below ground to well above everything
-				fog.position = Vector3(x + 0.5, fog_height / 2.0 - 0.5, z + 0.5)
-				fog.visible = true
-				fog.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				_parent.add_child(fog)
-				col.append(fog)
-			else:
-				col.append(null)
+			var fog = MeshInstance3D.new()
+			var box = BoxMesh.new()
+			box.size = Vector3(1.05, fog_height, 1.05)  # Slightly oversized to avoid seams
+			fog.mesh = box
+			fog.material_override = fog_mat.duplicate()
+			# Center the box so it spans from below ground to well above everything
+			fog.position = Vector3(x + 0.5, fog_height / 2.0 - 0.5, z + 0.5)
+			fog.visible = true
+			fog.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			_parent.add_child(fog)
+			col.append(fog)
 		_fog_nodes.append(col)
 
 	_fog_initialized = true
