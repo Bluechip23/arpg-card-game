@@ -1115,6 +1115,84 @@ func _show_card_confirm_modal(card: Card) -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
+	# Card info section
+	var info_panel = PanelContainer.new()
+	var info_style = StyleBoxFlat.new()
+	info_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
+	info_style.corner_radius_top_left = 4
+	info_style.corner_radius_top_right = 4
+	info_style.corner_radius_bottom_left = 4
+	info_style.corner_radius_bottom_right = 4
+	info_style.content_margin_left = 10
+	info_style.content_margin_right = 10
+	info_style.content_margin_top = 8
+	info_style.content_margin_bottom = 8
+	info_panel.add_theme_stylebox_override("panel", info_style)
+	vbox.add_child(info_panel)
+
+	var info_vbox = VBoxContainer.new()
+	info_vbox.add_theme_constant_override("separation", 4)
+	info_panel.add_child(info_vbox)
+
+	# Card type
+	var type_label = Label.new()
+	type_label.text = card.card_type_name
+	type_label.add_theme_font_size_override("font_size", 11)
+	type_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+	type_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info_vbox.add_child(type_label)
+
+	# Mana / Tempo cost
+	var cost_label = Label.new()
+	cost_label.text = "%d Mana / %d Tempo" % [card.mana_cost, card.tempo_cost]
+	cost_label.add_theme_font_size_override("font_size", 11)
+	cost_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info_vbox.add_child(cost_label)
+
+	# Description
+	var desc_label = Label.new()
+	desc_label.text = card.description
+	desc_label.add_theme_font_size_override("font_size", 10)
+	desc_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_label.custom_minimum_size.x = 260
+	info_vbox.add_child(desc_label)
+
+	# Keywords / special properties
+	var keywords := []
+	if card.is_ranged:
+		keywords.append(card.get_range_label())
+	if card.is_aoe:
+		keywords.append("AOE (%s)" % card.aoe_shape if card.aoe_shape != "" else "AOE")
+	if card.has_burden:
+		keywords.append("Burden")
+	if card.sticky > 0:
+		keywords.append("Sticky %d" % card.sticky)
+	if card.glut_tempo > 0:
+		keywords.append("Glut %d" % card.glut_tempo)
+	if card.erase_tempo > 0:
+		keywords.append("Erase %d" % card.erase_tempo)
+	if card.delay_tempo > 0:
+		keywords.append("Delay %d" % card.delay_tempo)
+	if card.maintain_cost > 0:
+		keywords.append("Maintain %d" % card.maintain_cost)
+	if card.has_reach:
+		keywords.append("Reach")
+	if card.card_keyword != Card.CardKeyword.NONE:
+		keywords.append(Card.CardKeyword.keys()[card.card_keyword].capitalize())
+
+	if keywords.size() > 0:
+		var kw_label = Label.new()
+		kw_label.text = " | ".join(keywords)
+		kw_label.add_theme_font_size_override("font_size", 10)
+		kw_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+		kw_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		kw_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		kw_label.custom_minimum_size.x = 260
+		info_vbox.add_child(kw_label)
+
 	# Warning text
 	var warning = Label.new()
 	warning.text = "Are you sure you want add this card?\nIt can not be removed until you use a culling stone."
