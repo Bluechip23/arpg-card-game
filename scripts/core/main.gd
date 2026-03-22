@@ -2240,6 +2240,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	_check_volatile_mixture_in_hand()
 	_apply_in_hand_debuffs()
 	_process_enchantment_cycles()
+	_process_healthy_bliss_cards()
 	_update_gauntlet_skills_ui()
 	update_turn_display()
 	_update_enemy_count()
@@ -2368,6 +2369,32 @@ func _process_enchantment_cycles() -> void:
 			hand_changed = true
 			add_battle_log("%s faded away" % card.card_name, Color(0.2, 0.9, 0.8))
 			print("[MAIN] Enchantment '%s' auto-discarded after 2 cycles" % card.card_name)
+	if hand_changed:
+		deck_manager.hand_updated.emit()
+
+func _process_healthy_bliss_cards() -> void:
+	var hand_changed = false
+	for i in range(deck_manager.hand.size() - 1, -1, -1):
+		var card = deck_manager.hand[i]
+		if card.card_id != "healthy_bliss":
+			continue
+		card.cycles_in_hand += 1
+		if card.cycles_in_hand >= 4:  # 4 cycles = 20 tempo
+			# Heal all allies for 10
+			var stats = player.get_stats()
+			if stats:
+				var heal_amt = stats.get_effective_heal_amount(card.heal_amount)
+				stats.heal(heal_amt)
+				add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
+			for ally in get_tree().get_nodes_in_group("allies"):
+				if ally.has_method("heal"):
+					ally.heal(card.heal_amount)
+			# Discard the card
+			deck_manager.hand.remove_at(i)
+			deck_manager.discard_pile.append(card)
+			card.cycles_in_hand = 0
+			hand_changed = true
+			print("[MAIN] Healthy Bliss triggered after 20 tempo in hand")
 	if hand_changed:
 		deck_manager.hand_updated.emit()
 

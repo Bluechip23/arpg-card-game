@@ -4367,8 +4367,6 @@ static func create_healthy_bliss() -> Card:
 	card.base_block = 0
 	card.heal_amount = 10
 	card.target_types = ["ally"]
-	card.has_on_draw = true
-	card.on_draw_effect = "After 20 tempo in hand, heal all allies for 10"
 	return card
 
 # ============================================
@@ -4455,13 +4453,13 @@ static func create_multishot() -> Card:
 	var card = Card.new()
 	card.card_id = "multishot"
 	card.card_name = "Multishot"
-	card.description = "Attack 3 times, each time gaining 10%% crit chance. Glut 5."
+	card.description = "Deal 7 damage 3 times, each time gaining 10%% crit chance. Glut 5."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
 	card.tempo_cost = 6
-	card.damage = 0
-	card.base_damage = 0
+	card.damage = 7
+	card.base_damage = 7
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
