@@ -3905,3 +3905,605 @@ static func create_vengeful_shield() -> Card:
 	card.reaction_trigger = "on_exposed"
 	card.target_types = ["self"]
 	return card
+
+# ============================================
+# CORY NEW CARDS
+# ============================================
+
+static func create_misery_loves_company() -> Card:
+	var card = Card.new()
+	card.card_id = "misery_loves_company"
+	card.card_name = "Misery Loves Company"
+	card.description = "Your next AOE attack spreads the debuffs on yourself and all enemies hit, to all the enemies that are hit."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 5
+	card.tempo_cost = 1
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_release_tension() -> Card:
+	var card = Card.new()
+	card.card_id = "release_tension"
+	card.card_name = "Release Tension"
+	card.description = "Remove a stack of debuffs from the enemy and heal for the amount of debuffs removed x3. Choose which debuff."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_vines() -> Card:
+	var card = Card.new()
+	card.card_id = "vines"
+	card.card_name = "Vines"
+	card.description = "Summon vines holding an enemy in place for 3 turns. Deal 4 damage per turn the enemy is held still."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 3
+	card.damage = 4
+	card.base_damage = 4
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.duration = 15  # 3 turns ~ 15 tempo
+	card.target_types = ["enemy"]
+	return card
+
+# ============================================
+# BRAD NEW CARDS
+# ============================================
+
+static func create_internal_combustion() -> Card:
+	var card = Card.new()
+	card.card_id = "internal_combustion"
+	card.card_name = "Internal Combustion"
+	card.description = "Remove half your armor and deal damage around you based on the amount."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 4
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.target_types = ["self"]
+	return card
+
+static func create_savage_strike() -> Card:
+	var card = Card.new()
+	card.card_id = "savage_strike"
+	card.card_name = "Savage Strike"
+	card.description = "Deal 6 damage. Add a copy of this card to your discard pile. The copy has Erase 20."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 6
+	card.base_damage = 6
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_savage_strike_copy() -> Card:
+	var card = Card.new()
+	card.card_id = "savage_strike_copy"
+	card.card_name = "Savage Strike"
+	card.description = "Deal 6 damage. Add a copy of this card to your discard pile. The copy has Erase 20."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 6
+	card.base_damage = 6
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.erase_tempo = 20
+	card.erase_tempo_remaining = 20
+	card.target_types = ["enemy"]
+	return card
+
+static func create_heavy_swing() -> Card:
+	var card = Card.new()
+	card.card_id = "heavy_swing"
+	card.card_name = "Heavy Swing"
+	card.description = "Can only be played if only attack cards are in your hand. Deal 20 damage."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 3
+	card.tempo_cost = 3
+	card.damage = 20
+	card.base_damage = 20
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_shed_weight() -> Card:
+	var card = Card.new()
+	card.card_id = "shed_weight"
+	card.card_name = "Shed Weight"
+	card.description = "Discard all defensive cards in your hand. For each card discarded, subtract one tempo from a non-defensive card in your hand."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 4
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_give_in() -> Card:
+	var card = Card.new()
+	card.card_id = "give_in"
+	card.card_name = "Give In"
+	card.description = "Immediately gain 3 mana. The next time you would draw from Tempo being triggered, you don't."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_shield_slam() -> Card:
+	var card = Card.new()
+	card.card_id = "shield_slam"
+	card.card_name = "Shield Slam"
+	card.description = "Deal damage based on your current armor. Lose half your armor."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 5
+	card.tempo_cost = 10
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_tower_shield() -> Card:
+	var card = Card.new()
+	card.card_id = "tower_shield"
+	card.card_name = "Tower Shield"
+	card.description = "Gain 40 armor. Become staggered for 40 tempo."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 5
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 40
+	card.base_block = 40
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_living_armor() -> Card:
+	var card = Card.new()
+	card.card_id = "living_armor"
+	card.card_name = "Living Armor"
+	card.description = "Gain regen until it is equal to your fortify."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 3
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_the_lights_favor() -> Card:
+	var card = Card.new()
+	card.card_id = "the_lights_favor"
+	card.card_name = "The Light's Favor"
+	card.description = "Heal 5 and draw a card."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 2
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 5
+	card.target_types = ["self"]
+	return card
+
+static func create_hunker_down() -> Card:
+	var card = Card.new()
+	card.card_id = "hunker_down"
+	card.card_name = "Hunker Down"
+	card.description = "Gain Fortify for 30 tempo."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 4
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.duration = 30
+	card.target_types = ["self"]
+	return card
+
+static func create_succumb() -> Card:
+	var card = Card.new()
+	card.card_id = "succumb"
+	card.card_name = "Succumb"
+	card.description = "For 20 tempo, gain fortify, blessed 2, strengthen 5, and Resilient 20%%. After 10 tempo, take 10 damage. After 10 additional tempo, take 10 more damage and become cuffed, drained, and disarmed for 10 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_harden() -> Card:
+	var card = Card.new()
+	card.card_id = "harden"
+	card.card_name = "Harden"
+	card.description = "Gain 10%% physical resistance for 15 tempo and 10 armor."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 3
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 10
+	card.base_block = 10
+	card.heal_amount = 0
+	card.duration = 15
+	card.target_types = ["self"]
+	return card
+
+static func create_roll() -> Card:
+	var card = Card.new()
+	card.card_id = "roll"
+	card.card_name = "Roll"
+	card.description = "Roll X squares where X is the tempo cost, max 5. When hitting another character, end the roll. If enemy, deal 10 damage and disarm for 5 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 1
+	card.tempo_cost = 5
+	card.damage = 10
+	card.base_damage = 10
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["point"]
+	return card
+
+# ============================================
+# JEREMY NEW CARDS
+# ============================================
+
+static func create_cryonics() -> Card:
+	var card = Card.new()
+	card.card_id = "cryonics"
+	card.card_name = "Cryonics"
+	card.description = "Encase an ally in ice for 15 tempo. They cannot act but are untargetable. They heal 3 health per 5 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 1
+	card.tempo_cost = 6
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 3
+	card.duration = 15
+	card.is_ranged = true
+	card.target_types = ["ally"]
+	return card
+
+static func create_friendship() -> Card:
+	var card = Card.new()
+	card.card_id = "friendship"
+	card.card_name = "Friendship"
+	card.description = "Choose two allies. When one heals, they both heal. When one takes damage, they split it."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.target_types = ["ally"]
+	return card
+
+static func create_provider() -> Card:
+	var card = Card.new()
+	card.card_id = "provider"
+	card.card_name = "Provider"
+	card.description = "Heal an ally 6 health and give them one mana. Burden."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 1
+	card.tempo_cost = 1
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 6
+	card.has_burden = true
+	card.is_ranged = true
+	card.target_types = ["ally"]
+	return card
+
+static func create_fireball() -> Card:
+	var card = Card.new()
+	card.card_id = "fireball"
+	card.card_name = "Fireball"
+	card.description = "Hurl a massive fireball. Range +5, 12 damage, apply 3 burn. Costs 1 less mana for each other fire spell cast this turn. AOE circle 4 squares."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 8
+	card.tempo_cost = 8
+	card.damage = 12
+	card.base_damage = 12
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.range_modifier = 5
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 2.0  # 4 squares diameter = 2 radius
+	card.target_types = ["point"]
+	return card
+
+static func create_spark() -> Card:
+	var card = Card.new()
+	card.card_id = "spark"
+	card.card_name = "Spark"
+	card.description = "Deal 3 damage. Ranged -2. Subtract 2 tempo from 2 random cards in your hand. In 15 tempo, add 2 tempo to two random cards in your hand."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 1
+	card.tempo_cost = 3
+	card.damage = 3
+	card.base_damage = 3
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.range_modifier = -2
+	card.target_types = ["enemy"]
+	return card
+
+static func create_god_of_thunder() -> Card:
+	var card = Card.new()
+	card.card_id = "god_of_thunder"
+	card.card_name = "God of Thunder"
+	card.description = "Absorb all shock on enemies and cast down a massive bolt of lightning dealing damage based on the amount of shock absorbed."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 5
+	card.tempo_cost = 10
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.target_types = ["point"]
+	return card
+
+static func create_worms_armageddon() -> Card:
+	var card = Card.new()
+	card.card_id = "worms_armageddon"
+	card.card_name = "Worms Armageddon"
+	card.description = "Rain massive meteors dealing significant damage. 10%% to summon two Alaskan Bull Worms (12 HP, 6 damage, burrowed until attacking, untargetable while burrowed, 1 movement per tempo)."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 5
+	card.tempo_cost = 10
+	card.damage = 15
+	card.base_damage = 15
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.rng_outcomes_data = [{"percent": 10.0}]
+	card.target_types = ["point"]
+	return card
+
+static func create_healthy_bliss() -> Card:
+	var card = Card.new()
+	card.card_id = "healthy_bliss"
+	card.card_name = "Healthy Bliss"
+	card.description = "Instant: Once this has been in your hand for 20 tempo, automatically heal all allies for 10 health."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 10
+	card.target_types = ["ally"]
+	card.has_on_draw = true
+	card.on_draw_effect = "After 20 tempo in hand, heal all allies for 10"
+	return card
+
+# ============================================
+# RYAN NEW CARDS
+# ============================================
+
+static func create_adrenaline_shot() -> Card:
+	var card = Card.new()
+	card.card_id = "adrenaline_shot"
+	card.card_name = "Adrenaline Shot"
+	card.description = "Decrease the tempo of two cards in the target's hand by 3. In 5 tempo, increase a random card's tempo by 3 and another by 2."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 3
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.target_types = ["ally"]
+	return card
+
+static func create_patience() -> Card:
+	var card = Card.new()
+	card.card_id = "patience"
+	card.card_name = "Patience"
+	card.description = "In 15 tempo, draw 3 cards."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 2
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.delay_tempo = 15
+	card.target_types = ["self"]
+	return card
+
+static func create_gargle_and_spit() -> Card:
+	var card = Card.new()
+	card.card_id = "gargle_and_spit"
+	card.card_name = "Gargle and Spit"
+	card.description = "Heal 3 and provide +1 strength. Sticky 4."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 1
+	card.tempo_cost = 1
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 3
+	card.sticky = 4
+	card.target_types = ["self"]
+	return card
+
+# ============================================
+# STEPHEN NEW CARDS
+# ============================================
+
+static func create_exhausted_assault() -> Card:
+	var card = Card.new()
+	card.card_id = "exhausted_assault"
+	card.card_name = "Exhausted Assault"
+	card.description = "While you have zero mana, this card costs 0 mana. Deal 4 damage 3 times. Glut 10."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 4
+	card.tempo_cost = 3
+	card.damage = 4
+	card.base_damage = 4
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.glut_tempo = 10
+	card.target_types = ["enemy"]
+	return card
+
+static func create_multishot() -> Card:
+	var card = Card.new()
+	card.card_id = "multishot"
+	card.card_name = "Multishot"
+	card.description = "Attack 3 times, each time gaining 10%% crit chance. Glut 5."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 3
+	card.tempo_cost = 6
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.glut_tempo = 5
+	card.target_types = ["enemy"]
+	return card
+
+static func create_specific_strike() -> Card:
+	var card = Card.new()
+	card.card_id = "specific_strike"
+	card.card_name = "Specific Strike"
+	card.description = "Costs +1m/+1t for each other card in your hand."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_spirit_arrow() -> Card:
+	var card = Card.new()
+	card.card_id = "spirit_arrow"
+	card.card_name = "Spirit Arrow"
+	card.description = "Arrow that shoots through all enemies and obstructions in a direct line."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 3
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.is_aoe = true
+	card.aoe_shape = "line"
+	card.card_keyword = CardKeyword.ARROW
+	card.target_types = ["point"]
+	return card
