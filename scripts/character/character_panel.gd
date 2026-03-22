@@ -31,6 +31,11 @@ var _detail_storage_index: int = -1  # >= 0 means stored item, -1 means equipped
 var _card_slot_panel: PanelContainer = null
 var _card_slot_item: ItemData = null
 
+# Card confirm modal state
+var _pending_card: Card = null
+var _pending_card_index: int = -1
+var _card_confirm_popup: PanelContainer = null
+
 func _ready() -> void:
 	layer = 100
 	_apply_panel_style()
@@ -1071,11 +1076,98 @@ func _on_card_cell_input(event: InputEvent, card: Card, card_index: int) -> void
 func _on_card_cell_clicked(card: Card, card_index: int) -> void:
 	if not inventory or not deck_manager:
 		return
-	if inventory.add_card_to_deck(card_index, deck_manager):
-		var main_node = get_node_or_null("/root/Main")
-		if main_node and main_node.has_method("add_battle_log"):
-			main_node.add_battle_log("Added %s to deck!" % card.card_name, Color(0.4, 1.0, 0.5))
-		update_display()
+	_pending_card = card
+	_pending_card_index = card_index
+	_show_card_confirm_modal(card)
+
+func _show_card_confirm_modal(card: Card) -> void:
+	_dismiss_card_confirm_modal()
+
+	_card_confirm_popup = PanelContainer.new()
+	_card_confirm_popup.z_index = 200
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.14, 0.95)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(1.0, 0.84, 0.0)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	_card_confirm_popup.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	_card_confirm_popup.add_child(vbox)
+
+	# Card name header
+	var title = Label.new()
+	title.text = "Add \"%s\" to deck?" % card.card_name
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	# Warning text
+	var warning = Label.new()
+	warning.text = "Are you sure you want add this card?\nIt can not be removed until you use a culling stone."
+	warning.add_theme_font_size_override("font_size", 11)
+	warning.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warning.custom_minimum_size.x = 260
+	vbox.add_child(warning)
+
+	# Buttons
+	var btn_row = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 12)
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_row)
+
+	var confirm_btn = Button.new()
+	confirm_btn.text = "Add to Deck"
+	confirm_btn.custom_minimum_size = Vector2(100, 30)
+	confirm_btn.add_theme_font_size_override("font_size", 11)
+	confirm_btn.pressed.connect(_on_card_confirm_yes)
+	btn_row.add_child(confirm_btn)
+
+	var cancel_btn = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.custom_minimum_size = Vector2(80, 30)
+	cancel_btn.add_theme_font_size_override("font_size", 11)
+	cancel_btn.pressed.connect(_dismiss_card_confirm_modal)
+	btn_row.add_child(cancel_btn)
+
+	panel.add_child(_card_confirm_popup)
+
+	# Center on panel
+	await get_tree().process_frame
+	if is_instance_valid(_card_confirm_popup) and is_instance_valid(panel):
+		_card_confirm_popup.position = (panel.size - _card_confirm_popup.size) / 2
+
+func _on_card_confirm_yes() -> void:
+	if _pending_card and _pending_card_index >= 0 and inventory and deck_manager:
+		var card_name = _pending_card.card_name
+		if inventory.add_card_to_deck(_pending_card_index, deck_manager):
+			var main_node = get_node_or_null("/root/Main")
+			if main_node and main_node.has_method("add_battle_log"):
+				main_node.add_battle_log("Added %s to deck!" % card_name, Color(0.4, 1.0, 0.5))
+	_pending_card = null
+	_pending_card_index = -1
+	_dismiss_card_confirm_modal()
+	update_display()
+
+func _dismiss_card_confirm_modal() -> void:
+	if is_instance_valid(_card_confirm_popup):
+		_card_confirm_popup.queue_free()
+	_card_confirm_popup = null
 
 func _on_storage_cell_input(event: InputEvent, item: ItemData, storage_index: int) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
