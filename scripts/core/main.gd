@@ -3470,6 +3470,15 @@ func _spawn_dungeon_zone(zone_index: int) -> void:
 	_update_enemy_count()
 	_refresh_unit_tracker()
 
+	# Hide newly spawned enemies that are in fog
+	if dungeon_manager:
+		dungeon_manager.update_enemy_fog_visibility(
+			enemy_spawner.get_living_enemies(), grid_manager
+		)
+
+	add_battle_log("Enemies appear!", Color(1.0, 0.4, 0.4))
+	print("[MAIN] Dungeon zone %d triggered! Spawned %d enemies." % [zone_index, count])
+
 func _find_valid_spawn_cell(desired: Vector2i, used_cells: Array[Vector2i]) -> Vector2i:
 	## Returns desired cell if it's a walkable floor and not occupied.
 	## Otherwise searches nearby cells in expanding rings for a valid alternative.
@@ -3488,15 +3497,6 @@ func _find_valid_spawn_cell(desired: Vector2i, used_cells: Array[Vector2i]) -> V
 	# Fallback: return desired anyway (shouldn't happen with well-designed maps)
 	print("[MAIN] WARNING: Could not find valid spawn near %s!" % desired)
 	return desired
-
-	# Hide newly spawned enemies that are in fog
-	if dungeon_manager:
-		dungeon_manager.update_enemy_fog_visibility(
-			enemy_spawner.get_living_enemies(), grid_manager
-		)
-
-	add_battle_log("Enemies appear!", Color(1.0, 0.4, 0.4))
-	print("[MAIN] Dungeon zone %d triggered! Spawned %d enemies." % [zone_index, count])
 
 func _update_fog_of_war() -> void:
 	if not dungeon_manager:
