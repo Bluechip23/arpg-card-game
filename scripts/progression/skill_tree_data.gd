@@ -413,7 +413,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
@@ -550,7 +550,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
@@ -684,7 +684,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
@@ -816,7 +816,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
@@ -954,7 +954,7 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
