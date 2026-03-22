@@ -97,11 +97,9 @@ func _build_legend() -> void:
 
 	# Card-Item Slot Section
 	_add_section_header("CARD-ITEM SLOTS")
-	_add_keyword("Enchant", "Places a card into an item's card slot. Card is removed from the deck. Picky cards must match item type", Color(0.8, 0.6, 1.0))
+	_add_keyword("Enchant", "Places a card into an item's card slot. Card is removed from the deck. Card keyword must match item type", Color(0.8, 0.6, 1.0))
 	_add_keyword("Extract", "Removes a card from an item's card slot and returns it to the discard pile", Color(1.0, 0.4, 0.4))
 	_add_keyword("Molded", "Card is locked into the item and cannot be removed (extracted)", Color(0.6, 0.6, 0.6))
-	_add_keyword("Picky", "Card can only be re-equipped to an item of the same type it was extracted from", Color(1.0, 0.8, 0.3))
-	_add_keyword("Pliable", "Card can be re-equipped to an item of any type", Color(0.3, 1.0, 0.7))
 	_add_keyword("Chisel", "Card must be slotted in an item to be played. Cannot be played from hand alone", Color(0.9, 0.7, 0.3))
 	_add_keyword("On-Self", "Bonus effects that apply to cards slotted in that specific item, on top of the item's base bonuses", Color(0.6, 0.9, 0.6))
 
@@ -123,10 +121,13 @@ func _build_legend() -> void:
 	_add_keyword("Arrow", "Requires a bow/quiver to slot. Ranged bow attack cards (e.g., Down Town, Lead Arrow)", Color(0.3, 0.8, 0.9))
 	_add_keyword("Pocket", "Small items like daggers and potions. Slots into belts and similar equipment", Color(0.8, 0.6, 0.3))
 	_add_keyword("Gem", "Gem cards for special equipment. Not yet available", Color(0.6, 0.3, 0.9))
+	_add_keyword("Crown", "Cards that slot into helmets", Color(1.0, 0.85, 0.2))
+	_add_keyword("Buckler", "Cards that slot into shields", Color(0.5, 0.7, 0.9))
+	_add_keyword("Fist", "Cards that slot into gauntlets", Color(0.9, 0.5, 0.4))
+	_add_keyword("Swift", "Cards that slot into boots", Color(0.4, 0.9, 0.7))
 
 	# Card Mechanics Section
 	_add_section_header("CARD MECHANICS")
-	_add_keyword("Empower", "Buffs the next X cards played: +3 damage for attacks, -3 mana cost for defense", Color(1, 0.85, 0.3))
 	_add_keyword("Erase", "After X tempo, this card is permanently deleted from the deck", Color(0.9, 0.2, 0.2))
 	_add_keyword("On-Draw", "Card triggers an effect when drawn into hand (e.g., deal damage to a random enemy)", Color(0.5, 0.9, 0.5))
 	_add_keyword("On-Discard", "Card triggers an effect when discarded from hand", Color(1.0, 0.5, 0.3))
