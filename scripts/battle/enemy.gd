@@ -780,6 +780,8 @@ func _try_scurry_away(target_node: Node3D) -> bool:
 			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 			for d in dirs:
 				var candidate = cell + d
+				if candidate == threat_cell:
+					continue  # Don't scurry onto player
 				if candidate in blocked_tiles:
 					continue
 				if candidate in occupied_tiles:
@@ -833,6 +835,8 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 			for d in dirs:
 				var candidate = cell + d
+				if candidate == player_cell:
+					continue  # Don't walk onto player
 				if candidate in blocked_tiles:
 					continue
 				if candidate in occupied_tiles:
@@ -939,6 +943,8 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 			for d in dirs:
 				var candidate = cell + d
+				if candidate == player_cell:
+					continue  # Don't dash onto player
 				if candidate in blocked_tiles:
 					continue
 				if candidate in occupied_tiles:

@@ -755,12 +755,12 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	var wp_root = Node3D.new()
 	wp_root.name = "Waypoint_%s" % target
 
-	# Waypoint visual: glowing pillar
+	# Waypoint visual: flat glowing disc on the ground
 	var pillar = MeshInstance3D.new()
 	var cyl = CylinderMesh.new()
-	cyl.top_radius = 0.3
-	cyl.bottom_radius = 0.4
-	cyl.height = 2.0
+	cyl.top_radius = 0.45
+	cyl.bottom_radius = 0.45
+	cyl.height = 0.08
 	pillar.mesh = cyl
 	var pillar_mat = StandardMaterial3D.new()
 	match target:
@@ -777,7 +777,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	pillar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	pillar_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	pillar.material_override = pillar_mat
-	pillar.position = Vector3(0, 1.0, 0)
+	pillar.position = Vector3(0, 0.05, 0)
 	wp_root.add_child(pillar)
 
 	# Label
@@ -787,7 +787,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(1.0, 1.0, 0.8)
-	label.position = Vector3(0, 2.5, 0)
+	label.position = Vector3(0, 0.8, 0)
 	wp_root.add_child(label)
 
 	# Interact label (shown when nearby)
@@ -797,7 +797,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	interact_label.font_size = 16
 	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
-	interact_label.position = Vector3(0, 3.0, 0)
+	interact_label.position = Vector3(0, 1.2, 0)
 	interact_label.visible = false
 	wp_root.add_child(interact_label)
 
