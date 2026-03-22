@@ -1649,6 +1649,8 @@ func _on_move_cancelled() -> void:
 
 ## Fires on every global tempo addition - routes to per-system handlers.
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
+	# Sync enemy positions so they don't stack on each other
+	_sync_occupied_tiles()
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
@@ -3445,14 +3447,47 @@ func _spawn_dungeon_zone(zone_index: int) -> void:
 	var enemy_types: Array = zone["enemy_types"]
 	var count = mini(spawn_points.size(), enemy_types.size())
 
+	# Track cells used by already-spawned enemies to avoid stacking
+	var used_cells: Array[Vector2i] = []
+	for enemy in enemy_spawner.get_living_enemies():
+		used_cells.append(grid_manager.world_to_grid(enemy.position))
+	# Also include player cell
+	used_cells.append(grid_manager.world_to_grid(player.position))
+
 	for i in range(count):
-		var world_pos = grid_manager.grid_to_world(spawn_points[i])
+		var cell = spawn_points[i] as Vector2i
+		# Validate spawn point is on a floor tile and not already occupied
+		cell = _find_valid_spawn_cell(cell, used_cells)
+		used_cells.append(cell)
+		var world_pos = grid_manager.grid_to_world(cell)
+		if dungeon_manager:
+			world_pos.y = dungeon_manager.get_elevation_world_y(cell)
 		enemy_spawner.spawn_enemy(enemy_types[i], world_pos)
 
 	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
 	_sync_pillar_tiles()
 	_update_enemy_count()
 	_refresh_unit_tracker()
+
+func _find_valid_spawn_cell(desired: Vector2i, used_cells: Array[Vector2i]) -> Vector2i:
+	## Returns desired cell if it's a walkable floor and not occupied.
+	## Otherwise searches nearby cells in expanding rings for a valid alternative.
+	if dungeon_manager and dungeon_manager.is_floor(desired) and desired not in used_cells:
+		return desired
+	# BFS outward to find nearest valid floor tile
+	for radius in range(1, 8):
+		for dx in range(-radius, radius + 1):
+			for dz in range(-radius, radius + 1):
+				if absi(dx) != radius and absi(dz) != radius:
+					continue  # Only check the ring perimeter
+				var candidate = desired + Vector2i(dx, dz)
+				if dungeon_manager and dungeon_manager.is_floor(candidate) and candidate not in used_cells:
+					print("[MAIN] Spawn nudged from %s to %s (original was wall/occupied)" % [desired, candidate])
+					return candidate
+	# Fallback: return desired anyway (shouldn't happen with well-designed maps)
+	print("[MAIN] WARNING: Could not find valid spawn near %s!" % desired)
+	return desired
 
 	# Hide newly spawned enemies that are in fog
 	if dungeon_manager:
@@ -3495,9 +3530,18 @@ func _on_spawn_wave() -> void:
 	print("[MAIN] Spawned new wave!")
 
 func _on_spawn_elite() -> void:
-	var pos = Vector3(randf_range(9, 16), 0, randf_range(2, 8))
-	enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, pos)
+	var used_cells: Array[Vector2i] = []
+	for enemy in enemy_spawner.get_living_enemies():
+		used_cells.append(grid_manager.world_to_grid(enemy.position))
+	used_cells.append(grid_manager.world_to_grid(player.position))
+	var desired = Vector2i(randi_range(9, 16), randi_range(2, 8))
+	var cell = _find_valid_spawn_cell(desired, used_cells)
+	var world_pos = grid_manager.grid_to_world(cell)
+	if dungeon_manager:
+		world_pos.y = dungeon_manager.get_elevation_world_y(cell)
+	enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, world_pos)
 	_sync_blocked_tiles()
+	_sync_occupied_tiles()
 	_sync_pillar_tiles()
 	_update_enemy_count()
 	_refresh_unit_tracker()
@@ -4069,6 +4113,19 @@ func _sync_blocked_tiles() -> void:
 	player.blocked_tiles = tiles
 	for enemy in enemy_spawner.get_living_enemies():
 		enemy.blocked_tiles = tiles
+
+func _sync_occupied_tiles() -> void:
+	## Tells each enemy where every OTHER enemy currently stands so they don't stack.
+	var living = enemy_spawner.get_living_enemies()
+	var all_cells: Array[Vector2i] = []
+	for enemy in living:
+		all_cells.append(grid_manager.world_to_grid(enemy.position))
+	for i in range(living.size()):
+		var other_cells: Array[Vector2i] = []
+		for j in range(all_cells.size()):
+			if j != i:
+				other_cells.append(all_cells[j])
+		living[i].occupied_tiles = other_cells
 
 # ============================================
 # RISE PILLAR

@@ -41,6 +41,7 @@ var grid_manager: GridManager
 var dungeon_manager = null  # Set by main.gd for elevation lookups
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
 var pillar_tiles: Array[Vector2i] = []   # Set by main.gd for rise pillars (traps enemy on top)
+var occupied_tiles: Array[Vector2i] = [] # Set by main.gd: tiles occupied by other enemies
 
 # Armor Break: set by card.execute() before attack, cleared after
 var armor_break_incoming: bool = false
@@ -781,6 +782,8 @@ func _try_scurry_away(target_node: Node3D) -> bool:
 				var candidate = cell + d
 				if candidate in blocked_tiles:
 					continue
+				if candidate in occupied_tiles:
+					continue  # Don't scurry onto other enemies
 				var dist = _manhattan_dist(candidate, threat_cell)
 				if dist > best_dist:
 					best_dist = dist
@@ -832,6 +835,8 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 				var candidate = cell + d
 				if candidate in blocked_tiles:
 					continue
+				if candidate in occupied_tiles:
+					continue  # Don't walk onto other enemies
 				var dist = _manhattan_dist(candidate, player_cell)
 				if dist < best_dist:
 					best_dist = dist
@@ -840,6 +845,9 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 				break
 			last_valid = grid_manager.grid_to_world(best_cell)
 		if last_valid != position:
+			var final_cell = grid_manager.world_to_grid(last_valid)
+			if final_cell in occupied_tiles:
+				return true  # Can't move, but don't fail
 			var new_target = last_valid
 			if dungeon_manager:
 				var target_cell = grid_manager.world_to_grid(new_target)
@@ -933,6 +941,8 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 				var candidate = cell + d
 				if candidate in blocked_tiles:
 					continue
+				if candidate in occupied_tiles:
+					continue  # Don't dash onto other enemies
 				var dist = _manhattan_dist(candidate, player_cell)
 				if dist < best_dist:
 					best_dist = dist
@@ -942,6 +952,9 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 			last_valid = grid_manager.grid_to_world(best_cell)
 		if last_valid == position:
 			return  # Can't move at all
+		var final_cell = grid_manager.world_to_grid(last_valid)
+		if final_cell in occupied_tiles:
+			return
 		var new_target = last_valid
 		if dungeon_manager:
 			var target_cell = grid_manager.world_to_grid(new_target)
@@ -1075,6 +1088,8 @@ func move_towards_target(pos: Vector3) -> void:
 					continue  # Don't walk onto player
 				if candidate in blocked_tiles:
 					continue  # Don't walk into walls
+				if candidate in occupied_tiles:
+					continue  # Don't walk onto other enemies
 				var dist = _manhattan_dist(candidate, player_cell)
 				if dist < best_dist:
 					best_dist = dist
@@ -1085,6 +1100,11 @@ func move_towards_target(pos: Vector3) -> void:
 
 		if last_valid == position:
 			return  # Can't move at all
+
+		var final_cell = grid_manager.world_to_grid(last_valid)
+		# Double-check final destination isn't occupied (another enemy may have moved there this tick)
+		if final_cell in occupied_tiles or final_cell == grid_manager.world_to_grid(pos):
+			return
 
 		var new_target = last_valid
 		# Adjust target Y based on terrain elevation
