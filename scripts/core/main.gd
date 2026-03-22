@@ -1685,6 +1685,15 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.attacked_player.connect(_on_enemy_attacked_player)
 	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
 	enemy.movement_completed.connect(_on_enemy_movement_completed)
+	# Give enemy a reference to dungeon_manager for elevation lookups
+	if dungeon_manager:
+		enemy.dungeon_manager = dungeon_manager
+	# Adjust initial Y position based on terrain elevation
+	if dungeon_manager and grid_manager:
+		var enemy_cell = grid_manager.world_to_grid(enemy.position)
+		var elev_y = dungeon_manager.get_elevation_world_y(enemy_cell)
+		enemy.position.y = elev_y
+		enemy.target_position.y = elev_y
 
 var _disarm_mastery_applying: bool = false  # Guard against recursive disarm
 var _wither_applying: bool = false  # Guard against recursive wither
@@ -1725,6 +1734,13 @@ func _on_enemy_exposed(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_stephen_on_expose(enemy)
 
 func _on_enemy_movement_completed(enemy: Enemy) -> void:
+	# Adjust enemy Y position based on terrain elevation
+	if dungeon_manager and grid_manager:
+		var enemy_cell = grid_manager.world_to_grid(enemy.position)
+		var elev_y = dungeon_manager.get_elevation_world_y(enemy_cell)
+		enemy.position.y = elev_y
+		enemy.target_position.y = elev_y
+
 	# Cory: Territorial Death — check if enemy entered or left melee range
 	var dist = player.position.distance_to(enemy.position)
 	var in_melee = dist <= 1.8  # Slightly larger than 1.5 to catch edge cases

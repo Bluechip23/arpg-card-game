@@ -59,8 +59,14 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1) -> void:
 	_place_chests()
 	_define_spawn_zones()
 	_place_waypoints()
-	# Reveal around the starting position
+	# Reveal the starting room fully plus area around the player
+	var mid_z = GRID_H / 2
+	# Reveal corners of starting room so no fog pillars appear at start
 	reveal_around(player_start)
+	reveal_around(Vector2i(0, mid_z - 4))
+	reveal_around(Vector2i(5, mid_z - 4))
+	reveal_around(Vector2i(0, mid_z + 4))
+	reveal_around(Vector2i(5, mid_z + 4))
 
 func _set_world_size() -> void:
 	match world_level:
