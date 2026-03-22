@@ -237,11 +237,8 @@ func _update_equipment_display() -> void:
 	weight_label.add_theme_color_override("font_color", Color(0.65, 0.65, 0.7))
 	equipment_container.add_child(weight_label)
 
-	# Inventory storage grid
+	# Inventory storage grid (items + cards)
 	_update_storage_grid()
-
-	# Card inventory section
-	_update_card_inventory_display()
 
 func _get_character_passive() -> String:
 	if not inventory:
@@ -917,7 +914,8 @@ func _update_storage_grid() -> void:
 	# Inventory header row: "INVENTORY (X/20)" on left, "Gold: X" and "Culling Stones: X" on right
 	var inv_header_hbox = HBoxContainer.new()
 
-	var storage_header = _make_section_header("INVENTORY (%d/%d)" % [inventory.get_stored_item_count(), inventory.max_storage_slots])
+	var total_count = inventory.get_stored_item_count() + inventory.get_stored_card_count()
+	var storage_header = _make_section_header("INVENTORY (%d/%d)" % [total_count, inventory.max_storage_slots])
 	inv_header_hbox.add_child(storage_header)
 
 	var spacer = Control.new()
@@ -955,6 +953,13 @@ func _update_storage_grid() -> void:
 	for i in range(inventory.max_storage_slots):
 		var cell = _create_storage_cell(i)
 		grid.add_child(cell)
+
+	# Show stored cards in the same grid
+	for i in range(inventory.get_stored_card_count()):
+		var card = inventory.get_stored_card(i)
+		if card:
+			var cell = _create_card_storage_cell(card, i)
+			grid.add_child(cell)
 
 func _create_storage_cell(index: int) -> PanelContainer:
 	var cell = PanelContainer.new()
@@ -1017,83 +1022,56 @@ func _create_storage_cell(index: int) -> PanelContainer:
 
 	return cell
 
-func _update_card_inventory_display() -> void:
-	if not equipment_container or not inventory:
-		return
+func _create_card_storage_cell(card: Card, card_index: int) -> PanelContainer:
+	var cell = PanelContainer.new()
+	cell.custom_minimum_size = Vector2(62, 48)
 
-	equipment_container.add_child(_make_separator())
+	var style = StyleBoxFlat.new()
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
+	style.bg_color = Color(0.15, 0.12, 0.22, 1.0)
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(1.0, 0.84, 0.0)
+	cell.add_theme_stylebox_override("panel", style)
 
-	var card_count = inventory.get_stored_card_count()
-	var card_header = _make_section_header("CARD INVENTORY (%d/%d)" % [card_count, inventory.max_card_storage])
-	equipment_container.add_child(card_header)
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 0)
+	cell.add_child(vbox)
 
-	if card_count == 0:
-		var empty_label = Label.new()
-		empty_label.text = "No cards stored"
-		empty_label.add_theme_font_size_override("font_size", 11)
-		empty_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
-		equipment_container.add_child(empty_label)
-		return
+	var type_label = Label.new()
+	type_label.add_theme_font_size_override("font_size", 9)
+	type_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	type_label.text = "Card"
+	type_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
 
-	for i in range(card_count):
-		var card = inventory.get_stored_card(i)
-		if not card:
-			continue
+	var cell_name_label = Label.new()
+	cell_name_label.add_theme_font_size_override("font_size", 10)
+	cell_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cell_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	cell_name_label.text = card.card_name
+	cell_name_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 
-		var row = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
+	cell.gui_input.connect(_on_card_cell_input.bind(card, card_index))
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
 
-		# Card name
-		var name_lbl = Label.new()
-		name_lbl.text = card.card_name
-		name_lbl.add_theme_font_size_override("font_size", 11)
-		name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(name_lbl)
+	vbox.add_child(type_label)
+	vbox.add_child(cell_name_label)
 
-		# Card type
-		var type_lbl = Label.new()
-		type_lbl.add_theme_font_size_override("font_size", 10)
-		match card.card_type:
-			Card.CardType.ATTACK:
-				type_lbl.text = "ATK"
-				type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
-			Card.CardType.DEFENSE:
-				type_lbl.text = "DEF"
-				type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
-			Card.CardType.UTILITY:
-				type_lbl.text = "UTIL"
-				type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
-			Card.CardType.POWER:
-				type_lbl.text = "PWR"
-				type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-			_:
-				type_lbl.text = ""
-		row.add_child(type_lbl)
+	return cell
 
-		# Mana cost
-		var cost_lbl = Label.new()
-		cost_lbl.text = "%dM" % card.mana_cost
-		cost_lbl.add_theme_font_size_override("font_size", 10)
-		cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-		row.add_child(cost_lbl)
+func _on_card_cell_input(event: InputEvent, card: Card, card_index: int) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_on_card_cell_clicked(card, card_index)
 
-		# Add to Deck button
-		var add_btn = Button.new()
-		add_btn.text = "Add to Deck"
-		add_btn.custom_minimum_size = Vector2(80, 24)
-		add_btn.add_theme_font_size_override("font_size", 10)
-		add_btn.pressed.connect(_on_add_stored_card_to_deck.bind(i))
-		row.add_child(add_btn)
-
-		equipment_container.add_child(row)
-
-func _on_add_stored_card_to_deck(card_index: int) -> void:
+func _on_card_cell_clicked(card: Card, card_index: int) -> void:
 	if not inventory or not deck_manager:
 		return
-	var card = inventory.get_stored_card(card_index)
-	if card and inventory.add_card_to_deck(card_index, deck_manager):
-		# Find main node for battle log
+	if inventory.add_card_to_deck(card_index, deck_manager):
 		var main_node = get_node_or_null("/root/Main")
 		if main_node and main_node.has_method("add_battle_log"):
 			main_node.add_battle_log("Added %s to deck!" % card.card_name, Color(0.4, 1.0, 0.5))

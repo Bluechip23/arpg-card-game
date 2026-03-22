@@ -763,29 +763,43 @@ func _try_shoot(target_node: Node3D) -> bool:
 
 func _try_scurry_away(target_node: Node3D) -> bool:
 	## Archer Rat: Run 5 paces away from threat.
-	var diff = position - target_node.position  # Direction AWAY from target
-	var direction = Vector3(diff.x, 0, diff.z).normalized()
-	if direction.length() < 0.1:
-		direction = Vector3(1, 0, 0)  # Default direction if on top of target
-
 	var tiles = 5
 	var effective_tiles = tiles
 	if slow_amount > 0:
 		effective_tiles = max(1, tiles - slow_amount)
 
 	if grid_manager:
+		var threat_cell = grid_manager.world_to_grid(target_node.position)
+		# Move away from threat using cardinal directions
 		var last_valid = position
-		for i in range(1, effective_tiles + 1):
-			var step_pos = position + direction * (i * 1.0)
-			step_pos = grid_manager.snap_to_grid(step_pos)
-			var step_cell = grid_manager.world_to_grid(step_pos)
-			if step_cell in blocked_tiles:
+		for _step in range(effective_tiles):
+			var cell = grid_manager.world_to_grid(last_valid)
+			var best_cell = cell
+			var best_dist = _manhattan_dist(cell, threat_cell)
+			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+			for d in dirs:
+				var candidate = cell + d
+				if candidate in blocked_tiles:
+					continue
+				var dist = _manhattan_dist(candidate, threat_cell)
+				if dist > best_dist:
+					best_dist = dist
+					best_cell = candidate
+			if best_cell == cell:
 				break
-			last_valid = step_pos
+			last_valid = grid_manager.grid_to_world(best_cell)
 		if last_valid != position:
-			target_position = last_valid
+			var new_target = last_valid
+			if dungeon_manager:
+				var target_cell = grid_manager.world_to_grid(new_target)
+				new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
+			target_position = new_target
 			is_moving = true
 	else:
+		var diff = position - target_node.position
+		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		if direction.length() < 0.1:
+			direction = Vector3(1, 0, 0)
 		target_position = position + direction * (effective_tiles * 1.0)
 		is_moving = true
 
@@ -800,25 +814,40 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 		# Already in range, shoot instead
 		return _try_shoot(target_node)
 
-	var direction = Vector3(diff.x, 0, diff.z).normalized()
 	var tiles = 2
 	var effective_tiles = tiles
 	if slow_amount > 0:
 		effective_tiles = max(1, tiles - slow_amount)
 
 	if grid_manager:
+		var player_cell = grid_manager.world_to_grid(target_node.position)
+		# Move toward target using cardinal directions
 		var last_valid = position
-		for i in range(1, effective_tiles + 1):
-			var step_pos = position + direction * (i * 1.0)
-			step_pos = grid_manager.snap_to_grid(step_pos)
-			var step_cell = grid_manager.world_to_grid(step_pos)
-			if step_cell in blocked_tiles:
+		for _step in range(effective_tiles):
+			var cell = grid_manager.world_to_grid(last_valid)
+			var best_cell = cell
+			var best_dist = _manhattan_dist(cell, player_cell)
+			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+			for d in dirs:
+				var candidate = cell + d
+				if candidate in blocked_tiles:
+					continue
+				var dist = _manhattan_dist(candidate, player_cell)
+				if dist < best_dist:
+					best_dist = dist
+					best_cell = candidate
+			if best_cell == cell:
 				break
-			last_valid = step_pos
+			last_valid = grid_manager.grid_to_world(best_cell)
 		if last_valid != position:
-			target_position = last_valid
+			var new_target = last_valid
+			if dungeon_manager:
+				var target_cell = grid_manager.world_to_grid(new_target)
+				new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
+			target_position = new_target
 			is_moving = true
 	else:
+		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		target_position = position + direction * (effective_tiles * 1.0)
 		is_moving = true
 
@@ -891,25 +920,37 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 			print("[%s] Trapped on pillar - cannot dash!" % enemy_name)
 			return
 
-	var diff = pos - position
-	var direction = Vector3(diff.x, 0, diff.z).normalized()
 	if grid_manager:
-		# Step tile by tile and stop before any blocked tile
+		var player_cell = grid_manager.world_to_grid(pos)
+		# Step tile by tile using cardinal directions
 		var last_valid = position
-		for i in range(1, tiles + 1):
-			var step_pos = position + direction * (i * 1.0)
-			step_pos = grid_manager.snap_to_grid(step_pos)
-			var step_cell = grid_manager.world_to_grid(step_pos)
-			if step_cell in blocked_tiles:
-				print("[%s] Dash blocked by barricade at tile %d!" % [enemy_name, i])
+		for _step in range(tiles):
+			var cell = grid_manager.world_to_grid(last_valid)
+			var best_cell = cell
+			var best_dist = _manhattan_dist(cell, player_cell)
+			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+			for d in dirs:
+				var candidate = cell + d
+				if candidate in blocked_tiles:
+					continue
+				var dist = _manhattan_dist(candidate, player_cell)
+				if dist < best_dist:
+					best_dist = dist
+					best_cell = candidate
+			if best_cell == cell:
 				break
-			last_valid = step_pos
+			last_valid = grid_manager.grid_to_world(best_cell)
 		if last_valid == position:
 			return  # Can't move at all
-		target_position = last_valid
-	else:
-		var new_target = position + direction * (tiles * 1.0)
+		var new_target = last_valid
+		if dungeon_manager:
+			var target_cell = grid_manager.world_to_grid(new_target)
+			new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
 		target_position = new_target
+	else:
+		var diff = pos - position
+		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		target_position = position + direction * (tiles * 1.0)
 	is_moving = true
 
 ## Armored Troll passive: heal HP with green flash.
@@ -1007,37 +1048,60 @@ func move_towards_target(pos: Vector3) -> void:
 			print("[%s] Trapped on pillar - cannot move!" % enemy_name)
 			return
 
-	var diff = pos - position
-	var direction = Vector3(diff.x, 0, diff.z).normalized()
-	var effective_move = move_distance
-	if slow_amount > 0 and grid_manager:
-		effective_move = max(0, move_distance - slow_amount * grid_manager.grid_size)
-	elif slow_amount > 0:
-		effective_move = max(0, move_distance - slow_amount * 1.0)
-	if effective_move <= 0:
+	var tiles = int(move_distance)
+	if tiles < 1:
+		tiles = 1
+	var effective_tiles = tiles
+	if slow_amount > 0:
+		effective_tiles = max(0, tiles - slow_amount)
+	if effective_tiles <= 0:
 		print("[%s] Too slowed to move!" % enemy_name)
 		return
-	var new_target = position + direction * effective_move
 
 	if grid_manager:
-		new_target = grid_manager.snap_to_grid(new_target)
-		var target_cell = grid_manager.world_to_grid(new_target)
-		# Don't walk onto the player's tile - stop adjacent instead
+		var current_cell = grid_manager.world_to_grid(position)
 		var player_cell = grid_manager.world_to_grid(pos)
-		if target_cell == player_cell:
-			return
-		# Don't walk into barricade tiles
-		if target_cell in blocked_tiles:
-			print("[%s] Path blocked by barricade!" % enemy_name)
-			return
+		# Move tile-by-tile using cardinal directions to avoid clipping through walls
+		var last_valid = position
+		for _step in range(effective_tiles):
+			var cell = grid_manager.world_to_grid(last_valid)
+			var best_cell = cell
+			var best_dist = _manhattan_dist(cell, player_cell)
+			# Try all 4 cardinal directions, pick the one closest to player
+			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+			for d in dirs:
+				var candidate = cell + d
+				if candidate == player_cell:
+					continue  # Don't walk onto player
+				if candidate in blocked_tiles:
+					continue  # Don't walk into walls
+				var dist = _manhattan_dist(candidate, player_cell)
+				if dist < best_dist:
+					best_dist = dist
+					best_cell = candidate
+			if best_cell == cell:
+				break  # No valid move
+			last_valid = grid_manager.grid_to_world(best_cell)
 
-	# Adjust target Y based on terrain elevation
-	if dungeon_manager and grid_manager:
-		var target_cell = grid_manager.world_to_grid(new_target)
-		new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
+		if last_valid == position:
+			return  # Can't move at all
 
-	target_position = new_target
-	is_moving = true
+		var new_target = last_valid
+		# Adjust target Y based on terrain elevation
+		if dungeon_manager:
+			var target_cell = grid_manager.world_to_grid(new_target)
+			new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
+		target_position = new_target
+		is_moving = true
+	else:
+		var diff = pos - position
+		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		var new_target = position + direction * (effective_tiles * 1.0)
+		target_position = new_target
+		is_moving = true
+
+func _manhattan_dist(a: Vector2i, b: Vector2i) -> int:
+	return absi(a.x - b.x) + absi(a.y - b.y)
 
 func attack_player(player_node: Node3D) -> void:
 	_deal_damage_to_player(player_node, attack_damage, "Attack")
