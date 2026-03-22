@@ -368,8 +368,9 @@ func _build_fog() -> void:
 			col.append(false)
 		_revealed.append(col)
 
-	# Create fog columns for every tile that could matter (floors + walls adjacent to floors)
-	# Using tall boxes instead of flat planes so fog can't be seen under from any camera angle
+	# Create fog tiles to hide unrevealed areas.
+	# Use a short box (2 units) so fog hides floor content without towering
+	# into the camera sightline and blocking the player's view of revealed rooms.
 	_fog_nodes.clear()
 
 	var fog_mat = StandardMaterial3D.new()
@@ -377,7 +378,7 @@ func _build_fog() -> void:
 	fog_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	fog_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
-	var fog_height: float = 10.0  # Tall enough to block any camera angle
+	var fog_height: float = 2.0  # Short enough to not block camera view of revealed rooms
 
 	for x in range(GRID_W):
 		var col: Array = []
@@ -387,7 +388,6 @@ func _build_fog() -> void:
 			box.size = Vector3(1.05, fog_height, 1.05)  # Slightly oversized to avoid seams
 			fog.mesh = box
 			fog.material_override = fog_mat.duplicate()
-			# Center the box so it spans from below ground to well above everything
 			fog.position = Vector3(x + 0.5, fog_height / 2.0 - 0.5, z + 0.5)
 			fog.visible = true
 			fog.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
