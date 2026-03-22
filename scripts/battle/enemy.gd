@@ -38,6 +38,7 @@ var target_position: Vector3
 var is_dead: bool = false
 
 var grid_manager: GridManager
+var dungeon_manager = null  # Set by main.gd for elevation lookups
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
 var pillar_tiles: Array[Vector2i] = []   # Set by main.gd for rise pillars (traps enemy on top)
 
@@ -976,6 +977,10 @@ func _physics_process(delta: float) -> void:
 
 		if distance < 0.1:
 			position = target_position
+			# Snap Y to terrain elevation
+			if dungeon_manager and grid_manager:
+				var cell = grid_manager.world_to_grid(position)
+				position.y = dungeon_manager.get_elevation_world_y(cell)
 			is_moving = false
 			velocity = Vector3.ZERO
 			movement_completed.emit(self)
@@ -1025,6 +1030,11 @@ func move_towards_target(pos: Vector3) -> void:
 		if target_cell in blocked_tiles:
 			print("[%s] Path blocked by barricade!" % enemy_name)
 			return
+
+	# Adjust target Y based on terrain elevation
+	if dungeon_manager and grid_manager:
+		var target_cell = grid_manager.world_to_grid(new_target)
+		new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
 
 	target_position = new_target
 	is_moving = true

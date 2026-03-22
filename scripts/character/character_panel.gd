@@ -240,6 +240,9 @@ func _update_equipment_display() -> void:
 	# Inventory storage grid
 	_update_storage_grid()
 
+	# Card inventory section
+	_update_card_inventory_display()
+
 func _get_character_passive() -> String:
 	if not inventory:
 		return ""
@@ -1013,6 +1016,88 @@ func _create_storage_cell(index: int) -> PanelContainer:
 	vbox.add_child(cell_name_label)
 
 	return cell
+
+func _update_card_inventory_display() -> void:
+	if not equipment_container or not inventory:
+		return
+
+	equipment_container.add_child(_make_separator())
+
+	var card_count = inventory.get_stored_card_count()
+	var card_header = _make_section_header("CARD INVENTORY (%d/%d)" % [card_count, inventory.max_card_storage])
+	equipment_container.add_child(card_header)
+
+	if card_count == 0:
+		var empty_label = Label.new()
+		empty_label.text = "No cards stored"
+		empty_label.add_theme_font_size_override("font_size", 11)
+		empty_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
+		equipment_container.add_child(empty_label)
+		return
+
+	for i in range(card_count):
+		var card = inventory.get_stored_card(i)
+		if not card:
+			continue
+
+		var row = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		# Card name
+		var name_lbl = Label.new()
+		name_lbl.text = card.card_name
+		name_lbl.add_theme_font_size_override("font_size", 11)
+		name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_lbl)
+
+		# Card type
+		var type_lbl = Label.new()
+		type_lbl.add_theme_font_size_override("font_size", 10)
+		match card.card_type:
+			Card.CardType.ATTACK:
+				type_lbl.text = "ATK"
+				type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+			Card.CardType.DEFENSE:
+				type_lbl.text = "DEF"
+				type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
+			Card.CardType.UTILITY:
+				type_lbl.text = "UTIL"
+				type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+			Card.CardType.POWER:
+				type_lbl.text = "PWR"
+				type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+			_:
+				type_lbl.text = ""
+		row.add_child(type_lbl)
+
+		# Mana cost
+		var cost_lbl = Label.new()
+		cost_lbl.text = "%dM" % card.mana_cost
+		cost_lbl.add_theme_font_size_override("font_size", 10)
+		cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+		row.add_child(cost_lbl)
+
+		# Add to Deck button
+		var add_btn = Button.new()
+		add_btn.text = "Add to Deck"
+		add_btn.custom_minimum_size = Vector2(80, 24)
+		add_btn.add_theme_font_size_override("font_size", 10)
+		add_btn.pressed.connect(_on_add_stored_card_to_deck.bind(i))
+		row.add_child(add_btn)
+
+		equipment_container.add_child(row)
+
+func _on_add_stored_card_to_deck(card_index: int) -> void:
+	if not inventory or not deck_manager:
+		return
+	var card = inventory.get_stored_card(card_index)
+	if card and inventory.add_card_to_deck(card_index, deck_manager):
+		# Find main node for battle log
+		var main_node = get_node_or_null("/root/Main")
+		if main_node and main_node.has_method("add_battle_log"):
+			main_node.add_battle_log("Added %s to deck!" % card.card_name, Color(0.4, 1.0, 0.5))
+		update_display()
 
 func _on_storage_cell_input(event: InputEvent, item: ItemData, storage_index: int) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
