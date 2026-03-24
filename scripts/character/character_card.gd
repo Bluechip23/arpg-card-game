@@ -4,6 +4,7 @@ extends PanelContainer
 ## Displays a single character's info for selection
 
 signal selected(character: CharacterData)
+signal skill_tree_requested(character: CharacterData)
 
 var character_data: CharacterData
 
@@ -203,6 +204,38 @@ func _build_ui() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(spacer)
 
+	# ── Skill Tree Button ────────────────────────
+	var skill_tree_button = Button.new()
+	skill_tree_button.text = "SKILL TREE"
+	skill_tree_button.add_theme_font_size_override("font_size", 13)
+	skill_tree_button.pressed.connect(_on_skill_tree_pressed)
+
+	var st_normal = StyleBoxFlat.new()
+	st_normal.bg_color = Color(0.25, 0.2, 0.4)
+	st_normal.corner_radius_top_left = 4
+	st_normal.corner_radius_top_right = 4
+	st_normal.corner_radius_bottom_left = 4
+	st_normal.corner_radius_bottom_right = 4
+	skill_tree_button.add_theme_stylebox_override("normal", st_normal)
+
+	var st_hover = StyleBoxFlat.new()
+	st_hover.bg_color = Color(0.35, 0.3, 0.55)
+	st_hover.corner_radius_top_left = 4
+	st_hover.corner_radius_top_right = 4
+	st_hover.corner_radius_bottom_left = 4
+	st_hover.corner_radius_bottom_right = 4
+	skill_tree_button.add_theme_stylebox_override("hover", st_hover)
+
+	var st_pressed = StyleBoxFlat.new()
+	st_pressed.bg_color = Color(0.18, 0.14, 0.3)
+	st_pressed.corner_radius_top_left = 4
+	st_pressed.corner_radius_top_right = 4
+	st_pressed.corner_radius_bottom_left = 4
+	st_pressed.corner_radius_bottom_right = 4
+	skill_tree_button.add_theme_stylebox_override("pressed", st_pressed)
+
+	vbox.add_child(skill_tree_button)
+
 	# ── Select Button ────────────────────────────
 	_select_button = Button.new()
 	_select_button.text = "SELECT CHARACTER"
@@ -295,6 +328,9 @@ func setup(character: CharacterData) -> void:
 
 func _on_select_pressed() -> void:
 	selected.emit(character_data)
+
+func _on_skill_tree_pressed() -> void:
+	skill_tree_requested.emit(character_data)
 
 # ── Helpers ───────────────────────────────────────────
 
