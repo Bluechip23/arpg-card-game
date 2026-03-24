@@ -559,8 +559,26 @@ func _trigger_skill_tree_on_cycle() -> void:
 	if stats.st_stimulant_cooldown > 0:
 		stats.st_stimulant_cooldown -= 5
 
-	# Let's Dance: movement cycle → +3 armor (handled in movement section)
-	pass
+	# Let's Dance: gain armor = spaces moved/2, deal damage = spaces moved to nearest enemy within 3
+	if stats.has_skill_tree_passive("let's_dance"):
+		var spaces = main.tempo_manager.spaces_moved_this_cycle
+		if spaces > 0:
+			var armor = floori(spaces / 2.0)
+			if armor > 0:
+				stats.add_armor(armor)
+				main.add_battle_log("Let's Dance: +%d armor (%d spaces)" % [armor, spaces], Color(0.3, 0.7, 1.0))
+			# Deal damage to nearest enemy within 3 range
+			var nearest: Enemy = null
+			var nearest_dist: float = INF
+			if main.enemy_spawner:
+				for enemy in main.enemy_spawner.get_living_enemies():
+					var dist = main.player.position.distance_to(enemy.position)
+					if dist <= 3.0 and dist < nearest_dist:
+						nearest_dist = dist
+						nearest = enemy
+			if nearest:
+				nearest.take_damage(spaces, true)
+				main.add_battle_log("Let's Dance: %d damage to %s!" % [spaces, nearest.enemy_name], Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_on_heal_ally(ally_name: String) -> void:
 	var stats = main.player.get_stats()
@@ -611,10 +629,8 @@ func _trigger_skill_tree_on_movement_cycle() -> void:
 	if not stats:
 		return
 
-	# Let's Dance: movement triggers a cycle → +3 armor
-	if stats.has_skill_tree_passive("let's_dance"):
-		stats.add_armor(3)
-		main.add_battle_log("Let's Dance: +3 armor", Color(0.3, 0.7, 1.0))
+	# Let's Dance moved to _trigger_skill_tree_on_cycle (triggers every cycle, not just movement)
+	pass
 
 # ============================================
 # BRAD SKILL TREE PASSIVE TRIGGERS

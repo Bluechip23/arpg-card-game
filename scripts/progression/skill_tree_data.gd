@@ -622,7 +622,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			description = "If you have no Defense cards in your hand, draw a card when you play an attack",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 14, slot = 2, archetype = "Light Foot", name = "Let's Dance",
-			description = "When triggering a cycle with movement, gain 3 armor",
+			description = "At the end of every cycle, gain armor equal to spaces moved/2 and deal damage to the nearest enemy within 3 range equal to spaces moved",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 16, slot = 1, archetype = "Apothecary", name = "Mad Scientist",
 			description = "The last card you played changes the outcome of your potion cards. Utility→Heal: +3 regen. Attack→Heal: +3 strengthen. Utility→Poison: +3 poison stacks. Defense→Poison: -10% enemy physical defense.",
