@@ -57,5 +57,5 @@ Jeremy,Poltergeist,9,Seance,"When you cast a spell that targets an empty tile, s
 Jeremy,Abjurer,11,Kinetic Armor,"While retaining armor for more than 25 tempo, apply shock to the nearest enemy equal to the number of defensive cards in your deck"
 Jeremy,Evocation,13,Mana Surge,"When spending 10 mana within 5 tempo, add a Mana Surge to your hand. Mana Surge: Attack, 0m/2t, deal 5 damage, gain 1 mana."
 Jeremy,Poltergeist,14,Haunted Rebuke,"When an enemy attacks you and you have 3 or more defensive cards in your hand, the enemy's next action takes +3 tempo. Cooldown: 10 tempo."
-Jeremy,Shepherd,16,Placeholder Shepherd 16,Placeholder - to be defined (replacing Friendship)
+Jeremy,Shepherd,16,Blood Libation,"Every time Jeremy takes damage (excluding Blood Libation's own self-damage), gain a stack of Sanguine (max 5). Each stack grants +1 to all healing Jeremy performs. At 5 stacks, Jeremy's next heal is doubled, all Sanguine stacks are consumed, and Jeremy takes 10 non-lethal damage"
 Jeremy,Abjurer,18,Fresh Start,"When playing a card that leaves your hand empty, cleanse a debuff from yourself"
