@@ -345,7 +345,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 16, slot = 1, archetype = "The Ancient", name = "Vines Codependence",
 			description = "Whenever you heal, gain 3 thorns",
 			color = Color(0.4, 0.9, 0.4)},
-		{level = 18, slot = 3, archetype = "The Fallen", name = "Corrupted Strength",
+		{level = 18, slot = 3, archetype = "The Fallen", name = "Solemn Independence",
 			description = "When 3+ enemies are within 2 tiles: +5 damage on all attacks, +5 armor per tempo cycle, but cannot be healed by allies",
 			color = Color(0.8, 0.4, 0.9)},
 	]
@@ -413,7 +413,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
@@ -550,7 +550,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
@@ -604,7 +604,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When healing yourself or an ally with a Pocket card, the healed character draws a card. 5 tempo cooldown.",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 5, slot = 3, archetype = "Shadow Blade", name = "Now You See Me",
-			description = "Displacing yourself (reappearing from invisibility, blinking, being swapped, or other non-visible movement) grants you invisibility",
+			description = "Displacing yourself (blinking, being swapped, or other non-standard movement) grants you invisibility",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 7, slot = 1, archetype = "Relentless Blade", name = "From the Hip",
 			description = "If an attack, your most recently drawn card has -1 mana cost. The discount is lost when any card is played",
@@ -622,7 +622,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			description = "If you have no Defense cards in your hand, draw a card when you play an attack",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 14, slot = 2, archetype = "Light Foot", name = "Let's Dance",
-			description = "When triggering a cycle with movement, gain 3 armor",
+			description = "At the end of every cycle, gain armor equal to spaces moved/2 and deal damage to the nearest enemy within 3 range equal to spaces moved",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 16, slot = 1, archetype = "Apothecary", name = "Mad Scientist",
 			description = "The last card you played changes the outcome of your potion cards. Utility→Heal: +3 regen. Attack→Heal: +3 strengthen. Utility→Poison: +3 poison stacks. Defense→Poison: -10% enemy physical defense.",
@@ -684,7 +684,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
@@ -741,7 +741,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When playing an attack, a utility, and a defense in any order (none back to back), heal 3 and gain 5 temp HP for 15 tempo",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 7, slot = 1, archetype = "Lurker", name = "Eat",
-			description = "Killing enemies heals you 10% of the enemy's max health",
+			description = "Killing enemies heals you 5% of your max health",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 8, slot = 0, archetype = "Monk", name = "Expel Negativity",
 			description = "Transfer a debuff to an enemy when you drop below 50% health",
@@ -782,6 +782,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 15, slot = 0, card_id = "misery_loves_company", name = "Misery Loves Company", description = "Your next AOE attack spreads the debuffs on yourself and all enemies hit, to all the enemies that are hit. (5 mana, 1 tempo)"},
 		{level = 17, slot = 0, card_id = "release_tension", name = "Release Tension", description = "Remove a stack of debuffs from the enemy and heal for the amount of debuffs removed x3. Choose which debuff. (3 mana, 5 tempo)"},
 		{level = 19, slot = 0, card_id = "vines", name = "Vines", description = "Summon vines holding an enemy in place for 3 turns. Deal 4 damage per turn the enemy is held still. (2 mana, 3 tempo)"},
+		{level = 20, slot = 0, card_id = "exposed_artery", name = "Exposed Artery", description = "Deal damage equal to 0.5x the enemy's missing health %%. (5 mana, 2 tempo)"},
 	]
 
 	# Index placements by level for quick lookup
@@ -816,7 +817,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)
@@ -890,8 +891,8 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 14, slot = 2, archetype = "Poltergeist", name = "Haunted Rebuke",
 			description = "When an enemy attacks you and you have 3 or more defensive cards in your hand, the enemy's next action takes +3 tempo. Cooldown: 10 tempo.",
 			color = Color(0.4, 0.9, 0.4)},
-		{level = 16, slot = 1, archetype = "Shepherd", name = "Placeholder Shepherd 16",
-			description = "Placeholder - to be defined (replacing Friendship)",
+		{level = 16, slot = 1, archetype = "Shepherd", name = "Blood Libation",
+			description = "Every time Jeremy takes damage (excluding Blood Libation's own self-damage), gain a stack of Sanguine (max 5). Each stack grants +1 to all healing Jeremy performs. At 5 stacks, Jeremy's next heal is doubled, all Sanguine stacks are consumed, and Jeremy takes 10 non-lethal damage",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 18, slot = 3, archetype = "Abjurer", name = "Fresh Start",
 			description = "When playing a card that leaves your hand empty, cleanse a debuff from yourself",
@@ -954,7 +955,7 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			elif i in level_card_placements:
 				var c = level_card_placements[i]
 				opt.name = c.name
-				opt.description = "Card: %s" % c.description
+				opt.description = "%s: %s" % [c.name, c.description]
 				opt.option_type = OptionType.CARD
 				opt.card_id = c.card_id
 				opt.icon_color = Color(1.0, 0.85, 0.3)

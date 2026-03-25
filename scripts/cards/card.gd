@@ -3962,6 +3962,23 @@ static func create_vines() -> Card:
 	card.target_types = ["enemy"]
 	return card
 
+static func create_exposed_artery() -> Card:
+	var card = Card.new()
+	card.card_id = "exposed_artery"
+	card.card_name = "Exposed Artery"
+	card.description = "Deal damage equal to 0.5x the enemy's missing health %."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 5
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	return card
+
 # ============================================
 # BRAD NEW CARDS
 # ============================================

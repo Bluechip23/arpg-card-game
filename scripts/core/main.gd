@@ -2237,6 +2237,9 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	if tempo_manager.last_tempo_source == "movement":
 		progression_triggers._trigger_skill_tree_on_movement_cycle()
 
+	# Reset per-cycle movement tracking (after passives have read it)
+	tempo_manager.spaces_moved_this_cycle = 0
+
 	_check_volatile_mixture_in_hand()
 	_apply_in_hand_debuffs()
 	_process_enchantment_cycles()

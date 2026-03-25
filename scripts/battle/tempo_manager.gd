@@ -15,6 +15,7 @@ signal tempo_advanced(global_total: int, amount: int)  # Fires on every tempo ad
 var current_tempo: int = 0   # Accumulator for the UI bar (resets at each cycle)
 var global_tempo: int = 0    # Ever-increasing universal tempo clock
 var movements_since_tempo: int = 0
+var spaces_moved_this_cycle: int = 0  # Total tiles moved since last cycle (for passives like Let's Dance)
 var last_tempo_source: String = ""  # Tracks what caused the last tempo addition ("movement", "card", etc.)
 
 var player_stats: PlayerStats
@@ -60,7 +61,8 @@ func add_card_tempo(tempo_cost: int) -> void:
 func add_movement_tempo() -> void:
 	var free_moves = get_free_moves_from_agility()
 	movements_since_tempo += 1
-	print("[TEMPO] Movement %d / %d free moves" % [movements_since_tempo, free_moves])
+	spaces_moved_this_cycle += 1
+	print("[TEMPO] Movement %d / %d free moves | %d tiles this cycle" % [movements_since_tempo, free_moves, spaces_moved_this_cycle])
 
 	if movements_since_tempo > free_moves:
 		movements_since_tempo = 1

@@ -211,6 +211,7 @@ func _setup_characters() -> void:
 		character_container.add_child(card)
 		card.setup(character)
 		card.selected.connect(_on_character_selected)
+		card.skill_tree_requested.connect(_on_skill_tree_requested)
 
 func _on_character_selected(character: CharacterData) -> void:
 	print("[SELECT] Character selected: %s" % character.character_name)
@@ -421,3 +422,209 @@ func _on_mode_fight() -> void:
 		main_scene.is_multiplayer = true
 	get_tree().root.add_child(main_scene)
 	queue_free()
+
+# ---- Skill Tree Popup ----
+
+var _skill_tree_overlay: ColorRect = null
+
+func _on_skill_tree_requested(character: CharacterData) -> void:
+	if character.character_name == "Customize":
+		return
+	_show_skill_tree_popup(character)
+
+func _show_skill_tree_popup(character: CharacterData) -> void:
+	if _skill_tree_overlay:
+		_skill_tree_overlay.queue_free()
+
+	# Get the skill tree data for this character
+	var tree: SkillTreeData = _get_skill_tree_for_character(character.character_name)
+	if not tree:
+		return
+
+	# Build overlay
+	_skill_tree_overlay = ColorRect.new()
+	_skill_tree_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_skill_tree_overlay.color = Color(0.0, 0.0, 0.0, 0.8)
+
+	# Main panel
+	var panel = PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.offset_left = 60.0
+	panel.offset_top = 40.0
+	panel.offset_right = -60.0
+	panel.offset_bottom = -40.0
+
+	var p_style = StyleBoxFlat.new()
+	p_style.bg_color = Color(0.08, 0.08, 0.12, 1.0)
+	p_style.border_width_left = 2
+	p_style.border_width_right = 2
+	p_style.border_width_top = 2
+	p_style.border_width_bottom = 2
+	p_style.border_color = Color(0.4, 0.4, 0.6)
+	p_style.corner_radius_top_left = 8
+	p_style.corner_radius_top_right = 8
+	p_style.corner_radius_bottom_left = 8
+	p_style.corner_radius_bottom_right = 8
+	p_style.content_margin_left = 20.0
+	p_style.content_margin_right = 20.0
+	p_style.content_margin_top = 15.0
+	p_style.content_margin_bottom = 15.0
+	panel.add_theme_stylebox_override("panel", p_style)
+	_skill_tree_overlay.add_child(panel)
+
+	var outer_vbox = VBoxContainer.new()
+	outer_vbox.add_theme_constant_override("separation", 10)
+	panel.add_child(outer_vbox)
+
+	# Header row with title and close button
+	var header_hbox = HBoxContainer.new()
+	outer_vbox.add_child(header_hbox)
+
+	var title = Label.new()
+	title.text = "%s - Skill Tree" % character.character_name
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_hbox.add_child(title)
+
+	var close_btn = Button.new()
+	close_btn.text = "X"
+	close_btn.add_theme_font_size_override("font_size", 18)
+	close_btn.custom_minimum_size = Vector2(40, 40)
+	var close_style = StyleBoxFlat.new()
+	close_style.bg_color = Color(0.4, 0.12, 0.12)
+	close_style.corner_radius_top_left = 4
+	close_style.corner_radius_top_right = 4
+	close_style.corner_radius_bottom_left = 4
+	close_style.corner_radius_bottom_right = 4
+	close_btn.add_theme_stylebox_override("normal", close_style)
+	var close_hover = StyleBoxFlat.new()
+	close_hover.bg_color = Color(0.55, 0.18, 0.18)
+	close_hover.corner_radius_top_left = 4
+	close_hover.corner_radius_top_right = 4
+	close_hover.corner_radius_bottom_left = 4
+	close_hover.corner_radius_bottom_right = 4
+	close_btn.add_theme_stylebox_override("hover", close_hover)
+	close_btn.pressed.connect(_on_skill_tree_close)
+	header_hbox.add_child(close_btn)
+
+	var sep = HSeparator.new()
+	sep.add_theme_color_override("color", Color(0.3, 0.3, 0.45))
+	outer_vbox.add_child(sep)
+
+	# Scrollable content
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer_vbox.add_child(scroll)
+
+	var content_vbox = VBoxContainer.new()
+	content_vbox.add_theme_constant_override("separation", 6)
+	content_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content_vbox)
+
+	# Extract passives from the skill tree rows
+	# Description format is "Name (Archetype): Description"
+	var passives_by_archetype: Dictionary = {}
+	for row in tree.rows:
+		for option in row.options:
+			if option.option_type == SkillTreeData.OptionType.PASSIVE:
+				var arch := "General"
+				var desc := option.description
+				# Parse archetype from description: "Name (Archetype): Description"
+				var paren_start = desc.find("(")
+				var paren_end = desc.find(")")
+				if paren_start >= 0 and paren_end > paren_start:
+					arch = desc.substr(paren_start + 1, paren_end - paren_start - 1)
+					# Clean description to just the part after ": "
+					var colon_pos = desc.find(": ", paren_end)
+					if colon_pos >= 0:
+						desc = desc.substr(colon_pos + 2)
+				if not passives_by_archetype.has(arch):
+					passives_by_archetype[arch] = []
+				passives_by_archetype[arch].append({
+					"level": row.level,
+					"name": option.name,
+					"description": desc,
+					"color": option.icon_color
+				})
+
+	# Group by archetype
+	var archetype_names = passives_by_archetype.keys()
+	for arch in archetype_names:
+		var arch_header = Label.new()
+		arch_header.text = arch
+		arch_header.add_theme_font_size_override("font_size", 16)
+		arch_header.add_theme_color_override("font_color", Color(0.9, 0.75, 0.5))
+		content_vbox.add_child(arch_header)
+
+		var arch_passives = passives_by_archetype[arch]
+		arch_passives.sort_custom(func(a, b): return a["level"] < b["level"])
+		for p in arch_passives:
+			var row_hbox = _create_passive_row(p)
+			content_vbox.add_child(row_hbox)
+
+		var arch_sep = HSeparator.new()
+		arch_sep.add_theme_color_override("color", Color(0.2, 0.2, 0.3))
+		content_vbox.add_child(arch_sep)
+
+	add_child(_skill_tree_overlay)
+
+func _create_passive_row(p: Dictionary) -> HBoxContainer:
+	var row_hbox = HBoxContainer.new()
+	row_hbox.add_theme_constant_override("separation", 10)
+
+	# Level badge
+	var level_label = Label.new()
+	level_label.text = "Lv %d" % p["level"]
+	level_label.add_theme_font_size_override("font_size", 12)
+	level_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.65))
+	level_label.custom_minimum_size.x = 40
+	row_hbox.add_child(level_label)
+
+	# Color indicator
+	var color_rect = ColorRect.new()
+	color_rect.custom_minimum_size = Vector2(4, 0)
+	color_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	color_rect.color = p.get("color", Color.WHITE)
+	row_hbox.add_child(color_rect)
+
+	# Name and description
+	var text_vbox = VBoxContainer.new()
+	text_vbox.add_theme_constant_override("separation", 2)
+	text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row_hbox.add_child(text_vbox)
+
+	var name_label = Label.new()
+	name_label.text = p["name"]
+	name_label.add_theme_font_size_override("font_size", 14)
+	name_label.add_theme_color_override("font_color", p.get("color", Color.WHITE))
+	text_vbox.add_child(name_label)
+
+	var desc_label = Label.new()
+	desc_label.text = p["description"]
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	desc_label.add_theme_font_size_override("font_size", 11)
+	desc_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
+	text_vbox.add_child(desc_label)
+
+	return row_hbox
+
+func _on_skill_tree_close() -> void:
+	if _skill_tree_overlay:
+		_skill_tree_overlay.queue_free()
+		_skill_tree_overlay = null
+
+func _get_skill_tree_for_character(char_name: String) -> SkillTreeData:
+	match char_name:
+		"Ryan":
+			return SkillTreeData.create_ryan_tree()
+		"Brad":
+			return SkillTreeData.create_brad_tree()
+		"Stephen":
+			return SkillTreeData.create_stephen_tree()
+		"Cory":
+			return SkillTreeData.create_cory_tree()
+		"Jeremy":
+			return SkillTreeData.create_jeremy_tree()
+	return null
