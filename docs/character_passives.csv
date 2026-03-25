@@ -10,11 +10,11 @@ Brad,The Fallen,11,Redemption,"When healing (self or ally), gain crit chance on 
 Brad,Berserker,13,Life Steal,All attacks life steal by 5%
 Brad,Warden,14,Pristine Armor,Defense cards grant +2 armor. Playing 3 defense cards in a row grants an additional +5 armor
 Brad,The Ancient,16,Vines Codependence,"Whenever you heal, gain 3 thorns"
-Brad,The Fallen,18,Corrupted Strength,"When 3+ enemies are within 2 tiles: +5 damage on all attacks, +5 armor per tempo cycle, but cannot be healed by allies"
+Brad,The Fallen,18,Solemn Independence,"When 3+ enemies are within 2 tiles: +5 damage on all attacks, +5 armor per tempo cycle, but cannot be healed by allies"
 Ryan,Relentless Blade,2,Keep Them Guessing,"When discarding a card, -1t from a random card in your hand"
 Ryan,Light Foot,3,Quick Step,"Anytime an instant is played from your hand, gain 5 armor"
 Ryan,Apothecary,4,Stimulant,"When healing yourself or an ally with a Pocket card, the healed character draws a card. 5 tempo cooldown."
-Ryan,Shadow Blade,5,Now You See Me,"Displacing yourself (reappearing from invisibility, blinking, being swapped, or other non-visible movement) grants you invisibility"
+Ryan,Shadow Blade,5,Now You See Me,"Displacing yourself (blinking, being swapped, or other non-standard movement) grants you invisibility"
 Ryan,Relentless Blade,7,From the Hip,"If an attack, your most recently drawn card has -1 mana cost. The discount is lost when any card is played"
 Ryan,Light Foot,8,Ladder Work,+3 dexterity and +3 agility
 Ryan,Apothecary,9,Pop Rocks,"When applying poison to an already poisoned enemy, deal immediate damage equal to 1/3 their current poison stacks"
@@ -39,7 +39,7 @@ Cory,Monk,2,Energy Barrier,"Every 3rd time you gain mana from a source other tha
 Cory,Lurker,3,Prey on the Weak,"When applying a debuff to an enemy below 50% health, deal 3 damage to them"
 Cory,Atrophist,4,Wither,Add +1 charge to all debuffs applied to enemies
 Cory,Druid,5,Budding,"When playing an attack, a utility, and a defense in any order (none back to back), heal 3 and gain 5 temp HP for 15 tempo"
-Cory,Lurker,7,Eat,Killing enemies heals you 10% of the enemy's max health
+Cory,Lurker,7,Eat,Killing enemies heals you 5% of your max health
 Cory,Monk,8,Expel Negativity,Transfer a debuff to an enemy when you drop below 50% health
 Cory,Druid,9,Circle of Life,"When you shuffle your deck, gain 15 armor and +3 damage for 3 attacks"
 Cory,Atrophist,11,Territorial Death,"When enemies enter or leave melee range, re-apply 1 random debuff they already have"
