@@ -257,7 +257,8 @@ func _ready() -> void:
 	test_ui.apply_buff_requested.connect(_on_apply_buff)
 	
 	help_panel.closed.connect(_on_help_closed)
-	
+	help_panel.tick_speed_changed.connect(_on_tick_speed_changed)
+
 	# Sphere inventory + grid connection
 	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
 	sphere_grid_ui.node_unlocked.connect(progression_triggers._on_sphere_grid_node_unlocked)
@@ -322,6 +323,10 @@ func get_mouse_world_position() -> Vector3:
 
 func _on_help_closed() -> void:
 	pass  # Resume game if needed
+
+func _on_tick_speed_changed(speed: float) -> void:
+	tempo_manager.tick_speed = speed
+	print("[MAIN] Tick speed changed to %.2fs" % speed)
 
 func _update_camera() -> void:
 	var camera = get_viewport().get_camera_3d()

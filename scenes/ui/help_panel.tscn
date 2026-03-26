@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://c5c5ntadnjjru" path="res://scripts/ui/help_panel.gd" id="1_qdojy"]
 [ext_resource type="Script" uid="uid://dqbihavysh8oj" path="res://scripts/ui/keyword_legend.gd" id="2_qqh8e"]
 [ext_resource type="Script" uid="uid://x10g2mby5byo" path="res://scripts/core/gameplay_walkthrough.gd" id="3_1xcf2"]
+[ext_resource type="Script" path="res://scripts/ui/settings_tab.gd" id="4_settings"]
 
 [node name="HelpPanel" type="CanvasLayer" unique_id=1161948430]
 layer = 90
@@ -62,3 +63,14 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 fit_content = true
+
+[node name="Settings" type="ScrollContainer" parent="Panel/MarginContainer/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("4_settings")
+metadata/_tab_index = 2
+
+[node name="Content" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Settings"]
+layout_mode = 2
+size_flags_horizontal = 3

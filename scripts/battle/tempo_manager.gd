@@ -26,7 +26,7 @@ signal player_can_queue()  # Player's active card has resolved, they can queue n
 @export var tempo_threshold: int = 5
 
 ## How fast ticks process (seconds per tick). Lower = faster visual pacing.
-@export var tick_speed: float = 0.15
+@export var tick_speed: float = 1.5  # Default: 1.5s per tick. Adjustable in Settings (0.15s - 3.0s)
 
 var current_tempo: int = 0   # Accumulator for the UI bar (resets at each cycle)
 var global_tempo: int = 0    # Ever-increasing universal tempo clock
