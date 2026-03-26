@@ -147,6 +147,18 @@ var _pending_resolve_target = null            # Target for the pending card
 var _pending_resolve_card_data: Dictionary = {}  # Extra data for post-resolve triggers
 var _player_can_queue_next: bool = true       # Whether the player can play/queue their next card
 
+# Tick tempo bar UI (20 vertical bars showing tick progress)
+var _tick_bar_rects: Array[ColorRect] = []    # The 20 vertical bar ColorRects
+var _tick_bar_label: Label = null             # Label showing "Tick X/Y" text
+var _tick_bar_card_name_label: Label = null   # Label showing current card name
+var _tick_bar_total_ticks: int = 0            # Total ticks for current card
+var _tick_bar_resolve_tick: int = 0           # Which tick resolves the card
+var _tick_bar_current_tick: int = 0           # How many ticks have elapsed
+
+# Pause system
+var _is_paused: bool = false
+var _pause_button: Button = null
+
 var barricade_obstacles: Array = []  # [{node: MeshInstance3D, health: int}]
 var active_pillars: Array = []  # [{node: Node3D, position: Vector3, tempo_remaining: int}]
 var _card_ui_instances: Array = []
@@ -259,6 +271,7 @@ func _ready() -> void:
 	skill_tree_ui.retrospective_chosen.connect(progression_triggers._on_skill_tree_retrospective_chosen)
 
 	_setup_action_buttons()
+	_setup_tick_bar()
 	_setup_battle_log()
 
 	if starting_character:
@@ -496,6 +509,143 @@ func _setup_action_buttons() -> void:
 	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
 	vbox.add_child(wait_btn)
+
+	# Pause button (below wait)
+	_pause_button = Button.new()
+	_pause_button.name = "PauseButton"
+	_pause_button.text = "Pause"
+	_pause_button.custom_minimum_size = Vector2(130, 36)
+	_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
+	_pause_button.pressed.connect(_on_pause_pressed)
+	var pause_normal = StyleBoxFlat.new()
+	pause_normal.bg_color = Color(0.35, 0.25, 0.1)
+	pause_normal.corner_radius_top_left = 4
+	pause_normal.corner_radius_top_right = 4
+	pause_normal.corner_radius_bottom_left = 4
+	pause_normal.corner_radius_bottom_right = 4
+	_pause_button.add_theme_stylebox_override("normal", pause_normal)
+	var pause_hover = StyleBoxFlat.new()
+	pause_hover.bg_color = Color(0.45, 0.35, 0.15)
+	pause_hover.corner_radius_top_left = 4
+	pause_hover.corner_radius_top_right = 4
+	pause_hover.corner_radius_bottom_left = 4
+	pause_hover.corner_radius_bottom_right = 4
+	_pause_button.add_theme_stylebox_override("hover", pause_hover)
+	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
+	vbox.add_child(_pause_button)
+
+func _setup_tick_bar() -> void:
+	## Build the 20-tick tempo bar near the existing HUD (top-right area).
+	var ui = $UI as CanvasLayer
+
+	var tick_container = VBoxContainer.new()
+	tick_container.name = "TickBarContainer"
+	ui.add_child(tick_container)
+	tick_container.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	tick_container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	tick_container.offset_left = -260.0
+	tick_container.offset_top = 55.0
+	tick_container.offset_right = -8.0
+	tick_container.offset_bottom = 100.0
+	tick_container.add_theme_constant_override("separation", 2)
+
+	# Card name label
+	_tick_bar_card_name_label = Label.new()
+	_tick_bar_card_name_label.name = "TickBarCardName"
+	_tick_bar_card_name_label.text = ""
+	_tick_bar_card_name_label.add_theme_font_size_override("font_size", 11)
+	_tick_bar_card_name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	_tick_bar_card_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tick_container.add_child(_tick_bar_card_name_label)
+
+	# Bar row
+	var bar_hbox = HBoxContainer.new()
+	bar_hbox.name = "TickBars"
+	bar_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	bar_hbox.add_theme_constant_override("separation", 2)
+	tick_container.add_child(bar_hbox)
+
+	_tick_bar_rects.clear()
+	for i in range(20):
+		var bar = ColorRect.new()
+		bar.custom_minimum_size = Vector2(8, 22)
+		bar.color = Color(0.15, 0.15, 0.2)  # Dim/inactive
+		bar_hbox.add_child(bar)
+		_tick_bar_rects.append(bar)
+
+	# Status label
+	_tick_bar_label = Label.new()
+	_tick_bar_label.name = "TickBarLabel"
+	_tick_bar_label.text = "Ready"
+	_tick_bar_label.add_theme_font_size_override("font_size", 11)
+	_tick_bar_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.65))
+	_tick_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tick_container.add_child(_tick_bar_label)
+
+func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, card_name: String = "") -> void:
+	## Update the 20-tick bar display. Bars light up as ticks advance.
+	_tick_bar_current_tick = ticks_elapsed
+	_tick_bar_total_ticks = total_ticks
+	_tick_bar_resolve_tick = resolve_tick
+
+	if _tick_bar_card_name_label:
+		_tick_bar_card_name_label.text = card_name
+
+	var dim_color = Color(0.15, 0.15, 0.2)
+	var active_color = Color(0.4, 0.4, 0.55)     # Ticked (elapsed, before resolve)
+	var resolve_color = Color(1.0, 0.85, 0.3)     # Resolve tick marker
+	var resolved_color = Color(0.3, 0.8, 0.4)     # After resolve (recovery)
+	var unused_tick_color = Color(0.22, 0.22, 0.3) # Part of total but not yet ticked
+
+	for i in range(20):
+		if i >= total_ticks:
+			# Beyond the card's tempo cost
+			_tick_bar_rects[i].color = dim_color
+		elif i < ticks_elapsed:
+			# Already ticked
+			if i + 1 == resolve_tick:
+				_tick_bar_rects[i].color = resolve_color  # The resolve tick
+			elif i + 1 > resolve_tick:
+				_tick_bar_rects[i].color = resolved_color  # Recovery ticks (after resolve)
+			else:
+				_tick_bar_rects[i].color = active_color  # Windup ticks (before resolve)
+		elif i + 1 == resolve_tick:
+			# The resolve tick hasn't been reached yet - show it as a marker
+			_tick_bar_rects[i].color = Color(0.6, 0.5, 0.15)  # Dim gold marker
+		else:
+			_tick_bar_rects[i].color = unused_tick_color  # Waiting to be ticked
+
+	if _tick_bar_label:
+		if total_ticks > 0 and ticks_elapsed < total_ticks:
+			_tick_bar_label.text = "Tick %d/%d (resolves tick %d)" % [ticks_elapsed, total_ticks, resolve_tick]
+		elif total_ticks > 0 and ticks_elapsed >= total_ticks:
+			_tick_bar_label.text = "Complete"
+		else:
+			_tick_bar_label.text = "Ready"
+
+func _reset_tick_bar() -> void:
+	## Reset the tick bar to its idle state.
+	_tick_bar_current_tick = 0
+	_tick_bar_total_ticks = 0
+	_tick_bar_resolve_tick = 0
+	if _tick_bar_card_name_label:
+		_tick_bar_card_name_label.text = ""
+	for bar in _tick_bar_rects:
+		bar.color = Color(0.15, 0.15, 0.2)
+	if _tick_bar_label:
+		_tick_bar_label.text = "Ready"
+
+func _on_pause_pressed() -> void:
+	_is_paused = not _is_paused
+	if _is_paused:
+		get_tree().paused = true
+		_pause_button.text = "Resume"
+		add_battle_log("PAUSED", Color(1.0, 0.85, 0.3))
+		print("[MAIN] Game paused")
+	else:
+		get_tree().paused = false
+		_pause_button.text = "Pause"
+		print("[MAIN] Game resumed")
 
 func _setup_battle_log() -> void:
 	var ui = $UI as CanvasLayer
@@ -1686,6 +1836,13 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 				# Reappearing from invisibility counts as displacement
 				progression_triggers._trigger_skill_tree_on_displacement()
 
+	# Update tick bar UI if ticking is active
+	if tempo_manager.is_ticking():
+		var progress = tempo_manager.get_active_card_progress()
+		if not progress.is_empty():
+			var card_name = _pending_resolve_card.card_name if _pending_resolve_card else ""
+			_update_tick_bar(progress["ticks_elapsed"], progress["total_ticks"], progress["resolve_tick"], card_name)
+
 	update_turn_display()
 	_refresh_unit_tracker()
 
@@ -2731,6 +2888,8 @@ func play_selected_card(target) -> void:
 				_resolve_pending_card()
 				_player_can_queue_next = true
 			else:
+				# Initialize the tick bar UI
+				_update_tick_bar(0, tempo_cost, resolve_tick, card.card_name)
 				tempo_manager.add_card_tempo(tempo_cost, card, resolve_tick)
 		else:
 			print("[MAIN] Free attack! No tempo added.")
@@ -2765,6 +2924,7 @@ func _on_player_can_queue() -> void:
 func _on_ticking_finished() -> void:
 	## Called when all pending ticks are done. Full freedom to act.
 	_player_can_queue_next = true
+	_reset_tick_bar()
 	print("[MAIN] All ticks complete. Player is free.")
 
 func _resolve_pending_card() -> void:
