@@ -104,6 +104,10 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 
 	_is_hexed = is_hexed
 	_is_locked = is_locked
+
+	# Build tempo tick bars (thin vertical cylinders showing resolve tick)
+	_build_tempo_bars(card)
+
 	_update_visual_instant()
 
 func _ready() -> void:
@@ -336,6 +340,55 @@ func _get_keybind_text(index: int) -> String:
 	if index >= 0 and index < KEYBIND_LABELS.size():
 		return "[%s]" % KEYBIND_LABELS[index]
 	return ""
+
+func _build_tempo_bars(card: Card) -> void:
+	## Add thin vertical bars at the bottom of the card showing tempo ticks.
+	## The highlighted bar indicates the resolve tick.
+	if card.tempo_cost <= 0:
+		return
+
+	var vbox = $Panel/VBox
+	if not vbox:
+		return
+
+	# Remove existing tempo bar container if re-setup
+	var existing = vbox.get_node_or_null("TempoBarContainer")
+	if existing:
+		existing.queue_free()
+
+	var bar_container = HBoxContainer.new()
+	bar_container.name = "TempoBarContainer"
+	bar_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	bar_container.add_theme_constant_override("separation", 2)
+	bar_container.custom_minimum_size.y = 16
+	vbox.add_child(bar_container)
+
+	# Get the card type color for the resolve tick highlight
+	var highlight_color: Color
+	match card.card_type:
+		Card.CardType.ATTACK:
+			highlight_color = Color(1.0, 0.3, 0.3)
+		Card.CardType.DEFENSE:
+			highlight_color = Color(0.3, 0.5, 1.0)
+		Card.CardType.UTILITY:
+			highlight_color = Color(0.3, 1.0, 0.3)
+		Card.CardType.POWER:
+			highlight_color = Color(0.8, 0.5, 1.0)
+		_:
+			highlight_color = Color(1.0, 0.85, 0.4)
+
+	var dim_color = Color(0.2, 0.2, 0.28)
+	var resolve_tick = mini(card.resolve_tick, card.tempo_cost)
+
+	for i in range(card.tempo_cost):
+		var bar = ColorRect.new()
+		bar.custom_minimum_size = Vector2(4, 14)
+		if i + 1 == resolve_tick:
+			# This is the resolve tick - highlighted
+			bar.color = highlight_color
+		else:
+			bar.color = dim_color
+		bar_container.add_child(bar)
 
 func set_hovered_external(hovered: bool) -> void:
 	_is_hovered = hovered

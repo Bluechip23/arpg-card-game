@@ -306,7 +306,7 @@ func handle_overflow() -> void:
 		discard_pile.append(card)
 		print("[DECK] No overflow manager, discarded: %s" % card.card_name)
 
-func play_card(index: int, target, player_node = null) -> Dictionary:
+func play_card(index: int, target, player_node = null, defer_execution: bool = false) -> Dictionary:
 	if index < 0 or index >= hand.size():
 		print("[DECK] Invalid card index: %d" % index)
 		return { "played": false, "free_turn": false }
@@ -442,17 +442,18 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 	if player_node and player_node.has_method("get_buff_manager"):
 		buff_mgr = player_node.get_buff_manager()
 
-	card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+	if not defer_execution:
+		card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 
-	# Register attack for attack speed counter (DEX proc) - all attack cards count
-	if card.card_type == Card.CardType.ATTACK and player_stats:
-		player_stats.register_attack()
+		# Register attack for attack speed counter (DEX proc) - all attack cards count
+		if card.card_type == Card.CardType.ATTACK and player_stats:
+			player_stats.register_attack()
 
-	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
-		debuff_mgr.on_attack()
+		if debuff_mgr and card.card_type == Card.CardType.ATTACK:
+			debuff_mgr.on_attack()
 
-	if inventory:
-		inventory.on_card_played(card)
+		if inventory:
+			inventory.on_card_played(card)
 
 	# Power cards with maintain go to the maintained pile instead of discard
 	if card.card_type == Card.CardType.POWER and card.maintain_cost > 0:
@@ -495,6 +496,36 @@ func play_card(index: int, target, player_node = null) -> Dictionary:
 	print("[DECK] Played: %s (cost %d mana) | Hand: %d/%d" % [card.card_name, mana_cost, hand.size(), get_hand_cap()])
 	
 	return { "played": true, "free_turn": was_free_turn }
+
+## Execute a deferred card (called when the resolve tick fires in the ticked tempo system)
+func execute_deferred_card(card: Card, target, player_node = null) -> void:
+	var damage_reduction_pct = 0.0
+	var self_damage_percent = 0.0
+	var buff_mgr = null
+	var debuff_mgr = null
+
+	if player_node and player_node.has_method("get_debuff_manager"):
+		debuff_mgr = player_node.get_debuff_manager()
+	if player_node and player_node.has_method("get_buff_manager"):
+		buff_mgr = player_node.get_buff_manager()
+
+	if debuff_mgr:
+		damage_reduction_pct = debuff_mgr.get_damage_reduction_percent()
+		self_damage_percent = debuff_mgr.get_self_damage_percent()
+
+	card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+
+	# Register attack for attack speed counter (DEX proc)
+	if card.card_type == Card.CardType.ATTACK and player_stats:
+		player_stats.register_attack()
+
+	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
+		debuff_mgr.on_attack()
+
+	if inventory:
+		inventory.on_card_played(card)
+
+	print("[DECK] Deferred card executed: %s" % card.card_name)
 
 func _update_debuff_card_indices(debuff_mgr, removed_index: int) -> void:
 	var hexed_index = debuff_mgr.get_hexed_card_index()

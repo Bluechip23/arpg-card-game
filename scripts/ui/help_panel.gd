@@ -1,18 +1,22 @@
 class_name HelpPanel
 extends CanvasLayer
 
-## Help panel with keyword legend and gameplay walkthrough
+## Help panel with keyword legend, gameplay walkthrough, and settings
 
 signal closed
+signal tick_speed_changed(speed: float)
 
 @onready var panel: PanelContainer = $Panel
 @onready var tab_container: TabContainer = $Panel/MarginContainer/VBox/TabContainer
 @onready var close_button: Button = $Panel/MarginContainer/VBox/CloseButton
+@onready var settings_tab: SettingsTab = $Panel/MarginContainer/VBox/TabContainer/Settings
 
 func _ready() -> void:
 	visible = false
 	if close_button:
 		close_button.pressed.connect(_on_close_pressed)
+	if settings_tab:
+		settings_tab.tick_speed_changed.connect(func(speed): tick_speed_changed.emit(speed))
 
 func _on_close_pressed() -> void:
 	visible = false
