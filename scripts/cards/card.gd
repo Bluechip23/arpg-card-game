@@ -16,6 +16,7 @@ enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL, SWIFT, BUCKLER, CROWN, FIST
 @export var block: int = 0
 @export var heal_amount: int = 0
 @export var tempo_cost: int = 4
+@export var resolve_tick: int = 1  # Which tick (1-based) the card's effect resolves on (1 = immediate, tempo_cost = last tick)
 var is_enhanced: bool = false  
 var base_damage: int = 10
 var base_block: int = 0
@@ -1814,6 +1815,7 @@ static func create_charge() -> Card:
 	card.target_types = ["enemy"]
 	card.is_aoe = true
 	card.aoe_shape = "line"
+	card.resolve_tick = 3  # Wind up then charge forward
 	return card
 
 static func create_heroic_leap() -> Card:
@@ -1831,6 +1833,7 @@ static func create_heroic_leap() -> Card:
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.aoe_range = 1.5
+	card.resolve_tick = 4  # Big windup before landing
 	return card
 
 static func create_morphine() -> Card:
@@ -4053,6 +4056,7 @@ static func create_heavy_swing() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.resolve_tick = 2  # Short windup for heavy hit
 	return card
 
 static func create_shed_weight() -> Card:
@@ -4104,6 +4108,7 @@ static func create_shield_slam() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.resolve_tick = 7  # Heavy windup with shield
 	return card
 
 static func create_tower_shield() -> Card:
@@ -4307,6 +4312,7 @@ static func create_fireball() -> Card:
 	card.aoe_shape = "circle"
 	card.aoe_range = 2.0  # 4 squares diameter = 2 radius
 	card.target_types = ["point"]
+	card.resolve_tick = 6  # Channel the fireball
 	return card
 
 static func create_spark() -> Card:
@@ -4346,6 +4352,7 @@ static func create_god_of_thunder() -> Card:
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_types = ["point"]
+	card.resolve_tick = 8  # Long channel for massive spell
 	return card
 
 static func create_worms_armageddon() -> Card:

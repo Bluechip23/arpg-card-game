@@ -140,6 +140,13 @@ var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
 var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining: int}]
 var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
+
+# Ticked tempo system state
+var _pending_resolve_card: Card = null       # Card waiting for its resolve tick
+var _pending_resolve_target = null            # Target for the pending card
+var _pending_resolve_card_data: Dictionary = {}  # Extra data for post-resolve triggers
+var _player_can_queue_next: bool = true       # Whether the player can play/queue their next card
+
 var barricade_obstacles: Array = []  # [{node: MeshInstance3D, health: int}]
 var active_pillars: Array = []  # [{node: Node3D, position: Vector3, tempo_remaining: int}]
 var _card_ui_instances: Array = []
@@ -208,6 +215,9 @@ func _ready() -> void:
 	tempo_manager.tempo_threshold_reached.connect(_on_tempo_threshold_reached)
 	tempo_manager.tempo_changed.connect(_on_tempo_changed)
 	tempo_manager.tempo_advanced.connect(_on_tempo_advanced)
+	tempo_manager.card_resolved.connect(_on_card_tick_resolved)
+	tempo_manager.player_can_queue.connect(_on_player_can_queue)
+	tempo_manager.ticking_finished.connect(_on_ticking_finished)
 	turn_manager.turn_ended.connect(_on_turn_ended)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
@@ -2607,12 +2617,19 @@ func play_selected_card(target) -> void:
 		print("[INPUT] Cannot play cards - Glutted for %d more tempo!" % glut_tempo_remaining)
 		return
 
+	# Ticked tempo: block card play during windup (before resolve), allow during recovery
+	if not _player_can_queue_next:
+		add_battle_log("Waiting for current action to resolve...", Color(1.0, 0.7, 0.3))
+		print("[INPUT] Cannot play cards - waiting for resolve tick")
+		return
+
 	# Hide range indicator when playing a card
 	if range_indicator:
 		range_indicator.hide_range()
 
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
+	var resolve_tick = mini(card.resolve_tick, tempo_cost)  # Clamp resolve_tick to tempo_cost
 	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
 
 	# Arcane Overflow: -1 tempo on spells when primed (had 0 mana after previous spell)
@@ -2620,6 +2637,7 @@ func play_selected_card(target) -> void:
 	if ao_stats and ao_stats.has_skill_tree_passive("arcane_overflow") and ao_stats.st_arcane_overflow_discount:
 		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
 			tempo_cost = maxi(0, tempo_cost - 1)
+			resolve_tick = mini(resolve_tick, tempo_cost)
 
 	var debuff_mgr = player.get_debuff_manager()
 	var buff_mgr = player.get_buff_manager()
@@ -2665,7 +2683,8 @@ func play_selected_card(target) -> void:
 	if selected_card_index >= 0 and selected_card_index < _card_ui_instances.size():
 		played_card_ui = _card_ui_instances[selected_card_index]
 
-	var result = deck_manager.play_card(selected_card_index, target, player)
+	# Play card with deferred execution - validates, pays mana, removes from hand, but does NOT execute
+	var result = deck_manager.play_card(selected_card_index, target, player, true)
 
 	if result["played"]:
 		# Animate the played card flying to target
@@ -2678,154 +2697,46 @@ func play_selected_card(target) -> void:
 
 		selected_card_index = -1
 
-		# Log the card play
+		# Log the card play (effect hasn't resolved yet for delayed cards)
 		var target_name = ""
 		if target is Enemy:
 			target_name = " on %s" % target.enemy_name
-		if card.last_damage_dealt > 0:
-			add_battle_log("Played %s%s — %d damage" % [card.card_name, target_name, card.last_damage_dealt], Color(0.4, 1.0, 0.5))
-		else:
+		if resolve_tick <= 1:
 			add_battle_log("Played %s%s" % [card.card_name, target_name], Color(0.4, 1.0, 0.5))
-
-		# Sphere grid passive triggers for card play
-		progression_triggers._trigger_sphere_passives("on_card_play", {"card": card, "target": target})
-		if card.card_type == Card.CardType.ATTACK:
-			progression_triggers._trigger_sphere_passives("on_attack", {"card": card, "target": target})
-		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
-			progression_triggers._trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
-
-		# Skill tree passive triggers for card play
-		progression_triggers._trigger_skill_tree_on_card_play(card, target)
-		progression_triggers._trigger_skill_tree_stephen_on_card_play(card)
-		progression_triggers._trigger_skill_tree_cory_on_card_play(card)
-		progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target)
-		if card.card_type == Card.CardType.ATTACK:
-			progression_triggers._trigger_skill_tree_on_attack(card, target)
-			# Brad/Stephen attack passives (bonus damage applied to target)
-			var brad_bonus = progression_triggers._trigger_skill_tree_brad_on_attack(card, target)
-			var stephen_bonus = progression_triggers._trigger_skill_tree_stephen_on_attack(card, target)
-			if (brad_bonus + stephen_bonus) > 0 and target and target.has_method("take_damage"):
-				target.take_damage(brad_bonus + stephen_bonus, true)
-			# Ranged attack passives (Stephen)
-			if card.is_ranged:
-				progression_triggers._trigger_skill_tree_stephen_on_ranged_attack(card, target)
-		if card.card_type == Card.CardType.DEFENSE:
-			progression_triggers._trigger_skill_tree_brad_on_defense_card_play(card)
 		else:
-			# Reset Pristine Armor consecutive defense counter on non-defense card
-			var pa_stats = player.get_stats()
-			if pa_stats:
-				pa_stats.st_consecutive_defense = 0
+			add_battle_log("Winding up %s%s (resolves tick %d/%d)" % [card.card_name, target_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
 
-		# Check for crit-based skill tree passives (Eye Scrape)
-		if buff_mgr and buff_mgr.last_crit_hit:
-			buff_mgr.last_crit_hit = false
-			progression_triggers._trigger_skill_tree_on_crit(target)
+		# Store pending resolve data for when the tick fires
+		_pending_resolve_card = card
+		_pending_resolve_target = target
+		_pending_resolve_card_data = {
+			"tighten_applied": tighten_applied,
+			"high_ground_applied": high_ground_applied,
+			"harnessed_power_applied": harnessed_power_applied,
+			"harnessed_bonus_damage": harnessed_bonus_damage,
+			"harnessed_bonus_heal": harnessed_bonus_heal,
+			"harnessed_bonus_block": harnessed_bonus_block,
+			"is_ranged_attack": is_ranged_attack,
+			"free_turn": result["free_turn"],
+		}
 
-		# Apply world effects (knockback, movement, AOE) that need game-level access
-		_apply_card_world_effects(card, target)
+		# Block player from playing cards until resolve tick
+		_player_can_queue_next = false
 
-		# Tighten String: decrement charges and undo temporary card mods
-		if tighten_applied:
-			buff_mgr.tighten_string_charges -= 1
-			card.bonus_damage -= 6
-			card.range_modifier -= 6
-			if buff_mgr.tighten_string_charges <= 0:
-				print("[MAIN] Tighten String expired!")
-
-		# High Ground: undo temporary card mods
-		if high_ground_applied:
-			card.bonus_damage -= 4
-			card.range_modifier -= 2
-
-		# Harnessed Power: undo temporary card mods
-		if harnessed_power_applied:
-			card.bonus_damage -= harnessed_bonus_damage
-			card.heal_amount -= harnessed_bonus_heal
-			card.block -= harnessed_bonus_block
-
-		# Enchanted Quiver: create a free arrow card after ranged attacks
-		if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and is_ranged_attack:
-			var arrow = Card.create_quick_arrow()
-			deck_manager.hand.append(arrow)
-			buff_mgr.enchanted_quiver_charges -= 1
-			deck_manager.hand_updated.emit()
-			print("[MAIN] Enchanted Quiver: Quick Arrow added to hand! (%d charges left)" % buff_mgr.enchanted_quiver_charges)
-
-		# Shuriken Pouch: add manifest overflow effect (3 charges of shuriken)
-		if card.card_id == "shuriken_pouch":
-			var shuriken_effect = OverflowEffect.create_manifest_shuriken(3, "Shuriken Pouch")
-			overflow_manager.add_overflow_effect(shuriken_effect)
-
-		# Bottomless Quiver: add quiver overflow effect (5 charges)
-		if card.card_id == "bottomless_quiver":
-			var quiver_effect = OverflowEffect.create_quiver(5, "Bottomless Quiver")
-			overflow_manager.add_overflow_effect(quiver_effect)
-			if quiver_ui:
-				quiver_ui.refresh()
-
-		# Reckless Strike: add 2 Minor Wounds to the deck
-		if card.card_id == "reckless_strike":
-			for i in range(2):
-				var wound = Card.create_minor_wounds()
-				deck_manager.discard_pile.append(wound)
-			add_battle_log("Reckless Strike: 2 Minor Wounds added to deck!", Color(1.0, 0.5, 0.3))
-			print("[MAIN] Reckless Strike: added 2 Minor Wounds to discard pile")
-
-		# Collect Arrows: move up to 2 attack cards from discard pile to hand
-		if card.card_id == "collect_arrows":
-			var collected = 0
-			for i in range(deck_manager.discard_pile.size() - 1, -1, -1):
-				if collected >= 2:
-					break
-				var discard_card = deck_manager.discard_pile[i]
-				if discard_card.card_type == Card.CardType.ATTACK:
-					deck_manager.discard_pile.remove_at(i)
-					deck_manager.hand.append(discard_card)
-					collected += 1
-					print("[MAIN] Collect Arrows: retrieved %s from discard" % discard_card.card_name)
-			if collected > 0:
-				deck_manager.hand_updated.emit()
-				add_battle_log("Collect Arrows: retrieved %d attack card(s)!" % collected, Color(0.4, 0.8, 1.0))
-			else:
-				add_battle_log("Collect Arrows: no attack cards in discard pile!", Color(1.0, 0.6, 0.3))
-			print("[MAIN] Collect Arrows: collected %d attack cards" % collected)
-		# Track last played card for Lethal Recall (skip lethal_recall itself to avoid loops)
-		if card.card_id != "lethal_recall":
-			_last_played_card = card
-			_last_played_target = target
-
-		# Lethal Recall: replay last instant card's effect 2 times
-		if card.card_id == "lethal_recall" and _last_played_card:
-			var replay_card = _last_played_card
-			var replay_target = _last_played_target
-			var stats = player.get_stats()
-			var damage_reduction = 0.0
-			var self_damage = 0.0
-			if debuff_mgr:
-				damage_reduction = debuff_mgr.get_damage_reduction_percent()
-				self_damage = debuff_mgr.get_self_damage_percent()
-			for i in range(2):
-				replay_card.execute(replay_target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
-				_apply_card_world_effects(replay_card, replay_target)
-				print("[MAIN] Lethal Recall: replayed %s (repeat %d/2)" % [replay_card.card_name, i + 1])
-			add_battle_log("Lethal Recall: %s triggered 2 times!" % replay_card.card_name, Color(0.8, 0.4, 1.0))
-
-		# Glut: apply card lockout if the card has glut_tempo
-		if card.glut_tempo > 0:
-			glut_tempo_remaining = card.glut_tempo
-			add_battle_log("Glutted for %d tempo! Cannot play cards." % card.glut_tempo, Color(1.0, 0.4, 0.4))
-			print("[MAIN] Glut activated: %d tempo lockout" % card.glut_tempo)
-			# Stephen: Patience is a Virtue
-			progression_triggers._trigger_skill_tree_stephen_on_glut(card.glut_tempo)
-
+		# Start ticked tempo (or add to high-water mark for multiplayer overlap)
 		if not result["free_turn"]:
 			if buff_mgr and buff_mgr.consume_steady():
 				print("[MAIN] Steady! No tempo added.")
+				# Still need to resolve the card immediately if no ticks
+				_resolve_pending_card()
+				_player_can_queue_next = true
 			else:
-				tempo_manager.add_card_tempo(tempo_cost)
+				tempo_manager.add_card_tempo(tempo_cost, card, resolve_tick)
 		else:
 			print("[MAIN] Free attack! No tempo added.")
+			# Resolve immediately for free turns
+			_resolve_pending_card()
+			_player_can_queue_next = true
 
 		_on_hand_updated()
 		update_deck_info()
@@ -2838,6 +2749,180 @@ func play_selected_card(target) -> void:
 		if high_ground_applied:
 			card.bonus_damage -= 4
 			card.range_modifier -= 2
+
+# ---- Ticked Tempo: Card Resolution Handlers ----
+
+func _on_card_tick_resolved(card: Card) -> void:
+	## Called by TempoManager when a card's resolve_tick is reached.
+	if _pending_resolve_card and _pending_resolve_card == card:
+		_resolve_pending_card()
+
+func _on_player_can_queue() -> void:
+	## Called after the resolve tick fires. Player can now queue their next card.
+	_player_can_queue_next = true
+	print("[MAIN] Player can now queue next card (recovery phase)")
+
+func _on_ticking_finished() -> void:
+	## Called when all pending ticks are done. Full freedom to act.
+	_player_can_queue_next = true
+	print("[MAIN] All ticks complete. Player is free.")
+
+func _resolve_pending_card() -> void:
+	## Execute the pending card's effect and trigger all post-play logic.
+	if not _pending_resolve_card:
+		return
+
+	var card = _pending_resolve_card
+	var target = _pending_resolve_target
+	var data = _pending_resolve_card_data
+
+	# Execute the card's effect (damage, block, heal, etc.)
+	deck_manager.execute_deferred_card(card, target, player)
+
+	var debuff_mgr = player.get_debuff_manager()
+	var buff_mgr = player.get_buff_manager()
+
+	# Log damage after execution
+	var target_name = ""
+	if target is Enemy:
+		target_name = " on %s" % target.enemy_name
+	if card.last_damage_dealt > 0:
+		add_battle_log("%s resolved — %d damage%s" % [card.card_name, card.last_damage_dealt, target_name], Color(0.4, 1.0, 0.5))
+
+	# Sphere grid passive triggers for card play
+	progression_triggers._trigger_sphere_passives("on_card_play", {"card": card, "target": target})
+	if card.card_type == Card.CardType.ATTACK:
+		progression_triggers._trigger_sphere_passives("on_attack", {"card": card, "target": target})
+	if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+		progression_triggers._trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
+
+	# Skill tree passive triggers for card play
+	progression_triggers._trigger_skill_tree_on_card_play(card, target)
+	progression_triggers._trigger_skill_tree_stephen_on_card_play(card)
+	progression_triggers._trigger_skill_tree_cory_on_card_play(card)
+	progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target)
+	if card.card_type == Card.CardType.ATTACK:
+		progression_triggers._trigger_skill_tree_on_attack(card, target)
+		var brad_bonus = progression_triggers._trigger_skill_tree_brad_on_attack(card, target)
+		var stephen_bonus = progression_triggers._trigger_skill_tree_stephen_on_attack(card, target)
+		if (brad_bonus + stephen_bonus) > 0 and target and target.has_method("take_damage"):
+			target.take_damage(brad_bonus + stephen_bonus, true)
+		if card.is_ranged:
+			progression_triggers._trigger_skill_tree_stephen_on_ranged_attack(card, target)
+	if card.card_type == Card.CardType.DEFENSE:
+		progression_triggers._trigger_skill_tree_brad_on_defense_card_play(card)
+	else:
+		var pa_stats = player.get_stats()
+		if pa_stats:
+			pa_stats.st_consecutive_defense = 0
+
+	# Crit-based skill tree passives (Eye Scrape)
+	if buff_mgr and buff_mgr.last_crit_hit:
+		buff_mgr.last_crit_hit = false
+		progression_triggers._trigger_skill_tree_on_crit(target)
+
+	# Apply world effects (knockback, movement, AOE)
+	_apply_card_world_effects(card, target)
+
+	# Tighten String: decrement charges and undo temporary card mods
+	if data.get("tighten_applied", false):
+		buff_mgr.tighten_string_charges -= 1
+		card.bonus_damage -= 6
+		card.range_modifier -= 6
+		if buff_mgr.tighten_string_charges <= 0:
+			print("[MAIN] Tighten String expired!")
+
+	# High Ground: undo temporary card mods
+	if data.get("high_ground_applied", false):
+		card.bonus_damage -= 4
+		card.range_modifier -= 2
+
+	# Harnessed Power: undo temporary card mods
+	if data.get("harnessed_power_applied", false):
+		card.bonus_damage -= data["harnessed_bonus_damage"]
+		card.heal_amount -= data["harnessed_bonus_heal"]
+		card.block -= data["harnessed_bonus_block"]
+
+	# Enchanted Quiver: create a free arrow card after ranged attacks
+	if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and data.get("is_ranged_attack", false):
+		var arrow = Card.create_quick_arrow()
+		deck_manager.hand.append(arrow)
+		buff_mgr.enchanted_quiver_charges -= 1
+		deck_manager.hand_updated.emit()
+		print("[MAIN] Enchanted Quiver: Quick Arrow added to hand! (%d charges left)" % buff_mgr.enchanted_quiver_charges)
+
+	# Card-specific post-play effects
+	if card.card_id == "shuriken_pouch":
+		var shuriken_effect = OverflowEffect.create_manifest_shuriken(3, "Shuriken Pouch")
+		overflow_manager.add_overflow_effect(shuriken_effect)
+
+	if card.card_id == "bottomless_quiver":
+		var quiver_effect = OverflowEffect.create_quiver(5, "Bottomless Quiver")
+		overflow_manager.add_overflow_effect(quiver_effect)
+		if quiver_ui:
+			quiver_ui.refresh()
+
+	if card.card_id == "reckless_strike":
+		for i in range(2):
+			var wound = Card.create_minor_wounds()
+			deck_manager.discard_pile.append(wound)
+		add_battle_log("Reckless Strike: 2 Minor Wounds added to deck!", Color(1.0, 0.5, 0.3))
+		print("[MAIN] Reckless Strike: added 2 Minor Wounds to discard pile")
+
+	if card.card_id == "collect_arrows":
+		var collected = 0
+		for i in range(deck_manager.discard_pile.size() - 1, -1, -1):
+			if collected >= 2:
+				break
+			var discard_card = deck_manager.discard_pile[i]
+			if discard_card.card_type == Card.CardType.ATTACK:
+				deck_manager.discard_pile.remove_at(i)
+				deck_manager.hand.append(discard_card)
+				collected += 1
+				print("[MAIN] Collect Arrows: retrieved %s from discard" % discard_card.card_name)
+		if collected > 0:
+			deck_manager.hand_updated.emit()
+			add_battle_log("Collect Arrows: retrieved %d attack card(s)!" % collected, Color(0.4, 0.8, 1.0))
+		else:
+			add_battle_log("Collect Arrows: no attack cards in discard pile!", Color(1.0, 0.6, 0.3))
+
+	# Track last played card for Lethal Recall
+	if card.card_id != "lethal_recall":
+		_last_played_card = card
+		_last_played_target = target
+
+	# Lethal Recall: replay last card's effect 2 times
+	if card.card_id == "lethal_recall" and _last_played_card:
+		var replay_card = _last_played_card
+		var replay_target = _last_played_target
+		var stats = player.get_stats()
+		var damage_reduction = 0.0
+		var self_damage = 0.0
+		if debuff_mgr:
+			damage_reduction = debuff_mgr.get_damage_reduction_percent()
+			self_damage = debuff_mgr.get_self_damage_percent()
+		for i in range(2):
+			replay_card.execute(replay_target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
+			_apply_card_world_effects(replay_card, replay_target)
+			print("[MAIN] Lethal Recall: replayed %s (repeat %d/2)" % [replay_card.card_name, i + 1])
+		add_battle_log("Lethal Recall: %s triggered 2 times!" % replay_card.card_name, Color(0.8, 0.4, 1.0))
+
+	# Glut: apply card lockout
+	if card.glut_tempo > 0:
+		glut_tempo_remaining = card.glut_tempo
+		add_battle_log("Glutted for %d tempo! Cannot play cards." % card.glut_tempo, Color(1.0, 0.4, 0.4))
+		print("[MAIN] Glut activated: %d tempo lockout" % card.glut_tempo)
+		progression_triggers._trigger_skill_tree_stephen_on_glut(card.glut_tempo)
+
+	# Clear pending state
+	_pending_resolve_card = null
+	_pending_resolve_target = null
+	_pending_resolve_card_data = {}
+
+	_on_hand_updated()
+	update_deck_info()
+	_refresh_unit_tracker()
+	print("[MAIN] Card '%s' fully resolved" % card.card_name)
 
 func _get_distance_to_target(target) -> int:
 	if not target or not target is Node3D:
