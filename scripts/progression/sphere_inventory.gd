@@ -21,9 +21,6 @@ var spheres: Dictionary = {
 	SphereType.SWAP: 0,
 }
 
-# Upgrade runes (found in combat, can upgrade any unlocked node)
-var upgrade_runes: int = 0
-
 # Retrospective tokens (from sphere grid, lets player reclaim a skipped skill tree option)
 var retrospective_tokens: int = 0
 
@@ -69,22 +66,6 @@ func spend_sphere_for_node(node_type: SphereGrid.NodeType) -> bool:
 	if spheres[SphereType.ANY] > 0:
 		return remove_sphere(SphereType.ANY)
 	return false
-
-# ============================================
-# UPGRADE RUNES
-# ============================================
-
-func add_upgrade_rune(amount: int = 1) -> void:
-	upgrade_runes += amount
-	print("[SPHERES] Gained %d upgrade rune(s). Total: %d" % [amount, upgrade_runes])
-	spheres_changed.emit()
-
-func spend_upgrade_rune() -> bool:
-	if upgrade_runes <= 0:
-		return false
-	upgrade_runes -= 1
-	spheres_changed.emit()
-	return true
 
 # ============================================
 # RETROSPECTIVE TOKENS

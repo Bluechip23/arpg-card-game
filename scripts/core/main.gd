@@ -4702,7 +4702,6 @@ func _restore_player_progression(progression: Dictionary) -> void:
 	if progression.has("sphere_inventory"):
 		var inv_data = progression["sphere_inventory"]
 		sphere_inventory.spheres = inv_data.get("spheres", sphere_inventory.spheres)
-		sphere_inventory.upgrade_runes = inv_data.get("upgrade_runes", 0)
 		sphere_inventory.retrospective_tokens = inv_data.get("retrospective_tokens", 0)
 
 	# Restore deck state (preserves hand, draw, discard piles exactly)
@@ -4749,7 +4748,6 @@ func _save_player_progression() -> Dictionary:
 	var sphere_inv: SphereInventory = sphere_inventory
 	progression["sphere_inventory"] = {
 		"spheres": sphere_inv.spheres.duplicate(),
-		"upgrade_runes": sphere_inv.upgrade_runes,
 		"retrospective_tokens": sphere_inv.retrospective_tokens,
 	}
 	# Deck state (each pile saved separately to preserve hand exactly)

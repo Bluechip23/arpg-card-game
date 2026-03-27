@@ -257,16 +257,15 @@ Rings have passive effects that trigger on events:
 - [color=coral]Health Sphere[/color] - Increases max health
 - [color=cyan]Mana Sphere[/color] - Increases max mana
 
-[color=yellow]Upgrading Spheres:[/color]
-- Each sphere can be upgraded to increase its benefit
-- Upgrading a [color=red]Stat Sphere[/color] increases the stat benefit (e.g., STR +1 becomes STR +2)
-- Upgrading a [color=purple]Card Sphere[/color] makes the card stronger (e.g., more damage, lower cost, extra effects)
-- Upgrading a [color=green]Passive Sphere[/color] improves the passive trigger (e.g., higher chance, stronger effect)
+[color=yellow]Upgrading Cards:[/color]
+- Cards are upgraded using [color=cyan]Paper Feathers[/color] at the Card Dealer in town
+- Each card has 2 upgrade paths to choose from (e.g., more damage or added block)
+- Paper Feathers can be found from enemy loot and chests
+- You can also create Paper Feathers by converting cards into Origami Swans at Olorin (20 swans = 1 feather)
 
 [color=yellow]Mutating Spheres:[/color]
-- Card and Passive spheres can also be mutated (transmuted) instead of upgraded
-- Mutating transforms the ability into a different version that fits your play style
-- Each Card and Passive node has 2 possible mutations to choose from
+- Passive spheres can be mutated (transmuted) into a different version that fits your play style
+- Each Passive node has 2 possible mutations to choose from
 - Example: "On kill: heal 1 HP" can mutate into "On kill: gain 2 mana" or "On kill: gain 2 armor"
 
 """
