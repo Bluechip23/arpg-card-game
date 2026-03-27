@@ -363,10 +363,12 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 		return
 
 	if info["type"] == "card_dealer":
-		# Show culling stone count
+		# Show culling stone and paper feather counts
 		var inventory = player.get_inventory() if player.has_method("get_inventory") else null
 		var stones = inventory.get_culling_stone_count() if inventory else 0
+		var feathers = inventory.get_paper_feather_count() if inventory else 0
 		_add_info_label("Culling Stones: %d" % stones, Color(0.8, 0.5, 1.0))
+		_add_info_label("Paper Feathers: %d" % feathers, Color(1.0, 0.85, 0.4))
 
 		# Card shop: show all available cards for purchase
 		_add_section_separator("Available Cards")
@@ -381,6 +383,8 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 			for i in range(deck_ids.size()):
 				var card = _create_card_from_id(deck_ids[i])
 				if card:
+					# Apply upgrade if this card has one
+					_apply_upgrade_to_card(card, i)
 					_add_vendor_card_row(card, true, i)
 	else:
 		# Item shops: show shop inventory
@@ -463,6 +467,23 @@ func _add_info_label(text: String, color: Color) -> void:
 	lbl.add_theme_color_override("font_color", color)
 	vendor_item_list.add_child(lbl)
 
+func _apply_upgrade_to_card(card: Card, deck_index: int) -> void:
+	## Applies any stored upgrade to a card based on its deck index.
+	if not starting_character:
+		return
+	for upgrade in starting_character.card_upgrades:
+		if upgrade["card_index"] == deck_index:
+			card.apply_upgrade(upgrade["upgrade_path"])
+			return
+
+func _is_card_upgraded(deck_index: int) -> bool:
+	if not starting_character:
+		return false
+	for upgrade in starting_character.card_upgrades:
+		if upgrade["card_index"] == deck_index:
+			return true
+	return false
+
 func _get_current_deck_card_ids() -> Array:
 	## Builds the full list of card_ids that would be in the player's battle deck.
 	if not starting_character:
@@ -530,7 +551,8 @@ func _add_vendor_card_row(card: Card, is_sell: bool, sell_index: int = -1) -> vo
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	var prefix = "[SELL] " if is_sell else ""
-	btn.text = "  %s%s   [%s]   %dM   %s" % [prefix, card.card_name, card.card_type_name, card.mana_cost, card.description]
+	var upgrade_tag = " [UPGRADED]" if card.is_upgraded else ""
+	btn.text = "  %s%s%s   [%s]   %dM %dT   %s" % [prefix, card.card_name, upgrade_tag, card.card_type_name, card.mana_cost, card.tempo_cost, card.description]
 	btn.add_theme_font_size_override("font_size", 13)
 
 	# Style
@@ -968,9 +990,18 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(name_lbl)
 
+	# --- Upgraded indicator ---
+	if card.is_upgraded:
+		var upgrade_lbl = Label.new()
+		upgrade_lbl.text = "UPGRADED"
+		upgrade_lbl.add_theme_font_size_override("font_size", 12)
+		upgrade_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+		upgrade_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(upgrade_lbl)
+
 	# --- Card type + cost ---
 	var type_lbl = Label.new()
-	type_lbl.text = "%s  |  %d Mana  |  %d Tempo" % [card.card_type_name, card.mana_cost, card.tempo_cost]
+	type_lbl.text = "%s  |  %dM %dT" % [card.card_type_name, card.mana_cost, card.tempo_cost]
 	type_lbl.add_theme_font_size_override("font_size", 14)
 	type_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1011,40 +1042,87 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 	vbox.add_child(HSeparator.new())
 
 	# --- Buttons ---
-	var btn_hbox = HBoxContainer.new()
-	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	btn_hbox.add_theme_constant_override("separation", 16)
+	var btn_vbox = VBoxContainer.new()
+	btn_vbox.add_theme_constant_override("separation", 8)
 
-	var action_btn = Button.new()
 	if is_sell:
 		var inv = player.get_inventory() if player.has_method("get_inventory") else null
 		var stones = inv.get_culling_stone_count() if inv else 0
-		action_btn.text = "Cull from Deck (1 Stone)"
-		action_btn.custom_minimum_size = Vector2(200, 36)
-		action_btn.add_theme_font_size_override("font_size", 14)
+		var feathers = inv.get_paper_feather_count() if inv else 0
+		var card_is_upgraded = _is_card_upgraded(sell_index)
+		var card_can_upgrade = card.can_upgrade()
+
+		# Use Culling Stone button
+		var cull_btn = Button.new()
+		cull_btn.text = "Use Culling Stone (%d)" % stones
+		cull_btn.custom_minimum_size = Vector2(280, 36)
+		cull_btn.add_theme_font_size_override("font_size", 14)
 		if stones > 0:
-			_style_action_button(action_btn, Color(0.5, 0.2, 0.1), Color(0.65, 0.3, 0.15), Color(0.8, 0.4, 0.2))
+			_style_action_button(cull_btn, Color(0.5, 0.2, 0.1), Color(0.65, 0.3, 0.15), Color(0.8, 0.4, 0.2))
 		else:
-			_style_action_button(action_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
-			action_btn.disabled = true
-		action_btn.pressed.connect(_on_sell_card_confirmed)
+			_style_action_button(cull_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
+			cull_btn.disabled = true
+		cull_btn.pressed.connect(_on_cull_stone_clicked)
+		btn_vbox.add_child(cull_btn)
+
+		# Use Paper Feather button
+		var feather_btn = Button.new()
+		if card_is_upgraded:
+			feather_btn.text = "Already Upgraded"
+			feather_btn.custom_minimum_size = Vector2(280, 36)
+			feather_btn.add_theme_font_size_override("font_size", 14)
+			_style_action_button(feather_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
+			feather_btn.disabled = true
+		elif not card_can_upgrade:
+			feather_btn.text = "No Upgrades Available"
+			feather_btn.custom_minimum_size = Vector2(280, 36)
+			feather_btn.add_theme_font_size_override("font_size", 14)
+			_style_action_button(feather_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
+			feather_btn.disabled = true
+		else:
+			feather_btn.text = "Use Paper Feather (%d)" % feathers
+			feather_btn.custom_minimum_size = Vector2(280, 36)
+			feather_btn.add_theme_font_size_override("font_size", 14)
+			if feathers > 0:
+				_style_action_button(feather_btn, Color(0.45, 0.35, 0.1), Color(0.6, 0.5, 0.15), Color(0.8, 0.65, 0.2))
+			else:
+				_style_action_button(feather_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
+				feather_btn.disabled = true
+			feather_btn.pressed.connect(_on_paper_feather_clicked)
+		btn_vbox.add_child(feather_btn)
+
+		# Cancel button
+		var close_btn = Button.new()
+		close_btn.text = "Cancel"
+		close_btn.custom_minimum_size = Vector2(280, 36)
+		close_btn.add_theme_font_size_override("font_size", 14)
+		_style_action_button(close_btn, Color(0.3, 0.15, 0.15), Color(0.45, 0.2, 0.2), Color(0.6, 0.3, 0.3))
+		close_btn.pressed.connect(_close_detail_modal)
+		btn_vbox.add_child(close_btn)
 	else:
+		var btn_hbox = HBoxContainer.new()
+		btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		btn_hbox.add_theme_constant_override("separation", 16)
+
+		var action_btn = Button.new()
 		action_btn.text = "Add to Deck"
 		action_btn.custom_minimum_size = Vector2(140, 36)
 		action_btn.add_theme_font_size_override("font_size", 14)
 		_style_action_button(action_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
 		action_btn.pressed.connect(_on_buy_card_confirmed)
-	btn_hbox.add_child(action_btn)
+		btn_hbox.add_child(action_btn)
 
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.custom_minimum_size = Vector2(100, 36)
-	close_btn.add_theme_font_size_override("font_size", 14)
-	_style_action_button(close_btn, Color(0.3, 0.15, 0.15), Color(0.45, 0.2, 0.2), Color(0.6, 0.3, 0.3))
-	close_btn.pressed.connect(_close_detail_modal)
-	btn_hbox.add_child(close_btn)
+		var close_btn = Button.new()
+		close_btn.text = "Close"
+		close_btn.custom_minimum_size = Vector2(100, 36)
+		close_btn.add_theme_font_size_override("font_size", 14)
+		_style_action_button(close_btn, Color(0.3, 0.15, 0.15), Color(0.45, 0.2, 0.2), Color(0.6, 0.3, 0.3))
+		close_btn.pressed.connect(_close_detail_modal)
+		btn_hbox.add_child(close_btn)
 
-	vbox.add_child(btn_hbox)
+		btn_vbox.add_child(btn_hbox)
+
+	vbox.add_child(btn_vbox)
 
 	$UI.add_child(overlay)
 	$UI.add_child(_detail_modal)
@@ -1059,25 +1137,53 @@ func _on_buy_card_confirmed() -> void:
 	_close_detail_modal()
 	_refresh_vendor_panel()
 
-func _on_sell_card_confirmed() -> void:
-	if not starting_character or _detail_sell_slot_index < 0 or not _detail_card:
-		_close_detail_modal()
+# ============================================
+# CULLING STONE CONFIRMATION
+# ============================================
+
+var _pending_cull_card: Card = null
+var _pending_cull_index: int = -1
+
+func _on_cull_stone_clicked() -> void:
+	## Shows a confirmation modal before using a culling stone.
+	_pending_cull_card = _detail_card
+	_pending_cull_index = _detail_sell_slot_index
+	_close_detail_modal()
+	_show_confirm_modal(
+		"Confirm Culling",
+		"Are you sure you want to use a Culling Stone to permanently remove this card from your deck?",
+		Color(0.8, 0.4, 0.2),
+		_on_cull_stone_confirmed
+	)
+
+func _on_cull_stone_confirmed() -> void:
+	if not starting_character or _pending_cull_index < 0 or not _pending_cull_card:
+		_close_confirm_modal()
 		return
 
-	# Require a culling stone
 	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
 	if not inventory or not inventory.use_culling_stone():
 		print("[TOWN] No culling stones! Cannot remove card from deck.")
-		_close_detail_modal()
+		_close_confirm_modal()
 		return
 
-	# Get the card_id from the deck list at this index
 	var deck_ids = _get_current_deck_card_ids()
-	if _detail_sell_slot_index >= deck_ids.size():
-		_close_detail_modal()
+	if _pending_cull_index >= deck_ids.size():
+		_close_confirm_modal()
 		return
 
-	var card_id = deck_ids[_detail_sell_slot_index]
+	var card_id = deck_ids[_pending_cull_index]
+
+	# Also remove any upgrade for this card index
+	var new_upgrades: Array = []
+	for upgrade in starting_character.card_upgrades:
+		if upgrade["card_index"] != _pending_cull_index:
+			# Adjust indices for cards after the removed one
+			var adjusted_index = upgrade["card_index"]
+			if adjusted_index > _pending_cull_index:
+				adjusted_index -= 1
+			new_upgrades.append({"card_index": adjusted_index, "upgrade_path": upgrade["upgrade_path"]})
+	starting_character.card_upgrades = new_upgrades
 
 	# Try to remove from purchased_card_ids first
 	var purchased_idx = starting_character.purchased_card_ids.find(card_id)
@@ -1085,12 +1191,279 @@ func _on_sell_card_confirmed() -> void:
 		starting_character.purchased_card_ids.remove_at(purchased_idx)
 		print("[TOWN] Culled purchased card: %s" % card_id)
 	else:
-		# It's a base or starting card — track as a removal
 		starting_character.removed_card_ids.append(card_id)
 		print("[TOWN] Culled base/starting card: %s (removals: %d)" % [card_id, starting_character.removed_card_ids.size()])
 
-	_close_detail_modal()
+	_pending_cull_card = null
+	_pending_cull_index = -1
+
+	_close_confirm_modal()
 	_refresh_vendor_panel()
+
+# ============================================
+# PAPER FEATHER UPGRADE FLOW
+# ============================================
+
+func _on_paper_feather_clicked() -> void:
+	## Shows the upgrade path selection modal.
+	if not _detail_card:
+		return
+
+	var paths = _detail_card.get_upgrade_paths()
+	if paths.is_empty():
+		return
+
+	# Save card info before closing detail modal
+	var saved_card = _detail_card
+	var saved_index = _detail_sell_slot_index
+	_close_detail_modal()
+
+	# Restore for use in upgrade flow
+	_detail_card = saved_card
+	_detail_sell_slot_index = saved_index
+
+	_show_upgrade_path_modal(saved_card, paths)
+
+func _show_upgrade_path_modal(card: Card, paths: Array) -> void:
+	## Shows a modal with the 2 upgrade path options and a cancel button.
+	_modal_open = true
+
+	# Dimmed background
+	var overlay = ColorRect.new()
+	overlay.name = "ModalOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.5)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	# Modal panel
+	_detail_modal = PanelContainer.new()
+	_detail_modal.custom_minimum_size = Vector2(460, 0)
+	_detail_modal.set_anchors_preset(Control.PRESET_CENTER)
+	_detail_modal.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_detail_modal.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.08, 0.08, 0.12, 0.98)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.8, 0.65, 0.2)
+	panel_style.corner_radius_top_left = 10
+	panel_style.corner_radius_top_right = 10
+	panel_style.corner_radius_bottom_left = 10
+	panel_style.corner_radius_bottom_right = 10
+	_detail_modal.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	_detail_modal.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	margin.add_child(vbox)
+
+	# Title
+	var title_lbl = Label.new()
+	title_lbl.text = "Upgrade: %s" % card.card_name
+	title_lbl.add_theme_font_size_override("font_size", 20)
+	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title_lbl)
+
+	var subtitle_lbl = Label.new()
+	subtitle_lbl.text = "Choose an upgrade path (costs 1 Paper Feather)"
+	subtitle_lbl.add_theme_font_size_override("font_size", 13)
+	subtitle_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	subtitle_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(subtitle_lbl)
+
+	vbox.add_child(HSeparator.new())
+
+	# Upgrade path buttons
+	for i in range(paths.size()):
+		var path = paths[i]
+		var path_btn = Button.new()
+		path_btn.text = "Path %d: %s\n%s" % [i + 1, path["name"], path["description"]]
+		path_btn.custom_minimum_size = Vector2(400, 50)
+		path_btn.add_theme_font_size_override("font_size", 14)
+		_style_action_button(path_btn, Color(0.2, 0.3, 0.15), Color(0.3, 0.45, 0.2), Color(0.5, 0.7, 0.3))
+		path_btn.pressed.connect(_on_upgrade_path_selected.bind(i))
+		vbox.add_child(path_btn)
+
+	vbox.add_child(HSeparator.new())
+
+	# Cancel button
+	var cancel_btn = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.custom_minimum_size = Vector2(140, 36)
+	cancel_btn.add_theme_font_size_override("font_size", 14)
+	_style_action_button(cancel_btn, Color(0.3, 0.15, 0.15), Color(0.45, 0.2, 0.2), Color(0.6, 0.3, 0.3))
+	cancel_btn.pressed.connect(_close_detail_modal)
+	vbox.add_child(cancel_btn)
+
+	$UI.add_child(overlay)
+	$UI.add_child(_detail_modal)
+
+var _pending_upgrade_path: int = -1
+var _pending_upgrade_card: Card = null
+var _pending_upgrade_index: int = -1
+
+func _on_upgrade_path_selected(path_index: int) -> void:
+	## Shows a final confirmation before applying the upgrade.
+	_pending_upgrade_path = path_index
+	_pending_upgrade_card = _detail_card
+	_pending_upgrade_index = _detail_sell_slot_index
+
+	if not _pending_upgrade_card:
+		return
+
+	var paths = _pending_upgrade_card.get_upgrade_paths()
+	if path_index >= paths.size():
+		return
+
+	var path = paths[path_index]
+	var card_name = _pending_upgrade_card.card_name
+
+	_close_detail_modal()
+	_show_confirm_modal(
+		"Confirm Upgrade",
+		"Upgrade %s to %s?\n\n%s\n\nThis will consume 1 Paper Feather." % [card_name, path["name"], path["description"]],
+		Color(0.8, 0.65, 0.2),
+		_on_upgrade_confirmed
+	)
+
+func _on_upgrade_confirmed() -> void:
+	if not _pending_upgrade_card or not starting_character or _pending_upgrade_path < 0:
+		_close_confirm_modal()
+		return
+
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory or not inventory.use_paper_feather():
+		print("[TOWN] No Paper Feathers! Cannot upgrade card.")
+		_close_confirm_modal()
+		return
+
+	# Store the upgrade in character data
+	starting_character.card_upgrades.append({
+		"card_index": _pending_upgrade_index,
+		"upgrade_path": _pending_upgrade_path
+	})
+
+	print("[TOWN] Upgraded card at index %d with path %d" % [_pending_upgrade_index, _pending_upgrade_path])
+	_pending_upgrade_path = -1
+	_pending_upgrade_card = null
+	_pending_upgrade_index = -1
+	_close_confirm_modal()
+	_refresh_vendor_panel()
+
+# ============================================
+# GENERIC CONFIRM MODAL
+# ============================================
+
+var _confirm_modal: PanelContainer = null
+var _confirm_callback: Callable
+
+func _show_confirm_modal(title: String, message: String, accent_color: Color, on_confirm: Callable) -> void:
+	_confirm_callback = on_confirm
+	_modal_open = true
+
+	var overlay = ColorRect.new()
+	overlay.name = "ConfirmOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.6)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	_confirm_modal = PanelContainer.new()
+	_confirm_modal.custom_minimum_size = Vector2(400, 0)
+	_confirm_modal.set_anchors_preset(Control.PRESET_CENTER)
+	_confirm_modal.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_confirm_modal.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.1, 0.08, 0.12, 0.98)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = accent_color
+	panel_style.corner_radius_top_left = 10
+	panel_style.corner_radius_top_right = 10
+	panel_style.corner_radius_bottom_left = 10
+	panel_style.corner_radius_bottom_right = 10
+	_confirm_modal.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	_confirm_modal.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	margin.add_child(vbox)
+
+	var title_lbl = Label.new()
+	title_lbl.text = title
+	title_lbl.add_theme_font_size_override("font_size", 20)
+	title_lbl.add_theme_color_override("font_color", accent_color)
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title_lbl)
+
+	var msg_lbl = Label.new()
+	msg_lbl.text = message
+	msg_lbl.add_theme_font_size_override("font_size", 14)
+	msg_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	msg_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	msg_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(msg_lbl)
+
+	vbox.add_child(HSeparator.new())
+
+	var btn_hbox = HBoxContainer.new()
+	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_hbox.add_theme_constant_override("separation", 16)
+
+	var confirm_btn = Button.new()
+	confirm_btn.text = "Confirm"
+	confirm_btn.custom_minimum_size = Vector2(120, 36)
+	confirm_btn.add_theme_font_size_override("font_size", 14)
+	_style_action_button(confirm_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
+	confirm_btn.pressed.connect(on_confirm)
+	btn_hbox.add_child(confirm_btn)
+
+	var cancel_btn = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.custom_minimum_size = Vector2(120, 36)
+	cancel_btn.add_theme_font_size_override("font_size", 14)
+	_style_action_button(cancel_btn, Color(0.3, 0.15, 0.15), Color(0.45, 0.2, 0.2), Color(0.6, 0.3, 0.3))
+	cancel_btn.pressed.connect(_close_confirm_modal)
+	btn_hbox.add_child(cancel_btn)
+
+	vbox.add_child(btn_hbox)
+
+	$UI.add_child(overlay)
+	$UI.add_child(_confirm_modal)
+
+func _close_confirm_modal() -> void:
+	_modal_open = false
+	_detail_card = null
+	_detail_sell_slot_index = -1
+	_pending_upgrade_path = -1
+	_pending_upgrade_card = null
+	_pending_upgrade_index = -1
+	_pending_cull_card = null
+	_pending_cull_index = -1
+	var overlay = $UI.get_node_or_null("ConfirmOverlay")
+	if overlay:
+		overlay.queue_free()
+	if _confirm_modal and is_instance_valid(_confirm_modal):
+		_confirm_modal.queue_free()
+		_confirm_modal = null
 
 func _refresh_vendor_panel() -> void:
 	## Re-opens the current vendor to refresh the item list after buy/sell.

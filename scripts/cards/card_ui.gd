@@ -179,6 +179,8 @@ func _update_visual() -> void:
 		target_mod = Color(0.8, 0.5, 0.8)
 		z_index = _base_z
 		_clear_gold_trim()
+	elif _card and _card.is_upgraded:
+		target_mod = Color(1.0, 0.9, 0.6)  # Gold tint for upgraded cards
 	elif _card and _card.is_enhanced:
 		target_mod = Color(0.5, 1, 0.5)
 		z_index = _base_z

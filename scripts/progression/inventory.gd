@@ -55,6 +55,8 @@ var max_card_storage: int = 20
 
 # Consumables
 var culling_stones: int = 99  # Used to permanently remove cards from deck
+var paper_feathers: int = 3  # Used to upgrade cards at the Card Dealer
+var origami_swans: int = 0  # 20 origami swans = 1 Paper Feather (crafted by Olorin)
 
 # Ring trigger tracking
 var ring_triggered_this_turn: bool = false
@@ -815,6 +817,45 @@ func use_culling_stone() -> bool:
 	culling_stones -= 1
 	print("[INVENTORY] Used culling stone (%d remaining)" % culling_stones)
 	return true
+
+# ============================================
+# PAPER FEATHERS & ORIGAMI SWANS
+# ============================================
+
+func get_paper_feather_count() -> int:
+	return paper_feathers
+
+func use_paper_feather() -> bool:
+	if paper_feathers <= 0:
+		print("[INVENTORY] No Paper Feathers remaining!")
+		return false
+	paper_feathers -= 1
+	print("[INVENTORY] Used Paper Feather (%d remaining)" % paper_feathers)
+	return true
+
+func add_paper_feather(amount: int = 1) -> void:
+	paper_feathers += amount
+	print("[INVENTORY] Gained %d Paper Feather(s) (%d total)" % [amount, paper_feathers])
+
+func get_origami_swan_count() -> int:
+	return origami_swans
+
+func add_origami_swans(amount: int) -> void:
+	origami_swans += amount
+	print("[INVENTORY] Gained %d Origami Swan(s) (%d total)" % [amount, origami_swans])
+	# Auto-convert: 20 swans = 1 Paper Feather
+	while origami_swans >= 20:
+		origami_swans -= 20
+		paper_feathers += 1
+		print("[INVENTORY] Converted 20 Origami Swans into 1 Paper Feather! (%d feathers, %d swans remaining)" % [paper_feathers, origami_swans])
+
+func destroy_cards_for_swans(card_count: int) -> int:
+	## Destroys cards and returns the number of origami swans created (1 per card).
+	## The actual card removal is handled by the caller.
+	var swans_created = card_count
+	add_origami_swans(swans_created)
+	print("[INVENTORY] Destroyed %d cards → %d Origami Swans" % [card_count, swans_created])
+	return swans_created
 
 # ============================================
 # CARD ENCHANT / EXTRACT SYSTEM

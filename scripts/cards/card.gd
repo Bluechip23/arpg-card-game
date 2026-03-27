@@ -68,6 +68,10 @@ var on_discard_effect: String = ""  # Description of the on-discard effect
 var in_hand_debuff: String = ""  # Debuff applied while this card is in hand (e.g., "slowed_2")
 var in_hand_buff: String = ""  # Buff applied while this card is in hand (Enchantment cards)
 
+# Card upgrade system (Paper Feather upgrades)
+var upgrade_path: int = -1  # -1 = not upgraded, 0 = path 1, 1 = path 2
+var is_upgraded: bool = false
+
 # Card-item slot system
 enum SlotCompatibility { PICKY, PLIABLE }
 var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = same item type only, Pliable = any item type
@@ -885,6 +889,72 @@ func jail_burden() -> void:
 		burden_plays = 0
 		jail_time_remaining = burden_jail_duration
 		print("[CARD] %s burden reset! Jailed for %d tempo" % [card_name, burden_jail_duration])
+
+# ============================================
+# CARD UPGRADE SYSTEM (Paper Feather)
+# ============================================
+
+## Returns the available upgrade paths for this card.
+## Each path: {name: String, description: String}
+func get_upgrade_paths() -> Array:
+	var paths = _get_upgrade_paths_for_id(card_id)
+	return paths
+
+static func _get_upgrade_paths_for_id(id: String) -> Array:
+	match id:
+		"slash":
+			return [
+				{"name": "Sharpened Slash", "description": "+3 damage (13 total)"},
+				{"name": "Guarded Slash", "description": "+2 block on use"},
+			]
+		"block":
+			return [
+				{"name": "Fortified Block", "description": "+3 armor (8 total)"},
+				{"name": "Swift Block", "description": "-1 tempo cost (1T)"},
+			]
+	return []
+
+func can_upgrade() -> bool:
+	return not is_upgraded and get_upgrade_paths().size() > 0
+
+func apply_upgrade(path_index: int) -> void:
+	if is_upgraded or path_index < 0:
+		return
+	var paths = get_upgrade_paths()
+	if path_index >= paths.size():
+		return
+
+	upgrade_path = path_index
+	is_upgraded = true
+
+	match card_id:
+		"slash":
+			if path_index == 0:
+				# Path 1: +3 damage
+				damage += 3
+				base_damage += 3
+				card_name = "Sharpened Slash"
+				description = "%d damage" % damage
+			elif path_index == 1:
+				# Path 2: +2 block
+				block += 2
+				base_block += 2
+				card_name = "Guarded Slash"
+				description = "%d damage, %d armor" % [damage, block]
+		"block":
+			if path_index == 0:
+				# Path 1: +3 block
+				block += 3
+				base_block += 3
+				card_name = "Fortified Block"
+				description = "%d armor" % block
+			elif path_index == 1:
+				# Path 2: -1 tempo cost
+				tempo_cost = max(1, tempo_cost - 1)
+				card_name = "Swift Block"
+				description = "%d armor" % block
+
+	print("[CARD] Upgraded %s via path %d: %s" % [card_id, path_index, card_name])
 
 # Factory methods
 static func create_slash() -> Card:
