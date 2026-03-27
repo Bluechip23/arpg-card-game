@@ -191,12 +191,10 @@ func _update_points_label() -> void:
 	var passive_count = sphere_inventory.get_count(SphereInventory.SphereType.PASSIVE)
 	var any_count = sphere_inventory.get_count(SphereInventory.SphereType.ANY)
 	var swap_count = sphere_inventory.get_count(SphereInventory.SphereType.SWAP)
-	var rune_count = sphere_inventory.upgrade_runes
 	if stat_count > 0: parts.append("Stat:%d" % stat_count)
 	if passive_count > 0: parts.append("Passive:%d" % passive_count)
 	if any_count > 0: parts.append("Any:%d" % any_count)
 	if swap_count > 0: parts.append("Swap:%d" % swap_count)
-	if rune_count > 0: parts.append("Runes:%d" % rune_count)
 	var retro_count = sphere_inventory.retrospective_tokens
 	if retro_count > 0: parts.append("Retro:%d" % retro_count)
 	if parts.is_empty():
