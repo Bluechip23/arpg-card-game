@@ -5,11 +5,11 @@ extends Node
 ## Everything (enemy actions, mana regen, card draw, buff durations) is driven by tempo.
 ##
 ## TICKED TEMPO SYSTEM:
-## When a card is played, tempo ticks one at a time instead of resolving in bulk.
-## Cards have a resolve_tick that determines when their effect fires.
-## After resolution, the player can queue their next card during remaining recovery ticks.
-## In multiplayer, the global tick counter uses a high-water mark so simultaneous
-## cards overlap instead of stacking.
+## When a card is played, its tempo_cost ticks are added to a sequential queue.
+## Cards resolve at their resolve_tick (relative to when that card starts ticking).
+## If a second card is played while ticking, its ticks are APPENDED after the
+## current card's ticks — they never overlap.
+## The auto-ticker only runs while there are card ticks to process.
 
 signal tempo_changed(current: int, threshold: int)
 signal tempo_threshold_reached(times: int)  # Fires every 5 global tempo (for buff/draw/mana cycles)
@@ -20,7 +20,7 @@ signal tempo_advanced(global_total: int, amount: int)  # Fires on every tempo ad
 signal tick_started(tick_number: int, total_ticks: int)  # Each tick as it processes
 signal card_resolved(card: Card)  # Fired when a card's resolve_tick is reached
 signal ticking_finished()  # All pending ticks have been processed
-signal player_can_queue()  # Player's active card has resolved, they can queue next
+signal player_can_queue()  # Kept for compat, not currently emitted
 
 ## How many global tempo = 1 cycle (used for mana regen, card draw, buff tick)
 @export var tempo_threshold: int = 5
@@ -39,12 +39,11 @@ var player_stats: PlayerStats
 # Tick system state
 var _ticking: bool = false          # Whether we're currently processing ticks
 var _tick_timer: float = 0.0        # Countdown to next tick
-var _pending_ticks: int = 0         # How many ticks remain to process
-var _tick_end_global: int = 0       # High-water mark: the global tempo the tick queue ends at
+var _pending_ticks: int = 0         # Total ticks remaining in the queue
 
-# Active card tracking (per-player in future, single player for now)
-var _active_cards: Array[Dictionary] = []  # [{card, resolve_tick, ticks_remaining, resolved, owner}]
-var _queued_card: Dictionary = {}   # Card queued during recovery, starts after current finishes
+# Active card tracking — sequential queue with delays
+# Each card waits for all previously queued ticks before it starts ticking.
+var _active_cards: Array[Dictionary] = []  # [{card, resolve_tick, total_ticks, ticks_elapsed, delay, resolved, owner}]
 
 func initialize(p_stats: PlayerStats) -> void:
 	player_stats = p_stats
@@ -53,9 +52,7 @@ func initialize(p_stats: PlayerStats) -> void:
 	movements_since_tempo = 0
 	_ticking = false
 	_pending_ticks = 0
-	_tick_end_global = 0
 	_active_cards.clear()
-	_queued_card = {}
 	print("[TEMPO] Initialized (ticked). Cycle every %d tempo, tick speed %.2fs" % [tempo_threshold, tick_speed])
 
 func _process(delta: float) -> void:
@@ -67,30 +64,23 @@ func _process(delta: float) -> void:
 		_tick_timer = tick_speed
 		_process_one_tick()
 
-## Start ticking tempo for a card play. Uses high-water mark for multiplayer overlap.
+## Queue a card for ticked processing. New cards are APPENDED after all
+## currently pending ticks — they never overlap.
 func start_card_ticks(card: Card, tempo_cost: int, resolve_tick: int, owner_id: int = 0) -> void:
 	var card_entry := {
 		"card": card,
 		"resolve_tick": resolve_tick,
 		"total_ticks": tempo_cost,
 		"ticks_elapsed": 0,
+		"delay": _pending_ticks,  # Wait for all currently queued ticks first
 		"resolved": false,
 		"owner_id": owner_id,
 	}
 	_active_cards.append(card_entry)
 
-	# High-water mark: extend tick queue if this card goes past current end
-	var new_end = global_tempo + tempo_cost
-	if new_end > _tick_end_global:
-		var additional_ticks = new_end - _tick_end_global
-		_pending_ticks += additional_ticks
-		_tick_end_global = new_end
-		print("[TEMPO] Card '%s' queued: %d ticks (resolve at tick %d). Global end → %d (+%d new ticks)" % [
-			card.card_name, tempo_cost, resolve_tick, _tick_end_global, additional_ticks])
-	else:
-		# Card fits within existing tick window (multiplayer overlap)
-		print("[TEMPO] Card '%s' overlaps existing ticks: %d ticks (resolve at tick %d). Global end stays %d" % [
-			card.card_name, tempo_cost, resolve_tick, _tick_end_global])
+	_pending_ticks += tempo_cost
+	print("[TEMPO] Card '%s' queued: %d ticks (resolve at tick %d), delay %d. Total pending: %d" % [
+		card.card_name, tempo_cost, resolve_tick, card_entry["delay"], _pending_ticks])
 
 	if not _ticking:
 		_ticking = true
@@ -109,6 +99,11 @@ func _process_one_tick() -> void:
 
 	# Advance all active cards
 	for entry in _active_cards:
+		# If this card still has delay, decrement delay instead of ticking
+		if entry["delay"] > 0:
+			entry["delay"] -= 1
+			continue
+
 		if entry["ticks_elapsed"] < entry["total_ticks"]:
 			entry["ticks_elapsed"] += 1
 
@@ -119,9 +114,6 @@ func _process_one_tick() -> void:
 					entry["card"].card_name, entry["ticks_elapsed"], entry["total_ticks"]])
 				card_resolved.emit(entry["card"])
 
-			# Player must wait for ALL ticks to complete before queuing next card
-			# (player_can_queue is no longer emitted at resolve_tick)
-
 	# Emit standard signals so all existing systems (enemies, mana, draw) work per-tick
 	tempo_advanced.emit(global_tempo, 1)
 	tick_started.emit(global_tempo, _pending_ticks)
@@ -129,8 +121,8 @@ func _process_one_tick() -> void:
 	tempo_changed.emit(current_tempo, tempo_threshold)
 	_check_threshold()
 
-	# Clean up finished cards
-	_active_cards = _active_cards.filter(func(e): return e["ticks_elapsed"] < e["total_ticks"])
+	# Clean up finished cards (all ticks elapsed and no delay remaining)
+	_active_cards = _active_cards.filter(func(e): return e["ticks_elapsed"] < e["total_ticks"] or e["delay"] > 0)
 
 	# Check if all ticks are done
 	if _pending_ticks <= 0:
@@ -139,23 +131,14 @@ func _process_one_tick() -> void:
 		print("[TEMPO] All ticks complete. Global tempo: %d" % global_tempo)
 		ticking_finished.emit()
 
-		# If there's a queued card, it will be handled by main.gd via ticking_finished
-
-## Check if the player's active card has resolved (they can queue next action)
-func is_player_card_resolved(owner_id: int = 0) -> bool:
-	for entry in _active_cards:
-		if entry["owner_id"] == owner_id and not entry["resolved"]:
-			return false
-	return true
-
 ## Check if ticks are currently being processed
 func is_ticking() -> bool:
 	return _ticking
 
-## Get ticking progress for UI (returns {ticks_elapsed, total_ticks, resolve_tick} for active card)
+## Get ticking progress for the currently active card (the one actually ticking, not delayed).
 func get_active_card_progress(owner_id: int = 0) -> Dictionary:
 	for entry in _active_cards:
-		if entry["owner_id"] == owner_id:
+		if entry["owner_id"] == owner_id and entry["delay"] <= 0 and entry["ticks_elapsed"] < entry["total_ticks"]:
 			return {
 				"ticks_elapsed": entry["ticks_elapsed"],
 				"total_ticks": entry["total_ticks"],
@@ -163,6 +146,10 @@ func get_active_card_progress(owner_id: int = 0) -> Dictionary:
 				"resolved": entry["resolved"],
 			}
 	return {}
+
+## Get the total number of pending ticks in the queue (for UI display).
+func get_total_pending_ticks() -> int:
+	return _pending_ticks
 
 func _check_threshold() -> void:
 	var times_triggered = 0
@@ -177,17 +164,14 @@ func _check_threshold() -> void:
 		turn_triggered.emit()
 		tempo_changed.emit(current_tempo, tempo_threshold)
 
-## Legacy bulk add for non-card tempo (movement, pass-through).
-## These still resolve instantly since they happen between card plays.
+## Instant tempo add for non-card sources (movement, pass-through, wait, basic attack/block).
+## These resolve immediately and advance the global counter.
 func add_tempo(amount: int) -> void:
 	if amount <= 0:
 		return
 
 	global_tempo += amount
 	current_tempo += amount
-	# Update high-water mark if we're mid-tick
-	if _ticking:
-		_tick_end_global = maxi(_tick_end_global, global_tempo)
 	print("[TEMPO] +%d tempo (instant) → %d in cycle | %d global" % [amount, current_tempo, global_tempo])
 
 	# Notify all systems that tempo has advanced (enemies check their own counters here)
@@ -196,7 +180,7 @@ func add_tempo(amount: int) -> void:
 	tempo_changed.emit(current_tempo, tempo_threshold)
 	_check_threshold()
 
-## Legacy card tempo for backward compatibility. Now starts ticked processing.
+## Start ticked processing for a card. Wraps start_card_ticks.
 func add_card_tempo(tempo_cost: int, card: Card = null, resolve_tick: int = 1, owner_id: int = 0) -> void:
 	last_tempo_source = "card"
 	if card:

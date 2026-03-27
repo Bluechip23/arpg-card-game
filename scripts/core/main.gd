@@ -142,10 +142,7 @@ var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining:
 var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
 
 # Ticked tempo system state
-var _pending_resolve_card: Card = null       # Card waiting for its resolve tick
-var _pending_resolve_target = null            # Target for the pending card
-var _pending_resolve_card_data: Dictionary = {}  # Extra data for post-resolve triggers
-var _player_can_queue_next: bool = true       # Whether the player can play/queue their next card
+var _pending_resolve_queue: Array[Dictionary] = []  # [{card, target, data}] — sequential card queue
 
 # Tick tempo bar UI (20 vertical bars showing tick progress)
 var _tick_bar_rects: Array[ColorRect] = []    # The 20 vertical bar ColorRects
@@ -1855,7 +1852,12 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	if tempo_manager.is_ticking():
 		var progress = tempo_manager.get_active_card_progress()
 		if not progress.is_empty():
-			var card_name = _pending_resolve_card.card_name if _pending_resolve_card else ""
+			var card_name = ""
+			# Get card name from the pending resolve queue
+			for qe in _pending_resolve_queue:
+				if qe["card"] and qe["card"].card_name:
+					card_name = qe["card"].card_name
+					break
 			_update_tick_bar(progress["ticks_elapsed"], progress["total_ticks"], progress["resolve_tick"], card_name)
 		else:
 			_update_tick_bar(0, 0, 0, "")
@@ -2793,11 +2795,7 @@ func play_selected_card(target) -> void:
 		print("[INPUT] Cannot play cards - Glutted for %d more tempo!" % glut_tempo_remaining)
 		return
 
-	# Ticked tempo: block card play during windup (before resolve), allow during recovery
-	if not _player_can_queue_next:
-		add_battle_log("Waiting for current action to resolve...", Color(1.0, 0.7, 0.3))
-		print("[INPUT] Cannot play cards - waiting for resolve tick")
-		return
+	# Player can always queue cards — they append to the tick queue
 
 	# Hide range indicator when playing a card
 	if range_indicator:
@@ -2882,30 +2880,29 @@ func play_selected_card(target) -> void:
 		else:
 			add_battle_log("Winding up %s%s (resolves tick %d/%d)" % [card.card_name, target_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
 
-		# Store pending resolve data for when the tick fires
-		_pending_resolve_card = card
-		_pending_resolve_target = target
-		_pending_resolve_card_data = {
-			"tighten_applied": tighten_applied,
-			"high_ground_applied": high_ground_applied,
-			"harnessed_power_applied": harnessed_power_applied,
-			"harnessed_bonus_damage": harnessed_bonus_damage,
-			"harnessed_bonus_heal": harnessed_bonus_heal,
-			"harnessed_bonus_block": harnessed_bonus_block,
-			"is_ranged_attack": is_ranged_attack,
-			"free_turn": result["free_turn"],
+		# Store pending resolve data in the queue for when the tick fires
+		var resolve_entry := {
+			"card": card,
+			"target": target,
+			"data": {
+				"tighten_applied": tighten_applied,
+				"high_ground_applied": high_ground_applied,
+				"harnessed_power_applied": harnessed_power_applied,
+				"harnessed_bonus_damage": harnessed_bonus_damage,
+				"harnessed_bonus_heal": harnessed_bonus_heal,
+				"harnessed_bonus_block": harnessed_bonus_block,
+				"is_ranged_attack": is_ranged_attack,
+				"free_turn": result["free_turn"],
+			},
 		}
+		_pending_resolve_queue.append(resolve_entry)
 
-		# Block player from playing cards until resolve tick
-		_player_can_queue_next = false
-
-		# Start ticked tempo (or add to high-water mark for multiplayer overlap)
+		# Start ticked tempo — card ticks are appended sequentially
 		if not result["free_turn"]:
 			if buff_mgr and buff_mgr.consume_steady():
 				print("[MAIN] Steady! No tempo added.")
-				# Still need to resolve the card immediately if no ticks
-				_resolve_pending_card()
-				_player_can_queue_next = true
+				# Resolve immediately since no ticks
+				_resolve_queued_card(card)
 			else:
 				# Initialize the tick bar UI
 				_update_tick_bar(0, tempo_cost, resolve_tick, card.card_name)
@@ -2913,8 +2910,7 @@ func play_selected_card(target) -> void:
 		else:
 			print("[MAIN] Free attack! No tempo added.")
 			# Resolve immediately for free turns
-			_resolve_pending_card()
-			_player_can_queue_next = true
+			_resolve_queued_card(card)
 
 		_on_hand_updated()
 		update_deck_info()
@@ -2932,28 +2928,33 @@ func play_selected_card(target) -> void:
 
 func _on_card_tick_resolved(card: Card) -> void:
 	## Called by TempoManager when a card's resolve_tick is reached.
-	if _pending_resolve_card and _pending_resolve_card == card:
-		_resolve_pending_card()
+	_resolve_queued_card(card)
 
 func _on_player_can_queue() -> void:
-	## No longer used — player must wait for ALL ticks to finish before next card.
-	## Kept for signal compatibility but does nothing.
+	## Not currently used.
 	pass
 
 func _on_ticking_finished() -> void:
-	## Called when all pending ticks are done. Full freedom to act.
-	_player_can_queue_next = true
+	## Called when all pending ticks are done. Reset the tick bar.
 	_reset_tick_bar()
 	print("[MAIN] All ticks complete. Player is free.")
 
-func _resolve_pending_card() -> void:
-	## Execute the pending card's effect and trigger all post-play logic.
-	if not _pending_resolve_card:
+func _resolve_queued_card(resolved_card: Card) -> void:
+	## Find the matching card in the pending queue and execute its effect.
+	var queue_index := -1
+	for i in range(_pending_resolve_queue.size()):
+		if _pending_resolve_queue[i]["card"] == resolved_card:
+			queue_index = i
+			break
+	if queue_index < 0:
 		return
 
-	var card = _pending_resolve_card
-	var target = _pending_resolve_target
-	var data = _pending_resolve_card_data
+	var entry = _pending_resolve_queue[queue_index]
+	_pending_resolve_queue.remove_at(queue_index)
+
+	var card: Card = entry["card"]
+	var target = entry["target"]
+	var data: Dictionary = entry["data"]
 
 	# Execute the card's effect (damage, block, heal, etc.)
 	deck_manager.execute_deferred_card(card, target, player)
@@ -3093,10 +3094,7 @@ func _resolve_pending_card() -> void:
 		print("[MAIN] Glut activated: %d tempo lockout" % card.glut_tempo)
 		progression_triggers._trigger_skill_tree_stephen_on_glut(card.glut_tempo)
 
-	# Clear pending state
-	_pending_resolve_card = null
-	_pending_resolve_target = null
-	_pending_resolve_card_data = {}
+	# Queue entry already removed above — no further cleanup needed
 
 	_on_hand_updated()
 	update_deck_info()
