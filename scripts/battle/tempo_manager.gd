@@ -119,9 +119,8 @@ func _process_one_tick() -> void:
 					entry["card"].card_name, entry["ticks_elapsed"], entry["total_ticks"]])
 				card_resolved.emit(entry["card"])
 
-			# Check if player can queue after their card resolves
-			if entry["resolved"] and entry["ticks_elapsed"] == entry["resolve_tick"]:
-				player_can_queue.emit()
+			# Player must wait for ALL ticks to complete before queuing next card
+			# (player_can_queue is no longer emitted at resolve_tick)
 
 	# Emit standard signals so all existing systems (enemies, mana, draw) work per-tick
 	tempo_advanced.emit(global_tempo, 1)

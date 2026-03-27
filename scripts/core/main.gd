@@ -228,7 +228,8 @@ func _ready() -> void:
 	tempo_manager.tempo_changed.connect(_on_tempo_changed)
 	tempo_manager.tempo_advanced.connect(_on_tempo_advanced)
 	tempo_manager.card_resolved.connect(_on_card_tick_resolved)
-	tempo_manager.player_can_queue.connect(_on_player_can_queue)
+	# player_can_queue no longer used — player must wait for ALL ticks to finish
+	# tempo_manager.player_can_queue.connect(_on_player_can_queue)
 	tempo_manager.ticking_finished.connect(_on_ticking_finished)
 	turn_manager.turn_ended.connect(_on_turn_ended)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
@@ -540,18 +541,19 @@ func _setup_action_buttons() -> void:
 	vbox.add_child(_pause_button)
 
 func _setup_tick_bar() -> void:
-	## Build the 20-tick tempo bar near the existing HUD (top-right area).
+	## Build the 20-tick global tempo bar centered at the top of the screen.
 	var ui = $UI as CanvasLayer
 
 	var tick_container = VBoxContainer.new()
 	tick_container.name = "TickBarContainer"
 	ui.add_child(tick_container)
-	tick_container.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	tick_container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	tick_container.offset_left = -260.0
-	tick_container.offset_top = 55.0
-	tick_container.offset_right = -8.0
-	tick_container.offset_bottom = 100.0
+	tick_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	tick_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	# Center horizontally: bar is 20 bars * (8px + 2px gap) = ~210px wide
+	tick_container.offset_left = -130.0
+	tick_container.offset_top = 5.0
+	tick_container.offset_right = 130.0
+	tick_container.offset_bottom = 60.0
 	tick_container.add_theme_constant_override("separation", 2)
 
 	# Card name label
@@ -588,7 +590,8 @@ func _setup_tick_bar() -> void:
 	tick_container.add_child(_tick_bar_label)
 
 func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, card_name: String = "") -> void:
-	## Update the 20-tick bar display. Bars light up as ticks advance.
+	## Update the 20-tick global tempo bar. This is a rolling counter that fills
+	## on ALL tempo sources (cards, movement, attack, wait, block) and resets at 20.
 	_tick_bar_current_tick = ticks_elapsed
 	_tick_bar_total_ticks = total_ticks
 	_tick_bar_resolve_tick = resolve_tick
@@ -596,29 +599,38 @@ func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, c
 	if _tick_bar_card_name_label:
 		_tick_bar_card_name_label.text = card_name
 
-	var dim_color = Color(0.15, 0.15, 0.2)
-	var active_color = Color(0.4, 0.4, 0.55)     # Ticked (elapsed, before resolve)
-	var resolve_color = Color(1.0, 0.85, 0.3)     # Resolve tick marker
-	var resolved_color = Color(0.3, 0.8, 0.4)     # After resolve (recovery)
-	var unused_tick_color = Color(0.22, 0.22, 0.3) # Part of total but not yet ticked
+	var filled = tempo_manager.get_global_tempo() % 20
+	var dim_color = Color(0.15, 0.15, 0.2)        # Empty / unfilled
+	var filled_color = Color(0.4, 0.4, 0.55)      # Filled tick
+	var resolve_color = Color(1.0, 0.85, 0.3)     # Resolve tick marker (upcoming)
+	var active_card_color = Color(0.3, 0.8, 0.4)  # Ticks the active card will consume
+
+	# Calculate resolve marker position (where in the 20-bar the card resolves)
+	var resolve_bar_index: int = -1
+	var card_end_bar_index: int = -1
+	if total_ticks > 0 and ticks_elapsed < total_ticks:
+		var ticks_until_resolve = resolve_tick - ticks_elapsed
+		if ticks_until_resolve > 0:
+			resolve_bar_index = (filled + ticks_until_resolve - 1) % 20
+		var ticks_remaining = total_ticks - ticks_elapsed
+		card_end_bar_index = (filled + ticks_remaining - 1) % 20
 
 	for i in range(20):
-		if i >= total_ticks:
-			# Beyond the card's tempo cost
-			_tick_bar_rects[i].color = dim_color
-		elif i < ticks_elapsed:
-			# Already ticked
-			if i + 1 == resolve_tick:
-				_tick_bar_rects[i].color = resolve_color  # The resolve tick
-			elif i + 1 > resolve_tick:
-				_tick_bar_rects[i].color = resolved_color  # Recovery ticks (after resolve)
-			else:
-				_tick_bar_rects[i].color = active_color  # Windup ticks (before resolve)
-		elif i + 1 == resolve_tick:
-			# The resolve tick hasn't been reached yet - show it as a marker
-			_tick_bar_rects[i].color = Color(0.6, 0.5, 0.15)  # Dim gold marker
+		if i < filled:
+			_tick_bar_rects[i].color = filled_color
 		else:
-			_tick_bar_rects[i].color = unused_tick_color  # Waiting to be ticked
+			_tick_bar_rects[i].color = dim_color
+
+	# Overlay card tempo markers if a card is active
+	if total_ticks > 0 and ticks_elapsed < total_ticks:
+		var ticks_remaining = total_ticks - ticks_elapsed
+		var ticks_until_resolve = max(0, resolve_tick - ticks_elapsed)
+		for t in range(ticks_remaining):
+			var bar_idx = (filled + t) % 20
+			if ticks_until_resolve > 0 and t == ticks_until_resolve - 1:
+				_tick_bar_rects[bar_idx].color = resolve_color
+			else:
+				_tick_bar_rects[bar_idx].color = active_card_color
 
 	if _tick_bar_label:
 		if total_ticks > 0 and ticks_elapsed < total_ticks:
@@ -626,19 +638,17 @@ func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, c
 		elif total_ticks > 0 and ticks_elapsed >= total_ticks:
 			_tick_bar_label.text = "Complete"
 		else:
-			_tick_bar_label.text = "Ready"
+			_tick_bar_label.text = "%d / 20" % filled
 
 func _reset_tick_bar() -> void:
-	## Reset the tick bar to its idle state.
+	## Reset the tick bar to idle state but still show global tempo progress.
 	_tick_bar_current_tick = 0
 	_tick_bar_total_ticks = 0
 	_tick_bar_resolve_tick = 0
 	if _tick_bar_card_name_label:
 		_tick_bar_card_name_label.text = ""
-	for bar in _tick_bar_rects:
-		bar.color = Color(0.15, 0.15, 0.2)
-	if _tick_bar_label:
-		_tick_bar_label.text = "Ready"
+	# Show the global counter even when no card is active
+	_update_tick_bar(0, 0, 0, "")
 
 func _on_pause_pressed() -> void:
 	_is_paused = not _is_paused
@@ -1841,12 +1851,16 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 				# Reappearing from invisibility counts as displacement
 				progression_triggers._trigger_skill_tree_on_displacement()
 
-	# Update tick bar UI if ticking is active
+	# Always update the 20-tick global counter (fills on ALL tempo sources)
 	if tempo_manager.is_ticking():
 		var progress = tempo_manager.get_active_card_progress()
 		if not progress.is_empty():
 			var card_name = _pending_resolve_card.card_name if _pending_resolve_card else ""
 			_update_tick_bar(progress["ticks_elapsed"], progress["total_ticks"], progress["resolve_tick"], card_name)
+		else:
+			_update_tick_bar(0, 0, 0, "")
+	else:
+		_update_tick_bar(0, 0, 0, "")
 
 	update_turn_display()
 	_refresh_unit_tracker()
@@ -2922,9 +2936,9 @@ func _on_card_tick_resolved(card: Card) -> void:
 		_resolve_pending_card()
 
 func _on_player_can_queue() -> void:
-	## Called after the resolve tick fires. Player can now queue their next card.
-	_player_can_queue_next = true
-	print("[MAIN] Player can now queue next card (recovery phase)")
+	## No longer used — player must wait for ALL ticks to finish before next card.
+	## Kept for signal compatibility but does nothing.
+	pass
 
 func _on_ticking_finished() -> void:
 	## Called when all pending ticks are done. Full freedom to act.
