@@ -957,6 +957,25 @@ func apply_upgrade(path_index: int) -> void:
 	print("[CARD] Upgraded %s via path %d: %s" % [card_id, path_index, card_name])
 
 # Factory methods
+static func create_basic_attack(damage_amount: int) -> Card:
+	## Creates a temporary card used for tracking basic attacks in the ticked tempo system.
+	var card = Card.new()
+	card.card_id = "basic_attack"
+	card.card_name = "Basic Attack"
+	card.description = "Basic melee attack"
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 0
+	card.tempo_cost = 5
+	card.resolve_tick = 1
+	card.damage = damage_amount
+	card.base_damage = damage_amount
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.target_types = ["enemy"]
+	return card
+
 static func create_slash() -> Card:
 	var card = Card.new()
 	card.card_id = "slash"
