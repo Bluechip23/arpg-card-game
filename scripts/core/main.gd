@@ -342,6 +342,7 @@ func _update_camera() -> void:
 func _process(_delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
+	_update_damage_preview()
 	# Update chest interact prompts, waypoints, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
@@ -427,6 +428,32 @@ func _set_hand_hover(new_index: int) -> void:
 			_on_hand_card_hovered(deck_manager.hand[new_index], new_ui)
 
 var _prev_battlefield_hover: Enemy = null
+var _damage_preview_enemy: Enemy = null
+
+func _update_damage_preview() -> void:
+	## Show/hide damage preview number above hovered enemy when a card is selected.
+	var hovered = _prev_battlefield_hover
+	var should_show = (
+		selected_card_index >= 0
+		and selected_card_index < deck_manager.hand.size()
+		and hovered != null
+		and is_instance_valid(hovered)
+		and hovered.is_alive()
+	)
+
+	if should_show:
+		var card = deck_manager.hand[selected_card_index]
+		if card.card_type == Card.CardType.ATTACK and card.base_damage > 0 and "enemy" in card.target_types:
+			var preview_dmg = calculate_damage_preview(card, hovered)
+			if preview_dmg > 0:
+				hovered.show_damage_preview(preview_dmg)
+				_damage_preview_enemy = hovered
+				return
+
+	# Hide preview if conditions not met
+	if _damage_preview_enemy and is_instance_valid(_damage_preview_enemy):
+		_damage_preview_enemy.hide_damage_preview()
+		_damage_preview_enemy = null
 
 func _update_battlefield_enemy_hover() -> void:
 	## Check if mouse is hovering over a battlefield enemy and highlight its panel entry.
@@ -2800,6 +2827,79 @@ func select_card(index: int) -> void:
 		add_battle_log("%s selected — Radius: %d tiles" % [card.card_name, int(card.aoe_range)], Color(0.7, 0.6, 1.0))
 	elif range_indicator:
 		range_indicator.hide_range()
+
+func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
+	## Calculate the estimated damage a card would deal to a target enemy.
+	## This mirrors the damage pipeline without side effects (no consuming buffs).
+	## Returns 0 for non-damaging cards.
+	if card.base_damage <= 0 or card.card_type != Card.CardType.ATTACK:
+		return 0
+	if not target_enemy or not is_instance_valid(target_enemy) or target_enemy.is_dead:
+		return 0
+
+	var player_stats = player.get_stats()
+	var buff_mgr = player.get_buff_manager()
+	var debuff_mgr = player.get_debuff_manager()
+	if not player_stats:
+		return 0
+
+	var total_damage = card.base_damage + card.bonus_damage
+	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
+
+	# On-self bonus damage from slotted item
+	var on_self = card.get_on_self_bonus()
+	total_damage += on_self["damage"]
+
+	# Ranged damage bonus from equipment (quivers)
+	if card.is_ranged and player_stats.ranged_damage_bonus > 0:
+		total_damage += player_stats.ranged_damage_bonus
+
+	# Tighten String: +6 damage on ranged attacks
+	if buff_mgr and buff_mgr.tighten_string_charges > 0 and is_ranged_attack:
+		total_damage += 6
+
+	# High Ground: +4 damage on ranged attacks from elevated position
+	if is_ranged_attack and _has_high_ground(player.position, target_enemy):
+		total_damage += 4
+
+	# Harnessed Power: +30% damage with 2 or fewer cards in hand
+	var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
+	if hp_mult > 1.0:
+		total_damage += floori(card.base_damage * (hp_mult - 1.0))
+
+	# Strength scaling (physical damage)
+	total_damage = player_stats.get_effective_physical_damage(total_damage)
+
+	# Empower buff
+	if player_stats.is_empowered():
+		total_damage += player_stats.empower_damage_bonus
+
+	# Strengthen buff (peek, don't consume)
+	if buff_mgr:
+		total_damage += buff_mgr.get_strengthen_bonus()
+
+	# Cursed debuff: damage reduction
+	if debuff_mgr:
+		var damage_reduction_pct = debuff_mgr.get_damage_reduction_percent()
+		if damage_reduction_pct > 0.0:
+			total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
+
+	# Enemy-side: Premeditated bonus damage
+	total_damage += target_enemy.bonus_damage_next_hit
+
+	# Enemy-side: Armor absorption
+	if target_enemy.current_armor > 0:
+		# Armor Break: double damage to armor only, no health damage spillover
+		if buff_mgr and buff_mgr.has_armor_break():
+			var doubled = total_damage * 2
+			var armor_absorbed = min(target_enemy.current_armor, doubled)
+			# Show the armor damage that will be dealt
+			total_damage = armor_absorbed
+		else:
+			var armor_absorbed = min(target_enemy.current_armor, total_damage)
+			total_damage -= armor_absorbed
+
+	return max(0, total_damage)
 
 func play_selected_card(target) -> void:
 	if selected_card_index < 0:
