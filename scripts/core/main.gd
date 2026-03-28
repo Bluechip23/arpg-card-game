@@ -446,6 +446,9 @@ func _update_damage_preview() -> void:
 		if card.card_type == Card.CardType.ATTACK and card.base_damage > 0 and "enemy" in card.target_types:
 			var preview_dmg = calculate_damage_preview(card, hovered)
 			if preview_dmg > 0:
+				# Hide previous enemy's preview if switching targets
+				if _damage_preview_enemy and _damage_preview_enemy != hovered and is_instance_valid(_damage_preview_enemy):
+					_damage_preview_enemy.hide_damage_preview()
 				hovered.show_damage_preview(preview_dmg)
 				_damage_preview_enemy = hovered
 				return
@@ -575,9 +578,9 @@ func _setup_tick_bar() -> void:
 	tick_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	# Center horizontally: bar is 20 bars * (8px + 2px gap) = ~210px wide
 	tick_container.offset_left = -130.0
-	tick_container.offset_top = 5.0
+	tick_container.offset_top = 35.0
 	tick_container.offset_right = 130.0
-	tick_container.offset_bottom = 60.0
+	tick_container.offset_bottom = 90.0
 	tick_container.add_theme_constant_override("separation", 2)
 
 	# Card name label
@@ -1637,9 +1640,9 @@ func _setup_unit_tracker() -> void:
 	# Anchor to left side, vertically centered
 	unit_tracker.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	unit_tracker.offset_left = 8.0
-	unit_tracker.offset_top = -200.0
+	unit_tracker.offset_top = -150.0
 	unit_tracker.offset_right = 250.0
-	unit_tracker.offset_bottom = 200.0
+	unit_tracker.offset_bottom = 250.0
 
 	# Connect hover signals for bidirectional highlighting
 	unit_tracker.enemy_hovered.connect(_on_tracker_enemy_hovered)
@@ -1648,21 +1651,25 @@ func _setup_unit_tracker() -> void:
 var _battlefield_hovered_enemy: Enemy = null
 
 func _on_tracker_enemy_hovered(enemy: Enemy) -> void:
-	## Panel portrait hovered → highlight enemy on battlefield
+	## Panel portrait hovered → highlight enemy on battlefield + show damage preview
 	if is_instance_valid(enemy):
 		# Clear previous battlefield hover so it doesn't conflict
 		if _prev_battlefield_hover and _prev_battlefield_hover != enemy and is_instance_valid(_prev_battlefield_hover):
 			_set_enemy_highlight(_prev_battlefield_hover, false)
 		_set_enemy_highlight(enemy, true)
+		# Set as hovered so damage preview picks it up
+		_prev_battlefield_hover = enemy
 
 func _on_tracker_enemy_unhovered() -> void:
-	## Panel portrait unhovered → clear battlefield highlight
+	## Panel portrait unhovered → clear battlefield highlight + damage preview
 	if _battlefield_hovered_enemy and is_instance_valid(_battlefield_hovered_enemy):
 		_set_enemy_highlight(_battlefield_hovered_enemy, false)
 		_battlefield_hovered_enemy = null
 	# Clear all highlights
 	for enemy in enemy_spawner.get_living_enemies():
 		_set_enemy_highlight(enemy, false)
+	# Clear sidebar-triggered hover so damage preview hides
+	_prev_battlefield_hover = null
 
 func _set_enemy_highlight(enemy: Enemy, highlighted: bool) -> void:
 	## Toggle a bright highlight outline on a battlefield enemy.
