@@ -110,6 +110,26 @@ func _ready() -> void:
 			stats.restore_progression(player_progression["stats"])
 			print("[TOWN] Restored progression: Level %d" % stats.current_level)
 
+		# Restore equipped and stored items (inventory, stash, equipment)
+		if player_progression.has("inventory"):
+			var inv = player.get_inventory() if player.has_method("get_inventory") else null
+			var inv_data = player_progression["inventory"]
+			if inv:
+				inv.equipped_helms = inv_data.get("equipped_helms", inv.equipped_helms)
+				inv.equipped_chests = inv_data.get("equipped_chests", inv.equipped_chests)
+				inv.equipped_rings = inv_data.get("equipped_rings", inv.equipped_rings)
+				inv.equipped_belts = inv_data.get("equipped_belts", inv.equipped_belts)
+				inv.equipped_boots = inv_data.get("equipped_boots", inv.equipped_boots)
+				inv.equipped_gauntlets = inv_data.get("equipped_gauntlets", inv.equipped_gauntlets)
+				inv.equipped_weapons = inv_data.get("equipped_weapons", inv.equipped_weapons)
+				inv.equipped_quivers = inv_data.get("equipped_quivers", inv.equipped_quivers)
+				inv.stored_items = inv_data.get("stored_items", inv.stored_items)
+				inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
+				inv.stash_items = inv_data.get("stash_items", inv.stash_items)
+				inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
+				inv.equipment_changed.emit()
+				print("[TOWN] Restored inventory: %d stored items, %d stash items" % [inv.stored_items.size(), inv.stash_items.size()])
+
 	_apply_styles()
 
 	vendor_close_button.pressed.connect(_close_vendor)
