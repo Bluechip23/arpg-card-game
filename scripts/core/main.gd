@@ -4841,6 +4841,7 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.equipped_quivers = inv_data.get("equipped_quivers", inv.equipped_quivers)
 			inv.stored_items = inv_data.get("stored_items", inv.stored_items)
 			inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
+			inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 			inv.equipment_changed.emit()
 
@@ -4882,6 +4883,7 @@ func _save_player_progression() -> Dictionary:
 			"equipped_quivers": inv.equipped_quivers.duplicate(),
 			"stored_items": inv.stored_items.duplicate(),
 			"stored_cards": inv.stored_cards.duplicate(),
+			"stash_items": inv.stash_items.duplicate(),
 			"culling_stones": inv.culling_stones,
 		}
 	var deck_state = progression["deck_state"]
