@@ -2972,10 +2972,12 @@ func select_card(index: int) -> void:
 		if range_indicator:
 			range_indicator.hide_range()
 		update_selected_display()
+		update_card_highlights()
 		return
 
 	selected_card_index = index
 	update_selected_display()
+	update_card_highlights()
 
 	# Show AOE indicator if applicable
 	var card = deck_manager.hand[selected_card_index]
