@@ -429,6 +429,7 @@ func _set_hand_hover(new_index: int) -> void:
 
 var _prev_battlefield_hover: Enemy = null
 var _damage_preview_enemy: Enemy = null
+var _sidebar_hover_active: bool = false  # True while sidebar portrait is driving hover
 
 func _update_damage_preview() -> void:
 	## Show/hide damage preview number above hovered enemy when a card is selected.
@@ -460,6 +461,10 @@ func _update_damage_preview() -> void:
 
 func _update_battlefield_enemy_hover() -> void:
 	## Check if mouse is hovering over a battlefield enemy and highlight its panel entry.
+	# Skip raycast when the sidebar portrait is driving the hover
+	if _sidebar_hover_active:
+		return
+
 	var mouse_pos = get_mouse_world_position()
 	var closest: Enemy = null
 	var closest_dist: float = 1.2  # Must be within ~1 tile
@@ -1653,6 +1658,7 @@ var _battlefield_hovered_enemy: Enemy = null
 func _on_tracker_enemy_hovered(enemy: Enemy) -> void:
 	## Panel portrait hovered → highlight enemy on battlefield + show damage preview
 	if is_instance_valid(enemy):
+		_sidebar_hover_active = true
 		# Clear previous battlefield hover so it doesn't conflict
 		if _prev_battlefield_hover and _prev_battlefield_hover != enemy and is_instance_valid(_prev_battlefield_hover):
 			_set_enemy_highlight(_prev_battlefield_hover, false)
@@ -1662,6 +1668,7 @@ func _on_tracker_enemy_hovered(enemy: Enemy) -> void:
 
 func _on_tracker_enemy_unhovered() -> void:
 	## Panel portrait unhovered → clear battlefield highlight + damage preview
+	_sidebar_hover_active = false
 	if _battlefield_hovered_enemy and is_instance_valid(_battlefield_hovered_enemy):
 		_set_enemy_highlight(_battlefield_hovered_enemy, false)
 		_battlefield_hovered_enemy = null
