@@ -162,6 +162,17 @@ var _card_ui_instances: Array = []
 var _current_hand_hover_index: int = -1
 # Pending quiver card play state
 var _block_button: Button = null
+var _attack_button: Button = null
+
+# Stat bar UI references
+var _hp_bar: ProgressBar = null
+var _mana_bar: ProgressBar = null
+var _armor_bar: ProgressBar = null
+var _xp_bar: ProgressBar = null
+var _hp_bar_label: Label = null
+var _mana_bar_label: Label = null
+var _armor_bar_label: Label = null
+var _xp_bar_label: Label = null
 var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
@@ -271,6 +282,8 @@ func _ready() -> void:
 
 	_setup_action_buttons()
 	_setup_tick_bar()
+	_setup_stat_bars()
+	_setup_deck_info_vertical()
 	_setup_battle_log()
 
 	if starting_character:
@@ -521,13 +534,13 @@ func _setup_action_buttons() -> void:
 	btn_container.add_child(vbox)
 
 	# Attack button (top)
-	var attack_btn = Button.new()
-	attack_btn.name = "AttackButton"
-	attack_btn.text = "Attack (5T)"
-	attack_btn.custom_minimum_size = Vector2(130, 36)
-	attack_btn.tooltip_text = "Basic melee attack: STR modifier damage. Costs 5 tempo."
-	attack_btn.pressed.connect(_on_attack_pressed)
-	vbox.add_child(attack_btn)
+	_attack_button = Button.new()
+	_attack_button.name = "AttackButton"
+	_attack_button.text = "Attack (5T) (0)"
+	_attack_button.custom_minimum_size = Vector2(130, 36)
+	_attack_button.tooltip_text = "Basic melee attack: STR modifier damage. Costs 5 tempo."
+	_attack_button.pressed.connect(_on_attack_pressed)
+	vbox.add_child(_attack_button)
 
 	# Block button (middle, only visible if shield equipped)
 	_block_button = Button.new()
@@ -665,12 +678,13 @@ func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, c
 				_tick_bar_rects[bar_idx].color = active_card_color
 
 	if _tick_bar_label:
+		var gt = tempo_manager.get_global_tempo()
 		if total_ticks > 0 and ticks_elapsed < total_ticks:
-			_tick_bar_label.text = "Tick %d/%d (resolves tick %d)" % [ticks_elapsed, total_ticks, resolve_tick]
+			_tick_bar_label.text = "(%d) Tick %d/%d (resolves tick %d)" % [gt, ticks_elapsed, total_ticks, resolve_tick]
 		elif total_ticks > 0 and ticks_elapsed >= total_ticks:
-			_tick_bar_label.text = "Complete"
+			_tick_bar_label.text = "(%d) Complete" % gt
 		else:
-			_tick_bar_label.text = "%d / 20" % filled
+			_tick_bar_label.text = "(%d) %d / 20" % [gt, filled]
 
 func _reset_tick_bar() -> void:
 	## Reset the tick bar to idle state but still show global tempo progress.
@@ -681,6 +695,147 @@ func _reset_tick_bar() -> void:
 		_tick_bar_card_name_label.text = ""
 	# Show the global counter even when no card is active
 	_update_tick_bar(0, 0, 0, "")
+
+func _setup_stat_bars() -> void:
+	## Create stacked HP / Mana / Armor / XP progress bars on the left side of the screen.
+	var ui = $UI as CanvasLayer
+
+	# Hide old label nodes
+	if player_health_label:
+		player_health_label.visible = false
+	if player_mana_label:
+		player_mana_label.visible = false
+	if player_armor_label:
+		player_armor_label.visible = false
+	if player_xp_label:
+		player_xp_label.visible = false
+
+	var stat_container = VBoxContainer.new()
+	stat_container.name = "StatBarsContainer"
+	ui.add_child(stat_container)
+	stat_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	stat_container.offset_left = 8.0
+	stat_container.offset_top = 8.0
+	stat_container.offset_right = 218.0
+	stat_container.offset_bottom = 130.0
+	stat_container.add_theme_constant_override("separation", 4)
+
+	# --- HP Bar (red) ---
+	var hp_pair = _create_stat_bar_with_label(stat_container, "HPBar", Color(0.7, 0.15, 0.15), Color(0.3, 0.08, 0.08))
+	_hp_bar = hp_pair[0]
+	_hp_bar_label = hp_pair[1]
+
+	# --- Mana Bar (blue) ---
+	var mana_pair = _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
+	_mana_bar = mana_pair[0]
+	_mana_bar_label = mana_pair[1]
+
+	# --- Armor Bar (silver/grey) ---
+	var armor_pair = _create_stat_bar_with_label(stat_container, "ArmorBar", Color(0.55, 0.55, 0.6), Color(0.2, 0.2, 0.25))
+	_armor_bar = armor_pair[0]
+	_armor_bar_label = armor_pair[1]
+
+	# --- XP Bar (gold) ---
+	var xp_pair = _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05))
+	_xp_bar = xp_pair[0]
+	_xp_bar_label = xp_pair[1]
+
+func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_color: Color, bg_color: Color) -> Array:
+	## Creates a progress bar with an overlaid centered label. Returns [bar, label].
+	var wrapper = Control.new()
+	wrapper.name = bar_name + "Wrapper"
+	wrapper.custom_minimum_size = Vector2(200, 22)
+	parent.add_child(wrapper)
+
+	var bar = ProgressBar.new()
+	bar.name = bar_name
+	bar.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bar.max_value = 100
+	bar.value = 0
+	bar.show_percentage = false
+	# Style the fill
+	var fill_style = StyleBoxFlat.new()
+	fill_style.bg_color = fill_color
+	fill_style.corner_radius_top_left = 3
+	fill_style.corner_radius_top_right = 3
+	fill_style.corner_radius_bottom_left = 3
+	fill_style.corner_radius_bottom_right = 3
+	bar.add_theme_stylebox_override("fill", fill_style)
+	# Style the background
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = bg_color
+	bg_style.corner_radius_top_left = 3
+	bg_style.corner_radius_top_right = 3
+	bg_style.corner_radius_bottom_left = 3
+	bg_style.corner_radius_bottom_right = 3
+	bar.add_theme_stylebox_override("background", bg_style)
+	wrapper.add_child(bar)
+
+	var lbl = Label.new()
+	lbl.name = bar_name + "Label"
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrapper.add_child(lbl)
+
+	return [bar, lbl]
+
+func _setup_deck_info_vertical() -> void:
+	## Convert DeckInfo from HBoxContainer to VBoxContainer, placed above Maintained button.
+	var deck_info = $UI/DeckInfo as HBoxContainer
+	if not deck_info:
+		return
+	# Hide the old horizontal layout spacers
+	for child in deck_info.get_children():
+		if child.name.begins_with("Spacer"):
+			child.visible = false
+	# Reparent DeckInfo: reposition it as a vertical stack above the Maintained button (bottom-right)
+	deck_info.offset_left = -210.0
+	deck_info.offset_top = -130.0
+	deck_info.offset_right = -100.0
+	deck_info.offset_bottom = -45.0
+	deck_info.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	# We can't change HBoxContainer to VBoxContainer in scene, so we'll just stack via code
+	# Hide the HBox and create a new VBox
+	deck_info.visible = false
+
+	var ui = $UI as CanvasLayer
+	var vbox = VBoxContainer.new()
+	vbox.name = "DeckInfoVertical"
+	ui.add_child(vbox)
+	vbox.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	vbox.offset_left = -210.0
+	vbox.offset_top = -130.0
+	vbox.offset_right = -100.0
+	vbox.offset_bottom = -45.0
+	vbox.add_theme_constant_override("separation", 2)
+
+	# Create new labels and remap the onready references
+	var new_draw = Label.new()
+	new_draw.name = "DrawLabel"
+	new_draw.add_theme_font_size_override("font_size", 14)
+	new_draw.text = "Draw: 0 (0)"
+	vbox.add_child(new_draw)
+
+	var new_discard = Label.new()
+	new_discard.name = "DiscardLabel"
+	new_discard.add_theme_font_size_override("font_size", 14)
+	new_discard.text = "Discard: 0"
+	vbox.add_child(new_discard)
+
+	var new_jail = Label.new()
+	new_jail.name = "JailLabel"
+	new_jail.add_theme_font_size_override("font_size", 14)
+	new_jail.text = "Jail: 0"
+	vbox.add_child(new_jail)
+
+	# Reassign references
+	draw_label = new_draw
+	discard_label = new_discard
+	jail_label = new_jail
 
 func _on_pause_pressed() -> void:
 	_is_paused = not _is_paused
@@ -2066,7 +2221,13 @@ func _on_turn_ended(turn_number: int) -> void:
 
 func _on_player_health_changed(current: int, max_hp: int) -> void:
 	if player_health_label:
-		player_health_label.text = "HP: %d / %d" % [current, max_hp]
+		player_health_label.visible = false
+	if _hp_bar:
+		_hp_bar.max_value = max_hp
+		_hp_bar.value = current
+	if _hp_bar_label:
+		var pct = int(float(current) / float(max_hp) * 100.0) if max_hp > 0 else 0
+		_hp_bar_label.text = "%d/%d (%d%%)" % [current, max_hp, pct]
 
 	# Trigger instant reaction cards when HP drops below 50%
 	var stats = player.get_stats()
@@ -2094,20 +2255,33 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 
 func _on_player_mana_changed(current: float, max_mana: int) -> void:
 	if player_mana_label:
-		var stats = player.get_stats()
-		if stats and stats.maintained_mana > 0:
-			player_mana_label.text = "Mana: %d / %d (%dM reserved)" % [int(current), max_mana, stats.maintained_mana]
-		else:
-			player_mana_label.text = "Mana: %d / %d" % [int(current), max_mana]
+		player_mana_label.visible = false
+	if _mana_bar:
+		_mana_bar.max_value = max_mana
+		_mana_bar.value = int(current)
+	if _mana_bar_label:
+		_mana_bar_label.text = "%d/%d" % [int(current), max_mana]
 
 func _on_player_armor_changed(current: int) -> void:
 	if player_armor_label:
-		player_armor_label.text = "Armor: %d" % current
+		player_armor_label.visible = false
+	if _armor_bar:
+		# Armor has no fixed max — use current as value, scale bar dynamically
+		_armor_bar.max_value = max(current, 1)
+		_armor_bar.value = current
+	if _armor_bar_label:
+		_armor_bar_label.text = "%d" % current
 
 func _update_xp_display() -> void:
 	if player_xp_label:
-		var stats = player.get_stats()
-		player_xp_label.text = "Lv %d | XP: %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
+		player_xp_label.visible = false
+	var stats = player.get_stats()
+	if stats and _xp_bar:
+		var xp_to_next = stats.get_xp_to_next_level()
+		_xp_bar.max_value = xp_to_next
+		_xp_bar.value = stats.current_xp
+	if stats and _xp_bar_label:
+		_xp_bar_label.text = "(%d) %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
 
 func _on_dexterity_proc() -> void:
 	print("[MAIN] Dexterity proc! Next attack is free + 2 mana discount!")
@@ -2161,12 +2335,13 @@ func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
 	progression_triggers._trigger_skill_tree_cory_on_mana_gain(amount, is_regen)
 
 func update_turn_display() -> void:
+	# Turn label no longer needed — global tempo is shown on tick bar, atk sp proc on attack button
 	if turn_label:
-		turn_label.text = "Global Tempo: %d | Draw in: %.0f | Atk Sp proc: %d" % [
-			tempo_manager.get_global_tempo(),
-			turn_manager.get_tempo_until_draw(),
-			player.get_stats().get_attacks_until_proc()
-		]
+		turn_label.visible = false
+	# Update attack button with proc count
+	_update_attack_button_text()
+	# Update draw label with tempo until draw
+	_update_draw_label()
 
 func _on_hand_updated() -> void:
 	if hand_card_preview:
@@ -2751,21 +2926,27 @@ func update_tempo_display() -> void:
 		tempo_bar.max_value = tempo_manager.get_threshold()
 		tempo_bar.value = tempo_manager.get_tempo()
 func update_deck_info() -> void:
-	if draw_label:
-		draw_label.text = "Draw: %d" % deck_manager.get_draw_pile_size()
+	_update_draw_label()
 	if discard_label:
 		discard_label.text = "Discard: %d" % deck_manager.get_discard_pile_size()
 	if jail_label:
 		jail_label.text = "Jail: %d" % deck_manager.get_jail_pile_size()
 	_update_maintained_button()
 
+func _update_draw_label() -> void:
+	if draw_label:
+		var tempo_until = turn_manager.get_tempo_until_draw()
+		draw_label.text = "Draw: %d (%d)" % [deck_manager.get_draw_pile_size(), int(tempo_until)]
+
+func _update_attack_button_text() -> void:
+	if _attack_button:
+		var proc_count = player.get_stats().get_attacks_until_proc()
+		_attack_button.text = "Attack (5T) (%d)" % proc_count
+
 func update_selected_display() -> void:
+	# Selection is now shown via golden border on the card — hide the text label
 	if selected_label:
-		if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size():
-			var card = deck_manager.hand[selected_card_index]
-			selected_label.text = "Selected: %s [%d mana] (Click to play)" % [card.card_name, card.mana_cost]
-		else:
-			selected_label.text = "Press A/S/D/F/G to select a card"
+		selected_label.visible = false
 
 func update_peaked_display() -> void:
 	if peaked_label:
