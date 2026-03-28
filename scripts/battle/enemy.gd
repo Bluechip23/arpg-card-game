@@ -103,6 +103,9 @@ var _armor_bar_fg: MeshInstance3D
 var _armor_label: Label3D
 var _armor_bar_width: float = 0.6
 
+# Damage preview label (shown when hovering with a card selected)
+var _damage_preview_label: Label3D = null
+
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var health_label: Label3D = $HealthLabel
 @onready var name_label: Label3D = $NameLabel
@@ -1257,6 +1260,35 @@ func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
 
 	tween.chain()
 	tween.tween_callback(label.queue_free)
+
+# ============================================
+# DAMAGE PREVIEW
+# ============================================
+
+func show_damage_preview(amount: int) -> void:
+	## Show a red damage number above the enemy's head as a preview.
+	if amount <= 0:
+		hide_damage_preview()
+		return
+
+	if not _damage_preview_label:
+		_damage_preview_label = Label3D.new()
+		_damage_preview_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_damage_preview_label.no_depth_test = true
+		_damage_preview_label.render_priority = 60
+		_damage_preview_label.outline_size = 10
+		_damage_preview_label.outline_modulate = Color(0, 0, 0, 0.8)
+		add_child(_damage_preview_label)
+
+	_damage_preview_label.text = str(amount)
+	_damage_preview_label.font_size = 30 if amount >= 15 else 24
+	_damage_preview_label.modulate = Color(1.0, 0.2, 0.2, 0.9)
+	_damage_preview_label.position = Vector3(0, 2.0, 0)
+	_damage_preview_label.visible = true
+
+func hide_damage_preview() -> void:
+	if _damage_preview_label and is_instance_valid(_damage_preview_label):
+		_damage_preview_label.visible = false
 
 # ============================================
 # STATUS EFFECTS

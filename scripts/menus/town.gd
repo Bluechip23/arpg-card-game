@@ -52,6 +52,16 @@ var _detail_sell_slot_index: int = -1  # Slot index for sell
 var _modal_open: bool = false
 var _current_vendor_type: String = ""
 
+# Stash UI state
+var _stash_panel: PanelContainer = null
+var _stash_open: bool = false
+var _stash_inventory_list: VBoxContainer = null
+var _stash_stash_list: VBoxContainer = null
+var _stash_inv_count_label: Label = null
+var _stash_stash_count_label: Label = null
+var _stash_message_label: Label = null
+var _stash_message_timer: float = 0.0
+
 # Vendor metadata: node name -> display info
 var vendor_info: Dictionary = {
 	"Blacksmith": {
@@ -202,6 +212,12 @@ func _apply_styles() -> void:
 	fight_button.add_theme_stylebox_override("hover", btn_hover)
 
 func _process(_delta: float) -> void:
+	# Fade out stash message
+	if _stash_message_timer > 0:
+		_stash_message_timer -= _delta
+		if _stash_message_timer <= 0 and _stash_message_label and is_instance_valid(_stash_message_label):
+			_stash_message_label.text = ""
+
 	if vendor_open:
 		return
 
@@ -241,7 +257,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_SHIFT:
-				if _modal_open or vendor_open:
+				if _modal_open or vendor_open or _stash_open:
 					return
 				if _near_town_waypoint:
 					_go_to_battle()
@@ -251,6 +267,8 @@ func _input(event: InputEvent) -> void:
 			KEY_ESCAPE:
 				if _modal_open:
 					_close_detail_modal()
+				elif _stash_open:
+					_close_stash_ui()
 				elif vendor_open:
 					_close_vendor()
 			KEY_COMMA:
@@ -286,7 +304,7 @@ func _input(event: InputEvent) -> void:
 
 	# Right-click movement (simplified town movement)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if vendor_open:
+		if vendor_open or _stash_open:
 			return
 		var mouse_pos = _get_mouse_world_position()
 		if mouse_pos != Vector3.ZERO:
@@ -360,6 +378,10 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 
 	if info["type"] == "quest_giver":
 		_open_quest_dialog(vendor_node)
+		return
+
+	if info["type"] == "stash":
+		_open_stash_ui()
 		return
 
 	if info["type"] == "card_dealer":
@@ -696,6 +718,286 @@ func _add_sell_item_row(item: ItemData, slot_type: int, slot_index: int) -> void
 
 	btn.pressed.connect(_on_sell_item_clicked.bind(item, slot_type, slot_index))
 	vendor_item_list.add_child(btn)
+
+# ============================================
+# STASH UI
+# ============================================
+
+func _open_stash_ui() -> void:
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		return
+
+	_stash_open = true
+	vendor_open = true
+
+	# Fullscreen overlay
+	var overlay = ColorRect.new()
+	overlay.name = "StashOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.6)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	# Main stash panel
+	_stash_panel = PanelContainer.new()
+	_stash_panel.name = "StashPanel"
+	_stash_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_stash_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_stash_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_stash_panel.custom_minimum_size = Vector2(820, 500)
+
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.08, 0.08, 0.12, 0.98)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.5, 0.45, 0.65)
+	panel_style.corner_radius_top_left = 10
+	panel_style.corner_radius_top_right = 10
+	panel_style.corner_radius_bottom_left = 10
+	panel_style.corner_radius_bottom_right = 10
+	_stash_panel.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	_stash_panel.add_child(margin)
+
+	var outer_vbox = VBoxContainer.new()
+	outer_vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(outer_vbox)
+
+	# Title row
+	var title_hbox = HBoxContainer.new()
+	title_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	var title_lbl = Label.new()
+	title_lbl.text = "Stash"
+	title_lbl.add_theme_font_size_override("font_size", 22)
+	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	title_hbox.add_child(title_lbl)
+	outer_vbox.add_child(title_hbox)
+
+	# Instruction label
+	var hint_lbl = Label.new()
+	hint_lbl.text = "Right-click items to transfer between inventory and stash"
+	hint_lbl.add_theme_font_size_override("font_size", 13)
+	hint_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	hint_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	outer_vbox.add_child(hint_lbl)
+
+	# Message label for "Inventory is full" etc.
+	_stash_message_label = Label.new()
+	_stash_message_label.text = ""
+	_stash_message_label.add_theme_font_size_override("font_size", 15)
+	_stash_message_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	_stash_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	outer_vbox.add_child(_stash_message_label)
+
+	outer_vbox.add_child(HSeparator.new())
+
+	# Two columns: Inventory (left) | Stash (right)
+	var columns_hbox = HBoxContainer.new()
+	columns_hbox.add_theme_constant_override("separation", 16)
+	columns_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	# --- Left column: Inventory ---
+	var inv_vbox = VBoxContainer.new()
+	inv_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inv_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	_stash_inv_count_label = Label.new()
+	_stash_inv_count_label.add_theme_font_size_override("font_size", 15)
+	_stash_inv_count_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	inv_vbox.add_child(_stash_inv_count_label)
+
+	var inv_scroll = ScrollContainer.new()
+	inv_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inv_scroll.custom_minimum_size = Vector2(380, 350)
+	_stash_inventory_list = VBoxContainer.new()
+	_stash_inventory_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inv_scroll.add_child(_stash_inventory_list)
+	inv_vbox.add_child(inv_scroll)
+	columns_hbox.add_child(inv_vbox)
+
+	# Vertical separator
+	var vsep = VSeparator.new()
+	columns_hbox.add_child(vsep)
+
+	# --- Right column: Stash ---
+	var stash_vbox = VBoxContainer.new()
+	stash_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stash_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	_stash_stash_count_label = Label.new()
+	_stash_stash_count_label.add_theme_font_size_override("font_size", 15)
+	_stash_stash_count_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	stash_vbox.add_child(_stash_stash_count_label)
+
+	var stash_scroll = ScrollContainer.new()
+	stash_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stash_scroll.custom_minimum_size = Vector2(380, 350)
+	_stash_stash_list = VBoxContainer.new()
+	_stash_stash_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stash_scroll.add_child(_stash_stash_list)
+	stash_vbox.add_child(stash_scroll)
+	columns_hbox.add_child(stash_vbox)
+
+	outer_vbox.add_child(columns_hbox)
+
+	# Close button
+	var close_hbox = HBoxContainer.new()
+	close_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(120, 36)
+	close_btn.add_theme_font_size_override("font_size", 15)
+	_style_action_button(close_btn, Color(0.3, 0.15, 0.15), Color(0.45, 0.2, 0.2), Color(0.6, 0.3, 0.3))
+	close_btn.pressed.connect(_close_stash_ui)
+	close_hbox.add_child(close_btn)
+	outer_vbox.add_child(close_hbox)
+
+	$UI.add_child(overlay)
+	$UI.add_child(_stash_panel)
+
+	_refresh_stash_lists()
+	vendor_panel.visible = false
+	interact_prompt.text = ""
+	print("[TOWN] Opened stash")
+
+func _close_stash_ui() -> void:
+	_stash_open = false
+	vendor_open = false
+	_stash_message_timer = 0.0
+
+	var overlay = $UI.get_node_or_null("StashOverlay")
+	if overlay:
+		overlay.queue_free()
+	if _stash_panel and is_instance_valid(_stash_panel):
+		_stash_panel.queue_free()
+		_stash_panel = null
+
+	_stash_inventory_list = null
+	_stash_stash_list = null
+	_stash_inv_count_label = null
+	_stash_stash_count_label = null
+	_stash_message_label = null
+	print("[TOWN] Closed stash")
+
+func _refresh_stash_lists() -> void:
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		return
+
+	# Update count labels
+	if _stash_inv_count_label and is_instance_valid(_stash_inv_count_label):
+		_stash_inv_count_label.text = "Inventory (%d/%d)" % [inventory.stored_items.size(), inventory.max_storage_slots]
+	if _stash_stash_count_label and is_instance_valid(_stash_stash_count_label):
+		_stash_stash_count_label.text = "Stash (%d/%d)" % [inventory.stash_items.size(), inventory.max_stash_slots]
+
+	# Rebuild inventory list
+	if _stash_inventory_list and is_instance_valid(_stash_inventory_list):
+		for child in _stash_inventory_list.get_children():
+			child.queue_free()
+		for i in range(inventory.stored_items.size()):
+			var item = inventory.stored_items[i]
+			if item:
+				_add_stash_item_row(_stash_inventory_list, item, i, true)
+		if inventory.stored_items.size() == 0:
+			var empty_lbl = Label.new()
+			empty_lbl.text = "  (empty)"
+			empty_lbl.add_theme_font_size_override("font_size", 13)
+			empty_lbl.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
+			_stash_inventory_list.add_child(empty_lbl)
+
+	# Rebuild stash list
+	if _stash_stash_list and is_instance_valid(_stash_stash_list):
+		for child in _stash_stash_list.get_children():
+			child.queue_free()
+		for i in range(inventory.stash_items.size()):
+			var item = inventory.stash_items[i]
+			if item:
+				_add_stash_item_row(_stash_stash_list, item, i, false)
+		if inventory.stash_items.size() == 0:
+			var empty_lbl = Label.new()
+			empty_lbl.text = "  (empty)"
+			empty_lbl.add_theme_font_size_override("font_size", 13)
+			empty_lbl.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
+			_stash_stash_list.add_child(empty_lbl)
+
+func _add_stash_item_row(parent: VBoxContainer, item: ItemData, index: int, is_inventory_side: bool) -> void:
+	var btn = Button.new()
+	btn.custom_minimum_size.y = 36
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.text = "  %s   [%s]" % [item.item_name, item.get_type_name()]
+	btn.add_theme_font_size_override("font_size", 13)
+
+	var bg_color = Color(0.13, 0.15, 0.2, 0.9) if is_inventory_side else Color(0.15, 0.13, 0.1, 0.9)
+	var hover_color = Color(0.2, 0.22, 0.3, 0.95) if is_inventory_side else Color(0.25, 0.2, 0.15, 0.95)
+	var border_color = Color(0.35, 0.4, 0.55) if is_inventory_side else Color(0.55, 0.45, 0.3)
+
+	var normal = StyleBoxFlat.new()
+	normal.bg_color = bg_color
+	normal.border_width_bottom = 1
+	normal.border_color = Color(0.2, 0.2, 0.25)
+	normal.corner_radius_top_left = 4
+	normal.corner_radius_top_right = 4
+	normal.corner_radius_bottom_left = 4
+	normal.corner_radius_bottom_right = 4
+	normal.content_margin_left = 8
+	normal.content_margin_right = 8
+	btn.add_theme_stylebox_override("normal", normal)
+
+	var hover = StyleBoxFlat.new()
+	hover.bg_color = hover_color
+	hover.border_width_bottom = 1
+	hover.border_width_left = 2
+	hover.border_color = border_color
+	hover.corner_radius_top_left = 4
+	hover.corner_radius_top_right = 4
+	hover.corner_radius_bottom_left = 4
+	hover.corner_radius_bottom_right = 4
+	hover.content_margin_left = 8
+	hover.content_margin_right = 8
+	btn.add_theme_stylebox_override("hover", hover)
+
+	var name_color = _get_item_name_color(item)
+	btn.add_theme_color_override("font_color", name_color)
+	btn.add_theme_color_override("font_hover_color", name_color.lightened(0.2))
+
+	# Right-click to transfer
+	btn.gui_input.connect(_on_stash_item_input.bind(index, is_inventory_side))
+	parent.add_child(btn)
+
+func _on_stash_item_input(event: InputEvent, index: int, is_inventory_side: bool) -> void:
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT):
+		return
+
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		return
+
+	if is_inventory_side:
+		# Move from inventory to stash
+		if inventory.is_stash_full():
+			_show_stash_message("Stash is full!")
+			return
+		if inventory.move_inventory_to_stash(index):
+			_refresh_stash_lists()
+	else:
+		# Move from stash to inventory
+		if inventory.is_storage_full():
+			_show_stash_message("Inventory is full!")
+			return
+		if inventory.move_stash_to_inventory(index):
+			_refresh_stash_lists()
+
+func _show_stash_message(msg: String) -> void:
+	if _stash_message_label and is_instance_valid(_stash_message_label):
+		_stash_message_label.text = msg
+		_stash_message_timer = 2.0
 
 # ============================================
 # ITEM DETAIL MODAL

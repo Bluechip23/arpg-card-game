@@ -49,6 +49,10 @@ var equipped_quivers: Array[ItemData] = []
 var stored_items: Array[ItemData] = []
 var max_storage_slots: int = 20
 
+# Stash storage (town stash - persistent, separate from inventory)
+var stash_items: Array[ItemData] = []
+var max_stash_slots: int = 30
+
 # Card inventory - cards picked up from loot go here (not directly to deck)
 var stored_cards: Array = []  # Array of Card objects
 var max_card_storage: int = 20
@@ -728,6 +732,63 @@ func get_stored_item_count() -> int:
 
 func is_storage_full() -> bool:
 	return stored_items.size() >= max_storage_slots
+
+# ============================================
+# STASH STORAGE
+# ============================================
+
+func stash_item(item: ItemData) -> bool:
+	if stash_items.size() >= max_stash_slots:
+		print("[INVENTORY] Stash full! (%d/%d)" % [stash_items.size(), max_stash_slots])
+		return false
+	stash_items.append(item)
+	storage_changed.emit()
+	print("[INVENTORY] Stashed %s (%d/%d)" % [item.item_name, stash_items.size(), max_stash_slots])
+	return true
+
+func remove_stash_item(index: int) -> ItemData:
+	if index < 0 or index >= stash_items.size():
+		return null
+	var item = stash_items[index]
+	stash_items.remove_at(index)
+	storage_changed.emit()
+	print("[INVENTORY] Removed %s from stash (%d/%d)" % [item.item_name, stash_items.size(), max_stash_slots])
+	return item
+
+func get_stash_item(index: int) -> ItemData:
+	if index < 0 or index >= stash_items.size():
+		return null
+	return stash_items[index]
+
+func get_stash_item_count() -> int:
+	return stash_items.size()
+
+func is_stash_full() -> bool:
+	return stash_items.size() >= max_stash_slots
+
+func move_inventory_to_stash(storage_index: int) -> bool:
+	## Move an item from player inventory (stored_items) to stash. Returns false if stash is full.
+	if is_stash_full():
+		return false
+	var item = remove_stored_item(storage_index)
+	if item == null:
+		return false
+	stash_items.append(item)
+	storage_changed.emit()
+	print("[INVENTORY] Moved %s from inventory to stash" % item.item_name)
+	return true
+
+func move_stash_to_inventory(stash_index: int) -> bool:
+	## Move an item from stash to player inventory (stored_items). Returns false if inventory is full.
+	if is_storage_full():
+		return false
+	var item = remove_stash_item(stash_index)
+	if item == null:
+		return false
+	stored_items.append(item)
+	storage_changed.emit()
+	print("[INVENTORY] Moved %s from stash to inventory" % item.item_name)
+	return true
 
 func equip_from_storage(storage_index: int, slot_index: int) -> bool:
 	var item = get_stored_item(storage_index)
