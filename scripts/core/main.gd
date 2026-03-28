@@ -714,9 +714,9 @@ func _setup_stat_bars() -> void:
 	stat_container.name = "StatBarsContainer"
 	ui.add_child(stat_container)
 	stat_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	stat_container.offset_left = 180.0
+	stat_container.offset_left = 210.0
 	stat_container.offset_top = 8.0
-	stat_container.offset_right = 390.0
+	stat_container.offset_right = 420.0
 	stat_container.offset_bottom = 130.0
 	stat_container.add_theme_constant_override("separation", 4)
 
