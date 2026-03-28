@@ -1,2 +1,2 @@
-res://scenes/title_menu.tscn
-res://scripts/main.gd
+res://scripts/core/main.gd
+res://scenes/core/main.tscn

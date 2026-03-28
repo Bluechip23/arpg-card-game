@@ -87,7 +87,7 @@ script = ExtResource("8_kek77")
 
 [node name="MoveConfirmDialog" parent="." unique_id=1236181644 instance=ExtResource("5_272bh")]
 
-[node name="PointToProveDialog" parent="." instance=ExtResource("28_ptp")]
+[node name="PointToProveDialog" parent="." unique_id=673783304 instance=ExtResource("28_ptp")]
 
 [node name="CharacterPanel" parent="." unique_id=8242285 instance=ExtResource("8_5vw27")]
 
@@ -101,7 +101,7 @@ script = ExtResource("12_w48qg")
 
 [node name="SphereGridUI" parent="." unique_id=190786353 instance=ExtResource("24_sphere")]
 
-[node name="SkillTreeUI" parent="." instance=ExtResource("27_skill_tree")]
+[node name="SkillTreeUI" parent="." unique_id=748763550 instance=ExtResource("27_skill_tree")]
 
 [node name="SphereInventory" type="Node" parent="." unique_id=1227992805]
 script = ExtResource("25_sphere_inv")
@@ -160,8 +160,8 @@ offset_left = 630.0
 offset_top = 10.0
 offset_right = 750.0
 offset_bottom = 33.0
-horizontal_alignment = 1
 text = "Mana: 10/10"
+horizontal_alignment = 1
 
 [node name="PlayerArmorLabel" type="Label" parent="UI" unique_id=1122428204]
 offset_left = 760.0
@@ -175,8 +175,8 @@ offset_left = 390.0
 offset_top = 10.0
 offset_right = 530.0
 offset_bottom = 33.0
-horizontal_alignment = 1
 text = "Lv 1 | XP: 0/10"
+horizontal_alignment = 1
 
 [node name="TurnLabel" type="Label" parent="UI" unique_id=1944835916]
 offset_left = 502.0
@@ -190,8 +190,8 @@ offset_left = 540.0
 offset_top = 10.0
 offset_right = 620.0
 offset_bottom = 33.0
-horizontal_alignment = 1
 text = "HP: 10/10"
+horizontal_alignment = 1
 
 [node name="HandArea" type="PanelContainer" parent="UI" unique_id=1129750749]
 anchors_preset = 12
