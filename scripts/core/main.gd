@@ -800,31 +800,46 @@ func _on_attack_pressed() -> void:
 		if reduction > 0.0:
 			damage = max(1, floori(damage * (1.0 - reduction)))
 
-	target.take_damage(damage, true)
-
-	# Skill tree crit check for basic attack
-	if buff_mgr and buff_mgr.last_crit_hit:
-		buff_mgr.last_crit_hit = false
-		progression_triggers._trigger_skill_tree_on_crit(target)
-
-	# Register attack for DEX proc counter
-	stats.register_attack()
-
-	if debuff_mgr:
-		debuff_mgr.on_attack()
-
 	# Tempo cost
 	var tempo_cost = 5
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
 
 	if buff_mgr and buff_mgr.consume_steady():
-		print("[MAIN] Steady! No tempo added for basic attack.")
+		# Steady: resolve immediately with no tempo
+		target.take_damage(damage, true)
+		if buff_mgr.last_crit_hit:
+			buff_mgr.last_crit_hit = false
+			progression_triggers._trigger_skill_tree_on_crit(target)
+		stats.register_attack()
+		if debuff_mgr:
+			debuff_mgr.on_attack()
+		add_battle_log("Basic Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
+		print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 	else:
-		tempo_manager.add_tempo(tempo_cost)
+		# Queue basic attack through the ticked tempo system.
+		# Damage resolves on tick 1; remaining ticks are cooldown.
+		var basic_card = Card.create_basic_attack(damage)
+		var resolve_tick = 1
 
-	add_battle_log("Basic Attack: %d damage to %s" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
-	print("[MAIN] Basic Attack: dealt %d damage to %s (%d tempo)" % [damage, target.enemy_name, tempo_cost])
+		# Store in the pending resolve queue (same as regular cards)
+		var resolve_entry := {
+			"card": basic_card,
+			"target": target,
+			"data": {
+				"is_basic_attack": true,
+				"basic_attack_damage": damage,
+				"basic_attack_crit": buff_mgr.last_crit_hit if buff_mgr else false,
+			},
+		}
+		_pending_resolve_queue.append(resolve_entry)
+
+		# Start ticked tempo
+		_update_tick_bar(0, tempo_cost, resolve_tick, "Basic Attack")
+		tempo_manager.add_card_tempo(tempo_cost, basic_card, resolve_tick)
+
+		add_battle_log("Winding up Basic Attack on %s (resolves tick %d/%d)" % [target.enemy_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
+		print("[MAIN] Basic Attack queued: %d damage to %s (%d tempo, resolve tick %d)" % [damage, target.enemy_name, tempo_cost, resolve_tick])
 
 func _on_block_pressed() -> void:
 	var stats = player.get_stats()
@@ -1966,6 +1981,9 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	if quest_manager:
 		quest_manager.on_enemy_killed(enemy.enemy_name)
 
+	# Return any queued cards targeting this dead enemy back to the player's hand
+	_return_queued_cards_for_dead_target(enemy)
+
 func _on_all_enemies_defeated() -> void:
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
@@ -2939,6 +2957,58 @@ func _on_ticking_finished() -> void:
 	_reset_tick_bar()
 	print("[MAIN] All ticks complete. Player is free.")
 
+func _return_queued_cards_for_dead_target(dead_enemy: Enemy) -> void:
+	## When an enemy dies, return all unresolved cards targeting it back to the player's hand.
+	var cards_returned := 0
+	for i in range(_pending_resolve_queue.size() - 1, -1, -1):
+		var entry = _pending_resolve_queue[i]
+		if entry["target"] == dead_enemy:
+			var card: Card = entry["card"]
+			var data: Dictionary = entry["data"]
+			_pending_resolve_queue.remove_at(i)
+
+			# Basic attack cards are temporary — just cancel their ticks
+			if data.get("is_basic_attack", false):
+				tempo_manager.cancel_card_ticks(card)
+				add_battle_log("Basic attack cancelled — %s defeated!" % dead_enemy.enemy_name, Color(1.0, 0.85, 0.4))
+				continue
+
+			# Move from discard pile back to hand
+			var discard_idx = deck_manager.discard_pile.find(card)
+			if discard_idx >= 0:
+				deck_manager.discard_pile.remove_at(discard_idx)
+			deck_manager.add_card_to_hand(card)
+
+			# Undo temporary modifications
+			_undo_card_temp_mods(card, data)
+
+			# Cancel remaining ticks
+			var cancelled = tempo_manager.cancel_card_ticks(card)
+
+			add_battle_log("%s returned to hand — %s defeated! (%d tempo refunded)" % [card.card_name, dead_enemy.enemy_name, cancelled], Color(1.0, 0.85, 0.4))
+			print("[MAIN] Card '%s' returned to hand — target '%s' died. Refunded %d ticks." % [card.card_name, dead_enemy.enemy_name, cancelled])
+			cards_returned += 1
+
+	if cards_returned > 0:
+		_on_hand_updated()
+		update_deck_info()
+
+func _undo_card_temp_mods(card: Card, data: Dictionary) -> void:
+	## Undo temporary card modifications applied before queuing (tighten, high ground, harnessed).
+	if data.get("tighten_applied", false):
+		var buff_mgr = player.get_buff_manager()
+		if buff_mgr:
+			buff_mgr.tighten_string_charges -= 1
+		card.bonus_damage -= 6
+		card.range_modifier -= 6
+	if data.get("high_ground_applied", false):
+		card.bonus_damage -= 4
+		card.range_modifier -= 2
+	if data.get("harnessed_power_applied", false):
+		card.bonus_damage -= data["harnessed_bonus_damage"]
+		card.heal_amount -= data["harnessed_bonus_heal"]
+		card.block -= data["harnessed_bonus_block"]
+
 func _resolve_queued_card(resolved_card: Card) -> void:
 	## Find the matching card in the pending queue and execute its effect.
 	var queue_index := -1
@@ -2956,6 +3026,68 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	var target = entry["target"]
 	var data: Dictionary = entry["data"]
 
+	# --- Target died before this card resolved: return card to hand ---
+	var target_is_dead := false
+	if target != null and not is_instance_valid(target):
+		target_is_dead = true
+	elif target is Enemy and target.is_dead:
+		target_is_dead = true
+
+	if target_is_dead and card.card_type == Card.CardType.ATTACK:
+		# Basic attack cards are temporary — just discard them, don't return to hand
+		if data.get("is_basic_attack", false):
+			var cancelled = tempo_manager.cancel_card_ticks(card)
+			add_battle_log("Basic attack cancelled — target defeated! (%d tempo refunded)" % cancelled, Color(1.0, 0.85, 0.4))
+			print("[MAIN] Basic attack cancelled — target died. Refunded %d ticks." % cancelled)
+			return
+
+		# Return the card to the player's hand
+		# Remove from discard pile (where play_card put it)
+		var discard_idx = deck_manager.discard_pile.find(card)
+		if discard_idx >= 0:
+			deck_manager.discard_pile.remove_at(discard_idx)
+		deck_manager.add_card_to_hand(card)
+
+		# Undo temporary card modifications
+		_undo_card_temp_mods(card, data)
+
+		# Cancel remaining ticks for this card in the tempo queue
+		var cancelled = tempo_manager.cancel_card_ticks(card)
+
+		add_battle_log("%s returned to hand — target defeated! (%d tempo refunded)" % [card.card_name, cancelled], Color(1.0, 0.85, 0.4))
+		print("[MAIN] Card '%s' returned to hand — target died before resolution. Refunded %d ticks." % [card.card_name, cancelled])
+		_on_hand_updated()
+		update_deck_info()
+		return
+
+	# --- Basic attack resolution: deal damage directly ---
+	if data.get("is_basic_attack", false):
+		var damage = data["basic_attack_damage"]
+		target.take_damage(damage, true)
+
+		var ba_buff_mgr = player.get_buff_manager()
+		var ba_debuff_mgr = player.get_debuff_manager()
+		var ba_stats = player.get_stats()
+
+		# Skill tree crit check for basic attack
+		if ba_buff_mgr and data.get("basic_attack_crit", false):
+			ba_buff_mgr.last_crit_hit = false
+			progression_triggers._trigger_skill_tree_on_crit(target)
+
+		# Register attack for DEX proc counter
+		if ba_stats:
+			ba_stats.register_attack()
+
+		if ba_debuff_mgr:
+			ba_debuff_mgr.on_attack()
+
+		var target_name = ""
+		if target is Enemy and is_instance_valid(target):
+			target_name = target.enemy_name
+		add_battle_log("Basic Attack: %d damage to %s" % [damage, target_name], Color(0.4, 1.0, 0.5))
+		print("[MAIN] Basic Attack resolved: dealt %d damage to %s" % [damage, target_name])
+		return
+
 	# Execute the card's effect (damage, block, heal, etc.)
 	deck_manager.execute_deferred_card(card, target, player)
 
@@ -2964,7 +3096,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Log damage after execution
 	var target_name = ""
-	if target is Enemy:
+	if target is Enemy and is_instance_valid(target):
 		target_name = " on %s" % target.enemy_name
 	if card.last_damage_dealt > 0:
 		add_battle_log("%s resolved — %d damage%s" % [card.card_name, card.last_damage_dealt, target_name], Color(0.4, 1.0, 0.5))
@@ -3004,24 +3136,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Apply world effects (knockback, movement, AOE)
 	_apply_card_world_effects(card, target)
 
-	# Tighten String: decrement charges and undo temporary card mods
-	if data.get("tighten_applied", false):
-		buff_mgr.tighten_string_charges -= 1
-		card.bonus_damage -= 6
-		card.range_modifier -= 6
-		if buff_mgr.tighten_string_charges <= 0:
-			print("[MAIN] Tighten String expired!")
-
-	# High Ground: undo temporary card mods
-	if data.get("high_ground_applied", false):
-		card.bonus_damage -= 4
-		card.range_modifier -= 2
-
-	# Harnessed Power: undo temporary card mods
-	if data.get("harnessed_power_applied", false):
-		card.bonus_damage -= data["harnessed_bonus_damage"]
-		card.heal_amount -= data["harnessed_bonus_heal"]
-		card.block -= data["harnessed_bonus_block"]
+	# Undo temporary card modifications (tighten, high ground, harnessed power)
+	_undo_card_temp_mods(card, data)
 
 	# Enchanted Quiver: create a free arrow card after ranged attacks
 	if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and data.get("is_ranged_attack", false):

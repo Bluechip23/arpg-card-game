@@ -131,6 +131,47 @@ func _process_one_tick() -> void:
 		print("[TEMPO] All ticks complete. Global tempo: %d" % global_tempo)
 		ticking_finished.emit()
 
+## Cancel all pending ticks for a specific card. Returns the number of ticks removed.
+## Used when an enemy dies mid-queue and remaining cards targeting it need to be returned.
+func cancel_card_ticks(card: Card) -> int:
+	var cancelled_ticks := 0
+	for i in range(_active_cards.size() - 1, -1, -1):
+		var entry = _active_cards[i]
+		if entry["card"] == card:
+			# Calculate remaining ticks for this card (unelapsed ticks + any delay)
+			var remaining = (entry["total_ticks"] - entry["ticks_elapsed"]) + entry["delay"]
+			cancelled_ticks += remaining
+			_active_cards.remove_at(i)
+			print("[TEMPO] Cancelled card '%s': removed %d ticks" % [card.card_name, remaining])
+
+	_pending_ticks -= cancelled_ticks
+	if _pending_ticks <= 0:
+		_pending_ticks = 0
+		_ticking = false
+		_active_cards.clear()
+		print("[TEMPO] All ticks cancelled. Stopping tick processing.")
+		ticking_finished.emit()
+
+	# Recalculate delays for remaining cards after removal
+	_recalculate_delays()
+
+	return cancelled_ticks
+
+## Recalculate delay values for active cards after a cancellation.
+func _recalculate_delays() -> void:
+	# Delays represent how many ticks must pass before this card starts ticking.
+	# After removing a card, we need to ensure delays are consistent with remaining ticks.
+	var cumulative_ticks := 0
+	for entry in _active_cards:
+		if entry["ticks_elapsed"] > 0:
+			# Already ticking — delay should be 0
+			entry["delay"] = 0
+			cumulative_ticks += entry["total_ticks"] - entry["ticks_elapsed"]
+		else:
+			# Not yet started — delay = sum of remaining ticks from prior cards
+			entry["delay"] = cumulative_ticks
+			cumulative_ticks += entry["total_ticks"]
+
 ## Check if ticks are currently being processed
 func is_ticking() -> bool:
 	return _ticking
