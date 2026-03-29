@@ -46,7 +46,7 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Affects attack speed counter (30 - DEX)
 - Carry load also affects attack speed counter
 - When counter hits 0: DEX PROC
-- DEX PROC = Next attack costs 2 less mana AND 0 tempo!
+- DEX PROC = Next attack costs 2 less mana AND half tempo (rounded down)!
 
 [color=blue]Intelligence (INT)[/color]
 - +1 spell damage per 2 points
