@@ -18,7 +18,8 @@ enum SpecialEffect {
 	THORNS_PER_TEMPO,
 	ON_TEMPO_MOVEMENT_DAMAGE,
 	ON_KILL_INVISIBLE,
-	CRIT_ZERO_MANA_CARDS
+	CRIT_ZERO_MANA_CARDS,
+	POCKET_KNIFE_PROC
 }
 
 # Ring trigger conditions
@@ -792,4 +793,16 @@ static func create_shadow_dagger() -> ItemData:
 	item.card_slots = 1
 	item.allowed_card_keywords = [Card.CardKeyword.POCKET]
 	item.description = "+4 damage. On Kill: Become invisible (75 tempo cooldown). On-Self (Pocket): Zero mana cards gain 10% extra crit chance. Weight 10."
+	return item
+
+static func create_pocket_knife() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Pocket Knife"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weight = 1
+	item.weapon_hand = WeaponHand.ONE_HAND
+	item.weapon_damage = 1
+	item.special_effect = SpecialEffect.POCKET_KNIFE_PROC
+	item.description = "On attack speed proc: attack resolves on first tick and costs 2 less tempo (after halving). Weight 1."
 	return item
