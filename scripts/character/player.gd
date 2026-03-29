@@ -87,6 +87,21 @@ func _load_mesh_color(data: CharacterData) -> void:
 		# Keep the default blue; characters will insert their own sprites later
 		pass
 
+func _get_animation_class(character_name: String):
+	match character_name:
+		"Stephen":
+			return StephenAnimations
+		"Brad":
+			return BradAnimations
+		"Ryan":
+			return RyanAnimations
+		"Cory":
+			return CoryAnimations
+		"Jeremy":
+			return JeremyAnimations
+		_:
+			return null
+
 func _initialize_animations(data: CharacterData) -> void:
 	if not animator or not character_sprite:
 		return
@@ -95,17 +110,12 @@ func _initialize_animations(data: CharacterData) -> void:
 	var anim_data: Dictionary = {}
 	var sheet_path: String = ""
 
-	if data.character_name == "Stephen":
-		anim_data = StephenAnimations.get_animation_data()
-		_action_map = StephenAnimations.get_action_map()
-		sheet_path = StephenAnimations.SPRITE_SHEET_PATH
-	elif data.character_name == "Brad":
-		anim_data = BradAnimations.get_animation_data()
-		_action_map = BradAnimations.get_action_map()
-		sheet_path = BradAnimations.SPRITE_SHEET_PATH
-	else:
-		# Other characters don't have sprite sheet animations yet
+	var anim_class = _get_animation_class(data.character_name)
+	if anim_class == null:
 		return
+	anim_data = anim_class.get_animation_data()
+	_action_map = anim_class.get_action_map()
+	sheet_path = anim_class.SPRITE_SHEET_PATH
 
 	if sheet_path == "" or anim_data.is_empty():
 		return

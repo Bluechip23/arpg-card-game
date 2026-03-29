@@ -1,279 +1,100 @@
 class_name StephenAnimations
 extends RefCounted
 
-## Animation data for Stephen's character, mapped from Randi's Secret of Mana sprite sheet.
-## Each animation defines: start_x, start_y (top-left pixel of first frame),
-## frame_width, frame_height, frames (count), fps, loop (bool).
-##
-## IMPORTANT: These pixel coordinates are estimates based on the reference sprite sheet.
-## You MUST adjust start_x/start_y values to match your actual sprite sheet file.
-## The sprite sheet should be placed at: res://assets/characters/stephen_spritesheet.png
+## Animation data for Stephen's character sprite sheet.
+## Sprite sheet: res://assets/characters/stephen_spritesheet.png (321x745)
+## Layout: 3 direction rows per animation group (SOUTH, EAST/WEST, NORTH)
+## Direction row spacing ~46px, sprite spacing ~30px
 
 const SPRITE_SHEET_PATH = "res://assets/characters/stephen_spritesheet.png"
 
-# Default frame size for most animations (Secret of Mana standard)
-const DEFAULT_FW = 48
-const DEFAULT_FH = 48
+const FW = 30
+const FH = 46
 
 static func get_animation_data() -> Dictionary:
 	return {
 		# =============================================
-		# MOVEMENT ANIMATIONS
+		# MOVEMENT (Group 0: south=7, east=52, north=99)
 		# =============================================
 		"stance": {
-			"start_x": 0, "start_y": 0,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
+			"start_x": 12, "start_y": 2,
+			"frame_width": FW, "frame_height": FH,
 			"frames": 3, "fps": 4, "loop": true,
 		},
 		"walking": {
-			"start_x": 48, "start_y": 0,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 8, "fps": 10, "loop": true,
+			"start_x": 12, "start_y": 2,
+			"frame_width": FW, "frame_height": FH,
+			"frames": 5, "fps": 8, "loop": true,
 		},
 		"running": {
-			"start_x": 384, "start_y": 0,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 8, "fps": 12, "loop": true,
-		},
-		"pushing": {
-			"start_x": 0, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 8, "loop": true,
+			"start_x": 135, "start_y": 2,
+			"frame_width": FW, "frame_height": FH,
+			"frames": 3, "fps": 12, "loop": true,
 		},
 
 		# =============================================
-		# STATUS / REACTION ANIMATIONS
+		# COMBAT (Group 1: south=143, east=185, north=232)
 		# =============================================
-		"tongue_snare": {
-			"start_x": 96, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 6, "loop": true,
-		},
-		"spell_snare": {
-			"start_x": 192, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 6, "loop": true,
-		},
-		"sleeping": {
-			"start_x": 288, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 3, "loop": true,
-		},
-		"losing_balance": {
-			"start_x": 384, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 8, "loop": false,
-		},
-		"hanging": {
-			"start_x": 864, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 4, "loop": true,
-		},
-
-		# =============================================
-		# SOCIAL / INTERACTION ANIMATIONS
-		# =============================================
-		"bowing": {
-			"start_x": 480, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 6, "loop": false,
-		},
-		"expressions": {
-			"start_x": 576, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 6, "loop": false,
-		},
-		"grab_shake_throw": {
-			"start_x": 672, "start_y": 48,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 8, "fps": 8, "loop": false,
-		},
-		"looking_around": {
-			"start_x": 0, "start_y": 96,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 6, "loop": false,
-		},
-
-		# =============================================
-		# WEAPON HANDLING ANIMATIONS
-		# =============================================
-		"pull_mana_sword": {
-			"start_x": 96, "start_y": 96,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 8, "loop": false,
-		},
-		"put_back_mana_sword": {
-			"start_x": 288, "start_y": 96,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 8, "loop": false,
-		},
-		"battle_stance": {
-			"start_x": 864, "start_y": 96,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 3, "fps": 4, "loop": true,
-		},
-		"high_stepper": {
-			"start_x": 480, "start_y": 96,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 8, "loop": false,
-		},
-		"travel_cannon_somersault": {
-			"start_x": 576, "start_y": 96,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 10, "fps": 10, "loop": false,
-		},
-
-		# =============================================
-		# CHARGED WEAPON ANIMATIONS
-		# =============================================
-		"charged_weapon_1": {
-			"start_x": 0, "start_y": 144,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
-		},
-		"charged_weapon_2": {
-			"start_x": 192, "start_y": 144,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
-		},
-		"charged_weapon_3": {
-			"start_x": 384, "start_y": 144,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
-		},
-
-		# =============================================
-		# GENERIC WEAPON ATTACK ANIMATIONS
-		# =============================================
-		"bow_arrow_attack": {
-			"start_x": 576, "start_y": 144,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 8, "fps": 10, "loop": false,
-		},
 		"weapon_attack_1": {
-			"start_x": 768, "start_y": 144,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
+			"start_x": 10, "start_y": 139,
+			"frame_width": FW, "frame_height": FH,
+			"frames": 5, "fps": 10, "loop": false,
 		},
 		"weapon_attack_2": {
-			"start_x": 0, "start_y": 192,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
+			"start_x": 133, "start_y": 139,
+			"frame_width": FW, "frame_height": FH,
+			"frames": 3, "fps": 10, "loop": false,
 		},
-		"weapon_attack_3": {
-			"start_x": 192, "start_y": 192,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
-		},
-		"weapon_attack_4": {
-			"start_x": 384, "start_y": 192,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
-		},
-		"weapon_attack_5": {
-			"start_x": 576, "start_y": 192,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
+		"battle_stance": {
+			"start_x": 12, "start_y": 139,
+			"frame_width": FW, "frame_height": FH,
+			"frames": 3, "fps": 4, "loop": true,
 		},
 
 		# =============================================
-		# SPECIAL ATTACK ANIMATIONS
-		# =============================================
-		"flying_sword_attack": {
-			"start_x": 0, "start_y": 240,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 8, "fps": 10, "loop": false,
-		},
-		"circling_weapon": {
-			"start_x": 288, "start_y": 240,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 8, "loop": true,
-		},
-		"elbow_check": {
-			"start_x": 0, "start_y": 288,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 5, "fps": 10, "loop": false,
-		},
-		"double_punch": {
-			"start_x": 96, "start_y": 288,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
-		},
-
-		# =============================================
-		# DODGE / DEFENSE ANIMATIONS
+		# SPECIAL (Group 2: south=283, east=299, north=327)
 		# =============================================
 		"dodge": {
-			"start_x": 480, "start_y": 240,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 10, "loop": false,
+			"start_x": 12, "start_y": 278,
+			"frame_width": FW, "frame_height": 25,
+			"frames": 3, "fps": 10, "loop": false,
 		},
-		"backflip": {
-			"start_x": 576, "start_y": 240,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
-		},
-		"defend_with_weapon": {
-			"start_x": 672, "start_y": 240,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 8, "loop": false,
+		"charged_weapon_1": {
+			"start_x": 5, "start_y": 323,
+			"frame_width": 33, "frame_height": FH,
+			"frames": 5, "fps": 10, "loop": false,
 		},
 
 		# =============================================
-		# KICK ANIMATIONS
+		# COMBAT EXTENDED (Group 3: south=328, east=374, north=420)
 		# =============================================
-		"high_kick_1": {
-			"start_x": 288, "start_y": 288,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 5, "fps": 10, "loop": false,
-		},
-		"high_kick_2": {
-			"start_x": 432, "start_y": 288,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 5, "fps": 10, "loop": false,
-		},
-		"knee_kick": {
-			"start_x": 576, "start_y": 288,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 5, "fps": 10, "loop": false,
-		},
-		"flying_kick": {
-			"start_x": 720, "start_y": 288,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 10, "loop": false,
+		"weapon_attack_3": {
+			"start_x": 5, "start_y": 323,
+			"frame_width": 33, "frame_height": FH,
+			"frames": 8, "fps": 10, "loop": false,
 		},
 
 		# =============================================
-		# HIT / DEFEAT ANIMATIONS
+		# REACTIONS (Group 4: south=490, east=546, north=582)
 		# =============================================
-		"hit_knockdown_unconscious_getup": {
-			"start_x": 0, "start_y": 336,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 12, "fps": 8, "loop": false,
-		},
 		"hit_knockdown_getup": {
-			"start_x": 288, "start_y": 336,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 8, "fps": 8, "loop": false,
+			"start_x": 5, "start_y": 486,
+			"frame_width": 35, "frame_height": FH,
+			"frames": 5, "fps": 8, "loop": false,
 		},
-		"boss_defeat": {
-			"start_x": 768, "start_y": 240,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 6, "fps": 6, "loop": false,
+		"losing_balance": {
+			"start_x": 5, "start_y": 486,
+			"frame_width": 35, "frame_height": FH,
+			"frames": 3, "fps": 6, "loop": false,
 		},
 
 		# =============================================
-		# SPECIAL ANIMATIONS
+		# DEFEAT (Group 5: south=629, east=670, north=713)
 		# =============================================
-		"summoning_mana_spirit": {
-			"start_x": 0, "start_y": 384,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 8, "fps": 6, "loop": false,
-		},
-		"glitchy_run": {
-			"start_x": 864, "start_y": 0,
-			"frame_width": DEFAULT_FW, "frame_height": DEFAULT_FH,
-			"frames": 4, "fps": 10, "loop": true,
+		"boss_defeat": {
+			"start_x": 5, "start_y": 625,
+			"frame_width": 35, "frame_height": FH,
+			"frames": 5, "fps": 6, "loop": false,
 		},
 	}
 
@@ -285,49 +106,21 @@ static func get_action_map() -> Dictionary:
 		"idle": "stance",
 		"walk": "walking",
 		"run": "running",
-		"push": "pushing",
-		"blink": "travel_cannon_somersault",
+		"battle_ready": "battle_stance",
 
-		# Combat - Attacks (mapped to card types)
+		# Combat - Attacks
 		"attack_slash": "weapon_attack_1",
-		"attack_heavy": "weapon_attack_3",
-		"attack_ranged": "bow_arrow_attack",
+		"attack_heavy": "weapon_attack_2",
 		"attack_charged_1": "charged_weapon_1",
-		"attack_charged_2": "charged_weapon_2",
-		"attack_charged_3": "charged_weapon_3",
-		"attack_flying": "flying_sword_attack",
-		"attack_elbow": "elbow_check",
-		"attack_double_punch": "double_punch",
-		"attack_circling": "circling_weapon",
-
-		# Combat - Kicks
-		"kick_high": "high_kick_1",
-		"kick_high_alt": "high_kick_2",
-		"kick_knee": "knee_kick",
-		"kick_flying": "flying_kick",
+		"attack_ranged": "weapon_attack_3",
 
 		# Combat - Defense
-		"block": "defend_with_weapon",
 		"dodge": "dodge",
-		"dodge_backflip": "backflip",
+		"block": "dodge",
 
 		# Combat - Reactions
 		"hit": "hit_knockdown_getup",
-		"hit_heavy": "hit_knockdown_unconscious_getup",
-		"defeat": "boss_defeat",
-
-		# Status effects
+		"hit_heavy": "hit_knockdown_getup",
 		"stunned": "losing_balance",
-		"snared": "tongue_snare",
-		"spell_bound": "spell_snare",
-		"sleeping": "sleeping",
-
-		# Utility
-		"empower": "summoning_mana_spirit",
-		"draw_weapon": "pull_mana_sword",
-		"sheathe_weapon": "put_back_mana_sword",
-		"battle_ready": "battle_stance",
-		"look_around": "looking_around",
-		"bow": "bowing",
-		"interact": "grab_shake_throw",
+		"defeat": "boss_defeat",
 	}
