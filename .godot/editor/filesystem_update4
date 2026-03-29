@@ -6,3 +6,4 @@ res://scripts/core/main.gd
 res://scripts/ui/keyword_legend.gd
 res://scripts/progression/inventory.gd
 res://scripts/progression/item_data.gd
+res://scripts/character/player.gd
