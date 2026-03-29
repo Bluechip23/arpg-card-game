@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://daedrc7x227ow"
-path="res://.godot/imported/brad_full.png-7f09b86e46549969f427b2bd41cb7292.ctex"
+uid="uid://bjr0mui5fapes"
+path="res://.godot/imported/brad_full1.png-e8343c2ea722a763250e83851799447f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/characters/brad_full.png"
-dest_files=["res://.godot/imported/brad_full.png-7f09b86e46549969f427b2bd41cb7292.ctex"]
+source_file="res://assets/characters/brad_full1.png"
+dest_files=["res://.godot/imported/brad_full1.png-e8343c2ea722a763250e83851799447f.ctex"]
 
 [params]
 
