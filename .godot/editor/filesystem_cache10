@@ -1,5 +1,5 @@
 63f7b34db8d8cdea90c76aacccf841ec
-::res://::1774730470
+::res://::1774793970
 CLAUDE.md::TextFile::-1::1773019241::0::1::::<><><>0<>0<><>::
 README.md::TextFile::-1::1772023178::0::1::::<><><>0<>0<><>::
 ::res://assets/::1771557425
@@ -33,8 +33,8 @@ character_select.tscn::PackedScene::1517962863717857316::1773935190::0::1::::<><
 load_character.tscn::PackedScene::-1::1773935190::0::1::::<><><>0<>0<><>::res://scripts/menus/load_character.gd
 load_or_new.tscn::PackedScene::-1::1773935190::0::1::::<><><>0<>0<><>::res://scripts/menus/load_or_new.gd
 player.tscn::PackedScene::446613229796874519::1774003149::0::1::::<><><>0<>0<><>::uid://biyt2e2xyguyc::::res://scripts/character/player.gd<>uid://cf20y16acauch::::res://scripts/character/player_stats.gd<>uid://dyjc65plcl5x6::::res://scripts/progression/inventory.gd<>uid://04714ofy2ci0::::res://scripts/effects/buff_manager.gd<>uid://bwfg4patn2ib7::::res://scripts/effects/debuff_manager.gd<>res://scripts/character/character_animator.gd
-::res://scenes/core/::1773935190
-main.tscn::PackedScene::7279261072478774280::1773935190::0::1::::<><><>0<>0<><>::uid://blkcbj5ygec5p::::res://scripts/core/main.gd<>uid://c0ano5vpa6dnb::::res://scripts/cards/deck_manager.gd<>uid://cq2ocuplggobr::::res://scripts/battle/turn_manager.gd<>uid://b3q0gtfr8os6d::::res://scripts/battle/grid_manager.gd<>uid://gmlwi1eaeh72::::res://scenes/character/player.tscn<>uid://cpkn0agpgdjlg::::res://scenes/battle/move_confirm_dialog.tscn<>uid://dqvt7fntcoc3k::::res://scenes/character/character_panel.tscn<>uid://g2i38ksx61on::::res://scripts/battle/enemy_spawner.gd<>uid://b3k0locfmu1j4::::res://scripts/ui/test_ui.gd<>uid://di2l17wxml8wg::::res://scenes/ui/test_ui.tscn<>uid://ci5m6b33aj6gj::::res://scripts/battle/tempo_manager.gd<>uid://6ty571lmt7o4::::res://scripts/effects/debuff_bar_ui.gd<>uid://gux66qga1qrl::::res://scripts/effects/overflow_manager.gd<>uid://lu2qeaha3ydo::::res://scripts/battle/aoe_indicator.gd<>uid://bwhleeil4d864::::res://scripts/effects/buff_bar_ui.gd<>uid://bb1b2leqflyno::::res://scenes/ui/item_tooltip.tscn<>uid://c678mip6samfq::::res://scenes/ui/help_panel.tscn<>uid://dj67nrwolfc4p::::res://scenes/effects/overflow_ui.tscn<>uid://3cxn1hbdk2os::::res://scenes/cards/manifest_ui.tscn<>res://scenes/cards/quiver_ui.tscn<>uid://dri62oqig0hgl::::res://scenes/progression/sphere_grid.tscn<>uid://bvysoyp02lh3d::::res://scripts/progression/sphere_inventory.gd<>uid://c8uffvcxq5tgl::::res://scripts/battle/range_indicator.gd<>res://scenes/progression/skill_tree.tscn<>res://scenes/ui/point_to_prove_dialog.tscn
+::res://scenes/core/::1774731308
+main.tscn::PackedScene::7279261072478774280::1774731308::0::1::::<><><>0<>0<><>::uid://blkcbj5ygec5p::::res://scripts/core/main.gd<>uid://c0ano5vpa6dnb::::res://scripts/cards/deck_manager.gd<>uid://cq2ocuplggobr::::res://scripts/battle/turn_manager.gd<>uid://b3q0gtfr8os6d::::res://scripts/battle/grid_manager.gd<>uid://gmlwi1eaeh72::::res://scenes/character/player.tscn<>uid://cpkn0agpgdjlg::::res://scenes/battle/move_confirm_dialog.tscn<>uid://dqvt7fntcoc3k::::res://scenes/character/character_panel.tscn<>uid://g2i38ksx61on::::res://scripts/battle/enemy_spawner.gd<>uid://b3k0locfmu1j4::::res://scripts/ui/test_ui.gd<>uid://di2l17wxml8wg::::res://scenes/ui/test_ui.tscn<>uid://ci5m6b33aj6gj::::res://scripts/battle/tempo_manager.gd<>uid://6ty571lmt7o4::::res://scripts/effects/debuff_bar_ui.gd<>uid://gux66qga1qrl::::res://scripts/effects/overflow_manager.gd<>uid://lu2qeaha3ydo::::res://scripts/battle/aoe_indicator.gd<>uid://bwhleeil4d864::::res://scripts/effects/buff_bar_ui.gd<>uid://bb1b2leqflyno::::res://scenes/ui/item_tooltip.tscn<>uid://c678mip6samfq::::res://scenes/ui/help_panel.tscn<>uid://dj67nrwolfc4p::::res://scenes/effects/overflow_ui.tscn<>uid://3cxn1hbdk2os::::res://scenes/cards/manifest_ui.tscn<>res://scenes/cards/quiver_ui.tscn<>uid://dri62oqig0hgl::::res://scenes/progression/sphere_grid.tscn<>uid://bvysoyp02lh3d::::res://scripts/progression/sphere_inventory.gd<>uid://c8uffvcxq5tgl::::res://scripts/battle/range_indicator.gd<>res://scenes/progression/skill_tree.tscn<>res://scenes/ui/point_to_prove_dialog.tscn
 ::res://scenes/effects/::1773935190
 buff_icon_ui.tscn::PackedScene::944106875930095662::1773935190::0::1::::<><><>0<>0<><>::uid://dxkbvglqexla1::::res://scripts/effects/buff_icon_ui.gd
 debuff_icon_ui.tscn::PackedScene::8695968287529062370::1773935190::0::1::::<><><>0<>0<><>::uid://nn8m66wlvvdn::::res://scripts/effects/debuff_icon_ui.gd
@@ -63,10 +63,10 @@ move_confirm_dialog.gd::GDScript::3040952761028640073::1773935190::0::1::::MoveC
 range_indicator.gd::GDScript::7130674383603382387::1773935190::0::1::::RangeIndicator<>Node3D<><>0<>0<><>::
 tempo_manager.gd::GDScript::5397067509686959257::1774696233::0::1::::TempoManager<>Node<><>0<>0<><>::
 turn_manager.gd::GDScript::5952455748588003355::1773935190::0::1::::TurnManager<>Node<><>0<>0<><>::
-::res://scripts/cards/::1774696233
+::res://scripts/cards/::1774793961
 card.gd::GDScript::5728337194933504007::1774696233::0::1::::Card<>Resource<><>0<>0<><>::
-card_ui.gd::GDScript::9016887340220839380::1774655346::0::1::::CardUI<>PanelContainer<><>0<>0<><>::
-deck_manager.gd::GDScript::6528378389181795039::1774655346::0::1::::DeckManager<>Node<><>0<>0<><>::
+card_ui.gd::GDScript::9016887340220839380::1774793961::0::1::::CardUI<>PanelContainer<><>0<>0<><>::
+deck_manager.gd::GDScript::6528378389181795039::1774793961::0::1::::DeckManager<>Node<><>0<>0<><>::
 gauntlet_skill_ui.gd::GDScript::5806131088852391910::1773935190::0::1::::GauntletSkillUI<>Button<><>0<>0<><>::
 manifest_card_ui.gd::GDScript::8792711196848764940::1773935190::0::1::::ManifestCardUI<>Button<><>0<>0<><>::
 manifest_ui.gd::GDScript::5004343329667280046::1773935190::0::1::::ManifestUI<>PanelContainer<><>0<>0<><>::
@@ -83,10 +83,10 @@ player.gd::GDScript::2998678591073256146::1774003149::0::1::::Player<>CharacterB
 player_stats.gd::GDScript::5181085982307593595::1773935190::0::1::::PlayerStats<>Node<><>0<>0<><>::
 questionnaire_data.gd::GDScript::2829923775233630180::1773935190::0::1::::QuestionnaireData<>RefCounted<><>0<>0<><>::
 stephen_animations.gd::GDScript::8137355529536983190::1774003149::0::1::::StephenAnimations<>RefCounted<><>0<>0<><>::
-::res://scripts/core/::1774730457
+::res://scripts/core/::1774793961
 dungeon_manager.gd::GDScript::3379451627875591924::1774144685::0::1::::DungeonManager<>Node<><>0<>0<><>::
 gameplay_walkthrough.gd::GDScript::1669547301609685458::1774655346::0::1::::GameplayWalkthrough<>ScrollContainer<><>0<>0<><>::
-main.gd::GDScript::3179265481184405395::1774730457::0::1::::<>Node3D<><>0<>0<><>::
+main.gd::GDScript::3179265481184405395::1774793961::0::1::::<>Node3D<><>0<>0<><>::
 quest_manager.gd::GDScript::1300151086712319509::1773935190::0::1::::QuestManager<>Node<><>0<>0<><>::
 save_data.gd::GDScript::8168873146405781887::1773935190::0::1::::SaveData<>Resource<><>0<>0<><>::
 save_manager.gd::GDScript::3546431535595869836::1773935191::0::1::::SaveManager<>RefCounted<><>0<>0<><>::
