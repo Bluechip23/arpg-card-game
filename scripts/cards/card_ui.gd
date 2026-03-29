@@ -122,7 +122,9 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 
 	# Build tempo tick bars (thin vertical cylinders showing resolve tick)
 	if is_dex_proc:
-		_build_tempo_bars(card, display_tempo)
+		var halved_resolve = card.resolve_tick / 2
+		halved_resolve = maxi(halved_resolve, mini(1, display_tempo))  # At least tick 1 if there's any tempo
+		_build_tempo_bars(card, display_tempo, halved_resolve)
 	else:
 		_build_tempo_bars(card)
 
@@ -361,7 +363,7 @@ func _get_keybind_text(index: int) -> String:
 		return "[%s]" % KEYBIND_LABELS[index]
 	return ""
 
-func _build_tempo_bars(card: Card, tempo_override: int = -1) -> void:
+func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: int = -1) -> void:
 	## Add thin vertical bars at the bottom of the card showing tempo ticks.
 	## The highlighted bar indicates the resolve tick.
 	var effective_tempo = tempo_override if tempo_override >= 0 else card.tempo_cost
@@ -399,7 +401,7 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1) -> void:
 			highlight_color = Color(1.0, 0.85, 0.4)
 
 	var dim_color = Color(0.2, 0.2, 0.28)
-	var resolve_tick = mini(card.resolve_tick, effective_tempo)
+	var resolve_tick = resolve_override if resolve_override >= 0 else mini(card.resolve_tick, effective_tempo)
 
 	for i in range(effective_tempo):
 		var bar = ColorRect.new()

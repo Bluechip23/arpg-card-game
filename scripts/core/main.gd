@@ -3263,11 +3263,12 @@ func play_selected_card(target) -> void:
 		}
 		_pending_resolve_queue.append(resolve_entry)
 
-		# Dex proc: halve tempo cost (rounded down)
+		# Dex proc: halve tempo cost and resolve tick (both rounded down)
 		if result["half_tempo"]:
 			tempo_cost = tempo_cost / 2
-			resolve_tick = mini(resolve_tick, tempo_cost)
-			print("[MAIN] Dex proc! Tempo halved to %d" % tempo_cost)
+			resolve_tick = resolve_tick / 2
+			resolve_tick = maxi(resolve_tick, mini(1, tempo_cost))  # At least tick 1 if there's any tempo
+			print("[MAIN] Dex proc! Tempo halved to %d, resolve tick %d" % [tempo_cost, resolve_tick])
 
 		# Start ticked tempo — card ticks are appended sequentially
 		if tempo_cost <= 0:
