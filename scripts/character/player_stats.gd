@@ -476,17 +476,17 @@ func register_attack() -> Dictionary:
 	if current_attack_counter <= 0:
 		current_attack_counter = get_attack_speed_threshold()
 		dexterity_proc.emit()
-		print("[STATS] *** DEX PROC! *** Free attack + 2 mana discount!")
+		print("[STATS] *** DEX PROC! *** Half tempo + 2 mana discount!")
 		return {
 			"proc": true,
 			"mana_discount": 2,
-			"free_turn": true
+			"half_tempo": true
 		}
 	
 	return {
 		"proc": false,
 		"mana_discount": 0,
-		"free_turn": false
+		"half_tempo": false
 	}
 
 func get_attacks_until_proc() -> int:

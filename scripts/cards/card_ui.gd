@@ -76,10 +76,10 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	var is_locked = false
 	var is_dex_proc = false
 
-	# Dex proc preview: show reduced mana and FREE tempo for attack cards
+	# Dex proc preview: show reduced mana and half tempo for attack cards
 	if dex_proc_active and card.card_type == Card.CardType.ATTACK:
 		display_mana = max(0, display_mana - 2)
-		display_tempo = 0
+		display_tempo = display_tempo / 2
 		is_dex_proc = true
 
 	if debuff_mgr:
@@ -91,9 +91,9 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	if cost_label:
 		if is_dex_proc:
 			if card.maintain_cost > 0:
-				cost_label.text = "%dM FREE | Maintain: %dM" % [display_mana, card.maintain_cost]
+				cost_label.text = "%dM %dT | Maintain: %dM" % [display_mana, display_tempo, card.maintain_cost]
 			else:
-				cost_label.text = "%dM FREE" % display_mana
+				cost_label.text = "%dM %dT" % [display_mana, display_tempo]
 		elif card.maintain_cost > 0:
 			cost_label.text = "%dM %dT | Maintain: %dM" % [display_mana, display_tempo, card.maintain_cost]
 		else:
@@ -121,7 +121,10 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	_is_locked = is_locked
 
 	# Build tempo tick bars (thin vertical cylinders showing resolve tick)
-	_build_tempo_bars(card)
+	if is_dex_proc:
+		_build_tempo_bars(card, display_tempo)
+	else:
+		_build_tempo_bars(card)
 
 	_update_visual_instant()
 
@@ -358,10 +361,11 @@ func _get_keybind_text(index: int) -> String:
 		return "[%s]" % KEYBIND_LABELS[index]
 	return ""
 
-func _build_tempo_bars(card: Card) -> void:
+func _build_tempo_bars(card: Card, tempo_override: int = -1) -> void:
 	## Add thin vertical bars at the bottom of the card showing tempo ticks.
 	## The highlighted bar indicates the resolve tick.
-	if card.tempo_cost <= 0:
+	var effective_tempo = tempo_override if tempo_override >= 0 else card.tempo_cost
+	if effective_tempo <= 0:
 		return
 
 	var vbox = $Panel/VBox
@@ -395,9 +399,9 @@ func _build_tempo_bars(card: Card) -> void:
 			highlight_color = Color(1.0, 0.85, 0.4)
 
 	var dim_color = Color(0.2, 0.2, 0.28)
-	var resolve_tick = mini(card.resolve_tick, card.tempo_cost)
+	var resolve_tick = mini(card.resolve_tick, effective_tempo)
 
-	for i in range(card.tempo_cost):
+	for i in range(effective_tempo):
 		var bar = ColorRect.new()
 		bar.custom_minimum_size = Vector2(4, 14)
 		if i + 1 == resolve_tick:

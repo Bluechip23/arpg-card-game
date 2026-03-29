@@ -31,7 +31,7 @@ var debuff_manager = null  # DebuffManager - for checking Cuffed on draw
 
 var peaked_card: Card = null
 
-var next_attack_free: bool = false
+var next_attack_half_tempo: bool = false
 var next_attack_mana_discount: int = 0
 var prep_utility_discount: int = 0  # Preparation: reduces next utility card cost
 var prep_utility_charges: int = 0   # How many more utility cards get the discount
@@ -319,25 +319,25 @@ func handle_overflow() -> void:
 func play_card(index: int, target, player_node = null, defer_execution: bool = false) -> Dictionary:
 	if index < 0 or index >= hand.size():
 		print("[DECK] Invalid card index: %d" % index)
-		return { "played": false, "free_turn": false }
+		return { "played": false, "half_tempo": false }
 	
 	var card = hand[index]
 	
 	if card.is_jailed():
 		print("[DECK] Cannot play jailed card!")
-		return { "played": false, "free_turn": false }
+		return { "played": false, "half_tempo": false }
 
 	if card.card_type == Card.CardType.UNPLAYABLE:
 		print("[DECK] Cannot play unplayable card: %s" % card.card_name)
-		return { "played": false, "free_turn": false }
+		return { "played": false, "half_tempo": false }
 
 	if card.card_type == Card.CardType.ENCHANTMENT:
 		print("[DECK] Enchantment cards cannot be played — they provide passive buffs while in hand: %s" % card.card_name)
-		return { "played": false, "free_turn": false }
+		return { "played": false, "half_tempo": false }
 
 	if card.card_type == Card.CardType.REACTION:
 		print("[DECK] Reaction cards trigger automatically, cannot be played manually: %s" % card.card_name)
-		return { "played": false, "free_turn": false }
+		return { "played": false, "half_tempo": false }
 	
 	var debuff_mgr = null
 	if player_node and player_node.has_method("get_debuff_manager"):
@@ -346,20 +346,20 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	if debuff_mgr:
 		if debuff_mgr.is_card_locked(index):
 			print("[DECK] Cannot play card - Locked!")
-			return { "played": false, "free_turn": false }
+			return { "played": false, "half_tempo": false }
 		
 		if not debuff_mgr.can_play_cards():
 			print("[DECK] Cannot play cards - Stunned or Frozen!")
-			return { "played": false, "free_turn": false }
+			return { "played": false, "half_tempo": false }
 		
 		if card.card_type == Card.CardType.ATTACK and not debuff_mgr.can_play_attack_cards():
 			print("[DECK] Cannot play attack cards - Disarmed!")
-			return { "played": false, "free_turn": false }
+			return { "played": false, "half_tempo": false }
 		
 		if (card.card_type == Card.CardType.UTILITY or card.card_type == Card.CardType.POWER) and card.mana_cost > 0:
 			if not debuff_mgr.can_play_spell_cards():
 				print("[DECK] Cannot play spell cards - Silenced!")
-				return { "played": false, "free_turn": false }
+				return { "played": false, "half_tempo": false }
 	
 	var mana_cost = card.mana_cost
 	if card.card_type == Card.CardType.ATTACK:
@@ -395,12 +395,12 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			# Check if player has enough health (must survive)
 			if player_stats and player_stats.current_health <= mana_cost:
 				print("[DECK] Demonic Rage: not enough health to pay %d!" % mana_cost)
-				return { "played": false, "free_turn": false }
+				return { "played": false, "half_tempo": false }
 
 	if not demonic_rage_active:
 		if player_stats and not player_stats.has_mana(mana_cost):
 			print("[DECK] Not enough mana! Need %d, have %d" % [mana_cost, int(player_stats.current_mana)])
-			return { "played": false, "free_turn": false }
+			return { "played": false, "half_tempo": false }
 
 	if player_stats and mana_cost > 0:
 		if demonic_rage_active:
@@ -412,11 +412,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		else:
 			player_stats.spend_mana(mana_cost)
 
-	var was_free_turn = next_attack_free and card.card_type == Card.CardType.ATTACK
+	var was_half_tempo = next_attack_half_tempo and card.card_type == Card.CardType.ATTACK
 
 	# Only consume proc bonus when an attack card is played
 	if card.card_type == Card.CardType.ATTACK:
-		next_attack_free = false
+		next_attack_half_tempo = false
 		next_attack_mana_discount = 0
 
 	# Preparation chain: consume a charge when utility played, clear if non-utility or depleted
@@ -509,7 +509,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	
 	print("[DECK] Played: %s (cost %d mana) | Hand: %d/%d" % [card.card_name, mana_cost, hand.size(), get_hand_cap()])
 	
-	return { "played": true, "free_turn": was_free_turn }
+	return { "played": true, "half_tempo": was_half_tempo }
 
 ## Execute a deferred card (called when the resolve tick fires in the ticked tempo system)
 func execute_deferred_card(card: Card, target, player_node = null) -> void:
@@ -568,9 +568,9 @@ func assign_hexed_locked_cards(debuff_mgr) -> void:
 		print("[DECK] Locked assigned to card %d: %s" % [index, hand[index].card_name])
 
 func apply_dex_proc_bonus() -> void:
-	next_attack_free = true
+	next_attack_half_tempo = true
 	next_attack_mana_discount = 2
-	print("[DECK] Next attack: FREE TURN + 2 mana discount!")
+	print("[DECK] Next attack: HALF TEMPO + 2 mana discount!")
 
 func process_turn() -> void:
 	discards_this_cycle = 0

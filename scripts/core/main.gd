@@ -1627,15 +1627,15 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	var cost_lbl = Label.new()
 	var preview_mana = card.mana_cost
 	var preview_tempo = card.tempo_cost
-	var preview_proc = deck_manager.next_attack_free and card.card_type == Card.CardType.ATTACK
+	var preview_proc = deck_manager.next_attack_half_tempo and card.card_type == Card.CardType.ATTACK
 	if preview_proc:
 		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
-		preview_tempo = 0
+		preview_tempo = preview_tempo / 2
 	if preview_proc:
 		if card.maintain_cost > 0:
-			cost_lbl.text = "Cost: %dM / FREE | Maintain: %dM" % [preview_mana, card.maintain_cost]
+			cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [preview_mana, preview_tempo, card.maintain_cost]
 		else:
-			cost_lbl.text = "Cost: %dM / FREE" % preview_mana
+			cost_lbl.text = "Cost: %dM / %dT" % [preview_mana, preview_tempo]
 	elif card.maintain_cost > 0:
 		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [preview_mana, preview_tempo, card.maintain_cost]
 	else:
@@ -2298,7 +2298,7 @@ func _update_xp_display() -> void:
 		_xp_bar_label.text = "(%d) %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
 
 func _on_dexterity_proc() -> void:
-	print("[MAIN] Dexterity proc! Next attack is free + 2 mana discount!")
+	print("[MAIN] Dexterity proc! Next attack: half tempo + 2 mana discount!")
 	deck_manager.apply_dex_proc_bonus()
 	# Stephen: Dominate — on dex proc, gain free attack card
 	progression_triggers._trigger_skill_tree_stephen_on_dex_proc()
@@ -2447,7 +2447,7 @@ func _on_hand_updated() -> void:
 	# Draw pile position for draw animation origin (bottom-left of screen)
 	var draw_origin = Vector2(-80, card_y + 40)
 
-	var dex_proc_active = deck_manager.next_attack_free or deck_manager.next_attack_mana_discount > 0
+	var dex_proc_active = deck_manager.next_attack_half_tempo or deck_manager.next_attack_mana_discount > 0
 
 	for i in range(hand_size):
 		var card_ui = CardUIScene.instantiate()
@@ -3258,25 +3258,29 @@ func play_selected_card(target) -> void:
 				"harnessed_bonus_heal": harnessed_bonus_heal,
 				"harnessed_bonus_block": harnessed_bonus_block,
 				"is_ranged_attack": is_ranged_attack,
-				"free_turn": result["free_turn"],
+				"half_tempo": result["half_tempo"],
 			},
 		}
 		_pending_resolve_queue.append(resolve_entry)
 
+		# Dex proc: halve tempo cost (rounded down)
+		if result["half_tempo"]:
+			tempo_cost = tempo_cost / 2
+			resolve_tick = mini(resolve_tick, tempo_cost)
+			print("[MAIN] Dex proc! Tempo halved to %d" % tempo_cost)
+
 		# Start ticked tempo — card ticks are appended sequentially
-		if not result["free_turn"]:
-			if buff_mgr and buff_mgr.consume_steady():
-				print("[MAIN] Steady! No tempo added.")
-				# Resolve immediately since no ticks
-				_resolve_queued_card(card)
-			else:
-				# Initialize the tick bar UI
-				_update_tick_bar(0, tempo_cost, resolve_tick, card.card_name)
-				tempo_manager.add_card_tempo(tempo_cost, card, resolve_tick)
-		else:
-			print("[MAIN] Free attack! No tempo added.")
-			# Resolve immediately for free turns
+		if tempo_cost <= 0:
+			print("[MAIN] No tempo cost — resolving immediately.")
 			_resolve_queued_card(card)
+		elif buff_mgr and buff_mgr.consume_steady():
+			print("[MAIN] Steady! No tempo added.")
+			# Resolve immediately since no ticks
+			_resolve_queued_card(card)
+		else:
+			# Initialize the tick bar UI
+			_update_tick_bar(0, tempo_cost, resolve_tick, card.card_name)
+			tempo_manager.add_card_tempo(tempo_cost, card, resolve_tick)
 
 		_on_hand_updated()
 		update_deck_info()
