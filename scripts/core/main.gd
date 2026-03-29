@@ -2304,6 +2304,8 @@ func _on_dexterity_proc() -> void:
 	progression_triggers._trigger_skill_tree_stephen_on_dex_proc()
 	# Refresh hand so attack cards show discounted mana/tempo
 	_on_hand_updated()
+	# Refresh attack button to show PROC state
+	_update_attack_button_text()
 
 func _on_maintained_cards_broken() -> void:
 	## Called when player's mana hits 0 - all maintained Power cards are discarded
@@ -2959,10 +2961,15 @@ func _update_draw_label() -> void:
 func _update_attack_button_text() -> void:
 	if _attack_button:
 		var proc_count = player.get_stats().get_attacks_until_proc()
-		_attack_button.text = "Attack (5T) (%d)" % proc_count
+		var proc_active = deck_manager.next_attack_half_tempo
 
-		# Glow red when next attack would trigger the dex proc
-		if proc_count == 1:
+		if proc_active:
+			_attack_button.text = "Attack (5T) (PROC)"
+		else:
+			_attack_button.text = "Attack (5T) (%d)" % proc_count
+
+		# Glow red when the dex proc is active (next attack benefits from it)
+		if proc_active:
 			var glow_style = StyleBoxFlat.new()
 			glow_style.bg_color = Color(0.6, 0.08, 0.08)
 			glow_style.border_color = Color(1.0, 0.2, 0.2)
