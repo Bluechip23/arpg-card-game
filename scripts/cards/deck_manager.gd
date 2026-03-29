@@ -361,7 +361,9 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				print("[DECK] Cannot play spell cards - Silenced!")
 				return { "played": false, "free_turn": false }
 	
-	var mana_cost = card.mana_cost - next_attack_mana_discount
+	var mana_cost = card.mana_cost
+	if card.card_type == Card.CardType.ATTACK:
+		mana_cost -= next_attack_mana_discount
 
 	# On-Self mana reduction from item card slot
 	if card.is_slotted():
@@ -412,8 +414,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	var was_free_turn = next_attack_free and card.card_type == Card.CardType.ATTACK
 
-	next_attack_free = false
-	next_attack_mana_discount = 0
+	# Only consume proc bonus when an attack card is played
+	if card.card_type == Card.CardType.ATTACK:
+		next_attack_free = false
+		next_attack_mana_discount = 0
 
 	# Preparation chain: consume a charge when utility played, clear if non-utility or depleted
 	if prep_utility_discount > 0:

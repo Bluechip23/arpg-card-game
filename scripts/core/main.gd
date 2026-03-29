@@ -1623,14 +1623,28 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 	vbox.add_child(type_lbl)
 
-	# Cost
+	# Cost (with dex proc preview for attack cards)
 	var cost_lbl = Label.new()
-	if card.maintain_cost > 0:
-		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
+	var preview_mana = card.mana_cost
+	var preview_tempo = card.tempo_cost
+	var preview_proc = deck_manager.next_attack_free and card.card_type == Card.CardType.ATTACK
+	if preview_proc:
+		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
+		preview_tempo = 0
+	if preview_proc:
+		if card.maintain_cost > 0:
+			cost_lbl.text = "Cost: %dM / FREE | Maintain: %dM" % [preview_mana, card.maintain_cost]
+		else:
+			cost_lbl.text = "Cost: %dM / FREE" % preview_mana
+	elif card.maintain_cost > 0:
+		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [preview_mana, preview_tempo, card.maintain_cost]
 	else:
-		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+		cost_lbl.text = "Cost: %dM / %dT" % [preview_mana, preview_tempo]
 	cost_lbl.add_theme_font_size_override("font_size", 12)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	if preview_proc:
+		cost_lbl.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	else:
+		cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	vbox.add_child(cost_lbl)
 
 	# Range/Melee
@@ -2288,6 +2302,8 @@ func _on_dexterity_proc() -> void:
 	deck_manager.apply_dex_proc_bonus()
 	# Stephen: Dominate — on dex proc, gain free attack card
 	progression_triggers._trigger_skill_tree_stephen_on_dex_proc()
+	# Refresh hand so attack cards show discounted mana/tempo
+	_on_hand_updated()
 
 func _on_maintained_cards_broken() -> void:
 	## Called when player's mana hits 0 - all maintained Power cards are discarded
@@ -2431,10 +2447,12 @@ func _on_hand_updated() -> void:
 	# Draw pile position for draw animation origin (bottom-left of screen)
 	var draw_origin = Vector2(-80, card_y + 40)
 
+	var dex_proc_active = deck_manager.next_attack_free or deck_manager.next_attack_mana_discount > 0
+
 	for i in range(hand_size):
 		var card_ui = CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
-		card_ui.setup(deck_manager.hand[i], i, debuff_mgr)
+		card_ui.setup(deck_manager.hand[i], i, debuff_mgr, dex_proc_active)
 
 		var final_pos = Vector2(start_x + i * spacing, card_y)
 
@@ -2942,6 +2960,39 @@ func _update_attack_button_text() -> void:
 	if _attack_button:
 		var proc_count = player.get_stats().get_attacks_until_proc()
 		_attack_button.text = "Attack (5T) (%d)" % proc_count
+
+		# Glow red when next attack would trigger the dex proc
+		if proc_count == 1:
+			var glow_style = StyleBoxFlat.new()
+			glow_style.bg_color = Color(0.6, 0.08, 0.08)
+			glow_style.border_color = Color(1.0, 0.2, 0.2)
+			glow_style.border_width_top = 2
+			glow_style.border_width_bottom = 2
+			glow_style.border_width_left = 2
+			glow_style.border_width_right = 2
+			glow_style.corner_radius_top_left = 4
+			glow_style.corner_radius_top_right = 4
+			glow_style.corner_radius_bottom_left = 4
+			glow_style.corner_radius_bottom_right = 4
+			_attack_button.add_theme_stylebox_override("normal", glow_style)
+			var glow_hover = StyleBoxFlat.new()
+			glow_hover.bg_color = Color(0.75, 0.12, 0.12)
+			glow_hover.border_color = Color(1.0, 0.3, 0.3)
+			glow_hover.border_width_top = 2
+			glow_hover.border_width_bottom = 2
+			glow_hover.border_width_left = 2
+			glow_hover.border_width_right = 2
+			glow_hover.corner_radius_top_left = 4
+			glow_hover.corner_radius_top_right = 4
+			glow_hover.corner_radius_bottom_left = 4
+			glow_hover.corner_radius_bottom_right = 4
+			_attack_button.add_theme_stylebox_override("hover", glow_hover)
+			_attack_button.add_theme_color_override("font_color", Color(1.0, 0.85, 0.85))
+		else:
+			# Clear custom styles — revert to default theme
+			_attack_button.remove_theme_stylebox_override("normal")
+			_attack_button.remove_theme_stylebox_override("hover")
+			_attack_button.remove_theme_color_override("font_color")
 
 func update_selected_display() -> void:
 	# Selection is now shown via golden border on the card — hide the text label

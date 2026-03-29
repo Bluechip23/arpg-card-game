@@ -34,7 +34,7 @@ const HOVER_LIFT: float = 15.0
 const SELECT_LIFT: float = 40.0
 const TWEEN_DURATION: float = 0.12
 
-func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
+func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_active: bool = false) -> void:
 	_card = card
 	_index = index
 
@@ -71,8 +71,16 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 
 	# Calculate displayed mana cost with debuff modifiers
 	var display_mana = card.mana_cost
+	var display_tempo = card.tempo_cost
 	var is_hexed = false
 	var is_locked = false
+	var is_dex_proc = false
+
+	# Dex proc preview: show reduced mana and FREE tempo for attack cards
+	if dex_proc_active and card.card_type == Card.CardType.ATTACK:
+		display_mana = max(0, display_mana - 2)
+		display_tempo = 0
+		is_dex_proc = true
 
 	if debuff_mgr:
 		if debuff_mgr.is_card_hexed(index):
@@ -81,15 +89,22 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null) -> void:
 		is_locked = debuff_mgr.is_card_locked(index)
 
 	if cost_label:
-		if card.maintain_cost > 0:
-			cost_label.text = "%dM %dT | Maintain: %dM" % [display_mana, card.tempo_cost, card.maintain_cost]
+		if is_dex_proc:
+			if card.maintain_cost > 0:
+				cost_label.text = "%dM FREE | Maintain: %dM" % [display_mana, card.maintain_cost]
+			else:
+				cost_label.text = "%dM FREE" % display_mana
+		elif card.maintain_cost > 0:
+			cost_label.text = "%dM %dT | Maintain: %dM" % [display_mana, display_tempo, card.maintain_cost]
 		else:
-			cost_label.text = "%dM %dT" % [display_mana, card.tempo_cost]
+			cost_label.text = "%dM %dT" % [display_mana, display_tempo]
 
 		if is_locked:
 			cost_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
 		elif is_hexed:
 			cost_label.add_theme_color_override("font_color", Color(0.6, 0.0, 0.6))
+		elif is_dex_proc:
+			cost_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 		elif card.tempo_cost <= 1:
 			cost_label.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 		else:
