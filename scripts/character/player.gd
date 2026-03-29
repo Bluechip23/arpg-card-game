@@ -99,6 +99,10 @@ func _initialize_animations(data: CharacterData) -> void:
 		anim_data = StephenAnimations.get_animation_data()
 		_action_map = StephenAnimations.get_action_map()
 		sheet_path = StephenAnimations.SPRITE_SHEET_PATH
+	elif data.character_name == "Brad":
+		anim_data = BradAnimations.get_animation_data()
+		_action_map = BradAnimations.get_action_map()
+		sheet_path = BradAnimations.SPRITE_SHEET_PATH
 	else:
 		# Other characters don't have sprite sheet animations yet
 		return
