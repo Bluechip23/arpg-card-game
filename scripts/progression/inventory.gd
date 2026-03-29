@@ -634,6 +634,12 @@ func get_equipped_shield() -> ItemData:
 func has_shield_equipped() -> bool:
 	return get_equipped_shield() != null
 
+func has_pocket_knife_equipped() -> bool:
+	for weapon in equipped_weapons:
+		if weapon and weapon.special_effect == ItemData.SpecialEffect.POCKET_KNIFE_PROC:
+			return true
+	return false
+
 func has_only_swords_equipped() -> bool:
 	## Returns true if all equipped weapons are swords (or no weapons equipped).
 	var has_weapon = false

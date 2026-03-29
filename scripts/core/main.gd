@@ -995,6 +995,21 @@ func _on_attack_pressed() -> void:
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
 
+	# Dex proc: halve basic attack tempo
+	var basic_attack_proc = deck_manager.next_attack_half_tempo
+	if basic_attack_proc:
+		tempo_cost = tempo_cost / 2
+		deck_manager.next_attack_half_tempo = false
+		deck_manager.next_attack_mana_discount = 0
+		# Pocket Knife: -2 additional tempo
+		var ba_inv = player.get_inventory()
+		if ba_inv and ba_inv.has_pocket_knife_equipped():
+			tempo_cost = maxi(0, tempo_cost - 2)
+			print("[MAIN] Pocket Knife! Basic attack tempo reduced to %d" % tempo_cost)
+		print("[MAIN] Dex proc on basic attack! Tempo halved to %d" % tempo_cost)
+		_on_hand_updated()
+		_update_attack_button_text()
+
 	if buff_mgr and buff_mgr.consume_steady():
 		# Steady: resolve immediately with no tempo
 		target.take_damage(damage, true)
@@ -1006,6 +1021,17 @@ func _on_attack_pressed() -> void:
 			debuff_mgr.on_attack()
 		add_battle_log("Basic Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
 		print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
+	elif tempo_cost <= 0:
+		# Dex proc reduced tempo to 0: resolve immediately
+		target.take_damage(damage, true)
+		if buff_mgr and buff_mgr.last_crit_hit:
+			buff_mgr.last_crit_hit = false
+			progression_triggers._trigger_skill_tree_on_crit(target)
+		stats.register_attack()
+		if debuff_mgr:
+			debuff_mgr.on_attack()
+		add_battle_log("Basic Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
+		print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 	else:
 		# Queue basic attack through the ticked tempo system.
 		# Damage resolves on tick 1; remaining ticks are cooldown.
@@ -1631,6 +1657,10 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	if preview_proc:
 		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
 		preview_tempo = preview_tempo / 2
+		# Pocket Knife: additional -2 tempo
+		var tip_inv = player.get_inventory()
+		if tip_inv and tip_inv.has_pocket_knife_equipped():
+			preview_tempo = maxi(0, preview_tempo - 2)
 	if preview_proc:
 		if card.maintain_cost > 0:
 			cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [preview_mana, preview_tempo, card.maintain_cost]
@@ -2450,11 +2480,15 @@ func _on_hand_updated() -> void:
 	var draw_origin = Vector2(-80, card_y + 40)
 
 	var dex_proc_active = deck_manager.next_attack_half_tempo or deck_manager.next_attack_mana_discount > 0
+	var pocket_knife = false
+	if dex_proc_active:
+		var hand_inv = player.get_inventory()
+		pocket_knife = hand_inv and hand_inv.has_pocket_knife_equipped()
 
 	for i in range(hand_size):
 		var card_ui = CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
-		card_ui.setup(deck_manager.hand[i], i, debuff_mgr, dex_proc_active)
+		card_ui.setup(deck_manager.hand[i], i, debuff_mgr, dex_proc_active, pocket_knife)
 
 		var final_pos = Vector2(start_x + i * spacing, card_y)
 
@@ -2964,7 +2998,11 @@ func _update_attack_button_text() -> void:
 		var proc_active = deck_manager.next_attack_half_tempo
 
 		if proc_active:
-			_attack_button.text = "Attack (5T) (PROC)"
+			var proc_tempo = 5 / 2  # Halved
+			var btn_inv = player.get_inventory()
+			if btn_inv and btn_inv.has_pocket_knife_equipped():
+				proc_tempo = maxi(0, proc_tempo - 2)
+			_attack_button.text = "Attack (%dT) (PROC)" % proc_tempo
 		else:
 			_attack_button.text = "Attack (5T) (%d)" % proc_count
 
@@ -3275,7 +3313,14 @@ func play_selected_card(target) -> void:
 			tempo_cost = tempo_cost / 2
 			resolve_tick = resolve_tick / 2
 			resolve_tick = maxi(resolve_tick, mini(1, tempo_cost))  # At least tick 1 if there's any tempo
-			print("[MAIN] Dex proc! Tempo halved to %d, resolve tick %d" % [tempo_cost, resolve_tick])
+			# Pocket Knife: resolve on first tick and -2 additional tempo
+			var inv = player.get_inventory()
+			if inv and inv.has_pocket_knife_equipped():
+				tempo_cost = maxi(0, tempo_cost - 2)
+				if tempo_cost > 0:
+					resolve_tick = 1
+				print("[MAIN] Pocket Knife! Tempo reduced to %d, resolve tick %d" % [tempo_cost, resolve_tick])
+			print("[MAIN] Dex proc! Tempo %d, resolve tick %d" % [tempo_cost, resolve_tick])
 
 		# Start ticked tempo — card ticks are appended sequentially
 		if tempo_cost <= 0:

@@ -34,7 +34,7 @@ const HOVER_LIFT: float = 15.0
 const SELECT_LIFT: float = 40.0
 const TWEEN_DURATION: float = 0.12
 
-func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_active: bool = false) -> void:
+func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_active: bool = false, pocket_knife: bool = false) -> void:
 	_card = card
 	_index = index
 
@@ -80,6 +80,9 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	if dex_proc_active and card.card_type == Card.CardType.ATTACK:
 		display_mana = max(0, display_mana - 2)
 		display_tempo = display_tempo / 2
+		# Pocket Knife: additional -2 tempo and resolve on first tick
+		if pocket_knife:
+			display_tempo = maxi(0, display_tempo - 2)
 		is_dex_proc = true
 
 	if debuff_mgr:
@@ -122,8 +125,12 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 
 	# Build tempo tick bars (thin vertical cylinders showing resolve tick)
 	if is_dex_proc:
-		var halved_resolve = card.resolve_tick / 2
-		halved_resolve = maxi(halved_resolve, mini(1, display_tempo))  # At least tick 1 if there's any tempo
+		var halved_resolve: int
+		if pocket_knife and display_tempo > 0:
+			halved_resolve = 1  # Pocket Knife: always resolve on first tick
+		else:
+			halved_resolve = card.resolve_tick / 2
+			halved_resolve = maxi(halved_resolve, mini(1, display_tempo))  # At least tick 1 if there's any tempo
 		_build_tempo_bars(card, display_tempo, halved_resolve)
 	else:
 		_build_tempo_bars(card)
