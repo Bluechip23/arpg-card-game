@@ -1,9 +1,0 @@
-res://scripts/cards/card_ui.gd
-res://scripts/cards/deck_manager.gd
-res://scripts/character/player_stats.gd
-res://scripts/core/gameplay_walkthrough.gd
-res://scripts/core/main.gd
-res://scripts/ui/keyword_legend.gd
-res://scripts/progression/inventory.gd
-res://scripts/progression/item_data.gd
-res://scripts/character/player.gd
