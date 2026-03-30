@@ -460,7 +460,8 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 
 		# Register attack for attack speed counter (DEX proc) - all attack cards count
-		if card.card_type == Card.CardType.ATTACK and player_stats:
+		# Proc-bonus attacks don't count towards the next cycle
+		if card.card_type == Card.CardType.ATTACK and player_stats and not was_half_tempo:
 			player_stats.register_attack()
 
 		if debuff_mgr and card.card_type == Card.CardType.ATTACK:
