@@ -1016,7 +1016,9 @@ func _on_attack_pressed() -> void:
 		if buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
 			progression_triggers._trigger_skill_tree_on_crit(target)
-		stats.register_attack()
+		# Proc-bonus attacks don't count towards the next cycle
+		if not basic_attack_proc:
+			stats.register_attack()
 		if debuff_mgr:
 			debuff_mgr.on_attack()
 		add_battle_log("Basic Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
@@ -1027,7 +1029,7 @@ func _on_attack_pressed() -> void:
 		if buff_mgr and buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
 			progression_triggers._trigger_skill_tree_on_crit(target)
-		stats.register_attack()
+		# Proc-bonus attack: don't count towards next cycle
 		if debuff_mgr:
 			debuff_mgr.on_attack()
 		add_battle_log("Basic Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
@@ -1046,6 +1048,7 @@ func _on_attack_pressed() -> void:
 				"is_basic_attack": true,
 				"basic_attack_damage": damage,
 				"basic_attack_crit": buff_mgr.last_crit_hit if buff_mgr else false,
+				"basic_attack_proc": basic_attack_proc,
 			},
 		}
 		_pending_resolve_queue.append(resolve_entry)
@@ -3480,7 +3483,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			progression_triggers._trigger_skill_tree_on_crit(target)
 
 		# Register attack for DEX proc counter
-		if ba_stats:
+		# Proc-bonus attacks don't count towards the next cycle
+		if ba_stats and not data.get("basic_attack_proc", false):
 			ba_stats.register_attack()
 
 		if ba_debuff_mgr:
