@@ -102,6 +102,7 @@ var _armor_bar_bg: MeshInstance3D
 var _armor_bar_fg: MeshInstance3D
 var _armor_label: Label3D
 var _armor_bar_width: float = 0.6
+var _armor_dividers: Array[MeshInstance3D] = []
 
 # Damage preview label (shown when hovering with a card selected)
 var _damage_preview_label: Label3D = null
@@ -387,9 +388,28 @@ func _setup_armor_bar() -> void:
 	_armor_bar_fg.position = Vector3(0, 0.75, 0.001)
 	add_child(_armor_bar_fg)
 
+	# Segment divider lines (one every 10 armor)
+	var num_segments = ceili(float(max_armor) / 10.0)
+	for i in range(1, num_segments):
+		var divider = MeshInstance3D.new()
+		var div_quad = QuadMesh.new()
+		div_quad.size = Vector2(0.008, 0.06)
+		divider.mesh = div_quad
+		var div_mat = StandardMaterial3D.new()
+		div_mat.albedo_color = Color(0.05, 0.05, 0.05, 0.9)
+		div_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		div_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		div_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		div_mat.no_depth_test = true
+		divider.material_override = div_mat
+		var x_pos = -_armor_bar_width / 2.0 + (_armor_bar_width * float(i) / float(num_segments))
+		divider.position = Vector3(x_pos, 0.75, 0.002)
+		add_child(divider)
+		_armor_dividers.append(divider)
+
 	# Armor value label
 	_armor_label = Label3D.new()
-	_armor_label.position = Vector3(0, 0.75, 0.002)
+	_armor_label.position = Vector3(0, 0.75, 0.003)
 	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_armor_label.font_size = 14
 	_armor_label.modulate = Color(0.9, 0.9, 0.9)
