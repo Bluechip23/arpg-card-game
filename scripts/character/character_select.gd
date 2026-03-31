@@ -627,4 +627,7 @@ func _get_skill_tree_for_character(char_name: String) -> SkillTreeData:
 			return SkillTreeData.create_cory_tree()
 		"Jeremy":
 			return SkillTreeData.create_jeremy_tree()
+	# Custom questionnaire character - use archetypes if available
+	if _selected_character and _selected_character.archetypes.size() > 0:
+		return SkillTreeData.create_placeholder_tree(char_name, 20, _selected_character.archetypes)
 	return null

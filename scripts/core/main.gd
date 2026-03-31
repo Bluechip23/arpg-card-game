@@ -1993,7 +1993,7 @@ func select_character(character: CharacterData) -> void:
 	elif character.character_name == "Jeremy":
 		skill_tree = SkillTreeData.create_jeremy_tree()
 	else:
-		skill_tree = SkillTreeData.create_placeholder_tree(character.character_name)
+		skill_tree = SkillTreeData.create_placeholder_tree(character.character_name, 20, character.archetypes)
 
 	skill_tree_ui.set_skill_tree(skill_tree)
 	skill_tree_ui.set_player_level(player.get_stats().current_level)
