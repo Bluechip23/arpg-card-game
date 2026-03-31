@@ -5,6 +5,7 @@ extends Node
 ## Extracted from main.gd to reduce god-object complexity.
 
 var main  # Reference to the Main scene node
+var _current_chest_idx: int = -1  # Index of the chest currently being interacted with
 
 func init(main_ref) -> void:
 	main = main_ref
@@ -20,18 +21,23 @@ func _try_interact_chest() -> void:
 	if chest_idx < 0:
 		return
 
+	_current_chest_idx = chest_idx
 	var contents = main.dungeon_manager.open_chest(chest_idx)
 	if contents.is_empty():
 		return
 
-	# Grant gold immediately
-	var gold_amount = contents.get("gold", 0)
-	if gold_amount > 0:
-		main.player.get_stats().gain_gold(gold_amount)
+	var gold_just_claimed = false
+	# Grant gold immediately on first open only
+	if not contents.get("_gold_claimed", false):
+		var gold_amount = contents.get("gold", 0)
+		if gold_amount > 0:
+			main.player.get_stats().gain_gold(gold_amount)
+			gold_just_claimed = true
+		contents["_gold_claimed"] = true
 
-	_show_chest_modal(contents)
+	_show_chest_modal(contents, gold_just_claimed)
 
-func _show_chest_modal(contents: Dictionary) -> void:
+func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) -> void:
 	main._chest_modal_open = true
 	main._chest_modal_contents = contents
 
@@ -79,8 +85,9 @@ func _show_chest_modal(contents: Dictionary) -> void:
 	margin.add_child(vbox)
 
 	# Title
+	var has_rewards = contents.get("item") != null or contents.get("card") != null
 	var title = Label.new()
-	title.text = "Treasure Chest!"
+	title.text = "Treasure Chest!" if gold_just_claimed else ("Unclaimed Loot" if has_rewards else "Empty Chest")
 	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -88,9 +95,9 @@ func _show_chest_modal(contents: Dictionary) -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	# Gold
+	# Gold (only show if just claimed this interaction)
 	var gold_amount = contents.get("gold", 0)
-	if gold_amount > 0:
+	if gold_amount > 0 and gold_just_claimed:
 		var gold_lbl = Label.new()
 		gold_lbl.text = "+ %d Gold" % gold_amount
 		gold_lbl.add_theme_font_size_override("font_size", 18)
@@ -274,6 +281,7 @@ func _on_chest_pick_up_item(item: ItemData) -> void:
 	var inv = main.player.get_inventory()
 	if inv.store_item(item):
 		main.add_battle_log("Picked up %s!" % item.item_name, Color(1.0, 0.85, 0.3))
+		main.dungeon_manager.remove_chest_item(_current_chest_idx)
 	else:
 		main.add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))
 	_close_chest_modal()
@@ -284,6 +292,7 @@ func _on_chest_take_card(card: Card) -> void:
 	if inv and inv.store_card(card):
 		main.add_battle_log("Added %s to card inventory!" % card.card_name, Color(0.3, 0.8, 1.0))
 		print("[CHEST] Card stored successfully: %s (now %d cards)" % [card.card_name, inv.get_stored_card_count()])
+		main.dungeon_manager.remove_chest_card(_current_chest_idx)
 	else:
 		main.add_battle_log("Card inventory full! Could not take %s." % card.card_name, Color(1.0, 0.4, 0.4))
 		print("[CHEST] Failed to store card: %s" % [card.card_name if card else "null"])
@@ -291,15 +300,20 @@ func _on_chest_take_card(card: Card) -> void:
 
 func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
 	# For simplicity, slot into first compatible item
+	var claimed = false
 	if compatible_items.size() > 0:
 		var target_item = compatible_items[0]
 		var inv = main.player.get_inventory()
 		if inv.enchant_card(card, target_item):
 			main.add_battle_log("Slotted %s into %s!" % [card.card_name, target_item.item_name], Color(0.8, 0.6, 1.0))
+			claimed = true
 		else:
 			# Fallback: add to card inventory
 			if inv.store_card(card):
 				main.add_battle_log("Could not slot card. Added %s to card inventory." % card.card_name, Color(1.0, 0.6, 0.3))
+				claimed = true
+	if claimed:
+		main.dungeon_manager.remove_chest_card(_current_chest_idx)
 	_close_chest_modal()
 
 func _on_chest_overlay_input(event: InputEvent) -> void:
@@ -307,6 +321,16 @@ func _on_chest_overlay_input(event: InputEvent) -> void:
 		_close_chest_modal()
 
 func _close_chest_modal() -> void:
+	# Check if chest is fully looted (no remaining item or card)
+	if _current_chest_idx >= 0 and main.dungeon_manager:
+		var chest = main.dungeon_manager.chest_nodes[_current_chest_idx]
+		var contents = chest["contents"]
+		var has_item = contents.get("item") != null
+		var has_card = contents.get("card") != null
+		if not has_item and not has_card:
+			main.dungeon_manager.mark_chest_looted(_current_chest_idx)
+
+	_current_chest_idx = -1
 	main._chest_modal_open = false
 	main._chest_modal_contents = {}
 	var ui = main.get_node("UI") as CanvasLayer
