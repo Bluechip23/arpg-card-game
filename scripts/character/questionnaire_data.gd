@@ -325,6 +325,44 @@ static func _get_archetype_slot_specialty() -> Dictionary:
 		Archetype.MONK: "2 gauntlet slots",                    # Cory
 	}
 
+# ---- Archetype passive paths (skill tree archetypes from each character) ----
+
+static func _get_archetype_paths() -> Dictionary:
+	# Each archetype maps to the 4 skill tree paths of its corresponding character.
+	# These are the exact archetypes defined in character_data.gd for each character.
+	return {
+		Archetype.WARRIOR: [  # Brad's 4 paths
+			{"name": "Berserker", "description": "Health is simply an inconvenience. Pain is your greatest strength, causing you to get stronger as you edge near death."},
+			{"name": "Warden", "description": "Specialize in the art of armor and tactic, finding your weakness is nearly impossible for enemies."},
+			{"name": "The Ancient", "description": "Thorns, armor and healing. You have a deep understanding of nature, and you use its essence to your advantage."},
+			{"name": "The Fallen", "description": "Once a child of god, your mistakes have left you deserted. You have devoted yourself to find a way back."},
+		],
+		Archetype.ROGUE: [  # Ryan's 4 paths
+			{"name": "Relentless Blade", "description": "Constant pressure, and 1000 cuts is how you fight. Aggression, and lacerations are your north star."},
+			{"name": "Light Foot", "description": "Always aware, constantly alert, enemies struggle hitting you, and when they do, your next move is planned."},
+			{"name": "Apothecary", "description": "Manipulation of potions and ailments, enemies (and allies) never know what you are throwing at them."},
+			{"name": "Shadow Blade", "description": "Hidden in the shadows, weaving in and out of combat, striking enemies when they least expect it, and where they are the weakest."},
+		],
+		Archetype.MAGE: [  # Jeremy's 4 paths
+			{"name": "Evocation", "description": "Master of the elements. Blasting enemies with power is your cup of tea."},
+			{"name": "Abjurer", "description": "Defense first is what you were taught. Outlasting, fast recovery, and small strikes is your way to victory."},
+			{"name": "Shepherd", "description": "Summoner who focuses on the greater good. Your strength is your selflessness, sometimes sacrificing your own health for your friends."},
+			{"name": "Poltergeist", "description": "Master of death and hatred, instilling sheer agony on your enemies is your main objective."},
+		],
+		Archetype.ARCHER: [  # Stephen's 4 paths
+			{"name": "The Apex", "description": "The most efficient and dangerous killer. No tactic is out of question, master of all things offense."},
+			{"name": "Sentinel", "description": "Melee engagements are your bread and butter. No one can out duel you, scratching your armor is a feat itself."},
+			{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger."},
+			{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital."},
+		],
+		Archetype.MONK: [  # Cory's 4 paths
+			{"name": "Lurker", "description": "You gain strength from your enemies wounds, becoming stronger as they become weaker, trapping them, or holding them in place, preparing for you to devour."},
+			{"name": "Monk", "description": "Immersed in your surroundings, calm, collected. Always ready to help an ally, either directly or by hindering the enemy."},
+			{"name": "Druid", "description": "One with the world, you use your surroundings (literally) to aid you in battle."},
+			{"name": "Atrophist", "description": "Your touch withers the enemy, making them weaker and frail the longer you are engaged."},
+		],
+	}
+
 # ---- Title generation ----
 
 static func _get_title_matrix() -> Dictionary:
@@ -434,6 +472,23 @@ static func compute_result(answer_indices: Array[int]) -> Dictionary:
 	var passives = _get_archetype_passive()
 	var slot_specs = _get_archetype_slot_specialty()
 	var flavors = _get_archetype_flavor()
+	var all_paths = _get_archetype_paths()
+
+	# Build 4 passive paths: 2 from primary archetype's character, 2 from secondary
+	var primary_paths: Array = all_paths[primary]
+	var secondary_paths: Array = all_paths[secondary]
+	var chosen_paths: Array = []
+	# Take first 2 from primary
+	chosen_paths.append(primary_paths[0])
+	chosen_paths.append(primary_paths[1])
+	if primary == secondary:
+		# Same archetype: take all 4 from the same character
+		chosen_paths.append(primary_paths[2])
+		chosen_paths.append(primary_paths[3])
+	else:
+		# Take first 2 from secondary
+		chosen_paths.append(secondary_paths[0])
+		chosen_paths.append(secondary_paths[1])
 
 	return {
 		"title": title,
@@ -447,6 +502,7 @@ static func compute_result(answer_indices: Array[int]) -> Dictionary:
 		"passive_description": passives[primary],
 		"slot_specialty": slot_specs[primary],
 		"flavor_text": flavors[primary],
+		"passive_paths": chosen_paths,
 	}
 
 ## Build a CharacterData from questionnaire results.
@@ -472,6 +528,9 @@ static func build_character(result: Dictionary) -> CharacterData:
 
 	# Mixed starting cards from two existing character card pools
 	data.starting_card_ids = result["starting_card_ids"]
+
+	# 4 passive paths (skill tree archetypes) based on answers
+	data.archetypes = result["passive_paths"]
 
 	# Display info (all from existing characters)
 	data.passive_description = result["passive_description"]

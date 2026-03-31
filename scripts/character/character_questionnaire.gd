@@ -325,9 +325,9 @@ func _show_result() -> void:
 	item_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 	right_col.add_child(item_desc)
 
-	# Passive
+	# Item Perk (passive from starting item)
 	var passive_title = Label.new()
-	passive_title.text = "Passive Ability"
+	passive_title.text = "Item Perk"
 	passive_title.add_theme_font_size_override("font_size", 18)
 	passive_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
 	right_col.add_child(passive_title)
@@ -338,6 +338,38 @@ func _show_result() -> void:
 	passive_desc.add_theme_font_size_override("font_size", 14)
 	passive_desc.add_theme_color_override("font_color", Color(0.8, 0.75, 0.5))
 	right_col.add_child(passive_desc)
+
+	# Passive Paths (4 skill tree archetypes)
+	var paths_title = Label.new()
+	paths_title.text = "Passive Paths"
+	paths_title.add_theme_font_size_override("font_size", 18)
+	paths_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	right_col.add_child(paths_title)
+
+	var paths: Array = _last_result["passive_paths"]
+	for i in range(paths.size()):
+		var path_entry = paths[i]
+		var path_hbox = HBoxContainer.new()
+		path_hbox.add_theme_constant_override("separation", 6)
+		right_col.add_child(path_hbox)
+
+		var path_name = Label.new()
+		path_name.text = path_entry["name"]
+		path_name.custom_minimum_size = Vector2(130, 0)
+		path_name.add_theme_font_size_override("font_size", 14)
+		if i < 2:
+			path_name.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
+		else:
+			path_name.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
+		path_hbox.add_child(path_name)
+
+		var path_desc = Label.new()
+		path_desc.text = path_entry["description"]
+		path_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		path_desc.add_theme_font_size_override("font_size", 11)
+		path_desc.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		path_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		path_hbox.add_child(path_desc)
 
 	# Starting Cards
 	var cards_title = Label.new()
