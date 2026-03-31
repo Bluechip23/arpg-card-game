@@ -41,6 +41,9 @@ var _revealed: Array = []        # 2D bool array [x][z] - permanently revealed
 var _fog_nodes: Array = []       # 2D array [x][z] of MeshInstance3D (fog planes)
 var _fog_initialized: bool = false
 
+# Reference to global opened_chests dictionary (persists across world transitions)
+var _opened_chests_ref: Dictionary = {}
+
 func initialize(gm: GridManager, parent: Node3D, level: int = 1) -> void:
 	grid_manager = gm
 	_parent = parent
@@ -459,6 +462,16 @@ func _place_chests() -> void:
 		_create_chest(Vector2i(GRID_W - 4, mid_z))  # Exit room
 	if world_level >= 3:
 		_create_chest(Vector2i(5, mid_z - 10))  # Upper overlook
+
+	# Restore previously opened chests
+	_restore_opened_chests()
+
+func _restore_opened_chests() -> void:
+	## Marks chests as opened if they were previously opened in a prior visit.
+	for i in range(chest_nodes.size()):
+		var key = "world_%d_chest_%d" % [world_level, i]
+		if _opened_chests_ref.has(key):
+			open_chest(i)
 
 func _create_chest(grid_pos: Vector2i) -> void:
 	var chest_root = Node3D.new()
@@ -940,6 +953,10 @@ func open_chest(index: int) -> Dictionary:
 		return {}
 
 	chest_nodes[index]["opened"] = true
+
+	# Record in global persistence dict so chests stay opened across world transitions
+	var key = "world_%d_chest_%d" % [world_level, index]
+	_opened_chests_ref[key] = true
 
 	# Visual feedback: change chest color to dark / opened look
 	var body_mesh: MeshInstance3D = chest_nodes[index]["body_mesh"]
