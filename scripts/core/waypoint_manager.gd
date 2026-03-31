@@ -137,8 +137,8 @@ func _open_waypoint_menu() -> void:
 	)
 	vbox.add_child(town_btn)
 
-	# World portal destinations
-	if main.current_world_level > 1:
+	# World portal destinations - only show worlds where the player has discovered a waypoint
+	if main.current_world_level > 1 and _has_discovered_world(main.current_world_level - 1):
 		var prev_btn = Button.new()
 		prev_btn.text = "World %d (Previous)" % (main.current_world_level - 1)
 		prev_btn.custom_minimum_size = Vector2(280, 36)
@@ -151,7 +151,7 @@ func _open_waypoint_menu() -> void:
 		)
 		vbox.add_child(prev_btn)
 
-	if main.current_world_level < 5:
+	if main.current_world_level < 5 and _has_discovered_world(main.current_world_level + 1):
 		var next_btn = Button.new()
 		next_btn.text = "World %d (Next)" % (main.current_world_level + 1)
 		next_btn.custom_minimum_size = Vector2(280, 36)
@@ -217,4 +217,11 @@ func _teleport_to_waypoint(target: String, world: int) -> void:
 						return
 			else:
 				main._travel_to_world(world)
+
+func _has_discovered_world(world_level: int) -> bool:
+	## Returns true if the player has discovered any waypoint in the given world.
+	for wp in main.discovered_waypoints:
+		if wp["world"] == world_level:
+			return true
+	return false
 

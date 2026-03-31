@@ -54,6 +54,10 @@ var current_world_level: int = 1
 # Each entry: { "world": int, "target": String, "display_name": String }
 var discovered_waypoints: Array = []
 
+# Chest open state tracking (persists across world transitions)
+# Key: "world_<level>_chest_<index>", Value: true
+var opened_chests: Dictionary = {}
+
 # Quest state that persists across world transitions
 # { "kill_counts": { "Wererat": 3, ... }, "accepted_ids": ["olorin_kill_wererats"], "completed_ids": [] }
 var quest_state: Dictionary = {}
@@ -4178,6 +4182,7 @@ func _input(event: InputEvent) -> void:
 func _setup_dungeon() -> void:
 	dungeon_manager = DungeonManager.new()
 	dungeon_manager.name = "DungeonManager"
+	dungeon_manager._opened_chests_ref = opened_chests
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level)
 
@@ -5316,6 +5321,8 @@ func _travel_to_town() -> void:
 		town_scene.quest_state = saved_quest_state
 	if "player_progression" in town_scene:
 		town_scene.player_progression = saved_progression
+	if "opened_chests" in town_scene:
+		town_scene.opened_chests = opened_chests
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
@@ -5329,6 +5336,7 @@ func _travel_to_world(level: int) -> void:
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
 	main_scene.player_progression = saved_progression
+	main_scene.opened_chests = opened_chests
 	get_tree().root.add_child(main_scene)
 	queue_free()
 

@@ -41,6 +41,9 @@ var _revealed: Array = []        # 2D bool array [x][z] - permanently revealed
 var _fog_nodes: Array = []       # 2D array [x][z] of MeshInstance3D (fog planes)
 var _fog_initialized: bool = false
 
+# Reference to global opened_chests dictionary (persists across world transitions)
+var _opened_chests_ref: Dictionary = {}
+
 func initialize(gm: GridManager, parent: Node3D, level: int = 1) -> void:
 	grid_manager = gm
 	_parent = parent
@@ -460,6 +463,27 @@ func _place_chests() -> void:
 	if world_level >= 3:
 		_create_chest(Vector2i(5, mid_z - 10))  # Upper overlook
 
+	# Restore previously opened chests
+	_restore_opened_chests()
+
+func _restore_opened_chests() -> void:
+	## Marks chests as fully looted if they were previously looted in a prior visit.
+	for i in range(chest_nodes.size()):
+		var key = "world_%d_chest_%d" % [world_level, i]
+		if _opened_chests_ref.has(key):
+			# Visually open and mark as looted
+			chest_nodes[i]["opened"] = true
+			var body_mesh: MeshInstance3D = chest_nodes[i]["body_mesh"]
+			var lid_mesh: MeshInstance3D = chest_nodes[i]["lid_mesh"]
+			if body_mesh:
+				var mat = body_mesh.material_override as StandardMaterial3D
+				if mat:
+					mat.albedo_color = Color(0.35, 0.3, 0.15)
+			if lid_mesh:
+				lid_mesh.rotation_degrees.x = -110
+				lid_mesh.position = Vector3(0, 0.55, -0.15)
+			mark_chest_looted(i)
+
 func _create_chest(grid_pos: Vector2i) -> void:
 	var chest_root = Node3D.new()
 	chest_root.name = "TreasureChest_%d" % chest_nodes.size()
@@ -525,6 +549,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 		"node": chest_root,
 		"grid_pos": grid_pos,
 		"opened": false,
+		"looted": false,
 		"contents": contents,
 		"body_mesh": body,
 		"lid_mesh": lid
@@ -923,8 +948,9 @@ func get_wall_tiles() -> Array[Vector2i]:
 
 func get_nearby_chest(player_grid: Vector2i) -> int:
 	## Returns the index of a chest within 1 tile of the player, or -1.
+	## Returns chests that are unopened OR opened but still have unclaimed loot.
 	for i in range(chest_nodes.size()):
-		if chest_nodes[i]["opened"]:
+		if chest_nodes[i]["looted"]:
 			continue
 		var chest_pos: Vector2i = chest_nodes[i]["grid_pos"]
 		var dist = absi(player_grid.x - chest_pos.x) + absi(player_grid.y - chest_pos.y)
@@ -933,33 +959,55 @@ func get_nearby_chest(player_grid: Vector2i) -> int:
 	return -1
 
 func open_chest(index: int) -> Dictionary:
-	## Marks a chest as opened and returns its contents.
+	## Opens a chest (or re-opens one with unclaimed loot) and returns its contents.
 	if index < 0 or index >= chest_nodes.size():
 		return {}
-	if chest_nodes[index]["opened"]:
+	if chest_nodes[index]["looted"]:
 		return {}
 
+	var first_open = not chest_nodes[index]["opened"]
 	chest_nodes[index]["opened"] = true
 
-	# Visual feedback: change chest color to dark / opened look
-	var body_mesh: MeshInstance3D = chest_nodes[index]["body_mesh"]
-	var lid_mesh: MeshInstance3D = chest_nodes[index]["lid_mesh"]
-	if body_mesh:
-		var mat = body_mesh.material_override as StandardMaterial3D
-		if mat:
-			mat.albedo_color = Color(0.35, 0.3, 0.15)  # Darkened
-	if lid_mesh:
-		# Rotate lid open
-		lid_mesh.rotation_degrees.x = -110
-		lid_mesh.position = Vector3(0, 0.55, -0.15)
+	# Visual feedback on first open: change chest color to dark / opened look
+	if first_open:
+		var body_mesh: MeshInstance3D = chest_nodes[index]["body_mesh"]
+		var lid_mesh: MeshInstance3D = chest_nodes[index]["lid_mesh"]
+		if body_mesh:
+			var mat = body_mesh.material_override as StandardMaterial3D
+			if mat:
+				mat.albedo_color = Color(0.35, 0.3, 0.15)  # Darkened
+		if lid_mesh:
+			# Rotate lid open
+			lid_mesh.rotation_degrees.x = -110
+			lid_mesh.position = Vector3(0, 0.55, -0.15)
+
+	print("[DUNGEON] Opened chest %d: %s" % [index, chest_nodes[index]["contents"]])
+	return chest_nodes[index]["contents"]
+
+func mark_chest_looted(index: int) -> void:
+	## Marks a chest as fully looted (all items/cards claimed). No further interaction.
+	if index < 0 or index >= chest_nodes.size():
+		return
+	chest_nodes[index]["looted"] = true
+
+	# Record in global persistence dict so chests stay looted across world transitions
+	var key = "world_%d_chest_%d" % [world_level, index]
+	_opened_chests_ref[key] = true
 
 	# Hide interact label
 	var label = chest_nodes[index]["node"].get_node_or_null("InteractLabel")
 	if label:
 		label.visible = false
 
-	print("[DUNGEON] Opened chest %d: %s" % [index, chest_nodes[index]["contents"]])
-	return chest_nodes[index]["contents"]
+func remove_chest_item(index: int) -> void:
+	## Removes the item reward from a chest's contents.
+	if index >= 0 and index < chest_nodes.size():
+		chest_nodes[index]["contents"]["item"] = null
+
+func remove_chest_card(index: int) -> void:
+	## Removes the card reward from a chest's contents.
+	if index >= 0 and index < chest_nodes.size():
+		chest_nodes[index]["contents"]["card"] = null
 
 func update_chest_prompts(player_grid: Vector2i) -> void:
 	## Show/hide interact labels based on player proximity and fog reveal.
@@ -968,11 +1016,15 @@ func update_chest_prompts(player_grid: Vector2i) -> void:
 		var revealed = is_revealed(chest_pos)
 		# Hide entire chest node if not revealed
 		chest_nodes[i]["node"].visible = revealed
-		if chest_nodes[i]["opened"]:
+		if chest_nodes[i]["looted"]:
 			continue
 		var dist = absi(player_grid.x - chest_pos.x) + absi(player_grid.y - chest_pos.y)
 		var label = chest_nodes[i]["node"].get_node_or_null("InteractLabel")
 		if label:
+			if chest_nodes[i]["opened"] and not chest_nodes[i]["looted"]:
+				label.text = "[Shift] Loot"
+			else:
+				label.text = "[Shift] Open"
 			label.visible = revealed and dist <= 2
 
 func get_player_start_world() -> Vector3:
