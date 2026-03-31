@@ -467,21 +467,40 @@ func _place_chests() -> void:
 	_restore_opened_chests()
 
 func _restore_opened_chests() -> void:
-	## Marks chests as fully looted if they were previously looted in a prior visit.
+	## Restores chest state from prior visits. Handles both fully looted and
+	## partially opened chests (gold claimed but item/card left behind).
 	for i in range(chest_nodes.size()):
 		var key = "world_%d_chest_%d" % [world_level, i]
-		if _opened_chests_ref.has(key):
-			# Visually open and mark as looted
-			chest_nodes[i]["opened"] = true
-			var body_mesh: MeshInstance3D = chest_nodes[i]["body_mesh"]
-			var lid_mesh: MeshInstance3D = chest_nodes[i]["lid_mesh"]
-			if body_mesh:
-				var mat = body_mesh.material_override as StandardMaterial3D
-				if mat:
-					mat.albedo_color = Color(0.35, 0.3, 0.15)
-			if lid_mesh:
-				lid_mesh.rotation_degrees.x = -110
-				lid_mesh.position = Vector3(0, 0.55, -0.15)
+		if not _opened_chests_ref.has(key):
+			continue
+
+		var state = _opened_chests_ref[key]
+
+		# Visually open the chest
+		chest_nodes[i]["opened"] = true
+		var body_mesh: MeshInstance3D = chest_nodes[i]["body_mesh"]
+		var lid_mesh: MeshInstance3D = chest_nodes[i]["lid_mesh"]
+		if body_mesh:
+			var mat = body_mesh.material_override as StandardMaterial3D
+			if mat:
+				mat.albedo_color = Color(0.35, 0.3, 0.15)
+		if lid_mesh:
+			lid_mesh.rotation_degrees.x = -110
+			lid_mesh.position = Vector3(0, 0.55, -0.15)
+
+		if state is Dictionary:
+			# Partially opened: gold was claimed, apply item/card claim flags
+			chest_nodes[i]["contents"]["_gold_claimed"] = true
+			if state.get("item_taken", false):
+				chest_nodes[i]["contents"]["item"] = null
+			if state.get("card_taken", false):
+				chest_nodes[i]["contents"]["card"] = null
+			# Check if now fully looted
+			var contents = chest_nodes[i]["contents"]
+			if contents.get("item") == null and contents.get("card") == null:
+				mark_chest_looted(i)
+		else:
+			# Legacy true value or fully looted
 			mark_chest_looted(i)
 
 func _create_chest(grid_pos: Vector2i) -> void:
@@ -542,8 +561,10 @@ func _create_chest(grid_pos: Vector2i) -> void:
 
 	_parent.add_child(chest_root)
 
-	# Generate chest contents
-	var contents = _generate_chest_contents()
+	# Generate chest contents using a deterministic seed so the same chest
+	# always produces the same loot (important for persistence across transitions)
+	var chest_index = chest_nodes.size()
+	var contents = _generate_chest_contents(chest_index)
 
 	chest_nodes.append({
 		"node": chest_root,
@@ -555,21 +576,23 @@ func _create_chest(grid_pos: Vector2i) -> void:
 		"lid_mesh": lid
 	})
 
-func _generate_chest_contents() -> Dictionary:
-	# Each chest contains gold + either an item or a card
-	var gold = randi_range(15, 50) + (world_level - 1) * 10
+func _generate_chest_contents(chest_index: int) -> Dictionary:
+	# Use a deterministic RNG seeded by world + chest index so the same chest
+	# always generates the same loot, even if the dungeon is recreated
+	var rng = RandomNumberGenerator.new()
+	rng.seed = hash("chest_w%d_c%d" % [world_level, chest_index])
+
+	var gold = rng.randi_range(15, 50) + (world_level - 1) * 10
 	var contents: Dictionary = {"gold": gold, "item": null, "card": null}
 
-	if randf() < 0.5:
-		# Give a random item
-		contents["item"] = _get_random_item()
+	if rng.randf() < 0.5:
+		contents["item"] = _get_random_item(rng)
 	else:
-		# Give a random card
-		contents["card"] = _get_random_card()
+		contents["card"] = _get_random_card(rng)
 
 	return contents
 
-func _get_random_item() -> ItemData:
+func _get_random_item(rng: RandomNumberGenerator) -> ItemData:
 	var item_creators: Array[Callable] = [
 		ItemData.create_iron_helm,
 		ItemData.create_leather_chest,
@@ -585,10 +608,10 @@ func _get_random_item() -> ItemData:
 		ItemData.create_fire_quiver,
 		ItemData.create_belt_of_greater_healing,
 	]
-	var idx = randi() % item_creators.size()
+	var idx = rng.randi() % item_creators.size()
 	return item_creators[idx].call()
 
-func _get_random_card() -> Card:
+func _get_random_card(rng: RandomNumberGenerator) -> Card:
 	var card_creators: Array[Callable] = [
 		Card.create_slash,
 		Card.create_block,
@@ -601,7 +624,7 @@ func _get_random_card() -> Card:
 		Card.create_halo,
 		Card.create_blink,
 	]
-	var idx = randi() % card_creators.size()
+	var idx = rng.randi() % card_creators.size()
 	return card_creators[idx].call()
 
 func _define_spawn_zones() -> void:
@@ -981,6 +1004,12 @@ func open_chest(index: int) -> Dictionary:
 			lid_mesh.rotation_degrees.x = -110
 			lid_mesh.position = Vector3(0, 0.55, -0.15)
 
+	# Persist partial state so gold isn't re-granted if player leaves and returns
+	if first_open:
+		var key = "world_%d_chest_%d" % [world_level, index]
+		if not _opened_chests_ref.has(key):
+			_opened_chests_ref[key] = {"item_taken": false, "card_taken": false}
+
 	print("[DUNGEON] Opened chest %d: %s" % [index, chest_nodes[index]["contents"]])
 	return chest_nodes[index]["contents"]
 
@@ -1000,14 +1029,20 @@ func mark_chest_looted(index: int) -> void:
 		label.visible = false
 
 func remove_chest_item(index: int) -> void:
-	## Removes the item reward from a chest's contents.
+	## Removes the item reward from a chest's contents and updates persistence.
 	if index >= 0 and index < chest_nodes.size():
 		chest_nodes[index]["contents"]["item"] = null
+		var key = "world_%d_chest_%d" % [world_level, index]
+		if _opened_chests_ref.has(key) and _opened_chests_ref[key] is Dictionary:
+			_opened_chests_ref[key]["item_taken"] = true
 
 func remove_chest_card(index: int) -> void:
-	## Removes the card reward from a chest's contents.
+	## Removes the card reward from a chest's contents and updates persistence.
 	if index >= 0 and index < chest_nodes.size():
 		chest_nodes[index]["contents"]["card"] = null
+		var key = "world_%d_chest_%d" % [world_level, index]
+		if _opened_chests_ref.has(key) and _opened_chests_ref[key] is Dictionary:
+			_opened_chests_ref[key]["card_taken"] = true
 
 func update_chest_prompts(player_grid: Vector2i) -> void:
 	## Show/hide interact labels based on player proximity and fog reveal.
