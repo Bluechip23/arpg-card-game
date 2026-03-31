@@ -107,6 +107,11 @@ var _armor_dividers: Array[MeshInstance3D] = []
 # Damage preview label (shown when hovering with a card selected)
 var _damage_preview_label: Label3D = null
 
+# Sprite animation (replaces BoxMesh for enemies with sprite sheets)
+var _enemy_sprite: Sprite3D = null
+var _enemy_animator: CharacterAnimator = null
+var _action_map: Dictionary = {}
+
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var health_label: Label3D = $HealthLabel
 @onready var name_label: Label3D = $NameLabel
@@ -192,6 +197,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 	_setup_actions()
 	_setup_tempo_bar()
 	_setup_armor_bar()
+	_setup_sprite()
 
 	if grid_manager:
 		position = grid_manager.snap_to_grid(position)
@@ -202,6 +208,80 @@ func _set_mesh_color(color: Color) -> void:
 		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
 			mat.albedo_color = color
+
+func _setup_sprite() -> void:
+	## Creates a Sprite3D and CharacterAnimator for enemy types that have sprite sheets.
+	var sheet_path := ""
+	var anim_data := {}
+	var pixel_size := 0.02
+
+	match enemy_type:
+		EnemyType.WERERAT:
+			sheet_path = WereratAnimations.SPRITE_SHEET_PATH
+			anim_data = WereratAnimations.get_animation_data()
+			_action_map = WereratAnimations.get_action_map()
+			pixel_size = WereratAnimations.PIXEL_SIZE
+		EnemyType.ARCHER_RAT:
+			sheet_path = ArcherRatAnimations.SPRITE_SHEET_PATH
+			anim_data = ArcherRatAnimations.get_animation_data()
+			_action_map = ArcherRatAnimations.get_action_map()
+			pixel_size = ArcherRatAnimations.PIXEL_SIZE
+		EnemyType.ARMORED_TROLL:
+			sheet_path = ArmoredTrollAnimations.SPRITE_SHEET_PATH
+			anim_data = ArmoredTrollAnimations.get_animation_data()
+			_action_map = ArmoredTrollAnimations.get_action_map()
+			pixel_size = ArmoredTrollAnimations.PIXEL_SIZE
+		EnemyType.SKELETON:
+			sheet_path = SkeletonAnimations.SPRITE_SHEET_PATH
+			anim_data = SkeletonAnimations.get_animation_data()
+			_action_map = SkeletonAnimations.get_action_map()
+			pixel_size = SkeletonAnimations.PIXEL_SIZE
+		_:
+			return  # No sprite sheet for generic types
+
+	if sheet_path == "" or anim_data.is_empty():
+		return
+
+	# Create Sprite3D
+	_enemy_sprite = Sprite3D.new()
+	_enemy_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_enemy_sprite.pixel_size = pixel_size
+	_enemy_sprite.region_enabled = true
+	_enemy_sprite.position = Vector3(0, 0.5, 0)
+	_enemy_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	add_child(_enemy_sprite)
+
+	# Create CharacterAnimator
+	_enemy_animator = CharacterAnimator.new()
+	add_child(_enemy_animator)
+	_enemy_animator.initialize(_enemy_sprite, anim_data, sheet_path)
+
+	if _enemy_animator.sprite_sheet_loaded:
+		# Hide the box mesh, show sprite
+		if mesh:
+			mesh.visible = false
+		if outline:
+			outline.visible = false
+		# Connect animation finished to return to stance
+		_enemy_animator.animation_finished.connect(_on_enemy_animation_finished)
+	else:
+		# Sprite failed to load, remove and keep box mesh
+		_enemy_sprite.queue_free()
+		_enemy_sprite = null
+		_enemy_animator.queue_free()
+		_enemy_animator = null
+
+func _on_enemy_animation_finished(anim_name: String) -> void:
+	if _enemy_animator and anim_name != "stance" and anim_name != "walking":
+		_enemy_animator.play("stance", CharacterAnimator.Direction.SOUTH)
+
+func _play_enemy_animation(action: String) -> void:
+	## Play an animation by action name, mapping through the action map.
+	if not _enemy_animator or not _enemy_animator.sprite_sheet_loaded:
+		return
+	var anim_name = _action_map.get(action, action)
+	if _enemy_animator.animations.has(anim_name):
+		_enemy_animator.play(anim_name, CharacterAnimator.Direction.SOUTH, true)
 
 func _setup_actions() -> void:
 	## Define available actions per enemy species.
@@ -393,17 +473,18 @@ func _setup_armor_bar() -> void:
 	for i in range(1, num_segments):
 		var divider = MeshInstance3D.new()
 		var div_quad = QuadMesh.new()
-		div_quad.size = Vector2(0.008, 0.06)
+		div_quad.size = Vector2(0.02, 0.07)
 		divider.mesh = div_quad
 		var div_mat = StandardMaterial3D.new()
-		div_mat.albedo_color = Color(0.05, 0.05, 0.05, 0.9)
+		div_mat.albedo_color = Color(0.0, 0.0, 0.0, 1.0)
 		div_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		div_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 		div_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		div_mat.no_depth_test = true
+		div_mat.render_priority = 5
 		divider.material_override = div_mat
 		var x_pos = -_armor_bar_width / 2.0 + (_armor_bar_width * float(i) / float(num_segments))
-		divider.position = Vector3(x_pos, 0.75, 0.002)
+		divider.position = Vector3(x_pos, 0.75, 0.003)
 		add_child(divider)
 		_armor_dividers.append(divider)
 
@@ -679,6 +760,9 @@ func _get_action(action_name: String) -> Dictionary:
 # ============================================
 
 func _execute_action(action_name: String, move_target: Node3D) -> bool:
+	# Play animation for this action
+	_play_enemy_animation(action_name)
+
 	match action_name:
 		"attack":
 			return _try_attack(move_target)
@@ -937,7 +1021,12 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 				player_node.on_attacked_by(self)
 			attacked_player.emit(self)
 
-	if mesh:
+	# Attack flash on sprite or mesh
+	if _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
+		var tween = create_tween()
+		tween.tween_property(_enemy_sprite, "modulate", Color(1.0, 0.7, 0.3), 0.1)
+		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.1)
+	elif mesh:
 		var tween = create_tween()
 		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
@@ -1005,7 +1094,12 @@ func _regenerate(amount: int) -> void:
 	current_health += healed
 	update_health_display()
 	print("[%s] Regenerates %d health! (%d/%d)" % [enemy_name, healed, current_health, max_health])
-	if mesh:
+	# Heal flash on sprite or mesh
+	if _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
+		var tween = create_tween()
+		tween.tween_property(_enemy_sprite, "modulate", Color(0.5, 1.0, 0.5), 0.15)
+		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.15)
+	elif mesh:
 		var tween = create_tween()
 		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
@@ -1066,10 +1160,15 @@ func _physics_process(delta: float) -> void:
 				position.y = dungeon_manager.get_elevation_world_y(cell)
 			is_moving = false
 			velocity = Vector3.ZERO
+			_play_enemy_animation("idle")
 			movement_completed.emit(self)
 			turn_completed.emit()
 		else:
 			velocity = flat_diff.normalized() * move_speed
+			# Play walking animation while moving
+			if _enemy_animator and _enemy_animator.sprite_sheet_loaded:
+				if not _enemy_animator.is_animation_playing("walking"):
+					_play_enemy_animation("walk")
 	else:
 		velocity = Vector3.ZERO
 
@@ -1217,7 +1316,13 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 	# Floating damage number
 	_spawn_damage_number(amount, just_exposed)
 
-	if mesh:
+	# Damage flash on sprite or mesh
+	if _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
+		_play_enemy_animation("hit")
+		var tween = create_tween()
+		tween.tween_property(_enemy_sprite, "modulate", Color(1.0, 0.3, 0.3), 0.1)
+		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.15)
+	elif mesh:
 		var tween = create_tween()
 		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
@@ -1475,6 +1580,10 @@ func die() -> void:
 		_armor_bar_fg.visible = false
 	if _armor_label:
 		_armor_label.text = ""
+
+	# Stop animations on death
+	if _enemy_animator:
+		_enemy_animator.stop()
 
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector3.ZERO, 0.5)
