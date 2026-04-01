@@ -12,7 +12,8 @@ enum NodeType {
 	START,         # Starting node (already unlocked)
 	CULLING_STONE, # Grants a culling stone to remove a card from deck
 	RETROSPECTIVE, # Grants ability to pick from a previously skipped skill tree option
-	COMBAT_BONUS   # Neutral combat stat boost (Block, Thorns, Damage, Heal Power, Crit, Armor)
+	COMBAT_BONUS,  # Neutral combat stat boost (Block, Thorns, Damage, Heal Power, Crit, Armor, etc.)
+	FEATHER        # Grants a feather to remove a card from deck (alternative to culling stone)
 }
 
 class GridNode:
@@ -67,6 +68,7 @@ class Constellation:
 		color = p_color
 
 signal constellation_completed(constellation_id: String)
+signal constellation_replaced(old_constellation_id: String, new_constellation_id: String)
 
 var constellations: Array[Constellation] = []
 var _constellation_map: Dictionary = {}  # id -> Constellation
@@ -191,8 +193,8 @@ func _build_grid() -> void:
 		[NodeType.PASSIVE, "Passive", "On heal: 15% cleanse debuff"],
 		[NodeType.COMBAT_BONUS, "Crit +3%", "Critical hit chance +3%"],
 		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],
-		[NodeType.COMBAT_BONUS, "Armor +2", "Start each combat with +2 armor"],
+		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
+		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%"],
 		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.PASSIVE, "Passive", "On block: reflect 2 damage"],
 	]
@@ -214,23 +216,23 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "STR +4", "Strength +4"],
 		[NodeType.COMBAT_BONUS, "Block +2", "Block cards grant +2 additional block"],
 		[NodeType.PASSIVE, "Passive", "On kill: draw 1 card"],
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],
+		[NodeType.COMBAT_BONUS, "Life Steal +2%", "Heal for 2% of damage dealt"],
 		[NodeType.STAT_BONUS, "DEX +4", "Dexterity +4"],
 		[NodeType.COMBAT_BONUS, "Thorns +2", "Deal 2 damage to attackers when hit"],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
-		[NodeType.HEALTH, "HP +15", "Max Health +15"],
+		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
 		[NodeType.STAT_BONUS, "INT +4", "Intelligence +4"],
 		[NodeType.COMBAT_BONUS, "Damage +3", "All attacks deal +3 bonus damage"],
 		[NodeType.PASSIVE, "Passive", "On tempo cycle: all enemies -1 armor"],
-		[NodeType.MANA, "Mana +8", "Max Mana +8"],
+		[NodeType.COMBAT_BONUS, "Resist +3%", "Reduce all incoming damage by 3%"],
 		[NodeType.STAT_BONUS, "WIS +4", "Wisdom +4"],
 		[NodeType.COMBAT_BONUS, "Heal +3", "Heal cards restore +3 additional HP"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
-		[NodeType.HEALTH, "HP +15", "Max Health +15"],
+		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 armor each tempo cycle"],
 		[NodeType.STAT_BONUS, "AGI +4", "Agility +4"],
 		[NodeType.COMBAT_BONUS, "Crit +5%", "Critical hit chance +5%"],
 		[NodeType.PASSIVE, "Passive", "On move: 10% gain haste"],
-		[NodeType.MANA, "Mana +8", "Max Mana +8"],
+		[NodeType.COMBAT_BONUS, "Range +1", "Ranged attacks gain +1 range"],
 		[NodeType.STAT_BONUS, "DET +4", "Determination +4"],
 		[NodeType.COMBAT_BONUS, "Armor +3", "Start each combat with +3 armor"],
 	]
@@ -255,7 +257,7 @@ func _build_grid() -> void:
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
 		[NodeType.PASSIVE, "Passive", "On kill: gain 3 armor"],
 		[NodeType.STAT_BONUS, "DEX +5", "Dexterity +5"],
-		[NodeType.MANA, "Mana +10", "Max Mana +10"],
+		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
 		[NodeType.COMBAT_BONUS, "Thorns +3", "Deal 3 damage to attackers when hit"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.STAT_BONUS, "INT +5", "Intelligence +5"],
@@ -263,7 +265,7 @@ func _build_grid() -> void:
 		[NodeType.PASSIVE, "Passive", "On spell cast: 5% double cast"],
 		[NodeType.COMBAT_BONUS, "Damage +4", "All attacks deal +4 bonus damage"],
 		[NodeType.STAT_BONUS, "WIS +5", "Wisdom +5"],
-		[NodeType.MANA, "Mana +10", "Max Mana +10"],
+		[NodeType.COMBAT_BONUS, "Life Steal +3%", "Heal for 3% of damage dealt"],
 		[NodeType.PASSIVE, "Passive", "On draw: 10% draw costs 0 mana"],
 		[NodeType.COMBAT_BONUS, "Heal +4", "Heal cards restore +4 additional HP"],
 		[NodeType.STAT_BONUS, "AGI +5", "Agility +5"],
@@ -272,7 +274,7 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "DET +5", "Determination +5"],
 		[NodeType.COMBAT_BONUS, "Crit +5%", "Critical hit chance +5%"],
 		[NodeType.PASSIVE, "Passive", "On heal: overheal becomes armor"],
-		[NodeType.MANA, "Mana +12", "Max Mana +12"],
+		[NodeType.COMBAT_BONUS, "Range +2", "Ranged attacks gain +2 range"],
 		[NodeType.STAT_BONUS, "STR +6", "Strength +6"],
 		[NodeType.COMBAT_BONUS, "Armor +4", "Start each combat with +4 armor"],
 		[NodeType.PASSIVE, "Passive", "On crit: heal 3 HP"],
@@ -280,13 +282,13 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "DEX +6", "Dexterity +6"],
 		[NodeType.COMBAT_BONUS, "Block +4", "Block cards grant +4 additional block"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
-		[NodeType.MANA, "Mana +12", "Max Mana +12"],
+		[NodeType.COMBAT_BONUS, "Resist +5%", "Reduce all incoming damage by 5%"],
 		[NodeType.STAT_BONUS, "INT +6", "Intelligence +6"],
-		[NodeType.COMBAT_BONUS, "Thorns +4", "Deal 4 damage to attackers when hit"],
+		[NodeType.COMBAT_BONUS, "Arm/Cyc +2", "Gain 2 armor each tempo cycle"],
 		[NodeType.PASSIVE, "Passive", "On move: next card costs 1 less"],
 		[NodeType.HEALTH, "HP +30", "Max Health +30"],
 		[NodeType.STAT_BONUS, "WIS +6", "Wisdom +6"],
-		[NodeType.COMBAT_BONUS, "Damage +5", "All attacks deal +5 bonus damage"],
+		[NodeType.COMBAT_BONUS, "Regen +2", "Regenerate 2 HP per tempo cycle"],
 		[NodeType.PASSIVE, "Passive", "On tempo cycle: draw 1 card"],
 	]
 	for entry in r5_labels:
@@ -302,6 +304,52 @@ func _build_grid() -> void:
 	# Connect ring 5 adjacent
 	for i in range(39):
 		_connect_nodes(61 + i, 61 + ((i + 1) % 39))
+
+	# === Ring 6 (outermost): 30 nodes at radius 540 ===
+	# IDs 100..129 — high-tier nodes with advanced bonuses
+	var ring6_types: Array = [
+		[NodeType.COMBAT_BONUS, "Crit +7%", "Critical hit chance +7%"],
+		[NodeType.PASSIVE, "Passive", "On crit: apply bleed for 3 turns"],
+		[NodeType.STAT_BONUS, "STR +7", "Strength +7"],
+		[NodeType.HEALTH, "HP +30", "Max Health +30"],
+		[NodeType.COMBAT_BONUS, "Life Steal +5%", "Heal for 5% of damage dealt"],
+		[NodeType.STAT_BONUS, "DEX +7", "Dexterity +7"],
+		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
+		[NodeType.COMBAT_BONUS, "Regen +3", "Regenerate 3 HP per tempo cycle"],
+		[NodeType.PASSIVE, "Passive", "On kill: draw 2 cards and gain 2 mana"],
+		[NodeType.STAT_BONUS, "INT +7", "Intelligence +7"],
+		[NodeType.COMBAT_BONUS, "Resist +7%", "Reduce all incoming damage by 7%"],
+		[NodeType.PASSIVE, "Passive", "On spell cast: 10% refund full mana cost"],
+		[NodeType.COMBAT_BONUS, "Damage +6", "All attacks deal +6 bonus damage"],
+		[NodeType.STAT_BONUS, "WIS +7", "Wisdom +7"],
+		[NodeType.COMBAT_BONUS, "Arm/Cyc +3", "Gain 3 armor each tempo cycle"],
+		[NodeType.PASSIVE, "Passive", "On block: heal 3 HP"],
+		[NodeType.COMBAT_BONUS, "Heal +6", "Heal cards restore +6 additional HP"],
+		[NodeType.STAT_BONUS, "AGI +7", "Agility +7"],
+		[NodeType.COMBAT_BONUS, "Range +2", "Ranged attacks gain +2 range"],
+		[NodeType.PASSIVE, "Passive", "On move: gain 2 armor and 1 mana"],
+		[NodeType.STAT_BONUS, "DET +7", "Determination +7"],
+		[NodeType.COMBAT_BONUS, "Block +5", "Block cards grant +5 additional block"],
+		[NodeType.PASSIVE, "Passive", "On tempo cycle: all enemies take 2 damage"],
+		[NodeType.HEALTH, "HP +35", "Max Health +35"],
+		[NodeType.COMBAT_BONUS, "Thorns +5", "Deal 5 damage to attackers when hit"],
+		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
+		[NodeType.MANA, "Mana +15", "Max Mana +15"],
+		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
+		[NodeType.COMBAT_BONUS, "Life Steal +4%", "Heal for 4% of damage dealt"],
+		[NodeType.PASSIVE, "Passive", "On heal: gain 2 mana"],
+	]
+
+	_create_ring(100, 30, 540.0, center, ring6_types, 6)
+
+	# Connect ring 6 to ring 5
+	for i in range(39):
+		var r6_base = int(i * 0.769)  # 30/39 ≈ 0.769
+		_connect_nodes(61 + i, 100 + (r6_base % 30))
+		_connect_nodes(61 + i, 100 + ((r6_base + 1) % 30))
+	# Connect ring 6 adjacent
+	for i in range(30):
+		_connect_nodes(100 + i, 100 + ((i + 1) % 30))
 
 func _create_ring(start_id: int, count: int, radius: float, center: Vector2, type_data: Array, ring: int) -> void:
 	for i in range(count):
@@ -416,6 +464,35 @@ func _assign_node_details() -> void:
 		[{"label": "On tempo cycle: draw 2 cards and gain 1 mana", "description": "Major cycle draw"}],
 		[{"label": "On tempo cycle: draw 1 card and gain 3 armor", "description": "Defensive cycle"}])
 
+	# Ring 6 passives: IDs 101, 108, 111, 115, 119, 122, 129
+	_assign_passive(101,
+		[{"label": "On crit: apply bleed for 5 turns", "description": "Extended crit bleed"}],
+		[{"label": "On crit: apply poison for 3 turns", "description": "Crit poison instead of bleed"}])
+
+	_assign_passive(108,
+		[{"label": "On kill: draw 3 cards and gain 3 mana", "description": "Major kill reward"}],
+		[{"label": "On kill: draw 2 cards and heal 5 HP", "description": "Kill sustain with draw"}])
+
+	_assign_passive(111,
+		[{"label": "On spell cast: 20% refund full mana cost", "description": "Major mana refund"}],
+		[{"label": "On spell cast: 10% refund and draw a card", "description": "Refund with draw"}])
+
+	_assign_passive(115,
+		[{"label": "On block: heal 6 HP", "description": "Major block healing"}],
+		[{"label": "On block: heal 3 HP and gain 1 mana", "description": "Block healing with mana"}])
+
+	_assign_passive(119,
+		[{"label": "On move: gain 4 armor and 2 mana", "description": "Major move reward"}],
+		[{"label": "On move: gain 2 armor and draw a card", "description": "Move reward with draw"}])
+
+	_assign_passive(122,
+		[{"label": "On tempo cycle: all enemies take 4 damage", "description": "Major cycle damage"}],
+		[{"label": "On tempo cycle: all enemies take 2 damage and lose 1 armor", "description": "Cycle damage with shred"}])
+
+	_assign_passive(129,
+		[{"label": "On heal: gain 4 mana", "description": "Major heal mana"}],
+		[{"label": "On heal: gain 2 mana and draw a card", "description": "Heal mana with draw"}])
+
 # ============================================
 # CONSTELLATION DEFINITIONS
 # ============================================
@@ -496,6 +573,50 @@ func _build_constellations() -> void:
 		"Unyielding",
 		"Below 50% HP: gain 3 armor each cycle. Determination scaling +20%",
 		Color(0.85, 0.7, 0.2)  # dark gold
+	))
+
+	# ============================================
+	# RING 3-4 CONSTELLATIONS (conflict with inner constellations)
+	# ============================================
+
+	# --- Crimson Edge vs Iron Will (shares node 20) and Blood Hunter (shares node 21) ---
+	# Offensive sustain build using Ring 3-4 STR sector
+	_add_constellation(Constellation.new(
+		"crimson_edge", "Crimson Edge",
+		[20, 21, 38, 39, 40] as Array[int],
+		"Crimson Edge",
+		"Attacks heal for 8% of damage dealt",
+		Color(0.85, 0.2, 0.25)  # blood red
+	))
+
+	# --- Shadow Strike vs Windwalker (shares nodes 31, 32) and Storm Runner (shares 32) ---
+	# Crit mastery build using Ring 3-4 AGI/crit sector
+	_add_constellation(Constellation.new(
+		"shadow_strike", "Shadow Strike",
+		[31, 32, 54, 55, 56] as Array[int],
+		"Shadow Strike",
+		"Critical hits deal 2.5x damage instead of 2x",
+		Color(0.35, 0.15, 0.55)  # dark violet
+	))
+
+	# --- Iron Bastion vs Iron Will (shares 19) and Unyielding (shares 36) ---
+	# Defensive tank build using Ring 3-4 edges
+	_add_constellation(Constellation.new(
+		"iron_bastion", "Iron Bastion",
+		[19, 36, 37, 59, 60] as Array[int],
+		"Iron Bastion",
+		"+5 armor at start of combat. When hit: 15% chance to reduce damage by 50%",
+		Color(0.45, 0.55, 0.7)  # steel blue
+	))
+
+	# --- Nature's Grace vs Sage's Insight (shares 28, 29) ---
+	# Healing/regen build using Ring 3-4 WIS sector
+	_add_constellation(Constellation.new(
+		"natures_grace", "Nature's Grace",
+		[28, 29, 30, 51, 52] as Array[int],
+		"Nature's Grace",
+		"Regenerate 2 HP each tempo cycle. Heal cards restore +5 additional HP",
+		Color(0.25, 0.75, 0.3)  # forest green
 	))
 
 func _add_constellation(c: Constellation) -> void:

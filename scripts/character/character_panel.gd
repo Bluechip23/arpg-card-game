@@ -182,10 +182,12 @@ AGI  %d""" % [
 	]
 
 func _build_derived_stats_text() -> String:
+	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit)
 	return """HP   %d/%d
 Mana %.0f/%d
 Armor  %d
 Decay  -%d/t
+Crit   %d%%
 Carry  %d/%d
 Regen  %.1f/t""" % [
 		player_stats.current_health,
@@ -194,6 +196,7 @@ Regen  %.1f/t""" % [
 		player_stats.max_mana,
 		player_stats.current_armor,
 		player_stats.armor_decay_per_cycle,
+		total_crit,
 		player_stats.current_carry_load,
 		player_stats.get_carry_capacity(),
 		player_stats.get_effective_mana_regen()

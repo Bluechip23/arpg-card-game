@@ -102,6 +102,9 @@ var sphere_bonus_determination: int = 0
 var sphere_bonus_health: int = 0
 var sphere_bonus_mana: int = 0
 
+# Base combat stats
+var base_crit_chance: int = 5         # Base 5% crit chance for all characters
+
 # Combat bonuses from sphere grid (neutral bonuses)
 var sphere_bonus_block: int = 0       # Extra block from block cards
 var sphere_bonus_thorns: int = 0      # Damage dealt to attackers when hit
@@ -109,6 +112,11 @@ var sphere_bonus_damage: int = 0      # Flat bonus to all attacks
 var sphere_bonus_heal_power: int = 0  # Extra HP from heal cards
 var sphere_bonus_crit: float = 0.0    # Extra crit chance (percentage points)
 var sphere_bonus_armor: int = 0       # Starting armor each combat
+var sphere_bonus_regen: int = 0       # Health regenerated per tempo cycle
+var sphere_bonus_armor_per_cycle: int = 0  # Armor gained per tempo cycle
+var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2.0 = 2%)
+var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
+var sphere_bonus_range: int = 0       # Bonus range for ranged attacks
 
 # ============================================
 # SKILL TREE PASSIVES (from archetype choices)
@@ -905,13 +913,14 @@ func apply_sphere_grid_mana(amount: int) -> void:
 
 func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void:
 	## Applies a neutral combat bonus from a sphere grid node.
-	## Parses labels like "Block +2", "Thorns +1", "Damage +3", "Heal +2", "Crit +5%", "Armor +3"
+	## Parses labels like "Block +2", "Thorns +1", "Damage +3", "Heal +2", "Crit +5%", "Armor +3",
+	## "Regen +1", "Arm/Cyc +1", "Life Steal +3%", "Resist +3%", "Range +1"
 	var regex = RegEx.new()
-	regex.compile("(\\w+)\\s*\\+(\\d+)")
+	regex.compile("(.+?)\\s*\\+(\\d+)")
 	var result = regex.search(label)
 	if not result:
 		return
-	var bonus_type = result.get_string(1).to_lower()
+	var bonus_type = result.get_string(1).strip_edges().to_lower()
 	var value = int(result.get_string(2))
 	match bonus_type:
 		"block":
@@ -929,6 +938,16 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			# Immediately grant the armor
 			current_armor += value
 			armor_changed.emit(current_armor)
+		"regen":
+			sphere_bonus_regen += value
+		"arm/cyc":
+			sphere_bonus_armor_per_cycle += value
+		"life steal":
+			sphere_bonus_life_steal += float(value)
+		"resist":
+			sphere_bonus_resistance += float(value)
+		"range":
+			sphere_bonus_range += value
 	stats_updated.emit()
 	print("[STATS] Sphere grid combat bonus: %s" % label)
 

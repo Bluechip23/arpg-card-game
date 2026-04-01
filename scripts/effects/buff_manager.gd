@@ -287,6 +287,10 @@ func consume_enlightened() -> int:
 	return 0
 
 func roll_crit(base_crit_chance: int = 0) -> bool:
+	# Include the character's innate base crit chance (default 5%)
+	var innate_crit = 0
+	if owner_stats and "base_crit_chance" in owner_stats:
+		innate_crit = owner_stats.base_crit_chance
 	var sphere_crit = 0.0
 	if owner_stats and "sphere_bonus_crit" in owner_stats:
 		sphere_crit = owner_stats.sphere_bonus_crit
@@ -294,7 +298,7 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var ebs_crit = 0
 	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats:
 		ebs_crit = owner_stats.st_exposed_blind_spot_crit
-	var total_chance = base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit
+	var total_chance = innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit
 	if total_chance <= 0:
 		return false
 

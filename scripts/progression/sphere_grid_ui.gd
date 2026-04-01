@@ -35,6 +35,12 @@ var _constellation_list_panel: PanelContainer = null
 var _constellation_list_vbox: VBoxContainer = null
 var _constellation_hover_panel: PanelContainer = null  # Tooltip shown on hover
 
+# Constellation confirmation modal state
+var _constellation_modal: PanelContainer = null
+var _constellation_modal_overlay: ColorRect = null  # Dim background
+var _pending_constellation_id: String = ""  # Constellation awaiting confirmation
+var _conflicting_constellation_id: String = ""  # Active constellation that would be replaced
+
 # Node drawing constants
 const NODE_RADIUS_BASE: float = 16.0
 const NODE_RADIUS_START: float = 22.0
@@ -53,6 +59,7 @@ const COLOR_HEALTH := Color(1.0, 0.4, 0.4, 1.0)
 const COLOR_MANA := Color(0.4, 0.7, 1.0, 1.0)
 const COLOR_CULLING := Color(1.0, 0.35, 0.65, 1.0)  # Crimson/hot-pink - distinct from purple passives
 const COLOR_RETROSPECTIVE := Color(0.4, 1.0, 0.95, 1.0)  # Teal/cyan - retrospective nodes
+const COLOR_FEATHER := Color(0.95, 0.85, 0.45, 1.0)  # Warm gold - feather nodes for card removal
 const COLOR_LINE := Color(0.65, 0.65, 0.8, 1.0)
 const COLOR_LINE_UNLOCKED := Color(0.5, 1.0, 0.6, 1.0)
 const COLOR_BG := Color(0.08, 0.08, 0.13, 0.97)
@@ -250,6 +257,8 @@ func _get_type_color(node: SphereGrid.GridNode) -> Color:
 			return COLOR_MANA
 		SphereGrid.NodeType.CULLING_STONE:
 			return COLOR_CULLING
+		SphereGrid.NodeType.FEATHER:
+			return COLOR_FEATHER
 		SphereGrid.NodeType.RETROSPECTIVE:
 			return COLOR_RETROSPECTIVE
 	return COLOR_LOCKED
@@ -261,6 +270,8 @@ func _get_node_shape(node: SphereGrid.GridNode) -> String:
 		SphereGrid.NodeType.COMBAT_BONUS:
 			return "square"
 		SphereGrid.NodeType.CULLING_STONE:
+			return "hexagon"
+		SphereGrid.NodeType.FEATHER:
 			return "hexagon"
 		SphereGrid.NodeType.RETROSPECTIVE:
 			return "star"
@@ -417,6 +428,7 @@ func _draw_legend() -> void:
 		[COLOR_HEALTH, "circle", "Health"],
 		[COLOR_MANA, "circle", "Mana"],
 		[COLOR_CULLING, "hexagon", "Culling Stone"],
+		[COLOR_FEATHER, "hexagon", "Feather"],
 		[COLOR_RETROSPECTIVE, "star", "Retrospective"],
 		[COLOR_UNLOCKED, "circle", "Unlocked"],
 		[COLOR_UNLOCKABLE, "circle", "Available"],
@@ -1093,8 +1105,12 @@ func _on_unlock_pressed() -> void:
 	if node.node_type == SphereGrid.NodeType.RETROSPECTIVE:
 		sphere_inventory.add_retrospective_token()
 
-	# Check for newly completed constellations
-	sphere_grid.check_constellation_completion()
+	# Grant feather (paper feather for card removal) if this was a feather node
+	if node.node_type == SphereGrid.NodeType.FEATHER:
+		pass  # Handled by progression_triggers via node_unlocked signal
+
+	# Check for constellations that are now ready (but require confirmation)
+	_check_pending_constellations()
 
 	# Refresh constellation list to show updated progress
 	_refresh_constellation_list()
@@ -1190,8 +1206,349 @@ func _get_type_name(t: SphereGrid.NodeType) -> String:
 		SphereGrid.NodeType.START: return "Start"
 		SphereGrid.NodeType.CULLING_STONE: return "Culling Stone"
 		SphereGrid.NodeType.RETROSPECTIVE: return "Retrospective"
+		SphereGrid.NodeType.FEATHER: return "Feather"
 	return "Unknown"
 
 func _on_close_pressed() -> void:
 	hide_panel()
 	closed.emit()
+
+# ============================================
+# CONSTELLATION CONFIRMATION MODAL
+# ============================================
+
+func _check_pending_constellations() -> void:
+	## Checks if any constellations are now completable and shows confirmation modal.
+	if not sphere_grid:
+		return
+	for c in sphere_grid.get_all_constellations():
+		if c.completed:
+			continue
+		if not sphere_grid.is_constellation_complete(c.id):
+			continue
+
+		# This constellation has all nodes unlocked — check for conflicts
+		var conflicting_id = _find_conflicting_active_constellation(c)
+		if conflicting_id != "":
+			# Shares nodes with an already-active constellation — replacement modal
+			_show_constellation_replace_modal(c.id, conflicting_id)
+		else:
+			# No conflict — acceptance modal
+			_show_constellation_accept_modal(c.id)
+		return  # Only show one modal at a time
+
+func _find_conflicting_active_constellation(new_constellation: SphereGrid.Constellation) -> String:
+	## Returns the ID of an already-completed constellation that shares nodes with the new one.
+	## Returns "" if no conflict exists.
+	var new_nodes = {}
+	for nid in new_constellation.node_ids:
+		new_nodes[nid] = true
+
+	for c in sphere_grid.get_all_constellations():
+		if not c.completed or c.id == new_constellation.id:
+			continue
+		for nid in c.node_ids:
+			if nid in new_nodes:
+				return c.id
+	return ""
+
+func _show_constellation_accept_modal(constellation_id: String) -> void:
+	## Shows a modal for accepting a new constellation with no conflicts.
+	_pending_constellation_id = constellation_id
+	_conflicting_constellation_id = ""
+
+	var c = sphere_grid.get_constellation(constellation_id)
+	if not c:
+		return
+
+	_create_modal_overlay()
+
+	_constellation_modal = PanelContainer.new()
+	_constellation_modal.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style = _create_modal_style()
+	_constellation_modal.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	_constellation_modal.add_child(vbox)
+
+	# Title
+	var title = Label.new()
+	title.text = "CONSTELLATION COMPLETE"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.95, 0.9, 0.5))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	_add_popup_separator(vbox)
+
+	# Constellation name
+	var name_label = Label.new()
+	name_label.text = c.name
+	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_color_override("font_color", c.color)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_label)
+
+	# Bonus description
+	var desc = Label.new()
+	desc.text = c.bonus_description
+	desc.add_theme_font_size_override("font_size", 13)
+	desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size.x = 320
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(desc)
+
+	_add_popup_separator(vbox)
+
+	# Note
+	var note = Label.new()
+	note.text = "Note: This constellation can be replaced later\nif a different constellation using shared nodes\nis completed."
+	note.add_theme_font_size_override("font_size", 11)
+	note.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size.x = 320
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(note)
+
+	# Buttons
+	var btn_box = HBoxContainer.new()
+	btn_box.add_theme_constant_override("separation", 12)
+	btn_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_box)
+
+	var accept_btn = _create_modal_button("Accept", Color(0.15, 0.45, 0.25), Color(0.2, 0.55, 0.3))
+	accept_btn.pressed.connect(_on_constellation_accept)
+	btn_box.add_child(accept_btn)
+
+	var decline_btn = _create_modal_button("Decline", Color(0.35, 0.2, 0.2), Color(0.45, 0.25, 0.25))
+	decline_btn.pressed.connect(_on_constellation_decline)
+	btn_box.add_child(decline_btn)
+
+	_constellation_modal.custom_minimum_size = Vector2(380, 0)
+	add_child(_constellation_modal)
+	_center_modal()
+
+func _show_constellation_replace_modal(new_id: String, old_id: String) -> void:
+	## Shows a modal for replacing an active constellation with a new one.
+	_pending_constellation_id = new_id
+	_conflicting_constellation_id = old_id
+
+	var new_c = sphere_grid.get_constellation(new_id)
+	var old_c = sphere_grid.get_constellation(old_id)
+	if not new_c or not old_c:
+		return
+
+	_create_modal_overlay()
+
+	_constellation_modal = PanelContainer.new()
+	_constellation_modal.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style = _create_modal_style()
+	_constellation_modal.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	_constellation_modal.add_child(vbox)
+
+	# Title
+	var title = Label.new()
+	title.text = "REPLACE CONSTELLATION?"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	_add_popup_separator(vbox)
+
+	# Current constellation
+	var current_header = Label.new()
+	current_header.text = "Currently Active:"
+	current_header.add_theme_font_size_override("font_size", 12)
+	current_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	vbox.add_child(current_header)
+
+	var old_name = Label.new()
+	old_name.text = old_c.name
+	old_name.add_theme_font_size_override("font_size", 15)
+	old_name.add_theme_color_override("font_color", old_c.color)
+	vbox.add_child(old_name)
+
+	var old_desc = Label.new()
+	old_desc.text = old_c.bonus_description
+	old_desc.add_theme_font_size_override("font_size", 12)
+	old_desc.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
+	old_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	old_desc.custom_minimum_size.x = 340
+	vbox.add_child(old_desc)
+
+	_add_popup_separator(vbox)
+
+	# New constellation
+	var new_header = Label.new()
+	new_header.text = "Replace With:"
+	new_header.add_theme_font_size_override("font_size", 12)
+	new_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	vbox.add_child(new_header)
+
+	var new_name = Label.new()
+	new_name.text = new_c.name
+	new_name.add_theme_font_size_override("font_size", 15)
+	new_name.add_theme_color_override("font_color", new_c.color)
+	vbox.add_child(new_name)
+
+	var new_desc = Label.new()
+	new_desc.text = new_c.bonus_description
+	new_desc.add_theme_font_size_override("font_size", 12)
+	new_desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	new_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	new_desc.custom_minimum_size.x = 340
+	vbox.add_child(new_desc)
+
+	_add_popup_separator(vbox)
+
+	# Warning
+	var warning = Label.new()
+	warning.text = "WARNING: This is a permanent change.\nYou cannot revert back to the replaced constellation."
+	warning.add_theme_font_size_override("font_size", 12)
+	warning.add_theme_color_override("font_color", Color(1.0, 0.4, 0.35))
+	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warning.custom_minimum_size.x = 340
+	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(warning)
+
+	# Buttons
+	var btn_box = HBoxContainer.new()
+	btn_box.add_theme_constant_override("separation", 12)
+	btn_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_box)
+
+	var replace_btn = _create_modal_button("Replace", Color(0.5, 0.25, 0.15), Color(0.6, 0.3, 0.2))
+	replace_btn.pressed.connect(_on_constellation_replace)
+	btn_box.add_child(replace_btn)
+
+	var cancel_btn = _create_modal_button("Cancel", Color(0.25, 0.25, 0.3), Color(0.3, 0.3, 0.35))
+	cancel_btn.pressed.connect(_on_constellation_decline)
+	btn_box.add_child(cancel_btn)
+
+	_constellation_modal.custom_minimum_size = Vector2(400, 0)
+	add_child(_constellation_modal)
+	_center_modal()
+
+func _on_constellation_accept() -> void:
+	## Player accepted a new constellation with no conflicts.
+	if _pending_constellation_id == "":
+		_close_constellation_modal()
+		return
+
+	var c = sphere_grid.get_constellation(_pending_constellation_id)
+	if c:
+		c.completed = true
+		sphere_grid.constellation_completed.emit(_pending_constellation_id)
+		print("[SPHERE GRID] Constellation accepted: %s" % c.name)
+
+	_close_constellation_modal()
+	_refresh_constellation_list()
+	grid_canvas.queue_redraw()
+
+func _on_constellation_replace() -> void:
+	## Player chose to replace an active constellation with a new one.
+	if _pending_constellation_id == "" or _conflicting_constellation_id == "":
+		_close_constellation_modal()
+		return
+
+	var old_id = _conflicting_constellation_id
+	var new_id = _pending_constellation_id
+
+	# Deactivate the old constellation
+	var old_c = sphere_grid.get_constellation(old_id)
+	if old_c:
+		old_c.completed = false
+		print("[SPHERE GRID] Constellation deactivated: %s (replaced)" % old_c.name)
+
+	# Activate the new constellation
+	var new_c = sphere_grid.get_constellation(new_id)
+	if new_c:
+		new_c.completed = true
+		sphere_grid.constellation_replaced.emit(old_id, new_id)
+		sphere_grid.constellation_completed.emit(new_id)
+		print("[SPHERE GRID] Constellation replaced with: %s" % new_c.name)
+
+	_close_constellation_modal()
+	_refresh_constellation_list()
+	grid_canvas.queue_redraw()
+
+func _on_constellation_decline() -> void:
+	## Player declined the constellation.
+	print("[SPHERE GRID] Constellation declined: %s" % _pending_constellation_id)
+	_close_constellation_modal()
+
+func _close_constellation_modal() -> void:
+	_pending_constellation_id = ""
+	_conflicting_constellation_id = ""
+	if _constellation_modal:
+		_constellation_modal.queue_free()
+		_constellation_modal = null
+	if _constellation_modal_overlay:
+		_constellation_modal_overlay.queue_free()
+		_constellation_modal_overlay = null
+
+func _create_modal_overlay() -> void:
+	## Creates a semi-transparent overlay behind the modal.
+	_constellation_modal_overlay = ColorRect.new()
+	_constellation_modal_overlay.color = Color(0.0, 0.0, 0.0, 0.6)
+	_constellation_modal_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_constellation_modal_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_constellation_modal_overlay)
+
+func _create_modal_style() -> StyleBoxFlat:
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.16, 0.98)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.5, 0.45, 0.3)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 16
+	style.content_margin_bottom = 16
+	return style
+
+func _create_modal_button(text: String, normal_color: Color, hover_color: Color) -> Button:
+	var btn = Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(120, 36)
+	btn.add_theme_font_size_override("font_size", 14)
+
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = normal_color
+	btn_style.border_color = Color(normal_color.r + 0.2, normal_color.g + 0.2, normal_color.b + 0.2)
+	btn_style.border_width_left = 1
+	btn_style.border_width_right = 1
+	btn_style.border_width_top = 1
+	btn_style.border_width_bottom = 1
+	btn_style.corner_radius_top_left = 4
+	btn_style.corner_radius_top_right = 4
+	btn_style.corner_radius_bottom_left = 4
+	btn_style.corner_radius_bottom_right = 4
+	btn.add_theme_stylebox_override("normal", btn_style)
+
+	var btn_hover = btn_style.duplicate()
+	btn_hover.bg_color = hover_color
+	btn.add_theme_stylebox_override("hover", btn_hover)
+
+	return btn
+
+func _center_modal() -> void:
+	## Centers the constellation modal on screen.
+	if not _constellation_modal:
+		return
+	await get_tree().process_frame
+	var viewport_size = get_viewport().get_visible_rect().size
+	var modal_size = _constellation_modal.size
+	_constellation_modal.position = (viewport_size - modal_size) / 2.0
