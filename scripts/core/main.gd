@@ -986,7 +986,7 @@ func _on_attack_pressed() -> void:
 	if buff_mgr:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			damage = floori(damage * 2.0)
+			damage = floori(damage * 1.5)
 			buff_mgr.consume_enlightened()
 
 	# Debuff damage reduction

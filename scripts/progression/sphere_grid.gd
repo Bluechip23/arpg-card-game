@@ -595,7 +595,7 @@ func _build_constellations() -> void:
 		"shadow_strike", "Shadow Strike",
 		[31, 32, 54, 55, 56] as Array[int],
 		"Shadow Strike",
-		"Critical hits deal 2.5x damage instead of 2x",
+		"Critical hits deal 2x damage instead of 1.5x",
 		Color(0.35, 0.15, 0.55)  # dark violet
 	))
 

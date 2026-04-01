@@ -370,7 +370,7 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_crit", "effect": "shadow_strike",
 				"value": 0, "chance": 1.0,
-				"description": "Shadow Strike: Critical hits deal 2.5x damage instead of 2x"
+				"description": "Shadow Strike: Critical hits deal 2x damage instead of 1.5x"
 			})
 		"iron_bastion":
 			# +5 armor at start of combat, 15% damage reduction on hit
