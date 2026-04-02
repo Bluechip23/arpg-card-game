@@ -60,6 +60,12 @@ func _apply_sphere_grid_node(node) -> void:
 				inventory.culling_stones += 1
 				main.add_battle_log("Sphere Grid: Obtained Culling Stone!", Color(0.8, 0.5, 1.0))
 
+		SphereGrid.NodeType.FEATHER:
+			var inventory = main.player.get_inventory()
+			if inventory:
+				inventory.paper_feathers += 1
+				main.add_battle_log("Sphere Grid: Obtained Paper Feather!", Color(0.95, 0.85, 0.5))
+
 	print("[MAIN] Sphere grid node %d applied: [%s] %s" % [node.id, SphereGrid.NodeType.keys()[node.node_type], node.label])
 
 func _apply_all_unlocked_sphere_nodes() -> void:
@@ -224,11 +230,63 @@ func _on_constellation_completed(constellation_id: String) -> void:
 	if not c:
 		return
 
-	_active_constellations.append(constellation_id)
+	if constellation_id not in _active_constellations:
+		_active_constellations.append(constellation_id)
 	_apply_constellation_bonus(constellation_id)
 	main.add_battle_log("CONSTELLATION COMPLETE: %s" % c.name, c.color)
 	main.add_battle_log("Bonus: %s" % c.bonus_description, Color(0.9, 0.85, 0.5))
 	print("[MAIN] Constellation completed: %s — %s" % [c.name, c.bonus_description])
+
+func _on_constellation_replaced(old_id: String, _new_id: String) -> void:
+	## Called when a constellation is replaced by a new one. Removes old bonuses.
+	var stats = main.player.get_stats()
+	if not stats:
+		return
+
+	# Remove the old constellation from active list
+	_active_constellations.erase(old_id)
+
+	# Remove sphere grid passives associated with this constellation
+	var passives_to_remove: Array[int] = []
+	for i in range(stats.sphere_grid_passives.size() - 1, -1, -1):
+		var passive = stats.sphere_grid_passives[i]
+		var desc: String = passive.get("description", "")
+		var grid = main.sphere_grid_ui.sphere_grid
+		var old_c = grid.get_constellation(old_id)
+		if old_c and old_c.name in desc:
+			stats.sphere_grid_passives.remove_at(i)
+
+	# Reverse stat bonuses for constellations that granted direct stats
+	match old_id:
+		"mind_weaver":
+			stats.sphere_bonus_mana -= 3
+			stats.max_mana -= 3
+			stats.current_mana = min(stats.current_mana, stats.get_available_max_mana())
+			stats.mana_changed.emit(stats.current_mana, stats.max_mana)
+		"windwalker":
+			stats.sphere_bonus_agility -= 5
+			stats.base_agility -= 5
+			stats.recalculate_derived_stats()
+		"storm_runner":
+			stats.sphere_bonus_agility -= 5
+			stats.base_agility -= 5
+			stats.recalculate_derived_stats()
+		"unyielding":
+			stats.sphere_bonus_determination -= 2
+			stats.determination -= 2
+			stats.recalculate_derived_stats()
+		"iron_bastion":
+			stats.sphere_bonus_armor -= 5
+		"natures_grace":
+			stats.sphere_bonus_regen -= 2
+			stats.sphere_bonus_heal_power -= 5
+
+	stats.stats_updated.emit()
+	var grid = main.sphere_grid_ui.sphere_grid
+	var old_c = grid.get_constellation(old_id)
+	if old_c:
+		main.add_battle_log("Constellation replaced: %s" % old_c.name, Color(0.7, 0.5, 0.3))
+		print("[MAIN] Constellation removed: %s" % old_c.name)
 
 func _apply_constellation_bonus(constellation_id: String) -> void:
 	## Applies the permanent bonus from a completed constellation.
@@ -298,6 +356,37 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"description": "Unyielding: Below 50% HP: gain 3 armor each cycle"
 			})
 			stats.apply_sphere_grid_stat("determination", 2)
+
+		# --- Ring 3-4 Constellations ---
+		"crimson_edge":
+			# Attacks heal for 8% of damage dealt
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_attack", "effect": "crimson_edge",
+				"value": 8, "chance": 1.0,
+				"description": "Crimson Edge: Attacks heal for 8% of damage dealt"
+			})
+		"shadow_strike":
+			# Critical hits deal 2.5x damage instead of 2x — tracked as a flag
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_crit", "effect": "shadow_strike",
+				"value": 0, "chance": 1.0,
+				"description": "Shadow Strike: Critical hits deal 2x damage instead of 1.5x"
+			})
+		"iron_bastion":
+			# +5 armor at start of combat, 15% damage reduction on hit
+			stats.sphere_bonus_armor += 5
+			stats.current_armor += 5
+			stats.armor_changed.emit(stats.current_armor)
+			stats.add_sphere_grid_passive({
+				"node_id": -1, "trigger": "on_block", "effect": "iron_bastion",
+				"value": 50, "chance": 0.15,
+				"description": "Iron Bastion: When hit: 15% chance to reduce damage by 50%"
+			})
+		"natures_grace":
+			# Regen 2 HP per cycle, heal cards +5
+			stats.sphere_bonus_regen += 2
+			stats.sphere_bonus_heal_power += 5
+			stats.stats_updated.emit()
 
 # ============================================
 # SKILL TREE → CHARACTER SYNC

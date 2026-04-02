@@ -449,6 +449,7 @@ func _setup_armor_bar() -> void:
 	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	bg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	bg_mat.no_depth_test = true
+	bg_mat.render_priority = 0
 	_armor_bar_bg.material_override = bg_mat
 	_armor_bar_bg.position = Vector3(0, 0.75, 0)
 	add_child(_armor_bar_bg)
@@ -464,8 +465,9 @@ func _setup_armor_bar() -> void:
 	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	fg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	fg_mat.no_depth_test = true
+	fg_mat.render_priority = 1
 	_armor_bar_fg.material_override = fg_mat
-	_armor_bar_fg.position = Vector3(0, 0.75, 0.001)
+	_armor_bar_fg.position = Vector3(0, 0.75, 0.002)
 	add_child(_armor_bar_fg)
 
 	# Segment divider lines (one every 10 armor)
@@ -473,7 +475,7 @@ func _setup_armor_bar() -> void:
 	for i in range(1, num_segments):
 		var divider = MeshInstance3D.new()
 		var div_quad = QuadMesh.new()
-		div_quad.size = Vector2(0.02, 0.07)
+		div_quad.size = Vector2(0.03, 0.08)
 		divider.mesh = div_quad
 		var div_mat = StandardMaterial3D.new()
 		div_mat.albedo_color = Color(0.0, 0.0, 0.0, 1.0)
@@ -481,16 +483,16 @@ func _setup_armor_bar() -> void:
 		div_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 		div_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		div_mat.no_depth_test = true
-		div_mat.render_priority = 5
+		div_mat.render_priority = 10
 		divider.material_override = div_mat
 		var x_pos = -_armor_bar_width / 2.0 + (_armor_bar_width * float(i) / float(num_segments))
-		divider.position = Vector3(x_pos, 0.75, 0.003)
+		divider.position = Vector3(x_pos, 0.75, 0.005)
 		add_child(divider)
 		_armor_dividers.append(divider)
 
 	# Armor value label
 	_armor_label = Label3D.new()
-	_armor_label.position = Vector3(0, 0.75, 0.003)
+	_armor_label.position = Vector3(0, 0.75, 0.007)
 	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_armor_label.font_size = 14
 	_armor_label.modulate = Color(0.9, 0.9, 0.9)

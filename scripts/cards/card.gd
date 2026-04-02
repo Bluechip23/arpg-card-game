@@ -743,7 +743,7 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 
 		# Crit check with Enlightened
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			print("[CARD] CRITICAL HIT! Damage doubled!")
 			buff_mgr.consume_enlightened()
 
@@ -1199,7 +1199,7 @@ func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
@@ -1220,7 +1220,7 @@ func _execute_charge(_target, player_stats: PlayerStats, buff_mgr: BuffManager =
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	print("[CARD] Charge! %d damage to all enemies in path" % total_damage)
@@ -1236,7 +1236,7 @@ func _execute_heroic_leap(_target, player_stats: PlayerStats, buff_mgr: BuffMana
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	print("[CARD] Heroic Leap! %d paces, %d damage on landing" % [leap_distance, total_damage])
@@ -1297,7 +1297,7 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1355,7 +1355,7 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	# Always deal base 5 damage
 	if target and target.has_method("take_damage"):
@@ -1485,7 +1485,7 @@ func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager 
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1539,7 +1539,7 @@ func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			print("[CARD] CRITICAL HIT! Damage doubled!")
 			buff_mgr.consume_enlightened()
 
@@ -1581,7 +1581,7 @@ func _execute_quick_shot(target, player_stats: PlayerStats, deck_manager = null,
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1614,7 +1614,7 @@ func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1637,7 +1637,7 @@ func _execute_sky_attack(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1651,7 +1651,7 @@ func _execute_lead_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1670,7 +1670,7 @@ func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManag
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1683,7 +1683,7 @@ func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1696,7 +1696,7 @@ func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManag
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1744,7 +1744,7 @@ func _execute_sweeping_disarm(target, player_stats: PlayerStats, buff_mgr: BuffM
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	# Actual damage and disarm applied by main.gd _apply_card_world_effects to all nearby enemies
@@ -1758,7 +1758,7 @@ func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: Buff
 	if buff_mgr:
 		snap_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			snap_damage = floori(snap_damage * 2.0)
+			snap_damage = floori(snap_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(snap_damage, true)
@@ -2815,7 +2815,7 @@ func _execute_thrown_stone(target, player_stats: PlayerStats, buff_mgr: BuffMana
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			print("[CARD] Thrown Stone CRIT!")
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -2904,7 +2904,7 @@ func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerSt
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if damage_reduction_pct > 0.0:
 		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
@@ -3009,7 +3009,7 @@ func _execute_blade_barrage(target, player_stats: PlayerStats, deck_manager, buf
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			print("[CARD] Blade Barrage CRIT!")
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -3174,7 +3174,7 @@ func _execute_energy_ball(target, player_stats: PlayerStats, buff_mgr: BuffManag
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			print("[CARD] Energy Ball CRIT!")
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -3518,7 +3518,7 @@ func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			total_damage = floori(total_damage * 2.0)
+			total_damage = floori(total_damage * 1.5)
 			buff_mgr.consume_enlightened()
 	if damage_reduction_pct > 0:
 		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))

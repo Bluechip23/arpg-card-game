@@ -276,6 +276,7 @@ func _ready() -> void:
 	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
 	sphere_grid_ui.node_unlocked.connect(progression_triggers._on_sphere_grid_node_unlocked)
 	sphere_grid_ui.sphere_grid.constellation_completed.connect(progression_triggers._on_constellation_completed)
+	sphere_grid_ui.sphere_grid.constellation_replaced.connect(progression_triggers._on_constellation_replaced)
 
 	# Skill tree connection — also link sphere grid into the tabbed panel
 	skill_tree_ui.connect_sphere_grid(sphere_grid_ui)
@@ -985,7 +986,7 @@ func _on_attack_pressed() -> void:
 	if buff_mgr:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			damage = floori(damage * 2.0)
+			damage = floori(damage * 1.5)
 			buff_mgr.consume_enlightened()
 
 	# Debuff damage reduction
