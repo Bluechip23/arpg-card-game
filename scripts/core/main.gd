@@ -822,10 +822,10 @@ func _setup_deck_info_vertical() -> void:
 	ui.add_child(vbox)
 	vbox.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	vbox.offset_left = -210.0
-	vbox.offset_top = -130.0
+	vbox.offset_top = -160.0
 	vbox.offset_right = -100.0
 	vbox.offset_bottom = -45.0
-	vbox.add_theme_constant_override("separation", 2)
+	vbox.add_theme_constant_override("separation", 4)
 
 	# Create buttons that open a popup showing the cards in each pile
 	var new_draw = _create_pile_button("DrawButton", "Draw: 0 (0)")
@@ -846,16 +846,11 @@ func _setup_deck_info_vertical() -> void:
 	jail_label = new_jail
 
 func _create_pile_button(btn_name: String, initial_text: String) -> Button:
-	## Creates a small flat button styled like the original pile labels.
+	## Creates a button styled to match the Maintained button (default Button look).
 	var btn = Button.new()
 	btn.name = btn_name
 	btn.text = initial_text
-	btn.flat = true
-	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.add_theme_font_size_override("font_size", 14)
-	btn.add_theme_color_override("font_color", Color(0.92, 0.92, 0.95))
-	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.85, 0.4))
-	btn.custom_minimum_size = Vector2(110, 22)
+	btn.custom_minimum_size = Vector2(110, 30)
 	btn.focus_mode = Control.FOCUS_NONE
 	return btn
 
