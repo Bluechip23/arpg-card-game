@@ -1214,6 +1214,44 @@ func _update_info_label() -> void:
 			lines.append("Requires: %s sphere (have: %d)" % [req_name, have])
 
 	info_label.text = "\n".join(lines)
+	_position_info_panel_near_node(node)
+
+func _position_info_panel_near_node(node: SphereGrid.GridNode) -> void:
+	## Positions the info panel adjacent to the hovered node, clamping to the canvas bounds.
+	if not info_panel:
+		return
+	# Detach from any preset anchoring so we can set explicit screen coords
+	info_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	# Wait one frame so size is recomputed if the text changed substantially
+	await get_tree().process_frame
+	if not info_panel.visible:
+		return
+
+	var node_screen = _world_to_screen(node.position)
+	var node_radius = NODE_RADIUS_BASE * _zoom + 6.0
+	var canvas_size = _get_canvas_size()
+	var panel_size = info_panel.size
+	if panel_size.x <= 0:
+		panel_size.x = 280
+	if panel_size.y <= 0:
+		panel_size.y = 100
+
+	# Prefer placing the panel to the right of the node, then left, then below
+	var pos = Vector2.ZERO
+	pos.x = node_screen.x + node_radius
+	pos.y = node_screen.y - panel_size.y / 2.0
+	if pos.x + panel_size.x > canvas_size.x - 8:
+		# Doesn't fit on the right — try the left
+		pos.x = node_screen.x - node_radius - panel_size.x
+	if pos.x < 8:
+		# Still off-screen — clamp and place above/below the node
+		pos.x = clampf(node_screen.x - panel_size.x / 2.0, 8.0, canvas_size.x - panel_size.x - 8.0)
+		pos.y = node_screen.y + node_radius
+		if pos.y + panel_size.y > canvas_size.y - 8:
+			pos.y = node_screen.y - node_radius - panel_size.y
+
+	pos.y = clampf(pos.y, 8.0, canvas_size.y - panel_size.y - 8.0)
+	info_panel.position = pos
 
 func _set_info(text: String) -> void:
 	info_label.text = text

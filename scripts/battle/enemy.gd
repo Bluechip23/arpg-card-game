@@ -447,6 +447,7 @@ func _setup_armor_bar() -> void:
 	_armor_bar_sprite.no_depth_test = true
 	_armor_bar_sprite.transparent = true
 	_armor_bar_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+	_armor_bar_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_armor_bar_sprite.pixel_size = _armor_bar_width / float(_ARMOR_BAR_PIXEL_WIDTH)
 	_armor_bar_sprite.position = Vector3(0, 0.75, 0)
 	add_child(_armor_bar_sprite)
@@ -481,40 +482,50 @@ func _update_armor_bar() -> void:
 		_armor_label.text = str(current_armor)
 
 func _refresh_armor_bar_image() -> void:
-	## Bakes the entire armor bar (background, fill, dividers, border) into a single texture.
+	## Draws each 10 armor as its own clearly separated segment block.
+	## 10 max armor → 1 block, 20 max armor → 2 blocks, 30 max armor → 3 blocks, etc.
+	## Each block fills proportionally with the armor it represents.
 	var w = _ARMOR_BAR_PIXEL_WIDTH
 	var h = _ARMOR_BAR_PIXEL_HEIGHT
 	var img = Image.create(w, h, false, Image.FORMAT_RGBA8)
+	# Fully transparent background — only the segment blocks themselves are drawn
+	img.fill(Color(0, 0, 0, 0))
 
-	# Background (dark)
-	img.fill(Color(0.15, 0.15, 0.15, 0.85))
+	var num_segments = max(1, ceili(float(max_armor) / 10.0))
+	const GAP: int = 6  # Pixels of empty space between segment blocks
+	var total_gap = (num_segments - 1) * GAP
+	var segment_w = (w - total_gap) / num_segments
+	if segment_w < 6:
+		segment_w = 6
 
-	# Foreground fill (gray) — proportional to current armor
-	var progress = 0.0
-	if max_armor > 0:
-		progress = clampf(float(current_armor) / float(max_armor), 0.0, 1.0)
-	var fill_w = int(round(float(w) * progress))
-	if fill_w > 0:
-		img.fill_rect(Rect2i(0, 0, fill_w, h), Color(0.65, 0.65, 0.65, 0.95))
-
-	# Divider lines (one every 10 armor) — drawn AFTER the fill so they're always visible
-	var num_segments = ceili(float(max_armor) / 10.0)
-	if num_segments > 1:
-		var divider_color = Color(0.0, 0.0, 0.0, 1.0)
-		for i in range(1, num_segments):
-			var x_pos = int(round(float(w) * float(i) / float(num_segments)))
-			# 3-pixel wide divider for clear visibility
-			var dx_start = max(0, x_pos - 1)
-			var dx_end = min(w, x_pos + 2)
-			img.fill_rect(Rect2i(dx_start, 0, dx_end - dx_start, h), divider_color)
-
-	# Outline border (top and bottom)
+	var bg_color = Color(0.18, 0.18, 0.22, 0.95)
+	var fill_color = Color(0.72, 0.72, 0.72, 1.0)
 	var border_color = Color(0.0, 0.0, 0.0, 1.0)
-	img.fill_rect(Rect2i(0, 0, w, 1), border_color)
-	img.fill_rect(Rect2i(0, h - 1, w, 1), border_color)
-	# Side borders
-	img.fill_rect(Rect2i(0, 0, 1, h), border_color)
-	img.fill_rect(Rect2i(w - 1, 0, 1, h), border_color)
+
+	for i in range(num_segments):
+		var seg_x = i * (segment_w + GAP)
+		# How many armor points this specific segment represents (last one may be partial)
+		var seg_armor_min = i * 10
+		var seg_capacity = mini(10, max_armor - seg_armor_min)
+		# How much of the segment is currently filled
+		var seg_current = clampi(current_armor - seg_armor_min, 0, seg_capacity)
+		var seg_progress = 0.0
+		if seg_capacity > 0:
+			seg_progress = float(seg_current) / float(seg_capacity)
+
+		# Background of this segment block (dark)
+		img.fill_rect(Rect2i(seg_x, 0, segment_w, h), bg_color)
+
+		# Filled portion (gray) — left-aligned within the segment
+		var fill_w = int(round(float(segment_w) * seg_progress))
+		if fill_w > 0:
+			img.fill_rect(Rect2i(seg_x, 0, fill_w, h), fill_color)
+
+		# Black border around this segment block
+		img.fill_rect(Rect2i(seg_x, 0, segment_w, 1), border_color)            # top
+		img.fill_rect(Rect2i(seg_x, h - 1, segment_w, 1), border_color)        # bottom
+		img.fill_rect(Rect2i(seg_x, 0, 1, h), border_color)                    # left
+		img.fill_rect(Rect2i(seg_x + segment_w - 1, 0, 1, h), border_color)    # right
 
 	_armor_bar_sprite.texture = ImageTexture.create_from_image(img)
 
