@@ -16,9 +16,9 @@ extends Node3D
 @onready var aoe_indicator: AOEIndicator = $AOEIndicator
 @onready var debuff_bar: DebuffBarUI = $UI/DebuffBar
 @onready var hand_container: Control = $UI/HandArea/HandContainer
-@onready var draw_label: Label = $UI/DeckInfo/DrawPileLabel
-@onready var discard_label: Label = $UI/DeckInfo/DiscardPileLabel
-@onready var jail_label: Label = $UI/DeckInfo/JailPileLabel
+@onready var draw_label = $UI/DeckInfo/DrawPileLabel
+@onready var discard_label = $UI/DeckInfo/DiscardPileLabel
+@onready var jail_label = $UI/DeckInfo/JailPileLabel
 @onready var selected_label: Label = $UI/SelectedLabel
 @onready var peaked_label: Label = $UI/PeakedLabel
 @onready var tempo_label: Label = $UI/TempoContainer/TempoLabel
@@ -139,6 +139,14 @@ var maintained_list_container: VBoxContainer = null
 var maintained_list_visible: bool = false
 var maintained_list_card_preview: PanelContainer = null
 var maintained_btn: Button = null
+
+# Shared pile contents popup (used by Draw, Discard, Jail buttons)
+var pile_popup_panel: PanelContainer = null
+var pile_popup_container: VBoxContainer = null
+var pile_popup_title_label: Label = null
+var pile_popup_card_preview: PanelContainer = null
+var pile_popup_visible: bool = false
+var pile_popup_current_pile: String = ""  # "draw", "discard", or "jail"
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
@@ -306,6 +314,7 @@ func _ready() -> void:
 	_setup_deck_list_panel()
 	_setup_maintained_list_button()
 	_setup_maintained_list_panel()
+	_setup_pile_popup_panel()
 	_setup_hand_card_preview()
 	_setup_donation_panel()
 
@@ -818,29 +827,37 @@ func _setup_deck_info_vertical() -> void:
 	vbox.offset_bottom = -45.0
 	vbox.add_theme_constant_override("separation", 2)
 
-	# Create new labels and remap the onready references
-	var new_draw = Label.new()
-	new_draw.name = "DrawLabel"
-	new_draw.add_theme_font_size_override("font_size", 14)
-	new_draw.text = "Draw: 0 (0)"
+	# Create buttons that open a popup showing the cards in each pile
+	var new_draw = _create_pile_button("DrawButton", "Draw: 0 (0)")
+	new_draw.pressed.connect(_on_draw_pile_button_pressed)
 	vbox.add_child(new_draw)
 
-	var new_discard = Label.new()
-	new_discard.name = "DiscardLabel"
-	new_discard.add_theme_font_size_override("font_size", 14)
-	new_discard.text = "Discard: 0"
+	var new_discard = _create_pile_button("DiscardButton", "Discard: 0")
+	new_discard.pressed.connect(_on_discard_pile_button_pressed)
 	vbox.add_child(new_discard)
 
-	var new_jail = Label.new()
-	new_jail.name = "JailLabel"
-	new_jail.add_theme_font_size_override("font_size", 14)
-	new_jail.text = "Jail: 0"
+	var new_jail = _create_pile_button("JailButton", "Jail: 0")
+	new_jail.pressed.connect(_on_jail_pile_button_pressed)
 	vbox.add_child(new_jail)
 
 	# Reassign references
 	draw_label = new_draw
 	discard_label = new_discard
 	jail_label = new_jail
+
+func _create_pile_button(btn_name: String, initial_text: String) -> Button:
+	## Creates a small flat button styled like the original pile labels.
+	var btn = Button.new()
+	btn.name = btn_name
+	btn.text = initial_text
+	btn.flat = true
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.add_theme_font_size_override("font_size", 14)
+	btn.add_theme_color_override("font_color", Color(0.92, 0.92, 0.95))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.85, 0.4))
+	btn.custom_minimum_size = Vector2(110, 22)
+	btn.focus_mode = Control.FOCUS_NONE
+	return btn
 
 func _on_pause_pressed() -> void:
 	_is_paused = not _is_paused
@@ -1595,6 +1612,272 @@ func _on_maintained_list_entry_hovered(card: Card, entry: Button) -> void:
 
 func _on_maintained_list_entry_unhovered() -> void:
 	maintained_list_card_preview.visible = false
+
+# ============================================
+# PILE CONTENTS POPUP (Draw / Discard / Jail buttons)
+# ============================================
+
+func _setup_pile_popup_panel() -> void:
+	## Creates the shared popup panel used by the Draw, Discard, and Jail buttons.
+	var ui = $UI as CanvasLayer
+	pile_popup_panel = PanelContainer.new()
+	pile_popup_panel.name = "PilePopupPanel"
+	ui.add_child(pile_popup_panel)
+	pile_popup_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	pile_popup_panel.offset_left = -290.0
+	pile_popup_panel.offset_top = -220.0
+	pile_popup_panel.offset_right = -10.0
+	pile_popup_panel.offset_bottom = 220.0
+	pile_popup_panel.custom_minimum_size = Vector2(280, 320)
+
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.4, 0.55, 0.8)
+	panel_style.corner_radius_top_left = 6
+	panel_style.corner_radius_top_right = 6
+	panel_style.corner_radius_bottom_left = 6
+	panel_style.corner_radius_bottom_right = 6
+	panel_style.content_margin_left = 10.0
+	panel_style.content_margin_right = 10.0
+	panel_style.content_margin_top = 10.0
+	panel_style.content_margin_bottom = 10.0
+	pile_popup_panel.add_theme_stylebox_override("panel", panel_style)
+
+	var margin = MarginContainer.new()
+	margin.layout_mode = 1
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pile_popup_panel.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	margin.add_child(vbox)
+
+	pile_popup_title_label = Label.new()
+	pile_popup_title_label.text = ""
+	pile_popup_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pile_popup_title_label.add_theme_font_size_override("font_size", 18)
+	pile_popup_title_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0))
+	vbox.add_child(pile_popup_title_label)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 270)
+	vbox.add_child(scroll)
+
+	pile_popup_container = VBoxContainer.new()
+	pile_popup_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(pile_popup_container)
+
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.pressed.connect(_close_pile_popup)
+	vbox.add_child(close_btn)
+
+	pile_popup_panel.visible = false
+
+	# Hover preview panel for pile entries
+	pile_popup_card_preview = PanelContainer.new()
+	pile_popup_card_preview.name = "PilePopupCardPreview"
+	ui.add_child(pile_popup_card_preview)
+	pile_popup_card_preview.custom_minimum_size = Vector2(180, 0)
+	var preview_style = StyleBoxFlat.new()
+	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
+	preview_style.border_width_left = 2
+	preview_style.border_width_right = 2
+	preview_style.border_width_top = 2
+	preview_style.border_width_bottom = 2
+	preview_style.border_color = Color(0.4, 0.55, 0.8)
+	preview_style.corner_radius_top_left = 4
+	preview_style.corner_radius_top_right = 4
+	preview_style.corner_radius_bottom_left = 4
+	preview_style.corner_radius_bottom_right = 4
+	preview_style.content_margin_left = 8.0
+	preview_style.content_margin_right = 8.0
+	preview_style.content_margin_top = 8.0
+	preview_style.content_margin_bottom = 8.0
+	pile_popup_card_preview.add_theme_stylebox_override("panel", preview_style)
+	pile_popup_card_preview.visible = false
+	pile_popup_card_preview.z_index = 200
+	pile_popup_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+func _on_draw_pile_button_pressed() -> void:
+	_toggle_pile_popup("draw")
+
+func _on_discard_pile_button_pressed() -> void:
+	_toggle_pile_popup("discard")
+
+func _on_jail_pile_button_pressed() -> void:
+	_toggle_pile_popup("jail")
+
+func _toggle_pile_popup(pile: String) -> void:
+	## Opens the popup for the given pile, or closes it if already showing the same pile.
+	if pile_popup_visible and pile_popup_current_pile == pile:
+		_close_pile_popup()
+		return
+	pile_popup_current_pile = pile
+	pile_popup_visible = true
+	pile_popup_panel.visible = true
+	_populate_pile_popup()
+
+func _close_pile_popup() -> void:
+	pile_popup_visible = false
+	pile_popup_current_pile = ""
+	if pile_popup_panel:
+		pile_popup_panel.visible = false
+	if pile_popup_card_preview:
+		pile_popup_card_preview.visible = false
+
+func _populate_pile_popup() -> void:
+	if not pile_popup_container or not pile_popup_title_label:
+		return
+
+	for child in pile_popup_container.get_children():
+		child.queue_free()
+
+	var cards: Array = []
+	var title_text = ""
+	var title_color = Color(0.55, 0.85, 1.0)
+	match pile_popup_current_pile:
+		"draw":
+			cards = deck_manager.draw_pile.duplicate()
+			title_text = "Draw Pile (%d)" % cards.size()
+			title_color = Color(0.55, 0.85, 1.0)
+		"discard":
+			cards = deck_manager.discard_pile.duplicate()
+			title_text = "Discard Pile (%d)" % cards.size()
+			title_color = Color(1.0, 0.7, 0.4)
+		"jail":
+			cards = deck_manager.jail_pile.duplicate()
+			title_text = "Jail Pile (%d)" % cards.size()
+			title_color = Color(0.85, 0.45, 0.85)
+
+	pile_popup_title_label.text = title_text
+	pile_popup_title_label.add_theme_color_override("font_color", title_color)
+
+	if cards.size() == 0:
+		var empty_lbl = Label.new()
+		empty_lbl.text = "Empty."
+		empty_lbl.add_theme_font_size_override("font_size", 14)
+		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pile_popup_container.add_child(empty_lbl)
+		return
+
+	# Aggregate by card name to avoid huge lists
+	var card_counts: Dictionary = {}
+	var card_refs: Dictionary = {}
+	for card in cards:
+		if card.card_name in card_counts:
+			card_counts[card.card_name] += 1
+		else:
+			card_counts[card.card_name] = 1
+			card_refs[card.card_name] = card
+
+	var names = card_counts.keys()
+	names.sort()
+
+	for card_name in names:
+		var count = card_counts[card_name]
+		var card_ref = card_refs[card_name]
+		var entry = Button.new()
+		entry.text = "%s (%d)" % [card_name, count]
+		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.flat = true
+		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		entry.add_theme_color_override("font_hover_color", title_color)
+		entry.add_theme_font_size_override("font_size", 14)
+		entry.mouse_entered.connect(_on_pile_popup_entry_hovered.bind(card_ref, entry))
+		entry.mouse_exited.connect(_on_pile_popup_entry_unhovered)
+		pile_popup_container.add_child(entry)
+
+func _on_pile_popup_entry_hovered(card: Card, entry: Button) -> void:
+	for child in pile_popup_card_preview.get_children():
+		child.queue_free()
+
+	var vbox = VBoxContainer.new()
+	pile_popup_card_preview.add_child(vbox)
+
+	var name_lbl = Label.new()
+	name_lbl.text = card.card_name
+	name_lbl.add_theme_font_size_override("font_size", 16)
+	name_lbl.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0))
+	vbox.add_child(name_lbl)
+
+	var type_lbl = Label.new()
+	type_lbl.text = card.card_type_name
+	type_lbl.add_theme_font_size_override("font_size", 12)
+	match card.card_type:
+		Card.CardType.ATTACK:
+			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+		Card.CardType.DEFENSE:
+			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
+		Card.CardType.UTILITY:
+			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+		Card.CardType.POWER:
+			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+		Card.CardType.ENCHANTMENT:
+			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
+	vbox.add_child(type_lbl)
+
+	var cost_lbl = Label.new()
+	if card.maintain_cost > 0:
+		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
+	else:
+		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
+	cost_lbl.add_theme_font_size_override("font_size", 12)
+	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	vbox.add_child(cost_lbl)
+
+	if card.is_ranged:
+		var range_lbl = Label.new()
+		range_lbl.text = card.get_range_display()
+		range_lbl.add_theme_font_size_override("font_size", 12)
+		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
+		vbox.add_child(range_lbl)
+	else:
+		var melee_lbl = Label.new()
+		melee_lbl.text = "Melee"
+		melee_lbl.add_theme_font_size_override("font_size", 12)
+		melee_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
+		vbox.add_child(melee_lbl)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var desc_lbl = RichTextLabel.new()
+	desc_lbl.bbcode_enabled = true
+	desc_lbl.text = card.description
+	desc_lbl.fit_content = true
+	desc_lbl.scroll_active = false
+	desc_lbl.custom_minimum_size = Vector2(160, 0)
+	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
+	vbox.add_child(desc_lbl)
+
+	_append_keyword_tooltips(vbox, card)
+
+	# Position preview to the left of the popup panel, near the hovered entry
+	var entry_rect = entry.get_global_rect()
+	var preview_x = pile_popup_panel.position.x - pile_popup_card_preview.size.x - 10
+	var preview_y = entry_rect.position.y
+	preview_y = max(preview_y, 4.0)
+	pile_popup_card_preview.global_position = Vector2(preview_x, preview_y)
+	pile_popup_card_preview.visible = true
+
+func _on_pile_popup_entry_unhovered() -> void:
+	if pile_popup_card_preview:
+		pile_popup_card_preview.visible = false
+
+func _refresh_pile_popup_if_open() -> void:
+	## Refreshes the pile popup if it's currently visible (to keep counts in sync).
+	if pile_popup_visible:
+		_populate_pile_popup()
 
 func _setup_hand_card_preview() -> void:
 	var ui = $UI
@@ -2994,6 +3277,7 @@ func update_deck_info() -> void:
 	if jail_label:
 		jail_label.text = "Jail: %d" % deck_manager.get_jail_pile_size()
 	_update_maintained_button()
+	_refresh_pile_popup_if_open()
 
 func _update_draw_label() -> void:
 	if draw_label:

@@ -24,6 +24,12 @@ var _dragging: bool = false
 var _drag_start: Vector2 = Vector2.ZERO
 var _zoom: float = 1.0
 
+# Left-click vs drag disambiguation
+var _left_pressed: bool = false
+var _left_press_pos: Vector2 = Vector2.ZERO
+var _left_dragged: bool = false
+const _DRAG_THRESHOLD: float = 6.0  # Pixels of movement before a left-click becomes a drag
+
 # Detail popup state
 var _popup_node_id: int = -1  # Which node's popup is open (-1 = none)
 var _detail_panel: PanelContainer = null
@@ -838,9 +844,15 @@ func _on_grid_input(event: InputEvent) -> void:
 	if not visible or not sphere_grid:
 		return
 
-	# Mouse motion — hover detection + drag panning
+	# Mouse motion — hover detection + drag panning (right/middle or left-after-threshold)
 	if event is InputEventMouseMotion:
-		if _dragging:
+		# Detect when a held left-click should turn into a drag
+		if _left_pressed and not _left_dragged:
+			if event.position.distance_to(_left_press_pos) > _DRAG_THRESHOLD:
+				_left_dragged = true
+				_close_detail_popup()
+
+		if _dragging or _left_dragged:
 			_camera_offset += event.relative / _zoom
 			grid_canvas.queue_redraw()
 		else:
@@ -851,16 +863,26 @@ func _on_grid_input(event: InputEvent) -> void:
 				_update_info_label()
 				grid_canvas.queue_redraw()
 
-	# Mouse button — click opens detail popup, middle/right drag to pan, scroll to zoom
+	# Mouse button — click opens detail popup, drag to pan, scroll to zoom
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			var local_pos = grid_canvas.get_local_mouse_position()
-			var clicked_id = _get_node_at_screen(local_pos)
-			if clicked_id >= 0:
-				_open_detail_popup(clicked_id)
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				# Defer the click action until release so we can detect drag intent
+				_left_pressed = true
+				_left_dragged = false
+				_left_press_pos = event.position
 			else:
-				# Clicked empty space — close popup
-				_close_detail_popup()
+				# Released — treat as a click only if the user didn't drag
+				if _left_pressed and not _left_dragged:
+					var local_pos = grid_canvas.get_local_mouse_position()
+					var clicked_id = _get_node_at_screen(local_pos)
+					if clicked_id >= 0:
+						_open_detail_popup(clicked_id)
+					else:
+						# Clicked empty space — close popup
+						_close_detail_popup()
+				_left_pressed = false
+				_left_dragged = false
 
 		if event.button_index == MOUSE_BUTTON_RIGHT or event.button_index == MOUSE_BUTTON_MIDDLE:
 			_dragging = event.pressed
