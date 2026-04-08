@@ -482,50 +482,27 @@ func _update_armor_bar() -> void:
 		_armor_label.text = str(current_armor)
 
 func _refresh_armor_bar_image() -> void:
-	## Draws each 10 armor as its own clearly separated segment block.
-	## 10 max armor → 1 block, 20 max armor → 2 blocks, 30 max armor → 3 blocks, etc.
-	## Each block fills proportionally with the armor it represents.
+	## Draws a single gray bar that is full when the enemy has any armor, empty when they don't.
 	var w = _ARMOR_BAR_PIXEL_WIDTH
 	var h = _ARMOR_BAR_PIXEL_HEIGHT
 	var img = Image.create(w, h, false, Image.FORMAT_RGBA8)
-	# Fully transparent background — only the segment blocks themselves are drawn
-	img.fill(Color(0, 0, 0, 0))
-
-	var num_segments = max(1, ceili(float(max_armor) / 10.0))
-	const GAP: int = 6  # Pixels of empty space between segment blocks
-	var total_gap = (num_segments - 1) * GAP
-	var segment_w = (w - total_gap) / num_segments
-	if segment_w < 6:
-		segment_w = 6
 
 	var bg_color = Color(0.18, 0.18, 0.22, 0.95)
 	var fill_color = Color(0.72, 0.72, 0.72, 1.0)
 	var border_color = Color(0.0, 0.0, 0.0, 1.0)
 
-	for i in range(num_segments):
-		var seg_x = i * (segment_w + GAP)
-		# How many armor points this specific segment represents (last one may be partial)
-		var seg_armor_min = i * 10
-		var seg_capacity = mini(10, max_armor - seg_armor_min)
-		# How much of the segment is currently filled
-		var seg_current = clampi(current_armor - seg_armor_min, 0, seg_capacity)
-		var seg_progress = 0.0
-		if seg_capacity > 0:
-			seg_progress = float(seg_current) / float(seg_capacity)
+	# Background (dark)
+	img.fill(bg_color)
 
-		# Background of this segment block (dark)
-		img.fill_rect(Rect2i(seg_x, 0, segment_w, h), bg_color)
+	# Full gray fill if the enemy currently has any armor
+	if current_armor > 0:
+		img.fill_rect(Rect2i(0, 0, w, h), fill_color)
 
-		# Filled portion (gray) — left-aligned within the segment
-		var fill_w = int(round(float(segment_w) * seg_progress))
-		if fill_w > 0:
-			img.fill_rect(Rect2i(seg_x, 0, fill_w, h), fill_color)
-
-		# Black border around this segment block
-		img.fill_rect(Rect2i(seg_x, 0, segment_w, 1), border_color)            # top
-		img.fill_rect(Rect2i(seg_x, h - 1, segment_w, 1), border_color)        # bottom
-		img.fill_rect(Rect2i(seg_x, 0, 1, h), border_color)                    # left
-		img.fill_rect(Rect2i(seg_x + segment_w - 1, 0, 1, h), border_color)    # right
+	# Black border around the whole bar
+	img.fill_rect(Rect2i(0, 0, w, 1), border_color)            # top
+	img.fill_rect(Rect2i(0, h - 1, w, 1), border_color)        # bottom
+	img.fill_rect(Rect2i(0, 0, 1, h), border_color)            # left
+	img.fill_rect(Rect2i(w - 1, 0, 1, h), border_color)        # right
 
 	_armor_bar_sprite.texture = ImageTexture.create_from_image(img)
 
