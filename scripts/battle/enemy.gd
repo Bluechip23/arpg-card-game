@@ -98,11 +98,9 @@ var _action_label: Label3D
 var _tempo_bar_width: float = 0.6
 
 # Armor bar visuals (gray bar below health, only for armored enemies)
-var _armor_bar_bg: MeshInstance3D
-var _armor_bar_fg: MeshInstance3D
+var _armor_bar_sprite: Sprite3D
 var _armor_label: Label3D
 var _armor_bar_width: float = 0.6
-var _armor_dividers: Array[MeshInstance3D] = []
 
 # Damage preview label (shown when hovering with a card selected)
 var _damage_preview_label: Label3D = null
@@ -434,97 +432,91 @@ func _setup_tempo_bar() -> void:
 	if name_label:
 		name_label.position.y = 1.35
 
+const _ARMOR_BAR_PIXEL_WIDTH: int = 200
+const _ARMOR_BAR_PIXEL_HEIGHT: int = 24
+
 func _setup_armor_bar() -> void:
 	if max_armor <= 0:
 		return
 
-	# Background bar (dark)
-	_armor_bar_bg = MeshInstance3D.new()
-	var bg_quad = QuadMesh.new()
-	bg_quad.size = Vector2(_armor_bar_width, 0.06)
-	_armor_bar_bg.mesh = bg_quad
-	var bg_mat = StandardMaterial3D.new()
-	bg_mat.albedo_color = Color(0.15, 0.15, 0.15, 0.7)
-	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	bg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	bg_mat.no_depth_test = true
-	bg_mat.render_priority = 0
-	_armor_bar_bg.material_override = bg_mat
-	_armor_bar_bg.position = Vector3(0, 0.75, 0)
-	add_child(_armor_bar_bg)
+	# Single Sprite3D with everything (background + fill + dividers) baked into the texture.
+	# This eliminates billboard alignment issues that plagued the multi-mesh approach.
+	_armor_bar_sprite = Sprite3D.new()
+	_armor_bar_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_armor_bar_sprite.shaded = false
+	_armor_bar_sprite.no_depth_test = true
+	_armor_bar_sprite.transparent = true
+	_armor_bar_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+	_armor_bar_sprite.pixel_size = _armor_bar_width / float(_ARMOR_BAR_PIXEL_WIDTH)
+	_armor_bar_sprite.position = Vector3(0, 0.75, 0)
+	add_child(_armor_bar_sprite)
 
-	# Foreground bar (gray fill)
-	_armor_bar_fg = MeshInstance3D.new()
-	var fg_quad = QuadMesh.new()
-	fg_quad.size = Vector2(_armor_bar_width, 0.06)
-	_armor_bar_fg.mesh = fg_quad
-	var fg_mat = StandardMaterial3D.new()
-	fg_mat.albedo_color = Color(0.6, 0.6, 0.6, 0.9)  # Gray
-	fg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	fg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	fg_mat.no_depth_test = true
-	fg_mat.render_priority = 1
-	_armor_bar_fg.material_override = fg_mat
-	_armor_bar_fg.position = Vector3(0, 0.75, 0.002)
-	add_child(_armor_bar_fg)
-
-	# Segment divider lines (one every 10 armor)
-	var num_segments = ceili(float(max_armor) / 10.0)
-	for i in range(1, num_segments):
-		var divider = MeshInstance3D.new()
-		var div_quad = QuadMesh.new()
-		div_quad.size = Vector2(0.03, 0.08)
-		divider.mesh = div_quad
-		var div_mat = StandardMaterial3D.new()
-		div_mat.albedo_color = Color(0.0, 0.0, 0.0, 1.0)
-		div_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		div_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		div_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		div_mat.no_depth_test = true
-		div_mat.render_priority = 10
-		divider.material_override = div_mat
-		var x_pos = -_armor_bar_width / 2.0 + (_armor_bar_width * float(i) / float(num_segments))
-		divider.position = Vector3(x_pos, 0.75, 0.005)
-		add_child(divider)
-		_armor_dividers.append(divider)
-
-	# Armor value label
+	# Armor value label rendered on top of the sprite
 	_armor_label = Label3D.new()
-	_armor_label.position = Vector3(0, 0.75, 0.007)
+	_armor_label.position = Vector3(0, 0.75, 0.001)
 	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_armor_label.font_size = 14
-	_armor_label.modulate = Color(0.9, 0.9, 0.9)
+	_armor_label.modulate = Color(0.95, 0.95, 0.95)
+	_armor_label.no_depth_test = true
+	_armor_label.render_priority = 20
 	add_child(_armor_label)
 
 	_update_armor_bar()
 
 func _update_armor_bar() -> void:
-	if not _armor_bar_bg:
+	if not _armor_bar_sprite:
 		return
 
-	if max_armor <= 0 or current_armor <= 0:
-		_armor_bar_bg.visible = max_armor > 0  # Keep BG visible if enemy had armor (shows empty)
-		_armor_bar_fg.visible = false
+	if max_armor <= 0:
+		_armor_bar_sprite.visible = false
 		if _armor_label:
-			_armor_label.text = "0" if max_armor > 0 else ""
+			_armor_label.text = ""
 		return
 
-	_armor_bar_bg.visible = true
-	_armor_bar_fg.visible = true
-
-	var progress = clampf(float(current_armor) / float(max_armor), 0.0, 1.0)
-	var current_width = _armor_bar_width * progress
-
-	var fg_mesh = _armor_bar_fg.mesh as QuadMesh
-	if fg_mesh:
-		fg_mesh.size.x = max(0.01, current_width)
-
-	_armor_bar_fg.position.x = -(_armor_bar_width - current_width) / 2.0
+	# Always show the bar (even when empty) so the player sees the segments.
+	_armor_bar_sprite.visible = true
+	_refresh_armor_bar_image()
 
 	if _armor_label:
 		_armor_label.text = str(current_armor)
+
+func _refresh_armor_bar_image() -> void:
+	## Bakes the entire armor bar (background, fill, dividers, border) into a single texture.
+	var w = _ARMOR_BAR_PIXEL_WIDTH
+	var h = _ARMOR_BAR_PIXEL_HEIGHT
+	var img = Image.create(w, h, false, Image.FORMAT_RGBA8)
+
+	# Background (dark)
+	img.fill(Color(0.15, 0.15, 0.15, 0.85))
+
+	# Foreground fill (gray) — proportional to current armor
+	var progress = 0.0
+	if max_armor > 0:
+		progress = clampf(float(current_armor) / float(max_armor), 0.0, 1.0)
+	var fill_w = int(round(float(w) * progress))
+	if fill_w > 0:
+		img.fill_rect(Rect2i(0, 0, fill_w, h), Color(0.65, 0.65, 0.65, 0.95))
+
+	# Divider lines (one every 10 armor) — drawn AFTER the fill so they're always visible
+	var num_segments = ceili(float(max_armor) / 10.0)
+	if num_segments > 1:
+		var divider_color = Color(0.0, 0.0, 0.0, 1.0)
+		for i in range(1, num_segments):
+			var x_pos = int(round(float(w) * float(i) / float(num_segments)))
+			# 3-pixel wide divider for clear visibility
+			var dx_start = max(0, x_pos - 1)
+			var dx_end = min(w, x_pos + 2)
+			img.fill_rect(Rect2i(dx_start, 0, dx_end - dx_start, h), divider_color)
+
+	# Outline border (top and bottom)
+	var border_color = Color(0.0, 0.0, 0.0, 1.0)
+	img.fill_rect(Rect2i(0, 0, w, 1), border_color)
+	img.fill_rect(Rect2i(0, h - 1, w, 1), border_color)
+	# Side borders
+	img.fill_rect(Rect2i(0, 0, 1, h), border_color)
+	img.fill_rect(Rect2i(w - 1, 0, 1, h), border_color)
+
+	_armor_bar_sprite.texture = ImageTexture.create_from_image(img)
 
 # ============================================
 # TEMPO-DRIVEN ACTION HANDLING
@@ -1576,10 +1568,8 @@ func die() -> void:
 	if _action_label:
 		_action_label.text = ""
 	# Hide armor bar on death
-	if _armor_bar_bg:
-		_armor_bar_bg.visible = false
-	if _armor_bar_fg:
-		_armor_bar_fg.visible = false
+	if _armor_bar_sprite:
+		_armor_bar_sprite.visible = false
 	if _armor_label:
 		_armor_label.text = ""
 
