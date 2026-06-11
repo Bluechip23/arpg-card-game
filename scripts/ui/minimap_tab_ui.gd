@@ -95,6 +95,18 @@ func _update_minimap() -> void:
 				if ix < main._minimap_image.get_width() and iz < main._minimap_image.get_height():
 					main._minimap_image.set_pixel(ix, iz, wp_col)
 
+	# Draw cave/building entrances (amber)
+	for site in main.dungeon_manager.site_nodes:
+		var sp: Vector2i = site["grid_pos"]
+		if site["kind"] != "exit" and not main.dungeon_manager.is_revealed(sp):
+			continue
+		for px in range(s):
+			for pz in range(s):
+				var ix = sp.x * s + px
+				var iz = sp.y * s + pz
+				if ix < main._minimap_image.get_width() and iz < main._minimap_image.get_height():
+					main._minimap_image.set_pixel(ix, iz, Color(1.0, 0.6, 0.15))
+
 	# Draw enemies
 	for enemy in main.enemy_spawner.get_living_enemies():
 		if not enemy.visible:
@@ -173,7 +185,7 @@ func _setup_tab_menu() -> void:
 	vbox.add_child(tab_hbox)
 
 	var map_tab_btn = Button.new()
-	map_tab_btn.text = "Dungeon Map"
+	map_tab_btn.text = "World Map"
 	map_tab_btn.custom_minimum_size = Vector2(140, 32)
 	map_tab_btn.add_theme_font_size_override("font_size", 16)
 	map_tab_btn.pressed.connect(_on_tab_map_pressed)
@@ -195,7 +207,7 @@ func _setup_tab_menu() -> void:
 
 	# World label
 	var world_lbl = Label.new()
-	world_lbl.text = "World %d" % main.current_world_level
+	world_lbl.text = main.get_location_label()
 	world_lbl.add_theme_font_size_override("font_size", 16)
 	world_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	world_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -434,6 +446,18 @@ func _refresh_expanded_map() -> void:
 				var iz = cp.y * scale + pz
 				if ix < img.get_width() and iz < img.get_height():
 					img.set_pixel(ix, iz, cc)
+
+	# Draw cave/building entrances (amber, slightly larger)
+	for site in main.dungeon_manager.site_nodes:
+		var sp: Vector2i = site["grid_pos"]
+		if site["kind"] != "exit" and not main.dungeon_manager.is_revealed(sp):
+			continue
+		for px in range(-1, scale + 1):
+			for pz in range(-1, scale + 1):
+				var ix = sp.x * scale + px
+				var iz = sp.y * scale + pz
+				if ix >= 0 and ix < img.get_width() and iz >= 0 and iz < img.get_height():
+					img.set_pixel(ix, iz, Color(1.0, 0.6, 0.15))
 
 	# Draw enemies
 	for enemy in main.enemy_spawner.get_living_enemies():

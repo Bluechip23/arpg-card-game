@@ -1,0 +1,149 @@
+extends SceneTree
+
+## Headless validation of dungeon generation across all worlds and interiors.
+## Run: godot --headless --path . --script test_dungeon_gen.gd
+
+var failures: int = 0
+
+func _initialize() -> void:
+	var holder = Node3D.new()
+	get_root().add_child(holder)
+
+	var configs = []
+	for level in range(1, 6):
+		configs.append({"level": level, "interior": ""})
+	configs.append({"level": 1, "interior": "cave_0"})
+	configs.append({"level": 3, "interior": "cave_1"})
+	configs.append({"level": 5, "interior": "cave_2"})
+	configs.append({"level": 1, "interior": "building_0"})
+	configs.append({"level": 3, "interior": "building_0"})
+	configs.append({"level": 5, "interior": "building_1"})
+
+	for cfg in configs:
+		var sig_a = _build_and_validate(holder, cfg)
+		var sig_b = _build_and_validate(holder, cfg, false)
+		if sig_a != sig_b:
+			failures += 1
+			print("FAIL %s: generation is not deterministic" % [cfg])
+
+	if failures == 0:
+		print("ALL DUNGEON TESTS PASSED")
+	else:
+		print("TOTAL FAILURES: %d" % failures)
+	quit(1 if failures > 0 else 0)
+
+func _build_and_validate(holder: Node3D, cfg: Dictionary, validate: bool = true) -> String:
+	var gm = GridManager.new()
+	holder.add_child(gm)
+	var parent = Node3D.new()
+	holder.add_child(parent)
+	var dm = DungeonManager.new()
+	holder.add_child(dm)
+	dm._opened_chests_ref = {}
+	dm.initialize(gm, parent, cfg["level"], cfg["interior"])
+
+	if validate:
+		_validate(dm, cfg)
+
+	# Layout signature for determinism comparison
+	var sig = "%dx%d|" % [dm.GRID_W, dm.GRID_H]
+	for x in range(dm.GRID_W):
+		for z in range(dm.GRID_H):
+			sig += "1" if dm.grid[x][z] == dm.Tile.FLOOR else "0"
+			sig += str(dm.elevation[x][z])
+	for c in dm.chest_nodes:
+		sig += "|c%s_g%d" % [c["grid_pos"], c["contents"]["gold"]]
+	for s in dm.site_nodes:
+		sig += "|s%s@%s" % [s["id"], s["grid_pos"]]
+	for zn in dm.spawn_zones:
+		sig += "|z%s" % [zn["spawn_points"]]
+
+	dm.clear()
+	dm.queue_free()
+	parent.queue_free()
+	gm.queue_free()
+	return sig.md5_text()
+
+func _fail(cfg: Dictionary, msg: String) -> void:
+	failures += 1
+	print("FAIL %s: %s" % [cfg, msg])
+
+func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
+	if not dm.is_floor(dm.player_start):
+		_fail(cfg, "player_start is not a floor tile")
+	if dm.get_elevation(dm.player_start) != 0:
+		_fail(cfg, "player_start is elevated")
+
+	# Full connectivity: every floor tile reachable from the start
+	var total = dm.get_floor_tiles().size()
+	var reached = _reachable_count(dm)
+	if reached != total:
+		_fail(cfg, "connectivity broken: %d/%d floor tiles reachable" % [reached, total])
+
+	for c in dm.chest_nodes:
+		if not dm.is_floor(c["grid_pos"]):
+			_fail(cfg, "chest off-floor at %s" % c["grid_pos"])
+
+	for wp in dm.waypoint_nodes:
+		if not dm.is_floor(wp["grid_pos"]):
+			_fail(cfg, "waypoint '%s' off-floor at %s" % [wp["target"], wp["grid_pos"]])
+
+	for s in dm.site_nodes:
+		if not dm.is_floor(s["grid_pos"]):
+			_fail(cfg, "site %s entrance off-floor at %s" % [s["id"], s["grid_pos"]])
+		for fp in s["footprint"]:
+			if dm.is_floor(fp):
+				_fail(cfg, "site %s footprint tile %s not blocked" % [s["id"], fp])
+
+	for zn in dm.spawn_zones:
+		for p in zn["spawn_points"]:
+			if not dm.is_floor(p):
+				_fail(cfg, "spawn point off-floor at %s" % p)
+		if zn["spawn_points"].size() != zn["enemy_types"].size():
+			_fail(cfg, "zone spawn point / type count mismatch")
+
+	if cfg["interior"] == "":
+		# Overworld expectations
+		if dm.waypoint_nodes.size() == 0:
+			_fail(cfg, "no waypoints in overworld")
+		var caves = 0
+		var buildings = 0
+		for s in dm.site_nodes:
+			if s["kind"] == "cave":
+				caves += 1
+			elif s["kind"] == "building":
+				buildings += 1
+		if caves == 0 or buildings == 0:
+			_fail(cfg, "expected at least 1 cave and 1 building, got %d/%d" % [caves, buildings])
+		# Next/prev world waypoints reachable on floor (already covered above)
+		print("INFO W%d: %dx%d, %d rooms, %d chests, %d zones, %d caves, %d buildings" % [
+			cfg["level"], dm.GRID_W, dm.GRID_H, dm.rooms.size(), dm.chest_nodes.size(),
+			dm.spawn_zones.size(), caves, buildings])
+	else:
+		if dm.get_site_by_id("exit") < 0:
+			_fail(cfg, "interior has no exit site")
+		if dm.waypoint_nodes.size() != 0:
+			_fail(cfg, "interior should not have waypoints")
+		if dm.chest_nodes.size() == 0:
+			_fail(cfg, "interior has no chests")
+		print("INFO %s (W%d): %dx%d, %d rooms, %d chests, %d zones" % [
+			cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rooms.size(),
+			dm.chest_nodes.size(), dm.spawn_zones.size()])
+
+func _reachable_count(dm: DungeonManager) -> int:
+	var visited: Dictionary = {}
+	var frontier: Array = [dm.player_start]
+	visited[dm.player_start] = true
+	var count = 0
+	while not frontier.is_empty():
+		var current: Vector2i = frontier.pop_back()
+		count += 1
+		for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var next = current + dir
+			if visited.has(next):
+				continue
+			if not dm.is_floor(next):
+				continue
+			visited[next] = true
+			frontier.append(next)
+	return count
