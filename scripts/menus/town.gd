@@ -21,6 +21,7 @@ var discovered_waypoints: Array = []
 var quest_state: Dictionary = {}
 var player_progression: Dictionary = {}
 var opened_chests: Dictionary = {}
+var return_world_level: int = 1  # World to return to when leaving town
 var nearby_vendor: StaticBody3D = null
 var vendor_open: bool = false
 var quest_manager: QuestManager = null
@@ -2172,6 +2173,7 @@ func _go_to_battle() -> void:
 		saved_progression["stats"] = stats.save_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.current_world_level = return_world_level
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
 	main_scene.player_progression = saved_progression

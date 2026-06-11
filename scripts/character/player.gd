@@ -30,9 +30,11 @@ var movement_paused: bool = false  # Pause movement while enemies act
 var grid_manager: GridManager
 var enemy_spawner = null  # Set by main.gd so pathfinding can avoid enemy tiles
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
+var ground_y_provider: Callable = Callable()  # Set by main.gd: world_pos -> desired ground Y
 var _last_position: Vector3 = Vector3.ZERO
 var _stuck_frames: int = 0
 const STUCK_THRESHOLD: int = 10  # Cancel movement after this many frames with no progress
+const CLIMB_GLIDE_SPEED: float = 3.5  # Vertical units/sec when stepping up/down terrain
 
 func _ready() -> void:
 	target_position = position
@@ -148,13 +150,23 @@ func resume_movement() -> void:
 	movement_paused = false
 
 func _physics_process(delta: float) -> void:
+	# Glide Y toward the terrain height (elevation steps, pillars) so climbs
+	# look like climbing instead of teleporting upward
+	if ground_y_provider.is_valid():
+		var ground_y: float = ground_y_provider.call(position)
+		if absf(position.y - ground_y) > 0.002:
+			position.y = move_toward(position.y, ground_y, CLIMB_GLIDE_SPEED * delta)
+		target_position.y = position.y
+
 	if is_moving and not movement_paused:
 		var diff = target_position - position
 		var flat_diff = Vector3(diff.x, 0, diff.z)
 		var distance = flat_diff.length()
 
 		if distance < 0.1:
-			position = target_position
+			# Snap XZ only — Y keeps gliding toward the terrain height
+			position.x = target_position.x
+			position.z = target_position.z
 			spaces_moved += 1
 			_stuck_frames = 0
 
@@ -221,15 +233,23 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 	if current_grid == target_grid:
 		return []
 
-	# BFS pathfinding — walls/barricades are impassable, enemy tiles are passable
+	# BFS pathfinding — walls/barricades are impassable, enemy tiles are passable.
+	# Blocked tiles go into a Dictionary first: large worlds have thousands of
+	# wall tiles and per-cell Array scans make clicks visibly laggy.
+	var blocked_lookup: Dictionary = {}
+	for tile in blocked_tiles:
+		blocked_lookup[tile] = true
+
 	var frontier: Array[Vector2i] = [current_grid]
+	var frontier_head: int = 0
 	var came_from: Dictionary = {}
 	came_from[current_grid] = current_grid
 
 	var directions = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
-	while frontier.size() > 0:
-		var current = frontier.pop_front()
+	while frontier_head < frontier.size():
+		var current = frontier[frontier_head]
+		frontier_head += 1
 
 		if current == target_grid:
 			break
@@ -238,7 +258,7 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 			var next = current + dir
 			if came_from.has(next):
 				continue
-			if next in blocked_tiles:
+			if blocked_lookup.has(next):
 				continue
 			if next.x < 0 or next.x >= grid_manager.grid_width or next.y < 0 or next.y >= grid_manager.grid_height:
 				continue
@@ -314,7 +334,10 @@ func blink_to(target_pos: Vector3) -> void:
 	if grid_manager:
 		target_pos = grid_manager.snap_to_grid(target_pos)
 	position = target_pos
-	target_position = target_pos
+	# Teleports land directly at terrain height (no glide)
+	if ground_y_provider.is_valid():
+		position.y = ground_y_provider.call(position)
+	target_position = position
 	is_moving = false
 	move_path.clear()
 	print("[PLAYER] Blinked to %s" % target_pos)

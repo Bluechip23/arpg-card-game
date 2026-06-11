@@ -50,6 +50,11 @@ var minimap_tab_ui: MinimapTabUI = null
 var player2_ui: Player2UI = null
 var current_world_level: int = 1
 
+# Interior the player is currently inside ("" = overworld). e.g. "cave_0"
+var current_interior_id: String = ""
+# When returning from an interior, respawn at that site's entrance
+var return_from_interior_id: String = ""
+
 # Global waypoint discovery tracking (persists across world transitions)
 # Each entry: { "world": int, "target": String, "display_name": String }
 var discovered_waypoints: Array = []
@@ -259,6 +264,7 @@ func _ready() -> void:
 	player.tile_reached.connect(_on_player_tile_reached)
 	player.set_grid_manager(grid_manager)
 	player.enemy_spawner = enemy_spawner
+	player.ground_y_provider = Callable(self, "_desired_ground_y")
 
 	move_dialog.confirmed.connect(_on_move_confirmed)
 	move_dialog.cancelled.connect(_on_move_cancelled)
@@ -366,19 +372,26 @@ func _update_camera() -> void:
 	camera.position = _camera_focus + offset
 	camera.look_at(_camera_focus, Vector3.UP)
 
-func _process(_delta: float) -> void:
+var _minimap_refresh_accum: float = 0.0
+
+func _process(delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
 	_update_damage_preview()
-	# Update chest interact prompts, waypoints, and enemy fog visibility
+	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
 		dungeon_manager.update_chest_prompts(pg)
 		dungeon_manager.update_waypoint_prompts(pg)
+		dungeon_manager.update_site_prompts(pg)
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
-		minimap_tab_ui._update_minimap()
+		# Throttle minimap redraws — repainting per-frame is wasteful on large worlds
+		_minimap_refresh_accum += delta
+		if _minimap_refresh_accum >= 0.2:
+			_minimap_refresh_accum = 0.0
+			minimap_tab_ui._update_minimap()
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
 		var mouse_world = get_mouse_world_position()
@@ -2320,11 +2333,7 @@ func _on_player_tile_reached() -> void:
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
 	_player_last_grid_cell = player_cell
 
-	# Adjust player Y position based on elevation
-	if dungeon_manager:
-		var elev_y = dungeon_manager.get_elevation_world_y(player_cell)
-		player.position.y = elev_y
-		player.target_position.y = elev_y
+	# Player Y follows terrain smoothly via ground_y_provider (see player.gd)
 
 	# Normal per-tile tempo
 	tempo_manager.add_movement_tempo()
@@ -2419,7 +2428,9 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	# Give enemy a reference to dungeon_manager for elevation lookups
 	if dungeon_manager:
 		enemy.dungeon_manager = dungeon_manager
-	# Adjust initial Y position based on terrain elevation
+	# Smooth terrain-following Y (elevation, pillars)
+	enemy.ground_y_provider = Callable(self, "_desired_ground_y")
+	# Snap initial Y position to terrain elevation
 	if dungeon_manager and grid_manager:
 		var enemy_cell = grid_manager.world_to_grid(enemy.position)
 		var elev_y = dungeon_manager.get_elevation_world_y(enemy_cell)
@@ -2465,12 +2476,7 @@ func _on_enemy_exposed(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_stephen_on_expose(enemy)
 
 func _on_enemy_movement_completed(enemy: Enemy) -> void:
-	# Adjust enemy Y position based on terrain elevation
-	if dungeon_manager and grid_manager:
-		var enemy_cell = grid_manager.world_to_grid(enemy.position)
-		var elev_y = dungeon_manager.get_elevation_world_y(enemy_cell)
-		enemy.position.y = elev_y
-		enemy.target_position.y = elev_y
+	# Enemy Y follows terrain smoothly via ground_y_provider (see enemy.gd)
 
 	# Cory: Territorial Death — check if enemy entered or left melee range
 	var dist = player.position.distance_to(enemy.position)
@@ -4293,8 +4299,10 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
-		# Chest / waypoint interaction (Shift key)
+		# Chest / waypoint / cave / building interaction (Shift key)
 		if event.keycode == KEY_SHIFT:
+			if _try_interact_site():
+				return
 			if waypoint_mgr._try_interact_waypoint():
 				return
 			chest_loot_ui._try_interact_chest()
@@ -4464,10 +4472,18 @@ func _setup_dungeon() -> void:
 	dungeon_manager.name = "DungeonManager"
 	dungeon_manager._opened_chests_ref = opened_chests
 	add_child(dungeon_manager)
-	dungeon_manager.initialize(grid_manager, self, current_world_level)
+	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
 
-	# Move player to dungeon start
+	# Move player to dungeon start (or back to the entrance of the interior we just left)
 	var start_pos = dungeon_manager.get_player_start_world()
+	if return_from_interior_id != "" and current_interior_id == "":
+		var site_idx = dungeon_manager.get_site_by_id(return_from_interior_id)
+		if site_idx >= 0:
+			var entrance: Vector2i = dungeon_manager.site_nodes[site_idx]["grid_pos"]
+			start_pos = grid_manager.grid_to_world(entrance)
+			start_pos.y = dungeon_manager.get_elevation_world_y(entrance)
+			dungeon_manager.reveal_around(entrance)
+		return_from_interior_id = ""
 	player.position = start_pos
 	player.target_position = start_pos
 
@@ -4516,7 +4532,10 @@ func _setup_dungeon() -> void:
 	# Build ground plane to match world size
 	_build_ground_plane()
 
-	print("[MAIN] Dungeon initialized (World %d), player at %s" % [current_world_level, start_pos])
+	# Tune lighting and atmosphere for this world / interior
+	_apply_world_ambience()
+
+	print("[MAIN] Dungeon initialized (%s), player at %s" % [get_location_label(), start_pos])
 
 func _sync_dungeon_blocked_tiles() -> void:
 	## Combines dungeon wall tiles with barricade tiles for pathfinding.
@@ -4609,6 +4628,107 @@ func _update_fog_of_war() -> void:
 	dungeon_manager.update_enemy_fog_visibility(
 		enemy_spawner.get_living_enemies(), grid_manager
 	)
+
+# ============================================
+# ENTERABLE SITES (CAVES & BUILDINGS)
+# ============================================
+
+func _try_interact_site() -> bool:
+	## Handles Shift near a cave/building entrance (or an interior exit).
+	if not dungeon_manager:
+		return false
+	var player_grid = grid_manager.world_to_grid(player.position)
+	var site_idx = dungeon_manager.get_nearby_site(player_grid)
+	if site_idx < 0:
+		return false
+	var site = dungeon_manager.site_nodes[site_idx]
+	if site["kind"] == "exit":
+		_exit_interior()
+	else:
+		_enter_interior(site["id"], site["display_name"])
+	return true
+
+func _enter_interior(interior_id: String, display_name: String = "") -> void:
+	print("[MAIN] Entering %s (%s) in World %d" % [display_name, interior_id, current_world_level])
+	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	var saved_progression = _save_player_progression()
+	var main_scene = load("res://scenes/core/main.tscn").instantiate()
+	main_scene.starting_character = starting_character
+	main_scene.current_world_level = current_world_level
+	main_scene.current_interior_id = interior_id
+	main_scene.discovered_waypoints = discovered_waypoints
+	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = saved_progression
+	main_scene.opened_chests = opened_chests
+	get_tree().root.add_child(main_scene)
+	queue_free()
+
+func _exit_interior() -> void:
+	print("[MAIN] Leaving %s, returning to World %d" % [current_interior_id, current_world_level])
+	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	var saved_progression = _save_player_progression()
+	var main_scene = load("res://scenes/core/main.tscn").instantiate()
+	main_scene.starting_character = starting_character
+	main_scene.current_world_level = current_world_level
+	main_scene.return_from_interior_id = current_interior_id
+	main_scene.discovered_waypoints = discovered_waypoints
+	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = saved_progression
+	main_scene.opened_chests = opened_chests
+	get_tree().root.add_child(main_scene)
+	queue_free()
+
+func get_location_label() -> String:
+	## Human-readable current location, e.g. "World 2" or "World 2 — Cave 1".
+	if not dungeon_manager:
+		return "World %d" % current_world_level
+	if current_interior_id == "":
+		return "World %d" % current_world_level
+	return "World %d — %s" % [current_world_level, dungeon_manager.get_location_name()]
+
+func _desired_ground_y(world_pos: Vector3) -> float:
+	## The Y a unit standing at world_pos should rest at (pillar or terrain).
+	## Player and enemies glide toward this each frame for smooth climbs.
+	if is_on_pillar(world_pos):
+		return 2.0
+	if dungeon_manager and grid_manager:
+		return dungeon_manager.get_elevation_world_y(grid_manager.world_to_grid(world_pos))
+	return 0.0
+
+func _apply_world_ambience() -> void:
+	## Adjusts environment lighting, fog, and sun per world palette so each
+	## world (and cave/building interior) has its own atmosphere.
+	if not dungeon_manager:
+		return
+	var pal: Dictionary = dungeon_manager.get_palette()
+	var in_cave = current_interior_id.begins_with("cave")
+	var in_building = current_interior_id.begins_with("building")
+
+	var world_env = get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if world_env and world_env.environment:
+		var env = world_env.environment
+		env.ambient_light_color = pal.get("ambient", Color(0.3, 0.3, 0.35))
+		env.ambient_light_energy = 0.35 if in_cave else 0.55
+		env.fog_enabled = true
+		env.fog_light_color = pal.get("ambient", Color(0.2, 0.2, 0.25)).darkened(0.55)
+		if in_cave:
+			env.fog_density = 0.025
+		elif in_building:
+			env.fog_density = 0.012
+		else:
+			env.fog_density = 0.006
+		env.ssao_enabled = true
+		env.ssao_intensity = 1.6
+
+	var sun = get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if sun:
+		sun.light_color = pal.get("sun", Color(1, 0.95, 0.9))
+		var energy: float = pal.get("sun_energy", 1.2)
+		if in_cave:
+			energy = 0.4
+		elif in_building:
+			energy = 0.8
+		sun.light_energy = energy
 
 
 # ============================================
@@ -5595,6 +5715,8 @@ func _travel_to_town() -> void:
 	var saved_progression = _save_player_progression()
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
+	if "return_world_level" in town_scene:
+		town_scene.return_world_level = current_world_level
 	if "discovered_waypoints" in town_scene:
 		town_scene.discovered_waypoints = discovered_waypoints
 	if "quest_state" in town_scene:
@@ -5629,13 +5751,14 @@ func _build_ground_plane() -> void:
 	var ground = MeshInstance3D.new()
 	ground.name = "GroundPlane"
 	var plane_mesh = PlaneMesh.new()
-	plane_mesh.size = Vector2(dungeon_manager.GRID_W, dungeon_manager.GRID_H)
+	plane_mesh.size = Vector2(dungeon_manager.GRID_W + 40, dungeon_manager.GRID_H + 40)
 	ground.mesh = plane_mesh
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.15, 0.12, 0.1)
+	mat.albedo_color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1))
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mat.roughness = 1.0
 	ground.material_override = mat
-	ground.position = Vector3(dungeon_manager.GRID_W / 2.0, -0.01, dungeon_manager.GRID_H / 2.0)
+	ground.position = Vector3(dungeon_manager.GRID_W / 2.0, -0.12, dungeon_manager.GRID_H / 2.0)
 	add_child(ground)
 
 # ============================================

@@ -39,6 +39,7 @@ var is_dead: bool = false
 
 var grid_manager: GridManager
 var dungeon_manager = null  # Set by main.gd for elevation lookups
+var ground_y_provider: Callable = Callable()  # Set by main.gd: world_pos -> desired ground Y
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
 var pillar_tiles: Array[Vector2i] = []   # Set by main.gd for rise pillars (traps enemy on top)
 var occupied_tiles: Array[Vector2i] = [] # Set by main.gd: tiles occupied by other enemies
@@ -1129,17 +1130,23 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
 
+	# Glide Y toward the terrain height (elevation steps, pillars) so climbs
+	# look like climbing instead of teleporting upward
+	if ground_y_provider.is_valid():
+		var ground_y: float = ground_y_provider.call(position)
+		if absf(position.y - ground_y) > 0.002:
+			position.y = move_toward(position.y, ground_y, 3.5 * delta)
+		target_position.y = position.y
+
 	if is_moving:
 		var diff = target_position - position
 		var flat_diff = Vector3(diff.x, 0, diff.z)
 		var distance = flat_diff.length()
 
 		if distance < 0.1:
-			position = target_position
-			# Snap Y to terrain elevation
-			if dungeon_manager and grid_manager:
-				var cell = grid_manager.world_to_grid(position)
-				position.y = dungeon_manager.get_elevation_world_y(cell)
+			# Snap XZ only — Y keeps gliding toward the terrain height
+			position.x = target_position.x
+			position.z = target_position.z
 			is_moving = false
 			velocity = Vector3.ZERO
 			_play_enemy_animation("idle")
