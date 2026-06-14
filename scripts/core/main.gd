@@ -124,10 +124,10 @@ var player2_character: CharacterData = null
 var is_multiplayer: bool = false
 
 # Roguelike battle hand-off. When non-empty, this main scene was launched by the
-# roguelike map to resolve a single encounter. On victory it emits
+# roguelike map to resolve a single encounter. On victory OR death it emits
 # roguelike_battle_finished and the map removes/frees this scene. Empty for all
 # normal story / fight / multiplayer flows, which keep their existing behavior.
-signal roguelike_battle_finished(victory: bool)
+signal roguelike_battle_finished(victory: bool, remaining_hp: int)
 var roguelike_context: Dictionary = {}
 var _roguelike_active: bool = false
 
@@ -2537,11 +2537,20 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 func _on_all_enemies_defeated() -> void:
 	if _roguelike_active:
 		_roguelike_active = false
-		print("[MAIN] Roguelike encounter cleared — returning to map.")
-		roguelike_battle_finished.emit(true)
+		var hp := player.get_stats().current_health if player and player.get_stats() else 0
+		print("[MAIN] Roguelike encounter cleared — returning to map (HP %d)." % hp)
+		roguelike_battle_finished.emit(true, hp)
 		return
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
+
+func _on_roguelike_player_died() -> void:
+	## Player died during a roguelike encounter — the run is over.
+	if not _roguelike_active:
+		return
+	_roguelike_active = false
+	print("[MAIN] Player died in roguelike encounter — run over.")
+	roguelike_battle_finished.emit(false, 0)
 
 func _start_roguelike_battle() -> void:
 	## Spawn the encounter for the roguelike map node that launched this scene,
@@ -2562,6 +2571,10 @@ func _start_roguelike_battle() -> void:
 	_sync_pillar_tiles()
 	_update_enemy_count()
 	_refresh_unit_tracker()
+	# End the run if the player dies this encounter.
+	var stats = player.get_stats()
+	if stats and not stats.died.is_connected(_on_roguelike_player_died):
+		stats.died.connect(_on_roguelike_player_died)
 	_roguelike_active = true
 	print("[MAIN] Roguelike encounter started (%s)." % node_type)
 

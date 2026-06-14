@@ -25,6 +25,11 @@ extends Resource
 # sphere inventory + unlocked nodes, quest state, waypoints and opened chests.
 @export var progression: Dictionary = {}
 
+# The character's single in-progress roguelike run (RoguelikeRun.to_dict()).
+# Empty when there is no active run. A character can only have one at a time;
+# it is resumed on re-entry and cleared when the run ends (victory or death).
+@export var active_run: Dictionary = {}
+
 # Save metadata
 @export var save_slot: int = 0
 @export var save_timestamp: String = ""

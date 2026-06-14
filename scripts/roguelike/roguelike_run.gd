@@ -2,8 +2,14 @@ class_name RoguelikeRun
 extends RefCounted
 
 ## Holds the live state of a single roguelike run: the map, where the player
-## currently is, and run resources (HP, gold). Kept in memory for the first
-## slice — nothing here is written to disk yet.
+## currently is, run resources (HP, gold), and a FROZEN snapshot of the world's
+## meta-progression taken at the moment the run began.
+##
+## A character may only have one run in progress at a time (it is persisted on
+## their save and resumed on re-entry). The run reads what's available from its
+## meta_snapshot, never from the live world — anything the player unlocks during
+## the run accrues to the world (persistent) but does not help this run. They
+## must start a NEW run to play with the newly unlocked meta-progression.
 
 var character: CharacterData = null
 var world: WorldData = null
@@ -20,6 +26,9 @@ var gold: int = 0
 var floor_reached: int = 0
 var finished: bool = false
 var victorious: bool = false
+
+## Frozen copy of the world's meta-progression unlock pools at run start.
+var meta_snapshot: Dictionary = {}
 
 func start(char_data: CharacterData, world_data: WorldData, seed_val: int = -1) -> void:
 	character = char_data
@@ -42,8 +51,45 @@ func start(char_data: CharacterData, world_data: WorldData, seed_val: int = -1) 
 	hp = max_hp
 	gold = 0
 
+	# Freeze the world's meta-progression for the whole run.
+	meta_snapshot = _snapshot_world_meta(world)
+
 	if world:
 		world.runs_started += 1
+
+func _snapshot_world_meta(world_data: WorldData) -> Dictionary:
+	if not world_data:
+		return {}
+	return {
+		"relics": world_data.unlocked_relic_ids.duplicate(),
+		"vendors": world_data.unlocked_vendor_ids.duplicate(),
+		"events": world_data.unlocked_event_ids.duplicate(),
+		"node_types": world_data.unlocked_node_type_ids.duplicate(),
+		"node_upgrades": world_data.node_upgrades.duplicate(true),
+	}
+
+func is_active() -> bool:
+	return not finished
+
+## Record a meta-progression unlock earned DURING the run. It is written to the
+## live world (so a future run can use it) but deliberately NOT added to this
+## run's frozen meta_snapshot.
+func record_meta_unlock(category: String, id: String) -> void:
+	if not world:
+		return
+	match category:
+		"relic":
+			if not world.unlocked_relic_ids.has(id):
+				world.unlocked_relic_ids.append(id)
+		"vendor":
+			if not world.unlocked_vendor_ids.has(id):
+				world.unlocked_vendor_ids.append(id)
+		"event":
+			if not world.unlocked_event_ids.has(id):
+				world.unlocked_event_ids.append(id)
+		"node_type":
+			if not world.unlocked_node_type_ids.has(id):
+				world.unlocked_node_type_ids.append(id)
 
 ## Node ids the player may move to right now.
 func available_node_ids() -> Array[int]:
@@ -93,3 +139,39 @@ func damage(amount: int) -> void:
 
 func add_gold(amount: int) -> void:
 	gold = maxi(0, gold + amount)
+
+# ----------------------------------------------------------------------------
+# Persistence (so a character's single in-progress run survives and resumes)
+# ----------------------------------------------------------------------------
+
+func to_dict() -> Dictionary:
+	return {
+		"seed": seed_value,
+		"map": map.to_dict() if map else {},
+		"current_node_id": current_node_id,
+		"max_hp": max_hp,
+		"hp": hp,
+		"gold": gold,
+		"floor_reached": floor_reached,
+		"finished": finished,
+		"victorious": victorious,
+		"meta_snapshot": meta_snapshot,
+	}
+
+## Rebuild a run from a saved dict. character/world are supplied by the caller
+## (they live elsewhere); the map and run state come from the dict.
+static func from_dict(data: Dictionary, char_data: CharacterData, world_data: WorldData) -> RoguelikeRun:
+	var run := RoguelikeRun.new()
+	run.character = char_data
+	run.world = world_data
+	run.seed_value = int(data.get("seed", 0))
+	run.map = RoguelikeMap.from_dict(data.get("map", {}))
+	run.current_node_id = int(data.get("current_node_id", -1))
+	run.max_hp = int(data.get("max_hp", 50))
+	run.hp = int(data.get("hp", run.max_hp))
+	run.gold = int(data.get("gold", 0))
+	run.floor_reached = int(data.get("floor_reached", 0))
+	run.finished = bool(data.get("finished", false))
+	run.victorious = bool(data.get("victorious", false))
+	run.meta_snapshot = data.get("meta_snapshot", {})
+	return run

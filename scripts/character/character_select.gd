@@ -287,12 +287,12 @@ func _launch_roguelike(character: CharacterData) -> void:
 	print("[SELECT] Starting roguelike run as %s" % character.character_name)
 	var map_scene = load("res://scenes/roguelike/roguelike_map.tscn").instantiate()
 	map_scene.character = character
-	# Carry the character's saved story progression into the run (deck, stats,
-	# sphere grid). Preset characters have no save and start vanilla.
+	# Hand the saved character to the map so it can carry story progression into
+	# battles and persist/resume the character's single active run. Preset
+	# characters have no save and run ephemerally.
 	var save: SaveData = _roguelike_saves.get(character, null)
 	if save:
-		map_scene.save_progression = save.progression
-		map_scene.save_world_level = save.world_level
+		map_scene.save = save
 	get_tree().root.add_child(map_scene)
 	queue_free()
 

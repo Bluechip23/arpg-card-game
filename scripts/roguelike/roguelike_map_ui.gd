@@ -19,8 +19,11 @@ const NODE_SIZE := 46.0
 var character: CharacterData = null
 ## Optionally injected (e.g. from a saved world); defaults to a fresh world.
 var world: WorldData = null
-## Disk-safe saved story progression for this character (empty for presets).
-## Carried into each battle so the run plays with the character's real build.
+## The saved character behind this run (null for preset/test characters). Used
+## to carry story progression into battles and to persist/resume the single
+## active run so a character can only have one going at a time.
+var save: SaveData = null
+
 var save_progression: Dictionary = {}
 var save_world_level: int = 1
 
@@ -36,17 +39,26 @@ func _ready() -> void:
 		world = WorldData.make_new("Prime World")
 	if not character:
 		character = CharacterData.create_ryan()
+	if save:
+		save_progression = save.progression
+		save_world_level = save.world_level
 
-	run = RoguelikeRun.new()
-	run.start(character, world)
-
-	# If this character has saved story progression, size the run HP pool from
-	# their real max health rather than the vanilla base-health formula.
-	if not save_progression.is_empty():
-		var saved_stats: Dictionary = save_progression.get("stats", {})
-		if saved_stats.has("max_health"):
-			run.max_hp = int(saved_stats["max_health"])
-			run.hp = run.max_hp
+	if save and not save.active_run.is_empty():
+		# Resume the character's single in-progress run.
+		run = RoguelikeRun.from_dict(save.active_run, character, world)
+		print("[ROGUELIKE] Resumed in-progress run for %s" % character.character_name)
+	else:
+		# Start a fresh run and record it as this character's active run.
+		run = RoguelikeRun.new()
+		run.start(character, world)
+		# If this character has saved story progression, size the run HP pool
+		# from their real max health rather than the vanilla base-health formula.
+		if not save_progression.is_empty():
+			var saved_stats: Dictionary = save_progression.get("stats", {})
+			if saved_stats.has("max_health"):
+				run.max_hp = int(saved_stats["max_health"])
+				run.hp = run.max_hp
+		_persist_run()
 
 	_setup_header()
 	_build_nodes()
@@ -54,6 +66,14 @@ func _ready() -> void:
 	_refresh()
 
 	get_viewport().size_changed.connect(_on_viewport_resized)
+
+func _persist_run() -> void:
+	## Save (or clear) the character's single active run. No-op for presets,
+	## which have no save to write to.
+	if not save:
+		return
+	save.active_run = {} if run.finished else run.to_dict()
+	SaveManager.save_game(save.save_slot, save)
 
 func _on_viewport_resized() -> void:
 	_layout()
@@ -226,6 +246,7 @@ func _on_node_pressed(id: int) -> void:
 
 func _commit_node(id: int) -> void:
 	run.resolve_node(id)
+	_persist_run()
 	_refresh()
 	if run.finished:
 		_show_end_overlay()
@@ -251,12 +272,14 @@ func _launch_battle(node: RoguelikeMapNode) -> void:
 	process_mode = Node.PROCESS_MODE_DISABLED
 	get_tree().root.add_child(main_scene)
 
-func _on_battle_finished(victory: bool, node_id: int, main_scene: Node) -> void:
+func _on_battle_finished(victory: bool, remaining_hp: int, node_id: int, main_scene: Node) -> void:
 	if is_instance_valid(main_scene):
 		main_scene.queue_free()
 	visible = true
 	process_mode = Node.PROCESS_MODE_INHERIT
 	if victory:
+		# Carry the player's surviving HP back to the run.
+		run.hp = clampi(remaining_hp, 1, run.max_hp)
 		var node := run.map.get_node(node_id)
 		var reward := 25 if node and node.type == RoguelikeMapNode.Type.ELITE else 12
 		if node and node.type == RoguelikeMapNode.Type.BOSS:
@@ -264,8 +287,11 @@ func _on_battle_finished(victory: bool, node_id: int, main_scene: Node) -> void:
 		run.add_gold(reward)
 		_commit_node(node_id)
 	else:
+		# Death in combat ends the run — no continue.
+		run.hp = 0
 		run.finished = true
 		run.victorious = false
+		_persist_run()
 		_refresh()
 		_show_end_overlay()
 
@@ -329,11 +355,21 @@ func _show_end_overlay() -> void:
 func _on_quit_pressed() -> void:
 	if _modal:
 		return
-	var on_abandon := func() -> void:
-		_return_to_menu()
 	var on_keep := func() -> void:
 		_close_modal()
-	_modal = _make_modal("Abandon Run?", "Leave this run and return to the main menu?", "Abandon", on_abandon, "Keep Playing", on_keep)
+	# Exit but keep the run — it's already saved and will resume next time. A
+	# character can only have one run going, so this is how you step away.
+	var on_exit := func() -> void:
+		_return_to_menu()
+	# Abandon ends the run for good; the slot is freed so a fresh run (with any
+	# newly unlocked meta-progression) can be started later.
+	var on_abandon := func() -> void:
+		run.finished = true
+		run.victorious = false
+		_persist_run()
+		_return_to_menu()
+	var body := "Exit keeps this run so you can resume it later — you can only have one run at a time.\n\nAbandon ends it for good."
+	_modal = _make_modal("Leave Run?", body, "Keep Playing", on_keep, "Abandon Run", on_abandon, "Exit (resume later)", on_exit)
 
 func _return_to_menu() -> void:
 	var title_scene = load(TitleScenePath).instantiate()
@@ -345,7 +381,8 @@ func _return_to_menu() -> void:
 # ----------------------------------------------------------------------------
 
 func _make_modal(title: String, body: String, primary_label: String, primary_cb: Callable,
-		secondary_label: String = "", secondary_cb: Callable = Callable()) -> Control:
+		secondary_label: String = "", secondary_cb: Callable = Callable(),
+		tertiary_label: String = "", tertiary_cb: Callable = Callable()) -> Control:
 	var overlay := ColorRect.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.color = Color(0, 0, 0, 0.65)
@@ -406,6 +443,13 @@ func _make_modal(title: String, body: String, primary_label: String, primary_cb:
 		sbtn.custom_minimum_size = Vector2(140, 40)
 		sbtn.pressed.connect(secondary_cb)
 		btn_row.add_child(sbtn)
+
+	if tertiary_label != "":
+		var tbtn := Button.new()
+		tbtn.text = tertiary_label
+		tbtn.custom_minimum_size = Vector2(140, 40)
+		tbtn.pressed.connect(tertiary_cb)
+		btn_row.add_child(tbtn)
 
 	var pbtn := Button.new()
 	pbtn.text = primary_label
