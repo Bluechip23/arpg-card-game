@@ -39,6 +39,7 @@ var _unlock_button: Button = null
 var _hovered_constellation_id: String = ""  # Constellation being hovered in the list
 var _constellation_list_panel: PanelContainer = null
 var _constellation_list_vbox: VBoxContainer = null
+var _constellation_list_collapsed: bool = false  # When true, only the header row is shown
 var _constellation_hover_panel: PanelContainer = null  # Tooltip shown on hover
 
 # Constellation confirmation modal state
@@ -618,12 +619,34 @@ func _refresh_constellation_list() -> void:
 	for child in _constellation_list_vbox.get_children():
 		child.queue_free()
 
-	# Title
+	_constellation_list_panel.visible = true
+
+	# Header row: title + minimize/restore toggle
+	var header = HBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	header.custom_minimum_size = Vector2(180, 0)
+
 	var title = Label.new()
 	title.text = "CONSTELLATIONS"
 	title.add_theme_font_size_override("font_size", 14)
 	title.add_theme_color_override("font_color", Color(0.85, 0.8, 0.5))
-	_constellation_list_vbox.add_child(title)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+
+	var toggle = Button.new()
+	toggle.text = "+" if _constellation_list_collapsed else "-"
+	toggle.tooltip_text = "Expand" if _constellation_list_collapsed else "Minimize"
+	toggle.focus_mode = Control.FOCUS_NONE
+	toggle.custom_minimum_size = Vector2(22, 22)
+	toggle.add_theme_font_size_override("font_size", 14)
+	toggle.pressed.connect(_on_constellation_list_toggle)
+	header.add_child(toggle)
+
+	_constellation_list_vbox.add_child(header)
+
+	# When minimized, show only the header so the list stays out of the way.
+	if _constellation_list_collapsed:
+		return
 
 	var sep = HSeparator.new()
 	sep.add_theme_stylebox_override("separator", StyleBoxLine.new())
@@ -636,7 +659,10 @@ func _refresh_constellation_list() -> void:
 		var entry = _create_constellation_entry(c, progress)
 		_constellation_list_vbox.add_child(entry)
 
-	_constellation_list_panel.visible = true
+func _on_constellation_list_toggle() -> void:
+	## Collapse/expand the constellation list, leaving just its header visible.
+	_constellation_list_collapsed = not _constellation_list_collapsed
+	_refresh_constellation_list()
 
 func _create_constellation_entry(c: SphereGrid.Constellation, progress: Dictionary) -> HBoxContainer:
 	var hbox = HBoxContainer.new()
