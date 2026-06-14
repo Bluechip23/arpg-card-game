@@ -177,6 +177,14 @@ func _apply_styles() -> void:
 		cancel_button.add_theme_stylebox_override("hover", cancel_hover)
 
 func _setup_characters() -> void:
+	# Roguelike: offer previously saved (story) characters first. The gate that
+	# restricts runs to story-started characters is intentionally left open for
+	# now, so the preset characters below remain available for testing too.
+	if game_mode == "roguelike":
+		_add_saved_character_cards()
+		_add_preset_character_cards()
+		return
+
 	# Add "Customize from Inquiry" as the first option (quiz character)
 	var quiz_data = CharacterData.new()
 	quiz_data.character_name = "Customize"
@@ -205,6 +213,9 @@ func _setup_characters() -> void:
 	quiz_card.selected.connect(_on_character_selected)
 
 	# Add the 5 preset characters
+	_add_preset_character_cards()
+
+func _add_preset_character_cards() -> void:
 	var characters = CharacterData.get_all_characters()
 	for character in characters:
 		var card = CharacterCardScene.instantiate()
@@ -212,6 +223,16 @@ func _setup_characters() -> void:
 		card.setup(character)
 		card.selected.connect(_on_character_selected)
 		card.skill_tree_requested.connect(_on_skill_tree_requested)
+
+func _add_saved_character_cards() -> void:
+	## Builds a card for each saved character (used in roguelike selection).
+	for save in SaveManager.get_all_saves():
+		if save == null or save.character_data == null:
+			continue
+		var card = CharacterCardScene.instantiate()
+		character_container.add_child(card)
+		card.setup(save.character_data)
+		card.selected.connect(_on_character_selected)
 
 func _on_character_selected(character: CharacterData) -> void:
 	print("[SELECT] Character selected: %s" % character.character_name)

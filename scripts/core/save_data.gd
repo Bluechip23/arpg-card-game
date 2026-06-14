@@ -8,6 +8,9 @@ extends Resource
 @export var current_location: String = "Town"
 @export var time_played_seconds: float = 0.0
 @export var sprite_path: String = ""
+# World/story progress this character has reached. Used for display and (later)
+# to gate the roguelike to characters that have started the story.
+@export var world_level: int = 1
 
 # Full character data for loading back into the game
 @export var character_data: CharacterData = null
