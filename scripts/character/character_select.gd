@@ -252,8 +252,18 @@ func _on_proceed_pressed() -> void:
 		_handle_singleplayer_proceed()
 
 func _handle_singleplayer_proceed() -> void:
+	if game_mode == "roguelike":
+		_launch_roguelike(_selected_character)
+		return
 	# Show the mode select (Town vs Fight) as a second confirmation
 	_show_mode_select()
+
+func _launch_roguelike(character: CharacterData) -> void:
+	print("[SELECT] Starting roguelike run as %s" % character.character_name)
+	var map_scene = load("res://scenes/roguelike/roguelike_map.tscn").instantiate()
+	map_scene.character = character
+	get_tree().root.add_child(map_scene)
+	queue_free()
 
 func _handle_multiplayer_proceed() -> void:
 	if _selecting_player == 1:

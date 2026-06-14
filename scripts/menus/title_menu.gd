@@ -18,6 +18,7 @@ var _menu_buttons: Array[Button] = []
 
 var _menu_items: Array[Dictionary] = [
 	{"text": "Single Player", "action": "_on_single_player"},
+	{"text": "Roguelike", "action": "_on_roguelike"},
 	{"text": "Multiplayer", "action": "_on_multiplayer"},
 	{"text": "Compendium", "action": "_on_compendium"},
 	{"text": "Settings", "action": "_on_settings"},
@@ -136,6 +137,12 @@ func _on_single_player() -> void:
 func _on_character_quiz() -> void:
 	var quiz_scene = QuestionnaireScene.instantiate()
 	get_tree().root.add_child(quiz_scene)
+	queue_free()
+
+func _on_roguelike() -> void:
+	var select_scene = CharacterSelectScene.instantiate()
+	select_scene.game_mode = "roguelike"
+	get_tree().root.add_child(select_scene)
 	queue_free()
 
 func _on_multiplayer() -> void:
