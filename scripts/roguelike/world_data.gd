@@ -32,6 +32,10 @@ extends Resource
 @export var runs_completed: int = 0
 @export var deepest_floor_reached: int = 0
 
+# Obtained in the main story. Until the character earns "The Rogue's Map of
+# Seeing", the run map shows every room as "?" (the boss aside).
+@export var has_rogue_map_of_seeing: bool = false
+
 static func make_new(name: String) -> WorldData:
 	var w := WorldData.new()
 	w.world_name = name
@@ -60,6 +64,7 @@ func to_dict() -> Dictionary:
 		"runs_started": runs_started,
 		"runs_completed": runs_completed,
 		"deepest_floor_reached": deepest_floor_reached,
+		"has_rogue_map_of_seeing": has_rogue_map_of_seeing,
 	}
 
 static func from_dict(data: Dictionary) -> WorldData:
@@ -88,4 +93,5 @@ static func from_dict(data: Dictionary) -> WorldData:
 	w.runs_started = int(data.get("runs_started", 0))
 	w.runs_completed = int(data.get("runs_completed", 0))
 	w.deepest_floor_reached = int(data.get("deepest_floor_reached", 0))
+	w.has_rogue_map_of_seeing = bool(data.get("has_rogue_map_of_seeing", false))
 	return w

@@ -33,13 +33,18 @@ func _initialize() -> void:
 	if run.meta_snapshot.get("relics", []).has("r2"):
 		_fail("mid-run unlock leaked into the frozen snapshot")
 
-	# --- Walk two floors, then serialize round-trip ---
+	# --- Walk two floors, collect spoils, then serialize round-trip ---
 	run.resolve_node(run.available_node_ids()[0])
 	run.resolve_node(run.available_node_ids()[0])
+	run.deck_cards.append("slash")
+	run.potions.append("healing_draught")
+	run.relics.append("golden_idol")
 	var disk := run.to_dict()
 	var run2 := RoguelikeRun.from_dict(disk, run.character, world)
 	if run2.current_node_id != run.current_node_id:
 		_fail("current node id not preserved")
+	if run2.deck_cards != run.deck_cards or run2.potions != run.potions or run2.relics != run.relics:
+		_fail("run inventories (cards/potions/relics) not preserved")
 	if run2.hp != run.hp or run2.max_hp != run.max_hp or run2.gold != run.gold:
 		_fail("run resources not preserved")
 	if run2.map.nodes_by_id.size() != run.map.nodes_by_id.size():
@@ -89,10 +94,13 @@ func _initialize() -> void:
 	r6.start(CharacterData.create_ryan(), w2, 12)
 	if not r6.has_node_upgrade("campfire", "deep_rest"):
 		_fail("new run did not pick up the unlocked upgrade")
-	# World meta survives a disk round-trip.
+	# World meta survives a disk round-trip (including the map-sight flag).
+	w2.has_rogue_map_of_seeing = true
 	var w3 := WorldData.from_dict(w2.to_dict())
 	if not w3.has_node_upgrade("campfire", "deep_rest"):
 		_fail("world meta did not survive serialization")
+	if not w3.has_rogue_map_of_seeing:
+		_fail("rogue map flag did not survive serialization")
 
 	if failures == 0:
 		print("ALL ROGUELIKE PERSISTENCE TESTS PASSED")

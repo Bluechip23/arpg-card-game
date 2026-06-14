@@ -27,6 +27,12 @@ var floor_reached: int = 0
 var finished: bool = false
 var victorious: bool = false
 
+## Things picked up during the run (acquired card ids added to the deck for
+## later battles, potions held, relics carried this run).
+var deck_cards: Array[String] = []
+var potions: Array[String] = []
+var relics: Array[String] = []
+
 ## Frozen copy of the world's meta-progression unlock pools at run start.
 var meta_snapshot: Dictionary = {}
 
@@ -175,6 +181,9 @@ func to_dict() -> Dictionary:
 		"floor_reached": floor_reached,
 		"finished": finished,
 		"victorious": victorious,
+		"deck_cards": deck_cards.duplicate(),
+		"potions": potions.duplicate(),
+		"relics": relics.duplicate(),
 		"meta_snapshot": meta_snapshot,
 	}
 
@@ -193,5 +202,11 @@ static func from_dict(data: Dictionary, char_data: CharacterData, world_data: Wo
 	run.floor_reached = int(data.get("floor_reached", 0))
 	run.finished = bool(data.get("finished", false))
 	run.victorious = bool(data.get("victorious", false))
+	for c in data.get("deck_cards", []):
+		run.deck_cards.append(str(c))
+	for p in data.get("potions", []):
+		run.potions.append(str(p))
+	for r in data.get("relics", []):
+		run.relics.append(str(r))
 	run.meta_snapshot = data.get("meta_snapshot", {})
 	return run

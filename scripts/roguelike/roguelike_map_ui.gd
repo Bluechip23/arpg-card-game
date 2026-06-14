@@ -10,7 +10,7 @@ extends Control
 const MainScenePath := "res://scenes/core/main.tscn"
 const TitleScenePath := "res://scenes/menus/title_menu.tscn"
 
-const TOP_MARGIN := 96.0
+const TOP_MARGIN := 120.0
 const BOTTOM_MARGIN := 48.0
 const SIDE_MARGIN := 280.0
 const NODE_SIZE := 46.0
@@ -66,10 +66,24 @@ func _ready() -> void:
 
 	_setup_header()
 	_build_nodes()
+	if not (world and world.has_rogue_map_of_seeing):
+		_setup_map_hidden_note()
 	_layout()
 	_refresh()
 
 	get_viewport().size_changed.connect(_on_viewport_resized)
+
+func _setup_map_hidden_note() -> void:
+	var note := Label.new()
+	note.name = "MapHiddenNote"
+	note.text = "\"The Rogue's Map of Seeing\" has not been obtained in the main world — rooms are hidden."
+	note.add_theme_font_size_override("font_size", 14)
+	note.add_theme_color_override("font_color", Color(0.85, 0.8, 0.55))
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	note.offset_top = 74.0
+	note.offset_bottom = 96.0
+	add_child(note)
 
 func _persist_run() -> void:
 	## Save (or clear) the character's single active run plus the shared world
@@ -120,18 +134,24 @@ func _setup_header() -> void:
 	quit_btn.pressed.connect(_on_quit_pressed)
 	hbox.add_child(quit_btn)
 
+func _node_revealed(node: RoguelikeMapNode) -> bool:
+	## Room contents are hidden until the world has The Rogue's Map of Seeing.
+	## The boss is always shown.
+	return node.type == RoguelikeMapNode.Type.BOSS or (world and world.has_rogue_map_of_seeing)
+
 func _build_nodes() -> void:
 	for id in run.map.nodes_by_id.keys():
 		var node: RoguelikeMapNode = run.map.nodes_by_id[id]
+		var revealed := _node_revealed(node)
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(NODE_SIZE, NODE_SIZE)
 		btn.size = Vector2(NODE_SIZE, NODE_SIZE)
-		btn.text = RoguelikeMapNode.type_glyph(node.type)
+		btn.text = RoguelikeMapNode.type_glyph(node.type) if revealed else "?"
 		btn.add_theme_font_size_override("font_size", 20)
 		btn.add_theme_color_override("font_color", Color(1, 1, 1))
 		btn.add_theme_color_override("font_disabled_color", Color(0.95, 0.95, 0.95))
 		btn.add_theme_color_override("font_hover_color", Color(1, 1, 1))
-		btn.tooltip_text = RoguelikeMapNode.type_display_name(node.type)
+		btn.tooltip_text = RoguelikeMapNode.type_display_name(node.type) if revealed else "Unknown room"
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.pressed.connect(_on_node_pressed.bind(node.id))
 		add_child(btn)
@@ -203,17 +223,18 @@ func _draw() -> void:
 func _refresh() -> void:
 	if not run:
 		return
-	_header.text = "%s   |   %s   |   Floor %d/%d   |   HP %d/%d   |   Gold %d" % [
+	_header.text = "%s   |   %s   |   Floor %d/%d   |   HP %d/%d   |   Gold %d   |   Cards +%d  Potions %d  Relics %d" % [
 		world.world_name, character.character_name,
 		run.floor_reached, run.map.total_rows(),
 		run.hp, run.max_hp, run.gold,
+		run.deck_cards.size(), run.potions.size(), run.relics.size(),
 	]
 
 	var available := run.available_node_ids()
 	for id in _node_buttons.keys():
 		var node: RoguelikeMapNode = run.map.get_node(id)
 		var btn: Button = _node_buttons[id]
-		var base := RoguelikeMapNode.type_color(node.type)
+		var base := RoguelikeMapNode.type_color(node.type) if _node_revealed(node) else Color(0.42, 0.42, 0.5)
 		if node.id == run.current_node_id:
 			_style_node(btn, base, Color(1, 1, 1), 3, true)
 		elif node.visited:
@@ -263,9 +284,18 @@ func _commit_node(id: int) -> void:
 func _launch_battle(node: RoguelikeMapNode) -> void:
 	var main_scene = load(MainScenePath).instantiate()
 	main_scene.starting_character = run.character
-	# Restore the character's saved build (deck, stats, sphere grid) for the fight.
+	# Restore the character's saved build (deck, stats, sphere grid) for the fight,
+	# and fold in any cards picked up earlier this run.
 	if not save_progression.is_empty():
-		main_scene.player_progression = ProgressionIO.to_live(save_progression)
+		var prog := ProgressionIO.to_live(save_progression)
+		if not run.deck_cards.is_empty() and prog.has("deck_state"):
+			var ds: Dictionary = prog["deck_state"].duplicate(true)
+			var draw: Array = ds.get("draw_pile", []).duplicate()
+			for cid in run.deck_cards:
+				draw.append(cid)
+			ds["draw_pile"] = draw
+			prog["deck_state"] = ds
+		main_scene.player_progression = prog
 		main_scene.current_world_level = save_world_level
 	main_scene.roguelike_context = {
 		"node_type": RoguelikeMapNode.type_id(node.type),
@@ -286,11 +316,12 @@ func _on_battle_finished(victory: bool, remaining_hp: int, node_id: int, main_sc
 		# Carry the player's surviving HP back to the run.
 		run.hp = clampi(remaining_hp, 1, run.max_hp)
 		var node := run.map.get_node(node_id)
-		var reward := 25 if node and node.type == RoguelikeMapNode.Type.ELITE else 12
 		if node and node.type == RoguelikeMapNode.Type.BOSS:
-			reward = 50
-		run.add_gold(reward)
-		_commit_node(node_id)
+			# Beating the boss ends the run; no reward screen.
+			run.add_gold(50)
+			_commit_node(node_id)
+		else:
+			_show_battle_rewards(node_id, node != null and node.type == RoguelikeMapNode.Type.ELITE)
 	else:
 		# Death in combat ends the run — no continue.
 		run.hp = 0
@@ -299,6 +330,150 @@ func _on_battle_finished(victory: bool, remaining_hp: int, node_id: int, main_sc
 		_persist_run()
 		_refresh()
 		_show_end_overlay()
+
+# ----------------------------------------------------------------------------
+# Battle rewards (card + gold, chance of a potion; elites also drop a relic)
+# ----------------------------------------------------------------------------
+
+func _show_battle_rewards(node_id: int, is_elite: bool) -> void:
+	var gold := randi_range(20, 35) if is_elite else randi_range(8, 18)
+	if run.relics.has("golden_idol"):
+		gold += 10
+	var potion := _roll_potion()
+	var relic := _roll_relic() if is_elite else ""
+	var card_options := _card_reward_options(3)
+
+	var overlay := ColorRect.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.65)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.custom_minimum_size = Vector2(480, 0)
+	panel.add_theme_stylebox_override("panel", _modal_panel_style())
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Elite Defeated!" if is_elite else "Victory!"
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.5))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var spoils := "Gold +%d" % gold
+	if potion != "":
+		var pn = Potions.get_potion(potion)
+		spoils += "\nPotion: %s" % (pn.name if pn else potion)
+	if relic != "":
+		var rn = Relics.get_relic(relic)
+		spoils += "\nRelic: %s — %s" % [(rn.name if rn else relic), (rn.description if rn else "")]
+	var spoils_lbl := Label.new()
+	spoils_lbl.text = spoils
+	spoils_lbl.add_theme_font_size_override("font_size", 15)
+	spoils_lbl.add_theme_color_override("font_color", Color(0.85, 0.9, 0.85))
+	spoils_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(spoils_lbl)
+
+	var pick_lbl := Label.new()
+	pick_lbl.text = "Add a card to your deck:" if not card_options.is_empty() else "No cards available to add."
+	pick_lbl.add_theme_font_size_override("font_size", 16)
+	pick_lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.95))
+	pick_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(pick_lbl)
+
+	# finalize(chosen_card_id) applies all spoils and advances the run.
+	var finalize := func(chosen_card: String) -> void:
+		run.add_gold(gold)
+		if potion != "":
+			run.potions.append(potion)
+		if relic != "":
+			run.relics.append(relic)
+		if chosen_card != "":
+			run.deck_cards.append(chosen_card)
+		_close_modal()
+		_commit_node(node_id)
+
+	var card_row := HBoxContainer.new()
+	card_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(card_row)
+	for cid in card_options:
+		var cbtn := Button.new()
+		cbtn.text = _pretty_card(cid)
+		cbtn.custom_minimum_size = Vector2(130, 46)
+		cbtn.pressed.connect(finalize.bind(cid))
+		card_row.add_child(cbtn)
+
+	var skip := Button.new()
+	skip.text = "Skip card" if not card_options.is_empty() else "Continue"
+	skip.custom_minimum_size = Vector2(160, 38)
+	skip.pressed.connect(finalize.bind(""))
+	vbox.add_child(skip)
+
+	_modal = overlay
+
+func _roll_potion() -> String:
+	var chance := 0.25
+	if run.relics.has("alchemists_satchel"):
+		chance += 0.5
+	if randf() < chance:
+		return Potions.random_id()
+	return ""
+
+func _roll_relic() -> String:
+	var pool: Array = []
+	for r in Relics.all():
+		if not run.relics.has(r.id):
+			pool.append(r.id)
+	if pool.is_empty():
+		return ""
+	return pool[randi() % pool.size()]
+
+func _card_reward_options(n: int) -> Array:
+	var seen := {}
+	var list: Array = []
+	if character:
+		for c in character.starting_card_ids:
+			var s := str(c)
+			if not seen.has(s):
+				seen[s] = true
+				list.append(s)
+		for c in character.purchased_card_ids:
+			var s2 := str(c)
+			if not seen.has(s2):
+				seen[s2] = true
+				list.append(s2)
+	list.shuffle()
+	return list.slice(0, mini(n, list.size()))
+
+func _pretty_card(card_id: String) -> String:
+	return card_id.capitalize()
+
+func _modal_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.11, 0.11, 0.17, 1.0)
+	style.border_color = Color(0.45, 0.45, 0.65)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.content_margin_left = 28
+	style.content_margin_right = 28
+	style.content_margin_top = 22
+	style.content_margin_bottom = 22
+	return style
 
 # ----------------------------------------------------------------------------
 # Non-combat encounter panels (lightweight for the first slice)
