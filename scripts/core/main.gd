@@ -123,6 +123,14 @@ var starting_character: CharacterData = null
 var player2_character: CharacterData = null
 var is_multiplayer: bool = false
 
+# Roguelike battle hand-off. When non-empty, this main scene was launched by the
+# roguelike map to resolve a single encounter. On victory it emits
+# roguelike_battle_finished and the map removes/frees this scene. Empty for all
+# normal story / fight / multiplayer flows, which keep their existing behavior.
+signal roguelike_battle_finished(victory: bool)
+var roguelike_context: Dictionary = {}
+var _roguelike_active: bool = false
+
 # Player 2 state
 var _p2_deck_manager: DeckManager = null
 var _p2_hand_panel: PanelContainer = null
@@ -335,6 +343,11 @@ func _ready() -> void:
 	_setup_dungeon()
 	_update_enemy_count()
 	_refresh_unit_tracker()
+
+	# Roguelike encounter: spawn the fight for this map node and arm the
+	# return-to-map hook. Only runs when launched from the roguelike map.
+	if not roguelike_context.is_empty():
+		_start_roguelike_battle()
 
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
@@ -2503,6 +2516,11 @@ func _on_enemy_attacked_player(enemy: Enemy) -> void:
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
 	player.get_stats().gain_xp(enemy.xp_reward)
+	# Bestiary: record story-mode kills per character so a future roguelike can
+	# gate monster-intent reveals on "defeated in story". Roguelike encounters
+	# don't count toward unlocking their own intents.
+	if not _roguelike_active and current_character and not current_character.defeated_monster_ids.has(enemy.enemy_name):
+		current_character.defeated_monster_ids.append(enemy.enemy_name)
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	# Sphere grid passive triggers for kills
@@ -2517,8 +2535,41 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	_return_queued_cards_for_dead_target(enemy)
 
 func _on_all_enemies_defeated() -> void:
+	if _roguelike_active:
+		_roguelike_active = false
+		print("[MAIN] Roguelike encounter cleared — returning to map.")
+		roguelike_battle_finished.emit(true)
+		return
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
+
+func _start_roguelike_battle() -> void:
+	## Spawn the encounter for the roguelike map node that launched this scene,
+	## then arm the win condition that returns control to the map.
+	var node_type: String = roguelike_context.get("node_type", "monster")
+	match node_type:
+		"elite":
+			enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, _roguelike_spawn_pos(Vector2i(13, 5)))
+			enemy_spawner.spawn_enemy(Enemy.EnemyType.WERERAT, _roguelike_spawn_pos(Vector2i(15, 7)))
+		"boss":
+			enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, _roguelike_spawn_pos(Vector2i(13, 5)))
+			enemy_spawner.spawn_enemy(Enemy.EnemyType.ARMORED_TROLL, _roguelike_spawn_pos(Vector2i(15, 6)))
+			enemy_spawner.spawn_enemy(Enemy.EnemyType.SKELETON, _roguelike_spawn_pos(Vector2i(11, 7)))
+		_:
+			enemy_spawner.spawn_test_arena()
+	_sync_blocked_tiles()
+	_sync_occupied_tiles()
+	_sync_pillar_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	_roguelike_active = true
+	print("[MAIN] Roguelike encounter started (%s)." % node_type)
+
+func _roguelike_spawn_pos(cell: Vector2i) -> Vector3:
+	var world_pos := grid_manager.grid_to_world(cell)
+	if dungeon_manager:
+		world_pos.y = dungeon_manager.get_elevation_world_y(cell)
+	return world_pos
 
 func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)

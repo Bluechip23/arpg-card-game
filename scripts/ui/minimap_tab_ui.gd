@@ -47,6 +47,10 @@ func _setup_minimap() -> void:
 	main._minimap_texture_rect = TextureRect.new()
 	main._minimap_texture_rect.custom_minimum_size = Vector2(main.MINIMAP_SIZE, main.MINIMAP_SIZE)
 	main._minimap_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# Ignore the source image's native size so the rect (and its PanelContainer) stays
+	# fixed at MINIMAP_SIZE. Larger worlds produce a bigger minimap image, and the default
+	# EXPAND_KEEP_SIZE would balloon the panel over the stat bars beside it.
+	main._minimap_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	main._minimap_panel.add_child(main._minimap_texture_rect)
 
 	# Create initial minimap image

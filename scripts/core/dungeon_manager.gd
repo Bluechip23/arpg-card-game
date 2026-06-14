@@ -17,7 +17,10 @@ var GRID_W: int = 70
 var GRID_H: int = 46
 const FOG_REVEAL_RADIUS: int = 6   # Tiles revealed around the player
 const ELEV_STEP: float = 0.5       # World units of height per elevation level
-const FOG_HEIGHT: float = 2.2      # Height of fog-of-war volume tiles
+# Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
+# walls stay hidden: max wall = 1.5 + 0.9 noise + 2 elevation * ELEV_STEP = 3.4,
+# and the fog box top sits at FOG_HEIGHT - 0.5 (see _fog_shown_xform).
+const FOG_HEIGHT: float = 4.2
 
 # Tile types
 enum Tile { FLOOR, WALL }

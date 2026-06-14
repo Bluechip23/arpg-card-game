@@ -24,6 +24,11 @@ var starting_card_ids: Array = []  # Character-specific cards added to starting 
 var purchased_card_ids: Array = []  # Cards bought from the card shop
 var removed_card_ids: Array = []    # Cards culled from the deck (base or starting cards)
 
+# Bestiary: monsters this character has defeated in story mode. Per-character
+# (not shared at the world level). Used to gate monster-intent reveals in the
+# roguelike end-game; the telegraph UI itself is a later pass.
+var defeated_monster_ids: Array = []
+
 # Card upgrades: Array of {card_index: int, upgrade_path: int}
 # card_index refers to the position in the final deck list (after removals)
 # upgrade_path: 0 = path 1, 1 = path 2
