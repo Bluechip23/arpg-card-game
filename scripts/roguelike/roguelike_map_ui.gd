@@ -27,7 +27,6 @@ var _modal: Control = null
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	_setup_background()
 
 	if not world:
 		world = WorldData.make_new("Prime World")
@@ -51,15 +50,6 @@ func _on_viewport_resized() -> void:
 # ----------------------------------------------------------------------------
 # Build
 # ----------------------------------------------------------------------------
-
-func _setup_background() -> void:
-	var bg := ColorRect.new()
-	bg.name = "Background"
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.04, 0.04, 0.07)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-	move_child(bg, 0)
 
 func _setup_header() -> void:
 	var bar := PanelContainer.new()
@@ -153,18 +143,24 @@ func _layout() -> void:
 				btn.position = node.ui_pos - Vector2(NODE_SIZE, NODE_SIZE) * 0.5
 
 func _draw() -> void:
+	# Background is painted here (not as a child node) so it sits BEHIND the
+	# connection lines we draw next. A child ColorRect would cover them.
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.04, 0.07))
 	if not run or not run.map:
 		return
+	# Edges that lead from the player's currently reachable positions are lit so
+	# the available choices for this floor read clearly.
 	var available := run.available_node_ids()
 	for id in run.map.nodes_by_id.keys():
 		var node: RoguelikeMapNode = run.map.nodes_by_id[id]
+		var from_current: bool = (node.id == run.current_node_id) or (run.current_node_id == -1 and node.row == 0)
 		for nid in node.next_ids:
 			var target: RoguelikeMapNode = run.map.get_node(nid)
 			if not target:
 				continue
-			var lit: bool = (node.id == run.current_node_id) or (run.current_node_id == -1 and node.row == 0)
-			var col: Color = Color(0.5, 0.5, 0.6, 0.9) if lit else Color(0.22, 0.22, 0.3, 0.7)
-			var width: float = 3.0 if lit else 2.0
+			var lit: bool = from_current and available.has(nid)
+			var col: Color = Color(1.0, 0.92, 0.5, 0.95) if lit else Color(0.32, 0.32, 0.42, 0.85)
+			var width: float = 4.0 if lit else 2.5
 			draw_line(node.ui_pos, target.ui_pos, col, width)
 
 func _refresh() -> void:

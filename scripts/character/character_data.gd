@@ -20,30 +20,33 @@ extends Resource
 @export var base_draw_timer: int = 5  # Turns between draws
 @export var base_hand_size: int = 6
 
-var starting_card_ids: Array = []  # Character-specific cards added to starting deck
-var purchased_card_ids: Array = []  # Cards bought from the card shop
-var removed_card_ids: Array = []    # Cards culled from the deck (base or starting cards)
+# Build state is @export so it persists when the character is saved to disk
+# (ResourceSaver only serializes exported properties). This is what lets a
+# story character carry its deck/upgrades into the roguelike.
+@export var starting_card_ids: Array = []  # Character-specific cards added to starting deck
+@export var purchased_card_ids: Array = []  # Cards bought from the card shop
+@export var removed_card_ids: Array = []    # Cards culled from the deck (base or starting cards)
 
 # Bestiary: monsters this character has defeated in story mode. Per-character
 # (not shared at the world level). Used to gate monster-intent reveals in the
 # roguelike end-game; the telegraph UI itself is a later pass.
-var defeated_monster_ids: Array = []
+@export var defeated_monster_ids: Array = []
 
 # Card upgrades: Array of {card_index: int, upgrade_path: int}
 # card_index refers to the position in the final deck list (after removals)
 # upgrade_path: 0 = path 1, 1 = path 2
-var card_upgrades: Array = []
+@export var card_upgrades: Array = []
 
 # Archetypes - categorize card and passive options
-var archetypes: Array = []  # [{name: String, description: String}, ...]
+@export var archetypes: Array = []  # [{name: String, description: String}, ...]
 
 # Selection screen display info
-var passive_description: String = ""
-var starting_item_name: String = ""
-var starting_item_description: String = ""
-var slot_specialty: String = ""
-var sprite_path: String = ""
-var sprite_sheet_path: String = ""  # Path to full animation sprite sheet
+@export var passive_description: String = ""
+@export var starting_item_name: String = ""
+@export var starting_item_description: String = ""
+@export var slot_specialty: String = ""
+@export var sprite_path: String = ""
+@export var sprite_sheet_path: String = ""  # Path to full animation sprite sheet
 
 # Calculate derived stats from core stats
 func get_max_hand_size() -> int:
