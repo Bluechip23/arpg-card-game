@@ -15,7 +15,7 @@ signal exposed(enemy: Enemy)
 signal attacked_player(enemy: Enemy)
 signal movement_completed(enemy: Enemy)
 
-enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_RAT }
+enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_RAT, HYDRA, FIRE_GOBLIN_SOLDIER, FIRE_GOBLIN_MAGE, FIRE_GOBLIN_SHAMAN }
 
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
@@ -68,6 +68,12 @@ var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
 var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
+
+# Hydra: grows stronger with every hit it takes. After the 4th hit it gains bulk
+# and unlocks its full-heal move.
+var strength: int = 0
+var hits_taken: int = 0
+var hydra_heal_unlocked: bool = false
 
 # ============================================
 # TEMPO ACTION SYSTEM
@@ -187,6 +193,43 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			move_distance = 2.0  # Moves 2 tiles when repositioning
 			xp_reward = 4
 			_set_mesh_color(Color(0.6, 0.4, 0.25))  # Light brown
+
+		EnemyType.HYDRA:
+			enemy_name = "Hydra"
+			max_health = 30
+			attack_damage = 4         # +accumulated strength
+			attack_range = 1.5        # Melee
+			move_distance = 3.0       # Moves 3 spaces
+			aggro_range = 12.0
+			xp_reward = 15
+			_set_mesh_color(Color(0.2, 0.55, 0.35))  # Scaled green
+
+		EnemyType.FIRE_GOBLIN_SOLDIER:
+			enemy_name = "Fire Goblin Soldier"
+			max_health = 4
+			attack_damage = 1
+			attack_range = 1.5        # Range 0 — must be adjacent
+			move_distance = 4.0       # Moves 4 spaces
+			xp_reward = 4
+			_set_mesh_color(Color(0.85, 0.35, 0.15))  # Ember orange
+
+		EnemyType.FIRE_GOBLIN_MAGE:
+			enemy_name = "Fire Goblin Mage"
+			max_health = 6
+			attack_damage = 6         # Ember damage
+			attack_range = 4.0
+			move_distance = 2.0
+			xp_reward = 6
+			_set_mesh_color(Color(0.9, 0.45, 0.2))
+
+		EnemyType.FIRE_GOBLIN_SHAMAN:
+			enemy_name = "Fire Goblin Shaman"
+			max_health = 8
+			attack_damage = 4         # Fire wall damage
+			attack_range = 5.0
+			move_distance = 2.0
+			xp_reward = 8
+			_set_mesh_color(Color(0.95, 0.55, 0.25))
 
 	current_health = max_health
 	current_armor = max_armor
@@ -323,6 +366,28 @@ func _setup_actions() -> void:
 				{"name": "scurry_away",    "tempo_cost": 2},
 				{"name": "get_into_range", "tempo_cost": 2},
 			]
+		EnemyType.HYDRA:
+			actions = [
+				{"name": "hydra_attack", "tempo_cost": 8},
+				{"name": "hydra_move",   "tempo_cost": 6},
+				{"name": "hydra_heal",   "tempo_cost": 5},
+			]
+		EnemyType.FIRE_GOBLIN_SOLDIER:
+			actions = [
+				{"name": "goblin_attack", "tempo_cost": 3},
+				{"name": "goblin_move",   "tempo_cost": 2},
+			]
+		EnemyType.FIRE_GOBLIN_MAGE:
+			actions = [
+				{"name": "ember",       "tempo_cost": 4},
+				{"name": "goblin_move", "tempo_cost": 3},
+			]
+		EnemyType.FIRE_GOBLIN_SHAMAN:
+			actions = [
+				{"name": "fire_wall",   "tempo_cost": 8},
+				{"name": "sear_wounds", "tempo_cost": 6},
+				{"name": "goblin_move", "tempo_cost": 3},
+			]
 
 # ============================================
 # COMPENDIUM DATA
@@ -339,6 +404,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: "Minion",
 		EnemyType.ARMORED_TROLL: "Elite",
 		EnemyType.ARCHER_RAT: "Minion",
+		EnemyType.HYDRA: "Elite",
+		EnemyType.FIRE_GOBLIN_SOLDIER: "Minion",
+		EnemyType.FIRE_GOBLIN_MAGE: "Minion",
+		EnemyType.FIRE_GOBLIN_SHAMAN: "Elite",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -348,6 +417,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: {"name": "Skeleton", "health": 18, "armor": 10, "damage": 5, "xp": 5},
 		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 45, "armor": 30, "damage": 4, "xp": 8},
 		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 5, "armor": 0, "damage": 1, "xp": 4},
+		EnemyType.HYDRA: {"name": "Hydra", "health": 30, "armor": 0, "damage": 4, "xp": 15},
+		EnemyType.FIRE_GOBLIN_SOLDIER: {"name": "Fire Goblin Soldier", "health": 4, "armor": 0, "damage": 1, "xp": 4},
+		EnemyType.FIRE_GOBLIN_MAGE: {"name": "Fire Goblin Mage", "health": 6, "armor": 0, "damage": 6, "xp": 6},
+		EnemyType.FIRE_GOBLIN_SHAMAN: {"name": "Fire Goblin Shaman", "health": 8, "armor": 0, "damage": 4, "xp": 8},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -357,6 +430,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: [{"name": "Move", "tempo": 5}, {"name": "Attack", "tempo": 4}],
 		EnemyType.ARMORED_TROLL: [{"name": "Move", "tempo": 4}, {"name": "Kick", "tempo": 3}, {"name": "Smash", "tempo": 6}],
 		EnemyType.ARCHER_RAT: [{"name": "Shoot", "tempo": 5}, {"name": "Scurry Away", "tempo": 2}, {"name": "Get Into Range", "tempo": 2}],
+		EnemyType.HYDRA: [{"name": "Strike", "tempo": 8}, {"name": "Move", "tempo": 6}, {"name": "Heal", "tempo": 5}],
+		EnemyType.FIRE_GOBLIN_SOLDIER: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 2}],
+		EnemyType.FIRE_GOBLIN_MAGE: [{"name": "Ember", "tempo": 4}, {"name": "Move", "tempo": 3}],
+		EnemyType.FIRE_GOBLIN_SHAMAN: [{"name": "Fire Wall", "tempo": 8}, {"name": "Sear Wounds", "tempo": 6}, {"name": "Move", "tempo": 3}],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -366,6 +443,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 2 HP every 6 global tempo.\nAt range ≤1: 60% Smash / 40% Kick.\nOtherwise: Moves toward player.",
 		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 1 damage.\nAt range >4: Moves 2 tiles closer.",
+		EnemyType.HYDRA: "Grows stronger with every hit she takes: +2 strength per hit. On the 4th hit she also gains +20 max HP and unlocks Heal.\nStrike (8 tempo): 4 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
+		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 1 damage.\nMove (2 tempo): 4 spaces.",
+		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 6 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
+		EnemyType.FIRE_GOBLIN_SHAMAN: "Support caster (range 5).\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 4 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 4.\nMove (3 tempo): 2 spaces.",
 	}
 
 	var result: Array = []
@@ -674,6 +755,14 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_troll_action(distance)
 		EnemyType.ARCHER_RAT:
 			_choose_archer_rat_action(distance)
+		EnemyType.HYDRA:
+			_choose_hydra_action(distance)
+		EnemyType.FIRE_GOBLIN_SOLDIER:
+			_choose_soldier_action(distance)
+		EnemyType.FIRE_GOBLIN_MAGE:
+			_choose_mage_action(distance)
+		EnemyType.FIRE_GOBLIN_SHAMAN:
+			_choose_shaman_action(distance)
 		_:
 			_choose_legacy_action(distance)
 
@@ -721,6 +810,55 @@ func _choose_archer_rat_action(distance: int) -> void:
 		# In range (3-4 tiles) - shoot!
 		chosen_action = _get_action("shoot")
 
+func _choose_hydra_action(distance: int) -> void:
+	# Once enraged (4th hit) she will heal to full when meaningfully hurt.
+	if hydra_heal_unlocked and current_health <= max_health / 2:
+		chosen_action = _get_action("hydra_heal")
+	elif distance <= 1:
+		chosen_action = _get_action("hydra_attack")
+	else:
+		chosen_action = _get_action("hydra_move")
+
+func _choose_soldier_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("goblin_attack")
+	else:
+		chosen_action = _get_action("goblin_move")
+
+func _choose_mage_action(distance: int) -> void:
+	# attack_range is in world units (~cells); ember when the player is in range.
+	if distance <= int(attack_range):
+		chosen_action = _get_action("ember")
+	else:
+		chosen_action = _get_action("goblin_move")
+
+func _choose_shaman_action(distance: int) -> void:
+	if distance <= int(attack_range):
+		# Heal wounded allies, otherwise lay down a wall of fire.
+		if _allies_need_healing() and randf() < 0.5:
+			chosen_action = _get_action("sear_wounds")
+		else:
+			chosen_action = _get_action("fire_wall")
+	else:
+		chosen_action = _get_action("goblin_move")
+
+func _allies_need_healing() -> bool:
+	for e in _sibling_enemies():
+		if e.current_health < e.max_health:
+			return true
+	return false
+
+func _sibling_enemies() -> Array:
+	## Living enemies sharing this enemy's parent (the main scene), including self.
+	var out: Array = []
+	var parent = get_parent()
+	if not parent:
+		return out
+	for child in parent.get_children():
+		if child is Enemy and child.is_alive():
+			out.append(child)
+	return out
+
 func _choose_legacy_action(distance: int) -> void:
 	## Legacy behavior for MINION/ELITE/BOSS types.
 	if distance <= 1:
@@ -765,9 +903,121 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_scurry_away(move_target)
 		"get_into_range":
 			return _try_get_into_range(move_target)
+		"hydra_attack":
+			return _try_hydra_attack(move_target)
+		"hydra_move":
+			return _try_move(move_target)
+		"hydra_heal":
+			return _try_hydra_heal()
+		"goblin_attack":
+			return _try_goblin_attack(move_target)
+		"goblin_move":
+			return _try_move(move_target)
+		"ember":
+			return _try_ember(move_target)
+		"fire_wall":
+			return _try_fire_wall(move_target)
+		"sear_wounds":
+			return _try_sear_wounds()
 		_:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false
+
+func _try_hydra_attack(target_node: Node3D) -> bool:
+	if is_disarmed:
+		return _try_move(target_node)
+	var diff = target_node.position - position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	if flat_dist <= attack_range:
+		_deal_damage_to_player(target_node, attack_damage + strength, "Strike")
+		turn_completed.emit()
+		return true
+	return _try_move(target_node)
+
+func _try_hydra_heal() -> bool:
+	## Heals to full (only used once the 4th hit has enraged her).
+	_regenerate(max_health)
+	print("[%s] Regrows her heads — healed to full!" % enemy_name)
+	turn_completed.emit()
+	return true
+
+func _try_goblin_attack(target_node: Node3D) -> bool:
+	if is_disarmed:
+		return _try_move(target_node)
+	var diff = target_node.position - position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	if flat_dist <= attack_range:
+		_deal_damage_to_player(target_node, attack_damage, "Strike")
+		turn_completed.emit()
+		return true
+	return _try_move(target_node)
+
+func _try_ember(target_node: Node3D) -> bool:
+	## Fire Goblin Mage: ranged ember — damage plus 1 burn.
+	if is_disarmed:
+		return _try_move(target_node)
+	var diff = target_node.position - position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	if flat_dist <= attack_range:
+		_deal_damage_to_player(target_node, attack_damage, "Ember")
+		_apply_burn_to_player(target_node, 1)
+		turn_completed.emit()
+		return true
+	return _try_move(target_node)
+
+func _try_fire_wall(target_node: Node3D) -> bool:
+	## Fire Goblin Shaman: raises a wall of fire in the player's path. Damage and
+	## burn are only dealt if the player walks into it (handled by Main).
+	if is_disarmed:
+		return _try_move(target_node)
+	var diff = target_node.position - position
+	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	if flat_dist > attack_range:
+		return _try_move(target_node)
+	if not grid_manager:
+		turn_completed.emit()
+		return true
+	var player_cell = grid_manager.world_to_grid(target_node.position)
+	var my_cell = grid_manager.world_to_grid(position)
+	# A 3-tile wall one step in front of the player (toward the shaman).
+	var dir = my_cell - player_cell
+	var step = Vector2i(signi(dir.x), signi(dir.y))
+	if step == Vector2i.ZERO:
+		step = Vector2i(1, 0)
+	var center = player_cell + step
+	var perp = Vector2i(step.y, step.x)  # perpendicular
+	if perp == Vector2i.ZERO:
+		perp = Vector2i(0, 1)
+	var tiles: Array = [center, center + perp, center - perp]
+	var main = get_parent()
+	if main and main.has_method("register_fire_wall"):
+		main.register_fire_wall(tiles, attack_damage, 3)
+	print("[%s] Raises a wall of fire!" % enemy_name)
+	turn_completed.emit()
+	return true
+
+func _try_sear_wounds() -> bool:
+	## Fire Goblin Shaman: 2 damage to ALL allies (can kill), then heals the
+	## survivors for 4.
+	var allies = _sibling_enemies()
+	for a in allies:
+		if is_instance_valid(a):
+			a.take_damage(2, false)  # from_player = false: doesn't enrage a Hydra
+	for a in allies:
+		if is_instance_valid(a) and a.is_alive():
+			a._regenerate(4)
+	print("[%s] Sears wounds — 2 to all, then heals 4." % enemy_name)
+	turn_completed.emit()
+	return true
+
+func _apply_burn_to_player(player_node: Node3D, stacks: int) -> void:
+	if not player_node.has_method("get_debuff_manager"):
+		return
+	var dm = player_node.get_debuff_manager()
+	if not dm:
+		return
+	for i in range(stacks):
+		dm.apply_debuff(Debuff.new(Debuff.DebuffType.BURN, 1))
 
 func _try_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
@@ -1253,6 +1503,18 @@ func attack_player(player_node: Node3D) -> void:
 func take_damage(amount: int, from_player: bool = false) -> bool:
 	if is_dead:
 		return false
+
+	# Hydra: grows stronger with every hit she takes from the player.
+	if enemy_type == EnemyType.HYDRA and from_player:
+		hits_taken += 1
+		strength += 2
+		print("[%s] Enraged by hit %d — strength now %d" % [enemy_name, hits_taken, strength])
+		if hits_taken == 4:
+			max_health += 20
+			current_health += 20
+			hydra_heal_unlocked = true
+			print("[%s] Grows hardier (+20 max HP) and prepares to heal!" % enemy_name)
+			update_health_display()
 
 	if wear_down_tempo > 0:
 		attack_reduction += 1

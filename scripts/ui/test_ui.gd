@@ -5,6 +5,7 @@ extends CanvasLayer
 
 signal spawn_wave_requested
 signal spawn_elite_requested
+signal spawn_fire_goblins_requested
 signal give_item_requested(item_name: String)
 signal give_card_requested(card_name: String)
 signal apply_debuff_requested(debuff_name: String)
@@ -48,6 +49,17 @@ func _setup_buttons() -> void:
 		$Panel/VBox/ApplyOverflowButton.pressed.connect(_on_apply_overflow_pressed)
 	if has_node("Panel/VBox/ApplyBuffButton"):
 		$Panel/VBox/ApplyBuffButton.pressed.connect(_on_apply_buff_pressed)
+	# Dynamically add a button to spawn the new fire-goblin warband + hydra.
+	if has_node("Panel/VBox") and elite_button:
+		var fg_btn := Button.new()
+		fg_btn.text = "Spawn Fire Goblins"
+		fg_btn.pressed.connect(_on_fire_goblins_pressed)
+		$Panel/VBox.add_child(fg_btn)
+		$Panel/VBox.move_child(fg_btn, elite_button.get_index() + 1)
+
+func _on_fire_goblins_pressed() -> void:
+	spawn_fire_goblins_requested.emit()
+
 func _on_apply_debuff_pressed() -> void:
 	if has_node("Panel/VBox/DebuffDropdown"):
 		var dropdown = $Panel/VBox/DebuffDropdown as OptionButton

@@ -131,6 +131,9 @@ signal roguelike_battle_finished(victory: bool, remaining_hp: int)
 var roguelike_context: Dictionary = {}
 var _roguelike_active: bool = false
 
+# Active fire walls (Fire Goblin Shaman). Each: {tiles, damage, burn, moves_left, visuals}.
+var _fire_walls: Array = []
+
 # Player 2 state
 var _p2_deck_manager: DeckManager = null
 var _p2_hand_panel: PanelContainer = null
@@ -287,6 +290,7 @@ func _ready() -> void:
 	# Test UI
 	test_ui.spawn_wave_requested.connect(_on_spawn_wave)
 	test_ui.spawn_elite_requested.connect(_on_spawn_elite)
+	test_ui.spawn_fire_goblins_requested.connect(_on_spawn_fire_goblins)
 	test_ui.give_item_requested.connect(_on_give_item)
 	test_ui.give_card_requested.connect(_on_give_card)
 	test_ui.apply_buff_requested.connect(_on_apply_buff)
@@ -2346,6 +2350,9 @@ func _on_player_tile_reached() -> void:
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
 	_player_last_grid_cell = player_cell
 
+	# Fire walls (Fire Goblin Shaman): burn the player if they stepped into one.
+	_check_fire_walls(player_cell)
+
 	# Player Y follows terrain smoothly via ground_y_provider (see player.gd)
 
 	# Normal per-tile tempo
@@ -2583,6 +2590,70 @@ func _roguelike_spawn_pos(cell: Vector2i) -> Vector3:
 	if dungeon_manager:
 		world_pos.y = dungeon_manager.get_elevation_world_y(cell)
 	return world_pos
+
+# ============================================
+# FIRE WALLS (Fire Goblin Shaman)
+# ============================================
+
+func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6) -> void:
+	## Called by a Fire Goblin Shaman. Lays a hazard on the given grid cells that
+	## burns the player when they walk into it; expires after a few player moves.
+	var visuals: Array = []
+	for cell in tiles:
+		var v = _spawn_fire_wall_visual(cell)
+		if v:
+			visuals.append(v)
+	_fire_walls.append({"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves, "visuals": visuals})
+	add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
+
+func _spawn_fire_wall_visual(cell: Vector2i) -> MeshInstance3D:
+	if not grid_manager:
+		return null
+	var box := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.9, 0.7, 0.9)
+	box.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.4, 0.1, 0.55)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.45, 0.1)
+	mat.emission_energy_multiplier = 2.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	box.material_override = mat
+	var pos := grid_manager.grid_to_world(cell)
+	if dungeon_manager:
+		pos.y = dungeon_manager.get_elevation_world_y(cell)
+	box.position = pos + Vector3(0, 0.35, 0)
+	add_child(box)
+	return box
+
+func _check_fire_walls(player_cell: Vector2i) -> void:
+	if _fire_walls.is_empty():
+		return
+	var survivors: Array = []
+	for wall in _fire_walls:
+		if wall["tiles"].has(player_cell):
+			_burn_player_from_fire(wall["damage"], wall["burn"])
+		wall["moves_left"] -= 1
+		if wall["moves_left"] > 0:
+			survivors.append(wall)
+		else:
+			for v in wall["visuals"]:
+				if is_instance_valid(v):
+					v.queue_free()
+	_fire_walls = survivors
+
+func _burn_player_from_fire(damage: int, burn: int) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+	var dm = player.get_debuff_manager() if player.has_method("get_debuff_manager") else null
+	var bm = player.get_buff_manager() if player.has_method("get_buff_manager") else null
+	stats.take_damage(damage, dm, bm)
+	if dm:
+		for _i in range(burn):
+			dm.apply_debuff(Debuff.new(Debuff.DebuffType.BURN, 1))
+	add_battle_log("Fire wall burns you for %d (+%d burn)!" % [damage, burn], Color(1.0, 0.4, 0.1))
 
 func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
@@ -4814,6 +4885,15 @@ func _on_spawn_wave() -> void:
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	print("[MAIN] Spawned new wave!")
+
+func _on_spawn_fire_goblins() -> void:
+	enemy_spawner.spawn_fire_goblin_pack()
+	_sync_blocked_tiles()
+	_sync_occupied_tiles()
+	_sync_pillar_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	print("[MAIN] Spawned fire goblin pack!")
 
 func _on_spawn_elite() -> void:
 	var used_cells: Array[Vector2i] = []
