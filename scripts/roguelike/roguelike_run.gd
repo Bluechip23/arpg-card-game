@@ -91,6 +91,26 @@ func record_meta_unlock(category: String, id: String) -> void:
 			if not world.unlocked_node_type_ids.has(id):
 				world.unlocked_node_type_ids.append(id)
 
+## Node upgrades active for THIS run (read from the frozen snapshot, so mid-run
+## unlocks do not appear here).
+func active_node_upgrades(node_type_id: String) -> Array:
+	var ups: Dictionary = meta_snapshot.get("node_upgrades", {})
+	return ups.get(node_type_id, [])
+
+func has_node_upgrade(node_type_id: String, upgrade_id: String) -> bool:
+	return active_node_upgrades(node_type_id).has(upgrade_id)
+
+## Unlock a node upgrade DURING a run. It is written to the live world (and so
+## persisted for future runs) but deliberately not added to this run's frozen
+## snapshot — the current run cannot benefit from it.
+func unlock_node_upgrade(node_type_id: String, upgrade_id: String) -> void:
+	if not world:
+		return
+	var arr: Array = world.node_upgrades.get(node_type_id, [])
+	if not arr.has(upgrade_id):
+		arr.append(upgrade_id)
+		world.node_upgrades[node_type_id] = arr
+
 ## Node ids the player may move to right now.
 func available_node_ids() -> Array[int]:
 	if not map:

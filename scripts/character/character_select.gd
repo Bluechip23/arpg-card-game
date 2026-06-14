@@ -178,12 +178,11 @@ func _apply_styles() -> void:
 		cancel_button.add_theme_stylebox_override("hover", cancel_hover)
 
 func _setup_characters() -> void:
-	# Roguelike: offer previously saved (story) characters first. The gate that
-	# restricts runs to story-started characters is intentionally left open for
-	# now, so the preset characters below remain available for testing too.
+	# Roguelike is gated to characters that have started the story: only saved
+	# characters can play. If there are none, show guidance instead of cards.
 	if game_mode == "roguelike":
-		_add_saved_character_cards()
-		_add_preset_character_cards()
+		if _add_saved_character_cards() == 0:
+			_show_no_saves_message()
 		return
 
 	# Add "Customize from Inquiry" as the first option (quiz character)
@@ -225,10 +224,11 @@ func _add_preset_character_cards() -> void:
 		card.selected.connect(_on_character_selected)
 		card.skill_tree_requested.connect(_on_skill_tree_requested)
 
-func _add_saved_character_cards() -> void:
+func _add_saved_character_cards() -> int:
 	## Builds a card for each saved character (used in roguelike selection).
 	## Remembers the save behind each character so its progression can be
-	## carried into the run.
+	## carried into the run. Returns how many cards were added.
+	var count := 0
 	for save in SaveManager.get_all_saves():
 		if save == null or save.character_data == null:
 			continue
@@ -237,6 +237,18 @@ func _add_saved_character_cards() -> void:
 		character_container.add_child(card)
 		card.setup(save.character_data)
 		card.selected.connect(_on_character_selected)
+		count += 1
+	return count
+
+func _show_no_saves_message() -> void:
+	var lbl = Label.new()
+	lbl.text = "No saved characters yet.\n\nPlay the story and use Save Game in Town to create a character, then return here to start a run."
+	lbl.add_theme_font_size_override("font_size", 18)
+	lbl.add_theme_color_override("font_color", Color(0.8, 0.8, 0.9))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.custom_minimum_size = Vector2(520, 0)
+	character_container.add_child(lbl)
 
 func _on_character_selected(character: CharacterData) -> void:
 	print("[SELECT] Character selected: %s" % character.character_name)

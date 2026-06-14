@@ -35,13 +35,17 @@ var _modal: Control = null
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
+	if save:
+		save_progression = save.progression
+		save_world_level = save.world_level
+		# Restore this character's shared world meta (unlocked relics, node
+		# upgrades, etc.) so a new run snapshots the latest unlocks.
+		if not save.world_meta.is_empty():
+			world = WorldData.from_dict(save.world_meta)
 	if not world:
 		world = WorldData.make_new("Prime World")
 	if not character:
 		character = CharacterData.create_ryan()
-	if save:
-		save_progression = save.progression
-		save_world_level = save.world_level
 
 	if save and not save.active_run.is_empty():
 		# Resume the character's single in-progress run.
@@ -68,11 +72,12 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_on_viewport_resized)
 
 func _persist_run() -> void:
-	## Save (or clear) the character's single active run. No-op for presets,
-	## which have no save to write to.
+	## Save (or clear) the character's single active run plus the shared world
+	## meta. No-op for presets, which have no save to write to.
 	if not save:
 		return
 	save.active_run = {} if run.finished else run.to_dict()
+	save.world_meta = world.to_dict()
 	SaveManager.save_game(save.save_slot, save)
 
 func _on_viewport_resized() -> void:
@@ -306,16 +311,22 @@ func _open_encounter_panel(node: RoguelikeMapNode) -> void:
 	match node.type:
 		RoguelikeMapNode.Type.CAMPFIRE:
 			title = "Rest Site"
-			var heal := int(round(run.max_hp * 0.3))
-			body = "A quiet campfire. Resting restores %d HP.\n\n(Upgrades to rest sites come later.)" % heal
-			action_label = "Rest (+%d HP)" % heal
+			body = "A quiet campfire. Resting restores %d HP." % _campfire_heal_amount()
+			body += _active_upgrades_text("campfire")
+			action_label = "Rest (+%d HP)" % _campfire_heal_amount()
 		RoguelikeMapNode.Type.SHOP:
 			title = "Shop"
-			body = "A wandering merchant eyes your coin purse (%d gold).\n\n(Wares unlock as you build this world.)" % run.gold
+			var discount := "  Founder's Discount is in effect." if run.has_node_upgrade("shop", "founders_discount") else ""
+			body = "A wandering merchant eyes your coin purse (%d gold).%s\n\n(Wares unlock as you build this world.)" % [run.gold, discount]
+			body += _active_upgrades_text("shop")
 			action_label = "Leave Shop"
 		RoguelikeMapNode.Type.RANDOM:
 			title = "Unknown"
-			body = "You stumble onto something unexpected...\n\n(Events unlock as you build this world.)"
+			body = "You stumble onto something unexpected..."
+			# Unknown sites can discover a node upgrade for FUTURE runs.
+			var discovered := _roll_node_upgrade_discovery()
+			if discovered:
+				body += "\n\nYou uncover lost knowledge: \"%s\" (%s).\nIt takes effect on your NEXT run, not this one." % [discovered.name, discovered.description]
 			action_label = "Continue"
 		_:
 			title = RoguelikeMapNode.type_display_name(node.type)
@@ -329,13 +340,40 @@ func _open_encounter_panel(node: RoguelikeMapNode) -> void:
 		_commit_node(node_id)
 	_modal = _make_modal(title, body, action_label, on_continue)
 
+func _campfire_heal_amount() -> int:
+	var pct := 0.5 if run.has_node_upgrade("campfire", "deep_rest") else 0.3
+	return int(round(run.max_hp * pct))
+
+func _active_upgrades_text(node_type_id: String) -> String:
+	var ids: Array = run.active_node_upgrades(node_type_id)
+	if ids.is_empty():
+		return ""
+	var names: Array = []
+	for id in ids:
+		var up = NodeUpgrades.get_upgrade(id)
+		names.append(up.name if up else id)
+	return "\n\nActive upgrades: %s" % ", ".join(names)
+
+func _roll_node_upgrade_discovery():
+	## ~50% chance to unlock a still-locked node upgrade into the world (future
+	## runs only). Returns the discovered NodeUpgrades.Upgrade, or null.
+	var locked: Array = NodeUpgrades.locked_in(world)
+	if locked.is_empty() or randf() > 0.5:
+		return null
+	var up = locked[randi() % locked.size()]
+	run.unlock_node_upgrade(up.node_type_id, up.id)
+	return up
+
 func _apply_encounter_effect(node: RoguelikeMapNode) -> void:
 	match node.type:
 		RoguelikeMapNode.Type.CAMPFIRE:
-			run.heal(int(round(run.max_hp * 0.3)))
+			run.heal(_campfire_heal_amount())
+			if run.has_node_upgrade("campfire", "war_supplies"):
+				run.max_hp += 8
+				run.heal(8)
 		RoguelikeMapNode.Type.RANDOM:
-			# Placeholder reward so events feel alive until real events exist.
-			run.add_gold(randi_range(5, 20))
+			var bonus := 2 if run.has_node_upgrade("random", "lucky_find") else 1
+			run.add_gold(randi_range(5, 20) * bonus)
 
 # ----------------------------------------------------------------------------
 # End-of-run overlay

@@ -73,6 +73,27 @@ func _initialize() -> void:
 	if not won.finished or not won.victorious:
 		_fail("walking to the boss did not finish as a victory")
 
+	# --- Node upgrades respect the frozen snapshot ---
+	var w2 := WorldData.make_new("Upgrades")
+	var r5 := RoguelikeRun.new()
+	r5.start(CharacterData.create_ryan(), w2, 11)
+	if not r5.active_node_upgrades("campfire").is_empty():
+		_fail("fresh run should have no campfire upgrades")
+	r5.unlock_node_upgrade("campfire", "deep_rest")
+	if not w2.has_node_upgrade("campfire", "deep_rest"):
+		_fail("unlock did not reach the live world")
+	if r5.has_node_upgrade("campfire", "deep_rest"):
+		_fail("mid-run node upgrade leaked into the current run")
+	# A new run snapshots the now-unlocked upgrade.
+	var r6 := RoguelikeRun.new()
+	r6.start(CharacterData.create_ryan(), w2, 12)
+	if not r6.has_node_upgrade("campfire", "deep_rest"):
+		_fail("new run did not pick up the unlocked upgrade")
+	# World meta survives a disk round-trip.
+	var w3 := WorldData.from_dict(w2.to_dict())
+	if not w3.has_node_upgrade("campfire", "deep_rest"):
+		_fail("world meta did not survive serialization")
+
 	if failures == 0:
 		print("ALL ROGUELIKE PERSISTENCE TESTS PASSED")
 	else:

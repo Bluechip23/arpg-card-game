@@ -30,6 +30,11 @@ extends Resource
 # it is resumed on re-entry and cleared when the run ends (victory or death).
 @export var active_run: Dictionary = {}
 
+# The character's shared roguelike world meta-progression (WorldData.to_dict()):
+# relics, vendors, events and node upgrades unlocked so far. A run freezes a
+# snapshot of this at start; new unlocks land here for future runs.
+@export var world_meta: Dictionary = {}
+
 # Save metadata
 @export var save_slot: int = 0
 @export var save_timestamp: String = ""
