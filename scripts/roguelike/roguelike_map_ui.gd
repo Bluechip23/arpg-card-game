@@ -19,6 +19,10 @@ const NODE_SIZE := 46.0
 var character: CharacterData = null
 ## Optionally injected (e.g. from a saved world); defaults to a fresh world.
 var world: WorldData = null
+## Disk-safe saved story progression for this character (empty for presets).
+## Carried into each battle so the run plays with the character's real build.
+var save_progression: Dictionary = {}
+var save_world_level: int = 1
 
 var run: RoguelikeRun = null
 var _node_buttons: Dictionary = {}   ## node id -> Button
@@ -35,6 +39,14 @@ func _ready() -> void:
 
 	run = RoguelikeRun.new()
 	run.start(character, world)
+
+	# If this character has saved story progression, size the run HP pool from
+	# their real max health rather than the vanilla base-health formula.
+	if not save_progression.is_empty():
+		var saved_stats: Dictionary = save_progression.get("stats", {})
+		if saved_stats.has("max_health"):
+			run.max_hp = int(saved_stats["max_health"])
+			run.hp = run.max_hp
 
 	_setup_header()
 	_build_nodes()
@@ -225,6 +237,10 @@ func _commit_node(id: int) -> void:
 func _launch_battle(node: RoguelikeMapNode) -> void:
 	var main_scene = load(MainScenePath).instantiate()
 	main_scene.starting_character = run.character
+	# Restore the character's saved build (deck, stats, sphere grid) for the fight.
+	if not save_progression.is_empty():
+		main_scene.player_progression = ProgressionIO.to_live(save_progression)
+		main_scene.current_world_level = save_world_level
 	main_scene.roguelike_context = {
 		"node_type": RoguelikeMapNode.type_id(node.type),
 		"node_id": node.id,

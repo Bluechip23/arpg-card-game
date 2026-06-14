@@ -19,9 +19,10 @@ signal character_selected(character: CharacterData)
 const CharacterCardScene = preload("res://scenes/character/character_card.tscn")
 const QuestionnaireScene = preload("res://scenes/character/character_questionnaire.tscn")
 
-var game_mode: String = "single_player"  # "single_player" or "multiplayer"
+var game_mode: String = "single_player"  # "single_player", "multiplayer" or "roguelike"
 var _is_quiz_character: bool = false  # Track if selected character is the quiz option
 var _selected_character: CharacterData = null
+var _roguelike_saves: Dictionary = {}  # CharacterData -> SaveData (saved characters)
 
 # Multiplayer state
 var _player1_character: CharacterData = null
@@ -226,9 +227,12 @@ func _add_preset_character_cards() -> void:
 
 func _add_saved_character_cards() -> void:
 	## Builds a card for each saved character (used in roguelike selection).
+	## Remembers the save behind each character so its progression can be
+	## carried into the run.
 	for save in SaveManager.get_all_saves():
 		if save == null or save.character_data == null:
 			continue
+		_roguelike_saves[save.character_data] = save
 		var card = CharacterCardScene.instantiate()
 		character_container.add_child(card)
 		card.setup(save.character_data)
@@ -283,6 +287,12 @@ func _launch_roguelike(character: CharacterData) -> void:
 	print("[SELECT] Starting roguelike run as %s" % character.character_name)
 	var map_scene = load("res://scenes/roguelike/roguelike_map.tscn").instantiate()
 	map_scene.character = character
+	# Carry the character's saved story progression into the run (deck, stats,
+	# sphere grid). Preset characters have no save and start vanilla.
+	var save: SaveData = _roguelike_saves.get(character, null)
+	if save:
+		map_scene.save_progression = save.progression
+		map_scene.save_world_level = save.world_level
 	get_tree().root.add_child(map_scene)
 	queue_free()
 

@@ -21,6 +21,10 @@ extends Resource
 # Snapshot of deck card IDs (for display)
 @export var deck_card_ids: Array[String] = []
 
+# Disk-safe progression snapshot (see ProgressionIO). Holds level/stats, deck,
+# sphere inventory + unlocked nodes, quest state, waypoints and opened chests.
+@export var progression: Dictionary = {}
+
 # Save metadata
 @export var save_slot: int = 0
 @export var save_timestamp: String = ""
