@@ -53,6 +53,7 @@ var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many te
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var exhaust_on_play: bool = false  # If true, card is removed from the deck entirely after being played (not discarded)
+var roguelike_only: bool = false  # If true, card can only be PLAYED during a roguelike run (still collectible in the story)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
@@ -2167,6 +2168,21 @@ static func create_if_pigs_could_fly() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 2
 	card.target_types = ["enemy"]
+	return card
+
+static func create_infestation() -> Card:
+	var card = Card.new()
+	card.card_id = "infestation"
+	card.card_name = "Infestation"
+	card.description = "Roguelike only. Summon 5 rats (3 HP) that scurry toward enemies, moving 1 square each tempo. A rat dies on contact, dealing 2 damage. Enemies can kill them first."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	card.roguelike_only = true
 	return card
 
 static func create_snowballs_chance() -> Card:

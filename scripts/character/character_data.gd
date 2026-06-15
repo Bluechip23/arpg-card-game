@@ -36,6 +36,10 @@ extends Resource
 # dropping the Hydra Heart). Gates which non-base relics can appear in runs.
 @export var unlocked_relic_ids: Array = []
 
+# Tutorial beats Olorin has already shown this character (e.g. "infestation_pickup").
+# Stored per-character so each playthrough learns the ropes once.
+@export var seen_tutorial_ids: Array = []
+
 # Card upgrades: Array of {card_index: int, upgrade_path: int}
 # card_index refers to the position in the final deck list (after removals)
 # upgrade_path: 0 = path 1, 1 = path 2
