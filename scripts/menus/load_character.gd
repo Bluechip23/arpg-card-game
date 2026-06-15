@@ -232,9 +232,10 @@ func _on_load_slot(save: SaveData) -> void:
 		return
 
 	print("[LOAD] Loading character: %s" % save.character_name)
-	_show_mode_select(save.character_data)
+	_show_mode_select(save)
 
-func _show_mode_select(character: CharacterData) -> void:
+func _show_mode_select(save: SaveData) -> void:
+	var character: CharacterData = save.character_data
 	# Same mode select as character_select: Town vs Fight
 	var overlay = ColorRect.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -295,7 +296,7 @@ func _show_mode_select(character: CharacterData) -> void:
 	town_btn.custom_minimum_size = Vector2(150, 50)
 	town_btn.add_theme_font_size_override("font_size", 18)
 	_style_button(town_btn, Color(0.15, 0.3, 0.15), Color(0.2, 0.4, 0.2), Color(0.3, 0.6, 0.3), Color(0.4, 0.8, 0.4))
-	town_btn.pressed.connect(_on_mode_town.bind(character, overlay))
+	town_btn.pressed.connect(_on_mode_town.bind(save, overlay))
 	btn_hbox.add_child(town_btn)
 
 	var fight_btn = Button.new()
@@ -303,22 +304,32 @@ func _show_mode_select(character: CharacterData) -> void:
 	fight_btn.custom_minimum_size = Vector2(150, 50)
 	fight_btn.add_theme_font_size_override("font_size", 18)
 	_style_button(fight_btn, Color(0.4, 0.12, 0.12), Color(0.55, 0.18, 0.18), Color(0.7, 0.25, 0.25), Color(1.0, 0.35, 0.35))
-	fight_btn.pressed.connect(_on_mode_fight.bind(character, overlay))
+	fight_btn.pressed.connect(_on_mode_fight.bind(save, overlay))
 	btn_hbox.add_child(fight_btn)
 
 	add_child(overlay)
 
-func _on_mode_town(character: CharacterData, _overlay: ColorRect) -> void:
-	print("[LOAD] Going to town with %s" % character.character_name)
+func _on_mode_town(save: SaveData, _overlay: ColorRect) -> void:
+	print("[LOAD] Going to town with %s" % save.character_name)
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
-	town_scene.starting_character = character
+	town_scene.starting_character = save.character_data
+	town_scene.player_progression = ProgressionIO.to_live(save.progression)
+	town_scene.return_world_level = save.world_level
+	town_scene.quest_state = save.progression.get("quest_state", {})
+	town_scene.discovered_waypoints = save.progression.get("discovered_waypoints", [])
+	town_scene.opened_chests = save.progression.get("opened_chests", {})
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
-func _on_mode_fight(character: CharacterData, _overlay: ColorRect) -> void:
-	print("[LOAD] Going to fight with %s" % character.character_name)
+func _on_mode_fight(save: SaveData, _overlay: ColorRect) -> void:
+	print("[LOAD] Going to fight with %s" % save.character_name)
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
-	main_scene.starting_character = character
+	main_scene.starting_character = save.character_data
+	main_scene.player_progression = ProgressionIO.to_live(save.progression)
+	main_scene.current_world_level = save.world_level
+	main_scene.quest_state = save.progression.get("quest_state", {})
+	main_scene.discovered_waypoints = save.progression.get("discovered_waypoints", [])
+	main_scene.opened_chests = save.progression.get("opened_chests", {})
 	get_tree().root.add_child(main_scene)
 	queue_free()
 

@@ -2174,6 +2174,16 @@ func _build_save_data(slot: int) -> SaveData:
 	data.sprite_path = starting_character.sprite_path if starting_character else ""
 	var stats = player.get_stats() if player else null
 	data.character_level = stats.current_level if stats else 1
+
+	# Disk-safe progression snapshot. Town's player_progression already carries
+	# the full live progression (deck, sphere grid/inventory, inventory) that
+	# main.gd handed off when travelling here; pair it with a fresh stats snapshot.
+	var stats_snapshot := stats.save_progression() if stats else {}
+	data.progression = ProgressionIO.to_disk(player_progression, stats_snapshot)
+	data.progression["quest_state"] = quest_manager.save_state() if quest_manager else {}
+	data.progression["discovered_waypoints"] = discovered_waypoints.duplicate(true)
+	data.progression["opened_chests"] = opened_chests.duplicate(true)
+
 	# Deck snapshot (display only) from the character's known card lists.
 	var ids: Array[String] = []
 	if starting_character:

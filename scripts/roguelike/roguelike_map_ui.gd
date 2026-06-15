@@ -10,7 +10,7 @@ extends Control
 const MainScenePath := "res://scenes/core/main.tscn"
 const TitleScenePath := "res://scenes/menus/title_menu.tscn"
 
-const TOP_MARGIN := 96.0
+const TOP_MARGIN := 120.0
 const BOTTOM_MARGIN := 48.0
 const SIDE_MARGIN := 280.0
 const NODE_SIZE := 46.0
@@ -19,6 +19,13 @@ const NODE_SIZE := 46.0
 var character: CharacterData = null
 ## Optionally injected (e.g. from a saved world); defaults to a fresh world.
 var world: WorldData = null
+## The saved character behind this run (null for preset/test characters). Used
+## to carry story progression into battles and to persist/resume the single
+## active run so a character can only have one going at a time.
+var save: SaveData = null
+
+var save_progression: Dictionary = {}
+var save_world_level: int = 1
 
 var run: RoguelikeRun = null
 var _node_buttons: Dictionary = {}   ## node id -> Button
@@ -28,20 +35,64 @@ var _modal: Control = null
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
+	if save:
+		save_progression = save.progression
+		save_world_level = save.world_level
+		# Restore this character's shared world meta (unlocked relics, node
+		# upgrades, etc.) so a new run snapshots the latest unlocks.
+		if not save.world_meta.is_empty():
+			world = WorldData.from_dict(save.world_meta)
 	if not world:
 		world = WorldData.make_new("Prime World")
 	if not character:
 		character = CharacterData.create_ryan()
 
-	run = RoguelikeRun.new()
-	run.start(character, world)
+	if save and not save.active_run.is_empty():
+		# Resume the character's single in-progress run.
+		run = RoguelikeRun.from_dict(save.active_run, character, world)
+		print("[ROGUELIKE] Resumed in-progress run for %s" % character.character_name)
+	else:
+		# Start a fresh run and record it as this character's active run.
+		run = RoguelikeRun.new()
+		run.start(character, world)
+		# If this character has saved story progression, size the run HP pool
+		# from their real max health rather than the vanilla base-health formula.
+		if not save_progression.is_empty():
+			var saved_stats: Dictionary = save_progression.get("stats", {})
+			if saved_stats.has("max_health"):
+				run.max_hp = int(saved_stats["max_health"])
+				run.hp = run.max_hp
+		_persist_run()
 
 	_setup_header()
 	_build_nodes()
+	if not (world and world.has_rogue_map_of_seeing):
+		_setup_map_hidden_note()
 	_layout()
 	_refresh()
 
 	get_viewport().size_changed.connect(_on_viewport_resized)
+
+func _setup_map_hidden_note() -> void:
+	var note := Label.new()
+	note.name = "MapHiddenNote"
+	note.text = "\"The Rogue's Map of Seeing\" has not been obtained in the main world — rooms are hidden."
+	note.add_theme_font_size_override("font_size", 14)
+	note.add_theme_color_override("font_color", Color(0.85, 0.8, 0.55))
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	note.offset_top = 74.0
+	note.offset_bottom = 96.0
+	add_child(note)
+
+func _persist_run() -> void:
+	## Save (or clear) the character's single active run plus the shared world
+	## meta. No-op for presets, which have no save to write to.
+	if not save:
+		return
+	save.active_run = {} if run.finished else run.to_dict()
+	save.world_meta = world.to_dict()
+	SaveManager.save_game(save.save_slot, save)
 
 func _on_viewport_resized() -> void:
 	_layout()
@@ -83,18 +134,24 @@ func _setup_header() -> void:
 	quit_btn.pressed.connect(_on_quit_pressed)
 	hbox.add_child(quit_btn)
 
+func _node_revealed(node: RoguelikeMapNode) -> bool:
+	## Room contents are hidden until the world has The Rogue's Map of Seeing.
+	## The boss is always shown.
+	return node.type == RoguelikeMapNode.Type.BOSS or (world and world.has_rogue_map_of_seeing)
+
 func _build_nodes() -> void:
 	for id in run.map.nodes_by_id.keys():
 		var node: RoguelikeMapNode = run.map.nodes_by_id[id]
+		var revealed := _node_revealed(node)
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(NODE_SIZE, NODE_SIZE)
 		btn.size = Vector2(NODE_SIZE, NODE_SIZE)
-		btn.text = RoguelikeMapNode.type_glyph(node.type)
+		btn.text = RoguelikeMapNode.type_glyph(node.type) if revealed else "?"
 		btn.add_theme_font_size_override("font_size", 20)
 		btn.add_theme_color_override("font_color", Color(1, 1, 1))
 		btn.add_theme_color_override("font_disabled_color", Color(0.95, 0.95, 0.95))
 		btn.add_theme_color_override("font_hover_color", Color(1, 1, 1))
-		btn.tooltip_text = RoguelikeMapNode.type_display_name(node.type)
+		btn.tooltip_text = RoguelikeMapNode.type_display_name(node.type) if revealed else "Unknown room"
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.pressed.connect(_on_node_pressed.bind(node.id))
 		add_child(btn)
@@ -166,17 +223,18 @@ func _draw() -> void:
 func _refresh() -> void:
 	if not run:
 		return
-	_header.text = "%s   |   %s   |   Floor %d/%d   |   HP %d/%d   |   Gold %d" % [
+	_header.text = "%s   |   %s   |   Floor %d/%d   |   HP %d/%d   |   Gold %d   |   Cards +%d  Potions %d  Relics %d" % [
 		world.world_name, character.character_name,
 		run.floor_reached, run.map.total_rows(),
 		run.hp, run.max_hp, run.gold,
+		run.deck_cards.size(), run.potions.size(), run.relics.size(),
 	]
 
 	var available := run.available_node_ids()
 	for id in _node_buttons.keys():
 		var node: RoguelikeMapNode = run.map.get_node(id)
 		var btn: Button = _node_buttons[id]
-		var base := RoguelikeMapNode.type_color(node.type)
+		var base := RoguelikeMapNode.type_color(node.type) if _node_revealed(node) else Color(0.42, 0.42, 0.5)
 		if node.id == run.current_node_id:
 			_style_node(btn, base, Color(1, 1, 1), 3, true)
 		elif node.visited:
@@ -214,6 +272,7 @@ func _on_node_pressed(id: int) -> void:
 
 func _commit_node(id: int) -> void:
 	run.resolve_node(id)
+	_persist_run()
 	_refresh()
 	if run.finished:
 		_show_end_overlay()
@@ -225,9 +284,23 @@ func _commit_node(id: int) -> void:
 func _launch_battle(node: RoguelikeMapNode) -> void:
 	var main_scene = load(MainScenePath).instantiate()
 	main_scene.starting_character = run.character
+	# Restore the character's saved build (deck, stats, sphere grid) for the fight,
+	# and fold in any cards picked up earlier this run.
+	if not save_progression.is_empty():
+		var prog := ProgressionIO.to_live(save_progression)
+		if not run.deck_cards.is_empty() and prog.has("deck_state"):
+			var ds: Dictionary = prog["deck_state"].duplicate(true)
+			var draw: Array = ds.get("draw_pile", []).duplicate()
+			for cid in run.deck_cards:
+				draw.append(cid)
+			ds["draw_pile"] = draw
+			prog["deck_state"] = ds
+		main_scene.player_progression = prog
+		main_scene.current_world_level = save_world_level
 	main_scene.roguelike_context = {
 		"node_type": RoguelikeMapNode.type_id(node.type),
 		"node_id": node.id,
+		"relics": run.relics.duplicate(),
 	}
 	main_scene.roguelike_battle_finished.connect(_on_battle_finished.bind(node.id, main_scene))
 	# Keep this map alive but inert while the battle runs.
@@ -235,23 +308,173 @@ func _launch_battle(node: RoguelikeMapNode) -> void:
 	process_mode = Node.PROCESS_MODE_DISABLED
 	get_tree().root.add_child(main_scene)
 
-func _on_battle_finished(victory: bool, node_id: int, main_scene: Node) -> void:
+func _on_battle_finished(victory: bool, remaining_hp: int, node_id: int, main_scene: Node) -> void:
 	if is_instance_valid(main_scene):
 		main_scene.queue_free()
 	visible = true
 	process_mode = Node.PROCESS_MODE_INHERIT
 	if victory:
+		# Carry the player's surviving HP back to the run.
+		run.hp = clampi(remaining_hp, 1, run.max_hp)
 		var node := run.map.get_node(node_id)
-		var reward := 25 if node and node.type == RoguelikeMapNode.Type.ELITE else 12
 		if node and node.type == RoguelikeMapNode.Type.BOSS:
-			reward = 50
-		run.add_gold(reward)
-		_commit_node(node_id)
+			# Beating the boss ends the run; no reward screen.
+			run.add_gold(50)
+			_commit_node(node_id)
+		else:
+			_show_battle_rewards(node_id, node != null and node.type == RoguelikeMapNode.Type.ELITE)
 	else:
+		# Death in combat ends the run — no continue.
+		run.hp = 0
 		run.finished = true
 		run.victorious = false
+		_persist_run()
 		_refresh()
 		_show_end_overlay()
+
+# ----------------------------------------------------------------------------
+# Battle rewards (card + gold, chance of a potion; elites also drop a relic)
+# ----------------------------------------------------------------------------
+
+func _show_battle_rewards(node_id: int, is_elite: bool) -> void:
+	var gold := randi_range(20, 35) if is_elite else randi_range(8, 18)
+	if run.relics.has("golden_idol"):
+		gold += 10
+	var potion := _roll_potion()
+	var relic := _roll_relic() if is_elite else ""
+	var card_options := _card_reward_options(3)
+
+	var overlay := ColorRect.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.65)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.custom_minimum_size = Vector2(480, 0)
+	panel.add_theme_stylebox_override("panel", _modal_panel_style())
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Elite Defeated!" if is_elite else "Victory!"
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.5))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var spoils := "Gold +%d" % gold
+	if potion != "":
+		var pn = Potions.get_potion(potion)
+		spoils += "\nPotion: %s" % (pn.name if pn else potion)
+	if relic != "":
+		var rn = Relics.get_relic(relic)
+		spoils += "\nRelic: %s — %s" % [(rn.name if rn else relic), (rn.description if rn else "")]
+	var spoils_lbl := Label.new()
+	spoils_lbl.text = spoils
+	spoils_lbl.add_theme_font_size_override("font_size", 15)
+	spoils_lbl.add_theme_color_override("font_color", Color(0.85, 0.9, 0.85))
+	spoils_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(spoils_lbl)
+
+	var pick_lbl := Label.new()
+	pick_lbl.text = "Add a card to your deck:" if not card_options.is_empty() else "No cards available to add."
+	pick_lbl.add_theme_font_size_override("font_size", 16)
+	pick_lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.95))
+	pick_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(pick_lbl)
+
+	# finalize(chosen_card_id) applies all spoils and advances the run.
+	var finalize := func(chosen_card: String) -> void:
+		run.add_gold(gold)
+		if potion != "":
+			run.potions.append(potion)
+		if relic != "":
+			run.relics.append(relic)
+		if chosen_card != "":
+			run.deck_cards.append(chosen_card)
+		_close_modal()
+		_commit_node(node_id)
+
+	var card_row := HBoxContainer.new()
+	card_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(card_row)
+	for cid in card_options:
+		var cbtn := Button.new()
+		cbtn.text = _pretty_card(cid)
+		cbtn.custom_minimum_size = Vector2(130, 46)
+		cbtn.pressed.connect(finalize.bind(cid))
+		card_row.add_child(cbtn)
+
+	var skip := Button.new()
+	skip.text = "Skip card" if not card_options.is_empty() else "Continue"
+	skip.custom_minimum_size = Vector2(160, 38)
+	skip.pressed.connect(finalize.bind(""))
+	vbox.add_child(skip)
+
+	_modal = overlay
+
+func _roll_potion() -> String:
+	var chance := 0.25
+	if run.relics.has("alchemists_satchel"):
+		chance += 0.5
+	if randf() < chance:
+		return Potions.random_id()
+	return ""
+
+func _roll_relic() -> String:
+	var pool: Array = []
+	for r in Relics.available_for(character):
+		if not run.relics.has(r.id):
+			pool.append(r.id)
+	if pool.is_empty():
+		return ""
+	return pool[randi() % pool.size()]
+
+func _card_reward_options(n: int) -> Array:
+	var seen := {}
+	var list: Array = []
+	if character:
+		for c in character.starting_card_ids:
+			var s := str(c)
+			if not seen.has(s):
+				seen[s] = true
+				list.append(s)
+		for c in character.purchased_card_ids:
+			var s2 := str(c)
+			if not seen.has(s2):
+				seen[s2] = true
+				list.append(s2)
+	list.shuffle()
+	return list.slice(0, mini(n, list.size()))
+
+func _pretty_card(card_id: String) -> String:
+	return card_id.capitalize()
+
+func _modal_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.11, 0.11, 0.17, 1.0)
+	style.border_color = Color(0.45, 0.45, 0.65)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.content_margin_left = 28
+	style.content_margin_right = 28
+	style.content_margin_top = 22
+	style.content_margin_bottom = 22
+	return style
 
 # ----------------------------------------------------------------------------
 # Non-combat encounter panels (lightweight for the first slice)
@@ -264,16 +487,22 @@ func _open_encounter_panel(node: RoguelikeMapNode) -> void:
 	match node.type:
 		RoguelikeMapNode.Type.CAMPFIRE:
 			title = "Rest Site"
-			var heal := int(round(run.max_hp * 0.3))
-			body = "A quiet campfire. Resting restores %d HP.\n\n(Upgrades to rest sites come later.)" % heal
-			action_label = "Rest (+%d HP)" % heal
+			body = "A quiet campfire. Resting restores %d HP." % _campfire_heal_amount()
+			body += _active_upgrades_text("campfire")
+			action_label = "Rest (+%d HP)" % _campfire_heal_amount()
 		RoguelikeMapNode.Type.SHOP:
 			title = "Shop"
-			body = "A wandering merchant eyes your coin purse (%d gold).\n\n(Wares unlock as you build this world.)" % run.gold
+			var discount := "  Founder's Discount is in effect." if run.has_node_upgrade("shop", "founders_discount") else ""
+			body = "A wandering merchant eyes your coin purse (%d gold).%s\n\n(Wares unlock as you build this world.)" % [run.gold, discount]
+			body += _active_upgrades_text("shop")
 			action_label = "Leave Shop"
 		RoguelikeMapNode.Type.RANDOM:
 			title = "Unknown"
-			body = "You stumble onto something unexpected...\n\n(Events unlock as you build this world.)"
+			body = "You stumble onto something unexpected..."
+			# Unknown sites can discover a node upgrade for FUTURE runs.
+			var discovered := _roll_node_upgrade_discovery()
+			if discovered:
+				body += "\n\nYou uncover lost knowledge: \"%s\" (%s).\nIt takes effect on your NEXT run, not this one." % [discovered.name, discovered.description]
 			action_label = "Continue"
 		_:
 			title = RoguelikeMapNode.type_display_name(node.type)
@@ -287,13 +516,40 @@ func _open_encounter_panel(node: RoguelikeMapNode) -> void:
 		_commit_node(node_id)
 	_modal = _make_modal(title, body, action_label, on_continue)
 
+func _campfire_heal_amount() -> int:
+	var pct := 0.5 if run.has_node_upgrade("campfire", "deep_rest") else 0.3
+	return int(round(run.max_hp * pct))
+
+func _active_upgrades_text(node_type_id: String) -> String:
+	var ids: Array = run.active_node_upgrades(node_type_id)
+	if ids.is_empty():
+		return ""
+	var names: Array = []
+	for id in ids:
+		var up = NodeUpgrades.get_upgrade(id)
+		names.append(up.name if up else id)
+	return "\n\nActive upgrades: %s" % ", ".join(names)
+
+func _roll_node_upgrade_discovery():
+	## ~50% chance to unlock a still-locked node upgrade into the world (future
+	## runs only). Returns the discovered NodeUpgrades.Upgrade, or null.
+	var locked: Array = NodeUpgrades.locked_in(world)
+	if locked.is_empty() or randf() > 0.5:
+		return null
+	var up = locked[randi() % locked.size()]
+	run.unlock_node_upgrade(up.node_type_id, up.id)
+	return up
+
 func _apply_encounter_effect(node: RoguelikeMapNode) -> void:
 	match node.type:
 		RoguelikeMapNode.Type.CAMPFIRE:
-			run.heal(int(round(run.max_hp * 0.3)))
+			run.heal(_campfire_heal_amount())
+			if run.has_node_upgrade("campfire", "war_supplies"):
+				run.max_hp += 8
+				run.heal(8)
 		RoguelikeMapNode.Type.RANDOM:
-			# Placeholder reward so events feel alive until real events exist.
-			run.add_gold(randi_range(5, 20))
+			var bonus := 2 if run.has_node_upgrade("random", "lucky_find") else 1
+			run.add_gold(randi_range(5, 20) * bonus)
 
 # ----------------------------------------------------------------------------
 # End-of-run overlay
@@ -313,11 +569,21 @@ func _show_end_overlay() -> void:
 func _on_quit_pressed() -> void:
 	if _modal:
 		return
-	var on_abandon := func() -> void:
-		_return_to_menu()
 	var on_keep := func() -> void:
 		_close_modal()
-	_modal = _make_modal("Abandon Run?", "Leave this run and return to the main menu?", "Abandon", on_abandon, "Keep Playing", on_keep)
+	# Exit but keep the run — it's already saved and will resume next time. A
+	# character can only have one run going, so this is how you step away.
+	var on_exit := func() -> void:
+		_return_to_menu()
+	# Abandon ends the run for good; the slot is freed so a fresh run (with any
+	# newly unlocked meta-progression) can be started later.
+	var on_abandon := func() -> void:
+		run.finished = true
+		run.victorious = false
+		_persist_run()
+		_return_to_menu()
+	var body := "Exit keeps this run so you can resume it later — you can only have one run at a time.\n\nAbandon ends it for good."
+	_modal = _make_modal("Leave Run?", body, "Keep Playing", on_keep, "Abandon Run", on_abandon, "Exit (resume later)", on_exit)
 
 func _return_to_menu() -> void:
 	var title_scene = load(TitleScenePath).instantiate()
@@ -329,7 +595,8 @@ func _return_to_menu() -> void:
 # ----------------------------------------------------------------------------
 
 func _make_modal(title: String, body: String, primary_label: String, primary_cb: Callable,
-		secondary_label: String = "", secondary_cb: Callable = Callable()) -> Control:
+		secondary_label: String = "", secondary_cb: Callable = Callable(),
+		tertiary_label: String = "", tertiary_cb: Callable = Callable()) -> Control:
 	var overlay := ColorRect.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.color = Color(0, 0, 0, 0.65)
@@ -390,6 +657,13 @@ func _make_modal(title: String, body: String, primary_label: String, primary_cb:
 		sbtn.custom_minimum_size = Vector2(140, 40)
 		sbtn.pressed.connect(secondary_cb)
 		btn_row.add_child(sbtn)
+
+	if tertiary_label != "":
+		var tbtn := Button.new()
+		tbtn.text = tertiary_label
+		tbtn.custom_minimum_size = Vector2(140, 40)
+		tbtn.pressed.connect(tertiary_cb)
+		btn_row.add_child(tbtn)
 
 	var pbtn := Button.new()
 	pbtn.text = primary_label

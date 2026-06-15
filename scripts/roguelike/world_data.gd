@@ -32,6 +32,10 @@ extends Resource
 @export var runs_completed: int = 0
 @export var deepest_floor_reached: int = 0
 
+# Obtained in the main story. Until the character earns "The Rogue's Map of
+# Seeing", the run map shows every room as "?" (the boss aside).
+@export var has_rogue_map_of_seeing: bool = false
+
 static func make_new(name: String) -> WorldData:
 	var w := WorldData.new()
 	w.world_name = name
@@ -42,3 +46,52 @@ static func make_new(name: String) -> WorldData:
 func has_node_upgrade(node_type: String, upgrade_id: String) -> bool:
 	var ups = node_upgrades.get(node_type, [])
 	return ups.has(upgrade_id)
+
+# ----------------------------------------------------------------------------
+# Persistence (the shared world meta is stored on each character's save)
+# ----------------------------------------------------------------------------
+
+func to_dict() -> Dictionary:
+	return {
+		"world_id": world_id,
+		"world_name": world_name,
+		"created": created_timestamp,
+		"relics": unlocked_relic_ids.duplicate(),
+		"vendors": unlocked_vendor_ids.duplicate(),
+		"events": unlocked_event_ids.duplicate(),
+		"node_types": unlocked_node_type_ids.duplicate(),
+		"node_upgrades": node_upgrades.duplicate(true),
+		"runs_started": runs_started,
+		"runs_completed": runs_completed,
+		"deepest_floor_reached": deepest_floor_reached,
+		"has_rogue_map_of_seeing": has_rogue_map_of_seeing,
+	}
+
+static func from_dict(data: Dictionary) -> WorldData:
+	var w := WorldData.new()
+	if data == null or data.is_empty():
+		return w
+	w.world_id = str(data.get("world_id", ""))
+	w.world_name = str(data.get("world_name", "New World"))
+	w.created_timestamp = str(data.get("created", ""))
+	# Typed string arrays must be rebuilt element-by-element from the loaded
+	# (untyped) arrays.
+	for s in data.get("relics", []):
+		w.unlocked_relic_ids.append(str(s))
+	for s in data.get("vendors", []):
+		w.unlocked_vendor_ids.append(str(s))
+	for s in data.get("events", []):
+		w.unlocked_event_ids.append(str(s))
+	for s in data.get("node_types", []):
+		w.unlocked_node_type_ids.append(str(s))
+	var ups: Dictionary = data.get("node_upgrades", {})
+	for key in ups.keys():
+		var ids: Array = []
+		for v in ups[key]:
+			ids.append(str(v))
+		w.node_upgrades[str(key)] = ids
+	w.runs_started = int(data.get("runs_started", 0))
+	w.runs_completed = int(data.get("runs_completed", 0))
+	w.deepest_floor_reached = int(data.get("deepest_floor_reached", 0))
+	w.has_rogue_map_of_seeing = bool(data.get("has_rogue_map_of_seeing", false))
+	return w

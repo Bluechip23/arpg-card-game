@@ -124,12 +124,16 @@ var player2_character: CharacterData = null
 var is_multiplayer: bool = false
 
 # Roguelike battle hand-off. When non-empty, this main scene was launched by the
-# roguelike map to resolve a single encounter. On victory it emits
+# roguelike map to resolve a single encounter. On victory OR death it emits
 # roguelike_battle_finished and the map removes/frees this scene. Empty for all
 # normal story / fight / multiplayer flows, which keep their existing behavior.
-signal roguelike_battle_finished(victory: bool)
+signal roguelike_battle_finished(victory: bool, remaining_hp: int)
 var roguelike_context: Dictionary = {}
 var _roguelike_active: bool = false
+var _roguelike_relics: Array = []  # Relics carried by the run (drive in-battle relic effects)
+
+# Active fire walls (Fire Goblin Shaman). Each: {tiles, damage, burn, moves_left, visuals}.
+var _fire_walls: Array = []
 
 # Player 2 state
 var _p2_deck_manager: DeckManager = null
@@ -287,6 +291,7 @@ func _ready() -> void:
 	# Test UI
 	test_ui.spawn_wave_requested.connect(_on_spawn_wave)
 	test_ui.spawn_elite_requested.connect(_on_spawn_elite)
+	test_ui.spawn_fire_goblins_requested.connect(_on_spawn_fire_goblins)
 	test_ui.give_item_requested.connect(_on_give_item)
 	test_ui.give_card_requested.connect(_on_give_card)
 	test_ui.apply_buff_requested.connect(_on_apply_buff)
@@ -2346,6 +2351,9 @@ func _on_player_tile_reached() -> void:
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
 	_player_last_grid_cell = player_cell
 
+	# Fire walls (Fire Goblin Shaman): burn the player if they stepped into one.
+	_check_fire_walls(player_cell)
+
 	# Player Y follows terrain smoothly via ground_y_provider (see player.gd)
 
 	# Normal per-tile tempo
@@ -2513,6 +2521,22 @@ func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
 
+func _roll_hydra_drops() -> void:
+	## A Hydra can drop the Hydra Heart relic and/or the Growth Within Resilience
+	## card into the character's persistent collection (saved in Town).
+	if not current_character:
+		return
+	if randf() < 0.33:
+		if not current_character.unlocked_relic_ids.has("hydra_heart"):
+			current_character.unlocked_relic_ids.append("hydra_heart")
+			add_battle_log("The Hydra's heart still beats — Hydra Heart relic unlocked for the roguelike!", Color(0.9, 0.3, 0.4))
+			print("[MAIN] Hydra dropped: Hydra Heart relic")
+	if randf() < 0.33:
+		if not current_character.purchased_card_ids.has("growth_within_resilience"):
+			current_character.purchased_card_ids.append("growth_within_resilience")
+			add_battle_log("You learn Growth Within Resilience!", Color(0.4, 0.8, 0.4))
+			print("[MAIN] Hydra dropped: Growth Within Resilience card")
+
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
 	player.get_stats().gain_xp(enemy.xp_reward)
@@ -2521,6 +2545,9 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	# don't count toward unlocking their own intents.
 	if not _roguelike_active and current_character and not current_character.defeated_monster_ids.has(enemy.enemy_name):
 		current_character.defeated_monster_ids.append(enemy.enemy_name)
+	# Hydra drops (story only): feed discoveries into the character's roguelike pool.
+	if not _roguelike_active and enemy.enemy_type == Enemy.EnemyType.HYDRA:
+		_roll_hydra_drops()
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	# Sphere grid passive triggers for kills
@@ -2537,15 +2564,25 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 func _on_all_enemies_defeated() -> void:
 	if _roguelike_active:
 		_roguelike_active = false
-		print("[MAIN] Roguelike encounter cleared — returning to map.")
-		roguelike_battle_finished.emit(true)
+		var hp := player.get_stats().current_health if player and player.get_stats() else 0
+		print("[MAIN] Roguelike encounter cleared — returning to map (HP %d)." % hp)
+		roguelike_battle_finished.emit(true, hp)
 		return
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
+func _on_roguelike_player_died() -> void:
+	## Player died during a roguelike encounter — the run is over.
+	if not _roguelike_active:
+		return
+	_roguelike_active = false
+	print("[MAIN] Player died in roguelike encounter — run over.")
+	roguelike_battle_finished.emit(false, 0)
+
 func _start_roguelike_battle() -> void:
 	## Spawn the encounter for the roguelike map node that launched this scene,
 	## then arm the win condition that returns control to the map.
+	_roguelike_relics = roguelike_context.get("relics", [])
 	var node_type: String = roguelike_context.get("node_type", "monster")
 	match node_type:
 		"elite":
@@ -2562,6 +2599,10 @@ func _start_roguelike_battle() -> void:
 	_sync_pillar_tiles()
 	_update_enemy_count()
 	_refresh_unit_tracker()
+	# End the run if the player dies this encounter.
+	var stats = player.get_stats()
+	if stats and not stats.died.is_connected(_on_roguelike_player_died):
+		stats.died.connect(_on_roguelike_player_died)
 	_roguelike_active = true
 	print("[MAIN] Roguelike encounter started (%s)." % node_type)
 
@@ -2570,6 +2611,70 @@ func _roguelike_spawn_pos(cell: Vector2i) -> Vector3:
 	if dungeon_manager:
 		world_pos.y = dungeon_manager.get_elevation_world_y(cell)
 	return world_pos
+
+# ============================================
+# FIRE WALLS (Fire Goblin Shaman)
+# ============================================
+
+func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6) -> void:
+	## Called by a Fire Goblin Shaman. Lays a hazard on the given grid cells that
+	## burns the player when they walk into it; expires after a few player moves.
+	var visuals: Array = []
+	for cell in tiles:
+		var v = _spawn_fire_wall_visual(cell)
+		if v:
+			visuals.append(v)
+	_fire_walls.append({"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves, "visuals": visuals})
+	add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
+
+func _spawn_fire_wall_visual(cell: Vector2i) -> MeshInstance3D:
+	if not grid_manager:
+		return null
+	var box := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.9, 0.7, 0.9)
+	box.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.4, 0.1, 0.55)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.45, 0.1)
+	mat.emission_energy_multiplier = 2.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	box.material_override = mat
+	var pos := grid_manager.grid_to_world(cell)
+	if dungeon_manager:
+		pos.y = dungeon_manager.get_elevation_world_y(cell)
+	box.position = pos + Vector3(0, 0.35, 0)
+	add_child(box)
+	return box
+
+func _check_fire_walls(player_cell: Vector2i) -> void:
+	if _fire_walls.is_empty():
+		return
+	var survivors: Array = []
+	for wall in _fire_walls:
+		if wall["tiles"].has(player_cell):
+			_burn_player_from_fire(wall["damage"], wall["burn"])
+		wall["moves_left"] -= 1
+		if wall["moves_left"] > 0:
+			survivors.append(wall)
+		else:
+			for v in wall["visuals"]:
+				if is_instance_valid(v):
+					v.queue_free()
+	_fire_walls = survivors
+
+func _burn_player_from_fire(damage: int, burn: int) -> void:
+	var stats = player.get_stats()
+	if not stats:
+		return
+	var dm = player.get_debuff_manager() if player.has_method("get_debuff_manager") else null
+	var bm = player.get_buff_manager() if player.has_method("get_buff_manager") else null
+	stats.take_damage(damage, dm, bm)
+	if dm:
+		for _i in range(burn):
+			dm.apply_debuff(Debuff.new(Debuff.DebuffType.BURN, 1))
+	add_battle_log("Fire wall burns you for %d (+%d burn)!" % [damage, burn], Color(1.0, 0.4, 0.1))
 
 func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
@@ -4802,6 +4907,15 @@ func _on_spawn_wave() -> void:
 	_refresh_unit_tracker()
 	print("[MAIN] Spawned new wave!")
 
+func _on_spawn_fire_goblins() -> void:
+	enemy_spawner.spawn_fire_goblin_pack()
+	_sync_blocked_tiles()
+	_sync_occupied_tiles()
+	_sync_pillar_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	print("[MAIN] Spawned fire goblin pack!")
+
 func _on_spawn_elite() -> void:
 	var used_cells: Array[Vector2i] = []
 	for enemy in enemy_spawner.get_living_enemies():
@@ -5561,6 +5675,27 @@ func _on_player_damage_taken(_amount: int) -> void:
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
 	if triggered.size() > 0:
+		_refresh_unit_tracker()
+
+	var stats = player.get_stats()
+	var non_fatal: bool = stats != null and stats.current_health > 0
+	if not non_fatal:
+		return
+
+	# Growth Within Resilience (maintained Power): non-fatal damage adds a
+	# single-use Hydra Bite to your hand.
+	for mcard in deck_manager.get_maintained_cards():
+		if mcard.card_id == "growth_within_resilience":
+			deck_manager.add_card_to_hand(Card.create_hydra_bite())
+			add_battle_log("Growth Within Resilience: a Hydra Bite surges into your hand!", Color(0.5, 0.85, 0.4))
+			break
+
+	# Hydra Heart relic (roguelike runs only): gain 1 strength when you take
+	# damage. (The "own turn" condition is approximated as any damage taken
+	# during the run until per-source turn tracking exists.)
+	if _roguelike_relics.has("hydra_heart"):
+		stats.base_strength += 1
+		add_battle_log("Hydra Heart: +1 strength!", Color(0.9, 0.4, 0.5))
 		_refresh_unit_tracker()
 
 func _on_card_on_draw_triggered(card: Card) -> void:

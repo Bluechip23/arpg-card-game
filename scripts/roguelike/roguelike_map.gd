@@ -141,3 +141,57 @@ func _has_incoming(from_row: Array, to_node: RoguelikeMapNode) -> bool:
 		if fn.next_ids.has(to_node.id):
 			return true
 	return false
+
+# ----------------------------------------------------------------------------
+# Persistence
+# ----------------------------------------------------------------------------
+
+func to_dict() -> Dictionary:
+	var node_dicts: Array = []
+	for r in range(rows.size()):
+		for node in rows[r]:
+			node_dicts.append({
+				"id": node.id,
+				"type": node.type,
+				"row": node.row,
+				"col": node.col,
+				"next_ids": node.next_ids.duplicate(),
+				"visited": node.visited,
+			})
+	return {
+		"seed": seed_value,
+		"nodes": node_dicts,
+		"boss_id": boss_node.id if boss_node else -1,
+	}
+
+static func from_dict(data: Dictionary) -> RoguelikeMap:
+	var m := RoguelikeMap.new()
+	m.seed_value = int(data.get("seed", 0))
+	var node_dicts: Array = data.get("nodes", [])
+	var boss_id: int = int(data.get("boss_id", -1))
+	var max_row: int = 0
+	for nd in node_dicts:
+		max_row = maxi(max_row, int(nd.get("row", 0)))
+	# Prepare empty rows.
+	m.rows = []
+	for _r in range(max_row + 1):
+		m.rows.append([])
+	for nd in node_dicts:
+		var node := RoguelikeMapNode.new()
+		node.id = int(nd.get("id", -1))
+		node.type = int(nd.get("type", RoguelikeMapNode.Type.MONSTER))
+		node.row = int(nd.get("row", 0))
+		node.col = int(nd.get("col", 0))
+		node.visited = bool(nd.get("visited", false))
+		var nexts: Array[int] = []
+		for v in nd.get("next_ids", []):
+			nexts.append(int(v))
+		node.next_ids = nexts
+		m.nodes_by_id[node.id] = node
+		m.rows[node.row].append(node)
+		if node.id == boss_id:
+			m.boss_node = node
+	# Keep each row ordered by column for stable layout.
+	for r in range(m.rows.size()):
+		m.rows[r].sort_custom(func(a, b): return a.col < b.col)
+	return m

@@ -36,6 +36,16 @@ func spawn_test_arena() -> void:
 
 	print("[SPAWNER] Test arena spawned: %d enemies" % enemies.size())
 
+func spawn_fire_goblin_pack() -> void:
+	## A Fire Goblin warband led by a shaman, plus a Hydra — for testing the new
+	## enemies. Does not clear existing enemies.
+	spawn_enemy(Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Vector3(12.5, 0, 4.0))
+	spawn_enemy(Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Vector3(13.5, 0, 6.0))
+	spawn_enemy(Enemy.EnemyType.FIRE_GOBLIN_MAGE, Vector3(16.0, 0, 5.0))
+	spawn_enemy(Enemy.EnemyType.FIRE_GOBLIN_SHAMAN, Vector3(17.5, 0, 7.0))
+	spawn_enemy(Enemy.EnemyType.HYDRA, Vector3(15.0, 0, 9.0))
+	print("[SPAWNER] Fire goblin pack + hydra spawned: %d total" % enemies.size())
+
 func spawn_enemy(type: Enemy.EnemyType, pos: Vector3) -> Enemy:
 	var enemy = EnemyScene.instantiate() as Enemy
 	get_parent().add_child(enemy)

@@ -21,6 +21,20 @@ extends Resource
 # Snapshot of deck card IDs (for display)
 @export var deck_card_ids: Array[String] = []
 
+# Disk-safe progression snapshot (see ProgressionIO). Holds level/stats, deck,
+# sphere inventory + unlocked nodes, quest state, waypoints and opened chests.
+@export var progression: Dictionary = {}
+
+# The character's single in-progress roguelike run (RoguelikeRun.to_dict()).
+# Empty when there is no active run. A character can only have one at a time;
+# it is resumed on re-entry and cleared when the run ends (victory or death).
+@export var active_run: Dictionary = {}
+
+# The character's shared roguelike world meta-progression (WorldData.to_dict()):
+# relics, vendors, events and node upgrades unlocked so far. A run freezes a
+# snapshot of this at start; new unlocks land here for future runs.
+@export var world_meta: Dictionary = {}
+
 # Save metadata
 @export var save_slot: int = 0
 @export var save_timestamp: String = ""

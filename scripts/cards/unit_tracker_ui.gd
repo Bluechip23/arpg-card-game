@@ -432,6 +432,10 @@ func _get_type_name(enemy: Enemy) -> String:
 		Enemy.EnemyType.MINION: return "Minion"
 		Enemy.EnemyType.ELITE: return "Elite"
 		Enemy.EnemyType.BOSS: return "Boss"
+		Enemy.EnemyType.HYDRA: return "Hydra"
+		Enemy.EnemyType.FIRE_GOBLIN_SOLDIER: return "Fire Goblin Soldier"
+		Enemy.EnemyType.FIRE_GOBLIN_MAGE: return "Fire Goblin Mage"
+		Enemy.EnemyType.FIRE_GOBLIN_SHAMAN: return "Fire Goblin Shaman"
 	return "Unknown"
 
 func _get_type_color(enemy: Enemy) -> Color:

@@ -490,6 +490,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			# Put back in hand
 			hand.insert(min(index, hand.size()), card)
 			print("[DECK] %s sticky (%d/%d uses) - stays in hand" % [card.card_name, card.consecutive_uses, card.sticky])
+	elif card.exhaust_on_play:
+		# Burned — removed from the deck entirely (not sent to discard).
+		card_discarded.emit(card)
+		print("[DECK] %s burned after play (exhausted)." % card.card_name)
 	else:
 		discard_pile.append(card)
 		discards_this_cycle += 1
