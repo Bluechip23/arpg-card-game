@@ -32,6 +32,10 @@ extends Resource
 # roguelike end-game; the telegraph UI itself is a later pass.
 @export var defeated_monster_ids: Array = []
 
+# Roguelike relics this character has discovered in the story (e.g. a Hydra
+# dropping the Hydra Heart). Gates which non-base relics can appear in runs.
+@export var unlocked_relic_ids: Array = []
+
 # Card upgrades: Array of {card_index: int, upgrade_path: int}
 # card_index refers to the position in the final deck list (after removals)
 # upgrade_path: 0 = path 1, 1 = path 2

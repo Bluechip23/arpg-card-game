@@ -300,6 +300,7 @@ func _launch_battle(node: RoguelikeMapNode) -> void:
 	main_scene.roguelike_context = {
 		"node_type": RoguelikeMapNode.type_id(node.type),
 		"node_id": node.id,
+		"relics": run.relics.duplicate(),
 	}
 	main_scene.roguelike_battle_finished.connect(_on_battle_finished.bind(node.id, main_scene))
 	# Keep this map alive but inert while the battle runs.
@@ -430,7 +431,7 @@ func _roll_potion() -> String:
 
 func _roll_relic() -> String:
 	var pool: Array = []
-	for r in Relics.all():
+	for r in Relics.available_for(character):
 		if not run.relics.has(r.id):
 			pool.append(r.id)
 	if pool.is_empty():

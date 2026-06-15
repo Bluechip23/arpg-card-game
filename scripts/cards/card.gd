@@ -52,6 +52,7 @@ var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var linger: bool = false  # If true, status card can exceed hand size limit when added
+var exhaust_on_play: bool = false  # If true, card is removed from the deck entirely after being played (not discarded)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
@@ -2762,6 +2763,45 @@ static func create_lightly_dazed() -> Card:
 	card.erase_tempo = 40
 	card.erase_tempo_remaining = 40
 	card.linger = true
+	card.target_types = ["self"]
+	return card
+
+static func create_hydra_bite() -> Card:
+	var card = Card.new()
+	card.card_id = "hydra_bite"
+	card.card_name = "Hydra Bite"
+	card.description = "Deal 7 damage. Burned from your deck after being played."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 1
+	card.tempo_cost = 0
+	card.resolve_tick = 0
+	card.damage = 7
+	card.base_damage = 7
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.exhaust_on_play = true
+	card.linger = true  # Generated into hand; may exceed hand cap
+	card.target_types = ["enemy"]
+	return card
+
+static func create_growth_within_resilience() -> Card:
+	var card = Card.new()
+	card.card_id = "growth_within_resilience"
+	card.card_name = "Growth Within Resilience"
+	card.description = "Maintain (3 mana). While maintained, when you take non-fatal damage, add a Hydra Bite (1m / 0t, 7 damage, burned after play) to your hand."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 1
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.maintain_cost = 3  # Reserved while maintained
+	card.reaction_trigger = "on_damage_taken"  # Consumed by the maintained-card hook in main.gd
 	card.target_types = ["self"]
 	return card
 

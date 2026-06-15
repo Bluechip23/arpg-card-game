@@ -130,6 +130,7 @@ var is_multiplayer: bool = false
 signal roguelike_battle_finished(victory: bool, remaining_hp: int)
 var roguelike_context: Dictionary = {}
 var _roguelike_active: bool = false
+var _roguelike_relics: Array = []  # Relics carried by the run (drive in-battle relic effects)
 
 # Active fire walls (Fire Goblin Shaman). Each: {tiles, damage, burn, moves_left, visuals}.
 var _fire_walls: Array = []
@@ -2520,6 +2521,22 @@ func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
 
+func _roll_hydra_drops() -> void:
+	## A Hydra can drop the Hydra Heart relic and/or the Growth Within Resilience
+	## card into the character's persistent collection (saved in Town).
+	if not current_character:
+		return
+	if randf() < 0.33:
+		if not current_character.unlocked_relic_ids.has("hydra_heart"):
+			current_character.unlocked_relic_ids.append("hydra_heart")
+			add_battle_log("The Hydra's heart still beats — Hydra Heart relic unlocked for the roguelike!", Color(0.9, 0.3, 0.4))
+			print("[MAIN] Hydra dropped: Hydra Heart relic")
+	if randf() < 0.33:
+		if not current_character.purchased_card_ids.has("growth_within_resilience"):
+			current_character.purchased_card_ids.append("growth_within_resilience")
+			add_battle_log("You learn Growth Within Resilience!", Color(0.4, 0.8, 0.4))
+			print("[MAIN] Hydra dropped: Growth Within Resilience card")
+
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
 	player.get_stats().gain_xp(enemy.xp_reward)
@@ -2528,6 +2545,9 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	# don't count toward unlocking their own intents.
 	if not _roguelike_active and current_character and not current_character.defeated_monster_ids.has(enemy.enemy_name):
 		current_character.defeated_monster_ids.append(enemy.enemy_name)
+	# Hydra drops (story only): feed discoveries into the character's roguelike pool.
+	if not _roguelike_active and enemy.enemy_type == Enemy.EnemyType.HYDRA:
+		_roll_hydra_drops()
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	# Sphere grid passive triggers for kills
@@ -2562,6 +2582,7 @@ func _on_roguelike_player_died() -> void:
 func _start_roguelike_battle() -> void:
 	## Spawn the encounter for the roguelike map node that launched this scene,
 	## then arm the win condition that returns control to the map.
+	_roguelike_relics = roguelike_context.get("relics", [])
 	var node_type: String = roguelike_context.get("node_type", "monster")
 	match node_type:
 		"elite":
@@ -5654,6 +5675,27 @@ func _on_player_damage_taken(_amount: int) -> void:
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
 	if triggered.size() > 0:
+		_refresh_unit_tracker()
+
+	var stats = player.get_stats()
+	var non_fatal: bool = stats != null and stats.current_health > 0
+	if not non_fatal:
+		return
+
+	# Growth Within Resilience (maintained Power): non-fatal damage adds a
+	# single-use Hydra Bite to your hand.
+	for mcard in deck_manager.get_maintained_cards():
+		if mcard.card_id == "growth_within_resilience":
+			deck_manager.add_card_to_hand(Card.create_hydra_bite())
+			add_battle_log("Growth Within Resilience: a Hydra Bite surges into your hand!", Color(0.5, 0.85, 0.4))
+			break
+
+	# Hydra Heart relic (roguelike runs only): gain 1 strength when you take
+	# damage. (The "own turn" condition is approximated as any damage taken
+	# during the run until per-source turn tracking exists.)
+	if _roguelike_relics.has("hydra_heart"):
+		stats.base_strength += 1
+		add_battle_log("Hydra Heart: +1 strength!", Color(0.9, 0.4, 0.5))
 		_refresh_unit_tracker()
 
 func _on_card_on_draw_triggered(card: Card) -> void:
