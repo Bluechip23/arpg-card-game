@@ -45,7 +45,10 @@ var unit_tracker: UnitTrackerUI = null
 var quest_manager: QuestManager = null
 var progression_triggers: ProgressionTriggers = null
 var chest_loot_ui: ChestLootUI = null
+var olorin: OlorinTutorial = null
 var waypoint_mgr: WaypointManager = null
+# Rats summoned by the Infestation card (roguelike only).
+var _summoned_rats: Array = []
 var minimap_tab_ui: MinimapTabUI = null
 var player2_ui: Player2UI = null
 var current_world_level: int = 1
@@ -241,6 +244,10 @@ func _ready() -> void:
 	chest_loot_ui = ChestLootUI.new()
 	chest_loot_ui.init(self)
 	add_child(chest_loot_ui)
+
+	olorin = OlorinTutorial.new()
+	olorin.init(self)
+	add_child(olorin)
 
 	waypoint_mgr = WaypointManager.new()
 	waypoint_mgr.init(self)
@@ -2397,6 +2404,9 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
+	# Summoned rats (Infestation) move/lunge after the enemies have acted.
+	_update_summoned_rats()
+
 	# Mana regen on the player's own tempo interval
 	var stats = player.get_stats()
 	if stats:
@@ -2457,6 +2467,10 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 		var elev_y = dungeon_manager.get_elevation_world_y(enemy_cell)
 		enemy.position.y = elev_y
 		enemy.target_position.y = elev_y
+
+	# Olorin offers a one-time word of counsel on the player's first story battle.
+	if olorin and not _roguelike_active:
+		olorin.show_combat_intro()
 
 var _disarm_mastery_applying: bool = false  # Guard against recursive disarm
 var _wither_applying: bool = false  # Guard against recursive wither
@@ -2562,6 +2576,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	_return_queued_cards_for_dead_target(enemy)
 
 func _on_all_enemies_defeated() -> void:
+	_clear_summoned_rats()
 	if _roguelike_active:
 		_roguelike_active = false
 		var hp := player.get_stats().current_health if player and player.get_stats() else 0
@@ -2576,6 +2591,7 @@ func _on_roguelike_player_died() -> void:
 	if not _roguelike_active:
 		return
 	_roguelike_active = false
+	_clear_summoned_rats()
 	print("[MAIN] Player died in roguelike encounter — run over.")
 	roguelike_battle_finished.emit(false, 0)
 
@@ -3655,6 +3671,14 @@ func play_selected_card(target) -> void:
 		print("[INPUT] Cannot play cards - Glutted for %d more tempo!" % glut_tempo_remaining)
 		return
 
+	# Roguelike-only cards (e.g. Infestation) can be collected in the story but
+	# only played during a roguelike run.
+	var selected = deck_manager.hand[selected_card_index]
+	if selected.roguelike_only and not _roguelike_active:
+		add_battle_log("%s can only be played in the Roguelike." % selected.card_name, Color(0.7, 0.85, 1.0))
+		print("[INPUT] %s is roguelike-only and cannot be played in the story." % selected.card_name)
+		return
+
 	# Player can always queue cards — they append to the tick queue
 
 	# Hide range indicator when playing a card
@@ -4198,6 +4222,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_mouse_world_position()
 
 	match card.card_id:
+		"infestation":
+			_spawn_infestation_rats(5)
+
 		"roar":
 			# Knock all nearby enemies back 1 space
 			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
@@ -5167,6 +5194,151 @@ func _create_ally_marker(ally_name: String, pos: Vector3, color: Color) -> void:
 	marker.add_child(label)
 
 # ============================================
+# INFESTATION RATS (roguelike summon)
+# ============================================
+
+func _spawn_infestation_rats(count: int) -> void:
+	if not grid_manager:
+		return
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var blocked = player.blocked_tiles
+	var enemy_cells = _living_enemy_cells()
+	# Candidate tiles spiral outward from the player.
+	var offsets = [
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
+		Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2),
+	]
+	var used: Array = []
+	var spawned = 0
+	for off in offsets:
+		if spawned >= count:
+			break
+		var cell = player_cell + off
+		if cell == player_cell or cell in blocked or cell in enemy_cells or cell in used:
+			continue
+		used.append(cell)
+		_create_infestation_rat(cell)
+		spawned += 1
+	# Fallback: if the player is boxed in, the remaining rats pile onto the
+	# player's tile and spread out as they move.
+	while spawned < count:
+		_create_infestation_rat(player_cell)
+		spawned += 1
+	add_battle_log("Infestation! %d rats scurry out." % spawned, Color(0.7, 0.7, 0.6))
+
+func _create_infestation_rat(cell: Vector2i) -> void:
+	var rat = SummonedRat.new()
+	add_child(rat)
+	rat.setup(grid_manager, grid_manager.grid_to_world(cell))
+	rat.died.connect(_on_summoned_rat_died)
+	_summoned_rats.append(rat)
+
+func _on_summoned_rat_died(rat) -> void:
+	_summoned_rats.erase(rat)
+
+func _clear_summoned_rats() -> void:
+	for rat in _summoned_rats:
+		if is_instance_valid(rat):
+			rat.queue_free()
+	_summoned_rats.clear()
+
+func _living_enemy_cells() -> Array:
+	var cells: Array = []
+	if not grid_manager or not enemy_spawner:
+		return cells
+	for e in enemy_spawner.get_living_enemies():
+		cells.append(grid_manager.world_to_grid(e.position))
+	return cells
+
+func _nearest_enemy_to(pos: Vector3, enemies: Array) -> Enemy:
+	var nearest: Enemy = null
+	var nearest_dist := INF
+	for e in enemies:
+		if not is_instance_valid(e) or not e.is_alive():
+			continue
+		var d = pos.distance_to(e.position)
+		if d < nearest_dist:
+			nearest_dist = d
+			nearest = e
+	return nearest
+
+func _rat_step_toward(cell: Vector2i, target: Vector2i, blocked: Array, enemy_cells: Array, rat_cells: Array) -> Vector2i:
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var best = cell
+	var best_dist = _manhattan(cell, target)
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var cand = cell + d
+		if cand == target or cand == player_cell:
+			continue
+		if cand in blocked or cand in enemy_cells or cand in rat_cells:
+			continue
+		var dist = _manhattan(cand, target)
+		if dist < best_dist:
+			best_dist = dist
+			best = cand
+	return best
+
+func _manhattan(a: Vector2i, b: Vector2i) -> int:
+	return absi(a.x - b.x) + absi(a.y - b.y)
+
+func _update_summoned_rats() -> void:
+	if _summoned_rats.is_empty():
+		return
+	# Drop any freed/dead rats.
+	_summoned_rats = _summoned_rats.filter(func(r): return is_instance_valid(r) and not r.is_dead)
+	if not grid_manager or not enemy_spawner:
+		return
+
+	var enemies = enemy_spawner.get_living_enemies()
+	var blocked = player.blocked_tiles
+
+	# Phase 1: enemies adjacent to a rat swat it (rats only have 3 HP, so a
+	# strong foe can kill one before it ever connects). Iterate a snapshot since
+	# take_damage can free a rat mid-loop.
+	for enemy in enemies:
+		if not is_instance_valid(enemy) or not enemy.is_alive():
+			continue
+		var ecell = grid_manager.world_to_grid(enemy.position)
+		for rat in _summoned_rats.duplicate():
+			if not is_instance_valid(rat) or rat.is_dead:
+				continue
+			if _manhattan(rat.get_cell(), ecell) == 1:
+				rat.take_damage(enemy.attack_damage)
+				break  # one swat per enemy per tempo
+
+	# Phase 2: surviving rats lunge if in contact, otherwise scurry one square
+	# toward the nearest enemy.
+	var rat_cells: Array = []
+	for rat in _summoned_rats:
+		if is_instance_valid(rat) and not rat.is_dead:
+			rat_cells.append(rat.get_cell())
+
+	for rat in _summoned_rats.duplicate():
+		if not is_instance_valid(rat) or rat.is_dead:
+			continue
+		var target_enemy = _nearest_enemy_to(rat.position, enemies)
+		if target_enemy == null:
+			continue
+		var rcell = rat.get_cell()
+		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		if _manhattan(rcell, tcell) <= 1:
+			# Contact! The rat lunges, dealing its damage and dying.
+			target_enemy.take_damage(SummonedRat.CONTACT_DAMAGE, true)
+			add_battle_log("A rat lunges for %d damage!" % SummonedRat.CONTACT_DAMAGE, Color(0.7, 0.7, 0.6))
+			rat_cells.erase(rcell)
+			rat.die()
+			continue
+		var next_cell = _rat_step_toward(rcell, tcell, blocked, _living_enemy_cells(), rat_cells)
+		if next_cell != rcell:
+			rat_cells.erase(rcell)
+			rat_cells.append(next_cell)
+			rat.move_to_cell(next_cell)
+
+	# Clear out any rats that died this tick.
+	_summoned_rats = _summoned_rats.filter(func(r): return is_instance_valid(r) and not r.is_dead)
+
+# ============================================
 # COMMUNAL DONATION UI
 # ============================================
 
@@ -5783,6 +5955,13 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 				messages.append("Card: %s (inventory)" % card.card_name)
 			else:
 				messages.append("Card dropped (inventory full): %s" % card.card_name)
+		# Infestation is a roguelike-only reward. Unlock it for this character's
+		# runs and let Olorin appear to explain how roguelike rewards work.
+		if card.card_id == "infestation":
+			if current_character and not current_character.purchased_card_ids.has("infestation"):
+				current_character.purchased_card_ids.append("infestation")
+			if olorin:
+				olorin.show_infestation_intro()
 
 	if messages.size() > 0:
 		var loot_text = "Loot: " + ", ".join(messages)
