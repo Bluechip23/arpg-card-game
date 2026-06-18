@@ -431,7 +431,7 @@ func _make_shield_texture() -> ImageTexture:
 		hw = clamp(hw, 0.0, 1.0)
 		for x in range(w):
 			var u := (float(x) / float(w - 1)) * 2.0 - 1.0   # -1 .. 1
-			var au := abs(u)
+			var au := absf(u)
 			if au > hw:
 				continue
 			var col := fill
