@@ -1,35 +1,35 @@
 class_name CharacterFigure
 extends Node3D
 
-## A simple procedural 3D character built from primitive meshes.
+## A procedural 3D character built from primitive meshes — a chunky, pre-rendered
+## "SNES RPG" look (think Super Mario RPG). Used on the character-selection cards
+## (inside a SubViewport) and as the in-battle player.
 ##
-## Gives a chunky, pre-rendered "SNES RPG" look (think Super Mario RPG): a
-## big-headed chibi figure assembled from boxes and spheres, lit and shaded in 3D.
-## The same figure is used on the character-selection cards (inside a SubViewport)
-## and as the in-battle player.
+## Appearance is grounded in each character's 2D sprite: body colours are SAMPLED
+## at runtime from res://assets/characters/<name>_south.png, and a per-character
+## "detail spec" adds the things that make each sprite recognisable — long hair,
+## bare/white sleeves, belts, boots, a wizard hat, a helmet, and a held weapon
+## (Ryan's daggers, Stephen's mace, Jeremy/Cory's staff, Brad's shield).
 ##
-## Appearance is grounded in each character's 2D sprite: the body colours are
-## SAMPLED at runtime from the matching res://assets/characters/<name>_south.png,
-## and a per-character "signature" feature is added on top (Cory's wizard hat,
-## Brad's helmet, Jeremy's staff, Stephen's suit shirt, ...). So the 3D model
-## actually resembles the pixel art instead of being generic.
-##
-## Animations are procedural (Tweens on the joint nodes) so the rig stays open for
-## future spell / attack / defense moves: add a play_* method and route it through
-## play_action().
+## Animations are procedural (Tweens on the joint nodes), so the rig stays open
+## for future moves: add a play_* method and route it through play_action().
 
-# Joint nodes (populated in _build)
+# Joint nodes
 var _pivot: Node3D = null
 var _body: Node3D = null
 var _left_shoulder: Node3D = null
 var _right_shoulder: Node3D = null
 var _shield_anchor: Node3D = null
 
-# Part references that features may hide/recolour
+# Part references the detail pass recolours / toggles
 var _head: MeshInstance3D = null
 var _hair: MeshInstance3D = null
 var _eye_l: MeshInstance3D = null
 var _eye_r: MeshInstance3D = null
+var _left_arm: MeshInstance3D = null
+var _right_arm: MeshInstance3D = null
+var _left_foot: MeshInstance3D = null
+var _right_foot: MeshInstance3D = null
 var _feature_nodes: Array[Node3D] = []
 
 var _char_name: String = "Default"
@@ -48,8 +48,6 @@ func _ready() -> void:
 
 
 func setup(character_name: String, sprite_path: String = "") -> void:
-	## Sets the character whose palette/features to use. `sprite_path` is the 2D
-	## sprite the colours are sampled from. Safe to call before or after _build.
 	_char_name = character_name
 	_sprite_path = sprite_path
 	if _built:
@@ -57,7 +55,7 @@ func setup(character_name: String, sprite_path: String = "") -> void:
 
 
 # =============================================================
-# BUILD (geometry only — appearance applied separately)
+# BUILD (geometry only)
 # =============================================================
 
 func _build() -> void:
@@ -68,7 +66,6 @@ func _build() -> void:
 	_pivot.name = "Pivot"
 	add_child(_pivot)
 
-	# Contact shadow (flat dark disc on the floor)
 	var shadow := MeshInstance3D.new()
 	shadow.name = "Shadow"
 	var shadow_mesh := CylinderMesh.new()
@@ -85,16 +82,18 @@ func _build() -> void:
 	shadow.position = Vector3(0, 0.006, 0)
 	_pivot.add_child(shadow)
 
-	# Body holds everything that bobs / leans
 	_body = Node3D.new()
 	_body.name = "Body"
 	_pivot.add_child(_body)
 
-	# Legs / feet
+	# Legs
 	_body.add_child(_make_box("LeftLeg", Vector3(-0.11, 0.21, 0), Vector3(0.15, 0.42, 0.15), "pants"))
 	_body.add_child(_make_box("RightLeg", Vector3(0.11, 0.21, 0), Vector3(0.15, 0.42, 0.15), "pants"))
-	_body.add_child(_make_box("LeftFoot", Vector3(-0.11, 0.05, 0.04), Vector3(0.17, 0.1, 0.22), "accent"))
-	_body.add_child(_make_box("RightFoot", Vector3(0.11, 0.05, 0.04), Vector3(0.17, 0.1, 0.22), "accent"))
+	# Feet / boots (recoloured in the detail pass)
+	_left_foot = _make_box("LeftFoot", Vector3(-0.11, 0.05, 0.04), Vector3(0.17, 0.12, 0.22), "")
+	_right_foot = _make_box("RightFoot", Vector3(0.11, 0.05, 0.04), Vector3(0.17, 0.12, 0.22), "")
+	_body.add_child(_left_foot)
+	_body.add_child(_right_foot)
 
 	# Torso
 	_body.add_child(_make_box("Torso", Vector3(0, 0.66, 0), Vector3(0.42, 0.46, 0.26), "shirt"))
@@ -110,39 +109,39 @@ func _build() -> void:
 	_head.set_meta("palette_role", "skin")
 	_body.add_child(_head)
 
-	# Hair
+	# Hair (short cap by default; long hair added in the detail pass)
 	_hair = MeshInstance3D.new()
 	_hair.name = "Hair"
 	var hair_mesh := SphereMesh.new()
-	hair_mesh.radius = 0.205
+	hair_mesh.radius = 0.207
 	hair_mesh.height = 0.41
 	_hair.mesh = hair_mesh
 	_hair.position = Vector3(0, 1.12, 0)
-	_hair.scale = Vector3(1.02, 0.62, 1.02)
+	_hair.scale = Vector3(1.02, 0.66, 1.02)
 	_hair.set_meta("palette_role", "hair")
 	_body.add_child(_hair)
 
 	# Eyes
-	_eye_l = _make_eye("EyeL", Vector3(-0.07, 1.06, 0.185))
-	_eye_r = _make_eye("EyeR", Vector3(0.07, 1.06, 0.185))
+	_eye_l = _make_eye("EyeL", Vector3(-0.075, 1.05, 0.185))
+	_eye_r = _make_eye("EyeR", Vector3(0.075, 1.05, 0.185))
 	_body.add_child(_eye_l)
 	_body.add_child(_eye_r)
 
-	# Shoulders + arms (arm meshes hang below the shoulder joint so rotating the
-	# joint swings the arm)
+	# Shoulders + arms
 	_left_shoulder = Node3D.new()
 	_left_shoulder.name = "LeftShoulder"
 	_left_shoulder.position = Vector3(-0.27, 0.82, 0)
 	_body.add_child(_left_shoulder)
-	_left_shoulder.add_child(_make_box("LeftArm", Vector3(0, -0.2, 0), Vector3(0.13, 0.4, 0.13), "skin"))
+	_left_arm = _make_box("LeftArm", Vector3(0, -0.2, 0), Vector3(0.13, 0.4, 0.13), "")
+	_left_shoulder.add_child(_left_arm)
 
 	_right_shoulder = Node3D.new()
 	_right_shoulder.name = "RightShoulder"
 	_right_shoulder.position = Vector3(0.27, 0.82, 0)
 	_body.add_child(_right_shoulder)
-	_right_shoulder.add_child(_make_box("RightArm", Vector3(0, -0.2, 0), Vector3(0.13, 0.4, 0.13), "skin"))
+	_right_arm = _make_box("RightArm", Vector3(0, -0.2, 0), Vector3(0.13, 0.4, 0.13), "")
+	_right_shoulder.add_child(_right_arm)
 
-	# Shield icon anchor (above the head)
 	_shield_anchor = Node3D.new()
 	_shield_anchor.name = "ShieldAnchor"
 	_shield_anchor.position = Vector3(0, 1.5, 0)
@@ -159,7 +158,8 @@ func _make_box(node_name: String, pos: Vector3, size: Vector3, role: String) -> 
 	box.size = size
 	mi.mesh = box
 	mi.position = pos
-	mi.set_meta("palette_role", role)
+	if role != "":
+		mi.set_meta("palette_role", role)
 	return mi
 
 
@@ -167,8 +167,8 @@ func _make_eye(node_name: String, pos: Vector3) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = node_name
 	var s := SphereMesh.new()
-	s.radius = 0.032
-	s.height = 0.064
+	s.radius = 0.034
+	s.height = 0.068
 	mi.mesh = s
 	mi.position = pos
 	mi.material_override = _solid(Color(0.08, 0.07, 0.1))
@@ -176,13 +176,13 @@ func _make_eye(node_name: String, pos: Vector3) -> MeshInstance3D:
 
 
 # =============================================================
-# APPEARANCE: palette (sampled from sprite) + signature features
+# APPEARANCE
 # =============================================================
 
 func _apply_appearance() -> void:
 	var pal := _resolve_palette()
 	_paint(_body, pal)
-	_build_features(pal)
+	_build_details(pal)
 
 
 func _paint(node: Node, pal: Dictionary) -> void:
@@ -202,12 +202,11 @@ func _solid(color: Color) -> StandardMaterial3D:
 	return mat
 
 
-## Returns {skin, hair, shirt, pants, accent}. Sampled from the sprite when
-## available; otherwise a hand-picked palette derived from that sprite's art.
+# ---- palette sampled from the sprite -------------------------------------
+
 func _resolve_palette() -> Dictionary:
 	var pal := _sample_palette(_sprite_path)
 	var fallback := _fallback_palette(_char_name)
-	# Merge: prefer sampled values, fill any gaps from the fallback.
 	for k in fallback:
 		if not pal.has(k):
 			pal[k] = fallback[k]
@@ -229,9 +228,9 @@ func _sample_palette(path: String) -> Dictionary:
 	if rect.size.x <= 1 or rect.size.y <= 1:
 		return {}
 	var pal := {}
-	var hair := _dominant_fill(img, rect, 0.0, 0.30)
-	var shirt := _dominant_fill(img, rect, 0.40, 0.66)
-	var pants := _dominant_fill(img, rect, 0.68, 1.0)
+	var hair := _dominant_fill(img, rect, 0.0, 0.28)
+	var shirt := _dominant_fill(img, rect, 0.40, 0.60)
+	var pants := _dominant_fill(img, rect, 0.70, 0.90)
 	if hair.a > 0.0:
 		pal["hair"] = hair
 	if shirt.a > 0.0:
@@ -245,7 +244,6 @@ func _sample_palette(path: String) -> Dictionary:
 	return pal
 
 
-## Dominant non-outline fill colour within a vertical band [t0,t1] of the sprite.
 func _dominant_fill(img: Image, rect: Rect2i, t0: float, t1: float) -> Color:
 	var counts := {}
 	var y0 := rect.position.y + int(rect.size.y * t0)
@@ -255,7 +253,7 @@ func _dominant_fill(img: Image, rect: Rect2i, t0: float, t1: float) -> Color:
 			var col := img.get_pixel(x, y)
 			if col.a < 0.5:
 				continue
-			if maxf(col.r, maxf(col.g, col.b)) < 0.16:  # skip black outline / deep shadow
+			if maxf(col.r, maxf(col.g, col.b)) < 0.16:
 				continue
 			var key := "%d,%d,%d" % [int(col.r * 7), int(col.g * 7), int(col.b * 7)]
 			if not counts.has(key):
@@ -273,7 +271,6 @@ func _dominant_fill(img: Image, rect: Rect2i, t0: float, t1: float) -> Color:
 	return best
 
 
-## Most common warm mid-tone (skin-ish) pixel; transparent if none found.
 func _skin_tone(img: Image, rect: Rect2i) -> Color:
 	var counts := {}
 	for y in range(rect.position.y, rect.position.y + rect.size.y):
@@ -281,7 +278,6 @@ func _skin_tone(img: Image, rect: Rect2i) -> Color:
 			var col := img.get_pixel(x, y)
 			if col.a < 0.5:
 				continue
-			# warm, bright-ish, not washed-out white
 			if col.r > 0.55 and col.r >= col.g and col.g >= col.b and (col.r - col.b) > 0.12 and col.b < 0.8:
 				var key := "%d,%d,%d" % [int(col.r * 7), int(col.g * 7), int(col.b * 7)]
 				if not counts.has(key):
@@ -300,88 +296,200 @@ func _skin_tone(img: Image, rect: Rect2i) -> Color:
 
 
 func _fallback_palette(character_name: String) -> Dictionary:
-	# Hand-picked from each sprite's sampled colours (used if sampling is
-	# unavailable, and to fill in skin where the face is hidden by headgear).
 	match character_name:
 		"Ryan":
-			return {"skin": Color.html("e8b89a"), "hair": Color.html("3e3b4a"),
-					"shirt": Color.html("2c2935"), "pants": Color.html("232029"),
-					"accent": Color.html("b9d4e8")}
+			return {"skin": Color.html("f0b29e"), "hair": Color.html("141019"),
+					"shirt": Color.html("2c2935"), "pants": Color.html("242129"), "accent": Color.html("3e3b4a")}
 		"Jeremy":
-			return {"skin": Color.html("f0a98c"), "hair": Color.html("5b3433"),
-					"shirt": Color.html("1f765c"), "pants": Color.html("195e49"),
-					"accent": Color.html("2f8f70")}
+			return {"skin": Color.html("faae92"), "hair": Color.html("5b3433"),
+					"shirt": Color.html("1f775d"), "pants": Color.html("1f775d"), "accent": Color.html("2f8f70")}
 		"Stephen":
-			return {"skin": Color.html("f0a98c"), "hair": Color.html("412428"),
-					"shirt": Color.html("06448a"), "pants": Color.html("06356d"),
-					"accent": Color.html("c8742a")}
+			return {"skin": Color.html("fab19c"), "hair": Color.html("412428"),
+					"shirt": Color.html("06448a"), "pants": Color.html("06356d"), "accent": Color.html("3a6fbf")}
 		"Cory":
-			return {"skin": Color.html("e8b89a"), "hair": Color.html("2a1550"),
-					"shirt": Color.html("331666"), "pants": Color.html("2a1255"),
-					"accent": Color.html("4b298d")}
+			return {"skin": Color.html("f0c4b4"), "hair": Color.html("4b298d"),
+					"shirt": Color.html("3a1d70"), "pants": Color.html("321665"), "accent": Color.html("5a2fa0")}
 		"Brad":
-			return {"skin": Color.html("c2c8da"), "hair": Color.html("2d2d60"),
-					"shirt": Color.html("2d2d60"), "pants": Color.html("201e51"),
-					"accent": Color.html("3d3f78")}
+			return {"skin": Color.html("c2c8da"), "hair": Color.html("303061"),
+					"shirt": Color.html("262450"), "pants": Color.html("201e51"), "accent": Color.html("3c3d76")}
 		_:
 			return {"skin": Color.html("f0c8a0"), "hair": Color.html("59442d"),
-					"shirt": Color.html("66728c"), "pants": Color.html("404659"),
-					"accent": Color.html("9aa0ad")}
+					"shirt": Color.html("66728c"), "pants": Color.html("404659"), "accent": Color.html("9aa0ad")}
 
 
-func _features_for(character_name: String) -> Dictionary:
+# ---- per-character structural detail --------------------------------------
+
+func _spec_for(character_name: String) -> Dictionary:
 	match character_name:
-		"Cory":    return {"headgear": "wizard_hat", "staff": true}
-		"Brad":    return {"headgear": "helmet"}
-		"Jeremy":  return {"staff": true}
-		"Stephen": return {"chest": true}
-		_:         return {}
+		"Ryan":
+			return {"hair": "long", "eyes": Color.html("5a9bd8"), "sleeves": "shirt",
+					"belt": Color.html("aacce6"), "boots": Color.html("242129"),
+					"weapon": "daggers", "weapon_col": Color.html("cbe0f1")}
+		"Jeremy":
+			return {"hair": "short", "sleeves": "skin",
+					"belt": Color.html("5b3433"), "boots": Color.html("5b3433"),
+					"weapon": "staff", "weapon_col": Color.html("6b4a2a")}
+		"Stephen":
+			return {"hair": "short", "sleeves": Color.html("e6e6ea"),
+					"belt": Color.html("d8a838"), "boots": Color.html("3a2420"),
+					"straps": Color.html("6b4a2a"), "weapon": "mace", "weapon_col": Color.html("d8a838")}
+		"Cory":
+			return {"headgear": "wizard_hat", "hatband": Color.html("5a3d22"), "sleeves": "shirt",
+					"belt": Color.html("5a3d22"), "boots": Color.html("141018"),
+					"straps": Color.html("6b4a2a"), "weapon": "staff", "weapon_col": Color.html("6b4a2a")}
+		"Brad":
+			return {"headgear": "helmet", "sleeves": "shirt", "pauldrons": true,
+					"boots": Color.html("1a173a"), "weapon": "shield"}
+		_:
+			return {"hair": "short", "sleeves": "shirt", "belt": Color.html("4a4f5e"), "boots": Color.html("3a3f4a")}
 
 
-func _build_features(pal: Dictionary) -> void:
-	# Clear previously-built feature geometry (re-setup safe)
+func _build_details(pal: Dictionary) -> void:
 	for n in _feature_nodes:
 		if is_instance_valid(n):
 			n.queue_free()
 	_feature_nodes.clear()
 
-	# Default: hair + eyes visible
+	var spec := _spec_for(_char_name)
+
+	# Reset visibility
 	_hair.visible = true
 	_eye_l.visible = true
 	_eye_r.visible = true
 
-	var feats := _features_for(_char_name)
-	var headgear: String = feats.get("headgear", "none")
-	var hat_col: Color = pal.get("hair", Color.html("4b298d"))
+	# Sleeves (arms) + boots (feet) + eyes
+	var sleeve_col := _resolve_role(spec.get("sleeves", "shirt"), pal)
+	_left_arm.material_override = _solid(sleeve_col)
+	_right_arm.material_override = _solid(sleeve_col)
+	var boots_col: Color = spec.get("boots", pal.get("accent", Color(0.3, 0.3, 0.35)))
+	_left_foot.material_override = _solid(boots_col)
+	_right_foot.material_override = _solid(boots_col)
+	if spec.has("eyes"):
+		_eye_l.material_override = _solid(spec["eyes"])
+		_eye_r.material_override = _solid(spec["eyes"])
 
-	match headgear:
+	# Belt
+	if spec.has("belt"):
+		_add_feature(_make_box_solid("Belt", Vector3(0, 0.48, 0), Vector3(0.45, 0.08, 0.29), spec["belt"]))
+
+	# Bandolier strap (diagonal across the chest)
+	if spec.has("straps"):
+		var strap := _make_box_solid("Strap", Vector3(0.0, 0.66, 0.14), Vector3(0.07, 0.52, 0.03), spec["straps"])
+		strap.rotation_degrees = Vector3(0, 0, 26)
+		_add_feature(strap)
+
+	# Long hair framing the face + down the back
+	if spec.get("hair", "short") == "long":
+		var hc: Color = pal.get("hair", Color.html("141019"))
+		_add_feature(_make_box_solid("HairBack", Vector3(0, 0.84, -0.12), Vector3(0.40, 0.58, 0.13), hc))
+		_add_feature(_make_box_solid("HairSideL", Vector3(-0.19, 0.88, 0.02), Vector3(0.10, 0.46, 0.22), hc))
+		_add_feature(_make_box_solid("HairSideR", Vector3(0.19, 0.88, 0.02), Vector3(0.10, 0.46, 0.22), hc))
+		# A fuller fringe so the head doesn't read as bald
+		var fringe := _make_sphere("HairFringe", Vector3(0, 1.15, 0.02), 0.215, hc)
+		fringe.scale = Vector3(1.04, 0.7, 1.04)
+		_add_feature(fringe)
+
+	# Pauldrons (shoulder armour)
+	if spec.get("pauldrons", false):
+		var pc: Color = pal.get("accent", pal.get("shirt", Color(0.3, 0.3, 0.4)))
+		_add_feature(_make_sphere("PauldronL", Vector3(-0.28, 0.85, 0), 0.135, pc))
+		_add_feature(_make_sphere("PauldronR", Vector3(0.28, 0.85, 0), 0.135, pc))
+
+	# Headgear
+	match spec.get("headgear", "none"):
 		"wizard_hat":
 			_hair.visible = false
-			# Brim
-			_add_feature(_make_cyl("HatBrim", Vector3(0, 1.24, 0), 0.36, 0.36, 0.05, hat_col))
-			# Pointed cone
-			_add_feature(_make_cyl("HatCone", Vector3(0, 1.48, 0), 0.0, 0.2, 0.46, hat_col))
+			var hat_col: Color = pal.get("hair", Color.html("4b298d"))
+			_add_feature(_make_cyl("HatBrim", Vector3(0, 1.25, 0), 0.37, 0.37, 0.05, hat_col))
+			if spec.has("hatband"):
+				_add_feature(_make_cyl("HatBand", Vector3(0, 1.29, 0), 0.205, 0.225, 0.06, spec["hatband"]))
+			_add_feature(_make_cyl("HatCone", Vector3(0, 1.5, 0), 0.0, 0.2, 0.46, hat_col))
 		"helmet":
 			_hair.visible = false
 			_eye_l.visible = false
 			_eye_r.visible = false
-			var helm := _make_sphere("Helmet", Vector3(0, 1.06, 0), 0.225, hat_col)
-			helm.scale = Vector3(1.04, 1.08, 1.04)
+			var helm_col: Color = pal.get("hair", Color.html("303061"))
+			var helm := _make_sphere("Helmet", Vector3(0, 1.06, 0), 0.225, helm_col)
+			helm.scale = Vector3(1.05, 1.1, 1.05)
 			_add_feature(helm)
-			# Dark visor slit across the front
-			_add_feature(_make_box_solid("Visor", Vector3(0, 1.05, 0.2), Vector3(0.27, 0.04, 0.05), Color.html("0e0f16")))
+			# Glowing visor eyes
+			_add_feature(_make_box_solid("VisorSlit", Vector3(0, 1.05, 0.2), Vector3(0.28, 0.05, 0.04), Color.html("0c0d14")))
+			_add_glow("EyeGlowL", Vector3(-0.07, 1.05, 0.21), Color(0.75, 0.85, 1.0))
+			_add_glow("EyeGlowR", Vector3(0.07, 1.05, 0.21), Color(0.75, 0.85, 1.0))
 
-	if feats.get("staff", false):
-		var wood := Color.html("5a3d22")
-		var staff := _make_cyl("Staff", Vector3(-0.36, 0.62, 0.06), 0.03, 0.03, 1.2, wood)
-		staff.rotation_degrees = Vector3(0, 0, 7)
-		_add_feature(staff)
-		# A small orb/knob on top, tinted by the character's accent
-		_add_feature(_make_sphere("StaffTop", Vector3(-0.43, 1.2, 0.06), 0.06, pal.get("accent", wood)))
+	# Weapon
+	_build_weapon(spec, pal)
 
-	if feats.get("chest", false):
-		# A vertical strip of the accent colour (e.g. Stephen's shirt under the jacket)
-		_add_feature(_make_box_solid("Shirt", Vector3(0, 0.7, 0.125), Vector3(0.12, 0.34, 0.03), pal.get("accent", Color.html("c8742a"))))
+
+func _build_weapon(spec: Dictionary, pal: Dictionary) -> void:
+	match spec.get("weapon", "none"):
+		"daggers":
+			var blade: Color = spec.get("weapon_col", Color.html("cbe0f1"))
+			_add_dagger(_right_shoulder, blade)
+			_add_dagger(_left_shoulder, blade)
+		"mace":
+			# Held in the right hand: short brown haft + gold flanged head.
+			var haft := _make_cyl("MaceHaft", Vector3(0.02, -0.5, 0.12), 0.028, 0.028, 0.34, Color.html("5a3d22"))
+			_right_shoulder.add_child(haft)
+			_feature_nodes.append(haft)
+			var head := _make_box_solid("MaceHead", Vector3(0.02, -0.68, 0.12), Vector3(0.14, 0.16, 0.14), spec.get("weapon_col", Color.html("d8a838")))
+			_right_shoulder.add_child(head)
+			_feature_nodes.append(head)
+		"staff":
+			# Held upright beside the left side of the body.
+			var staff := _make_cyl("Staff", Vector3(-0.37, 0.6, 0.08), 0.03, 0.03, 1.25, spec.get("weapon_col", Color.html("6b4a2a")))
+			staff.rotation_degrees = Vector3(0, 0, 7)
+			_add_feature(staff)
+			_add_feature(_make_sphere("StaffKnob", Vector3(-0.44, 1.22, 0.08), 0.055, spec.get("weapon_col", Color.html("6b4a2a")).lightened(0.15)))
+		"shield":
+			# Kite shield on the left arm.
+			var back := _make_box_solid("ShieldBack", Vector3(0.0, -0.34, 0.16), Vector3(0.32, 0.42, 0.04), Color.html("3a3f5c"))
+			_left_shoulder.add_child(back)
+			_feature_nodes.append(back)
+			var face := _make_box_solid("ShieldFace", Vector3(0.0, -0.34, 0.185), Vector3(0.24, 0.34, 0.03), Color.html("c2c8d6"))
+			_left_shoulder.add_child(face)
+			_feature_nodes.append(face)
+			var boss := _make_box_solid("ShieldBoss", Vector3(0.0, -0.34, 0.205), Vector3(0.05, 0.20, 0.02), Color.html("6f8fc0"))
+			_left_shoulder.add_child(boss)
+			_feature_nodes.append(boss)
+
+
+func _add_dagger(shoulder: Node3D, blade_col: Color) -> void:
+	# Held point-down at the hand, angled slightly outward and forward so it reads.
+	var hilt := _make_box_solid("DaggerHilt", Vector3(0, -0.44, 0.16), Vector3(0.055, 0.09, 0.055), Color.html("1a1620"))
+	hilt.rotation_degrees = Vector3(18, 0, 0)
+	shoulder.add_child(hilt)
+	_feature_nodes.append(hilt)
+	var blade := _make_box_solid("DaggerBlade", Vector3(0, -0.62, 0.22), Vector3(0.06, 0.30, 0.03), blade_col)
+	blade.rotation_degrees = Vector3(18, 0, 0)
+	shoulder.add_child(blade)
+	_feature_nodes.append(blade)
+
+
+func _add_glow(node_name: String, pos: Vector3, col: Color) -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = node_name
+	var s := SphereMesh.new()
+	s.radius = 0.028
+	s.height = 0.056
+	mi.mesh = s
+	mi.position = pos
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.emission_enabled = true
+	mat.emission = col
+	mat.emission_energy_multiplier = 1.5
+	mi.material_override = mat
+	_body.add_child(mi)
+	_feature_nodes.append(mi)
+
+
+func _resolve_role(val, pal: Dictionary) -> Color:
+	if val is Color:
+		return val
+	if typeof(val) == TYPE_STRING and pal.has(val):
+		return pal[val]
+	return pal.get("shirt", Color(0.5, 0.5, 0.6))
 
 
 func _add_feature(mi: MeshInstance3D) -> void:
@@ -427,7 +535,7 @@ func _make_box_solid(node_name: String, pos: Vector3, size: Vector3, col: Color)
 
 
 # =============================================================
-# IDLE (per-frame)
+# IDLE
 # =============================================================
 
 func _process(delta: float) -> void:
@@ -444,7 +552,6 @@ func _process(delta: float) -> void:
 # PUBLIC ANIMATION API
 # =============================================================
 
-## Generic entry point. `direction` uses CharacterAnimator.Direction values.
 func play_action(action: String, direction: int = CharacterAnimator.Direction.SOUTH) -> void:
 	if not _built:
 		return
@@ -459,7 +566,6 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 		"hit", "hit_heavy", "stunned":
 			play_hit()
 		_:
-			# Extension point for future spell / cast / channel actions.
 			play_idle()
 
 
@@ -469,7 +575,6 @@ func play_idle() -> void:
 	_busy = false
 
 
-## Basic attack: wind the (right) arm up, then chop it straight down — a slash.
 func play_attack() -> void:
 	if not _built:
 		return
@@ -486,8 +591,6 @@ func play_attack() -> void:
 	_action_tween.tween_callback(_on_action_done)
 
 
-## Defend: pound a fist twice against the chest while a grey shield pops up
-## over the head and slowly fades.
 func play_defend() -> void:
 	if not _built:
 		return
@@ -507,7 +610,6 @@ func play_defend() -> void:
 	_action_tween.tween_callback(_on_action_done)
 
 
-## Quick sidestep — handy later for evasion / reaction cards.
 func play_dodge() -> void:
 	if not _built:
 		return
@@ -522,7 +624,6 @@ func play_dodge() -> void:
 	_action_tween.tween_callback(_on_action_done)
 
 
-## Flinch backward — used when the player is struck.
 func play_hit() -> void:
 	if not _built:
 		return
@@ -567,7 +668,7 @@ func set_walking(walking: bool) -> void:
 
 
 # =============================================================
-# SHIELD ICON
+# SHIELD ICON (defend)
 # =============================================================
 
 func _spawn_shield() -> void:
@@ -590,17 +691,13 @@ func _spawn_shield() -> void:
 
 
 func _make_shield_texture() -> ImageTexture:
-	# Classic heraldic shield: flat top, sides curving to a point. Grey with a
-	# darker rim and a centre rib.
 	var w := 48
 	var h := 56
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-
 	var fill := Color(0.64, 0.66, 0.72)
 	var rim := Color(0.30, 0.32, 0.38)
 	var rib := Color(0.50, 0.52, 0.58)
-
 	for y in range(h):
 		var t := float(y) / float(h - 1)
 		var hw := 1.0
@@ -619,7 +716,6 @@ func _make_shield_texture() -> ImageTexture:
 			elif au < 0.08:
 				col = rib
 			img.set_pixel(x, y, col)
-
 	return ImageTexture.create_from_image(img)
 
 
