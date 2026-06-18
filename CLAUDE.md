@@ -11,7 +11,7 @@ This distinction is critical and must guide every design and implementation deci
 - The player builds ONE character and carries them through the entire story
 - Character progression (sphere grid, equipment, deck, stats) is permanent and cumulative
 - Story-driven with a beginning, middle, and end
-- Multi-world progression where the player's state carries forward between worlds
+- Multi-act progression where the player's state carries forward between acts (planes of existence)
 
 ### What this game is NOT:
 - Not a roguelike or roguelite
@@ -22,7 +22,7 @@ This distinction is critical and must guide every design and implementation deci
 
 ### Core RPG Pillars:
 1. **Persistent Character** - One character, one journey. Stats, equipment, cards, and sphere grid unlocks are permanent
-2. **Story Progression** - The player progresses through a narrative across 5+ worlds
+2. **Story Progression** - The player progresses through a narrative across 4 acts (Earth, Hell, Heaven, and a final return to Earth)
 3. **Meaningful Builds** - Sphere grid, equipment, and deck choices define a unique character build
 4. **World Continuity** - Waypoints, quests, NPCs, and town vendors persist across the entire game
 
