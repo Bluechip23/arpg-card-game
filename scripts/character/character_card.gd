@@ -363,10 +363,10 @@ func _build_figure_preview(character_name: String) -> void:
 	# Orthographic, slightly raised 3/4 angle — that pre-rendered Mario-RPG feel.
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = 1.75
+	cam.size = 1.6
 	viewport.add_child(cam)
-	cam.position = Vector3(0.55, 1.15, 2.6)
-	cam.look_at(Vector3(0, 0.62, 0), Vector3.UP)
+	cam.position = Vector3(0.5, 1.05, 2.6)
+	cam.look_at(Vector3(0, 0.58, 0), Vector3.UP)
 	cam.current = true
 
 	var key := DirectionalLight3D.new()
