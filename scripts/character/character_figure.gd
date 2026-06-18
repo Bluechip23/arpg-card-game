@@ -414,10 +414,10 @@ func _build_details(pal: Dictionary, spec: Dictionary) -> void:
 			var helm := _make_sphere("Helmet", Vector3(0, 1.06, 0), 0.225, helm_col)
 			helm.scale = Vector3(1.05, 1.1, 1.05)
 			_add_feature(helm)
-			# Glowing visor eyes
-			_add_feature(_make_box_solid("VisorSlit", Vector3(0, 1.05, 0.2), Vector3(0.28, 0.05, 0.04), Color.html("0c0d14")))
-			_add_glow("EyeGlowL", Vector3(-0.07, 1.05, 0.21), Color(0.75, 0.85, 1.0))
-			_add_glow("EyeGlowR", Vector3(0.07, 1.05, 0.21), Color(0.75, 0.85, 1.0))
+			# Dark visor band + glowing eyes, pushed forward so they clear the helmet
+			_add_feature(_make_box_solid("VisorSlit", Vector3(0, 1.04, 0.25), Vector3(0.30, 0.06, 0.04), Color.html("0c0d14")))
+			_add_glow("EyeGlowL", Vector3(-0.075, 1.04, 0.275), Color(0.75, 0.85, 1.0))
+			_add_glow("EyeGlowR", Vector3(0.075, 1.04, 0.275), Color(0.75, 0.85, 1.0))
 
 	# Quiver on the back (archers)
 	if spec.get("quiver", false):

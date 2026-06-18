@@ -102,6 +102,9 @@ func _setup_figure(data: CharacterData) -> void:
 		mesh.visible = false
 	if character_sprite:
 		character_sprite.visible = false
+	var label := get_node_or_null("PlayerLabel")
+	if label:
+		label.visible = false
 
 func play_animation(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> void:
 	if _figure:
