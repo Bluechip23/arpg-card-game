@@ -11,8 +11,10 @@ var character_data: CharacterData
 # UI nodes built programmatically
 var _name_label: Label
 var _stat_labels: Dictionary = {}
+var _sprite_panel: PanelContainer
 var _sprite_texture: TextureRect
 var _sprite_label: Label
+var _figure_viewport: SubViewport = null
 var _passive_label: Label
 var _slot_label: Label
 var _inventory_name_label: Label
@@ -123,6 +125,7 @@ func _build_ui() -> void:
 	sp_style.corner_radius_bottom_right = 4
 	sprite_panel.add_theme_stylebox_override("panel", sp_style)
 	content_row.add_child(sprite_panel)
+	_sprite_panel = sprite_panel
 
 	_sprite_texture = TextureRect.new()
 	_sprite_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -282,6 +285,11 @@ func setup(character: CharacterData) -> void:
 		_sprite_texture.visible = true
 		_sprite_label.visible = false
 
+	# Render a 3D figure preview for real characters (the quiz "Customize" card
+	# keeps its "?" placeholder).
+	if character.character_name != "Customize":
+		_build_figure_preview(character.character_name)
+
 	# Core stats
 	var core_values = {
 		"STR": character.strength,
@@ -325,6 +333,57 @@ func setup(character: CharacterData) -> void:
 			_archetype_labels[i].visible = true
 		else:
 			_archetype_labels[i].visible = false
+
+func _build_figure_preview(character_name: String) -> void:
+	## Drops a small 3D scene (figure + camera + lights) into the sprite panel via a
+	## SubViewport, giving each card a pre-rendered "SNES RPG" look instead of a flat
+	## 2D sprite. The figure idles on its own (see CharacterFigure._process).
+	if _figure_viewport or not _sprite_panel:
+		return
+
+	var sub_container := SubViewportContainer.new()
+	sub_container.stretch = true
+	sub_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sub_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sub_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sprite_panel.add_child(sub_container)
+
+	var viewport := SubViewport.new()
+	viewport.own_world_3d = true
+	viewport.transparent_bg = true
+	viewport.msaa_3d = Viewport.MSAA_4X
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	sub_container.add_child(viewport)
+	_figure_viewport = viewport
+
+	var figure := CharacterFigure.new()
+	figure.setup(character_name)
+	viewport.add_child(figure)
+
+	# Orthographic, slightly raised 3/4 angle — that pre-rendered Mario-RPG feel.
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 1.75
+	viewport.add_child(cam)
+	cam.position = Vector3(0.55, 1.15, 2.6)
+	cam.look_at(Vector3(0, 0.62, 0), Vector3.UP)
+	cam.current = true
+
+	var key := DirectionalLight3D.new()
+	key.light_energy = 1.15
+	viewport.add_child(key)
+	key.rotation_degrees = Vector3(-38, 28, 0)
+
+	var fill := DirectionalLight3D.new()
+	fill.light_energy = 0.45
+	viewport.add_child(fill)
+	fill.rotation_degrees = Vector3(-12, -42, 0)
+
+	# The 3D figure stands in for the flat placeholders
+	if _sprite_texture:
+		_sprite_texture.visible = false
+	if _sprite_label:
+		_sprite_label.visible = false
 
 func _on_select_pressed() -> void:
 	selected.emit(character_data)

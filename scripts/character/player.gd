@@ -11,14 +11,13 @@ signal tile_reached  # Emitted each time the player reaches a single tile
 
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var character_sprite: Sprite3D = $CharacterSprite
-@onready var animator: CharacterAnimator = $CharacterAnimator
 @onready var stats: PlayerStats = $PlayerStats
 @onready var inventory: Inventory = $Inventory
 @onready var debuff_manager: DebuffManager = $DebuffManager
 @onready var buff_manager: BuffManager = $BuffManager
 
-# Animation action map (game actions -> animation names)
-var _action_map: Dictionary = {}
+# Procedural 3D character (replaces the old sprite-sheet animator)
+var _figure: CharacterFigure = null
 
 var target_position: Vector3
 var is_moving: bool = false
@@ -78,7 +77,7 @@ func initialize_character(data: CharacterData) -> void:
 	buff_manager.initialize(stats, self)
 	buff_manager.connect_debuff_manager(debuff_manager)  # For Cleanse
 	_load_mesh_color(data)
-	_initialize_animations(data)
+	_setup_figure(data)
 
 func _load_mesh_color(data: CharacterData) -> void:
 	# Apply a unique color per character to the mesh material
@@ -89,59 +88,24 @@ func _load_mesh_color(data: CharacterData) -> void:
 		# Keep the default blue; characters will insert their own sprites later
 		pass
 
-func _get_animation_class(character_name: String):
-	match character_name:
-		"Stephen":
-			return StephenAnimations
-		"Brad":
-			return BradAnimations
-		"Ryan":
-			return RyanAnimations
-		"Cory":
-			return CoryAnimations
-		"Jeremy":
-			return JeremyAnimations
-		_:
-			return null
-
-func _initialize_animations(data: CharacterData) -> void:
-	if not animator or not character_sprite:
+func _setup_figure(data: CharacterData) -> void:
+	# Build the procedural 3D figure and use it in place of the capsule + sprite.
+	if _figure:
 		return
+	_figure = CharacterFigure.new()
+	_figure.name = "CharacterFigure"
+	add_child(_figure)
+	_figure.setup(data.character_name)
 
-	# Load character-specific animation data
-	var anim_data: Dictionary = {}
-	var sheet_path: String = ""
-
-	var anim_class = _get_animation_class(data.character_name)
-	if anim_class == null:
-		return
-	anim_data = anim_class.get_animation_data()
-	_action_map = anim_class.get_action_map()
-	sheet_path = anim_class.SPRITE_SHEET_PATH
-
-	if sheet_path == "" or anim_data.is_empty():
-		return
-
-	animator.initialize(character_sprite, anim_data, sheet_path)
-
-	if animator.sprite_sheet_loaded:
-		# Hide the capsule mesh when sprite animations are active
+	# The figure replaces the prototype graphics
+	if mesh:
 		mesh.visible = false
-		animator.animation_finished.connect(_on_animation_finished)
-	else:
-		# Keep capsule visible as fallback
+	if character_sprite:
 		character_sprite.visible = false
 
 func play_animation(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> void:
-	if not animator or not animator.sprite_sheet_loaded:
-		return
-	var anim_name = _action_map.get(action, action)
-	animator.play(anim_name, direction)
-
-func _on_animation_finished(anim_name: String) -> void:
-	# Return to idle/stance after one-shot animations complete
-	if anim_name != "stance" and anim_name != "walking" and anim_name != "running" and anim_name != "battle_stance":
-		animator.play("stance")
+	if _figure:
+		_figure.play_action(action, direction)
 
 func pause_movement() -> void:
 	movement_paused = true
@@ -184,19 +148,18 @@ func _physics_process(delta: float) -> void:
 			else:
 				is_moving = false
 				velocity = Vector3.ZERO
-				# Return to idle stance when movement completes
-				if animator and animator.sprite_sheet_loaded:
-					animator.play("stance")
+				# Return to idle when movement completes
+				if _figure:
+					_figure.set_walking(false)
 				move_completed.emit()
 		else:
 			var direction = flat_diff.normalized()
 			velocity = direction * move_speed
 
-			# Update animation direction and play walk animation
-			if animator and animator.sprite_sheet_loaded:
-				animator.set_direction_from_velocity(velocity)
-				if not animator.is_animation_playing("walking"):
-					animator.play("walking")
+			# Update facing + walk bob on the 3D figure
+			if _figure:
+				_figure.set_facing_from_velocity(velocity)
+				_figure.set_walking(true)
 
 			# Detect if stuck (collision blocking progress toward target)
 			var moved_dist = (position - _last_position).length()
@@ -212,8 +175,8 @@ func _physics_process(delta: float) -> void:
 					velocity = Vector3.ZERO
 					move_path.clear()
 					_stuck_frames = 0
-					if animator and animator.sprite_sheet_loaded:
-						animator.play("stance")
+					if _figure:
+						_figure.set_walking(false)
 					move_completed.emit()
 			else:
 				_stuck_frames = 0
