@@ -28,6 +28,9 @@ var _atk_rest: Vector3 = Vector3.ZERO
 var _ar_torso: Node3D = null
 var _ar_bow_front: Node3D = null
 var _ar_bow_back: Node3D = null
+
+# Hydra neck pivots (centre neck drives the attack lunge)
+var _hydra_necks: Array = []
 const AR_STAND := -74.0
 const AR_QUAD := -6.0
 
@@ -58,6 +61,10 @@ func _build() -> void:
 		"rat": _build_rat()
 		"archer_rat": _build_archer_rat()
 		"armored_troll": _build_troll()
+		"hydra": _build_hydra()
+		"fire_goblin_soldier": _build_goblin("soldier", Color.html("d95a26"))
+		"fire_goblin_mage": _build_goblin("mage", Color.html("e6731f"))
+		"fire_goblin_shaman": _build_goblin("shaman", Color.html("f28c40"))
 		_: _build_rat()
 	_built = true
 
@@ -355,6 +362,119 @@ func _build_troll() -> void:
 	_sp(club, "Knob2", Vector3(0.03, 0.64, 0.08), 0.05, wood)
 
 
+# ---- Hydra (three-headed serpent boss) -----------------------
+
+func _build_hydra() -> void:
+	_shadow(0.42)
+	var green := Color.html("2f8c57")
+	var dark := Color.html("1c5638")
+	var belly := Color.html("6cbf8a")
+	var eye := Color.html("ffd23f")
+
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+
+	_sp(root, "Body", Vector3(0, 0.52, -0.02), 0.36, green, Vector3(1.5, 0.95, 1.75))
+	_sp(root, "Belly", Vector3(0, 0.36, 0.26), 0.24, belly, Vector3(1.25, 0.85, 0.7))
+
+	for i in range(4):
+		_cy(root, "Spine%d" % i, Vector3(0, 0.78 - i * 0.02, -0.1 - i * 0.12), 0.0, 0.04, 0.14, dark, Vector3(-30, 0, 0))
+
+	for sx in [-1, 1]:
+		_bx(root, "Leg%d" % sx, Vector3(0.24 * sx, 0.16, 0.26), Vector3(0.16, 0.32, 0.18), green)
+		for cz in [-0.05, 0.0, 0.05]:
+			_cy(root, "Claw%d_%d" % [sx, int(cz * 100)], Vector3(0.24 * sx + cz, 0.03, 0.38), 0.0, 0.02, 0.08, dark, Vector3(80, 0, 0))
+
+	_cy(root, "Tail", Vector3(0, 0.5, -0.42), 0.02, 0.12, 0.6, green, Vector3(-55, 0, 0))
+
+	_hydra_neck(root, Vector3(0, 0.84, 0.16), 12, 0, 0.68, green, dark, belly, eye)
+	_hydra_neck(root, Vector3(-0.22, 0.78, 0.12), 8, 24, 0.6, green, dark, belly, eye)
+	_hydra_neck(root, Vector3(0.22, 0.78, 0.12), 8, -24, 0.6, green, dark, belly, eye)
+	_atk_pivot = _hydra_necks[0]
+	_atk_rest = _atk_pivot.rotation_degrees
+
+
+func _hydra_neck(parent: Node3D, base: Vector3, pitch: float, roll: float, length: float, green: Color, dark: Color, belly: Color, eye: Color) -> void:
+	var pivot := Node3D.new()
+	pivot.name = "Neck%d" % _hydra_necks.size()
+	pivot.position = base
+	pivot.rotation_degrees = Vector3(pitch, 0, roll)
+	parent.add_child(pivot)
+	_hydra_necks.append(pivot)
+
+	_cy(pivot, "Neck", Vector3(0, length * 0.5, 0), 0.05, 0.08, length, green)
+	_cy(pivot, "Throat", Vector3(0, length * 0.5, 0.04), 0.035, 0.06, length * 0.9, belly)
+	var h := Vector3(0, length, 0.0)
+	_sp(pivot, "Head", h + Vector3(0, 0.02, 0.02), 0.1, green, Vector3(1.0, 0.95, 1.4))
+	_bx(pivot, "Snout", h + Vector3(0, -0.02, 0.16), Vector3(0.1, 0.07, 0.12), green)
+	_sp(pivot, "EyeL", h + Vector3(-0.06, 0.06, 0.08), 0.026, eye, Vector3.ONE, true)
+	_sp(pivot, "EyeR", h + Vector3(0.06, 0.06, 0.08), 0.026, eye, Vector3.ONE, true)
+	_cy(pivot, "HornL", h + Vector3(-0.05, 0.12, -0.02), 0.0, 0.022, 0.1, dark, Vector3(-25, 0, -12))
+	_cy(pivot, "HornR", h + Vector3(0.05, 0.12, -0.02), 0.0, 0.022, 0.1, dark, Vector3(-25, 0, 12))
+
+
+# ---- Fire Goblins (soldier / mage / shaman) ------------------
+
+func _build_goblin(role: String, skin: Color) -> void:
+	_shadow(0.2)
+	var dark := Color.html("3a2418")
+	var cloth := Color.html("5a3a22")
+	var eye := Color.html("ffe04a")
+	var steel := Color.html("b9bdc6")
+	var wood := Color.html("6b4a2a")
+	var bone := Color.html("e9e4d6")
+
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+
+	_bx(root, "LegL", Vector3(-0.08, 0.14, 0), Vector3(0.1, 0.28, 0.1), skin)
+	_bx(root, "LegR", Vector3(0.08, 0.14, 0), Vector3(0.1, 0.28, 0.1), skin)
+	_bx(root, "FootL", Vector3(-0.08, 0.03, 0.04), Vector3(0.12, 0.06, 0.16), dark)
+	_bx(root, "FootR", Vector3(0.08, 0.03, 0.04), Vector3(0.12, 0.06, 0.16), dark)
+	_bx(root, "Cloth", Vector3(0, 0.32, 0.01), Vector3(0.3, 0.13, 0.22), cloth)
+	var torso := _bx(root, "Torso", Vector3(0, 0.5, 0), Vector3(0.28, 0.3, 0.2), skin)
+	torso.rotation_degrees = Vector3(6, 0, 0)
+
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.16, 0.62, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.16, 0.02), 0.04, 0.045, 0.32, skin)
+	_sp(sh_l, "HandL", Vector3(0, -0.34, 0.04), 0.05, skin)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.16, 0.62, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.04, 0.045, 0.32, skin)
+	_sp(sh_r, "HandR", Vector3(0, -0.34, 0.04), 0.05, skin)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+
+	_sp(root, "Head", Vector3(0, 0.8, 0.02), 0.16, skin)
+	_cy(root, "EarL", Vector3(-0.17, 0.84, -0.02), 0.0, 0.06, 0.22, skin, Vector3(-8, 0, 62))
+	_cy(root, "EarR", Vector3(0.17, 0.84, -0.02), 0.0, 0.06, 0.22, skin, Vector3(-8, 0, -62))
+	_cy(root, "Nose", Vector3(0, 0.79, 0.16), 0.0, 0.045, 0.14, skin, Vector3(70, 0, 0))
+	_bx(root, "Brow", Vector3(0, 0.87, 0.13), Vector3(0.26, 0.04, 0.06), dark)
+	_sp(root, "EyeL", Vector3(-0.06, 0.83, 0.14), 0.026, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.06, 0.83, 0.14), 0.026, eye, Vector3.ONE, true)
+	_bx(root, "Fang", Vector3(-0.03, 0.71, 0.14), Vector3(0.02, 0.04, 0.02), bone)
+
+	match role:
+		"soldier":
+			_bx(sh_r, "Guard", Vector3(0, -0.34, 0.12), Vector3(0.12, 0.03, 0.04), dark)
+			_bx(sh_r, "Blade", Vector3(0, -0.16, 0.12), Vector3(0.045, 0.36, 0.018), steel)
+			_bx(sh_r, "Hilt", Vector3(0, -0.42, 0.12), Vector3(0.03, 0.1, 0.03), wood)
+		"mage":
+			var orb := _sp(sh_r, "Orb", Vector3(0.02, -0.42, 0.16), 0.09, Color.html("ff7a1a"), Vector3.ONE, true)
+			(orb.material_override as StandardMaterial3D).emission_energy_multiplier = 2.0
+			_sp(sh_r, "OrbCore", Vector3(0.02, -0.42, 0.16), 0.05, Color.html("ffe08a"), Vector3.ONE, true)
+			_sp(root, "Hood", Vector3(0, 0.88, -0.03), 0.17, cloth, Vector3(1.05, 0.7, 1.05))
+		"shaman":
+			_cy(root, "Staff", Vector3(0.26, 0.5, 0.06), 0.022, 0.026, 0.82, wood)
+			_sp(root, "Skull", Vector3(0.26, 0.93, 0.06), 0.06, bone)
+			_cy(root, "Feather0", Vector3(0.22, 0.98, 0.04), 0.0, 0.03, 0.12, Color.html("c0392b"), Vector3(0, 0, 35))
+			_cy(root, "Feather1", Vector3(0.3, 0.98, 0.04), 0.0, 0.03, 0.12, Color.html("e67e22"), Vector3(0, 0, -35))
+			_sp(root, "Charm", Vector3(-0.14, 0.62, 0.1), 0.03, bone)
+
+
 # =============================================================
 # IDLE
 # =============================================================
@@ -397,18 +517,44 @@ func set_walking(walking: bool) -> void:
 
 
 func play_attack() -> void:
-	if not _built or _atk_pivot == null:
+	if not _built:
 		return
-	if _kind == "rat" or _kind == "archer_rat":
-		_lurch()
+	match _kind:
+		"rat", "archer_rat":
+			_lurch()
+		"hydra":
+			_hydra_attack()
+		_:
+			_arm_swing()
+
+
+## Skeleton / troll / goblin: overhead swing of the right arm (+ weapon).
+func _arm_swing() -> void:
+	if _atk_pivot == null:
 		return
-	# Skeleton / troll: overhead swing of the right arm (+ weapon).
 	_cancel_action()
 	_busy = true
 	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
 	_action_tween.tween_property(_atk_pivot, "rotation_degrees:x", -140.0, 0.16).set_ease(Tween.EASE_OUT)
 	_action_tween.tween_property(_atk_pivot, "rotation_degrees:x", -25.0, 0.08).set_ease(Tween.EASE_IN)
 	_action_tween.tween_property(_atk_pivot, "rotation_degrees:x", _atk_rest.x, 0.24).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Hydra: lunge the body forward while the centre head snaps out to bite.
+func _hydra_attack() -> void:
+	if _bob_node == null:
+		return
+	_cancel_action()
+	_busy = true
+	var base := _bob_node.position
+	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_action_tween.tween_property(_bob_node, "position:z", base.z + 0.2, 0.1)
+	if _atk_pivot:
+		_action_tween.parallel().tween_property(_atk_pivot, "rotation_degrees:x", _atk_rest.x + 32.0, 0.1)
+	_action_tween.tween_property(_bob_node, "position:z", base.z, 0.3)
+	if _atk_pivot:
+		_action_tween.parallel().tween_property(_atk_pivot, "rotation_degrees:x", _atk_rest.x, 0.3)
 	_action_tween.tween_callback(func(): _busy = false)
 
 

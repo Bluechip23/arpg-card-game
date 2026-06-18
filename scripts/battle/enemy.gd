@@ -261,8 +261,12 @@ func _setup_sprite() -> void:
 		EnemyType.ARCHER_RAT: kind = "archer_rat"
 		EnemyType.ARMORED_TROLL: kind = "armored_troll"
 		EnemyType.SKELETON: kind = "skeleton"
+		EnemyType.HYDRA: kind = "hydra"
+		EnemyType.FIRE_GOBLIN_SOLDIER: kind = "fire_goblin_soldier"
+		EnemyType.FIRE_GOBLIN_MAGE: kind = "fire_goblin_mage"
+		EnemyType.FIRE_GOBLIN_SHAMAN: kind = "fire_goblin_shaman"
 		_:
-			return  # No model for generic types
+			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
 
 	_enemy_figure = EnemyFigure.new()
 	add_child(_enemy_figure)

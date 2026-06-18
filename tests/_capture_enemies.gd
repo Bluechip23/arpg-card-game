@@ -46,7 +46,19 @@ func _initialize() -> void:
 	var cam := Camera3D.new()
 	root3d.add_child(cam)
 
-	if solo != "":
+	if solo == "bosses":
+		var kinds := ["hydra", "fire_goblin_soldier", "fire_goblin_mage", "fire_goblin_shaman"]
+		var x := -2.7
+		for k in kinds:
+			var f := EnemyFigure.new()
+			f.position = Vector3(x, 0, 0)
+			root3d.add_child(f)
+			f.setup(k)
+			_figs.append(f)
+			x += 1.8
+		cam.position = Vector3(0, 1.15, 4.3)
+		cam.look_at(Vector3(0, 0.7, 0), Vector3.UP)
+	elif solo != "":
 		# Single figure, close 3/4 view.
 		var f := EnemyFigure.new()
 		root3d.add_child(f)
