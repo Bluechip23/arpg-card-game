@@ -179,7 +179,6 @@ static func create_stephen() -> CharacterData:
 	data.starting_item_description = "+2 DEX. Grants 1 Blink card"
 	data.slot_specialty = "4 weapon slots, 3 ring slots"
 	data.sprite_path = "res://assets/characters/stephen_south.png"
-	data.sprite_sheet_path = "res://assets/characters/stephen_spritesheet.png"
 	return data
 
 static func create_cory() -> CharacterData:

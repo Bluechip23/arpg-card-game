@@ -1029,6 +1029,10 @@ func _on_attack_pressed() -> void:
 			closest_dist = dist
 			target = enemy
 
+	# Swing the arm down — basic attack uses the same slash as the slash card.
+	if player.has_method("play_animation"):
+		player.play_animation("attack_slash", _facing_dir_toward(target))
+
 	# Damage: 0 base + strength modifier
 	var damage = stats.get_effective_physical_damage(0)
 
@@ -1140,6 +1144,10 @@ func _on_block_pressed() -> void:
 		block_amount = 3  # Fallback for shields without armor_bonus
 
 	stats.add_armor(block_amount)
+
+	# Pound the chest + raise the shield icon.
+	if player.has_method("play_animation"):
+		player.play_animation("block", CharacterAnimator.Direction.SOUTH)
 
 	var tempo_cost = 5
 	if debuff_mgr:
@@ -4149,10 +4157,8 @@ func _get_nearest_enemy() -> Enemy:
 			nearest = enemy
 	return nearest
 
-func _play_card_animation(card: Card, target) -> void:
-	if not player or not player.has_method("play_animation"):
-		return
-	# Determine animation direction based on target position
+func _facing_dir_toward(target) -> CharacterAnimator.Direction:
+	## Returns the CharacterAnimator.Direction the player should face to act on target.
 	var dir = CharacterAnimator.Direction.SOUTH
 	if target and target is Node3D and is_instance_valid(target):
 		var to_target = target.position - player.position
@@ -4160,6 +4166,13 @@ func _play_card_animation(card: Card, target) -> void:
 			dir = CharacterAnimator.Direction.EAST if to_target.x > 0 else CharacterAnimator.Direction.WEST
 		else:
 			dir = CharacterAnimator.Direction.SOUTH if to_target.z > 0 else CharacterAnimator.Direction.NORTH
+	return dir
+
+func _play_card_animation(card: Card, target) -> void:
+	if not player or not player.has_method("play_animation"):
+		return
+	# Determine animation direction based on target position
+	var dir = _facing_dir_toward(target)
 	# Map card type to animation action
 	match card.card_type:
 		Card.CardType.ATTACK:
