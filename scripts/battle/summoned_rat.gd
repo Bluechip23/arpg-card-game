@@ -23,7 +23,7 @@ var is_dead: bool = false
 
 var _target_position: Vector3 = Vector3.ZERO
 var _is_moving: bool = false
-var _mesh: MeshInstance3D = null
+var _figure: EnemyFigure = null
 var _health_label: Label3D = null
 
 func setup(gm: GridManager, spawn_pos: Vector3) -> void:
@@ -34,15 +34,10 @@ func setup(gm: GridManager, spawn_pos: Vector3) -> void:
 	_update_health_label()
 
 func _build_visuals() -> void:
-	_mesh = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(0.35, 0.25, 0.5)
-	_mesh.mesh = box
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.45, 0.4, 0.38)  # ratty grey-brown
-	_mesh.material_override = mat
-	_mesh.position = Vector3(0, 0.18, 0)
-	add_child(_mesh)
+	_figure = EnemyFigure.new()
+	_figure.scale = Vector3(0.8, 0.8, 0.8)
+	add_child(_figure)
+	_figure.setup("rat")
 
 	_health_label = Label3D.new()
 	_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -89,15 +84,8 @@ func take_damage(amount: int) -> void:
 		_flash(Color(1.0, 0.4, 0.4))
 
 func _flash(color: Color) -> void:
-	if not _mesh:
-		return
-	var mat := _mesh.material_override as StandardMaterial3D
-	if not mat:
-		return
-	var original := mat.albedo_color
-	mat.albedo_color = color
-	var tween := create_tween()
-	tween.tween_property(mat, "albedo_color", original, 0.25)
+	if _figure:
+		_figure.flash(color)
 
 func die() -> void:
 	if is_dead:

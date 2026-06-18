@@ -115,6 +115,7 @@ var _damage_preview_label: Label3D = null
 # Sprite animation (replaces BoxMesh for enemies with sprite sheets)
 var _enemy_sprite: Sprite3D = null
 var _enemy_animator: CharacterAnimator = null
+var _enemy_figure: EnemyFigure = null
 var _action_map: Dictionary = {}
 
 @onready var mesh: MeshInstance3D = $MeshInstance3D
@@ -252,73 +253,36 @@ func _set_mesh_color(color: Color) -> void:
 			mat.albedo_color = color
 
 func _setup_sprite() -> void:
-	## Creates a Sprite3D and CharacterAnimator for enemy types that have sprite sheets.
-	var sheet_path := ""
-	var anim_data := {}
-	var pixel_size := 0.02
-
+	## Builds a procedural 3D model (EnemyFigure) for enemy types that have one,
+	## replacing the box mesh. Generic types keep their coloured box.
+	var kind := ""
 	match enemy_type:
-		EnemyType.WERERAT:
-			sheet_path = WereratAnimations.SPRITE_SHEET_PATH
-			anim_data = WereratAnimations.get_animation_data()
-			_action_map = WereratAnimations.get_action_map()
-			pixel_size = WereratAnimations.PIXEL_SIZE
-		EnemyType.ARCHER_RAT:
-			sheet_path = ArcherRatAnimations.SPRITE_SHEET_PATH
-			anim_data = ArcherRatAnimations.get_animation_data()
-			_action_map = ArcherRatAnimations.get_action_map()
-			pixel_size = ArcherRatAnimations.PIXEL_SIZE
-		EnemyType.ARMORED_TROLL:
-			sheet_path = ArmoredTrollAnimations.SPRITE_SHEET_PATH
-			anim_data = ArmoredTrollAnimations.get_animation_data()
-			_action_map = ArmoredTrollAnimations.get_action_map()
-			pixel_size = ArmoredTrollAnimations.PIXEL_SIZE
-		EnemyType.SKELETON:
-			sheet_path = SkeletonAnimations.SPRITE_SHEET_PATH
-			anim_data = SkeletonAnimations.get_animation_data()
-			_action_map = SkeletonAnimations.get_action_map()
-			pixel_size = SkeletonAnimations.PIXEL_SIZE
+		EnemyType.WERERAT: kind = "rat"
+		EnemyType.ARCHER_RAT: kind = "archer_rat"
+		EnemyType.ARMORED_TROLL: kind = "armored_troll"
+		EnemyType.SKELETON: kind = "skeleton"
 		_:
-			return  # No sprite sheet for generic types
+			return  # No model for generic types
 
-	if sheet_path == "" or anim_data.is_empty():
-		return
+	_enemy_figure = EnemyFigure.new()
+	add_child(_enemy_figure)
+	_enemy_figure.setup(kind)
 
-	# Create Sprite3D
-	_enemy_sprite = Sprite3D.new()
-	_enemy_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_enemy_sprite.pixel_size = pixel_size
-	_enemy_sprite.region_enabled = true
-	_enemy_sprite.position = Vector3(0, 0.5, 0)
-	_enemy_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	add_child(_enemy_sprite)
-
-	# Create CharacterAnimator
-	_enemy_animator = CharacterAnimator.new()
-	add_child(_enemy_animator)
-	_enemy_animator.initialize(_enemy_sprite, anim_data, sheet_path)
-
-	if _enemy_animator.sprite_sheet_loaded:
-		# Hide the box mesh, show sprite
-		if mesh:
-			mesh.visible = false
-		if outline:
-			outline.visible = false
-		# Connect animation finished to return to stance
-		_enemy_animator.animation_finished.connect(_on_enemy_animation_finished)
-	else:
-		# Sprite failed to load, remove and keep box mesh
-		_enemy_sprite.queue_free()
-		_enemy_sprite = null
-		_enemy_animator.queue_free()
-		_enemy_animator = null
+	# The figure replaces the prototype box + outline
+	if mesh:
+		mesh.visible = false
+	if outline:
+		outline.visible = false
 
 func _on_enemy_animation_finished(anim_name: String) -> void:
 	if _enemy_animator and anim_name != "stance" and anim_name != "walking":
 		_enemy_animator.play("stance", CharacterAnimator.Direction.SOUTH)
 
 func _play_enemy_animation(action: String) -> void:
-	## Play an animation by action name, mapping through the action map.
+	## Play an animation by action name (procedural figure, or legacy sprite sheet).
+	if _enemy_figure:
+		_enemy_figure.play_action(action)
+		return
 	if not _enemy_animator or not _enemy_animator.sprite_sheet_loaded:
 		return
 	var anim_name = _action_map.get(action, action)
@@ -1254,8 +1218,10 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 				player_node.on_attacked_by(self)
 			attacked_player.emit(self)
 
-	# Attack flash on sprite or mesh
-	if _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
+	# Attack flash on figure, sprite, or mesh
+	if _enemy_figure:
+		_enemy_figure.flash(Color(1.0, 0.7, 0.3))
+	elif _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
 		var tween = create_tween()
 		tween.tween_property(_enemy_sprite, "modulate", Color(1.0, 0.7, 0.3), 0.1)
 		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.1)
@@ -1327,8 +1293,10 @@ func _regenerate(amount: int) -> void:
 	current_health += healed
 	update_health_display()
 	print("[%s] Regenerates %d health! (%d/%d)" % [enemy_name, healed, current_health, max_health])
-	# Heal flash on sprite or mesh
-	if _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
+	# Heal flash on figure, sprite, or mesh
+	if _enemy_figure:
+		_enemy_figure.flash(Color(0.5, 1.0, 0.5))
+	elif _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
 		var tween = create_tween()
 		tween.tween_property(_enemy_sprite, "modulate", Color(0.5, 1.0, 0.5), 0.15)
 		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.15)
@@ -1404,8 +1372,10 @@ func _physics_process(delta: float) -> void:
 			turn_completed.emit()
 		else:
 			velocity = flat_diff.normalized() * move_speed
-			# Play walking animation while moving
-			if _enemy_animator and _enemy_animator.sprite_sheet_loaded:
+			# Play walking animation / drop to all-fours while moving
+			if _enemy_figure:
+				_enemy_figure.set_walking(true)
+			elif _enemy_animator and _enemy_animator.sprite_sheet_loaded:
 				if not _enemy_animator.is_animation_playing("walking"):
 					_play_enemy_animation("walk")
 	else:
@@ -1567,8 +1537,11 @@ func take_damage(amount: int, from_player: bool = false) -> bool:
 	# Floating damage number
 	_spawn_damage_number(amount, just_exposed)
 
-	# Damage flash on sprite or mesh
-	if _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
+	# Damage flash on figure, sprite, or mesh
+	if _enemy_figure:
+		_enemy_figure.play_action("hit")
+		_enemy_figure.flash(Color(1.0, 0.3, 0.3))
+	elif _enemy_sprite and _enemy_animator and _enemy_animator.sprite_sheet_loaded:
 		_play_enemy_animation("hit")
 		var tween = create_tween()
 		tween.tween_property(_enemy_sprite, "modulate", Color(1.0, 0.3, 0.3), 0.1)
