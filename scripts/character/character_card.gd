@@ -288,7 +288,7 @@ func setup(character: CharacterData) -> void:
 	# Render a 3D figure preview for real characters (the quiz "Customize" card
 	# keeps its "?" placeholder).
 	if character.character_name != "Customize":
-		_build_figure_preview(character.character_name)
+		_build_figure_preview(character.character_name, character.sprite_path)
 
 	# Core stats
 	var core_values = {
@@ -334,7 +334,7 @@ func setup(character: CharacterData) -> void:
 		else:
 			_archetype_labels[i].visible = false
 
-func _build_figure_preview(character_name: String) -> void:
+func _build_figure_preview(character_name: String, sprite_path: String = "") -> void:
 	## Drops a small 3D scene (figure + camera + lights) into the sprite panel via a
 	## SubViewport, giving each card a pre-rendered "SNES RPG" look instead of a flat
 	## 2D sprite. The figure idles on its own (see CharacterFigure._process).
@@ -357,7 +357,7 @@ func _build_figure_preview(character_name: String) -> void:
 	_figure_viewport = viewport
 
 	var figure := CharacterFigure.new()
-	figure.setup(character_name)
+	figure.setup(character_name, sprite_path)
 	viewport.add_child(figure)
 
 	# Orthographic, slightly raised 3/4 angle — that pre-rendered Mario-RPG feel.

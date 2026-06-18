@@ -95,7 +95,7 @@ func _setup_figure(data: CharacterData) -> void:
 	_figure = CharacterFigure.new()
 	_figure.name = "CharacterFigure"
 	add_child(_figure)
-	_figure.setup(data.character_name)
+	_figure.setup(data.character_name, data.sprite_path)
 
 	# The figure replaces the prototype graphics
 	if mesh:
