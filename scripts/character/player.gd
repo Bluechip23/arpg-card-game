@@ -110,6 +110,16 @@ func play_animation(action: String, direction: CharacterAnimator.Direction = Cha
 	if _figure:
 		_figure.play_action(action, direction)
 
+func show_armor_gained() -> void:
+	## Pops the overhead armour icon — call whenever armour is gained from any source.
+	if _figure:
+		_figure.pop_armor_icon()
+
+func show_heal_icon() -> void:
+	## Pops the overhead heart icon — call whenever HP is healed from any source.
+	if _figure:
+		_figure.pop_heart()
+
 func pause_movement() -> void:
 	movement_paused = true
 

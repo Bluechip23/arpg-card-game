@@ -702,7 +702,8 @@ func play_defend() -> void:
 	_cancel_action()
 	_reset_pose()
 	_busy = true
-	_spawn_shield()
+	# The overhead armour icon is driven systemically (see pop_armor_icon) so it
+	# only appears when armour is actually gained — not on every defensive pose.
 	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
 	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-95, 0, 38), 0.12).set_ease(Tween.EASE_OUT)
 	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 6.0, 0.12)
@@ -748,7 +749,8 @@ func play_heal() -> void:
 	_cancel_action()
 	_reset_pose()
 	_busy = true
-	_spawn_heart()
+	# The overhead heart is driven systemically (see pop_heart) so it appears
+	# whenever HP is actually healed — not on every heal pose.
 	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
 	_action_tween.tween_property(_body, "position:y", 0.05, 0.18).set_ease(Tween.EASE_OUT)
 	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", -8.0, 0.18)
@@ -1270,6 +1272,17 @@ func _make_shield_texture() -> ImageTexture:
 # =============================================================
 # OVERHEAD ICONS / FX (heart, fangs, sparkles, voice, impacts)
 # =============================================================
+
+## Public hooks for systemic feedback (armour gained / healed from any source).
+func pop_armor_icon() -> void:
+	if _built:
+		_spawn_armor_icon()
+
+
+func pop_heart() -> void:
+	if _built:
+		_spawn_heart()
+
 
 func _make_icon_sprite(tex: Texture2D) -> Sprite3D:
 	var sp := Sprite3D.new()
