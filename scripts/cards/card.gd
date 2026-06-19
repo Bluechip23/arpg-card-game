@@ -217,6 +217,35 @@ func get_range_display() -> String:
 ## Animation Lab. As per-card animations are authored, branch here on card_id
 ## (and add the matching case + play_* method in CharacterFigure.play_action).
 func get_animation_action() -> String:
+	# Per-card bespoke animations take priority over the card-type default.
+	# Each maps to a play_* method in CharacterFigure.play_action().
+	match card_id:
+		# Brad — bespoke motion
+		"approach": return "approach_stance"
+		"charge": return "charge"
+		"harden": return "harden"
+		"heavy_swing": return "heavy_swing"
+		"heroic_leap": return "heroic_leap"
+		"hold_the_line": return "hold_the_line"
+		"hunker_down": return "hunker_down"
+		"life_steal": return "life_steal"
+		"life_swap": return "life_swap"
+		"morphine": return "morphine"
+		"parry": return "parry"
+		"roar": return "roar"
+		"roll": return "roll"
+		"shed_weight": return "shed_weight"
+		"shield_slam": return "shield_slam"
+		"succumb": return "succumb"
+		"taunt": return "taunt"
+		"cover": return "cover"
+		# Brad — heal-flavoured
+		"the_lights_favor": return "heal"
+		"down_but_not_out": return "down_but_not_out"
+		# Brad — reuse the standard defense pose (overrides their card type)
+		"armor_break", "armored_discipline": return "block"
+		# Brad — reuse the standard attack pose (overrides their card type)
+		"wear_down": return "attack_slash"
 	match card_type:
 		CardType.ATTACK:
 			return "attack_ranged" if is_ranged else "attack_slash"

@@ -6,6 +6,7 @@ extends Node
 signal health_changed(current: int, max_val: int)
 signal mana_changed(current: float, max_val: int)
 signal armor_changed(current: int)
+signal armor_gained(amount: int)  # Emitted only when armor increases (any source) — drives the overhead armor icon
 signal temp_health_changed(current: int)
 signal died
 signal dexterity_proc
@@ -757,6 +758,8 @@ func add_armor(amount: int) -> void:
 		total = floori(total * 1.25)
 	current_armor += total
 	armor_changed.emit(current_armor)
+	if total > 0:
+		armor_gained.emit(total)
 	var bonus = enchantment_block_bonus + sphere_bonus_block
 	if bonus > 0:
 		print("[STATS] Gained %d armor (+%d bonus)! Armor: %d" % [amount, bonus, current_armor])
@@ -774,6 +777,8 @@ func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 		total = floori(total * 1.25)
 	current_armor += total
 	armor_changed.emit(current_armor)
+	if total > 0:
+		armor_gained.emit(total)
 	print("[STATS] Gained %d armor (incl. bolster/enchantment)! Armor: %d" % [total, current_armor])
 	if inventory:
 		inventory.on_armor_gained(total)
@@ -938,6 +943,8 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			# Immediately grant the armor
 			current_armor += value
 			armor_changed.emit(current_armor)
+			if value > 0:
+				armor_gained.emit(value)
 		"regen":
 			sphere_bonus_regen += value
 		"arm/cyc":

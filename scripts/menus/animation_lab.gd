@@ -26,6 +26,8 @@ var _entry_buttons: Array[Dictionary] = []
 
 var _current_dir: int = CharacterAnimator.Direction.SOUTH
 var _current_action: String = ""
+var _current_armor: bool = false
+var _current_heal: bool = false
 
 
 func _ready() -> void:
@@ -172,7 +174,7 @@ func _build_viewport() -> void:
 
 	_figure = CharacterFigure.new()
 	vp.add_child(_figure)
-	_figure.setup("Ryan")
+	_figure.setup("Brad")
 	_figure.set_facing(_current_dir)
 
 	# --- Direction + replay controls ---
@@ -199,6 +201,22 @@ func _build_viewport() -> void:
 	replay.pressed.connect(_on_replay)
 	controls.add_child(replay)
 
+	# --- Character selector (shield-based moves need Brad) ---
+	var char_row := HBoxContainer.new()
+	char_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	char_row.add_theme_constant_override("separation", 6)
+	_left_column.add_child(char_row)
+
+	var char_label := Label.new()
+	char_label.text = "Character:"
+	char_row.add_child(char_label)
+
+	for cname in ["Brad", "Ryan", "Stephen", "Cory", "Jeremy"]:
+		var cbtn := Button.new()
+		cbtn.text = cname
+		cbtn.pressed.connect(_on_set_character.bind(cname))
+		char_row.add_child(cbtn)
+
 
 func _add_dir_button(parent: Node, label: String, dir: int) -> void:
 	var btn := Button.new()
@@ -214,7 +232,7 @@ func _add_dir_button(parent: Node, label: String, dir: int) -> void:
 func _populate_list() -> void:
 	_add_section_header("CARDS")
 	for entry in _collect_cards():
-		_add_entry(entry["label"], entry["action"], entry["search"])
+		_add_entry(entry["label"], entry["action"], entry["search"], entry.get("armor", false), entry.get("heal", false))
 
 	_add_section_header("PASSIVES")
 	for entry in _collect_passives():
@@ -232,12 +250,12 @@ func _add_section_header(text: String) -> void:
 	_list_vbox.add_child(header)
 
 
-func _add_entry(label: String, action: String, search: String) -> void:
+func _add_entry(label: String, action: String, search: String, grants_armor: bool = false, grants_heal: bool = false) -> void:
 	var btn := Button.new()
 	btn.text = label
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.pressed.connect(_on_entry_selected.bind(label, action))
+	btn.pressed.connect(_on_entry_selected.bind(label, action, grants_armor, grants_heal))
 	_list_vbox.add_child(btn)
 	_entry_buttons.append({"button": btn, "search": search.to_lower()})
 
@@ -257,6 +275,10 @@ func _collect_cards() -> Array:
 					"label": "%s  (%s)" % [card.card_name, type_name],
 					"action": card.get_animation_action(),
 					"search": "%s %s" % [card.card_name, card.card_id],
+					# So the lab previews the systemic armour/heal icons, which in
+					# battle are driven by real stat changes rather than the animation.
+					"armor": card.base_block > 0 or card.block > 0,
+					"heal": card.heal_amount > 0,
 				})
 	out.sort_custom(func(a, b): return a["label"] < b["label"])
 	return out
@@ -312,8 +334,10 @@ func _collect_passives() -> Array:
 # CALLBACKS
 # =============================================================
 
-func _on_entry_selected(label: String, action: String) -> void:
+func _on_entry_selected(label: String, action: String, grants_armor: bool = false, grants_heal: bool = false) -> void:
 	_current_action = action
+	_current_armor = grants_armor
+	_current_heal = grants_heal
 	_play_current()
 	_status_label.text = "%s  →  action: \"%s\"" % [label, action]
 
@@ -331,9 +355,23 @@ func _on_set_direction(dir: int) -> void:
 		_play_current()
 
 
-func _play_current() -> void:
+func _on_set_character(character_name: String) -> void:
 	if _figure:
-		_figure.play_action(_current_action, _current_dir)
+		_figure.setup(character_name)
+		_figure.set_facing(_current_dir)
+	if _current_action != "":
+		_play_current()
+
+
+func _play_current() -> void:
+	if not _figure:
+		return
+	_figure.play_action(_current_action, _current_dir)
+	# Preview the systemic overhead icons (battle drives these from real stat changes).
+	if _current_armor:
+		_figure.pop_armor_icon()
+	if _current_heal:
+		_figure.pop_heart()
 
 
 func _on_filter_changed(text: String) -> void:

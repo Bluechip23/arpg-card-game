@@ -2245,6 +2245,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().health_changed.connect(_on_player_health_changed)
 	player.get_stats().mana_changed.connect(_on_player_mana_changed)
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
+	player.get_stats().armor_gained.connect(_on_player_armor_gained)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
@@ -2770,6 +2771,11 @@ func _on_player_mana_changed(current: float, max_mana: int) -> void:
 	if _mana_bar_label:
 		_mana_bar_label.text = "%d/%d" % [int(current), max_mana]
 
+func _on_player_armor_gained(_amount: int) -> void:
+	## Armour gained from any source — pop the overhead armour icon.
+	if player and player.has_method("show_armor_gained"):
+		player.show_armor_gained()
+
 func _on_player_armor_changed(current: int) -> void:
 	if player_armor_label:
 		player_armor_label.visible = false
@@ -2831,6 +2837,9 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 
 func _on_player_healed(amount: int) -> void:
 	player.spawn_heal_number(amount)
+	# Heal from any source pops the overhead heart icon.
+	if amount > 0 and player.has_method("show_heal_icon"):
+		player.show_heal_icon()
 	# Sphere grid passive triggers for healing
 	var stats = player.get_stats()
 	var overheal = 0
