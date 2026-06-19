@@ -1176,6 +1176,11 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 
 ## Deal damage to the player with attack flash.
 func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String) -> void:
+	# Face the target as we strike so attacks don't play backwards.
+	if _enemy_figure and is_instance_valid(player_node):
+		var face_diff = player_node.position - position
+		_enemy_figure.set_facing_from_velocity(Vector3(face_diff.x, 0, face_diff.z))
+
 	var effective_damage = max(0, base_damage - attack_reduction)
 	print("[%s] %s for %d damage! (base %d, reduction %d)" % [enemy_name, attack_name, effective_damage, base_damage, attack_reduction])
 
@@ -1378,6 +1383,7 @@ func _physics_process(delta: float) -> void:
 			velocity = flat_diff.normalized() * move_speed
 			# Play walking animation / drop to all-fours while moving
 			if _enemy_figure:
+				_enemy_figure.set_facing_from_velocity(velocity)
 				_enemy_figure.set_walking(true)
 			elif _enemy_animator and _enemy_animator.sprite_sheet_loaded:
 				if not _enemy_animator.is_animation_playing("walking"):

@@ -4165,28 +4165,8 @@ func _play_card_animation(card: Card, target) -> void:
 		return
 	# Determine animation direction based on target position
 	var dir = _facing_dir_toward(target)
-	# Map card type to animation action
-	match card.card_type:
-		Card.CardType.ATTACK:
-			if card.is_ranged:
-				player.play_animation("attack_ranged", dir)
-			else:
-				player.play_animation("attack_slash", dir)
-		Card.CardType.DEFENSE:
-			player.play_animation("block", dir)
-		Card.CardType.UTILITY:
-			if card.card_id == "blink":
-				player.play_animation("blink", dir)
-			elif card.card_id == "empower":
-				player.play_animation("empower", dir)
-			elif card.card_id == "draw":
-				player.play_animation("look_around", dir)
-			else:
-				player.play_animation("battle_ready", dir)
-		Card.CardType.REACTION:
-			player.play_animation("dodge", dir)
-		_:
-			player.play_animation("battle_ready", dir)
+	# Card defines its own animation action (shared with the Animation Lab)
+	player.play_animation(card.get_animation_action(), dir)
 
 func _get_card_play_target_pos(target) -> Vector2:
 	## Returns a screen position to animate the card toward (in hand_container local coords).
