@@ -21,6 +21,7 @@ var _menu_items: Array[Dictionary] = [
 	{"text": "Roguelike", "action": "_on_roguelike"},
 	{"text": "Multiplayer", "action": "_on_multiplayer"},
 	{"text": "Compendium", "action": "_on_compendium"},
+	{"text": "Animation Lab", "action": "_on_animation_lab"},
 	{"text": "Settings", "action": "_on_settings"},
 	{"text": "Help", "action": "_on_help"},
 	{"text": "Quit", "action": "_on_quit"},
@@ -154,6 +155,11 @@ func _on_multiplayer() -> void:
 func _on_compendium() -> void:
 	var compendium_scene = load("res://scenes/ui/compendium_page.tscn").instantiate()
 	get_tree().root.add_child(compendium_scene)
+	queue_free()
+
+func _on_animation_lab() -> void:
+	var lab_scene = load("res://scenes/menus/animation_lab.tscn").instantiate()
+	get_tree().root.add_child(lab_scene)
 	queue_free()
 
 func _on_settings() -> void:

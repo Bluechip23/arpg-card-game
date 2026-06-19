@@ -212,6 +212,28 @@ func get_range_display() -> String:
 	else:
 		return "Ranged %d" % range_modifier
 
+## Returns the CharacterFigure action this card should play when used.
+## Single source of truth shared by in-battle playback (main.gd) and the
+## Animation Lab. As per-card animations are authored, branch here on card_id
+## (and add the matching case + play_* method in CharacterFigure.play_action).
+func get_animation_action() -> String:
+	match card_type:
+		CardType.ATTACK:
+			return "attack_ranged" if is_ranged else "attack_slash"
+		CardType.DEFENSE:
+			return "block"
+		CardType.REACTION:
+			return "dodge"
+		CardType.UTILITY:
+			match card_id:
+				"blink": return "blink"
+				"empower": return "empower"
+				"draw": return "look_around"
+				_: return "battle_ready"
+		_:
+			return "battle_ready"
+
+
 ## Returns all known game keywords and their descriptions for tooltip display.
 static func get_keyword_definitions() -> Dictionary:
 	return {

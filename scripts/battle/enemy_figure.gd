@@ -516,6 +516,31 @@ func set_walking(walking: bool) -> void:
 		_set_archer_pose(walking)
 
 
+## Rotate the whole figure to face a cardinal direction. The models are built
+## facing +Z (south / toward the camera), matching CharacterFigure.
+func set_facing(direction: int) -> void:
+	if not _built:
+		return
+	match direction:
+		CharacterAnimator.Direction.SOUTH:
+			rotation_degrees.y = 0.0
+		CharacterAnimator.Direction.NORTH:
+			rotation_degrees.y = 180.0
+		CharacterAnimator.Direction.EAST:
+			rotation_degrees.y = 90.0
+		CharacterAnimator.Direction.WEST:
+			rotation_degrees.y = -90.0
+
+
+func set_facing_from_velocity(vel: Vector3) -> void:
+	if vel.length_squared() < 0.01:
+		return
+	if abs(vel.x) > abs(vel.z):
+		set_facing(CharacterAnimator.Direction.EAST if vel.x > 0 else CharacterAnimator.Direction.WEST)
+	else:
+		set_facing(CharacterAnimator.Direction.SOUTH if vel.z > 0 else CharacterAnimator.Direction.NORTH)
+
+
 func play_attack() -> void:
 	if not _built:
 		return
