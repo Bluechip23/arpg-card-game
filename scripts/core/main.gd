@@ -2210,21 +2210,13 @@ func _on_tracker_enemy_unhovered() -> void:
 	_prev_battlefield_hover = null
 
 func _set_enemy_highlight(enemy: Enemy, highlighted: bool) -> void:
-	## Toggle a bright highlight outline on a battlefield enemy.
+	## Toggle the hover highlight on a battlefield enemy. Enemies with a sprite/
+	## figure glow the model itself; box-mesh enemies use the outline box.
 	if not enemy or not is_instance_valid(enemy):
 		return
-	if not enemy.outline:
-		return
-	var mat = enemy.outline.get_surface_override_material(0) as StandardMaterial3D
-	if not mat:
-		return
+	enemy.set_hover_highlight(highlighted)
 	if highlighted:
-		enemy.outline.visible = true
-		mat.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
 		_battlefield_hovered_enemy = enemy
-	else:
-		# Restore original outline state
-		enemy.update_outline()
 
 func _refresh_unit_tracker() -> void:
 	if unit_tracker:

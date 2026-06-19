@@ -1775,6 +1775,25 @@ func update_outline() -> void:
 		_:
 			outline.visible = false
 
+func set_hover_highlight(enabled: bool) -> void:
+	## Toggle the mouse-hover highlight. Enemies that have a procedural figure
+	## glow the model directly so the placeholder box outline never appears
+	## around them; box-mesh enemies fall back to the bright outline box.
+	if _enemy_figure:
+		_enemy_figure.set_highlight(enabled)
+		if outline:
+			outline.visible = false
+		return
+	if not outline:
+		return
+	if enabled:
+		var mat = outline.get_surface_override_material(0) as StandardMaterial3D
+		outline.visible = true
+		if mat:
+			mat.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
+	else:
+		update_outline()
+
 func update_name_display() -> void:
 	if name_label:
 		name_label.text = enemy_name

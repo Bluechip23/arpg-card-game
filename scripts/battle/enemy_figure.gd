@@ -594,6 +594,21 @@ func flash(color: Color) -> void:
 		tw.tween_property(sm, "emission_energy_multiplier", 0.0, 0.32)
 
 
+func set_highlight(enabled: bool) -> void:
+	## Hover feedback for figure-based enemies: a soft glow on the model itself
+	## (so we never need the placeholder box outline around them).
+	for mi in _all_meshes(self):
+		var sm := mi.material_override as StandardMaterial3D
+		if sm == null:
+			continue
+		if enabled:
+			sm.emission_enabled = true
+			sm.emission = Color(1.0, 1.0, 1.0)
+			sm.emission_energy_multiplier = 0.35
+		else:
+			sm.emission_energy_multiplier = 0.0
+
+
 # =============================================================
 # INTERNAL
 # =============================================================
