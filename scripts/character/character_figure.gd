@@ -685,9 +685,9 @@ func set_facing(direction: int) -> void:
 		CharacterAnimator.Direction.NORTH:
 			_pivot.rotation_degrees.y = 180.0
 		CharacterAnimator.Direction.EAST:
-			_pivot.rotation_degrees.y = -90.0
-		CharacterAnimator.Direction.WEST:
 			_pivot.rotation_degrees.y = 90.0
+		CharacterAnimator.Direction.WEST:
+			_pivot.rotation_degrees.y = -90.0
 
 
 func set_facing_from_velocity(vel: Vector3) -> void:
