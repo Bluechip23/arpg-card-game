@@ -172,7 +172,7 @@ func _build_viewport() -> void:
 
 	_figure = CharacterFigure.new()
 	vp.add_child(_figure)
-	_figure.setup("Ryan")
+	_figure.setup("Brad")
 	_figure.set_facing(_current_dir)
 
 	# --- Direction + replay controls ---
@@ -198,6 +198,22 @@ func _build_viewport() -> void:
 	replay.text = "Replay"
 	replay.pressed.connect(_on_replay)
 	controls.add_child(replay)
+
+	# --- Character selector (shield-based moves need Brad) ---
+	var char_row := HBoxContainer.new()
+	char_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	char_row.add_theme_constant_override("separation", 6)
+	_left_column.add_child(char_row)
+
+	var char_label := Label.new()
+	char_label.text = "Character:"
+	char_row.add_child(char_label)
+
+	for cname in ["Brad", "Ryan", "Stephen", "Cory", "Jeremy"]:
+		var cbtn := Button.new()
+		cbtn.text = cname
+		cbtn.pressed.connect(_on_set_character.bind(cname))
+		char_row.add_child(cbtn)
 
 
 func _add_dir_button(parent: Node, label: String, dir: int) -> void:
@@ -327,6 +343,14 @@ func _on_set_direction(dir: int) -> void:
 	_current_dir = dir
 	if _figure:
 		_figure.set_facing(dir)
+	if _current_action != "":
+		_play_current()
+
+
+func _on_set_character(character_name: String) -> void:
+	if _figure:
+		_figure.setup(character_name)
+		_figure.set_facing(_current_dir)
 	if _current_action != "":
 		_play_current()
 
