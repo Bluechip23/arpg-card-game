@@ -181,8 +181,11 @@ func _make_eye(node_name: String, pos: Vector3) -> MeshInstance3D:
 
 func _apply_appearance() -> void:
 	var pal := _resolve_palette()
+	var spec := _spec_for(_char_name)
+	if spec.has("hair_color"):
+		pal["hair"] = spec["hair_color"]
 	_paint(_body, pal)
-	_build_details(pal)
+	_build_details(pal, spec)
 
 
 func _paint(node: Node, pal: Dictionary) -> void:
@@ -322,21 +325,22 @@ func _fallback_palette(character_name: String) -> Dictionary:
 func _spec_for(character_name: String) -> Dictionary:
 	match character_name:
 		"Ryan":
-			return {"hair": "long", "eyes": Color.html("5a9bd8"), "sleeves": "shirt",
-					"belt": Color.html("aacce6"), "boots": Color.html("242129"),
+			return {"hair": "long", "hair_color": Color.html("0b0a10"), "eyes": Color.html("5a9bd8"),
+					"sleeves": "shirt", "belt": Color.html("aacce6"), "boots": Color.html("242129"),
 					"weapon": "daggers", "weapon_col": Color.html("cbe0f1")}
 		"Jeremy":
 			return {"hair": "short", "sleeves": "skin",
-					"belt": Color.html("5b3433"), "boots": Color.html("5b3433"),
+					"belt": Color.html("5b3433"), "boots": "skin",
 					"weapon": "staff", "weapon_col": Color.html("6b4a2a")}
 		"Stephen":
 			return {"hair": "short", "sleeves": Color.html("e6e6ea"),
 					"belt": Color.html("d8a838"), "boots": Color.html("3a2420"),
-					"straps": Color.html("6b4a2a"), "weapon": "mace", "weapon_col": Color.html("d8a838")}
+					"straps": Color.html("6b4a2a"), "quiver": true,
+					"weapon": "bow", "weapon_col": Color.html("6b4a2a")}
 		"Cory":
 			return {"headgear": "wizard_hat", "hatband": Color.html("5a3d22"), "sleeves": "shirt",
 					"belt": Color.html("5a3d22"), "boots": Color.html("141018"),
-					"straps": Color.html("6b4a2a"), "weapon": "staff", "weapon_col": Color.html("6b4a2a")}
+					"straps": Color.html("6b4a2a"), "weapon": "whip", "weapon_col": Color.html("3a2a1c")}
 		"Brad":
 			return {"headgear": "helmet", "sleeves": "shirt", "pauldrons": true,
 					"boots": Color.html("1a173a"), "weapon": "shield"}
@@ -344,24 +348,22 @@ func _spec_for(character_name: String) -> Dictionary:
 			return {"hair": "short", "sleeves": "shirt", "belt": Color.html("4a4f5e"), "boots": Color.html("3a3f4a")}
 
 
-func _build_details(pal: Dictionary) -> void:
+func _build_details(pal: Dictionary, spec: Dictionary) -> void:
 	for n in _feature_nodes:
 		if is_instance_valid(n):
 			n.queue_free()
 	_feature_nodes.clear()
-
-	var spec := _spec_for(_char_name)
 
 	# Reset visibility
 	_hair.visible = true
 	_eye_l.visible = true
 	_eye_r.visible = true
 
-	# Sleeves (arms) + boots (feet) + eyes
+	# Sleeves (arms) + boots/bare feet + eyes
 	var sleeve_col := _resolve_role(spec.get("sleeves", "shirt"), pal)
 	_left_arm.material_override = _solid(sleeve_col)
 	_right_arm.material_override = _solid(sleeve_col)
-	var boots_col: Color = spec.get("boots", pal.get("accent", Color(0.3, 0.3, 0.35)))
+	var boots_col := _resolve_role(spec.get("boots", "accent"), pal)
 	_left_foot.material_override = _solid(boots_col)
 	_right_foot.material_override = _solid(boots_col)
 	if spec.has("eyes"):
@@ -412,10 +414,21 @@ func _build_details(pal: Dictionary) -> void:
 			var helm := _make_sphere("Helmet", Vector3(0, 1.06, 0), 0.225, helm_col)
 			helm.scale = Vector3(1.05, 1.1, 1.05)
 			_add_feature(helm)
-			# Glowing visor eyes
-			_add_feature(_make_box_solid("VisorSlit", Vector3(0, 1.05, 0.2), Vector3(0.28, 0.05, 0.04), Color.html("0c0d14")))
-			_add_glow("EyeGlowL", Vector3(-0.07, 1.05, 0.21), Color(0.75, 0.85, 1.0))
-			_add_glow("EyeGlowR", Vector3(0.07, 1.05, 0.21), Color(0.75, 0.85, 1.0))
+			# Dark visor band + glowing eyes, pushed forward so they clear the helmet
+			_add_feature(_make_box_solid("VisorSlit", Vector3(0, 1.04, 0.25), Vector3(0.30, 0.06, 0.04), Color.html("0c0d14")))
+			_add_glow("EyeGlowL", Vector3(-0.075, 1.04, 0.275), Color(0.75, 0.85, 1.0))
+			_add_glow("EyeGlowR", Vector3(0.075, 1.04, 0.275), Color(0.75, 0.85, 1.0))
+
+	# Quiver on the back (archers)
+	if spec.get("quiver", false):
+		var tube := _make_cyl("Quiver", Vector3(-0.16, 0.74, -0.17), 0.07, 0.06, 0.42, Color.html("5a3d22"))
+		tube.rotation_degrees = Vector3(12, 0, 10)
+		_add_feature(tube)
+		_add_feature(_make_cyl("QuiverRim", Vector3(-0.205, 0.95, -0.14), 0.075, 0.075, 0.05, Color.html("d8a838")))
+		for i in range(3):
+			var arrow := _make_cyl("Arrow%d" % i, Vector3(-0.25 + i * 0.045, 1.06, -0.13), 0.012, 0.012, 0.26, Color.html("caa05a"))
+			arrow.rotation_degrees = Vector3(14, 0, 8 - i * 8)
+			_add_feature(arrow)
 
 	# Weapon
 	_build_weapon(spec, pal)
@@ -427,31 +440,40 @@ func _build_weapon(spec: Dictionary, pal: Dictionary) -> void:
 			var blade: Color = spec.get("weapon_col", Color.html("cbe0f1"))
 			_add_dagger(_right_shoulder, blade)
 			_add_dagger(_left_shoulder, blade)
-		"mace":
-			# Held in the right hand: short brown haft + gold flanged head.
-			var haft := _make_cyl("MaceHaft", Vector3(0.02, -0.5, 0.12), 0.028, 0.028, 0.34, Color.html("5a3d22"))
-			_right_shoulder.add_child(haft)
-			_feature_nodes.append(haft)
-			var head := _make_box_solid("MaceHead", Vector3(0.02, -0.68, 0.12), Vector3(0.14, 0.16, 0.14), spec.get("weapon_col", Color.html("d8a838")))
-			_right_shoulder.add_child(head)
-			_feature_nodes.append(head)
 		"staff":
 			# Held upright beside the left side of the body.
-			var staff := _make_cyl("Staff", Vector3(-0.37, 0.6, 0.08), 0.03, 0.03, 1.25, spec.get("weapon_col", Color.html("6b4a2a")))
+			var wood: Color = spec.get("weapon_col", Color.html("6b4a2a"))
+			var staff := _make_cyl("Staff", Vector3(-0.37, 0.6, 0.08), 0.03, 0.03, 1.25, wood)
 			staff.rotation_degrees = Vector3(0, 0, 7)
 			_add_feature(staff)
-			_add_feature(_make_sphere("StaffKnob", Vector3(-0.44, 1.22, 0.08), 0.055, spec.get("weapon_col", Color.html("6b4a2a")).lightened(0.15)))
+			_add_feature(_make_sphere("StaffKnob", Vector3(-0.44, 1.22, 0.08), 0.055, wood.lightened(0.15)))
+		"whip":
+			# A coiled whip hanging at the left hip.
+			var leather: Color = spec.get("weapon_col", Color.html("3a2a1c"))
+			var coil := _make_torus("WhipCoil", Vector3(-0.32, 0.47, 0.16), 0.045, 0.12, leather)
+			coil.rotation_degrees = Vector3(90, 0, 0)
+			_add_feature(coil)
+			var coil2 := _make_torus("WhipCoil2", Vector3(-0.32, 0.40, 0.16), 0.038, 0.09, leather.darkened(0.12))
+			coil2.rotation_degrees = Vector3(90, 0, 0)
+			_add_feature(coil2)
+		"bow":
+			# A wooden recurve bow held at the right side, with a bowstring.
+			var wood2: Color = spec.get("weapon_col", Color.html("6b4a2a"))
+			_add_feature(_make_box_solid("BowGrip", Vector3(0.40, 0.5, 0.14), Vector3(0.045, 0.26, 0.06), wood2))
+			var top := _make_box_solid("BowTop", Vector3(0.425, 0.74, 0.14), Vector3(0.04, 0.24, 0.06), wood2)
+			top.rotation_degrees = Vector3(0, 0, 24)
+			_add_feature(top)
+			var bot := _make_box_solid("BowBot", Vector3(0.425, 0.26, 0.14), Vector3(0.04, 0.24, 0.06), wood2)
+			bot.rotation_degrees = Vector3(0, 0, -24)
+			_add_feature(bot)
+			_add_feature(_make_box_solid("BowString", Vector3(0.33, 0.5, 0.15), Vector3(0.012, 0.66, 0.012), Color.html("dcdce0")))
 		"shield":
-			# Kite shield on the left arm.
-			var back := _make_box_solid("ShieldBack", Vector3(0.0, -0.34, 0.16), Vector3(0.32, 0.42, 0.04), Color.html("3a3f5c"))
-			_left_shoulder.add_child(back)
-			_feature_nodes.append(back)
-			var face := _make_box_solid("ShieldFace", Vector3(0.0, -0.34, 0.185), Vector3(0.24, 0.34, 0.03), Color.html("c2c8d6"))
-			_left_shoulder.add_child(face)
-			_feature_nodes.append(face)
-			var boss := _make_box_solid("ShieldBoss", Vector3(0.0, -0.34, 0.205), Vector3(0.05, 0.20, 0.02), Color.html("6f8fc0"))
-			_left_shoulder.add_child(boss)
-			_feature_nodes.append(boss)
+			# Kite shield held at the (character's-left) side, with a blue T/cross.
+			var cx := 0.37
+			_add_feature(_make_box_solid("ShieldBack", Vector3(cx, 0.45, 0.11), Vector3(0.32, 0.44, 0.04), Color.html("3a3f5c")))
+			_add_feature(_make_box_solid("ShieldFace", Vector3(cx, 0.45, 0.135), Vector3(0.25, 0.36, 0.03), Color.html("c2c8d6")))
+			_add_feature(_make_box_solid("ShieldBarV", Vector3(cx, 0.45, 0.15), Vector3(0.05, 0.32, 0.02), Color.html("3a5fa8")))
+			_add_feature(_make_box_solid("ShieldBarH", Vector3(cx, 0.55, 0.15), Vector3(0.19, 0.05, 0.02), Color.html("3a5fa8")))
 
 
 func _add_dagger(shoulder: Node3D, blade_col: Color) -> void:
@@ -529,6 +551,20 @@ func _make_box_solid(node_name: String, pos: Vector3, size: Vector3, col: Color)
 	var b := BoxMesh.new()
 	b.size = size
 	mi.mesh = b
+	mi.position = pos
+	mi.material_override = _solid(col)
+	return mi
+
+
+func _make_torus(node_name: String, pos: Vector3, inner_r: float, outer_r: float, col: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = node_name
+	var m := TorusMesh.new()
+	m.inner_radius = inner_r
+	m.outer_radius = outer_r
+	m.rings = 14
+	m.ring_segments = 8
+	mi.mesh = m
 	mi.position = pos
 	mi.material_override = _solid(col)
 	return mi
