@@ -246,6 +246,23 @@ func get_animation_action() -> String:
 		"armor_break", "armored_discipline": return "block"
 		# Brad — reuse the standard attack pose (overrides their card type)
 		"wear_down": return "attack_slash"
+		# Generic card animations (character-agnostic; see CharacterFigure.play_action)
+		"absorb_essence": return "absorb_essence"
+		"vines": return "vines"
+		"bob_and_weave": return "bob_and_weave"
+		"choke": return "choke"
+		"energy_ball": return "energy_ball"
+		"exposed_artery": return "exposed_artery"
+		"meditate": return "meditate"
+		"misery_loves_company": return "misery_loves_company"
+		"potion_of_continuance": return "potion_of_continuance"
+		"push": return "push"
+		"release_tension": return "release_tension"
+		"sweeping_disarm": return "sweeping_disarm"
+		# Reuse the standard attack pose (overrides their card type)
+		"consecutive_snap", "round_em_up": return "attack_slash"
+		# Reuse the standard defense pose (overrides their card type)
+		"defensive_awareness", "energy_barrier": return "block"
 	match card_type:
 		CardType.ATTACK:
 			return "attack_ranged" if is_ranged else "attack_slash"

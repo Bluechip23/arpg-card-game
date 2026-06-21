@@ -669,6 +669,31 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 			play_down_but_not_out()
 		"cover":
 			play_cover()
+		# --- Generic card animations ---
+		"absorb_essence":
+			play_absorb_essence()
+		"vines":
+			play_vines()
+		"bob_and_weave":
+			play_bob_and_weave()
+		"choke":
+			play_choke()
+		"energy_ball":
+			play_energy_ball()
+		"exposed_artery":
+			play_exposed_artery()
+		"meditate":
+			play_meditate()
+		"misery_loves_company":
+			play_misery_loves_company()
+		"potion_of_continuance":
+			play_potion_of_continuance()
+		"push":
+			play_push()
+		"release_tension":
+			play_release_tension()
+		"sweeping_disarm":
+			play_sweeping_disarm()
 		_:
 			play_idle()
 
@@ -1187,6 +1212,324 @@ func play_cover() -> void:
 
 
 # =============================================================
+# GENERIC CARD ANIMATIONS (character-agnostic)
+# =============================================================
+
+func play_absorb_essence() -> void:
+	# Raise both arms up from the sides and hold them overhead for ~1 second,
+	# drawing motes of essence inward.
+	_play_arms_raise(Color(0.7, 0.9, 1.0))
+
+
+func play_vines() -> void:
+	# Same overhead arm-raise as Absorb Essence, with a green, growing flavour.
+	_play_arms_raise(Color(0.4, 0.85, 0.35))
+
+
+func _play_arms_raise(mote_col: Color) -> void:
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Sweep the arms out to the sides, then up overhead.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(0, 0, 95), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(0, 0, -95), 0.16)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-172, 0, -16), 0.22)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-172, 0, 16), 0.22)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", -16.0, 0.22)
+	_action_tween.tween_callback(_spawn_essence_motes.bind(mote_col))
+	# Hold overhead for ~1 second.
+	_action_tween.tween_interval(1.0)
+	# Lower the arms back to rest.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.28)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.28)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 0.0, 0.28)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_bob_and_weave() -> void:
+	# Drop into an athletic stance, then duck-and-weave twice as if slipping hooks.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Athletic base: knees bent, hands up, weight low.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "position:y", -0.12, 0.16)
+	_action_tween.parallel().tween_property(_left_foot, "position:z", 0.16, 0.16)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", Vector3(-58, 0, 42), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-58, 0, -42), 0.16)
+	# Weave: dip-and-lean one way, then the other (slipping a hook each time).
+	_action_tween.set_trans(Tween.TRANS_SINE)
+	for sign_dir in [-1.0, 1.0]:
+		_action_tween.tween_property(_body, "position:y", -0.24, 0.12)
+		_action_tween.parallel().tween_property(_body, "rotation_degrees:z", 16.0 * sign_dir, 0.12)
+		_action_tween.parallel().tween_property(_body, "position:x", 0.12 * sign_dir, 0.12)
+		_action_tween.tween_property(_body, "position:y", -0.12, 0.12)
+		_action_tween.parallel().tween_property(_body, "rotation_degrees:z", 0.0, 0.12)
+		_action_tween.parallel().tween_property(_body, "position:x", 0.0, 0.12)
+	# Recover to standing.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "position:y", 0.0, 0.2)
+	_action_tween.parallel().tween_property(_left_foot, "position:z", 0.04, 0.2)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_choke() -> void:
+	# Reach a hand out (Vader-style), clench, then yank the arm back as if
+	# crushing something at a distance.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Reach the right hand forward toward the target.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-92, 0, 0), 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 6.0, 0.2)
+	# Hold the grip, with a small tightening tremor.
+	_action_tween.tween_interval(0.18)
+	for i in range(2):
+		_action_tween.tween_property(_right_shoulder, "rotation_degrees:x", -98.0, 0.06)
+		_action_tween.tween_property(_right_shoulder, "rotation_degrees:x", -92.0, 0.06)
+	# Yank the arm back — caught something — leaning back with the pull.
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-30, 0, 18), 0.14)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -8.0, 0.14)
+	_action_tween.parallel().tween_property(_body, "position:z", -0.12, 0.14)
+	# Recover.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.26)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.26)
+	_action_tween.parallel().tween_property(_body, "position:z", 0.0, 0.26)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_energy_ball(size: float = 1.0) -> void:
+	# Gather an orb between the hands, then thrust it forward at the enemy.
+	# The orb's size scales with the damage being dealt (caller passes `size`).
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Bring both hands forward to cradle the forming orb.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-80, 0, -12), 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-80, 0, 12), 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -6.0, 0.2)
+	_action_tween.tween_callback(_spawn_energy_ball.bind(size))
+	# Thrust forward to launch it.
+	_action_tween.tween_interval(0.28)
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 12.0, 0.12)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees:x", -100.0, 0.12)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees:x", -100.0, 0.12)
+	# Recover.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 0.0, 0.26)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.26)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.26)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_exposed_artery() -> void:
+	# A large slashing swipe at the enemy; blood squirts after the blade lands.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Wind the arm up high and across.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-160, 0, -42), 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", -26.0, 0.2)
+	# The slash: whip the arm down-and-across.
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-36, 0, 56), 0.12)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", 24.0, 0.12)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 10.0, 0.12)
+	_action_tween.tween_callback(_on_artery_cut)
+	# Recover.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "rotation_degrees", Vector3.ZERO, 0.3)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.3)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func _on_artery_cut() -> void:
+	# Blood squirts forward where the slash landed, with a sharp white flash.
+	_spawn_white_impact(0.7, 0.7)
+	_spawn_blood(Vector3(0.0, 0.7, 0.55))
+
+
+func play_meditate() -> void:
+	# Float up, fold the legs, bring the hands beside the head and trace small
+	# circles with the fingers before settling back down.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Rise into a cross-legged float: feet tuck in and up, hands come up by the head.
+	_action_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "position:y", 0.32, 0.4)
+	_action_tween.parallel().tween_property(_left_foot, "position", Vector3(0.06, 0.2, 0.1), 0.4)
+	_action_tween.parallel().tween_property(_right_foot, "position", Vector3(-0.06, 0.2, 0.1), 0.4)
+	_action_tween.parallel().tween_property(_left_foot, "rotation_degrees:y", -40.0, 0.4)
+	_action_tween.parallel().tween_property(_right_foot, "rotation_degrees:y", 40.0, 0.4)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", Vector3(-126, 0, -52), 0.4)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-126, 0, 52), 0.4)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 8.0, 0.4)
+	# Hover serenely, tracing little finger circles (small wrist rolls) while bobbing.
+	_action_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	for i in range(3):
+		_action_tween.tween_property(_body, "position:y", 0.38, 0.35)
+		_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees:z", -64.0, 0.35)
+		_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees:z", 64.0, 0.35)
+		_action_tween.tween_property(_body, "position:y", 0.30, 0.35)
+		_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees:z", -52.0, 0.35)
+		_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees:z", 52.0, 0.35)
+	# Settle back to the ground and rest.
+	_action_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_body, "position:y", 0.0, 0.35)
+	_action_tween.parallel().tween_property(_left_foot, "position", Vector3(-0.11, 0.05, 0.04), 0.35)
+	_action_tween.parallel().tween_property(_right_foot, "position", Vector3(0.11, 0.05, 0.04), 0.35)
+	_action_tween.parallel().tween_property(_left_foot, "rotation_degrees:y", 0.0, 0.35)
+	_action_tween.parallel().tween_property(_right_foot, "rotation_degrees:y", 0.0, 0.35)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.35)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.35)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 0.0, 0.35)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_misery_loves_company() -> void:
+	# A taunting line, with a beckoning "come here" wave of the hand.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_spawn_voice("I have a friend named misery, and she needs some company", Color(0.8, 0.6, 0.9))
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	# Raise the hand and beckon a couple of times.
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-100, 0, -10), 0.18).set_ease(Tween.EASE_OUT)
+	for i in range(2):
+		_action_tween.tween_property(_right_shoulder, "rotation_degrees:x", -76.0, 0.14)
+		_action_tween.tween_property(_right_shoulder, "rotation_degrees:x", -100.0, 0.14)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_potion_of_continuance() -> void:
+	# Bring a hand up to the mouth and tilt the head back to drink.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	# Lift the hand to the mouth.
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-150, 0, 28), 0.2).set_ease(Tween.EASE_OUT)
+	# Tilt the head back and gulp a couple of times.
+	_action_tween.tween_property(_head, "rotation_degrees:x", 22.0, 0.16)
+	for i in range(2):
+		_action_tween.tween_property(_body, "position:y", 0.03, 0.12)
+		_action_tween.tween_property(_body, "position:y", 0.0, 0.12)
+	# Lower the head and hand.
+	_action_tween.tween_property(_head, "rotation_degrees:x", 0.0, 0.18).set_ease(Tween.EASE_OUT)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_push() -> void:
+	# Step forward with one foot and shove the air with one palm.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Wind back slightly, hand drawn in.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-55, 0, 0), 0.14)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -6.0, 0.14)
+	# Step forward and shove the palm out hard.
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_foot, "position:z", 0.26, 0.12)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees:x", -96.0, 0.12)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 12.0, 0.12)
+	_action_tween.parallel().tween_property(_body, "position:z", 0.18, 0.12)
+	_action_tween.tween_callback(_spawn_white_impact.bind(0.8, 0.8))
+	# Recover.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.28)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.28)
+	_action_tween.parallel().tween_property(_body, "position:z", 0.0, 0.28)
+	_action_tween.parallel().tween_property(_right_foot, "position:z", 0.04, 0.28)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_release_tension() -> void:
+	# Reach toward the enemy; a blue spark appears there and travels back into
+	# the player, who pulls the arm in as it returns.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Reach out toward the target.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-90, 0, -8), 0.2)
+	_action_tween.tween_callback(_spawn_return_spark)
+	# Draw the spark back in (the arm reels it home).
+	_action_tween.tween_interval(0.42)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-40, 0, 14), 0.18)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -6.0, 0.18)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_sweeping_disarm() -> void:
+	# A large ~180° horizontal swipe across the front, extended arm leading.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	# Load the arm out to one side, extended at shoulder height.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-90, 70, 0), 0.18)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", 34.0, 0.18)
+	# Sweep across the front to the far side.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-90, -70, 0), 0.22)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", -34.0, 0.22)
+	_action_tween.tween_callback(_spawn_white_impact.bind(0.65, 1.1))
+	# Recover.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.28)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", 0.0, 0.28)
+	_action_tween.tween_callback(_on_action_done)
+
+
+# =============================================================
 # FACING / WALK
 # =============================================================
 
@@ -1430,6 +1773,58 @@ func _spawn_blood_drop() -> void:
 	var tw := sp.create_tween()
 	tw.tween_property(sp, "position:y", 1.05, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(sp, "modulate:a", 0.0, 0.12)
+	tw.tween_callback(sp.queue_free)
+
+
+func _spawn_essence_motes(color: Color) -> void:
+	## Glowing motes drawn inward toward the raised hands (Absorb Essence / Vines).
+	for i in range(8):
+		var sp := _make_icon_sprite(_tex_puff(color))
+		sp.pixel_size = 0.004
+		# Start scattered around the body, drift up into the overhead hands.
+		var ang := randf() * TAU
+		var rad := randf_range(0.35, 0.7)
+		sp.position = Vector3(cos(ang) * rad, randf_range(0.2, 0.9), sin(ang) * rad)
+		sp.scale = Vector3.ONE * randf_range(0.4, 0.9)
+		_body.add_child(sp)
+		var tw := sp.create_tween()
+		tw.tween_interval(i * 0.05)
+		tw.tween_property(sp, "position", Vector3(0, 1.4, 0), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.5)
+		tw.tween_callback(sp.queue_free)
+
+
+func _spawn_energy_ball(size: float = 1.0) -> void:
+	## A glowing orb that forms in the hands and launches forward at the enemy.
+	## `size` scales the orb (driven by the damage being dealt).
+	var sp := _make_icon_sprite(_tex_puff(Color(0.5, 0.8, 1.0)))
+	sp.render_priority = 45
+	sp.pixel_size = 0.012
+	var s: float = clampf(size, 0.5, 2.5)
+	sp.position = Vector3(0, 0.7, 0.28)
+	_body.add_child(sp)
+	var tw := sp.create_tween()
+	# Form in the hands.
+	tw.tween_property(sp, "scale", Vector3.ONE * s, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Launch forward.
+	tw.tween_property(sp, "position:z", 2.4, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.26)
+	tw.tween_callback(sp.queue_free)
+
+
+func _spawn_return_spark() -> void:
+	## A blue spark born at the enemy that streaks back into the player.
+	var sp := _make_icon_sprite(_tex_burst())
+	sp.modulate = Color(0.45, 0.7, 1.0)
+	sp.render_priority = 45
+	sp.pixel_size = 0.008
+	sp.position = Vector3(0, 0.7, 2.2)
+	_body.add_child(sp)
+	var tw := sp.create_tween()
+	tw.tween_property(sp, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Streak back toward the player's chest.
+	tw.tween_property(sp, "position", Vector3(0, 0.66, 0.12), 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(sp, "scale", Vector3.ZERO, 0.14)
 	tw.tween_callback(sp.queue_free)
 
 
