@@ -2445,7 +2445,8 @@ func play_vengeful_shield() -> void:
 
 
 func play_worms_armageddon() -> void:
-	# Call down a huge meteor; rarely an Alaskan Bull Worm bursts from the crater.
+	# Call down a huge meteor. The Alaskan Bull Worm is summoned separately via
+	# pop_worm() when the card's 10% summon actually succeeds (see main.gd).
 	if not _built:
 		return
 	_cancel_action()
@@ -2942,15 +2943,14 @@ func _drop_meteor() -> void:
 	var tw := meteor.create_tween()
 	tw.tween_property(meteor, "position", impact, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_callback(_spawn_color_burst.bind(impact, Color(1.0, 0.5, 0.15), 2.4, true))
-	tw.tween_callback(_spawn_meteor_worm)
 	tw.tween_property(meteor, "scale", Vector3.ZERO, 0.1)
 	tw.tween_callback(meteor.queue_free)
 
 
 func _spawn_meteor_worm() -> void:
-	## Flavour: occasionally an Alaskan Bull Worm bursts from the crater.
-	if randf() > 0.3:
-		return
+	## An Alaskan Bull Worm bursts from the crater. Driven by gameplay (see pop_worm)
+	## so it only appears when Worms Armageddon's 10% summon actually succeeds. The
+	## lead-in delay lets the meteor land first when triggered alongside the cast.
 	var anchor := Node3D.new()
 	anchor.position = Vector3(0.0, 0.0, 1.6) + _body.position
 	_pivot.add_child(anchor)
@@ -2959,6 +2959,7 @@ func _spawn_meteor_worm() -> void:
 	anchor.add_child(worm)
 	anchor.scale = Vector3(1, 0.05, 1)
 	var tw := anchor.create_tween()
+	tw.tween_interval(0.6)
 	tw.tween_property(anchor, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(0.4)
 	tw.tween_property(anchor, "scale", Vector3(0.6, 0.05, 0.6), 0.2)
@@ -3148,6 +3149,13 @@ func pop_armor_icon() -> void:
 func pop_heart() -> void:
 	if _built:
 		_spawn_heart()
+
+
+func pop_worm() -> void:
+	## Summons the Alaskan Bull Worm VFX — call when Worms Armageddon's 10% summon
+	## actually succeeds (driven by gameplay, like pop_armor_icon / pop_heart).
+	if _built:
+		_spawn_meteor_worm()
 
 
 func _make_icon_sprite(tex: Texture2D) -> Sprite3D:

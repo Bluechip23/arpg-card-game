@@ -144,6 +144,10 @@ func has_chance_effect() -> bool:
 func has_been_rolled() -> bool:
 	return rng_selected_index != -1
 
+func rng_binary_succeeded() -> bool:
+	## True when a single-outcome (binary) chance card has rolled its success.
+	return rng_outcomes_data.size() == 1 and rng_selected_index == 0
+
 func should_reroll_rng(current_tempo: int) -> bool:
 	return current_tempo - rng_roll_tempo >= 15
 

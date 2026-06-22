@@ -120,6 +120,11 @@ func show_heal_icon() -> void:
 	if _figure:
 		_figure.pop_heart()
 
+func show_worm_summon() -> void:
+	## Spawns the Alaskan Bull Worm VFX — call when Worms Armageddon summons one.
+	if _figure:
+		_figure.pop_worm()
+
 func pause_movement() -> void:
 	movement_paused = true
 
