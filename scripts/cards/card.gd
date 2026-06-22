@@ -246,6 +246,24 @@ func get_animation_action() -> String:
 		"armor_break", "armored_discipline": return "block"
 		# Brad — reuse the standard attack pose (overrides their card type)
 		"wear_down": return "attack_slash"
+		# Stephen — archer/ranger bespoke motion.
+		# "Normal arrow attack" cards all share the core bow shot.
+		"mixed_bag", "quick_shot", "quick_arrow", "specific_strike", "spirit_arrow", "last_breath":
+			return "bow_shot"
+		"lead_arrow": return "lead_arrow"
+		"multishot": return "multishot"
+		"down_town": return "down_town"
+		"sky_attack": return "sky_attack"
+		"sky_fall": return "sky_fall"
+		"tighten_string": return "tighten_string"
+		"reload": return "reload"
+		"mark": return "mark"
+		"collect_arrows": return "collect_arrows"
+		"enchanted_quiver": return "enchanted_quiver"
+		"exhausted_assault": return "exhausted_assault"
+		"bottomless_quiver": return "bottomless_quiver"
+		"rise": return "rise"
+		"barricade": return "barricade"
 	match card_type:
 		CardType.ATTACK:
 			return "attack_ranged" if is_ranged else "attack_slash"
