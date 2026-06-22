@@ -19,6 +19,8 @@ var _pivot: Node3D = null
 var _body: Node3D = null
 var _left_shoulder: Node3D = null
 var _right_shoulder: Node3D = null
+var _left_hand: Node3D = null   # Anchor at the end of the left arm for held props
+var _right_hand: Node3D = null  # Anchor at the end of the right arm for held props
 var _shield_anchor: Node3D = null
 var _shield_grip: Node3D = null  # Holds the shield meshes (Brad); rest pose at REST
 var _bow_grip: Node3D = null  # Holds the bow meshes (Stephen); rest pose at BOW_REST_POS
@@ -42,6 +44,7 @@ var _busy: bool = false
 var _walking: bool = false
 var _time: float = 0.0
 var _action_tween: Tween = null
+var _temp_props: Array[Node3D] = []  # Held props (beakers, pouches) freed on the next action
 var _stance: String = "none"  # "approach" holds a guard stance until another action plays
 var _has_shield: bool = false
 var _has_bow: bool = false
@@ -143,6 +146,12 @@ func _build() -> void:
 	_body.add_child(_left_shoulder)
 	_left_arm = _make_box("LeftArm", Vector3(0, -0.2, 0), Vector3(0.13, 0.4, 0.13), "")
 	_left_shoulder.add_child(_left_arm)
+	# Hand anchor at the end of the arm — props (beakers, syringes, pouches) parent
+	# here so they sit in the hand and follow the arm during animations.
+	_left_hand = Node3D.new()
+	_left_hand.name = "LeftHand"
+	_left_hand.position = Vector3(0, -0.22, 0)
+	_left_arm.add_child(_left_hand)
 
 	_right_shoulder = Node3D.new()
 	_right_shoulder.name = "RightShoulder"
@@ -150,6 +159,10 @@ func _build() -> void:
 	_body.add_child(_right_shoulder)
 	_right_arm = _make_box("RightArm", Vector3(0, -0.2, 0), Vector3(0.13, 0.4, 0.13), "")
 	_right_shoulder.add_child(_right_arm)
+	_right_hand = Node3D.new()
+	_right_hand.name = "RightHand"
+	_right_hand.position = Vector3(0, -0.22, 0)
+	_right_arm.add_child(_right_hand)
 
 	_shield_anchor = Node3D.new()
 	_shield_anchor.name = "ShieldAnchor"
@@ -3299,6 +3312,164 @@ func _spawn_blood_drop() -> void:
 	tw.tween_callback(sp.queue_free)
 
 
+func _spawn_essence_motes(color: Color) -> void:
+	## Glowing motes drawn inward toward the raised hands (Absorb Essence / Vines).
+	for i in range(8):
+		var sp := _make_icon_sprite(_tex_puff(color))
+		sp.pixel_size = 0.004
+		# Start scattered around the body, drift up into the overhead hands.
+		var ang := randf() * TAU
+		var rad := randf_range(0.35, 0.7)
+		sp.position = Vector3(cos(ang) * rad, randf_range(0.2, 0.9), sin(ang) * rad)
+		sp.scale = Vector3.ONE * randf_range(0.4, 0.9)
+		_body.add_child(sp)
+		var tw := sp.create_tween()
+		tw.tween_interval(i * 0.05)
+		tw.tween_property(sp, "position", Vector3(0, 1.4, 0), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.5)
+		tw.tween_callback(sp.queue_free)
+
+
+func _spawn_energy_ball(size: float = 1.0) -> void:
+	## A glowing orb that forms in the hands and launches forward at the enemy.
+	## `size` scales the orb (driven by the damage being dealt).
+	var sp := _make_icon_sprite(_tex_puff(Color(0.5, 0.8, 1.0)))
+	sp.render_priority = 45
+	sp.pixel_size = 0.012
+	var s: float = clampf(size, 0.5, 2.5)
+	sp.position = Vector3(0, 0.7, 0.28)
+	_body.add_child(sp)
+	var tw := sp.create_tween()
+	# Form in the hands.
+	tw.tween_property(sp, "scale", Vector3.ONE * s, 0.26).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Launch forward.
+	tw.tween_property(sp, "position:z", 2.4, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.26)
+	tw.tween_callback(sp.queue_free)
+
+
+func _spawn_return_spark() -> void:
+	## A blue spark born at the enemy that streaks back into the player.
+	var sp := _make_icon_sprite(_tex_burst())
+	sp.modulate = Color(0.45, 0.7, 1.0)
+	sp.render_priority = 45
+	sp.pixel_size = 0.008
+	sp.position = Vector3(0, 0.7, 2.2)
+	_body.add_child(sp)
+	var tw := sp.create_tween()
+	tw.tween_property(sp, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Streak back toward the player's chest.
+	tw.tween_property(sp, "position", Vector3(0, 0.66, 0.12), 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(sp, "scale", Vector3.ZERO, 0.14)
+	tw.tween_callback(sp.queue_free)
+
+
+func _spawn_colored_smoke(local_pos: Vector3, color: Color, count: int = 8, pixel: float = 0.007, spread: float = 0.4) -> void:
+	## A puff of coloured smoke bursting outward from a body-local point.
+	for i in range(count):
+		var sp := _make_icon_sprite(_tex_puff(color))
+		sp.pixel_size = pixel
+		sp.position = local_pos
+		sp.scale = Vector3.ONE * randf_range(0.4, 1.0)
+		_body.add_child(sp)
+		var tw := sp.create_tween()
+		var dir := Vector3(randf_range(-1, 1), randf_range(-0.4, 1.0), randf_range(-1, 1)).normalized()
+		var dest := local_pos + dir * randf_range(spread * 0.5, spread)
+		tw.tween_property(sp, "position", dest, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(sp, "scale", Vector3.ONE * randf_range(1.0, 1.6), 0.45)
+		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.45)
+		tw.tween_callback(sp.queue_free)
+
+
+# =============================================================
+# HELD PROPS (beaker, droplets, shuriken, pouch)
+# =============================================================
+
+func _build_beaker(parent: Node3D, liquid_col: Color) -> Dictionary:
+	## A small glass beaker with coloured liquid, parented into a hand anchor.
+	## Tracked in _temp_props so it is cleaned up on the next action.
+	var root := Node3D.new()
+	root.name = "Beaker"
+	root.position = Vector3(0, -0.05, 0.05)
+	parent.add_child(root)
+	_temp_props.append(root)
+	var glass := _make_cyl("BeakerGlass", Vector3(0, 0, 0), 0.05, 0.05, 0.16, Color(0.82, 0.86, 0.92))
+	var gm := glass.material_override as StandardMaterial3D
+	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gm.albedo_color = Color(0.82, 0.86, 0.92, 0.32)
+	root.add_child(glass)
+	var liquid := _make_cyl("BeakerLiquid", Vector3(0, -0.03, 0), 0.043, 0.043, 0.09, liquid_col)
+	root.add_child(liquid)
+	return {"root": root, "liquid": liquid}
+
+
+func _spawn_droplet(beaker_root: Node3D, color: Color) -> void:
+	## A single drop that falls from above into the beaker.
+	if not is_instance_valid(beaker_root):
+		return
+	var sp := _make_icon_sprite(_tex_puff(color))
+	sp.pixel_size = 0.004
+	sp.position = Vector3(0, 0.16, 0)
+	sp.scale = Vector3.ONE * 0.5
+	beaker_root.add_child(sp)
+	var tw := sp.create_tween()
+	tw.tween_property(sp, "position:y", 0.0, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(sp, "modulate:a", 0.0, 0.1)
+	tw.tween_callback(sp.queue_free)
+
+
+func _spawn_beaker_fizz(beaker_root: Node3D, color: Color) -> void:
+	## A little fizz of bubbles rising from the beaker as the liquid transforms.
+	if not is_instance_valid(beaker_root):
+		return
+	for i in range(6):
+		var sp := _make_icon_sprite(_tex_puff(color.lightened(0.2)))
+		sp.pixel_size = 0.003
+		sp.position = Vector3(randf_range(-0.03, 0.03), 0.02, randf_range(-0.03, 0.03))
+		sp.scale = Vector3.ONE * randf_range(0.3, 0.6)
+		beaker_root.add_child(sp)
+		var tw := sp.create_tween()
+		tw.tween_interval(i * 0.04)
+		tw.tween_property(sp, "position:y", 0.16, 0.3).set_trans(Tween.TRANS_SINE)
+		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.3)
+		tw.tween_callback(sp.queue_free)
+
+
+func _spawn_shuriken() -> void:
+	## A spinning throwing star that streaks forward at the enemy.
+	var sp := _make_icon_sprite(_tex_shuriken())
+	sp.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	sp.render_priority = 45
+	sp.pixel_size = 0.006
+	sp.scale = Vector3.ONE
+	sp.position = Vector3(0.2, 0.85, 0.2)
+	_body.add_child(sp)
+	var tw := sp.create_tween()
+	tw.tween_property(sp, "position", Vector3(0, 0.7, 2.6), 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(sp, "rotation_degrees:z", 1440.0, 0.34)
+	tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.34).set_delay(0.2)
+	tw.tween_callback(sp.queue_free)
+
+
+func _spawn_pouch_toss() -> void:
+	## A small pouch tossed up, arcing back down to the waist, then vanishing.
+	var pouch := _make_box_solid("Pouch", Vector3.ZERO, Vector3(0.11, 0.13, 0.08), Color(0.4, 0.29, 0.18))
+	pouch.position = Vector3(0.25, 0.5, 0.12)
+	_body.add_child(pouch)
+	# A drawstring tie on top.
+	var tie := _make_box_solid("PouchTie", Vector3(0, 0.08, 0), Vector3(0.04, 0.04, 0.04), Color(0.55, 0.45, 0.3))
+	pouch.add_child(tie)
+	var tw := pouch.create_tween()
+	# Up...
+	tw.tween_property(pouch, "position", Vector3(0.12, 1.25, 0.12), 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(pouch, "rotation_degrees:x", 180.0, 0.4)
+	# ...and back down to the waist (the "catch").
+	tw.tween_property(pouch, "position", Vector3(0.0, 0.5, 0.14), 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	# Vanish.
+	tw.tween_property(pouch, "scale", Vector3.ZERO, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.tween_callback(pouch.queue_free)
+
+
 # ---- procedural icon textures ---------------------------------------------
 
 func _tex_heart() -> ImageTexture:
@@ -3390,6 +3561,28 @@ func _tex_crack() -> ImageTexture:
 			if line < 0.13:
 				var a := (1.0 - r) * 0.85
 				img.set_pixel(px, py, Color(0.06, 0.05, 0.04, a))
+	return ImageTexture.create_from_image(img)
+
+
+func _tex_shuriken() -> ImageTexture:
+	var s := 32
+	var img := Image.create(s, s, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var c := (s - 1) / 2.0
+	var metal := Color(0.78, 0.81, 0.88)
+	var edge := Color(0.42, 0.45, 0.54)
+	for py in range(s):
+		for px in range(s):
+			var dx := px - c
+			var dy := py - c
+			var r := sqrt(dx * dx + dy * dy) / c
+			if r > 1.0:
+				continue
+			var ang := atan2(dy, dx)
+			# Four sharp points along the axes (abs(cos(2a)) has four lobes).
+			var reach := 0.34 + 0.66 * pow(absf(cos(ang * 2.0)), 2.2)
+			if r <= reach and r > 0.14:  # centre hole
+				img.set_pixel(px, py, edge if r > reach - 0.12 else metal)
 	return ImageTexture.create_from_image(img)
 
 
