@@ -1,13 +1,14 @@
 extends SceneTree
 
-## Dev helper: render Stephen performing one archer card animation to a PNG,
-## captured on a chosen frame so we catch the signature pose.
-##   ... --script tests/_capture_archer.gd -- <out.png> <action> <capture_frame>
+## Dev helper: render a character performing one card animation to a PNG,
+## captured at a chosen time so we catch the signature pose.
+##   ... --script tests/_capture_anim.gd -- <out.png> <action> <seconds> [character]
 
 var _fig: CharacterFigure = null
 var _action := "bow_shot"
 var _grab := 0.25  # seconds into the animation to capture the signature pose
-var _out := "/tmp/archer.png"
+var _out := "/tmp/anim.png"
+var _char := "Stephen"
 var _settle := 0.0
 var _action_t := -1.0
 var _done := false
@@ -20,6 +21,8 @@ func _initialize() -> void:
 		_action = args[1]
 	if args.size() > 2:
 		_grab = float(args[2])
+	if args.size() > 3:
+		_char = args[3]
 
 	var root3d := Node3D.new()
 	get_root().add_child(root3d)
@@ -53,18 +56,17 @@ func _initialize() -> void:
 
 	_fig = CharacterFigure.new()
 	root3d.add_child(_fig)
-	_fig.setup("Stephen", "res://assets/characters/stephen_south.png")
+	_fig.setup(_char, "res://assets/characters/%s_south.png" % _char.to_lower())
 
 	var cam := Camera3D.new()
 	root3d.add_child(cam)
-	# 3/4 view from the figure's right-front so the bow (right side) is visible.
+	# 3/4 view from the figure's right-front.
 	cam.look_at_from_position(Vector3(1.5, 1.15, 2.5), Vector3(0, 0.75, 0), Vector3.UP)
 	cam.current = true
 
 func _process(d: float) -> bool:
 	if _done:
 		return true
-	# Let the rig settle briefly, then kick the action.
 	_settle += d
 	if _settle >= 0.1 and _action_t < 0.0:
 		_action_t = 0.0
@@ -72,11 +74,9 @@ func _process(d: float) -> bool:
 		return false
 	if _action_t >= 0.0:
 		_action_t += d
-		# Capture once accumulated animation time reaches the target pose.
-		# (Tweens advance by the same per-frame delta, so this matches progress.)
 		if _action_t >= _grab:
 			get_root().get_texture().get_image().save_png(_out)
-			print("[capture] %s  (%s @ %.2fs)" % [_out, _action, _grab])
+			print("[capture] %s  (%s @ %.2fs, %s)" % [_out, _action, _grab, _char])
 			_done = true
 			quit()
 	return false

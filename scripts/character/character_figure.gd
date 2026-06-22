@@ -724,6 +724,59 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 			play_rise()
 		"barricade":
 			play_barricade()
+		# --- Jeremy (gambler/chaos mage) card animations ---
+		"communal_donation":
+			play_communal_donation()
+		"snowballs_chance":
+			play_snowballs_chance()
+		"biscuit":
+			play_biscuit()
+		"cryonics":
+			play_cryonics()
+		"demonic_rage":
+			play_demonic_rage()
+		"fireball":
+			play_fireball()
+		"god_of_thunder":
+			play_god_of_thunder()
+		"harness_lightning":
+			play_harness_lightning()
+		"if_pigs_could_fly":
+			play_if_pigs_could_fly()
+		"lady_luck":
+			play_lady_luck()
+		"magic_barrier":
+			play_magic_barrier()
+		"mana_surge":
+			play_mana_surge()
+		"mirror_mirror":
+			play_mirror_mirror()
+		"risk_it":
+			play_risk_it()
+		"shepherds_mark":
+			play_shepherds_mark()
+		"spark":
+			play_spark()
+		"surrounding_ice":
+			play_surrounding_ice()
+		"trick_shot":
+			play_trick_shot()
+		"vengeful_shield":
+			play_vengeful_shield()
+		"worms_armageddon":
+			play_worms_armageddon()
+		"deep_pockets":
+			play_deep_pockets()
+		"friendship":
+			play_friendship()
+		"prepare":
+			play_prepare()
+		"dice_roll":
+			play_dice_roll()
+		"shrug":
+			play_shrug()
+		"disco":
+			play_disco()
 		_:
 			play_idle()
 
@@ -1617,6 +1670,11 @@ func play_exhausted_assault() -> void:
 
 
 func play_bottomless_quiver() -> void:
+	# Bottomless Quiver is a disco dance (shared with Jeremy's Meister card).
+	play_disco()
+
+
+func play_disco() -> void:
 	# A disco dance: the classic point, arms switching up/down with a hip sway.
 	if not _built:
 		return
@@ -1908,6 +1966,1089 @@ func _tex_target() -> ImageTexture:
 			var ring := int(r * 3.0)
 			var col := Color(0.9, 0.15, 0.15) if (ring % 2 == 0) else Color(0.96, 0.96, 0.96)
 			img.set_pixel(px, py, col)
+	return ImageTexture.create_from_image(img)
+
+
+# =============================================================
+# JEREMY (GAMBLER / CHAOS MAGE) CARD ANIMATIONS
+# =============================================================
+
+func play_dice_roll() -> void:
+	# Cup the hands, shake the dice, then toss them out (House Money, Loaded Die).
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-70, 0, 60), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-70, 0, -60), 0.16)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 8.0, 0.16)
+	# Shake.
+	for i in range(3):
+		_action_tween.tween_property(_body, "rotation_degrees:z", 6.0, 0.07)
+		_action_tween.tween_property(_body, "rotation_degrees:z", -6.0, 0.07)
+	# Toss out.
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-42, 0, 20), 0.12)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-42, 0, -20), 0.12)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:z", 0.0, 0.12)
+	_action_tween.tween_callback(_spawn_dice)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.2)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_shrug() -> void:
+	# Palms-up "who knows?" shrug (Hope This Works, Oops, What's the Worst?).
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_left_shoulder, "rotation_degrees", Vector3(-35, 0, -55), 0.18).set_ease(Tween.EASE_OUT)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", Vector3(-35, 0, 55), 0.18)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:z", 8.0, 0.18)
+	_action_tween.parallel().tween_property(_body, "position:y", 0.04, 0.18)
+	_action_tween.tween_interval(0.3)
+	_action_tween.tween_property(_left_shoulder, "rotation_degrees", REST, 0.22).set_ease(Tween.EASE_IN)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:z", 0.0, 0.22)
+	_action_tween.parallel().tween_property(_body, "position:y", 0.0, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_communal_donation() -> void:
+	# Cut the palm, cup the blood, then fling it up into the air.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-60, 0, 50), 0.18)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-60, 0, -40), 0.18)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 10.0, 0.18)
+	_action_tween.tween_callback(_spawn_palm_cut)
+	_action_tween.tween_interval(0.25)
+	_action_tween.tween_callback(_spawn_blood.bind(Vector3(0.0, 0.6, 0.28)))
+	# Fling upward.
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-165, 0, -10), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-165, 0, 10), 0.16)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -8.0, 0.16)
+	_action_tween.tween_callback(_spawn_blood_fling)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_snowballs_chance() -> void:
+	# Breathe fire forward; then a flurry of snowballs (the chance effect).
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 14.0, 0.16)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 10.0, 0.16)
+	_action_tween.tween_callback(_spawn_fire_breath)
+	_action_tween.tween_interval(0.2)
+	_action_tween.tween_callback(_spawn_fire_breath)
+	_action_tween.tween_interval(0.18)
+	_action_tween.tween_callback(_spawn_snowballs)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 0.0, 0.22)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 0.0, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_biscuit() -> void:
+	# Toss a biscuit up and catch it in the mouth.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-40, 0, 30), 0.14)
+	_action_tween.tween_callback(_spawn_biscuit_toss)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.12)
+	# Track it up, then chomp.
+	_action_tween.tween_property(_head, "rotation_degrees:x", -26.0, 0.22)
+	_action_tween.tween_interval(0.12)
+	_action_tween.tween_property(_head, "rotation_degrees:x", 6.0, 0.08)
+	_action_tween.tween_property(_head, "rotation_degrees:x", 0.0, 0.14)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_cryonics() -> void:
+	# Channel cold forward; a large icicle encases the target.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-95, 0, -6), 0.18)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-95, 0, 6), 0.18)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -4.0, 0.18)
+	_action_tween.tween_callback(_spawn_frost_puff)
+	_action_tween.tween_callback(_spawn_cryonics_ice)
+	_action_tween.tween_interval(0.3)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_demonic_rage() -> void:
+	# A furious outburst — "Health is nothing more than a resource."
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_spawn_voice("Health is nothing more than a resource.", Color(0.9, 0.2, 0.2))
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(20, 0, 50), 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(20, 0, -50), 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -12.0, 0.2)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", -18.0, 0.2)
+	_action_tween.tween_callback(_spawn_rage_aura)
+	for i in range(3):
+		_action_tween.tween_property(_body, "rotation_degrees:z", 3.0, 0.05)
+		_action_tween.tween_property(_body, "rotation_degrees:z", -3.0, 0.05)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees", Vector3.ZERO, 0.24)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 0.0, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_fireball() -> void:
+	# Gather a huge fireball at the side and hurl it forward.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-40, 0, 70), 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", 18.0, 0.2)
+	_action_tween.tween_callback(_spawn_fireball_charge)
+	_action_tween.tween_interval(0.2)
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-110, 0, -10), 0.12)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", -10.0, 0.12)
+	_action_tween.tween_callback(_hurl_fireball)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", 0.0, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_god_of_thunder() -> void:
+	# Draw the absorbed shock back into the body, then call down a massive bolt.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-150, 0, -16), 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-150, 0, 16), 0.2)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", -14.0, 0.2)
+	_action_tween.tween_callback(_spawn_shock_intake)
+	_action_tween.tween_interval(0.3)
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-110, 0, -6), 0.12)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-110, 0, 6), 0.12)
+	_action_tween.tween_callback(_cast_thunderbolt)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 0.0, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_harness_lightning() -> void:
+	# Conjure an electrical orb that circles the player.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-80, 0, 30), 0.18)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-80, 0, -30), 0.18)
+	_action_tween.tween_callback(_spawn_orbiting_orb)
+	_action_tween.tween_interval(1.0)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_if_pigs_could_fly() -> void:
+	# Punt a winged pig at the target.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_foot, "position", Vector3(0.11, 0.05, -0.2), 0.16)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -8.0, 0.16)
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_foot, "position", Vector3(0.11, 0.5, 0.4), 0.12)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 10.0, 0.12)
+	_action_tween.tween_callback(_punt_pig)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_foot, "position", Vector3(0.11, 0.05, 0.04), 0.24)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_lady_luck() -> void:
+	# A courteous bow that blesses an ally.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 26.0, 0.26).set_ease(Tween.EASE_OUT)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 10.0, 0.26)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-30, 0, 60), 0.26)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", Vector3(-20, 0, -30), 0.26)
+	_action_tween.tween_callback(_spawn_luck_sparkle)
+	_action_tween.tween_interval(0.25)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 0.0, 0.26).set_ease(Tween.EASE_OUT)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 0.0, 0.26)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.26)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.26)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_magic_barrier() -> void:
+	# Conjure a teal barrier that sweeps up around the player and forms.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-110, 0, 20), 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-110, 0, -20), 0.2)
+	_action_tween.tween_callback(_spawn_barrier_ring)
+	_action_tween.tween_interval(0.55)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_mana_surge() -> void:
+	# Blue energy gathers at the feet, rises through the body, bursts from the hands.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "position:y", -0.08, 0.16)
+	_action_tween.tween_callback(_spawn_feet_surge)
+	_action_tween.tween_interval(0.18)
+	_action_tween.tween_callback(_spawn_body_surge)
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "position:y", 0.0, 0.16)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", Vector3(-100, 0, -8), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-100, 0, 8), 0.16)
+	_action_tween.tween_callback(_spawn_hand_surge)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_mirror_mirror() -> void:
+	# Produce a hand mirror and admire it — "Mirror, mirror, on the wall..."
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_spawn_voice("Mirror, mirror, on the wall...", Color(0.8, 0.9, 1.0))
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-30, 0, 40), 0.16)
+	_action_tween.tween_callback(_spawn_mirror)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-100, 0, -10), 0.18)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:y", 8.0, 0.18)
+	_action_tween.tween_interval(0.5)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:y", 0.0, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_risk_it() -> void:
+	# Kick up into a wobbling handstand.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 30.0, 0.16)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", Vector3(-150, 0, 0), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-150, 0, 0), 0.16)
+	# Flip up to inverted (raise the body so the hands plant on the ground).
+	_action_tween.tween_property(_body, "rotation_degrees:x", 180.0, 0.26)
+	_action_tween.parallel().tween_property(_body, "position:y", 1.05, 0.26)
+	# Wobble.
+	_action_tween.tween_property(_body, "rotation_degrees:z", 6.0, 0.12)
+	_action_tween.tween_property(_body, "rotation_degrees:z", -6.0, 0.12)
+	_action_tween.tween_property(_body, "rotation_degrees:z", 0.0, 0.1)
+	# Come down.
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 0.0, 0.26)
+	_action_tween.parallel().tween_property(_body, "position:y", 0.0, 0.26)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.26)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.26)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_shepherds_mark() -> void:
+	# Raise the hands overhead; a sheep pops in over the head and fades.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-165, 0, -12), 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-165, 0, 12), 0.2)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", -12.0, 0.2)
+	_action_tween.tween_callback(_spawn_sheep_icon)
+	_action_tween.tween_interval(0.4)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 0.0, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_spark() -> void:
+	# Thrust a hand forward and crackle sparks out of the palm.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-100, 0, -8), 0.14)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", -8.0, 0.14)
+	_action_tween.tween_callback(_spark_burst)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", 0.0, 0.2)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_surrounding_ice() -> void:
+	# Slam down; ice stalagmites erupt from the ground around the player.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-150, 0, -10), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-150, 0, 10), 0.16)
+	_action_tween.parallel().tween_property(_body, "position:y", 0.05, 0.16)
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-30, 0, 20), 0.12)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-30, 0, -20), 0.12)
+	_action_tween.parallel().tween_property(_body, "position:y", -0.06, 0.12)
+	_action_tween.tween_callback(_erupt_surrounding_ice)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "position:y", 0.0, 0.2)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_trick_shot() -> void:
+	# Flip a coin up, then roundhouse-kick it.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-50, 0, 20), 0.14)
+	_action_tween.tween_callback(_flip_coin)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.12)
+	# Spin into a roundhouse kick.
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_body, "rotation_degrees:y", -300.0, 0.26)
+	_action_tween.parallel().tween_property(_right_foot, "position", Vector3(0.2, 0.7, 0.25), 0.26)
+	_action_tween.parallel().tween_property(_body, "position:y", 0.08, 0.26)
+	_action_tween.tween_callback(_spawn_kick_flash)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "rotation_degrees:y", -360.0, 0.18)
+	_action_tween.parallel().tween_property(_right_foot, "position", Vector3(0.11, 0.05, 0.04), 0.18)
+	_action_tween.parallel().tween_property(_body, "position:y", 0.0, 0.18)
+	_action_tween.tween_callback(_reset_spin)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_vengeful_shield() -> void:
+	# A grey skull bursts from the chest and strikes the enemy, stunning it.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-60, 0, 60), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-60, 0, -60), 0.16)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 10.0, 0.16)
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_body, "rotation_degrees:x", -6.0, 0.12)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", Vector3(-95, 0, 10), 0.12)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-95, 0, -10), 0.12)
+	_action_tween.tween_callback(_launch_skull)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_body, "rotation_degrees:x", 0.0, 0.22)
+	_action_tween.parallel().tween_property(_right_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_worms_armageddon() -> void:
+	# Call down a huge meteor; rarely an Alaskan Bull Worm bursts from the crater.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-160, 0, -14), 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-160, 0, 14), 0.2)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", -16.0, 0.2)
+	_action_tween.tween_callback(_drop_meteor)
+	_action_tween.tween_interval(0.5)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_head, "rotation_degrees:x", 0.0, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_deep_pockets() -> void:
+	# No animation note in the spec — a thematic "rummage the pockets" gesture.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-20, 0, 24), 0.16).set_ease(Tween.EASE_OUT)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-20, 0, -24), 0.16)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 8.0, 0.16)
+	for i in range(2):
+		_action_tween.tween_property(_body, "rotation_degrees:z", 5.0, 0.08)
+		_action_tween.tween_property(_body, "rotation_degrees:z", -5.0, 0.08)
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-70, 0, 30), 0.16)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-70, 0, -30), 0.16)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees", Vector3.ZERO, 0.16)
+	_action_tween.tween_callback(_spawn_coin_sparkle)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_friendship() -> void:
+	# No animation note in the spec — a warm, open-armed bonding gesture.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-60, 0, -60), 0.2).set_ease(Tween.EASE_OUT)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-60, 0, 60), 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", -6.0, 0.2)
+	_action_tween.tween_callback(_spawn_friendship_hearts)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-80, 0, 36), 0.2).set_ease(Tween.EASE_IN)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-80, 0, -36), 0.2)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.2)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.2)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func play_prepare() -> void:
+	# No animation note in the spec — a focused "gather yourself" stance.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-50, 0, 40), 0.2).set_ease(Tween.EASE_OUT)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-50, 0, -40), 0.2)
+	_action_tween.parallel().tween_property(_body, "position:y", -0.05, 0.2)
+	_action_tween.tween_callback(_spawn_focus_ring)
+	_action_tween.tween_interval(0.25)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.22).set_ease(Tween.EASE_OUT)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.22)
+	_action_tween.parallel().tween_property(_body, "position:y", 0.0, 0.22)
+	_action_tween.tween_callback(_on_action_done)
+
+
+# ---- Jeremy spell FX helpers ----------------------------------------------
+
+func _emissive(color: Color, energy: float = 2.0) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = energy
+	return mat
+
+
+func _spawn_orb(local_pos: Vector3, color: Color, radius: float, to_pivot: bool = false) -> MeshInstance3D:
+	## A glowing sphere parented to the body (default) or the pivot (for projectiles).
+	var mi := MeshInstance3D.new()
+	mi.name = "Orb"
+	var s := SphereMesh.new()
+	s.radius = radius
+	s.height = radius * 2.0
+	mi.mesh = s
+	mi.material_override = _emissive(color)
+	if to_pivot:
+		mi.position = local_pos + _body.position
+		_pivot.add_child(mi)
+	else:
+		mi.position = local_pos
+		_body.add_child(mi)
+	return mi
+
+
+func _spawn_flying_orb(start: Vector3, travel: Vector3, color: Color, radius: float, dur: float = 0.4) -> void:
+	## A glowing projectile that flies start -> start+travel (facing space) then bursts.
+	var orb := _spawn_orb(start, color, radius, true)
+	var dest := orb.position + travel
+	var tw := orb.create_tween()
+	tw.tween_property(orb, "position", dest, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_spawn_color_burst.bind(dest, color, radius * 3.0, true))
+	tw.tween_property(orb, "scale", Vector3.ZERO, 0.08)
+	tw.tween_callback(orb.queue_free)
+
+
+func _spawn_color_burst(local_pos: Vector3, color: Color, scale: float = 1.0, to_pivot: bool = false) -> void:
+	## A tinted burst flash (reuses the white-burst texture).
+	var sp := _make_icon_sprite(_tex_burst())
+	sp.modulate = color
+	sp.pixel_size = 0.011
+	sp.position = local_pos
+	if to_pivot:
+		_pivot.add_child(sp)
+	else:
+		_body.add_child(sp)
+	var tw := sp.create_tween()
+	tw.tween_property(sp, "scale", Vector3.ONE * scale, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.28)
+	tw.tween_callback(sp.queue_free)
+
+
+func _spawn_sparks_out(local_pos: Vector3, color: Color, count: int = 6, reach: float = 0.4, to_pivot: bool = false) -> void:
+	## Small sparks flying outward from a point.
+	for i in range(count):
+		var sp := _make_icon_sprite(_tex_sparkle())
+		sp.modulate = color
+		sp.pixel_size = 0.004
+		sp.position = local_pos
+		if to_pivot:
+			_pivot.add_child(sp)
+		else:
+			_body.add_child(sp)
+		var dir := Vector3(randf_range(-1, 1), randf_range(-0.6, 1), randf_range(-0.2, 1)).normalized() * reach
+		var tw := sp.create_tween()
+		tw.tween_property(sp, "scale", Vector3.ONE * randf_range(0.5, 0.9), 0.08).set_trans(Tween.TRANS_BACK)
+		tw.parallel().tween_property(sp, "position", local_pos + dir, 0.3).set_ease(Tween.EASE_OUT)
+		tw.tween_property(sp, "scale", Vector3.ZERO, 0.1)
+		tw.tween_callback(sp.queue_free)
+
+
+func _spawn_bolt(from_local: Vector3, to_local: Vector3, color: Color = Color(0.7, 0.85, 1.0)) -> void:
+	## A jagged lightning bolt between two points (pivot space) that flashes briefly.
+	var bolt := Node3D.new()
+	_pivot.add_child(bolt)
+	var segs := 5
+	var prev := from_local
+	for i in range(1, segs + 1):
+		var t := float(i) / float(segs)
+		var point := from_local.lerp(to_local, t)
+		if i < segs:
+			point += Vector3(randf_range(-0.12, 0.12), randf_range(-0.12, 0.12), randf_range(-0.08, 0.08))
+		var seg := _make_box_solid("Bolt%d" % i, Vector3.ZERO, Vector3(0.05, 0.05, prev.distance_to(point)), color)
+		seg.material_override = _emissive(color, 3.0)
+		_orient_along(seg, point - prev)
+		seg.position = (prev + point) * 0.5
+		bolt.add_child(seg)
+		prev = point
+	var tw := bolt.create_tween()
+	tw.tween_interval(0.14)
+	tw.tween_property(bolt, "scale", Vector3(1, 1, 0.01), 0.1)
+	tw.tween_callback(bolt.queue_free)
+
+
+func _spawn_icicle(base_pos: Vector3, height: float = 0.7, to_pivot: bool = true) -> void:
+	## A sharp ice spike that springs up from the ground, holds, then sinks away.
+	var anchor := Node3D.new()
+	if to_pivot:
+		anchor.position = base_pos + _body.position
+		_pivot.add_child(anchor)
+	else:
+		anchor.position = base_pos
+		_body.add_child(anchor)
+	var ice := _make_cyl("Icicle", Vector3(0, height * 0.5, 0), 0.0, 0.12, height, Color(0.72, 0.9, 1.0))
+	ice.material_override = _emissive(Color(0.6, 0.85, 1.0), 0.5)
+	anchor.add_child(ice)
+	anchor.scale = Vector3(1, 0.04, 1)
+	var tw := anchor.create_tween()
+	tw.tween_property(anchor, "scale", Vector3.ONE, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.5)
+	tw.tween_property(anchor, "scale", Vector3(0.5, 0.02, 0.5), 0.2)
+	tw.tween_callback(anchor.queue_free)
+
+
+func _spawn_dice() -> void:
+	## Two dice tumble out forward and down.
+	for i in range(2):
+		var die := _make_box_solid("Die", Vector3.ZERO, Vector3(0.1, 0.1, 0.1), Color(0.95, 0.95, 0.95))
+		die.position = Vector3(0.12 - i * 0.24, 0.5, 0.35) + _body.position
+		_pivot.add_child(die)
+		var dest := die.position + Vector3(randf_range(-0.15, 0.15), -0.45, randf_range(0.2, 0.45))
+		var tw := die.create_tween()
+		tw.tween_property(die, "position", dest, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(die, "rotation_degrees", Vector3(randf_range(180, 540), randf_range(180, 540), 0), 0.3)
+		tw.tween_interval(0.25)
+		tw.tween_property(die, "scale", Vector3.ZERO, 0.12)
+		tw.tween_callback(die.queue_free)
+
+
+func _spawn_palm_cut() -> void:
+	_spawn_blood(Vector3(0.05, 0.62, 0.26))
+
+
+func _spawn_blood_fling() -> void:
+	## Blood thrown up into the air above the head.
+	for i in range(10):
+		var sp := _make_icon_sprite(_tex_puff(Color(0.62, 0.05, 0.07)))
+		sp.pixel_size = 0.005
+		sp.position = Vector3(0, 1.2, 0.1)
+		sp.scale = Vector3.ONE * randf_range(0.3, 0.7)
+		_body.add_child(sp)
+		var dest := sp.position + Vector3(randf_range(-0.4, 0.4), randf_range(0.4, 0.9), randf_range(-0.2, 0.3))
+		var tw := sp.create_tween()
+		tw.tween_property(sp, "position", dest, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.5)
+		tw.tween_callback(sp.queue_free)
+
+
+func _spawn_fire_breath() -> void:
+	## A cone of fire puffed out in front of the mouth.
+	for i in range(6):
+		var sp := _make_icon_sprite(_tex_puff(Color(1.0, randf_range(0.4, 0.7), 0.1)))
+		sp.pixel_size = 0.006
+		sp.position = Vector3(0, 0.95, 0.25) + _body.position
+		sp.scale = Vector3.ONE * randf_range(0.3, 0.6)
+		_pivot.add_child(sp)
+		var dest := sp.position + Vector3(randf_range(-0.2, 0.2), randf_range(-0.15, 0.1), randf_range(0.6, 1.2))
+		var tw := sp.create_tween()
+		tw.tween_property(sp, "position", dest, 0.35).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(sp, "scale", Vector3.ONE * randf_range(0.8, 1.3), 0.35)
+		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.35)
+		tw.tween_callback(sp.queue_free)
+
+
+func _spawn_snowballs() -> void:
+	## A scatter of snowballs lobbed forward.
+	for i in range(4):
+		_spawn_flying_orb(Vector3(randf_range(-0.2, 0.2), 0.7, 0.3), Vector3(randf_range(-0.4, 0.4), randf_range(-0.1, 0.2), randf_range(1.4, 2.0)), Color(0.92, 0.96, 1.0), 0.08, 0.35)
+
+
+func _spawn_biscuit_toss() -> void:
+	## A biscuit lobbed up in an arc, then dropping into the mouth.
+	var b := _make_box_solid("Biscuit", Vector3.ZERO, Vector3(0.12, 0.05, 0.12), Color(0.82, 0.62, 0.34))
+	b.position = Vector3(0.28, 0.7, 0.2) + _body.position
+	_pivot.add_child(b)
+	var tw := b.create_tween()
+	tw.tween_property(b, "position", Vector3(0.1, 1.55, 0.15) + _body.position, 0.34).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(b, "rotation_degrees", Vector3(0, 360, 0), 0.34)
+	tw.tween_property(b, "position", Vector3(0.0, 1.12, 0.18) + _body.position, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(b, "scale", Vector3.ZERO, 0.06)
+	tw.tween_callback(b.queue_free)
+
+
+func _spawn_frost_puff() -> void:
+	_spawn_sparks_out(Vector3(0, 0.7, 0.35), Color(0.7, 0.9, 1.0), 6, 0.35, true)
+
+
+func _spawn_cryonics_ice() -> void:
+	## A large block of ice encasing the target out in front.
+	_spawn_icicle(Vector3(0, 0.0, 1.6), 1.4, true)
+	_spawn_color_burst(Vector3(0, 0.7, 1.6), Color(0.7, 0.9, 1.0), 1.4, true)
+
+
+func _spawn_rage_aura() -> void:
+	_spawn_color_burst(Vector3(0, 0.7, 0), Color(0.8, 0.1, 0.1), 1.6)
+	_spawn_sparks_out(Vector3(0, 0.7, 0), Color(0.9, 0.2, 0.2), 10, 0.6)
+
+
+func _spawn_fireball_charge() -> void:
+	## A fireball swelling in the hand before it is thrown.
+	var orb := _spawn_orb(Vector3(0.34, 0.66, 0.16), Color(1.0, 0.5, 0.1), 0.05)
+	var tw := orb.create_tween()
+	tw.tween_property(orb, "scale", Vector3.ONE * 3.4, 0.2).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(orb.queue_free)
+
+
+func _hurl_fireball() -> void:
+	_spawn_flying_orb(Vector3(0.3, 0.66, 0.3), Vector3(0, 0, 2.4), Color(1.0, 0.45, 0.1), 0.18, 0.4)
+
+
+func _spawn_shock_intake() -> void:
+	## Little sparks travel from the target back into the player.
+	for i in range(8):
+		var sp := _make_icon_sprite(_tex_sparkle())
+		sp.modulate = Color(0.7, 0.85, 1.0)
+		sp.pixel_size = 0.004
+		var start := Vector3(randf_range(-0.4, 0.4), randf_range(0.4, 1.0), randf_range(1.6, 2.2)) + _body.position
+		sp.position = start
+		_pivot.add_child(sp)
+		var tw := sp.create_tween()
+		tw.tween_interval(i * 0.02)
+		tw.tween_property(sp, "scale", Vector3.ONE * 0.7, 0.05)
+		tw.tween_property(sp, "position", Vector3(0, 0.8, 0.1) + _body.position, 0.22).set_ease(Tween.EASE_IN)
+		tw.tween_property(sp, "scale", Vector3.ZERO, 0.06)
+		tw.tween_callback(sp.queue_free)
+
+
+func _cast_thunderbolt() -> void:
+	## A huge bolt strikes down on the target out in front.
+	_spawn_bolt(Vector3(0.1, 2.6, 1.7), Vector3(-0.1, 0.1, 1.7), Color(0.8, 0.9, 1.0))
+	_spawn_color_burst(Vector3(0, 0.2, 1.7), Color(0.8, 0.9, 1.0), 1.6, true)
+
+
+func _spawn_orbiting_orb() -> void:
+	## An electrical orb that circles the player on a spinning pivot, rising, then fades.
+	var pivot := Node3D.new()
+	pivot.position = Vector3(0, 0.55, 0)
+	_body.add_child(pivot)
+	var orb := MeshInstance3D.new()
+	var s := SphereMesh.new()
+	s.radius = 0.09
+	s.height = 0.18
+	orb.mesh = s
+	orb.material_override = _emissive(Color(0.5, 0.72, 1.0), 2.5)
+	orb.position = Vector3(0.55, 0, 0)
+	pivot.add_child(orb)
+	var tw := pivot.create_tween()
+	tw.tween_property(pivot, "rotation_degrees:y", 720.0, 1.0).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(pivot, "position:y", 0.85, 1.0)
+	tw.tween_property(orb, "scale", Vector3.ZERO, 0.12)
+	tw.tween_callback(pivot.queue_free)
+
+
+func _punt_pig() -> void:
+	## A pink winged pig sails forward and bursts.
+	var pig := Node3D.new()
+	pig.position = Vector3(0.11, 0.45, 0.4) + _body.position
+	_pivot.add_child(pig)
+	var pig_body := _make_sphere("PigBody", Vector3.ZERO, 0.12, Color(0.95, 0.65, 0.72))
+	pig_body.scale = Vector3(1.2, 0.9, 1.0)
+	pig.add_child(pig_body)
+	pig.add_child(_make_box_solid("WingL", Vector3(-0.12, 0.06, 0), Vector3(0.02, 0.14, 0.16), Color(0.98, 0.98, 1.0)))
+	pig.add_child(_make_box_solid("WingR", Vector3(0.12, 0.06, 0), Vector3(0.02, 0.14, 0.16), Color(0.98, 0.98, 1.0)))
+	var dest := pig.position + Vector3(0, 0.2, 2.2)
+	var tw := pig.create_tween()
+	tw.tween_property(pig, "position", dest, 0.4).set_trans(Tween.TRANS_QUAD)
+	tw.parallel().tween_property(pig, "rotation_degrees", Vector3(0, 540, 0), 0.4)
+	tw.tween_callback(_spawn_color_burst.bind(dest, Color(1.0, 0.6, 0.3), 1.4, true))
+	tw.tween_property(pig, "scale", Vector3.ZERO, 0.08)
+	tw.tween_callback(pig.queue_free)
+
+
+func _spawn_luck_sparkle() -> void:
+	_spawn_sparks_out(Vector3(0, 1.0, 0.3), Color(1.0, 0.9, 0.4), 6, 0.4)
+
+
+func _spawn_barrier_ring() -> void:
+	## A teal ring sweeps up around the player as the shield forms, then pops.
+	var ring := _make_torus("Barrier", Vector3(0, 0.1, 0), 0.34, 0.46, Color(0.3, 0.85, 0.85))
+	ring.material_override = _emissive(Color(0.3, 0.85, 0.85), 1.5)
+	_body.add_child(ring)
+	var tw := ring.create_tween()
+	tw.tween_property(ring, "position:y", 1.4, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(ring, "scale", Vector3(1.1, 1.1, 1.1), 0.5)
+	tw.tween_property(ring, "scale", Vector3.ZERO, 0.12)
+	tw.tween_callback(ring.queue_free)
+
+
+func _spawn_feet_surge() -> void:
+	_spawn_sparks_out(Vector3(0, 0.08, 0.05), Color(0.3, 0.6, 1.0), 8, 0.3)
+
+
+func _spawn_body_surge() -> void:
+	## A bead of energy that travels up the torso.
+	var orb := _spawn_orb(Vector3(0, 0.1, 0.1), Color(0.4, 0.7, 1.0), 0.07)
+	var tw := orb.create_tween()
+	tw.tween_property(orb, "position:y", 0.95, 0.22).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(orb, "scale", Vector3.ZERO, 0.08)
+	tw.tween_callback(orb.queue_free)
+
+
+func _spawn_hand_surge() -> void:
+	_spawn_flying_orb(Vector3(0.0, 0.7, 0.3), Vector3(0, 0, 2.2), Color(0.4, 0.7, 1.0), 0.12, 0.34)
+	_spawn_sparks_out(Vector3(0, 0.7, 0.35), Color(0.4, 0.7, 1.0), 6, 0.4, true)
+
+
+func _spawn_mirror() -> void:
+	## A small hand mirror held up in the right hand.
+	var mirror := Node3D.new()
+	mirror.position = Vector3(0.34, 1.1, 0.25)
+	_body.add_child(mirror)
+	mirror.add_child(_make_box_solid("MirrorFrame", Vector3.ZERO, Vector3(0.18, 0.24, 0.03), Color(0.85, 0.7, 0.2)))
+	var glass := _make_box_solid("MirrorGlass", Vector3(0, 0, 0.02), Vector3(0.13, 0.18, 0.02), Color(0.7, 0.85, 0.95))
+	glass.material_override = _emissive(Color(0.7, 0.85, 0.95), 0.6)
+	mirror.add_child(glass)
+	mirror.add_child(_make_box_solid("MirrorHandle", Vector3(0, -0.2, 0), Vector3(0.04, 0.16, 0.03), Color(0.85, 0.7, 0.2)))
+	mirror.scale = Vector3.ZERO
+	var tw := mirror.create_tween()
+	tw.tween_property(mirror, "scale", Vector3.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.55)
+	tw.tween_property(mirror, "scale", Vector3.ZERO, 0.12)
+	tw.tween_callback(mirror.queue_free)
+
+
+func _spawn_sheep_icon() -> void:
+	## A sheep pops in over the head and fades, like the defensive shield icon.
+	var sp := _make_icon_sprite(_tex_sheep())
+	_shield_anchor.add_child(sp)
+	_pop_rise_fade(sp)
+
+
+func _spark_burst() -> void:
+	_spawn_sparks_out(Vector3(0.1, 0.7, 0.4), Color(0.7, 0.9, 1.0), 8, 0.6, true)
+	_spawn_color_burst(Vector3(0.1, 0.7, 0.4), Color(0.7, 0.9, 1.0), 0.7, true)
+
+
+func _erupt_surrounding_ice() -> void:
+	## A ring of ice spikes erupts around the player (some gaps = the miss chance).
+	var ring := [Vector3(0.9, 0, 0.5), Vector3(-0.9, 0, 0.5), Vector3(0.7, 0, 1.2), Vector3(-0.7, 0, 1.2), Vector3(0, 0, 1.5)]
+	for pos in ring:
+		if randf() < 0.2:
+			continue
+		_spawn_icicle(pos, randf_range(0.6, 0.95), true)
+	_spawn_color_burst(Vector3(0, 0.1, 0.0), Color(0.7, 0.9, 1.0), 1.0)
+
+
+func _flip_coin() -> void:
+	## A gold coin flicked up, spinning.
+	var coin := _make_cyl("Coin", Vector3.ZERO, 0.08, 0.08, 0.02, Color(0.95, 0.82, 0.3))
+	coin.material_override = _emissive(Color(0.95, 0.82, 0.3), 0.5)
+	coin.position = Vector3(0.28, 0.7, 0.2) + _body.position
+	coin.rotation_degrees = Vector3(90, 0, 0)
+	_pivot.add_child(coin)
+	var top := coin.position + Vector3(0, 1.0, 0)
+	var tw := coin.create_tween()
+	tw.tween_property(coin, "position:y", top.y, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(coin, "rotation_degrees", Vector3(90 + 720, 0, 0), 0.4)
+	tw.tween_callback(_spawn_color_burst.bind(top, Color(1.0, 0.9, 0.4), 0.8, true))
+	tw.tween_property(coin, "scale", Vector3.ZERO, 0.1)
+	tw.tween_callback(coin.queue_free)
+
+
+func _spawn_kick_flash() -> void:
+	_spawn_white_impact(0.4, 0.8)
+
+
+func _reset_spin() -> void:
+	_body.rotation_degrees.y = 0.0
+
+
+func _launch_skull() -> void:
+	## A grey skull bursts from the chest and flies at the enemy.
+	var sp := _make_icon_sprite(_tex_skull())
+	sp.modulate = Color(0.75, 0.75, 0.8)
+	sp.pixel_size = 0.012
+	sp.position = Vector3(0, 0.66, 0.2) + _body.position
+	_pivot.add_child(sp)
+	var dest := sp.position + Vector3(0, 0.1, 2.2)
+	var tw := sp.create_tween()
+	tw.tween_property(sp, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(sp, "position", dest, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_spawn_stun_stars.bind(dest))
+	tw.tween_property(sp, "scale", Vector3.ZERO, 0.08)
+	tw.tween_callback(sp.queue_free)
+
+
+func _spawn_stun_stars(at: Vector3) -> void:
+	## A burst and little stun stars at the struck enemy.
+	_spawn_color_burst(at, Color(0.85, 0.85, 0.9), 1.0, true)
+	for i in range(4):
+		var sp := _make_icon_sprite(_tex_sparkle())
+		sp.modulate = Color(1.0, 0.95, 0.5)
+		sp.pixel_size = 0.004
+		sp.position = at + Vector3(0, 0.25, 0)
+		_pivot.add_child(sp)
+		var ang := TAU * i / 4.0
+		var tw := sp.create_tween()
+		tw.tween_property(sp, "scale", Vector3.ONE * 0.7, 0.1)
+		tw.parallel().tween_property(sp, "position", at + Vector3(cos(ang) * 0.25, 0.25 + sin(ang) * 0.1, sin(ang) * 0.1), 0.3)
+		tw.tween_property(sp, "scale", Vector3.ZERO, 0.12)
+		tw.tween_callback(sp.queue_free)
+
+
+func _drop_meteor() -> void:
+	## A huge flaming meteor falls from the sky onto the target area.
+	var meteor := _spawn_orb(Vector3(0.4, 3.2, 1.8), Color(1.0, 0.45, 0.12), 0.3, true)
+	var impact := Vector3(0.0, 0.2, 1.7) + _body.position
+	var tw := meteor.create_tween()
+	tw.tween_property(meteor, "position", impact, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_spawn_color_burst.bind(impact, Color(1.0, 0.5, 0.15), 2.4, true))
+	tw.tween_callback(_spawn_meteor_worm)
+	tw.tween_property(meteor, "scale", Vector3.ZERO, 0.1)
+	tw.tween_callback(meteor.queue_free)
+
+
+func _spawn_meteor_worm() -> void:
+	## Flavour: occasionally an Alaskan Bull Worm bursts from the crater.
+	if randf() > 0.3:
+		return
+	var anchor := Node3D.new()
+	anchor.position = Vector3(0.0, 0.0, 1.6) + _body.position
+	_pivot.add_child(anchor)
+	var worm := _make_cyl("Worm", Vector3(0, 0.35, 0), 0.12, 0.16, 0.7, Color(0.7, 0.4, 0.45))
+	worm.rotation_degrees = Vector3(16, 0, 0)
+	anchor.add_child(worm)
+	anchor.scale = Vector3(1, 0.05, 1)
+	var tw := anchor.create_tween()
+	tw.tween_property(anchor, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.4)
+	tw.tween_property(anchor, "scale", Vector3(0.6, 0.05, 0.6), 0.2)
+	tw.tween_callback(anchor.queue_free)
+
+
+func _spawn_coin_sparkle() -> void:
+	_spawn_sparks_out(Vector3(0, 0.6, 0.3), Color(1.0, 0.85, 0.3), 6, 0.35)
+
+
+func _spawn_friendship_hearts() -> void:
+	## A few hearts drift up between the open arms.
+	for i in range(3):
+		var sp := _make_icon_sprite(_tex_heart())
+		sp.pixel_size = 0.004
+		sp.position = Vector3(randf_range(-0.3, 0.3), 0.9, 0.2)
+		_body.add_child(sp)
+		var tw := sp.create_tween()
+		tw.tween_interval(i * 0.08)
+		tw.tween_property(sp, "scale", Vector3.ONE * 0.7, 0.14).set_trans(Tween.TRANS_BACK)
+		tw.parallel().tween_property(sp, "position:y", 1.4, 0.6)
+		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.6)
+		tw.tween_callback(sp.queue_free)
+
+
+func _spawn_focus_ring() -> void:
+	_spawn_sparks_out(Vector3(0, 0.6, 0.0), Color(0.9, 0.85, 0.5), 6, 0.3)
+
+
+func _tex_skull() -> ImageTexture:
+	## A small grey skull (Vengeful Shield).
+	var w := 28
+	var h := 32
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var bone := Color(0.82, 0.82, 0.86)
+	var dark := Color(0.1, 0.1, 0.12)
+	var cx := (w - 1) / 2.0
+	for py in range(h):
+		for px in range(w):
+			var x := (px - cx) / (w * 0.5)
+			var y := float(py) / float(h - 1)
+			var inside := false
+			if y < 0.62:
+				inside = (x * x) / (0.85 * 0.85) + ((y - 0.32) / 0.42) * ((y - 0.32) / 0.42) <= 1.0
+			else:
+				inside = absf(x) < 0.5 and y < 0.92
+			if not inside:
+				continue
+			var col := bone
+			if y > 0.30 and y < 0.45 and absf(x) > 0.22 and absf(x) < 0.5:
+				col = dark
+			if y > 0.46 and y < 0.58 and absf(x) < 0.10:
+				col = dark
+			if y > 0.66 and y < 0.9 and int((x + 0.5) * 6.0) % 2 == 0:
+				col = dark
+			img.set_pixel(px, py, col)
+	return ImageTexture.create_from_image(img)
+
+
+func _tex_sheep() -> ImageTexture:
+	## A fluffy white sheep silhouette (Shepherd's Mark).
+	var w := 36
+	var h := 28
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var wool := Color(0.95, 0.95, 0.97)
+	var face := Color(0.2, 0.18, 0.2)
+	var cx := w * 0.45
+	var cy := h * 0.45
+	for py in range(h):
+		for px in range(w):
+			var dx := (px - cx) / (w * 0.42)
+			var dy := (py - cy) / (h * 0.42)
+			if dx * dx + dy * dy <= 1.0:
+				img.set_pixel(px, py, wool)
+	var hx := w * 0.80
+	var hy := h * 0.45
+	for py in range(h):
+		for px in range(w):
+			var dx := (px - hx) / (w * 0.13)
+			var dy := (py - hy) / (h * 0.2)
+			if dx * dx + dy * dy <= 1.0:
+				img.set_pixel(px, py, face)
+	for ox in [0.3, 0.45, 0.6, 0.72]:
+		var lx := int(w * ox)
+		for py in range(int(h * 0.7), int(h * 0.95)):
+			for px in range(lx, lx + 2):
+				if px < w:
+					img.set_pixel(px, py, face)
 	return ImageTexture.create_from_image(img)
 
 
