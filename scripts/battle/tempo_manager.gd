@@ -4,11 +4,17 @@ extends Node
 ## Manages the universal tempo counter - the global clock for all game systems.
 ## Everything (enemy actions, mana regen, card draw, buff durations) is driven by tempo.
 ##
-## TICKED TEMPO SYSTEM:
-## When a card is played, its tempo_cost ticks are added to a sequential queue.
+## TICKED TEMPO SYSTEM (per-owner slotted):
+## When a card is played, its tempo_cost ticks are scheduled on the shared global
+## ticker. Scheduling is SEQUENTIAL PER OWNER but CONCURRENT ACROSS OWNERS:
+##   * A new card waits only for that same owner's still-pending ticks, so one
+##     character playing two cards back-to-back stacks them just like solo play.
+##   * It does NOT wait for a teammate's ticks — it drops into the first global
+##     slots its own cards aren't already using, freely sharing slots with the
+##     partner. So two characters can act at the same time on one tempo bar.
+## With a single owner (solo play) this reduces exactly to the old sequential
+## queue, since every card shares owner 0.
 ## Cards resolve at their resolve_tick (relative to when that card starts ticking).
-## If a second card is played while ticking, its ticks are APPENDED after the
-## current card's ticks — they never overlap.
 ## The auto-ticker only runs while there are card ticks to process.
 
 signal tempo_changed(current: int, threshold: int)
@@ -39,11 +45,12 @@ var player_stats: PlayerStats
 # Tick system state
 var _ticking: bool = false          # Whether we're currently processing ticks
 var _tick_timer: float = 0.0        # Countdown to next tick
-var _pending_ticks: int = 0         # Total ticks remaining in the queue
+var _pending_ticks: int = 0         # Global ticks remaining until ALL cards finish (max, not sum)
 
-# Active card tracking — sequential queue with delays
-# Each card waits for all previously queued ticks before it starts ticking.
-var _active_cards: Array[Dictionary] = []  # [{card, resolve_tick, total_ticks, ticks_elapsed, delay, resolved, owner}]
+# Active card tracking — per-owner sequential, cross-owner concurrent.
+# Each card's delay counts only that same owner's still-pending ticks, so a
+# teammate's in-flight card shares global slots rather than pushing this one back.
+var _active_cards: Array[Dictionary] = []  # [{card, resolve_tick, total_ticks, ticks_elapsed, delay, resolved, owner_id}]
 
 func initialize(p_stats: PlayerStats) -> void:
 	player_stats = p_stats
@@ -64,40 +71,57 @@ func _process(delta: float) -> void:
 		_tick_timer = tick_speed
 		_process_one_tick()
 
-## Queue a card for ticked processing. New cards are APPENDED after all
-## currently pending ticks — they never overlap.
+## Queue a card for ticked processing. The new card waits only for THIS OWNER's
+## still-pending ticks (so one character's cards stack sequentially), but shares
+## global slots with other owners' cards (so teammates can act simultaneously).
 func start_card_ticks(card: Card, tempo_cost: int, resolve_tick: int, owner_id: int = 0) -> void:
 	var card_entry := {
 		"card": card,
 		"resolve_tick": resolve_tick,
 		"total_ticks": tempo_cost,
 		"ticks_elapsed": 0,
-		"delay": _pending_ticks,  # Wait for all currently queued ticks first
+		"delay": _owner_busy_ticks(owner_id),  # Wait only for our own queued ticks
 		"resolved": false,
 		"owner_id": owner_id,
 	}
 	_active_cards.append(card_entry)
 
-	_pending_ticks += tempo_cost
-	print("[TEMPO] Card '%s' queued: %d ticks (resolve at tick %d), delay %d. Total pending: %d" % [
-		card.card_name, tempo_cost, resolve_tick, card_entry["delay"], _pending_ticks])
+	_recompute_pending()
+	print("[TEMPO] Card '%s' (owner %d) queued: %d ticks (resolve at tick %d), delay %d. Global pending: %d" % [
+		card.card_name, owner_id, tempo_cost, resolve_tick, card_entry["delay"], _pending_ticks])
 
 	if not _ticking:
 		_ticking = true
 		_tick_timer = tick_speed
 		print("[TEMPO] Tick processing started")
 
+## How many ticks from now until this owner's currently-queued cards all finish.
+## A new card from this owner starts ticking after this many global ticks.
+func _owner_busy_ticks(owner_id: int) -> int:
+	var busy := 0
+	for e in _active_cards:
+		if e["owner_id"] == owner_id:
+			var remaining: int = e["delay"] + (e["total_ticks"] - e["ticks_elapsed"])
+			busy = max(busy, remaining)
+	return busy
+
+## Global ticks remaining until every active card has fully resolved. Because
+## owners overlap, this is the MAX finish time across cards, not the sum.
+func _recompute_pending() -> void:
+	var m := 0
+	for e in _active_cards:
+		var remaining: int = e["delay"] + (e["total_ticks"] - e["ticks_elapsed"])
+		m = max(m, remaining)
+	_pending_ticks = m
+
 ## Process a single tick of tempo
 func _process_one_tick() -> void:
 	# Advance global state by 1
 	global_tempo += 1
 	current_tempo += 1
-	_pending_ticks -= 1
 
-	var tick_num = global_tempo
-	print("[TEMPO] Tick %d | %d in cycle | %d pending" % [tick_num, current_tempo, _pending_ticks])
-
-	# Advance all active cards
+	# Advance all active cards. Owners tick concurrently: every card whose own
+	# delay has elapsed advances on this same global tick.
 	for entry in _active_cards:
 		# If this card still has delay, decrement delay instead of ticking
 		if entry["delay"] > 0:
@@ -114,15 +138,18 @@ func _process_one_tick() -> void:
 					entry["card"].card_name, entry["ticks_elapsed"], entry["total_ticks"]])
 				card_resolved.emit(entry["card"])
 
+	# Clean up finished cards (all ticks elapsed and no delay remaining)
+	_active_cards = _active_cards.filter(func(e): return e["ticks_elapsed"] < e["total_ticks"] or e["delay"] > 0)
+	_recompute_pending()
+
+	print("[TEMPO] Tick %d | %d in cycle | %d pending" % [global_tempo, current_tempo, _pending_ticks])
+
 	# Emit standard signals so all existing systems (enemies, mana, draw) work per-tick
 	tempo_advanced.emit(global_tempo, 1)
 	tick_started.emit(global_tempo, _pending_ticks)
 
 	tempo_changed.emit(current_tempo, tempo_threshold)
 	_check_threshold()
-
-	# Clean up finished cards (all ticks elapsed and no delay remaining)
-	_active_cards = _active_cards.filter(func(e): return e["ticks_elapsed"] < e["total_ticks"] or e["delay"] > 0)
 
 	# Check if all ticks are done
 	if _pending_ticks <= 0:
@@ -144,33 +171,35 @@ func cancel_card_ticks(card: Card) -> int:
 			_active_cards.remove_at(i)
 			print("[TEMPO] Cancelled card '%s': removed %d ticks" % [card.card_name, remaining])
 
-	_pending_ticks -= cancelled_ticks
+	# Recalculate delays for remaining cards after removal, then recompute the
+	# global remaining-tick count from the survivors.
+	_recalculate_delays()
+	_recompute_pending()
 	if _pending_ticks <= 0:
-		_pending_ticks = 0
 		_ticking = false
 		_active_cards.clear()
 		print("[TEMPO] All ticks cancelled. Stopping tick processing.")
 		ticking_finished.emit()
 
-	# Recalculate delays for remaining cards after removal
-	_recalculate_delays()
-
 	return cancelled_ticks
 
-## Recalculate delay values for active cards after a cancellation.
+## Recalculate delay values for active cards after a cancellation. Delays chain
+## sequentially WITHIN each owner but are independent ACROSS owners (so removing
+## one player's card never reshuffles the teammate's timeline).
 func _recalculate_delays() -> void:
-	# Delays represent how many ticks must pass before this card starts ticking.
-	# After removing a card, we need to ensure delays are consistent with remaining ticks.
-	var cumulative_ticks := 0
+	var cumulative_by_owner := {}  # owner_id -> ticks consumed so far by that owner
 	for entry in _active_cards:
+		var owner_id: int = entry["owner_id"]
+		var cumulative: int = cumulative_by_owner.get(owner_id, 0)
 		if entry["ticks_elapsed"] > 0:
-			# Already ticking — delay should be 0
+			# Already ticking — it keeps its current slot (delay 0)
 			entry["delay"] = 0
-			cumulative_ticks += entry["total_ticks"] - entry["ticks_elapsed"]
+			cumulative = max(cumulative, entry["total_ticks"] - entry["ticks_elapsed"])
 		else:
-			# Not yet started — delay = sum of remaining ticks from prior cards
-			entry["delay"] = cumulative_ticks
-			cumulative_ticks += entry["total_ticks"]
+			# Not yet started — wait for this owner's prior remaining ticks
+			entry["delay"] = cumulative
+			cumulative += entry["total_ticks"]
+		cumulative_by_owner[owner_id] = cumulative
 
 ## Check if ticks are currently being processed
 func is_ticking() -> bool:
