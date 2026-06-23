@@ -11,9 +11,12 @@ var _p2_deck_visible: bool = false
 var _p2_hand_container: VBoxContainer = null
 var _p2_deck_container: VBoxContainer = null
 
-# Player 2 health readout (shown beside Player 1's stat bars)
+# Player 2 health/mana readout (shown beside Player 1's stat bars)
 var _p2_hp_bar: ProgressBar = null
 var _p2_hp_label: Label = null
+var _p2_mana_bar: ProgressBar = null
+var _p2_mana_label: Label = null
+var _p2_title_label: Label = null
 
 func init(main_ref) -> void:
 	main = main_ref
@@ -80,52 +83,78 @@ func _setup_p2_health_bar() -> void:
 	wrapper.offset_bottom = 60.0
 	wrapper.add_theme_constant_override("separation", 2)
 
-	var title := Label.new()
-	title.text = "P2: %s" % main.player2_character.character_name
-	title.add_theme_font_size_override("font_size", 12)
-	title.add_theme_color_override("font_color", Color(1.0, 0.6, 0.35))
-	wrapper.add_child(title)
+	_p2_title_label = Label.new()
+	_p2_title_label.add_theme_font_size_override("font_size", 12)
+	_p2_title_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.35))
+	wrapper.add_child(_p2_title_label)
 
-	var bar_wrap := Control.new()
-	bar_wrap.custom_minimum_size = Vector2(200, 22)
-	wrapper.add_child(bar_wrap)
+	var hp_pair := _make_side_bar(wrapper, Color(0.7, 0.15, 0.15))
+	_p2_hp_bar = hp_pair[0]
+	_p2_hp_label = hp_pair[1]
 
-	_p2_hp_bar = ProgressBar.new()
-	_p2_hp_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_p2_hp_bar.max_value = 100
-	_p2_hp_bar.value = 100
-	_p2_hp_bar.show_percentage = false
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color(0.7, 0.15, 0.15)
-	fill.corner_radius_top_left = 3
-	fill.corner_radius_top_right = 3
-	fill.corner_radius_bottom_left = 3
-	fill.corner_radius_bottom_right = 3
-	_p2_hp_bar.add_theme_stylebox_override("fill", fill)
-	bar_wrap.add_child(_p2_hp_bar)
-
-	_p2_hp_label = Label.new()
-	_p2_hp_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_p2_hp_label.add_theme_font_size_override("font_size", 12)
-	_p2_hp_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	_p2_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_p2_hp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_p2_hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar_wrap.add_child(_p2_hp_label)
+	var mana_pair := _make_side_bar(wrapper, Color(0.15, 0.3, 0.8))
+	_p2_mana_bar = mana_pair[0]
+	_p2_mana_label = mana_pair[1]
 
 	var p2_stats = main._p2_player.get_stats()
 	if p2_stats:
 		p2_stats.health_changed.connect(_on_p2_health_changed)
+		p2_stats.mana_changed.connect(_on_p2_mana_changed)
 		_on_p2_health_changed(p2_stats.current_health, p2_stats.max_health)
+		_on_p2_mana_changed(p2_stats.current_mana, p2_stats.max_mana)
+	update_control_indicator()
+
+func _make_side_bar(parent: VBoxContainer, fill_color: Color) -> Array:
+	var bar_wrap := Control.new()
+	bar_wrap.custom_minimum_size = Vector2(200, 20)
+	parent.add_child(bar_wrap)
+	var bar := ProgressBar.new()
+	bar.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bar.max_value = 100
+	bar.value = 100
+	bar.show_percentage = false
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = fill_color
+	fill.corner_radius_top_left = 3
+	fill.corner_radius_top_right = 3
+	fill.corner_radius_bottom_left = 3
+	fill.corner_radius_bottom_right = 3
+	bar.add_theme_stylebox_override("fill", fill)
+	bar_wrap.add_child(bar)
+	var lbl := Label.new()
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar_wrap.add_child(lbl)
+	return [bar, lbl]
 
 func _on_p2_health_changed(current: int, maximum: int) -> void:
 	if not _p2_hp_bar:
 		return
-	var pct := 0.0
-	if maximum > 0:
-		pct = float(current) / float(maximum) * 100.0
-	_p2_hp_bar.value = pct
+	_p2_hp_bar.max_value = maximum
+	_p2_hp_bar.value = current
 	_p2_hp_label.text = "%d/%d" % [current, maximum]
+
+func _on_p2_mana_changed(current: float, maximum: int) -> void:
+	if not _p2_mana_bar:
+		return
+	_p2_mana_bar.max_value = maximum
+	_p2_mana_bar.value = int(current)
+	_p2_mana_label.text = "%d/%d" % [int(current), maximum]
+
+func update_control_indicator() -> void:
+	## Shows which character TAB is currently controlling.
+	if not _p2_title_label:
+		return
+	var controlling_p2: bool = main._active_index == 1
+	var marker := "[CONTROL] " if controlling_p2 else ""
+	_p2_title_label.text = "%sP2: %s" % [marker, main.player2_character.character_name]
+	# Also recolour Player 1's stat title via main's helper if present.
+	if main.has_method("update_p1_control_indicator"):
+		main.update_p1_control_indicator()
 
 func _setup_p2_buttons() -> void:
 	var ui = main.get_node("UI") as CanvasLayer

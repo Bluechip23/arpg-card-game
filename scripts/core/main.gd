@@ -140,6 +140,11 @@ var _fire_walls: Array = []
 
 # Player 2 state
 var _p2_player: Player = null  # The co-op partner's on-grid character (own stats/figure)
+# Co-op control: which character TAB is driving. `player`/`deck_manager` always
+# point at the active one; _p1_* hold the original Player 1 references.
+var _active_index: int = 0
+var _p1_player: Player = null
+var _p1_deck_manager: DeckManager = null
 var _p2_deck_manager: DeckManager = null
 var _p2_hand_panel: PanelContainer = null
 var _p2_hand_container: VBoxContainer = null
@@ -347,6 +352,8 @@ func _ready() -> void:
 
 	# Multiplayer: initialize P2 deck and UI buttons
 	if is_multiplayer and player2_character:
+		_p1_player = player
+		_p1_deck_manager = deck_manager
 		player2_ui._initialize_player2()
 
 	# Unit tracker (left side panel)
@@ -3782,6 +3789,7 @@ func play_selected_card(target) -> void:
 		var resolve_entry := {
 			"card": card,
 			"target": target,
+			"owner_index": _active_index,  # Co-op: which player played it
 			"data": {
 				"tighten_applied": tighten_applied,
 				"high_ground_applied": high_ground_applied,
@@ -3820,7 +3828,7 @@ func play_selected_card(target) -> void:
 		else:
 			# Initialize the tick bar UI
 			_update_tick_bar(0, tempo_cost, resolve_tick, card.card_name)
-			tempo_manager.add_card_tempo(tempo_cost, card, resolve_tick)
+			tempo_manager.add_card_tempo(tempo_cost, card, resolve_tick, _active_index)
 
 		_on_hand_updated()
 		update_deck_info()
@@ -3837,8 +3845,66 @@ func play_selected_card(target) -> void:
 # ---- Ticked Tempo: Card Resolution Handlers ----
 
 func _on_card_tick_resolved(card: Card) -> void:
-	## Called by TempoManager when a card's resolve_tick is reached.
-	_resolve_queued_card(card)
+	## Called by TempoManager when a card's resolve_tick is reached. In co-op the
+	## resolving card may belong to the player NOT currently being controlled, so
+	## we bind player/deck_manager to the card's owner for the duration of the
+	## resolution, then restore the active context.
+	var owner_idx := _owner_index_for_card(card)
+	if is_multiplayer and owner_idx >= 0 and owner_idx != _active_index:
+		var prev_p := player
+		var prev_d := deck_manager
+		player = _p1_player if owner_idx == 0 else _p2_player
+		deck_manager = _p1_deck_manager if owner_idx == 0 else _p2_deck_manager
+		_resolve_queued_card(card)
+		player = prev_p
+		deck_manager = prev_d
+		# Restore the active player's hand/deck readout (resolution refreshed the
+		# owner's hand into the shared display).
+		_on_hand_updated()
+		update_deck_info()
+	else:
+		_resolve_queued_card(card)
+
+func _owner_index_for_card(card: Card) -> int:
+	## Which player (0 = P1, 1 = P2) queued this still-pending card. -1 if unknown.
+	for e in _pending_resolve_queue:
+		if e["card"] == card:
+			return e.get("owner_index", 0)
+	return -1
+
+func _switch_active_player() -> void:
+	## Co-op: TAB toggles which character you control. Both players' health/mana
+	## bars stay visible; the main hand area, deck info and card-play routing
+	## follow the active character. Cards already in flight keep resolving on
+	## their own owner (see _on_card_tick_resolved).
+	selected_card_index = -1
+	if range_indicator:
+		range_indicator.hide_range()
+
+	# Move the main hand display off the old active deck.
+	if deck_manager.hand_updated.is_connected(_on_hand_updated):
+		deck_manager.hand_updated.disconnect(_on_hand_updated)
+
+	_active_index = 1 - _active_index
+	if _active_index == 0:
+		player = _p1_player
+		deck_manager = _p1_deck_manager
+	else:
+		player = _p2_player
+		deck_manager = _p2_deck_manager
+
+	# Drive the main hand display from the new active deck.
+	if not deck_manager.hand_updated.is_connected(_on_hand_updated):
+		deck_manager.hand_updated.connect(_on_hand_updated)
+
+	_on_hand_updated()
+	update_deck_info()
+	update_selected_display()
+	if player2_ui:
+		player2_ui.update_control_indicator()
+	var who := player2_character.character_name if _active_index == 1 else starting_character.character_name
+	add_battle_log("Now controlling %s" % who, Color(1.0, 0.85, 0.4))
+	print("[MAIN] Co-op: now controlling player %d (%s)" % [_active_index + 1, who])
 
 func _on_player_can_queue() -> void:
 	## Not currently used.
@@ -4493,9 +4559,12 @@ func _input(event: InputEvent) -> void:
 			chest_loot_ui._try_interact_chest()
 			return
 
-		# Tab menu toggle (quest log / map)
+		# TAB: in co-op, switch which character you control; otherwise quest/map menu.
 		if event.keycode == KEY_TAB:
-			minimap_tab_ui._toggle_tab_menu()
+			if is_multiplayer and _p2_player:
+				_switch_active_player()
+			else:
+				minimap_tab_ui._toggle_tab_menu()
 			return
 
 		# Character panel toggle
