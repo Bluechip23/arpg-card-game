@@ -23,6 +23,15 @@ signal shepherds_mark_triggered  # Whispers of the Flock: mark prevented lethal 
 
 var character_data: CharacterData
 
+# Friendship link: when set, this character shares heals with and splits incoming
+# damage 50/50 with the partner. Amounts are passed pre-modifier so each side
+# applies its own amplification/penalty. _friendship_echo guards against echo
+# loops while the linked call is in flight.
+var friendship_partner: PlayerStats = null
+var friendship_partner_debuff = null
+var friendship_partner_buff = null
+var _friendship_echo: bool = false
+
 # ============================================
 # BASE CORE STATS (before determination modifier)
 # ============================================
@@ -615,6 +624,17 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 # ============================================
 
 func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
+	# Friendship: split incoming damage 50/50 (pre-modifier). The partner takes
+	# its half through its own debuff/buff managers; we keep the remainder.
+	if friendship_partner and not _friendship_echo and amount > 1:
+		_friendship_echo = true
+		friendship_partner._friendship_echo = true
+		var partner_half = amount / 2
+		amount = amount - partner_half
+		friendship_partner.take_damage(partner_half, friendship_partner_debuff, friendship_partner_buff)
+		_friendship_echo = false
+		friendship_partner._friendship_echo = false
+
 	var remaining = amount
 
 	# Stone Skin: 10% damage resistance (Fire, Physical, Lightning)
@@ -728,6 +748,13 @@ func heal(amount: int, from_ally: bool = false) -> void:
 	# Corrupted Strength: block ally healing while active
 	if from_ally and st_corrupted_strength_no_ally_heal:
 		return
+	# Friendship: the partner receives the same base heal (their modifiers apply).
+	if friendship_partner and not _friendship_echo and amount > 0:
+		_friendship_echo = true
+		friendship_partner._friendship_echo = true
+		friendship_partner.heal(amount, from_ally)
+		_friendship_echo = false
+		friendship_partner._friendship_echo = false
 	var boosted_amount = get_effective_heal_amount(amount)
 	var old_health_pct = get_health_percent()
 	var old_health = current_health

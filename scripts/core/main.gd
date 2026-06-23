@@ -193,7 +193,6 @@ var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining:
 var _delayed_effects: Array = []  # [{remaining: int, callback: Callable, label: String}]
 var _misery_active: bool = false  # Misery Loves Company: next AOE spreads debuffs
 var _friendship_linked: bool = false  # Friendship: P1/P2 share healing and split damage
-var _friendship_busy: bool = false    # Reentrancy guard for the friendship link
 var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
 
 # Ticked tempo system state
@@ -3770,44 +3769,22 @@ func _cryonics_end(p) -> void:
 		p.untargetable = false
 		add_battle_log("The ice melts — ally can act again.", Color(0.6, 0.85, 1.0))
 
-## Friendship: link both players so heals are shared and incoming damage is split.
-## A reentrancy guard stops the heal/damage echoes from looping.
+## Friendship: link both players' stats so heals are shared and incoming damage
+## is split 50/50 (handled inside PlayerStats.heal/take_damage on pre-modifier
+## amounts, so each side applies its own amplification/penalty).
 func _link_friendship() -> void:
 	if _friendship_linked:
 		return
 	_friendship_linked = true
 	var s1 = _p1_player.get_stats()
 	var s2 = _p2_player.get_stats()
-	if s1:
-		s1.healed.connect(_on_friendship_heal.bind(0))
-		s1.health_damage_taken.connect(_on_friendship_damage.bind(0))
-	if s2:
-		s2.healed.connect(_on_friendship_heal.bind(1))
-		s2.health_damage_taken.connect(_on_friendship_damage.bind(1))
-
-func _on_friendship_heal(amount: int, healer_idx: int) -> void:
-	if _friendship_busy or amount <= 0:
-		return
-	_friendship_busy = true
-	var other = _p2_player if healer_idx == 0 else _p1_player
-	if is_instance_valid(other) and other.get_stats():
-		other.get_stats().heal(amount)
-	_friendship_busy = false
-
-func _on_friendship_damage(amount: int, victim_idx: int) -> void:
-	# Split: refund half to the victim and deal half to the partner.
-	if _friendship_busy or amount <= 1:
-		return
-	_friendship_busy = true
-	var half = amount / 2
-	if half > 0:
-		var victim = _p1_player if victim_idx == 0 else _p2_player
-		var other = _p2_player if victim_idx == 0 else _p1_player
-		if is_instance_valid(victim) and victim.get_stats():
-			victim.get_stats().heal(half)
-		if is_instance_valid(other) and other.get_stats():
-			other.get_stats().take_damage(half)
-	_friendship_busy = false
+	if s1 and s2:
+		s1.friendship_partner = s2
+		s1.friendship_partner_debuff = _p2_player.get_debuff_manager()
+		s1.friendship_partner_buff = _p2_player.get_buff_manager()
+		s2.friendship_partner = s1
+		s2.friendship_partner_debuff = _p1_player.get_debuff_manager()
+		s2.friendship_partner_buff = _p1_player.get_buff_manager()
 
 ## Misery Loves Company: if armed, spread every damage-over-time debuff on the
 ## player and any hit enemy across all the hit enemies (topping each up to the
