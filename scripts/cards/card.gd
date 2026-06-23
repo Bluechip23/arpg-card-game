@@ -52,6 +52,7 @@ var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var in_hand_heal_tempo: int = 0  # Healthy Bliss: heal all allies once this many tempo elapse in hand
+var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var exhaust_on_play: bool = false  # If true, card is removed from the deck entirely after being played (not discarded)
 var roguelike_only: bool = false  # If true, card can only be PLAYED during a roguelike run (still collectible in the story)

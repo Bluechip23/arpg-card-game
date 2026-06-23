@@ -2604,6 +2604,70 @@ func _on_co_op_defeat() -> void:
 	print("[MAIN] CO-OP DEFEAT — both players down.")
 	_show_defeat_overlay()
 
+func _show_release_tension_picker(card: Card, enemy) -> void:
+	## Let the player choose which damage-over-time debuff to drain from the enemy.
+	## Auto-resolves when there are 0 or 1 choices.
+	var fields := {"poison": "poison_stacks", "burn": "burn_stacks", "shock": "shock_stacks", "cold": "cold_stacks"}
+	var present: Array = []
+	for name in ["poison", "burn", "shock", "cold"]:
+		var v = enemy.get(fields[name])
+		if v != null and int(v) > 0:
+			present.append({"name": name, "stacks": int(v)})
+
+	if present.size() <= 1:
+		card.rt_chosen_debuff = present[0]["name"] if present.size() == 1 else ""
+		play_selected_card(enemy)
+		return
+
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "ReleaseTensionPicker"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var pstyle := StyleBoxFlat.new()
+	pstyle.bg_color = Color(0.12, 0.13, 0.18, 1.0)
+	pstyle.set_border_width_all(2)
+	pstyle.border_color = Color(0.4, 0.6, 0.5)
+	pstyle.set_corner_radius_all(8)
+	pstyle.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", pstyle)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	vbox.custom_minimum_size = Vector2(280, 0)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Release Tension — drain which debuff?"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.7, 1.0, 0.8))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	for entry in present:
+		var b := Button.new()
+		b.text = "%s  (%d)" % [str(entry["name"]).capitalize(), entry["stacks"]]
+		b.custom_minimum_size = Vector2(260, 36)
+		b.pressed.connect(func():
+			card.rt_chosen_debuff = entry["name"]
+			overlay.queue_free()
+			play_selected_card(enemy))
+		vbox.add_child(b)
+
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.custom_minimum_size = Vector2(260, 32)
+	cancel.pressed.connect(func(): overlay.queue_free())
+	vbox.add_child(cancel)
+
 func _show_defeat_overlay() -> void:
 	var ui = $UI as CanvasLayer
 	var overlay := ColorRect.new()
@@ -4813,11 +4877,18 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				print("[MAIN] Vines: held target, %d damage x3 cycles" % card.base_damage)
 
 		"release_tension":
-			# Remove one stack of a damage-over-time debuff from the target and heal
-			# 3 per stack removed.
+			# Remove one stack of the player-chosen debuff (falls back to the first
+			# present DoT) and heal 3 per stack removed.
 			var rt_removed = 0
+			var rt_field := {"poison": "poison_stacks", "burn": "burn_stacks", "shock": "shock_stacks", "cold": "cold_stacks"}
 			if target:
-				for prop in ["poison_stacks", "burn_stacks", "shock_stacks", "cold_stacks"]:
+				var order := []
+				if card.rt_chosen_debuff != "" and rt_field.has(card.rt_chosen_debuff):
+					order = [card.rt_chosen_debuff]
+				else:
+					order = ["poison", "burn", "shock", "cold"]
+				for name in order:
+					var prop = rt_field[name]
 					var v = target.get(prop)
 					if v != null and int(v) > 0:
 						target.set(prop, int(v) - 1)
@@ -4827,7 +4898,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if rt_stats and rt_removed > 0:
 				rt_stats.heal(rt_removed * 3)
 			add_battle_log("Release Tension! Removed %d debuff, healed %d" % [rt_removed, rt_removed * 3], Color(0.6, 0.9, 0.7))
-			print("[MAIN] Release Tension: removed %d debuff stack, healed %d" % [rt_removed, rt_removed * 3])
+			print("[MAIN] Release Tension: removed %d %s stack, healed %d" % [rt_removed, card.rt_chosen_debuff, rt_removed * 3])
 
 		"roll":
 			# Roll up to min(tempo_cost, 5) tiles toward the aim point, stopping on
@@ -5243,7 +5314,10 @@ func _input(event: InputEvent) -> void:
 				if enemy:
 					_card_played = true
 					if _is_target_in_card_range(card, enemy):
-						play_selected_card(enemy)
+						if card.card_id == "release_tension":
+							_show_release_tension_picker(card, enemy)
+						else:
+							play_selected_card(enemy)
 					else:
 						var range_type = "ranged" if card.is_ranged else "melee"
 						var dist = _get_distance_to_target(enemy)
