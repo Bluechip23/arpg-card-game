@@ -7,7 +7,6 @@ extends Node
 signal turn_started(turn_number: int)
 signal turn_ended(turn_number: int)
 signal player_turn_started
-signal enemy_turn_started  # Kept for compat (no longer used for enemy actions)
 
 var current_turn: int = 0
 
@@ -53,7 +52,6 @@ func take_turn() -> void:
 	if deck_manager and deck_manager.inventory:
 		deck_manager.inventory.process_turn()
 
-	enemy_turn_started.emit()
 	turn_ended.emit(current_turn)
 
 func _get_effective_draw_tempo() -> float:

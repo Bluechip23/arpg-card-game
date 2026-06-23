@@ -289,8 +289,6 @@ func _ready() -> void:
 	tempo_manager.tempo_changed.connect(_on_tempo_changed)
 	tempo_manager.tempo_advanced.connect(_on_tempo_advanced)
 	tempo_manager.card_resolved.connect(_on_card_tick_resolved)
-	# player_can_queue no longer used — player must wait for ALL ticks to finish
-	# tempo_manager.player_can_queue.connect(_on_player_can_queue)
 	tempo_manager.ticking_finished.connect(_on_ticking_finished)
 	turn_manager.turn_ended.connect(_on_turn_ended)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
@@ -4170,10 +4168,6 @@ func _switch_active_player() -> void:
 	add_battle_log("Now controlling %s" % who, Color(1.0, 0.85, 0.4))
 	print("[MAIN] Co-op: now controlling player %d (%s)" % [_active_index + 1, who])
 
-func _on_player_can_queue() -> void:
-	## Not currently used.
-	pass
-
 func _on_ticking_finished() -> void:
 	## Called when all pending ticks are done. Reset the tick bar.
 	_reset_tick_bar()
@@ -4188,32 +4182,37 @@ func _return_queued_cards_for_dead_target(dead_enemy: Enemy) -> void:
 			var card: Card = entry["card"]
 			var data: Dictionary = entry["data"]
 			_pending_resolve_queue.remove_at(i)
-
-			# Basic attack cards are temporary — just cancel their ticks
-			if data.get("is_basic_attack", false):
-				tempo_manager.cancel_card_ticks(card)
-				add_battle_log("Basic attack cancelled — %s defeated!" % dead_enemy.enemy_name, Color(1.0, 0.85, 0.4))
-				continue
-
-			# Move from discard pile back to hand
-			var discard_idx = deck_manager.discard_pile.find(card)
-			if discard_idx >= 0:
-				deck_manager.discard_pile.remove_at(discard_idx)
-			deck_manager.add_card_to_hand(card)
-
-			# Undo temporary modifications
-			_undo_card_temp_mods(card, data)
-
-			# Cancel remaining ticks
-			var cancelled = tempo_manager.cancel_card_ticks(card)
-
-			add_battle_log("%s returned to hand — %s defeated! (%d tempo refunded)" % [card.card_name, dead_enemy.enemy_name, cancelled], Color(1.0, 0.85, 0.4))
-			print("[MAIN] Card '%s' returned to hand — target '%s' died. Refunded %d ticks." % [card.card_name, dead_enemy.enemy_name, cancelled])
-			cards_returned += 1
+			if _return_dead_target_card(card, data, "%s defeated" % dead_enemy.enemy_name):
+				cards_returned += 1
 
 	if cards_returned > 0:
 		_on_hand_updated()
 		update_deck_info()
+
+func _return_dead_target_card(card: Card, data: Dictionary, context: String) -> bool:
+	## Shared handling for a queued card whose target is gone. Basic attacks are
+	## temporary so they're simply cancelled; real cards return to hand with their
+	## temp mods undone and remaining ticks refunded. Returns true when the card
+	## was put back in hand (false for a cancelled basic attack), so callers know
+	## whether the hand/deck readout needs refreshing.
+	if data.get("is_basic_attack", false):
+		var cancelled_basic = tempo_manager.cancel_card_ticks(card)
+		add_battle_log("Basic attack cancelled — %s! (%d tempo refunded)" % [context, cancelled_basic], Color(1.0, 0.85, 0.4))
+		print("[MAIN] Basic attack cancelled — %s. Refunded %d ticks." % [context, cancelled_basic])
+		return false
+
+	# Move from discard pile (where play_card put it) back to hand
+	var discard_idx = deck_manager.discard_pile.find(card)
+	if discard_idx >= 0:
+		deck_manager.discard_pile.remove_at(discard_idx)
+	deck_manager.add_card_to_hand(card)
+
+	_undo_card_temp_mods(card, data)
+	var cancelled = tempo_manager.cancel_card_ticks(card)
+
+	add_battle_log("%s returned to hand — %s! (%d tempo refunded)" % [card.card_name, context, cancelled], Color(1.0, 0.85, 0.4))
+	print("[MAIN] Card '%s' returned to hand — %s. Refunded %d ticks." % [card.card_name, context, cancelled])
+	return true
 
 func _undo_card_temp_mods(card: Card, data: Dictionary) -> void:
 	## Undo temporary card modifications applied before queuing (tighten, high ground, harnessed).
@@ -4256,30 +4255,11 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		target_is_dead = true
 
 	if target_is_dead and card.card_type == Card.CardType.ATTACK:
-		# Basic attack cards are temporary — just discard them, don't return to hand
-		if data.get("is_basic_attack", false):
-			var cancelled = tempo_manager.cancel_card_ticks(card)
-			add_battle_log("Basic attack cancelled — target defeated! (%d tempo refunded)" % cancelled, Color(1.0, 0.85, 0.4))
-			print("[MAIN] Basic attack cancelled — target died. Refunded %d ticks." % cancelled)
-			return
-
-		# Return the card to the player's hand
-		# Remove from discard pile (where play_card put it)
-		var discard_idx = deck_manager.discard_pile.find(card)
-		if discard_idx >= 0:
-			deck_manager.discard_pile.remove_at(discard_idx)
-		deck_manager.add_card_to_hand(card)
-
-		# Undo temporary card modifications
-		_undo_card_temp_mods(card, data)
-
-		# Cancel remaining ticks for this card in the tempo queue
-		var cancelled = tempo_manager.cancel_card_ticks(card)
-
-		add_battle_log("%s returned to hand — target defeated! (%d tempo refunded)" % [card.card_name, cancelled], Color(1.0, 0.85, 0.4))
-		print("[MAIN] Card '%s' returned to hand — target died before resolution. Refunded %d ticks." % [card.card_name, cancelled])
-		_on_hand_updated()
-		update_deck_info()
+		# Basic attacks are cancelled; real attack cards return to hand. Only a
+		# returned card needs the hand/deck readout refreshed.
+		if _return_dead_target_card(card, data, "target defeated"):
+			_on_hand_updated()
+			update_deck_info()
 		return
 
 	# --- Basic attack resolution: deal damage directly ---

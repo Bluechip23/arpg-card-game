@@ -105,10 +105,6 @@ func _living_players() -> Array:
 				out.append(p)
 	return out
 
-## Legacy method kept for any existing references.
-func process_enemy_turns() -> void:
-	pass
-
 func _on_enemy_died(enemy: Enemy) -> void:
 	enemy_killed.emit(enemy)
 
