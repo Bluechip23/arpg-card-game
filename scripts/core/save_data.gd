@@ -15,6 +15,11 @@ extends Resource
 # Full character data for loading back into the game
 @export var character_data: CharacterData = null
 
+# Persistent co-op partner recruited at the town Sellsword shop. Null for a
+# solo character. When set, the character travels with a second player who can
+# be controlled via TAB in battle.
+@export var player2_character: CharacterData = null
+
 # Snapshot of equipped items (item names for display)
 @export var equipped_item_names: Array[String] = []
 

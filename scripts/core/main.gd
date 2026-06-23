@@ -4834,6 +4834,8 @@ func _enter_interior(interior_id: String, display_name: String = "") -> void:
 	var saved_progression = _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = current_world_level
 	main_scene.current_interior_id = interior_id
 	main_scene.discovered_waypoints = discovered_waypoints
@@ -4849,6 +4851,8 @@ func _exit_interior() -> void:
 	var saved_progression = _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = current_world_level
 	main_scene.return_from_interior_id = current_interior_id
 	main_scene.discovered_waypoints = discovered_waypoints
@@ -6077,6 +6081,8 @@ func _travel_to_town() -> void:
 	var saved_progression = _save_player_progression()
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
+	if "player2_character" in town_scene:
+		town_scene.player2_character = player2_character
 	if "return_world_level" in town_scene:
 		town_scene.return_world_level = current_world_level
 	if "discovered_waypoints" in town_scene:
@@ -6096,6 +6102,8 @@ func _travel_to_world(level: int) -> void:
 	var saved_progression = _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = level
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state

@@ -313,6 +313,7 @@ func _on_mode_town(save: SaveData, _overlay: ColorRect) -> void:
 	print("[LOAD] Going to town with %s" % save.character_name)
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
 	town_scene.starting_character = save.character_data
+	town_scene.player2_character = save.player2_character
 	town_scene.player_progression = ProgressionIO.to_live(save.progression)
 	town_scene.return_world_level = save.world_level
 	town_scene.quest_state = save.progression.get("quest_state", {})
@@ -325,6 +326,8 @@ func _on_mode_fight(save: SaveData, _overlay: ColorRect) -> void:
 	print("[LOAD] Going to fight with %s" % save.character_name)
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = save.character_data
+	main_scene.player2_character = save.player2_character
+	main_scene.is_multiplayer = save.player2_character != null
 	main_scene.player_progression = ProgressionIO.to_live(save.progression)
 	main_scene.current_world_level = save.world_level
 	main_scene.quest_state = save.progression.get("quest_state", {})
