@@ -812,6 +812,33 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_magic_barrier(player_stats)
 		"shepherds_mark":
 			_execute_shepherds_mark(player_stats)
+		# === Previously unimplemented effects ===
+		"heavy_swing", "specific_strike", "hydra_bite":
+			# Straight single-target damage (base_damage carries the value;
+			# play-time cost/gate handled elsewhere).
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+		"savage_strike":
+			_execute_savage_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr, deck_manager, true)
+		"savage_strike_copy":
+			_execute_savage_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr, deck_manager, false)
+		"shield_slam":
+			_execute_shield_slam(target, player_stats)
+		"exposed_artery":
+			_execute_exposed_artery(target)
+		"tower_shield":
+			_execute_tower_shield(player_stats, buff_mgr)
+		"harden":
+			_execute_harden(player_stats, buff_mgr)
+		"hunker_down":
+			_execute_hunker_down(buff_mgr)
+		"energy_barrier":
+			_execute_energy_barrier(player_stats)
+		"the_lights_favor":
+			_execute_the_lights_favor(player_stats, deck_manager)
+		"healthy_habit":
+			_execute_healthy_habit(player_stats, deck_manager)
+		"gargle_and_spit":
+			_execute_gargle_and_spit(player_stats)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3736,6 +3763,97 @@ func _execute_shepherds_mark(player_stats: PlayerStats) -> void:
 		player_stats.st_whispers_active = true
 		player_stats.st_whispers_tempo = 10
 	print("[CARD] Shepherd's Mark: ally marked for 10 tempo!")
+
+# ============================================
+# PREVIOUSLY-UNIMPLEMENTED CARD EFFECTS (Tier 1)
+# ============================================
+
+func _execute_savage_strike(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float, self_damage_percent: float, buff_mgr: BuffManager, deck_manager, add_copy: bool) -> void:
+	## Deal base damage, then (for the original only) seed a fragile copy into the
+	## discard pile. The copy already carries Erase 20 from its create function.
+	_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+	if add_copy and deck_manager:
+		deck_manager.add_card_to_deck_from_id("savage_strike_copy")
+		print("[CARD] Savage Strike! Added a fragile copy (Erase 20) to discard")
+
+func _execute_shield_slam(target, player_stats: PlayerStats) -> void:
+	## Deal damage equal to current armor, then lose half of it.
+	var armor_now := player_stats.current_armor if player_stats else 0
+	last_damage_dealt = armor_now
+	if target and target.has_method("take_damage") and armor_now > 0:
+		target.take_damage(armor_now, true)
+	if player_stats:
+		player_stats.current_armor = player_stats.current_armor / 2
+		player_stats.armor_changed.emit(player_stats.current_armor)
+	print("[CARD] Shield Slam! Dealt %d damage (current armor); kept half" % armor_now)
+
+func _execute_exposed_artery(target) -> void:
+	## Deal damage equal to 0.5 x the target's missing-health percentage.
+	if not target or not target.has_method("take_damage"):
+		return
+	var maxh = target.get("max_health")
+	var curh = target.get("current_health")
+	var dmg := 0
+	if maxh != null and curh != null and int(maxh) > 0:
+		var missing_pct := float(int(maxh) - int(curh)) / float(int(maxh)) * 100.0
+		dmg = floori(0.5 * missing_pct)
+	last_damage_dealt = dmg
+	if dmg > 0:
+		target.take_damage(dmg, true)
+	print("[CARD] Exposed Artery! Dealt %d damage (0.5x missing health%%)" % dmg)
+
+func _execute_tower_shield(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
+	## Gain armor (card.block), then stagger yourself for 40 tempo.
+	if player_stats:
+		player_stats.add_armor(block)
+	if buff_mgr and buff_mgr.debuff_manager:
+		buff_mgr.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.STAGGERED, 1, 40))
+	print("[CARD] Tower Shield! +%d armor, staggered for 40 tempo" % block)
+
+func _execute_harden(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
+	## Gain armor (card.block) and 10% damage resistance for 15 tempo.
+	if player_stats:
+		player_stats.add_armor(block)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_resilient(10, 15, "Harden"))
+	print("[CARD] Harden! +%d armor, 10%% resistance for 15 tempo" % block)
+
+func _execute_hunker_down(buff_mgr: BuffManager) -> void:
+	## Fortify (armor does not decay) for 30 tempo.
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_fortify(30, "Hunker Down"))
+	print("[CARD] Hunker Down! Fortify for 30 tempo")
+
+func _execute_energy_barrier(player_stats: PlayerStats) -> void:
+	## Gain armor (card.block). Erase 1 is handled as a card property.
+	if player_stats:
+		player_stats.add_armor(block)
+	print("[CARD] Energy Barrier! +%d armor" % block)
+
+func _execute_the_lights_favor(player_stats: PlayerStats, deck_manager) -> void:
+	## Heal and draw a card.
+	if player_stats:
+		player_stats.heal(heal_amount)
+	if deck_manager:
+		deck_manager.draw_card()
+	print("[CARD] The Light's Favor! Healed %d and drew a card" % heal_amount)
+
+func _execute_healthy_habit(player_stats: PlayerStats, deck_manager) -> void:
+	## Draw 2 cards and gain 2 mana. Burden is handled as a card property.
+	if deck_manager:
+		deck_manager.draw_card()
+		deck_manager.draw_card()
+	if player_stats:
+		player_stats.gain_mana(2)
+	print("[CARD] Healthy Habit! Drew 2 cards and gained 2 mana")
+
+func _execute_gargle_and_spit(player_stats: PlayerStats) -> void:
+	## Heal and gain +1 strength. Sticky is handled as a card property.
+	if player_stats:
+		player_stats.heal(heal_amount)
+		player_stats.base_strength += 1
+		player_stats.recalculate_derived_stats()
+	print("[CARD] Gargle and Spit! Healed %d and +1 strength" % heal_amount)
 
 static func create_mana_surge() -> Card:
 	var card = Card.new()
