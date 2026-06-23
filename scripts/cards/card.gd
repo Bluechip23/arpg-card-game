@@ -839,6 +839,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_healthy_habit(player_stats, deck_manager)
 		"gargle_and_spit":
 			_execute_gargle_and_spit(player_stats)
+		"multishot":
+			_execute_multi_hit(target, 3, player_stats, damage_reduction_pct, buff_mgr, 10)
+		"exhausted_assault":
+			_execute_multi_hit(target, 3, player_stats, damage_reduction_pct, buff_mgr, 0)
+		"provider":
+			_execute_provider(player_stats)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3854,6 +3860,42 @@ func _execute_gargle_and_spit(player_stats: PlayerStats) -> void:
 		player_stats.base_strength += 1
 		player_stats.recalculate_derived_stats()
 	print("[CARD] Gargle and Spit! Healed %d and +1 strength" % heal_amount)
+
+func _execute_multi_hit(target, hits: int, player_stats: PlayerStats, damage_reduction_pct: float, buff_mgr: BuffManager, crit_step: int) -> int:
+	## Deal base_damage to a single target `hits` times. crit_step adds that much
+	## crit chance per successive hit (multishot); 0 for flat hits (exhausted
+	## assault). Stops early if the target dies mid-volley.
+	var total := 0
+	for hit in range(hits):
+		if not target or not is_instance_valid(target) or not target.has_method("take_damage"):
+			break
+		var dead = target.get("is_dead")
+		if dead == true:
+			break
+		var dmg = base_damage + bonus_damage
+		if player_stats:
+			dmg = player_stats.get_effective_physical_damage(dmg)
+		if buff_mgr:
+			dmg += buff_mgr.consume_strengthen()
+			if buff_mgr.roll_crit(crit_step * hit):
+				dmg = floori(dmg * 1.5)
+				print("[CARD] %s CRIT on hit %d!" % [card_name, hit + 1])
+		if damage_reduction_pct > 0.0:
+			dmg = max(1, floori(dmg * (1.0 - damage_reduction_pct)))
+		target.take_damage(dmg, true)
+		total += dmg
+	last_damage_dealt = total
+	print("[CARD] %s dealt %d damage across %d hits" % [card_name, total, hits])
+	return total
+
+func _execute_provider(player_stats: PlayerStats) -> void:
+	## Heal the targeted ally and give them 1 mana. (Ally routing in
+	## execute_deferred_card points player_stats at the chosen ally.) Burden is a
+	## card property.
+	if player_stats:
+		player_stats.heal(heal_amount)
+		player_stats.gain_mana(1)
+	print("[CARD] Provider! Healed %d and gave 1 mana to the ally" % heal_amount)
 
 static func create_mana_surge() -> Card:
 	var card = Card.new()
