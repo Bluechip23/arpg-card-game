@@ -31,7 +31,7 @@ func _initialize_player2() -> void:
 	# Spawn the partner as a real character on the battle grid (own stats/figure).
 	_spawn_p2_player()
 
-	print("[MAIN] Player 2 initialized: %s (hand: %d cards)" % [main.player2_character.character_name, main._p2_deck_manager.hand.size()])
+	print("[P2] Player 2 initialized: %s (hand: %d cards)" % [main.player2_character.character_name, main._p2_deck_manager.hand.size()])
 
 	_setup_p2_buttons()
 	_setup_p2_hand_panel()
@@ -152,9 +152,6 @@ func update_control_indicator() -> void:
 	var controlling_p2: bool = main._active_index == 1
 	var marker := "[CONTROL] " if controlling_p2 else ""
 	_p2_title_label.text = "%sP2: %s" % [marker, main.player2_character.character_name]
-	# Also recolour Player 1's stat title via main's helper if present.
-	if main.has_method("update_p1_control_indicator"):
-		main.update_p1_control_indicator()
 
 func _setup_p2_buttons() -> void:
 	var ui = main.get_node("UI") as CanvasLayer

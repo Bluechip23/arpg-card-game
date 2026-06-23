@@ -158,13 +158,12 @@ var _batch_pending: int = 0               # How many batched movers are still in
 var _downed: Dictionary = {0: false, 1: false}
 var _co_op_defeated: bool = false
 var _downed_markers: Dictionary = {}      # index -> Label3D "DOWNED" tag
+# These four are created by Player2UI but stored on Main so its hover/preview
+# handlers can reach them. The hand/deck open-state and list containers live in
+# Player2UI itself (do not re-add them here).
 var _p2_hand_panel: PanelContainer = null
-var _p2_hand_container: VBoxContainer = null
-var _p2_hand_visible: bool = false
 var _p2_hand_card_preview: PanelContainer = null
 var _p2_deck_panel: PanelContainer = null
-var _p2_deck_container: VBoxContainer = null
-var _p2_deck_visible: bool = false
 var _p2_deck_card_preview: PanelContainer = null
 
 var deck_list_panel: PanelContainer = null
