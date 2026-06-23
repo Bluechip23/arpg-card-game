@@ -3166,6 +3166,15 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 		else:
 			player.play_animation("hit")
 	var stats = player.get_stats()
+
+	# Exposed (damage broke through armor): fire on_exposed reactions.
+	var exposed_reactions = deck_manager.trigger_reactions("on_exposed")
+	for rcard in exposed_reactions:
+		rcard.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+		if rcard.card_id == "vengeful_shield":
+			_stun_nearest_enemy(2.0)
+	if exposed_reactions.size() > 0:
+		_refresh_unit_tracker()
 	for card in deck_manager.get_maintained_cards():
 		if card.card_id == "armored_discipline":
 			stats.add_armor(hp_amount)
@@ -3770,6 +3779,21 @@ func _try_this_revert(tt_stats) -> void:
 	if is_instance_valid(tt_stats):
 		tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
 		tt_stats.hand_size = max(1, tt_stats.hand_size - 2)
+
+func _stun_nearest_enemy(within: float) -> void:
+	## Stun the closest living enemy within `within` tiles of the player.
+	if not enemy_spawner:
+		return
+	var nearest = null
+	var best := INF
+	for en in enemy_spawner.get_living_enemies():
+		var d = player.position.distance_to(en.position)
+		if d <= within and d < best:
+			best = d
+			nearest = en
+	if nearest and nearest.has_method("apply_stun"):
+		nearest.apply_stun()
+		add_battle_log("Vengeful Shield: stunned %s!" % nearest.enemy_name, Color(1.0, 1.0, 0.3))
 
 func _harness_lightning_tick() -> void:
 	## Harness Lightning orb: zap a random living enemy within 3 tiles for 4.
@@ -6650,7 +6674,11 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var triggered = deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
-	if triggered.size() > 0:
+	# Cover: an ally taking damage (self in solo) fires its mitigation reaction.
+	var cover_reactions = deck_manager.trigger_reactions("on_ally_damage_taken")
+	for card in cover_reactions:
+		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+	if triggered.size() > 0 or cover_reactions.size() > 0:
 		_refresh_unit_tracker()
 
 	var stats = player.get_stats()

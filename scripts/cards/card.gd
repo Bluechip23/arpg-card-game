@@ -1653,10 +1653,11 @@ func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = 
 	print("[CARD] Poisoned Blood! Heal cards now deal damage instead for 15 tempo")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Poison cards now heal
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_regen(3, 495, "Elixir"))
-	print("[CARD] Elixir! Poison effects now heal instead")
+	# Poison now heals instead of hurting for the next ~30 cycles.
+	if player_stats:
+		player_stats.elixir_active = true
+		player_stats.elixir_tempo = 150
+	print("[CARD] Elixir! Poison now heals you instead")
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -3451,12 +3452,14 @@ static func create_cover() -> Card:
 	return card
 
 func _execute_cover(player_stats: PlayerStats, deck_manager = null) -> void:
-	# Cover's damage reduction is calculated based on hand size at time of trigger.
-	# The actual interception is handled in main.gd.
+	# Reaction (post-damage): heal the ally back by the number of cards in hand,
+	# approximating "reduce the incoming damage by your hand size".
 	var hand_size = 0
 	if deck_manager:
 		hand_size = deck_manager.hand.size()
-	print("[CARD] Cover triggered! Reducing ally damage by %d (cards in hand)" % hand_size)
+	if player_stats and hand_size > 0:
+		player_stats.heal(hand_size)
+	print("[CARD] Cover triggered! Mitigated %d damage (cards in hand)" % hand_size)
 
 static func create_fortify_alliance() -> Card:
 	var card = Card.new()
@@ -3755,9 +3758,9 @@ func _execute_best_offense(player_stats: PlayerStats, deck_manager = null, buff_
 		print("[CARD] Best Offense: Gained %d Smith for 25 tempo" % smith_amount)
 
 func _execute_vengeful_shield(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Reaction: stun enemy + gain 5 armor - stun is handled by main.gd
+	# Reaction: gain 5 armor (the stun is handled in main on_exposed dispatch).
 	if player_stats:
-		player_stats.gain_armor(5)
+		player_stats.add_armor(5)
 		print("[CARD] Vengeful Shield: Gained 5 armor")
 
 # ============================================
