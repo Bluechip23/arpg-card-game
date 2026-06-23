@@ -4176,6 +4176,9 @@ func _play_card_animation(card: Card, target) -> void:
 	var dir = _facing_dir_toward(target)
 	# Card defines its own animation action (shared with the Animation Lab)
 	player.play_animation(card.get_animation_action(), dir)
+	# Worms Armageddon: only burst the Alaskan Bull Worm when its 10% summon hits.
+	if card.card_id == "worms_armageddon" and card.rng_binary_succeeded() and player.has_method("show_worm_summon"):
+		player.show_worm_summon()
 
 func _get_card_play_target_pos(target) -> Vector2:
 	## Returns a screen position to animate the card toward (in hand_container local coords).
