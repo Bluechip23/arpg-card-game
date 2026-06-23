@@ -139,7 +139,25 @@ var _roguelike_relics: Array = []  # Relics carried by the run (drive in-battle 
 var _fire_walls: Array = []
 
 # Player 2 state
+var _p2_player: Player = null  # The co-op partner's on-grid character (own stats/figure)
+# Co-op control: which character TAB is driving. `player`/`deck_manager` always
+# point at the active one; _p1_* hold the original Player 1 references.
+var _active_index: int = 0
+var _p1_player: Player = null
+var _p1_deck_manager: DeckManager = null
 var _p2_deck_manager: DeckManager = null
+# Co-op "lock in movement": queued moves per player index, executed together by
+# the on-screen "Move Players" button so simultaneous movement shares tempo.
+var _locked_moves: Dictionary = {}        # index -> {"pos": Vector3, "spaces": int}
+var _locked_move_markers: Dictionary = {} # index -> Node3D ghost marker
+var _move_players_button: Button = null
+var _batch_moving: bool = false           # True while a locked-in batch is moving
+var _batch_pending: int = 0               # How many batched movers are still in motion
+# Co-op defeat: a player at 0 HP is "downed" but the fight continues; only when
+# BOTH are downed is it a defeat. A downed player can be revived by healing.
+var _downed: Dictionary = {0: false, 1: false}
+var _co_op_defeated: bool = false
+var _downed_markers: Dictionary = {}      # index -> Label3D "DOWNED" tag
 var _p2_hand_panel: PanelContainer = null
 var _p2_hand_container: VBoxContainer = null
 var _p2_hand_visible: bool = false
@@ -287,6 +305,7 @@ func _ready() -> void:
 
 	move_dialog.confirmed.connect(_on_move_confirmed)
 	move_dialog.cancelled.connect(_on_move_cancelled)
+	move_dialog.lock_in_requested.connect(_on_move_lock_in)
 	
 	# Enemy spawner
 	enemy_spawner.initialize(grid_manager, player)
@@ -346,7 +365,17 @@ func _ready() -> void:
 
 	# Multiplayer: initialize P2 deck and UI buttons
 	if is_multiplayer and player2_character:
+		_p1_player = player
+		_p1_deck_manager = deck_manager
 		player2_ui._initialize_player2()
+		# Route Player 2's per-tile movement through the same handlers (they act on
+		# the active player, which is P2 whenever you're controlling it).
+		if _p2_player:
+			_p2_player.tile_reached.connect(_on_player_tile_reached)
+			_p2_player.move_completed.connect(_on_player_move_completed)
+			# Enemies target the nearest living player; defeat needs both downed.
+			enemy_spawner.players = [_p1_player, _p2_player]
+			_setup_co_op_defeat()
 
 	# Unit tracker (left side panel)
 	_setup_unit_tracker()
@@ -355,6 +384,10 @@ func _ready() -> void:
 	_setup_dungeon()
 	_update_enemy_count()
 	_refresh_unit_tracker()
+
+	# Co-op: now that the dungeon has placed Player 1, seat Player 2 beside them.
+	if is_multiplayer and _p2_player:
+		player2_ui.reposition_beside_p1()
 
 	# Roguelike encounter: spawn the fight for this map node and arm the
 	# return-to-map hook. Only runs when launched from the roguelike map.
@@ -2338,6 +2371,10 @@ func trigger_multiple_turns(count: int) -> void:
 var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
 
 func _on_player_tile_reached() -> void:
+	# During a locked-in batch move, the shared movement tempo is charged once up
+	# front (see _on_move_players_pressed), so skip the normal per-tile accounting.
+	if _batch_moving:
+		return
 	# Check if the player stepped onto an enemy-occupied tile (pass-through costs 2 tempo)
 	var player_cell = grid_manager.world_to_grid(player.position)
 	var passed_through_enemy = false
@@ -2397,6 +2434,240 @@ func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 
 func _on_move_cancelled() -> void:
 	print("[INPUT] Movement cancelled")
+
+# ---- Co-op locked-in (batched) movement ----
+
+func _on_move_lock_in(target_pos: Vector3, spaces: int) -> void:
+	## Queue the active character's move without spending tempo or moving yet, so
+	## the player can TAB to the partner and queue theirs too. The "Move Players"
+	## button then runs every locked move together on shared tempo.
+	var debuff_mgr = player.get_debuff_manager()
+	if debuff_mgr and debuff_mgr.is_tethered():
+		if not debuff_mgr.is_within_tether_range(target_pos, grid_manager.grid_size):
+			print("[MAIN] Cannot lock in move - Tethered! Out of range.")
+			return
+
+	_locked_moves[_active_index] = {"pos": target_pos, "spaces": spaces}
+	_show_locked_marker(_active_index, target_pos)
+	_ensure_move_players_button()
+	_move_players_button.visible = true
+	var who := player2_character.character_name if _active_index == 1 else starting_character.character_name
+	add_battle_log("%s movement locked in (%d). TAB to the partner or press Move Players." % [who, spaces], Color(1.0, 0.85, 0.4))
+	print("[MAIN] Locked in move for player %d: %d spaces" % [_active_index + 1, spaces])
+
+func _ensure_move_players_button() -> void:
+	if _move_players_button and is_instance_valid(_move_players_button):
+		return
+	var ui = $UI as CanvasLayer
+	_move_players_button = Button.new()
+	_move_players_button.name = "MovePlayersButton"
+	_move_players_button.text = "▶ Move Players"
+	_move_players_button.add_theme_font_size_override("font_size", 16)
+	_move_players_button.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	ui.add_child(_move_players_button)
+	_move_players_button.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_move_players_button.offset_left = -80.0
+	_move_players_button.offset_top = 70.0
+	_move_players_button.offset_right = 80.0
+	_move_players_button.offset_bottom = 104.0
+	_move_players_button.pressed.connect(_on_move_players_pressed)
+	_move_players_button.visible = false
+
+func _on_move_players_pressed() -> void:
+	## Execute every locked-in move at once. Because the moves happen
+	## simultaneously, the shared movement tempo is the LONGEST move's cost,
+	## charged a single time rather than summed per character.
+	if _locked_moves.is_empty():
+		return
+
+	var shared_steps := 0
+	for idx in _locked_moves:
+		shared_steps = max(shared_steps, int(_locked_moves[idx]["spaces"]))
+
+	_batch_moving = true
+	_batch_pending = _locked_moves.size()
+
+	# Charge the shared movement tempo once for the synchronized steps.
+	for i in range(shared_steps):
+		tempo_manager.add_movement_tempo()
+
+	for idx in _locked_moves.keys():
+		var mv = _locked_moves[idx]
+		var p: Player = _p1_player if idx == 0 else _p2_player
+		if p and is_instance_valid(p):
+			if not p.move_completed.is_connected(_on_batch_mover_done):
+				p.move_completed.connect(_on_batch_mover_done, CONNECT_ONE_SHOT)
+			p.move_to_grid(mv["pos"], int(mv["spaces"]))
+
+	_clear_locked_markers()
+	_locked_moves.clear()
+	if _move_players_button:
+		_move_players_button.visible = false
+	add_battle_log("Players move together! (%d tempo)" % shared_steps, Color(0.5, 1.0, 0.6))
+	print("[MAIN] Batch move: %d movers, shared %d steps" % [_batch_pending, shared_steps])
+
+func _on_batch_mover_done() -> void:
+	_batch_pending -= 1
+	if _batch_pending <= 0:
+		_batch_moving = false
+		_batch_pending = 0
+		print("[MAIN] Batch move complete.")
+
+## Returns the player character whose tile is at/near the world position, or null.
+## Used for co-op ally targeting (click the partner to heal/buff them).
+func _player_at_position(world_pos: Vector3) -> Player:
+	var best: Player = null
+	var best_d := 1.2  # within ~1 tile of the click
+	for p in _all_players():
+		if not is_instance_valid(p):
+			continue
+		var d := Vector2(p.position.x - world_pos.x, p.position.z - world_pos.z).length()
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+func _all_players() -> Array:
+	if is_multiplayer and _p2_player:
+		return [_p1_player, _p2_player]
+	return [player]
+
+# ---- Co-op downed / revive / defeat ----
+
+func _setup_co_op_defeat() -> void:
+	var s1 = _p1_player.get_stats()
+	var s2 = _p2_player.get_stats()
+	if s1:
+		s1.died.connect(_on_co_op_player_died.bind(0))
+		s1.health_changed.connect(func(c, _m): _on_co_op_health(0, c))
+	if s2:
+		s2.died.connect(_on_co_op_player_died.bind(1))
+		s2.health_changed.connect(func(c, _m): _on_co_op_health(1, c))
+
+func _on_co_op_player_died(idx: int) -> void:
+	if not is_multiplayer or _downed.get(idx, false):
+		return
+	_downed[idx] = true
+	var who := player2_character.character_name if idx == 1 else starting_character.character_name
+	add_battle_log("%s has fallen! Heal them to revive." % who, Color(1.0, 0.3, 0.3))
+	print("[MAIN] Co-op: player %d (%s) is DOWNED" % [idx + 1, who])
+	_show_downed_marker(idx, true)
+
+	# If the fallen character was the one being controlled, hand control to the
+	# surviving partner automatically.
+	if _active_index == idx and not _downed.get(1 - idx, false):
+		_switch_active_player()
+
+	if _downed.get(0, false) and _downed.get(1, false):
+		_on_co_op_defeat()
+
+func _on_co_op_health(idx: int, current: int) -> void:
+	# Revive a downed partner the moment they're healed above 0.
+	if not is_multiplayer or _co_op_defeated:
+		return
+	if current > 0 and _downed.get(idx, false):
+		_downed[idx] = false
+		var who := player2_character.character_name if idx == 1 else starting_character.character_name
+		add_battle_log("%s is back on their feet!" % who, Color(0.5, 1.0, 0.6))
+		print("[MAIN] Co-op: player %d (%s) REVIVED at %d HP" % [idx + 1, who, current])
+		_show_downed_marker(idx, false)
+
+func _show_downed_marker(idx: int, downed: bool) -> void:
+	var p: Player = _p1_player if idx == 0 else _p2_player
+	if not p or not is_instance_valid(p):
+		return
+	if not downed:
+		if _downed_markers.has(idx):
+			var old = _downed_markers[idx]
+			if is_instance_valid(old):
+				old.queue_free()
+			_downed_markers.erase(idx)
+		return
+	var tag := Label3D.new()
+	tag.text = "DOWNED"
+	tag.font_size = 32
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.modulate = Color(1.0, 0.25, 0.25)
+	tag.outline_size = 10
+	tag.position = Vector3(0, 2.6, 0)
+	p.add_child(tag)
+	_downed_markers[idx] = tag
+
+func _on_co_op_defeat() -> void:
+	if _co_op_defeated:
+		return
+	_co_op_defeated = true
+	add_battle_log("Both heroes have fallen. Defeat.", Color(1.0, 0.2, 0.2))
+	print("[MAIN] CO-OP DEFEAT — both players down.")
+	_show_defeat_overlay()
+
+func _show_defeat_overlay() -> void:
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "DefeatOverlay"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.8)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.add_theme_constant_override("separation", 18)
+	overlay.add_child(box)
+
+	var title := Label.new()
+	title.text = "DEFEAT"
+	title.add_theme_font_size_override("font_size", 56)
+	title.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var sub := Label.new()
+	sub.text = "Both heroes have fallen."
+	sub.add_theme_font_size_override("font_size", 20)
+	sub.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+
+	var town_btn := Button.new()
+	town_btn.text = "Return to Town"
+	town_btn.custom_minimum_size = Vector2(220, 44)
+	town_btn.pressed.connect(_travel_to_town)
+	box.add_child(town_btn)
+
+func _show_locked_marker(idx: int, world_pos: Vector3) -> void:
+	## A translucent ghost at the locked destination so the queued move is visible.
+	_remove_locked_marker(idx)
+	var marker := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.35
+	mesh.bottom_radius = 0.35
+	mesh.height = 0.08
+	marker.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.3, 0.9, 0.4, 0.45) if idx == 0 else Color(1.0, 0.6, 0.3, 0.45)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	marker.material_override = mat
+	marker.position = Vector3(world_pos.x, 0.1, world_pos.z)
+	add_child(marker)
+	_locked_move_markers[idx] = marker
+
+func _remove_locked_marker(idx: int) -> void:
+	if _locked_move_markers.has(idx):
+		var m = _locked_move_markers[idx]
+		if is_instance_valid(m):
+			m.queue_free()
+		_locked_move_markers.erase(idx)
+
+func _clear_locked_markers() -> void:
+	for idx in _locked_move_markers.keys():
+		var m = _locked_move_markers[idx]
+		if is_instance_valid(m):
+			m.queue_free()
+	_locked_move_markers.clear()
 
 ## Fires on every global tempo addition - routes to per-system handlers.
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
@@ -3777,6 +4048,7 @@ func play_selected_card(target) -> void:
 		var resolve_entry := {
 			"card": card,
 			"target": target,
+			"owner_index": _active_index,  # Co-op: which player played it
 			"data": {
 				"tighten_applied": tighten_applied,
 				"high_ground_applied": high_ground_applied,
@@ -3815,7 +4087,7 @@ func play_selected_card(target) -> void:
 		else:
 			# Initialize the tick bar UI
 			_update_tick_bar(0, tempo_cost, resolve_tick, card.card_name)
-			tempo_manager.add_card_tempo(tempo_cost, card, resolve_tick)
+			tempo_manager.add_card_tempo(tempo_cost, card, resolve_tick, _active_index)
 
 		_on_hand_updated()
 		update_deck_info()
@@ -3832,8 +4104,72 @@ func play_selected_card(target) -> void:
 # ---- Ticked Tempo: Card Resolution Handlers ----
 
 func _on_card_tick_resolved(card: Card) -> void:
-	## Called by TempoManager when a card's resolve_tick is reached.
-	_resolve_queued_card(card)
+	## Called by TempoManager when a card's resolve_tick is reached. In co-op the
+	## resolving card may belong to the player NOT currently being controlled, so
+	## we bind player/deck_manager to the card's owner for the duration of the
+	## resolution, then restore the active context.
+	var owner_idx := _owner_index_for_card(card)
+	if is_multiplayer and owner_idx >= 0 and owner_idx != _active_index:
+		var prev_p := player
+		var prev_d := deck_manager
+		player = _p1_player if owner_idx == 0 else _p2_player
+		deck_manager = _p1_deck_manager if owner_idx == 0 else _p2_deck_manager
+		_resolve_queued_card(card)
+		player = prev_p
+		deck_manager = prev_d
+		# Restore the active player's hand/deck readout (resolution refreshed the
+		# owner's hand into the shared display).
+		_on_hand_updated()
+		update_deck_info()
+	else:
+		_resolve_queued_card(card)
+
+func _owner_index_for_card(card: Card) -> int:
+	## Which player (0 = P1, 1 = P2) queued this still-pending card. -1 if unknown.
+	for e in _pending_resolve_queue:
+		if e["card"] == card:
+			return e.get("owner_index", 0)
+	return -1
+
+func _switch_active_player() -> void:
+	## Co-op: TAB toggles which character you control. Both players' health/mana
+	## bars stay visible; the main hand area, deck info and card-play routing
+	## follow the active character. Cards already in flight keep resolving on
+	## their own owner (see _on_card_tick_resolved).
+	# Don't hand control to a downed partner.
+	var target_index := 1 - _active_index
+	if _downed.get(target_index, false):
+		add_battle_log("%s is down and can't be controlled." % (player2_character.character_name if target_index == 1 else starting_character.character_name), Color(1.0, 0.5, 0.5))
+		return
+
+	selected_card_index = -1
+	if range_indicator:
+		range_indicator.hide_range()
+
+	# Move the main hand display off the old active deck.
+	if deck_manager.hand_updated.is_connected(_on_hand_updated):
+		deck_manager.hand_updated.disconnect(_on_hand_updated)
+
+	_active_index = 1 - _active_index
+	if _active_index == 0:
+		player = _p1_player
+		deck_manager = _p1_deck_manager
+	else:
+		player = _p2_player
+		deck_manager = _p2_deck_manager
+
+	# Drive the main hand display from the new active deck.
+	if not deck_manager.hand_updated.is_connected(_on_hand_updated):
+		deck_manager.hand_updated.connect(_on_hand_updated)
+
+	_on_hand_updated()
+	update_deck_info()
+	update_selected_display()
+	if player2_ui:
+		player2_ui.update_control_indicator()
+	var who := player2_character.character_name if _active_index == 1 else starting_character.character_name
+	add_battle_log("Now controlling %s" % who, Color(1.0, 0.85, 0.4))
+	print("[MAIN] Co-op: now controlling player %d (%s)" % [_active_index + 1, who])
 
 func _on_player_can_queue() -> void:
 	## Not currently used.
@@ -4462,6 +4798,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_open_donation_panel()
 
 func _input(event: InputEvent) -> void:
+	# Both heroes are down — the defeat overlay takes over.
+	if _co_op_defeated:
+		return
+
 	# Block game input while donation panel is open
 	if _donation_active:
 		return
@@ -4488,9 +4828,12 @@ func _input(event: InputEvent) -> void:
 			chest_loot_ui._try_interact_chest()
 			return
 
-		# Tab menu toggle (quest log / map)
+		# TAB: in co-op, switch which character you control; otherwise quest/map menu.
 		if event.keycode == KEY_TAB:
-			minimap_tab_ui._toggle_tab_menu()
+			if is_multiplayer and _p2_player:
+				_switch_active_player()
+			else:
+				minimap_tab_ui._toggle_tab_menu()
 			return
 
 		# Character panel toggle
@@ -4589,11 +4932,11 @@ func _input(event: InputEvent) -> void:
 
 			# Fall through to other target types if no enemy was clicked
 			if not _card_played:
-				if "self" in tt:
-					play_selected_card(player)
-				elif "ally" in tt:
-					# TODO: ally selection - for now target self
-					play_selected_card(player)
+				if "self" in tt or "ally" in tt:
+					# Co-op: clicking the partner targets them (heal/buff an ally);
+					# clicking yourself or empty ground defaults to self.
+					var tgt_player := _player_at_position(mouse_pos)
+					play_selected_card(tgt_player if tgt_player else player)
 				elif "all_nearby" in tt:
 					play_selected_card(player)
 				elif "point" in tt:
@@ -4613,6 +4956,10 @@ func _input(event: InputEvent) -> void:
 
 			if spaces == 0:
 				print("[INPUT] Already at that location")
+			elif is_multiplayer and _p2_player:
+				# Co-op: always offer the dialog (even a single step) so the move can
+				# be locked in and executed together with the partner's.
+				move_dialog.show_dialog(mouse_pos, spaces, true)
 			elif spaces == 1:
 				player.move_to_grid(mouse_pos, 1)
 			else:
@@ -4834,6 +5181,8 @@ func _enter_interior(interior_id: String, display_name: String = "") -> void:
 	var saved_progression = _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = current_world_level
 	main_scene.current_interior_id = interior_id
 	main_scene.discovered_waypoints = discovered_waypoints
@@ -4849,6 +5198,8 @@ func _exit_interior() -> void:
 	var saved_progression = _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = current_world_level
 	main_scene.return_from_interior_id = current_interior_id
 	main_scene.discovered_waypoints = discovered_waypoints
@@ -6077,6 +6428,8 @@ func _travel_to_town() -> void:
 	var saved_progression = _save_player_progression()
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
+	if "player2_character" in town_scene:
+		town_scene.player2_character = player2_character
 	if "return_world_level" in town_scene:
 		town_scene.return_world_level = current_world_level
 	if "discovered_waypoints" in town_scene:
@@ -6096,6 +6449,8 @@ func _travel_to_world(level: int) -> void:
 	var saved_progression = _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = level
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state

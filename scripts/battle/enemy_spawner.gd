@@ -13,6 +13,9 @@ const EnemyScene = preload("res://scenes/battle/enemy.tscn")
 var enemies: Array[Enemy] = []
 var grid_manager: GridManager
 var player: Player
+# All player characters enemies may target (co-op aware). When empty, falls back
+# to the single `player`. Enemies attack the nearest living one.
+var players: Array = []
 
 func initialize(gm: GridManager, p: Player) -> void:
 	grid_manager = gm
@@ -77,7 +80,30 @@ func get_living_enemies() -> Array[Enemy]:
 func on_tempo_advanced(amount: int) -> void:
 	var living = get_living_enemies()
 	for enemy in living:
-		enemy.on_tempo_advanced(amount, player)
+		enemy.on_tempo_advanced(amount, _target_for(enemy))
+
+## Pick the nearest living player for this enemy to act against (co-op aware).
+func _target_for(enemy: Enemy) -> Node3D:
+	var candidates := _living_players()
+	if candidates.is_empty():
+		return player  # solo fallback (or both downed — let it act on P1)
+	var best: Node3D = null
+	var best_d := INF
+	for p in candidates:
+		var d: float = enemy.position.distance_to(p.position)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+func _living_players() -> Array:
+	var out := []
+	for p in players:
+		if is_instance_valid(p) and p.has_method("get_stats"):
+			var st = p.get_stats()
+			if st and st.current_health > 0:
+				out.append(p)
+	return out
 
 ## Legacy method kept for any existing references.
 func process_enemy_turns() -> void:

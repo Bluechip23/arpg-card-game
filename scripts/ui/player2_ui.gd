@@ -11,6 +11,13 @@ var _p2_deck_visible: bool = false
 var _p2_hand_container: VBoxContainer = null
 var _p2_deck_container: VBoxContainer = null
 
+# Player 2 health/mana readout (shown beside Player 1's stat bars)
+var _p2_hp_bar: ProgressBar = null
+var _p2_hp_label: Label = null
+var _p2_mana_bar: ProgressBar = null
+var _p2_mana_label: Label = null
+var _p2_title_label: Label = null
+
 func init(main_ref) -> void:
 	main = main_ref
 
@@ -20,11 +27,134 @@ func _initialize_player2() -> void:
 	main._p2_deck_manager.name = "P2DeckManager"
 	add_child(main._p2_deck_manager)
 	main._p2_deck_manager.initialize_deck(main.player2_character)
+
+	# Spawn the partner as a real character on the battle grid (own stats/figure).
+	_spawn_p2_player()
+
 	print("[MAIN] Player 2 initialized: %s (hand: %d cards)" % [main.player2_character.character_name, main._p2_deck_manager.hand.size()])
 
 	_setup_p2_buttons()
 	_setup_p2_hand_panel()
 	_setup_p2_deck_panel()
+	_setup_p2_health_bar()
+
+func _spawn_p2_player() -> void:
+	## Adds a second Player node to the battlefield, one tile beside Player 1,
+	## with its own stats, inventory and procedural figure.
+	var p2 := load("res://scenes/character/player.tscn").instantiate() as Player
+	p2.name = "Player2"
+	main.add_child(p2)
+	main._p2_player = p2
+
+	if main.grid_manager:
+		p2.set_grid_manager(main.grid_manager)
+	p2.enemy_spawner = main.enemy_spawner
+	reposition_beside_p1()
+
+	p2.initialize_character(main.player2_character)
+	# Connect P2's deck to its own inventory/stats so its cards work independently.
+	main._p2_deck_manager.connect_player_stats(p2.get_stats())
+	if p2.has_method("connect_deck_to_inventory"):
+		p2.connect_deck_to_inventory(main._p2_deck_manager)
+	main._p2_deck_manager.connect_inventory(p2.get_inventory())
+
+func reposition_beside_p1() -> void:
+	## Snap Player 2 to a free-ish tile beside Player 1. Called after the dungeon
+	## places Player 1 so the partner starts the fight next to them.
+	if not main._p2_player:
+		return
+	var spawn_pos: Vector3 = main.player.position + Vector3(1, 0, 0)
+	if main.grid_manager:
+		spawn_pos = main.grid_manager.snap_to_grid(spawn_pos)
+	main._p2_player.position = spawn_pos
+	main._p2_player.target_position = spawn_pos
+
+func _setup_p2_health_bar() -> void:
+	## A compact HP readout for Player 2, placed just right of Player 1's stat bars
+	## so both partners' health is visible at a glance.
+	var ui = main.get_node("UI") as CanvasLayer
+	var wrapper := VBoxContainer.new()
+	wrapper.name = "P2StatBars"
+	ui.add_child(wrapper)
+	wrapper.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	wrapper.offset_left = 440.0
+	wrapper.offset_top = 8.0
+	wrapper.offset_right = 650.0
+	wrapper.offset_bottom = 60.0
+	wrapper.add_theme_constant_override("separation", 2)
+
+	_p2_title_label = Label.new()
+	_p2_title_label.add_theme_font_size_override("font_size", 12)
+	_p2_title_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.35))
+	wrapper.add_child(_p2_title_label)
+
+	var hp_pair := _make_side_bar(wrapper, Color(0.7, 0.15, 0.15))
+	_p2_hp_bar = hp_pair[0]
+	_p2_hp_label = hp_pair[1]
+
+	var mana_pair := _make_side_bar(wrapper, Color(0.15, 0.3, 0.8))
+	_p2_mana_bar = mana_pair[0]
+	_p2_mana_label = mana_pair[1]
+
+	var p2_stats = main._p2_player.get_stats()
+	if p2_stats:
+		p2_stats.health_changed.connect(_on_p2_health_changed)
+		p2_stats.mana_changed.connect(_on_p2_mana_changed)
+		_on_p2_health_changed(p2_stats.current_health, p2_stats.max_health)
+		_on_p2_mana_changed(p2_stats.current_mana, p2_stats.max_mana)
+	update_control_indicator()
+
+func _make_side_bar(parent: VBoxContainer, fill_color: Color) -> Array:
+	var bar_wrap := Control.new()
+	bar_wrap.custom_minimum_size = Vector2(200, 20)
+	parent.add_child(bar_wrap)
+	var bar := ProgressBar.new()
+	bar.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bar.max_value = 100
+	bar.value = 100
+	bar.show_percentage = false
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = fill_color
+	fill.corner_radius_top_left = 3
+	fill.corner_radius_top_right = 3
+	fill.corner_radius_bottom_left = 3
+	fill.corner_radius_bottom_right = 3
+	bar.add_theme_stylebox_override("fill", fill)
+	bar_wrap.add_child(bar)
+	var lbl := Label.new()
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar_wrap.add_child(lbl)
+	return [bar, lbl]
+
+func _on_p2_health_changed(current: int, maximum: int) -> void:
+	if not _p2_hp_bar:
+		return
+	_p2_hp_bar.max_value = maximum
+	_p2_hp_bar.value = current
+	_p2_hp_label.text = "%d/%d" % [current, maximum]
+
+func _on_p2_mana_changed(current: float, maximum: int) -> void:
+	if not _p2_mana_bar:
+		return
+	_p2_mana_bar.max_value = maximum
+	_p2_mana_bar.value = int(current)
+	_p2_mana_label.text = "%d/%d" % [int(current), maximum]
+
+func update_control_indicator() -> void:
+	## Shows which character TAB is currently controlling.
+	if not _p2_title_label:
+		return
+	var controlling_p2: bool = main._active_index == 1
+	var marker := "[CONTROL] " if controlling_p2 else ""
+	_p2_title_label.text = "%sP2: %s" % [marker, main.player2_character.character_name]
+	# Also recolour Player 1's stat title via main's helper if present.
+	if main.has_method("update_p1_control_indicator"):
+		main.update_p1_control_indicator()
 
 func _setup_p2_buttons() -> void:
 	var ui = main.get_node("UI") as CanvasLayer

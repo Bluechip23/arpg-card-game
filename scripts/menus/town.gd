@@ -17,6 +17,7 @@ extends Node3D
 const INTERACT_DISTANCE: float = 2.5  # Max tiles from vendor to interact
 
 var starting_character: CharacterData = null
+var player2_character: CharacterData = null  # Persistent co-op partner (recruited at the Sellsword)
 var discovered_waypoints: Array = []
 var quest_state: Dictionary = {}
 var player_progression: Dictionary = {}
@@ -95,6 +96,11 @@ var vendor_info: Dictionary = {
 		"name": "Olorin",
 		"description": "A wise old man with quests for brave adventurers.",
 		"type": "quest_giver"
+	},
+	"Sellsword": {
+		"name": "Sellsword",
+		"description": "Hire a battle-partner. They fight alongside you — switch control with TAB.",
+		"type": "sellsword"
 	}
 }
 
@@ -152,6 +158,9 @@ func _ready() -> void:
 
 	# Create Olorin NPC
 	_create_olorin_npc()
+
+	# Create the Sellsword co-op recruiter NPC
+	_create_sellsword_npc()
 
 	# Create transport portal
 	_create_town_waypoint()
@@ -405,6 +414,12 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 
 	if info["type"] == "stash":
 		_open_stash_ui()
+		return
+
+	if info["type"] == "sellsword":
+		_open_sellsword_ui()
+		vendor_panel.visible = true
+		interact_prompt.text = ""
 		return
 
 	if info["type"] == "card_dealer":
@@ -1981,6 +1996,85 @@ func _create_olorin_npc() -> void:
 	$Vendors.add_child(olorin)
 	print("[TOWN] Created Olorin NPC at position %s" % olorin.position)
 
+func _create_sellsword_npc() -> void:
+	## The Sellsword recruits a persistent co-op partner from the characters the
+	## player did not choose for Player 1.
+	var sellsword = StaticBody3D.new()
+	sellsword.name = "Sellsword"
+	sellsword.position = Vector3(18, 0, 3)
+
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(1.4, 1.8, 1.4)
+	mesh.mesh = box
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.35, 0.2)  # Leather-brown mercenary
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mesh.material_override = mat
+	mesh.position = Vector3(0, 0.9, 0)
+	sellsword.add_child(mesh)
+
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(1.4, 1.8, 1.4)
+	collision.shape = shape
+	collision.position = Vector3(0, 0.9, 0)
+	sellsword.add_child(collision)
+
+	var label = Label3D.new()
+	label.text = "SELLSWORD"
+	label.font_size = 26
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(1.0, 0.8, 0.45)
+	label.outline_size = 8
+	label.position = Vector3(0, 2.2, 0)
+	sellsword.add_child(label)
+
+	$Vendors.add_child(sellsword)
+	print("[TOWN] Created Sellsword NPC at position %s" % sellsword.position)
+
+func _open_sellsword_ui() -> void:
+	## Lists the four characters not chosen by Player 1, with a Recruit/Dismiss action.
+	if player2_character:
+		_add_info_label("Current partner: %s" % player2_character.character_name, Color(0.6, 1.0, 0.6))
+		var dismiss = Button.new()
+		dismiss.text = "  Dismiss %s" % player2_character.character_name
+		dismiss.custom_minimum_size.y = 36
+		dismiss.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		dismiss.add_theme_font_size_override("font_size", 14)
+		dismiss.pressed.connect(_on_dismiss_partner)
+		vendor_item_list.add_child(dismiss)
+		_add_section_separator("Swap partner")
+	else:
+		_add_info_label("No partner hired. Choose a battle-companion:", Color(0.85, 0.85, 0.9))
+
+	var p1_name := starting_character.character_name if starting_character else ""
+	for character in CharacterData.get_all_characters():
+		if character.character_name == p1_name:
+			continue  # Player 1 cannot recruit themselves
+		if player2_character and character.character_name == player2_character.character_name:
+			continue  # Already the active partner
+		_add_sellsword_row(character)
+
+func _add_sellsword_row(character: CharacterData) -> void:
+	var btn = Button.new()
+	btn.custom_minimum_size.y = 44
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.text = "  Hire %s   —   %s" % [character.character_name, character.passive_description]
+	btn.add_theme_font_size_override("font_size", 13)
+	btn.pressed.connect(_on_recruit_partner.bind(character))
+	vendor_item_list.add_child(btn)
+
+func _on_recruit_partner(character: CharacterData) -> void:
+	player2_character = character
+	print("[TOWN] Recruited partner: %s" % character.character_name)
+	_open_vendor(nearby_vendor)  # Refresh the panel to reflect the new partner
+
+func _on_dismiss_partner() -> void:
+	print("[TOWN] Dismissed partner: %s" % (player2_character.character_name if player2_character else "none"))
+	player2_character = null
+	_open_vendor(nearby_vendor)
+
 func _create_town_waypoint() -> void:
 	## Creates the transport portal in town for returning to the dungeon.
 	_town_waypoint_node = Node3D.new()
@@ -2168,6 +2262,7 @@ func _build_save_data(slot: int) -> SaveData:
 	var data := SaveData.new()
 	data.save_slot = slot
 	data.character_data = starting_character
+	data.player2_character = player2_character
 	data.character_name = starting_character.character_name if starting_character else "Unknown"
 	data.current_location = "Town"
 	data.world_level = return_world_level
@@ -2304,6 +2399,8 @@ func _go_to_battle() -> void:
 		saved_progression["stats"] = stats.save_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = player2_character != null
 	main_scene.current_world_level = return_world_level
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
