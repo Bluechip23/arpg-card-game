@@ -813,9 +813,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"shepherds_mark":
 			_execute_shepherds_mark(player_stats)
 		# === Previously unimplemented effects ===
-		"heavy_swing", "specific_strike", "hydra_bite":
+		"heavy_swing", "specific_strike", "hydra_bite", "spark":
 			# Straight single-target damage (base_damage carries the value;
-			# play-time cost/gate handled elsewhere).
+			# hand/tempo riders and play-time cost/gate handled elsewhere).
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"savage_strike":
 			_execute_savage_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr, deck_manager, true)

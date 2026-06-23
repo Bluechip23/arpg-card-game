@@ -188,6 +188,9 @@ var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
 var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining: int}]
+# Generic delayed-effect scheduler (per-tempo). Cards that fire after a delay
+# (spark, patience, succumb, adrenaline_shot, …) push a captured Callable here.
+var _delayed_effects: Array = []  # [{remaining: int, callback: Callable, label: String}]
 var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
 
 # Ticked tempo system state
@@ -2676,6 +2679,9 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Summoned rats (Infestation) move/lunge after the enemies have acted.
 	_update_summoned_rats()
 
+	# Fire any scheduled delayed card effects whose timer has elapsed.
+	_process_delayed_effects(amount)
+
 	# Mana regen on the player's own tempo interval
 	var stats = player.get_stats()
 	if stats:
@@ -3632,6 +3638,74 @@ func _process_pending_sky_falls() -> void:
 		else:
 			print("[MAIN] Sky Fall: %d tempo until landing at %s" % [sf.tempo_remaining, sf.position])
 
+## Run `callback` after `tempo_delay` global tempo elapses. The caller captures
+## any needed references (player, deck) so the effect resolves on the right
+## target even if control has switched in the meantime.
+func schedule_delayed_effect(tempo_delay: int, callback: Callable, label: String = "") -> void:
+	_delayed_effects.append({"remaining": tempo_delay, "callback": callback, "label": label})
+
+func _process_delayed_effects(amount: int) -> void:
+	for i in range(_delayed_effects.size() - 1, -1, -1):
+		var d = _delayed_effects[i]
+		d.remaining -= amount
+		if d.remaining <= 0:
+			_delayed_effects.remove_at(i)
+			if d.callback.is_valid():
+				d.callback.call()
+
+## Map a player character to its own DeckManager (co-op aware).
+func _deck_for_player(p) -> DeckManager:
+	if is_multiplayer:
+		if p == _p2_player:
+			return _p2_deck_manager
+		if p == _p1_player:
+			return _p1_deck_manager
+	return deck_manager
+
+## Add `delta` tempo (clamped at 0) to `count` random cards in a deck's hand.
+func _adjust_random_hand_tempo(deck, count: int, delta: int) -> void:
+	if not deck or deck.hand.is_empty():
+		return
+	var cards: Array = deck.hand.duplicate()
+	cards.shuffle()
+	for i in range(min(count, cards.size())):
+		cards[i].tempo_cost = max(0, cards[i].tempo_cost + delta)
+	deck.hand_updated.emit()
+
+# --- Delayed card-effect handlers (scheduled via schedule_delayed_effect) ---
+
+func _spark_delayed(deck) -> void:
+	_adjust_random_hand_tempo(deck, 2, 2)
+	add_battle_log("Spark: +2 tempo to 2 random cards", Color(0.7, 0.85, 1.0))
+
+func _patience_delayed(deck) -> void:
+	if deck:
+		for i in range(3):
+			deck.draw_card()
+	add_battle_log("Patience: drew 3 cards", Color(0.5, 0.9, 0.5))
+
+func _adrenaline_delayed(deck) -> void:
+	_adjust_random_hand_tempo(deck, 1, 3)
+	_adjust_random_hand_tempo(deck, 1, 2)
+	add_battle_log("Adrenaline Shot wears off: +tempo to the target's cards", Color(1.0, 0.7, 0.5))
+
+func _succumb_phase1(caster) -> void:
+	if is_instance_valid(caster) and caster.get_stats():
+		caster.get_stats().take_damage(10)
+		add_battle_log("Succumb: took 10 damage", Color(1.0, 0.45, 0.45))
+
+func _succumb_phase2(caster) -> void:
+	if not is_instance_valid(caster):
+		return
+	if caster.get_stats():
+		caster.get_stats().take_damage(10)
+	var bm = caster.get_buff_manager()
+	if bm and bm.debuff_manager:
+		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.CUFFED, 1, 10))
+		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.DRAIN, 1, 10))
+		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.DISARM, 1, 10))
+	add_battle_log("Succumb: took 10 more damage; cuffed, drained, disarmed", Color(1.0, 0.3, 0.3))
+
 func _process_pending_absorb_essences() -> void:
 	for i in range(pending_absorb_essences.size() - 1, -1, -1):
 		var ae = pending_absorb_essences[i]
@@ -4536,6 +4610,35 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	match card.card_id:
 		"infestation":
 			_spawn_infestation_rats(5)
+
+		"spark":
+			# Damage is dealt in execute(); here: shift hand tempo now + later.
+			_adjust_random_hand_tempo(deck_manager, 2, -2)
+			schedule_delayed_effect(15, _spark_delayed.bind(deck_manager), "spark")
+			print("[MAIN] Spark: -2 tempo to 2 cards now, +2 to 2 cards in 15 tempo")
+
+		"patience":
+			schedule_delayed_effect(15, _patience_delayed.bind(deck_manager), "patience")
+			print("[MAIN] Patience: will draw 3 cards in 15 tempo")
+
+		"succumb":
+			var caster = player  # owner-bound during resolution
+			var bm = caster.get_buff_manager()
+			if bm:
+				bm.apply_buff(Buff.create_fortify(20, "Succumb"))
+				bm.apply_buff(Buff.create_blessed(2, 20, "Succumb"))
+				bm.apply_buff(Buff.create_strengthen(5, 5, "Succumb"))
+				bm.apply_buff(Buff.create_resilient(20, 20, "Succumb"))
+			schedule_delayed_effect(10, _succumb_phase1.bind(caster), "succumb1")
+			schedule_delayed_effect(20, _succumb_phase2.bind(caster), "succumb2")
+			print("[MAIN] Succumb: buffs now; 10 dmg in 10t; 10 dmg + debuffs in 20t")
+
+		"adrenaline_shot":
+			# Target is the ally whose hand is manipulated.
+			var tgt_deck = _deck_for_player(target) if target is Player else deck_manager
+			_adjust_random_hand_tempo(tgt_deck, 2, -3)
+			schedule_delayed_effect(5, _adrenaline_delayed.bind(tgt_deck), "adrenaline")
+			print("[MAIN] Adrenaline Shot: -3 tempo to 2 cards now, +tempo in 5 tempo")
 
 		"roar":
 			# Knock all nearby enemies back 1 space
