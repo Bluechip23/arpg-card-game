@@ -23,6 +23,23 @@ signal shepherds_mark_triggered  # Whispers of the Flock: mark prevented lethal 
 
 var character_data: CharacterData
 
+# Friendship link: when set, this character shares heals with and splits incoming
+# damage 50/50 with the partner. Amounts are passed pre-modifier so each side
+# applies its own amplification/penalty. _friendship_echo guards against echo
+# loops while the linked call is in flight.
+var friendship_partner: PlayerStats = null
+var friendship_partner_debuff = null
+var friendship_partner_buff = null
+var _friendship_echo: bool = false
+
+# Skill-tree passives needing runtime state:
+# Blood Libation (Jeremy): Sanguine stacks add +1/heal; at 5 the next heal doubles,
+# stacks clear, and Jeremy takes 10 non-lethal.
+var sanguine_stacks: int = 0
+# Solemn Independence: set true by the cycle trigger while 3+ enemies are within 2
+# tiles — grants combat bonuses but blocks ally healing.
+var solemn_active: bool = false
+
 # ============================================
 # BASE CORE STATS (before determination modifier)
 # ============================================
@@ -615,6 +632,17 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 # ============================================
 
 func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
+	# Friendship: split incoming damage 50/50 (pre-modifier). The partner takes
+	# its half through its own debuff/buff managers; we keep the remainder.
+	if friendship_partner and not _friendship_echo and amount > 1:
+		_friendship_echo = true
+		friendship_partner._friendship_echo = true
+		var partner_half = amount / 2
+		amount = amount - partner_half
+		friendship_partner.take_damage(partner_half, friendship_partner_debuff, friendship_partner_buff)
+		_friendship_echo = false
+		friendship_partner._friendship_echo = false
+
 	var remaining = amount
 
 	# Stone Skin: 10% damage resistance (Fire, Physical, Lightning)
@@ -688,6 +716,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 	if current_health <= 0:
 		died.emit()
 
+	# Blood Libation: gain a Sanguine stack whenever Jeremy takes damage.
+	if has_skill_tree_passive("blood_libation"):
+		sanguine_stacks = min(5, sanguine_stacks + 1)
+
 func take_direct_damage(amount: int) -> void:
 	## Deal damage directly to HP, bypassing armor entirely.
 	if amount <= 0:
@@ -715,6 +747,11 @@ func take_direct_damage(amount: int) -> void:
 	if current_health <= 0:
 		died.emit()
 
+	# Blood Libation: gain a Sanguine stack whenever Jeremy takes damage (its own
+	# 10-HP burst is applied directly in heal(), so it never reaches here).
+	if has_skill_tree_passive("blood_libation"):
+		sanguine_stacks = min(5, sanguine_stacks + 1)
+
 func _crossed_threshold(old_pct: float, new_pct: float) -> bool:
 	var thresholds = [0.8, 0.6, 0.4, 0.1]
 	for t in thresholds:
@@ -725,9 +762,25 @@ func _crossed_threshold(old_pct: float, new_pct: float) -> bool:
 	return false
 
 func heal(amount: int, from_ally: bool = false) -> void:
-	# Corrupted Strength: block ally healing while active
-	if from_ally and st_corrupted_strength_no_ally_heal:
+	# Corrupted Strength / Solemn Independence: block ally healing while active
+	if from_ally and (st_corrupted_strength_no_ally_heal or solemn_active):
 		return
+	# Friendship: the partner receives the same base heal (their modifiers apply).
+	if friendship_partner and not _friendship_echo and amount > 0:
+		_friendship_echo = true
+		friendship_partner._friendship_echo = true
+		friendship_partner.heal(amount, from_ally)
+		_friendship_echo = false
+		friendship_partner._friendship_echo = false
+	# Blood Libation: Sanguine stacks add +1 healing each; at 5 the heal doubles,
+	# the stacks are consumed, and Jeremy takes 10 non-lethal afterward.
+	var bl_consume := false
+	if sanguine_stacks > 0 and has_skill_tree_passive("blood_libation"):
+		amount += sanguine_stacks
+		if sanguine_stacks >= 5:
+			amount *= 2
+			bl_consume = true
+			sanguine_stacks = 0
 	var boosted_amount = get_effective_heal_amount(amount)
 	var old_health_pct = get_health_percent()
 	var old_health = current_health
@@ -737,6 +790,12 @@ func heal(amount: int, from_ally: bool = false) -> void:
 	health_changed.emit(current_health, max_health)
 	if actual_heal > 0:
 		healed.emit(actual_heal)
+
+	# Blood Libation: the 5-stack burst costs 10 non-lethal HP after the heal.
+	if bl_consume:
+		current_health = max(1, current_health - 10)
+		health_changed.emit(current_health, max_health)
+		print("[STATS] Blood Libation burst! Heal doubled, took 10 non-lethal.")
 
 	var new_health_pct = get_health_percent()
 	print("[STATS] Healed %d (base %d)! Health: %d/%d" % [actual_heal, amount, current_health, max_health])

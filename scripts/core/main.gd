@@ -193,7 +193,6 @@ var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining:
 var _delayed_effects: Array = []  # [{remaining: int, callback: Callable, label: String}]
 var _misery_active: bool = false  # Misery Loves Company: next AOE spreads debuffs
 var _friendship_linked: bool = false  # Friendship: P1/P2 share healing and split damage
-var _friendship_busy: bool = false    # Reentrancy guard for the friendship link
 var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
 
 # Ticked tempo system state
@@ -2604,6 +2603,70 @@ func _on_co_op_defeat() -> void:
 	print("[MAIN] CO-OP DEFEAT — both players down.")
 	_show_defeat_overlay()
 
+func _show_release_tension_picker(card: Card, enemy) -> void:
+	## Let the player choose which damage-over-time debuff to drain from the enemy.
+	## Auto-resolves when there are 0 or 1 choices.
+	var fields := {"poison": "poison_stacks", "burn": "burn_stacks", "shock": "shock_stacks", "cold": "cold_stacks"}
+	var present: Array = []
+	for name in ["poison", "burn", "shock", "cold"]:
+		var v = enemy.get(fields[name])
+		if v != null and int(v) > 0:
+			present.append({"name": name, "stacks": int(v)})
+
+	if present.size() <= 1:
+		card.rt_chosen_debuff = present[0]["name"] if present.size() == 1 else ""
+		play_selected_card(enemy)
+		return
+
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "ReleaseTensionPicker"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var pstyle := StyleBoxFlat.new()
+	pstyle.bg_color = Color(0.12, 0.13, 0.18, 1.0)
+	pstyle.set_border_width_all(2)
+	pstyle.border_color = Color(0.4, 0.6, 0.5)
+	pstyle.set_corner_radius_all(8)
+	pstyle.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", pstyle)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	vbox.custom_minimum_size = Vector2(280, 0)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Release Tension — drain which debuff?"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.7, 1.0, 0.8))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	for entry in present:
+		var b := Button.new()
+		b.text = "%s  (%d)" % [str(entry["name"]).capitalize(), entry["stacks"]]
+		b.custom_minimum_size = Vector2(260, 36)
+		b.pressed.connect(func():
+			card.rt_chosen_debuff = entry["name"]
+			overlay.queue_free()
+			play_selected_card(enemy))
+		vbox.add_child(b)
+
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.custom_minimum_size = Vector2(260, 32)
+	cancel.pressed.connect(func(): overlay.queue_free())
+	vbox.add_child(cancel)
+
 func _show_defeat_overlay() -> void:
 	var ui = $UI as CanvasLayer
 	var overlay := ColorRect.new()
@@ -3706,44 +3769,22 @@ func _cryonics_end(p) -> void:
 		p.untargetable = false
 		add_battle_log("The ice melts — ally can act again.", Color(0.6, 0.85, 1.0))
 
-## Friendship: link both players so heals are shared and incoming damage is split.
-## A reentrancy guard stops the heal/damage echoes from looping.
+## Friendship: link both players' stats so heals are shared and incoming damage
+## is split 50/50 (handled inside PlayerStats.heal/take_damage on pre-modifier
+## amounts, so each side applies its own amplification/penalty).
 func _link_friendship() -> void:
 	if _friendship_linked:
 		return
 	_friendship_linked = true
 	var s1 = _p1_player.get_stats()
 	var s2 = _p2_player.get_stats()
-	if s1:
-		s1.healed.connect(_on_friendship_heal.bind(0))
-		s1.health_damage_taken.connect(_on_friendship_damage.bind(0))
-	if s2:
-		s2.healed.connect(_on_friendship_heal.bind(1))
-		s2.health_damage_taken.connect(_on_friendship_damage.bind(1))
-
-func _on_friendship_heal(amount: int, healer_idx: int) -> void:
-	if _friendship_busy or amount <= 0:
-		return
-	_friendship_busy = true
-	var other = _p2_player if healer_idx == 0 else _p1_player
-	if is_instance_valid(other) and other.get_stats():
-		other.get_stats().heal(amount)
-	_friendship_busy = false
-
-func _on_friendship_damage(amount: int, victim_idx: int) -> void:
-	# Split: refund half to the victim and deal half to the partner.
-	if _friendship_busy or amount <= 1:
-		return
-	_friendship_busy = true
-	var half = amount / 2
-	if half > 0:
-		var victim = _p1_player if victim_idx == 0 else _p2_player
-		var other = _p2_player if victim_idx == 0 else _p1_player
-		if is_instance_valid(victim) and victim.get_stats():
-			victim.get_stats().heal(half)
-		if is_instance_valid(other) and other.get_stats():
-			other.get_stats().take_damage(half)
-	_friendship_busy = false
+	if s1 and s2:
+		s1.friendship_partner = s2
+		s1.friendship_partner_debuff = _p2_player.get_debuff_manager()
+		s1.friendship_partner_buff = _p2_player.get_buff_manager()
+		s2.friendship_partner = s1
+		s2.friendship_partner_debuff = _p1_player.get_debuff_manager()
+		s2.friendship_partner_buff = _p1_player.get_buff_manager()
 
 ## Misery Loves Company: if armed, spread every damage-over-time debuff on the
 ## player and any hit enemy across all the hit enemies (topping each up to the
@@ -4813,11 +4854,18 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				print("[MAIN] Vines: held target, %d damage x3 cycles" % card.base_damage)
 
 		"release_tension":
-			# Remove one stack of a damage-over-time debuff from the target and heal
-			# 3 per stack removed.
+			# Remove one stack of the player-chosen debuff (falls back to the first
+			# present DoT) and heal 3 per stack removed.
 			var rt_removed = 0
+			var rt_field := {"poison": "poison_stacks", "burn": "burn_stacks", "shock": "shock_stacks", "cold": "cold_stacks"}
 			if target:
-				for prop in ["poison_stacks", "burn_stacks", "shock_stacks", "cold_stacks"]:
+				var order := []
+				if card.rt_chosen_debuff != "" and rt_field.has(card.rt_chosen_debuff):
+					order = [card.rt_chosen_debuff]
+				else:
+					order = ["poison", "burn", "shock", "cold"]
+				for name in order:
+					var prop = rt_field[name]
 					var v = target.get(prop)
 					if v != null and int(v) > 0:
 						target.set(prop, int(v) - 1)
@@ -4827,7 +4875,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if rt_stats and rt_removed > 0:
 				rt_stats.heal(rt_removed * 3)
 			add_battle_log("Release Tension! Removed %d debuff, healed %d" % [rt_removed, rt_removed * 3], Color(0.6, 0.9, 0.7))
-			print("[MAIN] Release Tension: removed %d debuff stack, healed %d" % [rt_removed, rt_removed * 3])
+			print("[MAIN] Release Tension: removed %d %s stack, healed %d" % [rt_removed, card.rt_chosen_debuff, rt_removed * 3])
 
 		"roll":
 			# Roll up to min(tempo_cost, 5) tiles toward the aim point, stopping on
@@ -5243,7 +5291,10 @@ func _input(event: InputEvent) -> void:
 				if enemy:
 					_card_played = true
 					if _is_target_in_card_range(card, enemy):
-						play_selected_card(enemy)
+						if card.card_id == "release_tension":
+							_show_release_tension_picker(card, enemy)
+						else:
+							play_selected_card(enemy)
 					else:
 						var range_type = "ranged" if card.is_ranged else "melee"
 						var dist = _get_distance_to_target(enemy)
