@@ -623,6 +623,23 @@ func _trigger_skill_tree_on_attack(card: Card, target) -> void:
 			target.take_damage(bonus, true)
 			main.add_battle_log("Surprise Opener: +%d bonus damage!" % bonus, Color(0.8, 0.4, 0.9))
 
+	# Solemn Independence: +5 damage on attacks while surrounded (3+ enemies w/in 2)
+	if stats.has_skill_tree_passive("solemn_independence") and target and target is Enemy and _solemn_surrounded():
+		target.take_damage(5, true)
+		main.add_battle_log("Solemn Independence: +5 damage!", Color(0.8, 0.4, 0.9))
+
+func _solemn_surrounded() -> bool:
+	## True when 3 or more living enemies are within 2 tiles of the player.
+	if not main.enemy_spawner:
+		return false
+	var count := 0
+	for enemy in main.enemy_spawner.get_living_enemies():
+		if main.player.position.distance_to(enemy.position) <= 2.0:
+			count += 1
+			if count >= 3:
+				return true
+	return false
+
 func _trigger_skill_tree_on_crit(target) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
@@ -647,6 +664,17 @@ func _trigger_skill_tree_on_cycle() -> void:
 	# Stimulant: tick cooldown
 	if stats.st_stimulant_cooldown > 0:
 		stats.st_stimulant_cooldown -= 5
+
+	# Solemn Independence: while surrounded (3+ enemies w/in 2), +5 armor/cycle and
+	# block ally healing (the flag is read in PlayerStats.heal). Refresh it each
+	# cycle so the "cannot be healed by allies" clause tracks positioning.
+	if stats.has_skill_tree_passive("solemn_independence"):
+		stats.solemn_active = _solemn_surrounded()
+		if stats.solemn_active:
+			stats.add_armor(5)
+			main.add_battle_log("Solemn Independence: +5 armor (surrounded)", Color(0.4, 0.9, 0.4))
+	elif stats.solemn_active:
+		stats.solemn_active = false
 
 	# Let's Dance: gain armor = spaces moved/2, deal damage = spaces moved to nearest enemy within 3
 	if stats.has_skill_tree_passive("let's_dance"):
