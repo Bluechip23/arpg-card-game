@@ -37,6 +37,7 @@ var prep_utility_discount: int = 0  # Preparation: reduces next utility card cos
 var prep_utility_charges: int = 0   # How many more utility cards get the discount
 var discards_this_cycle: int = 0  # Cards discarded since last tempo cycle
 var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
+var fire_spells_this_turn: int = 0  # Fireball synergy: fire spells cast since the cycle started
 
 func connect_player_stats(stats) -> void:
 	player_stats = stats
@@ -378,6 +379,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		mana_cost -= prep_utility_discount
 		print("[DECK] Preparation discount: -%d mana (%d charges left)" % [prep_utility_discount, prep_utility_charges])
 
+	# Fireball synergy: -1 mana for each OTHER fire spell already cast this turn.
+	if card.is_fire_spell and fire_spells_this_turn > 0:
+		mana_cost -= fire_spells_this_turn
+		print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this turn)" % [fire_spells_this_turn, fire_spells_this_turn])
+
 	if debuff_mgr:
 		if card.card_type == Card.CardType.ATTACK:
 			mana_cost += debuff_mgr.get_attack_mana_increase()
@@ -412,6 +418,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			print("[DECK] Demonic Rage: paid %d health instead of mana (%d charges left)" % [mana_cost, dr_buff_mgr.get_buff(Buff.BuffType.DEMONIC_RAGE).charges if dr_buff_mgr.has_demonic_rage() else 0])
 		else:
 			player_stats.spend_mana(mana_cost)
+
+	# Count this fire spell so the next one this turn is cheaper.
+	if card.is_fire_spell:
+		fire_spells_this_turn += 1
 
 	var was_half_tempo = next_attack_half_tempo and card.card_type == Card.CardType.ATTACK
 
@@ -591,6 +601,7 @@ func apply_dex_proc_bonus() -> void:
 
 func process_turn() -> void:
 	discards_this_cycle = 0
+	fire_spells_this_turn = 0
 	for i in range(jail_pile.size() - 1, -1, -1):
 		var card = jail_pile[i]
 		card.jail_time_remaining -= 5
