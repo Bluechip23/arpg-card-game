@@ -139,6 +139,7 @@ var _roguelike_relics: Array = []  # Relics carried by the run (drive in-battle 
 var _fire_walls: Array = []
 
 # Player 2 state
+var _p2_player: Player = null  # The co-op partner's on-grid character (own stats/figure)
 var _p2_deck_manager: DeckManager = null
 var _p2_hand_panel: PanelContainer = null
 var _p2_hand_container: VBoxContainer = null
@@ -355,6 +356,10 @@ func _ready() -> void:
 	_setup_dungeon()
 	_update_enemy_count()
 	_refresh_unit_tracker()
+
+	# Co-op: now that the dungeon has placed Player 1, seat Player 2 beside them.
+	if is_multiplayer and _p2_player:
+		player2_ui.reposition_beside_p1()
 
 	# Roguelike encounter: spawn the fight for this map node and arm the
 	# return-to-map hook. Only runs when launched from the roguelike map.
