@@ -53,6 +53,7 @@ var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many te
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var in_hand_heal_tempo: int = 0  # Healthy Bliss: heal all allies once this many tempo elapse in hand
 var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
+var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card picker (e.g. Reposition)
 var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var exhaust_on_play: bool = false  # If true, card is removed from the deck entirely after being played (not discarded)
@@ -630,7 +631,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"approach":
 			_execute_approach(player_stats, buff_mgr)
 		"hold_the_line":
-			_execute_hold_the_line(player_stats, buff_mgr)
+			pass  # Applied to all allies in main._apply_card_world_effects
 		# === Jeremy Cards ===
 		"trick_shot":
 			_execute_trick_shot(target, player_stats, buff_mgr)
@@ -653,7 +654,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"lady_luck":
 			_execute_lady_luck(target, player_stats, buff_mgr)
 		"try_this":
-			_execute_try_this(target, player_stats)
+			pass  # Applied (with a timed revert) in main._apply_card_world_effects
 		"if_pigs_could_fly":
 			_execute_if_pigs_could_fly(target, player_stats, buff_mgr)
 		"snowballs_chance":
@@ -858,7 +859,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_compute_attack_damage(player_stats, true)   # AOE + burn applied in main
 		"spirit_arrow":
 			_compute_attack_damage(player_stats, false)   # pierced line applied in main
-		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship":
+		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship", "worms_armageddon":
 			pass  # Effect applied in main._apply_card_world_effects (needs world access)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
@@ -868,6 +869,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		var dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 		if dealt > 0:
 			buff_mgr.consume_life_steal(dealt)
+
+	# Life Steal passive (Brad): all attacks heal for 5% of damage dealt.
+	if card_type == CardType.ATTACK and player_stats and player_stats.has_skill_tree_passive("life_steal"):
+		var ls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
+		if ls_dealt > 0:
+			player_stats.heal(max(1, floori(ls_dealt * 0.05)))
 
 	# Clear armor break flag on target after attack resolves
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
@@ -1533,7 +1540,7 @@ func _execute_biscuit(player_stats: PlayerStats, buff_mgr: BuffManager = null) -
 
 func _execute_loaded_die(player_stats: PlayerStats) -> void:
 	if player_stats:
-		player_stats.chance_boost += 10.0
+		player_stats.next_odds_boost += 10.0
 	print("[CARD] Loaded Die! Next card's odds increased by 10%%")
 
 func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1576,7 +1583,7 @@ func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 
 func _execute_house_money(player_stats: PlayerStats) -> void:
 	if player_stats:
-		player_stats.chance_boost = 100.0
+		player_stats.next_odds_boost = 100.0
 	print("[CARD] House Money! Next odds will automatically trigger")
 
 func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1585,8 +1592,8 @@ func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffM
 		if player_stats:
 			var heal_amt = max(3, player_stats.intelligence)
 			player_stats.heal(heal_amt)
-			player_stats.base_strength += 2
-			player_stats.recalculate_derived_stats()
+		if buff_mgr:
+			buff_mgr.apply_buff(Buff.create_strengthen(2, 3, "Hope This Works"))
 		print("[CARD] Hope This Works... it worked! Healed and +STR for 3 attacks")
 	else:
 		print("[CARD] Hope This Works... it didn't work")
@@ -1647,10 +1654,11 @@ func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = 
 	print("[CARD] Poisoned Blood! Heal cards now deal damage instead for 15 tempo")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Poison cards now heal
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_regen(3, 495, "Elixir"))
-	print("[CARD] Elixir! Poison effects now heal instead")
+	# Poison now heals instead of hurting for the next ~30 cycles.
+	if player_stats:
+		player_stats.elixir_active = true
+		player_stats.elixir_tempo = 150
+	print("[CARD] Elixir! Poison now heals you instead")
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -1680,17 +1688,22 @@ func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager 
 	print("[CARD] Exacerbate Wounds! %d cards discarded this cycle = %d damage" % [discard_count, total_damage])
 
 func _execute_reposition(deck_manager) -> void:
-	# Discard a selected card and draw
-	if deck_manager:
-		if deck_manager.hand.size() > 0:
-			var random_index = randi() % deck_manager.hand.size()
-			var discarded = deck_manager.hand[random_index]
-			deck_manager.hand.remove_at(random_index)
-			deck_manager.discard_pile.append(discarded)
-			deck_manager.discards_this_cycle += 1
-			deck_manager.draw_card()
-			deck_manager.hand_updated.emit()
-			print("[CARD] Reposition! Discarded %s, drew a new card" % discarded.card_name)
+	# Discard the chosen card (or a random one if none was picked) and draw.
+	if not deck_manager or deck_manager.hand.is_empty():
+		return
+	var discard_idx := -1
+	if picked_card and picked_card in deck_manager.hand:
+		discard_idx = deck_manager.hand.find(picked_card)
+	else:
+		discard_idx = randi() % deck_manager.hand.size()
+	var discarded = deck_manager.hand[discard_idx]
+	deck_manager.hand.remove_at(discard_idx)
+	deck_manager.discard_pile.append(discarded)
+	deck_manager.discards_this_cycle += 1
+	deck_manager.draw_card()
+	deck_manager.hand_updated.emit()
+	picked_card = null
+	print("[CARD] Reposition! Discarded %s, drew a new card" % discarded.card_name)
 
 func _execute_volatile_mixture(target, player_stats: PlayerStats) -> void:
 	# Playing the card safely removes it from hand (no effect)
@@ -1978,7 +1991,10 @@ func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
 		if player_stats.current_health < target_hp:
 			player_stats.current_health = target_hp
 			player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
-	print("[CARD] Meditate! Hand refreshed, healed to 80%%, skipping next turn")
+	# Skip next turn: forfeit the next tempo-triggered draw (one cycle).
+	if deck_manager:
+		deck_manager.skip_next_tempo_draw = true
+	print("[CARD] Meditate! Hand refreshed, healed to 80%%, skipping next turn's draw")
 
 # ============================================
 # BRAD CARD FACTORY METHODS
@@ -3442,12 +3458,14 @@ static func create_cover() -> Card:
 	return card
 
 func _execute_cover(player_stats: PlayerStats, deck_manager = null) -> void:
-	# Cover's damage reduction is calculated based on hand size at time of trigger.
-	# The actual interception is handled in main.gd.
+	# Reaction (post-damage): heal the ally back by the number of cards in hand,
+	# approximating "reduce the incoming damage by your hand size".
 	var hand_size = 0
 	if deck_manager:
 		hand_size = deck_manager.hand.size()
-	print("[CARD] Cover triggered! Reducing ally damage by %d (cards in hand)" % hand_size)
+	if player_stats and hand_size > 0:
+		player_stats.heal(hand_size)
+	print("[CARD] Cover triggered! Mitigated %d damage (cards in hand)" % hand_size)
 
 static func create_fortify_alliance() -> Card:
 	var card = Card.new()
@@ -3663,14 +3681,9 @@ func _execute_anticipation(player_stats: PlayerStats, deck_manager = null) -> vo
 	if player_stats:
 		player_stats.gain_mana(1)
 		print("[CARD] Anticipation: Gained 1 mana")
-	if deck_manager and deck_manager.has_method("shuffle_card_into_deck"):
-		var prepare_card = Card.create_prepare()
-		deck_manager.shuffle_card_into_deck(prepare_card)
+	if deck_manager:
+		deck_manager.add_card_to_deck_from_id("prepare")
 		print("[CARD] Anticipation: Shuffled Prepare into deck")
-	elif deck_manager and deck_manager.has_method("add_card_to_deck"):
-		var prepare_card = Card.create_prepare()
-		deck_manager.add_card_to_deck(prepare_card)
-		print("[CARD] Anticipation: Added Prepare to deck")
 
 func _execute_prepare(deck_manager = null) -> void:
 	# Draw 3 cards
@@ -3700,38 +3713,45 @@ func _execute_item_mastery(player_stats: PlayerStats, deck_manager = null) -> vo
 	print("[CARD] Item Mastery: Requesting all item cards be placed into hand")
 
 func _execute_mirror_mirror(deck_manager = null) -> void:
-	# Duplicate a card in hand with Erase: 5 - selection handled by main.gd
-	print("[CARD] Mirror Mirror: Requesting card duplication with Erase: 5")
+	# Duplicate a random card in hand (excluding itself); the copy has Erase 5.
+	if not deck_manager or deck_manager.hand.is_empty():
+		return
+	var candidates: Array = []
+	for c in deck_manager.hand:
+		if c.card_id != "mirror_mirror":
+			candidates.append(c)
+	if candidates.is_empty():
+		return
+	var src = candidates[randi() % candidates.size()]
+	var dup = deck_manager._create_card_from_id(src.card_id)
+	if dup:
+		dup.erase_tempo = 5
+		dup.erase_tempo_remaining = 5
+		deck_manager.add_card_to_hand(dup)
+		print("[CARD] Mirror Mirror: duplicated %s (Erase 5)" % src.card_name)
 
 func _execute_harness_lightning(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Create lightning orb effect - handled by main.gd
 	print("[CARD] Harness Lightning: Creating lightning orb (4 dmg / 5 tempo / 3 range / 30 tempo duration)")
 
 func _execute_deep_pockets(deck_manager = null) -> void:
-	# Draw cards until one costs more than 0 mana
-	if deck_manager and deck_manager.has_method("draw_card"):
-		var max_draws = 20  # Safety limit
-		var draws = 0
-		while draws < max_draws:
-			var drawn = null
-			if deck_manager.has_method("draw_card_and_return"):
-				drawn = deck_manager.draw_card_and_return()
-			else:
-				deck_manager.draw_card()
-				draws += 1
-				break
-			draws += 1
-			if drawn and drawn.mana_cost > 0:
-				break
-		print("[CARD] Deep Pockets: Drew %d card(s)" % draws)
+	# Draw cards until one costs more than 0 mana (draw_card returns the card).
+	if not deck_manager:
+		return
+	var draws = 0
+	for i in range(20):  # Safety limit
+		var drawn = deck_manager.draw_card()
+		draws += 1
+		if drawn == null or drawn.mana_cost > 0:
+			break
+	print("[CARD] Deep Pockets: drew %d card(s) until one cost mana" % draws)
 
 func _execute_best_offense(player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
 	# Gain 3 smith for 25 tempo, or 6 smith if holding no attack cards
 	var smith_amount = 3
-	if deck_manager and deck_manager.has_method("get_hand"):
-		var hand = deck_manager.get_hand()
+	if deck_manager:
 		var has_attack = false
-		for card in hand:
+		for card in deck_manager.hand:
 			if card.card_type == CardType.ATTACK:
 				has_attack = true
 				break
@@ -3744,9 +3764,9 @@ func _execute_best_offense(player_stats: PlayerStats, deck_manager = null, buff_
 		print("[CARD] Best Offense: Gained %d Smith for 25 tempo" % smith_amount)
 
 func _execute_vengeful_shield(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Reaction: stun enemy + gain 5 armor - stun is handled by main.gd
+	# Reaction: gain 5 armor (the stun is handled in main on_exposed dispatch).
 	if player_stats:
-		player_stats.gain_armor(5)
+		player_stats.add_armor(5)
 		print("[CARD] Vengeful Shield: Gained 5 armor")
 
 # ============================================

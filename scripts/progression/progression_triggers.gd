@@ -162,8 +162,17 @@ func _parse_passive_description(desc: String, node_id: int) -> Dictionary:
 	if value_match:
 		passive["value"] = int(value_match.get_string(1))
 
-	# Categorize the effect
-	if "heal" in effect_part and "hp" in effect_part:
+	# Categorize the effect.
+	# Enemy-targeted and "costs 0" checks must come BEFORE the generic
+	# armor/draw/damage checks (otherwise "all enemies -1 armor" reads as player
+	# armor, and "draw costs 0" reads as a draw).
+	if "enem" in effect_part and "armor" in effect_part:
+		passive["effect"] = "enemy_armor_reduce"
+	elif "enem" in effect_part and "damage" in effect_part:
+		passive["effect"] = "aoe_damage"
+	elif "costs 0" in effect_part or "cost 0" in effect_part:
+		passive["effect"] = "free_draw"
+	elif "heal" in effect_part and "hp" in effect_part:
 		passive["effect"] = "heal"
 	elif "heal" in effect_part:
 		passive["effect"] = "heal"
@@ -213,6 +222,15 @@ func _parse_passive_description(desc: String, node_id: int) -> Dictionary:
 		passive["effect"] = "free_draw"
 	else:
 		passive["effect"] = effect_part  # Store raw text as fallback
+
+	# Secondary "... and N mana" rider when the primary effect isn't itself mana
+	# (e.g. "draw 2 cards and gain 2 mana", "gain 2 armor and 1 mana").
+	if passive["effect"] not in ["gain_mana", "regen_mana"] and "mana" in effect_part:
+		var mana_regex = RegEx.new()
+		mana_regex.compile("(\\d+)\\s*mana")
+		var mm = mana_regex.search(effect_part)
+		if mm:
+			passive["mana_bonus"] = int(mm.get_string(1))
 
 	passive["description"] = desc
 	return passive
@@ -645,6 +663,9 @@ func _trigger_skill_tree_on_crit(target) -> void:
 	if not stats:
 		return
 
+	# Sphere-grid on-crit passives (heal on crit, bleed on crit, Shadow Strike).
+	_trigger_sphere_passives("on_crit", {"target": target})
+
 	# Eye Scrape: every 3rd crit → invisibility
 	if stats.has_skill_tree_passive("eye_scrape"):
 		stats.st_crit_counter += 1
@@ -853,11 +874,11 @@ func _trigger_skill_tree_brad_on_heal() -> void:
 			buff_mgr.apply_buff(Buff.new(Buff.BuffType.THORNS, 3, 30))
 			main.add_battle_log("Vines Codependence: +3 thorns", Color(0.4, 0.9, 0.4))
 
-	# Redemption: gain crit buff when healing (self or ally)
+	# Redemption: gain crit on next attack when healing (self or ally)
 	if stats.has_skill_tree_passive("redemption"):
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_focused(10, "Redemption"))
+			buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Redemption"))
 			main.add_battle_log("Redemption: crit on next attack!", Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_brad_on_heal_ally(ally_name: String) -> void:
@@ -934,11 +955,8 @@ func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 		else:
 			bonus -= 5
 
-	# Life Steal: all attacks life steal by 5%
-	if stats.has_skill_tree_passive("life_steal"):
-		var buff_mgr = main.player.get_buff_manager()
-		if buff_mgr and not buff_mgr.has_life_steal():
-			buff_mgr.apply_buff(Buff.create_life_steal("Life Steal (Passive)"))
+	# Life Steal: all attacks life steal by 5% — applied directly in Card.execute()
+	# (the generic LIFE_STEAL buff heals 100%, so it must NOT be used here).
 
 	# Corrupted Strength: +5 damage while active (3+ enemies within 2 tiles)
 	if stats.has_skill_tree_passive("corrupted_strength") and stats.st_corrupted_strength_active:
@@ -1010,10 +1028,10 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 			if stats.st_scouted_hits >= 3:
 				stats.st_scouted_bonus_active = true
 				stats.st_scouted_hits = 0
-				# Grant auto-crit via Focused buff
+				# Grant auto-crit on next attack
 				var buff_mgr = main.player.get_buff_manager()
 				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_focused(15, "Scouted"))
+					buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Scouted"))
 				main.add_battle_log("Scouted: 3 hits! +6 range and auto-crit on next attack!", Color(0.4, 0.9, 0.4))
 		else:
 			# Switched targets — reset streak
@@ -1238,9 +1256,9 @@ func _trigger_skill_tree_cory_on_kill(enemy: Enemy) -> void:
 	if not stats:
 		return
 
-	# Eat: killing enemies heals 10% of the enemy's max HP
+	# Eat: killing enemies heals 5% of YOUR max HP
 	if stats.has_skill_tree_passive("eat"):
-		var heal_amount = max(1, floori(enemy.max_health * 0.10))
+		var heal_amount = max(1, floori(stats.max_health * 0.05))
 		stats.heal(heal_amount)
 		main.add_battle_log("Eat: healed %d HP!" % heal_amount, Color(0.3, 0.7, 1.0))
 
@@ -1654,10 +1672,11 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 					stats.gain_mana(value)
 					main.add_battle_log("Passive: Gained %d mana" % value, Color(0.2, 0.5, 1.0))
 			"apply_bleed":
+				# Enemies have no bleed track; use poison as the equivalent DoT.
 				var target = context.get("target", null)
-				if target and target.has_method("apply_bleed"):
-					target.apply_bleed(value if value > 0 else 2)
-					main.add_battle_log("Passive: Applied bleed", Color(0.9, 0.3, 0.3))
+				if target and target.has_method("apply_debuff"):
+					target.apply_debuff("poison", value if value > 0 else 2)
+					main.add_battle_log("Passive: Applied bleed (poison)", Color(0.9, 0.3, 0.3))
 			"gain_tempo":
 				if value > 0:
 					main.tempo_manager.add_tempo(-value)  # Negative tempo = gain turns
@@ -1665,8 +1684,8 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 			"cleanse_debuff":
 				if main.player.has_method("get_debuff_manager"):
 					var dbm = main.player.get_debuff_manager()
-					if dbm and dbm.has_method("remove_random_debuff"):
-						dbm.remove_random_debuff()
+					if dbm and dbm.debuffs.size() > 0:
+						dbm.remove_debuff(dbm.debuffs[randi() % dbm.debuffs.size()].debuff_type)
 						main.add_battle_log("Passive: Cleansed a debuff", Color(0.5, 1.0, 0.8))
 			"reflect_damage":
 				var target = context.get("target", null)
@@ -1677,7 +1696,7 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 				# Deal damage to a random enemy or specified target
 				var target = context.get("target", null)
 				if not target:
-					var enemies = main.enemy_spawner.get_alive_enemies() if main.enemy_spawner else []
+					var enemies = main.enemy_spawner.get_living_enemies() if main.enemy_spawner else []
 					if enemies.size() > 0:
 						target = enemies[randi() % enemies.size()]
 				if target and value > 0 and target.has_method("take_damage"):
@@ -1745,8 +1764,8 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 			"blood_hunter":
 				# Constellation: 15% chance to apply bleed on attack
 				var target = context.get("target", null)
-				if target and target.has_method("apply_bleed"):
-					target.apply_bleed(4)  # Base 2 + 2 bonus from constellation
+				if target and target.has_method("apply_debuff"):
+					target.apply_debuff("poison", 4)  # Bleed equivalent (enemies use poison)
 					main.add_battle_log("Blood Hunter: Applied enhanced bleed!", Color(0.75, 0.15, 0.15))
 			"arcane_current":
 				# Constellation: +5 spell damage — applied as bonus damage on the card
@@ -1759,6 +1778,46 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 				if stats.get_health_percent() <= 0.5:
 					stats.add_armor(value)
 					main.add_battle_log("Unyielding: +%d armor (low HP)" % value, Color(0.85, 0.7, 0.2))
+			"crimson_edge":
+				# Attacks heal for value% of the damage just dealt.
+				var ce_card = context.get("card", null)
+				if ce_card and ce_card.last_damage_dealt > 0:
+					var ce_heal = max(1, floori(ce_card.last_damage_dealt * value / 100.0))
+					stats.heal(ce_heal)
+					main.add_battle_log("Crimson Edge: lifesteal %d" % ce_heal, Color(0.8, 0.1, 0.2))
+			"iron_bastion":
+				# Fires on a successful block (chance already rolled): refund armor.
+				stats.add_armor(5)
+				main.add_battle_log("Iron Bastion: the wall holds! +5 armor", Color(0.5, 0.6, 0.8))
+			"shadow_strike":
+				# Crits hit harder — add 50% of the crit damage to the target.
+				var ss_card = context.get("card", null)
+				var ss_t = context.get("target", null)
+				if ss_t and ss_t.has_method("take_damage"):
+					var ss_bonus = floori(ss_card.last_damage_dealt / 3.0) if ss_card and ss_card.last_damage_dealt > 0 else 5
+					ss_t.take_damage(max(1, ss_bonus), true)
+					main.add_battle_log("Shadow Strike: +%d crit damage" % max(1, ss_bonus), Color(0.4, 0.2, 0.6))
+			"double_cast":
+				# Re-deal the spell's damage to its target (chance already rolled).
+				var dc_card = context.get("card", null)
+				var dc_t = context.get("target", null)
+				if dc_card and dc_t and dc_card.last_damage_dealt > 0 and dc_t.has_method("take_damage"):
+					dc_t.take_damage(dc_card.last_damage_dealt, true)
+					main.add_battle_log("Double Cast!", Color(0.6, 0.3, 0.9))
+			"enemy_armor_reduce":
+				if main.enemy_spawner:
+					for en in main.enemy_spawner.get_living_enemies():
+						en.current_armor = max(0, en.current_armor - value)
+					main.add_battle_log("Passive: all enemies -%d armor" % value, Color(0.7, 0.7, 0.8))
+			"aoe_damage":
+				if main.enemy_spawner:
+					for en in main.enemy_spawner.get_living_enemies():
+						en.take_damage(value, true)
+					main.add_battle_log("Passive: %d damage to all enemies" % value, Color(1.0, 0.4, 0.4))
 			_:
 				print("[MAIN] Unhandled sphere passive effect: %s" % effect)
+		# Secondary "and N mana" rider parsed alongside the primary effect.
+		var mana_bonus = passive.get("mana_bonus", 0)
+		if mana_bonus > 0:
+			stats.gain_mana(mana_bonus)
 

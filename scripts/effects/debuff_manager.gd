@@ -121,16 +121,27 @@ func process_turn_start() -> Dictionary:
 		print("[DEBUFF] Burn deals %d damage (doubles next cycle)" % burn_damage_next)
 		burn_damage_next *= 2
 
-	# Poison: deal value damage, then lose 1 poison
+	# Poison: deal value damage, then lose 1 poison. Elixir flips it to healing.
 	var poison = get_debuff(Debuff.DebuffType.POISON)
 	if poison:
-		result["damage_taken"] += poison.value
-		print("[DEBUFF] Poison deals %d damage" % poison.value)
+		if owner_stats and "elixir_active" in owner_stats and owner_stats.elixir_active:
+			owner_stats.heal(poison.value)
+			print("[DEBUFF] Elixir: Poison healed %d instead!" % poison.value)
+		else:
+			result["damage_taken"] += poison.value
+			print("[DEBUFF] Poison deals %d damage" % poison.value)
 		poison.value -= 1
 		poison._set_name_and_description()
 		if poison.value <= 0:
 			remove_debuff(Debuff.DebuffType.POISON)
 			print("[DEBUFF] Poison expired (0 stacks)")
+
+	# Elixir wears off over time (5 tempo per cycle).
+	if owner_stats and "elixir_active" in owner_stats and owner_stats.elixir_active:
+		owner_stats.elixir_tempo -= 5
+		if owner_stats.elixir_tempo <= 0:
+			owner_stats.elixir_active = false
+			print("[DEBUFF] Elixir wore off")
 
 	# Drain: lose 1 mana, then lose 1 drain stack
 	var drain = get_debuff(Debuff.DebuffType.DRAIN)

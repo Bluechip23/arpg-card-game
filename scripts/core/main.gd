@@ -2667,6 +2667,69 @@ func _show_release_tension_picker(card: Card, enemy) -> void:
 	cancel.pressed.connect(func(): overlay.queue_free())
 	vbox.add_child(cancel)
 
+func show_hand_card_picker(prompt: String, on_pick: Callable, exclude: Card = null) -> void:
+	## Reusable hand-card picker: presents the cards in hand (minus `exclude`) and
+	## calls on_pick(chosen_card) with the selection. Auto-resolves when there are
+	## 0 or 1 candidates, so callers don't have to special-case those.
+	var candidates: Array = []
+	for c in deck_manager.hand:
+		if c != exclude:
+			candidates.append(c)
+	if candidates.is_empty():
+		on_pick.call(null)
+		return
+	if candidates.size() == 1:
+		on_pick.call(candidates[0])
+		return
+
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "HandCardPicker"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var pstyle := StyleBoxFlat.new()
+	pstyle.bg_color = Color(0.12, 0.13, 0.18, 1.0)
+	pstyle.set_border_width_all(2)
+	pstyle.border_color = Color(0.4, 0.6, 0.5)
+	pstyle.set_corner_radius_all(8)
+	pstyle.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", pstyle)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	vbox.custom_minimum_size = Vector2(280, 0)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = prompt
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.7, 1.0, 0.8))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	for c in candidates:
+		var b := Button.new()
+		b.text = c.card_name
+		b.custom_minimum_size = Vector2(260, 36)
+		b.pressed.connect(func():
+			overlay.queue_free()
+			on_pick.call(c))
+		vbox.add_child(b)
+
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.custom_minimum_size = Vector2(260, 32)
+	cancel.pressed.connect(func(): overlay.queue_free())
+	vbox.add_child(cancel)
+
 func _show_defeat_overlay() -> void:
 	var ui = $UI as CanvasLayer
 	var overlay := ColorRect.new()
@@ -3166,6 +3229,15 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 		else:
 			player.play_animation("hit")
 	var stats = player.get_stats()
+
+	# Exposed (damage broke through armor): fire on_exposed reactions.
+	var exposed_reactions = deck_manager.trigger_reactions("on_exposed")
+	for rcard in exposed_reactions:
+		rcard.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+		if rcard.card_id == "vengeful_shield":
+			_stun_nearest_enemy(2.0)
+	if exposed_reactions.size() > 0:
+		_refresh_unit_tracker()
 	for card in deck_manager.get_maintained_cards():
 		if card.card_id == "armored_discipline":
 			stats.add_armor(hp_amount)
@@ -3190,6 +3262,8 @@ func _on_player_healed(amount: int) -> void:
 	# Skill tree passive triggers on heal
 	progression_triggers._trigger_skill_tree_brad_on_heal()
 	progression_triggers._trigger_skill_tree_cory_on_heal()
+	# Whispers of the Flock: healing (self/ally) adds a Shepherd's Mark to hand.
+	progression_triggers._trigger_skill_tree_jeremy_on_heal_ally()
 
 func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
 	# Cory: Energy Barrier — track non-regen mana gains
@@ -3242,13 +3316,17 @@ func _on_hand_updated() -> void:
 	# Recalculate enchantment bonuses based on current hand contents
 	_recalculate_enchantment_bonuses()
 
-	# Roll RNG for cards that haven't been rolled yet
+	# Roll RNG for cards that haven't been rolled yet. The one-shot next_odds_boost
+	# (Loaded Die / House Money) is added on top of the permanent chance_boost and
+	# consumed once a card is actually rolled.
 	var enemies = enemy_spawner.get_living_enemies()
-	var chance_boost = player.get_stats().chance_boost
+	var _rng_stats = player.get_stats()
+	var chance_boost = _rng_stats.chance_boost + _rng_stats.next_odds_boost
 	for card in deck_manager.hand:
 		if card.has_chance_effect() and not card.has_been_rolled():
 			card.roll_rng(enemies, chance_boost)
 			card.rng_roll_tempo = tempo_manager.global_tempo
+			_rng_stats.next_odds_boost = 0.0  # consumed on the next rolled card
 
 	var hand_size = deck_manager.hand.size()
 	if hand_size == 0:
@@ -3484,6 +3562,12 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		# Maintained Power card effects (Halo healing, etc.)
 		_process_maintained_card_effects()
 
+		# Sphere-grid regen (e.g. Nature's Grace): heal each cycle, routed through
+		# heal() so Raged Circulation's healing boost applies to it too.
+		var regen_stats = player.get_stats()
+		if regen_stats and regen_stats.sphere_bonus_regen > 0:
+			regen_stats.heal(regen_stats.sphere_bonus_regen)
+
 		# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
 		if buff_mgr:
 			var buff_result = buff_mgr.process_turn_start()
@@ -3548,11 +3632,11 @@ func _process_maintained_card_effects() -> void:
 	var maintained_result = deck_manager.process_maintained_cards()
 	var stats = player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
-		var heal_amount = maintained_result["total_heal"]
-		if stats:
-			heal_amount = stats.get_effective_heal_amount(heal_amount)
-		stats.heal(heal_amount)
-		print("[MAIN] Maintained cards healed for %d HP" % heal_amount)
+		# Halo: heal all allies (self-only in solo, both players in co-op).
+		for ally in _all_players():
+			if is_instance_valid(ally) and ally.get_stats():
+				ally.get_stats().heal(maintained_result["total_heal"])
+		print("[MAIN] Maintained cards healed for %d HP" % maintained_result["total_heal"])
 	if maintained_result["self_damage"] > 0 and stats:
 		stats.take_direct_damage(maintained_result["self_damage"])
 		print("[MAIN] Cultish Wounds: dealt %d damage to self (ignoring armor)" % maintained_result["self_damage"])
@@ -3759,6 +3843,37 @@ func _adrenaline_delayed(deck) -> void:
 func _vines_tick(en, dmg: int) -> void:
 	if is_instance_valid(en) and not en.is_dead and en.has_method("take_damage"):
 		en.take_damage(dmg, true)
+
+func _try_this_revert(tt_stats) -> void:
+	if is_instance_valid(tt_stats):
+		tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
+		tt_stats.hand_size = max(1, tt_stats.hand_size - 2)
+
+func _stun_nearest_enemy(within: float) -> void:
+	## Stun the closest living enemy within `within` tiles of the player.
+	if not enemy_spawner:
+		return
+	var nearest = null
+	var best := INF
+	for en in enemy_spawner.get_living_enemies():
+		var d = player.position.distance_to(en.position)
+		if d <= within and d < best:
+			best = d
+			nearest = en
+	if nearest and nearest.has_method("apply_stun"):
+		nearest.apply_stun()
+		add_battle_log("Vengeful Shield: stunned %s!" % nearest.enemy_name, Color(1.0, 1.0, 0.3))
+
+func _harness_lightning_tick() -> void:
+	## Harness Lightning orb: zap a random living enemy within 3 tiles for 4.
+	if not enemy_spawner:
+		return
+	var in_range: Array = []
+	for en in enemy_spawner.get_living_enemies():
+		if player.position.distance_to(en.position) <= 3.0:
+			in_range.append(en)
+	if in_range.size() > 0:
+		in_range[randi() % in_range.size()].take_damage(4, true)
 
 func _cryonics_heal(p) -> void:
 	if is_instance_valid(p) and p.get_stats():
@@ -4188,6 +4303,9 @@ func play_selected_card(target) -> void:
 
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
+	# Specific Strike: +1 tempo per OTHER card in hand (mana handled in play_card).
+	if card.card_id == "specific_strike":
+		tempo_cost += max(0, deck_manager.hand.size() - 1)
 	var resolve_tick = mini(card.resolve_tick, tempo_cost)  # Clamp resolve_tick to tempo_cost
 	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
 
@@ -4610,8 +4728,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		else:
 			add_battle_log("Collect Arrows: no attack cards in discard pile!", Color(1.0, 0.6, 0.3))
 
-	# Track last played card for Lethal Recall
-	if card.card_id != "lethal_recall":
+	# Track last INSTANT card for Lethal Recall (instant cards mark "Instant" in
+	# their description).
+	if card.card_id != "lethal_recall" and "Instant" in card.description:
 		_last_played_card = card
 		_last_played_target = target
 
@@ -4795,7 +4914,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
 			var center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
 			var fb_dmg = card.last_damage_dealt
-			var fb_hit = enemy_spawner.get_enemies_in_radius(center, 4.0)
+			var fb_hit = enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:
 				en.take_damage(fb_dmg, true)
 				en.apply_debuff("burn", 3)
@@ -4907,6 +5026,49 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_misery_active = true
 			add_battle_log("Misery Loves Company! Your next AOE spreads debuffs.", Color(0.8, 0.5, 0.9))
 			print("[MAIN] Misery Loves Company armed.")
+
+		"worms_armageddon":
+			# Rain meteors: base_damage to every enemy on the field; 10% Bull Worm VFX.
+			var wa_dmg = card.base_damage
+			var wa_hit = enemy_spawner.get_living_enemies()
+			for en in wa_hit:
+				en.take_damage(wa_dmg, true)
+			add_battle_log("Worms Armageddon! %d damage to %d enemies" % [wa_dmg, wa_hit.size()], Color(0.6, 0.4, 0.2))
+			print("[MAIN] Worms Armageddon hit %d enemies for %d" % [wa_hit.size(), wa_dmg])
+
+		"harness_lightning":
+			# Orb: 4 damage every 5 tempo for 30 tempo to a random enemy within 3.
+			for tick in range(1, 7):
+				schedule_delayed_effect(tick * 5, _harness_lightning_tick, "harness_lightning")
+			add_battle_log("Harness Lightning! An orb crackles for 30 tempo.", Color(0.7, 0.8, 1.0))
+			print("[MAIN] Harness Lightning orb created.")
+
+		"try_this":
+			# Ally +3 mana pool / +2 hand size for 10 tempo (10% backfires, permanent).
+			var tt_stats = target.get_stats() if target is Player else player.get_stats()
+			if tt_stats:
+				if randf() < 0.1:
+					tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
+					tt_stats.hand_size = max(1, tt_stats.hand_size - 2)
+					add_battle_log("Try This backfired! -3 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
+				else:
+					tt_stats.max_mana += 3
+					tt_stats.hand_size += 2
+					schedule_delayed_effect(10, _try_this_revert.bind(tt_stats), "try_this")
+					add_battle_log("Try This! +3 mana pool, +2 hand size for 10 tempo", Color(0.6, 1.0, 0.6))
+
+		"item_mastery":
+			# Place a copy of every card slotted in your items into your hand.
+			var inv = player.get_inventory()
+			var added = 0
+			if inv and inv.has_method("get_all_slotted_cards"):
+				for sc in inv.get_all_slotted_cards():
+					var copy = deck_manager._create_card_from_id(sc.card_id)
+					if copy:
+						deck_manager.add_card_to_hand(copy)
+						added += 1
+			add_battle_log("Item Mastery! Pulled %d item card(s) into hand." % added, Color(0.8, 0.7, 0.4))
+			print("[MAIN] Item Mastery added %d cards to hand." % added)
 
 		"cryonics":
 			# Encase an ally in ice: untargetable + cannot act for 15 tempo, healing
@@ -5088,10 +5250,22 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				player.blink_to(blink_pos)
 				progression_triggers._trigger_skill_tree_on_displacement()
 		"push":
-			# Push enemy 3 spaces away from the player
+			# Push enemy away by the card's range_modifier (min 1).
+			var push_dist = max(1, int(card.range_modifier))
 			if target and target.has_method("knockback"):
-				target.knockback(player.position, 3)
-			print("[MAIN] Push: enemy pushed 3 spaces away")
+				target.knockback(player.position, push_dist)
+			print("[MAIN] Push: enemy pushed %d spaces away" % push_dist)
+
+		"hold_the_line":
+			# All allies gain 5 armor, +2 determination, +2 strength.
+			for ally in _all_players():
+				var a_st = ally.get_stats() if is_instance_valid(ally) else null
+				if a_st:
+					a_st.add_armor(5)
+					a_st.determination += 2
+					a_st.base_strength += 2
+					a_st.recalculate_derived_stats()
+			add_battle_log("Hold the Line! All allies +5 armor, +2 DET, +2 STR", Color(0.3, 0.7, 1.0))
 
 		"swap":
 			# Swap positions between player and target
@@ -5311,7 +5485,16 @@ func _input(event: InputEvent) -> void:
 					# Co-op: clicking the partner targets them (heal/buff an ally);
 					# clicking yourself or empty ground defaults to self.
 					var tgt_player := _player_at_position(mouse_pos)
-					play_selected_card(tgt_player if tgt_player else player)
+					var tgt = tgt_player if tgt_player else player
+					if card.card_id == "reposition":
+						# Let the player choose which card to discard, then play.
+						show_hand_card_picker("Reposition — discard which card?",
+							func(chosen):
+								card.picked_card = chosen
+								play_selected_card(tgt),
+							card)
+					else:
+						play_selected_card(tgt)
 				elif "all_nearby" in tt:
 					play_selected_card(player)
 				elif "point" in tt:
@@ -6569,7 +6752,11 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var triggered = deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
-	if triggered.size() > 0:
+	# Cover: an ally taking damage (self in solo) fires its mitigation reaction.
+	var cover_reactions = deck_manager.trigger_reactions("on_ally_damage_taken")
+	for card in cover_reactions:
+		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+	if triggered.size() > 0 or cover_reactions.size() > 0:
 		_refresh_unit_tracker()
 
 	var stats = player.get_stats()
