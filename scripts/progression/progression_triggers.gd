@@ -853,11 +853,11 @@ func _trigger_skill_tree_brad_on_heal() -> void:
 			buff_mgr.apply_buff(Buff.new(Buff.BuffType.THORNS, 3, 30))
 			main.add_battle_log("Vines Codependence: +3 thorns", Color(0.4, 0.9, 0.4))
 
-	# Redemption: gain crit buff when healing (self or ally)
+	# Redemption: gain crit on next attack when healing (self or ally)
 	if stats.has_skill_tree_passive("redemption"):
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_focused(10, "Redemption"))
+			buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Redemption"))
 			main.add_battle_log("Redemption: crit on next attack!", Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_brad_on_heal_ally(ally_name: String) -> void:
@@ -934,11 +934,8 @@ func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 		else:
 			bonus -= 5
 
-	# Life Steal: all attacks life steal by 5%
-	if stats.has_skill_tree_passive("life_steal"):
-		var buff_mgr = main.player.get_buff_manager()
-		if buff_mgr and not buff_mgr.has_life_steal():
-			buff_mgr.apply_buff(Buff.create_life_steal("Life Steal (Passive)"))
+	# Life Steal: all attacks life steal by 5% — applied directly in Card.execute()
+	# (the generic LIFE_STEAL buff heals 100%, so it must NOT be used here).
 
 	# Corrupted Strength: +5 damage while active (3+ enemies within 2 tiles)
 	if stats.has_skill_tree_passive("corrupted_strength") and stats.st_corrupted_strength_active:
@@ -1010,10 +1007,10 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 			if stats.st_scouted_hits >= 3:
 				stats.st_scouted_bonus_active = true
 				stats.st_scouted_hits = 0
-				# Grant auto-crit via Focused buff
+				# Grant auto-crit on next attack
 				var buff_mgr = main.player.get_buff_manager()
 				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_focused(15, "Scouted"))
+					buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Scouted"))
 				main.add_battle_log("Scouted: 3 hits! +6 range and auto-crit on next attack!", Color(0.4, 0.9, 0.4))
 		else:
 			# Switched targets — reset streak
@@ -1238,9 +1235,9 @@ func _trigger_skill_tree_cory_on_kill(enemy: Enemy) -> void:
 	if not stats:
 		return
 
-	# Eat: killing enemies heals 10% of the enemy's max HP
+	# Eat: killing enemies heals 5% of YOUR max HP
 	if stats.has_skill_tree_passive("eat"):
-		var heal_amount = max(1, floori(enemy.max_health * 0.10))
+		var heal_amount = max(1, floori(stats.max_health * 0.05))
 		stats.heal(heal_amount)
 		main.add_battle_log("Eat: healed %d HP!" % heal_amount, Color(0.3, 0.7, 1.0))
 

@@ -869,6 +869,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if dealt > 0:
 			buff_mgr.consume_life_steal(dealt)
 
+	# Life Steal passive (Brad): all attacks heal for 5% of damage dealt.
+	if card_type == CardType.ATTACK and player_stats and player_stats.has_skill_tree_passive("life_steal"):
+		var ls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
+		if ls_dealt > 0:
+			player_stats.heal(max(1, floori(ls_dealt * 0.05)))
+
 	# Clear armor break flag on target after attack resolves
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
 		target.set_armor_break_incoming(false)

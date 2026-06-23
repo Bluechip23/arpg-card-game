@@ -3190,6 +3190,8 @@ func _on_player_healed(amount: int) -> void:
 	# Skill tree passive triggers on heal
 	progression_triggers._trigger_skill_tree_brad_on_heal()
 	progression_triggers._trigger_skill_tree_cory_on_heal()
+	# Whispers of the Flock: healing (self/ally) adds a Shepherd's Mark to hand.
+	progression_triggers._trigger_skill_tree_jeremy_on_heal_ally()
 
 func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
 	# Cory: Energy Barrier — track non-regen mana gains
