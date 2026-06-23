@@ -3689,6 +3689,10 @@ func _adrenaline_delayed(deck) -> void:
 	_adjust_random_hand_tempo(deck, 1, 2)
 	add_battle_log("Adrenaline Shot wears off: +tempo to the target's cards", Color(1.0, 0.7, 0.5))
 
+func _vines_tick(en, dmg: int) -> void:
+	if is_instance_valid(en) and not en.is_dead and en.has_method("take_damage"):
+		en.take_damage(dmg, true)
+
 func _succumb_phase1(caster) -> void:
 	if is_instance_valid(caster) and caster.get_stats():
 		caster.get_stats().take_damage(10)
@@ -4689,6 +4693,32 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				target.take_damage(total_shock, true)
 			add_battle_log("God of Thunder! Absorbed %d shock, struck for %d" % [total_shock, total_shock], Color(0.8, 0.8, 1.0))
 			print("[MAIN] God of Thunder: absorbed %d shock" % total_shock)
+
+		"vines":
+			# Hold the target for 3 cycles, dealing base damage at the end of each.
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("stun", 3)
+				for cyc in range(1, 4):
+					schedule_delayed_effect(cyc * 5, _vines_tick.bind(target, card.base_damage), "vines")
+				add_battle_log("Vines! Held the enemy for 3 turns (%d dmg/turn)" % card.base_damage, Color(0.4, 0.8, 0.3))
+				print("[MAIN] Vines: held target, %d damage x3 cycles" % card.base_damage)
+
+		"release_tension":
+			# Remove one stack of a damage-over-time debuff from the target and heal
+			# 3 per stack removed.
+			var rt_removed = 0
+			if target:
+				for prop in ["poison_stacks", "burn_stacks", "shock_stacks", "cold_stacks"]:
+					var v = target.get(prop)
+					if v != null and int(v) > 0:
+						target.set(prop, int(v) - 1)
+						rt_removed = 1
+						break
+			var rt_stats = player.get_stats()
+			if rt_stats and rt_removed > 0:
+				rt_stats.heal(rt_removed * 3)
+			add_battle_log("Release Tension! Removed %d debuff, healed %d" % [rt_removed, rt_removed * 3], Color(0.6, 0.9, 0.7))
+			print("[MAIN] Release Tension: removed %d debuff stack, healed %d" % [rt_removed, rt_removed * 3])
 
 		"roar":
 			# Knock all nearby enemies back 1 space
