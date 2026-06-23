@@ -192,6 +192,8 @@ var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining:
 # (spark, patience, succumb, adrenaline_shot, …) push a captured Callable here.
 var _delayed_effects: Array = []  # [{remaining: int, callback: Callable, label: String}]
 var _misery_active: bool = false  # Misery Loves Company: next AOE spreads debuffs
+var _friendship_linked: bool = false  # Friendship: P1/P2 share healing and split damage
+var _friendship_busy: bool = false    # Reentrancy guard for the friendship link
 var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
 
 # Ticked tempo system state
@@ -3695,6 +3697,54 @@ func _vines_tick(en, dmg: int) -> void:
 	if is_instance_valid(en) and not en.is_dead and en.has_method("take_damage"):
 		en.take_damage(dmg, true)
 
+func _cryonics_heal(p) -> void:
+	if is_instance_valid(p) and p.get_stats():
+		p.get_stats().heal(3)
+
+func _cryonics_end(p) -> void:
+	if is_instance_valid(p):
+		p.untargetable = false
+		add_battle_log("The ice melts — ally can act again.", Color(0.6, 0.85, 1.0))
+
+## Friendship: link both players so heals are shared and incoming damage is split.
+## A reentrancy guard stops the heal/damage echoes from looping.
+func _link_friendship() -> void:
+	if _friendship_linked:
+		return
+	_friendship_linked = true
+	var s1 = _p1_player.get_stats()
+	var s2 = _p2_player.get_stats()
+	if s1:
+		s1.healed.connect(_on_friendship_heal.bind(0))
+		s1.health_damage_taken.connect(_on_friendship_damage.bind(0))
+	if s2:
+		s2.healed.connect(_on_friendship_heal.bind(1))
+		s2.health_damage_taken.connect(_on_friendship_damage.bind(1))
+
+func _on_friendship_heal(amount: int, healer_idx: int) -> void:
+	if _friendship_busy or amount <= 0:
+		return
+	_friendship_busy = true
+	var other = _p2_player if healer_idx == 0 else _p1_player
+	if is_instance_valid(other) and other.get_stats():
+		other.get_stats().heal(amount)
+	_friendship_busy = false
+
+func _on_friendship_damage(amount: int, victim_idx: int) -> void:
+	# Split: refund half to the victim and deal half to the partner.
+	if _friendship_busy or amount <= 1:
+		return
+	_friendship_busy = true
+	var half = amount / 2
+	if half > 0:
+		var victim = _p1_player if victim_idx == 0 else _p2_player
+		var other = _p2_player if victim_idx == 0 else _p1_player
+		if is_instance_valid(victim) and victim.get_stats():
+			victim.get_stats().heal(half)
+		if is_instance_valid(other) and other.get_stats():
+			other.get_stats().take_damage(half)
+	_friendship_busy = false
+
 ## Misery Loves Company: if armed, spread every damage-over-time debuff on the
 ## player and any hit enemy across all the hit enemies (topping each up to the
 ## highest stack seen). Consumes the arm.
@@ -4266,10 +4316,11 @@ func _switch_active_player() -> void:
 	## bars stay visible; the main hand area, deck info and card-play routing
 	## follow the active character. Cards already in flight keep resolving on
 	## their own owner (see _on_card_tick_resolved).
-	# Don't hand control to a downed partner.
+	# Don't hand control to a downed or iced (Cryonics) partner.
 	var target_index := 1 - _active_index
-	if _downed.get(target_index, false):
-		add_battle_log("%s is down and can't be controlled." % (player2_character.character_name if target_index == 1 else starting_character.character_name), Color(1.0, 0.5, 0.5))
+	var target_node: Player = _p2_player if target_index == 1 else _p1_player
+	if _downed.get(target_index, false) or (target_node and target_node.untargetable):
+		add_battle_log("%s can't be controlled right now." % (player2_character.character_name if target_index == 1 else starting_character.character_name), Color(1.0, 0.5, 0.5))
 		return
 
 	selected_card_index = -1
@@ -4808,6 +4859,28 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_misery_active = true
 			add_battle_log("Misery Loves Company! Your next AOE spreads debuffs.", Color(0.8, 0.5, 0.9))
 			print("[MAIN] Misery Loves Company armed.")
+
+		"cryonics":
+			# Encase an ally in ice: untargetable + cannot act for 15 tempo, healing
+			# 3 every 5 tempo.
+			var ice_target = target if target is Player else player
+			var ice_idx = 1 if ice_target == _p2_player else 0
+			ice_target.untargetable = true
+			for cyc in range(1, 4):
+				schedule_delayed_effect(cyc * 5, _cryonics_heal.bind(ice_target), "cryonics")
+			schedule_delayed_effect(15, _cryonics_end.bind(ice_target), "cryonics_end")
+			if is_multiplayer and _active_index == ice_idx and not _downed.get(1 - ice_idx, false):
+				_switch_active_player()
+			add_battle_log("Cryonics! Ally encased in ice (untargetable, +3 HP/5t) for 15 tempo.", Color(0.6, 0.85, 1.0))
+			print("[MAIN] Cryonics: iced player %d for 15 tempo" % ice_idx)
+
+		"friendship":
+			if is_multiplayer and _p1_player and _p2_player:
+				_link_friendship()
+				add_battle_log("Friendship! Heals are shared and damage is split.", Color(1.0, 0.8, 0.5))
+			else:
+				add_battle_log("Friendship needs a partner.", Color(1.0, 0.6, 0.4))
+			print("[MAIN] Friendship link: %s" % _friendship_linked)
 
 		"roar":
 			# Knock all nearby enemies back 1 space

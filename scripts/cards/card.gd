@@ -856,7 +856,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_compute_attack_damage(player_stats, true)   # AOE + burn applied in main
 		"spirit_arrow":
 			_compute_attack_damage(player_stats, false)   # pierced line applied in main
-		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company":
+		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship":
 			pass  # Effect applied in main._apply_card_world_effects (needs world access)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
