@@ -36,6 +36,7 @@ var next_attack_mana_discount: int = 0
 var prep_utility_discount: int = 0  # Preparation: reduces next utility card cost
 var prep_utility_charges: int = 0   # How many more utility cards get the discount
 var discards_this_cycle: int = 0  # Cards discarded since last tempo cycle
+var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
 
 func connect_player_stats(stats) -> void:
 	player_stats = stats
@@ -657,6 +658,18 @@ func add_card_to_hand(card: Card) -> void:
 	hand.append(card)
 	hand_updated.emit()
 	print("[DECK] Card added to hand: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
+
+func discard_card_from_hand(card: Card) -> bool:
+	## Move a specific card from hand to the discard pile (e.g. Shed Weight).
+	var idx = hand.find(card)
+	if idx < 0:
+		return false
+	hand.remove_at(idx)
+	discard_pile.append(card)
+	discards_this_cycle += 1
+	card_discarded.emit(card)
+	hand_updated.emit()
+	return true
 
 func trigger_reactions(trigger_type: String) -> Array[Card]:
 	var triggered: Array[Card] = []

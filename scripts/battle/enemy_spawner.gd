@@ -100,14 +100,13 @@ func _living_players() -> Array:
 	var out := []
 	for p in players:
 		if is_instance_valid(p) and p.has_method("get_stats"):
+			# Cryonics-iced characters are untargetable.
+			if p.get("untargetable") == true:
+				continue
 			var st = p.get_stats()
 			if st and st.current_health > 0:
 				out.append(p)
 	return out
-
-## Legacy method kept for any existing references.
-func process_enemy_turns() -> void:
-	pass
 
 func _on_enemy_died(enemy: Enemy) -> void:
 	enemy_killed.emit(enemy)

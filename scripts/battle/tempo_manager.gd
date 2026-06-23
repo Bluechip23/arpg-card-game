@@ -26,7 +26,6 @@ signal tempo_advanced(global_total: int, amount: int)  # Fires on every tempo ad
 signal tick_started(tick_number: int, total_ticks: int)  # Each tick as it processes
 signal card_resolved(card: Card)  # Fired when a card's resolve_tick is reached
 signal ticking_finished()  # All pending ticks have been processed
-signal player_can_queue()  # Kept for compat, not currently emitted
 
 ## How many global tempo = 1 cycle (used for mana regen, card draw, buff tick)
 @export var tempo_threshold: int = 5

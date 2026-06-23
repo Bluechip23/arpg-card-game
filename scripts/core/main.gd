@@ -158,13 +158,12 @@ var _batch_pending: int = 0               # How many batched movers are still in
 var _downed: Dictionary = {0: false, 1: false}
 var _co_op_defeated: bool = false
 var _downed_markers: Dictionary = {}      # index -> Label3D "DOWNED" tag
+# These four are created by Player2UI but stored on Main so its hover/preview
+# handlers can reach them. The hand/deck open-state and list containers live in
+# Player2UI itself (do not re-add them here).
 var _p2_hand_panel: PanelContainer = null
-var _p2_hand_container: VBoxContainer = null
-var _p2_hand_visible: bool = false
 var _p2_hand_card_preview: PanelContainer = null
 var _p2_deck_panel: PanelContainer = null
-var _p2_deck_container: VBoxContainer = null
-var _p2_deck_visible: bool = false
 var _p2_deck_card_preview: PanelContainer = null
 
 var deck_list_panel: PanelContainer = null
@@ -189,6 +188,12 @@ var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
 var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining: int}]
+# Generic delayed-effect scheduler (per-tempo). Cards that fire after a delay
+# (spark, patience, succumb, adrenaline_shot, …) push a captured Callable here.
+var _delayed_effects: Array = []  # [{remaining: int, callback: Callable, label: String}]
+var _misery_active: bool = false  # Misery Loves Company: next AOE spreads debuffs
+var _friendship_linked: bool = false  # Friendship: P1/P2 share healing and split damage
+var _friendship_busy: bool = false    # Reentrancy guard for the friendship link
 var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
 
 # Ticked tempo system state
@@ -290,8 +295,6 @@ func _ready() -> void:
 	tempo_manager.tempo_changed.connect(_on_tempo_changed)
 	tempo_manager.tempo_advanced.connect(_on_tempo_advanced)
 	tempo_manager.card_resolved.connect(_on_card_tick_resolved)
-	# player_can_queue no longer used — player must wait for ALL ticks to finish
-	# tempo_manager.player_can_queue.connect(_on_player_can_queue)
 	tempo_manager.ticking_finished.connect(_on_ticking_finished)
 	turn_manager.turn_ended.connect(_on_turn_ended)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
@@ -2679,6 +2682,9 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Summoned rats (Infestation) move/lunge after the enemies have acted.
 	_update_summoned_rats()
 
+	# Fire any scheduled delayed card effects whose timer has elapsed.
+	_process_delayed_effects(amount)
+
 	# Mana regen on the player's own tempo interval
 	var stats = player.get_stats()
 	if stats:
@@ -3444,6 +3450,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		_process_pending_sky_falls()
 		_process_pending_absorb_essences()
 		_process_glut_countdown()
+		_process_in_hand_cards()
 
 	# Sphere grid passive triggers for tempo cycle
 	progression_triggers._trigger_sphere_passives("on_cycle", {})
@@ -3634,6 +3641,179 @@ func _process_pending_sky_falls() -> void:
 			print("[MAIN] Sky Fall landed at %s! Hit %d enemies for %d damage" % [sf.position, enemies_hit.size(), sf.damage])
 		else:
 			print("[MAIN] Sky Fall: %d tempo until landing at %s" % [sf.tempo_remaining, sf.position])
+
+## Run `callback` after `tempo_delay` global tempo elapses. The caller captures
+## any needed references (player, deck) so the effect resolves on the right
+## target even if control has switched in the meantime.
+func schedule_delayed_effect(tempo_delay: int, callback: Callable, label: String = "") -> void:
+	_delayed_effects.append({"remaining": tempo_delay, "callback": callback, "label": label})
+
+func _process_delayed_effects(amount: int) -> void:
+	for i in range(_delayed_effects.size() - 1, -1, -1):
+		var d = _delayed_effects[i]
+		d.remaining -= amount
+		if d.remaining <= 0:
+			_delayed_effects.remove_at(i)
+			if d.callback.is_valid():
+				d.callback.call()
+
+## Map a player character to its own DeckManager (co-op aware).
+func _deck_for_player(p) -> DeckManager:
+	if is_multiplayer:
+		if p == _p2_player:
+			return _p2_deck_manager
+		if p == _p1_player:
+			return _p1_deck_manager
+	return deck_manager
+
+## Add `delta` tempo (clamped at 0) to `count` random cards in a deck's hand.
+func _adjust_random_hand_tempo(deck, count: int, delta: int) -> void:
+	if not deck or deck.hand.is_empty():
+		return
+	var cards: Array = deck.hand.duplicate()
+	cards.shuffle()
+	for i in range(min(count, cards.size())):
+		cards[i].tempo_cost = max(0, cards[i].tempo_cost + delta)
+	deck.hand_updated.emit()
+
+# --- Delayed card-effect handlers (scheduled via schedule_delayed_effect) ---
+
+func _spark_delayed(deck) -> void:
+	_adjust_random_hand_tempo(deck, 2, 2)
+	add_battle_log("Spark: +2 tempo to 2 random cards", Color(0.7, 0.85, 1.0))
+
+func _patience_delayed(deck) -> void:
+	if deck:
+		for i in range(3):
+			deck.draw_card()
+	add_battle_log("Patience: drew 3 cards", Color(0.5, 0.9, 0.5))
+
+func _adrenaline_delayed(deck) -> void:
+	_adjust_random_hand_tempo(deck, 1, 3)
+	_adjust_random_hand_tempo(deck, 1, 2)
+	add_battle_log("Adrenaline Shot wears off: +tempo to the target's cards", Color(1.0, 0.7, 0.5))
+
+func _vines_tick(en, dmg: int) -> void:
+	if is_instance_valid(en) and not en.is_dead and en.has_method("take_damage"):
+		en.take_damage(dmg, true)
+
+func _cryonics_heal(p) -> void:
+	if is_instance_valid(p) and p.get_stats():
+		p.get_stats().heal(3)
+
+func _cryonics_end(p) -> void:
+	if is_instance_valid(p):
+		p.untargetable = false
+		add_battle_log("The ice melts — ally can act again.", Color(0.6, 0.85, 1.0))
+
+## Friendship: link both players so heals are shared and incoming damage is split.
+## A reentrancy guard stops the heal/damage echoes from looping.
+func _link_friendship() -> void:
+	if _friendship_linked:
+		return
+	_friendship_linked = true
+	var s1 = _p1_player.get_stats()
+	var s2 = _p2_player.get_stats()
+	if s1:
+		s1.healed.connect(_on_friendship_heal.bind(0))
+		s1.health_damage_taken.connect(_on_friendship_damage.bind(0))
+	if s2:
+		s2.healed.connect(_on_friendship_heal.bind(1))
+		s2.health_damage_taken.connect(_on_friendship_damage.bind(1))
+
+func _on_friendship_heal(amount: int, healer_idx: int) -> void:
+	if _friendship_busy or amount <= 0:
+		return
+	_friendship_busy = true
+	var other = _p2_player if healer_idx == 0 else _p1_player
+	if is_instance_valid(other) and other.get_stats():
+		other.get_stats().heal(amount)
+	_friendship_busy = false
+
+func _on_friendship_damage(amount: int, victim_idx: int) -> void:
+	# Split: refund half to the victim and deal half to the partner.
+	if _friendship_busy or amount <= 1:
+		return
+	_friendship_busy = true
+	var half = amount / 2
+	if half > 0:
+		var victim = _p1_player if victim_idx == 0 else _p2_player
+		var other = _p2_player if victim_idx == 0 else _p1_player
+		if is_instance_valid(victim) and victim.get_stats():
+			victim.get_stats().heal(half)
+		if is_instance_valid(other) and other.get_stats():
+			other.get_stats().take_damage(half)
+	_friendship_busy = false
+
+## Misery Loves Company: if armed, spread every damage-over-time debuff on the
+## player and any hit enemy across all the hit enemies (topping each up to the
+## highest stack seen). Consumes the arm.
+func _apply_misery_spread(hit_enemies: Array) -> void:
+	if not _misery_active or hit_enemies.is_empty():
+		return
+	_misery_active = false
+	var fields = {"burn": "burn_stacks", "poison": "poison_stacks", "shock": "shock_stacks", "cold": "cold_stacks"}
+	var maxv = {"burn": 0, "poison": 0, "shock": 0, "cold": 0}
+	for en in hit_enemies:
+		for t in fields:
+			var v = en.get(fields[t])
+			if v != null and int(v) > maxv[t]:
+				maxv[t] = int(v)
+	var pdm = player.get_debuff_manager()
+	if pdm:
+		var pmap = {"burn": Debuff.DebuffType.BURN, "poison": Debuff.DebuffType.POISON, "shock": Debuff.DebuffType.SHOCKED, "cold": Debuff.DebuffType.COLD}
+		for t in pmap:
+			if pdm.has_debuff(pmap[t]):
+				var d = pdm.get_debuff(pmap[t])
+				if d and d.value > maxv[t]:
+					maxv[t] = d.value
+	for en in hit_enemies:
+		for t in fields:
+			var cur = en.get(fields[t])
+			cur = int(cur) if cur != null else 0
+			var add = maxv[t] - cur
+			if add > 0:
+				en.apply_debuff(t, add)
+	add_battle_log("Misery spread debuffs across %d enemies!" % hit_enemies.size(), Color(0.85, 0.5, 0.95))
+	print("[MAIN] Misery Loves Company spread: %s" % str(maxv))
+
+func _succumb_phase1(caster) -> void:
+	if is_instance_valid(caster) and caster.get_stats():
+		caster.get_stats().take_damage(10)
+		add_battle_log("Succumb: took 10 damage", Color(1.0, 0.45, 0.45))
+
+func _succumb_phase2(caster) -> void:
+	if not is_instance_valid(caster):
+		return
+	if caster.get_stats():
+		caster.get_stats().take_damage(10)
+	var bm = caster.get_buff_manager()
+	if bm and bm.debuff_manager:
+		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.CUFFED, 1, 10))
+		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.DRAIN, 1, 10))
+		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.DISARM, 1, 10))
+	add_battle_log("Succumb: took 10 more damage; cuffed, drained, disarmed", Color(1.0, 0.3, 0.3))
+
+func _process_in_hand_cards() -> void:
+	## Per-cycle: advance in-hand timers (Healthy Bliss). When one elapses, heal
+	## all allies and discard the card.
+	var decks := [deck_manager]
+	if is_multiplayer and _p1_deck_manager and _p2_deck_manager:
+		decks = [_p1_deck_manager, _p2_deck_manager]
+	for dmgr in decks:
+		if not dmgr:
+			continue
+		for i in range(dmgr.hand.size() - 1, -1, -1):
+			var c = dmgr.hand[i]
+			if c.in_hand_heal_tempo > 0:
+				c.in_hand_heal_tempo -= 5
+				if c.in_hand_heal_tempo <= 0:
+					for p in _all_players():
+						if is_instance_valid(p) and p.get_stats():
+							p.get_stats().heal(c.heal_amount)
+					add_battle_log("Healthy Bliss heals all allies for %d!" % c.heal_amount, Color(0.5, 1.0, 0.6))
+					print("[MAIN] Healthy Bliss triggered: healed all allies %d" % c.heal_amount)
+					dmgr.discard_card_from_hand(c)
 
 func _process_pending_absorb_essences() -> void:
 	for i in range(pending_absorb_essences.size() - 1, -1, -1):
@@ -4136,10 +4316,11 @@ func _switch_active_player() -> void:
 	## bars stay visible; the main hand area, deck info and card-play routing
 	## follow the active character. Cards already in flight keep resolving on
 	## their own owner (see _on_card_tick_resolved).
-	# Don't hand control to a downed partner.
+	# Don't hand control to a downed or iced (Cryonics) partner.
 	var target_index := 1 - _active_index
-	if _downed.get(target_index, false):
-		add_battle_log("%s is down and can't be controlled." % (player2_character.character_name if target_index == 1 else starting_character.character_name), Color(1.0, 0.5, 0.5))
+	var target_node: Player = _p2_player if target_index == 1 else _p1_player
+	if _downed.get(target_index, false) or (target_node and target_node.untargetable):
+		add_battle_log("%s can't be controlled right now." % (player2_character.character_name if target_index == 1 else starting_character.character_name), Color(1.0, 0.5, 0.5))
 		return
 
 	selected_card_index = -1
@@ -4171,10 +4352,6 @@ func _switch_active_player() -> void:
 	add_battle_log("Now controlling %s" % who, Color(1.0, 0.85, 0.4))
 	print("[MAIN] Co-op: now controlling player %d (%s)" % [_active_index + 1, who])
 
-func _on_player_can_queue() -> void:
-	## Not currently used.
-	pass
-
 func _on_ticking_finished() -> void:
 	## Called when all pending ticks are done. Reset the tick bar.
 	_reset_tick_bar()
@@ -4189,32 +4366,37 @@ func _return_queued_cards_for_dead_target(dead_enemy: Enemy) -> void:
 			var card: Card = entry["card"]
 			var data: Dictionary = entry["data"]
 			_pending_resolve_queue.remove_at(i)
-
-			# Basic attack cards are temporary — just cancel their ticks
-			if data.get("is_basic_attack", false):
-				tempo_manager.cancel_card_ticks(card)
-				add_battle_log("Basic attack cancelled — %s defeated!" % dead_enemy.enemy_name, Color(1.0, 0.85, 0.4))
-				continue
-
-			# Move from discard pile back to hand
-			var discard_idx = deck_manager.discard_pile.find(card)
-			if discard_idx >= 0:
-				deck_manager.discard_pile.remove_at(discard_idx)
-			deck_manager.add_card_to_hand(card)
-
-			# Undo temporary modifications
-			_undo_card_temp_mods(card, data)
-
-			# Cancel remaining ticks
-			var cancelled = tempo_manager.cancel_card_ticks(card)
-
-			add_battle_log("%s returned to hand — %s defeated! (%d tempo refunded)" % [card.card_name, dead_enemy.enemy_name, cancelled], Color(1.0, 0.85, 0.4))
-			print("[MAIN] Card '%s' returned to hand — target '%s' died. Refunded %d ticks." % [card.card_name, dead_enemy.enemy_name, cancelled])
-			cards_returned += 1
+			if _return_dead_target_card(card, data, "%s defeated" % dead_enemy.enemy_name):
+				cards_returned += 1
 
 	if cards_returned > 0:
 		_on_hand_updated()
 		update_deck_info()
+
+func _return_dead_target_card(card: Card, data: Dictionary, context: String) -> bool:
+	## Shared handling for a queued card whose target is gone. Basic attacks are
+	## temporary so they're simply cancelled; real cards return to hand with their
+	## temp mods undone and remaining ticks refunded. Returns true when the card
+	## was put back in hand (false for a cancelled basic attack), so callers know
+	## whether the hand/deck readout needs refreshing.
+	if data.get("is_basic_attack", false):
+		var cancelled_basic = tempo_manager.cancel_card_ticks(card)
+		add_battle_log("Basic attack cancelled — %s! (%d tempo refunded)" % [context, cancelled_basic], Color(1.0, 0.85, 0.4))
+		print("[MAIN] Basic attack cancelled — %s. Refunded %d ticks." % [context, cancelled_basic])
+		return false
+
+	# Move from discard pile (where play_card put it) back to hand
+	var discard_idx = deck_manager.discard_pile.find(card)
+	if discard_idx >= 0:
+		deck_manager.discard_pile.remove_at(discard_idx)
+	deck_manager.add_card_to_hand(card)
+
+	_undo_card_temp_mods(card, data)
+	var cancelled = tempo_manager.cancel_card_ticks(card)
+
+	add_battle_log("%s returned to hand — %s! (%d tempo refunded)" % [card.card_name, context, cancelled], Color(1.0, 0.85, 0.4))
+	print("[MAIN] Card '%s' returned to hand — %s. Refunded %d ticks." % [card.card_name, context, cancelled])
+	return true
 
 func _undo_card_temp_mods(card: Card, data: Dictionary) -> void:
 	## Undo temporary card modifications applied before queuing (tighten, high ground, harnessed).
@@ -4257,30 +4439,11 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		target_is_dead = true
 
 	if target_is_dead and card.card_type == Card.CardType.ATTACK:
-		# Basic attack cards are temporary — just discard them, don't return to hand
-		if data.get("is_basic_attack", false):
-			var cancelled = tempo_manager.cancel_card_ticks(card)
-			add_battle_log("Basic attack cancelled — target defeated! (%d tempo refunded)" % cancelled, Color(1.0, 0.85, 0.4))
-			print("[MAIN] Basic attack cancelled — target died. Refunded %d ticks." % cancelled)
-			return
-
-		# Return the card to the player's hand
-		# Remove from discard pile (where play_card put it)
-		var discard_idx = deck_manager.discard_pile.find(card)
-		if discard_idx >= 0:
-			deck_manager.discard_pile.remove_at(discard_idx)
-		deck_manager.add_card_to_hand(card)
-
-		# Undo temporary card modifications
-		_undo_card_temp_mods(card, data)
-
-		# Cancel remaining ticks for this card in the tempo queue
-		var cancelled = tempo_manager.cancel_card_ticks(card)
-
-		add_battle_log("%s returned to hand — target defeated! (%d tempo refunded)" % [card.card_name, cancelled], Color(1.0, 0.85, 0.4))
-		print("[MAIN] Card '%s' returned to hand — target died before resolution. Refunded %d ticks." % [card.card_name, cancelled])
-		_on_hand_updated()
-		update_deck_info()
+		# Basic attacks are cancelled; real attack cards return to hand. Only a
+		# returned card needs the hand/deck readout refreshed.
+		if _return_dead_target_card(card, data, "target defeated"):
+			_on_hand_updated()
+			update_deck_info()
 		return
 
 	# --- Basic attack resolution: deal damage directly ---
@@ -4557,6 +4720,167 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	match card.card_id:
 		"infestation":
 			_spawn_infestation_rats(5)
+
+		"spark":
+			# Damage is dealt in execute(); here: shift hand tempo now + later.
+			_adjust_random_hand_tempo(deck_manager, 2, -2)
+			schedule_delayed_effect(15, _spark_delayed.bind(deck_manager), "spark")
+			print("[MAIN] Spark: -2 tempo to 2 cards now, +2 to 2 cards in 15 tempo")
+
+		"patience":
+			schedule_delayed_effect(15, _patience_delayed.bind(deck_manager), "patience")
+			print("[MAIN] Patience: will draw 3 cards in 15 tempo")
+
+		"succumb":
+			var caster = player  # owner-bound during resolution
+			var bm = caster.get_buff_manager()
+			if bm:
+				bm.apply_buff(Buff.create_fortify(20, "Succumb"))
+				bm.apply_buff(Buff.create_blessed(2, 20, "Succumb"))
+				bm.apply_buff(Buff.create_strengthen(5, 5, "Succumb"))
+				bm.apply_buff(Buff.create_resilient(20, 20, "Succumb"))
+			schedule_delayed_effect(10, _succumb_phase1.bind(caster), "succumb1")
+			schedule_delayed_effect(20, _succumb_phase2.bind(caster), "succumb2")
+			print("[MAIN] Succumb: buffs now; 10 dmg in 10t; 10 dmg + debuffs in 20t")
+
+		"adrenaline_shot":
+			# Target is the ally whose hand is manipulated.
+			var tgt_deck = _deck_for_player(target) if target is Player else deck_manager
+			_adjust_random_hand_tempo(tgt_deck, 2, -3)
+			schedule_delayed_effect(5, _adrenaline_delayed.bind(tgt_deck), "adrenaline")
+			print("[MAIN] Adrenaline Shot: -3 tempo to 2 cards now, +tempo in 5 tempo")
+
+		"fireball":
+			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
+			var center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var fb_dmg = card.last_damage_dealt
+			var fb_hit = enemy_spawner.get_enemies_in_radius(center, 4.0)
+			for en in fb_hit:
+				en.take_damage(fb_dmg, true)
+				en.apply_debuff("burn", 3)
+			_apply_misery_spread(fb_hit)
+			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
+			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
+
+		"spirit_arrow":
+			# Pierce every enemy along the line from the player through the target.
+			var sa_dmg = card.last_damage_dealt
+			var aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var sa_dir = Vector3(aim.x - player.position.x, 0, aim.z - player.position.z)
+			var sa_far = aim
+			if sa_dir.length() > 0.01:
+				sa_far = player.position + sa_dir.normalized() * 100.0
+			var sa_hit = enemy_spawner.get_enemies_in_line(player.position, sa_far, 0.8)
+			for en in sa_hit:
+				en.take_damage(sa_dmg, true)
+			_apply_misery_spread(sa_hit)
+			add_battle_log("Spirit Arrow pierced %d enemies for %d" % [sa_hit.size(), sa_dmg], Color(0.7, 0.9, 1.0))
+			print("[MAIN] Spirit Arrow pierced %d enemies for %d" % [sa_hit.size(), sa_dmg])
+
+		"internal_combustion":
+			# Shed half your armor; deal that much to everything around you.
+			var ic_stats = player.get_stats()
+			var ic_amount = 0
+			if ic_stats:
+				ic_amount = ic_stats.current_armor / 2
+				ic_stats.current_armor -= ic_amount
+				ic_stats.armor_changed.emit(ic_stats.current_armor)
+			var ic_hit = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
+			for en in ic_hit:
+				en.take_damage(ic_amount, true)
+			_apply_misery_spread(ic_hit)
+			add_battle_log("Internal Combustion! %d damage to %d enemies" % [ic_amount, ic_hit.size()], Color(1.0, 0.6, 0.2))
+			print("[MAIN] Internal Combustion: shed %d armor, hit %d enemies" % [ic_amount, ic_hit.size()])
+
+		"god_of_thunder":
+			# Drain all shock from every enemy, then bolt the target for the total.
+			var total_shock = 0
+			for en in enemy_spawner.get_living_enemies():
+				total_shock += en.shock_stacks
+				en.shock_stacks = 0
+			if target and target.has_method("take_damage") and total_shock > 0:
+				target.take_damage(total_shock, true)
+			add_battle_log("God of Thunder! Absorbed %d shock, struck for %d" % [total_shock, total_shock], Color(0.8, 0.8, 1.0))
+			print("[MAIN] God of Thunder: absorbed %d shock" % total_shock)
+
+		"vines":
+			# Hold the target for 3 cycles, dealing base damage at the end of each.
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("stun", 3)
+				for cyc in range(1, 4):
+					schedule_delayed_effect(cyc * 5, _vines_tick.bind(target, card.base_damage), "vines")
+				add_battle_log("Vines! Held the enemy for 3 turns (%d dmg/turn)" % card.base_damage, Color(0.4, 0.8, 0.3))
+				print("[MAIN] Vines: held target, %d damage x3 cycles" % card.base_damage)
+
+		"release_tension":
+			# Remove one stack of a damage-over-time debuff from the target and heal
+			# 3 per stack removed.
+			var rt_removed = 0
+			if target:
+				for prop in ["poison_stacks", "burn_stacks", "shock_stacks", "cold_stacks"]:
+					var v = target.get(prop)
+					if v != null and int(v) > 0:
+						target.set(prop, int(v) - 1)
+						rt_removed = 1
+						break
+			var rt_stats = player.get_stats()
+			if rt_stats and rt_removed > 0:
+				rt_stats.heal(rt_removed * 3)
+			add_battle_log("Release Tension! Removed %d debuff, healed %d" % [rt_removed, rt_removed * 3], Color(0.6, 0.9, 0.7))
+			print("[MAIN] Release Tension: removed %d debuff stack, healed %d" % [rt_removed, rt_removed * 3])
+
+		"roll":
+			# Roll up to min(tempo_cost, 5) tiles toward the aim point, stopping on
+			# the first character hit. An enemy takes 10 damage and is disarmed.
+			var roll_aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var roll_start = player.position
+			var roll_diff = Vector3(roll_aim.x - roll_start.x, 0, roll_aim.z - roll_start.z)
+			var roll_dir = roll_diff.normalized() if roll_diff.length() > 0.01 else Vector3.ZERO
+			var roll_max = min(card.tempo_cost, 5)
+			var roll_final = roll_start
+			for step in range(1, roll_max + 1):
+				if roll_dir == Vector3.ZERO:
+					break
+				var np = grid_manager.snap_to_grid(roll_start + roll_dir * (step * grid_manager.grid_size))
+				var hit_enemy = enemy_spawner.get_enemy_at_position(np)
+				if hit_enemy:
+					hit_enemy.take_damage(10, true)
+					hit_enemy.apply_debuff("disarmed", 1)
+					add_battle_log("Roll into %s! 10 damage + disarm" % hit_enemy.enemy_name, Color(0.9, 0.8, 0.4))
+					break
+				if is_multiplayer and _p2_player and grid_manager.world_to_grid(_p2_player.position) == grid_manager.world_to_grid(np):
+					break  # bumped the partner — stop
+				roll_final = np
+			player.position = roll_final
+			player.target_position = roll_final
+			print("[MAIN] Roll: moved to %s (max %d tiles)" % [roll_final, roll_max])
+
+		"misery_loves_company":
+			_misery_active = true
+			add_battle_log("Misery Loves Company! Your next AOE spreads debuffs.", Color(0.8, 0.5, 0.9))
+			print("[MAIN] Misery Loves Company armed.")
+
+		"cryonics":
+			# Encase an ally in ice: untargetable + cannot act for 15 tempo, healing
+			# 3 every 5 tempo.
+			var ice_target = target if target is Player else player
+			var ice_idx = 1 if ice_target == _p2_player else 0
+			ice_target.untargetable = true
+			for cyc in range(1, 4):
+				schedule_delayed_effect(cyc * 5, _cryonics_heal.bind(ice_target), "cryonics")
+			schedule_delayed_effect(15, _cryonics_end.bind(ice_target), "cryonics_end")
+			if is_multiplayer and _active_index == ice_idx and not _downed.get(1 - ice_idx, false):
+				_switch_active_player()
+			add_battle_log("Cryonics! Ally encased in ice (untargetable, +3 HP/5t) for 15 tempo.", Color(0.6, 0.85, 1.0))
+			print("[MAIN] Cryonics: iced player %d for 15 tempo" % ice_idx)
+
+		"friendship":
+			if is_multiplayer and _p1_player and _p2_player:
+				_link_friendship()
+				add_battle_log("Friendship! Heals are shared and damage is split.", Color(1.0, 0.8, 0.5))
+			else:
+				add_battle_log("Friendship needs a partner.", Color(1.0, 0.6, 0.4))
+			print("[MAIN] Friendship link: %s" % _friendship_linked)
 
 		"roar":
 			# Knock all nearby enemies back 1 space

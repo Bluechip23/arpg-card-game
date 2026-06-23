@@ -26,6 +26,7 @@ var spaces_moved: int = 0
 var move_path: Array[Vector3] = []
 
 var movement_paused: bool = false  # Pause movement while enemies act
+var untargetable: bool = false  # Cryonics: enemies cannot target this character while iced
 var grid_manager: GridManager
 var enemy_spawner = null  # Set by main.gd so pathfinding can avoid enemy tiles
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
