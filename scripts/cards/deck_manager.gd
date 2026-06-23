@@ -363,9 +363,23 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				print("[DECK] Cannot play spell cards - Silenced!")
 				return { "played": false, "half_tempo": false }
 	
+	# Heavy Swing: only playable when the hand holds nothing but attack cards.
+	if card.card_id == "heavy_swing":
+		for hc in hand:
+			if hc != card and hc.card_type != Card.CardType.ATTACK:
+				print("[DECK] Heavy Swing needs an all-attack hand")
+				return { "played": false, "half_tempo": false }
+
 	var mana_cost = card.mana_cost
 	if card.card_type == Card.CardType.ATTACK:
 		mana_cost -= next_attack_mana_discount
+
+	# Specific Strike: +1 mana per OTHER card in hand.
+	if card.card_id == "specific_strike":
+		mana_cost += max(0, hand.size() - 1)
+	# Exhausted Assault: free to play while you have no mana.
+	if card.card_id == "exhausted_assault" and player_stats and player_stats.current_mana <= 0:
+		mana_cost = 0
 
 	# On-Self mana reduction from item card slot
 	if card.is_slotted():

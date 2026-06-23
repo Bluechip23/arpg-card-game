@@ -630,7 +630,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"approach":
 			_execute_approach(player_stats, buff_mgr)
 		"hold_the_line":
-			_execute_hold_the_line(player_stats, buff_mgr)
+			pass  # Applied to all allies in main._apply_card_world_effects
 		# === Jeremy Cards ===
 		"trick_shot":
 			_execute_trick_shot(target, player_stats, buff_mgr)
@@ -653,7 +653,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"lady_luck":
 			_execute_lady_luck(target, player_stats, buff_mgr)
 		"try_this":
-			_execute_try_this(target, player_stats)
+			pass  # Applied (with a timed revert) in main._apply_card_world_effects
 		"if_pigs_could_fly":
 			_execute_if_pigs_could_fly(target, player_stats, buff_mgr)
 		"snowballs_chance":
@@ -1591,8 +1591,8 @@ func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffM
 		if player_stats:
 			var heal_amt = max(3, player_stats.intelligence)
 			player_stats.heal(heal_amt)
-			player_stats.base_strength += 2
-			player_stats.recalculate_derived_stats()
+		if buff_mgr:
+			buff_mgr.apply_buff(Buff.create_strengthen(2, 3, "Hope This Works"))
 		print("[CARD] Hope This Works... it worked! Healed and +STR for 3 attacks")
 	else:
 		print("[CARD] Hope This Works... it didn't work")
@@ -1984,7 +1984,10 @@ func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
 		if player_stats.current_health < target_hp:
 			player_stats.current_health = target_hp
 			player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
-	print("[CARD] Meditate! Hand refreshed, healed to 80%%, skipping next turn")
+	# Skip next turn: forfeit the next tempo-triggered draw (one cycle).
+	if deck_manager:
+		deck_manager.skip_next_tempo_draw = true
+	print("[CARD] Meditate! Hand refreshed, healed to 80%%, skipping next turn's draw")
 
 # ============================================
 # BRAD CARD FACTORY METHODS

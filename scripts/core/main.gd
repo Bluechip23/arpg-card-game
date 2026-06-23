@@ -3554,11 +3554,11 @@ func _process_maintained_card_effects() -> void:
 	var maintained_result = deck_manager.process_maintained_cards()
 	var stats = player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
-		var heal_amount = maintained_result["total_heal"]
-		if stats:
-			heal_amount = stats.get_effective_heal_amount(heal_amount)
-		stats.heal(heal_amount)
-		print("[MAIN] Maintained cards healed for %d HP" % heal_amount)
+		# Halo: heal all allies (self-only in solo, both players in co-op).
+		for ally in _all_players():
+			if is_instance_valid(ally) and ally.get_stats():
+				ally.get_stats().heal(maintained_result["total_heal"])
+		print("[MAIN] Maintained cards healed for %d HP" % maintained_result["total_heal"])
 	if maintained_result["self_damage"] > 0 and stats:
 		stats.take_direct_damage(maintained_result["self_damage"])
 		print("[MAIN] Cultish Wounds: dealt %d damage to self (ignoring armor)" % maintained_result["self_damage"])
@@ -3765,6 +3765,11 @@ func _adrenaline_delayed(deck) -> void:
 func _vines_tick(en, dmg: int) -> void:
 	if is_instance_valid(en) and not en.is_dead and en.has_method("take_damage"):
 		en.take_damage(dmg, true)
+
+func _try_this_revert(tt_stats) -> void:
+	if is_instance_valid(tt_stats):
+		tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
+		tt_stats.hand_size = max(1, tt_stats.hand_size - 2)
 
 func _harness_lightning_tick() -> void:
 	## Harness Lightning orb: zap a random living enemy within 3 tiles for 4.
@@ -4205,6 +4210,9 @@ func play_selected_card(target) -> void:
 
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
+	# Specific Strike: +1 tempo per OTHER card in hand (mana handled in play_card).
+	if card.card_id == "specific_strike":
+		tempo_cost += max(0, deck_manager.hand.size() - 1)
 	var resolve_tick = mini(card.resolve_tick, tempo_cost)  # Clamp resolve_tick to tempo_cost
 	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
 
@@ -4627,8 +4635,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		else:
 			add_battle_log("Collect Arrows: no attack cards in discard pile!", Color(1.0, 0.6, 0.3))
 
-	# Track last played card for Lethal Recall
-	if card.card_id != "lethal_recall":
+	# Track last INSTANT card for Lethal Recall (instant cards mark "Instant" in
+	# their description).
+	if card.card_id != "lethal_recall" and "Instant" in card.description:
 		_last_played_card = card
 		_last_played_target = target
 
@@ -4812,7 +4821,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
 			var center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
 			var fb_dmg = card.last_damage_dealt
-			var fb_hit = enemy_spawner.get_enemies_in_radius(center, 4.0)
+			var fb_hit = enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:
 				en.take_damage(fb_dmg, true)
 				en.apply_debuff("burn", 3)
@@ -4940,6 +4949,20 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				schedule_delayed_effect(tick * 5, _harness_lightning_tick, "harness_lightning")
 			add_battle_log("Harness Lightning! An orb crackles for 30 tempo.", Color(0.7, 0.8, 1.0))
 			print("[MAIN] Harness Lightning orb created.")
+
+		"try_this":
+			# Ally +3 mana pool / +2 hand size for 10 tempo (10% backfires, permanent).
+			var tt_stats = target.get_stats() if target is Player else player.get_stats()
+			if tt_stats:
+				if randf() < 0.1:
+					tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
+					tt_stats.hand_size = max(1, tt_stats.hand_size - 2)
+					add_battle_log("Try This backfired! -3 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
+				else:
+					tt_stats.max_mana += 3
+					tt_stats.hand_size += 2
+					schedule_delayed_effect(10, _try_this_revert.bind(tt_stats), "try_this")
+					add_battle_log("Try This! +3 mana pool, +2 hand size for 10 tempo", Color(0.6, 1.0, 0.6))
 
 		"item_mastery":
 			# Place a copy of every card slotted in your items into your hand.
@@ -5134,10 +5157,22 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				player.blink_to(blink_pos)
 				progression_triggers._trigger_skill_tree_on_displacement()
 		"push":
-			# Push enemy 3 spaces away from the player
+			# Push enemy away by the card's range_modifier (min 1).
+			var push_dist = max(1, int(card.range_modifier))
 			if target and target.has_method("knockback"):
-				target.knockback(player.position, 3)
-			print("[MAIN] Push: enemy pushed 3 spaces away")
+				target.knockback(player.position, push_dist)
+			print("[MAIN] Push: enemy pushed %d spaces away" % push_dist)
+
+		"hold_the_line":
+			# All allies gain 5 armor, +2 determination, +2 strength.
+			for ally in _all_players():
+				var a_st = ally.get_stats() if is_instance_valid(ally) else null
+				if a_st:
+					a_st.add_armor(5)
+					a_st.determination += 2
+					a_st.base_strength += 2
+					a_st.recalculate_derived_stats()
+			add_battle_log("Hold the Line! All allies +5 armor, +2 DET, +2 STR", Color(0.3, 0.7, 1.0))
 
 		"swap":
 			# Swap positions between player and target
