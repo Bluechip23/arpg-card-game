@@ -146,6 +146,13 @@ var _active_index: int = 0
 var _p1_player: Player = null
 var _p1_deck_manager: DeckManager = null
 var _p2_deck_manager: DeckManager = null
+# Co-op "lock in movement": queued moves per player index, executed together by
+# the on-screen "Move Players" button so simultaneous movement shares tempo.
+var _locked_moves: Dictionary = {}        # index -> {"pos": Vector3, "spaces": int}
+var _locked_move_markers: Dictionary = {} # index -> Node3D ghost marker
+var _move_players_button: Button = null
+var _batch_moving: bool = false           # True while a locked-in batch is moving
+var _batch_pending: int = 0               # How many batched movers are still in motion
 var _p2_hand_panel: PanelContainer = null
 var _p2_hand_container: VBoxContainer = null
 var _p2_hand_visible: bool = false
@@ -293,6 +300,7 @@ func _ready() -> void:
 
 	move_dialog.confirmed.connect(_on_move_confirmed)
 	move_dialog.cancelled.connect(_on_move_cancelled)
+	move_dialog.lock_in_requested.connect(_on_move_lock_in)
 	
 	# Enemy spawner
 	enemy_spawner.initialize(grid_manager, player)
@@ -355,6 +363,11 @@ func _ready() -> void:
 		_p1_player = player
 		_p1_deck_manager = deck_manager
 		player2_ui._initialize_player2()
+		# Route Player 2's per-tile movement through the same handlers (they act on
+		# the active player, which is P2 whenever you're controlling it).
+		if _p2_player:
+			_p2_player.tile_reached.connect(_on_player_tile_reached)
+			_p2_player.move_completed.connect(_on_player_move_completed)
 
 	# Unit tracker (left side panel)
 	_setup_unit_tracker()
@@ -2350,6 +2363,10 @@ func trigger_multiple_turns(count: int) -> void:
 var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
 
 func _on_player_tile_reached() -> void:
+	# During a locked-in batch move, the shared movement tempo is charged once up
+	# front (see _on_move_players_pressed), so skip the normal per-tile accounting.
+	if _batch_moving:
+		return
 	# Check if the player stepped onto an enemy-occupied tile (pass-through costs 2 tempo)
 	var player_cell = grid_manager.world_to_grid(player.position)
 	var passed_through_enemy = false
@@ -2409,6 +2426,116 @@ func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 
 func _on_move_cancelled() -> void:
 	print("[INPUT] Movement cancelled")
+
+# ---- Co-op locked-in (batched) movement ----
+
+func _on_move_lock_in(target_pos: Vector3, spaces: int) -> void:
+	## Queue the active character's move without spending tempo or moving yet, so
+	## the player can TAB to the partner and queue theirs too. The "Move Players"
+	## button then runs every locked move together on shared tempo.
+	var debuff_mgr = player.get_debuff_manager()
+	if debuff_mgr and debuff_mgr.is_tethered():
+		if not debuff_mgr.is_within_tether_range(target_pos, grid_manager.grid_size):
+			print("[MAIN] Cannot lock in move - Tethered! Out of range.")
+			return
+
+	_locked_moves[_active_index] = {"pos": target_pos, "spaces": spaces}
+	_show_locked_marker(_active_index, target_pos)
+	_ensure_move_players_button()
+	_move_players_button.visible = true
+	var who := player2_character.character_name if _active_index == 1 else starting_character.character_name
+	add_battle_log("%s movement locked in (%d). TAB to the partner or press Move Players." % [who, spaces], Color(1.0, 0.85, 0.4))
+	print("[MAIN] Locked in move for player %d: %d spaces" % [_active_index + 1, spaces])
+
+func _ensure_move_players_button() -> void:
+	if _move_players_button and is_instance_valid(_move_players_button):
+		return
+	var ui = $UI as CanvasLayer
+	_move_players_button = Button.new()
+	_move_players_button.name = "MovePlayersButton"
+	_move_players_button.text = "▶ Move Players"
+	_move_players_button.add_theme_font_size_override("font_size", 16)
+	_move_players_button.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	ui.add_child(_move_players_button)
+	_move_players_button.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_move_players_button.offset_left = -80.0
+	_move_players_button.offset_top = 70.0
+	_move_players_button.offset_right = 80.0
+	_move_players_button.offset_bottom = 104.0
+	_move_players_button.pressed.connect(_on_move_players_pressed)
+	_move_players_button.visible = false
+
+func _on_move_players_pressed() -> void:
+	## Execute every locked-in move at once. Because the moves happen
+	## simultaneously, the shared movement tempo is the LONGEST move's cost,
+	## charged a single time rather than summed per character.
+	if _locked_moves.is_empty():
+		return
+
+	var shared_steps := 0
+	for idx in _locked_moves:
+		shared_steps = max(shared_steps, int(_locked_moves[idx]["spaces"]))
+
+	_batch_moving = true
+	_batch_pending = _locked_moves.size()
+
+	# Charge the shared movement tempo once for the synchronized steps.
+	for i in range(shared_steps):
+		tempo_manager.add_movement_tempo()
+
+	for idx in _locked_moves.keys():
+		var mv = _locked_moves[idx]
+		var p: Player = _p1_player if idx == 0 else _p2_player
+		if p and is_instance_valid(p):
+			if not p.move_completed.is_connected(_on_batch_mover_done):
+				p.move_completed.connect(_on_batch_mover_done, CONNECT_ONE_SHOT)
+			p.move_to_grid(mv["pos"], int(mv["spaces"]))
+
+	_clear_locked_markers()
+	_locked_moves.clear()
+	if _move_players_button:
+		_move_players_button.visible = false
+	add_battle_log("Players move together! (%d tempo)" % shared_steps, Color(0.5, 1.0, 0.6))
+	print("[MAIN] Batch move: %d movers, shared %d steps" % [_batch_pending, shared_steps])
+
+func _on_batch_mover_done() -> void:
+	_batch_pending -= 1
+	if _batch_pending <= 0:
+		_batch_moving = false
+		_batch_pending = 0
+		print("[MAIN] Batch move complete.")
+
+func _show_locked_marker(idx: int, world_pos: Vector3) -> void:
+	## A translucent ghost at the locked destination so the queued move is visible.
+	_remove_locked_marker(idx)
+	var marker := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.35
+	mesh.bottom_radius = 0.35
+	mesh.height = 0.08
+	marker.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.3, 0.9, 0.4, 0.45) if idx == 0 else Color(1.0, 0.6, 0.3, 0.45)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	marker.material_override = mat
+	marker.position = Vector3(world_pos.x, 0.1, world_pos.z)
+	add_child(marker)
+	_locked_move_markers[idx] = marker
+
+func _remove_locked_marker(idx: int) -> void:
+	if _locked_move_markers.has(idx):
+		var m = _locked_move_markers[idx]
+		if is_instance_valid(m):
+			m.queue_free()
+		_locked_move_markers.erase(idx)
+
+func _clear_locked_markers() -> void:
+	for idx in _locked_move_markers.keys():
+		var m = _locked_move_markers[idx]
+		if is_instance_valid(m):
+			m.queue_free()
+	_locked_move_markers.clear()
 
 ## Fires on every global tempo addition - routes to per-system handlers.
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
@@ -4687,6 +4814,10 @@ func _input(event: InputEvent) -> void:
 
 			if spaces == 0:
 				print("[INPUT] Already at that location")
+			elif is_multiplayer and _p2_player:
+				# Co-op: always offer the dialog (even a single step) so the move can
+				# be locked in and executed together with the partner's.
+				move_dialog.show_dialog(mouse_pos, spaces, true)
 			elif spaces == 1:
 				player.move_to_grid(mouse_pos, 1)
 			else:
