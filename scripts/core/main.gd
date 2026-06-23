@@ -153,6 +153,11 @@ var _locked_move_markers: Dictionary = {} # index -> Node3D ghost marker
 var _move_players_button: Button = null
 var _batch_moving: bool = false           # True while a locked-in batch is moving
 var _batch_pending: int = 0               # How many batched movers are still in motion
+# Co-op defeat: a player at 0 HP is "downed" but the fight continues; only when
+# BOTH are downed is it a defeat. A downed player can be revived by healing.
+var _downed: Dictionary = {0: false, 1: false}
+var _co_op_defeated: bool = false
+var _downed_markers: Dictionary = {}      # index -> Label3D "DOWNED" tag
 var _p2_hand_panel: PanelContainer = null
 var _p2_hand_container: VBoxContainer = null
 var _p2_hand_visible: bool = false
@@ -368,6 +373,9 @@ func _ready() -> void:
 		if _p2_player:
 			_p2_player.tile_reached.connect(_on_player_tile_reached)
 			_p2_player.move_completed.connect(_on_player_move_completed)
+			# Enemies target the nearest living player; defeat needs both downed.
+			enemy_spawner.players = [_p1_player, _p2_player]
+			_setup_co_op_defeat()
 
 	# Unit tracker (left side panel)
 	_setup_unit_tracker()
@@ -2505,6 +2513,130 @@ func _on_batch_mover_done() -> void:
 		_batch_pending = 0
 		print("[MAIN] Batch move complete.")
 
+## Returns the player character whose tile is at/near the world position, or null.
+## Used for co-op ally targeting (click the partner to heal/buff them).
+func _player_at_position(world_pos: Vector3) -> Player:
+	var best: Player = null
+	var best_d := 1.2  # within ~1 tile of the click
+	for p in _all_players():
+		if not is_instance_valid(p):
+			continue
+		var d := Vector2(p.position.x - world_pos.x, p.position.z - world_pos.z).length()
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+func _all_players() -> Array:
+	if is_multiplayer and _p2_player:
+		return [_p1_player, _p2_player]
+	return [player]
+
+# ---- Co-op downed / revive / defeat ----
+
+func _setup_co_op_defeat() -> void:
+	var s1 = _p1_player.get_stats()
+	var s2 = _p2_player.get_stats()
+	if s1:
+		s1.died.connect(_on_co_op_player_died.bind(0))
+		s1.health_changed.connect(func(c, _m): _on_co_op_health(0, c))
+	if s2:
+		s2.died.connect(_on_co_op_player_died.bind(1))
+		s2.health_changed.connect(func(c, _m): _on_co_op_health(1, c))
+
+func _on_co_op_player_died(idx: int) -> void:
+	if not is_multiplayer or _downed.get(idx, false):
+		return
+	_downed[idx] = true
+	var who := player2_character.character_name if idx == 1 else starting_character.character_name
+	add_battle_log("%s has fallen! Heal them to revive." % who, Color(1.0, 0.3, 0.3))
+	print("[MAIN] Co-op: player %d (%s) is DOWNED" % [idx + 1, who])
+	_show_downed_marker(idx, true)
+
+	# If the fallen character was the one being controlled, hand control to the
+	# surviving partner automatically.
+	if _active_index == idx and not _downed.get(1 - idx, false):
+		_switch_active_player()
+
+	if _downed.get(0, false) and _downed.get(1, false):
+		_on_co_op_defeat()
+
+func _on_co_op_health(idx: int, current: int) -> void:
+	# Revive a downed partner the moment they're healed above 0.
+	if not is_multiplayer or _co_op_defeated:
+		return
+	if current > 0 and _downed.get(idx, false):
+		_downed[idx] = false
+		var who := player2_character.character_name if idx == 1 else starting_character.character_name
+		add_battle_log("%s is back on their feet!" % who, Color(0.5, 1.0, 0.6))
+		print("[MAIN] Co-op: player %d (%s) REVIVED at %d HP" % [idx + 1, who, current])
+		_show_downed_marker(idx, false)
+
+func _show_downed_marker(idx: int, downed: bool) -> void:
+	var p: Player = _p1_player if idx == 0 else _p2_player
+	if not p or not is_instance_valid(p):
+		return
+	if not downed:
+		if _downed_markers.has(idx):
+			var old = _downed_markers[idx]
+			if is_instance_valid(old):
+				old.queue_free()
+			_downed_markers.erase(idx)
+		return
+	var tag := Label3D.new()
+	tag.text = "DOWNED"
+	tag.font_size = 32
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.modulate = Color(1.0, 0.25, 0.25)
+	tag.outline_size = 10
+	tag.position = Vector3(0, 2.6, 0)
+	p.add_child(tag)
+	_downed_markers[idx] = tag
+
+func _on_co_op_defeat() -> void:
+	if _co_op_defeated:
+		return
+	_co_op_defeated = true
+	add_battle_log("Both heroes have fallen. Defeat.", Color(1.0, 0.2, 0.2))
+	print("[MAIN] CO-OP DEFEAT — both players down.")
+	_show_defeat_overlay()
+
+func _show_defeat_overlay() -> void:
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "DefeatOverlay"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.8)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.add_theme_constant_override("separation", 18)
+	overlay.add_child(box)
+
+	var title := Label.new()
+	title.text = "DEFEAT"
+	title.add_theme_font_size_override("font_size", 56)
+	title.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var sub := Label.new()
+	sub.text = "Both heroes have fallen."
+	sub.add_theme_font_size_override("font_size", 20)
+	sub.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+
+	var town_btn := Button.new()
+	town_btn.text = "Return to Town"
+	town_btn.custom_minimum_size = Vector2(220, 44)
+	town_btn.pressed.connect(_travel_to_town)
+	box.add_child(town_btn)
+
 func _show_locked_marker(idx: int, world_pos: Vector3) -> void:
 	## A translucent ghost at the locked destination so the queued move is visible.
 	_remove_locked_marker(idx)
@@ -4004,6 +4136,12 @@ func _switch_active_player() -> void:
 	## bars stay visible; the main hand area, deck info and card-play routing
 	## follow the active character. Cards already in flight keep resolving on
 	## their own owner (see _on_card_tick_resolved).
+	# Don't hand control to a downed partner.
+	var target_index := 1 - _active_index
+	if _downed.get(target_index, false):
+		add_battle_log("%s is down and can't be controlled." % (player2_character.character_name if target_index == 1 else starting_character.character_name), Color(1.0, 0.5, 0.5))
+		return
+
 	selected_card_index = -1
 	if range_indicator:
 		range_indicator.hide_range()
@@ -4660,6 +4798,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_open_donation_panel()
 
 func _input(event: InputEvent) -> void:
+	# Both heroes are down — the defeat overlay takes over.
+	if _co_op_defeated:
+		return
+
 	# Block game input while donation panel is open
 	if _donation_active:
 		return
@@ -4790,11 +4932,11 @@ func _input(event: InputEvent) -> void:
 
 			# Fall through to other target types if no enemy was clicked
 			if not _card_played:
-				if "self" in tt:
-					play_selected_card(player)
-				elif "ally" in tt:
-					# TODO: ally selection - for now target self
-					play_selected_card(player)
+				if "self" in tt or "ally" in tt:
+					# Co-op: clicking the partner targets them (heal/buff an ally);
+					# clicking yourself or empty ground defaults to self.
+					var tgt_player := _player_at_position(mouse_pos)
+					play_selected_card(tgt_player if tgt_player else player)
 				elif "all_nearby" in tt:
 					play_selected_card(player)
 				elif "point" in tt:

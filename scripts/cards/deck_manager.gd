@@ -523,16 +523,27 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	var buff_mgr = null
 	var debuff_mgr = null
 
-	if player_node and player_node.has_method("get_debuff_manager"):
-		debuff_mgr = player_node.get_debuff_manager()
-	if player_node and player_node.has_method("get_buff_manager"):
-		buff_mgr = player_node.get_buff_manager()
+	# Co-op ally targeting: when the card targets a (different) player character —
+	# e.g. a heal or buff aimed at the partner — the stat/buff/debuff effects must
+	# land on that targeted ally, not the caster. Attacks (Enemy target) and self
+	# casts (target is the caster) keep the caster's own stats.
+	var effect_stats: PlayerStats = player_stats
+	var effect_player = player_node
+	if target is Player:
+		effect_player = target
+		if target.has_method("get_stats") and target.get_stats():
+			effect_stats = target.get_stats()
+
+	if effect_player and effect_player.has_method("get_debuff_manager"):
+		debuff_mgr = effect_player.get_debuff_manager()
+	if effect_player and effect_player.has_method("get_buff_manager"):
+		buff_mgr = effect_player.get_buff_manager()
 
 	if debuff_mgr:
 		damage_reduction_pct = debuff_mgr.get_damage_reduction_percent()
 		self_damage_percent = debuff_mgr.get_self_damage_percent()
 
-	card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+	card.execute(target, effect_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 
 	# Register attack for attack speed counter (DEX proc)
 	if card.card_type == Card.CardType.ATTACK and player_stats:
