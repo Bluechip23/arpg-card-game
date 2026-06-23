@@ -858,7 +858,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_compute_attack_damage(player_stats, true)   # AOE + burn applied in main
 		"spirit_arrow":
 			_compute_attack_damage(player_stats, false)   # pierced line applied in main
-		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship":
+		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship", "worms_armageddon":
 			pass  # Effect applied in main._apply_card_world_effects (needs world access)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
@@ -1539,7 +1539,7 @@ func _execute_biscuit(player_stats: PlayerStats, buff_mgr: BuffManager = null) -
 
 func _execute_loaded_die(player_stats: PlayerStats) -> void:
 	if player_stats:
-		player_stats.chance_boost += 10.0
+		player_stats.next_odds_boost += 10.0
 	print("[CARD] Loaded Die! Next card's odds increased by 10%%")
 
 func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1582,7 +1582,7 @@ func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 
 func _execute_house_money(player_stats: PlayerStats) -> void:
 	if player_stats:
-		player_stats.chance_boost = 100.0
+		player_stats.next_odds_boost = 100.0
 	print("[CARD] House Money! Next odds will automatically trigger")
 
 func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -3669,14 +3669,9 @@ func _execute_anticipation(player_stats: PlayerStats, deck_manager = null) -> vo
 	if player_stats:
 		player_stats.gain_mana(1)
 		print("[CARD] Anticipation: Gained 1 mana")
-	if deck_manager and deck_manager.has_method("shuffle_card_into_deck"):
-		var prepare_card = Card.create_prepare()
-		deck_manager.shuffle_card_into_deck(prepare_card)
+	if deck_manager:
+		deck_manager.add_card_to_deck_from_id("prepare")
 		print("[CARD] Anticipation: Shuffled Prepare into deck")
-	elif deck_manager and deck_manager.has_method("add_card_to_deck"):
-		var prepare_card = Card.create_prepare()
-		deck_manager.add_card_to_deck(prepare_card)
-		print("[CARD] Anticipation: Added Prepare to deck")
 
 func _execute_prepare(deck_manager = null) -> void:
 	# Draw 3 cards
@@ -3706,38 +3701,45 @@ func _execute_item_mastery(player_stats: PlayerStats, deck_manager = null) -> vo
 	print("[CARD] Item Mastery: Requesting all item cards be placed into hand")
 
 func _execute_mirror_mirror(deck_manager = null) -> void:
-	# Duplicate a card in hand with Erase: 5 - selection handled by main.gd
-	print("[CARD] Mirror Mirror: Requesting card duplication with Erase: 5")
+	# Duplicate a random card in hand (excluding itself); the copy has Erase 5.
+	if not deck_manager or deck_manager.hand.is_empty():
+		return
+	var candidates: Array = []
+	for c in deck_manager.hand:
+		if c.card_id != "mirror_mirror":
+			candidates.append(c)
+	if candidates.is_empty():
+		return
+	var src = candidates[randi() % candidates.size()]
+	var dup = deck_manager._create_card_from_id(src.card_id)
+	if dup:
+		dup.erase_tempo = 5
+		dup.erase_tempo_remaining = 5
+		deck_manager.add_card_to_hand(dup)
+		print("[CARD] Mirror Mirror: duplicated %s (Erase 5)" % src.card_name)
 
 func _execute_harness_lightning(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Create lightning orb effect - handled by main.gd
 	print("[CARD] Harness Lightning: Creating lightning orb (4 dmg / 5 tempo / 3 range / 30 tempo duration)")
 
 func _execute_deep_pockets(deck_manager = null) -> void:
-	# Draw cards until one costs more than 0 mana
-	if deck_manager and deck_manager.has_method("draw_card"):
-		var max_draws = 20  # Safety limit
-		var draws = 0
-		while draws < max_draws:
-			var drawn = null
-			if deck_manager.has_method("draw_card_and_return"):
-				drawn = deck_manager.draw_card_and_return()
-			else:
-				deck_manager.draw_card()
-				draws += 1
-				break
-			draws += 1
-			if drawn and drawn.mana_cost > 0:
-				break
-		print("[CARD] Deep Pockets: Drew %d card(s)" % draws)
+	# Draw cards until one costs more than 0 mana (draw_card returns the card).
+	if not deck_manager:
+		return
+	var draws = 0
+	for i in range(20):  # Safety limit
+		var drawn = deck_manager.draw_card()
+		draws += 1
+		if drawn == null or drawn.mana_cost > 0:
+			break
+	print("[CARD] Deep Pockets: drew %d card(s) until one cost mana" % draws)
 
 func _execute_best_offense(player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
 	# Gain 3 smith for 25 tempo, or 6 smith if holding no attack cards
 	var smith_amount = 3
-	if deck_manager and deck_manager.has_method("get_hand"):
-		var hand = deck_manager.get_hand()
+	if deck_manager:
 		var has_attack = false
-		for card in hand:
+		for card in deck_manager.hand:
 			if card.card_type == CardType.ATTACK:
 				has_attack = true
 				break

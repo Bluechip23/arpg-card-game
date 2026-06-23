@@ -3244,13 +3244,17 @@ func _on_hand_updated() -> void:
 	# Recalculate enchantment bonuses based on current hand contents
 	_recalculate_enchantment_bonuses()
 
-	# Roll RNG for cards that haven't been rolled yet
+	# Roll RNG for cards that haven't been rolled yet. The one-shot next_odds_boost
+	# (Loaded Die / House Money) is added on top of the permanent chance_boost and
+	# consumed once a card is actually rolled.
 	var enemies = enemy_spawner.get_living_enemies()
-	var chance_boost = player.get_stats().chance_boost
+	var _rng_stats = player.get_stats()
+	var chance_boost = _rng_stats.chance_boost + _rng_stats.next_odds_boost
 	for card in deck_manager.hand:
 		if card.has_chance_effect() and not card.has_been_rolled():
 			card.roll_rng(enemies, chance_boost)
 			card.rng_roll_tempo = tempo_manager.global_tempo
+			_rng_stats.next_odds_boost = 0.0  # consumed on the next rolled card
 
 	var hand_size = deck_manager.hand.size()
 	if hand_size == 0:
@@ -3761,6 +3765,17 @@ func _adrenaline_delayed(deck) -> void:
 func _vines_tick(en, dmg: int) -> void:
 	if is_instance_valid(en) and not en.is_dead and en.has_method("take_damage"):
 		en.take_damage(dmg, true)
+
+func _harness_lightning_tick() -> void:
+	## Harness Lightning orb: zap a random living enemy within 3 tiles for 4.
+	if not enemy_spawner:
+		return
+	var in_range: Array = []
+	for en in enemy_spawner.get_living_enemies():
+		if player.position.distance_to(en.position) <= 3.0:
+			in_range.append(en)
+	if in_range.size() > 0:
+		in_range[randi() % in_range.size()].take_damage(4, true)
 
 func _cryonics_heal(p) -> void:
 	if is_instance_valid(p) and p.get_stats():
@@ -4909,6 +4924,35 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_misery_active = true
 			add_battle_log("Misery Loves Company! Your next AOE spreads debuffs.", Color(0.8, 0.5, 0.9))
 			print("[MAIN] Misery Loves Company armed.")
+
+		"worms_armageddon":
+			# Rain meteors: base_damage to every enemy on the field; 10% Bull Worm VFX.
+			var wa_dmg = card.base_damage
+			var wa_hit = enemy_spawner.get_living_enemies()
+			for en in wa_hit:
+				en.take_damage(wa_dmg, true)
+			add_battle_log("Worms Armageddon! %d damage to %d enemies" % [wa_dmg, wa_hit.size()], Color(0.6, 0.4, 0.2))
+			print("[MAIN] Worms Armageddon hit %d enemies for %d" % [wa_hit.size(), wa_dmg])
+
+		"harness_lightning":
+			# Orb: 4 damage every 5 tempo for 30 tempo to a random enemy within 3.
+			for tick in range(1, 7):
+				schedule_delayed_effect(tick * 5, _harness_lightning_tick, "harness_lightning")
+			add_battle_log("Harness Lightning! An orb crackles for 30 tempo.", Color(0.7, 0.8, 1.0))
+			print("[MAIN] Harness Lightning orb created.")
+
+		"item_mastery":
+			# Place a copy of every card slotted in your items into your hand.
+			var inv = player.get_inventory()
+			var added = 0
+			if inv and inv.has_method("get_all_slotted_cards"):
+				for sc in inv.get_all_slotted_cards():
+					var copy = deck_manager._create_card_from_id(sc.card_id)
+					if copy:
+						deck_manager.add_card_to_hand(copy)
+						added += 1
+			add_battle_log("Item Mastery! Pulled %d item card(s) into hand." % added, Color(0.8, 0.7, 0.4))
+			print("[MAIN] Item Mastery added %d cards to hand." % added)
 
 		"cryonics":
 			# Encase an ally in ice: untargetable + cannot act for 15 tempo, healing
