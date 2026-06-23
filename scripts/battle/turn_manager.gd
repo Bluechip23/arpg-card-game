@@ -38,7 +38,11 @@ func process_tempo(amount: int) -> void:
 	if tempo_until_draw <= 0.0:
 		tempo_until_draw += draw_every_x_tempo  # Carry over remainder
 		if deck_manager:
-			deck_manager.attempt_draw()
+			if deck_manager.skip_next_tempo_draw:
+				deck_manager.skip_next_tempo_draw = false
+				print("[TURN] Tempo draw skipped (Give In)")
+			else:
+				deck_manager.attempt_draw()
 
 ## Called each tempo cycle (every 5 global tempo) to advance the turn counter
 ## and process inventory effects that are still cycle-based.

@@ -845,6 +845,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_multi_hit(target, 3, player_stats, damage_reduction_pct, buff_mgr, 0)
 		"provider":
 			_execute_provider(player_stats)
+		"give_in":
+			_execute_give_in(player_stats, deck_manager)
+		"shed_weight":
+			_execute_shed_weight(deck_manager)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3896,6 +3900,36 @@ func _execute_provider(player_stats: PlayerStats) -> void:
 		player_stats.heal(heal_amount)
 		player_stats.gain_mana(1)
 	print("[CARD] Provider! Healed %d and gave 1 mana to the ally" % heal_amount)
+
+func _execute_give_in(player_stats: PlayerStats, deck_manager) -> void:
+	## Gain 3 mana now; skip the next tempo-triggered draw.
+	if player_stats:
+		player_stats.gain_mana(3)
+	if deck_manager:
+		deck_manager.skip_next_tempo_draw = true
+	print("[CARD] Give In! +3 mana; next tempo draw skipped")
+
+func _execute_shed_weight(deck_manager) -> void:
+	## Discard every defensive card in hand; for each one discarded, knock 1 tempo
+	## off a non-defensive card still in hand.
+	if not deck_manager:
+		return
+	var defensive: Array = []
+	for c in deck_manager.hand:
+		if c != self and c.card_type == CardType.DEFENSE:
+			defensive.append(c)
+	var discarded := 0
+	for c in defensive:
+		if deck_manager.discard_card_from_hand(c):
+			discarded += 1
+	var reduced := 0
+	for c in deck_manager.hand:
+		if reduced >= discarded:
+			break
+		if c != self and c.card_type != CardType.DEFENSE:
+			c.tempo_cost = max(0, c.tempo_cost - 1)
+			reduced += 1
+	print("[CARD] Shed Weight! Discarded %d defensive card(s); reduced %d card(s) by 1 tempo" % [discarded, reduced])
 
 static func create_mana_surge() -> Card:
 	var card = Card.new()
