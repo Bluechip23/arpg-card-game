@@ -191,6 +191,7 @@ var pending_absorb_essences: Array = []  # [{total_damage: int, tempo_remaining:
 # Generic delayed-effect scheduler (per-tempo). Cards that fire after a delay
 # (spark, patience, succumb, adrenaline_shot, …) push a captured Callable here.
 var _delayed_effects: Array = []  # [{remaining: int, callback: Callable, label: String}]
+var _misery_active: bool = false  # Misery Loves Company: next AOE spreads debuffs
 var glut_tempo_remaining: int = 0  # When > 0, player cannot play cards
 
 # Ticked tempo system state
@@ -3447,6 +3448,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		_process_pending_sky_falls()
 		_process_pending_absorb_essences()
 		_process_glut_countdown()
+		_process_in_hand_cards()
 
 	# Sphere grid passive triggers for tempo cycle
 	progression_triggers._trigger_sphere_passives("on_cycle", {})
@@ -3693,6 +3695,38 @@ func _vines_tick(en, dmg: int) -> void:
 	if is_instance_valid(en) and not en.is_dead and en.has_method("take_damage"):
 		en.take_damage(dmg, true)
 
+## Misery Loves Company: if armed, spread every damage-over-time debuff on the
+## player and any hit enemy across all the hit enemies (topping each up to the
+## highest stack seen). Consumes the arm.
+func _apply_misery_spread(hit_enemies: Array) -> void:
+	if not _misery_active or hit_enemies.is_empty():
+		return
+	_misery_active = false
+	var fields = {"burn": "burn_stacks", "poison": "poison_stacks", "shock": "shock_stacks", "cold": "cold_stacks"}
+	var maxv = {"burn": 0, "poison": 0, "shock": 0, "cold": 0}
+	for en in hit_enemies:
+		for t in fields:
+			var v = en.get(fields[t])
+			if v != null and int(v) > maxv[t]:
+				maxv[t] = int(v)
+	var pdm = player.get_debuff_manager()
+	if pdm:
+		var pmap = {"burn": Debuff.DebuffType.BURN, "poison": Debuff.DebuffType.POISON, "shock": Debuff.DebuffType.SHOCKED, "cold": Debuff.DebuffType.COLD}
+		for t in pmap:
+			if pdm.has_debuff(pmap[t]):
+				var d = pdm.get_debuff(pmap[t])
+				if d and d.value > maxv[t]:
+					maxv[t] = d.value
+	for en in hit_enemies:
+		for t in fields:
+			var cur = en.get(fields[t])
+			cur = int(cur) if cur != null else 0
+			var add = maxv[t] - cur
+			if add > 0:
+				en.apply_debuff(t, add)
+	add_battle_log("Misery spread debuffs across %d enemies!" % hit_enemies.size(), Color(0.85, 0.5, 0.95))
+	print("[MAIN] Misery Loves Company spread: %s" % str(maxv))
+
 func _succumb_phase1(caster) -> void:
 	if is_instance_valid(caster) and caster.get_stats():
 		caster.get_stats().take_damage(10)
@@ -3709,6 +3743,27 @@ func _succumb_phase2(caster) -> void:
 		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.DRAIN, 1, 10))
 		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.DISARM, 1, 10))
 	add_battle_log("Succumb: took 10 more damage; cuffed, drained, disarmed", Color(1.0, 0.3, 0.3))
+
+func _process_in_hand_cards() -> void:
+	## Per-cycle: advance in-hand timers (Healthy Bliss). When one elapses, heal
+	## all allies and discard the card.
+	var decks := [deck_manager]
+	if is_multiplayer and _p1_deck_manager and _p2_deck_manager:
+		decks = [_p1_deck_manager, _p2_deck_manager]
+	for dmgr in decks:
+		if not dmgr:
+			continue
+		for i in range(dmgr.hand.size() - 1, -1, -1):
+			var c = dmgr.hand[i]
+			if c.in_hand_heal_tempo > 0:
+				c.in_hand_heal_tempo -= 5
+				if c.in_hand_heal_tempo <= 0:
+					for p in _all_players():
+						if is_instance_valid(p) and p.get_stats():
+							p.get_stats().heal(c.heal_amount)
+					add_battle_log("Healthy Bliss heals all allies for %d!" % c.heal_amount, Color(0.5, 1.0, 0.6))
+					print("[MAIN] Healthy Bliss triggered: healed all allies %d" % c.heal_amount)
+					dmgr.discard_card_from_hand(c)
 
 func _process_pending_absorb_essences() -> void:
 	for i in range(pending_absorb_essences.size() - 1, -1, -1):
@@ -4652,6 +4707,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			for en in fb_hit:
 				en.take_damage(fb_dmg, true)
 				en.apply_debuff("burn", 3)
+			_apply_misery_spread(fb_hit)
 			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
 			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
 
@@ -4666,6 +4722,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var sa_hit = enemy_spawner.get_enemies_in_line(player.position, sa_far, 0.8)
 			for en in sa_hit:
 				en.take_damage(sa_dmg, true)
+			_apply_misery_spread(sa_hit)
 			add_battle_log("Spirit Arrow pierced %d enemies for %d" % [sa_hit.size(), sa_dmg], Color(0.7, 0.9, 1.0))
 			print("[MAIN] Spirit Arrow pierced %d enemies for %d" % [sa_hit.size(), sa_dmg])
 
@@ -4680,6 +4737,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var ic_hit = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
 			for en in ic_hit:
 				en.take_damage(ic_amount, true)
+			_apply_misery_spread(ic_hit)
 			add_battle_log("Internal Combustion! %d damage to %d enemies" % [ic_amount, ic_hit.size()], Color(1.0, 0.6, 0.2))
 			print("[MAIN] Internal Combustion: shed %d armor, hit %d enemies" % [ic_amount, ic_hit.size()])
 
@@ -4719,6 +4777,37 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				rt_stats.heal(rt_removed * 3)
 			add_battle_log("Release Tension! Removed %d debuff, healed %d" % [rt_removed, rt_removed * 3], Color(0.6, 0.9, 0.7))
 			print("[MAIN] Release Tension: removed %d debuff stack, healed %d" % [rt_removed, rt_removed * 3])
+
+		"roll":
+			# Roll up to min(tempo_cost, 5) tiles toward the aim point, stopping on
+			# the first character hit. An enemy takes 10 damage and is disarmed.
+			var roll_aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var roll_start = player.position
+			var roll_diff = Vector3(roll_aim.x - roll_start.x, 0, roll_aim.z - roll_start.z)
+			var roll_dir = roll_diff.normalized() if roll_diff.length() > 0.01 else Vector3.ZERO
+			var roll_max = min(card.tempo_cost, 5)
+			var roll_final = roll_start
+			for step in range(1, roll_max + 1):
+				if roll_dir == Vector3.ZERO:
+					break
+				var np = grid_manager.snap_to_grid(roll_start + roll_dir * (step * grid_manager.grid_size))
+				var hit_enemy = enemy_spawner.get_enemy_at_position(np)
+				if hit_enemy:
+					hit_enemy.take_damage(10, true)
+					hit_enemy.apply_debuff("disarmed", 1)
+					add_battle_log("Roll into %s! 10 damage + disarm" % hit_enemy.enemy_name, Color(0.9, 0.8, 0.4))
+					break
+				if is_multiplayer and _p2_player and grid_manager.world_to_grid(_p2_player.position) == grid_manager.world_to_grid(np):
+					break  # bumped the partner — stop
+				roll_final = np
+			player.position = roll_final
+			player.target_position = roll_final
+			print("[MAIN] Roll: moved to %s (max %d tiles)" % [roll_final, roll_max])
+
+		"misery_loves_company":
+			_misery_active = true
+			add_battle_log("Misery Loves Company! Your next AOE spreads debuffs.", Color(0.8, 0.5, 0.9))
+			print("[MAIN] Misery Loves Company armed.")
 
 		"roar":
 			# Knock all nearby enemies back 1 space

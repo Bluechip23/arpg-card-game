@@ -51,6 +51,7 @@ var discard_on_draw: bool = false  # If true, card is discarded immediately afte
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
+var in_hand_heal_tempo: int = 0  # Healthy Bliss: heal all allies once this many tempo elapse in hand
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var exhaust_on_play: bool = false  # If true, card is removed from the deck entirely after being played (not discarded)
 var roguelike_only: bool = false  # If true, card can only be PLAYED during a roguelike run (still collectible in the story)
@@ -839,6 +840,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_healthy_habit(player_stats, deck_manager)
 		"gargle_and_spit":
 			_execute_gargle_and_spit(player_stats)
+		"living_armor":
+			_execute_living_armor(buff_mgr)
 		"multishot":
 			_execute_multi_hit(target, 3, player_stats, damage_reduction_pct, buff_mgr, 10)
 		"exhausted_assault":
@@ -853,7 +856,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_compute_attack_damage(player_stats, true)   # AOE + burn applied in main
 		"spirit_arrow":
 			_compute_attack_damage(player_stats, false)   # pierced line applied in main
-		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension":
+		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company":
 			pass  # Effect applied in main._apply_card_world_effects (needs world access)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
@@ -3871,6 +3874,16 @@ func _execute_gargle_and_spit(player_stats: PlayerStats) -> void:
 		player_stats.recalculate_derived_stats()
 	print("[CARD] Gargle and Spit! Healed %d and +1 strength" % heal_amount)
 
+func _execute_living_armor(buff_mgr: BuffManager) -> void:
+	## Gain Regen equal to your current stacks of Fortify.
+	if not buff_mgr:
+		return
+	var fort = buff_mgr.get_buff(Buff.BuffType.FORTIFY)
+	var stacks = fort.stacks if fort else 0
+	if stacks > 0:
+		buff_mgr.apply_buff(Buff.create_regen(stacks, 15, "Living Armor"))
+	print("[CARD] Living Armor! Regen %d (= Fortify stacks)" % stacks)
+
 func _execute_multi_hit(target, hits: int, player_stats: PlayerStats, damage_reduction_pct: float, buff_mgr: BuffManager, crit_step: int) -> int:
 	## Deal base_damage to a single target `hits` times. crit_step adds that much
 	## crit chance per successive hit (multishot); 0 for flat hits (exhausted
@@ -4883,6 +4896,7 @@ static func create_healthy_bliss() -> Card:
 	card.base_block = 0
 	card.heal_amount = 10
 	card.target_types = ["ally"]
+	card.in_hand_heal_tempo = 20  # Heals all allies once it has spent this long in hand
 	return card
 
 # ============================================
