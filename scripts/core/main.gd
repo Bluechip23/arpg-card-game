@@ -4640,6 +4640,56 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			schedule_delayed_effect(5, _adrenaline_delayed.bind(tgt_deck), "adrenaline")
 			print("[MAIN] Adrenaline Shot: -3 tempo to 2 cards now, +tempo in 5 tempo")
 
+		"fireball":
+			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
+			var center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var fb_dmg = card.last_damage_dealt
+			var fb_hit = enemy_spawner.get_enemies_in_radius(center, 4.0)
+			for en in fb_hit:
+				en.take_damage(fb_dmg, true)
+				en.apply_debuff("burn", 3)
+			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
+			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
+
+		"spirit_arrow":
+			# Pierce every enemy along the line from the player through the target.
+			var sa_dmg = card.last_damage_dealt
+			var aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var sa_dir = Vector3(aim.x - player.position.x, 0, aim.z - player.position.z)
+			var sa_far = aim
+			if sa_dir.length() > 0.01:
+				sa_far = player.position + sa_dir.normalized() * 100.0
+			var sa_hit = enemy_spawner.get_enemies_in_line(player.position, sa_far, 0.8)
+			for en in sa_hit:
+				en.take_damage(sa_dmg, true)
+			add_battle_log("Spirit Arrow pierced %d enemies for %d" % [sa_hit.size(), sa_dmg], Color(0.7, 0.9, 1.0))
+			print("[MAIN] Spirit Arrow pierced %d enemies for %d" % [sa_hit.size(), sa_dmg])
+
+		"internal_combustion":
+			# Shed half your armor; deal that much to everything around you.
+			var ic_stats = player.get_stats()
+			var ic_amount = 0
+			if ic_stats:
+				ic_amount = ic_stats.current_armor / 2
+				ic_stats.current_armor -= ic_amount
+				ic_stats.armor_changed.emit(ic_stats.current_armor)
+			var ic_hit = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
+			for en in ic_hit:
+				en.take_damage(ic_amount, true)
+			add_battle_log("Internal Combustion! %d damage to %d enemies" % [ic_amount, ic_hit.size()], Color(1.0, 0.6, 0.2))
+			print("[MAIN] Internal Combustion: shed %d armor, hit %d enemies" % [ic_amount, ic_hit.size()])
+
+		"god_of_thunder":
+			# Drain all shock from every enemy, then bolt the target for the total.
+			var total_shock = 0
+			for en in enemy_spawner.get_living_enemies():
+				total_shock += en.shock_stacks
+				en.shock_stacks = 0
+			if target and target.has_method("take_damage") and total_shock > 0:
+				target.take_damage(total_shock, true)
+			add_battle_log("God of Thunder! Absorbed %d shock, struck for %d" % [total_shock, total_shock], Color(0.8, 0.8, 1.0))
+			print("[MAIN] God of Thunder: absorbed %d shock" % total_shock)
+
 		"roar":
 			# Knock all nearby enemies back 1 space
 			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)

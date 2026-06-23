@@ -849,6 +849,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_give_in(player_stats, deck_manager)
 		"shed_weight":
 			_execute_shed_weight(deck_manager)
+		"fireball":
+			_compute_attack_damage(player_stats, true)   # AOE + burn applied in main
+		"spirit_arrow":
+			_compute_attack_damage(player_stats, false)   # pierced line applied in main
+		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot":
+			pass  # Effect applied in main._apply_card_world_effects (needs world access)
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -3908,6 +3914,15 @@ func _execute_give_in(player_stats: PlayerStats, deck_manager) -> void:
 	if deck_manager:
 		deck_manager.skip_next_tempo_draw = true
 	print("[CARD] Give In! +3 mana; next tempo draw skipped")
+
+func _compute_attack_damage(player_stats: PlayerStats, spell: bool) -> int:
+	## Compute (but do not deal) this card's damage, storing it in last_damage_dealt
+	## for main.gd to apply across an area / line.
+	var d = base_damage + bonus_damage
+	if player_stats:
+		d = player_stats.get_effective_spell_damage(d) if spell else player_stats.get_effective_physical_damage(d)
+	last_damage_dealt = d
+	return d
 
 func _execute_shed_weight(deck_manager) -> void:
 	## Discard every defensive card in hand; for each one discarded, knock 1 tempo
