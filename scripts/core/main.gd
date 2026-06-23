@@ -2667,6 +2667,69 @@ func _show_release_tension_picker(card: Card, enemy) -> void:
 	cancel.pressed.connect(func(): overlay.queue_free())
 	vbox.add_child(cancel)
 
+func show_hand_card_picker(prompt: String, on_pick: Callable, exclude: Card = null) -> void:
+	## Reusable hand-card picker: presents the cards in hand (minus `exclude`) and
+	## calls on_pick(chosen_card) with the selection. Auto-resolves when there are
+	## 0 or 1 candidates, so callers don't have to special-case those.
+	var candidates: Array = []
+	for c in deck_manager.hand:
+		if c != exclude:
+			candidates.append(c)
+	if candidates.is_empty():
+		on_pick.call(null)
+		return
+	if candidates.size() == 1:
+		on_pick.call(candidates[0])
+		return
+
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "HandCardPicker"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var pstyle := StyleBoxFlat.new()
+	pstyle.bg_color = Color(0.12, 0.13, 0.18, 1.0)
+	pstyle.set_border_width_all(2)
+	pstyle.border_color = Color(0.4, 0.6, 0.5)
+	pstyle.set_corner_radius_all(8)
+	pstyle.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", pstyle)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	vbox.custom_minimum_size = Vector2(280, 0)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = prompt
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.7, 1.0, 0.8))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	for c in candidates:
+		var b := Button.new()
+		b.text = c.card_name
+		b.custom_minimum_size = Vector2(260, 36)
+		b.pressed.connect(func():
+			overlay.queue_free()
+			on_pick.call(c))
+		vbox.add_child(b)
+
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.custom_minimum_size = Vector2(260, 32)
+	cancel.pressed.connect(func(): overlay.queue_free())
+	vbox.add_child(cancel)
+
 func _show_defeat_overlay() -> void:
 	var ui = $UI as CanvasLayer
 	var overlay := ColorRect.new()
@@ -3498,6 +3561,12 @@ func _on_tempo_threshold_reached(times: int) -> void:
 
 		# Maintained Power card effects (Halo healing, etc.)
 		_process_maintained_card_effects()
+
+		# Sphere-grid regen (e.g. Nature's Grace): heal each cycle, routed through
+		# heal() so Raged Circulation's healing boost applies to it too.
+		var regen_stats = player.get_stats()
+		if regen_stats and regen_stats.sphere_bonus_regen > 0:
+			regen_stats.heal(regen_stats.sphere_bonus_regen)
 
 		# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
 		if buff_mgr:
@@ -5416,7 +5485,16 @@ func _input(event: InputEvent) -> void:
 					# Co-op: clicking the partner targets them (heal/buff an ally);
 					# clicking yourself or empty ground defaults to self.
 					var tgt_player := _player_at_position(mouse_pos)
-					play_selected_card(tgt_player if tgt_player else player)
+					var tgt = tgt_player if tgt_player else player
+					if card.card_id == "reposition":
+						# Let the player choose which card to discard, then play.
+						show_hand_card_picker("Reposition — discard which card?",
+							func(chosen):
+								card.picked_card = chosen
+								play_selected_card(tgt),
+							card)
+					else:
+						play_selected_card(tgt)
 				elif "all_nearby" in tt:
 					play_selected_card(player)
 				elif "point" in tt:

@@ -53,6 +53,7 @@ var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many te
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var in_hand_heal_tempo: int = 0  # Healthy Bliss: heal all allies once this many tempo elapse in hand
 var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
+var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card picker (e.g. Reposition)
 var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var exhaust_on_play: bool = false  # If true, card is removed from the deck entirely after being played (not discarded)
@@ -1687,17 +1688,22 @@ func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager 
 	print("[CARD] Exacerbate Wounds! %d cards discarded this cycle = %d damage" % [discard_count, total_damage])
 
 func _execute_reposition(deck_manager) -> void:
-	# Discard a selected card and draw
-	if deck_manager:
-		if deck_manager.hand.size() > 0:
-			var random_index = randi() % deck_manager.hand.size()
-			var discarded = deck_manager.hand[random_index]
-			deck_manager.hand.remove_at(random_index)
-			deck_manager.discard_pile.append(discarded)
-			deck_manager.discards_this_cycle += 1
-			deck_manager.draw_card()
-			deck_manager.hand_updated.emit()
-			print("[CARD] Reposition! Discarded %s, drew a new card" % discarded.card_name)
+	# Discard the chosen card (or a random one if none was picked) and draw.
+	if not deck_manager or deck_manager.hand.is_empty():
+		return
+	var discard_idx := -1
+	if picked_card and picked_card in deck_manager.hand:
+		discard_idx = deck_manager.hand.find(picked_card)
+	else:
+		discard_idx = randi() % deck_manager.hand.size()
+	var discarded = deck_manager.hand[discard_idx]
+	deck_manager.hand.remove_at(discard_idx)
+	deck_manager.discard_pile.append(discarded)
+	deck_manager.discards_this_cycle += 1
+	deck_manager.draw_card()
+	deck_manager.hand_updated.emit()
+	picked_card = null
+	print("[CARD] Reposition! Discarded %s, drew a new card" % discarded.card_name)
 
 func _execute_volatile_mixture(target, player_stats: PlayerStats) -> void:
 	# Playing the card safely removes it from hand (no effect)
