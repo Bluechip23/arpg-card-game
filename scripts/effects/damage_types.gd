@@ -6,7 +6,7 @@ class_name DamageTypes
 ## Nothing is required to specify a type yet — all damage defaults to PHYSICAL,
 ## so behaviour is unchanged until cards/attacks/enemies start tagging a type.
 
-enum Type { PHYSICAL, FIRE, LIGHTNING, POISON, ICE, WIND }
+enum Type { PHYSICAL, FIRE, LIGHTNING, POISON, ICE, WIND, EARTH }
 
 ## -1 is the "untyped / all types" sentinel used by resistances and buffs that
 ## should apply to every damage type (e.g. a generic Resilient).
@@ -20,4 +20,5 @@ static func type_name(t: int) -> String:
 		Type.POISON: return "Poison"
 		Type.ICE: return "Ice"
 		Type.WIND: return "Wind"
+		Type.EARTH: return "Earth"
 	return "Physical"

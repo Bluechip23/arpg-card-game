@@ -29,7 +29,8 @@ enum DebuffType {
 	LINKED,
 	BRITTLE,
 	EXPOSED,
-	COLD
+	COLD,
+	BLIND
 }
 
 var debuff_type: DebuffType
@@ -129,6 +130,9 @@ func _set_name_and_description() -> void:
 		DebuffType.COLD:
 			debuff_name = "Cold"
 			description = "At 5 stacks, become Frozen for 1 turn. Current: %d stack(s)" % value
+		DebuffType.BLIND:
+			debuff_name = "Blind"
+			description = "%d%% chance for your attacks to miss" % (value if value > 0 else 50)
 
 func tick() -> bool:
 	# Called each cycle (5 tempo). Returns true if debuff expired.
@@ -165,6 +169,7 @@ func get_icon_color() -> Color:
 		DebuffType.EXPOSED: return Color(0.9, 0.7, 0.5)
 		DebuffType.BRITTLE: return Color(0.7, 0.7, 0.6)
 		DebuffType.COLD: return Color(0.4, 0.7, 1.0)
+		DebuffType.BLIND: return Color(0.85, 0.85, 0.4)
 	return Color.WHITE
 
 func get_short_display() -> String:

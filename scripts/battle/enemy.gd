@@ -15,7 +15,9 @@ signal exposed(enemy: Enemy)
 signal attacked_player(enemy: Enemy)
 signal movement_completed(enemy: Enemy)
 
-enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_RAT, HYDRA, FIRE_GOBLIN_SOLDIER, FIRE_GOBLIN_MAGE, FIRE_GOBLIN_SHAMAN }
+enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_RAT, HYDRA, FIRE_GOBLIN_SOLDIER, FIRE_GOBLIN_MAGE, FIRE_GOBLIN_SHAMAN,
+	# Forest act
+	GIANT_BEAVER, MINI_BEAR, LARGE_BEAR, WOLF, COYOTE, BUGBEAR, INFECTED_HUNTER, GIANT_HAWK, TREANT, ICE_MAGE, FIRE_MAGE, SPARK_MAGE, AIR_MAGE, EARTH_MAGE }
 
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
@@ -73,6 +75,20 @@ var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy i
 # and unlocks its full-heal move.
 var strength: int = 0
 var hits_taken: int = 0
+
+# --- Forest-act trait state ---
+var damage_type: int = DamageTypes.Type.PHYSICAL  # Element this enemy's attacks deal
+var immune_to_high_ground: bool = false           # Giant Hawk: ignores the player's high-ground bonus
+var pack_attack_bonus: int = 0                     # Mini Bear: +damage gained when a packmate is hurt
+var bleed_on_attack: int = 0                       # Large Bear: bleed stacks applied on hit
+var armor_per_hit: int = 0                         # Earth Mage: armor gained whenever it is hit
+var attacks_slow: bool = false                     # Ice Mage: attacks apply Slowed
+var attack_burn: int = 0                           # Fire Mage: burn stacks applied on hit
+var attack_shock: int = 0                          # Spark Mage: shock stacks applied on hit
+var attack_blind_chance: float = 0.0               # Giant Hawk: chance to Blind on hit
+var _beaver_followup: bool = false                 # Giant Beaver: chomp queues a Tail Whip
+var _hook_charged: bool = true                     # Infected Hunter: starts with a hook prepared
+var _drops_to_all_fours: bool = false              # Large Bear: posture change below 20% HP (visual)
 var hydra_heal_unlocked: bool = false
 
 # ============================================
@@ -232,6 +248,148 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			xp_reward = 8
 			_set_mesh_color(Color(0.95, 0.55, 0.25))
 
+		# ===================== FOREST ACT =====================
+		EnemyType.GIANT_BEAVER:
+			enemy_name = "Giant Beaver"
+			max_health = 50
+			attack_damage = 6         # Chomp damage; Tail Whip deals 4
+			attack_range = 1.5
+			move_distance = 3.0       # 3 spaces / 6 tempo
+			xp_reward = 12
+			_set_mesh_color(Color(0.45, 0.30, 0.18))
+
+		EnemyType.MINI_BEAR:
+			enemy_name = "Mini Bear"
+			max_health = 10
+			attack_damage = 2
+			attack_range = 1.5
+			move_distance = 5.0       # 5 spaces / 5 tempo
+			xp_reward = 4
+			_set_mesh_color(Color(0.40, 0.26, 0.16))
+
+		EnemyType.LARGE_BEAR:
+			enemy_name = "Large Bear"
+			max_health = 75
+			attack_damage = 8
+			attack_range = 1.5
+			move_distance = 6.0       # 6 spaces / 7 tempo
+			xp_reward = 16
+			bleed_on_attack = 3
+			_set_mesh_color(Color(0.32, 0.20, 0.12))
+
+		EnemyType.WOLF:
+			enemy_name = "Wolf"
+			max_health = 18
+			attack_damage = 4
+			attack_range = 1.5
+			move_distance = 4.0       # 4 spaces / 3 tempo
+			xp_reward = 6
+			_set_mesh_color(Color(0.45, 0.45, 0.48))
+
+		EnemyType.COYOTE:
+			enemy_name = "Coyote"
+			max_health = 5
+			attack_damage = 1
+			attack_range = 1.5
+			move_distance = 4.0       # 4 spaces / 3 tempo
+			xp_reward = 2
+			_set_mesh_color(Color(0.62, 0.52, 0.36))
+
+		EnemyType.BUGBEAR:
+			enemy_name = "Bugbear"
+			max_health = 25
+			attack_damage = 3
+			attack_range = 1.5
+			move_distance = 6.0       # 6 spaces / 4 tempo
+			xp_reward = 9
+			_set_mesh_color(Color(0.36, 0.30, 0.22))
+
+		EnemyType.INFECTED_HUNTER:
+			enemy_name = "Infected Hunter"
+			max_health = 21
+			attack_damage = 4         # AOE swipe in front
+			attack_range = 1.5
+			move_distance = 2.0       # 2 spaces / 3 tempo
+			aggro_range = 12.0        # so it can hook from range 7
+			xp_reward = 9
+			_set_mesh_color(Color(0.40, 0.50, 0.30))
+
+		EnemyType.GIANT_HAWK:
+			enemy_name = "Giant Hawk"
+			max_health = 15
+			attack_damage = 6
+			attack_range = 2.0
+			move_distance = 8.0       # 8 spaces / 3 tempo
+			xp_reward = 7
+			immune_to_high_ground = true
+			attack_blind_chance = 0.15
+			_set_mesh_color(Color(0.50, 0.38, 0.24))
+
+		EnemyType.TREANT:
+			enemy_name = "Treant"
+			max_health = 75
+			attack_damage = 10
+			attack_range = 1.5
+			move_distance = 9.0       # 9 spaces / 10 tempo
+			aggro_range = 12.0
+			xp_reward = 16
+			damage_type = DamageTypes.Type.EARTH
+			_set_mesh_color(Color(0.32, 0.42, 0.20))
+
+		EnemyType.ICE_MAGE:
+			enemy_name = "Ice Mage"
+			max_health = 35
+			attack_damage = 3
+			attack_range = 3.0
+			move_distance = 3.0       # 3 spaces / 5 tempo
+			xp_reward = 9
+			damage_type = DamageTypes.Type.ICE
+			attacks_slow = true
+			_set_mesh_color(Color(0.55, 0.75, 0.95))
+
+		EnemyType.FIRE_MAGE:
+			enemy_name = "Fire Mage"
+			max_health = 25
+			attack_damage = 4
+			attack_range = 2.0
+			move_distance = 2.0       # 2 spaces / 3 tempo
+			xp_reward = 8
+			damage_type = DamageTypes.Type.FIRE
+			attack_burn = 1
+			_set_mesh_color(Color(0.90, 0.35, 0.20))
+
+		EnemyType.SPARK_MAGE:
+			enemy_name = "Spark Mage"
+			max_health = 10
+			attack_damage = 1
+			attack_range = 6.0
+			move_distance = 2.0       # 2 spaces / 3 tempo
+			xp_reward = 6
+			damage_type = DamageTypes.Type.LIGHTNING
+			attack_shock = 1
+			_set_mesh_color(Color(0.85, 0.85, 0.40))
+
+		EnemyType.AIR_MAGE:
+			enemy_name = "Air Mage"
+			max_health = 20
+			attack_damage = 2
+			attack_range = 8.0
+			move_distance = 6.0       # 6 spaces / 3 tempo
+			xp_reward = 8
+			damage_type = DamageTypes.Type.WIND
+			_set_mesh_color(Color(0.70, 0.85, 0.80))
+
+		EnemyType.EARTH_MAGE:
+			enemy_name = "Earth Mage"
+			max_health = 50
+			attack_damage = 6
+			attack_range = 1.5
+			move_distance = 5.0       # 5 spaces / 5 tempo
+			xp_reward = 10
+			damage_type = DamageTypes.Type.EARTH
+			armor_per_hit = 3
+			_set_mesh_color(Color(0.45, 0.35, 0.25))
+
 	current_health = max_health
 	current_armor = max_armor
 	update_health_display()
@@ -357,6 +515,82 @@ func _setup_actions() -> void:
 				{"name": "goblin_move", "tempo_cost": 3},
 			]
 
+		# ===================== FOREST ACT =====================
+		EnemyType.GIANT_BEAVER:
+			actions = [
+				{"name": "chomp",     "tempo_cost": 4},
+				{"name": "tail_whip", "tempo_cost": 2},
+				{"name": "move",      "tempo_cost": 6},
+			]
+		EnemyType.MINI_BEAR:
+			actions = [
+				{"name": "mini_bear_attack", "tempo_cost": 3},
+				{"name": "move",             "tempo_cost": 5},
+			]
+		EnemyType.LARGE_BEAR:
+			actions = [
+				{"name": "maul", "tempo_cost": 4},
+				{"name": "move", "tempo_cost": 7},
+			]
+		EnemyType.WOLF:
+			actions = [
+				{"name": "wolf_bite", "tempo_cost": 5},
+				{"name": "move",      "tempo_cost": 3},
+			]
+		EnemyType.COYOTE:
+			actions = [
+				{"name": "coyote_nip", "tempo_cost": 4},
+				{"name": "move",       "tempo_cost": 3},
+			]
+		EnemyType.BUGBEAR:
+			actions = [
+				{"name": "bugbear_strike", "tempo_cost": 5},
+				{"name": "move",           "tempo_cost": 4},
+			]
+		EnemyType.INFECTED_HUNTER:
+			actions = [
+				{"name": "hook",   "tempo_cost": 8},
+				{"name": "cleave", "tempo_cost": 3},
+				{"name": "move",   "tempo_cost": 3},
+			]
+		EnemyType.GIANT_HAWK:
+			actions = [
+				{"name": "swoop", "tempo_cost": 4},
+				{"name": "move",  "tempo_cost": 3},
+			]
+		EnemyType.TREANT:
+			actions = [
+				{"name": "treant_slam", "tempo_cost": 10},
+				{"name": "root",        "tempo_cost": 8},
+				{"name": "treant_heal", "tempo_cost": 5},
+				{"name": "move",        "tempo_cost": 10},
+			]
+		EnemyType.ICE_MAGE:
+			actions = [
+				{"name": "frost_bolt", "tempo_cost": 3},
+				{"name": "move",       "tempo_cost": 5},
+			]
+		EnemyType.FIRE_MAGE:
+			actions = [
+				{"name": "fire_bolt", "tempo_cost": 3},
+				{"name": "move",      "tempo_cost": 3},
+			]
+		EnemyType.SPARK_MAGE:
+			actions = [
+				{"name": "spark_bolt", "tempo_cost": 2},
+				{"name": "move",       "tempo_cost": 3},
+			]
+		EnemyType.AIR_MAGE:
+			actions = [
+				{"name": "gust", "tempo_cost": 5},
+				{"name": "move", "tempo_cost": 3},
+			]
+		EnemyType.EARTH_MAGE:
+			actions = [
+				{"name": "boulder", "tempo_cost": 6},
+				{"name": "move",    "tempo_cost": 5},
+			]
+
 # ============================================
 # COMPENDIUM DATA
 # ============================================
@@ -376,6 +610,20 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Minion",
 		EnemyType.FIRE_GOBLIN_MAGE: "Minion",
 		EnemyType.FIRE_GOBLIN_SHAMAN: "Elite",
+		EnemyType.GIANT_BEAVER: "Elite",
+		EnemyType.MINI_BEAR: "Minion",
+		EnemyType.LARGE_BEAR: "Elite",
+		EnemyType.WOLF: "Minion",
+		EnemyType.COYOTE: "Minion",
+		EnemyType.BUGBEAR: "Minion",
+		EnemyType.INFECTED_HUNTER: "Elite",
+		EnemyType.GIANT_HAWK: "Minion",
+		EnemyType.TREANT: "Elite",
+		EnemyType.ICE_MAGE: "Minion",
+		EnemyType.FIRE_MAGE: "Minion",
+		EnemyType.SPARK_MAGE: "Minion",
+		EnemyType.AIR_MAGE: "Minion",
+		EnemyType.EARTH_MAGE: "Elite",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -389,6 +637,20 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.FIRE_GOBLIN_SOLDIER: {"name": "Fire Goblin Soldier", "health": 4, "armor": 0, "damage": 1, "xp": 4},
 		EnemyType.FIRE_GOBLIN_MAGE: {"name": "Fire Goblin Mage", "health": 6, "armor": 0, "damage": 6, "xp": 6},
 		EnemyType.FIRE_GOBLIN_SHAMAN: {"name": "Fire Goblin Shaman", "health": 8, "armor": 0, "damage": 4, "xp": 8},
+		EnemyType.GIANT_BEAVER: {"name": "Giant Beaver", "health": 50, "armor": 0, "damage": 6, "xp": 12},
+		EnemyType.MINI_BEAR: {"name": "Mini Bear", "health": 10, "armor": 0, "damage": 2, "xp": 4},
+		EnemyType.LARGE_BEAR: {"name": "Large Bear", "health": 75, "armor": 0, "damage": 8, "xp": 16},
+		EnemyType.WOLF: {"name": "Wolf", "health": 18, "armor": 0, "damage": 4, "xp": 6},
+		EnemyType.COYOTE: {"name": "Coyote", "health": 5, "armor": 0, "damage": 1, "xp": 2},
+		EnemyType.BUGBEAR: {"name": "Bugbear", "health": 25, "armor": 0, "damage": 3, "xp": 9},
+		EnemyType.INFECTED_HUNTER: {"name": "Infected Hunter", "health": 21, "armor": 0, "damage": 4, "xp": 9},
+		EnemyType.GIANT_HAWK: {"name": "Giant Hawk", "health": 15, "armor": 0, "damage": 6, "xp": 7},
+		EnemyType.TREANT: {"name": "Treant", "health": 75, "armor": 0, "damage": 10, "xp": 16},
+		EnemyType.ICE_MAGE: {"name": "Ice Mage", "health": 35, "armor": 0, "damage": 3, "xp": 9},
+		EnemyType.FIRE_MAGE: {"name": "Fire Mage", "health": 25, "armor": 0, "damage": 4, "xp": 8},
+		EnemyType.SPARK_MAGE: {"name": "Spark Mage", "health": 10, "armor": 0, "damage": 1, "xp": 6},
+		EnemyType.AIR_MAGE: {"name": "Air Mage", "health": 20, "armor": 0, "damage": 2, "xp": 8},
+		EnemyType.EARTH_MAGE: {"name": "Earth Mage", "health": 50, "armor": 0, "damage": 6, "xp": 10},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -402,6 +664,20 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.FIRE_GOBLIN_SOLDIER: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 2}],
 		EnemyType.FIRE_GOBLIN_MAGE: [{"name": "Ember", "tempo": 4}, {"name": "Move", "tempo": 3}],
 		EnemyType.FIRE_GOBLIN_SHAMAN: [{"name": "Fire Wall", "tempo": 8}, {"name": "Sear Wounds", "tempo": 6}, {"name": "Move", "tempo": 3}],
+		EnemyType.GIANT_BEAVER: [{"name": "Chomp", "tempo": 4}, {"name": "Tail Whip", "tempo": 2}, {"name": "Move", "tempo": 6}],
+		EnemyType.MINI_BEAR: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
+		EnemyType.LARGE_BEAR: [{"name": "Maul", "tempo": 4}, {"name": "Move", "tempo": 7}],
+		EnemyType.WOLF: [{"name": "Bite", "tempo": 5}, {"name": "Move", "tempo": 3}],
+		EnemyType.COYOTE: [{"name": "Nip", "tempo": 4}, {"name": "Move", "tempo": 3}],
+		EnemyType.BUGBEAR: [{"name": "Strike", "tempo": 5}, {"name": "Move", "tempo": 4}],
+		EnemyType.INFECTED_HUNTER: [{"name": "Hook", "tempo": 8}, {"name": "Cleave", "tempo": 3}, {"name": "Move", "tempo": 3}],
+		EnemyType.GIANT_HAWK: [{"name": "Swoop", "tempo": 4}, {"name": "Move", "tempo": 3}],
+		EnemyType.TREANT: [{"name": "Slam", "tempo": 10}, {"name": "Root", "tempo": 8}, {"name": "Heal", "tempo": 5}, {"name": "Move", "tempo": 10}],
+		EnemyType.ICE_MAGE: [{"name": "Frost Bolt", "tempo": 3}, {"name": "Move", "tempo": 5}],
+		EnemyType.FIRE_MAGE: [{"name": "Fire Bolt", "tempo": 3}, {"name": "Move", "tempo": 3}],
+		EnemyType.SPARK_MAGE: [{"name": "Spark", "tempo": 2}, {"name": "Move", "tempo": 3}],
+		EnemyType.AIR_MAGE: [{"name": "Gust", "tempo": 5}, {"name": "Move", "tempo": 3}],
+		EnemyType.EARTH_MAGE: [{"name": "Boulder", "tempo": 6}, {"name": "Move", "tempo": 5}],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -415,6 +691,20 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 1 damage.\nMove (2 tempo): 4 spaces.",
 		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 6 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
 		EnemyType.FIRE_GOBLIN_SHAMAN: "Support caster (range 5).\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 4 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 4.\nMove (3 tempo): 2 spaces.",
+		EnemyType.GIANT_BEAVER: "Chomp (4 tempo): 6 damage, stuns 3 tempo. Then Tail Whip (2 tempo later): 4 damage + Vulnerable (15 tempo).\nMove (6 tempo): 3 spaces.",
+		EnemyType.MINI_BEAR: "Travels in packs. When a packmate in sight is hurt, gains +1 attack damage.\nAttack (3 tempo): 2 damage.\nMove (5 tempo): 5 spaces.",
+		EnemyType.LARGE_BEAR: "Very tanky. Maul applies Bleed (you take damage when you move). Drops to all fours below 20% HP.\nMaul (4 tempo): 8 damage + 3 Bleed.\nMove (7 tempo): 6 spaces.",
+		EnemyType.WOLF: "Within 4 tiles of another wolf: +2 HP regen/cycle and +2 attack damage.\nBite (5 tempo): 4 damage.\nMove (3 tempo): 4 spaces.",
+		EnemyType.COYOTE: "Fragile nuisance.\nNip (4 tempo): 1 damage.\nMove (3 tempo): 4 spaces.",
+		EnemyType.BUGBEAR: "First Strike: if it hits you before you have hit it, +5 damage.\nStrike (5 tempo): 3 damage.\nMove (4 tempo): 6 spaces.",
+		EnemyType.INFECTED_HUNTER: "Hook (range 7, 8 tempo, starts charged): pulls you to it over 2 tempo.\nCleave (3 tempo): 4 damage in front.\nMove (3 tempo): 2 spaces.",
+		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo): 6 damage, 15% to Blind for 5 tempo.\nMove (3 tempo): 8 spaces.",
+		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%.\nSlam (10 tempo): 10 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nMove (10 tempo): 9 spaces.",
+		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 3 ice damage + Slow.\nMove (5 tempo): 3 spaces.",
+		EnemyType.FIRE_MAGE: "Attacks apply 1 Burn.\nFire Bolt (range 2, 3 tempo): 4 fire damage + 1 Burn.\nMove (3 tempo): 2 spaces.",
+		EnemyType.SPARK_MAGE: "Attacks apply 1 Shock.\nSpark (range 6, 2 tempo): 1 lightning damage + 1 Shock.\nMove (3 tempo): 2 spaces.",
+		EnemyType.AIR_MAGE: "Long-range caster.\nGust (range 8, 5 tempo): 2 wind damage.\nMove (3 tempo): 6 spaces.",
+		EnemyType.EARTH_MAGE: "Gains 3 armor every time it is hit.\nBoulder (melee, 6 tempo): 6 earth damage.\nMove (5 tempo): 5 spaces.",
 	}
 
 	var result: Array = []
@@ -575,6 +865,20 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 			regen_accumulator -= 6
 			_regenerate(2)
 
+	# Treant passive: heals 5 HP every 5 tempo, +2 per 10% HP below 60%.
+	if enemy_type == EnemyType.TREANT:
+		regen_accumulator += amount
+		while regen_accumulator >= 5:
+			regen_accumulator -= 5
+			_regenerate(_treant_heal_amount())
+
+	# Wolf pack: within 4 tiles of another wolf, regen 2 HP every 5 tempo.
+	if enemy_type == EnemyType.WOLF and _wolf_aura_active():
+		regen_accumulator += amount
+		while regen_accumulator >= 5:
+			regen_accumulator -= 5
+			_regenerate(2)
+
 	# Tick status effect durations once per tempo cycle (every 5 global tempo)
 	while _cycle_accumulator >= 5:
 		_cycle_accumulator -= 5
@@ -731,6 +1035,34 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_mage_action(distance)
 		EnemyType.FIRE_GOBLIN_SHAMAN:
 			_choose_shaman_action(distance)
+		EnemyType.GIANT_BEAVER:
+			_choose_beaver_action(distance)
+		EnemyType.MINI_BEAR:
+			_choose_melee_action(distance, "mini_bear_attack")
+		EnemyType.LARGE_BEAR:
+			_choose_melee_action(distance, "maul")
+		EnemyType.WOLF:
+			_choose_melee_action(distance, "wolf_bite")
+		EnemyType.COYOTE:
+			_choose_melee_action(distance, "coyote_nip")
+		EnemyType.BUGBEAR:
+			_choose_melee_action(distance, "bugbear_strike")
+		EnemyType.INFECTED_HUNTER:
+			_choose_hunter_action(distance)
+		EnemyType.GIANT_HAWK:
+			_choose_ranged_action(distance, "swoop")
+		EnemyType.TREANT:
+			_choose_treant_action(distance)
+		EnemyType.ICE_MAGE:
+			_choose_ranged_action(distance, "frost_bolt")
+		EnemyType.FIRE_MAGE:
+			_choose_ranged_action(distance, "fire_bolt")
+		EnemyType.SPARK_MAGE:
+			_choose_ranged_action(distance, "spark_bolt")
+		EnemyType.AIR_MAGE:
+			_choose_ranged_action(distance, "gust")
+		EnemyType.EARTH_MAGE:
+			_choose_melee_action(distance, "boulder")
 		_:
 			_choose_legacy_action(distance)
 
@@ -827,6 +1159,46 @@ func _sibling_enemies() -> Array:
 			out.append(child)
 	return out
 
+## --- Forest-act action selection ---
+
+func _choose_melee_action(distance: int, attack_name: String) -> void:
+	if distance <= 1:
+		chosen_action = _get_action(attack_name)
+	else:
+		chosen_action = _get_action("move")
+
+func _choose_ranged_action(distance: int, attack_name: String) -> void:
+	if distance <= int(attack_range):
+		chosen_action = _get_action(attack_name)
+	else:
+		chosen_action = _get_action("move")
+
+func _choose_beaver_action(distance: int) -> void:
+	# Chomp queues an immediate Tail Whip follow-up (resolves 2 tempo later).
+	if _beaver_followup:
+		chosen_action = _get_action("tail_whip")
+	elif distance <= 1:
+		chosen_action = _get_action("chomp")
+	else:
+		chosen_action = _get_action("move")
+
+func _choose_hunter_action(distance: int) -> void:
+	# Hook reaches out to 7 tiles (and starts charged); cleave is the melee swipe.
+	if _hook_charged and distance >= 2 and distance <= 7:
+		chosen_action = _get_action("hook")
+	elif distance <= 1:
+		chosen_action = _get_action("cleave")
+	else:
+		chosen_action = _get_action("move")
+
+func _choose_treant_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("treant_slam") if randf() < 0.6 else _get_action("root")
+	elif distance <= 4:
+		chosen_action = _get_action("root")
+	else:
+		chosen_action = _get_action("move")
+
 func _choose_legacy_action(distance: int) -> void:
 	## Legacy behavior for MINION/ELITE/BOSS types.
 	if distance <= 1:
@@ -887,6 +1259,43 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_fire_wall(move_target)
 		"sear_wounds":
 			return _try_sear_wounds()
+		# ----- Forest act -----
+		"chomp":
+			return _try_chomp(move_target)
+		"tail_whip":
+			return _try_tail_whip(move_target)
+		"mini_bear_attack":
+			return _try_mini_bear_attack(move_target)
+		"maul":
+			return _try_maul(move_target)
+		"wolf_bite":
+			return _try_wolf_bite(move_target)
+		"coyote_nip":
+			return _try_elemental(move_target, 1, "Nip")
+		"bugbear_strike":
+			return _try_bugbear_strike(move_target)
+		"cleave":
+			return _try_elemental(move_target, attack_damage, "Cleave")
+		"swoop":
+			return _try_swoop(move_target)
+		"hook":
+			return _try_hook(move_target)
+		"treant_slam":
+			return _try_elemental(move_target, attack_damage, "Slam")
+		"root":
+			return _try_root(move_target)
+		"treant_heal":
+			_regenerate(_treant_heal_amount()); turn_completed.emit(); return true
+		"frost_bolt":
+			return _try_elemental(move_target, attack_damage, "Frost Bolt", {"slow": 1})
+		"fire_bolt":
+			return _try_elemental(move_target, attack_damage, "Fire Bolt", {"burn": attack_burn})
+		"spark_bolt":
+			return _try_elemental(move_target, attack_damage, "Spark", {"shock": attack_shock})
+		"gust":
+			return _try_elemental(move_target, attack_damage, "Gust")
+		"boulder":
+			return _try_elemental(move_target, attack_damage, "Boulder")
 		_:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false
@@ -986,6 +1395,135 @@ func _apply_burn_to_player(player_node: Node3D, stacks: int) -> void:
 		return
 	for i in range(stacks):
 		dm.apply_debuff(Debuff.new(Debuff.DebuffType.BURN, 1))
+
+# ============================================
+# FOREST ACT — ACTIONS & HELPERS
+# ============================================
+
+func _in_attack_range(target_node: Node3D) -> bool:
+	var diff = target_node.position - position
+	return Vector3(diff.x, 0, diff.z).length() <= attack_range
+
+func _apply_player_debuff(player_node: Node3D, debuff) -> void:
+	if player_node and player_node.has_method("get_debuff_manager"):
+		var dm = player_node.get_debuff_manager()
+		if dm:
+			dm.apply_debuff(debuff)
+
+func _blind_player(player_node: Node3D, tempo: int) -> void:
+	## Blind: mechanic lives on PlayerStats (Card.execute reads it); the debuff is
+	## applied too so the status icon shows.
+	if player_node.has_method("get_stats"):
+		var st = player_node.get_stats()
+		if st:
+			st.is_blinded = true
+			st.blind_tempo = tempo
+	_apply_player_debuff(player_node, Debuff.create(Debuff.DebuffType.BLIND, 50, tempo))
+	print("[%s] Blinds the target!" % enemy_name)
+
+## Generic elemental strike: moves into range if needed, otherwise hits for `dmg`
+## (using this enemy's damage_type) and applies any debuffs in `opts`.
+func _try_elemental(target_node: Node3D, dmg: int, label: String, opts := {}) -> bool:
+	if is_disarmed:
+		return _try_move(target_node)
+	if not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, dmg, label)
+	if int(opts.get("burn", 0)) > 0:
+		_apply_burn_to_player(target_node, int(opts["burn"]))
+	if int(opts.get("shock", 0)) > 0:
+		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.SHOCKED, int(opts["shock"]), 15))
+	if int(opts.get("slow", 0)) > 0:
+		_apply_player_debuff(target_node, Debuff.create_slowed(int(opts["slow"]), 15, enemy_name))
+	if int(opts.get("bleed", 0)) > 0:
+		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.BLEED, int(opts["bleed"]), 15))
+	turn_completed.emit()
+	return true
+
+func _try_chomp(target_node: Node3D) -> bool:
+	if not is_disarmed and _in_attack_range(target_node):
+		_deal_damage_to_player(target_node, attack_damage, "Chomp")
+		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.STUN, 0, 3))
+		_beaver_followup = true  # queue the Tail Whip follow-up
+		turn_completed.emit()
+		return true
+	return _try_move(target_node)
+
+func _try_tail_whip(target_node: Node3D) -> bool:
+	_beaver_followup = false
+	if not is_disarmed and _in_attack_range(target_node):
+		_deal_damage_to_player(target_node, 4, "Tail Whip")
+		# Vulnerable: target takes extra damage (≈15 tempo window).
+		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.VULNERABLE, 5, 15))
+		turn_completed.emit()
+		return true
+	return _try_move(target_node)
+
+func _try_mini_bear_attack(target_node: Node3D) -> bool:
+	return _try_elemental(target_node, attack_damage + pack_attack_bonus, "Swipe")
+
+func _try_maul(target_node: Node3D) -> bool:
+	return _try_elemental(target_node, attack_damage, "Maul", {"bleed": bleed_on_attack})
+
+func _try_wolf_bite(target_node: Node3D) -> bool:
+	var dmg = attack_damage + (2 if _wolf_aura_active() else 0)
+	return _try_elemental(target_node, dmg, "Bite")
+
+func _try_bugbear_strike(target_node: Node3D) -> bool:
+	# First Strike: if the player has not hit this bugbear yet, +5 damage.
+	var dmg = attack_damage + (5 if hits_taken == 0 else 0)
+	return _try_elemental(target_node, dmg, "Strike")
+
+func _try_swoop(target_node: Node3D) -> bool:
+	if not is_disarmed and _in_attack_range(target_node):
+		_deal_damage_to_player(target_node, attack_damage, "Swoop")
+		if randf() < attack_blind_chance:
+			_blind_player(target_node, 5)
+		turn_completed.emit()
+		return true
+	return _try_move(target_node)
+
+func _try_hook(target_node: Node3D) -> bool:
+	## Reach out (range 2-7) and reel the player in to just in front of the hunter.
+	var dist = _get_cell_distance(target_node)
+	if dist < 2 or dist > 7:
+		return _try_move(target_node)
+	if grid_manager:
+		var my_cell = grid_manager.world_to_grid(position)
+		var pl_cell = grid_manager.world_to_grid(target_node.position)
+		var dir = pl_cell - my_cell
+		var dest = Vector2i(my_cell.x + signi(dir.x), my_cell.y + signi(dir.y))
+		var world = grid_manager.grid_to_world(dest)
+		if dungeon_manager:
+			world.y = dungeon_manager.get_elevation_world_y(dest)
+		target_node.target_position = world
+		if "is_moving" in target_node:
+			target_node.is_moving = true
+	print("[%s] Hooks the target and reels them in!" % enemy_name)
+	turn_completed.emit()
+	return true
+
+func _try_root(target_node: Node3D) -> bool:
+	if _get_cell_distance(target_node) > 4:
+		return _try_move(target_node)
+	# Rooted: pinned in place (can still attack) for ~8 tempo.
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.ROOTED, 0, 8))
+	print("[%s] Roots erupt — the target is pinned!" % enemy_name)
+	turn_completed.emit()
+	return true
+
+func _wolf_aura_active() -> bool:
+	for e in _sibling_enemies():
+		if e != self and e.enemy_type == EnemyType.WOLF and position.distance_to(e.position) <= 4.0:
+			return true
+	return false
+
+func _treant_heal_amount() -> int:
+	var amt = 5
+	var pct = float(current_health) / float(max_health) * 100.0
+	if pct < 60.0:
+		amt += 2 * int((60.0 - pct) / 10.0)
+	return amt
 
 func _try_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
@@ -1175,7 +1713,10 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 	return true
 
 ## Deal damage to the player with attack flash.
-func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String) -> void:
+func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String, dmg_type: int = -1) -> void:
+	# Default to this enemy's configured element when the caller doesn't override.
+	if dmg_type < 0:
+		dmg_type = damage_type
 	# Face the target as we strike so attacks don't play backwards.
 	if _enemy_figure and is_instance_valid(player_node):
 		var face_diff = player_node.position - position
@@ -1215,7 +1756,7 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 					print("[%s] Repelled Block triggered! Enemy pushed back 4, player pushed back 2" % enemy_name)
 					return  # Skip damage entirely
 
-			player_stats_ref.take_damage(effective_damage, debuff_mgr, buff_mgr)
+			player_stats_ref.take_damage(effective_damage, debuff_mgr, buff_mgr, dmg_type)
 
 			if player_node.has_method("get_inventory"):
 				var p_inventory = player_node.get_inventory()
@@ -1498,6 +2039,18 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 			print("[%s] Grows hardier (+20 max HP) and prepares to heal!" % enemy_name)
 			update_health_display()
 
+	# Forest traits that react to being hit by the player.
+	if from_player and enemy_type != EnemyType.HYDRA:
+		hits_taken += 1  # Bugbear First Strike: lost once the player lands a hit.
+	if from_player and enemy_type == EnemyType.MINI_BEAR:
+		_alert_mini_bear_pack()
+	if from_player and armor_per_hit > 0:
+		# Earth Mage: gain armor every time it is hit.
+		current_armor += armor_per_hit
+		max_armor = max(max_armor, current_armor)
+		_update_armor_bar()
+		print("[%s] Hardens — +%d armor (now %d)" % [enemy_name, armor_per_hit, current_armor])
+
 	if wear_down_tempo > 0:
 		attack_reduction += 1
 		print("[%s] Wear Down stacks! Attack reduced by %d" % [enemy_name, attack_reduction])
@@ -1568,6 +2121,14 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 
 	print("[%s] Took damage! Health: %d/%d, Armor: %d/%d" % [enemy_name, current_health, max_health, current_armor, max_armor])
 
+	# Large Bear: drops to all fours below 20% HP (posture change).
+	if enemy_type == EnemyType.LARGE_BEAR and not _drops_to_all_fours \
+			and current_health > 0 and current_health <= max_health * 0.20:
+		_drops_to_all_fours = true
+		if _enemy_figure and _enemy_figure.has_method("set_quadruped"):
+			_enemy_figure.set_quadruped(true)
+		print("[%s] Wounded — drops to all fours!" % enemy_name)
+
 	if just_exposed:
 		exposed.emit(self)
 
@@ -1575,6 +2136,14 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		die()
 
 	return just_exposed
+
+func _alert_mini_bear_pack() -> void:
+	## When this mini bear is hurt, packmates within sight gain +1 attack damage.
+	for e in _sibling_enemies():
+		if e != self and e.enemy_type == EnemyType.MINI_BEAR and e.is_alive():
+			if position.distance_to(e.position) <= e.aggro_range:
+				e.pack_attack_bonus += 1
+				print("[%s] Packmate hurt — attack now +%d" % [e.enemy_name, e.pack_attack_bonus])
 
 # ============================================
 # FLOATING DAMAGE NUMBERS

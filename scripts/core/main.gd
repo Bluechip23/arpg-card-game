@@ -6707,6 +6707,9 @@ func _is_on_high_ground(world_pos: Vector3) -> bool:
 
 func _has_high_ground(attacker_pos: Vector3, target) -> bool:
 	## Returns true if attacker is at higher elevation than target.
+	# Flying enemies (e.g. Giant Hawk) are never below the player's high ground.
+	if target and is_instance_valid(target) and "immune_to_high_ground" in target and target.immune_to_high_ground:
+		return false
 	if is_on_pillar(attacker_pos):
 		return true
 	if dungeon_manager and target and is_instance_valid(target):

@@ -94,6 +94,9 @@ var chance_boost: float = 0.0
 var next_odds_boost: float = 0.0  # One-shot boost (Loaded Die / House Money), consumed on next roll
 var elixir_active: bool = false  # Elixir: poison ticks heal instead of hurting
 var elixir_tempo: int = 0
+var is_blinded: bool = false      # Blind (e.g. Giant Hawk): attacks may miss
+var blind_tempo: int = 0
+var blind_miss_chance: float = 0.5
 var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
 var healing_boost_tempo: int = 0
 var ranged_damage_bonus: int = 0  # Flat bonus to all ranged attacks (from quivers, etc.)
@@ -630,6 +633,13 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 		if healing_boost_tempo <= 0:
 			healing_boost_percent = 0.0
 			print("[STATS] Healing boost expired")
+
+	# Tick blind
+	if blind_tempo > 0:
+		blind_tempo -= 5
+		if blind_tempo <= 0:
+			is_blinded = false
+			print("[STATS] Blind wore off")
 
 	recalculate_derived_stats()
 

@@ -540,6 +540,14 @@ func reset_hand_tracking() -> void:
 	rng_outcomes.clear()
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
+
+	# Blind (e.g. Giant Hawk): an attack against an enemy may miss entirely.
+	# Enemies expose take_damage but not get_stats (players have get_stats).
+	if card_type == CardType.ATTACK and player_stats and player_stats.is_blinded \
+			and target and target.has_method("take_damage") and not target.has_method("get_stats"):
+		if randf() < player_stats.blind_miss_chance:
+			print("[CARD] %s missed — blinded!" % card_name)
+			return
 	var is_empowered = false
 	if player_stats and player_stats.is_empowered():
 		is_empowered = player_stats.consume_empower()
