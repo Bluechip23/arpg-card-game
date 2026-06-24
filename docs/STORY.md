@@ -177,12 +177,20 @@ Grounded in `scripts/battle/enemy.gd`:
 - **Status toolkit a creature can apply or synergize with** (implemented):
   **burn** (doubles each cycle), **poison**, **shock**, **cold** (5 → **frozen**),
   **slow**, **stun**, **disarm**, **mark**, **taunt**, **wear-down**,
-  **armor-break/expose**.
+  **armor-break/expose**, **bleed** (damages the player when they move),
+  **vulnerable** (+30% damage taken), **root** (cannot move), **blind** (attacks
+  may miss).
+- **Damage types** (implemented): every point of damage carries a type —
+  **physical, fire, lightning, poison, ice, wind, earth**. Defenders can resist
+  per-type (e.g. **Harden** = physical-only). Nothing is required to specify a
+  type — untyped damage is physical — so creatures can opt in element by element.
 - **Reusable mechanic patterns already in the game:** per-hit **scaling**
-  (Hydra), **regeneration** (Armored Troll), **terrain hazards / fire walls**
-  (Fire Goblin Shaman), **ally heal/buff support** (Shaman). Concepts to add:
-  **summoning**, **pack tactics**, **charge lanes**, **on-death bursts**,
-  **stealth/sound-only visibility**.
+  (Hydra), **regeneration** (Armored Troll, Treant, Wolf packs), **terrain
+  hazards / fire walls** (Fire Goblin Shaman), **ally heal/buff support**
+  (Shaman), **pack tactics** (Mini Bears, Wolves), **first strike** (Bugbear),
+  **pull/hook** (Infected Hunter), **armor-on-hit** (Earth Mage), **flying /
+  ignores high ground** (Giant Hawk). Concepts to add: **summoning**, **charge
+  lanes**, **on-death bursts**, **stealth/sound-only visibility**.
 - **Drops:** elites/bosses can drop roguelike **relics + cards**. Every kill is
   recorded to the bestiary.
 
@@ -219,17 +227,18 @@ Faithful capture of the roster. `*in code*` = already built. Italic text is the
 original flavor note. Everything else is `[TBD]` theme/mechanics.
 
 #### Forest
-- **Giant beaver**
-- **Mini Bears** — *travel in packs*
-- **Wolves** — *packs*
-- **Coyote**
-- **Bugbear**
-- **Giant hawks**
-- **Bears**
-- **Treant**
-- **Mage** — *a few different variants*
-- **Druid**
-- **Hydra** — *in code*
+- **Giant Beaver** — *in code*. Elite. Chomp (4 tempo, 6 dmg, **Stun** 3 tempo) queues a **Tail Whip** follow-up (2 tempo later, 4 dmg, **Vulnerable** 15 tempo). Sits upright when still, scurries on all fours.
+- **Mini Bear** — *in code*. Minion, *packs*. When a packmate in sight is hurt, the others gain **+1 attack damage**.
+- **Wolf** — *in code*. Minion, *packs*. Within 4 tiles of another wolf: **+2 attack damage and +2 HP regen/cycle**.
+- **Coyote** — *in code*. Minion. Fragile (5 HP) 1-damage nuisance.
+- **Bugbear** — *in code*. Minion. **First Strike**: +5 damage if it hits before the player hits it.
+- **Giant Hawk** — *in code*. Minion. Flying — **ignores the player's high-ground bonus**; 15% to **Blind** on hit (attacks may miss).
+- **Large Bear** — *in code*. Elite. Very tanky; **Maul applies Bleed** (hurts the player on movement); drops to all fours below 20% HP.
+- **Infected Hunter** — *in code*. Elite. **Hook** (range 7, starts charged) reels the player in over 2 tempo; AOE **Cleave**.
+- **Treant** — *in code*. Elite. Heals 5 HP/5 tempo (**+2 per 10% HP below 60%**); **Root** pins the player 8 tempo (can attack, cannot move); deals **Earth** damage.
+- **Elemental Mages** — *in code*. The five caster variants deal **typed damage**: Ice (→ **Slow**), Fire (→ **Burn**), Spark/Lightning (→ **Shock**), Air/Wind, Earth (**gains 3 armor every time it is hit**).
+- **Druid** — `[TBD]`.
+- **Hydra** — *in code*.
 
 #### Graveyard
 - **Skeleton** — *in code*

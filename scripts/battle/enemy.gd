@@ -423,6 +423,20 @@ func _setup_sprite() -> void:
 		EnemyType.FIRE_GOBLIN_SOLDIER: kind = "fire_goblin_soldier"
 		EnemyType.FIRE_GOBLIN_MAGE: kind = "fire_goblin_mage"
 		EnemyType.FIRE_GOBLIN_SHAMAN: kind = "fire_goblin_shaman"
+		EnemyType.GIANT_BEAVER: kind = "giant_beaver"
+		EnemyType.MINI_BEAR: kind = "mini_bear"
+		EnemyType.LARGE_BEAR: kind = "large_bear"
+		EnemyType.WOLF: kind = "wolf"
+		EnemyType.COYOTE: kind = "coyote"
+		EnemyType.BUGBEAR: kind = "bugbear"
+		EnemyType.INFECTED_HUNTER: kind = "infected_hunter"
+		EnemyType.GIANT_HAWK: kind = "giant_hawk"
+		EnemyType.TREANT: kind = "treant"
+		EnemyType.ICE_MAGE: kind = "ice_mage"
+		EnemyType.FIRE_MAGE: kind = "fire_mage"
+		EnemyType.SPARK_MAGE: kind = "spark_mage"
+		EnemyType.AIR_MAGE: kind = "air_mage"
+		EnemyType.EARTH_MAGE: kind = "earth_mage"
 		_:
 			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
 
@@ -2044,12 +2058,6 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		hits_taken += 1  # Bugbear First Strike: lost once the player lands a hit.
 	if from_player and enemy_type == EnemyType.MINI_BEAR:
 		_alert_mini_bear_pack()
-	if from_player and armor_per_hit > 0:
-		# Earth Mage: gain armor every time it is hit.
-		current_armor += armor_per_hit
-		max_armor = max(max_armor, current_armor)
-		_update_armor_bar()
-		print("[%s] Hardens — +%d armor (now %d)" % [enemy_name, armor_per_hit, current_armor])
 
 	if wear_down_tempo > 0:
 		attack_reduction += 1
@@ -2120,6 +2128,14 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
 	print("[%s] Took damage! Health: %d/%d, Armor: %d/%d" % [enemy_name, current_health, max_health, current_armor, max_armor])
+
+	# Earth Mage: gain armor every time it is hit (for the NEXT blow, applied after
+	# this hit has resolved so it doesn't soak the triggering damage).
+	if from_player and armor_per_hit > 0 and current_health > 0:
+		current_armor += armor_per_hit
+		max_armor = max(max_armor, current_armor)
+		_update_armor_bar()
+		print("[%s] Hardens — +%d armor (now %d)" % [enemy_name, armor_per_hit, current_armor])
 
 	# Large Bear: drops to all fours below 20% HP (posture change).
 	if enemy_type == EnemyType.LARGE_BEAR and not _drops_to_all_fours \

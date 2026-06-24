@@ -37,6 +37,8 @@ const AR_QUAD := -6.0
 var _action_tween: Tween = null
 var _pose_tween: Tween = null
 
+var _bear_root: Node3D = null         # Large Bear: tipped forward on all fours when wounded
+
 
 func _ready() -> void:
 	if _kind != "" and not _built:
@@ -65,6 +67,21 @@ func _build() -> void:
 		"fire_goblin_soldier": _build_goblin("soldier", Color.html("d95a26"))
 		"fire_goblin_mage": _build_goblin("mage", Color.html("e6731f"))
 		"fire_goblin_shaman": _build_goblin("shaman", Color.html("f28c40"))
+		# Forest act
+		"giant_beaver": _build_beaver()
+		"mini_bear": _build_mini_bear()
+		"large_bear": _build_large_bear()
+		"wolf": _build_wolf()
+		"coyote": _build_coyote()
+		"bugbear": _build_bugbear()
+		"infected_hunter": _build_hunter()
+		"giant_hawk": _build_hawk()
+		"treant": _build_treant()
+		"ice_mage": _build_mage(Color.html("3f72b0"), Color.html("bfe6ff"), Color.html("8fd0ff"))
+		"fire_mage": _build_mage(Color.html("b23a2a"), Color.html("e6731f"), Color.html("ff9a3c"))
+		"spark_mage": _build_mage(Color.html("8a7a2a"), Color.html("ece07a"), Color.html("fff07a"))
+		"air_mage": _build_mage(Color.html("7fae9c"), Color.html("cfeee0"), Color.html("d6fff0"))
+		"earth_mage": _build_mage(Color.html("5f4a30"), Color.html("8a6b3f"), Color.html("a0d06a"))
 		_: _build_rat()
 	_built = true
 
@@ -476,6 +493,292 @@ func _build_goblin(role: String, skin: Color) -> void:
 
 
 # =============================================================
+# FOREST ACT MODELS
+# =============================================================
+
+## Generic four-legged critter. ears: "round" | "pointed"; tail: "bushy" | "stub".
+func _build_quadruped(fur: Color, belly: Color, s: float, ears: String, tail: String) -> Node3D:
+	_shadow(0.24 * s)
+	var dark := Color.html("141019")
+	var body := Node3D.new()
+	body.name = "Body"
+	body.position = Vector3(0, 0.30 * s, 0)
+	add_child(body)
+	_bob_node = body
+	_bob_y = body.position.y
+
+	_sp(body, "Torso", Vector3(0, 0, 0), 0.22 * s, fur, Vector3(0.95, 0.85, 1.5))
+	_sp(body, "Belly", Vector3(0, -0.06 * s, 0.05 * s), 0.18 * s, belly, Vector3(0.9, 0.7, 1.25))
+	for leg in [["FL", 0.12, 0.24], ["FR", -0.12, 0.24], ["BL", 0.12, -0.22], ["BR", -0.12, -0.22]]:
+		_cy(body, "Leg" + str(leg[0]), Vector3(leg[1] * s, -0.22 * s, leg[2] * s), 0.04 * s, 0.045 * s, 0.26 * s, fur)
+		_sp(body, "Paw" + str(leg[0]), Vector3(leg[1] * s, -0.36 * s, (leg[2] + 0.02) * s), 0.05 * s, dark)
+	_sp(body, "Head", Vector3(0, 0.10 * s, 0.34 * s), 0.17 * s, fur)
+	_bx(body, "Snout", Vector3(0, 0.03 * s, 0.46 * s), Vector3(0.12 * s, 0.10 * s, 0.15 * s), fur)
+	_sp(body, "Nose", Vector3(0, 0.03 * s, 0.55 * s), 0.035 * s, dark)
+	_sp(body, "EyeL", Vector3(-0.07 * s, 0.14 * s, 0.45 * s), 0.028 * s, dark)
+	_sp(body, "EyeR", Vector3(0.07 * s, 0.14 * s, 0.45 * s), 0.028 * s, dark)
+	if ears == "round":
+		_sp(body, "EarL", Vector3(-0.11 * s, 0.25 * s, 0.30 * s), 0.07 * s, fur)
+		_sp(body, "EarR", Vector3(0.11 * s, 0.25 * s, 0.30 * s), 0.07 * s, fur)
+	else:  # pointed
+		_cy(body, "EarL", Vector3(-0.09 * s, 0.27 * s, 0.30 * s), 0.0, 0.055 * s, 0.15 * s, fur, Vector3(-12, 0, 16))
+		_cy(body, "EarR", Vector3(0.09 * s, 0.27 * s, 0.30 * s), 0.0, 0.055 * s, 0.15 * s, fur, Vector3(-12, 0, -16))
+	if tail == "bushy":
+		_sp(body, "Tail", Vector3(0, 0.08 * s, -0.40 * s), 0.10 * s, fur, Vector3(0.8, 0.8, 1.5))
+	else:  # stub
+		_sp(body, "Tail", Vector3(0, 0.05 * s, -0.34 * s), 0.06 * s, fur)
+	return body
+
+func _build_wolf() -> void:
+	_build_quadruped(Color.html("73757b"), Color.html("9a9ca2"), 1.05, "pointed", "bushy")
+
+func _build_coyote() -> void:
+	_build_quadruped(Color.html("9e8350"), Color.html("d8c79a"), 0.82, "pointed", "bushy")
+
+func _build_mini_bear() -> void:
+	_build_quadruped(Color.html("5a3c25"), Color.html("7a5634"), 0.85, "round", "stub")
+
+func _build_beaver() -> void:
+	_shadow(0.26)
+	var fur := Color.html("6b4423")
+	var belly := Color.html("8a5a30")
+	var dark := Color.html("241712")
+	var teeth := Color.html("f3e6b0")
+	var body := Node3D.new()
+	body.name = "Body"
+	body.position = Vector3(0, 0.34, 0)
+	add_child(body)
+	_bob_node = body
+	_bob_y = body.position.y
+	# Plump upright torso (sits on haunches)
+	_sp(body, "Torso", Vector3(0, 0, 0), 0.26, fur, Vector3(1.0, 1.15, 0.95))
+	_sp(body, "Belly", Vector3(0, -0.04, 0.12), 0.20, belly, Vector3(0.95, 1.0, 0.8))
+	# Hind legs/feet on the ground, little front paws
+	_sp(body, "FootL", Vector3(-0.13, -0.30, 0.10), 0.07, dark, Vector3(1, 0.5, 1.3))
+	_sp(body, "FootR", Vector3(0.13, -0.30, 0.10), 0.07, dark, Vector3(1, 0.5, 1.3))
+	_cy(body, "ArmL", Vector3(-0.17, 0.02, 0.12), 0.04, 0.04, 0.18, fur, Vector3(20, 0, -10))
+	_cy(body, "ArmR", Vector3(0.17, 0.02, 0.12), 0.04, 0.04, 0.18, fur, Vector3(20, 0, 10))
+	# Head with buck teeth
+	_sp(body, "Head", Vector3(0, 0.30, 0.06), 0.18, fur)
+	_bx(body, "Muzzle", Vector3(0, 0.24, 0.20), Vector3(0.14, 0.10, 0.10), belly)
+	_sp(body, "Nose", Vector3(0, 0.28, 0.26), 0.035, dark)
+	_bx(body, "Teeth", Vector3(0, 0.20, 0.24), Vector3(0.07, 0.07, 0.02), teeth)
+	_sp(body, "EyeL", Vector3(-0.07, 0.34, 0.18), 0.028, dark)
+	_sp(body, "EyeR", Vector3(0.07, 0.34, 0.18), 0.028, dark)
+	_sp(body, "EarL", Vector3(-0.13, 0.43, 0.0), 0.045, fur)
+	_sp(body, "EarR", Vector3(0.13, 0.43, 0.0), 0.045, fur)
+	# Big flat paddle tail behind
+	_bx(body, "Tail", Vector3(0, -0.12, -0.30), Vector3(0.30, 0.06, 0.40), dark)
+
+func _build_large_bear() -> void:
+	_shadow(0.34)
+	var fur := Color.html("4a3322")
+	var dark := Color.html("1c130c")
+	var snout := Color.html("6b4a2f")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	_bear_root = root
+	# Stands on hind legs
+	_cy(root, "LegL", Vector3(-0.13, 0.26, 0), 0.10, 0.12, 0.52, fur)
+	_cy(root, "LegR", Vector3(0.13, 0.26, 0), 0.10, 0.12, 0.52, fur)
+	_sp(root, "FootL", Vector3(-0.13, 0.03, 0.06), 0.10, dark, Vector3(1, 0.6, 1.4))
+	_sp(root, "FootR", Vector3(0.13, 0.03, 0.06), 0.10, dark, Vector3(1, 0.6, 1.4))
+	_sp(root, "Torso", Vector3(0, 0.74, 0), 0.30, fur, Vector3(1.0, 1.2, 0.85))
+	_sp(root, "Belly", Vector3(0, 0.66, 0.12), 0.22, snout, Vector3(0.9, 1.0, 0.7))
+	# Arms (right one swings)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.28, 0.92, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.22, 0.04), 0.07, 0.08, 0.44, fur)
+	_sp(sh_l, "ClawL", Vector3(0, -0.46, 0.06), 0.09, dark)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.28, 0.92, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.22, 0.04), 0.07, 0.08, 0.44, fur)
+	_sp(sh_r, "ClawR", Vector3(0, -0.46, 0.06), 0.09, dark)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	# Head
+	_sp(root, "Head", Vector3(0, 1.12, 0.04), 0.20, fur)
+	_bx(root, "Snout", Vector3(0, 1.06, 0.20), Vector3(0.16, 0.12, 0.14), snout)
+	_sp(root, "Nose", Vector3(0, 1.09, 0.28), 0.04, dark)
+	_sp(root, "EyeL", Vector3(-0.08, 1.18, 0.17), 0.03, dark)
+	_sp(root, "EyeR", Vector3(0.08, 1.18, 0.17), 0.03, dark)
+	_sp(root, "EarL", Vector3(-0.15, 1.28, 0.0), 0.07, fur)
+	_sp(root, "EarR", Vector3(0.15, 1.28, 0.0), 0.07, fur)
+
+## Large Bear: tip forward onto all fours when badly wounded.
+func set_quadruped(on: bool) -> void:
+	if _bear_root == null:
+		return
+	var tw := create_tween().set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_bear_root, "rotation_degrees:x", 62.0 if on else 0.0, 0.4)
+	tw.parallel().tween_property(_bear_root, "position:y", -0.18 if on else 0.0, 0.4)
+
+func _build_bugbear() -> void:
+	_shadow(0.28)
+	var fur := Color.html("5b4b34")
+	var dark := Color.html("241c12")
+	var skin := Color.html("8a7350")
+	var eye := Color.html("d6452e")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.11, 0.18, 0), Vector3(0.13, 0.34, 0.13), fur)
+	_bx(root, "LegR", Vector3(0.11, 0.18, 0), Vector3(0.13, 0.34, 0.13), fur)
+	_bx(root, "FootL", Vector3(-0.11, 0.03, 0.05), Vector3(0.15, 0.07, 0.2), dark)
+	_bx(root, "FootR", Vector3(0.11, 0.03, 0.05), Vector3(0.15, 0.07, 0.2), dark)
+	var torso := _bx(root, "Torso", Vector3(0, 0.56, 0), Vector3(0.40, 0.38, 0.26), fur)
+	torso.rotation_degrees = Vector3(6, 0, 0)
+	_sp(root, "Hump", Vector3(0, 0.74, -0.06), 0.18, fur)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.24, 0.70, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.22, 0.02), 0.06, 0.07, 0.42, fur)
+	_sp(sh_l, "FistL", Vector3(0, -0.46, 0.04), 0.08, skin)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.24, 0.70, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.22, 0.02), 0.06, 0.07, 0.42, fur)
+	_sp(sh_r, "FistR", Vector3(0, -0.46, 0.04), 0.08, skin)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	_sp(root, "Head", Vector3(0, 0.92, 0.03), 0.17, skin)
+	_cy(root, "EarL", Vector3(-0.17, 0.98, -0.02), 0.0, 0.06, 0.18, skin, Vector3(-8, 0, 55))
+	_cy(root, "EarR", Vector3(0.17, 0.98, -0.02), 0.0, 0.06, 0.18, skin, Vector3(-8, 0, -55))
+	_bx(root, "Brow", Vector3(0, 0.98, 0.12), Vector3(0.28, 0.05, 0.06), dark)
+	_sp(root, "EyeL", Vector3(-0.06, 0.94, 0.14), 0.028, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.06, 0.94, 0.14), 0.028, eye, Vector3.ONE, true)
+	_bx(root, "FangL", Vector3(-0.04, 0.83, 0.15), Vector3(0.025, 0.05, 0.02), Color.html("e9e4d6"))
+	_bx(root, "FangR", Vector3(0.04, 0.83, 0.15), Vector3(0.025, 0.05, 0.02), Color.html("e9e4d6"))
+
+func _build_hunter() -> void:
+	_shadow(0.22)
+	var skin := Color.html("7e9166")  # sickly infected green
+	var cloth := Color.html("3a3326")
+	var steel := Color.html("9aa0a8")
+	var dark := Color.html("20180f")
+	var eye := Color.html("c9ff6a")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.08, 0.16, 0), Vector3(0.1, 0.32, 0.1), cloth)
+	_bx(root, "LegR", Vector3(0.08, 0.16, 0), Vector3(0.1, 0.32, 0.1), cloth)
+	_bx(root, "FootL", Vector3(-0.08, 0.03, 0.04), Vector3(0.12, 0.06, 0.16), dark)
+	_bx(root, "FootR", Vector3(0.08, 0.03, 0.04), Vector3(0.12, 0.06, 0.16), dark)
+	_bx(root, "Torso", Vector3(0, 0.52, 0), Vector3(0.30, 0.36, 0.20), cloth)
+	_sp(root, "Chest", Vector3(0, 0.56, 0.04), 0.16, skin, Vector3(1.0, 1.0, 0.7))
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.18, 0.66, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.18, 0.02), 0.045, 0.05, 0.36, skin)
+	_sp(sh_l, "HandL", Vector3(0, -0.38, 0.04), 0.05, skin)
+	# Right arm holds the hook
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.18, 0.66, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.18, 0.02), 0.045, 0.05, 0.36, skin)
+	_sp(sh_r, "HandR", Vector3(0, -0.38, 0.04), 0.05, skin)
+	_cy(sh_r, "HookShaft", Vector3(0, -0.40, 0.14), 0.015, 0.02, 0.26, steel)
+	_cy(sh_r, "HookCurve", Vector3(0.05, -0.52, 0.18), 0.014, 0.018, 0.10, steel, Vector3(0, 0, 70))
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	_sp(root, "Head", Vector3(0, 0.84, 0.02), 0.14, skin)
+	_sp(root, "Hood", Vector3(0, 0.88, -0.03), 0.16, cloth, Vector3(1.05, 0.8, 1.05))
+	_sp(root, "EyeL", Vector3(-0.05, 0.84, 0.12), 0.026, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.05, 0.84, 0.12), 0.026, eye, Vector3.ONE, true)
+
+func _build_hawk() -> void:
+	_shadow(0.30)
+	var feather := Color.html("6b4f2f")
+	var light := Color.html("9c7c4e")
+	var beak := Color.html("e0a32a")
+	var dark := Color.html("1a120a")
+	var body := Node3D.new()
+	body.name = "Body"
+	body.position = Vector3(0, 0.62, 0)  # hovers above the ground
+	add_child(body)
+	_bob_node = body
+	_bob_y = body.position.y
+	_sp(body, "Torso", Vector3(0, 0, 0), 0.20, feather, Vector3(0.85, 0.95, 1.3))
+	_sp(body, "Chest", Vector3(0, -0.04, 0.14), 0.15, light, Vector3(0.9, 0.9, 0.9))
+	# Spread wings
+	_bx(body, "WingL", Vector3(-0.34, 0.04, -0.02), Vector3(0.5, 0.04, 0.26), feather, Vector3(0, 0, 16))
+	_bx(body, "WingR", Vector3(0.34, 0.04, -0.02), Vector3(0.5, 0.04, 0.26), feather, Vector3(0, 0, -16))
+	_bx(body, "WingTipL", Vector3(-0.60, 0.10, -0.05), Vector3(0.22, 0.03, 0.16), light, Vector3(0, 0, 22))
+	_bx(body, "WingTipR", Vector3(0.60, 0.10, -0.05), Vector3(0.22, 0.03, 0.16), light, Vector3(0, 0, -22))
+	# Head + hooked beak
+	_sp(body, "Head", Vector3(0, 0.08, 0.26), 0.12, feather)
+	_cy(body, "Beak", Vector3(0, 0.05, 0.38), 0.0, 0.05, 0.12, beak, Vector3(80, 0, 0))
+	_sp(body, "EyeL", Vector3(-0.06, 0.11, 0.32), 0.026, dark)
+	_sp(body, "EyeR", Vector3(0.06, 0.11, 0.32), 0.026, dark)
+	# Talons + fanned tail
+	_cy(body, "TalonL", Vector3(-0.07, -0.18, 0.10), 0.02, 0.03, 0.16, beak)
+	_cy(body, "TalonR", Vector3(0.07, -0.18, 0.10), 0.02, 0.03, 0.16, beak)
+	_bx(body, "Tail", Vector3(0, 0.02, -0.34), Vector3(0.22, 0.03, 0.24), light)
+
+func _build_treant() -> void:
+	_shadow(0.34)
+	var bark := Color.html("4a3a26")
+	var dark := Color.html("281e12")
+	var leaf := Color.html("4e7a2e")
+	var leaf2 := Color.html("3c6322")
+	var eye := Color.html("c9e06a")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	# Root feet + thick trunk
+	_cy(root, "RootL", Vector3(-0.14, 0.06, 0.06), 0.10, 0.16, 0.16, bark)
+	_cy(root, "RootR", Vector3(0.14, 0.06, 0.06), 0.10, 0.16, 0.16, bark)
+	_cy(root, "Trunk", Vector3(0, 0.62, 0), 0.18, 0.26, 1.0, bark)
+	_bx(root, "BarkRidge", Vector3(0, 0.62, 0.18), Vector3(0.08, 0.9, 0.06), dark)
+	# Branch arms (right swings)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.22, 0.96, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.16, 0.02), 0.05, 0.06, 0.42, bark, Vector3(0, 0, 20))
+	_sp(sh_l, "LeafL", Vector3(-0.06, -0.34, 0.04), 0.13, leaf, Vector3(1, 0.8, 1))
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.22, 0.96, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.05, 0.06, 0.42, bark, Vector3(0, 0, -20))
+	_sp(sh_r, "LeafR", Vector3(0.06, -0.34, 0.04), 0.13, leaf, Vector3(1, 0.8, 1))
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	# Knothole face + leafy crown
+	_sp(root, "EyeL", Vector3(-0.08, 1.0, 0.20), 0.035, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.08, 1.0, 0.20), 0.035, eye, Vector3.ONE, true)
+	_bx(root, "Mouth", Vector3(0, 0.88, 0.22), Vector3(0.12, 0.05, 0.04), dark)
+	_sp(root, "Crown", Vector3(0, 1.28, 0), 0.30, leaf, Vector3(1.2, 0.9, 1.2))
+	_sp(root, "Crown2", Vector3(-0.18, 1.20, 0.06), 0.16, leaf2)
+	_sp(root, "Crown3", Vector3(0.18, 1.22, -0.04), 0.16, leaf2)
+
+## Robed elemental caster with a glowing orb. Used by all five mages.
+func _build_mage(robe: Color, trim: Color, orb_c: Color) -> void:
+	_shadow(0.22)
+	var dark := Color.html("20180f")
+	var skin := Color.html("c9b79a")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	# Conical robe
+	_cy(root, "Robe", Vector3(0, 0.34, 0), 0.10, 0.30, 0.68, robe)
+	_bx(root, "Hem", Vector3(0, 0.03, 0.0), Vector3(0.42, 0.06, 0.42), trim)
+	_cy(root, "Sash", Vector3(0, 0.40, 0.0), 0.21, 0.21, 0.06, trim)
+	# Arms: left holds the orb out front, right is the casting arm
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.16, 0.60, 0.04); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.14, 0.06), 0.035, 0.04, 0.30, robe, Vector3(40, 0, 0))
+	var orb := _sp(sh_l, "Orb", Vector3(0, -0.26, 0.20), 0.09, orb_c, Vector3.ONE, true)
+	(orb.material_override as StandardMaterial3D).emission_energy_multiplier = 2.2
+	_sp(sh_l, "OrbCore", Vector3(0, -0.26, 0.20), 0.05, Color.html("ffffff"), Vector3.ONE, true)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.16, 0.60, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.035, 0.04, 0.32, robe)
+	_sp(sh_r, "HandR", Vector3(0, -0.34, 0.03), 0.045, skin)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	# Head under a pointed hood
+	_sp(root, "Head", Vector3(0, 0.74, 0.02), 0.13, skin)
+	_cy(root, "Hood", Vector3(0, 0.86, -0.02), 0.0, 0.18, 0.30, robe)
+	_sp(root, "EyeL", Vector3(-0.05, 0.74, 0.11), 0.022, orb_c, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.05, 0.74, 0.11), 0.022, orb_c, Vector3.ONE, true)
+
+
+# =============================================================
 # IDLE
 # =============================================================
 
@@ -496,7 +799,10 @@ func play_action(action: String) -> void:
 	if not _built:
 		return
 	match action:
-		"attack", "bite", "slam", "club", "shoot":
+		"attack", "bite", "slam", "club", "shoot", \
+		"chomp", "tail_whip", "mini_bear_attack", "maul", "wolf_bite", "coyote_nip", \
+		"bugbear_strike", "cleave", "swoop", "treant_slam", "boulder", \
+		"frost_bolt", "fire_bolt", "spark_bolt", "gust", "hook":
 			play_attack()
 		"move", "walk", "scurry":
 			set_walking(true)
@@ -545,7 +851,7 @@ func play_attack() -> void:
 	if not _built:
 		return
 	match _kind:
-		"rat", "archer_rat":
+		"rat", "archer_rat", "wolf", "coyote", "mini_bear", "giant_beaver", "giant_hawk":
 			_lurch()
 		"hydra":
 			_hydra_attack()
