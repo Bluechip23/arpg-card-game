@@ -24,6 +24,15 @@ var _bob_y: float = 0.0
 var _atk_pivot: Node3D = null         # node swung/lurched on attack
 var _atk_rest: Vector3 = Vector3.ZERO
 
+# Foot/paw nodes stepped through a walk cycle while _walking. Each entry is
+# {node, rest, phase}; phases alternate so the figure strides instead of gliding.
+var _step_parts: Array = []
+var _step_amp: float = 1.0             # per-kind amplitude scale (big trolls step wider)
+
+const ENEMY_STEP_FREQ := 9.0          # radians/sec for the step cycle
+const ENEMY_STEP_STRIDE := 0.06       # forward/back foot travel (Z), before _step_amp
+const ENEMY_STEP_LIFT := 0.05         # swing-foot lift (Y), before _step_amp
+
 # Archer-rat pose state
 var _ar_torso: Node3D = null
 var _ar_bow_front: Node3D = null
@@ -66,7 +75,38 @@ func _build() -> void:
 		"fire_goblin_mage": _build_goblin("mage", Color.html("e6731f"))
 		"fire_goblin_shaman": _build_goblin("shaman", Color.html("f28c40"))
 		_: _build_rat()
+	_collect_step_parts()
 	_built = true
+
+
+## Gather the foot/paw meshes (children of the bob node) so the walk cycle can
+## step them. Bipeds alternate left/right; the rat uses a diagonal quadruped gait.
+func _collect_step_parts() -> void:
+	_step_parts.clear()
+	match _kind:
+		"armored_troll": _step_amp = 1.7
+		"rat": _step_amp = 0.85
+		"hydra": _step_amp = 0.0  # serpent — slithers, no stepping feet
+		_: _step_amp = 1.0
+	if _step_amp <= 0.0 or _bob_node == null:
+		return
+	for child in _bob_node.get_children():
+		if not (child is MeshInstance3D):
+			continue
+		var n: String = child.name
+		if n.begins_with("Foot") or n.begins_with("Paw"):
+			_step_parts.append({"node": child, "rest": child.position, "phase": _step_phase(n)})
+
+
+func _step_phase(node_name: String) -> float:
+	# Quadruped diagonal gait: front-left + back-right swing together, opposite pair
+	# alternates. Bipeds: left foot leads, right foot trails by half a cycle.
+	match node_name:
+		"PawFL", "PawBR", "FootL":
+			return 0.0
+		"PawFR", "PawBL", "FootR":
+			return PI
+	return 0.0
 
 
 func _mat(c: Color, emissive := false) -> StandardMaterial3D:
@@ -486,6 +526,38 @@ func _process(delta: float) -> void:
 	var freq := 5.0 if _walking else 2.0
 	var amp := 0.02 if _walking else 0.012
 	_bob_node.position.y = _bob_y + sin(_time * freq) * amp
+	# Step the feet while moving; ease them back to a planted stand otherwise.
+	if _walking:
+		_step_cycle()
+	else:
+		_settle_steps(delta)
+
+
+## Advance every collected foot through one step of the walk cycle.
+func _step_cycle() -> void:
+	var phase := _time * ENEMY_STEP_FREQ
+	for part in _step_parts:
+		var node: Node3D = part["node"]
+		if not is_instance_valid(node):
+			continue
+		var rest: Vector3 = part["rest"]
+		var s := sin(phase + float(part["phase"]))
+		node.position = Vector3(
+			rest.x,
+			rest.y + maxf(0.0, s) * ENEMY_STEP_LIFT * _step_amp,
+			rest.z + s * ENEMY_STEP_STRIDE * _step_amp)
+
+
+## Ease the feet back to their rest positions once the figure stops moving.
+func _settle_steps(delta: float) -> void:
+	if _step_parts.is_empty():
+		return
+	var t := clampf(delta * 12.0, 0.0, 1.0)
+	for part in _step_parts:
+		var node: Node3D = part["node"]
+		if not is_instance_valid(node):
+			continue
+		node.position = node.position.lerp(part["rest"], t)
 
 
 # =============================================================
