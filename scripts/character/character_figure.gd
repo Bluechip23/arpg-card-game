@@ -33,6 +33,8 @@ var _eye_l: MeshInstance3D = null
 var _eye_r: MeshInstance3D = null
 var _left_arm: MeshInstance3D = null
 var _right_arm: MeshInstance3D = null
+var _left_leg: MeshInstance3D = null
+var _right_leg: MeshInstance3D = null
 var _left_foot: MeshInstance3D = null
 var _right_foot: MeshInstance3D = null
 var _feature_nodes: Array[Node3D] = []
@@ -51,6 +53,19 @@ var _has_bow: bool = false
 
 const REST := Vector3.ZERO
 const STANCE_APPROACH_Y := -0.12  # Body drop while holding the Approach guard crouch
+
+# Leg / foot rest positions (single source of truth for build, walk cycle and reset).
+const LEFT_LEG_REST := Vector3(-0.11, 0.21, 0)
+const RIGHT_LEG_REST := Vector3(0.11, 0.21, 0)
+const LEFT_FOOT_REST := Vector3(-0.11, 0.05, 0.04)
+const RIGHT_FOOT_REST := Vector3(0.11, 0.05, 0.04)
+
+# Procedural walk-cycle tuning (alternating steps while _walking).
+const WALK_STEP_FREQ := 8.5   # radians/sec — one full left+right stride per ~0.74s
+const WALK_STRIDE := 0.13     # forward/back foot travel (Z)
+const WALK_LIFT := 0.08       # how high the swinging foot lifts (Y)
+const WALK_FOOT_TILT := 16.0  # toe-up tilt on the swinging foot (degrees)
+const WALK_LEG_STRIDE := 0.05 # legs follow the feet a little so they don't detach
 const BOW_REST_POS := Vector3(0.40, 0.5, 0.14)  # Bow grip's home position at the right side
 const BOW_REST_ROT := Vector3.ZERO
 
@@ -99,11 +114,13 @@ func _build() -> void:
 	_pivot.add_child(_body)
 
 	# Legs
-	_body.add_child(_make_box("LeftLeg", Vector3(-0.11, 0.21, 0), Vector3(0.15, 0.42, 0.15), "pants"))
-	_body.add_child(_make_box("RightLeg", Vector3(0.11, 0.21, 0), Vector3(0.15, 0.42, 0.15), "pants"))
+	_left_leg = _make_box("LeftLeg", LEFT_LEG_REST, Vector3(0.15, 0.42, 0.15), "pants")
+	_right_leg = _make_box("RightLeg", RIGHT_LEG_REST, Vector3(0.15, 0.42, 0.15), "pants")
+	_body.add_child(_left_leg)
+	_body.add_child(_right_leg)
 	# Feet / boots (recoloured in the detail pass)
-	_left_foot = _make_box("LeftFoot", Vector3(-0.11, 0.05, 0.04), Vector3(0.17, 0.12, 0.22), "")
-	_right_foot = _make_box("RightFoot", Vector3(0.11, 0.05, 0.04), Vector3(0.17, 0.12, 0.22), "")
+	_left_foot = _make_box("LeftFoot", LEFT_FOOT_REST, Vector3(0.17, 0.12, 0.22), "")
+	_right_foot = _make_box("RightFoot", RIGHT_FOOT_REST, Vector3(0.17, 0.12, 0.22), "")
 	_body.add_child(_left_foot)
 	_body.add_child(_right_foot)
 
@@ -638,11 +655,45 @@ func _process(delta: float) -> void:
 	if _stance == "approach":
 		# Hold the guard crouch; only a faint, low breathing sway on top of it.
 		_body.position.y = STANCE_APPROACH_Y + sin(_time * 1.4) * 0.008
+		_settle_feet(delta)
 		return
 	var freq := 4.0 if _walking else 1.6
 	var amp := 0.035 if _walking else 0.02
 	_body.position.y = sin(_time * freq) * amp
 	_body.rotation_degrees.z = sin(_time * 1.3) * (2.5 if _walking else 1.0)
+	# Feet take alternating steps while walking, and ease back to a stand otherwise.
+	if _walking:
+		_walk_cycle()
+	else:
+		_settle_feet(delta)
+
+
+## Drive the legs/feet through one alternating step cycle (called while walking).
+## Left and right are 180° out of phase: as one foot swings forward and lifts, the
+## other stays planted, so the figure reads as actually striding rather than gliding.
+func _walk_cycle() -> void:
+	var phase := _time * WALK_STEP_FREQ
+	var sl := sin(phase)
+	var sr := sin(phase + PI)
+	_left_foot.position = Vector3(LEFT_FOOT_REST.x, LEFT_FOOT_REST.y + maxf(0.0, sl) * WALK_LIFT, LEFT_FOOT_REST.z + sl * WALK_STRIDE)
+	_right_foot.position = Vector3(RIGHT_FOOT_REST.x, RIGHT_FOOT_REST.y + maxf(0.0, sr) * WALK_LIFT, RIGHT_FOOT_REST.z + sr * WALK_STRIDE)
+	_left_foot.rotation_degrees.x = maxf(0.0, sl) * WALK_FOOT_TILT
+	_right_foot.rotation_degrees.x = maxf(0.0, sr) * WALK_FOOT_TILT
+	if _left_leg and _right_leg:
+		_left_leg.position.z = LEFT_LEG_REST.z + sl * WALK_LEG_STRIDE
+		_right_leg.position.z = RIGHT_LEG_REST.z + sr * WALK_LEG_STRIDE
+
+
+## Ease the legs/feet back to their planted rest pose once movement stops.
+func _settle_feet(delta: float) -> void:
+	var t := clampf(delta * 12.0, 0.0, 1.0)
+	_left_foot.position = _left_foot.position.lerp(LEFT_FOOT_REST, t)
+	_right_foot.position = _right_foot.position.lerp(RIGHT_FOOT_REST, t)
+	_left_foot.rotation_degrees.x = lerpf(_left_foot.rotation_degrees.x, 0.0, t)
+	_right_foot.rotation_degrees.x = lerpf(_right_foot.rotation_degrees.x, 0.0, t)
+	if _left_leg and _right_leg:
+		_left_leg.position.z = lerpf(_left_leg.position.z, LEFT_LEG_REST.z, t)
+		_right_leg.position.z = lerpf(_right_leg.position.z, RIGHT_LEG_REST.z, t)
 
 
 # =============================================================
@@ -4600,11 +4651,14 @@ func _reset_pose() -> void:
 	_body.position = Vector3.ZERO
 	_body.scale = Vector3.ONE
 	_head.rotation_degrees = Vector3.ZERO
-	# Feet back to their built rest positions (see _build).
-	_left_foot.position = Vector3(-0.11, 0.05, 0.04)
-	_right_foot.position = Vector3(0.11, 0.05, 0.04)
+	# Feet/legs back to their built rest positions (see _build).
+	_left_foot.position = LEFT_FOOT_REST
+	_right_foot.position = RIGHT_FOOT_REST
 	_left_foot.rotation_degrees = Vector3.ZERO
 	_right_foot.rotation_degrees = Vector3.ZERO
+	if _left_leg and _right_leg:
+		_left_leg.position = LEFT_LEG_REST
+		_right_leg.position = RIGHT_LEG_REST
 	if _has_shield and is_instance_valid(_shield_grip):
 		_shield_grip.position = Vector3.ZERO
 		_shield_grip.rotation_degrees = Vector3.ZERO
