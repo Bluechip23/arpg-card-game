@@ -54,6 +54,7 @@ var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase trigge
 var in_hand_heal_tempo: int = 0  # Healthy Bliss: heal all allies once this many tempo elapse in hand
 var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
 var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card picker (e.g. Reposition)
+var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
 var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var exhaust_on_play: bool = false  # If true, card is removed from the deck entirely after being played (not discarded)
@@ -3856,8 +3857,8 @@ func _execute_harden(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
 	if player_stats:
 		player_stats.add_armor(block)
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_resilient(10, 15, "Harden"))
-	print("[CARD] Harden! +%d armor, 10%% resistance for 15 tempo" % block)
+		buff_mgr.apply_buff(Buff.create_resilient(10, 15, "Harden", DamageTypes.Type.PHYSICAL))
+	print("[CARD] Harden! +%d armor, 10%% physical resistance for 15 tempo" % block)
 
 func _execute_hunker_down(buff_mgr: BuffManager) -> void:
 	## Fortify (armor does not decay) for 30 tempo.

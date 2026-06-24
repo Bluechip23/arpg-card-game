@@ -1480,7 +1480,9 @@ func attack_player(player_node: Node3D) -> void:
 ## Deal damage to this enemy. Armor absorbs first, remainder hits health.
 ## Set from_player = true when the damage originates from the player's card/attack.
 ## Returns true if the enemy was just Exposed (armor broken to 0).
-func take_damage(amount: int, from_player: bool = false) -> bool:
+func take_damage(amount: int, from_player: bool = false, damage_type: int = DamageTypes.Type.PHYSICAL) -> bool:
+	# damage_type is wired through for symmetry with the player pipeline. Enemies
+	# have no per-type resistances yet, so it is accepted but not yet applied.
 	if is_dead:
 		return false
 
