@@ -413,9 +413,14 @@ func consume_brace() -> int:
 		return percent
 	return 0
 
-func get_resilient_percent() -> int:
+func get_resilient_percent(damage_type: int = -1) -> int:
 	var resilient = get_buff(Buff.BuffType.RESILIENT)
-	return resilient.value if resilient else 0
+	if not resilient:
+		return 0
+	# A typed Resilient (e.g. Harden = Physical) only reduces matching damage.
+	if resilient.damage_type != -1 and damage_type != -1 and resilient.damage_type != damage_type:
+		return 0
+	return resilient.value
 
 func consume_resilient() -> int:
 	# Returns percent reduction and uses charge
@@ -427,12 +432,12 @@ func consume_resilient() -> int:
 		return percent
 	return 0
 
-func calculate_damage_reduction(incoming_damage: int) -> int:
+func calculate_damage_reduction(incoming_damage: int, damage_type: int = -1) -> int:
 	# Calculate total damage after Resilient and Brace
 	var damage = incoming_damage
 
 	# Resilient: percentage reduction first (turn-based, always active while buff exists)
-	var resilient_percent = get_resilient_percent()
+	var resilient_percent = get_resilient_percent(damage_type)
 	if resilient_percent > 0:
 		var reduction = floori(damage * resilient_percent / 100.0)
 		damage -= reduction

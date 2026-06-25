@@ -94,6 +94,9 @@ var chance_boost: float = 0.0
 var next_odds_boost: float = 0.0  # One-shot boost (Loaded Die / House Money), consumed on next roll
 var elixir_active: bool = false  # Elixir: poison ticks heal instead of hurting
 var elixir_tempo: int = 0
+var is_blinded: bool = false      # Blind (e.g. Giant Hawk): attacks may miss
+var blind_tempo: int = 0
+var blind_miss_chance: float = 0.5
 var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
 var healing_boost_tempo: int = 0
 var ranged_damage_bonus: int = 0  # Flat bonus to all ranged attacks (from quivers, etc.)
@@ -137,6 +140,9 @@ var sphere_bonus_regen: int = 0       # Health regenerated per tempo cycle
 var sphere_bonus_armor_per_cycle: int = 0  # Armor gained per tempo cycle
 var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2.0 = 2%)
 var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
+# Per-damage-type resistance, keyed by DamageTypes.Type → percent reduction (0..100).
+# Empty by default; nothing populates it yet, but the take_damage pipeline reads it.
+var damage_resistances: Dictionary = {}
 var sphere_bonus_range: int = 0       # Bonus range for ranged attacks
 
 # ============================================
@@ -628,13 +634,27 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 			healing_boost_percent = 0.0
 			print("[STATS] Healing boost expired")
 
+	# Tick blind
+	if blind_tempo > 0:
+		blind_tempo -= 5
+		if blind_tempo <= 0:
+			is_blinded = false
+			print("[STATS] Blind wore off")
+
 	recalculate_derived_stats()
 
 # ============================================
 # RESOURCE MANAGEMENT
 # ============================================
 
-func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
+func get_damage_resistance(damage_type: int) -> float:
+	## Percent reduction (0..100) this character has against `damage_type`.
+	return float(damage_resistances.get(damage_type, 0.0))
+
+func add_damage_resistance(damage_type: int, percent: float) -> void:
+	damage_resistances[damage_type] = get_damage_resistance(damage_type) + percent
+
+func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: int = DamageTypes.Type.PHYSICAL) -> void:
 	# Friendship: split incoming damage 50/50 (pre-modifier). The partner takes
 	# its half through its own debuff/buff managers; we keep the remainder.
 	if friendship_partner and not _friendship_echo and amount > 1:
@@ -648,17 +668,22 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null) -> void:
 
 	var remaining = amount
 
-	# Stone Skin: 10% damage resistance (Fire, Physical, Lightning)
-	if has_skill_tree_passive("stone_skin"):
+	# Stone Skin: 10% damage resistance against Fire, Physical, and Lightning only.
+	if has_skill_tree_passive("stone_skin") and damage_type in [DamageTypes.Type.PHYSICAL, DamageTypes.Type.FIRE, DamageTypes.Type.LIGHTNING]:
 		remaining = floori(remaining * 0.9)
+
+	# Per-type resistance (e.g. elemental resists once cards start tagging types).
+	var type_resist = get_damage_resistance(damage_type)
+	if type_resist > 0.0:
+		remaining = floori(remaining * (1.0 - min(type_resist, 100.0) / 100.0))
 
 	# Apply Vulnerable modifier from debuffs
 	if debuff_mgr:
 		remaining = debuff_mgr.modify_incoming_damage(remaining)
-	
-	# Apply Brace and Resilient from buffs
+
+	# Apply Brace and Resilient from buffs (Resilient may be type-gated, e.g. Harden)
 	if buff_mgr:
-		remaining = buff_mgr.calculate_damage_reduction(remaining)
+		remaining = buff_mgr.calculate_damage_reduction(remaining, damage_type)
 	
 	# Temp health absorbs damage first
 	if current_temp_health > 0 and remaining > 0:

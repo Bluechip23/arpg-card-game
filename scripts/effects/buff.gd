@@ -38,6 +38,7 @@ var duration: int = 0         # Tempo remaining (-1 for until depleted)
 var charges: int = -1         # For charge-based buffs (attacks, armor gains, etc.)
 var source_name: String = ""  # What applied this buff
 var stacks: int = 1           # Some buffs can stack
+var damage_type: int = -1     # Typed damage reduction (Resilient); -1 = all types
 
 func _init(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) -> void:
 	buff_type = type
@@ -262,9 +263,10 @@ static func create_brace(percent_reduction: int = 30, attacks: int = 1, source: 
 	buff.source_name = source
 	return buff
 
-static func create_resilient(percent_reduction: int = 15, tempo: int = 15, source: String = "") -> Buff:
+static func create_resilient(percent_reduction: int = 15, tempo: int = 15, source: String = "", damage_type: int = -1) -> Buff:
 	var buff = Buff.new(BuffType.RESILIENT, percent_reduction, tempo)
 	buff.source_name = source
+	buff.damage_type = damage_type  # -1 = reduces all damage; else only that type
 	return buff
 
 static func create_life_steal(source: String = "") -> Buff:
