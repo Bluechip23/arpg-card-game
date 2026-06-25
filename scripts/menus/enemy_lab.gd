@@ -67,30 +67,31 @@ const COLOR_BY_TYPE := {
 	Enemy.EnemyType.BOSS: Color(0.4, 0.0, 0.2),
 }
 
-# Which list section each enemy belongs to, in display order.
+# Enemies are catalogued by HABITAT, not by Act (see docs/STORY.md §5.3):
+# an Act simply draws from one or more habitats.
 const SECTIONS := [
 	{"title": "GENERIC", "types": [Enemy.EnemyType.MINION, Enemy.EnemyType.ELITE, Enemy.EnemyType.BOSS]},
-	{"title": "ACT I — HELL", "types": [
-		Enemy.EnemyType.WERERAT, Enemy.EnemyType.SKELETON, Enemy.EnemyType.ARMORED_TROLL,
-		Enemy.EnemyType.ARCHER_RAT, Enemy.EnemyType.HYDRA,
-		Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Enemy.EnemyType.FIRE_GOBLIN_MAGE, Enemy.EnemyType.FIRE_GOBLIN_SHAMAN,
-	]},
-	{"title": "ACT II — FOREST", "types": [
-		Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.MINI_BEAR, Enemy.EnemyType.LARGE_BEAR,
-		Enemy.EnemyType.WOLF, Enemy.EnemyType.COYOTE, Enemy.EnemyType.BUGBEAR,
-		Enemy.EnemyType.INFECTED_HUNTER, Enemy.EnemyType.GIANT_HAWK, Enemy.EnemyType.TREANT,
-		Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.FIRE_MAGE, Enemy.EnemyType.SPARK_MAGE,
-		Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.EARTH_MAGE,
+	{"title": "FOREST", "types": [
+		Enemy.EnemyType.HYDRA, Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.MINI_BEAR,
+		Enemy.EnemyType.LARGE_BEAR, Enemy.EnemyType.WOLF, Enemy.EnemyType.COYOTE,
+		Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.INFECTED_HUNTER, Enemy.EnemyType.GIANT_HAWK,
+		Enemy.EnemyType.TREANT, Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.FIRE_MAGE,
+		Enemy.EnemyType.SPARK_MAGE, Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.EARTH_MAGE,
 	]},
 	{"title": "GRAVEYARD", "types": [
-		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.WERERABBIT,
-		Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.BONE_DRAGON,
-		Enemy.EnemyType.SPIRIT_COLLECTOR, Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.CRYPT_CRAWLER,
-		Enemy.EnemyType.SCREECHER, Enemy.EnemyType.CONSUMED,
+		Enemy.EnemyType.SKELETON, Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WEREWOLF,
+		Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SCREECHER, Enemy.EnemyType.VAMPIRE,
+		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.BONE_DRAGON, Enemy.EnemyType.SPIRIT_COLLECTOR,
+		Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.CONSUMED,
+	]},
+	{"title": "CAVE", "types": [
+		Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.FIRE_GOBLIN_SOLDIER,
+		Enemy.EnemyType.FIRE_GOBLIN_MAGE, Enemy.EnemyType.FIRE_GOBLIN_SHAMAN,
 	]},
 	{"title": "SEWER", "types": [
-		Enemy.EnemyType.SLUDGE, Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SEWER_CROC,
-		Enemy.EnemyType.RAT_KING, Enemy.EnemyType.SWARM,
+		Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, Enemy.EnemyType.SLUDGE,
+		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.RAT_KING,
+		Enemy.EnemyType.SWARM,
 	]},
 ]
 
