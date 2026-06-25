@@ -51,6 +51,8 @@ const KIND_BY_TYPE := {
 	Enemy.EnemyType.SPIRIT_COLLECTOR: "spirit_collector",
 	Enemy.EnemyType.GRAVE_TITAN: "grave_titan",
 	Enemy.EnemyType.CRYPT_CRAWLER: "crypt_crawler",
+	Enemy.EnemyType.SCREECHER: "screecher",
+	Enemy.EnemyType.CONSUMED: "consumed",
 }
 
 # Coloured box fallback for the generic tiers (mirrors Enemy.initialize colours).
@@ -79,11 +81,12 @@ const SECTIONS := [
 		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.WERERABBIT,
 		Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.BONE_DRAGON,
 		Enemy.EnemyType.SPIRIT_COLLECTOR, Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.CRYPT_CRAWLER,
+		Enemy.EnemyType.SCREECHER, Enemy.EnemyType.CONSUMED,
 	]},
 ]
 
 # Display action names (from get_all_enemy_data) that are movement rather than attacks.
-const MOVE_ACTIONS := ["move", "scurry", "scurry away", "get into range", "flee", "hop"]
+const MOVE_ACTIONS := ["move", "scurry", "scurry away", "get into range", "flee", "hop", "drift"]
 
 var _viewport: SubViewport = null
 var _figure_root: Node3D = null       # holds the current figure/box; tweened for "move"

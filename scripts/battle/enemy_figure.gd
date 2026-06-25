@@ -117,6 +117,8 @@ func _build() -> void:
 		"spirit_collector": _build_spirit_collector()
 		"grave_titan": _build_grave_titan()
 		"crypt_crawler": _build_crypt_crawler()
+		"screecher": _build_screecher()
+		"consumed": _build_consumed()
 		_: _build_rat()
 	_collect_step_parts()
 	_built = true
@@ -1323,6 +1325,58 @@ func _build_crypt_crawler() -> void:
 			_cy(leg, "Lower", Vector3(0.32 * sx, -0.12, 0), 0.014, 0.018, 0.3, chitin2, Vector3(50, 0, 0))
 
 
+## Screecher: a soul-creature seen only as a black void ghost outline.
+func _build_screecher() -> void:
+	_shadow(0.18)
+	var void_c := Color.html("0a0a12")
+	var eye := Color.html("c9b6ff")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.6, 0); add_child(body); _bob_node = body; _bob_y = 0.6
+	# Hooded ghost head/torso tapering to a wispy tail
+	_sp(body, "Hood", Vector3(0, 0.12, 0), 0.22, void_c, Vector3(1.0, 1.1, 1.0))
+	_sp(body, "Torso", Vector3(0, -0.1, 0), 0.2, void_c, Vector3(1.05, 1.0, 1.0))
+	for i in range(3):
+		_cy(body, "Wisp%d" % i, Vector3((i - 1) * 0.12, -0.34, 0), 0.0, 0.06, 0.3, void_c, Vector3(8 * (i - 1), 0, 0))
+	# Wispy arms
+	_cy(body, "ArmL", Vector3(-0.2, 0.0, 0.04), 0.0, 0.05, 0.32, void_c, Vector3(20, 0, -30))
+	_cy(body, "ArmR", Vector3(0.2, 0.0, 0.04), 0.0, 0.05, 0.32, void_c, Vector3(20, 0, 30))
+	# Glowing void-eyes (the only part you can really make out)
+	_sp(body, "EyeL", Vector3(-0.07, 0.14, 0.21), 0.032, eye, Vector3.ONE, true)
+	_sp(body, "EyeR", Vector3(0.07, 0.14, 0.21), 0.032, eye, Vector3.ONE, true)
+	_atk_pivot = body; _atk_rest = Vector3.ZERO
+
+
+## The Consumed: a hulking flesh-golem with red lacerations baring its muscle.
+func _build_consumed() -> void:
+	_shadow(0.32)
+	var flesh := Color.html("5a4a48")
+	var flesh2 := Color.html("6e5856")
+	var muscle := Color.html("9a2a28")
+	var dark := Color.html("1a1414")
+	var eye := Color.html("ff5a3a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.16, 0.3, 0), Vector3(0.22, 0.5, 0.22), flesh)
+	_bx(root, "LegR", Vector3(0.16, 0.3, 0), Vector3(0.22, 0.5, 0.22), flesh)
+	_bx(root, "FootL", Vector3(-0.16, 0.06, 0.06), Vector3(0.24, 0.12, 0.3), dark)
+	_bx(root, "FootR", Vector3(0.16, 0.06, 0.06), Vector3(0.24, 0.12, 0.3), dark)
+	_bx(root, "GashLeg", Vector3(-0.16, 0.34, 0.12), Vector3(0.05, 0.2, 0.02), muscle)
+	var torso := _bx(root, "Torso", Vector3(0, 0.86, -0.02), Vector3(0.56, 0.6, 0.4), flesh)
+	torso.rotation_degrees = Vector3(6, 0, 0)
+	_bx(root, "GashChest", Vector3(-0.06, 0.9, 0.2), Vector3(0.06, 0.34, 0.02), muscle, Vector3(0, 0, 12))
+	_bx(root, "GashChest2", Vector3(0.12, 0.84, 0.2), Vector3(0.05, 0.24, 0.02), muscle, Vector3(0, 0, -16))
+	_sp(root, "Head", Vector3(0, 1.22, 0.04), 0.18, flesh2)
+	_bx(root, "Brow", Vector3(0, 1.26, 0.16), Vector3(0.3, 0.05, 0.06), dark)
+	_sp(root, "EyeL", Vector3(-0.07, 1.2, 0.17), 0.028, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.07, 1.2, 0.17), 0.028, eye, Vector3.ONE, true)
+	_bx(root, "Maw", Vector3(0, 1.1, 0.17), Vector3(0.16, 0.06, 0.04), muscle)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.34, 1.06, 0); root.add_child(sh_l)
+	_bx(sh_l, "ArmL", Vector3(0, -0.3, 0.02), Vector3(0.18, 0.56, 0.2), flesh); _sp(sh_l, "FistL", Vector3(0, -0.6, 0.04), 0.12, flesh2)
+	_bx(sh_l, "GashArmL", Vector3(0, -0.3, 0.12), Vector3(0.04, 0.3, 0.02), muscle)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.34, 1.06, 0); root.add_child(sh_r)
+	_bx(sh_r, "ArmR", Vector3(0, -0.3, 0.02), Vector3(0.18, 0.56, 0.2), flesh); _sp(sh_r, "FistR", Vector3(0, -0.6, 0.04), 0.12, flesh2)
+	_bx(sh_r, "GashArmR", Vector3(0, -0.3, 0.12), Vector3(0.04, 0.3, 0.02), muscle)
+	_atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+
+
 # =============================================================
 # IDLE
 # =============================================================
@@ -1452,6 +1506,7 @@ func play_action(action: String) -> void:
 		"crypt_crawler":
 			if a == "web": _crawler_web()
 			else: _crawler_bite()
+		"screecher": _screech_attack()
 		_:
 			play_attack()
 
@@ -2051,6 +2106,22 @@ func _crawler_web() -> void:
 		for a in range(4):
 			_cy(p, "Strand%d" % a, Vector3.ZERO, 0.004, 0.004, 0.24, web, Vector3(0, 0, a * 45.0))
 	, Vector3(0, 0.35, 0.3), 2.4, 0.45)
+
+
+## Screecher: surge forward with a swelling shriek (and briefly flash into view).
+func _screech_attack() -> void:
+	if _bob_node == null:
+		return
+	_cancel_action()
+	_busy = true
+	var base := _bob_node.position
+	var s := _bob_node.scale
+	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_action_tween.tween_property(_bob_node, "position:z", base.z + 0.2, 0.1)
+	_action_tween.parallel().tween_property(_bob_node, "scale", s * 1.15, 0.1)
+	_action_tween.tween_property(_bob_node, "position:z", base.z, 0.3)
+	_action_tween.parallel().tween_property(_bob_node, "scale", s, 0.3)
+	_action_tween.tween_callback(func(): _busy = false)
 
 
 ## Wererabbit: vanish in a puff of smoke (then re-appear so it can be replayed).

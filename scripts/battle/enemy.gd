@@ -19,7 +19,7 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# Forest act
 	GIANT_BEAVER, MINI_BEAR, LARGE_BEAR, WOLF, COYOTE, BUGBEAR, INFECTED_HUNTER, GIANT_HAWK, TREANT, ICE_MAGE, FIRE_MAGE, SPARK_MAGE, AIR_MAGE, EARTH_MAGE,
 	# Graveyard act
-	ZOMBIE, WEREWOLF, WERERABBIT, VAMPIRE, NECROMANCER, BONE_DRAGON, SPIRIT_COLLECTOR, GRAVE_TITAN, CRYPT_CRAWLER }
+	ZOMBIE, WEREWOLF, WERERABBIT, VAMPIRE, NECROMANCER, BONE_DRAGON, SPIRIT_COLLECTOR, GRAVE_TITAN, CRYPT_CRAWLER, SCREECHER, CONSUMED }
 
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
@@ -479,6 +479,24 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			xp_reward = 9
 			_set_mesh_color(Color(0.20, 0.17, 0.22))
 
+		EnemyType.SCREECHER:
+			enemy_name = "Screecher"
+			max_health = 10
+			attack_damage = 2
+			attack_range = 1.5
+			move_distance = 4.0       # 4 spaces / 2 tempo while invisible
+			xp_reward = 6
+			_set_mesh_color(Color(0.07, 0.07, 0.10))
+
+		EnemyType.CONSUMED:
+			enemy_name = "The Consumed"
+			max_health = 18
+			attack_damage = 5
+			attack_range = 1.5
+			move_distance = 5.0       # 5 spaces / 3 tempo
+			xp_reward = 10
+			_set_mesh_color(Color(0.35, 0.29, 0.28))
+
 	current_health = max_health
 	current_armor = max_armor
 	update_health_display()
@@ -535,6 +553,8 @@ func _setup_sprite() -> void:
 		EnemyType.SPIRIT_COLLECTOR: kind = "spirit_collector"
 		EnemyType.GRAVE_TITAN: kind = "grave_titan"
 		EnemyType.CRYPT_CRAWLER: kind = "crypt_crawler"
+		EnemyType.SCREECHER: kind = "screecher"
+		EnemyType.CONSUMED: kind = "consumed"
 		_:
 			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
 
@@ -754,6 +774,16 @@ func _setup_actions() -> void:
 				{"name": "web",          "tempo_cost": 3},
 				{"name": "move",         "tempo_cost": 4},
 			]
+		EnemyType.SCREECHER:
+			actions = [
+				{"name": "screech", "tempo_cost": 5},
+				{"name": "move",    "tempo_cost": 2},
+			]
+		EnemyType.CONSUMED:
+			actions = [
+				{"name": "attack", "tempo_cost": 5},
+				{"name": "move",   "tempo_cost": 3},
+			]
 
 # ============================================
 # COMPENDIUM DATA
@@ -797,6 +827,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPIRIT_COLLECTOR: "Elite",
 		EnemyType.GRAVE_TITAN: "Boss",
 		EnemyType.CRYPT_CRAWLER: "Minion",
+		EnemyType.SCREECHER: "Minion",
+		EnemyType.CONSUMED: "Elite",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -833,6 +865,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPIRIT_COLLECTOR: {"name": "Spirit Collector", "health": 30, "armor": 0, "damage": 5, "xp": 12},
 		EnemyType.GRAVE_TITAN: {"name": "Grave Titan", "health": 50, "armor": 15, "damage": 12, "xp": 20},
 		EnemyType.CRYPT_CRAWLER: {"name": "Crypt Crawler", "health": 15, "armor": 0, "damage": 5, "xp": 9},
+		EnemyType.SCREECHER: {"name": "Screecher", "health": 10, "armor": 0, "damage": 2, "xp": 6},
+		EnemyType.CONSUMED: {"name": "The Consumed", "health": 18, "armor": 0, "damage": 5, "xp": 10},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -869,6 +903,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPIRIT_COLLECTOR: [{"name": "Strike", "tempo": 3}, {"name": "Collect Soul", "tempo": 8}, {"name": "Move", "tempo": 4}],
 		EnemyType.GRAVE_TITAN: [{"name": "Smash", "tempo": 8}, {"name": "Boulder Roll", "tempo": 5}, {"name": "Move", "tempo": 8}],
 		EnemyType.CRYPT_CRAWLER: [{"name": "Bite", "tempo": 3}, {"name": "Web", "tempo": 3}, {"name": "Move", "tempo": 4}],
+		EnemyType.SCREECHER: [{"name": "Screech", "tempo": 5}, {"name": "Drift", "tempo": 2}],
+		EnemyType.CONSUMED: [{"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 3}],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -905,6 +941,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 5 damage.\nCollect Soul (8 tempo): 2 damage; adds a 'Release Soul' card to your hand (deals 1 damage per tempo until played, then is erased).",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (15 armor) hauling a boulder.\nSmash (8 tempo): 12 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 8 damage.\nMove (8 tempo): 4 spaces.",
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 5 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
+		EnemyType.SCREECHER: "Soul-creature — invisible (a black void ghost) until it strikes.\nScreech (5 tempo): 2 damage; it becomes visible for 3 tempo, then fades again.\nDrift: 4 spaces / 2 tempo while invisible (2 spaces / 5 tempo while visible).",
+		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 5 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 4 damage to everything nearby.",
 	}
 
 	var result: Array = []
@@ -1282,6 +1320,10 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_melee_action(distance, "titan_smash")
 		EnemyType.CRYPT_CRAWLER:
 			_choose_melee_action(distance, "crawler_bite")
+		EnemyType.SCREECHER:
+			_choose_melee_action(distance, "screech")
+		EnemyType.CONSUMED:
+			_choose_melee_action(distance, "attack")
 		_:
 			_choose_legacy_action(distance)
 
@@ -1544,6 +1586,8 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_elemental(move_target, attack_damage, "Bite")
 		"web":
 			return _try_elemental(move_target, attack_damage, "Web")
+		"screech":
+			return _try_elemental(move_target, attack_damage, "Screech")
 		_:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false
