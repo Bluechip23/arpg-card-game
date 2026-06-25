@@ -19,7 +19,9 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# Forest act
 	GIANT_BEAVER, MINI_BEAR, LARGE_BEAR, WOLF, COYOTE, BUGBEAR, INFECTED_HUNTER, GIANT_HAWK, TREANT, ICE_MAGE, FIRE_MAGE, SPARK_MAGE, AIR_MAGE, EARTH_MAGE,
 	# Graveyard act
-	ZOMBIE, WEREWOLF, WERERABBIT, VAMPIRE, NECROMANCER, BONE_DRAGON, SPIRIT_COLLECTOR, GRAVE_TITAN, CRYPT_CRAWLER, SCREECHER, CONSUMED }
+	ZOMBIE, WEREWOLF, WERERABBIT, VAMPIRE, NECROMANCER, BONE_DRAGON, SPIRIT_COLLECTOR, GRAVE_TITAN, CRYPT_CRAWLER, SCREECHER, CONSUMED,
+	# Sewer act
+	SLUDGE, PIPE_CRAWLER, SEWER_CROC, RAT_KING, SWARM }
 
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
@@ -179,8 +181,8 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 
 		EnemyType.WERERAT:
 			enemy_name = "Wererat"
-			max_health = 15
-			attack_damage = 3
+			max_health = 8
+			attack_damage = 2
 			move_distance = 1.0
 			xp_reward = 5
 			_set_mesh_color(Color(0.5, 0.35, 0.2))  # Brown
@@ -497,6 +499,54 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			xp_reward = 10
 			_set_mesh_color(Color(0.35, 0.29, 0.28))
 
+		# ===================== SEWER ACT =====================
+		EnemyType.SLUDGE:
+			enemy_name = "Sludge Being"
+			max_health = 8
+			attack_damage = 3
+			attack_range = 6.0        # Can spit at range
+			move_distance = 3.0
+			xp_reward = 5
+			_set_mesh_color(Color(0.25, 0.63, 0.36))
+
+		EnemyType.PIPE_CRAWLER:
+			enemy_name = "Pipe Crawler"
+			max_health = 15
+			attack_damage = 4
+			attack_range = 1.5
+			move_distance = 2.0
+			xp_reward = 7
+			_set_mesh_color(Color(0.48, 0.54, 0.43))
+
+		EnemyType.SEWER_CROC:
+			enemy_name = "Sewer Crocodile"
+			max_health = 25
+			max_armor = 15
+			attack_damage = 10
+			attack_range = 1.5
+			move_distance = 2.0
+			aggro_range = 12.0
+			xp_reward = 14
+			_set_mesh_color(Color(0.27, 0.38, 0.23))
+
+		EnemyType.RAT_KING:
+			enemy_name = "Rat King"
+			max_health = 15
+			attack_damage = 4
+			attack_range = 1.5
+			move_distance = 2.0
+			xp_reward = 8
+			_set_mesh_color(Color(0.5, 0.35, 0.2))
+
+		EnemyType.SWARM:
+			enemy_name = "Swarm"
+			max_health = 8
+			attack_damage = 3
+			attack_range = 1.5
+			move_distance = 8.0       # 8 spaces / 3 tempo — very fast
+			xp_reward = 5
+			_set_mesh_color(Color(0.18, 0.16, 0.13))
+
 	current_health = max_health
 	current_armor = max_armor
 	update_health_display()
@@ -555,6 +605,11 @@ func _setup_sprite() -> void:
 		EnemyType.CRYPT_CRAWLER: kind = "crypt_crawler"
 		EnemyType.SCREECHER: kind = "screecher"
 		EnemyType.CONSUMED: kind = "consumed"
+		EnemyType.SLUDGE: kind = "sludge"
+		EnemyType.PIPE_CRAWLER: kind = "pipe_crawler"
+		EnemyType.SEWER_CROC: kind = "sewer_croc"
+		EnemyType.RAT_KING: kind = "rat_king"
+		EnemyType.SWARM: kind = "swarm"
 		_:
 			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
 
@@ -785,6 +840,34 @@ func _setup_actions() -> void:
 				{"name": "move",   "tempo_cost": 3},
 			]
 
+		# ===================== SEWER ACT =====================
+		EnemyType.SLUDGE:
+			actions = [
+				{"name": "sludge_melee", "tempo_cost": 5},
+				{"name": "sludge_spit",  "tempo_cost": 6},
+				{"name": "move",         "tempo_cost": 5},
+			]
+		EnemyType.PIPE_CRAWLER:
+			actions = [
+				{"name": "pipe_attack", "tempo_cost": 5},
+				{"name": "move",        "tempo_cost": 2},
+			]
+		EnemyType.SEWER_CROC:
+			actions = [
+				{"name": "croc_bite", "tempo_cost": 6},
+				{"name": "move",      "tempo_cost": 5},
+			]
+		EnemyType.RAT_KING:
+			actions = [
+				{"name": "bite", "tempo_cost": 2},
+				{"name": "move", "tempo_cost": 2},
+			]
+		EnemyType.SWARM:
+			actions = [
+				{"name": "attack", "tempo_cost": 2},
+				{"name": "move",   "tempo_cost": 3},
+			]
+
 # ============================================
 # COMPENDIUM DATA
 # ============================================
@@ -829,12 +912,17 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CRYPT_CRAWLER: "Minion",
 		EnemyType.SCREECHER: "Minion",
 		EnemyType.CONSUMED: "Elite",
+		EnemyType.SLUDGE: "Minion",
+		EnemyType.PIPE_CRAWLER: "Minion",
+		EnemyType.SEWER_CROC: "Elite",
+		EnemyType.RAT_KING: "Elite",
+		EnemyType.SWARM: "Minion",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
 		EnemyType.ELITE: {"name": "Elite", "health": 80, "armor": 0, "damage": 6, "xp": 10},
 		EnemyType.BOSS: {"name": "Boss", "health": 200, "armor": 0, "damage": 10, "xp": 25},
-		EnemyType.WERERAT: {"name": "Wererat", "health": 15, "armor": 0, "damage": 3, "xp": 5},
+		EnemyType.WERERAT: {"name": "Wererat", "health": 8, "armor": 0, "damage": 2, "xp": 5},
 		EnemyType.SKELETON: {"name": "Skeleton", "health": 18, "armor": 10, "damage": 5, "xp": 5},
 		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 45, "armor": 30, "damage": 4, "xp": 8},
 		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 5, "armor": 0, "damage": 1, "xp": 4},
@@ -867,6 +955,11 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CRYPT_CRAWLER: {"name": "Crypt Crawler", "health": 15, "armor": 0, "damage": 5, "xp": 9},
 		EnemyType.SCREECHER: {"name": "Screecher", "health": 10, "armor": 0, "damage": 2, "xp": 6},
 		EnemyType.CONSUMED: {"name": "The Consumed", "health": 18, "armor": 0, "damage": 5, "xp": 10},
+		EnemyType.SLUDGE: {"name": "Sludge Being", "health": 8, "armor": 0, "damage": 3, "xp": 5},
+		EnemyType.PIPE_CRAWLER: {"name": "Pipe Crawler", "health": 15, "armor": 0, "damage": 4, "xp": 7},
+		EnemyType.SEWER_CROC: {"name": "Sewer Crocodile", "health": 25, "armor": 15, "damage": 10, "xp": 14},
+		EnemyType.RAT_KING: {"name": "Rat King", "health": 15, "armor": 0, "damage": 4, "xp": 8},
+		EnemyType.SWARM: {"name": "Swarm", "health": 8, "armor": 0, "damage": 3, "xp": 5},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -905,12 +998,17 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CRYPT_CRAWLER: [{"name": "Bite", "tempo": 3}, {"name": "Web", "tempo": 3}, {"name": "Move", "tempo": 4}],
 		EnemyType.SCREECHER: [{"name": "Screech", "tempo": 5}, {"name": "Drift", "tempo": 2}],
 		EnemyType.CONSUMED: [{"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 3}],
+		EnemyType.SLUDGE: [{"name": "Melee", "tempo": 5}, {"name": "Spit", "tempo": 6}, {"name": "Move", "tempo": 5}],
+		EnemyType.PIPE_CRAWLER: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 2}],
+		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
+		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 2}, {"name": "Move", "tempo": 2}],
+		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ELITE: "Stronger than minions.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.BOSS: "High health and damage.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		EnemyType.WERERAT: "Fast and evasive.\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
+		EnemyType.WERERAT: "Fast and evasive (8 HP, 2 dmg).\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 2 HP every 6 global tempo.\nAt range ≤1: 60% Smash / 40% Kick.\nOtherwise: Moves toward player.",
 		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 1 damage.\nAt range >4: Moves 2 tiles closer.",
@@ -943,6 +1041,11 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 5 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
 		EnemyType.SCREECHER: "Soul-creature — invisible (a black void ghost) until it strikes.\nScreech (5 tempo): 2 damage; it becomes visible for 3 tempo, then fades again.\nDrift: 4 spaces / 2 tempo while invisible (2 spaces / 5 tempo while visible).",
 		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 5 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 4 damage to everything nearby.",
+		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
+		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 4 damage; 15% chance to disarm you.\nMove (2 tempo): 2 spaces.",
+		EnemyType.SEWER_CROC: "Armoured ambush predator (15 armor).\nBite (6 tempo): 10 damage.\nMove (5 tempo): 2 spaces.",
+		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm.\nBite (2 tempo): 4 damage.\nMove (2 tempo): 2 spaces.",
+		EnemyType.SWARM: "A single unit made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 	}
 
 	var result: Array = []
@@ -1324,6 +1427,17 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_melee_action(distance, "screech")
 		EnemyType.CONSUMED:
 			_choose_melee_action(distance, "attack")
+		# ----- Sewer act -----
+		EnemyType.SLUDGE:
+			_choose_sludge_action(distance)
+		EnemyType.PIPE_CRAWLER:
+			_choose_melee_action(distance, "pipe_attack")
+		EnemyType.SEWER_CROC:
+			_choose_melee_action(distance, "croc_bite")
+		EnemyType.RAT_KING:
+			_choose_melee_action(distance, "bite")
+		EnemyType.SWARM:
+			_choose_melee_action(distance, "attack")
 		_:
 			_choose_legacy_action(distance)
 
@@ -1421,6 +1535,16 @@ func _sibling_enemies() -> Array:
 	return out
 
 ## --- Forest-act action selection ---
+
+func _choose_sludge_action(distance: int) -> void:
+	# Melee up close, spit at range, otherwise close in.
+	if distance <= 1:
+		chosen_action = _get_action("sludge_melee")
+	elif distance <= int(attack_range):
+		chosen_action = _get_action("sludge_spit")
+	else:
+		chosen_action = _get_action("move")
+
 
 func _choose_melee_action(distance: int, attack_name: String) -> void:
 	if distance <= 1:
@@ -1588,6 +1712,15 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_elemental(move_target, attack_damage, "Web")
 		"screech":
 			return _try_elemental(move_target, attack_damage, "Screech")
+		# ----- Sewer act -----
+		"sludge_melee":
+			return _try_elemental(move_target, attack_damage, "Sludge")
+		"sludge_spit":
+			return _try_elemental(move_target, attack_damage, "Spit")
+		"pipe_attack":
+			return _try_elemental(move_target, attack_damage, "Claw")
+		"croc_bite":
+			return _try_elemental(move_target, attack_damage, "Bite")
 		_:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false

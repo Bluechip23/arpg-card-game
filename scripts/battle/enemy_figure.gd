@@ -119,6 +119,12 @@ func _build() -> void:
 		"crypt_crawler": _build_crypt_crawler()
 		"screecher": _build_screecher()
 		"consumed": _build_consumed()
+		# Sewer act
+		"sludge": _build_sludge()
+		"pipe_crawler": _build_pipe_crawler()
+		"sewer_croc": _build_sewer_croc()
+		"rat_king": _build_rat_king()
+		"swarm": _build_swarm()
 		_: _build_rat()
 	_collect_step_parts()
 	_built = true
@@ -1378,6 +1384,132 @@ func _build_consumed() -> void:
 
 
 # =============================================================
+# SEWER ACT MODELS
+# =============================================================
+
+## Sludge Being: a low gelatinous ooze with eyes floating in the goo.
+func _build_sludge() -> void:
+	_shadow(0.3)
+	var ooze := Color.html("3fa05a")
+	var ooze2 := Color.html("57c074")
+	var dark := Color.html("16301f")
+	var eye := Color.html("eaffea")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.18, 0); add_child(body); _bob_node = body; _bob_y = 0.18
+	_sp(body, "Blob", Vector3(0, 0, 0), 0.3, ooze, Vector3(1.2, 0.85, 1.2))
+	_sp(body, "Blob2", Vector3(-0.14, -0.04, 0.08), 0.16, ooze2, Vector3(1.0, 0.8, 1.0))
+	_sp(body, "Blob3", Vector3(0.16, -0.05, -0.06), 0.14, ooze2, Vector3(1.0, 0.7, 1.0))
+	_sp(body, "Drip", Vector3(0.1, 0.16, 0.12), 0.06, ooze)
+	_sp(body, "EyeL", Vector3(-0.08, 0.06, 0.25), 0.04, eye, Vector3.ONE, true)
+	_sp(body, "EyeR", Vector3(0.09, 0.07, 0.23), 0.04, eye, Vector3.ONE, true)
+	_sp(body, "PupilL", Vector3(-0.08, 0.06, 0.28), 0.018, dark)
+	_sp(body, "PupilR", Vector3(0.09, 0.07, 0.26), 0.018, dark)
+	_atk_pivot = body; _atk_rest = Vector3.ZERO
+
+
+## Pipe Crawler: a humanoid that scuttles on all fours with extra back-limbs.
+func _build_pipe_crawler() -> void:
+	_shadow(0.26)
+	var skin := Color.html("7a8a6e")
+	var skin2 := Color.html("63725a")
+	var dark := Color.html("1c1f18")
+	var eye := Color.html("b7ff7a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "Torso", Vector3(0, 0.46, 0), Vector3(0.34, 0.26, 0.52), skin)
+	for sx in [-1, 1]:
+		_cy(root, "ArmF%d" % sx, Vector3(0.16 * sx, 0.24, 0.22), 0.04, 0.05, 0.46, skin, Vector3(10, 0, 0))
+		_sp(root, "HandF%d" % sx, Vector3(0.16 * sx, 0.02, 0.26), 0.05, skin2)
+		_cy(root, "LegB%d" % sx, Vector3(0.14 * sx, 0.24, -0.2), 0.045, 0.055, 0.46, skin, Vector3(-10, 0, 0))
+		_sp(root, "FootB%d" % sx, Vector3(0.14 * sx, 0.02, -0.22), 0.05, skin2)
+	# Extra limbs sprouting from the back (these swipe on attack)
+	var extras := []
+	for sx in [-1, 1]:
+		var xl := Node3D.new(); xl.name = "Extra%d" % sx; xl.position = Vector3(0.1 * sx, 0.62, -0.02); root.add_child(xl); xl.rotation_degrees = Vector3(-40, 0, 30 * sx)
+		_cy(xl, "XArm", Vector3(0, 0.2, 0), 0.03, 0.035, 0.4, skin2)
+		_cy(xl, "XClawA", Vector3(-0.03, 0.42, 0), 0.0, 0.018, 0.1, dark, Vector3(20, 0, 0))
+		_cy(xl, "XClawB", Vector3(0.03, 0.42, 0), 0.0, 0.018, 0.1, dark, Vector3(20, 0, 0))
+		extras.append(xl)
+	_arm_l = extras[0]; _arm_r = extras[1]
+	_sp(root, "Head", Vector3(0, 0.46, 0.32), 0.13, skin)
+	_bx(root, "Jaw", Vector3(0, 0.42, 0.42), Vector3(0.1, 0.05, 0.1), skin2)
+	_sp(root, "EyeL", Vector3(-0.05, 0.5, 0.4), 0.025, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.05, 0.5, 0.4), 0.025, eye, Vector3.ONE, true)
+	_atk_pivot = root; _atk_rest = Vector3.ZERO
+
+
+## Sewer Crocodile: a long armoured reptile with a snapping jaw.
+func _build_sewer_croc() -> void:
+	_shadow(0.4)
+	var green := Color.html("46603a")
+	var green2 := Color.html("5c7a4a")
+	var belly := Color.html("9aa873")
+	var dark := Color.html("141a10")
+	var tooth := Color.html("e8e4d0")
+	var eye := Color.html("d2b83a")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.16, 0); add_child(body); _bob_node = body; _bob_y = 0.16
+	# Long, low body (croc silhouette)
+	_sp(body, "Torso", Vector3(0, 0, -0.12), 0.26, green, Vector3(1.0, 0.55, 2.4))
+	_sp(body, "Belly", Vector3(0, -0.1, -0.08), 0.2, belly, Vector3(0.95, 0.4, 2.1))
+	for i in range(5):
+		_cy(body, "Ridge%d" % i, Vector3(0, 0.1, 0.2 - i * 0.16), 0.0, 0.035, 0.09, green2, Vector3(-20, 0, 0))
+	for sx in [-1, 1]:
+		_cy(body, "LegF%d" % sx, Vector3(0.24 * sx, -0.08, 0.2), 0.04, 0.05, 0.18, green, Vector3(0, 0, 55 * sx))
+		_cy(body, "LegB%d" % sx, Vector3(0.24 * sx, -0.08, -0.34), 0.04, 0.05, 0.18, green, Vector3(0, 0, 55 * sx))
+	_cy(body, "Tail", Vector3(0, 0.0, -0.62), 0.02, 0.14, 0.74, green, Vector3(90, 0, 0))
+	# Long flat head + a lower jaw on a pivot that snaps shut on the bite
+	var head := Node3D.new(); head.name = "Head"; head.position = Vector3(0, -0.02, 0.34); body.add_child(head)
+	_head_pivot = head
+	_sp(head, "Skull", Vector3(0, 0.04, 0.06), 0.15, green, Vector3(1.0, 0.65, 1.2))
+	_bx(head, "Snout", Vector3(0, 0.0, 0.36), Vector3(0.16, 0.09, 0.56), green)
+	_sp(head, "EyeL", Vector3(-0.1, 0.12, 0.04), 0.035, eye, Vector3.ONE, true)
+	_sp(head, "EyeR", Vector3(0.1, 0.12, 0.04), 0.035, eye, Vector3.ONE, true)
+	_sp(head, "NostrilL", Vector3(-0.04, 0.06, 0.62), 0.02, dark)
+	_sp(head, "NostrilR", Vector3(0.04, 0.06, 0.62), 0.02, dark)
+	for tz in [0.22, 0.38, 0.54]:
+		_bx(head, "ToothUL%d" % int(tz * 100), Vector3(-0.07, -0.05, tz), Vector3(0.02, 0.06, 0.02), tooth)
+		_bx(head, "ToothUR%d" % int(tz * 100), Vector3(0.07, -0.05, tz), Vector3(0.02, 0.06, 0.02), tooth)
+	var jaw := Node3D.new(); jaw.name = "Jaw"; jaw.position = Vector3(0, -0.06, 0.12); head.add_child(jaw)
+	_atk_pivot = jaw; _atk_rest = Vector3.ZERO
+	_bx(jaw, "JawBox", Vector3(0, -0.01, 0.24), Vector3(0.15, 0.05, 0.5), green2)
+
+
+## Rat King: an oversized crowned rat (reuses the rat model at larger scale).
+func _build_rat_king() -> void:
+	var body := _build_rat_into(self, 1.5)
+	_bob_node = body
+	_bob_y = body.position.y
+	_atk_pivot = body
+	_atk_rest = Vector3.ZERO
+	var gold := Color.html("e8c34a")
+	var gem := Color.html("c0392b")
+	var crown := Node3D.new(); crown.name = "Crown"; crown.position = Vector3(0, 0.2, 0.42); body.add_child(crown)
+	_cy(crown, "Band", Vector3(0, 0, 0), 0.13, 0.13, 0.07, gold)
+	for a in range(5):
+		var ang := deg_to_rad(a * 72.0)
+		_cy(crown, "Point%d" % a, Vector3(cos(ang) * 0.11, 0.08, sin(ang) * 0.11), 0.0, 0.022, 0.09, gold)
+		_sp(crown, "Gem%d" % a, Vector3(cos(ang) * 0.11, 0.13, sin(ang) * 0.11), 0.02, gem, Vector3.ONE, true)
+
+
+## Swarm: a single unit made of a cluster of small winged bugs.
+func _build_swarm() -> void:
+	_shadow(0.3)
+	var bug := Color.html("2a2420")
+	var bug2 := Color.html("3e352c")
+	var wing := Color.html("8a8f99")
+	var glow := Color.html("c9ff6a")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.4, 0); add_child(body); _bob_node = body; _bob_y = 0.4
+	var positions := [Vector3(0, 0, 0), Vector3(0.16, 0.05, 0.04), Vector3(-0.14, 0.08, -0.05), Vector3(0.06, 0.16, -0.08), Vector3(-0.08, -0.06, 0.12), Vector3(0.12, -0.08, -0.1), Vector3(-0.16, -0.02, 0.06), Vector3(0.02, 0.1, 0.16), Vector3(-0.02, -0.14, -0.04), Vector3(0.1, 0.02, 0.14)]
+	for i in range(positions.size()):
+		var p: Vector3 = positions[i]
+		var c: Color = bug if i % 2 == 0 else bug2
+		_sp(body, "Bug%d" % i, p, 0.06, c)
+		_bx(body, "Wing%dL" % i, p + Vector3(-0.05, 0.03, 0), Vector3(0.08, 0.01, 0.05), wing)
+		_bx(body, "Wing%dR" % i, p + Vector3(0.05, 0.03, 0), Vector3(0.08, 0.01, 0.05), wing)
+	_sp(body, "Glow0", Vector3(0.05, 0.05, 0.18), 0.02, glow, Vector3.ONE, true)
+	_sp(body, "Glow1", Vector3(-0.1, 0.1, 0.1), 0.02, glow, Vector3.ONE, true)
+	_atk_pivot = body; _atk_rest = Vector3.ZERO
+
+
+# =============================================================
 # IDLE
 # =============================================================
 
@@ -1507,6 +1639,14 @@ func play_action(action: String) -> void:
 			if a == "web": _crawler_web()
 			else: _crawler_bite()
 		"screecher": _screech_attack()
+		# --- Sewer act ---
+		"sludge":
+			if a.contains("spit"): _sludge_spit()
+			else: _lurch()
+		"pipe_crawler": _pipe_attack()
+		"sewer_croc": _croc_bite()
+		"rat_king": _lurch()
+		"swarm": _lurch()
 		_:
 			play_attack()
 
@@ -2106,6 +2246,50 @@ func _crawler_web() -> void:
 		for a in range(4):
 			_cy(p, "Strand%d" % a, Vector3.ZERO, 0.004, 0.004, 0.24, web, Vector3(0, 0, a * 45.0))
 	, Vector3(0, 0.35, 0.3), 2.4, 0.45)
+
+
+## Sludge Being: recoil and spit a globule of ooze forward.
+func _sludge_spit() -> void:
+	_lurch()
+	var ooze := Color.html("57c074")
+	_projectile(func(p):
+		_sp(p, "Glob", Vector3.ZERO, 0.08, ooze, Vector3.ONE, true)
+	, Vector3(0, 0.3, 0.35), 2.6, 0.5, -0.1)
+
+
+## Pipe Crawler: lunge forward while swiping both back-limbs.
+func _pipe_attack() -> void:
+	if _bob_node == null:
+		return
+	_cancel_action()
+	_busy = true
+	var base := _bob_node.position
+	var rl := _arm_l.rotation_degrees.x if _arm_l else 0.0
+	var rr := _arm_r.rotation_degrees.x if _arm_r else 0.0
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_bob_node, "position:z", base.z + 0.18, 0.1)
+	if _arm_l: _action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", rl + 55.0, 0.1)
+	if _arm_r: _action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", rr + 55.0, 0.1)
+	_action_tween.tween_property(_bob_node, "position:z", base.z, 0.22)
+	if _arm_l: _action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", rl, 0.22)
+	if _arm_r: _action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", rr, 0.22)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Sewer Crocodile: lunge forward, gaping the jaw, then snap it shut.
+func _croc_bite() -> void:
+	if _atk_pivot == null or _bob_node == null:
+		_lurch()
+		return
+	_cancel_action()
+	_busy = true
+	var base := _bob_node.position
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_atk_pivot, "rotation_degrees:x", 35.0, 0.12)
+	_action_tween.parallel().tween_property(_bob_node, "position:z", base.z + 0.2, 0.12)
+	_action_tween.tween_property(_atk_pivot, "rotation_degrees:x", 0.0, 0.08).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_bob_node, "position:z", base.z, 0.2)
+	_action_tween.tween_callback(func(): _busy = false)
 
 
 ## Screecher: surge forward with a swelling shriek (and briefly flash into view).

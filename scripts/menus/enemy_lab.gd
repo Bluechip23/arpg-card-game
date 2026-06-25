@@ -53,6 +53,11 @@ const KIND_BY_TYPE := {
 	Enemy.EnemyType.CRYPT_CRAWLER: "crypt_crawler",
 	Enemy.EnemyType.SCREECHER: "screecher",
 	Enemy.EnemyType.CONSUMED: "consumed",
+	Enemy.EnemyType.SLUDGE: "sludge",
+	Enemy.EnemyType.PIPE_CRAWLER: "pipe_crawler",
+	Enemy.EnemyType.SEWER_CROC: "sewer_croc",
+	Enemy.EnemyType.RAT_KING: "rat_king",
+	Enemy.EnemyType.SWARM: "swarm",
 }
 
 # Coloured box fallback for the generic tiers (mirrors Enemy.initialize colours).
@@ -82,6 +87,10 @@ const SECTIONS := [
 		Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.BONE_DRAGON,
 		Enemy.EnemyType.SPIRIT_COLLECTOR, Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.CRYPT_CRAWLER,
 		Enemy.EnemyType.SCREECHER, Enemy.EnemyType.CONSUMED,
+	]},
+	{"title": "SEWER", "types": [
+		Enemy.EnemyType.SLUDGE, Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SEWER_CROC,
+		Enemy.EnemyType.RAT_KING, Enemy.EnemyType.SWARM,
 	]},
 ]
 
