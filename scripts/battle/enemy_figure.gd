@@ -38,8 +38,9 @@ var _ar_torso: Node3D = null
 var _ar_bow_front: Node3D = null
 var _ar_bow_back: Node3D = null
 
-# Hydra neck pivots (centre neck drives the attack lunge)
+# Hydra neck pivots (all three heads snap out on the attack) + their rest rotations
 var _hydra_necks: Array = []
+var _hydra_neck_rest: Array = []
 const AR_STAND := -74.0
 const AR_QUAD := -6.0
 
@@ -47,6 +48,16 @@ var _action_tween: Tween = null
 var _pose_tween: Tween = null
 
 var _bear_root: Node3D = null         # Large Bear: tipped forward on all fours when wounded
+var _bear_arm_l: Node3D = null        # Large Bear: shoulders for the alternating maul
+var _bear_arm_r: Node3D = null
+
+var _troll_leg: Node3D = null         # Armored Troll: right hip pivot for the kick
+
+var _beaver_pose: Node3D = null       # Giant Beaver: tips onto all fours while moving
+var _beaver_tail: Node3D = null       # Giant Beaver: tail pivot for the tail-whip spank
+
+var _treant_arm_l: Node3D = null      # Treant: both branch-arms for the overhead slam / root summon
+var _treant_arm_r: Node3D = null
 
 
 func _ready() -> void:
@@ -107,12 +118,18 @@ func _collect_step_parts() -> void:
 		_: _step_amp = 1.0
 	if _step_amp <= 0.0 or _bob_node == null:
 		return
-	for child in _bob_node.get_children():
-		if not (child is MeshInstance3D):
-			continue
-		var n: String = child.name
-		if n.begins_with("Foot") or n.begins_with("Paw"):
-			_step_parts.append({"node": child, "rest": child.position, "phase": _step_phase(n)})
+	# Recurse so feet parented under pose/scale/hip pivots (beaver, troll) still step.
+	_gather_step_parts(_bob_node)
+
+
+func _gather_step_parts(node: Node) -> void:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			var n: String = child.name
+			if n.begins_with("Foot") or n.begins_with("Paw"):
+				_step_parts.append({"node": child, "rest": child.position, "phase": _step_phase(n)})
+		if child is Node3D:
+			_gather_step_parts(child)
 
 
 func _step_phase(node_name: String) -> float:
@@ -373,11 +390,13 @@ func _build_troll() -> void:
 	add_child(root)
 	_bob_node = root
 
-	# Legs + feet
+	# Legs + feet. The right leg hangs from a hip pivot so it can kick.
 	_bx(root, "LegL", Vector3(-0.17, 0.28, 0), Vector3(0.22, 0.56, 0.24), skin)
-	_bx(root, "LegR", Vector3(0.17, 0.28, 0), Vector3(0.22, 0.56, 0.24), skin)
 	_bx(root, "FootL", Vector3(-0.17, 0.06, 0.07), Vector3(0.24, 0.13, 0.32), dark)
-	_bx(root, "FootR", Vector3(0.17, 0.06, 0.07), Vector3(0.24, 0.13, 0.32), dark)
+	var hip_r := Node3D.new(); hip_r.name = "HipR"; hip_r.position = Vector3(0.17, 0.56, 0); root.add_child(hip_r)
+	_bx(hip_r, "LegR", Vector3(0, -0.28, 0), Vector3(0.22, 0.56, 0.24), skin)
+	_bx(hip_r, "FootR", Vector3(0, -0.50, 0.07), Vector3(0.24, 0.13, 0.32), dark)
+	_troll_leg = hip_r
 
 	# Torso (broad, hunched) + lighter belly
 	var torso := _bx(root, "Torso", Vector3(0, 0.92, -0.02), Vector3(0.62, 0.6, 0.44), skin)
@@ -460,6 +479,7 @@ func _hydra_neck(parent: Node3D, base: Vector3, pitch: float, roll: float, lengt
 	pivot.rotation_degrees = Vector3(pitch, 0, roll)
 	parent.add_child(pivot)
 	_hydra_necks.append(pivot)
+	_hydra_neck_rest.append(pivot.rotation_degrees)
 
 	_cy(pivot, "Neck", Vector3(0, length * 0.5, 0), 0.05, 0.08, length, green)
 	_cy(pivot, "Throat", Vector3(0, length * 0.5, 0.04), 0.035, 0.06, length * 0.9, belly)
@@ -579,36 +599,53 @@ func _build_mini_bear() -> void:
 	_build_quadruped(Color.html("5a3c25"), Color.html("7a5634"), 0.85, "round", "stub")
 
 func _build_beaver() -> void:
-	_shadow(0.26)
+	# Much larger than the other critters (~2x tall, ~3x wide). Built sitting up on
+	# its haunches; tips onto all fours while moving (see _set_beaver_pose).
+	_shadow(0.62)
 	var fur := Color.html("6b4423")
 	var belly := Color.html("8a5a30")
 	var dark := Color.html("241712")
 	var teeth := Color.html("f3e6b0")
 	var body := Node3D.new()
 	body.name = "Body"
-	body.position = Vector3(0, 0.34, 0)
 	add_child(body)
 	_bob_node = body
-	_bob_y = body.position.y
+	_bob_y = 0.0
+	# Pose node tips the whole beaver forward onto all fours when it moves.
+	var pose := Node3D.new()
+	pose.name = "Pose"
+	body.add_child(pose)
+	_beaver_pose = pose
+	# Scale node makes it big; geometry below uses the original chunky proportions.
+	var g := Node3D.new()
+	g.name = "Scale"
+	g.position = Vector3(0, 0.74, 0)
+	g.scale = Vector3(2.9, 2.0, 2.4)
+	pose.add_child(g)
 	# Plump upright torso (sits on haunches)
-	_sp(body, "Torso", Vector3(0, 0, 0), 0.26, fur, Vector3(1.0, 1.15, 0.95))
-	_sp(body, "Belly", Vector3(0, -0.04, 0.12), 0.20, belly, Vector3(0.95, 1.0, 0.8))
+	_sp(g, "Torso", Vector3(0, 0, 0), 0.26, fur, Vector3(1.0, 1.15, 0.95))
+	_sp(g, "Belly", Vector3(0, -0.04, 0.12), 0.20, belly, Vector3(0.95, 1.0, 0.8))
 	# Hind legs/feet on the ground, little front paws
-	_sp(body, "FootL", Vector3(-0.13, -0.30, 0.10), 0.07, dark, Vector3(1, 0.5, 1.3))
-	_sp(body, "FootR", Vector3(0.13, -0.30, 0.10), 0.07, dark, Vector3(1, 0.5, 1.3))
-	_cy(body, "ArmL", Vector3(-0.17, 0.02, 0.12), 0.04, 0.04, 0.18, fur, Vector3(20, 0, -10))
-	_cy(body, "ArmR", Vector3(0.17, 0.02, 0.12), 0.04, 0.04, 0.18, fur, Vector3(20, 0, 10))
+	_sp(g, "FootL", Vector3(-0.13, -0.30, 0.10), 0.07, dark, Vector3(1, 0.5, 1.3))
+	_sp(g, "FootR", Vector3(0.13, -0.30, 0.10), 0.07, dark, Vector3(1, 0.5, 1.3))
+	_cy(g, "ArmL", Vector3(-0.17, 0.02, 0.12), 0.04, 0.04, 0.18, fur, Vector3(20, 0, -10))
+	_cy(g, "ArmR", Vector3(0.17, 0.02, 0.12), 0.04, 0.04, 0.18, fur, Vector3(20, 0, 10))
 	# Head with buck teeth
-	_sp(body, "Head", Vector3(0, 0.30, 0.06), 0.18, fur)
-	_bx(body, "Muzzle", Vector3(0, 0.24, 0.20), Vector3(0.14, 0.10, 0.10), belly)
-	_sp(body, "Nose", Vector3(0, 0.28, 0.26), 0.035, dark)
-	_bx(body, "Teeth", Vector3(0, 0.20, 0.24), Vector3(0.07, 0.07, 0.02), teeth)
-	_sp(body, "EyeL", Vector3(-0.07, 0.34, 0.18), 0.028, dark)
-	_sp(body, "EyeR", Vector3(0.07, 0.34, 0.18), 0.028, dark)
-	_sp(body, "EarL", Vector3(-0.13, 0.43, 0.0), 0.045, fur)
-	_sp(body, "EarR", Vector3(0.13, 0.43, 0.0), 0.045, fur)
-	# Big flat paddle tail behind
-	_bx(body, "Tail", Vector3(0, -0.12, -0.30), Vector3(0.30, 0.06, 0.40), dark)
+	_sp(g, "Head", Vector3(0, 0.30, 0.06), 0.18, fur)
+	_bx(g, "Muzzle", Vector3(0, 0.24, 0.20), Vector3(0.14, 0.10, 0.10), belly)
+	_sp(g, "Nose", Vector3(0, 0.28, 0.26), 0.035, dark)
+	_bx(g, "Teeth", Vector3(0, 0.20, 0.24), Vector3(0.07, 0.07, 0.02), teeth)
+	_sp(g, "EyeL", Vector3(-0.07, 0.34, 0.18), 0.028, dark)
+	_sp(g, "EyeR", Vector3(0.07, 0.34, 0.18), 0.028, dark)
+	_sp(g, "EarL", Vector3(-0.13, 0.43, 0.0), 0.045, fur)
+	_sp(g, "EarR", Vector3(0.13, 0.43, 0.0), 0.045, fur)
+	# Big flat paddle tail on a pivot — swung overhead for the tail-whip spank.
+	var tail := Node3D.new()
+	tail.name = "TailPivot"
+	tail.position = Vector3(0, -0.05, -0.22)
+	g.add_child(tail)
+	_beaver_tail = tail
+	_bx(tail, "Tail", Vector3(0, -0.07, -0.08), Vector3(0.30, 0.06, 0.40), dark)
 
 func _build_large_bear() -> void:
 	_shadow(0.34)
@@ -637,6 +674,8 @@ func _build_large_bear() -> void:
 	_sp(sh_r, "ClawR", Vector3(0, -0.46, 0.06), 0.09, dark)
 	_atk_pivot = sh_r
 	_atk_rest = Vector3.ZERO
+	_bear_arm_l = sh_l
+	_bear_arm_r = sh_r
 	# Head
 	_sp(root, "Head", Vector3(0, 1.12, 0.04), 0.20, fur)
 	_bx(root, "Snout", Vector3(0, 1.06, 0.20), Vector3(0.16, 0.12, 0.14), snout)
@@ -680,6 +719,22 @@ func _build_bugbear() -> void:
 	_sp(sh_r, "FistR", Vector3(0, -0.46, 0.04), 0.08, skin)
 	_atk_pivot = sh_r
 	_atk_rest = Vector3.ZERO
+	# Heavy spiked mace gripped in the right fist (swings with the arm on attack).
+	var steel := Color.html("8a8f99")
+	var spike := Color.html("c8ccd6")
+	var mace := Node3D.new(); mace.name = "Mace"; mace.position = Vector3(0, -0.5, 0.06); sh_r.add_child(mace)
+	_cy(mace, "Haft", Vector3(0, -0.18, 0), 0.03, 0.035, 0.4, Color.html("6b4a2a"))
+	_sp(mace, "Head", Vector3(0, 0.06, 0), 0.12, steel)
+	for sx in [-1, 1]:
+		for sz in [-1, 1]:
+			_bx(mace, "Spike%d_%d" % [sx, sz], Vector3(0.1 * sx, 0.06, 0.1 * sz), Vector3(0.05, 0.05, 0.05), spike)
+	_bx(mace, "SpikeTop", Vector3(0, 0.18, 0), Vector3(0.05, 0.06, 0.05), spike)
+	# Bandolier strap across the chest (Chewbacca-style holster, no bullets).
+	var strap := Color.html("3a2a1a")
+	var pouch := Color.html("5a3a22")
+	_bx(root, "Strap", Vector3(0, 0.56, 0.16), Vector3(0.1, 0.5, 0.06), strap, Vector3(0, 0, 32))
+	for i in range(4):
+		_bx(root, "Pouch%d" % i, Vector3(-0.16 + i * 0.11, 0.40 + i * 0.10, 0.18), Vector3(0.07, 0.06, 0.05), pouch, Vector3(0, 0, 32))
 	_sp(root, "Head", Vector3(0, 0.92, 0.03), 0.17, skin)
 	_cy(root, "EarL", Vector3(-0.17, 0.98, -0.02), 0.0, 0.06, 0.18, skin, Vector3(-8, 0, 55))
 	_cy(root, "EarR", Vector3(0.17, 0.98, -0.02), 0.0, 0.06, 0.18, skin, Vector3(-8, 0, -55))
@@ -724,14 +779,15 @@ func _build_hunter() -> void:
 	_sp(root, "EyeR", Vector3(0.05, 0.84, 0.12), 0.026, eye, Vector3.ONE, true)
 
 func _build_hawk() -> void:
-	_shadow(0.30)
+	_shadow(0.44)
 	var feather := Color.html("6b4f2f")
 	var light := Color.html("9c7c4e")
 	var beak := Color.html("e0a32a")
 	var dark := Color.html("1a120a")
 	var body := Node3D.new()
 	body.name = "Body"
-	body.position = Vector3(0, 0.62, 0)  # hovers above the ground
+	body.position = Vector3(0, 1.15, 0)  # large raptor, hovers high above the ground
+	body.scale = Vector3(1.7, 1.7, 1.7)
 	add_child(body)
 	_bob_node = body
 	_bob_y = body.position.y
@@ -753,7 +809,8 @@ func _build_hawk() -> void:
 	_bx(body, "Tail", Vector3(0, 0.02, -0.34), Vector3(0.22, 0.03, 0.24), light)
 
 func _build_treant() -> void:
-	_shadow(0.34)
+	# A towering tree-giant: long bark legs and a tall trunk.
+	_shadow(0.4)
 	var bark := Color.html("4a3a26")
 	var dark := Color.html("281e12")
 	var leaf := Color.html("4e7a2e")
@@ -764,27 +821,31 @@ func _build_treant() -> void:
 	add_child(root)
 	_bob_node = root
 	_bob_y = 0.0
-	# Root feet + thick trunk
-	_cy(root, "RootL", Vector3(-0.14, 0.06, 0.06), 0.10, 0.16, 0.16, bark)
-	_cy(root, "RootR", Vector3(0.14, 0.06, 0.06), 0.10, 0.16, 0.16, bark)
-	_cy(root, "Trunk", Vector3(0, 0.62, 0), 0.18, 0.26, 1.0, bark)
-	_bx(root, "BarkRidge", Vector3(0, 0.62, 0.18), Vector3(0.08, 0.9, 0.06), dark)
-	# Branch arms (right swings)
-	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.22, 0.96, 0); root.add_child(sh_l)
-	_cy(sh_l, "ArmL", Vector3(0, -0.16, 0.02), 0.05, 0.06, 0.42, bark, Vector3(0, 0, 20))
-	_sp(sh_l, "LeafL", Vector3(-0.06, -0.34, 0.04), 0.13, leaf, Vector3(1, 0.8, 1))
-	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.22, 0.96, 0); root.add_child(sh_r)
-	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.05, 0.06, 0.42, bark, Vector3(0, 0, -20))
-	_sp(sh_r, "LeafR", Vector3(0.06, -0.34, 0.04), 0.13, leaf, Vector3(1, 0.8, 1))
+	# Long legs + root feet + thick trunk
+	_cy(root, "LegL", Vector3(-0.16, 0.44, 0.02), 0.11, 0.15, 0.84, bark)
+	_cy(root, "LegR", Vector3(0.16, 0.44, 0.02), 0.11, 0.15, 0.84, bark)
+	_cy(root, "FootL", Vector3(-0.16, 0.05, 0.12), 0.16, 0.18, 0.12, bark)
+	_cy(root, "FootR", Vector3(0.16, 0.05, 0.12), 0.16, 0.18, 0.12, bark)
+	_cy(root, "Trunk", Vector3(0, 1.22, 0), 0.18, 0.28, 1.1, bark)
+	_bx(root, "BarkRidge", Vector3(0, 1.22, 0.2), Vector3(0.08, 1.0, 0.06), dark)
+	# Branch arms (both swing for the overhead slam / root summon)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.24, 1.62, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.18, 0.02), 0.05, 0.06, 0.46, bark, Vector3(0, 0, 20))
+	_sp(sh_l, "LeafL", Vector3(-0.06, -0.40, 0.04), 0.14, leaf, Vector3(1, 0.8, 1))
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.24, 1.62, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.18, 0.02), 0.05, 0.06, 0.46, bark, Vector3(0, 0, -20))
+	_sp(sh_r, "LeafR", Vector3(0.06, -0.40, 0.04), 0.14, leaf, Vector3(1, 0.8, 1))
 	_atk_pivot = sh_r
 	_atk_rest = Vector3.ZERO
+	_treant_arm_l = sh_l
+	_treant_arm_r = sh_r
 	# Knothole face + leafy crown
-	_sp(root, "EyeL", Vector3(-0.08, 1.0, 0.20), 0.035, eye, Vector3.ONE, true)
-	_sp(root, "EyeR", Vector3(0.08, 1.0, 0.20), 0.035, eye, Vector3.ONE, true)
-	_bx(root, "Mouth", Vector3(0, 0.88, 0.22), Vector3(0.12, 0.05, 0.04), dark)
-	_sp(root, "Crown", Vector3(0, 1.28, 0), 0.30, leaf, Vector3(1.2, 0.9, 1.2))
-	_sp(root, "Crown2", Vector3(-0.18, 1.20, 0.06), 0.16, leaf2)
-	_sp(root, "Crown3", Vector3(0.18, 1.22, -0.04), 0.16, leaf2)
+	_sp(root, "EyeL", Vector3(-0.08, 1.64, 0.20), 0.035, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.08, 1.64, 0.20), 0.035, eye, Vector3.ONE, true)
+	_bx(root, "Mouth", Vector3(0, 1.50, 0.22), Vector3(0.12, 0.05, 0.04), dark)
+	_sp(root, "Crown", Vector3(0, 1.98, 0), 0.34, leaf, Vector3(1.25, 0.95, 1.25))
+	_sp(root, "Crown2", Vector3(-0.2, 1.88, 0.06), 0.18, leaf2)
+	_sp(root, "Crown3", Vector3(0.2, 1.90, -0.04), 0.18, leaf2)
 
 ## Robed elemental caster with a glowing orb. Used by all five mages.
 func _build_mage(robe: Color, trim: Color, orb_c: Color) -> void:
@@ -870,20 +931,63 @@ func _settle_steps(delta: float) -> void:
 func play_action(action: String) -> void:
 	if not _built:
 		return
-	match action:
-		"attack", "bite", "slam", "club", "shoot", \
-		"chomp", "tail_whip", "mini_bear_attack", "maul", "wolf_bite", "coyote_nip", \
-		"bugbear_strike", "cleave", "swoop", "treant_slam", "boulder", \
-		"frost_bolt", "fire_bolt", "spark_bolt", "gust", "hook":
-			play_attack()
-		"move", "walk", "scurry":
-			set_walking(true)
-		"hit":
-			play_hit()
-		"idle", "stance":
-			set_walking(false)
+	var a := action.to_lower()
+	# --- Locomotion / state (shared across every species) ---
+	if a in ["move", "walk", "scurry", "hydra_move", "goblin_move", "scurry_away", "get_into_range"]:
+		set_walking(true)
+		return
+	if a == "hit":
+		play_hit()
+		return
+	if a in ["idle", "stance"]:
+		set_walking(false)
+		return
+	# Heal actions (hydra_heal / treant_heal) have no bespoke animation — stay idle
+	# rather than falling through to an attack. (sear_wounds is handled per-kind.)
+	if a.contains("heal"):
+		set_walking(false)
+		return
+
+	# --- Attacks: route to a species-specific animation. Kinds with more than one
+	# attack disambiguate on the action name; the rest share play_attack(). ---
+	match _kind:
+		"armored_troll":
+			if a == "kick": _troll_kick()
+			else: _arm_swing()                       # smash / club
+		"giant_beaver":
+			if a == "tail_whip": _beaver_tail_whip()
+			else: _beaver_chomp()
+		"hydra":
+			_hydra_attack()                          # all three heads
+		"archer_rat":
+			_archer_shoot()
+		"fire_goblin_mage":
+			_goblin_ember()
+		"fire_goblin_shaman":
+			if a == "sear_wounds": _shaman_sear()
+			elif a == "fire_wall": _shaman_fire_wall()
+			else: _arm_swing()
+		"large_bear":
+			_bear_maul()
+		"wolf":
+			_wolf_lunge()
+		"infected_hunter":
+			if a == "cleave": _hunter_cleave()
+			else: _hunter_hook()
+		"giant_hawk":
+			_hawk_swoop()
+		"treant":
+			if a == "root": _treant_root()
+			else: _treant_slam()
+		"ice_mage": _cast_projectile("icicle")
+		"fire_mage": _cast_projectile("fireball")
+		"spark_mage": _cast_projectile("spark")
+		"air_mage": _cast_projectile("tornado")
+		"earth_mage": _cast_projectile("boulder")
+		"fire_goblin_soldier":
+			_arm_swing()
 		_:
-			pass
+			play_attack()
 
 
 func set_walking(walking: bool) -> void:
@@ -892,6 +996,8 @@ func set_walking(walking: bool) -> void:
 	_walking = walking
 	if _kind == "archer_rat":
 		_set_archer_pose(walking)
+	elif _kind == "giant_beaver":
+		_set_beaver_pose(walking)
 
 
 ## Rotate the whole figure to face a cardinal direction. The models are built
@@ -944,7 +1050,7 @@ func _arm_swing() -> void:
 	_action_tween.tween_callback(func(): _busy = false)
 
 
-## Hydra: lunge the body forward while the centre head snaps out to bite.
+## Hydra: lunge the body forward while ALL THREE heads snap out to bite together.
 func _hydra_attack() -> void:
 	if _bob_node == null:
 		return
@@ -953,11 +1059,20 @@ func _hydra_attack() -> void:
 	var base := _bob_node.position
 	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
 	_action_tween.tween_property(_bob_node, "position:z", base.z + 0.2, 0.1)
-	if _atk_pivot:
-		_action_tween.parallel().tween_property(_atk_pivot, "rotation_degrees:x", _atk_rest.x + 32.0, 0.1)
+	for i in range(_hydra_necks.size()):
+		var neck: Node3D = _hydra_necks[i]
+		if not is_instance_valid(neck):
+			continue
+		var rest: Vector3 = _hydra_neck_rest[i]
+		# Side heads pitch a touch harder so the strike fans out.
+		var lunge := 30.0 if i == 0 else 38.0
+		_action_tween.parallel().tween_property(neck, "rotation_degrees:x", rest.x + lunge, 0.1)
 	_action_tween.tween_property(_bob_node, "position:z", base.z, 0.3)
-	if _atk_pivot:
-		_action_tween.parallel().tween_property(_atk_pivot, "rotation_degrees:x", _atk_rest.x, 0.3)
+	for i in range(_hydra_necks.size()):
+		var neck: Node3D = _hydra_necks[i]
+		if not is_instance_valid(neck):
+			continue
+		_action_tween.parallel().tween_property(neck, "rotation_degrees:x", _hydra_neck_rest[i].x, 0.3)
 	_action_tween.tween_callback(func(): _busy = false)
 
 
@@ -970,6 +1085,317 @@ func _lurch() -> void:
 	_action_tween.tween_property(_bob_node, "position:z", base.z + 0.18, 0.09)
 	_action_tween.tween_property(_bob_node, "position:z", base.z, 0.2)
 	_action_tween.tween_callback(func(): _busy = false)
+
+
+# =============================================================
+# SPECIES-SPECIFIC ATTACKS
+# =============================================================
+
+## Spawn a small mesh that flies forward (local +Z is the way the figure faces),
+## optionally dropping/spinning as it goes, then frees itself. `builder` fills the
+## projectile node with meshes. Used for arrows, bolts, boulders, hooks, etc.
+func _projectile(builder: Callable, start: Vector3, dist: float, dur: float, drop := 0.0, spin := Vector3.ZERO) -> void:
+	var p := Node3D.new()
+	add_child(p)
+	p.position = start
+	builder.call(p)
+	var tw := create_tween()
+	tw.tween_property(p, "position", start + Vector3(0, -drop, dist), dur).set_trans(Tween.TRANS_LINEAR)
+	if spin != Vector3.ZERO:
+		tw.parallel().tween_property(p, "rotation_degrees", spin, dur)
+	tw.tween_callback(p.queue_free)
+
+
+## Armored Troll: snap the right leg forward in a kick.
+func _troll_kick() -> void:
+	if _troll_leg == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_troll_leg, "rotation_degrees:x", -70.0, 0.12).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_troll_leg, "rotation_degrees:x", 0.0, 0.22).set_ease(Tween.EASE_IN)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Giant Beaver: quick forward chomp lunge.
+func _beaver_chomp() -> void:
+	_lurch()
+
+
+## Giant Beaver: spin 180° so the tail faces the target, then slam it down to spank.
+func _beaver_tail_whip() -> void:
+	if _beaver_tail == null:
+		_lurch()
+		return
+	_cancel_action()
+	_busy = true
+	var face := rotation_degrees.y
+	var rest := _beaver_tail.rotation_degrees
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(self, "rotation_degrees:y", face + 180.0, 0.18)
+	_action_tween.tween_property(_beaver_tail, "rotation_degrees:x", rest.x - 110.0, 0.12).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_beaver_tail, "rotation_degrees:x", rest.x, 0.1).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(self, "rotation_degrees:y", face, 0.18)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+func _set_beaver_pose(walking: bool) -> void:
+	if _beaver_pose == null:
+		return
+	if _pose_tween and _pose_tween.is_valid():
+		_pose_tween.kill()
+	_pose_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	_pose_tween.tween_property(_beaver_pose, "rotation_degrees:x", 46.0 if walking else 0.0, 0.25)
+	_pose_tween.parallel().tween_property(_beaver_pose, "position:y", -0.38 if walking else 0.0, 0.25)
+
+
+## Archer Rat: blink + jab forward (the lurch) while loosing an arrow.
+func _archer_shoot() -> void:
+	_lurch()
+	var wood := Color.html("6b4a2a")
+	var tip := Color.html("c8ccd6")
+	_projectile(func(p):
+		_cy(p, "Shaft", Vector3.ZERO, 0.01, 0.012, 0.28, wood, Vector3(90, 0, 0))
+		_cy(p, "Tip", Vector3(0, 0, 0.16), 0.0, 0.02, 0.06, tip, Vector3(90, 0, 0))
+	, Vector3(0, 0.55, 0.45), 2.8, 0.42)
+
+
+## Fire Goblin Mage: cast gesture flinging a spray of small embers.
+func _goblin_ember() -> void:
+	_arm_swing()
+	var c := Color.html("ff7a1a")
+	for i in range(3):
+		var off := Vector3((i - 1) * 0.09, 0.5 + (i % 2) * 0.06, 0.42)
+		_projectile(func(p):
+			_sp(p, "Ember", Vector3.ZERO, 0.04, c, Vector3.ONE, true)
+		, off, 2.2, 0.5, -0.15)
+
+
+## Fire Goblin Shaman: small fires bloom under the allies, then a heart rises over
+## each survivor for the heal.
+func _shaman_sear() -> void:
+	_arm_swing()
+	for x in [-0.3, 0.3]:
+		_spawn_ground_fire(Vector3(x, 0.0, 0.6))
+		_spawn_heart(Vector3(x, 0.55, 0.6))
+
+
+## Fire Goblin Shaman: raise a wide wall of fire in front.
+func _shaman_fire_wall() -> void:
+	_arm_swing()
+	var p := Node3D.new()
+	add_child(p)
+	p.position = Vector3(0, 0.0, 0.95)
+	var orange := Color.html("ff7a1a")
+	var yellow := Color.html("ffd23f")
+	for i in range(7):
+		var c: Color = orange if i % 2 == 0 else yellow
+		var flame := _bx(p, "Flame%d" % i, Vector3((i - 3) * 0.2, 0.05, 0), Vector3(0.18, 0.06, 0.1), c)
+		var sm := flame.material_override as StandardMaterial3D
+		sm.emission_enabled = true
+		sm.emission = c
+		sm.emission_energy_multiplier = 1.4
+	p.scale.y = 0.1
+	var tw := create_tween().set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(p, "scale:y", 9.0, 0.25)
+	tw.tween_interval(0.7)
+	tw.tween_property(p, "scale:y", 0.0, 0.3)
+	tw.tween_callback(p.queue_free)
+
+
+## Large Bear: rake with both claws, swinging the arms alternately.
+func _bear_maul() -> void:
+	if _bear_arm_l == null or _bear_arm_r == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_bear_arm_r, "rotation_degrees:x", -120.0, 0.12)
+	_action_tween.parallel().tween_property(_bear_arm_l, "rotation_degrees:x", -20.0, 0.12)
+	_action_tween.tween_property(_bear_arm_l, "rotation_degrees:x", -120.0, 0.12)
+	_action_tween.parallel().tween_property(_bear_arm_r, "rotation_degrees:x", -25.0, 0.12)
+	_action_tween.tween_property(_bear_arm_r, "rotation_degrees:x", -110.0, 0.1)
+	_action_tween.parallel().tween_property(_bear_arm_l, "rotation_degrees:x", 0.0, 0.12)
+	_action_tween.tween_property(_bear_arm_r, "rotation_degrees:x", 0.0, 0.16)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Wolf: rear up to ~45° on its hind legs and lunge forward at the target.
+func _wolf_lunge() -> void:
+	if _bob_node == null:
+		return
+	_cancel_action()
+	_busy = true
+	var base := _bob_node.position
+	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_action_tween.tween_property(_bob_node, "rotation_degrees:x", -45.0, 0.14)
+	_action_tween.parallel().tween_property(_bob_node, "position:z", base.z + 0.3, 0.18)
+	_action_tween.tween_property(_bob_node, "rotation_degrees:x", 0.0, 0.2)
+	_action_tween.parallel().tween_property(_bob_node, "position:z", base.z, 0.2)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Infected Hunter: fire a grappling hook on a chain that flies out at the target.
+func _hunter_hook() -> void:
+	_arm_swing()
+	var steel := Color.html("9aa0a8")
+	var chain := Color.html("5a5a5a")
+	_projectile(func(p):
+		_cy(p, "Chain", Vector3(0, 0, -0.1), 0.008, 0.008, 0.22, chain, Vector3(90, 0, 0))
+		_cy(p, "Shaft", Vector3(0, 0, 0.05), 0.015, 0.02, 0.14, steel, Vector3(90, 0, 0))
+		_cy(p, "Barb", Vector3(0.04, 0, 0.12), 0.0, 0.016, 0.09, steel, Vector3(0, 0, 60))
+	, Vector3(0, 0.5, 0.45), 2.8, 0.4)
+
+
+## Infected Hunter: a wide 180° horizontal cleave across its front.
+func _hunter_cleave() -> void:
+	if _atk_pivot == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	var rest := _atk_rest
+	_atk_pivot.rotation_degrees = Vector3(rest.x - 80.0, rest.y + 90.0, rest.z)
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_atk_pivot, "rotation_degrees:y", rest.y - 90.0, 0.2).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_atk_pivot, "rotation_degrees", rest, 0.18)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Giant Hawk: pull up, then dive down and forward onto the target before climbing back.
+func _hawk_swoop() -> void:
+	if _bob_node == null:
+		return
+	_cancel_action()
+	_busy = true
+	var base := _bob_node.position
+	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_action_tween.tween_property(_bob_node, "position", base + Vector3(0, 0.3, -0.15), 0.16)
+	_action_tween.tween_property(_bob_node, "position", base + Vector3(0, -0.45, 0.55), 0.14).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_bob_node, "position", base, 0.32)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Treant: raise both branch-arms overhead and smash them straight down.
+func _treant_slam() -> void:
+	if _treant_arm_l == null or _treant_arm_r == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", 165.0, 0.2)
+	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", 165.0, 0.2)
+	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", -45.0, 0.1).set_ease(Tween.EASE_IN)
+	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", -45.0, 0.1)
+	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", 0.0, 0.26)
+	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", 0.0, 0.26)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Treant: raise both arms skyward to summon, while roots erupt from the ground.
+func _treant_root() -> void:
+	if _treant_arm_l == null or _treant_arm_r == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", 150.0, 0.22)
+	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", 150.0, 0.22)
+	_action_tween.tween_interval(0.4)
+	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", 0.0, 0.3)
+	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", 0.0, 0.3)
+	_action_tween.tween_callback(func(): _busy = false)
+	_spawn_roots()
+
+
+## Elemental mages: cast gesture that hurls a themed projectile at the target.
+func _cast_projectile(kind: String) -> void:
+	_arm_swing()
+	match kind:
+		"icicle":
+			var pale := Color.html("bfe6ff")
+			_projectile(func(p):
+				_cy(p, "Ice", Vector3.ZERO, 0.0, 0.05, 0.3, pale, Vector3(90, 0, 0))
+			, Vector3(0, 0.5, 0.4), 2.6, 0.4)
+		"fireball":
+			var c := Color.html("ff7a1a")
+			_projectile(func(p):
+				_sp(p, "Fire", Vector3.ZERO, 0.09, c, Vector3.ONE, true)
+				_sp(p, "Core", Vector3.ZERO, 0.05, Color.html("ffe08a"), Vector3.ONE, true)
+			, Vector3(0, 0.5, 0.4), 2.6, 0.5)
+		"spark":
+			var y := Color.html("fff07a")
+			_projectile(func(p):
+				var b := _bx(p, "Bolt", Vector3.ZERO, Vector3(0.03, 0.03, 0.34), y)
+				var sm := b.material_override as StandardMaterial3D
+				sm.emission_enabled = true
+				sm.emission = y
+			, Vector3(0, 0.55, 0.4), 3.2, 0.28, 0.0, Vector3(0, 0, 720))
+		"tornado":
+			var w := Color.html("d6fff0")
+			_projectile(func(p):
+				_cy(p, "Funnel", Vector3.ZERO, 0.13, 0.03, 0.42, w)
+			, Vector3(0, 0.4, 0.4), 2.4, 0.6, 0.0, Vector3(0, 1440, 0))
+		"boulder":
+			var rock := Color.html("8a6b3f")
+			_projectile(func(p):
+				_sp(p, "Rock", Vector3.ZERO, 0.13, rock)
+			, Vector3(0, 0.7, 0.4), 2.6, 0.55, 0.3, Vector3(360, 0, 360))
+
+
+func _spawn_ground_fire(pos: Vector3) -> void:
+	var p := Node3D.new()
+	add_child(p)
+	p.position = pos
+	var orange := Color.html("ff7a1a")
+	var yellow := Color.html("ffd23f")
+	for i in range(4):
+		var c: Color = orange if i % 2 == 0 else yellow
+		var f := _bx(p, "F%d" % i, Vector3((i - 1.5) * 0.05, 0.06, 0), Vector3(0.05, 0.14, 0.05), c)
+		var sm := f.material_override as StandardMaterial3D
+		sm.emission_enabled = true
+		sm.emission = c
+	p.scale.y = 0.2
+	var tw := create_tween()
+	tw.tween_property(p, "scale:y", 1.0, 0.2)
+	tw.tween_interval(0.5)
+	tw.tween_property(p, "scale:y", 0.0, 0.25)
+	tw.tween_callback(p.queue_free)
+
+
+func _spawn_heart(pos: Vector3) -> void:
+	var p := Node3D.new()
+	add_child(p)
+	p.position = pos
+	var red := Color.html("ff5a7a")
+	_sp(p, "LobeL", Vector3(-0.04, 0.02, 0), 0.05, red, Vector3.ONE, true)
+	_sp(p, "LobeR", Vector3(0.04, 0.02, 0), 0.05, red, Vector3.ONE, true)
+	_bx(p, "Base", Vector3(0, -0.03, 0), Vector3(0.1, 0.1, 0.05), red).rotation_degrees = Vector3(0, 0, 45)
+	# Delay so the heal reads as "after the sear", then float up.
+	var tw := create_tween()
+	tw.tween_interval(0.5)
+	tw.tween_property(p, "position:y", pos.y + 0.4, 0.5)
+	tw.tween_callback(p.queue_free)
+
+
+func _spawn_roots() -> void:
+	var p := Node3D.new()
+	add_child(p)
+	p.position = Vector3(0, 0, 0.8)
+	var bark := Color.html("4a3a26")
+	for i in range(5):
+		_cy(p, "Root%d" % i, Vector3((i - 2) * 0.16, 0, 0), 0.0, 0.04, 0.32, bark, Vector3(8.0 * (i - 2), 0, 0))
+	p.scale.y = 0.05
+	var tw := create_tween()
+	tw.tween_property(p, "scale:y", 1.0, 0.3)
+	tw.tween_interval(0.5)
+	tw.tween_property(p, "scale:y", 0.0, 0.3)
+	tw.tween_callback(p.queue_free)
 
 
 func play_hit() -> void:

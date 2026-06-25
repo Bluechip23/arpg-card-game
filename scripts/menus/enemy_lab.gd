@@ -452,7 +452,10 @@ func _on_play_category(category: String, label: String) -> void:
 		"move":
 			_play_move()
 		"attack":
-			_play_attack()
+			# Route to the enemy's specific attack animation. The figure disambiguates
+			# multi-attack species (kick vs smash, hook vs cleave, slam vs root...) by
+			# this key, derived from the action's display name.
+			_play_attack(label.strip_edges().to_lower().replace(" ", "_"))
 		"heal":
 			_play_heal()
 		"hit":
@@ -487,10 +490,10 @@ func _play_move() -> void:
 			_figure.set_walking(false))
 
 
-func _play_attack() -> void:
+func _play_attack(key: String = "attack") -> void:
 	if _figure:
-		_figure.play_attack()
-		_figure.flash(Color(1.0, 0.7, 0.3))
+		_figure.play_action(key)
+		_figure.flash(Color(1.0, 0.7, 0.3))  # the colour "blink" on every attack
 	elif _box:
 		_box_lunge()
 
