@@ -59,6 +59,11 @@ var _beaver_tail: Node3D = null       # Giant Beaver: tail pivot for the tail-wh
 var _treant_arm_l: Node3D = null      # Treant: both branch-arms for the overhead slam / root summon
 var _treant_arm_r: Node3D = null
 
+# Shared rig handles reused by several graveyard models.
+var _arm_l: Node3D = null              # left/right limb pivots (zombie, werewolf, grave titan)
+var _arm_r: Node3D = null
+var _head_pivot: Node3D = null         # neck/head pivot (bone dragon bite/breath)
+
 
 func _ready() -> void:
 	if _kind != "" and not _built:
@@ -102,6 +107,16 @@ func _build() -> void:
 		"spark_mage": _build_spark_mage()
 		"air_mage": _build_mage(Color.html("7fae9c"), Color.html("cfeee0"), Color.html("d6fff0"))
 		"earth_mage": _build_earth_mage()
+		# Graveyard act
+		"zombie": _build_zombie()
+		"werewolf": _build_werewolf()
+		"wererabbit": _build_wererabbit()
+		"vampire": _build_vampire()
+		"necromancer": _build_necromancer()
+		"bone_dragon": _build_bone_dragon()
+		"spirit_collector": _build_spirit_collector()
+		"grave_titan": _build_grave_titan()
+		"crypt_crawler": _build_crypt_crawler()
 		_: _build_rat()
 	_collect_step_parts()
 	_built = true
@@ -1016,6 +1031,299 @@ func _build_spark_mage() -> void:
 
 
 # =============================================================
+# GRAVEYARD ACT MODELS
+# =============================================================
+
+## Zombie: shambling, hunched undead with arms outstretched.
+func _build_zombie() -> void:
+	_shadow(0.24)
+	var skin := Color.html("7d9166")
+	var skin2 := Color.html("8fa074")
+	var cloth := Color.html("44402f")
+	var dark := Color.html("201a10")
+	var blood := Color.html("6e1f1f")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.09, 0.2, 0), Vector3(0.12, 0.4, 0.12), cloth)
+	_bx(root, "LegR", Vector3(0.09, 0.18, 0), Vector3(0.12, 0.36, 0.12), cloth)
+	_bx(root, "FootL", Vector3(-0.09, 0.03, 0.05), Vector3(0.13, 0.06, 0.18), dark)
+	_bx(root, "FootR", Vector3(0.09, 0.03, 0.05), Vector3(0.13, 0.06, 0.18), dark)
+	var torso := _bx(root, "Torso", Vector3(0, 0.6, 0.02), Vector3(0.34, 0.4, 0.22), skin)
+	torso.rotation_degrees = Vector3(14, 0, 0)
+	_bx(root, "Shirt", Vector3(0, 0.56, 0.05), Vector3(0.36, 0.3, 0.22), cloth)
+	_bx(root, "Wound", Vector3(0.07, 0.62, 0.16), Vector3(0.08, 0.1, 0.02), blood)
+	# Arms outstretched forward (classic zombie reach)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.2, 0.78, 0.02); root.add_child(sh_l); sh_l.rotation_degrees = Vector3(-80, 0, 0)
+	_cy(sh_l, "ArmL", Vector3(0, -0.18, 0), 0.045, 0.05, 0.4, skin); _sp(sh_l, "HandL", Vector3(0, -0.38, 0), 0.05, skin2)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.2, 0.78, 0.02); root.add_child(sh_r); sh_r.rotation_degrees = Vector3(-80, 0, 0)
+	_cy(sh_r, "ArmR", Vector3(0, -0.18, 0), 0.045, 0.05, 0.4, skin); _sp(sh_r, "HandR", Vector3(0, -0.38, 0), 0.05, skin2)
+	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3(-80, 0, 0)
+	_sp(root, "Head", Vector3(0, 0.92, 0.06), 0.15, skin)
+	_sp(root, "EyeL", Vector3(-0.05, 0.93, 0.17), 0.02, dark); _sp(root, "EyeR", Vector3(0.05, 0.93, 0.17), 0.02, dark)
+	_bx(root, "Jaw", Vector3(0, 0.85, 0.16), Vector3(0.1, 0.04, 0.08), skin2)
+
+
+## Werewolf: bear-tall, grey, hunched, with long arms whose claws reach the ground.
+func _build_werewolf() -> void:
+	_shadow(0.34)
+	var grey := Color.html("6f7378")
+	var grey2 := Color.html("565a60")
+	var dark := Color.html("17181b")
+	var claw := Color.html("dfe2e6")
+	var eye := Color.html("ffd23f")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_cy(root, "LegL", Vector3(-0.13, 0.5, -0.02), 0.08, 0.1, 0.5, grey)
+	_cy(root, "LegR", Vector3(0.13, 0.5, -0.02), 0.08, 0.1, 0.5, grey)
+	_bx(root, "FootL", Vector3(-0.13, 0.05, 0.1), Vector3(0.14, 0.1, 0.26), grey2)
+	_bx(root, "FootR", Vector3(0.13, 0.05, 0.1), Vector3(0.14, 0.1, 0.26), grey2)
+	# Big hunched torso leaning well forward over the legs
+	var torso := _bx(root, "Torso", Vector3(0, 1.0, 0.14), Vector3(0.46, 0.56, 0.32), grey)
+	torso.rotation_degrees = Vector3(40, 0, 0)
+	_sp(root, "Chest", Vector3(0, 0.96, 0.3), 0.22, grey2, Vector3(1.1, 1.0, 0.7))
+	# Long arms angled forward so the clawed hands knuckle the ground (lurking stance)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.28, 1.2, 0.16); root.add_child(sh_l); sh_l.rotation_degrees = Vector3(36, 0, 0)
+	_cy(sh_l, "ArmL", Vector3(0, -0.58, 0), 0.08, 0.09, 1.2, grey); _sp(sh_l, "PawL", Vector3(0, -1.16, 0.02), 0.11, grey2)
+	for k in range(3): _cy(sh_l, "ClawL%d" % k, Vector3(-0.07 + k * 0.07, -1.24, 0.12), 0.0, 0.022, 0.14, claw, Vector3(50, 0, 0))
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.28, 1.2, 0.16); root.add_child(sh_r); sh_r.rotation_degrees = Vector3(36, 0, 0)
+	_cy(sh_r, "ArmR", Vector3(0, -0.58, 0), 0.08, 0.09, 1.2, grey); _sp(sh_r, "PawR", Vector3(0, -1.16, 0.02), 0.11, grey2)
+	for k in range(3): _cy(sh_r, "ClawR%d" % k, Vector3(-0.07 + k * 0.07, -1.24, 0.12), 0.0, 0.022, 0.14, claw, Vector3(50, 0, 0))
+	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3(36, 0, 0)
+	# Head juts forward low on a thick neck (snout pointing at the prey)
+	_sp(root, "Neck", Vector3(0, 1.32, 0.28), 0.12, grey)
+	_sp(root, "Head", Vector3(0, 1.36, 0.42), 0.16, grey)
+	_bx(root, "Snout", Vector3(0, 1.32, 0.58), Vector3(0.13, 0.11, 0.18), grey2)
+	_sp(root, "Nose", Vector3(0, 1.34, 0.68), 0.03, dark)
+	_cy(root, "EarL", Vector3(-0.1, 1.5, 0.36), 0.0, 0.05, 0.15, grey, Vector3(0, 0, -18))
+	_cy(root, "EarR", Vector3(0.1, 1.5, 0.36), 0.0, 0.05, 0.15, grey, Vector3(0, 0, 18))
+	_sp(root, "EyeL", Vector3(-0.07, 1.4, 0.52), 0.025, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.07, 1.4, 0.52), 0.025, eye, Vector3.ONE, true)
+
+
+## Wererabbit: oversized loot-bunny that flees and vanishes — never fights.
+func _build_wererabbit() -> void:
+	_shadow(0.24)
+	var fur := Color.html("b9b2a6")
+	var belly := Color.html("e6e1d6")
+	var pink := Color.html("d49a92")
+	var dark := Color.html("201a16")
+	var root := Node3D.new(); root.name = "Body"; root.position.y = 0.12; add_child(root); _bob_node = root; _bob_y = 0.12
+	_bx(root, "FootL", Vector3(-0.12, -0.08, 0.12), Vector3(0.14, 0.08, 0.3), fur)
+	_bx(root, "FootR", Vector3(0.12, -0.08, 0.12), Vector3(0.14, 0.08, 0.3), fur)
+	_sp(root, "Torso", Vector3(0, 0.16, 0), 0.24, fur, Vector3(1.0, 1.15, 1.0))
+	_sp(root, "Belly", Vector3(0, 0.12, 0.14), 0.18, belly, Vector3(0.9, 1.0, 0.7))
+	_cy(root, "ArmL", Vector3(-0.18, 0.18, 0.1), 0.04, 0.04, 0.18, fur, Vector3(20, 0, -10))
+	_cy(root, "ArmR", Vector3(0.18, 0.18, 0.1), 0.04, 0.04, 0.18, fur, Vector3(20, 0, 10))
+	_sp(root, "Head", Vector3(0, 0.46, 0.08), 0.16, fur)
+	_bx(root, "Muzzle", Vector3(0, 0.42, 0.2), Vector3(0.1, 0.08, 0.08), belly)
+	_sp(root, "Nose", Vector3(0, 0.44, 0.25), 0.025, pink)
+	_sp(root, "EyeL", Vector3(-0.07, 0.5, 0.17), 0.03, dark); _sp(root, "EyeR", Vector3(0.07, 0.5, 0.17), 0.03, dark)
+	_cy(root, "EarL", Vector3(-0.08, 0.68, 0.0), 0.04, 0.06, 0.34, fur, Vector3(-12, 0, -8))
+	_cy(root, "EarR", Vector3(0.08, 0.68, 0.0), 0.04, 0.06, 0.34, fur, Vector3(-12, 0, 8))
+	_cy(root, "EarInL", Vector3(-0.08, 0.68, 0.03), 0.02, 0.035, 0.3, pink, Vector3(-12, 0, -8))
+	_cy(root, "EarInR", Vector3(0.08, 0.68, 0.03), 0.02, 0.035, 0.3, pink, Vector3(-12, 0, 8))
+	_sp(root, "Tail", Vector3(0, 0.08, -0.22), 0.08, belly)
+
+
+## Vampire: pale aristocrat in a Victorian tailcoat with a high red-lined collar.
+func _build_vampire() -> void:
+	_shadow(0.22)
+	var suit := Color.html("1c1a22")
+	var suit2 := Color.html("2a2733")
+	var cape := Color.html("6e1320")
+	var skin := Color.html("d8cbb8")
+	var hair := Color.html("141118")
+	var red := Color.html("b0202a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.08, 0.22, 0), Vector3(0.11, 0.44, 0.11), suit)
+	_bx(root, "LegR", Vector3(0.08, 0.22, 0), Vector3(0.11, 0.44, 0.11), suit)
+	_bx(root, "ShoeL", Vector3(-0.08, 0.03, 0.05), Vector3(0.12, 0.06, 0.2), hair)
+	_bx(root, "ShoeR", Vector3(0.08, 0.03, 0.05), Vector3(0.12, 0.06, 0.2), hair)
+	_bx(root, "Torso", Vector3(0, 0.66, 0), Vector3(0.32, 0.42, 0.2), suit)
+	_bx(root, "Vest", Vector3(0, 0.66, 0.09), Vector3(0.16, 0.4, 0.05), suit2)
+	_bx(root, "Cravat", Vector3(0, 0.82, 0.1), Vector3(0.06, 0.1, 0.04), Color.html("e8e4dc"))
+	# High-collared cape behind the shoulders (red lining)
+	_bx(root, "Cape", Vector3(0, 0.74, -0.12), Vector3(0.5, 0.5, 0.06), cape, Vector3(10, 0, 0))
+	_bx(root, "CollarL", Vector3(-0.12, 0.92, -0.04), Vector3(0.1, 0.18, 0.04), cape, Vector3(0, 0, -20))
+	_bx(root, "CollarR", Vector3(0.12, 0.92, -0.04), Vector3(0.1, 0.18, 0.04), cape, Vector3(0, 0, 20))
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.18, 0.84, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.18, 0.02), 0.04, 0.045, 0.36, suit); _sp(sh_l, "HandL", Vector3(0, -0.38, 0.03), 0.045, skin)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.18, 0.84, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.18, 0.02), 0.04, 0.045, 0.36, suit); _sp(sh_r, "HandR", Vector3(0, -0.38, 0.03), 0.045, skin)
+	_atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+	_sp(root, "Head", Vector3(0, 1.04, 0.02), 0.14, skin)
+	_sp(root, "Hair", Vector3(0, 1.12, -0.01), 0.15, hair, Vector3(1.05, 0.7, 1.0))
+	_bx(root, "Widow", Vector3(0, 1.04, 0.13), Vector3(0.04, 0.05, 0.02), hair)
+	_sp(root, "EyeL", Vector3(-0.05, 1.04, 0.12), 0.022, red, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.05, 1.04, 0.12), 0.022, red, Vector3.ONE, true)
+
+
+## Necromancer: tall hooded figure in a black cloak with a glowing-tipped staff.
+func _build_necromancer() -> void:
+	_shadow(0.24)
+	var cloak := Color.html("1a1820")
+	var cloak2 := Color.html("262332")
+	var wood := Color.html("5a3f22")
+	var skin := Color.html("9aa0a8")
+	var eye := Color.html("8a5cff")
+	var orb := Color.html("b48cff")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_cy(root, "Cloak", Vector3(0, 0.5, 0), 0.1, 0.34, 1.0, cloak)
+	_bx(root, "Hem", Vector3(0, 0.04, 0), Vector3(0.46, 0.06, 0.46), cloak2)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.18, 0.82, 0.04); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.16, 0.04), 0.04, 0.05, 0.32, cloak, Vector3(30, 0, 0)); _sp(sh_l, "HandL", Vector3(0, -0.3, 0.12), 0.045, skin)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.2, 0.82, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.04, 0.05, 0.32, cloak); _sp(sh_r, "HandR", Vector3(0, -0.32, 0.04), 0.045, skin)
+	_atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+	var staff := Node3D.new(); staff.name = "Staff"; staff.position = Vector3(0.26, 0.55, 0.08); root.add_child(staff)
+	_cy(staff, "Shaft", Vector3(0, 0, 0), 0.022, 0.026, 1.1, wood)
+	_sp(staff, "Orb", Vector3(0, 0.6, 0), 0.07, orb, Vector3.ONE, true)
+	_sp(staff, "OrbCore", Vector3(0, 0.6, 0), 0.04, Color.html("ffffff"), Vector3.ONE, true)
+	_sp(root, "Head", Vector3(0, 0.96, 0.02), 0.12, Color.html("0c0a10"))
+	_cy(root, "Hood", Vector3(0, 1.04, -0.02), 0.0, 0.2, 0.34, cloak)
+	_sp(root, "EyeL", Vector3(-0.045, 0.96, 0.1), 0.02, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.045, 0.96, 0.1), 0.02, eye, Vector3.ONE, true)
+
+
+## Bone Dragon: white skeletal wyrm with bony wings and blood-stained fangs.
+func _build_bone_dragon() -> void:
+	_shadow(0.4)
+	var bone := Color.html("e9e4d6")
+	var bone2 := Color.html("cfc9b8")
+	var dark := Color.html("3a352a")
+	var blood := Color.html("7a1414")
+	var eye := Color.html("c34a2c")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_sp(root, "Body", Vector3(0, 0.5, -0.05), 0.3, bone, Vector3(1.3, 1.0, 1.6))
+	_sp(root, "Ribs", Vector3(0, 0.5, 0.12), 0.24, bone2, Vector3(1.1, 0.95, 0.7))
+	for i in range(3): _bx(root, "Rib%d" % i, Vector3(0, 0.4 + i * 0.08, 0.22), Vector3(0.4, 0.02, 0.02), dark)
+	for sx in [-1, 1]:
+		_cy(root, "Leg%d" % sx, Vector3(0.2 * sx, 0.2, 0.16), 0.05, 0.07, 0.34, bone)
+		_bx(root, "Talon%d" % sx, Vector3(0.2 * sx, 0.04, 0.3), Vector3(0.12, 0.06, 0.16), bone2)
+	# Big bony wings, swept up and out
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.24 * sx, 0.8, -0.06); root.add_child(w); w.rotation_degrees = Vector3(6, 0, -34 * sx)
+		_cy(w, "WingBone", Vector3(0.3 * sx, 0.14, 0), 0.02, 0.035, 0.66, bone, Vector3(0, 0, 90))
+		_bx(w, "Membrane", Vector3(0.36 * sx, 0.04, -0.05), Vector3(0.66, 0.5, 0.02), bone2)
+		for r in range(3):
+			_cy(w, "Finger%d" % r, Vector3((0.2 + r * 0.18) * sx, 0.18, -0.05), 0.0, 0.018, 0.3, bone, Vector3(0, 0, 90))
+	_cy(root, "Tail", Vector3(0, 0.5, -0.4), 0.02, 0.1, 0.6, bone, Vector3(-60, 0, 0))
+	# Neck + skull on a pivot — head thrusts FORWARD and down at the prey
+	var neck := Node3D.new(); neck.name = "Neck"; neck.position = Vector3(0, 0.7, 0.16); root.add_child(neck); neck.rotation_degrees = Vector3(48, 0, 0)
+	_head_pivot = neck; _atk_pivot = neck; _atk_rest = neck.rotation_degrees
+	_cy(neck, "NeckBone", Vector3(0, 0.28, 0), 0.04, 0.07, 0.56, bone)
+	var hy := Vector3(0, 0.58, 0.0)
+	_sp(neck, "Skull", hy, 0.13, bone, Vector3(0.95, 0.9, 1.5))
+	# Elongated snout + lower jaw (clear dragon profile)
+	_bx(neck, "Snout", hy + Vector3(0, 0.0, 0.2), Vector3(0.13, 0.1, 0.22), bone)
+	_bx(neck, "Jaw", hy + Vector3(0, -0.08, 0.18), Vector3(0.14, 0.05, 0.2), bone2)
+	_bx(neck, "Brow", hy + Vector3(0, 0.08, 0.12), Vector3(0.16, 0.04, 0.06), bone2)
+	_sp(neck, "EyeL", hy + Vector3(-0.07, 0.04, 0.12), 0.026, eye, Vector3.ONE, true)
+	_sp(neck, "EyeR", hy + Vector3(0.07, 0.04, 0.12), 0.026, eye, Vector3.ONE, true)
+	# Blood-stained fangs jutting down from the upper jaw
+	for fx in [-0.06, -0.02, 0.02, 0.06]:
+		_cy(neck, "Fang", hy + Vector3(fx, -0.06, 0.28), 0.0, 0.014, 0.08, blood, Vector3(180, 0, 0))
+	_cy(neck, "HornL", hy + Vector3(-0.07, 0.12, -0.02), 0.0, 0.028, 0.16, bone2, Vector3(-40, 0, -14))
+	_cy(neck, "HornR", hy + Vector3(0.07, 0.12, -0.02), 0.0, 0.028, 0.16, bone2, Vector3(-40, 0, 14))
+
+
+## Spirit Collector: ragged figure with a birdcage backpack, scarecrow hat and lantern.
+func _build_spirit_collector() -> void:
+	_shadow(0.22)
+	var burlap := Color.html("9a8453")
+	var cloth := Color.html("6b5a38")
+	var dark := Color.html("2a2014")
+	var metal := Color.html("4a4a52")
+	var patch := Color.html("7a3b2a")
+	var flame := Color.html("ffd27a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.08, 0.2, 0), Vector3(0.1, 0.4, 0.1), cloth)
+	_bx(root, "LegR", Vector3(0.08, 0.2, 0), Vector3(0.1, 0.4, 0.1), cloth)
+	_bx(root, "FootL", Vector3(-0.08, 0.03, 0.05), Vector3(0.12, 0.06, 0.18), dark)
+	_bx(root, "FootR", Vector3(0.08, 0.03, 0.05), Vector3(0.12, 0.06, 0.18), dark)
+	_bx(root, "Torso", Vector3(0, 0.6, 0), Vector3(0.32, 0.4, 0.22), burlap)
+	_bx(root, "Patch", Vector3(0.08, 0.58, 0.12), Vector3(0.1, 0.1, 0.02), patch)
+	# Birdcage backpack with a trapped soul
+	var cage := Node3D.new(); cage.name = "Cage"; cage.position = Vector3(0, 0.66, -0.22); root.add_child(cage)
+	_cy(cage, "CageTop", Vector3(0, 0.18, 0), 0.0, 0.06, 0.06, metal)
+	for a in range(6):
+		var ang := deg_to_rad(a * 60.0)
+		_cy(cage, "Bar%d" % a, Vector3(cos(ang) * 0.1, 0, sin(ang) * 0.1), 0.008, 0.008, 0.34, metal)
+	_cy(cage, "Ring", Vector3(0, 0.16, 0), 0.1, 0.1, 0.02, metal)
+	_cy(cage, "RingB", Vector3(0, -0.16, 0), 0.1, 0.1, 0.02, metal)
+	_sp(cage, "Soul", Vector3(0, 0, 0), 0.06, Color.html("bfe6ff"), Vector3.ONE, true)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.18, 0.72, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.16, 0.02), 0.04, 0.045, 0.34, cloth); _sp(sh_l, "HandL", Vector3(0, -0.34, 0.03), 0.045, burlap)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.18, 0.72, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.04, 0.045, 0.34, cloth); _sp(sh_r, "HandR", Vector3(0, -0.34, 0.03), 0.045, burlap)
+	_atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+	# Lantern carried in the right hand
+	var lant := Node3D.new(); lant.name = "Lantern"; lant.position = Vector3(0, -0.42, 0.06); sh_r.add_child(lant)
+	_cy(lant, "LTop", Vector3(0, 0.08, 0), 0.0, 0.04, 0.05, metal)
+	_bx(lant, "LGlass", Vector3(0, -0.02, 0), Vector3(0.08, 0.12, 0.08), flame)
+	_sp(lant, "LFlame", Vector3(0, -0.02, 0), 0.03, Color.html("ffae3c"), Vector3.ONE, true)
+	# Head + patched scarecrow hat
+	_sp(root, "Head", Vector3(0, 0.92, 0.02), 0.13, Color.html("c9b79a"))
+	_sp(root, "EyeL", Vector3(-0.05, 0.92, 0.11), 0.02, dark); _sp(root, "EyeR", Vector3(0.05, 0.92, 0.11), 0.02, dark)
+	_cy(root, "HatBrim", Vector3(0, 1.0, 0), 0.22, 0.22, 0.02, cloth)
+	_cy(root, "HatCone", Vector3(0, 1.12, 0), 0.0, 0.12, 0.26, burlap)
+	_bx(root, "HatPatch", Vector3(0.06, 1.1, 0.1), Vector3(0.06, 0.06, 0.02), patch)
+
+
+## Grave Titan: massive shaggy white yeti carrying a boulder on its shoulder.
+func _build_grave_titan() -> void:
+	_shadow(0.46)
+	var fur := Color.html("d7d9dd")
+	var fur2 := Color.html("b7bcc4")
+	var skin := Color.html("8a8f99")
+	var dark := Color.html("2a2c30")
+	var rock := Color.html("6b6f74")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.2, 0.34, 0), Vector3(0.26, 0.6, 0.28), fur)
+	_bx(root, "LegR", Vector3(0.2, 0.34, 0), Vector3(0.26, 0.6, 0.28), fur)
+	_bx(root, "FootL", Vector3(-0.2, 0.07, 0.08), Vector3(0.3, 0.14, 0.36), fur2)
+	_bx(root, "FootR", Vector3(0.2, 0.07, 0.08), Vector3(0.3, 0.14, 0.36), fur2)
+	_bx(root, "Torso", Vector3(0, 1.0, -0.02), Vector3(0.7, 0.7, 0.5), fur)
+	_sp(root, "Belly", Vector3(0, 0.92, 0.2), 0.26, fur2, Vector3(1.2, 1.0, 0.6))
+	_sp(root, "Head", Vector3(0, 1.56, 0.04), 0.24, fur)
+	_bx(root, "Face", Vector3(0, 1.5, 0.2), Vector3(0.26, 0.2, 0.1), skin)
+	_sp(root, "EyeL", Vector3(-0.08, 1.56, 0.24), 0.03, dark); _sp(root, "EyeR", Vector3(0.08, 1.56, 0.24), 0.03, dark)
+	_bx(root, "Mouth", Vector3(0, 1.44, 0.24), Vector3(0.16, 0.04, 0.04), dark)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.4, 1.3, 0); root.add_child(sh_l)
+	_bx(sh_l, "ArmL", Vector3(0, -0.3, 0.02), Vector3(0.2, 0.6, 0.2), fur); _sp(sh_l, "FistL", Vector3(0, -0.62, 0.04), 0.13, fur2)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.4, 1.3, 0); root.add_child(sh_r)
+	_bx(sh_r, "ArmR", Vector3(0, -0.3, 0.02), Vector3(0.2, 0.6, 0.2), fur); _sp(sh_r, "FistR", Vector3(0, -0.62, 0.04), 0.13, fur2)
+	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+	# Boulder hoisted on the right arm so it swings down with the smash
+	_sp(sh_r, "Boulder", Vector3(-0.04, 0.34, -0.02), 0.26, rock)
+	_sp(root, "PauldL", Vector3(-0.42, 1.42, 0), 0.18, fur2, Vector3(1.2, 0.8, 1.2))
+
+
+## Crypt Crawler: a large eight-legged spider with clustered eyes and fangs.
+func _build_crypt_crawler() -> void:
+	_shadow(0.36)
+	var chitin := Color.html("2a2230")
+	var chitin2 := Color.html("3d3245")
+	var marking := Color.html("7a2a3a")
+	var eye := Color.html("d6452e")
+	var fang := Color.html("d9d2c4")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.3, 0); add_child(body); _bob_node = body; _bob_y = 0.3
+	_sp(body, "Abdomen", Vector3(0, 0.02, -0.22), 0.24, chitin, Vector3(1.1, 0.9, 1.2))
+	_bx(body, "Mark", Vector3(0, 0.18, -0.22), Vector3(0.06, 0.08, 0.2), marking)
+	_sp(body, "Cephalo", Vector3(0, 0, 0.12), 0.17, chitin2)
+	for ex in [-0.06, -0.02, 0.02, 0.06]:
+		_sp(body, "Eye", Vector3(ex, 0.05, 0.26), 0.02, eye, Vector3.ONE, true)
+	_cy(body, "FangL", Vector3(-0.04, -0.08, 0.26), 0.0, 0.02, 0.1, fang, Vector3(40, 0, 0))
+	_cy(body, "FangR", Vector3(0.04, -0.08, 0.26), 0.0, 0.02, 0.1, fang, Vector3(40, 0, 0))
+	# Eight legs (four per side), angled out from the cephalothorax
+	for sx in [-1, 1]:
+		for i in range(4):
+			var lz := 0.16 - i * 0.12
+			var leg := Node3D.new(); leg.name = "LegPiv"; leg.position = Vector3(0.12 * sx, 0.02, lz); body.add_child(leg)
+			leg.rotation_degrees = Vector3(0, 0, -50 * sx)
+			_cy(leg, "Upper", Vector3(0.16 * sx, 0.02, 0), 0.018, 0.022, 0.34, chitin, Vector3(0, 0, 90))
+			_cy(leg, "Lower", Vector3(0.32 * sx, -0.12, 0), 0.014, 0.018, 0.3, chitin2, Vector3(50, 0, 0))
+
+
+# =============================================================
 # IDLE
 # =============================================================
 
@@ -1069,7 +1377,7 @@ func play_action(action: String) -> void:
 		return
 	var a := action.to_lower()
 	# --- Locomotion / state (shared across every species) ---
-	if a in ["move", "walk", "scurry", "hydra_move", "goblin_move", "scurry_away", "get_into_range"]:
+	if a in ["move", "walk", "scurry", "hydra_move", "goblin_move", "scurry_away", "get_into_range", "flee", "hop"]:
 		set_walking(true)
 		return
 	if a == "hit":
@@ -1122,6 +1430,28 @@ func play_action(action: String) -> void:
 		"earth_mage": _cast_projectile("boulder")
 		"fire_goblin_soldier":
 			_arm_swing()
+		# --- Graveyard act ---
+		"zombie": _zombie_attack()
+		"werewolf": _werewolf_attack()
+		"wererabbit":
+			if a == "vanish": _rabbit_vanish()
+			else: _lurch()
+		"vampire": _vampire_attack()
+		"necromancer":
+			if a.contains("summon"): _necro_summon()
+			else: _necro_cast()
+		"bone_dragon":
+			if a.contains("breath"): _dragon_breath()
+			else: _dragon_bite()
+		"spirit_collector":
+			if a.contains("collect"): _collector_collect()
+			else: _collector_swing()
+		"grave_titan":
+			if a.contains("roll"): _titan_roll()
+			else: _titan_smash()
+		"crypt_crawler":
+			if a == "web": _crawler_web()
+			else: _crawler_bite()
 		_:
 			play_attack()
 
@@ -1562,6 +1892,197 @@ func _spawn_roots() -> void:
 	tw.tween_property(p, "scale:y", 1.0, 0.3)
 	tw.tween_interval(0.5)
 	tw.tween_property(p, "scale:y", 0.0, 0.3)
+	tw.tween_callback(p.queue_free)
+
+
+# ---- Graveyard act attacks ----
+
+## Zombie: shamble forward, thrusting both outstretched arms.
+func _zombie_attack() -> void:
+	if _arm_l == null or _arm_r == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	var base := _bob_node.position
+	var rl := _arm_l.rotation_degrees.x
+	var rr := _arm_r.rotation_degrees.x
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_bob_node, "position:z", base.z + 0.2, 0.12)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", rl - 28.0, 0.12)
+	_action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", rr - 28.0, 0.12)
+	_action_tween.tween_property(_bob_node, "position:z", base.z, 0.26)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", rl, 0.26)
+	_action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", rr, 0.26)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Werewolf: raise both long arms and rake their claws down across the target.
+func _werewolf_attack() -> void:
+	if _arm_l == null or _arm_r == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	var rl := _arm_l.rotation_degrees.x
+	var rr := _arm_r.rotation_degrees.x
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_arm_r, "rotation_degrees:x", rr - 90.0, 0.12)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", rl - 90.0, 0.12)
+	_action_tween.tween_property(_arm_r, "rotation_degrees:x", rr + 50.0, 0.1).set_ease(Tween.EASE_IN)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", rl + 50.0, 0.1)
+	_action_tween.tween_property(_arm_r, "rotation_degrees:x", rr, 0.2)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", rl, 0.2)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Vampire: lunge into a bite, then a life-steal heart floats up.
+func _vampire_attack() -> void:
+	_lurch()
+	_spawn_heart(Vector3(0, 1.2, 0.08))
+
+
+## Necromancer: raise the staff and loose a dark bolt.
+func _necro_cast() -> void:
+	_arm_swing()
+	var dark := Color.html("8a5cff")
+	_projectile(func(p):
+		_sp(p, "Bolt", Vector3.ZERO, 0.07, dark, Vector3.ONE, true)
+		_sp(p, "Core", Vector3.ZERO, 0.035, Color.html("d8c2ff"), Vector3.ONE, true)
+	, Vector3(0.26, 1.0, 0.2), 2.8, 0.45)
+
+
+## Necromancer: raise the staff while summoning motes rise from the ground.
+func _necro_summon() -> void:
+	_arm_swing()
+	_spawn_motes(Vector3(0, 0, 0.7), Color.html("8a5cff"), 6)
+
+
+## Bone Dragon: snap the skull forward in a bite.
+func _dragon_bite() -> void:
+	if _head_pivot == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	var rest := _atk_rest
+	var base := _bob_node.position
+	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	_action_tween.tween_property(_bob_node, "position:z", base.z + 0.15, 0.1)
+	_action_tween.parallel().tween_property(_head_pivot, "rotation_degrees:x", rest.x + 45.0, 0.1)
+	_action_tween.tween_property(_bob_node, "position:z", base.z, 0.28)
+	_action_tween.parallel().tween_property(_head_pivot, "rotation_degrees:x", rest.x, 0.28)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Bone Dragon: dip the head and belch a rolling black swarm-cloud forward.
+func _dragon_breath() -> void:
+	if _head_pivot:
+		_cancel_action()
+		_busy = true
+		var rest := _atk_rest
+		_action_tween = create_tween()
+		_action_tween.tween_property(_head_pivot, "rotation_degrees:x", rest.x + 20.0, 0.15)
+		_action_tween.tween_property(_head_pivot, "rotation_degrees:x", rest.x, 0.4)
+		_action_tween.tween_callback(func(): _busy = false)
+	var p := Node3D.new()
+	add_child(p)
+	p.position = Vector3(0, 0.9, 0.3)
+	for i in range(6):
+		_sp(p, "Puff%d" % i, Vector3((i % 3 - 1) * 0.08, (i / 3) * 0.08, 0), 0.07, Color.html("141016"))
+	p.scale = Vector3(0.3, 0.3, 0.3)
+	var tw := create_tween()
+	tw.tween_property(p, "position", Vector3(0, 0.7, 2.6), 0.5)
+	tw.parallel().tween_property(p, "scale", Vector3(1.4, 1.4, 1.4), 0.5)
+	tw.tween_callback(p.queue_free)
+
+
+## Spirit Collector: swing the lantern arm.
+func _collector_swing() -> void:
+	_arm_swing()
+
+
+## Spirit Collector: raise the lantern as a soul wisp is drawn up.
+func _collector_collect() -> void:
+	_arm_swing()
+	_spawn_motes(Vector3(0.3, 0.6, 0.4), Color.html("bfe6ff"), 4)
+
+
+## Grave Titan: rear back and smash the shouldered boulder down (like the treant).
+func _titan_smash() -> void:
+	if _arm_l == null or _arm_r == null or _bob_node == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_property(_arm_r, "rotation_degrees:x", 160.0, 0.2)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", 160.0, 0.2)
+	_action_tween.parallel().tween_property(_bob_node, "rotation_degrees:x", -10.0, 0.2)
+	_action_tween.tween_property(_bob_node, "rotation_degrees:x", 40.0, 0.13).set_ease(Tween.EASE_IN)
+	_action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", -20.0, 0.13)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", -20.0, 0.13)
+	_action_tween.tween_property(_bob_node, "rotation_degrees:x", 0.0, 0.3)
+	_action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", 0.0, 0.3)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", 0.0, 0.3)
+	_action_tween.tween_callback(func(): _busy = false)
+
+
+## Grave Titan: roll a boulder forward along the ground at the target.
+func _titan_roll() -> void:
+	_arm_swing()
+	var rock := Color.html("6b6f74")
+	_projectile(func(p):
+		_sp(p, "Rock", Vector3.ZERO, 0.22, rock)
+	, Vector3(0, 0.22, 0.4), 2.8, 0.6, 0.0, Vector3(720, 0, 0))
+
+
+## Crypt Crawler: lunge forward to bite.
+func _crawler_bite() -> void:
+	_lurch()
+
+
+## Crypt Crawler: spray a sticky web blob forward.
+func _crawler_web() -> void:
+	_lurch()
+	var web := Color.html("e8e8ee")
+	_projectile(func(p):
+		_sp(p, "Web", Vector3.ZERO, 0.1, web)
+		for a in range(4):
+			_cy(p, "Strand%d" % a, Vector3.ZERO, 0.004, 0.004, 0.24, web, Vector3(0, 0, a * 45.0))
+	, Vector3(0, 0.35, 0.3), 2.4, 0.45)
+
+
+## Wererabbit: vanish in a puff of smoke (then re-appear so it can be replayed).
+func _rabbit_vanish() -> void:
+	var p := Node3D.new()
+	add_child(p)
+	p.position = Vector3(0, 0.3, 0)
+	for i in range(6):
+		var ang := deg_to_rad(i * 60.0)
+		_sp(p, "Smoke%d" % i, Vector3(cos(ang) * 0.1, 0.1, sin(ang) * 0.1), 0.1, Color.html("9a9aa2"))
+	p.scale = Vector3(0.4, 0.4, 0.4)
+	var tw := create_tween()
+	tw.tween_property(p, "scale", Vector3(1.6, 1.6, 1.6), 0.4)
+	tw.tween_callback(p.queue_free)
+	if _bob_node:
+		var s := _bob_node.scale
+		var tw2 := create_tween()
+		tw2.tween_property(_bob_node, "scale", Vector3(0.01, 0.01, 0.01), 0.3)
+		tw2.tween_interval(0.3)
+		tw2.tween_property(_bob_node, "scale", s, 0.2)
+
+
+## Small ring of glowing motes that rise and fade (summons / soul collection).
+func _spawn_motes(pos: Vector3, color: Color, count: int) -> void:
+	var p := Node3D.new()
+	add_child(p)
+	p.position = pos
+	for i in range(count):
+		var ang := deg_to_rad(i * (360.0 / count))
+		_sp(p, "Mote%d" % i, Vector3(cos(ang) * 0.14, 0, sin(ang) * 0.14), 0.035, color, Vector3.ONE, true)
+	var tw := create_tween()
+	tw.tween_property(p, "position", pos + Vector3(0, 0.6, 0), 0.6)
 	tw.tween_callback(p.queue_free)
 
 

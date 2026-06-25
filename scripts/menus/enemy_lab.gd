@@ -42,6 +42,15 @@ const KIND_BY_TYPE := {
 	Enemy.EnemyType.SPARK_MAGE: "spark_mage",
 	Enemy.EnemyType.AIR_MAGE: "air_mage",
 	Enemy.EnemyType.EARTH_MAGE: "earth_mage",
+	Enemy.EnemyType.ZOMBIE: "zombie",
+	Enemy.EnemyType.WEREWOLF: "werewolf",
+	Enemy.EnemyType.WERERABBIT: "wererabbit",
+	Enemy.EnemyType.VAMPIRE: "vampire",
+	Enemy.EnemyType.NECROMANCER: "necromancer",
+	Enemy.EnemyType.BONE_DRAGON: "bone_dragon",
+	Enemy.EnemyType.SPIRIT_COLLECTOR: "spirit_collector",
+	Enemy.EnemyType.GRAVE_TITAN: "grave_titan",
+	Enemy.EnemyType.CRYPT_CRAWLER: "crypt_crawler",
 }
 
 # Coloured box fallback for the generic tiers (mirrors Enemy.initialize colours).
@@ -66,10 +75,15 @@ const SECTIONS := [
 		Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.FIRE_MAGE, Enemy.EnemyType.SPARK_MAGE,
 		Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.EARTH_MAGE,
 	]},
+	{"title": "GRAVEYARD", "types": [
+		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.WERERABBIT,
+		Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.BONE_DRAGON,
+		Enemy.EnemyType.SPIRIT_COLLECTOR, Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.CRYPT_CRAWLER,
+	]},
 ]
 
 # Display action names (from get_all_enemy_data) that are movement rather than attacks.
-const MOVE_ACTIONS := ["move", "scurry", "scurry away", "get into range"]
+const MOVE_ACTIONS := ["move", "scurry", "scurry away", "get into range", "flee", "hop"]
 
 var _viewport: SubViewport = null
 var _figure_root: Node3D = null       # holds the current figure/box; tweened for "move"
