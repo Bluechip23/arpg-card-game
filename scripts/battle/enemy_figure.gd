@@ -98,10 +98,10 @@ func _build() -> void:
 		"giant_hawk": _build_hawk()
 		"treant": _build_treant()
 		"ice_mage": _build_mage(Color.html("3f72b0"), Color.html("bfe6ff"), Color.html("8fd0ff"))
-		"fire_mage": _build_mage(Color.html("b23a2a"), Color.html("e6731f"), Color.html("ff9a3c"))
-		"spark_mage": _build_mage(Color.html("8a7a2a"), Color.html("ece07a"), Color.html("fff07a"))
+		"fire_mage": _build_fire_mage()
+		"spark_mage": _build_spark_mage()
 		"air_mage": _build_mage(Color.html("7fae9c"), Color.html("cfeee0"), Color.html("d6fff0"))
-		"earth_mage": _build_mage(Color.html("5f4a30"), Color.html("8a6b3f"), Color.html("a0d06a"))
+		"earth_mage": _build_earth_mage()
 		_: _build_rat()
 	_collect_step_parts()
 	_built = true
@@ -877,6 +877,142 @@ func _build_mage(robe: Color, trim: Color, orb_c: Color) -> void:
 	_cy(root, "Hood", Vector3(0, 0.86, -0.02), 0.0, 0.18, 0.30, robe)
 	_sp(root, "EyeL", Vector3(-0.05, 0.74, 0.11), 0.022, orb_c, Vector3.ONE, true)
 	_sp(root, "EyeR", Vector3(0.05, 0.74, 0.11), 0.022, orb_c, Vector3.ONE, true)
+
+
+## Earth Mage: broad-shouldered, stocky brute in animal-skin clothing with
+## white-fur-topped boots.
+func _build_earth_mage() -> void:
+	_shadow(0.28)
+	var skin := Color.html("c9b79a")
+	var hide := Color.html("6b4a2a")
+	var hide2 := Color.html("8a6b3f")
+	var fur := Color.html("efe9da")  # white fur
+	var boot := Color.html("3a2a1a")
+	var dark := Color.html("20180f")
+	var eye := Color.html("a0d06a")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	# Stocky legs + fur-topped boots
+	_bx(root, "LegL", Vector3(-0.13, 0.28, 0), Vector3(0.17, 0.34, 0.17), hide)
+	_bx(root, "LegR", Vector3(0.13, 0.28, 0), Vector3(0.17, 0.34, 0.17), hide)
+	_bx(root, "BootL", Vector3(-0.13, 0.09, 0.04), Vector3(0.21, 0.18, 0.28), boot)
+	_bx(root, "BootR", Vector3(0.13, 0.09, 0.04), Vector3(0.21, 0.18, 0.28), boot)
+	# White fur cuffs at the tops of the boots
+	_cy(root, "FurL", Vector3(-0.13, 0.2, 0.02), 0.14, 0.14, 0.09, fur)
+	_cy(root, "FurR", Vector3(0.13, 0.2, 0.02), 0.14, 0.14, 0.09, fur)
+	# Broad, stocky torso (animal-skin tunic) + hide belt
+	var torso := _bx(root, "Torso", Vector3(0, 0.64, 0), Vector3(0.52, 0.42, 0.32), hide)
+	torso.rotation_degrees = Vector3(4, 0, 0)
+	_bx(root, "Belt", Vector3(0, 0.46, 0.0), Vector3(0.54, 0.08, 0.34), boot)
+	# Shaggy white-fur mantle over the broad shoulders
+	_sp(root, "Mantle", Vector3(0, 0.86, -0.02), 0.3, fur, Vector3(1.5, 0.5, 1.05))
+	# Thick arms
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.31, 0.82, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.2, 0.02), 0.07, 0.08, 0.42, skin)
+	_sp(sh_l, "HandL", Vector3(0, -0.42, 0.03), 0.08, skin)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.31, 0.82, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.2, 0.02), 0.07, 0.08, 0.42, skin)
+	_sp(sh_r, "HandR", Vector3(0, -0.42, 0.03), 0.08, skin)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	# Head + shaggy hair
+	_sp(root, "Head", Vector3(0, 1.04, 0.02), 0.16, skin)
+	_bx(root, "Brow", Vector3(0, 1.08, 0.12), Vector3(0.24, 0.04, 0.06), dark)
+	_sp(root, "EyeL", Vector3(-0.06, 1.04, 0.13), 0.025, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.06, 1.04, 0.13), 0.025, eye, Vector3.ONE, true)
+	_sp(root, "Hair", Vector3(0, 1.13, -0.02), 0.17, hide2, Vector3(1.05, 0.7, 1.05))
+
+
+## Fire Mage: ninja-styled, red outfit with baggy pants and tight calf-high socks.
+func _build_fire_mage() -> void:
+	_shadow(0.22)
+	var red := Color.html("b23a2a")
+	var red2 := Color.html("8a2a1e")
+	var sock := Color.html("2b2b30")
+	var skin := Color.html("c9b79a")
+	var sash := Color.html("e6731f")
+	var eye := Color.html("ffd23f")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	# Tight calf-high socks + tabi feet
+	_cy(root, "SockL", Vector3(-0.09, 0.16, 0), 0.05, 0.055, 0.3, sock)
+	_cy(root, "SockR", Vector3(0.09, 0.16, 0), 0.05, 0.055, 0.3, sock)
+	_bx(root, "TabiL", Vector3(-0.09, 0.03, 0.06), Vector3(0.11, 0.06, 0.2), sock)
+	_bx(root, "TabiR", Vector3(0.09, 0.03, 0.06), Vector3(0.11, 0.06, 0.2), sock)
+	# Baggy pants, gathered above the socks
+	_sp(root, "PantL", Vector3(-0.1, 0.38, 0), 0.14, red, Vector3(1.0, 1.25, 1.0))
+	_sp(root, "PantR", Vector3(0.1, 0.38, 0), 0.14, red, Vector3(1.0, 1.25, 1.0))
+	# Red tunic top with a crossed sash + belt
+	_bx(root, "Torso", Vector3(0, 0.62, 0), Vector3(0.32, 0.34, 0.22), red)
+	_bx(root, "Sash", Vector3(0, 0.6, 0.12), Vector3(0.38, 0.08, 0.06), sash, Vector3(0, 0, 24))
+	_bx(root, "Belt", Vector3(0, 0.46, 0), Vector3(0.34, 0.07, 0.24), red2)
+	# Wrapped arms
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.18, 0.74, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.16, 0.02), 0.04, 0.045, 0.34, red)
+	_sp(sh_l, "HandL", Vector3(0, -0.34, 0.03), 0.05, skin)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.18, 0.74, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.04, 0.045, 0.34, red)
+	_sp(sh_r, "HandR", Vector3(0, -0.34, 0.03), 0.05, skin)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	# Masked head: a skin eye-strip across a red wrap, with trailing headband tails
+	_sp(root, "Head", Vector3(0, 0.94, 0.02), 0.14, red)
+	_bx(root, "EyeStrip", Vector3(0, 0.95, 0.12), Vector3(0.22, 0.05, 0.04), skin)
+	_sp(root, "EyeL", Vector3(-0.05, 0.95, 0.14), 0.022, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.05, 0.95, 0.14), 0.022, eye, Vector3.ONE, true)
+	_bx(root, "BandL", Vector3(-0.1, 1.0, -0.13), Vector3(0.04, 0.04, 0.2), red2)
+	_bx(root, "BandR", Vector3(0.1, 1.0, -0.13), Vector3(0.04, 0.04, 0.2), red2)
+
+
+## Spark Mage: spiky-haired punk in a black sleeveless shirt and ripped pants.
+func _build_spark_mage() -> void:
+	_shadow(0.22)
+	var black := Color.html("2c2c34")  # charcoal — reads as black but stays visible
+	var skin := Color.html("c9b79a")
+	var pants := Color.html("3b3f4a")
+	var hair := Color.html("32323c")
+	var spark := Color.html("fff07a")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	# Ripped pants with skin showing at the knees
+	_cy(root, "LegL", Vector3(-0.09, 0.22, 0), 0.05, 0.06, 0.42, pants)
+	_cy(root, "LegR", Vector3(0.09, 0.22, 0), 0.05, 0.06, 0.42, pants)
+	_sp(root, "KneeL", Vector3(-0.09, 0.24, 0.05), 0.05, skin)  # exposed knee (rip)
+	_sp(root, "KneeR", Vector3(0.09, 0.17, 0.05), 0.05, skin)
+	_bx(root, "ShoeL", Vector3(-0.09, 0.03, 0.04), Vector3(0.11, 0.06, 0.18), black)
+	_bx(root, "ShoeR", Vector3(0.09, 0.03, 0.04), Vector3(0.11, 0.06, 0.18), black)
+	# Black sleeveless shirt
+	_bx(root, "Torso", Vector3(0, 0.6, 0), Vector3(0.3, 0.36, 0.2), black)
+	# Bare shoulders + arms (sleeveless)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.17, 0.72, 0); root.add_child(sh_l)
+	_sp(sh_l, "DeltL", Vector3(0, 0, 0), 0.07, skin)
+	_cy(sh_l, "ArmL", Vector3(0, -0.18, 0.02), 0.04, 0.045, 0.34, skin)
+	_sp(sh_l, "HandL", Vector3(0, -0.36, 0.03), 0.05, skin)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.17, 0.72, 0); root.add_child(sh_r)
+	_sp(sh_r, "DeltR", Vector3(0, 0, 0), 0.07, skin)
+	_cy(sh_r, "ArmR", Vector3(0, -0.18, 0.02), 0.04, 0.045, 0.34, skin)
+	_sp(sh_r, "HandR", Vector3(0, -0.36, 0.03), 0.05, skin)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	# Head with electric eyes
+	_sp(root, "Head", Vector3(0, 0.92, 0.02), 0.14, skin)
+	_sp(root, "EyeL", Vector3(-0.05, 0.92, 0.12), 0.022, spark, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.05, 0.92, 0.12), 0.022, spark, Vector3.ONE, true)
+	# Spiky hair (cones fanning up and out, with crackling electric tips)
+	var spikes := [[-0.08, 0.0, -34], [-0.04, 0.04, -16], [0.0, 0.06, 0], [0.04, 0.04, 16], [0.08, 0.0, 34]]
+	for i in range(spikes.size()):
+		var s = spikes[i]
+		_cy(root, "Spike%d" % i, Vector3(s[0], 1.02 + s[1], 0.0), 0.0, 0.045, 0.2, hair, Vector3(0, 0, s[2]))
+		_sp(root, "SpikeTip%d" % i, Vector3(s[0] * 1.7, 1.18 + s[1], 0.0), 0.025, spark, Vector3.ONE, true)
 
 
 # =============================================================
