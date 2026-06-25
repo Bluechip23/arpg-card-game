@@ -599,9 +599,9 @@ func _build_mini_bear() -> void:
 	_build_quadruped(Color.html("5a3c25"), Color.html("7a5634"), 0.85, "round", "stub")
 
 func _build_beaver() -> void:
-	# Much larger than the other critters (~2x tall, ~3x wide). Built sitting up on
-	# its haunches; tips onto all fours while moving (see _set_beaver_pose).
-	_shadow(0.62)
+	# Larger than the other critters (~2x the original); built sitting up on its
+	# haunches; tips onto all fours while moving (see _set_beaver_pose).
+	_shadow(0.5)
 	var fur := Color.html("6b4423")
 	var belly := Color.html("8a5a30")
 	var dark := Color.html("241712")
@@ -619,8 +619,8 @@ func _build_beaver() -> void:
 	# Scale node makes it big; geometry below uses the original chunky proportions.
 	var g := Node3D.new()
 	g.name = "Scale"
-	g.position = Vector3(0, 0.74, 0)
-	g.scale = Vector3(2.9, 2.0, 2.4)
+	g.position = Vector3(0, 0.57, 0)
+	g.scale = Vector3(2.2, 1.55, 1.95)
 	pose.add_child(g)
 	# Plump upright torso (sits on haunches)
 	_sp(g, "Torso", Vector3(0, 0, 0), 0.26, fur, Vector3(1.0, 1.15, 0.95))
@@ -1148,7 +1148,7 @@ func _set_beaver_pose(walking: bool) -> void:
 		_pose_tween.kill()
 	_pose_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 	_pose_tween.tween_property(_beaver_pose, "rotation_degrees:x", 46.0 if walking else 0.0, 0.25)
-	_pose_tween.parallel().tween_property(_beaver_pose, "position:y", -0.38 if walking else 0.0, 0.25)
+	_pose_tween.parallel().tween_property(_beaver_pose, "position:y", -0.3 if walking else 0.0, 0.25)
 
 
 ## Archer Rat: blink + jab forward (the lurch) while loosing an arrow.
@@ -1238,16 +1238,40 @@ func _wolf_lunge() -> void:
 	_action_tween.tween_callback(func(): _busy = false)
 
 
-## Infected Hunter: fire a grappling hook on a chain that flies out at the target.
+## Infected Hunter: fling a grappling hook on a rope the hunter keeps hold of, then
+## reel it (and the snagged target) back in. The rope stretches from his hand to the
+## flying hook the whole time.
 func _hunter_hook() -> void:
 	_arm_swing()
 	var steel := Color.html("9aa0a8")
-	var chain := Color.html("5a5a5a")
-	_projectile(func(p):
-		_cy(p, "Chain", Vector3(0, 0, -0.1), 0.008, 0.008, 0.22, chain, Vector3(90, 0, 0))
-		_cy(p, "Shaft", Vector3(0, 0, 0.05), 0.015, 0.02, 0.14, steel, Vector3(90, 0, 0))
-		_cy(p, "Barb", Vector3(0.04, 0, 0.12), 0.0, 0.016, 0.09, steel, Vector3(0, 0, 60))
-	, Vector3(0, 0.5, 0.45), 2.8, 0.4)
+	var rope_c := Color.html("6b5a3a")
+	var anchor := Vector3(0, 0.5, 0.42)   # the hunter's hand
+	var reach := 2.6
+
+	var hook := Node3D.new()
+	add_child(hook)
+	hook.position = anchor
+	_cy(hook, "Shaft", Vector3(0, 0, 0.05), 0.015, 0.02, 0.14, steel, Vector3(90, 0, 0))
+	_cy(hook, "BarbR", Vector3(0.04, 0, 0.12), 0.0, 0.016, 0.09, steel, Vector3(0, 0, 60))
+	_cy(hook, "BarbL", Vector3(-0.04, 0, 0.12), 0.0, 0.016, 0.09, steel, Vector3(0, 0, -60))
+
+	# Rope: a unit-length cylinder we stretch/position between the hand and the hook.
+	var rope := _cy(self, "Rope", anchor, 0.008, 0.008, 1.0, rope_c, Vector3(90, 0, 0))
+
+	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+	_action_tween.tween_method(_update_hook.bind(hook, rope, anchor), 0.0, reach, 0.3).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_interval(0.1)  # hooked
+	_action_tween.tween_method(_update_hook.bind(hook, rope, anchor), reach, 0.0, 0.3).set_ease(Tween.EASE_IN)
+	_action_tween.tween_callback(hook.queue_free)
+	_action_tween.tween_callback(rope.queue_free)
+
+
+func _update_hook(d: float, hook: Node3D, rope: Node3D, anchor: Vector3) -> void:
+	if is_instance_valid(hook):
+		hook.position = anchor + Vector3(0, 0, d)
+	if is_instance_valid(rope):
+		rope.position = anchor + Vector3(0, 0, d * 0.5)
+		rope.scale.y = maxf(d, 0.01)  # base height is 1.0, so scale.y == length
 
 
 ## Infected Hunter: a wide 180° horizontal cleave across its front.
@@ -1279,20 +1303,27 @@ func _hawk_swoop() -> void:
 	_action_tween.tween_callback(func(): _busy = false)
 
 
-## Treant: raise both branch-arms overhead and smash them straight down.
+## Treant: rear back with both arms overhead, then bend at the trunk and smash both
+## arms down onto the ground in front.
 func _treant_slam() -> void:
-	if _treant_arm_l == null or _treant_arm_r == null:
+	if _treant_arm_l == null or _treant_arm_r == null or _bob_node == null:
 		_arm_swing()
 		return
 	_cancel_action()
 	_busy = true
 	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
-	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", 165.0, 0.2)
-	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", 165.0, 0.2)
-	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", -45.0, 0.1).set_ease(Tween.EASE_IN)
-	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", -45.0, 0.1)
-	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", 0.0, 0.26)
-	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", 0.0, 0.26)
+	# Rear back, leaning slightly while raising both arms overhead.
+	_action_tween.tween_property(_treant_arm_r, "rotation_degrees:x", 165.0, 0.22)
+	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", 165.0, 0.22)
+	_action_tween.parallel().tween_property(_bob_node, "rotation_degrees:x", -14.0, 0.22)
+	# Bend forward hard at the trunk and slam both arms to the ground.
+	_action_tween.tween_property(_bob_node, "rotation_degrees:x", 46.0, 0.13).set_ease(Tween.EASE_IN)
+	_action_tween.parallel().tween_property(_treant_arm_r, "rotation_degrees:x", -10.0, 0.13)
+	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", -10.0, 0.13)
+	# Straighten back upright.
+	_action_tween.tween_property(_bob_node, "rotation_degrees:x", 0.0, 0.32)
+	_action_tween.parallel().tween_property(_treant_arm_r, "rotation_degrees:x", 0.0, 0.32)
+	_action_tween.parallel().tween_property(_treant_arm_l, "rotation_degrees:x", 0.0, 0.32)
 	_action_tween.tween_callback(func(): _busy = false)
 
 
