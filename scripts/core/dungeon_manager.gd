@@ -105,17 +105,19 @@ const WORLD_PALETTES := {
 
 const CAVE_PALETTE := {
 	"name": "Cave",
-	"ground": Color(0.05, 0.05, 0.06),
-	"floor_a": Color(0.24, 0.21, 0.18),
-	"floor_b": Color(0.17, 0.15, 0.13),
-	"wall_a": Color(0.28, 0.24, 0.21),
-	"wall_b": Color(0.18, 0.16, 0.14),
-	"cliff": Color(0.25, 0.21, 0.17),
-	"step": Color(0.34, 0.31, 0.27),
-	"accent": Color(0.36, 0.33, 0.28),
-	"ambient": Color(0.26, 0.24, 0.23),
-	"sun": Color(0.75, 0.72, 0.68),
-	"sun_energy": 0.4,
+	"ground": Color(0.03, 0.03, 0.04),
+	"floor_a": Color(0.18, 0.16, 0.14),   # darker than the sewers — almost lightless
+	"floor_b": Color(0.12, 0.11, 0.10),
+	"wall_a": Color(0.22, 0.19, 0.17),
+	"wall_b": Color(0.13, 0.12, 0.11),
+	"cliff": Color(0.19, 0.16, 0.13),
+	"step": Color(0.28, 0.25, 0.22),
+	"accent": Color(0.30, 0.28, 0.24),
+	"ambient": Color(0.18, 0.17, 0.17),
+	"sun": Color(0.66, 0.64, 0.62),
+	"sun_energy": 0.3,
+	"water": Color(0.06, 0.08, 0.10),     # cold cave puddle
+	"water_edge": Color(0.12, 0.15, 0.17),
 }
 
 const BUILDING_PALETTE := {
@@ -133,13 +135,66 @@ const BUILDING_PALETTE := {
 	"sun_energy": 0.8,
 }
 
+# Damp, lightless brickwork. Greens of algae and stagnant water over cold grey
+# stone — the first dungeon the player ever descends into (Act 1, the Sewers).
+const SEWER_PALETTE := {
+	"name": "Sewers",
+	"ground": Color(0.04, 0.05, 0.05),
+	"floor_a": Color(0.18, 0.20, 0.18),   # wet, mossy brick
+	"floor_b": Color(0.12, 0.14, 0.13),
+	"wall_a": Color(0.20, 0.22, 0.21),    # slick stone block
+	"wall_b": Color(0.12, 0.13, 0.13),
+	"cliff": Color(0.15, 0.17, 0.16),
+	"step": Color(0.24, 0.26, 0.24),
+	"accent": Color(0.20, 0.34, 0.22),    # algae green
+	"ambient": Color(0.16, 0.20, 0.19),
+	"sun": Color(0.55, 0.62, 0.60),
+	"sun_energy": 0.3,
+	"water": Color(0.07, 0.14, 0.12),     # murky channel water
+	"water_edge": Color(0.13, 0.22, 0.18),
+	"torch": Color(1.0, 0.62, 0.28),      # warm bracket flame
+}
+
+# Sun-dappled woodland. The bright, open counterpoint to the sewers — a high-
+# fantasy forest of trees, trails, hills and hunters' traps (Act 1, Forest).
+const FOREST_PALETTE := {
+	"name": "Greenwood",
+	"ground": Color(0.10, 0.13, 0.07),
+	"floor_a": Color(0.26, 0.34, 0.16),   # grassy loam
+	"floor_b": Color(0.19, 0.27, 0.12),
+	"wall_a": Color(0.30, 0.26, 0.18),    # dense brush / treeline edge
+	"wall_b": Color(0.21, 0.19, 0.13),
+	"cliff": Color(0.34, 0.27, 0.18),     # earthen hillside
+	"step": Color(0.44, 0.40, 0.30),
+	"accent": Color(0.24, 0.42, 0.16),    # leafy green
+	"ambient": Color(0.46, 0.52, 0.44),
+	"sun": Color(1.0, 0.97, 0.84),
+	"sun_energy": 1.35,
+	"trail": Color(0.34, 0.28, 0.18),     # packed-dirt path
+	"bark": Color(0.26, 0.18, 0.11),
+	"leaf": Color(0.20, 0.40, 0.16),
+	"leaf_b": Color(0.28, 0.48, 0.20),
+}
+
 # ============================================
 # STATE
 # ============================================
 
 var grid: Array = []        # 2D array [x][z] of Tile
 var elevation: Array = []   # 2D array [x][z] of int (0 = ground, 1+ = elevated)
+var water: Array = []       # 2D bool array [x][z] — true where floor is a water channel
 var rooms: Array = []       # [{rect: Rect2i, kind: String, elev: int}]
+
+# Tiles where flavour lights live (sewer torches), so ambience code can tune them
+var torch_positions: Array = []  # [Vector2i]
+
+# Forest interactables, consumed by main.gd at setup.
+var tree_nodes: Array = []   # climbable trees: [{node, grid_pos, label_node, climbed}]
+var trap_defs: Array = []    # hazards: [{kind:"bear"/"dart", tiles:[Vector2i], grid_pos, node, sprung}]
+var pit_tiles: Dictionary = {}  # Vector2i -> true: impassable pit hazards
+
+# Per-location fog radius. Sewers reveal less; the open forest reveals more.
+var fog_reveal_radius: int = FOG_REVEAL_RADIUS
 
 var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, body_mesh, lid_mesh}]
 var spawn_zones: Array = []     # [{trigger_rect, spawn_points, enemy_types, spawned}]
@@ -189,6 +244,20 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "cave"
 	elif interior_id.begins_with("building"):
 		interior_kind = "building"
+	elif interior_id.begins_with("sewer"):
+		interior_kind = "sewer"
+	elif interior_id.begins_with("forest"):
+		interior_kind = "forest"
+
+	# Fog scales with how lit the place is: tight, lightless sewers reveal least,
+	# the bright open forest reveals most, everything else uses the default.
+	match interior_kind:
+		"sewer":
+			fog_reveal_radius = 4
+		"forest":
+			fog_reveal_radius = 9
+		_:
+			fog_reveal_radius = FOG_REVEAL_RADIUS
 
 	_layout_seed = hash("layout_w%d_%s" % [world_level, interior_id])
 	_rng.seed = _layout_seed
@@ -206,11 +275,16 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	_parent.add_child(_visuals_root)
 
 	# Layout + elevation
+	_init_water()
 	match interior_kind:
 		"cave":
 			_generate_cave_layout()
 		"building":
 			_generate_building_layout()
+		"sewer":
+			_generate_sewer_layout()
+		"forest":
+			_generate_forest_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -218,6 +292,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	# Interactables (placed before visuals so decorations avoid their tiles)
 	_reserved.clear()
 	_reserve_area(player_start, 1)
+	if interior_kind == "forest":
+		_place_forest_features()  # climbable trees, traps and pits (reserves tiles)
 	if interior_kind == "":
 		_place_waypoints()
 		_place_sites()
@@ -255,6 +331,20 @@ func _set_world_size() -> void:
 		GRID_H = 18 + world_level / 2
 		player_start = Vector2i(2, GRID_H / 2)
 		return
+	if interior_kind == "sewer":
+		# A long descent: wide enough for a winding network, tall enough for
+		# branching water channels. The player enters at the far west.
+		GRID_W = 56 + world_level * 2
+		GRID_H = 34 + world_level
+		player_start = Vector2i(3, GRID_H / 2)
+		return
+	if interior_kind == "forest":
+		# A wide, open woodland of clearings and trails — the bright counterpoint
+		# to the sewers. The player enters from a trailhead at the west.
+		GRID_W = 62 + world_level * 2
+		GRID_H = 42 + world_level
+		player_start = Vector2i(3, GRID_H / 2)
+		return
 	match world_level:
 		1:
 			GRID_W = 70
@@ -281,6 +371,10 @@ func get_palette() -> Dictionary:
 		return CAVE_PALETTE
 	if interior_kind == "building":
 		return BUILDING_PALETTE
+	if interior_kind == "sewer":
+		return SEWER_PALETTE
+	if interior_kind == "forest":
+		return FOREST_PALETTE
 	return WORLD_PALETTES.get(world_level, WORLD_PALETTES[1])
 
 func get_location_name() -> String:
@@ -288,6 +382,10 @@ func get_location_name() -> String:
 		return "Cave %d" % (int(interior_id.get_slice("_", 1)) + 1)
 	if interior_kind == "building":
 		return "Building %d" % (int(interior_id.get_slice("_", 1)) + 1)
+	if interior_kind == "sewer":
+		return "Sewers"
+	if interior_kind == "forest":
+		return "Greenwood"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -420,6 +518,24 @@ func _generate_cave_layout() -> void:
 	# Smooth jagged single-tile walls so the cave reads as natural stone
 	_smooth_cave_walls()
 	_enforce_border_walls()
+	_place_cave_puddles()
+
+func _place_cave_puddles() -> void:
+	## Scatter shallow water puddles in low spots — small clusters of floor tiles
+	## flagged as water (rendered by _build_floor_visuals).
+	var puddle_count = 6 + world_level * 2
+	for _i in range(puddle_count):
+		var cx = _rng.randi_range(3, GRID_W - 3)
+		var cz = _rng.randi_range(3, GRID_H - 3)
+		if grid[cx][cz] != Tile.FLOOR:
+			continue
+		# A puddle is a tight blob of 1–4 adjacent floor tiles.
+		water[cx][cz] = true
+		for d in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+			if _rng.randf() < 0.5:
+				var p = Vector2i(cx + d.x, cz + d.y)
+				if is_floor(p):
+					water[p.x][p.y] = true
 
 func _carve_tunnel(from: Vector2i, to: Vector2i) -> void:
 	## Drunkard-walk tunnel: biased toward the target with random wandering.
@@ -486,6 +602,155 @@ func _enforce_border_walls() -> void:
 	for z in range(GRID_H):
 		grid[0][z] = Tile.WALL
 		grid[GRID_W - 1][z] = Tile.WALL
+
+# ============================================
+# SEWER INTERIOR LAYOUT
+# A main trunk tunnel (with a water channel down its spine) runs west→east.
+# Cistern chambers bud off it above and below, joined by short shafts. A central
+# cistern is the Rat King's arena; the far-east chamber is the deepest point.
+# This reads as a man-made sewer line rather than an organic cave.
+# ============================================
+
+func _generate_sewer_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	torch_positions.clear()
+	var mid_z = GRID_H / 2
+
+	# --- Main trunk: a 3-wide tunnel the length of the sewer. The centre row is
+	# a flowing water channel (still walkable — the player wades the shallows). ---
+	for x in range(1, GRID_W - 1):
+		for dz in range(-1, 2):
+			grid[x][mid_z + dz] = Tile.FLOOR
+		water[x][mid_z] = true
+
+	# --- Entry chamber (far west), where the player drops in. ---
+	var entry = Rect2i(1, mid_z - 3, 7, 7)
+	_carve_rect(entry)
+	rooms.append({"rect": entry, "kind": "start", "elev": 0})
+
+	# --- Cistern chambers budding off the trunk, alternating above and below. ---
+	var chamber_count = 5 + world_level
+	var spacing = maxi(6, (GRID_W - 22) / chamber_count)
+	var arena_i = chamber_count / 2  # the middle cistern is the Rat King's lair
+	for i in range(chamber_count):
+		var cx = 13 + i * spacing
+		if cx > GRID_W - 12:
+			break
+		var above = (i % 2 == 0)
+		var is_arena = (i == arena_i)
+		var rw = _rng.randi_range(7, 9) if not is_arena else 11
+		var rh = _rng.randi_range(5, 6) if not is_arena else 9
+		var rx = clampi(cx - rw / 2, 2, GRID_W - rw - 2)
+		var rz: int
+		if above:
+			rz = clampi(mid_z - 3 - rh, 1, GRID_H - rh - 2)
+		else:
+			rz = clampi(mid_z + 4, 1, GRID_H - rh - 2)
+		var rect = Rect2i(rx, rz, rw, rh)
+		_carve_rect(rect)
+		rooms.append({"rect": rect, "kind": "arena" if is_arena else "chamber", "elev": 0})
+
+		# A 2-wide access shaft from the chamber down/up to the trunk.
+		var shaft_x = clampi(rect.get_center().x, rect.position.x + 1, rect.end.x - 2)
+		var join_z = rect.end.y - 1 if above else rect.position.y
+		_carve_corridor_v(shaft_x, mid_z, join_z)
+		_carve_corridor_v(shaft_x + 1, mid_z, join_z)
+
+		# Roughly half the cisterns hold a standing pool fed by a branch channel.
+		if _rng.randf() < 0.5:
+			var pool = rect.grow(-2)
+			if pool.size.x >= 2 and pool.size.y >= 2:
+				_flag_water_rect(pool)
+				# branch the channel from the trunk up/down the access shaft
+				var bz0 = mini(mid_z, join_z)
+				var bz1 = maxi(mid_z, join_z)
+				for z in range(bz0, bz1 + 1):
+					if z >= 0 and z < GRID_H and grid[shaft_x][z] == Tile.FLOOR:
+						water[shaft_x][z] = true
+
+	# --- Deepest chamber (far east), just before the exit shaft. ---
+	var deep = Rect2i(GRID_W - 9, mid_z - 4, 8, 9)
+	deep.position.x = clampi(deep.position.x, 2, GRID_W - deep.size.x - 2)
+	_carve_rect(deep)
+	rooms.append({"rect": deep, "kind": "deep", "elev": 0})
+	_flag_water_rect(Rect2i(deep.position.x + 1, deep.position.y + 1, deep.size.x - 2, 3))
+
+	_enforce_border_walls()
+	# Border enforcement may have clipped channel tiles back to wall — clean up.
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.FLOOR:
+				water[x][z] = false
+
+func _flag_water_rect(rect: Rect2i) -> void:
+	for x in range(maxi(1, rect.position.x), mini(rect.end.x, GRID_W - 1)):
+		for z in range(maxi(1, rect.position.y), mini(rect.end.y, GRID_H - 1)):
+			if grid[x][z] == Tile.FLOOR:
+				water[x][z] = true
+
+# ============================================
+# FOREST INTERIOR LAYOUT
+# Open grassy clearings linked by winding dirt trails, with some clearings
+# raised into hills (high ground). The bright, sprawling counterpoint to the
+# sewers. Trees, traps and pits are layered on afterward (see _place_forest_*).
+# ============================================
+
+func _generate_forest_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	tree_nodes.clear()
+	trap_defs.clear()
+	pit_tiles.clear()
+	var mid_z = GRID_H / 2
+
+	# Entry clearing at the trailhead (far west).
+	var entry_c = Vector2i(5, mid_z)
+	_carve_circle(entry_c, 4)
+	rooms.append({"rect": _circle_rect(entry_c, 4), "kind": "start", "elev": 0, "center": entry_c, "radius": 4})
+
+	# Clearings scattered across the woods, joined to the previous one by a trail.
+	var clearing_count = 6 + world_level
+	var prev = entry_c
+	var deepest_x = -1
+	var deepest_idx = -1
+	for _i in range(clearing_count):
+		var c = Vector2i(
+			_rng.randi_range(11, GRID_W - 6),
+			_rng.randi_range(5, GRID_H - 6)
+		)
+		var r = _rng.randi_range(3, 6)
+		_carve_trail(prev, c)
+		_carve_circle(c, r)
+		var room = {"rect": _circle_rect(c, r), "kind": "clearing", "elev": 0, "center": c, "radius": r}
+		# Roughly a third of clearings rise into a wooded hill (high ground).
+		if _rng.randf() < 0.30:
+			room["hill"] = true
+		rooms.append(room)
+		if c.x > deepest_x:
+			deepest_x = c.x
+			deepest_idx = rooms.size() - 1
+		prev = c
+
+	# The far-east clearing is the deepest point — kept flat for a clean fight.
+	if deepest_idx >= 0:
+		rooms[deepest_idx]["kind"] = "deep"
+		rooms[deepest_idx]["hill"] = false
+
+	# A few cross-trails between clearings so paths branch and loop.
+	var link_count = 2 + world_level / 2
+	for _l in range(link_count):
+		var a = _rng.randi_range(1, rooms.size() - 1)
+		var b = _rng.randi_range(1, rooms.size() - 1)
+		if a != b and rooms[a].has("center") and rooms[b].has("center"):
+			_carve_trail(rooms[a]["center"], rooms[b]["center"])
+
+	_smooth_cave_walls()      # round the treeline edges so the woods read organic
+	_enforce_border_walls()
+
+func _carve_trail(from: Vector2i, to: Vector2i) -> void:
+	## A winding 2-wide dirt trail between two clearings (reuses the cave walk).
+	_carve_tunnel(from, to)
 
 # ============================================
 # BUILDING INTERIOR LAYOUT
@@ -562,6 +827,21 @@ func _init_grid_walls() -> void:
 			col.append(Tile.WALL)
 		grid.append(col)
 
+func _init_water() -> void:
+	water.clear()
+	for x in range(GRID_W):
+		var col: Array = []
+		for z in range(GRID_H):
+			col.append(false)
+		water.append(col)
+
+func is_water(grid_pos: Vector2i) -> bool:
+	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
+		return false
+	if water.is_empty():
+		return false
+	return water[grid_pos.x][grid_pos.y]
+
 func _carve_rect(rect: Rect2i) -> void:
 	for x in range(maxi(0, rect.position.x), mini(rect.end.x, GRID_W)):
 		for z in range(maxi(0, rect.position.y), mini(rect.end.y, GRID_H)):
@@ -597,6 +877,15 @@ func _generate_elevation() -> void:
 
 	if interior_kind == "building":
 		return  # Buildings are flat inside
+	if interior_kind == "sewer":
+		return  # Sewers are flat; channels are carved into the floor, not raised
+	if interior_kind == "forest":
+		# Forest hills: clearings flagged as hills during layout become high ground.
+		for room in rooms:
+			if room.get("hill", false):
+				_set_elevation_rect(room["rect"], 1)
+				room["elev"] = 1
+		return
 
 	var elevated_count = 0
 	for i in range(rooms.size()):
@@ -680,13 +969,27 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 
 func _build_floor_visuals() -> void:
 	## Per-tile ground at elevation 0 with subtle natural color variation.
+	## Sewer water channels render as a darker, glossy surface sunk below the brick.
 	var pal = get_palette()
+	var has_water = pal.has("water")
 	var items: Array = []
+	var water_items: Array = []
 	for x in range(GRID_W):
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.FLOOR or elevation[x][z] > 0:
 				continue
 			var n = _tile_noise(x, z, 11)
+			if has_water and is_water(Vector2i(x, z)):
+				# Murky channel water: thin slab sunk slightly into the floor.
+				var wcol: Color = pal["water"].lerp(pal["water_edge"], n)
+				water_items.append({
+					"xform": Transform3D(
+						Basis.from_scale(Vector3(1.0, 0.06, 1.0)),
+						Vector3(x + 0.5, -0.14, z + 0.5)
+					),
+					"color": wcol,
+				})
+				continue
 			var col: Color = pal["floor_a"].lerp(pal["floor_b"], n)
 			var xform = Transform3D(
 				Basis.from_scale(Vector3(1.0, 0.1, 1.0)),
@@ -694,7 +997,28 @@ func _build_floor_visuals() -> void:
 			)
 			items.append({"xform": xform, "color": col})
 	_add_multimesh(BoxMesh.new(), items)
-	print("[DUNGEON] Built %d floor tiles" % items.size())
+	if not water_items.is_empty():
+		# Low roughness + faint emission so the water catches torchlight and reads wet.
+		var water_mm = MultiMesh.new()
+		water_mm.transform_format = MultiMesh.TRANSFORM_3D
+		water_mm.use_colors = true
+		water_mm.mesh = BoxMesh.new()
+		water_mm.instance_count = water_items.size()
+		for i in range(water_items.size()):
+			water_mm.set_instance_transform(i, water_items[i]["xform"])
+			water_mm.set_instance_color(i, water_items[i]["color"])
+		var wmmi = MultiMeshInstance3D.new()
+		wmmi.multimesh = water_mm
+		var wmat = StandardMaterial3D.new()
+		wmat.vertex_color_use_as_albedo = true
+		wmat.roughness = 0.12
+		wmat.metallic = 0.35
+		wmat.emission_enabled = true
+		wmat.emission = pal["water"].lightened(0.05)
+		wmat.emission_energy_multiplier = 0.25
+		wmmi.material_override = wmat
+		_visuals_root.add_child(wmmi)
+	print("[DUNGEON] Built %d floor tiles, %d water tiles" % [items.size(), water_items.size()])
 
 func _build_walls() -> void:
 	## Rock walls with varied heights and shades. Walls beside elevated terrain
@@ -818,7 +1142,17 @@ func _build_elevation_visuals() -> void:
 
 func _build_decorations() -> void:
 	## Scatters small non-blocking props for natural variety: rocks and shrubs
-	## outdoors, stalagmites in caves, crates inside buildings.
+	## outdoors, stalagmites in caves, crates inside buildings, and a full kit of
+	## sewer dressing (pipes, torches, steam, grates, doors, mice) underground.
+	if interior_kind == "sewer":
+		_build_sewer_decorations()
+		return
+	if interior_kind == "forest":
+		_build_forest_decorations()
+		return
+	if interior_kind == "cave":
+		_build_cave_decorations()
+		return
 	var pal = get_palette()
 	var rock_items: Array = []
 	var bush_items: Array = []
@@ -906,6 +1240,998 @@ func _has_adjacent_floor_on_all_sides(x: int, z: int) -> bool:
 	return true
 
 # ============================================
+# SEWER DRESSING
+# Wall torches (real flickering lights), pipes that pour water, rising steam,
+# floor grates over the channel, circular sliding doors at the cistern mouths,
+# manholes, scuttling mice and damp rubble. All cosmetic and non-blocking.
+# ============================================
+
+func _build_sewer_decorations() -> void:
+	var pal = get_palette()
+
+	# Catalogue the candidate sites once.
+	var wall_edges: Array = []   # [{pos: Vector2i, dir: Vector2i (wall→floor)}]
+	var floor_tiles: Array = []  # dry, unreserved floor
+	var water_tiles: Array = []  # channel/pool floor
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			var pos = Vector2i(x, z)
+			if grid[x][z] == Tile.WALL:
+				var fdir = _adjacent_floor_dir(x, z)
+				if fdir != Vector2i.ZERO:
+					wall_edges.append({"pos": pos, "dir": fdir})
+			elif grid[x][z] == Tile.FLOOR:
+				if is_water(pos):
+					water_tiles.append(pos)
+				elif not _reserved.has(pos):
+					floor_tiles.append(pos)
+
+	_place_sewer_torches(wall_edges, pal)
+	_place_sewer_pipes(wall_edges, pal)
+	_place_sewer_steam(water_tiles, pal)
+	_place_sewer_grates(water_tiles, pal)
+	_place_sewer_doors(pal)
+	_place_sewer_manholes(pal)
+	_place_sewer_rubble(wall_edges, pal)
+	_place_sewer_mice(floor_tiles)
+
+	print("[DUNGEON] Sewer dressing: %d torches, %d candidate walls, %d water tiles" % [
+		torch_positions.size(), wall_edges.size(), water_tiles.size()])
+
+func _adjacent_floor_dir(x: int, z: int) -> Vector2i:
+	## For a wall tile, the cardinal direction toward an adjacent floor (or ZERO).
+	for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var nx = x + dir.x
+		var nz = z + dir.y
+		if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H and grid[nx][nz] == Tile.FLOOR:
+			return dir
+	return Vector2i.ZERO
+
+func _spaced_sample(candidates: Array, want: int, min_gap: int) -> Array:
+	## Deterministically pick up to `want` entries keeping a minimum tile gap.
+	## Each entry must expose a "pos" Vector2i.
+	var chosen: Array = []
+	var taken: Array = []
+	var pool := candidates.duplicate()
+	# Fisher–Yates with the seeded RNG so picks are deterministic per layout.
+	for i in range(pool.size() - 1, 0, -1):
+		var j = _rng.randi_range(0, i)
+		var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp
+	for entry in pool:
+		if chosen.size() >= want:
+			break
+		var p: Vector2i = entry["pos"]
+		var ok = true
+		for t in taken:
+			if absi(t.x - p.x) + absi(t.y - p.y) < min_gap:
+				ok = false
+				break
+		if ok:
+			chosen.append(entry)
+			taken.append(p)
+	return chosen
+
+func _place_sewer_torches(wall_edges: Array, pal: Dictionary) -> void:
+	## Wrought brackets with a live flame and a real (flickering) point light.
+	var want = clampi(wall_edges.size() / 13, 8, 26)
+	var picks = _spaced_sample(wall_edges, want, 5)
+	var flame_col: Color = pal.get("torch", Color(1.0, 0.62, 0.28))
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		var dir: Vector2i = entry["dir"]
+		torch_positions.append(pos)
+		var root = Node3D.new()
+		root.name = "Torch"
+		var base = Vector3(pos.x + 0.5, 0, pos.y + 0.5)
+		var into = Vector3(dir.x, 0, dir.y) * 0.45  # nudge out of the wall into the room
+		root.position = base + into + Vector3(0, 1.25, 0)
+		_visuals_root.add_child(root)
+
+		# Iron bracket arm.
+		var bracket = MeshInstance3D.new()
+		var arm = CylinderMesh.new()
+		arm.top_radius = 0.03
+		arm.bottom_radius = 0.04
+		arm.height = 0.42
+		arm.radial_segments = 5
+		bracket.mesh = arm
+		bracket.rotation_degrees = Vector3(0, 0, 90)
+		var iron = StandardMaterial3D.new()
+		iron.albedo_color = Color(0.10, 0.10, 0.11)
+		iron.metallic = 0.7
+		iron.roughness = 0.6
+		bracket.material_override = iron
+		bracket.position = -into * 0.5
+		root.add_child(bracket)
+
+		# Flame: an emissive teardrop that always glows.
+		var flame = MeshInstance3D.new()
+		var fmesh = SphereMesh.new()
+		fmesh.radius = 0.1
+		fmesh.height = 0.28
+		fmesh.radial_segments = 7
+		fmesh.rings = 5
+		flame.mesh = fmesh
+		flame.position = Vector3(0, 0.18, 0)
+		var fmat = StandardMaterial3D.new()
+		fmat.albedo_color = flame_col
+		fmat.emission_enabled = true
+		fmat.emission = flame_col
+		fmat.emission_energy_multiplier = 3.0
+		fmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		flame.material_override = fmat
+		root.add_child(flame)
+
+		# Real flickering light.
+		var light = TorchFlicker.new()
+		light.light_color = flame_col
+		light.light_energy = 2.4
+		light.omni_range = 7.5
+		light.omni_attenuation = 1.4
+		light.shadow_enabled = false
+		light.position = Vector3(0, 0.2, 0)
+		root.add_child(light)
+
+func _place_sewer_pipes(wall_edges: Array, pal: Dictionary) -> void:
+	## Wall pipes that jut into the room and pour a thin stream of water.
+	var want = clampi(wall_edges.size() / 22, 4, 12)
+	# Bias toward walls that overlook water so the pour lands in the channel.
+	var over_water: Array = []
+	for entry in wall_edges:
+		var p: Vector2i = entry["pos"]
+		var d: Vector2i = entry["dir"]
+		if is_water(p + d):
+			over_water.append(entry)
+	var pool := over_water if over_water.size() >= want else wall_edges
+	var picks = _spaced_sample(pool, want, 6)
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		var dir: Vector2i = entry["dir"]
+		var into = Vector3(dir.x, 0, dir.y)
+		var root = Node3D.new()
+		root.name = "SewerPipe"
+		root.position = Vector3(pos.x + 0.5, 1.0, pos.y + 0.5) + into * 0.35
+		_visuals_root.add_child(root)
+
+		# The pipe: a stout cylinder protruding from the wall, elbowing down.
+		var pipe = MeshInstance3D.new()
+		var pmesh = CylinderMesh.new()
+		pmesh.top_radius = 0.13
+		pmesh.bottom_radius = 0.13
+		pmesh.height = 0.55
+		pmesh.radial_segments = 8
+		pipe.mesh = pmesh
+		# Lay the cylinder along the into-direction (it points out of the wall).
+		if dir.x != 0:
+			pipe.rotation_degrees = Vector3(0, 0, 90)
+		else:
+			pipe.rotation_degrees = Vector3(90, 0, 0)
+		var metal = StandardMaterial3D.new()
+		metal.albedo_color = Color(0.18, 0.20, 0.19)
+		metal.metallic = 0.6
+		metal.roughness = 0.7
+		pipe.material_override = metal
+		root.add_child(pipe)
+
+		# A rusty rim at the mouth.
+		var rim = MeshInstance3D.new()
+		var rmesh = TorusMesh.new()
+		rmesh.inner_radius = 0.10
+		rmesh.outer_radius = 0.16
+		rim.mesh = rmesh
+		if dir.x != 0:
+			rim.rotation_degrees = Vector3(0, 0, 90)
+		else:
+			rim.rotation_degrees = Vector3(90, 0, 0)
+		var rust = StandardMaterial3D.new()
+		rust.albedo_color = Color(0.28, 0.18, 0.10)
+		rust.roughness = 0.9
+		rim.material_override = rust
+		rim.position = into * 0.28
+		root.add_child(rim)
+
+		# Falling water: a thin particle stream from the mouth to the floor.
+		var stream = _make_water_stream()
+		stream.position = into * 0.28
+		root.add_child(stream)
+
+		# Faint splash where it lands.
+		var splash = MeshInstance3D.new()
+		var smesh = CylinderMesh.new()
+		smesh.top_radius = 0.22
+		smesh.bottom_radius = 0.22
+		smesh.height = 0.02
+		smesh.radial_segments = 10
+		splash.mesh = smesh
+		var smat = StandardMaterial3D.new()
+		smat.albedo_color = pal.get("water_edge", Color(0.13, 0.22, 0.18)).lightened(0.1)
+		smat.emission_enabled = true
+		smat.emission = smat.albedo_color
+		smat.emission_energy_multiplier = 0.3
+		splash.material_override = smat
+		splash.position = into * 0.28 + Vector3(0, -1.0, 0)
+		root.add_child(splash)
+
+func _make_water_stream() -> GPUParticles3D:
+	var pm = ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, -1, 0)
+	pm.spread = 4.0
+	pm.gravity = Vector3(0, -9.0, 0)
+	pm.initial_velocity_min = 0.4
+	pm.initial_velocity_max = 0.9
+	pm.scale_min = 0.5
+	pm.scale_max = 1.0
+	var drop = SphereMesh.new()
+	drop.radius = 0.025
+	drop.height = 0.07
+	drop.radial_segments = 5
+	drop.rings = 3
+	var dmat = StandardMaterial3D.new()
+	dmat.albedo_color = Color(0.55, 0.70, 0.72, 0.7)
+	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dmat.emission_enabled = true
+	dmat.emission = Color(0.4, 0.55, 0.55)
+	dmat.emission_energy_multiplier = 0.4
+	drop.material = dmat
+	var p = GPUParticles3D.new()
+	p.process_material = pm
+	p.draw_pass_1 = drop
+	p.amount = 18
+	p.lifetime = 0.7
+	p.preprocess = 0.7
+	p.local_coords = false
+	return p
+
+func _place_sewer_steam(water_tiles: Array, pal: Dictionary) -> void:
+	## Slow columns of warm steam rising off the water.
+	if water_tiles.is_empty():
+		return
+	var entries: Array = []
+	for p in water_tiles:
+		entries.append({"pos": p})
+	var want = clampi(water_tiles.size() / 18, 4, 14)
+	var picks = _spaced_sample(entries, want, 4)
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		var steam = _make_steam()
+		steam.position = Vector3(pos.x + 0.5, 0.05, pos.y + 0.5)
+		_visuals_root.add_child(steam)
+
+func _make_steam() -> GPUParticles3D:
+	var pm = ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 8.0
+	pm.gravity = Vector3(0, 0.35, 0)
+	pm.initial_velocity_min = 0.2
+	pm.initial_velocity_max = 0.5
+	pm.scale_min = 1.4
+	pm.scale_max = 2.6
+	pm.color = Color(0.7, 0.78, 0.76, 0.10)
+	var puff = QuadMesh.new()
+	puff.size = Vector2(0.6, 0.6)
+	var qmat = StandardMaterial3D.new()
+	qmat.albedo_color = Color(0.72, 0.80, 0.78, 0.10)
+	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	qmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	qmat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	qmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	puff.material = qmat
+	var p = GPUParticles3D.new()
+	p.process_material = pm
+	p.draw_pass_1 = puff
+	p.amount = 10
+	p.lifetime = 3.2
+	p.preprocess = 3.0
+	p.local_coords = false
+	return p
+
+func _place_sewer_grates(water_tiles: Array, pal: Dictionary) -> void:
+	## Iron grates set over a few stretches of the channel.
+	if water_tiles.is_empty():
+		return
+	var entries: Array = []
+	for p in water_tiles:
+		entries.append({"pos": p})
+	var want = clampi(water_tiles.size() / 14, 3, 10)
+	var picks = _spaced_sample(entries, want, 3)
+	var bar_mat = StandardMaterial3D.new()
+	bar_mat.albedo_color = Color(0.13, 0.13, 0.14)
+	bar_mat.metallic = 0.7
+	bar_mat.roughness = 0.6
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		var root = Node3D.new()
+		root.name = "Grate"
+		root.position = Vector3(pos.x + 0.5, -0.08, pos.y + 0.5)
+		_visuals_root.add_child(root)
+		# A frame plus four bars across.
+		for i in range(4):
+			var bar = MeshInstance3D.new()
+			var bmesh = BoxMesh.new()
+			bmesh.size = Vector3(0.9, 0.05, 0.08)
+			bar.mesh = bmesh
+			bar.material_override = bar_mat
+			bar.position = Vector3(0, 0, -0.33 + i * 0.22)
+			root.add_child(bar)
+
+func _place_sewer_doors(pal: Dictionary) -> void:
+	## Big circular stone valve-doors recessed into the wall at a few cistern
+	## mouths — the rolled-aside discs that seal passages in the sewer.
+	var placed = 0
+	for room in rooms:
+		if placed >= 5:
+			break
+		if room["kind"] not in ["chamber", "arena", "deep"]:
+			continue
+		if _rng.randf() > 0.6:
+			continue
+		var rect: Rect2i = room["rect"]
+		# Find a wall tile on the room's perimeter to host the disc.
+		var host = _find_perimeter_wall(rect)
+		if host["pos"] == Vector2i(-1, -1):
+			continue
+		var pos: Vector2i = host["pos"]
+		var dir: Vector2i = host["dir"]
+		var into = Vector3(dir.x, 0, dir.y)
+		var root = Node3D.new()
+		root.name = "SlidingDoor"
+		root.position = Vector3(pos.x + 0.5, 0.85, pos.y + 0.5) + into * 0.1
+		_visuals_root.add_child(root)
+
+		var disc = MeshInstance3D.new()
+		var dmesh = CylinderMesh.new()
+		dmesh.top_radius = 0.85
+		dmesh.bottom_radius = 0.85
+		dmesh.height = 0.22
+		dmesh.radial_segments = 20
+		disc.mesh = dmesh
+		# Stand the disc upright, facing into the room.
+		if dir.x != 0:
+			disc.rotation_degrees = Vector3(0, 0, 90)
+		else:
+			disc.rotation_degrees = Vector3(90, 0, 0)
+		var stone = StandardMaterial3D.new()
+		stone.albedo_color = pal["wall_a"].lightened(0.05)
+		stone.roughness = 0.95
+		disc.material_override = stone
+		root.add_child(disc)
+
+		# Concentric hub ring so it reads as a valve/door, not a plain cylinder.
+		var hub = MeshInstance3D.new()
+		var hmesh = TorusMesh.new()
+		hmesh.inner_radius = 0.28
+		hmesh.outer_radius = 0.42
+		hub.mesh = hmesh
+		if dir.x != 0:
+			hub.rotation_degrees = Vector3(0, 0, 90)
+		else:
+			hub.rotation_degrees = Vector3(90, 0, 0)
+		var iron = StandardMaterial3D.new()
+		iron.albedo_color = Color(0.16, 0.16, 0.17)
+		iron.metallic = 0.6
+		iron.roughness = 0.7
+		hub.material_override = iron
+		hub.position = into * 0.13
+		root.add_child(hub)
+		placed += 1
+
+func _find_perimeter_wall(rect: Rect2i) -> Dictionary:
+	## A wall tile just outside the rect that borders the room (with facing dir).
+	var tries = [
+		{"pos": Vector2i(rect.get_center().x, rect.position.y - 1), "dir": Vector2i(0, 1)},
+		{"pos": Vector2i(rect.get_center().x, rect.end.y), "dir": Vector2i(0, -1)},
+		{"pos": Vector2i(rect.position.x - 1, rect.get_center().y), "dir": Vector2i(1, 0)},
+		{"pos": Vector2i(rect.end.x, rect.get_center().y), "dir": Vector2i(-1, 0)},
+	]
+	for t in tries:
+		var p: Vector2i = t["pos"]
+		if p.x <= 0 or p.x >= GRID_W - 1 or p.y <= 0 or p.y >= GRID_H - 1:
+			continue
+		if grid[p.x][p.y] == Tile.WALL and grid[p.x + t["dir"].x][p.y + t["dir"].y] == Tile.FLOOR:
+			return t
+	return {"pos": Vector2i(-1, -1), "dir": Vector2i.ZERO}
+
+func _place_sewer_manholes(pal: Dictionary) -> void:
+	## Heavy round covers set flush in the chamber floors — flavour shafts to the
+	## streets above. Non-interactive; the real exit is the portal site.
+	for room in rooms:
+		if room["kind"] not in ["chamber", "deep"]:
+			continue
+		if _rng.randf() > 0.4:
+			continue
+		var rect: Rect2i = room["rect"]
+		var cell = Vector2i(rect.get_center().x, rect.get_center().y)
+		if not is_floor(cell) or _reserved.has(cell) or is_water(cell):
+			continue
+		var cover = MeshInstance3D.new()
+		cover.name = "Manhole"
+		var cmesh = CylinderMesh.new()
+		cmesh.top_radius = 0.42
+		cmesh.bottom_radius = 0.42
+		cmesh.height = 0.04
+		cmesh.radial_segments = 18
+		cover.mesh = cmesh
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.14, 0.15, 0.15)
+		mat.metallic = 0.5
+		mat.roughness = 0.8
+		cover.material_override = mat
+		cover.position = Vector3(cell.x + 0.5, 0.02, cell.y + 0.5)
+		_visuals_root.add_child(cover)
+
+func _place_sewer_rubble(wall_edges: Array, pal: Dictionary) -> void:
+	## Damp rubble and algae patches hugging the walls, as a MultiMesh.
+	var rubble: Array = []
+	var moss: Array = []
+	for entry in wall_edges:
+		var pos: Vector2i = entry["pos"]
+		var dir: Vector2i = entry["dir"]
+		var floor_pos = pos + dir
+		if not is_floor(floor_pos) or _reserved.has(floor_pos):
+			continue
+		var n = _tile_noise(pos.x, pos.y, 53)
+		var into = Vector3(dir.x, 0, dir.y)
+		var center = Vector3(floor_pos.x + 0.5, 0, floor_pos.y + 0.5) - into * 0.3
+		var rot = Basis(Vector3.UP, _tile_noise(pos.x, pos.y, 71) * TAU)
+		if n < 0.16:
+			var s = 0.12 + _tile_noise(pos.x, pos.y, 91) * 0.2
+			rubble.append({
+				"xform": Transform3D(rot * Basis.from_scale(Vector3(s * 1.4, s, s * 1.2)),
+					center + Vector3(0, s * 0.5, 0)),
+				"color": pal["wall_b"].lerp(pal["floor_b"], n * 3.0),
+			})
+		elif n > 0.86:
+			# Flat algae smear on the floor at the wall foot.
+			moss.append({
+				"xform": Transform3D(rot * Basis.from_scale(Vector3(0.5, 0.02, 0.5)),
+					center + Vector3(0, 0.01, 0)),
+				"color": pal["accent"].lerp(pal["floor_a"], _tile_noise(pos.x, pos.y, 89) * 0.5),
+			})
+	_add_multimesh(BoxMesh.new(), rubble)
+	if not moss.is_empty():
+		_add_multimesh(BoxMesh.new(), moss)
+
+func _place_sewer_mice(floor_tiles: Array) -> void:
+	## A handful of background sewer mice scuttling near the walls.
+	if floor_tiles.size() < 8:
+		return
+	var entries: Array = []
+	for p in floor_tiles:
+		entries.append({"pos": p})
+	var want = clampi(floor_tiles.size() / 60, 4, 9)
+	var picks = _spaced_sample(entries, want, 6)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		var mouse = SewerCritter.new()
+		mouse.name = "Mouse_%d" % i
+		_visuals_root.add_child(mouse)
+		mouse.setup(Vector3(pos.x + 0.5, 0.0, pos.y + 0.5), _layout_seed + i * 131)
+
+# ============================================
+# FOREST FEATURES — climbable trees, hunter traps, bear traps and pits.
+# These are gameplay objects (reserved tiles, queried by main.gd), placed during
+# the interactables phase so chests/enemies avoid them.
+# ============================================
+
+func _place_forest_features() -> void:
+	# Gather candidate floor cells, split into clearing interiors and trail tiles.
+	var clearing_cells: Array = []
+	var trail_cells: Array = []
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			var pos = Vector2i(x, z)
+			if grid[x][z] != Tile.FLOOR or _reserved.has(pos):
+				continue
+			if _in_a_clearing(pos):
+				clearing_cells.append({"pos": pos})
+			else:
+				trail_cells.append({"pos": pos})
+
+	_place_forest_pits(clearing_cells)
+	_place_climbable_trees(clearing_cells)
+	_place_bear_traps(clearing_cells + trail_cells)
+	_place_dart_traps(trail_cells)
+
+	print("[DUNGEON] Forest features: %d trees, %d traps, %d pits" % [
+		tree_nodes.size(), trap_defs.size(), pit_tiles.size()])
+
+func _in_a_clearing(pos: Vector2i) -> bool:
+	for room in rooms:
+		if not room.has("center"):
+			continue
+		var c: Vector2i = room["center"]
+		var r: int = room.get("radius", 3)
+		if (pos - c).length_squared() <= (r - 1) * (r - 1):
+			return true
+	return false
+
+func _place_forest_pits(clearing_cells: Array) -> void:
+	## A few impassable holes in the clearings (blocked + reserved so nothing
+	## spawns on them; main.gd treats them as obstacles).
+	if clearing_cells.size() < 6:
+		return
+	var want = clampi(clearing_cells.size() / 70, 2, 6)
+	var picks = _spaced_sample(clearing_cells, want, 6)
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		if pos == player_start:
+			continue
+		pit_tiles[pos] = true
+		_reserved[pos] = true
+		# Recessed dark hole with a raised earthen rim.
+		var hole = MeshInstance3D.new()
+		hole.name = "Pit"
+		var hmesh = BoxMesh.new()
+		hmesh.size = Vector3(0.94, 0.5, 0.94)
+		hole.mesh = hmesh
+		var hmat = StandardMaterial3D.new()
+		hmat.albedo_color = Color(0.03, 0.03, 0.03)
+		hmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		hole.material_override = hmat
+		hole.position = Vector3(pos.x + 0.5, -0.28, pos.y + 0.5)
+		_visuals_root.add_child(hole)
+
+func _place_climbable_trees(clearing_cells: Array) -> void:
+	## Sturdy trees with a distinct low branch the player can climb (Shift) for
+	## high ground. Each occupies a reserved, blocked tile.
+	if clearing_cells.is_empty():
+		return
+	var want = clampi(clearing_cells.size() / 55, 2, 6)
+	var picks = _spaced_sample(clearing_cells, want, 7)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		if pos == player_start or _reserved.has(pos):
+			continue
+		_reserved[pos] = true
+		var root = Node3D.new()
+		root.name = "ClimbTree_%d" % i
+		root.position = Vector3(pos.x + 0.5, 0, pos.y + 0.5)
+		_build_tree_mesh(root, 1.0, true)
+
+		var label = Label3D.new()
+		label.name = "InteractLabel"
+		label.text = "[Shift] Climb"
+		label.font_size = 16
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.modulate = Color(0.7, 1.0, 0.5)
+		label.position = Vector3(0, 1.5, 0)
+		label.visible = false
+		root.add_child(label)
+		_visuals_root.add_child(root)
+
+		tree_nodes.append({
+			"node": root,
+			"grid_pos": pos,
+			"label_node": label,
+			"climbed": false,
+		})
+
+func _build_tree_mesh(root: Node3D, scale: float, climbable: bool) -> void:
+	## Shared tree visual: trunk + canopy, and (for climbable trees) a distinct
+	## low branch that signals it can be climbed.
+	var pal = get_palette()
+	var bark = StandardMaterial3D.new()
+	bark.albedo_color = pal.get("bark", Color(0.26, 0.18, 0.11))
+	bark.roughness = 1.0
+	var leaf = StandardMaterial3D.new()
+	leaf.albedo_color = pal.get("leaf", Color(0.20, 0.40, 0.16))
+	leaf.roughness = 1.0
+
+	var trunk = MeshInstance3D.new()
+	var tmesh = CylinderMesh.new()
+	tmesh.top_radius = 0.16 * scale
+	tmesh.bottom_radius = 0.24 * scale
+	tmesh.height = 2.6 * scale
+	tmesh.radial_segments = 8
+	trunk.mesh = tmesh
+	trunk.material_override = bark
+	trunk.position = Vector3(0, 1.3 * scale, 0)
+	root.add_child(trunk)
+
+	# Canopy: a couple of overlapping leaf clusters.
+	for off in [Vector3(0, 2.9, 0), Vector3(0.35, 2.6, 0.2), Vector3(-0.3, 2.7, -0.25)]:
+		var canopy = MeshInstance3D.new()
+		var cmesh = SphereMesh.new()
+		cmesh.radius = 0.7 * scale
+		cmesh.height = 1.3 * scale
+		cmesh.radial_segments = 8
+		cmesh.rings = 5
+		canopy.mesh = cmesh
+		canopy.material_override = leaf
+		canopy.position = off * scale
+		root.add_child(canopy)
+
+	if climbable:
+		# A distinct, near-horizontal low branch — the climbing handhold.
+		var branch = MeshInstance3D.new()
+		var bmesh = CylinderMesh.new()
+		bmesh.top_radius = 0.06
+		bmesh.bottom_radius = 0.10
+		bmesh.height = 0.9
+		bmesh.radial_segments = 6
+		branch.mesh = bmesh
+		branch.rotation_degrees = Vector3(0, 0, 68)  # juts out and slightly up
+		branch.material_override = bark
+		branch.position = Vector3(0.45, 1.05, 0)
+		root.add_child(branch)
+		# A small leaf tuft on the branch tip so it reads as the obvious foothold.
+		var tuft = MeshInstance3D.new()
+		var tmesh2 = SphereMesh.new()
+		tmesh2.radius = 0.22
+		tmesh2.height = 0.4
+		tmesh2.radial_segments = 6
+		tmesh2.rings = 4
+		tuft.mesh = tmesh2
+		var bright = StandardMaterial3D.new()
+		bright.albedo_color = pal.get("leaf_b", Color(0.28, 0.48, 0.20))
+		bright.roughness = 1.0
+		tuft.material_override = bright
+		tuft.position = Vector3(0.78, 1.2, 0)
+		root.add_child(tuft)
+
+func _place_bear_traps(cells: Array) -> void:
+	## Iron jaw traps on the ground — 7 damage to anything that steps on them
+	## (10 to bears). Single use; main.gd springs and disarms them.
+	if cells.is_empty():
+		return
+	var want = clampi(cells.size() / 45, 3, 9)
+	var picks = _spaced_sample(cells, want, 5)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		if _reserved.has(pos) or pit_tiles.has(pos):
+			continue
+		_reserved[pos] = true
+		var root = Node3D.new()
+		root.name = "BearTrap_%d" % i
+		root.position = Vector3(pos.x + 0.5, 0.02, pos.y + 0.5)
+		_visuals_root.add_child(root)
+		_build_bear_trap_mesh(root)
+		trap_defs.append({
+			"kind": "bear",
+			"tiles": [pos],
+			"grid_pos": pos,
+			"node": root,
+			"sprung": false,
+		})
+
+func _build_bear_trap_mesh(root: Node3D) -> void:
+	var iron = StandardMaterial3D.new()
+	iron.albedo_color = Color(0.16, 0.16, 0.17)
+	iron.metallic = 0.7
+	iron.roughness = 0.5
+	# Base ring.
+	var ring = MeshInstance3D.new()
+	var rmesh = TorusMesh.new()
+	rmesh.inner_radius = 0.20
+	rmesh.outer_radius = 0.34
+	ring.mesh = rmesh
+	ring.material_override = iron
+	root.add_child(ring)
+	# Jaw teeth around the rim.
+	for k in range(8):
+		var a = TAU * k / 8.0
+		var tooth = MeshInstance3D.new()
+		var cone = CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = 0.05
+		cone.height = 0.22
+		cone.radial_segments = 4
+		tooth.mesh = cone
+		tooth.material_override = iron
+		tooth.position = Vector3(cos(a) * 0.27, 0.11, sin(a) * 0.27)
+		tooth.rotation_degrees = Vector3(rad_to_deg(a) * 0.0, 0, 0)
+		root.add_child(tooth)
+	# Pressure plate.
+	var plate = MeshInstance3D.new()
+	var pmesh = CylinderMesh.new()
+	pmesh.top_radius = 0.16
+	pmesh.bottom_radius = 0.16
+	pmesh.height = 0.03
+	plate.mesh = pmesh
+	var pmat = StandardMaterial3D.new()
+	pmat.albedo_color = Color(0.22, 0.20, 0.16)
+	plate.material_override = pmat
+	plate.position = Vector3(0, 0.02, 0)
+	root.add_child(plate)
+
+func _place_dart_traps(trail_cells: Array) -> void:
+	## Hunters' tripwire traps: a wire strung across a trail; crossing it fires
+	## darts from a tube mounted on a nearby tree. main.gd handles the volley.
+	if trail_cells.size() < 6:
+		return
+	var want = clampi(trail_cells.size() / 60, 2, 6)
+	var picks = _spaced_sample(trail_cells, want, 8)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		if _reserved.has(pos):
+			continue
+		# The tripwire spans this tile and its two cross-trail neighbours.
+		var perp = _trail_perp(pos)
+		var line: Array = [pos]
+		for s in [-1, 1]:
+			var t = pos + perp * s
+			if is_floor(t) and not _reserved.has(t):
+				line.append(t)
+		for t in line:
+			_reserved[t] = true
+
+		var root = Node3D.new()
+		root.name = "DartTrap_%d" % i
+		_visuals_root.add_child(root)
+		_build_dart_trap_mesh(root, pos, perp)
+		trap_defs.append({
+			"kind": "dart",
+			"tiles": line,
+			"grid_pos": pos,
+			"node": root,
+			"sprung": false,
+		})
+
+func _trail_perp(pos: Vector2i) -> Vector2i:
+	## A direction across the trail at pos (perpendicular to where the floor runs).
+	# If floor continues east/west, the wire runs north/south, and vice-versa.
+	var horizontal = is_floor(pos + Vector2i(1, 0)) or is_floor(pos + Vector2i(-1, 0))
+	return Vector2i(0, 1) if horizontal else Vector2i(1, 0)
+
+func _build_dart_trap_mesh(root: Node3D, pos: Vector2i, perp: Vector2i) -> void:
+	var pal = get_palette()
+	# The tripwire: a thin dark line just above the ground spanning the trail.
+	var wire = MeshInstance3D.new()
+	var wmesh = BoxMesh.new()
+	wmesh.size = Vector3(0.04 + abs(perp.x) * 2.6, 0.03, 0.04 + abs(perp.y) * 2.6)
+	wire.mesh = wmesh
+	var wmat = StandardMaterial3D.new()
+	wmat.albedo_color = Color(0.12, 0.10, 0.07)
+	wire.material_override = wmat
+	wire.position = Vector3(pos.x + 0.5, 0.12, pos.y + 0.5)
+	root.add_child(wire)
+
+	# A dart tube mounted on a post at the trail's edge, aimed across the wire.
+	var post_pos = Vector3(pos.x + 0.5 - perp.x * 1.6, 0, pos.y + 0.5 - perp.y * 1.6)
+	var tube = MeshInstance3D.new()
+	var tmesh = CylinderMesh.new()
+	tmesh.top_radius = 0.07
+	tmesh.bottom_radius = 0.07
+	tmesh.height = 0.5
+	tmesh.radial_segments = 6
+	tube.mesh = tmesh
+	# Lay the tube along the firing direction (toward the wire).
+	if perp.x != 0:
+		tube.rotation_degrees = Vector3(0, 0, 90)
+	else:
+		tube.rotation_degrees = Vector3(90, 0, 0)
+	var tmat = StandardMaterial3D.new()
+	tmat.albedo_color = pal.get("bark", Color(0.26, 0.18, 0.11)).darkened(0.2)
+	tmat.metallic = 0.3
+	tube.material_override = tmat
+	tube.position = post_pos + Vector3(0, 0.9, 0)
+	root.add_child(tube)
+
+# ============================================
+# FOREST DECORATIONS — background trees, stumps, bushes, ferns and squirrels.
+# Pure visuals, placed in the decoration pass (avoids reserved feature tiles).
+# ============================================
+
+func _build_forest_decorations() -> void:
+	var pal = get_palette()
+	var trunk_items: Array = []
+	var canopy_items: Array = []
+	var stump_items: Array = []
+	var bush_items: Array = []
+	var floor_cells: Array = []
+
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			var pos = Vector2i(x, z)
+			if grid[x][z] != Tile.FLOOR:
+				continue
+			if not _reserved.has(pos):
+				floor_cells.append(pos)
+			var near_wall = not _has_adjacent_floor_on_all_sides(x, z)
+			if _reserved.has(pos):
+				continue
+			var n = _tile_noise(x, z, 53)
+			var jx = (_tile_noise(x, z, 61) - 0.5) * 0.4
+			var jz = (_tile_noise(x, z, 67) - 0.5) * 0.4
+			var y_base = elevation[x][z] * ELEV_STEP
+			var rot = Basis(Vector3.UP, _tile_noise(x, z, 71) * TAU)
+			if near_wall and n < 0.30:
+				# Background tree hugging the treeline (trunk + canopy multimesh).
+				var s = 0.7 + _tile_noise(x, z, 73) * 0.7
+				trunk_items.append({
+					"xform": Transform3D(Basis.from_scale(Vector3(0.2 * s, 1.4 * s, 0.2 * s)),
+						Vector3(x + 0.5 + jx, y_base + 0.7 * s, z + 0.5 + jz)),
+					"color": pal["bark"],
+				})
+				canopy_items.append({
+					"xform": Transform3D(rot * Basis.from_scale(Vector3(0.9 * s, 1.0 * s, 0.9 * s)),
+						Vector3(x + 0.5 + jx, y_base + 1.7 * s, z + 0.5 + jz)),
+					"color": pal["leaf"].lerp(pal["leaf_b"], _tile_noise(x, z, 79)),
+				})
+			elif near_wall and n < 0.40:
+				# Mossy stump.
+				var ss = 0.2 + _tile_noise(x, z, 81) * 0.15
+				stump_items.append({
+					"xform": Transform3D(rot * Basis.from_scale(Vector3(ss * 1.3, ss, ss * 1.3)),
+						Vector3(x + 0.5 + jx, y_base + ss * 0.5, z + 0.5 + jz)),
+					"color": pal["bark"].lerp(pal["accent"], 0.3),
+				})
+			elif n > 0.90:
+				# Open-field bush / fern.
+				var bs = 0.4 + _tile_noise(x, z, 83) * 0.4
+				bush_items.append({
+					"xform": Transform3D(rot * Basis.from_scale(Vector3(bs, bs * 0.7, bs)),
+						Vector3(x + 0.5 + jx, y_base + bs * 0.3, z + 0.5 + jz)),
+					"color": pal["accent"].lerp(pal["leaf"], _tile_noise(x, z, 89)),
+				})
+
+	_add_multimesh(_cylinder_mesh(0.5, 0.5, 1.0), trunk_items)
+	if not canopy_items.is_empty():
+		var cmesh = SphereMesh.new()
+		cmesh.radial_segments = 8
+		cmesh.rings = 5
+		_add_multimesh(cmesh, canopy_items)
+	_add_multimesh(_cylinder_mesh(0.5, 0.55, 1.0), stump_items)
+	if not bush_items.is_empty():
+		var bmesh = SphereMesh.new()
+		bmesh.radial_segments = 8
+		bmesh.rings = 5
+		_add_multimesh(bmesh, bush_items)
+
+	_place_forest_squirrels(floor_cells)
+	print("[DUNGEON] Forest dressing: %d trees, %d stumps, %d bushes" % [
+		trunk_items.size(), stump_items.size(), bush_items.size()])
+
+func _cylinder_mesh(top_r: float, bot_r: float, h: float) -> CylinderMesh:
+	var m = CylinderMesh.new()
+	m.top_radius = top_r
+	m.bottom_radius = bot_r
+	m.height = h
+	m.radial_segments = 8
+	return m
+
+func _place_forest_squirrels(floor_cells: Array) -> void:
+	## Background squirrels darting about the clearings. Cosmetic only.
+	if floor_cells.size() < 10:
+		return
+	var entries: Array = []
+	for p in floor_cells:
+		entries.append({"pos": p})
+	var want = clampi(floor_cells.size() / 70, 4, 10)
+	var picks = _spaced_sample(entries, want, 7)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		var sq = SewerCritter.new()
+		sq.name = "Squirrel_%d" % i
+		_visuals_root.add_child(sq)
+		sq.setup(Vector3(pos.x + 0.5, 0.0, pos.y + 0.5), _layout_seed + i * 197, "squirrel")
+
+# ============================================
+# FOREST QUERIES (for main.gd: climbing, traps, blocked tiles)
+# ============================================
+
+func get_nearby_climbable_tree(player_grid: Vector2i) -> int:
+	## Index of a climbable tree within 1 tile of the player, or -1.
+	for i in range(tree_nodes.size()):
+		var tp: Vector2i = tree_nodes[i]["grid_pos"]
+		if absi(player_grid.x - tp.x) + absi(player_grid.y - tp.y) <= 1:
+			return i
+	return -1
+
+func update_tree_prompts(player_grid: Vector2i) -> void:
+	for tree in tree_nodes:
+		var tp: Vector2i = tree["grid_pos"]
+		var revealed = is_revealed(tp)
+		if tree["node"] and is_instance_valid(tree["node"]):
+			tree["node"].visible = revealed
+		var lbl = tree["label_node"]
+		if lbl:
+			var dist = absi(player_grid.x - tp.x) + absi(player_grid.y - tp.y)
+			lbl.visible = revealed and dist <= 2 and not tree["climbed"]
+
+func get_obstacle_tiles() -> Array[Vector2i]:
+	## Tree trunks and pits block movement (queried by main.gd for pathfinding).
+	var tiles: Array[Vector2i] = []
+	for tree in tree_nodes:
+		tiles.append(tree["grid_pos"])
+	for p in pit_tiles.keys():
+		tiles.append(p)
+	return tiles
+
+# ============================================
+# CAVE DRESSING — stalagmites (floor), stalactites (ceiling), divots and pebbles.
+# Puddles are flagged in the layout and drawn by _build_floor_visuals. The whole
+# place reads as a network of dripping stone tunnels.
+# ============================================
+
+func _build_cave_decorations() -> void:
+	var pal = get_palette()
+	var stalagmite_items: Array = []  # upward cones rooted to the floor
+	var stalactite_items: Array = []  # downward cones hanging into the tunnel
+	var divot_items: Array = []       # small dark floor depressions
+	var pebble_items: Array = []      # scattered rubble
+
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.FLOOR:
+				continue
+			var pos = Vector2i(x, z)
+			if _reserved.has(pos):
+				continue
+			var near_wall = not _has_adjacent_floor_on_all_sides(x, z)
+			var n = _tile_noise(x, z, 53)
+			var jx = (_tile_noise(x, z, 61) - 0.5) * 0.5
+			var jz = (_tile_noise(x, z, 67) - 0.5) * 0.5
+			var rot = Basis(Vector3.UP, _tile_noise(x, z, 71) * TAU)
+			var is_wet = is_water(pos)
+
+			if near_wall and n < 0.16:
+				# Stalagmite rising from the floor.
+				var s = 0.3 + _tile_noise(x, z, 73) * 0.5
+				stalagmite_items.append({
+					"xform": Transform3D(rot * Basis.from_scale(Vector3(s * 0.7, s * 1.7, s * 0.7)),
+						Vector3(x + 0.5 + jx, s * 0.85, z + 0.5 + jz)),
+					"color": pal["wall_a"].lerp(pal["wall_b"], n * 3.0),
+				})
+			elif near_wall and n < 0.30:
+				# Stalactite hanging from the gloom above, point downward.
+				var hs = 0.25 + _tile_noise(x, z, 77) * 0.4
+				var flip = Basis(Vector3(1, 0, 0), PI)  # invert the cone
+				stalactite_items.append({
+					"xform": Transform3D(rot * flip * Basis.from_scale(Vector3(hs * 0.6, hs * 1.8, hs * 0.6)),
+						Vector3(x + 0.5 + jx, 2.9 - hs * 0.9, z + 0.5 + jz)),
+					"color": pal["wall_a"].lerp(pal["wall_b"], n * 2.0),
+				})
+			elif not is_wet and n > 0.93:
+				# A shallow divot pressed into the cave floor.
+				divot_items.append({
+					"xform": Transform3D(rot * Basis.from_scale(Vector3(0.5, 0.04, 0.5)),
+						Vector3(x + 0.5 + jx, -0.06, z + 0.5 + jz)),
+					"color": pal["floor_b"].darkened(0.4),
+				})
+			elif near_wall and n > 0.78:
+				pebble_items.append(_make_rock(x, z, jx, jz, 0.0, rot, pal))
+
+	var up_cone = CylinderMesh.new()
+	up_cone.top_radius = 0.03
+	up_cone.bottom_radius = 0.5
+	up_cone.height = 1.0
+	up_cone.radial_segments = 8
+	_add_multimesh(up_cone, stalagmite_items)
+
+	var hang_cone = CylinderMesh.new()
+	hang_cone.top_radius = 0.03
+	hang_cone.bottom_radius = 0.5
+	hang_cone.height = 1.0
+	hang_cone.radial_segments = 8
+	_add_multimesh(hang_cone, stalactite_items)
+
+	_add_multimesh(BoxMesh.new(), divot_items)
+	_add_multimesh(BoxMesh.new(), pebble_items)
+
+	# A few slow drips falling from the larger stalactites add life to the gloom.
+	_place_cave_drips(stalactite_items)
+	print("[DUNGEON] Cave dressing: %d stalagmites, %d stalactites, %d divots" % [
+		stalagmite_items.size(), stalactite_items.size(), divot_items.size()])
+
+func _place_cave_drips(stalactite_items: Array) -> void:
+	if stalactite_items.is_empty():
+		return
+	var want = clampi(stalactite_items.size() / 8, 2, 8)
+	var step = maxi(1, stalactite_items.size() / want)
+	var made = 0
+	for i in range(0, stalactite_items.size(), step):
+		if made >= want:
+			break
+		var origin: Vector3 = stalactite_items[i]["xform"].origin
+		var drip = _make_water_stream()
+		drip.amount = 5
+		drip.lifetime = 1.4
+		drip.position = Vector3(origin.x, origin.y - 0.4, origin.z)
+		_visuals_root.add_child(drip)
+		made += 1
+
+# ============================================
 # FOG OF WAR (MultiMesh — one instance per tile)
 # ============================================
 
@@ -950,10 +2276,11 @@ func reveal_around(center: Vector2i) -> void:
 	## Permanently reveals tiles within FOG_REVEAL_RADIUS of center.
 	if not _fog_initialized:
 		return
-	for dx in range(-FOG_REVEAL_RADIUS, FOG_REVEAL_RADIUS + 1):
-		for dz in range(-FOG_REVEAL_RADIUS, FOG_REVEAL_RADIUS + 1):
+	var r = fog_reveal_radius
+	for dx in range(-r, r + 1):
+		for dz in range(-r, r + 1):
 			# Circular reveal (Euclidean distance)
-			if dx * dx + dz * dz > FOG_REVEAL_RADIUS * FOG_REVEAL_RADIUS:
+			if dx * dx + dz * dz > r * r:
 				continue
 			var nx = center.x + dx
 			var nz = center.y + dz
@@ -981,16 +2308,23 @@ func update_enemy_fog_visibility(enemies: Array, gm: GridManager) -> void:
 
 func _place_sites() -> void:
 	## Picks suitable field rooms and erects cave entrances / building exteriors.
+	## World 1 gets two extra slots for the opening sewer grate and a forest
+	## trailhead (on top of its usual cave + building), so all four are present.
 	var site_total = 2 + (world_level - 1)
+	if world_level == 1:
+		site_total += 2
 	var cave_count = 0
 	var building_count = 0
+	var sewer_count = 0
+	var forest_count = 0
 	var candidates: Array = []
 	for i in range(rooms.size()):
 		var room = rooms[i]
 		if room["kind"] != "field" or room["elev"] > 0:
 			continue
 		var rect: Rect2i = room["rect"]
-		if rect.size.x >= 8 and rect.size.y >= 7:
+		# Room must fit the largest footprint (building, 4 wide) with a margin.
+		if rect.size.x >= 7 and rect.size.y >= 6:
 			candidates.append(i)
 
 	for s in range(site_total):
@@ -1000,9 +2334,19 @@ func _place_sites() -> void:
 		var room_idx = candidates[pick]
 		candidates.remove_at(pick)
 		var rect: Rect2i = rooms[room_idx]["rect"]
-		var kind = "cave" if s % 2 == 0 else "building"
+		# On the surface world (Act 1, World 1) the very first site is a sewer
+		# grate — the game opens by descending into the sewers (see STORY.md).
+		var kind: String
+		if world_level == 1 and s == 0:
+			kind = "sewer"
+		elif world_level == 1 and s == 1:
+			kind = "forest"
+		elif s % 2 == 0:
+			kind = "cave"
+		else:
+			kind = "building"
 
-		var fp_w = 3 if kind == "cave" else 4
+		var fp_w = 4 if kind == "building" else 3
 		var fp_d = 3
 		# Footprint sits in the upper part of the room, entrance opens south
 		var fx = clampi(rect.get_center().x - fp_w / 2, rect.position.x + 1, rect.end.x - fp_w - 1)
@@ -1020,14 +2364,23 @@ func _place_sites() -> void:
 
 		var id: String
 		var display_name: String
-		if kind == "cave":
-			id = "cave_%d" % cave_count
-			display_name = "Cave"
-			cave_count += 1
-		else:
-			id = "building_%d" % building_count
-			display_name = "Building"
-			building_count += 1
+		match kind:
+			"sewer":
+				id = "sewer_%d" % sewer_count
+				display_name = "Sewer Entrance"
+				sewer_count += 1
+			"forest":
+				id = "forest_%d" % forest_count
+				display_name = "Forest Trail"
+				forest_count += 1
+			"building":
+				id = "building_%d" % building_count
+				display_name = "Building"
+				building_count += 1
+			_:
+				id = "cave_%d" % cave_count
+				display_name = "Cave"
+				cave_count += 1
 
 		_create_site(kind, id, display_name, footprint, entrance, fx, fz, fp_w, fp_d)
 
@@ -1081,10 +2434,15 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	var center = Vector3(fx + fp_w / 2.0, 0, fz + fp_d / 2.0)
 	site_root.position = center
 
-	if kind == "building":
-		_build_building_exterior(site_root, fp_w, fp_d)
-	else:
-		_build_cave_entrance(site_root, fp_w, fp_d)
+	match kind:
+		"building":
+			_build_building_exterior(site_root, fp_w, fp_d)
+		"sewer":
+			_build_sewer_entrance(site_root, fp_w, fp_d)
+		"forest":
+			_build_forest_entrance(site_root, fp_w, fp_d)
+		_:
+			_build_cave_entrance(site_root, fp_w, fp_d)
 
 	# Name label floating above the structure
 	var label = Label3D.new()
@@ -1219,6 +2577,123 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	open_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	opening.material_override = open_mat
 	opening.position = Vector3(0, 0.55, fp_d / 2.0 - 0.15)
+	root.add_child(opening)
+
+func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## A low brick headworks with an arched, barred opening descending into the
+	## dark — the manhole/grate the player climbs down to reach the sewers.
+	var brick = StandardMaterial3D.new()
+	brick.albedo_color = Color(0.30, 0.31, 0.29)
+	brick.roughness = 1.0
+
+	# Squat stone surround.
+	var block = MeshInstance3D.new()
+	var bmesh = BoxMesh.new()
+	bmesh.size = Vector3(fp_w - 0.3, 1.3, fp_d - 0.4)
+	block.mesh = bmesh
+	block.material_override = brick
+	block.position = Vector3(0, 0.65, -0.2)
+	root.add_child(block)
+
+	# Arched headstone over the mouth.
+	var arch = MeshInstance3D.new()
+	var amesh = CylinderMesh.new()
+	amesh.top_radius = 0.55
+	amesh.bottom_radius = 0.55
+	amesh.height = fp_w - 0.5
+	amesh.radial_segments = 12
+	arch.mesh = amesh
+	arch.rotation_degrees = Vector3(0, 0, 90)
+	arch.material_override = brick
+	arch.position = Vector3(0, 1.3, -0.2)
+	root.add_child(arch)
+
+	# The dark descending mouth.
+	var mouth = MeshInstance3D.new()
+	var mmesh = BoxMesh.new()
+	mmesh.size = Vector3(1.0, 1.15, 0.5)
+	mouth.mesh = mmesh
+	var mmat = StandardMaterial3D.new()
+	mmat.albedo_color = Color(0.01, 0.02, 0.02)
+	mmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mouth.material_override = mmat
+	mouth.position = Vector3(0, 0.6, fp_d / 2.0 - 0.15)
+	root.add_child(mouth)
+
+	# Iron bars across the mouth (a raised grate).
+	var bar_mat = StandardMaterial3D.new()
+	bar_mat.albedo_color = Color(0.12, 0.12, 0.13)
+	bar_mat.metallic = 0.7
+	bar_mat.roughness = 0.6
+	for i in range(3):
+		var bar = MeshInstance3D.new()
+		var barmesh = BoxMesh.new()
+		barmesh.size = Vector3(0.06, 1.0, 0.06)
+		bar.mesh = barmesh
+		bar.material_override = bar_mat
+		bar.position = Vector3(-0.3 + i * 0.3, 0.6, fp_d / 2.0 + 0.02)
+		root.add_child(bar)
+
+	# A weak green glow leaking up from below.
+	var glow = OmniLight3D.new()
+	glow.light_color = Color(0.4, 0.7, 0.5)
+	glow.light_energy = 0.8
+	glow.omni_range = 3.5
+	glow.position = Vector3(0, 0.3, fp_d / 2.0 - 0.1)
+	root.add_child(glow)
+
+func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## A trailhead: two flanking trees over a wooden arch, opening onto a path
+	## that leads into the deep woods.
+	var bark = StandardMaterial3D.new()
+	bark.albedo_color = Color(0.26, 0.18, 0.11)
+	bark.roughness = 1.0
+	var leaf = StandardMaterial3D.new()
+	leaf.albedo_color = Color(0.20, 0.40, 0.16)
+	leaf.roughness = 1.0
+
+	# Two flanking trees.
+	for side in [-1.0, 1.0]:
+		var trunk = MeshInstance3D.new()
+		var tmesh = CylinderMesh.new()
+		tmesh.top_radius = 0.18
+		tmesh.bottom_radius = 0.26
+		tmesh.height = 2.4
+		tmesh.radial_segments = 8
+		trunk.mesh = tmesh
+		trunk.material_override = bark
+		trunk.position = Vector3(side * fp_w * 0.42, 1.2, -0.1)
+		root.add_child(trunk)
+		var canopy = MeshInstance3D.new()
+		var cmesh = SphereMesh.new()
+		cmesh.radius = 0.9
+		cmesh.height = 1.7
+		cmesh.radial_segments = 8
+		cmesh.rings = 5
+		canopy.mesh = cmesh
+		canopy.material_override = leaf
+		canopy.position = Vector3(side * fp_w * 0.42, 2.7, -0.1)
+		root.add_child(canopy)
+
+	# A simple wooden lintel spanning the two trees.
+	var lintel = MeshInstance3D.new()
+	var lmesh = BoxMesh.new()
+	lmesh.size = Vector3(fp_w * 0.95, 0.18, 0.18)
+	lintel.mesh = lmesh
+	lintel.material_override = bark
+	lintel.position = Vector3(0, 1.9, -0.1)
+	root.add_child(lintel)
+
+	# A shaded opening into the woods.
+	var opening = MeshInstance3D.new()
+	var omesh = BoxMesh.new()
+	omesh.size = Vector3(1.1, 1.5, 0.4)
+	opening.mesh = omesh
+	var omat = StandardMaterial3D.new()
+	omat.albedo_color = Color(0.04, 0.07, 0.04)
+	omat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	opening.material_override = omat
+	opening.position = Vector3(0, 0.75, fp_d / 2.0 - 0.15)
 	root.add_child(opening)
 
 func _place_exit_site() -> void:
@@ -1532,6 +3007,14 @@ func _get_random_card(rng: RandomNumberGenerator) -> Card:
 func _define_spawn_zones() -> void:
 	spawn_zones.clear()
 
+	if interior_kind == "sewer":
+		_define_sewer_spawn_zones()
+		return
+
+	if interior_kind == "forest":
+		_define_forest_spawn_zones()
+		return
+
 	# Enemy tiers scale with world level
 	var base_melee = Enemy.EnemyType.WERERAT if world_level <= 2 else Enemy.EnemyType.SKELETON
 	var mid_melee = Enemy.EnemyType.SKELETON if world_level <= 2 else Enemy.EnemyType.ARMORED_TROLL
@@ -1624,6 +3107,152 @@ func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 		"enemy_types": boss_types,
 		"spawned": false
 	})
+
+# ============================================
+# SEWER SPAWN PROGRESSION
+# West of the Rat King: rats and oozes (the player's first fights). The central
+# cistern is the Rat King and his rat army. East of him the sewer turns deadly —
+# crocodiles, swarms and pipe crawlers.
+# ============================================
+
+func _define_sewer_spawn_zones() -> void:
+	# Locate the Rat King's arena so rooms can be classed as before/after the boss.
+	var arena_x = GRID_W / 2
+	for room in rooms:
+		if room["kind"] == "arena":
+			arena_x = (room["rect"] as Rect2i).get_center().x
+			break
+
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+
+		if kind == "arena":
+			_define_rat_king_zone(rect)
+			continue
+
+		# Pre-boss cisterns crawl with rats and oozes; post-boss ones with the
+		# things that eat the rats.
+		var post_boss = rect.get_center().x >= arena_x
+		var roster: Array
+		if post_boss:
+			roster = [Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.SWARM,
+				Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SLUDGE]
+		else:
+			roster = [Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT,
+				Enemy.EnemyType.WERERAT, Enemy.EnemyType.SLUDGE]
+
+		var zone_chance = 1.0 if kind == "deep" else 0.8
+		if _rng.randf() >= zone_chance:
+			continue
+
+		var count = clampi(2 + rect.get_area() / 32, 2, 5)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(count):
+			var cell = _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			types.append(roster[_rng.randi_range(0, roster.size() - 1)])
+		# The deepest chamber is guarded by a Sewer Crocodile.
+		if kind == "deep" and types.size() > 0:
+			types[0] = Enemy.EnemyType.SEWER_CROC
+		if points.is_empty():
+			continue
+
+		spawn_zones.append({
+			"trigger_rect": rect.grow(1),
+			"spawn_points": points,
+			"enemy_types": types,
+			"spawned": false,
+		})
+
+	for pt_list in spawn_zones:
+		for p in pt_list["spawn_points"]:
+			_reserved[p] = true
+
+	print("[DUNGEON] Defined %d sewer spawn zones (arena_x=%d)" % [spawn_zones.size(), arena_x])
+
+func _define_rat_king_zone(rect: Rect2i) -> void:
+	## The first mini-boss: the Rat King flanked by his swarming army.
+	var c = rect.get_center()
+	var points: Array = [c]
+	var types: Array = [Enemy.EnemyType.RAT_KING]
+	var army = [
+		Enemy.EnemyType.WERERAT, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT,
+		Enemy.EnemyType.WERERAT, Enemy.EnemyType.SWARM, Enemy.EnemyType.ARCHER_RAT,
+		Enemy.EnemyType.SWARM, Enemy.EnemyType.WERERAT,
+	]
+	var offsets = [
+		Vector2i(-2, -1), Vector2i(2, -1), Vector2i(-3, 1), Vector2i(3, 1),
+		Vector2i(0, -3), Vector2i(0, 3), Vector2i(-4, 0), Vector2i(4, 0),
+	]
+	for i in range(offsets.size()):
+		var cell = c + offsets[i]
+		if is_floor(cell) and not (cell in points):
+			points.append(cell)
+			types.append(army[i])
+	spawn_zones.append({
+		"trigger_rect": rect.grow(1),
+		"spawn_points": points,
+		"enemy_types": types,
+		"spawned": false,
+	})
+
+# ============================================
+# FOREST SPAWN PROGRESSION
+# Woodland beasts: packs of coyotes/wolves and bears across the clearings (bears
+# matter because of the bear traps), hawks favouring the hills, and tougher
+# elites deeper in. The deep clearing is guarded by a Large Bear.
+# ============================================
+
+func _define_forest_spawn_zones() -> void:
+	var minions = [Enemy.EnemyType.COYOTE, Enemy.EnemyType.WOLF, Enemy.EnemyType.MINI_BEAR,
+		Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.GIANT_HAWK]
+	var elites = [Enemy.EnemyType.LARGE_BEAR, Enemy.EnemyType.GIANT_BEAVER,
+		Enemy.EnemyType.INFECTED_HUNTER, Enemy.EnemyType.TREANT]
+
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		var zone_chance = 1.0 if kind == "deep" else 0.75
+		if _rng.randf() >= zone_chance:
+			continue
+		var count = clampi(2 + rect.get_area() / 40, 2, 5)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(count):
+			var cell = _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			if room.get("hill", false) and _rng.randf() < 0.5:
+				types.append(Enemy.EnemyType.GIANT_HAWK)  # hawks rule the high ground
+			elif _rng.randf() < 0.22:
+				types.append(elites[_rng.randi_range(0, elites.size() - 1)])
+			else:
+				types.append(minions[_rng.randi_range(0, minions.size() - 1)])
+		if kind == "deep" and types.size() > 0:
+			types[0] = Enemy.EnemyType.LARGE_BEAR
+		if points.is_empty():
+			continue
+		spawn_zones.append({
+			"trigger_rect": rect.grow(1),
+			"spawn_points": points,
+			"enemy_types": types,
+			"spawned": false,
+		})
+
+	for pt_list in spawn_zones:
+		for p in pt_list["spawn_points"]:
+			_reserved[p] = true
+
+	print("[DUNGEON] Defined %d forest spawn zones" % spawn_zones.size())
 
 # ============================================
 # WAYPOINTS
@@ -1925,3 +3554,8 @@ func clear() -> void:
 	_fog_initialized = false
 	grid.clear()
 	elevation.clear()
+	water.clear()
+	tree_nodes.clear()
+	trap_defs.clear()
+	pit_tiles.clear()
+	torch_positions.clear()

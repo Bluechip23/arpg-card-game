@@ -138,6 +138,13 @@ var _roguelike_relics: Array = []  # Relics carried by the run (drive in-battle 
 # Active fire walls (Fire Goblin Shaman). Each: {tiles, damage, burn, moves_left, visuals}.
 var _fire_walls: Array = []
 
+# Forest hazards & climbing (see DungeonManager forest features).
+const TREE_CANOPY_Y := 2.0          # height the player rests at while up a tree
+const BEAR_TRAP_DAMAGE := 7         # to anything that steps on a sprung trap…
+const BEAR_TRAP_BEAR_DAMAGE := 10   # …but bears take extra
+const DART_TRAP_DAMAGE := 5         # hunters' tripwire dart volley
+var _climbed_tree_tile: Vector2i = Vector2i(-1, -1)  # tree the player is currently up, or (-1,-1)
+
 # Player 2 state
 var _p2_player: Player = null  # The co-op partner's on-grid character (own stats/figure)
 # Co-op control: which character TAB is driving. `player`/`deck_manager` always
@@ -444,6 +451,7 @@ func _process(delta: float) -> void:
 		dungeon_manager.update_chest_prompts(pg)
 		dungeon_manager.update_waypoint_prompts(pg)
 		dungeon_manager.update_site_prompts(pg)
+		dungeon_manager.update_tree_prompts(pg)
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
@@ -2401,6 +2409,13 @@ func _on_player_tile_reached() -> void:
 	# Fire walls (Fire Goblin Shaman): burn the player if they stepped into one.
 	_check_fire_walls(player_cell)
 
+	# Stepping off a climbed tree drops the player back to the ground.
+	if _climbed_tree_tile.x >= 0 and player_cell != _climbed_tree_tile:
+		_clear_climbed_tree()
+
+	# Forest hazards: bear traps / hunters' darts spring on whoever steps on them.
+	_trigger_terrain_traps_for(player_cell, player, true)
+
 	# Player Y follows terrain smoothly via ground_y_provider (see player.gd)
 
 	# Normal per-tile tempo
@@ -2917,6 +2932,10 @@ func _on_enemy_exposed(enemy: Enemy) -> void:
 func _on_enemy_movement_completed(enemy: Enemy) -> void:
 	# Enemy Y follows terrain smoothly via ground_y_provider (see enemy.gd)
 
+	# Forest hazards: an enemy can blunder into a bear trap or tripwire too.
+	if dungeon_manager and is_instance_valid(enemy) and not enemy.is_dead:
+		_trigger_terrain_traps_for(grid_manager.world_to_grid(enemy.position), enemy, false)
+
 	# Cory: Territorial Death — check if enemy entered or left melee range
 	var dist = player.position.distance_to(enemy.position)
 	var in_melee = dist <= 1.8  # Slightly larger than 1.5 to catch edge cases
@@ -3095,6 +3114,136 @@ func _burn_player_from_fire(damage: int, burn: int) -> void:
 		for _i in range(burn):
 			dm.apply_debuff(Debuff.new(Debuff.DebuffType.BURN, 1))
 	add_battle_log("Fire wall burns you for %d (+%d burn)!" % [damage, burn], Color(1.0, 0.4, 0.1))
+
+# ============================================
+# FOREST HAZARDS — bear traps & hunters' tripwire darts
+# ============================================
+
+func _trigger_terrain_traps_for(cell: Vector2i, unit, is_player: bool) -> void:
+	## Springs any armed forest trap on `cell`. Bear traps and dart tripwires are
+	## single-use: once sprung they no longer trigger.
+	if not dungeon_manager:
+		return
+	for trap in dungeon_manager.trap_defs:
+		if trap.get("sprung", false):
+			continue
+		if not trap["tiles"].has(cell):
+			continue
+		trap["sprung"] = true
+		_spring_trap(trap, unit, is_player)
+
+func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
+	var kind: String = trap["kind"]
+	var dmg: int
+	var label: String
+	if kind == "bear":
+		dmg = BEAR_TRAP_DAMAGE
+		if not is_player and _is_bear(unit):
+			dmg = BEAR_TRAP_BEAR_DAMAGE
+		label = "bear trap"
+	else:
+		dmg = DART_TRAP_DAMAGE
+		label = "hunters' darts"
+
+	if is_player:
+		var stats = player.get_stats()
+		if stats:
+			var dmgr = player.get_debuff_manager() if player.has_method("get_debuff_manager") else null
+			var bmgr = player.get_buff_manager() if player.has_method("get_buff_manager") else null
+			stats.take_damage(dmg, dmgr, bmgr)
+		add_battle_log("A %s snaps shut — %d damage!" % [label, dmg], Color(0.9, 0.5, 0.2))
+	elif is_instance_valid(unit):
+		unit.take_damage(dmg, false)
+		add_battle_log("%s hits a %s for %d!" % [unit.enemy_name, label, dmg], Color(0.8, 0.7, 0.4))
+
+	_animate_trap_sprung(trap)
+
+func _is_bear(enemy) -> bool:
+	if not is_instance_valid(enemy):
+		return false
+	if enemy.enemy_type == Enemy.EnemyType.MINI_BEAR or enemy.enemy_type == Enemy.EnemyType.LARGE_BEAR:
+		return true
+	return "Bear" in enemy.enemy_name
+
+func _animate_trap_sprung(trap: Dictionary) -> void:
+	## Visual feedback: bear traps darken (snapped shut); dart traps flash red.
+	var node = trap.get("node")
+	if not node or not is_instance_valid(node):
+		return
+	var tint = Color(0.35, 0.1, 0.1) if trap["kind"] == "dart" else Color(0.08, 0.08, 0.09)
+	for child in node.get_children():
+		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+			(child.material_override as StandardMaterial3D).albedo_color = tint
+
+# ============================================
+# CLIMBABLE TREES — climb a low branch for high ground (forest)
+# ============================================
+
+func _try_climb_tree() -> bool:
+	## Shift near a climbable tree: climb up (high ground) or, if already up, down.
+	if not dungeon_manager:
+		return false
+	if _climbed_tree_tile.x >= 0:
+		_climb_down()
+		return true
+	var pg = grid_manager.world_to_grid(player.position)
+	var idx = dungeon_manager.get_nearby_climbable_tree(pg)
+	if idx < 0:
+		return false
+	var tree = dungeon_manager.tree_nodes[idx]
+	var tile: Vector2i = tree["grid_pos"]
+	var wpos = grid_manager.grid_to_world(tile)
+	wpos.y = TREE_CANOPY_Y
+	player.position = wpos
+	player.target_position = wpos
+	_climbed_tree_tile = tile
+	tree["climbed"] = true
+	add_battle_log("You climb the tree — high ground!", Color(0.6, 0.9, 0.4))
+
+	# One-time tutorial the first time the player ever climbs.
+	if olorin:
+		olorin.show_tutorial(
+			"first_climbable_tree",
+			"Climbing Trees",
+			[
+				"Some trees have a sturdy low branch you can climb. Press [Shift] beside one to scramble up.",
+				"From the branches you hold the high ground: ranged attacks gain damage and reach, and most enemies can't strike you up there. Press [Shift] again — or simply move — to come back down.",
+			]
+		)
+	return true
+
+func _climb_down() -> void:
+	## Drop the player from a tree to the nearest open adjacent floor tile.
+	var base = _climbed_tree_tile
+	_clear_climbed_tree()
+	if base.x < 0:
+		return
+	var occupied: Array[Vector2i] = []
+	for e in enemy_spawner.get_living_enemies():
+		occupied.append(grid_manager.world_to_grid(e.position))
+	for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var t = base + dir
+		if dungeon_manager.is_floor(t) and not dungeon_manager.pit_tiles.has(t) and t not in occupied:
+			var wpos = grid_manager.grid_to_world(t)
+			wpos.y = dungeon_manager.get_elevation_world_y(t)
+			player.position = wpos
+			player.target_position = wpos
+			break
+	add_battle_log("You climb down.", Color(0.7, 0.8, 0.6))
+
+func _clear_climbed_tree() -> void:
+	if _climbed_tree_tile.x < 0:
+		return
+	if dungeon_manager:
+		for tree in dungeon_manager.tree_nodes:
+			if tree["grid_pos"] == _climbed_tree_tile:
+				tree["climbed"] = false
+	_climbed_tree_tile = Vector2i(-1, -1)
+
+func _is_climbed_tree(world_pos: Vector3) -> bool:
+	if _climbed_tree_tile.x < 0:
+		return false
+	return grid_manager.world_to_grid(world_pos) == _climbed_tree_tile
 
 func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
@@ -5367,6 +5516,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Chest / waypoint / cave / building interaction (Shift key)
 		if event.keycode == KEY_SHIFT:
+			if _try_climb_tree():
+				return
 			if _try_interact_site():
 				return
 			if waypoint_mgr._try_interact_waypoint():
@@ -5623,15 +5774,22 @@ func _setup_dungeon() -> void:
 	print("[MAIN] Dungeon initialized (%s), player at %s" % [get_location_label(), start_pos])
 
 func _sync_dungeon_blocked_tiles() -> void:
-	## Combines dungeon wall tiles with barricade tiles for pathfinding.
+	## Combines dungeon walls + barricades + pits for pathfinding. Forest tree
+	## trunks additionally block enemies (the player may climb them).
 	var tiles: Array[Vector2i] = []
 	if dungeon_manager:
 		tiles.append_array(dungeon_manager.get_wall_tiles())
+		for p in dungeon_manager.pit_tiles.keys():
+			tiles.append(p)
 	for obs in barricade_obstacles:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
 	player.blocked_tiles = tiles
+	var enemy_tiles := tiles.duplicate()
+	if dungeon_manager:
+		for tree in dungeon_manager.tree_nodes:
+			enemy_tiles.append(tree["grid_pos"])
 	for enemy in enemy_spawner.get_living_enemies():
-		enemy.blocked_tiles = tiles
+		enemy.blocked_tiles = enemy_tiles
 
 func _check_dungeon_zones() -> void:
 	## Check if player has entered any new spawn zones.
@@ -5776,10 +5934,12 @@ func get_location_label() -> String:
 	return "World %d — %s" % [current_world_level, dungeon_manager.get_location_name()]
 
 func _desired_ground_y(world_pos: Vector3) -> float:
-	## The Y a unit standing at world_pos should rest at (pillar or terrain).
+	## The Y a unit standing at world_pos should rest at (pillar, tree, or terrain).
 	## Player and enemies glide toward this each frame for smooth climbs.
 	if is_on_pillar(world_pos):
 		return 2.0
+	if _is_climbed_tree(world_pos):
+		return TREE_CANOPY_Y
 	if dungeon_manager and grid_manager:
 		return dungeon_manager.get_elevation_world_y(grid_manager.world_to_grid(world_pos))
 	return 0.0
@@ -5792,18 +5952,31 @@ func _apply_world_ambience() -> void:
 	var pal: Dictionary = dungeon_manager.get_palette()
 	var in_cave = current_interior_id.begins_with("cave")
 	var in_building = current_interior_id.begins_with("building")
+	var in_sewer = current_interior_id.begins_with("sewer")
+	var in_forest = current_interior_id.begins_with("forest")
 
 	var world_env = get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_env and world_env.environment:
 		var env = world_env.environment
 		env.ambient_light_color = pal.get("ambient", Color(0.3, 0.3, 0.35))
-		env.ambient_light_energy = 0.35 if in_cave else 0.55
+		if in_cave:
+			env.ambient_light_energy = 0.14  # darker even than the sewers
+		elif in_sewer:
+			env.ambient_light_energy = 0.20  # near-lightless; torches do the work
+		elif in_forest:
+			env.ambient_light_energy = 0.70  # bright, sun-dappled woodland
+		else:
+			env.ambient_light_energy = 0.55
 		env.fog_enabled = true
 		env.fog_light_color = pal.get("ambient", Color(0.2, 0.2, 0.25)).darkened(0.55)
 		if in_cave:
-			env.fog_density = 0.025
+			env.fog_density = 0.045  # heavy underground gloom
+		elif in_sewer:
+			env.fog_density = 0.035  # thick, dank haze that swallows the far walls
 		elif in_building:
 			env.fog_density = 0.012
+		elif in_forest:
+			env.fog_density = 0.004  # clear, open air
 		else:
 			env.fog_density = 0.006
 		env.ssao_enabled = true
@@ -5814,10 +5987,38 @@ func _apply_world_ambience() -> void:
 		sun.light_color = pal.get("sun", Color(1, 0.95, 0.9))
 		var energy: float = pal.get("sun_energy", 1.2)
 		if in_cave:
-			energy = 0.4
+			energy = 0.16
+		elif in_sewer:
+			energy = 0.22
 		elif in_building:
 			energy = 0.8
+		elif in_forest:
+			energy = pal.get("sun_energy", 1.35)  # full dappled daylight
 		sun.light_energy = energy
+
+	# Underground (sewers and caves), each player carries their own pool of light.
+	_ensure_player_torch(in_sewer or in_cave)
+
+func _ensure_player_torch(enable: bool) -> void:
+	## Gives each player a warm point light (the "lit circle" around the
+	## character) while underground in the sewers; removes it elsewhere.
+	for p in _all_players():
+		if p == null or not is_instance_valid(p):
+			continue
+		var existing = p.get_node_or_null("PlayerTorch")
+		if enable:
+			if existing == null:
+				var torch = OmniLight3D.new()
+				torch.name = "PlayerTorch"
+				torch.light_color = Color(1.0, 0.86, 0.62)
+				torch.light_energy = 2.8
+				torch.omni_range = 9.0
+				torch.omni_attenuation = 1.1
+				torch.shadow_enabled = false
+				torch.position = Vector3(0, 1.2, 0)
+				p.add_child(torch)
+		elif existing:
+			existing.queue_free()
 
 
 # ============================================
@@ -6697,8 +6898,10 @@ func is_on_pillar(world_pos: Vector3) -> bool:
 	return false
 
 func _is_on_high_ground(world_pos: Vector3) -> bool:
-	## Returns true if the position is elevated (pillar or terrain elevation > 0).
+	## Returns true if the position is elevated (pillar, climbed tree, or terrain).
 	if is_on_pillar(world_pos):
+		return true
+	if _is_climbed_tree(world_pos):
 		return true
 	if dungeon_manager:
 		var grid_pos = grid_manager.world_to_grid(world_pos)
@@ -6711,6 +6914,8 @@ func _has_high_ground(attacker_pos: Vector3, target) -> bool:
 	if target and is_instance_valid(target) and "immune_to_high_ground" in target and target.immune_to_high_ground:
 		return false
 	if is_on_pillar(attacker_pos):
+		return true
+	if _is_climbed_tree(attacker_pos):
 		return true
 	if dungeon_manager and target and is_instance_valid(target):
 		var attacker_grid = grid_manager.world_to_grid(attacker_pos)
