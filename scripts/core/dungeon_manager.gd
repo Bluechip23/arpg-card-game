@@ -133,13 +133,40 @@ const BUILDING_PALETTE := {
 	"sun_energy": 0.8,
 }
 
+# Damp, lightless brickwork. Greens of algae and stagnant water over cold grey
+# stone — the first dungeon the player ever descends into (Act 1, the Sewers).
+const SEWER_PALETTE := {
+	"name": "Sewers",
+	"ground": Color(0.04, 0.05, 0.05),
+	"floor_a": Color(0.18, 0.20, 0.18),   # wet, mossy brick
+	"floor_b": Color(0.12, 0.14, 0.13),
+	"wall_a": Color(0.20, 0.22, 0.21),    # slick stone block
+	"wall_b": Color(0.12, 0.13, 0.13),
+	"cliff": Color(0.15, 0.17, 0.16),
+	"step": Color(0.24, 0.26, 0.24),
+	"accent": Color(0.20, 0.34, 0.22),    # algae green
+	"ambient": Color(0.16, 0.20, 0.19),
+	"sun": Color(0.55, 0.62, 0.60),
+	"sun_energy": 0.3,
+	"water": Color(0.07, 0.14, 0.12),     # murky channel water
+	"water_edge": Color(0.13, 0.22, 0.18),
+	"torch": Color(1.0, 0.62, 0.28),      # warm bracket flame
+}
+
 # ============================================
 # STATE
 # ============================================
 
 var grid: Array = []        # 2D array [x][z] of Tile
 var elevation: Array = []   # 2D array [x][z] of int (0 = ground, 1+ = elevated)
+var water: Array = []       # 2D bool array [x][z] — true where floor is a water channel
 var rooms: Array = []       # [{rect: Rect2i, kind: String, elev: int}]
+
+# Tiles where flavour lights live (sewer torches), so ambience code can tune them
+var torch_positions: Array = []  # [Vector2i]
+
+# Per-location fog radius. Sewers reveal less, keeping them claustrophobic.
+var fog_reveal_radius: int = FOG_REVEAL_RADIUS
 
 var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, body_mesh, lid_mesh}]
 var spawn_zones: Array = []     # [{trigger_rect, spawn_points, enemy_types, spawned}]
@@ -189,6 +216,11 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "cave"
 	elif interior_id.begins_with("building"):
 		interior_kind = "building"
+	elif interior_id.begins_with("sewer"):
+		interior_kind = "sewer"
+
+	# Sewers are tight and lightless: the player sees less of them at once.
+	fog_reveal_radius = 4 if interior_kind == "sewer" else FOG_REVEAL_RADIUS
 
 	_layout_seed = hash("layout_w%d_%s" % [world_level, interior_id])
 	_rng.seed = _layout_seed
@@ -206,11 +238,14 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	_parent.add_child(_visuals_root)
 
 	# Layout + elevation
+	_init_water()
 	match interior_kind:
 		"cave":
 			_generate_cave_layout()
 		"building":
 			_generate_building_layout()
+		"sewer":
+			_generate_sewer_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -255,6 +290,13 @@ func _set_world_size() -> void:
 		GRID_H = 18 + world_level / 2
 		player_start = Vector2i(2, GRID_H / 2)
 		return
+	if interior_kind == "sewer":
+		# A long descent: wide enough for a winding network, tall enough for
+		# branching water channels. The player enters at the far west.
+		GRID_W = 56 + world_level * 2
+		GRID_H = 34 + world_level
+		player_start = Vector2i(3, GRID_H / 2)
+		return
 	match world_level:
 		1:
 			GRID_W = 70
@@ -281,6 +323,8 @@ func get_palette() -> Dictionary:
 		return CAVE_PALETTE
 	if interior_kind == "building":
 		return BUILDING_PALETTE
+	if interior_kind == "sewer":
+		return SEWER_PALETTE
 	return WORLD_PALETTES.get(world_level, WORLD_PALETTES[1])
 
 func get_location_name() -> String:
@@ -288,6 +332,8 @@ func get_location_name() -> String:
 		return "Cave %d" % (int(interior_id.get_slice("_", 1)) + 1)
 	if interior_kind == "building":
 		return "Building %d" % (int(interior_id.get_slice("_", 1)) + 1)
+	if interior_kind == "sewer":
+		return "Sewers"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -488,6 +534,92 @@ func _enforce_border_walls() -> void:
 		grid[GRID_W - 1][z] = Tile.WALL
 
 # ============================================
+# SEWER INTERIOR LAYOUT
+# A main trunk tunnel (with a water channel down its spine) runs west→east.
+# Cistern chambers bud off it above and below, joined by short shafts. A central
+# cistern is the Rat King's arena; the far-east chamber is the deepest point.
+# This reads as a man-made sewer line rather than an organic cave.
+# ============================================
+
+func _generate_sewer_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	torch_positions.clear()
+	var mid_z = GRID_H / 2
+
+	# --- Main trunk: a 3-wide tunnel the length of the sewer. The centre row is
+	# a flowing water channel (still walkable — the player wades the shallows). ---
+	for x in range(1, GRID_W - 1):
+		for dz in range(-1, 2):
+			grid[x][mid_z + dz] = Tile.FLOOR
+		water[x][mid_z] = true
+
+	# --- Entry chamber (far west), where the player drops in. ---
+	var entry = Rect2i(1, mid_z - 3, 7, 7)
+	_carve_rect(entry)
+	rooms.append({"rect": entry, "kind": "start", "elev": 0})
+
+	# --- Cistern chambers budding off the trunk, alternating above and below. ---
+	var chamber_count = 5 + world_level
+	var spacing = maxi(6, (GRID_W - 22) / chamber_count)
+	var arena_i = chamber_count / 2  # the middle cistern is the Rat King's lair
+	for i in range(chamber_count):
+		var cx = 13 + i * spacing
+		if cx > GRID_W - 12:
+			break
+		var above = (i % 2 == 0)
+		var is_arena = (i == arena_i)
+		var rw = _rng.randi_range(7, 9) if not is_arena else 11
+		var rh = _rng.randi_range(5, 6) if not is_arena else 9
+		var rx = clampi(cx - rw / 2, 2, GRID_W - rw - 2)
+		var rz: int
+		if above:
+			rz = clampi(mid_z - 3 - rh, 1, GRID_H - rh - 2)
+		else:
+			rz = clampi(mid_z + 4, 1, GRID_H - rh - 2)
+		var rect = Rect2i(rx, rz, rw, rh)
+		_carve_rect(rect)
+		rooms.append({"rect": rect, "kind": "arena" if is_arena else "chamber", "elev": 0})
+
+		# A 2-wide access shaft from the chamber down/up to the trunk.
+		var shaft_x = clampi(rect.get_center().x, rect.position.x + 1, rect.end.x - 2)
+		var join_z = rect.end.y - 1 if above else rect.position.y
+		_carve_corridor_v(shaft_x, mid_z, join_z)
+		_carve_corridor_v(shaft_x + 1, mid_z, join_z)
+
+		# Roughly half the cisterns hold a standing pool fed by a branch channel.
+		if _rng.randf() < 0.5:
+			var pool = rect.grow(-2)
+			if pool.size.x >= 2 and pool.size.y >= 2:
+				_flag_water_rect(pool)
+				# branch the channel from the trunk up/down the access shaft
+				var bz0 = mini(mid_z, join_z)
+				var bz1 = maxi(mid_z, join_z)
+				for z in range(bz0, bz1 + 1):
+					if z >= 0 and z < GRID_H and grid[shaft_x][z] == Tile.FLOOR:
+						water[shaft_x][z] = true
+
+	# --- Deepest chamber (far east), just before the exit shaft. ---
+	var deep = Rect2i(GRID_W - 9, mid_z - 4, 8, 9)
+	deep.position.x = clampi(deep.position.x, 2, GRID_W - deep.size.x - 2)
+	_carve_rect(deep)
+	rooms.append({"rect": deep, "kind": "deep", "elev": 0})
+	_flag_water_rect(Rect2i(deep.position.x + 1, deep.position.y + 1, deep.size.x - 2, 3))
+
+	_enforce_border_walls()
+	# Border enforcement may have clipped channel tiles back to wall — clean up.
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.FLOOR:
+				water[x][z] = false
+
+func _flag_water_rect(rect: Rect2i) -> void:
+	for x in range(maxi(1, rect.position.x), mini(rect.end.x, GRID_W - 1)):
+		for z in range(maxi(1, rect.position.y), mini(rect.end.y, GRID_H - 1)):
+			if grid[x][z] == Tile.FLOOR:
+				water[x][z] = true
+
+# ============================================
 # BUILDING INTERIOR LAYOUT
 # A central hall with rooms partitioned off either side, joined by doorways.
 # ============================================
@@ -562,6 +694,21 @@ func _init_grid_walls() -> void:
 			col.append(Tile.WALL)
 		grid.append(col)
 
+func _init_water() -> void:
+	water.clear()
+	for x in range(GRID_W):
+		var col: Array = []
+		for z in range(GRID_H):
+			col.append(false)
+		water.append(col)
+
+func is_water(grid_pos: Vector2i) -> bool:
+	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
+		return false
+	if water.is_empty():
+		return false
+	return water[grid_pos.x][grid_pos.y]
+
 func _carve_rect(rect: Rect2i) -> void:
 	for x in range(maxi(0, rect.position.x), mini(rect.end.x, GRID_W)):
 		for z in range(maxi(0, rect.position.y), mini(rect.end.y, GRID_H)):
@@ -597,6 +744,8 @@ func _generate_elevation() -> void:
 
 	if interior_kind == "building":
 		return  # Buildings are flat inside
+	if interior_kind == "sewer":
+		return  # Sewers are flat; channels are carved into the floor, not raised
 
 	var elevated_count = 0
 	for i in range(rooms.size()):
@@ -680,13 +829,27 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 
 func _build_floor_visuals() -> void:
 	## Per-tile ground at elevation 0 with subtle natural color variation.
+	## Sewer water channels render as a darker, glossy surface sunk below the brick.
 	var pal = get_palette()
+	var has_water = pal.has("water")
 	var items: Array = []
+	var water_items: Array = []
 	for x in range(GRID_W):
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.FLOOR or elevation[x][z] > 0:
 				continue
 			var n = _tile_noise(x, z, 11)
+			if has_water and is_water(Vector2i(x, z)):
+				# Murky channel water: thin slab sunk slightly into the floor.
+				var wcol: Color = pal["water"].lerp(pal["water_edge"], n)
+				water_items.append({
+					"xform": Transform3D(
+						Basis.from_scale(Vector3(1.0, 0.06, 1.0)),
+						Vector3(x + 0.5, -0.14, z + 0.5)
+					),
+					"color": wcol,
+				})
+				continue
 			var col: Color = pal["floor_a"].lerp(pal["floor_b"], n)
 			var xform = Transform3D(
 				Basis.from_scale(Vector3(1.0, 0.1, 1.0)),
@@ -694,7 +857,28 @@ func _build_floor_visuals() -> void:
 			)
 			items.append({"xform": xform, "color": col})
 	_add_multimesh(BoxMesh.new(), items)
-	print("[DUNGEON] Built %d floor tiles" % items.size())
+	if not water_items.is_empty():
+		# Low roughness + faint emission so the water catches torchlight and reads wet.
+		var water_mm = MultiMesh.new()
+		water_mm.transform_format = MultiMesh.TRANSFORM_3D
+		water_mm.use_colors = true
+		water_mm.mesh = BoxMesh.new()
+		water_mm.instance_count = water_items.size()
+		for i in range(water_items.size()):
+			water_mm.set_instance_transform(i, water_items[i]["xform"])
+			water_mm.set_instance_color(i, water_items[i]["color"])
+		var wmmi = MultiMeshInstance3D.new()
+		wmmi.multimesh = water_mm
+		var wmat = StandardMaterial3D.new()
+		wmat.vertex_color_use_as_albedo = true
+		wmat.roughness = 0.12
+		wmat.metallic = 0.35
+		wmat.emission_enabled = true
+		wmat.emission = pal["water"].lightened(0.05)
+		wmat.emission_energy_multiplier = 0.25
+		wmmi.material_override = wmat
+		_visuals_root.add_child(wmmi)
+	print("[DUNGEON] Built %d floor tiles, %d water tiles" % [items.size(), water_items.size()])
 
 func _build_walls() -> void:
 	## Rock walls with varied heights and shades. Walls beside elevated terrain
@@ -818,7 +1002,11 @@ func _build_elevation_visuals() -> void:
 
 func _build_decorations() -> void:
 	## Scatters small non-blocking props for natural variety: rocks and shrubs
-	## outdoors, stalagmites in caves, crates inside buildings.
+	## outdoors, stalagmites in caves, crates inside buildings, and a full kit of
+	## sewer dressing (pipes, torches, steam, grates, doors, mice) underground.
+	if interior_kind == "sewer":
+		_build_sewer_decorations()
+		return
 	var pal = get_palette()
 	var rock_items: Array = []
 	var bush_items: Array = []
@@ -906,6 +1094,474 @@ func _has_adjacent_floor_on_all_sides(x: int, z: int) -> bool:
 	return true
 
 # ============================================
+# SEWER DRESSING
+# Wall torches (real flickering lights), pipes that pour water, rising steam,
+# floor grates over the channel, circular sliding doors at the cistern mouths,
+# manholes, scuttling mice and damp rubble. All cosmetic and non-blocking.
+# ============================================
+
+func _build_sewer_decorations() -> void:
+	var pal = get_palette()
+
+	# Catalogue the candidate sites once.
+	var wall_edges: Array = []   # [{pos: Vector2i, dir: Vector2i (wall→floor)}]
+	var floor_tiles: Array = []  # dry, unreserved floor
+	var water_tiles: Array = []  # channel/pool floor
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			var pos = Vector2i(x, z)
+			if grid[x][z] == Tile.WALL:
+				var fdir = _adjacent_floor_dir(x, z)
+				if fdir != Vector2i.ZERO:
+					wall_edges.append({"pos": pos, "dir": fdir})
+			elif grid[x][z] == Tile.FLOOR:
+				if is_water(pos):
+					water_tiles.append(pos)
+				elif not _reserved.has(pos):
+					floor_tiles.append(pos)
+
+	_place_sewer_torches(wall_edges, pal)
+	_place_sewer_pipes(wall_edges, pal)
+	_place_sewer_steam(water_tiles, pal)
+	_place_sewer_grates(water_tiles, pal)
+	_place_sewer_doors(pal)
+	_place_sewer_manholes(pal)
+	_place_sewer_rubble(wall_edges, pal)
+	_place_sewer_mice(floor_tiles)
+
+	print("[DUNGEON] Sewer dressing: %d torches, %d candidate walls, %d water tiles" % [
+		torch_positions.size(), wall_edges.size(), water_tiles.size()])
+
+func _adjacent_floor_dir(x: int, z: int) -> Vector2i:
+	## For a wall tile, the cardinal direction toward an adjacent floor (or ZERO).
+	for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var nx = x + dir.x
+		var nz = z + dir.y
+		if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H and grid[nx][nz] == Tile.FLOOR:
+			return dir
+	return Vector2i.ZERO
+
+func _spaced_sample(candidates: Array, want: int, min_gap: int) -> Array:
+	## Deterministically pick up to `want` entries keeping a minimum tile gap.
+	## Each entry must expose a "pos" Vector2i.
+	var chosen: Array = []
+	var taken: Array = []
+	var pool := candidates.duplicate()
+	# Fisher–Yates with the seeded RNG so picks are deterministic per layout.
+	for i in range(pool.size() - 1, 0, -1):
+		var j = _rng.randi_range(0, i)
+		var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp
+	for entry in pool:
+		if chosen.size() >= want:
+			break
+		var p: Vector2i = entry["pos"]
+		var ok = true
+		for t in taken:
+			if absi(t.x - p.x) + absi(t.y - p.y) < min_gap:
+				ok = false
+				break
+		if ok:
+			chosen.append(entry)
+			taken.append(p)
+	return chosen
+
+func _place_sewer_torches(wall_edges: Array, pal: Dictionary) -> void:
+	## Wrought brackets with a live flame and a real (flickering) point light.
+	var want = clampi(wall_edges.size() / 13, 8, 26)
+	var picks = _spaced_sample(wall_edges, want, 5)
+	var flame_col: Color = pal.get("torch", Color(1.0, 0.62, 0.28))
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		var dir: Vector2i = entry["dir"]
+		torch_positions.append(pos)
+		var root = Node3D.new()
+		root.name = "Torch"
+		var base = Vector3(pos.x + 0.5, 0, pos.y + 0.5)
+		var into = Vector3(dir.x, 0, dir.y) * 0.45  # nudge out of the wall into the room
+		root.position = base + into + Vector3(0, 1.25, 0)
+		_visuals_root.add_child(root)
+
+		# Iron bracket arm.
+		var bracket = MeshInstance3D.new()
+		var arm = CylinderMesh.new()
+		arm.top_radius = 0.03
+		arm.bottom_radius = 0.04
+		arm.height = 0.42
+		arm.radial_segments = 5
+		bracket.mesh = arm
+		bracket.rotation_degrees = Vector3(0, 0, 90)
+		var iron = StandardMaterial3D.new()
+		iron.albedo_color = Color(0.10, 0.10, 0.11)
+		iron.metallic = 0.7
+		iron.roughness = 0.6
+		bracket.material_override = iron
+		bracket.position = -into * 0.5
+		root.add_child(bracket)
+
+		# Flame: an emissive teardrop that always glows.
+		var flame = MeshInstance3D.new()
+		var fmesh = SphereMesh.new()
+		fmesh.radius = 0.1
+		fmesh.height = 0.28
+		fmesh.radial_segments = 7
+		fmesh.rings = 5
+		flame.mesh = fmesh
+		flame.position = Vector3(0, 0.18, 0)
+		var fmat = StandardMaterial3D.new()
+		fmat.albedo_color = flame_col
+		fmat.emission_enabled = true
+		fmat.emission = flame_col
+		fmat.emission_energy_multiplier = 3.0
+		fmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		flame.material_override = fmat
+		root.add_child(flame)
+
+		# Real flickering light.
+		var light = TorchFlicker.new()
+		light.light_color = flame_col
+		light.light_energy = 2.4
+		light.omni_range = 7.5
+		light.omni_attenuation = 1.4
+		light.shadow_enabled = false
+		light.position = Vector3(0, 0.2, 0)
+		root.add_child(light)
+
+func _place_sewer_pipes(wall_edges: Array, pal: Dictionary) -> void:
+	## Wall pipes that jut into the room and pour a thin stream of water.
+	var want = clampi(wall_edges.size() / 22, 4, 12)
+	# Bias toward walls that overlook water so the pour lands in the channel.
+	var over_water: Array = []
+	for entry in wall_edges:
+		var p: Vector2i = entry["pos"]
+		var d: Vector2i = entry["dir"]
+		if is_water(p + d):
+			over_water.append(entry)
+	var pool := over_water if over_water.size() >= want else wall_edges
+	var picks = _spaced_sample(pool, want, 6)
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		var dir: Vector2i = entry["dir"]
+		var into = Vector3(dir.x, 0, dir.y)
+		var root = Node3D.new()
+		root.name = "SewerPipe"
+		root.position = Vector3(pos.x + 0.5, 1.0, pos.y + 0.5) + into * 0.35
+		_visuals_root.add_child(root)
+
+		# The pipe: a stout cylinder protruding from the wall, elbowing down.
+		var pipe = MeshInstance3D.new()
+		var pmesh = CylinderMesh.new()
+		pmesh.top_radius = 0.13
+		pmesh.bottom_radius = 0.13
+		pmesh.height = 0.55
+		pmesh.radial_segments = 8
+		pipe.mesh = pmesh
+		# Lay the cylinder along the into-direction (it points out of the wall).
+		if dir.x != 0:
+			pipe.rotation_degrees = Vector3(0, 0, 90)
+		else:
+			pipe.rotation_degrees = Vector3(90, 0, 0)
+		var metal = StandardMaterial3D.new()
+		metal.albedo_color = Color(0.18, 0.20, 0.19)
+		metal.metallic = 0.6
+		metal.roughness = 0.7
+		pipe.material_override = metal
+		root.add_child(pipe)
+
+		# A rusty rim at the mouth.
+		var rim = MeshInstance3D.new()
+		var rmesh = TorusMesh.new()
+		rmesh.inner_radius = 0.10
+		rmesh.outer_radius = 0.16
+		rim.mesh = rmesh
+		if dir.x != 0:
+			rim.rotation_degrees = Vector3(0, 0, 90)
+		else:
+			rim.rotation_degrees = Vector3(90, 0, 0)
+		var rust = StandardMaterial3D.new()
+		rust.albedo_color = Color(0.28, 0.18, 0.10)
+		rust.roughness = 0.9
+		rim.material_override = rust
+		rim.position = into * 0.28
+		root.add_child(rim)
+
+		# Falling water: a thin particle stream from the mouth to the floor.
+		var stream = _make_water_stream()
+		stream.position = into * 0.28
+		root.add_child(stream)
+
+		# Faint splash where it lands.
+		var splash = MeshInstance3D.new()
+		var smesh = CylinderMesh.new()
+		smesh.top_radius = 0.22
+		smesh.bottom_radius = 0.22
+		smesh.height = 0.02
+		smesh.radial_segments = 10
+		splash.mesh = smesh
+		var smat = StandardMaterial3D.new()
+		smat.albedo_color = pal.get("water_edge", Color(0.13, 0.22, 0.18)).lightened(0.1)
+		smat.emission_enabled = true
+		smat.emission = smat.albedo_color
+		smat.emission_energy_multiplier = 0.3
+		splash.material_override = smat
+		splash.position = into * 0.28 + Vector3(0, -1.0, 0)
+		root.add_child(splash)
+
+func _make_water_stream() -> GPUParticles3D:
+	var pm = ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, -1, 0)
+	pm.spread = 4.0
+	pm.gravity = Vector3(0, -9.0, 0)
+	pm.initial_velocity_min = 0.4
+	pm.initial_velocity_max = 0.9
+	pm.scale_min = 0.5
+	pm.scale_max = 1.0
+	var drop = SphereMesh.new()
+	drop.radius = 0.025
+	drop.height = 0.07
+	drop.radial_segments = 5
+	drop.rings = 3
+	var dmat = StandardMaterial3D.new()
+	dmat.albedo_color = Color(0.55, 0.70, 0.72, 0.7)
+	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dmat.emission_enabled = true
+	dmat.emission = Color(0.4, 0.55, 0.55)
+	dmat.emission_energy_multiplier = 0.4
+	drop.material = dmat
+	var p = GPUParticles3D.new()
+	p.process_material = pm
+	p.draw_pass_1 = drop
+	p.amount = 18
+	p.lifetime = 0.7
+	p.preprocess = 0.7
+	p.local_coords = false
+	return p
+
+func _place_sewer_steam(water_tiles: Array, pal: Dictionary) -> void:
+	## Slow columns of warm steam rising off the water.
+	if water_tiles.is_empty():
+		return
+	var entries: Array = []
+	for p in water_tiles:
+		entries.append({"pos": p})
+	var want = clampi(water_tiles.size() / 18, 4, 14)
+	var picks = _spaced_sample(entries, want, 4)
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		var steam = _make_steam()
+		steam.position = Vector3(pos.x + 0.5, 0.05, pos.y + 0.5)
+		_visuals_root.add_child(steam)
+
+func _make_steam() -> GPUParticles3D:
+	var pm = ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 8.0
+	pm.gravity = Vector3(0, 0.35, 0)
+	pm.initial_velocity_min = 0.2
+	pm.initial_velocity_max = 0.5
+	pm.scale_min = 1.4
+	pm.scale_max = 2.6
+	pm.color = Color(0.7, 0.78, 0.76, 0.10)
+	var puff = QuadMesh.new()
+	puff.size = Vector2(0.6, 0.6)
+	var qmat = StandardMaterial3D.new()
+	qmat.albedo_color = Color(0.72, 0.80, 0.78, 0.10)
+	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	qmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	qmat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	qmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	puff.material = qmat
+	var p = GPUParticles3D.new()
+	p.process_material = pm
+	p.draw_pass_1 = puff
+	p.amount = 10
+	p.lifetime = 3.2
+	p.preprocess = 3.0
+	p.local_coords = false
+	return p
+
+func _place_sewer_grates(water_tiles: Array, pal: Dictionary) -> void:
+	## Iron grates set over a few stretches of the channel.
+	if water_tiles.is_empty():
+		return
+	var entries: Array = []
+	for p in water_tiles:
+		entries.append({"pos": p})
+	var want = clampi(water_tiles.size() / 14, 3, 10)
+	var picks = _spaced_sample(entries, want, 3)
+	var bar_mat = StandardMaterial3D.new()
+	bar_mat.albedo_color = Color(0.13, 0.13, 0.14)
+	bar_mat.metallic = 0.7
+	bar_mat.roughness = 0.6
+	for entry in picks:
+		var pos: Vector2i = entry["pos"]
+		var root = Node3D.new()
+		root.name = "Grate"
+		root.position = Vector3(pos.x + 0.5, -0.08, pos.y + 0.5)
+		_visuals_root.add_child(root)
+		# A frame plus four bars across.
+		for i in range(4):
+			var bar = MeshInstance3D.new()
+			var bmesh = BoxMesh.new()
+			bmesh.size = Vector3(0.9, 0.05, 0.08)
+			bar.mesh = bmesh
+			bar.material_override = bar_mat
+			bar.position = Vector3(0, 0, -0.33 + i * 0.22)
+			root.add_child(bar)
+
+func _place_sewer_doors(pal: Dictionary) -> void:
+	## Big circular stone valve-doors recessed into the wall at a few cistern
+	## mouths — the rolled-aside discs that seal passages in the sewer.
+	var placed = 0
+	for room in rooms:
+		if placed >= 5:
+			break
+		if room["kind"] not in ["chamber", "arena", "deep"]:
+			continue
+		if _rng.randf() > 0.6:
+			continue
+		var rect: Rect2i = room["rect"]
+		# Find a wall tile on the room's perimeter to host the disc.
+		var host = _find_perimeter_wall(rect)
+		if host["pos"] == Vector2i(-1, -1):
+			continue
+		var pos: Vector2i = host["pos"]
+		var dir: Vector2i = host["dir"]
+		var into = Vector3(dir.x, 0, dir.y)
+		var root = Node3D.new()
+		root.name = "SlidingDoor"
+		root.position = Vector3(pos.x + 0.5, 0.85, pos.y + 0.5) + into * 0.1
+		_visuals_root.add_child(root)
+
+		var disc = MeshInstance3D.new()
+		var dmesh = CylinderMesh.new()
+		dmesh.top_radius = 0.85
+		dmesh.bottom_radius = 0.85
+		dmesh.height = 0.22
+		dmesh.radial_segments = 20
+		disc.mesh = dmesh
+		# Stand the disc upright, facing into the room.
+		if dir.x != 0:
+			disc.rotation_degrees = Vector3(0, 0, 90)
+		else:
+			disc.rotation_degrees = Vector3(90, 0, 0)
+		var stone = StandardMaterial3D.new()
+		stone.albedo_color = pal["wall_a"].lightened(0.05)
+		stone.roughness = 0.95
+		disc.material_override = stone
+		root.add_child(disc)
+
+		# Concentric hub ring so it reads as a valve/door, not a plain cylinder.
+		var hub = MeshInstance3D.new()
+		var hmesh = TorusMesh.new()
+		hmesh.inner_radius = 0.28
+		hmesh.outer_radius = 0.42
+		hub.mesh = hmesh
+		if dir.x != 0:
+			hub.rotation_degrees = Vector3(0, 0, 90)
+		else:
+			hub.rotation_degrees = Vector3(90, 0, 0)
+		var iron = StandardMaterial3D.new()
+		iron.albedo_color = Color(0.16, 0.16, 0.17)
+		iron.metallic = 0.6
+		iron.roughness = 0.7
+		hub.material_override = iron
+		hub.position = into * 0.13
+		root.add_child(hub)
+		placed += 1
+
+func _find_perimeter_wall(rect: Rect2i) -> Dictionary:
+	## A wall tile just outside the rect that borders the room (with facing dir).
+	var tries = [
+		{"pos": Vector2i(rect.get_center().x, rect.position.y - 1), "dir": Vector2i(0, 1)},
+		{"pos": Vector2i(rect.get_center().x, rect.end.y), "dir": Vector2i(0, -1)},
+		{"pos": Vector2i(rect.position.x - 1, rect.get_center().y), "dir": Vector2i(1, 0)},
+		{"pos": Vector2i(rect.end.x, rect.get_center().y), "dir": Vector2i(-1, 0)},
+	]
+	for t in tries:
+		var p: Vector2i = t["pos"]
+		if p.x <= 0 or p.x >= GRID_W - 1 or p.y <= 0 or p.y >= GRID_H - 1:
+			continue
+		if grid[p.x][p.y] == Tile.WALL and grid[p.x + t["dir"].x][p.y + t["dir"].y] == Tile.FLOOR:
+			return t
+	return {"pos": Vector2i(-1, -1), "dir": Vector2i.ZERO}
+
+func _place_sewer_manholes(pal: Dictionary) -> void:
+	## Heavy round covers set flush in the chamber floors — flavour shafts to the
+	## streets above. Non-interactive; the real exit is the portal site.
+	for room in rooms:
+		if room["kind"] not in ["chamber", "deep"]:
+			continue
+		if _rng.randf() > 0.4:
+			continue
+		var rect: Rect2i = room["rect"]
+		var cell = Vector2i(rect.get_center().x, rect.get_center().y)
+		if not is_floor(cell) or _reserved.has(cell) or is_water(cell):
+			continue
+		var cover = MeshInstance3D.new()
+		cover.name = "Manhole"
+		var cmesh = CylinderMesh.new()
+		cmesh.top_radius = 0.42
+		cmesh.bottom_radius = 0.42
+		cmesh.height = 0.04
+		cmesh.radial_segments = 18
+		cover.mesh = cmesh
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.14, 0.15, 0.15)
+		mat.metallic = 0.5
+		mat.roughness = 0.8
+		cover.material_override = mat
+		cover.position = Vector3(cell.x + 0.5, 0.02, cell.y + 0.5)
+		_visuals_root.add_child(cover)
+
+func _place_sewer_rubble(wall_edges: Array, pal: Dictionary) -> void:
+	## Damp rubble and algae patches hugging the walls, as a MultiMesh.
+	var rubble: Array = []
+	var moss: Array = []
+	for entry in wall_edges:
+		var pos: Vector2i = entry["pos"]
+		var dir: Vector2i = entry["dir"]
+		var floor_pos = pos + dir
+		if not is_floor(floor_pos) or _reserved.has(floor_pos):
+			continue
+		var n = _tile_noise(pos.x, pos.y, 53)
+		var into = Vector3(dir.x, 0, dir.y)
+		var center = Vector3(floor_pos.x + 0.5, 0, floor_pos.y + 0.5) - into * 0.3
+		var rot = Basis(Vector3.UP, _tile_noise(pos.x, pos.y, 71) * TAU)
+		if n < 0.16:
+			var s = 0.12 + _tile_noise(pos.x, pos.y, 91) * 0.2
+			rubble.append({
+				"xform": Transform3D(rot * Basis.from_scale(Vector3(s * 1.4, s, s * 1.2)),
+					center + Vector3(0, s * 0.5, 0)),
+				"color": pal["wall_b"].lerp(pal["floor_b"], n * 3.0),
+			})
+		elif n > 0.86:
+			# Flat algae smear on the floor at the wall foot.
+			moss.append({
+				"xform": Transform3D(rot * Basis.from_scale(Vector3(0.5, 0.02, 0.5)),
+					center + Vector3(0, 0.01, 0)),
+				"color": pal["accent"].lerp(pal["floor_a"], _tile_noise(pos.x, pos.y, 89) * 0.5),
+			})
+	_add_multimesh(BoxMesh.new(), rubble)
+	if not moss.is_empty():
+		_add_multimesh(BoxMesh.new(), moss)
+
+func _place_sewer_mice(floor_tiles: Array) -> void:
+	## A handful of background sewer mice scuttling near the walls.
+	if floor_tiles.size() < 8:
+		return
+	var entries: Array = []
+	for p in floor_tiles:
+		entries.append({"pos": p})
+	var want = clampi(floor_tiles.size() / 60, 4, 9)
+	var picks = _spaced_sample(entries, want, 6)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		var mouse = SewerCritter.new()
+		mouse.name = "Mouse_%d" % i
+		_visuals_root.add_child(mouse)
+		mouse.setup(Vector3(pos.x + 0.5, 0.0, pos.y + 0.5), _layout_seed + i * 131)
+
+# ============================================
 # FOG OF WAR (MultiMesh — one instance per tile)
 # ============================================
 
@@ -950,10 +1606,11 @@ func reveal_around(center: Vector2i) -> void:
 	## Permanently reveals tiles within FOG_REVEAL_RADIUS of center.
 	if not _fog_initialized:
 		return
-	for dx in range(-FOG_REVEAL_RADIUS, FOG_REVEAL_RADIUS + 1):
-		for dz in range(-FOG_REVEAL_RADIUS, FOG_REVEAL_RADIUS + 1):
+	var r = fog_reveal_radius
+	for dx in range(-r, r + 1):
+		for dz in range(-r, r + 1):
 			# Circular reveal (Euclidean distance)
-			if dx * dx + dz * dz > FOG_REVEAL_RADIUS * FOG_REVEAL_RADIUS:
+			if dx * dx + dz * dz > r * r:
 				continue
 			var nx = center.x + dx
 			var nz = center.y + dz
@@ -981,9 +1638,14 @@ func update_enemy_fog_visibility(enemies: Array, gm: GridManager) -> void:
 
 func _place_sites() -> void:
 	## Picks suitable field rooms and erects cave entrances / building exteriors.
+	## World 1 gets one extra slot for the opening sewer grate (on top of its
+	## usual cave + building), so the surface still has both of those too.
 	var site_total = 2 + (world_level - 1)
+	if world_level == 1:
+		site_total += 1
 	var cave_count = 0
 	var building_count = 0
+	var sewer_count = 0
 	var candidates: Array = []
 	for i in range(rooms.size()):
 		var room = rooms[i]
@@ -1000,9 +1662,17 @@ func _place_sites() -> void:
 		var room_idx = candidates[pick]
 		candidates.remove_at(pick)
 		var rect: Rect2i = rooms[room_idx]["rect"]
-		var kind = "cave" if s % 2 == 0 else "building"
+		# On the surface world (Act 1, World 1) the very first site is a sewer
+		# grate — the game opens by descending into the sewers (see STORY.md).
+		var kind: String
+		if world_level == 1 and s == 0:
+			kind = "sewer"
+		elif s % 2 == 0:
+			kind = "cave"
+		else:
+			kind = "building"
 
-		var fp_w = 3 if kind == "cave" else 4
+		var fp_w = 4 if kind == "building" else 3
 		var fp_d = 3
 		# Footprint sits in the upper part of the room, entrance opens south
 		var fx = clampi(rect.get_center().x - fp_w / 2, rect.position.x + 1, rect.end.x - fp_w - 1)
@@ -1020,14 +1690,19 @@ func _place_sites() -> void:
 
 		var id: String
 		var display_name: String
-		if kind == "cave":
-			id = "cave_%d" % cave_count
-			display_name = "Cave"
-			cave_count += 1
-		else:
-			id = "building_%d" % building_count
-			display_name = "Building"
-			building_count += 1
+		match kind:
+			"sewer":
+				id = "sewer_%d" % sewer_count
+				display_name = "Sewer Entrance"
+				sewer_count += 1
+			"building":
+				id = "building_%d" % building_count
+				display_name = "Building"
+				building_count += 1
+			_:
+				id = "cave_%d" % cave_count
+				display_name = "Cave"
+				cave_count += 1
 
 		_create_site(kind, id, display_name, footprint, entrance, fx, fz, fp_w, fp_d)
 
@@ -1081,10 +1756,13 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	var center = Vector3(fx + fp_w / 2.0, 0, fz + fp_d / 2.0)
 	site_root.position = center
 
-	if kind == "building":
-		_build_building_exterior(site_root, fp_w, fp_d)
-	else:
-		_build_cave_entrance(site_root, fp_w, fp_d)
+	match kind:
+		"building":
+			_build_building_exterior(site_root, fp_w, fp_d)
+		"sewer":
+			_build_sewer_entrance(site_root, fp_w, fp_d)
+		_:
+			_build_cave_entrance(site_root, fp_w, fp_d)
 
 	# Name label floating above the structure
 	var label = Label3D.new()
@@ -1220,6 +1898,69 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	opening.material_override = open_mat
 	opening.position = Vector3(0, 0.55, fp_d / 2.0 - 0.15)
 	root.add_child(opening)
+
+func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## A low brick headworks with an arched, barred opening descending into the
+	## dark — the manhole/grate the player climbs down to reach the sewers.
+	var brick = StandardMaterial3D.new()
+	brick.albedo_color = Color(0.30, 0.31, 0.29)
+	brick.roughness = 1.0
+
+	# Squat stone surround.
+	var block = MeshInstance3D.new()
+	var bmesh = BoxMesh.new()
+	bmesh.size = Vector3(fp_w - 0.3, 1.3, fp_d - 0.4)
+	block.mesh = bmesh
+	block.material_override = brick
+	block.position = Vector3(0, 0.65, -0.2)
+	root.add_child(block)
+
+	# Arched headstone over the mouth.
+	var arch = MeshInstance3D.new()
+	var amesh = CylinderMesh.new()
+	amesh.top_radius = 0.55
+	amesh.bottom_radius = 0.55
+	amesh.height = fp_w - 0.5
+	amesh.radial_segments = 12
+	arch.mesh = amesh
+	arch.rotation_degrees = Vector3(0, 0, 90)
+	arch.material_override = brick
+	arch.position = Vector3(0, 1.3, -0.2)
+	root.add_child(arch)
+
+	# The dark descending mouth.
+	var mouth = MeshInstance3D.new()
+	var mmesh = BoxMesh.new()
+	mmesh.size = Vector3(1.0, 1.15, 0.5)
+	mouth.mesh = mmesh
+	var mmat = StandardMaterial3D.new()
+	mmat.albedo_color = Color(0.01, 0.02, 0.02)
+	mmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mouth.material_override = mmat
+	mouth.position = Vector3(0, 0.6, fp_d / 2.0 - 0.15)
+	root.add_child(mouth)
+
+	# Iron bars across the mouth (a raised grate).
+	var bar_mat = StandardMaterial3D.new()
+	bar_mat.albedo_color = Color(0.12, 0.12, 0.13)
+	bar_mat.metallic = 0.7
+	bar_mat.roughness = 0.6
+	for i in range(3):
+		var bar = MeshInstance3D.new()
+		var barmesh = BoxMesh.new()
+		barmesh.size = Vector3(0.06, 1.0, 0.06)
+		bar.mesh = barmesh
+		bar.material_override = bar_mat
+		bar.position = Vector3(-0.3 + i * 0.3, 0.6, fp_d / 2.0 + 0.02)
+		root.add_child(bar)
+
+	# A weak green glow leaking up from below.
+	var glow = OmniLight3D.new()
+	glow.light_color = Color(0.4, 0.7, 0.5)
+	glow.light_energy = 0.8
+	glow.omni_range = 3.5
+	glow.position = Vector3(0, 0.3, fp_d / 2.0 - 0.1)
+	root.add_child(glow)
 
 func _place_exit_site() -> void:
 	## Inside an interior: a glowing doorway back to the overworld at the entry.
@@ -1532,6 +2273,10 @@ func _get_random_card(rng: RandomNumberGenerator) -> Card:
 func _define_spawn_zones() -> void:
 	spawn_zones.clear()
 
+	if interior_kind == "sewer":
+		_define_sewer_spawn_zones()
+		return
+
 	# Enemy tiers scale with world level
 	var base_melee = Enemy.EnemyType.WERERAT if world_level <= 2 else Enemy.EnemyType.SKELETON
 	var mid_melee = Enemy.EnemyType.SKELETON if world_level <= 2 else Enemy.EnemyType.ARMORED_TROLL
@@ -1623,6 +2368,100 @@ func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 		"spawn_points": boss_points,
 		"enemy_types": boss_types,
 		"spawned": false
+	})
+
+# ============================================
+# SEWER SPAWN PROGRESSION
+# West of the Rat King: rats and oozes (the player's first fights). The central
+# cistern is the Rat King and his rat army. East of him the sewer turns deadly —
+# crocodiles, swarms and pipe crawlers.
+# ============================================
+
+func _define_sewer_spawn_zones() -> void:
+	# Locate the Rat King's arena so rooms can be classed as before/after the boss.
+	var arena_x = GRID_W / 2
+	for room in rooms:
+		if room["kind"] == "arena":
+			arena_x = (room["rect"] as Rect2i).get_center().x
+			break
+
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+
+		if kind == "arena":
+			_define_rat_king_zone(rect)
+			continue
+
+		# Pre-boss cisterns crawl with rats and oozes; post-boss ones with the
+		# things that eat the rats.
+		var post_boss = rect.get_center().x >= arena_x
+		var roster: Array
+		if post_boss:
+			roster = [Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.SWARM,
+				Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SLUDGE]
+		else:
+			roster = [Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT,
+				Enemy.EnemyType.WERERAT, Enemy.EnemyType.SLUDGE]
+
+		var zone_chance = 1.0 if kind == "deep" else 0.8
+		if _rng.randf() >= zone_chance:
+			continue
+
+		var count = clampi(2 + rect.get_area() / 32, 2, 5)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(count):
+			var cell = _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			types.append(roster[_rng.randi_range(0, roster.size() - 1)])
+		# The deepest chamber is guarded by a Sewer Crocodile.
+		if kind == "deep" and types.size() > 0:
+			types[0] = Enemy.EnemyType.SEWER_CROC
+		if points.is_empty():
+			continue
+
+		spawn_zones.append({
+			"trigger_rect": rect.grow(1),
+			"spawn_points": points,
+			"enemy_types": types,
+			"spawned": false,
+		})
+
+	for pt_list in spawn_zones:
+		for p in pt_list["spawn_points"]:
+			_reserved[p] = true
+
+	print("[DUNGEON] Defined %d sewer spawn zones (arena_x=%d)" % [spawn_zones.size(), arena_x])
+
+func _define_rat_king_zone(rect: Rect2i) -> void:
+	## The first mini-boss: the Rat King flanked by his swarming army.
+	var c = rect.get_center()
+	var points: Array = [c]
+	var types: Array = [Enemy.EnemyType.RAT_KING]
+	var army = [
+		Enemy.EnemyType.WERERAT, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT,
+		Enemy.EnemyType.WERERAT, Enemy.EnemyType.SWARM, Enemy.EnemyType.ARCHER_RAT,
+		Enemy.EnemyType.SWARM, Enemy.EnemyType.WERERAT,
+	]
+	var offsets = [
+		Vector2i(-2, -1), Vector2i(2, -1), Vector2i(-3, 1), Vector2i(3, 1),
+		Vector2i(0, -3), Vector2i(0, 3), Vector2i(-4, 0), Vector2i(4, 0),
+	]
+	for i in range(offsets.size()):
+		var cell = c + offsets[i]
+		if is_floor(cell) and not (cell in points):
+			points.append(cell)
+			types.append(army[i])
+	spawn_zones.append({
+		"trigger_rect": rect.grow(1),
+		"spawn_points": points,
+		"enemy_types": types,
+		"spawned": false,
 	})
 
 # ============================================

@@ -117,7 +117,7 @@ of the threat.* Think Middle-earth / LOTR.
 - **Habitats it draws from:** Forest, Graveyard, Cave, Sewer, Mountains.
 - **Tone:** familiar, grounded fantasy. The sickness is subtle here — felt by
   Olorin, not yet obvious. This is where the mystery is seeded.
-- **Part slots (`[TBD]`):** 1) Town & Sewers (Olorin's first quests) · 2) Cemetery / Library (first clues) · 3) Forests / wilds · 4) Act 1 climax / threshold downward.
+- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) Forests / wilds `[TBD]` · 4) Act 1 climax / threshold downward `[TBD]`.
 
 ### Act 2 — Hell: The Underworld
 *The descent. The apparent source of the rot.*
@@ -283,15 +283,40 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Stone Drake**
 
 #### Sewer
-- **Rats** — *in code as Wererat / Archer Rat*
-- **Sludge being**
-- **Pipe Crawlers**
-- **Sewer Crocodiles**
-- **Faithless cultist**
-- **Rat King**
-- **The drowned**
-- **Slime**
-- **Swarms** — *one creature, but a bunch of bugs representing one*
+*The game's opening dungeon — see **The Sewers (Act 1, Part 1)** below for the
+built level. The roster is themed and in code:*
+- **Rats** — *in code as Wererat / Archer Rat*. The player's first kills; the Wererat scurries and bites, the Archer Rat kites.
+- **Sludge Being** — *in code*. Minion. **Ranged ooze** (8 HP): wades close or spits acid from range 6. The "oozes" the player fights alongside the rats at the entrance.
+- **Pipe Crawler** — *in code*. Minion. **Fast skirmisher** (15 HP): creeps out of the wall pipes, moves on a cheap 2-tempo so it closes quickly.
+- **Sewer Crocodile** — *in code*. Elite. **Armored ambusher** (25 HP, 15 armor, 10 dmg): lurks in the channels; break its armor to expose it, or its bite hurts. Guards the deepest chamber.
+- **Rat King** — *in code*. Elite, **first mini-boss**. A crowned rat that fights flanked by a summoned-in army of Wererats, Archer Rats and Swarms in the central cistern arena. Bites and repositions on a relentless 2-tempo.
+- **Swarm** — *in code*. Minion. **Fast swarm** (8 HP): one creature rendered as a boil of vermin/insects; blitzes 8 tiles at a time. *one creature, but a bunch of bugs representing one*
+- **Faithless cultist** — `[TBD]`.
+- **The drowned** — `[TBD]`.
+- **Slime** — `[TBD]` (smaller cousin of the Sludge Being).
+
+> **The Sewers (Act 1, Part 1) — built.** This is the **first dungeon the player
+> ever enters**, and the first location fully realised in code
+> (`dungeon_manager.gd`, `interior_kind == "sewer"`). It is reached from a
+> **sewer grate / manhole** in the World 1 overworld (a guaranteed site there).
+>
+> - **Layout:** a man-made **trunk tunnel** runs the length of the level with a
+>   **water channel down its spine**; brick **cistern chambers** bud off it above
+>   and below, joined by short access shafts. The far-west chamber is the entry;
+>   the **central cistern is the Rat King's arena**; the far-east chamber is the
+>   deepest, guarded by a Sewer Crocodile.
+> - **Progression (west → east):** the player opens by **killing rats and fighting
+>   oozes** (Wererats, Archer Rats, Sludge Beings), reaches the **Rat King**
+>   mini-boss and his rat army in the central arena, then descends into deadlier
+>   water — **Sewer Crocodiles, Swarms and Pipe Crawlers** (plus more sludge).
+> - **Atmosphere:** deliberately **dim and claustrophobic**. Near-lightless ambient
+>   with a thick dank haze; **each player carries their own pool of torchlight**;
+>   **wall torches** throw flickering light over wet brick; **fog of war reveals
+>   less** than the surface. Dressing includes **wall pipes pouring water**,
+>   **rising steam off the channels**, **iron floor grates**, **circular sliding
+>   stone doors** at the cistern mouths, **manhole covers**, damp rubble and algae,
+>   and **background mice** scuttling along the walls (purely cosmetic — the player
+>   never interacts with them).
 
 #### Mountains
 - **Weregoat**
@@ -373,7 +398,8 @@ the repo. Keep this table honest as the code changes.
 |---------------|----------------------|-------|
 | **Olorin (guide / quest-giver)** | `scripts/menus/town.gd` (`_create_olorin_npc`, `vendor_info["Olorin"]`), `scripts/core/quest_manager.gd` | Already an in-town NPC: *"A wise old man with quests for brave adventurers."* First quest: **Rat Infestation** (clear 5 wererats from the sewers). Also crafts Origami Swans → Paper Feathers. |
 | **Acts / planes** | `scripts/core/dungeon_manager.gd` → `WORLD_PALETTES` (1–5) | Themes are explicitly **placeholder** ("final per-world themes TBD"). Current names: Verdant Frontier, Amber Wastes, Frostreach, Emberfall, Umbral Expanse. The lore here is what those palettes should *become*. |
-| **Habitats / biomes** | `dungeon_manager.gd` palettes + `CAVE_PALETTE`, `BUILDING_PALETTE`; site generation (caves, buildings) | The generator already distinguishes overworld vs. cave vs. building interiors — a natural hook for habitat-specific enemy spawn tables (Section 5). |
+| **Habitats / biomes** | `dungeon_manager.gd` palettes + `CAVE_PALETTE`, `BUILDING_PALETTE`, `SEWER_PALETTE`; site generation (caves, buildings, sewers) | The generator distinguishes overworld vs. cave vs. building vs. **sewer** interiors — a natural hook for habitat-specific enemy spawn tables (Section 5). |
+| **The Sewers (Act 1, Part 1)** | `dungeon_manager.gd` (`interior_kind == "sewer"`: `_generate_sewer_layout`, `_build_sewer_decorations`, `_define_sewer_spawn_zones`), `main.gd` (`_apply_world_ambience` sewer branch + `_ensure_player_torch`), `torch_flicker.gd`, `sewer_critter.gd` | **Built.** The opening dungeon: trunk + water channels, Rat King arena, west→east rat/ooze → boss → croc/swarm/crawler progression, dim torchlit atmosphere, reduced fog. Reached via a sewer grate site in World 1. See Section 5.4. |
 | **Roguelike unlock pool** | `scripts/roguelike/world_data.gd` (`WorldData`) | The end-game meta-container a story playthrough builds. A code-level concept, **not** a story Act. |
 | **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; gates roguelike intent-reveals. 11 enemy types today (Section 5.3). |
 | **Relics from monsters** | `CharacterData.unlocked_relic_ids`, `scripts/roguelike/relics.gd` | e.g. Hydra → Hydra Heart. The story↔roguelike bridge. |
@@ -396,6 +422,8 @@ Decided:
 - ✅ **Terminology:** four **Acts** across one world; each Act is a plane.
 - ✅ **Bestiary taxonomy:** catalogued by **habitat** (Forest, Graveyard, Cave,
   Sewer, Mountains, Underworld, Heavens), as flexible guidelines.
+- ✅ **The Sewers (Act 1, Part 1) are built** — opening dungeon, themed roster,
+  Rat King mini-boss, dim torchlit atmosphere. See Section 5.4 / Section 8.
 
 Still open:
 1. **Solidify creature themes:** go habitat by habitat and define each

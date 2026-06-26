@@ -15,6 +15,8 @@ func _initialize() -> void:
 		{"level": 5, "interior": "", "file": "world5.png"},
 		{"level": 1, "interior": "cave_0", "file": "cave.png"},
 		{"level": 1, "interior": "building_0", "file": "building.png"},
+		{"level": 1, "interior": "sewer_0", "file": "sewer0.png"},
+		{"level": 1, "interior": "sewer_1", "file": "sewer1.png"},
 	]
 
 	for cfg in configs:
@@ -46,7 +48,10 @@ func _render(dm: DungeonManager, path: String) -> void:
 			var col: Color
 			if dm.grid[x][z] == dm.Tile.FLOOR:
 				var n = dm._tile_noise(x, z, 11)
-				col = pal["floor_a"].lerp(pal["floor_b"], n)
+				if pal.has("water") and dm.is_water(Vector2i(x, z)):
+					col = pal["water"].lerp(pal["water_edge"], n)
+				else:
+					col = pal["floor_a"].lerp(pal["floor_b"], n)
 				if dm.elevation[x][z] == 1:
 					col = col.lightened(0.18)
 				elif dm.elevation[x][z] >= 2:

@@ -5792,15 +5792,23 @@ func _apply_world_ambience() -> void:
 	var pal: Dictionary = dungeon_manager.get_palette()
 	var in_cave = current_interior_id.begins_with("cave")
 	var in_building = current_interior_id.begins_with("building")
+	var in_sewer = current_interior_id.begins_with("sewer")
 
 	var world_env = get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_env and world_env.environment:
 		var env = world_env.environment
 		env.ambient_light_color = pal.get("ambient", Color(0.3, 0.3, 0.35))
-		env.ambient_light_energy = 0.35 if in_cave else 0.55
+		if in_sewer:
+			env.ambient_light_energy = 0.20  # near-lightless; torches do the work
+		elif in_cave:
+			env.ambient_light_energy = 0.35
+		else:
+			env.ambient_light_energy = 0.55
 		env.fog_enabled = true
 		env.fog_light_color = pal.get("ambient", Color(0.2, 0.2, 0.25)).darkened(0.55)
-		if in_cave:
+		if in_sewer:
+			env.fog_density = 0.035  # thick, dank haze that swallows the far walls
+		elif in_cave:
 			env.fog_density = 0.025
 		elif in_building:
 			env.fog_density = 0.012
@@ -5813,11 +5821,37 @@ func _apply_world_ambience() -> void:
 	if sun:
 		sun.light_color = pal.get("sun", Color(1, 0.95, 0.9))
 		var energy: float = pal.get("sun_energy", 1.2)
-		if in_cave:
+		if in_sewer:
+			energy = 0.22
+		elif in_cave:
 			energy = 0.4
 		elif in_building:
 			energy = 0.8
 		sun.light_energy = energy
+
+	# Underground, each player carries their own pool of light.
+	_ensure_player_torch(in_sewer)
+
+func _ensure_player_torch(enable: bool) -> void:
+	## Gives each player a warm point light (the "lit circle" around the
+	## character) while underground in the sewers; removes it elsewhere.
+	for p in _all_players():
+		if p == null or not is_instance_valid(p):
+			continue
+		var existing = p.get_node_or_null("PlayerTorch")
+		if enable:
+			if existing == null:
+				var torch = OmniLight3D.new()
+				torch.name = "PlayerTorch"
+				torch.light_color = Color(1.0, 0.86, 0.62)
+				torch.light_energy = 2.8
+				torch.omni_range = 9.0
+				torch.omni_attenuation = 1.1
+				torch.shadow_enabled = false
+				torch.position = Vector3(0, 1.2, 0)
+				p.add_child(torch)
+		elif existing:
+			existing.queue_free()
 
 
 # ============================================
