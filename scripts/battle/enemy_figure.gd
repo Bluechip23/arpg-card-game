@@ -246,6 +246,74 @@ func _cy(parent: Node3D, n: String, pos: Vector3, top_r: float, bot_r: float, h:
 	return mi
 
 
+func _pr(parent: Node3D, n: String, pos: Vector3, size: Vector3, c: Color, rot := Vector3.ZERO) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	var p := PrismMesh.new()
+	p.size = size
+	mi.mesh = p
+	mi.position = pos
+	mi.rotation_degrees = rot
+	mi.material_override = _mat(c)
+	parent.add_child(mi)
+	return mi
+
+
+## A membrane/bat wing built in a node's local space, fanning along +X (mirror
+## with sx). A leading-edge arm bone runs out to the wrist; three clawed finger
+## bones splay down to the trailing edge; tapered prism panels fill the bays so
+## the wing reads as a scalloped membrane instead of a flat slab.
+func _bat_wing(w: Node3D, sx: int, span: float, drop: float, mem: Color, bone: Color) -> void:
+	# leading-edge arm bone out to the wrist
+	_cy(w, "Arm", Vector3(span * 0.5 * sx, 0.0, 0.0), 0.022, 0.032, span, bone, Vector3(0, 0, 90))
+	_cy(w, "Claw", Vector3(span * sx, 0.04, 0.0), 0.0, 0.02, 0.1, bone, Vector3(0, 0, -50 * sx))
+	# finger knuckles spaced along the leading edge, each drooping to a trailing tip
+	var knuckle := [0.95, 0.6, 0.28, 0.0]
+	var tipdrop := [0.55, 1.0, 0.92, 0.6]
+	for i in range(knuckle.size()):
+		var kx: float = span * knuckle[i] * sx
+		var tx: float = span * (knuckle[i] * 0.82) * sx
+		var ty: float = -drop * tipdrop[i]
+		# finger bone running from the knuckle down to the trailing tip
+		var midx := (kx + tx) * 0.5
+		var midy := ty * 0.5
+		var len := Vector2(tx - kx, ty).length()
+		var ang := rad_to_deg(atan2(ty, tx - kx)) - 90.0
+		_cy(w, "Finger%d" % i, Vector3(midx, midy, 0.0), 0.01, 0.016, len, bone, Vector3(0, 0, ang))
+	# membrane bays between consecutive fingers (thin tapered prisms)
+	for i in range(knuckle.size() - 1):
+		var ax: float = span * (knuckle[i] * 0.82) * sx
+		var ay: float = -drop * tipdrop[i]
+		var bx: float = span * (knuckle[i + 1] * 0.82) * sx
+		var by: float = -drop * tipdrop[i + 1]
+		var kx2: float = span * knuckle[i] * sx
+		var cx := (ax + bx + kx2) / 3.0
+		var cy := (ay + by) / 3.0
+		var wdt := Vector2(bx - ax, by - ay).length() + drop * 0.25
+		var hgt: float = drop * 0.7
+		_pr(w, "Mem%d" % i, Vector3(cx, cy, -0.01), Vector3(wdt, hgt, 0.02), mem, Vector3(0, 0, 180))
+
+
+## A folded bird wing draping down the flank: layered flight feathers (long
+## tapered prisms) hanging downward and raking back along the body, so the wing
+## rests at the bird's side instead of sticking straight out.
+func _bird_wing(w: Node3D, sx: int, feathers: int, length: float, col: Color, tip: Color) -> void:
+	# a small rounded shoulder covert masking the feather roots
+	_sp(w, "Covert", Vector3(0.0, 0.02, -0.02), length * 0.15, col, Vector3(0.7, 0.8, 1.3))
+	for i in range(feathers):
+		var t: float = float(i) / float(feathers - 1)
+		var rake: float = lerp(10.0, 50.0, t)        # rear feathers sweep further back
+		var fl: float = length * lerp(0.82, 1.08, t)  # and grow longer toward the tip
+		var pivot := Node3D.new()
+		pivot.name = "FP%d" % i
+		pivot.position = Vector3(0.02 * sx, 0.06, lerp(0.13, -0.34, t))
+		pivot.rotation_degrees = Vector3(rake, 0, 6.0 * sx)  # hang down + slight outward splay
+		w.add_child(pivot)
+		var c: Color = tip if i >= feathers - 2 else col
+		# broad, overlapping flight feathers so the folded wing reads as one sheet
+		_pr(pivot, "F%d" % i, Vector3(0.0, -fl * 0.5, 0.0), Vector3(0.17, fl, 0.02), c, Vector3(0, 0, 180))
+
+
 func _shadow(radius: float) -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "Shadow"
@@ -605,7 +673,9 @@ func _build_goblin(role: String, skin: Color) -> void:
 # =============================================================
 
 ## Generic four-legged critter. ears: "round" | "pointed"; tail: "bushy" | "stub".
-func _build_quadruped(fur: Color, belly: Color, s: float, ears: String, tail: String) -> Node3D:
+## Pass with_head=false to get just the trunk/legs/tail (e.g. Cerberus, which
+## supplies its own three heads).
+func _build_quadruped(fur: Color, belly: Color, s: float, ears: String, tail: String, with_head := true) -> Node3D:
 	_shadow(0.24 * s)
 	var dark := Color.html("141019")
 	var body := Node3D.new()
@@ -615,26 +685,34 @@ func _build_quadruped(fur: Color, belly: Color, s: float, ears: String, tail: St
 	_bob_node = body
 	_bob_y = body.position.y
 
-	_sp(body, "Torso", Vector3(0, 0, 0), 0.22 * s, fur, Vector3(0.95, 0.85, 1.5))
-	_sp(body, "Belly", Vector3(0, -0.06 * s, 0.05 * s), 0.18 * s, belly, Vector3(0.9, 0.7, 1.25))
+	# A low, long trunk rather than a single ball: distinct rear haunch, barrel,
+	# and shoulder masses blended together so the silhouette reads as a body.
+	_sp(body, "Torso", Vector3(0, 0, 0), 0.21 * s, fur, Vector3(0.92, 0.8, 1.7))
+	_sp(body, "Haunch", Vector3(0, 0.02 * s, -0.22 * s), 0.2 * s, fur, Vector3(1.0, 1.0, 0.95))
+	_sp(body, "Shoulder", Vector3(0, 0.03 * s, 0.2 * s), 0.19 * s, fur, Vector3(1.0, 0.98, 0.95))
+	_sp(body, "Belly", Vector3(0, -0.08 * s, 0.04 * s), 0.17 * s, belly, Vector3(0.9, 0.66, 1.35))
 	for leg in [["FL", 0.12, 0.24], ["FR", -0.12, 0.24], ["BL", 0.12, -0.22], ["BR", -0.12, -0.22]]:
 		_cy(body, "Leg" + str(leg[0]), Vector3(leg[1] * s, -0.22 * s, leg[2] * s), 0.04 * s, 0.045 * s, 0.26 * s, fur)
 		_sp(body, "Paw" + str(leg[0]), Vector3(leg[1] * s, -0.36 * s, (leg[2] + 0.02) * s), 0.05 * s, dark)
-	_sp(body, "Head", Vector3(0, 0.10 * s, 0.34 * s), 0.17 * s, fur)
-	_bx(body, "Snout", Vector3(0, 0.03 * s, 0.46 * s), Vector3(0.12 * s, 0.10 * s, 0.15 * s), fur)
-	_sp(body, "Nose", Vector3(0, 0.03 * s, 0.55 * s), 0.035 * s, dark)
-	_sp(body, "EyeL", Vector3(-0.07 * s, 0.14 * s, 0.45 * s), 0.028 * s, dark)
-	_sp(body, "EyeR", Vector3(0.07 * s, 0.14 * s, 0.45 * s), 0.028 * s, dark)
-	if ears == "round":
-		_sp(body, "EarL", Vector3(-0.11 * s, 0.25 * s, 0.30 * s), 0.07 * s, fur)
-		_sp(body, "EarR", Vector3(0.11 * s, 0.25 * s, 0.30 * s), 0.07 * s, fur)
-	else:  # pointed
-		_cy(body, "EarL", Vector3(-0.09 * s, 0.27 * s, 0.30 * s), 0.0, 0.055 * s, 0.15 * s, fur, Vector3(-12, 0, 16))
-		_cy(body, "EarR", Vector3(0.09 * s, 0.27 * s, 0.30 * s), 0.0, 0.055 * s, 0.15 * s, fur, Vector3(-12, 0, -16))
+	if with_head:
+		# Neck sloping up from the shoulders to a head set forward and clear of the body.
+		_cy(body, "Neck", Vector3(0, 0.12 * s, 0.32 * s), 0.09 * s, 0.12 * s, 0.22 * s, fur, Vector3(58, 0, 0))
+		_sp(body, "Head", Vector3(0, 0.2 * s, 0.42 * s), 0.145 * s, fur, Vector3(1.0, 1.0, 1.05))
+		# Longer tapered muzzle so it has a face, not just a ball.
+		_cy(body, "Muzzle", Vector3(0, 0.15 * s, 0.56 * s), 0.06 * s, 0.1 * s, 0.2 * s, fur, Vector3(80, 0, 0))
+		_sp(body, "Nose", Vector3(0, 0.14 * s, 0.66 * s), 0.032 * s, dark)
+		_sp(body, "EyeL", Vector3(-0.07 * s, 0.24 * s, 0.5 * s), 0.026 * s, dark)
+		_sp(body, "EyeR", Vector3(0.07 * s, 0.24 * s, 0.5 * s), 0.026 * s, dark)
+		if ears == "round":
+			_sp(body, "EarL", Vector3(-0.1 * s, 0.32 * s, 0.4 * s), 0.06 * s, fur)
+			_sp(body, "EarR", Vector3(0.1 * s, 0.32 * s, 0.4 * s), 0.06 * s, fur)
+		else:  # pointed
+			_cy(body, "EarL", Vector3(-0.08 * s, 0.34 * s, 0.4 * s), 0.0, 0.05 * s, 0.14 * s, fur, Vector3(-12, 0, 16))
+			_cy(body, "EarR", Vector3(0.08 * s, 0.34 * s, 0.4 * s), 0.0, 0.05 * s, 0.14 * s, fur, Vector3(-12, 0, -16))
 	if tail == "bushy":
-		_sp(body, "Tail", Vector3(0, 0.08 * s, -0.40 * s), 0.10 * s, fur, Vector3(0.8, 0.8, 1.5))
+		_sp(body, "Tail", Vector3(0, 0.08 * s, -0.42 * s), 0.1 * s, fur, Vector3(0.8, 0.8, 1.5))
 	else:  # stub
-		_sp(body, "Tail", Vector3(0, 0.05 * s, -0.34 * s), 0.06 * s, fur)
+		_sp(body, "Tail", Vector3(0, 0.06 * s, -0.38 * s), 0.06 * s, fur)
 	return body
 
 func _build_wolf() -> void:
@@ -1631,25 +1709,37 @@ func _build_weregoat() -> void:
 	_sp(root, "EyeL", Vector3(-0.06, 1.34, 0.18), 0.022, dark); _sp(root, "EyeR", Vector3(0.06, 1.34, 0.18), 0.022, dark)
 
 
-## Wyvern: serpentine, winged, taloned — no arms.
+## Wyvern: a long, lean, low-slung dragon — serpentine trunk on two taloned
+## legs, a long neck and tail, and broad membrane wings. No arms.
 func _build_wyvern() -> void:
-	_shadow(0.34)
-	var hide := Color.html("5a6b6e"); var hide2 := Color.html("44545a"); var membrane := Color.html("6e8085"); var dark := Color.html("16201f"); var eye := Color.html("e0c23a")
+	_shadow(0.4)
+	var hide := Color.html("5a6b6e"); var hide2 := Color.html("44545a"); var membrane := Color.html("728890"); var dark := Color.html("16201f"); var eye := Color.html("e0c23a")
 	var body := Node3D.new(); body.name = "Body"; add_child(body); _bob_node = body; _bob_y = 0.0
-	_cy(body, "Torso", Vector3(0, 0.62, 0), 0.16, 0.26, 1.0, hide)
-	_sp(body, "Chest", Vector3(0, 0.78, 0.1), 0.2, hide2, Vector3(1.0, 1.1, 0.8))
+	# Two hind legs carrying the body low to the ground.
 	for sx in [-1, 1]:
-		_cy(body, "Leg%d" % sx, Vector3(0.16 * sx, 0.24, 0.06), 0.05, 0.06, 0.4, hide, Vector3(8, 0, 0))
-		for f in range(3): _cy(body, "Talon%d_%d" % [sx, f], Vector3(0.16 * sx - 0.05 + f * 0.05, 0.02, 0.2), 0.0, 0.018, 0.12, dark, Vector3(60, 0, 0))
+		_cy(body, "Leg%d" % sx, Vector3(0.15 * sx, 0.24, 0.02), 0.05, 0.07, 0.42, hide, Vector3(6, 0, 0))
+		for f in range(3): _cy(body, "Talon%d_%d" % [sx, f], Vector3(0.15 * sx - 0.05 + f * 0.05, 0.02, 0.2), 0.0, 0.018, 0.12, dark, Vector3(60, 0, 0))
+	# Long serpentine trunk: chest -> barrel -> hips, stretched front-to-back.
+	_sp(body, "Chest", Vector3(0, 0.58, 0.22), 0.16, hide, Vector3(1.05, 1.05, 1.1))
+	_sp(body, "Barrel", Vector3(0, 0.55, 0.0), 0.15, hide, Vector3(1.0, 0.95, 1.25))
+	_sp(body, "Hips", Vector3(0, 0.52, -0.22), 0.13, hide, Vector3(0.95, 0.9, 1.1))
+	_sp(body, "Belly", Vector3(0, 0.46, 0.06), 0.12, hide2, Vector3(0.82, 0.66, 1.7))
+	# Long tapering tail sweeping back and down to a barbed tip.
+	_cy(body, "Tail1", Vector3(0, 0.47, -0.48), 0.04, 0.11, 0.5, hide, Vector3(-72, 0, 0))
+	_cy(body, "Tail2", Vector3(0, 0.34, -0.78), 0.018, 0.045, 0.44, hide, Vector3(-52, 0, 0))
+	_pr(body, "Barb", Vector3(0, 0.24, -1.0), Vector3(0.12, 0.18, 0.02), hide2, Vector3(-52, 0, 0))
+	# Long neck rising from the chest to a slender dragon head.
+	_cy(body, "Neck1", Vector3(0, 0.74, 0.3), 0.07, 0.11, 0.36, hide, Vector3(42, 0, 0))
+	_cy(body, "Neck2", Vector3(0, 0.94, 0.42), 0.05, 0.07, 0.26, hide, Vector3(14, 0, 0))
+	_sp(body, "Head", Vector3(0, 1.02, 0.5), 0.1, hide, Vector3(1.0, 1.0, 1.35))
+	_cy(body, "Snout", Vector3(0, 0.985, 0.66), 0.028, 0.07, 0.22, hide2, Vector3(80, 0, 0))
+	_bx(body, "Jaw", Vector3(0, 0.95, 0.62), Vector3(0.08, 0.035, 0.18), dark)
+	for sx in [-1, 1]: _cy(body, "Horn%d" % sx, Vector3(0.05 * sx, 1.12, 0.42), 0.0, 0.025, 0.2, dark, Vector3(-52, 0, 12 * sx))
+	_sp(body, "EyeL", Vector3(-0.06, 1.05, 0.58), 0.022, eye, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.06, 1.05, 0.58), 0.022, eye, Vector3.ONE, true)
+	# Broad membrane wings spreading up and out from the shoulders.
 	for sx in [-1, 1]:
-		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.96, -0.04); w.rotation_degrees = Vector3(10, 0, -40 * sx); body.add_child(w)
-		_cy(w, "Bone", Vector3(0.28 * sx, 0.1, 0), 0.02, 0.03, 0.6, hide, Vector3(0, 0, 90))
-		_bx(w, "Mem", Vector3(0.34 * sx, 0.0, -0.05), Vector3(0.6, 0.46, 0.02), membrane)
-	_cy(body, "Tail", Vector3(0, 0.5, -0.3), 0.02, 0.1, 0.7, hide, Vector3(-50, 0, 0))
-	_sp(body, "Head", Vector3(0, 1.15, 0.12), 0.14, hide)
-	_bx(body, "Snout", Vector3(0, 1.1, 0.26), Vector3(0.1, 0.09, 0.16), hide2)
-	for sx in [-1, 1]: _cy(body, "Horn%d" % sx, Vector3(0.06 * sx, 1.26, 0.0), 0.0, 0.025, 0.16, dark, Vector3(-40, 0, 10 * sx))
-	_sp(body, "EyeL", Vector3(-0.06, 1.16, 0.2), 0.024, eye, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.06, 1.16, 0.2), 0.024, eye, Vector3.ONE, true)
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.1 * sx, 0.68, 0.06); w.rotation_degrees = Vector3(6, 16 * sx, -44 * sx); body.add_child(w)
+		_bat_wing(w, sx, 0.66, 0.52, membrane, hide)
 	_atk_pivot = body; _atk_rest = Vector3.ZERO
 
 
@@ -1665,10 +1755,10 @@ func _build_roc() -> void:
 	_sp(body, "Head", Vector3(0, 0.5, 0.18), 0.15, brown)
 	_cy(body, "Beak", Vector3(0, 0.46, 0.34), 0.0, 0.06, 0.16, beak, Vector3(80, 0, 0))
 	_sp(body, "EyeL", Vector3(-0.07, 0.54, 0.26), 0.028, dark); _sp(body, "EyeR", Vector3(0.07, 0.54, 0.26), 0.028, dark)
+	# Folded wings draped down the flanks (not spread out to the sides).
 	for sx in [-1, 1]:
-		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.22 * sx, 0.1, -0.05); w.rotation_degrees = Vector3(0, 0, -20 * sx); body.add_child(w)
-		_bx(w, "Wing", Vector3(0.5 * sx, 0.04, -0.02), Vector3(0.9, 0.05, 0.4), brown)
-		_bx(w, "Tip", Vector3(0.95 * sx, 0.08, -0.05), Vector3(0.4, 0.04, 0.26), brown2, Vector3(0, 0, -14 * sx))
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.26 * sx, 0.14, -0.04); w.rotation_degrees = Vector3(0, 0, -8 * sx); body.add_child(w)
+		_bird_wing(w, sx, 7, 0.62, brown, brown2)
 	for sx in [-1, 1]:
 		_cy(body, "Leg%d" % sx, Vector3(0.12 * sx, -0.32, 0.06), 0.04, 0.05, 0.3, beak)
 		for f in range(3): _cy(body, "Talon%d_%d" % [sx, f], Vector3(0.12 * sx - 0.06 + f * 0.06, -0.48, 0.16), 0.0, 0.025, 0.16, dark, Vector3(62, 0, 0))
@@ -1756,9 +1846,8 @@ func _build_white_manticore() -> void:
 		_sp(body, "Spot", p, 0.03, grey)
 	# bat wings
 	for sx in [-1, 1]:
-		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.18, -0.02); w.rotation_degrees = Vector3(6, 0, -38 * sx); body.add_child(w)
-		_cy(w, "WBone", Vector3(0.26 * sx, 0.1, 0), 0.018, 0.028, 0.52, grey, Vector3(0, 0, 90))
-		_bx(w, "WMem", Vector3(0.3 * sx, 0.02, -0.05), Vector3(0.52, 0.4, 0.02), Color.html("c4ccd4"))
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.22, -0.04); w.rotation_degrees = Vector3(8, 14 * sx, -40 * sx); body.add_child(w)
+		_bat_wing(w, sx, 0.54, 0.42, Color.html("c4ccd4"), grey)
 	# spiked scorpion-ish tail arching over the back
 	var tail := Node3D.new(); tail.name = "STail"; tail.position = Vector3(0, 0.06, -0.4); tail.rotation_degrees = Vector3(40, 0, 0); body.add_child(tail)
 	_cy(tail, "Seg", Vector3(0, 0.22, 0), 0.03, 0.05, 0.5, Color.html("dfe4ea"))
@@ -1774,40 +1863,58 @@ func _build_sabertooth() -> void:
 	_atk_pivot = body
 	_atk_rest = Vector3.ZERO
 	var dark := Color.html("3a2c16"); var tooth := Color.html("efe9d6")
-	# dark stripes
-	for z in [0.12, -0.02, -0.16]:
-		_bx(body, "Stripe%d" % int(z * 100), Vector3(0, 0.2, z), Vector3(0.06, 0.06, 0.04), dark)
-	# long sabre fangs from the muzzle
-	_cy(body, "FangL", Vector3(-0.05, -0.04, 0.52), 0.0, 0.022, 0.22, tooth, Vector3(170, 0, 0))
-	_cy(body, "FangR", Vector3(0.05, -0.04, 0.52), 0.0, 0.022, 0.22, tooth, Vector3(170, 0, 0))
+	# dark stripes running down the back and haunch
+	for z in [0.18, 0.04, -0.12, -0.26]:
+		_bx(body, "Stripe%d" % int(z * 100), Vector3(0, 0.17, z), Vector3(0.07, 0.05, 0.04), dark)
+	# long sabre fangs hanging from the muzzle
+	_cy(body, "FangL", Vector3(-0.05, 0.05, 0.62), 0.0, 0.022, 0.24, tooth, Vector3(172, 0, 0))
+	_cy(body, "FangR", Vector3(0.05, 0.05, 0.62), 0.0, 0.022, 0.24, tooth, Vector3(172, 0, 0))
 
 
 # =============================================================
 # UNDERWORLD ACT MODELS
 # =============================================================
 
-## Cerberus: three-headed hound with spiked collars and a dangling chain.
+## A Cerberus head on a short, thick (hydra-style) neck: a stout tapered neck
+## plus throat, an elongated muzzled head with glowing eyes, dog ears, and a
+## spiked collar at the base.
+func _cerberus_head(parent: Node3D, base: Vector3, pitch: float, yaw: float, roll: float, fur: Color, belly: Color, dark: Color, eye: Color, steel: Color) -> Node3D:
+	var hp := Node3D.new()
+	hp.name = "Head%d" % parent.get_child_count()
+	hp.position = base
+	hp.rotation_degrees = Vector3(pitch, yaw, roll)
+	parent.add_child(hp)
+	var nl := 0.16   # short neck...
+	_cy(hp, "Neck", Vector3(0, nl * 0.5, 0.0), 0.1, 0.13, nl, fur)   # ...and thick
+	_cy(hp, "Throat", Vector3(0, nl * 0.5, 0.06), 0.07, 0.1, nl * 0.92, belly)
+	var h := Vector3(0, nl + 0.04, 0.05)
+	_sp(hp, "Head", h, 0.12, fur, Vector3(1.0, 0.95, 1.35))
+	_bx(hp, "Snout", h + Vector3(0, -0.04, 0.17), Vector3(0.12, 0.09, 0.15), fur)
+	_sp(hp, "Nose", h + Vector3(0, -0.04, 0.25), 0.03, dark)
+	_sp(hp, "EyeL", h + Vector3(-0.06, 0.05, 0.08), 0.022, eye, Vector3.ONE, true)
+	_sp(hp, "EyeR", h + Vector3(0.06, 0.05, 0.08), 0.022, eye, Vector3.ONE, true)
+	_cy(hp, "EarL", h + Vector3(-0.09, 0.09, -0.04), 0.0, 0.045, 0.12, fur, Vector3(-14, 0, 18))
+	_cy(hp, "EarR", h + Vector3(0.09, 0.09, -0.04), 0.0, 0.045, 0.12, fur, Vector3(-14, 0, -18))
+	_cy(hp, "Collar", Vector3(0, 0.05, 0.03), 0.13, 0.13, 0.05, dark)
+	for s in range(4): _cy(hp, "Spike%d" % s, Vector3(cos(s * PI / 2) * 0.13, 0.05, 0.03 + sin(s * PI / 2) * 0.13), 0.0, 0.02, 0.06, steel, Vector3(90 if s % 2 else 0, 0, 90 * s))
+	return hp
+
+
+## Cerberus: three-headed hound with spiked collars and a dangling chain. Builds
+## the trunk via the quadruped (no head) and adds its own three short-necked heads.
 func _build_cerberus() -> void:
-	var body := _build_quadruped(Color.html("3a3036"), Color.html("241d22"), 1.15, "pointed", "stub")
+	var fur := Color.html("3a3036"); var belly := Color.html("241d22"); var dark := Color.html("141016"); var eye := Color.html("ff6a2a"); var steel := Color.html("9aa0a8"); var chain := Color.html("6a6a72")
+	var body := _build_quadruped(fur, belly, 1.15, "pointed", "stub", false)
 	_bob_node = body
 	_bob_y = body.position.y
 	_atk_pivot = body
 	_atk_rest = Vector3.ZERO
-	var fur := Color.html("3a3036"); var dark := Color.html("141016"); var eye := Color.html("ff6a2a"); var steel := Color.html("9aa0a8"); var chain := Color.html("6a6a72")
-	# the quadruped already made one head at +Z; add two flanking heads + spiked collars
+	# Three stout heads rearing up from the shoulders: one forward, two splayed out.
+	_cerberus_head(body, Vector3(0, 0.18, 0.28), 30, 0, 0, fur, belly, dark, eye, steel)
 	for hx in [-1, 1]:
-		var hp := Node3D.new(); hp.position = Vector3(0.16 * hx, 0.06, 0.28); body.add_child(hp); hp.rotation_degrees = Vector3(0, 22 * -hx, 0)
-		_sp(hp, "Head", Vector3(0, 0.04, 0.06), 0.13, fur)
-		_bx(hp, "Snout", Vector3(0, -0.02, 0.18), Vector3(0.1, 0.08, 0.14), fur)
-		_sp(hp, "Nose", Vector3(0, -0.02, 0.26), 0.025, dark)
-		_sp(hp, "EyeL", Vector3(-0.05, 0.07, 0.14), 0.022, eye, Vector3.ONE, true); _sp(hp, "EyeR", Vector3(0.05, 0.07, 0.14), 0.022, eye, Vector3.ONE, true)
-		_cy(hp, "Collar", Vector3(0, -0.06, -0.04), 0.1, 0.1, 0.05, dark)
-		for s in range(4): _cy(hp, "Spike%d" % s, Vector3(cos(s * PI / 2) * 0.1, -0.06, sin(s * PI / 2) * 0.1), 0.0, 0.02, 0.06, steel, Vector3(90 if s % 2 else 0, 0, 90 * s))
-	# glowing eyes on the central (existing) head
-	_sp(body, "CEyeL", Vector3(-0.075, 0.06, 0.35), 0.024, eye, Vector3.ONE, true); _sp(body, "CEyeR", Vector3(0.075, 0.06, 0.35), 0.024, eye, Vector3.ONE, true)
-	# spiked collar on the central head + a chain dangling from the left head
-	_cy(body, "CCollar", Vector3(0, -0.04, 0.18), 0.11, 0.11, 0.05, dark)
-	var c := Node3D.new(); c.position = Vector3(-0.16, -0.06, 0.3); body.add_child(c)
+		_cerberus_head(body, Vector3(0.24 * hx, 0.12, 0.2), 24, 36 * -hx, 14 * -hx, fur, belly, dark, eye, steel)
+	# a chain dangling from the left head's collar
+	var c := Node3D.new(); c.position = Vector3(-0.16, 0.06, 0.3); body.add_child(c)
 	for i in range(4): _sp(c, "Link%d" % i, Vector3(0, -i * 0.07, 0), 0.03, chain)
 
 
@@ -1837,9 +1944,8 @@ func _build_succubus() -> void:
 	_cy(root, "HornL", Vector3(-0.07, 1.18, 0.0), 0.0, 0.022, 0.1, horn, Vector3(-20, 0, -16)); _cy(root, "HornR", Vector3(0.07, 1.18, 0.0), 0.0, 0.022, 0.1, horn, Vector3(-20, 0, 16))
 	_sp(root, "EyeL", Vector3(-0.05, 1.07, 0.11), 0.02, Color.html("ff3a5a"), Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.05, 1.07, 0.11), 0.02, Color.html("ff3a5a"), Vector3.ONE, true)
 	for sx in [-1, 1]:
-		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.1 * sx, 0.82, -0.12); w.rotation_degrees = Vector3(6, 0, -32 * sx); root.add_child(w)
-		_cy(w, "WBone", Vector3(0.2 * sx, 0.12, 0), 0.015, 0.022, 0.42, horn, Vector3(0, 0, 90))
-		_bx(w, "WMem", Vector3(0.24 * sx, 0.02, -0.04), Vector3(0.42, 0.34, 0.02), wing)
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.1 * sx, 0.86, -0.12); w.rotation_degrees = Vector3(6, 12 * sx, -34 * sx); root.add_child(w)
+		_bat_wing(w, sx, 0.44, 0.36, wing, horn)
 
 
 ## Demon: red brute with spiral thorns; dagger in one hand, trident in the other.
