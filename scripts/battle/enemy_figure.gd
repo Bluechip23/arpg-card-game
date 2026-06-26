@@ -63,6 +63,7 @@ var _treant_arm_r: Node3D = null
 var _arm_l: Node3D = null              # left/right limb pivots (zombie, werewolf, grave titan)
 var _arm_r: Node3D = null
 var _head_pivot: Node3D = null         # neck/head pivot (bone dragon bite/breath)
+var _titan_boulder: Node3D = null      # Grave Titan: boulder (slammed down / rolled, not stuck on shoulder)
 
 
 func _ready() -> void:
@@ -814,8 +815,8 @@ func _build_hawk() -> void:
 	add_child(body)
 	_bob_node = body
 	_bob_y = body.position.y
-	_sp(body, "Torso", Vector3(0, 0, 0), 0.20, feather, Vector3(0.85, 0.95, 1.3))
-	_sp(body, "Chest", Vector3(0, -0.04, 0.14), 0.15, light, Vector3(0.9, 0.9, 0.9))
+	_sp(body, "Torso", Vector3(0, 0, 0), 0.20, feather, Vector3(0.85, 0.66, 1.35))
+	_sp(body, "Chest", Vector3(0, -0.03, 0.14), 0.15, light, Vector3(0.9, 0.66, 0.9))
 	# Spread wings
 	_bx(body, "WingL", Vector3(-0.34, 0.04, -0.02), Vector3(0.5, 0.04, 0.26), feather, Vector3(0, 0, 16))
 	_bx(body, "WingR", Vector3(0.34, 0.04, -0.02), Vector3(0.5, 0.04, 0.26), feather, Vector3(0, 0, -16))
@@ -1079,31 +1080,41 @@ func _build_werewolf() -> void:
 	var claw := Color.html("dfe2e6")
 	var eye := Color.html("ffd23f")
 	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
-	_cy(root, "LegL", Vector3(-0.13, 0.5, -0.02), 0.08, 0.1, 0.5, grey)
-	_cy(root, "LegR", Vector3(0.13, 0.5, -0.02), 0.08, 0.1, 0.5, grey)
-	_bx(root, "FootL", Vector3(-0.13, 0.05, 0.1), Vector3(0.14, 0.1, 0.26), grey2)
-	_bx(root, "FootR", Vector3(0.13, 0.05, 0.1), Vector3(0.14, 0.1, 0.26), grey2)
-	# Big hunched torso leaning well forward over the legs
-	var torso := _bx(root, "Torso", Vector3(0, 1.0, 0.14), Vector3(0.46, 0.56, 0.32), grey)
-	torso.rotation_degrees = Vector3(40, 0, 0)
-	_sp(root, "Chest", Vector3(0, 0.96, 0.3), 0.22, grey2, Vector3(1.1, 1.0, 0.7))
-	# Long arms angled forward so the clawed hands knuckle the ground (lurking stance)
-	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.28, 1.2, 0.16); root.add_child(sh_l); sh_l.rotation_degrees = Vector3(36, 0, 0)
-	_cy(sh_l, "ArmL", Vector3(0, -0.58, 0), 0.08, 0.09, 1.2, grey); _sp(sh_l, "PawL", Vector3(0, -1.16, 0.02), 0.11, grey2)
-	for k in range(3): _cy(sh_l, "ClawL%d" % k, Vector3(-0.07 + k * 0.07, -1.24, 0.12), 0.0, 0.022, 0.14, claw, Vector3(50, 0, 0))
-	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.28, 1.2, 0.16); root.add_child(sh_r); sh_r.rotation_degrees = Vector3(36, 0, 0)
-	_cy(sh_r, "ArmR", Vector3(0, -0.58, 0), 0.08, 0.09, 1.2, grey); _sp(sh_r, "PawR", Vector3(0, -1.16, 0.02), 0.11, grey2)
-	for k in range(3): _cy(sh_r, "ClawR%d" % k, Vector3(-0.07 + k * 0.07, -1.24, 0.12), 0.0, 0.022, 0.14, claw, Vector3(50, 0, 0))
-	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3(36, 0, 0)
+	# --- Jointed digitigrade legs: hip -> knee -> ankle -> foot ---
+	for sx in [-1, 1]:
+		var hip := Node3D.new(); hip.name = "Hip%d" % sx; hip.position = Vector3(0.15 * sx, 0.82, -0.06); root.add_child(hip); hip.rotation_degrees = Vector3(-28, 0, 0)
+		_cy(hip, "Thigh", Vector3(0, -0.2, 0), 0.085, 0.095, 0.42, grey)
+		_sp(hip, "KneeBall", Vector3(0, -0.4, 0), 0.075, grey2)
+		var knee := Node3D.new(); knee.name = "Knee%d" % sx; knee.position = Vector3(0, -0.42, 0); hip.add_child(knee); knee.rotation_degrees = Vector3(58, 0, 0)
+		_cy(knee, "Shin", Vector3(0, -0.2, 0), 0.06, 0.07, 0.4, grey)
+		var ankle := Node3D.new(); ankle.name = "Ankle%d" % sx; ankle.position = Vector3(0, -0.4, 0); knee.add_child(ankle); ankle.rotation_degrees = Vector3(-30, 0, 0)
+		_bx(ankle, "Sole", Vector3(0, -0.03, 0.08), Vector3(0.14, 0.08, 0.26), grey2)
+	# Hunched torso leaning forward over the legs
+	var torso := _bx(root, "Torso", Vector3(0, 1.02, 0.12), Vector3(0.46, 0.54, 0.32), grey)
+	torso.rotation_degrees = Vector3(34, 0, 0)
+	_sp(root, "Chest", Vector3(0, 0.98, 0.28), 0.22, grey2, Vector3(1.1, 1.0, 0.7))
+	_sp(root, "Hump", Vector3(0, 1.2, -0.04), 0.18, grey)
+	# --- Jointed arms dangling in front: shoulder -> upper -> elbow -> forearm -> clawed hand ---
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.26 * sx, 1.18, 0.2); root.add_child(sh); sh.rotation_degrees = Vector3(52, 0, 0)
+		_cy(sh, "Upper", Vector3(0, -0.26, 0), 0.075, 0.08, 0.5, grey)
+		_sp(sh, "ElbowBall", Vector3(0, -0.5, 0), 0.07, grey2)
+		var el := Node3D.new(); el.name = "Elbow%d" % sx; el.position = Vector3(0, -0.52, 0); sh.add_child(el); el.rotation_degrees = Vector3(-40, 0, 0)
+		_cy(el, "Forearm", Vector3(0, -0.24, 0), 0.06, 0.07, 0.46, grey)
+		_sp(el, "Paw", Vector3(0, -0.48, 0.02), 0.1, grey2)
+		for k in range(3): _cy(el, "Claw%d" % k, Vector3(-0.07 + k * 0.07, -0.56, 0.1), 0.0, 0.022, 0.14, claw, Vector3(45, 0, 0))
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3(52, 0, 0)
 	# Head juts forward low on a thick neck (snout pointing at the prey)
-	_sp(root, "Neck", Vector3(0, 1.32, 0.28), 0.12, grey)
-	_sp(root, "Head", Vector3(0, 1.36, 0.42), 0.16, grey)
-	_bx(root, "Snout", Vector3(0, 1.32, 0.58), Vector3(0.13, 0.11, 0.18), grey2)
-	_sp(root, "Nose", Vector3(0, 1.34, 0.68), 0.03, dark)
-	_cy(root, "EarL", Vector3(-0.1, 1.5, 0.36), 0.0, 0.05, 0.15, grey, Vector3(0, 0, -18))
-	_cy(root, "EarR", Vector3(0.1, 1.5, 0.36), 0.0, 0.05, 0.15, grey, Vector3(0, 0, 18))
-	_sp(root, "EyeL", Vector3(-0.07, 1.4, 0.52), 0.025, eye, Vector3.ONE, true)
-	_sp(root, "EyeR", Vector3(0.07, 1.4, 0.52), 0.025, eye, Vector3.ONE, true)
+	_sp(root, "Neck", Vector3(0, 1.3, 0.26), 0.12, grey)
+	_sp(root, "Head", Vector3(0, 1.34, 0.42), 0.16, grey)
+	_bx(root, "Snout", Vector3(0, 1.3, 0.58), Vector3(0.13, 0.11, 0.18), grey2)
+	_sp(root, "Nose", Vector3(0, 1.32, 0.68), 0.03, dark)
+	_cy(root, "EarL", Vector3(-0.1, 1.48, 0.36), 0.0, 0.05, 0.15, grey, Vector3(0, 0, -18))
+	_cy(root, "EarR", Vector3(0.1, 1.48, 0.36), 0.0, 0.05, 0.15, grey, Vector3(0, 0, 18))
+	_sp(root, "EyeL", Vector3(-0.07, 1.38, 0.52), 0.025, eye, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.07, 1.38, 0.52), 0.025, eye, Vector3.ONE, true)
 
 
 ## Wererabbit: oversized loot-bunny that flees and vanishes — never fights.
@@ -1193,44 +1204,80 @@ func _build_necromancer() -> void:
 
 ## Bone Dragon: white skeletal wyrm with bony wings and blood-stained fangs.
 func _build_bone_dragon() -> void:
-	_shadow(0.4)
+	# A long skeletal wyrm — visible spine, open ribcage, vertebral tail, bony
+	# legs/wings, and a blood-fanged skull on a raised neck.
+	_shadow(0.5)
 	var bone := Color.html("e9e4d6")
-	var bone2 := Color.html("cfc9b8")
-	var dark := Color.html("3a352a")
+	var bone2 := Color.html("d2ccba")
 	var blood := Color.html("7a1414")
 	var eye := Color.html("c34a2c")
 	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
-	_sp(root, "Body", Vector3(0, 0.5, -0.05), 0.3, bone, Vector3(1.3, 1.0, 1.6))
-	_sp(root, "Ribs", Vector3(0, 0.5, 0.12), 0.24, bone2, Vector3(1.1, 0.95, 0.7))
-	for i in range(3): _bx(root, "Rib%d" % i, Vector3(0, 0.4 + i * 0.08, 0.22), Vector3(0.4, 0.02, 0.02), dark)
-	for sx in [-1, 1]:
-		_cy(root, "Leg%d" % sx, Vector3(0.2 * sx, 0.2, 0.16), 0.05, 0.07, 0.34, bone)
-		_bx(root, "Talon%d" % sx, Vector3(0.2 * sx, 0.04, 0.3), Vector3(0.12, 0.06, 0.16), bone2)
-	# Big bony wings, swept up and out
-	for sx in [-1, 1]:
-		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.24 * sx, 0.8, -0.06); root.add_child(w); w.rotation_degrees = Vector3(6, 0, -34 * sx)
-		_cy(w, "WingBone", Vector3(0.3 * sx, 0.14, 0), 0.02, 0.035, 0.66, bone, Vector3(0, 0, 90))
-		_bx(w, "Membrane", Vector3(0.36 * sx, 0.04, -0.05), Vector3(0.66, 0.5, 0.02), bone2)
-		for r in range(3):
-			_cy(w, "Finger%d" % r, Vector3((0.2 + r * 0.18) * sx, 0.18, -0.05), 0.0, 0.018, 0.3, bone, Vector3(0, 0, 90))
-	_cy(root, "Tail", Vector3(0, 0.5, -0.4), 0.02, 0.1, 0.6, bone, Vector3(-60, 0, 0))
-	# Neck + skull on a pivot — head thrusts FORWARD and down at the prey
-	var neck := Node3D.new(); neck.name = "Neck"; neck.position = Vector3(0, 0.7, 0.16); root.add_child(neck); neck.rotation_degrees = Vector3(48, 0, 0)
+	var spine_y := 0.92
+	# Spine: vertebrae with neural spikes, shoulders (+Z) to hips (-Z)
+	var verts := 9
+	for i in range(verts):
+		var tz := 0.45 - (float(i) / float(verts - 1)) * 1.0
+		_sp(root, "Vert%d" % i, Vector3(0, spine_y, tz), 0.055, bone)
+		_bx(root, "Neural%d" % i, Vector3(0, spine_y + 0.08, tz), Vector3(0.03, 0.1, 0.03), bone2)
+	# Open ribcage: two-segment ribs curving down off the central vertebrae
+	for i in range(1, 6):
+		var tz := 0.45 - (float(i) / float(verts - 1)) * 1.0
+		for sx in [-1, 1]:
+			var rp := Node3D.new(); rp.position = Vector3(0, spine_y - 0.02, tz); root.add_child(rp); rp.rotation_degrees = Vector3(0, 0, 30 * sx)
+			_cy(rp, "RibA", Vector3(0.16 * sx, -0.2, 0), 0.016, 0.02, 0.42, bone)
+			var rc := Node3D.new(); rc.position = Vector3(0.3 * sx, -0.38, 0); rp.add_child(rc); rc.rotation_degrees = Vector3(0, 0, 55 * sx)
+			_cy(rc, "RibB", Vector3(-0.06 * sx, -0.15, 0), 0.014, 0.018, 0.32, bone2)
+	_cy(root, "Sternum", Vector3(0, spine_y - 0.52, 0.05), 0.02, 0.03, 0.5, bone2, Vector3(90, 0, 0))
+	_sp(root, "Shoulders", Vector3(0, spine_y - 0.02, 0.42), 0.12, bone, Vector3(1.4, 0.8, 0.8))
+	_sp(root, "Pelvis", Vector3(0, spine_y - 0.04, -0.55), 0.12, bone, Vector3(1.4, 0.8, 0.9))
+	# Four bony legs
+	_dragon_leg(root, -1, 0.4, true, bone, bone2)
+	_dragon_leg(root, 1, 0.4, true, bone, bone2)
+	_dragon_leg(root, -1, -0.52, false, bone, bone2)
+	_dragon_leg(root, 1, -0.52, false, bone, bone2)
+	# Long vertebral tail, curving back and down
+	var tail := Node3D.new(); tail.name = "Tail"; tail.position = Vector3(0, spine_y - 0.04, -0.6); root.add_child(tail); tail.rotation_degrees = Vector3(30, 0, 0)
+	var segs := 10
+	for i in range(segs):
+		var f := float(i) / float(segs - 1)
+		_sp(tail, "TVert%d" % i, Vector3(0, 0, -i * 0.13), 0.05 - f * 0.035, bone)
+		if i < segs - 1:
+			_bx(tail, "TSpike%d" % i, Vector3(0, 0.045, -i * 0.13), Vector3(0.02, 0.05, 0.02), bone2)
+	# Neck: vertebrae rising forward to the skull (drives bite / breath)
+	var neck := Node3D.new(); neck.name = "Neck"; neck.position = Vector3(0, spine_y + 0.02, 0.46); root.add_child(neck); neck.rotation_degrees = Vector3(52, 0, 0)
 	_head_pivot = neck; _atk_pivot = neck; _atk_rest = neck.rotation_degrees
-	_cy(neck, "NeckBone", Vector3(0, 0.28, 0), 0.04, 0.07, 0.56, bone)
-	var hy := Vector3(0, 0.58, 0.0)
-	_sp(neck, "Skull", hy, 0.13, bone, Vector3(0.95, 0.9, 1.5))
-	# Elongated snout + lower jaw (clear dragon profile)
-	_bx(neck, "Snout", hy + Vector3(0, 0.0, 0.2), Vector3(0.13, 0.1, 0.22), bone)
-	_bx(neck, "Jaw", hy + Vector3(0, -0.08, 0.18), Vector3(0.14, 0.05, 0.2), bone2)
-	_bx(neck, "Brow", hy + Vector3(0, 0.08, 0.12), Vector3(0.16, 0.04, 0.06), bone2)
-	_sp(neck, "EyeL", hy + Vector3(-0.07, 0.04, 0.12), 0.026, eye, Vector3.ONE, true)
-	_sp(neck, "EyeR", hy + Vector3(0.07, 0.04, 0.12), 0.026, eye, Vector3.ONE, true)
-	# Blood-stained fangs jutting down from the upper jaw
+	for i in range(5):
+		_sp(neck, "NVert%d" % i, Vector3(0, i * 0.13, 0), 0.05, bone)
+	var hy := Vector3(0, 0.66, 0.04)
+	_sp(neck, "Skull", hy, 0.13, bone, Vector3(0.9, 0.85, 1.5))
+	_bx(neck, "Snout", hy + Vector3(0, -0.02, 0.22), Vector3(0.12, 0.09, 0.24), bone)
+	_bx(neck, "Jaw", hy + Vector3(0, -0.1, 0.18), Vector3(0.13, 0.04, 0.22), bone2)
+	_bx(neck, "Brow", hy + Vector3(0, 0.07, 0.12), Vector3(0.16, 0.04, 0.06), bone2)
+	_sp(neck, "EyeL", hy + Vector3(-0.07, 0.03, 0.12), 0.026, eye, Vector3.ONE, true)
+	_sp(neck, "EyeR", hy + Vector3(0.07, 0.03, 0.12), 0.026, eye, Vector3.ONE, true)
 	for fx in [-0.06, -0.02, 0.02, 0.06]:
-		_cy(neck, "Fang", hy + Vector3(fx, -0.06, 0.28), 0.0, 0.014, 0.08, blood, Vector3(180, 0, 0))
-	_cy(neck, "HornL", hy + Vector3(-0.07, 0.12, -0.02), 0.0, 0.028, 0.16, bone2, Vector3(-40, 0, -14))
-	_cy(neck, "HornR", hy + Vector3(0.07, 0.12, -0.02), 0.0, 0.028, 0.16, bone2, Vector3(-40, 0, 14))
+		_cy(neck, "Fang", hy + Vector3(fx, -0.06, 0.3), 0.0, 0.014, 0.08, blood, Vector3(180, 0, 0))
+	_cy(neck, "HornL", hy + Vector3(-0.07, 0.12, -0.04), 0.0, 0.03, 0.22, bone2, Vector3(-52, 0, -12))
+	_cy(neck, "HornR", hy + Vector3(0.07, 0.12, -0.04), 0.0, 0.03, 0.22, bone2, Vector3(-52, 0, 12))
+	# Bony wings, swept up and out from the shoulders
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.16 * sx, spine_y + 0.08, 0.3); root.add_child(w); w.rotation_degrees = Vector3(8, 0, -36 * sx)
+		_cy(w, "WingArm", Vector3(0.3 * sx, 0.16, 0), 0.022, 0.035, 0.66, bone, Vector3(0, 0, 90))
+		_bx(w, "Membrane", Vector3(0.38 * sx, 0.06, -0.06), Vector3(0.7, 0.52, 0.02), bone2)
+		for r in range(3):
+			_cy(w, "Finger%d" % r, Vector3((0.24 + r * 0.18) * sx, 0.2, -0.06), 0.0, 0.018, 0.34, bone, Vector3(0, 0, 90))
+
+
+## One bony dragon leg (femur -> tibia -> clawed toes). front=true reaches forward.
+func _dragon_leg(root: Node3D, sx: int, z: float, front: bool, bone: Color, bone2: Color) -> void:
+	var hip := Node3D.new(); hip.position = Vector3(0.22 * sx, 0.86, z); root.add_child(hip)
+	hip.rotation_degrees = Vector3(20.0 if front else -16.0, 0, 12 * sx)
+	_cy(hip, "Femur", Vector3(0, -0.22, 0), 0.04, 0.055, 0.46, bone)
+	_sp(hip, "Joint", Vector3(0, -0.44, 0), 0.05, bone2)
+	var lower := Node3D.new(); lower.position = Vector3(0, -0.46, 0); hip.add_child(lower); lower.rotation_degrees = Vector3(-40.0 if front else 50.0, 0, 0)
+	_cy(lower, "Tibia", Vector3(0, -0.2, 0), 0.03, 0.04, 0.42, bone)
+	for f in range(3):
+		_cy(lower, "Toe%d" % f, Vector3(-0.05 + f * 0.05, -0.42, 0.06), 0.0, 0.02, 0.12, bone2, Vector3(60, 0, 0))
 
 
 ## Spirit Collector: ragged figure with a birdcage backpack, scarecrow hat and lantern.
@@ -1300,35 +1347,52 @@ func _build_grave_titan() -> void:
 	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.4, 1.3, 0); root.add_child(sh_r)
 	_bx(sh_r, "ArmR", Vector3(0, -0.3, 0.02), Vector3(0.2, 0.6, 0.2), fur); _sp(sh_r, "FistR", Vector3(0, -0.62, 0.04), 0.13, fur2)
 	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3.ZERO
-	# Boulder hoisted on the right arm so it swings down with the smash
-	_sp(sh_r, "Boulder", Vector3(-0.04, 0.34, -0.02), 0.26, rock)
+	# Boulder rests on the right shoulder but is parented to the body so it can be
+	# lifted off and slammed down / rolled away (see _titan_smash / _titan_roll).
+	_titan_boulder = _sp(root, "Boulder", Vector3(0.36, 1.66, -0.02), 0.26, rock)
 	_sp(root, "PauldL", Vector3(-0.42, 1.42, 0), 0.18, fur2, Vector3(1.2, 0.8, 1.2))
 
 
 ## Crypt Crawler: a large eight-legged spider with clustered eyes and fangs.
 func _build_crypt_crawler() -> void:
 	_shadow(0.36)
-	var chitin := Color.html("2a2230")
-	var chitin2 := Color.html("3d3245")
 	var marking := Color.html("7a2a3a")
 	var eye := Color.html("d6452e")
-	var fang := Color.html("d9d2c4")
-	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.3, 0); add_child(body); _bob_node = body; _bob_y = 0.3
-	_sp(body, "Abdomen", Vector3(0, 0.02, -0.22), 0.24, chitin, Vector3(1.1, 0.9, 1.2))
-	_bx(body, "Mark", Vector3(0, 0.18, -0.22), Vector3(0.06, 0.08, 0.2), marking)
-	_sp(body, "Cephalo", Vector3(0, 0, 0.12), 0.17, chitin2)
-	for ex in [-0.06, -0.02, 0.02, 0.06]:
-		_sp(body, "Eye", Vector3(ex, 0.05, 0.26), 0.02, eye, Vector3.ONE, true)
-	_cy(body, "FangL", Vector3(-0.04, -0.08, 0.26), 0.0, 0.02, 0.1, fang, Vector3(40, 0, 0))
-	_cy(body, "FangR", Vector3(0.04, -0.08, 0.26), 0.0, 0.02, 0.1, fang, Vector3(40, 0, 0))
-	# Eight legs (four per side), angled out from the cephalothorax
+	var skin := Color.html("8a8576")
+	var skin2 := Color.html("6f6a5c")
+	var body := Node3D.new(); body.name = "Body"; add_child(body); _bob_node = body; _bob_y = 0.0
+	# Horizontal humanoid torso held parallel to the ground (crawling on all fours)
+	_bx(body, "Torso", Vector3(0, 0.5, -0.04), Vector3(0.3, 0.26, 0.56), skin)
+	_bx(body, "Spine", Vector3(0, 0.63, -0.04), Vector3(0.12, 0.06, 0.5), skin2)
+	_sp(body, "Hips", Vector3(0, 0.48, -0.34), 0.16, skin)
+	_sp(body, "Chest", Vector3(0, 0.5, 0.18), 0.16, skin)
+	# Human-ish head thrust forward
+	_cy(body, "Neck", Vector3(0, 0.52, 0.28), 0.05, 0.06, 0.14, skin2, Vector3(70, 0, 0))
+	_sp(body, "Head", Vector3(0, 0.56, 0.4), 0.13, skin)
+	_bx(body, "Jaw", Vector3(0, 0.5, 0.46), Vector3(0.11, 0.05, 0.1), skin2)
+	_sp(body, "EyeL", Vector3(-0.05, 0.6, 0.48), 0.025, eye, Vector3.ONE, true)
+	_sp(body, "EyeR", Vector3(0.05, 0.6, 0.48), 0.025, eye, Vector3.ONE, true)
+	_bx(body, "Mouth", Vector3(0, 0.52, 0.5), Vector3(0.07, 0.02, 0.02), marking)
+	# Six human arms (3 per side), splayed and planted on the ground, with fingered hands
 	for sx in [-1, 1]:
-		for i in range(4):
-			var lz := 0.16 - i * 0.12
-			var leg := Node3D.new(); leg.name = "LegPiv"; leg.position = Vector3(0.12 * sx, 0.02, lz); body.add_child(leg)
-			leg.rotation_degrees = Vector3(0, 0, -50 * sx)
-			_cy(leg, "Upper", Vector3(0.16 * sx, 0.02, 0), 0.018, 0.022, 0.34, chitin, Vector3(0, 0, 90))
-			_cy(leg, "Lower", Vector3(0.32 * sx, -0.12, 0), 0.014, 0.018, 0.3, chitin2, Vector3(50, 0, 0))
+		for zi in range(3):
+			_crawler_arm(body, sx, 0.22 - zi * 0.24, skin, skin2)
+	_atk_pivot = body; _atk_rest = Vector3.ZERO
+
+
+## One human-like crawler arm: shoulder -> upper -> elbow -> forearm -> fingered hand.
+func _crawler_arm(parent: Node3D, sx: int, z: float, skin: Color, skin2: Color) -> void:
+	var sh := Node3D.new(); sh.name = "Shoulder"; sh.position = Vector3(0.14 * sx, 0.52, z); parent.add_child(sh); sh.rotation_degrees = Vector3(8, 0, 62 * sx)
+	_cy(sh, "Upper", Vector3(0, -0.17, 0), 0.03, 0.035, 0.34, skin)
+	_sp(sh, "ElbowBall", Vector3(0, -0.34, 0), 0.035, skin2)
+	var el := Node3D.new(); el.name = "Elbow"; el.position = Vector3(0, -0.34, 0); sh.add_child(el); el.rotation_degrees = Vector3(20, 0, -62 * sx)
+	_cy(el, "Fore", Vector3(0, -0.16, 0), 0.025, 0.03, 0.32, skin)
+	# Hand: palm flat on the ground, fingers splayed forward
+	var hand := Node3D.new(); hand.name = "Hand"; hand.position = Vector3(0, -0.33, 0); el.add_child(hand)
+	_bx(hand, "Palm", Vector3(0, 0, 0.03), Vector3(0.08, 0.025, 0.08), skin)
+	for f in range(4):
+		_bx(hand, "Finger%d" % f, Vector3(-0.027 + f * 0.018, 0, 0.11), Vector3(0.014, 0.02, 0.08), skin2)
+	_bx(hand, "Thumb", Vector3(0.05 * sx, 0, 0.03), Vector3(0.014, 0.02, 0.06), skin2)
 
 
 ## Screecher: a soul-creature seen only as a black void ghost outline.
@@ -2170,26 +2234,43 @@ func _dragon_bite() -> void:
 	_action_tween.tween_callback(func(): _busy = false)
 
 
-## Bone Dragon: dip the head and belch a rolling black swarm-cloud forward.
+## Bone Dragon: dip the head and exhale a widening cone of darkness forward.
 func _dragon_breath() -> void:
 	if _head_pivot:
 		_cancel_action()
 		_busy = true
 		var rest := _atk_rest
 		_action_tween = create_tween()
-		_action_tween.tween_property(_head_pivot, "rotation_degrees:x", rest.x + 20.0, 0.15)
-		_action_tween.tween_property(_head_pivot, "rotation_degrees:x", rest.x, 0.4)
+		_action_tween.tween_property(_head_pivot, "rotation_degrees:x", rest.x + 18.0, 0.15)
+		_action_tween.tween_property(_head_pivot, "rotation_degrees:x", rest.x, 0.45)
 		_action_tween.tween_callback(func(): _busy = false)
-	var p := Node3D.new()
-	add_child(p)
-	p.position = Vector3(0, 0.9, 0.3)
-	for i in range(6):
-		_sp(p, "Puff%d" % i, Vector3((i % 3 - 1) * 0.08, (i / 3) * 0.08, 0), 0.07, Color.html("141016"))
-	p.scale = Vector3(0.3, 0.3, 0.3)
-	var tw := create_tween()
-	tw.tween_property(p, "position", Vector3(0, 0.7, 2.6), 0.5)
-	tw.parallel().tween_property(p, "scale", Vector3(1.4, 1.4, 1.4), 0.5)
-	tw.tween_callback(p.queue_free)
+	# Cone widening away from the maw (narrow at the mouth, broad far out).
+	var cone := Node3D.new()
+	add_child(cone)
+	cone.position = Vector3(0, 1.3, 0.85)
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.5      # wide end (forward)
+	cm.bottom_radius = 0.04  # narrow end (at the mouth)
+	cm.height = 1.5
+	cm.radial_segments = 14
+	mi.mesh = cm
+	mi.rotation_degrees = Vector3(90, 0, 0)  # axis -> +Z (the dragon faces +Z)
+	mi.position = Vector3(0, 0, 0.75)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.06, 0.05, 0.09, 0.82)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = Color(0.16, 0.09, 0.26)
+	mat.emission_energy_multiplier = 0.6
+	mi.material_override = mat
+	cone.add_child(mi)
+	cone.scale = Vector3(0.3, 0.3, 0.3)
+	var tw := create_tween().set_trans(Tween.TRANS_SINE)
+	tw.tween_property(cone, "scale", Vector3(1, 1, 1), 0.22)
+	tw.tween_interval(0.25)
+	tw.tween_property(cone, "scale", Vector3(1.1, 1.1, 0.0), 0.3)
+	tw.tween_callback(cone.queue_free)
 
 
 ## Spirit Collector: swing the lantern arm.
@@ -2203,33 +2284,52 @@ func _collector_collect() -> void:
 	_spawn_motes(Vector3(0.3, 0.6, 0.4), Color.html("bfe6ff"), 4)
 
 
-## Grave Titan: rear back and smash the shouldered boulder down (like the treant).
+## Grave Titan: hoist the boulder overhead, then slam it down onto the enemy in
+## front (it leaves the shoulder), and return it to the shoulder afterwards.
 func _titan_smash() -> void:
-	if _arm_l == null or _arm_r == null or _bob_node == null:
+	if _titan_boulder == null or _arm_l == null or _arm_r == null or _bob_node == null:
 		_arm_swing()
 		return
 	_cancel_action()
 	_busy = true
+	var home := _titan_boulder.position
 	_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
-	_action_tween.tween_property(_arm_r, "rotation_degrees:x", 160.0, 0.2)
-	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", 160.0, 0.2)
-	_action_tween.parallel().tween_property(_bob_node, "rotation_degrees:x", -10.0, 0.2)
-	_action_tween.tween_property(_bob_node, "rotation_degrees:x", 40.0, 0.13).set_ease(Tween.EASE_IN)
-	_action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", -20.0, 0.13)
-	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", -20.0, 0.13)
-	_action_tween.tween_property(_bob_node, "rotation_degrees:x", 0.0, 0.3)
+	# Hoist the boulder overhead with both arms.
+	_action_tween.tween_property(_arm_r, "rotation_degrees:x", 150.0, 0.2)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", 150.0, 0.2)
+	_action_tween.parallel().tween_property(_titan_boulder, "position", Vector3(0, 2.05, 0.15), 0.2)
+	# Slam it straight down onto the enemy in front (boulder leaves the shoulder).
+	_action_tween.tween_property(_titan_boulder, "position", Vector3(0, 0.32, 1.0), 0.12).set_ease(Tween.EASE_IN)
+	_action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", 35.0, 0.12)
+	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", 35.0, 0.12)
+	_action_tween.tween_interval(0.1)  # impact hold
+	# Heave it back up onto the shoulder.
+	_action_tween.tween_property(_titan_boulder, "position", home, 0.3)
 	_action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", 0.0, 0.3)
 	_action_tween.parallel().tween_property(_arm_l, "rotation_degrees:x", 0.0, 0.3)
 	_action_tween.tween_callback(func(): _busy = false)
 
 
-## Grave Titan: roll a boulder forward along the ground at the target.
+## Grave Titan: take the boulder off its shoulder and roll it at the target.
 func _titan_roll() -> void:
-	_arm_swing()
-	var rock := Color.html("6b6f74")
-	_projectile(func(p):
-		_sp(p, "Rock", Vector3.ZERO, 0.22, rock)
-	, Vector3(0, 0.22, 0.4), 2.8, 0.6, 0.0, Vector3(720, 0, 0))
+	if _titan_boulder == null:
+		_arm_swing()
+		return
+	_cancel_action()
+	_busy = true
+	var home := _titan_boulder.position
+	_action_tween = create_tween().set_trans(Tween.TRANS_SINE)
+	# Bring it down to the ground...
+	_action_tween.tween_property(_titan_boulder, "position", Vector3(0, 0.25, 0.5), 0.18)
+	if _arm_r: _action_tween.parallel().tween_property(_arm_r, "rotation_degrees:x", -40.0, 0.18)
+	# ...roll it forward, spinning...
+	_action_tween.tween_property(_titan_boulder, "position", Vector3(0, 0.22, 2.6), 0.4)
+	_action_tween.parallel().tween_property(_titan_boulder, "rotation_degrees", Vector3(720, 0, 0), 0.4)
+	# ...then a fresh boulder is back on the shoulder.
+	_action_tween.tween_property(_titan_boulder, "position", home, 0.001)
+	_action_tween.parallel().tween_property(_titan_boulder, "rotation_degrees", Vector3.ZERO, 0.001)
+	if _arm_r: _action_tween.tween_property(_arm_r, "rotation_degrees:x", 0.0, 0.2)
+	_action_tween.tween_callback(func(): _busy = false)
 
 
 ## Crypt Crawler: lunge forward to bite.
