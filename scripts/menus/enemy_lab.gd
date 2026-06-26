@@ -42,6 +42,22 @@ const KIND_BY_TYPE := {
 	Enemy.EnemyType.SPARK_MAGE: "spark_mage",
 	Enemy.EnemyType.AIR_MAGE: "air_mage",
 	Enemy.EnemyType.EARTH_MAGE: "earth_mage",
+	Enemy.EnemyType.ZOMBIE: "zombie",
+	Enemy.EnemyType.WEREWOLF: "werewolf",
+	Enemy.EnemyType.WERERABBIT: "wererabbit",
+	Enemy.EnemyType.VAMPIRE: "vampire",
+	Enemy.EnemyType.NECROMANCER: "necromancer",
+	Enemy.EnemyType.BONE_DRAGON: "bone_dragon",
+	Enemy.EnemyType.SPIRIT_COLLECTOR: "spirit_collector",
+	Enemy.EnemyType.GRAVE_TITAN: "grave_titan",
+	Enemy.EnemyType.CRYPT_CRAWLER: "crypt_crawler",
+	Enemy.EnemyType.SCREECHER: "screecher",
+	Enemy.EnemyType.CONSUMED: "consumed",
+	Enemy.EnemyType.SLUDGE: "sludge",
+	Enemy.EnemyType.PIPE_CRAWLER: "pipe_crawler",
+	Enemy.EnemyType.SEWER_CROC: "sewer_croc",
+	Enemy.EnemyType.RAT_KING: "rat_king",
+	Enemy.EnemyType.SWARM: "swarm",
 }
 
 # Coloured box fallback for the generic tiers (mirrors Enemy.initialize colours).
@@ -51,25 +67,36 @@ const COLOR_BY_TYPE := {
 	Enemy.EnemyType.BOSS: Color(0.4, 0.0, 0.2),
 }
 
-# Which list section each enemy belongs to, in display order.
+# Enemies are catalogued by HABITAT, not by Act (see docs/STORY.md §5.3):
+# an Act simply draws from one or more habitats.
 const SECTIONS := [
 	{"title": "GENERIC", "types": [Enemy.EnemyType.MINION, Enemy.EnemyType.ELITE, Enemy.EnemyType.BOSS]},
-	{"title": "ACT I — HELL", "types": [
-		Enemy.EnemyType.WERERAT, Enemy.EnemyType.SKELETON, Enemy.EnemyType.ARMORED_TROLL,
-		Enemy.EnemyType.ARCHER_RAT, Enemy.EnemyType.HYDRA,
-		Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Enemy.EnemyType.FIRE_GOBLIN_MAGE, Enemy.EnemyType.FIRE_GOBLIN_SHAMAN,
+	{"title": "FOREST", "types": [
+		Enemy.EnemyType.HYDRA, Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.MINI_BEAR,
+		Enemy.EnemyType.LARGE_BEAR, Enemy.EnemyType.WOLF, Enemy.EnemyType.COYOTE,
+		Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.INFECTED_HUNTER, Enemy.EnemyType.GIANT_HAWK,
+		Enemy.EnemyType.TREANT, Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.FIRE_MAGE,
+		Enemy.EnemyType.SPARK_MAGE, Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.EARTH_MAGE,
 	]},
-	{"title": "ACT II — FOREST", "types": [
-		Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.MINI_BEAR, Enemy.EnemyType.LARGE_BEAR,
-		Enemy.EnemyType.WOLF, Enemy.EnemyType.COYOTE, Enemy.EnemyType.BUGBEAR,
-		Enemy.EnemyType.INFECTED_HUNTER, Enemy.EnemyType.GIANT_HAWK, Enemy.EnemyType.TREANT,
-		Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.FIRE_MAGE, Enemy.EnemyType.SPARK_MAGE,
-		Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.EARTH_MAGE,
+	{"title": "GRAVEYARD", "types": [
+		Enemy.EnemyType.SKELETON, Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WEREWOLF,
+		Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SCREECHER, Enemy.EnemyType.VAMPIRE,
+		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.BONE_DRAGON, Enemy.EnemyType.SPIRIT_COLLECTOR,
+		Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.CONSUMED,
+	]},
+	{"title": "CAVE", "types": [
+		Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.FIRE_GOBLIN_SOLDIER,
+		Enemy.EnemyType.FIRE_GOBLIN_MAGE, Enemy.EnemyType.FIRE_GOBLIN_SHAMAN,
+	]},
+	{"title": "SEWER", "types": [
+		Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, Enemy.EnemyType.SLUDGE,
+		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.RAT_KING,
+		Enemy.EnemyType.SWARM,
 	]},
 ]
 
 # Display action names (from get_all_enemy_data) that are movement rather than attacks.
-const MOVE_ACTIONS := ["move", "scurry", "scurry away", "get into range"]
+const MOVE_ACTIONS := ["move", "scurry", "scurry away", "get into range", "flee", "hop", "drift"]
 
 var _viewport: SubViewport = null
 var _figure_root: Node3D = null       # holds the current figure/box; tweened for "move"

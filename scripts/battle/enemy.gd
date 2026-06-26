@@ -17,7 +17,11 @@ signal movement_completed(enemy: Enemy)
 
 enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_RAT, HYDRA, FIRE_GOBLIN_SOLDIER, FIRE_GOBLIN_MAGE, FIRE_GOBLIN_SHAMAN,
 	# Forest act
-	GIANT_BEAVER, MINI_BEAR, LARGE_BEAR, WOLF, COYOTE, BUGBEAR, INFECTED_HUNTER, GIANT_HAWK, TREANT, ICE_MAGE, FIRE_MAGE, SPARK_MAGE, AIR_MAGE, EARTH_MAGE }
+	GIANT_BEAVER, MINI_BEAR, LARGE_BEAR, WOLF, COYOTE, BUGBEAR, INFECTED_HUNTER, GIANT_HAWK, TREANT, ICE_MAGE, FIRE_MAGE, SPARK_MAGE, AIR_MAGE, EARTH_MAGE,
+	# Graveyard act
+	ZOMBIE, WEREWOLF, WERERABBIT, VAMPIRE, NECROMANCER, BONE_DRAGON, SPIRIT_COLLECTOR, GRAVE_TITAN, CRYPT_CRAWLER, SCREECHER, CONSUMED,
+	# Sewer act
+	SLUDGE, PIPE_CRAWLER, SEWER_CROC, RAT_KING, SWARM }
 
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
@@ -177,8 +181,8 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 
 		EnemyType.WERERAT:
 			enemy_name = "Wererat"
-			max_health = 15
-			attack_damage = 3
+			max_health = 8
+			attack_damage = 2
 			move_distance = 1.0
 			xp_reward = 5
 			_set_mesh_color(Color(0.5, 0.35, 0.2))  # Brown
@@ -390,6 +394,159 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			armor_per_hit = 3
 			_set_mesh_color(Color(0.45, 0.35, 0.25))
 
+		# ===================== GRAVEYARD ACT =====================
+		EnemyType.ZOMBIE:
+			enemy_name = "Zombie"
+			max_health = 10
+			attack_damage = 3
+			attack_range = 1.5
+			move_distance = 3.0
+			xp_reward = 4
+			_set_mesh_color(Color(0.49, 0.57, 0.40))
+
+		EnemyType.WEREWOLF:
+			enemy_name = "Werewolf"
+			max_health = 25
+			attack_damage = 7         # +3 vs armor (armour-piercing)
+			attack_range = 1.5
+			move_distance = 3.0
+			aggro_range = 12.0
+			xp_reward = 12
+			_set_mesh_color(Color(0.44, 0.45, 0.47))
+
+		EnemyType.WERERABBIT:
+			enemy_name = "Wererabbit"
+			max_health = 25
+			attack_damage = 0         # Loot monster — never attacks
+			attack_range = 0.0
+			move_distance = 2.0
+			xp_reward = 8
+			_set_mesh_color(Color(0.72, 0.70, 0.65))
+
+		EnemyType.VAMPIRE:
+			enemy_name = "Vampire"
+			max_health = 20
+			attack_damage = 8         # Life steal on health damage
+			attack_range = 1.5
+			move_distance = 5.0
+			xp_reward = 14
+			_set_mesh_color(Color(0.16, 0.15, 0.20))
+
+		EnemyType.NECROMANCER:
+			enemy_name = "Necromancer"
+			max_health = 45
+			attack_damage = 2
+			attack_range = 10.0
+			move_distance = 8.0
+			aggro_range = 14.0
+			xp_reward = 16
+			_set_mesh_color(Color(0.12, 0.11, 0.16))
+
+		EnemyType.BONE_DRAGON:
+			enemy_name = "Bone Dragon"
+			max_health = 50
+			attack_damage = 10
+			attack_range = 1.5
+			move_distance = 5.0
+			aggro_range = 14.0
+			xp_reward = 25
+			_set_mesh_color(Color(0.91, 0.89, 0.84))
+
+		EnemyType.SPIRIT_COLLECTOR:
+			enemy_name = "Spirit Collector"
+			max_health = 30
+			attack_damage = 5
+			attack_range = 1.5
+			move_distance = 3.0
+			xp_reward = 12
+			_set_mesh_color(Color(0.60, 0.52, 0.33))
+
+		EnemyType.GRAVE_TITAN:
+			enemy_name = "Grave Titan"
+			max_health = 50
+			max_armor = 15
+			attack_damage = 12
+			attack_range = 1.5
+			move_distance = 4.0
+			aggro_range = 12.0
+			xp_reward = 20
+			_set_mesh_color(Color(0.84, 0.85, 0.87))
+
+		EnemyType.CRYPT_CRAWLER:
+			enemy_name = "Crypt Crawler"
+			max_health = 15
+			attack_damage = 5
+			attack_range = 1.5
+			move_distance = 3.0
+			xp_reward = 9
+			_set_mesh_color(Color(0.20, 0.17, 0.22))
+
+		EnemyType.SCREECHER:
+			enemy_name = "Screecher"
+			max_health = 10
+			attack_damage = 2
+			attack_range = 1.5
+			move_distance = 4.0       # 4 spaces / 2 tempo while invisible
+			xp_reward = 6
+			_set_mesh_color(Color(0.07, 0.07, 0.10))
+
+		EnemyType.CONSUMED:
+			enemy_name = "The Consumed"
+			max_health = 18
+			attack_damage = 5
+			attack_range = 1.5
+			move_distance = 5.0       # 5 spaces / 3 tempo
+			xp_reward = 10
+			_set_mesh_color(Color(0.35, 0.29, 0.28))
+
+		# ===================== SEWER ACT =====================
+		EnemyType.SLUDGE:
+			enemy_name = "Sludge Being"
+			max_health = 8
+			attack_damage = 3
+			attack_range = 6.0        # Can spit at range
+			move_distance = 3.0
+			xp_reward = 5
+			_set_mesh_color(Color(0.25, 0.63, 0.36))
+
+		EnemyType.PIPE_CRAWLER:
+			enemy_name = "Pipe Crawler"
+			max_health = 15
+			attack_damage = 4
+			attack_range = 1.5
+			move_distance = 2.0
+			xp_reward = 7
+			_set_mesh_color(Color(0.48, 0.54, 0.43))
+
+		EnemyType.SEWER_CROC:
+			enemy_name = "Sewer Crocodile"
+			max_health = 25
+			max_armor = 15
+			attack_damage = 10
+			attack_range = 1.5
+			move_distance = 2.0
+			aggro_range = 12.0
+			xp_reward = 14
+			_set_mesh_color(Color(0.27, 0.38, 0.23))
+
+		EnemyType.RAT_KING:
+			enemy_name = "Rat King"
+			max_health = 15
+			attack_damage = 4
+			attack_range = 1.5
+			move_distance = 2.0
+			xp_reward = 8
+			_set_mesh_color(Color(0.5, 0.35, 0.2))
+
+		EnemyType.SWARM:
+			enemy_name = "Swarm"
+			max_health = 8
+			attack_damage = 3
+			attack_range = 1.5
+			move_distance = 8.0       # 8 spaces / 3 tempo — very fast
+			xp_reward = 5
+			_set_mesh_color(Color(0.18, 0.16, 0.13))
+
 	current_health = max_health
 	current_armor = max_armor
 	update_health_display()
@@ -437,6 +594,22 @@ func _setup_sprite() -> void:
 		EnemyType.SPARK_MAGE: kind = "spark_mage"
 		EnemyType.AIR_MAGE: kind = "air_mage"
 		EnemyType.EARTH_MAGE: kind = "earth_mage"
+		EnemyType.ZOMBIE: kind = "zombie"
+		EnemyType.WEREWOLF: kind = "werewolf"
+		EnemyType.WERERABBIT: kind = "wererabbit"
+		EnemyType.VAMPIRE: kind = "vampire"
+		EnemyType.NECROMANCER: kind = "necromancer"
+		EnemyType.BONE_DRAGON: kind = "bone_dragon"
+		EnemyType.SPIRIT_COLLECTOR: kind = "spirit_collector"
+		EnemyType.GRAVE_TITAN: kind = "grave_titan"
+		EnemyType.CRYPT_CRAWLER: kind = "crypt_crawler"
+		EnemyType.SCREECHER: kind = "screecher"
+		EnemyType.CONSUMED: kind = "consumed"
+		EnemyType.SLUDGE: kind = "sludge"
+		EnemyType.PIPE_CRAWLER: kind = "pipe_crawler"
+		EnemyType.SEWER_CROC: kind = "sewer_croc"
+		EnemyType.RAT_KING: kind = "rat_king"
+		EnemyType.SWARM: kind = "swarm"
 		_:
 			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
 
@@ -605,6 +778,96 @@ func _setup_actions() -> void:
 				{"name": "move",    "tempo_cost": 5},
 			]
 
+		# ===================== GRAVEYARD ACT =====================
+		EnemyType.ZOMBIE:
+			actions = [
+				{"name": "attack", "tempo_cost": 6},
+				{"name": "move",   "tempo_cost": 8},
+			]
+		EnemyType.WEREWOLF:
+			actions = [
+				{"name": "werewolf_claw", "tempo_cost": 5},
+				{"name": "move",          "tempo_cost": 3},
+			]
+		EnemyType.WERERABBIT:
+			actions = [
+				{"name": "flee",   "tempo_cost": 1},
+				{"name": "vanish", "tempo_cost": 1},
+			]
+		EnemyType.VAMPIRE:
+			actions = [
+				{"name": "vampire_bite", "tempo_cost": 5},
+				{"name": "move",         "tempo_cost": 5},
+			]
+		EnemyType.NECROMANCER:
+			actions = [
+				{"name": "dark_bolt",        "tempo_cost": 5},
+				{"name": "summon_skeleton",  "tempo_cost": 8},
+				{"name": "move",             "tempo_cost": 6},
+			]
+		EnemyType.BONE_DRAGON:
+			actions = [
+				{"name": "dragon_bite",  "tempo_cost": 5},
+				{"name": "breath_swarm", "tempo_cost": 6},
+				{"name": "move",         "tempo_cost": 5},
+			]
+		EnemyType.SPIRIT_COLLECTOR:
+			actions = [
+				{"name": "collector_swing", "tempo_cost": 3},
+				{"name": "collect_soul",    "tempo_cost": 8},
+				{"name": "move",            "tempo_cost": 4},
+			]
+		EnemyType.GRAVE_TITAN:
+			actions = [
+				{"name": "titan_smash", "tempo_cost": 8},
+				{"name": "boulder_roll","tempo_cost": 5},
+				{"name": "move",        "tempo_cost": 8},
+			]
+		EnemyType.CRYPT_CRAWLER:
+			actions = [
+				{"name": "crawler_bite", "tempo_cost": 3},
+				{"name": "web",          "tempo_cost": 3},
+				{"name": "move",         "tempo_cost": 4},
+			]
+		EnemyType.SCREECHER:
+			actions = [
+				{"name": "screech", "tempo_cost": 5},
+				{"name": "move",    "tempo_cost": 2},
+			]
+		EnemyType.CONSUMED:
+			actions = [
+				{"name": "attack", "tempo_cost": 5},
+				{"name": "move",   "tempo_cost": 3},
+			]
+
+		# ===================== SEWER ACT =====================
+		EnemyType.SLUDGE:
+			actions = [
+				{"name": "sludge_melee", "tempo_cost": 5},
+				{"name": "sludge_spit",  "tempo_cost": 6},
+				{"name": "move",         "tempo_cost": 5},
+			]
+		EnemyType.PIPE_CRAWLER:
+			actions = [
+				{"name": "pipe_attack", "tempo_cost": 5},
+				{"name": "move",        "tempo_cost": 2},
+			]
+		EnemyType.SEWER_CROC:
+			actions = [
+				{"name": "croc_bite", "tempo_cost": 6},
+				{"name": "move",      "tempo_cost": 5},
+			]
+		EnemyType.RAT_KING:
+			actions = [
+				{"name": "bite", "tempo_cost": 2},
+				{"name": "move", "tempo_cost": 2},
+			]
+		EnemyType.SWARM:
+			actions = [
+				{"name": "attack", "tempo_cost": 2},
+				{"name": "move",   "tempo_cost": 3},
+			]
+
 # ============================================
 # COMPENDIUM DATA
 # ============================================
@@ -638,12 +901,28 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPARK_MAGE: "Minion",
 		EnemyType.AIR_MAGE: "Minion",
 		EnemyType.EARTH_MAGE: "Elite",
+		EnemyType.ZOMBIE: "Minion",
+		EnemyType.WEREWOLF: "Elite",
+		EnemyType.WERERABBIT: "Minion",
+		EnemyType.VAMPIRE: "Elite",
+		EnemyType.NECROMANCER: "Elite",
+		EnemyType.BONE_DRAGON: "Boss",
+		EnemyType.SPIRIT_COLLECTOR: "Elite",
+		EnemyType.GRAVE_TITAN: "Boss",
+		EnemyType.CRYPT_CRAWLER: "Minion",
+		EnemyType.SCREECHER: "Minion",
+		EnemyType.CONSUMED: "Elite",
+		EnemyType.SLUDGE: "Minion",
+		EnemyType.PIPE_CRAWLER: "Minion",
+		EnemyType.SEWER_CROC: "Elite",
+		EnemyType.RAT_KING: "Elite",
+		EnemyType.SWARM: "Minion",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
 		EnemyType.ELITE: {"name": "Elite", "health": 80, "armor": 0, "damage": 6, "xp": 10},
 		EnemyType.BOSS: {"name": "Boss", "health": 200, "armor": 0, "damage": 10, "xp": 25},
-		EnemyType.WERERAT: {"name": "Wererat", "health": 15, "armor": 0, "damage": 3, "xp": 5},
+		EnemyType.WERERAT: {"name": "Wererat", "health": 8, "armor": 0, "damage": 2, "xp": 5},
 		EnemyType.SKELETON: {"name": "Skeleton", "health": 18, "armor": 10, "damage": 5, "xp": 5},
 		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 45, "armor": 30, "damage": 4, "xp": 8},
 		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 5, "armor": 0, "damage": 1, "xp": 4},
@@ -665,6 +944,22 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPARK_MAGE: {"name": "Spark Mage", "health": 10, "armor": 0, "damage": 1, "xp": 6},
 		EnemyType.AIR_MAGE: {"name": "Air Mage", "health": 20, "armor": 0, "damage": 2, "xp": 8},
 		EnemyType.EARTH_MAGE: {"name": "Earth Mage", "health": 50, "armor": 0, "damage": 6, "xp": 10},
+		EnemyType.ZOMBIE: {"name": "Zombie", "health": 10, "armor": 0, "damage": 3, "xp": 4},
+		EnemyType.WEREWOLF: {"name": "Werewolf", "health": 25, "armor": 0, "damage": 7, "xp": 12},
+		EnemyType.WERERABBIT: {"name": "Wererabbit", "health": 25, "armor": 0, "damage": 0, "xp": 8},
+		EnemyType.VAMPIRE: {"name": "Vampire", "health": 20, "armor": 0, "damage": 8, "xp": 14},
+		EnemyType.NECROMANCER: {"name": "Necromancer", "health": 45, "armor": 0, "damage": 2, "xp": 16},
+		EnemyType.BONE_DRAGON: {"name": "Bone Dragon", "health": 50, "armor": 0, "damage": 10, "xp": 25},
+		EnemyType.SPIRIT_COLLECTOR: {"name": "Spirit Collector", "health": 30, "armor": 0, "damage": 5, "xp": 12},
+		EnemyType.GRAVE_TITAN: {"name": "Grave Titan", "health": 50, "armor": 15, "damage": 12, "xp": 20},
+		EnemyType.CRYPT_CRAWLER: {"name": "Crypt Crawler", "health": 15, "armor": 0, "damage": 5, "xp": 9},
+		EnemyType.SCREECHER: {"name": "Screecher", "health": 10, "armor": 0, "damage": 2, "xp": 6},
+		EnemyType.CONSUMED: {"name": "The Consumed", "health": 18, "armor": 0, "damage": 5, "xp": 10},
+		EnemyType.SLUDGE: {"name": "Sludge Being", "health": 8, "armor": 0, "damage": 3, "xp": 5},
+		EnemyType.PIPE_CRAWLER: {"name": "Pipe Crawler", "health": 15, "armor": 0, "damage": 4, "xp": 7},
+		EnemyType.SEWER_CROC: {"name": "Sewer Crocodile", "health": 25, "armor": 15, "damage": 10, "xp": 14},
+		EnemyType.RAT_KING: {"name": "Rat King", "health": 15, "armor": 0, "damage": 4, "xp": 8},
+		EnemyType.SWARM: {"name": "Swarm", "health": 8, "armor": 0, "damage": 3, "xp": 5},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -692,12 +987,28 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPARK_MAGE: [{"name": "Spark", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.AIR_MAGE: [{"name": "Gust", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.EARTH_MAGE: [{"name": "Boulder", "tempo": 6}, {"name": "Move", "tempo": 5}],
+		EnemyType.ZOMBIE: [{"name": "Attack", "tempo": 6}, {"name": "Move", "tempo": 8}],
+		EnemyType.WEREWOLF: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 3}],
+		EnemyType.WERERABBIT: [{"name": "Flee", "tempo": 1}, {"name": "Vanish", "tempo": 1}],
+		EnemyType.VAMPIRE: [{"name": "Bite", "tempo": 5}, {"name": "Move", "tempo": 5}],
+		EnemyType.NECROMANCER: [{"name": "Bolt", "tempo": 5}, {"name": "Summon", "tempo": 8}, {"name": "Move", "tempo": 6}],
+		EnemyType.BONE_DRAGON: [{"name": "Bite", "tempo": 5}, {"name": "Breath", "tempo": 6}, {"name": "Move", "tempo": 5}],
+		EnemyType.SPIRIT_COLLECTOR: [{"name": "Strike", "tempo": 3}, {"name": "Collect Soul", "tempo": 8}, {"name": "Move", "tempo": 4}],
+		EnemyType.GRAVE_TITAN: [{"name": "Smash", "tempo": 8}, {"name": "Boulder Roll", "tempo": 5}, {"name": "Move", "tempo": 8}],
+		EnemyType.CRYPT_CRAWLER: [{"name": "Bite", "tempo": 3}, {"name": "Web", "tempo": 3}, {"name": "Move", "tempo": 4}],
+		EnemyType.SCREECHER: [{"name": "Screech", "tempo": 5}, {"name": "Drift", "tempo": 2}],
+		EnemyType.CONSUMED: [{"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 3}],
+		EnemyType.SLUDGE: [{"name": "Melee", "tempo": 5}, {"name": "Spit", "tempo": 6}, {"name": "Move", "tempo": 5}],
+		EnemyType.PIPE_CRAWLER: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 2}],
+		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
+		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 2}, {"name": "Move", "tempo": 2}],
+		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ELITE: "Stronger than minions.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.BOSS: "High health and damage.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		EnemyType.WERERAT: "Fast and evasive.\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
+		EnemyType.WERERAT: "Fast and evasive (8 HP, 2 dmg).\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 2 HP every 6 global tempo.\nAt range ≤1: 60% Smash / 40% Kick.\nOtherwise: Moves toward player.",
 		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 1 damage.\nAt range >4: Moves 2 tiles closer.",
@@ -719,6 +1030,22 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPARK_MAGE: "Attacks apply 1 Shock.\nSpark (range 6, 2 tempo): 1 lightning damage + 1 Shock.\nMove (3 tempo): 2 spaces.",
 		EnemyType.AIR_MAGE: "Long-range caster.\nGust (range 8, 5 tempo): 2 wind damage.\nMove (3 tempo): 6 spaces.",
 		EnemyType.EARTH_MAGE: "Gains 3 armor every time it is hit.\nBoulder (melee, 6 tempo): 6 earth damage.\nMove (5 tempo): 5 spaces.",
+		EnemyType.ZOMBIE: "Slow, beefy undead.\nAt range ≤1: Attacks (3 dmg, 6 tempo).\nOtherwise: shambles toward player (3 spaces / 8 tempo).",
+		EnemyType.WEREWOLF: "Bear-sized grey beast with armor-piercing claws.\nClaw (5 tempo): 7 damage; deals +3 extra to armor.\nMove (3 tempo): 3 spaces.",
+		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
+		EnemyType.VAMPIRE: "Victorian aristocrat with life steal.\nBite (5 tempo): 8 damage; heals for 100% of damage dealt to health (not armor).\nMove (5 tempo): 5 spaces.",
+		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead.\nBolt (5 tempo): 2 damage.\nSummon (8 tempo): raises undead. After 5 of its summons die, it raises a Bone Dragon.\nMove (6 tempo): 8 spaces.",
+		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely.\nBite (5 tempo): 10 damage.\nBreath Swarm (6 tempo): 8 damage in a line (6 spaces); spawns an insect swarm for each unit hit.\nMove (5 tempo): 5 spaces.",
+		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 5 damage.\nCollect Soul (8 tempo): 2 damage; adds a 'Release Soul' card to your hand (deals 1 damage per tempo until played, then is erased).",
+		EnemyType.GRAVE_TITAN: "Yeti-like brute (15 armor) hauling a boulder.\nSmash (8 tempo): 12 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 8 damage.\nMove (8 tempo): 4 spaces.",
+		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 5 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
+		EnemyType.SCREECHER: "Soul-creature — invisible (a black void ghost) until it strikes.\nScreech (5 tempo): 2 damage; it becomes visible for 3 tempo, then fades again.\nDrift: 4 spaces / 2 tempo while invisible (2 spaces / 5 tempo while visible).",
+		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 5 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 4 damage to everything nearby.",
+		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
+		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 4 damage; 15% chance to disarm you.\nMove (2 tempo): 2 spaces.",
+		EnemyType.SEWER_CROC: "Armoured ambush predator (15 armor).\nBite (6 tempo): 10 damage.\nMove (5 tempo): 2 spaces.",
+		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm.\nBite (2 tempo): 4 damage.\nMove (2 tempo): 2 spaces.",
+		EnemyType.SWARM: "A single unit made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 	}
 
 	var result: Array = []
@@ -1077,6 +1404,40 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_ranged_action(distance, "gust")
 		EnemyType.EARTH_MAGE:
 			_choose_melee_action(distance, "boulder")
+		# ----- Graveyard act -----
+		EnemyType.ZOMBIE:
+			_choose_melee_action(distance, "attack")
+		EnemyType.WEREWOLF:
+			_choose_melee_action(distance, "werewolf_claw")
+		EnemyType.WERERABBIT:
+			chosen_action = _get_action("flee")  # Loot monster — only flees
+		EnemyType.VAMPIRE:
+			_choose_melee_action(distance, "vampire_bite")
+		EnemyType.NECROMANCER:
+			_choose_ranged_action(distance, "dark_bolt")
+		EnemyType.BONE_DRAGON:
+			_choose_melee_action(distance, "dragon_bite")
+		EnemyType.SPIRIT_COLLECTOR:
+			_choose_melee_action(distance, "collector_swing")
+		EnemyType.GRAVE_TITAN:
+			_choose_melee_action(distance, "titan_smash")
+		EnemyType.CRYPT_CRAWLER:
+			_choose_melee_action(distance, "crawler_bite")
+		EnemyType.SCREECHER:
+			_choose_melee_action(distance, "screech")
+		EnemyType.CONSUMED:
+			_choose_melee_action(distance, "attack")
+		# ----- Sewer act -----
+		EnemyType.SLUDGE:
+			_choose_sludge_action(distance)
+		EnemyType.PIPE_CRAWLER:
+			_choose_melee_action(distance, "pipe_attack")
+		EnemyType.SEWER_CROC:
+			_choose_melee_action(distance, "croc_bite")
+		EnemyType.RAT_KING:
+			_choose_melee_action(distance, "bite")
+		EnemyType.SWARM:
+			_choose_melee_action(distance, "attack")
 		_:
 			_choose_legacy_action(distance)
 
@@ -1174,6 +1535,16 @@ func _sibling_enemies() -> Array:
 	return out
 
 ## --- Forest-act action selection ---
+
+func _choose_sludge_action(distance: int) -> void:
+	# Melee up close, spit at range, otherwise close in.
+	if distance <= 1:
+		chosen_action = _get_action("sludge_melee")
+	elif distance <= int(attack_range):
+		chosen_action = _get_action("sludge_spit")
+	else:
+		chosen_action = _get_action("move")
+
 
 func _choose_melee_action(distance: int, attack_name: String) -> void:
 	if distance <= 1:
@@ -1310,6 +1681,46 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_elemental(move_target, attack_damage, "Gust")
 		"boulder":
 			return _try_elemental(move_target, attack_damage, "Boulder")
+		# ----- Graveyard act (special mechanics are placeholders for now) -----
+		"werewolf_claw":
+			return _try_elemental(move_target, attack_damage, "Claw")
+		"vampire_bite":
+			return _try_elemental(move_target, attack_damage, "Life Steal")
+		"flee":
+			return _try_move(move_target)
+		"vanish":
+			turn_completed.emit(); return true
+		"dark_bolt":
+			return _try_elemental(move_target, attack_damage, "Dark Bolt")
+		"summon_skeleton":
+			turn_completed.emit(); return true
+		"dragon_bite":
+			return _try_elemental(move_target, attack_damage, "Bite")
+		"breath_swarm":
+			return _try_elemental(move_target, attack_damage, "Breath")
+		"collector_swing":
+			return _try_elemental(move_target, attack_damage, "Strike")
+		"collect_soul":
+			return _try_elemental(move_target, attack_damage, "Collect Soul")
+		"titan_smash":
+			return _try_elemental(move_target, attack_damage, "Smash")
+		"boulder_roll":
+			return _try_elemental(move_target, attack_damage, "Boulder Roll")
+		"crawler_bite":
+			return _try_elemental(move_target, attack_damage, "Bite")
+		"web":
+			return _try_elemental(move_target, attack_damage, "Web")
+		"screech":
+			return _try_elemental(move_target, attack_damage, "Screech")
+		# ----- Sewer act -----
+		"sludge_melee":
+			return _try_elemental(move_target, attack_damage, "Sludge")
+		"sludge_spit":
+			return _try_elemental(move_target, attack_damage, "Spit")
+		"pipe_attack":
+			return _try_elemental(move_target, attack_damage, "Claw")
+		"croc_bite":
+			return _try_elemental(move_target, attack_damage, "Bite")
 		_:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false

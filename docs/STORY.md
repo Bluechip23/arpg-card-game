@@ -86,7 +86,7 @@ The story is told in **four Acts**, and each Act is a journey to a different
 | **Act 1** | **Earth** | Civilization — classic high fantasy, the surface world |
 | **Act 2** | **Hell (the Underworld)** | Fire, darkness, sickness, demons |
 | **Act 3** | **Heaven** | A corrupted, infiltrated holy realm |
-| **Act 4** | **Earth (Return)** | The true target — home, under siege |
+| **Act 4** | **Earth (Return)** | All three planes collide on Earth — the final battle for the world |
 
 **Parts & pacing:**
 - Each Act contains **4 parts**.
@@ -143,9 +143,12 @@ stop the invasion.*
 
 - While the player defended the Heavens, the enemy began **leaking back to
   Earth** — the plan they truly wanted all along.
+- **All three planes collide here:** the **normal plane, Hell, and Heaven now
+  all exist on Earth at once.** The world itself becomes the battlefield, and
+  this is the **final battle for the world** — its fate decided here.
 - **Habitats it draws from:** the Earth habitats again, now **corrupted**, plus
-  Underworld/Heaven creatures bleeding through tears in reality. *The familiar
-  made monstrous.*
+  Underworld *and* Heaven creatures present together through tears in reality.
+  *The familiar made monstrous.*
 - **Pacing:** lean, urgent parts building to the **final boss fight**.
 - **Final boss:** `[TBD]` — the architect of the cross-realm war; the presence
   Olorin first sensed in the grass.
