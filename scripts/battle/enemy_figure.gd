@@ -673,7 +673,9 @@ func _build_goblin(role: String, skin: Color) -> void:
 # =============================================================
 
 ## Generic four-legged critter. ears: "round" | "pointed"; tail: "bushy" | "stub".
-func _build_quadruped(fur: Color, belly: Color, s: float, ears: String, tail: String) -> Node3D:
+## Pass with_head=false to get just the trunk/legs/tail (e.g. Cerberus, which
+## supplies its own three heads).
+func _build_quadruped(fur: Color, belly: Color, s: float, ears: String, tail: String, with_head := true) -> Node3D:
 	_shadow(0.24 * s)
 	var dark := Color.html("141019")
 	var body := Node3D.new()
@@ -692,20 +694,21 @@ func _build_quadruped(fur: Color, belly: Color, s: float, ears: String, tail: St
 	for leg in [["FL", 0.12, 0.24], ["FR", -0.12, 0.24], ["BL", 0.12, -0.22], ["BR", -0.12, -0.22]]:
 		_cy(body, "Leg" + str(leg[0]), Vector3(leg[1] * s, -0.22 * s, leg[2] * s), 0.04 * s, 0.045 * s, 0.26 * s, fur)
 		_sp(body, "Paw" + str(leg[0]), Vector3(leg[1] * s, -0.36 * s, (leg[2] + 0.02) * s), 0.05 * s, dark)
-	# Neck sloping up from the shoulders to a head set forward and clear of the body.
-	_cy(body, "Neck", Vector3(0, 0.12 * s, 0.32 * s), 0.09 * s, 0.12 * s, 0.22 * s, fur, Vector3(58, 0, 0))
-	_sp(body, "Head", Vector3(0, 0.2 * s, 0.42 * s), 0.145 * s, fur, Vector3(1.0, 1.0, 1.05))
-	# Longer tapered muzzle so it has a face, not just a ball.
-	_cy(body, "Muzzle", Vector3(0, 0.15 * s, 0.56 * s), 0.06 * s, 0.1 * s, 0.2 * s, fur, Vector3(80, 0, 0))
-	_sp(body, "Nose", Vector3(0, 0.14 * s, 0.66 * s), 0.032 * s, dark)
-	_sp(body, "EyeL", Vector3(-0.07 * s, 0.24 * s, 0.5 * s), 0.026 * s, dark)
-	_sp(body, "EyeR", Vector3(0.07 * s, 0.24 * s, 0.5 * s), 0.026 * s, dark)
-	if ears == "round":
-		_sp(body, "EarL", Vector3(-0.1 * s, 0.32 * s, 0.4 * s), 0.06 * s, fur)
-		_sp(body, "EarR", Vector3(0.1 * s, 0.32 * s, 0.4 * s), 0.06 * s, fur)
-	else:  # pointed
-		_cy(body, "EarL", Vector3(-0.08 * s, 0.34 * s, 0.4 * s), 0.0, 0.05 * s, 0.14 * s, fur, Vector3(-12, 0, 16))
-		_cy(body, "EarR", Vector3(0.08 * s, 0.34 * s, 0.4 * s), 0.0, 0.05 * s, 0.14 * s, fur, Vector3(-12, 0, -16))
+	if with_head:
+		# Neck sloping up from the shoulders to a head set forward and clear of the body.
+		_cy(body, "Neck", Vector3(0, 0.12 * s, 0.32 * s), 0.09 * s, 0.12 * s, 0.22 * s, fur, Vector3(58, 0, 0))
+		_sp(body, "Head", Vector3(0, 0.2 * s, 0.42 * s), 0.145 * s, fur, Vector3(1.0, 1.0, 1.05))
+		# Longer tapered muzzle so it has a face, not just a ball.
+		_cy(body, "Muzzle", Vector3(0, 0.15 * s, 0.56 * s), 0.06 * s, 0.1 * s, 0.2 * s, fur, Vector3(80, 0, 0))
+		_sp(body, "Nose", Vector3(0, 0.14 * s, 0.66 * s), 0.032 * s, dark)
+		_sp(body, "EyeL", Vector3(-0.07 * s, 0.24 * s, 0.5 * s), 0.026 * s, dark)
+		_sp(body, "EyeR", Vector3(0.07 * s, 0.24 * s, 0.5 * s), 0.026 * s, dark)
+		if ears == "round":
+			_sp(body, "EarL", Vector3(-0.1 * s, 0.32 * s, 0.4 * s), 0.06 * s, fur)
+			_sp(body, "EarR", Vector3(0.1 * s, 0.32 * s, 0.4 * s), 0.06 * s, fur)
+		else:  # pointed
+			_cy(body, "EarL", Vector3(-0.08 * s, 0.34 * s, 0.4 * s), 0.0, 0.05 * s, 0.14 * s, fur, Vector3(-12, 0, 16))
+			_cy(body, "EarR", Vector3(0.08 * s, 0.34 * s, 0.4 * s), 0.0, 0.05 * s, 0.14 * s, fur, Vector3(-12, 0, -16))
 	if tail == "bushy":
 		_sp(body, "Tail", Vector3(0, 0.08 * s, -0.42 * s), 0.1 * s, fur, Vector3(0.8, 0.8, 1.5))
 	else:  # stub
@@ -1872,30 +1875,46 @@ func _build_sabertooth() -> void:
 # UNDERWORLD ACT MODELS
 # =============================================================
 
-## Cerberus: three-headed hound with spiked collars and a dangling chain.
+## A Cerberus head on a short, thick (hydra-style) neck: a stout tapered neck
+## plus throat, an elongated muzzled head with glowing eyes, dog ears, and a
+## spiked collar at the base.
+func _cerberus_head(parent: Node3D, base: Vector3, pitch: float, yaw: float, roll: float, fur: Color, belly: Color, dark: Color, eye: Color, steel: Color) -> Node3D:
+	var hp := Node3D.new()
+	hp.name = "Head%d" % parent.get_child_count()
+	hp.position = base
+	hp.rotation_degrees = Vector3(pitch, yaw, roll)
+	parent.add_child(hp)
+	var nl := 0.16   # short neck...
+	_cy(hp, "Neck", Vector3(0, nl * 0.5, 0.0), 0.1, 0.13, nl, fur)   # ...and thick
+	_cy(hp, "Throat", Vector3(0, nl * 0.5, 0.06), 0.07, 0.1, nl * 0.92, belly)
+	var h := Vector3(0, nl + 0.04, 0.05)
+	_sp(hp, "Head", h, 0.12, fur, Vector3(1.0, 0.95, 1.35))
+	_bx(hp, "Snout", h + Vector3(0, -0.04, 0.17), Vector3(0.12, 0.09, 0.15), fur)
+	_sp(hp, "Nose", h + Vector3(0, -0.04, 0.25), 0.03, dark)
+	_sp(hp, "EyeL", h + Vector3(-0.06, 0.05, 0.08), 0.022, eye, Vector3.ONE, true)
+	_sp(hp, "EyeR", h + Vector3(0.06, 0.05, 0.08), 0.022, eye, Vector3.ONE, true)
+	_cy(hp, "EarL", h + Vector3(-0.09, 0.09, -0.04), 0.0, 0.045, 0.12, fur, Vector3(-14, 0, 18))
+	_cy(hp, "EarR", h + Vector3(0.09, 0.09, -0.04), 0.0, 0.045, 0.12, fur, Vector3(-14, 0, -18))
+	_cy(hp, "Collar", Vector3(0, 0.05, 0.03), 0.13, 0.13, 0.05, dark)
+	for s in range(4): _cy(hp, "Spike%d" % s, Vector3(cos(s * PI / 2) * 0.13, 0.05, 0.03 + sin(s * PI / 2) * 0.13), 0.0, 0.02, 0.06, steel, Vector3(90 if s % 2 else 0, 0, 90 * s))
+	return hp
+
+
+## Cerberus: three-headed hound with spiked collars and a dangling chain. Builds
+## the trunk via the quadruped (no head) and adds its own three short-necked heads.
 func _build_cerberus() -> void:
-	var body := _build_quadruped(Color.html("3a3036"), Color.html("241d22"), 1.15, "pointed", "stub")
+	var fur := Color.html("3a3036"); var belly := Color.html("241d22"); var dark := Color.html("141016"); var eye := Color.html("ff6a2a"); var steel := Color.html("9aa0a8"); var chain := Color.html("6a6a72")
+	var body := _build_quadruped(fur, belly, 1.15, "pointed", "stub", false)
 	_bob_node = body
 	_bob_y = body.position.y
 	_atk_pivot = body
 	_atk_rest = Vector3.ZERO
-	var fur := Color.html("3a3036"); var dark := Color.html("141016"); var eye := Color.html("ff6a2a"); var steel := Color.html("9aa0a8"); var chain := Color.html("6a6a72")
-	# the quadruped already made the central head; add two flanking necks + heads,
-	# each on its own neck and splayed outward, with spiked collars.
+	# Three stout heads rearing up from the shoulders: one forward, two splayed out.
+	_cerberus_head(body, Vector3(0, 0.18, 0.28), 30, 0, 0, fur, belly, dark, eye, steel)
 	for hx in [-1, 1]:
-		var hp := Node3D.new(); hp.position = Vector3(0.22 * hx, 0.06, 0.32); body.add_child(hp); hp.rotation_degrees = Vector3(-8, 24 * -hx, 18 * -hx)
-		_cy(hp, "Neck", Vector3(0, 0.13, 0.06), 0.06, 0.085, 0.2, fur, Vector3(54, 0, 0))
-		_sp(hp, "Head", Vector3(0, 0.23, 0.16), 0.115, fur)
-		_cy(hp, "Muzzle", Vector3(0, 0.19, 0.28), 0.04, 0.07, 0.16, fur, Vector3(80, 0, 0))
-		_sp(hp, "Nose", Vector3(0, 0.18, 0.36), 0.028, dark)
-		_sp(hp, "EyeL", Vector3(-0.05, 0.27, 0.25), 0.02, eye, Vector3.ONE, true); _sp(hp, "EyeR", Vector3(0.05, 0.27, 0.25), 0.02, eye, Vector3.ONE, true)
-		_cy(hp, "Collar", Vector3(0, 0.07, 0.04), 0.085, 0.085, 0.05, dark)
-		for s in range(4): _cy(hp, "Spike%d" % s, Vector3(cos(s * PI / 2) * 0.085, 0.07, 0.04 + sin(s * PI / 2) * 0.085), 0.0, 0.018, 0.055, steel, Vector3(90 if s % 2 else 0, 0, 90 * s))
-	# glowing eyes on the central head
-	_sp(body, "CEyeL", Vector3(-0.06, 0.27, 0.56), 0.024, eye, Vector3.ONE, true); _sp(body, "CEyeR", Vector3(0.06, 0.27, 0.56), 0.024, eye, Vector3.ONE, true)
-	# spiked collar around the central neck + a chain dangling from the left head
-	_cy(body, "CCollar", Vector3(0, 0.1, 0.34), 0.1, 0.1, 0.05, dark, Vector3(58, 0, 0))
-	var c := Node3D.new(); c.position = Vector3(-0.14, 0.04, 0.34); body.add_child(c)
+		_cerberus_head(body, Vector3(0.24 * hx, 0.12, 0.2), 24, 36 * -hx, 14 * -hx, fur, belly, dark, eye, steel)
+	# a chain dangling from the left head's collar
+	var c := Node3D.new(); c.position = Vector3(-0.16, 0.06, 0.3); body.add_child(c)
 	for i in range(4): _sp(c, "Link%d" % i, Vector3(0, -i * 0.07, 0), 0.03, chain)
 
 
