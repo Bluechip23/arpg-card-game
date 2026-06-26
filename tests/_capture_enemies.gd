@@ -64,8 +64,8 @@ func _initialize() -> void:
 		root3d.add_child(f)
 		f.setup(solo)
 		_figs.append(f)
-		cam.position = Vector3(0.9, 1.0, 2.3)
-		cam.look_at(Vector3(0, 0.6, 0), Vector3.UP)
+		cam.position = Vector3(0.85, 0.78, 1.95)
+		cam.look_at_from_position(cam.position, Vector3(0, 0.4, 0), Vector3.UP)
 	else:
 		var kinds := ["skeleton", "rat", "archer_rat", "armored_troll"]
 		var x := -2.25
