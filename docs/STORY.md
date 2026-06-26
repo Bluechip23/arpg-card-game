@@ -117,7 +117,7 @@ of the threat.* Think Middle-earth / LOTR.
 - **Habitats it draws from:** Forest, Graveyard, Cave, Sewer, Mountains.
 - **Tone:** familiar, grounded fantasy. The sickness is subtle here — felt by
   Olorin, not yet obvious. This is where the mystery is seeded.
-- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) Forests / wilds `[TBD]` · 4) Act 1 climax / threshold downward `[TBD]`.
+- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest and the Caves are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / threshold downward `[TBD]`.
 
 ### Act 2 — Hell: The Underworld
 *The descent. The apparent source of the rot.*
@@ -243,6 +243,29 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Druid** — `[TBD]`.
 - **Hydra** — *in code*.
 
+> **The Greenwood (Act 1, Forest) — built.** A bright, open woodland level
+> (`dungeon_manager.gd`, `interior_kind == "forest"`), reached from a **forest
+> trailhead** site in the World 1 overworld. The sunlit counterpoint to the
+> sewers.
+>
+> - **Layout:** grassy **clearings** linked by winding **dirt trails**, with some
+>   clearings raised into **wooded hills** (high ground). A deep clearing to the
+>   east is guarded by a **Large Bear**.
+> - **Light & fog:** the brightest interior — full dappled daylight, thin air, and
+>   a **large fog-reveal radius** (9 tiles) so moving uncovers much more of the map
+>   than the sewers do.
+> - **Climbable trees:** select trees have a **distinct low branch**; press
+>   **[Shift]** beside one to climb up for **high ground** (ranged damage/range
+>   bonus, and melee can't reach you up there). A **one-time tutorial bubble**
+>   (`first_climbable_tree`, via Olorin) fires the first time the player climbs.
+> - **Traps:** **bear traps** snap shut for **7 damage** to whatever steps on them
+>   — **10 to bears** (Mini/Large Bear). Hunters' **dart tripwires** strung across
+>   trails fire a volley for **5 damage** when crossed. Both are single-use and
+>   spring on enemies *or* the player. Scattered **pits** are impassable holes.
+> - **Life & dressing:** packs of coyotes, wolves, bears, bugbears and hill-dwelling
+>   hawks (plus elite beavers, hunters and treants); background **squirrels** dart
+>   about; trees, **stumps**, bushes and ferns line the treeline.
+
 #### Graveyard
 - **Skeleton** — *in code*
 - **Zombie**
@@ -281,6 +304,14 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **The Hollowed**
 - **Leviathans**
 - **Stone Drake**
+
+> **Caves — built/enhanced.** The cave interiors (`interior_kind == "cave"`) are a
+> network of organic stone **tunnels and chambers**, now dressed to match: they
+> are **darker even than the sewers** (lowest ambient/sun, heaviest gloom, and a
+> **player-carried torch**), with **stalagmites** rising from the floor,
+> **stalactites** hanging from the dark above (some **dripping**), cold **water
+> puddles**, shallow **divots** and scattered rubble. Reached from cave-mouth
+> sites in the overworld.
 
 #### Sewer
 *The game's opening dungeon — see **The Sewers (Act 1, Part 1)** below for the
@@ -400,6 +431,8 @@ the repo. Keep this table honest as the code changes.
 | **Acts / planes** | `scripts/core/dungeon_manager.gd` → `WORLD_PALETTES` (1–5) | Themes are explicitly **placeholder** ("final per-world themes TBD"). Current names: Verdant Frontier, Amber Wastes, Frostreach, Emberfall, Umbral Expanse. The lore here is what those palettes should *become*. |
 | **Habitats / biomes** | `dungeon_manager.gd` palettes + `CAVE_PALETTE`, `BUILDING_PALETTE`, `SEWER_PALETTE`; site generation (caves, buildings, sewers) | The generator distinguishes overworld vs. cave vs. building vs. **sewer** interiors — a natural hook for habitat-specific enemy spawn tables (Section 5). |
 | **The Sewers (Act 1, Part 1)** | `dungeon_manager.gd` (`interior_kind == "sewer"`: `_generate_sewer_layout`, `_build_sewer_decorations`, `_define_sewer_spawn_zones`), `main.gd` (`_apply_world_ambience` sewer branch + `_ensure_player_torch`), `torch_flicker.gd`, `sewer_critter.gd` | **Built.** The opening dungeon: trunk + water channels, Rat King arena, west→east rat/ooze → boss → croc/swarm/crawler progression, dim torchlit atmosphere, reduced fog. Reached via a sewer grate site in World 1. See Section 5.4. |
+| **The Greenwood (Act 1, Forest)** | `dungeon_manager.gd` (`interior_kind == "forest"`: `_generate_forest_layout`, `_place_forest_features`, `_build_forest_decorations`, `_define_forest_spawn_zones`), `main.gd` (forest ambience, terrain-trap + tree-climb systems, tutorial), `sewer_critter.gd` (squirrels) | **Built.** Open clearings/trails/hills; climbable trees → high ground (+ one-time tutorial); bear traps (7 dmg / 10 to bears) and hunter dart tripwires (5 dmg) that hit players *and* enemies; pits; squirrels; bright fog. Reached via a forest trailhead site in World 1. See Section 5.4. |
+| **Caves (Act 1, Cave)** | `dungeon_manager.gd` (`interior_kind == "cave"`: `_generate_cave_layout` + `_place_cave_puddles`, `_build_cave_decorations`, darkened `CAVE_PALETTE`), `main.gd` (cave ambience + player torch) | **Built/enhanced.** Dark stone tunnels darker than the sewers; stalagmites, stalactites (dripping), puddles, divots, player torch. Reached via cave-mouth sites. See Section 5.4. |
 | **Roguelike unlock pool** | `scripts/roguelike/world_data.gd` (`WorldData`) | The end-game meta-container a story playthrough builds. A code-level concept, **not** a story Act. |
 | **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; gates roguelike intent-reveals. 11 enemy types today (Section 5.3). |
 | **Relics from monsters** | `CharacterData.unlocked_relic_ids`, `scripts/roguelike/relics.gd` | e.g. Hydra → Hydra Heart. The story↔roguelike bridge. |
@@ -424,6 +457,10 @@ Decided:
   Sewer, Mountains, Underworld, Heavens), as flexible guidelines.
 - ✅ **The Sewers (Act 1, Part 1) are built** — opening dungeon, themed roster,
   Rat King mini-boss, dim torchlit atmosphere. See Section 5.4 / Section 8.
+- ✅ **The Greenwood forest and the Caves are built** — woodland of clearings,
+  trails and hills with climbable trees (high ground + tutorial), bear traps and
+  hunters' dart tripwires, pits and squirrels; and dark, dripping cave tunnels
+  with stalagmites/stalactites, puddles and a player torch. See Section 5.4 / §8.
 
 Still open:
 1. **Solidify creature themes:** go habitat by habitat and define each

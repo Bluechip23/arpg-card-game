@@ -20,6 +20,8 @@ func _initialize() -> void:
 	configs.append({"level": 5, "interior": "building_1"})
 	configs.append({"level": 1, "interior": "sewer_0"})
 	configs.append({"level": 1, "interior": "sewer_1"})
+	configs.append({"level": 1, "interior": "forest_0"})
+	configs.append({"level": 1, "interior": "forest_1"})
 
 	for cfg in configs:
 		var sig_a = _build_and_validate(holder, cfg)
@@ -61,6 +63,12 @@ func _build_and_validate(holder: Node3D, cfg: Dictionary, validate: bool = true)
 		sig += "|s%s@%s" % [s["id"], s["grid_pos"]]
 	for zn in dm.spawn_zones:
 		sig += "|z%s" % [zn["spawn_points"]]
+	for t in dm.tree_nodes:
+		sig += "|t%s" % t["grid_pos"]
+	for tr in dm.trap_defs:
+		sig += "|x%s@%s" % [tr["kind"], tr["grid_pos"]]
+	for p in dm.pit_tiles.keys():
+		sig += "|pit%s" % p
 
 	dm.clear()
 	dm.queue_free()
@@ -130,6 +138,8 @@ func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
 			dm.spawn_zones.size(), caves, buildings, sewers])
 	elif cfg["interior"].begins_with("sewer"):
 		_validate_sewer(dm, cfg)
+	elif cfg["interior"].begins_with("forest"):
+		_validate_forest(dm, cfg)
 	else:
 		if dm.get_site_by_id("exit") < 0:
 			_fail(cfg, "interior has no exit site")
@@ -183,6 +193,47 @@ func _validate_sewer(dm: DungeonManager, cfg: Dictionary) -> void:
 	print("INFO %s (W%d): %dx%d, %d rooms, %d chests, %d zones, %d water tiles" % [
 		cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rooms.size(),
 		dm.chest_nodes.size(), dm.spawn_zones.size(), water_tiles])
+
+func _validate_forest(dm: DungeonManager, cfg: Dictionary) -> void:
+	if dm.get_site_by_id("exit") < 0:
+		_fail(cfg, "forest has no exit site")
+	if dm.waypoint_nodes.size() != 0:
+		_fail(cfg, "forest should not have waypoints")
+	# Climbable trees must exist and sit on walkable floor.
+	if dm.tree_nodes.is_empty():
+		_fail(cfg, "forest has no climbable trees")
+	for t in dm.tree_nodes:
+		if not dm.is_floor(t["grid_pos"]):
+			_fail(cfg, "climbable tree off-floor at %s" % t["grid_pos"])
+	# Traps: at least one bear trap and one dart trap, all on floor tiles.
+	var bear = 0
+	var dart = 0
+	for tr in dm.trap_defs:
+		if tr["kind"] == "bear":
+			bear += 1
+		elif tr["kind"] == "dart":
+			dart += 1
+		for tile in tr["tiles"]:
+			if not dm.is_floor(tile):
+				_fail(cfg, "trap tile %s is not floor" % tile)
+	if bear == 0:
+		_fail(cfg, "forest has no bear traps")
+	if dart == 0:
+		_fail(cfg, "forest has no dart traps")
+	# Pits must be walkable floor cells (blocked at runtime, not carved to wall).
+	for p in dm.pit_tiles.keys():
+		if not dm.is_floor(p):
+			_fail(cfg, "pit %s is not floor" % p)
+	# At least one hill (high ground) somewhere in the woods.
+	var hills = 0
+	for room in dm.rooms:
+		if room.get("hill", false) or room.get("elev", 0) > 0:
+			hills += 1
+	if hills == 0:
+		_fail(cfg, "forest has no hills (high ground)")
+	print("INFO %s (W%d): %dx%d, %d rooms, %d trees, %d bear / %d dart traps, %d pits, %d hills" % [
+		cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rooms.size(),
+		dm.tree_nodes.size(), bear, dart, dm.pit_tiles.size(), hills])
 
 func _reachable_count(dm: DungeonManager) -> int:
 	var visited: Dictionary = {}

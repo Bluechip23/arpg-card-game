@@ -17,6 +17,8 @@ func _initialize() -> void:
 		{"level": 1, "interior": "building_0", "file": "building.png"},
 		{"level": 1, "interior": "sewer_0", "file": "sewer0.png"},
 		{"level": 1, "interior": "sewer_1", "file": "sewer1.png"},
+		{"level": 1, "interior": "forest_0", "file": "forest0.png"},
+		{"level": 1, "interior": "forest_1", "file": "forest1.png"},
 	]
 
 	for cfg in configs:
@@ -79,6 +81,14 @@ func _render(dm: DungeonManager, path: String) -> void:
 	for zn in dm.spawn_zones:
 		for p in zn["spawn_points"]:
 			_px(img, p.x, p.y, s, Color(0.9, 0.15, 0.15))
+	# Forest features: trees (bright green), traps (orange), pits (black).
+	for tr in dm.trap_defs:
+		for tile in tr["tiles"]:
+			_px(img, tile.x, tile.y, s, Color(1.0, 0.55, 0.0))
+	for p in dm.pit_tiles.keys():
+		_px(img, p.x, p.y, s, Color(0.0, 0.0, 0.0))
+	for t in dm.tree_nodes:
+		_px(img, t["grid_pos"].x, t["grid_pos"].y, s, Color(0.3, 1.0, 0.4))
 	_px(img, dm.player_start.x, dm.player_start.y, s, Color(0.1, 1.0, 0.3))
 
 	img.save_png(path)

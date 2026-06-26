@@ -1,9 +1,9 @@
 class_name SewerCritter
 extends Node3D
 
-## A tiny background critter — a sewer mouse — that scuttles between random points
-## near its spawn. Purely atmospheric: no collision, no health, the player never
-## interacts with it. It just makes the sewers feel inhabited.
+## A tiny background critter — a sewer mouse or a forest squirrel — that scuttles
+## between random points near its spawn. Purely atmospheric: no collision, no
+## health, the player never interacts with it. It just makes a level feel alive.
 
 var _home: Vector3
 var _target: Vector3
@@ -13,11 +13,13 @@ var _pause: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var _bob_t: float = 0.0
 var _body: MeshInstance3D
+var _kind: String = "mouse"
 
-func setup(home: Vector3, seed_val: int) -> void:
+func setup(home: Vector3, seed_val: int, kind: String = "mouse") -> void:
 	_home = home
 	position = home
 	_target = home
+	_kind = kind
 	_rng.seed = seed_val
 	_phase_offset()
 	_build()
@@ -30,7 +32,12 @@ func _phase_offset() -> void:
 	_roam = _rng.randf_range(2.5, 4.5)
 
 func _build() -> void:
-	var fur = Color(0.17, 0.15, 0.13)
+	var is_squirrel = _kind == "squirrel"
+	var fur = Color(0.40, 0.24, 0.12) if is_squirrel else Color(0.17, 0.15, 0.13)
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = fur
+	mat.roughness = 1.0
+
 	_body = MeshInstance3D.new()
 	var body_mesh = SphereMesh.new()
 	body_mesh.radius = 0.09
@@ -39,25 +46,36 @@ func _build() -> void:
 	body_mesh.rings = 4
 	_body.mesh = body_mesh
 	_body.scale = Vector3(0.8, 0.65, 1.7)  # long little rodent body
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = fur
-	mat.roughness = 1.0
 	_body.material_override = mat
-	_body.position.y = 0.07
+	_body.position.y = 0.08 if is_squirrel else 0.07
 	add_child(_body)
 
-	# Thin tail trailing behind.
-	var tail = MeshInstance3D.new()
-	var tail_mesh = CylinderMesh.new()
-	tail_mesh.top_radius = 0.005
-	tail_mesh.bottom_radius = 0.02
-	tail_mesh.height = 0.22
-	tail_mesh.radial_segments = 4
-	tail.mesh = tail_mesh
-	tail.rotation_degrees = Vector3(90, 0, 0)
-	tail.position = Vector3(0, 0.06, -0.18)
-	tail.material_override = mat
-	add_child(tail)
+	if is_squirrel:
+		# A bushy tail arcing up over the back.
+		var tail = MeshInstance3D.new()
+		var tmesh = SphereMesh.new()
+		tmesh.radius = 0.07
+		tmesh.height = 0.2
+		tmesh.radial_segments = 6
+		tmesh.rings = 4
+		tail.mesh = tmesh
+		tail.scale = Vector3(0.6, 1.5, 0.6)
+		tail.position = Vector3(0, 0.16, -0.16)
+		tail.material_override = mat
+		add_child(tail)
+	else:
+		# Thin tail trailing behind the mouse.
+		var tail = MeshInstance3D.new()
+		var tail_mesh = CylinderMesh.new()
+		tail_mesh.top_radius = 0.005
+		tail_mesh.bottom_radius = 0.02
+		tail_mesh.height = 0.22
+		tail_mesh.radial_segments = 4
+		tail.mesh = tail_mesh
+		tail.rotation_degrees = Vector3(90, 0, 0)
+		tail.position = Vector3(0, 0.06, -0.18)
+		tail.material_override = mat
+		add_child(tail)
 
 func _pick_target() -> void:
 	var a = _rng.randf() * TAU
