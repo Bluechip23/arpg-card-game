@@ -58,6 +58,27 @@ const KIND_BY_TYPE := {
 	Enemy.EnemyType.SEWER_CROC: "sewer_croc",
 	Enemy.EnemyType.RAT_KING: "rat_king",
 	Enemy.EnemyType.SWARM: "swarm",
+	Enemy.EnemyType.WEREGOAT: "weregoat",
+	Enemy.EnemyType.WYVERN: "wyvern",
+	Enemy.EnemyType.ROC: "roc",
+	Enemy.EnemyType.ICE_TROLL: "ice_troll",
+	Enemy.EnemyType.SNOW_WRAITH: "snow_wraith",
+	Enemy.EnemyType.GRANITE_COLOSSUS: "granite_colossus",
+	Enemy.EnemyType.WHITE_MANTICORE: "white_manticore",
+	Enemy.EnemyType.SABERTOOTH: "sabertooth",
+	Enemy.EnemyType.CERBERUS: "cerberus",
+	Enemy.EnemyType.SUCCUBUS: "succubus",
+	Enemy.EnemyType.DEMON: "demon",
+	Enemy.EnemyType.IFRIT: "ifrit",
+	Enemy.EnemyType.MIND_EATER: "mind_eater",
+	Enemy.EnemyType.SPECTER: "specter",
+	Enemy.EnemyType.MAGMA_SPIDER: "magma_spider",
+	Enemy.EnemyType.PIT_FIEND: "pit_fiend",
+	Enemy.EnemyType.ASH_HARPY: "ash_harpy",
+	Enemy.EnemyType.INFLAMED_MINOTAUR: "inflamed_minotaur",
+	Enemy.EnemyType.CHERUB: "cherub",
+	Enemy.EnemyType.DJINN: "djinn",
+	Enemy.EnemyType.CORRUPTED_ARCHANGEL: "corrupted_archangel",
 }
 
 # Coloured box fallback for the generic tiers (mirrors Enemy.initialize colours).
@@ -92,6 +113,20 @@ const SECTIONS := [
 		Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, Enemy.EnemyType.SLUDGE,
 		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.RAT_KING,
 		Enemy.EnemyType.SWARM,
+	]},
+	{"title": "MOUNTAINS", "types": [
+		Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.WYVERN, Enemy.EnemyType.ROC,
+		Enemy.EnemyType.ICE_TROLL, Enemy.EnemyType.SNOW_WRAITH, Enemy.EnemyType.GRANITE_COLOSSUS,
+		Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.SABERTOOTH,
+	]},
+	{"title": "UNDERWORLD", "types": [
+		Enemy.EnemyType.CERBERUS, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.DEMON,
+		Enemy.EnemyType.IFRIT, Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SPECTER,
+		Enemy.EnemyType.MAGMA_SPIDER, Enemy.EnemyType.PIT_FIEND, Enemy.EnemyType.ASH_HARPY,
+		Enemy.EnemyType.INFLAMED_MINOTAUR,
+	]},
+	{"title": "HEAVENS", "types": [
+		Enemy.EnemyType.CHERUB, Enemy.EnemyType.DJINN, Enemy.EnemyType.CORRUPTED_ARCHANGEL,
 	]},
 ]
 

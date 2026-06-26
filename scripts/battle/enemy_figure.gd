@@ -126,6 +126,30 @@ func _build() -> void:
 		"sewer_croc": _build_sewer_croc()
 		"rat_king": _build_rat_king()
 		"swarm": _build_swarm()
+		# Mountains act
+		"weregoat": _build_weregoat()
+		"wyvern": _build_wyvern()
+		"roc": _build_roc()
+		"ice_troll": _build_ice_troll()
+		"snow_wraith": _build_snow_wraith()
+		"granite_colossus": _build_granite_colossus()
+		"white_manticore": _build_white_manticore()
+		"sabertooth": _build_sabertooth()
+		# Underworld act
+		"cerberus": _build_cerberus()
+		"succubus": _build_succubus()
+		"demon": _build_demon()
+		"ifrit": _build_ifrit()
+		"mind_eater": _build_mind_eater()
+		"specter": _build_specter()
+		"magma_spider": _build_magma_spider()
+		"pit_fiend": _build_pit_fiend()
+		"ash_harpy": _build_ash_harpy()
+		"inflamed_minotaur": _build_inflamed_minotaur()
+		# Heavens act
+		"cherub": _build_cherub()
+		"djinn": _build_djinn()
+		"corrupted_archangel": _build_corrupted_archangel()
 		_: _build_rat()
 	_collect_step_parts()
 	_built = true
@@ -1574,6 +1598,552 @@ func _build_swarm() -> void:
 
 
 # =============================================================
+# MOUNTAINS ACT MODELS
+# =============================================================
+
+## Weregoat: minotaur-built — human torso/arms, goat head and digitigrade goat legs.
+func _build_weregoat() -> void:
+	_shadow(0.3)
+	var fur := Color.html("c9c2b2"); var skin := Color.html("b9b0a0"); var dark := Color.html("2a241c"); var horn := Color.html("6b5a3a"); var hoof := Color.html("2a2420")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	for sx in [-1, 1]:
+		var hip := Node3D.new(); hip.position = Vector3(0.13 * sx, 0.62, -0.04); hip.rotation_degrees = Vector3(-25, 0, 0); root.add_child(hip)
+		_cy(hip, "Thigh", Vector3(0, -0.18, 0), 0.07, 0.08, 0.36, fur)
+		var knee := Node3D.new(); knee.position = Vector3(0, -0.36, 0); knee.rotation_degrees = Vector3(52, 0, 0); hip.add_child(knee)
+		_cy(knee, "Shin", Vector3(0, -0.16, 0), 0.05, 0.06, 0.34, fur)
+		_bx(knee, "Hoof", Vector3(0, -0.34, 0.04), Vector3(0.09, 0.1, 0.14), hoof)
+	_bx(root, "Torso", Vector3(0, 0.92, 0), Vector3(0.4, 0.44, 0.26), fur)
+	_sp(root, "Belly", Vector3(0, 0.84, 0.12), 0.18, skin, Vector3(1.0, 1.0, 0.6))
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.26 * sx, 1.1, 0); root.add_child(sh)
+		_cy(sh, "Arm", Vector3(0, -0.2, 0.02), 0.05, 0.06, 0.42, fur); _sp(sh, "Hand", Vector3(0, -0.42, 0.04), 0.07, skin)
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
+	_sp(root, "Head", Vector3(0, 1.34, 0.06), 0.16, fur)
+	_bx(root, "Snout", Vector3(0, 1.28, 0.2), Vector3(0.12, 0.1, 0.14), skin)
+	_sp(root, "Nose", Vector3(0, 1.26, 0.28), 0.03, dark)
+	_bx(root, "Beard", Vector3(0, 1.2, 0.16), Vector3(0.08, 0.1, 0.04), fur)
+	_cy(root, "HornL", Vector3(-0.1, 1.46, 0.0), 0.0, 0.04, 0.26, horn, Vector3(40, 0, -22))
+	_cy(root, "HornR", Vector3(0.1, 1.46, 0.0), 0.0, 0.04, 0.26, horn, Vector3(40, 0, 22))
+	_cy(root, "EarL", Vector3(-0.17, 1.36, 0.04), 0.0, 0.04, 0.12, fur, Vector3(0, 0, 72))
+	_cy(root, "EarR", Vector3(0.17, 1.36, 0.04), 0.0, 0.04, 0.12, fur, Vector3(0, 0, -72))
+	_sp(root, "EyeL", Vector3(-0.06, 1.34, 0.18), 0.022, dark); _sp(root, "EyeR", Vector3(0.06, 1.34, 0.18), 0.022, dark)
+
+
+## Wyvern: serpentine, winged, taloned — no arms.
+func _build_wyvern() -> void:
+	_shadow(0.34)
+	var hide := Color.html("5a6b6e"); var hide2 := Color.html("44545a"); var membrane := Color.html("6e8085"); var dark := Color.html("16201f"); var eye := Color.html("e0c23a")
+	var body := Node3D.new(); body.name = "Body"; add_child(body); _bob_node = body; _bob_y = 0.0
+	_cy(body, "Torso", Vector3(0, 0.62, 0), 0.16, 0.26, 1.0, hide)
+	_sp(body, "Chest", Vector3(0, 0.78, 0.1), 0.2, hide2, Vector3(1.0, 1.1, 0.8))
+	for sx in [-1, 1]:
+		_cy(body, "Leg%d" % sx, Vector3(0.16 * sx, 0.24, 0.06), 0.05, 0.06, 0.4, hide, Vector3(8, 0, 0))
+		for f in range(3): _cy(body, "Talon%d_%d" % [sx, f], Vector3(0.16 * sx - 0.05 + f * 0.05, 0.02, 0.2), 0.0, 0.018, 0.12, dark, Vector3(60, 0, 0))
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.96, -0.04); w.rotation_degrees = Vector3(10, 0, -40 * sx); body.add_child(w)
+		_cy(w, "Bone", Vector3(0.28 * sx, 0.1, 0), 0.02, 0.03, 0.6, hide, Vector3(0, 0, 90))
+		_bx(w, "Mem", Vector3(0.34 * sx, 0.0, -0.05), Vector3(0.6, 0.46, 0.02), membrane)
+	_cy(body, "Tail", Vector3(0, 0.5, -0.3), 0.02, 0.1, 0.7, hide, Vector3(-50, 0, 0))
+	_sp(body, "Head", Vector3(0, 1.15, 0.12), 0.14, hide)
+	_bx(body, "Snout", Vector3(0, 1.1, 0.26), Vector3(0.1, 0.09, 0.16), hide2)
+	for sx in [-1, 1]: _cy(body, "Horn%d" % sx, Vector3(0.06 * sx, 1.26, 0.0), 0.0, 0.025, 0.16, dark, Vector3(-40, 0, 10 * sx))
+	_sp(body, "EyeL", Vector3(-0.06, 1.16, 0.2), 0.024, eye, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.06, 1.16, 0.2), 0.024, eye, Vector3.ONE, true)
+	_atk_pivot = body; _atk_rest = Vector3.ZERO
+
+
+## Roc: enormous bird, big talons, brown plumage with a white-checkered mane.
+func _build_roc() -> void:
+	_shadow(0.5)
+	var brown := Color.html("6b4f2f"); var brown2 := Color.html("8a6a3f"); var white := Color.html("e8e2d4"); var beak := Color.html("e0a32a"); var dark := Color.html("1a120a")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.62, 0); add_child(body); _bob_node = body; _bob_y = 0.62
+	_sp(body, "Torso", Vector3(0, 0, -0.05), 0.3, brown, Vector3(1.0, 1.1, 1.3))
+	for i in range(4):
+		var c: Color = white if i % 2 == 0 else brown2
+		_sp(body, "Mane%d" % i, Vector3(0, 0.2 + i * 0.06, 0.12), 0.16 - i * 0.02, c, Vector3(1.1, 0.7, 1.0))
+	_sp(body, "Head", Vector3(0, 0.5, 0.18), 0.15, brown)
+	_cy(body, "Beak", Vector3(0, 0.46, 0.34), 0.0, 0.06, 0.16, beak, Vector3(80, 0, 0))
+	_sp(body, "EyeL", Vector3(-0.07, 0.54, 0.26), 0.028, dark); _sp(body, "EyeR", Vector3(0.07, 0.54, 0.26), 0.028, dark)
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.22 * sx, 0.1, -0.05); w.rotation_degrees = Vector3(0, 0, -20 * sx); body.add_child(w)
+		_bx(w, "Wing", Vector3(0.5 * sx, 0.04, -0.02), Vector3(0.9, 0.05, 0.4), brown)
+		_bx(w, "Tip", Vector3(0.95 * sx, 0.08, -0.05), Vector3(0.4, 0.04, 0.26), brown2, Vector3(0, 0, -14 * sx))
+	for sx in [-1, 1]:
+		_cy(body, "Leg%d" % sx, Vector3(0.12 * sx, -0.32, 0.06), 0.04, 0.05, 0.3, beak)
+		for f in range(3): _cy(body, "Talon%d_%d" % [sx, f], Vector3(0.12 * sx - 0.06 + f * 0.06, -0.48, 0.16), 0.0, 0.025, 0.16, dark, Vector3(62, 0, 0))
+	_bx(body, "Tail", Vector3(0, 0.0, -0.4), Vector3(0.36, 0.04, 0.3), brown2)
+	_atk_pivot = body; _atk_rest = Vector3.ZERO
+
+
+## Ice Troll: bigger than the Armored Troll — taller, huge hands and feet, no weapon.
+func _build_ice_troll() -> void:
+	_shadow(0.44)
+	var skin := Color.html("8fb6c6"); var belly := Color.html("b6d6e0"); var dark := Color.html("16242a"); var ice := Color.html("dff2f8")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.2, 0.38, 0), Vector3(0.26, 0.72, 0.28), skin)
+	_bx(root, "LegR", Vector3(0.2, 0.38, 0), Vector3(0.26, 0.72, 0.28), skin)
+	_bx(root, "FootL", Vector3(-0.2, 0.08, 0.14), Vector3(0.34, 0.16, 0.5), dark)
+	_bx(root, "FootR", Vector3(0.2, 0.08, 0.14), Vector3(0.34, 0.16, 0.5), dark)
+	var torso := _bx(root, "Torso", Vector3(0, 1.2, -0.02), Vector3(0.7, 0.74, 0.5), skin)
+	torso.rotation_degrees = Vector3(6, 0, 0)
+	_sp(root, "Belly", Vector3(0, 1.1, 0.2), 0.24, belly, Vector3(1.2, 1.0, 0.6))
+	_sp(root, "Head", Vector3(0, 1.74, 0.05), 0.24, skin)
+	_bx(root, "Brow", Vector3(0, 1.82, 0.2), Vector3(0.42, 0.07, 0.1), dark)
+	_sp(root, "EyeL", Vector3(-0.09, 1.74, 0.22), 0.03, ice, Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.09, 1.74, 0.22), 0.03, ice, Vector3.ONE, true)
+	_cy(root, "TuskL", Vector3(-0.08, 1.62, 0.22), 0.0, 0.03, 0.14, ice, Vector3(20, 0, 0)); _cy(root, "TuskR", Vector3(0.08, 1.62, 0.22), 0.0, 0.03, 0.14, ice, Vector3(20, 0, 0))
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.42 * sx, 1.5, 0); root.add_child(sh)
+		_bx(sh, "Arm", Vector3(0, -0.34, 0.02), Vector3(0.2, 0.66, 0.2), skin)
+		_sp(sh, "Hand", Vector3(0, -0.74, 0.04), 0.2, belly)   # oversized hands
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
+	_sp(root, "PauldL", Vector3(-0.46, 1.62, 0), 0.17, ice, Vector3(1.2, 0.8, 1.2)); _sp(root, "PauldR", Vector3(0.46, 1.62, 0), 0.17, ice, Vector3(1.2, 0.8, 1.2))
+
+
+## Snow Wraith: a pale spirit trailing tattered cloth.
+func _build_snow_wraith() -> void:
+	_shadow(0.2)
+	var pale := Color.html("dfe8ee"); var pale2 := Color.html("aebfcc"); var eye := Color.html("8fd0ff")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.62, 0); add_child(body); _bob_node = body; _bob_y = 0.62
+	_sp(body, "Hood", Vector3(0, 0.14, 0), 0.22, pale, Vector3(1.0, 1.1, 1.0))
+	_sp(body, "Torso", Vector3(0, -0.08, 0), 0.2, pale, Vector3(1.05, 1.0, 1.0))
+	for i in range(4):
+		_cy(body, "Tatter%d" % i, Vector3((i - 1.5) * 0.12, -0.34, 0.02), 0.0, 0.06, 0.34 + (i % 2) * 0.1, pale2, Vector3(10 * (i - 1.5), 0, 0))
+	_cy(body, "ArmL", Vector3(-0.22, -0.02, 0.04), 0.0, 0.05, 0.34, pale, Vector3(20, 0, -36))
+	_cy(body, "ArmR", Vector3(0.22, -0.02, 0.04), 0.0, 0.05, 0.34, pale, Vector3(20, 0, 36))
+	_bx(body, "Shawl", Vector3(0, 0.02, -0.04), Vector3(0.42, 0.16, 0.1), pale2, Vector3(8, 0, 0))
+	_sp(body, "EyeL", Vector3(-0.07, 0.16, 0.18), 0.03, eye, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.07, 0.16, 0.18), 0.03, eye, Vector3.ONE, true)
+	_atk_pivot = body; _atk_rest = Vector3.ZERO
+
+
+## Granite Colossus: a huge, rigid figure of mountain stone.
+func _build_granite_colossus() -> void:
+	_shadow(0.5)
+	var stone := Color.html("6f7378"); var stone2 := Color.html("585c61"); var dark := Color.html("2a2d30"); var glow := Color.html("c98a3a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.22, 0.42, 0), Vector3(0.3, 0.84, 0.3), stone)
+	_bx(root, "LegR", Vector3(0.22, 0.42, 0), Vector3(0.3, 0.84, 0.3), stone2)
+	_bx(root, "FootL", Vector3(-0.22, 0.08, 0.06), Vector3(0.34, 0.16, 0.4), stone2)
+	_bx(root, "FootR", Vector3(0.22, 0.08, 0.06), Vector3(0.34, 0.16, 0.4), stone)
+	_bx(root, "Torso", Vector3(0, 1.36, 0), Vector3(0.78, 0.86, 0.56), stone)
+	_bx(root, "Slab", Vector3(0, 1.4, 0.26), Vector3(0.5, 0.6, 0.08), stone2)
+	# craggy cracks glowing faintly
+	_bx(root, "Crack0", Vector3(-0.1, 1.4, 0.31), Vector3(0.04, 0.4, 0.02), glow, Vector3(0, 0, 10))
+	_bx(root, "Crack1", Vector3(0.12, 1.2, 0.31), Vector3(0.04, 0.3, 0.02), glow, Vector3(0, 0, -16))
+	_bx(root, "Head", Vector3(0, 1.96, 0.04), Vector3(0.38, 0.36, 0.36), stone)
+	_sp(root, "EyeL", Vector3(-0.09, 1.98, 0.2), 0.035, glow, Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.09, 1.98, 0.2), 0.035, glow, Vector3.ONE, true)
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.5 * sx, 1.66, 0); root.add_child(sh)
+		_bx(sh, "Arm", Vector3(0, -0.36, 0.02), Vector3(0.24, 0.72, 0.24), stone2)
+		_bx(sh, "Fist", Vector3(0, -0.8, 0.04), Vector3(0.3, 0.3, 0.3), stone)
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
+
+
+## White Manticore: snow-leopard body with bat wings and a spiked tail.
+func _build_white_manticore() -> void:
+	var body := _build_quadruped(Color.html("dfe4ea"), Color.html("f2f5f8"), 1.1, "round", "stub")
+	_bob_node = body
+	_bob_y = body.position.y
+	_atk_pivot = body
+	_atk_rest = Vector3.ZERO
+	var grey := Color.html("9aa3ad"); var dark := Color.html("2a2f35"); var spike := Color.html("e8eef2")
+	# leopard rosettes
+	for p in [Vector3(0.12, 0.1, 0.0), Vector3(-0.1, 0.06, -0.12), Vector3(0.04, 0.14, 0.18), Vector3(-0.06, 0.08, 0.1)]:
+		_sp(body, "Spot", p, 0.03, grey)
+	# bat wings
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.18, -0.02); w.rotation_degrees = Vector3(6, 0, -38 * sx); body.add_child(w)
+		_cy(w, "WBone", Vector3(0.26 * sx, 0.1, 0), 0.018, 0.028, 0.52, grey, Vector3(0, 0, 90))
+		_bx(w, "WMem", Vector3(0.3 * sx, 0.02, -0.05), Vector3(0.52, 0.4, 0.02), Color.html("c4ccd4"))
+	# spiked scorpion-ish tail arching over the back
+	var tail := Node3D.new(); tail.name = "STail"; tail.position = Vector3(0, 0.06, -0.4); tail.rotation_degrees = Vector3(40, 0, 0); body.add_child(tail)
+	_cy(tail, "Seg", Vector3(0, 0.22, 0), 0.03, 0.05, 0.5, Color.html("dfe4ea"))
+	_sp(tail, "Barb", Vector3(0, 0.46, 0.04), 0.06, grey)
+	for s in range(3): _cy(tail, "Sting%d" % s, Vector3(-0.04 + s * 0.04, 0.54, 0.06), 0.0, 0.018, 0.1, spike, Vector3(40, 0, 0))
+
+
+## Sabertooth Tiger: standard big cat with long sabre fangs.
+func _build_sabertooth() -> void:
+	var body := _build_quadruped(Color.html("b88a4a"), Color.html("e6d2a8"), 1.05, "round", "stub")
+	_bob_node = body
+	_bob_y = body.position.y
+	_atk_pivot = body
+	_atk_rest = Vector3.ZERO
+	var dark := Color.html("3a2c16"); var tooth := Color.html("efe9d6")
+	# dark stripes
+	for z in [0.12, -0.02, -0.16]:
+		_bx(body, "Stripe%d" % int(z * 100), Vector3(0, 0.2, z), Vector3(0.06, 0.06, 0.04), dark)
+	# long sabre fangs from the muzzle
+	_cy(body, "FangL", Vector3(-0.05, -0.04, 0.52), 0.0, 0.022, 0.22, tooth, Vector3(170, 0, 0))
+	_cy(body, "FangR", Vector3(0.05, -0.04, 0.52), 0.0, 0.022, 0.22, tooth, Vector3(170, 0, 0))
+
+
+# =============================================================
+# UNDERWORLD ACT MODELS
+# =============================================================
+
+## Cerberus: three-headed hound with spiked collars and a dangling chain.
+func _build_cerberus() -> void:
+	var body := _build_quadruped(Color.html("3a3036"), Color.html("241d22"), 1.15, "pointed", "stub")
+	_bob_node = body
+	_bob_y = body.position.y
+	_atk_pivot = body
+	_atk_rest = Vector3.ZERO
+	var fur := Color.html("3a3036"); var dark := Color.html("141016"); var eye := Color.html("ff6a2a"); var steel := Color.html("9aa0a8"); var chain := Color.html("6a6a72")
+	# the quadruped already made one head at +Z; add two flanking heads + spiked collars
+	for hx in [-1, 1]:
+		var hp := Node3D.new(); hp.position = Vector3(0.16 * hx, 0.06, 0.28); body.add_child(hp); hp.rotation_degrees = Vector3(0, 22 * -hx, 0)
+		_sp(hp, "Head", Vector3(0, 0.04, 0.06), 0.13, fur)
+		_bx(hp, "Snout", Vector3(0, -0.02, 0.18), Vector3(0.1, 0.08, 0.14), fur)
+		_sp(hp, "Nose", Vector3(0, -0.02, 0.26), 0.025, dark)
+		_sp(hp, "EyeL", Vector3(-0.05, 0.07, 0.14), 0.022, eye, Vector3.ONE, true); _sp(hp, "EyeR", Vector3(0.05, 0.07, 0.14), 0.022, eye, Vector3.ONE, true)
+		_cy(hp, "Collar", Vector3(0, -0.06, -0.04), 0.1, 0.1, 0.05, dark)
+		for s in range(4): _cy(hp, "Spike%d" % s, Vector3(cos(s * PI / 2) * 0.1, -0.06, sin(s * PI / 2) * 0.1), 0.0, 0.02, 0.06, steel, Vector3(90 if s % 2 else 0, 0, 90 * s))
+	# glowing eyes on the central (existing) head
+	_sp(body, "CEyeL", Vector3(-0.075, 0.06, 0.35), 0.024, eye, Vector3.ONE, true); _sp(body, "CEyeR", Vector3(0.075, 0.06, 0.35), 0.024, eye, Vector3.ONE, true)
+	# spiked collar on the central head + a chain dangling from the left head
+	_cy(body, "CCollar", Vector3(0, -0.04, 0.18), 0.11, 0.11, 0.05, dark)
+	var c := Node3D.new(); c.position = Vector3(-0.16, -0.06, 0.3); body.add_child(c)
+	for i in range(4): _sp(c, "Link%d" % i, Vector3(0, -i * 0.07, 0), 0.03, chain)
+
+
+## Succubus: winged fey in short shorts, sleeveless top, elbow gloves, small horns.
+func _build_succubus() -> void:
+	_shadow(0.22)
+	var skin := Color.html("d98a9a"); var cloth := Color.html("3a1622"); var glove := Color.html("5a1020"); var boot := Color.html("4a0e1c"); var hair := Color.html("1a1016"); var wing := Color.html("7a2238"); var horn := Color.html("2a1016")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	# long boots
+	for sx in [-1, 1]:
+		_cy(root, "Boot%d" % sx, Vector3(0.09 * sx, 0.26, 0), 0.055, 0.065, 0.5, boot)
+		_bx(root, "Heel%d" % sx, Vector3(0.09 * sx, 0.03, 0.05), Vector3(0.1, 0.06, 0.18), boot)
+	_bx(root, "Shorts", Vector3(0, 0.54, 0), Vector3(0.26, 0.14, 0.18), cloth)
+	_bx(root, "Top", Vector3(0, 0.74, 0), Vector3(0.26, 0.28, 0.18), cloth)
+	_sp(root, "Bust", Vector3(0, 0.72, 0.1), 0.13, skin, Vector3(1.2, 0.7, 0.7))
+	# bare shoulders + elbow-length gloves
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.17 * sx, 0.86, 0); root.add_child(sh)
+		_sp(sh, "Delt", Vector3(0, 0, 0), 0.06, skin)
+		_cy(sh, "UpperArm", Vector3(0, -0.14, 0.02), 0.035, 0.04, 0.26, skin)
+		_cy(sh, "Glove", Vector3(0, -0.34, 0.03), 0.035, 0.04, 0.22, glove); _sp(sh, "Hand", Vector3(0, -0.46, 0.03), 0.04, glove)
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
+	_sp(root, "Head", Vector3(0, 1.06, 0.02), 0.13, skin)
+	_sp(root, "Hair", Vector3(0, 1.12, -0.04), 0.15, hair, Vector3(1.1, 1.0, 1.1))
+	_cy(root, "HornL", Vector3(-0.07, 1.18, 0.0), 0.0, 0.022, 0.1, horn, Vector3(-20, 0, -16)); _cy(root, "HornR", Vector3(0.07, 1.18, 0.0), 0.0, 0.022, 0.1, horn, Vector3(-20, 0, 16))
+	_sp(root, "EyeL", Vector3(-0.05, 1.07, 0.11), 0.02, Color.html("ff3a5a"), Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.05, 1.07, 0.11), 0.02, Color.html("ff3a5a"), Vector3.ONE, true)
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.1 * sx, 0.82, -0.12); w.rotation_degrees = Vector3(6, 0, -32 * sx); root.add_child(w)
+		_cy(w, "WBone", Vector3(0.2 * sx, 0.12, 0), 0.015, 0.022, 0.42, horn, Vector3(0, 0, 90))
+		_bx(w, "WMem", Vector3(0.24 * sx, 0.02, -0.04), Vector3(0.42, 0.34, 0.02), wing)
+
+
+## Demon: red brute with spiral thorns; dagger in one hand, trident in the other.
+func _build_demon() -> void:
+	_shadow(0.28)
+	var red := Color.html("9a2420"); var red2 := Color.html("b8362c"); var dark := Color.html("2a0e0c"); var horn := Color.html("3a1410"); var steel := Color.html("b9bdc6"); var wood := Color.html("4a3018")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.12, 0.28, 0), Vector3(0.16, 0.5, 0.16), red)
+	_bx(root, "LegR", Vector3(0.12, 0.28, 0), Vector3(0.16, 0.5, 0.16), red)
+	_bx(root, "FootL", Vector3(-0.12, 0.04, 0.06), Vector3(0.16, 0.08, 0.22), dark)
+	_bx(root, "FootR", Vector3(0.12, 0.04, 0.06), Vector3(0.16, 0.08, 0.22), dark)
+	var torso := _bx(root, "Torso", Vector3(0, 0.84, 0), Vector3(0.46, 0.5, 0.3), red); torso.rotation_degrees = Vector3(4, 0, 0)
+	# spiral thorns on shoulders/back
+	for t in [Vector3(-0.26, 1.06, -0.04), Vector3(0.26, 1.06, -0.04), Vector3(0, 1.14, -0.12)]:
+		_cy(root, "Thorn", t, 0.0, 0.05, 0.26, horn, Vector3(-30, 0, 0))
+	_sp(root, "Head", Vector3(0, 1.2, 0.04), 0.16, red2)
+	_cy(root, "HornL", Vector3(-0.1, 1.32, 0.0), 0.0, 0.035, 0.24, horn, Vector3(-26, 0, -22)); _cy(root, "HornR", Vector3(0.1, 1.32, 0.0), 0.0, 0.035, 0.24, horn, Vector3(-26, 0, 22))
+	_sp(root, "EyeL", Vector3(-0.06, 1.21, 0.16), 0.024, Color.html("ffd23f"), Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.06, 1.21, 0.16), 0.024, Color.html("ffd23f"), Vector3.ONE, true)
+	# left arm holds a dagger, right arm a trident
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.28, 1.04, 0); root.add_child(sh_l)
+	_cy(sh_l, "Arm", Vector3(0, -0.22, 0.02), 0.055, 0.06, 0.44, red); _sp(sh_l, "Hand", Vector3(0, -0.46, 0.04), 0.07, red2)
+	_bx(sh_l, "DaggerBlade", Vector3(0, -0.62, 0.08), Vector3(0.04, 0.22, 0.015), steel); _bx(sh_l, "DaggerGuard", Vector3(0, -0.5, 0.08), Vector3(0.12, 0.03, 0.04), dark)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.28, 1.04, 0); root.add_child(sh_r)
+	_cy(sh_r, "Arm", Vector3(0, -0.22, 0.02), 0.055, 0.06, 0.44, red); _sp(sh_r, "Hand", Vector3(0, -0.46, 0.04), 0.07, red2)
+	_cy(sh_r, "Shaft", Vector3(0, -0.3, 0.12), 0.02, 0.025, 1.0, wood)
+	_bx(sh_r, "Prong0", Vector3(0, 0.16, 0.12), Vector3(0.02, 0.18, 0.02), steel); _bx(sh_r, "Prong1", Vector3(-0.07, 0.15, 0.12), Vector3(0.02, 0.16, 0.02), steel); _bx(sh_r, "Prong2", Vector3(0.07, 0.15, 0.12), Vector3(0.02, 0.16, 0.02), steel)
+	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+
+
+## Ifrit: hulking bipedal fire-hound with huge, near-ground arms (monkey proportions).
+func _build_ifrit() -> void:
+	_shadow(0.32)
+	var coal := Color.html("3a201a"); var ember := Color.html("c9421a"); var glow := Color.html("ff7a1a"); var dark := Color.html("180c08"); var claw := Color.html("e8c08a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	# short bent legs
+	for sx in [-1, 1]:
+		_cy(root, "Leg%d" % sx, Vector3(0.14 * sx, 0.3, -0.02), 0.08, 0.1, 0.4, coal)
+		_bx(root, "Foot%d" % sx, Vector3(0.14 * sx, 0.06, 0.1), Vector3(0.18, 0.1, 0.28), dark)
+	var torso := _bx(root, "Torso", Vector3(0, 0.86, 0.06), Vector3(0.5, 0.5, 0.34), coal); torso.rotation_degrees = Vector3(20, 0, 0)
+	_sp(root, "Chest", Vector3(0, 0.84, 0.24), 0.2, ember, Vector3(1.1, 1.0, 0.7))
+	# ember cracks
+	_bx(root, "Vent0", Vector3(-0.08, 0.9, 0.24), Vector3(0.04, 0.2, 0.02), glow); _bx(root, "Vent1", Vector3(0.1, 0.82, 0.24), Vector3(0.04, 0.16, 0.02), glow)
+	# long muscular arms reaching near the ground
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.3 * sx, 1.08, 0.1); sh.rotation_degrees = Vector3(34, 0, 0); root.add_child(sh)
+		_cy(sh, "Upper", Vector3(0, -0.3, 0), 0.1, 0.11, 0.56, coal)
+		var el := Node3D.new(); el.position = Vector3(0, -0.58, 0); el.rotation_degrees = Vector3(-30, 0, 0); sh.add_child(el)
+		_cy(el, "Fore", Vector3(0, -0.26, 0), 0.09, 0.1, 0.5, coal); _sp(el, "Fist", Vector3(0, -0.52, 0.02), 0.13, ember)
+		for k in range(3): _cy(el, "Claw%d" % k, Vector3(-0.07 + k * 0.07, -0.6, 0.1), 0.0, 0.022, 0.14, claw, Vector3(45, 0, 0))
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3(34, 0, 0)
+	# canine head
+	_sp(root, "Head", Vector3(0, 1.22, 0.18), 0.16, coal)
+	_bx(root, "Snout", Vector3(0, 1.16, 0.34), Vector3(0.14, 0.1, 0.18), coal)
+	_sp(root, "EyeL", Vector3(-0.07, 1.24, 0.3), 0.026, glow, Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.07, 1.24, 0.3), 0.026, glow, Vector3.ONE, true)
+	_cy(root, "EarL", Vector3(-0.1, 1.34, 0.1), 0.0, 0.05, 0.14, coal, Vector3(-10, 0, -20)); _cy(root, "EarR", Vector3(0.1, 1.34, 0.1), 0.0, 0.05, 0.14, coal, Vector3(-10, 0, 20))
+
+
+## Mind Eater: an original gaunt, hunched flesh-horror with raking claws.
+func _build_mind_eater() -> void:
+	_shadow(0.28)
+	var flesh := Color.html("6a5f57"); var flesh2 := Color.html("7e7268"); var dark := Color.html("1a1512"); var maw := Color.html("7a1f22"); var eye := Color.html("c9ff6a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	for sx in [-1, 1]:
+		var hip := Node3D.new(); hip.position = Vector3(0.13 * sx, 0.66, -0.04); hip.rotation_degrees = Vector3(-22, 0, 0); root.add_child(hip)
+		_cy(hip, "Thigh", Vector3(0, -0.2, 0), 0.08, 0.09, 0.4, flesh)
+		var knee := Node3D.new(); knee.position = Vector3(0, -0.4, 0); knee.rotation_degrees = Vector3(46, 0, 0); hip.add_child(knee)
+		_cy(knee, "Shin", Vector3(0, -0.18, 0), 0.06, 0.07, 0.38, flesh)
+		_bx(knee, "Foot", Vector3(0, -0.36, 0.08), Vector3(0.14, 0.08, 0.26), dark)
+	var torso := _bx(root, "Torso", Vector3(0, 0.92, 0.1), Vector3(0.42, 0.5, 0.3), flesh); torso.rotation_degrees = Vector3(30, 0, 0)
+	_sp(root, "Ribs", Vector3(0, 0.9, 0.26), 0.2, flesh2, Vector3(1.1, 1.0, 0.7))
+	for i in range(3): _bx(root, "Rib%d" % i, Vector3(0, 0.82 + i * 0.08, 0.38), Vector3(0.34, 0.02, 0.02), dark)
+	# long clawed arms hanging forward
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.26 * sx, 1.1, 0.16); sh.rotation_degrees = Vector3(46, 0, 0); root.add_child(sh)
+		_cy(sh, "Upper", Vector3(0, -0.26, 0), 0.06, 0.07, 0.5, flesh)
+		var el := Node3D.new(); el.position = Vector3(0, -0.5, 0); el.rotation_degrees = Vector3(-34, 0, 0); sh.add_child(el)
+		_cy(el, "Fore", Vector3(0, -0.24, 0), 0.05, 0.06, 0.46, flesh)
+		for k in range(3): _cy(el, "Claw%d" % k, Vector3(-0.06 + k * 0.06, -0.5, 0.06), 0.0, 0.02, 0.18, flesh2, Vector3(30, 0, 0))
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3(46, 0, 0)
+	# small head with a wide fanged maw
+	_sp(root, "Head", Vector3(0, 1.28, 0.34), 0.14, flesh)
+	_bx(root, "Maw", Vector3(0, 1.22, 0.46), Vector3(0.16, 0.08, 0.06), maw)
+	for fx in [-0.06, 0.0, 0.06]: _cy(root, "Tooth%d" % int(fx * 100), Vector3(fx, 1.2, 0.48), 0.0, 0.012, 0.05, Color.html("e8e2d0"), Vector3(180, 0, 0))
+	_sp(root, "EyeL", Vector3(-0.05, 1.32, 0.44), 0.022, eye, Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.05, 1.32, 0.44), 0.022, eye, Vector3.ONE, true)
+
+
+## Specter: a dark shadow-humanoid.
+func _build_specter() -> void:
+	_shadow(0.2)
+	var shade := Color.html("16141c"); var shade2 := Color.html("241f2e"); var eye := Color.html("a98cff")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.5, 0); add_child(body); _bob_node = body; _bob_y = 0.5
+	_sp(body, "Head", Vector3(0, 0.5, 0.02), 0.13, shade)
+	_bx(body, "Torso", Vector3(0, 0.22, 0), Vector3(0.26, 0.4, 0.18), shade)
+	_sp(body, "Shoulders", Vector3(0, 0.4, 0), 0.16, shade2, Vector3(1.5, 0.6, 0.9))
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.16 * sx, 0.42, 0); sh.rotation_degrees = Vector3(0, 0, 10 * sx); body.add_child(sh)
+		_cy(sh, "Arm", Vector3(0, -0.2, 0.02), 0.04, 0.05, 0.4, shade)
+		_cy(sh, "Claw", Vector3(0, -0.42, 0.04), 0.0, 0.03, 0.1, shade2)
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
+	# wispy lower body instead of legs
+	for i in range(3): _cy(body, "Wisp%d" % i, Vector3((i - 1) * 0.1, -0.18, 0), 0.0, 0.07, 0.42, shade2, Vector3(10 * (i - 1), 0, 0))
+	_sp(body, "EyeL", Vector3(-0.05, 0.52, 0.11), 0.026, eye, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.05, 0.52, 0.11), 0.026, eye, Vector3.ONE, true)
+
+
+## Magma Spider: a big tarantula in red/orange/black with glowing seams.
+func _build_magma_spider() -> void:
+	_shadow(0.36)
+	var black := Color.html("241712"); var red := Color.html("8a2a14"); var glow := Color.html("ff7a1a"); var fang := Color.html("e0a060")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.26, 0); add_child(body); _bob_node = body; _bob_y = 0.26
+	_sp(body, "Abdomen", Vector3(0, 0.04, -0.24), 0.26, black, Vector3(1.1, 0.95, 1.2))
+	_sp(body, "AbGlow", Vector3(0, 0.16, -0.24), 0.12, glow, Vector3(0.7, 0.5, 0.9), true)
+	_sp(body, "Cephalo", Vector3(0, 0.02, 0.12), 0.18, red)
+	for ex in [-0.07, -0.025, 0.025, 0.07]: _sp(body, "Eye", Vector3(ex, 0.08, 0.26), 0.022, glow, Vector3.ONE, true)
+	_cy(body, "FangL", Vector3(-0.05, -0.08, 0.26), 0.0, 0.025, 0.12, fang, Vector3(40, 0, 0)); _cy(body, "FangR", Vector3(0.05, -0.08, 0.26), 0.0, 0.025, 0.12, fang, Vector3(40, 0, 0))
+	# 8 hairy legs angled out and down to the ground
+	for sx in [-1, 1]:
+		for i in range(4):
+			var lz := 0.18 - i * 0.13
+			var leg := Node3D.new(); leg.position = Vector3(0.14 * sx, 0.04, lz); leg.rotation_degrees = Vector3(0, 0, 64 * sx); body.add_child(leg)
+			var col: Color = red if i % 2 == 0 else black
+			_cy(leg, "Upper", Vector3(0, -0.18, 0), 0.02, 0.025, 0.36, col)
+			var lower := Node3D.new(); lower.position = Vector3(0, -0.34, 0); lower.rotation_degrees = Vector3(0, 0, -78 * sx); leg.add_child(lower)
+			_cy(lower, "Lower", Vector3(0, -0.18, 0), 0.015, 0.02, 0.36, col)
+	_atk_pivot = body; _atk_rest = Vector3.ZERO
+
+
+## Pit Fiend: a larger, regal demon with a barbed tail and a coiled whip.
+func _build_pit_fiend() -> void:
+	_shadow(0.34)
+	var red := Color.html("7a1c18"); var red2 := Color.html("9a2a22"); var dark := Color.html("220a08"); var horn := Color.html("301010"); var gold := Color.html("c9a23a"); var leather := Color.html("2a1810")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_bx(root, "LegL", Vector3(-0.15, 0.34, 0), Vector3(0.2, 0.6, 0.2), red)
+	_bx(root, "LegR", Vector3(0.15, 0.34, 0), Vector3(0.2, 0.6, 0.2), red)
+	_bx(root, "FootL", Vector3(-0.15, 0.05, 0.07), Vector3(0.2, 0.1, 0.26), dark)
+	_bx(root, "FootR", Vector3(0.15, 0.05, 0.07), Vector3(0.2, 0.1, 0.26), dark)
+	var torso := _bx(root, "Torso", Vector3(0, 1.04, 0), Vector3(0.56, 0.6, 0.36), red); torso.rotation_degrees = Vector3(4, 0, 0)
+	_bx(root, "Sash", Vector3(0, 1.02, 0.16), Vector3(0.5, 0.1, 0.06), gold, Vector3(0, 0, 22))
+	_sp(root, "PauldL", Vector3(-0.34, 1.32, 0), 0.16, red2, Vector3(1.2, 0.9, 1.2)); _sp(root, "PauldR", Vector3(0.34, 1.32, 0), 0.16, red2, Vector3(1.2, 0.9, 1.2))
+	_sp(root, "Head", Vector3(0, 1.46, 0.04), 0.18, red2)
+	_cy(root, "HornL", Vector3(-0.12, 1.6, 0.0), 0.0, 0.04, 0.3, horn, Vector3(-20, 0, -26)); _cy(root, "HornR", Vector3(0.12, 1.6, 0.0), 0.0, 0.04, 0.3, horn, Vector3(-20, 0, 26))
+	_sp(root, "EyeL", Vector3(-0.07, 1.47, 0.18), 0.026, gold, Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.07, 1.47, 0.18), 0.026, gold, Vector3.ONE, true)
+	# thin tail with an arrowhead barb
+	var tail := Node3D.new(); tail.position = Vector3(0, 0.7, -0.2); tail.rotation_degrees = Vector3(40, 0, 0); root.add_child(tail)
+	_cy(tail, "Tail", Vector3(0, -0.3, 0), 0.018, 0.03, 0.7, red)
+	_bx(tail, "Barb", Vector3(0, -0.66, 0), Vector3(0.1, 0.14, 0.03), dark, Vector3(0, 0, 45))
+	# left arm; right arm holds a coiled whip
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.32, 1.28, 0); root.add_child(sh_l)
+	_cy(sh_l, "Arm", Vector3(0, -0.26, 0.02), 0.06, 0.07, 0.5, red); _sp(sh_l, "Hand", Vector3(0, -0.52, 0.04), 0.08, red2)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.32, 1.28, 0); root.add_child(sh_r)
+	_cy(sh_r, "Arm", Vector3(0, -0.26, 0.02), 0.06, 0.07, 0.5, red); _sp(sh_r, "Hand", Vector3(0, -0.52, 0.04), 0.08, red2)
+	for i in range(3): _cy(sh_r, "Whip%d" % i, Vector3(0.04 + i * 0.02, -0.52 - i * 0.04, 0.08 + i * 0.06), 0.012, 0.012, 0.16, leather, Vector3(70, 0, 0))
+	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+
+
+## Ash Harpy: a winged harpy seemingly formed of ash and embers.
+func _build_ash_harpy() -> void:
+	_shadow(0.26)
+	var ash := Color.html("4a4640"); var ash2 := Color.html("63605a"); var ember := Color.html("d9531f"); var dark := Color.html("1a1714")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.62, 0); add_child(body); _bob_node = body; _bob_y = 0.62
+	_bx(body, "Torso", Vector3(0, 0.0, 0), Vector3(0.26, 0.4, 0.18), ash)
+	_sp(body, "Bust", Vector3(0, 0.02, 0.1), 0.12, ash2, Vector3(1.2, 0.7, 0.7))
+	_sp(body, "Head", Vector3(0, 0.34, 0.02), 0.13, ash2)
+	_sp(body, "Hair", Vector3(0, 0.4, -0.04), 0.14, ash, Vector3(1.1, 1.0, 1.1))
+	_sp(body, "EyeL", Vector3(-0.05, 0.35, 0.1), 0.022, ember, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.05, 0.35, 0.1), 0.022, ember, Vector3.ONE, true)
+	# wing-arms
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.16, -0.02); w.rotation_degrees = Vector3(4, 0, -30 * sx); body.add_child(w)
+		_bx(w, "WingA", Vector3(0.34 * sx, 0.06, -0.02), Vector3(0.6, 0.05, 0.3), ash)
+		_bx(w, "WingTip", Vector3(0.66 * sx, 0.12, -0.05), Vector3(0.3, 0.04, 0.2), ash2, Vector3(0, 0, -16 * sx))
+		_sp(w, "Ember%d" % sx, Vector3(0.4 * sx, 0.04, 0.0), 0.03, ember, Vector3.ONE, true)
+		if sx < 0: _arm_l = w
+		else: _arm_r = w
+	_atk_pivot = _arm_r; _atk_rest = Vector3(4, 0, -30)
+	# clawed bird legs
+	for sx in [-1, 1]:
+		_cy(body, "Leg%d" % sx, Vector3(0.08 * sx, -0.3, 0.02), 0.03, 0.04, 0.3, ash2)
+		for f in range(3): _cy(body, "Talon%d_%d" % [sx, f], Vector3(0.08 * sx - 0.04 + f * 0.04, -0.46, 0.08), 0.0, 0.016, 0.1, dark, Vector3(60, 0, 0))
+
+
+## Inflamed Minotaur: a smouldering minotaur hefting a fiery great-axe.
+func _build_inflamed_minotaur() -> void:
+	_shadow(0.36)
+	var hide := Color.html("4a2e22"); var hide2 := Color.html("613c2a"); var dark := Color.html("180c08"); var horn := Color.html("d8cdb6"); var fire := Color.html("ff7a1a"); var steel := Color.html("8a8f99"); var wood := Color.html("3a2616")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	for sx in [-1, 1]:
+		_cy(root, "Leg%d" % sx, Vector3(0.16 * sx, 0.4, 0), 0.1, 0.12, 0.5, hide)
+		_bx(root, "Hoof%d" % sx, Vector3(0.16 * sx, 0.06, 0.04), Vector3(0.18, 0.12, 0.24), dark)
+	var torso := _bx(root, "Torso", Vector3(0, 1.06, 0), Vector3(0.6, 0.62, 0.4), hide); torso.rotation_degrees = Vector3(6, 0, 0)
+	_sp(root, "Belly", Vector3(0, 0.96, 0.2), 0.22, hide2, Vector3(1.2, 1.0, 0.6))
+	# ember glow on the hide
+	_bx(root, "Glow0", Vector3(-0.12, 1.06, 0.21), Vector3(0.04, 0.3, 0.02), fire); _bx(root, "Glow1", Vector3(0.14, 0.98, 0.21), Vector3(0.04, 0.22, 0.02), fire)
+	_sp(root, "Head", Vector3(0, 1.52, 0.06), 0.2, hide2)
+	_bx(root, "Snout", Vector3(0, 1.46, 0.22), Vector3(0.16, 0.12, 0.14), hide)
+	_cy(root, "HornL", Vector3(-0.18, 1.58, 0.04), 0.0, 0.04, 0.26, horn, Vector3(20, 0, 64)); _cy(root, "HornR", Vector3(0.18, 1.58, 0.04), 0.0, 0.04, 0.26, horn, Vector3(20, 0, -64))
+	_sp(root, "EyeL", Vector3(-0.08, 1.52, 0.2), 0.028, fire, Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.08, 1.52, 0.2), 0.028, fire, Vector3.ONE, true)
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.36, 1.32, 0); root.add_child(sh_l)
+	_bx(sh_l, "Arm", Vector3(0, -0.3, 0.02), Vector3(0.18, 0.58, 0.18), hide); _sp(sh_l, "Fist", Vector3(0, -0.62, 0.04), 0.12, hide2)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.36, 1.32, 0); root.add_child(sh_r)
+	_bx(sh_r, "Arm", Vector3(0, -0.3, 0.02), Vector3(0.18, 0.58, 0.18), hide); _sp(sh_r, "Fist", Vector3(0, -0.62, 0.04), 0.12, hide2)
+	# fiery great-axe in the right hand
+	var axe := Node3D.new(); axe.position = Vector3(0, -0.66, 0.1); axe.rotation_degrees = Vector3(20, 0, 0); sh_r.add_child(axe)
+	_cy(axe, "Haft", Vector3(0, 0.0, 0), 0.03, 0.035, 0.9, wood)
+	_bx(axe, "Blade", Vector3(0.16, 0.34, 0), Vector3(0.3, 0.34, 0.04), steel, Vector3(0, 0, -12))
+	_bx(axe, "BladeFire", Vector3(0.26, 0.34, 0), Vector3(0.14, 0.4, 0.03), fire, Vector3(0, 0, -12))
+	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+
+
+# =============================================================
+# HEAVENS ACT MODELS
+# =============================================================
+
+## Cherub: an adult winged archer in a toga, holding a bow.
+func _build_cherub() -> void:
+	_shadow(0.22)
+	var skin := Color.html("e8c8a8"); var robe := Color.html("f0ece0"); var robe2 := Color.html("d8d2c2"); var hair := Color.html("c9a25a"); var wood := Color.html("8a6a3a"); var gold := Color.html("e8c34a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_cy(root, "Robe", Vector3(0, 0.34, 0), 0.12, 0.26, 0.66, robe)
+	_bx(root, "Sash", Vector3(0, 0.5, 0.0), Vector3(0.34, 0.06, 0.3), gold, Vector3(0, 0, 18))
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.17 * sx, 0.78, 0); root.add_child(sh)
+		_cy(sh, "Arm", Vector3(0, -0.16, 0.02), 0.04, 0.045, 0.34, skin); _sp(sh, "Hand", Vector3(0, -0.34, 0.03), 0.05, skin)
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
+	# a bow held in the left hand
+	_cy(_arm_l, "Bow", Vector3(0, -0.34, 0.1), 0.02, 0.02, 0.5, wood, Vector3(6, 0, 0))
+	_bx(_arm_l, "String", Vector3(-0.05, -0.34, 0.1), Vector3(0.006, 0.46, 0.006), Color.html("dcdce0"))
+	_sp(root, "Head", Vector3(0, 0.98, 0.02), 0.14, skin)
+	_sp(root, "Hair", Vector3(0, 1.06, -0.02), 0.15, hair, Vector3(1.05, 0.8, 1.05))
+	_sp(root, "EyeL", Vector3(-0.05, 0.99, 0.12), 0.02, Color.html("4a6a9a")); _sp(root, "EyeR", Vector3(0.05, 0.99, 0.12), 0.02, Color.html("4a6a9a"))
+	# halo
+	_cy(root, "Halo", Vector3(0, 1.2, -0.02), 0.1, 0.1, 0.015, gold)
+	# small feathered wings
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.12 * sx, 0.7, -0.12); w.rotation_degrees = Vector3(8, 0, -28 * sx); root.add_child(w)
+		_bx(w, "WingA", Vector3(0.22 * sx, 0.08, -0.02), Vector3(0.4, 0.06, 0.26), robe)
+		_bx(w, "WingB", Vector3(0.38 * sx, 0.16, -0.04), Vector3(0.22, 0.05, 0.18), robe2, Vector3(0, 0, -14 * sx))
+
+
+## Djinn: a blue genie with a wisp tail, bracelets, ponytail and a red necklace.
+func _build_djinn() -> void:
+	_shadow(0.26)
+	var blue := Color.html("2f7fd0"); var blue2 := Color.html("4a9ae6"); var gold := Color.html("e8c34a"); var dark := Color.html("141018"); var red := Color.html("c0392b")
+	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.2, 0); add_child(body); _bob_node = body; _bob_y = 0.2
+	# muscular torso
+	_bx(body, "Torso", Vector3(0, 0.62, 0), Vector3(0.46, 0.46, 0.28), blue)
+	_sp(body, "Chest", Vector3(0, 0.66, 0.12), 0.2, blue2, Vector3(1.2, 0.9, 0.7))
+	_bx(body, "Belt", Vector3(0, 0.42, 0), Vector3(0.4, 0.08, 0.26), gold)
+	_cy(body, "Necklace", Vector3(0, 0.78, 0.12), 0.1, 0.1, 0.03, red)
+	# wisp/smoke tail instead of legs
+	_cy(body, "Wisp", Vector3(0, 0.1, 0), 0.22, 0.04, 0.5, blue2)
+	for i in range(3): _sp(body, "Puff%d" % i, Vector3((i - 1) * 0.08, -0.14 - i * 0.04, 0), 0.08 - i * 0.015, blue)
+	# big arms with bracelets
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.26 * sx, 0.82, 0); body.add_child(sh)
+		_cy(sh, "Arm", Vector3(0, -0.22, 0.02), 0.06, 0.07, 0.44, blue); _sp(sh, "Hand", Vector3(0, -0.46, 0.04), 0.08, blue2)
+		_cy(sh, "Bracelet", Vector3(0, -0.4, 0.04), 0.08, 0.08, 0.05, gold)
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
+	_sp(body, "Head", Vector3(0, 1.04, 0.02), 0.15, blue2)
+	_sp(body, "Topknot", Vector3(0, 1.18, -0.02), 0.05, dark)
+	_cy(body, "Ponytail", Vector3(0, 1.12, -0.1), 0.0, 0.04, 0.18, dark, Vector3(40, 0, 0))
+	_bx(body, "Beard", Vector3(0, 0.92, 0.12), Vector3(0.1, 0.1, 0.04), dark)
+	_sp(body, "EyeL", Vector3(-0.05, 1.05, 0.12), 0.02, Color.html("ffffff"), Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.05, 1.05, 0.12), 0.02, Color.html("ffffff"), Vector3.ONE, true)
+
+
+## Corrupted Archangel: black-eyed, black-haired angel in white with a black greatsword.
+func _build_corrupted_archangel() -> void:
+	_shadow(0.3)
+	var white := Color.html("eef0f2"); var white2 := Color.html("d6dade"); var skin := Color.html("d8c2ac"); var hair := Color.html("0e0c12"); var blade := Color.html("1a1820"); var gold := Color.html("c9a23a")
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	_cy(root, "Robe", Vector3(0, 0.42, 0), 0.12, 0.3, 0.84, white)
+	_bx(root, "Hem", Vector3(0, 0.04, 0), Vector3(0.46, 0.06, 0.46), white2)
+	_bx(root, "Sash", Vector3(0, 0.62, 0.02), Vector3(0.4, 0.08, 0.3), gold, Vector3(0, 0, 20))
+	for sx in [-1, 1]:
+		var sh := Node3D.new(); sh.name = "Shoulder%d" % sx; sh.position = Vector3(0.2 * sx, 0.94, 0); root.add_child(sh)
+		_cy(sh, "Arm", Vector3(0, -0.2, 0.02), 0.045, 0.05, 0.42, white); _sp(sh, "Hand", Vector3(0, -0.42, 0.03), 0.05, skin)
+		if sx < 0: _arm_l = sh
+		else: _arm_r = sh
+	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
+	# huge black two-handed sword held down in front
+	var sword := Node3D.new(); sword.position = Vector3(0.06, -0.4, 0.12); sword.rotation_degrees = Vector3(20, 0, 0); _arm_r.add_child(sword)
+	_cy(sword, "Grip", Vector3(0, -0.1, 0), 0.022, 0.022, 0.22, Color.html("2a2620"))
+	_bx(sword, "Guard", Vector3(0, 0.04, 0), Vector3(0.26, 0.04, 0.05), gold)
+	_bx(sword, "Blade", Vector3(0, 0.6, 0), Vector3(0.1, 1.1, 0.03), blade)
+	_sp(root, "Head", Vector3(0, 1.16, 0.02), 0.14, skin)
+	_sp(root, "Hair", Vector3(0, 1.22, -0.03), 0.16, hair, Vector3(1.1, 1.1, 1.1))
+	_bx(root, "HairL", Vector3(-0.13, 1.06, -0.02), Vector3(0.05, 0.34, 0.1), hair); _bx(root, "HairR", Vector3(0.13, 1.06, -0.02), Vector3(0.05, 0.34, 0.1), hair)
+	_sp(root, "EyeL", Vector3(-0.05, 1.16, 0.12), 0.026, Color.html("050507"), Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.05, 1.16, 0.12), 0.026, Color.html("050507"), Vector3.ONE, true)
+	# large feathered wings
+	for sx in [-1, 1]:
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.96, -0.14); w.rotation_degrees = Vector3(8, 0, -30 * sx); root.add_child(w)
+		_bx(w, "WingA", Vector3(0.34 * sx, 0.1, -0.02), Vector3(0.62, 0.06, 0.34), white)
+		_bx(w, "WingB", Vector3(0.66 * sx, 0.22, -0.05), Vector3(0.34, 0.05, 0.24), white2, Vector3(0, 0, -16 * sx))
+
+
+# =============================================================
 # IDLE
 # =============================================================
 
@@ -1754,7 +2324,8 @@ func play_attack() -> void:
 	if not _built:
 		return
 	match _kind:
-		"rat", "archer_rat", "wolf", "coyote", "mini_bear", "giant_beaver", "giant_hawk":
+		"rat", "archer_rat", "wolf", "coyote", "mini_bear", "giant_beaver", "giant_hawk", \
+		"sabertooth", "white_manticore", "wyvern", "roc", "magma_spider", "cerberus":
 			_lurch()
 		"hydra":
 			_hydra_attack()

@@ -21,7 +21,13 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# Graveyard act
 	ZOMBIE, WEREWOLF, WERERABBIT, VAMPIRE, NECROMANCER, BONE_DRAGON, SPIRIT_COLLECTOR, GRAVE_TITAN, CRYPT_CRAWLER, SCREECHER, CONSUMED,
 	# Sewer act
-	SLUDGE, PIPE_CRAWLER, SEWER_CROC, RAT_KING, SWARM }
+	SLUDGE, PIPE_CRAWLER, SEWER_CROC, RAT_KING, SWARM,
+	# Mountains act (design mock-ups — stats & moves TBD)
+	WEREGOAT, WYVERN, ROC, ICE_TROLL, SNOW_WRAITH, GRANITE_COLOSSUS, WHITE_MANTICORE, SABERTOOTH,
+	# Underworld act (design mock-ups — stats & moves TBD)
+	CERBERUS, SUCCUBUS, DEMON, IFRIT, MIND_EATER, SPECTER, MAGMA_SPIDER, PIT_FIEND, ASH_HARPY, INFLAMED_MINOTAUR,
+	# Heavens act (design mock-ups — stats & moves TBD)
+	CHERUB, DJINN, CORRUPTED_ARCHANGEL }
 
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
@@ -610,6 +616,27 @@ func _setup_sprite() -> void:
 		EnemyType.SEWER_CROC: kind = "sewer_croc"
 		EnemyType.RAT_KING: kind = "rat_king"
 		EnemyType.SWARM: kind = "swarm"
+		EnemyType.WEREGOAT: kind = "weregoat"
+		EnemyType.WYVERN: kind = "wyvern"
+		EnemyType.ROC: kind = "roc"
+		EnemyType.ICE_TROLL: kind = "ice_troll"
+		EnemyType.SNOW_WRAITH: kind = "snow_wraith"
+		EnemyType.GRANITE_COLOSSUS: kind = "granite_colossus"
+		EnemyType.WHITE_MANTICORE: kind = "white_manticore"
+		EnemyType.SABERTOOTH: kind = "sabertooth"
+		EnemyType.CERBERUS: kind = "cerberus"
+		EnemyType.SUCCUBUS: kind = "succubus"
+		EnemyType.DEMON: kind = "demon"
+		EnemyType.IFRIT: kind = "ifrit"
+		EnemyType.MIND_EATER: kind = "mind_eater"
+		EnemyType.SPECTER: kind = "specter"
+		EnemyType.MAGMA_SPIDER: kind = "magma_spider"
+		EnemyType.PIT_FIEND: kind = "pit_fiend"
+		EnemyType.ASH_HARPY: kind = "ash_harpy"
+		EnemyType.INFLAMED_MINOTAUR: kind = "inflamed_minotaur"
+		EnemyType.CHERUB: kind = "cherub"
+		EnemyType.DJINN: kind = "djinn"
+		EnemyType.CORRUPTED_ARCHANGEL: kind = "corrupted_archangel"
 		_:
 			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
 
@@ -917,6 +944,14 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SEWER_CROC: "Elite",
 		EnemyType.RAT_KING: "Elite",
 		EnemyType.SWARM: "Minion",
+		EnemyType.WEREGOAT: "Elite", EnemyType.WYVERN: "Elite", EnemyType.ROC: "Boss",
+		EnemyType.ICE_TROLL: "Elite", EnemyType.SNOW_WRAITH: "Minion", EnemyType.GRANITE_COLOSSUS: "Boss",
+		EnemyType.WHITE_MANTICORE: "Elite", EnemyType.SABERTOOTH: "Minion",
+		EnemyType.CERBERUS: "Boss", EnemyType.SUCCUBUS: "Elite", EnemyType.DEMON: "Elite",
+		EnemyType.IFRIT: "Elite", EnemyType.MIND_EATER: "Elite", EnemyType.SPECTER: "Minion",
+		EnemyType.MAGMA_SPIDER: "Elite", EnemyType.PIT_FIEND: "Boss", EnemyType.ASH_HARPY: "Minion",
+		EnemyType.INFLAMED_MINOTAUR: "Elite",
+		EnemyType.CHERUB: "Minion", EnemyType.DJINN: "Elite", EnemyType.CORRUPTED_ARCHANGEL: "Boss",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -960,6 +995,27 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SEWER_CROC: {"name": "Sewer Crocodile", "health": 25, "armor": 15, "damage": 10, "xp": 14},
 		EnemyType.RAT_KING: {"name": "Rat King", "health": 15, "armor": 0, "damage": 4, "xp": 8},
 		EnemyType.SWARM: {"name": "Swarm", "health": 8, "armor": 0, "damage": 3, "xp": 5},
+		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.WYVERN: {"name": "Wyvern", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.ROC: {"name": "Roc", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.ICE_TROLL: {"name": "Ice Troll", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SNOW_WRAITH: {"name": "Snow Wraith", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.GRANITE_COLOSSUS: {"name": "Granite Colossus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.WHITE_MANTICORE: {"name": "White Manticore", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SABERTOOTH: {"name": "Sabertooth Tiger", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.CERBERUS: {"name": "Cerberus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SUCCUBUS: {"name": "Succubus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.DEMON: {"name": "Demon", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.IFRIT: {"name": "Ifrit", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.MIND_EATER: {"name": "Mind Eater", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SPECTER: {"name": "Specter", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.MAGMA_SPIDER: {"name": "Magma Spider", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.PIT_FIEND: {"name": "Pit Fiend", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.ASH_HARPY: {"name": "Ash Harpy", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.INFLAMED_MINOTAUR: {"name": "Inflamed Minotaur", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.CHERUB: {"name": "Cherub", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.DJINN: {"name": "Djinn", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -1003,6 +1059,14 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 2}, {"name": "Move", "tempo": 2}],
 		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
+		EnemyType.WEREGOAT: [], EnemyType.WYVERN: [], EnemyType.ROC: [],
+		EnemyType.ICE_TROLL: [], EnemyType.SNOW_WRAITH: [], EnemyType.GRANITE_COLOSSUS: [],
+		EnemyType.WHITE_MANTICORE: [], EnemyType.SABERTOOTH: [],
+		EnemyType.CERBERUS: [], EnemyType.SUCCUBUS: [], EnemyType.DEMON: [],
+		EnemyType.IFRIT: [], EnemyType.MIND_EATER: [], EnemyType.SPECTER: [],
+		EnemyType.MAGMA_SPIDER: [], EnemyType.PIT_FIEND: [], EnemyType.ASH_HARPY: [],
+		EnemyType.INFLAMED_MINOTAUR: [],
+		EnemyType.CHERUB: [], EnemyType.DJINN: [], EnemyType.CORRUPTED_ARCHANGEL: [],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -1041,6 +1105,30 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 5 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
 		EnemyType.SCREECHER: "Soul-creature — invisible (a black void ghost) until it strikes.\nScreech (5 tempo): 2 damage; it becomes visible for 3 tempo, then fades again.\nDrift: 4 spaces / 2 tempo while invisible (2 spaces / 5 tempo while visible).",
 		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 5 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 4 damage to everything nearby.",
+		# --- Mountains (design mock-ups — stats & moves TBD) ---
+		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.WYVERN: "A large serpentine flier with talons and wings — no arms.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.ROC: "An enormous bird with huge talons and a white-checkered mane.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.ICE_TROLL: "Bigger than the Armored Troll — taller, with massive hands and feet; no weapon.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.SNOW_WRAITH: "A pale mountain spirit trailing tattered cloth.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.GRANITE_COLOSSUS: "A huge rigid figure of mountain stone that emerges from the rock face — hard to spot before it moves.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.SABERTOOTH: "A sabertooth tiger.\n[Design mock-up — stats & moves TBD.]",
+		# --- Underworld (design mock-ups — stats & moves TBD) ---
+		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.SUCCUBUS: "A winged fey: short shorts, sleeveless top, elbow gloves, long boots and small horns.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.DEMON: "A red, thorned demon wielding a dagger and a trident.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.IFRIT: "A muscular bipedal fire-hound, hunched, with long near-ground arms.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.MIND_EATER: "A gaunt, hunched flesh-horror with long raking claws.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.SPECTER: "A dark shadow-form of a humanoid.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.PIT_FIEND: "A larger, regal demon with a barbed tail and a great whip.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.INFLAMED_MINOTAUR: "A smouldering minotaur with a fiery axe; leaves fire in its wake.\n[Design mock-up — stats & moves TBD.]",
+		# --- Heavens (design mock-ups — stats & moves TBD) ---
+		EnemyType.CHERUB: "An adult cupid — winged archer with a bow.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.CORRUPTED_ARCHANGEL: "Black eyes and long black hair, white wings and robes, wielding a black two-handed sword.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
 		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 4 damage; 15% chance to disarm you.\nMove (2 tempo): 2 spaces.",
 		EnemyType.SEWER_CROC: "Armoured ambush predator (15 armor).\nBite (6 tempo): 10 damage.\nMove (5 tempo): 2 spaces.",
