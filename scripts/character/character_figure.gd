@@ -364,25 +364,40 @@ func _fallback_palette(character_name: String) -> Dictionary:
 func _spec_for(character_name: String) -> Dictionary:
 	match character_name:
 		"Ryan":
+			# Duelist/rogue: belt specialist — pouches riding the belt, dark
+			# forearm wraps for knife-work.
 			return {"hair": "long", "hair_color": Color.html("0b0a10"), "eyes": Color.html("5a9bd8"),
 					"sleeves": "shirt", "belt": Color.html("aacce6"), "boots": Color.html("242129"),
+					"belt_pouches": Color.html("2a2732"), "bracers": Color.html("242129"),
 					"weapon": "daggers", "weapon_col": Color.html("cbe0f1")}
 		"Jeremy":
+			# Elemental mage: ring specialist — a glowing ring on each hand, and
+			# an arcane crystal crowning the staff.
 			return {"hair": "short", "sleeves": "skin",
 					"belt": Color.html("5b3433"), "boots": "skin",
-					"weapon": "staff", "weapon_col": Color.html("6b4a2a")}
+					"magic_rings": Color.html("7ad0ff"),
+					"weapon": "staff", "weapon_col": Color.html("6b4a2a"),
+					"staff_gem": Color.html("7ad0ff")}
 		"Stephen":
+			# Marksman: a leather armguard on the bow arm and a shooting glove.
 			return {"hair": "short", "sleeves": Color.html("e6e6ea"),
 					"belt": Color.html("d8a838"), "boots": Color.html("3a2420"),
 					"straps": Color.html("6b4a2a"), "quiver": true,
+					"armguard": Color.html("5a3d22"), "glove": Color.html("3a2420"),
 					"weapon": "bow", "weapon_col": Color.html("6b4a2a")}
 		"Cory":
+			# Druid/monk: gauntlet specialist — heavy knuckled gauntlets on both
+			# fists, and living ivy winding up the wizard hat.
 			return {"headgear": "wizard_hat", "hatband": Color.html("5a3d22"), "sleeves": "shirt",
 					"belt": Color.html("5a3d22"), "boots": Color.html("141018"),
-					"straps": Color.html("6b4a2a"), "weapon": "whip", "weapon_col": Color.html("3a2a1c")}
+					"straps": Color.html("6b4a2a"), "gauntlets": Color.html("5a4a2f"),
+					"hat_ivy": Color.html("4e7a2e"), "weapon": "whip", "weapon_col": Color.html("3a2a1c")}
 		"Brad":
+			# Tank/bruiser: a steel chestplate to match the shield, and a crest
+			# fin on the helmet.
 			return {"headgear": "helmet", "sleeves": "shirt", "pauldrons": true,
-					"boots": Color.html("1a173a"), "weapon": "shield"}
+					"boots": Color.html("1a173a"), "chestplate": true,
+					"crest": Color.html("3a5fa8"), "weapon": "shield"}
 		_:
 			return {"hair": "short", "sleeves": "shirt", "belt": Color.html("4a4f5e"), "boots": Color.html("3a3f4a")}
 
@@ -426,6 +441,67 @@ func _build_details(pal: Dictionary, spec: Dictionary) -> void:
 		strap.rotation_degrees = Vector3(0, 0, 26)
 		_add_feature(strap)
 
+	# Pouches riding the front of the belt (Ryan — the belt specialist)
+	if spec.has("belt_pouches"):
+		var pouch_c: Color = spec["belt_pouches"]
+		for i in range(3):
+			var px := -0.15 + i * 0.15
+			_add_feature(_make_box_solid("Pouch%d" % i, Vector3(px, 0.43, 0.17), Vector3(0.1, 0.11, 0.06), pouch_c))
+			_add_feature(_make_box_solid("PouchFlap%d" % i, Vector3(px, 0.485, 0.185), Vector3(0.1, 0.03, 0.05), pouch_c.darkened(0.25)))
+
+	# Forearm wraps on both arms (knife-work)
+	if spec.has("bracers"):
+		var bracer_c: Color = spec["bracers"]
+		for sh in [_left_shoulder, _right_shoulder]:
+			var wrap := _make_box_solid("Bracer", Vector3(0, -0.32, 0), Vector3(0.15, 0.13, 0.15), bracer_c)
+			sh.add_child(wrap)
+			_feature_nodes.append(wrap)
+
+	# Archer's armguard on the bow arm + shooting glove on the draw hand
+	if spec.has("armguard"):
+		var guard := _make_box_solid("Armguard", Vector3(0, -0.31, 0), Vector3(0.16, 0.15, 0.16), spec["armguard"])
+		_right_shoulder.add_child(guard)
+		_feature_nodes.append(guard)
+	if spec.has("glove"):
+		var glove := _make_box_solid("Glove", Vector3.ZERO, Vector3(0.145, 0.1, 0.145), spec["glove"])
+		_left_hand.add_child(glove)
+		_feature_nodes.append(glove)
+
+	# Heavy knuckled gauntlets on both fists (Cory — the gauntlet specialist)
+	if spec.has("gauntlets"):
+		var gaunt_c: Color = spec["gauntlets"]
+		var iron := Color.html("8a8f99")
+		for hand in [_left_hand, _right_hand]:
+			var fist := _make_box_solid("Gauntlet", Vector3(0, -0.02, 0), Vector3(0.18, 0.16, 0.18), gaunt_c)
+			hand.add_child(fist)
+			_feature_nodes.append(fist)
+			var cuff := _make_box_solid("GauntletCuff", Vector3(0, 0.09, 0), Vector3(0.16, 0.06, 0.16), gaunt_c.darkened(0.2))
+			hand.add_child(cuff)
+			_feature_nodes.append(cuff)
+			for k in range(3):
+				var stud := _make_box_solid("Knuckle%d" % k, Vector3(-0.05 + k * 0.05, -0.02, 0.095), Vector3(0.035, 0.035, 0.025), iron)
+				hand.add_child(stud)
+				_feature_nodes.append(stud)
+
+	# A glowing enchanted ring on each hand (Jeremy — the ring specialist)
+	if spec.has("magic_rings"):
+		var ring_c: Color = spec["magic_rings"]
+		for hand in [_left_hand, _right_hand]:
+			var ring := _make_torus("MagicRing", Vector3(0, -0.02, 0), 0.014, 0.05, ring_c)
+			var rm := ring.material_override as StandardMaterial3D
+			rm.emission_enabled = true
+			rm.emission = ring_c
+			rm.emission_energy_multiplier = 1.6
+			hand.add_child(ring)
+			_feature_nodes.append(ring)
+
+	# Steel chestplate strapped over the shirt, echoing the shield's cross
+	if spec.get("chestplate", false):
+		_add_feature(_make_box_solid("Chestplate", Vector3(0, 0.68, 0.15), Vector3(0.38, 0.36, 0.05), Color.html("c2c8d6")))
+		_add_feature(_make_box_solid("PlateBarV", Vector3(0, 0.68, 0.18), Vector3(0.06, 0.3, 0.02), Color.html("3a5fa8")))
+		_add_feature(_make_box_solid("PlateBarH", Vector3(0, 0.76, 0.18), Vector3(0.22, 0.05, 0.02), Color.html("3a5fa8")))
+		_add_feature(_make_box_solid("PlateRim", Vector3(0, 0.5, 0.15), Vector3(0.38, 0.05, 0.06), Color.html("8a8f99")))
+
 	# Long hair framing the face + down the back
 	if spec.get("hair", "short") == "long":
 		var hc: Color = pal.get("hair", Color.html("141019"))
@@ -452,6 +528,15 @@ func _build_details(pal: Dictionary, spec: Dictionary) -> void:
 			if spec.has("hatband"):
 				_add_feature(_make_cyl("HatBand", Vector3(0, 1.29, 0), 0.205, 0.225, 0.06, spec["hatband"]))
 			_add_feature(_make_cyl("HatCone", Vector3(0, 1.5, 0), 0.0, 0.2, 0.46, hat_col))
+			# Living ivy spiralling up the cone (druid)
+			if spec.has("hat_ivy"):
+				var ivy: Color = spec["hat_ivy"]
+				for i in range(5):
+					var t := float(i) / 4.0
+					var ang := t * TAU * 0.8 + 0.6
+					var r := lerpf(0.19, 0.06, t)
+					_add_feature(_make_sphere("Ivy%d" % i, Vector3(cos(ang) * r, 1.32 + t * 0.34, sin(ang) * r), 0.028, ivy))
+				_add_feature(_make_sphere("IvyLeaf", Vector3(cos(0.6) * 0.21, 1.31, sin(0.6) * 0.21), 0.04, ivy.lightened(0.15)))
 		"helmet":
 			_hair.visible = false
 			_eye_l.visible = false
@@ -464,6 +549,9 @@ func _build_details(pal: Dictionary, spec: Dictionary) -> void:
 			_add_feature(_make_box_solid("VisorSlit", Vector3(0, 1.04, 0.25), Vector3(0.30, 0.06, 0.04), Color.html("0c0d14")))
 			_add_glow("EyeGlowL", Vector3(-0.075, 1.04, 0.275), Color(0.75, 0.85, 1.0))
 			_add_glow("EyeGlowR", Vector3(0.075, 1.04, 0.275), Color(0.75, 0.85, 1.0))
+			# Crest fin running front-to-back over the crown
+			if spec.has("crest"):
+				_add_feature(_make_box_solid("Crest", Vector3(0, 1.32, -0.02), Vector3(0.05, 0.15, 0.34), spec["crest"]))
 
 	# Quiver on the back (archers)
 	if spec.get("quiver", false):
@@ -492,7 +580,22 @@ func _build_weapon(spec: Dictionary, pal: Dictionary) -> void:
 			var staff := _make_cyl("Staff", Vector3(-0.37, 0.6, 0.08), 0.03, 0.03, 1.25, wood)
 			staff.rotation_degrees = Vector3(0, 0, 7)
 			_add_feature(staff)
-			_add_feature(_make_sphere("StaffKnob", Vector3(-0.44, 1.22, 0.08), 0.055, wood.lightened(0.15)))
+			if spec.has("staff_gem"):
+				# An arcane crystal cradled in wooden prongs, glowing at the tip.
+				var gem_c: Color = spec["staff_gem"]
+				var gem := _make_sphere("StaffGem", Vector3(-0.44, 1.26, 0.08), 0.06, gem_c)
+				var gm := gem.material_override as StandardMaterial3D
+				gm.emission_enabled = true
+				gm.emission = gem_c
+				gm.emission_energy_multiplier = 1.8
+				_add_feature(gem)
+				for p in range(3):
+					var pang := deg_to_rad(p * 120.0)
+					var prong := _make_cyl("StaffProng%d" % p, Vector3(-0.44 + cos(pang) * 0.055, 1.2, 0.08 + sin(pang) * 0.055), 0.0, 0.016, 0.12, wood)
+					prong.rotation_degrees = Vector3(rad_to_deg(sin(pang)) * 0.22, 0, -rad_to_deg(cos(pang)) * 0.22)
+					_add_feature(prong)
+			else:
+				_add_feature(_make_sphere("StaffKnob", Vector3(-0.44, 1.22, 0.08), 0.055, wood.lightened(0.15)))
 		"whip":
 			# A coiled whip hanging at the left hip.
 			var leather: Color = spec.get("weapon_col", Color.html("3a2a1c"))

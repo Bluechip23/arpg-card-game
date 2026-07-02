@@ -103,10 +103,10 @@ func _build() -> void:
 		"infected_hunter": _build_hunter()
 		"giant_hawk": _build_hawk()
 		"treant": _build_treant()
-		"ice_mage": _build_mage(Color.html("3f72b0"), Color.html("bfe6ff"), Color.html("8fd0ff"))
+		"ice_mage": _build_ice_mage()
 		"fire_mage": _build_fire_mage()
 		"spark_mage": _build_spark_mage()
-		"air_mage": _build_mage(Color.html("7fae9c"), Color.html("cfeee0"), Color.html("d6fff0"))
+		"air_mage": _build_air_mage()
 		"earth_mage": _build_earth_mage()
 		# Graveyard act
 		"zombie": _build_zombie()
@@ -314,6 +314,53 @@ func _bird_wing(w: Node3D, sx: int, feathers: int, length: float, col: Color, ti
 		_pr(pivot, "F%d" % i, Vector3(0.0, -fl * 0.5, 0.0), Vector3(0.17, fl, 0.02), c, Vector3(0, 0, 180))
 
 
+## A translucent, faintly glowing material for ghosts/spirits so they read as
+## apparitions instead of solid statues.
+func _ghost_mat(c: Color, alpha: float, glow := 0.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(c.r, c.g, c.b, alpha)
+	m.roughness = 0.7
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	if glow > 0.0:
+		m.emission_enabled = true
+		m.emission = c
+		m.emission_energy_multiplier = glow
+	return m
+
+
+## Re-skin every mesh under `node` with the ghost material (eyes and other
+## emissive parts are skipped so they keep their glow).
+func _ghostify(node: Node, alpha: float, glow := 0.35) -> void:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			var sm := child.material_override as StandardMaterial3D
+			if sm != null and not sm.emission_enabled:
+				child.material_override = _ghost_mat(sm.albedo_color, alpha, glow)
+		if child is Node3D:
+			_ghostify(child, alpha, glow)
+
+
+## A spread bird wing fanning out along +X (mirror with sx): a leading-edge arm
+## bone with layered flight feathers raking back off it, longest at the tip, so
+## a soaring bird reads as feathers instead of a flat slab.
+func _spread_wing(w: Node3D, sx: int, span: float, chord: float, col: Color, tip: Color) -> void:
+	_cy(w, "Arm", Vector3(span * 0.45 * sx, 0.02, 0.02), 0.022, 0.035, span * 0.9, col, Vector3(0, 0, 90))
+	_sp(w, "Covert", Vector3(span * 0.16 * sx, 0.02, 0.0), chord * 0.3, col, Vector3(1.6, 0.5, 1.1))
+	var feathers := 6
+	for i in range(feathers):
+		var t: float = float(i) / float(feathers - 1)
+		var fx: float = span * lerp(0.18, 0.98, t)
+		var rake: float = lerp(6.0, 34.0, t * t)          # tip feathers sweep back hardest
+		var fl: float = chord * lerp(0.85, 1.25, t)        # and grow longest
+		var pivot := Node3D.new()
+		pivot.name = "SF%d" % i
+		pivot.position = Vector3(fx * sx, 0.0, 0.0)
+		pivot.rotation_degrees = Vector3(0, -rake * sx, 0)
+		w.add_child(pivot)
+		var c: Color = tip if i >= feathers - 2 else col
+		_pr(pivot, "F%d" % i, Vector3(0.0, 0.0, -fl * 0.5), Vector3(0.16, fl, 0.018), c, Vector3(-90, 0, 0))
+
+
 func _shadow(radius: float) -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "Shadow"
@@ -369,12 +416,31 @@ func _build_skeleton() -> void:
 	_atk_pivot = sh_r
 	_atk_rest = Vector3.ZERO
 
-	# Skull
+	# Grave-gear: a pitted, rust-eaten sword in the sword hand (swings with the
+	# shoulder) and a split wooden buckler strapped to the left arm.
+	var rust := Color.html("7a4a30")
+	var rust2 := Color.html("55352a")
+	var wood := Color.html("5a4530")
+	var sword := Node3D.new(); sword.name = "Sword"; sword.position = Vector3(0, -0.44, 0.05); sword.rotation_degrees = Vector3(30, 0, 0); sh_r.add_child(sword)
+	_bx(sword, "Blade", Vector3(0, 0.26, 0), Vector3(0.05, 0.42, 0.016), rust)
+	_bx(sword, "Notch", Vector3(0.025, 0.32, 0), Vector3(0.02, 0.06, 0.02), dark)
+	_bx(sword, "Guard", Vector3(0, 0.04, 0), Vector3(0.14, 0.03, 0.04), rust2)
+	_cy(sword, "Grip", Vector3(0, -0.05, 0), 0.018, 0.018, 0.12, wood)
+	var buckler := Node3D.new(); buckler.name = "Buckler"; buckler.position = Vector3(-0.06, -0.3, 0.03); buckler.rotation_degrees = Vector3(90, 0, 0); sh_l.add_child(buckler)
+	_cy(buckler, "Face", Vector3(0, 0, 0), 0.14, 0.14, 0.03, wood)
+	_sp(buckler, "Boss", Vector3(0, 0.025, 0), 0.04, rust2)
+	_bx(buckler, "Split", Vector3(0.05, 0.02, 0), Vector3(0.02, 0.015, 0.2), dark)
+
+	# Skull — cracked and missing teeth, jaw hanging slightly agape
 	_sp(root, "Skull", Vector3(0, 1.18, 0.01), 0.145, bone, Vector3(1.0, 1.05, 1.0))
-	_bx(root, "Jaw", Vector3(0, 1.08, 0.03), Vector3(0.15, 0.05, 0.13), bone)
+	var jaw := _bx(root, "Jaw", Vector3(0, 1.07, 0.04), Vector3(0.15, 0.05, 0.13), bone)
+	jaw.rotation_degrees = Vector3(8, 0, 0)
+	for tx in [-0.05, -0.01, 0.05]:
+		_bx(root, "Tooth%d" % int(tx * 100), Vector3(tx, 1.11, 0.1), Vector3(0.018, 0.03, 0.015), bone)
 	_sp(root, "SocketL", Vector3(-0.055, 1.19, 0.115), 0.038, dark)
 	_sp(root, "SocketR", Vector3(0.055, 1.19, 0.115), 0.038, dark)
 	_bx(root, "Nose", Vector3(0, 1.14, 0.13), Vector3(0.03, 0.04, 0.02), dark)
+	_bx(root, "Crack", Vector3(0.07, 1.27, 0.09), Vector3(0.014, 0.1, 0.02), dark, Vector3(0, 0, -24))
 
 
 # ---- Rat -----------------------------------------------------
@@ -568,18 +634,33 @@ func _build_hydra() -> void:
 	add_child(root)
 	_bob_node = root
 
-	_sp(root, "Body", Vector3(0, 0.52, -0.02), 0.36, green, Vector3(1.5, 0.95, 1.75))
-	_sp(root, "Belly", Vector3(0, 0.36, 0.26), 0.24, belly, Vector3(1.25, 0.85, 0.7))
-
+	# Serpentine trunk: a raised chest where the necks root, sloping back through
+	# a thick barrel into coiled hindquarters — three blended masses instead of
+	# one ball, so the boss reads as a great snake rearing up.
+	_sp(root, "Chest", Vector3(0, 0.6, 0.18), 0.3, green, Vector3(1.1, 1.0, 1.05))
+	_sp(root, "Barrel", Vector3(0, 0.48, -0.14), 0.32, green, Vector3(1.15, 0.85, 1.25))
+	_sp(root, "Haunch", Vector3(0, 0.36, -0.46), 0.26, green, Vector3(1.0, 0.75, 1.0))
+	_sp(root, "Belly", Vector3(0, 0.42, 0.22), 0.22, belly, Vector3(1.0, 0.8, 0.8))
+	# Pale belly scutes plating the underside of the rearing chest
 	for i in range(4):
-		_cy(root, "Spine%d" % i, Vector3(0, 0.78 - i * 0.02, -0.1 - i * 0.12), 0.0, 0.04, 0.14, dark, Vector3(-30, 0, 0))
+		_bx(root, "Scute%d" % i, Vector3(0, 0.24 + i * 0.11, 0.36 - i * 0.015), Vector3(0.34 - i * 0.04, 0.055, 0.06), belly)
+	# Dorsal fin ridge running down the spine and out along the tail
+	for i in range(6):
+		_pr(root, "Fin%d" % i, Vector3(0, 0.8 - i * 0.075, -0.02 - i * 0.14), Vector3(0.05, 0.16 - i * 0.012, 0.1), dark, Vector3(-24, 0, 0))
 
+	# Stubby clawed forelegs bracing the rearing chest
 	for sx in [-1, 1]:
-		_bx(root, "Leg%d" % sx, Vector3(0.24 * sx, 0.16, 0.26), Vector3(0.16, 0.32, 0.18), green)
+		_cy(root, "Leg%d" % sx, Vector3(0.26 * sx, 0.18, 0.26), 0.06, 0.075, 0.32, green, Vector3(0, 0, 14 * sx))
+		_sp(root, "Foot%d" % sx, Vector3(0.28 * sx, 0.04, 0.3), 0.07, dark, Vector3(1.1, 0.6, 1.3))
 		for cz in [-0.05, 0.0, 0.05]:
-			_cy(root, "Claw%d_%d" % [sx, int(cz * 100)], Vector3(0.24 * sx + cz, 0.03, 0.38), 0.0, 0.02, 0.08, dark, Vector3(80, 0, 0))
+			_cy(root, "Claw%d_%d" % [sx, int(cz * 100)], Vector3(0.28 * sx + cz, 0.03, 0.4), 0.0, 0.02, 0.09, belly, Vector3(80, 0, 0))
 
-	_cy(root, "Tail", Vector3(0, 0.5, -0.42), 0.02, 0.12, 0.6, green, Vector3(-55, 0, 0))
+	# Long tail coiling back and away in tapering segments, tipped with a spade
+	var tail := Node3D.new(); tail.name = "Tail"; tail.position = Vector3(0, 0.3, -0.62); root.add_child(tail)
+	for i in range(5):
+		var f := float(i) / 4.0
+		_sp(tail, "TSeg%d" % i, Vector3(sin(f * 2.6) * 0.22, -f * 0.18, -f * 0.55), 0.17 - f * 0.11, green, Vector3(1.0, 0.85, 1.2))
+	_pr(tail, "TSpade", Vector3(sin(2.6) * 0.24, -0.14, -0.66), Vector3(0.12, 0.2, 0.03), dark, Vector3(-70, 0, 0))
 
 	_hydra_neck(root, Vector3(0, 0.84, 0.16), 12, 0, 0.68, green, dark, belly, eye)
 	_hydra_neck(root, Vector3(-0.22, 0.78, 0.12), 8, 24, 0.6, green, dark, belly, eye)
@@ -919,20 +1000,32 @@ func _build_hawk() -> void:
 	_bob_y = body.position.y
 	_sp(body, "Torso", Vector3(0, 0, 0), 0.20, feather, Vector3(0.85, 0.66, 1.35))
 	_sp(body, "Chest", Vector3(0, -0.03, 0.14), 0.15, light, Vector3(0.9, 0.66, 0.9))
-	# Spread wings
-	_bx(body, "WingL", Vector3(-0.34, 0.04, -0.02), Vector3(0.5, 0.04, 0.26), feather, Vector3(0, 0, 16))
-	_bx(body, "WingR", Vector3(0.34, 0.04, -0.02), Vector3(0.5, 0.04, 0.26), feather, Vector3(0, 0, -16))
-	_bx(body, "WingTipL", Vector3(-0.60, 0.10, -0.05), Vector3(0.22, 0.03, 0.16), light, Vector3(0, 0, 22))
-	_bx(body, "WingTipR", Vector3(0.60, 0.10, -0.05), Vector3(0.22, 0.03, 0.16), light, Vector3(0, 0, -22))
+	# Spread wings: layered flight feathers fanning off a leading-edge arm,
+	# angled up in a shallow soaring dihedral.
+	for sx in [-1, 1]:
+		var w := Node3D.new()
+		w.name = "Wing%d" % sx
+		w.position = Vector3(0.12 * sx, 0.05, 0.04)
+		w.rotation_degrees = Vector3(0, 0, 14 * sx)
+		body.add_child(w)
+		_spread_wing(w, sx, 0.72, 0.24, feather, light)
 	# Head + hooked beak
 	_sp(body, "Head", Vector3(0, 0.08, 0.26), 0.12, feather)
 	_cy(body, "Beak", Vector3(0, 0.05, 0.38), 0.0, 0.05, 0.12, beak, Vector3(80, 0, 0))
 	_sp(body, "EyeL", Vector3(-0.06, 0.11, 0.32), 0.026, dark)
 	_sp(body, "EyeR", Vector3(0.06, 0.11, 0.32), 0.026, dark)
-	# Talons + fanned tail
+	# Talons tucked beneath, tail feathers fanned out behind
 	_cy(body, "TalonL", Vector3(-0.07, -0.18, 0.10), 0.02, 0.03, 0.16, beak)
 	_cy(body, "TalonR", Vector3(0.07, -0.18, 0.10), 0.02, 0.03, 0.16, beak)
-	_bx(body, "Tail", Vector3(0, 0.02, -0.34), Vector3(0.22, 0.03, 0.24), light)
+	for i in range(5):
+		var spread := (i - 2) * 14.0
+		var tf := Node3D.new()
+		tf.name = "TailF%d" % i
+		tf.position = Vector3(0, 0.02, -0.24)
+		tf.rotation_degrees = Vector3(4, spread, 0)
+		body.add_child(tf)
+		var c: Color = light if i % 2 == 0 else feather
+		_pr(tf, "F", Vector3(0, 0, -0.14), Vector3(0.09, 0.28, 0.016), c, Vector3(-90, 0, 0))
 
 func _build_treant() -> void:
 	# A towering tree-giant: long bark legs and a tall trunk.
@@ -1003,6 +1096,101 @@ func _build_mage(robe: Color, trim: Color, orb_c: Color) -> void:
 	_cy(root, "Hood", Vector3(0, 0.86, -0.02), 0.0, 0.18, 0.30, robe)
 	_sp(root, "EyeL", Vector3(-0.05, 0.74, 0.11), 0.022, orb_c, Vector3.ONE, true)
 	_sp(root, "EyeR", Vector3(0.05, 0.74, 0.11), 0.022, orb_c, Vector3.ONE, true)
+
+
+## Ice Mage: frost-caller in a deep-blue robe trimmed with white fur, ice
+## crystals jutting from the shoulders and a frozen orb.
+func _build_ice_mage() -> void:
+	_shadow(0.22)
+	var robe := Color.html("2f5a96")
+	var robe2 := Color.html("24466e")
+	var fur := Color.html("eef4f8")
+	var skin := Color.html("c9d6e0")  # frost-pale
+	var ice := Color.html("8fd0ff")
+	var crystal := Color.html("bfe6ff")
+	var root := Node3D.new()
+	root.name = "Body"
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.0
+	# Conical robe with a white-fur hem and belt
+	_cy(root, "Robe", Vector3(0, 0.34, 0), 0.10, 0.30, 0.68, robe)
+	_cy(root, "FurHem", Vector3(0, 0.05, 0), 0.29, 0.31, 0.08, fur)
+	_cy(root, "FurBelt", Vector3(0, 0.42, 0.0), 0.2, 0.21, 0.06, fur)
+	# Ice crystals growing out of the shoulders
+	for sx in [-1, 1]:
+		_cy(root, "CrystalA%d" % sx, Vector3(0.16 * sx, 0.72, -0.02), 0.0, 0.045, 0.2, crystal, Vector3(-14, 0, -34 * sx))
+		_cy(root, "CrystalB%d" % sx, Vector3(0.2 * sx, 0.66, 0.02), 0.0, 0.03, 0.13, crystal, Vector3(8, 0, -52 * sx))
+	# Arms: left cradles the frozen orb, right is the casting arm with a fur cuff
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.16, 0.60, 0.04); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.14, 0.06), 0.035, 0.04, 0.30, robe, Vector3(40, 0, 0))
+	_cy(sh_l, "CuffL", Vector3(0, -0.24, 0.14), 0.045, 0.05, 0.07, fur, Vector3(40, 0, 0))
+	var orb := _sp(sh_l, "Orb", Vector3(0, -0.26, 0.20), 0.09, ice, Vector3.ONE, true)
+	(orb.material_override as StandardMaterial3D).emission_energy_multiplier = 2.2
+	_sp(sh_l, "OrbCore", Vector3(0, -0.26, 0.20), 0.05, Color.html("ffffff"), Vector3.ONE, true)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.16, 0.60, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.035, 0.04, 0.32, robe)
+	_cy(sh_r, "CuffR", Vector3(0, -0.3, 0.03), 0.045, 0.05, 0.07, fur)
+	_sp(sh_r, "HandR", Vector3(0, -0.36, 0.03), 0.045, skin)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	# Frost-pale head in a deep fur-rimmed hood, breath-glow eyes
+	_sp(root, "Head", Vector3(0, 0.74, 0.02), 0.13, skin)
+	_cy(root, "Hood", Vector3(0, 0.86, -0.02), 0.0, 0.18, 0.30, robe2)
+	_cy(root, "HoodFur", Vector3(0, 0.76, 0.05), 0.15, 0.16, 0.06, fur, Vector3(12, 0, 0))
+	_sp(root, "EyeL", Vector3(-0.05, 0.74, 0.11), 0.022, ice, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.05, 0.74, 0.11), 0.022, ice, Vector3.ONE, true)
+	# Icicles hanging from the hem
+	for a in range(3):
+		_cy(root, "Icicle%d" % a, Vector3(-0.14 + a * 0.14, 0.02, 0.24), 0.0, 0.018, 0.09, crystal, Vector3(180, 0, 0))
+
+
+## Air Mage: wind-caller in layered sage robes, a long scarf streaming out
+## sideways as if in a constant gale, hovering on a swirl of air.
+func _build_air_mage() -> void:
+	_shadow(0.22)
+	var robe := Color.html("6fa08c")
+	var robe2 := Color.html("58836f")
+	var trim := Color.html("cfeee0")
+	var skin := Color.html("c9b79a")
+	var wind := Color.html("d6fff0")
+	var root := Node3D.new()
+	root.name = "Body"
+	root.position.y = 0.12  # hovers just off the ground
+	add_child(root)
+	_bob_node = root
+	_bob_y = 0.12
+	# Swirl of air where the feet would be
+	_cy(root, "Swirl", Vector3(0, -0.06, 0), 0.24, 0.06, 0.12, wind)
+	_cy(root, "Swirl2", Vector3(0, 0.02, 0), 0.18, 0.1, 0.08, trim)
+	# Layered robes flaring wide, blown to one side
+	var skirt := _cy(root, "Skirt", Vector3(0.02, 0.22, 0), 0.16, 0.3, 0.34, robe)
+	skirt.rotation_degrees = Vector3(0, 0, -6)
+	_cy(root, "SkirtTrim", Vector3(0.03, 0.08, 0), 0.28, 0.3, 0.06, trim, Vector3(0, 0, -6))
+	_cy(root, "Robe", Vector3(0, 0.48, 0), 0.11, 0.18, 0.3, robe2)
+	_bx(root, "Sash", Vector3(0, 0.4, 0.08), Vector3(0.26, 0.06, 0.1), trim, Vector3(0, 0, 14))
+	# Long scarf streaming out to the left on the wind
+	_bx(root, "ScarfNeck", Vector3(0, 0.68, 0.02), Vector3(0.18, 0.07, 0.16), trim)
+	_bx(root, "Scarf1", Vector3(-0.24, 0.72, -0.02), Vector3(0.3, 0.05, 0.1), trim, Vector3(0, 0, 10))
+	_bx(root, "Scarf2", Vector3(-0.52, 0.8, -0.04), Vector3(0.28, 0.04, 0.09), wind, Vector3(0, 0, 22))
+	# Arms: left holds a swirling wind orb, right is the casting arm
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.15, 0.6, 0.04); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.14, 0.06), 0.033, 0.038, 0.28, robe2, Vector3(40, 0, 0))
+	var orb := _sp(sh_l, "Orb", Vector3(0, -0.24, 0.19), 0.08, wind, Vector3.ONE, true)
+	(orb.material_override as StandardMaterial3D).emission_energy_multiplier = 1.8
+	_cy(sh_l, "OrbRing", Vector3(0, -0.24, 0.19), 0.1, 0.1, 0.014, trim, Vector3(24, 0, 12))
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.15, 0.6, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.15, 0.02), 0.033, 0.038, 0.3, robe2)
+	_sp(sh_r, "HandR", Vector3(0, -0.33, 0.03), 0.042, skin)
+	_atk_pivot = sh_r
+	_atk_rest = Vector3.ZERO
+	# Bare head with wind-tossed hair, cloth blindfold over the eyes
+	_sp(root, "Head", Vector3(0, 0.82, 0.02), 0.125, skin)
+	var hair := _sp(root, "Hair", Vector3(-0.03, 0.9, -0.02), 0.13, robe2, Vector3(1.15, 0.6, 1.05))
+	hair.rotation_degrees = Vector3(0, 0, -18)
+	_bx(root, "Blindfold", Vector3(0, 0.83, 0.1), Vector3(0.22, 0.045, 0.08), trim)
+	_sp(root, "EyeL", Vector3(-0.05, 0.83, 0.135), 0.016, wind, Vector3.ONE, true)
+	_sp(root, "EyeR", Vector3(0.05, 0.83, 0.135), 0.016, wind, Vector3.ONE, true)
 
 
 ## Earth Mage: broad-shouldered, stocky brute in animal-skin clothing with
@@ -1497,10 +1685,11 @@ func _crawler_arm(parent: Node3D, sx: int, z: float, skin: Color, skin2: Color) 
 	_bx(hand, "Thumb", Vector3(0.05 * sx, 0, 0.03), Vector3(0.014, 0.02, 0.06), skin2)
 
 
-## Screecher: a soul-creature seen only as a black void ghost outline.
+## Screecher: a soul-creature "seen only from its noise" — a half-transparent
+## void wraith, its screaming maw ringed by the sound it gives off.
 func _build_screecher() -> void:
 	_shadow(0.18)
-	var void_c := Color.html("0a0a12")
+	var void_c := Color.html("141222")
 	var eye := Color.html("c9b6ff")
 	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.6, 0); add_child(body); _bob_node = body; _bob_y = 0.6
 	# Hooded ghost head/torso tapering to a wispy tail
@@ -1511,7 +1700,15 @@ func _build_screecher() -> void:
 	# Wispy arms
 	_cy(body, "ArmL", Vector3(-0.2, 0.0, 0.04), 0.0, 0.05, 0.32, void_c, Vector3(20, 0, -30))
 	_cy(body, "ArmR", Vector3(0.2, 0.0, 0.04), 0.0, 0.05, 0.32, void_c, Vector3(20, 0, 30))
-	# Glowing void-eyes (the only part you can really make out)
+	# See-through: the body is barely there...
+	_ghostify(body, 0.5, 0.25)
+	# ...but the scream is not. A gaping dark maw with faint rings of sound
+	# rippling out of it — the one thing that gives the creature away.
+	_sp(body, "Maw", Vector3(0, 0.06, 0.19), 0.055, Color.html("050508"), Vector3(1.0, 1.3, 0.6))
+	for r in range(3):
+		var ring := _cy(body, "SoundRing%d" % r, Vector3(0, 0.06, 0.26 + r * 0.09), 0.06 + r * 0.045, 0.06 + r * 0.045, 0.012, eye, Vector3(90, 0, 0))
+		ring.material_override = _ghost_mat(eye, 0.5 - r * 0.13, 1.4)
+	# Glowing void-eyes
 	_sp(body, "EyeL", Vector3(-0.07, 0.14, 0.21), 0.032, eye, Vector3.ONE, true)
 	_sp(body, "EyeR", Vector3(0.07, 0.14, 0.21), 0.032, eye, Vector3.ONE, true)
 	_atk_pivot = body; _atk_rest = Vector3.ZERO
@@ -1615,12 +1812,20 @@ func _build_sewer_croc() -> void:
 	# Long, low body (croc silhouette)
 	_sp(body, "Torso", Vector3(0, 0, -0.12), 0.26, green, Vector3(1.0, 0.55, 2.4))
 	_sp(body, "Belly", Vector3(0, -0.1, -0.08), 0.2, belly, Vector3(0.95, 0.4, 2.1))
+	# Armour: a central ridge of tall scutes flanked by two rows of smaller
+	# osteoderms, so the back reads as plated hide (break it to expose him).
 	for i in range(5):
 		_cy(body, "Ridge%d" % i, Vector3(0, 0.1, 0.2 - i * 0.16), 0.0, 0.035, 0.09, green2, Vector3(-20, 0, 0))
+		for sx in [-1, 1]:
+			_cy(body, "Scute%d_%d" % [i, sx], Vector3(0.13 * sx, 0.06, 0.2 - i * 0.16), 0.0, 0.028, 0.06, green2, Vector3(-20, 0, 26 * sx))
+	_cy(body, "Tail", Vector3(0, 0.0, -0.62), 0.02, 0.14, 0.74, green, Vector3(90, 0, 0))
+	for i in range(3):
+		_cy(body, "TailRidge%d" % i, Vector3(0, 0.08 - i * 0.02, -0.56 - i * 0.14), 0.0, 0.03 - i * 0.005, 0.07, green2, Vector3(-25, 0, 0))
 	for sx in [-1, 1]:
 		_cy(body, "LegF%d" % sx, Vector3(0.24 * sx, -0.08, 0.2), 0.04, 0.05, 0.18, green, Vector3(0, 0, 55 * sx))
 		_cy(body, "LegB%d" % sx, Vector3(0.24 * sx, -0.08, -0.34), 0.04, 0.05, 0.18, green, Vector3(0, 0, 55 * sx))
-	_cy(body, "Tail", Vector3(0, 0.0, -0.62), 0.02, 0.14, 0.74, green, Vector3(90, 0, 0))
+		for f in range(3):
+			_cy(body, "ClawF%d_%d" % [sx, f], Vector3(0.32 * sx, -0.16, 0.14 + f * 0.05), 0.0, 0.014, 0.06, tooth, Vector3(70, 0, 20 * sx))
 	# Long flat head + a lower jaw on a pivot that snaps shut on the bite
 	var head := Node3D.new(); head.name = "Head"; head.position = Vector3(0, -0.02, 0.34); body.add_child(head)
 	_head_pivot = head
@@ -1653,6 +1858,20 @@ func _build_rat_king() -> void:
 		var ang := deg_to_rad(a * 72.0)
 		_cy(crown, "Point%d" % a, Vector3(cos(ang) * 0.11, 0.08, sin(ang) * 0.11), 0.0, 0.022, 0.09, gold)
 		_sp(crown, "Gem%d" % a, Vector3(cos(ang) * 0.11, 0.13, sin(ang) * 0.11), 0.02, gem, Vector3.ONE, true)
+	# Stolen royal finery: a ragged crimson cape pinned at the shoulders with a
+	# gold clasp, trailing off the back in torn strips.
+	var cape := Color.html("6e1320")
+	var cape2 := Color.html("531019")
+	_bx(body, "CapeShoulders", Vector3(0, 0.2, 0.1), Vector3(0.4, 0.05, 0.2), cape)
+	_sp(body, "Clasp", Vector3(0, 0.24, 0.2), 0.035, gold)
+	_bx(body, "CapeBack", Vector3(0, 0.1, -0.16), Vector3(0.38, 0.05, 0.36), cape, Vector3(-12, 0, 0))
+	for i in range(3):
+		_bx(body, "CapeTail%d" % i, Vector3(-0.12 + i * 0.12, 0.02, -0.4), Vector3(0.09, 0.04, 0.22 + (i % 2) * 0.08), cape2, Vector3(-18, 0, 0))
+	# The king's eyes burn red in the dark of the cistern
+	for en in ["EyeL", "EyeR"]:
+		var e := body.get_node_or_null(en)
+		if e is MeshInstance3D:
+			e.material_override = _mat(gem, true)
 
 
 ## Swarm: a single unit made of a cluster of small winged bugs.
@@ -1804,6 +2023,8 @@ func _build_snow_wraith() -> void:
 	_cy(body, "ArmL", Vector3(-0.22, -0.02, 0.04), 0.0, 0.05, 0.34, pale, Vector3(20, 0, -36))
 	_cy(body, "ArmR", Vector3(0.22, -0.02, 0.04), 0.0, 0.05, 0.34, pale, Vector3(20, 0, 36))
 	_bx(body, "Shawl", Vector3(0, 0.02, -0.04), Vector3(0.42, 0.16, 0.1), pale2, Vector3(8, 0, 0))
+	# Translucent like blowing snow, with a cold inner glow
+	_ghostify(body, 0.6, 0.3)
 	_sp(body, "EyeL", Vector3(-0.07, 0.16, 0.18), 0.03, eye, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.07, 0.16, 0.18), 0.03, eye, Vector3.ONE, true)
 	_atk_pivot = body; _atk_rest = Vector3.ZERO
 
@@ -1958,9 +2179,14 @@ func _build_demon() -> void:
 	_bx(root, "FootL", Vector3(-0.12, 0.04, 0.06), Vector3(0.16, 0.08, 0.22), dark)
 	_bx(root, "FootR", Vector3(0.12, 0.04, 0.06), Vector3(0.16, 0.08, 0.22), dark)
 	var torso := _bx(root, "Torso", Vector3(0, 0.84, 0), Vector3(0.46, 0.5, 0.3), red); torso.rotation_degrees = Vector3(4, 0, 0)
-	# spiral thorns on shoulders/back
+	# spiral thorns on shoulders/back: stacked segments, each curling further over
 	for t in [Vector3(-0.26, 1.06, -0.04), Vector3(0.26, 1.06, -0.04), Vector3(0, 1.14, -0.12)]:
-		_cy(root, "Thorn", t, 0.0, 0.05, 0.26, horn, Vector3(-30, 0, 0))
+		var thorn := Node3D.new(); thorn.position = t; thorn.rotation_degrees = Vector3(-24, 0, 0); root.add_child(thorn)
+		_cy(thorn, "ThornA", Vector3(0, 0.08, 0), 0.032, 0.05, 0.16, horn)
+		var mid := Node3D.new(); mid.position = Vector3(0, 0.16, 0); mid.rotation_degrees = Vector3(-42, 0, 0); thorn.add_child(mid)
+		_cy(mid, "ThornB", Vector3(0, 0.06, 0), 0.018, 0.032, 0.12, horn)
+		var tip := Node3D.new(); tip.position = Vector3(0, 0.12, 0); tip.rotation_degrees = Vector3(-52, 0, 0); mid.add_child(tip)
+		_cy(tip, "ThornC", Vector3(0, 0.045, 0), 0.0, 0.018, 0.09, horn)
 	_sp(root, "Head", Vector3(0, 1.2, 0.04), 0.16, red2)
 	_cy(root, "HornL", Vector3(-0.1, 1.32, 0.0), 0.0, 0.035, 0.24, horn, Vector3(-26, 0, -22)); _cy(root, "HornR", Vector3(0.1, 1.32, 0.0), 0.0, 0.035, 0.24, horn, Vector3(-26, 0, 22))
 	_sp(root, "EyeL", Vector3(-0.06, 1.21, 0.16), 0.024, Color.html("ffd23f"), Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.06, 1.21, 0.16), 0.024, Color.html("ffd23f"), Vector3.ONE, true)
@@ -2053,6 +2279,8 @@ func _build_specter() -> void:
 	_atk_pivot = _arm_r; _atk_rest = Vector3.ZERO
 	# wispy lower body instead of legs
 	for i in range(3): _cy(body, "Wisp%d" % i, Vector3((i - 1) * 0.1, -0.18, 0), 0.0, 0.07, 0.42, shade2, Vector3(10 * (i - 1), 0, 0))
+	# A shadow you can half see through
+	_ghostify(body, 0.55, 0.2)
 	_sp(body, "EyeL", Vector3(-0.05, 0.52, 0.11), 0.026, eye, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.05, 0.52, 0.11), 0.026, eye, Vector3.ONE, true)
 
 
@@ -2063,6 +2291,10 @@ func _build_magma_spider() -> void:
 	var body := Node3D.new(); body.name = "Body"; body.position = Vector3(0, 0.26, 0); add_child(body); _bob_node = body; _bob_y = 0.26
 	_sp(body, "Abdomen", Vector3(0, 0.04, -0.24), 0.26, black, Vector3(1.1, 0.95, 1.2))
 	_sp(body, "AbGlow", Vector3(0, 0.16, -0.24), 0.12, glow, Vector3(0.7, 0.5, 0.9), true)
+	# molten cracks veining down the abdomen from the glowing crest
+	for c in range(4):
+		var ca := deg_to_rad(-50.0 + c * 34.0)
+		_bx(body, "Vein%d" % c, Vector3(sin(ca) * 0.2, 0.1, -0.24 + cos(ca) * 0.12), Vector3(0.025, 0.14, 0.025), glow, Vector3(20 * cos(ca), 0, -rad_to_deg(ca) * 0.5))
 	_sp(body, "Cephalo", Vector3(0, 0.02, 0.12), 0.18, red)
 	for ex in [-0.07, -0.025, 0.025, 0.07]: _sp(body, "Eye", Vector3(ex, 0.08, 0.26), 0.022, glow, Vector3.ONE, true)
 	_cy(body, "FangL", Vector3(-0.05, -0.08, 0.26), 0.0, 0.025, 0.12, fang, Vector3(40, 0, 0)); _cy(body, "FangR", Vector3(0.05, -0.08, 0.26), 0.0, 0.025, 0.12, fang, Vector3(40, 0, 0))
@@ -2073,6 +2305,7 @@ func _build_magma_spider() -> void:
 			var leg := Node3D.new(); leg.position = Vector3(0.14 * sx, 0.04, lz); leg.rotation_degrees = Vector3(0, 0, 64 * sx); body.add_child(leg)
 			var col: Color = red if i % 2 == 0 else black
 			_cy(leg, "Upper", Vector3(0, -0.18, 0), 0.02, 0.025, 0.36, col)
+			_sp(leg, "Joint", Vector3(0, -0.34, 0), 0.026, glow, Vector3.ONE, true)  # magma seeping at the knee
 			var lower := Node3D.new(); lower.position = Vector3(0, -0.34, 0); lower.rotation_degrees = Vector3(0, 0, -78 * sx); leg.add_child(lower)
 			_cy(lower, "Lower", Vector3(0, -0.18, 0), 0.015, 0.02, 0.36, col)
 	_atk_pivot = body; _atk_rest = Vector3.ZERO
@@ -2116,12 +2349,12 @@ func _build_ash_harpy() -> void:
 	_sp(body, "Head", Vector3(0, 0.34, 0.02), 0.13, ash2)
 	_sp(body, "Hair", Vector3(0, 0.4, -0.04), 0.14, ash, Vector3(1.1, 1.0, 1.1))
 	_sp(body, "EyeL", Vector3(-0.05, 0.35, 0.1), 0.022, ember, Vector3.ONE, true); _sp(body, "EyeR", Vector3(0.05, 0.35, 0.1), 0.022, ember, Vector3.ONE, true)
-	# wing-arms
+	# wing-arms: layered ash-grey flight feathers, still smouldering at the tips
 	for sx in [-1, 1]:
-		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.16, -0.02); w.rotation_degrees = Vector3(4, 0, -30 * sx); body.add_child(w)
-		_bx(w, "WingA", Vector3(0.34 * sx, 0.06, -0.02), Vector3(0.6, 0.05, 0.3), ash)
-		_bx(w, "WingTip", Vector3(0.66 * sx, 0.12, -0.05), Vector3(0.3, 0.04, 0.2), ash2, Vector3(0, 0, -16 * sx))
-		_sp(w, "Ember%d" % sx, Vector3(0.4 * sx, 0.04, 0.0), 0.03, ember, Vector3.ONE, true)
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.16, -0.02); w.rotation_degrees = Vector3(4, 0, 12 * sx); body.add_child(w)
+		_spread_wing(w, sx, 0.6, 0.22, ash, ash2)
+		for e in range(3):
+			_sp(w, "Ember%d" % e, Vector3((0.24 + e * 0.16) * sx, -0.01, -0.1 - e * 0.04), 0.022, ember, Vector3.ONE, true)
 		if sx < 0: _arm_l = w
 		else: _arm_r = w
 	_atk_pivot = _arm_r; _atk_rest = Vector3(4, 0, -30)
@@ -2184,11 +2417,10 @@ func _build_cherub() -> void:
 	_sp(root, "EyeL", Vector3(-0.05, 0.99, 0.12), 0.02, Color.html("4a6a9a")); _sp(root, "EyeR", Vector3(0.05, 0.99, 0.12), 0.02, Color.html("4a6a9a"))
 	# halo
 	_cy(root, "Halo", Vector3(0, 1.2, -0.02), 0.1, 0.1, 0.015, gold)
-	# small feathered wings
+	# small feathered wings swept up and back
 	for sx in [-1, 1]:
-		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.12 * sx, 0.7, -0.12); w.rotation_degrees = Vector3(8, 0, -28 * sx); root.add_child(w)
-		_bx(w, "WingA", Vector3(0.22 * sx, 0.08, -0.02), Vector3(0.4, 0.06, 0.26), robe)
-		_bx(w, "WingB", Vector3(0.38 * sx, 0.16, -0.04), Vector3(0.22, 0.05, 0.18), robe2, Vector3(0, 0, -14 * sx))
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.12 * sx, 0.82, -0.12); w.rotation_degrees = Vector3(8, 24 * sx, 22 * sx); root.add_child(w)
+		_spread_wing(w, sx, 0.42, 0.2, robe, robe2)
 
 
 ## Djinn: a blue genie with a wisp tail, bracelets, ponytail and a red necklace.
@@ -2242,11 +2474,12 @@ func _build_corrupted_archangel() -> void:
 	_sp(root, "Hair", Vector3(0, 1.22, -0.03), 0.16, hair, Vector3(1.1, 1.1, 1.1))
 	_bx(root, "HairL", Vector3(-0.13, 1.06, -0.02), Vector3(0.05, 0.34, 0.1), hair); _bx(root, "HairR", Vector3(0.13, 1.06, -0.02), Vector3(0.05, 0.34, 0.1), hair)
 	_sp(root, "EyeL", Vector3(-0.05, 1.16, 0.12), 0.026, Color.html("050507"), Vector3.ONE, true); _sp(root, "EyeR", Vector3(0.05, 1.16, 0.12), 0.026, Color.html("050507"), Vector3.ONE, true)
-	# large feathered wings
+	# Great feathered wings held wide — still angelic white, but the trailing
+	# tip feathers have gone black where the corruption is creeping in.
 	for sx in [-1, 1]:
-		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 0.96, -0.14); w.rotation_degrees = Vector3(8, 0, -30 * sx); root.add_child(w)
-		_bx(w, "WingA", Vector3(0.34 * sx, 0.1, -0.02), Vector3(0.62, 0.06, 0.34), white)
-		_bx(w, "WingB", Vector3(0.66 * sx, 0.22, -0.05), Vector3(0.34, 0.05, 0.24), white2, Vector3(0, 0, -16 * sx))
+		var w := Node3D.new(); w.name = "Wing%d" % sx; w.position = Vector3(0.14 * sx, 1.0, -0.14); w.rotation_degrees = Vector3(8, 10 * sx, 26 * sx); root.add_child(w)
+		_spread_wing(w, sx, 0.78, 0.3, white, blade)
+		_sp(w, "Covert2", Vector3(0.14 * sx, 0.03, -0.04), 0.09, white2, Vector3(1.4, 0.5, 1.1))
 
 
 # =============================================================

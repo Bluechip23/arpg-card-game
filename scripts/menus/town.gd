@@ -165,6 +165,9 @@ func _ready() -> void:
 	# Create transport portal
 	_create_town_waypoint()
 
+	# Dress the plaza: market stalls over the vendor markers, lamps, props
+	_dress_town()
+
 	# Initialize camera
 	_camera_focus = player.position + Vector3(3, 0, 0)
 	_update_camera()
@@ -1950,21 +1953,268 @@ func _build_modal_slots(item: ItemData) -> String:
 			lines.append("  Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(lines)
 
+# ============================================
+# TOWN DRESSING (procedural plaza visuals)
+# ============================================
+
+func _npc_box(parent: Node3D, n: String, pos: Vector3, size: Vector3, c: Color, rot := Vector3.ZERO) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	var b := BoxMesh.new()
+	b.size = size
+	mi.mesh = b
+	mi.position = pos
+	mi.rotation_degrees = rot
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = 0.7
+	mi.material_override = m
+	parent.add_child(mi)
+	return mi
+
+
+func _npc_cyl(parent: Node3D, n: String, pos: Vector3, top_r: float, bot_r: float, h: float, c: Color, rot := Vector3.ZERO) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	var m := CylinderMesh.new()
+	m.top_radius = top_r
+	m.bottom_radius = bot_r
+	m.height = h
+	m.radial_segments = 10
+	mi.mesh = m
+	mi.position = pos
+	mi.rotation_degrees = rot
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = c
+	mat.roughness = 0.7
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+
+func _npc_sphere(parent: Node3D, n: String, pos: Vector3, r: float, c: Color, scl := Vector3.ONE) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	var s := SphereMesh.new()
+	s.radius = r
+	s.height = r * 2.0
+	mi.mesh = s
+	mi.position = pos
+	mi.scale = scl
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = c
+	mat.roughness = 0.7
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+
+## Replace the placeholder vendor cubes with themed market stalls, and scatter
+## lamps, barrels and crates so the hub reads as a lived-in plaza.
+func _dress_town() -> void:
+	var vendors := get_node_or_null("Vendors")
+	if vendors == null:
+		return
+	var awnings := {
+		"Blacksmith": Color(0.45, 0.2, 0.16),
+		"Armory": Color(0.22, 0.32, 0.5),
+		"CardDealer": Color(0.42, 0.18, 0.36),
+		"AccessoryShop": Color(0.55, 0.45, 0.16),
+	}
+	for vn in awnings:
+		var vendor: Node3D = vendors.get_node_or_null(vn)
+		if vendor == null:
+			continue
+		var old_mesh = vendor.get_node_or_null("Mesh")
+		if old_mesh is MeshInstance3D:
+			old_mesh.visible = false
+		_build_stall(vendor, awnings[vn], vn)
+	var stash: Node3D = vendors.get_node_or_null("Stash")
+	if stash != null:
+		var old_mesh2 = stash.get_node_or_null("Mesh")
+		if old_mesh2 is MeshInstance3D:
+			old_mesh2.visible = false
+		_build_stash_chest(stash)
+
+	# Street dressing (pure visuals, no collision, kept off the walkways)
+	var dressing := Node3D.new()
+	dressing.name = "TownDressing"
+	add_child(dressing)
+	for lamp_pos in [Vector3(1.2, 0, 1.2), Vector3(18.8, 0, 10.8), Vector3(1.2, 0, 10.8)]:
+		_build_lamp(dressing, lamp_pos)
+	# Barrels beside the blacksmith, crates by the armory
+	_build_barrel(dressing, Vector3(2.6, 0, 3.4))
+	_build_barrel(dressing, Vector3(2.9, 0, 4.1))
+	var crate := _npc_box(dressing, "Crate", Vector3(9.4, 0.25, 2.2), Vector3(0.5, 0.5, 0.5), Color(0.45, 0.33, 0.2))
+	crate.rotation_degrees = Vector3(0, 18, 0)
+	_npc_box(dressing, "Crate2", Vector3(9.5, 0.7, 2.25), Vector3(0.38, 0.38, 0.38), Color(0.5, 0.38, 0.24), Vector3(0, -12, 0))
+
+
+func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
+	var stall := Node3D.new()
+	stall.name = "Stall"
+	vendor.add_child(stall)
+	var wood := Color(0.4, 0.29, 0.17)
+	var wood2 := Color(0.32, 0.22, 0.13)
+	var canvas := Color(0.88, 0.84, 0.74)
+	# Corner posts + counter
+	for sx in [-1, 1]:
+		_npc_box(stall, "Post%d" % sx, Vector3(0.8 * sx, 1.0, -0.3), Vector3(0.12, 2.0, 0.12), wood)
+	_npc_box(stall, "Counter", Vector3(0, 0.5, 0.45), Vector3(1.7, 0.12, 0.5), wood)
+	_npc_box(stall, "CounterFront", Vector3(0, 0.25, 0.62), Vector3(1.7, 0.4, 0.08), wood2)
+	# Striped awning sloping down over the counter
+	for i in range(4):
+		var c := awning if i % 2 == 0 else canvas
+		_npc_box(stall, "Awning%d" % i, Vector3(-0.63 + i * 0.42, 1.92, 0.25), Vector3(0.43, 0.05, 1.3), c, Vector3(-16, 0, 0))
+	match vn:
+		"Blacksmith":
+			# Anvil on a stump beside the counter, with a forge ember glow
+			_npc_cyl(stall, "Stump", Vector3(-1.3, 0.25, 0.7), 0.22, 0.26, 0.5, wood2)
+			_npc_box(stall, "AnvilBody", Vector3(-1.3, 0.62, 0.7), Vector3(0.4, 0.22, 0.2), Color(0.35, 0.36, 0.4))
+			_npc_cyl(stall, "AnvilHorn", Vector3(-1.05, 0.62, 0.7), 0.03, 0.09, 0.24, Color(0.35, 0.36, 0.4), Vector3(0, 0, -90))
+			var ember := _npc_box(stall, "Forge", Vector3(0.3, 0.6, 0.35), Vector3(0.3, 0.08, 0.22), Color(1.0, 0.45, 0.1))
+			var em := ember.material_override as StandardMaterial3D
+			em.emission_enabled = true
+			em.emission = Color(1.0, 0.4, 0.08)
+			em.emission_energy_multiplier = 1.3
+			_npc_cyl(stall, "Hammer", Vector3(-0.4, 0.62, 0.45), 0.02, 0.02, 0.3, wood, Vector3(0, 0, 70))
+			_npc_box(stall, "HammerHead", Vector3(-0.54, 0.64, 0.45), Vector3(0.1, 0.09, 0.09), Color(0.5, 0.52, 0.56))
+		"Armory":
+			# Armour stand wearing a breastplate and helm
+			_npc_cyl(stall, "StandPost", Vector3(-0.4, 0.95, 0.1), 0.04, 0.05, 0.9, wood2)
+			_npc_box(stall, "Breastplate", Vector3(-0.4, 1.05, 0.12), Vector3(0.42, 0.5, 0.24), Color(0.62, 0.66, 0.72))
+			_npc_sphere(stall, "Helm", Vector3(-0.4, 1.45, 0.1), 0.16, Color(0.55, 0.58, 0.64))
+			_npc_box(stall, "ShieldDisp", Vector3(0.45, 0.85, 0.3), Vector3(0.36, 0.5, 0.06), Color(0.28, 0.4, 0.62), Vector3(8, 0, 0))
+			_npc_box(stall, "ShieldTrim", Vector3(0.45, 0.85, 0.34), Vector3(0.08, 0.42, 0.02), Color(0.75, 0.78, 0.84), Vector3(8, 0, 0))
+		"CardDealer":
+			# A hand of cards fanned on the counter and a stacked deck
+			for i in range(3):
+				_npc_box(stall, "Card%d" % i, Vector3(-0.25 + i * 0.25, 0.58, 0.42), Vector3(0.18, 0.015, 0.26), Color(0.92, 0.9, 0.84), Vector3(0, -14 + i * 14, 0))
+				_npc_box(stall, "CardFace%d" % i, Vector3(-0.25 + i * 0.25, 0.59, 0.42), Vector3(0.13, 0.012, 0.2), Color(0.42, 0.18, 0.36), Vector3(0, -14 + i * 14, 0))
+			_npc_box(stall, "Deck", Vector3(0.55, 0.6, 0.5), Vector3(0.2, 0.1, 0.28), Color(0.55, 0.25, 0.45))
+		"AccessoryShop":
+			# A jewel cushion with rings and gems catching the light
+			_npc_box(stall, "Cushion", Vector3(0, 0.6, 0.45), Vector3(0.6, 0.08, 0.4), Color(0.35, 0.12, 0.2))
+			var ring := MeshInstance3D.new()
+			ring.name = "GoldRing"
+			var tor := TorusMesh.new()
+			tor.inner_radius = 0.03
+			tor.outer_radius = 0.09
+			ring.mesh = tor
+			ring.position = Vector3(-0.15, 0.68, 0.45)
+			var gold_m := StandardMaterial3D.new()
+			gold_m.albedo_color = Color(0.9, 0.75, 0.3)
+			gold_m.metallic = 0.6
+			gold_m.roughness = 0.3
+			ring.material_override = gold_m
+			stall.add_child(ring)
+			for g in range(3):
+				var gem := _npc_sphere(stall, "Gem%d" % g, Vector3(0.08 + g * 0.13, 0.66, 0.42 + (g % 2) * 0.08), 0.04, [Color(0.85, 0.2, 0.25), Color(0.2, 0.5, 0.85), Color(0.25, 0.7, 0.4)][g])
+				var gm := gem.material_override as StandardMaterial3D
+				gm.emission_enabled = true
+				gm.emission = gm.albedo_color
+				gm.emission_energy_multiplier = 0.5
+
+
+func _build_stash_chest(stash: Node3D) -> void:
+	var chest := Node3D.new()
+	chest.name = "Chest"
+	stash.add_child(chest)
+	var wood := Color(0.42, 0.3, 0.17)
+	var band := Color(0.3, 0.31, 0.36)
+	_npc_box(chest, "Body", Vector3(0, 0.35, 0), Vector3(1.2, 0.7, 0.8), wood)
+	var lid := _npc_box(chest, "Lid", Vector3(0, 0.78, -0.02), Vector3(1.24, 0.22, 0.84), wood.lightened(0.08))
+	lid.rotation_degrees = Vector3(-6, 0, 0)
+	for bx in [-0.4, 0.4]:
+		_npc_box(chest, "Band%d" % int(bx * 10), Vector3(bx, 0.5, 0), Vector3(0.1, 1.0, 0.86), band)
+	var lock := _npc_box(chest, "Lock", Vector3(0, 0.62, 0.44), Vector3(0.16, 0.2, 0.06), Color(0.9, 0.75, 0.3))
+	var lm := lock.material_override as StandardMaterial3D
+	lm.metallic = 0.5
+	lm.roughness = 0.35
+
+
+func _build_lamp(parent: Node3D, pos: Vector3) -> void:
+	var lamp := Node3D.new()
+	lamp.name = "Lamp"
+	lamp.position = pos
+	parent.add_child(lamp)
+	var iron := Color(0.2, 0.21, 0.25)
+	_npc_cyl(lamp, "Post", Vector3(0, 1.1, 0), 0.04, 0.06, 2.2, iron)
+	_npc_box(lamp, "Cage", Vector3(0, 2.3, 0), Vector3(0.24, 0.3, 0.24), iron)
+	var glass := _npc_box(lamp, "Glass", Vector3(0, 2.3, 0), Vector3(0.18, 0.22, 0.18), Color(1.0, 0.8, 0.45))
+	var gm := glass.material_override as StandardMaterial3D
+	gm.emission_enabled = true
+	gm.emission = Color(1.0, 0.72, 0.35)
+	gm.emission_energy_multiplier = 1.6
+	_npc_cyl(lamp, "Cap", Vector3(0, 2.5, 0), 0.02, 0.18, 0.12, iron)
+	var light := OmniLight3D.new()
+	light.position = Vector3(0, 2.3, 0)
+	light.light_color = Color(1.0, 0.75, 0.4)
+	light.light_energy = 1.1
+	light.omni_range = 5.0
+	lamp.add_child(light)
+
+
+func _build_barrel(parent: Node3D, pos: Vector3) -> void:
+	_npc_cyl(parent, "Barrel", pos + Vector3(0, 0.42, 0), 0.3, 0.34, 0.84, Color(0.45, 0.32, 0.18))
+	for by in [0.2, 0.62]:
+		var hoop := MeshInstance3D.new()
+		var tor := TorusMesh.new()
+		tor.inner_radius = 0.02
+		tor.outer_radius = 0.35
+		hoop.mesh = tor
+		hoop.position = pos + Vector3(0, by, 0)
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.28, 0.29, 0.33)
+		hoop.material_override = m
+		parent.add_child(hoop)
+
+
 func _create_olorin_npc() -> void:
 	var olorin = StaticBody3D.new()
 	olorin.name = "Olorin"
 	olorin.position = Vector3(14, 0, 8)
 
-	var mesh = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(1.4, 1.8, 1.4)
-	mesh.mesh = box
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.3, 0.2, 0.5)  # Purple robe
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	mesh.material_override = mat
-	mesh.position = Vector3(0, 0.9, 0)
-	olorin.add_child(mesh)
+	# The wise old wanderer himself: grey travelling robe under a deep-purple
+	# mantle, a long white beard, a tall pointed hat and a walking staff.
+	var robe := Color(0.42, 0.4, 0.45)
+	var mantle := Color(0.3, 0.2, 0.5)
+	var skin := Color(0.85, 0.74, 0.62)
+	var beard_c := Color(0.92, 0.9, 0.86)
+	var wood := Color(0.4, 0.29, 0.17)
+	var fig = Node3D.new()
+	fig.name = "Figure"
+	fig.scale = Vector3(1.35, 1.35, 1.35)
+	olorin.add_child(fig)
+	_npc_cyl(fig, "Robe", Vector3(0, 0.5, 0), 0.18, 0.42, 1.0, robe)
+	_npc_cyl(fig, "Mantle", Vector3(0, 0.92, 0), 0.14, 0.3, 0.36, mantle)
+	# Arms folded into the sleeves
+	_npc_cyl(fig, "SleeveL", Vector3(-0.24, 0.86, 0.06), 0.07, 0.09, 0.4, mantle, Vector3(50, 0, -20))
+	_npc_cyl(fig, "SleeveR", Vector3(0.24, 0.86, 0.06), 0.07, 0.09, 0.4, mantle, Vector3(50, 0, 20))
+	_npc_sphere(fig, "Head", Vector3(0, 1.22, 0.02), 0.16, skin)
+	# Long beard falling over the mantle, framed by hair at the sides
+	var beard := _npc_cyl(fig, "Beard", Vector3(0, 1.0, 0.12), 0.05, 0.12, 0.42, beard_c, Vector3(8, 0, 0))
+	beard.scale = Vector3(1.0, 1.0, 0.6)
+	_npc_sphere(fig, "Moustache", Vector3(0, 1.14, 0.14), 0.06, beard_c, Vector3(1.5, 0.5, 0.7))
+	_npc_sphere(fig, "HairL", Vector3(-0.13, 1.16, -0.02), 0.07, beard_c, Vector3(0.8, 1.4, 1.0))
+	_npc_sphere(fig, "HairR", Vector3(0.13, 1.16, -0.02), 0.07, beard_c, Vector3(0.8, 1.4, 1.0))
+	_npc_sphere(fig, "EyeL", Vector3(-0.06, 1.25, 0.13), 0.02, Color(0.1, 0.1, 0.14))
+	_npc_sphere(fig, "EyeR", Vector3(0.06, 1.25, 0.13), 0.02, Color(0.1, 0.1, 0.14))
+	_npc_sphere(fig, "Brow", Vector3(0, 1.3, 0.12), 0.07, beard_c, Vector3(1.9, 0.3, 0.6))
+	# Tall pointed hat, brim tilted with age
+	var brim := _npc_cyl(fig, "HatBrim", Vector3(0, 1.34, 0), 0.3, 0.3, 0.04, mantle)
+	brim.rotation_degrees = Vector3(-6, 0, 4)
+	var cone := _npc_cyl(fig, "HatCone", Vector3(0.02, 1.56, -0.02), 0.0, 0.16, 0.44, mantle)
+	cone.rotation_degrees = Vector3(-8, 0, 6)
+	# Gnarled staff in the right hand, crowned with a pale glow — the one hint
+	# of the "magic" he doesn't conventionally wield
+	_npc_cyl(fig, "Staff", Vector3(0.4, 0.75, 0.12), 0.025, 0.035, 1.5, wood, Vector3(0, 0, -4))
+	_npc_sphere(fig, "StaffKnot", Vector3(0.44, 1.48, 0.12), 0.055, wood)
+	var glow := _npc_sphere(fig, "StaffGlow", Vector3(0.44, 1.52, 0.12), 0.035, Color(0.85, 0.9, 1.0))
+	var gm := glow.material_override as StandardMaterial3D
+	gm.emission_enabled = true
+	gm.emission = Color(0.7, 0.8, 1.0)
+	gm.emission_energy_multiplier = 1.4
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -2003,16 +2253,43 @@ func _create_sellsword_npc() -> void:
 	sellsword.name = "Sellsword"
 	sellsword.position = Vector3(18, 0, 3)
 
-	var mesh = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(1.4, 1.8, 1.4)
-	mesh.mesh = box
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.35, 0.2)  # Leather-brown mercenary
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	mesh.material_override = mat
-	mesh.position = Vector3(0, 0.9, 0)
-	sellsword.add_child(mesh)
+	# A mercenary at ease: studded leather over mail, a greatsword slung across
+	# the back, one pauldron, arms crossed while he waits for coin.
+	var leather := Color(0.42, 0.27, 0.16)
+	var leather2 := Color(0.3, 0.19, 0.11)
+	var mail := Color(0.5, 0.52, 0.56)
+	var skin := Color(0.78, 0.62, 0.48)
+	var steel := Color(0.72, 0.75, 0.8)
+	var fig = Node3D.new()
+	fig.name = "Figure"
+	fig.scale = Vector3(1.3, 1.3, 1.3)
+	sellsword.add_child(fig)
+	_npc_box(fig, "LegL", Vector3(-0.12, 0.28, 0), Vector3(0.16, 0.56, 0.16), leather2)
+	_npc_box(fig, "LegR", Vector3(0.12, 0.28, 0), Vector3(0.16, 0.56, 0.16), leather2)
+	_npc_box(fig, "BootL", Vector3(-0.12, 0.06, 0.05), Vector3(0.18, 0.12, 0.26), leather)
+	_npc_box(fig, "BootR", Vector3(0.12, 0.06, 0.05), Vector3(0.18, 0.12, 0.26), leather)
+	_npc_box(fig, "Torso", Vector3(0, 0.78, 0), Vector3(0.44, 0.48, 0.26), leather)
+	_npc_box(fig, "MailHem", Vector3(0, 0.52, 0), Vector3(0.42, 0.08, 0.28), mail)
+	_npc_box(fig, "Belt", Vector3(0, 0.56, 0.02), Vector3(0.46, 0.07, 0.28), leather2)
+	# Crossed arms
+	_npc_cyl(fig, "ArmL", Vector3(-0.16, 0.86, 0.16), 0.055, 0.06, 0.36, leather, Vector3(70, 0, -70))
+	_npc_cyl(fig, "ArmR", Vector3(0.16, 0.8, 0.18), 0.055, 0.06, 0.36, skin, Vector3(70, 0, 70))
+	_npc_sphere(fig, "PauldronL", Vector3(-0.26, 1.02, 0), 0.13, steel, Vector3(1.2, 0.8, 1.2))
+	_npc_sphere(fig, "Head", Vector3(0, 1.18, 0.02), 0.15, skin)
+	_npc_sphere(fig, "Hair", Vector3(0, 1.26, -0.02), 0.155, leather2, Vector3(1.02, 0.7, 1.02))
+	_npc_box(fig, "Scar", Vector3(0.06, 1.2, 0.14), Vector3(0.02, 0.09, 0.02), Color(0.6, 0.42, 0.34))
+	_npc_sphere(fig, "EyeL", Vector3(-0.055, 1.19, 0.12), 0.02, Color(0.1, 0.1, 0.12))
+	_npc_sphere(fig, "EyeR", Vector3(0.055, 1.19, 0.12), 0.02, Color(0.1, 0.1, 0.12))
+	# Greatsword slung diagonally across the back
+	var sword = Node3D.new()
+	sword.name = "BackSword"
+	sword.position = Vector3(0, 0.9, -0.18)
+	sword.rotation_degrees = Vector3(0, 0, 34)
+	fig.add_child(sword)
+	_npc_box(sword, "Blade", Vector3(0, 0.34, 0), Vector3(0.09, 0.8, 0.03), steel)
+	_npc_box(sword, "Guard", Vector3(0, -0.08, 0), Vector3(0.24, 0.05, 0.05), leather2)
+	_npc_cyl(sword, "Grip", Vector3(0, -0.2, 0), 0.025, 0.025, 0.2, leather)
+	_npc_sphere(sword, "Pommel", Vector3(0, -0.32, 0), 0.04, steel)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
