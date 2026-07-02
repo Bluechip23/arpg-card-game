@@ -8,6 +8,7 @@ extends Control
 
 signal enemy_hovered(enemy: Enemy)    # Emitted when hovering a portrait
 signal enemy_unhovered()              # Emitted when leaving a portrait
+signal enemy_clicked(enemy: Enemy)    # Emitted when clicking a portrait (opens the inspect panel)
 
 var enemy_spawner = null
 var _content: VBoxContainer
@@ -276,8 +277,14 @@ func _create_portrait_square(enemy: Enemy, sz: float) -> PanelContainer:
 	# Hover signals
 	panel.mouse_entered.connect(_on_portrait_hover.bind(enemy))
 	panel.mouse_exited.connect(_on_portrait_unhover)
+	# Click opens the enemy inspect panel
+	panel.gui_input.connect(_on_portrait_gui_input.bind(enemy))
 
 	return panel
+
+func _on_portrait_gui_input(event: InputEvent, enemy: Enemy) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		enemy_clicked.emit(enemy)
 
 func _on_portrait_hover(enemy: Enemy) -> void:
 	enemy_hovered.emit(enemy)

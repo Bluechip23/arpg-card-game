@@ -573,6 +573,8 @@ func _set_mesh_color(color: Color) -> void:
 		if mat:
 			mat.albedo_color = color
 
+var figure_kind: String = ""  # EnemyFigure kind this enemy renders as ("" = coloured box)
+
 func _setup_sprite() -> void:
 	## Builds a procedural 3D model (EnemyFigure) for enemy types that have one,
 	## replacing the box mesh. Generic types keep their coloured box.
@@ -640,6 +642,7 @@ func _setup_sprite() -> void:
 		_:
 			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
 
+	figure_kind = kind
 	_enemy_figure = EnemyFigure.new()
 	add_child(_enemy_figure)
 	_enemy_figure.setup(kind)

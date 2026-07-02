@@ -42,6 +42,7 @@ extends Node3D
 
 var dungeon_manager: DungeonManager = null
 var unit_tracker: UnitTrackerUI = null
+var enemy_inspect_ui: EnemyInspectUI = null
 var quest_manager: QuestManager = null
 var progression_triggers: ProgressionTriggers = null
 var chest_loot_ui: ChestLootUI = null
@@ -2256,6 +2257,19 @@ func _setup_unit_tracker() -> void:
 	unit_tracker.offset_top = -150.0
 	unit_tracker.offset_right = 250.0
 	unit_tracker.offset_bottom = 250.0
+
+	# Inspect panel: opens beside the tracker when an enemy square is clicked.
+	enemy_inspect_ui = EnemyInspectUI.new()
+	enemy_inspect_ui.name = "EnemyInspect"
+	ui.add_child(enemy_inspect_ui)
+	enemy_inspect_ui.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	enemy_inspect_ui.offset_left = 258.0
+	enemy_inspect_ui.offset_top = -200.0
+	unit_tracker.enemy_clicked.connect(_on_tracker_enemy_clicked)
+
+func _on_tracker_enemy_clicked(enemy: Enemy) -> void:
+	if enemy_inspect_ui:
+		enemy_inspect_ui.show_enemy(enemy)
 
 	# Connect hover signals for bidirectional highlighting
 	unit_tracker.enemy_hovered.connect(_on_tracker_enemy_hovered)
@@ -5840,6 +5854,8 @@ func _input(event: InputEvent) -> void:
 			update_card_highlights()
 			move_dialog.hide_dialog()
 			_hide_card_confirm_dialog()
+			if enemy_inspect_ui:
+				enemy_inspect_ui.hide_panel()
 			character_panel.hide_panel()
 			skill_tree_ui.hide_panel()
 	
