@@ -32,6 +32,8 @@ func show_dialog(target_pos: Vector3, spaces: int, allow_lock_in: bool = false) 
 	pending_position = target_pos
 	pending_spaces = spaces
 	label.text = "Move %d space%s?" % [spaces, "s" if spaces > 1 else ""]
+	if spaces >= 4:
+		label.text += "\n(right-click mid-move to stop)"
 	if lock_in_button:
 		lock_in_button.visible = allow_lock_in
 	panel.visible = true

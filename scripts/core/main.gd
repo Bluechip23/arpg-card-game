@@ -160,6 +160,16 @@ var _locked_move_markers: Dictionary = {} # index -> Node3D ghost marker
 var _move_players_button: Button = null
 var _batch_moving: bool = false           # True while a locked-in batch is moving
 var _batch_pending: int = 0               # How many batched movers are still in motion
+# Co-op "lock in card": like locked movement, playing a card in co-op offers
+# Play Now / Lock In / Cancel. Locked cards wait (no tempo, still in hand) until
+# the on-screen "Play Cards" button fires them all together.
+var _locked_cards: Array = []             # [{"card": Card, "target", "owner": int}]
+var _play_cards_button: Button = null
+var _card_confirm_panel: PanelContainer = null
+var _card_confirm_label: Label = null
+var _pending_card_target = null           # target captured while the dialog is up
+var _pending_card: Card = null
+var _card_play_confirmed: bool = false    # bypass flag: dialog already answered
 # Co-op defeat: a player at 0 HP is "downed" but the fight continues; only when
 # BOTH are downed is it a defeat. A downed player can be revived by healing.
 var _downed: Dictionary = {0: false, 1: false}
@@ -2530,6 +2540,170 @@ func _on_batch_mover_done() -> void:
 		_batch_pending = 0
 		print("[MAIN] Batch move complete.")
 
+# ---- Co-op locked-in (batched) card play ----
+
+func _ensure_card_confirm_dialog() -> void:
+	if _card_confirm_panel and is_instance_valid(_card_confirm_panel):
+		return
+	var ui = $UI as CanvasLayer
+	_card_confirm_panel = PanelContainer.new()
+	_card_confirm_panel.name = "CardConfirmPanel"
+	ui.add_child(_card_confirm_panel)
+	var vbox := VBoxContainer.new()
+	_card_confirm_panel.add_child(vbox)
+	_card_confirm_label = Label.new()
+	_card_confirm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_card_confirm_label)
+	var buttons := HBoxContainer.new()
+	vbox.add_child(buttons)
+	var play_btn := Button.new()
+	play_btn.text = "Play Now"
+	play_btn.pressed.connect(_on_card_play_now)
+	buttons.add_child(play_btn)
+	var lock_btn := Button.new()
+	lock_btn.text = "Lock In Card"
+	lock_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	lock_btn.pressed.connect(_on_card_lock_in)
+	buttons.add_child(lock_btn)
+	var cancel_btn := Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.pressed.connect(_on_card_confirm_cancel)
+	buttons.add_child(cancel_btn)
+	_card_confirm_panel.visible = false
+
+func _show_card_confirm_dialog(card: Card, target) -> void:
+	_ensure_card_confirm_dialog()
+	_pending_card = card
+	_pending_card_target = target
+	var tname := ""
+	if target is Enemy and is_instance_valid(target):
+		tname = " on %s" % target.enemy_name
+	elif target is Player and target != player:
+		tname = " on your partner"
+	_card_confirm_label.text = "Play %s%s?" % [card.card_name, tname]
+	_card_confirm_panel.visible = true
+	# Position near the mouse, kept on screen (same feel as the move dialog)
+	var mouse_pos = get_viewport().get_mouse_position()
+	_card_confirm_panel.position = mouse_pos + Vector2(20, -50)
+	var screen_size = get_viewport().get_visible_rect().size
+	_card_confirm_panel.reset_size()
+	if _card_confirm_panel.position.x + _card_confirm_panel.size.x > screen_size.x:
+		_card_confirm_panel.position.x = screen_size.x - _card_confirm_panel.size.x - 10
+	if _card_confirm_panel.position.y < 0:
+		_card_confirm_panel.position.y = 10
+
+func _hide_card_confirm_dialog() -> void:
+	if _card_confirm_panel:
+		_card_confirm_panel.visible = false
+	_pending_card = null
+	_pending_card_target = null
+
+func _on_card_play_now() -> void:
+	var card := _pending_card
+	var target = _pending_card_target
+	_hide_card_confirm_dialog()
+	if card == null:
+		return
+	# Re-find the card in the active hand in case the selection shifted while
+	# the dialog was up.
+	var idx := deck_manager.hand.find(card)
+	if idx < 0:
+		add_battle_log("%s is no longer in hand." % card.card_name, Color(1.0, 0.6, 0.3))
+		return
+	selected_card_index = idx
+	_card_play_confirmed = true
+	play_selected_card(target)
+	_card_play_confirmed = false
+
+func _on_card_lock_in() -> void:
+	## Queue the card without paying tempo or leaving the hand, so the player
+	## can TAB to the partner and line up theirs too. "Play Cards" fires all of
+	## them together.
+	var card := _pending_card
+	var target = _pending_card_target
+	_hide_card_confirm_dialog()
+	if card == null:
+		return
+	for e in _locked_cards:
+		if e["card"] == card:
+			add_battle_log("%s is already locked in." % card.card_name, Color(1.0, 0.6, 0.3))
+			return
+	_locked_cards.append({"card": card, "target": target, "owner": _active_index})
+	selected_card_index = -1
+	if range_indicator:
+		range_indicator.hide_range()
+	update_selected_display()
+	update_card_highlights()
+	_ensure_play_cards_button()
+	_play_cards_button.text = "▶ Play Cards (%d)" % _locked_cards.size()
+	_play_cards_button.visible = true
+	var who := player2_character.character_name if _active_index == 1 else starting_character.character_name
+	add_battle_log("%s locked in %s. TAB to the partner or press Play Cards." % [who, card.card_name], Color(1.0, 0.85, 0.4))
+	print("[MAIN] Locked in card for player %d: %s" % [_active_index + 1, card.card_name])
+
+func _on_card_confirm_cancel() -> void:
+	# Keep the card selected so the player can re-target or dismiss with ESC.
+	_hide_card_confirm_dialog()
+
+func _ensure_play_cards_button() -> void:
+	if _play_cards_button and is_instance_valid(_play_cards_button):
+		return
+	var ui = $UI as CanvasLayer
+	_play_cards_button = Button.new()
+	_play_cards_button.name = "PlayCardsButton"
+	_play_cards_button.text = "▶ Play Cards"
+	_play_cards_button.add_theme_font_size_override("font_size", 16)
+	_play_cards_button.add_theme_color_override("font_color", Color(0.6, 1.0, 0.7))
+	ui.add_child(_play_cards_button)
+	_play_cards_button.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_play_cards_button.offset_left = -80.0
+	_play_cards_button.offset_top = 110.0
+	_play_cards_button.offset_right = 80.0
+	_play_cards_button.offset_bottom = 144.0
+	_play_cards_button.pressed.connect(_on_play_cards_pressed)
+	_play_cards_button.visible = false
+
+func _on_play_cards_pressed() -> void:
+	## Fire every locked-in card. Each is played as its owner (the same
+	## owner-binding trick _on_card_tick_resolved uses), so tempo, buffs and
+	## hands all charge to the right character; the ticks then run together.
+	if _locked_cards.is_empty():
+		return
+	var batch := _locked_cards.duplicate()
+	_locked_cards.clear()
+	if _play_cards_button:
+		_play_cards_button.visible = false
+
+	var prev_p := player
+	var prev_d := deck_manager
+	var prev_idx := _active_index
+	for e in batch:
+		var card: Card = e["card"]
+		var target = e["target"]
+		var owner: int = e["owner"]
+		if target is Enemy and (not is_instance_valid(target) or target.is_dead):
+			add_battle_log("%s: target is gone — card stays in hand." % card.card_name, Color(1.0, 0.6, 0.3))
+			continue
+		_active_index = owner
+		player = _p1_player if owner == 0 else _p2_player
+		deck_manager = _p1_deck_manager if owner == 0 else _p2_deck_manager
+		var idx := deck_manager.hand.find(card)
+		if idx < 0:
+			add_battle_log("%s is no longer in hand — skipped." % card.card_name, Color(1.0, 0.6, 0.3))
+			continue
+		selected_card_index = idx
+		_card_play_confirmed = true
+		play_selected_card(target)
+		_card_play_confirmed = false
+	_active_index = prev_idx
+	player = prev_p
+	deck_manager = prev_d
+	selected_card_index = -1
+	_on_hand_updated()
+	update_deck_info()
+	add_battle_log("Locked cards played together!", Color(0.5, 1.0, 0.6))
+	print("[MAIN] Batch card play: %d cards" % batch.size())
+
 ## Returns the player character whose tile is at/near the world position, or null.
 ## Used for co-op ally targeting (click the partner to heal/buff them).
 func _player_at_position(world_pos: Vector3) -> Player:
@@ -4444,6 +4618,13 @@ func play_selected_card(target) -> void:
 		print("[INPUT] %s is roguelike-only and cannot be played in the story." % selected.card_name)
 		return
 
+	# Co-op: playing a card offers the same choice as multi-space movement —
+	# play immediately, or lock it in and fire together with the partner's, so
+	# one person can set up both characters before anything spends tempo.
+	if is_multiplayer and _p2_player and not _card_play_confirmed:
+		_show_card_confirm_dialog(deck_manager.hand[selected_card_index], target)
+		return
+
 	# Player can always queue cards — they append to the tick queue
 
 	# Hide range indicator when playing a card
@@ -5569,6 +5750,9 @@ func _input(event: InputEvent) -> void:
 				return
 		
 		if event.keycode == KEY_ESCAPE:
+			if player and player.is_moving:
+				player.cancel_movement()
+				add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
 			selected_card_index = -1
 			_pending_quiver_card = null
 			_pending_quiver_index = -1
@@ -5578,6 +5762,7 @@ func _input(event: InputEvent) -> void:
 			update_selected_display()
 			update_card_highlights()
 			move_dialog.hide_dialog()
+			_hide_card_confirm_dialog()
 			character_panel.hide_panel()
 			skill_tree_ui.hide_panel()
 	
@@ -5657,9 +5842,14 @@ func _input(event: InputEvent) -> void:
 				else:
 					play_selected_card(null)
 	
-	# Right click - movement
+	# Right click - movement (or, mid-move, stop the current movement)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if not player.is_moving:
+		if player.is_moving:
+			# Cancel the remainder of the path: the player halts on the next tile
+			# (no position revert) and stops spending movement tempo.
+			player.cancel_movement()
+			add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
+		else:
 			var mouse_pos = get_mouse_world_position()
 			var spaces = grid_manager.get_distance_in_cells(player.position, mouse_pos)
 

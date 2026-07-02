@@ -312,6 +312,16 @@ func stop_moving() -> void:
 	velocity = Vector3.ZERO
 	move_path.clear()
 
+func cancel_movement() -> void:
+	## Stop a move that is already underway: the step in progress finishes (so
+	## the character stays grid-aligned) but the rest of the path is dropped.
+	## Position is NOT reverted, and no further per-tile tempo accrues.
+	if not is_moving:
+		return
+	move_path.clear()
+	spaces_to_move = spaces_moved + 1
+	print("[PLAYER] Movement cancelled after %d step(s)" % spaces_moved)
+
 func blink_to(target_pos: Vector3) -> void:
 	if grid_manager:
 		target_pos = grid_manager.snap_to_grid(target_pos)
