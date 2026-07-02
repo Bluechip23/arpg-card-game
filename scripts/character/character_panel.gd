@@ -255,7 +255,7 @@ func _get_character_passive() -> String:
 		"Ryan":
 			return "Belt cards cost 1 less mana"
 		"Brad":
-			return "Chest items weigh 15% less"
+			return "Chest items weigh 20% less"
 		"Jeremy":
 			return "First ring trigger per turn triggers twice"
 		"Stephen":

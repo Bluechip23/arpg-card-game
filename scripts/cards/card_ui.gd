@@ -287,6 +287,135 @@ func animate_slide_to(target_pos: Vector2, duration: float = 0.2) -> void:
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tween.tween_property(self, "position", target_pos, duration)
 
+func get_card() -> Card:
+	return _card
+
+
+## The shared "sucked into the discard pile" finish: the card is pulled toward
+## the pile as if squeezing into a too-small tube — the bottom edge narrows
+## first (pivot sits at the bottom-centre so the base converges before the
+## rest), then the whole card stretches thin and vanishes into the pile.
+func _tube_suck_to(tween: Tween, discard_pos: Vector2, on_complete: Callable = Callable()) -> void:
+	pivot_offset = Vector2(size.x * 0.5, size.y)
+	# Bottom narrows first...
+	tween.chain()
+	tween.set_parallel(true)
+	tween.tween_property(self, "scale", Vector2(0.5, 1.08), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	# ...then the rest funnels in after it.
+	tween.chain()
+	tween.set_parallel(true)
+	tween.tween_property(self, "position", discard_pos, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(self, "scale", Vector2(0.06, 1.4), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(self, "rotation_degrees", -12.0, 0.28)
+	tween.tween_property(self, "modulate:a", 0.0, 0.12).set_delay(0.18)
+	tween.chain()
+	tween.tween_callback(func():
+		if on_complete.is_valid():
+			on_complete.call()
+		queue_free()
+	)
+
+
+func animate_played_to_discard(discard_pos: Vector2, on_complete: Callable = Callable()) -> void:
+	## Played/discarded card: pops up, pauses a beat, then is sucked into the
+	## discard pile bottom-first.
+	_is_animating_out = true
+	_kill_hover_tween()
+	z_index = 200
+
+	var tween = create_tween()
+	# Pop up and hold.
+	tween.set_parallel(true)
+	tween.tween_property(self, "position:y", position.y - 46, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "scale", Vector2(1.15, 1.15), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "rotation_degrees", 0.0, 0.14)
+	tween.chain()
+	tween.tween_interval(0.22)
+	_tube_suck_to(tween, discard_pos, on_complete)
+
+
+func animate_instant(discard_pos: Vector2, on_complete: Callable = Callable()) -> void:
+	## Instant (reaction) trigger: the card pops up, spins twice on the spot,
+	## then is sucked into the discard pile like any other discard.
+	_is_animating_out = true
+	_kill_hover_tween()
+	z_index = 200
+	pivot_offset = size * 0.5
+
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(self, "position:y", position.y - 56, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "scale", Vector2(1.2, 1.2), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain()
+	# Two full spins.
+	tween.tween_property(self, "rotation_degrees", rotation_degrees + 720.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_interval(0.08)
+	_tube_suck_to(tween, discard_pos, on_complete)
+
+
+func animate_disintegrate(on_complete: Callable = Callable()) -> void:
+	## Erase expiring: the card crumbles into drifting particles right in the
+	## hand — no discard pile, it is simply gone.
+	_is_animating_out = true
+	_kill_hover_tween()
+	z_index = 200
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# Scatter fragments sampled across the card's face.
+	var frag_colors := [Color(0.75, 0.75, 0.8), Color(0.55, 0.55, 0.62), Color(0.9, 0.9, 0.95)]
+	for i in range(26):
+		var frag := ColorRect.new()
+		frag.color = frag_colors[i % frag_colors.size()]
+		frag.size = Vector2(randf_range(4, 9), randf_range(4, 9))
+		frag.position = Vector2(randf_range(0, size.x), randf_range(0, size.y))
+		frag.z_index = 210
+		add_child(frag)
+		var drift := Vector2(randf_range(-50, 50), randf_range(-90, -30))
+		var ftw := frag.create_tween().set_parallel(true)
+		var dur := randf_range(0.45, 0.8)
+		ftw.tween_property(frag, "position", frag.position + drift, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		ftw.tween_property(frag, "modulate:a", 0.0, dur)
+		ftw.tween_property(frag, "rotation_degrees", randf_range(-180, 180), dur)
+
+	# The card body flashes pale, shudders, and dissolves under the fragments.
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(self, "modulate", Color(1.4, 1.4, 1.5, 1.0), 0.1)
+	tween.chain()
+	tween.set_parallel(true)
+	tween.tween_property(self, "modulate:a", 0.0, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(self, "position:y", position.y + 14, 0.4)
+	tween.chain()
+	tween.tween_interval(0.5)  # let the fragments finish drifting
+	tween.tween_callback(func():
+		if on_complete.is_valid():
+			on_complete.call()
+		queue_free()
+	)
+
+
+func show_sticky_counter(uses: int, max_uses: int) -> void:
+	## Sticky card staying in hand: a use counter pops up over the card, holds,
+	## and fades as the card settles back into the hand.
+	var counter := Label.new()
+	counter.text = "%d/%d" % [uses, max_uses]
+	counter.add_theme_font_size_override("font_size", 26)
+	counter.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	counter.add_theme_color_override("font_outline_color", Color(0.15, 0.1, 0.0))
+	counter.add_theme_constant_override("outline_size", 6)
+	counter.z_index = 220
+	add_child(counter)
+	counter.position = Vector2(size.x * 0.5 - 22, -34)
+	counter.pivot_offset = Vector2(22, 16)
+	counter.scale = Vector2.ZERO
+	var tw := counter.create_tween()
+	tw.tween_property(counter, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.7)
+	tw.tween_property(counter, "modulate:a", 0.0, 0.35)
+	tw.parallel().tween_property(counter, "position:y", -58.0, 0.35)
+	tw.tween_callback(counter.queue_free)
+
+
 func animate_play(target_screen_pos: Vector2, on_complete: Callable = Callable()) -> void:
 	## Card lifts, scales up briefly, flies to target, fades out.
 	_is_animating_out = true
@@ -315,24 +444,8 @@ func animate_play(target_screen_pos: Vector2, on_complete: Callable = Callable()
 	)
 
 func animate_discard(discard_pos: Vector2, on_complete: Callable = Callable()) -> void:
-	## Card sweeps to the discard pile area and fades.
-	_is_animating_out = true
-	_kill_hover_tween()
-	z_index = 200
-
-	var tween = create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tween.set_parallel(true)
-	tween.tween_property(self, "position", discard_pos, 0.3)
-	tween.tween_property(self, "rotation_degrees", 25.0, 0.3)
-	tween.tween_property(self, "modulate:a", 0.0, 0.25).set_delay(0.05)
-	tween.tween_property(self, "scale", Vector2(0.5, 0.5), 0.3)
-
-	tween.chain()
-	tween.tween_callback(func():
-		if on_complete.is_valid():
-			on_complete.call()
-		queue_free()
-	)
+	## Every discard shares the pop-pause-and-tube-suck.
+	animate_played_to_discard(discard_pos, on_complete)
 
 func _apply_gold_trim() -> void:
 	var style = StyleBoxFlat.new()

@@ -409,7 +409,7 @@ roguelike. The current playable roster (`scripts/character/character_data.gd`):
 
 | Character | Fantasy | Signature archetypes | Slot specialty |
 |-----------|---------|----------------------|----------------|
-| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | 8 weapon slots; chest items weigh less |
+| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | 3 weapon slots; chest items weigh 20% less |
 | **Ryan** | Dexterous duelist / rogue | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 4 belt slots; belt cards cost 1 less mana |
 | **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | 4 weapon + 3 ring slots; off-hand enchantments |
 | **Cory** | Druid / monk / witherer | Monk, Lurker, Druid, Atrophist | 2 gauntlet slots; gauntlet-skill synergy |

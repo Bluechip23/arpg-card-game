@@ -308,6 +308,10 @@ func _ready() -> void:
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.card_peaked.connect(_on_card_peaked)
 	deck_manager.card_discarded.connect(_on_card_discarded)
+	# Visual-only: cards leaving the hand get their exit animations (tube-suck
+	# into the discard pile / instant spin) before the hand UI rebuilds.
+	deck_manager.card_discarded.connect(_animate_card_discard)
+	deck_manager.reaction_triggered.connect(_animate_card_instant)
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	test_ui.apply_overflow_requested.connect(_on_apply_overflow)
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
@@ -398,6 +402,14 @@ func _ready() -> void:
 			_p2_player.move_completed.connect(_on_player_move_completed)
 			# Enemies target the nearest living player; defeat needs both downed.
 			enemy_spawner.players = [_p1_player, _p2_player]
+		# P2's deck gets the same card exit animations (visual-only handlers —
+		# they no-op unless that deck's hand is the one on screen).
+		if _p2_deck_manager:
+			_p2_deck_manager.card_discarded.connect(_animate_card_discard)
+			_p2_deck_manager.reaction_triggered.connect(_animate_card_instant)
+			_p2_deck_manager.card_erased.connect(_animate_card_erase)
+		if _p2_player and _p2_player.get_inventory():
+			_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
 			_setup_co_op_defeat()
 
 	# Unit tracker (left side panel)
@@ -2214,10 +2226,18 @@ func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 	
 	if inventory.use_gauntlet_skill(gauntlet, target):
 		tempo_manager.add_tempo(1)  # Skills cost 1 tempo
+		# A little gauntlet pops over the user's head (like the heal heart).
+		player.show_gauntlet_skill()
 		_update_gauntlet_skills_ui()
 
 func _on_gauntlet_skill_ready(_gauntlet: ItemData) -> void:
 	_update_gauntlet_skills_ui()
+
+func _on_ring_triggered_visual(_ring: ItemData, _effect: String, owner_player: Player) -> void:
+	## Visual-only: a small ring pops over the head of whichever character's
+	## ring just triggered.
+	if owner_player and is_instance_valid(owner_player):
+		owner_player.show_ring_trigger()
 
 func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
@@ -2312,6 +2332,9 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().shepherds_mark_triggered.connect(_on_shepherds_mark_triggered)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	deck_manager.card_erased.connect(_on_card_erased)
+	# Ring procs pop a ring icon over the owner's head (like the heal heart).
+	if player.get_inventory():
+		player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(player))
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager)
 
@@ -3747,6 +3770,35 @@ func _on_hand_updated() -> void:
 	update_selected_display()
 	update_card_highlights()
 
+# ---- Card exit animations (visual-only; safe to fire for either deck) ----
+
+func _hand_ui_for_card(card: Card) -> CardUI:
+	## The on-screen CardUI currently showing `card`, or null (e.g. the card
+	## belongs to the deck that isn't displayed right now).
+	for child in hand_container.get_children():
+		if child is CardUI and not child._is_animating_out and child.get_card() == card:
+			return child
+	return null
+
+func _animate_card_discard(card: Card) -> void:
+	## Any card headed for the discard pile pops up, pauses, then gets sucked
+	## in bottom-first (like squeezing into a too-small tube).
+	var ui := _hand_ui_for_card(card)
+	if ui:
+		ui.animate_played_to_discard(_get_discard_pile_pos())
+
+func _animate_card_instant(card: Card) -> void:
+	## Instant (reaction) cards pop up, spin twice, then discard.
+	var ui := _hand_ui_for_card(card)
+	if ui:
+		ui.animate_instant(_get_discard_pile_pos())
+
+func _animate_card_erase(card: Card) -> void:
+	## Erase expiring in hand: the card disintegrates into drifting particles.
+	var ui := _hand_ui_for_card(card)
+	if ui:
+		ui.animate_disintegrate()
+
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
 	progression_triggers._trigger_sphere_passives("on_discard", {"card": card})
@@ -4705,10 +4757,15 @@ func play_selected_card(target) -> void:
 	var result = deck_manager.play_card(selected_card_index, target, player, true)
 
 	if result["played"]:
-		# Animate the played card flying to target
-		if played_card_ui and is_instance_valid(played_card_ui):
-			var fly_target = _get_card_play_target_pos(target)
-			played_card_ui.animate_play(fly_target)
+		# Played-card visuals: cards headed to the discard pile were already
+		# animated by _animate_card_discard (pop, pause, tube-suck — fired
+		# during play_card). Handle the placements that skip the discard pile.
+		if played_card_ui and is_instance_valid(played_card_ui) and not played_card_ui._is_animating_out:
+			if card in deck_manager.maintained_cards:
+				# Maintained powers fly up toward the battlefield instead.
+				played_card_ui.animate_play(_get_card_play_target_pos(target))
+			# Sticky cards that stay in hand keep their UI; the use counter
+			# pops over the rebuilt card below.
 
 		# Trigger character sprite animation based on card type
 		_play_card_animation(card, target)
@@ -4772,6 +4829,15 @@ func play_selected_card(target) -> void:
 		_on_hand_updated()
 		update_deck_info()
 		_refresh_unit_tracker()
+
+		# Sticky: the card snapped back into the hand — pop its use counter
+		# over the card until the play limit sends it to the discard pile.
+		if card.sticky > 0 and card in deck_manager.hand:
+			var s_idx: int = deck_manager.hand.find(card)
+			if s_idx >= 0 and s_idx < _card_ui_instances.size():
+				var s_ui = _card_ui_instances[s_idx]
+				if s_ui and is_instance_valid(s_ui):
+					s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
 	else:
 		# Card didn't play - undo temporary modifications
 		if tighten_applied:
@@ -7222,6 +7288,8 @@ func _on_card_on_draw_triggered(card: Card) -> void:
 			print("[MAIN] %s On Draw: gained 3 armor, cleansed 1 debuff" % card.card_name)
 
 func _on_card_erased(card: Card) -> void:
+	# Disintegrate the card's UI in place BEFORE the hand rebuild frees it.
+	_animate_card_erase(card)
 	add_battle_log("%s erased from deck!" % card.card_name, Color(0.7, 0.7, 0.7))
 	update_deck_info()
 	_on_hand_updated()

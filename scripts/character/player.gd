@@ -116,6 +116,16 @@ func show_armor_gained() -> void:
 	if _figure:
 		_figure.pop_armor_icon()
 
+func show_ring_trigger() -> void:
+	## Pops the overhead ring icon — call whenever an equipped ring triggers.
+	if _figure:
+		_figure.pop_ring_icon()
+
+func show_gauntlet_skill() -> void:
+	## Pops the overhead gauntlet icon — call whenever a gauntlet skill is used.
+	if _figure:
+		_figure.pop_gauntlet_icon()
+
 func show_heal_icon() -> void:
 	## Pops the overhead heart icon — call whenever HP is healed from any source.
 	if _figure:

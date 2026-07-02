@@ -254,10 +254,10 @@ static func create_brad() -> CharacterData:
 			{"name": "Corrupted Strength", "description": "When 3+ enemies are within 2 tiles: +5 damage on all attacks, +5 armor per tempo cycle, but cannot be healed by allies"},
 		]},
 	]
-	data.passive_description = "Chest items weigh 15% less"
+	data.passive_description = "Chest items weigh 20% less"
 	data.starting_item_name = "Bloodbound Plate"
 	data.starting_item_description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
-	data.slot_specialty = "8 weapon slots"
+	data.slot_specialty = "3 weapon slots"
 	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data
 

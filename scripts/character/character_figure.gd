@@ -4389,6 +4389,24 @@ func pop_worm() -> void:
 		_spawn_meteor_worm()
 
 
+func pop_ring_icon() -> void:
+	## A gold ring floats above the head — shown whenever an equipped ring's
+	## effect triggers (same feel as the heal heart).
+	if _built:
+		var sp := _make_icon_sprite(_tex_ring())
+		_shield_anchor.add_child(sp)
+		_pop_rise_fade(sp)
+
+
+func pop_gauntlet_icon() -> void:
+	## A small armored gauntlet floats above the head — shown whenever a
+	## gauntlet skill is used.
+	if _built:
+		var sp := _make_icon_sprite(_tex_gauntlet())
+		_shield_anchor.add_child(sp)
+		_pop_rise_fade(sp)
+
+
 func _make_icon_sprite(tex: Texture2D) -> Sprite3D:
 	var sp := Sprite3D.new()
 	sp.texture = tex
@@ -4714,6 +4732,71 @@ func _tex_heart() -> ImageTexture:
 			var f := pow(x * x + y * y - 1.0, 3.0) - x * x * pow(y, 3.0)
 			if f <= 0.0:
 				img.set_pixel(px, py, edge if f > -0.25 else col)
+	return ImageTexture.create_from_image(img)
+
+
+func _tex_ring() -> ImageTexture:
+	## A gold band with a red gem at the top — the "ring triggered" icon.
+	var w := 32
+	var h := 32
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var gold := Color(0.95, 0.8, 0.3)
+	var shade := Color(0.68, 0.53, 0.16)
+	var gem := Color(0.88, 0.2, 0.3)
+	var gem_hi := Color(1.0, 0.55, 0.6)
+	var cx := 15.5
+	var cy := 18.0
+	for py in range(h):
+		for px in range(w):
+			var dx := float(px) - cx
+			var dy := float(py) - cy
+			var d := sqrt(dx * dx + dy * dy)
+			if d >= 6.0 and d <= 10.0:
+				# lower half darker so the band reads as rounded metal
+				img.set_pixel(px, py, shade if dy > 2.0 else gold)
+	# Gem: a small diamond seated on top of the band
+	for py in range(h):
+		for px in range(w):
+			var gx: float = absf(float(px) - cx)
+			var gy: float = absf(float(py) - 5.0)
+			if gx + gy <= 3.5:
+				img.set_pixel(px, py, gem_hi if (float(py) - 5.0) < 0.0 else gem)
+	return ImageTexture.create_from_image(img)
+
+
+func _tex_gauntlet() -> ImageTexture:
+	## A blocky armored fist with a flared cuff — the "gauntlet skill" icon.
+	var w := 30
+	var h := 30
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var steel := Color(0.66, 0.7, 0.76)
+	var dark := Color(0.42, 0.45, 0.52)
+	var stud := Color(0.92, 0.94, 1.0)
+	# Fist block
+	for py in range(8, 22):
+		for px in range(5, 24):
+			img.set_pixel(px, py, steel)
+	# Thumb bump on the side
+	for py in range(11, 18):
+		for px in range(24, 28):
+			img.set_pixel(px, py, steel)
+	# Finger grooves
+	for gx in [10, 15, 20]:
+		for py in range(9, 20):
+			img.set_pixel(gx, py, dark)
+	# Knuckle studs
+	for sx in [7, 12, 17, 22]:
+		for py in range(8, 10):
+			for px in range(sx, sx + 2):
+				img.set_pixel(px, py, stud)
+	# Flared cuff at the wrist
+	for py in range(22, 28):
+		var flare := int((float(py) - 22.0) * 0.8)
+		for px in range(6 - flare, 24 + flare):
+			if px >= 0 and px < w:
+				img.set_pixel(px, py, dark if py % 2 == 0 else steel)
 	return ImageTexture.create_from_image(img)
 
 
