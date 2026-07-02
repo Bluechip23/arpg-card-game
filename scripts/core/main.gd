@@ -98,6 +98,10 @@ var _tab_card_inv_container: VBoxContainer = null
 var _prev_hand_card_ids: Array[String] = []  # Card IDs from last hand update
 var _card_play_animating: bool = false        # Block input during card play animation
 
+# Enemy loot drops lying on the ground, waiting to be picked up.
+# Each entry: {"node": Node3D, "cell": Vector2i, "loot": Dictionary}
+var _loot_drops: Array = []
+
 # Chest loot modal state
 var _chest_modal: PanelContainer = null
 var _chest_modal_open: bool = false
@@ -2391,6 +2395,10 @@ func trigger_multiple_turns(count: int) -> void:
 var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
 
 func _on_player_tile_reached() -> void:
+	# Scoop up any loot pile on the tile just reached (checked for BOTH players,
+	# and before the batch-move early-out so batch movers loot too). Looting is
+	# tempo-free — only the movement itself costs tempo.
+	_check_loot_pickup()
 	# During a locked-in batch move, the shared movement tempo is charged once up
 	# front (see _on_move_players_pressed), so skip the normal per-tile accounting.
 	if _batch_moving:
@@ -2442,6 +2450,8 @@ func _on_player_tile_reached() -> void:
 		_update_camera()
 
 func _on_player_move_completed() -> void:
+	# Catch any pickup missed by per-tile checks (e.g. teleports/blinks).
+	_check_loot_pickup()
 	# Final zone check at destination
 	_check_dungeon_zones()
 	_update_fog_of_war()
@@ -3195,6 +3205,7 @@ func _on_roguelike_player_died() -> void:
 func _start_roguelike_battle() -> void:
 	## Spawn the encounter for the roguelike map node that launched this scene,
 	## then arm the win condition that returns control to the map.
+	_clear_loot_drops()  # No stale piles from a previous room
 	_roguelike_relics = roguelike_context.get("relics", [])
 	var node_type: String = roguelike_context.get("node_type", "monster")
 	match node_type:
@@ -7228,18 +7239,144 @@ func _on_shepherds_mark_triggered() -> void:
 # ============================================
 
 func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
+	## Enemies drop their loot ON THE GROUND: a glinting pile appears on the
+	## tile where they died, and whoever walks onto it scoops it up. Looting is
+	## TEMPO-FREE — nothing in the pickup path adds tempo; only the walk to
+	## reach the pile costs the usual movement tempo.
+	_spawn_loot_drop(loot, pos)
+
+func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
+	var has_any: bool = int(loot.get("gold", 0)) > 0 \
+		or loot.get("item") != null or loot.get("card") != null \
+		or int(loot.get("culling_stones", 0)) > 0
+	if not has_any:
+		return
+	var cell: Vector2i = grid_manager.world_to_grid(pos)
+	var world: Vector3 = grid_manager.grid_to_world(cell)
+	world.y = pos.y
+	var drop := Node3D.new()
+	drop.name = "LootDrop"
+	drop.position = world
+	add_child(drop)
+	_build_loot_visual(drop, loot)
+	_loot_drops.append({"node": drop, "cell": cell, "loot": loot})
+	# If someone is already standing on that tile (a pass-through kill or a
+	# melee finish on their own cell), scoop it up immediately.
+	_check_loot_pickup()
+
+func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
+	## A dropped sack with the contents peeking out, under a pulsing glint so
+	## it reads as lootable from the battle camera.
+	var sack := _loot_mesh(drop, _mesh_sphere(0.13), Vector3(0, 0.09, 0), Color(0.45, 0.33, 0.2))
+	sack.scale = Vector3(1.0, 0.75, 1.0)
+	_loot_mesh(drop, _mesh_box(Vector3(0.05, 0.04, 0.05)), Vector3(0.02, 0.19, 0), Color(0.35, 0.25, 0.15))  # tied neck
+	if int(loot.get("gold", 0)) > 0:
+		for i in range(3):
+			var coin := _loot_mesh(drop, _mesh_cyl(0.035, 0.012), Vector3(-0.12 + i * 0.05, 0.015, 0.12 + (i % 2) * 0.04), Color(0.92, 0.78, 0.28), true)
+			coin.rotation_degrees = Vector3(8 * i, 30 * i, 0)
+	var item: ItemData = loot.get("item")
+	if item:
+		_loot_mesh(drop, _mesh_box(Vector3(0.1, 0.08, 0.06)), Vector3(0.13, 0.05, -0.04), Color(0.62, 0.66, 0.72))  # gear glinting out of the sack
+	var card: Card = loot.get("card")
+	if card:
+		var c := _loot_mesh(drop, _mesh_box(Vector3(0.11, 0.15, 0.012)), Vector3(-0.13, 0.1, -0.05), Color(0.92, 0.9, 0.84), true)
+		c.rotation_degrees = Vector3(-14, 24, 0)
+	if int(loot.get("culling_stones", 0)) > 0:
+		_loot_mesh(drop, _mesh_sphere(0.05), Vector3(0.0, 0.05, -0.13), Color(0.55, 0.3, 0.75), true)
+	# Pulsing glint above the pile + a gentle bob, looping until picked up.
+	var glint := _loot_mesh(drop, _mesh_sphere(0.035), Vector3(0, 0.32, 0), Color(1.0, 0.95, 0.6), true)
+	var tw := drop.create_tween().set_loops()
+	tw.tween_property(glint, "scale", Vector3.ONE * 1.6, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(drop, "position:y", drop.position.y + 0.04, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(glint, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(drop, "position:y", drop.position.y, 0.5).set_trans(Tween.TRANS_SINE)
+	drop.set_meta("bob_tween", tw)
+
+func _loot_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissive := false) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = pos
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.6
+	if emissive:
+		mat.emission_enabled = true
+		mat.emission = color
+		mat.emission_energy_multiplier = 0.8
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+func _mesh_sphere(r: float) -> SphereMesh:
+	var s := SphereMesh.new()
+	s.radius = r
+	s.height = r * 2.0
+	return s
+
+func _mesh_box(size: Vector3) -> BoxMesh:
+	var b := BoxMesh.new()
+	b.size = size
+	return b
+
+func _mesh_cyl(r: float, h: float) -> CylinderMesh:
+	var c := CylinderMesh.new()
+	c.top_radius = r
+	c.bottom_radius = r
+	c.height = h
+	return c
+
+func _check_loot_pickup() -> void:
+	## Any player standing on a loot pile's tile scoops it up. Tempo-free by
+	## design: there is deliberately no add_tempo anywhere in this path.
+	if _loot_drops.is_empty():
+		return
+	for p in _all_players():
+		if not is_instance_valid(p):
+			continue
+		var pcell: Vector2i = grid_manager.world_to_grid(p.position)
+		var i := 0
+		while i < _loot_drops.size():
+			var entry: Dictionary = _loot_drops[i]
+			if entry["cell"] == pcell:
+				_loot_drops.remove_at(i)
+				_collect_loot(entry["loot"], p)
+				_pop_loot_drop(entry["node"])
+			else:
+				i += 1
+
+func _pop_loot_drop(node: Node3D) -> void:
+	## Little pickup flourish: the pile hops up, shrinks and vanishes.
+	if not is_instance_valid(node):
+		return
+	# Stop the idle bob so it doesn't fight the pickup pop.
+	var bob = node.get_meta("bob_tween") if node.has_meta("bob_tween") else null
+	if bob is Tween and bob.is_valid():
+		bob.kill()
+	var tw := create_tween().set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(node, "position:y", node.position.y + 0.5, 0.18).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(node, "scale", Vector3.ZERO, 0.18).set_ease(Tween.EASE_IN)
+	tw.tween_callback(node.queue_free)
+
+func _clear_loot_drops() -> void:
+	for entry in _loot_drops:
+		if is_instance_valid(entry["node"]):
+			entry["node"].queue_free()
+	_loot_drops.clear()
+
+func _collect_loot(loot: Dictionary, looter: Player) -> void:
+	## Apply a loot bundle to the player who picked it up.
 	var messages: Array[String] = []
 
 	# Gold
 	var gold = loot.get("gold", 0)
 	if gold > 0:
-		player.get_stats().gain_gold(gold)
+		looter.get_stats().gain_gold(gold)
 		messages.append("+%d Gold" % gold)
 
 	# Culling stones
 	var culling_stones = loot.get("culling_stones", 0)
 	if culling_stones > 0:
-		var inventory = player.get_inventory()
+		var inventory = looter.get_inventory()
 		if inventory:
 			inventory.culling_stones += culling_stones
 			messages.append("+%d Culling Stone" % culling_stones)
@@ -7247,7 +7384,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 	# Item drop
 	var item: ItemData = loot.get("item")
 	if item:
-		var inventory = player.get_inventory()
+		var inventory = looter.get_inventory()
 		if inventory:
 			if inventory.store_item(item):
 				messages.append("Item: %s" % item.item_name)
@@ -7257,7 +7394,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 	# Card drop - goes to INVENTORY, not deck
 	var card: Card = loot.get("card")
 	if card:
-		var inventory = player.get_inventory()
+		var inventory = looter.get_inventory()
 		if inventory:
 			if inventory.store_card(card):
 				messages.append("Card: %s (inventory)" % card.card_name)
@@ -7272,7 +7409,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 				olorin.show_infestation_intro()
 
 	if messages.size() > 0:
-		var loot_text = "Loot: " + ", ".join(messages)
+		var loot_text = "Looted: " + ", ".join(messages)
 		add_battle_log(loot_text, Color(1.0, 0.85, 0.2))
 		print("[MAIN] %s" % loot_text)
 
