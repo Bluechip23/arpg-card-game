@@ -2620,6 +2620,9 @@ func play_action(action: String) -> void:
 		"sewer_croc": _croc_bite()
 		"rat_king": _lurch()
 		"swarm": _lurch()
+		# --- Mountains / Underworld / Heavens act ---
+		"cherub": _cherub_shoot()      # an archer looses an arrow, never a punch
+		"ash_harpy": _hawk_swoop()     # dives on its prey like the other raptors
 		_:
 			play_attack()
 
@@ -2664,7 +2667,8 @@ func play_attack() -> void:
 		return
 	match _kind:
 		"rat", "archer_rat", "wolf", "coyote", "mini_bear", "giant_beaver", "giant_hawk", \
-		"sabertooth", "white_manticore", "wyvern", "roc", "magma_spider", "cerberus":
+		"sabertooth", "white_manticore", "wyvern", "roc", "magma_spider", "cerberus", \
+		"snow_wraith", "specter":  # spirits surge at you rather than shoulder-swing
 			_lurch()
 		"hydra":
 			_hydra_attack()
@@ -2795,6 +2799,26 @@ func _archer_shoot() -> void:
 		_cy(p, "Shaft", Vector3.ZERO, 0.01, 0.012, 0.28, wood, Vector3(90, 0, 0))
 		_cy(p, "Tip", Vector3(0, 0, 0.16), 0.0, 0.02, 0.06, tip, Vector3(90, 0, 0))
 	, Vector3(0, 0.55, 0.45), 2.8, 0.42)
+
+
+## Cherub: recoil with the bow arm while loosing a gold-fletched arrow.
+func _cherub_shoot() -> void:
+	if _arm_l != null:
+		_cancel_action()
+		_busy = true
+		_action_tween = create_tween().set_trans(Tween.TRANS_QUAD)
+		_action_tween.tween_property(_arm_l, "rotation_degrees:x", -78.0, 0.12).set_ease(Tween.EASE_OUT)
+		_action_tween.tween_property(_arm_l, "rotation_degrees:x", 0.0, 0.24).set_ease(Tween.EASE_IN_OUT)
+		_action_tween.tween_callback(func(): _busy = false)
+	else:
+		_lurch()
+	var wood := Color.html("8a6a3a")
+	var gold := Color.html("e8c34a")
+	_projectile(func(p):
+		_cy(p, "Shaft", Vector3.ZERO, 0.01, 0.012, 0.3, wood, Vector3(90, 0, 0))
+		_cy(p, "Tip", Vector3(0, 0, 0.17), 0.0, 0.02, 0.06, gold, Vector3(90, 0, 0))
+		_pr(p, "Fletch", Vector3(0, 0.02, -0.13), Vector3(0.04, 0.06, 0.01), gold)
+	, Vector3(0, 0.75, 0.35), 2.8, 0.4)
 
 
 ## Fire Goblin Mage: cast gesture flinging a spray of small embers.

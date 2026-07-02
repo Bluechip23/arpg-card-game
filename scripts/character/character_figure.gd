@@ -997,6 +997,10 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 			play_shadows()
 		"shuriken":
 			play_shuriken()
+		"dagger_throw":
+			play_dagger_throw()
+		"thrown_stone":
+			play_thrown_stone()
 		"shuriken_pouch":
 			play_shuriken_pouch()
 		"volatile_mixture":
@@ -1719,7 +1723,8 @@ func play_lead_arrow() -> void:
 
 
 func play_multishot() -> void:
-	# Snap to a firing stance and loose seven arrows in rapid succession.
+	# Snap to a firing stance and loose three arrows in rapid succession —
+	# one per hit of the card ("Deal 7 damage 3 times").
 	if not _built:
 		return
 	_cancel_action()
@@ -1731,8 +1736,8 @@ func play_multishot() -> void:
 	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", -8.0, 0.1)
 	if _has_bow:
 		_action_tween.parallel().tween_property(_bow_grip, "position", Vector3(0.18, 0.62, 0.26), 0.1)
-	# Seven quick draw/release flicks.
-	for i in range(7):
+	# One draw/release flick per hit.
+	for i in range(3):
 		_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-58, 30, -8), 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		_action_tween.tween_callback(_loose_arrow)
 		_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-92, 0, -8), 0.045).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
@@ -2008,10 +2013,13 @@ func play_exhausted_assault() -> void:
 	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-95, 0, 0), 0.18)
 	if _has_bow:
 		_action_tween.parallel().tween_property(_bow_grip, "position", Vector3(0.18, 0.62, 0.26), 0.18)
-	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-58, 30, -8), 0.12)
-	_action_tween.tween_callback(_loose_arrow)
-	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-92, 0, -8), 0.07)
+	# Three weary shots — one per hit of the card ("Deal 4 damage 3 times").
+	for i in range(3):
+		_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-58, 30, -8), 0.12)
+		_action_tween.tween_callback(_loose_arrow)
+		_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-92, 0, -8), 0.07)
 	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.2)
 	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.2)
@@ -3416,8 +3424,54 @@ func play_absorb_essence() -> void:
 
 
 func play_vines() -> void:
-	# Same overhead arm-raise as Absorb Essence, with a green, growing flavour.
-	_play_arms_raise(Color(0.4, 0.85, 0.35))
+	# Summon: sweep both arms overhead, then thrust them down toward the ground
+	# as a tangle of vines erupts out in front to hold the enemy.
+	if not _built:
+		return
+	_cancel_action()
+	_reset_pose()
+	_busy = true
+	_action_tween = create_tween()
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-160, 0, -12), 0.2)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-160, 0, 12), 0.2)
+	# Thrust down hard, bending at the waist — the command to grow.
+	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-38, 0, -10), 0.12)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", Vector3(-38, 0, 10), 0.12)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 18.0, 0.12)
+	_action_tween.tween_callback(_spawn_vines)
+	_action_tween.tween_interval(0.5)
+	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_left_shoulder, "rotation_degrees", REST, 0.24)
+	_action_tween.parallel().tween_property(_body, "rotation_degrees:x", 0.0, 0.24)
+	_action_tween.tween_callback(_on_action_done)
+
+
+func _spawn_vines() -> void:
+	## A ring of green vines erupting from the ground ahead, curling as they
+	## rise, then sinking back.
+	var p := Node3D.new()
+	p.position = Vector3(0, 0, 1.0)
+	_pivot.add_child(p)
+	var vine := Color(0.32, 0.62, 0.28)
+	var vine2 := Color(0.45, 0.8, 0.38)
+	for i in range(6):
+		var ang := deg_to_rad(i * 60.0)
+		var c: Color = vine if i % 2 == 0 else vine2
+		var stalk := _make_cyl("Vine%d" % i, Vector3(cos(ang) * 0.3, 0.2, sin(ang) * 0.3), 0.015, 0.035, 0.44, c)
+		stalk.rotation_degrees = Vector3(14.0 * sin(ang), 0, -14.0 * cos(ang))
+		p.add_child(stalk)
+		var tip := _make_sphere("VineTip%d" % i, Vector3(cos(ang) * 0.24, 0.44, sin(ang) * 0.24), 0.045, vine2)
+		tip.scale = Vector3(1.4, 0.7, 1.4)
+		p.add_child(tip)
+	p.scale = Vector3(1, 0.05, 1)
+	var tw := p.create_tween()
+	tw.tween_property(p, "scale:y", 1.0, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.6)
+	tw.tween_property(p, "scale:y", 0.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(p.queue_free)
 
 
 func _play_arms_raise(mote_col: Color) -> void:
@@ -4119,6 +4173,21 @@ func _on_shadows_vanish() -> void:
 
 func play_shuriken() -> void:
 	# Cock the throwing arm back, then snap it forward, releasing a spinning star.
+	_play_throw(_spawn_shuriken)
+
+
+func play_dagger_throw() -> void:
+	# Same overarm throw, but the projectile is a spinning dagger.
+	_play_throw(_spawn_thrown_dagger)
+
+
+func play_thrown_stone() -> void:
+	# Same overarm throw; a stone arcs out at the target.
+	_play_throw(_spawn_thrown_stone)
+
+
+## Shared overarm throw: cock back, snap forward, release via `release_cb`.
+func _play_throw(release_cb: Callable) -> void:
 	if not _built:
 		return
 	_cancel_action()
@@ -4133,12 +4202,39 @@ func play_shuriken() -> void:
 	_action_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	_action_tween.tween_property(_right_shoulder, "rotation_degrees", Vector3(-96, 0, 8), 0.1)
 	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", -16.0, 0.1)
-	_action_tween.tween_callback(_spawn_shuriken)
+	_action_tween.tween_callback(release_cb)
 	# Recover.
 	_action_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	_action_tween.tween_property(_right_shoulder, "rotation_degrees", REST, 0.24)
 	_action_tween.parallel().tween_property(_body, "rotation_degrees:y", 0.0, 0.24)
 	_action_tween.tween_callback(_on_action_done)
+
+
+func _spawn_thrown_dagger() -> void:
+	## A small dagger tumbling end-over-end toward the enemy.
+	var dagger := Node3D.new()
+	dagger.position = Vector3(0.2, 0.85, 0.2)
+	_body.add_child(dagger)
+	dagger.add_child(_make_box_solid("Blade", Vector3(0, 0.09, 0), Vector3(0.04, 0.16, 0.015), Color(0.8, 0.88, 0.95)))
+	dagger.add_child(_make_box_solid("Guard", Vector3(0, 0.0, 0), Vector3(0.09, 0.02, 0.03), Color(0.2, 0.18, 0.24)))
+	dagger.add_child(_make_box_solid("Hilt", Vector3(0, -0.05, 0), Vector3(0.03, 0.08, 0.03), Color(0.14, 0.12, 0.17)))
+	var tw := dagger.create_tween()
+	tw.tween_property(dagger, "position", Vector3(0, 0.7, 2.6), 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(dagger, "rotation_degrees:x", 1080.0, 0.32)
+	tw.tween_callback(dagger.queue_free)
+
+
+func _spawn_thrown_stone() -> void:
+	## A rock lobbed in a shallow arc.
+	var stone := _make_sphere("Stone", Vector3.ZERO, 0.07, Color(0.5, 0.47, 0.42))
+	stone.scale = Vector3(1.0, 0.85, 1.1)
+	stone.position = Vector3(0.2, 0.85, 0.2)
+	_body.add_child(stone)
+	var tw := stone.create_tween()
+	tw.tween_property(stone, "position", Vector3(0.1, 1.1, 1.2), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(stone, "position", Vector3(0, 0.5, 2.6), 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(stone, "rotation_degrees:x", 540.0, 0.2)
+	tw.tween_callback(stone.queue_free)
 
 
 func play_shuriken_pouch() -> void:
