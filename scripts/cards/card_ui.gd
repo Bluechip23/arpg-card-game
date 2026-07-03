@@ -123,6 +123,22 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	_is_hexed = is_hexed
 	_is_locked = is_locked
 
+	# Card-affecting debuffs tint the whole card face (matches the status badge
+	# designs): Locked = golden, Hexed = purple, Weighted = grey,
+	# Staggered = grey on attack cards, Clumsy = brown.
+	var tint := Color.WHITE
+	if is_locked:
+		tint = Color(1.0, 0.85, 0.45)
+	elif is_hexed:
+		tint = Color(0.82, 0.6, 1.0)
+	elif debuff_mgr and debuff_mgr.get_tempo_increase() > 0:
+		tint = Color(0.72, 0.72, 0.76)
+	elif debuff_mgr and card.card_type == Card.CardType.ATTACK and debuff_mgr.get_attack_mana_increase() > 0:
+		tint = Color(0.78, 0.78, 0.8)
+	elif debuff_mgr and debuff_mgr.has_debuff(Debuff.DebuffType.CLUMSY):
+		tint = Color(0.85, 0.7, 0.55)
+	modulate = Color(tint.r, tint.g, tint.b, modulate.a)
+
 	# Build tempo tick bars (thin vertical cylinders showing resolve tick)
 	if is_dex_proc:
 		var halved_resolve: int

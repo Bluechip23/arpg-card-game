@@ -415,6 +415,18 @@ func _create_status_icon(color: Color, stacks: int, effect_name: String = "") ->
 	circle_style.corner_radius_bottom_right = int(sz / 2)
 	circle.add_theme_stylebox_override("panel", circle_style)
 
+	# Badge glyph over the colour disc when one exists for this effect.
+	var glyph_tex := StatusIcons.get_icon(effect_name)
+	if glyph_tex:
+		circle_style.bg_color = color.darkened(0.55)
+		var glyph = TextureRect.new()
+		glyph.texture = glyph_tex
+		glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		circle.add_child(glyph)
+
 	if stacks > 0:
 		var count = Label.new()
 		count.text = str(stacks)

@@ -227,11 +227,22 @@ func _refresh() -> void:
 			var row = HBoxContainer.new()
 			row.add_theme_constant_override("separation", 6)
 			_rows.add_child(row)
-			var dot = ColorRect.new()
-			dot.color = eff["color"]
-			dot.custom_minimum_size = Vector2(12, 12)
-			dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			row.add_child(dot)
+			var tex := StatusIcons.get_icon(eff["name"])
+			if tex:
+				var icon = TextureRect.new()
+				icon.texture = tex
+				icon.custom_minimum_size = Vector2(18, 18)
+				icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+				icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+				row.add_child(icon)
+			else:
+				var dot = ColorRect.new()
+				dot.color = eff["color"]
+				dot.custom_minimum_size = Vector2(12, 12)
+				dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+				row.add_child(dot)
 			var lbl = Label.new()
 			lbl.text = "%s x%d" % [eff["name"], eff["stacks"]]
 			lbl.add_theme_font_size_override("font_size", 13)
