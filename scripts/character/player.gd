@@ -116,6 +116,16 @@ func show_armor_gained() -> void:
 	if _figure:
 		_figure.pop_armor_icon()
 
+func show_ring_trigger() -> void:
+	## Pops the overhead ring icon — call whenever an equipped ring triggers.
+	if _figure:
+		_figure.pop_ring_icon()
+
+func show_gauntlet_skill() -> void:
+	## Pops the overhead gauntlet icon — call whenever a gauntlet skill is used.
+	if _figure:
+		_figure.pop_gauntlet_icon()
+
 func show_heal_icon() -> void:
 	## Pops the overhead heart icon — call whenever HP is healed from any source.
 	if _figure:
@@ -311,6 +321,16 @@ func stop_moving() -> void:
 	is_moving = false
 	velocity = Vector3.ZERO
 	move_path.clear()
+
+func cancel_movement() -> void:
+	## Stop a move that is already underway: the step in progress finishes (so
+	## the character stays grid-aligned) but the rest of the path is dropped.
+	## Position is NOT reverted, and no further per-tile tempo accrues.
+	if not is_moving:
+		return
+	move_path.clear()
+	spaces_to_move = spaces_moved + 1
+	print("[PLAYER] Movement cancelled after %d step(s)" % spaces_moved)
 
 func blink_to(target_pos: Vector3) -> void:
 	if grid_manager:

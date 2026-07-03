@@ -97,8 +97,8 @@ func initialize(char_name: String) -> void:
 			belt_slots = 1
 			boots_slots = 1
 			gauntlets_slots = 1
-			weapon_slots = 8
-			chest_weight_reduction = 0.15
+			weapon_slots = 3
+			chest_weight_reduction = 0.20
 			belt_card_mana_reduction = 0
 			ring_double_trigger = false
 			off_hand_bonus = 0.0

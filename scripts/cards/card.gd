@@ -284,8 +284,14 @@ func get_animation_action() -> String:
 		"shuriken": return "shuriken"
 		"shuriken_pouch": return "shuriken_pouch"
 		"volatile_mixture": return "volatile_mixture"
-		# Reuse the standard attack pose (overrides their card type)
-		"consecutive_snap", "round_em_up": return "attack_slash"
+		# Consecutive Snap is a ranged force-snap, not a sword swing.
+		"consecutive_snap": return "energy_ball"
+		# Round 'Em Up drags enemies toward a point — the inward-drawing
+		# overhead gather reads as the pull.
+		"round_em_up": return "absorb_essence"
+		# Thrown weapons use the overarm throw instead of a melee slash.
+		"dagger_throw": return "dagger_throw"
+		"thrown_stone": return "thrown_stone"
 		# Reuse the standard defense pose (overrides their card type)
 		"defensive_awareness", "energy_barrier": return "block"
 		# Stephen — archer/ranger bespoke motion.
@@ -337,7 +343,15 @@ func get_animation_action() -> String:
 		# Jeremy — reuse standard poses (override their card type).
 		"best_offense": return "block"
 		"provider", "healthy_bliss": return "heal"
-		"try_this": return "attack_slash"
+		# Try This! buffs an ally — no attack swing.
+		"try_this": return "battle_ready"
+		# Healing cards use the heal glow, not the generic ready pose;
+		# reactions that heal or armor-up shouldn't play a dodge sidestep.
+		"heal", "healing_potion", "gulped_potion", "fortify_alliance", "gift_from_the_phoenix":
+			return "heal"
+		"spider_senses": return "block"
+		# Internal Combustion is a self-centered burst — the roar reads radial.
+		"internal_combustion": return "roar"
 	match card_type:
 		CardType.ATTACK:
 			return "attack_ranged" if is_ranged else "attack_slash"

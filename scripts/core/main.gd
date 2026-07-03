@@ -42,6 +42,7 @@ extends Node3D
 
 var dungeon_manager: DungeonManager = null
 var unit_tracker: UnitTrackerUI = null
+var enemy_inspect_ui: EnemyInspectUI = null
 var quest_manager: QuestManager = null
 var progression_triggers: ProgressionTriggers = null
 var chest_loot_ui: ChestLootUI = null
@@ -97,6 +98,10 @@ var _tab_card_inv_container: VBoxContainer = null
 # Card animation tracking
 var _prev_hand_card_ids: Array[String] = []  # Card IDs from last hand update
 var _card_play_animating: bool = false        # Block input during card play animation
+
+# Enemy loot drops lying on the ground, waiting to be picked up.
+# Each entry: {"node": Node3D, "cell": Vector2i, "loot": Dictionary}
+var _loot_drops: Array = []
 
 # Chest loot modal state
 var _chest_modal: PanelContainer = null
@@ -160,6 +165,16 @@ var _locked_move_markers: Dictionary = {} # index -> Node3D ghost marker
 var _move_players_button: Button = null
 var _batch_moving: bool = false           # True while a locked-in batch is moving
 var _batch_pending: int = 0               # How many batched movers are still in motion
+# Co-op "lock in card": like locked movement, playing a card in co-op offers
+# Play Now / Lock In / Cancel. Locked cards wait (no tempo, still in hand) until
+# the on-screen "Play Cards" button fires them all together.
+var _locked_cards: Array = []             # [{"card": Card, "target", "owner": int}]
+var _play_cards_button: Button = null
+var _card_confirm_panel: PanelContainer = null
+var _card_confirm_label: Label = null
+var _pending_card_target = null           # target captured while the dialog is up
+var _pending_card: Card = null
+var _card_play_confirmed: bool = false    # bypass flag: dialog already answered
 # Co-op defeat: a player at 0 HP is "downed" but the fight continues; only when
 # BOTH are downed is it a defeat. A downed player can be revived by healing.
 var _downed: Dictionary = {0: false, 1: false}
@@ -294,6 +309,10 @@ func _ready() -> void:
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.card_peaked.connect(_on_card_peaked)
 	deck_manager.card_discarded.connect(_on_card_discarded)
+	# Visual-only: cards leaving the hand get their exit animations (tube-suck
+	# into the discard pile / instant spin) before the hand UI rebuilds.
+	deck_manager.card_discarded.connect(_animate_card_discard)
+	deck_manager.reaction_triggered.connect(_animate_card_instant)
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	test_ui.apply_overflow_requested.connect(_on_apply_overflow)
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
@@ -384,6 +403,14 @@ func _ready() -> void:
 			_p2_player.move_completed.connect(_on_player_move_completed)
 			# Enemies target the nearest living player; defeat needs both downed.
 			enemy_spawner.players = [_p1_player, _p2_player]
+		# P2's deck gets the same card exit animations (visual-only handlers —
+		# they no-op unless that deck's hand is the one on screen).
+		if _p2_deck_manager:
+			_p2_deck_manager.card_discarded.connect(_animate_card_discard)
+			_p2_deck_manager.reaction_triggered.connect(_animate_card_instant)
+			_p2_deck_manager.card_erased.connect(_animate_card_erase)
+		if _p2_player and _p2_player.get_inventory():
+			_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
 			_setup_co_op_defeat()
 
 	# Unit tracker (left side panel)
@@ -2200,10 +2227,18 @@ func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 	
 	if inventory.use_gauntlet_skill(gauntlet, target):
 		tempo_manager.add_tempo(1)  # Skills cost 1 tempo
+		# A little gauntlet pops over the user's head (like the heal heart).
+		player.show_gauntlet_skill()
 		_update_gauntlet_skills_ui()
 
 func _on_gauntlet_skill_ready(_gauntlet: ItemData) -> void:
 	_update_gauntlet_skills_ui()
+
+func _on_ring_triggered_visual(_ring: ItemData, _effect: String, owner_player: Player) -> void:
+	## Visual-only: a small ring pops over the head of whichever character's
+	## ring just triggered.
+	if owner_player and is_instance_valid(owner_player):
+		owner_player.show_ring_trigger()
 
 func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
@@ -2222,6 +2257,19 @@ func _setup_unit_tracker() -> void:
 	unit_tracker.offset_top = -150.0
 	unit_tracker.offset_right = 250.0
 	unit_tracker.offset_bottom = 250.0
+
+	# Inspect panel: opens beside the tracker when an enemy square is clicked.
+	enemy_inspect_ui = EnemyInspectUI.new()
+	enemy_inspect_ui.name = "EnemyInspect"
+	ui.add_child(enemy_inspect_ui)
+	enemy_inspect_ui.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	enemy_inspect_ui.offset_left = 258.0
+	enemy_inspect_ui.offset_top = -200.0
+	unit_tracker.enemy_clicked.connect(_on_tracker_enemy_clicked)
+
+func _on_tracker_enemy_clicked(enemy: Enemy) -> void:
+	if enemy_inspect_ui:
+		enemy_inspect_ui.show_enemy(enemy)
 
 	# Connect hover signals for bidirectional highlighting
 	unit_tracker.enemy_hovered.connect(_on_tracker_enemy_hovered)
@@ -2298,6 +2346,9 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().shepherds_mark_triggered.connect(_on_shepherds_mark_triggered)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	deck_manager.card_erased.connect(_on_card_erased)
+	# Ring procs pop a ring icon over the owner's head (like the heal heart).
+	if player.get_inventory():
+		player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(player))
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager)
 
@@ -2381,6 +2432,10 @@ func trigger_multiple_turns(count: int) -> void:
 var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
 
 func _on_player_tile_reached() -> void:
+	# Scoop up any loot pile on the tile just reached (checked for BOTH players,
+	# and before the batch-move early-out so batch movers loot too). Looting is
+	# tempo-free — only the movement itself costs tempo.
+	_check_loot_pickup()
 	# During a locked-in batch move, the shared movement tempo is charged once up
 	# front (see _on_move_players_pressed), so skip the normal per-tile accounting.
 	if _batch_moving:
@@ -2432,6 +2487,8 @@ func _on_player_tile_reached() -> void:
 		_update_camera()
 
 func _on_player_move_completed() -> void:
+	# Catch any pickup missed by per-tile checks (e.g. teleports/blinks).
+	_check_loot_pickup()
 	# Final zone check at destination
 	_check_dungeon_zones()
 	_update_fog_of_war()
@@ -2529,6 +2586,170 @@ func _on_batch_mover_done() -> void:
 		_batch_moving = false
 		_batch_pending = 0
 		print("[MAIN] Batch move complete.")
+
+# ---- Co-op locked-in (batched) card play ----
+
+func _ensure_card_confirm_dialog() -> void:
+	if _card_confirm_panel and is_instance_valid(_card_confirm_panel):
+		return
+	var ui = $UI as CanvasLayer
+	_card_confirm_panel = PanelContainer.new()
+	_card_confirm_panel.name = "CardConfirmPanel"
+	ui.add_child(_card_confirm_panel)
+	var vbox := VBoxContainer.new()
+	_card_confirm_panel.add_child(vbox)
+	_card_confirm_label = Label.new()
+	_card_confirm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_card_confirm_label)
+	var buttons := HBoxContainer.new()
+	vbox.add_child(buttons)
+	var play_btn := Button.new()
+	play_btn.text = "Play Now"
+	play_btn.pressed.connect(_on_card_play_now)
+	buttons.add_child(play_btn)
+	var lock_btn := Button.new()
+	lock_btn.text = "Lock In Card"
+	lock_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	lock_btn.pressed.connect(_on_card_lock_in)
+	buttons.add_child(lock_btn)
+	var cancel_btn := Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.pressed.connect(_on_card_confirm_cancel)
+	buttons.add_child(cancel_btn)
+	_card_confirm_panel.visible = false
+
+func _show_card_confirm_dialog(card: Card, target) -> void:
+	_ensure_card_confirm_dialog()
+	_pending_card = card
+	_pending_card_target = target
+	var tname := ""
+	if target is Enemy and is_instance_valid(target):
+		tname = " on %s" % target.enemy_name
+	elif target is Player and target != player:
+		tname = " on your partner"
+	_card_confirm_label.text = "Play %s%s?" % [card.card_name, tname]
+	_card_confirm_panel.visible = true
+	# Position near the mouse, kept on screen (same feel as the move dialog)
+	var mouse_pos = get_viewport().get_mouse_position()
+	_card_confirm_panel.position = mouse_pos + Vector2(20, -50)
+	var screen_size = get_viewport().get_visible_rect().size
+	_card_confirm_panel.reset_size()
+	if _card_confirm_panel.position.x + _card_confirm_panel.size.x > screen_size.x:
+		_card_confirm_panel.position.x = screen_size.x - _card_confirm_panel.size.x - 10
+	if _card_confirm_panel.position.y < 0:
+		_card_confirm_panel.position.y = 10
+
+func _hide_card_confirm_dialog() -> void:
+	if _card_confirm_panel:
+		_card_confirm_panel.visible = false
+	_pending_card = null
+	_pending_card_target = null
+
+func _on_card_play_now() -> void:
+	var card := _pending_card
+	var target = _pending_card_target
+	_hide_card_confirm_dialog()
+	if card == null:
+		return
+	# Re-find the card in the active hand in case the selection shifted while
+	# the dialog was up.
+	var idx := deck_manager.hand.find(card)
+	if idx < 0:
+		add_battle_log("%s is no longer in hand." % card.card_name, Color(1.0, 0.6, 0.3))
+		return
+	selected_card_index = idx
+	_card_play_confirmed = true
+	play_selected_card(target)
+	_card_play_confirmed = false
+
+func _on_card_lock_in() -> void:
+	## Queue the card without paying tempo or leaving the hand, so the player
+	## can TAB to the partner and line up theirs too. "Play Cards" fires all of
+	## them together.
+	var card := _pending_card
+	var target = _pending_card_target
+	_hide_card_confirm_dialog()
+	if card == null:
+		return
+	for e in _locked_cards:
+		if e["card"] == card:
+			add_battle_log("%s is already locked in." % card.card_name, Color(1.0, 0.6, 0.3))
+			return
+	_locked_cards.append({"card": card, "target": target, "owner": _active_index})
+	selected_card_index = -1
+	if range_indicator:
+		range_indicator.hide_range()
+	update_selected_display()
+	update_card_highlights()
+	_ensure_play_cards_button()
+	_play_cards_button.text = "▶ Play Cards (%d)" % _locked_cards.size()
+	_play_cards_button.visible = true
+	var who := player2_character.character_name if _active_index == 1 else starting_character.character_name
+	add_battle_log("%s locked in %s. TAB to the partner or press Play Cards." % [who, card.card_name], Color(1.0, 0.85, 0.4))
+	print("[MAIN] Locked in card for player %d: %s" % [_active_index + 1, card.card_name])
+
+func _on_card_confirm_cancel() -> void:
+	# Keep the card selected so the player can re-target or dismiss with ESC.
+	_hide_card_confirm_dialog()
+
+func _ensure_play_cards_button() -> void:
+	if _play_cards_button and is_instance_valid(_play_cards_button):
+		return
+	var ui = $UI as CanvasLayer
+	_play_cards_button = Button.new()
+	_play_cards_button.name = "PlayCardsButton"
+	_play_cards_button.text = "▶ Play Cards"
+	_play_cards_button.add_theme_font_size_override("font_size", 16)
+	_play_cards_button.add_theme_color_override("font_color", Color(0.6, 1.0, 0.7))
+	ui.add_child(_play_cards_button)
+	_play_cards_button.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_play_cards_button.offset_left = -80.0
+	_play_cards_button.offset_top = 110.0
+	_play_cards_button.offset_right = 80.0
+	_play_cards_button.offset_bottom = 144.0
+	_play_cards_button.pressed.connect(_on_play_cards_pressed)
+	_play_cards_button.visible = false
+
+func _on_play_cards_pressed() -> void:
+	## Fire every locked-in card. Each is played as its owner (the same
+	## owner-binding trick _on_card_tick_resolved uses), so tempo, buffs and
+	## hands all charge to the right character; the ticks then run together.
+	if _locked_cards.is_empty():
+		return
+	var batch := _locked_cards.duplicate()
+	_locked_cards.clear()
+	if _play_cards_button:
+		_play_cards_button.visible = false
+
+	var prev_p := player
+	var prev_d := deck_manager
+	var prev_idx := _active_index
+	for e in batch:
+		var card: Card = e["card"]
+		var target = e["target"]
+		var owner: int = e["owner"]
+		if target is Enemy and (not is_instance_valid(target) or target.is_dead):
+			add_battle_log("%s: target is gone — card stays in hand." % card.card_name, Color(1.0, 0.6, 0.3))
+			continue
+		_active_index = owner
+		player = _p1_player if owner == 0 else _p2_player
+		deck_manager = _p1_deck_manager if owner == 0 else _p2_deck_manager
+		var idx := deck_manager.hand.find(card)
+		if idx < 0:
+			add_battle_log("%s is no longer in hand — skipped." % card.card_name, Color(1.0, 0.6, 0.3))
+			continue
+		selected_card_index = idx
+		_card_play_confirmed = true
+		play_selected_card(target)
+		_card_play_confirmed = false
+	_active_index = prev_idx
+	player = prev_p
+	deck_manager = prev_d
+	selected_card_index = -1
+	_on_hand_updated()
+	update_deck_info()
+	add_battle_log("Locked cards played together!", Color(0.5, 1.0, 0.6))
+	print("[MAIN] Batch card play: %d cards" % batch.size())
 
 ## Returns the player character whose tile is at/near the world position, or null.
 ## Used for co-op ally targeting (click the partner to heal/buff them).
@@ -3021,6 +3242,7 @@ func _on_roguelike_player_died() -> void:
 func _start_roguelike_battle() -> void:
 	## Spawn the encounter for the roguelike map node that launched this scene,
 	## then arm the win condition that returns control to the map.
+	_clear_loot_drops()  # No stale piles from a previous room
 	_roguelike_relics = roguelike_context.get("relics", [])
 	var node_type: String = roguelike_context.get("node_type", "monster")
 	match node_type:
@@ -3561,6 +3783,35 @@ func _on_hand_updated() -> void:
 	update_deck_info()
 	update_selected_display()
 	update_card_highlights()
+
+# ---- Card exit animations (visual-only; safe to fire for either deck) ----
+
+func _hand_ui_for_card(card: Card) -> CardUI:
+	## The on-screen CardUI currently showing `card`, or null (e.g. the card
+	## belongs to the deck that isn't displayed right now).
+	for child in hand_container.get_children():
+		if child is CardUI and not child._is_animating_out and child.get_card() == card:
+			return child
+	return null
+
+func _animate_card_discard(card: Card) -> void:
+	## Any card headed for the discard pile pops up, pauses, then gets sucked
+	## in bottom-first (like squeezing into a too-small tube).
+	var ui := _hand_ui_for_card(card)
+	if ui:
+		ui.animate_played_to_discard(_get_discard_pile_pos())
+
+func _animate_card_instant(card: Card) -> void:
+	## Instant (reaction) cards pop up, spin twice, then discard.
+	var ui := _hand_ui_for_card(card)
+	if ui:
+		ui.animate_instant(_get_discard_pile_pos())
+
+func _animate_card_erase(card: Card) -> void:
+	## Erase expiring in hand: the card disintegrates into drifting particles.
+	var ui := _hand_ui_for_card(card)
+	if ui:
+		ui.animate_disintegrate()
 
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
@@ -4444,6 +4695,13 @@ func play_selected_card(target) -> void:
 		print("[INPUT] %s is roguelike-only and cannot be played in the story." % selected.card_name)
 		return
 
+	# Co-op: playing a card offers the same choice as multi-space movement —
+	# play immediately, or lock it in and fire together with the partner's, so
+	# one person can set up both characters before anything spends tempo.
+	if is_multiplayer and _p2_player and not _card_play_confirmed:
+		_show_card_confirm_dialog(deck_manager.hand[selected_card_index], target)
+		return
+
 	# Player can always queue cards — they append to the tick queue
 
 	# Hide range indicator when playing a card
@@ -4513,10 +4771,15 @@ func play_selected_card(target) -> void:
 	var result = deck_manager.play_card(selected_card_index, target, player, true)
 
 	if result["played"]:
-		# Animate the played card flying to target
-		if played_card_ui and is_instance_valid(played_card_ui):
-			var fly_target = _get_card_play_target_pos(target)
-			played_card_ui.animate_play(fly_target)
+		# Played-card visuals: cards headed to the discard pile were already
+		# animated by _animate_card_discard (pop, pause, tube-suck — fired
+		# during play_card). Handle the placements that skip the discard pile.
+		if played_card_ui and is_instance_valid(played_card_ui) and not played_card_ui._is_animating_out:
+			if card in deck_manager.maintained_cards:
+				# Maintained powers fly up toward the battlefield instead.
+				played_card_ui.animate_play(_get_card_play_target_pos(target))
+			# Sticky cards that stay in hand keep their UI; the use counter
+			# pops over the rebuilt card below.
 
 		# Trigger character sprite animation based on card type
 		_play_card_animation(card, target)
@@ -4580,6 +4843,15 @@ func play_selected_card(target) -> void:
 		_on_hand_updated()
 		update_deck_info()
 		_refresh_unit_tracker()
+
+		# Sticky: the card snapped back into the hand — pop its use counter
+		# over the card until the play limit sends it to the discard pile.
+		if card.sticky > 0 and card in deck_manager.hand:
+			var s_idx: int = deck_manager.hand.find(card)
+			if s_idx >= 0 and s_idx < _card_ui_instances.size():
+				var s_ui = _card_ui_instances[s_idx]
+				if s_ui and is_instance_valid(s_ui):
+					s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
 	else:
 		# Card didn't play - undo temporary modifications
 		if tighten_applied:
@@ -5569,6 +5841,9 @@ func _input(event: InputEvent) -> void:
 				return
 		
 		if event.keycode == KEY_ESCAPE:
+			if player and player.is_moving:
+				player.cancel_movement()
+				add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
 			selected_card_index = -1
 			_pending_quiver_card = null
 			_pending_quiver_index = -1
@@ -5578,6 +5853,9 @@ func _input(event: InputEvent) -> void:
 			update_selected_display()
 			update_card_highlights()
 			move_dialog.hide_dialog()
+			_hide_card_confirm_dialog()
+			if enemy_inspect_ui:
+				enemy_inspect_ui.hide_panel()
 			character_panel.hide_panel()
 			skill_tree_ui.hide_panel()
 	
@@ -5657,9 +5935,14 @@ func _input(event: InputEvent) -> void:
 				else:
 					play_selected_card(null)
 	
-	# Right click - movement
+	# Right click - movement (or, mid-move, stop the current movement)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if not player.is_moving:
+		if player.is_moving:
+			# Cancel the remainder of the path: the player halts on the next tile
+			# (no position revert) and stops spending movement tempo.
+			player.cancel_movement()
+			add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
+		else:
 			var mouse_pos = get_mouse_world_position()
 			var spaces = grid_manager.get_distance_in_cells(player.position, mouse_pos)
 
@@ -7021,6 +7304,8 @@ func _on_card_on_draw_triggered(card: Card) -> void:
 			print("[MAIN] %s On Draw: gained 3 armor, cleansed 1 debuff" % card.card_name)
 
 func _on_card_erased(card: Card) -> void:
+	# Disintegrate the card's UI in place BEFORE the hand rebuild frees it.
+	_animate_card_erase(card)
 	add_battle_log("%s erased from deck!" % card.card_name, Color(0.7, 0.7, 0.7))
 	update_deck_info()
 	_on_hand_updated()
@@ -7038,18 +7323,144 @@ func _on_shepherds_mark_triggered() -> void:
 # ============================================
 
 func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
+	## Enemies drop their loot ON THE GROUND: a glinting pile appears on the
+	## tile where they died, and whoever walks onto it scoops it up. Looting is
+	## TEMPO-FREE — nothing in the pickup path adds tempo; only the walk to
+	## reach the pile costs the usual movement tempo.
+	_spawn_loot_drop(loot, pos)
+
+func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
+	var has_any: bool = int(loot.get("gold", 0)) > 0 \
+		or loot.get("item") != null or loot.get("card") != null \
+		or int(loot.get("culling_stones", 0)) > 0
+	if not has_any:
+		return
+	var cell: Vector2i = grid_manager.world_to_grid(pos)
+	var world: Vector3 = grid_manager.grid_to_world(cell)
+	world.y = pos.y
+	var drop := Node3D.new()
+	drop.name = "LootDrop"
+	drop.position = world
+	add_child(drop)
+	_build_loot_visual(drop, loot)
+	_loot_drops.append({"node": drop, "cell": cell, "loot": loot})
+	# If someone is already standing on that tile (a pass-through kill or a
+	# melee finish on their own cell), scoop it up immediately.
+	_check_loot_pickup()
+
+func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
+	## A dropped sack with the contents peeking out, under a pulsing glint so
+	## it reads as lootable from the battle camera.
+	var sack := _loot_mesh(drop, _mesh_sphere(0.13), Vector3(0, 0.09, 0), Color(0.45, 0.33, 0.2))
+	sack.scale = Vector3(1.0, 0.75, 1.0)
+	_loot_mesh(drop, _mesh_box(Vector3(0.05, 0.04, 0.05)), Vector3(0.02, 0.19, 0), Color(0.35, 0.25, 0.15))  # tied neck
+	if int(loot.get("gold", 0)) > 0:
+		for i in range(3):
+			var coin := _loot_mesh(drop, _mesh_cyl(0.035, 0.012), Vector3(-0.12 + i * 0.05, 0.015, 0.12 + (i % 2) * 0.04), Color(0.92, 0.78, 0.28), true)
+			coin.rotation_degrees = Vector3(8 * i, 30 * i, 0)
+	var item: ItemData = loot.get("item")
+	if item:
+		_loot_mesh(drop, _mesh_box(Vector3(0.1, 0.08, 0.06)), Vector3(0.13, 0.05, -0.04), Color(0.62, 0.66, 0.72))  # gear glinting out of the sack
+	var card: Card = loot.get("card")
+	if card:
+		var c := _loot_mesh(drop, _mesh_box(Vector3(0.11, 0.15, 0.012)), Vector3(-0.13, 0.1, -0.05), Color(0.92, 0.9, 0.84), true)
+		c.rotation_degrees = Vector3(-14, 24, 0)
+	if int(loot.get("culling_stones", 0)) > 0:
+		_loot_mesh(drop, _mesh_sphere(0.05), Vector3(0.0, 0.05, -0.13), Color(0.55, 0.3, 0.75), true)
+	# Pulsing glint above the pile + a gentle bob, looping until picked up.
+	var glint := _loot_mesh(drop, _mesh_sphere(0.035), Vector3(0, 0.32, 0), Color(1.0, 0.95, 0.6), true)
+	var tw := drop.create_tween().set_loops()
+	tw.tween_property(glint, "scale", Vector3.ONE * 1.6, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(drop, "position:y", drop.position.y + 0.04, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(glint, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(drop, "position:y", drop.position.y, 0.5).set_trans(Tween.TRANS_SINE)
+	drop.set_meta("bob_tween", tw)
+
+func _loot_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissive := false) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = pos
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.6
+	if emissive:
+		mat.emission_enabled = true
+		mat.emission = color
+		mat.emission_energy_multiplier = 0.8
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+func _mesh_sphere(r: float) -> SphereMesh:
+	var s := SphereMesh.new()
+	s.radius = r
+	s.height = r * 2.0
+	return s
+
+func _mesh_box(size: Vector3) -> BoxMesh:
+	var b := BoxMesh.new()
+	b.size = size
+	return b
+
+func _mesh_cyl(r: float, h: float) -> CylinderMesh:
+	var c := CylinderMesh.new()
+	c.top_radius = r
+	c.bottom_radius = r
+	c.height = h
+	return c
+
+func _check_loot_pickup() -> void:
+	## Any player standing on a loot pile's tile scoops it up. Tempo-free by
+	## design: there is deliberately no add_tempo anywhere in this path.
+	if _loot_drops.is_empty():
+		return
+	for p in _all_players():
+		if not is_instance_valid(p):
+			continue
+		var pcell: Vector2i = grid_manager.world_to_grid(p.position)
+		var i := 0
+		while i < _loot_drops.size():
+			var entry: Dictionary = _loot_drops[i]
+			if entry["cell"] == pcell:
+				_loot_drops.remove_at(i)
+				_collect_loot(entry["loot"], p)
+				_pop_loot_drop(entry["node"])
+			else:
+				i += 1
+
+func _pop_loot_drop(node: Node3D) -> void:
+	## Little pickup flourish: the pile hops up, shrinks and vanishes.
+	if not is_instance_valid(node):
+		return
+	# Stop the idle bob so it doesn't fight the pickup pop.
+	var bob = node.get_meta("bob_tween") if node.has_meta("bob_tween") else null
+	if bob is Tween and bob.is_valid():
+		bob.kill()
+	var tw := create_tween().set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(node, "position:y", node.position.y + 0.5, 0.18).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(node, "scale", Vector3.ZERO, 0.18).set_ease(Tween.EASE_IN)
+	tw.tween_callback(node.queue_free)
+
+func _clear_loot_drops() -> void:
+	for entry in _loot_drops:
+		if is_instance_valid(entry["node"]):
+			entry["node"].queue_free()
+	_loot_drops.clear()
+
+func _collect_loot(loot: Dictionary, looter: Player) -> void:
+	## Apply a loot bundle to the player who picked it up.
 	var messages: Array[String] = []
 
 	# Gold
 	var gold = loot.get("gold", 0)
 	if gold > 0:
-		player.get_stats().gain_gold(gold)
+		looter.get_stats().gain_gold(gold)
 		messages.append("+%d Gold" % gold)
 
 	# Culling stones
 	var culling_stones = loot.get("culling_stones", 0)
 	if culling_stones > 0:
-		var inventory = player.get_inventory()
+		var inventory = looter.get_inventory()
 		if inventory:
 			inventory.culling_stones += culling_stones
 			messages.append("+%d Culling Stone" % culling_stones)
@@ -7057,7 +7468,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 	# Item drop
 	var item: ItemData = loot.get("item")
 	if item:
-		var inventory = player.get_inventory()
+		var inventory = looter.get_inventory()
 		if inventory:
 			if inventory.store_item(item):
 				messages.append("Item: %s" % item.item_name)
@@ -7067,7 +7478,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 	# Card drop - goes to INVENTORY, not deck
 	var card: Card = loot.get("card")
 	if card:
-		var inventory = player.get_inventory()
+		var inventory = looter.get_inventory()
 		if inventory:
 			if inventory.store_card(card):
 				messages.append("Card: %s (inventory)" % card.card_name)
@@ -7082,7 +7493,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 				olorin.show_infestation_intro()
 
 	if messages.size() > 0:
-		var loot_text = "Loot: " + ", ".join(messages)
+		var loot_text = "Looted: " + ", ".join(messages)
 		add_battle_log(loot_text, Color(1.0, 0.85, 0.2))
 		print("[MAIN] %s" % loot_text)
 
