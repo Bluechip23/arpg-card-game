@@ -40,13 +40,61 @@ var _card_confirm_popup: PanelContainer = null
 var _portrait_fig: CharacterFigure = null
 var _combat_label: Label = null
 
+# The inventory half of the panel, split into its own window (see
+# _split_windows): stats/portrait live in `panel`, equipment lives here.
+var _inv_panel: PanelContainer = null
+
 func _ready() -> void:
 	layer = 100
 	_apply_panel_style()
 	_apply_label_styles()
 	_apply_button_styles()
+	_split_windows()
 	hide_panel()
 	close_button.pressed.connect(_on_close_pressed)
+
+
+## Split the single condensed panel into two side-by-side windows: STATS
+## (name, portrait, core/derived/combat stats) stays in `panel`, and the
+## equipment list moves into its own INVENTORY window on the far right, so
+## neither squeezes the other.
+func _split_windows() -> void:
+	var stats_vbox = $Panel/MarginContainer/VBox
+
+	_inv_panel = PanelContainer.new()
+	_inv_panel.name = "InventoryPanel"
+	_inv_panel.add_theme_stylebox_override("panel", panel.get_theme_stylebox("panel"))
+	add_child(_inv_panel)
+	var inv_margin = MarginContainer.new()
+	inv_margin.add_theme_constant_override("margin_left", 10)
+	inv_margin.add_theme_constant_override("margin_right", 10)
+	inv_margin.add_theme_constant_override("margin_top", 10)
+	inv_margin.add_theme_constant_override("margin_bottom", 10)
+	_inv_panel.add_child(inv_margin)
+	var inv_vbox = VBoxContainer.new()
+	inv_margin.add_child(inv_vbox)
+
+	var inv_title = Label.new()
+	inv_title.text = "INVENTORY"
+	inv_title.add_theme_font_size_override("font_size", 18)
+	inv_title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	inv_vbox.add_child(inv_title)
+
+	# Move the equipment half of the old panel into the new window.
+	stats_vbox.get_node("HSeparator2").reparent(inv_vbox)
+	stats_vbox.get_node("EquipmentLabel").reparent(inv_vbox)
+	stats_vbox.get_node("ScrollContainer").reparent(inv_vbox)
+
+	# INVENTORY hugs the right edge; STATS sits beside it with a small gap.
+	_inv_panel.anchor_left = 1.0
+	_inv_panel.anchor_right = 1.0
+	_inv_panel.anchor_top = 0.0
+	_inv_panel.anchor_bottom = 1.0
+	_inv_panel.offset_left = -308.0
+	_inv_panel.offset_right = -4.0
+	_inv_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel.offset_left = -624.0
+	panel.offset_right = -316.0
 
 func _apply_panel_style() -> void:
 	if not panel:
@@ -143,11 +191,15 @@ func connect_stats(stats: PlayerStats, inv: Inventory, dm = null) -> void:
 func show_panel() -> void:
 	update_display()
 	panel.visible = true
+	if _inv_panel:
+		_inv_panel.visible = true
 
 func hide_panel() -> void:
 	_close_detail_panel()
 	_close_card_slot_panel()
 	panel.visible = false
+	if _inv_panel:
+		_inv_panel.visible = false
 
 func toggle_panel() -> void:
 	if panel.visible:
@@ -235,6 +287,10 @@ func _build_combat_stats_text() -> String:
 	var lines: Array[String] = []
 	lines.append("Base Attack  %d (physical)" % player_stats.get_effective_physical_damage(0))
 	lines.append("Movement     %d per cycle" % player_stats.get_movement_per_cycle())
+	lines.append("Card Draw    every %.0f tempo" % player_stats.get_effective_draw_timer())
+	lines.append("Mana Regen   +%.1f per tempo" % player_stats.get_effective_mana_regen())
+	lines.append("HP Regen     +%d per cycle" % player_stats.sphere_bonus_regen)
+	lines.append("Armor Gain   +%d per cycle (decay -%d)" % [player_stats.sphere_bonus_armor_per_cycle, player_stats.armor_decay_per_cycle])
 
 	# Resistance changes, per damage type + blanket reductions
 	var res_parts: Array[String] = []
@@ -248,20 +304,21 @@ func _build_combat_stats_text() -> String:
 		res_parts.append("All damage %.0f%%" % player_stats.sphere_bonus_resistance)
 	lines.append("Resists      " + (", ".join(res_parts) if res_parts.size() > 0 else "none"))
 
-	# Health-threshold notes: where the character stands and what arms at 50%.
+	# Determination: stats scale with missing health. Show where the hero
+	# stands now and exactly what their stats become at 50% health.
 	var hp_pct := 0
 	if player_stats.max_health > 0:
 		hp_pct = int(round(100.0 * player_stats.current_health / player_stats.max_health))
-	var below50 := 0
-	if deck_manager:
-		for c in deck_manager.hand:
-			if c.card_type == Card.CardType.REACTION and c.reaction_trigger == "on_hp_below_50":
-				below50 += 1
-	var note := "nothing armed"
-	if below50 > 0:
-		note = "%d reaction card%s trigger" % [below50, "s" if below50 > 1 else ""]
-	lines.append("HP now       %d%%" % hp_pct)
-	lines.append("At <50%% HP   " + note)
+	var now_mult := player_stats.get_determination_modifier()
+	# 50% health falls in the <=60% Determination bracket: 5% per DET point.
+	var mult_50: float = maxf(0.1, 1.0 + (player_stats.determination - 10) * 0.05)
+	lines.append("HP now       %d%%  (stats x%.2f)" % [hp_pct, now_mult])
+	lines.append("At 50%% HP    stats x%.2f  (%s%d%% via DET %d)" % [
+		mult_50,
+		"+" if mult_50 >= 1.0 else "",
+		int(round((mult_50 - 1.0) * 100)),
+		player_stats.determination,
+	])
 	return "\n".join(lines)
 
 func _build_core_stats_text() -> String:
@@ -598,9 +655,9 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	_detail_panel.anchor_right = 1.0
 	_detail_panel.anchor_top = 0.0
 	_detail_panel.anchor_bottom = 1.0
-	# Panel is 300px from right edge; place detail panel to its left
-	_detail_panel.offset_left = -560.0
-	_detail_panel.offset_right = -305.0
+	# Stats + inventory windows occupy the right ~620px; open to their left.
+	_detail_panel.offset_left = -890.0
+	_detail_panel.offset_right = -632.0
 	_detail_panel.offset_top = 20.0
 	_detail_panel.offset_bottom = -20.0
 
@@ -891,8 +948,8 @@ func _open_card_slot_panel(item: ItemData) -> void:
 	_card_slot_panel.anchor_right = 1.0
 	_card_slot_panel.anchor_top = 0.0
 	_card_slot_panel.anchor_bottom = 1.0
-	_card_slot_panel.offset_left = -620.0
-	_card_slot_panel.offset_right = -305.0
+	_card_slot_panel.offset_left = -950.0
+	_card_slot_panel.offset_right = -632.0
 	_card_slot_panel.offset_top = 20.0
 	_card_slot_panel.offset_bottom = -20.0
 
