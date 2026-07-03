@@ -8,6 +8,7 @@ extends PanelContainer
 @onready var duration_label: Label = $IconRect/VBox/DurationLabel
 
 var debuff: Debuff
+var _glyph_rect: TextureRect = null
 
 func setup(d: Debuff) -> void:
 	debuff = d
@@ -16,12 +17,32 @@ func setup(d: Debuff) -> void:
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
+func _glyph() -> TextureRect:
+	## Pixel-art badge drawn behind the labels (created on first use).
+	if _glyph_rect and is_instance_valid(_glyph_rect):
+		return _glyph_rect
+	_glyph_rect = TextureRect.new()
+	_glyph_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_glyph_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_glyph_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_glyph_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_glyph_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_rect.add_child(_glyph_rect)
+	icon_rect.move_child(_glyph_rect, 0)
+	return _glyph_rect
+
 func update_display() -> void:
 	if not debuff:
 		return
 
 	if icon_rect:
-		icon_rect.color = debuff.get_icon_color()
+		var tex := StatusIcons.get_icon(debuff.debuff_name)
+		if tex:
+			# Badge glyph over a darkened tint of the debuff colour.
+			icon_rect.color = debuff.get_icon_color().darkened(0.62)
+			_glyph().texture = tex
+		else:
+			icon_rect.color = debuff.get_icon_color()
 
 	if name_label:
 		name_label.text = debuff.debuff_name

@@ -36,6 +36,10 @@ var _pending_card: Card = null
 var _pending_card_index: int = -1
 var _card_confirm_popup: PanelContainer = null
 
+# Live 3D portrait + combat stats section (built on first open)
+var _portrait_fig: CharacterFigure = null
+var _combat_label: Label = null
+
 func _ready() -> void:
 	layer = 100
 	_apply_panel_style()
@@ -158,13 +162,107 @@ func update_display() -> void:
 	if name_label and player_stats.character_data:
 		name_label.text = player_stats.character_data.character_name
 
+	_ensure_portrait_and_combat()
+	if _portrait_fig and player_stats.character_data:
+		_portrait_fig.setup(player_stats.character_data.character_name, player_stats.character_data.sprite_path)
+
 	if stats_label:
 		stats_label.text = _build_core_stats_text()
 
 	if derived_label:
 		derived_label.text = _build_derived_stats_text()
 
+	if _combat_label:
+		_combat_label.text = _build_combat_stats_text()
+
 	_update_equipment_display()
+
+
+## Build the live 3D portrait (like the enemy inspect panel's) and the combat
+## stats section, inserted once under the character's name.
+func _ensure_portrait_and_combat() -> void:
+	if _portrait_fig and is_instance_valid(_portrait_fig):
+		return
+	var vbox = name_label.get_parent()
+
+	var center = CenterContainer.new()
+	center.name = "PortraitCenter"
+	vbox.add_child(center)
+	vbox.move_child(center, name_label.get_index() + 1)
+
+	var container = SubViewportContainer.new()
+	container.stretch = true
+	container.custom_minimum_size = Vector2(150, 132)
+	center.add_child(container)
+
+	var vp = SubViewport.new()
+	vp.size = Vector2i(150, 132)
+	vp.transparent_bg = true
+	vp.own_world_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	container.add_child(vp)
+
+	var key = DirectionalLight3D.new()
+	key.rotation_degrees = Vector3(-42, 28, 0)
+	key.light_energy = 1.2
+	vp.add_child(key)
+	var fill = DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(-12, -40, 0)
+	fill.light_energy = 0.5
+	vp.add_child(fill)
+
+	_portrait_fig = CharacterFigure.new()
+	vp.add_child(_portrait_fig)
+
+	var cam = Camera3D.new()
+	vp.add_child(cam)
+	cam.position = Vector3(0.25, 1.35, 2.7)
+	cam.look_at_from_position(cam.position, Vector3(0, 0.8, 0), Vector3.UP)
+
+	# Combat section header + label under the core/derived stats
+	var stats_container = stats_label.get_parent()
+	var combat_header = _make_section_header("COMBAT")
+	vbox.add_child(combat_header)
+	vbox.move_child(combat_header, stats_container.get_index() + 1)
+	_combat_label = Label.new()
+	_combat_label.add_theme_font_size_override("font_size", 13)
+	_combat_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	vbox.add_child(_combat_label)
+	vbox.move_child(_combat_label, combat_header.get_index() + 1)
+
+
+func _build_combat_stats_text() -> String:
+	var lines: Array[String] = []
+	lines.append("Base Attack  %d (physical)" % player_stats.get_effective_physical_damage(0))
+	lines.append("Movement     %d per cycle" % player_stats.get_movement_per_cycle())
+
+	# Resistance changes, per damage type + blanket reductions
+	var res_parts: Array[String] = []
+	if player_stats.has_skill_tree_passive("stone_skin"):
+		res_parts.append("Phys/Fire/Lightning 10% (Stone Skin)")
+	for t in range(7):
+		var v := player_stats.get_damage_resistance(t)
+		if v > 0.0:
+			res_parts.append("%s %d%%" % [DamageTypes.type_name(t), int(v)])
+	if player_stats.sphere_bonus_resistance > 0.0:
+		res_parts.append("All damage %.0f%%" % player_stats.sphere_bonus_resistance)
+	lines.append("Resists      " + (", ".join(res_parts) if res_parts.size() > 0 else "none"))
+
+	# Health-threshold notes: where the character stands and what arms at 50%.
+	var hp_pct := 0
+	if player_stats.max_health > 0:
+		hp_pct = int(round(100.0 * player_stats.current_health / player_stats.max_health))
+	var below50 := 0
+	if deck_manager:
+		for c in deck_manager.hand:
+			if c.card_type == Card.CardType.REACTION and c.reaction_trigger == "on_hp_below_50":
+				below50 += 1
+	var note := "nothing armed"
+	if below50 > 0:
+		note = "%d reaction card%s trigger" % [below50, "s" if below50 > 1 else ""]
+	lines.append("HP now       %d%%" % hp_pct)
+	lines.append("At <50%% HP   " + note)
+	return "\n".join(lines)
 
 func _build_core_stats_text() -> String:
 	return """STR  %d

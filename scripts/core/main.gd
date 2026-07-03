@@ -2267,13 +2267,13 @@ func _setup_unit_tracker() -> void:
 	enemy_inspect_ui.offset_top = -200.0
 	unit_tracker.enemy_clicked.connect(_on_tracker_enemy_clicked)
 
-func _on_tracker_enemy_clicked(enemy: Enemy) -> void:
-	if enemy_inspect_ui:
-		enemy_inspect_ui.show_enemy(enemy)
-
 	# Connect hover signals for bidirectional highlighting
 	unit_tracker.enemy_hovered.connect(_on_tracker_enemy_hovered)
 	unit_tracker.enemy_unhovered.connect(_on_tracker_enemy_unhovered)
+
+func _on_tracker_enemy_clicked(enemy: Enemy) -> void:
+	if enemy_inspect_ui:
+		enemy_inspect_ui.show_enemy(enemy)
 
 var _battlefield_hovered_enemy: Enemy = null
 
