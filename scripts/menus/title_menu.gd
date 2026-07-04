@@ -20,6 +20,7 @@ var _menu_items: Array[Dictionary] = [
 	{"text": "Single Player", "action": "_on_single_player"},
 	{"text": "Roguelike", "action": "_on_roguelike"},
 	{"text": "Multiplayer", "action": "_on_multiplayer"},
+	{"text": "Sandbox", "action": "_on_sandbox"},
 	{"text": "Compendium", "action": "_on_compendium"},
 	{"text": "Animation Lab", "action": "_on_animation_lab"},
 	{"text": "Enemy Lab", "action": "_on_enemy_lab"},
@@ -150,6 +151,12 @@ func _on_roguelike() -> void:
 func _on_multiplayer() -> void:
 	var select_scene = CharacterSelectScene.instantiate()
 	select_scene.game_mode = "multiplayer"
+	get_tree().root.add_child(select_scene)
+	queue_free()
+
+func _on_sandbox() -> void:
+	var select_scene = CharacterSelectScene.instantiate()
+	select_scene.game_mode = "sandbox"
 	get_tree().root.add_child(select_scene)
 	queue_free()
 

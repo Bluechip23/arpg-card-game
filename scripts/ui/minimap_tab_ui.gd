@@ -282,6 +282,14 @@ func _on_tab_quest_pressed() -> void:
 	main._tab_menu_current_tab = 1
 	_refresh_tab_menu()
 
+func open_quest_log() -> void:
+	## Open the tab menu straight to the Quest Log (used by the HUD scroll icon).
+	main._tab_menu_current_tab = 1
+	main._tab_menu_visible = true
+	if main._tab_menu_panel:
+		main._tab_menu_panel.visible = true
+	_refresh_tab_menu()
+
 func _on_tab_card_inv_pressed() -> void:
 	main._tab_menu_current_tab = 2
 	_refresh_tab_menu()
