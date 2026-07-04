@@ -3,9 +3,9 @@
 [ext_resource type="Script" uid="uid://d1p321txed8rw" path="res://scripts/cards/card_ui.gd" id="1_card"]
 
 [node name="CardUI" type="PanelContainer" unique_id=731994142]
-custom_minimum_size = Vector2(120, 160)
-offset_right = 120.0
-offset_bottom = 160.0
+custom_minimum_size = Vector2(150, 210)
+offset_right = 150.0
+offset_bottom = 210.0
 script = ExtResource("1_card")
 
 [node name="Panel" type="Panel" parent="." unique_id=1388569118]
@@ -16,58 +16,79 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -8.0
+offset_left = 7.0
+offset_top = 6.0
+offset_right = -7.0
+offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 3
 
-[node name="KeybindLabel" type="Label" parent="Panel/VBox" unique_id=610093381]
+[node name="TitleBar" type="PanelContainer" parent="Panel/VBox" unique_id=100000001]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+
+[node name="TitleHBox" type="HBoxContainer" parent="Panel/VBox/TitleBar" unique_id=100000002]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="Panel/VBox/TitleBar/TitleHBox" unique_id=609047350]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 13
-text = "[A]"
-horizontal_alignment = 1
+text = "Slash"
+text_overrun_behavior = 3
 
-[node name="CostLabel" type="Label" parent="Panel/VBox" unique_id=775751576]
+[node name="CostLabel" type="Label" parent="Panel/VBox/TitleBar/TitleHBox" unique_id=775751576]
 layout_mode = 2
-theme_override_constants/line_spacing = 3
-theme_override_constants/paragraph_spacing = 0
-theme_override_font_sizes/font_size = 14
-text = "1M/1T"
+theme_override_font_sizes/font_size = 13
+text = "1M 1T"
 horizontal_alignment = 2
 
-[node name="NameLabel" type="Label" parent="Panel/VBox" unique_id=609047350]
+[node name="ArtBox" type="PanelContainer" parent="Panel/VBox" unique_id=100000003]
+custom_minimum_size = Vector2(0, 66)
 layout_mode = 2
-text = "Slash"
-horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="Panel/VBox" unique_id=1217281392]
+[node name="ArtLabel" type="Label" parent="Panel/VBox/ArtBox" unique_id=100000004]
 layout_mode = 2
-size_flags_vertical = 3
-
-[node name="TypeLabel" type="Label" parent="Panel/VBox" unique_id=634113154]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Attack"
-horizontal_alignment = 1
-
-[node name="RangeLabel" type="Label" parent="Panel/VBox" unique_id=89761572]
-layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.22)
 theme_override_font_sizes/font_size = 11
-text = "Melee"
+text = "~ artwork ~"
 horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="Spacer2" type="Control" parent="Panel/VBox" unique_id=487962637]
+[node name="TypeBar" type="PanelContainer" parent="Panel/VBox" unique_id=100000005]
+layout_mode = 2
+
+[node name="TypeHBox" type="HBoxContainer" parent="Panel/VBox/TypeBar" unique_id=100000006]
+layout_mode = 2
+
+[node name="TypeLabel" type="Label" parent="Panel/VBox/TypeBar/TypeHBox" unique_id=634113154]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "Attack"
+
+[node name="RangeLabel" type="Label" parent="Panel/VBox/TypeBar/TypeHBox" unique_id=89761572]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "Melee"
+horizontal_alignment = 2
+
+[node name="DescPanel" type="PanelContainer" parent="Panel/VBox" unique_id=100000007]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="DescLabel" type="RichTextLabel" parent="Panel/VBox" unique_id=1611160183]
-custom_minimum_size = Vector2(0.1, 40)
+[node name="DescLabel" type="RichTextLabel" parent="Panel/VBox/DescPanel" unique_id=1611160183]
+custom_minimum_size = Vector2(0.1, 44)
 layout_mode = 2
-theme_override_font_sizes/normal_font_size = 12
+theme_override_font_sizes/normal_font_size = 11
 bbcode_enabled = true
 text = "Deal 10 damage to enemy"
 fit_content = true
 scroll_active = false
+
+[node name="KeybindLabel" type="Label" parent="Panel/VBox" unique_id=610093381]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.62, 0.55, 1)
+theme_override_font_sizes/font_size = 12
+text = "[A]"
+horizontal_alignment = 1

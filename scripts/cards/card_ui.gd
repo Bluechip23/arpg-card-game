@@ -6,12 +6,16 @@ extends PanelContainer
 signal card_hovered(card: Card, card_ui: CardUI)
 signal card_unhovered()
 
-@onready var name_label: Label = $Panel/VBox/NameLabel
-@onready var type_label: Label = $Panel/VBox/TypeLabel
-@onready var range_label: Label = $Panel/VBox/RangeLabel
-@onready var desc_label: RichTextLabel = $Panel/VBox/DescLabel
-@onready var cost_label: Label = $Panel/VBox/CostLabel
+@onready var name_label: Label = $Panel/VBox/TitleBar/TitleHBox/NameLabel
+@onready var type_label: Label = $Panel/VBox/TypeBar/TypeHBox/TypeLabel
+@onready var range_label: Label = $Panel/VBox/TypeBar/TypeHBox/RangeLabel
+@onready var desc_label: RichTextLabel = $Panel/VBox/DescPanel/DescLabel
+@onready var cost_label: Label = $Panel/VBox/TitleBar/TitleHBox/CostLabel
 @onready var keybind_label: Label = $Panel/VBox/KeybindLabel
+@onready var title_bar: PanelContainer = $Panel/VBox/TitleBar
+@onready var type_bar: PanelContainer = $Panel/VBox/TypeBar
+@onready var art_box: PanelContainer = $Panel/VBox/ArtBox
+@onready var desc_panel: PanelContainer = $Panel/VBox/DescPanel
 
 var _card: Card
 var _index: int
@@ -30,9 +34,17 @@ var _select_tween: Tween = null
 var _is_animating_out: bool = false  # True while play/discard animation runs
 
 const KEYBIND_LABELS = ["A", "S", "D", "F", "G", "Q", "W", "E", "R", "T", "Z", "X", "C", "V", "B"]
-const HOVER_LIFT: float = 15.0
-const SELECT_LIFT: float = 40.0
+# Cards rest half-tucked below the screen edge; hovering lifts the whole card
+# into view, selecting lifts it a touch higher still.
+const CARD_W: float = 150.0
+const CARD_H: float = 210.0
+const TUCK_RATIO: float = 0.5          # fraction of the card hidden at rest
+const HOVER_LIFT: float = CARD_H * TUCK_RATIO + 14.0
+const SELECT_LIFT: float = CARD_H * TUCK_RATIO + 32.0
 const TWEEN_DURATION: float = 0.12
+
+# MtG-style frame colour per card type (border, title/type bars, art tint).
+var _type_color: Color = Color(0.45, 0.45, 0.55)
 
 func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_active: bool = false, pocket_knife: bool = false) -> void:
 	_card = card
@@ -46,18 +58,26 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		match card.card_type:
 			Card.CardType.ATTACK:
 				type_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+				_type_color = Color(0.72, 0.25, 0.22)
 			Card.CardType.DEFENSE:
 				type_label.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
+				_type_color = Color(0.25, 0.4, 0.72)
 			Card.CardType.UTILITY:
 				type_label.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+				_type_color = Color(0.25, 0.6, 0.32)
 			Card.CardType.REACTION:
 				type_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+				_type_color = Color(0.75, 0.6, 0.15)
 			Card.CardType.UNPLAYABLE:
 				type_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+				_type_color = Color(0.4, 0.4, 0.44)
 			Card.CardType.POWER:
 				type_label.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
+				_type_color = Color(0.5, 0.3, 0.68)
 			Card.CardType.ENCHANTMENT:
 				type_label.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
+				_type_color = Color(0.18, 0.58, 0.55)
+		_style_frame()
 
 	if range_label:
 		if card.is_ranged:
@@ -158,7 +178,7 @@ func _ready() -> void:
 	mouse_exited.connect(_on_mouse_exited)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_apply_default_style()
-	pivot_offset = Vector2(60, 160)  # Bottom-center pivot for fan rotation
+	pivot_offset = Vector2(CARD_W * 0.5, CARD_H)  # Bottom-center pivot for fan rotation
 
 func store_base_position() -> void:
 	_base_y = position.y
@@ -465,31 +485,74 @@ func animate_discard(discard_pos: Vector2, on_complete: Callable = Callable()) -
 
 func _apply_gold_trim() -> void:
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.2, 1.0)
+	style.bg_color = Color(0.11, 0.1, 0.09, 1.0)
 	style.border_width_left = 3
 	style.border_width_right = 3
 	style.border_width_top = 3
 	style.border_width_bottom = 3
 	style.border_color = Color(1.0, 0.84, 0.0)  # Gold
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
+	style.corner_radius_top_left = 9
+	style.corner_radius_top_right = 9
+	style.corner_radius_bottom_left = 9
+	style.corner_radius_bottom_right = 9
 	add_theme_stylebox_override("panel", style)
 
 func _apply_default_style() -> void:
+	# MtG-style outer frame: a thick dark "card back" edge with the type's
+	# colour glowing through the inner border.
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.2, 1.0)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.3, 0.3, 0.4)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
+	style.bg_color = Color(0.11, 0.1, 0.09, 1.0)
+	style.border_width_left = 3
+	style.border_width_right = 3
+	style.border_width_top = 3
+	style.border_width_bottom = 3
+	style.border_color = _type_color.darkened(0.25)
+	style.corner_radius_top_left = 9
+	style.corner_radius_top_right = 9
+	style.corner_radius_bottom_left = 9
+	style.corner_radius_bottom_right = 9
 	add_theme_stylebox_override("panel", style)
+
+
+func _bar_style(bg: Color, radius: int = 4) -> StyleBoxFlat:
+	var s = StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_width_left = 1
+	s.border_width_right = 1
+	s.border_width_top = 1
+	s.border_width_bottom = 1
+	s.border_color = Color(0.05, 0.05, 0.05, 0.9)
+	s.corner_radius_top_left = radius
+	s.corner_radius_top_right = radius
+	s.corner_radius_bottom_left = radius
+	s.corner_radius_bottom_right = radius
+	s.content_margin_left = 6
+	s.content_margin_right = 6
+	s.content_margin_top = 2
+	s.content_margin_bottom = 2
+	return s
+
+
+func _style_frame() -> void:
+	## Dress the inner frame like a trading card: coloured title bar, framed
+	## art window (placeholder until real artwork lands), type line, and a
+	## parchment-dark rules box.
+	_apply_default_style()
+	if title_bar:
+		title_bar.add_theme_stylebox_override("panel", _bar_style(_type_color.darkened(0.45)))
+	if type_bar:
+		type_bar.add_theme_stylebox_override("panel", _bar_style(_type_color.darkened(0.55), 3))
+	if art_box:
+		var art = _bar_style(_type_color.darkened(0.72), 3)
+		art.border_color = _type_color.lightened(0.05)
+		art.content_margin_top = 0
+		art.content_margin_bottom = 0
+		art_box.add_theme_stylebox_override("panel", art)
+	if desc_panel:
+		var box = _bar_style(Color(0.17, 0.16, 0.14), 3)
+		box.content_margin_top = 4
+		box.content_margin_bottom = 4
+		desc_panel.add_theme_stylebox_override("panel", box)
 
 func _clear_gold_trim() -> void:
 	_apply_default_style()

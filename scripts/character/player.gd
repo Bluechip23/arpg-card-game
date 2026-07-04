@@ -376,7 +376,8 @@ func spawn_damage_number(amount: int) -> void:
 		return
 	var label = Label3D.new()
 	label.text = str(amount)
-	label.font_size = 26
+	label.font_size = 48
+	label.outline_size = 16
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.render_priority = 50
@@ -396,7 +397,8 @@ func spawn_heal_number(amount: int) -> void:
 		return
 	var label = Label3D.new()
 	label.text = "+" + str(amount)
-	label.font_size = 24
+	label.font_size = 42
+	label.outline_size = 14
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.render_priority = 50
@@ -416,7 +418,8 @@ func spawn_armor_number(amount: int) -> void:
 		return
 	var label = Label3D.new()
 	label.text = "+" + str(amount) + " Armor"
-	label.font_size = 20
+	label.font_size = 32
+	label.outline_size = 12
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.render_priority = 50
