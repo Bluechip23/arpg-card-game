@@ -234,6 +234,15 @@ func toggle_panel() -> void:
 	else:
 		show_panel()
 
+func is_open() -> bool:
+	## True when the stats or inventory window is showing. Used by Main to keep
+	## mouse-wheel scrolling inside the window from also zooming the battlefield.
+	if panel and panel.visible:
+		return true
+	if _inv_panel and _inv_panel.visible:
+		return true
+	return false
+
 func update_display() -> void:
 	if not player_stats:
 		return

@@ -280,6 +280,20 @@ static func _draw(img: Image, key: String) -> bool:
 			# A green raindrop.
 			_drop(img, 12, 14, 5.5, Color(0.25, 0.75, 0.25))
 			_px(img, 10, 13, Color(0.7, 1.0, 0.7))
+		"poisoned_blood":
+			# A dark blood droplet laced with a green venom core.
+			_drop(img, 12, 14, 6.0, Color(0.55, 0.08, 0.12))
+			_disc(img, 12, 15, 2.2, Color(0.4, 0.85, 0.3))
+			_px(img, 10, 12, Color(0.95, 0.5, 0.5))
+		"elixir":
+			# A round potion flask with glowing green liquid and a cork.
+			var glass := Color(0.78, 0.86, 0.92)
+			_rect(img, 10, 3, 4, 2, wood)                     # cork
+			_rect(img, 10, 5, 4, 4, glass)                    # neck
+			_disc(img, 12, 15, 6.0, glass)                    # glass body
+			_disc(img, 12, 16, 4.6, Color(0.3, 0.9, 0.5))     # green liquid
+			_rect(img, 10, 8, 4, 3, Color(0.3, 0.9, 0.5))     # liquid up the neck
+			_px(img, 10, 13, Color(0.85, 1.0, 0.9))           # shine
 		"shocked":
 			# A lightning bolt.
 			var yellow := Color(1.0, 0.95, 0.3)
