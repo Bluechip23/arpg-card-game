@@ -36,8 +36,8 @@ var _is_animating_out: bool = false  # True while play/discard animation runs
 const KEYBIND_LABELS = ["A", "S", "D", "F", "G", "Q", "W", "E", "R", "T", "Z", "X", "C", "V", "B"]
 const CARD_W: float = 150.0
 const CARD_H: float = 210.0
-const HOVER_LIFT: float = 18.0
-const SELECT_LIFT: float = 44.0
+const HOVER_LIFT: float = 68.0
+const SELECT_LIFT: float = 96.0
 const TWEEN_DURATION: float = 0.12
 
 # MtG-style frame colour per card type (border, title/type bars, art tint).

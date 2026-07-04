@@ -508,9 +508,11 @@ func _update_hand_hover() -> void:
 
 	var mouse_pos = hand_container.get_local_mouse_position()
 
-	# Expanded detection area - generous vertical padding for easier targeting
+	# Expanded detection area - generous vertical padding for easier targeting.
+	# The top pad covers a hovered card's lift so the cursor can move up onto
+	# the raised card without the hover dropping.
 	var in_bounds = (
-		mouse_pos.y >= -30.0 and
+		mouse_pos.y >= -100.0 and
 		mouse_pos.y <= hand_container.size.y + 10.0 and
 		mouse_pos.x >= -20.0 and
 		mouse_pos.x <= hand_container.size.x + 20.0
@@ -3717,21 +3719,23 @@ func _on_hand_updated() -> void:
 	if container_width <= 0:
 		container_width = 1080.0  # fallback
 
-	# Calculate spacing
-	var total_cards_width = card_width * hand_size
+	# Overlapping fan: cards sit ~45% over their neighbour at rest, and as the
+	# hand grows past what fits in the band they compress further (more cards =
+	# more overlap), always staying inside the container between the action
+	# buttons (left) and the deck/maintained panels (right).
+	var ideal_spacing: float = card_width * 0.55  # step between card centres at rest
 	var spacing: float
-	if total_cards_width <= container_width:
-		if hand_size == 1:
-			spacing = 0.0
-		else:
-			spacing = (container_width - card_width) / (hand_size - 1)
-		spacing = min(spacing, card_width + 8.0)
+	if hand_size <= 1:
+		spacing = 0.0
 	else:
-		spacing = (container_width - card_width) / max(hand_size - 1, 1)
+		var fit_spacing: float = (container_width - card_width) / float(hand_size - 1)
+		spacing = min(ideal_spacing, fit_spacing)  # never wider than the fan; tighten to fit
 
 	# Center the hand
 	var total_hand_width = card_width + spacing * max(hand_size - 1, 0)
 	var start_x = (container_width - total_hand_width) / 2.0
+	if start_x < 0.0:
+		start_x = 0.0
 	var card_y = (hand_container.size.y - card_height) / 2.0
 	if card_y < 0:
 		card_y = 0.0
