@@ -508,12 +508,9 @@ func _update_hand_hover() -> void:
 
 	var mouse_pos = hand_container.get_local_mouse_position()
 
-	# Expanded detection area - generous vertical padding for easier targeting.
-	# While a card is lifted (hovered) the pad grows so the mouse can follow it
-	# up to the fully revealed card without the hover flickering off.
-	var top_pad := 40.0 if _current_hand_hover_index == -1 else 180.0
+	# Expanded detection area - generous vertical padding for easier targeting
 	var in_bounds = (
-		mouse_pos.y >= -top_pad and
+		mouse_pos.y >= -30.0 and
 		mouse_pos.y <= hand_container.size.y + 10.0 and
 		mouse_pos.x >= -20.0 and
 		mouse_pos.x <= hand_container.size.x + 20.0
@@ -3735,9 +3732,9 @@ func _on_hand_updated() -> void:
 	# Center the hand
 	var total_hand_width = card_width + spacing * max(hand_size - 1, 0)
 	var start_x = (container_width - total_hand_width) / 2.0
-	# Cards rest half-tucked below the screen edge — only the top half pokes
-	# up. Hovering a card lifts it fully into view (see CardUI.HOVER_LIFT).
-	var card_y = hand_container.size.y - card_height * 0.5
+	var card_y = (hand_container.size.y - card_height) / 2.0
+	if card_y < 0:
+		card_y = 0.0
 
 	# Fan rotation: slight arc for cards in hand
 	var max_fan_angle: float = 3.0  # Max degrees for outermost card
