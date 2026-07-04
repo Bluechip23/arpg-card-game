@@ -70,6 +70,9 @@ var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
 var marked_tempo: int = 0      # Remaining tempo for mark
+var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when silenced
+var silenced_tempo: int = 0    # Remaining tempo cycles for silence
+var choke_dot_stacks: int = 0  # Choke: take 3 damage per cycle, lose 1 per cycle
 var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen
 var is_frozen: bool = false    # Cannot act when frozen
 var frozen_tempo: int = 0      # Remaining tempo for frozen
@@ -1353,6 +1356,22 @@ func _tick_status_durations() -> void:
 			print("[%s] Mark expired" % enemy_name)
 			debuff_expired.emit(self, "marked")
 
+	if silenced_tempo > 0:
+		silenced_tempo -= 1
+		if silenced_tempo <= 0:
+			is_silenced = false
+			print("[%s] Silence expired, can cast again" % enemy_name)
+			debuff_expired.emit(self, "silenced")
+
+	# Choke: deal 3 damage per cycle, lose 1 stack per cycle
+	if choke_dot_stacks > 0:
+		take_damage(3, false)
+		print("[%s] Choke deals 3 damage (%d stacks left)" % [enemy_name, choke_dot_stacks - 1])
+		choke_dot_stacks -= 1
+		if choke_dot_stacks <= 0:
+			print("[%s] Choke expired" % enemy_name)
+			debuff_expired.emit(self, "choke")
+
 	if frozen_tempo > 0:
 		frozen_tempo -= 1
 		if frozen_tempo <= 0:
@@ -1644,7 +1663,10 @@ func _choose_melee_action(distance: int, attack_name: String) -> void:
 		chosen_action = _get_action("move")
 
 func _choose_ranged_action(distance: int, attack_name: String) -> void:
-	if distance <= int(attack_range):
+	# Silenced casters cannot fire their spell/ranged attack; they reposition instead.
+	if is_silenced:
+		chosen_action = _get_action("move")
+	elif distance <= int(attack_range):
 		chosen_action = _get_action(attack_name)
 	else:
 		chosen_action = _get_action("move")
@@ -1847,7 +1869,7 @@ func _try_goblin_attack(target_node: Node3D) -> bool:
 
 func _try_ember(target_node: Node3D) -> bool:
 	## Fire Goblin Mage: ranged ember — damage plus 1 burn.
-	if is_disarmed:
+	if is_disarmed or is_silenced:
 		return _try_move(target_node)
 	var diff = target_node.position - position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
@@ -1861,7 +1883,7 @@ func _try_ember(target_node: Node3D) -> bool:
 func _try_fire_wall(target_node: Node3D) -> bool:
 	## Fire Goblin Shaman: raises a wall of fire in the player's path. Damage and
 	## burn are only dealt if the player walks into it (handled by Main).
-	if is_disarmed:
+	if is_disarmed or is_silenced:
 		return _try_move(target_node)
 	var diff = target_node.position - position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
@@ -1892,6 +1914,11 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 func _try_sear_wounds() -> bool:
 	## Fire Goblin Shaman: 2 damage to ALL allies (can kill), then heals the
 	## survivors for 4.
+	# Sear Wounds is a cast; silence mutes it and the shaman forfeits the action.
+	if is_silenced:
+		print("[%s] Silenced — cannot Sear Wounds." % enemy_name)
+		turn_completed.emit()
+		return true
 	var allies = _sibling_enemies()
 	for a in allies:
 		if is_instance_valid(a):
@@ -2785,9 +2812,14 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			marked_tempo = value
 			print("[%s] Marked for %d tempo cycles" % [enemy_name, value])
 		"silenced":
-			print("[%s] Silenced for %d tempo cycles" % [enemy_name, value])
+			is_silenced = true
+			silenced_tempo = max(silenced_tempo, value)
+			# Drop any queued spell so the enemy re-decides now that it's muted
+			chosen_action = {}
+			print("[%s] Silenced for %d tempo cycles!" % [enemy_name, silenced_tempo])
 		"choke_dot":
-			print("[%s] Choke DoT for %d tempo cycles" % [enemy_name, value])
+			choke_dot_stacks += value
+			print("[%s] Choke DoT applied! Stacks: %d" % [enemy_name, choke_dot_stacks])
 		"burn":
 			burn_stacks += value
 			print("[%s] Burning! Stacks: %d" % [enemy_name, burn_stacks])
@@ -2964,6 +2996,10 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Disarm", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_tempo})
 	if is_marked and marked_tempo > 0:
 		effects.append({"name": "Marked", "color": Color(1.0, 0.2, 0.2), "stacks": marked_tempo})
+	if is_silenced and silenced_tempo > 0:
+		effects.append({"name": "Silenced", "color": Color(0.7, 0.3, 0.9), "stacks": silenced_tempo})
+	if choke_dot_stacks > 0:
+		effects.append({"name": "Choke", "color": Color(0.5, 0.7, 0.4), "stacks": choke_dot_stacks})
 	if is_exposed:
 		effects.append({"name": "Exposed", "color": Color(1.0, 1.0, 0.3), "stacks": 1})
 	if is_stunned and stun_tempo > 0:
@@ -3008,8 +3044,8 @@ func _update_status_indicators() -> void:
 	var has_overflow = effects.size() > MAX_VISIBLE_STATUS
 	var total_slots = show_count + (1 if has_overflow else 0)
 
-	var circle_size: float = 0.16
-	var spacing: float = 0.3
+	var circle_size: float = 0.08
+	var spacing: float = 0.2
 	var start_x: float = -(total_slots - 1) * spacing / 2.0
 
 	for i in range(show_count):
@@ -3031,28 +3067,26 @@ func _update_status_indicators() -> void:
 		_status_nodes.append({"node": plus_label})
 
 func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: float) -> Node3D:
-	## A billboarded badge above the enemy's head: a flat colored quad backing
-	## with the effect's pixel-art glyph on it and a stack count in the corner.
-	## (The old flattened-sphere billboard rendered nearly edge-on, so effects
-	## looked like they weren't showing at all.)
+	## A small colored circle above the enemy's head with the effect's glyph on
+	## it and a stack count. A small full sphere reads as a round dot from any
+	## camera angle (no billboard edge-on issue).
 	var root = Node3D.new()
 
-	# Colored backing — a flat QuadMesh billboards reliably (unlike a squashed
-	# sphere), so the marker is always camera-facing and visible.
-	var bg = MeshInstance3D.new()
-	var quad = QuadMesh.new()
-	quad.size = Vector2(radius * 2.0, radius * 2.0)
-	bg.mesh = quad
+	# Small round dot (unshaded so it reads as a flat coloured circle).
+	var dot = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	dot.mesh = sphere
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = color.darkened(0.35)
+	mat.albedo_color = color.darkened(0.25)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.no_depth_test = true
 	mat.render_priority = 20
-	bg.material_override = mat
-	root.add_child(bg)
+	dot.material_override = mat
+	root.add_child(dot)
 
-	# Glyph on top (flexed arm for Strengthen, snowflake for Cold, etc.).
+	# Glyph on top, sized to sit inside the small circle.
 	var tex = StatusIcons.get_icon(eff_name)
 	if tex:
 		var sp = Sprite3D.new()
@@ -3062,23 +3096,23 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 		sp.no_depth_test = true
 		sp.render_priority = 21
 		sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		sp.pixel_size = (radius * 1.8) / float(maxi(tex.get_width(), 1))
-		sp.position = Vector3(0, 0, 0.01)
+		sp.pixel_size = (radius * 1.7) / float(maxi(tex.get_width(), 1))
+		sp.position = Vector3(0, 0, radius + 0.005)
 		root.add_child(sp)
 
-	# Stack count label (bottom-right of the badge)
+	# Stack count (small, bottom-right)
 	if stacks > 1:
 		var label = Label3D.new()
 		label.text = str(stacks)
-		label.font_size = 28
-		label.pixel_size = 0.006
+		label.font_size = 22
+		label.pixel_size = 0.005
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.no_depth_test = true
 		label.render_priority = 22
 		label.modulate = Color(1, 1, 1)
 		label.outline_modulate = Color(0, 0, 0)
-		label.outline_size = 8
-		label.position = Vector3(radius * 0.7, -radius * 0.7, 0.02)
+		label.outline_size = 6
+		label.position = Vector3(radius * 0.9, -radius * 0.9, radius + 0.01)
 		root.add_child(label)
 
 	return root

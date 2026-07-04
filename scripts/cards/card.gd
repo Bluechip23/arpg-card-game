@@ -3371,7 +3371,9 @@ func _execute_self_infliction(player_stats: PlayerStats, buff_mgr: BuffManager =
 		var self_damage = floori(player_stats.current_health * 0.8)
 		player_stats.take_direct_damage(self_damage)
 		player_stats.determination += 5
-		player_stats.strength += 5
+		# strength is a read-only computed stat; raise the base and recalc.
+		player_stats.base_strength += 5
+		player_stats.recalculate_derived_stats()
 		print("[CARD] Self Infliction: dealt %d damage to self (80%% of %d HP). Gained +5 DET, +5 STR" % [self_damage, player_stats.current_health + self_damage])
 
 static func create_bob_and_weave() -> Card:

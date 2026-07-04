@@ -4901,9 +4901,13 @@ func play_selected_card(target) -> void:
 
 	# Player can always queue cards — they append to the tick queue
 
-	# Hide range indicator when playing a card
+	# Hide range + AOE indicators when playing a card (the AOE shading was
+	# sticking around because playing clears selected_card_index directly
+	# rather than through select_card).
 	if range_indicator:
 		range_indicator.hide_range()
+	if aoe_indicator:
+		aoe_indicator.hide_indicator()
 
 	var card = deck_manager.hand[selected_card_index]
 	var tempo_cost = card.tempo_cost
@@ -6057,6 +6061,8 @@ func _input(event: InputEvent) -> void:
 			_pending_quiver_target_type = ""
 			if range_indicator:
 				range_indicator.hide_range()
+			if aoe_indicator:
+				aoe_indicator.hide_indicator()
 			update_selected_display()
 			update_card_highlights()
 			move_dialog.hide_dialog()
