@@ -132,6 +132,8 @@ var current_character: CharacterData = null
 var starting_character: CharacterData = null
 var player2_character: CharacterData = null
 var is_multiplayer: bool = false
+var sandbox_mode: bool = false      # Free-play arena launched from the Sandbox menu
+var sandbox_ui: SandboxUI = null
 
 # Roguelike battle hand-off. When non-empty, this main scene was launched by the
 # roguelike map to resolve a single encounter. On victory OR death it emits
@@ -431,6 +433,10 @@ func _ready() -> void:
 	# return-to-map hook. Only runs when launched from the roguelike map.
 	if not roguelike_context.is_empty():
 		_start_roguelike_battle()
+
+	# Sandbox: open the card/enemy control panel and raise some high ground.
+	if sandbox_mode:
+		_setup_sandbox()
 
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
@@ -2591,6 +2597,90 @@ func _on_batch_mover_done() -> void:
 		_batch_moving = false
 		_batch_pending = 0
 		print("[MAIN] Batch move complete.")
+
+# ============================================
+# SANDBOX MODE
+# ============================================
+
+func _setup_sandbox() -> void:
+	## Free-play arena: no story enemies spawn, the player gets a fat pool of
+	## health/mana to experiment with, a couple of raised platforms give High
+	## Ground to play with, and the Sandbox control panel opens.
+	var start_cell = grid_manager.world_to_grid(player.position)
+	# Two raised platforms flanking the start so High Ground is always nearby.
+	if dungeon_manager:
+		dungeon_manager.build_high_ground(start_cell + Vector2i(5, -1), 1, 1)
+		dungeon_manager.build_high_ground(start_cell + Vector2i(-4, 3), 2, 1)
+		_sync_dungeon_blocked_tiles()
+
+	_sandbox_refill()
+
+	sandbox_ui = SandboxUI.new()
+	sandbox_ui.name = "SandboxUI"
+	add_child(sandbox_ui)
+	sandbox_ui.add_card_requested.connect(_on_sandbox_add_card)
+	sandbox_ui.spawn_enemy_requested.connect(_on_sandbox_spawn_enemy)
+	sandbox_ui.clear_enemies_requested.connect(_on_sandbox_clear_enemies)
+	sandbox_ui.refill_requested.connect(_sandbox_refill)
+	sandbox_ui.open()
+	add_battle_log("Sandbox mode: use the panel (top-right) to add cards and spawn enemies.", Color(0.7, 0.85, 1.0))
+
+func _sandbox_refill() -> void:
+	var s = player.get_stats()
+	if s:
+		s.max_health = maxi(s.max_health, 200)
+		s.current_health = s.max_health
+		s.max_mana = maxi(s.max_mana, 20)
+		s.current_mana = s.max_mana
+		s.health_changed.emit(s.current_health, s.max_health)
+		s.mana_changed.emit(s.current_mana, s.max_mana)
+
+func _on_sandbox_add_card(card_id: String) -> void:
+	var card = deck_manager._create_card_from_id(card_id)
+	if card == null:
+		add_battle_log("Sandbox: couldn't create '%s'." % card_id, Color(1.0, 0.5, 0.4))
+		return
+	deck_manager.hand.append(card)
+	deck_manager.hand_updated.emit()
+	add_battle_log("Sandbox: added %s to hand." % card.card_name, Color(0.5, 1.0, 0.6))
+
+func _on_sandbox_spawn_enemy(enemy_type: int) -> void:
+	## Spawn the chosen enemy on a free tile a few cells in front of the player.
+	var base_cell = grid_manager.world_to_grid(player.position)
+	var spot := _sandbox_free_cell(base_cell)
+	var world = grid_manager.grid_to_world(spot)
+	if dungeon_manager:
+		world.y = dungeon_manager.get_elevation_world_y(spot)
+	var enemy = enemy_spawner.spawn_enemy(enemy_type, world)
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	if enemy:
+		add_battle_log("Sandbox: spawned %s." % enemy.enemy_name, Color(1.0, 0.7, 0.4))
+
+func _sandbox_free_cell(base: Vector2i) -> Vector2i:
+	## Find an unoccupied floor tile near the player, spiralling outward.
+	var occupied: Dictionary = {}
+	for e in enemy_spawner.get_living_enemies():
+		occupied[grid_manager.world_to_grid(e.position)] = true
+	occupied[grid_manager.world_to_grid(player.position)] = true
+	for r in range(2, 8):
+		for dx in range(-r, r + 1):
+			for dz in range(-r, r + 1):
+				var c := base + Vector2i(dx, dz)
+				if occupied.has(c):
+					continue
+				if c.x < 0 or c.x >= grid_manager.grid_width or c.y < 0 or c.y >= grid_manager.grid_height:
+					continue
+				if player.blocked_tiles.has(c):
+					continue
+				return c
+	return base + Vector2i(3, 0)
+
+func _on_sandbox_clear_enemies() -> void:
+	enemy_spawner.clear_enemies()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("Sandbox: cleared all enemies.", Color(0.8, 0.8, 0.85))
 
 # ---- Co-op locked-in (batched) card play ----
 

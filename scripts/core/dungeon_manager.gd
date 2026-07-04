@@ -921,6 +921,40 @@ func _set_elevation_rect(rect: Rect2i, elev: int) -> void:
 			if grid[x][z] == Tile.FLOOR:
 				elevation[x][z] = elev
 
+func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> void:
+	## Sandbox helper: carve a walkable raised platform centred on `center`. Tiles
+	## are forced to FLOOR, given elevation `elev` (so the player glides up onto
+	## them and gets the High Ground bonus), and a raised slab + cliff sides are
+	## rendered so the platform is visible.
+	var pal = get_palette()
+	for x in range(center.x - radius, center.x + radius + 1):
+		for z in range(center.y - radius, center.y + radius + 1):
+			if x < 0 or x >= GRID_W or z < 0 or z >= GRID_H:
+				continue
+			grid[x][z] = Tile.FLOOR
+			elevation[x][z] = elev
+			var h: float = elev * ELEV_STEP
+			# Cliff body up to just under the top, then a lit top surface.
+			var cliff := MeshInstance3D.new()
+			var cb := BoxMesh.new()
+			cb.size = Vector3(1.0, h, 1.0)
+			cliff.mesh = cb
+			cliff.position = Vector3(x + 0.5, h / 2.0, z + 0.5)
+			var cm := StandardMaterial3D.new()
+			cm.albedo_color = pal.get("cliff", Color(0.4, 0.38, 0.34))
+			cliff.material_override = cm
+			_visuals_root.add_child(cliff)
+			var top := MeshInstance3D.new()
+			var tb := BoxMesh.new()
+			tb.size = Vector3(1.0, 0.08, 1.0)
+			top.mesh = tb
+			top.position = Vector3(x + 0.5, h - 0.04, z + 0.5)
+			var tm := StandardMaterial3D.new()
+			tm.albedo_color = pal.get("floor_a", Color(0.5, 0.5, 0.45)).lightened(0.14)
+			top.material_override = tm
+			_visuals_root.add_child(top)
+
+
 func get_elevation(grid_pos: Vector2i) -> int:
 	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
 		return 0

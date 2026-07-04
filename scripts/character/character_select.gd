@@ -292,8 +292,19 @@ func _handle_singleplayer_proceed() -> void:
 	if game_mode == "roguelike":
 		_launch_roguelike(_selected_character)
 		return
+	if game_mode == "sandbox":
+		_launch_sandbox(_selected_character)
+		return
 	# Show the mode select (Town vs Fight) as a second confirmation
 	_show_mode_select()
+
+func _launch_sandbox(character: CharacterData) -> void:
+	print("[SELECT] Starting sandbox as %s" % character.character_name)
+	var main_scene = load("res://scenes/core/main.tscn").instantiate()
+	main_scene.starting_character = character
+	main_scene.sandbox_mode = true
+	get_tree().root.add_child(main_scene)
+	queue_free()
 
 func _launch_roguelike(character: CharacterData) -> void:
 	print("[SELECT] Starting roguelike run as %s" % character.character_name)
