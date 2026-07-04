@@ -3,12 +3,12 @@ extends PanelContainer
 
 ## Visual display for a single buff
 
-@onready var icon_rect: ColorRect = $IconRect
-@onready var name_label: Label = $VBox/NameLabel
-@onready var duration_label: Label = $VBox/DurationLabel
+const BADGE := 30  # px — a small round badge
 
 var buff: Buff
 var _glyph_rect: TextureRect = null
+var _count_label: Label = null
+var _built: bool = false
 
 func setup(b: Buff) -> void:
 	buff = b
@@ -17,38 +17,81 @@ func setup(b: Buff) -> void:
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-func _glyph() -> TextureRect:
-	## Pixel-art badge drawn behind the labels (created on first use).
-	if _glyph_rect and is_instance_valid(_glyph_rect):
-		return _glyph_rect
+func _build_badge() -> void:
+	## A compact round badge: type-coloured circle, glyph, and an xN count.
+	if _built:
+		return
+	_built = true
+	# Drop the old name/duration card layout from the scene.
+	for child in get_children():
+		child.queue_free()
+	custom_minimum_size = Vector2(BADGE, BADGE)
+	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var holder := Control.new()
+	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(holder)
 	_glyph_rect = TextureRect.new()
 	_glyph_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_glyph_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_glyph_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_glyph_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_glyph_rect.offset_left = 3
+	_glyph_rect.offset_top = 2
+	_glyph_rect.offset_right = -3
+	_glyph_rect.offset_bottom = -4
 	_glyph_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_rect.add_child(_glyph_rect)
-	icon_rect.move_child(_glyph_rect, 0)
-	return _glyph_rect
+	holder.add_child(_glyph_rect)
+	# xN count pinned to the bottom-right corner.
+	_count_label = Label.new()
+	_count_label.add_theme_font_size_override("font_size", 11)
+	_count_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	_count_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	_count_label.add_theme_constant_override("outline_size", 4)
+	_count_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_count_label.offset_left = -18
+	_count_label.offset_top = -14
+	_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_count_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(_count_label)
+
+func _badge_count() -> int:
+	## The number shown as xN: charges for charge-based, else stacks, else -1.
+	if buff.is_charge_based() and buff.charges > 0:
+		return buff.charges
+	if buff.stacks > 1:
+		return buff.stacks
+	return -1
 
 func update_display() -> void:
 	if not buff:
 		return
+	_build_badge()
 
-	if icon_rect:
-		var tex := StatusIcons.get_icon(buff.buff_name)
-		if tex:
-			# Badge glyph over a darkened tint of the buff colour.
-			icon_rect.color = buff.get_icon_color().darkened(0.62)
-			_glyph().texture = tex
-		else:
-			icon_rect.color = buff.get_icon_color()
+	# Round badge tinted by the buff colour, glyph on top.
+	var col := buff.get_icon_color()
+	var style := StyleBoxFlat.new()
+	style.bg_color = col.darkened(0.5)
+	style.border_color = col
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	var r := BADGE / 2
+	style.corner_radius_top_left = r
+	style.corner_radius_top_right = r
+	style.corner_radius_bottom_left = r
+	style.corner_radius_bottom_right = r
+	add_theme_stylebox_override("panel", style)
 
-	if name_label:
-		name_label.text = buff.buff_name
+	var tex := StatusIcons.get_icon(buff.buff_name)
+	_glyph_rect.texture = tex
+	_glyph_rect.visible = tex != null
 
-	if duration_label:
-		duration_label.text = buff.get_duration_display()
+	var n := _badge_count()
+	_count_label.text = ("x%d" % n) if n > 0 else ""
 
 	tooltip_text = buff.buff_name
 

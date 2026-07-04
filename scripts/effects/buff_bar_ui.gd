@@ -1,7 +1,7 @@
 class_name BuffBarUI
-extends VBoxContainer
+extends HBoxContainer
 
-## Displays all active buffs on a character
+## Displays all active buffs on a character as a row of small badges.
 
 const BuffIconScene = preload("res://scenes/effects/buff_icon_ui.tscn")
 

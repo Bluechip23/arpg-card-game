@@ -540,14 +540,14 @@ func _update_hand_hover() -> void:
 
 	var mouse_pos = hand_container.get_local_mouse_position()
 
-	# Expanded detection area - generous vertical padding for easier targeting.
-	# The top pad covers a hovered card's lift so the cursor can move up onto
-	# the raised card without the hover dropping.
+	# Hover hitbox matches the card's visible footprint: the cards rest with
+	# their top at the band top and run down to (and below) the band bottom, so
+	# the trigger is the band's own height — no tall padding above it.
 	var in_bounds = (
-		mouse_pos.y >= -100.0 and
-		mouse_pos.y <= hand_container.size.y + 10.0 and
-		mouse_pos.x >= -20.0 and
-		mouse_pos.x <= hand_container.size.x + 20.0
+		mouse_pos.y >= -4.0 and
+		mouse_pos.y <= hand_container.size.y and
+		mouse_pos.x >= -10.0 and
+		mouse_pos.x <= hand_container.size.x + 10.0
 	)
 
 	if not in_bounds:
