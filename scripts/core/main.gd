@@ -102,6 +102,8 @@ var _card_play_animating: bool = false        # Block input during card play ani
 # Enemy loot drops lying on the ground, waiting to be picked up.
 # Each entry: {"node": Node3D, "cell": Vector2i, "loot": Dictionary}
 var _loot_drops: Array = []
+var _loot_tooltip: PanelContainer = null
+var _loot_tooltip_label: Label = null
 
 # Chest loot modal state
 var _chest_modal: PanelContainer = null
@@ -472,6 +474,7 @@ func _process(delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
 	_update_damage_preview()
+	_update_loot_hover()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
@@ -505,9 +508,12 @@ func _update_hand_hover() -> void:
 
 	var mouse_pos = hand_container.get_local_mouse_position()
 
-	# Expanded detection area - generous vertical padding for easier targeting
+	# Expanded detection area - generous vertical padding for easier targeting.
+	# While a card is lifted (hovered) the pad grows so the mouse can follow it
+	# up to the fully revealed card without the hover flickering off.
+	var top_pad := 40.0 if _current_hand_hover_index == -1 else 180.0
 	var in_bounds = (
-		mouse_pos.y >= -30.0 and
+		mouse_pos.y >= -top_pad and
 		mouse_pos.y <= hand_container.size.y + 10.0 and
 		mouse_pos.x >= -20.0 and
 		mouse_pos.x <= hand_container.size.x + 20.0
@@ -521,7 +527,7 @@ func _update_hand_hover() -> void:
 	# Find closest card by center X position
 	var best_index = -1
 	var best_dist = INF
-	var card_half_width = 60.0  # 120 / 2
+	var card_half_width = 75.0  # 150 / 2
 
 	for i in range(_card_ui_instances.size()):
 		var card_ui = _card_ui_instances[i]
@@ -3708,8 +3714,8 @@ func _on_hand_updated() -> void:
 		update_card_highlights()
 		return
 
-	var card_width: float = 120.0
-	var card_height: float = 160.0
+	var card_width: float = 150.0
+	var card_height: float = 210.0
 	var container_width: float = hand_container.size.x
 	if container_width <= 0:
 		container_width = 1080.0  # fallback
@@ -3729,9 +3735,9 @@ func _on_hand_updated() -> void:
 	# Center the hand
 	var total_hand_width = card_width + spacing * max(hand_size - 1, 0)
 	var start_x = (container_width - total_hand_width) / 2.0
-	var card_y = (hand_container.size.y - card_height) / 2.0
-	if card_y < 0:
-		card_y = 0.0
+	# Cards rest half-tucked below the screen edge — only the top half pokes
+	# up. Hovering a card lifts it fully into view (see CardUI.HOVER_LIFT).
+	var card_y = hand_container.size.y - card_height * 0.5
 
 	# Fan rotation: slight arc for cards in hand
 	var max_fan_angle: float = 3.0  # Max degrees for outermost card
@@ -7446,6 +7452,86 @@ func _clear_loot_drops() -> void:
 		if is_instance_valid(entry["node"]):
 			entry["node"].queue_free()
 	_loot_drops.clear()
+	if _loot_tooltip:
+		_loot_tooltip.visible = false
+
+func _loot_summary(loot: Dictionary) -> String:
+	var parts: Array[String] = []
+	var gold = int(loot.get("gold", 0))
+	if gold > 0:
+		parts.append("+%d Gold" % gold)
+	var stones = int(loot.get("culling_stones", 0))
+	if stones > 0:
+		parts.append("+%d Culling Stone%s" % [stones, "s" if stones > 1 else ""])
+	var item: ItemData = loot.get("item")
+	if item:
+		parts.append("Item: %s" % item.item_name)
+	var card: Card = loot.get("card")
+	if card:
+		parts.append("Card: %s" % card.card_name)
+	return "\n".join(parts)
+
+## Hovering a loot pile shows what's inside it (called every frame from
+## _process; cheap — bails immediately unless loot exists on the ground).
+func _update_loot_hover() -> void:
+	if _loot_drops.is_empty():
+		if _loot_tooltip:
+			_loot_tooltip.visible = false
+		return
+	var mouse_world = get_mouse_world_position()
+	var hovered: Dictionary = {}
+	if mouse_world != Vector3.ZERO:
+		var cell: Vector2i = grid_manager.world_to_grid(mouse_world)
+		for entry in _loot_drops:
+			if entry["cell"] == cell:
+				hovered = entry
+				break
+	if hovered.is_empty():
+		if _loot_tooltip:
+			_loot_tooltip.visible = false
+		return
+	_ensure_loot_tooltip()
+	_loot_tooltip_label.text = "Loot (walk over to pick up)\n" + _loot_summary(hovered["loot"])
+	_loot_tooltip.visible = true
+	# Beside the cursor, kept on screen
+	var mouse_pos = get_viewport().get_mouse_position()
+	_loot_tooltip.reset_size()
+	var pos = mouse_pos + Vector2(18, -12)
+	var screen = get_viewport().get_visible_rect().size
+	if pos.x + _loot_tooltip.size.x > screen.x:
+		pos.x = mouse_pos.x - _loot_tooltip.size.x - 12
+	if pos.y + _loot_tooltip.size.y > screen.y:
+		pos.y = screen.y - _loot_tooltip.size.y - 8
+	_loot_tooltip.position = pos
+
+func _ensure_loot_tooltip() -> void:
+	if _loot_tooltip and is_instance_valid(_loot_tooltip):
+		return
+	var ui = $UI as CanvasLayer
+	_loot_tooltip = PanelContainer.new()
+	_loot_tooltip.name = "LootTooltip"
+	_loot_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.09, 0.06, 0.94)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.85, 0.7, 0.3)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	_loot_tooltip.add_theme_stylebox_override("panel", style)
+	_loot_tooltip_label = Label.new()
+	_loot_tooltip_label.add_theme_font_size_override("font_size", 14)
+	_loot_tooltip_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
+	_loot_tooltip.add_child(_loot_tooltip_label)
+	ui.add_child(_loot_tooltip)
 
 func _collect_loot(loot: Dictionary, looter: Player) -> void:
 	## Apply a loot bundle to the player who picked it up.
