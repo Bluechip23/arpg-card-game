@@ -34,13 +34,10 @@ var _select_tween: Tween = null
 var _is_animating_out: bool = false  # True while play/discard animation runs
 
 const KEYBIND_LABELS = ["A", "S", "D", "F", "G", "Q", "W", "E", "R", "T", "Z", "X", "C", "V", "B"]
-# Cards rest half-tucked below the screen edge; hovering lifts the whole card
-# into view, selecting lifts it a touch higher still.
 const CARD_W: float = 150.0
 const CARD_H: float = 210.0
-const TUCK_RATIO: float = 0.5          # fraction of the card hidden at rest
-const HOVER_LIFT: float = CARD_H * TUCK_RATIO + 14.0
-const SELECT_LIFT: float = CARD_H * TUCK_RATIO + 32.0
+const HOVER_LIFT: float = 18.0
+const SELECT_LIFT: float = 44.0
 const TWEEN_DURATION: float = 0.12
 
 # MtG-style frame colour per card type (border, title/type bars, art tint).
