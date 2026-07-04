@@ -42,7 +42,7 @@ extends Node3D
 
 var dungeon_manager: DungeonManager = null
 var unit_tracker: UnitTrackerUI = null
-var enemy_inspect_ui: EnemyInspectUI = null
+var enemy_inspect_ui = null          # EnemyInspectUI (preloaded; untyped to avoid class-cache dependency)
 var quest_manager: QuestManager = null
 var progression_triggers: ProgressionTriggers = null
 var chest_loot_ui: ChestLootUI = null
@@ -120,6 +120,11 @@ const BATTLE_LOG_MAX_LINES: int = 50
 
 const GauntletSkillUIScene = preload("res://scenes/cards/gauntlet_skill_ui.tscn")
 const CardUIScene = preload("res://scenes/cards/card_ui.tscn")
+# Preloaded so main.gd doesn't depend on these newer class_names being present
+# in Godot's global class cache (avoids "Could not find type" on first run).
+const SandboxUIScript = preload("res://scripts/ui/sandbox_ui.gd")
+const HudIconBarScript = preload("res://scripts/ui/hud_icon_bar.gd")
+const EnemyInspectUIScript = preload("res://scripts/ui/enemy_inspect_ui.gd")
 
 const CARD_KEYS = [
 	KEY_A, KEY_S, KEY_D, KEY_F, KEY_G,
@@ -133,8 +138,8 @@ var starting_character: CharacterData = null
 var player2_character: CharacterData = null
 var is_multiplayer: bool = false
 var sandbox_mode: bool = false      # Free-play arena launched from the Sandbox menu
-var sandbox_ui: SandboxUI = null
-var hud_icon_bar: HudIconBar = null  # Top-right icon bar (character / EXP / quest / help)
+var sandbox_ui = null                # SandboxUI (preloaded; untyped to avoid class-cache dependency)
+var hud_icon_bar = null              # HudIconBar — top-right icon bar (character / EXP / quest / help)
 var _quest_notify: bool = false      # A quest was added/updated/completed since last opened
 
 # Roguelike battle hand-off. When non-empty, this main scene was launched by the
@@ -2281,7 +2286,7 @@ func _setup_hud_icon_bar() -> void:
 	## same windows the keyboard shortcuts do; the EXP and Quest icons carry a
 	## yellow dot when there's something to attend to.
 	var ui = $UI as CanvasLayer
-	hud_icon_bar = HudIconBar.new()
+	hud_icon_bar = HudIconBarScript.new()
 	hud_icon_bar.name = "HudIconBar"
 	ui.add_child(hud_icon_bar)
 	hud_icon_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -2361,7 +2366,7 @@ func _setup_unit_tracker() -> void:
 	unit_tracker.offset_bottom = 250.0
 
 	# Inspect panel: opens beside the tracker when an enemy square is clicked.
-	enemy_inspect_ui = EnemyInspectUI.new()
+	enemy_inspect_ui = EnemyInspectUIScript.new()
 	enemy_inspect_ui.name = "EnemyInspect"
 	ui.add_child(enemy_inspect_ui)
 	enemy_inspect_ui.set_anchors_preset(Control.PRESET_CENTER_LEFT)
@@ -2706,7 +2711,7 @@ func _setup_sandbox() -> void:
 
 	_sandbox_refill()
 
-	sandbox_ui = SandboxUI.new()
+	sandbox_ui = SandboxUIScript.new()
 	sandbox_ui.name = "SandboxUI"
 	add_child(sandbox_ui)
 	sandbox_ui.add_card_requested.connect(_on_sandbox_add_card)
