@@ -3469,6 +3469,38 @@ func is_floor(grid_pos: Vector2i) -> bool:
 		return false
 	return grid[grid_pos.x][grid_pos.y] == Tile.FLOOR
 
+func has_line_of_sight(a: Vector2i, b: Vector2i) -> bool:
+	## True if no wall sits between cells `a` and `b`. Walks the grid line with a
+	## supercover DDA so attacks can't fire diagonally through a wall corner.
+	## The endpoints themselves are never treated as blockers.
+	var dx := absi(b.x - a.x)
+	var dy := absi(b.y - a.y)
+	var x := a.x
+	var y := a.y
+	var sx := 1 if b.x > a.x else -1
+	var sy := 1 if b.y > a.y else -1
+	var err := dx - dy
+	var guard := 0
+	while (x != b.x or y != b.y) and guard < 256:
+		guard += 1
+		var e2 := 2 * err
+		if e2 > -dy:
+			err -= dy
+			x += sx
+		elif e2 < dx:
+			err += dx
+			y += sy
+		else:
+			err -= dy
+			err += dx
+			x += sx
+			y += sy
+		if x == b.x and y == b.y:
+			break
+		if is_wall(Vector2i(x, y)):
+			return false
+	return true
+
 func get_wall_tiles() -> Array[Vector2i]:
 	## Returns all wall tiles (for pathfinding blocked tiles).
 	var tiles: Array[Vector2i] = []

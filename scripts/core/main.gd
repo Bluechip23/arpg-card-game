@@ -540,14 +540,14 @@ func _update_hand_hover() -> void:
 
 	var mouse_pos = hand_container.get_local_mouse_position()
 
-	# Expanded detection area - generous vertical padding for easier targeting.
-	# The top pad covers a hovered card's lift so the cursor can move up onto
-	# the raised card without the hover dropping.
+	# Hover hitbox matches the card's visible footprint: the cards rest with
+	# their top at the band top and run down to (and below) the band bottom, so
+	# the trigger is the band's own height — no tall padding above it.
 	var in_bounds = (
-		mouse_pos.y >= -100.0 and
-		mouse_pos.y <= hand_container.size.y + 10.0 and
-		mouse_pos.x >= -20.0 and
-		mouse_pos.x <= hand_container.size.x + 20.0
+		mouse_pos.y >= -4.0 and
+		mouse_pos.y <= hand_container.size.y and
+		mouse_pos.x >= -10.0 and
+		mouse_pos.x <= hand_container.size.x + 10.0
 	)
 
 	if not in_bounds:
@@ -2457,7 +2457,7 @@ func select_character(character: CharacterData) -> void:
 	if player.get_inventory():
 		player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(player))
 
-	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager)
+	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 
 
 	deck_manager.initialize_deck(character)
@@ -3290,6 +3290,10 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	# Give enemy a reference to dungeon_manager for elevation lookups
 	if dungeon_manager:
 		enemy.dungeon_manager = dungeon_manager
+	# Walls/pits/barricades/trees this enemy must not walk through. Without this
+	# a freshly-spawned enemy has an empty list and clips through structures.
+	if grid_manager:
+		enemy.blocked_tiles = _enemy_blocked_tiles()
 	# Smooth terrain-following Y (elevation, pillars)
 	enemy.ground_y_provider = Callable(self, "_desired_ground_y")
 	# Snap initial Y position to terrain elevation
@@ -5388,6 +5392,12 @@ func _get_distance_to_target(target) -> int:
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node3D:
 		return true
+	# Can't hit an enemy through a wall — needs clear line of sight.
+	if target is Enemy and dungeon_manager and grid_manager:
+		var from_cell = grid_manager.world_to_grid(player.position)
+		var to_cell = grid_manager.world_to_grid(target.position)
+		if not dungeon_manager.has_line_of_sight(from_cell, to_cell):
+			return false
 	var diff = player.position - target.position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	var distance_tiles = flat_dist / grid_manager.grid_size
@@ -5449,6 +5459,10 @@ func _play_card_animation(card: Card, target) -> void:
 	var dir = _facing_dir_toward(target)
 	# Card defines its own animation action (shared with the Animation Lab)
 	player.play_animation(card.get_animation_action(), dir)
+	# Then aim precisely at the target so the attack lines up (the cardinal
+	# `dir` above only feeds animations that key off a 4-way facing).
+	if target and target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
+		player.face_toward(target.position)
 	# Worms Armageddon: only burst the Alaskan Bull Worm when its 10% summon hits.
 	if card.card_id == "worms_armageddon" and card.rng_binary_succeeded() and player.has_method("show_worm_summon"):
 		player.show_worm_summon()
@@ -6249,9 +6263,8 @@ func _setup_dungeon() -> void:
 
 	print("[MAIN] Dungeon initialized (%s), player at %s" % [get_location_label(), start_pos])
 
-func _sync_dungeon_blocked_tiles() -> void:
-	## Combines dungeon walls + barricades + pits for pathfinding. Forest tree
-	## trunks additionally block enemies (the player may climb them).
+func _player_blocked_tiles() -> Array[Vector2i]:
+	## Walls + pits + barricades — impassable for the player.
 	var tiles: Array[Vector2i] = []
 	if dungeon_manager:
 		tiles.append_array(dungeon_manager.get_wall_tiles())
@@ -6259,11 +6272,23 @@ func _sync_dungeon_blocked_tiles() -> void:
 			tiles.append(p)
 	for obs in barricade_obstacles:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
-	player.blocked_tiles = tiles
-	var enemy_tiles := tiles.duplicate()
+	return tiles
+
+func _enemy_blocked_tiles() -> Array[Vector2i]:
+	## Everything the player is blocked by, plus forest tree trunks (the player
+	## may climb those; enemies cannot).
+	var enemy_tiles: Array[Vector2i] = _player_blocked_tiles()
 	if dungeon_manager:
 		for tree in dungeon_manager.tree_nodes:
 			enemy_tiles.append(tree["grid_pos"])
+	return enemy_tiles
+
+func _sync_dungeon_blocked_tiles() -> void:
+	## Combines dungeon walls + barricades + pits for pathfinding. Forest tree
+	## trunks additionally block enemies (the player may climb them).
+	var tiles := _player_blocked_tiles()
+	player.blocked_tiles = tiles
+	var enemy_tiles := _enemy_blocked_tiles()
 	for enemy in enemy_spawner.get_living_enemies():
 		enemy.blocked_tiles = enemy_tiles
 
@@ -7154,20 +7179,11 @@ func _on_donation_cancelled() -> void:
 # ============================================
 
 func _set_player_invisible(invisible: bool) -> void:
-	var mesh_node = player.mesh
-	if not mesh_node:
-		return
-	var mat = mesh_node.get_surface_override_material(0) as StandardMaterial3D
-	if not mat:
-		return
-	if invisible:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color.a = 0.25
-		print("[MAIN] Player is now invisible (transparent)")
-	else:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-		mat.albedo_color.a = 1.0
-		print("[MAIN] Player is no longer invisible")
+	## Fade the actual 3D figure while Invisible is active. (The old code faded
+	## player.mesh — the hidden prototype capsule — so nothing showed on screen.)
+	if player and player.has_method("set_translucent"):
+		player.set_translucent(invisible)
+		print("[MAIN] Player invisibility %s" % ("on (translucent)" if invisible else "off"))
 
 # ============================================
 # BARRICADE OBSTACLES

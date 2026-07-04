@@ -2230,6 +2230,13 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 
 ## Deal damage to the player with attack flash.
 func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String, dmg_type: int = -1) -> void:
+	# Can't hit the player through a wall — a structure between us blocks the blow.
+	if dungeon_manager and grid_manager and is_instance_valid(player_node):
+		var from_cell = grid_manager.world_to_grid(position)
+		var to_cell = grid_manager.world_to_grid(player_node.position)
+		if not dungeon_manager.has_line_of_sight(from_cell, to_cell):
+			print("[%s] %s blocked by a wall!" % [enemy_name, attack_name])
+			return
 	# Default to this enemy's configured element when the caller doesn't override.
 	if dmg_type < 0:
 		dmg_type = damage_type
@@ -3001,13 +3008,13 @@ func _update_status_indicators() -> void:
 	var has_overflow = effects.size() > MAX_VISIBLE_STATUS
 	var total_slots = show_count + (1 if has_overflow else 0)
 
-	var circle_size: float = 0.12
-	var spacing: float = 0.28
+	var circle_size: float = 0.16
+	var spacing: float = 0.3
 	var start_x: float = -(total_slots - 1) * spacing / 2.0
 
 	for i in range(show_count):
 		var eff = effects[i]
-		var node = _create_status_circle(eff["color"], eff["stacks"], circle_size)
+		var node = _create_status_circle(eff["name"], eff["color"], eff["stacks"], circle_size)
 		node.position = Vector3(start_x + i * spacing, 0, 0)
 		_status_container.add_child(node)
 		_status_nodes.append({"node": node})
@@ -3023,33 +3030,55 @@ func _update_status_indicators() -> void:
 		_status_container.add_child(plus_label)
 		_status_nodes.append({"node": plus_label})
 
-func _create_status_circle(color: Color, stacks: int, radius: float) -> Node3D:
-	## Creates a billboard colored circle with a stack count number at the bottom-right.
+func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: float) -> Node3D:
+	## A billboarded badge above the enemy's head: a flat colored quad backing
+	## with the effect's pixel-art glyph on it and a stack count in the corner.
+	## (The old flattened-sphere billboard rendered nearly edge-on, so effects
+	## looked like they weren't showing at all.)
 	var root = Node3D.new()
 
-	# Circle mesh (flat disc facing camera via billboard)
-	var circle_mesh = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
-	sphere.radius = radius
-	sphere.height = radius * 0.3
-	circle_mesh.mesh = sphere
+	# Colored backing — a flat QuadMesh billboards reliably (unlike a squashed
+	# sphere), so the marker is always camera-facing and visible.
+	var bg = MeshInstance3D.new()
+	var quad = QuadMesh.new()
+	quad.size = Vector2(radius * 2.0, radius * 2.0)
+	bg.mesh = quad
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = color
+	mat.albedo_color = color.darkened(0.35)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	circle_mesh.material_override = mat
-	root.add_child(circle_mesh)
+	mat.no_depth_test = true
+	mat.render_priority = 20
+	bg.material_override = mat
+	root.add_child(bg)
 
-	# Stack count label (bottom-right of circle)
-	if stacks > 0:
+	# Glyph on top (flexed arm for Strengthen, snowflake for Cold, etc.).
+	var tex = StatusIcons.get_icon(eff_name)
+	if tex:
+		var sp = Sprite3D.new()
+		sp.texture = tex
+		sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		sp.shaded = false
+		sp.no_depth_test = true
+		sp.render_priority = 21
+		sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		sp.pixel_size = (radius * 1.8) / float(maxi(tex.get_width(), 1))
+		sp.position = Vector3(0, 0, 0.01)
+		root.add_child(sp)
+
+	# Stack count label (bottom-right of the badge)
+	if stacks > 1:
 		var label = Label3D.new()
 		label.text = str(stacks)
-		label.font_size = 16
+		label.font_size = 28
+		label.pixel_size = 0.006
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
+		label.render_priority = 22
 		label.modulate = Color(1, 1, 1)
 		label.outline_modulate = Color(0, 0, 0)
-		label.outline_size = 4
-		label.position = Vector3(radius * 0.6, -radius * 0.5, 0.01)
+		label.outline_size = 8
+		label.position = Vector3(radius * 0.7, -radius * 0.7, 0.02)
 		root.add_child(label)
 
 	return root

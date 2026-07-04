@@ -111,6 +111,17 @@ func play_animation(action: String, direction: CharacterAnimator.Direction = Cha
 	if _figure:
 		_figure.play_action(action, direction)
 
+func face_toward(world_pos: Vector3) -> void:
+	## Aim the figure exactly at a world point (used so attacks line up with the
+	## precise target rather than snapping to a cardinal direction).
+	if _figure:
+		_figure.face_toward(world_pos)
+
+func set_translucent(on: bool) -> void:
+	## Fade the 3D figure to translucent (Invisible buff) or back to solid.
+	if _figure:
+		_figure.set_translucent(on)
+
 func show_armor_gained() -> void:
 	## Pops the overhead armour icon — call whenever armour is gained from any source.
 	if _figure:
