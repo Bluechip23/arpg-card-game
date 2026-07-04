@@ -5459,6 +5459,10 @@ func _play_card_animation(card: Card, target) -> void:
 	var dir = _facing_dir_toward(target)
 	# Card defines its own animation action (shared with the Animation Lab)
 	player.play_animation(card.get_animation_action(), dir)
+	# Then aim precisely at the target so the attack lines up (the cardinal
+	# `dir` above only feeds animations that key off a 4-way facing).
+	if target and target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
+		player.face_toward(target.position)
 	# Worms Armageddon: only burst the Alaskan Bull Worm when its 10% summon hits.
 	if card.card_id == "worms_armageddon" and card.rng_binary_succeeded() and player.has_method("show_worm_summon"):
 		player.show_worm_summon()
@@ -7175,20 +7179,11 @@ func _on_donation_cancelled() -> void:
 # ============================================
 
 func _set_player_invisible(invisible: bool) -> void:
-	var mesh_node = player.mesh
-	if not mesh_node:
-		return
-	var mat = mesh_node.get_surface_override_material(0) as StandardMaterial3D
-	if not mat:
-		return
-	if invisible:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color.a = 0.25
-		print("[MAIN] Player is now invisible (transparent)")
-	else:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-		mat.albedo_color.a = 1.0
-		print("[MAIN] Player is no longer invisible")
+	## Fade the actual 3D figure while Invisible is active. (The old code faded
+	## player.mesh — the hidden prototype capsule — so nothing showed on screen.)
+	if player and player.has_method("set_translucent"):
+		player.set_translucent(invisible)
+		print("[MAIN] Player invisibility %s" % ("on (translucent)" if invisible else "off"))
 
 # ============================================
 # BARRICADE OBSTACLES

@@ -4302,6 +4302,42 @@ func set_facing(direction: int) -> void:
 			_pivot.rotation_degrees.y = -90.0
 
 
+func set_translucent(on: bool, alpha: float = 0.32) -> void:
+	## Fade the whole figure to translucent (Invisible buff) or back to solid.
+	## Applies to every mesh in the model — the real figure, not the hidden
+	## prototype capsule the old invisibility code targeted.
+	if not _built:
+		return
+	_apply_translucency(self, on, alpha)
+
+
+func _apply_translucency(node: Node, on: bool, alpha: float) -> void:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			var m := child.material_override as StandardMaterial3D
+			if m != null:
+				if on:
+					m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					m.albedo_color.a = alpha
+				else:
+					m.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+					m.albedo_color.a = 1.0
+		if child is Node3D:
+			_apply_translucency(child, on, alpha)
+
+
+func face_toward(world_pos: Vector3) -> void:
+	## Turn to face an exact world point (not just the nearest cardinal) so
+	## attacks and casts line up precisely with the target. Models face +Z at
+	## yaw 0, so the yaw toward (dx,dz) is atan2(dx, dz).
+	if not _built or _pivot == null:
+		return
+	var to := world_pos - global_position
+	if Vector2(to.x, to.z).length_squared() < 0.0004:
+		return
+	_pivot.rotation_degrees.y = rad_to_deg(atan2(to.x, to.z))
+
+
 func set_facing_from_velocity(vel: Vector3) -> void:
 	if vel.length_squared() < 0.01:
 		return
