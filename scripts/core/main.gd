@@ -134,6 +134,8 @@ var player2_character: CharacterData = null
 var is_multiplayer: bool = false
 var sandbox_mode: bool = false      # Free-play arena launched from the Sandbox menu
 var sandbox_ui: SandboxUI = null
+var hud_icon_bar: HudIconBar = null  # Top-right icon bar (character / EXP / quest / help)
+var _quest_notify: bool = false      # A quest was added/updated/completed since last opened
 
 # Roguelike battle hand-off. When non-empty, this main scene was launched by the
 # roguelike map to resolve a single encounter. On victory OR death it emits
@@ -369,6 +371,10 @@ func _ready() -> void:
 	skill_tree_ui.option_chosen.connect(progression_triggers._on_skill_tree_option_chosen)
 	skill_tree_ui.auto_grant_claimed.connect(progression_triggers._on_skill_tree_auto_grant_claimed)
 	skill_tree_ui.retrospective_chosen.connect(progression_triggers._on_skill_tree_retrospective_chosen)
+	# Clear the EXP notification dot once a point is actually spent.
+	skill_tree_ui.option_chosen.connect(func(_l, _o): _refresh_hud_notifications())
+	skill_tree_ui.auto_grant_claimed.connect(func(_l): _refresh_hud_notifications())
+	skill_tree_ui.retrospective_chosen.connect(func(_l, _o): _refresh_hud_notifications())
 
 	_setup_action_buttons()
 	_setup_tick_bar()
@@ -420,6 +426,9 @@ func _ready() -> void:
 	# Unit tracker (left side panel)
 	_setup_unit_tracker()
 
+	# HUD icon bar (character / EXP / quest journal / help)
+	_setup_hud_icon_bar()
+
 	# Initialize dungeon
 	_setup_dungeon()
 	_update_enemy_count()
@@ -437,6 +446,18 @@ func _ready() -> void:
 	# Sandbox: open the card/enemy control panel and raise some high ground.
 	if sandbox_mode:
 		_setup_sandbox()
+
+	# HUD notification wiring: light the EXP dot on level-up, the Quest dot on
+	# any quest activity. Initial state reflects any already-pending choices.
+	if player and player.get_stats():
+		if not player.get_stats().leveled_up.is_connected(_on_leveled_up_notify):
+			player.get_stats().leveled_up.connect(_on_leveled_up_notify)
+	if quest_manager:
+		if not quest_manager.quest_accepted.is_connected(_on_quest_activity_id):
+			quest_manager.quest_accepted.connect(_on_quest_activity_id)
+			quest_manager.quest_updated.connect(_on_quest_activity_upd)
+			quest_manager.quest_completed.connect(_on_quest_activity_id)
+	_refresh_hud_notifications()
 
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
@@ -2254,6 +2275,76 @@ func _on_ring_triggered_visual(_ring: ItemData, _effect: String, owner_player: P
 func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
 	_update_block_button_visibility()
+
+func _setup_hud_icon_bar() -> void:
+	## Top-right icon bar replacing the old I/L/H text hints. Buttons open the
+	## same windows the keyboard shortcuts do; the EXP and Quest icons carry a
+	## yellow dot when there's something to attend to.
+	var ui = $UI as CanvasLayer
+	hud_icon_bar = HudIconBar.new()
+	hud_icon_bar.name = "HudIconBar"
+	ui.add_child(hud_icon_bar)
+	hud_icon_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	hud_icon_bar.offset_left = -300.0
+	hud_icon_bar.offset_top = 8.0
+	hud_icon_bar.offset_right = -8.0
+	hud_icon_bar.offset_bottom = 46.0
+	hud_icon_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	hud_icon_bar.alignment = BoxContainer.ALIGNMENT_END
+	hud_icon_bar.character_pressed.connect(func(): character_panel.toggle_panel())
+	hud_icon_bar.level_pressed.connect(func(): skill_tree_ui.toggle_panel(); _refresh_hud_notifications())
+	hud_icon_bar.quest_pressed.connect(_on_hud_quest_pressed)
+	hud_icon_bar.help_pressed.connect(_on_hud_help_pressed)
+
+func _on_hud_quest_pressed() -> void:
+	minimap_tab_ui.open_quest_log()
+	_quest_notify = false
+	_refresh_hud_notifications()
+
+func _on_hud_help_pressed() -> void:
+	if help_panel.visible:
+		help_panel.visible = false
+		help_panel.closed.emit()
+	else:
+		help_panel.show_panel(0)
+
+func _skill_tree_has_pending() -> bool:
+	## True when the player has an unspent skill-tree choice at or below their
+	## current level (a level-up point waiting to be spent).
+	if not skill_tree_ui or not skill_tree_ui.skill_tree or not player:
+		return false
+	var stats = player.get_stats()
+	if not stats:
+		return false
+	var tree = skill_tree_ui.skill_tree
+	var lvl: int = stats.current_level
+	for row in tree.get_rows_up_to_level(lvl):
+		if not row.is_chosen():
+			return true
+	return tree.get_pending_retro_level(lvl) > 0
+
+func _refresh_hud_notifications() -> void:
+	if not hud_icon_bar:
+		return
+	hud_icon_bar.set_level_notify(_skill_tree_has_pending())
+	hud_icon_bar.set_quest_notify(_quest_notify)
+
+func _on_quest_activity() -> void:
+	## A quest was accepted/updated/completed — flag the journal icon.
+	_quest_notify = true
+	_refresh_hud_notifications()
+
+# Signal-shape adapters (quest signals carry args; the level one carries a level).
+func _on_quest_activity_id(_id: String) -> void:
+	_on_quest_activity()
+
+func _on_quest_activity_upd(_id: String, _cur: int, _req: int) -> void:
+	_on_quest_activity()
+
+func _on_leveled_up_notify(_new_level: int) -> void:
+	if skill_tree_ui:
+		skill_tree_ui.set_player_level(_new_level)
+	_refresh_hud_notifications()
 
 func _setup_unit_tracker() -> void:
 	var ui = $UI as CanvasLayer
