@@ -3290,6 +3290,10 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	# Give enemy a reference to dungeon_manager for elevation lookups
 	if dungeon_manager:
 		enemy.dungeon_manager = dungeon_manager
+	# Walls/pits/barricades/trees this enemy must not walk through. Without this
+	# a freshly-spawned enemy has an empty list and clips through structures.
+	if grid_manager:
+		enemy.blocked_tiles = _enemy_blocked_tiles()
 	# Smooth terrain-following Y (elevation, pillars)
 	enemy.ground_y_provider = Callable(self, "_desired_ground_y")
 	# Snap initial Y position to terrain elevation
@@ -5388,6 +5392,12 @@ func _get_distance_to_target(target) -> int:
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node3D:
 		return true
+	# Can't hit an enemy through a wall — needs clear line of sight.
+	if target is Enemy and dungeon_manager and grid_manager:
+		var from_cell = grid_manager.world_to_grid(player.position)
+		var to_cell = grid_manager.world_to_grid(target.position)
+		if not dungeon_manager.has_line_of_sight(from_cell, to_cell):
+			return false
 	var diff = player.position - target.position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	var distance_tiles = flat_dist / grid_manager.grid_size
@@ -6249,9 +6259,8 @@ func _setup_dungeon() -> void:
 
 	print("[MAIN] Dungeon initialized (%s), player at %s" % [get_location_label(), start_pos])
 
-func _sync_dungeon_blocked_tiles() -> void:
-	## Combines dungeon walls + barricades + pits for pathfinding. Forest tree
-	## trunks additionally block enemies (the player may climb them).
+func _player_blocked_tiles() -> Array[Vector2i]:
+	## Walls + pits + barricades — impassable for the player.
 	var tiles: Array[Vector2i] = []
 	if dungeon_manager:
 		tiles.append_array(dungeon_manager.get_wall_tiles())
@@ -6259,11 +6268,23 @@ func _sync_dungeon_blocked_tiles() -> void:
 			tiles.append(p)
 	for obs in barricade_obstacles:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
-	player.blocked_tiles = tiles
-	var enemy_tiles := tiles.duplicate()
+	return tiles
+
+func _enemy_blocked_tiles() -> Array[Vector2i]:
+	## Everything the player is blocked by, plus forest tree trunks (the player
+	## may climb those; enemies cannot).
+	var enemy_tiles: Array[Vector2i] = _player_blocked_tiles()
 	if dungeon_manager:
 		for tree in dungeon_manager.tree_nodes:
 			enemy_tiles.append(tree["grid_pos"])
+	return enemy_tiles
+
+func _sync_dungeon_blocked_tiles() -> void:
+	## Combines dungeon walls + barricades + pits for pathfinding. Forest tree
+	## trunks additionally block enemies (the player may climb them).
+	var tiles := _player_blocked_tiles()
+	player.blocked_tiles = tiles
+	var enemy_tiles := _enemy_blocked_tiles()
 	for enemy in enemy_spawner.get_living_enemies():
 		enemy.blocked_tiles = enemy_tiles
 

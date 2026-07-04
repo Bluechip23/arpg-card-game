@@ -2230,6 +2230,13 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 
 ## Deal damage to the player with attack flash.
 func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String, dmg_type: int = -1) -> void:
+	# Can't hit the player through a wall — a structure between us blocks the blow.
+	if dungeon_manager and grid_manager and is_instance_valid(player_node):
+		var from_cell = grid_manager.world_to_grid(position)
+		var to_cell = grid_manager.world_to_grid(player_node.position)
+		if not dungeon_manager.has_line_of_sight(from_cell, to_cell):
+			print("[%s] %s blocked by a wall!" % [enemy_name, attack_name])
+			return
 	# Default to this enemy's configured element when the caller doesn't override.
 	if dmg_type < 0:
 		dmg_type = damage_type
