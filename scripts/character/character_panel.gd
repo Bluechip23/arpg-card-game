@@ -397,7 +397,7 @@ func _rebuild_combat_rows() -> void:
 
 
 func _damage_taken_text() -> String:
-	var s := _effect_scores().get("damage_taken", 0)
+	var s: int = _effect_scores().get("damage_taken", 0)
 	if s > 0:
 		return "reduced"
 	elif s < 0:
