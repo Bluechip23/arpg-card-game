@@ -39,6 +39,27 @@ var _card_confirm_popup: PanelContainer = null
 # Live 3D portrait + combat stats section (built on first open)
 var _portrait_fig: CharacterFigure = null
 var _combat_label: Label = null
+var buff_manager = null              # BuffManager (untyped to avoid class-cache dependency)
+var debuff_manager = null            # DebuffManager
+var _combat_rows: VBoxContainer = null      # addressable stat rows (for colour + hover highlight)
+var _stat_rows: Dictionary = {}             # stat key -> {"row": HBoxContainer, "value": Label}
+var _effects_box: VBoxContainer = null      # the ACTIVE EFFECTS list
+
+# Which combat stat each buff/debuff influences (for colouring + hover highlight).
+# A buff contributes a "good" mark, a debuff a "bad" mark; net decides the colour.
+const BUFF_AFFECTS := {
+	"Strengthen": ["attack"], "Enlightened": ["crit"], "Haste": ["movement"],
+	"Smith": ["armor"], "Bolster": ["armor"], "Shield Ready": ["armor"],
+	"Shield of Growth": ["armor"], "Fortify": ["armor"], "Regen": ["hp_regen"],
+	"Focused": ["mana_regen"], "Blessed": ["draw"], "Brace": ["damage_taken"],
+	"Resilient": ["damage_taken"],
+}
+const DEBUFF_AFFECTS := {
+	"Slowed": ["movement"], "Rooted": ["movement"], "Cursed": ["attack"],
+	"Staggered": ["attack"], "Weighted": ["attack"], "Blind": ["attack"],
+	"Wear Down": ["attack"], "Exposed": ["armor"], "Brittle": ["armor"],
+	"Cuffed": ["draw"], "Drain": ["mana_regen"], "Vulnerable": ["damage_taken"],
+}
 
 # The inventory half of the panel, split into its own window (see
 # _split_windows): stats/portrait live in `panel`, equipment lives here.
@@ -172,16 +193,22 @@ func _apply_button_styles() -> void:
 	btn_hover.corner_radius_bottom_right = 4
 	close_button.add_theme_stylebox_override("hover", btn_hover)
 
-func connect_stats(stats: PlayerStats, inv: Inventory, dm = null) -> void:
+func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm = null) -> void:
 	player_stats = stats
 	inventory = inv
 	deck_manager = dm
+	buff_manager = bm
+	debuff_manager = ddm
 
 	if player_stats:
 		player_stats.health_changed.connect(_on_stats_changed)
 		player_stats.mana_changed.connect(_on_mana_changed)
 		player_stats.armor_changed.connect(_on_armor_changed)
 		player_stats.stats_updated.connect(_on_stats_changed)
+	if buff_manager and buff_manager.has_signal("buffs_changed"):
+		buff_manager.buffs_changed.connect(_on_stats_changed)
+	if debuff_manager and debuff_manager.has_signal("debuffs_changed"):
+		debuff_manager.debuffs_changed.connect(_on_stats_changed)
 
 	if inventory:
 		inventory.equipment_changed.connect(_on_equipment_changed)
@@ -224,8 +251,10 @@ func update_display() -> void:
 	if derived_label:
 		derived_label.text = _build_derived_stats_text()
 
+	_rebuild_combat_rows()
 	if _combat_label:
-		_combat_label.text = _build_combat_stats_text()
+		_combat_label.text = _build_combat_info_text()
+	_rebuild_effects_list()
 
 	_update_equipment_display()
 
@@ -271,26 +300,169 @@ func _ensure_portrait_and_combat() -> void:
 	cam.position = Vector3(0.25, 1.35, 2.7)
 	cam.look_at_from_position(cam.position, Vector3(0, 0.8, 0), Vector3.UP)
 
-	# Combat section header + label under the core/derived stats
+	# Combat section: addressable stat rows (so buffs/debuffs can tint and the
+	# effects list can highlight individual stats).
 	var stats_container = stats_label.get_parent()
 	var combat_header = _make_section_header("COMBAT")
 	vbox.add_child(combat_header)
 	vbox.move_child(combat_header, stats_container.get_index() + 1)
+	_combat_rows = VBoxContainer.new()
+	_combat_rows.add_theme_constant_override("separation", 1)
+	vbox.add_child(_combat_rows)
+	vbox.move_child(_combat_rows, combat_header.get_index() + 1)
+	# A trailing combat label for the non-highlightable info lines.
 	_combat_label = Label.new()
-	_combat_label.add_theme_font_size_override("font_size", 13)
-	_combat_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	_combat_label.add_theme_font_size_override("font_size", 12)
+	_combat_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.85))
 	vbox.add_child(_combat_label)
-	vbox.move_child(_combat_label, combat_header.get_index() + 1)
+	vbox.move_child(_combat_label, _combat_rows.get_index() + 1)
+
+	# ACTIVE EFFECTS list (buffs green, debuffs red; hover highlights the stat).
+	var eff_header = _make_section_header("ACTIVE EFFECTS")
+	vbox.add_child(eff_header)
+	vbox.move_child(eff_header, _combat_label.get_index() + 1)
+	_effects_box = VBoxContainer.new()
+	_effects_box.add_theme_constant_override("separation", 2)
+	vbox.add_child(_effects_box)
+	vbox.move_child(_effects_box, eff_header.get_index() + 1)
 
 
-func _build_combat_stats_text() -> String:
+func _make_stat_row(key: String, label_text: String) -> void:
+	var row := HBoxContainer.new()
+	var name_lbl := Label.new()
+	name_lbl.text = label_text
+	name_lbl.add_theme_font_size_override("font_size", 13)
+	name_lbl.add_theme_color_override("font_color", Color(0.72, 0.72, 0.78))
+	name_lbl.custom_minimum_size = Vector2(96, 0)
+	row.add_child(name_lbl)
+	var val_lbl := Label.new()
+	val_lbl.add_theme_font_size_override("font_size", 13)
+	row.add_child(val_lbl)
+	_combat_rows.add_child(row)
+	_stat_rows[key] = {"row": row, "value": val_lbl}
+
+
+func _set_stat(key: String, value_text: String) -> void:
+	if _stat_rows.has(key):
+		_stat_rows[key]["value"].text = value_text
+
+
+func _effect_scores() -> Dictionary:
+	## Sum buff (+1) and debuff (-1) influence per stat key from active effects.
+	var scores := {}
+	if buff_manager:
+		for b in buff_manager.buffs:
+			for k in BUFF_AFFECTS.get(b.buff_name, []):
+				scores[k] = scores.get(k, 0) + 1
+	if debuff_manager:
+		for d in debuff_manager.debuffs:
+			for k in DEBUFF_AFFECTS.get(d.debuff_name, []):
+				scores[k] = scores.get(k, 0) - 1
+	return scores
+
+
+func _colour_stat_rows() -> void:
+	## Green when a buff is boosting the stat, red when a debuff hinders it.
+	var scores := _effect_scores()
+	for key in _stat_rows:
+		var val: Label = _stat_rows[key]["value"]
+		var s: int = scores.get(key, 0)
+		if s > 0:
+			val.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+		elif s < 0:
+			val.add_theme_color_override("font_color", Color(1.0, 0.45, 0.45))
+		else:
+			val.add_theme_color_override("font_color", Color(0.9, 0.9, 0.95))
+
+
+func _rebuild_combat_rows() -> void:
+	if _stat_rows.is_empty():
+		_make_stat_row("attack", "Base Attack")
+		_make_stat_row("crit", "Crit Chance")
+		_make_stat_row("movement", "Movement")
+		_make_stat_row("draw", "Card Draw")
+		_make_stat_row("mana_regen", "Mana Regen")
+		_make_stat_row("hp_regen", "HP Regen")
+		_make_stat_row("armor", "Armor Gain")
+		_make_stat_row("damage_taken", "Dmg Taken")
+	_set_stat("attack", "%d" % player_stats.get_effective_physical_damage(0))
+	_set_stat("crit", "%d%%" % (player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit)))
+	_set_stat("movement", "%d / cycle" % player_stats.get_movement_per_cycle())
+	_set_stat("draw", "every %.0f tempo" % player_stats.get_effective_draw_timer())
+	_set_stat("mana_regen", "+%.1f / tempo" % player_stats.get_effective_mana_regen())
+	_set_stat("hp_regen", "+%d / cycle" % player_stats.sphere_bonus_regen)
+	_set_stat("armor", "+%d / cycle" % player_stats.sphere_bonus_armor_per_cycle)
+	_set_stat("damage_taken", _damage_taken_text())
+	_colour_stat_rows()
+
+
+func _damage_taken_text() -> String:
+	var s := _effect_scores().get("damage_taken", 0)
+	if s > 0:
+		return "reduced"
+	elif s < 0:
+		return "increased"
+	return "normal"
+
+
+func _rebuild_effects_list() -> void:
+	if not _effects_box:
+		return
+	for c in _effects_box.get_children():
+		c.queue_free()
+	var any := false
+	if buff_manager:
+		for b in buff_manager.buffs:
+			_add_effect_row(b.buff_name, b.description, Color(0.5, 1.0, 0.6), BUFF_AFFECTS.get(b.buff_name, []))
+			any = true
+	if debuff_manager:
+		for d in debuff_manager.debuffs:
+			_add_effect_row(d.debuff_name, d.description, Color(1.0, 0.5, 0.5), DEBUFF_AFFECTS.get(d.debuff_name, []))
+			any = true
+	if not any:
+		var none := Label.new()
+		none.text = "None"
+		none.add_theme_font_size_override("font_size", 12)
+		none.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
+		_effects_box.add_child(none)
+
+
+func _add_effect_row(eff_name: String, desc: String, colour: Color, affected: Array) -> void:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.tooltip_text = desc
+	var tex := StatusIcons.get_icon(eff_name)
+	if tex:
+		var icon := TextureRect.new()
+		icon.texture = tex
+		icon.custom_minimum_size = Vector2(18, 18)
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(icon)
+	var lbl := Label.new()
+	lbl.text = "  " + eff_name
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", colour)
+	row.add_child(lbl)
+	_effects_box.add_child(row)
+	# Hovering the effect highlights the stat rows it impacts.
+	row.mouse_entered.connect(_highlight_stats.bind(affected, true))
+	row.mouse_exited.connect(_highlight_stats.bind(affected, false))
+
+
+func _highlight_stats(keys: Array, on: bool) -> void:
+	for key in keys:
+		if _stat_rows.has(key):
+			var row: HBoxContainer = _stat_rows[key]["row"]
+			row.modulate = Color(1.5, 1.5, 0.8) if on else Color(1, 1, 1)
+
+
+func _build_combat_info_text() -> String:
+	## The non-highlightable combat notes: resistances + Determination scaling.
+	## (The numeric stat rows above carry the buff/debuff colouring.)
 	var lines: Array[String] = []
-	lines.append("Base Attack  %d (physical)" % player_stats.get_effective_physical_damage(0))
-	lines.append("Movement     %d per cycle" % player_stats.get_movement_per_cycle())
-	lines.append("Card Draw    every %.0f tempo" % player_stats.get_effective_draw_timer())
-	lines.append("Mana Regen   +%.1f per tempo" % player_stats.get_effective_mana_regen())
-	lines.append("HP Regen     +%d per cycle" % player_stats.sphere_bonus_regen)
-	lines.append("Armor Gain   +%d per cycle (decay -%d)" % [player_stats.sphere_bonus_armor_per_cycle, player_stats.armor_decay_per_cycle])
 
 	# Resistance changes, per damage type + blanket reductions
 	var res_parts: Array[String] = []

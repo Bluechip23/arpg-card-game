@@ -2457,7 +2457,7 @@ func select_character(character: CharacterData) -> void:
 	if player.get_inventory():
 		player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(player))
 
-	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager)
+	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 
 
 	deck_manager.initialize_deck(character)
