@@ -174,9 +174,9 @@ func process_turn_end() -> void:
 
 	for buff in buffs:
 		if not buff.is_charge_based():
-			# Poisoned Blood / Elixir are display wrappers; their lifecycle is
-			# driven by the source flags below, not the generic duration tick.
-			if buff.buff_type == Buff.BuffType.POISONED_BLOOD or buff.buff_type == Buff.BuffType.ELIXIR:
+			# Flag-driven display wrappers (Poisoned Blood / Elixir / GENERIC) have
+			# their lifecycle driven by sync_flag_buffs(), not the duration tick.
+			if buff.buff_type == Buff.BuffType.POISONED_BLOOD or buff.buff_type == Buff.BuffType.ELIXIR or buff.buff_type == Buff.BuffType.GENERIC:
 				continue
 			buff_ticked.emit(buff)
 			if buff.tick():
@@ -198,11 +198,13 @@ func process_turn_end() -> void:
 	if expired.size() > 0:
 		buffs_changed.emit()
 
-	# Keep the flag-driven display buffs (Poisoned Blood, Elixir) in sync with
-	# their source state and refresh their shown duration.
-	_sync_flag_buffs()
+	# Keep the flag-driven display buffs in sync with their source state and
+	# refresh their shown duration/count.
+	sync_flag_buffs()
 
-func _sync_flag_buffs() -> void:
+func sync_flag_buffs() -> void:
+	## Surfaces effects that are tracked as raw flags (not real Buffs) as visible
+	## badges. Safe to call any time — it adds/updates/removes to match state.
 	# Poisoned Blood — state lives on this manager.
 	if poisoned_blood_active:
 		var pb = get_buff(Buff.BuffType.POISONED_BLOOD)
@@ -223,6 +225,66 @@ func _sync_flag_buffs() -> void:
 			apply_buff(Buff.create_elixir(max(owner_stats.elixir_tempo, 5), "Elixir"))
 	elif has_buff(Buff.BuffType.ELIXIR):
 		remove_buff(Buff.BuffType.ELIXIR)
+
+	# --- Generic flag effects (raw flags elsewhere, surfaced as display badges) ---
+	var has_stats: bool = owner_stats != null
+
+	# Raged Circulation — +30% healing (owner_stats).
+	var raged_on: bool = has_stats and "healing_boost_percent" in owner_stats and owner_stats.healing_boost_percent > 0.0
+	_sync_generic("raged_circulation", raged_on, "Raged Circulation",
+		"Healing and regen are +%d%% effective" % (int(owner_stats.healing_boost_percent * 100) if has_stats else 30),
+		Color(0.75, 0.18, 0.20), (owner_stats.healing_boost_tempo if has_stats else 0), 1)
+
+	# Understanding — pending auto-crit countdown (this manager).
+	_sync_generic("understanding", understanding_tempo > 0, "Understanding",
+		"Your next attack will critically strike", Color(0.25, 0.66, 0.96), understanding_tempo, 1)
+
+	# Approach — armor gained per tile moved (this manager).
+	var approach_on: bool = approach_armor_per_move > 0 and approach_tempo_remaining > 0
+	_sync_generic("approach", approach_on, "Approach",
+		"+%d armor for every tile you move" % approach_armor_per_move,
+		Color(0.5, 0.55, 0.6), approach_tempo_remaining, 1)
+
+	# Enchanted Quiver — next N ranged attacks spawn a free arrow (charge-based).
+	_sync_generic("enchanted_quiver", enchanted_quiver_charges > 0, "Enchanted Quiver",
+		"Next %d ranged attacks create a free arrow card" % enchanted_quiver_charges,
+		Color(0.15, 0.68, 0.38), -1, enchanted_quiver_charges)
+
+	# Tighten String — next N ranged attacks buffed (charge-based).
+	_sync_generic("tighten_string", tighten_string_charges > 0, "Tighten String",
+		"Next %d ranged attacks: +6 dmg, +6 range, +20%% crit" % tighten_string_charges,
+		Color(0.95, 0.77, 0.09), -1, tighten_string_charges)
+
+	# Loaded Die / House Money — next RNG roll boosted (owner_stats).
+	var odds_on: bool = has_stats and "next_odds_boost" in owner_stats and owner_stats.next_odds_boost > 0.0
+	_sync_generic("loaded_die", odds_on, "Loaded Die",
+		"Your next chance roll is +%d%%" % (int(owner_stats.next_odds_boost) if has_stats else 0),
+		Color(0.61, 0.35, 0.71), -1, 1)
+
+func _get_generic(key: String) -> Buff:
+	for b in buffs:
+		if b.buff_type == Buff.BuffType.GENERIC and b.custom_icon_key == key:
+			return b
+	return null
+
+func _sync_generic(key: String, present: bool, display_name: String, desc: String, color: Color, tempo: int, count: int) -> void:
+	var existing = _get_generic(key)
+	if present:
+		if existing:
+			existing.duration = tempo
+			existing.description = desc
+			existing.stacks = max(count, 1)
+		else:
+			# Append directly — apply_buff() matches by buff_type only and would
+			# wrongly merge distinct GENERIC badges.
+			var buff = Buff.create_generic(key, display_name, desc, color, tempo, count)
+			buffs.append(buff)
+			buff_applied.emit(buff)
+			buffs_changed.emit()
+	elif existing:
+		buffs.erase(existing)
+		buff_removed.emit(existing)
+		buffs_changed.emit()
 
 # ============================================
 # COMBAT QUERIES

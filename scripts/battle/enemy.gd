@@ -47,6 +47,7 @@ var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, th
 var target: Node3D = null
 var is_moving: bool = false
 var target_position: Vector3
+var _move_path: Array[Vector3] = []  # Remaining tile-center waypoints for the current move
 var is_dead: bool = false
 
 var grid_manager: GridManager
@@ -2160,35 +2161,7 @@ func _try_scurry_away(target_node: Node3D) -> bool:
 
 	if grid_manager:
 		var threat_cell = grid_manager.world_to_grid(target_node.position)
-		# Move away from threat using cardinal directions
-		var last_valid = position
-		for _step in range(effective_tiles):
-			var cell = grid_manager.world_to_grid(last_valid)
-			var best_cell = cell
-			var best_dist = _manhattan_dist(cell, threat_cell)
-			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-			for d in dirs:
-				var candidate = cell + d
-				if candidate == threat_cell:
-					continue  # Don't scurry onto player
-				if candidate in blocked_tiles:
-					continue
-				if candidate in occupied_tiles:
-					continue  # Don't scurry onto other enemies
-				var dist = _manhattan_dist(candidate, threat_cell)
-				if dist > best_dist:
-					best_dist = dist
-					best_cell = candidate
-			if best_cell == cell:
-				break
-			last_valid = grid_manager.grid_to_world(best_cell)
-		if last_valid != position:
-			var new_target = last_valid
-			if dungeon_manager:
-				var target_cell = grid_manager.world_to_grid(new_target)
-				new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
-			target_position = new_target
-			is_moving = true
+		_start_path(_build_greedy_path(position, threat_cell, effective_tiles, true))
 	else:
 		var diff = position - target_node.position
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
@@ -2215,38 +2188,7 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 
 	if grid_manager:
 		var player_cell = grid_manager.world_to_grid(target_node.position)
-		# Move toward target using cardinal directions
-		var last_valid = position
-		for _step in range(effective_tiles):
-			var cell = grid_manager.world_to_grid(last_valid)
-			var best_cell = cell
-			var best_dist = _manhattan_dist(cell, player_cell)
-			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-			for d in dirs:
-				var candidate = cell + d
-				if candidate == player_cell:
-					continue  # Don't walk onto player
-				if candidate in blocked_tiles:
-					continue
-				if candidate in occupied_tiles:
-					continue  # Don't walk onto other enemies
-				var dist = _manhattan_dist(candidate, player_cell)
-				if dist < best_dist:
-					best_dist = dist
-					best_cell = candidate
-			if best_cell == cell:
-				break
-			last_valid = grid_manager.grid_to_world(best_cell)
-		if last_valid != position:
-			var final_cell = grid_manager.world_to_grid(last_valid)
-			if final_cell in occupied_tiles:
-				return true  # Can't move, but don't fail
-			var new_target = last_valid
-			if dungeon_manager:
-				var target_cell = grid_manager.world_to_grid(new_target)
-				new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
-			target_position = new_target
-			is_moving = true
+		_start_path(_build_greedy_path(position, player_cell, effective_tiles))
 	else:
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		target_position = position + direction * (effective_tiles * 1.0)
@@ -2345,43 +2287,13 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 
 	if grid_manager:
 		var player_cell = grid_manager.world_to_grid(pos)
-		# Step tile by tile using cardinal directions
-		var last_valid = position
-		for _step in range(tiles):
-			var cell = grid_manager.world_to_grid(last_valid)
-			var best_cell = cell
-			var best_dist = _manhattan_dist(cell, player_cell)
-			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-			for d in dirs:
-				var candidate = cell + d
-				if candidate == player_cell:
-					continue  # Don't dash onto player
-				if candidate in blocked_tiles:
-					continue
-				if candidate in occupied_tiles:
-					continue  # Don't dash onto other enemies
-				var dist = _manhattan_dist(candidate, player_cell)
-				if dist < best_dist:
-					best_dist = dist
-					best_cell = candidate
-			if best_cell == cell:
-				break
-			last_valid = grid_manager.grid_to_world(best_cell)
-		if last_valid == position:
+		if not _start_path(_build_greedy_path(position, player_cell, tiles)):
 			return  # Can't move at all
-		var final_cell = grid_manager.world_to_grid(last_valid)
-		if final_cell in occupied_tiles:
-			return
-		var new_target = last_valid
-		if dungeon_manager:
-			var target_cell = grid_manager.world_to_grid(new_target)
-			new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
-		target_position = new_target
 	else:
 		var diff = pos - position
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		target_position = position + direction * (tiles * 1.0)
-	is_moving = true
+		is_moving = true
 
 ## Armored Troll passive: heal HP with green flash.
 func _regenerate(amount: int) -> void:
@@ -2465,11 +2377,16 @@ func _physics_process(delta: float) -> void:
 			# Snap XZ only — Y keeps gliding toward the terrain height
 			position.x = target_position.x
 			position.z = target_position.z
-			is_moving = false
-			velocity = Vector3.ZERO
-			_play_enemy_animation("idle")
-			movement_completed.emit(self)
-			turn_completed.emit()
+			# Advance to the next waypoint if the route has more tiles, so we
+			# follow the path around corners instead of stopping short.
+			if not _move_path.is_empty():
+				target_position = _move_path.pop_front()
+			else:
+				is_moving = false
+				velocity = Vector3.ZERO
+				_play_enemy_animation("idle")
+				movement_completed.emit(self)
+				turn_completed.emit()
 		else:
 			velocity = flat_diff.normalized() * move_speed
 			# Play walking animation / drop to all-fours while moving
@@ -2491,6 +2408,62 @@ func _physics_process(delta: float) -> void:
 func set_target(new_target: Node3D) -> void:
 	target = new_target
 
+func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, away: bool = false) -> Array[Vector3]:
+	## Greedy tile-by-tile route toward (or away from) goal_cell, honoring walls
+	## and other enemies. Returns the ordered list of tile-center world positions
+	## so movement follows the actual path instead of gliding straight through
+	## corners/walls. Empty if no step is possible.
+	var path: Array[Vector3] = []
+	if not grid_manager:
+		return path
+	var last_cell := grid_manager.world_to_grid(start_pos)
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	for _step in range(tiles):
+		var best_cell := last_cell
+		var best_dist := _manhattan_dist(last_cell, goal_cell)
+		for d in dirs:
+			var candidate: Vector2i = last_cell + d
+			if candidate == goal_cell and not away:
+				continue  # Don't step onto the target's tile
+			if candidate in blocked_tiles:
+				continue  # Walls / structures
+			if candidate in occupied_tiles:
+				continue  # Other enemies
+			var dist := _manhattan_dist(candidate, goal_cell)
+			var better := dist > best_dist if away else dist < best_dist
+			if better:
+				best_dist = dist
+				best_cell = candidate
+		if best_cell == last_cell:
+			break  # No improving step available
+		last_cell = best_cell
+		var wp := grid_manager.grid_to_world(best_cell)
+		if dungeon_manager:
+			wp.y = dungeon_manager.get_elevation_world_y(best_cell)
+		path.append(wp)
+	return path
+
+func _start_path(path: Array[Vector3]) -> bool:
+	## Begin gliding along the given waypoint list. Returns false if empty.
+	if path.is_empty():
+		return false
+	_move_path = path
+	target_position = _move_path.pop_front()
+	is_moving = true
+	return true
+
+func intended_cell() -> Vector2i:
+	## The tile this enemy will end on: its final queued waypoint if moving,
+	## otherwise its current tile. Used to reserve destinations so two enemies
+	## acting in the same tempo tick don't pick the same cell.
+	if not grid_manager:
+		return Vector2i.ZERO
+	if is_moving:
+		if not _move_path.is_empty():
+			return grid_manager.world_to_grid(_move_path[_move_path.size() - 1])
+		return grid_manager.world_to_grid(target_position)
+	return grid_manager.world_to_grid(position)
+
 func move_towards_target(pos: Vector3) -> void:
 	# Enemies trapped on a rise pillar cannot move until it expires
 	if grid_manager:
@@ -2510,47 +2483,9 @@ func move_towards_target(pos: Vector3) -> void:
 		return
 
 	if grid_manager:
-		var current_cell = grid_manager.world_to_grid(position)
 		var player_cell = grid_manager.world_to_grid(pos)
-		# Move tile-by-tile using cardinal directions to avoid clipping through walls
-		var last_valid = position
-		for _step in range(effective_tiles):
-			var cell = grid_manager.world_to_grid(last_valid)
-			var best_cell = cell
-			var best_dist = _manhattan_dist(cell, player_cell)
-			# Try all 4 cardinal directions, pick the one closest to player
-			var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-			for d in dirs:
-				var candidate = cell + d
-				if candidate == player_cell:
-					continue  # Don't walk onto player
-				if candidate in blocked_tiles:
-					continue  # Don't walk into walls
-				if candidate in occupied_tiles:
-					continue  # Don't walk onto other enemies
-				var dist = _manhattan_dist(candidate, player_cell)
-				if dist < best_dist:
-					best_dist = dist
-					best_cell = candidate
-			if best_cell == cell:
-				break  # No valid move
-			last_valid = grid_manager.grid_to_world(best_cell)
-
-		if last_valid == position:
-			return  # Can't move at all
-
-		var final_cell = grid_manager.world_to_grid(last_valid)
-		# Double-check final destination isn't occupied (another enemy may have moved there this tick)
-		if final_cell in occupied_tiles or final_cell == grid_manager.world_to_grid(pos):
-			return
-
-		var new_target = last_valid
-		# Adjust target Y based on terrain elevation
-		if dungeon_manager:
-			var target_cell = grid_manager.world_to_grid(new_target)
-			new_target.y = dungeon_manager.get_elevation_world_y(target_cell)
-		target_position = new_target
-		is_moving = true
+		# Follow a tile-by-tile route so we never glide through walls or corners.
+		_start_path(_build_greedy_path(position, player_cell, effective_tiles))
 	else:
 		var diff = pos - position
 		var direction = Vector3(diff.x, 0, diff.z).normalized()

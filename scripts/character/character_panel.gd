@@ -106,14 +106,33 @@ func _split_windows() -> void:
 	stats_vbox.get_node("EquipmentLabel").reparent(inv_vbox)
 	stats_vbox.get_node("ScrollContainer").reparent(inv_vbox)
 
-	# INVENTORY hugs the right edge; STATS sits beside it with a small gap.
+	# The STATS content grows as active effects accrue — wrap it in a scroll so
+	# it never overflows the window.
+	var stats_margin = $Panel/MarginContainer
+	var stats_scroll = ScrollContainer.new()
+	stats_scroll.name = "StatsScroll"
+	stats_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	stats_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stats_margin.add_child(stats_scroll)
+	stats_vbox.reparent(stats_scroll)
+	stats_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# INVENTORY hugs the right edge; STATS sits beside it with a small gap. Both
+	# span (nearly) the full screen height so the scroll has room to work.
 	_inv_panel.anchor_left = 1.0
 	_inv_panel.anchor_right = 1.0
 	_inv_panel.anchor_top = 0.0
 	_inv_panel.anchor_bottom = 1.0
+	_inv_panel.offset_top = 40.0
+	_inv_panel.offset_bottom = -40.0
 	_inv_panel.offset_left = -308.0
 	_inv_panel.offset_right = -4.0
 	_inv_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 1.0
+	panel.offset_top = 40.0
+	panel.offset_bottom = -40.0
 	panel.offset_left = -624.0
 	panel.offset_right = -316.0
 
@@ -422,7 +441,8 @@ func _rebuild_effects_list() -> void:
 	var any := false
 	if buff_manager:
 		for b in buff_manager.buffs:
-			_add_effect_row(b.buff_name, b.description, Color(0.5, 1.0, 0.6), BUFF_AFFECTS.get(b.buff_name, []))
+			var ikey: String = b.get_icon_key() if b.has_method("get_icon_key") else b.buff_name
+			_add_effect_row(b.buff_name, b.description, Color(0.5, 1.0, 0.6), BUFF_AFFECTS.get(b.buff_name, []), ikey)
 			any = true
 	if debuff_manager:
 		for d in debuff_manager.debuffs:
@@ -436,11 +456,11 @@ func _rebuild_effects_list() -> void:
 		_effects_box.add_child(none)
 
 
-func _add_effect_row(eff_name: String, desc: String, colour: Color, affected: Array) -> void:
+func _add_effect_row(eff_name: String, desc: String, colour: Color, affected: Array, icon_key: String = "") -> void:
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.tooltip_text = desc
-	var tex := StatusIcons.get_icon(eff_name)
+	var tex := StatusIcons.get_icon(icon_key if icon_key != "" else eff_name)
 	if tex:
 		var icon := TextureRect.new()
 		icon.texture = tex

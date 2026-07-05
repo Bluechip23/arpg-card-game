@@ -294,6 +294,51 @@ static func _draw(img: Image, key: String) -> bool:
 			_disc(img, 12, 16, 4.6, Color(0.3, 0.9, 0.5))     # green liquid
 			_rect(img, 10, 8, 4, 3, Color(0.3, 0.9, 0.5))     # liquid up the neck
 			_px(img, 10, 13, Color(0.85, 1.0, 0.9))           # shine
+		"raged_circulation":
+			# A heart with an upward boost arrow.
+			var red := Color(0.85, 0.2, 0.25)
+			_disc(img, 9, 11, 3, red)
+			_disc(img, 15, 11, 3, red)
+			_tri(img, Vector2(6, 12), Vector2(18, 12), Vector2(12, 21), red)
+			_tri(img, Vector2(12, 3), Vector2(8, 9), Vector2(16, 9), Color(1, 1, 1))
+		"understanding":
+			# An eye of insight with a bright pupil.
+			var blue := Color(0.3, 0.7, 1.0)
+			_ring(img, 12, 12, 7, 2, blue)
+			_disc(img, 12, 12, 3, blue)
+			_disc(img, 12, 12, 1.4, Color(1, 1, 1))
+		"approach":
+			# A marching boot print.
+			var gray := Color(0.62, 0.66, 0.72)
+			_disc(img, 11, 8, 4, gray)
+			_rect(img, 8, 11, 7, 8, gray)
+			_disc(img, 11, 19, 3.5, gray)
+		"enchanted_quiver":
+			# A quiver with green-fletched arrows.
+			var green := Color(0.2, 0.75, 0.4)
+			_rect(img, 8, 9, 8, 12, wood)
+			_line(img, 10, 2, 10, 9, steel)
+			_line(img, 13, 2, 13, 9, steel)
+			_line(img, 16, 2, 16, 9, steel)
+			_tri(img, Vector2(9, 2), Vector2(11, 4), Vector2(10, 6), green)
+			_tri(img, Vector2(12, 2), Vector2(14, 4), Vector2(13, 6), green)
+		"tighten_string":
+			# A drawn bow with a nocked arrow.
+			var gold := Color(1.0, 0.8, 0.2)
+			_ring(img, 7, 12, 8, 2, wood)
+			_line(img, 7, 5, 7, 19, gold)
+			_line(img, 7, 12, 20, 12, steel)
+			_tri(img, Vector2(20, 10), Vector2(20, 14), Vector2(23, 12), steel)
+		"loaded_die":
+			# A purple die showing five pips.
+			var purple := Color(0.6, 0.35, 0.72)
+			var wp := Color(1, 1, 1)
+			_rect(img, 5, 5, 14, 14, purple)
+			_disc(img, 9, 9, 1.4, wp)
+			_disc(img, 15, 9, 1.4, wp)
+			_disc(img, 12, 12, 1.4, wp)
+			_disc(img, 9, 15, 1.4, wp)
+			_disc(img, 15, 15, 1.4, wp)
 		"shocked":
 			# A lightning bolt.
 			var yellow := Color(1.0, 0.95, 0.3)
