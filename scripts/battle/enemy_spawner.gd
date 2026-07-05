@@ -100,7 +100,19 @@ func get_living_enemies() -> Array[Enemy]:
 func on_tempo_advanced(amount: int) -> void:
 	var living = get_living_enemies()
 	for enemy in living:
+		# Reserve every other enemy's INTENDED destination (not just its current
+		# tile) right before this one decides, so two enemies acting in the same
+		# tick can't pick the same cell and end up stacked.
+		_reserve_occupancy(living, enemy)
 		enemy.on_tempo_advanced(amount, _target_for(enemy))
+
+func _reserve_occupancy(living: Array, acting) -> void:
+	var cells: Array[Vector2i] = []
+	for e in living:
+		if e == acting or not is_instance_valid(e):
+			continue
+		cells.append(e.intended_cell())
+	acting.occupied_tiles = cells
 
 ## Pick the nearest living player for this enemy to act against (co-op aware).
 func _target_for(enemy: Enemy) -> Node3D:

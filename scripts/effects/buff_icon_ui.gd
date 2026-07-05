@@ -86,7 +86,7 @@ func update_display() -> void:
 	style.corner_radius_bottom_right = r
 	add_theme_stylebox_override("panel", style)
 
-	var tex := StatusIcons.get_icon(buff.buff_name)
+	var tex := StatusIcons.get_icon(buff.get_icon_key())
 	_glyph_rect.texture = tex
 	_glyph_rect.visible = tex != null
 

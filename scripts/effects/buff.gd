@@ -29,7 +29,8 @@ enum BuffType {
 	PHOENIX_GRACE,
 	DEMONIC_RAGE,
 	POISONED_BLOOD,
-	ELIXIR
+	ELIXIR,
+	GENERIC
 }
 
 var buff_type: BuffType
@@ -41,6 +42,8 @@ var charges: int = -1         # For charge-based buffs (attacks, armor gains, et
 var source_name: String = ""  # What applied this buff
 var stacks: int = 1           # Some buffs can stack
 var damage_type: int = -1     # Typed damage reduction (Resilient); -1 = all types
+var custom_color: Color = Color.WHITE  # GENERIC display buffs: badge tint
+var custom_icon_key: String = ""       # GENERIC display buffs: StatusIcons glyph key
 
 func _init(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) -> void:
 	buff_type = type
@@ -129,6 +132,15 @@ func _set_name_and_description() -> void:
 		BuffType.ELIXIR:
 			buff_name = "Elixir"
 			description = "Poison ticks heal you instead of dealing damage"
+		BuffType.GENERIC:
+			pass  # name/description are set directly by create_generic()
+
+func get_icon_key() -> String:
+	## Key used to look up the StatusIcons glyph. GENERIC buffs carry an explicit
+	## key; all others fall back to their display name.
+	if buff_type == BuffType.GENERIC and custom_icon_key != "":
+		return custom_icon_key
+	return buff_name
 
 func tick() -> bool:
 	# Called each cycle (5 tempo). Returns true if buff expired by duration.
@@ -183,6 +195,7 @@ func get_icon_color() -> Color:
 		BuffType.DEMONIC_RAGE: return Color(0.8, 0.1, 0.2)
 		BuffType.POISONED_BLOOD: return Color(0.5, 0.1, 0.4)
 		BuffType.ELIXIR: return Color(0.3, 0.9, 0.5)
+		BuffType.GENERIC: return custom_color
 	return Color.WHITE
 
 func get_short_display() -> String:
@@ -339,4 +352,17 @@ static func create_elixir(tempo: int = 150, source: String = "") -> Buff:
 	# Display-only wrapper; lifecycle is driven by PlayerStats.elixir_active.
 	var buff = Buff.new(BuffType.ELIXIR, 0, tempo)
 	buff.source_name = source
+	return buff
+
+static func create_generic(key: String, display_name: String, desc: String, color: Color, tempo: int = -1, count: int = 1) -> Buff:
+	## A display-only badge for effects tracked as raw flags elsewhere. `key` is
+	## the StatusIcons glyph key; `count` shows as xN. Lifecycle is driven by the
+	## owning system (BuffManager._sync_flag_buffs), not the generic tick.
+	var buff = Buff.new(BuffType.GENERIC, 0, tempo)
+	buff.custom_icon_key = key
+	buff.custom_color = color
+	buff.buff_name = display_name
+	buff.description = desc
+	buff.source_name = display_name
+	buff.stacks = count
 	return buff

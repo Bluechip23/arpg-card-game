@@ -505,6 +505,7 @@ var _minimap_refresh_accum: float = 0.0
 func _process(delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
+	_update_self_target_hover()
 	_update_damage_preview()
 	_update_loot_hover()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
@@ -662,6 +663,29 @@ func _update_battlefield_enemy_hover() -> void:
 				unit_tracker.highlight_enemy(closest)
 
 		_prev_battlefield_hover = closest
+
+var _self_hover_active: bool = false
+
+func _update_self_target_hover() -> void:
+	## When a self-targetable card is selected, glow the player figure while the
+	## cursor is over them — the same feedback enemies get as valid targets.
+	var want := false
+	if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size() and player:
+		var card = deck_manager.hand[selected_card_index]
+		if "self" in card.target_types or "ally" in card.target_types:
+			var mouse_pos = get_mouse_world_position()
+			# Prefer an explicit hit on a player figure (co-op aware); fall back to
+			# proximity to this player.
+			var tgt = _player_at_position(mouse_pos) if has_method("_player_at_position") else null
+			if tgt == null:
+				var diff = mouse_pos - player.position
+				if Vector3(diff.x, 0, diff.z).length() < 1.2:
+					tgt = player
+			want = tgt != null
+	if want != _self_hover_active:
+		_self_hover_active = want
+		if player and player.has_method("set_hover_highlight"):
+			player.set_hover_highlight(want)
 
 func _setup_hand_area_background() -> void:
 	var hand_area = $UI/HandArea as PanelContainer
@@ -5076,6 +5100,7 @@ func _on_card_tick_resolved(card: Card) -> void:
 		player = _p1_player if owner_idx == 0 else _p2_player
 		deck_manager = _p1_deck_manager if owner_idx == 0 else _p2_deck_manager
 		_resolve_queued_card(card)
+		_refresh_flag_buffs(player)
 		player = prev_p
 		deck_manager = prev_d
 		# Restore the active player's hand/deck readout (resolution refreshed the
@@ -5084,6 +5109,15 @@ func _on_card_tick_resolved(card: Card) -> void:
 		update_deck_info()
 	else:
 		_resolve_queued_card(card)
+		_refresh_flag_buffs(player)
+
+func _refresh_flag_buffs(p) -> void:
+	## Surface any raw-flag effects (Raged Circulation, Quiver charges, etc.) as
+	## visible badges immediately after a card resolves.
+	if p and p.has_method("get_buff_manager"):
+		var bm = p.get_buff_manager()
+		if bm and bm.has_method("sync_flag_buffs"):
+			bm.sync_flag_buffs()
 
 func _owner_index_for_card(card: Card) -> int:
 	## Which player (0 = P1, 1 = P2) queued this still-pending card. -1 if unknown.
@@ -5992,6 +6026,16 @@ func _is_ui_window_open() -> bool:
 	if pile_popup_panel and pile_popup_panel.visible:
 		return true
 	if _donation_panel and _donation_panel.visible:
+		return true
+	if skill_tree_ui and skill_tree_ui.visible:
+		return true
+	if manifest_ui and manifest_ui.visible:
+		return true
+	if quiver_ui and quiver_ui.visible:
+		return true
+	if chest_loot_ui and chest_loot_ui.visible:
+		return true
+	if _tab_menu_panel and _tab_menu_panel.visible:
 		return true
 	if sandbox_ui and sandbox_ui.visible and sandbox_ui.has_method("is_menu_open") and sandbox_ui.is_menu_open():
 		return true

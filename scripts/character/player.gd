@@ -122,6 +122,12 @@ func set_translucent(on: bool) -> void:
 	if _figure:
 		_figure.set_translucent(on)
 
+func set_hover_highlight(enabled: bool) -> void:
+	## Glow the figure when hovered as a valid target (e.g. self-target cards),
+	## mirroring the enemy hover highlight.
+	if _figure and _figure.has_method("set_highlight"):
+		_figure.set_highlight(enabled)
+
 func show_armor_gained() -> void:
 	## Pops the overhead armour icon — call whenever armour is gained from any source.
 	if _figure:
