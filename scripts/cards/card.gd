@@ -1674,6 +1674,8 @@ func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = 
 	if buff_mgr:
 		buff_mgr.poisoned_blood_active = true
 		buff_mgr.poisoned_blood_tempo = 15
+		# Surface it as a visible active effect in the buff bar.
+		buff_mgr.apply_buff(Buff.create_poisoned_blood(15, "Poisoned Blood"))
 	print("[CARD] Poisoned Blood! Heal cards now deal damage instead for 15 tempo")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -1681,6 +1683,9 @@ func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) ->
 	if player_stats:
 		player_stats.elixir_active = true
 		player_stats.elixir_tempo = 150
+	# Surface it as a visible active effect in the buff bar.
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_elixir(150, "Elixir"))
 	print("[CARD] Elixir! Poison now heals you instead")
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:

@@ -174,6 +174,10 @@ func process_turn_end() -> void:
 
 	for buff in buffs:
 		if not buff.is_charge_based():
+			# Poisoned Blood / Elixir are display wrappers; their lifecycle is
+			# driven by the source flags below, not the generic duration tick.
+			if buff.buff_type == Buff.BuffType.POISONED_BLOOD or buff.buff_type == Buff.BuffType.ELIXIR:
+				continue
 			buff_ticked.emit(buff)
 			if buff.tick():
 				expired.append(buff)
@@ -193,6 +197,32 @@ func process_turn_end() -> void:
 
 	if expired.size() > 0:
 		buffs_changed.emit()
+
+	# Keep the flag-driven display buffs (Poisoned Blood, Elixir) in sync with
+	# their source state and refresh their shown duration.
+	_sync_flag_buffs()
+
+func _sync_flag_buffs() -> void:
+	# Poisoned Blood — state lives on this manager.
+	if poisoned_blood_active:
+		var pb = get_buff(Buff.BuffType.POISONED_BLOOD)
+		if pb:
+			pb.duration = max(poisoned_blood_tempo, 0)
+		else:
+			apply_buff(Buff.create_poisoned_blood(max(poisoned_blood_tempo, 5), "Poisoned Blood"))
+	elif has_buff(Buff.BuffType.POISONED_BLOOD):
+		remove_buff(Buff.BuffType.POISONED_BLOOD)
+
+	# Elixir — state lives on owner_stats.
+	var elixir_on: bool = owner_stats != null and "elixir_active" in owner_stats and owner_stats.elixir_active
+	if elixir_on:
+		var ex = get_buff(Buff.BuffType.ELIXIR)
+		if ex:
+			ex.duration = max(owner_stats.elixir_tempo, 0)
+		else:
+			apply_buff(Buff.create_elixir(max(owner_stats.elixir_tempo, 5), "Elixir"))
+	elif has_buff(Buff.BuffType.ELIXIR):
+		remove_buff(Buff.BuffType.ELIXIR)
 
 # ============================================
 # COMBAT QUERIES

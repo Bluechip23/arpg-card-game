@@ -5975,6 +5975,28 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"communal_donation":
 			_open_donation_panel()
 
+func _is_ui_window_open() -> bool:
+	## True when any scrollable HUD window is open. Mouse-wheel/drag over the
+	## battlefield should not zoom/orbit the camera while the player is reading
+	## or scrolling one of these windows.
+	if character_panel and character_panel.is_open():
+		return true
+	if enemy_inspect_ui and enemy_inspect_ui.visible:
+		return true
+	if help_panel and help_panel.visible:
+		return true
+	if deck_list_panel and deck_list_panel.visible:
+		return true
+	if maintained_list_panel and maintained_list_panel.visible:
+		return true
+	if pile_popup_panel and pile_popup_panel.visible:
+		return true
+	if _donation_panel and _donation_panel.visible:
+		return true
+	if sandbox_ui and sandbox_ui.visible and sandbox_ui.has_method("is_menu_open") and sandbox_ui.is_menu_open():
+		return true
+	return false
+
 func _input(event: InputEvent) -> void:
 	# Both heroes are down — the defeat overlay takes over.
 	if _co_op_defeated:
@@ -6170,8 +6192,9 @@ func _input(event: InputEvent) -> void:
 			else:
 				move_dialog.show_dialog(mouse_pos, spaces)
 
-	# Mouse wheel zoom
-	if event is InputEventMouseButton and event.pressed:
+	# Mouse wheel zoom — skip while a UI window is open so scrolling its
+	# contents doesn't also zoom/move the battlefield behind it.
+	if event is InputEventMouseButton and event.pressed and not _is_ui_window_open():
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
 			_update_camera()
@@ -6182,8 +6205,9 @@ func _input(event: InputEvent) -> void:
 	# Camera orbit - left click drag when no card is selected
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			# Only start orbiting if no card action is pending
-			if selected_card_index < 0 and _pending_quiver_card == null:
+			# Only start orbiting if no card action is pending and no UI window
+			# is capturing the drag (otherwise dragging a scrollbar spins the map).
+			if selected_card_index < 0 and _pending_quiver_card == null and not _is_ui_window_open():
 				_camera_orbiting = true
 				_camera_drag_start = event.position
 		else:

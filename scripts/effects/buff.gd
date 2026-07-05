@@ -27,7 +27,9 @@ enum BuffType {
 	REPELLED_BLOCK,
 	SHIELD_OF_GROWTH,
 	PHOENIX_GRACE,
-	DEMONIC_RAGE
+	DEMONIC_RAGE,
+	POISONED_BLOOD,
+	ELIXIR
 }
 
 var buff_type: BuffType
@@ -121,6 +123,12 @@ func _set_name_and_description() -> void:
 		BuffType.DEMONIC_RAGE:
 			buff_name = "Demonic Rage"
 			description = "Next %d mana costs use health instead" % charges
+		BuffType.POISONED_BLOOD:
+			buff_name = "Poisoned Blood"
+			description = "Your heal cards deal damage to enemies instead of healing"
+		BuffType.ELIXIR:
+			buff_name = "Elixir"
+			description = "Poison ticks heal you instead of dealing damage"
 
 func tick() -> bool:
 	# Called each cycle (5 tempo). Returns true if buff expired by duration.
@@ -173,6 +181,8 @@ func get_icon_color() -> Color:
 		BuffType.SHIELD_OF_GROWTH: return Color(0.3, 0.8, 0.5)
 		BuffType.PHOENIX_GRACE: return Color(1.0, 0.5, 0.2)
 		BuffType.DEMONIC_RAGE: return Color(0.8, 0.1, 0.2)
+		BuffType.POISONED_BLOOD: return Color(0.5, 0.1, 0.4)
+		BuffType.ELIXIR: return Color(0.3, 0.9, 0.5)
 	return Color.WHITE
 
 func get_short_display() -> String:
@@ -316,5 +326,17 @@ static func create_phoenix_grace(source: String = "") -> Buff:
 
 static func create_demonic_rage(uses: int = 5, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.DEMONIC_RAGE, 0, -1, uses)  # charge-based: N mana uses
+	buff.source_name = source
+	return buff
+
+static func create_poisoned_blood(tempo: int = 15, source: String = "") -> Buff:
+	# Display-only wrapper; lifecycle is driven by BuffManager.poisoned_blood_active.
+	var buff = Buff.new(BuffType.POISONED_BLOOD, 0, tempo)
+	buff.source_name = source
+	return buff
+
+static func create_elixir(tempo: int = 150, source: String = "") -> Buff:
+	# Display-only wrapper; lifecycle is driven by PlayerStats.elixir_active.
+	var buff = Buff.new(BuffType.ELIXIR, 0, tempo)
 	buff.source_name = source
 	return buff
