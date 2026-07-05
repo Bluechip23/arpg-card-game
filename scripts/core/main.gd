@@ -6033,7 +6033,7 @@ func _is_ui_window_open() -> bool:
 		return true
 	if quiver_ui and quiver_ui.visible:
 		return true
-	if chest_loot_ui and chest_loot_ui.visible:
+	if _chest_modal_open:
 		return true
 	if _tab_menu_panel and _tab_menu_panel.visible:
 		return true
