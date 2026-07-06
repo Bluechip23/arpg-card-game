@@ -175,6 +175,7 @@ var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard 
 # Cory passive tracking
 var st_mana_gain_counter: int = 0     # Energy Barrier: counts non-regen mana gains toward every-3rd
 var st_expel_triggered: bool = false   # Expel Negativity: tracks if already triggered this threshold cross
+var st_enraged_will_triggered: bool = false  # Enraged Will: fired for this drop below 25%; resets when healed above
 var st_cards_this_cycle: Array[String] = []  # Self Reliance: card types played this tempo cycle
 var st_self_reliance_discount: bool = false   # Self Reliance: next card costs -1m
 var st_budding_types: Array[String] = []     # Budding: card types played (no back-to-back)
@@ -189,6 +190,7 @@ var st_mana_spent_window: Array = []  # Mana Surge: [{amount, tempo}] entries wi
 var st_whispers_cooldown: int = 0     # Whispers of the Flock: remaining cooldown tempo
 var st_whispers_active: bool = false  # Whispers of the Flock: mark currently active
 var st_whispers_tempo: int = 0        # Whispers of the Flock: remaining mark duration
+var st_whispers_caster = null         # PlayerStats of whoever cast the mark (pays the 8 HP cost); null = self
 var st_haunted_rebuke_cooldown: int = 0  # Haunted Rebuke: remaining cooldown tempo
 var st_kinetic_armor_tempo: int = 0   # Kinetic Armor: tempo since armor was last at 0
 var st_kinetic_armor_triggered: bool = false  # Kinetic Armor: already triggered this armor retention
@@ -221,7 +223,13 @@ var gold: int = 0
 
 var strength: int:
 	get:
-		return get_effective_stat(base_strength)
+		return max(1, get_effective_stat(base_strength) + _directed_strength_mod())
+
+func _directed_strength_mod() -> int:
+	## Brad's Directed Strength passive: -5 STR above 50% health, +5 below.
+	if not has_skill_tree_passive("directed_strength"):
+		return 0
+	return 5 if get_health_percent() <= 0.5 else -5
 
 var dexterity: int:
 	get:
@@ -730,7 +738,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	damage_taken.emit(amount)
 
 	# Whispers of the Flock: Shepherd's Mark prevents lethal damage
-	# When triggered, the marked target survives but Jeremy takes 8 damage
+	# When triggered, the marked target survives but the CASTER takes 8 damage
 	if current_health <= 0 and st_whispers_active:
 		current_health = 1
 		add_armor(10)
@@ -738,8 +746,9 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		st_whispers_tempo = 0
 		st_whispers_cooldown = 20
 		health_changed.emit(current_health, max_health)
+		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
-		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor. Jeremy takes 8 damage.")
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor.")
 
 	if current_health <= 0:
 		died.emit()
@@ -747,6 +756,20 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Blood Libation: gain a Sanguine stack whenever Jeremy takes damage.
 	if has_skill_tree_passive("blood_libation"):
 		sanguine_stacks = min(5, sanguine_stacks + 1)
+
+func _pay_whispers_cost() -> void:
+	## The 8-HP cost of a triggered Shepherd's Mark goes to whoever cast it.
+	## A self-cast mark can't re-kill the survivor it just saved — it costs
+	## HP down to a floor of 1 instead.
+	var caster = st_whispers_caster
+	st_whispers_caster = null
+	if caster != null and caster != self:
+		caster.take_direct_damage(8)
+		print("[STATS] Shepherd's Mark cost: caster takes 8 damage.")
+	else:
+		current_health = max(1, current_health - 8)
+		health_changed.emit(current_health, max_health)
+		print("[STATS] Shepherd's Mark cost: 8 HP (non-lethal, self-cast).")
 
 func take_direct_damage(amount: int) -> void:
 	## Deal damage directly to HP, bypassing armor entirely.
@@ -761,7 +784,7 @@ func take_direct_damage(amount: int) -> void:
 	damage_taken.emit(amount)
 
 	# Whispers of the Flock: Shepherd's Mark prevents lethal damage (direct damage too)
-	# When triggered, the marked target survives but Jeremy takes 8 damage
+	# When triggered, the marked target survives but the CASTER takes 8 damage
 	if current_health <= 0 and st_whispers_active:
 		current_health = 1
 		add_armor(10)
@@ -769,8 +792,9 @@ func take_direct_damage(amount: int) -> void:
 		st_whispers_tempo = 0
 		st_whispers_cooldown = 20
 		health_changed.emit(current_health, max_health)
+		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
-		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor. Jeremy takes 8 damage.")
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor.")
 
 	if current_health <= 0:
 		died.emit()
