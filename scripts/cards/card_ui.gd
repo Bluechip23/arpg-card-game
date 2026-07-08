@@ -11,7 +11,6 @@ signal card_unhovered()
 @onready var range_label: Label = $Panel/VBox/TypeBar/TypeHBox/RangeLabel
 @onready var desc_label: RichTextLabel = $Panel/VBox/DescPanel/DescLabel
 @onready var cost_label: Label = $Panel/VBox/TitleBar/TitleHBox/CostLabel
-@onready var keybind_label: Label = $Panel/VBox/KeybindLabel
 @onready var title_bar: PanelContainer = $Panel/VBox/TitleBar
 @onready var type_bar: PanelContainer = $Panel/VBox/TypeBar
 @onready var art_box: PanelContainer = $Panel/VBox/ArtBox
@@ -33,7 +32,6 @@ var _hover_tween: Tween = null
 var _select_tween: Tween = null
 var _is_animating_out: bool = false  # True while play/discard animation runs
 
-const KEYBIND_LABELS = ["A", "S", "D", "F", "G", "Q", "W", "E", "R", "T", "Z", "X", "C", "V", "B"]
 const CARD_W: float = 150.0
 const CARD_H: float = 210.0
 const HOVER_LIFT: float = 68.0
@@ -130,13 +128,6 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		else:
 			cost_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
 
-	if keybind_label:
-		var kb_text = _get_keybind_text(index)
-		if card.is_slotted():
-			kb_text += " \u2234"  # Upside-down triangle dots (∴) for slotted cards
-			keybind_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
-		keybind_label.text = kb_text
-
 	_is_hexed = is_hexed
 	_is_locked = is_locked
 
@@ -176,6 +167,103 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_apply_default_style()
 	pivot_offset = Vector2(CARD_W * 0.5, CARD_H)  # Bottom-center pivot for fan rotation
+	_ensure_badge()
+
+# ============================================
+# FLOATING PLAY BADGE + STACK DEPTH
+# ============================================
+
+var _keybind_badge: PanelContainer = null
+var _badge_label: Label = null
+var _stack_shadows: Array = []
+
+func _ensure_badge() -> void:
+	## The play button floats just above the card (rather than inside it) so the
+	## card face has more room and the key is readable without hovering.
+	if _keybind_badge and is_instance_valid(_keybind_badge):
+		return
+	var host: Node = get_node_or_null("Panel")
+	if host == null:
+		return
+	_keybind_badge = PanelContainer.new()
+	_keybind_badge.name = "KeybindBadge"
+	_keybind_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.09, 0.12, 0.96)
+	style.set_border_width_all(2)
+	style.border_color = _type_color.lightened(0.15)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 2
+	style.content_margin_bottom = 2
+	_keybind_badge.add_theme_stylebox_override("panel", style)
+	host.add_child(_keybind_badge)
+
+	_badge_label = Label.new()
+	_badge_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_badge_label.add_theme_font_size_override("font_size", 15)
+	_badge_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.7))
+	_keybind_badge.add_child(_badge_label)
+	_keybind_badge.resized.connect(_reposition_badge)
+
+func set_keybind_badge(letter: String, count: int = 1, slotted: bool = false) -> void:
+	## Set the floating play button's key letter and stack count (xN).
+	_ensure_badge()
+	if not _badge_label:
+		return
+	var txt := "[%s]" % letter
+	if count > 1:
+		txt += " x%d" % count
+	if slotted:
+		txt += " ∴"  # slotted-card marker (∴)
+		_badge_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
+	else:
+		_badge_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.7))
+	_badge_label.text = txt
+	# Border picks up the card's type colour.
+	var style: StyleBoxFlat = _keybind_badge.get_theme_stylebox("panel")
+	if style:
+		style.border_color = _type_color.lightened(0.2)
+	_reposition_badge()
+
+func _reposition_badge() -> void:
+	if not _keybind_badge or not is_instance_valid(_keybind_badge):
+		return
+	# Centred just above the card's top edge (re-centres whenever the badge
+	# resizes to fit longer text like "[A] x3").
+	var w: float = _keybind_badge.size.x
+	_keybind_badge.position = Vector2(CARD_W * 0.5 - w * 0.5, -30.0)
+
+func set_stack_depth(count: int) -> void:
+	## Show a small "pile" of offset card backs behind this card when it
+	## represents a stack of identical cards.
+	for s in _stack_shadows:
+		if is_instance_valid(s):
+			s.queue_free()
+	_stack_shadows.clear()
+	var host: Node = get_node_or_null("Panel")
+	if host == null:
+		return
+	var extra: int = clampi(count - 1, 0, 3)
+	for k in range(extra, 0, -1):
+		var shadow := Panel.new()
+		shadow.show_behind_parent = true  # draw behind the card face
+		shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		shadow.size = Vector2(CARD_W, CARD_H)
+		# Peek out to the top-right so the pile reads as several stacked cards.
+		shadow.position = Vector2(k * 4.0, -k * 4.0)
+		var st := StyleBoxFlat.new()
+		st.bg_color = Color(0.11, 0.1, 0.09, 1.0)
+		st.set_border_width_all(2)
+		st.border_color = _type_color.darkened(0.3)
+		st.set_corner_radius_all(9)
+		shadow.add_theme_stylebox_override("panel", st)
+		host.add_child(shadow)
+		host.move_child(shadow, 0)  # keep shadows beneath the VBox contents
+		_stack_shadows.append(shadow)
 
 func store_base_position() -> void:
 	_base_y = position.y
@@ -553,11 +641,6 @@ func _style_frame() -> void:
 
 func _clear_gold_trim() -> void:
 	_apply_default_style()
-
-func _get_keybind_text(index: int) -> String:
-	if index >= 0 and index < KEYBIND_LABELS.size():
-		return "[%s]" % KEYBIND_LABELS[index]
-	return ""
 
 func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: int = -1) -> void:
 	## Add thin vertical bars at the bottom of the card showing tempo ticks.

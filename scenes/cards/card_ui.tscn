@@ -85,10 +85,3 @@ bbcode_enabled = true
 text = "Deal 10 damage to enemy"
 fit_content = true
 scroll_active = false
-
-[node name="KeybindLabel" type="Label" parent="Panel/VBox" unique_id=610093381]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.65, 0.62, 0.55, 1)
-theme_override_font_sizes/font_size = 12
-text = "[A]"
-horizontal_alignment = 1
