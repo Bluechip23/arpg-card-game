@@ -126,15 +126,15 @@ func _split_windows() -> void:
 	_inv_panel.anchor_bottom = 1.0
 	_inv_panel.offset_top = 40.0
 	_inv_panel.offset_bottom = -40.0
-	_inv_panel.offset_left = -308.0
+	_inv_panel.offset_left = -348.0
 	_inv_panel.offset_right = -4.0
 	_inv_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	panel.anchor_top = 0.0
 	panel.anchor_bottom = 1.0
 	panel.offset_top = 40.0
 	panel.offset_bottom = -40.0
-	panel.offset_left = -624.0
-	panel.offset_right = -316.0
+	panel.offset_left = -664.0
+	panel.offset_right = -356.0
 
 func _apply_panel_style() -> void:
 	if not panel:
@@ -584,14 +584,13 @@ func _update_equipment_display() -> void:
 	var eq_section = _make_section_header("EQUIPMENT")
 	equipment_container.add_child(eq_section)
 
-	var slot_info = inventory.get_slot_info()
-	_add_equipment_section("Helm", slot_info["helm"], ItemData.ItemType.HELM)
-	_add_equipment_section("Chest", slot_info["chest"], ItemData.ItemType.CHEST)
-	_add_equipment_section("Ring", slot_info["ring"], ItemData.ItemType.RING)
-	_add_equipment_section("Belt", slot_info["belt"], ItemData.ItemType.BELT)
-	_add_equipment_section("Boots", slot_info["boots"], ItemData.ItemType.BOOTS)
-	_add_equipment_section("Gauntlets", slot_info["gauntlets"], ItemData.ItemType.GAUNTLETS)
-	_add_equipment_section("Weapon", slot_info["weapon"], ItemData.ItemType.WEAPON)
+	var hint = Label.new()
+	hint.text = "Drag items into matching slots"
+	hint.add_theme_font_size_override("font_size", 9)
+	hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.62))
+	equipment_container.add_child(hint)
+
+	_build_equipment_slot_grid()
 
 	# Total weight
 	equipment_container.add_child(_make_separator())
@@ -620,99 +619,111 @@ func _get_character_passive() -> String:
 			return "Gain 1 mana when gauntlet skill comes off cooldown"
 	return ""
 
-func _add_equipment_section(section_name: String, slot_data: Dictionary, item_type: ItemData.ItemType) -> void:
-	var max_slots: int = slot_data["max"]
-	var equipped: Array = slot_data["equipped"]
+## Slot types shown in the equipment grid, in display order.
+const EQUIP_SLOT_ORDER := [
+	ItemData.ItemType.HELM, ItemData.ItemType.CHEST, ItemData.ItemType.RING,
+	ItemData.ItemType.BELT, ItemData.ItemType.BOOTS, ItemData.ItemType.GAUNTLETS,
+	ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER,
+]
 
-	var section_label := Label.new()
-	section_label.text = "%s (%d)" % [section_name, max_slots]
-	section_label.add_theme_font_size_override("font_size", 11)
-	section_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-	equipment_container.add_child(section_label)
+## Build the equipment slots as a grid of square cells that accept drag & drop.
+func _build_equipment_slot_grid() -> void:
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 5)
+	grid.add_theme_constant_override("v_separation", 5)
+	equipment_container.add_child(grid)
 
-	for i in range(max_slots):
-		var item = equipped[i] if i < equipped.size() else null
+	var slot_info = inventory.get_slot_info()
+	var keys := {
+		ItemData.ItemType.HELM: "helm", ItemData.ItemType.CHEST: "chest",
+		ItemData.ItemType.RING: "ring", ItemData.ItemType.BELT: "belt",
+		ItemData.ItemType.BOOTS: "boots", ItemData.ItemType.GAUNTLETS: "gauntlets",
+		ItemData.ItemType.WEAPON: "weapon", ItemData.ItemType.QUIVER: "quiver",
+	}
+	for item_type in EQUIP_SLOT_ORDER:
+		var data: Dictionary = slot_info[keys[item_type]]
+		var max_slots: int = data["max"]
+		var equipped: Array = data["equipped"]
+		for i in range(max_slots):
+			var item = equipped[i] if i < equipped.size() else null
+			var cell := EquipmentSlotCell.new()
+			cell.setup(self, item_type, i, item)
+			grid.add_child(cell)
 
-		var item_button := Button.new()
-		item_button.flat = true
-		item_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		item_button.add_theme_font_size_override("font_size", 12)
+## The display name for an (empty) equipment slot type.
+func _slot_type_name(item_type: int) -> String:
+	match item_type:
+		ItemData.ItemType.HELM: return "Helm"
+		ItemData.ItemType.CHEST: return "Chest"
+		ItemData.ItemType.RING: return "Ring"
+		ItemData.ItemType.BELT: return "Belt"
+		ItemData.ItemType.BOOTS: return "Boots"
+		ItemData.ItemType.GAUNTLETS: return "Gauntlets"
+		ItemData.ItemType.WEAPON: return "Weapon"
+		ItemData.ItemType.QUIVER: return "Quiver"
+	return "Slot"
 
-		if item:
-			item_button.text = "  %d: %s" % [i + 1, item.item_name]
-			item_button.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-			item_button.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
-			item_button.pressed.connect(_on_equipped_item_clicked.bind(item, item_type, i))
-		else:
-			item_button.text = "  %d: [Empty]" % [i + 1]
-			item_button.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
+## A small floating label used as the drag preview while dragging an item.
+func _make_drag_preview(text: String, color: Color) -> Control:
+	var wrap := Control.new()
+	var pc := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.12, 0.16, 0.95)
+	style.set_border_width_all(2)
+	style.border_color = color
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	pc.add_theme_stylebox_override("panel", style)
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", color)
+	pc.add_child(lbl)
+	wrap.add_child(pc)
+	pc.position = Vector2(-40, -14)
+	return wrap
 
-		equipment_container.add_child(item_button)
+# ---------------------------------------------------------------------------
+# Drag & drop handlers (called by the slot / storage cells)
+# ---------------------------------------------------------------------------
 
-		if not item:
-			continue
+## An item was dropped onto an equipment slot of matching type.
+func _handle_item_drop_on_slot(data: Dictionary, target_type: int, target_slot: int) -> void:
+	if not inventory:
+		return
+	var src = data.get("source")
+	if src == "storage":
+		inventory.equip_from_storage(data.get("storage_index"), target_slot)
+	elif src == "equipped":
+		var from_slot: int = data.get("slot_index")
+		if from_slot == target_slot:
+			return
+		_move_equipped(target_type, from_slot, target_slot)
+	update_display()
 
-		# Ring trigger info
-		if item.ring_trigger != ItemData.RingTrigger.NONE:
-			var trigger_label := Label.new()
-			trigger_label.text = "    → %s: %s" % [item.get_ring_trigger_name(), item.get_ring_effect_name()]
-			trigger_label.add_theme_font_size_override("font_size", 11)
-			trigger_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-			trigger_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-			equipment_container.add_child(trigger_label)
+## Move (or swap) an equipped item between two slots of the same type.
+func _move_equipped(item_type: int, from_slot: int, to_slot: int) -> void:
+	var moving = inventory.get_equipped_item(item_type, from_slot)
+	if moving == null:
+		return
+	var target = inventory.get_equipped_item(item_type, to_slot)
+	inventory.unequip_item(item_type, from_slot)
+	if target != null:
+		inventory.unequip_item(item_type, to_slot)
+		inventory.equip_item(target, from_slot)
+	inventory.equip_item(moving, to_slot)
 
-		# Gauntlet skill info
-		if item.gauntlet_skill_type != ItemData.GauntletSkillType.NONE:
-			var skill_text := "    → %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description]
-			if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
-				skill_text += " (CD: %d)" % item.gauntlet_skill_cooldown
-				if item.current_cooldown > 0:
-					skill_text += " [%dt]" % item.current_cooldown
-			else:
-				skill_text += " (Passive)"
-			var skill_label := Label.new()
-			skill_label.text = skill_text
-			skill_label.add_theme_font_size_override("font_size", 11)
-			skill_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
-			skill_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-			equipment_container.add_child(skill_label)
-
-		# Card slot info (clickable to open card slot manager)
-		if item.has_card_slots():
-			var slot_btn := Button.new()
-			slot_btn.text = "    Cards: %d/%d" % [item.slotted_cards.size(), item.card_slots]
-			slot_btn.flat = true
-			slot_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			slot_btn.add_theme_font_size_override("font_size", 11)
-			slot_btn.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
-			slot_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.8, 1.0))
-			slot_btn.pressed.connect(_open_card_slot_panel.bind(item))
-			equipment_container.add_child(slot_btn)
-
-			for card in item.slotted_cards:
-				var card_label := Label.new()
-				var tag = " [Molded]" if card.is_molded else " [%s]" % card.get_slot_keyword()
-				card_label.text = "      > %s%s" % [card.card_name, tag]
-				card_label.add_theme_font_size_override("font_size", 10)
-				card_label.add_theme_color_override("font_color", Color(0.7, 0.55, 0.9))
-				equipment_container.add_child(card_label)
-
-			# On-self bonuses
-			var on_self_parts: Array[String] = []
-			if item.on_self_damage > 0:
-				on_self_parts.append("+%d dmg" % item.on_self_damage)
-			if item.on_self_block > 0:
-				on_self_parts.append("+%d block" % item.on_self_block)
-			if item.on_self_heal > 0:
-				on_self_parts.append("+%d heal" % item.on_self_heal)
-			if item.on_self_mana_reduction > 0:
-				on_self_parts.append("-%d mana" % item.on_self_mana_reduction)
-			if on_self_parts.size() > 0:
-				var on_self_label := Label.new()
-				on_self_label.text = "    On-Self: %s" % ", ".join(on_self_parts)
-				on_self_label.add_theme_font_size_override("font_size", 10)
-				on_self_label.add_theme_color_override("font_color", Color(0.6, 0.9, 0.6))
-				equipment_container.add_child(on_self_label)
+## An equipped item was dropped back onto the storage grid -> unequip it.
+func _handle_item_drop_on_storage(data: Dictionary) -> void:
+	if not inventory:
+		return
+	if data.get("source") == "equipped":
+		inventory.unequip_to_storage(data.get("item_type"), data.get("slot_index"))
+		update_display()
 
 func _make_separator() -> HSeparator:
 	var sep = HSeparator.new()
@@ -1326,7 +1337,7 @@ func _update_storage_grid() -> void:
 			grid.add_child(cell)
 
 func _create_storage_cell(index: int) -> PanelContainer:
-	var cell = PanelContainer.new()
+	var cell = StorageItemCell.new()
 	cell.custom_minimum_size = Vector2(62, 48)
 
 	var style = StyleBoxFlat.new()
@@ -1374,15 +1385,15 @@ func _create_storage_cell(index: int) -> PanelContainer:
 		type_label.add_theme_color_override("font_color", _get_item_type_color(item.item_type))
 		cell_name_label.text = item.item_name
 		cell_name_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-
-		cell.gui_input.connect(_on_storage_cell_input.bind(item, index))
-		cell.mouse_filter = Control.MOUSE_FILTER_STOP
 	else:
 		type_label.text = ""
 		cell_name_label.text = ""
 
 	vbox.add_child(type_label)
 	vbox.add_child(cell_name_label)
+
+	# Enable drag (equip) from this cell and drop (unequip) onto it.
+	cell.setup(self, index, item)
 
 	return cell
 
@@ -1605,10 +1616,6 @@ func _dismiss_card_confirm_modal() -> void:
 	if is_instance_valid(_card_confirm_popup):
 		_card_confirm_popup.queue_free()
 	_card_confirm_popup = null
-
-func _on_storage_cell_input(event: InputEvent, item: ItemData, storage_index: int) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_on_stored_item_clicked(item, storage_index)
 
 func _get_item_type_color(item_type: ItemData.ItemType) -> Color:
 	match item_type:
