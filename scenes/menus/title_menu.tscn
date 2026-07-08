@@ -36,7 +36,7 @@ size_flags_stretch_ratio = 2.0
 
 [node name="TitleLabel" type="Label" parent="VBox" unique_id=1044388344]
 layout_mode = 2
-text = "Rock USA"
+text = "Trials of Olorin"
 horizontal_alignment = 1
 
 [node name="MidSpacer" type="Control" parent="VBox" unique_id=253312796]

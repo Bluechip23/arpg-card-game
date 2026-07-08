@@ -791,7 +791,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"cover":
 			_execute_cover(player_stats, deck_manager)
 		"fortify_alliance":
-			_execute_fortify_alliance(target, player_stats, buff_mgr)
+			_execute_fortify_alliance(target, player_stats, buff_mgr, deck_manager)
 		"communal_donation":
 			_execute_communal_donation(player_stats, buff_mgr)
 		"shield_ready":
@@ -838,7 +838,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"magic_barrier":
 			_execute_magic_barrier(player_stats)
 		"shepherds_mark":
-			_execute_shepherds_mark(player_stats)
+			_execute_shepherds_mark(player_stats, deck_manager)
 		# === Previously unimplemented effects ===
 		"heavy_swing", "specific_strike", "hydra_bite", "spark":
 			# Straight single-target damage (base_damage carries the value;
@@ -1311,9 +1311,8 @@ static func create_heal() -> Card:
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
-	card.target_types =  ["self", "ally"]
+	card.target_types = ["self", "ally"]
 	card.heal_amount = 4
-	card.target_types = ["self"]
 	return card
 
 static func create_gain_mana() -> Card:
@@ -1520,18 +1519,27 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 		last_damage_dealt = total_damage
-	# 80% bounce chance, -20% per bounce, each bounce deals 8 damage
+	# 80% bounce chance, -20% per bounce; each bounce repeats the attack's damage.
+	# The FIRST bounce honors the pre-rolled outcome shown on the card preview;
+	# later bounces roll live at the decayed odds.
 	var bounce_chance = 80.0
 	var bounces = 0
-	while randf() * 100.0 < bounce_chance:
+	while true:
+		var bounce_hits: bool
+		if bounces == 0 and has_been_rolled():
+			bounce_hits = rng_binary_succeeded()
+		else:
+			bounce_hits = randf() * 100.0 < bounce_chance
+		if not bounce_hits:
+			break
 		bounces += 1
 		if target and target.has_method("take_damage"):
-			target.take_damage(8, true)
-			last_damage_dealt += 8
+			target.take_damage(total_damage, true)
+			last_damage_dealt += total_damage
 		bounce_chance -= 20.0
 		if bounce_chance <= 0:
 			break
-	print("[CARD] Trick Shot! Dealt %d damage, bounced %d times (8 each)" % [total_damage, bounces])
+	print("[CARD] Trick Shot! Dealt %d damage, bounced %d times (%d each)" % [total_damage, bounces, total_damage])
 
 func _execute_surrounding_ice(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -1542,8 +1550,10 @@ func _execute_surrounding_ice(target, player_stats: PlayerStats, buff_mgr: BuffM
 	print("[CARD] Surrounding Ice prepared! %d damage per hit (rolls per enemy in main)" % total_damage)
 
 func _execute_risk_it(player_stats: PlayerStats, deck_manager = null) -> void:
-	# 30% chance to receive the biscuit
-	if randf() < 0.3:
+	# 30% chance to receive the biscuit — uses the pre-rolled outcome so the
+	# result matches the card preview (falls back to a live roll if unrolled).
+	var success: bool = rng_binary_succeeded() if has_been_rolled() else randf() < 0.3
+	if success:
 		# Add Biscuit card to hand
 		if deck_manager:
 			var biscuit = Card.create_biscuit()
@@ -1592,13 +1602,13 @@ func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	var hit_damage = base_damage + bonus_damage
 	if player_stats:
 		hit_damage = player_stats.get_effective_physical_damage(hit_damage)
-	# 30% = 5 hits, 40% = 3 hits, 30% = 2 hits
-	var roll = randf()
+	# Use the pre-rolled outcome (30% = 5 hits, 40% = 3 hits, 30% = 2 hits) so
+	# the result matches what the card preview showed.
 	var hits = 2
-	if roll < 0.3:
-		hits = 5
-	elif roll < 0.7:
-		hits = 3
+	match rng_selected_index:
+		0: hits = 5
+		1: hits = 3
+		_: hits = 2
 	for i in range(hits):
 		if target and target.has_method("take_damage"):
 			target.take_damage(hit_damage, true)
@@ -1610,8 +1620,10 @@ func _execute_house_money(player_stats: PlayerStats) -> void:
 	print("[CARD] House Money! Next odds will automatically trigger")
 
 func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# 50% to heal ally and provide strength for 3 attacks
-	if randf() < 0.5:
+	# 50% to heal ally and provide strength for 3 attacks — uses the pre-rolled
+	# outcome so the result matches the card preview.
+	var success: bool = rng_binary_succeeded() if has_been_rolled() else randf() < 0.5
+	if success:
 		if player_stats:
 			var heal_amt = max(3, player_stats.intelligence)
 			player_stats.heal(heal_amt)
@@ -1749,12 +1761,15 @@ func _execute_shuriken_pouch(player_stats: PlayerStats) -> void:
 	print("[CARD] Shuriken Pouch! Next 3 overflow cards become Shuriken")
 
 func _execute_shuriken(target, player_stats: PlayerStats) -> void:
-	# Deals 3 damage to target enemy (ranged, counts as attack)
-	var total_damage = 3
-	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
-	last_damage_dealt = total_damage
-	print("[CARD] Shuriken! Dealt %d damage" % total_damage)
+	# "Deal 3 damage to a RANDOM enemy" — the random pick happens in main.gd's
+	# world effects (the card layer has no enemy list). If a damageable target
+	# somehow reaches us directly (e.g. quiver fire), hit that instead.
+	last_damage_dealt = 3
+	if target and target.has_method("take_damage") and not target.has_method("get_stats"):
+		target.take_damage(3, true)
+		print("[CARD] Shuriken! Dealt 3 damage")
+	else:
+		print("[CARD] Shuriken thrown — random target resolved in main")
 
 func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -2575,7 +2590,8 @@ static func create_shuriken() -> Card:
 	card.damage = 3
 	card.base_damage = 3
 	card.is_ranged = true
-	card.target_types = ["enemy"]
+	# Hits a RANDOM enemy (no aiming) — plays immediately, resolved in main.gd.
+	card.target_types = ["self"]
 	return card
 
 static func create_premeditated() -> Card:
@@ -3516,7 +3532,7 @@ static func create_fortify_alliance() -> Card:
 	card.target_types = ["ally"]
 	return card
 
-func _execute_fortify_alliance(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+func _execute_fortify_alliance(target, player_stats: PlayerStats, buff_mgr: BuffManager = null, deck_manager = null) -> void:
 	if target and target.has_method("get_stats"):
 		var ally_stats = target.get_stats()
 		if ally_stats:
@@ -3525,9 +3541,14 @@ func _execute_fortify_alliance(target, player_stats: PlayerStats, buff_mgr: Buff
 	elif target and target.has_method("heal"):
 		target.heal(heal_amount)
 		print("[CARD] Fortify Alliance: healed ally for %d" % heal_amount)
-	if player_stats:
-		player_stats.add_armor(base_block)
-		print("[CARD] Fortify Alliance: gained %d armor" % base_block)
+	# The armor goes to the CASTER. When ally-targeted, player_stats has been
+	# rerouted to the ally, so pull the caster's own stats off the deck manager.
+	var caster_stats: PlayerStats = player_stats
+	if deck_manager and deck_manager.player_stats:
+		caster_stats = deck_manager.player_stats
+	if caster_stats:
+		caster_stats.add_armor(base_block)
+		print("[CARD] Fortify Alliance: caster gained %d armor" % base_block)
 
 static func create_communal_donation() -> Card:
 	var card = Card.new()
@@ -3827,12 +3848,13 @@ func _execute_magic_barrier(player_stats: PlayerStats) -> void:
 		player_stats.add_armor(8)
 	print("[CARD] Magic Barrier: +8 armor!")
 
-func _execute_shepherds_mark(player_stats: PlayerStats) -> void:
-	# TODO: When ally targeting is implemented, this should mark the healed ally instead of Jeremy.
-	# For now, the mark is applied to the player (Jeremy) as the ally system isn't fully built out.
+func _execute_shepherds_mark(player_stats: PlayerStats, deck_manager = null) -> void:
+	# player_stats is the MARK TARGET (rerouted to the ally when ally-targeted).
+	# The caster — who pays the 8 HP when the mark triggers — is the deck's owner.
 	if player_stats:
 		player_stats.st_whispers_active = true
 		player_stats.st_whispers_tempo = 10
+		player_stats.st_whispers_caster = deck_manager.player_stats if (deck_manager and deck_manager.player_stats) else player_stats
 	print("[CARD] Shepherd's Mark: ally marked for 10 tempo!")
 
 # ============================================
@@ -4070,7 +4092,7 @@ static func create_shepherds_mark() -> Card:
 	card.heal_amount = 0
 	card.erase_tempo = 10
 	card.erase_tempo_remaining = 10
-	card.target_types = ["self"]
+	card.target_types = ["self", "ally"]
 	return card
 
 # ============================================
@@ -4131,7 +4153,7 @@ static func create_bloodlust() -> Card:
 	var card = Card.new()
 	card.card_id = "bloodlust"
 	card.card_name = "Bloodlust"
-	card.description = "Apply 3 Vulnerable to self. Gain 3 mana. Gain 3 Strengthen for 20 tempo."
+	card.description = "Apply 3 Vulnerable to self. Gain 3 mana. Gain Strengthen 3 for your next 3 attacks."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
@@ -4741,7 +4763,7 @@ static func create_succumb() -> Card:
 	var card = Card.new()
 	card.card_id = "succumb"
 	card.card_name = "Succumb"
-	card.description = "For 20 tempo, gain fortify, blessed 2, strengthen 5, and Resilient 20%%. After 10 tempo, take 10 damage. After 10 additional tempo, take 10 more damage and become cuffed, drained, and disarmed for 10 tempo."
+	card.description = "For 20 tempo, gain fortify, blessed 2, and Resilient 20%%, plus Strengthen 5 on your next 5 attacks. After 10 tempo, take 10 damage. After 10 additional tempo, take 10 more damage and become cuffed, drained, and disarmed for 10 tempo."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0

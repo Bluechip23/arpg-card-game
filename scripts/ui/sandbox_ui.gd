@@ -11,6 +11,8 @@ signal add_card_requested(card_id: String)
 signal spawn_enemy_requested(enemy_type: int)
 signal clear_enemies_requested
 signal refill_requested
+signal add_ally_requested(character_name: String)
+signal grant_passive_requested(option)  # SkillTreeData.SkillOption
 
 # card_id lists grouped by the character whose kit they belong to.
 const CARD_GROUPS := {
@@ -33,7 +35,16 @@ var _card_player_dd: OptionButton = null
 var _card_list: VBoxContainer = null
 var _enemy_realm_dd: OptionButton = null
 var _enemy_list: VBoxContainer = null
+var _ally_dd: OptionButton = null
+var _ally_btn: Button = null
+var _passive_char_dd: OptionButton = null
+var _passive_list: VBoxContainer = null
 var _open: bool = false
+
+const CHARACTER_ORDER := ["Brad", "Ryan", "Stephen", "Cory", "Jeremy"]
+
+# Cached skill trees per character (built lazily for the passive picker).
+var _trees: Dictionary = {}
 
 
 func _ready() -> void:
@@ -42,6 +53,21 @@ func _ready() -> void:
 	_build_ui()
 	_refresh_card_list()
 	_refresh_enemy_list()
+	_refresh_passive_list()
+
+
+func _tree_for(char_name: String) -> SkillTreeData:
+	if _trees.has(char_name):
+		return _trees[char_name]
+	var tree: SkillTreeData = null
+	match char_name:
+		"Brad": tree = SkillTreeData.create_brad_tree()
+		"Ryan": tree = SkillTreeData.create_ryan_tree()
+		"Stephen": tree = SkillTreeData.create_stephen_tree()
+		"Cory": tree = SkillTreeData.create_cory_tree()
+		"Jeremy": tree = SkillTreeData.create_jeremy_tree()
+	_trees[char_name] = tree
+	return tree
 
 
 func _build_enemy_groups() -> void:
@@ -109,7 +135,9 @@ func _build_ui() -> void:
 	_panel.offset_left = -300.0
 	_panel.offset_top = 82.0
 	_panel.offset_right = -8.0
-	_panel.offset_bottom = 620.0
+	# Stretch to the bottom of the screen — the panel now holds four sections.
+	_panel.anchor_bottom = 1.0
+	_panel.offset_bottom = -8.0
 	_panel.visible = false
 
 	var vbox := VBoxContainer.new()
@@ -130,7 +158,7 @@ func _build_ui() -> void:
 	_card_player_dd.item_selected.connect(func(_i): _refresh_card_list())
 	vbox.add_child(_card_player_dd)
 	var card_scroll := ScrollContainer.new()
-	card_scroll.custom_minimum_size = Vector2(0, 190)
+	card_scroll.custom_minimum_size = Vector2(0, 150)
 	card_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(card_scroll)
 	_card_list = VBoxContainer.new()
@@ -148,13 +176,49 @@ func _build_ui() -> void:
 	_enemy_realm_dd.item_selected.connect(func(_i): _refresh_enemy_list())
 	vbox.add_child(_enemy_realm_dd)
 	var enemy_scroll := ScrollContainer.new()
-	enemy_scroll.custom_minimum_size = Vector2(0, 170)
+	enemy_scroll.custom_minimum_size = Vector2(0, 130)
 	enemy_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(enemy_scroll)
 	_enemy_list = VBoxContainer.new()
 	_enemy_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_enemy_list.add_theme_constant_override("separation", 2)
 	enemy_scroll.add_child(_enemy_list)
+
+	vbox.add_child(HSeparator.new())
+
+	# ---- Add Ally section (for testing ally-targeting cards) ----
+	vbox.add_child(_header("Add Ally"))
+	var ally_row := HBoxContainer.new()
+	ally_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(ally_row)
+	_ally_dd = OptionButton.new()
+	_ally_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for n in CHARACTER_ORDER:
+		_ally_dd.add_item(n)
+	ally_row.add_child(_ally_dd)
+	_ally_btn = Button.new()
+	_ally_btn.text = "Spawn"
+	_ally_btn.pressed.connect(func():
+		add_ally_requested.emit(CHARACTER_ORDER[_ally_dd.selected]))
+	ally_row.add_child(_ally_btn)
+
+	vbox.add_child(HSeparator.new())
+
+	# ---- Grant Passive section ----
+	vbox.add_child(_header("Grant Passive"))
+	_passive_char_dd = OptionButton.new()
+	for n in CHARACTER_ORDER:
+		_passive_char_dd.add_item(n)
+	_passive_char_dd.item_selected.connect(func(_i): _refresh_passive_list())
+	vbox.add_child(_passive_char_dd)
+	var passive_scroll := ScrollContainer.new()
+	passive_scroll.custom_minimum_size = Vector2(0, 150)
+	passive_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(passive_scroll)
+	_passive_list = VBoxContainer.new()
+	_passive_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_passive_list.add_theme_constant_override("separation", 2)
+	passive_scroll.add_child(_passive_list)
 
 	vbox.add_child(HSeparator.new())
 
@@ -167,6 +231,39 @@ func _build_ui() -> void:
 	refill_btn.text = "Refill Health & Mana"
 	refill_btn.pressed.connect(func(): refill_requested.emit())
 	vbox.add_child(refill_btn)
+
+
+func mark_ally_added() -> void:
+	## Called by Main once an ally is on the field — only one ally is supported.
+	if _ally_btn:
+		_ally_btn.disabled = true
+		_ally_btn.text = "Added"
+
+
+func _refresh_passive_list() -> void:
+	if not _passive_list:
+		return
+	for c in _passive_list.get_children():
+		c.queue_free()
+	var char_name: String = CHARACTER_ORDER[_passive_char_dd.selected] if _passive_char_dd else "Brad"
+	var tree := _tree_for(char_name)
+	if tree == null:
+		return
+	var seen := {}
+	for row in tree.rows:
+		for opt in row.options:
+			if opt.option_type != SkillTreeData.OptionType.PASSIVE and opt.option_type != SkillTreeData.OptionType.PASSIVE_MUTATION:
+				continue
+			if seen.has(opt.name):
+				continue
+			seen[opt.name] = true
+			var btn := Button.new()
+			btn.text = "L%d  %s" % [row.level, opt.name]
+			btn.tooltip_text = opt.description
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.add_theme_font_size_override("font_size", 12)
+			btn.pressed.connect(func(): grant_passive_requested.emit(opt))
+			_passive_list.add_child(btn)
 
 
 func _header(text: String) -> Label:

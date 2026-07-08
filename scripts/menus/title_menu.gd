@@ -1,11 +1,16 @@
 class_name TitleMenu
 extends Control
 
-## Title menu screen - Rock USA
+## Title menu screen - Trials of Olorin
+##
+## The title itself is drawn by the animated TitleCutscene (Olorin, the boy,
+## the pipe, and the two smoke rings that become the O's of OLORIN). The menu
+## fades in once the cutscene finishes (or is skipped).
 
 const CharacterSelectScene = preload("res://scenes/character/character_select.tscn")
 const LoadOrNewScene = preload("res://scenes/character/load_or_new.tscn")
 const QuestionnaireScene = preload("res://scenes/character/character_questionnaire.tscn")
+const TitleCutsceneScript = preload("res://scripts/menus/title_cutscene.gd")
 
 @onready var title_label: Label = $VBox/TitleLabel
 @onready var menu_container: VBoxContainer = $VBox/MenuContainer
@@ -15,32 +20,64 @@ const QuestionnaireScene = preload("res://scenes/character/character_questionnai
 var _left_balls: Array[ColorRect] = []
 var _right_balls: Array[ColorRect] = []
 var _menu_buttons: Array[Button] = []
+var _cutscene: Control = null
 
 var _menu_items: Array[Dictionary] = [
 	{"text": "Single Player", "action": "_on_single_player"},
-	{"text": "Roguelike", "action": "_on_roguelike"},
 	{"text": "Multiplayer", "action": "_on_multiplayer"},
-	{"text": "Sandbox", "action": "_on_sandbox"},
+	{"text": "Roguelike", "action": "_on_roguelike"},
+	{"text": "Test", "action": "_on_test"},
 	{"text": "Compendium", "action": "_on_compendium"},
-	{"text": "Animation Lab", "action": "_on_animation_lab"},
-	{"text": "Enemy Lab", "action": "_on_enemy_lab"},
 	{"text": "Settings", "action": "_on_settings"},
 	{"text": "Help", "action": "_on_help"},
 	{"text": "Quit", "action": "_on_quit"},
 ]
 
+# The Test submenu: everything used for trying things out.
+var _test_items: Array[Dictionary] = [
+	{"text": "Sandbox", "action": "_on_sandbox"},
+	{"text": "Animation Lab", "action": "_on_animation_lab"},
+	{"text": "Enemy Lab", "action": "_on_enemy_lab"},
+	{"text": "Back", "action": "_on_test_back"},
+]
+
 func _ready() -> void:
 	_apply_styles()
 	_build_menu()
+	# The cutscene draws the backdrop AND the title; the plain label is retired.
+	if title_label:
+		title_label.visible = false
+	_cutscene = TitleCutsceneScript.new()
+	_cutscene.name = "TitleCutscene"
+	_cutscene.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_cutscene)
+	move_child(_cutscene, 1)  # above Background, below VBox
+	# Hide the menu until Olorin has settled back onto his chair.
+	$VBox.visible = false
+	$VBox.modulate.a = 0.0
+	_cutscene.cutscene_finished.connect(_on_cutscene_finished)
+
+func _on_cutscene_finished() -> void:
+	$VBox.visible = true
+	var tween := create_tween()
+	tween.tween_property($VBox, "modulate:a", 1.0, 0.8)
 
 func _apply_styles() -> void:
 	if title_label:
 		title_label.add_theme_font_size_override("font_size", 72)
 		title_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
 
-func _build_menu() -> void:
-	for i in range(_menu_items.size()):
-		var item = _menu_items[i]
+func _build_menu(items: Array[Dictionary] = []) -> void:
+	if items.is_empty():
+		items = _menu_items
+	# Clear any previous menu (used when swapping to/from the Test submenu).
+	for child in menu_container.get_children():
+		child.queue_free()
+	_left_balls.clear()
+	_right_balls.clear()
+	_menu_buttons.clear()
+	for i in range(items.size()):
+		var item = items[i]
 
 		var hbox = HBoxContainer.new()
 		hbox.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -153,6 +190,13 @@ func _on_multiplayer() -> void:
 	select_scene.game_mode = "multiplayer"
 	get_tree().root.add_child(select_scene)
 	queue_free()
+
+func _on_test() -> void:
+	## Swap to the Test submenu (Sandbox / Animation Lab / Enemy Lab).
+	_build_menu(_test_items)
+
+func _on_test_back() -> void:
+	_build_menu(_menu_items)
 
 func _on_sandbox() -> void:
 	var select_scene = CharacterSelectScene.instantiate()

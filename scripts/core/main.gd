@@ -50,6 +50,8 @@ var olorin: OlorinTutorial = null
 var waypoint_mgr: WaypointManager = null
 # Rats summoned by the Infestation card (roguelike only).
 var _summoned_rats: Array = []
+var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
+const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
 var minimap_tab_ui: MinimapTabUI = null
 var player2_ui: Player2UI = null
 var current_world_level: int = 1
@@ -418,6 +420,13 @@ func _ready() -> void:
 			_p2_player.move_completed.connect(_on_player_move_completed)
 			# Enemies target the nearest living player; defeat needs both downed.
 			enemy_spawner.players = [_p1_player, _p2_player]
+			# Cover reactions: each partner can mitigate the other's damage.
+			var p2s = _p2_player.get_stats()
+			if p2s:
+				p2s.damage_taken.connect(_on_ally_damage_taken.bind(_p2_player))
+			var p1s = _p1_player.get_stats()
+			if p1s:
+				p1s.damage_taken.connect(_on_ally_damage_taken.bind(_p1_player))
 		# P2's deck gets the same card exit animations (visual-only handlers —
 		# they no-op unless that deck's hand is the one on screen).
 		if _p2_deck_manager:
@@ -2742,6 +2751,8 @@ func _setup_sandbox() -> void:
 	sandbox_ui.spawn_enemy_requested.connect(_on_sandbox_spawn_enemy)
 	sandbox_ui.clear_enemies_requested.connect(_on_sandbox_clear_enemies)
 	sandbox_ui.refill_requested.connect(_sandbox_refill)
+	sandbox_ui.add_ally_requested.connect(_on_sandbox_add_ally)
+	sandbox_ui.grant_passive_requested.connect(_on_sandbox_grant_passive)
 	sandbox_ui.open()
 	add_battle_log("Sandbox mode: use the panel (top-right) to add cards and spawn enemies.", Color(0.7, 0.85, 1.0))
 
@@ -2763,6 +2774,71 @@ func _on_sandbox_add_card(card_id: String) -> void:
 	deck_manager.hand.append(card)
 	deck_manager.hand_updated.emit()
 	add_battle_log("Sandbox: added %s to hand." % card.card_name, Color(0.5, 1.0, 0.6))
+
+func _on_sandbox_add_ally(char_name: String) -> void:
+	## Spawn a second character as an ally so ally-targeting cards can be tested.
+	## Reuses the whole co-op (Player 2) pipeline: own stats, deck, figure, and
+	## TAB control switching.
+	if _p2_player:
+		add_battle_log("Sandbox: an ally is already on the field.", Color(1.0, 0.7, 0.4))
+		return
+	var chosen: CharacterData = null
+	for c in CharacterData.get_all_characters():
+		if c.character_name == char_name:
+			chosen = c
+			break
+	if chosen == null:
+		add_battle_log("Sandbox: unknown character '%s'." % char_name, Color(1.0, 0.5, 0.4))
+		return
+
+	player2_character = chosen
+	is_multiplayer = true
+	_p1_player = player
+	_p1_deck_manager = deck_manager
+	player2_ui._initialize_player2()
+
+	# Same wiring the normal co-op path does in _ready().
+	if _p2_player:
+		_p2_player.tile_reached.connect(_on_player_tile_reached)
+		_p2_player.move_completed.connect(_on_player_move_completed)
+		enemy_spawner.players = [_p1_player, _p2_player]
+		# Cover reactions: each partner can mitigate the other's damage.
+		var sb_p2s = _p2_player.get_stats()
+		if sb_p2s:
+			sb_p2s.damage_taken.connect(_on_ally_damage_taken.bind(_p2_player))
+		var sb_p1s = _p1_player.get_stats()
+		if sb_p1s:
+			sb_p1s.damage_taken.connect(_on_ally_damage_taken.bind(_p1_player))
+	if _p2_deck_manager:
+		_p2_deck_manager.card_discarded.connect(_animate_card_discard)
+		_p2_deck_manager.reaction_triggered.connect(_animate_card_instant)
+		_p2_deck_manager.card_erased.connect(_animate_card_erase)
+	if _p2_player and _p2_player.get_inventory():
+		_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
+	_setup_co_op_defeat()
+
+	# Ally gets the same fat sandbox pools.
+	var s2 = _p2_player.get_stats() if _p2_player else null
+	if s2:
+		s2.max_health = maxi(s2.max_health, 200)
+		s2.current_health = s2.max_health
+		s2.max_mana = maxi(s2.max_mana, 20)
+		s2.current_mana = s2.max_mana
+		s2.health_changed.emit(s2.current_health, s2.max_health)
+		s2.mana_changed.emit(s2.current_mana, s2.max_mana)
+
+	if sandbox_ui and sandbox_ui.has_method("mark_ally_added"):
+		sandbox_ui.mark_ally_added()
+	add_battle_log("Sandbox: %s joined as your ally! (TAB to switch control)" % char_name, Color(0.5, 1.0, 0.6))
+
+func _on_sandbox_grant_passive(option) -> void:
+	## Grant a skill-tree passive to the ACTIVE player so it can be tested.
+	if option == null:
+		return
+	progression_triggers._apply_skill_tree_option(option)
+	if character_panel:
+		character_panel.update_display()
+	add_battle_log("Sandbox: granted passive '%s'." % option.name, Color(0.9, 0.7, 0.2))
 
 func _on_sandbox_spawn_enemy(enemy_type: int) -> void:
 	## Spawn the chosen enemy on a free tile a few cells in front of the player.
@@ -3256,8 +3332,9 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
-	# Summoned rats (Infestation) move/lunge after the enemies have acted.
+	# Summoned rats (Infestation) and Bull Worms move/attack after the enemies act.
 	_update_summoned_rats()
+	_update_summoned_worms()
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
@@ -4253,10 +4330,15 @@ func _process_maintained_card_effects() -> void:
 	var maintained_result = deck_manager.process_maintained_cards()
 	var stats = player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
-		# Halo: heal all allies (self-only in solo, both players in co-op).
+		# Halo: heal allies within its AOE (3 tiles of the caster). The caster
+		# always heals; a partner must be inside the radius.
 		for ally in _all_players():
-			if is_instance_valid(ally) and ally.get_stats():
-				ally.get_stats().heal(maintained_result["total_heal"])
+			if not is_instance_valid(ally) or not ally.get_stats():
+				continue
+			var halo_diff = ally.position - player.position
+			if ally != player and Vector3(halo_diff.x, 0, halo_diff.z).length() > 3.0:
+				continue
+			ally.get_stats().heal(maintained_result["total_heal"])
 		print("[MAIN] Maintained cards healed for %d HP" % maintained_result["total_heal"])
 	if maintained_result["self_damage"] > 0 and stats:
 		stats.take_direct_damage(maintained_result["self_damage"])
@@ -4964,8 +5046,10 @@ func play_selected_card(target) -> void:
 		tighten_applied = true
 
 	# High Ground: +4 damage, +2 range when shooting from elevated position (pillar or terrain elevation)
+	# Sky Attack leaps into the air as part of the shot, so it always counts as
+	# firing from High Ground.
 	var high_ground_applied = false
-	if is_ranged_attack and _has_high_ground(player.position, target):
+	if is_ranged_attack and (_has_high_ground(player.position, target) or card.card_id == "sky_attack"):
 		card.bonus_damage += 4
 		card.range_modifier += 2
 		high_ground_applied = true
@@ -5694,13 +5778,16 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Misery Loves Company armed.")
 
 		"worms_armageddon":
-			# Rain meteors: base_damage to every enemy on the field; 10% Bull Worm VFX.
+			# Rain meteors: base_damage to every enemy on the field; on the 10%
+			# proc, summon two REAL Alaskan Bull Worms (12 HP / 6 dmg / burrowed).
 			var wa_dmg = card.base_damage
 			var wa_hit = enemy_spawner.get_living_enemies()
 			for en in wa_hit:
 				en.take_damage(wa_dmg, true)
 			add_battle_log("Worms Armageddon! %d damage to %d enemies" % [wa_dmg, wa_hit.size()], Color(0.6, 0.4, 0.2))
 			print("[MAIN] Worms Armageddon hit %d enemies for %d" % [wa_hit.size(), wa_dmg])
+			if card.rng_binary_succeeded():
+				_spawn_bull_worms(2)
 
 		"harness_lightning":
 			# Orb: 4 damage every 5 tempo for 30 tempo to a random enemy within 3.
@@ -5711,9 +5798,11 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"try_this":
 			# Ally +3 mana pool / +2 hand size for 10 tempo (10% backfires, permanent).
+			# Backfire uses the pre-rolled outcome so it matches the card preview.
 			var tt_stats = target.get_stats() if target is Player else player.get_stats()
 			if tt_stats:
-				if randf() < 0.1:
+				var tt_backfired: bool = card.rng_binary_succeeded() if card.has_been_rolled() else randf() < 0.1
+				if tt_backfired:
 					tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
 					tt_stats.hand_size = max(1, tt_stats.hand_size - 2)
 					add_battle_log("Try This backfired! -3 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
@@ -5722,6 +5811,16 @@ func _apply_card_world_effects(card: Card, target) -> void:
 					tt_stats.hand_size += 2
 					schedule_delayed_effect(10, _try_this_revert.bind(tt_stats), "try_this")
 					add_battle_log("Try This! +3 mana pool, +2 hand size for 10 tempo", Color(0.6, 1.0, 0.6))
+
+		"shuriken":
+			# Deal 3 damage to a RANDOM living enemy, as the card describes.
+			var sk_enemies = enemy_spawner.get_living_enemies()
+			if sk_enemies.size() > 0:
+				var sk_target = sk_enemies[randi() % sk_enemies.size()]
+				sk_target.take_damage(3, true)
+				add_battle_log("Shuriken hit %s for 3!" % sk_target.enemy_name, Color(0.8, 0.9, 1.0))
+			else:
+				add_battle_log("Shuriken thrown, but no enemies present.", Color(0.7, 0.7, 0.7))
 
 		"item_mastery":
 			# Place a copy of every card slotted in your items into your hand.
@@ -5844,11 +5943,16 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Teleport player to landing spot (passes through all units freely)
 			player.position = leap_target
 			player.target_position = leap_target
+			# Damage scales with the distance ACTUALLY leaped (3 per tile), not the
+			# max STR leap — a short hop hits softer, as the card describes.
+			var leap_damage = card.last_damage_dealt
+			if leap_distance > 0 and actual_leap < leap_distance:
+				leap_damage = maxi(1, floori(card.last_damage_dealt * float(actual_leap) / float(leap_distance)))
 			# Deal AOE damage to enemies at landing
 			var landing_enemies = enemy_spawner.get_enemies_in_radius(leap_target, 1.5)
 			for enemy in landing_enemies:
-				enemy.take_damage(card.last_damage_dealt, true)
-			print("[MAIN] Heroic Leap: jumped %d tiles to %s, hit %d enemies for %d damage" % [actual_leap, leap_target, landing_enemies.size(), card.last_damage_dealt])
+				enemy.take_damage(leap_damage, true)
+			print("[MAIN] Heroic Leap: jumped %d/%d tiles to %s, hit %d enemies for %d damage" % [actual_leap, leap_distance, leap_target, landing_enemies.size(), leap_damage])
 
 		"surrounding_ice":
 			# AOE circle around player - roll independently for each enemy
@@ -5872,8 +5976,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			for enemy in fire_enemies:
 				enemy.take_damage(card.last_damage_dealt, true)
 			print("[MAIN] Snowball's Chance: fire line hit %d enemies for %d damage" % [fire_enemies.size(), card.last_damage_dealt])
-			# 50% to also spread snowball cone
-			if randf() < 0.5:
+			# 50% to also spread snowball cone — uses the pre-rolled outcome so
+			# the result matches the card preview.
+			var sbc_cone: bool = card.rng_binary_succeeded() if card.has_been_rolled() else randf() < 0.5
+			if sbc_cone:
 				var cone_enemies = enemy_spawner.get_enemies_in_cone(player.position, direction, card.aoe_range, 45.0)
 				var extra_hits = 0
 				for enemy in cone_enemies:
@@ -6924,6 +7030,100 @@ func _clear_summoned_rats() -> void:
 		if is_instance_valid(rat):
 			rat.queue_free()
 	_summoned_rats.clear()
+	_clear_summoned_worms()
+
+# ============================================
+# ALASKAN BULL WORMS (Worm's Armageddon summon)
+# ============================================
+
+func _spawn_bull_worms(count: int) -> void:
+	## Summon burrowed worm allies on free tiles beside the player.
+	if not grid_manager:
+		return
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var blocked = player.blocked_tiles
+	var enemy_cells = _living_enemy_cells()
+	var offsets = [
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+		Vector2i(1, 1), Vector2i(-1, -1), Vector2i(2, 0), Vector2i(0, 2),
+	]
+	var spawned = 0
+	var used: Array = []
+	for off in offsets:
+		if spawned >= count:
+			break
+		var cell = player_cell + off
+		if cell == player_cell or cell in blocked or cell in enemy_cells or cell in used:
+			continue
+		used.append(cell)
+		var worm = SummonedWormScript.new()
+		add_child(worm)
+		worm.setup(grid_manager, grid_manager.grid_to_world(cell))
+		worm.died.connect(func(w): _summoned_worms.erase(w))
+		_summoned_worms.append(worm)
+		spawned += 1
+	if spawned > 0:
+		add_battle_log("The ground rumbles — %d Alaskan Bull Worm(s) burrow up!" % spawned, Color(0.85, 0.75, 0.9))
+
+func _clear_summoned_worms() -> void:
+	for worm in _summoned_worms:
+		if is_instance_valid(worm):
+			worm.queue_free()
+	_summoned_worms.clear()
+
+func _update_summoned_worms() -> void:
+	## Per-tempo worm AI: burrowed worms crawl 1 tile toward the nearest enemy
+	## (untargetable); on contact they surface and bite for 6 each tempo.
+	## Surfaced worms can be swatted by adjacent enemies.
+	if _summoned_worms.is_empty():
+		return
+	_summoned_worms = _summoned_worms.filter(func(w): return is_instance_valid(w) and not w.is_dead)
+	if not grid_manager or not enemy_spawner:
+		return
+	var enemies = enemy_spawner.get_living_enemies()
+	var blocked = player.blocked_tiles
+
+	# Enemies swat adjacent SURFACED worms (burrowed = untargetable).
+	for enemy in enemies:
+		if not is_instance_valid(enemy) or not enemy.is_alive():
+			continue
+		var ecell = grid_manager.world_to_grid(enemy.position)
+		for worm in _summoned_worms.duplicate():
+			if not is_instance_valid(worm) or worm.is_dead or worm.burrowed:
+				continue
+			if _manhattan(worm.get_cell(), ecell) == 1:
+				worm.take_damage(enemy.attack_damage)
+				break
+
+	var worm_cells: Array = []
+	for worm in _summoned_worms:
+		if is_instance_valid(worm) and not worm.is_dead:
+			worm_cells.append(worm.get_cell())
+
+	for worm in _summoned_worms.duplicate():
+		if not is_instance_valid(worm) or worm.is_dead:
+			continue
+		var target_enemy = _nearest_enemy_to(worm.position, enemies)
+		if target_enemy == null:
+			continue
+		var wcell = worm.get_cell()
+		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		if _manhattan(wcell, tcell) <= 1:
+			# Bite! Surfacing ends the burrow (worm becomes targetable).
+			if worm.burrowed:
+				worm.surface()
+				add_battle_log("A Bull Worm erupts from the ground!", Color(0.85, 0.75, 0.9))
+			target_enemy.take_damage(worm.CONTACT_DAMAGE, true)
+			add_battle_log("Bull Worm bites %s for %d!" % [target_enemy.enemy_name, worm.CONTACT_DAMAGE], Color(0.85, 0.75, 0.9))
+			continue
+		# 1 movement per tempo while hunting.
+		var next_cell = _rat_step_toward(wcell, tcell, blocked, _living_enemy_cells(), worm_cells)
+		if next_cell != wcell:
+			worm_cells.erase(wcell)
+			worm_cells.append(next_cell)
+			worm.move_to_cell(next_cell)
+
+	_summoned_worms = _summoned_worms.filter(func(w): return is_instance_valid(w) and not w.is_dead)
 
 func _living_enemy_cells() -> Array:
 	var cells: Array = []
@@ -7148,6 +7348,22 @@ func _get_ally_names() -> Array:
 		allies.append("Self")
 	return allies
 
+func _ally_stats_by_name(ally_name: String):
+	## Resolve an ally display name (from the donation panel) to its PlayerStats.
+	## Currently the co-op partner; summoned creatures have no stats object.
+	var candidates: Array = []
+	if _p1_player and _p1_player != player:
+		candidates.append(_p1_player)
+	if _p2_player and _p2_player != player:
+		candidates.append(_p2_player)
+	for p in candidates:
+		if not is_instance_valid(p) or not p.has_method("get_stats"):
+			continue
+		var s = p.get_stats()
+		if s and s.character_data and s.character_data.character_name == ally_name:
+			return s
+	return null
+
 func _open_donation_panel() -> void:
 	var stats = player.get_stats()
 	if not stats:
@@ -7234,7 +7450,10 @@ func _on_donation_confirmed() -> void:
 			stats.heal(heal_amount)
 			add_battle_log("Communal Donation: healed self for %d" % heal_amount, Color(0.3, 1.0, 0.3))
 		else:
-			# Heal summoned allies / P2 (future: route to actual ally stats)
+			# Route the allocation to the actual ally's stats (co-op partner).
+			var ally_stats = _ally_stats_by_name(ally_name)
+			if ally_stats:
+				ally_stats.heal(heal_amount)
 			add_battle_log("Communal Donation: healed %s for %d" % [ally_name, heal_amount], Color(0.3, 1.0, 0.3))
 		total_healed += heal_amount
 		print("[MAIN] Communal Donation: healed %s for %d" % [ally_name, heal_amount])
@@ -7533,6 +7752,30 @@ func _on_player_damage_taken(_amount: int) -> void:
 	if triggered.size() > 0 or cover_reactions.size() > 0:
 		_refresh_unit_tracker()
 
+func _on_ally_damage_taken(_amount: int, victim) -> void:
+	## Co-op: the PARTNER took damage. If the other player holds Cover and is
+	## within 2 tiles, their reaction mitigates it — the ally is restored by the
+	## defender's hand size (post-damage approximation of "reduce it").
+	if not is_instance_valid(victim):
+		return
+	var defender = _p1_player if victim == _p2_player else _p2_player
+	if defender == null or not is_instance_valid(defender):
+		return
+	var diff = defender.position - victim.position
+	if Vector3(diff.x, 0, diff.z).length() > 2.0:
+		return
+	var defender_deck = _p1_deck_manager if defender == _p1_player else _p2_deck_manager
+	if defender_deck == null:
+		return
+	var cover_reactions = defender_deck.trigger_reactions("on_ally_damage_taken")
+	for card in cover_reactions:
+		# player_stats = the VICTIM (who gets the mitigation); deck = defender's
+		# (whose hand size sets the amount).
+		card.execute(null, victim.get_stats(), defender_deck, 0.0, 0.0, defender.get_buff_manager())
+	if cover_reactions.size() > 0:
+		add_battle_log("Cover! Ally's damage mitigated.", Color(0.5, 0.85, 1.0))
+		_refresh_unit_tracker()
+
 	var stats = player.get_stats()
 	var non_fatal: bool = stats != null and stats.current_health > 0
 	if not non_fatal:
@@ -7594,12 +7837,10 @@ func _on_card_erased(card: Card) -> void:
 	_on_hand_updated()
 
 func _on_shepherds_mark_triggered() -> void:
+	# The 8-HP cost is paid inside PlayerStats._pay_whispers_cost() (routed to the
+	# actual caster, non-lethal on a self-cast) — this handler just narrates.
 	add_battle_log("Shepherd's Mark: Lethal damage prevented! 1 HP + 10 armor!", Color(0.3, 0.7, 1.0))
-	# Jeremy takes 8 damage as the cost of the mark triggering
-	var stats = player.get_stats()
-	if stats:
-		stats.take_direct_damage(8)
-		add_battle_log("Whispers of the Flock: Jeremy takes 8 damage!", Color(0.9, 0.3, 0.3))
+	add_battle_log("Shepherd's Mark: the caster pays 8 HP.", Color(0.9, 0.3, 0.3))
 
 # ============================================
 # LOOT DROP SYSTEM

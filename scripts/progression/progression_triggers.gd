@@ -779,9 +779,14 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 	if not stats:
 		return
 
-	# Enraged Will: below 25% HP → Reach AOE swing (1 base + 1 Reach = 2 range) + gain 1 mana per kill
+	# Enraged Will: DROPPING below 25% HP → one Reach AOE swing (1 base + 1 Reach
+	# = 2 range) + gain 1 mana per kill. Fires once per threshold crossing —
+	# re-arms only after healing back above 25%.
 	if stats.has_skill_tree_passive("enraged_will"):
-		if stats.get_health_percent() <= 0.25 and stats.current_health > 0:
+		if stats.get_health_percent() > 0.25:
+			stats.st_enraged_will_triggered = false
+		elif stats.current_health > 0 and not stats.st_enraged_will_triggered:
+			stats.st_enraged_will_triggered = true
 			var enemies = main.enemy_spawner.get_enemies_in_radius(main.player.position, 2.0) if main.enemy_spawner else []
 			if enemies.size() > 0:
 				var dmg = stats.get_effective_physical_damage(0)
@@ -948,12 +953,9 @@ func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
-	# Directed Strength: -5 STR above 50% HP, +5 STR below 50%
-	if stats.has_skill_tree_passive("directed_strength"):
-		if stats.get_health_percent() <= 0.5:
-			bonus += 5
-		else:
-			bonus -= 5
+	# Directed Strength (-5 STR above 50% HP, +5 below) is applied as a real
+	# strength modifier in PlayerStats._directed_strength_mod(), so every
+	# strength-scaled formula picks it up — not as flat bonus damage here.
 
 	# Life Steal: all attacks life steal by 5% — applied directly in Card.execute()
 	# (the generic LIFE_STEAL buff heals 100%, so it must NOT be used here).
@@ -1066,11 +1068,12 @@ func _trigger_skill_tree_stephen_on_expose(target) -> void:
 	if not stats:
 		return
 
-	# Easy Target: when exposing an enemy, deal your damage again
+	# Easy Target: when exposing an enemy, deal your damage again — repeat the
+	# damage of the hit that broke the armor, not a generic strength swing.
 	if stats.has_skill_tree_passive("easy_target") and target and target.has_method("take_damage"):
-		var dmg = stats.get_effective_physical_damage(0)
+		var dmg: int = target.last_player_hit_damage if ("last_player_hit_damage" in target and target.last_player_hit_damage > 0) else stats.get_effective_physical_damage(0)
 		target.take_damage(dmg, true)
-		main.add_battle_log("Easy Target: %d bonus damage on expose!" % dmg, Color(0.9, 0.3, 0.3))
+		main.add_battle_log("Easy Target: repeated %d damage on expose!" % dmg, Color(0.9, 0.3, 0.3))
 
 func _trigger_skill_tree_stephen_on_attacked(attacker) -> void:
 	var stats = main.player.get_stats()
@@ -1184,18 +1187,19 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 	if not stats:
 		return
 
-	# Self Reliance: 3 cards in one tempo cycle → next card costs -1m
+	# Self Reliance: 3 cards in one tempo cycle → the NEXT card costs -1m.
+	# Consume BEFORE tracking this play so the discount earned by the 3rd card
+	# never applies to that same 3rd card.
+	if stats.st_self_reliance_discount and card.mana_cost > 0:
+		stats.gain_mana(1)  # Refund 1 mana as discount
+		stats.st_self_reliance_discount = false
+		main.add_battle_log("Self Reliance: -1m applied!", Color(0.9, 0.3, 0.3))
+
 	if stats.has_skill_tree_passive("self_reliance"):
 		stats.st_cards_this_cycle.append(card.card_type_name)
 		if stats.st_cards_this_cycle.size() >= 3 and not stats.st_self_reliance_discount:
 			stats.st_self_reliance_discount = true
 			main.add_battle_log("Self Reliance: next card costs -1m!", Color(0.9, 0.3, 0.3))
-
-	# Self Reliance: consume discount
-	if stats.st_self_reliance_discount and card.mana_cost > 0:
-		stats.gain_mana(1)  # Refund 1 mana as discount
-		stats.st_self_reliance_discount = false
-		main.add_battle_log("Self Reliance: -1m applied!", Color(0.9, 0.3, 0.3))
 
 	# Budding: track card types (no back-to-back same type)
 	if stats.has_skill_tree_passive("budding"):
@@ -1515,17 +1519,27 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 	if stats.st_haunted_rebuke_cooldown > 0:
 		stats.st_haunted_rebuke_cooldown -= 5
 
-	# I Heal You: heal nearby allies (summoned creatures) 3 HP every 5 tempo
+	# I Heal You: heal nearby allies 3 HP every 5 tempo — covers both summoned
+	# specters (Seance) and a co-op partner standing within 3 tiles.
 	if stats.has_skill_tree_passive("i_heal_you"):
 		stats.st_i_heal_you_tempo += 5
 		if stats.st_i_heal_you_tempo >= 5:
 			stats.st_i_heal_you_tempo = 0
-			# Heal summoned specters (Seance) within range
 			var healed_any = false
 			for specter in stats.st_seance_specters:
 				if specter.get("hp", 0) > 0:
 					var max_hp = specter.get("max_hp", 5)
 					specter["hp"] = min(max_hp, specter["hp"] + 3)
+					healed_any = true
+			# Co-op partner: whichever player node isn't the passive's owner.
+			var partner = main._p2_player if main.player == main._p1_player else main._p1_player
+			if partner == main.player:
+				partner = null
+			if partner and is_instance_valid(partner) and partner.has_method("get_stats"):
+				var p_stats = partner.get_stats()
+				var diff = partner.position - main.player.position
+				if p_stats and p_stats.current_health > 0 and Vector3(diff.x, 0, diff.z).length() <= 3.0:
+					p_stats.heal(3)
 					healed_any = true
 			if healed_any:
 				main.add_battle_log("I Heal You: healed allies 3 HP", Color(0.3, 0.7, 1.0))

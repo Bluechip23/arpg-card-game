@@ -43,6 +43,7 @@ var current_health: int = 30
 var max_armor: int = 0
 var current_armor: int = 0
 var is_exposed: bool = false          # True once armor has been broken to 0
+var last_player_hit_damage: int = 0   # Raw damage of the player's most recent hit (for on-expose passives)
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
 var target: Node3D = null
 var is_moving: bool = false
@@ -2511,6 +2512,11 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# have no per-type resistances yet, so it is accepted but not yet applied.
 	if is_dead:
 		return false
+
+	# Remember the raw incoming damage of this hit (before armor math) so
+	# on-expose passives like Easy Target can repeat "your damage".
+	if from_player:
+		last_player_hit_damage = amount
 
 	# Hydra: grows stronger with every hit she takes from the player.
 	if enemy_type == EnemyType.HYDRA and from_player:

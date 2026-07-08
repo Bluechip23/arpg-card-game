@@ -76,10 +76,11 @@ func _setup_p2_health_bar() -> void:
 	var wrapper := VBoxContainer.new()
 	wrapper.name = "P2StatBars"
 	ui.add_child(wrapper)
+	# Sits right of the buff/debuff bars (which occupy x 440-800 beside P1's stats).
 	wrapper.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	wrapper.offset_left = 440.0
+	wrapper.offset_left = 810.0
 	wrapper.offset_top = 8.0
-	wrapper.offset_right = 650.0
+	wrapper.offset_right = 1020.0
 	wrapper.offset_bottom = 60.0
 	wrapper.add_theme_constant_override("separation", 2)
 
