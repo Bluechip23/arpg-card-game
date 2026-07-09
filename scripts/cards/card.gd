@@ -89,6 +89,17 @@ var slotted_in_item = null  # Reference to the ItemData this card is slotted in 
 func is_slotted() -> bool:
 	return slotted_in_item != null
 
+func get_stack_signature() -> String:
+	## Cards sharing a signature stack under one hand slot / play button. Only
+	## copies that look and play identically merge; anything that changes the
+	## card's face or how it plays (upgrade, enhance, cost shifts, jailed,
+	## slotted) splits it into its own stack.
+	return "%s|%s|%d|%d|%d|%d|%d|%d|%s|%s" % [
+		card_id, card_name, mana_cost, tempo_cost,
+		int(is_upgraded), upgrade_path, int(is_enhanced), bonus_damage,
+		str(is_jailed()), str(is_slotted()),
+	]
+
 func get_on_self_bonus() -> Dictionary:
 	# Returns the on-self bonus from the item this card is slotted in
 	if slotted_in_item and slotted_in_item.has_method("get_on_self_bonus"):

@@ -247,8 +247,16 @@ var _pause_button: Button = null
 
 var barricade_obstacles: Array = []  # [{node: MeshInstance3D, health: int}]
 var active_pillars: Array = []  # [{node: Node3D, position: Vector3, tempo_remaining: int}]
-var _card_ui_instances: Array = []
+var _card_ui_instances: Array = []  # one CardUI per hand group (parallel to _hand_groups)
 var _current_hand_hover_index: int = -1
+
+# Persistent hand-slot layer: identical cards stack under one lettered play
+# button, and a slot keeps its letter until the last copy leaves hand — playing
+# a card never re-letters the others (see HandSlots). _hand_groups is the
+# rendered view, one entry per occupied slot:
+#   {slot:int, cards:Array[Card], rep:Card, card_ui:CardUI}
+var _hand_slots := HandSlots.new()
+var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
 var _attack_button: Button = null
@@ -605,9 +613,9 @@ func _set_hand_hover(new_index: int) -> void:
 	# Hover new card
 	if new_index >= 0 and new_index < _card_ui_instances.size():
 		var new_ui = _card_ui_instances[new_index]
-		if is_instance_valid(new_ui) and new_index < deck_manager.hand.size():
+		if is_instance_valid(new_ui) and new_index < _hand_groups.size():
 			new_ui.set_hovered_external(true)
-			_on_hand_card_hovered(deck_manager.hand[new_index], new_ui)
+			_on_hand_card_hovered(_hand_groups[new_index]["rep"], new_ui)
 
 var _prev_battlefield_hover: Enemy = null
 var _damage_preview_enemy: Enemy = null
@@ -3995,14 +4003,24 @@ func _on_hand_updated() -> void:
 			card.rng_roll_tempo = tempo_manager.global_tempo
 			_rng_stats.next_odds_boost = 0.0  # consumed on the next rolled card
 
-	var hand_size = deck_manager.hand.size()
-	if hand_size == 0:
+	# Identical cards collapse into one lettered stack; assign/keep slot letters
+	# so playing a card never re-letters the rest, and build the render groups.
+	_build_hand_groups(debuff_mgr)
+
+	var group_count = _hand_groups.size()
+	if group_count == 0:
 		if selected_card_index >= 0:
 			selected_card_index = -1
 		update_deck_info()
 		update_selected_display()
 		update_card_highlights()
 		return
+
+	# Which card instances are newly drawn this update (for the slide-in anim).
+	var new_card_set := {}
+	for i in new_indices:
+		if i < deck_manager.hand.size():
+			new_card_set[deck_manager.hand[i].get_instance_id()] = true
 
 	var card_width: float = 150.0
 	var card_height: float = 210.0
@@ -4016,14 +4034,14 @@ func _on_hand_updated() -> void:
 	# buttons (left) and the deck/maintained panels (right).
 	var ideal_spacing: float = card_width * 0.55  # step between card centres at rest
 	var spacing: float
-	if hand_size <= 1:
+	if group_count <= 1:
 		spacing = 0.0
 	else:
-		var fit_spacing: float = (container_width - card_width) / float(hand_size - 1)
+		var fit_spacing: float = (container_width - card_width) / float(group_count - 1)
 		spacing = min(ideal_spacing, fit_spacing)  # never wider than the fan; tighten to fit
 
 	# Center the hand
-	var total_hand_width = card_width + spacing * max(hand_size - 1, 0)
+	var total_hand_width = card_width + spacing * max(group_count - 1, 0)
 	var start_x = (container_width - total_hand_width) / 2.0
 	if start_x < 0.0:
 		start_x = 0.0
@@ -4033,7 +4051,7 @@ func _on_hand_updated() -> void:
 
 	# Fan rotation: slight arc for cards in hand
 	var max_fan_angle: float = 3.0  # Max degrees for outermost card
-	if hand_size <= 1:
+	if group_count <= 1:
 		max_fan_angle = 0.0
 
 	# Draw pile position for draw animation origin (bottom-left of screen)
@@ -4045,28 +4063,39 @@ func _on_hand_updated() -> void:
 		var hand_inv = player.get_inventory()
 		pocket_knife = hand_inv and hand_inv.has_pocket_knife_equipped()
 
-	for i in range(hand_size):
+	var anim_ordinal := 0
+	for g in range(group_count):
+		var group: Dictionary = _hand_groups[g]
+		var rep: Card = group["rep"]
+		var count: int = group["cards"].size()
+		var rep_hand_index: int = deck_manager.hand.find(rep)
+
 		var card_ui = CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
-		card_ui.setup(deck_manager.hand[i], i, debuff_mgr, dex_proc_active, pocket_knife)
+		# Debuff hexed/locked display keys off the card's real hand index.
+		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active, pocket_knife)
+		card_ui.set_stack_depth(count)
+		card_ui.set_keybind_badge(_slot_letter(group["slot"]), count, rep.is_slotted())
+		group["card_ui"] = card_ui
 
-		var final_pos = Vector2(start_x + i * spacing, card_y)
+		var final_pos = Vector2(start_x + g * spacing, card_y)
 
 		# Fan rotation: arc from left to right
 		var fan_t = 0.0
-		if hand_size > 1:
-			fan_t = float(i) / float(hand_size - 1) * 2.0 - 1.0  # -1..1
+		if group_count > 1:
+			fan_t = float(g) / float(group_count - 1) * 2.0 - 1.0  # -1..1
 		var fan_angle = fan_t * max_fan_angle
 		card_ui.set_fan_rotation(fan_angle)
 
-		card_ui.z_index = i
+		card_ui.z_index = g
 		card_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-		if i in new_indices:
+		if new_card_set.has(rep.get_instance_id()):
 			# New card: animate sliding in from draw pile area
 			card_ui.position = final_pos  # Set base for store
 			card_ui.store_base_position()
-			var delay = new_indices.find(i) * 0.08
+			var delay = anim_ordinal * 0.08
+			anim_ordinal += 1
 			card_ui.animate_draw_in(draw_origin, final_pos, delay)
 		else:
 			# Existing card: slide to new position
@@ -4081,6 +4110,31 @@ func _on_hand_updated() -> void:
 	update_deck_info()
 	update_selected_display()
 	update_card_highlights()
+
+# ---- Persistent hand-slot / stacking layer ----
+
+func _slot_letter(slot: int) -> String:
+	return HandSlots.letter(slot)
+
+func _build_hand_groups(debuff_mgr = null) -> void:
+	## Reconcile the persistent slot map against the current hand, then build the
+	## rendered view (one entry per occupied slot, ordered by slot index so cards
+	## keep their left-to-right position as others are played).
+	_hand_slots.reconcile(deck_manager.hand)
+	var locked_idx: int = -1
+	if debuff_mgr and debuff_mgr.has_method("get_locked_card_index"):
+		locked_idx = debuff_mgr.get_locked_card_index()
+	_hand_groups = _hand_slots.build_groups(deck_manager.hand, locked_idx)
+	for g in _hand_groups:
+		g["card_ui"] = null
+
+func _select_slot(slot: int) -> void:
+	## Route a card key press to the card occupying that lettered slot.
+	for g in _hand_groups:
+		if g["slot"] == slot:
+			select_card(deck_manager.hand.find(g["rep"]))
+			return
+	# No card bound to that key — leave the current selection untouched.
 
 # ---- Card exit animations (visual-only; safe to fire for either deck) ----
 
@@ -4838,11 +4892,14 @@ func update_peaked_display() -> void:
 			peaked_label.visible = false
 
 func update_card_highlights() -> void:
-	var cards = hand_container.get_children()
-	for i in range(cards.size()):
-		var card_ui = cards[i] as CardUI
-		if card_ui:
-			card_ui.set_selected(i == selected_card_index)
+	# Highlight the stack that contains the selected card.
+	var sel_card: Card = null
+	if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size():
+		sel_card = deck_manager.hand[selected_card_index]
+	for g in _hand_groups:
+		var card_ui = g["card_ui"]
+		if card_ui and is_instance_valid(card_ui):
+			card_ui.set_selected(sel_card != null and sel_card in g["cards"])
 
 func select_card(index: int) -> void:
 	if index < 0 or index >= deck_manager.hand.size():
@@ -5071,10 +5128,11 @@ func play_selected_card(target) -> void:
 		card.heal_amount += harnessed_bonus_heal
 		card.block += harnessed_bonus_block
 
-	# Capture the card UI before playing for animation
+	# Capture the card UI before playing for animation. The selected card is
+	# always its stack's representative, so its CardUI is the one on screen.
 	var played_card_ui: CardUI = null
-	if selected_card_index >= 0 and selected_card_index < _card_ui_instances.size():
-		played_card_ui = _card_ui_instances[selected_card_index]
+	if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size():
+		played_card_ui = _hand_ui_for_card(deck_manager.hand[selected_card_index])
 
 	# Play card with deferred execution - validates, pays mana, removes from hand, but does NOT execute
 	var result = deck_manager.play_card(selected_card_index, target, player, true)
@@ -5156,11 +5214,9 @@ func play_selected_card(target) -> void:
 		# Sticky: the card snapped back into the hand — pop its use counter
 		# over the card until the play limit sends it to the discard pile.
 		if card.sticky > 0 and card in deck_manager.hand:
-			var s_idx: int = deck_manager.hand.find(card)
-			if s_idx >= 0 and s_idx < _card_ui_instances.size():
-				var s_ui = _card_ui_instances[s_idx]
-				if s_ui and is_instance_valid(s_ui):
-					s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
+			var s_ui = _hand_ui_for_card(card)
+			if s_ui and is_instance_valid(s_ui):
+				s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
 	else:
 		# Card didn't play - undo temporary modifications
 		if tighten_applied:
@@ -5225,6 +5281,11 @@ func _switch_active_player() -> void:
 	selected_card_index = -1
 	if range_indicator:
 		range_indicator.hide_range()
+
+	# Each hero keeps its own lettered hand; reset the slot map on the swap so
+	# the incoming hand reletters cleanly from A.
+	_hand_slots.reset()
+	_prev_hand_card_ids.clear()
 
 	# Move the main hand display off the old active deck.
 	if deck_manager.hand_updated.is_connected(_on_hand_updated):
@@ -6217,10 +6278,10 @@ func _input(event: InputEvent) -> void:
 			_update_camera()
 			return
 
-		# Card selection
+		# Card selection — keys map to persistent lettered slots, not hand order.
 		for i in range(CARD_KEYS.size()):
 			if event.keycode == CARD_KEYS[i]:
-				select_card(i)
+				_select_slot(i)
 				return
 		
 		if event.keycode == KEY_ESCAPE:
