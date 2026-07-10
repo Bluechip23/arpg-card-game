@@ -403,6 +403,50 @@ func _draw_pipe(pos: Vector2, angle: float, s: float) -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 # =============================================================
+# SPEECH BUBBLES
+# =============================================================
+
+func _draw_bubble(top_left: Vector2, lines: Array, tail_target: Vector2) -> void:
+	## Cartoon speech bubble: an off-white box holding the given text lines with
+	## a little tail pointing back toward the speaker (tail_target).
+	var font := _title_font()
+	var fsize := 18
+	var pad := 12.0
+	var line_h := 24.0
+
+	# Size the box to its widest line.
+	var text_w := 0.0
+	for line in lines:
+		text_w = maxf(text_w, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x)
+	var box_w := text_w + pad * 2.0
+	var box_h := line_h * lines.size() + pad * 2.0
+	var rect := Rect2(top_left, Vector2(box_w, box_h))
+
+	var fill := Color(0.96, 0.96, 0.92, 0.96)
+	var border := Color(0.2, 0.16, 0.3, 0.96)
+	var ink := Color(0.12, 0.1, 0.16)
+
+	# Tail first, so the box border draws cleanly over its base.
+	var base_x := clampf(tail_target.x, rect.position.x + 14.0, rect.end.x - 14.0)
+	var base_l := Vector2(base_x - 9.0, rect.end.y - 1.0)
+	var base_r := Vector2(base_x + 9.0, rect.end.y - 1.0)
+	draw_colored_polygon(PackedVector2Array([base_l, base_r, tail_target]), fill)
+	draw_line(base_l, tail_target, border, 2.0)
+	draw_line(base_r, tail_target, border, 2.0)
+
+	# Body + outline.
+	draw_rect(rect, fill, true)
+	draw_rect(rect, border, false, 2.0)
+
+	# Centred text lines.
+	var ty := rect.position.y + pad + float(fsize)
+	for line in lines:
+		var lw := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+		draw_string(font, Vector2(rect.position.x + (box_w - lw) * 0.5, ty), line,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, ink)
+		ty += line_h
+
+# =============================================================
 # SMOKE & EFFECTS
 # =============================================================
 
@@ -479,7 +523,7 @@ func _draw_title(layout: Array) -> void:
 	# --- "TRIALS OF" (small, above) ---
 	var small := "TRIALS OF"
 	var ssize := 30
-	var sw = font.get_string_size(small, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize).x
+	var sw := font.get_string_size(small, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize).x
 	var sx := (size.x - sw) * 0.5
 	var sy := size.y * 0.185 - 84.0
 	for i in range(small.length()):
