@@ -81,12 +81,12 @@ const STAT_NAMES := {
 	"WIS": "Wisdom", "DET": "Determination", "AGI": "Agility",
 }
 const STAT_INFO := {
-	"STR": "Strength — +1 melee damage for every 2 points.",
-	"DEX": "Dexterity — attacks land faster; each point lowers your attack-speed threshold.",
-	"INT": "Intelligence — +1 spell & heal power per 2 points, and +1 energy regen per 5.",
-	"WIS": "Wisdom — +1 hand size for every 5 points.",
-	"DET": "Determination — the lower your health, the more all your stats grow.",
-	"AGI": "Agility — +1 movement for every 5 points.",
+	"STR": "Strength — +1 melee damage for every 2 points, and +10 carry capacity per point (carry heavier gear before you're over-encumbered).",
+	"DEX": "Dexterity — speeds up attack-speed procs. Attack speed counts your basic attacks: every (30 − Dexterity) attacks lands a free bonus attack (minimum 5). Each point means one fewer attack needed to proc.",
+	"INT": "Intelligence — +1 spell & heal power for every 2 points, and +1 mana regen for every 5 points.",
+	"WIS": "Wisdom — +1 hand size for every 5 points, and draws cards faster: each point shaves 0.25 off your draw timer.",
+	"DET": "Determination — directly impacts how low health affects your attributes. At 10 it does nothing; above 10 your stats climb as health drops, below 10 they fall. The lower your health, the bigger the swing — about ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below.",
+	"AGI": "Agility — +1 movement per tempo cycle for every 5 points (minimum 1 move).",
 }
 
 static func stat_full_name(key: String) -> String:
