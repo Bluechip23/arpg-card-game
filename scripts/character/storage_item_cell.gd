@@ -5,11 +5,11 @@ extends PanelContainer
 ## holds (drag it onto a matching equipment slot to equip) and as a drop target
 ## for equipped items being dragged back into storage (to unequip them).
 
-var _panel: CharacterPanel = null
+var _panel = null  # CharacterPanel (untyped to avoid a class-cache dependency)
 var index: int = 0
 var item: ItemData = null
 
-func setup(char_panel: CharacterPanel, i: int, itm: ItemData) -> void:
+func setup(char_panel, i: int, itm: ItemData) -> void:
 	_panel = char_panel
 	index = i
 	item = itm
@@ -18,7 +18,7 @@ func setup(char_panel: CharacterPanel, i: int, itm: ItemData) -> void:
 func _get_drag_data(_at_position: Vector2) -> Variant:
 	if not item:
 		return null
-	var preview := _panel._make_drag_preview(item.item_name, _panel._get_item_type_color(item.item_type))
+	var preview = _panel._make_drag_preview(item.item_name, _panel._get_item_type_color(item.item_type))
 	set_drag_preview(preview)
 	return {
 		"kind": "item",

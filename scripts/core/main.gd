@@ -127,6 +127,7 @@ const CardUIScene = preload("res://scenes/cards/card_ui.tscn")
 const SandboxUIScript = preload("res://scripts/ui/sandbox_ui.gd")
 const HudIconBarScript = preload("res://scripts/ui/hud_icon_bar.gd")
 const EnemyInspectUIScript = preload("res://scripts/ui/enemy_inspect_ui.gd")
+const HandSlotsScript = preload("res://scripts/cards/hand_slots.gd")
 
 const CARD_KEYS = [
 	KEY_A, KEY_S, KEY_D, KEY_F, KEY_G,
@@ -255,7 +256,7 @@ var _current_hand_hover_index: int = -1
 # a card never re-letters the others (see HandSlots). _hand_groups is the
 # rendered view, one entry per occupied slot:
 #   {slot:int, cards:Array[Card], rep:Card, card_ui:CardUI}
-var _hand_slots := HandSlots.new()
+var _hand_slots = HandSlotsScript.new()
 var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
@@ -4114,7 +4115,7 @@ func _on_hand_updated() -> void:
 # ---- Persistent hand-slot / stacking layer ----
 
 func _slot_letter(slot: int) -> String:
-	return HandSlots.letter(slot)
+	return HandSlotsScript.letter(slot)
 
 func _build_hand_groups(debuff_mgr = null) -> void:
 	## Reconcile the persistent slot map against the current hand, then build the
