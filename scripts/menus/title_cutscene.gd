@@ -2,7 +2,7 @@ extends Control
 
 ## "Trials of Olorin" animated title cutscene.
 ##
-## Olorin lounges on a chair puffing his pipe. A small boy runs up begging him
+## Olorin stands in the field puffing his pipe. A small boy runs up begging him
 ## to save the world; Olorin agrees, the boy runs off — and Olorin, spotting
 ## his dropped pipe, decides he'd really rather not. He snaps up a fresh lawn
 ## chair, telekinetically retrieves the pipe, and blows two great smoke rings
@@ -147,14 +147,16 @@ func _draw() -> void:
 
 	# ---------- Phase-dependent actors ----------
 	if _t < T_STAND:
-		# Lounging on the original chair, small puffs, pipe in hand.
-		_draw_lounge_chair(Vector2(ox, g))
-		_draw_olorin_lounging(Vector2(ox, g), true)
-		_draw_small_puffs(_mouth_pos(), _t)
+		# Standing in the field, pipe in hand, puffing away as the boy runs up.
+		var sbase := Vector2(ox - 70.0, g)
+		_draw_olorin_standing(sbase, -1.0, false)  # facing left, toward the boy
+		var smouth := Vector2(sbase.x + 4.0, g - 82.0)
+		draw_line(Vector2(sbase.x + 10.0, g - 58.0), smouth + Vector2(-2, 8), ROBE_DARK, 6.0)
+		_draw_pipe(smouth + Vector2(2, 6), -0.35, 1.0)
+		_draw_small_puffs(smouth, _t)
 	elif _t < T_SNAP:
-		# Standing beside the chair; pipe on the ground.
+		# Still standing; the pipe has dropped to the ground.
 		var facing := -1.0 if _t < T_TURN else 1.0  # turns around after the boy leaves
-		_draw_lounge_chair(Vector2(ox, g))
 		_draw_pipe(_pipe_ground_pos(), 0.35, 1.0)
 		var scratching := _t >= T_TURN and _t < T_BUBBLE3_END
 		_draw_olorin_standing(Vector2(ox - 70.0, g), facing, scratching)
