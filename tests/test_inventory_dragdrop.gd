@@ -134,6 +134,15 @@ func _initialize() -> void:
 	_check(by_type.get(ItemData.ItemType.HELM, 0) == 1 and by_type.get(ItemData.ItemType.BOOTS, 0) == 1,
 		"one helm and one boots slot")
 
+	# --- Core stat rows carry hover descriptions ---
+	panel._update_core_stat_rows()
+	_check(panel._core_stat_value_labels.size() == 6, "six core stat rows built")
+	var any_tip := false
+	for row in panel._core_stat_rows.get_children():
+		if row.tooltip_text.find("—") != -1:
+			any_tip = true
+	_check(any_tip, "stat rows have hover descriptions")
+
 	# --- Silhouettes draw for every slot type without error ---
 	for t in range(8):
 		var sil := ItemSilhouette.new()

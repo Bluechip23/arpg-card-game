@@ -554,19 +554,19 @@ func _get_current_deck_card_ids() -> Array:
 
 	var all_ids: Array = []
 
-	# Base cards
+	# Base cards — the same basic deck every character starts with (must match
+	# DeckManager._create_default_deck).
 	for i in range(4):
 		all_ids.append("slash")
-	for i in range(3):
+	for i in range(4):
 		all_ids.append("block")
 	for i in range(2):
-		all_ids.append("heal")
-	all_ids.append("draw")
+		all_ids.append("draw")
 	all_ids.append("discard")
 	all_ids.append("gain_mana")
+	all_ids.append("heal")
 
-	# Character starting cards
-	all_ids.append_array(starting_character.starting_card_ids)
+	# Character-specific starting cards are no longer part of the deck.
 
 	# Purchased cards
 	all_ids.append_array(starting_character.purchased_card_ids)
@@ -2556,13 +2556,10 @@ func _build_save_data(slot: int) -> SaveData:
 	data.progression["discovered_waypoints"] = discovered_waypoints.duplicate(true)
 	data.progression["opened_chests"] = opened_chests.duplicate(true)
 
-	# Deck snapshot (display only) from the character's known card lists.
+	# Deck snapshot (display only) — same basic deck + purchased, minus culls.
 	var ids: Array[String] = []
-	if starting_character:
-		for c in starting_character.starting_card_ids:
-			ids.append(str(c))
-		for c in starting_character.purchased_card_ids:
-			ids.append(str(c))
+	for c in _get_current_deck_card_ids():
+		ids.append(str(c))
 	data.deck_card_ids = ids
 	return data
 

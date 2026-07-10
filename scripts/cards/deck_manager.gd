@@ -130,19 +130,19 @@ func _create_default_deck(character: CharacterData) -> void:
 	# Build full card id list: base + starting + purchased
 	var all_card_ids: Array = []
 
-	# Base cards for everyone
+	# Every character starts with the same basic deck.
 	for i in range(4):
 		all_card_ids.append("slash")
-	for i in range(3):
+	for i in range(4):
 		all_card_ids.append("block")
 	for i in range(2):
-		all_card_ids.append("heal")
-	all_card_ids.append("draw")
+		all_card_ids.append("draw")
 	all_card_ids.append("discard")
-	all_card_ids.append("gain_mana")
+	all_card_ids.append("gain_mana")  # "energy"
+	all_card_ids.append("heal")
 
-	# Character-specific cards
-	all_card_ids.append_array(character.starting_card_ids)
+	# Character-specific starting cards are intentionally NOT added — every
+	# character shares the identical basic deck above.
 
 	# Purchased cards
 	all_card_ids.append_array(character.purchased_card_ids)

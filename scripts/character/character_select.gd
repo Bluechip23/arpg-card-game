@@ -29,6 +29,19 @@ var _player1_character: CharacterData = null
 var _player2_character: CharacterData = null
 var _selecting_player: int = 1  # Which player is currently selecting (1 or 2)
 
+# ---- Stat allocation (8 points to distribute on a fresh character) ----
+const ALLOC_TOTAL := 8
+var _allocated: Dictionary = {}          # characters that already allocated
+var _alloc_overlay: ColorRect = null
+var _alloc_char: CharacterData = null
+var _alloc_on_confirm: Callable = Callable()
+var _alloc_points: int = 0
+var _alloc: Dictionary = {}              # stat key -> allocated points
+var _alloc_base: Dictionary = {}         # stat key -> base (3)
+var _alloc_value_labels: Dictionary = {}
+var _alloc_remaining_lbl: Label = null
+var _alloc_confirm_btn: Button = null
+
 func _ready() -> void:
 	_apply_styles()
 	_setup_characters()
@@ -281,12 +294,204 @@ func _on_proceed_pressed() -> void:
 	if not _selected_character:
 		return
 
-	confirm_overlay.visible = false
+	# Fresh (non-saved) characters allocate 8 stat points before launching.
+	if _needs_allocation(_selected_character) and not _allocated.has(_selected_character):
+		confirm_overlay.visible = false
+		var character := _selected_character
+		_show_stat_allocation(character, func():
+			_allocated[character] = true
+			_dispatch_proceed())
+		return
 
+	_dispatch_proceed()
+
+func _dispatch_proceed() -> void:
+	confirm_overlay.visible = false
 	if game_mode == "multiplayer":
 		_handle_multiplayer_proceed()
 	else:
 		_handle_singleplayer_proceed()
+
+func _needs_allocation(character: CharacterData) -> bool:
+	if character == null:
+		return false
+	# Saved/mid-run characters already carry their build; only fresh presets
+	# get the allocation screen.
+	return not _roguelike_saves.has(character)
+
+# ---- Stat allocation overlay ----
+
+func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> void:
+	_alloc_char = character
+	_alloc_on_confirm = on_confirm
+	_alloc_points = ALLOC_TOTAL
+	_alloc = {}
+	_alloc_base = {}
+	_alloc_value_labels = {}
+	for key in CharacterData.STAT_KEYS:
+		_alloc[key] = 0
+	_alloc_base = {
+		"STR": character.strength, "DEX": character.dexterity, "INT": character.intelligence,
+		"WIS": character.wisdom, "DET": character.determination, "AGI": character.agility,
+	}
+
+	_alloc_overlay = ColorRect.new()
+	_alloc_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_alloc_overlay.color = Color(0.0, 0.0, 0.0, 0.82)
+	add_child(_alloc_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_alloc_overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.11, 0.16, 1.0)
+	style.set_border_width_all(2)
+	style.border_color = Color(0.45, 0.6, 0.85)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 24
+	style.content_margin_right = 24
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
+	panel.add_theme_stylebox_override("panel", style)
+	center.add_child(panel)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 8)
+	panel.add_child(vb)
+
+	var title := Label.new()
+	title.text = "Allocate Stats — %s" % character.character_name
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(title)
+
+	var sub := Label.new()
+	sub.text = "Every hero starts at 3 in each stat. Spend %d points to shape your build —\nhover or read the notes to learn what each stat does." % ALLOC_TOTAL
+	sub.add_theme_font_size_override("font_size", 13)
+	sub.add_theme_color_override("font_color", Color(0.72, 0.72, 0.8))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(sub)
+
+	_alloc_remaining_lbl = Label.new()
+	_alloc_remaining_lbl.add_theme_font_size_override("font_size", 16)
+	_alloc_remaining_lbl.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	_alloc_remaining_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(_alloc_remaining_lbl)
+
+	vb.add_child(HSeparator.new())
+
+	for key in CharacterData.STAT_KEYS:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.tooltip_text = CharacterData.stat_description(key)
+
+		var name_lbl := Label.new()
+		name_lbl.text = CharacterData.stat_full_name(key)
+		name_lbl.custom_minimum_size = Vector2(120, 0)
+		name_lbl.add_theme_font_size_override("font_size", 15)
+		name_lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.95))
+		row.add_child(name_lbl)
+
+		var minus := Button.new()
+		minus.text = "−"
+		minus.custom_minimum_size = Vector2(32, 30)
+		minus.pressed.connect(_alloc_add.bind(key, -1))
+		row.add_child(minus)
+
+		var val := Label.new()
+		val.custom_minimum_size = Vector2(34, 0)
+		val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		val.add_theme_font_size_override("font_size", 16)
+		val.add_theme_color_override("font_color", Color(1.0, 0.95, 0.7))
+		row.add_child(val)
+		_alloc_value_labels[key] = val
+
+		var plus := Button.new()
+		plus.text = "+"
+		plus.custom_minimum_size = Vector2(32, 30)
+		plus.pressed.connect(_alloc_add.bind(key, 1))
+		row.add_child(plus)
+
+		var desc := Label.new()
+		desc.text = CharacterData.stat_description(key)
+		desc.custom_minimum_size = Vector2(380, 0)
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc.add_theme_font_size_override("font_size", 12)
+		desc.add_theme_color_override("font_color", Color(0.66, 0.66, 0.74))
+		row.add_child(desc)
+
+		vb.add_child(row)
+
+	vb.add_child(HSeparator.new())
+
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 16)
+	vb.add_child(btn_row)
+
+	var back_btn := Button.new()
+	back_btn.text = "Back"
+	back_btn.custom_minimum_size = Vector2(110, 36)
+	back_btn.pressed.connect(_alloc_cancel)
+	btn_row.add_child(back_btn)
+
+	_alloc_confirm_btn = Button.new()
+	_alloc_confirm_btn.text = "Confirm"
+	_alloc_confirm_btn.custom_minimum_size = Vector2(140, 36)
+	_alloc_confirm_btn.pressed.connect(_alloc_confirm)
+	btn_row.add_child(_alloc_confirm_btn)
+
+	_alloc_refresh()
+
+func _alloc_add(key: String, delta: int) -> void:
+	if delta > 0 and _alloc_points <= 0:
+		return
+	if delta < 0 and _alloc[key] <= 0:
+		return
+	_alloc[key] += delta
+	_alloc_points -= delta
+	_alloc_refresh()
+
+func _alloc_refresh() -> void:
+	if _alloc_remaining_lbl:
+		_alloc_remaining_lbl.text = "Points to allocate: %d" % _alloc_points
+	for key in _alloc_value_labels:
+		_alloc_value_labels[key].text = str(_alloc_base.get(key, 0) + _alloc.get(key, 0))
+	if _alloc_confirm_btn:
+		_alloc_confirm_btn.disabled = _alloc_points != 0
+
+func _alloc_confirm() -> void:
+	if _alloc_points != 0 or _alloc_char == null:
+		return
+	var c := _alloc_char
+	c.strength += _alloc.get("STR", 0)
+	c.dexterity += _alloc.get("DEX", 0)
+	c.intelligence += _alloc.get("INT", 0)
+	c.wisdom += _alloc.get("WIS", 0)
+	c.determination += _alloc.get("DET", 0)
+	c.agility += _alloc.get("AGI", 0)
+	var cb := _alloc_on_confirm
+	_close_alloc_overlay()
+	if cb.is_valid():
+		cb.call()
+
+func _alloc_cancel() -> void:
+	# Abandon allocation and return to the character confirm dialog.
+	_close_alloc_overlay()
+	confirm_overlay.visible = true
+
+func _close_alloc_overlay() -> void:
+	_alloc_on_confirm = Callable()
+	_alloc_char = null
+	_alloc_value_labels = {}
+	_alloc_remaining_lbl = null
+	_alloc_confirm_btn = null
+	if _alloc_overlay and is_instance_valid(_alloc_overlay):
+		_alloc_overlay.queue_free()
+	_alloc_overlay = null
 
 func _handle_singleplayer_proceed() -> void:
 	if game_mode == "roguelike":

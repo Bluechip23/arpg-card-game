@@ -49,6 +49,8 @@ var debuff_manager = null            # DebuffManager
 var _combat_rows: VBoxContainer = null      # addressable stat rows (for colour + hover highlight)
 var _stat_rows: Dictionary = {}             # stat key -> {"row": HBoxContainer, "value": Label}
 var _effects_box: VBoxContainer = null      # the ACTIVE EFFECTS list
+var _core_stat_rows: VBoxContainer = null   # per-core-stat rows (hover shows what each stat does)
+var _core_stat_value_labels: Dictionary = {}  # stat key -> value Label
 
 # Which combat stat each buff/debuff influences (for colouring + hover highlight).
 # A buff contributes a "good" mark, a debuff a "bad" mark; net decides the colour.
@@ -278,8 +280,7 @@ func update_display() -> void:
 	if _portrait_fig and player_stats.character_data:
 		_portrait_fig.setup(player_stats.character_data.character_name, player_stats.character_data.sprite_path)
 
-	if stats_label:
-		stats_label.text = _build_core_stats_text()
+	_update_core_stat_rows()
 
 	if derived_label:
 		derived_label.text = _build_derived_stats_text()
@@ -527,20 +528,50 @@ func _build_combat_info_text() -> String:
 	])
 	return "\n".join(lines)
 
-func _build_core_stats_text() -> String:
-	return """STR  %d
-DEX  %d
-INT  %d
-WIS  %d
-DET  %d
-AGI  %d""" % [
-		player_stats.strength,
-		player_stats.dexterity,
-		player_stats.intelligence,
-		player_stats.wisdom,
-		player_stats.determination,
-		player_stats.agility
-	]
+## Build one row per core stat, each carrying a hover tooltip explaining what
+## the stat does (shared with the character-select allocation screen).
+func _ensure_core_stat_rows() -> void:
+	if _core_stat_rows and is_instance_valid(_core_stat_rows):
+		return
+	if not stats_label:
+		return
+	stats_label.visible = false  # replaced by the hoverable rows
+	_core_stat_rows = VBoxContainer.new()
+	_core_stat_rows.add_theme_constant_override("separation", 1)
+	_core_stat_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var parent = stats_label.get_parent()
+	parent.add_child(_core_stat_rows)
+	parent.move_child(_core_stat_rows, stats_label.get_index() + 1)
+	for key in CharacterData.STAT_KEYS:
+		var row := HBoxContainer.new()
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.tooltip_text = "%s\n%s" % [CharacterData.stat_full_name(key), CharacterData.stat_description(key)]
+		var name_lbl := Label.new()
+		name_lbl.text = key
+		name_lbl.custom_minimum_size = Vector2(38, 0)
+		name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_color_override("font_color", Color(0.72, 0.72, 0.78))
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(name_lbl)
+		var val_lbl := Label.new()
+		val_lbl.add_theme_font_size_override("font_size", 13)
+		val_lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.95))
+		val_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(val_lbl)
+		_core_stat_rows.add_child(row)
+		_core_stat_value_labels[key] = val_lbl
+
+func _update_core_stat_rows() -> void:
+	_ensure_core_stat_rows()
+	if not player_stats:
+		return
+	var vals := {
+		"STR": player_stats.strength, "DEX": player_stats.dexterity,
+		"INT": player_stats.intelligence, "WIS": player_stats.wisdom,
+		"DET": player_stats.determination, "AGI": player_stats.agility,
+	}
+	for key in _core_stat_value_labels:
+		_core_stat_value_labels[key].text = str(vals[key])
 
 func _build_derived_stats_text() -> String:
 	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit)

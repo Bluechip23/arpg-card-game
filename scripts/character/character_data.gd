@@ -69,15 +69,41 @@ func get_mana_regen() -> float:
 	# Base mana regen
 	return base_mana_regen
 
+# ============================================
+# CORE STAT REFERENCE
+# ============================================
+# Shared by the character-select allocation screen and the character panel so
+# both explain each stat the same way.
+
+const STAT_KEYS := ["STR", "DEX", "INT", "WIS", "DET", "AGI"]
+const STAT_NAMES := {
+	"STR": "Strength", "DEX": "Dexterity", "INT": "Intelligence",
+	"WIS": "Wisdom", "DET": "Determination", "AGI": "Agility",
+}
+const STAT_INFO := {
+	"STR": "Strength — +1 melee damage for every 2 points.",
+	"DEX": "Dexterity — attacks land faster; each point lowers your attack-speed threshold.",
+	"INT": "Intelligence — +1 spell & heal power per 2 points, and +1 energy regen per 5.",
+	"WIS": "Wisdom — +1 hand size for every 5 points.",
+	"DET": "Determination — the lower your health, the more all your stats grow.",
+	"AGI": "Agility — +1 movement for every 5 points.",
+}
+
+static func stat_full_name(key: String) -> String:
+	return STAT_NAMES.get(key, key)
+
+static func stat_description(key: String) -> String:
+	return STAT_INFO.get(key, "")
+
 static func create_ryan() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Ryan"
-	data.strength = 5
-	data.dexterity = 12
-	data.intelligence = 5
-	data.wisdom = 5
-	data.determination = 5
-	data.agility = 8
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
@@ -104,12 +130,12 @@ static func create_ryan() -> CharacterData:
 static func create_jeremy() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Jeremy"
-	data.strength = 5
-	data.dexterity = 5
-	data.intelligence = 12
-	data.wisdom = 8
-	data.determination = 5
-	data.agility = 5
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
@@ -136,12 +162,12 @@ static func create_jeremy() -> CharacterData:
 static func create_stephen() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Stephen"
-	data.strength = 12
-	data.dexterity = 8
-	data.intelligence = 5
-	data.wisdom = 5
-	data.determination = 5
-	data.agility = 5
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
@@ -184,12 +210,12 @@ static func create_stephen() -> CharacterData:
 static func create_cory() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Cory"
-	data.strength = 5
-	data.dexterity = 5
-	data.intelligence = 5
-	data.wisdom = 12
-	data.determination = 5
-	data.agility = 8
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
@@ -216,12 +242,12 @@ static func create_cory() -> CharacterData:
 static func create_brad() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Brad"
-	data.strength = 8
-	data.dexterity = 5
-	data.intelligence = 5
-	data.wisdom = 5
-	data.determination = 12
-	data.agility = 5
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
