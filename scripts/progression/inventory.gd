@@ -273,8 +273,9 @@ func _get_slot_array(item_type: ItemData.ItemType) -> Array:
 		ItemData.ItemType.BELT: return equipped_belts
 		ItemData.ItemType.BOOTS: return equipped_boots
 		ItemData.ItemType.GAUNTLETS: return equipped_gauntlets
+		# Quivers share the weapon (main/off-hand) slots — they occupy a hand.
 		ItemData.ItemType.WEAPON: return equipped_weapons
-		ItemData.ItemType.QUIVER: return equipped_quivers
+		ItemData.ItemType.QUIVER: return equipped_weapons
 	return []
 
 func _get_max_slots(item_type: ItemData.ItemType) -> int:
@@ -286,7 +287,7 @@ func _get_max_slots(item_type: ItemData.ItemType) -> int:
 		ItemData.ItemType.BOOTS: return boots_slots
 		ItemData.ItemType.GAUNTLETS: return gauntlets_slots
 		ItemData.ItemType.WEAPON: return weapon_slots
-		ItemData.ItemType.QUIVER: return quiver_slots
+		ItemData.ItemType.QUIVER: return weapon_slots
 	return 0
 
 func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = false) -> void:

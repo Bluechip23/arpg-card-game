@@ -625,36 +625,96 @@ func _get_character_passive() -> String:
 	return ""
 
 ## Slot types shown in the equipment grid, in display order.
-const EQUIP_SLOT_ORDER := [
-	ItemData.ItemType.HELM, ItemData.ItemType.CHEST, ItemData.ItemType.RING,
-	ItemData.ItemType.BELT, ItemData.ItemType.BOOTS, ItemData.ItemType.GAUNTLETS,
-	ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER,
-]
+const SLOT_BIG := Vector2(84, 84)
+const SLOT_SMALL := Vector2(58, 58)
 
-## Build the equipment slots as a grid of square cells that accept drag & drop.
+## Build the equipment slots as a paper-doll: pieces sit where they'd be worn —
+## helm on top, rings small beside it, chest below, main/off-hand flanking the
+## belts, and gauntlets beside boots at the bottom. (Quivers share the weapon
+## slots, so there is no separate quiver slot.)
 func _build_equipment_slot_grid() -> void:
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 5)
-	grid.add_theme_constant_override("v_separation", 5)
-	equipment_container.add_child(grid)
-
 	var slot_info = inventory.get_slot_info()
-	var keys := {
-		ItemData.ItemType.HELM: "helm", ItemData.ItemType.CHEST: "chest",
-		ItemData.ItemType.RING: "ring", ItemData.ItemType.BELT: "belt",
-		ItemData.ItemType.BOOTS: "boots", ItemData.ItemType.GAUNTLETS: "gauntlets",
-		ItemData.ItemType.WEAPON: "weapon", ItemData.ItemType.QUIVER: "quiver",
-	}
-	for item_type in EQUIP_SLOT_ORDER:
-		var data: Dictionary = slot_info[keys[item_type]]
-		var max_slots: int = data["max"]
-		var equipped: Array = data["equipped"]
-		for i in range(max_slots):
-			var item = equipped[i] if i < equipped.size() else null
-			var cell = EquipmentSlotCellScript.new()
-			cell.setup(self, item_type, i, item)
-			grid.add_child(cell)
+
+	var doll := VBoxContainer.new()
+	doll.add_theme_constant_override("separation", 6)
+	doll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equipment_container.add_child(doll)
+
+	# --- Head row: rings (small) flank the helm ---
+	var ring_data: Dictionary = slot_info["ring"]
+	var ring_n: int = ring_data["max"]
+	var left_rings: int = int(ceil(ring_n / 2.0))
+	var head := _paperdoll_row()
+	head.add_child(_ring_column(ring_data, 0, left_rings))
+	head.add_child(_type_column("helm", ItemData.ItemType.HELM, SLOT_BIG))
+	head.add_child(_ring_column(ring_data, left_rings, ring_n))
+	doll.add_child(head)
+
+	# --- Chest ---
+	var chest_row := _paperdoll_row()
+	chest_row.add_child(_type_column("chest", ItemData.ItemType.CHEST, SLOT_BIG))
+	doll.add_child(chest_row)
+
+	# --- Waist: main hand | belts | off hand(s) ---
+	var weapon_data: Dictionary = slot_info["weapon"]
+	var waist := _paperdoll_row()
+	waist.add_child(_weapon_column(weapon_data, 0, 1, "Main Hand"))
+	waist.add_child(_type_column("belt", ItemData.ItemType.BELT, SLOT_BIG))
+	waist.add_child(_weapon_column(weapon_data, 1, weapon_data["max"], "Off Hand"))
+	doll.add_child(waist)
+
+	# --- Feet: gauntlets beside boots ---
+	var feet := _paperdoll_row()
+	feet.add_child(_type_column("gauntlets", ItemData.ItemType.GAUNTLETS, SLOT_BIG))
+	feet.add_child(_type_column("boots", ItemData.ItemType.BOOTS, SLOT_BIG))
+	doll.add_child(feet)
+
+## A horizontal band that centres its slot columns within the inventory window.
+func _paperdoll_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 6)
+	return row
+
+## A vertical stack of every slot of one type (e.g. all 4 of Ryan's belts).
+func _type_column(key: String, item_type: ItemData.ItemType, cell_size: Vector2) -> VBoxContainer:
+	var data: Dictionary = inventory.get_slot_info()[key]
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 4)
+	var equipped: Array = data["equipped"]
+	for i in range(data["max"]):
+		var item = equipped[i] if i < equipped.size() else null
+		col.add_child(_make_slot_cell(item_type, i, item, cell_size))
+	return col
+
+## Ring cells for slot indices [start, end), rendered small beside the helm.
+func _ring_column(ring_data: Dictionary, start: int, end: int) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 4)
+	var equipped: Array = ring_data["equipped"]
+	for i in range(start, end):
+		var item = equipped[i] if i < equipped.size() else null
+		col.add_child(_make_slot_cell(ItemData.ItemType.RING, i, item, SLOT_SMALL))
+	return col
+
+## Weapon cells for slot indices [start, end) labelled Main Hand / Off Hand.
+func _weapon_column(weapon_data: Dictionary, start: int, end: int, label: String) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 4)
+	var equipped: Array = weapon_data["equipped"]
+	for i in range(start, end):
+		var item = equipped[i] if i < equipped.size() else null
+		col.add_child(_make_slot_cell(ItemData.ItemType.WEAPON, i, item, SLOT_BIG, label))
+	return col
+
+func _make_slot_cell(item_type: int, slot_index: int, item, cell_size: Vector2, label_override: String = ""):
+	var cell = EquipmentSlotCellScript.new()
+	cell.setup(self, item_type, slot_index, item, cell_size, label_override)
+	return cell
 
 ## The display name for an (empty) equipment slot type.
 func _slot_type_name(item_type: int) -> String:
