@@ -9,10 +9,10 @@ extends Panel
 ##    item's on-self effect (below).
 ##  - Clicking opens the full card-slot management panel.
 
-var _panel: CharacterPanel = null
+var _panel = null  # CharacterPanel (untyped to avoid a class-cache dependency)
 var item: ItemData = null
 
-func setup(char_panel: CharacterPanel, itm: ItemData) -> void:
+func setup(char_panel, itm: ItemData) -> void:
 	_panel = char_panel
 	item = itm
 	mouse_filter = Control.MOUSE_FILTER_STOP

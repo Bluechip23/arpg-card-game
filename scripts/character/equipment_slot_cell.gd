@@ -13,12 +13,18 @@ extends Panel
 
 const SLOT_SIZE := Vector2(84, 84)
 
-var _panel: CharacterPanel = null
+# Preloaded (not referenced by class_name) so this script compiles without those
+# classes being in Godot's global class cache. _panel is left untyped to avoid a
+# compile cycle back to CharacterPanel, which preloads this script.
+const ItemSilhouetteScript = preload("res://scripts/character/item_silhouette.gd")
+const InventoryCardSlotScript = preload("res://scripts/character/inventory_card_slot.gd")
+
+var _panel = null  # CharacterPanel
 var item_type: int = 0
 var slot_index: int = 0
 var item: ItemData = null
 
-func setup(char_panel: CharacterPanel, i_type: int, i_index: int, itm: ItemData) -> void:
+func setup(char_panel, i_type: int, i_index: int, itm: ItemData) -> void:
 	_panel = char_panel
 	item_type = i_type
 	slot_index = i_index
@@ -45,7 +51,7 @@ func _build_children() -> void:
 		c.queue_free()
 
 	# Shadowed silhouette fills the square.
-	var sil := ItemSilhouette.new()
+	var sil = ItemSilhouetteScript.new()
 	sil.setup(item_type, item == null)
 	sil.set_anchors_preset(Control.PRESET_FULL_RECT)
 	sil.offset_top = 4
@@ -75,7 +81,7 @@ func _build_children() -> void:
 
 	# Card sub-slot in the bottom-right corner (only if the item has card slots).
 	if item and item.has_card_slots():
-		var card_slot := InventoryCardSlot.new()
+		var card_slot = InventoryCardSlotScript.new()
 		card_slot.setup(_panel, item)
 		card_slot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 		card_slot.offset_left = -26
@@ -98,7 +104,7 @@ func _build_item_tooltip() -> String:
 func _get_drag_data(_at_position: Vector2) -> Variant:
 	if not item:
 		return null
-	var preview := _panel._make_drag_preview(item.item_name, _panel._get_item_type_color(item.item_type))
+	var preview = _panel._make_drag_preview(item.item_name, _panel._get_item_type_color(item.item_type))
 	set_drag_preview(preview)
 	return {
 		"kind": "item",

@@ -7,6 +7,11 @@ signal closed
 signal card_slotted(card: Card, item: ItemData)
 signal card_unslotted(card: Card, item: ItemData)
 
+# Preloaded so this panel doesn't depend on the newer cell class_names being in
+# Godot's global class cache on first run (matches the pattern in main.gd).
+const EquipmentSlotCellScript = preload("res://scripts/character/equipment_slot_cell.gd")
+const StorageItemCellScript = preload("res://scripts/character/storage_item_cell.gd")
+
 @onready var panel: PanelContainer = $Panel
 @onready var name_label: Label = $Panel/MarginContainer/VBox/NameLabel
 @onready var stats_label: Label = $Panel/MarginContainer/VBox/StatsContainer/StatsLabel
@@ -647,7 +652,7 @@ func _build_equipment_slot_grid() -> void:
 		var equipped: Array = data["equipped"]
 		for i in range(max_slots):
 			var item = equipped[i] if i < equipped.size() else null
-			var cell := EquipmentSlotCell.new()
+			var cell = EquipmentSlotCellScript.new()
 			cell.setup(self, item_type, i, item)
 			grid.add_child(cell)
 
@@ -1337,7 +1342,7 @@ func _update_storage_grid() -> void:
 			grid.add_child(cell)
 
 func _create_storage_cell(index: int) -> PanelContainer:
-	var cell = StorageItemCell.new()
+	var cell = StorageItemCellScript.new()
 	cell.custom_minimum_size = Vector2(62, 48)
 
 	var style = StyleBoxFlat.new()
