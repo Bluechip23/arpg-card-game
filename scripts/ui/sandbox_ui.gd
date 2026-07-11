@@ -31,14 +31,20 @@ var _enemy_group_order: Array = ["Sewer", "Graveyard", "Cave", "Forest", "Mounta
 
 var _panel: PanelContainer = null
 var _toggle: Button = null
-var _card_player_dd: OptionButton = null
+# Add Card and Add Passive share one player/character dropdown and swap between
+# two tabs in the same slot.
+var _char_dd: OptionButton = null
+var _tab_card_btn: Button = null
+var _tab_passive_btn: Button = null
+var _active_tab: int = 0  # 0 = Add Card, 1 = Add Passive
 var _card_list: VBoxContainer = null
+var _card_scroll: ScrollContainer = null
+var _passive_list: VBoxContainer = null
+var _passive_scroll: ScrollContainer = null
 var _enemy_realm_dd: OptionButton = null
 var _enemy_list: VBoxContainer = null
 var _ally_dd: OptionButton = null
 var _ally_btn: Button = null
-var _passive_char_dd: OptionButton = null
-var _passive_list: VBoxContainer = null
 var _open: bool = false
 
 const CHARACTER_ORDER := ["Brad", "Ryan", "Stephen", "Cory", "Jeremy"]
@@ -51,9 +57,8 @@ func _ready() -> void:
 	layer = 90
 	_build_enemy_groups()
 	_build_ui()
-	_refresh_card_list()
 	_refresh_enemy_list()
-	_refresh_passive_list()
+	_set_tab(0)  # start on the Add Card tab
 
 
 func _tree_for(char_name: String) -> SkillTreeData:
@@ -150,21 +155,49 @@ func _build_ui() -> void:
 	title.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
 	vbox.add_child(title)
 
-	# ---- Add Card section ----
-	vbox.add_child(_header("Add Card to Hand"))
-	_card_player_dd = OptionButton.new()
+	# ---- Add Card / Add Passive (tabbed, one shared player dropdown) ----
+	var tab_row := HBoxContainer.new()
+	tab_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(tab_row)
+	_tab_card_btn = Button.new()
+	_tab_card_btn.text = "Add Card"
+	_tab_card_btn.toggle_mode = true
+	_tab_card_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tab_card_btn.pressed.connect(func(): _set_tab(0))
+	tab_row.add_child(_tab_card_btn)
+	_tab_passive_btn = Button.new()
+	_tab_passive_btn.text = "Add Passive"
+	_tab_passive_btn.toggle_mode = true
+	_tab_passive_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tab_passive_btn.pressed.connect(func(): _set_tab(1))
+	tab_row.add_child(_tab_passive_btn)
+
+	# One shared player/character dropdown drives whichever tab is active.
+	_char_dd = OptionButton.new()
 	for g in CARD_GROUP_ORDER:
-		_card_player_dd.add_item(g)
-	_card_player_dd.item_selected.connect(func(_i): _refresh_card_list())
-	vbox.add_child(_card_player_dd)
-	var card_scroll := ScrollContainer.new()
-	card_scroll.custom_minimum_size = Vector2(0, 150)
-	card_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(card_scroll)
+		_char_dd.add_item(g)
+	_char_dd.item_selected.connect(func(_i): _refresh_active_tab())
+	vbox.add_child(_char_dd)
+
+	# Add Card list.
+	_card_scroll = ScrollContainer.new()
+	_card_scroll.custom_minimum_size = Vector2(0, 180)
+	_card_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(_card_scroll)
 	_card_list = VBoxContainer.new()
 	_card_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_card_list.add_theme_constant_override("separation", 2)
-	card_scroll.add_child(_card_list)
+	_card_scroll.add_child(_card_list)
+
+	# Add Passive list (same slot, shown when the Passive tab is active).
+	_passive_scroll = ScrollContainer.new()
+	_passive_scroll.custom_minimum_size = Vector2(0, 180)
+	_passive_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(_passive_scroll)
+	_passive_list = VBoxContainer.new()
+	_passive_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_passive_list.add_theme_constant_override("separation", 2)
+	_passive_scroll.add_child(_passive_list)
 
 	vbox.add_child(HSeparator.new())
 
@@ -204,24 +237,6 @@ func _build_ui() -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	# ---- Grant Passive section ----
-	vbox.add_child(_header("Grant Passive"))
-	_passive_char_dd = OptionButton.new()
-	for n in CHARACTER_ORDER:
-		_passive_char_dd.add_item(n)
-	_passive_char_dd.item_selected.connect(func(_i): _refresh_passive_list())
-	vbox.add_child(_passive_char_dd)
-	var passive_scroll := ScrollContainer.new()
-	passive_scroll.custom_minimum_size = Vector2(0, 150)
-	passive_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(passive_scroll)
-	_passive_list = VBoxContainer.new()
-	_passive_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_passive_list.add_theme_constant_override("separation", 2)
-	passive_scroll.add_child(_passive_list)
-
-	vbox.add_child(HSeparator.new())
-
 	# ---- Utility buttons ----
 	var clear_btn := Button.new()
 	clear_btn.text = "Clear All Enemies"
@@ -240,14 +255,46 @@ func mark_ally_added() -> void:
 		_ally_btn.text = "Added"
 
 
+func _set_tab(tab: int) -> void:
+	## Switch between the Add Card and Add Passive tabs (they share the player
+	## dropdown and the list slot).
+	_active_tab = tab
+	if _tab_card_btn:
+		_tab_card_btn.button_pressed = (tab == 0)
+		_tab_card_btn.add_theme_color_override("font_color",
+			Color(1.0, 0.95, 0.7) if tab == 0 else Color(0.6, 0.6, 0.66))
+	if _tab_passive_btn:
+		_tab_passive_btn.button_pressed = (tab == 1)
+		_tab_passive_btn.add_theme_color_override("font_color",
+			Color(1.0, 0.95, 0.7) if tab == 1 else Color(0.6, 0.6, 0.66))
+	if _card_scroll:
+		_card_scroll.visible = (tab == 0)
+	if _passive_scroll:
+		_passive_scroll.visible = (tab == 1)
+	_refresh_active_tab()
+
+
+func _refresh_active_tab() -> void:
+	if _active_tab == 0:
+		_refresh_card_list()
+	else:
+		_refresh_passive_list()
+
+
 func _refresh_passive_list() -> void:
 	if not _passive_list:
 		return
 	for c in _passive_list.get_children():
 		c.queue_free()
-	var char_name: String = CHARACTER_ORDER[_passive_char_dd.selected] if _passive_char_dd else "Brad"
+	var char_name: String = CARD_GROUP_ORDER[_char_dd.selected] if _char_dd else "Brad"
 	var tree := _tree_for(char_name)
 	if tree == null:
+		# e.g. "Core / Shared" — not a character with a passive tree.
+		var note := Label.new()
+		note.text = "No passives for %s." % char_name
+		note.add_theme_font_size_override("font_size", 12)
+		note.add_theme_color_override("font_color", Color(0.6, 0.6, 0.66))
+		_passive_list.add_child(note)
 		return
 	var seen := {}
 	for row in tree.rows:
@@ -279,7 +326,7 @@ func _refresh_card_list() -> void:
 		return
 	for c in _card_list.get_children():
 		c.queue_free()
-	var group: String = CARD_GROUP_ORDER[_card_player_dd.selected]
+	var group: String = CARD_GROUP_ORDER[_char_dd.selected]
 	for card_id in CARD_GROUPS[group]:
 		var btn := Button.new()
 		btn.text = _pretty(card_id)

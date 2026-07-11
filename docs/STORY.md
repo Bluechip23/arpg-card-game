@@ -400,6 +400,40 @@ play).
 > Keep the `CLAUDE.md` guardrail in mind: roguelike mechanics belong **here**,
 > in the end-game. They must not leak into the persistent story RPG.
 
+### 6.5 The City (second end-game pillar — in design)
+
+The roguelike alone makes the end-game a classic ARPG treadmill (kill → loot →
+equip → kill harder). To break that, the end-game grows a **city loop**
+alongside (or eventually instead of) it:
+
+- **Expeditions** — heroes venture into the bestiary habitats (Forest, Sewer,
+  Graveyard, Cave, Mountains, Underworld, Heavens), fight monsters with the
+  normal battle systems, and haul **resources** home (gold, lumber, stone,
+  arcane essence). Richer habitats yield more.
+- **Building** — resources upgrade city buildings: production (Lumber Mill,
+  Quarry, Essence Extractor), storage (Warehouse), protection (Vault),
+  military (Barracks, Walls), and hero support (Hero Hall). The Town Hall
+  gates building levels, pacing growth.
+- **Raids** — the city's military plus your hero's power invade **rival
+  cities** for loot; rivals invade yours while you're away (a defense log
+  shows what happened). PvP is *asynchronous*, Clash-of-Clans style: you
+  attack a snapshot of a city, never a live player — so generated rivals and
+  real player-city snapshots share one code path.
+- **The loop:** expedition → resources → build → power grows → raid richer
+  targets → defend what you've built → repeat, with the persistent hero at
+  the center of every step.
+
+Code: `scripts/city/city_state.gd` (resources/buildings/power/persistence),
+`scripts/city/expedition_system.gd` (habitat yields; kills → resources),
+`scripts/city/raid_system.gd` (rival generation, raid resolution, defense
+log). Saved per character in `SaveData.city`. Building *placement*/visuals and
+the city screen are later passes; the loop is data-complete and tested
+(`tests/test_city_loop.gd`).
+
+> The same guardrail applies: the city is **end-game**. The persistent
+> character remains the spine — the city is what that character builds with
+> their power, not a replacement for them.
+
 ---
 
 ## 7. The Persistent Character (Cast)

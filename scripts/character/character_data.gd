@@ -69,15 +69,41 @@ func get_mana_regen() -> float:
 	# Base mana regen
 	return base_mana_regen
 
+# ============================================
+# CORE STAT REFERENCE
+# ============================================
+# Shared by the character-select allocation screen and the character panel so
+# both explain each stat the same way.
+
+const STAT_KEYS := ["STR", "DEX", "INT", "WIS", "DET", "AGI"]
+const STAT_NAMES := {
+	"STR": "Strength", "DEX": "Dexterity", "INT": "Intelligence",
+	"WIS": "Wisdom", "DET": "Determination", "AGI": "Agility",
+}
+const STAT_INFO := {
+	"STR": "Strength — +1 melee damage for every 2 points, and +10 carry capacity per point (carry heavier gear before you're over-encumbered).",
+	"DEX": "Dexterity — speeds up attack-speed procs. Attack speed counts your basic attacks: every (30 − Dexterity) attacks lands a free bonus attack (minimum 5). Each point means one fewer attack needed to proc.",
+	"INT": "Intelligence — +1 spell & heal power for every 2 points, and +1 mana regen for every 5 points.",
+	"WIS": "Wisdom — +1 hand size for every 5 points, and draws cards faster: each point shaves 0.25 off your draw timer.",
+	"DET": "Determination — directly impacts how low health affects your attributes. At 10 it does nothing; above 10 your stats climb as health drops, below 10 they fall. The lower your health, the bigger the swing — about ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below.",
+	"AGI": "Agility — +1 movement per tempo cycle for every 5 points (minimum 1 move).",
+}
+
+static func stat_full_name(key: String) -> String:
+	return STAT_NAMES.get(key, key)
+
+static func stat_description(key: String) -> String:
+	return STAT_INFO.get(key, "")
+
 static func create_ryan() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Ryan"
-	data.strength = 5
-	data.dexterity = 12
-	data.intelligence = 5
-	data.wisdom = 5
-	data.determination = 5
-	data.agility = 8
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
@@ -104,12 +130,12 @@ static func create_ryan() -> CharacterData:
 static func create_jeremy() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Jeremy"
-	data.strength = 5
-	data.dexterity = 5
-	data.intelligence = 12
-	data.wisdom = 8
-	data.determination = 5
-	data.agility = 5
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
@@ -136,12 +162,12 @@ static func create_jeremy() -> CharacterData:
 static func create_stephen() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Stephen"
-	data.strength = 12
-	data.dexterity = 8
-	data.intelligence = 5
-	data.wisdom = 5
-	data.determination = 5
-	data.agility = 5
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
@@ -184,12 +210,12 @@ static func create_stephen() -> CharacterData:
 static func create_cory() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Cory"
-	data.strength = 5
-	data.dexterity = 5
-	data.intelligence = 5
-	data.wisdom = 12
-	data.determination = 5
-	data.agility = 8
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
@@ -216,12 +242,12 @@ static func create_cory() -> CharacterData:
 static func create_brad() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Brad"
-	data.strength = 8
-	data.dexterity = 5
-	data.intelligence = 5
-	data.wisdom = 5
-	data.determination = 12
-	data.agility = 5
+	data.strength = 3
+	data.dexterity = 3
+	data.intelligence = 3
+	data.wisdom = 3
+	data.determination = 3
+	data.agility = 3
 	data.base_health = 5
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
