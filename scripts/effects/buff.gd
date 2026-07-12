@@ -122,7 +122,7 @@ func _set_name_and_description() -> void:
 			description = "All damage taken increases armor by that amount for %d tempo" % duration
 		BuffType.PHOENIX_GRACE:
 			buff_name = "Phoenix Grace"
-			description = "When HP drops below 50%%, heal to 80%% and apply 5 burn to nearest enemy"
+			description = "When HP drops below 50%, heal to 80% and apply 5 burn to nearest enemy"
 		BuffType.DEMONIC_RAGE:
 			buff_name = "Demonic Rage"
 			description = "Next %d mana costs use health instead" % charges

@@ -96,5 +96,43 @@ func _initialize() -> void:
 	groups = hs4.build_groups(hand4, 0)
 	_check(groups.size() == 1 and groups[0]["rep"] == k2, "locked copy is skipped for the representative")
 
+	# --- Instant (reaction) cards: all pile into ONE un-lettered stack ---
+	var hs5 := HandSlots.new()
+	var i1 := Card.create_spider_senses()
+	var i2 := Card.create_spider_senses()
+	var i3 := Card.create_gift_from_the_phoenix()  # different instant, same stack
+	var n1 := Card.create_slash()
+	_check(i1.get_stack_signature() == i3.get_stack_signature(),
+		"different pure instants share the one instant-stack signature")
+	var hand5: Array = [i1, n1, i2, i3]
+	groups = _slots(hs5, hand5)
+	_check(groups.size() == 2, "3 instants + Slash collapse to 2 stacks")
+	var inst_group = null
+	var norm_group = null
+	for g in groups:
+		if g["slot"] == HandSlots.INSTANT_SLOT:
+			inst_group = g
+		else:
+			norm_group = g
+	_check(inst_group != null and inst_group["cards"].size() == 3, "instant stack holds all 3 instants (x3)")
+	_check(norm_group != null and norm_group["slot"] == 0, "Slash still gets the first lettered slot (A)")
+	_check(groups[groups.size() - 1] == inst_group, "instant stack renders last (right end of the fan)")
+
+	# Instants never consume a letter: draw another normal card, it takes S.
+	var n2 := Card.create_block()
+	hand5.append(n2)
+	groups = _slots(hs5, hand5)
+	for g in groups:
+		if g["cards"][0] == n2:
+			_check(g["slot"] == 1, "instants don't consume letters — next normal card gets S")
+
+	# A card with an instant effect that is ALSO normally playable (not
+	# CardType.REACTION, e.g. a maintained Power with a reaction trigger)
+	# stacks like a normal card.
+	var dual := Card.create_slash()
+	dual.reaction_trigger = "on_damage_taken"
+	_check(not HandSlots.is_instant_sig(dual.get_stack_signature()),
+		"playable card with an instant effect is treated as a normal card")
+
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

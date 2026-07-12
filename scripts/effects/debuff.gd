@@ -75,7 +75,7 @@ func _set_name_and_description() -> void:
 			description = "Movement direction is randomized"
 		DebuffType.CURSED:
 			debuff_name = "Cursed"
-			description = "Deal 20%% less damage and deal 20%% damage to self"
+			description = "Deal 20% less damage and deal 20% damage to self"
 		DebuffType.FROZEN:
 			debuff_name = "Frozen"
 			description = "Cannot play cards"
