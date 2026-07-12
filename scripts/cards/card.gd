@@ -6,6 +6,10 @@ extends Resource
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
 enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL, SWIFT, BUCKLER, CROWN, FIST }
 
+# Stack-signature prefix shared by every pure instant (reaction) card so they
+# all merge into a single un-lettered hand stack.
+const INSTANT_STACK_SIG_PREFIX := "INSTANT|"
+
 @export var card_id: String = "slash"
 @export var card_name: String = "Slash"
 @export var description: String = "10 damage"
@@ -94,6 +98,13 @@ func get_stack_signature() -> String:
 	## copies that look and play identically merge; anything that changes the
 	## card's face or how it plays (upgrade, enhance, cost shifts, jailed,
 	## slotted) splits it into its own stack.
+	##
+	## Pure instant (reaction) cards can never be played manually — they all
+	## pile together under one un-lettered stack so they don't clutter the hand
+	## or steal a play key (see HandSlots). A card that also plays as a normal
+	## card isn't CardType.REACTION and stacks like any other card.
+	if card_type == CardType.REACTION:
+		return "%s%s" % [INSTANT_STACK_SIG_PREFIX, str(is_jailed())]
 	return "%s|%s|%d|%d|%d|%d|%d|%d|%s|%s" % [
 		card_id, card_name, mana_cost, tempo_cost,
 		int(is_upgraded), upgrade_path, int(is_enhanced), bonus_damage,
@@ -1585,7 +1596,7 @@ func _execute_biscuit(player_stats: PlayerStats, buff_mgr: BuffManager = null) -
 func _execute_loaded_die(player_stats: PlayerStats) -> void:
 	if player_stats:
 		player_stats.next_odds_boost += 10.0
-	print("[CARD] Loaded Die! Next card's odds increased by 10%%")
+	print("[CARD] Loaded Die! Next card's odds increased by 10%")
 
 func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = 5
@@ -1648,7 +1659,7 @@ func _execute_lady_luck(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	# Bless an ally - crit chance +30% for 5 attacks
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_enlightened(30, 5, "Lady Luck"))
-	print("[CARD] Lady Luck! Crit chance +30%% for 5 attacks")
+	print("[CARD] Lady Luck! Crit chance +30% for 5 attacks")
 
 func _execute_try_this(target, player_stats: PlayerStats) -> void:
 	# Increase ally mana pool by 3 and hand size by 2 for 10 tempo. 10% reverse
@@ -1687,7 +1698,7 @@ func _execute_raged_circulation(target, player_stats: PlayerStats) -> void:
 	if player_stats:
 		player_stats.healing_boost_percent = 0.3
 		player_stats.healing_boost_tempo = 15
-	print("[CARD] Raged Circulation! Healing +30%% for 15 tempo")
+	print("[CARD] Raged Circulation! Healing +30% for 15 tempo")
 
 func buff_mgr_exists(target) -> bool:
 	return target and target.has_method("get_buff_manager") and target.get_buff_manager() != null
@@ -1860,7 +1871,7 @@ func _execute_tighten_string(player_stats: PlayerStats, buff_mgr: BuffManager = 
 	# Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit
 	if buff_mgr:
 		buff_mgr.tighten_string_charges = 3
-	print("[CARD] Tighten String! Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20%% crit")
+	print("[CARD] Tighten String! Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit")
 
 func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -2048,7 +2059,7 @@ func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
 	# Skip next turn: forfeit the next tempo-triggered draw (one cycle).
 	if deck_manager:
 		deck_manager.skip_next_tempo_draw = true
-	print("[CARD] Meditate! Hand refreshed, healed to 80%%, skipping next turn's draw")
+	print("[CARD] Meditate! Hand refreshed, healed to 80%, skipping next turn's draw")
 
 # ============================================
 # BRAD CARD FACTORY METHODS
@@ -2258,7 +2269,7 @@ static func create_trick_shot() -> Card:
 	var card = Card.new()
 	card.card_id = "trick_shot"
 	card.card_name = "Trick Shot"
-	card.description = "Deal damage. 80%% chance to bounce, -20%% per bounce."
+	card.description = "Deal damage. 80% chance to bounce, -20% per bounce."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 2
@@ -2274,7 +2285,7 @@ static func create_surrounding_ice() -> Card:
 	var card = Card.new()
 	card.card_id = "surrounding_ice"
 	card.card_name = "Surrounding Ice"
-	card.description = "Ice stalagmites deal heavy damage around you. 30%% miss chance per enemy."
+	card.description = "Ice stalagmites deal heavy damage around you. 30% miss chance per enemy."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
@@ -2292,7 +2303,7 @@ static func create_risk_it() -> Card:
 	var card = Card.new()
 	card.card_id = "risk_it"
 	card.card_name = "Risk It"
-	card.description = "30%% chance to receive the Biscuit."
+	card.description = "30% chance to receive the Biscuit."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 1
@@ -2318,7 +2329,7 @@ static func create_loaded_die() -> Card:
 	var card = Card.new()
 	card.card_id = "loaded_die"
 	card.card_name = "Loaded Die"
-	card.description = "Next card with a probability has +10%% higher chance."
+	card.description = "Next card with a probability has +10% higher chance."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.card_keyword = CardKeyword.GEM
@@ -2331,7 +2342,7 @@ static func create_worst_that_could_happen() -> Card:
 	var card = Card.new()
 	card.card_id = "worst_that_could_happen"
 	card.card_name = "What's the Worst?"
-	card.description = "5 damage. 50%% for +15 damage, 50%% to stun target."
+	card.description = "5 damage. 50% for +15 damage, 50% to stun target."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
@@ -2346,7 +2357,7 @@ static func create_oops() -> Card:
 	var card = Card.new()
 	card.card_id = "oops"
 	card.card_name = "Oops"
-	card.description = "30%% for 5 hits, 40%% for 3 hits, 30%% for 2 hits."
+	card.description = "30% for 5 hits, 40% for 3 hits, 30% for 2 hits."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
@@ -2373,7 +2384,7 @@ static func create_hope_this_works() -> Card:
 	var card = Card.new()
 	card.card_id = "hope_this_works"
 	card.card_name = "Hope This Works"
-	card.description = "50%% to heal ally and provide STR for 3 attacks."
+	card.description = "50% to heal ally and provide STR for 3 attacks."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
@@ -2387,7 +2398,7 @@ static func create_lady_luck() -> Card:
 	var card = Card.new()
 	card.card_id = "lady_luck"
 	card.card_name = "Lady Luck"
-	card.description = "Bless an ally. Crit chance +30%% for 5 attacks."
+	card.description = "Bless an ally. Crit chance +30% for 5 attacks."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 4
@@ -2400,7 +2411,7 @@ static func create_try_this() -> Card:
 	var card = Card.new()
 	card.card_id = "try_this"
 	card.card_name = "Try This!"
-	card.description = "Ally +3 mana pool, +2 hand size for 10 tempo. 10%% chance reverse."
+	card.description = "Ally +3 mana pool, +2 hand size for 10 tempo. 10% chance reverse."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
@@ -2445,7 +2456,7 @@ static func create_snowballs_chance() -> Card:
 	var card = Card.new()
 	card.card_id = "snowballs_chance"
 	card.card_name = "A Snowball's Chance"
-	card.description = "Searing fire 3 spaces forward. 50%% to also spread snowballs in a cone."
+	card.description = "Searing fire 3 spaces forward. 50% to also spread snowballs in a cone."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 2
@@ -2468,7 +2479,7 @@ static func create_raged_circulation() -> Card:
 	var card = Card.new()
 	card.card_id = "raged_circulation"
 	card.card_name = "Raged Circulation"
-	card.description = "Target receives 30%% more from healing and regen for 15 tempo."
+	card.description = "Target receives 30% more from healing and regen for 15 tempo."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
@@ -2694,7 +2705,7 @@ static func create_tighten_string() -> Card:
 	var card = Card.new()
 	card.card_id = "tighten_string"
 	card.card_name = "Tighten String"
-	card.description = "Next 3 ranged attacks: +3 tempo cost, +6 damage, +6 range, +20%% crit chance."
+	card.description = "Next 3 ranged attacks: +3 tempo cost, +6 damage, +6 range, +20% crit chance."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
@@ -3358,7 +3369,7 @@ static func create_self_infliction() -> Card:
 	var card = Card.new()
 	card.card_id = "self_infliction"
 	card.card_name = "Self Infliction"
-	card.description = "Deal 80%% remaining health in damage to self. Gain 5 determination and 5 strength."
+	card.description = "Deal 80% remaining health in damage to self. Gain 5 determination and 5 strength."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 2
@@ -3667,7 +3678,7 @@ static func create_gift_from_the_phoenix() -> Card:
 	var card = Card.new()
 	card.card_id = "gift_from_the_phoenix"
 	card.card_name = "Gift from the Phoenix"
-	card.description = "Instant: When your life drops below 50%%, heal up to 80%% and apply 5 burn to the nearest enemy."
+	card.description = "Instant: When your life drops below 50%, heal up to 80% and apply 5 burn to the nearest enemy."
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0
@@ -4774,7 +4785,7 @@ static func create_succumb() -> Card:
 	var card = Card.new()
 	card.card_id = "succumb"
 	card.card_name = "Succumb"
-	card.description = "For 20 tempo, gain fortify, blessed 2, and Resilient 20%%, plus Strengthen 5 on your next 5 attacks. After 10 tempo, take 10 damage. After 10 additional tempo, take 10 more damage and become cuffed, drained, and disarmed for 10 tempo."
+	card.description = "For 20 tempo, gain fortify, blessed 2, and Resilient 20%, plus Strengthen 5 on your next 5 attacks. After 10 tempo, take 10 damage. After 10 additional tempo, take 10 more damage and become cuffed, drained, and disarmed for 10 tempo."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
@@ -4791,7 +4802,7 @@ static func create_harden() -> Card:
 	var card = Card.new()
 	card.card_id = "harden"
 	card.card_name = "Harden"
-	card.description = "Gain 10%% physical resistance for 15 tempo and 10 armor."
+	card.description = "Gain 10% physical resistance for 15 tempo and 10 armor."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 3
@@ -4950,7 +4961,7 @@ static func create_worms_armageddon() -> Card:
 	var card = Card.new()
 	card.card_id = "worms_armageddon"
 	card.card_name = "Worms Armageddon"
-	card.description = "Rain massive meteors dealing 23 damage. 10%% to summon two Alaskan Bull Worms (12 HP, 6 damage, burrowed until attacking, untargetable while burrowed, 1 movement per tempo)."
+	card.description = "Rain massive meteors dealing 23 damage. 10% to summon two Alaskan Bull Worms (12 HP, 6 damage, burrowed until attacking, untargetable while burrowed, 1 movement per tempo)."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 5
@@ -5069,7 +5080,7 @@ static func create_multishot() -> Card:
 	var card = Card.new()
 	card.card_id = "multishot"
 	card.card_name = "Multishot"
-	card.description = "Deal 7 damage 3 times, each time gaining 10%% crit chance. Glut 5."
+	card.description = "Deal 7 damage 3 times, each time gaining 10% crit chance. Glut 5."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3

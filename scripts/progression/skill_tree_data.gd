@@ -376,8 +376,8 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 11, slot = 1, card_id = "living_armor", name = "Living Armor", description = "Gain regen until it is equal to your fortify. (3 mana, 5 tempo)"},
 		{level = 12, slot = 1, card_id = "the_lights_favor", name = "The Light's Favor", description = "Heal 5 and draw a card. (2 mana, 0 tempo)"},
 		{level = 13, slot = 1, card_id = "hunker_down", name = "Hunker Down", description = "Gain Fortify for 30 tempo. (4 mana, 2 tempo)"},
-		{level = 15, slot = 0, card_id = "succumb", name = "Succumb", description = "For 20 tempo: fortify, blessed 2, strengthen 5, resilient 20%%. After 10 tempo: 10 damage. After 20: 10 more damage, cuffed, drained, disarmed for 10 tempo. (0 mana, 0 tempo)"},
-		{level = 17, slot = 0, card_id = "harden", name = "Harden", description = "Gain 10%% physical resistance for 15 tempo and 10 armor. (3 mana, 4 tempo)"},
+		{level = 15, slot = 0, card_id = "succumb", name = "Succumb", description = "For 20 tempo: fortify, blessed 2, strengthen 5, resilient 20%. After 10 tempo: 10 damage. After 20: 10 more damage, cuffed, drained, disarmed for 10 tempo. (0 mana, 0 tempo)"},
+		{level = 17, slot = 0, card_id = "harden", name = "Harden", description = "Gain 10% physical resistance for 15 tempo and 10 armor. (3 mana, 4 tempo)"},
 		{level = 19, slot = 0, card_id = "roll", name = "Roll", description = "Roll X squares (max 5). On hitting an enemy, deal 10 damage and disarm for 5 tempo. (1 mana, 5 tempo)"},
 	]
 
@@ -503,7 +503,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 5, slot = 0, card_id = "reload", name = "Reload", description = "Draw 3 cards. (3 mana, 3 tempo)"},
 		{level = 6, slot = 0, card_id = "mark", name = "Mark", description = "Target receives extra damage from your attacks. Ranged +7. (3 mana, 0 tempo)"},
 		{level = 7, slot = 0, card_id = "barricade", name = "Barricade", description = "Create a barricade of land in front of you. (3 mana, 2 tempo)"},
-		{level = 8, slot = 1, card_id = "tighten_string", name = "Tighten String", description = "Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20%% crit. (3 mana, 3 tempo)"},
+		{level = 8, slot = 1, card_id = "tighten_string", name = "Tighten String", description = "Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit. (3 mana, 3 tempo)"},
 		{level = 9, slot = 0, card_id = "down_town", name = "Down Town", description = "Very long range (+7) shot, 12 damage. Arrow. (3 mana, 5 tempo)"},
 		{level = 10, slot = 0, card_id = "sky_attack", name = "Sky Attack", description = "Leap and shoot arrow down, 10 damage. High Ground bonus. Arrow. (1 mana, 4 tempo)"},
 		{level = 11, slot = 0, card_id = "enchanted_quiver", name = "Enchanted Quiver", description = "Next 3 ranged attacks create a free Quick Arrow in hand. (4 mana, 5 tempo)"},
@@ -513,7 +513,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 16, slot = 0, card_id = "bottomless_quiver", name = "Bottomless Quiver", description = "Manifest 5: Overflow attack cards stored in quiver. (4 mana, 4 tempo)"},
 		{level = 18, slot = 0, card_id = "collect_arrows", name = "Collect Arrows", description = "Place 2 attack cards from discard pile into hand. Glut: 15 tempo. (3 mana)"},
 		{level = 13, slot = 1, card_id = "exhausted_assault", name = "Exhausted Assault", description = "While you have zero mana, costs 0 mana. Deal 4 damage 3 times. Glut 10. (4 mana, 3 tempo)"},
-		{level = 17, slot = 0, card_id = "multishot", name = "Multishot", description = "Attack 3 times, each gaining 10%% crit chance. Glut 5. (3 mana, 6 tempo)"},
+		{level = 17, slot = 0, card_id = "multishot", name = "Multishot", description = "Attack 3 times, each gaining 10% crit chance. Glut 5. (3 mana, 6 tempo)"},
 		{level = 19, slot = 0, card_id = "specific_strike", name = "Specific Strike", description = "Costs +1m/+1t for each other card in your hand. (2 mana, 2 tempo)"},
 		{level = 20, slot = 0, card_id = "spirit_arrow", name = "Spirit Arrow", description = "Arrow that shoots through all enemies and obstructions in a direct line. Arrow. (3 mana, 5 tempo)"},
 	]
@@ -640,7 +640,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 5, slot = 0, card_id = "volatile_mixture", name = "Volatile Mixture", description = "Discard: deal 8 damage to enemy. End of turn in hand: 8 self-damage. (0 mana, 0 tempo)"},
 		{level = 6, slot = 0, card_id = "shadows", name = "Shadows", description = "Go invisible for 10 tempo. (1 mana, 4 tempo)"},
 		{level = 7, slot = 0, card_id = "preparation", name = "Preparation", description = "Next 2 utility cards cost 2 less. (3 mana, 3 tempo)"},
-		{level = 8, slot = 1, card_id = "raged_circulation", name = "Raged Circulation", description = "Target receives 30%% more from healing and regen for 15 tempo. Ranged. (2 mana, 2 tempo)"},
+		{level = 8, slot = 1, card_id = "raged_circulation", name = "Raged Circulation", description = "Target receives 30% more from healing and regen for 15 tempo. Ranged. (2 mana, 2 tempo)"},
 		{level = 9, slot = 0, card_id = "exacerbate_wounds", name = "Exacerbate Wounds", description = "Deal damage for each card discarded this turn. (0 mana, 7 tempo)"},
 		{level = 10, slot = 0, card_id = "premeditated", name = "Premeditated", description = "Deal 8 damage. If this Exposes the enemy, next attack deals +15 damage. (2 mana, 4 tempo)"},
 		{level = 11, slot = 0, card_id = "shuriken_pouch", name = "Shuriken Pouch", description = "Manifest 3: Overflow cards become Shuriken (3 dmg, free, ranged). (3 mana, 2 tempo)"},
@@ -777,12 +777,12 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 8, slot = 1, card_id = "round_em_up", name = "Round 'Em Up", description = "Pick a point. Enemies near it are displaced towards it. AOE circle, Ranged. (2 mana, 3 tempo)"},
 		{level = 9, slot = 0, card_id = "sweeping_disarm", name = "Sweeping Disarm", description = "Surrounding enemies disarmed, deal 3 damage. AOE circle, Fist. (2 mana, 5 tempo)"},
 		{level = 10, slot = 0, card_id = "choke", name = "Choke", description = "Silence enemy and deal damage per round. Sticky 3. Fist. (3 mana, 4 tempo)"},
-		{level = 12, slot = 0, card_id = "meditate", name = "Meditate", description = "Discard hand, draw to full -2, heal to 80%%. Skip next turn. (0 mana, 6 tempo)"},
+		{level = 12, slot = 0, card_id = "meditate", name = "Meditate", description = "Discard hand, draw to full -2, heal to 80%. Skip next turn. (0 mana, 6 tempo)"},
 		{level = 14, slot = 0, card_id = "absorb_essence", name = "Absorb Essence", description = "Deal 1 damage to ALL things. Delay 10 tempo: obtain Energy Ball. AOE. (5 mana, 5 tempo)"},
 		{level = 15, slot = 0, card_id = "misery_loves_company", name = "Misery Loves Company", description = "Your next AOE attack spreads the debuffs on yourself and all enemies hit, to all the enemies that are hit. (5 mana, 1 tempo)"},
 		{level = 17, slot = 0, card_id = "release_tension", name = "Release Tension", description = "Remove a stack of debuffs from the enemy and heal for the amount of debuffs removed x3. Choose which debuff. (3 mana, 5 tempo)"},
 		{level = 19, slot = 0, card_id = "vines", name = "Vines", description = "Summon vines holding an enemy in place for 3 turns. Deal 4 damage per turn the enemy is held still. (2 mana, 3 tempo)"},
-		{level = 20, slot = 0, card_id = "exposed_artery", name = "Exposed Artery", description = "Deal damage equal to 0.5x the enemy's missing health %%. (5 mana, 2 tempo)"},
+		{level = 20, slot = 0, card_id = "exposed_artery", name = "Exposed Artery", description = "Deal damage equal to 0.5x the enemy's missing health %. (5 mana, 2 tempo)"},
 	]
 
 	# Index placements by level for quick lookup
@@ -901,16 +901,16 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 
 	# Card reward placements — Jeremy's gambler/chaos mage cards
 	var card_placements := [
-		{level = 2, slot = 1, card_id = "risk_it", name = "Risk It", description = "30%% chance to receive the Biscuit. (1 mana, 0 tempo)"},
-		{level = 3, slot = 0, card_id = "loaded_die", name = "Loaded Die", description = "Next card with a probability has +10%% higher chance. Gem. (1 mana, 1 tempo)"},
-		{level = 4, slot = 0, card_id = "trick_shot", name = "Trick Shot", description = "Deal 8 damage. 80%% chance to bounce, -20%% per bounce. Ranged. (2 mana, 4 tempo)"},
-		{level = 5, slot = 0, card_id = "oops", name = "Oops", description = "4 damage per hit. 30%% for 5 hits, 40%% for 3 hits, 30%% for 2 hits. (3 mana, 4 tempo)"},
-		{level = 6, slot = 0, card_id = "hope_this_works", name = "Hope This Works", description = "50%% to heal ally and provide STR for 3 attacks. (2 mana, 3 tempo)"},
-		{level = 7, slot = 0, card_id = "surrounding_ice", name = "Surrounding Ice", description = "Ice stalagmites deal 15 damage around you. 30%% miss chance per enemy. AOE. (3 mana, 4 tempo)"},
-		{level = 8, slot = 1, card_id = "worst_that_could_happen", name = "What's the Worst?", description = "5 damage. 50%% for +15 damage, 50%% to stun target. (3 mana, 7 tempo)"},
-		{level = 10, slot = 0, card_id = "try_this", name = "Try This!", description = "Ally +3 mana pool, +2 hand size for 10 tempo. 10%% chance reverse. (3 mana, 4 tempo)"},
-		{level = 11, slot = 0, card_id = "snowballs_chance", name = "A Snowball's Chance", description = "Searing fire 3 spaces forward. 50%% to also spread snowballs in a cone. AOE line. (2 mana, 3 tempo)"},
-		{level = 12, slot = 0, card_id = "lady_luck", name = "Lady Luck", description = "Bless an ally. Crit chance +30%% for 5 attacks. (4 mana, 1 tempo)"},
+		{level = 2, slot = 1, card_id = "risk_it", name = "Risk It", description = "30% chance to receive the Biscuit. (1 mana, 0 tempo)"},
+		{level = 3, slot = 0, card_id = "loaded_die", name = "Loaded Die", description = "Next card with a probability has +10% higher chance. Gem. (1 mana, 1 tempo)"},
+		{level = 4, slot = 0, card_id = "trick_shot", name = "Trick Shot", description = "Deal 8 damage. 80% chance to bounce, -20% per bounce. Ranged. (2 mana, 4 tempo)"},
+		{level = 5, slot = 0, card_id = "oops", name = "Oops", description = "4 damage per hit. 30% for 5 hits, 40% for 3 hits, 30% for 2 hits. (3 mana, 4 tempo)"},
+		{level = 6, slot = 0, card_id = "hope_this_works", name = "Hope This Works", description = "50% to heal ally and provide STR for 3 attacks. (2 mana, 3 tempo)"},
+		{level = 7, slot = 0, card_id = "surrounding_ice", name = "Surrounding Ice", description = "Ice stalagmites deal 15 damage around you. 30% miss chance per enemy. AOE. (3 mana, 4 tempo)"},
+		{level = 8, slot = 1, card_id = "worst_that_could_happen", name = "What's the Worst?", description = "5 damage. 50% for +15 damage, 50% to stun target. (3 mana, 7 tempo)"},
+		{level = 10, slot = 0, card_id = "try_this", name = "Try This!", description = "Ally +3 mana pool, +2 hand size for 10 tempo. 10% chance reverse. (3 mana, 4 tempo)"},
+		{level = 11, slot = 0, card_id = "snowballs_chance", name = "A Snowball's Chance", description = "Searing fire 3 spaces forward. 50% to also spread snowballs in a cone. AOE line. (2 mana, 3 tempo)"},
+		{level = 12, slot = 0, card_id = "lady_luck", name = "Lady Luck", description = "Bless an ally. Crit chance +30% for 5 attacks. (4 mana, 1 tempo)"},
 		{level = 14, slot = 0, card_id = "if_pigs_could_fly", name = "If Pigs Could Fly", description = "Summon a flying pig that explodes for 15 damage. Ranged. (3 mana, 0 tempo)"},
 		{level = 16, slot = 0, card_id = "house_money", name = "House Money", description = "Your next odds will automatically trigger. (4 mana, 5 tempo)"},
 		{level = 3, slot = 2, card_id = "cryonics", name = "Cryonics", description = "Encase an ally in ice for 15 tempo. Untargetable, cannot act, heals 3 per 5 tempo. (1 mana, 6 tempo)"},
@@ -919,7 +919,7 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 13, slot = 1, card_id = "fireball", name = "Fireball", description = "Massive fireball. Range +5, 12 damage, 3 burn. Costs 1 less mana per fire spell this turn. AOE circle 4 sq. (8 mana, 8 tempo)"},
 		{level = 15, slot = 0, card_id = "spark", name = "Spark", description = "3 damage. Ranged -2. Subtract 2 tempo from 2 random cards. In 15 tempo, add 2 tempo to 2 random cards. (1 mana, 3 tempo)"},
 		{level = 17, slot = 0, card_id = "god_of_thunder", name = "God of Thunder", description = "Absorb all shock on enemies and cast a massive bolt dealing damage based on shock absorbed. (5 mana, 10 tempo)"},
-		{level = 19, slot = 0, card_id = "worms_armageddon", name = "Worms Armageddon", description = "Rain meteors dealing significant damage. 10%% to summon two Alaskan Bull Worms (12 HP, 6 dmg, burrowed). (5 mana, 10 tempo)"},
+		{level = 19, slot = 0, card_id = "worms_armageddon", name = "Worms Armageddon", description = "Rain meteors dealing significant damage. 10% to summon two Alaskan Bull Worms (12 HP, 6 dmg, burrowed). (5 mana, 10 tempo)"},
 		{level = 20, slot = 0, card_id = "healthy_bliss", name = "Healthy Bliss", description = "Instant: Once in hand for 20 tempo, automatically heal all allies for 10 health. (0 mana, 0 tempo)"},
 	]
 

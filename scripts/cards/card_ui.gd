@@ -211,10 +211,12 @@ func _ensure_badge() -> void:
 
 func set_keybind_badge(letter: String, count: int = 1, slotted: bool = false) -> void:
 	## Set the floating play button's key letter and stack count (xN).
+	## An empty letter means the stack has no play key (instant cards trigger
+	## on their own) — the badge reads AUTO instead.
 	_ensure_badge()
 	if not _badge_label:
 		return
-	var txt := "[%s]" % letter
+	var txt := "AUTO" if letter == "" else "[%s]" % letter
 	if count > 1:
 		txt += " x%d" % count
 	if slotted:

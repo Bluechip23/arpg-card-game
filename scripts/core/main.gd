@@ -211,7 +211,8 @@ var maintained_list_panel: PanelContainer = null
 var maintained_list_container: VBoxContainer = null
 var maintained_list_visible: bool = false
 var maintained_list_card_preview: PanelContainer = null
-var maintained_btn: Button = null
+var maintained_icon: MaintainedIconUI = null
+var _mana_reserve_tip: ManaReserveTooltip = null
 
 # Shared pile contents popup (used by Draw, Discard, Jail buttons)
 var pile_popup_panel: PanelContainer = null
@@ -411,7 +412,7 @@ func _ready() -> void:
 	_setup_hand_area_background()
 	_setup_deck_list_button()
 	_setup_deck_list_panel()
-	_setup_maintained_list_button()
+	_setup_maintained_icon()
 	_setup_maintained_list_panel()
 	_setup_pile_popup_panel()
 	_setup_hand_card_preview()
@@ -930,6 +931,10 @@ func _setup_stat_bars() -> void:
 	var mana_pair = _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
 	_mana_bar = mana_pair[0]
 	_mana_bar_label = mana_pair[1]
+	# Hovering the mana bar lists how much mana each maintained card reserves.
+	_mana_reserve_tip = ManaReserveTooltip.new()
+	_mana_reserve_tip.name = "ManaReserveTooltip"
+	_mana_bar.get_parent().add_child(_mana_reserve_tip)
 
 	# --- Armor Bar (silver/grey) ---
 	var armor_pair = _create_stat_bar_with_label(stat_container, "ArmorBar", Color(0.55, 0.55, 0.6), Color(0.2, 0.2, 0.25))
@@ -1574,23 +1579,14 @@ func _on_deck_list_entry_unhovered() -> void:
 # MAINTAINED CARDS LIST (expandable button)
 # ============================================
 
-func _setup_maintained_list_button() -> void:
-	var ui = $UI as CanvasLayer
-	maintained_btn = Button.new()
-	maintained_btn.name = "MaintainedListButton"
-	maintained_btn.text = "Maintained: 0"
-	maintained_btn.custom_minimum_size = Vector2(110, 30)
-	maintained_btn.pressed.connect(_on_maintained_list_button_pressed)
-	var btn_container = Control.new()
-	btn_container.name = "MaintainedButtonContainer"
-	ui.add_child(btn_container)
-	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	btn_container.offset_left = -210.0
-	btn_container.offset_top = -40.0
-	btn_container.offset_right = -100.0
-	btn_container.offset_bottom = -5.0
-	btn_container.add_child(maintained_btn)
-	maintained_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+func _setup_maintained_icon() -> void:
+	## Maintained cards show as one card icon (xN) in the top status row with
+	## the other buffs; hover lists each card, click opens the manage panel.
+	maintained_icon = MaintainedIconUI.new()
+	maintained_icon.name = "MaintainedIcon"
+	maintained_icon.visible = false
+	maintained_icon.pressed.connect(_on_maintained_list_button_pressed)
+	buff_bar.pin_front(maintained_icon)
 
 func _setup_maintained_list_panel() -> void:
 	var ui = $UI as CanvasLayer
@@ -1680,12 +1676,17 @@ func _setup_maintained_list_panel() -> void:
 	maintained_list_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _update_maintained_button() -> void:
-	if maintained_btn:
-		var count = deck_manager.get_maintained_card_count()
-		maintained_btn.text = "Maintained: %d" % count
-		maintained_btn.visible = count > 0
+	var cards = deck_manager.get_maintained_cards()
+	if maintained_icon:
+		maintained_icon.set_cards(cards)
+	if _mana_reserve_tip:
+		_mana_reserve_tip.set_cards(cards)
 	if maintained_list_visible:
-		_populate_maintained_list()
+		if cards.size() == 0:
+			# Last maintained card gone — close the manage panel too.
+			_on_maintained_list_button_pressed()
+		else:
+			_populate_maintained_list()
 
 func _on_maintained_list_button_pressed() -> void:
 	maintained_list_visible = !maintained_list_visible
@@ -2246,6 +2247,44 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 		item_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 		vbox.add_child(item_lbl)
 
+	# Instant stack: every ready instant piles under this one card, so list
+	# what's actually inside the stack.
+	for g in _hand_groups:
+		if g["rep"] != card or g["slot"] != HandSlotsScript.INSTANT_SLOT:
+			continue
+		var stack: Array = g["cards"]
+		if stack.size() <= 1:
+			break
+		var inst_sep = HSeparator.new()
+		vbox.add_child(inst_sep)
+		var inst_header = Label.new()
+		inst_header.text = "In this stack (trigger automatically):"
+		inst_header.add_theme_font_size_override("font_size", 12)
+		inst_header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+		vbox.add_child(inst_header)
+		# Collapse duplicates: one line per distinct instant, with its count.
+		var by_name := {}
+		var name_order: Array = []
+		for icard in stack:
+			if not by_name.has(icard.card_name):
+				by_name[icard.card_name] = {"card": icard, "count": 0}
+				name_order.append(icard.card_name)
+			by_name[icard.card_name]["count"] += 1
+		for iname in name_order:
+			var entry: Dictionary = by_name[iname]
+			var line = RichTextLabel.new()
+			line.bbcode_enabled = true
+			line.fit_content = true
+			line.scroll_active = false
+			line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			line.custom_minimum_size = Vector2(180, 0)
+			line.add_theme_font_size_override("normal_font_size", 12)
+			line.add_theme_font_size_override("bold_italics_font_size", 12)
+			var count_txt: String = (" x%d" % entry["count"]) if entry["count"] > 1 else ""
+			line.text = "[b][i]%s[/i][/b]%s: %s" % [iname, count_txt, entry["card"].description]
+			vbox.add_child(line)
+		break
+
 	# Position popup above the hand area, centered on the hovered card
 	var hand_area = $UI/HandArea as PanelContainer
 	var card_global_rect = card_ui.get_global_rect()
@@ -2257,6 +2296,14 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	# If hover changed while we waited, abort (fixes flickering when scrolling across cards)
 	if my_hover_id != _hand_hover_id:
 		return
+
+	# RichTextLabel fit_content heights settle a frame late, and the shared
+	# panel never shrinks on its own — wait one more frame, then snap the
+	# panel to the new content's minimum size before measuring.
+	await get_tree().process_frame
+	if my_hover_id != _hand_hover_id:
+		return
+	hand_card_preview.reset_size()
 
 	var preview_width = hand_card_preview.size.x
 	var popup_x = card_center_x - preview_width / 2.0
@@ -3889,6 +3936,7 @@ func _on_dexterity_proc() -> void:
 func _on_maintained_cards_broken() -> void:
 	## Called when player's mana hits 0 - all maintained Power cards are discarded
 	deck_manager.break_all_maintained_cards()
+	_update_maintained_button()
 	print("[MAIN] All maintained cards broken due to mana depletion!")
 
 func _on_player_health_damage_taken(hp_amount: int) -> void:
@@ -4076,7 +4124,9 @@ func _on_hand_updated() -> void:
 		# Debuff hexed/locked display keys off the card's real hand index.
 		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active, pocket_knife)
 		card_ui.set_stack_depth(count)
-		card_ui.set_keybind_badge(_slot_letter(group["slot"]), count, rep.is_slotted())
+		# The instant stack has no play key — its badge reads AUTO instead.
+		var badge_letter: String = "" if group["slot"] == HandSlotsScript.INSTANT_SLOT else _slot_letter(group["slot"])
+		card_ui.set_keybind_badge(badge_letter, count, rep.is_slotted())
 		group["card_ui"] = card_ui
 
 		var final_pos = Vector2(start_x + g * spacing, card_y)
