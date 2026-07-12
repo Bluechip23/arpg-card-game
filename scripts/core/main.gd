@@ -212,6 +212,7 @@ var maintained_list_container: VBoxContainer = null
 var maintained_list_visible: bool = false
 var maintained_list_card_preview: PanelContainer = null
 var maintained_icon: MaintainedIconUI = null
+var jailed_icon: JailedIconUI = null
 var _mana_reserve_tip: ManaReserveTooltip = null
 
 # Shared pile contents popup (used by Draw, Discard, Jail buttons)
@@ -735,11 +736,17 @@ func _setup_action_buttons() -> void:
 	vbox.add_theme_constant_override("separation", 4)
 	btn_container.add_child(vbox)
 
-	# Attack button (top)
+	# Compact icon buttons: a glyph carries the meaning (sword = attack,
+	# hand = wait, stop sign = pause) so only the numbers need text, keeping
+	# the stack small and the battlefield clear.
+
+	# Attack button (top): sword + tempo cost + attacks until the speed proc.
 	_attack_button = Button.new()
 	_attack_button.name = "AttackButton"
-	_attack_button.text = "Attack (5T) (0)"
-	_attack_button.custom_minimum_size = Vector2(130, 36)
+	_attack_button.icon = UIGlyphs.get_glyph("sword")
+	_attack_button.text = "5T (0)"
+	_attack_button.custom_minimum_size = Vector2(0, 36)
+	_attack_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_attack_button.tooltip_text = "Basic melee attack: STR modifier damage. Costs 5 tempo."
 	_attack_button.pressed.connect(_on_attack_pressed)
 	vbox.add_child(_attack_button)
@@ -747,27 +754,34 @@ func _setup_action_buttons() -> void:
 	# Block button (middle, only visible if shield equipped)
 	_block_button = Button.new()
 	_block_button.name = "BlockButton"
-	_block_button.text = "Block (5T)"
-	_block_button.custom_minimum_size = Vector2(130, 36)
+	_block_button.icon = UIGlyphs.get_glyph("shield")
+	_block_button.text = "5T"
+	_block_button.custom_minimum_size = Vector2(0, 36)
+	_block_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
 	_block_button.pressed.connect(_on_block_pressed)
 	_block_button.visible = false
 	vbox.add_child(_block_button)
 
-	# Wait button (bottom)
+	# Wait button (bottom): raised hand + the 1 tempo it advances.
 	var wait_btn = Button.new()
 	wait_btn.name = "WaitButton"
-	wait_btn.text = "Wait (+1 Tempo)"
-	wait_btn.custom_minimum_size = Vector2(130, 36)
+	wait_btn.icon = UIGlyphs.get_glyph("wait_hand")
+	wait_btn.text = "1T"
+	wait_btn.custom_minimum_size = Vector2(0, 36)
+	wait_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
 	vbox.add_child(wait_btn)
 
-	# Pause button (below wait)
+	# Pause button (below wait): red stop sign, no text; shows a green play
+	# triangle while paused.
 	_pause_button = Button.new()
 	_pause_button.name = "PauseButton"
-	_pause_button.text = "Pause"
-	_pause_button.custom_minimum_size = Vector2(130, 36)
+	_pause_button.icon = UIGlyphs.get_glyph("stop_sign")
+	_pause_button.custom_minimum_size = Vector2(44, 36)
+	_pause_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_pause_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
 	_pause_button.pressed.connect(_on_pause_pressed)
 	var pause_normal = StyleBoxFlat.new()
@@ -796,11 +810,11 @@ func _setup_tick_bar() -> void:
 	ui.add_child(tick_container)
 	tick_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	tick_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	# Center horizontally: bar is 20 bars * (8px + 2px gap) = ~210px wide
-	tick_container.offset_left = -130.0
+	# Center horizontally: bar is 20 bars * (10px + 3px gap) = ~260px wide
+	tick_container.offset_left = -170.0
 	tick_container.offset_top = 35.0
-	tick_container.offset_right = 130.0
-	tick_container.offset_bottom = 90.0
+	tick_container.offset_right = 170.0
+	tick_container.offset_bottom = 100.0
 	tick_container.add_theme_constant_override("separation", 2)
 
 	# Card name label
@@ -816,13 +830,13 @@ func _setup_tick_bar() -> void:
 	var bar_hbox = HBoxContainer.new()
 	bar_hbox.name = "TickBars"
 	bar_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar_hbox.add_theme_constant_override("separation", 2)
+	bar_hbox.add_theme_constant_override("separation", 3)
 	tick_container.add_child(bar_hbox)
 
 	_tick_bar_rects.clear()
 	for i in range(20):
 		var bar = ColorRect.new()
-		bar.custom_minimum_size = Vector2(8, 22)
+		bar.custom_minimum_size = Vector2(10, 29)  # 1.3x the original 8x22
 		bar.color = Color(0.15, 0.15, 0.2)  # Dim/inactive
 		bar_hbox.add_child(bar)
 		_tick_bar_rects.append(bar)
@@ -916,9 +930,10 @@ func _setup_stat_bars() -> void:
 	stat_container.name = "StatBarsContainer"
 	ui.add_child(stat_container)
 	stat_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	stat_container.offset_left = 220.0
+	# Tucked in right beside the minimap (which ends at x = 116).
+	stat_container.offset_left = 122.0
 	stat_container.offset_top = 8.0
-	stat_container.offset_right = 430.0
+	stat_container.offset_right = 332.0
 	stat_container.offset_bottom = 130.0
 	stat_container.add_theme_constant_override("separation", 4)
 
@@ -1028,14 +1043,12 @@ func _setup_deck_info_vertical() -> void:
 	new_discard.pressed.connect(_on_discard_pile_button_pressed)
 	vbox.add_child(new_discard)
 
-	var new_jail = _create_pile_button("JailButton", "Jail: 0")
-	new_jail.pressed.connect(_on_jail_pile_button_pressed)
-	vbox.add_child(new_jail)
+	# (Jailed cards live in the cage icon up in the debuff row, not down here.)
 
 	# Reassign references
 	draw_label = new_draw
 	discard_label = new_discard
-	jail_label = new_jail
+	jail_label = null
 
 func _create_pile_button(btn_name: String, initial_text: String) -> Button:
 	## Creates a button styled to match the Maintained button (default Button look).
@@ -1050,27 +1063,31 @@ func _on_pause_pressed() -> void:
 	_is_paused = not _is_paused
 	if _is_paused:
 		get_tree().paused = true
-		_pause_button.text = "Resume"
+		_pause_button.icon = UIGlyphs.get_glyph("play")
+		_pause_button.tooltip_text = "Resume gameplay."
 		add_battle_log("PAUSED", Color(1.0, 0.85, 0.3))
 		print("[MAIN] Game paused")
 	else:
 		get_tree().paused = false
-		_pause_button.text = "Pause"
+		_pause_button.icon = UIGlyphs.get_glyph("stop_sign")
+		_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
 		print("[MAIN] Game resumed")
 
 func _setup_battle_log() -> void:
 	var ui = $UI as CanvasLayer
 
-	# Outer container to hold toggle button + log panel vertically
+	# Outer container to hold toggle button + log panel vertically, tucked
+	# directly under the HUD icon bar (which ends at y = 46).
 	var outer = VBoxContainer.new()
 	outer.name = "BattleLogOuter"
 	ui.add_child(outer)
-	outer.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	outer.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	outer.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	outer.grow_vertical = Control.GROW_DIRECTION_END
 	outer.offset_left = -200.0
-	outer.offset_top = -120.0
+	outer.offset_top = 52.0
 	outer.offset_right = -8.0
-	outer.offset_bottom = 120.0
+	outer.offset_bottom = 292.0
 	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# Minimize / expand toggle button
@@ -1322,7 +1339,7 @@ func _update_block_button_visibility() -> void:
 	if inventory and inventory.has_shield_equipped():
 		var shield = inventory.get_equipped_shield()
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
-		_block_button.text = "Block (5T)"
+		_block_button.text = "5T"
 		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs 5 tempo." % [shield.item_name, block_val]
 		_block_button.visible = true
 	else:
@@ -1587,6 +1604,14 @@ func _setup_maintained_icon() -> void:
 	maintained_icon.visible = false
 	maintained_icon.pressed.connect(_on_maintained_list_button_pressed)
 	buff_bar.pin_front(maintained_icon)
+
+	# Jailed cards show as one cage icon (xN) in the debuff row; hover lists
+	# each jailed card, click opens the jail pile popup.
+	jailed_icon = JailedIconUI.new()
+	jailed_icon.name = "JailedIcon"
+	jailed_icon.visible = false
+	jailed_icon.pressed.connect(_on_jail_pile_button_pressed)
+	debuff_bar.pin_front(jailed_icon)
 
 func _setup_maintained_list_panel() -> void:
 	var ui = $UI as CanvasLayer
@@ -4871,8 +4896,8 @@ func update_deck_info() -> void:
 	_update_draw_label()
 	if discard_label:
 		discard_label.text = "Discard: %d" % deck_manager.get_discard_pile_size()
-	if jail_label:
-		jail_label.text = "Jail: %d" % deck_manager.get_jail_pile_size()
+	if jailed_icon:
+		jailed_icon.set_cards(deck_manager.jail_pile)
 	_update_maintained_button()
 	_refresh_pile_popup_if_open()
 
@@ -4891,9 +4916,9 @@ func _update_attack_button_text() -> void:
 			var btn_inv = player.get_inventory()
 			if btn_inv and btn_inv.has_pocket_knife_equipped():
 				proc_tempo = maxi(0, proc_tempo - 2)
-			_attack_button.text = "Attack (%dT) (PROC)" % proc_tempo
+			_attack_button.text = "%dT (PROC)" % proc_tempo
 		else:
-			_attack_button.text = "Attack (5T) (%d)" % proc_count
+			_attack_button.text = "5T (%d)" % proc_count
 
 		# Glow red when the dex proc is active (next attack benefits from it)
 		if proc_active:
