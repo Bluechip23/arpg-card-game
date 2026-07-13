@@ -265,6 +265,8 @@ var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
 var _attack_button: Button = null
+var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
+const ACTION_COL_WIDTH := 108           # attack button width = wait+gap+pause width
 
 # Stat bar UI references
 var _hp_bar: ProgressBar = null
@@ -275,6 +277,7 @@ var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
 var _armor_bar_label: Label = null
 var _xp_bar_label: Label = null
+var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
@@ -725,31 +728,36 @@ func _setup_action_buttons() -> void:
 
 	var btn_container = Control.new()
 	btn_container.name = "ActionButtonContainer"
+	btn_container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # empty area doesn't block the draw button above
 	ui.add_child(btn_container)
 	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	btn_container.offset_left = 8.0
-	btn_container.offset_top = -124.0
-	btn_container.offset_right = 140.0
+	btn_container.offset_top = -240.0
+	btn_container.offset_right = 8.0 + ACTION_COL_WIDTH
 	btn_container.offset_bottom = -8.0
 
 	var vbox = VBoxContainer.new()
 	vbox.name = "ActionButtons"
 	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox.alignment = BoxContainer.ALIGNMENT_END
+	vbox.alignment = BoxContainer.ALIGNMENT_END  # pin the cluster to the bottom
 	vbox.add_theme_constant_override("separation", 4)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn_container.add_child(vbox)
+	_action_vbox = vbox
 
 	# Compact icon buttons: a glyph carries the meaning (sword = attack,
 	# hand = wait, stop sign = pause) so only the numbers need text, keeping
-	# the stack small and the battlefield clear.
+	# the stack small and the battlefield clear. The Draw pile button is
+	# inserted at the top of this column by _setup_deck_info_vertical.
 
 	# Attack button (top): sword + tempo cost + attacks until the speed proc.
+	# Its width sets the column width; the Wait+Pause row below matches it.
 	_attack_button = Button.new()
 	_attack_button.name = "AttackButton"
 	_attack_button.icon = UIGlyphs.get_glyph("sword")
 	_attack_button.text = "5T (0)"
-	_attack_button.custom_minimum_size = Vector2(0, 36)
-	_attack_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_attack_button.custom_minimum_size = Vector2(ACTION_COL_WIDTH, 36)
+	_attack_button.size_flags_horizontal = Control.SIZE_FILL
 	_attack_button.tooltip_text = "Basic melee attack: STR modifier damage. Costs 5 tempo."
 	_attack_button.pressed.connect(_on_attack_pressed)
 	vbox.add_child(_attack_button)
@@ -759,31 +767,38 @@ func _setup_action_buttons() -> void:
 	_block_button.name = "BlockButton"
 	_block_button.icon = UIGlyphs.get_glyph("shield")
 	_block_button.text = "5T"
-	_block_button.custom_minimum_size = Vector2(0, 36)
-	_block_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_block_button.custom_minimum_size = Vector2(ACTION_COL_WIDTH, 36)
+	_block_button.size_flags_horizontal = Control.SIZE_FILL
 	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
 	_block_button.pressed.connect(_on_block_pressed)
 	_block_button.visible = false
 	vbox.add_child(_block_button)
 
-	# Wait button (bottom): raised hand + the 1 tempo it advances.
+	# Bottom row: Wait beside a (shrunk) Pause, together matching the attack width.
+	var bottom_row = HBoxContainer.new()
+	bottom_row.name = "WaitPauseRow"
+	bottom_row.custom_minimum_size = Vector2(ACTION_COL_WIDTH, 36)
+	bottom_row.size_flags_horizontal = Control.SIZE_FILL
+	bottom_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(bottom_row)
+
+	# Wait: raised hand + the 1 tempo it advances (takes the remaining width).
 	var wait_btn = Button.new()
 	wait_btn.name = "WaitButton"
 	wait_btn.icon = UIGlyphs.get_glyph("wait_hand")
 	wait_btn.text = "1T"
 	wait_btn.custom_minimum_size = Vector2(0, 36)
-	wait_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	wait_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
-	vbox.add_child(wait_btn)
+	bottom_row.add_child(wait_btn)
 
-	# Pause button (below wait): red stop sign, no text; shows a green play
-	# triangle while paused.
+	# Pause: narrow red stop sign, no text; shows a green play triangle while paused.
 	_pause_button = Button.new()
 	_pause_button.name = "PauseButton"
 	_pause_button.icon = UIGlyphs.get_glyph("stop_sign")
-	_pause_button.custom_minimum_size = Vector2(44, 36)
-	_pause_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_pause_button.custom_minimum_size = Vector2(38, 36)
+	_pause_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_pause_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
 	_pause_button.pressed.connect(_on_pause_pressed)
@@ -802,7 +817,7 @@ func _setup_action_buttons() -> void:
 	pause_hover.corner_radius_bottom_right = 4
 	_pause_button.add_theme_stylebox_override("hover", pause_hover)
 	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
-	vbox.add_child(_pause_button)
+	bottom_row.add_child(_pause_button)
 
 func _setup_tick_bar() -> void:
 	## Build the 20-tick global tempo bar centered at the top of the screen,
@@ -988,6 +1003,7 @@ func _setup_stat_bars() -> void:
 	_mana_reserve_tip = ManaReserveTooltip.new()
 	_mana_reserve_tip.name = "ManaReserveTooltip"
 	_mana_bar.get_parent().add_child(_mana_reserve_tip)
+	_setup_mana_regen_drop()
 
 	# --- Armor Bar (silver/grey) ---
 	var armor_pair = _create_stat_bar_with_label(stat_container, "ArmorBar", Color(0.55, 0.55, 0.6), Color(0.2, 0.2, 0.25))
@@ -1042,6 +1058,51 @@ func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_c
 
 	return [bar, lbl]
 
+func _setup_mana_regen_drop() -> void:
+	## A blue raindrop just right of the mana bar. The number in it is the tempo
+	## remaining until the next mana-regen tick.
+	if not _mana_bar:
+		return
+	var wrapper = _mana_bar.get_parent()
+	var drop = Control.new()
+	drop.name = "ManaRegenDrop"
+	drop.mouse_filter = Control.MOUSE_FILTER_STOP
+	drop.tooltip_text = "Tempo until your next mana regen"
+	drop.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	drop.offset_left = 6.0
+	drop.offset_right = 32.0
+	drop.offset_top = -14.0
+	drop.offset_bottom = 14.0
+	wrapper.add_child(drop)
+
+	var tex := TextureRect.new()
+	tex.texture = UIGlyphs.get_glyph("raindrop")
+	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drop.add_child(tex)
+
+	_mana_regen_drop_label = Label.new()
+	_mana_regen_drop_label.add_theme_font_size_override("font_size", 12)
+	_mana_regen_drop_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	_mana_regen_drop_label.add_theme_color_override("font_outline_color", Color(0.05, 0.15, 0.35))
+	_mana_regen_drop_label.add_theme_constant_override("outline_size", 4)
+	_mana_regen_drop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_mana_regen_drop_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Centred over the round (lower) part of the drop.
+	_mana_regen_drop_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_mana_regen_drop_label.offset_top = 4.0
+	_mana_regen_drop_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drop.add_child(_mana_regen_drop_label)
+
+func _update_mana_regen_indicator() -> void:
+	if not _mana_regen_drop_label or not player:
+		return
+	var stats = player.get_stats()
+	if stats:
+		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
+
 func _setup_deck_info_vertical() -> void:
 	## Draw and Discard piles become card-stack buttons on opposite edges:
 	## Draw on the left (green up-arrow + turns-until-draw), Discard on the
@@ -1052,21 +1113,17 @@ func _setup_deck_info_vertical() -> void:
 
 	var ui = $UI as CanvasLayer
 
-	# Draw pile — left edge, slightly larger than the action buttons.
-	var draw_wrap = Control.new()
-	draw_wrap.name = "DrawButtonContainer"
-	ui.add_child(draw_wrap)
-	draw_wrap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	draw_wrap.offset_left = 8.0
-	draw_wrap.offset_top = -196.0
-	draw_wrap.offset_right = 62.0
-	draw_wrap.offset_bottom = -132.0
+	# Draw pile — sits at the TOP of the left-side action column (above Attack),
+	# so it moves down to fill space along with the rest of the cluster.
 	var draw_pair = _create_pile_button("DrawButton", true, Color(0.5, 0.95, 0.5))
 	_draw_pile_btn = draw_pair[0]
 	draw_label = draw_pair[1]
 	_draw_pile_btn.pressed.connect(_on_draw_pile_button_pressed)
-	_draw_pile_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
-	draw_wrap.add_child(_draw_pile_btn)
+	_draw_pile_btn.custom_minimum_size = Vector2(50, 54)  # slightly bigger than the action buttons
+	_draw_pile_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	if _action_vbox:
+		_action_vbox.add_child(_draw_pile_btn)
+		_action_vbox.move_child(_draw_pile_btn, 0)  # top of the column
 
 	# Discard pile — right edge.
 	var disc_wrap = Control.new()
@@ -3991,6 +4048,7 @@ func _on_player_mana_changed(current: float, max_mana: int) -> void:
 		_mana_bar.value = int(current)
 	if _mana_bar_label:
 		_mana_bar_label.text = "%d/%d" % [int(current), max_mana]
+	_update_mana_regen_indicator()
 
 func _on_player_armor_gained(_amount: int) -> void:
 	## Armour gained from any source — pop the overhead armour icon.
@@ -4987,6 +5045,7 @@ func _reroll_card_rng() -> void:
 func _on_tempo_changed(current: int, threshold: int) -> void:
 	update_turn_display()
 	update_tempo_display()
+	_update_mana_regen_indicator()
 
 func update_tempo_display() -> void:
 	if tempo_label:
