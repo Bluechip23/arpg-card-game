@@ -811,21 +811,25 @@ func _setup_tick_bar() -> void:
 	var frame = PanelContainer.new()
 	frame.name = "TickBarFrame"
 	ui.add_child(frame)
+	# Anchored top-centre and shrink-wrapped to its contents so the wooden box
+	# hugs the tick bars instead of leaving wide empty margins.
 	frame.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	frame.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	frame.offset_left = -168.0
+	frame.grow_vertical = Control.GROW_DIRECTION_END
+	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	frame.offset_left = 0.0
 	frame.offset_top = 32.0
-	frame.offset_right = 168.0
-	frame.offset_bottom = 118.0
+	frame.offset_right = 0.0
+	frame.offset_bottom = 0.0
 	var frame_style := StyleBoxFlat.new()
 	frame_style.bg_color = Color(0.16, 0.11, 0.07)          # dark walnut
 	frame_style.set_border_width_all(2)
 	frame_style.border_color = Color(0.82, 0.66, 0.28)      # thin gold line
 	frame_style.set_corner_radius_all(5)
-	frame_style.content_margin_left = 10
-	frame_style.content_margin_right = 10
-	frame_style.content_margin_top = 5
-	frame_style.content_margin_bottom = 5
+	frame_style.content_margin_left = 6
+	frame_style.content_margin_right = 6
+	frame_style.content_margin_top = 4
+	frame_style.content_margin_bottom = 4
 	frame_style.shadow_color = Color(0, 0, 0, 0.45)
 	frame_style.shadow_size = 4
 	frame.add_theme_stylebox_override("panel", frame_style)
@@ -854,7 +858,7 @@ func _setup_tick_bar() -> void:
 	_tick_bar_rects.clear()
 	for i in range(20):
 		var bar = ColorRect.new()
-		bar.custom_minimum_size = Vector2(10, 29)  # 1.3x the original 8x22
+		bar.custom_minimum_size = Vector2(13, 29)  # wider tick "books"
 		bar.color = Color(0.15, 0.15, 0.2)  # Dim/inactive
 		bar_hbox.add_child(bar)
 		_tick_bar_rects.append(bar)
