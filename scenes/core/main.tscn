@@ -286,7 +286,7 @@ offset_right = 604.0
 offset_bottom = 517.0
 theme_override_colors/font_color = Color(1, 1, 0.5, 1)
 theme_override_font_sizes/font_size = 18
-text = "Press A/S/D/F/G to select a card"
+text = "Press 1-0 to select a card • WASD or right-click to move"
 
 [node name="ItemTooltip" parent="UI" unique_id=1519930807 instance=ExtResource("18_tooltip")]
 visible = false

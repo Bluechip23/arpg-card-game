@@ -129,10 +129,10 @@ const HudIconBarScript = preload("res://scripts/ui/hud_icon_bar.gd")
 const EnemyInspectUIScript = preload("res://scripts/ui/enemy_inspect_ui.gd")
 const HandSlotsScript = preload("res://scripts/cards/hand_slots.gd")
 
+# Hand cards bind to the number row (1..9, 0) so WASD is free for movement.
 const CARD_KEYS = [
-	KEY_A, KEY_S, KEY_D, KEY_F, KEY_G,
-	KEY_Q, KEY_W, KEY_E, KEY_R, KEY_T,
-	KEY_Z, KEY_X, KEY_C, KEY_V, KEY_B
+	KEY_1, KEY_2, KEY_3, KEY_4, KEY_5,
+	KEY_6, KEY_7, KEY_8, KEY_9, KEY_0,
 ]
 
 var selected_card_index: int = -1
@@ -4218,6 +4218,38 @@ func _select_slot(slot: int) -> void:
 			return
 	# No card bound to that key — leave the current selection untouched.
 
+func _wasd_step(dir: Vector2) -> void:
+	## Move the active player one grid cell in a camera-relative direction.
+	## `dir` is (right, forward) in view space: (0,1)=W, (0,-1)=S, (-1,0)=A,
+	## (1,0)=D. It's projected onto the ground using the camera yaw, then snapped
+	## to the nearest cardinal grid axis (movement is Manhattan — no diagonals).
+	## `player` already tracks the active co-op character (see _switch_active_player).
+	if player == null or not is_instance_valid(player):
+		return
+	if player.is_moving:
+		return  # one hop at a time; tap again once the step lands
+	if not grid_manager:
+		return
+
+	# Camera ground basis: forward is where the camera looks (−offset on XZ),
+	# right is forward rotated so +X is screen-right at yaw 0.
+	var forward := Vector2(-sin(_camera_yaw), -cos(_camera_yaw))  # (x, z)
+	var right := Vector2(-forward.y, forward.x)
+	var world_dir := right * dir.x + forward * dir.y  # (x, z) on the ground
+
+	# Snap to the dominant grid axis so a move is always one clean cell.
+	var cell_delta: Vector2i
+	if absf(world_dir.x) >= absf(world_dir.y):
+		cell_delta = Vector2i(int(signf(world_dir.x)), 0)
+	else:
+		cell_delta = Vector2i(0, int(signf(world_dir.y)))
+	if cell_delta == Vector2i.ZERO:
+		return
+
+	var target_cell := grid_manager.world_to_grid(player.position) + cell_delta
+	var target_world := grid_manager.grid_to_world(target_cell)
+	player.move_to_grid(target_world, 1)
+
 # ---- Card exit animations (visual-only; safe to fire for either deck) ----
 
 func _hand_ui_for_card(card: Card) -> CardUI:
@@ -6360,7 +6392,23 @@ func _input(event: InputEvent) -> void:
 			_update_camera()
 			return
 
-		# Card selection — keys map to persistent lettered slots, not hand order.
+		# WASD: step one grid cell in the camera-relative direction. A quick
+		# alternative to right-clicking for short hops; right-click still works.
+		match event.keycode:
+			KEY_W:
+				_wasd_step(Vector2(0, 1))
+				return
+			KEY_S:
+				_wasd_step(Vector2(0, -1))
+				return
+			KEY_A:
+				_wasd_step(Vector2(-1, 0))
+				return
+			KEY_D:
+				_wasd_step(Vector2(1, 0))
+				return
+
+		# Card selection — keys map to persistent number-row slots, not hand order.
 		for i in range(CARD_KEYS.size()):
 			if event.keycode == CARD_KEYS[i]:
 				_select_slot(i)

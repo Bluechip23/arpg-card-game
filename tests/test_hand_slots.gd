@@ -32,9 +32,9 @@ func _initialize() -> void:
 	var hand: Array = [s1, s2, Card.create_slash(), b1]
 	var groups := _slots(hs, hand)
 	_check(groups.size() == 2, "3 Slashes + Block collapse to 2 buttons")
-	_check(groups[0]["slot"] == 0 and groups[0]["cards"].size() == 3, "Slash stack on slot A (x3)")
-	_check(groups[1]["slot"] == 1 and groups[1]["cards"].size() == 1, "Block on slot S (x1)")
-	_check(HandSlots.letter(0) == "A" and HandSlots.letter(1) == "S", "slot letters A, S")
+	_check(groups[0]["slot"] == 0 and groups[0]["cards"].size() == 3, "Slash stack on slot 1 (x3)")
+	_check(groups[1]["slot"] == 1 and groups[1]["cards"].size() == 1, "Block on slot 2 (x1)")
+	_check(HandSlots.letter(0) == "1" and HandSlots.letter(1) == "2", "slot keys 1, 2 (number row)")
 
 	# --- Stable slots across a play: remove one Slash, Block keeps slot S ---
 	hand.erase(s1)  # played a Slash
@@ -46,13 +46,13 @@ func _initialize() -> void:
 			block_group = g
 		else:
 			slash_group = g
-	_check(block_group != null and block_group["slot"] == 1, "Block stays on slot S after a Slash is played (no re-letter)")
+	_check(block_group != null and block_group["slot"] == 1, "Block stays on slot 2 after a Slash is played (no re-letter)")
 	_check(slash_group != null and slash_group["cards"].size() == 2, "Slash stack now x2")
 
 	# --- Remove ALL Slashes: slot A frees; a NEW distinct card fills A, Block keeps S ---
 	hand = [b1]  # only Block remains
 	groups = _slots(hs, hand)
-	_check(groups.size() == 1 and groups[0]["slot"] == 1, "with only Block left, it still holds slot S")
+	_check(groups.size() == 1 and groups[0]["slot"] == 1, "with only Block left, it still holds slot 2")
 	var draw := Card.create_dagger_throw()
 	hand = [b1, draw]
 	groups = _slots(hs, hand)
@@ -60,7 +60,7 @@ func _initialize() -> void:
 	for g in groups:
 		if g["cards"][0].card_id == draw.card_id:
 			new_group = g
-	_check(new_group != null and new_group["slot"] == 0, "a newly drawn card fills the lowest free slot (A)")
+	_check(new_group != null and new_group["slot"] == 0, "a newly drawn card fills the lowest free slot (1)")
 
 	# --- New distinct cards fill in draw order from A ---
 	var hs2 := HandSlots.new()
@@ -70,7 +70,7 @@ func _initialize() -> void:
 	groups = _slots(hs2, [c_a, c_s, c_d])
 	_check(groups.size() == 3, "three distinct cards -> three buttons")
 	_check(groups[0]["cards"][0] == c_a and groups[1]["cards"][0] == c_s and groups[2]["cards"][0] == c_d,
-		"distinct cards fill A,S,D in draw order")
+		"distinct cards fill 1,2,3 in draw order")
 
 	# --- Representative skips a jailed copy so the button stays playable ---
 	var hs3 := HandSlots.new()
