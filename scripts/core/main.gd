@@ -18,6 +18,8 @@ extends Node3D
 @onready var hand_container: Control = $UI/HandArea/HandContainer
 @onready var draw_label = $UI/DeckInfo/DrawPileLabel
 @onready var discard_label = $UI/DeckInfo/DiscardPileLabel
+var _draw_pile_btn: Button = null       # left draw pile button (for its tooltip)
+var _discard_pile_btn: Button = null    # right discard pile button (for its tooltip)
 @onready var jail_label = $UI/DeckInfo/JailPileLabel
 @onready var selected_label: Label = $UI/SelectedLabel
 @onready var peaked_label: Label = $UI/PeakedLabel
@@ -1057,62 +1059,88 @@ func _setup_deck_info_vertical() -> void:
 	draw_wrap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	draw_wrap.offset_left = 8.0
 	draw_wrap.offset_top = -196.0
-	draw_wrap.offset_right = 92.0
+	draw_wrap.offset_right = 62.0
 	draw_wrap.offset_bottom = -132.0
-	var new_draw = _create_pile_button("DrawButton", true, Color(0.5, 0.95, 0.5))
-	new_draw.pressed.connect(_on_draw_pile_button_pressed)
-	new_draw.set_anchors_preset(Control.PRESET_FULL_RECT)
-	draw_wrap.add_child(new_draw)
+	var draw_pair = _create_pile_button("DrawButton", true, Color(0.5, 0.95, 0.5))
+	_draw_pile_btn = draw_pair[0]
+	draw_label = draw_pair[1]
+	_draw_pile_btn.pressed.connect(_on_draw_pile_button_pressed)
+	_draw_pile_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+	draw_wrap.add_child(_draw_pile_btn)
 
 	# Discard pile — right edge.
 	var disc_wrap = Control.new()
 	disc_wrap.name = "DiscardButtonContainer"
 	ui.add_child(disc_wrap)
 	disc_wrap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	disc_wrap.offset_left = -84.0
+	disc_wrap.offset_left = -62.0
 	disc_wrap.offset_top = -190.0
 	disc_wrap.offset_right = -8.0
 	disc_wrap.offset_bottom = -132.0
-	var new_discard = _create_pile_button("DiscardButton", false, Color(1.0, 0.85, 0.25))
-	new_discard.pressed.connect(_on_discard_pile_button_pressed)
-	new_discard.set_anchors_preset(Control.PRESET_FULL_RECT)
-	disc_wrap.add_child(new_discard)
+	var disc_pair = _create_pile_button("DiscardButton", false, Color(1.0, 0.85, 0.25))
+	_discard_pile_btn = disc_pair[0]
+	discard_label = disc_pair[1]
+	_discard_pile_btn.pressed.connect(_on_discard_pile_button_pressed)
+	_discard_pile_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+	disc_wrap.add_child(_discard_pile_btn)
 
-	# Reassign references
-	draw_label = new_draw
-	discard_label = new_discard
 	jail_label = null
 
-func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -> Button:
-	## A pile button: a card-stack icon (up-arrow for Draw, down-arrow for
-	## Discard) above a coloured count. Draw's stack is flipped horizontally so
-	## the cards' open side faces inward from the left edge.
+func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -> Array:
+	## A compact pile button: just the card-stack icon (up-arrow for Draw,
+	## down-arrow for Discard) with a small coloured number tucked next to the
+	## arrow so the button stays icon-sized. Draw's stack is flipped horizontally
+	## so the cards' open side faces inward from the left edge.
+	## Returns [button, number_label].
 	var btn = Button.new()
 	btn.name = btn_name
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.icon = PileIcon.get_icon(is_draw, number_color, is_draw)
 	btn.expand_icon = false
-	# Icon on the left, the coloured count beside it (next to the arrow).
-	btn.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.add_theme_font_size_override("font_size", 17)
-	btn.add_theme_color_override("font_color", number_color)
-	btn.add_theme_color_override("font_hover_color", number_color.lightened(0.2))
-	btn.add_theme_constant_override("icon_max_width", 40)
-	btn.add_theme_constant_override("h_separation", 2)
+	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn.add_theme_constant_override("icon_max_width", 42)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.1, 0.14, 0.92)
 	style.set_border_width_all(1)
 	style.border_color = number_color.darkened(0.3)
 	style.set_corner_radius_all(6)
-	style.content_margin_left = 4
-	style.content_margin_right = 4
+	style.content_margin_left = 3
+	style.content_margin_right = 3
 	style.content_margin_top = 3
 	style.content_margin_bottom = 3
 	btn.add_theme_stylebox_override("normal", style)
 	var hover := style.duplicate()
 	hover.bg_color = Color(0.16, 0.16, 0.2, 0.95)
 	btn.add_theme_stylebox_override("hover", hover)
-	return btn
+
+	# Small number overlaid right next to the arrow (top for Draw's up-arrow,
+	# bottom for Discard's down-arrow), outlined so it reads over the cards.
+	var num = Label.new()
+	num.name = btn_name + "Number"
+	num.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	num.add_theme_font_size_override("font_size", 13)
+	num.add_theme_color_override("font_color", number_color)
+	num.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.06))
+	num.add_theme_constant_override("outline_size", 5)
+	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if is_draw:
+		# Beside the up-arrow head, upper area.
+		num.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		num.offset_left = -22.0
+		num.offset_right = -2.0
+		num.offset_top = 1.0
+		num.offset_bottom = 19.0
+	else:
+		# Beside the down-arrow head, lower area.
+		num.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		num.offset_left = -22.0
+		num.offset_right = -2.0
+		num.offset_top = -19.0
+		num.offset_bottom = -1.0
+	btn.add_child(num)
+
+	return [btn, num]
 
 func _on_pause_pressed() -> void:
 	_is_paused = not _is_paused
@@ -4970,18 +4998,20 @@ func update_deck_info() -> void:
 	_update_draw_label()
 	if discard_label:
 		discard_label.text = "%d" % deck_manager.get_discard_pile_size()
-		discard_label.tooltip_text = "Discard pile: %d card(s)" % deck_manager.get_discard_pile_size()
+	if _discard_pile_btn:
+		_discard_pile_btn.tooltip_text = "Discard pile: %d card(s)" % deck_manager.get_discard_pile_size()
 	if jailed_icon:
 		jailed_icon.set_cards(deck_manager.jail_pile)
 	_update_maintained_button()
 	_refresh_pile_popup_if_open()
 
 func _update_draw_label() -> void:
+	var tempo_until = turn_manager.get_tempo_until_draw()
 	if draw_label:
-		var tempo_until = turn_manager.get_tempo_until_draw()
-		# The prominent number is the count of tempo until the next draw.
+		# The small number is how many tempo until the next draw.
 		draw_label.text = "%d" % int(tempo_until)
-		draw_label.tooltip_text = "Draw pile: %d card(s)\nNext draw in %d tempo" % [deck_manager.get_draw_pile_size(), int(tempo_until)]
+	if _draw_pile_btn:
+		_draw_pile_btn.tooltip_text = "Draw pile: %d card(s)\nNext draw in %d tempo" % [deck_manager.get_draw_pile_size(), int(tempo_until)]
 
 func _update_attack_button_text() -> void:
 	if _attack_button:
