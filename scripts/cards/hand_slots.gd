@@ -14,7 +14,8 @@ extends RefCounted
 ## (Card.INSTANT_STACK_SIG_PREFIX) and render as a single key-less stack
 ## (slot = INSTANT_SLOT) at the right end of the hand.
 
-const LETTERS = ["A", "S", "D", "F", "G", "Q", "W", "E", "R", "T", "Z", "X", "C", "V", "B"]
+# Play keys are the number row (1..9, 0) so WASD stays free for movement.
+const LETTERS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 const INSTANT_SLOT := -1  # Pseudo-slot for the instant stack: no play key.
 
 # Per-slot stack signature; "" means the slot is free.

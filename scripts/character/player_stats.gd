@@ -570,6 +570,11 @@ func get_effective_draw_timer() -> float:
 func get_effective_mana_regen() -> float:
 	return base_mana_regen + get_intelligence_mana_regen_bonus() + enchantment_mana_regen_bonus
 
+func get_tempo_until_mana_regen() -> int:
+	## Whole tempo remaining before the next mana-regen tick (shown in the HUD
+	## raindrop). Clamped to at least 1 so it never reads 0 between ticks.
+	return maxi(1, int(ceil(_tempo_until_mana_regen)))
+
 func get_effective_physical_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage
 	return max(1, damage)

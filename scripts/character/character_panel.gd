@@ -52,6 +52,17 @@ var _effects_box: VBoxContainer = null      # the ACTIVE EFFECTS list
 var _core_stat_rows: VBoxContainer = null   # per-core-stat rows (hover shows what each stat does)
 var _core_stat_value_labels: Dictionary = {}  # stat key -> value Label
 
+# Sandbox: core stat rows grow -/+ buttons so builds can be tweaked freely.
+var sandbox_stat_edit: bool = false
+
+func set_sandbox_stat_edit(on: bool) -> void:
+	sandbox_stat_edit = on
+	# Rebuild the stat rows if they already exist so the -/+ buttons appear.
+	if _core_stat_rows and is_instance_valid(_core_stat_rows):
+		_core_stat_rows.queue_free()
+		_core_stat_rows = null
+		_core_stat_value_labels = {}
+
 # Which combat stat each buff/debuff influences (for colouring + hover highlight).
 # A buff contributes a "good" mark, a debuff a "bad" mark; net decides the colour.
 const BUFF_AFFECTS := {
@@ -278,7 +289,7 @@ func update_display() -> void:
 
 	_ensure_portrait_and_combat()
 	if _portrait_fig and player_stats.character_data:
-		_portrait_fig.setup(player_stats.character_data.character_name, player_stats.character_data.sprite_path)
+		_portrait_fig.setup(player_stats.character_data.get_base_character(), player_stats.character_data.sprite_path)
 
 	_update_core_stat_rows()
 
@@ -558,6 +569,9 @@ func _ensure_core_stat_rows() -> void:
 		val_lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.95))
 		val_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(val_lbl)
+		if sandbox_stat_edit:
+			row.add_child(_make_sandbox_stat_button(key, -1))
+			row.add_child(_make_sandbox_stat_button(key, 1))
 		_core_stat_rows.add_child(row)
 		_core_stat_value_labels[key] = val_lbl
 
@@ -572,6 +586,29 @@ func _update_core_stat_rows() -> void:
 	}
 	for key in _core_stat_value_labels:
 		_core_stat_value_labels[key].text = str(vals[key])
+
+func _make_sandbox_stat_button(key: String, delta: int) -> Button:
+	var btn := Button.new()
+	btn.text = "−" if delta < 0 else "+"
+	btn.custom_minimum_size = Vector2(22, 20)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_font_size_override("font_size", 12)
+	btn.tooltip_text = "Sandbox: adjust %s" % CharacterData.stat_full_name(key)
+	btn.pressed.connect(_on_sandbox_stat_adjust.bind(key, delta))
+	return btn
+
+func _on_sandbox_stat_adjust(key: String, delta: int) -> void:
+	## Sandbox-only: bump the underlying base stat up/down (min 1).
+	if not player_stats:
+		return
+	match key:
+		"STR": player_stats.base_strength = maxi(1, player_stats.base_strength + delta)
+		"DEX": player_stats.base_dexterity = maxi(1, player_stats.base_dexterity + delta)
+		"INT": player_stats.base_intelligence = maxi(1, player_stats.base_intelligence + delta)
+		"WIS": player_stats.base_wisdom = maxi(1, player_stats.base_wisdom + delta)
+		"DET": player_stats.determination = maxi(1, player_stats.determination + delta)
+		"AGI": player_stats.base_agility = maxi(1, player_stats.base_agility + delta)
+	update_display()
 
 func _build_derived_stats_text() -> String:
 	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit)

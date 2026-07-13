@@ -46,5 +46,21 @@ func _initialize() -> void:
 	sb._set_tab(1)
 	_check(sb._passive_list.get_child_count() >= 1, "Core / Shared shows a no-passives note, not a crash")
 
+	# Every card id in every group must resolve to a real card, and no card may
+	# appear in two groups (ownership per the cards-and-passives spreadsheet).
+	var dm = DeckManager.new()
+	var seen := {}
+	var bad_ids: Array = []
+	var dupes: Array = []
+	for group in sb.CARD_GROUPS:
+		for cid in sb.CARD_GROUPS[group]:
+			if seen.has(cid):
+				dupes.append(cid)
+			seen[cid] = true
+			if dm._create_card_from_id(cid) == null:
+				bad_ids.append(cid)
+	_check(bad_ids.is_empty(), "all sandbox card ids create real cards (bad: %s)" % [bad_ids])
+	_check(dupes.is_empty(), "no card is listed under two owners (dupes: %s)" % [dupes])
+
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

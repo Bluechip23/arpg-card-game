@@ -23,6 +23,9 @@ var game_mode: String = "single_player"  # "single_player", "multiplayer" or "ro
 var _is_quiz_character: bool = false  # Track if selected character is the quiz option
 var _selected_character: CharacterData = null
 var _roguelike_saves: Dictionary = {}  # CharacterData -> SaveData (saved characters)
+var _name_edit: LineEdit = null        # rename field in the confirm dialog
+
+const MAX_NAME_LENGTH := 20
 
 # Multiplayer state
 var _player1_character: CharacterData = null
@@ -46,10 +49,50 @@ func _ready() -> void:
 	_apply_styles()
 	_setup_characters()
 	_update_title_for_mode()
+	_setup_name_edit()
 
 	back_button.pressed.connect(_on_back_pressed)
 	proceed_button.pressed.connect(_on_proceed_pressed)
 	cancel_button.pressed.connect(_on_cancel_pressed)
+
+func _setup_name_edit() -> void:
+	## Rename field in the confirm dialog: the hero keeps their preset kit and
+	## story identity, but the player can call them whatever they like.
+	var vbox = $ConfirmOverlay/ConfirmPanel/VBox
+	if not vbox:
+		return
+	var row := HBoxContainer.new()
+	row.name = "NameRow"
+	row.add_theme_constant_override("separation", 8)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var lbl := Label.new()
+	lbl.text = "Name:"
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	row.add_child(lbl)
+	_name_edit = LineEdit.new()
+	_name_edit.custom_minimum_size = Vector2(220, 34)
+	_name_edit.max_length = MAX_NAME_LENGTH
+	_name_edit.placeholder_text = "Character name"
+	_name_edit.add_theme_font_size_override("font_size", 15)
+	row.add_child(_name_edit)
+	# Sits between the "Playing as X" subtitle and the Proceed/Cancel buttons.
+	vbox.add_child(row)
+	vbox.move_child(row, confirm_subtitle.get_index() + 1)
+
+func _apply_rename() -> void:
+	## Commit the name field to the selected character (before launch/allocation).
+	if not _selected_character or not _name_edit:
+		return
+	var new_name := _name_edit.text.strip_edges()
+	if new_name == "" or new_name == _selected_character.character_name:
+		return
+	# Old saves predate base_character — lock in their preset identity before
+	# the display name changes.
+	if _selected_character.base_character == "":
+		_selected_character.base_character = _selected_character.character_name
+	print("[SELECT] Renamed %s to %s" % [_selected_character.character_name, new_name])
+	_selected_character.character_name = new_name
 
 func _update_title_for_mode() -> void:
 	if game_mode == "multiplayer":
@@ -283,6 +326,8 @@ func _on_character_selected(character: CharacterData) -> void:
 	else:
 		confirm_title.text = "Confirm Selection"
 		confirm_subtitle.text = "Playing as %s" % character.character_name
+	if _name_edit:
+		_name_edit.text = character.character_name
 	confirm_overlay.visible = true
 
 func _launch_questionnaire() -> void:
@@ -293,6 +338,8 @@ func _launch_questionnaire() -> void:
 func _on_proceed_pressed() -> void:
 	if not _selected_character:
 		return
+
+	_apply_rename()
 
 	# Fresh (non-saved) characters allocate 8 stat points before launching.
 	if _needs_allocation(_selected_character) and not _allocated.has(_selected_character):
@@ -697,7 +744,7 @@ func _on_mode_fight() -> void:
 var _skill_tree_overlay: ColorRect = null
 
 func _on_skill_tree_requested(character: CharacterData) -> void:
-	if character.character_name == "Customize":
+	if character.get_base_character() == "Customize":
 		return
 	_show_skill_tree_popup(character)
 
@@ -705,8 +752,8 @@ func _show_skill_tree_popup(character: CharacterData) -> void:
 	if _skill_tree_overlay:
 		_skill_tree_overlay.queue_free()
 
-	# Get the skill tree data for this character
-	var tree: SkillTreeData = _get_skill_tree_for_character(character.character_name)
+	# Get the skill tree data for this character (preset identity survives renames)
+	var tree: SkillTreeData = _get_skill_tree_for_character(character.get_base_character())
 	if not tree:
 		return
 

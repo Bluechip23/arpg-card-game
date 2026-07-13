@@ -18,6 +18,8 @@ extends Node3D
 @onready var hand_container: Control = $UI/HandArea/HandContainer
 @onready var draw_label = $UI/DeckInfo/DrawPileLabel
 @onready var discard_label = $UI/DeckInfo/DiscardPileLabel
+var _draw_pile_btn: Button = null       # left draw pile button (for its tooltip)
+var _discard_pile_btn: Button = null    # right discard pile button (for its tooltip)
 @onready var jail_label = $UI/DeckInfo/JailPileLabel
 @onready var selected_label: Label = $UI/SelectedLabel
 @onready var peaked_label: Label = $UI/PeakedLabel
@@ -129,10 +131,10 @@ const HudIconBarScript = preload("res://scripts/ui/hud_icon_bar.gd")
 const EnemyInspectUIScript = preload("res://scripts/ui/enemy_inspect_ui.gd")
 const HandSlotsScript = preload("res://scripts/cards/hand_slots.gd")
 
+# Hand cards bind to the number row (1..9, 0) so WASD is free for movement.
 const CARD_KEYS = [
-	KEY_A, KEY_S, KEY_D, KEY_F, KEY_G,
-	KEY_Q, KEY_W, KEY_E, KEY_R, KEY_T,
-	KEY_Z, KEY_X, KEY_C, KEY_V, KEY_B
+	KEY_1, KEY_2, KEY_3, KEY_4, KEY_5,
+	KEY_6, KEY_7, KEY_8, KEY_9, KEY_0,
 ]
 
 var selected_card_index: int = -1
@@ -263,6 +265,7 @@ var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
 var _attack_button: Button = null
+var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
 
 # Stat bar UI references
 var _hp_bar: ProgressBar = null
@@ -273,6 +276,7 @@ var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
 var _armor_bar_label: Label = null
 var _xp_bar_label: Label = null
+var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
@@ -411,7 +415,8 @@ func _ready() -> void:
 
 	# Style the hand area with solid background so battlefield doesn't bleed through
 	_setup_hand_area_background()
-	_setup_deck_list_button()
+	# (The Deck button now lives in the top-right HUD icon bar; only the popup
+	# panel is created here.)
 	_setup_deck_list_panel()
 	_setup_maintained_icon()
 	_setup_maintained_list_panel()
@@ -720,33 +725,36 @@ func _setup_hand_area_background() -> void:
 func _setup_action_buttons() -> void:
 	var ui = $UI as CanvasLayer
 
-	var btn_container = Control.new()
-	btn_container.name = "ActionButtonContainer"
-	ui.add_child(btn_container)
-	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	btn_container.offset_left = 8.0
-	btn_container.offset_top = -124.0
-	btn_container.offset_right = 140.0
-	btn_container.offset_bottom = -8.0
-
+	# The action column shrink-wraps to its widest button (the Attack button, at
+	# its natural content width). Anchored bottom-left, it grows up and to the
+	# right, so the Wait+Pause row below matches the Attack width automatically.
 	var vbox = VBoxContainer.new()
 	vbox.name = "ActionButtons"
-	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox.alignment = BoxContainer.ALIGNMENT_END
+	ui.add_child(vbox)
+	vbox.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	vbox.grow_horizontal = Control.GROW_DIRECTION_END
+	vbox.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	vbox.offset_left = 8.0
+	vbox.offset_right = 8.0
+	vbox.offset_top = -8.0
+	vbox.offset_bottom = -8.0
 	vbox.add_theme_constant_override("separation", 4)
-	btn_container.add_child(vbox)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_action_vbox = vbox
 
 	# Compact icon buttons: a glyph carries the meaning (sword = attack,
 	# hand = wait, stop sign = pause) so only the numbers need text, keeping
-	# the stack small and the battlefield clear.
+	# the stack small and the battlefield clear. The Draw pile button is
+	# inserted at the top of this column by _setup_deck_info_vertical.
 
 	# Attack button (top): sword + tempo cost + attacks until the speed proc.
+	# Content-sized — its natural width sets the column width.
 	_attack_button = Button.new()
 	_attack_button.name = "AttackButton"
 	_attack_button.icon = UIGlyphs.get_glyph("sword")
 	_attack_button.text = "5T (0)"
 	_attack_button.custom_minimum_size = Vector2(0, 36)
-	_attack_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_attack_button.size_flags_horizontal = Control.SIZE_FILL
 	_attack_button.tooltip_text = "Basic melee attack: STR modifier damage. Costs 5 tempo."
 	_attack_button.pressed.connect(_on_attack_pressed)
 	vbox.add_child(_attack_button)
@@ -757,30 +765,38 @@ func _setup_action_buttons() -> void:
 	_block_button.icon = UIGlyphs.get_glyph("shield")
 	_block_button.text = "5T"
 	_block_button.custom_minimum_size = Vector2(0, 36)
-	_block_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_block_button.size_flags_horizontal = Control.SIZE_FILL
 	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
 	_block_button.pressed.connect(_on_block_pressed)
 	_block_button.visible = false
 	vbox.add_child(_block_button)
 
-	# Wait button (bottom): raised hand + the 1 tempo it advances.
+	# Bottom row: Wait beside a (shrunk) Pause, stretched to the column (= attack)
+	# width so the two plus the gap match the Attack button.
+	var bottom_row = HBoxContainer.new()
+	bottom_row.name = "WaitPauseRow"
+	bottom_row.custom_minimum_size = Vector2(0, 36)
+	bottom_row.size_flags_horizontal = Control.SIZE_FILL
+	bottom_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(bottom_row)
+
+	# Wait: raised hand + the 1 tempo it advances (takes the remaining width).
 	var wait_btn = Button.new()
 	wait_btn.name = "WaitButton"
 	wait_btn.icon = UIGlyphs.get_glyph("wait_hand")
 	wait_btn.text = "1T"
 	wait_btn.custom_minimum_size = Vector2(0, 36)
-	wait_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	wait_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
-	vbox.add_child(wait_btn)
+	bottom_row.add_child(wait_btn)
 
-	# Pause button (below wait): red stop sign, no text; shows a green play
-	# triangle while paused.
+	# Pause: narrow red stop sign, no text; shows a green play triangle while paused.
 	_pause_button = Button.new()
 	_pause_button.name = "PauseButton"
 	_pause_button.icon = UIGlyphs.get_glyph("stop_sign")
-	_pause_button.custom_minimum_size = Vector2(44, 36)
-	_pause_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_pause_button.custom_minimum_size = Vector2(38, 36)
+	_pause_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_pause_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
 	_pause_button.pressed.connect(_on_pause_pressed)
@@ -799,23 +815,45 @@ func _setup_action_buttons() -> void:
 	pause_hover.corner_radius_bottom_right = 4
 	_pause_button.add_theme_stylebox_override("hover", pause_hover)
 	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
-	vbox.add_child(_pause_button)
+	bottom_row.add_child(_pause_button)
 
 func _setup_tick_bar() -> void:
-	## Build the 20-tick global tempo bar centered at the top of the screen.
+	## Build the 20-tick global tempo bar centered at the top of the screen,
+	## framed like a little bookshelf (dark walnut box, gold trim, and a shelf
+	## plank the tick "books" stand on) so it stands out.
 	var ui = $UI as CanvasLayer
+
+	# Outer frame: a wooden box with a thin gold line running the whole border.
+	var frame = PanelContainer.new()
+	frame.name = "TickBarFrame"
+	ui.add_child(frame)
+	# Anchored top-centre and shrink-wrapped to its contents so the wooden box
+	# hugs the tick bars instead of leaving wide empty margins.
+	frame.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	frame.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	frame.grow_vertical = Control.GROW_DIRECTION_END
+	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	frame.offset_left = 0.0
+	frame.offset_top = 32.0
+	frame.offset_right = 0.0
+	frame.offset_bottom = 0.0
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color(0.16, 0.11, 0.07)          # dark walnut
+	frame_style.set_border_width_all(2)
+	frame_style.border_color = Color(0.82, 0.66, 0.28)      # thin gold line
+	frame_style.set_corner_radius_all(5)
+	frame_style.content_margin_left = 6
+	frame_style.content_margin_right = 6
+	frame_style.content_margin_top = 4
+	frame_style.content_margin_bottom = 4
+	frame_style.shadow_color = Color(0, 0, 0, 0.45)
+	frame_style.shadow_size = 4
+	frame.add_theme_stylebox_override("panel", frame_style)
 
 	var tick_container = VBoxContainer.new()
 	tick_container.name = "TickBarContainer"
-	ui.add_child(tick_container)
-	tick_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	tick_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	# Center horizontally: bar is 20 bars * (10px + 3px gap) = ~260px wide
-	tick_container.offset_left = -170.0
-	tick_container.offset_top = 35.0
-	tick_container.offset_right = 170.0
-	tick_container.offset_bottom = 100.0
 	tick_container.add_theme_constant_override("separation", 2)
+	frame.add_child(tick_container)
 
 	# Card name label
 	_tick_bar_card_name_label = Label.new()
@@ -826,7 +864,7 @@ func _setup_tick_bar() -> void:
 	_tick_bar_card_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tick_container.add_child(_tick_bar_card_name_label)
 
-	# Bar row
+	# Bar row — the "books" standing on the shelf.
 	var bar_hbox = HBoxContainer.new()
 	bar_hbox.name = "TickBars"
 	bar_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -836,17 +874,30 @@ func _setup_tick_bar() -> void:
 	_tick_bar_rects.clear()
 	for i in range(20):
 		var bar = ColorRect.new()
-		bar.custom_minimum_size = Vector2(10, 29)  # 1.3x the original 8x22
+		bar.custom_minimum_size = Vector2(13, 29)  # wider tick "books"
 		bar.color = Color(0.15, 0.15, 0.2)  # Dim/inactive
 		bar_hbox.add_child(bar)
 		_tick_bar_rects.append(bar)
+
+	# Shelf plank the tick books rest on: a wood strip capped with a gold edge.
+	var shelf = Panel.new()
+	shelf.name = "TickBarShelf"
+	shelf.custom_minimum_size = Vector2(0, 5)
+	shelf.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shelf_style := StyleBoxFlat.new()
+	shelf_style.bg_color = Color(0.28, 0.19, 0.11)          # lighter plank wood
+	shelf_style.border_width_top = 1
+	shelf_style.border_color = Color(0.82, 0.66, 0.28)      # gold shelf edge
+	shelf_style.set_corner_radius_all(1)
+	shelf.add_theme_stylebox_override("panel", shelf_style)
+	tick_container.add_child(shelf)
 
 	# Status label
 	_tick_bar_label = Label.new()
 	_tick_bar_label.name = "TickBarLabel"
 	_tick_bar_label.text = "Ready"
 	_tick_bar_label.add_theme_font_size_override("font_size", 11)
-	_tick_bar_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.65))
+	_tick_bar_label.add_theme_color_override("font_color", Color(0.7, 0.6, 0.4))
 	_tick_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tick_container.add_child(_tick_bar_label)
 
@@ -950,6 +1001,7 @@ func _setup_stat_bars() -> void:
 	_mana_reserve_tip = ManaReserveTooltip.new()
 	_mana_reserve_tip.name = "ManaReserveTooltip"
 	_mana_bar.get_parent().add_child(_mana_reserve_tip)
+	_setup_mana_regen_drop()
 
 	# --- Armor Bar (silver/grey) ---
 	var armor_pair = _create_stat_bar_with_label(stat_container, "ArmorBar", Color(0.55, 0.55, 0.6), Color(0.2, 0.2, 0.25))
@@ -1004,60 +1056,146 @@ func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_c
 
 	return [bar, lbl]
 
-func _setup_deck_info_vertical() -> void:
-	## Convert DeckInfo from HBoxContainer to VBoxContainer, placed above Maintained button.
-	var deck_info = $UI/DeckInfo as HBoxContainer
-	if not deck_info:
+func _setup_mana_regen_drop() -> void:
+	## A blue raindrop just right of the mana bar. The number in it is the tempo
+	## remaining until the next mana-regen tick.
+	if not _mana_bar:
 		return
-	# Hide the old horizontal layout spacers
-	for child in deck_info.get_children():
-		if child.name.begins_with("Spacer"):
-			child.visible = false
-	# Reparent DeckInfo: reposition it as a vertical stack above the Maintained button (bottom-right)
-	deck_info.offset_left = -210.0
-	deck_info.offset_top = -130.0
-	deck_info.offset_right = -100.0
-	deck_info.offset_bottom = -45.0
-	deck_info.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	# We can't change HBoxContainer to VBoxContainer in scene, so we'll just stack via code
-	# Hide the HBox and create a new VBox
-	deck_info.visible = false
+	var wrapper = _mana_bar.get_parent()
+	var drop = Control.new()
+	drop.name = "ManaRegenDrop"
+	drop.mouse_filter = Control.MOUSE_FILTER_STOP
+	drop.tooltip_text = "Tempo until your next mana regen"
+	drop.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	drop.offset_left = 6.0
+	drop.offset_right = 32.0
+	drop.offset_top = -14.0
+	drop.offset_bottom = 14.0
+	wrapper.add_child(drop)
+
+	var tex := TextureRect.new()
+	tex.texture = UIGlyphs.get_glyph("raindrop")
+	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drop.add_child(tex)
+
+	_mana_regen_drop_label = Label.new()
+	_mana_regen_drop_label.add_theme_font_size_override("font_size", 12)
+	_mana_regen_drop_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	_mana_regen_drop_label.add_theme_color_override("font_outline_color", Color(0.05, 0.15, 0.35))
+	_mana_regen_drop_label.add_theme_constant_override("outline_size", 4)
+	_mana_regen_drop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_mana_regen_drop_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Centred over the round (lower) part of the drop.
+	_mana_regen_drop_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_mana_regen_drop_label.offset_top = 4.0
+	_mana_regen_drop_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drop.add_child(_mana_regen_drop_label)
+
+func _update_mana_regen_indicator() -> void:
+	if not _mana_regen_drop_label or not player:
+		return
+	var stats = player.get_stats()
+	if stats:
+		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
+
+func _setup_deck_info_vertical() -> void:
+	## Draw and Discard piles become card-stack buttons on opposite edges:
+	## Draw on the left (green up-arrow + turns-until-draw), Discard on the
+	## right (yellow down-arrow + count). The Deck box lives in the top HUD bar.
+	var deck_info = $UI/DeckInfo as HBoxContainer
+	if deck_info:
+		deck_info.visible = false  # retire the old horizontal readout
 
 	var ui = $UI as CanvasLayer
-	var vbox = VBoxContainer.new()
-	vbox.name = "DeckInfoVertical"
-	ui.add_child(vbox)
-	vbox.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	vbox.offset_left = -210.0
-	vbox.offset_top = -160.0
-	vbox.offset_right = -100.0
-	vbox.offset_bottom = -45.0
-	vbox.add_theme_constant_override("separation", 4)
 
-	# Create buttons that open a popup showing the cards in each pile
-	var new_draw = _create_pile_button("DrawButton", "Draw: 0 (0)")
-	new_draw.pressed.connect(_on_draw_pile_button_pressed)
-	vbox.add_child(new_draw)
+	# Draw pile — sits at the TOP of the left-side action column (above Attack),
+	# so it moves down to fill space along with the rest of the cluster.
+	var draw_pair = _create_pile_button("DrawButton", true, Color(0.5, 0.95, 0.5))
+	_draw_pile_btn = draw_pair[0]
+	draw_label = draw_pair[1]
+	_draw_pile_btn.pressed.connect(_on_draw_pile_button_pressed)
+	_draw_pile_btn.custom_minimum_size = Vector2(50, 54)  # slightly bigger than the action buttons
+	_draw_pile_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	if _action_vbox:
+		_action_vbox.add_child(_draw_pile_btn)
+		_action_vbox.move_child(_draw_pile_btn, 0)  # top of the column
 
-	var new_discard = _create_pile_button("DiscardButton", "Discard: 0")
-	new_discard.pressed.connect(_on_discard_pile_button_pressed)
-	vbox.add_child(new_discard)
+	# Discard pile — right edge.
+	var disc_wrap = Control.new()
+	disc_wrap.name = "DiscardButtonContainer"
+	ui.add_child(disc_wrap)
+	disc_wrap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	disc_wrap.offset_left = -62.0
+	disc_wrap.offset_top = -190.0
+	disc_wrap.offset_right = -8.0
+	disc_wrap.offset_bottom = -132.0
+	var disc_pair = _create_pile_button("DiscardButton", false, Color(1.0, 0.85, 0.25))
+	_discard_pile_btn = disc_pair[0]
+	discard_label = disc_pair[1]
+	_discard_pile_btn.pressed.connect(_on_discard_pile_button_pressed)
+	_discard_pile_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+	disc_wrap.add_child(_discard_pile_btn)
 
-	# (Jailed cards live in the cage icon up in the debuff row, not down here.)
-
-	# Reassign references
-	draw_label = new_draw
-	discard_label = new_discard
 	jail_label = null
 
-func _create_pile_button(btn_name: String, initial_text: String) -> Button:
-	## Creates a button styled to match the Maintained button (default Button look).
+func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -> Array:
+	## A compact pile button: just the card-stack icon (up-arrow for Draw,
+	## down-arrow for Discard) with a small coloured number tucked next to the
+	## arrow so the button stays icon-sized. Draw's stack is flipped horizontally
+	## so the cards' open side faces inward from the left edge.
+	## Returns [button, number_label].
 	var btn = Button.new()
 	btn.name = btn_name
-	btn.text = initial_text
-	btn.custom_minimum_size = Vector2(110, 30)
 	btn.focus_mode = Control.FOCUS_NONE
-	return btn
+	btn.icon = PileIcon.get_icon(is_draw, number_color, is_draw)
+	btn.expand_icon = false
+	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn.add_theme_constant_override("icon_max_width", 42)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.14, 0.92)
+	style.set_border_width_all(1)
+	style.border_color = number_color.darkened(0.3)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 3
+	style.content_margin_right = 3
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
+	btn.add_theme_stylebox_override("normal", style)
+	var hover := style.duplicate()
+	hover.bg_color = Color(0.16, 0.16, 0.2, 0.95)
+	btn.add_theme_stylebox_override("hover", hover)
+
+	# Small number overlaid right next to the arrow (top for Draw's up-arrow,
+	# bottom for Discard's down-arrow), outlined so it reads over the cards.
+	var num = Label.new()
+	num.name = btn_name + "Number"
+	num.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	num.add_theme_font_size_override("font_size", 13)
+	num.add_theme_color_override("font_color", number_color)
+	num.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.06))
+	num.add_theme_constant_override("outline_size", 5)
+	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if is_draw:
+		# Beside the up-arrow head, upper area.
+		num.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		num.offset_left = -22.0
+		num.offset_right = -2.0
+		num.offset_top = 1.0
+		num.offset_bottom = 19.0
+	else:
+		# Beside the down-arrow head, lower area.
+		num.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		num.offset_left = -22.0
+		num.offset_right = -2.0
+		num.offset_top = -19.0
+		num.offset_bottom = -1.0
+	btn.add_child(num)
+
+	return [btn, num]
 
 func _on_pause_pressed() -> void:
 	_is_paused = not _is_paused
@@ -1344,26 +1482,6 @@ func _update_block_button_visibility() -> void:
 		_block_button.visible = true
 	else:
 		_block_button.visible = false
-
-func _setup_deck_list_button() -> void:
-	var hand_area = $UI/HandArea as PanelContainer
-	var deck_btn = Button.new()
-	deck_btn.name = "DeckListButton"
-	deck_btn.text = "Deck"
-	deck_btn.custom_minimum_size = Vector2(50, 30)
-	deck_btn.pressed.connect(_on_deck_list_button_pressed)
-	# Place button to the right of the hand area
-	var ui = $UI as CanvasLayer
-	var btn_container = Control.new()
-	btn_container.name = "DeckButtonContainer"
-	ui.add_child(btn_container)
-	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	btn_container.offset_left = -95.0
-	btn_container.offset_top = -40.0
-	btn_container.offset_right = -5.0
-	btn_container.offset_bottom = -5.0
-	btn_container.add_child(deck_btn)
-	deck_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
 
 func _setup_deck_list_panel() -> void:
 	var ui = $UI as CanvasLayer
@@ -2404,7 +2522,7 @@ func _setup_hud_icon_bar() -> void:
 	hud_icon_bar.name = "HudIconBar"
 	ui.add_child(hud_icon_bar)
 	hud_icon_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	hud_icon_bar.offset_left = -300.0
+	hud_icon_bar.offset_left = -360.0
 	hud_icon_bar.offset_top = 8.0
 	hud_icon_bar.offset_right = -8.0
 	hud_icon_bar.offset_bottom = 46.0
@@ -2414,6 +2532,7 @@ func _setup_hud_icon_bar() -> void:
 	hud_icon_bar.level_pressed.connect(func(): skill_tree_ui.toggle_panel(); _refresh_hud_notifications())
 	hud_icon_bar.quest_pressed.connect(_on_hud_quest_pressed)
 	hud_icon_bar.help_pressed.connect(_on_hud_help_pressed)
+	hud_icon_bar.deck_pressed.connect(_on_deck_list_button_pressed)
 
 func _on_hud_quest_pressed() -> void:
 	minimap_tab_ui.open_quest_log()
@@ -2613,17 +2732,19 @@ func select_character(character: CharacterData) -> void:
 	progression_triggers._apply_all_constellation_bonuses()
 
 
-	# Initialize character skill tree (use character-specific tree if available)
+	# Initialize character skill tree (use character-specific tree if available).
+	# Keyed off the preset identity so a renamed character keeps their tree.
 	var skill_tree: SkillTreeData
-	if character.character_name == "Brad":
+	var tree_base := character.get_base_character()
+	if tree_base == "Brad":
 		skill_tree = SkillTreeData.create_brad_tree()
-	elif character.character_name == "Stephen":
+	elif tree_base == "Stephen":
 		skill_tree = SkillTreeData.create_stephen_tree()
-	elif character.character_name == "Ryan":
+	elif tree_base == "Ryan":
 		skill_tree = SkillTreeData.create_ryan_tree()
-	elif character.character_name == "Cory":
+	elif tree_base == "Cory":
 		skill_tree = SkillTreeData.create_cory_tree()
-	elif character.character_name == "Jeremy":
+	elif tree_base == "Jeremy":
 		skill_tree = SkillTreeData.create_jeremy_tree()
 	else:
 		skill_tree = SkillTreeData.create_placeholder_tree(character.character_name, 20, character.archetypes)
@@ -2825,6 +2946,11 @@ func _setup_sandbox() -> void:
 
 	_sandbox_refill()
 
+	# Stats aren't inflated in sandbox — instead the character panel (I) gets
+	# free-form -/+ stat editing.
+	if character_panel:
+		character_panel.set_sandbox_stat_edit(true)
+
 	sandbox_ui = SandboxUIScript.new()
 	sandbox_ui.name = "SandboxUI"
 	add_child(sandbox_ui)
@@ -2838,11 +2964,12 @@ func _setup_sandbox() -> void:
 	add_battle_log("Sandbox mode: use the panel (top-right) to add cards and spawn enemies.", Color(0.7, 0.85, 1.0))
 
 func _sandbox_refill() -> void:
+	## Top health/mana back up WITHOUT touching the character's real stats —
+	## sandbox uses the same pools as the story; tweak them via the +/- stat
+	## controls in the character panel instead.
 	var s = player.get_stats()
 	if s:
-		s.max_health = maxi(s.max_health, 200)
 		s.current_health = s.max_health
-		s.max_mana = maxi(s.max_mana, 20)
 		s.current_mana = s.max_mana
 		s.health_changed.emit(s.current_health, s.max_health)
 		s.mana_changed.emit(s.current_mana, s.max_mana)
@@ -2898,12 +3025,10 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 		_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
 	_setup_co_op_defeat()
 
-	# Ally gets the same fat sandbox pools.
+	# Ally spawns topped up, with their real stats untouched (like the player).
 	var s2 = _p2_player.get_stats() if _p2_player else null
 	if s2:
-		s2.max_health = maxi(s2.max_health, 200)
 		s2.current_health = s2.max_health
-		s2.max_mana = maxi(s2.max_mana, 20)
 		s2.current_mana = s2.max_mana
 		s2.health_changed.emit(s2.current_health, s2.max_health)
 		s2.mana_changed.emit(s2.current_mana, s2.max_mana)
@@ -3921,6 +4046,7 @@ func _on_player_mana_changed(current: float, max_mana: int) -> void:
 		_mana_bar.value = int(current)
 	if _mana_bar_label:
 		_mana_bar_label.text = "%d/%d" % [int(current), max_mana]
+	_update_mana_regen_indicator()
 
 func _on_player_armor_gained(_amount: int) -> void:
 	## Armour gained from any source — pop the overhead armour icon.
@@ -4211,6 +4337,38 @@ func _select_slot(slot: int) -> void:
 			select_card(deck_manager.hand.find(g["rep"]))
 			return
 	# No card bound to that key — leave the current selection untouched.
+
+func _wasd_step(dir: Vector2) -> void:
+	## Move the active player one grid cell in a camera-relative direction.
+	## `dir` is (right, forward) in view space: (0,1)=W, (0,-1)=S, (-1,0)=A,
+	## (1,0)=D. It's projected onto the ground using the camera yaw, then snapped
+	## to the nearest cardinal grid axis (movement is Manhattan — no diagonals).
+	## `player` already tracks the active co-op character (see _switch_active_player).
+	if player == null or not is_instance_valid(player):
+		return
+	if player.is_moving:
+		return  # one hop at a time; tap again once the step lands
+	if not grid_manager:
+		return
+
+	# Camera ground basis: forward is where the camera looks (−offset on XZ),
+	# right is forward rotated so +X is screen-right at yaw 0.
+	var forward := Vector2(-sin(_camera_yaw), -cos(_camera_yaw))  # (x, z)
+	var right := Vector2(-forward.y, forward.x)
+	var world_dir := right * dir.x + forward * dir.y  # (x, z) on the ground
+
+	# Snap to the dominant grid axis so a move is always one clean cell.
+	var cell_delta: Vector2i
+	if absf(world_dir.x) >= absf(world_dir.y):
+		cell_delta = Vector2i(int(signf(world_dir.x)), 0)
+	else:
+		cell_delta = Vector2i(0, int(signf(world_dir.y)))
+	if cell_delta == Vector2i.ZERO:
+		return
+
+	var target_cell := grid_manager.world_to_grid(player.position) + cell_delta
+	var target_world := grid_manager.grid_to_world(target_cell)
+	player.move_to_grid(target_world, 1)
 
 # ---- Card exit animations (visual-only; safe to fire for either deck) ----
 
@@ -4885,6 +5043,7 @@ func _reroll_card_rng() -> void:
 func _on_tempo_changed(current: int, threshold: int) -> void:
 	update_turn_display()
 	update_tempo_display()
+	_update_mana_regen_indicator()
 
 func update_tempo_display() -> void:
 	if tempo_label:
@@ -4895,16 +5054,21 @@ func update_tempo_display() -> void:
 func update_deck_info() -> void:
 	_update_draw_label()
 	if discard_label:
-		discard_label.text = "Discard: %d" % deck_manager.get_discard_pile_size()
+		discard_label.text = "%d" % deck_manager.get_discard_pile_size()
+	if _discard_pile_btn:
+		_discard_pile_btn.tooltip_text = "Discard pile: %d card(s)" % deck_manager.get_discard_pile_size()
 	if jailed_icon:
 		jailed_icon.set_cards(deck_manager.jail_pile)
 	_update_maintained_button()
 	_refresh_pile_popup_if_open()
 
 func _update_draw_label() -> void:
+	var tempo_until = turn_manager.get_tempo_until_draw()
 	if draw_label:
-		var tempo_until = turn_manager.get_tempo_until_draw()
-		draw_label.text = "Draw: %d (%d)" % [deck_manager.get_draw_pile_size(), int(tempo_until)]
+		# The small number is how many tempo until the next draw.
+		draw_label.text = "%d" % int(tempo_until)
+	if _draw_pile_btn:
+		_draw_pile_btn.tooltip_text = "Draw pile: %d card(s)\nNext draw in %d tempo" % [deck_manager.get_draw_pile_size(), int(tempo_until)]
 
 func _update_attack_button_text() -> void:
 	if _attack_button:
@@ -6354,7 +6518,23 @@ func _input(event: InputEvent) -> void:
 			_update_camera()
 			return
 
-		# Card selection — keys map to persistent lettered slots, not hand order.
+		# WASD: step one grid cell in the camera-relative direction. A quick
+		# alternative to right-clicking for short hops; right-click still works.
+		match event.keycode:
+			KEY_W:
+				_wasd_step(Vector2(0, 1))
+				return
+			KEY_S:
+				_wasd_step(Vector2(0, -1))
+				return
+			KEY_A:
+				_wasd_step(Vector2(-1, 0))
+				return
+			KEY_D:
+				_wasd_step(Vector2(1, 0))
+				return
+
+		# Card selection — keys map to persistent number-row slots, not hand order.
 		for i in range(CARD_KEYS.size()):
 			if event.keycode == CARD_KEYS[i]:
 				_select_slot(i)

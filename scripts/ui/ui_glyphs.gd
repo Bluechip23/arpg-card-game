@@ -22,6 +22,7 @@ static func get_glyph(key: String) -> Texture2D:
 		"play": _draw_play(img)
 		"shield": _draw_shield(img)
 		"cage": _draw_cage(img)
+		"raindrop": _draw_raindrop(img)
 		_:
 			_cache[key] = null
 			return null
@@ -177,3 +178,35 @@ static func _draw_cage(img: Image) -> void:
 	# Shadow between bars
 	for bx in [7, 11, 15]:
 		_rect(img, bx + 1, 10, 1, 10, Color(0.2, 0.2, 0.25, 0.6))
+
+static func _disc(img: Image, cx: float, cy: float, r: float, c: Color) -> void:
+	for py in range(int(cy - r), int(cy + r) + 1):
+		for px in range(int(cx - r), int(cx + r) + 1):
+			if Vector2(px - cx, py - cy).length() <= r:
+				_px(img, px, py, c)
+
+static func _fill_teardrop(img: Image, cx: float, cy: float, r: float, apex_y: float, col: Color) -> void:
+	## Round bottom (disc at cx,cy) merged with a point at (cx, apex_y).
+	var apex := Vector2(cx, apex_y)
+	var bl := Vector2(cx - r, cy)
+	var br := Vector2(cx + r, cy)
+	for py in range(int(apex_y), int(cy + r) + 1):
+		for px in range(int(cx - r) - 1, int(cx + r) + 2):
+			var p := Vector2(px, py)
+			var in_disc := (p - Vector2(cx, cy)).length() <= r
+			# Point-in-triangle for the upper spike.
+			var d0 := (bl - apex).cross(p - apex)
+			var d1 := (br - bl).cross(p - bl)
+			var d2 := (apex - br).cross(p - br)
+			var in_tri := not ((d0 < 0 or d1 < 0 or d2 < 0) and (d0 > 0 or d1 > 0 or d2 > 0))
+			if in_disc or in_tri:
+				_px(img, px, py, col)
+
+static func _draw_raindrop(img: Image) -> void:
+	## Blue teardrop: pointed top, round bottom, with a small highlight.
+	var body := Color(0.35, 0.62, 1.0)
+	var edge := Color(0.12, 0.28, 0.6)
+	var hi := Color(0.72, 0.86, 1.0)
+	_fill_teardrop(img, 12.0, 15.0, 8.0, 1.0, edge)      # outline
+	_fill_teardrop(img, 12.0, 15.0, 6.6, 3.5, body)      # body
+	_disc(img, 9.5, 13.0, 1.7, hi)                        # highlight
