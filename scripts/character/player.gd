@@ -71,7 +71,8 @@ func set_grid_manager(gm: GridManager) -> void:
 
 func initialize_character(data: CharacterData) -> void:
 	stats.initialize(data)
-	inventory.initialize(data.character_name)
+	# Starting kit keys off the preset identity, not the (renamable) display name.
+	inventory.initialize(data.get_base_character())
 	inventory.connect_player_stats(stats)
 	inventory.equip_starting_item()
 	debuff_manager.initialize(stats, self)
@@ -96,7 +97,7 @@ func _setup_figure(data: CharacterData) -> void:
 	_figure = CharacterFigure.new()
 	_figure.name = "CharacterFigure"
 	add_child(_figure)
-	_figure.setup(data.character_name, data.sprite_path)
+	_figure.setup(data.get_base_character(), data.sprite_path)
 
 	# The figure replaces the prototype graphics
 	if mesh:

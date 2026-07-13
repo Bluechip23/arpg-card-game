@@ -286,9 +286,10 @@ func setup(character: CharacterData) -> void:
 		_sprite_label.visible = false
 
 	# Render a 3D figure preview for real characters (the quiz "Customize" card
-	# keeps its "?" placeholder).
+	# keeps its "?" placeholder). Preset identity drives the figure so renamed
+	# saves keep their look.
 	if character.character_name != "Customize":
-		_build_figure_preview(character.character_name, character.sprite_path)
+		_build_figure_preview(character.get_base_character(), character.sprite_path)
 
 	# Core stats
 	var core_values = {

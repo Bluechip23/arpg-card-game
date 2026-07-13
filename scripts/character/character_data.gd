@@ -5,6 +5,16 @@ extends Resource
 
 @export var character_name: String = "Default"
 
+# The preset this character was built from ("Brad", "Ryan", …). Everything
+# identity-based (starting kit, figure appearance, skill tree, character
+# passive) keys off this, so the player is free to rename character_name.
+# Empty on old saves and quiz characters — get_base_character() falls back
+# to character_name.
+@export var base_character: String = ""
+
+func get_base_character() -> String:
+	return base_character if base_character != "" else character_name
+
 # Core Stats
 @export var strength: int = 10
 @export var dexterity: int = 10
@@ -98,6 +108,7 @@ static func stat_description(key: String) -> String:
 static func create_ryan() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Ryan"
+	data.base_character = "Ryan"
 	data.strength = 3
 	data.dexterity = 3
 	data.intelligence = 3
@@ -130,6 +141,7 @@ static func create_ryan() -> CharacterData:
 static func create_jeremy() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Jeremy"
+	data.base_character = "Jeremy"
 	data.strength = 3
 	data.dexterity = 3
 	data.intelligence = 3
@@ -162,6 +174,7 @@ static func create_jeremy() -> CharacterData:
 static func create_stephen() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Stephen"
+	data.base_character = "Stephen"
 	data.strength = 3
 	data.dexterity = 3
 	data.intelligence = 3
@@ -210,6 +223,7 @@ static func create_stephen() -> CharacterData:
 static func create_cory() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Cory"
+	data.base_character = "Cory"
 	data.strength = 3
 	data.dexterity = 3
 	data.intelligence = 3
@@ -242,6 +256,7 @@ static func create_cory() -> CharacterData:
 static func create_brad() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Brad"
+	data.base_character = "Brad"
 	data.strength = 3
 	data.dexterity = 3
 	data.intelligence = 3

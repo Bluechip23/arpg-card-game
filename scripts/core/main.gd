@@ -2613,17 +2613,19 @@ func select_character(character: CharacterData) -> void:
 	progression_triggers._apply_all_constellation_bonuses()
 
 
-	# Initialize character skill tree (use character-specific tree if available)
+	# Initialize character skill tree (use character-specific tree if available).
+	# Keyed off the preset identity so a renamed character keeps their tree.
 	var skill_tree: SkillTreeData
-	if character.character_name == "Brad":
+	var tree_base := character.get_base_character()
+	if tree_base == "Brad":
 		skill_tree = SkillTreeData.create_brad_tree()
-	elif character.character_name == "Stephen":
+	elif tree_base == "Stephen":
 		skill_tree = SkillTreeData.create_stephen_tree()
-	elif character.character_name == "Ryan":
+	elif tree_base == "Ryan":
 		skill_tree = SkillTreeData.create_ryan_tree()
-	elif character.character_name == "Cory":
+	elif tree_base == "Cory":
 		skill_tree = SkillTreeData.create_cory_tree()
-	elif character.character_name == "Jeremy":
+	elif tree_base == "Jeremy":
 		skill_tree = SkillTreeData.create_jeremy_tree()
 	else:
 		skill_tree = SkillTreeData.create_placeholder_tree(character.character_name, 20, character.archetypes)
@@ -2825,6 +2827,11 @@ func _setup_sandbox() -> void:
 
 	_sandbox_refill()
 
+	# Stats aren't inflated in sandbox — instead the character panel (I) gets
+	# free-form -/+ stat editing.
+	if character_panel:
+		character_panel.set_sandbox_stat_edit(true)
+
 	sandbox_ui = SandboxUIScript.new()
 	sandbox_ui.name = "SandboxUI"
 	add_child(sandbox_ui)
@@ -2838,11 +2845,12 @@ func _setup_sandbox() -> void:
 	add_battle_log("Sandbox mode: use the panel (top-right) to add cards and spawn enemies.", Color(0.7, 0.85, 1.0))
 
 func _sandbox_refill() -> void:
+	## Top health/mana back up WITHOUT touching the character's real stats —
+	## sandbox uses the same pools as the story; tweak them via the +/- stat
+	## controls in the character panel instead.
 	var s = player.get_stats()
 	if s:
-		s.max_health = maxi(s.max_health, 200)
 		s.current_health = s.max_health
-		s.max_mana = maxi(s.max_mana, 20)
 		s.current_mana = s.max_mana
 		s.health_changed.emit(s.current_health, s.max_health)
 		s.mana_changed.emit(s.current_mana, s.max_mana)
@@ -2898,12 +2906,10 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 		_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
 	_setup_co_op_defeat()
 
-	# Ally gets the same fat sandbox pools.
+	# Ally spawns topped up, with their real stats untouched (like the player).
 	var s2 = _p2_player.get_stats() if _p2_player else null
 	if s2:
-		s2.max_health = maxi(s2.max_health, 200)
 		s2.current_health = s2.max_health
-		s2.max_mana = maxi(s2.max_mana, 20)
 		s2.current_mana = s2.max_mana
 		s2.health_changed.emit(s2.current_health, s2.max_health)
 		s2.mana_changed.emit(s2.current_mana, s2.max_mana)

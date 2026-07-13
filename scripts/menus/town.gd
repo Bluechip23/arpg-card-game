@@ -2325,11 +2325,12 @@ func _open_sellsword_ui() -> void:
 	else:
 		_add_info_label("No partner hired. Choose a battle-companion:", Color(0.85, 0.85, 0.9))
 
-	var p1_name := starting_character.character_name if starting_character else ""
+	# Compare preset identities so a renamed hero still can't recruit themselves.
+	var p1_base := starting_character.get_base_character() if starting_character else ""
 	for character in CharacterData.get_all_characters():
-		if character.character_name == p1_name:
+		if character.get_base_character() == p1_base:
 			continue  # Player 1 cannot recruit themselves
-		if player2_character and character.character_name == player2_character.character_name:
+		if player2_character and character.get_base_character() == player2_character.get_base_character():
 			continue  # Already the active partner
 		_add_sellsword_row(character)
 
