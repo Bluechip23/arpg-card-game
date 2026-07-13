@@ -312,6 +312,14 @@ func _input(event: InputEvent) -> void:
 			KEY_PERIOD:
 				_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
 				_update_camera()
+			KEY_W:
+				_wasd_step(Vector2(0, 1))
+			KEY_S:
+				_wasd_step(Vector2(0, -1))
+			KEY_A:
+				_wasd_step(Vector2(-1, 0))
+			KEY_D:
+				_wasd_step(Vector2(1, 0))
 
 	# Mouse wheel zoom
 	if event is InputEventMouseButton and event.pressed:
@@ -345,6 +353,32 @@ func _input(event: InputEvent) -> void:
 		if mouse_pos != Vector3.ZERO:
 			var distance = _get_grid_distance(player.position, mouse_pos)
 			player.move_to_grid(mouse_pos, max(1, distance))
+
+func _wasd_step(dir: Vector2) -> void:
+	## Step the player one grid cell in a camera-relative direction (same short
+	## hop as battle WASD): (0,1)=W, (0,-1)=S, (-1,0)=A, (1,0)=D. Snapped to the
+	## nearest cardinal grid axis. Right-click still handles longer walks.
+	if _modal_open or vendor_open or _stash_open:
+		return
+	if player == null or not is_instance_valid(player) or player.is_moving:
+		return
+	if not grid_manager:
+		return
+
+	var forward := Vector2(-sin(_camera_yaw), -cos(_camera_yaw))  # (x, z) camera faces
+	var right := Vector2(-forward.y, forward.x)
+	var world_dir := right * dir.x + forward * dir.y
+
+	var cell_delta: Vector2i
+	if absf(world_dir.x) >= absf(world_dir.y):
+		cell_delta = Vector2i(int(signf(world_dir.x)), 0)
+	else:
+		cell_delta = Vector2i(0, int(signf(world_dir.y)))
+	if cell_delta == Vector2i.ZERO:
+		return
+
+	var target_cell := grid_manager.world_to_grid(player.position) + cell_delta
+	player.move_to_grid(grid_manager.grid_to_world(target_cell), 1)
 
 func _get_grid_distance(from: Vector3, to: Vector3) -> int:
 	var from_grid = grid_manager.world_to_grid(from)

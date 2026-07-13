@@ -802,20 +802,38 @@ func _setup_action_buttons() -> void:
 	vbox.add_child(_pause_button)
 
 func _setup_tick_bar() -> void:
-	## Build the 20-tick global tempo bar centered at the top of the screen.
+	## Build the 20-tick global tempo bar centered at the top of the screen,
+	## framed like a little bookshelf (dark walnut box, gold trim, and a shelf
+	## plank the tick "books" stand on) so it stands out.
 	var ui = $UI as CanvasLayer
+
+	# Outer frame: a wooden box with a thin gold line running the whole border.
+	var frame = PanelContainer.new()
+	frame.name = "TickBarFrame"
+	ui.add_child(frame)
+	frame.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	frame.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	frame.offset_left = -168.0
+	frame.offset_top = 32.0
+	frame.offset_right = 168.0
+	frame.offset_bottom = 118.0
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color(0.16, 0.11, 0.07)          # dark walnut
+	frame_style.set_border_width_all(2)
+	frame_style.border_color = Color(0.82, 0.66, 0.28)      # thin gold line
+	frame_style.set_corner_radius_all(5)
+	frame_style.content_margin_left = 10
+	frame_style.content_margin_right = 10
+	frame_style.content_margin_top = 5
+	frame_style.content_margin_bottom = 5
+	frame_style.shadow_color = Color(0, 0, 0, 0.45)
+	frame_style.shadow_size = 4
+	frame.add_theme_stylebox_override("panel", frame_style)
 
 	var tick_container = VBoxContainer.new()
 	tick_container.name = "TickBarContainer"
-	ui.add_child(tick_container)
-	tick_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	tick_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	# Center horizontally: bar is 20 bars * (10px + 3px gap) = ~260px wide
-	tick_container.offset_left = -170.0
-	tick_container.offset_top = 35.0
-	tick_container.offset_right = 170.0
-	tick_container.offset_bottom = 100.0
 	tick_container.add_theme_constant_override("separation", 2)
+	frame.add_child(tick_container)
 
 	# Card name label
 	_tick_bar_card_name_label = Label.new()
@@ -826,7 +844,7 @@ func _setup_tick_bar() -> void:
 	_tick_bar_card_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tick_container.add_child(_tick_bar_card_name_label)
 
-	# Bar row
+	# Bar row — the "books" standing on the shelf.
 	var bar_hbox = HBoxContainer.new()
 	bar_hbox.name = "TickBars"
 	bar_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -841,12 +859,25 @@ func _setup_tick_bar() -> void:
 		bar_hbox.add_child(bar)
 		_tick_bar_rects.append(bar)
 
+	# Shelf plank the tick books rest on: a wood strip capped with a gold edge.
+	var shelf = Panel.new()
+	shelf.name = "TickBarShelf"
+	shelf.custom_minimum_size = Vector2(0, 5)
+	shelf.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shelf_style := StyleBoxFlat.new()
+	shelf_style.bg_color = Color(0.28, 0.19, 0.11)          # lighter plank wood
+	shelf_style.border_width_top = 1
+	shelf_style.border_color = Color(0.82, 0.66, 0.28)      # gold shelf edge
+	shelf_style.set_corner_radius_all(1)
+	shelf.add_theme_stylebox_override("panel", shelf_style)
+	tick_container.add_child(shelf)
+
 	# Status label
 	_tick_bar_label = Label.new()
 	_tick_bar_label.name = "TickBarLabel"
 	_tick_bar_label.text = "Ready"
 	_tick_bar_label.add_theme_font_size_override("font_size", 11)
-	_tick_bar_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.65))
+	_tick_bar_label.add_theme_color_override("font_color", Color(0.7, 0.6, 0.4))
 	_tick_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tick_container.add_child(_tick_bar_label)
 
