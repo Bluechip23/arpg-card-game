@@ -11,6 +11,7 @@ signal character_pressed
 signal level_pressed
 signal quest_pressed
 signal help_pressed
+signal deck_pressed
 
 const ICON_SZ := 30
 
@@ -34,6 +35,10 @@ func _ready() -> void:
 	quest_btn.pressed.connect(func(): quest_pressed.emit())
 	add_child(quest_btn)
 	_quest_dot = _make_dot(quest_btn)
+
+	var deck_btn := _make_button(_tex_deck_box(), "", "Deck")
+	deck_btn.pressed.connect(func(): deck_pressed.emit())
+	add_child(deck_btn)
 
 	var help_btn := _make_button(_tex_question(), "", "Help (H)")
 	help_btn.pressed.connect(func(): help_pressed.emit())
@@ -187,4 +192,29 @@ func _tex_question() -> Texture2D:
 	_rect(img, 15, 10, 6, 4, Color(0, 0, 0, 0))   # open the lower-left of the ring
 	_rect(img, 14, 13, 4, 6, c)                    # stem down to the dot
 	_disc(img, 15, 24, 2.4, c)                     # dot
+	return _tex(img)
+
+
+func _tex_deck_box() -> Texture2D:
+	## A boxed deck of cards (tuck box) with a sheathed sword pointing down on
+	## the face — hilt at the top, scabbard covering the blade down to the tip.
+	var img := _blank()
+	var box := Color(0.86, 0.88, 0.94)     # pale card box
+	var box_edge := Color(0.5, 0.52, 0.62) # box outline / seams
+	var leather := Color(0.45, 0.3, 0.16)  # scabbard
+	var gold := Color(0.85, 0.68, 0.28)    # hilt fittings
+	# Box body with a slight top lip so it reads as a 3D tuck box.
+	_rect(img, 6, 4, 18, 23, box)
+	_rect(img, 6, 4, 18, 2, box_edge)          # top lip
+	_rect(img, 6, 4, 1, 23, box_edge)          # left seam
+	_rect(img, 23, 4, 1, 23, box_edge)         # right seam
+	_rect(img, 6, 26, 18, 1, box_edge)         # bottom seam
+	# Sheathed sword on the face, pointing DOWN.
+	_rect(img, 11, 6, 8, 2, gold)              # pommel / top guard
+	_rect(img, 14, 8, 2, 2, gold)              # grip
+	_rect(img, 10, 10, 10, 2, gold)            # crossguard
+	_rect(img, 13, 12, 4, 11, leather)         # scabbard down the face
+	_tri(img, Vector2(13, 23), Vector2(17, 23), Vector2(15, 26), leather)  # tip
+	_rect(img, 13, 15, 4, 1, gold)             # scabbard band
+	_rect(img, 13, 19, 4, 1, gold)             # scabbard band
 	return _tex(img)

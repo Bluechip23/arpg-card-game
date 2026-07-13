@@ -411,7 +411,8 @@ func _ready() -> void:
 
 	# Style the hand area with solid background so battlefield doesn't bleed through
 	_setup_hand_area_background()
-	_setup_deck_list_button()
+	# (The Deck button now lives in the top-right HUD icon bar; only the popup
+	# panel is created here.)
 	_setup_deck_list_panel()
 	_setup_maintained_icon()
 	_setup_maintained_list_panel()
@@ -1040,58 +1041,77 @@ func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_c
 	return [bar, lbl]
 
 func _setup_deck_info_vertical() -> void:
-	## Convert DeckInfo from HBoxContainer to VBoxContainer, placed above Maintained button.
+	## Draw and Discard piles become card-stack buttons on opposite edges:
+	## Draw on the left (green up-arrow + turns-until-draw), Discard on the
+	## right (yellow down-arrow + count). The Deck box lives in the top HUD bar.
 	var deck_info = $UI/DeckInfo as HBoxContainer
-	if not deck_info:
-		return
-	# Hide the old horizontal layout spacers
-	for child in deck_info.get_children():
-		if child.name.begins_with("Spacer"):
-			child.visible = false
-	# Reparent DeckInfo: reposition it as a vertical stack above the Maintained button (bottom-right)
-	deck_info.offset_left = -210.0
-	deck_info.offset_top = -130.0
-	deck_info.offset_right = -100.0
-	deck_info.offset_bottom = -45.0
-	deck_info.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	# We can't change HBoxContainer to VBoxContainer in scene, so we'll just stack via code
-	# Hide the HBox and create a new VBox
-	deck_info.visible = false
+	if deck_info:
+		deck_info.visible = false  # retire the old horizontal readout
 
 	var ui = $UI as CanvasLayer
-	var vbox = VBoxContainer.new()
-	vbox.name = "DeckInfoVertical"
-	ui.add_child(vbox)
-	vbox.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	vbox.offset_left = -210.0
-	vbox.offset_top = -160.0
-	vbox.offset_right = -100.0
-	vbox.offset_bottom = -45.0
-	vbox.add_theme_constant_override("separation", 4)
 
-	# Create buttons that open a popup showing the cards in each pile
-	var new_draw = _create_pile_button("DrawButton", "Draw: 0 (0)")
+	# Draw pile — left edge, slightly larger than the action buttons.
+	var draw_wrap = Control.new()
+	draw_wrap.name = "DrawButtonContainer"
+	ui.add_child(draw_wrap)
+	draw_wrap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	draw_wrap.offset_left = 8.0
+	draw_wrap.offset_top = -196.0
+	draw_wrap.offset_right = 92.0
+	draw_wrap.offset_bottom = -132.0
+	var new_draw = _create_pile_button("DrawButton", true, Color(0.5, 0.95, 0.5))
 	new_draw.pressed.connect(_on_draw_pile_button_pressed)
-	vbox.add_child(new_draw)
+	new_draw.set_anchors_preset(Control.PRESET_FULL_RECT)
+	draw_wrap.add_child(new_draw)
 
-	var new_discard = _create_pile_button("DiscardButton", "Discard: 0")
+	# Discard pile — right edge.
+	var disc_wrap = Control.new()
+	disc_wrap.name = "DiscardButtonContainer"
+	ui.add_child(disc_wrap)
+	disc_wrap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	disc_wrap.offset_left = -84.0
+	disc_wrap.offset_top = -190.0
+	disc_wrap.offset_right = -8.0
+	disc_wrap.offset_bottom = -132.0
+	var new_discard = _create_pile_button("DiscardButton", false, Color(1.0, 0.85, 0.25))
 	new_discard.pressed.connect(_on_discard_pile_button_pressed)
-	vbox.add_child(new_discard)
-
-	# (Jailed cards live in the cage icon up in the debuff row, not down here.)
+	new_discard.set_anchors_preset(Control.PRESET_FULL_RECT)
+	disc_wrap.add_child(new_discard)
 
 	# Reassign references
 	draw_label = new_draw
 	discard_label = new_discard
 	jail_label = null
 
-func _create_pile_button(btn_name: String, initial_text: String) -> Button:
-	## Creates a button styled to match the Maintained button (default Button look).
+func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -> Button:
+	## A pile button: a card-stack icon (up-arrow for Draw, down-arrow for
+	## Discard) above a coloured count. Draw's stack is flipped horizontally so
+	## the cards' open side faces inward from the left edge.
 	var btn = Button.new()
 	btn.name = btn_name
-	btn.text = initial_text
-	btn.custom_minimum_size = Vector2(110, 30)
 	btn.focus_mode = Control.FOCUS_NONE
+	btn.icon = PileIcon.get_icon(is_draw, number_color, is_draw)
+	btn.expand_icon = false
+	# Icon on the left, the coloured count beside it (next to the arrow).
+	btn.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.add_theme_font_size_override("font_size", 17)
+	btn.add_theme_color_override("font_color", number_color)
+	btn.add_theme_color_override("font_hover_color", number_color.lightened(0.2))
+	btn.add_theme_constant_override("icon_max_width", 40)
+	btn.add_theme_constant_override("h_separation", 2)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.14, 0.92)
+	style.set_border_width_all(1)
+	style.border_color = number_color.darkened(0.3)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 4
+	style.content_margin_right = 4
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
+	btn.add_theme_stylebox_override("normal", style)
+	var hover := style.duplicate()
+	hover.bg_color = Color(0.16, 0.16, 0.2, 0.95)
+	btn.add_theme_stylebox_override("hover", hover)
 	return btn
 
 func _on_pause_pressed() -> void:
@@ -1379,26 +1399,6 @@ func _update_block_button_visibility() -> void:
 		_block_button.visible = true
 	else:
 		_block_button.visible = false
-
-func _setup_deck_list_button() -> void:
-	var hand_area = $UI/HandArea as PanelContainer
-	var deck_btn = Button.new()
-	deck_btn.name = "DeckListButton"
-	deck_btn.text = "Deck"
-	deck_btn.custom_minimum_size = Vector2(50, 30)
-	deck_btn.pressed.connect(_on_deck_list_button_pressed)
-	# Place button to the right of the hand area
-	var ui = $UI as CanvasLayer
-	var btn_container = Control.new()
-	btn_container.name = "DeckButtonContainer"
-	ui.add_child(btn_container)
-	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	btn_container.offset_left = -95.0
-	btn_container.offset_top = -40.0
-	btn_container.offset_right = -5.0
-	btn_container.offset_bottom = -5.0
-	btn_container.add_child(deck_btn)
-	deck_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
 
 func _setup_deck_list_panel() -> void:
 	var ui = $UI as CanvasLayer
@@ -2439,7 +2439,7 @@ func _setup_hud_icon_bar() -> void:
 	hud_icon_bar.name = "HudIconBar"
 	ui.add_child(hud_icon_bar)
 	hud_icon_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	hud_icon_bar.offset_left = -300.0
+	hud_icon_bar.offset_left = -360.0
 	hud_icon_bar.offset_top = 8.0
 	hud_icon_bar.offset_right = -8.0
 	hud_icon_bar.offset_bottom = 46.0
@@ -2449,6 +2449,7 @@ func _setup_hud_icon_bar() -> void:
 	hud_icon_bar.level_pressed.connect(func(): skill_tree_ui.toggle_panel(); _refresh_hud_notifications())
 	hud_icon_bar.quest_pressed.connect(_on_hud_quest_pressed)
 	hud_icon_bar.help_pressed.connect(_on_hud_help_pressed)
+	hud_icon_bar.deck_pressed.connect(_on_deck_list_button_pressed)
 
 func _on_hud_quest_pressed() -> void:
 	minimap_tab_ui.open_quest_log()
@@ -4968,7 +4969,8 @@ func update_tempo_display() -> void:
 func update_deck_info() -> void:
 	_update_draw_label()
 	if discard_label:
-		discard_label.text = "Discard: %d" % deck_manager.get_discard_pile_size()
+		discard_label.text = "%d" % deck_manager.get_discard_pile_size()
+		discard_label.tooltip_text = "Discard pile: %d card(s)" % deck_manager.get_discard_pile_size()
 	if jailed_icon:
 		jailed_icon.set_cards(deck_manager.jail_pile)
 	_update_maintained_button()
@@ -4977,7 +4979,9 @@ func update_deck_info() -> void:
 func _update_draw_label() -> void:
 	if draw_label:
 		var tempo_until = turn_manager.get_tempo_until_draw()
-		draw_label.text = "Draw: %d (%d)" % [deck_manager.get_draw_pile_size(), int(tempo_until)]
+		# The prominent number is the count of tempo until the next draw.
+		draw_label.text = "%d" % int(tempo_until)
+		draw_label.tooltip_text = "Draw pile: %d card(s)\nNext draw in %d tempo" % [deck_manager.get_draw_pile_size(), int(tempo_until)]
 
 func _update_attack_button_text() -> void:
 	if _attack_button:
