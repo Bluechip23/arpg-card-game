@@ -266,7 +266,6 @@ var _hand_groups: Array = []
 var _block_button: Button = null
 var _attack_button: Button = null
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
-const ACTION_COL_WIDTH := 108           # attack button width = wait+gap+pause width
 
 # Stat bar UI references
 var _hp_bar: ProgressBar = null
@@ -726,23 +725,21 @@ func _setup_hand_area_background() -> void:
 func _setup_action_buttons() -> void:
 	var ui = $UI as CanvasLayer
 
-	var btn_container = Control.new()
-	btn_container.name = "ActionButtonContainer"
-	btn_container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # empty area doesn't block the draw button above
-	ui.add_child(btn_container)
-	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	btn_container.offset_left = 8.0
-	btn_container.offset_top = -240.0
-	btn_container.offset_right = 8.0 + ACTION_COL_WIDTH
-	btn_container.offset_bottom = -8.0
-
+	# The action column shrink-wraps to its widest button (the Attack button, at
+	# its natural content width). Anchored bottom-left, it grows up and to the
+	# right, so the Wait+Pause row below matches the Attack width automatically.
 	var vbox = VBoxContainer.new()
 	vbox.name = "ActionButtons"
-	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox.alignment = BoxContainer.ALIGNMENT_END  # pin the cluster to the bottom
+	ui.add_child(vbox)
+	vbox.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	vbox.grow_horizontal = Control.GROW_DIRECTION_END
+	vbox.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	vbox.offset_left = 8.0
+	vbox.offset_right = 8.0
+	vbox.offset_top = -8.0
+	vbox.offset_bottom = -8.0
 	vbox.add_theme_constant_override("separation", 4)
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn_container.add_child(vbox)
 	_action_vbox = vbox
 
 	# Compact icon buttons: a glyph carries the meaning (sword = attack,
@@ -751,12 +748,12 @@ func _setup_action_buttons() -> void:
 	# inserted at the top of this column by _setup_deck_info_vertical.
 
 	# Attack button (top): sword + tempo cost + attacks until the speed proc.
-	# Its width sets the column width; the Wait+Pause row below matches it.
+	# Content-sized — its natural width sets the column width.
 	_attack_button = Button.new()
 	_attack_button.name = "AttackButton"
 	_attack_button.icon = UIGlyphs.get_glyph("sword")
 	_attack_button.text = "5T (0)"
-	_attack_button.custom_minimum_size = Vector2(ACTION_COL_WIDTH, 36)
+	_attack_button.custom_minimum_size = Vector2(0, 36)
 	_attack_button.size_flags_horizontal = Control.SIZE_FILL
 	_attack_button.tooltip_text = "Basic melee attack: STR modifier damage. Costs 5 tempo."
 	_attack_button.pressed.connect(_on_attack_pressed)
@@ -767,17 +764,18 @@ func _setup_action_buttons() -> void:
 	_block_button.name = "BlockButton"
 	_block_button.icon = UIGlyphs.get_glyph("shield")
 	_block_button.text = "5T"
-	_block_button.custom_minimum_size = Vector2(ACTION_COL_WIDTH, 36)
+	_block_button.custom_minimum_size = Vector2(0, 36)
 	_block_button.size_flags_horizontal = Control.SIZE_FILL
 	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
 	_block_button.pressed.connect(_on_block_pressed)
 	_block_button.visible = false
 	vbox.add_child(_block_button)
 
-	# Bottom row: Wait beside a (shrunk) Pause, together matching the attack width.
+	# Bottom row: Wait beside a (shrunk) Pause, stretched to the column (= attack)
+	# width so the two plus the gap match the Attack button.
 	var bottom_row = HBoxContainer.new()
 	bottom_row.name = "WaitPauseRow"
-	bottom_row.custom_minimum_size = Vector2(ACTION_COL_WIDTH, 36)
+	bottom_row.custom_minimum_size = Vector2(0, 36)
 	bottom_row.size_flags_horizontal = Control.SIZE_FILL
 	bottom_row.add_theme_constant_override("separation", 4)
 	vbox.add_child(bottom_row)
