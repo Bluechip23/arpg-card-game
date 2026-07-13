@@ -101,14 +101,13 @@ func _draw_gauntlets(c: Vector2, u: float) -> void:
 
 func _draw_weapon(c: Vector2, u: float) -> void:
 	# A hand slot takes any weapon: sword (top-left), shield (top-right),
-	# bow & arrow (bottom-left), axe (bottom-right), and a closed fist centre.
+	# bow & arrow (bottom-left), and a spell book (bottom-right).
 	var q: float = u * 0.5   # quadrant offset from centre
 	var r: float = u * 0.42  # mini-icon half-extent
 	_mini_sword(c + Vector2(-q, -q), r)
 	_mini_shield(c + Vector2(q, -q), r)
 	_mini_bow(c + Vector2(-q, q), r)
-	_mini_axe(c + Vector2(q, q), r)
-	_mini_fist(c, r * 0.95)
+	_mini_book(c + Vector2(q, q), r)
 
 func _mini_sword(p: Vector2, r: float) -> void:
 	var blade := PackedVector2Array([
@@ -138,22 +137,16 @@ func _mini_bow(p: Vector2, r: float) -> void:
 	])
 	draw_colored_polygon(head, tint)
 
-func _mini_axe(p: Vector2, r: float) -> void:
-	# Handle from lower-left to upper-right, axe head at the top.
-	draw_line(p + Vector2(-r * 0.7, r * 0.9), p + Vector2(r * 0.5, -r * 0.7), tint, maxf(1.5, r * 0.2))
-	var head := PackedVector2Array([
-		p + Vector2(r * 0.1, -r * 0.85), p + Vector2(r * 0.95, -r * 0.55),
-		p + Vector2(r * 0.8, r * 0.1), p + Vector2(r * 0.05, -r * 0.2),
-	])
-	draw_colored_polygon(head, tint)
-
-func _mini_fist(p: Vector2, r: float) -> void:
-	# Closed fist: palm block + four knuckles + a thumb.
-	draw_rect(Rect2(p + Vector2(-r * 0.7, -r * 0.35), Vector2(r * 1.4, r * 0.9)), tint)
-	for i in range(4):
-		var kx: float = -r * 0.55 + i * r * 0.37
-		draw_circle(p + Vector2(kx, -r * 0.35), r * 0.2, tint)
-	draw_circle(p + Vector2(-r * 0.78, r * 0.1), r * 0.22, tint)  # thumb
+func _mini_book(p: Vector2, r: float) -> void:
+	# Closed spell book: cover, a spine down the left, page edges on the right,
+	# and a small clasp crossing the fore-edge.
+	draw_rect(Rect2(p + Vector2(-r * 0.78, -r * 0.7), Vector2(r * 1.56, r * 1.4)), tint)
+	# Spine along the left edge, darker so it reads as a book.
+	draw_rect(Rect2(p + Vector2(-r * 0.78, -r * 0.7), Vector2(r * 0.22, r * 1.4)), Color(0.1, 0.1, 0.13, 0.9))
+	# Page edges: a thin dark inset just inside the right (fore) edge.
+	draw_rect(Rect2(p + Vector2(r * 0.48, -r * 0.52), Vector2(r * 0.12, r * 1.04)), Color(0.1, 0.1, 0.13, 0.9))
+	# Clasp: a short band poking off the fore-edge, centred vertically.
+	draw_rect(Rect2(p + Vector2(r * 0.6, -r * 0.14), Vector2(r * 0.32, r * 0.28)), tint)
 
 func _draw_quiver(c: Vector2, u: float) -> void:
 	draw_rect(Rect2(c + Vector2(-u * 0.4, -u * 0.35), Vector2(u * 0.8, u * 1.2)), tint)
