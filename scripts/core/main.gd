@@ -277,6 +277,7 @@ var _mana_bar_label: Label = null
 var _armor_bar_label: Label = null
 var _xp_bar_label: Label = null
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
+var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
 var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
@@ -988,10 +989,11 @@ func _setup_stat_bars() -> void:
 	stat_container.offset_bottom = 130.0
 	stat_container.add_theme_constant_override("separation", 4)
 
-	# --- HP Bar (red) ---
+	# --- HP Bar (red) — armour shown as a shield badge to its right ---
 	var hp_pair = _create_stat_bar_with_label(stat_container, "HPBar", Color(0.7, 0.15, 0.15), Color(0.3, 0.08, 0.08))
 	_hp_bar = hp_pair[0]
 	_hp_bar_label = hp_pair[1]
+	_setup_armor_shield()
 
 	# --- Mana Bar (blue) ---
 	var mana_pair = _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
@@ -1003,21 +1005,27 @@ func _setup_stat_bars() -> void:
 	_mana_bar.get_parent().add_child(_mana_reserve_tip)
 	_setup_mana_regen_drop()
 
-	# --- Armor Bar (silver/grey) ---
-	var armor_pair = _create_stat_bar_with_label(stat_container, "ArmorBar", Color(0.55, 0.55, 0.6), Color(0.2, 0.2, 0.25))
-	_armor_bar = armor_pair[0]
-	_armor_bar_label = armor_pair[1]
-
-	# --- XP Bar (gold) ---
-	var xp_pair = _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05))
+	# --- XP Bar (gold) — right under mana, a quarter of the normal height ---
+	var xp_pair = _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05), 6)
 	_xp_bar = xp_pair[0]
-	_xp_bar_label = xp_pair[1]
+	# The bar is too thin for an overlaid number; the level/XP text lives in the
+	# character panel instead.
+	if xp_pair[1]:
+		xp_pair[1].visible = false
 
-func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_color: Color, bg_color: Color) -> Array:
+	# Buffs and debuffs sit directly under the (thin) XP bar rather than off to
+	# the right of the health bar.
+	_reposition_status_bars()
+	_xp_bar_label = null
+	# (Armour no longer has its own bar — the shield badge shows it.)
+	_armor_bar = null
+	_armor_bar_label = null
+
+func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_color: Color, bg_color: Color, height: int = 22) -> Array:
 	## Creates a progress bar with an overlaid centered label. Returns [bar, label].
 	var wrapper = Control.new()
 	wrapper.name = bar_name + "Wrapper"
-	wrapper.custom_minimum_size = Vector2(200, 22)
+	wrapper.custom_minimum_size = Vector2(200, height)
 	parent.add_child(wrapper)
 
 	var bar = ProgressBar.new()
@@ -1100,6 +1108,62 @@ func _update_mana_regen_indicator() -> void:
 	var stats = player.get_stats()
 	if stats:
 		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
+
+func _setup_armor_shield() -> void:
+	## A shield badge just right of the HP bar showing current armour (replaces
+	## the old armour bar). Same footprint as the mana raindrop.
+	if not _hp_bar:
+		return
+	var wrapper = _hp_bar.get_parent()
+	var badge = Control.new()
+	badge.name = "ArmorShield"
+	badge.mouse_filter = Control.MOUSE_FILTER_STOP
+	badge.tooltip_text = "Current armor"
+	badge.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	badge.offset_left = 6.0
+	badge.offset_right = 32.0
+	badge.offset_top = -14.0
+	badge.offset_bottom = 14.0
+	wrapper.add_child(badge)
+
+	var tex := TextureRect.new()
+	tex.texture = UIGlyphs.get_glyph("shield")
+	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.add_child(tex)
+
+	_armor_shield_label = Label.new()
+	_armor_shield_label.add_theme_font_size_override("font_size", 12)
+	_armor_shield_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	_armor_shield_label.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.12))
+	_armor_shield_label.add_theme_constant_override("outline_size", 5)
+	_armor_shield_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_armor_shield_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_armor_shield_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_armor_shield_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.add_child(_armor_shield_label)
+
+func _reposition_status_bars() -> void:
+	## Stack the debuff and buff rows directly beneath the (thin) XP bar, close
+	## to it, instead of floating out to the right of the health bar.
+	# HP(22) + 4 + Mana(22) + 4 + XP(6) starting at y=8 -> bottom of XP at y=66.
+	var left := 122.0
+	var right := 122.0 + 360.0
+	if debuff_bar:
+		debuff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		debuff_bar.offset_left = left
+		debuff_bar.offset_top = 69.0
+		debuff_bar.offset_right = right
+		debuff_bar.offset_bottom = 99.0
+	if buff_bar:
+		buff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		buff_bar.offset_left = left
+		buff_bar.offset_top = 101.0
+		buff_bar.offset_right = right
+		buff_bar.offset_bottom = 131.0
 
 func _setup_deck_info_vertical() -> void:
 	## Draw and Discard piles become card-stack buttons on opposite edges:
@@ -4056,12 +4120,8 @@ func _on_player_armor_gained(_amount: int) -> void:
 func _on_player_armor_changed(current: int) -> void:
 	if player_armor_label:
 		player_armor_label.visible = false
-	if _armor_bar:
-		# Armor has no fixed max — use current as value, scale bar dynamically
-		_armor_bar.max_value = max(current, 1)
-		_armor_bar.value = current
-	if _armor_bar_label:
-		_armor_bar_label.text = "%d" % current
+	if _armor_shield_label:
+		_armor_shield_label.text = "%d" % current
 
 func _update_xp_display() -> void:
 	if player_xp_label:
