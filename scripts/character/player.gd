@@ -149,6 +149,11 @@ func show_heal_icon() -> void:
 	if _figure:
 		_figure.pop_heart()
 
+func show_level_up() -> void:
+	## Plays the level-up mist swirl — call whenever the character gains a level.
+	if _figure:
+		_figure.pop_level_up()
+
 func show_worm_summon() -> void:
 	## Spawns the Alaskan Bull Worm VFX — call when Worms Armageddon summons one.
 	if _figure:

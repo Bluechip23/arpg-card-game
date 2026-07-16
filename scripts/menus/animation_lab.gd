@@ -234,6 +234,10 @@ func _populate_list() -> void:
 	for entry in _collect_cards():
 		_add_entry(entry["label"], entry["action"], entry["search"], entry.get("armor", false), entry.get("heal", false))
 
+	_add_section_header("SYSTEMIC")
+	# Feedback driven by game events rather than cards (previewable here).
+	_add_entry("Level Up", "level_up", "level up levelup mist swirl")
+
 	_add_section_header("PASSIVES")
 	for entry in _collect_passives():
 		_add_entry(entry["label"], entry["action"], entry["search"])

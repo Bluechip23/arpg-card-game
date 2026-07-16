@@ -4035,6 +4035,8 @@ func _is_climbed_tree(world_pos: Vector3) -> bool:
 
 func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
+	# Swirling mist flourish on the character
+	player.show_level_up()
 	# Grant sphere rewards for this level
 	var rewards = SphereInventory.get_level_rewards(new_level)
 	for reward in rewards:
