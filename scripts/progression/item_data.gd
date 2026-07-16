@@ -4,7 +4,6 @@ extends Resource
 ## Defines an item's properties
 
 enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON, QUIVER }
-enum WeaponHand { ONE_HAND, TWO_HAND }
 enum WeaponSubtype { SWORD, BOW, SHIELD, OTHER }
 enum SpecialEffect {
 	NONE,
@@ -79,11 +78,11 @@ enum GauntletSkillType {
 @export var ice_damage_percent: float = 0.0
 @export var lightning_damage_percent: float = 0.0
 
-# Weapon specific
+# Weapon specific. NOTE: no item is inherently one- or two-handed — wielding
+# an item with both hands is a player choice tracked per-slot in Inventory
+# (see Inventory.two_handed_slot), gated purely by weight.
 @export var weapon_damage: int = 0
-@export var weapon_hand: WeaponHand = WeaponHand.ONE_HAND
 @export var weapon_subtype: WeaponSubtype = WeaponSubtype.SWORD
-@export var is_two_handed: bool = false
 
 # Special effects
 @export var special_effect: SpecialEffect = SpecialEffect.NONE
@@ -499,7 +498,6 @@ static func create_flame_dagger() -> ItemData:
 	item.weight = 3
 	item.weapon_damage = 5
 	item.fire_damage_percent = 10.0
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.card_slots = 1
 	item.on_self_damage = 1
 	item.description = "5 dmg, +10% Fire Damage. 1 card slot, On-Self: +1 dmg"
@@ -513,7 +511,6 @@ static func create_frost_orb() -> ItemData:
 	item.weight = 2
 	item.health_bonus = 100
 	item.ice_damage_percent = 10.0
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.description = "+100 HP, +10% Ice Damage"
 	return item
 
@@ -553,7 +550,6 @@ static func create_iron_sword() -> ItemData:
 	item.item_type_name = "Weapon"
 	item.weight = 80
 	item.weapon_damage = 10
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.card_slots = 1
 	item.on_self_damage = 2
 	item.description = "+10 Melee Attack damage. Weight 80. 1 card slot, On-Self: +2 dmg"
@@ -568,7 +564,6 @@ static func create_wooden_shield() -> ItemData:
 	item.armor_bonus = 5  # Block value when using basic block action
 	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
 	item.special_effect_value = 2
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.weapon_subtype = WeaponSubtype.SHIELD
 	item.card_slots = 1
 	item.on_self_block = 2
@@ -595,11 +590,9 @@ static func create_heavy_greatsword() -> ItemData:
 	item.item_type_name = "Weapon"
 	item.weight = 130
 	item.weapon_damage = 25
-	item.weapon_hand = WeaponHand.TWO_HAND
-	item.is_two_handed = true
 	item.card_slots = 2
 	item.on_self_damage = 3
-	item.description = "+25 Melee Attack damage. Weight 130. Two-handed. 2 card slots, On-Self: +3 dmg"
+	item.description = "+25 Melee Attack damage. Weight 130. 2 card slots, On-Self: +3 dmg"
 	return item
 
 static func create_leather_boots() -> ItemData:
@@ -698,7 +691,6 @@ static func create_spiked_shield() -> ItemData:
 	item.item_type_name = "Shield"
 	item.weapon_subtype = WeaponSubtype.SHIELD
 	item.weight = 40
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.special_effect = SpecialEffect.THORNS_PER_TEMPO
 	item.special_effect_value = 3  # Gain 3 thorns
 	item.special_effect_value_2 = 5  # Every 5 tempo
@@ -715,7 +707,6 @@ static func create_bow_of_true_sight() -> ItemData:
 	item.item_type_name = "Bow"
 	item.weapon_subtype = WeaponSubtype.BOW
 	item.weight = 30
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.weapon_damage = 3
 	item.ranged_damage_bonus = 3
 	item.on_self_damage = 3
@@ -732,7 +723,6 @@ static func create_bow_of_deep_wounds() -> ItemData:
 	item.item_type_name = "Bow"
 	item.weapon_subtype = WeaponSubtype.BOW
 	item.weight = 50
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.weapon_damage = 10
 	item.on_self_damage = 3
 	item.card_slots = 2
@@ -746,7 +736,6 @@ static func create_club() -> ItemData:
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
 	item.weight = 25
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.weapon_damage = 1
 	item.description = "+1 damage. Weight 25."
 	return item
@@ -784,7 +773,6 @@ static func create_shadow_dagger() -> ItemData:
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
 	item.weight = 10
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.weapon_damage = 4
 	item.special_effect = SpecialEffect.ON_KILL_INVISIBLE
 	item.special_effect_value = 75  # Cooldown 75 tempo
@@ -801,7 +789,6 @@ static func create_pocket_knife() -> ItemData:
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
 	item.weight = 1
-	item.weapon_hand = WeaponHand.ONE_HAND
 	item.weapon_damage = 1
 	item.special_effect = SpecialEffect.POCKET_KNIFE_PROC
 	item.description = "On attack speed proc: attack resolves on first tick and costs 2 less tempo (after halving). Weight 1."

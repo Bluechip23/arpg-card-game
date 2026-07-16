@@ -469,9 +469,24 @@ func get_determination_description() -> String:
 # STRENGTH CALCULATIONS
 # ============================================
 
+# Wielding something two-handed ties up both arms: total carry capacity drops
+# to 80%. (The gripped item's own weight halves — see Inventory's two-handed
+# constants — so the trade only pays off for genuinely heavy gear.)
+const TWO_HAND_CAPACITY_MULT: float = 0.8
+
+var two_hand_grip_active: bool = false  # set by Inventory.set_two_handed
+var two_hand_damage_bonus: int = 0      # from the gripped weapon's ORIGINAL weight
+
 func get_carry_capacity() -> int:
-	# Uses effective strength (with determination)
-	return base_carry_capacity + (strength * 10)
+	return get_carry_capacity_for_grip(two_hand_grip_active)
+
+func get_carry_capacity_for_grip(two_handing: bool) -> int:
+	# Uses effective strength (with determination) — a DET berserker's capacity
+	# genuinely spikes at low HP, which can turn a two-hander one-handable.
+	var cap = base_carry_capacity + (strength * 10)
+	if two_handing:
+		cap = floori(cap * TWO_HAND_CAPACITY_MULT)
+	return cap
 
 func get_free_carry_capacity() -> int:
 	return get_carry_capacity() - current_carry_load
@@ -483,6 +498,12 @@ func get_strength_damage_bonus() -> int:
 func set_carry_load(weight: int) -> void:
 	current_carry_load = weight
 	print("[STATS] Carry load: %d / %d" % [current_carry_load, get_carry_capacity()])
+
+func set_two_hand_state(active: bool, damage_bonus: int) -> void:
+	two_hand_grip_active = active
+	two_hand_damage_bonus = damage_bonus
+	print("[STATS] Two-handed grip %s (+%d damage), capacity %d" % [
+		"ON" if active else "off", damage_bonus, get_carry_capacity()])
 
 func is_overburdened() -> bool:
 	return current_carry_load > get_carry_capacity()
@@ -576,11 +597,11 @@ func get_tempo_until_mana_regen() -> int:
 	return maxi(1, int(ceil(_tempo_until_mana_regen)))
 
 func get_effective_physical_damage(base_damage: int) -> int:
-	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage
+	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	return max(1, damage)
 
 func get_effective_ranged_damage(base_damage: int) -> int:
-	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage
+	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	return max(1, damage)
 
 func get_effective_spell_damage(base_damage: int) -> int:

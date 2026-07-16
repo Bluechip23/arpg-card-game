@@ -607,8 +607,6 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 
 	if item.weapon_damage > 0:
 		_add_detail_line(vbox, "Weapon Damage: %d" % item.weapon_damage, Color(1.0, 0.5, 0.3))
-	if item.is_two_handed:
-		_add_detail_line(vbox, "Two-Handed", Color(0.8, 0.6, 0.3))
 
 	if item.fire_damage_percent > 0:
 		_add_detail_line(vbox, "+%.0f%% Fire Damage" % item.fire_damage_percent, Color(1.0, 0.5, 0.2))

@@ -33,6 +33,31 @@ var gauntlet_cooldown_mana: bool = false  # Cory
 # Default off-hand penalty
 const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 
+# ============================================
+# TWO-HANDED WIELDING
+# ============================================
+# Any weapon or shield can be gripped with both hands — a per-slot player
+# choice, never an item property. The grip halves the item's carried weight
+# (letting weaker characters wield huge gear) but drops TOTAL carry capacity
+# to 80% (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second hand
+# slot. Weapons gain damage from their ORIGINAL weight; shields gain Basic
+# Block armor the same way.
+const TWO_HAND_WEIGHT_MULT: float = 0.5
+const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 3.0  # +1 damage/block per 3 weight
+
+var two_handed_slot: int = -1       # weapon slot currently gripped with both hands
+var two_handed_lock_slot: int = -1  # the empty hand slot the grip occupies
+
+# ============================================
+# EQUIPMENT BUILDS (loadouts I / II / III)
+# ============================================
+const BUILD_COUNT: int = 3
+var builds: Array = [null, null, null]  # saved equipment snapshots (null = never used)
+var active_build: int = 0
+# Set while switch_build() rearranges gear: per-item carry gates are skipped
+# because the switch validates the END state as a whole before starting.
+var _bulk_build_switch: bool = false
+
 var character_name: String = ""
 
 # Equipped items
@@ -216,12 +241,26 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	if slot_array[slot_index] != null:
 		print("[INVENTORY] Slot %d already occupied" % slot_index)
 		return false
-	
+
+	# A two-handed grip occupies a second hand slot — nothing else fits there.
+	if slot_array == equipped_weapons and two_handed_slot >= 0 and slot_index == two_handed_lock_slot:
+		print("[INVENTORY] Slot %d is holding the two-handed grip" % slot_index)
+		return false
+
+	# Hard carry gate: refuse an equip that would push the character (further)
+	# past capacity. Two-handing halves an item's carried weight, which is what
+	# lets a weaker character take on heavy gear.
+	if not _bulk_build_switch and not _carry_change_allowed(_effective_item_weight(item, -1), two_handed_slot >= 0):
+		print("[INVENTORY] %s is too heavy! Carry: %d/%d, item weight %d" % [
+			item.item_name, get_total_weight(),
+			player_stats.get_carry_capacity() if player_stats else 0, item.weight])
+		return false
+
 	slot_array[slot_index] = item
-	
-	# Slot index > 0 means off-hand; two-handed weapons never get the penalty
-	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
-					   slot_index > 0 and not item.is_two_handed)
+
+	# Slot index > 0 means off-hand. (A later two-handed grip re-applies the
+	# item's bonuses at full strength — see set_two_handed.)
+	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and slot_index > 0)
 
 	_apply_item_bonuses(item, true, is_off_hand)
 	_apply_special_effect(item, true)
@@ -244,9 +283,12 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 		return null
 	
 	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
-					   slot_index > 0 and not item.is_two_handed)
+					   slot_index > 0 and slot_index != two_handed_slot)
 
 	slot_array[slot_index] = null
+	# Losing the item releases the two-handed grip with it
+	if slot_array == equipped_weapons and slot_index == two_handed_slot:
+		_clear_two_handed_state()
 	_apply_item_bonuses(item, false, is_off_hand)
 	_apply_special_effect(item, false)
 	
@@ -674,21 +716,33 @@ func get_total_weight() -> int:
 	
 	for item in equipped_gauntlets:
 		if item: total += item.weight
-	
-	for item in equipped_weapons:
-		if item: total += item.weight
+
+	for i in range(equipped_weapons.size()):
+		var item = equipped_weapons[i]
+		if item: total += _effective_item_weight(item, i)
 
 	for item in equipped_quivers:
 		if item: total += item.weight
 
 	return total
 
+## Carried weight of one item: chest reduction (Brad) and the two-handed grip
+## both lighten the load. Pass the weapon-slot index (or -1 when not equipped
+## in a hand) so the grip discount applies to the right slot.
+func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
+	var w = item.weight
+	if item.item_type == ItemData.ItemType.CHEST:
+		w = floori(w * (1.0 - chest_weight_reduction))
+	if weapon_slot_index >= 0 and weapon_slot_index == two_handed_slot:
+		w = floori(w * TWO_HAND_WEIGHT_MULT)
+	return w
+
 func get_total_weapon_damage() -> int:
 	var total = 0
 	for i in range(equipped_weapons.size()):
 		var weapon = equipped_weapons[i]
 		if weapon:
-			var is_off_hand = (i > 0 and not weapon.is_two_handed)
+			var is_off_hand = (i > 0 and i != two_handed_slot)
 			if is_off_hand:
 				total += floori(weapon.weapon_damage * get_off_hand_modifier())
 			else:
@@ -706,6 +760,346 @@ func get_slot_info() -> Dictionary:
 		"weapon": {"max": weapon_slots, "equipped": equipped_weapons},
 		"quiver": {"max": quiver_slots, "equipped": equipped_quivers}
 	}
+
+# ============================================
+# TWO-HANDED WIELDING
+# ============================================
+
+func is_two_handing() -> bool:
+	return two_handed_slot >= 0
+
+func get_two_handed_item() -> ItemData:
+	if two_handed_slot < 0 or two_handed_slot >= equipped_weapons.size():
+		return null
+	return equipped_weapons[two_handed_slot]
+
+func is_grip_locked_slot(slot_index: int) -> bool:
+	## True for the empty hand slot consumed by an active two-handed grip.
+	return two_handed_slot >= 0 and slot_index == two_handed_lock_slot
+
+func get_two_hand_block_bonus(shield: ItemData) -> int:
+	## Extra Basic Block armor when THIS shield is the item braced two-handed.
+	if shield == null or get_two_handed_item() != shield:
+		return 0
+	return floori(shield.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
+
+func set_two_handed(slot_index: int, enabled: bool) -> bool:
+	## Grip (or release) the weapon/shield in a hand slot with both hands.
+	if enabled:
+		return _enable_two_handed(slot_index)
+	if two_handed_slot != slot_index:
+		return false
+	return _disable_two_handed()
+
+func _enable_two_handed(slot_index: int) -> bool:
+	if two_handed_slot == slot_index:
+		return true
+	if two_handed_slot >= 0:
+		print("[INVENTORY] Already two-handing slot %d — only two hands!" % two_handed_slot)
+		return false
+	if slot_index < 0 or slot_index >= weapon_slots:
+		return false
+	var item = equipped_weapons[slot_index]
+	if item == null or item.item_type != ItemData.ItemType.WEAPON:
+		print("[INVENTORY] Nothing in slot %d that can be gripped two-handed" % slot_index)
+		return false
+
+	# The grip needs a free hand: claim the lowest empty weapon slot.
+	var lock = -1
+	for i in range(weapon_slots):
+		if i != slot_index and equipped_weapons[i] == null:
+			lock = i
+			break
+	if lock < 0:
+		print("[INVENTORY] No free hand to two-hand %s" % item.item_name)
+		return false
+
+	# Carry gate on the resulting state: item weight halves, but capacity drops.
+	var weight_delta = floori(item.weight * TWO_HAND_WEIGHT_MULT) - _effective_item_weight(item, slot_index)
+	if not _carry_change_allowed(weight_delta, true):
+		print("[INVENTORY] Two-handing %s would leave you overburdened" % item.item_name)
+		return false
+
+	# An off-hand item gripped with both hands sheds the off-hand penalty:
+	# strip the penalized bonuses now, re-apply at full strength below.
+	if slot_index > 0:
+		_apply_item_bonuses(item, false, true)
+
+	two_handed_slot = slot_index
+	two_handed_lock_slot = lock
+	if player_stats:
+		var dmg = 0
+		if item.weapon_subtype != ItemData.WeaponSubtype.SHIELD:
+			dmg = floori(item.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
+		player_stats.set_two_hand_state(true, dmg)
+
+	if slot_index > 0:
+		_apply_item_bonuses(item, true, false)
+	else:
+		_recalculate_carry_load()
+		if player_stats:
+			player_stats.recalculate_derived_stats()
+
+	equipment_changed.emit()
+	print("[INVENTORY] Gripped %s two-handed (weight %d→%d, hand slot %d locked)" % [
+		item.item_name, item.weight, floori(item.weight * TWO_HAND_WEIGHT_MULT), lock])
+	return true
+
+func _disable_two_handed() -> bool:
+	var slot_index = two_handed_slot
+	var item = equipped_weapons[slot_index] if slot_index < equipped_weapons.size() else null
+	if item:
+		# Carry gate on reverting: the item's full weight comes back.
+		var weight_delta = _effective_item_weight(item, -1) - _effective_item_weight(item, slot_index)
+		if not _carry_change_allowed(weight_delta, false):
+			print("[INVENTORY] Too heavy to hold %s in one hand right now" % item.item_name)
+			return false
+
+	if item and slot_index > 0:
+		_apply_item_bonuses(item, false, false)
+	_clear_two_handed_state()
+	if item and slot_index > 0:
+		_apply_item_bonuses(item, true, true)
+	else:
+		_recalculate_carry_load()
+		if player_stats:
+			player_stats.recalculate_derived_stats()
+
+	equipment_changed.emit()
+	if item:
+		print("[INVENTORY] Released %s to a one-handed grip" % item.item_name)
+	return true
+
+func _clear_two_handed_state() -> void:
+	two_handed_slot = -1
+	two_handed_lock_slot = -1
+	if player_stats:
+		player_stats.set_two_hand_state(false, 0)
+
+## True if a change in carried weight / grip leaves the character no MORE
+## overburdened than they already are. (Being overburdened can still happen
+## passively — e.g. a DET berserker's capacity spike fading as they heal —
+## but no deliberate action may make it worse.)
+func _carry_change_allowed(load_delta: int, two_handing_after: bool) -> bool:
+	if _bulk_build_switch or not player_stats:
+		return true
+	var load_now = get_total_weight()
+	var cap_now = player_stats.get_carry_capacity()
+	var load_after = load_now + load_delta
+	var cap_after = player_stats.get_carry_capacity_for_grip(two_handing_after)
+	if load_after <= cap_after:
+		return true
+	return (load_after - cap_after) <= maxi(0, load_now - cap_now)
+
+# ============================================
+# EQUIPMENT SWAP TEMPO COSTS
+# ============================================
+
+## In-combat tempo price for changing what's worn in a slot. Removing an item
+## without replacing it is half price (rounded down). Out of combat swaps are
+## free — main.gd only charges these while enemies are in aggro range.
+func get_swap_tempo_cost(item_type: ItemData.ItemType, unequip_only: bool = false) -> int:
+	var cost = 2
+	match item_type:
+		ItemData.ItemType.HELM, ItemData.ItemType.RING, ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER:
+			cost = 2
+		ItemData.ItemType.GAUNTLETS, ItemData.ItemType.BELT, ItemData.ItemType.BOOTS:
+			cost = 3
+		ItemData.ItemType.CHEST:
+			cost = 8
+	return floori(cost / 2.0) if unequip_only else cost
+
+# ============================================
+# EQUIPMENT BUILDS (loadouts I / II / III)
+# ============================================
+
+func _snapshot_equipment() -> Dictionary:
+	return {
+		"helms": equipped_helms.duplicate(),
+		"chests": equipped_chests.duplicate(),
+		"rings": equipped_rings.duplicate(),
+		"belts": equipped_belts.duplicate(),
+		"boots": equipped_boots.duplicate(),
+		"gauntlets": equipped_gauntlets.duplicate(),
+		"weapons": equipped_weapons.duplicate(),
+		"two_handed_slot": two_handed_slot,
+	}
+
+## The seven live slot arrays with their snapshot keys and equip types.
+## (equipped_quivers is vestigial — quiver items live in the weapon slots.)
+func _build_slot_sets() -> Array:
+	return [
+		["helms", equipped_helms, ItemData.ItemType.HELM],
+		["chests", equipped_chests, ItemData.ItemType.CHEST],
+		["rings", equipped_rings, ItemData.ItemType.RING],
+		["belts", equipped_belts, ItemData.ItemType.BELT],
+		["boots", equipped_boots, ItemData.ItemType.BOOTS],
+		["gauntlets", equipped_gauntlets, ItemData.ItemType.GAUNTLETS],
+		["weapons", equipped_weapons, ItemData.ItemType.WEAPON],
+	]
+
+func _item_available(item: ItemData) -> bool:
+	## An item can be worn by a build if it's still in the backpack or equipped.
+	if stored_items.has(item):
+		return true
+	for set_info in _build_slot_sets():
+		if set_info[1].has(item):
+			return true
+	return false
+
+## Switch to equipment build `target` (0-2). The current gear is snapshotted
+## into the outgoing build; the target build's gear is put on. Returns
+## {success, tempo_cost, reason, missing} — tempo_cost is the sum of per-slot
+## swap costs for everything that actually changed (main.gd charges it only
+## in combat). Items a build remembers but the player no longer owns are
+## skipped and reported in `missing`.
+func switch_build(target: int) -> Dictionary:
+	var result = {"success": false, "tempo_cost": 0, "reason": "", "missing": []}
+	if target < 0 or target >= BUILD_COUNT:
+		result["reason"] = "Invalid build"
+		return result
+
+	builds[active_build] = _snapshot_equipment()
+	if target == active_build:
+		result["success"] = true
+		return result
+	if builds[target] == null:
+		# First use: the new build starts as a copy of what's worn right now.
+		builds[target] = _snapshot_equipment()
+		active_build = target
+		result["success"] = true
+		equipment_changed.emit()
+		print("[INVENTORY] Build %d initialized from current gear" % (target + 1))
+		return result
+
+	var snap: Dictionary = builds[target]
+	var sets = _build_slot_sets()
+
+	# --- Plan: what should end up in each slot (dropping lost items) ---
+	var planned := {}
+	for set_info in sets:
+		var live: Array = set_info[1]
+		var want: Array = snap.get(set_info[0], [])
+		var plan := []
+		for i in range(live.size()):
+			var target_item: ItemData = want[i] if i < want.size() else null
+			if target_item != null and not _item_available(target_item):
+				result["missing"].append(target_item.item_name)
+				target_item = null
+			plan.append(target_item)
+		planned[set_info[0]] = plan
+
+	# Where does the grip land? Only valid on a weapon that's actually coming.
+	var target_grip: int = snap.get("two_handed_slot", -1)
+	if target_grip >= 0:
+		var pw: Array = planned["weapons"]
+		var grip_item: ItemData = pw[target_grip] if target_grip < pw.size() else null
+		if grip_item == null or grip_item.item_type != ItemData.ItemType.WEAPON:
+			target_grip = -1
+
+	# --- Cost + storage-space + carry validation before touching anything ---
+	var cost = 0
+	var removed: Array = []
+	var incoming: Array = []
+	var hands_changed = false
+	for set_info in sets:
+		var live: Array = set_info[1]
+		var plan: Array = planned[set_info[0]]
+		for i in range(live.size()):
+			if live[i] == plan[i]:
+				continue
+			if set_info[0] == "weapons":
+				hands_changed = true
+			if plan[i] == null:
+				cost += get_swap_tempo_cost(live[i].item_type, true)
+			else:
+				cost += get_swap_tempo_cost(plan[i].item_type, false)
+			if live[i] != null:
+				removed.append(live[i])
+			if plan[i] != null:
+				incoming.append(plan[i])
+	# Re-gripping alone (same items, different grip) is a hand action.
+	if target_grip != two_handed_slot and not hands_changed:
+		cost += get_swap_tempo_cost(ItemData.ItemType.WEAPON)
+
+	if cost == 0 and target_grip == two_handed_slot:
+		active_build = target
+		result["success"] = true
+		return result
+
+	var to_storage = 0
+	for it in removed:
+		if not incoming.has(it):
+			to_storage += 1
+	var from_storage = 0
+	for it in incoming:
+		if stored_items.has(it):
+			from_storage += 1
+	if stored_items.size() + to_storage - from_storage > max_storage_slots:
+		result["reason"] = "Not enough inventory space"
+		return result
+
+	# Carry gate on the END state as a whole (per-item gates are bypassed).
+	if player_stats:
+		var final_load = 0
+		for set_info in sets:
+			var plan: Array = planned[set_info[0]]
+			for i in range(plan.size()):
+				if plan[i] == null:
+					continue
+				var w: int = plan[i].weight
+				if plan[i].item_type == ItemData.ItemType.CHEST:
+					w = floori(w * (1.0 - chest_weight_reduction))
+				if set_info[0] == "weapons" and i == target_grip:
+					w = floori(w * TWO_HAND_WEIGHT_MULT)
+				final_load += w
+		var cap_after = player_stats.get_carry_capacity_for_grip(target_grip >= 0)
+		var over_now = maxi(0, get_total_weight() - player_stats.get_carry_capacity())
+		if final_load > cap_after and (final_load - cap_after) > over_now:
+			result["reason"] = "Too heavy — over carry capacity"
+			return result
+
+	# --- Execute ---
+	_bulk_build_switch = true
+	if two_handed_slot >= 0:
+		set_two_handed(two_handed_slot, false)
+
+	var freed: Array = []
+	for set_info in sets:
+		var live: Array = set_info[1]
+		var plan: Array = planned[set_info[0]]
+		for i in range(live.size()):
+			if live[i] != plan[i] and live[i] != null:
+				var it = unequip_item(set_info[2], i)
+				if it:
+					freed.append(it)
+	for set_info in sets:
+		var live: Array = set_info[1]
+		var plan: Array = planned[set_info[0]]
+		for i in range(live.size()):
+			if live[i] != plan[i] and plan[i] != null:
+				var it: ItemData = plan[i]
+				if freed.has(it):
+					freed.erase(it)
+				else:
+					var si = stored_items.find(it)
+					if si >= 0:
+						stored_items.remove_at(si)
+				equip_item(it, i)
+	for it in freed:
+		stored_items.append(it)
+
+	if target_grip >= 0:
+		set_two_handed(target_grip, true)
+	_bulk_build_switch = false
+
+	active_build = target
+	result["success"] = true
+	result["tempo_cost"] = cost
+	storage_changed.emit()
+	equipment_changed.emit()
+	print("[INVENTORY] Switched to build %d (%d tempo worth of swaps)" % [target + 1, cost])
+	return result
 
 # ============================================
 # ITEM STORAGE (NON-EQUIPPED INVENTORY)
@@ -806,16 +1200,23 @@ func equip_from_storage(storage_index: int, slot_index: int) -> bool:
 	if slot_index < 0 or slot_index >= max_slots:
 		return false
 	if slot_array[slot_index] != null:
-		# Swap: unequip current item into the storage slot, then equip the new one
+		# Swap: unequip current item into the storage slot, then equip the new
+		# one. equip_item can refuse (carry gate) — undo instead of losing gear.
 		var old_item = unequip_item(item.item_type, slot_index)
+		if not equip_item(item, slot_index):
+			if old_item and not equip_item(old_item, slot_index):
+				stored_items.append(old_item)  # last resort: never drop an item
+				storage_changed.emit()
+			return false
 		if old_item:
 			stored_items[storage_index] = old_item
-			storage_changed.emit()
 		else:
-			remove_stored_item(storage_index)
+			stored_items.remove_at(storage_index)
+		storage_changed.emit()
 	else:
+		if not equip_item(item, slot_index):
+			return false
 		remove_stored_item(storage_index)
-	equip_item(item, slot_index)
 	return true
 
 func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:

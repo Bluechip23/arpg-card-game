@@ -1515,6 +1515,8 @@ func _on_block_pressed() -> void:
 	var block_amount = shield.armor_bonus
 	if block_amount <= 0:
 		block_amount = 3  # Fallback for shields without armor_bonus
+	# Bracing the shield with both hands adds block from its original weight
+	block_amount += inventory.get_two_hand_block_bonus(shield)
 
 	stats.add_armor(block_amount)
 
@@ -1534,6 +1536,26 @@ func _on_wait_pressed() -> void:
 	print("[MAIN] Wait - advancing tempo by 1")
 	tempo_manager.add_tempo(1)
 
+func _is_in_combat() -> bool:
+	## Equipment swaps only cost tempo when something can punish them: an
+	## active roguelike battle, or any living enemy close enough to aggro.
+	if _roguelike_active:
+		return true
+	if not enemy_spawner or not player:
+		return false
+	for enemy in enemy_spawner.get_living_enemies():
+		if enemy.global_position.distance_to(player.global_position) <= enemy.aggro_range:
+			return true
+	return false
+
+func _on_swap_tempo_spent(cost: int, action: String) -> void:
+	## Changing gear mid-fight advances the clock like Basic Block / Wait does.
+	## The character panel emits this for every swap; free out of combat.
+	if cost <= 0 or not _is_in_combat():
+		return
+	tempo_manager.add_tempo(cost)
+	add_battle_log("%s — %d tempo" % [action, cost], Color(0.85, 0.75, 0.5))
+
 func _update_block_button_visibility() -> void:
 	if not _block_button:
 		return
@@ -1541,6 +1563,7 @@ func _update_block_button_visibility() -> void:
 	if inventory and inventory.has_shield_equipped():
 		var shield = inventory.get_equipped_shield()
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
+		block_val += inventory.get_two_hand_block_bonus(shield)
 		_block_button.text = "5T"
 		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs 5 tempo." % [shield.item_name, block_val]
 		_block_button.visible = true
@@ -2755,6 +2778,7 @@ func select_character(character: CharacterData) -> void:
 		player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(player))
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
+	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
 
 
 	deck_manager.initialize_deck(character)
@@ -7152,9 +7176,10 @@ func _on_give_item(item_name: String) -> void:
 
 		for i in range(max_slots):
 			if slot_array[i] == null:
-				inv.equip_item(item, i)
-				print("[MAIN] Gave item: %s (equipped)" % item_name)
-				return
+				# Can fail (carry gate / grip-locked hand) — fall through to storage
+				if inv.equip_item(item, i):
+					print("[MAIN] Gave item: %s (equipped)" % item_name)
+					return
 
 		# No equipment slot available - store in inventory
 		if inv.store_item(item):
