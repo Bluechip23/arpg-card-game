@@ -43,7 +43,7 @@ const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 # slot. Weapons gain damage from their ORIGINAL weight; shields gain Basic
 # Block armor the same way.
 const TWO_HAND_WEIGHT_MULT: float = 0.5
-const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 3.0  # +1 damage/block per 3 weight
+const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 10.0  # +1 damage/block per 10 weight
 
 var two_handed_slot: int = -1       # weapon slot currently gripped with both hands
 var two_handed_lock_slot: int = -1  # the empty hand slot the grip occupies

@@ -70,7 +70,7 @@ func _initialize() -> void:
 	_check(inv.equip_item(tower, 1), "tower shield equips in slot 1")
 	_check(inv.set_two_handed(1, true), "tower shield braces two-handed")
 	_check(stats.two_hand_damage_bonus == 0, "braced shield grants no damage bonus")
-	_check(inv.get_two_hand_block_bonus(tower) == 20, "braced shield: +20 Basic Block armor (60/3)")
+	_check(inv.get_two_hand_block_bonus(tower) == 6, "braced shield: +6 Basic Block armor (60/10)")
 	inv.set_two_handed(1, false)
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
 
