@@ -254,7 +254,6 @@ func _setup_characters() -> void:
 	quiz_data.base_mana = 5
 	quiz_data.base_mana_regen = 1.0
 	quiz_data.base_draw_timer = 5
-	quiz_data.base_hand_size = 5
 	quiz_data.passive_description = "Determined by your answers"
 	quiz_data.starting_item_name = "Determined by quiz"
 	quiz_data.starting_item_description = "Answer 11 questions to build your character"

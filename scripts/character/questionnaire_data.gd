@@ -524,7 +524,6 @@ static func build_character(result: Dictionary) -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.base_hand_size = 5
 
 	# Mixed starting cards from two existing character card pools
 	data.starting_card_ids = result["starting_card_ids"]

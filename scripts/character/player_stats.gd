@@ -71,7 +71,7 @@ var base_attack_speed_counter: int = 30
 var current_attack_counter: int = 0
 
 var base_draw_timer: float = 5.0
-var hand_size: int = 6
+var hand_size: int = 4
 
 ## Mana regen fires every this many global tempo (default 5 = every tempo cycle)
 var mana_regen_tempo_interval: float = 5.0
@@ -390,7 +390,7 @@ func restore_progression(data: Dictionary) -> void:
 	print("[STATS] Progression restored: Level %d, XP %d, %d passives" % [current_level, current_xp, skill_tree_passives.size()])
 
 func recalculate_derived_stats() -> void:
-	var base_hand = character_data.base_hand_size if character_data else 6
+	var base_hand = character_data.base_hand_size if character_data else 4
 	hand_size = base_hand + get_wisdom_hand_bonus()
 	stats_updated.emit()
 
