@@ -6,6 +6,9 @@ extends CanvasLayer
 signal closed
 signal card_slotted(card: Card, item: ItemData)
 signal card_unslotted(card: Card, item: ItemData)
+## Emitted after any gear change with its tempo price (equip/unequip/regrip/
+## build switch). main.gd charges it on the tempo clock — but only in combat.
+signal swap_tempo_spent(cost: int, action: String)
 
 # Preloaded so this panel doesn't depend on the newer cell class_names being in
 # Godot's global class cache on first run (matches the pattern in main.gd).
@@ -83,6 +86,11 @@ const DEBUFF_AFFECTS := {
 # _split_windows): stats/portrait live in `panel`, equipment lives here.
 var _inv_panel: PanelContainer = null
 
+# Equipment build (loadout) buttons I / II / III in the inventory header.
+const BUILD_NUMERALS := ["I", "II", "III"]
+var _build_buttons: Array = []
+var _inv_message_label: Label = null  # transient feedback under the header
+
 func _ready() -> void:
 	layer = 100
 	_apply_panel_style()
@@ -113,11 +121,37 @@ func _split_windows() -> void:
 	var inv_vbox = VBoxContainer.new()
 	inv_margin.add_child(inv_vbox)
 
+	# Header row: title on the left, the three build buttons top-right.
+	var inv_header = HBoxContainer.new()
+	inv_vbox.add_child(inv_header)
+
 	var inv_title = Label.new()
 	inv_title.text = "INVENTORY"
 	inv_title.add_theme_font_size_override("font_size", 18)
 	inv_title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
-	inv_vbox.add_child(inv_title)
+	inv_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inv_header.add_child(inv_title)
+
+	_build_buttons.clear()
+	for i in range(BUILD_NUMERALS.size()):
+		var bbtn = Button.new()
+		bbtn.text = BUILD_NUMERALS[i]
+		bbtn.custom_minimum_size = Vector2(30, 26)
+		bbtn.focus_mode = Control.FOCUS_NONE
+		bbtn.add_theme_font_size_override("font_size", 13)
+		bbtn.tooltip_text = "Switch to equipment build %s\n(swaps cost tempo in combat)" % BUILD_NUMERALS[i]
+		bbtn.pressed.connect(_on_build_pressed.bind(i))
+		inv_header.add_child(bbtn)
+		_build_buttons.append(bbtn)
+
+	# Transient feedback line ("Too heavy", "Missing: ...", ...).
+	_inv_message_label = Label.new()
+	_inv_message_label.text = ""
+	_inv_message_label.add_theme_font_size_override("font_size", 10)
+	_inv_message_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.5))
+	_inv_message_label.visible = false
+	inv_vbox.add_child(_inv_message_label)
+	_refresh_build_buttons()
 
 	# Move the equipment half of the old panel into the new window.
 	stats_vbox.get_node("HSeparator2").reparent(inv_vbox)
@@ -253,6 +287,7 @@ func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm
 	item_tooltip = get_node_or_null("/root/Main/UI/ItemTooltip")
 
 func show_panel() -> void:
+	_refresh_build_buttons()
 	update_display()
 	panel.visible = true
 	if _inv_panel:
@@ -612,12 +647,13 @@ func _on_sandbox_stat_adjust(key: String, delta: int) -> void:
 
 func _build_derived_stats_text() -> String:
 	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit)
+	var carry_flag = " OVER!" if player_stats.is_overburdened() else ""
 	return """HP   %d/%d
 Mana %.0f/%d
 Armor  %d
 Decay  -%d/t
 Crit   %d%%
-Carry  %d/%d
+Carry  %d/%d%s
 Regen  %.1f/t""" % [
 		player_stats.current_health,
 		player_stats.max_health,
@@ -628,6 +664,7 @@ Regen  %.1f/t""" % [
 		total_crit,
 		player_stats.current_carry_load,
 		player_stats.get_carry_capacity(),
+		carry_flag,
 		player_stats.get_effective_mana_regen()
 	]
 
@@ -821,6 +858,45 @@ func _make_drag_preview(text: String, color: Color) -> Control:
 	return wrap
 
 # ---------------------------------------------------------------------------
+# Equipment builds (loadouts I / II / III)
+# ---------------------------------------------------------------------------
+
+func _on_build_pressed(index: int) -> void:
+	if not inventory:
+		return
+	var result: Dictionary = inventory.switch_build(index)
+	if result.get("success", false):
+		var cost: int = result.get("tempo_cost", 0)
+		if cost > 0:
+			swap_tempo_spent.emit(cost, "Swapped to build %s" % BUILD_NUMERALS[index])
+		var missing: Array = result.get("missing", [])
+		if missing.size() > 0:
+			_flash_inventory_message("Build %s missing: %s" % [BUILD_NUMERALS[index], ", ".join(missing)])
+	else:
+		_flash_inventory_message(result.get("reason", "Can't switch build"))
+	_refresh_build_buttons()
+	update_display()
+
+func _refresh_build_buttons() -> void:
+	for i in range(_build_buttons.size()):
+		var btn: Button = _build_buttons[i]
+		if not is_instance_valid(btn):
+			continue
+		var active = inventory != null and inventory.active_build == i
+		btn.add_theme_color_override("font_color",
+			Color(1.0, 0.85, 0.4) if active else Color(0.55, 0.55, 0.7))
+
+func _flash_inventory_message(text: String) -> void:
+	if not _inv_message_label or not is_instance_valid(_inv_message_label):
+		return
+	_inv_message_label.text = text
+	_inv_message_label.visible = true
+	var tmr = get_tree().create_timer(3.0)
+	tmr.timeout.connect(func():
+		if _inv_message_label and is_instance_valid(_inv_message_label) and _inv_message_label.text == text:
+			_inv_message_label.visible = false)
+
+# ---------------------------------------------------------------------------
 # Drag & drop handlers (called by the slot / storage cells)
 # ---------------------------------------------------------------------------
 
@@ -830,32 +906,45 @@ func _handle_item_drop_on_slot(data: Dictionary, target_type: int, target_slot: 
 		return
 	var src = data.get("source")
 	if src == "storage":
-		inventory.equip_from_storage(data.get("storage_index"), target_slot)
+		var item: ItemData = data.get("item")
+		if inventory.equip_from_storage(data.get("storage_index"), target_slot):
+			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type), "Equipped %s" % item.item_name)
+		else:
+			_flash_inventory_message("Can't equip %s — too heavy or slot blocked" % item.item_name)
 	elif src == "equipped":
 		var from_slot: int = data.get("slot_index")
 		if from_slot == target_slot:
 			return
-		_move_equipped(target_type, from_slot, target_slot)
+		if _move_equipped(target_type, from_slot, target_slot):
+			var moved: ItemData = data.get("item")
+			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(moved.item_type), "Moved %s" % moved.item_name)
 	update_display()
 
 ## Move (or swap) an equipped item between two slots of the same type.
-func _move_equipped(item_type: int, from_slot: int, to_slot: int) -> void:
+## Returns true if anything actually moved.
+func _move_equipped(item_type: int, from_slot: int, to_slot: int) -> bool:
 	var moving = inventory.get_equipped_item(item_type, from_slot)
 	if moving == null:
-		return
+		return false
 	var target = inventory.get_equipped_item(item_type, to_slot)
 	inventory.unequip_item(item_type, from_slot)
 	if target != null:
 		inventory.unequip_item(item_type, to_slot)
 		inventory.equip_item(target, from_slot)
-	inventory.equip_item(moving, to_slot)
+	if not inventory.equip_item(moving, to_slot):
+		# Target slot refused (e.g. held by a two-handed grip) — put it back.
+		inventory.equip_item(moving, from_slot)
+		return false
+	return true
 
 ## An equipped item was dropped back onto the storage grid -> unequip it.
 func _handle_item_drop_on_storage(data: Dictionary) -> void:
 	if not inventory:
 		return
 	if data.get("source") == "equipped":
-		inventory.unequip_to_storage(data.get("item_type"), data.get("slot_index"))
+		var item: ItemData = data.get("item")
+		if inventory.unequip_to_storage(data.get("item_type"), data.get("slot_index")):
+			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type, true), "Unequipped %s" % item.item_name)
 		update_display()
 
 func _make_separator() -> HSeparator:
@@ -968,6 +1057,19 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 
 	vbox.add_child(_make_separator())
 
+	# Two-handed grip status (equipped weapons/shields only)
+	if storage_index < 0 and inventory and item.item_type == ItemData.ItemType.WEAPON \
+			and inventory.two_handed_slot == slot_index:
+		var th_info = Label.new()
+		var carried = floori(item.weight * Inventory.TWO_HAND_WEIGHT_MULT)
+		var bonus = floori(item.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
+		var bonus_word = "block" if item.weapon_subtype == ItemData.WeaponSubtype.SHIELD else "damage"
+		th_info.text = "Gripped two-handed: carried weight %d (of %d), +%d %s" % [carried, item.weight, bonus, bonus_word]
+		th_info.add_theme_font_size_override("font_size", 12)
+		th_info.add_theme_color_override("font_color", Color(0.95, 0.8, 0.45))
+		th_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(th_info)
+
 	# Action buttons
 	if storage_index >= 0:
 		# Stored item - show Equip button
@@ -979,6 +1081,23 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		var unequip_btn = _make_action_button("Unequip", Color(0.35, 0.15, 0.15), Color(0.7, 0.35, 0.35))
 		unequip_btn.pressed.connect(_on_unequip_item)
 		vbox.add_child(unequip_btn)
+
+	# Two-handed grip toggle for anything held in a hand slot (not quivers).
+	if storage_index < 0 and inventory and item.item_type == ItemData.ItemType.WEAPON:
+		var gripped = inventory.two_handed_slot == slot_index
+		var th_text: String
+		if gripped:
+			th_text = "Release to One Hand"
+		else:
+			var th_bonus = floori(item.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
+			if item.weapon_subtype == ItemData.WeaponSubtype.SHIELD:
+				th_text = "Brace Two-Handed (+%d block)" % th_bonus
+			else:
+				th_text = "Wield Two-Handed (+%d damage)" % th_bonus
+		var th_btn = _make_action_button(th_text, Color(0.3, 0.24, 0.1), Color(0.85, 0.7, 0.3))
+		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 80%% and occupies a second hand slot.\nCosts %d tempo in combat." % inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON)
+		th_btn.pressed.connect(_on_toggle_two_handed)
+		vbox.add_child(th_btn)
 
 	# Card slot management button (for equipped items with card slots)
 	if item.has_card_slots() and storage_index < 0:
@@ -1039,9 +1158,32 @@ func _on_unequip_item() -> void:
 
 	if inventory.is_storage_full():
 		print("[PANEL] Cannot unequip - inventory storage is full!")
+		_flash_inventory_message("Inventory storage is full")
 		return
 
-	inventory.unequip_to_storage(_detail_item_type, _detail_slot_index)
+	var item = _detail_item
+	if inventory.unequip_to_storage(_detail_item_type, _detail_slot_index):
+		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type, true), "Unequipped %s" % item.item_name)
+	_close_detail_panel()
+	update_display()
+
+func _on_toggle_two_handed() -> void:
+	if not inventory or not _detail_item or _detail_slot_index < 0:
+		return
+	var item = _detail_item
+	var enable = inventory.two_handed_slot != _detail_slot_index
+	if inventory.set_two_handed(_detail_slot_index, enable):
+		var action: String
+		if enable:
+			action = "Gripped %s two-handed" % item.item_name
+		else:
+			action = "Released %s to one hand" % item.item_name
+		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), action)
+	else:
+		if enable:
+			_flash_inventory_message("Can't two-hand %s — needs a free hand slot and enough capacity" % item.item_name)
+		else:
+			_flash_inventory_message("Too heavy to hold %s one-handed right now" % item.item_name)
 	_close_detail_panel()
 	update_display()
 
@@ -1056,15 +1198,20 @@ func _on_equip_stored_item() -> void:
 	var max_slots = inventory._get_max_slots(_detail_item.item_type)
 	var target_slot = -1
 	for i in range(max_slots):
-		if slot_array[i] == null:
+		if slot_array[i] == null and not inventory.is_grip_locked_slot(i if slot_array == inventory.equipped_weapons else -1):
 			target_slot = i
 			break
 
 	if target_slot < 0:
 		print("[PANEL] Cannot equip - no empty %s slot!" % _detail_item.get_type_name())
+		_flash_inventory_message("No free %s slot" % _detail_item.get_type_name())
 		return
 
-	inventory.equip_from_storage(_detail_storage_index, target_slot)
+	var item = _detail_item
+	if inventory.equip_from_storage(_detail_storage_index, target_slot):
+		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type), "Equipped %s" % item.item_name)
+	else:
+		_flash_inventory_message("Can't equip %s — too heavy" % item.item_name)
 	_close_detail_panel()
 	update_display()
 

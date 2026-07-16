@@ -28,7 +28,8 @@ func get_base_character() -> String:
 @export var base_mana: int = 10
 @export var base_mana_regen: float = 1.0  # Energy regen per turn
 @export var base_draw_timer: int = 5  # Turns between draws
-@export var base_hand_size: int = 6
+# Uniform for all characters — hand size only grows via WIS (+1 per 5) and gear.
+@export var base_hand_size: int = 4
 
 # Build state is @export so it persists when the character is saved to disk
 # (ResourceSaver only serializes exported properties). This is what lets a
@@ -119,7 +120,6 @@ static func create_ryan() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"slash", "slash", "slash",
 		"block", "block", "block",
@@ -152,7 +152,6 @@ static func create_jeremy() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"slash", "slash", "slash",
 		"block", "block", "block",
@@ -185,7 +184,6 @@ static func create_stephen() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"slash", "slash", "slash",
 		"block", "block", "block",
@@ -234,7 +232,6 @@ static func create_cory() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"slash", "slash", "slash",
 		"block", "block", "block",
@@ -267,7 +264,6 @@ static func create_brad() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.base_hand_size = 5
 	data.starting_card_ids = [
 		"slash", "slash", "slash",
 		"block", "block", "block",

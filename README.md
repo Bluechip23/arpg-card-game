@@ -219,9 +219,9 @@ static func create_your_item_name() -> ItemData:
 	item.hand_size_bonus = 0
 
 	# === WEAPON-SPECIFIC (only for weapons) ===
+	# Note: no item is inherently one- or two-handed. Wielding with both hands
+	# is a per-slot player choice (Inventory.set_two_handed), gated by weight.
 	item.weapon_damage = 0
-	item.weapon_hand = WeaponHand.MAIN_HAND  # MAIN_HAND, OFF_HAND, or TWO_HAND
-	item.is_two_handed = false
 	item.damage_percent_bonus = 0.0
 	item.fire_damage_percent = 0.0
 	item.ice_damage_percent = 0.0

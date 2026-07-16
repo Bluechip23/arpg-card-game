@@ -1015,6 +1015,9 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 			play_empower()
 		"look_around":
 			play_look_around()
+		# --- Systemic feedback (not tied to a card) ---
+		"level_up":
+			play_level_up()
 		_:
 			play_idle()
 
@@ -4475,6 +4478,128 @@ func _spawn_heart() -> void:
 func _spawn_armor_icon() -> void:
 	## An armour/shield symbol over the head — shown whenever armour is gained.
 	_spawn_shield()
+
+
+# =============================================================
+# LEVEL UP (swirling mist strand)
+# =============================================================
+
+func pop_level_up() -> void:
+	## Systemic "level up" flourish: a single strand of pale-gold mist rises
+	## from the feet, corkscrews around the body to above the head, then
+	## drifts off into the air and dissolves.
+	if _built:
+		play_level_up()
+
+
+func play_level_up() -> void:
+	if not _built:
+		return
+	_spawn_level_up_mist()
+
+
+# The strand is a camera-facing ribbon rebuilt every frame from a wobbling
+# helix, so it always reads as a line of mist — never a puff or a patch.
+const _MIST_DURATION := 2.4      # seconds for the full rise + drift-away
+const _MIST_TURNS := 2.6         # full loops around the body while rising
+const _MIST_PATH_END := 1.4      # path param: 1.0 = above the head, beyond = drifting away
+const _MIST_TRAIL := 0.45        # visible strand length, in path-param units
+const _MIST_SAMPLES := 48        # ribbon cross-sections per frame
+
+
+func _spawn_level_up_mist() -> void:
+	var root := Node3D.new()
+	root.name = "LevelUpMist"
+	_pivot.add_child(root)
+
+	var mi := MeshInstance3D.new()
+	mi.mesh = ImmediateMesh.new()
+	mi.material_override = _mist_ribbon_material()
+	root.add_child(mi)
+
+	var seed_offset := randf() * TAU
+	var tw := root.create_tween()
+	tw.tween_method(_update_level_up_mist.bind(mi, seed_offset), 0.0, 1.0, _MIST_DURATION)
+	tw.tween_callback(root.queue_free)
+
+
+func _mist_ribbon_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.vertex_color_use_as_albedo = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.emission_enabled = true
+	mat.emission = Color(0.9, 0.85, 0.6)
+	mat.emission_energy_multiplier = 0.6
+	# Soft falloff across the ribbon's width so the strand has no hard edges.
+	var grad := Gradient.new()
+	grad.set_color(0, Color(1, 1, 1, 0))
+	grad.set_color(1, Color(1, 1, 1, 0))
+	grad.add_point(0.5, Color(1, 1, 1, 1))
+	var tex := GradientTexture1D.new()
+	tex.gradient = grad
+	mat.albedo_texture = tex
+	return mat
+
+
+func _level_mist_point(s: float, seed_offset: float) -> Vector3:
+	## Point on the mist path in pivot space. s = 0 at the feet, 1 just above
+	## the head; past 1 the path opens outward and climbs faster (the strand
+	## "letting go" and floating away).
+	var ang := seed_offset + s * _MIST_TURNS * TAU
+	var radius := lerpf(0.5, 0.3, clampf(s, 0.0, 1.0))
+	var y := lerpf(0.06, 1.75, s)
+	if s > 1.0:
+		var e := s - 1.0
+		radius += e * e * 2.2
+		y += e * e * 1.6
+	# Low-amplitude wobble keeps it organic — a drifting wisp, not a corkscrew.
+	radius += 0.05 * sin(s * 19.0 + seed_offset)
+	y += 0.035 * sin(s * 27.0 + seed_offset * 1.7)
+	return Vector3(cos(ang) * radius, y, sin(ang) * radius)
+
+
+func _update_level_up_mist(u: float, mi: MeshInstance3D, seed_offset: float) -> void:
+	var mesh := mi.mesh as ImmediateMesh
+	if mesh == null or not mi.is_inside_tree():
+		return
+	mesh.clear_surfaces()
+
+	# The head of the strand eases along the path; the tail follows behind it,
+	# pinned to the feet until the strand has fully paid out.
+	var head := ease(u, 0.75) * _MIST_PATH_END
+	var tail := maxf(0.0, head - _MIST_TRAIL)
+	if head - tail < 0.02:
+		return
+	# Whole-strand dissolve over the final stretch of the effect.
+	var strand_alpha := clampf((1.0 - u) / 0.3, 0.0, 1.0) * 0.75
+
+	# Face the ribbon toward the camera so the line stays visible all the way round.
+	var cam := mi.get_viewport().get_camera_3d()
+	var cam_local := Vector3(0, 1, -4)
+	if cam:
+		cam_local = mi.to_local(cam.global_position)
+
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+	var side := Vector3.RIGHT
+	for i in range(_MIST_SAMPLES):
+		var f := float(i) / float(_MIST_SAMPLES - 1)
+		var s := lerpf(tail, head, f)
+		var p := _level_mist_point(s, seed_offset)
+		var tangent := _level_mist_point(s + 0.01, seed_offset) - _level_mist_point(s - 0.01, seed_offset)
+		var facing := tangent.cross(cam_local - p)
+		if facing.length_squared() > 0.000001:
+			side = facing.normalized()
+		# Thin at the tail, fullest near the head, pinched at the very tip.
+		var width := 0.05 * sin(PI * pow(f, 1.35))
+		var alpha := strand_alpha * lerpf(0.35, 1.0, f)
+		mesh.surface_set_color(Color(1.0, 0.96, 0.82, alpha))
+		mesh.surface_set_uv(Vector2(0.0, f))
+		mesh.surface_add_vertex(p - side * width)
+		mesh.surface_set_uv(Vector2(1.0, f))
+		mesh.surface_add_vertex(p + side * width)
+	mesh.surface_end()
 
 
 func _spawn_fangs() -> void:

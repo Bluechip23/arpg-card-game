@@ -1666,11 +1666,11 @@ func _execute_try_this(target, player_stats: PlayerStats) -> void:
 	if player_stats:
 		if randf() < 0.1:
 			player_stats.max_mana = max(1, player_stats.max_mana - 3)
-			player_stats.hand_size = max(1, player_stats.hand_size - 2)
+			player_stats.adjust_temp_hand(-2)
 			print("[CARD] Try This! Reversed! -3 mana pool, -2 hand size")
 		else:
 			player_stats.max_mana += 3
-			player_stats.hand_size += 2
+			player_stats.adjust_temp_hand(2)
 			print("[CARD] Try This! +3 mana pool, +2 hand size for 10 tempo")
 
 func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:

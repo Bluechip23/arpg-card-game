@@ -71,15 +71,26 @@ func _build_children() -> void:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var inv = _panel.inventory if _panel else null
 	if item:
 		label.add_theme_font_size_override("font_size", 9)
 		label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.95))
 		label.text = item.item_name
+		# Mark the item held with both hands
+		if inv and item_type == ItemData.ItemType.WEAPON and inv.two_handed_slot == slot_index:
+			label.text += " (2H)"
+			label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
 		tooltip_text = _build_item_tooltip()
 	else:
 		label.add_theme_font_size_override("font_size", 9)
 		label.add_theme_color_override("font_color", Color(0.45, 0.45, 0.55))
-		label.text = _label_override if _label_override != "" else _panel._slot_type_name(item_type)
+		if inv and item_type == ItemData.ItemType.WEAPON and inv.is_grip_locked_slot(slot_index):
+			# This empty hand is busy holding the two-handed grip.
+			label.text = "Both Hands"
+			label.add_theme_color_override("font_color", Color(0.85, 0.7, 0.35))
+			tooltip_text = "Occupied by the two-handed grip"
+		else:
+			label.text = _label_override if _label_override != "" else _panel._slot_type_name(item_type)
 	add_child(label)
 
 	# Card sub-slot in the bottom-right corner (only if the item has card slots).
@@ -124,6 +135,10 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 		return false
 	var dragged: ItemData = data.get("item")
 	if dragged == null:
+		return false
+	# A hand slot occupied by an active two-handed grip accepts nothing.
+	if item_type == ItemData.ItemType.WEAPON and _panel and _panel.inventory \
+			and _panel.inventory.is_grip_locked_slot(slot_index):
 		return false
 	if dragged.item_type == item_type:
 		return true

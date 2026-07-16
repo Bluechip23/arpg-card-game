@@ -71,7 +71,11 @@ var base_attack_speed_counter: int = 30
 var current_attack_counter: int = 0
 
 var base_draw_timer: float = 5.0
-var hand_size: int = 6
+# hand_size is DERIVED: base + WIS bonus + the two modifiers below. Never
+# add to hand_size directly — recalculate_derived_stats() rebuilds it.
+var hand_size: int = 4
+var equipment_hand_bonus: int = 0  # sum of equipped items' hand_size_bonus
+var temp_hand_modifier: int = 0    # card effects (Try This, etc.)
 
 ## Mana regen fires every this many global tempo (default 5 = every tempo cycle)
 var mana_regen_tempo_interval: float = 5.0
@@ -390,9 +394,15 @@ func restore_progression(data: Dictionary) -> void:
 	print("[STATS] Progression restored: Level %d, XP %d, %d passives" % [current_level, current_xp, skill_tree_passives.size()])
 
 func recalculate_derived_stats() -> void:
-	var base_hand = character_data.base_hand_size if character_data else 6
-	hand_size = base_hand + get_wisdom_hand_bonus()
+	var base_hand = character_data.base_hand_size if character_data else 4
+	hand_size = maxi(1, base_hand + get_wisdom_hand_bonus() + equipment_hand_bonus + temp_hand_modifier)
 	stats_updated.emit()
+
+func adjust_temp_hand(delta: int) -> void:
+	## Card-driven hand size changes (e.g. Try This ±2) — tracked separately so
+	## they survive stat recalculation.
+	temp_hand_modifier += delta
+	recalculate_derived_stats()
 
 func _print_stats() -> void:
 	print("[STATS] === %s ===" % character_data.character_name)
@@ -469,9 +479,24 @@ func get_determination_description() -> String:
 # STRENGTH CALCULATIONS
 # ============================================
 
+# Wielding something two-handed ties up both arms: total carry capacity drops
+# to 80%. (The gripped item's own weight halves — see Inventory's two-handed
+# constants — so the trade only pays off for genuinely heavy gear.)
+const TWO_HAND_CAPACITY_MULT: float = 0.8
+
+var two_hand_grip_active: bool = false  # set by Inventory.set_two_handed
+var two_hand_damage_bonus: int = 0      # from the gripped weapon's ORIGINAL weight
+
 func get_carry_capacity() -> int:
-	# Uses effective strength (with determination)
-	return base_carry_capacity + (strength * 10)
+	return get_carry_capacity_for_grip(two_hand_grip_active)
+
+func get_carry_capacity_for_grip(two_handing: bool) -> int:
+	# Uses effective strength (with determination) — a DET berserker's capacity
+	# genuinely spikes at low HP, which can turn a two-hander one-handable.
+	var cap = base_carry_capacity + (strength * 10)
+	if two_handing:
+		cap = floori(cap * TWO_HAND_CAPACITY_MULT)
+	return cap
 
 func get_free_carry_capacity() -> int:
 	return get_carry_capacity() - current_carry_load
@@ -483,6 +508,12 @@ func get_strength_damage_bonus() -> int:
 func set_carry_load(weight: int) -> void:
 	current_carry_load = weight
 	print("[STATS] Carry load: %d / %d" % [current_carry_load, get_carry_capacity()])
+
+func set_two_hand_state(active: bool, damage_bonus: int) -> void:
+	two_hand_grip_active = active
+	two_hand_damage_bonus = damage_bonus
+	print("[STATS] Two-handed grip %s (+%d damage), capacity %d" % [
+		"ON" if active else "off", damage_bonus, get_carry_capacity()])
 
 func is_overburdened() -> bool:
 	return current_carry_load > get_carry_capacity()
@@ -576,11 +607,11 @@ func get_tempo_until_mana_regen() -> int:
 	return maxi(1, int(ceil(_tempo_until_mana_regen)))
 
 func get_effective_physical_damage(base_damage: int) -> int:
-	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage
+	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	return max(1, damage)
 
 func get_effective_ranged_damage(base_damage: int) -> int:
-	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage
+	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	return max(1, damage)
 
 func get_effective_spell_damage(base_damage: int) -> int:
