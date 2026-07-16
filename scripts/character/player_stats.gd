@@ -71,7 +71,11 @@ var base_attack_speed_counter: int = 30
 var current_attack_counter: int = 0
 
 var base_draw_timer: float = 5.0
+# hand_size is DERIVED: base + WIS bonus + the two modifiers below. Never
+# add to hand_size directly — recalculate_derived_stats() rebuilds it.
 var hand_size: int = 4
+var equipment_hand_bonus: int = 0  # sum of equipped items' hand_size_bonus
+var temp_hand_modifier: int = 0    # card effects (Try This, etc.)
 
 ## Mana regen fires every this many global tempo (default 5 = every tempo cycle)
 var mana_regen_tempo_interval: float = 5.0
@@ -391,8 +395,14 @@ func restore_progression(data: Dictionary) -> void:
 
 func recalculate_derived_stats() -> void:
 	var base_hand = character_data.base_hand_size if character_data else 4
-	hand_size = base_hand + get_wisdom_hand_bonus()
+	hand_size = maxi(1, base_hand + get_wisdom_hand_bonus() + equipment_hand_bonus + temp_hand_modifier)
 	stats_updated.emit()
+
+func adjust_temp_hand(delta: int) -> void:
+	## Card-driven hand size changes (e.g. Try This ±2) — tracked separately so
+	## they survive stat recalculation.
+	temp_hand_modifier += delta
+	recalculate_derived_stats()
 
 func _print_stats() -> void:
 	print("[STATS] === %s ===" % character_data.character_name)

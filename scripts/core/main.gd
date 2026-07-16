@@ -4924,7 +4924,7 @@ func _vines_tick(en, dmg: int) -> void:
 func _try_this_revert(tt_stats) -> void:
 	if is_instance_valid(tt_stats):
 		tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
-		tt_stats.hand_size = max(1, tt_stats.hand_size - 2)
+		tt_stats.adjust_temp_hand(-2)
 
 func _stun_nearest_enemy(within: float) -> void:
 	## Stun the closest living enemy within `within` tiles of the player.
@@ -6191,11 +6191,11 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var tt_backfired: bool = card.rng_binary_succeeded() if card.has_been_rolled() else randf() < 0.1
 				if tt_backfired:
 					tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
-					tt_stats.hand_size = max(1, tt_stats.hand_size - 2)
+					tt_stats.adjust_temp_hand(-2)
 					add_battle_log("Try This backfired! -3 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
 				else:
 					tt_stats.max_mana += 3
-					tt_stats.hand_size += 2
+					tt_stats.adjust_temp_hand(2)
 					schedule_delayed_effect(10, _try_this_revert.bind(tt_stats), "try_this")
 					add_battle_log("Try This! +3 mana pool, +2 hand size for 10 tempo", Color(0.6, 1.0, 0.6))
 

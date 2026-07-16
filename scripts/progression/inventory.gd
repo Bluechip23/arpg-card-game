@@ -360,8 +360,8 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	player_stats.max_mana += stats["mana_bonus"] * multiplier
 	player_stats.current_mana = min(player_stats.current_mana, player_stats.max_mana)
 	
-	# Hand size from item (direct bonus)
-	player_stats.hand_size += item.hand_size_bonus * multiplier
+	# Hand size from item (survives recalculation via the tracked bonus)
+	player_stats.equipment_hand_bonus += item.hand_size_bonus * multiplier
 
 	# Ranged damage bonus (from quivers)
 	if item.ranged_damage_bonus > 0:
