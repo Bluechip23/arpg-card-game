@@ -89,6 +89,12 @@ var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = s
 var source_item_type: int = -1  # ItemData.ItemType the card was first extracted from (-1 = no restriction yet)
 var is_molded: bool = false  # Card is locked into the item and cannot be extracted
 var slotted_in_item = null  # Reference to the ItemData this card is slotted in (null = not slotted)
+# The item that GRANTED this card to the deck (GRANT_CARDS / GRANT_BLINK_CARD).
+# Parallels slotted_in_item: both mark a card as "owned" by an item, so it is
+# pulled from every zone when the item is unequipped and returned when it is
+# re-equipped. Cards merely PRODUCED during play (e.g. a goblet's heal orb) set
+# neither reference and therefore detach — they stay in the deck on a swap.
+var granted_by_item = null  # Reference to the ItemData that granted this card (null = not granted)
 
 func is_slotted() -> bool:
 	return slotted_in_item != null
