@@ -264,10 +264,13 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 
 	_apply_item_bonuses(item, true, is_off_hand)
 	_apply_special_effect(item, true)
-	
+	# Bring the item's owned cards (granted + slotted) into play — to discard,
+	# or to jail if a card was jailed when the item was last removed.
+	_add_item_cards_to_deck(item)
+
 	item_equipped.emit(item, item.get_type_name(), slot_index)
 	equipment_changed.emit()
-	
+
 	print("[INVENTORY] Equipped %s in slot %d" % [item.item_name, slot_index])
 	return true
 
@@ -291,7 +294,10 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 		_clear_two_handed_state()
 	_apply_item_bonuses(item, false, is_off_hand)
 	_apply_special_effect(item, false)
-	
+	# Pull the item's owned cards out of every zone. The instances stay attached
+	# to the item (preserving jail time, upgrades, etc.) for when it returns.
+	_remove_item_cards_from_deck(item)
+
 	item_unequipped.emit(item, item.get_type_name(), slot_index)
 	equipment_changed.emit()
 	
@@ -392,31 +398,15 @@ func _apply_special_effect(item: ItemData, equipping: bool) -> void:
 	if not player_stats:
 		return
 	
+	# NOTE: GRANT_BLINK_CARD / GRANT_CARDS no longer add/remove cards here. Item
+	# card ownership (both granted and slotted cards) is handled uniformly by
+	# _add_item_cards_to_deck / _remove_item_cards_from_deck, called from
+	# equip_item / unequip_item, so cards travel with the item on every swap.
 	match item.special_effect:
-		ItemData.SpecialEffect.GRANT_BLINK_CARD:
-			if equipping and deck_manager:
-				for i in range(item.special_effect_value):
-					var blink_card = Card.create_blink()
-					deck_manager.draw_pile.append(blink_card)
-				deck_manager.shuffle_draw_pile()
-				print("[INVENTORY] Added %d Blink card(s) to deck" % item.special_effect_value)
-		
 		ItemData.SpecialEffect.CHANCE_BOOST:
 			var mult = 1 if equipping else -1
 			player_stats.chance_boost += item.special_effect_value * mult
 			print("[INVENTORY] Chance boost now: %.0f%%" % player_stats.chance_boost)
-		
-		ItemData.SpecialEffect.GRANT_CARDS:
-			if equipping and deck_manager:
-				for card_id in item.granted_card_ids:
-					var card = _create_card_by_id(card_id)
-					if card:
-						if item.item_type == ItemData.ItemType.BELT and belt_card_mana_reduction > 0:
-							card.mana_cost = max(0, card.mana_cost - belt_card_mana_reduction)
-							print("[INVENTORY] %s mana cost reduced to %d (belt bonus)" % [card.card_name, card.mana_cost])
-						deck_manager.draw_pile.append(card)
-						print("[INVENTORY] Added %s to deck" % card.card_name)
-				deck_manager.shuffle_draw_pile()
 
 func _create_card_by_id(card_id: String) -> Card:
 	match card_id:
@@ -430,38 +420,166 @@ func _create_card_by_id(card_id: String) -> Card:
 	return null
 
 func apply_starting_item_card_effects() -> void:
-	## Re-apply card-granting effects from equipped items after deck initialization.
-	## Called after deck_manager is connected and deck is initialized.
+	## Bring card-granting equipment's cards into the deck after initialization.
+	## Starting items are equipped in initialize() BEFORE the deck manager exists,
+	## so equip_item's card hook was a no-op then; this runs once the deck is
+	## ready. Starting cards are shuffled into the DRAW pile (not discarded) so
+	## the opening hand can contain them, matching the original starting behavior.
 	if not deck_manager:
 		return
 
 	var cards_added = false
-
 	for item_array in [equipped_belts, equipped_boots, equipped_helms, equipped_chests, equipped_rings, equipped_gauntlets, equipped_weapons, equipped_quivers]:
 		for item in item_array:
 			if not item:
 				continue
-			match item.special_effect:
-				ItemData.SpecialEffect.GRANT_CARDS:
-					for card_id in item.granted_card_ids:
-						var card = _create_card_by_id(card_id)
-						if card:
-							if item.item_type == ItemData.ItemType.BELT and belt_card_mana_reduction > 0:
-								card.mana_cost = max(0, card.mana_cost - belt_card_mana_reduction)
-								print("[INVENTORY] %s mana cost reduced to %d (belt bonus)" % [card.card_name, card.mana_cost])
-							deck_manager.draw_pile.append(card)
-							print("[INVENTORY] Starting item added %s to deck" % card.card_name)
-							cards_added = true
-				ItemData.SpecialEffect.GRANT_BLINK_CARD:
-					for i in range(item.special_effect_value):
-						var blink_card = Card.create_blink()
-						deck_manager.draw_pile.append(blink_card)
-						print("[INVENTORY] Starting item added Blink to deck")
-						cards_added = true
+			_ensure_granted_card_instances(item)
+			for card in _get_item_owned_cards(item):
+				if _card_in_any_zone(card):
+					continue
+				deck_manager.draw_pile.append(card)
+				print("[INVENTORY] Starting item added %s to deck" % card.card_name)
+				cards_added = true
 
 	if cards_added:
 		deck_manager.shuffle_draw_pile()
 		print("[INVENTORY] Shuffled deck after adding starting item cards")
+
+# ============================================
+# ITEM-OWNED CARDS (swap in / swap out)
+# ============================================
+# An equipped item "owns" two kinds of cards:
+#   * granted cards  — added to the deck by GRANT_CARDS / GRANT_BLINK_CARD
+#   * slotted cards  — enchanted into the item's card slots
+# Both travel WITH the item: they enter the deck when it is equipped and are
+# pulled from every zone when it is unequipped. The card INSTANCES persist on
+# the item across swaps, so a jailed card comes back still jailed with the same
+# time left. Cards a slotted card merely PRODUCES during play own themselves
+# (neither granted_by_item nor slotted_in_item points here) and are left alone —
+# they have detached from the item.
+
+func _get_item_owned_cards(item: ItemData) -> Array:
+	## Every card instance that belongs to this item (granted + slotted), no dupes.
+	var cards: Array = []
+	for card in item.granted_card_instances:
+		if card and not cards.has(card):
+			cards.append(card)
+	for card in item.slotted_cards:
+		if card and not cards.has(card):
+			cards.append(card)
+	return cards
+
+func _ensure_granted_card_instances(item: ItemData) -> void:
+	## Build the item's granted-card instances exactly once, then reuse forever.
+	if item.granted_cards_built:
+		return
+	item.granted_cards_built = true
+
+	for card_id in item.granted_card_ids:
+		var card = _create_granted_card(card_id)
+		if card:
+			if item.item_type == ItemData.ItemType.BELT and belt_card_mana_reduction > 0:
+				card.mana_cost = max(0, card.mana_cost - belt_card_mana_reduction)
+				print("[INVENTORY] %s mana cost reduced to %d (belt bonus)" % [card.card_name, card.mana_cost])
+			card.granted_by_item = item
+			item.granted_card_instances.append(card)
+
+	if item.special_effect == ItemData.SpecialEffect.GRANT_BLINK_CARD:
+		for i in range(item.special_effect_value):
+			var blink_card = Card.create_blink()
+			blink_card.granted_by_item = item
+			item.granted_card_instances.append(blink_card)
+
+func _create_granted_card(card_id: String) -> Card:
+	## Prefer the deck manager's comprehensive factory; fall back to the local map.
+	if deck_manager and deck_manager.has_method("_create_card_from_id"):
+		var card = deck_manager._create_card_from_id(card_id)
+		if card:
+			return card
+	return _create_card_by_id(card_id)
+
+func _add_item_cards_to_deck(item: ItemData) -> void:
+	## Bring an item's owned cards into play. Called when the item is equipped.
+	## Jailed cards return to jail (with their remaining time); everything else
+	## goes to the discard pile.
+	if not deck_manager:
+		return
+	_ensure_granted_card_instances(item)
+	var owned = _get_item_owned_cards(item)
+	if owned.is_empty():
+		return
+	var changed = false
+	for card in owned:
+		if _card_in_any_zone(card):
+			continue  # already live — don't duplicate it into another pile
+		if card.is_jailed():
+			deck_manager.jail_pile.append(card)
+			print("[INVENTORY] %s: returned jailed card '%s' (%d tempo left)" % [item.item_name, card.card_name, card.jail_time_remaining])
+		else:
+			deck_manager.discard_pile.append(card)
+			print("[INVENTORY] %s: added card '%s' to discard" % [item.item_name, card.card_name])
+		changed = true
+	if changed:
+		deck_manager.hand_updated.emit()
+
+func _remove_item_cards_from_deck(item: ItemData) -> void:
+	## Pull an item's owned cards out of every zone. Called when the item is
+	## unequipped. Instances are kept on the item (state preserved) for re-equip.
+	if not deck_manager:
+		return
+	var owned = _get_item_owned_cards(item)
+	if owned.is_empty():
+		return
+	var hand_changed = false
+	for card in owned:
+		if _remove_card_from_all_zones(card):
+			hand_changed = true
+	if hand_changed:
+		deck_manager.hand_updated.emit()
+
+func _card_in_any_zone(card: Card) -> bool:
+	if deck_manager.draw_pile.has(card): return true
+	if deck_manager.hand.has(card): return true
+	if deck_manager.discard_pile.has(card): return true
+	if deck_manager.jail_pile.has(card): return true
+	if deck_manager.maintained_cards.has(card): return true
+	var om = deck_manager.overflow_manager
+	if om:
+		for entry in om.manifest_zone:
+			if entry.get("card") == card:
+				return true
+		if om.quiver_zone.has(card):
+			return true
+	return false
+
+func _remove_card_from_all_zones(card: Card) -> bool:
+	## Remove a card instance from draw/hand/discard/jail/maintained/manifest/
+	## quiver. Returns true if the hand changed (so the caller can refresh UI).
+	## The card object itself is left intact — it stays attached to its item.
+	var hand_changed = false
+	var idx = deck_manager.hand.find(card)
+	if idx >= 0:
+		deck_manager.hand.remove_at(idx)
+		hand_changed = true
+	deck_manager.draw_pile.erase(card)
+	deck_manager.discard_pile.erase(card)
+	deck_manager.jail_pile.erase(card)
+	# Maintained Power cards reserve mana — release it when pulled out.
+	var m_idx = deck_manager.maintained_cards.find(card)
+	if m_idx >= 0:
+		deck_manager.maintained_cards.remove_at(m_idx)
+		if player_stats and card.maintain_cost > 0:
+			player_stats.release_mana(card.maintain_cost)
+	var om = deck_manager.overflow_manager
+	if om:
+		for i in range(om.manifest_zone.size() - 1, -1, -1):
+			if om.manifest_zone[i].get("card") == card:
+				om.manifest_zone.remove_at(i)
+				om.overflow_effects_changed.emit()
+		if om.quiver_zone.has(card):
+			om.quiver_zone.erase(card)
+			om.quiver_changed.emit()
+	return hand_changed
 
 func _recalculate_total_weapon_weight() -> void:
 	# This now just triggers carry load recalculation

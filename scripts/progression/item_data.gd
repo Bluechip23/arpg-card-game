@@ -109,6 +109,14 @@ enum GauntletSkillType {
 var slotted_cards: Array = []  # Cards currently in the slots
 var allowed_card_keywords: Array = []  # Empty = any card allowed. e.g. [Card.CardKeyword.ARROW] = only arrow cards
 
+# Granted cards (GRANT_CARDS / GRANT_BLINK_CARD). Built once the first time the
+# item is equipped, then reused for the item's lifetime so the SAME instances
+# come and go with the item on every swap — preserving per-card state (jail
+# time, upgrades, enhancement) across equip/unequip. Slotted (enchanted) cards
+# live in slotted_cards; together they are the item's "owned" cards.
+var granted_card_instances: Array = []
+var granted_cards_built: bool = false
+
 # On-self bonuses (extra bonuses applied to cards slotted in this item)
 @export var on_self_damage: int = 0
 @export var on_self_block: int = 0
