@@ -1,354 +1,336 @@
-# Card ARPG Demo - Developer Guide
+# Card ARPG
 
-Welcome to the Card ARPG Demo project. This guide will help you get set up, understand the codebase, and contribute effectively.
+A story-driven action card RPG built in **Godot 4.6**. You build one persistent character and carry them through an entire narrative — across Earth, Hell, Heaven, and back — fighting grid-based battles where every action is a card and every card costs time.
+
+This is a **true RPG, not a roguelike**. There is no permadeath, no run resets, no meta-currency loop. Your character's stats, deck, equipment, and progression are permanent and cumulative from the opening scene to the end of the story. (A roguelike arena exists as an *end-game* mode after the story, not as the spine of the game.)
 
 ---
 
 ## Table of Contents
 
-1. [Project Setup](#project-setup)
-2. [Project Structure](#project-structure)
-3. [Branch & Communication Rules](#branch--communication-rules)
-4. [How to Make a New Card](#how-to-make-a-new-card)
-5. [How to Add a New Item](#how-to-add-a-new-item)
-6. [How to Add a New Status Effect](#how-to-add-a-new-status-effect-buffdebuff)
+1. [The Core Loop](#the-core-loop)
+2. [The Tempo System](#the-tempo-system)
+3. [Core Stats](#core-stats)
+4. [Resources: Health, Mana, Armor](#resources-health-mana-armor)
+5. [Cards](#cards)
+6. [Card Effects & Keywords](#card-effects--keywords)
+7. [Buffs](#buffs)
+8. [Debuffs](#debuffs)
+9. [Equipment & Inventory](#equipment--inventory)
+10. [Weapon & Equipment Swapping](#weapon--equipment-swapping)
+11. [Cards Slotted Into Items](#cards-slotted-into-items)
+12. [Characters](#characters)
+13. [Progression](#progression)
 
 ---
 
-## Project Setup
+## The Core Loop
 
-**Engine:** Godot 4.6
+Combat happens on a grid. You move your character tile by tile, draw cards over time, and play them against enemies in range. There are no discrete "your turn / enemy turn" phases — instead, everything runs on a shared clock called **tempo**. Playing cards, moving, and even waiting all advance the clock, and enemies act as the clock advances. Fighting well means managing *time* as a resource just as much as mana or health.
 
-1. Download and install **Godot 4.6** from [godotengine.org](https://godotengine.org/download)
-2. Clone this repository
-3. Open Godot, click **Import**, and navigate to the project folder
-4. Select the `project.godot` file and open the project
-5. Press **F5** to run the game
-
-There are no external dependencies, no package managers, and no environment variables needed. Everything runs through the Godot editor.
+Between fights you explore the world, complete quests, visit town vendors, manage your equipment and deck, and advance the story. Waypoints, quests, NPCs, and vendors persist for the whole game.
 
 ---
 
-## Project Structure
+## The Tempo System
 
-```
-arpg-card-game/
-├── project.godot          # Godot project config (1280x720, Forward Plus)
-├── main.tscn              # Root game scene
-│
-├── scripts/               # All game logic (GDScript)
-│   ├── main.gd            # Main game loop, card playing, combat flow
-│   ├── card.gd            # Card data class + all 71 card definitions
-│   ├── player_stats.gd    # Player stat calculations and tracking
-│   ├── deck_manager.gd    # Deck, hand, draw/discard/jail pile management
-│   ├── enemy.gd           # Enemy behavior and combat
-│   ├── buff.gd            # Buff definitions (17 types)
-│   ├── debuff.gd          # Debuff definitions (25 types)
-│   ├── buff_manager.gd    # Buff application and tracking
-│   ├── debuff_manager.gd  # Debuff application and tracking
-│   ├── tempo_manager.gd   # Tempo meter and enemy turn triggering
-│   ├── turn_manager.gd    # Turn loop and draw timer
-│   ├── grid_manager.gd    # Grid conversions and distance calculations
-│   ├── overflow_manager.gd# Overflow card effect handling
-│   ├── inventory.gd       # Equipment management
-│   ├── item_data.gd       # Item definitions and properties
-│   ├── enemy_spawner.gd   # Enemy spawning and wave management
-│   ├── character_data.gd  # Character definitions (stats, card pools)
-│   ├── card_ui.gd         # Card visual display in hand
-│   └── ...                # UI scripts, helpers, etc.
-│
-├── scenes/                # Godot scene files (.tscn)
-│   ├── player.tscn        # Player character
-│   ├── enemy.tscn         # Enemy character
-│   ├── card_ui.tscn       # Card visual in hand
-│   ├── character_select.tscn  # Character selection screen
-│   ├── inventory.tscn     # Equipment screen
-│   ├── test_ui.tscn       # Debug/test panel (T key)
-│   └── ...                # UI panels, tooltips, indicators
-│
-└── .godot/                # Godot cache (auto-generated, do not edit)
-```
+**Tempo is the universal clock.** Every system in the game — enemy actions, mana regeneration, card draws, buff and debuff durations — is driven by it.
 
-**Key files you will touch most often:**
-- `scripts/card.gd` - Adding or editing cards
-- `scripts/main.gd` - Card execution logic and game flow
-- `scripts/item_data.gd` - Adding new items
-- `scripts/buff.gd` / `scripts/debuff.gd` - Adding status effects
-- `scripts/character_data.gd` - Adding characters or modifying card pools
+- Every card has a **tempo cost** alongside its mana cost. Playing a card schedules that many tempo **ticks**; the card's effect resolves on a specific tick (some cards hit immediately, some at the end of their wind-up).
+- Cards you play queue **sequentially** — your second card starts ticking after your first finishes. In co-op, each character has their own queue, so partners act simultaneously on the same tempo bar.
+- **Movement costs tempo** once you exceed your free moves (granted by Agility). Moving through an occupied tile always costs 2 tempo.
+- Every **5 global tempo = 1 cycle**. Cycles are the game's heartbeat:
+  - Mana regenerates once per cycle.
+  - Armor decays once per cycle.
+  - Buffs and debuffs tick down once per cycle.
+  - Per-cycle effects (regen, poison, burn, etc.) fire.
+- **Card draws** happen automatically every 25 global tempo by default; Wisdom shortens the interval.
+
+Because enemies act on tempo, a cheap fast card and an expensive slow card are genuinely different decisions: the slow card gives the enemy time to answer.
 
 ---
 
-## Branch & Communication Rules
+## Core Stats
 
-When you create a branch, name it like this:
+Every character has six core attributes:
 
-```
-your_name-subject-branch_title
-```
+| Stat | Effect |
+|---|---|
+| **Strength (STR)** | +1 melee damage for every 2 points. +10 carry capacity per point — carry heavier gear before becoming over-encumbered. |
+| **Dexterity (DEX)** | Speeds up attack-speed procs. Every (30 − DEX) attacks triggers a proc (minimum 5): your next attack costs **half tempo and 2 less mana**. Carrying near your weight limit slows the counter; traveling light speeds it up. |
+| **Intelligence (INT)** | +1 spell and heal power for every 2 points. +1 mana regen for every 5 points. |
+| **Wisdom (WIS)** | +1 hand size for every 5 points. Each point also shortens the automatic draw timer. |
+| **Determination (DET)** | Controls how low health affects your other stats. At 10 it does nothing. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. High-DET builds are strongest on the brink of death. |
+| **Agility (AGI)** | +1 free movement per tempo for every 5 points (minimum 1). Free moves cost no tempo; moves beyond them advance the clock. |
 
-- **your_name** - Your name so we know who made it
-- **subject** - The area of the project (card, gameplay, ui, item, buff, enemy, etc.)
-- **branch_title** - Short description of what you're doing
-
-**Examples:**
-```
-ryan-card-add_fireball_card
-jeremy-gameplay-fix_tempo_overflow
-stephen-ui-update_character_panel
-cory-buff-add_shield_wall_buff
-```
-
-**After you push**, post in the Discord what your branch does and what it changes. The team will review it and we will progress accordingly.
+All characters share a base **5% critical hit chance**, which can be raised by progression and effects.
 
 ---
 
-## How to Make a New Card
+## Resources: Health, Mana, Armor
 
-All cards live in `scripts/card.gd`. To add a new card, you need to:
+### Health
+Your life total. Reaching 0 means death (with story consequences — not a run reset). Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
 
-### 1. Write a static factory function
+Health also feeds back into your stats through **Determination** — dropping below 80/60/40/10% health shifts your effective stats up or down depending on your DET.
 
-Add a new `static func create_your_card() -> Card` at the bottom of `card.gd`. Here is the template with every field you need to consider:
+### Mana
+The cost of playing most cards.
 
-```gdscript
-static func create_your_card_name() -> Card:
-    var card = Card.new()
+- Regenerates once per **cycle** (base regen + Intelligence bonus).
+- **Power cards with Maintain reserve mana** from your pool while their effect persists. Reserved mana doesn't regenerate back until the card is dismissed or broken.
+- If your mana ever hits 0, **all maintained cards break** and are discarded at once.
 
-    # === REQUIRED FIELDS ===
-    card.card_id = "your_card_id"          # Unique ID, lowercase with underscores
-    card.card_name = "Your Card Name"      # Display name
-    card.description = "What it does"      # Short text shown on the card
-    card.card_type = CardType.ATTACK       # ATTACK, DEFENSE, or UTILITY
-    card.card_type_name = "Attack"         # "Attack", "Defense", or "Utility"
-    card.mana_cost = 1                     # Mana required to play
-    card.tempo_cost = 4                    # Tempo added when played (threshold is 5)
-    card.damage = 0                        # Damage dealt
-    card.base_damage = 0                   # Must match damage
-    card.block = 0                         # Armor gained
-    card.base_block = 0                    # Must match block
-    card.heal_amount = 0                   # HP healed
-    card.target_types = ["enemy"]           # Array of: "enemy", "ally", "self", "point", "all_nearby"
+### Armor
+Damage absorption that sits in front of your health.
 
-    # === OPTIONAL FIELDS (set only what applies) ===
-    card.is_ranged = false                 # true = ranged attack (base range 5)
-    card.range_modifier = 0                # Adjusts range (+2 = range 7, -2 = range 3)
-    card.is_aoe = false                    # true = area-of-effect
-    card.aoe_shape = ""                    # "cone", "circle", or "line"
-    card.aoe_range = 100.0                 # AOE radius/length
-    card.chance_effect_percent = 0.0       # Per-enemy hit chance for AOE
-    card.sticky = 0                        # Turns card lingers in hand (0 = normal)
-    card.duration = 0                      # Effect duration in turns
-    card.requires_high_ground = false      # Needs elevated position to play
-    card.rng_outcomes_data = []            # RNG percentages (see RNG section below)
-
-    return card
-```
-
-### 2. Wire up the card's execution logic
-
-The card's actual behavior when played is handled in `scripts/main.gd`. Search for existing card_id checks (e.g., `"slash"`, `"heal"`) to see where to add your card's logic.
-
-### 3. Add it to a character's card pool
-
-Cards are assigned to characters in `scripts/character_data.gd`. Add your card's `create_` function to the appropriate character's card list.
-
-### RNG Cards
-
-If your card has random outcomes, set `rng_outcomes_data`:
-
-```gdscript
-# Binary (one percentage, pass or fail):
-card.rng_outcomes_data = [{"percent": 60.0}]
-
-# Multi-outcome (weighted, picks one):
-card.rng_outcomes_data = [
-    {"percent": 40.0},   # Outcome 0
-    {"percent": 35.0},   # Outcome 1
-    {"percent": 25.0}    # Outcome 2
-]
-```
-
-### A Note on Using AI to Create Cards
-
-If you are using an AI to help you make a card, **be very detailed about what you want**. You will most likely have to give a more detailed description than you think.
-
-Don't just say "make a card that does fire damage." Actually envision yourself playing the card and describe everything that happens:
-
-- What does the player see when they play it?
-- Does it hit one enemy or multiple?
-- Is it melee or ranged?
-- Does it apply a buff or debuff? For how long?
-- Does it cost a lot of tempo or a little?
-- Does it have an RNG element? What are the chances?
-- What happens on success? What happens on failure?
-- Does the card interact with any existing mechanics (armor, mana, movement)?
-
-The AI can make the card, but it needs more context than you think. More than what you think is actually happening. Walk through the full play experience in your head, and describe that.
+- Incoming damage is absorbed in order: **temporary HP → armor → health**.
+- Armor **decays 2 per cycle** by default — it's a wall you keep rebuilding, not a bank. Some effects (Fortify) pause decay; others (Brittle) accelerate it.
+- Defense cards, items, passives, and per-cycle effects all grant armor, and "on armor gain" triggers make armor stacking a viable engine.
 
 ---
 
-## How to Add a New Item
+## Cards
 
-All items are defined in `scripts/item_data.gd`. Items are equipment that go into slots: Helm, Chest, Ring, Belt, Boots, Gauntlets, or Weapon.
+Your deck is your moveset. Cards move between several zones during combat:
 
-### 1. Write a static factory function
+- **Draw pile** — face-down deck. When empty, the discard pile shuffles back in.
+- **Hand** — cards you can play. Hand size = 4 + Wisdom bonus + equipment bonuses.
+- **Discard pile** — where played and discarded cards go, awaiting reshuffle.
+- **Jail** — cards locked away for a set amount of tempo. Jailed cards can't be played; when their time expires they're released to the discard pile.
+- **Maintained** — active Power cards sit here, reserving mana.
+- **Manifest zone** — cards converted into clickable tokens by certain overflow effects.
+- **Quiver** — attack cards stored by certain overflow effects, playable later at full cost.
 
-Add a new `static func create_your_item() -> ItemData` in `item_data.gd`:
+### Card types
 
-```gdscript
-static func create_your_item_name() -> ItemData:
-	var item = ItemData.new()
+| Type | Behavior |
+|---|---|
+| **Attack** | Deals damage. Melee by default; ranged attacks have base range 5. |
+| **Defense** | Grants armor or blocks. |
+| **Utility** | Draw, healing, movement, buffs — support effects. |
+| **Power** | Persistent effect with a **Maintain** cost that reserves mana while active. |
+| **Reaction** | Triggers automatically from your hand when its condition is met. Costs 0 mana and 0 tempo; cannot be played manually. |
+| **Enchantment** | Cannot be played. Provides a passive buff *while in your hand*, then auto-discards after 2 cycles. |
+| **Unplayable** | Dead weight — takes up a hand slot. Usually inflicted by enemies. |
 
-	# === REQUIRED FIELDS ===
-	item.item_name = "Your Item Name"
-	item.item_type = ItemType.HELM          # HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON
-	item.item_type_name = "Helm"            # Display name for the slot
-	item.weight = 3                         # Item weight
-	item.description = "+2 Armor"           # Short description of what it does
+### Drawing and overflow
 
-	# === STAT BONUSES (set any that apply) ===
-	item.strength_bonus = 0
-	item.dexterity_bonus = 0
-	item.intelligence_bonus = 0
-	item.wisdom_bonus = 0
-	item.determination_bonus = 0
-	item.agility_bonus = 0
-	item.health_bonus = 0
-	item.mana_bonus = 0
-	item.armor_bonus = 0
-	item.hand_size_bonus = 0
+If a draw would exceed your hand size, the card **overflows** instead. What happens to it depends on your active overflow mode:
 
-	# === WEAPON-SPECIFIC (only for weapons) ===
-	# Note: no item is inherently one- or two-handed. Wielding with both hands
-	# is a per-slot player choice (Inventory.set_two_handed), gated by weight.
-	item.weapon_damage = 0
-	item.damage_percent_bonus = 0.0
-	item.fire_damage_percent = 0.0
-	item.ice_damage_percent = 0.0
-	item.lightning_damage_percent = 0.0
+| Overflow mode | Result |
+|---|---|
+| **Jailed** (default) | The card goes to jail and can't be played until its sentence expires. |
+| **Enhance** | Attack cards gain bonus damage, then are discarded. |
+| **Peak** | You see the next card on the draw pile. |
+| **Transferred** | The card is sent straight to the discard pile. |
+| **Overcharge** | Triggers a special effect on each overflow. |
+| **Manifest** | The card becomes a token in the manifest zone — click to activate its manifest effect. |
 
-	# === SPECIAL EFFECTS (optional) ===
-	item.special_effect = SpecialEffect.NONE
-	# Available: OVERFLOW_HEAL_ARMOR, GRANT_BLINK_CARD, INCREASE_HAND_SIZE,
-	#            CHANCE_BOOST, GRANT_CARDS
-	item.special_effect_value = 0
-	item.special_effect_value_2 = 0
-	item.granted_card_ids = []              # For GRANT_CARDS effect
-
-	return item
-```
-
-### Ring Trigger System
-
-Rings can have passive triggers that fire on game events:
-
-```gdscript
-item.ring_trigger = RingTrigger.ON_ENEMY_KILL
-# Available triggers:
-#   ON_ENEMY_KILL, ON_GAIN_ARMOR_THRESHOLD, ON_TAKE_DAMAGE, ON_HEAL,
-#   ON_PLAY_ATTACK_CARD, ON_PLAY_UTILITY_CARD, ON_DRAW_CARD,
-#   ON_DISCARD_CARD, ON_LOW_HEALTH, ON_FULL_MANA
-
-item.ring_trigger_threshold = 0            # For threshold-based triggers
-item.ring_effect = RingEffect.GAIN_ARMOR
-# Available effects:
-#   HEAL_TO_FULL, GAIN_ARMOR, GAIN_MANA, DRAW_CARD,
-#   DEAL_DAMAGE_ALL_ENEMIES, REDUCE_COOLDOWNS, GAIN_TEMP_STRENGTH
-
-item.ring_effect_value = 5                 # Value for the effect
-```
-
-### Gauntlet Skill System
-
-Gauntlets can have active or passive skills:
-
-```gdscript
-# Active skill (has cooldown, costs mana):
-item.gauntlet_skill_type = GauntletSkillType.ACTIVE
-item.gauntlet_skill_name = "Power Grip"
-item.gauntlet_skill_description = "Deal 8 damage"
-item.gauntlet_skill_cooldown = 3
-item.gauntlet_skill_mana_cost = 2
-item.gauntlet_skill_effect_id = "power_grip"   # Used in main.gd to execute
-
-# Passive skill (always active):
-item.gauntlet_skill_type = GauntletSkillType.PASSIVE
-item.gauntlet_skill_name = "Stalwart"
-item.gauntlet_skill_description = "Armor decays 1 less per turn"
-item.gauntlet_skill_effect_id = "stalwart"
-```
-
-### 2. Wire it up
-
-Add the item to a character's starting equipment in `character_data.gd`, or make it available as a drop/reward in the game flow.
+Cards and items can change your overflow mode, turning a punishment into an engine.
 
 ---
 
-## How to Add a New Status Effect (Buff/Debuff)
+## Card Effects & Keywords
 
-Buffs live in `scripts/buff.gd`, debuffs live in `scripts/debuff.gd`. The process is similar for both.
+Mechanics that appear on cards:
 
-### Adding a New Buff
+| Keyword | Meaning |
+|---|---|
+| **Maintain X** | Reserves X mana while the card's effect persists. Breaks if mana hits 0. |
+| **Sticky X** | Card stays in hand and can be played X times before discarding. |
+| **Burden** | Cost increases by 1 mana/1 tempo each time played. Jail it for 30 tempo (from hand, costs 1m/1t) to reset. |
+| **Erase X** | After X tempo, the card is permanently deleted from your deck. |
+| **Glut X** | You cannot play cards for X tempo after this one. |
+| **Delay X** | The effect takes place X tempo after playing. |
+| **On-Draw / On-Discard** | Triggers an effect when drawn / discarded. |
+| **In-Hand** | Applies a persistent effect while the card sits in your hand. |
+| **Linger** | Status card that can exceed your hand size limit. While it lingers, normal draws overflow. |
+| **Empower** | Buffs your next cards: +3 damage for attacks, −3 mana for defense. |
+| **Exhaust** | Removed from the deck entirely after being played (not discarded). |
+| **Reach** | Adds 1 tile to melee attack range. |
+| **High Ground** | Ranged attacks from elevation deal +4 damage and gain +2 range. |
+| **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
+| **Chisel** | Card can only be played while slotted into an item — never from hand alone. |
 
-**Step 1:** Add your buff to the `BuffType` enum in `buff.gd`:
+Some cards carry **RNG outcomes** — percentages printed on the card that roll when played, either pass/fail or a weighted pick between multiple results. Chance-boosting effects tilt these rolls in your favor.
 
-```gdscript
-enum BuffType {
-    THORNS,
-    FOCUSED,
-    # ... existing types ...
-    WEAR_DOWN,
-    YOUR_NEW_BUFF       # <-- add here
-}
-```
+---
 
-**Step 2:** Add the name and description in `_set_name_and_description()`:
+## Buffs
 
-```gdscript
-BuffType.YOUR_NEW_BUFF:
-    buff_name = "Your Buff Name"
-    description = "What it does, value = %d" % value
-```
+Positive effects. Duration-based buffs tick down each cycle; charge-based buffs deplete as they're used.
 
-**Step 3:** Add an icon color in `get_icon_color()`:
+| Buff | Effect |
+|---|---|
+| **Thorns** | Deal X damage back to attackers. |
+| **Focused** | Gain 1 extra mana per cycle. |
+| **Regen** | Heal X HP per cycle. |
+| **Blessed** | Draw X additional card(s) per cycle. |
+| **Fortify** | Armor does not decay. |
+| **Enlightened** | +X% crit chance for the next Y attacks. |
+| **Strengthen** | +X damage on the next Y attacks. |
+| **Bolster** | +X armor the next Y times you gain armor. |
+| **Haste** | +X movement per tempo spent. |
+| **Cleanse** | Remove X negative effect(s) instantly. |
+| **Smith** | Gain X armor per cycle. |
+| **Steady** | Your next action adds no tempo. |
+| **Brace** | Reduce incoming attack damage by X% for Y attacks. |
+| **Resilient** | Reduce all incoming damage by X% for Y tempo (can be limited to one damage type). |
+| **Life Steal** | Your next attack heals you for the damage dealt. |
+| **Morphine** | Gain temporary HP; when it expires, lose it and take 2 damage. |
+| **Wear Down** | Each of your attacks reduces the target's attack by 1 (stacking). |
+| **Invisible** | Cannot be targeted by enemies. |
+| **Armor Break** | Next attack deals double damage to armor only (no health damage). |
+| **Shield Ready** | Gain X armor after Y tempo. |
+| **Repelled Block** | If the next melee attack is fully blocked by armor, negate it and knock the enemy back 4 tiles. |
+| **Shield of Growth** | All damage taken increases your armor by that amount. |
+| **Phoenix Grace** | When HP drops below 50%, heal to 80% and apply 5 burn to the nearest enemy. |
+| **Demonic Rage** | Your next X mana costs are paid with health instead. |
+| **Poisoned Blood** | Your heal cards deal damage to enemies instead of healing. |
+| **Elixir** | Poison ticks heal you instead of damaging you. |
 
-```gdscript
-BuffType.YOUR_NEW_BUFF: return Color(0.5, 0.8, 0.5)  # Pick a color
-```
+---
 
-**Step 4:** If charge-based, add it to `is_charge_based()`:
+## Debuffs
 
-```gdscript
-func is_charge_based() -> bool:
-    match buff_type:
-        BuffType.ENLIGHTENED, BuffType.STRENGTHEN, ..., BuffType.YOUR_NEW_BUFF:
-            return true
-    return false
-```
+Negative effects, applied by enemies and hazards (and occasionally self-inflicted by powerful cards).
 
-**Step 5:** Create a factory method:
+| Debuff | Effect |
+|---|---|
+| **Bleed** | Take X damage per tile moved. |
+| **Stun** | Cannot take any actions. |
+| **Disarm** | Cannot play attack cards. |
+| **Silence** | Cannot play spell cards. |
+| **Burn** | Damage doubles each cycle (1, 2, 4, 8…). |
+| **Poison** | Take X damage per cycle; lose 1 stack per cycle. |
+| **Inebriate** | Movement direction is randomized. |
+| **Cursed** | Deal 20% less damage, and deal 20% of your damage to yourself. |
+| **Frozen** | Cannot play cards. |
+| **Cuffed** | Cannot draw cards. |
+| **Shocked** | Deal X damage to nearby allies per cycle; loses 1 stack per cycle. |
+| **Slowed** | Lose X movement per cycle. |
+| **Staggered** | Attack cards cost X more mana. |
+| **Drain** | Lose 1 mana per cycle; loses 1 stack per cycle. |
+| **Weighted** | Cards cost X more tempo. |
+| **Hexed** | One random card in hand costs +X mana. |
+| **Locked** | One random card in hand cannot be played. |
+| **Rooted** | Cannot move. |
+| **Tethered** | Cannot move more than X tiles from where it was applied. |
+| **Magnetized** | Pulled X tiles toward the nearest enemy each cycle. |
+| **Linked** | Share X% of damage taken with your nearest ally. |
+| **Clumsy** | X% chance to discard a random card whenever you play one. |
+| **Vulnerable** | Take 30% more damage on the next X attack(s). |
+| **Exposed** | Attacks remove 30% more of your armor. |
+| **Brittle** | Armor decays an extra 2 per cycle. |
+| **Cold** | Stacking. At 5 stacks, become Frozen. |
+| **Blind** | X% chance for your attacks to miss. |
 
-```gdscript
-static func create_your_new_buff(val: int = 3, duration: int = 3, source: String = "") -> Buff:
-    var buff = Buff.new(BuffType.YOUR_NEW_BUFF, val, duration)
-    buff.source_name = source
-    return buff
-```
+---
 
-**Step 6:** Wire up the actual effect in `scripts/buff_manager.gd`. Search for where existing buffs are applied (e.g., how `THORNS` deals damage back, how `REGEN` heals each turn) and add your buff's logic there.
+## Equipment & Inventory
 
-### Adding a New Debuff
+### Slots
 
-Same pattern, but in `scripts/debuff.gd` and `scripts/debuff_manager.gd`:
+Characters equip items into typed slots: **Helm, Chest, Rings, Belt, Boots, Gauntlets, Weapons/Hands**. Quivers occupy a hand slot. Slot counts vary by character (see [Characters](#characters)).
 
-1. Add to the `DebuffType` enum
-2. Add name/description in `_set_name_and_description()`
-3. Add icon color in `get_icon_color()`
-4. Add a `static func create_your_debuff()` factory method
-5. Wire up the effect logic in `scripts/debuff_manager.gd`
+Items grant stat bonuses, resource bonuses, hand size, weapon damage, and special effects. Some item types have unique systems:
 
-### Key Concepts
+- **Rings** carry passive triggers — "on kill," "on heal," "on gaining X+ armor," and so on — that fire an effect (gain armor, gain mana, draw a card…) when the condition is met.
+- **Gauntlets** can carry an active skill (mana cost + cooldown) or an always-on passive.
+- **Quivers** boost ranged damage and can apply on-hit effects through the cards slotted in them.
 
-- **Duration-based** buffs/debuffs tick down each turn and expire when duration hits 0. Use `duration = -1` for "until cleansed."
-- **Charge-based** buffs deplete when triggered (e.g., "next 3 attacks"). Set `charges` and `duration = -1`.
-- **Value** (`val`) is the magnitude: damage amount, percentage, bonus, etc.
+### Weight & carry capacity
+
+Every item has weight. Your capacity is **100 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs. Traveling light is a real build choice.
+
+### Hands, off-hands, and two-handing
+
+- Weapon slot 1 is your main hand; additional hand slots are **off-hands**, which apply their bonuses at reduced (90%) effectiveness by default.
+- **Any weapon or shield can be gripped with both hands** — it's a player choice per slot, not an item property. Two-handing:
+  - halves the item's carried weight (letting a weaker character wield huge gear),
+  - drops your **total** carry capacity to 80% while gripped,
+  - consumes a second (empty) hand slot,
+  - grants bonus damage from the item's *original* weight (+1 per 10 weight) — shields instead gain bonus block armor.
+
+### Equipment builds (loadouts I / II / III)
+
+You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. Out of combat, switching is free. **In combat, every changed slot costs tempo**:
+
+| Slot | Swap cost (tempo) | Remove-only |
+|---|---|---|
+| Helm, Ring, Hand items | 2 | 1 |
+| Gauntlets, Belt, Boots | 3 | 1 |
+| Chest | 8 | 4 |
+
+The switch validates the end state as a whole (weight, storage space) before anything moves — you'll never get stranded half-dressed.
+
+### Storage & stash
+
+Unequipped gear lives in your backpack (limited slots). Towns provide a larger persistent **stash**. Loose cards you pick up as loot go to a card inventory first and are added to your deck (via the discard pile) when you choose.
+
+---
+
+## Weapon & Equipment Swapping
+
+Items and cards are deeply linked: some items **grant cards** to your deck while equipped, and cards can be **slotted into items** (see next section). Swapping equipment moves those cards with the item:
+
+- **Equipping an item** places the cards it owns into your **discard pile** — they join your deck on the next reshuffle, not instantly in hand.
+- **Removing an item** immediately pulls its cards out of **every zone** — deck, hand, discard, jail, maintained, manifest, quiver.
+- **Jail time is not laundered by swapping.** If an item's card is jailed and you swap the item out and back in, the card returns *directly to jail* with the same time remaining.
+- **Produced cards detach.** If an item or a slotted card *generates* a card during play (for example, a goblet that produces a Heal Orb card), that produced card belongs to you, not the item — it stays in your deck even after the item is swapped out.
+
+---
+
+## Cards Slotted Into Items
+
+Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** — extra damage, block, healing, mana discount, or on-hit effects — whenever played.
+
+Slotting is governed by compatibility keywords:
+
+| Keyword | Meaning |
+|---|---|
+| **Pliable** | Card can be slotted into any item type. |
+| **Picky** | Once extracted from an item, the card can only be re-slotted into the *same item type*. |
+| **Molded** | Card is permanently locked into the item and cannot be extracted. |
+| **Arrow** | Bow/quiver cards. |
+| **Pocket** | Daggers, potions, small items — slots into belts. |
+| **Gem** | Slots into rings. |
+| **Swift** | Agility and movement cards — slots into boots. |
+| **Buckler** | Defensive techniques — slots into shields. |
+| **Crown** | Mental and aura cards — slots into helms. |
+| **Fist** | Unarmed combat cards — slots into gauntlets. |
+| **Chisel** | Card is *only* playable while slotted in an item. |
+
+---
+
+## Characters
+
+Five playable characters. All of them:
+
+- start with the **same basic deck** (attacks, blocks, and a few utility cards) plus a small character kit,
+- allocate the same starting stat pool — who they *become* is up to you,
+- have **one item specialty**: a slot layout that favors a particular equipment type, encouraging different gear strategies,
+- have a **unique passive** tied to their specialty,
+- have **four distinct paths** of abilities that can be **mixed and matched** — you are never locked into a single path; your build can borrow from all four.
+
+Character identity comes from the intersection of item specialty, path choices, stat allocation, and the deck you assemble — not from a fixed class kit.
+
+---
+
+## Progression
+
+Your character grows along several permanent axes:
+
+- **Levels & XP** — combat grants experience; levels raise your baseline power.
+- **Stat allocation** — core stats are yours to distribute and shape around Determination's risk/reward curve.
+- **Sphere grid** — a large unlock web of stat nodes, combat bonuses (crit, thorns, life steal, resistances…), passives, and new cards.
+- **Path abilities** — unlock and combine abilities from your character's four paths.
+- **Deck crafting** — buy cards from vendors, and use consumables to sculpt the deck:
+  - **Culling Stones** permanently remove a card from your deck.
+  - **Paper Feathers** upgrade a card down one of two upgrade paths.
+  - **Origami Swans** are earned by destroying cards; 20 swans convert into a Paper Feather.
+- **Equipment** — loot, vendors, and quest rewards across all acts.
+- **Story** — a four-act journey (Earth → Hell → Heaven → a final return to Earth). Everything above carries forward between acts; nothing resets.
+
+After the story concludes, an end-game **roguelike arena** unlocks that borrows your persistent character for high-stakes runs — a victory lap, not the main event.
