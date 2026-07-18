@@ -142,10 +142,10 @@ func process_overflow(card: Card) -> void:
 		_process_secondary_effects(card)
 		return
 	
-	# Priority 3: Transferred
-	var transferred_effect = get_first_effect_of_type(OverflowEffect.OverflowType.TRANSFERRED)
-	if transferred_effect:
-		_process_transferred(card, transferred_effect)
+	# Priority 3: Skip
+	var skip_effect = get_first_effect_of_type(OverflowEffect.OverflowType.SKIP)
+	if skip_effect:
+		_process_skip(card, skip_effect)
 		_process_secondary_effects(card)
 		return
 	
@@ -218,12 +218,12 @@ func _process_enhance(card: Card, effect: OverflowEffect) -> void:
 	if effect.use_charge():
 		remove_overflow_effect(effect)
 
-func _process_transferred(card: Card, effect: OverflowEffect) -> void:
-	# Transferred cards go straight to the discard pile
+func _process_skip(card: Card, effect: OverflowEffect) -> void:
+	# Skipped cards go straight to the discard pile
 	if deck_manager:
 		deck_manager.discard_pile.append(card)
 
-	print("[OVERFLOW] Transferred: %s sent to discard pile" % card.card_name)
+	print("[OVERFLOW] Skip: %s sent to discard pile" % card.card_name)
 
 	if effect.use_charge():
 		remove_overflow_effect(effect)

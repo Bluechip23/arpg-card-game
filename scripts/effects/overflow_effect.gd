@@ -7,7 +7,7 @@ enum OverflowType {
 	JAILED,
 	MANIFEST,
 	ENHANCE,
-	TRANSFERRED,
+	SKIP,
 	PEAK,
 	OVERCHARGE,
 	QUIVER
@@ -51,7 +51,7 @@ func get_type_name() -> String:
 		OverflowType.JAILED: return "Jailed"
 		OverflowType.MANIFEST: return "Manifest"
 		OverflowType.ENHANCE: return "Enhance"
-		OverflowType.TRANSFERRED: return "Transferred"
+		OverflowType.SKIP: return "Skip"
 		OverflowType.PEAK: return "Peak"
 		OverflowType.OVERCHARGE: return "Overcharge"
 		OverflowType.QUIVER: return "Quiver"
@@ -67,8 +67,8 @@ func get_display_text() -> String:
 			return "Manifest: %s (%s)" % [effect_name, charge_text]
 		OverflowType.ENHANCE:
 			return "Enhance +%d (%s)" % [effect_value, charge_text]
-		OverflowType.TRANSFERRED:
-			return "Transferred (%s)" % charge_text
+		OverflowType.SKIP:
+			return "Skip (%s)" % charge_text
 		OverflowType.PEAK:
 			return "Peak (%s)" % charge_text
 		OverflowType.OVERCHARGE:
@@ -131,8 +131,8 @@ static func create_enhance(bonus_damage: int = 3, charges: int = 3, source: Stri
 	effect.source_name = source
 	return effect
 
-static func create_transferred(charges: int = 3, source: String = "") -> OverflowEffect:
-	var effect = OverflowEffect.new(OverflowType.TRANSFERRED, "Transferred", 0, charges)
+static func create_skip(charges: int = 3, source: String = "") -> OverflowEffect:
+	var effect = OverflowEffect.new(OverflowType.SKIP, "Skip", 0, charges)
 	effect.source_name = source
 	return effect
 

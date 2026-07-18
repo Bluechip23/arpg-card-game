@@ -16,7 +16,7 @@ signal maintained_card_activated(card: Card)
 signal maintained_cards_cleared
 signal card_erased(card: Card)
 
-enum OverflowMode { JAILED, ENHANCE, PEAK, TRANSFERRED, OVERCHARGE, MANIFEST }
+enum OverflowMode { JAILED, ENHANCE, PEAK, SKIP, OVERCHARGE, MANIFEST, NONE }
 
 var draw_pile: Array[Card] = []
 var hand: Array[Card] = []
@@ -174,7 +174,10 @@ func _create_default_deck(character: CharacterData) -> void:
 			draw_pile.append(card)
 		else:
 			print("[DECK] WARNING: Unknown card_id: %s" % card_id)
-var current_overflow_mode: OverflowMode = OverflowMode.JAILED
+## Default overflow behavior is NONE: when the hand is full a draw simply does
+## nothing (the card is left on the draw pile). An overflow mode has to be set
+## by a card or item for overflow to do anything.
+var current_overflow_mode: OverflowMode = OverflowMode.NONE
 
 func set_overflow_mode(mode: OverflowMode) -> void:
 	current_overflow_mode = mode
@@ -191,8 +194,8 @@ func set_overflow_mode(mode: OverflowMode) -> void:
 				effect = OverflowEffect.create_enhance(3, -1, "Default")
 			OverflowMode.PEAK:
 				effect = OverflowEffect.create_peak(-1, "Default")
-			OverflowMode.TRANSFERRED:
-				effect = OverflowEffect.create_transferred(-1, "Default")
+			OverflowMode.SKIP:
+				effect = OverflowEffect.create_skip(-1, "Default")
 			OverflowMode.MANIFEST:
 				effect = OverflowEffect.create_manifest_skeleton(-1, "Default")
 			OverflowMode.OVERCHARGE:
@@ -302,21 +305,23 @@ func attempt_draw() -> void:
 		draw_card()
 
 func handle_overflow() -> void:
+	# Default overflow does NOTHING: with no active overflow effect the player
+	# simply doesn't draw — the extra card stays on the draw pile. Only an
+	# active overflow effect (Jailed, Skip, Enhance, Manifest, Peak, Overcharge,
+	# Quiver…) pulls the card off the pile and processes it.
+	if not overflow_manager or overflow_manager.overflow_effects.size() == 0:
+		print("[DECK] Hand full — overflow does nothing (no overflow mode active)")
+		return
+
 	if draw_pile.size() == 0:
 		shuffle_discard_into_draw()
 		if draw_pile.size() == 0:
 			print("[DECK] No cards to overflow!")
 			return
-	
+
 	var card = draw_pile.pop_back()
-	
-	if overflow_manager:
-		overflow_manager.process_overflow(card)
-		overflow_triggered.emit("Processed", card)
-	else:
-		# Fallback: just discard
-		discard_pile.append(card)
-		print("[DECK] No overflow manager, discarded: %s" % card.card_name)
+	overflow_manager.process_overflow(card)
+	overflow_triggered.emit("Processed", card)
 
 func play_card(index: int, target, player_node = null, defer_execution: bool = false) -> Dictionary:
 	if index < 0 or index >= hand.size():
@@ -515,10 +520,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			# Put back in hand
 			hand.insert(min(index, hand.size()), card)
 			print("[DECK] %s sticky (%d/%d uses) - stays in hand" % [card.card_name, card.consecutive_uses, card.sticky])
-	elif card.exhaust_on_play:
-		# Burned — removed from the deck entirely (not sent to discard).
+	elif card.erase_on_play:
+		# Erased — removed from the deck entirely the moment it's played (not discarded).
 		card_discarded.emit(card)
-		print("[DECK] %s burned after play (exhausted)." % card.card_name)
+		print("[DECK] %s erased after play." % card.card_name)
 	else:
 		discard_pile.append(card)
 		discards_this_cycle += 1
