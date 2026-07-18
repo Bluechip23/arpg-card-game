@@ -100,7 +100,6 @@ Your deck is your moveset. Cards move between several zones during combat:
 - **Jail** — cards locked away for a set amount of tempo. Jailed cards can't be played; when their time expires they're released to the discard pile.
 - **Maintained** — active Power cards sit here, reserving mana.
 - **Manifest zone** — cards converted into clickable tokens by certain overflow effects.
-- **Quiver** — attack cards stored by certain overflow effects, playable later at full cost.
 
 ### Card types
 
@@ -116,18 +115,16 @@ Your deck is your moveset. Cards move between several zones during combat:
 
 ### Drawing and overflow
 
-If a draw would exceed your hand size, the card **overflows** instead. What happens to it depends on your active overflow mode:
+If a draw would exceed your hand size, it **overflows**. **By default, nothing happens** — you simply don't draw the extra card, and it stays on top of your draw pile. Cards and items can set an active *overflow mode* that instead does something with the overflowing card, turning the situation into an engine:
 
 | Overflow mode | Result |
 |---|---|
-| **Jailed** (default) | The card goes to jail and can't be played until its sentence expires. |
+| **Jailed** | The card goes to jail and can't be played until its sentence expires. |
 | **Enhance** | Attack cards gain bonus damage, then are discarded. |
 | **Peak** | You see the next card on the draw pile. |
-| **Transferred** | The card is sent straight to the discard pile. |
+| **Skip** | The card is sent straight to the discard pile. |
 | **Overcharge** | Triggers a special effect on each overflow. |
 | **Manifest** | The card becomes a token in the manifest zone — click to activate its manifest effect. |
-
-Cards and items can change your overflow mode, turning a punishment into an engine.
 
 ---
 
@@ -140,16 +137,14 @@ Mechanics that appear on cards:
 | **Maintain X** | Reserves X mana while the card's effect persists. Breaks if mana hits 0. |
 | **Sticky X** | Card stays in hand and can be played X times before discarding. |
 | **Burden** | Cost increases by 1 mana/1 tempo each time played. Jail it for 30 tempo (from hand, costs 1m/1t) to reset. |
-| **Erase X** | After X tempo, the card is permanently deleted from your deck. |
+| **Erase** | The card is permanently deleted from your deck — either after X tempo, or immediately after being played. |
 | **Glut X** | You cannot play cards for X tempo after this one. |
 | **Delay X** | The effect takes place X tempo after playing. |
 | **On-Draw / On-Discard** | Triggers an effect when drawn / discarded. |
 | **In-Hand** | Applies a persistent effect while the card sits in your hand. |
 | **Linger** | Status card that can exceed your hand size limit. While it lingers, normal draws overflow. |
 | **Empower** | Buffs your next cards: +3 damage for attacks, −3 mana for defense. |
-| **Exhaust** | Removed from the deck entirely after being played (not discarded). |
 | **Reach** | Adds 1 tile to melee attack range. |
-| **High Ground** | Ranged attacks from elevation deal +4 damage and gain +2 range. |
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
 | **Chisel** | Card can only be played while slotted into an item — never from hand alone. |
 
@@ -238,7 +233,6 @@ Items grant stat bonuses, resource bonuses, hand size, weapon damage, and specia
 
 - **Rings** carry passive triggers — "on kill," "on heal," "on gaining X+ armor," and so on — that fire an effect (gain armor, gain mana, draw a card…) when the condition is met.
 - **Gauntlets** can carry an active skill (mana cost + cooldown) or an always-on passive.
-- **Quivers** boost ranged damage and can apply on-hit effects through the cards slotted in them.
 
 ### Weight & carry capacity
 
@@ -247,6 +241,7 @@ Every item has weight. Your capacity is **100 + 10 per point of Strength**. You 
 ### Hands, off-hands, and two-handing
 
 - Weapon slot 1 is your main hand; additional hand slots are **off-hands**, which apply their bonuses at reduced (90%) effectiveness by default.
+- **Any item can go in any hand** — there is no main-hand/off-hand *type* restriction. You can wear a shield in your main hand and a sword in an off-hand, a quiver alongside a bow, and so on. The 90% off-hand reduction is about *which slot* an item sits in, not what type of item it is.
 - **Any weapon or shield can be gripped with both hands** — it's a player choice per slot, not an item property. Two-handing:
   - halves the item's carried weight (letting a weaker character wield huge gear),
   - drops your **total** carry capacity to 80% while gripped,
@@ -276,7 +271,7 @@ Unequipped gear lives in your backpack (limited slots). Towns provide a larger p
 Items and cards are deeply linked: some items **grant cards** to your deck while equipped, and cards can be **slotted into items** (see next section). Swapping equipment moves those cards with the item:
 
 - **Equipping an item** places the cards it owns into your **discard pile** — they join your deck on the next reshuffle, not instantly in hand.
-- **Removing an item** immediately pulls its cards out of **every zone** — deck, hand, discard, jail, maintained, manifest, quiver.
+- **Removing an item** immediately pulls its cards out of **every zone** — deck, hand, discard, jail, maintained, and manifest.
 - **Jail time is not laundered by swapping.** If an item's card is jailed and you swap the item out and back in, the card returns *directly to jail* with the same time remaining.
 - **Produced cards detach.** If an item or a slotted card *generates* a card during play (for example, a goblet that produces a Heal Orb card), that produced card belongs to you, not the item — it stays in your deck even after the item is swapped out.
 

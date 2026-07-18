@@ -8126,8 +8126,8 @@ func _on_apply_overflow(overflow_name: String) -> void:
 			effect = OverflowEffect.create_manifest_spirit(3, "Test")
 		"Enhance +3 (3)":
 			effect = OverflowEffect.create_enhance(3, 3, "Test")
-		"Transferred (3)":
-			effect = OverflowEffect.create_transferred(3, "Test")
+		"Skip (3)":
+			effect = OverflowEffect.create_skip(3, "Test")
 		"Peak (∞)":
 			effect = OverflowEffect.create_peak(-1, "Test")
 		"Overcharge: +2 Health (∞)":

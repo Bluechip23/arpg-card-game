@@ -80,7 +80,7 @@ func _build_legend() -> void:
 	_add_keyword("Jailed", "Card goes to jail for 3 turns, cannot be played")
 	_add_keyword("Manifest", "Card goes to manifest zone as a token. Click to activate the manifest effect, then card is discarded")
 	_add_keyword("Enhance", "Attack cards gain +X bonus damage, then discarded")
-	_add_keyword("Transferred", "Overflow card is sent to the discard pile")
+	_add_keyword("Skip", "Overflow card is sent straight to the discard pile")
 	_add_keyword("Peak", "See the next card on draw pile (doesn't block other effects)")
 	_add_keyword("Overcharge", "Triggers an effect when overflow occurs (doesn't block other effects)")
 

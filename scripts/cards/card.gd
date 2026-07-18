@@ -61,7 +61,7 @@ var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card p
 var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
 var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
 var linger: bool = false  # If true, status card can exceed hand size limit when added
-var exhaust_on_play: bool = false  # If true, card is removed from the deck entirely after being played (not discarded)
+var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
 var roguelike_only: bool = false  # If true, card can only be PLAYED during a roguelike run (still collectible in the story)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
@@ -474,7 +474,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"jailed": "Card goes to jail for 3 turns, cannot be played",
 		"manifest": "Card goes to manifest zone as a token. Click to activate",
 		"enhance": "Attack cards gain +X bonus damage, then discarded",
-		"transferred": "Overflow card is sent to the discard pile",
+		"skip": "Overflow card is sent straight to the discard pile",
 		"peak": "See the next card on draw pile",
 		"overcharge": "Triggers an effect when overflow occurs",
 		# Range / AOE
@@ -3060,7 +3060,7 @@ static func create_hydra_bite() -> Card:
 	var card = Card.new()
 	card.card_id = "hydra_bite"
 	card.card_name = "Hydra Bite"
-	card.description = "Deal 7 damage. Burned from your deck after being played."
+	card.description = "Deal 7 damage. Erased from your deck after being played."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 1
@@ -3071,7 +3071,7 @@ static func create_hydra_bite() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.exhaust_on_play = true
+	card.erase_on_play = true
 	card.linger = true  # Generated into hand; may exceed hand cap
 	card.target_types = ["enemy"]
 	return card

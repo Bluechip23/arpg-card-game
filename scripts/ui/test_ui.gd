@@ -117,7 +117,7 @@ func _setup_dropdowns() -> void:
 		overflow_dropdown.add_item("Manifest: Mushroom (∞)")
 		overflow_dropdown.add_item("Manifest: Spirit (3)")
 		overflow_dropdown.add_item("Enhance +3 (3)")
-		overflow_dropdown.add_item("Transferred (3)")
+		overflow_dropdown.add_item("Skip (3)")
 		overflow_dropdown.add_item("Peak (∞)")
 		overflow_dropdown.add_item("Overcharge: +2 Health (∞)")
 		overflow_dropdown.add_item("Overcharge: +2 Mana (∞)")
