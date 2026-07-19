@@ -52,6 +52,10 @@ func _spawn_p2_player() -> void:
 	reposition_beside_p1()
 
 	p2.initialize_character(main.player2_character)
+	# Ally leveling: partner earns XP alongside P1 (see main._on_enemy_killed);
+	# give their level-ups the same flourish + battle-log treatment.
+	if p2.get_stats():
+		p2.get_stats().leveled_up.connect(main._on_ally_leveled_up)
 	# Connect P2's deck to its own inventory/stats so its cards work independently.
 	main._p2_deck_manager.connect_player_stats(p2.get_stats())
 	if p2.has_method("connect_deck_to_inventory"):

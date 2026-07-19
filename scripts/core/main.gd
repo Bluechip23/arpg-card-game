@@ -144,6 +144,11 @@ var player2_character: CharacterData = null
 var is_multiplayer: bool = false
 var sandbox_mode: bool = false      # Free-play arena launched from the Sandbox menu
 var sandbox_ui = null                # SandboxUI (preloaded; untyped to avoid class-cache dependency)
+# Ally interaction: right-clicking the co-op partner opens a small menu whose
+# "Trade" entry opens the two-pane trade window (items + gold, both ways).
+var trade_ui = null                  # TradeUI (created lazily on first trade)
+var _ally_menu: PopupMenu = null     # right-click context menu on the partner
+var _ally_menu_target: Player = null
 var hud_icon_bar = null              # HudIconBar — top-right icon bar (character / EXP / quest / help)
 var _quest_notify: bool = false      # A quest was added/updated/completed since last opened
 
@@ -2779,6 +2784,8 @@ func select_character(character: CharacterData) -> void:
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
+	# Ally paging: the panel's arrows page through everyone currently in play.
+	character_panel.set_page_provider(_all_players)
 
 
 	deck_manager.initialize_deck(character)
@@ -3336,6 +3343,29 @@ func _on_play_cards_pressed() -> void:
 	add_battle_log("Locked cards played together!", Color(0.5, 1.0, 0.6))
 	print("[MAIN] Batch card play: %d cards" % batch.size())
 
+# ---- Ally interaction (right-click menu + trade) ----
+
+func _show_ally_menu(ally: Player, screen_pos: Vector2) -> void:
+	## Small context menu shown when right-clicking the co-op partner.
+	if _ally_menu == null:
+		_ally_menu = PopupMenu.new()
+		_ally_menu.add_item("Trade", 0)
+		_ally_menu.id_pressed.connect(_on_ally_menu_pressed)
+		get_node("UI").add_child(_ally_menu)
+	_ally_menu_target = ally
+	_ally_menu.position = Vector2i(screen_pos)
+	_ally_menu.popup()
+
+func _on_ally_menu_pressed(id: int) -> void:
+	if id == 0 and _ally_menu_target and is_instance_valid(_ally_menu_target):
+		_open_trade_ui(player, _ally_menu_target)
+
+func _open_trade_ui(a: Player, b: Player) -> void:
+	if trade_ui == null:
+		trade_ui = preload("res://scripts/ui/trade_ui.gd").new()
+		get_node("UI").add_child(trade_ui)
+	trade_ui.open_trade(a, b)
+
 ## Returns the player character whose tile is at/near the world position, or null.
 ## Used for co-op ally targeting (click the partner to heal/buff them).
 func _player_at_position(world_pos: Vector3) -> Player:
@@ -3787,7 +3817,11 @@ func _roll_hydra_drops() -> void:
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
-	player.get_stats().gain_xp(enemy.xp_reward)
+	# Everyone in the party earns the kill's XP, so the co-op partner's level
+	# progresses alongside the active player's.
+	for p in _all_players():
+		if is_instance_valid(p) and p.get_stats():
+			p.get_stats().gain_xp(enemy.xp_reward)
 	# Bestiary: record story-mode kills per character so a future roguelike can
 	# gate monster-intent reveals on "defeated in story". Roguelike encounters
 	# don't count toward unlocking their own intents.
@@ -4079,6 +4113,15 @@ func _on_player_leveled_up(new_level: int) -> void:
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int) -> void:
 	_update_xp_display()
+
+func _on_ally_leveled_up(new_level: int) -> void:
+	## The co-op partner leveled up: flourish + log. (Sphere/skill-tree rewards
+	## stay tied to Player 1's progression UIs.)
+	if _p2_player and is_instance_valid(_p2_player):
+		_p2_player.show_level_up()
+	var ally_name: String = player2_character.character_name if player2_character else "Your ally"
+	add_battle_log("%s reached level %d!" % [ally_name, new_level], Color(1.0, 0.85, 0.4))
+	print("[MAIN] Ally leveled up to %d" % new_level)
 
 # ============================================
 # SPHERE GRID → CHARACTER SYNC
@@ -6508,6 +6551,8 @@ func _is_ui_window_open() -> bool:
 	## or scrolling one of these windows.
 	if character_panel and character_panel.is_open():
 		return true
+	if trade_ui and trade_ui.visible:
+		return true
 	if enemy_inspect_ui and enemy_inspect_ui.visible:
 		return true
 	if help_panel and help_panel.visible:
@@ -6646,6 +6691,8 @@ func _input(event: InputEvent) -> void:
 				enemy_inspect_ui.hide_panel()
 			character_panel.hide_panel()
 			skill_tree_ui.hide_panel()
+			if trade_ui:
+				trade_ui.close()
 	
 	# Left click - play card or use gauntlet skill
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -6732,6 +6779,15 @@ func _input(event: InputEvent) -> void:
 			add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
 		else:
 			var mouse_pos = get_mouse_world_position()
+
+			# Co-op: right-clicking your partner opens the ally menu (Trade)
+			# instead of being treated as a move order.
+			if is_multiplayer and _p2_player:
+				var clicked_ally: Player = _player_at_position(mouse_pos)
+				if clicked_ally and clicked_ally != player:
+					_show_ally_menu(clicked_ally, event.position)
+					return
+
 			var spaces = grid_manager.get_distance_in_cells(player.position, mouse_pos)
 
 			if spaces == 0:
