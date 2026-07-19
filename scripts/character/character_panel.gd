@@ -722,7 +722,7 @@ func _get_character_passive() -> String:
 		"Brad":
 			return "Chest items weigh 20% less"
 		"Jeremy":
-			return "First ring trigger per turn triggers twice"
+			return "Every 3rd cycle, the first ring trigger triggers twice"
 		"Stephen":
 			return "+10% off-hand enchantments (others get -10%)"
 		"Cory":

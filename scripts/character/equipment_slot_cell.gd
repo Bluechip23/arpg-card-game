@@ -18,6 +18,7 @@ const SLOT_SIZE := Vector2(84, 84)
 # compile cycle back to CharacterPanel, which preloads this script.
 const ItemSilhouetteScript = preload("res://scripts/character/item_silhouette.gd")
 const InventoryCardSlotScript = preload("res://scripts/character/inventory_card_slot.gd")
+const UIGlyphsScript = preload("res://scripts/ui/ui_glyphs.gd")
 
 var _panel = null  # CharacterPanel
 var item_type: int = 0
@@ -103,6 +104,88 @@ func _build_children() -> void:
 		card_slot.offset_right = -3
 		card_slot.offset_bottom = -3
 		add_child(card_slot)
+
+	_add_passive_badge()
+
+## Top-left corner badge advertising a character passive that affects this
+## slot type: Ryan's belt mana discount, Cory's gauntlet mana refund, Jeremy's
+## ring double-trigger cycle, Brad's chest weight reduction, and the universal
+## off-hand bonus/penalty. Hovering the badge explains the passive.
+func _add_passive_badge() -> void:
+	var inv = _panel.inventory if _panel else null
+	if not inv:
+		return
+	var icon: Texture2D = null
+	var text := ""
+	var text_color := Color(0.85, 0.88, 0.95)
+	var tip := ""
+	match item_type:
+		ItemData.ItemType.BELT:
+			if inv.belt_card_mana_reduction > 0:
+				text = "-%d" % inv.belt_card_mana_reduction
+				text_color = Color(0.55, 0.75, 1.0)
+				tip = "Cards granted by belt items cost %d less mana." % inv.belt_card_mana_reduction
+		ItemData.ItemType.GAUNTLETS:
+			if inv.gauntlet_cooldown_mana:
+				icon = UIGlyphsScript.get_glyph("mana_plus")
+				tip = "Gain 1 mana whenever a gauntlet skill comes off cooldown."
+		ItemData.ItemType.RING:
+			if inv.ring_double_trigger:
+				icon = UIGlyphsScript.get_glyph("recycle")
+				tip = "Every %d cycles, the first ring trigger of the cycle triggers twice." % inv.RING_DOUBLE_TRIGGER_CYCLES
+		ItemData.ItemType.CHEST:
+			if inv.chest_weight_reduction > 0.0:
+				var cut := int(round(inv.chest_weight_reduction * 100))
+				icon = UIGlyphsScript.get_glyph("feather")
+				text = "%d%%" % cut
+				text_color = Color(0.8, 0.85, 0.95)
+				tip = "Chest items weigh %d%% less." % cut
+		ItemData.ItemType.WEAPON:
+			# Off-hand slots only (index 0 is the main hand). A two-handed grip
+			# sheds the off-hand modifier, so skip gripped/grip-locked slots.
+			if slot_index > 0 and inv.two_handed_slot != slot_index \
+					and not inv.is_grip_locked_slot(slot_index):
+				var pct := int(round((inv.get_off_hand_modifier() - 1.0) * 100))
+				if pct > 0:
+					text = "+%d%%" % pct
+					text_color = Color(0.5, 0.9, 0.55)
+					tip = "Off-hand items get a %d%% bonus." % pct
+				elif pct < 0:
+					text = "%d%%" % pct
+					text_color = Color(0.95, 0.55, 0.5)
+					tip = "Off-hand items take a %d%% penalty." % -pct
+	if icon == null and text == "":
+		return
+
+	var badge := HBoxContainer.new()
+	badge.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	badge.offset_left = 3
+	badge.offset_top = 2
+	badge.add_theme_constant_override("separation", 1)
+	badge.mouse_filter = Control.MOUSE_FILTER_PASS
+	badge.tooltip_text = tip
+	if icon:
+		var rect := TextureRect.new()
+		rect.texture = icon
+		rect.custom_minimum_size = Vector2(14, 14)
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		rect.mouse_filter = Control.MOUSE_FILTER_PASS
+		rect.tooltip_text = tip
+		badge.add_child(rect)
+	if text != "":
+		var lbl := Label.new()
+		lbl.text = text
+		lbl.add_theme_font_size_override("font_size", 10)
+		lbl.add_theme_color_override("font_color", text_color)
+		# Black outline so the badge reads over the silhouette.
+		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+		lbl.add_theme_constant_override("outline_size", 3)
+		lbl.mouse_filter = Control.MOUSE_FILTER_PASS
+		lbl.tooltip_text = tip
+		badge.add_child(lbl)
+	add_child(badge)
 
 func _build_item_tooltip() -> String:
 	var lines: Array[String] = [item.item_name, item.get_type_name()]

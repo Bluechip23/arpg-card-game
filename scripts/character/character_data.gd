@@ -134,7 +134,7 @@ static func create_ryan() -> CharacterData:
 	data.passive_description = "Belt cards cost 1 less mana"
 	data.starting_item_name = "Adventurer's Belt"
 	data.starting_item_description = "Grants: Healing Potion & Dagger Throw"
-	data.slot_specialty = "4 belt slots"
+	data.slot_specialty = "3 belt slots"
 	data.sprite_path = "res://assets/characters/ryan_south.png"
 	return data
 
@@ -163,7 +163,7 @@ static func create_jeremy() -> CharacterData:
 		{"name": "Shepherd", "description": "Summoner who focuses on the greater good. Your strength is your selflessness, sometimes sacrificing your own health for your friends."},
 		{"name": "Poltergeist", "description": "Master of death and hatred, instilling sheer agony on your enemies is your main objective."},
 	]
-	data.passive_description = "First ring trigger per turn triggers twice"
+	data.passive_description = "Every 3rd cycle, the first ring trigger triggers twice"
 	data.starting_item_name = "Scholar's Signet"
 	data.starting_item_description = "+3 INT. +3% chance. On Utility: +1 Mana"
 	data.slot_specialty = "4 ring slots"
@@ -214,7 +214,7 @@ static func create_stephen() -> CharacterData:
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
 	data.starting_item_name = "Flickerstep Boots"
 	data.starting_item_description = "+2 DEX. Grants 1 Blink card"
-	data.slot_specialty = "4 weapon slots, 3 ring slots"
+	data.slot_specialty = "Standard slots"
 	data.sprite_path = "res://assets/characters/stephen_south.png"
 	return data
 
@@ -294,7 +294,7 @@ static func create_brad() -> CharacterData:
 	data.passive_description = "Chest items weigh 20% less"
 	data.starting_item_name = "Bloodbound Plate"
 	data.starting_item_description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
-	data.slot_specialty = "3 weapon slots"
+	data.slot_specialty = "2 off-hand slots"
 	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data
 

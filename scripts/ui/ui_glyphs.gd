@@ -23,6 +23,9 @@ static func get_glyph(key: String) -> Texture2D:
 		"shield": _draw_shield(img)
 		"cage": _draw_cage(img)
 		"raindrop": _draw_raindrop(img)
+		"mana_plus": _draw_mana_plus(img)
+		"recycle": _draw_recycle(img)
+		"feather": _draw_feather(img)
 		_:
 			_cache[key] = null
 			return null
@@ -210,3 +213,52 @@ static func _draw_raindrop(img: Image) -> void:
 	_fill_teardrop(img, 12.0, 15.0, 8.0, 1.0, edge)      # outline
 	_fill_teardrop(img, 12.0, 15.0, 6.6, 3.5, body)      # body
 	_disc(img, 9.5, 13.0, 1.7, hi)                        # highlight
+
+static func _draw_mana_plus(img: Image) -> void:
+	## Mana drop with a small "+" pinned to its top-right corner
+	## (Cory's gauntlet passive: mana back when a skill comes off cooldown).
+	var body := Color(0.35, 0.62, 1.0)
+	var edge := Color(0.12, 0.28, 0.6)
+	var hi := Color(0.72, 0.86, 1.0)
+	var plus := Color(0.55, 1.0, 0.65)
+	# Drop nudged down-left to leave room for the plus.
+	_fill_teardrop(img, 10.0, 16.0, 7.0, 4.0, edge)      # outline
+	_fill_teardrop(img, 10.0, 16.0, 5.7, 6.0, body)      # body
+	_disc(img, 8.0, 14.5, 1.5, hi)                        # highlight
+	# "+" in the top-right corner.
+	_rect(img, 16, 3, 7, 3, plus)
+	_rect(img, 18, 1, 3, 7, plus)
+
+static func _draw_recycle(img: Image) -> void:
+	## Three green arrows chasing each other around a triangle (recycle symbol,
+	## for Jeremy's ring double-trigger cycle passive).
+	var green := Color(0.35, 0.8, 0.4)
+	var dark := Color(0.16, 0.5, 0.22)
+	# Triangle ring (dark under-stroke, then bright core).
+	_line(img, 12, 4, 20, 18, dark, 2.6)
+	_line(img, 20, 18, 4, 18, dark, 2.6)
+	_line(img, 4, 18, 12, 4, dark, 2.6)
+	_line(img, 12, 4, 20, 18, green, 1.4)
+	_line(img, 20, 18, 4, 18, green, 1.4)
+	_line(img, 4, 18, 12, 4, green, 1.4)
+	# Arrowheads at each corner, chasing clockwise.
+	_tri(img, Vector2(12, 1), Vector2(16, 5), Vector2(10, 6), green)
+	_tri(img, Vector2(23, 18), Vector2(17, 15), Vector2(18, 22), green)
+	_tri(img, Vector2(1, 18), Vector2(7, 21), Vector2(6, 14), green)
+
+static func _draw_feather(img: Image) -> void:
+	## Pale feather angled up-right: a thin quill with soft barbs sweeping off
+	## it (lightness — Brad's chest weight reduction).
+	var vane := Color(0.9, 0.92, 0.97)
+	var shade := Color(0.65, 0.7, 0.82)
+	var quill := Color(0.5, 0.55, 0.68)
+	# Vane: strokes fanning off the quill line, widest through the middle, so
+	# the shape reads as a leaf-like plume rather than a bare stick.
+	for i in range(10):
+		var t := float(i) / 9.0
+		var qx := lerpf(7.0, 20.0, t)
+		var qy := lerpf(18.0, 3.0, t)
+		var spread := sin(t * PI) * 5.0 + 1.5
+		_line(img, qx, qy, qx - spread, qy - spread * 0.7, vane if i % 2 == 0 else shade, 2.2)
+	# Quill runs the full length, with a bare tip at the bottom.
+	_line(img, 4, 21, 20, 3, quill, 1.2)
