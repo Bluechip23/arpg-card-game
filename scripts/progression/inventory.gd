@@ -30,6 +30,9 @@ var ring_double_trigger: bool = false     # Jeremy
 var off_hand_bonus: float = 0.0           # Stephen (+10%), others get -10% penalty
 var gauntlet_cooldown_mana: bool = false  # Cory
 
+# Jeremy's double trigger only arms every Nth cycle (every cycle proved busted).
+const RING_DOUBLE_TRIGGER_CYCLES: int = 3
+
 # Default off-hand penalty
 const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 
@@ -90,6 +93,7 @@ var origami_swans: int = 0  # 20 origami swans = 1 Paper Feather (crafted by Olo
 # Ring trigger tracking
 var ring_triggered_this_turn: bool = false
 var armor_gained_this_turn: int = 0
+var ring_cycle_count: int = 0  # cycles elapsed, for Jeremy's every-3rd-cycle double trigger
 
 # Prevents infinite loop when granting armor-on-armor-gain bonuses
 var _applying_armor_instance_bonus: bool = false
@@ -101,72 +105,38 @@ var deck_manager = null  # DeckManager - untyped to avoid circular dependency
 func initialize(char_name: String) -> void:
 	character_name = char_name
 	
+	# Universal baseline every character starts from:
+	# 1 helm, 2 rings, 1 belt, 1 chest, 1 main hand, 1 off hand,
+	# 1 pair of boots, 1 gauntlet.
+	helm_slots = 1
+	chest_slots = 1
+	ring_slots = 2
+	belt_slots = 1
+	boots_slots = 1
+	gauntlets_slots = 1
+	weapon_slots = 2  # main hand (index 0) + off hand (index 1)
+	chest_weight_reduction = 0.0
+	belt_card_mana_reduction = 0
+	ring_double_trigger = false
+	off_hand_bonus = 0.0
+	gauntlet_cooldown_mana = false
+
+	# Per-character deviations from the baseline.
 	match character_name:
 		"Ryan":
-			helm_slots = 1
-			chest_slots = 1
-			ring_slots = 2
-			belt_slots = 4
-			boots_slots = 1
-			gauntlets_slots = 1
-			weapon_slots = 2
-			chest_weight_reduction = 0.0
+			belt_slots = 3
 			belt_card_mana_reduction = 1
-			ring_double_trigger = false
-			off_hand_bonus = 0.0
-			gauntlet_cooldown_mana = false
 		"Brad":
-			helm_slots = 1
-			chest_slots = 1
-			ring_slots = 2
-			belt_slots = 1
-			boots_slots = 1
-			gauntlets_slots = 1
-			weapon_slots = 3
+			weapon_slots = 3  # main hand + 2 off hands
 			chest_weight_reduction = 0.20
-			belt_card_mana_reduction = 0
-			ring_double_trigger = false
-			off_hand_bonus = 0.0
-			gauntlet_cooldown_mana = false
 		"Jeremy":
-			helm_slots = 1
-			chest_slots = 1
 			ring_slots = 4
-			belt_slots = 2
-			boots_slots = 1
-			gauntlets_slots = 1
-			weapon_slots = 2
-			chest_weight_reduction = 0.0
-			belt_card_mana_reduction = 0
-			ring_double_trigger = true  # Jeremy's passive
-			off_hand_bonus = 0.0
-			gauntlet_cooldown_mana = false
+			ring_double_trigger = true  # doubles every RING_DOUBLE_TRIGGER_CYCLES cycles
 		"Stephen":
-			helm_slots = 1
-			chest_slots = 1
-			ring_slots = 3
-			belt_slots = 1
-			boots_slots = 1
-			gauntlets_slots = 1
-			weapon_slots = 4
-			chest_weight_reduction = 0.0
-			belt_card_mana_reduction = 0
-			ring_double_trigger = false
 			off_hand_bonus = 0.2  # +10% instead of -10% = +20% total swing
-			gauntlet_cooldown_mana = false
 		"Cory":
-			helm_slots = 1
-			chest_slots = 1
-			ring_slots = 2
-			belt_slots = 1
-			boots_slots = 1
 			gauntlets_slots = 2
-			weapon_slots = 2
-			chest_weight_reduction = 0.0
-			belt_card_mana_reduction = 0
-			ring_double_trigger = false
-			off_hand_bonus = 0.0
-			gauntlet_cooldown_mana = true  # Cory's passive
+			gauntlet_cooldown_mana = true
 	
 	_init_slot_arrays()
 	
@@ -179,7 +149,7 @@ func _print_passives() -> void:
 	if chest_weight_reduction > 0:
 		print("[INVENTORY] Passive: Chest items weigh %.0f%% less" % (chest_weight_reduction * 100))
 	if ring_double_trigger:
-		print("[INVENTORY] Passive: First ring trigger per turn triggers twice")
+		print("[INVENTORY] Passive: Every %d cycles, the first ring trigger triggers twice" % RING_DOUBLE_TRIGGER_CYCLES)
 	if off_hand_bonus > 0:
 		print("[INVENTORY] Passive: +%.0f%% off-hand bonuses" % (off_hand_bonus * 100))
 	if gauntlet_cooldown_mana:
@@ -593,6 +563,7 @@ func process_turn() -> void:
 	# Reset per-turn tracking
 	ring_triggered_this_turn = false
 	armor_gained_this_turn = 0
+	ring_cycle_count += 1
 	
 	# Process gauntlet cooldowns
 	for gauntlet in equipped_gauntlets:
@@ -627,13 +598,19 @@ func trigger_rings(trigger_type: ItemData.RingTrigger, value: int = 0) -> void:
 					continue
 			
 			_execute_ring_effect(ring)
-			
-			# Jeremy's passive: first ring trigger happens twice
-			if ring_double_trigger and not ring_triggered_this_turn:
+
+			# Jeremy's passive: every 3rd cycle, the first ring trigger happens twice
+			if is_ring_double_trigger_armed() and not ring_triggered_this_turn:
 				print("[INVENTORY] Jeremy passive: Double trigger!")
 				_execute_ring_effect(ring)
-			
+
 			ring_triggered_this_turn = true
+
+func is_ring_double_trigger_armed() -> bool:
+	## Jeremy's passive only doubles the first ring trigger on every
+	## RING_DOUBLE_TRIGGER_CYCLES-th cycle (a per-cycle double proved busted).
+	return ring_double_trigger and ring_cycle_count > 0 \
+			and ring_cycle_count % RING_DOUBLE_TRIGGER_CYCLES == 0
 
 func _execute_ring_effect(ring: ItemData) -> void:
 	if not player_stats:

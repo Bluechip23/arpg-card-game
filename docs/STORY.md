@@ -443,11 +443,15 @@ roguelike. The current playable roster (`scripts/character/character_data.gd`):
 
 | Character | Fantasy | Signature archetypes | Slot specialty |
 |-----------|---------|----------------------|----------------|
-| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | 3 weapon slots; chest items weigh 20% less |
-| **Ryan** | Dexterous duelist / rogue | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 4 belt slots; belt cards cost 1 less mana |
-| **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | 4 weapon + 3 ring slots; off-hand enchantments |
+| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | 2 off-hand slots; chest items weigh 20% less |
+| **Ryan** | Dexterous duelist / rogue | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 3 belt slots; belt cards cost 1 less mana |
+| **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | standard slots; +10% off-hand enchantments (others −10%) |
 | **Cory** | Druid / monk / witherer | Monk, Lurker, Druid, Atrophist | 2 gauntlet slots; gauntlet-skill synergy |
-| **Jeremy** | Elemental mage | Evocation (+ more) | 4 ring slots; first ring trigger fires twice |
+| **Jeremy** | Elemental mage | Evocation (+ more) | 4 ring slots; first ring trigger fires twice every 3rd cycle |
+
+All five share the same slot baseline (1 helm, 2 rings, 1 belt, 1 chest, 1 main
+hand, 1 off hand, 1 pair of boots, 1 gauntlet); the table lists each
+character's single deviation from it.
 
 > These are the *player's* avatars, distinct from Olorin (the guide). Whether
 > any of them have story-specific arcs woven into the Acts is `[TBD]`.

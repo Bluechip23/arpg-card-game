@@ -293,7 +293,7 @@ static func _get_archetype_passive() -> Dictionary:
 	return {
 		Archetype.WARRIOR: "Chest items weigh 20% less",               # Brad
 		Archetype.ROGUE: "Belt cards cost 1 less mana",                # Ryan
-		Archetype.MAGE: "First ring trigger per turn triggers twice",  # Jeremy
+		Archetype.MAGE: "Every 3rd cycle, the first ring trigger triggers twice",  # Jeremy
 		Archetype.ARCHER: "+10% off-hand enchantments (others get -10%)",  # Stephen
 		Archetype.MONK: "Gain 1 mana when gauntlet skill comes off cooldown",  # Cory
 	}
@@ -318,10 +318,10 @@ static func _get_archetype_item_description() -> Dictionary:
 
 static func _get_archetype_slot_specialty() -> Dictionary:
 	return {
-		Archetype.WARRIOR: "3 weapon slots",                   # Brad
-		Archetype.ROGUE: "4 belt slots",                       # Ryan
+		Archetype.WARRIOR: "2 off-hand slots",                 # Brad
+		Archetype.ROGUE: "3 belt slots",                       # Ryan
 		Archetype.MAGE: "4 ring slots",                        # Jeremy
-		Archetype.ARCHER: "4 weapon slots, 3 ring slots",     # Stephen
+		Archetype.ARCHER: "Standard slots",                    # Stephen
 		Archetype.MONK: "2 gauntlet slots",                    # Cory
 	}
 

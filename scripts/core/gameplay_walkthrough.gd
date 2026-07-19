@@ -210,10 +210,13 @@ Rings have passive effects that trigger on events:
 
 [font_size=18][color=cyan]━━━ CHARACTER PASSIVES ━━━[/color][/font_size]
 
-[color=red]Ryan:[/color] Belt cards cost 1 less mana (4 belt slots)
-[color=green]Brad:[/color] Chest items weigh 20% less (3 weapon slots)
-[color=blue]Jeremy:[/color] First ring trigger per turn triggers twice (4 ring slots)
-[color=purple]Stephen:[/color] +10% off-hand enchantments, others get -10% (4 weapon slots, 3 ring slots)
+Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
+1 main hand, 1 off hand, 1 pair of boots, 1 gauntlet — plus one twist each:
+
+[color=red]Ryan:[/color] Belt cards cost 1 less mana (3 belt slots)
+[color=green]Brad:[/color] Chest items weigh 20% less (2 off-hand slots)
+[color=blue]Jeremy:[/color] Every 3rd cycle, the first ring trigger triggers twice (4 ring slots)
+[color=purple]Stephen:[/color] +10% off-hand enchantments, others get -10% (standard slots)
 [color=orange]Cory:[/color] Gain 1 mana when gauntlet skill comes off cooldown (2 gauntlet slots)
 
 [font_size=18][color=cyan]━━━ RNG ━━━[/color][/font_size]
