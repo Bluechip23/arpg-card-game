@@ -82,6 +82,19 @@ const DEBUFF_AFFECTS := {
 	"Cuffed": ["draw"], "Drain": ["mana_regen"], "Vulnerable": ["damage_taken"],
 }
 
+# Ally paging: Main provides a callable returning the Player nodes currently in
+# play; arrows above the portrait page the whole panel (stats + inventory +
+# effects) between them. Hidden unless a partner is in play.
+var _page_provider: Callable = Callable()
+var _ally_nav: HBoxContainer = null
+var _nav_label: Label = null
+
+# Level / XP progress row under the portrait (level-up progress for whichever
+# party member is being viewed).
+var _level_label: Label = null
+var _xp_bar: ProgressBar = null
+var _xp_bar_text: Label = null
+
 # The inventory half of the panel, split into its own window (see
 # _split_windows): stats/portrait live in `panel`, equipment lives here.
 var _inv_panel: PanelContainer = null
@@ -265,6 +278,7 @@ func _apply_button_styles() -> void:
 	close_button.add_theme_stylebox_override("hover", btn_hover)
 
 func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm = null) -> void:
+	_disconnect_stats()
 	player_stats = stats
 	inventory = inv
 	deck_manager = dm
@@ -276,6 +290,8 @@ func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm
 		player_stats.mana_changed.connect(_on_mana_changed)
 		player_stats.armor_changed.connect(_on_armor_changed)
 		player_stats.stats_updated.connect(_on_stats_changed)
+		player_stats.xp_changed.connect(_on_stats_changed)
+		player_stats.leveled_up.connect(_on_stats_changed)
 	if buff_manager and buff_manager.has_signal("buffs_changed"):
 		buff_manager.buffs_changed.connect(_on_stats_changed)
 	if debuff_manager and debuff_manager.has_signal("debuffs_changed"):
@@ -285,6 +301,77 @@ func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm
 		inventory.equipment_changed.connect(_on_equipment_changed)
 		inventory.storage_changed.connect(_on_storage_changed)
 	item_tooltip = get_node_or_null("/root/Main/UI/ItemTooltip")
+
+func _disconnect_stats() -> void:
+	## Drop every change-signal connection to the currently bound character so
+	## the panel can rebind to another party member without duplicate signals.
+	if player_stats:
+		_drop(player_stats.health_changed, _on_stats_changed)
+		_drop(player_stats.mana_changed, _on_mana_changed)
+		_drop(player_stats.armor_changed, _on_armor_changed)
+		_drop(player_stats.stats_updated, _on_stats_changed)
+		_drop(player_stats.xp_changed, _on_stats_changed)
+		_drop(player_stats.leveled_up, _on_stats_changed)
+	if buff_manager and buff_manager.has_signal("buffs_changed"):
+		_drop(buff_manager.buffs_changed, _on_stats_changed)
+	if debuff_manager and debuff_manager.has_signal("debuffs_changed"):
+		_drop(debuff_manager.debuffs_changed, _on_stats_changed)
+	if inventory:
+		_drop(inventory.equipment_changed, _on_equipment_changed)
+		_drop(inventory.storage_changed, _on_storage_changed)
+
+static func _drop(sig: Signal, cb: Callable) -> void:
+	if sig.is_connected(cb):
+		sig.disconnect(cb)
+
+# ---------------------------------------------------------------------------
+# Ally paging (view party members' sheets/inventories)
+# ---------------------------------------------------------------------------
+
+func set_page_provider(provider: Callable) -> void:
+	## Main hands us a callable returning the Player nodes currently in play.
+	_page_provider = provider
+
+func view_player(p) -> void:
+	## Rebind the whole panel (stats, inventory, deck, effects) to a party member.
+	if p == null or not is_instance_valid(p):
+		return
+	var inv: Inventory = p.get_inventory()
+	var dm = inv.deck_manager if inv else null
+	connect_stats(p.get_stats(), inv, dm, p.get_buff_manager(), p.get_debuff_manager())
+	_close_detail_panel()
+	_close_card_slot_panel()
+	_refresh_build_buttons()
+	update_display()
+
+func _get_pages() -> Array:
+	var pages: Array = []
+	if _page_provider.is_valid():
+		for p in _page_provider.call():
+			if p != null and is_instance_valid(p) and p.get_stats() != null:
+				pages.append(p)
+	return pages
+
+func _current_page_index(pages: Array) -> int:
+	for i in range(pages.size()):
+		if pages[i].get_stats() == player_stats:
+			return i
+	return 0
+
+func _page_ally(dir: int) -> void:
+	var pages := _get_pages()
+	if pages.size() < 2:
+		return
+	view_player(pages[(_current_page_index(pages) + dir + pages.size()) % pages.size()])
+
+func _make_nav_arrow(glyph: String, dir: int, tip: String) -> Button:
+	var btn := Button.new()
+	btn.text = glyph
+	btn.custom_minimum_size = Vector2(30, 22)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.tooltip_text = tip
+	btn.pressed.connect(_page_ally.bind(dir))
+	return btn
 
 func show_panel() -> void:
 	_refresh_build_buttons()
@@ -326,6 +413,8 @@ func update_display() -> void:
 	if _portrait_fig and player_stats.character_data:
 		_portrait_fig.setup(player_stats.character_data.get_base_character(), player_stats.character_data.sprite_path)
 
+	_update_ally_nav()
+	_update_level_row()
 	_update_core_stat_rows()
 
 	if derived_label:
@@ -346,10 +435,26 @@ func _ensure_portrait_and_combat() -> void:
 		return
 	var vbox = name_label.get_parent()
 
+	# Ally paging arrows at the top of the stats window, above the portrait.
+	# Shown only when more than one party member is in play (see update_display).
+	_ally_nav = HBoxContainer.new()
+	_ally_nav.name = "AllyNav"
+	_ally_nav.alignment = BoxContainer.ALIGNMENT_CENTER
+	_ally_nav.add_theme_constant_override("separation", 10)
+	vbox.add_child(_ally_nav)
+	vbox.move_child(_ally_nav, name_label.get_index() + 1)
+	_ally_nav.add_child(_make_nav_arrow("◀", -1, "View previous party member"))
+	_nav_label = Label.new()
+	_nav_label.add_theme_font_size_override("font_size", 11)
+	_nav_label.add_theme_color_override("font_color", Color(0.65, 0.65, 0.75))
+	_ally_nav.add_child(_nav_label)
+	_ally_nav.add_child(_make_nav_arrow("▶", 1, "View next party member"))
+	_ally_nav.visible = false
+
 	var center = CenterContainer.new()
 	center.name = "PortraitCenter"
 	vbox.add_child(center)
-	vbox.move_child(center, name_label.get_index() + 1)
+	vbox.move_child(center, _ally_nav.get_index() + 1)
 
 	var container = SubViewportContainer.new()
 	container.stretch = true
@@ -380,6 +485,38 @@ func _ensure_portrait_and_combat() -> void:
 	cam.position = Vector3(0.25, 1.35, 2.7)
 	cam.look_at_from_position(cam.position, Vector3(0, 0.8, 0), Vector3.UP)
 
+	# Level / XP progress row under the portrait: the viewed party member's
+	# level-up progress at a glance.
+	var level_row := HBoxContainer.new()
+	level_row.add_theme_constant_override("separation", 6)
+	level_row.tooltip_text = "Level-up progress: XP toward the next level"
+	vbox.add_child(level_row)
+	vbox.move_child(level_row, center.get_index() + 1)
+	_level_label = Label.new()
+	_level_label.add_theme_font_size_override("font_size", 13)
+	_level_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.4))
+	level_row.add_child(_level_label)
+	var bar_wrap := Control.new()
+	bar_wrap.custom_minimum_size = Vector2(0, 16)
+	bar_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	level_row.add_child(bar_wrap)
+	_xp_bar = ProgressBar.new()
+	_xp_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_xp_bar.show_percentage = false
+	var xp_fill := StyleBoxFlat.new()
+	xp_fill.bg_color = Color(0.55, 0.4, 0.85)
+	xp_fill.set_corner_radius_all(3)
+	_xp_bar.add_theme_stylebox_override("fill", xp_fill)
+	bar_wrap.add_child(_xp_bar)
+	_xp_bar_text = Label.new()
+	_xp_bar_text.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_xp_bar_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_xp_bar_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_xp_bar_text.add_theme_font_size_override("font_size", 10)
+	_xp_bar_text.add_theme_color_override("font_color", Color(1, 1, 1))
+	_xp_bar_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar_wrap.add_child(_xp_bar_text)
+
 	# Combat section: addressable stat rows (so buffs/debuffs can tint and the
 	# effects list can highlight individual stats).
 	var stats_container = stats_label.get_parent()
@@ -406,6 +543,23 @@ func _ensure_portrait_and_combat() -> void:
 	vbox.add_child(_effects_box)
 	vbox.move_child(_effects_box, eff_header.get_index() + 1)
 
+
+func _update_ally_nav() -> void:
+	if not _ally_nav:
+		return
+	var pages := _get_pages()
+	_ally_nav.visible = pages.size() > 1
+	if _nav_label and pages.size() > 1:
+		_nav_label.text = "Party %d / %d" % [_current_page_index(pages) + 1, pages.size()]
+
+func _update_level_row() -> void:
+	if not _xp_bar or not player_stats:
+		return
+	var to_next: int = player_stats.get_xp_to_next_level()
+	_level_label.text = "Lv %d" % player_stats.current_level
+	_xp_bar.max_value = to_next
+	_xp_bar.value = player_stats.current_xp
+	_xp_bar_text.text = "%d / %d XP" % [player_stats.current_xp, to_next]
 
 func _make_stat_row(key: String, label_text: String) -> void:
 	var row := HBoxContainer.new()
