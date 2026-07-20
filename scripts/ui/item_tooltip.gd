@@ -18,20 +18,14 @@ func show_item(item: ItemData, pos: Vector2) -> void:
 		hide()
 		return
 	
-	# Name
+	# Name (colored by rarity, shows forge level)
 	if name_label:
-		name_label.text = item.item_name
-		match item.item_type:
-			ItemData.ItemType.WEAPON:
-				name_label.add_theme_color_override("font_color", Color(1, 0.5, 0.5))
-			ItemData.ItemType.RING:
-				name_label.add_theme_color_override("font_color", Color(0.5, 0.5, 1))
-			_:
-				name_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	
+		name_label.text = item.get_display_name()
+		name_label.add_theme_color_override("font_color", item.get_rarity_color())
+
 	# Type
 	if type_label:
-		type_label.text = item.get_type_name()
+		type_label.text = "%s %s · Lv.%d/%d" % [item.get_rarity_name(), item.get_type_name(), item.item_level, item.get_max_level()]
 	
 	# Stats
 	if stats_label:

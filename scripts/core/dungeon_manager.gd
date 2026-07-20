@@ -3000,23 +3000,31 @@ func _generate_chest_contents(chest_index: int) -> Dictionary:
 	return contents
 
 func _get_random_item(rng: RandomNumberGenerator) -> ItemData:
-	var item_creators: Array[Callable] = [
-		ItemData.create_iron_helm,
-		ItemData.create_leather_chest,
-		ItemData.create_iron_sword,
-		ItemData.create_wooden_shield,
-		ItemData.create_gold_ring,
-		ItemData.create_flame_dagger,
-		ItemData.create_frost_orb,
-		ItemData.create_leather_boots,
-		ItemData.create_iron_gauntlets,
-		ItemData.create_utility_belt,
-		ItemData.create_ice_quiver,
-		ItemData.create_fire_quiver,
-		ItemData.create_belt_of_greater_healing,
-	]
-	var idx = rng.randi() % item_creators.size()
-	return item_creators[idx].call()
+	# Rarity-weighted drop. Only level-1 items ever drop — higher item levels
+	# exist solely through forging copies together at the Blacksmith.
+	# Higher worlds shift weight from basic toward the top tiers.
+	var w = clampi(world_level, 1, 4) - 1
+	var weights = {
+		ItemData.Rarity.BASIC: 46 - w * 6,
+		ItemData.Rarity.COMMON: 30,
+		ItemData.Rarity.RARE: 18 + w * 3,
+		ItemData.Rarity.LEGENDARY: 4 + w * 2,
+		ItemData.Rarity.MYTHIC: 2 + w,
+	}
+	var total = 0
+	for r in weights:
+		total += weights[r]
+	var roll = rng.randi_range(1, total)
+	var rarity = ItemData.Rarity.BASIC
+	for r in weights:
+		roll -= weights[r]
+		if roll <= 0:
+			rarity = r
+			break
+	var pool = ItemData.get_items_of_rarity(rarity)
+	if pool.is_empty():
+		pool = ItemData.get_items_of_rarity(ItemData.Rarity.BASIC)
+	return pool[rng.randi() % pool.size()]
 
 func _get_random_card(rng: RandomNumberGenerator) -> Card:
 	var card_creators: Array[Callable] = [

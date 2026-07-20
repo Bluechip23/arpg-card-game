@@ -89,6 +89,7 @@ var max_card_storage: int = 20
 var culling_stones: int = 99  # Used to permanently remove cards from deck
 var paper_feathers: int = 3  # Used to upgrade cards at the Card Dealer
 var origami_swans: int = 0  # 20 origami swans = 1 Paper Feather (crafted by Olorin)
+var mythic_molds: int = 0  # 2 molded-down mythics = 1 Mold; redeem for any mythic at the Blacksmith
 
 # Ring trigger tracking
 var ring_triggered_this_turn: bool = false
@@ -387,6 +388,7 @@ func _create_card_by_id(card_id: String) -> Card:
 		"block": return Card.create_block()
 		"potion_of_continuance": return Card.create_potion_of_continuance()
 		"gulped_potion": return Card.create_gulped_potion()
+		"splinter": return Card.create_splinter()
 	return null
 
 func apply_starting_item_card_effects() -> void:
@@ -668,6 +670,26 @@ func on_armor_gained(amount: int) -> void:
 
 func on_enemy_killed() -> void:
 	trigger_rings(ItemData.RingTrigger.ON_ENEMY_KILL)
+	_conjure_on_kill_cards()
+
+## Items with on_kill_card_id (Bladed Doughnut) conjure a fresh copy of their
+## card straight into the hand on every kill.
+func _conjure_on_kill_cards() -> void:
+	if not deck_manager:
+		return
+	var conjured = false
+	var all_slots = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons, equipped_quivers]
+	for slot in all_slots:
+		for item in slot:
+			if item == null or item.on_kill_card_id == "":
+				continue
+			var card = deck_manager._create_card_from_id(item.on_kill_card_id)
+			if card:
+				deck_manager.hand.append(card)
+				conjured = true
+				print("[INVENTORY] %s: conjured '%s' into hand on kill" % [item.item_name, card.card_name])
+	if conjured:
+		deck_manager.hand_updated.emit()
 
 func on_card_played(card: Card) -> void:
 	if card.card_type == Card.CardType.ATTACK:
@@ -734,6 +756,18 @@ func _execute_gauntlet_skill(gauntlet: ItemData, target) -> void:
 			if player_stats:
 				player_stats.take_damage(3)
 			print("[SKILL] Rage Strike deals 15 damage, costs 3 HP!")
+
+		"worldsplitter":
+			if target and target.has_method("take_damage"):
+				target.take_damage(20, true)
+				print("[SKILL] Worldsplitter deals 20 damage!")
+
+		"worldsplitter_awakened":
+			if target and target.has_method("take_damage"):
+				target.take_damage(30, true)
+			if player_stats:
+				player_stats.add_armor(5)
+			print("[SKILL] Worldsplitter Awakened deals 30 damage, +5 Armor!")
 
 func get_passive_effects() -> Array[String]:
 	var effects: Array[String] = []
@@ -1412,6 +1446,25 @@ func add_origami_swans(amount: int) -> void:
 		origami_swans -= 20
 		paper_feathers += 1
 		print("[INVENTORY] Converted 20 Origami Swans into 1 Paper Feather! (%d feathers, %d swans remaining)" % [paper_feathers, origami_swans])
+
+# ============================================
+# MYTHIC MOLDS
+# ============================================
+
+func get_mythic_mold_count() -> int:
+	return mythic_molds
+
+func add_mythic_mold(amount: int = 1) -> void:
+	mythic_molds += amount
+	print("[INVENTORY] Gained %d Mythic Mold(s) (%d total)" % [amount, mythic_molds])
+
+func use_mythic_mold() -> bool:
+	if mythic_molds <= 0:
+		print("[INVENTORY] No Mythic Molds remaining!")
+		return false
+	mythic_molds -= 1
+	print("[INVENTORY] Used Mythic Mold (%d remaining)" % mythic_molds)
+	return true
 
 func destroy_cards_for_swans(card_count: int) -> int:
 	## Destroys cards and returns the number of origami swans created (1 per card).

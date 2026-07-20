@@ -5,6 +5,7 @@ extends Resource
 
 enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON, QUIVER }
 enum WeaponSubtype { SWORD, BOW, SHIELD, OTHER }
+enum Rarity { BASIC, COMMON, RARE, LEGENDARY, MYTHIC }
 enum SpecialEffect {
 	NONE,
 	OVERFLOW_HEAL_ARMOR,
@@ -58,6 +59,25 @@ enum GauntletSkillType {
 @export var item_name: String = "Unknown Item"
 @export var item_type: ItemType = ItemType.WEAPON
 @export var item_type_name: String = "Weapon"
+
+# ============================================
+# RARITY & FORGE LEVELS
+# ============================================
+# Every item exists at level 1 (the only level that drops) and can be forged
+# up by consuming extra copies of the same item at the Blacksmith:
+#   Basic/Common/Rare:  max level 2 — costs 3 extra copies (4 found in total)
+#   Legendary/Mythic:   max level 3 — Lv.2 costs 1 extra copy (2 total),
+#                       Lv.3 costs 2 more copies (4 total)
+# Level 2 is a pure stat boost. Level 3 (legendary/mythic only) is the big
+# power spike: level_3_overrides rewrites item properties so a baked-in skill
+# can transform into something build-defining.
+@export var rarity: Rarity = Rarity.BASIC
+@export var item_level: int = 1
+# Property name -> new value, applied when the item reaches level 3.
+@export var level_3_overrides: Dictionary = {}
+# Replaces `description` at level 3 (when non-empty) so the tooltip
+# explains the transformed skill.
+@export var level_3_description: String = ""
 
 # Stats
 @export var weight: int = 0
@@ -139,11 +159,91 @@ var granted_cards_built: bool = false
 @export var on_self_thorns: int = 0  # Card grants X thorns on play
 @export var on_self_upgrade: bool = false  # Card upgrades on play (requires gem)
 
+# On-kill card conjuring (Bladed Doughnut): every enemy kill while this item
+# is equipped adds a fresh copy of this card directly to the hand.
+@export var on_kill_card_id: String = ""
+
 # Runtime tracking
 var current_cooldown: int = 0  # Current cooldown remaining
 
 # Description
 @export var description: String = ""
+
+# ============================================
+# RARITY & FORGE LEVEL HELPERS
+# ============================================
+
+func get_rarity_name() -> String:
+	match rarity:
+		Rarity.BASIC: return "Basic"
+		Rarity.COMMON: return "Common"
+		Rarity.RARE: return "Rare"
+		Rarity.LEGENDARY: return "Legendary"
+		Rarity.MYTHIC: return "Mythic"
+	return "Unknown"
+
+func get_rarity_color() -> Color:
+	match rarity:
+		Rarity.BASIC: return Color(0.75, 0.75, 0.75)
+		Rarity.COMMON: return Color(0.45, 0.85, 0.45)
+		Rarity.RARE: return Color(0.4, 0.6, 1.0)
+		Rarity.LEGENDARY: return Color(1.0, 0.6, 0.2)
+		Rarity.MYTHIC: return Color(0.9, 0.35, 0.9)
+	return Color.WHITE
+
+func get_max_level() -> int:
+	return 3 if rarity == Rarity.LEGENDARY or rarity == Rarity.MYTHIC else 2
+
+func can_level_up() -> bool:
+	return item_level < get_max_level()
+
+## Extra copies the forge consumes to reach the NEXT level (on top of the item
+## itself). Totals match the design: basic/common/rare need 4 copies found for
+## Lv.2; legendary/mythic need 2 found for Lv.2 and 4 found for Lv.3.
+func get_copies_for_next_level() -> int:
+	if not can_level_up():
+		return 0
+	if rarity == Rarity.LEGENDARY or rarity == Rarity.MYTHIC:
+		return 1 if item_level == 1 else 2
+	return 3
+
+## Display name with the forge level, e.g. "Iron Sword (Lv.2)".
+func get_display_name() -> String:
+	if item_level <= 1:
+		return item_name
+	return "%s (Lv.%d)" % [item_name, item_level]
+
+## Forge the item to the next level. Returns false at max level.
+## The caller (ItemForge) is responsible for consuming the copies.
+func level_up() -> bool:
+	if not can_level_up():
+		return false
+	item_level += 1
+	if item_level == 2:
+		_apply_level_2_stat_boost()
+	elif item_level == 3:
+		_apply_level_3_transformation()
+	return true
+
+## Level 2 is a pure stat booster. Placeholder tuning: every nonzero flat
+## bonus the item provides gets +1 (design note: "max number +1").
+func _apply_level_2_stat_boost() -> void:
+	for prop in ["strength_bonus", "dexterity_bonus", "intelligence_bonus",
+			"wisdom_bonus", "determination_bonus", "agility_bonus",
+			"health_bonus", "mana_bonus", "armor_bonus", "weapon_damage",
+			"ranged_damage_bonus", "healing_bonus",
+			"block_bonus_to_defense_cards", "damage_bonus_to_attack_cards"]:
+		var value: int = get(prop)
+		if value > 0:
+			set(prop, value + 1)
+
+## Level 3 rewrites properties per level_3_overrides — this is where a
+## legendary/mythic's baked-in skill transforms.
+func _apply_level_3_transformation() -> void:
+	for prop in level_3_overrides:
+		set(prop, level_3_overrides[prop])
+	if level_3_description != "":
+		description = level_3_description
 
 func get_type_name() -> String:
 	match item_type:
@@ -349,6 +449,7 @@ static func create_bloodbound_plate() -> ItemData:
 	item.item_name = "Bloodbound Plate"
 	item.item_type = ItemType.CHEST
 	item.item_type_name = "Chest"
+	item.rarity = Rarity.RARE
 	item.weight = 5
 	item.determination_bonus = 2
 	item.special_effect = SpecialEffect.OVERFLOW_HEAL_ARMOR
@@ -362,6 +463,7 @@ static func create_flickerstep_boots() -> ItemData:
 	item.item_name = "Flickerstep Boots"
 	item.item_type = ItemType.BOOTS
 	item.item_type_name = "Boots"
+	item.rarity = Rarity.RARE
 	item.weight = 2
 	item.dexterity_bonus = 2
 	item.special_effect = SpecialEffect.GRANT_BLINK_CARD
@@ -374,6 +476,7 @@ static func create_grasping_gauntlets() -> ItemData:
 	item.item_name = "Grasping Gauntlets"
 	item.item_type = ItemType.GAUNTLETS
 	item.item_type_name = "Gauntlets"
+	item.rarity = Rarity.RARE
 	item.weight = 3
 	item.hand_size_bonus = 2
 	item.special_effect = SpecialEffect.INCREASE_HAND_SIZE
@@ -393,6 +496,7 @@ static func create_scholars_signet() -> ItemData:
 	item.item_name = "Scholar's Signet"
 	item.item_type = ItemType.RING
 	item.item_type_name = "Ring"
+	item.rarity = Rarity.RARE
 	item.weight = 0
 	item.intelligence_bonus = 3
 	item.special_effect = SpecialEffect.CHANCE_BOOST
@@ -409,6 +513,7 @@ static func create_adventurers_belt() -> ItemData:
 	item.item_name = "Adventurer's Belt"
 	item.item_type = ItemType.BELT
 	item.item_type_name = "Belt"
+	item.rarity = Rarity.RARE
 	item.weight = 1
 	item.special_effect = SpecialEffect.GRANT_CARDS
 	item.granted_card_ids.assign(["healing_potion", "dagger_throw"])
@@ -426,6 +531,7 @@ static func create_ring_of_vengeance() -> ItemData:
 	item.item_name = "Ring of Vengeance"
 	item.item_type = ItemType.RING
 	item.item_type_name = "Ring"
+	item.rarity = Rarity.RARE
 	item.weight = 0
 	item.strength_bonus = 1
 	item.ring_trigger = RingTrigger.ON_ENEMY_KILL
@@ -438,6 +544,7 @@ static func create_ring_of_fortitude() -> ItemData:
 	item.item_name = "Ring of Fortitude"
 	item.item_type = ItemType.RING
 	item.item_type_name = "Ring"
+	item.rarity = Rarity.RARE
 	item.weight = 0
 	item.determination_bonus = 2
 	item.ring_trigger = RingTrigger.ON_GAIN_ARMOR_THRESHOLD
@@ -452,6 +559,7 @@ static func create_ring_of_the_scholar() -> ItemData:
 	item.item_name = "Ring of the Scholar"
 	item.item_type = ItemType.RING
 	item.item_type_name = "Ring"
+	item.rarity = Rarity.RARE
 	item.weight = 0
 	item.intelligence_bonus = 2
 	item.ring_trigger = RingTrigger.ON_DRAW_CARD
@@ -469,6 +577,7 @@ static func create_berserker_gauntlets() -> ItemData:
 	item.item_name = "Berserker Gauntlets"
 	item.item_type = ItemType.GAUNTLETS
 	item.item_type_name = "Gauntlets"
+	item.rarity = Rarity.RARE
 	item.weight = 4
 	item.strength_bonus = 2
 	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
@@ -485,6 +594,7 @@ static func create_guardian_gauntlets() -> ItemData:
 	item.item_name = "Guardian Gauntlets"
 	item.item_type = ItemType.GAUNTLETS
 	item.item_type_name = "Gauntlets"
+	item.rarity = Rarity.RARE
 	item.weight = 5
 	item.armor_bonus = 2
 	item.gauntlet_skill_type = GauntletSkillType.PASSIVE
@@ -503,6 +613,7 @@ static func create_flame_dagger() -> ItemData:
 	item.item_name = "Flame Dagger"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
+	item.rarity = Rarity.COMMON
 	item.weight = 3
 	item.weapon_damage = 5
 	item.fire_damage_percent = 10.0
@@ -516,6 +627,7 @@ static func create_frost_orb() -> ItemData:
 	item.item_name = "Frost Orb"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
+	item.rarity = Rarity.COMMON
 	item.weight = 2
 	item.health_bonus = 100
 	item.ice_damage_percent = 10.0
@@ -583,6 +695,7 @@ static func create_gold_ring() -> ItemData:
 	item.item_name = "Gold Ring"
 	item.item_type = ItemType.RING
 	item.item_type_name = "Ring"
+	item.rarity = Rarity.COMMON
 	item.weight = 0
 	item.mana_bonus = 2
 	item.ring_trigger = RingTrigger.ON_ENEMY_KILL
@@ -596,6 +709,7 @@ static func create_heavy_greatsword() -> ItemData:
 	item.item_name = "Heavy Greatsword"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
+	item.rarity = Rarity.RARE
 	item.weight = 130
 	item.weapon_damage = 25
 	item.card_slots = 2
@@ -648,6 +762,7 @@ static func create_ice_quiver() -> ItemData:
 	item.item_name = "Ice Quiver"
 	item.item_type = ItemType.QUIVER
 	item.item_type_name = "Quiver"
+	item.rarity = Rarity.COMMON
 	item.weight = 2
 	item.ranged_damage_bonus = 1
 	item.on_self_apply_cold = 1
@@ -661,6 +776,7 @@ static func create_fire_quiver() -> ItemData:
 	item.item_name = "Fire Quiver"
 	item.item_type = ItemType.QUIVER
 	item.item_type_name = "Quiver"
+	item.rarity = Rarity.COMMON
 	item.weight = 2
 	item.ranged_damage_bonus = 2
 	item.on_self_apply_burn = 1
@@ -678,6 +794,7 @@ static func create_belt_of_greater_healing() -> ItemData:
 	item.item_name = "Belt of Greater Healing"
 	item.item_type = ItemType.BELT
 	item.item_type_name = "Belt"
+	item.rarity = Rarity.COMMON
 	item.weight = 2
 	item.healing_bonus = 2
 	item.on_self_heal = 1
@@ -697,6 +814,7 @@ static func create_spiked_shield() -> ItemData:
 	item.item_name = "Spiked Shield"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Shield"
+	item.rarity = Rarity.RARE
 	item.weapon_subtype = WeaponSubtype.SHIELD
 	item.weight = 40
 	item.special_effect = SpecialEffect.THORNS_PER_TEMPO
@@ -713,6 +831,7 @@ static func create_bow_of_true_sight() -> ItemData:
 	item.item_name = "Bow of True Sight"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Bow"
+	item.rarity = Rarity.RARE
 	item.weapon_subtype = WeaponSubtype.BOW
 	item.weight = 30
 	item.weapon_damage = 3
@@ -729,6 +848,7 @@ static func create_bow_of_deep_wounds() -> ItemData:
 	item.item_name = "Bow of Deep Wounds"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Bow"
+	item.rarity = Rarity.RARE
 	item.weapon_subtype = WeaponSubtype.BOW
 	item.weight = 50
 	item.weapon_damage = 10
@@ -753,6 +873,7 @@ static func create_cyclops_ring() -> ItemData:
 	item.item_name = "Cyclops Ring"
 	item.item_type = ItemType.RING
 	item.item_type_name = "Ring"
+	item.rarity = Rarity.RARE
 	item.weight = 0
 	item.fire_resistance_percent = 15.0
 	item.block_bonus_to_defense_cards = 2
@@ -768,6 +889,7 @@ static func create_trailblazers() -> ItemData:
 	item.item_name = "Trailblazers"
 	item.item_type = ItemType.BOOTS
 	item.item_type_name = "Boots"
+	item.rarity = Rarity.COMMON
 	item.weight = 10
 	item.special_effect = SpecialEffect.ON_TEMPO_MOVEMENT_DAMAGE
 	item.special_effect_value = 5  # Deal 5 damage
@@ -780,6 +902,7 @@ static func create_shadow_dagger() -> ItemData:
 	item.item_name = "Shadow Dagger"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
+	item.rarity = Rarity.RARE
 	item.weight = 10
 	item.weapon_damage = 4
 	item.special_effect = SpecialEffect.ON_KILL_INVISIBLE
@@ -796,8 +919,217 @@ static func create_pocket_knife() -> ItemData:
 	item.item_name = "Pocket Knife"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
+	item.rarity = Rarity.COMMON
 	item.weight = 1
 	item.weapon_damage = 1
 	item.special_effect = SpecialEffect.POCKET_KNIFE_PROC
 	item.description = "On attack speed proc: attack resolves on first tick and costs 2 less tempo (after halving). Weight 1."
 	return item
+
+# ============================================
+# TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
+# ============================================
+
+static func create_wooden_sword() -> ItemData:
+	## No stats at all — its worth is the lesson: a card slot with an on-self
+	## bonus, plus a granted card (Splinter) that travels with the item.
+	var item = ItemData.new()
+	item.item_name = "Wooden Sword"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.rarity = Rarity.BASIC
+	item.weight = 2
+	item.weapon_damage = 0
+	item.card_slots = 1
+	item.on_self_damage = 1
+	item.special_effect = SpecialEffect.GRANT_CARDS
+	item.granted_card_ids.assign(["splinter"])
+	item.description = "No stats. 1 card slot, On-Self: attacks deal +1 damage. Grants Splinter while equipped."
+	return item
+
+# ============================================
+# LEGENDARY ITEMS (max level 3)
+# ============================================
+# Some legendaries carry a baked-in skill; level 3 transforms it via
+# level_3_overrides into the build-defining version.
+
+static func create_dawnbreaker_greatsword() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Dawnbreaker Greatsword"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.rarity = Rarity.LEGENDARY
+	item.weight = 110
+	item.weapon_damage = 20
+	item.strength_bonus = 2
+	item.card_slots = 2
+	item.on_self_damage = 3
+	item.description = "+20 Melee Attack damage, +2 STR. Weight 110. 2 card slots, On-Self: +3 dmg"
+	item.level_3_overrides = {
+		"damage_bonus_to_attack_cards": 3,
+		"on_self_damage": 6,
+	}
+	item.level_3_description = "+20 Melee Attack damage, +2 STR. ALL attack cards deal +3 damage. Weight 110. 2 card slots, On-Self: +6 dmg"
+	return item
+
+static func create_aegis_of_the_colossus() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Aegis of the Colossus"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Shield"
+	item.weapon_subtype = WeaponSubtype.SHIELD
+	item.rarity = Rarity.LEGENDARY
+	item.weight = 45
+	item.armor_bonus = 8
+	item.block_bonus_to_defense_cards = 1
+	item.card_slots = 1
+	item.on_self_block = 2
+	item.description = "Block: 8. +1 block to defense cards. Weight 45. 1 card slot, On-Self: +2 block"
+	item.level_3_overrides = {
+		"block_bonus_to_defense_cards": 3,
+		"special_effect": SpecialEffect.ARMOR_ON_ARMOR_GAIN,
+		"special_effect_value": 3,
+	}
+	item.level_3_description = "Block: 8. +3 block to defense cards. +3 Armor on every Armor gain. Weight 45. 1 card slot, On-Self: +2 block"
+	return item
+
+static func create_ring_of_the_phoenix() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Ring of the Phoenix"
+	item.item_type = ItemType.RING
+	item.item_type_name = "Ring"
+	item.rarity = Rarity.LEGENDARY
+	item.weight = 0
+	item.determination_bonus = 2
+	item.ring_trigger = RingTrigger.ON_TAKE_DAMAGE
+	item.ring_effect = RingEffect.GAIN_ARMOR
+	item.ring_effect_value = 2
+	item.description = "+2 DET. On Take Damage: Gain 2 Armor"
+	item.level_3_overrides = {
+		"ring_effect_value": 4,
+		"determination_bonus": 4,
+	}
+	item.level_3_description = "+4 DET. On Take Damage: Gain 4 Armor"
+	return item
+
+# ============================================
+# MYTHIC ITEMS (max level 3, all carry a skill)
+# ============================================
+
+static func create_worldsplitter_gauntlets() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Worldsplitter Gauntlets"
+	item.item_type = ItemType.GAUNTLETS
+	item.item_type_name = "Gauntlets"
+	item.rarity = Rarity.MYTHIC
+	item.weight = 5
+	item.strength_bonus = 3
+	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
+	item.gauntlet_skill_name = "Worldsplitter"
+	item.gauntlet_skill_description = "Deal 20 damage"
+	item.gauntlet_skill_cooldown = 4
+	item.gauntlet_skill_mana_cost = 3
+	item.gauntlet_skill_effect_id = "worldsplitter"
+	item.description = "+3 STR. Skill: Worldsplitter (deal 20 damage)"
+	item.level_3_overrides = {
+		"gauntlet_skill_effect_id": "worldsplitter_awakened",
+		"gauntlet_skill_name": "Worldsplitter Awakened",
+		"gauntlet_skill_description": "Deal 30 damage, gain 5 Armor",
+		"gauntlet_skill_cooldown": 3,
+	}
+	item.level_3_description = "+3 STR. Skill: Worldsplitter Awakened (deal 30 damage, gain 5 Armor)"
+	return item
+
+static func create_crown_of_the_first_king() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Crown of the First King"
+	item.item_type = ItemType.HELM
+	item.item_type_name = "Helm"
+	item.rarity = Rarity.MYTHIC
+	item.weight = 4
+	item.wisdom_bonus = 2
+	item.hand_size_bonus = 1
+	item.special_effect = SpecialEffect.INCREASE_HAND_SIZE
+	item.special_effect_value = 1
+	item.card_slots = 1
+	item.description = "+2 WIS, +1 Hand Size. 1 card slot"
+	item.level_3_overrides = {
+		"hand_size_bonus": 2,
+		"special_effect_value": 2,
+		"mana_bonus": 3,
+		"card_slots": 2,
+	}
+	item.level_3_description = "+2 WIS, +2 Hand Size, +3 Mana. 2 card slots"
+	return item
+
+static func create_eternity_quiver() -> ItemData:
+	var item = ItemData.new()
+	item.item_name = "Eternity Quiver"
+	item.item_type = ItemType.QUIVER
+	item.item_type_name = "Quiver"
+	item.rarity = Rarity.MYTHIC
+	item.weight = 2
+	item.ranged_damage_bonus = 3
+	item.on_self_apply_burn = 1
+	item.card_slots = 2
+	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
+	item.description = "All ranged attacks gain +3 damage. On-Self (Arrow): Apply 1 Burn on hit. 2 Arrow card slots."
+	item.level_3_overrides = {
+		"ranged_damage_bonus": 5,
+		"on_self_apply_burn": 2,
+		"on_self_apply_cold": 1,
+		"card_slots": 3,
+	}
+	item.level_3_description = "All ranged attacks gain +5 damage. On-Self (Arrow): Apply 2 Burn and 1 Cold on hit. 3 Arrow card slots."
+	return item
+
+static func create_bladed_doughnut() -> ItemData:
+	## Tutorial mythic: the first rat of the story drops it, and Olorin eats it.
+	## It remains a real mythic — redeemable later via a Mythic Mold.
+	var item = ItemData.new()
+	item.item_name = "Bladed Doughnut"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.rarity = Rarity.MYTHIC
+	item.weight = 5
+	item.strength_bonus = 15
+	item.on_kill_card_id = "sprinkle"
+	item.description = "+15 STR. On Kill: add a Sprinkle to your hand (0 mana, 0 tempo, 25 damage)."
+	item.level_3_overrides = {
+		"on_kill_card_id": "sprinkle_bomb",
+	}
+	item.level_3_description = "+15 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
+	return item
+
+# ============================================
+# ITEM FACTORY DISCOVERY
+# ============================================
+
+## One instance of every item defined by a zero-arg create_* factory.
+static func get_all_items() -> Array[ItemData]:
+	var items: Array[ItemData] = []
+	var script: Script = ItemData
+	for method in script.get_script_method_list():
+		var method_name: String = method["name"]
+		if method_name.begins_with("create_") and method["args"].size() == 0:
+			var item = script.call(method_name)
+			if item is ItemData:
+				items.append(item)
+	return items
+
+## Fresh level-1 instances of every item of the given rarity (used for
+## rarity-weighted loot and for redeeming Mythic Molds).
+static func get_items_of_rarity(r: Rarity) -> Array[ItemData]:
+	var items: Array[ItemData] = []
+	for item in get_all_items():
+		if item.rarity == r:
+			items.append(item)
+	return items
+
+## Recreate a fresh level-1 instance of an item by name (forge fodder checks,
+## mold redemption). Returns null for unknown names.
+static func create_by_name(item_name_to_find: String) -> ItemData:
+	for item in get_all_items():
+		if item.item_name == item_name_to_find:
+			return item
+	return null

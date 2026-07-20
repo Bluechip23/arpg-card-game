@@ -54,6 +54,11 @@ var _detail_sell_slot_type: int = -1  # ItemData.ItemType for sell
 var _detail_sell_slot_index: int = -1  # Slot index for sell
 var _modal_open: bool = false
 var _current_vendor_type: String = ""
+var _current_vendor_node: StaticBody3D = null
+
+# Blacksmith forge state: the first mythic clicked for molding (a second
+# click on another mythic completes the mold).
+var _mold_selection: ItemData = null
 
 # Stash UI state
 var _stash_panel: PanelContainer = null
@@ -135,6 +140,7 @@ func _ready() -> void:
 				inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
 				inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 				inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
+				inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
 				inv.equipment_changed.emit()
 				print("[TOWN] Restored inventory: %d stored items, %d stash items" % [inv.stored_items.size(), inv.stash_items.size()])
 
@@ -437,6 +443,8 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 
 	vendor_open = true
 	_current_vendor_type = info["type"]
+	_current_vendor_node = vendor_node
+	_mold_selection = null
 	vendor_name_label.text = info["name"]
 
 	# Clear old items from list
@@ -484,6 +492,10 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 					_apply_upgrade_to_card(card, i)
 					_add_vendor_card_row(card, true, i)
 	else:
+		# Blacksmith: the Forge — level up items with spare copies, mold mythics
+		if info["type"] == "blacksmith":
+			_populate_blacksmith_forge()
+
 		# Item shops: show shop inventory
 		var shop_items = _get_vendor_items(info["type"])
 		for item in shop_items:
@@ -504,7 +516,7 @@ func _add_vendor_item_row(item: ItemData) -> void:
 	var btn = Button.new()
 	btn.custom_minimum_size.y = 40
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.text = "  %s   [%s]   %s" % [item.item_name, item.get_type_name(), item.description]
+	btn.text = "  %s   [%s %s]   %s" % [item.item_name, item.get_rarity_name(), item.get_type_name(), item.description]
 	btn.add_theme_font_size_override("font_size", 13)
 
 	# Normal style
@@ -622,7 +634,7 @@ func _get_all_cards() -> Array[Card]:
 		var method_name: String = method["name"]
 		if method_name.begins_with("create_") and method["args"].size() == 0:
 			var card = card_script.call(method_name)
-			if card is Card:
+			if card is Card and not card.shop_excluded:
 				cards.append(card)
 	# Sort by card type then name
 	cards.sort_custom(func(a, b):
@@ -760,7 +772,7 @@ func _add_sell_item_row(item: ItemData, slot_type: int, slot_index: int) -> void
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	var location = "equipped" if slot_type >= 0 else "stored"
-	btn.text = "  [SELL] %s   [%s]   (%s)" % [item.item_name, item.get_type_name(), location]
+	btn.text = "  [SELL] %s   [%s %s]   (%s)" % [item.get_display_name(), item.get_rarity_name(), item.get_type_name(), location]
 	btn.add_theme_font_size_override("font_size", 13)
 
 	var normal = StyleBoxFlat.new()
@@ -793,6 +805,148 @@ func _add_sell_item_row(item: ItemData, slot_type: int, slot_index: int) -> void
 
 	btn.pressed.connect(_on_sell_item_clicked.bind(item, slot_type, slot_index))
 	vendor_item_list.add_child(btn)
+
+# ============================================
+# BLACKSMITH FORGE UI
+# ============================================
+
+func _populate_blacksmith_forge() -> void:
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		return
+
+	_add_info_label("Mythic Molds: %d" % inventory.get_mythic_mold_count(), Color(0.9, 0.35, 0.9))
+
+	# --- Forge upgrades ---
+	_add_section_separator("Forge — combine copies to level up an item")
+	var candidates = ItemForge.get_forge_candidates(inventory)
+	if candidates.is_empty():
+		_add_info_label("No upgradable items in your inventory or stash.", Color(0.6, 0.6, 0.7))
+		_add_info_label("(Items must be unequipped. Only spare level-1 copies count.)", Color(0.5, 0.5, 0.6))
+	for entry in candidates:
+		_add_forge_row(entry["item"], entry["copies_have"], entry["copies_needed"])
+
+	# --- Mythic molding ---
+	var moldable = ItemForge.get_moldable_mythics(inventory)
+	if moldable.size() > 0:
+		_add_section_separator("Mythic Molding — melt 2 mythics into a Mythic Mold")
+		_add_info_label("Click two mythics to mold them down.", Color(0.6, 0.6, 0.7))
+		for item in moldable:
+			_add_mold_row(item)
+
+	# --- Redeem molds ---
+	if inventory.get_mythic_mold_count() > 0:
+		_add_section_separator("Redeem a Mythic Mold — pick any mythic item")
+		for item in ItemData.get_items_of_rarity(ItemData.Rarity.MYTHIC):
+			_add_mold_redeem_row(item)
+
+func _add_forge_row(item: ItemData, have: int, needed: int) -> void:
+	var btn = Button.new()
+	btn.custom_minimum_size.y = 40
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var ready = have >= needed
+	btn.text = "  %s   [%s %s]   Lv.%d → Lv.%d   copies: %d/%d%s" % [
+		item.get_display_name(), item.get_rarity_name(), item.get_type_name(),
+		item.item_level, item.item_level + 1, have, needed,
+		"   FORGE!" if ready else ""]
+	btn.add_theme_font_size_override("font_size", 13)
+	btn.disabled = not ready
+	_style_forge_button(btn, item.get_rarity_color())
+	btn.pressed.connect(_on_forge_item_clicked.bind(item))
+	vendor_item_list.add_child(btn)
+
+func _add_mold_row(item: ItemData) -> void:
+	var btn = Button.new()
+	btn.custom_minimum_size.y = 40
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var selected = item == _mold_selection
+	btn.text = "  %s   [Mythic %s]%s" % [
+		item.get_display_name(), item.get_type_name(),
+		"   [SELECTED — click another mythic]" if selected else ""]
+	btn.add_theme_font_size_override("font_size", 13)
+	_style_forge_button(btn, Color(0.9, 0.35, 0.9))
+	btn.pressed.connect(_on_mold_mythic_clicked.bind(item))
+	vendor_item_list.add_child(btn)
+
+func _add_mold_redeem_row(item: ItemData) -> void:
+	var btn = Button.new()
+	btn.custom_minimum_size.y = 40
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.text = "  Craft: %s   [%s]   %s" % [item.item_name, item.get_type_name(), item.description]
+	btn.add_theme_font_size_override("font_size", 13)
+	_style_forge_button(btn, Color(1.0, 0.8, 0.3))
+	btn.pressed.connect(_on_redeem_mold_clicked.bind(item.item_name))
+	vendor_item_list.add_child(btn)
+
+func _style_forge_button(btn: Button, accent: Color) -> void:
+	var normal = StyleBoxFlat.new()
+	normal.bg_color = Color(0.13, 0.13, 0.17, 0.9)
+	normal.border_width_bottom = 1
+	normal.border_width_left = 2
+	normal.border_color = accent.darkened(0.3)
+	normal.corner_radius_top_left = 4
+	normal.corner_radius_top_right = 4
+	normal.corner_radius_bottom_left = 4
+	normal.corner_radius_bottom_right = 4
+	normal.content_margin_left = 8
+	normal.content_margin_right = 8
+	btn.add_theme_stylebox_override("normal", normal)
+
+	var hover = StyleBoxFlat.new()
+	hover.bg_color = Color(0.2, 0.2, 0.28, 0.95)
+	hover.border_width_bottom = 1
+	hover.border_width_left = 2
+	hover.border_color = accent
+	hover.corner_radius_top_left = 4
+	hover.corner_radius_top_right = 4
+	hover.corner_radius_bottom_left = 4
+	hover.corner_radius_bottom_right = 4
+	hover.content_margin_left = 8
+	hover.content_margin_right = 8
+	btn.add_theme_stylebox_override("hover", hover)
+
+	btn.add_theme_color_override("font_color", accent.lightened(0.25))
+	btn.add_theme_color_override("font_hover_color", accent.lightened(0.45))
+	btn.add_theme_color_override("font_disabled_color", Color(0.45, 0.45, 0.5))
+
+func _refresh_blacksmith() -> void:
+	## Rebuild the blacksmith panel in place (keeps _mold_selection intact).
+	for child in vendor_item_list.get_children():
+		child.queue_free()
+	_populate_blacksmith_forge()
+	var sell_items = _get_player_items_for_vendor("blacksmith")
+	if sell_items.size() > 0:
+		_add_section_separator("Your Equipment")
+		for entry in sell_items:
+			_add_sell_item_row(entry["item"], entry["slot_type"], entry["slot_index"])
+
+func _on_forge_item_clicked(item: ItemData) -> void:
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		return
+	if ItemForge.forge(inventory, item):
+		print("[TOWN] Forged %s to Lv.%d" % [item.item_name, item.item_level])
+	_refresh_blacksmith()
+
+func _on_mold_mythic_clicked(item: ItemData) -> void:
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		return
+	if _mold_selection == null:
+		_mold_selection = item
+	elif _mold_selection == item:
+		_mold_selection = null  # clicked again — deselect
+	else:
+		ItemForge.mold_mythics(inventory, _mold_selection, item)
+		_mold_selection = null
+	_refresh_blacksmith()
+
+func _on_redeem_mold_clicked(mythic_name: String) -> void:
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	if not inventory:
+		return
+	ItemForge.redeem_mold(inventory, mythic_name)
+	_refresh_blacksmith()
 
 # ============================================
 # STASH UI
@@ -1006,7 +1160,7 @@ func _add_stash_item_row(parent: VBoxContainer, item: ItemData, index: int, is_i
 	var btn = Button.new()
 	btn.custom_minimum_size.y = 36
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.text = "  %s   [%s]" % [item.item_name, item.get_type_name()]
+	btn.text = "  %s   [%s %s]" % [item.get_display_name(), item.get_rarity_name(), item.get_type_name()]
 	btn.add_theme_font_size_override("font_size", 13)
 
 	var bg_color = Color(0.13, 0.15, 0.2, 0.9) if is_inventory_side else Color(0.15, 0.13, 0.1, 0.9)
@@ -1135,16 +1289,15 @@ func _show_detail_modal(item: ItemData, is_sell: bool = false, slot_type: int = 
 
 	# --- Item name ---
 	var name_lbl = Label.new()
-	name_lbl.text = item.item_name
+	name_lbl.text = item.get_display_name()
 	name_lbl.add_theme_font_size_override("font_size", 22)
-	var name_color = _get_item_name_color(item)
-	name_lbl.add_theme_color_override("font_color", name_color)
+	name_lbl.add_theme_color_override("font_color", item.get_rarity_color())
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(name_lbl)
 
 	# --- Item type ---
 	var type_lbl = Label.new()
-	type_lbl.text = item.get_type_name()
+	type_lbl.text = "%s %s · Lv.%d/%d" % [item.get_rarity_name(), item.get_type_name(), item.item_level, item.get_max_level()]
 	type_lbl.add_theme_font_size_override("font_size", 14)
 	type_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2706,6 +2859,26 @@ func _go_to_battle() -> void:
 	var saved_progression = player_progression.duplicate(true)
 	if stats:
 		saved_progression["stats"] = stats.save_progression()
+	# Re-snapshot the inventory from the live object: consumable counters
+	# (culling stones, mythic molds) are plain ints, so — unlike the shared
+	# item arrays — changes made in town would otherwise be lost.
+	var live_inv = player.get_inventory() if player.has_method("get_inventory") else null
+	if live_inv:
+		saved_progression["inventory"] = {
+			"equipped_helms": live_inv.equipped_helms.duplicate(),
+			"equipped_chests": live_inv.equipped_chests.duplicate(),
+			"equipped_rings": live_inv.equipped_rings.duplicate(),
+			"equipped_belts": live_inv.equipped_belts.duplicate(),
+			"equipped_boots": live_inv.equipped_boots.duplicate(),
+			"equipped_gauntlets": live_inv.equipped_gauntlets.duplicate(),
+			"equipped_weapons": live_inv.equipped_weapons.duplicate(),
+			"equipped_quivers": live_inv.equipped_quivers.duplicate(),
+			"stored_items": live_inv.stored_items.duplicate(),
+			"stored_cards": live_inv.stored_cards.duplicate(),
+			"stash_items": live_inv.stash_items.duplicate(),
+			"culling_stones": live_inv.culling_stones,
+			"mythic_molds": live_inv.mythic_molds,
+		}
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.player2_character = player2_character

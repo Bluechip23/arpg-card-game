@@ -61,6 +61,7 @@ var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card p
 var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
 var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
 var linger: bool = false  # If true, status card can exceed hand size limit when added
+var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
 var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
 var roguelike_only: bool = false  # If true, card can only be PLAYED during a roguelike run (still collectible in the story)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
@@ -868,10 +869,17 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"shepherds_mark":
 			_execute_shepherds_mark(player_stats, deck_manager)
 		# === Previously unimplemented effects ===
-		"heavy_swing", "specific_strike", "hydra_bite", "spark":
+		"heavy_swing", "specific_strike", "hydra_bite", "spark", "sprinkle":
 			# Straight single-target damage (base_damage carries the value;
 			# hand/tempo riders and play-time cost/gate handled elsewhere).
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+		"sprinkle_bomb":
+			_compute_attack_damage(player_stats, true)   # AOE damage applied in main
+		"splinter":
+			# No damage — lodges a splinter that bleeds as the enemy moves.
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("bleed", 1)
+				print("[CARD] Splinter applies 1 Bleed")
 		"savage_strike":
 			_execute_savage_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr, deck_manager, true)
 		"savage_strike_copy":
@@ -5137,4 +5145,71 @@ static func create_spirit_arrow() -> Card:
 	card.aoe_shape = "line"
 	card.card_keyword = CardKeyword.ARROW
 	card.target_types = ["point"]
+	return card
+
+# ============================================
+# ITEM-GENERATED CARDS (Bladed Doughnut)
+# ============================================
+# Sprinkles are conjured into the hand by the Bladed Doughnut's on-kill skill
+# — they never drop, never sit in the deck, and are erased the moment they're
+# played so kills don't permanently pollute the deck.
+
+static func create_sprinkle() -> Card:
+	var card = Card.new()
+	card.card_id = "sprinkle"
+	card.card_name = "Sprinkle"
+	card.description = "Deal 25 damage. Erased after play."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 25
+	card.base_damage = 25
+	card.target_types = ["enemy"]
+	card.erase_on_play = true
+	card.shop_excluded = true
+	return card
+
+static func create_sprinkle_bomb() -> Card:
+	## The Bladed Doughnut's level-3 skill: the single-target Sprinkle becomes
+	## an AOE bomb.
+	var card = Card.new()
+	card.card_id = "sprinkle_bomb"
+	card.card_name = "Sprinkle Bomb"
+	card.description = "Deal 25 damage to every enemy in a 2-tile radius. Erased after play. AOE circle."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 25
+	card.base_damage = 25
+	card.is_ranged = true
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 2.0
+	card.target_types = ["point"]
+	card.erase_on_play = true
+	card.shop_excluded = true
+	return card
+
+# ============================================
+# ITEM-GRANTED CARDS (Wooden Sword)
+# ============================================
+
+static func create_splinter() -> Card:
+	## Granted by the Wooden Sword — Olorin's teaching example for items that
+	## provide cards. Travels with the sword on equip/unequip.
+	var card = Card.new()
+	card.card_id = "splinter"
+	card.card_name = "Splinter"
+	card.description = "Apply 1 Bleed: the enemy takes 1 damage per tile it moves. Range 3."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.is_ranged = true
+	card.range_modifier = -2  # base 5 - 2 = range 3
+	card.target_types = ["enemy"]
 	return card
