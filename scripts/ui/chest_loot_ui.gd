@@ -172,14 +172,14 @@ func _build_chest_item_display(item: ItemData) -> VBoxContainer:
 	container.add_theme_constant_override("separation", 4)
 
 	var name_lbl = Label.new()
-	name_lbl.text = item.item_name
+	name_lbl.text = item.get_display_name()
 	name_lbl.add_theme_font_size_override("font_size", 18)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	name_lbl.add_theme_color_override("font_color", item.get_rarity_color())
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	container.add_child(name_lbl)
 
 	var type_lbl = Label.new()
-	type_lbl.text = "[%s]" % item.get_type_name()
+	type_lbl.text = "[%s %s]" % [item.get_rarity_name(), item.get_type_name()]
 	type_lbl.add_theme_font_size_override("font_size", 13)
 	type_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
