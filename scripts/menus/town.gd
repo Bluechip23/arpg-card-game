@@ -634,7 +634,7 @@ func _get_all_cards() -> Array[Card]:
 		var method_name: String = method["name"]
 		if method_name.begins_with("create_") and method["args"].size() == 0:
 			var card = card_script.call(method_name)
-			if card is Card:
+			if card is Card and not card.shop_excluded:
 				cards.append(card)
 	# Sort by card type then name
 	cards.sort_custom(func(a, b):

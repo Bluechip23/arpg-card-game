@@ -62,9 +62,90 @@ func show_combat_intro() -> void:
 		]
 	)
 
+# ----- First-room item tutorial (the Bladed Doughnut) --------------------------
+
+## Beat 1 — the first rat drops a mythic; Olorin explains item levels.
+func show_item_levels_intro() -> void:
+	show_tutorial(
+		"item_levels_intro",
+		"A Rare Find",
+		[
+			"\"Hold a moment — do you see what that rat was carrying? A MYTHIC. Before you touch it, let me explain how items grow.\"",
+			"\"Every item in this world drops at level 1. Find more copies of the SAME item, and the Blacksmith in town can forge them together to raise its level.\"",
+			"\"Basic, Common, and Rare items have two levels. Forge three spare copies into one — four found in all — and it reaches level 2: a pure boost to every stat the item offers.\"",
+			"\"Legendary and Mythic items have THREE levels. One spare copy forges level 2 — the same stat boost. Two more copies — four found in all — forge level 3, and at level 3 the item truly transforms.\"",
+		]
+	)
+
+## Beat 2 — the player picks the doughnut up; Olorin explains baked-in skills.
+func show_bladed_doughnut_skill() -> void:
+	show_tutorial(
+		"bladed_doughnut_skill",
+		"The Bladed Doughnut",
+		[
+			"\"All mythics and most legendaries will have a skill associated with them. This skill gets upgraded on level 3.\"",
+			"\"For instance, this delicious bladed doughnut gives you a Sprinkle. When it is upgraded to level 3, the Sprinkle turns into an AOE bomb vs a single target shot.\"",
+			"\"This is a pretty impressive find so early in the game! Should make things easy for you moving forward.\"",
+		]
+	)
+
+## Beat 3 — the player takes a step; Olorin gets hungry and takes the doughnut.
+func show_doughnut_farewell() -> void:
+	if _active or has_seen("bladed_doughnut_farewell"):
+		return
+	_mark_seen("bladed_doughnut_farewell")
+	_build_dialog(
+		"Olorin Reappears",
+		[
+			"\"I am actually pretty hungry..... I will take that doughnut, actually.\"",
+			"Olorin puts his hands above his head — the doughnut appears.",
+			"\"Good luck with your adventures, sir.\"",
+		],
+		DoughnutIcon.new(),
+		2  # the doughnut materializes right after the stage direction
+	)
+
+func is_busy() -> bool:
+	return _active
+
+## The Bladed Doughnut: a long john with chocolate frosting and pink, teal,
+## and white sprinkles, drawn above Olorin's raised hands.
+class DoughnutIcon extends Control:
+	const DOUGH := Color(0.85, 0.62, 0.32)
+	const FROSTING := Color(0.3, 0.17, 0.09)
+	const SPRINKLE_COLORS := [Color(1.0, 0.5, 0.7), Color(0.3, 0.85, 0.8), Color(0.95, 0.95, 0.95)]
+	# Fixed sprinkle placements (x, y, rotation) so redraws don't reshuffle them.
+	const SPRINKLES := [
+		[38, 34, 0.5], [58, 28, -0.9], [76, 38, 1.2], [95, 27, 0.2],
+		[112, 36, -0.6], [130, 29, 0.9], [148, 37, -1.2], [66, 45, 2.1],
+		[104, 46, -1.8], [142, 46, 0.4], [50, 42, 1.6], [122, 44, 2.4],
+	]
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(190, 84)
+		size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+
+	func _draw() -> void:
+		# Long john body
+		var dough_box := StyleBoxFlat.new()
+		dough_box.bg_color = DOUGH
+		dough_box.set_corner_radius_all(22)
+		draw_style_box(dough_box, Rect2(8, 24, 174, 52))
+		# Chocolate frosting draped over the top
+		var frosting_box := StyleBoxFlat.new()
+		frosting_box.bg_color = FROSTING
+		frosting_box.set_corner_radius_all(16)
+		draw_style_box(frosting_box, Rect2(14, 18, 162, 34))
+		# Sprinkles (pink, teal, white)
+		for i in range(SPRINKLES.size()):
+			var s: Array = SPRINKLES[i]
+			draw_set_transform(Vector2(s[0], s[1]), s[2], Vector2.ONE)
+			draw_rect(Rect2(-4.5, -1.4, 9.0, 2.8), SPRINKLE_COLORS[i % SPRINKLE_COLORS.size()])
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
 # ----- UI ---------------------------------------------------------------------
 
-func _build_dialog(title: String, paragraphs: Array) -> void:
+func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_after_paragraph: int = -1) -> void:
 	_active = true
 
 	# Pause the action while Olorin speaks (unless the player already paused).
@@ -130,13 +211,18 @@ func _build_dialog(title: String, paragraphs: Array) -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	for paragraph in paragraphs:
+	for i in range(paragraphs.size()):
 		var p = Label.new()
-		p.text = str(paragraph)
+		p.text = str(paragraphs[i])
 		p.add_theme_font_size_override("font_size", 15)
 		p.add_theme_color_override("font_color", Color(0.88, 0.88, 0.9))
 		p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(p)
+		# Optional inline picture (e.g. the doughnut Olorin conjures overhead)
+		if icon and i + 1 == icon_after_paragraph:
+			vbox.add_child(icon)
+	if icon and icon.get_parent() == null:
+		vbox.add_child(icon)
 
 	vbox.add_child(HSeparator.new())
 

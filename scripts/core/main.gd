@@ -50,6 +50,14 @@ var progression_triggers: ProgressionTriggers = null
 var chest_loot_ui: ChestLootUI = null
 var olorin: OlorinTutorial = null
 var waypoint_mgr: WaypointManager = null
+# First-room tutorial: the first rat of the story drops the Bladed Doughnut,
+# Olorin explains item levels, and once the player walks off with it he gets
+# hungry and takes it back.
+var _pending_doughnut_drop: bool = false
+var _doughnut_farewell_armed: bool = false
+var _doughnut_item: ItemData = null
+var _doughnut_looter: Player = null
+var _doughnut_pickup_cell: Vector2i = Vector2i(-999, -999)
 # Rats summoned by the Infestation card (roguelike only).
 var _summoned_rats: Array = []
 var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
@@ -539,6 +547,7 @@ func _process(delta: float) -> void:
 	_update_self_target_hover()
 	_update_damage_preview()
 	_update_loot_hover()
+	_check_doughnut_farewell()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
@@ -3840,6 +3849,14 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	if quest_manager:
 		quest_manager.on_enemy_killed(enemy.enemy_name)
 
+	# First-room tutorial: the very first rat felled in the story carries the
+	# Bladed Doughnut (injected into its loot in _on_loot_dropped, which fires
+	# right after this handler).
+	if not _roguelike_active and current_world_level == 1 and olorin \
+			and not olorin.has_seen("item_levels_intro") \
+			and enemy.enemy_type in [Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT]:
+		_pending_doughnut_drop = true
+
 	# Return any queued cards targeting this dead enemy back to the player's hand
 	_return_queued_cards_for_dead_target(enemy)
 
@@ -6102,6 +6119,17 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
 			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
 
+		"sprinkle_bomb":
+			# Bladed Doughnut Lv.3: the Sprinkle detonates as an AOE circle.
+			var sb_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var sb_dmg = card.last_damage_dealt
+			var sb_hit = enemy_spawner.get_enemies_in_radius(sb_center, card.aoe_range if card.aoe_range > 0 else 2.0)
+			for en in sb_hit:
+				en.take_damage(sb_dmg, true)
+			_apply_misery_spread(sb_hit)
+			add_battle_log("Sprinkle Bomb! %d damage to %d enemies" % [sb_dmg, sb_hit.size()], Color(1.0, 0.6, 0.85))
+			print("[MAIN] Sprinkle Bomb hit %d enemies for %d" % [sb_hit.size(), sb_dmg])
+
 		"spirit_arrow":
 			# Pierce every enemy along the line from the player through the target.
 			var sa_dmg = card.last_damage_dealt
@@ -8311,6 +8339,13 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 	## tile where they died, and whoever walks onto it scoops it up. Looting is
 	## TEMPO-FREE — nothing in the pickup path adds tempo; only the walk to
 	## reach the pile costs the usual movement tempo.
+	if _pending_doughnut_drop:
+		# First-room tutorial: this rat carried the Bladed Doughnut. Olorin
+		# steps in to explain item levels while it glints on the ground.
+		_pending_doughnut_drop = false
+		loot["item"] = ItemData.create_bladed_doughnut()
+		if olorin:
+			olorin.show_item_levels_intro()
 	_spawn_loot_drop(loot, pos)
 
 func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
@@ -8536,6 +8571,16 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 		if inventory:
 			if inventory.store_item(item):
 				messages.append("Item: %s" % item.item_name)
+				# First-room tutorial: picking up the Bladed Doughnut prompts
+				# Olorin's skill lesson; once the player moves again, he gets
+				# hungry (see _check_doughnut_farewell).
+				if item.item_name == "Bladed Doughnut" and olorin \
+						and not olorin.has_seen("bladed_doughnut_farewell"):
+					olorin.show_bladed_doughnut_skill()
+					_doughnut_farewell_armed = true
+					_doughnut_item = item
+					_doughnut_looter = looter
+					_doughnut_pickup_cell = grid_manager.world_to_grid(looter.position)
 			else:
 				messages.append("Item dropped (inventory full): %s" % item.item_name)
 
@@ -8560,6 +8605,46 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 		var loot_text = "Looted: " + ", ".join(messages)
 		add_battle_log(loot_text, Color(1.0, 0.85, 0.2))
 		print("[MAIN] %s" % loot_text)
+
+# ============================================
+# FIRST-ROOM TUTORIAL: OLORIN TAKES THE DOUGHNUT
+# ============================================
+
+## Armed when the player scoops up the Bladed Doughnut. The moment they move
+## off the pickup tile (dialogs closed), Olorin reappears, conjures the
+## doughnut overhead, and takes it with him.
+func _check_doughnut_farewell() -> void:
+	if not _doughnut_farewell_armed or olorin == null or olorin.is_busy():
+		return
+	if not is_instance_valid(_doughnut_looter):
+		_doughnut_farewell_armed = false
+		_doughnut_item = null
+		return
+	var cell: Vector2i = grid_manager.world_to_grid(_doughnut_looter.position)
+	if cell == _doughnut_pickup_cell:
+		return
+	_doughnut_farewell_armed = false
+	_remove_doughnut_from_looter()
+	olorin.show_doughnut_farewell()
+
+func _remove_doughnut_from_looter() -> void:
+	if _doughnut_item == null:
+		return
+	var inv = _doughnut_looter.get_inventory() if is_instance_valid(_doughnut_looter) else null
+	if inv:
+		if inv.stored_items.has(_doughnut_item):
+			inv.stored_items.erase(_doughnut_item)
+			inv.storage_changed.emit()
+		elif inv.stash_items.has(_doughnut_item):
+			inv.stash_items.erase(_doughnut_item)
+			inv.storage_changed.emit()
+		else:
+			# Equipped in the brief window between pickup and moving — unequip
+			# (reversing its bonuses) and remove.
+			inv._destroy_equipped_item(_doughnut_item)
+		add_battle_log("Olorin took the Bladed Doughnut!", Color(0.9, 0.35, 0.9))
+	_doughnut_item = null
+	_doughnut_looter = null
 
 # ============================================
 # WAYPOINT TRAVEL

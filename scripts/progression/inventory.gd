@@ -669,6 +669,26 @@ func on_armor_gained(amount: int) -> void:
 
 func on_enemy_killed() -> void:
 	trigger_rings(ItemData.RingTrigger.ON_ENEMY_KILL)
+	_conjure_on_kill_cards()
+
+## Items with on_kill_card_id (Bladed Doughnut) conjure a fresh copy of their
+## card straight into the hand on every kill.
+func _conjure_on_kill_cards() -> void:
+	if not deck_manager:
+		return
+	var conjured = false
+	var all_slots = [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_weapons, equipped_quivers]
+	for slot in all_slots:
+		for item in slot:
+			if item == null or item.on_kill_card_id == "":
+				continue
+			var card = deck_manager._create_card_from_id(item.on_kill_card_id)
+			if card:
+				deck_manager.hand.append(card)
+				conjured = true
+				print("[INVENTORY] %s: conjured '%s' into hand on kill" % [item.item_name, card.card_name])
+	if conjured:
+		deck_manager.hand_updated.emit()
 
 func on_card_played(card: Card) -> void:
 	if card.card_type == Card.CardType.ATTACK:

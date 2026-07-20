@@ -159,6 +159,10 @@ var granted_cards_built: bool = false
 @export var on_self_thorns: int = 0  # Card grants X thorns on play
 @export var on_self_upgrade: bool = false  # Card upgrades on play (requires gem)
 
+# On-kill card conjuring (Bladed Doughnut): every enemy kill while this item
+# is equipped adds a fresh copy of this card directly to the hand.
+@export var on_kill_card_id: String = ""
+
 # Runtime tracking
 var current_cooldown: int = 0  # Current cooldown remaining
 
@@ -1056,6 +1060,24 @@ static func create_eternity_quiver() -> ItemData:
 		"card_slots": 3,
 	}
 	item.level_3_description = "All ranged attacks gain +5 damage. On-Self (Arrow): Apply 2 Burn and 1 Cold on hit. 3 Arrow card slots."
+	return item
+
+static func create_bladed_doughnut() -> ItemData:
+	## Tutorial mythic: the first rat of the story drops it, and Olorin eats it.
+	## It remains a real mythic — redeemable later via a Mythic Mold.
+	var item = ItemData.new()
+	item.item_name = "Bladed Doughnut"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.rarity = Rarity.MYTHIC
+	item.weight = 5
+	item.strength_bonus = 15
+	item.on_kill_card_id = "sprinkle"
+	item.description = "+15 STR. On Kill: add a Sprinkle to your hand (0 mana, 0 tempo, 25 damage)."
+	item.level_3_overrides = {
+		"on_kill_card_id": "sprinkle_bomb",
+	}
+	item.level_3_description = "+15 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
 	return item
 
 # ============================================
