@@ -875,6 +875,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"sprinkle_bomb":
 			_compute_attack_damage(player_stats, true)   # AOE damage applied in main
+		"splinter":
+			# No damage — lodges a splinter that bleeds as the enemy moves.
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("bleed", 1)
+				print("[CARD] Splinter applies 1 Bleed")
 		"savage_strike":
 			_execute_savage_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr, deck_manager, true)
 		"savage_strike_copy":
@@ -5185,4 +5190,26 @@ static func create_sprinkle_bomb() -> Card:
 	card.target_types = ["point"]
 	card.erase_on_play = true
 	card.shop_excluded = true
+	return card
+
+# ============================================
+# ITEM-GRANTED CARDS (Wooden Sword)
+# ============================================
+
+static func create_splinter() -> Card:
+	## Granted by the Wooden Sword — Olorin's teaching example for items that
+	## provide cards. Travels with the sword on equip/unequip.
+	var card = Card.new()
+	card.card_id = "splinter"
+	card.card_name = "Splinter"
+	card.description = "Apply 1 Bleed: the enemy takes 1 damage per tile it moves. Range 3."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.is_ranged = true
+	card.range_modifier = -2  # base 5 - 2 = range 3
+	card.target_types = ["enemy"]
 	return card

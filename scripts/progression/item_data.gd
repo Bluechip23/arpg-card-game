@@ -927,6 +927,27 @@ static func create_pocket_knife() -> ItemData:
 	return item
 
 # ============================================
+# TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
+# ============================================
+
+static func create_wooden_sword() -> ItemData:
+	## No stats at all — its worth is the lesson: a card slot with an on-self
+	## bonus, plus a granted card (Splinter) that travels with the item.
+	var item = ItemData.new()
+	item.item_name = "Wooden Sword"
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.rarity = Rarity.BASIC
+	item.weight = 2
+	item.weapon_damage = 0
+	item.card_slots = 1
+	item.on_self_damage = 1
+	item.special_effect = SpecialEffect.GRANT_CARDS
+	item.granted_card_ids.assign(["splinter"])
+	item.description = "No stats. 1 card slot, On-Self: attacks deal +1 damage. Grants Splinter while equipped."
+	return item
+
+# ============================================
 # LEGENDARY ITEMS (max level 3)
 # ============================================
 # Some legendaries carry a baked-in skill; level 3 transforms it via

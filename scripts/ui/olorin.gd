@@ -89,7 +89,9 @@ func show_bladed_doughnut_skill() -> void:
 		]
 	)
 
-## Beat 3 — the player takes a step; Olorin gets hungry and takes the doughnut.
+## Beat 3 — the player takes a step; Olorin gets hungry, takes the doughnut,
+## and trades the Wooden Sword for it (his lesson on card slots, on-self
+## bonuses, and item-granted cards).
 func show_doughnut_farewell() -> void:
 	if _active or has_seen("bladed_doughnut_farewell"):
 		return
@@ -99,6 +101,9 @@ func show_doughnut_farewell() -> void:
 		[
 			"\"I am actually pretty hungry..... I will take that doughnut, actually.\"",
 			"Olorin puts his hands above his head — the doughnut appears.",
+			"\"But a mentor is no thief — a trade! Take this Wooden Sword. No stats to speak of; its worth is in the teaching.\"",
+			"\"See the CARD SLOT carved into it? Items can hold cards — the Blacksmith in town will enchant one in for you. A slotted card gains the item's ON-SELF bonus. This sword's reads 'attacks deal +1 damage', so any attack card slotted into it strikes 1 harder.\"",
+			"\"Some items also PROVIDE cards outright. While the sword is equipped, its card Splinter joins your deck — 2 mana, 2 tempo, range 3, and it leaves a Bleed that wounds the enemy for every tile it moves. Unequip the sword, and Splinter leaves with it.\"",
 			"\"Good luck with your adventures, sir.\"",
 		],
 		DoughnutIcon.new(),

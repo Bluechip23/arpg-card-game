@@ -1,7 +1,9 @@
 extends SceneTree
 
-## Verifies the first-room tutorial reward: the Bladed Doughnut mythic, its
-## Sprinkle-conjuring on-kill skill, and the level-3 Sprinkle Bomb upgrade.
+## Verifies the first-room tutorial items: the Bladed Doughnut mythic (its
+## Sprinkle-conjuring on-kill skill and the level-3 Sprinkle Bomb upgrade)
+## and the Wooden Sword Olorin trades for it (card slot with on-self bonus,
+## granted Splinter card, enemy bleed).
 ## Run: godot --headless --path . --script tests/test_bladed_doughnut.gd
 
 var failures := 0
@@ -19,6 +21,8 @@ func _initialize() -> void:
 	_test_item()
 	_test_sprinkle_cards()
 	_test_on_kill_conjure()
+	_test_wooden_sword()
+	_test_splinter_and_bleed()
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -86,3 +90,55 @@ func _test_on_kill_conjure() -> void:
 
 	dm.free()
 	inv.free()
+
+func _test_wooden_sword() -> void:
+	print("-- The Wooden Sword (Olorin's trade) --")
+	var sword = ItemData.create_wooden_sword()
+	_check(sword.rarity == ItemData.Rarity.BASIC, "Wooden Sword is Basic")
+	_check(sword.strength_bonus == 0 and sword.weapon_damage == 0 and sword.armor_bonus == 0
+		and sword.health_bonus == 0 and sword.mana_bonus == 0,
+		"provides no stats")
+	_check(sword.card_slots == 1, "has 1 card slot")
+	_check(sword.on_self_damage == 1, "on-self: attacks deal +1 damage")
+	_check(sword.get_on_self_bonus()["damage"] == 1, "on-self bonus flows to slotted cards")
+	_check(sword.special_effect == ItemData.SpecialEffect.GRANT_CARDS
+		and sword.granted_card_ids.size() == 1 and sword.granted_card_ids[0] == "splinter",
+		"grants Splinter while equipped")
+
+	# A slotted attack card picks up the +1 on-self damage
+	var slash = Card.create_slash()
+	_check(sword.can_slot_card(slash), "attack cards fit the slot")
+	sword.slot_card(slash)
+	_check(slash.get_on_self_bonus()["damage"] == 1, "slotted Slash gains the +1 damage bonus")
+
+	# Equipping brings Splinter into the deck; unequipping removes it
+	var inv = Inventory.new()
+	inv.initialize("Ryan")
+	var dm = DeckManager.new()
+	inv.connect_deck_manager(dm)
+	var gifted = ItemData.create_wooden_sword()
+	_check(inv.equip_item(gifted, 0), "Wooden Sword equips as a weapon")
+	var in_deck = dm.discard_pile.filter(func(c): return c.card_id == "splinter")
+	_check(in_deck.size() == 1, "equipping grants Splinter into the deck")
+	_check(in_deck[0].granted_by_item == gifted, "Splinter is owned by the sword")
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	_check(dm.discard_pile.filter(func(c): return c.card_id == "splinter").is_empty(),
+		"unequipping pulls Splinter back out of the deck")
+	dm.free()
+	inv.free()
+
+func _test_splinter_and_bleed() -> void:
+	print("-- Splinter and enemy bleed --")
+	var s = Card.create_splinter()
+	_check(s.mana_cost == 2 and s.tempo_cost == 2, "Splinter costs 2 mana / 2 tempo")
+	_check(s.is_ranged and s.get_effective_range() == 3, "Splinter has range 3")
+	_check(s.base_damage == 0, "Splinter deals no direct damage")
+
+	var enemy = Enemy.new()
+	enemy.apply_debuff("bleed", 1)
+	_check(enemy.bleed_stacks == 1, "enemies can bleed (1 stack applied)")
+	enemy.apply_debuff("bleed", 2)
+	_check(enemy.bleed_stacks == 3, "bleed stacks accumulate")
+	_check(enemy.get_active_effects().any(func(e): return e["name"] == "Bleed"),
+		"bleed shows in the enemy's status effects")
+	enemy.free()

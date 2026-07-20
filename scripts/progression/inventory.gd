@@ -388,6 +388,7 @@ func _create_card_by_id(card_id: String) -> Card:
 		"block": return Card.create_block()
 		"potion_of_continuance": return Card.create_potion_of_continuance()
 		"gulped_potion": return Card.create_gulped_potion()
+		"splinter": return Card.create_splinter()
 	return null
 
 func apply_starting_item_card_effects() -> void:

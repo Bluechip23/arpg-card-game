@@ -84,6 +84,7 @@ var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
 var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
+var bleed_stacks: int = 0      # Bleed: take X damage per tile moved, lose 1 per cycle
 var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
 
 # Hydra: grows stronger with every hit it takes. After the 4th hit it gains bulk
@@ -1408,6 +1409,13 @@ func _tick_status_durations() -> void:
 			print("[%s] Poison expired" % enemy_name)
 			debuff_expired.emit(self, "poison")
 
+	# Bleed: no cycle damage (it hurts per tile moved) — clots 1 stack per cycle
+	if bleed_stacks > 0:
+		bleed_stacks -= 1
+		if bleed_stacks <= 0:
+			print("[%s] Bleed expired" % enemy_name)
+			debuff_expired.emit(self, "bleed")
+
 	# Shock: deal current stacks damage, then lose 1 stack per cycle
 	if shock_stacks > 0:
 		take_damage(shock_stacks, false)
@@ -2378,6 +2386,10 @@ func _physics_process(delta: float) -> void:
 			# Snap XZ only — Y keeps gliding toward the terrain height
 			position.x = target_position.x
 			position.z = target_position.z
+			# Bleed: every tile reached tears the wound open
+			if bleed_stacks > 0 and not is_dead:
+				take_damage(bleed_stacks, false)
+				print("[%s] Bleed deals %d damage (moved a tile)" % [enemy_name, bleed_stacks])
 			# Advance to the next waypoint if the route has more tiles, so we
 			# follow the path around corners instead of stopping short.
 			if not _move_path.is_empty():
@@ -2781,6 +2793,9 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"shock":
 			shock_stacks += value
 			print("[%s] Shocked! Stacks: %d" % [enemy_name, shock_stacks])
+		"bleed":
+			bleed_stacks += value
+			print("[%s] Bleeding! Stacks: %d (damage per tile moved)" % [enemy_name, bleed_stacks])
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	debuff_applied.emit(self, debuff_name, value)
@@ -2955,6 +2970,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Poison", "color": Color(0.2, 0.8, 0.2), "stacks": poison_stacks})
 	if shock_stacks > 0:
 		effects.append({"name": "Shock", "color": Color(1.0, 1.0, 0.3), "stacks": shock_stacks})
+	if bleed_stacks > 0:
+		effects.append({"name": "Bleed", "color": Color(0.85, 0.15, 0.2), "stacks": bleed_stacks})
 
 	return effects
 

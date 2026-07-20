@@ -8624,10 +8624,12 @@ func _check_doughnut_farewell() -> void:
 	if cell == _doughnut_pickup_cell:
 		return
 	_doughnut_farewell_armed = false
-	_remove_doughnut_from_looter()
+	_trade_doughnut_for_wooden_sword()
 	olorin.show_doughnut_farewell()
 
-func _remove_doughnut_from_looter() -> void:
+## Olorin takes the Bladed Doughnut and leaves the Wooden Sword in exchange —
+## his teaching prop for card slots, on-self bonuses, and item-granted cards.
+func _trade_doughnut_for_wooden_sword() -> void:
 	if _doughnut_item == null:
 		return
 	var inv = _doughnut_looter.get_inventory() if is_instance_valid(_doughnut_looter) else null
@@ -8643,6 +8645,12 @@ func _remove_doughnut_from_looter() -> void:
 			# (reversing its bonuses) and remove.
 			inv._destroy_equipped_item(_doughnut_item)
 		add_battle_log("Olorin took the Bladed Doughnut!", Color(0.9, 0.35, 0.9))
+		var sword = ItemData.create_wooden_sword()
+		if not inv.store_item(sword) and not inv.stash_item(sword):
+			# Both full (the doughnut's slot was just freed, so this is unlikely)
+			print("[MAIN] No room for the Wooden Sword — gift lost")
+		else:
+			add_battle_log("Received: Wooden Sword", Color(0.85, 0.7, 0.45))
 	_doughnut_item = null
 	_doughnut_looter = null
 
