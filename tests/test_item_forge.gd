@@ -174,10 +174,15 @@ func _test_mythic_molding() -> void:
 	inv.store_item(d)
 	_check(not ItemForge.mold_mythics(inv, c, d), "non-mythic cannot be molded")
 
-	# Redeem the mold for any mythic of choice
-	var crafted = ItemForge.redeem_mold(inv, "Eternity Quiver")
+	# The ownership gate: molds only recreate mythics the character has owned.
+	_check(ItemForge.redeem_mold(inv, "Eternity Quiver", ["Worldsplitter Gauntlets"]) == null,
+		"molds cannot craft mythics outside the owned list")
+	_check(inv.get_mythic_mold_count() == 1, "a refused redeem consumes no mold")
+
+	# Redeem the mold for an owned mythic of choice
+	var crafted = ItemForge.redeem_mold(inv, "Eternity Quiver", ["Eternity Quiver", "Worldsplitter Gauntlets"])
 	_check(crafted != null and crafted.item_name == "Eternity Quiver",
-		"mold redeemed for the chosen mythic")
+		"mold redeemed for the chosen owned mythic")
 	_check(crafted.item_level == 1, "redeemed mythic starts at level 1")
 	_check(inv.get_mythic_mold_count() == 0, "mold consumed")
 	_check(inv.stored_items.has(crafted), "crafted mythic lands in inventory")

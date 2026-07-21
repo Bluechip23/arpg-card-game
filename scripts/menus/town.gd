@@ -817,6 +817,10 @@ func _populate_blacksmith_forge() -> void:
 
 	_add_info_label("Mythic Molds: %d" % inventory.get_mythic_mold_count(), Color(0.9, 0.35, 0.9))
 
+	# Sync ownership history up front, so mythics the player is about to meld
+	# down are remembered as owned (and stay redeemable) first.
+	var owned_mythics: Array = _get_owned_mythic_names(inventory)
+
 	# --- Forge upgrades ---
 	_add_section_separator("Forge — combine copies to level up an item")
 	var candidates = ItemForge.get_forge_candidates(inventory)
@@ -834,11 +838,16 @@ func _populate_blacksmith_forge() -> void:
 		for item in moldable:
 			_add_mold_row(item)
 
-	# --- Redeem molds ---
+	# --- Redeem molds (only mythics the character has owned) ---
 	if inventory.get_mythic_mold_count() > 0:
-		_add_section_separator("Redeem a Mythic Mold — pick any mythic item")
+		_add_section_separator("Redeem a Mythic Mold — pick a mythic you've owned")
+		var any_redeemable := false
 		for item in ItemData.get_items_of_rarity(ItemData.Rarity.MYTHIC):
-			_add_mold_redeem_row(item)
+			if owned_mythics.has(item.item_name):
+				_add_mold_redeem_row(item)
+				any_redeemable = true
+		if not any_redeemable:
+			_add_info_label("The mold waits — find a mythic first, and I can recreate it.", Color(0.6, 0.6, 0.7))
 
 func _add_forge_row(item: ItemData, have: int, needed: int) -> void:
 	var btn = Button.new()
@@ -945,8 +954,25 @@ func _on_redeem_mold_clicked(mythic_name: String) -> void:
 	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
 	if not inventory:
 		return
-	ItemForge.redeem_mold(inventory, mythic_name)
+	ItemForge.redeem_mold(inventory, mythic_name, _get_owned_mythic_names(inventory))
 	_refresh_blacksmith()
+
+## The character's mythic ownership history (what molds can recreate),
+## self-healed with anything currently held so items acquired before the
+## tracking existed still count.
+func _get_owned_mythic_names(inventory) -> Array:
+	var names: Array = starting_character.owned_mythic_names if starting_character else []
+	var all_lists = [
+		inventory.stored_items, inventory.stash_items,
+		inventory.equipped_helms, inventory.equipped_chests, inventory.equipped_rings,
+		inventory.equipped_belts, inventory.equipped_boots, inventory.equipped_gauntlets,
+		inventory.equipped_weapons, inventory.equipped_quivers,
+	]
+	for list in all_lists:
+		for item in list:
+			if item and item.rarity == ItemData.Rarity.MYTHIC and not names.has(item.item_name):
+				names.append(item.item_name)
+	return names
 
 # ============================================
 # STASH UI

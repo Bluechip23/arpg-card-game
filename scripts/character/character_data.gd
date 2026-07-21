@@ -58,6 +58,11 @@ func get_base_character() -> String:
 @export var act_mythic_found: Array = []      # act numbers (int)
 @export var act_mythic_kills: Dictionary = {} # act (int) -> kills so far
 
+# Every mythic item this character has EVER owned (by item_name). Mythic Molds
+# can only be redeemed for mythics on this list — melding duplicates forges
+# copies of what you've found, never unlocks what you haven't.
+@export var owned_mythic_names: Array = []
+
 # Card upgrades: Array of {card_index: int, upgrade_path: int}
 # card_index refers to the position in the final deck list (after removals)
 # upgrade_path: 0 = path 1, 1 = path 2

@@ -281,6 +281,11 @@ func _on_chest_pick_up_item(item: ItemData) -> void:
 	var inv = main.player.get_inventory()
 	if inv.store_item(item):
 		main.add_battle_log("Picked up %s!" % item.item_name, Color(1.0, 0.85, 0.3))
+		# Mythic ownership history: molds only recreate mythics the
+		# character has actually held.
+		if item.rarity == ItemData.Rarity.MYTHIC and main.current_character \
+				and not main.current_character.owned_mythic_names.has(item.item_name):
+			main.current_character.owned_mythic_names.append(item.item_name)
 		main.dungeon_manager.remove_chest_item(_current_chest_idx)
 	else:
 		main.add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))

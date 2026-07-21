@@ -8594,6 +8594,11 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 		if inventory:
 			if inventory.store_item(item):
 				messages.append("Item: %s" % item.item_name)
+				# Mythic ownership history: Mythic Molds can only recreate
+				# mythics the character has actually held.
+				if item.rarity == ItemData.Rarity.MYTHIC and current_character \
+						and not current_character.owned_mythic_names.has(item.item_name):
+					current_character.owned_mythic_names.append(item.item_name)
 				# First-room tutorial: picking up the Bladed Doughnut prompts
 				# Olorin's skill lesson; once the player moves again, he gets
 				# hungry (see _check_doughnut_farewell).

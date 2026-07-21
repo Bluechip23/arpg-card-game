@@ -64,16 +64,18 @@ func show_combat_intro() -> void:
 
 # ----- First-room item tutorial (the Bladed Doughnut) --------------------------
 
-## Beat 1 — the first rat drops a mythic; Olorin explains item levels.
+## Beat 1 — the first rat drops a mythic; Olorin breaks down the rarity
+## tiers, the forge levels and copy costs of each, and mythic molding.
 func show_item_levels_intro() -> void:
 	show_tutorial(
 		"item_levels_intro",
 		"A Rare Find",
 		[
 			"\"Hold a moment — do you see what that rat was carrying? A MYTHIC. Before you touch it, let me explain how items grow.\"",
-			"\"Every item in this world drops at level 1. Find more copies of the SAME item, and the Blacksmith in town can forge them together to raise its level.\"",
-			"\"Basic, Common, and Rare items have two levels. Forge three spare copies into one — four found in all — and it reaches level 2: a pure boost to every stat the item offers.\"",
-			"\"Legendary and Mythic items have THREE levels. One spare copy forges level 2 — the same stat boost. Two more copies — four found in all — forge level 3, and at level 3 the item truly transforms.\"",
+			"\"Items come in five rarities: Basic, Common, Rare, Legendary, and — rarest of all — Mythic. Every item drops at level 1. Find more copies of the SAME item, and the Blacksmith in town will forge them together to raise its level.\"",
+			"\"Basic, Common, and Rare items climb only in STATS, and cap at level 2. The forge asks three spare copies — four found in all — and every stat the item offers grows.\"",
+			"\"Legendary and Mythic items reach level 3, and many carry a SKILL baked into them. One spare copy forges level 2 — the same pure stat boost. Two more copies — four found in all — forge level 3, where the item's skill transforms into its true, build-defining form.\"",
+			"\"And spare mythics are NEVER wasted. The Blacksmith can meld any TWO of them down into a Mythic Mold — trade the mold in, and he will craft a fresh copy of any mythic you have already owned. Duplicates are currency, in the right hands.\"",
 		]
 	)
 

@@ -75,9 +75,15 @@ static func mold_mythics(inv: Inventory, a: ItemData, b: ItemData) -> bool:
 	return true
 
 ## Redeem one Mythic Mold for a fresh level-1 copy of the chosen mythic.
+## When allowed_names is non-empty, only those mythics can be crafted —
+## the Blacksmith passes the character's owned-mythic history, so molds
+## forge copies of what the player has found, never unfound items.
 ## Returns the created item (already stored in the inventory), or null.
-static func redeem_mold(inv: Inventory, mythic_name: String) -> ItemData:
+static func redeem_mold(inv: Inventory, mythic_name: String, allowed_names: Array = []) -> ItemData:
 	if inv.mythic_molds <= 0:
+		return null
+	if not allowed_names.is_empty() and not allowed_names.has(mythic_name):
+		print("[FORGE] %s has never been owned — molds only recreate found mythics" % mythic_name)
 		return null
 	var item = ItemData.create_by_name(mythic_name)
 	if item == null or item.rarity != ItemData.Rarity.MYTHIC:
