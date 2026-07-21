@@ -248,42 +248,44 @@ func _get_culling_stone_drop_chance(type: Enemy.EnemyType) -> float:
 		Enemy.EnemyType.BOSS: return 0.40
 	return 0.02
 
+## Loot tier for an enemy type (see DropRates): trash never rolls high-end
+## loot on its own, bosses roll the richest table. Unlisted types are "mid".
+func get_loot_tier(type: Enemy.EnemyType) -> String:
+	match type:
+		Enemy.EnemyType.MINION, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, \
+		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.SWARM, Enemy.EnemyType.COYOTE, \
+		Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.SLUDGE, \
+		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.SCREECHER:
+			return DropRates.TIER_TRASH
+		Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.LARGE_BEAR, \
+		Enemy.EnemyType.TREANT, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.VAMPIRE, \
+		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.SPIRIT_COLLECTOR, \
+		Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.WYVERN, Enemy.EnemyType.ICE_TROLL, \
+		Enemy.EnemyType.WHITE_MANTICORE:
+			return DropRates.TIER_ELITE
+		Enemy.EnemyType.BOSS, Enemy.EnemyType.HYDRA, Enemy.EnemyType.BONE_DRAGON, \
+		Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.RAT_KING, Enemy.EnemyType.GRANITE_COLOSSUS:
+			return DropRates.TIER_BOSS
+	return DropRates.TIER_MID
+
 func _get_random_loot_item(type: Enemy.EnemyType) -> ItemData:
-	var item_creators: Array[Callable] = [
-		ItemData.create_iron_helm,
-		ItemData.create_leather_chest,
-		ItemData.create_iron_sword,
-		ItemData.create_wooden_shield,
-		ItemData.create_gold_ring,
-		ItemData.create_leather_boots,
-		ItemData.create_iron_gauntlets,
-		ItemData.create_utility_belt,
-	]
-	# Better enemies drop better items
-	if type == Enemy.EnemyType.ELITE or type == Enemy.EnemyType.BOSS or type == Enemy.EnemyType.ARMORED_TROLL:
-		item_creators.append(ItemData.create_flame_dagger)
-		item_creators.append(ItemData.create_frost_orb)
-		item_creators.append(ItemData.create_ice_quiver)
-		item_creators.append(ItemData.create_fire_quiver)
-		item_creators.append(ItemData.create_belt_of_greater_healing)
-	var idx = randi() % item_creators.size()
-	return item_creators[idx].call()
+	## Rarity-weighted by enemy tier (see DropRates.ENEMY_ITEM_WEIGHTS).
+	## Mythics never roll here — they come exclusively from the per-kill
+	## act-mythic layer in main (DropRates.roll_act_mythic_kill).
+	var weights: Dictionary = DropRates.ENEMY_ITEM_WEIGHTS[get_loot_tier(type)]
+	var rarity = DropRates.roll_weighted(weights)
+	var pool = ItemData.get_items_of_rarity(rarity)
+	if pool.is_empty():
+		pool = ItemData.get_items_of_rarity(ItemData.Rarity.BASIC)
+	return pool[randi() % pool.size()]
 
 func _get_random_loot_card() -> Card:
-	var card_creators: Array[Callable] = [
-		Card.create_slash,
-		Card.create_block,
-		Card.create_heal,
-		Card.create_draw,
-		Card.create_empower,
-		Card.create_healing_potion,
-		Card.create_dagger_throw,
-		Card.create_gain_mana,
-		Card.create_halo,
-		Card.create_blink,
-	]
-	var idx = randi() % card_creators.size()
-	return card_creators[idx].call()
+	## Rarity-weighted over every droppable card (see Card.CARD_RARITIES).
+	var rarity = DropRates.roll_weighted(DropRates.CARD_WEIGHTS)
+	var ids = Card.get_droppable_ids_of_rarity(rarity)
+	if ids.is_empty():
+		ids = Card.get_droppable_ids_of_rarity(Card.Rarity.BASIC)
+	return Card.create_by_id(ids[randi() % ids.size()])
 
 # ============================================
 # SPATIAL QUERIES

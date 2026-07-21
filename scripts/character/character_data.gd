@@ -51,6 +51,13 @@ func get_base_character() -> String:
 # Stored per-character so each playthrough learns the ropes once.
 @export var seen_tutorial_ids: Array = []
 
+# Act-mythic pity state (see DropRates): acts whose near-guaranteed mythic has
+# already dropped for this character, and story kills accumulated toward the
+# "mythic creep" in acts still waiting on theirs. Per-character forever —
+# revisiting or re-running an act never restarts the creep.
+@export var act_mythic_found: Array = []      # act numbers (int)
+@export var act_mythic_kills: Dictionary = {} # act (int) -> kills so far
+
 # Card upgrades: Array of {card_index: int, upgrade_path: int}
 # card_index refers to the position in the final deck list (after removals)
 # upgrade_path: 0 = path 1, 1 = path 2

@@ -55,6 +55,9 @@ var waypoint_mgr: WaypointManager = null
 # hungry and takes it back.
 var _pending_doughnut_drop: bool = false
 var _doughnut_farewell_armed: bool = false
+# Act-mythic pity layer: a mythic rolled on this kill (DropRates), waiting to
+# be injected into the enemy's loot pile.
+var _pending_mythic_item: ItemData = null
 var _doughnut_item: ItemData = null
 var _doughnut_looter: Player = null
 var _doughnut_pickup_cell: Vector2i = Vector2i(-999, -999)
@@ -3857,6 +3860,18 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 			and enemy.enemy_type in [Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT]:
 		_pending_doughnut_drop = true
 
+	# Act-mythic pity ("mythic creep"): every story kill raises the chance of
+	# the act's near-guaranteed mythic until it drops, then the act returns to
+	# its per-tier baseline (act 1: capped at that one mythic forever). The
+	# scripted doughnut kill is skipped so the tutorial drop stays scripted.
+	if not _roguelike_active and current_character and not _pending_doughnut_drop:
+		var tier: String = enemy_spawner.get_loot_tier(enemy.enemy_type)
+		if DropRates.roll_act_mythic_kill(current_character, current_world_level, tier):
+			var pool = ItemData.get_items_of_rarity(ItemData.Rarity.MYTHIC)
+			_pending_mythic_item = pool[randi() % pool.size()]
+			if dungeon_manager and current_world_level == 1:
+				dungeon_manager.block_act1_mythics = true
+
 	# Return any queued cards targeting this dead enemy back to the player's hand
 	_return_queued_cards_for_dead_target(enemy)
 
@@ -6864,6 +6879,9 @@ func _setup_dungeon() -> void:
 	dungeon_manager = DungeonManager.new()
 	dungeon_manager.name = "DungeonManager"
 	dungeon_manager._opened_chests_ref = opened_chests
+	# Act-1 mythic cap: once this character's act-1 mythic dropped, act-1
+	# chests stop offering mythics too.
+	dungeon_manager.block_act1_mythics = DropRates.act1_mythic_locked(current_character)
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
 
@@ -8346,6 +8364,11 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 		loot["item"] = ItemData.create_bladed_doughnut()
 		if olorin:
 			olorin.show_item_levels_intro()
+	elif _pending_mythic_item:
+		# The act-mythic layer fired on this kill (see _on_enemy_killed).
+		loot["item"] = _pending_mythic_item
+		_pending_mythic_item = null
+		add_battle_log("A MYTHIC drops: %s!" % loot["item"].item_name, Color(0.9, 0.35, 0.9))
 	_spawn_loot_drop(loot, pos)
 
 func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
