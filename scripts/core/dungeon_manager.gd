@@ -2999,48 +2999,34 @@ func _generate_chest_contents(chest_index: int) -> Dictionary:
 
 	return contents
 
+# Act-1 mythic cap: set by main once this character's act-1 mythic has
+# dropped — act-1 chests then stop offering mythics entirely.
+var block_act1_mythics: bool = false
+
 func _get_random_item(rng: RandomNumberGenerator) -> ItemData:
-	# Rarity-weighted drop. Only level-1 items ever drop — higher item levels
-	# exist solely through forging copies together at the Blacksmith.
-	# Higher worlds shift weight from basic toward the top tiers.
-	var w = clampi(world_level, 1, 4) - 1
-	var weights = {
-		ItemData.Rarity.BASIC: 46 - w * 6,
-		ItemData.Rarity.COMMON: 30,
-		ItemData.Rarity.RARE: 18 + w * 3,
-		ItemData.Rarity.LEGENDARY: 4 + w * 2,
-		ItemData.Rarity.MYTHIC: 2 + w,
-	}
-	var total = 0
-	for r in weights:
-		total += weights[r]
-	var roll = rng.randi_range(1, total)
-	var rarity = ItemData.Rarity.BASIC
-	for r in weights:
-		roll -= weights[r]
-		if roll <= 0:
-			rarity = r
-			break
+	# Chests roll the flat baseline rarity table (see DropRates) — mythic and
+	# legendary stay at baseline in every act; the near-guaranteed act mythic
+	# comes from the per-kill layer in main, never from chests. Only level-1
+	# items ever drop — higher item levels exist solely through the forge.
+	var weights: Dictionary = DropRates.CHEST_ITEM_WEIGHTS
+	if block_act1_mythics and world_level == 1:
+		weights = weights.duplicate()
+		weights.erase(ItemData.Rarity.MYTHIC)
+	var rarity = DropRates.roll_weighted(weights, rng)
 	var pool = ItemData.get_items_of_rarity(rarity)
 	if pool.is_empty():
 		pool = ItemData.get_items_of_rarity(ItemData.Rarity.BASIC)
 	return pool[rng.randi() % pool.size()]
 
 func _get_random_card(rng: RandomNumberGenerator) -> Card:
-	var card_creators: Array[Callable] = [
-		Card.create_slash,
-		Card.create_block,
-		Card.create_heal,
-		Card.create_draw,
-		Card.create_empower,
-		Card.create_healing_potion,
-		Card.create_dagger_throw,
-		Card.create_gain_mana,
-		Card.create_halo,
-		Card.create_blink,
-	]
-	var idx = rng.randi() % card_creators.size()
-	return card_creators[idx].call()
+	## Rarity-weighted over every droppable card (see Card.CARD_RARITIES),
+	## deterministic per chest via the seeded rng.
+	var rarity = DropRates.roll_weighted(DropRates.CARD_WEIGHTS, rng)
+	var ids = Card.get_droppable_ids_of_rarity(rarity)
+	if ids.is_empty():
+		ids = Card.get_droppable_ids_of_rarity(Card.Rarity.BASIC)
+	ids.sort()  # discovery order isn't guaranteed — sort so the seed is stable
+	return Card.create_by_id(ids[rng.randi() % ids.size()])
 
 # ============================================
 # SPAWN ZONES (derived from rooms; difficulty scales with world + depth)

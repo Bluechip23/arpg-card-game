@@ -10,6 +10,88 @@ enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL, SWIFT, BUCKLER, CROWN, FIST
 # all merge into a single un-lettered hand stack.
 const INSTANT_STACK_SIG_PREFIX := "INSTANT|"
 
+# ============================================
+# CARD RARITY TIERS
+# ============================================
+# Mirrors the item rarity tiers so drop tables can weight cards the same way
+# (see DropRates.CARD_WEIGHTS). Every card is obtainable through play —
+# rarity only shapes how often it drops; there is NO copies-to-upgrade
+# system for cards. Retune a card's tier by editing this one dictionary.
+enum Rarity { BASIC, COMMON, RARE, LEGENDARY, MYTHIC }
+
+const CARD_RARITIES := {
+	# --- Basic (24) ---
+	"slash": Rarity.BASIC, "block": Rarity.BASIC, "discard": Rarity.BASIC,
+	"draw": Rarity.BASIC, "empower": Rarity.BASIC, "heal": Rarity.BASIC,
+	"gain_mana": Rarity.BASIC, "healing_potion": Rarity.BASIC, "dagger_throw": Rarity.BASIC,
+	"wear_down": Rarity.BASIC, "poke": Rarity.BASIC, "parry": Rarity.BASIC,
+	"approach": Rarity.BASIC, "shuriken": Rarity.BASIC, "quick_shot": Rarity.BASIC,
+	"quick_arrow": Rarity.BASIC, "push": Rarity.BASIC, "lightly_dazed": Rarity.BASIC,
+	"thrown_stone": Rarity.BASIC, "minor_wounds": Rarity.BASIC, "energy_ball": Rarity.BASIC,
+	"armor_patch": Rarity.BASIC, "spark": Rarity.BASIC, "splinter": Rarity.BASIC,
+	# --- Common (48) ---
+	"blink": Rarity.COMMON, "taunt": Rarity.COMMON, "life_steal": Rarity.COMMON,
+	"roar": Rarity.COMMON, "armor_break": Rarity.COMMON, "trick_shot": Rarity.COMMON,
+	"risk_it": Rarity.COMMON, "biscuit": Rarity.COMMON, "loaded_die": Rarity.COMMON,
+	"oops": Rarity.COMMON, "hope_this_works": Rarity.COMMON, "raged_circulation": Rarity.COMMON,
+	"poisoned_blood": Rarity.COMMON, "elixir": Rarity.COMMON, "reposition": Rarity.COMMON,
+	"premeditated": Rarity.COMMON, "mark": Rarity.COMMON, "rise": Rarity.COMMON,
+	"reload": Rarity.COMMON, "barricade": Rarity.COMMON, "sky_attack": Rarity.COMMON,
+	"mixed_bag": Rarity.COMMON, "trip": Rarity.COMMON, "choke": Rarity.COMMON,
+	"defensive_awareness": Rarity.COMMON, "sweeping_disarm": Rarity.COMMON, "consecutive_snap": Rarity.COMMON,
+	"swap": Rarity.COMMON, "meditate": Rarity.COMMON, "potion_of_continuance": Rarity.COMMON,
+	"spider_senses": Rarity.COMMON, "gulped_potion": Rarity.COMMON, "energy_barrier": Rarity.COMMON,
+	"collect_arrows": Rarity.COMMON, "self_infliction": Rarity.COMMON, "bob_and_weave": Rarity.COMMON,
+	"cover": Rarity.COMMON, "fortify_alliance": Rarity.COMMON, "shield_ready": Rarity.COMMON,
+	"healthy_habit": Rarity.COMMON, "anticipation": Rarity.COMMON, "prepare": Rarity.COMMON,
+	"meister_of_faustmesser": Rarity.COMMON, "give_in": Rarity.COMMON, "provider": Rarity.COMMON,
+	"healthy_bliss": Rarity.COMMON, "patience": Rarity.COMMON, "gargle_and_spit": Rarity.COMMON,
+	# --- Rare (68) ---
+	"life_swap": Rarity.RARE, "charge": Rarity.RARE, "heroic_leap": Rarity.RARE,
+	"morphine": Rarity.RARE, "turtle_up": Rarity.RARE, "hold_the_line": Rarity.RARE,
+	"surrounding_ice": Rarity.RARE, "worst_that_could_happen": Rarity.RARE, "house_money": Rarity.RARE,
+	"try_this": Rarity.RARE, "infestation": Rarity.RARE, "snowballs_chance": Rarity.RARE,
+	"shadows": Rarity.RARE, "preparation": Rarity.RARE, "exacerbate_wounds": Rarity.RARE,
+	"volatile_mixture": Rarity.RARE, "understanding": Rarity.RARE, "shuriken_pouch": Rarity.RARE,
+	"enchanted_quiver": Rarity.RARE, "tighten_string": Rarity.RARE, "down_town": Rarity.RARE,
+	"sky_fall": Rarity.RARE, "lead_arrow": Rarity.RARE, "last_breath": Rarity.RARE,
+	"bottomless_quiver": Rarity.RARE, "round_em_up": Rarity.RARE, "hydra_bite": Rarity.RARE,
+	"growth_within_resilience": Rarity.RARE, "halo": Rarity.RARE, "armored_discipline": Rarity.RARE,
+	"reckless_strike": Rarity.RARE, "blade_barrage": Rarity.RARE, "cultish_wounds": Rarity.RARE,
+	"fountain_of_life": Rarity.RARE, "absorb_essence": Rarity.RARE, "communal_donation": Rarity.RARE,
+	"repelled_block": Rarity.RARE, "shield_of_growth": Rarity.RARE, "mana_surge": Rarity.RARE,
+	"magic_barrier": Rarity.RARE, "shepherds_mark": Rarity.RARE, "bloodlust": Rarity.RARE,
+	"lethal_recall": Rarity.RARE, "smith_thy_soul": Rarity.RARE, "down_but_not_out": Rarity.RARE,
+	"enchantment_defense": Rarity.RARE, "enchantment_attack": Rarity.RARE, "enchantment_movement": Rarity.RARE,
+	"enchantment_mana_regen": Rarity.RARE, "harness_lightning": Rarity.RARE, "best_offense": Rarity.RARE,
+	"vengeful_shield": Rarity.RARE, "release_tension": Rarity.RARE, "vines": Rarity.RARE,
+	"savage_strike": Rarity.RARE, "savage_strike_copy": Rarity.RARE, "heavy_swing": Rarity.RARE,
+	"shed_weight": Rarity.RARE, "living_armor": Rarity.RARE, "the_lights_favor": Rarity.RARE,
+	"hunker_down": Rarity.RARE, "harden": Rarity.RARE, "roll": Rarity.RARE,
+	"cryonics": Rarity.RARE, "friendship": Rarity.RARE, "multishot": Rarity.RARE,
+	"specific_strike": Rarity.RARE, "spirit_arrow": Rarity.RARE,
+	# --- Legendary (13) ---
+	"lady_luck": Rarity.LEGENDARY, "demonic_rage": Rarity.LEGENDARY, "item_mastery": Rarity.LEGENDARY,
+	"deep_pockets": Rarity.LEGENDARY, "misery_loves_company": Rarity.LEGENDARY, "exposed_artery": Rarity.LEGENDARY,
+	"internal_combustion": Rarity.LEGENDARY, "shield_slam": Rarity.LEGENDARY, "tower_shield": Rarity.LEGENDARY,
+	"succumb": Rarity.LEGENDARY, "fireball": Rarity.LEGENDARY, "adrenaline_shot": Rarity.LEGENDARY,
+	"exhausted_assault": Rarity.LEGENDARY,
+	# --- Mythic (8) ---
+	"if_pigs_could_fly": Rarity.MYTHIC, "gift_from_the_phoenix": Rarity.MYTHIC, "petey_the_pet_rock": Rarity.MYTHIC,
+	"mirror_mirror": Rarity.MYTHIC, "god_of_thunder": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
+	"sprinkle": Rarity.MYTHIC, "sprinkle_bomb": Rarity.MYTHIC,
+}
+
+# Cards that never appear in random drops: item-conjured tokens (Sprinkle,
+# Shuriken), status junk, generated copies, and cards with their own bespoke
+# drop paths (Infestation from rats, Hydra Bite from the Hydra).
+const DROP_EXCLUDED_CARD_IDS := {
+	"sprinkle": true, "sprinkle_bomb": true, "splinter": true,
+	"shuriken": true, "savage_strike_copy": true,
+	"minor_wounds": true, "lightly_dazed": true,
+	"infestation": true, "hydra_bite": true,
+}
+
 @export var card_id: String = "slash"
 @export var card_name: String = "Slash"
 @export var description: String = "10 damage"
@@ -5213,3 +5295,43 @@ static func create_splinter() -> Card:
 	card.range_modifier = -2  # base 5 - 2 = range 3
 	card.target_types = ["enemy"]
 	return card
+
+# ============================================
+# RARITY HELPERS
+# ============================================
+
+static var _factory_map: Dictionary = {}  # card_id -> factory method name
+
+func get_rarity() -> Rarity:
+	return CARD_RARITIES.get(card_id, Rarity.COMMON)
+
+func get_rarity_name() -> String:
+	match get_rarity():
+		Rarity.BASIC: return "Basic"
+		Rarity.COMMON: return "Common"
+		Rarity.RARE: return "Rare"
+		Rarity.LEGENDARY: return "Legendary"
+		Rarity.MYTHIC: return "Mythic"
+	return "Unknown"
+
+## Card ids of the given rarity that are allowed in random drops.
+static func get_droppable_ids_of_rarity(r: Rarity) -> Array:
+	var ids: Array = []
+	for cid in CARD_RARITIES:
+		if CARD_RARITIES[cid] == r and not DROP_EXCLUDED_CARD_IDS.has(cid):
+			ids.append(cid)
+	return ids
+
+## Create a fresh card by id via the create_* factories (cached discovery).
+static func create_by_id(cid: String) -> Card:
+	if _factory_map.is_empty():
+		var script: Script = Card
+		for method in script.get_script_method_list():
+			var method_name: String = method["name"]
+			if method_name.begins_with("create_") and method["args"].size() == 0:
+				var card = script.call(method_name)
+				if card is Card:
+					_factory_map[card.card_id] = method_name
+	if cid in _factory_map:
+		return (Card as Script).call(_factory_map[cid])
+	return null
