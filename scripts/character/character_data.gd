@@ -105,7 +105,7 @@ const STAT_INFO := {
 	"INT": "Intelligence — +1 spell & heal power for every 2 points, and +1 mana regen for every 5 points.",
 	"WIS": "Wisdom — +1 hand size for every 5 points, and draws cards faster: each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5).",
 	"DET": "Determination — directly impacts how low health affects your attributes. At 10 it does nothing; above 10 your stats climb as health drops, below 10 they fall. The lower your health, the bigger the swing — about ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below.",
-	"AGI": "Agility — 1 Flash point per point, refreshed every 2 tempo cycles. Spend them by choice (the lightning-bolt button in battle): 1 point moves a tile without costing tempo, 3 points buy 1 block. Unspent moves cost 1 tempo per tile.",
+	"AGI": "Agility — 1 Flash point per point, refreshed every 2 tempo cycles. Spend them by choice in battle: 1 point per tile moved (boots toggle), 3 points for 2 block (sidestep), 5 points to advance the attack-speed counter (daggers). Without Flash, each tile costs 1 tempo.",
 }
 
 static func stat_full_name(key: String) -> String:

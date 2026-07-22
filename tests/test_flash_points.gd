@@ -50,11 +50,18 @@ func _initialize() -> void:
 	stats.enchantment_movement_bonus = 1
 	_check(stats.get_max_flash_points() == 8, "movement enchantment adds 5 flash points")
 
-	# --- Flash block: 3 flash → 1 armor ---
+	# --- Flash block: 3 flash → 2 armor ---
 	stats.refresh_flash_points()
 	_check(stats.spend_flash_for_block(), "flash block spends 3 points")
-	_check(stats.current_armor == 1, "3 flash bought 1 armor")
+	_check(stats.current_armor == 2, "3 flash bought 2 armor")
 	_check(stats.current_flash_points == 5, "block left 5 of 8 flash")
+
+	# --- Flash proc tick: 5 flash advances the attack counter ---
+	var before = stats.get_attacks_until_proc()
+	_check(stats.spend_flash_for_proc_tick(), "proc tick spends 5 points")
+	_check(stats.get_attacks_until_proc() == before - 1, "attack counter advanced 1 tick")
+	_check(stats.current_flash_points == 0, "proc tick emptied the pool")
+	_check(not stats.spend_flash_for_proc_tick(), "proc tick refused on an empty pool")
 
 	_check(not stats.spend_flash_points(99), "cannot overspend the pool")
 

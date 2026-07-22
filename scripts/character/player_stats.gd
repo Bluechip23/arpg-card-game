@@ -532,7 +532,8 @@ func is_overburdened() -> bool:
 const FLASH_REFRESH_CYCLES: int = 2
 const FLASH_COST_MOVE: int = 1
 const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
-const FLASH_BLOCK_ARMOR: int = 1
+const FLASH_BLOCK_ARMOR: int = 2
+const FLASH_COST_PROC_TICK: int = 5  # advance the attack-speed counter 1 tick
 
 var current_flash_points: int = 0
 # HUD toggle (the lightning-bolt button): spending flash on movement is the
@@ -566,6 +567,14 @@ func spend_flash_for_block() -> bool:
 	armor_gained.emit(FLASH_BLOCK_ARMOR)
 	print("[STATS] Flash block: -%d flash → +%d armor (%d armor total)" % [
 		FLASH_COST_BLOCK, FLASH_BLOCK_ARMOR, current_armor])
+	return true
+
+func spend_flash_for_proc_tick() -> bool:
+	## Buy one tick of the attack-speed counter with flash points ("quick
+	## hands"). Reuses register_attack, so reaching 0 fires the proc normally.
+	if not spend_flash_points(FLASH_COST_PROC_TICK):
+		return false
+	register_attack()
 	return true
 
 # ============================================

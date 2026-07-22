@@ -27,6 +27,9 @@ static func get_glyph(key: String) -> Texture2D:
 		"recycle": _draw_recycle(img)
 		"feather": _draw_feather(img)
 		"flash_bolt": _draw_flash_bolt(img)
+		"boots": _draw_boots(img)
+		"duck": _draw_duck(img)
+		"dual_daggers": _draw_dual_daggers(img)
 		_:
 			_cache[key] = null
 			return null
@@ -258,6 +261,52 @@ static func _draw_flash_bolt(img: Image) -> void:
 	_tri(img, Vector2(9, 11), Vector2(16, 11), Vector2(4, 23), gold)
 	# Highlight along the leading edge.
 	_line(img, 19, 2, 11, 12, hi, 1.0)
+
+static func _draw_boots(img: Image) -> void:
+	## Pair of brown boots, toes pointing right (flash movement toggle).
+	var leather := Color(0.62, 0.42, 0.2)
+	var dark := Color(0.42, 0.27, 0.12)
+	var sole := Color(0.24, 0.16, 0.09)
+	for ox in [1, 12]:
+		_rect(img, ox + 1, 3, 5, 12, leather)   # shaft
+		_rect(img, ox + 1, 3, 5, 2, dark)       # cuff
+		_rect(img, ox + 1, 14, 8, 5, leather)   # foot
+		_rect(img, ox + 6, 14, 3, 2, dark)      # instep shade
+		_rect(img, ox + 1, 19, 9, 2, sole)      # sole
+
+static func _draw_duck(img: Image) -> void:
+	## Figure ducking under a horizontal blade swing (flash block / sidestep).
+	var blade := Color(0.82, 0.84, 0.9)
+	var swoosh := Color(0.75, 0.8, 0.92, 0.55)
+	var skin := Color(0.92, 0.86, 0.72)
+	var body := Color(0.4, 0.55, 0.8)
+	# Blade sweeping across the top, tip to the right, with a motion dash.
+	_line(img, 1, 4, 19, 4, blade, 1.8)
+	_tri(img, Vector2(19, 2), Vector2(23, 4), Vector2(19, 7), blade)
+	_line(img, 3, 8, 10, 8, swoosh, 1.0)
+	# Ducking figure: head tucked low, hunched back, bent legs.
+	_disc(img, 8.0, 13.0, 3.0, skin)            # head, well under the swing
+	_line(img, 10, 14, 17, 17, body, 3.0)       # hunched back sloping down
+	_rect(img, 14, 17, 4, 4, body)              # crouched hips
+	_rect(img, 8, 19, 3, 3, body)               # front leg folded under
+	_line(img, 18, 21, 21, 21, body, 1.6)       # trailing foot
+
+static func _draw_dual_daggers(img: Image) -> void:
+	## Two crossed daggers (buy an attack-speed tick — "quick hands").
+	var blade := Color(0.82, 0.84, 0.9)
+	var hilt := Color(0.55, 0.38, 0.16)
+	var gold := Color(0.85, 0.68, 0.25)
+	# Blades crossing in an X, tips up.
+	_line(img, 7, 17, 18, 6, blade, 2.0)
+	_line(img, 17, 17, 6, 6, blade, 2.0)
+	_tri(img, Vector2(20, 2), Vector2(17, 4), Vector2(19, 7), blade)   # right tip
+	_tri(img, Vector2(4, 2), Vector2(7, 4), Vector2(5, 7), blade)      # left tip
+	# Crossguards perpendicular to each blade, near the hilts.
+	_line(img, 5, 15, 9, 19, gold, 1.8)
+	_line(img, 19, 15, 15, 19, gold, 1.8)
+	# Grips angling down-out to the corners.
+	_line(img, 6, 18, 4, 21, hilt, 2.2)
+	_line(img, 18, 18, 20, 21, hilt, 2.2)
 
 static func _draw_feather(img: Image) -> void:
 	## Pale feather angled up-right: a thin quill with soft barbs sweeping off

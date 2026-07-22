@@ -60,9 +60,11 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=cyan]Agility (AGI)[/color]
 - 1 Flash point per AGI point, refreshed every 2 cycles
-- Spending Flash is a CHOICE — the lightning-bolt button above Attack shows your pool
-- Toggle it on: moving a tile spends 1 Flash point (no tempo cost)
-- Right-click it: spend 3 Flash for 1 block (a quick sidestep)
+- Spending Flash is a CHOICE — the Flash row above Attack shows your pool (lightning bolt)
+- Boots toggle: while on, moving a tile spends 1 Flash point (no tempo cost)
+- Sidestep button: spend 3 Flash for 2 block
+- Daggers button: spend 5 Flash to advance the attack-speed counter 1 tick
+- Buttons fade while you can't afford them
 - Without Flash, each tile costs 1 tempo
 - [color=red]Pass-Through:[/color] Moving through a tile occupied by another unit (ally or enemy) always costs 2 tempo, regardless of Flash points
 
