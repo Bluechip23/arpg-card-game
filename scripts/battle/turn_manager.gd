@@ -13,8 +13,8 @@ var current_turn: int = 0
 ## How many global tempo until the next card draw.
 var tempo_until_draw: float = 0.0
 
-## Card draw interval in global tempo. Default 25 = 5 old turns × 5 tempo/turn.
-## Reduced by Wisdom: each WIS point = -1.25 tempo (equivalent to old -0.25 turns).
+## Card draw interval in global tempo. Default 25 = 5 cycles × 5 tempo/cycle.
+## Reduced by Wisdom: each WIS point = -1 tempo (floor: 5 tempo).
 var draw_every_x_tempo: float = 25.0
 
 var player_stats: PlayerStats
@@ -61,9 +61,8 @@ func take_turn() -> void:
 func _get_effective_draw_tempo() -> float:
 	if not player_stats:
 		return 25.0
-	# Convert from the old "turns" formula to global tempo units (×5)
-	var turns = max(1.0, player_stats.base_draw_timer - player_stats.get_wisdom_draw_bonus())
-	return turns * 5.0
+	# PlayerStats owns the formula and already returns global tempo.
+	return player_stats.get_effective_draw_timer()
 
 func get_tempo_until_draw() -> float:
 	return tempo_until_draw

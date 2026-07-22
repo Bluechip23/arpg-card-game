@@ -531,15 +531,25 @@ func get_movement_per_cycle() -> int:
 # DEXTERITY / ATTACK SPEED
 # ============================================
 
+# Encumbrance term of the attack-speed threshold. Square-root scaling means
+# spare capacity has diminishing returns, and the clamp keeps the whole term
+# smaller than a modest DEX investment — DEX stays the primary attack-speed
+# stat, with STR/loadout as a bounded secondary influence.
+const CAPACITY_BASELINE_FREE: int = 50      # free capacity that neither helps nor hurts
+const CAPACITY_SPEED_BONUS_CAP: int = 8     # most attacks light loading can shave off
+const OVERBURDENED_SPEED_PENALTY: int = 10  # flat penalty while over carry capacity
+
+func get_capacity_speed_modifier() -> int:
+	## Positive = slower (loaded down), negative = faster (light on your feet).
+	if is_overburdened():
+		return OVERBURDENED_SPEED_PENALTY
+	var free_capacity = get_free_carry_capacity()
+	var mod = sqrt(float(CAPACITY_BASELINE_FREE)) - sqrt(float(max(0, free_capacity)))
+	return clampi(roundi(mod), -CAPACITY_SPEED_BONUS_CAP, OVERBURDENED_SPEED_PENALTY)
+
 func get_attack_speed_threshold() -> int:
 	# Uses effective dexterity
-	var threshold = base_attack_speed_counter - dexterity
-	
-	# Carry capacity modifier
-	var free_capacity = get_free_carry_capacity()
-	var capacity_modifier = 30 - free_capacity
-	threshold += capacity_modifier
-	
+	var threshold = base_attack_speed_counter - dexterity + get_capacity_speed_modifier()
 	return max(5, threshold)
 
 func register_attack() -> Dictionary:
@@ -587,12 +597,14 @@ func get_wisdom_hand_bonus() -> int:
 	return floori(wisdom / 5.0)
 
 func get_wisdom_draw_bonus() -> float:
-	# Uses effective wisdom
-	return wisdom * 0.25
+	# Uses effective wisdom: each point draws cards 1 global tempo sooner
+	return float(wisdom)
 
 func get_effective_draw_timer() -> float:
-	var timer = base_draw_timer - get_wisdom_draw_bonus()
-	return max(1.0, timer)
+	## Card-draw interval in GLOBAL TEMPO. base_draw_timer is in 5-tempo cycles
+	## (default 5 cycles = 25 tempo); the floor is one cycle (5 tempo).
+	var timer = base_draw_timer * 5.0 - get_wisdom_draw_bonus()
+	return max(5.0, timer)
 
 # ============================================
 # COMBINED CALCULATIONS
@@ -1127,7 +1139,7 @@ func get_stats_summary() -> String:
 	return """STR: %d (base %d) → +%d carry, +%d phys dmg
 DEX: %d (base %d) → proc in %d atks
 INT: %d (base %d) → +%d spell dmg, +%.0f regen
-WIS: %d (base %d) → +%d hand, -%.1f draw
+WIS: %d (base %d) → +%d hand, -%.0f tempo draw
 AGI: %d (base %d) → %d free moves/tempo
 DET: %d → %s
 Level: %d | XP: %d / %d""" % [
