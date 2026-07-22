@@ -283,6 +283,7 @@ var _block_button: Button = null
 var _attack_button: Button = null
 var _flash_button: Button = null        # bolt + pool count display (60% of the row)
 var _flash_move_button: Button = null   # boots: toggle spending flash on movement
+var _flash_move_sparkle: SparkleBorder = null  # gold cycling border while the toggle is on
 var _flash_block_button: Button = null  # duck: 3 flash → 2 block
 var _flash_proc_button: Button = null   # daggers: 5 flash → 1 attack-speed tick
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
@@ -798,6 +799,9 @@ func _setup_action_buttons() -> void:
 	_flash_move_button.size_flags_stretch_ratio = 4.0 / 3.0
 	_flash_move_button.toggled.connect(_on_flash_move_toggled)
 	flash_row.add_child(_flash_move_button)
+	# Sparkling gold border cycling the boots button while auto-spend is on.
+	_flash_move_sparkle = SparkleBorder.new()
+	_flash_move_button.add_child(_flash_move_sparkle)
 
 	_flash_block_button = Button.new()
 	_flash_block_button.name = "FlashBlockButton"
@@ -4339,6 +4343,8 @@ func _update_flash_button() -> void:
 	if _flash_move_button:
 		_flash_move_button.set_pressed_no_signal(stats.flash_movement_enabled)
 		_flash_move_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_MOVE else 0.45
+		if _flash_move_sparkle:
+			_flash_move_sparkle.active = stats.flash_movement_enabled
 		_flash_move_button.tooltip_text = "Flash movement: %s.\nWhile on, each tile moved spends %d flash point instead of tempo." % [
 			"ON" if stats.flash_movement_enabled else "off", PlayerStats.FLASH_COST_MOVE]
 	if _flash_block_button:
