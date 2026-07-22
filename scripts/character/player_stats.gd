@@ -531,8 +531,13 @@ func is_overburdened() -> bool:
 ## (dodge-blocks, attack-speed proc ticks) draw from the same pool.
 const FLASH_REFRESH_CYCLES: int = 2
 const FLASH_COST_MOVE: int = 1
+const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
+const FLASH_BLOCK_ARMOR: int = 1
 
 var current_flash_points: int = 0
+# HUD toggle (the lightning-bolt button): spending flash on movement is the
+# player's CHOICE — off by default, moves cost tempo as normal.
+var flash_movement_enabled: bool = false
 
 func get_max_flash_points() -> int:
 	# Movement enchantments feed the pool too: each old "+1 free move per tempo"
@@ -548,6 +553,19 @@ func spend_flash_points(amount: int) -> bool:
 		return false
 	current_flash_points -= amount
 	flash_points_changed.emit(current_flash_points, get_max_flash_points())
+	return true
+
+func spend_flash_for_block() -> bool:
+	## Convert FLASH_COST_BLOCK flash points into FLASH_BLOCK_ARMOR armor.
+	## Raw armor on purpose — this is a sidestep, not a block card, so
+	## enchantment/sphere block bonuses don't apply.
+	if not spend_flash_points(FLASH_COST_BLOCK):
+		return false
+	current_armor += FLASH_BLOCK_ARMOR
+	armor_changed.emit(current_armor)
+	armor_gained.emit(FLASH_BLOCK_ARMOR)
+	print("[STATS] Flash block: -%d flash → +%d armor (%d armor total)" % [
+		FLASH_COST_BLOCK, FLASH_BLOCK_ARMOR, current_armor])
 	return true
 
 # ============================================

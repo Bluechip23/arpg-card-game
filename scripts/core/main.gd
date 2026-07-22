@@ -281,6 +281,7 @@ var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
 var _attack_button: Button = null
+var _flash_button: Button = null
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
 
 # Stat bar UI references
@@ -764,6 +765,20 @@ func _setup_action_buttons() -> void:
 	# hand = wait, stop sign = pause) so only the numbers need text, keeping
 	# the stack small and the battlefield clear. The Draw pile button is
 	# inserted at the top of this column by _setup_deck_info_vertical.
+
+	# Flash button (above Attack): lightning bolt + available flash points.
+	# Toggled on, moving a tile spends 1 flash point instead of tempo.
+	# Right-click converts 3 flash into 1 armor (a quick sidestep).
+	_flash_button = Button.new()
+	_flash_button.name = "FlashButton"
+	_flash_button.icon = UIGlyphs.get_glyph("flash_bolt")
+	_flash_button.toggle_mode = true
+	_flash_button.text = "0"
+	_flash_button.custom_minimum_size = Vector2(0, 36)
+	_flash_button.size_flags_horizontal = Control.SIZE_FILL
+	_flash_button.toggled.connect(_on_flash_toggled)
+	_flash_button.gui_input.connect(_on_flash_button_gui_input)
+	vbox.add_child(_flash_button)
 
 	# Attack button (top): sword + tempo cost + attacks until the speed proc.
 	# Content-sized — its natural width sets the column width.
@@ -2782,6 +2797,8 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
 	player.get_stats().armor_gained.connect(_on_player_armor_gained)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
+	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
+	_update_flash_button()
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
@@ -4234,6 +4251,41 @@ func _update_xp_display() -> void:
 		_xp_bar.value = stats.current_xp
 	if stats and _xp_bar_label:
 		_xp_bar_label.text = "(%d) %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
+
+func _on_flash_points_changed(_current: int, _max_points: int) -> void:
+	_update_flash_button()
+
+func _on_flash_toggled(pressed: bool) -> void:
+	var stats = player.get_stats() if player else null
+	if stats:
+		stats.flash_movement_enabled = pressed
+	if pressed:
+		add_battle_log("Flash movement ON — moving spends flash points instead of tempo.", Color(1.0, 0.9, 0.4))
+	else:
+		add_battle_log("Flash movement off — moving costs tempo.", Color(1.0, 0.9, 0.4))
+	_update_flash_button()
+
+func _on_flash_button_gui_input(event: InputEvent) -> void:
+	# Right-click: buy a sidestep — FLASH_COST_BLOCK flash for FLASH_BLOCK_ARMOR armor.
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		var stats = player.get_stats() if player else null
+		if stats and stats.spend_flash_for_block():
+			add_battle_log("Flash block! -%d flash, +%d armor." % [
+				PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR], Color(1.0, 0.9, 0.4))
+		elif stats:
+			add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
+
+func _update_flash_button() -> void:
+	if not _flash_button:
+		return
+	var stats = player.get_stats() if player else null
+	if not stats:
+		return
+	_flash_button.text = "%d" % stats.current_flash_points
+	_flash_button.set_pressed_no_signal(stats.flash_movement_enabled)
+	_flash_button.tooltip_text = "Flash points: %d / %d (refresh every %d cycles).\nToggle ON: moving a tile spends 1 flash point instead of tempo.\nRight-click: spend %d flash for %d armor." % [
+		stats.current_flash_points, stats.get_max_flash_points(), PlayerStats.FLASH_REFRESH_CYCLES,
+		PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR]
 
 func _on_dexterity_proc() -> void:
 	print("[MAIN] Dexterity proc! Next attack: half tempo + 2 mana discount!")

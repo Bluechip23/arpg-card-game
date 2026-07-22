@@ -266,8 +266,11 @@ func add_card_tempo(tempo_cost: int, card: Card = null, resolve_tick: int = 1, o
 
 func add_movement_tempo() -> void:
 	spaces_moved_this_cycle += 1
-	# Flash points (Agility) make the move tempo-free; an empty pool means 1 tempo per tile.
-	if player_stats and player_stats.spend_flash_points(PlayerStats.FLASH_COST_MOVE):
+	# Flash points (Agility) make the move tempo-free — but only when the player
+	# has toggled flash movement on (the HUD lightning-bolt button). Spending
+	# the pool is a choice, not automatic.
+	if player_stats and player_stats.flash_movement_enabled \
+			and player_stats.spend_flash_points(PlayerStats.FLASH_COST_MOVE):
 		print("[TEMPO] Flash move (%d left) | %d tiles this cycle" % [
 			player_stats.current_flash_points, spaces_moved_this_cycle])
 		return

@@ -25,14 +25,20 @@ func _initialize() -> void:
 	var tm = load("res://scripts/battle/tempo_manager.gd").new()
 	tm.initialize(stats)
 
-	# --- Movement spends flash first, then tempo ---
+	# --- Spending flash is opt-in: with the toggle off, moves cost tempo ---
+	tm.add_movement_tempo()
+	_check(stats.current_flash_points == 3, "toggle off: the pool is untouched")
+	_check(tm.get_global_tempo() == 1, "toggle off: a move costs 1 tempo")
+
+	# --- Toggled on, movement spends flash first, then tempo ---
+	stats.flash_movement_enabled = true
 	for i in range(3):
 		tm.add_movement_tempo()
 	_check(stats.current_flash_points == 0, "3 moves spend the 3-point pool")
-	_check(tm.get_global_tempo() == 0, "flash moves cost no tempo")
+	_check(tm.get_global_tempo() == 1, "flash moves cost no tempo")
 
 	tm.add_movement_tempo()
-	_check(tm.get_global_tempo() == 1, "empty pool: a move costs 1 tempo")
+	_check(tm.get_global_tempo() == 2, "empty pool: a move costs 1 tempo")
 
 	# --- Refresh every 2 cycles ---
 	tm.add_tempo(4)  # completes cycle 1 (5 tempo total)
@@ -40,12 +46,17 @@ func _initialize() -> void:
 	tm.add_tempo(5)  # completes cycle 2
 	_check(stats.current_flash_points == 3, "pool refreshes after 2 cycles")
 
-	# --- Modifiers and guards ---
+	# --- Modifiers ---
 	stats.enchantment_movement_bonus = 1
 	_check(stats.get_max_flash_points() == 8, "movement enchantment adds 5 flash points")
 
+	# --- Flash block: 3 flash → 1 armor ---
+	stats.refresh_flash_points()
+	_check(stats.spend_flash_for_block(), "flash block spends 3 points")
+	_check(stats.current_armor == 1, "3 flash bought 1 armor")
+	_check(stats.current_flash_points == 5, "block left 5 of 8 flash")
+
 	_check(not stats.spend_flash_points(99), "cannot overspend the pool")
-	_check(stats.spend_flash_points(3), "multi-point spends work (future block/proc costs)")
 
 	stats.free()
 	tm.free()

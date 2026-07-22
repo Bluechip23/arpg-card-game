@@ -26,6 +26,7 @@ static func get_glyph(key: String) -> Texture2D:
 		"mana_plus": _draw_mana_plus(img)
 		"recycle": _draw_recycle(img)
 		"feather": _draw_feather(img)
+		"flash_bolt": _draw_flash_bolt(img)
 		_:
 			_cache[key] = null
 			return null
@@ -245,6 +246,18 @@ static func _draw_recycle(img: Image) -> void:
 	_tri(img, Vector2(12, 1), Vector2(16, 5), Vector2(10, 6), green)
 	_tri(img, Vector2(23, 18), Vector2(17, 15), Vector2(18, 22), green)
 	_tri(img, Vector2(1, 18), Vector2(7, 21), Vector2(6, 14), green)
+
+static func _draw_flash_bolt(img: Image) -> void:
+	## Gold lightning bolt (flash points — Agility's quickness resource).
+	var gold := Color(1.0, 0.83, 0.2)
+	var hi := Color(1.0, 0.95, 0.6)
+	# Upper stroke: wide at the top-right, angling down-left.
+	_tri(img, Vector2(15, 1), Vector2(21, 1), Vector2(12, 13), gold)
+	_tri(img, Vector2(15, 1), Vector2(12, 13), Vector2(7, 13), gold)
+	# Lower spike, offset right of the upper stroke's foot to form the jag.
+	_tri(img, Vector2(9, 11), Vector2(16, 11), Vector2(4, 23), gold)
+	# Highlight along the leading edge.
+	_line(img, 19, 2, 11, 12, hi, 1.0)
 
 static func _draw_feather(img: Image) -> void:
 	## Pale feather angled up-right: a thin quill with soft barbs sweeping off
