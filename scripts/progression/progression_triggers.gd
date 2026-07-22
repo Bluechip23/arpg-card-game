@@ -425,10 +425,18 @@ func _on_skill_tree_option_chosen(level: int, option_index: int) -> void:
 	print("[MAIN] Skill tree choice at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
 	_apply_skill_tree_option(option)
 
-func _on_skill_tree_auto_grant_claimed(level: int) -> void:
-	## Called when a stat allocation or other auto-grant is confirmed.
-	print("[MAIN] Skill tree auto-grant claimed for level %d" % level)
-	# Future: apply stat allocations, card removals, upgrades, etc.
+func _on_skill_tree_stats_allocated(allocations: Dictionary) -> void:
+	## Spend banked level-up stat points on the player's base stats.
+	var stats = main.player.get_stats()
+	if not stats:
+		return
+	if not stats.apply_stat_allocation(allocations):
+		return
+	var parts := []
+	for stat_name in allocations:
+		if allocations[stat_name] > 0:
+			parts.append("+%d %s" % [allocations[stat_name], stat_name.substr(0, 3).to_upper()])
+	main.add_battle_log("Stats allocated: %s" % ", ".join(parts), Color(0.4, 1.0, 0.5))
 
 func _on_skill_tree_retrospective_chosen(level: int, option_index: int) -> void:
 	## Called when the player uses a retrospective token to reclaim a skipped option.

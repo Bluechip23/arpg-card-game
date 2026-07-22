@@ -245,6 +245,8 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 
 - Gain XP from killing enemies
 - XP to next level = current level × 10
+- On level up: +2 max health
+- On level up: +3 stat points, banked — spend them any time from the Skill Tree screen (L)
 - On level up: HP and Mana fully restored
 - On level up: gain spheres to place on the Sphere Grid
 
