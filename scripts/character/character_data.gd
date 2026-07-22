@@ -124,7 +124,7 @@ static func create_ryan() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
@@ -156,7 +156,7 @@ static func create_jeremy() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
@@ -188,7 +188,7 @@ static func create_stephen() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
@@ -236,7 +236,7 @@ static func create_cory() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
@@ -268,7 +268,7 @@ static func create_brad() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5

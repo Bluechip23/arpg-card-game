@@ -520,7 +520,7 @@ static func build_character(result: Dictionary) -> CharacterData:
 	data.agility = 5 + bonuses["agility"]
 
 	# Derived stats (same as all existing characters)
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5

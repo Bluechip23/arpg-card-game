@@ -38,13 +38,13 @@ Between fights you explore the world, complete quests, visit town vendors, manag
 
 - Every card has a **tempo cost** alongside its mana cost. Playing a card schedules that many tempo **ticks**; the card's effect resolves on a specific tick (some cards hit immediately, some at the end of their wind-up).
 - Cards you play queue **sequentially** — your second card starts ticking after your first finishes. In co-op, each character has their own queue, so partners act simultaneously on the same tempo bar.
-- **Movement costs tempo** once you exceed your free moves (granted by Agility). Moving through an occupied tile always costs 2 tempo.
+- **Movement costs 1 tempo per tile** — unless you spend **Flash points** (granted by Agility) to move for free. Moving through an occupied tile always costs 2 tempo.
 - Every **5 global tempo = 1 cycle**. Cycles are the game's heartbeat:
   - Mana regenerates once per cycle.
   - Armor decays once per cycle.
   - Buffs and debuffs tick down once per cycle.
   - Per-cycle effects (regen, poison, burn, etc.) fire.
-- **Card draws** happen automatically every 25 global tempo by default; Wisdom shortens the interval.
+- **Card draws** happen automatically every 25 global tempo by default; each point of Wisdom shortens the interval by 1 tempo (down to a floor of one 5-tempo cycle).
 
 Because enemies act on tempo, a cheap fast card and an expensive slow card are genuinely different decisions: the slow card gives the enemy time to answer.
 
@@ -56,12 +56,12 @@ Every character has six core attributes:
 
 | Stat | Effect |
 |---|---|
-| **Strength (STR)** | +1 melee damage for every 2 points. +10 carry capacity per point — carry heavier gear before becoming over-encumbered. |
-| **Dexterity (DEX)** | Speeds up attack-speed procs. Every (30 − DEX) attacks triggers a proc (minimum 5): your next attack costs **half tempo and 2 less mana**. Carrying near your weight limit slows the counter; traveling light speeds it up. |
+| **Strength (STR)** | +1 melee damage for every 2 points. +10 carry capacity per point — carry heavier gear before becoming over-encumbered. Spare capacity also speeds up your attack-speed counter a little (capped — see DEX). |
+| **Dexterity (DEX)** | The primary attack-speed stat. Every (30 − DEX) attacks triggers a proc (minimum 5): your next attack costs **half tempo and 2 less mana**. Each DEX point is exactly one fewer attack to proc. Encumbrance nudges the counter with diminishing (square-root) returns: traveling light shaves off up to 8 attacks, heavy loads add up to 7, and being over capacity adds a flat 10. |
 | **Intelligence (INT)** | +1 spell and heal power for every 2 points. +1 mana regen for every 5 points. |
-| **Wisdom (WIS)** | +1 hand size for every 5 points. Each point also shortens the automatic draw timer. |
+| **Wisdom (WIS)** | +1 hand size for every 5 points. Each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5). |
 | **Determination (DET)** | Controls how low health affects your other stats. At 10 it does nothing. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. High-DET builds are strongest on the brink of death. |
-| **Agility (AGI)** | +1 free movement per tempo for every 5 points (minimum 1). Free moves cost no tempo; moves beyond them advance the clock. |
+| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. Spent by choice through the Flash row in the battle HUD — **1 point** moves a tile without spending tempo (boots toggle), **3 points** buy 2 block (a quick sidestep), **5 points** advance the attack-speed counter one tick (quick hands). The spend buttons fade while you can't afford them. |
 
 All characters share a base **5% critical hit chance**, which can be raised by progression and effects.
 
@@ -70,7 +70,7 @@ All characters share a base **5% critical hit chance**, which can be raised by p
 ## Resources: Health, Mana, Armor
 
 ### Health
-Your life total. Reaching 0 means death (with story consequences — not a run reset). Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
+Your life total. Every character starts the story with **10 health**; max health grows through progression (sphere grid nodes, equipment). Reaching 0 means death (with story consequences — not a run reset). Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
 
 Health also feeds back into your stats through **Determination** — dropping below 80/60/40/10% health shifts your effective stats up or down depending on your DET.
 
@@ -236,7 +236,7 @@ Items grant stat bonuses, resource bonuses, hand size, weapon damage, and specia
 
 ### Weight & carry capacity
 
-Every item has weight. Your capacity is **100 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs. Traveling light is a real build choice.
+Every item has weight. Your capacity is **50 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs while traveling light speeds them up (both capped). Traveling light is a real build choice.
 
 ### Hands, off-hands, and two-handing
 
