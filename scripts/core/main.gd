@@ -281,6 +281,10 @@ var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
 var _attack_button: Button = null
+var _flash_button: Button = null        # bolt + pool count display (60% of the row)
+var _flash_move_button: Button = null   # boots: toggle spending flash on movement
+var _flash_block_button: Button = null  # duck: 3 flash → 2 block
+var _flash_proc_button: Button = null   # daggers: 5 flash → 1 attack-speed tick
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
 
 # Stat bar UI references
@@ -764,6 +768,56 @@ func _setup_action_buttons() -> void:
 	# hand = wait, stop sign = pause) so only the numbers need text, keeping
 	# the stack small and the battlefield clear. The Draw pile button is
 	# inserted at the top of this column by _setup_deck_info_vertical.
+
+	# Flash row (above Attack). Left 60%: bolt + pool count (display only).
+	# Right 40%: three spend buttons — boots toggles flash movement, the
+	# ducking figure buys block, the crossed daggers buy an attack-speed tick.
+	# Spend buttons fade while the pool can't afford them.
+	var flash_row = HBoxContainer.new()
+	flash_row.name = "FlashRow"
+	flash_row.add_theme_constant_override("separation", 2)
+	vbox.add_child(flash_row)
+
+	_flash_button = Button.new()
+	_flash_button.name = "FlashCount"
+	_flash_button.icon = UIGlyphs.get_glyph("flash_bolt")
+	_flash_button.text = "0"
+	_flash_button.custom_minimum_size = Vector2(0, 36)
+	_flash_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_flash_button.size_flags_stretch_ratio = 6.0
+	_flash_button.focus_mode = Control.FOCUS_NONE
+	flash_row.add_child(_flash_button)
+
+	_flash_move_button = Button.new()
+	_flash_move_button.name = "FlashMoveToggle"
+	_flash_move_button.icon = UIGlyphs.get_glyph("boots")
+	_flash_move_button.toggle_mode = true
+	_flash_move_button.expand_icon = true
+	_flash_move_button.custom_minimum_size = Vector2(26, 36)
+	_flash_move_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_flash_move_button.size_flags_stretch_ratio = 4.0 / 3.0
+	_flash_move_button.toggled.connect(_on_flash_move_toggled)
+	flash_row.add_child(_flash_move_button)
+
+	_flash_block_button = Button.new()
+	_flash_block_button.name = "FlashBlockButton"
+	_flash_block_button.icon = UIGlyphs.get_glyph("duck")
+	_flash_block_button.expand_icon = true
+	_flash_block_button.custom_minimum_size = Vector2(26, 36)
+	_flash_block_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_flash_block_button.size_flags_stretch_ratio = 4.0 / 3.0
+	_flash_block_button.pressed.connect(_on_flash_block_pressed)
+	flash_row.add_child(_flash_block_button)
+
+	_flash_proc_button = Button.new()
+	_flash_proc_button.name = "FlashProcButton"
+	_flash_proc_button.icon = UIGlyphs.get_glyph("dual_daggers")
+	_flash_proc_button.expand_icon = true
+	_flash_proc_button.custom_minimum_size = Vector2(26, 36)
+	_flash_proc_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_flash_proc_button.size_flags_stretch_ratio = 4.0 / 3.0
+	_flash_proc_button.pressed.connect(_on_flash_proc_pressed)
+	flash_row.add_child(_flash_proc_button)
 
 	# Attack button (top): sword + tempo cost + attacks until the speed proc.
 	# Content-sized — its natural width sets the column width.
@@ -2782,6 +2836,8 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
 	player.get_stats().armor_gained.connect(_on_player_armor_gained)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
+	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
+	_update_flash_button()
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
@@ -4234,6 +4290,64 @@ func _update_xp_display() -> void:
 		_xp_bar.value = stats.current_xp
 	if stats and _xp_bar_label:
 		_xp_bar_label.text = "(%d) %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
+
+func _on_flash_points_changed(_current: int, _max_points: int) -> void:
+	_update_flash_button()
+
+func _on_flash_move_toggled(pressed: bool) -> void:
+	var stats = player.get_stats() if player else null
+	if stats:
+		stats.flash_movement_enabled = pressed
+	if pressed:
+		add_battle_log("Flash movement ON — moving spends flash points instead of tempo.", Color(1.0, 0.9, 0.4))
+	else:
+		add_battle_log("Flash movement off — moving costs tempo.", Color(1.0, 0.9, 0.4))
+	_update_flash_button()
+
+func _on_flash_block_pressed() -> void:
+	var stats = player.get_stats() if player else null
+	if not stats:
+		return
+	if stats.spend_flash_for_block():
+		add_battle_log("Sidestep! -%d flash, +%d block." % [
+			PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR], Color(1.0, 0.9, 0.4))
+	else:
+		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
+
+func _on_flash_proc_pressed() -> void:
+	var stats = player.get_stats() if player else null
+	if not stats:
+		return
+	if stats.spend_flash_for_proc_tick():
+		add_battle_log("Quick hands! -%d flash, %d attacks to proc." % [
+			PlayerStats.FLASH_COST_PROC_TICK, stats.get_attacks_until_proc()], Color(1.0, 0.9, 0.4))
+		_update_attack_button_text()
+	else:
+		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_PROC_TICK, Color(1.0, 0.5, 0.5))
+
+func _update_flash_button() -> void:
+	if not _flash_button:
+		return
+	var stats = player.get_stats() if player else null
+	if not stats:
+		return
+	var pool: int = stats.current_flash_points
+	_flash_button.text = "%d" % pool
+	_flash_button.tooltip_text = "Flash points: %d / %d (refresh every %d cycles)." % [
+		pool, stats.get_max_flash_points(), PlayerStats.FLASH_REFRESH_CYCLES]
+	# Spend buttons fade while unaffordable (still clickable — the click explains).
+	if _flash_move_button:
+		_flash_move_button.set_pressed_no_signal(stats.flash_movement_enabled)
+		_flash_move_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_MOVE else 0.45
+		_flash_move_button.tooltip_text = "Flash movement: %s.\nWhile on, each tile moved spends %d flash point instead of tempo." % [
+			"ON" if stats.flash_movement_enabled else "off", PlayerStats.FLASH_COST_MOVE]
+	if _flash_block_button:
+		_flash_block_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_BLOCK else 0.45
+		_flash_block_button.tooltip_text = "Sidestep: spend %d flash for %d block." % [
+			PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR]
+	if _flash_proc_button:
+		_flash_proc_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_PROC_TICK else 0.45
+		_flash_proc_button.tooltip_text = "Quick hands: spend %d flash to advance the attack-speed counter by 1 tick." % PlayerStats.FLASH_COST_PROC_TICK
 
 func _on_dexterity_proc() -> void:
 	print("[MAIN] Dexterity proc! Next attack: half tempo + 2 mana discount!")

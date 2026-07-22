@@ -35,7 +35,7 @@ signal ticking_finished()  # All pending ticks have been processed
 
 var current_tempo: int = 0   # Accumulator for the UI bar (resets at each cycle)
 var global_tempo: int = 0    # Ever-increasing universal tempo clock
-var movements_since_tempo: int = 0
+var _cycles_since_flash_refresh: int = 0  # Counts cycles toward the flash-point refresh
 var spaces_moved_this_cycle: int = 0  # Total tiles moved since last cycle (for passives like Let's Dance)
 var last_tempo_source: String = ""  # Tracks what caused the last tempo addition ("movement", "card", etc.)
 
@@ -55,7 +55,7 @@ func initialize(p_stats: PlayerStats) -> void:
 	player_stats = p_stats
 	current_tempo = 0
 	global_tempo = 0
-	movements_since_tempo = 0
+	_cycles_since_flash_refresh = 0
 	_ticking = false
 	_pending_ticks = 0
 	_active_cards.clear()
@@ -229,6 +229,12 @@ func _check_threshold() -> void:
 		print("[TEMPO] Cycle complete! Overflow: %d" % current_tempo)
 
 	if times_triggered > 0:
+		# Flash points (Agility) refresh every FLASH_REFRESH_CYCLES cycles
+		_cycles_since_flash_refresh += times_triggered
+		if player_stats and _cycles_since_flash_refresh >= PlayerStats.FLASH_REFRESH_CYCLES:
+			_cycles_since_flash_refresh = 0
+			player_stats.refresh_flash_points()
+			print("[TEMPO] Flash points refreshed: %d" % player_stats.current_flash_points)
 		tempo_threshold_reached.emit(times_triggered)
 		turn_triggered.emit()
 		tempo_changed.emit(current_tempo, tempo_threshold)
@@ -259,28 +265,22 @@ func add_card_tempo(tempo_cost: int, card: Card = null, resolve_tick: int = 1, o
 		add_tempo(tempo_cost)
 
 func add_movement_tempo() -> void:
-	var free_moves = get_free_moves_from_agility()
-	movements_since_tempo += 1
 	spaces_moved_this_cycle += 1
-	print("[TEMPO] Movement %d / %d free moves | %d tiles this cycle" % [movements_since_tempo, free_moves, spaces_moved_this_cycle])
-
-	if movements_since_tempo > free_moves:
-		movements_since_tempo = 1
-		last_tempo_source = "movement"
-		add_tempo(1)
+	# Flash points (Agility) make the move tempo-free — but only when the player
+	# has toggled flash movement on (the HUD lightning-bolt button). Spending
+	# the pool is a choice, not automatic.
+	if player_stats and player_stats.flash_movement_enabled \
+			and player_stats.spend_flash_points(PlayerStats.FLASH_COST_MOVE):
+		print("[TEMPO] Flash move (%d left) | %d tiles this cycle" % [
+			player_stats.current_flash_points, spaces_moved_this_cycle])
+		return
+	last_tempo_source = "movement"
+	add_tempo(1)
 
 func add_pass_through_tempo() -> void:
-	## Moving through an occupied tile always costs 2 tempo regardless of movement speed.
+	## Moving through an occupied tile always costs 2 tempo regardless of flash points.
 	print("[TEMPO] Pass-through occupied tile — forced 2 tempo")
 	add_tempo(2)
-
-func get_free_moves_from_agility() -> int:
-	if not player_stats:
-		return 1
-	return max(1, floori(player_stats.agility / 5.0) + player_stats.enchantment_movement_bonus)
-
-func reset_movement_counter() -> void:
-	movements_since_tempo = 0
 
 func get_tempo() -> int:
 	return current_tempo

@@ -312,7 +312,8 @@ func setup(character: CharacterData) -> void:
 	if _stat_labels.has("Hand"):
 		_stat_labels["Hand"].text = "Hand %d" % character.get_max_hand_size()
 	if _stat_labels.has("Draw"):
-		_stat_labels["Draw"].text = "Draw %d turns" % character.base_draw_timer
+		var draw_tempo = maxi(5, character.base_draw_timer * 5 - character.wisdom)
+		_stat_labels["Draw"].text = "Draw %d tempo" % draw_tempo
 
 	# Passive & slot specialty
 	if _passive_label:

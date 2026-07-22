@@ -84,10 +84,6 @@ func get_max_hand_size() -> int:
 	# Wisdom adds to hand size: every 5 wisdom = +1 hand size
 	return base_hand_size + floori(wisdom / 5.0)
 
-func get_movement_per_cycle() -> int:
-	# Agility determines movement: base 1, +1 per 8 agility
-	return 1 + floori(agility / 8.0)
-
 func get_mana_regen() -> float:
 	# Base mana regen
 	return base_mana_regen
@@ -104,12 +100,12 @@ const STAT_NAMES := {
 	"WIS": "Wisdom", "DET": "Determination", "AGI": "Agility",
 }
 const STAT_INFO := {
-	"STR": "Strength — +1 melee damage for every 2 points, and +10 carry capacity per point (carry heavier gear before you're over-encumbered).",
-	"DEX": "Dexterity — speeds up attack-speed procs. Attack speed counts your basic attacks: every (30 − Dexterity) attacks lands a free bonus attack (minimum 5). Each point means one fewer attack needed to proc.",
+	"STR": "Strength — +1 melee damage for every 2 points, and +10 carry capacity per point. Spare carry capacity also speeds up your attack-speed proc a little (capped — see Dexterity).",
+	"DEX": "Dexterity — your attack-speed stat. Every (30 − Dexterity) attack cards played, your next attack costs half tempo and 2 less mana (minimum every 5). Each point means one fewer attack needed to proc. Traveling light shaves off up to 8 more; being loaded down adds up to 10.",
 	"INT": "Intelligence — +1 spell & heal power for every 2 points, and +1 mana regen for every 5 points.",
-	"WIS": "Wisdom — +1 hand size for every 5 points, and draws cards faster: each point shaves 0.25 off your draw timer.",
+	"WIS": "Wisdom — +1 hand size for every 5 points, and draws cards faster: each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5).",
 	"DET": "Determination — directly impacts how low health affects your attributes. At 10 it does nothing; above 10 your stats climb as health drops, below 10 they fall. The lower your health, the bigger the swing — about ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below.",
-	"AGI": "Agility — +1 movement per tempo cycle for every 5 points (minimum 1 move).",
+	"AGI": "Agility — 1 Flash point per point, refreshed every 2 tempo cycles. Spend them by choice in battle: 1 point per tile moved (boots toggle), 3 points for 2 block (sidestep), 5 points to advance the attack-speed counter (daggers). Without Flash, each tile costs 1 tempo.",
 }
 
 static func stat_full_name(key: String) -> String:
@@ -128,7 +124,7 @@ static func create_ryan() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
@@ -160,7 +156,7 @@ static func create_jeremy() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
@@ -192,7 +188,7 @@ static func create_stephen() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
@@ -240,7 +236,7 @@ static func create_cory() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
@@ -272,7 +268,7 @@ static func create_brad() -> CharacterData:
 	data.wisdom = 3
 	data.determination = 3
 	data.agility = 3
-	data.base_health = 5
+	data.base_health = 10
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
