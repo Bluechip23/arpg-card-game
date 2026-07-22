@@ -22,7 +22,7 @@ func _build_legend() -> void:
 	_add_keyword("Dexterity (DEX)", "-1 attack speed counter per point. At 0 counter: next attack costs 2 less mana + half tempo")
 	_add_keyword("Intelligence (INT)", "+1 spell damage per 2 points, +1 mana regen per 5 points")
 	_add_keyword("Wisdom (WIS)", "+1 hand size per 5 points, -0.25 draw timer per point")
-	_add_keyword("Agility (AGI)", "Determines movements per tempo. Every 5 AGI = 1 free movement. AGI 5 = 1, AGI 10 = 2, etc.")
+	_add_keyword("Agility (AGI)", "Each AGI point grants 1 Flash point, refreshed every 2 cycles. Moving a tile spends 1 Flash point instead of tempo; out of Flash, each tile costs 1 tempo.")
 	_add_keyword("Determination (DET)", "Modifies STR/DEX/INT/WIS/AGI at low health thresholds. DET 10 = no effect. Above 10 = bonus when hurt, below 10 = penalty when hurt")
 
 	# Debuffs Section
@@ -105,7 +105,7 @@ func _build_legend() -> void:
 
 	# Movement Section
 	_add_section_header("MOVEMENT")
-	_add_keyword("Pass-Through", "Moving through a tile occupied by another unit always costs 2 tempo, regardless of movement speed or free moves", Color(1.0, 0.5, 0.5))
+	_add_keyword("Pass-Through", "Moving through a tile occupied by another unit always costs 2 tempo, regardless of Flash points", Color(1.0, 0.5, 0.5))
 
 	# Card Types Section
 	_add_section_header("CARD TYPES")

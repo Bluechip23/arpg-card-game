@@ -20,6 +20,7 @@ signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards
 signal gold_changed(amount: int)
 signal healed(amount: int)
 signal shepherds_mark_triggered  # Whispers of the Flock: mark prevented lethal damage
+signal flash_points_changed(current: int, max_points: int)
 
 var character_data: CharacterData
 
@@ -64,7 +65,7 @@ var maintained_mana: int = 0  # Mana reserved by maintained Power cards
 # ============================================
 # DERIVED STATS
 # ============================================
-var base_carry_capacity: int = 100
+var base_carry_capacity: int = 50
 var current_carry_load: int = 0
 
 var base_attack_speed_counter: int = 30
@@ -288,7 +289,8 @@ func initialize(data: CharacterData) -> void:
 	chance_boost = 0.0
 	maintained_mana = 0
 	_tempo_until_mana_regen = mana_regen_tempo_interval
-	
+	current_flash_points = get_max_flash_points()
+
 	# Calculate derived stats
 	recalculate_derived_stats()
 	
@@ -388,6 +390,7 @@ func restore_progression(data: Dictionary) -> void:
 	skill_tree_passives = data.get("skill_tree_passives", skill_tree_passives)
 	# Recalculate derived stats with restored values
 	recalculate_derived_stats()
+	refresh_flash_points()
 	health_changed.emit(current_health, max_health)
 	mana_changed.emit(current_mana, max_mana)
 	armor_changed.emit(current_armor)
@@ -417,8 +420,8 @@ func _print_stats() -> void:
 		get_carry_capacity(), get_strength_damage_bonus()
 	])
 	print("[STATS] Attack Speed Threshold: %d" % get_attack_speed_threshold())
-	print("[STATS] Movement/Cycle: %d | Hand Size: %d | Draw Timer: %.2f" % [
-		get_movement_per_cycle(), hand_size, get_effective_draw_timer()
+	print("[STATS] Flash: %d/%d | Hand Size: %d | Draw Timer: %.2f" % [
+		current_flash_points, get_max_flash_points(), hand_size, get_effective_draw_timer()
 	])
 
 # ============================================
@@ -519,13 +522,33 @@ func is_overburdened() -> bool:
 	return current_carry_load > get_carry_capacity()
 
 # ============================================
-# AGILITY CALCULATIONS
+# AGILITY / FLASH POINTS
 # ============================================
 
-func get_movement_per_cycle() -> int:
-	# Every 5 AGI grants 1 movement per tempo
-	# AGI 5 = 1 move, AGI 10 = 2 moves, etc.
-	return max(1, floori(agility / 5.0))
+## Flash points: 1 per AGI point, refreshed every FLASH_REFRESH_CYCLES tempo
+## cycles (TempoManager drives the refresh). spend_flash_points() is the
+## generic hook — movement costs FLASH_COST_MOVE today; future spends
+## (dodge-blocks, attack-speed proc ticks) draw from the same pool.
+const FLASH_REFRESH_CYCLES: int = 2
+const FLASH_COST_MOVE: int = 1
+
+var current_flash_points: int = 0
+
+func get_max_flash_points() -> int:
+	# Movement enchantments feed the pool too: each old "+1 free move per tempo"
+	# bonus is worth 5 flash points per refresh window.
+	return agility + enchantment_movement_bonus * 5
+
+func refresh_flash_points() -> void:
+	current_flash_points = get_max_flash_points()
+	flash_points_changed.emit(current_flash_points, get_max_flash_points())
+
+func spend_flash_points(amount: int) -> bool:
+	if current_flash_points < amount:
+		return false
+	current_flash_points -= amount
+	flash_points_changed.emit(current_flash_points, get_max_flash_points())
+	return true
 
 # ============================================
 # DEXTERITY / ATTACK SPEED
@@ -1135,19 +1158,18 @@ func get_sphere_grid_passives_for_trigger(trigger: String) -> Array[Dictionary]:
 # ============================================
 
 func get_stats_summary() -> String:
-	var free_moves = 1 + floori(agility / 5.0)
 	return """STR: %d (base %d) → +%d carry, +%d phys dmg
 DEX: %d (base %d) → proc in %d atks
 INT: %d (base %d) → +%d spell dmg, +%.0f regen
 WIS: %d (base %d) → +%d hand, -%.0f tempo draw
-AGI: %d (base %d) → %d free moves/tempo
+AGI: %d (base %d) → %d/%d flash points
 DET: %d → %s
 Level: %d | XP: %d / %d""" % [
 		strength, base_strength, strength * 10, get_strength_damage_bonus(),
 		dexterity, base_dexterity, get_attacks_until_proc(),
 		intelligence, base_intelligence, get_intelligence_spell_bonus(), get_intelligence_mana_regen_bonus(),
 		wisdom, base_wisdom, get_wisdom_hand_bonus(), get_wisdom_draw_bonus(),
-		agility, base_agility, free_moves,
+		agility, base_agility, current_flash_points, get_max_flash_points(),
 		determination, get_determination_description(),
 		current_level, current_xp, get_xp_to_next_level()
 	]

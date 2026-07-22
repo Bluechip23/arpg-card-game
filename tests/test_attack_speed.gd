@@ -20,26 +20,26 @@ func _initialize() -> void:
 	stats.initialize(CharacterData.create_ryan())  # all stats 3, full HP
 
 	# --- Encumbrance modifier: sqrt-scaled around a baseline of 50 free capacity ---
-	_check(stats.get_carry_capacity() == 130, "fresh Ryan carries 130 (100 + STR 3 x10)")
-	_check(stats.get_capacity_speed_modifier() == -4,
-		"unencumbered (130 free) shaves 4 attacks (%d)" % stats.get_capacity_speed_modifier())
-	_check(stats.get_attack_speed_threshold() == 23,
-		"naked threshold = 30 - 3 DEX - 4 (%d)" % stats.get_attack_speed_threshold())
+	_check(stats.get_carry_capacity() == 80, "fresh Ryan carries 80 (50 + STR 3 x10)")
+	_check(stats.get_capacity_speed_modifier() == -2,
+		"unencumbered (80 free) shaves 2 attacks (%d)" % stats.get_capacity_speed_modifier())
+	_check(stats.get_attack_speed_threshold() == 25,
+		"naked threshold = 30 - 3 DEX - 2 (%d)" % stats.get_attack_speed_threshold())
 
-	stats.set_carry_load(80)  # 50 free = the neutral point
+	stats.set_carry_load(30)  # 50 free = the neutral point
 	_check(stats.get_capacity_speed_modifier() == 0, "50 free capacity is neutral")
 	_check(stats.get_attack_speed_threshold() == 27, "baseline-load threshold = 30 - 3 DEX")
 
-	stats.set_carry_load(120)  # 10 free = heavy
+	stats.set_carry_load(70)  # 10 free = heavy
 	_check(stats.get_capacity_speed_modifier() == 4, "10 free capacity adds 4 attacks")
 
-	stats.set_carry_load(131)  # over capacity
+	stats.set_carry_load(81)  # over capacity
 	_check(stats.get_capacity_speed_modifier() == stats.OVERBURDENED_SPEED_PENALTY,
 		"overburdened = flat +%d" % stats.OVERBURDENED_SPEED_PENALTY)
 
 	# --- Cap: raw STR can help but never out-race DEX ---
 	stats.set_carry_load(0)
-	stats.base_strength = 30  # capacity 400
+	stats.base_strength = 30  # capacity 350
 	_check(stats.get_capacity_speed_modifier() == -stats.CAPACITY_SPEED_BONUS_CAP,
 		"huge spare capacity clamps at -%d" % stats.CAPACITY_SPEED_BONUS_CAP)
 

@@ -38,13 +38,14 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 [color=yellow]Core Stats:[/color]
 
 [color=red]Strength (STR)[/color]
-- +10 carry capacity per point
+- +10 carry capacity per point (base capacity 50)
 - +1 physical damage per 2 points
 - Heavy weapons require high STR
+- Spare carry capacity also speeds up the attack counter a little (capped — see DEX)
 
 [color=green]Dexterity (DEX)[/color]
-- Affects attack speed counter (30 - DEX)
-- Carry load also affects attack speed counter
+- Attack speed counter = 30 - DEX, adjusted by encumbrance
+- Encumbrance (capped): traveling light shaves up to 8 attacks off, heavy loads add up to 7, overburdened is +10
 - When counter hits 0: DEX PROC
 - DEX PROC = Next attack costs 2 less mana AND half tempo (rounded down)!
 
@@ -55,13 +56,13 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=purple]Wisdom (WIS)[/color]
 - +1 hand size per 5 points
-- -0.25 draw timer per point (faster card draws)
+- Draws cards 1 tempo sooner per point (base: every 25 tempo, fastest: every 5)
 
 [color=cyan]Agility (AGI)[/color]
-- Movements per tempo = floor(AGI / 5)
-- AGI 5 = 1 free move, AGI 10 = 2 free moves
-- Movement beyond free moves costs 1 tempo
-- [color=red]Pass-Through:[/color] Moving through a tile occupied by another unit (ally or enemy) always costs 2 tempo, regardless of movement speed or free moves
+- 1 Flash point per AGI point, refreshed every 2 cycles
+- Moving a tile spends 1 Flash point (no tempo cost)
+- Out of Flash points, each tile costs 1 tempo
+- [color=red]Pass-Through:[/color] Moving through a tile occupied by another unit (ally or enemy) always costs 2 tempo, regardless of Flash points
 
 [color=orange]Determination (DET)[/color]
 - Modifies STR/DEX/INT/WIS/AGI at low health

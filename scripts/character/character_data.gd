@@ -84,10 +84,6 @@ func get_max_hand_size() -> int:
 	# Wisdom adds to hand size: every 5 wisdom = +1 hand size
 	return base_hand_size + floori(wisdom / 5.0)
 
-func get_movement_per_cycle() -> int:
-	# Agility determines movement: base 1, +1 per 8 agility
-	return 1 + floori(agility / 8.0)
-
 func get_mana_regen() -> float:
 	# Base mana regen
 	return base_mana_regen
@@ -109,7 +105,7 @@ const STAT_INFO := {
 	"INT": "Intelligence — +1 spell & heal power for every 2 points, and +1 mana regen for every 5 points.",
 	"WIS": "Wisdom — +1 hand size for every 5 points, and draws cards faster: each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5).",
 	"DET": "Determination — directly impacts how low health affects your attributes. At 10 it does nothing; above 10 your stats climb as health drops, below 10 they fall. The lower your health, the bigger the swing — about ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below.",
-	"AGI": "Agility — +1 movement per tempo cycle for every 5 points (minimum 1 move).",
+	"AGI": "Agility — 1 Flash point per point, refreshed every 2 tempo cycles. Moving a tile spends 1 Flash point instead of costing tempo; with an empty pool, each tile costs 1 tempo.",
 }
 
 static func stat_full_name(key: String) -> String:
