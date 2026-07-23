@@ -26,6 +26,25 @@ func _apply_sphere_grid_node(node) -> void:
 		return
 
 	match node.node_type:
+		SphereGrid.NodeType.NULL_NODE:
+			pass  # Connective tissue: the path itself is the purchase.
+
+		SphereGrid.NodeType.KEYSTONE:
+			match node.keystone_id:
+				"det_vitality":
+					stats.keystone_det_vitality = true
+					stats.refresh_det_vitality()
+					main.add_battle_log("Keystone: Bulwark Soul — +2 max HP per DET", Color(1.0, 0.85, 0.4))
+				"flash_draw":
+					stats.keystone_flash_draw = true
+					main._update_flash_button()
+					main.add_battle_log("Keystone: Flash Reserves — flash points can draw cards", Color(1.0, 0.85, 0.4))
+				"dex_ranged":
+					stats.keystone_dex_ranged = true
+					main.add_battle_log("Keystone: Deadeye Form — ranged damage scales with DEX", Color(1.0, 0.85, 0.4))
+				_:
+					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
+
 		SphereGrid.NodeType.STAT_BONUS:
 			var parsed = _parse_stat_label(node.label)
 			if parsed.size() > 0:
@@ -147,11 +166,13 @@ func _parse_passive_description(desc: String, node_id: int) -> Dictionary:
 	if passive["trigger"] == "":
 		return {}
 
-	# Check for percentage chance (e.g., "5% draw extra" or "10% apply bleed")
+	# Check for percentage chance (e.g., "5% draw extra" or "10% apply bleed").
+	# NOT for magnitude percentages: "deal 50% bonus" and "overheal becomes
+	# 200% armor" use % as an amount — stripping it would eat the effect.
 	var chance_regex = RegEx.new()
 	chance_regex.compile("(\\d+)%\\s*(.*)")
 	var chance_match = chance_regex.search(effect_part)
-	if chance_match:
+	if chance_match and "bonus" not in effect_part and "overheal" not in effect_part:
 		passive["chance"] = float(chance_match.get_string(1)) / 100.0
 		effect_part = chance_match.get_string(2)
 
@@ -172,6 +193,11 @@ func _parse_passive_description(desc: String, node_id: int) -> Dictionary:
 		passive["effect"] = "aoe_damage"
 	elif "costs 0" in effect_part or "cost 0" in effect_part:
 		passive["effect"] = "free_draw"
+	elif "overheal" in effect_part:
+		# Must beat the generic "heal" checks — "overheal" contains "heal".
+		passive["effect"] = "overheal_armor"
+	elif "bonus" in effect_part:
+		passive["effect"] = "bonus_damage"
 	elif "heal" in effect_part and "hp" in effect_part:
 		passive["effect"] = "heal"
 	elif "heal" in effect_part:
@@ -391,15 +417,13 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"description": "Shadow Strike: Critical hits deal 2x damage instead of 1.5x"
 			})
 		"iron_bastion":
-			# +5 armor at start of combat, 15% damage reduction on hit
+			# +5 starting armor, and when hit: 15% chance the damage is halved
+			# (applied inside PlayerStats.take_damage).
 			stats.sphere_bonus_armor += 5
 			stats.current_armor += 5
 			stats.armor_changed.emit(stats.current_armor)
-			stats.add_sphere_grid_passive({
-				"node_id": -1, "trigger": "on_block", "effect": "iron_bastion",
-				"value": 50, "chance": 0.15,
-				"description": "Iron Bastion: When hit: 15% chance to reduce damage by 50%"
-			})
+			stats.damage_proc_reduction_chance = 0.15
+			stats.damage_proc_reduction_percent = 50.0
 		"natures_grace":
 			# Regen 2 HP per cycle, heal cards +5
 			stats.sphere_bonus_regen += 2
@@ -1759,8 +1783,15 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 					main.deck_manager.prep_utility_charges = 1
 					main.add_battle_log("Passive: Next card costs %d less" % value, Color(0.8, 0.8, 0.3))
 			"bonus_damage":
-				# Handled at damage calculation time via context
-				pass
+				# "Deal X% bonus" (on-crit nodes): follow up with X% of the hit
+				# as extra damage, same shape as Shadow Strike.
+				var bd_card = context.get("card", null)
+				var bd_t = context.get("target", null)
+				if bd_t and is_instance_valid(bd_t) and bd_t.has_method("take_damage"):
+					var bd_base = bd_card.last_damage_dealt if bd_card and bd_card.last_damage_dealt > 0 else stats.get_effective_physical_damage(0)
+					var bd_bonus = max(1, floori(bd_base * value / 100.0))
+					bd_t.take_damage(bd_bonus, true)
+					main.add_battle_log("Passive: +%d bonus damage" % bd_bonus, Color(1.0, 0.6, 0.2))
 			"counterattack":
 				var target = context.get("target", null)
 				if target and target.has_method("take_damage"):
@@ -1768,11 +1799,14 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 					target.take_damage(dmg)
 					main.add_battle_log("Passive: Counterattack for %d" % dmg, Color(1.0, 0.5, 0.2))
 			"overheal_armor":
-				# This is handled in the heal flow — check overheal and convert
+				# Convert overheal to armor. value is the conversion percent
+				# (0 = unspecified = 100%; the upgraded node says 200%).
 				var overheal = context.get("overheal", 0)
 				if overheal > 0:
-					stats.add_armor(overheal)
-					main.add_battle_log("Passive: Overheal → %d armor" % overheal, Color(0.6, 0.8, 1.0))
+					var oh_pct = value if value > 0 else 100
+					var oh_armor = max(1, floori(overheal * oh_pct / 100.0))
+					stats.add_armor(oh_armor)
+					main.add_battle_log("Passive: Overheal → %d armor" % oh_armor, Color(0.6, 0.8, 1.0))
 			"free_draw":
 				# Next drawn card costs 0 — apply via prep system
 				main.deck_manager.prep_utility_discount = 99
@@ -1807,10 +1841,12 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 					var ce_heal = max(1, floori(ce_card.last_damage_dealt * value / 100.0))
 					stats.heal(ce_heal)
 					main.add_battle_log("Crimson Edge: lifesteal %d" % ce_heal, Color(0.8, 0.1, 0.2))
-			"iron_bastion":
-				# Fires on a successful block (chance already rolled): refund armor.
-				stats.add_armor(5)
-				main.add_battle_log("Iron Bastion: the wall holds! +5 armor", Color(0.5, 0.6, 0.8))
+			"freeze_enemy":
+				# Deep chill: 5 cold stacks freeze the struck enemy outright.
+				var fz = context.get("target", null)
+				if fz and is_instance_valid(fz) and fz.has_method("apply_debuff"):
+					fz.apply_debuff("cold", 5)
+					main.add_battle_log("Deep chill: enemy frozen!", Color(0.5, 0.8, 1.0))
 			"shadow_strike":
 				# Crits hit harder — add 50% of the crit damage to the target.
 				var ss_card = context.get("card", null)

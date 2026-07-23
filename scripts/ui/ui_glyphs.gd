@@ -27,6 +27,8 @@ static func get_glyph(key: String) -> Texture2D:
 		"recycle": _draw_recycle(img)
 		"feather": _draw_feather(img)
 		"flash_bolt": _draw_flash_bolt(img)
+		"to_sigil": _draw_to_sigil(img)
+		"card_draw": _draw_card_draw(img)
 		"boots": _draw_boots(img)
 		"duck": _draw_duck(img)
 		"dual_daggers": _draw_dual_daggers(img)
@@ -249,6 +251,56 @@ static func _draw_recycle(img: Image) -> void:
 	_tri(img, Vector2(12, 1), Vector2(16, 5), Vector2(10, 6), green)
 	_tri(img, Vector2(23, 18), Vector2(17, 15), Vector2(18, 22), green)
 	_tri(img, Vector2(1, 18), Vector2(7, 21), Vector2(6, 14), green)
+
+static func _draw_card_draw(img: Image) -> void:
+	## Two fanned cards with a small up-arrow (Flash Reserves: flash → draw).
+	var back := Color(0.35, 0.45, 0.7)
+	var face := Color(0.9, 0.9, 0.95)
+	var edge := Color(0.2, 0.25, 0.4)
+	var gold := Color(1.0, 0.85, 0.3)
+	# Back card, tilted footprint suggested by offset.
+	_rect(img, 4, 6, 10, 14, back)
+	_rect(img, 4, 6, 10, 1, edge)
+	# Front card.
+	_rect(img, 9, 4, 10, 14, face)
+	_rect(img, 9, 4, 10, 1, edge)
+	_rect(img, 9, 4, 1, 14, edge)
+	_rect(img, 18, 4, 1, 14, edge)
+	_rect(img, 9, 17, 10, 1, edge)
+	# Up arrow bursting from the front card (the draw).
+	_tri(img, Vector2(14, 15), Vector2(11, 20), Vector2(17, 20), gold)
+	_rect(img, 13, 19, 3, 4, gold)
+
+static func _ring(img: Image, cx: float, cy: float, r: float, th: float, c: Color) -> void:
+	## Circle outline of thickness th centered at (cx, cy).
+	for py in range(int(cy - r - th), int(cy + r + th) + 1):
+		for px in range(int(cx - r - th), int(cx + r + th) + 1):
+			var d := Vector2(px - cx, py - cy).length()
+			if absf(d - r) <= th * 0.5:
+				_px(img, px, py, c)
+
+static func _draw_to_sigil(img: Image) -> void:
+	## Tutorial/tooltip sigil: a green capital T whose stem is a sword blade
+	## ending in a tip, threaded through a silver capital O. Layering per the
+	## design: the O's top sits just below the crossbar and passes IN FRONT of
+	## the stem; the O's bottom passes BEHIND the blade.
+	var green := Color(0.3, 0.8, 0.35)
+	var green_dark := Color(0.16, 0.5, 0.22)
+	var silver := Color(0.8, 0.82, 0.88)
+	var silver_dark := Color(0.55, 0.58, 0.66)
+	# T: crossbar with shaded underside, stem doubling as the blade.
+	_rect(img, 4, 1, 16, 3, green)
+	_rect(img, 4, 4, 16, 1, green_dark)
+	_rect(img, 10, 5, 4, 12, green)
+	# Silver O threaded on the stem, top just below the crossbar (drawn over
+	# the stem — the O is in front here).
+	_ring(img, 12.0, 12.0, 6.2, 2.4, silver)
+	_ring(img, 12.0, 12.0, 7.4, 0.8, silver_dark)  # outer rim shade
+	# Lower stem + sword tip drawn back OVER the ring's bottom arc — the O's
+	# bottom disappears behind the blade.
+	_rect(img, 10, 11, 4, 6, green)
+	_tri(img, Vector2(9, 17), Vector2(15, 17), Vector2(12, 23), green)
+	_line(img, 12, 12, 12, 20, green_dark, 1.0)  # blade fuller
 
 static func _draw_flash_bolt(img: Image) -> void:
 	## Gold lightning bolt (flash points — Agility's quickness resource).

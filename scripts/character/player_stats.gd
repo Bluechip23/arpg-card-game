@@ -145,6 +145,33 @@ var sphere_bonus_regen: int = 0       # Health regenerated per tempo cycle
 var sphere_bonus_armor_per_cycle: int = 0  # Armor gained per tempo cycle
 var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2.0 = 2%)
 var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
+# Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
+var damage_proc_reduction_chance: float = 0.0
+var damage_proc_reduction_percent: float = 50.0
+
+# ============================================
+# SPHERE GRID KEYSTONES (build-defining nodes)
+# ============================================
+var keystone_det_vitality: bool = false  # Bulwark Soul: +2 max HP per DET point, retroactive + ongoing
+var keystone_flash_draw: bool = false    # Flash Reserves: spend flash points to draw cards
+var keystone_dex_ranged: bool = false    # Deadeye Form: ranged damage scales with DEX instead of STR
+var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
+const DET_VITALITY_HP_PER_POINT: int = 2
+
+func refresh_det_vitality() -> void:
+	## Re-sync Bulwark Soul's HP grant with the CURRENT determination — points
+	## gained (or lost) after unlocking adjust max health immediately.
+	if not keystone_det_vitality:
+		return
+	var target := DET_VITALITY_HP_PER_POINT * determination
+	var delta := target - _det_vitality_hp_applied
+	if delta == 0:
+		return
+	max_health += delta
+	current_health = clampi(current_health + maxi(delta, 0), 1, max_health)
+	_det_vitality_hp_applied = target
+	health_changed.emit(current_health, max_health)
+	print("[STATS] Bulwark Soul: %+d max HP (now %d)" % [delta, max_health])
 # Per-damage-type resistance, keyed by DamageTypes.Type → percent reduction (0..100).
 # Empty by default; nothing populates it yet, but the take_damage pipeline reads it.
 var damage_resistances: Dictionary = {}
@@ -318,6 +345,11 @@ func save_progression() -> Dictionary:
 		"total_xp": total_xp,
 		"unspent_stat_points": unspent_stat_points,
 		"gold": gold,
+		# Sphere grid keystones
+		"keystone_det_vitality": keystone_det_vitality,
+		"keystone_flash_draw": keystone_flash_draw,
+		"keystone_dex_ranged": keystone_dex_ranged,
+		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
 		"base_dexterity": base_dexterity,
@@ -362,6 +394,11 @@ func restore_progression(data: Dictionary) -> void:
 	total_xp = data.get("total_xp", total_xp)
 	unspent_stat_points = data.get("unspent_stat_points", unspent_stat_points)
 	gold = data.get("gold", gold)
+	# Sphere grid keystones
+	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)
+	keystone_flash_draw = data.get("keystone_flash_draw", keystone_flash_draw)
+	keystone_dex_ranged = data.get("keystone_dex_ranged", keystone_dex_ranged)
+	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
 	base_dexterity = data.get("base_dexterity", base_dexterity)
@@ -405,6 +442,7 @@ func restore_progression(data: Dictionary) -> void:
 func recalculate_derived_stats() -> void:
 	var base_hand = character_data.base_hand_size if character_data else 4
 	hand_size = maxi(1, base_hand + get_wisdom_hand_bonus() + equipment_hand_bonus + temp_hand_modifier)
+	refresh_det_vitality()
 	stats_updated.emit()
 
 func adjust_temp_hand(delta: int) -> void:
@@ -540,6 +578,7 @@ const FLASH_COST_MOVE: int = 1
 const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
 const FLASH_BLOCK_ARMOR: int = 2
 const FLASH_COST_PROC_TICK: int = 5  # advance the attack-speed counter 1 tick
+const FLASH_COST_DRAW: int = 4       # Flash Reserves keystone: draw a card
 
 var current_flash_points: int = 0
 # HUD toggle (the lightning-bolt button): spending flash on movement is the
@@ -789,9 +828,25 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	if type_resist > 0.0:
 		remaining = floori(remaining * (1.0 - min(type_resist, 100.0) / 100.0))
 
+	# Sphere grid flat resistance ("Resist +X%"): percent reduction on all damage.
+	if sphere_bonus_resistance > 0.0:
+		remaining = floori(remaining * (1.0 - minf(sphere_bonus_resistance, 90.0) / 100.0))
+
+	# Iron Bastion: chance to shrug off part of the hit.
+	if damage_proc_reduction_chance > 0.0 and remaining > 0 and randf() < damage_proc_reduction_chance:
+		remaining = floori(remaining * (1.0 - damage_proc_reduction_percent / 100.0))
+		print("[STATS] Iron Bastion! Incoming damage reduced %d%%" % int(damage_proc_reduction_percent))
+
 	# Apply Vulnerable modifier from debuffs
 	if debuff_mgr:
 		remaining = debuff_mgr.modify_incoming_damage(remaining)
+
+	# Linked: share a portion of the damage with the linked ally (co-op).
+	if debuff_mgr and debuff_mgr.linked_ally != null and is_instance_valid(debuff_mgr.linked_ally) and remaining > 0:
+		var linked_share = debuff_mgr.calculate_linked_damage(remaining)
+		if linked_share > 0 and debuff_mgr.linked_ally.has_method("get_stats") and debuff_mgr.linked_ally.get_stats():
+			debuff_mgr.linked_ally.get_stats().take_direct_damage(linked_share)
+			print("[STATS] Linked shares %d damage with the ally" % linked_share)
 
 	# Apply Brace and Resilient from buffs (Resilient may be type-gated, e.g. Harden)
 	if buff_mgr:

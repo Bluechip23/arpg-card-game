@@ -18,6 +18,7 @@ signal node_unlocked(node_id: int)
 
 var sphere_grid: SphereGrid
 var sphere_inventory: SphereInventory
+var player_stats = null  # PlayerStats — for stat-gated node requirements (set by main.gd)
 var _hovered_node_id: int = -1
 var _camera_offset: Vector2 = Vector2.ZERO
 var _dragging: bool = false
@@ -240,6 +241,8 @@ func _get_node_at_screen(screen_pos: Vector2) -> int:
 		var r = NODE_RADIUS_BASE * _zoom
 		if node.id == 0:
 			r = NODE_RADIUS_START * _zoom
+		elif node.node_type == SphereGrid.NodeType.NULL_NODE:
+			r *= 0.55  # Null connectors are visibly smaller
 		if screen_pos.distance_to(npos) <= r:
 			return node.id
 	return -1
@@ -252,6 +255,10 @@ func _get_type_color(node: SphereGrid.GridNode) -> Color:
 	match node.node_type:
 		SphereGrid.NodeType.START:
 			return COLOR_START
+		SphereGrid.NodeType.NULL_NODE:
+			return Color(0.35, 0.35, 0.42)  # muted — it grants nothing
+		SphereGrid.NodeType.KEYSTONE:
+			return Color(1.0, 0.8, 0.3)     # gold — build-defining
 		SphereGrid.NodeType.STAT_BONUS:
 			return COLOR_STAT
 		SphereGrid.NodeType.PASSIVE:
@@ -343,6 +350,8 @@ func _on_grid_draw() -> void:
 		var radius = NODE_RADIUS_BASE * _zoom
 		if node.id == 0:
 			radius = NODE_RADIUS_START * _zoom
+		elif node.node_type == SphereGrid.NodeType.NULL_NODE:
+			radius *= 0.55  # Null connectors are visibly smaller
 
 		var color = _get_type_color(node)
 		var shape = _get_node_shape(node)
@@ -1093,14 +1102,20 @@ func _add_unlock_section(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void
 	var req_type = SphereInventory.get_required_sphere_type(node.node_type)
 	var type_name = SphereInventory.get_sphere_name(req_type) if req_type >= 0 else "Unknown"
 
-	var can_unlock = sphere_grid.is_unlockable(node.id) and sphere_inventory and sphere_inventory.has_sphere_for_node(node.node_type)
+	var reqs_met = SphereGrid.requirements_met(node, player_stats)
+	var can_unlock = sphere_grid.is_unlockable(node.id) and reqs_met \
+		and sphere_inventory and sphere_inventory.has_sphere_for_node(node.node_type)
 
 	if not sphere_grid.is_unlockable(node.id):
 		_add_popup_label(vbox, "Must be adjacent to an unlocked node", 12, Color(0.7, 0.3, 0.3))
+	elif not reqs_met:
+		_add_popup_label(vbox, SphereGrid.requirement_text(node), 12, Color(0.9, 0.55, 0.2))
 	elif not sphere_inventory or not sphere_inventory.has_sphere_for_node(node.node_type):
 		_add_popup_label(vbox, "Requires: %s sphere (or Any)" % type_name, 12, Color(0.7, 0.3, 0.3))
 	else:
 		_add_popup_label(vbox, "Costs 1 %s sphere" % type_name, 12, Color(0.5, 0.8, 0.5))
+		if SphereGrid.requirement_text(node) != "":
+			_add_popup_label(vbox, SphereGrid.requirement_text(node) + " — met", 11, Color(0.5, 0.8, 0.5))
 
 	_unlock_button = Button.new()
 	_unlock_button.text = "Unlock Node" if can_unlock else "Cannot Unlock"
@@ -1139,6 +1154,8 @@ func _on_unlock_pressed() -> void:
 	if not node or node.unlocked:
 		return
 	if not sphere_grid.is_unlockable(_popup_node_id):
+		return
+	if not SphereGrid.requirements_met(node, player_stats):
 		return
 	if not sphere_inventory or not sphere_inventory.has_sphere_for_node(node.node_type):
 		return
@@ -1293,6 +1310,8 @@ func _get_type_name(t: SphereGrid.NodeType) -> String:
 		SphereGrid.NodeType.CULLING_STONE: return "Culling Stone"
 		SphereGrid.NodeType.RETROSPECTIVE: return "Retrospective"
 		SphereGrid.NodeType.FEATHER: return "Feather"
+		SphereGrid.NodeType.NULL_NODE: return "Null Node"
+		SphereGrid.NodeType.KEYSTONE: return "Keystone"
 	return "Unknown"
 
 func _on_close_pressed() -> void:

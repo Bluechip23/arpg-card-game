@@ -25,17 +25,17 @@ Verified clean (no action needed):
 
 ## A. Gameplay bugs — code does the wrong thing
 
-- [ ] **Empower nerfs defense cards.** Text (README.md:146, card.gd:497) says
+- [x] FIXED — empowered defense now refunds 3 mana (the card text's discount) and grants full armor. **Empower nerfs defense cards.** Text (README.md:146, card.gd:497) says
   defense cards get "−3 mana"; code subtracts 3 from the armor granted instead:
   `armor_amount = max(1, armor_amount - player_stats.empower_block_reduction)`
   (card.gd:1133). Empower currently makes block cards worse.
-- [ ] **Shocked never deals its ally damage.** `process_turn_start()` sums it
+- [x] FIXED — the cycle handler now arcs the damage to allies within 2 tiles. **Shocked never deals its ally damage.** `process_turn_start()` sums it
   into a return dict (debuff_manager.gd:160) but the only caller discards the
   return (main.gd:4851). Shocked just ticks down harmlessly.
-- [ ] **Iron Bastion constellation does the wrong effect.** Description: "When
+- [x] FIXED — now a real 15% chance to halve incoming damage in take_damage. **Iron Bastion constellation does the wrong effect.** Description: "When
   hit: 15% chance to reduce damage by 50%" (sphere_grid.gd:608). Handler grants
   +5 flat armor and ignores the stored 50 (progression_triggers.gd:1810-1813).
-- [ ] **Cover doesn't reduce damage.** Text: "reduce it by the number of cards
+- [x] RESOLVED by aligning the card text to the implemented behavior (post-hit heal equal to hand size); a true pre-damage interception can revisit later. **Cover doesn't reduce damage.** Text: "reduce it by the number of cards
   in your hand" within 2 spaces (card.gd:3610). Code heals the ally after the
   hit and never checks the 2-space range (card.gd:3624-3632).
 
@@ -43,30 +43,30 @@ Verified clean (no action needed):
 
 Sphere grid combat bonuses that are stored (and shown in the character panel!)
 but never read by combat:
-- [ ] **"Resist +X%" nodes** — `sphere_bonus_resistance` never read in
+- [x] FIXED — applied as percent reduction in take_damage. **"Resist +X%" nodes** — `sphere_bonus_resistance` never read in
   `take_damage` (player_stats.gd; only UI read at character_panel.gd:710).
-- [ ] **"Life Steal +X%" nodes** — `sphere_bonus_life_steal` write-only
+- [x] FIXED — attacks heal the percentage in card execution. **"Life Steal +X%" nodes** — `sphere_bonus_life_steal` write-only
   (player_stats.gd:1168).
-- [ ] **"Arm/Cyc +1" nodes** — `sphere_bonus_armor_per_cycle` never applied;
+- [x] FIXED — raw armor granted each cycle beside regen. **"Arm/Cyc +1" nodes** — `sphere_bonus_armor_per_cycle` never applied;
   the per-cycle handler only does regen (main.gd:4839).
-- [ ] **"Range +1" nodes** — `sphere_bonus_range` write-only
+- [x] FIXED — added to both the range indicator and the range validation. **"Range +1" nodes** — `sphere_bonus_range` write-only
   (player_stats.gd:1172).
 
 Sphere passive parser failures (progression_triggers.gd:150-230):
-- [ ] **"On crit: deal 50% bonus" (node 37 + upgrades)** — the chance regex
+- [x] FIXED — parser keeps magnitude percents; bonus_damage dispatch now deals the follow-up hit. **"On crit: deal 50% bonus" (node 37 + upgrades)** — the chance regex
   consumes "50%" as a proc chance, leaving effect text "bonus", which no branch
   handles → unhandled no-op.
-- [ ] **"On heal: overheal becomes armor" (node 83 + upgrades)** — the generic
+- [x] FIXED — overheal branch now beats the generic heal branch; 200% variant converts double. **"On heal: overheal becomes armor" (node 83 + upgrades)** — the generic
   `"heal" in effect_part` branch shadows the later `"overheal"` branch →
   parsed as a value-0 heal → no-op (upgraded "200%" variant is also a no-op:
   the chance regex strips "200%", leaving a value-0 armor gain).
-- [ ] **Node 62 transmute "5% freeze enemy"** — parses to `freeze_enemy` but
+- [x] FIXED — freeze_enemy dispatch applies 5 cold stacks (instant freeze). **Node 62 transmute "5% freeze enemy"** — parses to `freeze_enemy` but
   the dispatch match has no such case (progression_triggers.gd:1677-1839).
 
 Inert status effects (defined, described, applied — no effect):
-- [ ] **Magnetized** — `magnetize_pull` emitted (debuff_manager.gd:195) but
+- [x] FIXED — magnetize_pull now connected to the pull handler. **Magnetized** — `magnetize_pull` emitted (debuff_manager.gd:195) but
   never connected; handler `_apply_magnetize_pull` (main.gd:5277) never called.
-- [ ] **Linked** — `calculate_linked_damage` (debuff_manager.gd:269) has zero
+- [x] FIXED — wired in take_damage; co-op partners are set as each other's linked ally (solo: inert by design, no ally exists). **Linked** — `calculate_linked_damage` (debuff_manager.gd:269) has zero
   call sites; `linked_ally` var never used.
 
 ## C. Co-op parity — P2 silently misses tempo-driven systems

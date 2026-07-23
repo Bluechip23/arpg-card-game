@@ -699,6 +699,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		bonus_damage += _ranged_bonus_applied
 		print("[CARD] Ranged bonus: +%d damage from equipment" % _ranged_bonus_applied)
 
+	# Deadeye Form keystone: ranged attacks scale with DEX instead of STR.
+	# The physical pipeline adds STR/2 downstream, so swap in the difference.
+	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.keystone_dex_ranged:
+		bonus_damage += floori(player_stats.dexterity / 2.0) - player_stats.get_strength_damage_bonus()
+
 	# Wear Down: apply debuff BEFORE attack execution so the first hit stacks reduction
 	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
 		if target and target.has_method("apply_wear_down"):
@@ -1017,6 +1022,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if ls_dealt > 0:
 			player_stats.heal(max(1, floori(ls_dealt * 0.05)))
 
+	# Sphere grid "Life Steal +X%" nodes: attacks heal a percentage of damage dealt.
+	if card_type == CardType.ATTACK and player_stats and player_stats.sphere_bonus_life_steal > 0.0:
+		var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
+		if sls_dealt > 0:
+			player_stats.heal(max(1, floori(sls_dealt * player_stats.sphere_bonus_life_steal / 100.0)))
+
 	# Clear armor break flag on target after attack resolves
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
 		target.set_armor_break_incoming(false)
@@ -1129,8 +1140,11 @@ func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats
 func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_mgr: BuffManager = null) -> void:
 	var armor_amount = block
 
+	# Empower on defense: "-3 mana cost" per the card text — since empower is
+	# consumed at execution (after the cost was paid), refund the discount.
 	if is_empowered and player_stats:
-		armor_amount = max(1, armor_amount - player_stats.empower_block_reduction)
+		player_stats.gain_mana(player_stats.empower_block_reduction)
+		print("[CARD] Empowered defense: %d mana refunded" % player_stats.empower_block_reduction)
 
 	if player_stats:
 		player_stats.add_armor(armor_amount)
@@ -3607,7 +3621,7 @@ static func create_cover() -> Card:
 	var card = Card.new()
 	card.card_id = "cover"
 	card.card_name = "Cover"
-	card.description = "Instant: When an ally within 2 spaces takes damage, reduce it by the number of cards in your hand."
+	card.description = "Instant: When an ally takes damage, heal them for the number of cards in your hand."
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0

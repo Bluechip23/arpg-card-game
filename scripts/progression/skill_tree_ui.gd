@@ -865,6 +865,15 @@ func _open_stat_allocation() -> void:
 
 	add_child(_stat_alloc_panel)
 
+func _stat_base_value(stat_name: String) -> int:
+	## The character's CURRENT value for a stat (before this popup's pending
+	## allocation). Determination has no base_ prefix in PlayerStats.
+	if not player_stats:
+		return 0
+	if stat_name == "determination":
+		return player_stats.determination
+	return player_stats.get("base_" + stat_name)
+
 func _build_stat_alloc_row(stat_name: String) -> HBoxContainer:
 	var hbox = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 8)
@@ -884,10 +893,10 @@ func _build_stat_alloc_row(stat_name: String) -> HBoxContainer:
 
 	var value_label = Label.new()
 	value_label.name = "Value_" + stat_name
-	value_label.text = "0"
-	value_label.custom_minimum_size.x = 30
+	value_label.text = "%d" % _stat_base_value(stat_name)
+	value_label.custom_minimum_size.x = 64
 	value_label.add_theme_font_size_override("font_size", 14)
-	value_label.add_theme_color_override("font_color", COLOR_CHOSEN_TEXT)
+	value_label.add_theme_color_override("font_color", COLOR_TEXT)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hbox.add_child(value_label)
 
@@ -936,7 +945,16 @@ func _refresh_stat_alloc_display() -> void:
 					if sub is HBoxContainer:
 						var val_label = sub.get_node_or_null(value_node_name)
 						if val_label:
-							val_label.text = str(_stat_allocations[stat_name])
+							# Show the resulting stat value, with the pending
+							# points called out (e.g. "5 (+2)").
+							var base := _stat_base_value(stat_name)
+							var alloc: int = _stat_allocations[stat_name]
+							if alloc > 0:
+								val_label.text = "%d (+%d)" % [base + alloc, alloc]
+								val_label.add_theme_color_override("font_color", COLOR_CHOSEN_TEXT)
+							else:
+								val_label.text = "%d" % base
+								val_label.add_theme_color_override("font_color", COLOR_TEXT)
 
 func _on_stat_alloc_confirm() -> void:
 	## Partial spends are fine — whatever isn't allocated stays banked.

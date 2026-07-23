@@ -286,6 +286,7 @@ var _flash_move_button: Button = null   # boots: toggle spending flash on moveme
 var _flash_move_sparkle: SparkleBorder = null  # gold cycling border while the toggle is on
 var _flash_block_button: Button = null  # duck: 3 flash → 2 block
 var _flash_proc_button: Button = null   # daggers: 5 flash → 1 attack-speed tick
+var _flash_draw_button: Button = null   # cards: 4 flash → draw (Flash Reserves keystone only)
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
 
 # Stat bar UI references
@@ -822,6 +823,18 @@ func _setup_action_buttons() -> void:
 	_flash_proc_button.size_flags_stretch_ratio = 4.0 / 3.0
 	_flash_proc_button.pressed.connect(_on_flash_proc_pressed)
 	flash_row.add_child(_flash_proc_button)
+
+	# Hidden until the Flash Reserves keystone is unlocked on the sphere grid.
+	_flash_draw_button = Button.new()
+	_flash_draw_button.name = "FlashDrawButton"
+	_flash_draw_button.icon = UIGlyphs.get_glyph("card_draw")
+	_flash_draw_button.expand_icon = true
+	_flash_draw_button.custom_minimum_size = Vector2(26, 36)
+	_flash_draw_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_flash_draw_button.size_flags_stretch_ratio = 4.0 / 3.0
+	_flash_draw_button.pressed.connect(_on_flash_draw_pressed)
+	_flash_draw_button.visible = false
+	flash_row.add_child(_flash_draw_button)
 
 	# Attack button (top): sword + tempo cost + attacks until the speed proc.
 	# Content-sized — its natural width sets the column width.
@@ -2846,6 +2859,10 @@ func select_character(character: CharacterData) -> void:
 	_update_flash_button()
 	# The skill tree screen spends the banked level-up stat points.
 	skill_tree_ui.player_stats = player.get_stats()
+	# The sphere grid checks stat-gated node requirements against the player.
+	sphere_grid_ui.player_stats = player.get_stats()
+	# Magnetized debuff: wire the pull (emitted each cycle-end) to the handler.
+	player.get_debuff_manager().magnetize_pull.connect(func(tiles, _dir): _apply_magnetize_pull(tiles))
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
@@ -3464,6 +3481,11 @@ func _all_players() -> Array:
 # ---- Co-op downed / revive / defeat ----
 
 func _setup_co_op_defeat() -> void:
+	# Linked debuff: each partner is the other's "nearest ally" for damage sharing.
+	if _p1_player.get_debuff_manager():
+		_p1_player.get_debuff_manager().linked_ally = _p2_player
+	if _p2_player.get_debuff_manager():
+		_p2_player.get_debuff_manager().linked_ally = _p1_player
 	var s1 = _p1_player.get_stats()
 	var s2 = _p2_player.get_stats()
 	if s1:
@@ -4322,6 +4344,16 @@ func _on_flash_block_pressed() -> void:
 	else:
 		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
 
+func _on_flash_draw_pressed() -> void:
+	var stats = player.get_stats() if player else null
+	if not stats or not stats.keystone_flash_draw:
+		return
+	if stats.spend_flash_points(PlayerStats.FLASH_COST_DRAW):
+		deck_manager.attempt_draw()
+		add_battle_log("Flash Reserves! -%d flash, drew a card." % PlayerStats.FLASH_COST_DRAW, Color(1.0, 0.9, 0.4))
+	else:
+		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_DRAW, Color(1.0, 0.5, 0.5))
+
 func _on_flash_proc_pressed() -> void:
 	var stats = player.get_stats() if player else null
 	if not stats:
@@ -4358,6 +4390,10 @@ func _update_flash_button() -> void:
 	if _flash_proc_button:
 		_flash_proc_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_PROC_TICK else 0.45
 		_flash_proc_button.tooltip_text = "Quick hands: spend %d flash to advance the attack-speed counter by 1 tick." % PlayerStats.FLASH_COST_PROC_TICK
+	if _flash_draw_button:
+		_flash_draw_button.visible = stats.keystone_flash_draw
+		_flash_draw_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_DRAW else 0.45
+		_flash_draw_button.tooltip_text = "Flash Reserves: spend %d flash to draw a card." % PlayerStats.FLASH_COST_DRAW
 
 func _on_dexterity_proc() -> void:
 	print("[MAIN] Dexterity proc! Next attack: half tempo + 2 mana discount!")
@@ -4839,6 +4875,12 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		if regen_stats and regen_stats.sphere_bonus_regen > 0:
 			regen_stats.heal(regen_stats.sphere_bonus_regen)
 
+		# Sphere-grid "Arm/Cyc" nodes: raw armor each cycle (no block-card bonuses).
+		if regen_stats and regen_stats.sphere_bonus_armor_per_cycle > 0:
+			regen_stats.current_armor += regen_stats.sphere_bonus_armor_per_cycle
+			regen_stats.armor_changed.emit(regen_stats.current_armor)
+			regen_stats.armor_gained.emit(regen_stats.sphere_bonus_armor_per_cycle)
+
 		# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
 		if buff_mgr:
 			var buff_result = buff_mgr.process_turn_start()
@@ -4848,7 +4890,18 @@ func _on_tempo_threshold_reached(times: int) -> void:
 
 		# Debuff cycle-start effects (BURN damage, POISON, DRAIN, SHOCKED)
 		if debuff_mgr:
-			debuff_mgr.process_turn_start()
+			var debuff_result = debuff_mgr.process_turn_start()
+			# Shocked: arc the accumulated damage to nearby allies (within 2 tiles).
+			var ally_dmg: int = debuff_result.get("ally_damage", 0)
+			if ally_dmg > 0:
+				for ally in _all_players():
+					if ally == player or not is_instance_valid(ally):
+						continue
+					var shock_diff = player.position - ally.position
+					if Vector3(shock_diff.x, 0, shock_diff.z).length() <= grid_manager.grid_size * 2.5 \
+							and ally.has_method("get_stats") and ally.get_stats():
+						ally.get_stats().take_damage(ally_dmg, ally.get_debuff_manager(), ally.get_buff_manager())
+						add_battle_log("Shocked arcs %d damage to an ally!" % ally_dmg, Color(1.0, 0.9, 0.3))
 
 		deck_manager.process_turn()
 
@@ -5476,6 +5529,9 @@ func select_card(index: int) -> void:
 		# Scouted: +6 range on next attack after 3 consecutive hits
 		if st_stats and st_stats.st_scouted_bonus_active:
 			effective_range += 6
+		# Sphere grid "Range +X" nodes
+		if st_stats and st_stats.sphere_bonus_range > 0:
+			effective_range += st_stats.sphere_bonus_range
 		range_indicator.position = player.position
 		range_indicator.show_range(effective_range)
 		add_battle_log("%s selected — Range: %d tiles" % [card.card_name, int(effective_range)], Color(0.6, 0.85, 1.0))
@@ -6125,6 +6181,9 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		# Scouted: +6 range on next attack after 3 consecutive hits
 		if st_stats and st_stats.st_scouted_bonus_active:
 			max_range += 6
+		# Sphere grid "Range +X" nodes
+		if st_stats and st_stats.sphere_bonus_range > 0:
+			max_range += st_stats.sphere_bonus_range
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
 		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square

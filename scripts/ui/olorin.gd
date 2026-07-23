@@ -176,17 +176,10 @@ func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.08, 0.12, 0.98)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.55, 0.7, 1.0)  # arcane blue
-	style.corner_radius_top_left = 10
-	style.corner_radius_top_right = 10
-	style.corner_radius_bottom_left = 10
-	style.corner_radius_bottom_right = 10
+	# Arcane-blue frame with the T&O crest mounted top-center on the border.
+	var style = CrestStyleBox.new(Color(0.07, 0.08, 0.12, 0.98), Color(0.55, 0.7, 1.0), 10)
+	style.crest_size = 26.0
+	style.content_margin_top = 28.0
 	panel.add_theme_stylebox_override("panel", style)
 	_layer.add_child(panel)
 
