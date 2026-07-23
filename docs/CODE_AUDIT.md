@@ -91,10 +91,10 @@ these three main-node systems are P1-only:
   (:293 vs :912); Redemption is a guaranteed crit buff on any heal, not "10%
   crit on ally heals" (:298 vs :891); Pristine Armor applies to defense cards
   only (:289 vs :868).
-- [ ] **Haste** — "+X movement per tempo spent" (keyword_legend.gd:67,
+- [x] FIXED — README and legend now describe the real effect (extra tiles on the next move command). **Haste** — "+X movement per tempo spent" (keyword_legend.gd:67,
   README.md:169); actually a flat `spaces += haste_bonus` on one move command
   (player.gd:309). `get_extra_movement_per_tempo()` is dead.
-- [ ] **Slowed** — "Lose X movement per cycle" (keyword_legend.gd:41,
+- [x] FIXED — README and legend now describe the per-move-command reduction. **Slowed** — "Lose X movement per cycle" (keyword_legend.gd:41,
   README.md:207); actually `spaces = max(1, spaces - reduction)` per move
   command (player.gd:304) — and a no-op on 1-tile moves, the common case.
 - [ ] **Quick Shot** — literal "Deal X damage" placeholder never substituted
@@ -108,10 +108,10 @@ these three main-node systems are P1-only:
 - [ ] **Savage Strike copy** — copy's text claims it adds another copy; it is
   executed with `add_copy=false` (card.gd:967). Possibly intentional disguise —
   decide and either fix text or mark intended.
-- [ ] **Walkthrough: Enhance** — says the enhanced card "remains at the top of
+- [x] FIXED — walkthrough now says the enhanced card is discarded. **Walkthrough: Enhance** — says the enhanced card "remains at the top of
   the deck" (gameplay_walkthrough.gd:156); it is discarded
   (overflow_manager.gd:216). Legend/README are correct.
-- [ ] **Bottomless Quiver overflow mode** missing from all three player-facing
+- [x] FIXED — added to the README overflow table, keyword legend, and walkthrough priority list. **Bottomless Quiver overflow mode** missing from all three player-facing
   overflow lists (keyword_legend.gd:79-85, README.md:120-127,
   gameplay_walkthrough.gd:143-147) despite being fully implemented.
 - [ ] **Sphere constellation blurbs** still say "+1 movement per cycle"

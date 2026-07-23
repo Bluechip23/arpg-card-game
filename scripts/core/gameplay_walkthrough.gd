@@ -142,7 +142,7 @@ When your hand is full and you try to draw, the overflow system activates.
 
 [color=yellow]Overflow Priority:[/color]
 1. [color=red]Jailed[/color] - Card goes to jail (highest priority)
-2. [color=purple]Manifest/Enhance[/color] - Whichever was applied first
+2. [color=purple]Manifest/Enhance/Quiver[/color] - Whichever was applied first
 3. [color=blue]Skip[/color] - Card goes to discard pile
 4. [color=green]Peak/Overcharge[/color] - Always trigger (don't block others)
 
@@ -153,7 +153,7 @@ When your hand is full and you try to draw, the overflow system activates.
 - The original card doesn't matter - only the manifest effect
 
 [color=yellow]Enhance:[/color]
-- Card recieves an effect, and remains at the top of the deck.
+- Attack cards gain bonus damage, then the card is discarded.
 - Effect can be positive or negative. 
 
 [color=yellow]Overcharge:[/color]

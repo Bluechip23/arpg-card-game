@@ -61,7 +61,7 @@ Every character has six core attributes:
 | **Intelligence (INT)** | +1 spell and heal power for every 2 points. +1 mana regen for every 5 points. |
 | **Wisdom (WIS)** | +1 hand size for every 5 points. Each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5). |
 | **Determination (DET)** | Controls how low health affects your other stats. At 10 it does nothing. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. High-DET builds are strongest on the brink of death. |
-| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. Spent by choice through the Flash row in the battle HUD — **1 point** moves a tile without spending tempo (boots toggle), **3 points** buy 2 block (a quick sidestep), **5 points** advance the attack-speed counter one tick (quick hands). The spend buttons fade while you can't afford them. |
+| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. Spent by choice through the Flash row in the battle HUD — **1 point** moves a tile without spending tempo (boots toggle), **3 points** buy 2 block (a quick sidestep), **5 points** advance the attack-speed counter one tick (quick hands). The spend buttons fade while you can't afford them, and a sphere-grid keystone can unlock a fourth spend (4 points: draw a card). |
 
 All characters share a base **5% critical hit chance**, which can be raised by progression and effects.
 
@@ -125,6 +125,7 @@ If a draw would exceed your hand size, it **overflows**. **By default, nothing h
 | **Skip** | The card is sent straight to the discard pile. |
 | **Overcharge** | Triggers a special effect on each overflow. |
 | **Manifest** | The card becomes a token in the manifest zone — click to activate its manifest effect. |
+| **Quiver** | (Bottomless Quiver) The card becomes an arrow token in the quiver zone — click to fire it. |
 
 ---
 
@@ -136,7 +137,6 @@ Mechanics that appear on cards:
 |---|---|
 | **Maintain X** | Reserves X mana while the card's effect persists. Breaks if mana hits 0. |
 | **Sticky X** | Card stays in hand and can be played X times before discarding. |
-| **Burden** | Cost increases by 1 mana/1 tempo each time played. Jail it for 30 tempo (from hand, costs 1m/1t) to reset. |
 | **Erase** | The card is permanently deleted from your deck — either after X tempo, or immediately after being played. |
 | **Glut X** | You cannot play cards for X tempo after this one. |
 | **Delay X** | The effect takes place X tempo after playing. |
@@ -166,7 +166,7 @@ Positive effects. Duration-based buffs tick down each cycle; charge-based buffs 
 | **Enlightened** | +X% crit chance for the next Y attacks. |
 | **Strengthen** | +X damage on the next Y attacks. |
 | **Bolster** | +X armor the next Y times you gain armor. |
-| **Haste** | +X movement per tempo spent. |
+| **Haste** | Your next move command travels X extra tiles. |
 | **Cleanse** | Remove X negative effect(s) instantly. |
 | **Smith** | Gain X armor per cycle. |
 | **Steady** | Your next action adds no tempo. |
@@ -204,7 +204,7 @@ Negative effects, applied by enemies and hazards (and occasionally self-inflicte
 | **Frozen** | Cannot play cards. |
 | **Cuffed** | Cannot draw cards. |
 | **Shocked** | Deal X damage to nearby allies per cycle; loses 1 stack per cycle. |
-| **Slowed** | Lose X movement per cycle. |
+| **Slowed** | Each move command travels X fewer tiles (never below 1). |
 | **Staggered** | Attack cards cost X more mana. |
 | **Drain** | Lose 1 mana per cycle; loses 1 stack per cycle. |
 | **Weighted** | Cards cost X more tempo. |
@@ -213,10 +213,10 @@ Negative effects, applied by enemies and hazards (and occasionally self-inflicte
 | **Rooted** | Cannot move. |
 | **Tethered** | Cannot move more than X tiles from where it was applied. |
 | **Magnetized** | Pulled X tiles toward the nearest enemy each cycle. |
-| **Linked** | Share X% of damage taken with your nearest ally. |
+| **Linked** | Share X% of damage taken with your ally (co-op partner). |
 | **Clumsy** | X% chance to discard a random card whenever you play one. |
 | **Vulnerable** | Take 30% more damage on the next X attack(s). |
-| **Exposed** | Attacks remove 30% more of your armor. |
+| **Exposed** | Your armor absorbs 30% less damage. |
 | **Brittle** | Armor decays an extra 2 per cycle. |
 | **Cold** | Stacking. At 5 stacks, become Frozen. |
 | **Blind** | X% chance for your attacks to miss. |
@@ -319,7 +319,11 @@ Your character grows along several permanent axes:
 
 - **Levels & XP** — combat grants experience. Every level grants **+2 max health and +3 stat points**, banked until you spend them from the skill tree screen.
 - **Stat allocation** — 8 points at character creation, then 3 per level; core stats are yours to distribute and shape around Determination's risk/reward curve.
-- **Sphere grid** — a large unlock web of stat nodes, combat bonuses (crit, thorns, life steal, resistances…), passives, and new cards.
+- **Sphere grid** — a 100-node unlock web spent with spheres earned on level-up. Beyond stat nodes, combat bonuses (crit, thorns, life steal, resistances…), and passives, it carries:
+  - **Keystones** (gold) — build-defining synergy nodes: e.g. *Bulwark Soul* (+2 max HP per Determination point, past and future), *Flash Reserves* (spend 4 Flash points to draw a card), *Deadeye Form* (ranged attacks scale with DEX instead of STR).
+  - **Stat-gated nodes** — powerful effects locked behind a stat threshold (e.g. Crit +20% requires DEX 20).
+  - **Null nodes** — small connectors that grant nothing; the toll paid on the road to something bigger.
+  - **Constellations** — completing certain node patterns grants an extra named bonus.
 - **Path abilities** — unlock and combine abilities from your character's four paths.
 - **Deck crafting** — buy cards from vendors, and use consumables to sculpt the deck:
   - **Culling Stones** permanently remove a card from your deck.
