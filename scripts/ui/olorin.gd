@@ -176,17 +176,10 @@ func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.08, 0.12, 0.98)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.55, 0.7, 1.0)  # arcane blue
-	style.corner_radius_top_left = 10
-	style.corner_radius_top_right = 10
-	style.corner_radius_bottom_left = 10
-	style.corner_radius_bottom_right = 10
+	# Arcane-blue frame with the T&O crest mounted top-center on the border.
+	var style = CrestStyleBox.new(Color(0.07, 0.08, 0.12, 0.98), Color(0.55, 0.7, 1.0), 10)
+	style.crest_size = 26.0
+	style.content_margin_top = 28.0
 	panel.add_theme_stylebox_override("panel", style)
 	_layer.add_child(panel)
 
@@ -201,22 +194,12 @@ func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_
 	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 
-	# Header row: the T&O tutorial sigil beside the speaker name.
-	var speaker_row = HBoxContainer.new()
-	speaker_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	speaker_row.add_theme_constant_override("separation", 10)
-	var sigil = TextureRect.new()
-	sigil.texture = UIGlyphs.get_glyph("to_sigil")
-	sigil.custom_minimum_size = Vector2(30, 30)
-	sigil.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	sigil.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	speaker_row.add_child(sigil)
 	var speaker = Label.new()
 	speaker.text = "Olorin, the Wandering Mentor"
 	speaker.add_theme_font_size_override("font_size", 20)
 	speaker.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-	speaker_row.add_child(speaker)
-	vbox.add_child(speaker_row)
+	speaker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(speaker)
 
 	if title != "":
 		var subtitle = Label.new()
