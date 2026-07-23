@@ -38,7 +38,7 @@ func _build_legend() -> void:
 	_add_keyword("Frozen", "Cannot play cards", Color(0.5, 0.8, 1.0))
 	_add_keyword("Cuffed", "Cannot draw cards", Color(0.5, 0.5, 0.5))
 	_add_keyword("Shocked", "Deal X damage to nearby allies per cycle, lose 1 per cycle", Color(1.0, 1.0, 0.3))
-	_add_keyword("Slowed", "Lose X movement per cycle", Color(0.3, 0.3, 0.6))
+	_add_keyword("Slowed", "Each move command travels X fewer tiles (never below 1)", Color(0.3, 0.3, 0.6))
 	_add_keyword("Staggered", "Attack cards cost X more mana", Color(0.6, 0.4, 0.2))
 	_add_keyword("Drain", "Lose 1 mana per cycle, lose 1 drain per cycle", Color(0.4, 0.0, 0.6))
 	_add_keyword("Weighted", "Cards cost X more tempo", Color(0.4, 0.4, 0.4))
@@ -64,7 +64,7 @@ func _build_legend() -> void:
 	_add_keyword("Enlightened", "+X% crit chance for next Y attacks", Color(1.0, 1.0, 0.6))
 	_add_keyword("Strengthen", "+X damage on next Y attacks", Color(1.0, 0.5, 0.3))
 	_add_keyword("Bolster", "+X armor next Y times you gain armor", Color(0.5, 0.7, 1.0))
-	_add_keyword("Haste", "+X movement per tempo spent", Color(0.5, 1.0, 1.0))
+	_add_keyword("Haste", "Your next move command travels X extra tiles", Color(0.5, 1.0, 1.0))
 	_add_keyword("Cleanse", "Remove X negative effects (instant)", Color(1.0, 1.0, 1.0))
 	_add_keyword("Smith", "Gain X armor per cycle", Color(0.7, 0.7, 0.7))
 	_add_keyword("Steady", "Next action does not add tempo", Color(0.6, 0.8, 0.6))
@@ -77,12 +77,13 @@ func _build_legend() -> void:
 
 	# Overflow Section
 	_add_section_header("OVERFLOW MODES")
-	_add_keyword("Jailed", "Card goes to jail for 3 turns, cannot be played")
+	_add_keyword("Jailed", "Card goes to jail for 15 tempo (3 cycles), cannot be played")
 	_add_keyword("Manifest", "Card goes to manifest zone as a token. Click to activate the manifest effect, then card is discarded")
 	_add_keyword("Enhance", "Attack cards gain +X bonus damage, then discarded")
 	_add_keyword("Skip", "Overflow card is sent straight to the discard pile")
 	_add_keyword("Peak", "See the next card on draw pile (doesn't block other effects)")
 	_add_keyword("Overcharge", "Triggers an effect when overflow occurs (doesn't block other effects)")
+	_add_keyword("Quiver", "Card becomes an arrow token in the quiver zone. Click to fire it (Bottomless Quiver)")
 
 	# Range Section
 	_add_section_header("RANGE")
