@@ -699,6 +699,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		bonus_damage += _ranged_bonus_applied
 		print("[CARD] Ranged bonus: +%d damage from equipment" % _ranged_bonus_applied)
 
+	# Deadeye Form keystone: ranged attacks scale with DEX instead of STR.
+	# The physical pipeline adds STR/2 downstream, so swap in the difference.
+	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.keystone_dex_ranged:
+		bonus_damage += floori(player_stats.dexterity / 2.0) - player_stats.get_strength_damage_bonus()
+
 	# Wear Down: apply debuff BEFORE attack execution so the first hit stacks reduction
 	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
 		if target and target.has_method("apply_wear_down"):

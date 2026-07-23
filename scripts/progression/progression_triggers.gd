@@ -26,6 +26,25 @@ func _apply_sphere_grid_node(node) -> void:
 		return
 
 	match node.node_type:
+		SphereGrid.NodeType.NULL_NODE:
+			pass  # Connective tissue: the path itself is the purchase.
+
+		SphereGrid.NodeType.KEYSTONE:
+			match node.keystone_id:
+				"det_vitality":
+					stats.keystone_det_vitality = true
+					stats.refresh_det_vitality()
+					main.add_battle_log("Keystone: Bulwark Soul — +2 max HP per DET", Color(1.0, 0.85, 0.4))
+				"flash_draw":
+					stats.keystone_flash_draw = true
+					main._update_flash_button()
+					main.add_battle_log("Keystone: Flash Reserves — flash points can draw cards", Color(1.0, 0.85, 0.4))
+				"dex_ranged":
+					stats.keystone_dex_ranged = true
+					main.add_battle_log("Keystone: Deadeye Form — ranged damage scales with DEX", Color(1.0, 0.85, 0.4))
+				_:
+					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
+
 		SphereGrid.NodeType.STAT_BONUS:
 			var parsed = _parse_stat_label(node.label)
 			if parsed.size() > 0:

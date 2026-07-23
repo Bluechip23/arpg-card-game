@@ -13,7 +13,9 @@ enum NodeType {
 	CULLING_STONE, # Grants a culling stone to remove a card from deck
 	RETROSPECTIVE, # Grants ability to pick from a previously skipped skill tree option
 	COMBAT_BONUS,  # Neutral combat stat boost (Block, Thorns, Damage, Heal Power, Crit, Armor, etc.)
-	FEATHER        # Grants a feather to remove a card from deck (alternative to culling stone)
+	FEATHER,       # Grants a feather to remove a card from deck (alternative to culling stone)
+	NULL_NODE,     # Pure connective tissue: no effect, smaller, a sunk cost on the path
+	KEYSTONE       # Build-defining synergy node (keystone_id selects the mechanic)
 }
 
 class GridNode:
@@ -36,6 +38,12 @@ class GridNode:
 
 	# Upgrade level (0 = base, incremented by upgrade runes)
 	var upgrade_level: int = 0
+
+	# Stat gate: {"stat": "wisdom", "value": 24} — the node cannot be unlocked
+	# until the character's BASE stat reaches the value.
+	var requirements: Dictionary = {}
+	# For KEYSTONE nodes: which build-defining mechanic this node enables.
+	var keystone_id: String = ""
 
 	func _init(p_id: int, p_type: NodeType, p_label: String, p_desc: String, p_pos: Vector2, p_ring: int = 0) -> void:
 		id = p_id
@@ -232,9 +240,9 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "AGI +4", "Agility +4"],
 		[NodeType.COMBAT_BONUS, "Crit +5%", "Critical hit chance +5%"],
 		[NodeType.PASSIVE, "Passive", "On move: 10% gain haste"],
-		[NodeType.COMBAT_BONUS, "Range +1", "Ranged attacks gain +1 range"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "DET +4", "Determination +4"],
-		[NodeType.COMBAT_BONUS, "Armor +3", "Start each combat with +3 armor"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 	]
 	_create_ring(37, 24, 350.0, center, ring4_types, 4)
 
@@ -268,18 +276,18 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Life Steal +3%", "Heal for 3% of damage dealt"],
 		[NodeType.PASSIVE, "Passive", "On draw: 10% draw costs 0 mana"],
 		[NodeType.COMBAT_BONUS, "Heal +4", "Heal cards restore +4 additional HP"],
-		[NodeType.STAT_BONUS, "AGI +5", "Agility +5"],
+		[NodeType.KEYSTONE, "Flash Reserves", "Keystone: spend 4 Flash points to draw a card (new battle HUD button).", {"req": {"stat": "agility", "value": 12}, "keystone": "flash_draw"}],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.PASSIVE, "Passive", "On cycle: 20% gain empower"],
 		[NodeType.STAT_BONUS, "DET +5", "Determination +5"],
-		[NodeType.COMBAT_BONUS, "Crit +5%", "Critical hit chance +5%"],
+		[NodeType.COMBAT_BONUS, "Crit +20%", "Critical hit chance +20%", {"req": {"stat": "dexterity", "value": 20}}],
 		[NodeType.PASSIVE, "Passive", "On heal: overheal becomes armor"],
 		[NodeType.COMBAT_BONUS, "Range +2", "Ranged attacks gain +2 range"],
-		[NodeType.STAT_BONUS, "STR +6", "Strength +6"],
+		[NodeType.KEYSTONE, "Bulwark Soul", "Keystone: gain +2 max health per point of Determination — past and future.", {"req": {"stat": "determination", "value": 12}, "keystone": "det_vitality"}],
 		[NodeType.COMBAT_BONUS, "Armor +4", "Start each combat with +4 armor"],
 		[NodeType.PASSIVE, "Passive", "On crit: heal 3 HP"],
 		[NodeType.HEALTH, "HP +25", "Max Health +25"],
-		[NodeType.STAT_BONUS, "DEX +6", "Dexterity +6"],
+		[NodeType.KEYSTONE, "Deadeye Form", "Keystone: ranged attacks scale with Dexterity instead of Strength.", {"req": {"stat": "dexterity", "value": 15}, "keystone": "dex_ranged"}],
 		[NodeType.COMBAT_BONUS, "Block +4", "Block cards grant +4 additional block"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.COMBAT_BONUS, "Resist +5%", "Reduce all incoming damage by 5%"],
@@ -357,7 +365,30 @@ func _create_ring(start_id: int, count: int, radius: float, center: Vector2, typ
 		var pos = center + Vector2(cos(angle), sin(angle)) * radius
 		var data = type_data[i % type_data.size()]
 		var node = GridNode.new(start_id + i, data[0], data[1], data[2], pos, ring)
+		# Optional 4th entry: {"req": {...}, "keystone": "..."} extras.
+		if data.size() > 3 and data[3] is Dictionary:
+			node.requirements = data[3].get("req", {})
+			node.keystone_id = data[3].get("keystone", "")
 		_add_node(node)
+
+## True when the character's base stats satisfy a node's stat gate.
+static func requirements_met(node: GridNode, stats) -> bool:
+	if node.requirements.is_empty() or stats == null:
+		return true
+	var stat_name: String = node.requirements.get("stat", "")
+	if stat_name != "":
+		var current: int = stats.determination if stat_name == "determination" \
+			else int(stats.get("base_" + stat_name))
+		if current < int(node.requirements.get("value", 0)):
+			return false
+	return true
+
+## Human-readable requirement line for tooltips ("" when ungated).
+static func requirement_text(node: GridNode) -> String:
+	var stat_name: String = node.requirements.get("stat", "")
+	if stat_name == "":
+		return ""
+	return "Requires %s %d" % [stat_name.substr(0, 3).to_upper(), int(node.requirements.get("value", 0))]
 
 func _assign_node_details() -> void:
 	## Assigns upgrade paths and transmute paths to passive nodes.

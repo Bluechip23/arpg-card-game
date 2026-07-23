@@ -96,9 +96,9 @@ static func get_required_sphere_type(node_type: SphereGrid.NodeType) -> int:
 	match node_type:
 		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA, SphereGrid.NodeType.CULLING_STONE, SphereGrid.NodeType.COMBAT_BONUS, SphereGrid.NodeType.FEATHER:
 			return SphereType.STAT
-		SphereGrid.NodeType.PASSIVE:
+		SphereGrid.NodeType.PASSIVE, SphereGrid.NodeType.KEYSTONE:
 			return SphereType.PASSIVE
-		SphereGrid.NodeType.RETROSPECTIVE:
+		SphereGrid.NodeType.RETROSPECTIVE, SphereGrid.NodeType.NULL_NODE:
 			return SphereType.ANY
 		SphereGrid.NodeType.START:
 			return -1  # Already unlocked

@@ -28,6 +28,7 @@ static func get_glyph(key: String) -> Texture2D:
 		"feather": _draw_feather(img)
 		"flash_bolt": _draw_flash_bolt(img)
 		"to_sigil": _draw_to_sigil(img)
+		"card_draw": _draw_card_draw(img)
 		"boots": _draw_boots(img)
 		"duck": _draw_duck(img)
 		"dual_daggers": _draw_dual_daggers(img)
@@ -250,6 +251,25 @@ static func _draw_recycle(img: Image) -> void:
 	_tri(img, Vector2(12, 1), Vector2(16, 5), Vector2(10, 6), green)
 	_tri(img, Vector2(23, 18), Vector2(17, 15), Vector2(18, 22), green)
 	_tri(img, Vector2(1, 18), Vector2(7, 21), Vector2(6, 14), green)
+
+static func _draw_card_draw(img: Image) -> void:
+	## Two fanned cards with a small up-arrow (Flash Reserves: flash → draw).
+	var back := Color(0.35, 0.45, 0.7)
+	var face := Color(0.9, 0.9, 0.95)
+	var edge := Color(0.2, 0.25, 0.4)
+	var gold := Color(1.0, 0.85, 0.3)
+	# Back card, tilted footprint suggested by offset.
+	_rect(img, 4, 6, 10, 14, back)
+	_rect(img, 4, 6, 10, 1, edge)
+	# Front card.
+	_rect(img, 9, 4, 10, 14, face)
+	_rect(img, 9, 4, 10, 1, edge)
+	_rect(img, 9, 4, 1, 14, edge)
+	_rect(img, 18, 4, 1, 14, edge)
+	_rect(img, 9, 17, 10, 1, edge)
+	# Up arrow bursting from the front card (the draw).
+	_tri(img, Vector2(14, 15), Vector2(11, 20), Vector2(17, 20), gold)
+	_rect(img, 13, 19, 3, 4, gold)
 
 static func _ring(img: Image, cx: float, cy: float, r: float, th: float, c: Color) -> void:
 	## Circle outline of thickness th centered at (cx, cy).
