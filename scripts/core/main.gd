@@ -283,6 +283,7 @@ var _block_button: Button = null
 var _attack_button: Button = null
 var _flash_button: Button = null        # bolt + pool count display (60% of the row)
 var _flash_move_button: Button = null   # boots: toggle spending flash on movement
+var _flash_move_sparkle: SparkleBorder = null  # gold cycling border while the toggle is on
 var _flash_block_button: Button = null  # duck: 3 flash → 2 block
 var _flash_proc_button: Button = null   # daggers: 5 flash → 1 attack-speed tick
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
@@ -412,11 +413,11 @@ func _ready() -> void:
 	skill_tree_ui.connect_sphere_grid(sphere_grid_ui)
 	skill_tree_ui.sphere_inventory = sphere_inventory
 	skill_tree_ui.option_chosen.connect(progression_triggers._on_skill_tree_option_chosen)
-	skill_tree_ui.auto_grant_claimed.connect(progression_triggers._on_skill_tree_auto_grant_claimed)
+	skill_tree_ui.stats_allocated.connect(progression_triggers._on_skill_tree_stats_allocated)
 	skill_tree_ui.retrospective_chosen.connect(progression_triggers._on_skill_tree_retrospective_chosen)
 	# Clear the EXP notification dot once a point is actually spent.
 	skill_tree_ui.option_chosen.connect(func(_l, _o): _refresh_hud_notifications())
-	skill_tree_ui.auto_grant_claimed.connect(func(_l): _refresh_hud_notifications())
+	skill_tree_ui.stats_allocated.connect(func(_a): _refresh_hud_notifications())
 	skill_tree_ui.retrospective_chosen.connect(func(_l, _o): _refresh_hud_notifications())
 
 	_setup_action_buttons()
@@ -798,6 +799,9 @@ func _setup_action_buttons() -> void:
 	_flash_move_button.size_flags_stretch_ratio = 4.0 / 3.0
 	_flash_move_button.toggled.connect(_on_flash_move_toggled)
 	flash_row.add_child(_flash_move_button)
+	# Sparkling gold border cycling the boots button while auto-spend is on.
+	_flash_move_sparkle = SparkleBorder.new()
+	_flash_move_button.add_child(_flash_move_sparkle)
 
 	_flash_block_button = Button.new()
 	_flash_block_button.name = "FlashBlockButton"
@@ -2712,6 +2716,8 @@ func _skill_tree_has_pending() -> bool:
 	var stats = player.get_stats()
 	if not stats:
 		return false
+	if stats.unspent_stat_points > 0:
+		return true
 	var tree = skill_tree_ui.skill_tree
 	var lvl: int = stats.current_level
 	for row in tree.get_rows_up_to_level(lvl):
@@ -2838,6 +2844,8 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
 	_update_flash_button()
+	# The skill tree screen spends the banked level-up stat points.
+	skill_tree_ui.player_stats = player.get_stats()
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
@@ -4339,6 +4347,8 @@ func _update_flash_button() -> void:
 	if _flash_move_button:
 		_flash_move_button.set_pressed_no_signal(stats.flash_movement_enabled)
 		_flash_move_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_MOVE else 0.45
+		if _flash_move_sparkle:
+			_flash_move_sparkle.active = stats.flash_movement_enabled
 		_flash_move_button.tooltip_text = "Flash movement: %s.\nWhile on, each tile moved spends %d flash point instead of tempo." % [
 			"ON" if stats.flash_movement_enabled else "off", PlayerStats.FLASH_COST_MOVE]
 	if _flash_block_button:

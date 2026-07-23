@@ -70,7 +70,7 @@ All characters share a base **5% critical hit chance**, which can be raised by p
 ## Resources: Health, Mana, Armor
 
 ### Health
-Your life total. Every character starts the story with **10 health**; max health grows through progression (sphere grid nodes, equipment). Reaching 0 means death (with story consequences — not a run reset). Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
+Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**; sphere grid nodes and equipment grow it further. Reaching 0 means death (with story consequences — not a run reset). Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
 
 Health also feeds back into your stats through **Determination** — dropping below 80/60/40/10% health shifts your effective stats up or down depending on your DET.
 
@@ -317,8 +317,8 @@ Character identity comes from the intersection of item specialty, path choices, 
 
 Your character grows along several permanent axes:
 
-- **Levels & XP** — combat grants experience; levels raise your baseline power.
-- **Stat allocation** — core stats are yours to distribute and shape around Determination's risk/reward curve.
+- **Levels & XP** — combat grants experience. Every level grants **+2 max health and +3 stat points**, banked until you spend them from the skill tree screen.
+- **Stat allocation** — 8 points at character creation, then 3 per level; core stats are yours to distribute and shape around Determination's risk/reward curve.
 - **Sphere grid** — a large unlock web of stat nodes, combat bonuses (crit, thorns, life steal, resistances…), passives, and new cards.
 - **Path abilities** — unlock and combine abilities from your character's four paths.
 - **Deck crafting** — buy cards from vendors, and use consumables to sculpt the deck:

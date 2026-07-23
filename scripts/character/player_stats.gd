@@ -213,9 +213,13 @@ func add_skill_tree_passive(passive_id: String) -> void:
 # ============================================
 # EXPERIENCE / LEVEL
 # ============================================
+const HP_PER_LEVEL: int = 2          # Max health gained automatically each level
+const STAT_POINTS_PER_LEVEL: int = 3 # Stat points banked each level
+
 var current_level: int = 1
 var current_xp: int = 0
 var total_xp: int = 0  # Lifetime XP earned
+var unspent_stat_points: int = 0  # Banked from level-ups; spent via the skill tree screen
 
 # ============================================
 # GOLD
@@ -312,6 +316,7 @@ func save_progression() -> Dictionary:
 		"current_level": current_level,
 		"current_xp": current_xp,
 		"total_xp": total_xp,
+		"unspent_stat_points": unspent_stat_points,
 		"gold": gold,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -355,6 +360,7 @@ func restore_progression(data: Dictionary) -> void:
 	current_level = data.get("current_level", current_level)
 	current_xp = data.get("current_xp", current_xp)
 	total_xp = data.get("total_xp", total_xp)
+	unspent_stat_points = data.get("unspent_stat_points", unspent_stat_points)
 	gold = data.get("gold", gold)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
@@ -1236,12 +1242,35 @@ func _level_up() -> void:
 	current_xp -= get_xp_to_next_level()
 	current_level += 1
 
+	# Every level: the health floor rises and stat points bank for allocation.
+	max_health += HP_PER_LEVEL
+	unspent_stat_points += STAT_POINTS_PER_LEVEL
+
 	# Full health and mana on level up
 	current_health = max_health
 	current_mana = max_mana
 	health_changed.emit(current_health, max_health)
 	mana_changed.emit(current_mana, max_mana)
 
-	print("[STATS] *** LEVEL UP! *** Now level %d! HP and Mana fully restored." % current_level)
+	print("[STATS] *** LEVEL UP! *** Now level %d! +%d max HP, +%d stat points (%d banked). HP and Mana fully restored." % [
+		current_level, HP_PER_LEVEL, STAT_POINTS_PER_LEVEL, unspent_stat_points])
 	leveled_up.emit(current_level)
 	xp_changed.emit(current_xp, get_xp_to_next_level())
+
+func apply_stat_allocation(allocations: Dictionary) -> bool:
+	## Spend banked level-up stat points. allocations: stat name -> points
+	## (e.g. {"strength": 2, "agility": 1}). Partial spends are fine — the
+	## remainder stays banked.
+	var total := 0
+	for stat_name in allocations:
+		total += maxi(0, int(allocations[stat_name]))
+	if total <= 0 or total > unspent_stat_points:
+		return false
+	for stat_name in allocations:
+		var amount := int(allocations[stat_name])
+		if amount > 0:
+			add_base_stat(stat_name, amount)
+	unspent_stat_points -= total
+	stats_updated.emit()
+	print("[STATS] Allocated %d stat points (%d still banked): %s" % [total, unspent_stat_points, str(allocations)])
+	return true

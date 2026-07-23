@@ -7,7 +7,7 @@ extends CanvasLayer
 signal closed
 signal option_chosen(level: int, option_index: int)
 signal retrospective_chosen(level: int, option_index: int)
-signal auto_grant_claimed(level: int)
+signal stats_allocated(allocations: Dictionary)  # stat name -> points spent from the banked pool
 
 @onready var panel: PanelContainer = $Panel
 @onready var close_button: Button = $CloseButton
@@ -18,6 +18,7 @@ signal auto_grant_claimed(level: int)
 var skill_tree: SkillTreeData = null
 var player_level: int = 1
 var character_name: String = ""
+var player_stats = null  # PlayerStats — source of the banked stat-point pool (set by main.gd)
 
 # Tab state
 enum Tab { SKILL_TREE, SPHERE_GRID }
@@ -33,11 +34,11 @@ var _hovered_row: int = -1
 var _hovered_col: int = -1
 var _row_panels: Dictionary = {}
 
-# Stat allocation state
+# Stat allocation state (spends the banked level-up pool on PlayerStats)
 var _stat_alloc_panel: PanelContainer = null
-var _stat_alloc_level: int = -1
 var _stat_points_remaining: int = 0
 var _stat_allocations: Dictionary = {}
+var _stat_alloc_btn: Button = null  # "Stat Points: N" in the tab bar
 
 # Style constants
 const COLOR_BG := Color(0.05, 0.05, 0.08, 0.95)
@@ -150,6 +151,14 @@ func _build_tab_bar() -> void:
 	_tab_btn_sphere_grid = _make_tab_button("Sphere Grid", false)
 	_tab_btn_sphere_grid.pressed.connect(_on_tab_sphere_grid)
 	_tab_bar.add_child(_tab_btn_sphere_grid)
+
+	# Banked level-up stat points (+3 per level) are spent from here.
+	_stat_alloc_btn = Button.new()
+	_stat_alloc_btn.text = "Stat Points: 0"
+	_stat_alloc_btn.add_theme_font_size_override("font_size", 14)
+	_stat_alloc_btn.add_theme_color_override("font_color", COLOR_AUTO_TEXT)
+	_stat_alloc_btn.pressed.connect(_open_stat_allocation)
+	_tab_bar.add_child(_stat_alloc_btn)
 
 	add_child(_tab_bar)
 
@@ -280,6 +289,7 @@ func _update_title() -> void:
 # ============================================
 
 func _rebuild_table() -> void:
+	_refresh_stat_alloc_button()
 	if not skill_tree:
 		return
 	if not is_instance_valid(table_container):
@@ -670,10 +680,6 @@ func _build_auto_grant_panel(row: SkillTreeData.SkillRow, is_locked: bool) -> Pa
 		status_label.add_theme_color_override("font_color", COLOR_DIM)
 	vbox.add_child(status_label)
 
-	if is_claimed and auto.grant_type == SkillTreeData.AutoGrantType.STAT_ALLOCATION:
-		panel_node.mouse_filter = Control.MOUSE_FILTER_STOP
-		panel_node.gui_input.connect(_on_auto_grant_input.bind(row.level))
-
 	panel_node.add_child(vbox)
 	return panel_node
 
@@ -782,24 +788,24 @@ func _confirm_retrospective(level: int, option_index: int) -> void:
 	retrospective_chosen.emit(level, option_index)
 	_rebuild_table()
 
-func _on_auto_grant_input(event: InputEvent, level: int) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_open_stat_allocation(level)
-
 # ============================================
-# STAT ALLOCATION POPUP
+# STAT ALLOCATION POPUP (banked level-up points)
 # ============================================
 
-func _open_stat_allocation(level: int) -> void:
+func _refresh_stat_alloc_button() -> void:
+	if not _stat_alloc_btn:
+		return
+	var pool: int = player_stats.unspent_stat_points if player_stats else 0
+	_stat_alloc_btn.text = "Stat Points: %d" % pool
+	_stat_alloc_btn.disabled = pool <= 0
+
+func _open_stat_allocation() -> void:
 	_close_stat_alloc_panel()
-	var row = skill_tree.get_row_for_level(level)
-	if not row or not row.auto_grant:
-		return
-	if row.auto_grant.grant_type != SkillTreeData.AutoGrantType.STAT_ALLOCATION:
+	var pool: int = player_stats.unspent_stat_points if player_stats else 0
+	if pool <= 0:
 		return
 
-	_stat_alloc_level = level
-	_stat_points_remaining = row.auto_grant.stat_points
+	_stat_points_remaining = pool
 	_stat_allocations = {
 		"strength": 0, "dexterity": 0, "intelligence": 0,
 		"wisdom": 0, "agility": 0, "determination": 0
@@ -933,19 +939,21 @@ func _refresh_stat_alloc_display() -> void:
 							val_label.text = str(_stat_allocations[stat_name])
 
 func _on_stat_alloc_confirm() -> void:
-	if _stat_points_remaining > 0:
-		print("[SKILL TREE] Still have %d stat points to allocate!" % _stat_points_remaining)
-		return
-
-	print("[SKILL TREE] Stat allocation confirmed for level %d: %s" % [_stat_alloc_level, str(_stat_allocations)])
-	auto_grant_claimed.emit(_stat_alloc_level)
+	## Partial spends are fine — whatever isn't allocated stays banked.
+	var spent := 0
+	for stat_name in _stat_allocations:
+		spent += _stat_allocations[stat_name]
 	_close_stat_alloc_panel()
+	if spent <= 0:
+		return
+	print("[SKILL TREE] Stat allocation confirmed: %s" % str(_stat_allocations))
+	stats_allocated.emit(_stat_allocations.duplicate())
+	_refresh_stat_alloc_button()
 
 func _close_stat_alloc_panel() -> void:
 	if is_instance_valid(_stat_alloc_panel):
 		_stat_alloc_panel.queue_free()
 	_stat_alloc_panel = null
-	_stat_alloc_level = -1
 
 # ============================================
 # OPTION CONFIRM DIALOG
