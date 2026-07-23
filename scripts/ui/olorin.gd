@@ -201,12 +201,22 @@ func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_
 	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 
+	# Header row: the T&O tutorial sigil beside the speaker name.
+	var speaker_row = HBoxContainer.new()
+	speaker_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	speaker_row.add_theme_constant_override("separation", 10)
+	var sigil = TextureRect.new()
+	sigil.texture = UIGlyphs.get_glyph("to_sigil")
+	sigil.custom_minimum_size = Vector2(30, 30)
+	sigil.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	sigil.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	speaker_row.add_child(sigil)
 	var speaker = Label.new()
 	speaker.text = "Olorin, the Wandering Mentor"
 	speaker.add_theme_font_size_override("font_size", 20)
 	speaker.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-	speaker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(speaker)
+	speaker_row.add_child(speaker)
+	vbox.add_child(speaker_row)
 
 	if title != "":
 		var subtitle = Label.new()

@@ -18,6 +18,10 @@ config/name="Card ARPG Demo"
 run/main_scene="res://scenes/menus/title_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
+[autoload]
+
+UiTheme="*res://scripts/ui/ui_theme.gd"
+
 [display]
 
 window/size/viewport_width=1280
