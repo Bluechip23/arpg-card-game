@@ -145,6 +145,9 @@ var sphere_bonus_regen: int = 0       # Health regenerated per tempo cycle
 var sphere_bonus_armor_per_cycle: int = 0  # Armor gained per tempo cycle
 var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2.0 = 2%)
 var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
+# Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
+var damage_proc_reduction_chance: float = 0.0
+var damage_proc_reduction_percent: float = 50.0
 # Per-damage-type resistance, keyed by DamageTypes.Type → percent reduction (0..100).
 # Empty by default; nothing populates it yet, but the take_damage pipeline reads it.
 var damage_resistances: Dictionary = {}
@@ -789,9 +792,25 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	if type_resist > 0.0:
 		remaining = floori(remaining * (1.0 - min(type_resist, 100.0) / 100.0))
 
+	# Sphere grid flat resistance ("Resist +X%"): percent reduction on all damage.
+	if sphere_bonus_resistance > 0.0:
+		remaining = floori(remaining * (1.0 - minf(sphere_bonus_resistance, 90.0) / 100.0))
+
+	# Iron Bastion: chance to shrug off part of the hit.
+	if damage_proc_reduction_chance > 0.0 and remaining > 0 and randf() < damage_proc_reduction_chance:
+		remaining = floori(remaining * (1.0 - damage_proc_reduction_percent / 100.0))
+		print("[STATS] Iron Bastion! Incoming damage reduced %d%%" % int(damage_proc_reduction_percent))
+
 	# Apply Vulnerable modifier from debuffs
 	if debuff_mgr:
 		remaining = debuff_mgr.modify_incoming_damage(remaining)
+
+	# Linked: share a portion of the damage with the linked ally (co-op).
+	if debuff_mgr and debuff_mgr.linked_ally != null and is_instance_valid(debuff_mgr.linked_ally) and remaining > 0:
+		var linked_share = debuff_mgr.calculate_linked_damage(remaining)
+		if linked_share > 0 and debuff_mgr.linked_ally.has_method("get_stats") and debuff_mgr.linked_ally.get_stats():
+			debuff_mgr.linked_ally.get_stats().take_direct_damage(linked_share)
+			print("[STATS] Linked shares %d damage with the ally" % linked_share)
 
 	# Apply Brace and Resilient from buffs (Resilient may be type-gated, e.g. Harden)
 	if buff_mgr:
