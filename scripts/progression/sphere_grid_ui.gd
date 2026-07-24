@@ -68,6 +68,7 @@ const COLOR_MANA := Color(0.4, 0.7, 1.0, 1.0)
 const COLOR_CULLING := Color(1.0, 0.35, 0.65, 1.0)  # Crimson/hot-pink - distinct from purple passives
 const COLOR_RETROSPECTIVE := Color(0.4, 1.0, 0.95, 1.0)  # Teal/cyan - retrospective nodes
 const COLOR_FEATHER := Color(0.95, 0.85, 0.45, 1.0)  # Warm gold - feather nodes for card removal
+const COLOR_FREE_STAT := Color(0.75, 0.55, 1.0, 1.0)  # Bright violet - freely-allocatable stat points
 const COLOR_LINE := Color(0.65, 0.65, 0.8, 1.0)
 const COLOR_LINE_UNLOCKED := Color(0.5, 1.0, 0.6, 1.0)
 const COLOR_BG := Color(0.08, 0.08, 0.13, 0.97)
@@ -252,6 +253,8 @@ func _get_type_color(node: SphereGrid.GridNode) -> Color:
 			return Color(1.0, 0.8, 0.3)     # gold — build-defining
 		SphereGrid.NodeType.STAT_BONUS:
 			return COLOR_STAT
+		SphereGrid.NodeType.FREE_STAT:
+			return COLOR_FREE_STAT
 		SphereGrid.NodeType.PASSIVE:
 			return COLOR_PASSIVE
 		SphereGrid.NodeType.COMBAT_BONUS:
@@ -272,6 +275,8 @@ func _get_node_shape(node: SphereGrid.GridNode) -> String:
 	match node.node_type:
 		SphereGrid.NodeType.PASSIVE:
 			return "diamond"
+		SphereGrid.NodeType.FREE_STAT:
+			return "star"
 		SphereGrid.NodeType.COMBAT_BONUS:
 			return "square"
 		SphereGrid.NodeType.CULLING_STONE:
@@ -437,6 +442,7 @@ func _draw_legend() -> void:
 		[COLOR_CULLING, "hexagon", "Culling Stone"],
 		[COLOR_FEATHER, "hexagon", "Feather"],
 		[COLOR_RETROSPECTIVE, "star", "Retrospective"],
+		[COLOR_FREE_STAT, "star", "Free Stats"],
 		[COLOR_UNLOCKED, "circle", "Unlocked"],
 		[COLOR_UNLOCKABLE, "circle", "Available"],
 		[COLOR_LOCKED, "circle", "Locked"],
@@ -979,6 +985,9 @@ func _open_detail_popup(node_id: int) -> void:
 			_build_passive_popup_content(vbox, node)
 		SphereGrid.NodeType.STAT_BONUS, SphereGrid.NodeType.HEALTH, SphereGrid.NodeType.MANA, SphereGrid.NodeType.COMBAT_BONUS:
 			_build_stat_popup_content(vbox, node)
+		SphereGrid.NodeType.FREE_STAT:
+			_add_popup_label(vbox, node.description, 15, COLOR_FREE_STAT)
+			_add_popup_label(vbox, "Points bank to your pool — spend them on any stats from the character/stat screen, just like leveling up.", 11, COLOR_DIM_TEXT)
 		SphereGrid.NodeType.CULLING_STONE:
 			_add_popup_label(vbox, "Grants 1 Culling Stone", 14, COLOR_CULLING)
 			_add_popup_label(vbox, "Use at the Card Dealer to remove a card from your deck.", 12, COLOR_DIM_TEXT)
@@ -1287,6 +1296,7 @@ func _set_info(text: String) -> void:
 func _get_type_name(t: SphereGrid.NodeType) -> String:
 	match t:
 		SphereGrid.NodeType.STAT_BONUS: return "Stat Bonus"
+		SphereGrid.NodeType.FREE_STAT: return "Free Stats"
 		SphereGrid.NodeType.PASSIVE: return "Passive"
 		SphereGrid.NodeType.COMBAT_BONUS: return "Combat Bonus"
 		SphereGrid.NodeType.HEALTH: return "Health"

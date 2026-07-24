@@ -1504,3 +1504,13 @@ func apply_stat_allocation(allocations: Dictionary) -> bool:
 	stats_updated.emit()
 	print("[STATS] Allocated %d stat points (%d still banked): %s" % [total, unspent_stat_points, str(allocations)])
 	return true
+
+func grant_stat_points(amount: int) -> void:
+	## Banks freely-allocatable stat points into the same pool that level-ups feed.
+	## Used by sphere-grid FREE_STAT nodes — the player spends them on the stat
+	## screen just like level-up points.
+	if amount <= 0:
+		return
+	unspent_stat_points += amount
+	stats_updated.emit()
+	print("[STATS] Granted %d free stat point(s) (%d banked)." % [amount, unspent_stat_points])

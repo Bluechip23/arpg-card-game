@@ -266,6 +266,7 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 
 [color=yellow]Node Types:[/color]
 - [color=red]Stat[/color] - Grants flat stat bonuses (STR, DEX, INT, WIS, AGI, DET)
+- [color=purple]+4 Stats[/color] - Banks 4 stat points to your pool; spend them on any stats from the stat screen, just like leveling up
 - [color=green]Passive[/color] - Grants a triggered passive ability (e.g., "On kill: heal 1 HP")
 - [color=coral]Health[/color] - Increases max health
 - [color=cyan]Mana[/color] - Increases max mana

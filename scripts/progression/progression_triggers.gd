@@ -101,6 +101,18 @@ func _apply_sphere_grid_node(node) -> void:
 				stats.apply_sphere_grid_mana(amount)
 				main.add_battle_log("Sphere Grid: Max Mana +%d" % amount, Color(0.2, 0.5, 1.0))
 
+		SphereGrid.NodeType.FREE_STAT:
+			# Banks freely-allocatable stat points, exactly like a level-up. The
+			# player spends them on the stat screen. Amount is read from the label
+			# ("+4 Stats"), defaulting to 4.
+			var amount = _parse_numeric_value(node.label)
+			if amount <= 0:
+				amount = 4
+			stats.grant_stat_points(amount)
+			main.add_battle_log("Sphere Grid: +%d stat points to allocate" % amount, Color(0.75, 0.6, 1.0))
+			if main.has_method("_refresh_hud_notifications"):
+				main._refresh_hud_notifications()
+
 		SphereGrid.NodeType.COMBAT_BONUS:
 			stats.apply_sphere_grid_combat_bonus(node.label, node.description)
 			main.add_battle_log("Sphere Grid: %s" % node.label, Color(0.9, 0.7, 0.2))
