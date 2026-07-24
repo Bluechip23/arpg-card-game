@@ -380,6 +380,27 @@ func save_progression() -> Dictionary:
 		"sphere_bonus_heal_power": sphere_bonus_heal_power,
 		"sphere_bonus_crit": sphere_bonus_crit,
 		"sphere_bonus_armor": sphere_bonus_armor,
+		# Sphere combat bonuses that feed non-base fields. These are baked into
+		# their own scalars (never re-derived from the grid after load), so they
+		# MUST round-trip or they silently reset to 0 on every save / world
+		# transition — the "my stats got reset" bug.
+		"sphere_bonus_determination": sphere_bonus_determination,
+		"sphere_bonus_regen": sphere_bonus_regen,
+		"sphere_bonus_armor_per_cycle": sphere_bonus_armor_per_cycle,
+		"sphere_bonus_life_steal": sphere_bonus_life_steal,
+		"sphere_bonus_resistance": sphere_bonus_resistance,
+		"sphere_bonus_range": sphere_bonus_range,
+		"damage_proc_reduction_chance": damage_proc_reduction_chance,
+		"damage_proc_reduction_percent": damage_proc_reduction_percent,
+		"damage_resistances": damage_resistances.duplicate(true),
+		# Equipment-derived bonuses stored OUTSIDE base stats. Equipment is
+		# re-installed on load by direct array assignment (no _apply_item_bonuses
+		# re-run), so these too must round-trip or an equipped item's hand-size /
+		# ranged / healing / chance bonus vanishes after a transition.
+		"equipment_hand_bonus": equipment_hand_bonus,
+		"ranged_damage_bonus": ranged_damage_bonus,
+		"healing_bonus": healing_bonus,
+		"chance_boost": chance_boost,
 		# Skill tree passives
 		"skill_tree_passives": skill_tree_passives.duplicate(),
 	}
@@ -429,6 +450,21 @@ func restore_progression(data: Dictionary) -> void:
 	sphere_bonus_heal_power = data.get("sphere_bonus_heal_power", sphere_bonus_heal_power)
 	sphere_bonus_crit = data.get("sphere_bonus_crit", sphere_bonus_crit)
 	sphere_bonus_armor = data.get("sphere_bonus_armor", sphere_bonus_armor)
+	# Sphere combat bonuses that feed non-base fields (see save_progression).
+	sphere_bonus_determination = data.get("sphere_bonus_determination", sphere_bonus_determination)
+	sphere_bonus_regen = data.get("sphere_bonus_regen", sphere_bonus_regen)
+	sphere_bonus_armor_per_cycle = data.get("sphere_bonus_armor_per_cycle", sphere_bonus_armor_per_cycle)
+	sphere_bonus_life_steal = data.get("sphere_bonus_life_steal", sphere_bonus_life_steal)
+	sphere_bonus_resistance = data.get("sphere_bonus_resistance", sphere_bonus_resistance)
+	sphere_bonus_range = data.get("sphere_bonus_range", sphere_bonus_range)
+	damage_proc_reduction_chance = data.get("damage_proc_reduction_chance", damage_proc_reduction_chance)
+	damage_proc_reduction_percent = data.get("damage_proc_reduction_percent", damage_proc_reduction_percent)
+	damage_resistances = data.get("damage_resistances", damage_resistances)
+	# Equipment-derived bonuses stored outside base stats (see save_progression).
+	equipment_hand_bonus = data.get("equipment_hand_bonus", equipment_hand_bonus)
+	ranged_damage_bonus = data.get("ranged_damage_bonus", ranged_damage_bonus)
+	healing_bonus = data.get("healing_bonus", healing_bonus)
+	chance_boost = data.get("chance_boost", chance_boost)
 	# Skill tree passives
 	skill_tree_passives = data.get("skill_tree_passives", skill_tree_passives)
 	# Recalculate derived stats with restored values
