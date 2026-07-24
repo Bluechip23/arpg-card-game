@@ -319,7 +319,7 @@ Your character grows along several permanent axes:
 - **Levels & XP** — combat grants experience. Every level grants **+2 max health and +3 stat points**, banked until you spend them from the skill tree screen.
 - **Stat allocation** — 8 points at character creation, then 3 per level; core stats are yours to distribute and shape around Determination's risk/reward curve.
 - **Sphere grid** — a 100-node unlock web spent with spheres earned on level-up. Beyond stat nodes, combat bonuses (crit, thorns, life steal, resistances…), and passives, it carries:
-  - **Keystones** (gold) — build-defining synergy nodes: e.g. *Bulwark Soul* (+2 max HP per Determination point, past and future), *Flash Reserves* (spend 4 Flash points to draw a card), *Deadeye Form* (ranged attacks scale with DEX instead of STR).
+  - **Keystones** (gold) — build-defining synergy nodes: e.g. *Bulwark Soul* (+2 max HP per Determination point, past and future), *Flash Reserves* (spend 4 Flash points to draw a card), *Deadeye Form* (ranged attacks scale with DEX instead of STR), *Unbroken Will* (low health can no longer drop a stat below half its base), *Wild Abandon* (Determination's stat swings are amplified 50%, up and down).
   - **Stat-gated nodes** — powerful effects locked behind a stat threshold (e.g. Crit +20% requires DEX 20).
   - **Null nodes** — small connectors that grant nothing; the toll paid on the road to something bigger.
   - **Constellations** — completing certain node patterns grants an extra named bonus.

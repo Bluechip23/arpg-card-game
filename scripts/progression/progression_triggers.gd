@@ -42,6 +42,14 @@ func _apply_sphere_grid_node(node) -> void:
 				"dex_ranged":
 					stats.keystone_dex_ranged = true
 					main.add_battle_log("Keystone: Deadeye Form — ranged damage scales with DEX", Color(1.0, 0.85, 0.4))
+				"det_floor":
+					stats.keystone_det_floor = true
+					stats.recalculate_derived_stats()
+					main.add_battle_log("Keystone: Unbroken Will — low health can't drop your stats below half", Color(1.0, 0.85, 0.4))
+				"det_amplify":
+					stats.keystone_det_amplify = true
+					stats.recalculate_derived_stats()
+					main.add_battle_log("Keystone: Wild Abandon — Determination's swings are amplified", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 

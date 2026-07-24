@@ -344,8 +344,8 @@ func _build_grid() -> void:
 		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
 		[NodeType.MANA, "Mana +15", "Max Mana +15"],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
-		[NodeType.COMBAT_BONUS, "Life Steal +4%", "Heal for 4% of damage dealt"],
-		[NodeType.PASSIVE, "Passive", "On heal: gain 2 mana"],
+		[NodeType.KEYSTONE, "Unbroken Will", "Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_floor"}],
+		[NodeType.KEYSTONE, "Wild Abandon", "Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_amplify"}],
 	]
 
 	_create_ring(100, 30, 540.0, center, ring6_types, 6)

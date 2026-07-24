@@ -155,8 +155,17 @@ var damage_proc_reduction_percent: float = 50.0
 var keystone_det_vitality: bool = false  # Bulwark Soul: +2 max HP per DET point, retroactive + ongoing
 var keystone_flash_draw: bool = false    # Flash Reserves: spend flash points to draw cards
 var keystone_dex_ranged: bool = false    # Deadeye Form: ranged damage scales with DEX instead of STR
+# Unbroken Will: Determination's penalty can never push the stat multiplier
+# below DET_FLOOR_MODIFIER (instead of the default 0.1) — half your stats is
+# the worst low-health can do.
+var keystone_det_floor: bool = false
+# Wild Abandon: Determination's per-point effect is amplified in BOTH
+# directions — a bigger low-health bonus for high DET, a bigger penalty for low.
+var keystone_det_amplify: bool = false
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
+const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing
+const DET_FLOOR_MODIFIER: float = 0.5    # Unbroken Will: raised lower clamp (default 0.1)
 
 func refresh_det_vitality() -> void:
 	## Re-sync Bulwark Soul's HP grant with the CURRENT determination — points
@@ -349,6 +358,8 @@ func save_progression() -> Dictionary:
 		"keystone_det_vitality": keystone_det_vitality,
 		"keystone_flash_draw": keystone_flash_draw,
 		"keystone_dex_ranged": keystone_dex_ranged,
+		"keystone_det_floor": keystone_det_floor,
+		"keystone_det_amplify": keystone_det_amplify,
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -419,6 +430,8 @@ func restore_progression(data: Dictionary) -> void:
 	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)
 	keystone_flash_draw = data.get("keystone_flash_draw", keystone_flash_draw)
 	keystone_dex_ranged = data.get("keystone_dex_ranged", keystone_dex_ranged)
+	keystone_det_floor = data.get("keystone_det_floor", keystone_det_floor)
+	keystone_det_amplify = data.get("keystone_det_amplify", keystone_det_amplify)
 	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
@@ -543,9 +556,16 @@ func get_determination_modifier() -> float:
 	
 	# Calculate total modifier
 	var total_modifier = det_diff * effect_per_point
-	
-	# Return as multiplier (minimum 0.1 to prevent stats going to 0)
-	return max(0.1, 1.0 + total_modifier)
+
+	# Wild Abandon: amplify the whole swing (buff and penalty alike).
+	if keystone_det_amplify:
+		total_modifier *= DET_AMPLIFY_FACTOR
+
+	# Return as multiplier. The lower clamp normally bottoms out at 0.1; Unbroken
+	# Will raises it to DET_FLOOR_MODIFIER so a penalty can't halve stats past 50%.
+	# Only the downside is clamped — a positive (buff) modifier is left uncapped.
+	var floor_clamp = DET_FLOOR_MODIFIER if keystone_det_floor else 0.1
+	return max(floor_clamp, 1.0 + total_modifier)
 
 func get_determination_description() -> String:
 	var health_pct = get_health_percent()
