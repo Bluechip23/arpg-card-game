@@ -15,7 +15,8 @@ enum NodeType {
 	COMBAT_BONUS,  # Neutral combat stat boost (Block, Thorns, Damage, Heal Power, Crit, Armor, etc.)
 	FEATHER,       # Grants a feather to remove a card from deck (alternative to culling stone)
 	NULL_NODE,     # Pure connective tissue: no effect, smaller, a sunk cost on the path
-	KEYSTONE       # Build-defining synergy node (keystone_id selects the mechanic)
+	KEYSTONE,      # Build-defining synergy node (keystone_id selects the mechanic)
+	FREE_STAT      # Banks unspent stat points the player allocates freely (like a level-up)
 }
 
 class GridNode:
@@ -161,19 +162,25 @@ func _build_grid() -> void:
 		_connect_nodes(1 + i, 1 + ((i + 1) % 6))
 
 	# === Ring 2: 12 nodes at radius 170 (pushed out from 140) ===
+	# Each Ring 1 stat branches into two Ring 2 nodes: the SAME stat again, then a
+	# vitality node that reinforces that stat's playstyle — HP for the martial
+	# stats (STR, DEX, DET) and Mana for the caster stats (WIS, INT, AGI).
+	# Node order matches the Ring 1 -> Ring 2 connection mapping below
+	# (ring1 node 1+i connects to ring2 nodes 7+i*2 and 7+i*2+1):
+	#   STR -> 7,8 | DEX -> 9,10 | INT -> 11,12 | WIS -> 13,14 | AGI -> 15,16 | DET -> 17,18
 	var ring2_types = [
-		[NodeType.HEALTH, "HP +10", "Max Health +10"],
-		[NodeType.PASSIVE, "Passive", "On kill: heal 1 HP"],
-		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],
-		[NodeType.PASSIVE, "Passive", "On card play: 5% draw extra"],
-		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
-		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
-		[NodeType.PASSIVE, "Passive", "On move: gain 1 armor"],
-		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],
-		[NodeType.PASSIVE, "Passive", "On cycle: regen 1 mana"],
-		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
+		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],   # STR branch
+		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # STR branch -> HP
+		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],  # DEX branch
+		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DEX branch -> HP
+		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"], # INT branch
+		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # INT branch -> Mana
+		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],     # WIS branch
+		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # WIS branch -> Mana
+		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],    # AGI branch
+		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # AGI branch -> Mana
+		[NodeType.STAT_BONUS, "DET +3", "Determination +3"], # DET branch
+		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DET branch -> HP
 	]
 	_create_ring(7, 12, 170.0, center, ring2_types, 2)
 
@@ -185,37 +192,47 @@ func _build_grid() -> void:
 	for i in range(12):
 		_connect_nodes(7 + i, 7 + ((i + 1) % 12))
 
-	# === Ring 3: 18 nodes at radius 210 ===
+	# === Ring 3: 12 nodes at radius 260 — each stat arm continues outward ===
+	# Every Ring 2 arm (stat node + HP/Mana node) fans into two Ring 3 nodes that
+	# sit directly outside their Ring 2 parents (same 12 angular slots as Ring 2):
+	#   * outside each STAT node -> a FREE_STAT "+4 Stats" node (points banked to
+	#     the player's pool, allocated freely on the stat screen)
+	#   * outside each HP/Mana node -> a bigger vitality node (HP +12 / Mana +7)
+	# The stat node also links across to its arm's vitality node, and the vitality
+	# type always matches the stat (HP for STR/DEX/DET, Mana for INT/WIS/AGI), so a
+	# DET arm reads DET -> {+4 Stats, HP} exactly as requested.
+	# Order mirrors Ring 2 (ids 7..18): STR-stat, STR-hp, DEX-stat, DEX-hp,
+	# INT-stat, INT-mana, WIS-stat, WIS-mana, AGI-stat, AGI-mana, DET-stat, DET-hp.
 	var ring3_types = [
-		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
-		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
-		[NodeType.PASSIVE, "Passive", "On attack: 10% apply bleed"],
-		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
-		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
-		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
-		[NodeType.COMBAT_BONUS, "Damage +2", "All attacks deal +2 bonus damage"],
-		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
-		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
-		[NodeType.COMBAT_BONUS, "Heal +2", "Heal cards restore +2 additional HP"],
-		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
-		[NodeType.PASSIVE, "Passive", "On heal: 15% cleanse debuff"],
-		[NodeType.COMBAT_BONUS, "Crit +3%", "Critical hit chance +3%"],
-		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],
-		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
-		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%"],
-		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
-		[NodeType.PASSIVE, "Passive", "On block: reflect 2 damage"],
+		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 7  (STR)
+		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 8  (STR HP)
+		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 9  (DEX)
+		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 10 (DEX HP)
+		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 11 (INT)
+		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 12 (INT Mana)
+		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 13 (WIS)
+		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 14 (WIS Mana)
+		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 15 (AGI)
+		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 16 (AGI Mana)
+		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 17 (DET)
+		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 18 (DET HP)
 	]
-	_create_ring(19, 18, 260.0, center, ring3_types, 3)
+	_create_ring(19, 12, 260.0, center, ring3_types, 3)
 
-	# Connect ring 3 to ring 2
-	for i in range(12):
-		_connect_nodes(7 + i, 19 + int(i * 1.5))
-		_connect_nodes(7 + i, 19 + int(i * 1.5) + 1)
-	# Remove duplicate connections that _connect_nodes handles gracefully
-	# Connect ring 3 adjacent
-	for i in range(18):
-		_connect_nodes(19 + i, 19 + ((i + 1) % 18))
+	# Wire each arm's diamond. Ring 2 stat nodes sit at even offsets (ids 7,9,..17),
+	# their HP/Mana partner at the following odd offset. The matching Ring 3 nodes
+	# share the same offset (ids 19..30):
+	#   stat -> its FREE_STAT node   (radially outward)
+	#   stat -> its vitality node    (the "similar" option — HP or Mana)
+	#   vitality(ring2) -> vitality(ring3)
+	for j in range(0, 12, 2):
+		var stat_r2 := 7 + j
+		var vital_r2 := 7 + j + 1
+		var free_r3 := 19 + j
+		var vital_r3 := 19 + j + 1
+		_connect_nodes(stat_r2, free_r3)
+		_connect_nodes(stat_r2, vital_r3)
+		_connect_nodes(vital_r2, vital_r3)
 
 	# === Ring 4: 24 nodes at radius 280 ===
 	var ring4_types = [
@@ -246,11 +263,11 @@ func _build_grid() -> void:
 	]
 	_create_ring(37, 24, 350.0, center, ring4_types, 4)
 
-	# Connect ring 4 to ring 3
-	for i in range(18):
-		var r4_base = int(i * 1.333)
-		_connect_nodes(19 + i, 37 + (r4_base % 24))
-		_connect_nodes(19 + i, 37 + ((r4_base + 1) % 24))
+	# Connect ring 4 to ring 3. Ring 3 now has 12 nodes (radial arms), Ring 4 has
+	# 24, so each Ring 3 node feeds the two Ring 4 nodes nearest it by angle. This
+	# keeps every Ring 4 node (and the keystones beyond) reachable from an arm.
+	for i in range(24):
+		_connect_nodes(37 + i, 19 + (int(i / 2) % 12))
 	# Connect ring 4 adjacent
 	for i in range(24):
 		_connect_nodes(37 + i, 37 + ((i + 1) % 24))
@@ -346,18 +363,56 @@ func _build_grid() -> void:
 		[NodeType.KEYSTONE, "Killing Rhythm", "Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_flat_damage"}],
 		[NodeType.KEYSTONE, "Unbroken Will", "Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_floor"}],
 		[NodeType.KEYSTONE, "Wild Abandon", "Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_amplify"}],
+		# --- Conversion keystones (ids 130-132). Ungated for now; final placement
+		# and any stat gates come with the null-node / layout pass. ---
+		[NodeType.KEYSTONE, "Sanguine Barrier", "Keystone: life steal no longer heals — stolen life becomes temporary HP instead.", {"keystone": "lifesteal_temp_hp"}],
+		[NodeType.KEYSTONE, "Living Bulwark", "Keystone: armor you would gain becomes temporary HP instead.", {"keystone": "armor_temp_hp"}],
+		[NodeType.KEYSTONE, "Arcane Blood", "Keystone: damage is split evenly between health and mana. If mana runs dry, health takes the rest — and death still comes only at 0 HP.", {"keystone": "mana_blood"}],
 	]
 
-	_create_ring(100, 30, 540.0, center, ring6_types, 6)
+	_create_ring(100, 33, 540.0, center, ring6_types, 6)
 
 	# Connect ring 6 to ring 5
 	for i in range(39):
-		var r6_base = int(i * 0.769)  # 30/39 ≈ 0.769
-		_connect_nodes(61 + i, 100 + (r6_base % 30))
-		_connect_nodes(61 + i, 100 + ((r6_base + 1) % 30))
+		var r6_base = int(i * 0.846)  # 33/39 ≈ 0.846
+		_connect_nodes(61 + i, 100 + (r6_base % 33))
+		_connect_nodes(61 + i, 100 + ((r6_base + 1) % 33))
 	# Connect ring 6 adjacent
-	for i in range(30):
-		_connect_nodes(100 + i, 100 + ((i + 1) % 30))
+	for i in range(33):
+		_connect_nodes(100 + i, 100 + ((i + 1) % 33))
+
+## SHELVED CONTENT — the original Ring 3 (combat bonuses, on-hit/on-heal/on-block
+## passives, a Culling Stone, a Retrospective) that the FREE_STAT / vitality arm
+## layer replaced. Kept here (not wired into the grid) so it can be resurfaced
+## later — e.g. folded into an outer ring or a future sector. The paired dicts are
+## the upgrade / transmute paths the passive nodes used to carry.
+func _shelved_ring3_nodes() -> Array:
+	return [
+		{ "type": NodeType.COMBAT_BONUS, "label": "Block +1", "desc": "Block cards grant +1 additional block" },
+		{ "type": NodeType.STAT_BONUS, "label": "STR +3", "desc": "Strength +3" },
+		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On attack: 10% apply bleed",
+			"upgrade": [{"label": "On attack: 20% apply bleed", "description": "Major bleed chance"}],
+			"transmute": [{"label": "On attack: 10% apply poison", "description": "Poison instead of bleed"}] },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Thorns +1", "desc": "Deal 1 damage to attackers when hit" },
+		{ "type": NodeType.STAT_BONUS, "label": "DEX +3", "desc": "Dexterity +3" },
+		{ "type": NodeType.CULLING_STONE, "label": "Cull Stone", "desc": "Grants 1 Culling Stone" },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Damage +2", "desc": "All attacks deal +2 bonus damage" },
+		{ "type": NodeType.STAT_BONUS, "label": "INT +3", "desc": "Intelligence +3" },
+		{ "type": NodeType.RETROSPECTIVE, "label": "Retrospect", "desc": "Reclaim a skipped skill tree reward" },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Heal +2", "desc": "Heal cards restore +2 additional HP" },
+		{ "type": NodeType.STAT_BONUS, "label": "WIS +3", "desc": "Wisdom +3" },
+		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On heal: 15% cleanse debuff",
+			"upgrade": [{"label": "On heal: 30% cleanse debuff", "description": "Major cleanse chance"}],
+			"transmute": [{"label": "On heal: always cleanse weakest debuff", "description": "Guaranteed cleanse on heal"}] },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +3%", "desc": "Critical hit chance +3%" },
+		{ "type": NodeType.STAT_BONUS, "label": "AGI +3", "desc": "Agility +3" },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Regen +1", "desc": "Regenerate 1 HP per tempo cycle" },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +1%", "desc": "Critical hit chance +1%" },
+		{ "type": NodeType.STAT_BONUS, "label": "DET +3", "desc": "Determination +3" },
+		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On block: reflect 2 damage",
+			"upgrade": [{"label": "On block: reflect 5 damage", "description": "Major reflect"}],
+			"transmute": [{"label": "On block: 30% stun attacker", "description": "Chance to stun on block"}] },
+	]
 
 func _create_ring(start_id: int, count: int, radius: float, center: Vector2, type_data: Array, ring: int) -> void:
 	for i in range(count):
@@ -395,37 +450,13 @@ func _assign_node_details() -> void:
 	## Called after the grid is fully built.
 
 	# --- Passive node upgrade/transmute paths ---
-	# Ring 2 passives
-	_assign_passive(8,
-		[{"label": "On kill: heal 3 HP", "description": "Major healing on kill"}],
-		[{"label": "On kill: gain 2 mana", "description": "Mana on kill instead of healing"}])
+	# Ring 2 has no passive nodes: each stat branch is now the stat itself plus a
+	# reinforcing HP/Mana node (see _build_grid), so there are no Ring 2 passives
+	# to assign here. Passive upgrade paths begin at Ring 3.
 
-	_assign_passive(11,
-		[{"label": "On card play: 12% draw extra", "description": "Major draw chance"}],
-		[{"label": "On card play: 5% reduce next cost by 1", "description": "Chance for cost reduction"}])
-
-	_assign_passive(14,
-		[{"label": "On move: gain 3 armor", "description": "Major armor per move"}],
-		[{"label": "On move: next card costs 1 less", "description": "Cost reduction on move"}])
-
-	_assign_passive(17,
-		[{"label": "On cycle: regen 3 mana", "description": "Major mana regen"}],
-		[{"label": "On cycle: regen 1 mana and draw a card", "description": "Mana regen with card draw"}])
-
-	# Ring 3 passives
-	_assign_passive(21,
-		[{"label": "On attack: 20% apply bleed", "description": "Major bleed chance"}],
-		[{"label": "On attack: 10% apply poison", "description": "Poison instead of bleed"}])
-
-	# Node 24 is now a Culling Stone — no passive to assign
-
-	_assign_passive(30,
-		[{"label": "On heal: 30% cleanse debuff", "description": "Major cleanse chance"}],
-		[{"label": "On heal: always cleanse weakest debuff", "description": "Guaranteed cleanse on heal"}])
-
-	_assign_passive(36,
-		[{"label": "On block: reflect 5 damage", "description": "Major reflect"}],
-		[{"label": "On block: 30% stun attacker", "description": "Chance to stun on block"}])
+	# Ring 3 has no passive nodes anymore — it is the FREE_STAT / vitality arm layer
+	# (see _build_grid). The old Ring 3 passives and their upgrade/transmute paths
+	# are preserved in _shelved_ring3_nodes() for later resurfacing.
 
 	# Ring 4 passives
 	_assign_passive(37,
@@ -533,7 +564,7 @@ func _build_constellations() -> void:
 	_constellation_map.clear()
 
 	# --- PAIR 1: STR Sector — Iron Will vs Blood Hunter ---
-	# Shared nodes: 1 (STR+1), 8 (On kill: heal)
+	# Shared nodes: 1 (STR+2), 8 (STR-branch HP)
 	# Iron Will goes toward HP/Life Steal; Blood Hunter toward Bleed/Wear Down
 	_add_constellation(Constellation.new(
 		"iron_will", "Iron Will",
@@ -551,7 +582,7 @@ func _build_constellations() -> void:
 	))
 
 	# --- PAIR 2: INT Sector — Arcane Current vs Mind Weaver ---
-	# Shared nodes: 3 (INT+1), 11 (On card play: draw)
+	# Shared nodes: 3 (INT+2), 11 (INT+3)
 	# Arcane Current goes toward raw spell power; Mind Weaver toward card economy
 	_add_constellation(Constellation.new(
 		"arcane_current", "Arcane Current",

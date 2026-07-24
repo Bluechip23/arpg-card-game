@@ -8964,7 +8964,7 @@ func _restore_player_progression(progression: Dictionary) -> void:
 	# Restore sphere inventory counts
 	if progression.has("sphere_inventory"):
 		var inv_data = progression["sphere_inventory"]
-		sphere_inventory.spheres = inv_data.get("spheres", sphere_inventory.spheres)
+		sphere_inventory.load_spheres(inv_data.get("spheres", {}))
 		sphere_inventory.retrospective_tokens = inv_data.get("retrospective_tokens", 0)
 
 	# Restore deck state (preserves hand, draw, discard piles exactly)
