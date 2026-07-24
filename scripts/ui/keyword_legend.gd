@@ -83,7 +83,6 @@ func _build_legend() -> void:
 	_add_keyword("Skip", "Overflow card is sent straight to the discard pile")
 	_add_keyword("Peak", "See the next card on draw pile (doesn't block other effects)")
 	_add_keyword("Overcharge", "Triggers an effect when overflow occurs (doesn't block other effects)")
-	_add_keyword("Quiver", "Card becomes an arrow token in the quiver zone. Click to fire it (Bottomless Quiver)")
 
 	# Range Section
 	_add_section_header("RANGE")

@@ -111,7 +111,7 @@ these three main-node systems are P1-only:
 - [x] FIXED — walkthrough now says the enhanced card is discarded. **Walkthrough: Enhance** — says the enhanced card "remains at the top of
   the deck" (gameplay_walkthrough.gd:156); it is discarded
   (overflow_manager.gd:216). Legend/README are correct.
-- [x] FIXED — added to the README overflow table, keyword legend, and walkthrough priority list. **Bottomless Quiver overflow mode** missing from all three player-facing
+- [x] RESOLVED BY DESIGN — Bottomless Quiver is a CARD, not an overflow mode, and is deliberately kept OFF the overflow-mode lists (owner ruling). Do not re-add it. **Bottomless Quiver overflow mode** missing from all three player-facing
   overflow lists (keyword_legend.gd:79-85, README.md:120-127,
   gameplay_walkthrough.gd:143-147) despite being fully implemented.
 - [ ] **Sphere constellation blurbs** still say "+1 movement per cycle"

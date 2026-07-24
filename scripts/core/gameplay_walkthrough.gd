@@ -142,7 +142,7 @@ When your hand is full and you try to draw, the overflow system activates.
 
 [color=yellow]Overflow Priority:[/color]
 1. [color=red]Jailed[/color] - Card goes to jail (highest priority)
-2. [color=purple]Manifest/Enhance/Quiver[/color] - Whichever was applied first
+2. [color=purple]Manifest/Enhance[/color] - Whichever was applied first
 3. [color=blue]Skip[/color] - Card goes to discard pile
 4. [color=green]Peak/Overcharge[/color] - Always trigger (don't block others)
 

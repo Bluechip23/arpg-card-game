@@ -125,7 +125,6 @@ If a draw would exceed your hand size, it **overflows**. **By default, nothing h
 | **Skip** | The card is sent straight to the discard pile. |
 | **Overcharge** | Triggers a special effect on each overflow. |
 | **Manifest** | The card becomes a token in the manifest zone — click to activate its manifest effect. |
-| **Quiver** | (Bottomless Quiver) The card becomes an arrow token in the quiver zone — click to fire it. |
 
 ---
 
