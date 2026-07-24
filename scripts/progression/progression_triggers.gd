@@ -56,6 +56,10 @@ func _apply_sphere_grid_node(node) -> void:
 				"dex_flat_damage":
 					stats.keystone_dex_flat_damage = true
 					main.add_battle_log("Keystone: Killing Rhythm — Dexterity procs become bonus attack damage", Color(1.0, 0.85, 0.4))
+				"flash_strike":
+					stats.keystone_flash_strike = true
+					main._update_flash_button()
+					main.add_battle_log("Keystone: Flash Cut — Sidestep now strikes instead of blocks", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 

@@ -334,7 +334,7 @@ func _build_grid() -> void:
 		[NodeType.PASSIVE, "Passive", "On block: heal 3 HP"],
 		[NodeType.COMBAT_BONUS, "Heal +6", "Heal cards restore +6 additional HP"],
 		[NodeType.STAT_BONUS, "AGI +7", "Agility +7"],
-		[NodeType.COMBAT_BONUS, "Range +2", "Ranged attacks gain +2 range"],
+		[NodeType.KEYSTONE, "Flash Cut", "Keystone: the Sidestep action becomes an attack — spend 3 Flash points to strike the nearest enemy for 1 damage instead of gaining block.", {"req": {"stat": "agility", "value": 15}, "keystone": "flash_strike"}],
 		[NodeType.PASSIVE, "Passive", "On move: gain 2 armor and 1 mana"],
 		[NodeType.STAT_BONUS, "DET +7", "Determination +7"],
 		[NodeType.COMBAT_BONUS, "Block +5", "Block cards grant +5 additional block"],

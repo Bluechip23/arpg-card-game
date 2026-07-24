@@ -4346,11 +4346,38 @@ func _on_flash_block_pressed() -> void:
 	var stats = player.get_stats() if player else null
 	if not stats:
 		return
+	# Flash Cut keystone: the Sidestep spend becomes an attack instead of armor.
+	if stats.keystone_flash_strike:
+		_flash_strike(stats)
+		return
 	if stats.spend_flash_for_block():
 		add_battle_log("Sidestep! -%d flash, +%d block." % [
 			PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR], Color(1.0, 0.9, 0.4))
 	else:
 		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
+
+func _flash_strike(stats) -> void:
+	## Flash Cut: spend Sidestep flash to strike the nearest enemy in reach.
+	var nearby = enemy_spawner.get_enemies_in_radius(player.position, 2.5)
+	if nearby.is_empty():
+		add_battle_log("Flash Cut: no enemy in reach!", Color(1.0, 0.6, 0.3))
+		return
+	var target = nearby[0]
+	var closest_dist = INF
+	for enemy in nearby:
+		var diff = player.position - enemy.position
+		var dist = Vector3(diff.x, 0, diff.z).length()
+		if dist < closest_dist:
+			closest_dist = dist
+			target = enemy
+	if not stats.spend_flash_for_strike():
+		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
+		return
+	if player.has_method("play_animation"):
+		player.play_animation("attack_slash", _facing_dir_toward(target))
+	target.take_damage(PlayerStats.FLASH_STRIKE_DAMAGE, true)
+	add_battle_log("Flash Cut! -%d flash, %d damage to %s." % [
+		PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_STRIKE_DAMAGE, target.enemy_name], Color(1.0, 0.9, 0.4))
 
 func _on_flash_draw_pressed() -> void:
 	var stats = player.get_stats() if player else null
@@ -4393,8 +4420,12 @@ func _update_flash_button() -> void:
 			"ON" if stats.flash_movement_enabled else "off", PlayerStats.FLASH_COST_MOVE]
 	if _flash_block_button:
 		_flash_block_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_BLOCK else 0.45
-		_flash_block_button.tooltip_text = "Sidestep: spend %d flash for %d block." % [
-			PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR]
+		if stats.keystone_flash_strike:
+			_flash_block_button.tooltip_text = "Flash Cut: spend %d flash to strike the nearest enemy for %d damage." % [
+				PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_STRIKE_DAMAGE]
+		else:
+			_flash_block_button.tooltip_text = "Sidestep: spend %d flash for %d block." % [
+				PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR]
 	if _flash_proc_button:
 		_flash_proc_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_PROC_TICK else 0.45
 		_flash_proc_button.tooltip_text = "Quick hands: spend %d flash to advance the attack-speed counter by 1 tick." % PlayerStats.FLASH_COST_PROC_TICK

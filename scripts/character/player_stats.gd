@@ -170,6 +170,9 @@ var keystone_dex_twin_strike: bool = false
 var keystone_dex_flat_damage: bool = false
 # Bonus damage armed by Killing Rhythm, spent by the next attack that resolves.
 var pending_dex_bonus_damage: int = 0
+# Flash Cut: the Sidestep action (3 flash → block) becomes an attack instead —
+# spend the same flash to strike the nearest enemy for FLASH_STRIKE_DAMAGE.
+var keystone_flash_strike: bool = false
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
 const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing
@@ -372,6 +375,7 @@ func save_progression() -> Dictionary:
 		"keystone_det_amplify": keystone_det_amplify,
 		"keystone_dex_twin_strike": keystone_dex_twin_strike,
 		"keystone_dex_flat_damage": keystone_dex_flat_damage,
+		"keystone_flash_strike": keystone_flash_strike,
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -446,6 +450,7 @@ func restore_progression(data: Dictionary) -> void:
 	keystone_det_amplify = data.get("keystone_det_amplify", keystone_det_amplify)
 	keystone_dex_twin_strike = data.get("keystone_dex_twin_strike", keystone_dex_twin_strike)
 	keystone_dex_flat_damage = data.get("keystone_dex_flat_damage", keystone_dex_flat_damage)
+	keystone_flash_strike = data.get("keystone_flash_strike", keystone_flash_strike)
 	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
@@ -647,6 +652,7 @@ const FLASH_REFRESH_CYCLES: int = 2
 const FLASH_COST_MOVE: int = 1
 const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
 const FLASH_BLOCK_ARMOR: int = 2
+const FLASH_STRIKE_DAMAGE: int = 1   # Flash Cut keystone: damage per Sidestep spend (placeholder)
 const FLASH_COST_PROC_TICK: int = 5  # advance the attack-speed counter 1 tick
 const FLASH_COST_DRAW: int = 4       # Flash Reserves keystone: draw a card
 
@@ -683,6 +689,11 @@ func spend_flash_for_block() -> bool:
 	print("[STATS] Flash block: -%d flash → +%d armor (%d armor total)" % [
 		FLASH_COST_BLOCK, FLASH_BLOCK_ARMOR, current_armor])
 	return true
+
+func spend_flash_for_strike() -> bool:
+	## Flash Cut: spend the same flash the Sidestep would, but the caller turns it
+	## into an attack (FLASH_STRIKE_DAMAGE to the nearest enemy) instead of armor.
+	return spend_flash_points(FLASH_COST_BLOCK)
 
 func spend_flash_for_proc_tick() -> bool:
 	## Buy one tick of the attack-speed counter with flash points ("quick
