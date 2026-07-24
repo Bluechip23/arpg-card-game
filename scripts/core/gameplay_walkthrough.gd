@@ -260,12 +260,15 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 - Each constellation provides the player with a new buff
 - Nodes CAN NOT be used in more than one constellation causing players to make grid decisions. 
 
-[color=yellow]Sphere Types:[/color]
-- [color=red]Stat Sphere[/color] - Grants flat stat bonuses (STR, DEX, INT, WIS, AGI, DET)
-- [color=green]Passive Sphere[/color] - Grants a triggered passive ability (e.g., "On kill: heal 1 HP")
-- [color=purple]Card Sphere[/color] - Unlocks a new card for your deck
-- [color=coral]Health Sphere[/color] - Increases max health
-- [color=cyan]Mana Sphere[/color] - Increases max mana
+[color=yellow]Spheres:[/color]
+- There is a single, universal [color=cyan]Sphere[/color] - one Sphere unlocks any node, whatever its type
+- You earn Spheres by leveling up; spend one to unlock any node connected to your grid
+
+[color=yellow]Node Types:[/color]
+- [color=red]Stat[/color] - Grants flat stat bonuses (STR, DEX, INT, WIS, AGI, DET)
+- [color=green]Passive[/color] - Grants a triggered passive ability (e.g., "On kill: heal 1 HP")
+- [color=coral]Health[/color] - Increases max health
+- [color=cyan]Mana[/color] - Increases max mana
 
 [color=yellow]Upgrading Cards:[/color]
 - Cards are upgraded using [color=cyan]Paper Feathers[/color] at the Card Dealer in town

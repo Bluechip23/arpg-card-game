@@ -161,19 +161,25 @@ func _build_grid() -> void:
 		_connect_nodes(1 + i, 1 + ((i + 1) % 6))
 
 	# === Ring 2: 12 nodes at radius 170 (pushed out from 140) ===
+	# Each Ring 1 stat branches into two Ring 2 nodes: the SAME stat again, then a
+	# vitality node that reinforces that stat's playstyle — HP for the martial
+	# stats (STR, DEX, DET) and Mana for the caster stats (WIS, INT, AGI).
+	# Node order matches the Ring 1 -> Ring 2 connection mapping below
+	# (ring1 node 1+i connects to ring2 nodes 7+i*2 and 7+i*2+1):
+	#   STR -> 7,8 | DEX -> 9,10 | INT -> 11,12 | WIS -> 13,14 | AGI -> 15,16 | DET -> 17,18
 	var ring2_types = [
-		[NodeType.HEALTH, "HP +10", "Max Health +10"],
-		[NodeType.PASSIVE, "Passive", "On kill: heal 1 HP"],
-		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],
-		[NodeType.PASSIVE, "Passive", "On card play: 5% draw extra"],
-		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
-		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
-		[NodeType.PASSIVE, "Passive", "On move: gain 1 armor"],
-		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],
-		[NodeType.PASSIVE, "Passive", "On cycle: regen 1 mana"],
-		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
+		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],   # STR branch
+		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # STR branch -> HP
+		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],  # DEX branch
+		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DEX branch -> HP
+		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"], # INT branch
+		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # INT branch -> Mana
+		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],     # WIS branch
+		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # WIS branch -> Mana
+		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],    # AGI branch
+		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # AGI branch -> Mana
+		[NodeType.STAT_BONUS, "DET +3", "Determination +3"], # DET branch
+		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DET branch -> HP
 	]
 	_create_ring(7, 12, 170.0, center, ring2_types, 2)
 
@@ -395,22 +401,9 @@ func _assign_node_details() -> void:
 	## Called after the grid is fully built.
 
 	# --- Passive node upgrade/transmute paths ---
-	# Ring 2 passives
-	_assign_passive(8,
-		[{"label": "On kill: heal 3 HP", "description": "Major healing on kill"}],
-		[{"label": "On kill: gain 2 mana", "description": "Mana on kill instead of healing"}])
-
-	_assign_passive(11,
-		[{"label": "On card play: 12% draw extra", "description": "Major draw chance"}],
-		[{"label": "On card play: 5% reduce next cost by 1", "description": "Chance for cost reduction"}])
-
-	_assign_passive(14,
-		[{"label": "On move: gain 3 armor", "description": "Major armor per move"}],
-		[{"label": "On move: next card costs 1 less", "description": "Cost reduction on move"}])
-
-	_assign_passive(17,
-		[{"label": "On cycle: regen 3 mana", "description": "Major mana regen"}],
-		[{"label": "On cycle: regen 1 mana and draw a card", "description": "Mana regen with card draw"}])
+	# Ring 2 has no passive nodes: each stat branch is now the stat itself plus a
+	# reinforcing HP/Mana node (see _build_grid), so there are no Ring 2 passives
+	# to assign here. Passive upgrade paths begin at Ring 3.
 
 	# Ring 3 passives
 	_assign_passive(21,
@@ -533,7 +526,7 @@ func _build_constellations() -> void:
 	_constellation_map.clear()
 
 	# --- PAIR 1: STR Sector — Iron Will vs Blood Hunter ---
-	# Shared nodes: 1 (STR+1), 8 (On kill: heal)
+	# Shared nodes: 1 (STR+2), 8 (STR-branch HP)
 	# Iron Will goes toward HP/Life Steal; Blood Hunter toward Bleed/Wear Down
 	_add_constellation(Constellation.new(
 		"iron_will", "Iron Will",
@@ -551,7 +544,7 @@ func _build_constellations() -> void:
 	))
 
 	# --- PAIR 2: INT Sector — Arcane Current vs Mind Weaver ---
-	# Shared nodes: 3 (INT+1), 11 (On card play: draw)
+	# Shared nodes: 3 (INT+2), 11 (INT+3)
 	# Arcane Current goes toward raw spell power; Mind Weaver toward card economy
 	_add_constellation(Constellation.new(
 		"arcane_current", "Arcane Current",

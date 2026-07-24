@@ -201,21 +201,12 @@ func _update_points_label() -> void:
 	if not sphere_inventory:
 		points_label.text = "Spheres: --"
 		return
-	var parts: Array[String] = []
-	var stat_count = sphere_inventory.get_count(SphereInventory.SphereType.STAT)
-	var passive_count = sphere_inventory.get_count(SphereInventory.SphereType.PASSIVE)
-	var any_count = sphere_inventory.get_count(SphereInventory.SphereType.ANY)
-	var swap_count = sphere_inventory.get_count(SphereInventory.SphereType.SWAP)
-	if stat_count > 0: parts.append("Stat:%d" % stat_count)
-	if passive_count > 0: parts.append("Passive:%d" % passive_count)
-	if any_count > 0: parts.append("Any:%d" % any_count)
-	if swap_count > 0: parts.append("Swap:%d" % swap_count)
+	var sphere_count = sphere_inventory.get_count(SphereInventory.SphereType.SPHERE)
+	var text = "Spheres: %d" % sphere_count
 	var retro_count = sphere_inventory.retrospective_tokens
-	if retro_count > 0: parts.append("Retro:%d" % retro_count)
-	if parts.is_empty():
-		points_label.text = "Spheres: None"
-	else:
-		points_label.text = "Spheres: " + " | ".join(parts)
+	if retro_count > 0:
+		text += " | Retro: %d" % retro_count
+	points_label.text = text
 
 func _get_canvas_size() -> Vector2:
 	var sz = grid_canvas.size
@@ -1099,9 +1090,6 @@ func _get_stat_detail(label: String) -> String:
 	return ""
 
 func _add_unlock_section(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
-	var req_type = SphereInventory.get_required_sphere_type(node.node_type)
-	var type_name = SphereInventory.get_sphere_name(req_type) if req_type >= 0 else "Unknown"
-
 	var reqs_met = SphereGrid.requirements_met(node, player_stats)
 	var can_unlock = sphere_grid.is_unlockable(node.id) and reqs_met \
 		and sphere_inventory and sphere_inventory.has_sphere_for_node(node.node_type)
@@ -1111,9 +1099,9 @@ func _add_unlock_section(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void
 	elif not reqs_met:
 		_add_popup_label(vbox, SphereGrid.requirement_text(node), 12, Color(0.9, 0.55, 0.2))
 	elif not sphere_inventory or not sphere_inventory.has_sphere_for_node(node.node_type):
-		_add_popup_label(vbox, "Requires: %s sphere (or Any)" % type_name, 12, Color(0.7, 0.3, 0.3))
+		_add_popup_label(vbox, "Requires: 1 sphere", 12, Color(0.7, 0.3, 0.3))
 	else:
-		_add_popup_label(vbox, "Costs 1 %s sphere" % type_name, 12, Color(0.5, 0.8, 0.5))
+		_add_popup_label(vbox, "Costs 1 sphere", 12, Color(0.5, 0.8, 0.5))
 		if SphereGrid.requirement_text(node) != "":
 			_add_popup_label(vbox, SphereGrid.requirement_text(node) + " — met", 11, Color(0.5, 0.8, 0.5))
 
@@ -1248,13 +1236,10 @@ func _update_info_label() -> void:
 
 	# Sphere requirement
 	if not node.unlocked and node.node_type != SphereGrid.NodeType.START:
-		var req = SphereInventory.get_required_sphere_type(node.node_type)
-		if req >= 0:
-			var req_name = SphereInventory.get_sphere_name(req)
-			var have = 0
-			if sphere_inventory:
-				have = sphere_inventory.get_count(req)
-			lines.append("Requires: %s sphere (have: %d)" % [req_name, have])
+		var have = 0
+		if sphere_inventory:
+			have = sphere_inventory.get_count(SphereInventory.SphereType.SPHERE)
+		lines.append("Requires: 1 sphere (have: %d)" % have)
 
 	info_label.text = "\n".join(lines)
 	_position_info_panel_near_node(node)
