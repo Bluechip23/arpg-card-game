@@ -74,6 +74,12 @@ func _apply_sphere_grid_node(node) -> void:
 				"wis_hand_crit":
 					stats.keystone_wis_hand_crit = true
 					main.add_battle_log("Keystone: Tactician's Eye — crit chance rises with cards in hand", Color(1.0, 0.85, 0.4))
+				"int_regen_armor":
+					stats.keystone_int_regen_armor = true
+					main.add_battle_log("Keystone: Arcane Ward — mana regen grants armor equal to half your INT", Color(1.0, 0.85, 0.4))
+				"int_spell_proc":
+					stats.keystone_int_spell_proc = true
+					main.add_battle_log("Keystone: Arcane Echo — spells may echo bonus damage to a random enemy", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 

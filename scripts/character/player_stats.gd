@@ -186,6 +186,11 @@ var str_light_slot_type: int = -1
 var keystone_wis_empty_draw: bool = false
 # Tactician's Eye: crit chance rises with the number of cards in hand.
 var keystone_wis_hand_crit: bool = false
+# Arcane Ward: each mana-regen tick grants armor equal to half your Intelligence.
+var keystone_int_regen_armor: bool = false
+# Arcane Echo: casting a spell has an INT/3% chance to deal INT/2 damage to a
+# random enemy (rolled in Main at the spell-cast site).
+var keystone_int_spell_proc: bool = false
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
 const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing
@@ -411,6 +416,8 @@ func save_progression() -> Dictionary:
 		"str_light_slot_type": str_light_slot_type,
 		"keystone_wis_empty_draw": keystone_wis_empty_draw,
 		"keystone_wis_hand_crit": keystone_wis_hand_crit,
+		"keystone_int_regen_armor": keystone_int_regen_armor,
+		"keystone_int_spell_proc": keystone_int_spell_proc,
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -491,6 +498,8 @@ func restore_progression(data: Dictionary) -> void:
 	str_light_slot_type = data.get("str_light_slot_type", str_light_slot_type)
 	keystone_wis_empty_draw = data.get("keystone_wis_empty_draw", keystone_wis_empty_draw)
 	keystone_wis_hand_crit = data.get("keystone_wis_hand_crit", keystone_wis_hand_crit)
+	keystone_int_regen_armor = data.get("keystone_int_regen_armor", keystone_int_regen_armor)
+	keystone_int_spell_proc = data.get("keystone_int_spell_proc", keystone_int_spell_proc)
 	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
@@ -818,6 +827,14 @@ func get_intelligence_mana_regen_bonus() -> float:
 	# Every 5 points = +1 mana regen
 	return floorf(intelligence / 5.0)
 
+func get_int_spell_proc_chance() -> float:
+	## Arcane Echo: percent chance (INT/3) to echo bonus damage on a spell cast.
+	return intelligence / 3.0
+
+func get_int_spell_proc_damage() -> int:
+	## Arcane Echo: bonus damage (INT/2) to a random enemy when it echoes.
+	return floori(intelligence / 2.0)
+
 # ============================================
 # WISDOM CALCULATIONS
 # ============================================
@@ -895,6 +912,15 @@ func process_tempo(amount: int) -> void:
 		mana_changed.emit(current_mana, max_mana)
 		mana_gained.emit(int(mana_regen), true)
 		print("[STATS] Mana regen: +%.1f → %d/%d (reserved: %d)" % [mana_regen, int(current_mana), max_mana, maintained_mana])
+		# Arcane Ward: convert each regen tick into armor equal to half INT. Raw
+		# armor (like the flash sidestep) — block bonuses don't apply.
+		if keystone_int_regen_armor:
+			var ward = floori(intelligence / 2.0)
+			if ward > 0:
+				current_armor += ward
+				armor_changed.emit(current_armor)
+				armor_gained.emit(ward)
+				print("[STATS] Arcane Ward: +%d armor (%d total)" % [ward, current_armor])
 
 ## Called once per tempo cycle (every 5 global tempo). Handles armor decay and misc upkeep.
 func process_turn(debuff_mgr = null, buff_mgr = null) -> void:

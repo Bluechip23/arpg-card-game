@@ -4384,6 +4384,25 @@ func _flash_strike(stats) -> void:
 	add_battle_log("Flash Cut! -%d flash, %d damage to %s." % [
 		PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_STRIKE_DAMAGE, target.enemy_name], Color(1.0, 0.9, 0.4))
 
+func _try_arcane_echo(stats) -> void:
+	## Arcane Echo keystone: a spell cast has an INT/3% chance to deal INT/2
+	## bonus damage to a random living enemy.
+	if not stats or not stats.keystone_int_spell_proc:
+		return
+	if randf() * 100.0 >= stats.get_int_spell_proc_chance():
+		return
+	var dmg = stats.get_int_spell_proc_damage()
+	if dmg <= 0:
+		return
+	var enemies = enemy_spawner.get_living_enemies()
+	if enemies.is_empty():
+		return
+	var target = enemies[randi() % enemies.size()]
+	if not (target and target.has_method("take_damage")):
+		return
+	target.take_damage(dmg, true)
+	add_battle_log("Arcane Echo! %d bonus damage to %s." % [dmg, target.enemy_name], Color(0.6, 0.4, 1.0))
+
 func _on_flash_draw_pressed() -> void:
 	var stats = player.get_stats() if player else null
 	if not stats or not stats.keystone_flash_draw:
@@ -6086,6 +6105,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		progression_triggers._trigger_sphere_passives("on_attack", {"card": card, "target": target})
 	if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
 		progression_triggers._trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
+		_try_arcane_echo(player.get_stats())
 
 	# Skill tree passive triggers for card play
 	progression_triggers._trigger_skill_tree_on_card_play(card, target)
