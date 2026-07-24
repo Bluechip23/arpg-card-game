@@ -1499,6 +1499,11 @@ func _on_attack_pressed() -> void:
 	# is spent on this swing.
 	var damage = stats.get_effective_physical_damage(0)
 	damage += stats.consume_pending_dex_bonus_damage()
+	# Weighted Strikes: a heavy one-handed weapon's heft adds to the basic swing.
+	if stats.keystone_str_weight_basic:
+		var ba_inv = player.get_inventory()
+		if ba_inv:
+			damage += ba_inv.get_single_hand_weight_damage_bonus()
 
 	var buff_mgr = player.get_buff_manager()
 	if buff_mgr:

@@ -173,12 +173,28 @@ var pending_dex_bonus_damage: int = 0
 # Flash Cut: the Sidestep action (3 flash → block) becomes an attack instead —
 # spend the same flash to strike the nearest enemy for FLASH_STRIKE_DAMAGE.
 var keystone_flash_strike: bool = false
+# Weighted Strikes: a one-handed weapon's heft feeds basic attacks (the
+# weight-to-damage bonus normally only two-handing grants).
+var keystone_str_weight_basic: bool = false
+# Balanced Load: items in the chosen slot weigh STR_LIGHT_SLOT_REDUCTION less,
+# stacking with other slot weight reductions. str_light_slot_type is the picked
+# ItemData.ItemType (-1 until chosen).
+var keystone_str_light_slot: bool = false
+var str_light_slot_type: int = -1
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
 const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing
 const DET_FLOOR_MODIFIER: float = 0.5    # Unbroken Will: raised lower clamp (default 0.1)
 const DEX_TWIN_STRIKE_DAMAGE_PENALTY: int = 2   # Flurry Form: per-hit damage traded for the extra strike (placeholder)
 const DEX_FLAT_DAMAGE_PER_POINT: float = 0.5    # Killing Rhythm: bonus damage per DEX on each trigger (placeholder)
+const STR_LIGHT_SLOT_REDUCTION: float = 0.10    # Balanced Load: chosen slot weighs this much less
+
+func set_str_light_slot(item_type: int) -> void:
+	## Balanced Load: choose which equipment slot the 10% weight cut applies to.
+	str_light_slot_type = item_type
+	if inventory:
+		inventory._recalculate_carry_load()
+	print("[STATS] Balanced Load slot set to %d" % item_type)
 
 func refresh_det_vitality() -> void:
 	## Re-sync Bulwark Soul's HP grant with the CURRENT determination — points
@@ -376,6 +392,9 @@ func save_progression() -> Dictionary:
 		"keystone_dex_twin_strike": keystone_dex_twin_strike,
 		"keystone_dex_flat_damage": keystone_dex_flat_damage,
 		"keystone_flash_strike": keystone_flash_strike,
+		"keystone_str_weight_basic": keystone_str_weight_basic,
+		"keystone_str_light_slot": keystone_str_light_slot,
+		"str_light_slot_type": str_light_slot_type,
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -451,6 +470,9 @@ func restore_progression(data: Dictionary) -> void:
 	keystone_dex_twin_strike = data.get("keystone_dex_twin_strike", keystone_dex_twin_strike)
 	keystone_dex_flat_damage = data.get("keystone_dex_flat_damage", keystone_dex_flat_damage)
 	keystone_flash_strike = data.get("keystone_flash_strike", keystone_flash_strike)
+	keystone_str_weight_basic = data.get("keystone_str_weight_basic", keystone_str_weight_basic)
+	keystone_str_light_slot = data.get("keystone_str_light_slot", keystone_str_light_slot)
+	str_light_slot_type = data.get("str_light_slot_type", str_light_slot_type)
 	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)

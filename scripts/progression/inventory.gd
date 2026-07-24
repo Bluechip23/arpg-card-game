@@ -823,48 +823,60 @@ func has_only_swords_equipped() -> bool:
 	return has_weapon
 
 func get_total_weight() -> int:
+	# Every slot routes through _effective_item_weight so chest reduction, the
+	# Balanced Load keystone, and the two-handed grip all apply uniformly.
 	var total = 0
-	
 	for item in equipped_helms:
-		if item: total += item.weight
-	
+		if item: total += _effective_item_weight(item)
 	for item in equipped_chests:
-		if item:
-			var weight = item.weight
-			weight = floori(weight * (1.0 - chest_weight_reduction))
-			total += weight
-	
+		if item: total += _effective_item_weight(item)
 	for item in equipped_rings:
-		if item: total += item.weight
-	
+		if item: total += _effective_item_weight(item)
 	for item in equipped_belts:
-		if item: total += item.weight
-	
+		if item: total += _effective_item_weight(item)
 	for item in equipped_boots:
-		if item: total += item.weight
-	
+		if item: total += _effective_item_weight(item)
 	for item in equipped_gauntlets:
-		if item: total += item.weight
-
+		if item: total += _effective_item_weight(item)
 	for i in range(equipped_weapons.size()):
 		var item = equipped_weapons[i]
 		if item: total += _effective_item_weight(item, i)
-
 	for item in equipped_quivers:
-		if item: total += item.weight
-
+		if item: total += _effective_item_weight(item)
 	return total
 
-## Carried weight of one item: chest reduction (Brad) and the two-handed grip
-## both lighten the load. Pass the weapon-slot index (or -1 when not equipped
-## in a hand) so the grip discount applies to the right slot.
+## Carried weight of one item: chest reduction (Brad), the Balanced Load keystone,
+## and the two-handed grip all lighten the load, stacking multiplicatively. Pass
+## the weapon-slot index (or -1 when not equipped in a hand) so the grip discount
+## applies to the right slot.
 func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 	var w = item.weight
 	if item.item_type == ItemData.ItemType.CHEST:
 		w = floori(w * (1.0 - chest_weight_reduction))
+	# Balanced Load keystone: the chosen slot's items weigh 10% less.
+	if player_stats and player_stats.keystone_str_light_slot \
+			and item.item_type == player_stats.str_light_slot_type:
+		w = floori(w * (1.0 - PlayerStats.STR_LIGHT_SLOT_REDUCTION))
 	if weapon_slot_index >= 0 and weapon_slot_index == two_handed_slot:
 		w = floori(w * TWO_HAND_WEIGHT_MULT)
 	return w
+
+## Weighted Strikes keystone: the weight-to-damage bonus that two-handing grants,
+## extended to one-handed weapons so a heavy single-hander feeds basic attacks.
+## Sums every equipped weapon held in one hand (skips shields and the weapon
+## already gripped two-handed, whose heft is counted via two_hand_damage_bonus).
+func get_single_hand_weight_damage_bonus() -> int:
+	var total = 0
+	for i in range(equipped_weapons.size()):
+		var w = equipped_weapons[i]
+		if w == null or w.item_type != ItemData.ItemType.WEAPON:
+			continue
+		if w.weapon_subtype == ItemData.WeaponSubtype.SHIELD:
+			continue
+		if i == two_handed_slot:
+			continue
+		total += floori(w.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
+	return total
 
 func get_total_weapon_damage() -> int:
 	var total = 0

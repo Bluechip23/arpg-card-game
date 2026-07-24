@@ -60,6 +60,14 @@ func _apply_sphere_grid_node(node) -> void:
 					stats.keystone_flash_strike = true
 					main._update_flash_button()
 					main.add_battle_log("Keystone: Flash Cut — Sidestep now strikes instead of blocks", Color(1.0, 0.85, 0.4))
+				"str_weight_basic":
+					stats.keystone_str_weight_basic = true
+					main.add_battle_log("Keystone: Weighted Strikes — one-handed weapon heft feeds basic attacks", Color(1.0, 0.85, 0.4))
+				"str_light_slot":
+					stats.keystone_str_light_slot = true
+					if stats.str_light_slot_type < 0:
+						stats.set_str_light_slot(ItemData.ItemType.CHEST)
+					main.add_battle_log("Keystone: Balanced Load — a chosen slot weighs 10% less", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 
