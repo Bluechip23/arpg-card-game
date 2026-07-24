@@ -1494,8 +1494,11 @@ func _on_attack_pressed() -> void:
 	if player.has_method("play_animation"):
 		player.play_animation("attack_slash", _facing_dir_toward(target))
 
-	# Damage: 0 base + strength modifier
+	# Damage: 0 base + strength modifier (get_effective_physical_damage already
+	# applies Flurry Form's per-hit penalty). Killing Rhythm's armed bonus, if any,
+	# is spent on this swing.
 	var damage = stats.get_effective_physical_damage(0)
+	damage += stats.consume_pending_dex_bonus_damage()
 
 	var buff_mgr = player.get_buff_manager()
 	if buff_mgr:
@@ -1521,6 +1524,11 @@ func _on_attack_pressed() -> void:
 		tempo_cost = tempo_cost / 2
 		deck_manager.next_attack_half_tempo = false
 		deck_manager.next_attack_mana_discount = 0
+		# Flurry Form: the proc-empowered basic attack lands twice. A basic swing
+		# has no per-hit card effects, so a doubled hit is equivalent to two.
+		if stats.keystone_dex_twin_strike:
+			damage *= 2
+			print("[MAIN] Flurry Form: basic attack strikes twice!")
 		# Pocket Knife: -2 additional tempo
 		var ba_inv = player.get_inventory()
 		if ba_inv and ba_inv.has_pocket_knife_equipped():

@@ -50,6 +50,12 @@ func _apply_sphere_grid_node(node) -> void:
 					stats.keystone_det_amplify = true
 					stats.recalculate_derived_stats()
 					main.add_battle_log("Keystone: Wild Abandon — Determination's swings are amplified", Color(1.0, 0.85, 0.4))
+				"dex_twin_strike":
+					stats.keystone_dex_twin_strike = true
+					main.add_battle_log("Keystone: Flurry Form — Dexterity procs strike twice, attacks hit lighter", Color(1.0, 0.85, 0.4))
+				"dex_flat_damage":
+					stats.keystone_dex_flat_damage = true
+					main.add_battle_log("Keystone: Killing Rhythm — Dexterity procs become bonus attack damage", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 

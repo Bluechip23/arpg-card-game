@@ -322,7 +322,7 @@ func _build_grid() -> void:
 		[NodeType.HEALTH, "HP +30", "Max Health +30"],
 		[NodeType.COMBAT_BONUS, "Life Steal +5%", "Heal for 5% of damage dealt"],
 		[NodeType.STAT_BONUS, "DEX +7", "Dexterity +7"],
-		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
+		[NodeType.KEYSTONE, "Flurry Form", "Keystone: your Dexterity attack proc now strikes TWICE, but every attack deals 2 less damage — a faster, lighter flurry.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_twin_strike"}],
 		[NodeType.COMBAT_BONUS, "Regen +3", "Regenerate 3 HP per tempo cycle"],
 		[NodeType.PASSIVE, "Passive", "On kill: draw 2 cards and gain 2 mana"],
 		[NodeType.STAT_BONUS, "INT +7", "Intelligence +7"],
@@ -343,7 +343,7 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Thorns +5", "Deal 5 damage to attackers when hit"],
 		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
 		[NodeType.MANA, "Mana +15", "Max Mana +15"],
-		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
+		[NodeType.KEYSTONE, "Killing Rhythm", "Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_flat_damage"}],
 		[NodeType.KEYSTONE, "Unbroken Will", "Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_floor"}],
 		[NodeType.KEYSTONE, "Wild Abandon", "Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_amplify"}],
 	]

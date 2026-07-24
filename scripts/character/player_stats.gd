@@ -162,10 +162,20 @@ var keystone_det_floor: bool = false
 # Wild Abandon: Determination's per-point effect is amplified in BOTH
 # directions — a bigger low-health bonus for high DET, a bigger penalty for low.
 var keystone_det_amplify: bool = false
+# Flurry Form: the DEX attack proc strikes twice, but every attack deals
+# DEX_TWIN_STRIKE_DAMAGE_PENALTY less — a faster, lighter flurry.
+var keystone_dex_twin_strike: bool = false
+# Killing Rhythm: no tempo/mana proc; instead every would-be proc arms a
+# DEX-scaled bonus-damage burst on the next attack.
+var keystone_dex_flat_damage: bool = false
+# Bonus damage armed by Killing Rhythm, spent by the next attack that resolves.
+var pending_dex_bonus_damage: int = 0
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
 const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing
 const DET_FLOOR_MODIFIER: float = 0.5    # Unbroken Will: raised lower clamp (default 0.1)
+const DEX_TWIN_STRIKE_DAMAGE_PENALTY: int = 2   # Flurry Form: per-hit damage traded for the extra strike (placeholder)
+const DEX_FLAT_DAMAGE_PER_POINT: float = 0.5    # Killing Rhythm: bonus damage per DEX on each trigger (placeholder)
 
 func refresh_det_vitality() -> void:
 	## Re-sync Bulwark Soul's HP grant with the CURRENT determination — points
@@ -360,6 +370,8 @@ func save_progression() -> Dictionary:
 		"keystone_dex_ranged": keystone_dex_ranged,
 		"keystone_det_floor": keystone_det_floor,
 		"keystone_det_amplify": keystone_det_amplify,
+		"keystone_dex_twin_strike": keystone_dex_twin_strike,
+		"keystone_dex_flat_damage": keystone_dex_flat_damage,
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -432,6 +444,8 @@ func restore_progression(data: Dictionary) -> void:
 	keystone_dex_ranged = data.get("keystone_dex_ranged", keystone_dex_ranged)
 	keystone_det_floor = data.get("keystone_det_floor", keystone_det_floor)
 	keystone_det_amplify = data.get("keystone_det_amplify", keystone_det_amplify)
+	keystone_dex_twin_strike = data.get("keystone_dex_twin_strike", keystone_dex_twin_strike)
+	keystone_dex_flat_damage = data.get("keystone_dex_flat_damage", keystone_dex_flat_damage)
 	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
@@ -710,14 +724,28 @@ func register_attack() -> Dictionary:
 	
 	if current_attack_counter <= 0:
 		current_attack_counter = get_attack_speed_threshold()
+		# Killing Rhythm: trade the tempo/mana proc for a DEX-scaled damage burst
+		# armed on the next attack. No dexterity_proc signal (no half tempo/mana).
+		if keystone_dex_flat_damage:
+			var bonus = get_dex_proc_flat_bonus()
+			pending_dex_bonus_damage += bonus
+			print("[STATS] Killing Rhythm! Next attack +%d damage (DEX %d)" % [bonus, dexterity])
+			return {
+				"proc": false,
+				"mana_discount": 0,
+				"half_tempo": false,
+				"flat_damage": bonus
+			}
 		dexterity_proc.emit()
 		print("[STATS] *** DEX PROC! *** Half tempo + 2 mana discount!")
 		return {
 			"proc": true,
 			"mana_discount": 2,
-			"half_tempo": true
+			"half_tempo": true,
+			# Flurry Form: the proc-empowered attack strikes twice (read at play time).
+			"twin_strike": keystone_dex_twin_strike
 		}
-	
+
 	return {
 		"proc": false,
 		"mana_discount": 0,
@@ -771,11 +799,25 @@ func get_tempo_until_mana_regen() -> int:
 
 func get_effective_physical_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
+	if keystone_dex_twin_strike:
+		damage -= DEX_TWIN_STRIKE_DAMAGE_PENALTY
 	return max(1, damage)
 
 func get_effective_ranged_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
+	if keystone_dex_twin_strike:
+		damage -= DEX_TWIN_STRIKE_DAMAGE_PENALTY
 	return max(1, damage)
+
+func get_dex_proc_flat_bonus() -> int:
+	## Killing Rhythm: DEX-scaled bonus damage granted on each would-be proc.
+	return floori(dexterity * DEX_FLAT_DAMAGE_PER_POINT)
+
+func consume_pending_dex_bonus_damage() -> int:
+	## Take (and clear) the Killing Rhythm bonus armed for the next attack.
+	var b = pending_dex_bonus_damage
+	pending_dex_bonus_damage = 0
+	return b
 
 func get_effective_spell_damage(base_damage: int) -> int:
 	# INT: +1 damage per point (flat)

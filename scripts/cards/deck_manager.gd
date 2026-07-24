@@ -487,7 +487,24 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		buff_mgr = player_node.get_buff_manager()
 
 	if not defer_execution:
+		# Killing Rhythm (DEX keystone): fold the armed bonus into this attack, then
+		# strip it back off so the card's own bonus_damage isn't permanently changed.
+		var dex_flat_bonus = 0
+		if card.card_type == Card.CardType.ATTACK and player_stats:
+			dex_flat_bonus = player_stats.consume_pending_dex_bonus_damage()
+			if dex_flat_bonus > 0:
+				card.bonus_damage += dex_flat_bonus
+
 		card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+
+		# Flurry Form (DEX keystone): a proc-empowered attack strikes a second time.
+		if was_half_tempo and card.card_type == Card.CardType.ATTACK \
+				and player_stats and player_stats.keystone_dex_twin_strike:
+			card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+			print("[DECK] Flurry Form: second strike!")
+
+		if dex_flat_bonus > 0:
+			card.bonus_damage -= dex_flat_bonus
 
 		# Register attack for attack speed counter (DEX proc) - all attack cards count
 		# Proc-bonus attacks don't count towards the next cycle
@@ -573,7 +590,17 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 		damage_reduction_pct = debuff_mgr.get_damage_reduction_percent()
 		self_damage_percent = debuff_mgr.get_self_damage_percent()
 
+	# Killing Rhythm (DEX keystone): spend any armed bonus on this attack.
+	var dex_flat_bonus = 0
+	if card.card_type == Card.CardType.ATTACK and player_stats:
+		dex_flat_bonus = player_stats.consume_pending_dex_bonus_damage()
+		if dex_flat_bonus > 0:
+			card.bonus_damage += dex_flat_bonus
+
 	card.execute(target, effect_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+
+	if dex_flat_bonus > 0:
+		card.bonus_damage -= dex_flat_bonus
 
 	# Register attack for attack speed counter (DEX proc)
 	if card.card_type == Card.CardType.ATTACK and player_stats:
