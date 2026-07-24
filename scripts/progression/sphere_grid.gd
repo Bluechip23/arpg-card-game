@@ -112,10 +112,25 @@ func is_unlockable(id: int) -> bool:
 			return true
 	return false
 
+# A character can attach only this many keystones — the build-defining choice.
+const MAX_KEYSTONES: int = 3
+
+func unlocked_keystone_count() -> int:
+	var count = 0
+	for node in nodes:
+		if node.node_type == NodeType.KEYSTONE and node.unlocked:
+			count += 1
+	return count
+
+func keystone_slots_free() -> bool:
+	return unlocked_keystone_count() < MAX_KEYSTONES
+
 func unlock_node(id: int) -> bool:
 	if not is_unlockable(id):
 		return false
 	var node = get_node_by_id(id)
+	if node.node_type == NodeType.KEYSTONE and not keystone_slots_free():
+		return false
 	node.unlocked = true
 	return true
 
@@ -368,18 +383,19 @@ func _build_grid() -> void:
 		[NodeType.KEYSTONE, "Sanguine Barrier", "Keystone: life steal no longer heals — stolen life becomes temporary HP instead.", {"keystone": "lifesteal_temp_hp"}],
 		[NodeType.KEYSTONE, "Living Bulwark", "Keystone: armor you would gain becomes temporary HP instead.", {"keystone": "armor_temp_hp"}],
 		[NodeType.KEYSTONE, "Arcane Blood", "Keystone: damage is split evenly between health and mana. If mana runs dry, health takes the rest — and death still comes only at 0 HP.", {"keystone": "mana_blood"}],
+		[NodeType.KEYSTONE, "Willspring", "Keystone: Determination now answers to your mana instead of your health — your stats swing as mana drains, not HP.", {"keystone": "det_mana"}],
 	]
 
-	_create_ring(100, 33, 540.0, center, ring6_types, 6)
+	_create_ring(100, 34, 540.0, center, ring6_types, 6)
 
 	# Connect ring 6 to ring 5
 	for i in range(39):
-		var r6_base = int(i * 0.846)  # 33/39 ≈ 0.846
-		_connect_nodes(61 + i, 100 + (r6_base % 33))
-		_connect_nodes(61 + i, 100 + ((r6_base + 1) % 33))
+		var r6_base = int(i * 0.871)  # 34/39 ≈ 0.871
+		_connect_nodes(61 + i, 100 + (r6_base % 34))
+		_connect_nodes(61 + i, 100 + ((r6_base + 1) % 34))
 	# Connect ring 6 adjacent
-	for i in range(33):
-		_connect_nodes(100 + i, 100 + ((i + 1) % 33))
+	for i in range(34):
+		_connect_nodes(100 + i, 100 + ((i + 1) % 34))
 
 ## SHELVED CONTENT — the original Ring 3 (combat bonuses, on-hit/on-heal/on-block
 ## passives, a Culling Stone, a Retrospective) that the FREE_STAT / vitality arm
