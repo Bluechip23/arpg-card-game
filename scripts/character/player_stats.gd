@@ -191,6 +191,14 @@ var keystone_int_regen_armor: bool = false
 # Arcane Echo: casting a spell has an INT/3% chance to deal INT/2 damage to a
 # random enemy (rolled in Main at the spell-cast site).
 var keystone_int_spell_proc: bool = false
+# Sanguine Barrier: life steal grants temporary HP instead of healing.
+var keystone_lifesteal_temp_hp: bool = false
+# Living Bulwark: armor gains become temporary HP instead.
+var keystone_armor_temp_hp: bool = false
+# Arcane Blood: damage that reaches health is split evenly with mana (health
+# takes the odd point and any share mana can't cover; death only at 0 HP).
+var keystone_mana_blood: bool = false
+const CONVERSION_TEMP_HP_TEMPO: int = 15  # duration of keystone-converted temp HP
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
 const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing
@@ -1056,9 +1064,18 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 			remaining -= effective_armor
 			current_armor = 0
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
-		
+
 		armor_changed.emit(current_armor)
-	
+
+	# Arcane Blood: mana soaks half of what would hit health (health keeps the
+	# odd point). If mana can't cover its share, health takes the leftover —
+	# so death still only comes from HP reaching 0.
+	if keystone_mana_blood and remaining > 1 and current_mana > 0:
+		var mana_share = mini(remaining / 2, floori(current_mana))
+		if mana_share > 0:
+			_drain_mana_as_health(mana_share)
+			remaining -= mana_share
+
 	if remaining > 0:
 		var old_pct = get_health_percent()
 		current_health = max(0, current_health - remaining)
@@ -1196,11 +1213,31 @@ func heal(amount: int, from_ally: bool = false) -> void:
 	if actual_heal > 0 and inventory:
 		inventory.on_healed()
 
+func apply_life_steal(amount: int) -> void:
+	## Single funnel for all life-steal healing (buff, skill-tree passive, sphere
+	## bonus). With the Sanguine Barrier keystone, stolen life becomes temporary
+	## HP instead of a heal — uncapped by missing health, but it expires.
+	if amount <= 0:
+		return
+	if keystone_lifesteal_temp_hp:
+		add_temp_health(amount, CONVERSION_TEMP_HP_TEMPO)
+		print("[STATS] Sanguine Barrier: %d life steal became temp HP" % amount)
+	else:
+		heal(amount)
+
 func add_armor(amount: int) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
 	# Sword Specialist: +25% block when only wielding swords
 	if has_skill_tree_passive("sword_specialist") and inventory and inventory.has_only_swords_equipped():
 		total = floori(total * 1.25)
+	# Living Bulwark: the full armor gain (bonuses included) becomes temp HP.
+	# Armor-gain hooks (overhead icon, on_armor_gained item procs) don't fire —
+	# no armor was actually gained.
+	if keystone_armor_temp_hp:
+		if total > 0:
+			add_temp_health(total, CONVERSION_TEMP_HP_TEMPO)
+			print("[STATS] Living Bulwark: %d armor became temp HP" % total)
+		return
 	current_armor += total
 	armor_changed.emit(current_armor)
 	if total > 0:
@@ -1220,6 +1257,12 @@ func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 	# Sword Specialist: +25% block when only wielding swords
 	if has_skill_tree_passive("sword_specialist") and inventory and inventory.has_only_swords_equipped():
 		total = floori(total * 1.25)
+	# Living Bulwark: converted to temp HP (see add_armor).
+	if keystone_armor_temp_hp:
+		if total > 0:
+			add_temp_health(total, CONVERSION_TEMP_HP_TEMPO)
+			print("[STATS] Living Bulwark: %d armor became temp HP" % total)
+		return
 	current_armor += total
 	armor_changed.emit(current_armor)
 	if total > 0:
@@ -1245,6 +1288,15 @@ func spend_mana(amount: int) -> bool:
 			_break_maintained_cards()
 		return true
 	return false
+
+func _drain_mana_as_health(amount: int) -> void:
+	## Arcane Blood: mana absorbing damage. Mirrors spend_mana's bookkeeping —
+	## including breaking maintained cards when the pool hits 0.
+	current_mana = max(0.0, current_mana - amount)
+	mana_changed.emit(current_mana, max_mana)
+	print("[STATS] Arcane Blood: mana absorbed %d damage (mana: %d/%d)" % [amount, int(current_mana), max_mana])
+	if current_mana <= 0 and maintained_mana > 0:
+		_break_maintained_cards()
 
 func has_mana(amount: int) -> bool:
 	return current_mana >= amount

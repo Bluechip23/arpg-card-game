@@ -345,8 +345,13 @@ func consume_life_steal(damage_dealt: int) -> int:
 		if life_steal.use_charge():
 			remove_buff(Buff.BuffType.LIFE_STEAL)
 		if owner_stats:
-			owner_stats.heal(damage_dealt)
-			print("[BUFF] Life Steal healed %d HP!" % damage_dealt)
+			# Player stats funnel life steal through apply_life_steal (Sanguine
+			# Barrier keystone may convert it to temp HP); enemies just heal.
+			if owner_stats.has_method("apply_life_steal"):
+				owner_stats.apply_life_steal(damage_dealt)
+			else:
+				owner_stats.heal(damage_dealt)
+			print("[BUFF] Life Steal recovered %d!" % damage_dealt)
 		return damage_dealt
 	return 0
 

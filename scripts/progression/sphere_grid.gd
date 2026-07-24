@@ -363,18 +363,23 @@ func _build_grid() -> void:
 		[NodeType.KEYSTONE, "Killing Rhythm", "Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_flat_damage"}],
 		[NodeType.KEYSTONE, "Unbroken Will", "Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_floor"}],
 		[NodeType.KEYSTONE, "Wild Abandon", "Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_amplify"}],
+		# --- Conversion keystones (ids 130-132). Ungated for now; final placement
+		# and any stat gates come with the null-node / layout pass. ---
+		[NodeType.KEYSTONE, "Sanguine Barrier", "Keystone: life steal no longer heals — stolen life becomes temporary HP instead.", {"keystone": "lifesteal_temp_hp"}],
+		[NodeType.KEYSTONE, "Living Bulwark", "Keystone: armor you would gain becomes temporary HP instead.", {"keystone": "armor_temp_hp"}],
+		[NodeType.KEYSTONE, "Arcane Blood", "Keystone: damage is split evenly between health and mana. If mana runs dry, health takes the rest — and death still comes only at 0 HP.", {"keystone": "mana_blood"}],
 	]
 
-	_create_ring(100, 30, 540.0, center, ring6_types, 6)
+	_create_ring(100, 33, 540.0, center, ring6_types, 6)
 
 	# Connect ring 6 to ring 5
 	for i in range(39):
-		var r6_base = int(i * 0.769)  # 30/39 ≈ 0.769
-		_connect_nodes(61 + i, 100 + (r6_base % 30))
-		_connect_nodes(61 + i, 100 + ((r6_base + 1) % 30))
+		var r6_base = int(i * 0.846)  # 33/39 ≈ 0.846
+		_connect_nodes(61 + i, 100 + (r6_base % 33))
+		_connect_nodes(61 + i, 100 + ((r6_base + 1) % 33))
 	# Connect ring 6 adjacent
-	for i in range(30):
-		_connect_nodes(100 + i, 100 + ((i + 1) % 30))
+	for i in range(33):
+		_connect_nodes(100 + i, 100 + ((i + 1) % 33))
 
 ## SHELVED CONTENT — the original Ring 3 (combat bonuses, on-hit/on-heal/on-block
 ## passives, a Culling Stone, a Retrospective) that the FREE_STAT / vitality arm

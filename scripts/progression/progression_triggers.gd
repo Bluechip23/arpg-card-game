@@ -80,6 +80,15 @@ func _apply_sphere_grid_node(node) -> void:
 				"int_spell_proc":
 					stats.keystone_int_spell_proc = true
 					main.add_battle_log("Keystone: Arcane Echo — spells may echo bonus damage to a random enemy", Color(1.0, 0.85, 0.4))
+				"lifesteal_temp_hp":
+					stats.keystone_lifesteal_temp_hp = true
+					main.add_battle_log("Keystone: Sanguine Barrier — life steal grants temp HP instead of healing", Color(1.0, 0.85, 0.4))
+				"armor_temp_hp":
+					stats.keystone_armor_temp_hp = true
+					main.add_battle_log("Keystone: Living Bulwark — armor gains become temp HP", Color(1.0, 0.85, 0.4))
+				"mana_blood":
+					stats.keystone_mana_blood = true
+					main.add_battle_log("Keystone: Arcane Blood — damage is shared between health and mana", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 
@@ -1889,7 +1898,7 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 				var ce_card = context.get("card", null)
 				if ce_card and ce_card.last_damage_dealt > 0:
 					var ce_heal = max(1, floori(ce_card.last_damage_dealt * value / 100.0))
-					stats.heal(ce_heal)
+					stats.apply_life_steal(ce_heal)
 					main.add_battle_log("Crimson Edge: lifesteal %d" % ce_heal, Color(0.8, 0.1, 0.2))
 			"freeze_enemy":
 				# Deep chill: 5 cold stacks freeze the struck enemy outright.
