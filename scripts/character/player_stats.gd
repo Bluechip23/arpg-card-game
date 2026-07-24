@@ -155,8 +155,65 @@ var damage_proc_reduction_percent: float = 50.0
 var keystone_det_vitality: bool = false  # Bulwark Soul: +2 max HP per DET point, retroactive + ongoing
 var keystone_flash_draw: bool = false    # Flash Reserves: spend flash points to draw cards
 var keystone_dex_ranged: bool = false    # Deadeye Form: ranged damage scales with DEX instead of STR
+# Unbroken Will: Determination's penalty can never push the stat multiplier
+# below DET_FLOOR_MODIFIER (instead of the default 0.1) — half your stats is
+# the worst low-health can do.
+var keystone_det_floor: bool = false
+# Wild Abandon: Determination's per-point effect is amplified in BOTH
+# directions — a bigger low-health bonus for high DET, a bigger penalty for low.
+var keystone_det_amplify: bool = false
+# Flurry Form: the DEX attack proc strikes twice, but every attack deals
+# DEX_TWIN_STRIKE_DAMAGE_PENALTY less — a faster, lighter flurry.
+var keystone_dex_twin_strike: bool = false
+# Killing Rhythm: no tempo/mana proc; instead every would-be proc arms a
+# DEX-scaled bonus-damage burst on the next attack.
+var keystone_dex_flat_damage: bool = false
+# Bonus damage armed by Killing Rhythm, spent by the next attack that resolves.
+var pending_dex_bonus_damage: int = 0
+# Flash Cut: the Sidestep action (3 flash → block) becomes an attack instead —
+# spend the same flash to strike the nearest enemy for FLASH_STRIKE_DAMAGE.
+var keystone_flash_strike: bool = false
+# Weighted Strikes: a one-handed weapon's heft feeds basic attacks (the
+# weight-to-damage bonus normally only two-handing grants).
+var keystone_str_weight_basic: bool = false
+# Balanced Load: items in the chosen slot weigh STR_LIGHT_SLOT_REDUCTION less,
+# stacking with other slot weight reductions. str_light_slot_type is the picked
+# ItemData.ItemType (-1 until chosen).
+var keystone_str_light_slot: bool = false
+var str_light_slot_type: int = -1
+# Quick Study: when the hand empties, auto-draw 1 card WITHOUT touching the
+# timed-draw countdown (handled in Main._on_hand_updated).
+var keystone_wis_empty_draw: bool = false
+# Tactician's Eye: crit chance rises with the number of cards in hand.
+var keystone_wis_hand_crit: bool = false
+# Arcane Ward: each mana-regen tick grants armor equal to half your Intelligence.
+var keystone_int_regen_armor: bool = false
+# Arcane Echo: casting a spell has an INT/3% chance to deal INT/2 damage to a
+# random enemy (rolled in Main at the spell-cast site).
+var keystone_int_spell_proc: bool = false
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
+const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing
+const DET_FLOOR_MODIFIER: float = 0.5    # Unbroken Will: raised lower clamp (default 0.1)
+const DEX_TWIN_STRIKE_DAMAGE_PENALTY: int = 2   # Flurry Form: per-hit damage traded for the extra strike (placeholder)
+const DEX_FLAT_DAMAGE_PER_POINT: float = 0.5    # Killing Rhythm: bonus damage per DEX on each trigger (placeholder)
+const STR_LIGHT_SLOT_REDUCTION: float = 0.10    # Balanced Load: chosen slot weighs this much less
+const WIS_CRIT_PER_CARD: int = 2                # Tactician's Eye: +crit% per card in hand (placeholder)
+
+func get_hand_size_crit_bonus() -> int:
+	## Tactician's Eye: bonus crit chance from cards currently in hand.
+	if not keystone_wis_hand_crit:
+		return 0
+	if inventory and inventory.deck_manager:
+		return inventory.deck_manager.hand.size() * WIS_CRIT_PER_CARD
+	return 0
+
+func set_str_light_slot(item_type: int) -> void:
+	## Balanced Load: choose which equipment slot the 10% weight cut applies to.
+	str_light_slot_type = item_type
+	if inventory:
+		inventory._recalculate_carry_load()
+	print("[STATS] Balanced Load slot set to %d" % item_type)
 
 func refresh_det_vitality() -> void:
 	## Re-sync Bulwark Soul's HP grant with the CURRENT determination — points
@@ -349,6 +406,18 @@ func save_progression() -> Dictionary:
 		"keystone_det_vitality": keystone_det_vitality,
 		"keystone_flash_draw": keystone_flash_draw,
 		"keystone_dex_ranged": keystone_dex_ranged,
+		"keystone_det_floor": keystone_det_floor,
+		"keystone_det_amplify": keystone_det_amplify,
+		"keystone_dex_twin_strike": keystone_dex_twin_strike,
+		"keystone_dex_flat_damage": keystone_dex_flat_damage,
+		"keystone_flash_strike": keystone_flash_strike,
+		"keystone_str_weight_basic": keystone_str_weight_basic,
+		"keystone_str_light_slot": keystone_str_light_slot,
+		"str_light_slot_type": str_light_slot_type,
+		"keystone_wis_empty_draw": keystone_wis_empty_draw,
+		"keystone_wis_hand_crit": keystone_wis_hand_crit,
+		"keystone_int_regen_armor": keystone_int_regen_armor,
+		"keystone_int_spell_proc": keystone_int_spell_proc,
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -380,6 +449,27 @@ func save_progression() -> Dictionary:
 		"sphere_bonus_heal_power": sphere_bonus_heal_power,
 		"sphere_bonus_crit": sphere_bonus_crit,
 		"sphere_bonus_armor": sphere_bonus_armor,
+		# Sphere combat bonuses that feed non-base fields. These are baked into
+		# their own scalars (never re-derived from the grid after load), so they
+		# MUST round-trip or they silently reset to 0 on every save / world
+		# transition — the "my stats got reset" bug.
+		"sphere_bonus_determination": sphere_bonus_determination,
+		"sphere_bonus_regen": sphere_bonus_regen,
+		"sphere_bonus_armor_per_cycle": sphere_bonus_armor_per_cycle,
+		"sphere_bonus_life_steal": sphere_bonus_life_steal,
+		"sphere_bonus_resistance": sphere_bonus_resistance,
+		"sphere_bonus_range": sphere_bonus_range,
+		"damage_proc_reduction_chance": damage_proc_reduction_chance,
+		"damage_proc_reduction_percent": damage_proc_reduction_percent,
+		"damage_resistances": damage_resistances.duplicate(true),
+		# Equipment-derived bonuses stored OUTSIDE base stats. Equipment is
+		# re-installed on load by direct array assignment (no _apply_item_bonuses
+		# re-run), so these too must round-trip or an equipped item's hand-size /
+		# ranged / healing / chance bonus vanishes after a transition.
+		"equipment_hand_bonus": equipment_hand_bonus,
+		"ranged_damage_bonus": ranged_damage_bonus,
+		"healing_bonus": healing_bonus,
+		"chance_boost": chance_boost,
 		# Skill tree passives
 		"skill_tree_passives": skill_tree_passives.duplicate(),
 	}
@@ -398,6 +488,18 @@ func restore_progression(data: Dictionary) -> void:
 	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)
 	keystone_flash_draw = data.get("keystone_flash_draw", keystone_flash_draw)
 	keystone_dex_ranged = data.get("keystone_dex_ranged", keystone_dex_ranged)
+	keystone_det_floor = data.get("keystone_det_floor", keystone_det_floor)
+	keystone_det_amplify = data.get("keystone_det_amplify", keystone_det_amplify)
+	keystone_dex_twin_strike = data.get("keystone_dex_twin_strike", keystone_dex_twin_strike)
+	keystone_dex_flat_damage = data.get("keystone_dex_flat_damage", keystone_dex_flat_damage)
+	keystone_flash_strike = data.get("keystone_flash_strike", keystone_flash_strike)
+	keystone_str_weight_basic = data.get("keystone_str_weight_basic", keystone_str_weight_basic)
+	keystone_str_light_slot = data.get("keystone_str_light_slot", keystone_str_light_slot)
+	str_light_slot_type = data.get("str_light_slot_type", str_light_slot_type)
+	keystone_wis_empty_draw = data.get("keystone_wis_empty_draw", keystone_wis_empty_draw)
+	keystone_wis_hand_crit = data.get("keystone_wis_hand_crit", keystone_wis_hand_crit)
+	keystone_int_regen_armor = data.get("keystone_int_regen_armor", keystone_int_regen_armor)
+	keystone_int_spell_proc = data.get("keystone_int_spell_proc", keystone_int_spell_proc)
 	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
@@ -429,6 +531,21 @@ func restore_progression(data: Dictionary) -> void:
 	sphere_bonus_heal_power = data.get("sphere_bonus_heal_power", sphere_bonus_heal_power)
 	sphere_bonus_crit = data.get("sphere_bonus_crit", sphere_bonus_crit)
 	sphere_bonus_armor = data.get("sphere_bonus_armor", sphere_bonus_armor)
+	# Sphere combat bonuses that feed non-base fields (see save_progression).
+	sphere_bonus_determination = data.get("sphere_bonus_determination", sphere_bonus_determination)
+	sphere_bonus_regen = data.get("sphere_bonus_regen", sphere_bonus_regen)
+	sphere_bonus_armor_per_cycle = data.get("sphere_bonus_armor_per_cycle", sphere_bonus_armor_per_cycle)
+	sphere_bonus_life_steal = data.get("sphere_bonus_life_steal", sphere_bonus_life_steal)
+	sphere_bonus_resistance = data.get("sphere_bonus_resistance", sphere_bonus_resistance)
+	sphere_bonus_range = data.get("sphere_bonus_range", sphere_bonus_range)
+	damage_proc_reduction_chance = data.get("damage_proc_reduction_chance", damage_proc_reduction_chance)
+	damage_proc_reduction_percent = data.get("damage_proc_reduction_percent", damage_proc_reduction_percent)
+	damage_resistances = data.get("damage_resistances", damage_resistances)
+	# Equipment-derived bonuses stored outside base stats (see save_progression).
+	equipment_hand_bonus = data.get("equipment_hand_bonus", equipment_hand_bonus)
+	ranged_damage_bonus = data.get("ranged_damage_bonus", ranged_damage_bonus)
+	healing_bonus = data.get("healing_bonus", healing_bonus)
+	chance_boost = data.get("chance_boost", chance_boost)
 	# Skill tree passives
 	skill_tree_passives = data.get("skill_tree_passives", skill_tree_passives)
 	# Recalculate derived stats with restored values
@@ -507,9 +624,16 @@ func get_determination_modifier() -> float:
 	
 	# Calculate total modifier
 	var total_modifier = det_diff * effect_per_point
-	
-	# Return as multiplier (minimum 0.1 to prevent stats going to 0)
-	return max(0.1, 1.0 + total_modifier)
+
+	# Wild Abandon: amplify the whole swing (buff and penalty alike).
+	if keystone_det_amplify:
+		total_modifier *= DET_AMPLIFY_FACTOR
+
+	# Return as multiplier. The lower clamp normally bottoms out at 0.1; Unbroken
+	# Will raises it to DET_FLOOR_MODIFIER so a penalty can't halve stats past 50%.
+	# Only the downside is clamped — a positive (buff) modifier is left uncapped.
+	var floor_clamp = DET_FLOOR_MODIFIER if keystone_det_floor else 0.1
+	return max(floor_clamp, 1.0 + total_modifier)
 
 func get_determination_description() -> String:
 	var health_pct = get_health_percent()
@@ -577,6 +701,7 @@ const FLASH_REFRESH_CYCLES: int = 2
 const FLASH_COST_MOVE: int = 1
 const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
 const FLASH_BLOCK_ARMOR: int = 2
+const FLASH_STRIKE_DAMAGE: int = 1   # Flash Cut keystone: damage per Sidestep spend (placeholder)
 const FLASH_COST_PROC_TICK: int = 5  # advance the attack-speed counter 1 tick
 const FLASH_COST_DRAW: int = 4       # Flash Reserves keystone: draw a card
 
@@ -613,6 +738,11 @@ func spend_flash_for_block() -> bool:
 	print("[STATS] Flash block: -%d flash → +%d armor (%d armor total)" % [
 		FLASH_COST_BLOCK, FLASH_BLOCK_ARMOR, current_armor])
 	return true
+
+func spend_flash_for_strike() -> bool:
+	## Flash Cut: spend the same flash the Sidestep would, but the caller turns it
+	## into an attack (FLASH_STRIKE_DAMAGE to the nearest enemy) instead of armor.
+	return spend_flash_points(FLASH_COST_BLOCK)
 
 func spend_flash_for_proc_tick() -> bool:
 	## Buy one tick of the attack-speed counter with flash points ("quick
@@ -654,14 +784,28 @@ func register_attack() -> Dictionary:
 	
 	if current_attack_counter <= 0:
 		current_attack_counter = get_attack_speed_threshold()
+		# Killing Rhythm: trade the tempo/mana proc for a DEX-scaled damage burst
+		# armed on the next attack. No dexterity_proc signal (no half tempo/mana).
+		if keystone_dex_flat_damage:
+			var bonus = get_dex_proc_flat_bonus()
+			pending_dex_bonus_damage += bonus
+			print("[STATS] Killing Rhythm! Next attack +%d damage (DEX %d)" % [bonus, dexterity])
+			return {
+				"proc": false,
+				"mana_discount": 0,
+				"half_tempo": false,
+				"flat_damage": bonus
+			}
 		dexterity_proc.emit()
 		print("[STATS] *** DEX PROC! *** Half tempo + 2 mana discount!")
 		return {
 			"proc": true,
 			"mana_discount": 2,
-			"half_tempo": true
+			"half_tempo": true,
+			# Flurry Form: the proc-empowered attack strikes twice (read at play time).
+			"twin_strike": keystone_dex_twin_strike
 		}
-	
+
 	return {
 		"proc": false,
 		"mana_discount": 0,
@@ -682,6 +826,14 @@ func get_intelligence_spell_bonus() -> int:
 func get_intelligence_mana_regen_bonus() -> float:
 	# Every 5 points = +1 mana regen
 	return floorf(intelligence / 5.0)
+
+func get_int_spell_proc_chance() -> float:
+	## Arcane Echo: percent chance (INT/3) to echo bonus damage on a spell cast.
+	return intelligence / 3.0
+
+func get_int_spell_proc_damage() -> int:
+	## Arcane Echo: bonus damage (INT/2) to a random enemy when it echoes.
+	return floori(intelligence / 2.0)
 
 # ============================================
 # WISDOM CALCULATIONS
@@ -715,11 +867,25 @@ func get_tempo_until_mana_regen() -> int:
 
 func get_effective_physical_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
+	if keystone_dex_twin_strike:
+		damage -= DEX_TWIN_STRIKE_DAMAGE_PENALTY
 	return max(1, damage)
 
 func get_effective_ranged_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
+	if keystone_dex_twin_strike:
+		damage -= DEX_TWIN_STRIKE_DAMAGE_PENALTY
 	return max(1, damage)
+
+func get_dex_proc_flat_bonus() -> int:
+	## Killing Rhythm: DEX-scaled bonus damage granted on each would-be proc.
+	return floori(dexterity * DEX_FLAT_DAMAGE_PER_POINT)
+
+func consume_pending_dex_bonus_damage() -> int:
+	## Take (and clear) the Killing Rhythm bonus armed for the next attack.
+	var b = pending_dex_bonus_damage
+	pending_dex_bonus_damage = 0
+	return b
 
 func get_effective_spell_damage(base_damage: int) -> int:
 	# INT: +1 damage per point (flat)
@@ -746,6 +912,15 @@ func process_tempo(amount: int) -> void:
 		mana_changed.emit(current_mana, max_mana)
 		mana_gained.emit(int(mana_regen), true)
 		print("[STATS] Mana regen: +%.1f → %d/%d (reserved: %d)" % [mana_regen, int(current_mana), max_mana, maintained_mana])
+		# Arcane Ward: convert each regen tick into armor equal to half INT. Raw
+		# armor (like the flash sidestep) — block bonuses don't apply.
+		if keystone_int_regen_armor:
+			var ward = floori(intelligence / 2.0)
+			if ward > 0:
+				current_armor += ward
+				armor_changed.emit(current_armor)
+				armor_gained.emit(ward)
+				print("[STATS] Arcane Ward: +%d armor (%d total)" % [ward, current_armor])
 
 ## Called once per tempo cycle (every 5 global tempo). Handles armor decay and misc upkeep.
 func process_turn(debuff_mgr = null, buff_mgr = null) -> void:

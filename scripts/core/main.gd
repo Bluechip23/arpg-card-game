@@ -1494,8 +1494,16 @@ func _on_attack_pressed() -> void:
 	if player.has_method("play_animation"):
 		player.play_animation("attack_slash", _facing_dir_toward(target))
 
-	# Damage: 0 base + strength modifier
+	# Damage: 0 base + strength modifier (get_effective_physical_damage already
+	# applies Flurry Form's per-hit penalty). Killing Rhythm's armed bonus, if any,
+	# is spent on this swing.
 	var damage = stats.get_effective_physical_damage(0)
+	damage += stats.consume_pending_dex_bonus_damage()
+	# Weighted Strikes: a heavy one-handed weapon's heft adds to the basic swing.
+	if stats.keystone_str_weight_basic:
+		var ba_inv = player.get_inventory()
+		if ba_inv:
+			damage += ba_inv.get_single_hand_weight_damage_bonus()
 
 	var buff_mgr = player.get_buff_manager()
 	if buff_mgr:
@@ -1521,6 +1529,11 @@ func _on_attack_pressed() -> void:
 		tempo_cost = tempo_cost / 2
 		deck_manager.next_attack_half_tempo = false
 		deck_manager.next_attack_mana_discount = 0
+		# Flurry Form: the proc-empowered basic attack lands twice. A basic swing
+		# has no per-hit card effects, so a doubled hit is equivalent to two.
+		if stats.keystone_dex_twin_strike:
+			damage *= 2
+			print("[MAIN] Flurry Form: basic attack strikes twice!")
 		# Pocket Knife: -2 additional tempo
 		var ba_inv = player.get_inventory()
 		if ba_inv and ba_inv.has_pocket_knife_equipped():
@@ -4338,11 +4351,57 @@ func _on_flash_block_pressed() -> void:
 	var stats = player.get_stats() if player else null
 	if not stats:
 		return
+	# Flash Cut keystone: the Sidestep spend becomes an attack instead of armor.
+	if stats.keystone_flash_strike:
+		_flash_strike(stats)
+		return
 	if stats.spend_flash_for_block():
 		add_battle_log("Sidestep! -%d flash, +%d block." % [
 			PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR], Color(1.0, 0.9, 0.4))
 	else:
 		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
+
+func _flash_strike(stats) -> void:
+	## Flash Cut: spend Sidestep flash to strike the nearest enemy in reach.
+	var nearby = enemy_spawner.get_enemies_in_radius(player.position, 2.5)
+	if nearby.is_empty():
+		add_battle_log("Flash Cut: no enemy in reach!", Color(1.0, 0.6, 0.3))
+		return
+	var target = nearby[0]
+	var closest_dist = INF
+	for enemy in nearby:
+		var diff = player.position - enemy.position
+		var dist = Vector3(diff.x, 0, diff.z).length()
+		if dist < closest_dist:
+			closest_dist = dist
+			target = enemy
+	if not stats.spend_flash_for_strike():
+		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
+		return
+	if player.has_method("play_animation"):
+		player.play_animation("attack_slash", _facing_dir_toward(target))
+	target.take_damage(PlayerStats.FLASH_STRIKE_DAMAGE, true)
+	add_battle_log("Flash Cut! -%d flash, %d damage to %s." % [
+		PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_STRIKE_DAMAGE, target.enemy_name], Color(1.0, 0.9, 0.4))
+
+func _try_arcane_echo(stats) -> void:
+	## Arcane Echo keystone: a spell cast has an INT/3% chance to deal INT/2
+	## bonus damage to a random living enemy.
+	if not stats or not stats.keystone_int_spell_proc:
+		return
+	if randf() * 100.0 >= stats.get_int_spell_proc_chance():
+		return
+	var dmg = stats.get_int_spell_proc_damage()
+	if dmg <= 0:
+		return
+	var enemies = enemy_spawner.get_living_enemies()
+	if enemies.is_empty():
+		return
+	var target = enemies[randi() % enemies.size()]
+	if not (target and target.has_method("take_damage")):
+		return
+	target.take_damage(dmg, true)
+	add_battle_log("Arcane Echo! %d bonus damage to %s." % [dmg, target.enemy_name], Color(0.6, 0.4, 1.0))
 
 func _on_flash_draw_pressed() -> void:
 	var stats = player.get_stats() if player else null
@@ -4385,8 +4444,12 @@ func _update_flash_button() -> void:
 			"ON" if stats.flash_movement_enabled else "off", PlayerStats.FLASH_COST_MOVE]
 	if _flash_block_button:
 		_flash_block_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_BLOCK else 0.45
-		_flash_block_button.tooltip_text = "Sidestep: spend %d flash for %d block." % [
-			PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR]
+		if stats.keystone_flash_strike:
+			_flash_block_button.tooltip_text = "Flash Cut: spend %d flash to strike the nearest enemy for %d damage." % [
+				PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_STRIKE_DAMAGE]
+		else:
+			_flash_block_button.tooltip_text = "Sidestep: spend %d flash for %d block." % [
+				PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR]
 	if _flash_proc_button:
 		_flash_proc_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_PROC_TICK else 0.45
 		_flash_proc_button.tooltip_text = "Quick hands: spend %d flash to advance the attack-speed counter by 1 tick." % PlayerStats.FLASH_COST_PROC_TICK
@@ -4482,6 +4545,13 @@ func _on_hand_updated() -> void:
 	# Cory: Regrowth — draw 4 when hand is empty
 	if deck_manager.hand.is_empty():
 		progression_triggers._trigger_skill_tree_cory_on_hand_empty()
+
+	# Quick Study (WIS keystone): auto-draw 1 when the hand empties. draw_card()
+	# does NOT touch turn_manager.tempo_until_draw, so the timed draw is untouched.
+	# A failed draw (empty deck) emits no hand_updated, so this can't loop.
+	var _qs_stats = player.get_stats() if player else null
+	if _qs_stats and _qs_stats.keystone_wis_empty_draw and deck_manager.hand.is_empty():
+		deck_manager.draw_card()
 
 	# Snapshot current hand card IDs to detect which are new
 	var new_card_ids: Array[String] = []
@@ -6035,6 +6105,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		progression_triggers._trigger_sphere_passives("on_attack", {"card": card, "target": target})
 	if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
 		progression_triggers._trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
+		_try_arcane_echo(player.get_stats())
 
 	# Skill tree passive triggers for card play
 	progression_triggers._trigger_skill_tree_on_card_play(card, target)

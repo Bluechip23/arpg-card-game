@@ -42,6 +42,44 @@ func _apply_sphere_grid_node(node) -> void:
 				"dex_ranged":
 					stats.keystone_dex_ranged = true
 					main.add_battle_log("Keystone: Deadeye Form — ranged damage scales with DEX", Color(1.0, 0.85, 0.4))
+				"det_floor":
+					stats.keystone_det_floor = true
+					stats.recalculate_derived_stats()
+					main.add_battle_log("Keystone: Unbroken Will — low health can't drop your stats below half", Color(1.0, 0.85, 0.4))
+				"det_amplify":
+					stats.keystone_det_amplify = true
+					stats.recalculate_derived_stats()
+					main.add_battle_log("Keystone: Wild Abandon — Determination's swings are amplified", Color(1.0, 0.85, 0.4))
+				"dex_twin_strike":
+					stats.keystone_dex_twin_strike = true
+					main.add_battle_log("Keystone: Flurry Form — Dexterity procs strike twice, attacks hit lighter", Color(1.0, 0.85, 0.4))
+				"dex_flat_damage":
+					stats.keystone_dex_flat_damage = true
+					main.add_battle_log("Keystone: Killing Rhythm — Dexterity procs become bonus attack damage", Color(1.0, 0.85, 0.4))
+				"flash_strike":
+					stats.keystone_flash_strike = true
+					main._update_flash_button()
+					main.add_battle_log("Keystone: Flash Cut — Sidestep now strikes instead of blocks", Color(1.0, 0.85, 0.4))
+				"str_weight_basic":
+					stats.keystone_str_weight_basic = true
+					main.add_battle_log("Keystone: Weighted Strikes — one-handed weapon heft feeds basic attacks", Color(1.0, 0.85, 0.4))
+				"str_light_slot":
+					stats.keystone_str_light_slot = true
+					if stats.str_light_slot_type < 0:
+						stats.set_str_light_slot(ItemData.ItemType.CHEST)
+					main.add_battle_log("Keystone: Balanced Load — a chosen slot weighs 10% less", Color(1.0, 0.85, 0.4))
+				"wis_empty_draw":
+					stats.keystone_wis_empty_draw = true
+					main.add_battle_log("Keystone: Quick Study — auto-draw a card when your hand empties", Color(1.0, 0.85, 0.4))
+				"wis_hand_crit":
+					stats.keystone_wis_hand_crit = true
+					main.add_battle_log("Keystone: Tactician's Eye — crit chance rises with cards in hand", Color(1.0, 0.85, 0.4))
+				"int_regen_armor":
+					stats.keystone_int_regen_armor = true
+					main.add_battle_log("Keystone: Arcane Ward — mana regen grants armor equal to half your INT", Color(1.0, 0.85, 0.4))
+				"int_spell_proc":
+					stats.keystone_int_spell_proc = true
+					main.add_battle_log("Keystone: Arcane Echo — spells may echo bonus damage to a random enemy", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 
