@@ -4527,6 +4527,13 @@ func _on_hand_updated() -> void:
 	if deck_manager.hand.is_empty():
 		progression_triggers._trigger_skill_tree_cory_on_hand_empty()
 
+	# Quick Study (WIS keystone): auto-draw 1 when the hand empties. draw_card()
+	# does NOT touch turn_manager.tempo_until_draw, so the timed draw is untouched.
+	# A failed draw (empty deck) emits no hand_updated, so this can't loop.
+	var _qs_stats = player.get_stats() if player else null
+	if _qs_stats and _qs_stats.keystone_wis_empty_draw and deck_manager.hand.is_empty():
+		deck_manager.draw_card()
+
 	# Snapshot current hand card IDs to detect which are new
 	var new_card_ids: Array[String] = []
 	for card in deck_manager.hand:

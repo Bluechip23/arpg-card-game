@@ -390,7 +390,11 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var ebs_crit = 0
 	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats:
 		ebs_crit = owner_stats.st_exposed_blind_spot_crit
-	var total_chance = innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit
+	# Tactician's Eye (WIS keystone): crit chance scaling with cards in hand.
+	var hand_crit = 0
+	if owner_stats and owner_stats.has_method("get_hand_size_crit_bonus"):
+		hand_crit = owner_stats.get_hand_size_crit_bonus()
+	var total_chance = innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit + hand_crit
 	if total_chance <= 0:
 		return false
 

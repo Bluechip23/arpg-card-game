@@ -68,6 +68,12 @@ func _apply_sphere_grid_node(node) -> void:
 					if stats.str_light_slot_type < 0:
 						stats.set_str_light_slot(ItemData.ItemType.CHEST)
 					main.add_battle_log("Keystone: Balanced Load — a chosen slot weighs 10% less", Color(1.0, 0.85, 0.4))
+				"wis_empty_draw":
+					stats.keystone_wis_empty_draw = true
+					main.add_battle_log("Keystone: Quick Study — auto-draw a card when your hand empties", Color(1.0, 0.85, 0.4))
+				"wis_hand_crit":
+					stats.keystone_wis_hand_crit = true
+					main.add_battle_log("Keystone: Tactician's Eye — crit chance rises with cards in hand", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 

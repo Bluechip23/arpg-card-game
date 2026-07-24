@@ -181,6 +181,11 @@ var keystone_str_weight_basic: bool = false
 # ItemData.ItemType (-1 until chosen).
 var keystone_str_light_slot: bool = false
 var str_light_slot_type: int = -1
+# Quick Study: when the hand empties, auto-draw 1 card WITHOUT touching the
+# timed-draw countdown (handled in Main._on_hand_updated).
+var keystone_wis_empty_draw: bool = false
+# Tactician's Eye: crit chance rises with the number of cards in hand.
+var keystone_wis_hand_crit: bool = false
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
 const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing
@@ -188,6 +193,15 @@ const DET_FLOOR_MODIFIER: float = 0.5    # Unbroken Will: raised lower clamp (de
 const DEX_TWIN_STRIKE_DAMAGE_PENALTY: int = 2   # Flurry Form: per-hit damage traded for the extra strike (placeholder)
 const DEX_FLAT_DAMAGE_PER_POINT: float = 0.5    # Killing Rhythm: bonus damage per DEX on each trigger (placeholder)
 const STR_LIGHT_SLOT_REDUCTION: float = 0.10    # Balanced Load: chosen slot weighs this much less
+const WIS_CRIT_PER_CARD: int = 2                # Tactician's Eye: +crit% per card in hand (placeholder)
+
+func get_hand_size_crit_bonus() -> int:
+	## Tactician's Eye: bonus crit chance from cards currently in hand.
+	if not keystone_wis_hand_crit:
+		return 0
+	if inventory and inventory.deck_manager:
+		return inventory.deck_manager.hand.size() * WIS_CRIT_PER_CARD
+	return 0
 
 func set_str_light_slot(item_type: int) -> void:
 	## Balanced Load: choose which equipment slot the 10% weight cut applies to.
@@ -395,6 +409,8 @@ func save_progression() -> Dictionary:
 		"keystone_str_weight_basic": keystone_str_weight_basic,
 		"keystone_str_light_slot": keystone_str_light_slot,
 		"str_light_slot_type": str_light_slot_type,
+		"keystone_wis_empty_draw": keystone_wis_empty_draw,
+		"keystone_wis_hand_crit": keystone_wis_hand_crit,
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -473,6 +489,8 @@ func restore_progression(data: Dictionary) -> void:
 	keystone_str_weight_basic = data.get("keystone_str_weight_basic", keystone_str_weight_basic)
 	keystone_str_light_slot = data.get("keystone_str_light_slot", keystone_str_light_slot)
 	str_light_slot_type = data.get("str_light_slot_type", str_light_slot_type)
+	keystone_wis_empty_draw = data.get("keystone_wis_empty_draw", keystone_wis_empty_draw)
+	keystone_wis_hand_crit = data.get("keystone_wis_hand_crit", keystone_wis_hand_crit)
 	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
