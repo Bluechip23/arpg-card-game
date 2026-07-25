@@ -198,6 +198,8 @@ var keystone_armor_temp_hp: bool = false
 # Arcane Blood: damage that reaches health is split evenly with mana (health
 # takes the odd point and any share mana can't cover; death only at 0 HP).
 var keystone_mana_blood: bool = false
+# Willspring: Determination's swing is driven by mana percentage, not health.
+var keystone_det_mana: bool = false
 const CONVERSION_TEMP_HP_TEMPO: int = 15  # duration of keystone-converted temp HP
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
@@ -358,7 +360,12 @@ func get_effective_stat(base_value: int) -> int:
 
 func initialize(data: CharacterData) -> void:
 	character_data = data
-	
+
+	# Willspring: every mana mutation emits mana_changed, so one self-connection
+	# covers all of them — recalc stats when mana crosses a DET threshold.
+	if not mana_changed.is_connected(_on_mana_changed_for_det):
+		mana_changed.connect(_on_mana_changed_for_det)
+
 	# Base stats (before determination)
 	base_strength = data.strength
 	base_dexterity = data.dexterity
@@ -602,13 +609,37 @@ func get_health_percent() -> float:
 		return 1.0
 	return float(current_health + current_temp_health) / float(max_health)
 
+func get_mana_percent() -> float:
+	if max_mana <= 0:
+		return 1.0
+	return current_mana / float(max_mana)
+
+func get_determination_resource_percent() -> float:
+	## The resource fraction Determination reacts to: health normally, mana
+	## when the Willspring keystone is attached.
+	if keystone_det_mana:
+		return get_mana_percent()
+	return get_health_percent()
+
+var _det_mana_last_pct: float = 1.0
+
+func _on_mana_changed_for_det(_cur: float, _max_val: int) -> void:
+	## Willspring: mana is the Determination driver, so crossing a threshold on
+	## the mana pool re-derives stats the same way health crossings do.
+	var new_pct = get_mana_percent()
+	if keystone_det_mana and _crossed_threshold(_det_mana_last_pct, new_pct):
+		recalculate_derived_stats()
+		stats_updated.emit()
+	_det_mana_last_pct = new_pct
+
 func get_determination_modifier() -> float:
-	# Returns multiplier for stats based on health % and determination
+	# Returns multiplier for stats based on determination and the driving
+	# resource percent — health normally, mana under Willspring.
 	# At DET 10: no effect (1.0)
-	# Below 10: penalties at low health
-	# Above 10: bonuses at low health
-	
-	var health_pct = get_health_percent()
+	# Below 10: penalties as the resource drains
+	# Above 10: bonuses as the resource drains
+
+	var health_pct = get_determination_resource_percent()
 	var det_diff = determination - 10  # Positive = above 10, negative = below
 	
 	# Determine which threshold and effect percentage
@@ -644,11 +675,10 @@ func get_determination_modifier() -> float:
 	return max(floor_clamp, 1.0 + total_modifier)
 
 func get_determination_description() -> String:
-	var health_pct = get_health_percent()
 	var modifier = get_determination_modifier()
-	
+
 	if modifier == 1.0:
-		return "No effect (HP > 80%)"
+		return "No effect (%s > 80%%)" % ("Mana" if keystone_det_mana else "HP")
 	elif modifier > 1.0:
 		return "+%.0f%% to stats" % ((modifier - 1.0) * 100)
 	else:

@@ -988,6 +988,9 @@ func _open_detail_popup(node_id: int) -> void:
 		SphereGrid.NodeType.FREE_STAT:
 			_add_popup_label(vbox, node.description, 15, COLOR_FREE_STAT)
 			_add_popup_label(vbox, "Points bank to your pool — spend them on any stats from the character/stat screen, just like leveling up.", 11, COLOR_DIM_TEXT)
+		SphereGrid.NodeType.KEYSTONE:
+			_add_popup_label(vbox, node.description, 14, Color(1.0, 0.85, 0.4))
+			_add_popup_label(vbox, "Keystones attached: %d / %d" % [sphere_grid.unlocked_keystone_count(), SphereGrid.MAX_KEYSTONES], 12, COLOR_DIM_TEXT)
 		SphereGrid.NodeType.CULLING_STONE:
 			_add_popup_label(vbox, "Grants 1 Culling Stone", 14, COLOR_CULLING)
 			_add_popup_label(vbox, "Use at the Card Dealer to remove a card from your deck.", 12, COLOR_DIM_TEXT)
@@ -1100,13 +1103,18 @@ func _get_stat_detail(label: String) -> String:
 
 func _add_unlock_section(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
 	var reqs_met = SphereGrid.requirements_met(node, player_stats)
+	var keystone_blocked = node.node_type == SphereGrid.NodeType.KEYSTONE \
+		and not sphere_grid.keystone_slots_free()
 	var can_unlock = sphere_grid.is_unlockable(node.id) and reqs_met \
+		and not keystone_blocked \
 		and sphere_inventory and sphere_inventory.has_sphere_for_node(node.node_type)
 
 	if not sphere_grid.is_unlockable(node.id):
 		_add_popup_label(vbox, "Must be adjacent to an unlocked node", 12, Color(0.7, 0.3, 0.3))
 	elif not reqs_met:
 		_add_popup_label(vbox, SphereGrid.requirement_text(node), 12, Color(0.9, 0.55, 0.2))
+	elif keystone_blocked:
+		_add_popup_label(vbox, "Keystone limit reached (%d of %d attached)" % [sphere_grid.unlocked_keystone_count(), SphereGrid.MAX_KEYSTONES], 12, Color(0.7, 0.3, 0.3))
 	elif not sphere_inventory or not sphere_inventory.has_sphere_for_node(node.node_type):
 		_add_popup_label(vbox, "Requires: 1 sphere", 12, Color(0.7, 0.3, 0.3))
 	else:
@@ -1157,8 +1165,11 @@ func _on_unlock_pressed() -> void:
 	if not sphere_inventory or not sphere_inventory.has_sphere_for_node(node.node_type):
 		return
 
+	# Unlock first, spend after — unlock_node can refuse (e.g. keystone limit)
+	# and the sphere must not be consumed on a refused unlock.
+	if not sphere_grid.unlock_node(_popup_node_id):
+		return
 	sphere_inventory.spend_sphere_for_node(node.node_type)
-	sphere_grid.unlock_node(_popup_node_id)
 	_update_points_label()
 	_set_info("Unlocked: %s — %s" % [node.label, node.description])
 	node_unlocked.emit(_popup_node_id)

@@ -89,6 +89,10 @@ func _apply_sphere_grid_node(node) -> void:
 				"mana_blood":
 					stats.keystone_mana_blood = true
 					main.add_battle_log("Keystone: Arcane Blood — damage is shared between health and mana", Color(1.0, 0.85, 0.4))
+				"det_mana":
+					stats.keystone_det_mana = true
+					stats.recalculate_derived_stats()
+					main.add_battle_log("Keystone: Willspring — Determination now swings with your mana, not your health", Color(1.0, 0.85, 0.4))
 				_:
 					print("[SPHERE] Unknown keystone id: %s" % node.keystone_id)
 
