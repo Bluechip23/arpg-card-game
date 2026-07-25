@@ -19,6 +19,9 @@ extends Node3D
 @onready var draw_label = $UI/DeckInfo/DrawPileLabel
 @onready var discard_label = $UI/DeckInfo/DiscardPileLabel
 var _draw_pile_btn: Button = null       # left draw pile button (for its tooltip)
+var _hand_info_btn: Button = null       # small ⓘ button beside the hand icon
+var _hand_info_popup: PanelContainer = null  # hand size / overflow info popup
+var _hand_info_vbox: VBoxContainer = null    # popup content (rebuilt on refresh)
 var _discard_pile_btn: Button = null    # right discard pile button (for its tooltip)
 @onready var jail_label = $UI/DeckInfo/JailPileLabel
 @onready var selected_label: Label = $UI/SelectedLabel
@@ -281,6 +284,9 @@ var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
 var _attack_button: Button = null
+# Basic (auto) attack baseline: flat damage before the STR modifier, so early
+# swings never feel like pure chip damage. STR still scales on top of this.
+const BASIC_ATTACK_BASE_DAMAGE := 3
 var _flash_button: Button = null        # bolt + pool count display (60% of the row)
 var _flash_move_button: Button = null   # boots: toggle spending flash on movement
 var _flash_move_sparkle: SparkleBorder = null  # gold cycling border while the toggle is on
@@ -376,6 +382,9 @@ func _ready() -> void:
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
+	overflow_manager.overflow_effects_changed.connect(func():
+		if _hand_info_popup and _hand_info_popup.visible:
+			_refresh_hand_info_popup())
 	player.move_completed.connect(_on_player_move_completed)
 	player.tile_reached.connect(_on_player_tile_reached)
 	player.set_grid_manager(grid_manager)
@@ -844,7 +853,7 @@ func _setup_action_buttons() -> void:
 	_attack_button.text = "5T (0)"
 	_attack_button.custom_minimum_size = Vector2(0, 36)
 	_attack_button.size_flags_horizontal = Control.SIZE_FILL
-	_attack_button.tooltip_text = "Basic melee attack: STR modifier damage. Costs 5 tempo."
+	_attack_button.tooltip_text = "Basic melee attack: %d base + STR modifier damage. Costs 5 tempo." % BASIC_ATTACK_BASE_DAMAGE
 	_attack_button.pressed.connect(_on_attack_pressed)
 	vbox.add_child(_attack_button)
 
@@ -1275,6 +1284,51 @@ func _setup_deck_info_vertical() -> void:
 		_action_vbox.add_child(_draw_pile_btn)
 		_action_vbox.move_child(_draw_pile_btn, 0)  # top of the column
 
+	# Hand info — a hand-of-cards icon with a small ⓘ button, tucked right
+	# under the draw pile. Clicking ⓘ opens a small popup with max/current
+	# hand size and any active overflow effects.
+	var hand_row = HBoxContainer.new()
+	hand_row.name = "HandInfoRow"
+	hand_row.add_theme_constant_override("separation", 2)
+	var hand_icon_rect = TextureRect.new()
+	hand_icon_rect.texture = UIGlyphs.get_glyph("hand_cards")
+	hand_icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	hand_icon_rect.custom_minimum_size = Vector2(26, 26)
+	hand_icon_rect.tooltip_text = "Your hand"
+	hand_row.add_child(hand_icon_rect)
+	_hand_info_btn = Button.new()
+	_hand_info_btn.name = "HandInfoButton"
+	_hand_info_btn.focus_mode = Control.FOCUS_NONE
+	_hand_info_btn.icon = UIGlyphs.get_glyph("info")
+	_hand_info_btn.flat = true
+	_hand_info_btn.custom_minimum_size = Vector2(22, 22)
+	_hand_info_btn.add_theme_constant_override("icon_max_width", 16)
+	_hand_info_btn.tooltip_text = "Hand size and overflow info"
+	_hand_info_btn.pressed.connect(_toggle_hand_info_popup)
+	hand_row.add_child(_hand_info_btn)
+	if _action_vbox:
+		_action_vbox.add_child(hand_row)
+		_action_vbox.move_child(hand_row, 1)  # right beneath the draw pile
+
+	# The popup itself lives on the UI layer, hidden until asked for.
+	_hand_info_popup = PanelContainer.new()
+	_hand_info_popup.name = "HandInfoPopup"
+	_hand_info_popup.visible = false
+	var hip_style = StyleBoxFlat.new()
+	hip_style.bg_color = Color(0.1, 0.1, 0.15, 0.96)
+	hip_style.border_color = Color(0.45, 0.7, 1.0)
+	hip_style.set_border_width_all(1)
+	hip_style.set_corner_radius_all(6)
+	hip_style.content_margin_left = 10
+	hip_style.content_margin_right = 10
+	hip_style.content_margin_top = 8
+	hip_style.content_margin_bottom = 8
+	_hand_info_popup.add_theme_stylebox_override("panel", hip_style)
+	_hand_info_vbox = VBoxContainer.new()
+	_hand_info_vbox.add_theme_constant_override("separation", 3)
+	_hand_info_popup.add_child(_hand_info_vbox)
+	ui.add_child(_hand_info_popup)
+
 	# Discard pile — right edge.
 	var disc_wrap = Control.new()
 	disc_wrap.name = "DiscardButtonContainer"
@@ -1494,10 +1548,10 @@ func _on_attack_pressed() -> void:
 	if player.has_method("play_animation"):
 		player.play_animation("attack_slash", _facing_dir_toward(target))
 
-	# Damage: 0 base + strength modifier (get_effective_physical_damage already
-	# applies Flurry Form's per-hit penalty). Killing Rhythm's armed bonus, if any,
-	# is spent on this swing.
-	var damage = stats.get_effective_physical_damage(0)
+	# Damage: flat baseline + strength modifier (get_effective_physical_damage
+	# already applies Flurry Form's per-hit penalty). Killing Rhythm's armed
+	# bonus, if any, is spent on this swing.
+	var damage = stats.get_effective_physical_damage(BASIC_ATTACK_BASE_DAMAGE)
 	damage += stats.consume_pending_dex_bonus_damage()
 	# Weighted Strikes: a heavy one-handed weapon's heft adds to the basic swing.
 	if stats.keystone_str_weight_basic:
@@ -5477,6 +5531,72 @@ func _update_draw_label() -> void:
 		draw_label.text = "%d" % int(tempo_until)
 	if _draw_pile_btn:
 		_draw_pile_btn.tooltip_text = "Draw pile: %d card(s)\nNext draw in %d tempo" % [deck_manager.get_draw_pile_size(), int(tempo_until)]
+	if _hand_info_popup and _hand_info_popup.visible:
+		_refresh_hand_info_popup()
+
+func _toggle_hand_info_popup() -> void:
+	if not _hand_info_popup:
+		return
+	if _hand_info_popup.visible:
+		_hand_info_popup.visible = false
+		return
+	_refresh_hand_info_popup()
+	_hand_info_popup.visible = true
+	# Open to the right of the ⓘ button, clamped onto the screen.
+	await get_tree().process_frame  # let the panel size itself to fresh content
+	if not _hand_info_popup.visible:
+		return
+	var btn_rect = _hand_info_btn.get_global_rect()
+	var pos = btn_rect.position + Vector2(btn_rect.size.x + 8, -_hand_info_popup.size.y / 2.0)
+	var screen = get_viewport().get_visible_rect().size
+	pos.x = clampf(pos.x, 8.0, screen.x - _hand_info_popup.size.x - 8.0)
+	pos.y = clampf(pos.y, 8.0, screen.y - _hand_info_popup.size.y - 8.0)
+	_hand_info_popup.global_position = pos
+
+func _refresh_hand_info_popup() -> void:
+	if not _hand_info_vbox:
+		return
+	for child in _hand_info_vbox.get_children():
+		child.queue_free()
+
+	var stats = player.get_stats() if player else null
+	var max_hand = stats.hand_size if stats else 0
+	var current_hand = deck_manager.hand.size() if deck_manager else 0
+
+	var title = Label.new()
+	title.text = "Hand"
+	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_color_override("font_color", Color(0.45, 0.7, 1.0))
+	_hand_info_vbox.add_child(title)
+
+	var size_line = Label.new()
+	size_line.text = "Current hand: %d / %d max" % [current_hand, max_hand]
+	size_line.add_theme_font_size_override("font_size", 12)
+	var over_max = current_hand > max_hand
+	size_line.add_theme_color_override("font_color", Color(1.0, 0.6, 0.3) if over_max else Color(0.85, 0.85, 0.9))
+	_hand_info_vbox.add_child(size_line)
+
+	var overflow_title = Label.new()
+	overflow_title.text = "Overflow effects:"
+	overflow_title.add_theme_font_size_override("font_size", 12)
+	overflow_title.add_theme_color_override("font_color", Color(0.8, 0.8, 0.9))
+	_hand_info_vbox.add_child(overflow_title)
+
+	var effects: Array = overflow_manager.overflow_effects if overflow_manager else []
+	if effects.is_empty():
+		var none = Label.new()
+		none.text = "  None active"
+		none.add_theme_font_size_override("font_size", 11)
+		none.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		_hand_info_vbox.add_child(none)
+	else:
+		for effect in effects:
+			var line = Label.new()
+			var source = " — %s" % effect.source_name if effect.source_name != "" else ""
+			line.text = "  %s%s" % [effect.get_display_text(), source]
+			line.add_theme_font_size_override("font_size", 11)
+			line.add_theme_color_override("font_color", Color(0.95, 0.75, 0.4))
+			_hand_info_vbox.add_child(line)
 
 func _update_attack_button_text() -> void:
 	if _attack_button:

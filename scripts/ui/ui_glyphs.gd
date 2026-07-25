@@ -32,6 +32,8 @@ static func get_glyph(key: String) -> Texture2D:
 		"boots": _draw_boots(img)
 		"duck": _draw_duck(img)
 		"dual_daggers": _draw_dual_daggers(img)
+		"hand_cards": _draw_hand_cards(img)
+		"info": _draw_info(img)
 		_:
 			_cache[key] = null
 			return null
@@ -270,6 +272,36 @@ static func _draw_card_draw(img: Image) -> void:
 	# Up arrow bursting from the front card (the draw).
 	_tri(img, Vector2(14, 15), Vector2(11, 20), Vector2(17, 20), gold)
 	_rect(img, 13, 19, 3, 4, gold)
+
+static func _draw_hand_cards(img: Image) -> void:
+	## A hand of cards: three fanned cards, side cards staggered lower like a
+	## held fan. Marks the hand-size info widget next to the draw pile.
+	var back := Color(0.35, 0.45, 0.7)
+	var mid := Color(0.6, 0.68, 0.85)
+	var face := Color(0.9, 0.9, 0.95)
+	var edge := Color(0.2, 0.25, 0.4)
+	# Left card (lowest, mostly hidden).
+	_rect(img, 2, 8, 9, 13, back)
+	_rect(img, 2, 8, 9, 1, edge)
+	_rect(img, 2, 8, 1, 13, edge)
+	# Middle card (higher — the fan's peak).
+	_rect(img, 7, 4, 9, 14, mid)
+	_rect(img, 7, 4, 9, 1, edge)
+	_rect(img, 7, 4, 1, 14, edge)
+	# Right card (front of the fan).
+	_rect(img, 13, 7, 9, 13, face)
+	_rect(img, 13, 7, 9, 1, edge)
+	_rect(img, 13, 7, 1, 13, edge)
+	_rect(img, 21, 7, 1, 13, edge)
+	_rect(img, 13, 19, 9, 1, edge)
+
+static func _draw_info(img: Image) -> void:
+	## A small ⓘ badge: ringed circle with a dot and stem.
+	var blue := Color(0.45, 0.7, 1.0)
+	var bright := Color(0.9, 0.95, 1.0)
+	_ring(img, 12.0, 12.0, 9.0, 2.5, blue)
+	_rect(img, 11, 6, 3, 3, bright)   # the dot
+	_rect(img, 11, 10, 3, 8, bright)  # the stem
 
 static func _ring(img: Image, cx: float, cy: float, r: float, th: float, c: Color) -> void:
 	## Circle outline of thickness th centered at (cx, cy).
