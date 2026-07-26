@@ -61,7 +61,7 @@ Every character has six core attributes:
 | **Intelligence (INT)** | +1 spell and heal power for every 2 points. +1 mana regen for every 5 points. |
 | **Wisdom (WIS)** | +1 hand size for every 5 points. Each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5). |
 | **Determination (DET)** | Controls how low health affects your other stats. At 10 it does nothing. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. High-DET builds are strongest on the brink of death. |
-| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. Spent by choice through the Flash row in the battle HUD — **1 point** moves a tile without spending tempo (boots toggle), **3 points** buy 2 block (a quick sidestep), **5 points** advance the attack-speed counter one tick (quick hands). The spend buttons fade while you can't afford them, and a sphere-grid keystone can unlock a fourth spend (4 points: draw a card). |
+| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. **1 point** moves a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. 
 
 All characters share a base **5% critical hit chance**, which can be raised by progression and effects.
 
@@ -70,9 +70,7 @@ All characters share a base **5% critical hit chance**, which can be raised by p
 ## Resources: Health, Mana, Armor
 
 ### Health
-Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**; sphere grid nodes and equipment grow it further. Reaching 0 means death (with story consequences — not a run reset). Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
-
-Health also feeds back into your stats through **Determination** — dropping below 80/60/40/10% health shifts your effective stats up or down depending on your DET.
+Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**. **There is no pure vitality stat to increase health**. Reaching 0 means dead sauce. Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
 
 ### Mana
 The cost of playing most cards.
@@ -147,7 +145,7 @@ Mechanics that appear on cards:
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
 | **Chisel** | Card can only be played while slotted into an item — never from hand alone. |
 
-Some cards carry **RNG outcomes** — percentages printed on the card that roll when played, either pass/fail or a weighted pick between multiple results. Chance-boosting effects tilt these rolls in your favor.
+Some cards carry **RNG outcomes** — percentages printed on the card that roll when played, either pass/fail or a weighted pick between multiple results. Chance-boosting effects tilt these rolls in your favor. **The player knows when drawn if the cards RNG effect will trigger. Holding the card in your hand for an extended time will re roll the RNG outcome.**
 
 ---
 
@@ -228,14 +226,11 @@ Negative effects, applied by enemies and hazards (and occasionally self-inflicte
 
 Characters equip items into typed slots: **Helm, Chest, Rings, Belt, Boots, Gauntlets, Weapons/Hands**. Quivers occupy a hand slot. Slot counts vary by character (see [Characters](#characters)).
 
-Items grant stat bonuses, resource bonuses, hand size, weapon damage, and special effects. Some item types have unique systems:
-
-- **Rings** carry passive triggers — "on kill," "on heal," "on gaining X+ armor," and so on — that fire an effect (gain armor, gain mana, draw a card…) when the condition is met.
-- **Gauntlets** can carry an active skill (mana cost + cooldown) or an always-on passive.
+Items grant stat bonuses, resource bonuses, hand size, weapon damage, and special effects. Each item has a general theme, although they do not always follow them specifically.
 
 ### Weight & carry capacity
 
-Every item has weight. Your capacity is **50 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs while traveling light speeds them up (both capped). Traveling light is a real build choice.
+Every item has weight. Your capacity is **50 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs while traveling light speeds them up (both capped). **Total carrying weight is used when understanding attack speed, not just weapon weight.**
 
 ### Hands, off-hands, and two-handing
 
@@ -249,7 +244,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 
 ### Equipment builds (loadouts I / II / III)
 
-You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. Out of combat, switching is free. **In combat, every changed slot costs tempo**:
+You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **Every changed slot costs tempo**:
 
 | Slot | Swap cost (tempo) | Remove-only |
 |---|---|---|
@@ -272,13 +267,13 @@ Items and cards are deeply linked: some items **grant cards** to your deck while
 - **Equipping an item** places the cards it owns into your **discard pile** — they join your deck on the next reshuffle, not instantly in hand.
 - **Removing an item** immediately pulls its cards out of **every zone** — deck, hand, discard, jail, maintained, and manifest.
 - **Jail time is not laundered by swapping.** If an item's card is jailed and you swap the item out and back in, the card returns *directly to jail* with the same time remaining.
-- **Produced cards detach.** If an item or a slotted card *generates* a card during play (for example, a goblet that produces a Heal Orb card), that produced card belongs to you, not the item — it stays in your deck even after the item is swapped out.
+- **Produced cards detach.** If an item or a slotted card *generates* a card during play (for example, a goblet that produces a Heal Orb card), that produced card belongs to you, not the item. It stays in your deck even after the item is swapped out.
 
 ---
 
 ## Cards Slotted Into Items
 
-Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** — extra damage, block, healing, mana discount, or on-hit effects — whenever played.
+Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** when played.
 
 Slotting is governed by compatibility keywords:
 
@@ -303,10 +298,10 @@ Slotting is governed by compatibility keywords:
 Five playable characters. All of them:
 
 - start with the **same basic deck** (attacks, blocks, and a few utility cards) plus a small character kit,
-- allocate the same starting stat pool — who they *become* is up to you,
+- allocate the same starting stat pool,
 - have **one item specialty**: a slot layout that favors a particular equipment type, encouraging different gear strategies,
 - have a **unique passive** tied to their specialty,
-- have **four distinct paths** of abilities that can be **mixed and matched** — you are never locked into a single path; your build can borrow from all four.
+- have **four distinct paths** of abilities that can be **mixed and matched**. You are never locked into a single path; your build can borrow from all four.
 
 Character identity comes from the intersection of item specialty, path choices, stat allocation, and the deck you assemble — not from a fixed class kit.
 
@@ -319,7 +314,7 @@ Your character grows along several permanent axes:
 - **Levels & XP** — combat grants experience. Every level grants **+2 max health and +3 stat points**, banked until you spend them from the skill tree screen.
 - **Stat allocation** — 8 points at character creation, then 3 per level; core stats are yours to distribute and shape around Determination's risk/reward curve.
 - **Sphere grid** — a 100-node unlock web spent with spheres earned on level-up. Beyond stat nodes, combat bonuses (crit, thorns, life steal, resistances…), and passives, it carries:
-  - **Keystones** (gold) — build-defining synergy nodes: e.g. *Bulwark Soul* (+2 max HP per Determination point, past and future), *Flash Reserves* (spend 4 Flash points to draw a card), *Deadeye Form* (ranged attacks scale with DEX instead of STR), *Unbroken Will* (low health can no longer drop a stat below half its base), *Wild Abandon* (Determination's stat swings are amplified 50%, up and down), *Flurry Form* (the Dexterity attack proc strikes twice, but every attack hits for less), *Killing Rhythm* (trade the Dexterity tempo/mana proc for a DEX-scaled bonus-damage burst on each trigger), *Flash Cut* (the Sidestep action strikes the nearest enemy instead of granting block), *Weighted Strikes* (a one-handed weapon's heft feeds basic attacks), *Balanced Load* (a chosen equipment slot weighs 10% less, stacking with other reductions), *Quick Study* (auto-draw a card when your hand empties, without disturbing the timed-draw countdown), *Tactician's Eye* (crit chance rises with the number of cards in your hand), *Arcane Ward* (each mana-regen tick grants armor equal to half your Intelligence), *Arcane Echo* (spells have an INT/3% chance to deal INT/2 bonus damage to a random enemy).
+  - **Keystones** (gold) — Nodes that truly define builds. These nodes manipulate how you play the game. For instance, using mana as health, gaining bonus uses for flash points, and only recieving temp health instead of healing.
   - **Stat-gated nodes** — powerful effects locked behind a stat threshold (e.g. Crit +20% requires DEX 20).
   - **Null nodes** — small connectors that grant nothing; the toll paid on the road to something bigger.
   - **Constellations** — completing certain node patterns grants an extra named bonus.
