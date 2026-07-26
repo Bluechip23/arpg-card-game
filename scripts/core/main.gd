@@ -1280,22 +1280,13 @@ func _setup_deck_info_vertical() -> void:
 	_draw_pile_btn.pressed.connect(_on_draw_pile_button_pressed)
 	_draw_pile_btn.custom_minimum_size = Vector2(50, 54)  # slightly bigger than the action buttons
 	_draw_pile_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	if _action_vbox:
-		_action_vbox.add_child(_draw_pile_btn)
-		_action_vbox.move_child(_draw_pile_btn, 0)  # top of the column
-
-	# Hand info — a hand-of-cards icon with a small ⓘ button, tucked right
-	# under the draw pile. Clicking ⓘ opens a small popup with max/current
-	# hand size and any active overflow effects.
-	var hand_row = HBoxContainer.new()
-	hand_row.name = "HandInfoRow"
-	hand_row.add_theme_constant_override("separation", 2)
-	var hand_icon_rect = TextureRect.new()
-	hand_icon_rect.texture = UIGlyphs.get_glyph("hand_cards")
-	hand_icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-	hand_icon_rect.custom_minimum_size = Vector2(26, 26)
-	hand_icon_rect.tooltip_text = "Your hand"
-	hand_row.add_child(hand_icon_rect)
+	# The draw pile sits in a row with a small ⓘ button beside it. Clicking ⓘ
+	# opens a small popup with max/current hand size and any active overflow
+	# effects.
+	var draw_row = HBoxContainer.new()
+	draw_row.name = "DrawRow"
+	draw_row.add_theme_constant_override("separation", 2)
+	draw_row.add_child(_draw_pile_btn)
 	_hand_info_btn = Button.new()
 	_hand_info_btn.name = "HandInfoButton"
 	_hand_info_btn.focus_mode = Control.FOCUS_NONE
@@ -1303,12 +1294,13 @@ func _setup_deck_info_vertical() -> void:
 	_hand_info_btn.flat = true
 	_hand_info_btn.custom_minimum_size = Vector2(22, 22)
 	_hand_info_btn.add_theme_constant_override("icon_max_width", 16)
+	_hand_info_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_hand_info_btn.tooltip_text = "Hand size and overflow info"
 	_hand_info_btn.pressed.connect(_toggle_hand_info_popup)
-	hand_row.add_child(_hand_info_btn)
+	draw_row.add_child(_hand_info_btn)
 	if _action_vbox:
-		_action_vbox.add_child(hand_row)
-		_action_vbox.move_child(hand_row, 1)  # right beneath the draw pile
+		_action_vbox.add_child(draw_row)
+		_action_vbox.move_child(draw_row, 0)  # top of the column
 
 	# The popup itself lives on the UI layer, hidden until asked for.
 	_hand_info_popup = PanelContainer.new()
