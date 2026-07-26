@@ -613,6 +613,7 @@ func _rebuild_combat_rows() -> void:
 	if _stat_rows.is_empty():
 		_make_stat_row("attack", "Base Attack")
 		_make_stat_row("crit", "Crit Chance")
+		_make_stat_row("crit_dmg", "Crit Damage")
 		_make_stat_row("movement", "Flash Points")
 		_make_stat_row("draw", "Card Draw")
 		_make_stat_row("mana_regen", "Mana Regen")
@@ -621,6 +622,7 @@ func _rebuild_combat_rows() -> void:
 		_make_stat_row("damage_taken", "Dmg Taken")
 	_set_stat("attack", "%d" % player_stats.get_effective_physical_damage(0))
 	_set_stat("crit", "%d%%" % (player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit) + player_stats.get_hand_size_crit_bonus()))
+	_set_stat("crit_dmg", "%d%%" % roundi(player_stats.get_crit_damage_multiplier() * 100))
 	_set_stat("movement", "%d / %d" % [player_stats.current_flash_points, player_stats.get_max_flash_points()])
 	_set_stat("draw", "every %.0f tempo" % player_stats.get_effective_draw_timer())
 	_set_stat("mana_regen", "+%.1f / tempo" % player_stats.get_effective_mana_regen())

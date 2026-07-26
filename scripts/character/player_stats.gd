@@ -903,6 +903,16 @@ func get_tempo_until_mana_regen() -> int:
 	## raindrop). Clamped to at least 1 so it never reads 0 between ticks.
 	return maxi(1, int(ceil(_tempo_until_mana_regen)))
 
+# Crit damage: every crit multiplies damage by 150% base, and Dexterity adds
+# +5% per point on top — DEX's second job alongside the attack-speed proc.
+# No stat affects crit CHANCE; that stays on items, cards, and other effects.
+const BASE_CRIT_DAMAGE: float = 1.5
+const CRIT_DAMAGE_PER_DEX: float = 0.05
+
+func get_crit_damage_multiplier() -> float:
+	## Uses effective Dexterity, so Determination swings crit damage too.
+	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX
+
 func get_effective_physical_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	if keystone_dex_twin_strike:
