@@ -1075,26 +1075,17 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	if buff_mgr:
 		remaining = buff_mgr.calculate_damage_reduction(remaining, damage_type)
 	
-	# Temp health absorbs damage first
-	if current_temp_health > 0 and remaining > 0:
-		if current_temp_health >= remaining:
-			current_temp_health -= remaining
-			remaining = 0
-			print("[STATS] Temp HP absorbed damage. Temp HP: %d" % current_temp_health)
-		else:
-			remaining -= current_temp_health
-			current_temp_health = 0
-			print("[STATS] Temp HP broke! %d damage passes through" % remaining)
-		temp_health_changed.emit(current_temp_health)
-
+	# Default absorption order: Armor -> temp HP -> HP. Armor is always the
+	# first line of defense; items, nodes, enemies, or cards may manipulate
+	# this later, but this is the baseline.
 	# Armor absorption with Exposed modifier
-	if current_armor > 0:
+	if current_armor > 0 and remaining > 0:
 		var armor_effectiveness = 1.0
 		if debuff_mgr:
 			armor_effectiveness = debuff_mgr.get_armor_effectiveness()
-		
+
 		var effective_armor = floori(current_armor * armor_effectiveness)
-		
+
 		if effective_armor >= remaining:
 			var armor_used = ceili(remaining / armor_effectiveness) if armor_effectiveness > 0 else remaining
 			current_armor = max(0, current_armor - armor_used)
@@ -1106,6 +1097,18 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
 
 		armor_changed.emit(current_armor)
+
+	# Temp health absorbs what gets past armor
+	if current_temp_health > 0 and remaining > 0:
+		if current_temp_health >= remaining:
+			current_temp_health -= remaining
+			remaining = 0
+			print("[STATS] Temp HP absorbed damage. Temp HP: %d" % current_temp_health)
+		else:
+			remaining -= current_temp_health
+			current_temp_health = 0
+			print("[STATS] Temp HP broke! %d damage passes through" % remaining)
+		temp_health_changed.emit(current_temp_health)
 
 	# Arcane Blood: mana soaks half of what would hit health (health keeps the
 	# odd point). If mana can't cover its share, health takes the leftover —
