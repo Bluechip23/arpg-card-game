@@ -102,6 +102,9 @@ var _inv_panel: PanelContainer = null
 # Equipment build (loadout) buttons I / II / III in the inventory header.
 const BUILD_NUMERALS := ["I", "II", "III"]
 var _build_buttons: Array = []
+var _rack_row: HBoxContainer = null      # War Rack row (Brad only)
+var _rack_label: Label = null
+var _rack_exchange_btn: Button = null
 var _inv_message_label: Label = null  # transient feedback under the header
 
 func _ready() -> void:
@@ -165,6 +168,29 @@ func _split_windows() -> void:
 	_inv_message_label.visible = false
 	inv_vbox.add_child(_inv_message_label)
 	_refresh_build_buttons()
+
+	# War Rack row (Brad only): what's strapped to his back + an exchange button.
+	_rack_row = HBoxContainer.new()
+	_rack_row.name = "WarRackRow"
+	_rack_row.visible = false
+	_rack_row.add_theme_constant_override("separation", 6)
+	_rack_label = Label.new()
+	_rack_label.text = "War Rack: (empty)"
+	_rack_label.add_theme_font_size_override("font_size", 12)
+	_rack_label.add_theme_color_override("font_color", Color(0.85, 0.75, 0.5))
+	_rack_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rack_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_rack_row.add_child(_rack_label)
+	_rack_exchange_btn = Button.new()
+	_rack_exchange_btn.text = "Exchange"
+	_rack_exchange_btn.custom_minimum_size = Vector2(80, 26)
+	_rack_exchange_btn.focus_mode = Control.FOCUS_NONE
+	_rack_exchange_btn.add_theme_font_size_override("font_size", 12)
+	_rack_exchange_btn.tooltip_text = "Swap everything in your hands with the gear on your back.\nFree out of combat; costs swap tempo in combat.\nIn battle, the Rack button offers the FREE cooldown swap."
+	_rack_exchange_btn.pressed.connect(_on_rack_exchange_pressed)
+	_rack_row.add_child(_rack_exchange_btn)
+	inv_vbox.add_child(_rack_row)
+	_refresh_rack_row()
 
 	# Move the equipment half of the old panel into the new window.
 	stats_vbox.get_node("HSeparator2").reparent(inv_vbox)
@@ -415,6 +441,7 @@ func update_display() -> void:
 
 	_update_ally_nav()
 	_update_level_row()
+	_refresh_rack_row()
 	_update_core_stat_rows()
 
 	if derived_label:
@@ -1041,6 +1068,40 @@ func _refresh_build_buttons() -> void:
 		var active = inventory != null and inventory.active_build == i
 		btn.add_theme_color_override("font_color",
 			Color(1.0, 0.85, 0.4) if active else Color(0.55, 0.55, 0.7))
+
+func _refresh_rack_row() -> void:
+	if not _rack_row or not is_instance_valid(_rack_row):
+		return
+	if not inventory or not inventory.has_back_rack:
+		_rack_row.visible = false
+		return
+	_rack_row.visible = true
+	var names := "(empty)"
+	if inventory.rack_items.size() > 0:
+		var parts: Array[String] = []
+		for it in inventory.rack_items:
+			parts.append(it.item_name)
+		names = ", ".join(parts)
+	var cd := ""
+	if inventory.rack_cooldown_tempo > 0:
+		cd = "  [free swap in %d tempo]" % inventory.rack_cooldown_tempo
+	_rack_label.text = "War Rack: %s%s" % [names, cd]
+
+func _on_rack_exchange_pressed() -> void:
+	## Panel exchanges use the PAID path: free out of combat (main ignores the
+	## cost), normal swap tempo in combat. The battle HUD button owns the
+	## cooldown-gated free swap.
+	if not inventory:
+		return
+	var result: Dictionary = inventory.rack_exchange(false)
+	if result.get("success", false):
+		var cost: int = result.get("tempo_cost", 0)
+		if cost > 0:
+			swap_tempo_spent.emit(cost, "War Rack exchange")
+	else:
+		_flash_inventory_message(result.get("reason", "Can't exchange"))
+	_refresh_rack_row()
+	update_display()
 
 func _flash_inventory_message(text: String) -> void:
 	if not _inv_message_label or not is_instance_valid(_inv_message_label):
@@ -1670,6 +1731,8 @@ func _build_item_effect_text(item: ItemData) -> String:
 			lines.append("[Passive] +%d%% chance effects" % item.special_effect_value)
 		ItemData.SpecialEffect.GRANT_CARDS:
 			lines.append("[Equip] Grants cards: %s" % ", ".join(item.granted_card_ids))
+	if item.has_mastery():
+		lines.append("[%s]" % item.get_mastery_text(player_stats))
 	if item.has_card_slots():
 		lines.append("[Card Slots] %d/%d" % [item.slotted_cards.size(), item.card_slots])
 		for card in item.slotted_cards:

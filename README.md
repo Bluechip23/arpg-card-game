@@ -1,8 +1,10 @@
-# Card ARPG
+# Trials of Olorin
 
-A story-driven action card RPG built in **Godot 4.6**. You build one persistent character and carry them through an entire narrative — across Earth, Hell, Heaven, and back — fighting grid-based battles where every action is a card and every card costs time.
+*Trials of Olorin* is a pseudo turn-based, card ARPG where the player adventures into different realms of the world. Throughout their journey, the player will develop a character making complementary decisions between their gear, deck, and innate abilities. From a massive brute wielding nothing but The Hammer of Ajax who becomes more devastating as he is wounded, to a studied scholar whose hand size takes up the screen, *Trials of Olorin* opens the door to an endless number of viable playstyles and builds.
 
-This is a **true RPG, not a roguelike**. There is no permadeath, no run resets, no meta-currency loop. Your character's stats, deck, equipment, and progression are permanent and cumulative from the opening scene to the end of the story. (A roguelike arena exists as an *end-game* mode after the story, not as the spine of the game.)
+*Trials of Olorin* is a **true RPG, not a roguelike**. There is no permadeath (besides hardcore), no run resets, no meta-currency loop. Your character's stats, deck, equipment, and progression are permanent and cumulative from the opening scene to the end of the story. Make decisions wisely.
+
+Built in **Godot 4.6**.
 
 ---
 
@@ -26,7 +28,7 @@ This is a **true RPG, not a roguelike**. There is no permadeath, no run resets, 
 
 ## The Core Loop
 
-Combat happens on a grid. You move your character tile by tile, draw cards over time, and play them against enemies in range. There are no discrete "your turn / enemy turn" phases — instead, everything runs on a shared clock called **tempo**. Playing cards, moving, and even waiting all advance the clock, and enemies act as the clock advances. Fighting well means managing *time* as a resource just as much as mana or health.
+The game takes place on a grid system. You move your character tile by tile, draw cards over time, and play them against enemies in range. There are no discrete "your turn / enemy turn" phases. Instead, everything runs on a global clock system which progresses by the use of **tempo**. Playing cards, moving, and even waiting advances the clock. As the clock advances, enemies and the environment take their actions. Fighting well means strategically using time as a resource, not just mana or health.
 
 Between fights you explore the world, complete quests, visit town vendors, manage your equipment and deck, and advance the story. Waypoints, quests, NPCs, and vendors persist for the whole game.
 
@@ -34,19 +36,19 @@ Between fights you explore the world, complete quests, visit town vendors, manag
 
 ## The Tempo System
 
-**Tempo is the universal clock.** Every system in the game — enemy actions, mana regeneration, card draws, buff and debuff durations — is driven by it.
+**Tempo is the universal clock.** Basically every system in the game (enemy actions, mana regeneration, card draws, buff and debuff durations) is driven by it.
 
-- Every card has a **tempo cost** alongside its mana cost. Playing a card schedules that many tempo **ticks**; the card's effect resolves on a specific tick (some cards hit immediately, some at the end of their wind-up).
-- Cards you play queue **sequentially** — your second card starts ticking after your first finishes. In co-op, each character has their own queue, so partners act simultaneously on the same tempo bar.
-- **Movement costs 1 tempo per tile** — unless you spend **Flash points** (granted by Agility) to move for free. Moving through an occupied tile always costs 2 tempo.
+- Cards have a **tempo cost** alongside their mana cost. Playing a card schedules that many tempo **ticks**; the card's effect resolves on a specific tick (some cards hit immediately, some at the end of their wind-up).
+- Cards you play queue **sequentially**. Your second card starts ticking after your first finishes. In co-op, each character has their own queue but uses the same global ticker — players act simultaneously, play cards independently, while utilizing the same tempo bar.
+- By default, **movement costs 1 tempo per tile**.
 - Every **5 global tempo = 1 cycle**. Cycles are the game's heartbeat:
   - Mana regenerates once per cycle.
   - Armor decays once per cycle.
   - Buffs and debuffs tick down once per cycle.
-  - Per-cycle effects (regen, poison, burn, etc.) fire.
-- **Card draws** happen automatically every 25 global tempo by default; each point of Wisdom shortens the interval by 1 tempo (down to a floor of one 5-tempo cycle).
+  - Per-cycle effects (regen, poison, burn, etc.) trigger or decrease.
+- By default, **card draws** trigger every 25 tempo (5 cycles).
 
-Because enemies act on tempo, a cheap fast card and an expensive slow card are genuinely different decisions: the slow card gives the enemy time to answer.
+Because enemies act on tempo, a cheap fast card and an expensive slow card dictate how the game will play out. **ENEMIES CAN TAKE MULTIPLE ACTIONS IN A ROW.** In other words: if you play a card worth 8 tempo, while it ticks, an enemy who attacks every 4 tempo will hit you twice.
 
 ---
 
@@ -56,14 +58,14 @@ Every character has six core attributes:
 
 | Stat | Effect |
 |---|---|
-| **Strength (STR)** | +1 melee damage for every 2 points. +10 carry capacity per point — carry heavier gear before becoming over-encumbered. Spare capacity also speeds up your attack-speed counter a little (capped — see DEX). |
-| **Dexterity (DEX)** | The primary attack-speed stat. Every (30 − DEX) attacks triggers a proc (minimum 5): your next attack costs **half tempo and 2 less mana**. Each DEX point is exactly one fewer attack to proc. Encumbrance nudges the counter with diminishing (square-root) returns: traveling light shaves off up to 8 attacks, heavy loads add up to 7, and being over capacity adds a flat 10. |
+| **Strength (STR)** | +1 melee damage for every 2 points. +10 carry capacity per point. Spare capacity also speeds up your attack-speed counter. Inversely, being close to your capacity will slow it down. |
+| **Dexterity (DEX)** | The primary attack-speed stat. Every (30 − DEX) attacks (through a card or auto) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. Additionally, every 1 point in DEX increases **crit damage by 5%**. |
 | **Intelligence (INT)** | +1 spell and heal power for every 2 points. +1 mana regen for every 5 points. |
 | **Wisdom (WIS)** | +1 hand size for every 5 points. Each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5). |
 | **Determination (DET)** | Controls how low health affects your other stats. At 10 it does nothing. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. High-DET builds are strongest on the brink of death. |
 | **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. **1 point** moves a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. 
 
-All characters share a base **5% critical hit chance**, which can be raised by progression and effects.
+All characters share a base **5% critical hit chance** and **150% critical damage**. Crit chance is raised only by items, cards, and other effects — no stat affects it. Crit damage scales with Dexterity (+5% per point).
 
 ---
 
@@ -82,7 +84,7 @@ The cost of playing most cards.
 ### Armor
 Damage absorption that sits in front of your health.
 
-- Incoming damage is absorbed in order: **temporary HP → armor → health**.
+- Incoming damage is absorbed in order: **armor → temporary HP → health**. Armor is always the first line of defense; items, nodes, enemy attacks, or cards may manipulate this order.
 - Armor **decays 2 per cycle** by default — it's a wall you keep rebuilding, not a bank. Some effects (Fortify) pause decay; others (Brittle) accelerate it.
 - Defense cards, items, passives, and per-cycle effects all grant armor, and "on armor gain" triggers make armor stacking a viable engine.
 
@@ -279,16 +281,16 @@ Slotting is governed by compatibility keywords:
 
 | Keyword | Meaning |
 |---|---|
-| **Pliable** | Card can be slotted into any item type. |
+| **Pliable** | Card can be slotted into any item type. (Default) |
 | **Picky** | Once extracted from an item, the card can only be re-slotted into the *same item type*. |
 | **Molded** | Card is permanently locked into the item and cannot be extracted. |
 | **Arrow** | Bow/quiver cards. |
-| **Pocket** | Daggers, potions, small items — slots into belts. |
+| **Pocket** | Slots into belts. Generally daggers, potions, or other small items. |
 | **Gem** | Slots into rings. |
-| **Swift** | Agility and movement cards — slots into boots. |
-| **Buckler** | Defensive techniques — slots into shields. |
-| **Crown** | Mental and aura cards — slots into helms. |
-| **Fist** | Unarmed combat cards — slots into gauntlets. |
+| **Swift** | Slots into boots. |
+| **Buckler** | Slots into shields. |
+| **Crown** | Slots into helms. |
+| **Fist** | Slots into gauntlets. |
 | **Chisel** | Card is *only* playable while slotted in an item. |
 
 ---
@@ -297,13 +299,13 @@ Slotting is governed by compatibility keywords:
 
 Five playable characters. All of them:
 
-- start with the **same basic deck** (attacks, blocks, and a few utility cards) plus a small character kit,
+- start with the **same basic deck** plus a small character kit,
 - allocate the same starting stat pool,
-- have **one item specialty**: a slot layout that favors a particular equipment type, encouraging different gear strategies,
+- have **one item specialty**: a slot layout that favors a particular equipment type (e.g. Brad's chest pieces weigh 20% less and Ryan gets −1 mana cost on belt cards),
 - have a **unique passive** tied to their specialty,
 - have **four distinct paths** of abilities that can be **mixed and matched**. You are never locked into a single path; your build can borrow from all four.
 
-Character identity comes from the intersection of item specialty, path choices, stat allocation, and the deck you assemble — not from a fixed class kit.
+Character identity comes from the intersection of item specialty, path choices, stat allocation, and the deck you assemble.
 
 ---
 
@@ -313,15 +315,14 @@ Your character grows along several permanent axes:
 
 - **Levels & XP** — combat grants experience. Every level grants **+2 max health and +3 stat points**, banked until you spend them from the skill tree screen.
 - **Stat allocation** — 8 points at character creation, then 3 per level; core stats are yours to distribute and shape around Determination's risk/reward curve.
-- **Sphere grid** — a 100-node unlock web spent with spheres earned on level-up. Beyond stat nodes, combat bonuses (crit, thorns, life steal, resistances…), and passives, it carries:
-  - **Keystones** (gold) — Nodes that truly define builds. These nodes manipulate how you play the game. For instance, using mana as health, gaining bonus uses for flash points, and only recieving temp health instead of healing.
-  - **Stat-gated nodes** — powerful effects locked behind a stat threshold (e.g. Crit +20% requires DEX 20).
+- **Sphere grid** — a 100+ node unlock web spent with spheres earned on level-up. Beyond stat nodes, combat bonuses (crit, thorns, life steal, resistances, etc.), and passives, it carries:
+  - **Keystones** — nodes that truly define builds. These nodes manipulate *how you play the game*: for instance, using mana as health, gaining bonus uses for flash points, and only receiving temp health instead of healing. A character can attach at most **3 keystones** — choose the ones that define your build.
   - **Null nodes** — small connectors that grant nothing; the toll paid on the road to something bigger.
-  - **Constellations** — completing certain node patterns grants an extra named bonus.
-- **Path abilities** — unlock and combine abilities from your character's four paths.
+  - **Constellations** — completing certain node patterns grants an extra bonus. A node can only be connected to one constellation, so choose wisely.
+- **Path abilities** — each character has 4 "paths" that provide unique passives (e.g. Cory: Monk, Druid, Lurker, and Atrophist).
 - **Deck crafting** — buy cards from vendors, and use consumables to sculpt the deck:
   - **Culling Stones** permanently remove a card from your deck.
-  - **Paper Feathers** upgrade a card down one of two upgrade paths.
+  - **Paper Feathers** — a card-crafting consumable (their new role is being redesigned).
   - **Origami Swans** are earned by destroying cards; 20 swans convert into a Paper Feather.
 - **Equipment** — loot, vendors, and quest rewards across all acts.
 - **Story** — a four-act journey (Earth → Hell → Heaven → a final return to Earth). Everything above carries forward between acts; nothing resets.

@@ -108,6 +108,10 @@ func _build_effect_text(item: ItemData) -> String:
 		ItemData.SpecialEffect.GRANT_CARDS:
 			lines.append("[Equip] Grants cards: %s" % ", ".join(item.granted_card_ids))
 
+	# Weapon mastery breakpoint
+	if item.has_mastery():
+		lines.append("[%s]" % item.get_mastery_text())
+
 	# Card slot info
 	if item.has_card_slots():
 		lines.append("[Card Slots] %d/%d" % [item.slotted_cards.size(), item.card_slots])

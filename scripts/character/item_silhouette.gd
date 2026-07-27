@@ -6,10 +6,12 @@ extends Control
 ## shape (a ring for rings, a boot for boots, etc.).
 
 var item_type: int = 0
+var weapon_subtype: int = -1  # ItemData.WeaponSubtype when a weapon is equipped; -1 = none/empty slot
 var tint: Color = Color(0.34, 0.34, 0.44, 0.55)
 
-func setup(t: int, faint: bool = true) -> void:
+func setup(t: int, faint: bool = true, w_subtype: int = -1) -> void:
 	item_type = t
+	weapon_subtype = w_subtype
 	tint = Color(0.34, 0.34, 0.44, 0.55) if faint else Color(0.55, 0.55, 0.68, 0.8)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	queue_redraw()
@@ -25,8 +27,86 @@ func _draw() -> void:
 		3: _draw_belt(c, u)
 		4: _draw_boots(c, u)
 		5: _draw_gauntlets(c, u)
-		6: _draw_weapon(c, u)
+		6: _draw_weapon_subtype(c, u)
 		7: _draw_quiver(c, u)
+
+func _draw_weapon_subtype(c: Vector2, u: float) -> void:
+	## An equipped weapon shows ITS shape, not the generic any-weapon composite.
+	## Values follow ItemData.WeaponSubtype (kept as ints to avoid a compile
+	## dependency): SWORD, BOW, SHIELD, OTHER, POLEARM, DAGGER, AXE, HAMMER,
+	## WAND, TOME, STAFF. An empty slot (-1) keeps the composite.
+	match weapon_subtype:
+		0: _mini_sword(c, u * 0.95)
+		1: _mini_bow(c, u * 0.95)
+		2: _mini_shield(c, u * 0.95)
+		4: _draw_polearm(c, u)
+		5: _draw_dagger(c, u)
+		6: _draw_axe(c, u)
+		7: _draw_hammer(c, u)
+		8: _draw_wand(c, u)
+		9: _mini_book(c, u * 0.95)
+		10: _draw_staff(c, u)
+		_: _draw_weapon(c, u)  # OTHER / unknown keep the composite
+
+func _draw_polearm(c: Vector2, u: float) -> void:
+	# Long diagonal shaft with a leaf-shaped spearhead at the top-right.
+	var w := maxf(1.5, u * 0.12)
+	draw_line(c + Vector2(-u * 0.85, u * 0.9), c + Vector2(u * 0.55, -u * 0.5), tint, w)
+	var head := PackedVector2Array([
+		c + Vector2(u * 0.5, -u * 0.44),
+		c + Vector2(u * 0.55, -u * 0.95),
+		c + Vector2(u * 0.92, -u * 0.6),
+	])
+	draw_colored_polygon(head, tint)
+	# Cross-lug beneath the head.
+	draw_line(c + Vector2(u * 0.28, -u * 0.16), c + Vector2(u * 0.62, -u * 0.34), tint, w * 0.8)
+
+func _draw_dagger(c: Vector2, u: float) -> void:
+	# Short vertical blade, wide guard, stubby grip with a pommel.
+	var blade := PackedVector2Array([
+		c + Vector2(-u * 0.16, u * 0.05),
+		c + Vector2(u * 0.16, u * 0.05),
+		c + Vector2(0, -u * 0.95),
+	])
+	draw_colored_polygon(blade, tint)
+	draw_rect(Rect2(c + Vector2(-u * 0.45, u * 0.05), Vector2(u * 0.9, u * 0.16)), tint)
+	draw_rect(Rect2(c + Vector2(-u * 0.1, u * 0.21), Vector2(u * 0.2, u * 0.5)), tint)
+	draw_circle(c + Vector2(0, u * 0.82), u * 0.14, tint)
+
+func _draw_axe(c: Vector2, u: float) -> void:
+	# Diagonal haft with a crescent blade on the upper-left of the head.
+	var w := maxf(1.5, u * 0.13)
+	draw_line(c + Vector2(u * 0.6, u * 0.9), c + Vector2(-u * 0.35, -u * 0.65), tint, w)
+	var blade := PackedVector2Array([
+		c + Vector2(-u * 0.3, -u * 0.75),
+		c + Vector2(-u * 0.95, -u * 0.55),
+		c + Vector2(-u * 0.8, -u * 0.05),
+		c + Vector2(-u * 0.18, -u * 0.38),
+	])
+	draw_colored_polygon(blade, tint)
+
+func _draw_hammer(c: Vector2, u: float) -> void:
+	# Vertical haft with a broad rectangular head across the top.
+	draw_rect(Rect2(c + Vector2(-u * 0.09, -u * 0.5), Vector2(u * 0.18, u * 1.4)), tint)
+	draw_rect(Rect2(c + Vector2(-u * 0.7, -u * 0.95), Vector2(u * 1.4, u * 0.55)), tint)
+
+func _draw_wand(c: Vector2, u: float) -> void:
+	# Short slender rod with a four-point spark at the tip.
+	var w := maxf(1.5, u * 0.1)
+	draw_line(c + Vector2(-u * 0.55, u * 0.7), c + Vector2(u * 0.3, -u * 0.35), tint, w)
+	var tip := c + Vector2(u * 0.42, -u * 0.5)
+	var spark := PackedVector2Array()
+	for i in range(8):
+		var a := TAU / 8.0 * i - PI / 2.0
+		var r := u * 0.4 if i % 2 == 0 else u * 0.15
+		spark.append(tip + Vector2(cos(a), sin(a)) * r)
+	draw_colored_polygon(spark, tint)
+
+func _draw_staff(c: Vector2, u: float) -> void:
+	# Full-height vertical rod topped with an orb held by two prongs.
+	draw_rect(Rect2(c + Vector2(-u * 0.08, -u * 0.45), Vector2(u * 0.16, u * 1.4)), tint)
+	draw_arc(c + Vector2(0, -u * 0.62), u * 0.3, 0, TAU, 20, tint, maxf(1.5, u * 0.1))
+	draw_circle(c + Vector2(0, -u * 0.62), u * 0.16, tint)
 
 func _draw_helm(c: Vector2, u: float) -> void:
 	# Dome + brow band

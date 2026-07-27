@@ -29,7 +29,7 @@ func _make_weapon(name: String, card_slots: int = 0) -> ItemData:
 func _initialize() -> void:
 	print("=== Weapon-swap card mechanics smoke test ===")
 
-	var data := CharacterData.create_brad()  # Brad: 3 weapon slots
+	var data := CharacterData.create_brad()
 	var stats := PlayerStats.new()
 	get_root().add_child(stats)
 	stats.initialize(data)

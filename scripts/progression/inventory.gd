@@ -12,6 +12,7 @@ signal gauntlet_skill_ready(item: ItemData)
 signal storage_changed
 signal card_enchanted(card: Card, item: ItemData)
 signal card_extracted(card: Card, item: ItemData, destroyed_item: bool)
+signal rack_changed
 
 # Slot configuration
 var helm_slots: int = 1
@@ -52,6 +53,20 @@ var two_handed_slot: int = -1       # weapon slot currently gripped with both ha
 var two_handed_lock_slot: int = -1  # the empty hand slot the grip occupies
 
 # ============================================
+# WAR RACK (Brad's slot identity)
+# ============================================
+# Gear strapped across his back. rack_exchange() swaps EVERYTHING in the hand
+# slots with everything on the rack, wholesale. The FREE exchange costs no
+# tempo but sits on a cooldown, requires one side of the exchange to be a
+# single item gripped two-handed (the fantasy is hauling the huge thing off
+# his back), and rushes the incoming items' cards straight to hand. Paid
+# exchanges work anytime under the normal swap-tempo rules.
+var has_back_rack: bool = false
+var rack_items: Array = []           # items on the back (up to weapon_slots)
+var rack_cooldown_tempo: int = 0     # tempo until the next FREE exchange
+const RACK_FREE_SWAP_COOLDOWN: int = 25
+
+# ============================================
 # EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
 const BUILD_COUNT: int = 3
@@ -87,7 +102,7 @@ var max_card_storage: int = 20
 
 # Consumables
 var culling_stones: int = 99  # Used to permanently remove cards from deck
-var paper_feathers: int = 3  # Used to upgrade cards at the Card Dealer
+var paper_feathers: int = 3  # Card-crafting consumable (role being redesigned)
 var origami_swans: int = 0  # 20 origami swans = 1 Paper Feather (crafted by Olorin)
 var mythic_molds: int = 0  # 2 molded-down mythics = 1 Mold; redeem for any mythic at the Blacksmith
 
@@ -128,8 +143,8 @@ func initialize(char_name: String) -> void:
 			belt_slots = 3
 			belt_card_mana_reduction = 1
 		"Brad":
-			weapon_slots = 3  # main hand + 2 off hands
 			chest_weight_reduction = 0.20
+			has_back_rack = true  # War Rack: hands <-> back exchange (see rack_exchange)
 		"Jeremy":
 			ring_slots = 4
 			ring_double_trigger = true  # doubles every RING_DOUBLE_TRIGGER_CYCLES cycles
@@ -178,9 +193,22 @@ func _init_slot_arrays() -> void:
 func connect_player_stats(stats) -> void:
 	player_stats = stats
 	stats.inventory = self
+	# Weapon mastery breakpoints check base stats — re-test them whenever stats
+	# change so a fresh allocation immediately releases newly-mastered cards.
+	if not stats.stats_updated.is_connected(refresh_mastery_cards):
+		stats.stats_updated.connect(refresh_mastery_cards)
 
 func connect_deck_manager(deck) -> void:
 	deck_manager = deck
+
+func refresh_mastery_cards() -> void:
+	## Base stats only ever grow, so this only ever RELEASES held-back mastery
+	## cards (via the normal add path, which skips cards already in a zone).
+	if not deck_manager or not player_stats:
+		return
+	for item in equipped_weapons:
+		if item and item.has_mastery() and item.is_mastered_by(player_stats):
+			_add_item_cards_to_deck(item)
 
 func get_off_hand_modifier() -> float:
 	# Stephen gets bonus, others get penalty
@@ -266,7 +294,7 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	_apply_item_bonuses(item, false, is_off_hand)
 	_apply_special_effect(item, false)
 	# Pull the item's owned cards out of every zone. The instances stay attached
-	# to the item (preserving jail time, upgrades, etc.) for when it returns.
+	# to the item (preserving jail time, enhancement, etc.) for when it returns.
 	_remove_item_cards_from_deck(item)
 
 	item_unequipped.emit(item, item.get_type_name(), slot_index)
@@ -409,6 +437,8 @@ func apply_starting_item_card_effects() -> void:
 			for card in _get_item_owned_cards(item):
 				if _card_in_any_zone(card):
 					continue
+				if _is_locked_mastery_card(item, card):
+					continue
 				deck_manager.draw_pile.append(card)
 				print("[INVENTORY] Starting item added %s to deck" % card.card_name)
 				cards_added = true
@@ -431,15 +461,27 @@ func apply_starting_item_card_effects() -> void:
 # they have detached from the item.
 
 func _get_item_owned_cards(item: ItemData) -> Array:
-	## Every card instance that belongs to this item (granted + slotted), no dupes.
+	## Every card instance that belongs to this item (granted + slotted +
+	## mastery), no dupes. Mastery cards are OWNED regardless of the wielder's
+	## stats — the remove path must always be able to clean them up — but the
+	## add paths skip them until the breakpoint is met (_is_locked_mastery_card).
 	var cards: Array = []
 	for card in item.granted_card_instances:
+		if card and not cards.has(card):
+			cards.append(card)
+	for card in item.mastery_card_instances:
 		if card and not cards.has(card):
 			cards.append(card)
 	for card in item.slotted_cards:
 		if card and not cards.has(card):
 			cards.append(card)
 	return cards
+
+func _is_locked_mastery_card(item: ItemData, card) -> bool:
+	## True for a mastery card whose breakpoint the wielder hasn't reached yet.
+	if not item.mastery_card_instances.has(card):
+		return false
+	return not item.is_mastered_by(player_stats)
 
 func _ensure_granted_card_instances(item: ItemData) -> void:
 	## Build the item's granted-card instances exactly once, then reuse forever.
@@ -461,6 +503,14 @@ func _ensure_granted_card_instances(item: ItemData) -> void:
 			var blink_card = Card.create_blink()
 			blink_card.granted_by_item = item
 			item.granted_card_instances.append(blink_card)
+
+	# Mastery cards get instances up front too (same lifetime rules as granted
+	# cards) — the add paths simply hold them back until the breakpoint is met.
+	for card_id in item.mastery_card_ids:
+		var card = _create_granted_card(card_id)
+		if card:
+			card.granted_by_item = item
+			item.mastery_card_instances.append(card)
 
 func _create_granted_card(card_id: String) -> Card:
 	## Prefer the deck manager's comprehensive factory; fall back to the local map.
@@ -484,6 +534,8 @@ func _add_item_cards_to_deck(item: ItemData) -> void:
 	for card in owned:
 		if _card_in_any_zone(card):
 			continue  # already live — don't duplicate it into another pile
+		if _is_locked_mastery_card(item, card):
+			continue  # breakpoint not met yet — the card waits on the item
 		if card.is_jailed():
 			deck_manager.jail_pile.append(card)
 			print("[INVENTORY] %s: returned jailed card '%s' (%d tempo left)" % [item.item_name, card.card_name, card.jail_time_remaining])
@@ -566,6 +618,13 @@ func process_turn() -> void:
 	ring_triggered_this_turn = false
 	armor_gained_this_turn = 0
 	ring_cycle_count += 1
+
+	# War Rack free-swap cooldown ticks with the cycle clock (5 tempo per cycle).
+	if rack_cooldown_tempo > 0:
+		rack_cooldown_tempo = maxi(0, rack_cooldown_tempo - 5)
+		if rack_cooldown_tempo == 0:
+			print("[INVENTORY] War Rack free swap ready!")
+		rack_changed.emit()  # keeps the HUD countdown live
 	
 	# Process gauntlet cooldowns
 	for gauntlet in equipped_gauntlets:
@@ -842,6 +901,9 @@ func get_total_weight() -> int:
 		var item = equipped_weapons[i]
 		if item: total += _effective_item_weight(item, i)
 	for item in equipped_quivers:
+		if item: total += _effective_item_weight(item)
+	# War Rack gear rides on the back at full weight (no grip discount there).
+	for item in rack_items:
 		if item: total += _effective_item_weight(item)
 	return total
 
@@ -1241,6 +1303,171 @@ func switch_build(target: int) -> Dictionary:
 	equipment_changed.emit()
 	print("[INVENTORY] Switched to build %d (%d tempo worth of swaps)" % [target + 1, cost])
 	return result
+
+# ============================================
+# WAR RACK EXCHANGE
+# ============================================
+
+func get_rack_hand_items() -> Array:
+	## Non-null items currently in the hand slots.
+	var hands: Array = []
+	for it in equipped_weapons:
+		if it:
+			hands.append(it)
+	return hands
+
+func can_rack_exchange(free: bool) -> Dictionary:
+	## Whether a rack exchange is currently legal. {"ok": bool, "reason": String}
+	var res = {"ok": false, "reason": ""}
+	if not has_back_rack:
+		res["reason"] = "No war rack"
+		return res
+	var hands = get_rack_hand_items()
+	if hands.is_empty() and rack_items.is_empty():
+		res["reason"] = "Nothing to exchange"
+		return res
+	if free:
+		if rack_cooldown_tempo > 0:
+			res["reason"] = "Rack swap recharging (%d tempo)" % rack_cooldown_tempo
+			return res
+		# One side of the free exchange must be a single item gripped with both
+		# hands: either the incoming rack item (auto-gripped on arrival) or the
+		# outgoing weapon he's already two-handing.
+		var incoming_single = rack_items.size() == 1
+		var outgoing_two_handed = two_handed_slot >= 0 and hands.size() == 1
+		if not incoming_single and not outgoing_two_handed:
+			res["reason"] = "Free swap needs a single two-handed item on one side"
+			return res
+	# Carry gate on the end state as a whole. The item set is unchanged (hands
+	# and back trade places) but the grip discount and the 80% grip capacity
+	# move with the exchange.
+	if player_stats:
+		var will_grip = free and rack_items.size() == 1
+		var load = 0
+		for arr in [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_quivers]:
+			for it in arr:
+				if it:
+					load += _effective_item_weight(it)
+		for i in range(rack_items.size()):  # future hands
+			var w = _effective_item_weight(rack_items[i])
+			if will_grip and i == 0:
+				w = floori(rack_items[i].weight * TWO_HAND_WEIGHT_MULT)
+			load += w
+		for it in hands:  # future rack (full weight)
+			load += _effective_item_weight(it, -1)
+		var cap_after = player_stats.get_carry_capacity_for_grip(will_grip)
+		var over_now = maxi(0, get_total_weight() - player_stats.get_carry_capacity())
+		if load > cap_after and (load - cap_after) > over_now:
+			res["reason"] = "Too heavy — over carry capacity"
+			return res
+	res["ok"] = true
+	return res
+
+func rack_exchange(free: bool) -> Dictionary:
+	## Swaps everything in the hand slots with everything on the rack.
+	## free=true: 0 tempo, starts the cooldown, auto-grips a single incoming
+	## item two-handed, and rushes the incoming items' cards to hand.
+	## free=false: normal swap-tempo cost per changed hand slot, no cooldown.
+	var result = {"success": false, "tempo_cost": 0, "reason": ""}
+	var check = can_rack_exchange(free)
+	if not check["ok"]:
+		result["reason"] = check["reason"]
+		return result
+
+	var incoming: Array = rack_items.duplicate()
+	var outgoing: Array = []
+
+	_bulk_build_switch = true
+	if two_handed_slot >= 0:
+		set_two_handed(two_handed_slot, false)
+	for i in range(weapon_slots):
+		if equipped_weapons[i] != null:
+			var it = unequip_item(ItemData.ItemType.WEAPON, i)
+			if it:
+				outgoing.append(it)
+	var next_slot = 0
+	var first_slot = -1
+	for it in incoming:
+		while next_slot < weapon_slots and equipped_weapons[next_slot] != null:
+			next_slot += 1
+		if next_slot >= weapon_slots:
+			break
+		equip_item(it, next_slot)
+		if first_slot < 0:
+			first_slot = next_slot
+	# The free swap's single incoming item arrives gripped with both hands.
+	if free and incoming.size() == 1 and first_slot >= 0:
+		set_two_handed(first_slot, true)
+	_bulk_build_switch = false
+
+	rack_items = outgoing
+
+	if free:
+		rack_cooldown_tempo = RACK_FREE_SWAP_COOLDOWN
+		for it in incoming:
+			_rush_item_cards_to_hand(it)
+		print("[INVENTORY] War Rack FREE exchange: %s down, %s up (cooldown %d tempo)" % [
+			_rack_names(incoming), _rack_names(outgoing), RACK_FREE_SWAP_COOLDOWN])
+	else:
+		var changed = maxi(incoming.size(), outgoing.size())
+		result["tempo_cost"] = changed * get_swap_tempo_cost(ItemData.ItemType.WEAPON)
+		print("[INVENTORY] War Rack exchange: %s down, %s up (%d tempo)" % [
+			_rack_names(incoming), _rack_names(outgoing), result["tempo_cost"]])
+
+	rack_changed.emit()
+	equipment_changed.emit()
+	result["success"] = true
+	return result
+
+func _rack_names(items: Array) -> String:
+	if items.is_empty():
+		return "(nothing)"
+	var names: Array[String] = []
+	for it in items:
+		names.append(it.item_name)
+	return ", ".join(names)
+
+func _rush_item_cards_to_hand(item: ItemData) -> void:
+	## Free-swap payoff: the incoming item's cards (just added to the discard
+	## pile by equip_item) go straight to hand, up to hand size. Extras land on
+	## top of the draw pile. Jailed cards stay jailed — the rack launders nothing.
+	if not deck_manager or not player_stats:
+		return
+	var moved = false
+	for card in _get_item_owned_cards(item):
+		if _is_locked_mastery_card(item, card):
+			continue
+		var di = deck_manager.discard_pile.find(card)
+		if di < 0:
+			continue
+		deck_manager.discard_pile.remove_at(di)
+		if deck_manager.hand.size() < player_stats.hand_size:
+			deck_manager.hand.append(card)
+			print("[INVENTORY] War Rack: %s rushed to hand" % card.card_name)
+		else:
+			deck_manager.draw_pile.append(card)  # top of the draw pile (drawn next)
+			print("[INVENTORY] War Rack: hand full — %s waits on top of the draw pile" % card.card_name)
+		moved = true
+	if moved:
+		deck_manager.hand_updated.emit()
+
+func rack_store_item(item: ItemData) -> bool:
+	## Out-of-combat setup path: strap an unequipped item onto the rack directly.
+	if not has_back_rack or rack_items.size() >= weapon_slots:
+		return false
+	rack_items.append(item)
+	rack_changed.emit()
+	print("[INVENTORY] Strapped %s to the war rack" % item.item_name)
+	return true
+
+func rack_take_item(index: int) -> ItemData:
+	## Remove an item from the rack (to storage/hands via normal flows).
+	if index < 0 or index >= rack_items.size():
+		return null
+	var item = rack_items[index]
+	rack_items.remove_at(index)
+	rack_changed.emit()
+	return item
 
 # ============================================
 # ITEM STORAGE (NON-EQUIPPED INVENTORY)

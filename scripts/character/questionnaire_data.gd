@@ -318,7 +318,7 @@ static func _get_archetype_item_description() -> Dictionary:
 
 static func _get_archetype_slot_specialty() -> Dictionary:
 	return {
-		Archetype.WARRIOR: "2 off-hand slots",                 # Brad
+		Archetype.WARRIOR: "War Rack: back-slung gear swap",   # Brad
 		Archetype.ROGUE: "3 belt slots",                       # Ryan
 		Archetype.MAGE: "4 ring slots",                        # Jeremy
 		Archetype.ARCHER: "Standard slots",                    # Stephen

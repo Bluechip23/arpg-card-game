@@ -157,20 +157,11 @@ func _create_default_deck(character: CharacterData) -> void:
 		else:
 			print("[DECK] WARNING: Culled card not found in deck: %s" % removal_id)
 
-	# Build upgrade lookup: card_index -> upgrade_path
-	var upgrade_map: Dictionary = {}
-	for upgrade in character.card_upgrades:
-		upgrade_map[upgrade["card_index"]] = upgrade["upgrade_path"]
-
-	# Create actual Card objects from remaining ids, applying upgrades
+	# Create actual Card objects from the remaining ids
 	for i in range(all_card_ids.size()):
 		var card_id = all_card_ids[i]
 		var card = _create_card_from_id(card_id)
 		if card:
-			# Apply upgrade if this card index has one
-			if i in upgrade_map:
-				card.apply_upgrade(upgrade_map[i])
-				print("[DECK] Applied upgrade path %d to %s (index %d)" % [upgrade_map[i], card.card_name, i])
 			draw_pile.append(card)
 		else:
 			print("[DECK] WARNING: Unknown card_id: %s" % card_id)

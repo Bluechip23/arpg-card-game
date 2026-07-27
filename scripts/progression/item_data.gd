@@ -4,7 +4,22 @@ extends Resource
 ## Defines an item's properties
 
 enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON, QUIVER }
-enum WeaponSubtype { SWORD, BOW, SHIELD, OTHER }
+# Order matters for save compat — only append new subtypes.
+enum WeaponSubtype { SWORD, BOW, SHIELD, OTHER, POLEARM, DAGGER, AXE, HAMMER, WAND, TOME, STAFF }
+
+static func get_weapon_subtype_name(subtype: int) -> String:
+	match subtype:
+		WeaponSubtype.SWORD: return "Sword"
+		WeaponSubtype.BOW: return "Bow"
+		WeaponSubtype.SHIELD: return "Shield"
+		WeaponSubtype.POLEARM: return "Polearm"
+		WeaponSubtype.DAGGER: return "Dagger"
+		WeaponSubtype.AXE: return "Axe"
+		WeaponSubtype.HAMMER: return "Hammer"
+		WeaponSubtype.WAND: return "Wand"
+		WeaponSubtype.TOME: return "Tome"
+		WeaponSubtype.STAFF: return "Staff"
+	return "Weapon"
 enum Rarity { BASIC, COMMON, RARE, LEGENDARY, MYTHIC }
 enum SpecialEffect {
 	NONE,
@@ -132,10 +147,51 @@ var allowed_card_keywords: Array = []  # Empty = any card allowed. e.g. [Card.Ca
 # Granted cards (GRANT_CARDS / GRANT_BLINK_CARD). Built once the first time the
 # item is equipped, then reused for the item's lifetime so the SAME instances
 # come and go with the item on every swap — preserving per-card state (jail
-# time, upgrades, enhancement) across equip/unequip. Slotted (enchanted) cards
+# time, enhancement) across equip/unequip. Slotted (enchanted) cards
 # live in slotted_cards; together they are the item's "owned" cards.
 var granted_card_instances: Array = []
 var granted_cards_built: bool = false
+
+# ============================================
+# WEAPON MASTERY BREAKPOINT (per-item, optional)
+# ============================================
+# Some weapons carry a stat breakpoint: reach the threshold with your BASE
+# stat and this particular weapon reveals its mastery — extra cards granted
+# while it is equipped (riding the same owned-cards plumbing as granted
+# cards). A breakpoint is a REWARD, never a requirement: the weapon works
+# fully for anyone; a high-stat wielder just gets more out of this one.
+# Base stat means allocation/sphere-grid growth — Determination's combat
+# swings never flicker mastery on or off mid-fight.
+@export var mastery_stat: String = ""        # "strength", "dexterity", ... ("" = no breakpoint)
+@export var mastery_threshold: int = 0
+@export var mastery_card_ids: Array[String] = []
+@export var mastery_description: String = "" # short flavor for tooltips
+var mastery_card_instances: Array = []       # built once, reused (like granted cards)
+
+func has_mastery() -> bool:
+	return mastery_stat != "" and mastery_threshold > 0
+
+func is_mastered_by(stats) -> bool:
+	## True when the wielder's BASE stat meets this weapon's breakpoint.
+	if not has_mastery() or stats == null:
+		return false
+	return int(stats.get_base_stat(mastery_stat)) >= mastery_threshold
+
+func get_mastery_stat_label() -> String:
+	return "%s %d" % [mastery_stat.substr(0, 3).to_upper(), mastery_threshold]
+
+func get_mastery_text(stats = null) -> String:
+	## Tooltip line, e.g. "Mastery (DEX 15): Sweeping strikes — UNLOCKED".
+	if not has_mastery():
+		return ""
+	var line := "Mastery (%s)" % get_mastery_stat_label()
+	if mastery_description != "":
+		line += ": %s" % mastery_description
+	elif not mastery_card_ids.is_empty():
+		line += ": grants %s" % ", ".join(mastery_card_ids)
+	if stats != null:
+		line += " — UNLOCKED" if is_mastered_by(stats) else " — locked"
+	return line
 
 # On-self bonuses (extra bonuses applied to cards slotted in this item)
 @export var on_self_damage: int = 0
@@ -157,7 +213,6 @@ var granted_cards_built: bool = false
 
 # On-self special effects (beyond flat bonuses)
 @export var on_self_thorns: int = 0  # Card grants X thorns on play
-@export var on_self_upgrade: bool = false  # Card upgrades on play (requires gem)
 
 # On-kill card conjuring (Bladed Doughnut): every enemy kill while this item
 # is equipped adds a fresh copy of this card directly to the hand.
@@ -397,7 +452,6 @@ func get_on_self_bonus() -> Dictionary:
 		"apply_burn": on_self_apply_burn,
 		"apply_cold": on_self_apply_cold,
 		"thorns": on_self_thorns,
-		"upgrade": on_self_upgrade
 	}
 
 func get_card_slot_summary() -> String:
@@ -422,8 +476,6 @@ func get_card_slot_summary() -> String:
 		parts.append("On-Self: Apply %d Cold on hit" % on_self_apply_cold)
 	if on_self_thorns > 0:
 		parts.append("On-Self: Gain %d Thorns on play" % on_self_thorns)
-	if on_self_upgrade:
-		parts.append("On-Self: Upgrade card on play")
 	if allowed_card_keywords.size() > 0:
 		var kw_names: Array[String] = []
 		for kw in allowed_card_keywords:
@@ -612,6 +664,7 @@ static func create_flame_dagger() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Flame Dagger"
 	item.item_type = ItemType.WEAPON
+	item.weapon_subtype = WeaponSubtype.DAGGER
 	item.item_type_name = "Weapon"
 	item.rarity = Rarity.COMMON
 	item.weight = 3
@@ -626,6 +679,7 @@ static func create_frost_orb() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Frost Orb"
 	item.item_type = ItemType.WEAPON
+	item.weapon_subtype = WeaponSubtype.WAND
 	item.item_type_name = "Weapon"
 	item.rarity = Rarity.COMMON
 	item.weight = 2
@@ -862,10 +916,50 @@ static func create_club() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Club"
 	item.item_type = ItemType.WEAPON
+	item.weapon_subtype = WeaponSubtype.HAMMER
 	item.item_type_name = "Weapon"
 	item.weight = 25
 	item.weapon_damage = 1
 	item.description = "+1 damage. Weight 25."
+	return item
+
+# ============================================
+# MASTERY BREAKPOINT WEAPONS (examples)
+# ============================================
+
+static func create_serpent_fang() -> ItemData:
+	## Polearm with a DEX breakpoint: anyone can wield it, but a dexterous
+	## hand unlocks its sweeping technique.
+	var item = ItemData.new()
+	item.item_name = "Serpent Fang"
+	item.item_type = ItemType.WEAPON
+	item.weapon_subtype = WeaponSubtype.POLEARM
+	item.item_type_name = "Weapon"
+	item.rarity = Rarity.RARE
+	item.weight = 40
+	item.weapon_damage = 6
+	item.mastery_stat = "dexterity"
+	item.mastery_threshold = 15
+	item.mastery_card_ids.assign(["sweeping_disarm"])
+	item.mastery_description = "grants Sweeping Disarm while wielded"
+	item.description = "+6 damage. Weight 40. Mastery (DEX 15): grants Sweeping Disarm while wielded."
+	return item
+
+static func create_earthsplitter_sledge() -> ItemData:
+	## Sledgehammer with a STR breakpoint: raw muscle unlocks the heavy swing.
+	var item = ItemData.new()
+	item.item_name = "Earthsplitter Sledge"
+	item.item_type = ItemType.WEAPON
+	item.weapon_subtype = WeaponSubtype.HAMMER
+	item.item_type_name = "Weapon"
+	item.rarity = Rarity.RARE
+	item.weight = 90
+	item.weapon_damage = 12
+	item.mastery_stat = "strength"
+	item.mastery_threshold = 15
+	item.mastery_card_ids.assign(["heavy_swing"])
+	item.mastery_description = "grants Heavy Swing while wielded"
+	item.description = "+12 damage. Weight 90. Mastery (STR 15): grants Heavy Swing while wielded."
 	return item
 
 static func create_cyclops_ring() -> ItemData:
@@ -878,10 +972,9 @@ static func create_cyclops_ring() -> ItemData:
 	item.fire_resistance_percent = 15.0
 	item.block_bonus_to_defense_cards = 2
 	item.damage_bonus_to_attack_cards = 2
-	item.on_self_upgrade = true
 	item.card_slots = 1
 	item.allowed_card_keywords = [Card.CardKeyword.GEM]
-	item.description = "15% Fire Resistance. +2 block to defense cards. +2 damage to attack cards. On-Self (Gem): Upgrade card. 1 Gem card slot."
+	item.description = "15% Fire Resistance. +2 block to defense cards. +2 damage to attack cards. 1 Gem card slot."
 	return item
 
 static func create_trailblazers() -> ItemData:
@@ -901,6 +994,7 @@ static func create_shadow_dagger() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Shadow Dagger"
 	item.item_type = ItemType.WEAPON
+	item.weapon_subtype = WeaponSubtype.DAGGER
 	item.item_type_name = "Weapon"
 	item.rarity = Rarity.RARE
 	item.weight = 10
@@ -918,6 +1012,7 @@ static func create_pocket_knife() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Pocket Knife"
 	item.item_type = ItemType.WEAPON
+	item.weapon_subtype = WeaponSubtype.DAGGER
 	item.item_type_name = "Weapon"
 	item.rarity = Rarity.COMMON
 	item.weight = 1
@@ -1089,6 +1184,7 @@ static func create_bladed_doughnut() -> ItemData:
 	var item = ItemData.new()
 	item.item_name = "Bladed Doughnut"
 	item.item_type = ItemType.WEAPON
+	item.weapon_subtype = WeaponSubtype.OTHER
 	item.item_type_name = "Weapon"
 	item.rarity = Rarity.MYTHIC
 	item.weight = 5

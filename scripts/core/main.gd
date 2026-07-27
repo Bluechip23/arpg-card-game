@@ -284,6 +284,7 @@ var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
 var _attack_button: Button = null
+var _rack_button: Button = null         # Brad's War Rack swap (free on cooldown / paid)
 # Basic (auto) attack baseline: flat damage before the STR modifier, so early
 # swings never feel like pure chip damage. STR still scales on top of this.
 const BASIC_ATTACK_BASE_DAMAGE := 3
@@ -868,6 +869,16 @@ func _setup_action_buttons() -> void:
 	_block_button.pressed.connect(_on_block_pressed)
 	_block_button.visible = false
 	vbox.add_child(_block_button)
+
+	# War Rack button (Brad only): swap hands with the gear on his back.
+	_rack_button = Button.new()
+	_rack_button.name = "RackButton"
+	_rack_button.text = "Rack"
+	_rack_button.custom_minimum_size = Vector2(0, 36)
+	_rack_button.size_flags_horizontal = Control.SIZE_FILL
+	_rack_button.pressed.connect(_on_rack_button_pressed)
+	_rack_button.visible = false
+	vbox.add_child(_rack_button)
 
 	# Bottom row: Wait beside a (shrunk) Pause, stretched to the column (= attack)
 	# width so the two plus the gap match the Attack button.
@@ -1702,6 +1713,43 @@ func _on_swap_tempo_spent(cost: int, action: String) -> void:
 		return
 	tempo_manager.add_tempo(cost)
 	add_battle_log("%s — %d tempo" % [action, cost], Color(0.85, 0.75, 0.5))
+
+func _on_rack_button_pressed() -> void:
+	## Brad's War Rack: free exchange when the cooldown is ready (and the
+	## single-two-handed-item rule is met); otherwise a normal paid exchange.
+	var inv = player.get_inventory() if player else null
+	if not inv or not inv.has_back_rack:
+		return
+	var free_check: Dictionary = inv.can_rack_exchange(true)
+	if free_check["ok"]:
+		var result: Dictionary = inv.rack_exchange(true)
+		if result["success"]:
+			add_battle_log("War Rack: swapped FREE — cards to hand!", Color(1.0, 0.85, 0.4))
+	else:
+		var result: Dictionary = inv.rack_exchange(false)
+		if result["success"]:
+			_on_swap_tempo_spent(result["tempo_cost"], "War Rack exchange")
+		else:
+			add_battle_log("War Rack: %s" % result["reason"], Color(1.0, 0.5, 0.4))
+	_update_rack_button()
+	_update_block_button_visibility()
+	_on_hand_updated()
+
+func _update_rack_button() -> void:
+	if not _rack_button:
+		return
+	var inv = player.get_inventory() if player else null
+	if not inv or not inv.has_back_rack:
+		_rack_button.visible = false
+		return
+	_rack_button.visible = true
+	var rack_names: String = inv._rack_names(inv.rack_items)
+	if inv.rack_cooldown_tempo <= 0:
+		_rack_button.text = "Rack FREE"
+		_rack_button.tooltip_text = "War Rack: swap your hands with the gear on your back for FREE.\nOn back: %s\nOne side must be a single two-handed item; incoming cards rush to your hand.\n%d tempo cooldown after use. Click while recharging for a normal paid swap." % [rack_names, Inventory.RACK_FREE_SWAP_COOLDOWN]
+	else:
+		_rack_button.text = "Rack %dT" % inv.rack_cooldown_tempo
+		_rack_button.tooltip_text = "War Rack recharging: free swap in %d tempo.\nOn back: %s\nClick to exchange now at normal swap-tempo cost." % [inv.rack_cooldown_tempo, rack_names]
 
 func _update_block_button_visibility() -> void:
 	if not _block_button:
@@ -2595,8 +2643,6 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			on_self_parts.append("Apply Cold")
 		if on_self.get("thorns", 0) > 0:
 			on_self_parts.append("+%d Thorns" % on_self["thorns"])
-		if on_self.get("upgrade", false):
-			on_self_parts.append("Upgraded")
 		var on_self_sep = HSeparator.new()
 		vbox.add_child(on_self_sep)
 		var on_self_header = Label.new()
@@ -2936,6 +2982,11 @@ func select_character(character: CharacterData) -> void:
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
+	# War Rack (Brad): show the swap button and keep its cooldown display live.
+	var rack_inv = player.get_inventory()
+	if rack_inv:
+		rack_inv.rack_changed.connect(_update_rack_button)
+	_update_rack_button()
 	# Ally paging: the panel's arrows page through everyone currently in play.
 	character_panel.set_page_provider(_all_players)
 
@@ -9099,6 +9150,8 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.equipped_weapons = inv_data.get("equipped_weapons", inv.equipped_weapons)
 			inv.equipped_quivers = inv_data.get("equipped_quivers", inv.equipped_quivers)
 			inv.stored_items = inv_data.get("stored_items", inv.stored_items)
+			inv.rack_items = inv_data.get("rack_items", inv.rack_items)
+			inv.rack_cooldown_tempo = inv_data.get("rack_cooldown_tempo", 0)
 			inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
 			inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
@@ -9146,6 +9199,8 @@ func _save_player_progression() -> Dictionary:
 			"stash_items": inv.stash_items.duplicate(),
 			"culling_stones": inv.culling_stones,
 			"mythic_molds": inv.mythic_molds,
+			"rack_items": inv.rack_items.duplicate(),
+			"rack_cooldown_tempo": inv.rack_cooldown_tempo,
 		}
 	var deck_state = progression["deck_state"]
 	var total_cards = deck_state.get("hand", []).size() + deck_state.get("draw_pile", []).size() + deck_state.get("discard_pile", []).size() + deck_state.get("jail_pile", []).size()
