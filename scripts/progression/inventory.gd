@@ -246,6 +246,14 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 		print("[INVENTORY] Slot %d is holding the two-handed grip" % slot_index)
 		return false
 
+	# Bows demand both hands: a bow never shares the hand slots with another
+	# weapon or shield — only a quiver (its own slot) rides along.
+	if slot_array == equipped_weapons:
+		var conflict = hand_conflict_reason(item, slot_index)
+		if conflict != "":
+			print("[INVENTORY] %s: %s" % [item.item_name, conflict])
+			return false
+
 	# Hard carry gate: refuse an equip that would push the character (further)
 	# past capacity. Two-handing halves an item's carried weight, which is what
 	# lets a weaker character take on heavy gear.
@@ -302,6 +310,30 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	
 	print("[INVENTORY] Unequipped %s from slot %d" % [item.item_name, slot_index])
 	return item
+
+func hand_conflict_reason(item: ItemData, slot_index: int) -> String:
+	## Bow rule: bows are two-handed weapons. While a bow is in the hands, the
+	## only other hand item allowed is a quiver (which lives in its own slots).
+	## Returns "" when placing `item` into weapon slot `slot_index` is legal.
+	## The check ignores the item itself so moving it between hand slots works.
+	if item.item_type == ItemData.ItemType.QUIVER:
+		return ""
+	if item.item_type != ItemData.ItemType.WEAPON:
+		return ""
+	if item.weapon_subtype == ItemData.WeaponSubtype.BOW:
+		for i in range(weapon_slots):
+			var other = equipped_weapons[i]
+			if i != slot_index and other != null and other != item \
+					and other.item_type != ItemData.ItemType.QUIVER:
+				return "A bow needs both hands — only a quiver can accompany it"
+	else:
+		for i in range(weapon_slots):
+			var other = equipped_weapons[i]
+			if i != slot_index and other != null and other != item \
+					and other.item_type == ItemData.ItemType.WEAPON \
+					and other.weapon_subtype == ItemData.WeaponSubtype.BOW:
+				return "Both hands are on the bow — only a quiver fits alongside"
+	return ""
 
 func get_equipped_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	var slot_array = _get_slot_array(item_type)
@@ -1288,7 +1320,10 @@ func switch_build(target: int) -> Dictionary:
 					var si = stored_items.find(it)
 					if si >= 0:
 						stored_items.remove_at(si)
-				equip_item(it, i)
+				if not equip_item(it, i):
+					# Refused (e.g. the bow needs-both-hands rule on an old
+					# snapshot) — keep the item safe in storage, never orphaned.
+					freed.append(it)
 	for it in freed:
 		stored_items.append(it)
 
@@ -1326,23 +1361,37 @@ func can_rack_exchange(free: bool) -> Dictionary:
 	if hands.is_empty() and rack_items.is_empty():
 		res["reason"] = "Nothing to exchange"
 		return res
+	# Bow rule holds for the incoming set too: a bow can't come down alongside
+	# another weapon or shield (equipping it would be refused and strand the
+	# item) — a quiver riding along is fine.
+	if rack_items.size() > 1:
+		var rack_has_bow = false
+		var rack_non_quiver = 0
+		for it in rack_items:
+			if it.item_type == ItemData.ItemType.QUIVER:
+				continue
+			rack_non_quiver += 1
+			if it.item_type == ItemData.ItemType.WEAPON and it.weapon_subtype == ItemData.WeaponSubtype.BOW:
+				rack_has_bow = true
+		if rack_has_bow and rack_non_quiver > 1:
+			res["reason"] = "A bow needs both hands — it can't come down with other gear"
+			return res
 	if free:
 		if rack_cooldown_tempo > 0:
 			res["reason"] = "Rack swap recharging (%d tempo)" % rack_cooldown_tempo
 			return res
-		# One side of the free exchange must be a single item gripped with both
-		# hands: either the incoming rack item (auto-gripped on arrival) or the
-		# outgoing weapon he's already two-handing.
-		var incoming_single = rack_items.size() == 1
-		var outgoing_two_handed = two_handed_slot >= 0 and hands.size() == 1
-		if not incoming_single and not outgoing_two_handed:
+		# One side of the free exchange must be a single two-handed item:
+		# the incoming rack item (auto-gripped on arrival), the outgoing weapon
+		# he's already two-handing, or a bow on either side — bows are
+		# inherently two-handed (a quiver may ride along with one).
+		if not _rack_free_side_ok(rack_items, true) and not _rack_free_side_ok(hands, false):
 			res["reason"] = "Free swap needs a single two-handed item on one side"
 			return res
 	# Carry gate on the end state as a whole. The item set is unchanged (hands
 	# and back trade places) but the grip discount and the 80% grip capacity
 	# move with the exchange.
 	if player_stats:
-		var will_grip = free and rack_items.size() == 1
+		var will_grip = free and _incoming_gets_auto_grip(rack_items)
 		var load = 0
 		for arr in [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_quivers]:
 			for it in arr:
@@ -1362,6 +1411,41 @@ func can_rack_exchange(free: bool) -> Dictionary:
 			return res
 	res["ok"] = true
 	return res
+
+func _rack_free_side_ok(items: Array, is_incoming: bool) -> bool:
+	## Whether one side of a FREE rack exchange counts as "a single two-handed
+	## item": exactly one non-quiver item that is a bow (inherently two-handed),
+	## will be auto-gripped on arrival (lone incoming item), or already carries
+	## the grip (outgoing side).
+	var main: ItemData = null
+	var total = 0
+	for it in items:
+		if it == null:
+			continue
+		total += 1
+		if it.item_type == ItemData.ItemType.QUIVER:
+			continue
+		if main != null:
+			return false
+		main = it
+	if main == null:
+		return false
+	if main.item_type == ItemData.ItemType.WEAPON and main.weapon_subtype == ItemData.WeaponSubtype.BOW:
+		return true
+	if is_incoming:
+		return total == 1  # the grip needs the other hand free to lock
+	return two_handed_slot >= 0
+
+func _incoming_gets_auto_grip(items: Array) -> bool:
+	## The free swap auto-grips a lone incoming item — but not bows (their
+	## two-handedness is the rule itself, and the grip would lock the hand a
+	## quiver needs) and not quivers.
+	if items.size() != 1 or items[0] == null:
+		return false
+	var it: ItemData = items[0]
+	if it.item_type != ItemData.ItemType.WEAPON:
+		return false
+	return it.weapon_subtype != ItemData.WeaponSubtype.BOW
 
 func rack_exchange(free: bool) -> Dictionary:
 	## Swaps everything in the hand slots with everything on the rack.
@@ -1395,8 +1479,9 @@ func rack_exchange(free: bool) -> Dictionary:
 		equip_item(it, next_slot)
 		if first_slot < 0:
 			first_slot = next_slot
-	# The free swap's single incoming item arrives gripped with both hands.
-	if free and incoming.size() == 1 and first_slot >= 0:
+	# The free swap's single incoming item arrives gripped with both hands
+	# (bows excepted — they are inherently two-handed and never use the grip).
+	if free and first_slot >= 0 and _incoming_gets_auto_grip(incoming):
 		set_two_handed(first_slot, true)
 	_bulk_build_switch = false
 
