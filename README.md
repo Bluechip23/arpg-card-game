@@ -62,8 +62,8 @@ Every character has six core attributes:
 | **Dexterity (DEX)** | The primary attack-speed stat. Every (30 − DEX) attacks (through a card or auto) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. Additionally, every 1 point in DEX increases **crit damage by 5%**. |
 | **Intelligence (INT)** | +1 spell and heal power for every 2 points. +1 mana regen for every 5 points. |
 | **Wisdom (WIS)** | +1 hand size for every 5 points. Each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5). |
-| **Determination (DET)** | Low health impacts your other stats. A determination stat of 10 causes neutrality. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. |
-| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. Spent by choice through the Flash row in the battle HUD — **1 point** moves a tile without spending tempo (boots toggle), **3 points** buy 2 block (a quick sidestep), **5 points** advance the attack-speed counter one tick (quick hands). The spend buttons fade while you can't afford them, and a sphere-grid keystone can unlock a fourth spend (4 points: draw a card). |
+| **Determination (DET)** | Controls how low health affects your other stats. At 10 it does nothing. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. High-DET builds are strongest on the brink of death. |
+| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. **1 point** moves a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. 
 
 All characters share a base **5% critical hit chance** and **150% critical damage**. Crit chance is raised only by items, cards, and other effects — no stat affects it. Crit damage scales with Dexterity (+5% per point).
 
@@ -72,9 +72,7 @@ All characters share a base **5% critical hit chance** and **150% critical damag
 ## Resources: Health, Mana, Armor
 
 ### Health
-Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**; sphere grid nodes and equipment grow it further. Reaching 0 means death (with story consequences — not a run reset). Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage that gets past your armor, but expires on a timer.
-
-Health also feeds back into your stats through **Determination** — dropping below 80/60/40/10% health shifts your effective stats up or down depending on your DET.
+Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**. **There is no pure vitality stat to increase health**. Reaching 0 means dead sauce. Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
 
 ### Mana
 The cost of playing most cards.
@@ -149,7 +147,7 @@ Mechanics that appear on cards:
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
 | **Chisel** | Card can only be played while slotted into an item — never from hand alone. |
 
-Some cards carry **RNG outcomes** — percentages printed on the card that roll when played, either pass/fail or a weighted pick between multiple results. Chance-boosting effects tilt these rolls in your favor.
+Some cards carry **RNG outcomes** — percentages printed on the card that roll when played, either pass/fail or a weighted pick between multiple results. Chance-boosting effects tilt these rolls in your favor. **The player knows when drawn if the cards RNG effect will trigger. Holding the card in your hand for an extended time will re roll the RNG outcome.**
 
 ---
 
@@ -230,14 +228,11 @@ Negative effects, applied by enemies and hazards (and occasionally self-inflicte
 
 Characters equip items into typed slots: **Helm, Chest, Rings, Belt, Boots, Gauntlets, Weapons/Hands**. Quivers occupy a hand slot. Slot counts vary by character (see [Characters](#characters)).
 
-Items grant stat bonuses, resource bonuses, hand size, weapon damage, and special effects. Some item types have unique systems:
-
-- **Rings** carry passive triggers — "on kill," "on heal," "on gaining X+ armor," and so on — that fire an effect (gain armor, gain mana, draw a card…) when the condition is met.
-- **Gauntlets** can carry an active skill (mana cost + cooldown) or an always-on passive.
+Items grant stat bonuses, resource bonuses, hand size, weapon damage, and special effects. Each item has a general theme, although they do not always follow them specifically.
 
 ### Weight & carry capacity
 
-Every item has weight. Your capacity is **50 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs while traveling light speeds them up (both capped). Traveling light is a real build choice.
+Every item has weight. Your capacity is **50 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs while traveling light speeds them up (both capped). **Total carrying weight is used when understanding attack speed, not just weapon weight.**
 
 ### Hands, off-hands, and two-handing
 
@@ -252,7 +247,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 
 ### Equipment builds (loadouts I / II / III)
 
-You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. Out of combat, switching is free. **In combat, every changed slot costs tempo**:
+You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **Every changed slot costs tempo**:
 
 | Slot | Swap cost (tempo) | Remove-only |
 |---|---|---|
@@ -275,13 +270,13 @@ Items and cards are deeply linked: some items **grant cards** to your deck while
 - **Equipping an item** places the cards it owns into your **discard pile** — they join your deck on the next reshuffle, not instantly in hand.
 - **Removing an item** immediately pulls its cards out of **every zone** — deck, hand, discard, jail, maintained, and manifest.
 - **Jail time is not laundered by swapping.** If an item's card is jailed and you swap the item out and back in, the card returns *directly to jail* with the same time remaining.
-- **Produced cards detach.** If an item or a slotted card *generates* a card during play (for example, a goblet that produces a Heal Orb card), that produced card belongs to you, not the item — it stays in your deck even after the item is swapped out.
+- **Produced cards detach.** If an item or a slotted card *generates* a card during play (for example, a goblet that produces a Heal Orb card), that produced card belongs to you, not the item. It stays in your deck even after the item is swapped out.
 
 ---
 
 ## Cards Slotted Into Items
 
-Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** — extra damage, block, healing, mana discount, or on-hit effects — whenever played.
+Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** when played.
 
 Slotting is governed by compatibility keywords:
 
@@ -309,7 +304,7 @@ Five playable characters. All of them:
 - allocate the same starting stat pool,
 - have **one item specialty**: a slot layout that favors a particular equipment type (e.g. Brad's chest pieces weigh 20% less and Ryan gets −1 mana cost on belt cards),
 - have a **unique passive** tied to their specialty,
-- have **four distinct paths** of abilities that can be **mixed and matched** — you are never locked into a single path; your build can borrow from all four.
+- have **four distinct paths** of abilities that can be **mixed and matched**. You are never locked into a single path; your build can borrow from all four.
 
 Character identity comes from the intersection of item specialty, path choices, stat allocation, and the deck you assemble.
 
