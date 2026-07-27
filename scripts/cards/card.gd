@@ -163,8 +163,6 @@ var in_hand_debuff: String = ""  # Debuff applied while this card is in hand (e.
 var in_hand_buff: String = ""  # Buff applied while this card is in hand (Enchantment cards)
 
 # Card upgrade system (Paper Feather upgrades)
-var upgrade_path: int = -1  # -1 = not upgraded, 0 = path 1, 1 = path 2
-var is_upgraded: bool = false
 
 # Card-item slot system
 enum SlotCompatibility { PICKY, PLIABLE }
@@ -185,8 +183,8 @@ func is_slotted() -> bool:
 func get_stack_signature() -> String:
 	## Cards sharing a signature stack under one hand slot / play button. Only
 	## copies that look and play identically merge; anything that changes the
-	## card's face or how it plays (upgrade, enhance, cost shifts, jailed,
-	## slotted) splits it into its own stack.
+	## card's face or how it plays (enhance, cost shifts, jailed, slotted)
+	## splits it into its own stack.
 	##
 	## Pure instant (reaction) cards can never be played manually — they all
 	## pile together under one un-lettered stack so they don't clutter the hand
@@ -194,9 +192,9 @@ func get_stack_signature() -> String:
 	## card isn't CardType.REACTION and stacks like any other card.
 	if card_type == CardType.REACTION:
 		return "%s%s" % [INSTANT_STACK_SIG_PREFIX, str(is_jailed())]
-	return "%s|%s|%d|%d|%d|%d|%d|%d|%s|%s" % [
+	return "%s|%s|%d|%d|%d|%d|%s|%s" % [
 		card_id, card_name, mana_cost, tempo_cost,
-		int(is_upgraded), upgrade_path, int(is_enhanced), bonus_damage,
+		int(is_enhanced), bonus_damage,
 		str(is_jailed()), str(is_slotted()),
 	]
 
@@ -1249,68 +1247,6 @@ func jail_burden() -> void:
 # ============================================
 # CARD UPGRADE SYSTEM (Paper Feather)
 # ============================================
-
-## Returns the available upgrade paths for this card.
-## Each path: {name: String, description: String}
-func get_upgrade_paths() -> Array:
-	var paths = _get_upgrade_paths_for_id(card_id)
-	return paths
-
-static func _get_upgrade_paths_for_id(id: String) -> Array:
-	match id:
-		"slash":
-			return [
-				{"name": "Sharpened Slash", "description": "+3 damage (13 total)"},
-				{"name": "Guarded Slash", "description": "+2 block on use"},
-			]
-		"block":
-			return [
-				{"name": "Fortified Block", "description": "+3 armor (8 total)"},
-				{"name": "Swift Block", "description": "-1 tempo cost (1T)"},
-			]
-	return []
-
-func can_upgrade() -> bool:
-	return not is_upgraded and get_upgrade_paths().size() > 0
-
-func apply_upgrade(path_index: int) -> void:
-	if is_upgraded or path_index < 0:
-		return
-	var paths = get_upgrade_paths()
-	if path_index >= paths.size():
-		return
-
-	upgrade_path = path_index
-	is_upgraded = true
-
-	match card_id:
-		"slash":
-			if path_index == 0:
-				# Path 1: +3 damage
-				damage += 3
-				base_damage += 3
-				card_name = "Sharpened Slash"
-				description = "%d damage" % damage
-			elif path_index == 1:
-				# Path 2: +2 block
-				block += 2
-				base_block += 2
-				card_name = "Guarded Slash"
-				description = "%d damage, %d armor" % [damage, block]
-		"block":
-			if path_index == 0:
-				# Path 1: +3 block
-				block += 3
-				base_block += 3
-				card_name = "Fortified Block"
-				description = "%d armor" % block
-			elif path_index == 1:
-				# Path 2: -1 tempo cost
-				tempo_cost = max(1, tempo_cost - 1)
-				card_name = "Swift Block"
-				description = "%d armor" % block
-
-	print("[CARD] Upgraded %s via path %d: %s" % [card_id, path_index, card_name])
 
 # Factory methods
 static func create_basic_attack(damage_amount: int) -> Card:

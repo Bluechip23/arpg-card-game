@@ -327,7 +327,7 @@ Your character grows along several permanent axes:
 - **Path abilities** — each character has 4 "paths" that provide unique passives (e.g. Cory: Monk, Druid, Lurker, and Atrophist).
 - **Deck crafting** — buy cards from vendors, and use consumables to sculpt the deck:
   - **Culling Stones** permanently remove a card from your deck.
-  - **Paper Feathers** upgrade a card down one of two upgrade paths.
+  - **Paper Feathers** — a card-crafting consumable (their new role is being redesigned).
   - **Origami Swans** are earned by destroying cards; 20 swans convert into a Paper Feather.
 - **Equipment** — loot, vendors, and quest rewards across all acts.
 - **Story** — a four-act journey (Earth → Hell → Heaven → a final return to Earth). Everything above carries forward between acts; nothing resets.

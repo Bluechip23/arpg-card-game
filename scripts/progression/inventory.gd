@@ -87,7 +87,7 @@ var max_card_storage: int = 20
 
 # Consumables
 var culling_stones: int = 99  # Used to permanently remove cards from deck
-var paper_feathers: int = 3  # Used to upgrade cards at the Card Dealer
+var paper_feathers: int = 3  # Card-crafting consumable (role being redesigned)
 var origami_swans: int = 0  # 20 origami swans = 1 Paper Feather (crafted by Olorin)
 var mythic_molds: int = 0  # 2 molded-down mythics = 1 Mold; redeem for any mythic at the Blacksmith
 
@@ -128,7 +128,6 @@ func initialize(char_name: String) -> void:
 			belt_slots = 3
 			belt_card_mana_reduction = 1
 		"Brad":
-			weapon_slots = 3  # main hand + 2 off hands
 			chest_weight_reduction = 0.20
 		"Jeremy":
 			ring_slots = 4
@@ -178,9 +177,22 @@ func _init_slot_arrays() -> void:
 func connect_player_stats(stats) -> void:
 	player_stats = stats
 	stats.inventory = self
+	# Weapon mastery breakpoints check base stats — re-test them whenever stats
+	# change so a fresh allocation immediately releases newly-mastered cards.
+	if not stats.stats_updated.is_connected(refresh_mastery_cards):
+		stats.stats_updated.connect(refresh_mastery_cards)
 
 func connect_deck_manager(deck) -> void:
 	deck_manager = deck
+
+func refresh_mastery_cards() -> void:
+	## Base stats only ever grow, so this only ever RELEASES held-back mastery
+	## cards (via the normal add path, which skips cards already in a zone).
+	if not deck_manager or not player_stats:
+		return
+	for item in equipped_weapons:
+		if item and item.has_mastery() and item.is_mastered_by(player_stats):
+			_add_item_cards_to_deck(item)
 
 func get_off_hand_modifier() -> float:
 	# Stephen gets bonus, others get penalty
@@ -266,7 +278,7 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	_apply_item_bonuses(item, false, is_off_hand)
 	_apply_special_effect(item, false)
 	# Pull the item's owned cards out of every zone. The instances stay attached
-	# to the item (preserving jail time, upgrades, etc.) for when it returns.
+	# to the item (preserving jail time, enhancement, etc.) for when it returns.
 	_remove_item_cards_from_deck(item)
 
 	item_unequipped.emit(item, item.get_type_name(), slot_index)
@@ -409,6 +421,8 @@ func apply_starting_item_card_effects() -> void:
 			for card in _get_item_owned_cards(item):
 				if _card_in_any_zone(card):
 					continue
+				if _is_locked_mastery_card(item, card):
+					continue
 				deck_manager.draw_pile.append(card)
 				print("[INVENTORY] Starting item added %s to deck" % card.card_name)
 				cards_added = true
@@ -431,15 +445,27 @@ func apply_starting_item_card_effects() -> void:
 # they have detached from the item.
 
 func _get_item_owned_cards(item: ItemData) -> Array:
-	## Every card instance that belongs to this item (granted + slotted), no dupes.
+	## Every card instance that belongs to this item (granted + slotted +
+	## mastery), no dupes. Mastery cards are OWNED regardless of the wielder's
+	## stats — the remove path must always be able to clean them up — but the
+	## add paths skip them until the breakpoint is met (_is_locked_mastery_card).
 	var cards: Array = []
 	for card in item.granted_card_instances:
+		if card and not cards.has(card):
+			cards.append(card)
+	for card in item.mastery_card_instances:
 		if card and not cards.has(card):
 			cards.append(card)
 	for card in item.slotted_cards:
 		if card and not cards.has(card):
 			cards.append(card)
 	return cards
+
+func _is_locked_mastery_card(item: ItemData, card) -> bool:
+	## True for a mastery card whose breakpoint the wielder hasn't reached yet.
+	if not item.mastery_card_instances.has(card):
+		return false
+	return not item.is_mastered_by(player_stats)
 
 func _ensure_granted_card_instances(item: ItemData) -> void:
 	## Build the item's granted-card instances exactly once, then reuse forever.
@@ -461,6 +487,14 @@ func _ensure_granted_card_instances(item: ItemData) -> void:
 			var blink_card = Card.create_blink()
 			blink_card.granted_by_item = item
 			item.granted_card_instances.append(blink_card)
+
+	# Mastery cards get instances up front too (same lifetime rules as granted
+	# cards) — the add paths simply hold them back until the breakpoint is met.
+	for card_id in item.mastery_card_ids:
+		var card = _create_granted_card(card_id)
+		if card:
+			card.granted_by_item = item
+			item.mastery_card_instances.append(card)
 
 func _create_granted_card(card_id: String) -> Card:
 	## Prefer the deck manager's comprehensive factory; fall back to the local map.
@@ -484,6 +518,8 @@ func _add_item_cards_to_deck(item: ItemData) -> void:
 	for card in owned:
 		if _card_in_any_zone(card):
 			continue  # already live — don't duplicate it into another pile
+		if _is_locked_mastery_card(item, card):
+			continue  # breakpoint not met yet — the card waits on the item
 		if card.is_jailed():
 			deck_manager.jail_pile.append(card)
 			print("[INVENTORY] %s: returned jailed card '%s' (%d tempo left)" % [item.item_name, card.card_name, card.jail_time_remaining])

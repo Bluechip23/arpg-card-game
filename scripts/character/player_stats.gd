@@ -354,6 +354,19 @@ func get_effective_stat(base_value: int) -> int:
 	var modifier = get_determination_modifier()
 	return max(1, floori(base_value * modifier))
 
+func get_base_stat(stat_name: String) -> int:
+	## Base (unmodified) value of a named stat — allocation and permanent
+	## growth only, untouched by Determination's combat swings. Used by stat
+	## gates and weapon mastery breakpoints.
+	match stat_name:
+		"strength": return base_strength
+		"dexterity": return base_dexterity
+		"intelligence": return base_intelligence
+		"wisdom": return base_wisdom
+		"agility": return base_agility
+		"determination": return determination
+	return 0
+
 # ============================================
 # INITIALIZATION
 # ============================================

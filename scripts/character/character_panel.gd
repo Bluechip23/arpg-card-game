@@ -1670,6 +1670,8 @@ func _build_item_effect_text(item: ItemData) -> String:
 			lines.append("[Passive] +%d%% chance effects" % item.special_effect_value)
 		ItemData.SpecialEffect.GRANT_CARDS:
 			lines.append("[Equip] Grants cards: %s" % ", ".join(item.granted_card_ids))
+	if item.has_mastery():
+		lines.append("[%s]" % item.get_mastery_text(player_stats))
 	if item.has_card_slots():
 		lines.append("[Card Slots] %d/%d" % [item.slotted_cards.size(), item.card_slots])
 		for card in item.slotted_cards:

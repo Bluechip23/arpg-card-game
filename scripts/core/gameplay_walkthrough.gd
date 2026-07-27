@@ -219,7 +219,7 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 1 main hand, 1 off hand, 1 pair of boots, 1 gauntlet — plus one twist each:
 
 [color=red]Ryan:[/color] Belt cards cost 1 less mana (3 belt slots)
-[color=green]Brad:[/color] Chest items weigh 20% less (2 off-hand slots)
+[color=green]Brad:[/color] Chest items weigh 20% less
 [color=blue]Jeremy:[/color] Every 3rd cycle, the first ring trigger triggers twice (4 ring slots)
 [color=purple]Stephen:[/color] +10% off-hand enchantments, others get -10% (standard slots)
 [color=orange]Cory:[/color] Gain 1 mana when gauntlet skill comes off cooldown (2 gauntlet slots)
@@ -272,9 +272,7 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 - [color=cyan]Mana[/color] - Increases max mana
 - [color=gold]Keystone[/color] - Rare, build-defining nodes that rewrite the rules of an entire system (how life steal works, what armor becomes, what drives Determination...). A character can attach at most [color=gold]3 Keystones[/color] - choose the ones that define your build
 
-[color=yellow]Upgrading Cards:[/color]
-- Cards are upgraded using [color=cyan]Paper Feathers[/color] at the Card Dealer in town
-- Each card has 2 upgrade paths to choose from (e.g., more damage or added block)
+[color=yellow]Paper Feathers:[/color]
 - Paper Feathers can be found from enemy loot and chests
 - You can also create Paper Feathers by converting cards into Origami Swans at Olorin (20 swans = 1 feather)
 

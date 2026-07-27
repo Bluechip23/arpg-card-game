@@ -55,8 +55,13 @@ func _build_children() -> void:
 
 	# Shadowed silhouette fills the square (the equipped item's own type when
 	# filled, e.g. a quiver sitting in a weapon slot shows a quiver shadow).
+	# An equipped weapon shows its specific shape — an axe reads as an axe, a
+	# dagger as a dagger — instead of the generic any-weapon composite.
 	var sil = ItemSilhouetteScript.new()
-	sil.setup(item.item_type if item else item_type, item == null)
+	var sil_subtype: int = -1
+	if item and item.item_type == ItemData.ItemType.WEAPON:
+		sil_subtype = item.weapon_subtype
+	sil.setup(item.item_type if item else item_type, item == null, sil_subtype)
 	sil.set_anchors_preset(Control.PRESET_FULL_RECT)
 	sil.offset_top = 4
 	sil.offset_bottom = -16
@@ -188,7 +193,10 @@ func _add_passive_badge() -> void:
 	add_child(badge)
 
 func _build_item_tooltip() -> String:
-	var lines: Array[String] = [item.item_name, item.get_type_name()]
+	var type_line := item.get_type_name()
+	if item.item_type == ItemData.ItemType.WEAPON:
+		type_line = ItemData.get_weapon_subtype_name(item.weapon_subtype)
+	var lines: Array[String] = [item.item_name, type_line]
 	if item.description != "":
 		lines.append(item.description)
 	lines.append("Drag to move • Click for details")

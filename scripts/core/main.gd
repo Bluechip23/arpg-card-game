@@ -2595,8 +2595,6 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			on_self_parts.append("Apply Cold")
 		if on_self.get("thorns", 0) > 0:
 			on_self_parts.append("+%d Thorns" % on_self["thorns"])
-		if on_self.get("upgrade", false):
-			on_self_parts.append("Upgraded")
 		var on_self_sep = HSeparator.new()
 		vbox.add_child(on_self_sep)
 		var on_self_header = Label.new()

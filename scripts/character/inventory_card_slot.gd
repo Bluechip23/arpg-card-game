@@ -55,7 +55,7 @@ func _build_tooltip() -> String:
 func has_on_self() -> bool:
 	return (item.on_self_damage > 0 or item.on_self_block > 0 or item.on_self_heal > 0
 		or item.on_self_mana_reduction > 0 or item.on_self_apply_burn > 0
-		or item.on_self_apply_cold > 0 or item.on_self_thorns > 0 or item.on_self_upgrade)
+		or item.on_self_apply_cold > 0 or item.on_self_thorns > 0)
 
 func _on_self_description() -> String:
 	var parts: Array[String] = []
@@ -73,8 +73,6 @@ func _on_self_description() -> String:
 		parts.append("Applies %d Cold on hit" % item.on_self_apply_cold)
 	if item.on_self_thorns > 0:
 		parts.append("Grants %d Thorns on play" % item.on_self_thorns)
-	if item.on_self_upgrade:
-		parts.append("Upgrades the slotted card on play")
 	return "\n".join(parts)
 
 func _draw() -> void:

@@ -63,11 +63,6 @@ func get_base_character() -> String:
 # copies of what you've found, never unlocks what you haven't.
 @export var owned_mythic_names: Array = []
 
-# Card upgrades: Array of {card_index: int, upgrade_path: int}
-# card_index refers to the position in the final deck list (after removals)
-# upgrade_path: 0 = path 1, 1 = path 2
-@export var card_upgrades: Array = []
-
 # Archetypes - categorize card and passive options
 @export var archetypes: Array = []  # [{name: String, description: String}, ...]
 
@@ -302,7 +297,7 @@ static func create_brad() -> CharacterData:
 	data.passive_description = "Chest items weigh 20% less"
 	data.starting_item_name = "Bloodbound Plate"
 	data.starting_item_description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
-	data.slot_specialty = "2 off-hand slots"
+	data.slot_specialty = "Standard slots"  # TODO: give Brad (and Stephen) a slot identity later
 	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data
 
