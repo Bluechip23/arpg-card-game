@@ -219,7 +219,7 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 1 main hand, 1 off hand, 1 pair of boots, 1 gauntlet — plus one twist each:
 
 [color=red]Ryan:[/color] Belt cards cost 1 less mana (3 belt slots)
-[color=green]Brad:[/color] Chest items weigh 20% less
+[color=green]Brad:[/color] Chest items weigh 20% less. War Rack: gear strapped to his back swaps with his hands — FREE on a 25-tempo cooldown (one side must be a single two-handed item; incoming cards rush to hand), or at normal swap cost anytime
 [color=blue]Jeremy:[/color] Every 3rd cycle, the first ring trigger triggers twice (4 ring slots)
 [color=purple]Stephen:[/color] +10% off-hand enchantments, others get -10% (standard slots)
 [color=orange]Cory:[/color] Gain 1 mana when gauntlet skill comes off cooldown (2 gauntlet slots)

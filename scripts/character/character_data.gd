@@ -297,7 +297,7 @@ static func create_brad() -> CharacterData:
 	data.passive_description = "Chest items weigh 20% less"
 	data.starting_item_name = "Bloodbound Plate"
 	data.starting_item_description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
-	data.slot_specialty = "Standard slots"  # TODO: give Brad (and Stephen) a slot identity later
+	data.slot_specialty = "War Rack: back-slung gear swap"
 	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data
 
