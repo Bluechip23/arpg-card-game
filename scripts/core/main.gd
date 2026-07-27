@@ -1555,7 +1555,7 @@ func _on_attack_pressed() -> void:
 	if buff_mgr:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			damage = floori(damage * 1.5)
+			damage = Card.crit_multiply(damage, stats)
 			buff_mgr.consume_enlightened()
 
 	# Debuff damage reduction

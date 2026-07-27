@@ -1086,7 +1086,7 @@ func _get_stat_detail(label: String) -> String:
 	if label.begins_with("STR"):
 		return "Strength: +carry capacity, +physical damage"
 	elif label.begins_with("DEX"):
-		return "Dexterity: faster attack speed proc"
+		return "Dexterity: faster attack speed proc, +5% crit damage per point"
 	elif label.begins_with("INT"):
 		return "Intelligence: +spell damage, +mana regen"
 	elif label.begins_with("WIS"):
