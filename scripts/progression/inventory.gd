@@ -214,21 +214,6 @@ func get_off_hand_modifier() -> float:
 	# Stephen gets bonus, others get penalty
 	return DEFAULT_OFF_HAND_PENALTY + off_hand_bonus
 
-func equip_starting_item() -> void:
-	match character_name:
-		"Brad":
-			equip_item(ItemData.create_bloodbound_plate(), 0)
-		"Stephen":
-			equip_item(ItemData.create_flickerstep_boots(), 0)
-		"Cory":
-			equip_item(ItemData.create_grasping_gauntlets(), 0)
-		"Jeremy":
-			equip_item(ItemData.create_scholars_signet(), 0)
-		"Ryan":
-			equip_item(ItemData.create_adventurers_belt(), 0)
-	
-	print("[INVENTORY] Equipped starting item for %s" % character_name)
-
 func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	var slot_array = _get_slot_array(item.item_type)
 	var max_slots = _get_max_slots(item.item_type)
@@ -419,12 +404,12 @@ func _create_card_by_id(card_id: String) -> Card:
 		"splinter": return Card.create_splinter()
 	return null
 
-func apply_starting_item_card_effects() -> void:
+func apply_equipped_item_card_effects() -> void:
 	## Bring card-granting equipment's cards into the deck after initialization.
-	## Starting items are equipped in initialize() BEFORE the deck manager exists,
-	## so equip_item's card hook was a no-op then; this runs once the deck is
-	## ready. Starting cards are shuffled into the DRAW pile (not discarded) so
-	## the opening hand can contain them, matching the original starting behavior.
+	## Save-restored gear is equipped BEFORE the deck manager exists, so
+	## equip_item's card hook was a no-op then; this runs once the deck is
+	## ready. The cards are shuffled into the DRAW pile (not discarded) so the
+	## opening hand can contain them.
 	if not deck_manager:
 		return
 
@@ -440,12 +425,12 @@ func apply_starting_item_card_effects() -> void:
 				if _is_locked_mastery_card(item, card):
 					continue
 				deck_manager.draw_pile.append(card)
-				print("[INVENTORY] Starting item added %s to deck" % card.card_name)
+				print("[INVENTORY] Equipped item added %s to deck" % card.card_name)
 				cards_added = true
 
 	if cards_added:
 		deck_manager.shuffle_draw_pile()
-		print("[INVENTORY] Shuffled deck after adding starting item cards")
+		print("[INVENTORY] Shuffled deck after adding equipped item cards")
 
 # ============================================
 # ITEM-OWNED CARDS (swap in / swap out)

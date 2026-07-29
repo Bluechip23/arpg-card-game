@@ -305,29 +305,9 @@ func _show_result() -> void:
 	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_child(right_col)
 
-	# Starting Item
-	var item_title = Label.new()
-	item_title.text = "Starting Item"
-	item_title.add_theme_font_size_override("font_size", 18)
-	item_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
-	right_col.add_child(item_title)
-
-	var item_name = Label.new()
-	item_name.text = _last_result["starting_item_name"]
-	item_name.add_theme_font_size_override("font_size", 16)
-	item_name.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
-	right_col.add_child(item_name)
-
-	var item_desc = Label.new()
-	item_desc.text = _last_result["starting_item_description"]
-	item_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	item_desc.add_theme_font_size_override("font_size", 13)
-	item_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-	right_col.add_child(item_desc)
-
-	# Item Perk (passive from starting item)
+	# Character Passive
 	var passive_title = Label.new()
-	passive_title.text = "Item Perk"
+	passive_title.text = "Character Passive"
 	passive_title.add_theme_font_size_override("font_size", 18)
 	passive_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
 	right_col.add_child(passive_title)
@@ -378,14 +358,7 @@ func _show_result() -> void:
 	cards_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
 	right_col.add_child(cards_title)
 
-	var card_ids: Array = _last_result["starting_card_ids"]
-	var cards_text: String = ""
-	for j in range(card_ids.size()):
-		var card_name: String = card_ids[j].replace("_", " ").capitalize()
-		if j > 0:
-			cards_text += ",  "
-		cards_text += card_name
-	cards_text += "\n+ Base deck (Slash x4, Block x3, Heal x2, Draw, Discard, Energy)"
+	var cards_text := "Base deck (Slash x4, Block x4, Draw, Energy, Heal) — identical for every character"
 
 	var cards_label = Label.new()
 	cards_label.text = cards_text

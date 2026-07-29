@@ -71,10 +71,9 @@ func set_grid_manager(gm: GridManager) -> void:
 
 func initialize_character(data: CharacterData) -> void:
 	stats.initialize(data)
-	# Starting kit keys off the preset identity, not the (renamable) display name.
+	# Slot identity keys off the preset identity, not the (renamable) display name.
 	inventory.initialize(data.get_base_character())
 	inventory.connect_player_stats(stats)
-	inventory.equip_starting_item()
 	debuff_manager.initialize(stats, self)
 	buff_manager.initialize(stats, self)
 	buff_manager.connect_debuff_manager(debuff_manager)  # For Cleanse

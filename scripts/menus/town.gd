@@ -587,9 +587,7 @@ func _get_current_deck_card_ids() -> Array:
 		all_ids.append("slash")
 	for i in range(4):
 		all_ids.append("block")
-	for i in range(2):
-		all_ids.append("draw")
-	all_ids.append("discard")
+	all_ids.append("draw")
 	all_ids.append("gain_mana")
 	all_ids.append("heal")
 
