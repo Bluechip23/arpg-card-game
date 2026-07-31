@@ -231,6 +231,12 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	if item_type == ItemData.ItemType.WEAPON and _panel and _panel.inventory \
 			and _panel.inventory.is_grip_locked_slot(slot_index):
 		return false
+	# Bow rule: a bow can't join other hand items (and vice versa) — only a
+	# quiver shares the hands with a bow.
+	if item_type == ItemData.ItemType.WEAPON and dragged.item_type == ItemData.ItemType.WEAPON \
+			and _panel and _panel.inventory \
+			and _panel.inventory.hand_conflict_reason(dragged, slot_index) != "":
+		return false
 	if dragged.item_type == item_type:
 		return true
 	# Quivers occupy a weapon (main/off-hand) slot — accept them there too.
