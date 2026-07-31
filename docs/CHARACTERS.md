@@ -17,14 +17,21 @@ normally a dead action — into fuel: discarding a card shaves tempo off a rando
 your hand (*Keep Them Guessing*), and cards like **Exacerbate Wounds** (damage per card
 discarded), **Reposition** (discard one, draw one), and **Volatile Mixture** (a hot potato that
 deals 8 to an enemy if discarded — or 8 to *you* if you're still holding it) all reward the
-churn. You are never hoarding cards; you're cycling them.
+churn. The churn now has a payoff button: *Ladder Work* banks every card that hits his discard
+pile **without being played** — deliberate discards, instants firing on their own, enchantments
+expiring — and cashes the count in as bonus damage on his first attack of the next cycle.
+Everything that slips out of his hand sideways sharpens the opening knife.
 
 His second axis is *sequencing*. Several passives care about what you just did, not what you're
 doing: *From the Hip* discounts your most recently drawn attack until you play anything,
-*Nimble Assault* rewards you for holding zero Defense cards by turning every attack into a draw,
-and *Mad Scientist* literally changes what his potions do based on the last card played
-(a Utility before a heal adds regen; a Defense before a poison strips enemy physical defense).
-Playing Ryan well means thinking one card ahead, all the time.
+*Nimble Assault* rewards holding a hand with no Defense cards in it by turning every attack
+into a draw, *Surprise Opener* front-loads his aggression (+3 on his first strike against an
+enemy, +4 more if they had no armor, +5 more if he's the first thing to touch them — up to +12
+for a clean ambush), and *Mad Scientist* literally changes what his potions do based on the
+last card played. Playing Ryan well means thinking one card ahead, all the time — and the
+endgame deck this points toward is radical: **cull every Defense card**, let Agility's
+sidestep and movement provide the blocking, and run pure attacks, utilities, and instants so
+Nimble Assault never turns off and every reaction feeds the Ladder Work spike.
 
 **Gear identity:** Ryan runs **3 belt slots** (most characters get one) and his character
 passive makes **belt cards cost 1 less mana**. Belts are the game's Pocket-card item type —

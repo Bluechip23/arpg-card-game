@@ -254,6 +254,11 @@ var st_crit_counter: int = 0          # Eye Scrape: tracks crits toward every-3r
 var st_from_hip_card: Card = null     # From the Hip: the card currently discounted
 var st_from_hip_original_cost: int = 0  # From the Hip: original mana cost to restore
 var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which enemies have been struck
+var st_pre_attack_target_id: int = -1  # Pre-hit snapshot (set per attack in arm_pre_attack_passives)
+var st_pre_attack_armor: int = 0       # Target's armor before the hit landed
+var st_pre_attack_health: int = 0      # Target's health before the hit landed
+var st_ladder_discard_count: int = 0   # Ladder Work: non-play discards this cycle
+var st_ladder_banked: int = 0          # Ladder Work: last cycle's count, spent on first attack
 
 # Brad passive tracking
 var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount

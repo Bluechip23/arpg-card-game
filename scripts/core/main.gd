@@ -367,6 +367,7 @@ func _ready() -> void:
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.card_peaked.connect(_on_card_peaked)
 	deck_manager.card_discarded.connect(_on_card_discarded)
+	deck_manager.non_play_discard.connect(_on_non_play_discard)
 	# Visual-only: cards leaving the hand get their exit animations (tube-suck
 	# into the discard pile / instant spin) before the hand UI rebuilds.
 	deck_manager.card_discarded.connect(_animate_card_discard)
@@ -4887,6 +4888,13 @@ func _animate_card_erase(card: Card) -> void:
 	if ui:
 		ui.animate_disintegrate()
 
+func _on_non_play_discard(_card: Card) -> void:
+	## Ladder Work (Ryan): count cards that reach the discard pile by means
+	## other than being played; the count feeds next cycle's opening strike.
+	var stats = player.get_stats() if player else null
+	if stats and stats.has_skill_tree_passive("ladder_work"):
+		stats.st_ladder_discard_count += 1
+
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
 	progression_triggers._trigger_sphere_passives("on_discard", {"card": card})
@@ -4921,6 +4929,7 @@ func _handle_on_discard_effect(card: Card) -> void:
 					deck_manager.discard_pile.append(discarded)
 					deck_manager.discards_this_cycle += 1
 					deck_manager.card_discarded.emit(discarded)
+					deck_manager.non_play_discard.emit(discarded)
 					print("[MAIN] %s On Discard: discarded %s" % [card.card_name, discarded.card_name])
 				deck_manager.hand_updated.emit()
 				add_battle_log("%s discarded! Lost %d cards!" % [card.card_name, cards_to_discard], Color(1.0, 0.5, 0.3))
@@ -5185,6 +5194,7 @@ func _check_volatile_mixture_in_hand() -> void:
 				stats.take_damage(self_damage)
 			deck_manager.hand.remove_at(i)
 			deck_manager.discard_pile.append(card)
+			deck_manager.non_play_discard.emit(card)
 			print("[MAIN] Volatile Mixture still in hand! Took %d self-damage" % self_damage)
 
 func _recalculate_enchantment_bonuses() -> void:
@@ -5238,6 +5248,7 @@ func _process_enchantment_cycles() -> void:
 		if card.cycles_in_hand >= 2:
 			deck_manager.hand.remove_at(i)
 			deck_manager.discard_pile.append(card)
+			deck_manager.non_play_discard.emit(card)
 			card.cycles_in_hand = 0
 			hand_changed = true
 			add_battle_log("%s faded away" % card.card_name, Color(0.2, 0.9, 0.8))
@@ -5265,6 +5276,7 @@ func _process_healthy_bliss_cards() -> void:
 			# Discard the card
 			deck_manager.hand.remove_at(i)
 			deck_manager.discard_pile.append(card)
+			deck_manager.non_play_discard.emit(card)
 			card.cycles_in_hand = 0
 			hand_changed = true
 			print("[MAIN] Healthy Bliss triggered after 20 tempo in hand")
