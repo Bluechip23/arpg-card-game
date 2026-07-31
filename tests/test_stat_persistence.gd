@@ -80,7 +80,6 @@ func _test_equipment_bonuses() -> void:
 	var b = _mk(data)
 	var stats_b: PlayerStats = b[0]
 	var inv_b: Inventory = b[1]
-	inv_b.equip_starting_item()
 	stats_b.restore_progression(snap)
 	inv_b.equipped_gauntlets = inv_a.equipped_gauntlets.duplicate()
 	inv_b.equipped_weapons = inv_a.equipped_weapons.duplicate()

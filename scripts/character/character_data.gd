@@ -6,7 +6,7 @@ extends Resource
 @export var character_name: String = "Default"
 
 # The preset this character was built from ("Brad", "Ryan", …). Everything
-# identity-based (starting kit, figure appearance, skill tree, character
+# identity-based (slot specialty, figure appearance, skill tree, character
 # passive) keys off this, so the player is free to rename character_name.
 # Empty on old saves and quiz characters — get_base_character() falls back
 # to character_name.
@@ -34,7 +34,7 @@ func get_base_character() -> String:
 # Build state is @export so it persists when the character is saved to disk
 # (ResourceSaver only serializes exported properties). This is what lets a
 # story character carry its deck/upgrades into the roguelike.
-@export var starting_card_ids: Array = []  # Character-specific cards added to starting deck
+@export var starting_card_ids: Array = []  # Legacy — no longer populated; every character shares the same basic deck
 @export var purchased_card_ids: Array = []  # Cards bought from the card shop
 @export var removed_card_ids: Array = []    # Cards culled from the deck (base or starting cards)
 
@@ -68,6 +68,7 @@ func get_base_character() -> String:
 
 # Selection screen display info
 @export var passive_description: String = ""
+# Legacy — characters no longer start with an item; kept so old saves load.
 @export var starting_item_name: String = ""
 @export var starting_item_description: String = ""
 @export var slot_specialty: String = ""
@@ -123,11 +124,6 @@ static func create_ryan() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.starting_card_ids = [
-		"slash", "slash", "slash",
-		"block", "block", "block",
-		"discard", "discard",
-	]
 	data.archetypes = [
 		{"name": "Relentless Blade", "description": "Constant pressure, and 1000 cuts is how you fight. Aggression, and lacerations are your north star."},
 		{"name": "Light Foot", "description": "Always aware, constantly alert, enemies struggle hitting you, and when they do, your next move is planned."},
@@ -135,8 +131,6 @@ static func create_ryan() -> CharacterData:
 		{"name": "Shadow Blade", "description": "Hidden in the shadows, weaving in and out of combat, striking enemies when they least expect it, and where they are the weakest."},
 	]
 	data.passive_description = "Belt cards cost 1 less mana"
-	data.starting_item_name = "Adventurer's Belt"
-	data.starting_item_description = "Grants: Healing Potion & Dagger Throw"
 	data.slot_specialty = "3 belt slots"
 	data.sprite_path = "res://assets/characters/ryan_south.png"
 	return data
@@ -155,11 +149,6 @@ static func create_jeremy() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.starting_card_ids = [
-		"slash", "slash", "slash",
-		"block", "block", "block",
-		"draw", "draw",
-	]
 	data.archetypes = [
 		{"name": "Evocation", "description": "Master of the elements. Blasting enemies with power is your cup of tea."},
 		{"name": "Abjurer", "description": "Defense first is what you were taught. Outlasting, fast recovery, and small strikes is your way to victory."},
@@ -167,8 +156,6 @@ static func create_jeremy() -> CharacterData:
 		{"name": "Poltergeist", "description": "Master of death and hatred, instilling sheer agony on your enemies is your main objective."},
 	]
 	data.passive_description = "Every 3rd cycle, the first ring trigger triggers twice"
-	data.starting_item_name = "Scholar's Signet"
-	data.starting_item_description = "+3 INT. +3% chance. On Utility: +1 Mana"
 	data.slot_specialty = "4 ring slots"
 	data.sprite_path = "res://assets/characters/jeremy_south.png"
 	return data
@@ -187,14 +174,9 @@ static func create_stephen() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.starting_card_ids = [
-		"slash", "slash", "slash",
-		"block", "block", "block",
-		"empower", "empower",
-	]
 	data.archetypes = [
 		{"name": "The Apex", "description": "The most efficient and dangerous killer. No tactic is out of question, master of all things offense.", "abilities": [
-			{"name": "Deadly", "description": "+3 damage"},
+			{"name": "Deadly", "description": "+3 damage and +50% crit damage when the target has no allies within 2 spaces"},
 			{"name": "Easy Target", "description": "When exposing your enemy, deal your damage again"},
 			{"name": "Skilled Momentum", "description": "If you have played 4 attacks in a row, your 5th will be played twice"},
 		]},
@@ -205,7 +187,7 @@ static func create_stephen() -> CharacterData:
 		]},
 		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger.", "abilities": [
 			{"name": "Eagle Eye", "description": "+2 range on ranged attacks"},
-			{"name": "Scouted", "description": "Hitting the same enemy 3 times in a row grants +6 range on your next attack and it auto-crits, as long as you target the same enemy"},
+			{"name": "Scouted", "description": "Hitting the same enemy 3 times in a row grants +6 range on your next attack and it auto-crits — usable against any enemy"},
 			{"name": "Laced Arrow", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
 		]},
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
@@ -215,8 +197,6 @@ static func create_stephen() -> CharacterData:
 		]},
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
-	data.starting_item_name = "Flickerstep Boots"
-	data.starting_item_description = "+2 DEX. Grants 1 Blink card"
 	data.slot_specialty = "Standard slots"
 	data.sprite_path = "res://assets/characters/stephen_south.png"
 	return data
@@ -235,11 +215,6 @@ static func create_cory() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.starting_card_ids = [
-		"slash", "slash", "slash",
-		"block", "block", "block",
-		"blink", "blink",
-	]
 	data.archetypes = [
 		{"name": "Lurker", "description": "You gain strength from your enemies wounds, becoming stronger as they become weaker, trapping them, or holding them in place, preparing for you to devour."},
 		{"name": "Monk", "description": "Immersed in your surroundings, calm, collected. Always ready to help an ally, either directly or by hindering the enemy."},
@@ -247,8 +222,6 @@ static func create_cory() -> CharacterData:
 		{"name": "Atrophist", "description": "Your touch withers the enemy, making them weaker and frail the longer you are engaged."},
 	]
 	data.passive_description = "Gain 1 mana when gauntlet skill comes off cooldown"
-	data.starting_item_name = "Grasping Gauntlets"
-	data.starting_item_description = "+2 Hand Size. Skill: Power Grip (8 dmg, CD 3, Cost 2)"
 	data.slot_specialty = "2 gauntlet slots"
 	data.sprite_path = "res://assets/characters/cory_south.png"
 	return data
@@ -267,15 +240,10 @@ static func create_brad() -> CharacterData:
 	data.base_mana = 5
 	data.base_mana_regen = 1.0
 	data.base_draw_timer = 5
-	data.starting_card_ids = [
-		"slash", "slash", "slash",
-		"block", "block", "block",
-		"heal", "heal",
-	]
 	data.archetypes = [
 		{"name": "Berserker", "description": "Health is simply an inconvenience. Pain is your greatest strength, causing you to get stronger as you edge near death.", "abilities": [
-			{"name": "Enraged Will", "description": "When you drop below 10% health, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill"},
-			{"name": "Directed Strength", "description": "Lose 5 strength when above 50% health, gain 5 when below"},
+			{"name": "Enraged Will", "description": "When you drop below 25% HP, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill. Cooldown: 10 tempo"},
+			{"name": "Directed Strength", "description": "Gain 5 strength when below 50% health, lose it when going above"},
 			{"name": "Life Steal", "description": "All attacks life steal by 5%"},
 		]},
 		{"name": "Warden", "description": "Specialize in the art of armor and tactic, finding your weakness is nearly impossible for enemies.", "abilities": [
@@ -295,8 +263,6 @@ static func create_brad() -> CharacterData:
 		]},
 	]
 	data.passive_description = "Chest items weigh 20% less"
-	data.starting_item_name = "Bloodbound Plate"
-	data.starting_item_description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
 	data.slot_specialty = "War Rack: back-slung gear swap"
 	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data

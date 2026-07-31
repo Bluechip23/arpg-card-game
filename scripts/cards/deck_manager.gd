@@ -135,9 +135,7 @@ func _create_default_deck(character: CharacterData) -> void:
 		all_card_ids.append("slash")
 	for i in range(4):
 		all_card_ids.append("block")
-	for i in range(2):
-		all_card_ids.append("draw")
-	all_card_ids.append("discard")
+	all_card_ids.append("draw")
 	all_card_ids.append("gain_mana")  # "energy"
 	all_card_ids.append("heal")
 

@@ -17,8 +17,6 @@ var _sprite_label: Label
 var _figure_viewport: SubViewport = null
 var _passive_label: Label
 var _slot_label: Label
-var _inventory_name_label: Label
-var _inventory_desc_label: Label
 var _archetypes_header_label: Label
 var _archetype_labels: Array[Label] = []
 var _select_button: Button
@@ -159,22 +157,6 @@ func _build_ui() -> void:
 	_slot_label.add_theme_font_size_override("font_size", 11)
 	_slot_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.75))
 	vbox.add_child(_slot_label)
-
-	vbox.add_child(_make_separator())
-
-	# ── Starting Inventory ───────────────────────
-	vbox.add_child(_make_section_header("STARTING ITEM"))
-
-	_inventory_name_label = Label.new()
-	_inventory_name_label.add_theme_font_size_override("font_size", 13)
-	_inventory_name_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
-	vbox.add_child(_inventory_name_label)
-
-	_inventory_desc_label = Label.new()
-	_inventory_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_inventory_desc_label.add_theme_font_size_override("font_size", 11)
-	_inventory_desc_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
-	vbox.add_child(_inventory_desc_label)
 
 	vbox.add_child(_make_separator())
 
@@ -320,12 +302,6 @@ func setup(character: CharacterData) -> void:
 		_passive_label.text = character.passive_description
 	if _slot_label:
 		_slot_label.text = "Slots: %s" % character.slot_specialty
-
-	# Starting inventory
-	if _inventory_name_label:
-		_inventory_name_label.text = character.starting_item_name
-	if _inventory_desc_label:
-		_inventory_desc_label.text = character.starting_item_description
 
 	# Archetypes
 	for i in range(_archetype_labels.size()):

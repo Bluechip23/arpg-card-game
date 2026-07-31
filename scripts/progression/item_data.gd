@@ -493,7 +493,8 @@ func get_card_slot_summary() -> String:
 	return "\n".join(parts)
 
 # ============================================
-# CHARACTER STARTING ITEMS
+# SIGNATURE ITEMS (formerly character starting items — now regular loot;
+# no character starts with an item)
 # ============================================
 
 static func create_bloodbound_plate() -> ItemData:

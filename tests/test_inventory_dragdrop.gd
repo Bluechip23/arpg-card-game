@@ -32,7 +32,6 @@ func _initialize() -> void:
 	get_root().add_child(inv)
 	inv.initialize(data.character_name)
 	inv.connect_player_stats(stats)
-	inv.equip_starting_item()
 
 	# --- Instantiate the character panel (without show_panel: the live 3D
 	#     portrait/combat section needs the full /root/Main scene, which a bare

@@ -299,13 +299,14 @@ Slotting is governed by compatibility keywords:
 
 Five playable characters. All of them:
 
-- start with the **same basic deck** plus a small character kit,
+- start with the **identical basic deck** (4 Slash, 4 Block, 1 Draw, 1 Energy, 1 Heal) — no character-specific starting cards,
+- start with **no equipment** — every item is found, bought, or earned in the world,
 - allocate the same starting stat pool,
 - have **one item specialty**: a slot layout that favors a particular equipment type (e.g. Brad's chest pieces weigh 20% less and Ryan gets −1 mana cost on belt cards),
 - have a **unique passive** tied to their specialty,
 - have **four distinct paths** of abilities that can be **mixed and matched**. You are never locked into a single path; your build can borrow from all four.
 
-Character identity comes from the intersection of item specialty, path choices, stat allocation, and the deck you assemble.
+**All cards are neutral** — no card is restricted to a particular character. Skill trees may still grant specific cards as level-up options, but any card a character can obtain, any other character can use. Character identity comes from the intersection of item specialty, path choices, stat allocation, and the deck you assemble.
 
 ---
 

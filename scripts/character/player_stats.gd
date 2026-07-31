@@ -270,11 +270,13 @@ var st_scouted_hits: int = 0          # Scouted: consecutive hits on the same en
 var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit ready
 var st_exposed_blind_spot_crit: int = 0  # Exposed Blind Spot: bonus crit % for next attack
 var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
+var st_deadly_crit_active: bool = false  # Deadly: +50% crit damage while resolving an attack on an isolated target
 
 # Cory passive tracking
 var st_mana_gain_counter: int = 0     # Energy Barrier: counts non-regen mana gains toward every-3rd
-var st_expel_triggered: bool = false   # Expel Negativity: tracks if already triggered this threshold cross
-var st_enraged_will_triggered: bool = false  # Enraged Will: fired for this drop below 25%; resets when healed above
+var st_expel_charges: int = 2          # Expel Negativity: shared charge pool (2 max); one charge per trigger
+var st_expel_last_used_tempo: int = -100  # Expel Negativity: global tempo when charges were last exhausted
+var st_enraged_will_last_tempo: int = -100  # Enraged Will: global tempo of the last AOE swing (10 tempo cooldown)
 var st_cards_this_cycle: Array[String] = []  # Self Reliance: card types played this tempo cycle
 var st_self_reliance_discount: bool = false   # Self Reliance: next card costs -1m
 var st_budding_types: Array[String] = []     # Budding: card types played (no back-to-back)
@@ -329,10 +331,10 @@ var strength: int:
 		return max(1, get_effective_stat(base_strength) + _directed_strength_mod())
 
 func _directed_strength_mod() -> int:
-	## Brad's Directed Strength passive: -5 STR above 50% health, +5 below.
+	## Brad's Directed Strength passive: +5 STR below 50% health, lost above.
 	if not has_skill_tree_passive("directed_strength"):
 		return 0
-	return 5 if get_health_percent() <= 0.5 else -5
+	return 5 if get_health_percent() <= 0.5 else 0
 
 var dexterity: int:
 	get:
@@ -924,7 +926,9 @@ const CRIT_DAMAGE_PER_DEX: float = 0.05
 
 func get_crit_damage_multiplier() -> float:
 	## Uses effective Dexterity, so Determination swings crit damage too.
-	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX
+	## Deadly adds +50% while resolving an attack on an isolated target.
+	var deadly_bonus := 0.5 if st_deadly_crit_active else 0.0
+	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus
 
 func get_effective_physical_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
@@ -1231,8 +1235,8 @@ func heal(amount: int, from_ally: bool = false) -> void:
 		friendship_partner.heal(amount, from_ally)
 		_friendship_echo = false
 		friendship_partner._friendship_echo = false
-	# Blood Libation: Sanguine stacks add +1 healing each; at 5 the heal doubles,
-	# the stacks are consumed, and Jeremy takes 10 non-lethal afterward.
+	# Blood Libation: Sanguine stacks add +1 healing each; at 5 the heal doubles
+	# and the stacks are consumed.
 	var bl_consume := false
 	if sanguine_stacks > 0 and has_skill_tree_passive("blood_libation"):
 		amount += sanguine_stacks
@@ -1242,6 +1246,15 @@ func heal(amount: int, from_ally: bool = false) -> void:
 			sanguine_stacks = 0
 	var boosted_amount = get_effective_heal_amount(amount)
 	var old_health_pct = get_health_percent()
+
+	# Blood Libation: the 5-stack burst costs 10 non-lethal HP FIRST — the
+	# damage resolves before the (doubled) heal lands. A self-heal therefore
+	# takes the hit, then heals up from the lowered health.
+	if bl_consume:
+		current_health = max(1, current_health - 10)
+		health_changed.emit(current_health, max_health)
+		print("[STATS] Blood Libation burst! Took 10 non-lethal, heal doubled.")
+
 	var old_health = current_health
 	current_health += boosted_amount
 	current_health = min(current_health, max_health)
@@ -1249,12 +1262,6 @@ func heal(amount: int, from_ally: bool = false) -> void:
 	health_changed.emit(current_health, max_health)
 	if actual_heal > 0:
 		healed.emit(actual_heal)
-
-	# Blood Libation: the 5-stack burst costs 10 non-lethal HP after the heal.
-	if bl_consume:
-		current_health = max(1, current_health - 10)
-		health_changed.emit(current_health, max_health)
-		print("[STATS] Blood Libation burst! Heal doubled, took 10 non-lethal.")
 
 	var new_health_pct = get_health_percent()
 	print("[STATS] Healed %d (base %d)! Health: %d/%d" % [actual_heal, amount, current_health, max_health])

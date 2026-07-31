@@ -28,7 +28,7 @@ func _deck_counts(character) -> Dictionary:
 func _initialize() -> void:
 	print("=== Starting loadout test ===")
 
-	var expected := {"slash": 4, "block": 4, "draw": 2, "discard": 1, "gain_mana": 1, "heal": 1}
+	var expected := {"slash": 4, "block": 4, "draw": 1, "gain_mana": 1, "heal": 1}
 	var chars := {
 		"Ryan": CharacterData.create_ryan(),
 		"Jeremy": CharacterData.create_jeremy(),
@@ -40,11 +40,11 @@ func _initialize() -> void:
 	for name in chars:
 		var c = chars[name]
 		var counts := _deck_counts(c)
-		_check(counts == expected, "%s has the exact basic deck (4 slash / 4 block / 2 draw / 1 discard / 1 energy / 1 heal)" % name)
+		_check(counts == expected, "%s has the exact basic deck (4 slash / 4 block / 1 draw / 1 energy / 1 heal)" % name)
 		var total := 0
 		for k in counts:
 			total += counts[k]
-		_check(total == 13, "%s deck totals 13 cards (no character-specific extras)" % name)
+		_check(total == 11, "%s deck totals 11 cards (no character-specific extras)" % name)
 
 		_check(c.strength == 3 and c.dexterity == 3 and c.intelligence == 3
 			and c.wisdom == 3 and c.determination == 3 and c.agility == 3,
