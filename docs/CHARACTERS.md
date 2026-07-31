@@ -159,8 +159,9 @@ that grows +9 and gets cheaper each reuse, rewarding repetition), **Defensive Aw
 debuff on the board with one AOE), **Release Tension** (cash debuffs in for healing),
 **Exposed Artery** (scales off missing health, finishing what the attrition started), with
 *Eat* turning him into a genuine closer — +1% damage for every percentage point the enemy sits
-below 25% health, plus a heal of 5% of his max HP on every kill — and *Serial Killer* making
-him invisible to enemies that drop below 25%. *Expel Negativity* rounds out the attrition
+below 35% health, plus a heal of 5% of his max HP on every kill — and *Serial Killer* making
+him invisible to any enemy that drops below 25%, with the ambush out of that invisibility
+landing as a guaranteed crit (and revealing him). *Expel Negativity* rounds out the attrition
 loop: dropping below 50% health bounces a debuff off him onto an enemy (2 charges on a
 10-tempo refresh, one per hit).
 

@@ -39,13 +39,13 @@ Cory,Monk,2,Energy Barrier,"Every 3rd time you gain mana from a source other tha
 Cory,Lurker,3,Prey on the Weak,"When applying a debuff to an enemy below 50% health, deal 3 damage to them"
 Cory,Atrophist,4,Wither,Add +1 charge to all debuffs applied to enemies
 Cory,Druid,5,Budding,"When playing an attack, a utility, and a defense in any order (none back to back), heal 3 and gain 5 temp HP for 15 tempo"
-Cory,Lurker,7,Eat,"Killing enemies heals you 5% of your max health. You gain 1% damage for each percentage point of health the enemy is below 25%"
+Cory,Lurker,7,Eat,"Killing enemies heals you 5% of your max health. You gain 1% damage for each percentage point of health the enemy is below 35%"
 Cory,Monk,8,Expel Negativity,"Transfer a debuff to an enemy when you drop below 50% health. 2 charges, 10 tempo cooldown; only one charge can trigger at once"
 Cory,Druid,9,Circle of Life,"When you shuffle your deck, gain 15 armor and +3 damage for 3 attacks"
 Cory,Atrophist,11,Territorial Death,"When enemies enter or leave melee range, re-apply 1 random debuff they already have"
 Cory,Monk,13,Self Reliance,"When you play 3 cards in a single tempo cycle, your next card costs -1m"
 Cory,Atrophist,14,Death as Lifeblood,Regenerate health for each enemy with a debuff near you
-Cory,Lurker,16,Serial Killer,"The first time an enemy drops below 25% health, you become invisible to them"
+Cory,Lurker,16,Serial Killer,"The first time an enemy drops below 25% health, you become invisible to them. If you attack that enemy out of your invisibility, it is an auto-crit"
 Cory,Druid,18,Regrowth,"When emptying your hand, draw 4 cards. Cooldown 25 tempo"
 Jeremy,Evocation,2,Arcane Overflow,"When you have 0 mana remaining after casting a spell, your next spell costs -1 tempo"
 Jeremy,Shepherd,3,I Heal You,Allies near you are healed 3 health every 5 tempo

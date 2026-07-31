@@ -1167,16 +1167,31 @@ func _deadly_isolated(target) -> bool:
 			return false
 	return true
 
-func update_deadly_crit_flag(card: Card, target) -> void:
-	## Arm Deadly's +50% crit damage for the attack about to resolve on an
-	## isolated target. Cleared by clear_deadly_crit_flag() after execution.
+func arm_pre_attack_passives(card: Card, target) -> void:
+	## Called right before an attack card executes, with the resolve-time
+	## target — arms passives the in-execution crit roll needs to see.
+	## Cleared by clear_pre_attack_passives() after execution.
 	var stats = main.player.get_stats()
 	if not stats:
 		return
-	stats.st_deadly_crit_active = card != null and card.card_type == Card.CardType.ATTACK \
+	var is_attack: bool = card != null and card.card_type == Card.CardType.ATTACK
+
+	# Deadly (Stephen): +50% crit damage vs a target with no allies within 2 tiles.
+	stats.st_deadly_crit_active = is_attack \
 		and stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
 
-func clear_deadly_crit_flag() -> void:
+	# Serial Killer (Cory): attacking an enemy you're invisible to is an
+	# auto-crit — and the ambush reveals you to them.
+	if is_attack and stats.has_skill_tree_passive("serial_killer") \
+			and target is Enemy and is_instance_valid(target) \
+			and main.player in target.invisible_to_players:
+		target.invisible_to_players.erase(main.player)
+		var buff_mgr = main.player.get_buff_manager()
+		if buff_mgr:
+			buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Serial Killer"))
+		main.add_battle_log("Serial Killer: ambush! Guaranteed crit — %s can see you now." % target.enemy_name, Color(0.3, 0.7, 1.0))
+
+func clear_pre_attack_passives() -> void:
 	var stats = main.player.get_stats()
 	if stats:
 		stats.st_deadly_crit_active = false
@@ -1389,14 +1404,14 @@ func _trigger_skill_tree_cory_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
-	# Eat: +1% damage for each percentage point the enemy is below 25% health.
+	# Eat: +1% damage for each percentage point the enemy is below 35% health.
 	# Judged against the enemy's health BEFORE this hit landed.
 	if stats.has_skill_tree_passive("eat") and target is Enemy and is_instance_valid(target) \
 			and target.is_alive() and card.last_damage_dealt > 0:
 		var pre_health = mini(target.max_health, target.current_health + card.last_damage_dealt)
 		var pre_pct = 100.0 * float(pre_health) / float(target.max_health)
-		if pre_pct < 25.0:
-			var bonus_pct = 25.0 - pre_pct
+		if pre_pct < 35.0:
+			var bonus_pct = 35.0 - pre_pct
 			bonus += maxi(1, floori(card.last_damage_dealt * bonus_pct / 100.0))
 			main.add_battle_log("Eat: +%d%% damage (+%d) on weakened prey!" % [roundi(bonus_pct), bonus], Color(0.3, 0.7, 1.0))
 
