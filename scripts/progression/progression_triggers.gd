@@ -561,9 +561,9 @@ func _apply_skill_tree_option(option) -> void:
 				stats.add_skill_tree_passive(pid)
 				main.add_battle_log("Stone Skin: +10%% Fire/Physical/Lightning resistance", Color(0.4, 0.9, 0.4))
 			"deadly":
-				# Stephen: +3 flat damage (tracked via passive, applied on attack)
+				# Stephen: +3 damage and +50% crit damage vs targets with no allies within 2 tiles
 				stats.add_skill_tree_passive(pid)
-				main.add_battle_log("Deadly: +3 damage on all attacks", Color(0.9, 0.3, 0.3))
+				main.add_battle_log("Deadly: +3 damage & +50%% crit damage vs isolated targets", Color(0.9, 0.3, 0.3))
 			"eagle_eye":
 				# Stephen: +2 range on ranged attacks (tracked via passive)
 				stats.add_skill_tree_passive(pid)
@@ -874,14 +874,13 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 	if not stats:
 		return
 
-	# Enraged Will: DROPPING below 25% HP → one Reach AOE swing (1 base + 1 Reach
-	# = 2 range) + gain 1 mana per kill. Fires once per threshold crossing —
-	# re-arms only after healing back above 25%.
+	# Enraged Will: dropping below 25% HP → one Reach AOE swing (1 base + 1 Reach
+	# = 2 range) + gain 1 mana per kill. 10 tempo cooldown — staying low can
+	# re-trigger it once the cooldown elapses.
 	if stats.has_skill_tree_passive("enraged_will"):
-		if stats.get_health_percent() > 0.25:
-			stats.st_enraged_will_triggered = false
-		elif stats.current_health > 0 and not stats.st_enraged_will_triggered:
-			stats.st_enraged_will_triggered = true
+		var ew_elapsed = main.tempo_manager.get_global_tempo() - stats.st_enraged_will_last_tempo
+		if stats.get_health_percent() <= 0.25 and stats.current_health > 0 and ew_elapsed >= 10:
+			stats.st_enraged_will_last_tempo = main.tempo_manager.get_global_tempo()
 			var enemies = main.enemy_spawner.get_enemies_in_radius(main.player.position, 2.0) if main.enemy_spawner else []
 			if enemies.size() > 0:
 				var dmg = stats.get_effective_physical_damage(0)
@@ -1108,16 +1107,20 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
-	# Deadly: +3 flat damage on all attacks
-	if stats.has_skill_tree_passive("deadly"):
+	# Deadly: +3 damage (and +50% crit damage, applied via st_deadly_crit_active)
+	# when the target has no allies within 2 tiles
+	if stats.has_skill_tree_passive("deadly") and _deadly_isolated(target):
 		bonus += 3
+		main.add_battle_log("Deadly: +3 damage (isolated target)", Color(0.9, 0.3, 0.3))
 
-	# Scouted: hitting same enemy 3 times in a row → +6 range and auto-crit on next attack
+	# Scouted: hitting the same enemy 3 times in a row → +6 range and auto-crit
+	# on the next attack, usable against ANY enemy
 	if stats.has_skill_tree_passive("scouted") and target and target is Enemy:
 		var enemy_id = target.get_instance_id()
-		if stats.st_scouted_bonus_active and enemy_id == stats.st_scouted_target_id:
-			# Consume the bonus: auto-crit handled via Focused buff applied when bonus activated
+		if stats.st_scouted_bonus_active:
+			# Consume on any target: auto-crit handled via Enlightened buff applied when bonus activated
 			stats.st_scouted_bonus_active = false
+			stats.st_scouted_target_id = enemy_id
 			stats.st_scouted_hits = 1  # This hit counts as the first of a new streak
 			main.add_battle_log("Scouted: bonus consumed!", Color(0.4, 0.9, 0.4))
 		elif enemy_id == stats.st_scouted_target_id:
@@ -1129,12 +1132,11 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 				var buff_mgr = main.player.get_buff_manager()
 				if buff_mgr:
 					buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Scouted"))
-				main.add_battle_log("Scouted: 3 hits! +6 range and auto-crit on next attack!", Color(0.4, 0.9, 0.4))
+				main.add_battle_log("Scouted: 3 hits! +6 range and auto-crit on your next attack — any target!", Color(0.4, 0.9, 0.4))
 		else:
 			# Switched targets — reset streak
 			stats.st_scouted_target_id = enemy_id
 			stats.st_scouted_hits = 1
-			stats.st_scouted_bonus_active = false
 
 	# Skilled Momentum: 4 attacks in a row → 5th plays twice
 	if stats.has_skill_tree_passive("skilled_momentum") and card.card_type == Card.CardType.ATTACK:
@@ -1153,6 +1155,31 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 		main.add_battle_log("Swing for the Fences: +%d damage!" % card.tempo_cost, Color(0.8, 0.4, 0.9))
 
 	return bonus
+
+func _deadly_isolated(target) -> bool:
+	## Deadly: true when the target has no living allies within 2 tiles of it.
+	if not (target is Enemy) or not is_instance_valid(target):
+		return false
+	if not main.enemy_spawner:
+		return true
+	for enemy in main.enemy_spawner.get_living_enemies():
+		if enemy != target and target.position.distance_to(enemy.position) <= 2.0:
+			return false
+	return true
+
+func update_deadly_crit_flag(card: Card, target) -> void:
+	## Arm Deadly's +50% crit damage for the attack about to resolve on an
+	## isolated target. Cleared by clear_deadly_crit_flag() after execution.
+	var stats = main.player.get_stats()
+	if not stats:
+		return
+	stats.st_deadly_crit_active = card != null and card.card_type == Card.CardType.ATTACK \
+		and stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
+
+func clear_deadly_crit_flag() -> void:
+	var stats = main.player.get_stats()
+	if stats:
+		stats.st_deadly_crit_active = false
 
 func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
 	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
@@ -1327,28 +1354,53 @@ func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
 	if not stats:
 		return
 
-	# Expel Negativity: transfer a debuff to enemy when dropping below 50% HP
-	if stats.has_skill_tree_passive("expel_negativity") and not stats.st_expel_triggered:
-		if stats.get_health_percent() <= 0.5:
-			stats.st_expel_triggered = true
+	# Expel Negativity: transfer a debuff to an enemy when below 50% HP.
+	# 2 charges, refreshed 10 tempo after both are spent; only one charge can
+	# trigger per damage event.
+	if stats.has_skill_tree_passive("expel_negativity"):
+		_expel_try_refresh_charges(stats)
+		if stats.st_expel_charges > 0 and stats.get_health_percent() <= 0.5:
 			var debuff_mgr = main.player.get_debuff_manager()
 			if debuff_mgr and debuff_mgr.debuffs.size() > 0:
 				var debuff = debuff_mgr.debuffs[randi() % debuff_mgr.debuffs.size()]
 				var target = main._get_nearest_enemy()
 				if target and target.has_method("apply_debuff"):
+					stats.st_expel_charges -= 1
 					target.apply_debuff(debuff.debuff_name.to_lower(), debuff.value)
 					debuff_mgr.remove_debuff(debuff.debuff_type)
-					main.add_battle_log("Expel Negativity: transferred %s to %s!" % [debuff.debuff_name, target.enemy_name], Color(0.9, 0.3, 0.3))
+					main.add_battle_log("Expel Negativity: transferred %s to %s! (%d charge(s) left)" % [debuff.debuff_name, target.enemy_name, stats.st_expel_charges], Color(0.9, 0.3, 0.3))
+					if stats.st_expel_charges <= 0:
+						stats.st_expel_last_used_tempo = main.tempo_manager.get_global_tempo()
+
+func _expel_try_refresh_charges(stats: PlayerStats) -> void:
+	## Refresh Expel Negativity charges if 10 tempo has passed since exhaustion.
+	if stats.st_expel_charges <= 0:
+		var elapsed = main.tempo_manager.get_global_tempo() - stats.st_expel_last_used_tempo
+		if elapsed >= 10:
+			stats.st_expel_charges = 2
 
 func _trigger_skill_tree_cory_on_heal() -> void:
+	pass  # (Expel Negativity no longer resets on heal — it runs on charges.)
+
+func _trigger_skill_tree_cory_on_attack(card: Card, target) -> int:
+	## Returns bonus damage from Cory passives (dealt after the card resolves).
 	var stats = main.player.get_stats()
 	if not stats:
-		return
+		return 0
+	var bonus = 0
 
-	# Expel Negativity: reset trigger when healed above 50%
-	if stats.has_skill_tree_passive("expel_negativity") and stats.st_expel_triggered:
-		if stats.get_health_percent() > 0.5:
-			stats.st_expel_triggered = false
+	# Eat: +1% damage for each percentage point the enemy is below 25% health.
+	# Judged against the enemy's health BEFORE this hit landed.
+	if stats.has_skill_tree_passive("eat") and target is Enemy and is_instance_valid(target) \
+			and target.is_alive() and card.last_damage_dealt > 0:
+		var pre_health = mini(target.max_health, target.current_health + card.last_damage_dealt)
+		var pre_pct = 100.0 * float(pre_health) / float(target.max_health)
+		if pre_pct < 25.0:
+			var bonus_pct = 25.0 - pre_pct
+			bonus += maxi(1, floori(card.last_damage_dealt * bonus_pct / 100.0))
+			main.add_battle_log("Eat: +%d%% damage (+%d) on weakened prey!" % [roundi(bonus_pct), bonus], Color(0.3, 0.7, 1.0))
+
+	return bonus
 
 func _trigger_skill_tree_cory_on_kill(enemy: Enemy) -> void:
 	var stats = main.player.get_stats()

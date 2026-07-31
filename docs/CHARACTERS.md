@@ -74,7 +74,8 @@ spell already cast), **God of Thunder** (converts accumulated shock into one bol
 **Worms Armageddon** — next to a genuinely selfless support line: *I Heal You* passively heals
 nearby allies, **Provider** and **Cryonics** protect them, and *Whispers of the Flock* /
 *Blood Libation* let him tank pain personally (8 self-damage, 10 self-damage) to save an ally
-from lethal or double a heal.
+from lethal or double a heal — and Blood Libation's burst resolves damage-first, so a doubled
+self-heal patches the wound it just opened.
 
 **Pick Jeremy if you want:** to play with an empty hand and an empty mana bar and be scarier
 for it, to manipulate percentages instead of accepting them, and to build a ring-trigger engine
@@ -88,10 +89,14 @@ Stephen is the tempo-system character. Almost every passive he has cares about *
 the order and speed of your plays — and his kit supports two opposite rhythms:
 
 **The chain:** four attacks in a row make the fifth resolve **twice** (*Skilled Momentum*);
-hitting the *same* enemy three times in a row grants +6 range and an auto-crit on the next shot
-(*Scouted*); triggering an attack-speed proc mints a free 0-mana/0-tempo basic attack
-(*Dominate*). Alternating also pays: drawing a Defense card right after playing an attack (or
-vice versa) discounts its tempo (*Clean Exchange*). This is a build about not breaking stride.
+hitting the *same* enemy three times in a row banks +6 range and an auto-crit on your next
+attack — spendable on **any** target (*Scouted*), so a melee Stephen can grind the streak on
+the enemy in his face and then whip a Dagger Throw at the archer in the back; triggering an
+attack-speed proc mints a free 0-mana/0-tempo basic attack (*Dominate*). Alternating also
+pays: drawing a Defense card right after playing an attack (or vice versa) discounts its tempo
+(*Clean Exchange*). This is a build about not breaking stride. And positioning is damage too:
+*Deadly* grants +3 damage and +50% crit damage against a target with **no allies within 2
+spaces** — picking off stragglers, or splitting a pack before the kill, is part of the rhythm.
 
 **The haymaker:** any card costing more than 4 tempo deals its tempo cost as *bonus damage*
 (*Swing for the Fences*), and receiving Glut converts it into damage and halves it
@@ -153,8 +158,11 @@ that grows +9 and gets cheaper each reuse, rewarding repetition), **Defensive Aw
 (armor per nearby enemy — he *wants* to be surrounded), **Misery Loves Company** (spread every
 debuff on the board with one AOE), **Release Tension** (cash debuffs in for healing),
 **Exposed Artery** (scales off missing health, finishing what the attrition started), with
-*Eat* / *Serial Killer* topping him up 5% max HP per kill and turning him invisible to enemies
-that drop below 25%.
+*Eat* turning him into a genuine closer — +1% damage for every percentage point the enemy sits
+below 25% health, plus a heal of 5% of his max HP on every kill — and *Serial Killer* making
+him invisible to enemies that drop below 25%. *Expel Negativity* rounds out the attrition
+loop: dropping below 50% health bounces a debuff off him onto an enemy (2 charges on a
+10-tempo refresh, one per hit).
 
 **Pick Cory if you want:** to dictate where every unit on the grid stands, to win long fights
 through debuff attrition that heals you while it kills them, and a machine-gun card cadence
@@ -165,10 +173,11 @@ where hand, deck, and gauntlets all cycle continuously.
 ## Brad — health is a dial, armor is ammunition
 
 Brad is for players who treat their HP bar as a resource to spend, not a score to protect.
-His passives make low health *valuable*: below 50% HP he gains +5 strength (and loses 5 above
-it — *Directed Strength*), dropping below 25% triggers a free AOE swing that refunds mana per
-kill (*Enraged Will*), and 5% life steal on every attack (*Life Steal*) claws him back up so
-he can ride the line instead of dying on it. Cards like **Self Infliction** (burn 80% of
+His passives make low health *valuable*: below 50% HP he gains +5 strength (*Directed
+Strength*), dropping below 25% triggers a free AOE swing that refunds mana per kill — and it
+can keep re-triggering every 10 tempo while he stays in the danger zone (*Enraged Will*) — and
+5% life steal on every attack (*Life Steal*) claws him back up so he can ride the line instead
+of dying on it. Cards like **Self Infliction** (burn 80% of
 remaining health for +5 DET / +5 STR), **Demonic Rage** (pay mana costs with health),
 **Morphine**, and **Succumb** are throttle controls — he deliberately steers his own HP into
 the band where he hits hardest, and Determination gear steepens the same curve (the lower his

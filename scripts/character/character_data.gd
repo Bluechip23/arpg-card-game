@@ -176,7 +176,7 @@ static func create_stephen() -> CharacterData:
 	data.base_draw_timer = 5
 	data.archetypes = [
 		{"name": "The Apex", "description": "The most efficient and dangerous killer. No tactic is out of question, master of all things offense.", "abilities": [
-			{"name": "Deadly", "description": "+3 damage"},
+			{"name": "Deadly", "description": "+3 damage and +50% crit damage when the target has no allies within 2 spaces"},
 			{"name": "Easy Target", "description": "When exposing your enemy, deal your damage again"},
 			{"name": "Skilled Momentum", "description": "If you have played 4 attacks in a row, your 5th will be played twice"},
 		]},
@@ -187,7 +187,7 @@ static func create_stephen() -> CharacterData:
 		]},
 		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger.", "abilities": [
 			{"name": "Eagle Eye", "description": "+2 range on ranged attacks"},
-			{"name": "Scouted", "description": "Hitting the same enemy 3 times in a row grants +6 range on your next attack and it auto-crits, as long as you target the same enemy"},
+			{"name": "Scouted", "description": "Hitting the same enemy 3 times in a row grants +6 range on your next attack and it auto-crits — usable against any enemy"},
 			{"name": "Laced Arrow", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
 		]},
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
@@ -242,8 +242,8 @@ static func create_brad() -> CharacterData:
 	data.base_draw_timer = 5
 	data.archetypes = [
 		{"name": "Berserker", "description": "Health is simply an inconvenience. Pain is your greatest strength, causing you to get stronger as you edge near death.", "abilities": [
-			{"name": "Enraged Will", "description": "When you drop below 10% health, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill"},
-			{"name": "Directed Strength", "description": "Lose 5 strength when above 50% health, gain 5 when below"},
+			{"name": "Enraged Will", "description": "When you drop below 25% HP, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill. Cooldown: 10 tempo"},
+			{"name": "Directed Strength", "description": "Gain 5 strength when below 50% health, lose it when going above"},
 			{"name": "Life Steal", "description": "All attacks life steal by 5%"},
 		]},
 		{"name": "Warden", "description": "Specialize in the art of armor and tactic, finding your weakness is nearly impossible for enemies.", "abilities": [

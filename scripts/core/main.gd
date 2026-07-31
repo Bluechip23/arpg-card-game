@@ -6250,7 +6250,11 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		return
 
 	# Execute the card's effect (damage, block, heal, etc.)
+	# Deadly (Stephen): arm the +50% crit damage bonus for isolated targets so
+	# the crit roll inside the card execution sees it.
+	progression_triggers.update_deadly_crit_flag(card, target)
 	deck_manager.execute_deferred_card(card, target, player)
+	progression_triggers.clear_deadly_crit_flag()
 
 	var debuff_mgr = player.get_debuff_manager()
 	var buff_mgr = player.get_buff_manager()
@@ -6279,8 +6283,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		progression_triggers._trigger_skill_tree_on_attack(card, target)
 		var brad_bonus = progression_triggers._trigger_skill_tree_brad_on_attack(card, target)
 		var stephen_bonus = progression_triggers._trigger_skill_tree_stephen_on_attack(card, target)
-		if (brad_bonus + stephen_bonus) > 0 and target and target.has_method("take_damage"):
-			target.take_damage(brad_bonus + stephen_bonus, true)
+		var cory_bonus = progression_triggers._trigger_skill_tree_cory_on_attack(card, target)
+		if (brad_bonus + stephen_bonus + cory_bonus) > 0 and target and target.has_method("take_damage"):
+			target.take_damage(brad_bonus + stephen_bonus + cory_bonus, true)
 		if card.is_ranged:
 			progression_triggers._trigger_skill_tree_stephen_on_ranged_attack(card, target)
 	if card.card_type == Card.CardType.DEFENSE:
@@ -6361,7 +6366,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			damage_reduction = debuff_mgr.get_damage_reduction_percent()
 			self_damage = debuff_mgr.get_self_damage_percent()
 		for i in range(2):
+			progression_triggers.update_deadly_crit_flag(replay_card, replay_target)
 			replay_card.execute(replay_target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
+			progression_triggers.clear_deadly_crit_flag()
 			_apply_card_world_effects(replay_card, replay_target)
 			print("[MAIN] Lethal Recall: replayed %s (repeat %d/2)" % [replay_card.card_name, i + 1])
 		add_battle_log("Lethal Recall: %s triggered 2 times!" % replay_card.card_name, Color(0.8, 0.4, 1.0))
@@ -7823,7 +7830,9 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	# Execute the card
 	var damage_reduction = debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
 	var self_damage = debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
+	progression_triggers.update_deadly_crit_flag(card, target)
 	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
+	progression_triggers.clear_deadly_crit_flag()
 
 	# Register attack for attack speed counter (DEX proc)
 	if card.card_type == Card.CardType.ATTACK:
