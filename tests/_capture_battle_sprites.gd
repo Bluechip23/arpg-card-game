@@ -10,6 +10,7 @@ var _cam: Camera3D = null
 var _frames := 0
 var _prefix := "/tmp/battle_sprites"
 var _trig := -999
+var _keep_ui := false  # pass "keepui" as 3rd arg to leave the HUD visible
 
 func _initialize() -> void:
 	Engine.time_scale = 0.12
@@ -19,6 +20,8 @@ func _initialize() -> void:
 		_prefix = args[0]
 	if args.size() > 1:
 		who = args[1]
+	if args.size() > 2 and args[2] == "keepui":
+		_keep_ui = true
 	var packed: PackedScene = load("res://scenes/core/main.tscn")
 	_main = packed.instantiate()
 	_main.set("starting_character", _make_char(who))
@@ -91,6 +94,8 @@ func _poke_enemies(action: String) -> void:
 			e._play_enemy_animation(action)
 
 func _hide_ui() -> void:
+	if _keep_ui:
+		return
 	for child in _main.get_children():
 		if child is CanvasLayer:
 			child.visible = false

@@ -284,6 +284,8 @@ var _hand_groups: Array = []
 # Pending quiver card play state
 var _block_button: Button = null
 var _attack_button: Button = null
+var _attack_damage_label: Label = null  # Red basic-attack damage beside the sword
+var _attack_tempo_label: Label = null   # "5T (n)" tempo/proc readout
 var _rack_button: Button = null         # Brad's War Rack swap (free on cooldown / paid)
 # Basic (auto) attack baseline: flat damage before the STR modifier, so early
 # swings never feel like pure chip damage. STR still scales on top of this.
@@ -847,16 +849,38 @@ func _setup_action_buttons() -> void:
 	_flash_draw_button.visible = false
 	flash_row.add_child(_flash_draw_button)
 
-	# Attack button (top): sword + tempo cost + attacks until the speed proc.
-	# Content-sized — its natural width sets the column width.
+	# Attack button (top): sword + damage + tempo cost + attacks until the
+	# speed proc. Damage renders red beside the sword, so the button hosts an
+	# HBox of labels instead of the single-colour built-in text.
 	_attack_button = Button.new()
 	_attack_button.name = "AttackButton"
-	_attack_button.icon = UIGlyphs.get_glyph("sword")
-	_attack_button.text = "5T (0)"
 	_attack_button.custom_minimum_size = Vector2(0, 36)
 	_attack_button.size_flags_horizontal = Control.SIZE_FILL
 	_attack_button.tooltip_text = "Basic melee attack: %d base + STR modifier damage. Costs 5 tempo." % BASIC_ATTACK_BASE_DAMAGE
 	_attack_button.pressed.connect(_on_attack_pressed)
+	var atk_row := HBoxContainer.new()
+	atk_row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	atk_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	atk_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	atk_row.add_theme_constant_override("separation", 5)
+	var atk_icon := TextureRect.new()
+	atk_icon.texture = UIGlyphs.get_glyph("sword")
+	atk_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	atk_icon.custom_minimum_size = Vector2(22, 22)
+	atk_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	atk_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	atk_row.add_child(atk_icon)
+	_attack_damage_label = Label.new()
+	_attack_damage_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	_attack_damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	atk_row.add_child(_attack_damage_label)
+	_attack_tempo_label = Label.new()
+	_attack_tempo_label.text = "5T (0)"
+	_attack_tempo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	atk_row.add_child(_attack_tempo_label)
+	_attack_button.add_child(atk_row)
+	# Reserve the row's natural width so the content-sized button fits it.
+	_attack_button.custom_minimum_size.x = 118
 	vbox.add_child(_attack_button)
 
 	# Block button (middle, only visible if shield equipped)
@@ -5653,19 +5677,33 @@ func _refresh_hand_info_popup() -> void:
 			line.add_theme_color_override("font_color", Color(0.95, 0.75, 0.4))
 			_hand_info_vbox.add_child(line)
 
+## The predictable damage a basic attack would deal right now: baseline + STR
+## (via get_effective_physical_damage) + Weighted Strikes. Transient bonuses
+## (dex proc stores, Strengthen, crits) are excluded — they resolve on swing.
+func _get_basic_attack_display_damage() -> int:
+	var stats = player.get_stats()
+	var damage: int = stats.get_effective_physical_damage(BASIC_ATTACK_BASE_DAMAGE)
+	if stats.keystone_str_weight_basic:
+		var inv = player.get_inventory()
+		if inv:
+			damage += inv.get_single_hand_weight_damage_bonus()
+	return damage
+
 func _update_attack_button_text() -> void:
 	if _attack_button:
 		var proc_count = player.get_stats().get_attacks_until_proc()
 		var proc_active = deck_manager.next_attack_half_tempo
 
+		if _attack_damage_label:
+			_attack_damage_label.text = str(_get_basic_attack_display_damage())
 		if proc_active:
 			var proc_tempo = 5 / 2  # Halved
 			var btn_inv = player.get_inventory()
 			if btn_inv and btn_inv.has_pocket_knife_equipped():
 				proc_tempo = maxi(0, proc_tempo - 2)
-			_attack_button.text = "%dT (PROC)" % proc_tempo
+			_attack_tempo_label.text = "%dT (PROC)" % proc_tempo
 		else:
-			_attack_button.text = "5T (%d)" % proc_count
+			_attack_tempo_label.text = "5T (%d)" % proc_count
 
 		# Glow red when the dex proc is active (next attack benefits from it)
 		if proc_active:
@@ -5693,12 +5731,14 @@ func _update_attack_button_text() -> void:
 			glow_hover.corner_radius_bottom_left = 4
 			glow_hover.corner_radius_bottom_right = 4
 			_attack_button.add_theme_stylebox_override("hover", glow_hover)
-			_attack_button.add_theme_color_override("font_color", Color(1.0, 0.85, 0.85))
+			if _attack_tempo_label:
+				_attack_tempo_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.85))
 		else:
 			# Clear custom styles — revert to default theme
 			_attack_button.remove_theme_stylebox_override("normal")
 			_attack_button.remove_theme_stylebox_override("hover")
-			_attack_button.remove_theme_color_override("font_color")
+			if _attack_tempo_label:
+				_attack_tempo_label.remove_theme_color_override("font_color")
 
 func update_selected_display() -> void:
 	# Selection is now shown via golden border on the card — hide the text label
