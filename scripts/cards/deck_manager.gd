@@ -238,6 +238,12 @@ func shuffle_discard_into_draw() -> void:
 	shuffle_draw_pile()
 
 func draw_card() -> Card:
+	# The hand cap applies to every draw — tempo draws and card effects alike
+	# (only Linger cards may exceed it, via add_card_to_hand). At capacity the
+	# draw routes through the overflow system instead, same as a tempo draw.
+	if hand.size() >= get_hand_cap():
+		handle_overflow()
+		return null
 	if draw_pile.size() == 0:
 		shuffle_discard_into_draw()
 		if draw_pile.size() == 0:

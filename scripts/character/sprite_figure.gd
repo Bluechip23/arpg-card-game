@@ -104,9 +104,9 @@ func _setup_doll(outfit: String, hair: String) -> void:
 		for p in layer_paths[page]:
 			texs.append(load(p))
 		_doll_page_textures[page] = texs
-	# Doll body pixels sit with feet at y=44 of the 64px cell: lift the sprite
-	# so the feet line lands on the ground plane.
-	var y := (32.0 + 12.0) * PIXEL_SIZE
+	# Doll body pixels sit with feet at y=44 of the 64px cell — 12px below the
+	# cell centre — so the centred sprite lifts 12px for feet to touch ground.
+	var y := 12.0 * PIXEL_SIZE
 	_weapon_back = _make_sprite(64, y, -0.02)
 	for i in range(3):
 		_doll_layers.append(_make_sprite(64, y, 0.01 * i))
