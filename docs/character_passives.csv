@@ -16,10 +16,10 @@ Ryan,Light Foot,3,Quick Step,"Anytime an instant is played from your hand, gain 
 Ryan,Apothecary,4,Stimulant,"When healing yourself or an ally with a Pocket card, the healed character draws a card. 5 tempo cooldown."
 Ryan,Shadow Blade,5,Now You See Me,"Displacing yourself (blinking, being swapped, or other non-standard movement) grants you invisibility"
 Ryan,Relentless Blade,7,From the Hip,"If an attack, your most recently drawn card has -1 mana cost. The discount is lost when any card is played"
-Ryan,Light Foot,8,Ladder Work,+3 dexterity and +3 agility
+Ryan,Light Foot,8,Ladder Work,"+3 dexterity and +3 agility. Your first attack each cycle deals +2 damage for each card that hit your discard pile last cycle by means other than playing it"
 Ryan,Apothecary,9,Pop Rocks,"When applying poison to an already poisoned enemy, deal immediate damage equal to 1/3 their current poison stacks"
-Ryan,Shadow Blade,11,Surprise Opener,"Your first strike on an enemy deals +2 damage. An additional +2 if they have no armor, and an additional +2 if you are their first source of damage"
-Ryan,Relentless Blade,13,Nimble Assault,"If you have no Defense cards in your hand, draw a card when you play an attack"
+Ryan,Shadow Blade,11,Surprise Opener,"Your first strike on an enemy deals +3 damage. An additional +4 if they have no armor, and an additional +5 if you are their first source of damage"
+Ryan,Relentless Blade,13,Nimble Assault,"If you have cards in your hand, but no Defense cards, draw a card when you play an attack"
 Ryan,Light Foot,14,Let's Dance,"At the end of every cycle, gain armor equal to spaces moved/2 and deal damage to the nearest enemy within 3 range equal to spaces moved"
 Ryan,Apothecary,16,Mad Scientist,"The last card you played changes the outcome of your potion cards. Utility->Heal: +3 regen. Attack->Heal: +3 strengthen. Utility->Poison: +3 poison stacks. Defense->Poison: -10% enemy physical defense."
 Ryan,Shadow Blade,18,Eye Scrape,Every third critical strike provides invisibility

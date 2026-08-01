@@ -15,6 +15,10 @@ signal reaction_triggered(card: Card)
 signal maintained_card_activated(card: Card)
 signal maintained_cards_cleared
 signal card_erased(card: Card)
+# A card reached the discard pile by some means other than being played —
+# forced discards, on-draw dumps, triggered instants, jail releases, expiring
+# enchantments. Ryan's Ladder Work counts these toward his opening strike.
+signal non_play_discard(card: Card)
 
 enum OverflowMode { JAILED, ENHANCE, PEAK, SKIP, OVERCHARGE, MANIFEST, NONE }
 
@@ -274,6 +278,7 @@ func draw_card() -> Card:
 				discard_pile.append(card)
 				discards_this_cycle += 1
 				card_discarded.emit(card)
+				non_play_discard.emit(card)
 				hand_updated.emit()
 				print("[DECK] %s discarded after on-draw effect" % card.card_name)
 
@@ -541,6 +546,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		hand.remove_at(random_index)
 		discard_pile.append(discarded_card)
 		discards_this_cycle += 1
+		non_play_discard.emit(discarded_card)
 		print("[DECK] Clumsy discarded: %s" % discarded_card.card_name)
 		
 		if debuff_mgr:
@@ -643,6 +649,7 @@ func process_turn() -> void:
 		if card.jail_time_remaining <= 0:
 			jail_pile.remove_at(i)
 			discard_pile.append(card)
+			non_play_discard.emit(card)
 			print("[DECK] Released from jail: %s" % card.card_name)
 
 	# Process Erase: tick down erase timers on all cards and delete expired ones
@@ -714,6 +721,7 @@ func discard_card_from_hand(card: Card) -> bool:
 	discard_pile.append(card)
 	discards_this_cycle += 1
 	card_discarded.emit(card)
+	non_play_discard.emit(card)
 	hand_updated.emit()
 	return true
 
@@ -726,6 +734,7 @@ func trigger_reactions(trigger_type: String) -> Array[Card]:
 			triggered.append(card)
 			discard_pile.append(card)
 			reaction_triggered.emit(card)
+			non_play_discard.emit(card)
 			print("[DECK] Reaction triggered: %s" % card.card_name)
 	if triggered.size() > 0:
 		hand_updated.emit()

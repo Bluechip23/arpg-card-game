@@ -551,11 +551,13 @@ func _apply_skill_tree_option(option) -> void:
 		# Special handling for stat-granting passives (apply immediately + register)
 		match pid:
 			"ladder_work":
-				# Ryan: +3 dexterity and +3 agility
+				# Ryan: +3 dexterity and +3 agility, plus the opening-strike
+				# spike (registered so the cycle/attack triggers can find it)
 				stats.base_dexterity += 3
 				stats.base_agility += 3
 				stats.stats_updated.emit()
-				main.add_battle_log("Ladder Work: +3 DEX, +3 AGI", Color(0.3, 0.7, 1.0))
+				stats.add_skill_tree_passive(pid)
+				main.add_battle_log("Ladder Work: +3 DEX, +3 AGI — and your opening strike each cycle feeds on the discard pile", Color(0.3, 0.7, 1.0))
 			"stone_skin":
 				# Brad: +10% Fire, Physical, Lightning resistance
 				stats.add_skill_tree_passive(pid)
@@ -629,8 +631,10 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		stats.st_from_hip_card = null
 		stats.st_from_hip_original_cost = 0
 
-	# Nimble Assault: no Defense cards in hand → draw on attack
-	if stats.has_skill_tree_passive("nimble_assault") and card.card_type == Card.CardType.ATTACK:
+	# Nimble Assault: cards in hand but no Defense cards → draw on attack.
+	# An empty hand does NOT qualify — there must be cards, just no Defense.
+	if stats.has_skill_tree_passive("nimble_assault") and card.card_type == Card.CardType.ATTACK \
+			and main.deck_manager.hand.size() > 0:
 		var has_defense = false
 		for c in main.deck_manager.hand:
 			if c.card_type == Card.CardType.DEFENSE:
@@ -722,19 +726,35 @@ func _trigger_skill_tree_on_attack(card: Card, target) -> void:
 	if not stats:
 		return
 
-	# Surprise Opener: bonus damage on first strike per enemy
+	# Surprise Opener: bonus damage on first strike per enemy. Armor and health
+	# are judged as they were BEFORE this hit landed (snapshot taken in
+	# arm_pre_attack_passives), so the strike itself can't fake the conditions.
 	if stats.has_skill_tree_passive("surprise_opener") and target and target is Enemy:
 		var enemy_id = target.get_instance_id()
 		if enemy_id not in stats.st_enemy_first_strikes:
 			stats.st_enemy_first_strikes[enemy_id] = true
-			var bonus = 2
-			if target.current_armor <= 0:
-				bonus += 2
-			# Check if this is the enemy's first source of damage (full HP = no prior damage)
-			if target.current_health >= target.max_health:
-				bonus += 2
+			var pre_armor = target.current_armor
+			var pre_health = target.current_health
+			if stats.st_pre_attack_target_id == enemy_id:
+				pre_armor = stats.st_pre_attack_armor
+				pre_health = stats.st_pre_attack_health
+			var bonus = 3
+			if pre_armor <= 0:
+				bonus += 4
+			# First source of damage: they were still at full HP before this hit
+			if pre_health >= target.max_health:
+				bonus += 5
 			target.take_damage(bonus, true)
 			main.add_battle_log("Surprise Opener: +%d bonus damage!" % bonus, Color(0.8, 0.4, 0.9))
+
+	# Ladder Work: the first attack each cycle spends the banked count of cards
+	# that hit the discard pile without being played last cycle (+2 damage each)
+	if stats.has_skill_tree_passive("ladder_work") and stats.st_ladder_banked > 0 \
+			and target and target is Enemy and target.has_method("take_damage"):
+		var lw_bonus = stats.st_ladder_banked * 2
+		stats.st_ladder_banked = 0
+		target.take_damage(lw_bonus, true)
+		main.add_battle_log("Ladder Work: opening strike +%d!" % lw_bonus, Color(0.3, 0.7, 1.0))
 
 	# Solemn Independence: +5 damage on attacks while surrounded (3+ enemies w/in 2)
 	if stats.has_skill_tree_passive("solemn_independence") and target and target is Enemy and _solemn_surrounded():
@@ -780,6 +800,12 @@ func _trigger_skill_tree_on_cycle() -> void:
 	# Stimulant: tick cooldown
 	if stats.st_stimulant_cooldown > 0:
 		stats.st_stimulant_cooldown -= 5
+
+	# Ladder Work: bank last cycle's non-play discards for the opening strike.
+	# An unspent bank is overwritten — the spike must be used within the cycle.
+	if stats.has_skill_tree_passive("ladder_work"):
+		stats.st_ladder_banked = stats.st_ladder_discard_count
+		stats.st_ladder_discard_count = 0
 
 	# Solemn Independence: while surrounded (3+ enemies w/in 2), +5 armor/cycle and
 	# block ally healing (the flag is read in PlayerStats.heal). Refresh it each
@@ -1179,6 +1205,15 @@ func arm_pre_attack_passives(card: Card, target) -> void:
 	# Deadly (Stephen): +50% crit damage vs a target with no allies within 2 tiles.
 	stats.st_deadly_crit_active = is_attack \
 		and stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
+
+	# Snapshot the target's pre-hit state for post-resolution passives that
+	# judge "as it was before the hit" conditions (Surprise Opener).
+	if is_attack and target is Enemy and is_instance_valid(target):
+		stats.st_pre_attack_target_id = target.get_instance_id()
+		stats.st_pre_attack_armor = target.current_armor
+		stats.st_pre_attack_health = target.current_health
+	else:
+		stats.st_pre_attack_target_id = -1
 
 	# Serial Killer (Cory): attacking an enemy you're invisible to is an
 	# auto-crit — and the ambush reveals you to them.
