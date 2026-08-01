@@ -147,7 +147,9 @@ var _damage_preview_label: Label3D = null
 # Sprite animation (replaces BoxMesh for enemies with sprite sheets)
 var _enemy_sprite: Sprite3D = null
 var _enemy_animator: CharacterAnimator = null
-var _enemy_figure: EnemyFigure = null
+# EnemyFigure (procedural 3D) or SpriteEnemyFigure (MonsterKit billboard) —
+# untyped, both expose the same verbs (play_action, flash, set_walking, …).
+var _enemy_figure = null
 var _action_map: Dictionary = {}
 
 @onready var mesh: MeshInstance3D = $MeshInstance3D
@@ -649,7 +651,12 @@ func _setup_sprite() -> void:
 			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
 
 	figure_kind = kind
-	_enemy_figure = EnemyFigure.new()
+	# Prefer the MonsterKit battler sprite when this kind has one; the
+	# procedural mesh figure remains the fallback for everything else.
+	if SpriteEnemyFigure.supports(kind):
+		_enemy_figure = SpriteEnemyFigure.new()
+	else:
+		_enemy_figure = EnemyFigure.new()
 	add_child(_enemy_figure)
 	_enemy_figure.setup(kind)
 
