@@ -95,6 +95,11 @@ const KINDS := {
 
 const PIXEL_SIZE := 0.032
 
+## Kinds whose battler art already contains a painted contact shadow
+## (the flyers) — these must not get a second blob shadow.
+const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc", "ash_harpy",
+		"screecher", "djinn", "snow_wraith", "specter"]
+
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
 var _tint := Color.WHITE
@@ -150,6 +155,11 @@ func setup(kind: String) -> void:
 	_rig.scale = Vector3(s, s, s)
 	_rig.add_child(_sprite)
 	_sprite.modulate = _tint
+	# Contact shadow (style guide §4). Inside the rig so it scales with the
+	# creature and follows attack lunges; the rig never moves vertically.
+	if not kind in PAINTED_SHADOW_KINDS:
+		var body_w := 40.0 * _sprite.pixel_size  # typical drawn battler width
+		BlobShadow.attach(_rig, body_w * 0.7)
 
 
 # =============================================================

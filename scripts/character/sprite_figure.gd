@@ -79,6 +79,7 @@ var _walking := false
 var _base_modulate := Color.WHITE
 var _fx_tween: Tween = null
 var _rig: Node3D = null   # sprites parent; effect tweens move/scale this
+var _shadow: BlobShadow = null
 
 
 func setup(character_name: String, _sprite_path: String = "") -> void:
@@ -102,6 +103,12 @@ func setup(character_name: String, _sprite_path: String = "") -> void:
 		_setup_npc(cfg["npc"])
 	else:
 		_setup_doll(cfg["outfit"], cfg["hair"], cfg.get("hat", ""))
+	# Contact shadow lives OUTSIDE the rig: hops/knockback move the rig, the
+	# shadow stays on the ground and shrinks with height (see _process).
+	var old_shadow := get_node_or_null("Shadow")
+	if old_shadow:
+		old_shadow.queue_free()
+	_shadow = BlobShadow.attach(self, 0.62)
 	_play("idle")
 
 
@@ -381,6 +388,8 @@ func _apply_modulate(c: Color) -> void:
 
 
 func _process(delta: float) -> void:
+	if _shadow and _rig:
+		_shadow.set_airborne_height(_rig.position.y)
 	if _frames.is_empty():
 		return
 	_clock += delta
