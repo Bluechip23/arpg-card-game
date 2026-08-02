@@ -379,6 +379,15 @@ func _setup_world_viewport() -> void:
 	_world_camera = cam
 
 
+## Style guide §3: one global light, upper-left 45°, no engine-cast shadows
+## (all contact shadows are discrete blob quads).
+func _unify_lighting() -> void:
+	var light := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if light:
+		light.rotation_degrees = Vector3(-45, -30, 0)
+		light.shadow_enabled = false
+
+
 ## The camera that renders the 3D world (lives inside the world SubViewport).
 func get_world_camera() -> Camera3D:
 	if _world_camera and is_instance_valid(_world_camera):
@@ -406,6 +415,7 @@ func world_to_screen(world_pos: Vector3) -> Vector2:
 
 func _ready() -> void:
 	_setup_world_viewport()
+	_unify_lighting()
 	# Initialize extracted managers
 	progression_triggers = ProgressionTriggers.new()
 	progression_triggers.init(self)

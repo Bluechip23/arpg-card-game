@@ -356,7 +356,7 @@ func _build_figure_preview(character_name: String, sprite_path: String = "") -> 
 	var key := DirectionalLight3D.new()
 	key.light_energy = 1.15
 	viewport.add_child(key)
-	key.rotation_degrees = Vector3(-38, 28, 0)
+	key.rotation_degrees = Vector3(-45, -30, 0)  # global upper-left light (style guide §3)
 
 	var fill := DirectionalLight3D.new()
 	fill.light_energy = 0.45
