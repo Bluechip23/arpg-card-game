@@ -82,6 +82,18 @@ var _rig: Node3D = null   # sprites parent; effect tweens move/scale this
 
 
 func setup(character_name: String, _sprite_path: String = "") -> void:
+	# Re-entrant: callers like the character sheet re-setup the same figure
+	# when paging between party members, so tear down any previous build.
+	if _rig and is_instance_valid(_rig):
+		_rig.queue_free()
+	_sprites.clear()
+	_doll_layers.clear()
+	_npc_sprite = null
+	_weapon_back = null
+	_weapon_front = null
+	_weapon_textures.clear()
+	_doll_page_textures.clear()
+	_frames = []
 	var cfg: Dictionary = ROSTER.get(character_name, ROSTER["Brad"])
 	_rig = Node3D.new()
 	_rig.name = "Rig"

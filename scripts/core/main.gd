@@ -2759,8 +2759,12 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	var screen_width = get_viewport().get_visible_rect().size.x
 	popup_x = clamp(popup_x, 4.0, screen_width - preview_width - 4.0)
 
-	# Place above the hand area
-	var popup_y = hand_area.global_position.y - hand_card_preview.size.y - 8.0
+	# Place above the HOVERED card's lifted position (hovering raises the card
+	# by HOVER_LIFT), not just above the hand area — so the popup never sits
+	# on top of the card being read.
+	var lifted_card_top = card_global_rect.position.y - CardUI.HOVER_LIFT
+	var popup_y = minf(hand_area.global_position.y, lifted_card_top) - hand_card_preview.size.y - 10.0
+	popup_y = maxf(popup_y, 4.0)
 	hand_card_preview.global_position = Vector2(popup_x, popup_y)
 	hand_card_preview.visible = true
 

@@ -45,7 +45,9 @@ var _pending_card_index: int = -1
 var _card_confirm_popup: PanelContainer = null
 
 # Live 3D portrait + combat stats section (built on first open)
-var _portrait_fig: CharacterFigure = null
+# SpriteFigure (Mana Seed sprites) or CharacterFigure (procedural 3D) —
+# untyped; both expose setup(name, sprite_path).
+var _portrait_fig = null
 var _combat_label: Label = null
 var buff_manager = null              # BuffManager (untyped to avoid class-cache dependency)
 var debuff_manager = null            # DebuffManager
@@ -504,13 +506,27 @@ func _ensure_portrait_and_combat() -> void:
 	fill.light_energy = 0.5
 	vp.add_child(fill)
 
-	_portrait_fig = CharacterFigure.new()
+	# Portrait matches the in-battle look: sprite figure when the character
+	# has one, procedural 3D otherwise. (The figure class is picked once here
+	# from the current character; every playable character has sprite art.)
+	var portrait_name := ""
+	if player_stats and player_stats.character_data:
+		portrait_name = player_stats.character_data.get_base_character()
+	if SpriteFigure.supports(portrait_name):
+		_portrait_fig = SpriteFigure.new()
+	else:
+		_portrait_fig = CharacterFigure.new()
 	vp.add_child(_portrait_fig)
 
 	var cam = Camera3D.new()
 	vp.add_child(cam)
-	cam.position = Vector3(0.25, 1.35, 2.7)
-	cam.look_at_from_position(cam.position, Vector3(0, 0.8, 0), Vector3.UP)
+	if _portrait_fig is SpriteFigure:
+		# Sprite figures are ~1.1 units tall billboards — frame them close-up.
+		cam.position = Vector3(0.0, 0.55, 1.05)
+		cam.look_at_from_position(cam.position, Vector3(0, 0.52, 0), Vector3.UP)
+	else:
+		cam.position = Vector3(0.25, 1.35, 2.7)
+		cam.look_at_from_position(cam.position, Vector3(0, 0.8, 0), Vector3.UP)
 
 	# Level / XP progress row under the portrait: the viewed party member's
 	# level-up progress at a glance.

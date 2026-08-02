@@ -210,11 +210,13 @@ func _ensure_cost_badges() -> void:
 
 
 func _make_cost_badge(host: Node, icon_path: String, pos: Vector2, num_y_bias: float) -> Array:
+	# No z_index boost: within its own card the badge draws above the frame
+	# (added after the VBox), while neighbouring cards fanned over this one
+	# still cover it instead of the badge bleeding through them.
 	var badge := Control.new()
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.position = pos
 	badge.size = Vector2(26, 34)
-	badge.z_index = 5
 	host.add_child(badge)
 	var icon := TextureRect.new()
 	icon.texture = load(icon_path)
@@ -242,26 +244,15 @@ func _ensure_to_logo() -> void:
 	var type_hbox: Node = get_node_or_null("Panel/VBox/TypeBar/TypeHBox")
 	if type_hbox == null or type_hbox.get_node_or_null("TOLogo"):
 		return
-	var seal := PanelContainer.new()
+	# The game's actual sigil — the green sword-T threaded through the silver
+	# O — shared with the tooltip/tutorial crests via UIGlyphs.
+	var seal := TextureRect.new()
 	seal.name = "TOLogo"
+	seal.texture = UIGlyphs.get_glyph("to_sigil")
+	seal.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	seal.custom_minimum_size = Vector2(16, 16)
+	seal.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0.07, 0.07, 0.1, 0.95)
-	st.set_border_width_all(1)
-	st.border_color = Color(0.78, 0.64, 0.28)
-	st.set_corner_radius_all(9)
-	st.content_margin_left = 4
-	st.content_margin_right = 4
-	st.content_margin_top = 1
-	st.content_margin_bottom = 1
-	seal.add_theme_stylebox_override("panel", st)
-	var lbl := Label.new()
-	lbl.text = "TO"
-	lbl.add_theme_font_size_override("font_size", 9)
-	lbl.add_theme_color_override("font_color", Color(1.0, 0.86, 0.4))
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	seal.add_child(lbl)
 	# Sit between the type text (left, expanding) and the range text (right,
 	# expanding) so the seal stays centred on the bar.
 	type_hbox.add_child(seal)
