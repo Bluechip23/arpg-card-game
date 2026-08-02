@@ -50,31 +50,27 @@ var _attack_weapon := ""     # "" when not attacking
 var _npc_lunge := Vector2.ZERO
 
 
-## Build a paper-doll character. outfit like "fstr_v05", hair like "dap1_v13",
-## base_variant like "v01".
-func setup_doll(outfit: String, hair: String, base_variant: String = "v01") -> void:
+## Build a paper-doll character. outfit like "fstr_v05" (or "gen:<name>" for a
+## sheet baked into assets/sprites/generated/), hair like "dap1_v13", optional
+## hat like "gen:pfht_ryan".
+func setup_doll(outfit: String, hair: String, hat: String = "", base_variant: String = "v01") -> void:
 	_mode = "doll"
-	var layer_paths := {
-		"p1": [
-			"%s/char_a_p1/char_a_p1_0bas_humn_%s.png" % [SEED, base_variant],
-			"%s/char_a_p1/1out/char_a_p1_1out_%s.png" % [SEED, outfit],
-			"%s/char_a_p1/4har/char_a_p1_4har_%s.png" % [SEED, hair],
-		],
-		"pONE3": [
-			"%s/char_a_pONE3/char_a_pONE3_0bas_humn_%s.png" % [SEED, base_variant],
-			"%s/char_a_pONE3/1out/char_a_pONE3_1out_%s.png" % [SEED, outfit],
-			"%s/char_a_pONE3/4har/char_a_pONE3_4har_%s.png" % [SEED, hair],
-		],
-	}
-	for page in layer_paths:
+	for page in ["p1", "pONE3"]:
+		var paths := [
+			"%s/char_a_%s/char_a_%s_0bas_humn_%s.png" % [SEED, page, page, base_variant],
+			SpriteFigure._layer_path(page, "1out", "1out", outfit),
+			SpriteFigure._layer_path(page, "4har", "4har", hair),
+		]
+		if hat != "":
+			paths.append(SpriteFigure._layer_path(page, "5hat", "5hat", hat))
 		var texs: Array = []
-		for p in layer_paths[page]:
+		for p in paths:
 			texs.append(load(p))
 		_doll_page_textures[page] = texs
 
 	_weapon_back = _make_sprite(8, 8, -1)
 	add_child(_weapon_back)
-	for i in range(3):
+	for i in range(_doll_page_textures["p1"].size()):
 		var s := _make_sprite(8, 8, i)
 		add_child(s)
 		_doll_layers.append(s)

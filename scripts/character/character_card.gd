@@ -334,7 +334,13 @@ func _build_figure_preview(character_name: String, sprite_path: String = "") -> 
 	sub_container.add_child(viewport)
 	_figure_viewport = viewport
 
-	var figure := CharacterFigure.new()
+	# Mana Seed sprite portrait when the character has one (matches the new
+	# in-battle look); procedural 3D figure otherwise.
+	var figure: Node3D
+	if SpriteFigure.supports(character_name):
+		figure = SpriteFigure.new()
+	else:
+		figure = CharacterFigure.new()
 	figure.setup(character_name, sprite_path)
 	viewport.add_child(figure)
 

@@ -18,14 +18,26 @@ extends Node3D
 const SEED := "res://assets/sprites/SeedcharacterBase"
 
 ## Which sprites each playable character uses. NPC entries use the raw NPC
-## sheet; doll entries are outfit/hair layered on the character base.
+## sheet; doll entries are outfit/hair (and optional hat) layered on the
+## character base. A "gen:" prefix resolves to assets/sprites/generated/
+## (recolored / edited sheets baked from the pack sources).
 const ROSTER := {
 	"Brad": {"npc": "res://assets/sprites/NPCpackage2/npc knight v01.png"},
 	"Cory": {"npc": "res://assets/sprites/NPCpackage1/npc merchant A v01.png"},
 	"Stephen": {"npc": "res://assets/sprites/NPCpackage2/npc guard v01.png"},
-	"Jeremy": {"outfit": "fstr_v05", "hair": "bob1_v11"},
-	"Ryan": {"outfit": "fstr_v03", "hair": "dap1_v13"},
+	"Jeremy": {"outfit": "gen:fstr_jeremy", "hair": "bob1_v11"},  # barefoot wanderer
+	"Ryan": {"outfit": "gen:fstr_ryan", "hair": "dap1_v13", "hat": "gen:pfht_ryan"},  # black leathers + hood
 }
+
+const GENERATED := "res://assets/sprites/generated"
+
+
+## Resolve a paper-doll layer sheet path: "gen:<name>" comes from the baked
+## generated sheets, anything else from the pack's standard folders.
+static func _layer_path(page: String, folder: String, code: String, spec: String) -> String:
+	if spec.begins_with("gen:"):
+		return "%s/char_a_%s_%s_%s.png" % [GENERATED, page, code, spec.substr(4)]
+	return "%s/char_a_%s/%s/char_a_%s_%s_%s.png" % [SEED, page, folder, page, code, spec]
 
 # Sheet rows per facing (CharacterAnimator.Direction order: S, N, E, W).
 const DOLL_ROW := [0, 1, 2, 3]   # base pack runs S,N,E,W
@@ -77,7 +89,7 @@ func setup(character_name: String, _sprite_path: String = "") -> void:
 	if cfg.has("npc"):
 		_setup_npc(cfg["npc"])
 	else:
-		_setup_doll(cfg["outfit"], cfg["hair"])
+		_setup_doll(cfg["outfit"], cfg["hair"], cfg.get("hat", ""))
 	_play("idle")
 
 
@@ -85,30 +97,26 @@ static func supports(character_name: String) -> bool:
 	return ROSTER.has(character_name)
 
 
-func _setup_doll(outfit: String, hair: String) -> void:
+func _setup_doll(outfit: String, hair: String, hat: String = "") -> void:
 	_mode = "doll"
-	var layer_paths := {
-		"p1": [
-			"%s/char_a_p1/char_a_p1_0bas_humn_v01.png" % SEED,
-			"%s/char_a_p1/1out/char_a_p1_1out_%s.png" % [SEED, outfit],
-			"%s/char_a_p1/4har/char_a_p1_4har_%s.png" % [SEED, hair],
-		],
-		"pONE3": [
-			"%s/char_a_pONE3/char_a_pONE3_0bas_humn_v01.png" % SEED,
-			"%s/char_a_pONE3/1out/char_a_pONE3_1out_%s.png" % [SEED, outfit],
-			"%s/char_a_pONE3/4har/char_a_pONE3_4har_%s.png" % [SEED, hair],
-		],
-	}
-	for page in layer_paths:
+	for page in ["p1", "pONE3"]:
+		var paths := [
+			"%s/char_a_%s/char_a_%s_0bas_humn_v01.png" % [SEED, page, page],
+			_layer_path(page, "1out", "1out", outfit),
+			_layer_path(page, "4har", "4har", hair),
+		]
+		if hat != "":
+			paths.append(_layer_path(page, "5hat", "5hat", hat))
 		var texs: Array = []
-		for p in layer_paths[page]:
+		for p in paths:
 			texs.append(load(p))
 		_doll_page_textures[page] = texs
 	# Doll body pixels sit with feet at y=44 of the 64px cell — 12px below the
 	# cell centre — so the centred sprite lifts 12px for feet to touch ground.
 	var y := 12.0 * PIXEL_SIZE
+	var layer_count: int = _doll_page_textures["p1"].size()
 	_weapon_back = _make_sprite(64, y, -0.02)
-	for i in range(3):
+	for i in range(layer_count):
 		_doll_layers.append(_make_sprite(64, y, 0.01 * i))
 	_weapon_front = _make_sprite(64, y, 0.05)
 	_load_weapons()

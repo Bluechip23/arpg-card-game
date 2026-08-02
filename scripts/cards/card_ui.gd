@@ -75,12 +75,15 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		_style_frame()
 
 	if range_label:
+		# Stays visible (empty when melee) so the TO seal between the type and
+		# range labels remains centred on the bar.
+		range_label.visible = true
+		range_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		if card.is_ranged:
-			range_label.visible = true
 			range_label.text = card.get_range_display()
 			range_label.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
 		else:
-			range_label.visible = false
+			range_label.text = ""
 
 	_update_description()
 
@@ -106,27 +109,30 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			is_hexed = true
 		is_locked = debuff_mgr.is_card_locked(index)
 
+	# Costs live in the corner badges (mana drop / sand timer); the old title-bar
+	# cost text only surfaces the maintain cost now.
 	if cost_label:
-		if is_dex_proc:
-			if card.maintain_cost > 0:
-				cost_label.text = "%dM %dT | Maintain: %dM" % [display_mana, display_tempo, card.maintain_cost]
-			else:
-				cost_label.text = "%dM %dT" % [display_mana, display_tempo]
-		elif card.maintain_cost > 0:
-			cost_label.text = "%dM %dT | Maintain: %dM" % [display_mana, display_tempo, card.maintain_cost]
+		if card.maintain_cost > 0:
+			cost_label.text = "Maint %dM" % card.maintain_cost
+			cost_label.add_theme_font_size_override("font_size", 10)
+			cost_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+			cost_label.visible = true
 		else:
-			cost_label.text = "%dM %dT" % [display_mana, display_tempo]
+			cost_label.visible = false
 
-		if is_locked:
-			cost_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
-		elif is_hexed:
-			cost_label.add_theme_color_override("font_color", Color(0.6, 0.0, 0.6))
-		elif is_dex_proc:
-			cost_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
-		elif card.tempo_cost <= 1:
-			cost_label.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
-		else:
-			cost_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+	_pending_mana = str(display_mana)
+	_pending_tempo = str(display_tempo)
+	_pending_mana_col = Color.WHITE
+	_pending_tempo_col = Color.WHITE
+	if is_locked:
+		_pending_mana_col = Color(0.45, 0.45, 0.45)
+		_pending_tempo_col = Color(0.45, 0.45, 0.45)
+	else:
+		if is_hexed:
+			_pending_mana_col = Color(0.9, 0.5, 1.0)
+		if is_dex_proc:
+			_pending_tempo_col = Color(1.0, 0.35, 0.35)
+	_refresh_cost_badges()
 
 	_is_hexed = is_hexed
 	_is_locked = is_locked
@@ -168,6 +174,107 @@ func _ready() -> void:
 	_apply_default_style()
 	pivot_offset = Vector2(CARD_W * 0.5, CARD_H)  # Bottom-center pivot for fan rotation
 	_ensure_badge()
+	_ensure_cost_badges()
+	_ensure_to_logo()
+	_refresh_cost_badges()
+
+
+# ============================================
+# COST BADGES (mana drop + sand timer) & TO LOGO
+# ============================================
+
+var _mana_badge: Control = null
+var _mana_num: Label = null
+var _tempo_badge: Control = null
+var _tempo_num: Label = null
+var _pending_mana := ""      # setup() may run before _ready builds the badges
+var _pending_tempo := ""
+var _pending_mana_col := Color.WHITE
+var _pending_tempo_col := Color.WHITE
+
+
+## Corner cost badges: a mana drop on the card's top-left and a sand timer on
+## the right, each with its number inside (replaces the "XM XT" text).
+func _ensure_cost_badges() -> void:
+	if _mana_badge and is_instance_valid(_mana_badge):
+		return
+	var host: Node = get_node_or_null("Panel")
+	if host == null:
+		return
+	var made := _make_cost_badge(host, "res://assets/ui/mana_drop.png", Vector2(-8, -10), 4.0)
+	_mana_badge = made[0]
+	_mana_num = made[1]
+	made = _make_cost_badge(host, "res://assets/ui/sand_timer.png", Vector2(CARD_W - 29.0, -10), 2.0)
+	_tempo_badge = made[0]
+	_tempo_num = made[1]
+
+
+func _make_cost_badge(host: Node, icon_path: String, pos: Vector2, num_y_bias: float) -> Array:
+	var badge := Control.new()
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.position = pos
+	badge.size = Vector2(26, 34)
+	badge.z_index = 5
+	host.add_child(badge)
+	var icon := TextureRect.new()
+	icon.texture = load(icon_path)
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.add_child(icon)
+	var num := Label.new()
+	num.set_anchors_preset(Control.PRESET_FULL_RECT)
+	num.offset_top = num_y_bias
+	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	num.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	num.add_theme_font_size_override("font_size", 13)
+	num.add_theme_color_override("font_color", Color.WHITE)
+	num.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.1))
+	num.add_theme_constant_override("outline_size", 6)
+	badge.add_child(num)
+	return [badge, num]
+
+
+## Small "TO" (Trials of Olorin) monogram seal in the middle of the card,
+## riding the type bar like a trading-card set emblem.
+func _ensure_to_logo() -> void:
+	var type_hbox: Node = get_node_or_null("Panel/VBox/TypeBar/TypeHBox")
+	if type_hbox == null or type_hbox.get_node_or_null("TOLogo"):
+		return
+	var seal := PanelContainer.new()
+	seal.name = "TOLogo"
+	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.07, 0.07, 0.1, 0.95)
+	st.set_border_width_all(1)
+	st.border_color = Color(0.78, 0.64, 0.28)
+	st.set_corner_radius_all(9)
+	st.content_margin_left = 4
+	st.content_margin_right = 4
+	st.content_margin_top = 1
+	st.content_margin_bottom = 1
+	seal.add_theme_stylebox_override("panel", st)
+	var lbl := Label.new()
+	lbl.text = "TO"
+	lbl.add_theme_font_size_override("font_size", 9)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.86, 0.4))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	seal.add_child(lbl)
+	# Sit between the type text (left, expanding) and the range text (right,
+	# expanding) so the seal stays centred on the bar.
+	type_hbox.add_child(seal)
+	type_hbox.move_child(seal, 1)
+
+
+func _refresh_cost_badges() -> void:
+	if _mana_num:
+		_mana_num.text = _pending_mana
+		_mana_num.add_theme_color_override("font_color", _pending_mana_col)
+	if _tempo_num:
+		_tempo_num.text = _pending_tempo
+		_tempo_num.add_theme_color_override("font_color", _pending_tempo_col)
 
 # ============================================
 # FLOATING PLAY BADGE + STACK DEPTH
@@ -624,7 +731,11 @@ func _style_frame() -> void:
 	## parchment-dark rules box.
 	_apply_default_style()
 	if title_bar:
-		title_bar.add_theme_stylebox_override("panel", _bar_style(_type_color.darkened(0.45)))
+		# Extra side margins keep the title clear of the corner cost badges.
+		var tb := _bar_style(_type_color.darkened(0.45))
+		tb.content_margin_left = 16
+		tb.content_margin_right = 14
+		title_bar.add_theme_stylebox_override("panel", tb)
 	if type_bar:
 		type_bar.add_theme_stylebox_override("panel", _bar_style(_type_color.darkened(0.55), 3))
 	if art_box:
@@ -643,8 +754,8 @@ func _clear_gold_trim() -> void:
 	_apply_default_style()
 
 func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: int = -1) -> void:
-	## Add thin vertical bars at the bottom of the card showing tempo ticks.
-	## The highlighted bar indicates the resolve tick.
+	## A row of small circles at the bottom of the card — one per tempo tick.
+	## The tick the card resolves on is filled gold.
 	var effective_tempo = tempo_override if tempo_override >= 0 else card.tempo_cost
 	if effective_tempo <= 0:
 		return
@@ -661,36 +772,28 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 	var bar_container = HBoxContainer.new()
 	bar_container.name = "TempoBarContainer"
 	bar_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar_container.add_theme_constant_override("separation", 2)
-	bar_container.custom_minimum_size.y = 16
+	bar_container.add_theme_constant_override("separation", 4)
+	bar_container.custom_minimum_size.y = 14
 	vbox.add_child(bar_container)
 
-	# Get the card type color for the resolve tick highlight
-	var highlight_color: Color
-	match card.card_type:
-		Card.CardType.ATTACK:
-			highlight_color = Color(1.0, 0.3, 0.3)
-		Card.CardType.DEFENSE:
-			highlight_color = Color(0.3, 0.5, 1.0)
-		Card.CardType.UTILITY:
-			highlight_color = Color(0.3, 1.0, 0.3)
-		Card.CardType.POWER:
-			highlight_color = Color(0.8, 0.5, 1.0)
-		_:
-			highlight_color = Color(1.0, 0.85, 0.4)
-
-	var dim_color = Color(0.2, 0.2, 0.28)
 	var resolve_tick = resolve_override if resolve_override >= 0 else mini(card.resolve_tick, effective_tempo)
 
 	for i in range(effective_tempo):
-		var bar = ColorRect.new()
-		bar.custom_minimum_size = Vector2(4, 14)
+		var dot := Panel.new()
+		dot.custom_minimum_size = Vector2(9, 9)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var st := StyleBoxFlat.new()
+		st.set_corner_radius_all(5)
 		if i + 1 == resolve_tick:
-			# This is the resolve tick - highlighted
-			bar.color = highlight_color
+			st.bg_color = Color(1.0, 0.84, 0.0)  # gold: the tick this card triggers on
+			st.set_border_width_all(1)
+			st.border_color = Color(0.55, 0.42, 0.05)
 		else:
-			bar.color = dim_color
-		bar_container.add_child(bar)
+			st.bg_color = Color(0.2, 0.2, 0.28)
+			st.set_border_width_all(1)
+			st.border_color = Color(0.09, 0.09, 0.13)
+		dot.add_theme_stylebox_override("panel", st)
+		bar_container.add_child(dot)
 
 func set_hovered_external(hovered: bool) -> void:
 	_is_hovered = hovered
