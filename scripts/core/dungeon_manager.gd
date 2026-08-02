@@ -1017,12 +1017,14 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if texture_path != "":
 		# Pixel-art dressing: a grayscale tile texture multiplied by the
-		# per-instance palette tint. World-space triplanar mapping keeps one
-		# texture repeat per world unit so tiles/walls align seamlessly, and
+		# per-instance palette tint. Each texture is a 4x4 sheet of 32px tile
+		# variants; world-space triplanar at 1/4 scale maps one variant per
+		# world unit with a 4-tile repeat period (kills visible tiling), and
 		# nearest filtering keeps the pixels crisp (Mana Seed look).
 		mat.albedo_texture = load(texture_path)
 		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	mmi.material_override = mat
 	_visuals_root.add_child(mmi)
 

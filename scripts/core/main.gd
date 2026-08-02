@@ -9423,6 +9423,7 @@ func _build_ground_plane() -> void:
 	mat.albedo_texture = load(dungeon_manager.floor_texture_path())
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)  # 4x4 variant sheet: 1 tile/unit
 	ground.material_override = mat
 	ground.position = Vector3(dungeon_manager.GRID_W / 2.0, -0.12, dungeon_manager.GRID_H / 2.0)
 	add_child(ground)
