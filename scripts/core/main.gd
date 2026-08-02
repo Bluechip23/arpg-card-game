@@ -9337,6 +9337,11 @@ func _build_ground_plane() -> void:
 	mat.albedo_color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1))
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.roughness = 1.0
+	# Same pixel tile texture as the arena floor (tinted darker by the ground
+	# colour) so the world beyond the walls matches the sprite art style.
+	mat.albedo_texture = load(dungeon_manager.floor_texture_path())
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.uv1_triplanar = true
 	ground.material_override = mat
 	ground.position = Vector3(dungeon_manager.GRID_W / 2.0, -0.12, dungeon_manager.GRID_H / 2.0)
 	add_child(ground)

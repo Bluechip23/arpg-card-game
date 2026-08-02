@@ -377,6 +377,23 @@ func get_palette() -> Dictionary:
 		return FOREST_PALETTE
 	return WORLD_PALETTES.get(world_level, WORLD_PALETTES[1])
 
+## Pixel tile textures per location flavour (grayscale, tinted by the palette).
+func floor_texture_path() -> String:
+	match interior_kind:
+		"sewer", "building":
+			return "res://assets/textures/tile_brick.png"
+		"cave":
+			return "res://assets/textures/tile_dirt.png"
+	return "res://assets/textures/tile_grass.png"
+
+
+func wall_texture_path() -> String:
+	match interior_kind:
+		"sewer", "building":
+			return "res://assets/textures/tile_brick.png"
+	return "res://assets/textures/tile_rock.png"
+
+
 func get_location_name() -> String:
 	if interior_kind == "cave":
 		return "Cave %d" % (int(interior_id.get_slice("_", 1)) + 1)
@@ -978,7 +995,7 @@ func _tile_noise(x: int, z: int, salt: int = 0) -> float:
 	var fine = float(hash(Vector3i(x, z, salt + _layout_seed + 7919)) % 10000) / 10000.0
 	return coarse * 0.6 + fine * 0.4
 
-func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float = 0.95) -> void:
+func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float = 0.95, texture_path: String = "") -> void:
 	## Creates a MultiMeshInstance3D under the visuals root from a list of
 	## {xform: Transform3D, color: Color} entries.
 	if items.is_empty():
@@ -998,6 +1015,14 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 	mat.roughness = rough
 	if not shaded:
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if texture_path != "":
+		# Pixel-art dressing: a grayscale tile texture multiplied by the
+		# per-instance palette tint. World-space triplanar mapping keeps one
+		# texture repeat per world unit so tiles/walls align seamlessly, and
+		# nearest filtering keeps the pixels crisp (Mana Seed look).
+		mat.albedo_texture = load(texture_path)
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		mat.uv1_triplanar = true
 	mmi.material_override = mat
 	_visuals_root.add_child(mmi)
 
@@ -1030,7 +1055,7 @@ func _build_floor_visuals() -> void:
 				Vector3(x + 0.5, -0.05, z + 0.5)
 			)
 			items.append({"xform": xform, "color": col})
-	_add_multimesh(BoxMesh.new(), items)
+	_add_multimesh(BoxMesh.new(), items, true, 0.95, floor_texture_path())
 	if not water_items.is_empty():
 		# Low roughness + faint emission so the water catches torchlight and reads wet.
 		var water_mm = MultiMesh.new()
@@ -1081,7 +1106,7 @@ func _build_walls() -> void:
 				Vector3(x + 0.5, height / 2.0, z + 0.5)
 			)
 			items.append({"xform": xform, "color": col})
-	_add_multimesh(BoxMesh.new(), items)
+	_add_multimesh(BoxMesh.new(), items, true, 0.95, wall_texture_path())
 	print("[DUNGEON] Built %d wall segments (%s %dx%d)" % [items.size(), get_location_name(), GRID_W, GRID_H])
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
@@ -1169,9 +1194,9 @@ func _build_elevation_visuals() -> void:
 						"color": pal["step"],
 					})
 
-	_add_multimesh(BoxMesh.new(), cliff_items)
-	_add_multimesh(BoxMesh.new(), top_items)
-	_add_multimesh(BoxMesh.new(), step_items, true, 0.85)
+	_add_multimesh(BoxMesh.new(), cliff_items, true, 0.95, "res://assets/textures/tile_rock.png")
+	_add_multimesh(BoxMesh.new(), top_items, true, 0.95, floor_texture_path())
+	_add_multimesh(BoxMesh.new(), step_items, true, 0.85, "res://assets/textures/tile_dirt.png")
 	print("[DUNGEON] Built %d cliff tiles, %d stone steps" % [cliff_items.size(), step_items.size() / 3])
 
 func _build_decorations() -> void:
