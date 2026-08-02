@@ -386,6 +386,12 @@ func _unify_lighting() -> void:
 	if light:
 		light.rotation_degrees = Vector3(-45, -30, 0)
 		light.shadow_enabled = false
+	# The void beyond the arena reads as a dark olive ground haze instead of
+	# pure black — SoM frames are never empty (VERIFY_PASS2 item 9).
+	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if we and we.environment:
+		we.environment.background_mode = Environment.BG_COLOR
+		we.environment.background_color = Color8(26, 28, 20)
 
 
 ## The camera that renders the 3D world (lives inside the world SubViewport).
@@ -9415,7 +9421,8 @@ func _build_ground_plane() -> void:
 	plane_mesh.size = Vector2(dungeon_manager.GRID_W + 40, dungeon_manager.GRID_H + 40)
 	ground.mesh = plane_mesh
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1))
+	# Lightened so the out-of-bounds ground reads as terrain, not void.
+	mat.albedo_color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1)).lightened(0.22)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.roughness = 1.0
 	# Same pixel tile texture as the arena floor (tinted darker by the ground

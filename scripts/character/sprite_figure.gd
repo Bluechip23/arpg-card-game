@@ -302,12 +302,16 @@ func _pop_text(text: String, color: Color) -> void:
 # =============================================================
 
 func _guard_fx() -> void:
+	# Hard one-step crouch (no scale tween on pixel art — style guide §5):
+	# the whole sprite drops a couple of pixels, holds, snaps back.
 	flash(Color(0.6, 0.75, 1.0))
 	if _rig:
+		_rig.position.y = -2.0 * PIXEL_SIZE
 		var t := create_tween()
-		t.tween_property(_rig, "scale", Vector3(1.06, 0.92, 1.0), 0.1)
-		t.tween_interval(0.25)
-		t.tween_property(_rig, "scale", Vector3.ONE, 0.12)
+		t.tween_interval(0.35)
+		t.tween_callback(func():
+			if _rig:
+				_rig.position.y = 0.0)
 
 
 func _hop_fx() -> void:
