@@ -28,7 +28,7 @@ func _initialize() -> void:
 	get_root().add_child(root3d)
 
 	var key := DirectionalLight3D.new()
-	key.rotation_degrees = Vector3(-42, 28, 0)
+	key.rotation_degrees = Vector3(-45, -30, 0)  # global upper-left light (style guide §3)
 	key.light_energy = 1.2
 	root3d.add_child(key)
 	var fill := DirectionalLight3D.new()

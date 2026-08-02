@@ -1017,12 +1017,14 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if texture_path != "":
 		# Pixel-art dressing: a grayscale tile texture multiplied by the
-		# per-instance palette tint. World-space triplanar mapping keeps one
-		# texture repeat per world unit so tiles/walls align seamlessly, and
+		# per-instance palette tint. Each texture is a 4x4 sheet of 32px tile
+		# variants; world-space triplanar at 1/4 scale maps one variant per
+		# world unit with a 4-tile repeat period (kills visible tiling), and
 		# nearest filtering keeps the pixels crisp (Mana Seed look).
 		mat.albedo_texture = load(texture_path)
 		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	mmi.material_override = mat
 	_visuals_root.add_child(mmi)
 
@@ -2940,8 +2942,12 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	box.size = Vector3(0.7, 0.5, 0.5)
 	body.mesh = box
 	var body_mat = StandardMaterial3D.new()
-	body_mat.albedo_color = Color(0.6, 0.45, 0.15)  # Gold/brown
+	body_mat.albedo_color = Color8(0x6b, 0x53, 0x3e)  # Palette wood (SKIN_4)
 	body_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	body_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
+	body_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	body_mat.uv1_triplanar = true
+	body_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	body.material_override = body_mat
 	body.position = Vector3(0, 0.25, 0)
 	chest_root.add_child(body)
@@ -2952,8 +2958,12 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	lid_box.size = Vector3(0.72, 0.2, 0.52)
 	lid.mesh = lid_box
 	var lid_mat = StandardMaterial3D.new()
-	lid_mat.albedo_color = Color(0.7, 0.55, 0.2)
+	lid_mat.albedo_color = Color8(0xa9, 0x4c, 0x1f)  # Palette leather base
 	lid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	lid_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
+	lid_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	lid_mat.uv1_triplanar = true
+	lid_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	lid.material_override = lid_mat
 	lid.position = Vector3(0, 0.5, 0)
 	chest_root.add_child(lid)
@@ -2965,8 +2975,8 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	lock_mesh.height = 0.16
 	lock.mesh = lock_mesh
 	var lock_mat = StandardMaterial3D.new()
-	lock_mat.albedo_color = Color(0.8, 0.75, 0.3)
-	lock_mat.metallic = 0.8
+	lock_mat.albedo_color = Color8(0xf9, 0xdc, 0x3e)  # Palette GOLD_1
+	lock_mat.metallic = 0.0  # no modern specular pop
 	lock_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	lock.material_override = lock_mat
 	lock.position = Vector3(0, 0.38, 0.27)
@@ -3337,17 +3347,18 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	cyl.height = 0.08
 	pillar.mesh = cyl
 	var pillar_mat = StandardMaterial3D.new()
+	# Master-palette waypoint tints (style guide §2).
 	match target:
 		"transport":
-			pillar_mat.albedo_color = Color(0.5, 0.7, 1.0, 0.9)
+			pillar_mat.albedo_color = Color(Color8(0x62, 0xa3, 0xb0), 0.9)  # TEAL_1
 		"town":
-			pillar_mat.albedo_color = Color(0.3, 0.7, 1.0, 0.8)
+			pillar_mat.albedo_color = Color(Color8(0x3e, 0x67, 0x94), 0.8)  # SKY_4
 		"next_world":
-			pillar_mat.albedo_color = Color(0.3, 1.0, 0.4, 0.8)
+			pillar_mat.albedo_color = Color(Color8(0x38, 0x98, 0x78), 0.8)  # TEAL_3
 		"prev_world":
-			pillar_mat.albedo_color = Color(1.0, 0.8, 0.3, 0.8)
+			pillar_mat.albedo_color = Color(Color8(0xd8, 0xd3, 0x96), 0.8)  # GOLD_2
 		_:
-			pillar_mat.albedo_color = Color(0.8, 0.8, 0.8, 0.8)
+			pillar_mat.albedo_color = Color(Color8(0xb6, 0xc5, 0xc5), 0.8)  # STEEL_6
 	pillar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	pillar_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	pillar.material_override = pillar_mat

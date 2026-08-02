@@ -79,6 +79,7 @@ var _walking := false
 var _base_modulate := Color.WHITE
 var _fx_tween: Tween = null
 var _rig: Node3D = null   # sprites parent; effect tweens move/scale this
+var _shadow: BlobShadow = null
 
 
 func setup(character_name: String, _sprite_path: String = "") -> void:
@@ -102,6 +103,12 @@ func setup(character_name: String, _sprite_path: String = "") -> void:
 		_setup_npc(cfg["npc"])
 	else:
 		_setup_doll(cfg["outfit"], cfg["hair"], cfg.get("hat", ""))
+	# Contact shadow lives OUTSIDE the rig: hops/knockback move the rig, the
+	# shadow stays on the ground and shrinks with height (see _process).
+	var old_shadow := get_node_or_null("Shadow")
+	if old_shadow:
+		old_shadow.queue_free()
+	_shadow = BlobShadow.attach(self, 0.62)
 	_play("idle")
 
 
@@ -244,16 +251,20 @@ func set_highlight(enabled: bool) -> void:
 	_apply_modulate(c)
 
 
+## Hard two-frame flash (style guide §5): snaps on, holds ~2 frames, snaps
+## off. No tween curve, no fade.
 func flash(color: Color) -> void:
 	if _fx_tween:
 		_fx_tween.kill()
+	_apply_modulate(Color(color.r * 4.0, color.g * 4.0, color.b * 4.0, _base_modulate.a))
 	_fx_tween = create_tween()
-	var lit := Color(color.r, color.g, color.b, _base_modulate.a)
-	_fx_tween.tween_method(_apply_modulate, lit, _base_modulate, 0.35)
+	_fx_tween.tween_interval(0.07)
+	_fx_tween.tween_callback(func(): _apply_modulate(_base_modulate))
 
 
 func play_hit() -> void:
-	flash(Color(1.0, 0.35, 0.35))
+	# White palette-saturating flash on damage (SNES hit flash), plus shake.
+	flash(Color(3.0, 3.0, 3.0))
 	if _rig:
 		var t := create_tween()
 		t.tween_property(_rig, "position:x", 0.07, 0.05)
@@ -291,12 +302,16 @@ func _pop_text(text: String, color: Color) -> void:
 # =============================================================
 
 func _guard_fx() -> void:
+	# Hard one-step crouch (no scale tween on pixel art — style guide §5):
+	# the whole sprite drops a couple of pixels, holds, snaps back.
 	flash(Color(0.6, 0.75, 1.0))
 	if _rig:
+		_rig.position.y = -2.0 * PIXEL_SIZE
 		var t := create_tween()
-		t.tween_property(_rig, "scale", Vector3(1.06, 0.92, 1.0), 0.1)
-		t.tween_interval(0.25)
-		t.tween_property(_rig, "scale", Vector3.ONE, 0.12)
+		t.tween_interval(0.35)
+		t.tween_callback(func():
+			if _rig:
+				_rig.position.y = 0.0)
 
 
 func _hop_fx() -> void:
@@ -381,6 +396,8 @@ func _apply_modulate(c: Color) -> void:
 
 
 func _process(delta: float) -> void:
+	if _shadow and _rig:
+		_shadow.set_airborne_height(_rig.position.y)
 	if _frames.is_empty():
 		return
 	_clock += delta

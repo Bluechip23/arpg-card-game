@@ -201,10 +201,10 @@ func _ensure_cost_badges() -> void:
 	var host: Node = get_node_or_null("Panel")
 	if host == null:
 		return
-	var made := _make_cost_badge(host, "res://assets/ui/mana_drop.png", Vector2(-8, -10), 4.0)
+	var made := _make_cost_badge(host, "res://assets/ui/mana_drop.png", Vector2(-11, -13), 4.0)
 	_mana_badge = made[0]
 	_mana_num = made[1]
-	made = _make_cost_badge(host, "res://assets/ui/sand_timer.png", Vector2(CARD_W - 29.0, -10), 2.0)
+	made = _make_cost_badge(host, "res://assets/ui/sand_timer.png", Vector2(CARD_W - 32.0, -13), 2.0)
 	_tempo_badge = made[0]
 	_tempo_num = made[1]
 
@@ -216,7 +216,7 @@ func _make_cost_badge(host: Node, icon_path: String, pos: Vector2, num_y_bias: f
 	var badge := Control.new()
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.position = pos
-	badge.size = Vector2(26, 34)
+	badge.size = Vector2(32, 40)  # matches the icon texture 1:1 (grid rule)
 	host.add_child(badge)
 	var icon := TextureRect.new()
 	icon.texture = load(icon_path)

@@ -339,7 +339,89 @@ const CAMERA_ZOOM_MAX: float = 35.0
 const CAMERA_ZOOM_STEP: float = 2.0
 const CAMERA_ORBIT_SENSITIVITY: float = 0.005
 
+# ============================================
+# LOW-RES WORLD RENDER (Secret-of-Mana pixel look)
+# The 3D battle renders at WORLD_RES inside a SubViewport and is
+# nearest-upscaled to the window; UI CanvasLayers stay full resolution.
+# ============================================
+
+const WORLD_RES := Vector2i(640, 360)
+var _world_viewport: SubViewport = null
+var _world_camera: Camera3D = null
+
+
+func _setup_world_viewport() -> void:
+	var cam := $Camera3D as Camera3D
+	var layer := CanvasLayer.new()
+	layer.name = "WorldRenderLayer"
+	layer.layer = -100
+	add_child(layer)
+	var svc := SubViewportContainer.new()
+	svc.name = "WorldViewportContainer"
+	svc.stretch = true
+	svc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	svc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(svc)
+	var sv := SubViewport.new()
+	sv.name = "WorldViewport"
+	sv.size = WORLD_RES
+	sv.world_3d = get_viewport().find_world_3d()
+	sv.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	sv.physics_object_picking = false
+	svc.add_child(sv)
+	_world_viewport = sv
+	# The scene camera moves into the SubViewport; the root viewport is left
+	# without an active 3D camera so the world only renders low-res.
+	cam.get_parent().remove_child(cam)
+	sv.add_child(cam)
+	cam.current = true
+	_world_camera = cam
+
+
+## Style guide §3: one global light, upper-left 45°, no engine-cast shadows
+## (all contact shadows are discrete blob quads).
+func _unify_lighting() -> void:
+	var light := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if light:
+		light.rotation_degrees = Vector3(-45, -30, 0)
+		light.shadow_enabled = false
+	# The void beyond the arena reads as a dark olive ground haze instead of
+	# pure black — SoM frames are never empty (VERIFY_PASS2 item 9).
+	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if we and we.environment:
+		we.environment.background_mode = Environment.BG_COLOR
+		we.environment.background_color = Color8(26, 28, 20)
+
+
+## The camera that renders the 3D world (lives inside the world SubViewport).
+func get_world_camera() -> Camera3D:
+	if _world_camera and is_instance_valid(_world_camera):
+		return _world_camera
+	return get_viewport().get_camera_3d()
+
+
+## Mouse position mapped into the low-res world viewport's coordinates.
+func _world_mouse_position() -> Vector2:
+	var vp_size := get_viewport().get_visible_rect().size
+	var mouse := get_viewport().get_mouse_position()
+	if vp_size.x <= 0.0 or vp_size.y <= 0.0:
+		return mouse
+	return mouse * Vector2(WORLD_RES) / vp_size
+
+
+## Project a world position to FULL-RES screen coordinates (for UI overlays).
+func world_to_screen(world_pos: Vector3) -> Vector2:
+	var cam := get_world_camera()
+	if cam == null:
+		return Vector2.ZERO
+	var p := cam.unproject_position(world_pos)
+	return p * get_viewport().get_visible_rect().size / Vector2(WORLD_RES)
+
+
 func _ready() -> void:
+	_setup_world_viewport()
+	_unify_lighting()
 	# Initialize extracted managers
 	progression_triggers = ProgressionTriggers.new()
 	progression_triggers.init(self)
@@ -528,10 +610,10 @@ func _ready() -> void:
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
 func get_mouse_world_position() -> Vector3:
-	var camera = get_viewport().get_camera_3d()
+	var camera = get_world_camera()
 	if not camera:
 		return Vector3.ZERO
-	var mouse_pos = get_viewport().get_mouse_position()
+	var mouse_pos = _world_mouse_position()
 	var from = camera.project_ray_origin(mouse_pos)
 	var dir = camera.project_ray_normal(mouse_pos)
 	if abs(dir.y) < 0.001:
@@ -549,7 +631,7 @@ func _on_tick_speed_changed(speed: float) -> void:
 	print("[MAIN] Tick speed changed to %.2fs" % speed)
 
 func _update_camera() -> void:
-	var camera = get_viewport().get_camera_3d()
+	var camera = get_world_camera()
 	if not camera:
 		return
 	# Compute camera position on a sphere around the focus point
@@ -6542,9 +6624,9 @@ func _play_card_animation(card: Card, target) -> void:
 
 func _get_card_play_target_pos(target) -> Vector2:
 	## Returns a screen position to animate the card toward (in hand_container local coords).
-	var cam = get_viewport().get_camera_3d()
+	var cam = get_world_camera()
 	if target is Enemy and is_instance_valid(target) and cam:
-		var screen_pos = cam.unproject_position(target.position + Vector3(0, 0.5, 0))
+		var screen_pos = world_to_screen(target.position + Vector3(0, 0.5, 0))
 		var container_global = hand_container.get_global_rect().position
 		return screen_pos - container_global
 	# Default: fly upward toward center of screen
@@ -7352,6 +7434,11 @@ func _input(event: InputEvent) -> void:
 				_camera_orbiting = true
 				_camera_drag_start = event.position
 		else:
+			if _camera_orbiting:
+				# SoM adaptation: settle the orbit on one of the 8 cardinal
+				# views so painted sprite lighting and the global light agree.
+				_camera_yaw = snappedf(_camera_yaw, PI / 4.0)
+				_update_camera()
 			_camera_orbiting = false
 
 	if event is InputEventMouseMotion and _camera_orbiting:
@@ -9334,7 +9421,8 @@ func _build_ground_plane() -> void:
 	plane_mesh.size = Vector2(dungeon_manager.GRID_W + 40, dungeon_manager.GRID_H + 40)
 	ground.mesh = plane_mesh
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1))
+	# Lightened so the out-of-bounds ground reads as terrain, not void.
+	mat.albedo_color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1)).lightened(0.22)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.roughness = 1.0
 	# Same pixel tile texture as the arena floor (tinted darker by the ground
@@ -9342,6 +9430,7 @@ func _build_ground_plane() -> void:
 	mat.albedo_texture = load(dungeon_manager.floor_texture_path())
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)  # 4x4 variant sheet: 1 tile/unit
 	ground.material_override = mat
 	ground.position = Vector3(dungeon_manager.GRID_W / 2.0, -0.12, dungeon_manager.GRID_H / 2.0)
 	add_child(ground)
