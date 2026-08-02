@@ -1572,9 +1572,9 @@ func _on_attack_pressed() -> void:
 			closest_dist = dist
 			target = enemy
 
-	# Swing the arm down — basic attack uses the same slash as the slash card.
-	if player.has_method("play_animation"):
-		player.play_animation("attack_slash", _facing_dir_toward(target))
+	# NOTE: the swing animation plays when the attack RESOLVES (immediately for
+	# Steady/zero-tempo below, otherwise on its resolve tick in
+	# _resolve_queued_card) so the motion lines up with the hit.
 
 	# Damage: flat baseline + strength modifier (get_effective_physical_damage
 	# already applies Flurry Form's per-hit penalty). Killing Rhythm's armed
@@ -1627,6 +1627,8 @@ func _on_attack_pressed() -> void:
 
 	if buff_mgr and buff_mgr.consume_steady():
 		# Steady: resolve immediately with no tempo
+		if player.has_method("play_animation"):
+			player.play_animation("attack_slash", _facing_dir_toward(target))
 		target.take_damage(damage, true)
 		if buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
@@ -1640,6 +1642,8 @@ func _on_attack_pressed() -> void:
 		print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 	elif tempo_cost <= 0:
 		# Dex proc reduced tempo to 0: resolve immediately
+		if player.has_method("play_animation"):
+			player.play_animation("attack_slash", _facing_dir_toward(target))
 		target.take_damage(damage, true)
 		if buff_mgr and buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
@@ -2560,14 +2564,29 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	# Card name (gold)
 	var name_lbl = Label.new()
 	name_lbl.text = card.card_name
-	name_lbl.add_theme_font_size_override("font_size", 16)
+	name_lbl.add_theme_font_size_override("font_size", 13)
 	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
 	vbox.add_child(name_lbl)
 
-	# Card type (color-coded)
+	# One compact info line: type · cost · melee/range (dex-proc aware).
+	var preview_mana = card.mana_cost
+	var preview_tempo = card.tempo_cost
+	var preview_proc = deck_manager.next_attack_half_tempo and card.card_type == Card.CardType.ATTACK
+	if preview_proc:
+		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
+		preview_tempo = preview_tempo / 2
+		# Pocket Knife: additional -2 tempo
+		var tip_inv = player.get_inventory()
+		if tip_inv and tip_inv.has_pocket_knife_equipped():
+			preview_tempo = maxi(0, preview_tempo - 2)
+
+	var info_row = HBoxContainer.new()
+	info_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(info_row)
+
 	var type_lbl = Label.new()
 	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 12)
+	type_lbl.add_theme_font_size_override("font_size", 11)
 	match card.card_type:
 		Card.CardType.ATTACK:
 			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
@@ -2579,49 +2598,29 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 		Card.CardType.ENCHANTMENT:
 			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
-	vbox.add_child(type_lbl)
+	info_row.add_child(type_lbl)
 
-	# Cost (with dex proc preview for attack cards)
 	var cost_lbl = Label.new()
-	var preview_mana = card.mana_cost
-	var preview_tempo = card.tempo_cost
-	var preview_proc = deck_manager.next_attack_half_tempo and card.card_type == Card.CardType.ATTACK
-	if preview_proc:
-		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
-		preview_tempo = preview_tempo / 2
-		# Pocket Knife: additional -2 tempo
-		var tip_inv = player.get_inventory()
-		if tip_inv and tip_inv.has_pocket_knife_equipped():
-			preview_tempo = maxi(0, preview_tempo - 2)
-	if preview_proc:
-		if card.maintain_cost > 0:
-			cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [preview_mana, preview_tempo, card.maintain_cost]
-		else:
-			cost_lbl.text = "Cost: %dM / %dT" % [preview_mana, preview_tempo]
-	elif card.maintain_cost > 0:
-		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [preview_mana, preview_tempo, card.maintain_cost]
+	if card.maintain_cost > 0:
+		cost_lbl.text = "%dM %dT · Maint %dM" % [preview_mana, preview_tempo, card.maintain_cost]
 	else:
-		cost_lbl.text = "Cost: %dM / %dT" % [preview_mana, preview_tempo]
-	cost_lbl.add_theme_font_size_override("font_size", 12)
+		cost_lbl.text = "%dM %dT" % [preview_mana, preview_tempo]
+	cost_lbl.add_theme_font_size_override("font_size", 11)
 	if preview_proc:
 		cost_lbl.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 	else:
 		cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	vbox.add_child(cost_lbl)
+	info_row.add_child(cost_lbl)
 
-	# Range/Melee
+	var range_lbl = Label.new()
+	range_lbl.add_theme_font_size_override("font_size", 11)
 	if card.is_ranged:
-		var range_lbl = Label.new()
 		range_lbl.text = card.get_range_display()
-		range_lbl.add_theme_font_size_override("font_size", 12)
 		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
-		vbox.add_child(range_lbl)
 	else:
-		var melee_lbl = Label.new()
-		melee_lbl.text = "Melee"
-		melee_lbl.add_theme_font_size_override("font_size", 12)
-		melee_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
-		vbox.add_child(melee_lbl)
+		range_lbl.text = "Melee"
+		range_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
+	info_row.add_child(range_lbl)
 
 	# Separator
 	var sep = HSeparator.new()
@@ -6014,8 +6013,9 @@ func play_selected_card(target) -> void:
 			# Sticky cards that stay in hand keep their UI; the use counter
 			# pops over the rebuilt card below.
 
-		# Trigger character sprite animation based on card type
-		_play_card_animation(card, target)
+		# The character's swing/cast animation fires when the card actually
+		# RESOLVES (see _resolve_queued_card), not here at play time — the
+		# wind-up ticks pass first.
 
 		selected_card_index = -1
 
@@ -6274,6 +6274,11 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# --- Basic attack resolution: deal damage directly ---
 	if data.get("is_basic_attack", false):
+		# Swing exactly when the hit lands (facing wherever the target is NOW).
+		if player.has_method("play_animation"):
+			player.play_animation("attack_slash", _facing_dir_toward(target))
+			if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
+				player.face_toward(target.position)
 		var damage = data["basic_attack_damage"]
 		target.take_damage(damage, true)
 
@@ -6300,6 +6305,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		add_battle_log("Basic Attack: %d damage to %s" % [damage, target_name], Color(0.4, 1.0, 0.5))
 		print("[MAIN] Basic Attack resolved: dealt %d damage to %s" % [damage, target_name])
 		return
+
+	# The action happens NOW — play the character's animation at resolution
+	# rather than back when the card was played and the wind-up began.
+	_play_card_animation(card, target)
 
 	# Execute the card's effect (damage, block, heal, etc.)
 	# Arm passives the in-execution crit roll needs to see (Deadly's isolated
