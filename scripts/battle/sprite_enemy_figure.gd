@@ -93,7 +93,8 @@ const KINDS := {
 	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
 }
 
-const PIXEL_SIZE := 0.032
+# Uniform texel density across every billboard in the game (style guide §1).
+const PIXEL_SIZE := 0.034
 
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
@@ -133,7 +134,7 @@ func setup(kind: String) -> void:
 	if cfg.has("npc"):
 		_npc_mode = true
 		_sprite.texture = load(cfg["npc"])
-		_sprite.pixel_size = PIXEL_SIZE * 1.15  # 32px humanoids ~ battler height
+		_sprite.pixel_size = PIXEL_SIZE
 		_sprite.region_rect = Rect2(0, 0, 32, 32)
 		_base_y = 16.0 * _sprite.pixel_size
 	elif cfg.has("tex"):
@@ -249,7 +250,8 @@ func play_attack() -> void:
 
 
 func play_hit() -> void:
-	flash(Color(1.0, 0.3, 0.3))
+	# White palette-saturating flash on damage (SNES hit flash), plus shake.
+	flash(Color(3.0, 3.0, 3.0))
 	if _rig:
 		var t := create_tween()
 		t.tween_property(_rig, "position:x", 0.08, 0.05)
@@ -257,12 +259,17 @@ func play_hit() -> void:
 		t.tween_property(_rig, "position:x", 0.0, 0.06)
 
 
+## Hard two-frame flash (style guide §5): the tint snaps on, holds ~2 frames,
+## snaps off. No tween curve, no fade.
 func flash(color: Color) -> void:
 	if not _sprite:
 		return
+	_sprite.modulate = Color(color.r * 4.0, color.g * 4.0, color.b * 4.0) * _tint
 	var t := create_tween()
-	t.tween_property(_sprite, "modulate", color * _tint, 0.1)
-	t.tween_property(_sprite, "modulate", _lit_tint(), 0.15)
+	t.tween_interval(0.07)
+	t.tween_callback(func():
+		if _sprite:
+			_sprite.modulate = _lit_tint())
 
 
 func set_highlight(enabled: bool) -> void:
@@ -291,9 +298,7 @@ func _process(delta: float) -> void:
 				_apply_npc_frame(_walk_frame)
 			_sprite.position.y = _base_y
 		else:
-			# Waddle: quick bob plus a slight rock.
+			# Waddle: quick bob only — pixel art never rotates off-axis (§5).
 			_sprite.position.y = _base_y + absf(sin(_time * 9.0)) * 0.06
-			_rig.rotation.z = sin(_time * 9.0) * 0.05
 	else:
 		_sprite.position.y = _base_y + sin(_time * 2.2) * 0.02
-		_rig.rotation.z = 0.0

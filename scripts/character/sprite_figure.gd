@@ -251,16 +251,20 @@ func set_highlight(enabled: bool) -> void:
 	_apply_modulate(c)
 
 
+## Hard two-frame flash (style guide §5): snaps on, holds ~2 frames, snaps
+## off. No tween curve, no fade.
 func flash(color: Color) -> void:
 	if _fx_tween:
 		_fx_tween.kill()
+	_apply_modulate(Color(color.r * 4.0, color.g * 4.0, color.b * 4.0, _base_modulate.a))
 	_fx_tween = create_tween()
-	var lit := Color(color.r, color.g, color.b, _base_modulate.a)
-	_fx_tween.tween_method(_apply_modulate, lit, _base_modulate, 0.35)
+	_fx_tween.tween_interval(0.07)
+	_fx_tween.tween_callback(func(): _apply_modulate(_base_modulate))
 
 
 func play_hit() -> void:
-	flash(Color(1.0, 0.35, 0.35))
+	# White palette-saturating flash on damage (SNES hit flash), plus shake.
+	flash(Color(3.0, 3.0, 3.0))
 	if _rig:
 		var t := create_tween()
 		t.tween_property(_rig, "position:x", 0.07, 0.05)
