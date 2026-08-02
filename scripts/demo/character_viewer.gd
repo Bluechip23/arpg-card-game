@@ -16,8 +16,8 @@ const ROSTER := [
 	{"name": "Brad", "npc": "res://assets/sprites/NPCpackage2/npc knight v01.png"},
 	{"name": "Cory", "npc": "res://assets/sprites/NPCpackage1/npc merchant A v01.png"},
 	{"name": "Stephen", "npc": "res://assets/sprites/NPCpackage2/npc guard v01.png"},
-	{"name": "Jeremy", "outfit": "fstr_v05", "hair": "bob1_v11"},
-	{"name": "Ryan", "outfit": "fstr_v03", "hair": "dap1_v13"},
+	{"name": "Jeremy", "outfit": "gen:fstr_jeremy", "hair": "bob1_v11"},
+	{"name": "Ryan", "outfit": "gen:fstr_ryan", "hair": "dap1_v13", "hat": "gen:pfht_ryan"},
 ]
 
 var characters: Array[SpriteCharacter] = []
@@ -39,7 +39,7 @@ func _ready() -> void:
 		if cfg.has("npc"):
 			c.setup_npc(cfg["npc"])
 		else:
-			c.setup_doll(cfg["outfit"], cfg["hair"])
+			c.setup_doll(cfg["outfit"], cfg["hair"], cfg.get("hat", ""))
 		add_child(c)
 		characters.append(c)
 
