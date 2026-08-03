@@ -765,29 +765,30 @@ func _clear_gold_trim() -> void:
 	_apply_default_style()
 
 func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: int = -1) -> void:
-	## A centred row of small circles across the card's top, between the top
-	## edge and the name — one per tempo tick. The tick the card resolves on
-	## is filled gold. (Living up top frees room for the rules text below.)
+	## A centred row of small circles nestled against the card's top edge,
+	## above the name — one per tempo tick. The tick the card resolves on is
+	## filled gold. Drawn as an overlay (like the corner cost badges) so it
+	## takes no layout height and the frame spacing stays untouched.
 	var effective_tempo = tempo_override if tempo_override >= 0 else card.tempo_cost
-	if effective_tempo <= 0:
-		return
-
-	var vbox = $Panel/VBox
-	if not vbox:
+	var host = $Panel
+	if not host:
 		return
 
 	# Remove existing tempo bar container if re-setup
-	var existing = vbox.get_node_or_null("TempoBarContainer")
+	var existing = host.get_node_or_null("TempoBarContainer")
 	if existing:
 		existing.queue_free()
+	if effective_tempo <= 0:
+		return
 
 	var bar_container = HBoxContainer.new()
 	bar_container.name = "TempoBarContainer"
 	bar_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	bar_container.add_theme_constant_override("separation", 4)
-	bar_container.custom_minimum_size.y = 12
-	vbox.add_child(bar_container)
-	vbox.move_child(bar_container, 0)
+	bar_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar_container.position = Vector2(0, -3)
+	bar_container.size = Vector2(CARD_W, 9)
+	host.add_child(bar_container)
 
 	var resolve_tick = resolve_override if resolve_override >= 0 else mini(card.resolve_tick, effective_tempo)
 
