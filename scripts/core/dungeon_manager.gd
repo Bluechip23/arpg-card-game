@@ -1122,12 +1122,58 @@ func _build_floor_visuals() -> void:
 		_visuals_root.add_child(wmmi)
 	print("[DUNGEON] Built %d floor tiles, %d water tiles" % [items.size(), water_items.size()])
 
+var _chamfer_mesh_cache: Dictionary = {}
+
+func _chamfered_unit_box(bh: float, ys: float) -> ArrayMesh:
+	## Unit box (drop-in for BoxMesh transforms) whose top rim is chamfered so
+	## wall and cliff silhouettes read as rounded SNES ledges, not razor edges.
+	## bh = horizontal rim inset; ys = unit height where the bevel begins.
+	var key := "%f_%f" % [bh, ys]
+	if _chamfer_mesh_cache.has(key):
+		return _chamfer_mesh_cache[key]
+	var i := 0.5 - bh
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Quads listed counter-clockwise viewed from outside; emitted flipped to
+	# match Godot's clockwise front-face winding.
+	var faces := [
+		[Vector3(-0.5, -0.5, 0.5), Vector3(0.5, -0.5, 0.5), Vector3(0.5, ys, 0.5), Vector3(-0.5, ys, 0.5)],
+		[Vector3(0.5, -0.5, -0.5), Vector3(-0.5, -0.5, -0.5), Vector3(-0.5, ys, -0.5), Vector3(0.5, ys, -0.5)],
+		[Vector3(0.5, -0.5, 0.5), Vector3(0.5, -0.5, -0.5), Vector3(0.5, ys, -0.5), Vector3(0.5, ys, 0.5)],
+		[Vector3(-0.5, -0.5, -0.5), Vector3(-0.5, -0.5, 0.5), Vector3(-0.5, ys, 0.5), Vector3(-0.5, ys, -0.5)],
+		[Vector3(-0.5, ys, 0.5), Vector3(0.5, ys, 0.5), Vector3(i, 0.5, i), Vector3(-i, 0.5, i)],
+		[Vector3(0.5, ys, -0.5), Vector3(-0.5, ys, -0.5), Vector3(-i, 0.5, -i), Vector3(i, 0.5, -i)],
+		[Vector3(0.5, ys, 0.5), Vector3(0.5, ys, -0.5), Vector3(i, 0.5, -i), Vector3(i, 0.5, i)],
+		[Vector3(-0.5, ys, -0.5), Vector3(-0.5, ys, 0.5), Vector3(-i, 0.5, i), Vector3(-i, 0.5, -i)],
+		[Vector3(-i, 0.5, i), Vector3(i, 0.5, i), Vector3(i, 0.5, -i), Vector3(-i, 0.5, -i)],
+		[Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5), Vector3(0.5, -0.5, 0.5), Vector3(-0.5, -0.5, 0.5)],
+	]
+	for f in faces:
+		for idx in [0, 2, 1, 0, 3, 2]:
+			st.add_vertex(f[idx])
+	st.generate_normals()
+	var mesh := st.commit()
+	_chamfer_mesh_cache[key] = mesh
+	return mesh
+
+func _min_adjacent_floor_elevation(x: int, z: int) -> int:
+	var min_elev := 99
+	for dx in [-1, 0, 1]:
+		for dz in [-1, 0, 1]:
+			var nx = x + dx
+			var nz = z + dz
+			if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H:
+				if grid[nx][nz] == Tile.FLOOR:
+					min_elev = mini(min_elev, elevation[nx][nz])
+	return 0 if min_elev == 99 else min_elev
+
 func _build_walls() -> void:
 	## Rock walls with varied heights and shades. Walls beside elevated terrain
 	## grow taller so high ground stays properly enclosed.
 	var pal = get_palette()
 	var is_building = interior_kind == "building"
 	var items: Array = []
+	var skirt_items: Array = []
 	var site_tiles = _all_site_footprint_tiles()
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1149,7 +1195,20 @@ func _build_walls() -> void:
 				Vector3(x + 0.5, height / 2.0, z + 0.5)
 			)
 			items.append({"xform": xform, "color": col})
-	_add_multimesh(BoxMesh.new(), items, true, 0.95, wall_texture_path())
+			# Painted contact band where the wall meets the walkable ground.
+			var base_y = _min_adjacent_floor_elevation(x, z) * ELEV_STEP
+			skirt_items.append({
+				"xform": Transform3D(
+					Basis.from_scale(Vector3(1.16, 0.045, 1.16)),
+					Vector3(x + 0.5, base_y + 0.0225, z + 0.5)
+				),
+				"color": pal["ground"],
+			})
+	# Interior building walls stay crisp and man-made; natural rock is rounded.
+	var wall_mesh: Mesh = BoxMesh.new() if is_building else _chamfered_unit_box(0.14, 0.42)
+	_add_multimesh(wall_mesh, items, true, 0.95, wall_texture_path())
+	if not is_building:
+		_add_multimesh(BoxMesh.new(), skirt_items, false)
 	print("[DUNGEON] Built %d wall segments (%s %dx%d)" % [items.size(), get_location_name(), GRID_W, GRID_H])
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
@@ -1182,6 +1241,8 @@ func _build_elevation_visuals() -> void:
 	var cliff_items: Array = []
 	var top_items: Array = []
 	var step_items: Array = []
+	var skirt_items: Array = []
+	var dirs4 = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1199,6 +1260,22 @@ func _build_elevation_visuals() -> void:
 				),
 				"color": cliff_col,
 			})
+			# Painted contact band at the base of exposed cliff faces.
+			var lowest := 99
+			for dir in dirs4:
+				var nx = x + dir.x
+				var nz = z + dir.y
+				if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H:
+					if grid[nx][nz] == Tile.FLOOR and elevation[nx][nz] < elevation[x][z]:
+						lowest = mini(lowest, elevation[nx][nz])
+			if lowest < 99:
+				skirt_items.append({
+					"xform": Transform3D(
+						Basis.from_scale(Vector3(1.16, 0.045, 1.16)),
+						Vector3(x + 0.5, lowest * ELEV_STEP + 0.0225, z + 0.5)
+					),
+					"color": pal["ground"],
+				})
 			# Top surface: matches the floor palette but reads slightly sun-lit
 			var top_col: Color = pal["floor_a"].lerp(pal["floor_b"], _tile_noise(x, z, 11)).lightened(0.12)
 			top_items.append({
@@ -1237,9 +1314,13 @@ func _build_elevation_visuals() -> void:
 						"color": pal["step"],
 					})
 
-	_add_multimesh(BoxMesh.new(), cliff_items, true, 0.95, "res://assets/textures/tile_rock.png")
+	# Chamfered rock shoulders under full-width turf caps: the caps overhang
+	# the rounded rim slightly, the classic SNES plateau lip.
+	_add_multimesh(_chamfered_unit_box(0.08, 0.30), cliff_items, true, 0.95, "res://assets/textures/tile_rock.png")
 	_add_multimesh(BoxMesh.new(), top_items, true, 0.95, floor_texture_path())
 	_add_multimesh(BoxMesh.new(), step_items, true, 0.85, "res://assets/textures/tile_dirt.png")
+	if not skirt_items.is_empty():
+		_add_multimesh(BoxMesh.new(), skirt_items, false)
 	print("[DUNGEON] Built %d cliff tiles, %d stone steps" % [cliff_items.size(), step_items.size() / 3])
 
 func _build_decorations() -> void:
