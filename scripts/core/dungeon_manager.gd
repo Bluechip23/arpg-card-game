@@ -2352,7 +2352,10 @@ func _build_fog() -> void:
 	var mmi = MultiMeshInstance3D.new()
 	mmi.multimesh = _fog_mm
 	var fog_mat = StandardMaterial3D.new()
-	fog_mat.albedo_color = Color(0.012, 0.012, 0.022, 1.0)
+	# Matches the WorldEnvironment backdrop (dark olive) so unexplored land
+	# and the out-of-map void blend into one darkened treeline — no pure
+	# black holes against the meadow (16-bit pass).
+	fog_mat.albedo_color = Color8(26, 28, 20)
 	fog_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mmi.material_override = fog_mat
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
