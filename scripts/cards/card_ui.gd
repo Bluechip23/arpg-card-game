@@ -256,16 +256,16 @@ func _ensure_to_logo() -> void:
 	var shadow := TextureRect.new()
 	shadow.texture = UIGlyphs.get_glyph("to_sigil")
 	shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	shadow.position = Vector2(-1.5, -8.5)
-	shadow.size = Vector2(20, 20)
+	shadow.position = Vector2(-4.5, -11.5)
+	shadow.size = Vector2(26, 26)
 	shadow.modulate = Color(0, 0, 0, 0.5)
 	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(shadow)
 	var seal := TextureRect.new()
 	seal.texture = UIGlyphs.get_glyph("to_sigil")
 	seal.stretch_mode = TextureRect.STRETCH_SCALE
-	seal.position = Vector2(-3, -10)
-	seal.size = Vector2(20, 20)
+	seal.position = Vector2(-6, -13)
+	seal.size = Vector2(26, 26)
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(seal)
 	# Sit between the type text (left, expanding) and the range text (right,
