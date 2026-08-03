@@ -7744,9 +7744,11 @@ func _apply_world_ambience() -> void:
 		elif in_sewer:
 			env.ambient_light_energy = 0.20  # near-lightless; torches do the work
 		elif in_forest:
-			env.ambient_light_energy = 0.70  # bright, sun-dappled woodland
+			env.ambient_light_energy = 0.90  # bright, sun-dappled woodland
 		else:
-			env.ambient_light_energy = 0.55
+			# High ambient fill: 16-bit terrain is painted mostly flat, so
+			# shadowed cliff faces stay a readable warm tan instead of black.
+			env.ambient_light_energy = 1.0
 		env.fog_enabled = true
 		env.fog_light_color = pal.get("ambient", Color(0.2, 0.2, 0.25)).darkened(0.55)
 		if in_cave:
@@ -7759,8 +7761,9 @@ func _apply_world_ambience() -> void:
 			env.fog_density = 0.004  # clear, open air
 		else:
 			env.fog_density = 0.006
-		env.ssao_enabled = true
-		env.ssao_intensity = 1.6
+		# No SSAO: soft screen-space AO is a modern rendering tell the 16-bit
+		# style spec forbids — contact shading is painted into sprites instead.
+		env.ssao_enabled = false
 
 	var sun = get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if sun:
@@ -7774,6 +7777,10 @@ func _apply_world_ambience() -> void:
 			energy = 0.8
 		elif in_forest:
 			energy = pal.get("sun_energy", 1.35)  # full dappled daylight
+		else:
+			# Compress lit-vs-shadow range outdoors: painted 16-bit terrain
+			# carries its own shading, so the sun only needs to suggest form.
+			energy *= 0.75
 		sun.light_energy = energy
 
 	# Underground (sewers and caves), each player carries their own pool of light.
