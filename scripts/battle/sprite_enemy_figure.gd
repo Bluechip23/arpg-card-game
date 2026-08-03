@@ -52,10 +52,22 @@ const KINDS := {
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"tex": "rat"},
 	"archer_rat": {"tex": "rat", "tint": Color(0.95, 0.8, 0.65)},
-	"rat_king": {"tex": "rat", "tint": Color(1.1, 0.95, 0.6), "scale": 1.35},
+	"rat_king": {"tex": "rat", "tint": Color(1.1, 0.95, 0.6), "scale": 1.25},
 	"fire_goblin_soldier": {"npc": GEN + "/goblin_soldier.png"},
 	"fire_goblin_mage": {"npc": GEN + "/goblin_mage.png"},
 	"fire_goblin_shaman": {"npc": GEN + "/goblin_shaman.png", "scale": 1.15},
+	"armored_troll": {"tex": "armored_troll", "scale": 1.2},
+	"ice_troll": {"tex": "ice_troll", "scale": 1.2},
+	"granite_colossus": {"tex": "granite_colossus", "scale": 1.35},
+	"grave_titan": {"tex": "grave_titan", "scale": 1.35},
+	"inflamed_minotaur": {"tex": "inflamed_minotaur", "scale": 1.25},
+	"demon": {"tex": "demon", "scale": 1.1},
+	"pit_fiend": {"tex": "pit_fiend", "scale": 1.3},
+	"bugbear": {"tex": "bugbear", "scale": 1.15},
+	"ifrit": {"tex": "ifrit"},
+	"snow_wraith": {"tex": "snow_wraith"},
+	"hydra": {"tex": "hydra", "scale": 1.4},
+	"white_manticore": {"tex": "white_manticore", "scale": 1.3},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"tex": "large_bear", "scale": 1.45},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
@@ -67,10 +79,8 @@ const KINDS := {
 	"roc": {"cell": Vector2i(6, 0), "scale": 1.6},
 	"ash_harpy": {"cell": Vector2i(6, 0), "tint": Color(0.65, 0.6, 0.65)},
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
-	# NOTE deliberately absent — these fall back to their bespoke procedural
-	# figures until real art lands (docs/ART_TODO.md #1): armored_troll,
-	# ice_troll, granite_colossus, grave_titan, inflamed_minotaur, demon,
-	# ifrit, pit_fiend, bugbear, snow_wraith, hydra, white_manticore.
+	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
+	# replacements for the generated first-pass battlers above.)
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
 	"ice_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(0.75, 0.9, 1.25)},
 	"fire_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.25, 0.7, 0.55)},
@@ -93,7 +103,7 @@ const PIXEL_SIZE := 0.034
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc", "ash_harpy",
-		"screecher", "djinn", "specter"]
+		"screecher", "djinn", "specter", "ifrit", "snow_wraith"]
 
 var _sprite: Sprite3D = null
 var _rig: Node3D = null

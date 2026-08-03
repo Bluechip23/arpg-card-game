@@ -345,8 +345,10 @@ const CAMERA_ORBIT_SENSITIVITY: float = 0.005
 # nearest-upscaled to the window; UI CanvasLayers stay full resolution.
 # ============================================
 
-const WORLD_RES := Vector2i(640, 360)
+# Integer downscale factor for the world render: 1280x720 / 2 = 640x360.
+const WORLD_SHRINK := 2
 var _world_viewport: SubViewport = null
+var _world_container: SubViewportContainer = null
 var _world_camera: Camera3D = null
 
 
@@ -358,19 +360,23 @@ func _setup_world_viewport() -> void:
 	add_child(layer)
 	var svc := SubViewportContainer.new()
 	svc.name = "WorldViewportContainer"
+	# stretch + stretch_shrink is the canonical low-res setup: the container
+	# sizes the SubViewport to container_size / shrink and scales the result
+	# back up. (Setting sv.size manually is futile — stretch overrides it.)
 	svc.stretch = true
+	svc.stretch_shrink = WORLD_SHRINK
 	svc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	svc.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(svc)
 	var sv := SubViewport.new()
 	sv.name = "WorldViewport"
-	sv.size = WORLD_RES
 	sv.world_3d = get_viewport().find_world_3d()
 	sv.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	sv.physics_object_picking = false
 	svc.add_child(sv)
 	_world_viewport = sv
+	_world_container = svc
 	# The scene camera moves into the SubViewport; the root viewport is left
 	# without an active 3D camera so the world only renders low-res.
 	cam.get_parent().remove_child(cam)
@@ -401,13 +407,16 @@ func get_world_camera() -> Camera3D:
 	return get_viewport().get_camera_3d()
 
 
+## Ratio between the world viewport's pixels and root-viewport pixels.
+func _world_scale_ratio() -> Vector2:
+	if _world_viewport and _world_container and _world_container.size.x > 0.0 and _world_container.size.y > 0.0:
+		return Vector2(_world_viewport.size) / _world_container.size
+	return Vector2.ONE
+
+
 ## Mouse position mapped into the low-res world viewport's coordinates.
 func _world_mouse_position() -> Vector2:
-	var vp_size := get_viewport().get_visible_rect().size
-	var mouse := get_viewport().get_mouse_position()
-	if vp_size.x <= 0.0 or vp_size.y <= 0.0:
-		return mouse
-	return mouse * Vector2(WORLD_RES) / vp_size
+	return get_viewport().get_mouse_position() * _world_scale_ratio()
 
 
 ## Project a world position to FULL-RES screen coordinates (for UI overlays).
@@ -415,8 +424,11 @@ func world_to_screen(world_pos: Vector3) -> Vector2:
 	var cam := get_world_camera()
 	if cam == null:
 		return Vector2.ZERO
+	var ratio := _world_scale_ratio()
 	var p := cam.unproject_position(world_pos)
-	return p * get_viewport().get_visible_rect().size / Vector2(WORLD_RES)
+	if ratio.x <= 0.0 or ratio.y <= 0.0:
+		return p
+	return p / ratio
 
 
 func _ready() -> void:
