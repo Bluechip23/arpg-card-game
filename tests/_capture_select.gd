@@ -21,11 +21,11 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	_frames += 1
 	var args := OS.get_cmdline_user_args()
-	# Optionally scroll the card row (arg 1 = "right") to view later characters.
-	if _frames == 2 and args.size() > 1 and args[1] == "right":
+	# Optionally scroll the card list (arg 1 = "right"/"down") to later characters.
+	if _frames == 2 and args.size() > 1 and (args[1] == "right" or args[1] == "down"):
 		var sc := _scene.get_node_or_null("VBox/ScrollContainer") as ScrollContainer
 		if sc:
-			sc.scroll_horizontal = 99999
+			sc.scroll_vertical = 99999
 	# Give the SubViewport figures a few frames to render.
 	if _frames < 60:
 		return false

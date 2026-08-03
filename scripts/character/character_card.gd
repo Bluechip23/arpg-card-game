@@ -10,7 +10,6 @@ var character_data: CharacterData
 
 # UI nodes built programmatically
 var _name_label: Label
-var _stat_labels: Dictionary = {}
 var _sprite_panel: PanelContainer
 var _sprite_texture: TextureRect
 var _sprite_label: Label
@@ -61,54 +60,16 @@ func _build_ui() -> void:
 
 	vbox.add_child(_make_separator())
 
-	# ── Stats + Sprite Row ───────────────────────
+	# ── Portrait Row ─────────────────────────────
+	# (Stats/resources removed: every character now starts with identical
+	# numbers, so the portrait is the card's hero visual.)
 	var content_row = HBoxContainer.new()
 	content_row.add_theme_constant_override("separation", 12)
+	content_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(content_row)
 
-	# Left: Stats VBox
-	var stats_vbox = VBoxContainer.new()
-	stats_vbox.add_theme_constant_override("separation", 3)
-	stats_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content_row.add_child(stats_vbox)
-
-	var core_header = _make_section_header("ATTRIBUTES")
-	stats_vbox.add_child(core_header)
-
-	var core_stats = [
-		["STR", Color(1.0, 0.5, 0.4)],
-		["DEX", Color(0.5, 1.0, 0.5)],
-		["INT", Color(0.5, 0.7, 1.0)],
-		["WIS", Color(0.8, 0.6, 1.0)],
-		["DET", Color(1.0, 0.8, 0.3)],
-		["AGI", Color(0.4, 1.0, 0.9)],
-	]
-	for entry in core_stats:
-		var lbl = _make_stat_label(entry[1])
-		stats_vbox.add_child(lbl)
-		_stat_labels[entry[0]] = lbl
-
-	var mini_sep = HSeparator.new()
-	mini_sep.add_theme_color_override("color", Color(0.25, 0.25, 0.35))
-	stats_vbox.add_child(mini_sep)
-
-	var derived_header = _make_section_header("RESOURCES")
-	stats_vbox.add_child(derived_header)
-
-	var derived_stats = [
-		["HP",   Color(1.0, 0.45, 0.45)],
-		["Mana", Color(0.4, 0.7, 1.0)],
-		["Hand", Color(0.9, 0.9, 0.9)],
-		["Draw", Color(0.9, 0.9, 0.9)],
-	]
-	for entry in derived_stats:
-		var lbl = _make_stat_label(entry[1])
-		stats_vbox.add_child(lbl)
-		_stat_labels[entry[0]] = lbl
-
-	# Right: Sprite placeholder panel
 	var sprite_panel = PanelContainer.new()
-	sprite_panel.custom_minimum_size = Vector2(95, 120)
+	sprite_panel.custom_minimum_size = Vector2(140, 150)
 	sprite_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var sp_style = StyleBoxFlat.new()
 	sp_style.bg_color = Color(0.06, 0.06, 0.1, 1.0)
@@ -273,29 +234,8 @@ func setup(character: CharacterData) -> void:
 	if character.character_name != "Customize":
 		_build_figure_preview(character.get_base_character(), character.sprite_path)
 
-	# Core stats
-	var core_values = {
-		"STR": character.strength,
-		"DEX": character.dexterity,
-		"INT": character.intelligence,
-		"WIS": character.wisdom,
-		"DET": character.determination,
-		"AGI": character.agility,
-	}
-	for key in core_values:
-		if _stat_labels.has(key):
-			_stat_labels[key].text = "%s  %d" % [key, core_values[key]]
-
-	# Derived stats
-	if _stat_labels.has("HP"):
-		_stat_labels["HP"].text   = "HP   %d" % character.base_health
-	if _stat_labels.has("Mana"):
-		_stat_labels["Mana"].text = "Mana %d" % character.base_mana
-	if _stat_labels.has("Hand"):
-		_stat_labels["Hand"].text = "Hand %d" % character.get_max_hand_size()
-	if _stat_labels.has("Draw"):
-		var draw_tempo = maxi(5, character.base_draw_timer * 5 - character.wisdom)
-		_stat_labels["Draw"].text = "Draw %d tempo" % draw_tempo
+	# (Per-character stat/resource readouts removed — identical across the
+	# roster now; identity comes from passive, slots and archetypes.)
 
 	# Passive & slot specialty
 	if _passive_label:
@@ -389,8 +329,3 @@ func _make_section_header(text: String) -> Label:
 	lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
 	return lbl
 
-func _make_stat_label(color: Color) -> Label:
-	var lbl = Label.new()
-	lbl.add_theme_font_size_override("font_size", 13)
-	lbl.add_theme_color_override("font_color", color)
-	return lbl

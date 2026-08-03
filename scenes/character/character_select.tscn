@@ -49,9 +49,11 @@ layout_mode = 2
 [node name="ScrollContainer" type="ScrollContainer" parent="VBox" unique_id=334920183]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="CharacterContainer" type="HBoxContainer" parent="VBox/ScrollContainer" unique_id=101367948]
+[node name="CharacterContainer" type="VBoxContainer" parent="VBox/ScrollContainer" unique_id=101367948]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 

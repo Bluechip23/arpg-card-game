@@ -4950,8 +4950,12 @@ func _wasd_step(dir: Vector2) -> void:
 		return
 
 	# Camera ground basis: forward is where the camera looks (−offset on XZ),
-	# right is forward rotated so +X is screen-right at yaw 0.
-	var forward := Vector2(-sin(_camera_yaw), -cos(_camera_yaw))  # (x, z)
+	# right is forward rotated so +X is screen-right at yaw 0. The yaw is
+	# quantized to the nearest 90° first (the camera itself settles there, but
+	# mid-drag or scripted angles must not scramble the key→direction map),
+	# then a tiny bias breaks exact-diagonal ties deterministically.
+	var quantized_yaw := snappedf(_camera_yaw, PI / 2.0) + 0.0001
+	var forward := Vector2(-sin(quantized_yaw), -cos(quantized_yaw))  # (x, z)
 	var right := Vector2(-forward.y, forward.x)
 	var world_dir := right * dir.x + forward * dir.y  # (x, z) on the ground
 
@@ -7435,9 +7439,11 @@ func _input(event: InputEvent) -> void:
 				_camera_drag_start = event.position
 		else:
 			if _camera_orbiting:
-				# SoM adaptation: settle the orbit on one of the 8 cardinal
-				# views so painted sprite lighting and the global light agree.
-				_camera_yaw = snappedf(_camera_yaw, PI / 4.0)
+				# SoM adaptation: settle the orbit on one of the 4 axis-aligned
+				# views. 90° steps (not 45°) so camera-relative WASD always maps
+				# each key to a distinct grid direction — at diagonal views the
+				# cardinal projection is ambiguous by geometry.
+				_camera_yaw = snappedf(_camera_yaw, PI / 2.0)
 				_update_camera()
 			_camera_orbiting = false
 

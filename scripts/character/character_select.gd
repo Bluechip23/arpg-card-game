@@ -5,7 +5,17 @@ extends Control
 
 signal character_selected(character: CharacterData)
 
-@onready var character_container: HBoxContainer = $VBox/ScrollContainer/CharacterContainer
+@onready var character_container: VBoxContainer = $VBox/ScrollContainer/CharacterContainer
+
+const CARD_LIST_WIDTH := 760.0  # cards centred at a readable width in the vertical list
+
+
+func _add_card_to_list(card: Control) -> void:
+	# add_child first: the card's _ready() applies its default 280px minimum,
+	# which the list width must override afterwards.
+	character_container.add_child(card)
+	card.custom_minimum_size.x = CARD_LIST_WIDTH
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 @onready var title_label: Label = $VBox/TitleLabel
 @onready var subtitle_label: Label = $VBox/SubtitleLabel
 @onready var title_separator: HSeparator = $VBox/TitleSeparator
@@ -259,7 +269,7 @@ func _setup_characters() -> void:
 	quiz_data.sprite_path = ""
 
 	var quiz_card = CharacterCardScene.instantiate()
-	character_container.add_child(quiz_card)
+	_add_card_to_list(quiz_card)
 	quiz_card.setup(quiz_data)
 	# Override the sprite label to show "?" instead of "C"
 	quiz_card._sprite_label.text = "?"
@@ -272,7 +282,7 @@ func _add_preset_character_cards() -> void:
 	var characters = CharacterData.get_all_characters()
 	for character in characters:
 		var card = CharacterCardScene.instantiate()
-		character_container.add_child(card)
+		_add_card_to_list(card)
 		card.setup(character)
 		card.selected.connect(_on_character_selected)
 		card.skill_tree_requested.connect(_on_skill_tree_requested)
@@ -287,7 +297,7 @@ func _add_saved_character_cards() -> int:
 			continue
 		_roguelike_saves[save.character_data] = save
 		var card = CharacterCardScene.instantiate()
-		character_container.add_child(card)
+		_add_card_to_list(card)
 		card.setup(save.character_data)
 		card.selected.connect(_on_character_selected)
 		count += 1
