@@ -196,7 +196,7 @@ var pit_tiles: Dictionary = {}  # Vector2i -> true: impassable pit hazards
 # Per-location fog radius. Sewers reveal less; the open forest reveals more.
 var fog_reveal_radius: int = FOG_REVEAL_RADIUS
 
-var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, body_mesh, lid_mesh}]
+var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, sprite}]
 var spawn_zones: Array = []     # [{trigger_rect, spawn_points, enemy_types, spawned}]
 var waypoint_nodes: Array = []  # [{node, grid_pos, target, display_name, label_node, discovered, pillar_mesh}]
 var site_nodes: Array = []      # [{node, grid_pos (entrance), id, kind, display_name, label_node, footprint}]
@@ -1007,7 +1007,13 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 	mm.instance_count = items.size()
 	for i in range(items.size()):
 		mm.set_instance_transform(i, items[i]["xform"])
-		mm.set_instance_color(i, items[i]["color"])
+		var inst_color: Color = items[i]["color"]
+		if texture_path != "":
+			# Tile textures are authored in full master-palette color now; the
+			# instance tint becomes a gentle theme cast instead of the color
+			# source, so painted hues survive on screen (16-bit pass).
+			inst_color = Color(1, 1, 1).lerp(inst_color, 0.5)
+		mm.set_instance_color(i, inst_color)
 	var mmi = MultiMeshInstance3D.new()
 	mmi.multimesh = mm
 	var mat = StandardMaterial3D.new()
@@ -1027,6 +1033,41 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 		mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	mmi.material_override = mat
 	_visuals_root.add_child(mmi)
+
+
+## Billboard sprite props (trees, bushes, rocks, stumps, ferns): a QuadMesh
+## MultiMesh with a nearest-filtered billboard material. items entries:
+## {pos: Vector3 ground point, scale: float, color: Color theme cast}.
+func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: float) -> void:
+	if items.is_empty():
+		return
+	var ps := 0.034  # world units per texel (style guide texel density)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(px_w * ps, px_h * ps)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = quad
+	mm.instance_count = items.size()
+	for i in range(items.size()):
+		var it: Dictionary = items[i]
+		var s: float = it.get("scale", 1.0)
+		var pos: Vector3 = it["pos"] + Vector3(0, px_h * ps * 0.5 * s, 0)
+		mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(s, s, s)), pos))
+		mm.set_instance_color(i, Color(1, 1, 1).lerp(it.get("color", Color.WHITE), 0.25))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(texture_path)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.billboard_keep_scale = true
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	mmi.material_override = mat
+	_visuals_root.add_child(mmi)
+
 
 func _build_floor_visuals() -> void:
 	## Per-tile ground at elevation 0 with subtle natural color variation.
@@ -1059,27 +1100,55 @@ func _build_floor_visuals() -> void:
 			items.append({"xform": xform, "color": col})
 	_add_multimesh(BoxMesh.new(), items, true, 0.95, floor_texture_path())
 	if not water_items.is_empty():
-		# Low roughness + faint emission so the water catches torchlight and reads wet.
-		var water_mm = MultiMesh.new()
-		water_mm.transform_format = MultiMesh.TRANSFORM_3D
-		water_mm.use_colors = true
-		water_mm.mesh = BoxMesh.new()
-		water_mm.instance_count = water_items.size()
-		for i in range(water_items.size()):
-			water_mm.set_instance_transform(i, water_items[i]["xform"])
-			water_mm.set_instance_color(i, water_items[i]["color"])
-		var wmmi = MultiMeshInstance3D.new()
-		wmmi.multimesh = water_mm
-		var wmat = StandardMaterial3D.new()
-		wmat.vertex_color_use_as_albedo = true
-		wmat.roughness = 0.12
-		wmat.metallic = 0.35
-		wmat.emission_enabled = true
-		wmat.emission = pal["water"].lightened(0.05)
-		wmat.emission_energy_multiplier = 0.25
-		wmmi.material_override = wmat
-		_visuals_root.add_child(wmmi)
+		# Flat painted 16-bit water: the ripples live in the tile art. No
+		# metallic/emission/gloss — modern PBR shine is a style violation.
+		_add_multimesh(BoxMesh.new(), water_items, true, 1.0, "res://assets/textures/tile_water.png")
 	print("[DUNGEON] Built %d floor tiles, %d water tiles" % [items.size(), water_items.size()])
+
+var _chamfer_mesh_cache: Dictionary = {}
+
+func _chamfered_unit_box(bh: float, ys: float) -> ArrayMesh:
+	## Unit box (drop-in for BoxMesh transforms) whose top rim is chamfered so
+	## wall and cliff silhouettes read as rounded SNES ledges, not razor edges.
+	## bh = horizontal rim inset; ys = unit height where the bevel begins.
+	var key := "%f_%f" % [bh, ys]
+	if _chamfer_mesh_cache.has(key):
+		return _chamfer_mesh_cache[key]
+	var i := 0.5 - bh
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Quads listed counter-clockwise viewed from outside; emitted flipped to
+	# match Godot's clockwise front-face winding.
+	var faces := [
+		[Vector3(-0.5, -0.5, 0.5), Vector3(0.5, -0.5, 0.5), Vector3(0.5, ys, 0.5), Vector3(-0.5, ys, 0.5)],
+		[Vector3(0.5, -0.5, -0.5), Vector3(-0.5, -0.5, -0.5), Vector3(-0.5, ys, -0.5), Vector3(0.5, ys, -0.5)],
+		[Vector3(0.5, -0.5, 0.5), Vector3(0.5, -0.5, -0.5), Vector3(0.5, ys, -0.5), Vector3(0.5, ys, 0.5)],
+		[Vector3(-0.5, -0.5, -0.5), Vector3(-0.5, -0.5, 0.5), Vector3(-0.5, ys, 0.5), Vector3(-0.5, ys, -0.5)],
+		[Vector3(-0.5, ys, 0.5), Vector3(0.5, ys, 0.5), Vector3(i, 0.5, i), Vector3(-i, 0.5, i)],
+		[Vector3(0.5, ys, -0.5), Vector3(-0.5, ys, -0.5), Vector3(-i, 0.5, -i), Vector3(i, 0.5, -i)],
+		[Vector3(0.5, ys, 0.5), Vector3(0.5, ys, -0.5), Vector3(i, 0.5, -i), Vector3(i, 0.5, i)],
+		[Vector3(-0.5, ys, -0.5), Vector3(-0.5, ys, 0.5), Vector3(-i, 0.5, i), Vector3(-i, 0.5, -i)],
+		[Vector3(-i, 0.5, i), Vector3(i, 0.5, i), Vector3(i, 0.5, -i), Vector3(-i, 0.5, -i)],
+		[Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5), Vector3(0.5, -0.5, 0.5), Vector3(-0.5, -0.5, 0.5)],
+	]
+	for f in faces:
+		for idx in [0, 2, 1, 0, 3, 2]:
+			st.add_vertex(f[idx])
+	st.generate_normals()
+	var mesh := st.commit()
+	_chamfer_mesh_cache[key] = mesh
+	return mesh
+
+func _min_adjacent_floor_elevation(x: int, z: int) -> int:
+	var min_elev := 99
+	for dx in [-1, 0, 1]:
+		for dz in [-1, 0, 1]:
+			var nx = x + dx
+			var nz = z + dz
+			if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H:
+				if grid[nx][nz] == Tile.FLOOR:
+					min_elev = mini(min_elev, elevation[nx][nz])
+	return 0 if min_elev == 99 else min_elev
 
 func _build_walls() -> void:
 	## Rock walls with varied heights and shades. Walls beside elevated terrain
@@ -1087,6 +1156,7 @@ func _build_walls() -> void:
 	var pal = get_palette()
 	var is_building = interior_kind == "building"
 	var items: Array = []
+	var skirt_items: Array = []
 	var site_tiles = _all_site_footprint_tiles()
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1108,7 +1178,20 @@ func _build_walls() -> void:
 				Vector3(x + 0.5, height / 2.0, z + 0.5)
 			)
 			items.append({"xform": xform, "color": col})
-	_add_multimesh(BoxMesh.new(), items, true, 0.95, wall_texture_path())
+			# Painted contact band where the wall meets the walkable ground.
+			var base_y = _min_adjacent_floor_elevation(x, z) * ELEV_STEP
+			skirt_items.append({
+				"xform": Transform3D(
+					Basis.from_scale(Vector3(1.16, 0.045, 1.16)),
+					Vector3(x + 0.5, base_y + 0.0225, z + 0.5)
+				),
+				"color": pal["ground"],
+			})
+	# Interior building walls stay crisp and man-made; natural rock is rounded.
+	var wall_mesh: Mesh = BoxMesh.new() if is_building else _chamfered_unit_box(0.14, 0.42)
+	_add_multimesh(wall_mesh, items, true, 0.95, wall_texture_path())
+	if not is_building:
+		_add_multimesh(BoxMesh.new(), skirt_items, false)
 	print("[DUNGEON] Built %d wall segments (%s %dx%d)" % [items.size(), get_location_name(), GRID_W, GRID_H])
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
@@ -1141,6 +1224,8 @@ func _build_elevation_visuals() -> void:
 	var cliff_items: Array = []
 	var top_items: Array = []
 	var step_items: Array = []
+	var skirt_items: Array = []
+	var dirs4 = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1158,6 +1243,22 @@ func _build_elevation_visuals() -> void:
 				),
 				"color": cliff_col,
 			})
+			# Painted contact band at the base of exposed cliff faces.
+			var lowest := 99
+			for dir in dirs4:
+				var nx = x + dir.x
+				var nz = z + dir.y
+				if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H:
+					if grid[nx][nz] == Tile.FLOOR and elevation[nx][nz] < elevation[x][z]:
+						lowest = mini(lowest, elevation[nx][nz])
+			if lowest < 99:
+				skirt_items.append({
+					"xform": Transform3D(
+						Basis.from_scale(Vector3(1.16, 0.045, 1.16)),
+						Vector3(x + 0.5, lowest * ELEV_STEP + 0.0225, z + 0.5)
+					),
+					"color": pal["ground"],
+				})
 			# Top surface: matches the floor palette but reads slightly sun-lit
 			var top_col: Color = pal["floor_a"].lerp(pal["floor_b"], _tile_noise(x, z, 11)).lightened(0.12)
 			top_items.append({
@@ -1196,9 +1297,13 @@ func _build_elevation_visuals() -> void:
 						"color": pal["step"],
 					})
 
-	_add_multimesh(BoxMesh.new(), cliff_items, true, 0.95, "res://assets/textures/tile_rock.png")
+	# Chamfered rock shoulders under full-width turf caps: the caps overhang
+	# the rounded rim slightly, the classic SNES plateau lip.
+	_add_multimesh(_chamfered_unit_box(0.08, 0.30), cliff_items, true, 0.95, "res://assets/textures/tile_rock.png")
 	_add_multimesh(BoxMesh.new(), top_items, true, 0.95, floor_texture_path())
 	_add_multimesh(BoxMesh.new(), step_items, true, 0.85, "res://assets/textures/tile_dirt.png")
+	if not skirt_items.is_empty():
+		_add_multimesh(BoxMesh.new(), skirt_items, false)
 	print("[DUNGEON] Built %d cliff tiles, %d stone steps" % [cliff_items.size(), step_items.size() / 3])
 
 func _build_decorations() -> void:
@@ -1218,6 +1323,12 @@ func _build_decorations() -> void:
 	var rock_items: Array = []
 	var bush_items: Array = []
 	var cone_items: Array = []
+	var _deco_trees: Array = []
+	var _deco_rocks: Array = []
+	var _deco_bushes: Array = []
+	var _deco_ferns: Array = []
+	var _deco_flowers: Array = []
+	var _deco_spikes: Array = []
 
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1235,15 +1346,15 @@ func _build_decorations() -> void:
 
 			if interior_kind == "cave":
 				if near_wall and n < 0.14:
-					# Stalagmite
-					var s = 0.25 + _tile_noise(x, z, 73) * 0.45
-					cone_items.append({
-						"xform": Transform3D(rot * Basis.from_scale(Vector3(s * 0.7, s * 1.6, s * 0.7)),
-							Vector3(x + 0.5 + jx, y_base + s * 0.8, z + 0.5 + jz)),
+					# Stalagmite (billboard sprite)
+					_deco_spikes.append({
+						"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.5 + _tile_noise(x, z, 73) * 0.9,
 						"color": pal["wall_a"].lerp(pal["wall_b"], n * 3.0),
 					})
 				elif near_wall and n < 0.2:
-					rock_items.append(_make_rock(x, z, jx, jz, y_base, rot, pal))
+					_deco_rocks.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.8 + _tile_noise(x, z, 75) * 0.5, "color": pal["wall_a"]})
 			elif interior_kind == "building":
 				if near_wall and n < 0.10:
 					# Crates and furniture
@@ -1254,18 +1365,35 @@ func _build_decorations() -> void:
 						"color": pal["accent"].lerp(pal["floor_b"], n * 2.0),
 					})
 			else:
-				if near_wall and n < 0.11:
-					rock_items.append(_make_rock(x, z, jx, jz, y_base, rot, pal))
-				elif n > 0.96:
-					# Open-field shrub
-					var s = 0.5 + _tile_noise(x, z, 83) * 0.3
-					bush_items.append({
-						"xform": Transform3D(rot * Basis.from_scale(Vector3(s, s * 0.55, s)),
-							Vector3(x + 0.5 + jx, y_base + s * 0.2, z + 0.5 + jz)),
-						"color": pal["accent"].lerp(pal["floor_a"], _tile_noise(x, z, 89) * 0.6),
-					})
+				if near_wall and n < 0.07:
+					# Treeline trees hugging the walls (billboard sprites)
+					_deco_trees.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.85 + _tile_noise(x, z, 73) * 0.5,
+							"color": pal.get("leaf", pal["floor_a"])})
+				elif near_wall and n < 0.11:
+					_deco_rocks.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.7 + _tile_noise(x, z, 75) * 0.5, "color": pal["wall_a"]})
+				elif n > 0.925:
+					_deco_bushes.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.8 + _tile_noise(x, z, 83) * 0.5,
+							"color": pal["accent"].lerp(pal["floor_a"], 0.5)})
+				elif n > 0.885:
+					_deco_ferns.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.8 + _tile_noise(x, z, 87) * 0.4,
+							"color": pal["floor_a"]})
+				elif n > 0.84:
+					# Flower clumps scattered through the open meadow
+					_deco_flowers.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.8 + _tile_noise(x, z, 89) * 0.4,
+							"color": Color.WHITE})
 
 	_add_multimesh(BoxMesh.new(), rock_items)
+	_add_sprite_decos(_deco_trees, "res://assets/textures/props/tree.png", 48, 64)
+	_add_sprite_decos(_deco_rocks, "res://assets/textures/props/rock.png", 32, 24)
+	_add_sprite_decos(_deco_bushes, "res://assets/textures/props/bush.png", 32, 24)
+	_add_sprite_decos(_deco_ferns, "res://assets/textures/props/fern.png", 24, 24)
+	_add_sprite_decos(_deco_flowers, "res://assets/textures/props/flowers.png", 20, 14)
+	_add_sprite_decos(_deco_spikes, "res://assets/textures/props/stalagmite.png", 16, 24)
 	if not bush_items.is_empty():
 		var bush_mesh = SphereMesh.new()
 		bush_mesh.radial_segments = 12
@@ -1278,7 +1406,10 @@ func _build_decorations() -> void:
 		cone.height = 1.0
 		cone.radial_segments = 10
 		_add_multimesh(cone, cone_items)
-	print("[DUNGEON] Placed %d decorations" % (rock_items.size() + bush_items.size() + cone_items.size()))
+	print("[DUNGEON] Placed %d mesh decos + %d trees, %d rocks, %d bushes, %d ferns, %d flowers" % [
+		rock_items.size() + bush_items.size() + cone_items.size(),
+		_deco_trees.size(), _deco_rocks.size(), _deco_bushes.size(),
+		_deco_ferns.size(), _deco_flowers.size()])
 
 func _make_rock(x: int, z: int, jx: float, jz: float, y_base: float, rot: Basis, pal: Dictionary) -> Dictionary:
 	var sx = 0.2 + _tile_noise(x, z, 91) * 0.25
@@ -1399,7 +1530,7 @@ func _place_sewer_torches(wall_edges: Array, pal: Dictionary) -> void:
 		bracket.rotation_degrees = Vector3(0, 0, 90)
 		var iron = StandardMaterial3D.new()
 		iron.albedo_color = Color(0.10, 0.10, 0.11)
-		iron.metallic = 0.7
+		iron.metallic = 0.0  # no modern specular pop
 		iron.roughness = 0.6
 		bracket.material_override = iron
 		bracket.position = -into * 0.5
@@ -1428,7 +1559,7 @@ func _place_sewer_torches(wall_edges: Array, pal: Dictionary) -> void:
 		light.light_color = flame_col
 		light.light_energy = 2.4
 		light.omni_range = 7.5
-		light.omni_attenuation = 1.4
+		light.omni_attenuation = 2.0  # tighter falloff, less modern gradient
 		light.shadow_enabled = false
 		light.position = Vector3(0, 0.2, 0)
 		root.add_child(light)
@@ -1469,7 +1600,7 @@ func _place_sewer_pipes(wall_edges: Array, pal: Dictionary) -> void:
 			pipe.rotation_degrees = Vector3(90, 0, 0)
 		var metal = StandardMaterial3D.new()
 		metal.albedo_color = Color(0.18, 0.20, 0.19)
-		metal.metallic = 0.6
+		metal.metallic = 0.0  # no modern specular pop
 		metal.roughness = 0.7
 		pipe.material_override = metal
 		root.add_child(pipe)
@@ -1513,35 +1644,29 @@ func _place_sewer_pipes(wall_edges: Array, pal: Dictionary) -> void:
 		splash.position = into * 0.28 + Vector3(0, -1.0, 0)
 		root.add_child(splash)
 
-func _make_water_stream() -> GPUParticles3D:
-	var pm = ParticleProcessMaterial.new()
-	pm.direction = Vector3(0, -1, 0)
-	pm.spread = 4.0
-	pm.gravity = Vector3(0, -9.0, 0)
-	pm.initial_velocity_min = 0.4
-	pm.initial_velocity_max = 0.9
-	pm.scale_min = 0.5
-	pm.scale_max = 1.0
-	var drop = SphereMesh.new()
-	drop.radius = 0.025
-	drop.height = 0.07
-	drop.radial_segments = 5
-	drop.rings = 3
-	var dmat = StandardMaterial3D.new()
-	dmat.albedo_color = Color(0.55, 0.70, 0.72, 0.7)
-	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dmat.emission_enabled = true
-	dmat.emission = Color(0.4, 0.55, 0.55)
-	dmat.emission_energy_multiplier = 0.4
-	drop.material = dmat
-	var p = GPUParticles3D.new()
-	p.process_material = pm
-	p.draw_pass_1 = drop
-	p.amount = 18
-	p.lifetime = 0.7
-	p.preprocess = 0.7
-	p.local_coords = false
-	return p
+func _make_pixel_anim(strip_path: String, frame_w: int, frame_h: int, fps: float) -> AnimatedSprite3D:
+	## Looping frame-strip billboard: the 16-bit stand-in for GPU particles.
+	var tex: Texture2D = load(strip_path)
+	var frames = SpriteFrames.new()
+	frames.set_animation_speed("default", fps)
+	var count := int(tex.get_width() / frame_w)
+	for i in range(count):
+		var at = AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(i * frame_w, 0, frame_w, frame_h)
+		frames.add_frame("default", at)
+	var spr = AnimatedSprite3D.new()
+	spr.sprite_frames = frames
+	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	spr.shaded = false
+	spr.pixel_size = 0.034
+	spr.play("default")
+	return spr
+
+func _make_water_stream() -> Node3D:
+	## Frame-animated pixel dribble replacing the GPU droplet spray.
+	return _make_pixel_anim("res://assets/textures/props/drip_strip.png", 8, 16, 6.0)
 
 func _place_sewer_steam(water_tiles: Array, pal: Dictionary) -> void:
 	## Slow columns of warm steam rising off the water.
@@ -1558,33 +1683,12 @@ func _place_sewer_steam(water_tiles: Array, pal: Dictionary) -> void:
 		steam.position = Vector3(pos.x + 0.5, 0.05, pos.y + 0.5)
 		_visuals_root.add_child(steam)
 
-func _make_steam() -> GPUParticles3D:
-	var pm = ParticleProcessMaterial.new()
-	pm.direction = Vector3(0, 1, 0)
-	pm.spread = 8.0
-	pm.gravity = Vector3(0, 0.35, 0)
-	pm.initial_velocity_min = 0.2
-	pm.initial_velocity_max = 0.5
-	pm.scale_min = 1.4
-	pm.scale_max = 2.6
-	pm.color = Color(0.7, 0.78, 0.76, 0.10)
-	var puff = QuadMesh.new()
-	puff.size = Vector2(0.6, 0.6)
-	var qmat = StandardMaterial3D.new()
-	qmat.albedo_color = Color(0.72, 0.80, 0.78, 0.10)
-	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	qmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	qmat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	qmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	puff.material = qmat
-	var p = GPUParticles3D.new()
-	p.process_material = pm
-	p.draw_pass_1 = puff
-	p.amount = 10
-	p.lifetime = 3.2
-	p.preprocess = 3.0
-	p.local_coords = false
-	return p
+func _make_steam() -> Node3D:
+	## Frame-animated pixel wisp replacing the additive particle cloud.
+	var spr = _make_pixel_anim("res://assets/textures/props/steam_strip.png", 16, 24, 3.0)
+	spr.modulate = Color(1, 1, 1, 0.55)
+	spr.position.y = 0.45
+	return spr
 
 func _place_sewer_grates(water_tiles: Array, pal: Dictionary) -> void:
 	## Iron grates set over a few stretches of the channel.
@@ -1597,7 +1701,7 @@ func _place_sewer_grates(water_tiles: Array, pal: Dictionary) -> void:
 	var picks = _spaced_sample(entries, want, 3)
 	var bar_mat = StandardMaterial3D.new()
 	bar_mat.albedo_color = Color(0.13, 0.13, 0.14)
-	bar_mat.metallic = 0.7
+	bar_mat.metallic = 0.0  # no modern specular pop
 	bar_mat.roughness = 0.6
 	for entry in picks:
 		var pos: Vector2i = entry["pos"]
@@ -1669,7 +1773,7 @@ func _place_sewer_doors(pal: Dictionary) -> void:
 			hub.rotation_degrees = Vector3(90, 0, 0)
 		var iron = StandardMaterial3D.new()
 		iron.albedo_color = Color(0.16, 0.16, 0.17)
-		iron.metallic = 0.6
+		iron.metallic = 0.0  # no modern specular pop
 		iron.roughness = 0.7
 		hub.material_override = iron
 		hub.position = into * 0.13
@@ -1714,7 +1818,7 @@ func _place_sewer_manholes(pal: Dictionary) -> void:
 		cover.mesh = cmesh
 		var mat = StandardMaterial3D.new()
 		mat.albedo_color = Color(0.14, 0.15, 0.15)
-		mat.metallic = 0.5
+		mat.metallic = 0.0  # no modern specular pop
 		mat.roughness = 0.8
 		cover.material_override = mat
 		cover.position = Vector3(cell.x + 0.5, 0.02, cell.y + 0.5)
@@ -1958,7 +2062,7 @@ func _place_bear_traps(cells: Array) -> void:
 func _build_bear_trap_mesh(root: Node3D) -> void:
 	var iron = StandardMaterial3D.new()
 	iron.albedo_color = Color(0.16, 0.16, 0.17)
-	iron.metallic = 0.7
+	iron.metallic = 0.0  # no modern specular pop
 	iron.roughness = 0.5
 	# Base ring.
 	var ring = MeshInstance3D.new()
@@ -2063,7 +2167,7 @@ func _build_dart_trap_mesh(root: Node3D, pos: Vector2i, perp: Vector2i) -> void:
 		tube.rotation_degrees = Vector3(90, 0, 0)
 	var tmat = StandardMaterial3D.new()
 	tmat.albedo_color = pal.get("bark", Color(0.26, 0.18, 0.11)).darkened(0.2)
-	tmat.metallic = 0.3
+	tmat.metallic = 0.0  # no modern specular pop
 	tube.material_override = tmat
 	tube.position = post_pos + Vector3(0, 0.9, 0)
 	root.add_child(tube)
@@ -2097,47 +2201,28 @@ func _build_forest_decorations() -> void:
 			var y_base = elevation[x][z] * ELEV_STEP
 			var rot = Basis(Vector3.UP, _tile_noise(x, z, 71) * TAU)
 			if near_wall and n < 0.30:
-				# Background tree hugging the treeline (trunk + canopy multimesh).
-				var s = 0.7 + _tile_noise(x, z, 73) * 0.7
-				trunk_items.append({
-					"xform": Transform3D(Basis.from_scale(Vector3(0.2 * s, 1.4 * s, 0.2 * s)),
-						Vector3(x + 0.5 + jx, y_base + 0.7 * s, z + 0.5 + jz)),
-					"color": pal["bark"],
-				})
-				canopy_items.append({
-					"xform": Transform3D(rot * Basis.from_scale(Vector3(0.9 * s, 1.0 * s, 0.9 * s)),
-						Vector3(x + 0.5 + jx, y_base + 1.7 * s, z + 0.5 + jz)),
-					"color": pal["leaf"].lerp(pal["leaf_b"], _tile_noise(x, z, 79)),
-				})
+				# Treeline tree (billboard sprite).
+				trunk_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.8 + _tile_noise(x, z, 73) * 0.7,
+						"color": pal["leaf"].lerp(pal["leaf_b"], _tile_noise(x, z, 79))})
 			elif near_wall and n < 0.40:
-				# Mossy stump.
-				var ss = 0.2 + _tile_noise(x, z, 81) * 0.15
-				stump_items.append({
-					"xform": Transform3D(rot * Basis.from_scale(Vector3(ss * 1.3, ss, ss * 1.3)),
-						Vector3(x + 0.5 + jx, y_base + ss * 0.5, z + 0.5 + jz)),
-					"color": pal["bark"].lerp(pal["accent"], 0.3),
-				})
-			elif n > 0.90:
-				# Open-field bush / fern.
-				var bs = 0.4 + _tile_noise(x, z, 83) * 0.4
-				bush_items.append({
-					"xform": Transform3D(rot * Basis.from_scale(Vector3(bs, bs * 0.7, bs)),
-						Vector3(x + 0.5 + jx, y_base + bs * 0.3, z + 0.5 + jz)),
-					"color": pal["accent"].lerp(pal["leaf"], _tile_noise(x, z, 89)),
-				})
+				# Mossy stump (billboard sprite).
+				stump_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.7 + _tile_noise(x, z, 81) * 0.4,
+						"color": pal["bark"].lerp(pal["accent"], 0.3)})
+			elif n > 0.93:
+				bush_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.7 + _tile_noise(x, z, 83) * 0.6,
+						"color": pal["accent"].lerp(pal["leaf"], _tile_noise(x, z, 89))})
+			elif n > 0.88:
+				canopy_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.75 + _tile_noise(x, z, 91) * 0.4,
+						"color": pal["leaf"]})
 
-	_add_multimesh(_cylinder_mesh(0.5, 0.5, 1.0), trunk_items)
-	if not canopy_items.is_empty():
-		var cmesh = SphereMesh.new()
-		cmesh.radial_segments = 8
-		cmesh.rings = 5
-		_add_multimesh(cmesh, canopy_items)
-	_add_multimesh(_cylinder_mesh(0.5, 0.55, 1.0), stump_items)
-	if not bush_items.is_empty():
-		var bmesh = SphereMesh.new()
-		bmesh.radial_segments = 8
-		bmesh.rings = 5
-		_add_multimesh(bmesh, bush_items)
+	_add_sprite_decos(trunk_items, "res://assets/textures/props/tree.png", 48, 64)
+	_add_sprite_decos(canopy_items, "res://assets/textures/props/fern.png", 24, 24)
+	_add_sprite_decos(stump_items, "res://assets/textures/props/stump.png", 24, 20)
+	_add_sprite_decos(bush_items, "res://assets/textures/props/bush.png", 32, 24)
 
 	_place_forest_squirrels(floor_cells)
 	print("[DUNGEON] Forest dressing: %d trees, %d stumps, %d bushes" % [
@@ -2227,20 +2312,20 @@ func _build_cave_decorations() -> void:
 			var is_wet = is_water(pos)
 
 			if near_wall and n < 0.16:
-				# Stalagmite rising from the floor.
-				var s = 0.3 + _tile_noise(x, z, 73) * 0.5
+				# Stalagmite rising from the floor (billboard sprite).
+				var s = 0.6 + _tile_noise(x, z, 73) * 0.9
 				stalagmite_items.append({
-					"xform": Transform3D(rot * Basis.from_scale(Vector3(s * 0.7, s * 1.7, s * 0.7)),
-						Vector3(x + 0.5 + jx, s * 0.85, z + 0.5 + jz)),
+					"pos": Vector3(x + 0.5 + jx, 0.0, z + 0.5 + jz),
+					"scale": s,
 					"color": pal["wall_a"].lerp(pal["wall_b"], n * 3.0),
 				})
 			elif near_wall and n < 0.30:
-				# Stalactite hanging from the gloom above, point downward.
-				var hs = 0.25 + _tile_noise(x, z, 77) * 0.4
-				var flip = Basis(Vector3(1, 0, 0), PI)  # invert the cone
+				# Stalactite hanging from the gloom above (billboard sprite,
+				# drawn tip-down; anchored so its root touches the dark above).
+				var hs = 0.5 + _tile_noise(x, z, 77) * 0.7
 				stalactite_items.append({
-					"xform": Transform3D(rot * flip * Basis.from_scale(Vector3(hs * 0.6, hs * 1.8, hs * 0.6)),
-						Vector3(x + 0.5 + jx, 2.9 - hs * 0.9, z + 0.5 + jz)),
+					"pos": Vector3(x + 0.5 + jx, 2.9 - 24.0 * 0.034 * hs, z + 0.5 + jz),
+					"scale": hs,
 					"color": pal["wall_a"].lerp(pal["wall_b"], n * 2.0),
 				})
 			elif not is_wet and n > 0.93:
@@ -2253,19 +2338,8 @@ func _build_cave_decorations() -> void:
 			elif near_wall and n > 0.78:
 				pebble_items.append(_make_rock(x, z, jx, jz, 0.0, rot, pal))
 
-	var up_cone = CylinderMesh.new()
-	up_cone.top_radius = 0.03
-	up_cone.bottom_radius = 0.5
-	up_cone.height = 1.0
-	up_cone.radial_segments = 8
-	_add_multimesh(up_cone, stalagmite_items)
-
-	var hang_cone = CylinderMesh.new()
-	hang_cone.top_radius = 0.03
-	hang_cone.bottom_radius = 0.5
-	hang_cone.height = 1.0
-	hang_cone.radial_segments = 8
-	_add_multimesh(hang_cone, stalactite_items)
+	_add_sprite_decos(stalagmite_items, "res://assets/textures/props/stalagmite.png", 16, 24)
+	_add_sprite_decos(stalactite_items, "res://assets/textures/props/stalactite.png", 16, 24)
 
 	_add_multimesh(BoxMesh.new(), divot_items)
 	_add_multimesh(BoxMesh.new(), pebble_items)
@@ -2284,10 +2358,8 @@ func _place_cave_drips(stalactite_items: Array) -> void:
 	for i in range(0, stalactite_items.size(), step):
 		if made >= want:
 			break
-		var origin: Vector3 = stalactite_items[i]["xform"].origin
+		var origin: Vector3 = stalactite_items[i]["pos"]
 		var drip = _make_water_stream()
-		drip.amount = 5
-		drip.lifetime = 1.4
 		drip.position = Vector3(origin.x, origin.y - 0.4, origin.z)
 		_visuals_root.add_child(drip)
 		made += 1
@@ -2315,7 +2387,15 @@ func _build_fog() -> void:
 	var mmi = MultiMeshInstance3D.new()
 	mmi.multimesh = _fog_mm
 	var fog_mat = StandardMaterial3D.new()
-	fog_mat.albedo_color = Color(0.012, 0.012, 0.022, 1.0)
+	# Matches the WorldEnvironment backdrop (dark olive) so unexplored land
+	# and the out-of-map void blend into one darkened treeline — no pure
+	# black holes against the meadow (16-bit pass). A faint dither texture
+	# keeps the slabs from reading as flat modern boxes.
+	fog_mat.albedo_color = Color(1, 1, 1)
+	fog_mat.albedo_texture = load("res://assets/textures/tile_fog.png")
+	fog_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	fog_mat.uv1_triplanar = true
+	fog_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	fog_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mmi.material_override = fog_mat
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -2538,6 +2618,18 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	})
 	_reserve_area(entrance, 1)
 
+func _pixel_mat(texture_path: String, tint: Color) -> StandardMaterial3D:
+	## Nearest-filtered triplanar tile material for site structures, matching
+	## the terrain formula: near-white cast so the sheet's colors survive.
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1, 1, 1).lerp(tint, 0.5)
+	mat.albedo_texture = load(texture_path)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	mat.roughness = 1.0
+	return mat
+
 func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## Simple generic structure: stone walls, pitched roof, door, lit windows.
 	var w = fp_w - 0.3
@@ -2548,10 +2640,7 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	var body_mesh = BoxMesh.new()
 	body_mesh.size = Vector3(w, wall_h, d)
 	body.mesh = body_mesh
-	var body_mat = StandardMaterial3D.new()
-	body_mat.albedo_color = Color(0.55, 0.50, 0.44)
-	body_mat.roughness = 0.9
-	body.material_override = body_mat
+	body.material_override = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.55, 0.50, 0.44))
 	body.position = Vector3(0, wall_h / 2.0, 0)
 	root.add_child(body)
 
@@ -2560,10 +2649,7 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	roof_mesh.size = Vector3(d + 0.5, 0.9, w + 0.5)
 	roof_mesh.left_to_right = 0.5
 	roof.mesh = roof_mesh
-	var roof_mat = StandardMaterial3D.new()
-	roof_mat.albedo_color = Color(0.42, 0.22, 0.16)
-	roof_mat.roughness = 0.85
-	roof.material_override = roof_mat
+	roof.material_override = _pixel_mat("res://assets/textures/tile_dirt.png", Color(0.42, 0.22, 0.16))
 	roof.rotation_degrees.y = 90.0  # Ridge runs along the building's long axis
 	roof.position = Vector3(0, wall_h + 0.45, 0)
 	root.add_child(roof)
@@ -2605,10 +2691,7 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	cone.height = 2.2
 	cone.radial_segments = 12
 	mound.mesh = cone
-	var mound_mat = StandardMaterial3D.new()
-	mound_mat.albedo_color = pal["cliff"]
-	mound_mat.roughness = 1.0
-	mound.material_override = mound_mat
+	mound.material_override = _pixel_mat("res://assets/textures/tile_rock.png", pal["cliff"])
 	mound.position = Vector3(0, 1.1, -0.2)
 	root.add_child(mound)
 
@@ -2621,10 +2704,7 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		sphere.radial_segments = 10
 		sphere.rings = 6
 		boulder.mesh = sphere
-		var b_mat = StandardMaterial3D.new()
-		b_mat.albedo_color = pal["wall_b"]
-		b_mat.roughness = 1.0
-		boulder.material_override = b_mat
+		boulder.material_override = _pixel_mat("res://assets/textures/tile_rock.png", pal["wall_b"])
 		boulder.position = Vector3(side * fp_w * 0.45, 0.3, fp_d / 2.0 - 0.4)
 		root.add_child(boulder)
 
@@ -2643,9 +2723,7 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## A low brick headworks with an arched, barred opening descending into the
 	## dark — the manhole/grate the player climbs down to reach the sewers.
-	var brick = StandardMaterial3D.new()
-	brick.albedo_color = Color(0.30, 0.31, 0.29)
-	brick.roughness = 1.0
+	var brick = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.30, 0.31, 0.29))
 
 	# Squat stone surround.
 	var block = MeshInstance3D.new()
@@ -2684,8 +2762,8 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	# Iron bars across the mouth (a raised grate).
 	var bar_mat = StandardMaterial3D.new()
 	bar_mat.albedo_color = Color(0.12, 0.12, 0.13)
-	bar_mat.metallic = 0.7
-	bar_mat.roughness = 0.6
+	bar_mat.metallic = 0.0  # no modern specular pop
+	bar_mat.roughness = 1.0
 	for i in range(3):
 		var bar = MeshInstance3D.new()
 		var barmesh = BoxMesh.new()
@@ -2700,6 +2778,7 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	glow.light_color = Color(0.4, 0.7, 0.5)
 	glow.light_energy = 0.8
 	glow.omni_range = 3.5
+	glow.omni_attenuation = 2.0  # tighter falloff, less modern gradient
 	glow.position = Vector3(0, 0.3, fp_d / 2.0 - 0.1)
 	root.add_child(glow)
 
@@ -2709,32 +2788,20 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	var bark = StandardMaterial3D.new()
 	bark.albedo_color = Color(0.26, 0.18, 0.11)
 	bark.roughness = 1.0
-	var leaf = StandardMaterial3D.new()
-	leaf.albedo_color = Color(0.20, 0.40, 0.16)
-	leaf.roughness = 1.0
 
-	# Two flanking trees.
+	# Two flanking trees — the same billboard sprite the forest interior uses,
+	# scaled up into gateposts (no smooth mesh spheres).
 	for side in [-1.0, 1.0]:
-		var trunk = MeshInstance3D.new()
-		var tmesh = CylinderMesh.new()
-		tmesh.top_radius = 0.18
-		tmesh.bottom_radius = 0.26
-		tmesh.height = 2.4
-		tmesh.radial_segments = 8
-		trunk.mesh = tmesh
-		trunk.material_override = bark
-		trunk.position = Vector3(side * fp_w * 0.42, 1.2, -0.1)
-		root.add_child(trunk)
-		var canopy = MeshInstance3D.new()
-		var cmesh = SphereMesh.new()
-		cmesh.radius = 0.9
-		cmesh.height = 1.7
-		cmesh.radial_segments = 8
-		cmesh.rings = 5
-		canopy.mesh = cmesh
-		canopy.material_override = leaf
-		canopy.position = Vector3(side * fp_w * 0.42, 2.7, -0.1)
-		root.add_child(canopy)
+		var tree = Sprite3D.new()
+		tree.texture = load("res://assets/textures/props/tree.png")
+		tree.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		tree.shaded = false
+		tree.pixel_size = 0.034
+		var tree_scale := 1.6
+		tree.scale = Vector3(tree_scale, tree_scale, tree_scale)
+		tree.position = Vector3(side * fp_w * 0.42, 64.0 * 0.034 * 0.5 * tree_scale, -0.1)
+		root.add_child(tree)
 
 	# A simple wooden lintel spanning the two trees.
 	var lintel = MeshInstance3D.new()
@@ -2907,15 +2974,7 @@ func _restore_opened_chests() -> void:
 
 		# Visually open the chest
 		chest_nodes[i]["opened"] = true
-		var body_mesh: MeshInstance3D = chest_nodes[i]["body_mesh"]
-		var lid_mesh: MeshInstance3D = chest_nodes[i]["lid_mesh"]
-		if body_mesh:
-			var mat = body_mesh.material_override as StandardMaterial3D
-			if mat:
-				mat.albedo_color = Color(0.35, 0.3, 0.15)
-		if lid_mesh:
-			lid_mesh.rotation_degrees.x = -110
-			lid_mesh.position = Vector3(0, 0.55, -0.15)
+		_set_chest_open_visual(i)
 
 		if state is Dictionary:
 			# Partially opened: gold was claimed, apply item/card claim flags
@@ -2932,55 +2991,27 @@ func _restore_opened_chests() -> void:
 			# Legacy true value or fully looted
 			mark_chest_looted(i)
 
+func _set_chest_open_visual(index: int) -> void:
+	var sprite: Sprite3D = chest_nodes[index].get("sprite")
+	if sprite:
+		sprite.texture = load("res://assets/textures/props/chest_open.png")
+
 func _create_chest(grid_pos: Vector2i) -> void:
 	var chest_root = Node3D.new()
 	chest_root.name = "TreasureChest_%d" % chest_nodes.size()
 
-	# Chest body (box)
-	var body = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(0.7, 0.5, 0.5)
-	body.mesh = box
-	var body_mat = StandardMaterial3D.new()
-	body_mat.albedo_color = Color8(0x6b, 0x53, 0x3e)  # Palette wood (SKIN_4)
-	body_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	body_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
-	body_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	body_mat.uv1_triplanar = true
-	body_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
-	body.material_override = body_mat
-	body.position = Vector3(0, 0.25, 0)
-	chest_root.add_child(body)
-
-	# Chest lid (slightly smaller box on top)
-	var lid = MeshInstance3D.new()
-	var lid_box = BoxMesh.new()
-	lid_box.size = Vector3(0.72, 0.2, 0.52)
-	lid.mesh = lid_box
-	var lid_mat = StandardMaterial3D.new()
-	lid_mat.albedo_color = Color8(0xa9, 0x4c, 0x1f)  # Palette leather base
-	lid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	lid_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
-	lid_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	lid_mat.uv1_triplanar = true
-	lid_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
-	lid.material_override = lid_mat
-	lid.position = Vector3(0, 0.5, 0)
-	chest_root.add_child(lid)
-
-	# Lock decoration (small metallic sphere)
-	var lock = MeshInstance3D.new()
-	var lock_mesh = SphereMesh.new()
-	lock_mesh.radius = 0.08
-	lock_mesh.height = 0.16
-	lock.mesh = lock_mesh
-	var lock_mat = StandardMaterial3D.new()
-	lock_mat.albedo_color = Color8(0xf9, 0xdc, 0x3e)  # Palette GOLD_1
-	lock_mat.metallic = 0.0  # no modern specular pop
-	lock_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	lock.material_override = lock_mat
-	lock.position = Vector3(0, 0.38, 0.27)
-	chest_root.add_child(lock)
+	# 16-bit billboard chest (closed sprite; swapped to the open sprite on open).
+	# Contact shadow is painted into the sprite, same as the other ground props.
+	var sprite = Sprite3D.new()
+	sprite.name = "ChestSprite"
+	sprite.texture = load("res://assets/textures/props/chest_closed.png")
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = 0.034  # style guide texel density
+	# Bottom edge of the sprite rests on the ground, matching _add_sprite_decos.
+	sprite.position = Vector3(0, 26.0 * 0.5 * sprite.pixel_size, 0)
+	chest_root.add_child(sprite)
 
 	# Interact label (floating above chest)
 	var label = Label3D.new()
@@ -3011,8 +3042,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 		"opened": false,
 		"looted": false,
 		"contents": contents,
-		"body_mesh": body,
-		"lid_mesh": lid
+		"sprite": sprite
 	})
 
 func _generate_chest_contents(chest_index: int) -> Dictionary:
@@ -3339,30 +3369,28 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	var wp_root = Node3D.new()
 	wp_root.name = "Waypoint_%s" % target
 
-	# Waypoint visual: flat glowing disc on the ground
-	var pillar = MeshInstance3D.new()
-	var cyl = CylinderMesh.new()
-	cyl.top_radius = 0.45
-	cyl.bottom_radius = 0.45
-	cyl.height = 0.08
-	pillar.mesh = cyl
-	var pillar_mat = StandardMaterial3D.new()
-	# Master-palette waypoint tints (style guide §2).
+	# Waypoint visual: chunky pixel rune-ring laid flat on the ground,
+	# tinted per destination (master-palette tints, style guide §2).
+	var pillar = Sprite3D.new()
+	pillar.texture = load("res://assets/textures/props/waypoint_ring.png")
+	pillar.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	pillar.shaded = false
+	pillar.pixel_size = 0.045  # ring spans ~1.2 tiles
+	pillar.rotation_degrees = Vector3(-90, 0, 0)
+	var tint: Color
 	match target:
 		"transport":
-			pillar_mat.albedo_color = Color(Color8(0x62, 0xa3, 0xb0), 0.9)  # TEAL_1
+			tint = Color8(0x62, 0xa3, 0xb0)  # TEAL_1
 		"town":
-			pillar_mat.albedo_color = Color(Color8(0x3e, 0x67, 0x94), 0.8)  # SKY_4
+			tint = Color8(0x3e, 0x67, 0x94)  # SKY_4
 		"next_world":
-			pillar_mat.albedo_color = Color(Color8(0x38, 0x98, 0x78), 0.8)  # TEAL_3
+			tint = Color8(0x38, 0x98, 0x78)  # TEAL_3
 		"prev_world":
-			pillar_mat.albedo_color = Color(Color8(0xd8, 0xd3, 0x96), 0.8)  # GOLD_2
+			tint = Color8(0xd8, 0xd3, 0x96)  # GOLD_2
 		_:
-			pillar_mat.albedo_color = Color(Color8(0xb6, 0xc5, 0xc5), 0.8)  # STEEL_6
-	pillar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	pillar_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	pillar.material_override = pillar_mat
-	pillar.position = Vector3(0, 0.05, 0)
+			tint = Color8(0xb6, 0xc5, 0xc5)  # STEEL_6
+	pillar.modulate = Color(tint, 0.75)  # dimmed until discovered
+	pillar.position = Vector3(0, 0.03, 0)
 	wp_root.add_child(pillar)
 
 	# Label
@@ -3423,15 +3451,10 @@ func discover_waypoint(index: int) -> bool:
 	if waypoint_nodes[index]["discovered"]:
 		return false
 	waypoint_nodes[index]["discovered"] = true
-	# Visual change: make pillar brighter/opaque to show it's activated
-	var pillar = waypoint_nodes[index]["pillar_mesh"] as MeshInstance3D
-	if pillar and pillar.material_override:
-		var mat = pillar.material_override as StandardMaterial3D
-		if mat:
-			mat.albedo_color.a = 1.0
-			mat.emission_enabled = true
-			mat.emission = Color(mat.albedo_color.r, mat.albedo_color.g, mat.albedo_color.b)
-			mat.emission_energy_multiplier = 0.5
+	# Visual change: the ring lights up to full strength once activated
+	var pillar = waypoint_nodes[index]["pillar_mesh"] as Sprite3D
+	if pillar:
+		pillar.modulate = Color(pillar.modulate.lightened(0.35), 1.0)
 	# Update interact label text
 	var lbl = waypoint_nodes[index]["label_node"] as Label3D
 	if lbl:
@@ -3562,18 +3585,9 @@ func open_chest(index: int) -> Dictionary:
 	var first_open = not chest_nodes[index]["opened"]
 	chest_nodes[index]["opened"] = true
 
-	# Visual feedback on first open: change chest color to dark / opened look
+	# Visual feedback on first open: swap to the open-lid sprite
 	if first_open:
-		var body_mesh: MeshInstance3D = chest_nodes[index]["body_mesh"]
-		var lid_mesh: MeshInstance3D = chest_nodes[index]["lid_mesh"]
-		if body_mesh:
-			var mat = body_mesh.material_override as StandardMaterial3D
-			if mat:
-				mat.albedo_color = Color(0.35, 0.3, 0.15)  # Darkened
-		if lid_mesh:
-			# Rotate lid open
-			lid_mesh.rotation_degrees.x = -110
-			lid_mesh.position = Vector3(0, 0.55, -0.15)
+		_set_chest_open_visual(index)
 
 	# Persist partial state so gold isn't re-granted if player leaves and returns
 	if first_open:

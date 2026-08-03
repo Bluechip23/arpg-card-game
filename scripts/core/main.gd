@@ -345,8 +345,10 @@ const CAMERA_ORBIT_SENSITIVITY: float = 0.005
 # nearest-upscaled to the window; UI CanvasLayers stay full resolution.
 # ============================================
 
-const WORLD_RES := Vector2i(640, 360)
+# Integer downscale factor for the world render: 1280x720 / 2 = 640x360.
+const WORLD_SHRINK := 2
 var _world_viewport: SubViewport = null
+var _world_container: SubViewportContainer = null
 var _world_camera: Camera3D = null
 
 
@@ -358,19 +360,23 @@ func _setup_world_viewport() -> void:
 	add_child(layer)
 	var svc := SubViewportContainer.new()
 	svc.name = "WorldViewportContainer"
+	# stretch + stretch_shrink is the canonical low-res setup: the container
+	# sizes the SubViewport to container_size / shrink and scales the result
+	# back up. (Setting sv.size manually is futile — stretch overrides it.)
 	svc.stretch = true
+	svc.stretch_shrink = WORLD_SHRINK
 	svc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	svc.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(svc)
 	var sv := SubViewport.new()
 	sv.name = "WorldViewport"
-	sv.size = WORLD_RES
 	sv.world_3d = get_viewport().find_world_3d()
 	sv.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	sv.physics_object_picking = false
 	svc.add_child(sv)
 	_world_viewport = sv
+	_world_container = svc
 	# The scene camera moves into the SubViewport; the root viewport is left
 	# without an active 3D camera so the world only renders low-res.
 	cam.get_parent().remove_child(cam)
@@ -401,13 +407,16 @@ func get_world_camera() -> Camera3D:
 	return get_viewport().get_camera_3d()
 
 
+## Ratio between the world viewport's pixels and root-viewport pixels.
+func _world_scale_ratio() -> Vector2:
+	if _world_viewport and _world_container and _world_container.size.x > 0.0 and _world_container.size.y > 0.0:
+		return Vector2(_world_viewport.size) / _world_container.size
+	return Vector2.ONE
+
+
 ## Mouse position mapped into the low-res world viewport's coordinates.
 func _world_mouse_position() -> Vector2:
-	var vp_size := get_viewport().get_visible_rect().size
-	var mouse := get_viewport().get_mouse_position()
-	if vp_size.x <= 0.0 or vp_size.y <= 0.0:
-		return mouse
-	return mouse * Vector2(WORLD_RES) / vp_size
+	return get_viewport().get_mouse_position() * _world_scale_ratio()
 
 
 ## Project a world position to FULL-RES screen coordinates (for UI overlays).
@@ -415,8 +424,11 @@ func world_to_screen(world_pos: Vector3) -> Vector2:
 	var cam := get_world_camera()
 	if cam == null:
 		return Vector2.ZERO
+	var ratio := _world_scale_ratio()
 	var p := cam.unproject_position(world_pos)
-	return p * get_viewport().get_visible_rect().size / Vector2(WORLD_RES)
+	if ratio.x <= 0.0 or ratio.y <= 0.0:
+		return p
+	return p / ratio
 
 
 func _ready() -> void:
@@ -642,6 +654,11 @@ func _update_camera() -> void:
 	)
 	camera.position = _camera_focus + offset
 	camera.look_at(_camera_focus, Vector3.UP)
+	# Orthographic projection: SNES perspective has no foreshortening — this
+	# is the single biggest "reads 16-bit vs reads 3D" lever. Size is frame-
+	# matched to the old perspective view so zoom levels feel unchanged.
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 2.0 * _camera_distance * tan(deg_to_rad(75.0) * 0.5) * 0.62
 
 var _minimap_refresh_accum: float = 0.0
 
@@ -2611,7 +2628,9 @@ func _setup_hand_card_preview() -> void:
 	hand_card_preview = PanelContainer.new()
 	hand_card_preview.name = "HandCardPreview"
 	ui.add_child(hand_card_preview)
-	hand_card_preview.custom_minimum_size = Vector2(200, 0)
+	# Hug the compact content: no wider than the card below it unless the
+	# text itself needs more (the container grows to fit).
+	hand_card_preview.custom_minimum_size = Vector2(150, 0)
 	var preview_style = StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
 	preview_style.border_width_left = 2
@@ -7732,23 +7751,17 @@ func _apply_world_ambience() -> void:
 		elif in_sewer:
 			env.ambient_light_energy = 0.20  # near-lightless; torches do the work
 		elif in_forest:
-			env.ambient_light_energy = 0.70  # bright, sun-dappled woodland
+			env.ambient_light_energy = 0.90  # bright, sun-dappled woodland
 		else:
-			env.ambient_light_energy = 0.55
-		env.fog_enabled = true
-		env.fog_light_color = pal.get("ambient", Color(0.2, 0.2, 0.25)).darkened(0.55)
-		if in_cave:
-			env.fog_density = 0.045  # heavy underground gloom
-		elif in_sewer:
-			env.fog_density = 0.035  # thick, dank haze that swallows the far walls
-		elif in_building:
-			env.fog_density = 0.012
-		elif in_forest:
-			env.fog_density = 0.004  # clear, open air
-		else:
-			env.fog_density = 0.006
-		env.ssao_enabled = true
-		env.ssao_intensity = 1.6
+			# High ambient fill: 16-bit terrain is painted mostly flat, so
+			# shadowed cliff faces stay a readable warm tan instead of black.
+			env.ambient_light_energy = 1.0
+		# No volumetric distance fog: depth haze is a modern rendering cue the
+		# 16-bit style forbids. Underground gloom comes from ambient + torches.
+		env.fog_enabled = false
+		# No SSAO: soft screen-space AO is a modern rendering tell the 16-bit
+		# style spec forbids — contact shading is painted into sprites instead.
+		env.ssao_enabled = false
 
 	var sun = get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if sun:
@@ -7762,6 +7775,10 @@ func _apply_world_ambience() -> void:
 			energy = 0.8
 		elif in_forest:
 			energy = pal.get("sun_energy", 1.35)  # full dappled daylight
+		else:
+			# Compress lit-vs-shadow range outdoors: painted 16-bit terrain
+			# carries its own shading, so the sun only needs to suggest form.
+			energy *= 0.75
 		sun.light_energy = energy
 
 	# Underground (sewers and caves), each player carries their own pool of light.
@@ -7781,7 +7798,7 @@ func _ensure_player_torch(enable: bool) -> void:
 				torch.light_color = Color(1.0, 0.86, 0.62)
 				torch.light_energy = 2.8
 				torch.omni_range = 9.0
-				torch.omni_attenuation = 1.1
+				torch.omni_attenuation = 2.0  # tighter falloff, less modern gradient
 				torch.shadow_enabled = false
 				torch.position = Vector3(0, 1.2, 0)
 				p.add_child(torch)
@@ -8685,9 +8702,15 @@ func _spawn_pillar(pos: Vector3) -> void:
 	cylinder.top_radius = 0.4
 	cylinder.bottom_radius = 0.4
 	cylinder.height = 2.0
+	cylinder.radial_segments = 8  # faceted, not smooth-round
 	pillar_mesh.mesh = cylinder
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.35, 0.15)  # Brown
+	mat.albedo_color = Color(0.78, 0.62, 0.45)  # warm cast over the rock tiles
+	mat.albedo_texture = load("res://assets/textures/tile_rock.png")
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	mat.roughness = 1.0
 	pillar_mesh.material_override = mat
 	pillar_mesh.position = Vector3(0, 1.0, 0)  # Center of cylinder at Y=1
 	pillar_root.add_child(pillar_mesh)
@@ -9427,13 +9450,20 @@ func _build_ground_plane() -> void:
 	plane_mesh.size = Vector2(dungeon_manager.GRID_W + 40, dungeon_manager.GRID_H + 40)
 	ground.mesh = plane_mesh
 	var mat = StandardMaterial3D.new()
-	# Lightened so the out-of-bounds ground reads as terrain, not void.
-	mat.albedo_color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1)).lightened(0.22)
+	# Full-color tiles: keep only a dim theme cast so out-of-bounds terrain
+	# reads as darker painted ground rather than a solid tint.
+	var ground_cast: Color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1))
+	mat.albedo_color = Color(0.55, 0.55, 0.55).lerp(ground_cast, 0.35)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.roughness = 1.0
-	# Same pixel tile texture as the arena floor (tinted darker by the ground
+	# Same pixel tile style as the arena floor (tinted darker by the ground
 	# colour) so the world beyond the walls matches the sprite art style.
-	mat.albedo_texture = load(dungeon_manager.floor_texture_path())
+	# Grass swaps to the accent-free far variant: flowers/tufts under the dark
+	# tint would read as scattered noise specks across the whole backdrop.
+	var tex_path: String = dungeon_manager.floor_texture_path()
+	if tex_path.ends_with("tile_grass.png"):
+		tex_path = "res://assets/textures/tile_grass_far.png"
+	mat.albedo_texture = load(tex_path)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)  # 4x4 variant sheet: 1 tile/unit

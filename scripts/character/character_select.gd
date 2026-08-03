@@ -268,15 +268,15 @@ func _setup_characters() -> void:
 	quiz_data.slot_specialty = "Determined by quiz"
 	quiz_data.sprite_path = ""
 
+	# The 5 preset characters first; the Customize quiz card goes last.
+	_add_preset_character_cards()
+
 	var quiz_card = CharacterCardScene.instantiate()
 	_add_card_to_list(quiz_card)
 	quiz_card.setup(quiz_data)
 	# Override the sprite label to show "?" instead of "C"
 	quiz_card._sprite_label.text = "?"
 	quiz_card.selected.connect(_on_character_selected)
-
-	# Add the 5 preset characters
-	_add_preset_character_cards()
 
 func _add_preset_character_cards() -> void:
 	var characters = CharacterData.get_all_characters()

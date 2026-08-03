@@ -245,18 +245,33 @@ func _ensure_to_logo() -> void:
 	if type_hbox == null or type_hbox.get_node_or_null("TOLogo"):
 		return
 	# The game's actual sigil — the green sword-T threaded through the silver
-	# O — shared with the tooltip/tutorial crests via UIGlyphs.
+	# O — shared with the tooltip/tutorial crests via UIGlyphs. The holder
+	# claims almost no layout height so the type bar stays thin; the sigil
+	# itself draws larger than the bar with a drop shadow, so it reads as a
+	# seal risen off the card face.
+	var holder := Control.new()
+	holder.name = "TOLogo"
+	holder.custom_minimum_size = Vector2(14, 0)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shadow := TextureRect.new()
+	shadow.texture = UIGlyphs.get_glyph("to_sigil")
+	shadow.stretch_mode = TextureRect.STRETCH_SCALE
+	shadow.position = Vector2(-4.5, -11.5)
+	shadow.size = Vector2(26, 26)
+	shadow.modulate = Color(0, 0, 0, 0.5)
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(shadow)
 	var seal := TextureRect.new()
-	seal.name = "TOLogo"
 	seal.texture = UIGlyphs.get_glyph("to_sigil")
-	seal.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	seal.custom_minimum_size = Vector2(16, 16)
-	seal.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	seal.stretch_mode = TextureRect.STRETCH_SCALE
+	seal.position = Vector2(-6, -13)
+	seal.size = Vector2(26, 26)
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(seal)
 	# Sit between the type text (left, expanding) and the range text (right,
 	# expanding) so the seal stays centred on the bar.
-	type_hbox.add_child(seal)
-	type_hbox.move_child(seal, 1)
+	type_hbox.add_child(holder)
+	type_hbox.move_child(holder, 1)
 
 
 func _refresh_cost_badges() -> void:
@@ -728,7 +743,12 @@ func _style_frame() -> void:
 		tb.content_margin_right = 14
 		title_bar.add_theme_stylebox_override("panel", tb)
 	if type_bar:
-		type_bar.add_theme_stylebox_override("panel", _bar_style(_type_color.darkened(0.55), 3))
+		# Thin band: the type line is secondary info; the risen TO seal
+		# deliberately overhangs it above and below.
+		var tp := _bar_style(_type_color.darkened(0.55), 3)
+		tp.content_margin_top = 0
+		tp.content_margin_bottom = 0
+		type_bar.add_theme_stylebox_override("panel", tp)
 	if art_box:
 		var art = _bar_style(_type_color.darkened(0.72), 3)
 		art.border_color = _type_color.lightened(0.05)
@@ -745,27 +765,32 @@ func _clear_gold_trim() -> void:
 	_apply_default_style()
 
 func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: int = -1) -> void:
-	## A row of small circles at the bottom of the card — one per tempo tick.
-	## The tick the card resolves on is filled gold.
+	## A centred row of small circles nestled against the card's top edge,
+	## above the name — one per tempo tick. The tick the card resolves on is
+	## filled gold. Drawn as an overlay (like the corner cost badges) so it
+	## takes no layout height and the frame spacing stays untouched.
 	var effective_tempo = tempo_override if tempo_override >= 0 else card.tempo_cost
-	if effective_tempo <= 0:
-		return
-
-	var vbox = $Panel/VBox
-	if not vbox:
+	var host = $Panel
+	if not host:
 		return
 
 	# Remove existing tempo bar container if re-setup
-	var existing = vbox.get_node_or_null("TempoBarContainer")
+	var existing = host.get_node_or_null("TempoBarContainer")
 	if existing:
 		existing.queue_free()
+	if effective_tempo <= 0:
+		return
 
 	var bar_container = HBoxContainer.new()
 	bar_container.name = "TempoBarContainer"
 	bar_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	bar_container.add_theme_constant_override("separation", 4)
-	bar_container.custom_minimum_size.y = 14
-	vbox.add_child(bar_container)
+	bar_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Panel is inset by the 3px frame border; offset by it so the row centres
+	# on the card, not the inner panel.
+	bar_container.position = Vector2(-3, -3)
+	bar_container.size = Vector2(CARD_W, 9)
+	host.add_child(bar_container)
 
 	var resolve_tick = resolve_override if resolve_override >= 0 else mini(card.resolve_tick, effective_tempo)
 

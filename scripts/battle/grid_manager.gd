@@ -5,7 +5,7 @@ extends Node3D
 ## Each grid cell is 1x1 world unit. The grid lies on the XZ plane at Y=0.
 
 @export var grid_size: float = 1.0  # Size of each grid cell in world units
-@export var grid_color: Color = Color(1, 1, 1, 0.1)
+@export var grid_color: Color = Color(0.05, 0.08, 0.04, 0.16)  # subtle dark furrow lines
 
 var grid_width: int = 20   # Number of cells wide (X axis)
 var grid_height: int = 12  # Number of cells deep (Z axis)
@@ -36,14 +36,17 @@ func _draw_grid() -> void:
 	_mesh_instance.material_override = mat
 
 	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
-	# Vertical lines (along Z axis)
+	# Short cross-ticks at cell corners instead of continuous ruled lines —
+	# reads as subtle field marks, not a modern vector grid.
+	var t := grid_size * 0.12
 	for x in range(grid_width + 1):
-		mesh.surface_add_vertex(Vector3(x * grid_size, 0.01, 0))
-		mesh.surface_add_vertex(Vector3(x * grid_size, 0.01, grid_height * grid_size))
-	# Horizontal lines (along X axis)
-	for z in range(grid_height + 1):
-		mesh.surface_add_vertex(Vector3(0, 0.01, z * grid_size))
-		mesh.surface_add_vertex(Vector3(grid_width * grid_size, 0.01, z * grid_size))
+		for z in range(grid_height + 1):
+			var cx := x * grid_size
+			var cz := z * grid_size
+			mesh.surface_add_vertex(Vector3(cx - t, 0.01, cz))
+			mesh.surface_add_vertex(Vector3(cx + t, 0.01, cz))
+			mesh.surface_add_vertex(Vector3(cx, 0.01, cz - t))
+			mesh.surface_add_vertex(Vector3(cx, 0.01, cz + t))
 	mesh.surface_end()
 
 func world_to_grid(world_pos: Vector3) -> Vector2i:

@@ -129,14 +129,6 @@ func _build_ui() -> void:
 	_archetypes_header_label.text = "ARCHETYPES"
 	vbox.add_child(_archetypes_header_label)
 
-	var playstyle_label = Label.new()
-	playstyle_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	playstyle_label.add_theme_font_size_override("font_size", 11)
-	playstyle_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
-	playstyle_label.text = "Play this character for a playstyle fitting the following archetypes:"
-	playstyle_label.name = "PlaystyleLabel"
-	vbox.add_child(playstyle_label)
-
 	for i in range(4):
 		var arch_label = Label.new()
 		arch_label.autowrap_mode = TextServer.AUTOWRAP_WORD

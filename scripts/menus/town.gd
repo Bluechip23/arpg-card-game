@@ -110,6 +110,7 @@ var vendor_info: Dictionary = {
 }
 
 func _ready() -> void:
+	_unify_town_style()
 	player.set_grid_manager(grid_manager)
 
 	if starting_character:
@@ -189,6 +190,10 @@ func _update_camera() -> void:
 	)
 	camera.position = _camera_focus + offset
 	camera.look_at(_camera_focus, Vector3.UP)
+	# Orthographic, frame-matched to the zoom distance (16-bit pass, same
+	# treatment as the world camera in main).
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 2.0 * _camera_distance * tan(deg_to_rad(75.0) * 0.5) * 0.62
 
 func _apply_styles() -> void:
 	# Town label
@@ -1940,6 +1945,33 @@ func _build_modal_slots(item: ItemData) -> String:
 # TOWN DRESSING (procedural plaza visuals)
 # ============================================
 
+func _unify_town_style() -> void:
+	## Brings the town in line with the 16-bit world pass: orthographic
+	## camera, flat high-ambient lighting without real-time shadows, flat
+	## backdrop instead of a gradient sky, and a pixel-tiled plaza floor.
+	var sun := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if sun:
+		sun.shadow_enabled = false
+		sun.light_energy = 0.7
+	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if we and we.environment:
+		we.environment.background_mode = Environment.BG_COLOR
+		we.environment.background_color = Color8(26, 28, 20)
+		we.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		we.environment.ambient_light_color = Color(0.5, 0.46, 0.4)
+		we.environment.ambient_light_energy = 1.0
+		we.environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	var ground := get_node_or_null("GroundPlane") as MeshInstance3D
+	if ground:
+		var gmat := StandardMaterial3D.new()
+		gmat.albedo_color = Color(0.85, 0.78, 0.68)  # warm packed-earth cast
+		gmat.albedo_texture = load("res://assets/textures/tile_dirt.png")
+		gmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		gmat.uv1_triplanar = true
+		gmat.uv1_scale = Vector3(0.25, 0.25, 0.25)
+		gmat.roughness = 1.0
+		ground.set_surface_override_material(0, gmat)
+
 func _npc_box(parent: Node3D, n: String, pos: Vector3, size: Vector3, c: Color, rot := Vector3.ZERO) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = n
@@ -2087,7 +2119,7 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 			ring.position = Vector3(-0.15, 0.68, 0.45)
 			var gold_m := StandardMaterial3D.new()
 			gold_m.albedo_color = Color(0.9, 0.75, 0.3)
-			gold_m.metallic = 0.6
+			gold_m.metallic = 0.0  # no modern specular pop
 			gold_m.roughness = 0.3
 			ring.material_override = gold_m
 			stall.add_child(ring)
@@ -2100,20 +2132,18 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 
 
 func _build_stash_chest(stash: Node3D) -> void:
-	var chest := Node3D.new()
+	# Same 16-bit chest billboard the dungeons use, scaled up for the stash.
+	var chest := Sprite3D.new()
 	chest.name = "Chest"
+	chest.texture = load("res://assets/textures/props/chest_closed.png")
+	chest.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	chest.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	chest.shaded = false
+	chest.pixel_size = 0.034
+	var s := 1.4
+	chest.scale = Vector3(s, s, s)
+	chest.position = Vector3(0, 26.0 * 0.034 * 0.5 * s, 0)
 	stash.add_child(chest)
-	var wood := Color(0.42, 0.3, 0.17)
-	var band := Color(0.3, 0.31, 0.36)
-	_npc_box(chest, "Body", Vector3(0, 0.35, 0), Vector3(1.2, 0.7, 0.8), wood)
-	var lid := _npc_box(chest, "Lid", Vector3(0, 0.78, -0.02), Vector3(1.24, 0.22, 0.84), wood.lightened(0.08))
-	lid.rotation_degrees = Vector3(-6, 0, 0)
-	for bx in [-0.4, 0.4]:
-		_npc_box(chest, "Band%d" % int(bx * 10), Vector3(bx, 0.5, 0), Vector3(0.1, 1.0, 0.86), band)
-	var lock := _npc_box(chest, "Lock", Vector3(0, 0.62, 0.44), Vector3(0.16, 0.2, 0.06), Color(0.9, 0.75, 0.3))
-	var lm := lock.material_override as StandardMaterial3D
-	lm.metallic = 0.5
-	lm.roughness = 0.35
 
 
 func _build_lamp(parent: Node3D, pos: Vector3) -> void:
@@ -2158,46 +2188,22 @@ func _create_olorin_npc() -> void:
 	olorin.name = "Olorin"
 	olorin.position = Vector3(14, 0, 8)
 
-	# The wise old wanderer himself: grey travelling robe under a deep-purple
-	# mantle, a long white beard, a tall pointed hat and a walking staff.
-	var robe := Color(0.42, 0.4, 0.45)
-	var mantle := Color(0.3, 0.2, 0.5)
-	var skin := Color(0.85, 0.74, 0.62)
-	var beard_c := Color(0.92, 0.9, 0.86)
-	var wood := Color(0.4, 0.29, 0.17)
-	var fig = Node3D.new()
+	# The wise old wanderer himself — the mystic sheet from the NPC pack
+	# (robed, hooded, staff), matching the 16-bit party/NPC pipeline.
+	var fig = Sprite3D.new()
 	fig.name = "Figure"
-	fig.scale = Vector3(1.35, 1.35, 1.35)
+	fig.texture = load("res://assets/sprites/NPCpackage1/npc mystic A v02.png")
+	fig.region_enabled = true
+	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
+	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	fig.shaded = false
+	fig.pixel_size = 0.034
+	var olorin_scale := 1.25  # a touch taller than the party — presence
+	fig.scale = Vector3(olorin_scale, olorin_scale, olorin_scale)
+	fig.position = Vector3(0, 32.0 * 0.034 * 0.5 * olorin_scale, 0)
 	olorin.add_child(fig)
-	_npc_cyl(fig, "Robe", Vector3(0, 0.5, 0), 0.18, 0.42, 1.0, robe)
-	_npc_cyl(fig, "Mantle", Vector3(0, 0.92, 0), 0.14, 0.3, 0.36, mantle)
-	# Arms folded into the sleeves
-	_npc_cyl(fig, "SleeveL", Vector3(-0.24, 0.86, 0.06), 0.07, 0.09, 0.4, mantle, Vector3(50, 0, -20))
-	_npc_cyl(fig, "SleeveR", Vector3(0.24, 0.86, 0.06), 0.07, 0.09, 0.4, mantle, Vector3(50, 0, 20))
-	_npc_sphere(fig, "Head", Vector3(0, 1.22, 0.02), 0.16, skin)
-	# Long beard falling over the mantle, framed by hair at the sides
-	var beard := _npc_cyl(fig, "Beard", Vector3(0, 1.0, 0.12), 0.05, 0.12, 0.42, beard_c, Vector3(8, 0, 0))
-	beard.scale = Vector3(1.0, 1.0, 0.6)
-	_npc_sphere(fig, "Moustache", Vector3(0, 1.14, 0.14), 0.06, beard_c, Vector3(1.5, 0.5, 0.7))
-	_npc_sphere(fig, "HairL", Vector3(-0.13, 1.16, -0.02), 0.07, beard_c, Vector3(0.8, 1.4, 1.0))
-	_npc_sphere(fig, "HairR", Vector3(0.13, 1.16, -0.02), 0.07, beard_c, Vector3(0.8, 1.4, 1.0))
-	_npc_sphere(fig, "EyeL", Vector3(-0.06, 1.25, 0.13), 0.02, Color(0.1, 0.1, 0.14))
-	_npc_sphere(fig, "EyeR", Vector3(0.06, 1.25, 0.13), 0.02, Color(0.1, 0.1, 0.14))
-	_npc_sphere(fig, "Brow", Vector3(0, 1.3, 0.12), 0.07, beard_c, Vector3(1.9, 0.3, 0.6))
-	# Tall pointed hat, brim tilted with age
-	var brim := _npc_cyl(fig, "HatBrim", Vector3(0, 1.34, 0), 0.3, 0.3, 0.04, mantle)
-	brim.rotation_degrees = Vector3(-6, 0, 4)
-	var cone := _npc_cyl(fig, "HatCone", Vector3(0.02, 1.56, -0.02), 0.0, 0.16, 0.44, mantle)
-	cone.rotation_degrees = Vector3(-8, 0, 6)
-	# Gnarled staff in the right hand, crowned with a pale glow — the one hint
-	# of the "magic" he doesn't conventionally wield
-	_npc_cyl(fig, "Staff", Vector3(0.4, 0.75, 0.12), 0.025, 0.035, 1.5, wood, Vector3(0, 0, -4))
-	_npc_sphere(fig, "StaffKnot", Vector3(0.44, 1.48, 0.12), 0.055, wood)
-	var glow := _npc_sphere(fig, "StaffGlow", Vector3(0.44, 1.52, 0.12), 0.035, Color(0.85, 0.9, 1.0))
-	var gm := glow.material_override as StandardMaterial3D
-	gm.emission_enabled = true
-	gm.emission = Color(0.7, 0.8, 1.0)
-	gm.emission_energy_multiplier = 1.4
+	BlobShadow.attach(olorin, 0.6)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -2236,43 +2242,22 @@ func _create_sellsword_npc() -> void:
 	sellsword.name = "Sellsword"
 	sellsword.position = Vector3(18, 0, 3)
 
-	# A mercenary at ease: studded leather over mail, a greatsword slung across
-	# the back, one pauldron, arms crossed while he waits for coin.
-	var leather := Color(0.42, 0.27, 0.16)
-	var leather2 := Color(0.3, 0.19, 0.11)
-	var mail := Color(0.5, 0.52, 0.56)
-	var skin := Color(0.78, 0.62, 0.48)
-	var steel := Color(0.72, 0.75, 0.8)
-	var fig = Node3D.new()
+	# A mercenary at ease — the knight sheet from the NPC pack, in a darker
+	# coat than Brad's, matching the 16-bit NPC pipeline.
+	var fig = Sprite3D.new()
 	fig.name = "Figure"
-	fig.scale = Vector3(1.3, 1.3, 1.3)
+	fig.texture = load("res://assets/sprites/NPCpackage2/npc knight v04.png")
+	fig.region_enabled = true
+	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
+	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	fig.shaded = false
+	fig.pixel_size = 0.034
+	var sellsword_scale := 1.15
+	fig.scale = Vector3(sellsword_scale, sellsword_scale, sellsword_scale)
+	fig.position = Vector3(0, 32.0 * 0.034 * 0.5 * sellsword_scale, 0)
 	sellsword.add_child(fig)
-	_npc_box(fig, "LegL", Vector3(-0.12, 0.28, 0), Vector3(0.16, 0.56, 0.16), leather2)
-	_npc_box(fig, "LegR", Vector3(0.12, 0.28, 0), Vector3(0.16, 0.56, 0.16), leather2)
-	_npc_box(fig, "BootL", Vector3(-0.12, 0.06, 0.05), Vector3(0.18, 0.12, 0.26), leather)
-	_npc_box(fig, "BootR", Vector3(0.12, 0.06, 0.05), Vector3(0.18, 0.12, 0.26), leather)
-	_npc_box(fig, "Torso", Vector3(0, 0.78, 0), Vector3(0.44, 0.48, 0.26), leather)
-	_npc_box(fig, "MailHem", Vector3(0, 0.52, 0), Vector3(0.42, 0.08, 0.28), mail)
-	_npc_box(fig, "Belt", Vector3(0, 0.56, 0.02), Vector3(0.46, 0.07, 0.28), leather2)
-	# Crossed arms
-	_npc_cyl(fig, "ArmL", Vector3(-0.16, 0.86, 0.16), 0.055, 0.06, 0.36, leather, Vector3(70, 0, -70))
-	_npc_cyl(fig, "ArmR", Vector3(0.16, 0.8, 0.18), 0.055, 0.06, 0.36, skin, Vector3(70, 0, 70))
-	_npc_sphere(fig, "PauldronL", Vector3(-0.26, 1.02, 0), 0.13, steel, Vector3(1.2, 0.8, 1.2))
-	_npc_sphere(fig, "Head", Vector3(0, 1.18, 0.02), 0.15, skin)
-	_npc_sphere(fig, "Hair", Vector3(0, 1.26, -0.02), 0.155, leather2, Vector3(1.02, 0.7, 1.02))
-	_npc_box(fig, "Scar", Vector3(0.06, 1.2, 0.14), Vector3(0.02, 0.09, 0.02), Color(0.6, 0.42, 0.34))
-	_npc_sphere(fig, "EyeL", Vector3(-0.055, 1.19, 0.12), 0.02, Color(0.1, 0.1, 0.12))
-	_npc_sphere(fig, "EyeR", Vector3(0.055, 1.19, 0.12), 0.02, Color(0.1, 0.1, 0.12))
-	# Greatsword slung diagonally across the back
-	var sword = Node3D.new()
-	sword.name = "BackSword"
-	sword.position = Vector3(0, 0.9, -0.18)
-	sword.rotation_degrees = Vector3(0, 0, 34)
-	fig.add_child(sword)
-	_npc_box(sword, "Blade", Vector3(0, 0.34, 0), Vector3(0.09, 0.8, 0.03), steel)
-	_npc_box(sword, "Guard", Vector3(0, -0.08, 0), Vector3(0.24, 0.05, 0.05), leather2)
-	_npc_cyl(sword, "Grip", Vector3(0, -0.2, 0), 0.025, 0.025, 0.2, leather)
-	_npc_sphere(sword, "Pommel", Vector3(0, -0.32, 0), 0.04, steel)
+	BlobShadow.attach(sellsword, 0.55)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -2341,21 +2326,15 @@ func _create_town_waypoint() -> void:
 	_town_waypoint_node = Node3D.new()
 	_town_waypoint_node.name = "TransportPortal"
 
-	# Glowing pillar (green to match dungeon world portals)
-	var pillar = MeshInstance3D.new()
-	var cyl = CylinderMesh.new()
-	cyl.top_radius = 0.3
-	cyl.bottom_radius = 0.4
-	cyl.height = 2.0
-	pillar.mesh = cyl
-	var pillar_mat = StandardMaterial3D.new()
-	pillar_mat.albedo_color = Color(0.5, 0.7, 1.0, 1.0)
-	pillar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	pillar_mat.emission_enabled = true
-	pillar_mat.emission = Color(0.5, 0.7, 1.0)
-	pillar_mat.emission_energy_multiplier = 0.5
-	pillar.material_override = pillar_mat
-	pillar.position = Vector3(0, 1.0, 0)
+	# Pixel rune-ring on the ground, matching the dungeon waypoints.
+	var pillar = Sprite3D.new()
+	pillar.texture = load("res://assets/textures/props/waypoint_ring.png")
+	pillar.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	pillar.shaded = false
+	pillar.pixel_size = 0.045
+	pillar.rotation_degrees = Vector3(-90, 0, 0)
+	pillar.modulate = Color8(0x62, 0xa3, 0xb0)  # TEAL_1 (transport)
+	pillar.position = Vector3(0, 0.03, 0)
 	_town_waypoint_node.add_child(pillar)
 
 	# Name label
