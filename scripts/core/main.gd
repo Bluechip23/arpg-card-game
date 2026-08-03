@@ -6324,6 +6324,7 @@ func _return_dead_target_card(card: Card, data: Dictionary, context: String) -> 
 	var discard_idx = deck_manager.discard_pile.find(card)
 	if discard_idx >= 0:
 		deck_manager.discard_pile.remove_at(discard_idx)
+	deck_manager.release_draw_reservation(card)  # queued no more
 	deck_manager.add_card_to_hand(card)
 
 	_undo_card_temp_mods(card, data)
@@ -7457,13 +7458,9 @@ func _input(event: InputEvent) -> void:
 				_camera_orbiting = true
 				_camera_drag_start = event.position
 		else:
-			if _camera_orbiting:
-				# SoM adaptation: settle the orbit on one of the 4 axis-aligned
-				# views. 90° steps (not 45°) so camera-relative WASD always maps
-				# each key to a distinct grid direction — at diagonal views the
-				# cardinal projection is ambiguous by geometry.
-				_camera_yaw = snappedf(_camera_yaw, PI / 2.0)
-				_update_camera()
+			# The camera stays exactly where the player leaves it — no snap.
+			# WASD stays safe at any yaw because _wasd_step quantizes the
+			# camera angle itself when projecting keys onto the grid.
 			_camera_orbiting = false
 
 	if event is InputEventMouseMotion and _camera_orbiting:
