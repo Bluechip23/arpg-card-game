@@ -1100,26 +1100,9 @@ func _build_floor_visuals() -> void:
 			items.append({"xform": xform, "color": col})
 	_add_multimesh(BoxMesh.new(), items, true, 0.95, floor_texture_path())
 	if not water_items.is_empty():
-		# Low roughness + faint emission so the water catches torchlight and reads wet.
-		var water_mm = MultiMesh.new()
-		water_mm.transform_format = MultiMesh.TRANSFORM_3D
-		water_mm.use_colors = true
-		water_mm.mesh = BoxMesh.new()
-		water_mm.instance_count = water_items.size()
-		for i in range(water_items.size()):
-			water_mm.set_instance_transform(i, water_items[i]["xform"])
-			water_mm.set_instance_color(i, water_items[i]["color"])
-		var wmmi = MultiMeshInstance3D.new()
-		wmmi.multimesh = water_mm
-		var wmat = StandardMaterial3D.new()
-		wmat.vertex_color_use_as_albedo = true
-		wmat.roughness = 0.12
-		wmat.metallic = 0.35
-		wmat.emission_enabled = true
-		wmat.emission = pal["water"].lightened(0.05)
-		wmat.emission_energy_multiplier = 0.25
-		wmmi.material_override = wmat
-		_visuals_root.add_child(wmmi)
+		# Flat painted 16-bit water: the ripples live in the tile art. No
+		# metallic/emission/gloss — modern PBR shine is a style violation.
+		_add_multimesh(BoxMesh.new(), water_items, true, 1.0, "res://assets/textures/tile_water.png")
 	print("[DUNGEON] Built %d floor tiles, %d water tiles" % [items.size(), water_items.size()])
 
 var _chamfer_mesh_cache: Dictionary = {}
@@ -1345,6 +1328,7 @@ func _build_decorations() -> void:
 	var _deco_bushes: Array = []
 	var _deco_ferns: Array = []
 	var _deco_flowers: Array = []
+	var _deco_spikes: Array = []
 
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1362,11 +1346,10 @@ func _build_decorations() -> void:
 
 			if interior_kind == "cave":
 				if near_wall and n < 0.14:
-					# Stalagmite
-					var s = 0.25 + _tile_noise(x, z, 73) * 0.45
-					cone_items.append({
-						"xform": Transform3D(rot * Basis.from_scale(Vector3(s * 0.7, s * 1.6, s * 0.7)),
-							Vector3(x + 0.5 + jx, y_base + s * 0.8, z + 0.5 + jz)),
+					# Stalagmite (billboard sprite)
+					_deco_spikes.append({
+						"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.5 + _tile_noise(x, z, 73) * 0.9,
 						"color": pal["wall_a"].lerp(pal["wall_b"], n * 3.0),
 					})
 				elif near_wall and n < 0.2:
@@ -1410,6 +1393,7 @@ func _build_decorations() -> void:
 	_add_sprite_decos(_deco_bushes, "res://assets/textures/props/bush.png", 32, 24)
 	_add_sprite_decos(_deco_ferns, "res://assets/textures/props/fern.png", 24, 24)
 	_add_sprite_decos(_deco_flowers, "res://assets/textures/props/flowers.png", 20, 14)
+	_add_sprite_decos(_deco_spikes, "res://assets/textures/props/stalagmite.png", 16, 24)
 	if not bush_items.is_empty():
 		var bush_mesh = SphereMesh.new()
 		bush_mesh.radial_segments = 12
@@ -1546,7 +1530,7 @@ func _place_sewer_torches(wall_edges: Array, pal: Dictionary) -> void:
 		bracket.rotation_degrees = Vector3(0, 0, 90)
 		var iron = StandardMaterial3D.new()
 		iron.albedo_color = Color(0.10, 0.10, 0.11)
-		iron.metallic = 0.7
+		iron.metallic = 0.0  # no modern specular pop
 		iron.roughness = 0.6
 		bracket.material_override = iron
 		bracket.position = -into * 0.5
@@ -1575,7 +1559,7 @@ func _place_sewer_torches(wall_edges: Array, pal: Dictionary) -> void:
 		light.light_color = flame_col
 		light.light_energy = 2.4
 		light.omni_range = 7.5
-		light.omni_attenuation = 1.4
+		light.omni_attenuation = 2.0  # tighter falloff, less modern gradient
 		light.shadow_enabled = false
 		light.position = Vector3(0, 0.2, 0)
 		root.add_child(light)
@@ -1616,7 +1600,7 @@ func _place_sewer_pipes(wall_edges: Array, pal: Dictionary) -> void:
 			pipe.rotation_degrees = Vector3(90, 0, 0)
 		var metal = StandardMaterial3D.new()
 		metal.albedo_color = Color(0.18, 0.20, 0.19)
-		metal.metallic = 0.6
+		metal.metallic = 0.0  # no modern specular pop
 		metal.roughness = 0.7
 		pipe.material_override = metal
 		root.add_child(pipe)
@@ -1660,35 +1644,29 @@ func _place_sewer_pipes(wall_edges: Array, pal: Dictionary) -> void:
 		splash.position = into * 0.28 + Vector3(0, -1.0, 0)
 		root.add_child(splash)
 
-func _make_water_stream() -> GPUParticles3D:
-	var pm = ParticleProcessMaterial.new()
-	pm.direction = Vector3(0, -1, 0)
-	pm.spread = 4.0
-	pm.gravity = Vector3(0, -9.0, 0)
-	pm.initial_velocity_min = 0.4
-	pm.initial_velocity_max = 0.9
-	pm.scale_min = 0.5
-	pm.scale_max = 1.0
-	var drop = SphereMesh.new()
-	drop.radius = 0.025
-	drop.height = 0.07
-	drop.radial_segments = 5
-	drop.rings = 3
-	var dmat = StandardMaterial3D.new()
-	dmat.albedo_color = Color(0.55, 0.70, 0.72, 0.7)
-	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dmat.emission_enabled = true
-	dmat.emission = Color(0.4, 0.55, 0.55)
-	dmat.emission_energy_multiplier = 0.4
-	drop.material = dmat
-	var p = GPUParticles3D.new()
-	p.process_material = pm
-	p.draw_pass_1 = drop
-	p.amount = 18
-	p.lifetime = 0.7
-	p.preprocess = 0.7
-	p.local_coords = false
-	return p
+func _make_pixel_anim(strip_path: String, frame_w: int, frame_h: int, fps: float) -> AnimatedSprite3D:
+	## Looping frame-strip billboard: the 16-bit stand-in for GPU particles.
+	var tex: Texture2D = load(strip_path)
+	var frames = SpriteFrames.new()
+	frames.set_animation_speed("default", fps)
+	var count := int(tex.get_width() / frame_w)
+	for i in range(count):
+		var at = AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(i * frame_w, 0, frame_w, frame_h)
+		frames.add_frame("default", at)
+	var spr = AnimatedSprite3D.new()
+	spr.sprite_frames = frames
+	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	spr.shaded = false
+	spr.pixel_size = 0.034
+	spr.play("default")
+	return spr
+
+func _make_water_stream() -> Node3D:
+	## Frame-animated pixel dribble replacing the GPU droplet spray.
+	return _make_pixel_anim("res://assets/textures/props/drip_strip.png", 8, 16, 6.0)
 
 func _place_sewer_steam(water_tiles: Array, pal: Dictionary) -> void:
 	## Slow columns of warm steam rising off the water.
@@ -1705,33 +1683,12 @@ func _place_sewer_steam(water_tiles: Array, pal: Dictionary) -> void:
 		steam.position = Vector3(pos.x + 0.5, 0.05, pos.y + 0.5)
 		_visuals_root.add_child(steam)
 
-func _make_steam() -> GPUParticles3D:
-	var pm = ParticleProcessMaterial.new()
-	pm.direction = Vector3(0, 1, 0)
-	pm.spread = 8.0
-	pm.gravity = Vector3(0, 0.35, 0)
-	pm.initial_velocity_min = 0.2
-	pm.initial_velocity_max = 0.5
-	pm.scale_min = 1.4
-	pm.scale_max = 2.6
-	pm.color = Color(0.7, 0.78, 0.76, 0.10)
-	var puff = QuadMesh.new()
-	puff.size = Vector2(0.6, 0.6)
-	var qmat = StandardMaterial3D.new()
-	qmat.albedo_color = Color(0.72, 0.80, 0.78, 0.10)
-	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	qmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	qmat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	qmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	puff.material = qmat
-	var p = GPUParticles3D.new()
-	p.process_material = pm
-	p.draw_pass_1 = puff
-	p.amount = 10
-	p.lifetime = 3.2
-	p.preprocess = 3.0
-	p.local_coords = false
-	return p
+func _make_steam() -> Node3D:
+	## Frame-animated pixel wisp replacing the additive particle cloud.
+	var spr = _make_pixel_anim("res://assets/textures/props/steam_strip.png", 16, 24, 3.0)
+	spr.modulate = Color(1, 1, 1, 0.55)
+	spr.position.y = 0.45
+	return spr
 
 func _place_sewer_grates(water_tiles: Array, pal: Dictionary) -> void:
 	## Iron grates set over a few stretches of the channel.
@@ -1744,7 +1701,7 @@ func _place_sewer_grates(water_tiles: Array, pal: Dictionary) -> void:
 	var picks = _spaced_sample(entries, want, 3)
 	var bar_mat = StandardMaterial3D.new()
 	bar_mat.albedo_color = Color(0.13, 0.13, 0.14)
-	bar_mat.metallic = 0.7
+	bar_mat.metallic = 0.0  # no modern specular pop
 	bar_mat.roughness = 0.6
 	for entry in picks:
 		var pos: Vector2i = entry["pos"]
@@ -1816,7 +1773,7 @@ func _place_sewer_doors(pal: Dictionary) -> void:
 			hub.rotation_degrees = Vector3(90, 0, 0)
 		var iron = StandardMaterial3D.new()
 		iron.albedo_color = Color(0.16, 0.16, 0.17)
-		iron.metallic = 0.6
+		iron.metallic = 0.0  # no modern specular pop
 		iron.roughness = 0.7
 		hub.material_override = iron
 		hub.position = into * 0.13
@@ -1861,7 +1818,7 @@ func _place_sewer_manholes(pal: Dictionary) -> void:
 		cover.mesh = cmesh
 		var mat = StandardMaterial3D.new()
 		mat.albedo_color = Color(0.14, 0.15, 0.15)
-		mat.metallic = 0.5
+		mat.metallic = 0.0  # no modern specular pop
 		mat.roughness = 0.8
 		cover.material_override = mat
 		cover.position = Vector3(cell.x + 0.5, 0.02, cell.y + 0.5)
@@ -2105,7 +2062,7 @@ func _place_bear_traps(cells: Array) -> void:
 func _build_bear_trap_mesh(root: Node3D) -> void:
 	var iron = StandardMaterial3D.new()
 	iron.albedo_color = Color(0.16, 0.16, 0.17)
-	iron.metallic = 0.7
+	iron.metallic = 0.0  # no modern specular pop
 	iron.roughness = 0.5
 	# Base ring.
 	var ring = MeshInstance3D.new()
@@ -2210,7 +2167,7 @@ func _build_dart_trap_mesh(root: Node3D, pos: Vector2i, perp: Vector2i) -> void:
 		tube.rotation_degrees = Vector3(90, 0, 0)
 	var tmat = StandardMaterial3D.new()
 	tmat.albedo_color = pal.get("bark", Color(0.26, 0.18, 0.11)).darkened(0.2)
-	tmat.metallic = 0.3
+	tmat.metallic = 0.0  # no modern specular pop
 	tube.material_override = tmat
 	tube.position = post_pos + Vector3(0, 0.9, 0)
 	root.add_child(tube)
@@ -2355,20 +2312,20 @@ func _build_cave_decorations() -> void:
 			var is_wet = is_water(pos)
 
 			if near_wall and n < 0.16:
-				# Stalagmite rising from the floor.
-				var s = 0.3 + _tile_noise(x, z, 73) * 0.5
+				# Stalagmite rising from the floor (billboard sprite).
+				var s = 0.6 + _tile_noise(x, z, 73) * 0.9
 				stalagmite_items.append({
-					"xform": Transform3D(rot * Basis.from_scale(Vector3(s * 0.7, s * 1.7, s * 0.7)),
-						Vector3(x + 0.5 + jx, s * 0.85, z + 0.5 + jz)),
+					"pos": Vector3(x + 0.5 + jx, 0.0, z + 0.5 + jz),
+					"scale": s,
 					"color": pal["wall_a"].lerp(pal["wall_b"], n * 3.0),
 				})
 			elif near_wall and n < 0.30:
-				# Stalactite hanging from the gloom above, point downward.
-				var hs = 0.25 + _tile_noise(x, z, 77) * 0.4
-				var flip = Basis(Vector3(1, 0, 0), PI)  # invert the cone
+				# Stalactite hanging from the gloom above (billboard sprite,
+				# drawn tip-down; anchored so its root touches the dark above).
+				var hs = 0.5 + _tile_noise(x, z, 77) * 0.7
 				stalactite_items.append({
-					"xform": Transform3D(rot * flip * Basis.from_scale(Vector3(hs * 0.6, hs * 1.8, hs * 0.6)),
-						Vector3(x + 0.5 + jx, 2.9 - hs * 0.9, z + 0.5 + jz)),
+					"pos": Vector3(x + 0.5 + jx, 2.9 - 24.0 * 0.034 * hs, z + 0.5 + jz),
+					"scale": hs,
 					"color": pal["wall_a"].lerp(pal["wall_b"], n * 2.0),
 				})
 			elif not is_wet and n > 0.93:
@@ -2381,19 +2338,8 @@ func _build_cave_decorations() -> void:
 			elif near_wall and n > 0.78:
 				pebble_items.append(_make_rock(x, z, jx, jz, 0.0, rot, pal))
 
-	var up_cone = CylinderMesh.new()
-	up_cone.top_radius = 0.03
-	up_cone.bottom_radius = 0.5
-	up_cone.height = 1.0
-	up_cone.radial_segments = 8
-	_add_multimesh(up_cone, stalagmite_items)
-
-	var hang_cone = CylinderMesh.new()
-	hang_cone.top_radius = 0.03
-	hang_cone.bottom_radius = 0.5
-	hang_cone.height = 1.0
-	hang_cone.radial_segments = 8
-	_add_multimesh(hang_cone, stalactite_items)
+	_add_sprite_decos(stalagmite_items, "res://assets/textures/props/stalagmite.png", 16, 24)
+	_add_sprite_decos(stalactite_items, "res://assets/textures/props/stalactite.png", 16, 24)
 
 	_add_multimesh(BoxMesh.new(), divot_items)
 	_add_multimesh(BoxMesh.new(), pebble_items)
@@ -2412,10 +2358,8 @@ func _place_cave_drips(stalactite_items: Array) -> void:
 	for i in range(0, stalactite_items.size(), step):
 		if made >= want:
 			break
-		var origin: Vector3 = stalactite_items[i]["xform"].origin
+		var origin: Vector3 = stalactite_items[i]["pos"]
 		var drip = _make_water_stream()
-		drip.amount = 5
-		drip.lifetime = 1.4
 		drip.position = Vector3(origin.x, origin.y - 0.4, origin.z)
 		_visuals_root.add_child(drip)
 		made += 1
@@ -2445,8 +2389,13 @@ func _build_fog() -> void:
 	var fog_mat = StandardMaterial3D.new()
 	# Matches the WorldEnvironment backdrop (dark olive) so unexplored land
 	# and the out-of-map void blend into one darkened treeline — no pure
-	# black holes against the meadow (16-bit pass).
-	fog_mat.albedo_color = Color8(26, 28, 20)
+	# black holes against the meadow (16-bit pass). A faint dither texture
+	# keeps the slabs from reading as flat modern boxes.
+	fog_mat.albedo_color = Color(1, 1, 1)
+	fog_mat.albedo_texture = load("res://assets/textures/tile_fog.png")
+	fog_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	fog_mat.uv1_triplanar = true
+	fog_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	fog_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mmi.material_override = fog_mat
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -2829,6 +2778,7 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	glow.light_color = Color(0.4, 0.7, 0.5)
 	glow.light_energy = 0.8
 	glow.omni_range = 3.5
+	glow.omni_attenuation = 2.0  # tighter falloff, less modern gradient
 	glow.position = Vector3(0, 0.3, fp_d / 2.0 - 0.1)
 	root.add_child(glow)
 
@@ -3419,30 +3369,28 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	var wp_root = Node3D.new()
 	wp_root.name = "Waypoint_%s" % target
 
-	# Waypoint visual: flat glowing disc on the ground
-	var pillar = MeshInstance3D.new()
-	var cyl = CylinderMesh.new()
-	cyl.top_radius = 0.45
-	cyl.bottom_radius = 0.45
-	cyl.height = 0.08
-	pillar.mesh = cyl
-	var pillar_mat = StandardMaterial3D.new()
-	# Master-palette waypoint tints (style guide §2).
+	# Waypoint visual: chunky pixel rune-ring laid flat on the ground,
+	# tinted per destination (master-palette tints, style guide §2).
+	var pillar = Sprite3D.new()
+	pillar.texture = load("res://assets/textures/props/waypoint_ring.png")
+	pillar.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	pillar.shaded = false
+	pillar.pixel_size = 0.045  # ring spans ~1.2 tiles
+	pillar.rotation_degrees = Vector3(-90, 0, 0)
+	var tint: Color
 	match target:
 		"transport":
-			pillar_mat.albedo_color = Color(Color8(0x62, 0xa3, 0xb0), 0.9)  # TEAL_1
+			tint = Color8(0x62, 0xa3, 0xb0)  # TEAL_1
 		"town":
-			pillar_mat.albedo_color = Color(Color8(0x3e, 0x67, 0x94), 0.8)  # SKY_4
+			tint = Color8(0x3e, 0x67, 0x94)  # SKY_4
 		"next_world":
-			pillar_mat.albedo_color = Color(Color8(0x38, 0x98, 0x78), 0.8)  # TEAL_3
+			tint = Color8(0x38, 0x98, 0x78)  # TEAL_3
 		"prev_world":
-			pillar_mat.albedo_color = Color(Color8(0xd8, 0xd3, 0x96), 0.8)  # GOLD_2
+			tint = Color8(0xd8, 0xd3, 0x96)  # GOLD_2
 		_:
-			pillar_mat.albedo_color = Color(Color8(0xb6, 0xc5, 0xc5), 0.8)  # STEEL_6
-	pillar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	pillar_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	pillar.material_override = pillar_mat
-	pillar.position = Vector3(0, 0.05, 0)
+			tint = Color8(0xb6, 0xc5, 0xc5)  # STEEL_6
+	pillar.modulate = Color(tint, 0.75)  # dimmed until discovered
+	pillar.position = Vector3(0, 0.03, 0)
 	wp_root.add_child(pillar)
 
 	# Label
@@ -3503,15 +3451,10 @@ func discover_waypoint(index: int) -> bool:
 	if waypoint_nodes[index]["discovered"]:
 		return false
 	waypoint_nodes[index]["discovered"] = true
-	# Visual change: make pillar brighter/opaque to show it's activated
-	var pillar = waypoint_nodes[index]["pillar_mesh"] as MeshInstance3D
-	if pillar and pillar.material_override:
-		var mat = pillar.material_override as StandardMaterial3D
-		if mat:
-			mat.albedo_color.a = 1.0
-			mat.emission_enabled = true
-			mat.emission = Color(mat.albedo_color.r, mat.albedo_color.g, mat.albedo_color.b)
-			mat.emission_energy_multiplier = 0.5
+	# Visual change: the ring lights up to full strength once activated
+	var pillar = waypoint_nodes[index]["pillar_mesh"] as Sprite3D
+	if pillar:
+		pillar.modulate = Color(pillar.modulate.lightened(0.35), 1.0)
 	# Update interact label text
 	var lbl = waypoint_nodes[index]["label_node"] as Label3D
 	if lbl:

@@ -654,6 +654,11 @@ func _update_camera() -> void:
 	)
 	camera.position = _camera_focus + offset
 	camera.look_at(_camera_focus, Vector3.UP)
+	# Orthographic projection: SNES perspective has no foreshortening — this
+	# is the single biggest "reads 16-bit vs reads 3D" lever. Size is frame-
+	# matched to the old perspective view so zoom levels feel unchanged.
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 2.0 * _camera_distance * tan(deg_to_rad(75.0) * 0.5) * 0.62
 
 var _minimap_refresh_accum: float = 0.0
 
@@ -7749,18 +7754,9 @@ func _apply_world_ambience() -> void:
 			# High ambient fill: 16-bit terrain is painted mostly flat, so
 			# shadowed cliff faces stay a readable warm tan instead of black.
 			env.ambient_light_energy = 1.0
-		env.fog_enabled = true
-		env.fog_light_color = pal.get("ambient", Color(0.2, 0.2, 0.25)).darkened(0.55)
-		if in_cave:
-			env.fog_density = 0.045  # heavy underground gloom
-		elif in_sewer:
-			env.fog_density = 0.035  # thick, dank haze that swallows the far walls
-		elif in_building:
-			env.fog_density = 0.012
-		elif in_forest:
-			env.fog_density = 0.004  # clear, open air
-		else:
-			env.fog_density = 0.006
+		# No volumetric distance fog: depth haze is a modern rendering cue the
+		# 16-bit style forbids. Underground gloom comes from ambient + torches.
+		env.fog_enabled = false
 		# No SSAO: soft screen-space AO is a modern rendering tell the 16-bit
 		# style spec forbids — contact shading is painted into sprites instead.
 		env.ssao_enabled = false
@@ -7800,7 +7796,7 @@ func _ensure_player_torch(enable: bool) -> void:
 				torch.light_color = Color(1.0, 0.86, 0.62)
 				torch.light_energy = 2.8
 				torch.omni_range = 9.0
-				torch.omni_attenuation = 1.1
+				torch.omni_attenuation = 2.0  # tighter falloff, less modern gradient
 				torch.shadow_enabled = false
 				torch.position = Vector3(0, 1.2, 0)
 				p.add_child(torch)
@@ -8704,9 +8700,15 @@ func _spawn_pillar(pos: Vector3) -> void:
 	cylinder.top_radius = 0.4
 	cylinder.bottom_radius = 0.4
 	cylinder.height = 2.0
+	cylinder.radial_segments = 8  # faceted, not smooth-round
 	pillar_mesh.mesh = cylinder
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.35, 0.15)  # Brown
+	mat.albedo_color = Color(0.78, 0.62, 0.45)  # warm cast over the rock tiles
+	mat.albedo_texture = load("res://assets/textures/tile_rock.png")
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	mat.roughness = 1.0
 	pillar_mesh.material_override = mat
 	pillar_mesh.position = Vector3(0, 1.0, 0)  # Center of cylinder at Y=1
 	pillar_root.add_child(pillar_mesh)

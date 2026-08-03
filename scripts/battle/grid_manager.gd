@@ -36,14 +36,17 @@ func _draw_grid() -> void:
 	_mesh_instance.material_override = mat
 
 	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
-	# Vertical lines (along Z axis)
+	# Short cross-ticks at cell corners instead of continuous ruled lines —
+	# reads as subtle field marks, not a modern vector grid.
+	var t := grid_size * 0.12
 	for x in range(grid_width + 1):
-		mesh.surface_add_vertex(Vector3(x * grid_size, 0.01, 0))
-		mesh.surface_add_vertex(Vector3(x * grid_size, 0.01, grid_height * grid_size))
-	# Horizontal lines (along X axis)
-	for z in range(grid_height + 1):
-		mesh.surface_add_vertex(Vector3(0, 0.01, z * grid_size))
-		mesh.surface_add_vertex(Vector3(grid_width * grid_size, 0.01, z * grid_size))
+		for z in range(grid_height + 1):
+			var cx := x * grid_size
+			var cz := z * grid_size
+			mesh.surface_add_vertex(Vector3(cx - t, 0.01, cz))
+			mesh.surface_add_vertex(Vector3(cx + t, 0.01, cz))
+			mesh.surface_add_vertex(Vector3(cx, 0.01, cz - t))
+			mesh.surface_add_vertex(Vector3(cx, 0.01, cz + t))
 	mesh.surface_end()
 
 func world_to_grid(world_pos: Vector3) -> Vector2i:

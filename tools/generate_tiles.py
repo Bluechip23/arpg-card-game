@@ -161,6 +161,31 @@ def rock(rng):
     return t
 
 
+def water(rng):
+    """Flat 16-bit water: two-tone blue with sparse ripple dashes and a
+    rare foam fleck. No specular, no emission — the SNES read comes from
+    the painted ripples alone."""
+    WATER = H("3e6794")       # SKY_4
+    WATER_SH = H("374e6e")    # SKY_7
+    RIPPLE = H("637196")      # near SKY_5, conformed at build time
+    FOAM = H("b6c5c5")        # STEEL_6
+    t = Image.new("RGBA", (N, N)); p = t.load()
+    for y in range(N):
+        for x in range(N):
+            p[x, y] = WATER
+    for _ in range(rng.randint(3, 5)):            # deeper patches
+        blob(p, rng, rng.randrange(N), rng.randrange(N), rng.randint(2, 4), WATER_SH)
+    for _ in range(rng.randint(5, 7)):            # horizontal ripple dashes
+        x, y = rng.randrange(N - 4), rng.randrange(N)
+        for dx in range(rng.randint(2, 4)):
+            p[x + dx, y] = RIPPLE
+    if rng.random() < 0.3:                        # rare foam fleck
+        x, y = rng.randrange(1, 31), rng.randrange(1, 31)
+        p[x, y] = FOAM
+        p[x + 1, y] = RIPPLE
+    return t
+
+
 def brick(rng):
     t = Image.new("RGBA", (N, N)); p = t.load()
     BH, BW = 8, 16
@@ -194,4 +219,5 @@ sheet("tile_grass", grass)
 sheet("tile_grass_far", grass_far)
 sheet("tile_dirt", dirt)
 sheet("tile_rock", rock)
+sheet("tile_water", water)
 sheet("tile_brick", brick)

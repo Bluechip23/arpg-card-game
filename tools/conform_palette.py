@@ -21,6 +21,9 @@ COLOR_TARGETS = [
     "assets/textures/tile_*.png",
     "assets/textures/props/*.png",
 ]
+# tile_fog matches the (off-palette) WorldEnvironment backdrop color with
+# sub-step dither shades; conforming it would collapse the dither.
+EXCLUDE = ["assets/textures/tile_fog.png"]
 GRAY_TARGETS = []
 GRAY_STEPS = 8
 
@@ -105,6 +108,8 @@ def main():
     rows = []
     for pattern in COLOR_TARGETS:
         for p in sorted(glob.glob(pattern)):
+            if p in EXCLUDE:
+                continue
             b, a = conform_color(p, pal, pal_lab, check)
             rows.append((p, b, a, "palette"))
     for pattern in GRAY_TARGETS:

@@ -12,7 +12,7 @@ var _roam: float = 3.5
 var _pause: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var _bob_t: float = 0.0
-var _body: MeshInstance3D
+var _body: Sprite3D
 var _kind: String = "mouse"
 
 func setup(home: Vector3, seed_val: int, kind: String = "mouse") -> void:
@@ -32,50 +32,18 @@ func _phase_offset() -> void:
 	_roam = _rng.randf_range(2.5, 4.5)
 
 func _build() -> void:
+	# Tiny pixel billboard (contact shadow painted into the sprite).
 	var is_squirrel = _kind == "squirrel"
-	var fur = Color(0.40, 0.24, 0.12) if is_squirrel else Color(0.17, 0.15, 0.13)
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = fur
-	mat.roughness = 1.0
-
-	_body = MeshInstance3D.new()
-	var body_mesh = SphereMesh.new()
-	body_mesh.radius = 0.09
-	body_mesh.height = 0.18
-	body_mesh.radial_segments = 6
-	body_mesh.rings = 4
-	_body.mesh = body_mesh
-	_body.scale = Vector3(0.8, 0.65, 1.7)  # long little rodent body
-	_body.material_override = mat
-	_body.position.y = 0.08 if is_squirrel else 0.07
+	var tex_path = "res://assets/textures/props/critter_squirrel.png" if is_squirrel \
+			else "res://assets/textures/props/critter_mouse.png"
+	_body = Sprite3D.new()
+	_body.texture = load(tex_path)
+	_body.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_body.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_body.shaded = false
+	_body.pixel_size = 0.034
+	_body.position.y = _body.texture.get_height() * 0.034 * 0.5
 	add_child(_body)
-
-	if is_squirrel:
-		# A bushy tail arcing up over the back.
-		var tail = MeshInstance3D.new()
-		var tmesh = SphereMesh.new()
-		tmesh.radius = 0.07
-		tmesh.height = 0.2
-		tmesh.radial_segments = 6
-		tmesh.rings = 4
-		tail.mesh = tmesh
-		tail.scale = Vector3(0.6, 1.5, 0.6)
-		tail.position = Vector3(0, 0.16, -0.16)
-		tail.material_override = mat
-		add_child(tail)
-	else:
-		# Thin tail trailing behind the mouse.
-		var tail = MeshInstance3D.new()
-		var tail_mesh = CylinderMesh.new()
-		tail_mesh.top_radius = 0.005
-		tail_mesh.bottom_radius = 0.02
-		tail_mesh.height = 0.22
-		tail_mesh.radial_segments = 4
-		tail.mesh = tail_mesh
-		tail.rotation_degrees = Vector3(90, 0, 0)
-		tail.position = Vector3(0, 0.06, -0.18)
-		tail.material_override = mat
-		add_child(tail)
 
 func _pick_target() -> void:
 	var a = _rng.randf() * TAU
@@ -95,8 +63,11 @@ func _process(delta: float) -> void:
 		return
 	var dir = to / d
 	position += dir * _speed * delta
-	rotation.y = atan2(dir.x, dir.z)
+	# Billboard sprite: face the walk direction by mirroring, not rotating.
+	if _body and absf(dir.x) > 0.05:
+		_body.flip_h = dir.x < 0.0
 	# Subtle scurry bob.
 	_bob_t += delta * 18.0
 	if _body:
-		_body.position.y = 0.07 + absf(sin(_bob_t)) * 0.02
+		var rest_y = _body.texture.get_height() * 0.034 * 0.5
+		_body.position.y = rest_y + absf(sin(_bob_t)) * 0.02

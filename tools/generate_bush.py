@@ -49,8 +49,15 @@ for (cx, cy, r) in [(9, 14, 5.5), (21, 14, 5.5), (15, 10, 6)]:
     disc(cx, cy, r, LEAF_SH)
 for (cx, cy, r) in [(10, 12, 4), (20, 12, 4), (15, 9, 4.5)]:
     disc(cx, cy, r, LEAF)
-for (cx, cy, r) in [(9, 10, 2.5), (14, 7, 2.5), (12, 9, 2)]:
-    disc(cx, cy, r, LEAF_HI, jitter=0.6)
+# Lit side: scattered leaf specks instead of solid discs, so the bush reads
+# leafy at distance rather than glossy.
+for _ in range(14):
+    x = rng.randint(6, 17)
+    y = rng.randint(6, 13)
+    if p[x, y][3] == 255 and p[x, y][:3] in (LEAF[:3], LEAF_SH[:3]):
+        p[x, y] = LEAF_HI
+        if rng.random() < 0.4 and p[x + 1, y][3] == 255:
+            p[x + 1, y] = LEAF_HI
 
 # Leaf notches: single-pixel bites out of the silhouette edge.
 edge = []
