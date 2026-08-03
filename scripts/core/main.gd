@@ -2628,7 +2628,9 @@ func _setup_hand_card_preview() -> void:
 	hand_card_preview = PanelContainer.new()
 	hand_card_preview.name = "HandCardPreview"
 	ui.add_child(hand_card_preview)
-	hand_card_preview.custom_minimum_size = Vector2(200, 0)
+	# Hug the compact content: no wider than the card below it unless the
+	# text itself needs more (the container grows to fit).
+	hand_card_preview.custom_minimum_size = Vector2(150, 0)
 	var preview_style = StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
 	preview_style.border_width_left = 2

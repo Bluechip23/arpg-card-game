@@ -786,7 +786,9 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 	bar_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	bar_container.add_theme_constant_override("separation", 4)
 	bar_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar_container.position = Vector2(0, -3)
+	# Panel is inset by the 3px frame border; offset by it so the row centres
+	# on the card, not the inner panel.
+	bar_container.position = Vector2(-3, -3)
 	bar_container.size = Vector2(CARD_W, 9)
 	host.add_child(bar_container)
 
