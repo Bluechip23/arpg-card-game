@@ -84,9 +84,10 @@ func _spawn_sampler() -> void:
 		return
 	spawner.clear_enemies()
 	var p: Vector3 = player.global_position
-	var kinds := [Enemy.EnemyType.WOLF, Enemy.EnemyType.SKELETON, Enemy.EnemyType.SLUDGE,
-			Enemy.EnemyType.GIANT_HAWK, Enemy.EnemyType.TREANT, Enemy.EnemyType.ICE_MAGE,
-			Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.LARGE_BEAR]
+	var kinds := [Enemy.EnemyType.WERERAT, Enemy.EnemyType.RAT_KING,
+			Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Enemy.EnemyType.FIRE_GOBLIN_MAGE,
+			Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.WOLF,
+			Enemy.EnemyType.SKELETON, Enemy.EnemyType.SLUDGE]
 	var offsets := [Vector3(2, 0, -1), Vector3(3, 0, 0.6), Vector3(1.5, 0, 1.8),
 			Vector3(4, 0, -1.5), Vector3(4.5, 0, 1), Vector3(0.5, 0, -2),
 			Vector3(1, 0, -1.2), Vector3(3.5, 0, 2.2)]

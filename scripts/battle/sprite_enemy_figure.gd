@@ -20,6 +20,7 @@ extends Node3D
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
 const NPC2 := "res://assets/sprites/NPCpackage2"
+const GEN := "res://assets/sprites/generated/monsters"
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 3, 1]
@@ -48,35 +49,28 @@ const KINDS := {
 	"treant": {"cell": Vector2i(5, 2), "scale": 1.25},
 	"consumed": {"cell": Vector2i(6, 2)},
 	"sewer_croc": {"cell": Vector2i(7, 2)},
-	# --- battler variations (tint + scale reuse) ---
-	"rat": {"cell": Vector2i(7, 1), "tint": Color(0.7, 0.7, 0.75)},
-	"archer_rat": {"cell": Vector2i(7, 1), "tint": Color(0.85, 0.7, 0.55)},
-	"rat_king": {"cell": Vector2i(7, 1), "tint": Color(1.05, 0.9, 0.55), "scale": 1.35},
+	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
+	"rat": {"tex": "rat"},
+	"archer_rat": {"tex": "rat", "tint": Color(0.95, 0.8, 0.65)},
+	"rat_king": {"tex": "rat", "tint": Color(1.1, 0.95, 0.6), "scale": 1.35},
+	"fire_goblin_soldier": {"npc": GEN + "/goblin_soldier.png"},
+	"fire_goblin_mage": {"npc": GEN + "/goblin_mage.png"},
+	"fire_goblin_shaman": {"npc": GEN + "/goblin_shaman.png", "scale": 1.15},
+	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"tex": "large_bear", "scale": 1.45},
-	"bugbear": {"cell": Vector2i(0, 1), "tint": Color(0.7, 0.62, 0.55), "scale": 1.3},
-	"hydra": {"cell": Vector2i(3, 2), "tint": Color(0.85, 1.05, 0.85), "scale": 1.5},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
 	"cerberus": {"cell": Vector2i(3, 1), "tint": Color(0.85, 0.5, 0.45), "scale": 1.5},
 	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
 	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
-	"white_manticore": {"tex": "white_manticore", "scale": 1.4},
 	"weregoat": {"cell": Vector2i(2, 1), "tint": Color(0.8, 0.8, 0.8), "scale": 1.15},
 	"roc": {"cell": Vector2i(6, 0), "scale": 1.6},
 	"ash_harpy": {"cell": Vector2i(6, 0), "tint": Color(0.65, 0.6, 0.65)},
-	"ice_troll": {"tex": "ice_troll", "scale": 1.5},
-	"snow_wraith": {"cell": Vector2i(4, 1), "tint": Color(1.1, 1.15, 1.3)},
-	"granite_colossus": {"tex": "granite_colossus", "scale": 1.7},
-	"armored_troll": {"cell": Vector2i(4, 2), "tint": Color(0.85, 1.0, 0.8), "scale": 1.45},
-	"grave_titan": {"cell": Vector2i(4, 2), "tint": Color(0.7, 0.6, 0.8), "scale": 1.75},
-	"demon": {"cell": Vector2i(5, 0), "tint": Color(0.9, 0.5, 0.5), "scale": 1.3},
-	"ifrit": {"cell": Vector2i(1, 0), "tint": Color(1.2, 0.7, 0.4)},
-	"pit_fiend": {"cell": Vector2i(3, 0), "tint": Color(0.8, 0.45, 0.45), "scale": 1.5},
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
-	"inflamed_minotaur": {"cell": Vector2i(0, 1), "tint": Color(1.1, 0.6, 0.5), "scale": 1.5},
-	"fire_goblin_soldier": {"tex": "fire_goblin_soldier"},
-	"fire_goblin_mage": {"tex": "fire_goblin_mage"},
-	"fire_goblin_shaman": {"tex": "fire_goblin_shaman", "scale": 1.15},
+	# NOTE deliberately absent — these fall back to their bespoke procedural
+	# figures until real art lands (docs/ART_TODO.md #1): armored_troll,
+	# ice_troll, granite_colossus, grave_titan, inflamed_minotaur, demon,
+	# ifrit, pit_fiend, bugbear, snow_wraith, hydra, white_manticore.
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
 	"ice_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(0.75, 0.9, 1.25)},
 	"fire_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.25, 0.7, 0.55)},
@@ -99,7 +93,7 @@ const PIXEL_SIZE := 0.034
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc", "ash_harpy",
-		"screecher", "djinn", "snow_wraith", "specter"]
+		"screecher", "djinn", "specter"]
 
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
@@ -136,21 +130,19 @@ func setup(kind: String) -> void:
 		_sprite.texture = load(cfg["npc"])
 		_sprite.pixel_size = PIXEL_SIZE
 		_sprite.region_rect = Rect2(0, 0, 32, 32)
-		_base_y = 16.0 * _sprite.pixel_size
 	elif cfg.has("tex"):
-		# Baked hue-shifted battler recolor (single 64x64 cell).
+		# Baked battler recolor / generated sprite (single 64x64 cell).
 		_sprite.texture = load("res://assets/sprites/generated/monsters/%s.png" % cfg["tex"])
 		_sprite.pixel_size = PIXEL_SIZE
 		_sprite.region_rect = Rect2(0, 0, 64, 64)
-		_base_y = 26.0 * PIXEL_SIZE
 	else:
 		_sprite.texture = load(SHEET)
 		_sprite.pixel_size = PIXEL_SIZE
 		var cell: Vector2i = cfg["cell"]
 		_sprite.region_rect = Rect2(cell.x * 64, cell.y * 64, 64, 64)
-		# Battler art sits low in the cell with a painted shadow; lift so the
-		# feet/shadow line rests on the ground plane.
-		_base_y = 26.0 * PIXEL_SIZE
+	# Ground precisely: lift the centred sprite so its art's lowest opaque
+	# pixel row (feet / painted shadow line) sits on the ground plane.
+	_base_y = _measure_ground_lift()
 	_sprite.position = Vector3(0, _base_y, 0)
 	var s: float = cfg.get("scale", 1.0)
 	_rig.scale = Vector3(s, s, s)
@@ -161,6 +153,35 @@ func setup(kind: String) -> void:
 	if not kind in PAINTED_SHADOW_KINDS:
 		var body_w := 40.0 * _sprite.pixel_size  # typical drawn battler width
 		BlobShadow.attach(_rig, body_w * 0.7)
+
+
+# Per-(sheet, cell) cache of measured ground lifts.
+static var _ground_cache := {}
+
+
+## Distance from sprite centre to the art's lowest opaque row, in world units.
+func _measure_ground_lift() -> float:
+	var key := "%s|%s" % [_sprite.texture.resource_path, _sprite.region_rect]
+	if _ground_cache.has(key):
+		return _ground_cache[key]
+	var lift := (_sprite.region_rect.size.y * 0.5 - 6.0) * _sprite.pixel_size  # fallback
+	var img: Image = _sprite.texture.get_image()
+	if img:
+		if img.is_compressed():
+			img.decompress()
+		var r := _sprite.region_rect
+		var bottom := -1
+		for y in range(int(r.size.y) - 1, -1, -1):
+			for x in range(int(r.size.x)):
+				if img.get_pixel(int(r.position.x) + x, int(r.position.y) + y).a > 0.05:
+					bottom = y
+					break
+			if bottom >= 0:
+				break
+		if bottom >= 0:
+			lift = (float(bottom + 1) - r.size.y * 0.5) * _sprite.pixel_size
+	_ground_cache[key] = lift
+	return lift
 
 
 # =============================================================
