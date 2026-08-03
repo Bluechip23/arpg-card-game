@@ -212,30 +212,52 @@ def build_rat():
 
 def build_archer_rat():
     c = Canvas()
-    rat_base(c, RAMPS["fur"])
-    # a recurve bow slung across the back (the Archer Rat kites)
-    for t in range(20):
-        ang = 2.0 + t * 0.075
-        bx = 33 + 8.0 * math.cos(ang)
-        by = 46 + 8.0 * math.sin(ang)
+    # spec: brown fur, torso pivots UPRIGHT to stand and shoot; wood bow.
+    FURB = [HEX("d08860"), HEX("a78e51"), HEX("6b533e"), HEX("452e5b")]
+    # tail bracing behind
+    pts = [(36, 54), (43, 55), (49, 52)]
+    for i in range(len(pts) - 1):
+        c.limb(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 1, [SKIN] * 4)
+    c.limb(29, 50, 27, 55, 2, FURB)              # hind legs
+    c.limb(36, 50, 38, 55, 2, FURB)
+    c.sphere(32, 41, 7, 9, FURB)                 # upright torso
+    c.sphere(31, 28, 5, 4.6, FURB)               # head
+    c.tri((24, 28), (28, 26), (28, 31), FURB[2]) # snout left
+    c.sphere(35, 23, 2.6, 2.6, FURB); c.px[35, 23] = PINK  # ear
+    # bow held out front (left): thick arc, taut string, nocked arrow
+    for t in range(30):
+        ang = 1.35 + t * 0.062
+        bx = 24 + 10 * math.cos(ang)
+        by = 38 + 10 * math.sin(ang)
         c.px[int(bx), int(by)] = RAMPS["leather"][1]
-        c.px[int(bx), int(by) - 1] = RAMPS["leather"][0]
-    for t in range(12):  # string
-        c.px[int(28 + t * 0.9), int(38 + t * 1.35)] = RAMPS["bone"][1]
+        c.px[int(bx) + 1, int(by)] = RAMPS["leather"][0]
+    for t in range(19):                           # string between the tips
+        c.px[int(26 - 2), int(29 + t)] = RAMPS["bone"][0]
+    c.flat(17, 37, 30, 38, RAMPS["fur"][3])       # arrow shaft
+    c.tri((14, 35), (17, 37), (14, 39), RAMPS["steel"][0])  # arrowhead
+    c.limb(30, 38, 26, 38, 1.4, FURB)             # forepaw on the grip
+    c.px[29, 27] = EYE
+    c.px[29, 26] = WHITE
     c.outline(); c.save("archer_rat")
 
 
 def build_rat_king():
     c = Canvas()
     rat_base(c, RAMPS["grey"])
-    # regal cape draped over the back, behind the crown
-    c.tri((22, 47), (43, 46), (35, 55), RAMPS["blood"][2])
-    c.tri((24, 48), (40, 47), (33, 53), RAMPS["blood"][1])
+    # ragged crimson cape lying along the back ridge, torn strips trailing
+    for t in range(20):
+        x = 23 + t
+        top = 45 + int(t * 0.28)
+        c.flat(x, top, x + 1, min(52, top + 3), HEX("96232c") if t % 3 else HEX("602323"))
+    for hx in (40, 44, 47):                       # torn trailing strips
+        c.tri((hx, 50), (hx + 2, 49), (hx, 55), HEX("602323"))
+    c.px[23, 46] = RAMPS["gold"][0]               # gold clasp at the shoulder
     # the crown (bestiary: "a crowned rat") sits ON the head
     c.flat(14, 44, 23, 47, RAMPS["gold"][0])
     for px_ in (14, 18, 21):
         c.tri((px_, 44), (px_ + 2, 44), (px_ + 1, 41), RAMPS["gold"][0])
     c.px[16, 45] = RAMPS["blood"][1]; c.px[20, 45] = RAMPS["violet"][0]  # jewels
+    c.px[16, 50] = HEX("e06969")                  # the king's eye burns red
     c.outline(); c.save("rat_king")
 
 
@@ -278,7 +300,9 @@ def build_granite_colossus():
         steps = max(abs(y1 - y0), 1)
         for i in range(steps):
             t = i / steps
-            c.px[int(x0 + (x1 - x0) * t), int(y0 + (y1 - y0) * t)] = RAMPS["stone"][3]
+            warm = HEX("a78e51") if i % 2 == 0 else RAMPS["stone"][3]
+            c.px[int(x0 + (x1 - x0) * t), int(y0 + (y1 - y0) * t)] = warm
+    c.px[28, 32] = GLOW; c.px[41, 38] = GLOW      # crack glow cores
     # moss tufts clinging to the shade side
     for (mx, my) in [(42, 26), (43, 27), (20, 44), (21, 45), (33, 11)]:
         c.px[mx, my] = RAMPS["leaf"][1]
@@ -290,67 +314,102 @@ def build_granite_colossus():
 
 def build_grave_titan():
     c = Canvas()
-    # towering shrouded mass wearing gravestones (graveyard: "Grave titans")
-    c.sphere(32, 38, 14, 17, RAMPS["night"])
-    c.sphere(32, 20, 9, 9, RAMPS["night"])
-    # gravestone pauldrons + a leaning headstone on the back
-    c.slab(16, 26, 24, 35, RAMPS["stone"], bevel=2)
-    c.slab(41, 25, 48, 34, RAMPS["stone"], bevel=2)
-    c.slab(26, 6, 38, 14, RAMPS["stone"], bevel=2)
-    c.tri((26, 6), (38, 6), (32, 2), RAMPS["stone"][1])   # rounded headstone top
-    # dragging knuckles
-    c.limb(16, 36, 12, 53, 3, RAMPS["night"])
-    c.limb(48, 35, 52, 53, 3, RAMPS["night"])
-    c.px[28, 19] = GLOW; c.px[36, 19] = GLOW
-    c.px[28, 20] = GLOW; c.px[36, 20] = GLOW
+    # spec (enemy_figure.gd): white fur d7d9dd, grey skin, carries a boulder
+    FURW = [HEX("f2fdff"), HEX("d9dec2"), HEX("b6c5c5"), HEX("63778f")]
+    c.limb(26, 46, 24, 55, 3.4, FURW)
+    c.limb(38, 46, 40, 55, 3.4, FURW)
+    c.sphere(32, 34, 14, 14, FURW)               # torso
+    c.limb(19, 28, 13, 48, 3.2, FURW)            # left arm hangs
+    c.sphere(13, 50, 4, 3, RAMPS["stone"])       # stony knuckle
+    c.limb(45, 28, 50, 40, 3.2, FURW)            # right arm up to the boulder
+    c.sphere(32, 18, 7, 6.4, [HEX("b6c5c5"), HEX("8898a0"), HEX("63778f"), HEX("3c5575")])  # grey face
+    c.sphere(32, 13, 7.4, 3, FURW)               # furred brow/crown
+    # the boulder resting on the right shoulder
+    c.sphere(50, 22, 8.5, 8, RAMPS["stone"])
+    c.px[47, 20] = RAMPS["stone"][3]; c.px[52, 24] = RAMPS["stone"][3]  # cracks
+    # fur shag along the belly
+    for (fx, fy) in [(26, 42), (31, 44), (37, 42), (29, 38)]:
+        c.px[fx, fy] = FURW[2]
+    c.px[29, 18] = EYE; c.px[35, 18] = EYE
     c.outline(); c.save("grave_titan")
 
 
 def build_inflamed_minotaur():
     c = Canvas()
-    # broad bull-man wreathed in embers (Underworld)
-    c.limb(26, 46, 24, 55, 3, RAMPS["dark_red"])
-    c.limb(38, 46, 40, 55, 3, RAMPS["dark_red"])
-    c.sphere(32, 36, 13, 11, RAMPS["blood"])
-    c.limb(20, 30, 15, 45, 3, RAMPS["blood"])
-    c.limb(44, 30, 49, 45, 3, RAMPS["blood"])
-    c.sphere(15, 47, 3.4, 3, RAMPS["dark_red"])
-    c.sphere(49, 47, 3.4, 3, RAMPS["dark_red"])
-    bull_head(c, 32, 18, RAMPS["dark_red"])
-    # embers rising off the shoulders
-    for (ex, ey) in [(20, 24), (45, 22), (41, 27)]:
-        c.px[ex, ey] = GLOW
-    c.px[29, 17] = GLOW; c.px[35, 17] = GLOW
+    # spec: dark brown hide with ember glow, cream horns, fiery great-axe.
+    HIDE = [HEX("d08860"), HEX("6b533e"), HEX("452e5b"), HEX("2b2540")]
+    c.limb(26, 46, 24, 55, 3, HIDE)
+    c.limb(38, 46, 40, 55, 3, HIDE)
+    c.sphere(31, 35, 12, 11, HIDE)
+    c.limb(21, 30, 16, 44, 2.8, HIDE)
+    c.limb(41, 30, 46, 42, 2.8, HIDE)
+    bull_head(c, 31, 17, HIDE)
+    # ember glow cracks on the hide
+    for (ex, ey) in [(27, 33), (28, 34), (34, 31), (35, 32), (31, 40)]:
+        c.px[ex, ey] = HEX("e09060")
+    c.px[28, 33] = GLOW; c.px[35, 31] = GLOW
+    # fiery great-axe: long haft, broad crescent blade, flames off the edge
+    c.flat(50, 12, 52, 52, RAMPS["fur"][2])       # haft
+    c.tri((50, 13), (50, 27), (40, 20), RAMPS["steel"][1])   # blade
+    c.tri((50, 15), (50, 25), (43, 20), RAMPS["steel"][0])   # blade highlight
+    for (fx, fy) in [(41, 16), (39, 20), (41, 24)]:          # flames on the edge
+        c.px[fx, fy] = GLOW
+        c.px[fx - 1, fy] = HEX("e09060")
+    c.px[29, 16] = GLOW; c.px[34, 16] = GLOW      # burning eyes
     c.outline(); c.save("inflamed_minotaur")
 
 
 def build_demon():
     c = Canvas()
-    bat_wing(c, 22, 30, -1, 13, RAMPS["dark_red"])
-    bat_wing(c, 42, 30, 1, 13, RAMPS["dark_red"])
-    # lean upright fiend with a tail
+    # spec: red hide, spiral thorns on shoulders/back, gold eyes,
+    # left hand dagger + right hand trident. No wings.
     c.limb(28, 46, 27, 55, 2.4, RAMPS["blood"])
     c.limb(36, 46, 37, 55, 2.4, RAMPS["blood"])
-    c.sphere(32, 35, 9, 11, RAMPS["blood"])
-    c.limb(25, 30, 22, 43, 2.2, RAMPS["blood"])
-    c.limb(39, 30, 42, 43, 2.2, RAMPS["blood"])
+    c.sphere(32, 34, 10, 11, RAMPS["blood"])
+    c.limb(25, 29, 20, 42, 2.2, RAMPS["blood"])
+    c.limb(39, 29, 45, 40, 2.2, RAMPS["blood"])
+    # spiral thorns stacking over the shoulders
+    for s, sx in ((-1, 23), (1, 41)):
+        c.sphere(sx, 26, 2.6, 2.6, RAMPS["dark_red"])
+        c.sphere(sx + s * 2, 23, 2.0, 2.0, RAMPS["dark_red"])
+        c.px[sx + s * 3, 20] = RAMPS["dark_red"][1]
     c.sphere(32, 19, 6, 6, RAMPS["blood"])
-    # curved horns + spade tail
-    c.limb(27, 15, 24, 9, 1.4, RAMPS["bone"])
-    c.limb(37, 15, 40, 9, 1.4, RAMPS["bone"])
-    pts = [(38, 50), (45, 53), (50, 49)]
-    for i in range(len(pts) - 1):
-        c.limb(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 1.2, RAMPS["dark_red"])
-    c.tri((49, 45), (53, 49), (47, 50), RAMPS["dark_red"][2])
-    c.px[30, 19] = GLOW; c.px[34, 19] = GLOW
+    c.limb(27, 15, 24, 9, 1.9, RAMPS["dark_red"])   # dark horns
+    c.limb(37, 15, 40, 9, 1.9, RAMPS["dark_red"])
+    c.px[23, 7] = RAMPS["dark_red"][1]; c.px[41, 7] = RAMPS["dark_red"][1]
+    # right hand: trident planted
+    c.flat(46, 20, 48, 52, RAMPS["fur"][2])
+    for tx in (44, 47, 50):
+        c.tri((tx, 18), (tx + 2, 18), (tx + 1, 12), RAMPS["steel"][1])
+    c.flat(44, 18, 51, 20, RAMPS["steel"][2])
+    # left hand: dagger — dark grip, bright blade
+    c.flat(19, 41, 22, 43, RAMPS["dark_red"][2])
+    c.tri((18, 40), (23, 40), (20, 31), RAMPS["steel"][0])
+    c.px[20, 33] = RAMPS["steel"][1]
+    c.px[29, 19] = GLOW; c.px[35, 19] = GLOW
     c.outline(); c.save("demon")
 
 
 def build_pit_fiend():
     c = Canvas()
-    bat_wing(c, 18, 26, -1, 17, RAMPS["dark_red"])
-    bat_wing(c, 46, 26, 1, 17, RAMPS["dark_red"])
+    # spec: deep red, right hand holds a coiled whip, thin tail with an
+    # arrowhead barb, gold ornaments. Heavy build, no wings.
     eye_y = troll_body(c, RAMPS["dark_red"], RAMPS["blood"])
+    # gold collar band
+    c.flat(26, 29, 40, 31, RAMPS["gold"][1])
+    # coiled whip in the right hand: thick leather rings + handle
+    for r in (5.0, 3.2):
+        for t in range(30):
+            ang = t * 0.21
+            wx = 51 + r * math.cos(ang)
+            wy = 47 + r * 0.65 * math.sin(ang)
+            c.sphere(wx, wy, 1.1, 1.1, RAMPS["leather"])
+    c.flat(48, 39, 50, 44, RAMPS["leather"][3])   # handle
+    # thin tail whipping out left with arrowhead barb
+    pts = [(24, 50), (14, 48), (8, 42)]
+    for i in range(len(pts) - 1):
+        c.limb(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 1.2, RAMPS["dark_red"])
+    c.tri((5, 38), (10, 41), (5, 43), RAMPS["dark_red"][1])
     # heavy ram horns
     c.limb(26, 16, 21, 10, 1.8, RAMPS["bone"])
     c.limb(38, 16, 43, 10, 1.8, RAMPS["bone"])
@@ -366,17 +425,18 @@ def build_bugbear():
     c.sphere(32, 36, 12, 11, RAMPS["leather"])
     c.limb(21, 31, 16, 45, 2.6, RAMPS["leather"])
     c.limb(43, 31, 47, 44, 2.6, RAMPS["leather"])
-    # spiked club dragging low from the right hand
-    c.limb(47, 45, 52, 52, 2, RAMPS["fur"])
-    c.sphere(54, 53, 4, 4, RAMPS["fur"])
-    c.px[57, 50] = OUT; c.px[56, 56] = OUT; c.px[51, 56] = OUT  # spikes
+    # heavy spiked mace in the right fist (wood haft, steel head)
+    c.limb(47, 45, 51, 51, 1.6, RAMPS["fur"])
+    c.sphere(53, 52, 4, 4, RAMPS["steel"])
+    for (sx2, sy2) in [(57, 49), (57, 55), (50, 56), (53, 47)]:
+        c.px[sx2, sy2] = RAMPS["steel"][0]
     c.sphere(32, 20, 7.5, 7, RAMPS["leather"])
     # pointed goblin ears
     c.tri((24, 18), (26, 14), (22, 12), RAMPS["leather"][2])
     c.tri((40, 18), (38, 14), (42, 12), RAMPS["leather"][2])
     # heavy brow + eyes + fangs
     c.flat(27, 17, 38, 19, RAMPS["leather"][3])
-    c.px[29, 19] = GLOW; c.px[35, 19] = GLOW
+    c.px[29, 19] = HEX("e06969"); c.px[35, 19] = HEX("e06969")  # red eyes
     c.sphere(32, 24, 4.4, 2.6, [SKIN, SKIN, RAMPS["leather"][2], RAMPS["leather"][3]])
     c.px[29, 25] = RAMPS["bone"][0]; c.px[35, 25] = RAMPS["bone"][0]
     # fur speckle
@@ -387,20 +447,30 @@ def build_bugbear():
 
 def build_ifrit():
     c = Canvas()
-    c.painted_shadow(32, 11)
-    # fire spirit: one strong teardrop, gold core, two raised flame arms
-    c.sphere(32, 40, 10, 12, RAMPS["blood"])
-    c.tri((24, 34), (40, 34), (32, 10), RAMPS["blood"][1])
-    c.tri((28, 32), (36, 32), (32, 15), RAMPS["gold"][0])
-    c.sphere(32, 40, 6, 8, RAMPS["gold"])
-    # arms curling up like flames
-    c.limb(23, 40, 18, 33, 2, RAMPS["blood"])
-    c.limb(18, 33, 20, 28, 1.4, RAMPS["gold"])
-    c.limb(41, 40, 46, 33, 2, RAMPS["blood"])
-    c.limb(46, 33, 44, 28, 1.4, RAMPS["gold"])
-    # face: dark slit eyes and a grin in the core
-    c.flat(28, 38, 30, 40, EYE); c.flat(34, 38, 36, 40, EYE)
-    c.flat(29, 44, 35, 45, EYE)
+    # spec: coal hide, ember cracks, glow, canine head, long arms near the
+    # ground, short bent legs, pale claws. A molten beast — not a flame wisp.
+    COAL = [HEX("a94c1f"), HEX("6b533e"), HEX("452e5b"), HEX("2b2540")]
+    c.limb(27, 48, 25, 55, 2.8, COAL)
+    c.limb(37, 48, 39, 55, 2.8, COAL)
+    c.sphere(32, 37, 13, 12, COAL)               # hunched torso
+    c.limb(20, 32, 13, 52, 3, COAL)              # long arms to the ground
+    c.limb(44, 32, 51, 52, 3, COAL)
+    for (hx, hy) in [(12, 54), (52, 54)]:        # pale claws
+        c.px[hx, hy] = RAMPS["bone"][0]; c.px[hx + 1, hy] = RAMPS["bone"][0]; c.px[hx - 1, hy] = RAMPS["bone"][0]
+    # canine head: skull + lighter snout with jaw and fangs
+    c.sphere(32, 21, 7, 6, COAL)
+    c.sphere(25, 24, 5, 3, [HEX("d08860"), HEX("a94c1f"), HEX("6b533e"), HEX("452e5b")])
+    c.px[20, 23] = OUT; c.px[20, 24] = OUT        # nose
+    c.px[23, 27] = RAMPS["bone"][0]; c.px[26, 27] = RAMPS["bone"][0]  # fangs
+    c.px[22, 25] = HEX("602323")                  # mouth line
+    # glowing ember cracks across chest, arms, brow
+    EMB = HEX("e09060"); GLW = HEX("f9dc3e")
+    for (ex, ey) in [(28, 34), (29, 35), (30, 36), (35, 32), (36, 33), (37, 34),
+                     (33, 40), (34, 41), (17, 40), (18, 41), (46, 38), (47, 39), (30, 17), (31, 18)]:
+        c.px[ex, ey] = EMB
+    for (ex, ey) in [(29, 35), (36, 33), (33, 40), (17, 41), (46, 39)]:
+        c.px[ex, ey] = GLW
+    c.px[29, 20] = GLW; c.px[34, 20] = GLW       # burning eyes
     c.outline(); c.save("ifrit")
 
 
@@ -416,7 +486,7 @@ def build_snow_wraith():
         c.tri((hx, 42), (hx + 4, 42), (hx + 2, depth), RAMPS["steel"][2])
     # hollow hood + cold eyes
     c.sphere(32, 19, 4.6, 4, [OUT, OUT, OUT, OUT])
-    c.px[30, 19] = WHITE; c.px[34, 19] = WHITE
+    c.px[30, 19] = HEX("62a3b0"); c.px[34, 19] = HEX("62a3b0")  # cold blue eyes
     # trailing wisp arms
     c.limb(23, 30, 15, 36, 1.8, RAMPS["steel"])
     c.limb(41, 30, 49, 36, 1.8, RAMPS["steel"])
@@ -425,55 +495,66 @@ def build_snow_wraith():
 
 def build_hydra():
     c = Canvas()
-    # one thick serpent trunk, three fanned necks, open jaws
-    c.sphere(32, 49, 15, 8, RAMPS["leaf"])
-    c.sphere(32, 44, 10, 5, RAMPS["leaf"])       # trunk shoulder mass
+    # spec: serpent trunk rearing up — raised chest where the necks root,
+    # barrel + coiled hindquarters, pale belly scutes, dorsal ridge, stubby
+    # clawed forelegs, gold eyes.
+    c.sphere(38, 51, 13, 6, RAMPS["leaf"])        # coiled hindquarters
+    c.sphere(30, 45, 10, 9, RAMPS["leaf"])        # barrel
+    c.sphere(27, 34, 8, 9, RAMPS["leaf"])         # rearing chest
+    # dorsal ridge down the spine
+    for (dx, dy) in [(24, 26), (21, 32), (22, 40), (27, 51), (36, 46)]:
+        c.tri((dx, dy), (dx + 4, dy), (dx + 2, dy - 4), RAMPS["leaf"][2])
+    # pale belly scutes plating the chest
+    for by in range(30, 42, 3):
+        c.flat(29, by, 34, by + 2, RAMPS["leaf"][0])
+    # stubby clawed forelegs bracing
+    c.limb(24, 42, 21, 48, 2, RAMPS["leaf"])
+    c.px[20, 49] = RAMPS["bone"][0]; c.px[22, 49] = RAMPS["bone"][0]
+    # three necks rooting at the chest
     necks = [
-        [(25, 45), (14, 40), (9, 30), (13, 21)],
-        [(32, 43), (28, 33), (34, 25), (31, 15)],
-        [(39, 45), (50, 40), (55, 30), (51, 21)],
+        [(25, 28), (13, 24), (8, 16)],
+        [(28, 26), (29, 16), (33, 10)],
+        [(31, 28), (44, 24), (52, 16)],
     ]
     for pts in necks:
         for i in range(len(pts) - 1):
-            c.limb(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 3, RAMPS["leaf"])
-    heads = [(14, 18, -1), (31, 12, -1), (51, 18, 1)]
-    for (hx, hy, face) in heads:
-        c.sphere(hx, hy, 5.5, 4.4, RAMPS["leaf"])
-        # open jaw: upper snout + dropped lower jaw, red mouth between
-        c.tri((hx + face * 5, hy - 1), (hx + face * 10, hy - 3), (hx + face * 5, hy - 3), RAMPS["leaf"][1])
-        c.tri((hx + face * 5, hy + 1), (hx + face * 9, hy + 4), (hx + face * 4, hy + 3), RAMPS["leaf"][2])
-        c.px[hx + face * 5, hy] = RAMPS["blood"][0]
-        c.px[hx + face * 6, hy] = RAMPS["blood"][0]
-        c.px[hx - face * 1, hy - 2] = EYE
-    # belly plates on the trunk
-    for by in range(46, 53, 2):
-        c.px[31, by] = RAMPS["leaf"][0]; c.px[33, by] = RAMPS["leaf"][0]
+            c.limb(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 2.6, RAMPS["leaf"])
+    for (hx, hy, face) in [(8, 14, -1), (34, 8, 1), (53, 14, 1)]:
+        c.sphere(hx, hy, 5, 4, RAMPS["leaf"])
+        c.tri((hx + face * 5, hy - 1), (hx + face * 9, hy - 2), (hx + face * 4, hy - 3), RAMPS["leaf"][1])
+        c.tri((hx + face * 4, hy + 1), (hx + face * 8, hy + 3), (hx + face * 3, hy + 3), RAMPS["leaf"][2])
+        c.px[hx + face * 4, hy] = RAMPS["blood"][0]
+        c.px[hx - face * 1, hy - 2] = GLOW        # gold eyes
     c.outline(); c.save("hydra")
 
 
 def build_white_manticore():
     c = Canvas()
-    # white lion, bat wing over the back, segmented stinger tail (mountains)
-    # tail arc first (behind)
+    # spec: snow-leopard body (white with grey rosettes), bat wings,
+    # spiked scorpion tail arching over the back. No lion mane.
+    SNOW = [HEX("f2fdff"), HEX("f6f1d7"), HEX("b6c5c5"), HEX("63778f")]
+    # tail arcs over the back, segmented, spiked tip
     tip = (0, 0)
     for t in range(22):
         ang = -0.25 + t * 0.085
-        fx = 46 + 15 * math.cos(ang)
-        fy = 38 - 17 * math.sin(ang)
+        fx = 44 + 15 * math.cos(ang)
+        fy = 40 - 18 * math.sin(ang)
         tip = (int(fx), int(fy))
-        c.sphere(fx, fy, 1.6, 1.6, RAMPS["bone"])
-    c.tri((tip[0] - 2, tip[1]), (tip[0] + 3, tip[1]), (tip[0], tip[1] - 8), RAMPS["dark_red"][1])
-    c.sphere(34, 45, 14, 8, RAMPS["bone"])       # body
-    for lx in (24, 30, 40, 45):
-        c.limb(lx, 50, lx - 1, 55, 2.3, RAMPS["bone"])
-    bat_wing(c, 36, 38, 1, 12, RAMPS["stone"])
-    c.limb(36, 38, 45, 32, 0.9, RAMPS["grey"])   # second wing rib
-    # mane + face
-    c.sphere(20, 38, 8.5, 8.5, RAMPS["gold"])
-    c.sphere(18, 37, 5, 5, RAMPS["bone"])
-    c.sphere(17, 40, 3, 2, RAMPS["bone"])        # muzzle
-    c.px[15, 36] = EYE; c.px[20, 36] = EYE
-    c.px[13, 40] = OUT                            # nose
+        c.sphere(fx, fy, 1.7, 1.7, SNOW)
+    c.px[tip[0] - 1, tip[1] - 2] = RAMPS["steel"][1]
+    c.tri((tip[0] - 2, tip[1] - 1), (tip[0] + 3, tip[1] - 1), (tip[0], tip[1] - 8), RAMPS["steel"][0])
+    c.sphere(33, 45, 15, 8.5, SNOW)              # body
+    for lx in (23, 29, 40, 45):
+        c.limb(lx, 50, lx - 1, 55, 2.3, SNOW)
+    bat_wing(c, 34, 38, 1, 12, RAMPS["grey"])
+    c.sphere(18, 37, 7, 6.4, SNOW)               # head — no mane
+    c.sphere(21, 31, 2.4, 2.4, SNOW)             # ear
+    c.sphere(15, 41, 3.4, 2.2, SNOW)             # muzzle
+    # grey rosette spots along the flank
+    for (rx, ry) in [(28, 43), (35, 47), (41, 43), (31, 49), (24, 46), (38, 40)]:
+        c.px[rx, ry] = RAMPS["grey"][2]; c.px[rx + 1, ry] = RAMPS["grey"][2]
+    c.px[16, 37] = EYE; c.px[20, 37] = EYE
+    c.px[13, 41] = OUT
     c.outline(); c.save("white_manticore")
 
 

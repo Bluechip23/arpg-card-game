@@ -103,7 +103,7 @@ const PIXEL_SIZE := 0.034
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc", "ash_harpy",
-		"screecher", "djinn", "specter", "ifrit", "snow_wraith"]
+		"screecher", "djinn", "specter", "snow_wraith"]
 
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
