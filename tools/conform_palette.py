@@ -18,8 +18,10 @@ PALETTE_GPL = "resources/palette/master_palette.gpl"
 COLOR_TARGETS = [
     "assets/ui/*.png",
     "assets/sprites/generated/monsters/*.png",
+    "assets/textures/tile_*.png",
+    "assets/textures/props/*.png",
 ]
-GRAY_TARGETS = ["assets/textures/tile_*.png"]
+GRAY_TARGETS = []
 GRAY_STEPS = 8
 
 

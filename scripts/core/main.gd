@@ -9439,8 +9439,10 @@ func _build_ground_plane() -> void:
 	plane_mesh.size = Vector2(dungeon_manager.GRID_W + 40, dungeon_manager.GRID_H + 40)
 	ground.mesh = plane_mesh
 	var mat = StandardMaterial3D.new()
-	# Lightened so the out-of-bounds ground reads as terrain, not void.
-	mat.albedo_color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1)).lightened(0.22)
+	# Full-color tiles: keep only a dim theme cast so out-of-bounds terrain
+	# reads as darker painted ground rather than a solid tint.
+	var ground_cast: Color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1))
+	mat.albedo_color = Color(0.55, 0.55, 0.55).lerp(ground_cast, 0.35)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.roughness = 1.0
 	# Same pixel tile texture as the arena floor (tinted darker by the ground

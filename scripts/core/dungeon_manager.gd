@@ -1007,7 +1007,13 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 	mm.instance_count = items.size()
 	for i in range(items.size()):
 		mm.set_instance_transform(i, items[i]["xform"])
-		mm.set_instance_color(i, items[i]["color"])
+		var inst_color: Color = items[i]["color"]
+		if texture_path != "":
+			# Tile textures are authored in full master-palette color now; the
+			# instance tint becomes a gentle theme cast instead of the color
+			# source, so painted hues survive on screen (16-bit pass).
+			inst_color = Color(1, 1, 1).lerp(inst_color, 0.5)
+		mm.set_instance_color(i, inst_color)
 	var mmi = MultiMeshInstance3D.new()
 	mmi.multimesh = mm
 	var mat = StandardMaterial3D.new()
@@ -1027,6 +1033,41 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 		mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	mmi.material_override = mat
 	_visuals_root.add_child(mmi)
+
+
+## Billboard sprite props (trees, bushes, rocks, stumps, ferns): a QuadMesh
+## MultiMesh with a nearest-filtered billboard material. items entries:
+## {pos: Vector3 ground point, scale: float, color: Color theme cast}.
+func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: float) -> void:
+	if items.is_empty():
+		return
+	var ps := 0.034  # world units per texel (style guide texel density)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(px_w * ps, px_h * ps)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = quad
+	mm.instance_count = items.size()
+	for i in range(items.size()):
+		var it: Dictionary = items[i]
+		var s: float = it.get("scale", 1.0)
+		var pos: Vector3 = it["pos"] + Vector3(0, px_h * ps * 0.5 * s, 0)
+		mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(s, s, s)), pos))
+		mm.set_instance_color(i, Color(1, 1, 1).lerp(it.get("color", Color.WHITE), 0.25))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(texture_path)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.billboard_keep_scale = true
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	mmi.material_override = mat
+	_visuals_root.add_child(mmi)
+
 
 func _build_floor_visuals() -> void:
 	## Per-tile ground at elevation 0 with subtle natural color variation.
@@ -1218,6 +1259,10 @@ func _build_decorations() -> void:
 	var rock_items: Array = []
 	var bush_items: Array = []
 	var cone_items: Array = []
+	var _deco_trees: Array = []
+	var _deco_rocks: Array = []
+	var _deco_bushes: Array = []
+	var _deco_ferns: Array = []
 
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1243,7 +1288,8 @@ func _build_decorations() -> void:
 						"color": pal["wall_a"].lerp(pal["wall_b"], n * 3.0),
 					})
 				elif near_wall and n < 0.2:
-					rock_items.append(_make_rock(x, z, jx, jz, y_base, rot, pal))
+					_deco_rocks.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.8 + _tile_noise(x, z, 75) * 0.5, "color": pal["wall_a"]})
 			elif interior_kind == "building":
 				if near_wall and n < 0.10:
 					# Crates and furniture
@@ -1254,18 +1300,28 @@ func _build_decorations() -> void:
 						"color": pal["accent"].lerp(pal["floor_b"], n * 2.0),
 					})
 			else:
-				if near_wall and n < 0.11:
-					rock_items.append(_make_rock(x, z, jx, jz, y_base, rot, pal))
-				elif n > 0.96:
-					# Open-field shrub
-					var s = 0.5 + _tile_noise(x, z, 83) * 0.3
-					bush_items.append({
-						"xform": Transform3D(rot * Basis.from_scale(Vector3(s, s * 0.55, s)),
-							Vector3(x + 0.5 + jx, y_base + s * 0.2, z + 0.5 + jz)),
-						"color": pal["accent"].lerp(pal["floor_a"], _tile_noise(x, z, 89) * 0.6),
-					})
+				if near_wall and n < 0.07:
+					# Treeline trees hugging the walls (billboard sprites)
+					_deco_trees.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.85 + _tile_noise(x, z, 73) * 0.5,
+							"color": pal.get("leaf", pal["floor_a"])})
+				elif near_wall and n < 0.11:
+					_deco_rocks.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.7 + _tile_noise(x, z, 75) * 0.5, "color": pal["wall_a"]})
+				elif n > 0.945:
+					_deco_bushes.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.8 + _tile_noise(x, z, 83) * 0.5,
+							"color": pal["accent"].lerp(pal["floor_a"], 0.5)})
+				elif n > 0.90:
+					_deco_ferns.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.8 + _tile_noise(x, z, 87) * 0.4,
+							"color": pal["floor_a"]})
 
 	_add_multimesh(BoxMesh.new(), rock_items)
+	_add_sprite_decos(_deco_trees, "res://assets/textures/props/tree.png", 48, 64)
+	_add_sprite_decos(_deco_rocks, "res://assets/textures/props/rock.png", 32, 24)
+	_add_sprite_decos(_deco_bushes, "res://assets/textures/props/bush.png", 32, 24)
+	_add_sprite_decos(_deco_ferns, "res://assets/textures/props/fern.png", 24, 24)
 	if not bush_items.is_empty():
 		var bush_mesh = SphereMesh.new()
 		bush_mesh.radial_segments = 12
@@ -2097,47 +2153,28 @@ func _build_forest_decorations() -> void:
 			var y_base = elevation[x][z] * ELEV_STEP
 			var rot = Basis(Vector3.UP, _tile_noise(x, z, 71) * TAU)
 			if near_wall and n < 0.30:
-				# Background tree hugging the treeline (trunk + canopy multimesh).
-				var s = 0.7 + _tile_noise(x, z, 73) * 0.7
-				trunk_items.append({
-					"xform": Transform3D(Basis.from_scale(Vector3(0.2 * s, 1.4 * s, 0.2 * s)),
-						Vector3(x + 0.5 + jx, y_base + 0.7 * s, z + 0.5 + jz)),
-					"color": pal["bark"],
-				})
-				canopy_items.append({
-					"xform": Transform3D(rot * Basis.from_scale(Vector3(0.9 * s, 1.0 * s, 0.9 * s)),
-						Vector3(x + 0.5 + jx, y_base + 1.7 * s, z + 0.5 + jz)),
-					"color": pal["leaf"].lerp(pal["leaf_b"], _tile_noise(x, z, 79)),
-				})
+				# Treeline tree (billboard sprite).
+				trunk_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.8 + _tile_noise(x, z, 73) * 0.7,
+						"color": pal["leaf"].lerp(pal["leaf_b"], _tile_noise(x, z, 79))})
 			elif near_wall and n < 0.40:
-				# Mossy stump.
-				var ss = 0.2 + _tile_noise(x, z, 81) * 0.15
-				stump_items.append({
-					"xform": Transform3D(rot * Basis.from_scale(Vector3(ss * 1.3, ss, ss * 1.3)),
-						Vector3(x + 0.5 + jx, y_base + ss * 0.5, z + 0.5 + jz)),
-					"color": pal["bark"].lerp(pal["accent"], 0.3),
-				})
-			elif n > 0.90:
-				# Open-field bush / fern.
-				var bs = 0.4 + _tile_noise(x, z, 83) * 0.4
-				bush_items.append({
-					"xform": Transform3D(rot * Basis.from_scale(Vector3(bs, bs * 0.7, bs)),
-						Vector3(x + 0.5 + jx, y_base + bs * 0.3, z + 0.5 + jz)),
-					"color": pal["accent"].lerp(pal["leaf"], _tile_noise(x, z, 89)),
-				})
+				# Mossy stump (billboard sprite).
+				stump_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.7 + _tile_noise(x, z, 81) * 0.4,
+						"color": pal["bark"].lerp(pal["accent"], 0.3)})
+			elif n > 0.93:
+				bush_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.7 + _tile_noise(x, z, 83) * 0.6,
+						"color": pal["accent"].lerp(pal["leaf"], _tile_noise(x, z, 89))})
+			elif n > 0.88:
+				canopy_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+						"scale": 0.75 + _tile_noise(x, z, 91) * 0.4,
+						"color": pal["leaf"]})
 
-	_add_multimesh(_cylinder_mesh(0.5, 0.5, 1.0), trunk_items)
-	if not canopy_items.is_empty():
-		var cmesh = SphereMesh.new()
-		cmesh.radial_segments = 8
-		cmesh.rings = 5
-		_add_multimesh(cmesh, canopy_items)
-	_add_multimesh(_cylinder_mesh(0.5, 0.55, 1.0), stump_items)
-	if not bush_items.is_empty():
-		var bmesh = SphereMesh.new()
-		bmesh.radial_segments = 8
-		bmesh.rings = 5
-		_add_multimesh(bmesh, bush_items)
+	_add_sprite_decos(trunk_items, "res://assets/textures/props/tree.png", 48, 64)
+	_add_sprite_decos(canopy_items, "res://assets/textures/props/fern.png", 24, 24)
+	_add_sprite_decos(stump_items, "res://assets/textures/props/stump.png", 24, 20)
+	_add_sprite_decos(bush_items, "res://assets/textures/props/bush.png", 32, 24)
 
 	_place_forest_squirrels(floor_cells)
 	print("[DUNGEON] Forest dressing: %d trees, %d stumps, %d bushes" % [
@@ -2942,7 +2979,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	box.size = Vector3(0.7, 0.5, 0.5)
 	body.mesh = box
 	var body_mat = StandardMaterial3D.new()
-	body_mat.albedo_color = Color8(0x6b, 0x53, 0x3e)  # Palette wood (SKIN_4)
+	body_mat.albedo_color = Color(0.75, 0.68, 0.62)  # gentle wood cast over the colored grain
 	body_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	body_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
 	body_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -2958,7 +2995,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	lid_box.size = Vector3(0.72, 0.2, 0.52)
 	lid.mesh = lid_box
 	var lid_mat = StandardMaterial3D.new()
-	lid_mat.albedo_color = Color8(0xa9, 0x4c, 0x1f)  # Palette leather base
+	lid_mat.albedo_color = Color(0.95, 0.72, 0.55)  # warm leather cast over the colored grain
 	lid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	lid_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
 	lid_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
