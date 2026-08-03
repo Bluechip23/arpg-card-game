@@ -1263,6 +1263,7 @@ func _build_decorations() -> void:
 	var _deco_rocks: Array = []
 	var _deco_bushes: Array = []
 	var _deco_ferns: Array = []
+	var _deco_flowers: Array = []
 
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1308,20 +1309,26 @@ func _build_decorations() -> void:
 				elif near_wall and n < 0.11:
 					_deco_rocks.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
 							"scale": 0.7 + _tile_noise(x, z, 75) * 0.5, "color": pal["wall_a"]})
-				elif n > 0.945:
+				elif n > 0.925:
 					_deco_bushes.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
 							"scale": 0.8 + _tile_noise(x, z, 83) * 0.5,
 							"color": pal["accent"].lerp(pal["floor_a"], 0.5)})
-				elif n > 0.90:
+				elif n > 0.885:
 					_deco_ferns.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
 							"scale": 0.8 + _tile_noise(x, z, 87) * 0.4,
 							"color": pal["floor_a"]})
+				elif n > 0.84:
+					# Flower clumps scattered through the open meadow
+					_deco_flowers.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+							"scale": 0.8 + _tile_noise(x, z, 89) * 0.4,
+							"color": Color.WHITE})
 
 	_add_multimesh(BoxMesh.new(), rock_items)
 	_add_sprite_decos(_deco_trees, "res://assets/textures/props/tree.png", 48, 64)
 	_add_sprite_decos(_deco_rocks, "res://assets/textures/props/rock.png", 32, 24)
 	_add_sprite_decos(_deco_bushes, "res://assets/textures/props/bush.png", 32, 24)
 	_add_sprite_decos(_deco_ferns, "res://assets/textures/props/fern.png", 24, 24)
+	_add_sprite_decos(_deco_flowers, "res://assets/textures/props/flowers.png", 20, 14)
 	if not bush_items.is_empty():
 		var bush_mesh = SphereMesh.new()
 		bush_mesh.radial_segments = 12
@@ -1334,7 +1341,10 @@ func _build_decorations() -> void:
 		cone.height = 1.0
 		cone.radial_segments = 10
 		_add_multimesh(cone, cone_items)
-	print("[DUNGEON] Placed %d decorations" % (rock_items.size() + bush_items.size() + cone_items.size()))
+	print("[DUNGEON] Placed %d mesh decos + %d trees, %d rocks, %d bushes, %d ferns, %d flowers" % [
+		rock_items.size() + bush_items.size() + cone_items.size(),
+		_deco_trees.size(), _deco_rocks.size(), _deco_bushes.size(),
+		_deco_ferns.size(), _deco_flowers.size()])
 
 func _make_rock(x: int, z: int, jx: float, jz: float, y_base: float, rot: Basis, pal: Dictionary) -> Dictionary:
 	var sx = 0.2 + _tile_noise(x, z, 91) * 0.25
@@ -2578,6 +2588,18 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	})
 	_reserve_area(entrance, 1)
 
+func _pixel_mat(texture_path: String, tint: Color) -> StandardMaterial3D:
+	## Nearest-filtered triplanar tile material for site structures, matching
+	## the terrain formula: near-white cast so the sheet's colors survive.
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1, 1, 1).lerp(tint, 0.5)
+	mat.albedo_texture = load(texture_path)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	mat.roughness = 1.0
+	return mat
+
 func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## Simple generic structure: stone walls, pitched roof, door, lit windows.
 	var w = fp_w - 0.3
@@ -2588,10 +2610,7 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	var body_mesh = BoxMesh.new()
 	body_mesh.size = Vector3(w, wall_h, d)
 	body.mesh = body_mesh
-	var body_mat = StandardMaterial3D.new()
-	body_mat.albedo_color = Color(0.55, 0.50, 0.44)
-	body_mat.roughness = 0.9
-	body.material_override = body_mat
+	body.material_override = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.55, 0.50, 0.44))
 	body.position = Vector3(0, wall_h / 2.0, 0)
 	root.add_child(body)
 
@@ -2600,10 +2619,7 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	roof_mesh.size = Vector3(d + 0.5, 0.9, w + 0.5)
 	roof_mesh.left_to_right = 0.5
 	roof.mesh = roof_mesh
-	var roof_mat = StandardMaterial3D.new()
-	roof_mat.albedo_color = Color(0.42, 0.22, 0.16)
-	roof_mat.roughness = 0.85
-	roof.material_override = roof_mat
+	roof.material_override = _pixel_mat("res://assets/textures/tile_dirt.png", Color(0.42, 0.22, 0.16))
 	roof.rotation_degrees.y = 90.0  # Ridge runs along the building's long axis
 	roof.position = Vector3(0, wall_h + 0.45, 0)
 	root.add_child(roof)
@@ -2645,10 +2661,7 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	cone.height = 2.2
 	cone.radial_segments = 12
 	mound.mesh = cone
-	var mound_mat = StandardMaterial3D.new()
-	mound_mat.albedo_color = pal["cliff"]
-	mound_mat.roughness = 1.0
-	mound.material_override = mound_mat
+	mound.material_override = _pixel_mat("res://assets/textures/tile_rock.png", pal["cliff"])
 	mound.position = Vector3(0, 1.1, -0.2)
 	root.add_child(mound)
 
@@ -2661,10 +2674,7 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		sphere.radial_segments = 10
 		sphere.rings = 6
 		boulder.mesh = sphere
-		var b_mat = StandardMaterial3D.new()
-		b_mat.albedo_color = pal["wall_b"]
-		b_mat.roughness = 1.0
-		boulder.material_override = b_mat
+		boulder.material_override = _pixel_mat("res://assets/textures/tile_rock.png", pal["wall_b"])
 		boulder.position = Vector3(side * fp_w * 0.45, 0.3, fp_d / 2.0 - 0.4)
 		root.add_child(boulder)
 
@@ -2683,9 +2693,7 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## A low brick headworks with an arched, barred opening descending into the
 	## dark — the manhole/grate the player climbs down to reach the sewers.
-	var brick = StandardMaterial3D.new()
-	brick.albedo_color = Color(0.30, 0.31, 0.29)
-	brick.roughness = 1.0
+	var brick = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.30, 0.31, 0.29))
 
 	# Squat stone surround.
 	var block = MeshInstance3D.new()
@@ -2724,8 +2732,8 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	# Iron bars across the mouth (a raised grate).
 	var bar_mat = StandardMaterial3D.new()
 	bar_mat.albedo_color = Color(0.12, 0.12, 0.13)
-	bar_mat.metallic = 0.7
-	bar_mat.roughness = 0.6
+	bar_mat.metallic = 0.0  # no modern specular pop
+	bar_mat.roughness = 1.0
 	for i in range(3):
 		var bar = MeshInstance3D.new()
 		var barmesh = BoxMesh.new()
@@ -2749,32 +2757,20 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	var bark = StandardMaterial3D.new()
 	bark.albedo_color = Color(0.26, 0.18, 0.11)
 	bark.roughness = 1.0
-	var leaf = StandardMaterial3D.new()
-	leaf.albedo_color = Color(0.20, 0.40, 0.16)
-	leaf.roughness = 1.0
 
-	# Two flanking trees.
+	# Two flanking trees — the same billboard sprite the forest interior uses,
+	# scaled up into gateposts (no smooth mesh spheres).
 	for side in [-1.0, 1.0]:
-		var trunk = MeshInstance3D.new()
-		var tmesh = CylinderMesh.new()
-		tmesh.top_radius = 0.18
-		tmesh.bottom_radius = 0.26
-		tmesh.height = 2.4
-		tmesh.radial_segments = 8
-		trunk.mesh = tmesh
-		trunk.material_override = bark
-		trunk.position = Vector3(side * fp_w * 0.42, 1.2, -0.1)
-		root.add_child(trunk)
-		var canopy = MeshInstance3D.new()
-		var cmesh = SphereMesh.new()
-		cmesh.radius = 0.9
-		cmesh.height = 1.7
-		cmesh.radial_segments = 8
-		cmesh.rings = 5
-		canopy.mesh = cmesh
-		canopy.material_override = leaf
-		canopy.position = Vector3(side * fp_w * 0.42, 2.7, -0.1)
-		root.add_child(canopy)
+		var tree = Sprite3D.new()
+		tree.texture = load("res://assets/textures/props/tree.png")
+		tree.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		tree.shaded = false
+		tree.pixel_size = 0.034
+		var tree_scale := 1.6
+		tree.scale = Vector3(tree_scale, tree_scale, tree_scale)
+		tree.position = Vector3(side * fp_w * 0.42, 64.0 * 0.034 * 0.5 * tree_scale, -0.1)
+		root.add_child(tree)
 
 	# A simple wooden lintel spanning the two trees.
 	var lintel = MeshInstance3D.new()

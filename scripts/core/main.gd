@@ -9452,9 +9452,14 @@ func _build_ground_plane() -> void:
 	mat.albedo_color = Color(0.55, 0.55, 0.55).lerp(ground_cast, 0.35)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.roughness = 1.0
-	# Same pixel tile texture as the arena floor (tinted darker by the ground
+	# Same pixel tile style as the arena floor (tinted darker by the ground
 	# colour) so the world beyond the walls matches the sprite art style.
-	mat.albedo_texture = load(dungeon_manager.floor_texture_path())
+	# Grass swaps to the accent-free far variant: flowers/tufts under the dark
+	# tint would read as scattered noise specks across the whole backdrop.
+	var tex_path: String = dungeon_manager.floor_texture_path()
+	if tex_path.ends_with("tile_grass.png"):
+		tex_path = "res://assets/textures/tile_grass_far.png"
+	mat.albedo_texture = load(tex_path)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)  # 4x4 variant sheet: 1 tile/unit

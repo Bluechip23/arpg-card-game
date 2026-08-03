@@ -87,6 +87,21 @@ def grass(rng):
     return t
 
 
+def grass_far(rng):
+    """Backdrop-plane grass: mottle only — no flowers, tufts, or highlights.
+    The out-of-bounds plane is tinted dark, where bright accents would pop
+    into scattered noise specks."""
+    t = Image.new("RGBA", (N, N)); p = t.load()
+    for y in range(N):
+        for x in range(N):
+            p[x, y] = GRASS
+    for _ in range(rng.randint(4, 6)):
+        blob(p, rng, rng.randrange(N), rng.randrange(N), rng.randint(2, 4), GRASS_SH)
+    for _ in range(rng.randint(2, 3)):
+        blob(p, rng, rng.randrange(N), rng.randrange(N), 2, GRASS_CORE, keep=(GRASS_SH,))
+    return t
+
+
 def dirt(rng):
     t = Image.new("RGBA", (N, N)); p = t.load()
     for y in range(N):
@@ -176,6 +191,7 @@ def brick(rng):
 
 
 sheet("tile_grass", grass)
+sheet("tile_grass_far", grass_far)
 sheet("tile_dirt", dirt)
 sheet("tile_rock", rock)
 sheet("tile_brick", brick)
