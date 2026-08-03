@@ -51,8 +51,8 @@ const KINDS := {
 	"sewer_croc": {"cell": Vector2i(7, 2)},
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"tex": "rat"},
-	"archer_rat": {"tex": "rat", "tint": Color(0.95, 0.8, 0.65)},
-	"rat_king": {"tex": "rat", "tint": Color(1.1, 0.95, 0.6), "scale": 1.25},
+	"archer_rat": {"tex": "archer_rat"},
+	"rat_king": {"tex": "rat_king", "scale": 1.25},
 	"fire_goblin_soldier": {"npc": GEN + "/goblin_soldier.png"},
 	"fire_goblin_mage": {"npc": GEN + "/goblin_mage.png"},
 	"fire_goblin_shaman": {"npc": GEN + "/goblin_shaman.png", "scale": 1.15},
