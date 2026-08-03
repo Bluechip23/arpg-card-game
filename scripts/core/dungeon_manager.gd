@@ -196,7 +196,7 @@ var pit_tiles: Dictionary = {}  # Vector2i -> true: impassable pit hazards
 # Per-location fog radius. Sewers reveal less; the open forest reveals more.
 var fog_reveal_radius: int = FOG_REVEAL_RADIUS
 
-var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, body_mesh, lid_mesh}]
+var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, sprite}]
 var spawn_zones: Array = []     # [{trigger_rect, spawn_points, enemy_types, spawned}]
 var waypoint_nodes: Array = []  # [{node, grid_pos, target, display_name, label_node, discovered, pillar_mesh}]
 var site_nodes: Array = []      # [{node, grid_pos (entrance), id, kind, display_name, label_node, footprint}]
@@ -2947,15 +2947,7 @@ func _restore_opened_chests() -> void:
 
 		# Visually open the chest
 		chest_nodes[i]["opened"] = true
-		var body_mesh: MeshInstance3D = chest_nodes[i]["body_mesh"]
-		var lid_mesh: MeshInstance3D = chest_nodes[i]["lid_mesh"]
-		if body_mesh:
-			var mat = body_mesh.material_override as StandardMaterial3D
-			if mat:
-				mat.albedo_color = Color(0.35, 0.3, 0.15)
-		if lid_mesh:
-			lid_mesh.rotation_degrees.x = -110
-			lid_mesh.position = Vector3(0, 0.55, -0.15)
+		_set_chest_open_visual(i)
 
 		if state is Dictionary:
 			# Partially opened: gold was claimed, apply item/card claim flags
@@ -2972,55 +2964,27 @@ func _restore_opened_chests() -> void:
 			# Legacy true value or fully looted
 			mark_chest_looted(i)
 
+func _set_chest_open_visual(index: int) -> void:
+	var sprite: Sprite3D = chest_nodes[index].get("sprite")
+	if sprite:
+		sprite.texture = load("res://assets/textures/props/chest_open.png")
+
 func _create_chest(grid_pos: Vector2i) -> void:
 	var chest_root = Node3D.new()
 	chest_root.name = "TreasureChest_%d" % chest_nodes.size()
 
-	# Chest body (box)
-	var body = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(0.7, 0.5, 0.5)
-	body.mesh = box
-	var body_mat = StandardMaterial3D.new()
-	body_mat.albedo_color = Color(0.75, 0.68, 0.62)  # gentle wood cast over the colored grain
-	body_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	body_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
-	body_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	body_mat.uv1_triplanar = true
-	body_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
-	body.material_override = body_mat
-	body.position = Vector3(0, 0.25, 0)
-	chest_root.add_child(body)
-
-	# Chest lid (slightly smaller box on top)
-	var lid = MeshInstance3D.new()
-	var lid_box = BoxMesh.new()
-	lid_box.size = Vector3(0.72, 0.2, 0.52)
-	lid.mesh = lid_box
-	var lid_mat = StandardMaterial3D.new()
-	lid_mat.albedo_color = Color(0.95, 0.72, 0.55)  # warm leather cast over the colored grain
-	lid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	lid_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
-	lid_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	lid_mat.uv1_triplanar = true
-	lid_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
-	lid.material_override = lid_mat
-	lid.position = Vector3(0, 0.5, 0)
-	chest_root.add_child(lid)
-
-	# Lock decoration (small metallic sphere)
-	var lock = MeshInstance3D.new()
-	var lock_mesh = SphereMesh.new()
-	lock_mesh.radius = 0.08
-	lock_mesh.height = 0.16
-	lock.mesh = lock_mesh
-	var lock_mat = StandardMaterial3D.new()
-	lock_mat.albedo_color = Color8(0xf9, 0xdc, 0x3e)  # Palette GOLD_1
-	lock_mat.metallic = 0.0  # no modern specular pop
-	lock_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	lock.material_override = lock_mat
-	lock.position = Vector3(0, 0.38, 0.27)
-	chest_root.add_child(lock)
+	# 16-bit billboard chest (closed sprite; swapped to the open sprite on open).
+	# Contact shadow is painted into the sprite, same as the other ground props.
+	var sprite = Sprite3D.new()
+	sprite.name = "ChestSprite"
+	sprite.texture = load("res://assets/textures/props/chest_closed.png")
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = 0.034  # style guide texel density
+	# Bottom edge of the sprite rests on the ground, matching _add_sprite_decos.
+	sprite.position = Vector3(0, 26.0 * 0.5 * sprite.pixel_size, 0)
+	chest_root.add_child(sprite)
 
 	# Interact label (floating above chest)
 	var label = Label3D.new()
@@ -3051,8 +3015,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 		"opened": false,
 		"looted": false,
 		"contents": contents,
-		"body_mesh": body,
-		"lid_mesh": lid
+		"sprite": sprite
 	})
 
 func _generate_chest_contents(chest_index: int) -> Dictionary:
@@ -3602,18 +3565,9 @@ func open_chest(index: int) -> Dictionary:
 	var first_open = not chest_nodes[index]["opened"]
 	chest_nodes[index]["opened"] = true
 
-	# Visual feedback on first open: change chest color to dark / opened look
+	# Visual feedback on first open: swap to the open-lid sprite
 	if first_open:
-		var body_mesh: MeshInstance3D = chest_nodes[index]["body_mesh"]
-		var lid_mesh: MeshInstance3D = chest_nodes[index]["lid_mesh"]
-		if body_mesh:
-			var mat = body_mesh.material_override as StandardMaterial3D
-			if mat:
-				mat.albedo_color = Color(0.35, 0.3, 0.15)  # Darkened
-		if lid_mesh:
-			# Rotate lid open
-			lid_mesh.rotation_degrees.x = -110
-			lid_mesh.position = Vector3(0, 0.55, -0.15)
+		_set_chest_open_visual(index)
 
 	# Persist partial state so gold isn't re-granted if player leaves and returns
 	if first_open:
