@@ -80,6 +80,7 @@ var _base_modulate := Color.WHITE
 var _fx_tween: Tween = null
 var _rig: Node3D = null   # sprites parent; effect tweens move/scale this
 var _shadow: BlobShadow = null
+var _fx: ActionFX = null  # bespoke per-card effect layer (icicles, fireballs, …)
 
 
 func setup(character_name: String, _sprite_path: String = "") -> void:
@@ -109,6 +110,14 @@ func setup(character_name: String, _sprite_path: String = "") -> void:
 	if old_shadow:
 		old_shadow.queue_free()
 	_shadow = BlobShadow.attach(self, 0.62)
+	# Effect layer for bespoke card animations. Outside the rig so hops and
+	# knockback don't drag mid-flight projectiles along with the body.
+	if _fx and is_instance_valid(_fx):
+		_fx.queue_free()
+	_fx = ActionFX.new()
+	_fx.name = "ActionFX"
+	add_child(_fx)
+	_apply_fx_facing()
 	_play("idle")
 
 
@@ -180,6 +189,12 @@ func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
 
 func play_action(action: String, direction: int = CharacterAnimator.Direction.SOUTH) -> void:
 	set_facing(direction)
+	# Bespoke per-card effects first: ActionFX supplies the signature visual
+	# (icicle, fireball, flying pig, …) and we play a matching body motion.
+	if _fx and ActionFX.handles(action):
+		_play_body(ActionFX.body_for(action))
+		_fx.play(action)
+		return
 	if action in AXE_ACTIONS:
 		_play("attack_axe")
 	elif _is_attack(action):
@@ -220,10 +235,48 @@ func set_facing(direction: int) -> void:
 	if direction == facing:
 		return
 	facing = direction
+	_apply_fx_facing()
 	if not _attacking:
 		_play("walk" if _walking else "idle", true)
 	else:
 		_apply_frame()
+
+
+func _apply_fx_facing() -> void:
+	# Yaw the effect layer so its local +Z matches the sprite's facing.
+	if not _fx:
+		return
+	match facing:
+		CharacterAnimator.Direction.NORTH: _fx.rotation.y = PI
+		CharacterAnimator.Direction.EAST: _fx.rotation.y = PI / 2.0
+		CharacterAnimator.Direction.WEST: _fx.rotation.y = -PI / 2.0
+		_: _fx.rotation.y = 0.0
+
+
+func _forward_vec() -> Vector3:
+	match facing:
+		CharacterAnimator.Direction.NORTH: return Vector3(0, 0, -1)
+		CharacterAnimator.Direction.EAST: return Vector3(1, 0, 0)
+		CharacterAnimator.Direction.WEST: return Vector3(-1, 0, 0)
+		_: return Vector3(0, 0, 1)
+
+
+## Body motion played alongside an ActionFX effect (hint from ActionFX.BODY).
+func _play_body(hint: String) -> void:
+	match hint:
+		"sword": _play("attack_sword")
+		"axe": _play("attack_axe")
+		"guard": _guard_fx()
+		"crouch": _crouch_fx()
+		"hop": _hop_fx()
+		"high_hop": _high_hop_fx()
+		"bounce": _bounce_fx()
+		"lunge", "kick": _lunge_fx()
+		"weave": _weave_fx()
+		"heal":
+			flash(Color(0.55, 1.0, 0.55))
+			_hop_fx()
+		_: pass
 
 
 func set_facing_from_velocity(vel: Vector3) -> void:
@@ -319,6 +372,44 @@ func _hop_fx() -> void:
 		var t := create_tween()
 		t.tween_property(_rig, "position:y", 0.28, 0.14).set_ease(Tween.EASE_OUT)
 		t.tween_property(_rig, "position:y", 0.0, 0.16).set_ease(Tween.EASE_IN)
+
+
+func _high_hop_fx() -> void:
+	# The big leap (Heroic Leap, Sky Fall, Rise…).
+	if _rig:
+		var t := create_tween()
+		t.tween_property(_rig, "position:y", 0.6, 0.2).set_ease(Tween.EASE_OUT)
+		t.tween_property(_rig, "position:y", 0.0, 0.2).set_ease(Tween.EASE_IN)
+
+
+func _crouch_fx() -> void:
+	# The silent version of the guard drop (channels, bows, meditation).
+	if _rig:
+		_rig.position.y = -2.0 * PIXEL_SIZE
+		var t := create_tween()
+		t.tween_interval(0.5)
+		t.tween_callback(func():
+			if _rig:
+				_rig.position.y = 0.0)
+
+
+func _lunge_fx() -> void:
+	# A quick step into the facing direction and back (slams, throws, kicks).
+	if _rig:
+		var t := create_tween()
+		t.tween_property(_rig, "position", _forward_vec() * 0.22, 0.12) \
+				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		t.tween_property(_rig, "position", Vector3.ZERO, 0.18)
+
+
+func _weave_fx() -> void:
+	# Side-to-side slip (Bob and Weave).
+	if _rig:
+		var side := _forward_vec().cross(Vector3.UP) * 0.16
+		var t := create_tween()
+		t.tween_property(_rig, "position", side, 0.1)
+		t.tween_property(_rig, "position", -side, 0.14)
+		t.tween_property(_rig, "position", Vector3.ZERO, 0.1)
 
 
 func _bounce_fx() -> void:

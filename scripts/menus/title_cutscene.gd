@@ -53,6 +53,11 @@ const OLORIN_SCALE := 4.5  # a touch taller than the boy — presence
 const BOY_SCALE := 4.0
 const RUN_FRAME_TIME := 0.11
 
+# Pipe: sized to read against the 4.5x sprite. While lounging the pipe stands
+# nearly upright in Olorin's mouth, bowl to the sky.
+const PIPE_SCALE := 1.8
+const PIPE_LOUNGE_ANGLE := -1.75  # radians; bowl end up and slightly over his face
+
 var _olorin_tex: Texture2D = load(OLORIN_SHEET)
 var _boy_tex: Texture2D = load(BOY_SHEET)
 
@@ -106,16 +111,21 @@ func _boy_arrive_x() -> float:
 	return _olorin_x() - 215.0
 
 func _mouth_pos() -> Vector2:
-	## Olorin's mouth while lounging (ring emission point).
-	return Vector2(_olorin_x() + 34.0, _ground_y() - 86.0)
+	## Olorin's mouth while lounging — where the pipe's mouthpiece sits.
+	return Vector2(_olorin_x() + 38.0, _ground_y() - 94.0)
+
+func _smoke_source() -> Vector2:
+	## The lounging pipe's bowl — where puffs and the great rings come from.
+	return _pipe_bowl(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE)
 
 func _olorin_foot() -> Vector2:
 	## Ground point under standing Olorin's feet.
 	return Vector2(_olorin_x() - 70.0, _ground_y())
 
 func _standing_mouth(facing: float) -> Vector2:
-	## Olorin's mouth while standing (pipe anchor). facing: -1 left, +1 right.
-	return _olorin_foot() + Vector2(14.0 * facing, -80.0)
+	## Olorin's mouth while standing (pipe mouthpiece anchor).
+	## facing: -1 left, +1 right.
+	return _olorin_foot() + Vector2(16.0 * facing, -84.0)
 
 func _pipe_ground_pos() -> Vector2:
 	return Vector2(_olorin_x() - 46.0, _ground_y() - 6.0)
@@ -166,14 +176,15 @@ func _draw() -> void:
 	# ---------- Phase-dependent actors ----------
 	if _t < T_STAND:
 		# Standing in the field, pipe in hand, puffing away as the boy runs up.
-		_draw_olorin_standing(_olorin_foot(), -1.0, false)  # facing left, toward the boy
+		# He faces left toward the boy, so the pipe's bowl extends left too.
+		_draw_olorin_standing(_olorin_foot(), -1.0, false)
 		var smouth := _standing_mouth(-1.0)
-		_draw_pipe(smouth + Vector2(2, 6), -0.35, 1.0)
-		_draw_small_puffs(smouth, _t)
+		_draw_pipe(smouth, -0.3, PIPE_SCALE, true)
+		_draw_small_puffs(_pipe_bowl(smouth, -0.3, PIPE_SCALE, true), _t)
 	elif _t < T_SNAP:
 		# Still standing; the pipe has dropped to the ground.
 		var facing := -1.0 if _t < T_TURN else 1.0  # turns around after the boy leaves
-		_draw_pipe(_pipe_ground_pos(), 0.35, 1.0)
+		_draw_pipe(_pipe_ground_pos(), 0.35, PIPE_SCALE)
 		var scratching := _t >= T_TURN and _t < T_BUBBLE3_END
 		_draw_olorin_standing(_olorin_foot(), facing, scratching)
 	else:
@@ -187,20 +198,21 @@ func _draw() -> void:
 		else:
 			var pipe_in_hand := _t >= T_PIPE_ARRIVE
 			_draw_olorin_lounging(Vector2(ox, g), pipe_in_hand)
-			# Telekinesis: the pipe arcs to Olorin's mouth on a sparkle trail.
+			# Telekinesis: the pipe arcs to Olorin's mouth on a sparkle trail,
+			# swinging upright so it lands mouthpiece-first.
 			if _t >= T_LIE and _t < T_PIPE_ARRIVE:
 				var u = smoothstep(0.0, 1.0, (_t - T_LIE) / (T_PIPE_ARRIVE - T_LIE))
 				var from := _pipe_ground_pos()
-				var to := _mouth_pos() + Vector2(6, 10)
+				var to := _mouth_pos()
 				var p := from.lerp(to, u)
 				p.y -= sin(u * PI) * 40.0  # gentle arc
-				_draw_pipe(p, lerpf(0.35, -0.2, u), 1.0)
+				_draw_pipe(p, lerpf(0.35, PIPE_LOUNGE_ANGLE, u), PIPE_SCALE)
 				_draw_sparkle_trail(p, _t)
 			elif _t < T_LIE:
-				_draw_pipe(_pipe_ground_pos(), 0.35, 1.0)
+				_draw_pipe(_pipe_ground_pos(), 0.35, PIPE_SCALE)
 			# Post-arrival idle puffs (after the big rings are out).
 			if _t > T_RING2 + 0.8:
-				_draw_small_puffs(_mouth_pos(), _t)
+				_draw_small_puffs(_smoke_source(), _t)
 
 	# ---------- The boy ----------
 	if _t >= T_BOY_IN and _t < T_BOY_GONE:
@@ -327,11 +339,12 @@ func _draw_npc_frame(tex: Texture2D, col: int, row: int, foot: Vector2,
 
 func _draw_olorin_lounging(base: Vector2, pipe_in_hand: bool) -> void:
 	## Olorin reclined on the chair: feet left, head up on the incline (right).
-	## The front-facing sprite tipped back along the chair's angle.
+	## The north-facing (back) sprite tipped along the chair's angle, so he's
+	## gazing up at the sky rather than out at the viewer.
 	var feet := Vector2(base.x - 50.0, base.y - 36.0)
-	_draw_npc_frame(_olorin_tex, 0, ROW_S, feet, OLORIN_SCALE, deg_to_rad(58.0))
+	_draw_npc_frame(_olorin_tex, 0, ROW_N, feet, OLORIN_SCALE, deg_to_rad(58.0))
 	if pipe_in_hand:
-		_draw_pipe(_mouth_pos() + Vector2(4, 8), -0.35, 1.0)
+		_draw_pipe(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE)
 
 func _draw_olorin_standing(foot: Vector2, facing: float, scratching: bool) -> void:
 	## Standing wizard. facing: -1 looks left, +1 looks right. While pondering
@@ -347,13 +360,22 @@ func _draw_boy(base: Vector2, t: float, running: bool, facing: float) -> void:
 	var col := int(t / RUN_FRAME_TIME) % 4 if running else 0
 	_draw_npc_frame(_boy_tex, col, row, base, BOY_SCALE)
 
-func _draw_pipe(pos: Vector2, angle: float, s: float) -> void:
-	## Small smoking pipe: stem + bowl.
-	draw_set_transform(pos, angle, Vector2(s, s))
-	draw_line(Vector2(-16, 4), Vector2(8, -2), WOOD, 3.5)
-	draw_rect(Rect2(6, -10, 9, 10), WOOD)
-	draw_rect(Rect2(7.5, -9, 6, 3), Color(0.9, 0.4, 0.15))  # ember
+func _draw_pipe(pos: Vector2, angle: float, s: float, flip_h: bool = false) -> void:
+	## Smoking pipe drawn with the mouthpiece (stem tip) at `pos`; the stem
+	## runs +x out to the bowl, so `angle`/`flip_h` aim the bowl end.
+	draw_set_transform(pos, angle, Vector2(-s if flip_h else s, s))
+	draw_line(Vector2(0, 0), Vector2(24, -4), WOOD, 4.0)          # stem
+	draw_rect(Rect2(21, -14, 11, 12), WOOD)                       # bowl
+	draw_rect(Rect2(23, -13, 7, 4), Color(0.9, 0.4, 0.15))        # ember
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+static func _pipe_bowl(pos: Vector2, angle: float, s: float, flip_h: bool = false) -> Vector2:
+	## World position of the bowl's ember for a pipe drawn with _draw_pipe —
+	## the end the smoke actually comes from.
+	var v := Vector2(26.5, -15.0)
+	if flip_h:
+		v.x = -v.x
+	return pos + (v * s).rotated(angle)
 
 # =============================================================
 # SPEECH BUBBLES
@@ -453,7 +475,7 @@ func _draw_travelling_ring(spawn_t: float, slot) -> void:
 	var travel := T_RINGS_PARKED - spawn_t
 	var u = clampf((_t - spawn_t) / travel, 0.0, 1.0)
 	var eased := smoothstep(0.0, 1.0, u)
-	var from := _mouth_pos() + Vector2(14, -6)
+	var from := _smoke_source()
 	var to: Vector2 = slot["center"]
 	var pos := from.lerp(to, eased)
 	pos.x += sin(u * PI * 2.0) * 18.0 * (1.0 - u)  # drifts as it rises
