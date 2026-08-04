@@ -41,7 +41,7 @@ static func _layer_path(page: String, folder: String, code: String, spec: String
 
 # Sheet rows per facing (CharacterAnimator.Direction order: S, N, E, W).
 const DOLL_ROW := [0, 1, 2, 3]   # base pack runs S,N,E,W
-const NPC_ROW := [0, 2, 3, 1]    # NPC packs run S,W,N,E
+const NPC_ROW := [0, 2, 1, 3]    # NPC packs run S,E,N,W
 
 const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]
 const WALK_TIME := 0.135

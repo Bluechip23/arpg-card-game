@@ -23,7 +23,7 @@ const NPC2 := "res://assets/sprites/NPCpackage2"
 const GEN := "res://assets/sprites/generated/monsters"
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
-const NPC_ROW := [0, 2, 3, 1]
+const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
 const NPC_WALK_TIME := 0.18
 
 ## kind -> config.
