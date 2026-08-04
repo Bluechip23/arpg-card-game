@@ -3,8 +3,8 @@ extends Node
 
 ## Olorin — the wandering mentor who teaches the player how the world works.
 ##
-## He appears at key first-time moments (picking up a roguelike-only reward,
-## entering combat for the first time, etc.), pauses the action, and offers a
+## He appears at key first-time moments (entering combat for the first time,
+## etc.), pauses the action, and offers a
 ## short explanation or hint. Each tutorial beat is shown once per character;
 ## the ids the player has already seen are stored on CharacterData so Olorin
 ## never repeats himself.
@@ -40,17 +40,6 @@ func show_tutorial(tutorial_id: String, title: String, paragraphs: Array, force:
 	return true
 
 # ----- Specific tutorial beats -------------------------------------------------
-
-func show_infestation_intro() -> void:
-	show_tutorial(
-		"infestation_pickup",
-		"Olorin Appears",
-		[
-			"\"Ah — the rats were carrying this. Infestation. A curious little trick.\"",
-			"\"Mark my words: some cards and rewards can only be wielded in the Roguelike. This is one of them. In the story it will sit quietly in your collection, waiting.\"",
-			"\"How do you unlock such things? The same way all worthwhile power is earned: slay monsters, complete quests, and seek out hidden treasures. Do these, and everything will open to you in time.\"",
-		]
-	)
 
 func show_combat_intro() -> void:
 	show_tutorial(

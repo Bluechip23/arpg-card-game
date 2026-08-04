@@ -5,7 +5,7 @@ extends Node3D
 ## Stat block (per the card): 12 HP, 6 damage, burrowed until it attacks,
 ## untargetable while burrowed, 1 movement per tempo.
 ##
-## Like SummonedRat, this node owns only visuals/health/movement animation;
+## This node owns only visuals/health/movement animation;
 ## main.gd drives the per-tempo decisions (_update_summoned_worms).
 
 signal died(worm)

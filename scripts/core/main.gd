@@ -64,8 +64,6 @@ var _pending_mythic_item: ItemData = null
 var _doughnut_item: ItemData = null
 var _doughnut_looter: Player = null
 var _doughnut_pickup_cell: Vector2i = Vector2i(-999, -999)
-# Rats summoned by the Infestation card (roguelike only).
-var _summoned_rats: Array = []
 var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
 const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
 var minimap_tab_ui: MinimapTabUI = null
@@ -165,15 +163,6 @@ var _ally_menu: PopupMenu = null     # right-click context menu on the partner
 var _ally_menu_target: Player = null
 var hud_icon_bar = null              # HudIconBar — top-right icon bar (character / EXP / quest / help)
 var _quest_notify: bool = false      # A quest was added/updated/completed since last opened
-
-# Roguelike battle hand-off. When non-empty, this main scene was launched by the
-# roguelike map to resolve a single encounter. On victory OR death it emits
-# roguelike_battle_finished and the map removes/frees this scene. Empty for all
-# normal story / fight / multiplayer flows, which keep their existing behavior.
-signal roguelike_battle_finished(victory: bool, remaining_hp: int)
-var roguelike_context: Dictionary = {}
-var _roguelike_active: bool = false
-var _roguelike_relics: Array = []  # Relics carried by the run (drive in-battle relic effects)
 
 # Active fire walls (Fire Goblin Shaman). Each: {tiles, damage, burn, moves_left, visuals}.
 var _fire_walls: Array = []
@@ -597,11 +586,6 @@ func _ready() -> void:
 	# Co-op: now that the dungeon has placed Player 1, seat Player 2 beside them.
 	if is_multiplayer and _p2_player:
 		player2_ui.reposition_beside_p1()
-
-	# Roguelike encounter: spawn the fight for this map node and arm the
-	# return-to-map hook. Only runs when launched from the roguelike map.
-	if not roguelike_context.is_empty():
-		_start_roguelike_battle()
 
 	# Sandbox: open the card/enemy control panel and raise some high ground.
 	if sandbox_mode:
@@ -1823,10 +1807,8 @@ func _on_wait_pressed() -> void:
 	tempo_manager.add_tempo(1)
 
 func _is_in_combat() -> bool:
-	## Equipment swaps only cost tempo when something can punish them: an
-	## active roguelike battle, or any living enemy close enough to aggro.
-	if _roguelike_active:
-		return true
+	## Equipment swaps only cost tempo when something can punish them: any
+	## living enemy close enough to aggro.
 	if not enemy_spawner or not player:
 		return false
 	for enemy in enemy_spawner.get_living_enemies():
@@ -3993,8 +3975,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
-	# Summoned rats (Infestation) and Bull Worms move/attack after the enemies act.
-	_update_summoned_rats()
+	# Summoned Bull Worms move/attack after the enemies act.
 	_update_summoned_worms()
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
@@ -4066,7 +4047,7 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 		enemy.target_position.y = elev_y
 
 	# Olorin offers a one-time word of counsel on the player's first story battle.
-	if olorin and not _roguelike_active:
+	if olorin:
 		olorin.show_combat_intro()
 
 var _disarm_mastery_applying: bool = false  # Guard against recursive disarm
@@ -4137,15 +4118,10 @@ func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
 
 func _roll_hydra_drops() -> void:
-	## A Hydra can drop the Hydra Heart relic and/or the Growth Within Resilience
-	## card into the character's persistent collection (saved in Town).
+	## A Hydra can drop the Growth Within Resilience card into the character's
+	## persistent collection (saved in Town).
 	if not current_character:
 		return
-	if randf() < 0.33:
-		if not current_character.unlocked_relic_ids.has("hydra_heart"):
-			current_character.unlocked_relic_ids.append("hydra_heart")
-			add_battle_log("The Hydra's heart still beats — Hydra Heart relic unlocked for the roguelike!", Color(0.9, 0.3, 0.4))
-			print("[MAIN] Hydra dropped: Hydra Heart relic")
 	if randf() < 0.33:
 		if not current_character.purchased_card_ids.has("growth_within_resilience"):
 			current_character.purchased_card_ids.append("growth_within_resilience")
@@ -4159,13 +4135,12 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	for p in _all_players():
 		if is_instance_valid(p) and p.get_stats():
 			p.get_stats().gain_xp(enemy.xp_reward)
-	# Bestiary: record story-mode kills per character so a future roguelike can
-	# gate monster-intent reveals on "defeated in story". Roguelike encounters
-	# don't count toward unlocking their own intents.
-	if not _roguelike_active and current_character and not current_character.defeated_monster_ids.has(enemy.enemy_name):
+	# Bestiary: record kills per character (feeds the compendium and any future
+	# monster-intent reveals gated on "defeated before").
+	if current_character and not current_character.defeated_monster_ids.has(enemy.enemy_name):
 		current_character.defeated_monster_ids.append(enemy.enemy_name)
-	# Hydra drops (story only): feed discoveries into the character's roguelike pool.
-	if not _roguelike_active and enemy.enemy_type == Enemy.EnemyType.HYDRA:
+	# Hydra drops: feed discoveries into the character's persistent collection.
+	if enemy.enemy_type == Enemy.EnemyType.HYDRA:
 		_roll_hydra_drops()
 	_update_enemy_count()
 	_refresh_unit_tracker()
@@ -4177,10 +4152,23 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	if quest_manager:
 		quest_manager.on_enemy_killed(enemy.enemy_name)
 
+	# City loop: every kill adds habitat resources to the satchel headed home,
+	# and ticks any brewing calamity's countdown (STORY.md §6).
+	if not sandbox_mode and current_character:
+		var zone := CityBridge.zone_for_area(
+			dungeon_manager.interior_kind if dungeon_manager else "", current_world_level)
+		var loot_tier: String = enemy_spawner.get_loot_tier(enemy.enemy_type)
+		var elite := loot_tier == DropRates.TIER_ELITE or loot_tier == DropRates.TIER_BOSS
+		var gained := CityBridge.add_kill_to_satchel(player_progression, zone, elite)
+		if not gained.is_empty():
+			add_battle_log("Satchel: %s" % CityBridge.format_resources(gained), Color(0.75, 0.7, 0.5))
+		if CalamitySystem.on_kill(player_progression):
+			_announce_calamity()
+
 	# First-room tutorial: the very first rat felled in the story carries the
 	# Bladed Doughnut (injected into its loot in _on_loot_dropped, which fires
 	# right after this handler).
-	if not _roguelike_active and current_world_level == 1 and olorin \
+	if current_world_level == 1 and olorin \
 			and not olorin.has_seen("item_levels_intro") \
 			and enemy.enemy_type in [Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT]:
 		_pending_doughnut_drop = true
@@ -4189,7 +4177,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	# the act's near-guaranteed mythic until it drops, then the act returns to
 	# its per-tier baseline (act 1: capped at that one mythic forever). The
 	# scripted doughnut kill is skipped so the tutorial drop stays scripted.
-	if not _roguelike_active and current_character and not _pending_doughnut_drop:
+	if current_character and not _pending_doughnut_drop:
 		var tier: String = enemy_spawner.get_loot_tier(enemy.enemy_type)
 		if DropRates.roll_act_mythic_kill(current_character, current_world_level, tier):
 			var pool = ItemData.get_items_of_rarity(ItemData.Rarity.MYTHIC)
@@ -4201,58 +4189,27 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	_return_queued_cards_for_dead_target(enemy)
 
 func _on_all_enemies_defeated() -> void:
-	_clear_summoned_rats()
-	if _roguelike_active:
-		_roguelike_active = false
-		var hp := player.get_stats().current_health if player and player.get_stats() else 0
-		print("[MAIN] Roguelike encounter cleared — returning to map (HP %d)." % hp)
-		roguelike_battle_finished.emit(true, hp)
-		return
+	_clear_summoned_worms()
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
-func _on_roguelike_player_died() -> void:
-	## Player died during a roguelike encounter — the run is over.
-	if not _roguelike_active:
-		return
-	_roguelike_active = false
-	_clear_summoned_rats()
-	print("[MAIN] Player died in roguelike encounter — run over.")
-	roguelike_battle_finished.emit(false, 0)
-
-func _start_roguelike_battle() -> void:
-	## Spawn the encounter for the roguelike map node that launched this scene,
-	## then arm the win condition that returns control to the map.
-	_clear_loot_drops()  # No stale piles from a previous room
-	_roguelike_relics = roguelike_context.get("relics", [])
-	var node_type: String = roguelike_context.get("node_type", "monster")
-	match node_type:
-		"elite":
-			enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, _roguelike_spawn_pos(Vector2i(13, 5)))
-			enemy_spawner.spawn_enemy(Enemy.EnemyType.WERERAT, _roguelike_spawn_pos(Vector2i(15, 7)))
-		"boss":
-			enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, _roguelike_spawn_pos(Vector2i(13, 5)))
-			enemy_spawner.spawn_enemy(Enemy.EnemyType.ARMORED_TROLL, _roguelike_spawn_pos(Vector2i(15, 6)))
-			enemy_spawner.spawn_enemy(Enemy.EnemyType.SKELETON, _roguelike_spawn_pos(Vector2i(11, 7)))
-		_:
-			enemy_spawner.spawn_test_arena()
-	_sync_blocked_tiles()
-	_sync_occupied_tiles()
-	_sync_pillar_tiles()
-	_update_enemy_count()
-	_refresh_unit_tracker()
-	# End the run if the player dies this encounter.
-	var stats = player.get_stats()
-	if stats and not stats.died.is_connected(_on_roguelike_player_died):
-		stats.died.connect(_on_roguelike_player_died)
-	_roguelike_active = true
-	print("[MAIN] Roguelike encounter started (%s)." % node_type)
-
-func _roguelike_spawn_pos(cell: Vector2i) -> Vector3:
-	var world_pos := grid_manager.grid_to_world(cell)
-	if dungeon_manager:
-		world_pos.y = dungeon_manager.get_elevation_world_y(cell)
-	return world_pos
+func _announce_calamity() -> void:
+	## A calamity just struck the city — Olorin's flute sounds the alarm
+	## (the signal item he gave the player when the city was founded).
+	var warning := CalamitySystem.warning_text(player_progression)
+	add_battle_log("A shrill flute-note pierces the air! %s" % warning, Color(1.0, 0.4, 0.35))
+	print("[MAIN] Calamity struck: %s" % warning)
+	if olorin:
+		olorin.show_tutorial(
+			"calamity_strike",
+			"The Flute Cries Out",
+			[
+				"A single piercing note cuts through the din of battle — Olorin's flute, and it does not sing for nothing.",
+				"\"%s\"" % warning,
+				"Return to town swiftly and the garrison will not stand alone. Linger, and the city must weather it without you.",
+			],
+			true  # the flute sounds for every calamity, not just the first
+		)
 
 # ============================================
 # FIRE WALLS (Fire Goblin Shaman)
@@ -6021,13 +5978,7 @@ func play_selected_card(target) -> void:
 		print("[INPUT] Cannot play cards - Glutted for %d more tempo!" % glut_tempo_remaining)
 		return
 
-	# Roguelike-only cards (e.g. Infestation) can be collected in the story but
-	# only played during a roguelike run.
 	var selected = deck_manager.hand[selected_card_index]
-	if selected.roguelike_only and not _roguelike_active:
-		add_battle_log("%s can only be played in the Roguelike." % selected.card_name, Color(0.7, 0.85, 1.0))
-		print("[INPUT] %s is roguelike-only and cannot be played in the story." % selected.card_name)
-		return
 
 	# Co-op: playing a card offers the same choice as multi-space movement —
 	# play immediately, or lock it in and fire together with the partner's, so
@@ -6685,9 +6636,6 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_mouse_world_position()
 
 	match card.card_id:
-		"infestation":
-			_spawn_infestation_rats(5)
-
 		"spark":
 			# Damage is dealt in execute(); here: shift hand tempo now + later.
 			_adjust_random_hand_tempo(deck_manager, 2, -2)
@@ -8086,57 +8034,6 @@ func _create_ally_marker(ally_name: String, pos: Vector3, color: Color) -> void:
 	marker.add_child(label)
 
 # ============================================
-# INFESTATION RATS (roguelike summon)
-# ============================================
-
-func _spawn_infestation_rats(count: int) -> void:
-	if not grid_manager:
-		return
-	var player_cell = grid_manager.world_to_grid(player.position)
-	var blocked = player.blocked_tiles
-	var enemy_cells = _living_enemy_cells()
-	# Candidate tiles spiral outward from the player.
-	var offsets = [
-		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
-		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
-		Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2),
-	]
-	var used: Array = []
-	var spawned = 0
-	for off in offsets:
-		if spawned >= count:
-			break
-		var cell = player_cell + off
-		if cell == player_cell or cell in blocked or cell in enemy_cells or cell in used:
-			continue
-		used.append(cell)
-		_create_infestation_rat(cell)
-		spawned += 1
-	# Fallback: if the player is boxed in, the remaining rats pile onto the
-	# player's tile and spread out as they move.
-	while spawned < count:
-		_create_infestation_rat(player_cell)
-		spawned += 1
-	add_battle_log("Infestation! %d rats scurry out." % spawned, Color(0.7, 0.7, 0.6))
-
-func _create_infestation_rat(cell: Vector2i) -> void:
-	var rat = SummonedRat.new()
-	add_child(rat)
-	rat.setup(grid_manager, grid_manager.grid_to_world(cell))
-	rat.died.connect(_on_summoned_rat_died)
-	_summoned_rats.append(rat)
-
-func _on_summoned_rat_died(rat) -> void:
-	_summoned_rats.erase(rat)
-
-func _clear_summoned_rats() -> void:
-	for rat in _summoned_rats:
-		if is_instance_valid(rat):
-			rat.queue_free()
-	_summoned_rats.clear()
-	_clear_summoned_worms()
-
-# ============================================
 # ALASKAN BULL WORMS (Worm's Armageddon summon)
 # ============================================
 
@@ -8267,62 +8164,6 @@ func _rat_step_toward(cell: Vector2i, target: Vector2i, blocked: Array, enemy_ce
 
 func _manhattan(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
-
-func _update_summoned_rats() -> void:
-	if _summoned_rats.is_empty():
-		return
-	# Drop any freed/dead rats.
-	_summoned_rats = _summoned_rats.filter(func(r): return is_instance_valid(r) and not r.is_dead)
-	if not grid_manager or not enemy_spawner:
-		return
-
-	var enemies = enemy_spawner.get_living_enemies()
-	var blocked = player.blocked_tiles
-
-	# Phase 1: enemies adjacent to a rat swat it (rats only have 3 HP, so a
-	# strong foe can kill one before it ever connects). Iterate a snapshot since
-	# take_damage can free a rat mid-loop.
-	for enemy in enemies:
-		if not is_instance_valid(enemy) or not enemy.is_alive():
-			continue
-		var ecell = grid_manager.world_to_grid(enemy.position)
-		for rat in _summoned_rats.duplicate():
-			if not is_instance_valid(rat) or rat.is_dead:
-				continue
-			if _manhattan(rat.get_cell(), ecell) == 1:
-				rat.take_damage(enemy.attack_damage)
-				break  # one swat per enemy per tempo
-
-	# Phase 2: surviving rats lunge if in contact, otherwise scurry one square
-	# toward the nearest enemy.
-	var rat_cells: Array = []
-	for rat in _summoned_rats:
-		if is_instance_valid(rat) and not rat.is_dead:
-			rat_cells.append(rat.get_cell())
-
-	for rat in _summoned_rats.duplicate():
-		if not is_instance_valid(rat) or rat.is_dead:
-			continue
-		var target_enemy = _nearest_enemy_to(rat.position, enemies)
-		if target_enemy == null:
-			continue
-		var rcell = rat.get_cell()
-		var tcell = grid_manager.world_to_grid(target_enemy.position)
-		if _manhattan(rcell, tcell) <= 1:
-			# Contact! The rat lunges, dealing its damage and dying.
-			target_enemy.take_damage(SummonedRat.CONTACT_DAMAGE, true)
-			add_battle_log("A rat lunges for %d damage!" % SummonedRat.CONTACT_DAMAGE, Color(0.7, 0.7, 0.6))
-			rat_cells.erase(rcell)
-			rat.die()
-			continue
-		var next_cell = _rat_step_toward(rcell, tcell, blocked, _living_enemy_cells(), rat_cells)
-		if next_cell != rcell:
-			rat_cells.erase(rcell)
-			rat_cells.append(next_cell)
-			rat.move_to_cell(next_cell)
-
-	# Clear out any rats that died this tick.
-	_summoned_rats = _summoned_rats.filter(func(r): return is_instance_valid(r) and not r.is_dead)
 
 # ============================================
 # COMMUNAL DONATION UI
@@ -8899,14 +8740,6 @@ func _on_ally_damage_taken(_amount: int, victim) -> void:
 			add_battle_log("Growth Within Resilience: a Hydra Bite surges into your hand!", Color(0.5, 0.85, 0.4))
 			break
 
-	# Hydra Heart relic (roguelike runs only): gain 1 strength when you take
-	# damage. (The "own turn" condition is approximated as any damage taken
-	# during the run until per-source turn tracking exists.)
-	if _roguelike_relics.has("hydra_heart"):
-		stats.base_strength += 1
-		add_battle_log("Hydra Heart: +1 strength!", Color(0.9, 0.4, 0.5))
-		_refresh_unit_tracker()
-
 func _on_card_on_draw_triggered(card: Card) -> void:
 	match card.on_draw_effect:
 		"deal_4_random_enemy":
@@ -9225,13 +9058,6 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 				messages.append("Card: %s (inventory)" % card.card_name)
 			else:
 				messages.append("Card dropped (inventory full): %s" % card.card_name)
-		# Infestation is a roguelike-only reward. Unlock it for this character's
-		# runs and let Olorin appear to explain how roguelike rewards work.
-		if card.card_id == "infestation":
-			if current_character and not current_character.purchased_card_ids.has("infestation"):
-				current_character.purchased_card_ids.append("infestation")
-			if olorin:
-				olorin.show_infestation_intro()
 
 	if messages.size() > 0:
 		var loot_text = "Looted: " + ", ".join(messages)
@@ -9369,6 +9195,8 @@ func _save_player_progression() -> Dictionary:
 	}
 	# Deck state (each pile saved separately to preserve hand exactly)
 	progression["deck_state"] = deck_manager.save_deck_state()
+	# City-loop state (satchel, city, pending calamity) rides along untouched.
+	CityBridge.carry_keys(player_progression, progression)
 	# Equipped items and stored items (Resource objects survive scene change)
 	var inv = player.get_inventory()
 	if inv:

@@ -11,18 +11,19 @@ Built in **Godot 4.6**.
 ## Table of Contents
 
 1. [The Core Loop](#the-core-loop)
-2. [The Tempo System](#the-tempo-system)
-3. [Core Stats](#core-stats)
-4. [Resources: Health, Mana, Armor](#resources-health-mana-armor)
-5. [Cards](#cards)
-6. [Card Effects & Keywords](#card-effects--keywords)
-7. [Buffs](#buffs)
-8. [Debuffs](#debuffs)
-9. [Equipment & Inventory](#equipment--inventory)
-10. [Weapon & Equipment Swapping](#weapon--equipment-swapping)
-11. [Cards Slotted Into Items](#cards-slotted-into-items)
-12. [Characters](#characters)
-13. [Progression](#progression)
+2. [The Home Base & The City](#the-home-base--the-city)
+3. [The Tempo System](#the-tempo-system)
+4. [Core Stats](#core-stats)
+5. [Resources: Health, Mana, Armor](#resources-health-mana-armor)
+6. [Cards](#cards)
+7. [Card Effects & Keywords](#card-effects--keywords)
+8. [Buffs](#buffs)
+9. [Debuffs](#debuffs)
+10. [Equipment & Inventory](#equipment--inventory)
+11. [Weapon & Equipment Swapping](#weapon--equipment-swapping)
+12. [Cards Slotted Into Items](#cards-slotted-into-items)
+13. [Characters](#characters)
+14. [Progression](#progression)
 
 ---
 
@@ -31,6 +32,24 @@ Built in **Godot 4.6**.
 The game takes place on a grid system. You move your character tile by tile, draw cards over time, and play them against enemies in range. There are no discrete "your turn / enemy turn" phases. Instead, everything runs on a global clock system which progresses by the use of **tempo**. Playing cards, moving, and even waiting advances the clock. As the clock advances, enemies and the environment take their actions. Fighting well means strategically using time as a resource, not just mana or health.
 
 Between fights you explore the world, complete quests, visit town vendors, manage your equipment and deck, and advance the story. Waypoints, quests, NPCs, and vendors persist for the whole game.
+
+Underneath the adventure runs the game's second engine: everything you kill and gather feeds the **home base** you are building back in town — see the next section.
+
+---
+
+## The Home Base & The City
+
+*Trials of Olorin* is, at its heart, a **base builder**. The path of the game:
+
+1. **Adventure & gather.** Every kill out in the world adds habitat-flavored resources — **gold, lumber, stone, and arcane essence** — to your satchel. The Sewers skew toward gold, the Forest toward lumber, the Caves toward stone; richer realms yield richer hauls, and elites and bosses count triple.
+2. **Send it home.** The moment you return to town, your satchel is banked into the city stores. The first shipment founds the city — and Olorin hands you a **bone-white flute** you'll come to know well.
+3. **Build.** At the **Town Hall** you spend banked resources raising buildings: production (Lumber Mill, Quarry, Essence Extractor), storage (Warehouse), protection (Vault), military (Barracks, Walls), and hero support (Hero Hall). The Town Hall's own level gates everything else, pacing the city's growth. Buildings produce while you're away.
+4. **Defend.** A growing city draws eyes. **Calamities** — monster invasions and natural disasters — build up while you adventure. You are never ambushed blind: when one strikes, **Olorin's flute sounds**, wherever you are. Return promptly and you stand with the garrison; linger and the city weathers it alone. Walls blunt disasters, the Vault shelters a share of your stores, and every attack is written into the city's chronicle.
+5. **Repeat, forever.** After the story concludes, the end-game layers directly on top of this loop: defend the city against escalating threats, farm the world's zones for XP, cards, items, and resources, and keep building both the city and the character(s) who protect it. Nothing resets.
+
+Your **card stash matters** here too: certain calamities are easier with certain cards in your deck. Your core build stays your core build — but a few smart swaps before answering the flute can turn a sack into a stand.
+
+Recruited NPCs are part of the same fabric: allies found on the journey (starting with the Sellsword's battle-partners) return to town to staff and defend it. Eventually, multiple characters you've built will be able to reside in — and jointly defend — the same city.
 
 ---
 
@@ -329,4 +348,4 @@ Your character grows along several permanent axes:
 - **Equipment** — loot, vendors, and quest rewards across all acts.
 - **Story** — a four-act journey (Earth → Hell → Heaven → a final return to Earth). Everything above carries forward between acts; nothing resets.
 
-After the story concludes, an end-game **roguelike arena** unlocks that borrows your persistent character for high-stakes runs — a victory lap, not the main event.
+- **The home base** — every kill feeds the city you're building back in town, and the end-game is defending and growing it. See [The Home Base & The City](#the-home-base--the-city).

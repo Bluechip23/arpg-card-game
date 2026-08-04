@@ -315,6 +315,8 @@ func _on_mode_town(save: SaveData, _overlay: ColorRect) -> void:
 	town_scene.starting_character = save.character_data
 	town_scene.player2_character = save.player2_character
 	town_scene.player_progression = ProgressionIO.to_live(save.progression)
+	if not save.city.is_empty():
+		town_scene.player_progression["city"] = save.city
 	town_scene.return_world_level = save.world_level
 	town_scene.quest_state = save.progression.get("quest_state", {})
 	town_scene.discovered_waypoints = save.progression.get("discovered_waypoints", [])
@@ -329,6 +331,8 @@ func _on_mode_fight(save: SaveData, _overlay: ColorRect) -> void:
 	main_scene.player2_character = save.player2_character
 	main_scene.is_multiplayer = save.player2_character != null
 	main_scene.player_progression = ProgressionIO.to_live(save.progression)
+	if not save.city.is_empty():
+		main_scene.player_progression["city"] = save.city
 	main_scene.current_world_level = save.world_level
 	main_scene.quest_state = save.progression.get("quest_state", {})
 	main_scene.discovered_waypoints = save.progression.get("discovered_waypoints", [])

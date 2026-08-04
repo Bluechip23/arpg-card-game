@@ -32,22 +32,17 @@ func get_base_character() -> String:
 @export var base_hand_size: int = 4
 
 # Build state is @export so it persists when the character is saved to disk
-# (ResourceSaver only serializes exported properties). This is what lets a
-# story character carry its deck/upgrades into the roguelike.
+# (ResourceSaver only serializes exported properties).
 @export var starting_card_ids: Array = []  # Legacy — no longer populated; every character shares the same basic deck
 @export var purchased_card_ids: Array = []  # Cards bought from the card shop
 @export var removed_card_ids: Array = []    # Cards culled from the deck (base or starting cards)
 
 # Bestiary: monsters this character has defeated in story mode. Per-character
-# (not shared at the world level). Used to gate monster-intent reveals in the
-# roguelike end-game; the telegraph UI itself is a later pass.
+# (not shared at the world level). Feeds the compendium and any future
+# monster-intent reveals; the telegraph UI itself is a later pass.
 @export var defeated_monster_ids: Array = []
 
-# Roguelike relics this character has discovered in the story (e.g. a Hydra
-# dropping the Hydra Heart). Gates which non-base relics can appear in runs.
-@export var unlocked_relic_ids: Array = []
-
-# Tutorial beats Olorin has already shown this character (e.g. "infestation_pickup").
+# Tutorial beats Olorin has already shown this character.
 # Stored per-character so each playthrough learns the ropes once.
 @export var seen_tutorial_ids: Array = []
 
