@@ -306,13 +306,11 @@ func get_display_description(effective: Dictionary) -> String:
 		text = get_colored_description()
 	if effective.is_empty():
 		return text
-	if effective.has("damage") and effective["damage"] != base_damage:
-		text = _sub_number(text, base_damage, effective["damage"])
-	var shown_block: int = block if block > 0 else base_block
-	if effective.has("block") and effective["block"] != shown_block:
-		text = _sub_number(text, shown_block, effective["block"])
-	if effective.has("heal") and effective["heal"] != heal_amount:
-		text = _sub_number(text, heal_amount, effective["heal"])
+	for kind in ["damage", "block", "heal"]:
+		var base_key: String = kind + "_base"
+		if effective.has(kind) and effective.has(base_key) \
+				and effective[kind] != effective[base_key]:
+			text = _sub_number(text, effective[base_key], effective[kind])
 	return text
 
 

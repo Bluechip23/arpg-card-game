@@ -5961,52 +5961,19 @@ func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
 	if not target_enemy or not is_instance_valid(target_enemy) or target_enemy.is_dead:
 		return 0
 
-	var player_stats = player.get_stats()
-	var buff_mgr = player.get_buff_manager()
-	var debuff_mgr = player.get_debuff_manager()
-	if not player_stats:
+	if not player.get_stats():
 		return 0
-
-	var total_damage = card.base_damage + card.bonus_damage
+	var buff_mgr = player.get_buff_manager()
 	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
 
-	# On-self bonus damage from slotted item
-	var on_self = card.get_on_self_bonus()
-	total_damage += on_self["damage"]
-
-	# Ranged damage bonus from equipment (quivers)
-	if card.is_ranged and player_stats.ranged_damage_bonus > 0:
-		total_damage += player_stats.ranged_damage_bonus
-
-	# Tighten String: +6 damage on ranged attacks
-	if buff_mgr and buff_mgr.tighten_string_charges > 0 and is_ranged_attack:
-		total_damage += 6
-
-	# High Ground: +4 damage on ranged attacks from elevated position
+	# High Ground is the one position-dependent flat the vacuum number skips;
+	# feed it through the shared pipeline so Cursed still reduces it.
+	var high_ground := 0
 	if is_ranged_attack and _has_high_ground(player.position, target_enemy):
-		total_damage += 4
+		high_ground = 4
 
-	# Harnessed Power: +30% damage with 2 or fewer cards in hand
-	var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
-	if hp_mult > 1.0:
-		total_damage += floori(card.base_damage * (hp_mult - 1.0))
-
-	# Strength scaling (physical damage)
-	total_damage = player_stats.get_effective_physical_damage(total_damage)
-
-	# Empower buff
-	if player_stats.is_empowered():
-		total_damage += player_stats.empower_damage_bonus
-
-	# Strengthen buff (peek, don't consume)
-	if buff_mgr:
-		total_damage += buff_mgr.get_strengthen_bonus()
-
-	# Cursed debuff: damage reduction
-	if debuff_mgr:
-		var damage_reduction_pct = debuff_mgr.get_damage_reduction_percent()
-		if damage_reduction_pct > 0.0:
-			total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
+	# Full player-side pipeline, shared with the card-face numbers.
+	var total_damage = _card_player_damage(card, high_ground)
 
 	# Enemy-side: Premeditated bonus damage
 	total_damage += target_enemy.bonus_damage_next_hit
@@ -6026,12 +5993,88 @@ func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
 	return max(0, total_damage)
 
 
+# Cards whose damage runs through the INT spell pipeline instead of STR
+# physical (their _execute_* calls get_effective_spell_damage; there is no
+# per-card field for this, so the routing lives here).
+const SPELL_SCALED_CARDS := ["surrounding_ice", "snowballs_chance", "sprinkle_bomb",
+		"fireball", "if_pigs_could_fly", "energy_ball", "volatile_mixture"]
+
+# Block cards whose _execute hardcodes the armor amount instead of reading
+# the block fields — the display must match what add_armor actually gets.
+const BLOCK_AMOUNT_OVERRIDES := {"turtle_up": 5, "hold_the_line": 5, "meditate": 5,
+		"vengeful_shield": 5, "mana_surge": 8}
+
+# Block cards whose _execute reads base_block (not block), so they miss the
+# play-time Harnessed Power block bonus.
+const BASE_BLOCK_CARDS := ["bob_and_weave", "fortify_alliance", "communal_donation", "shield_ready"]
+
+
+func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
+	## The player-side damage pipeline for one card: every deterministic
+	## stat / equipment / passive / keystone / standing-buff term, mirroring
+	## Card.execute() and the play-time mods. Position- and enemy-dependent
+	## terms are excluded; the hover preview passes them via extra_flat /
+	## adds them on top. Shared by get_card_vacuum_values and
+	## calculate_damage_preview so the two never drift apart.
+	var stats = player.get_stats()
+	var buff_mgr = player.get_buff_manager()
+	var debuff_mgr = player.get_debuff_manager()
+	var on_self = card.get_on_self_bonus()
+
+	var total = card.base_damage + card.bonus_damage + on_self["damage"] + extra_flat
+
+	# Quivers and other ranged equipment.
+	if card.is_ranged and stats.ranged_damage_bonus > 0:
+		total += stats.ranged_damage_bonus
+	# Deadeye Form keystone: ranged attacks scale with DEX instead of STR
+	# (the physical pipeline adds STR/2 downstream, so swap in the delta).
+	if card.is_ranged and stats.keystone_dex_ranged:
+		total += floori(stats.dexterity / 2.0) - stats.get_strength_damage_bonus()
+	# Killing Rhythm keystone: the armed flat DEX bonus lands on the next
+	# attack (peek, don't consume).
+	total += stats.pending_dex_bonus_damage
+	# Tighten String charges: +6 on ranged attacks.
+	if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_ranged:
+		total += 6
+	# Harnessed Power: +30% of base with 2 or fewer cards in hand.
+	var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
+	if hp_mult > 1.0:
+		total += floori(card.base_damage * (hp_mult - 1.0))
+
+	# Stat scaling: INT spell pipeline for the spell cards, STR physical
+	# (strength, enchantments, sphere, two-handed grip) for everything else.
+	if card.card_id in SPELL_SCALED_CARDS:
+		total = stats.get_effective_spell_damage(total)
+	else:
+		total = stats.get_effective_physical_damage(total)
+
+	# Standing buffs.
+	if stats.is_empowered():
+		total += stats.empower_damage_bonus
+	if buff_mgr:
+		total += buff_mgr.get_strengthen_bonus()
+	# Swing for the Fences: heavy swings (tempo > 4) land the tempo again.
+	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
+		total += card.tempo_cost
+	# Ladder Work: banked discards cash in on the cycle's first attack.
+	if stats.has_skill_tree_passive("ladder_work") and stats.st_ladder_banked > 0:
+		total += stats.st_ladder_banked * 2
+
+	# Cursed debuff: percentage reduction, applied last like the pipeline.
+	if debuff_mgr:
+		var reduction_pct = debuff_mgr.get_damage_reduction_percent()
+		if reduction_pct > 0.0:
+			total = max(1, floori(total * (1.0 - reduction_pct)))
+	return max(0, total)
+
+
 func get_card_vacuum_values(card: Card) -> Dictionary:
 	## Effective card numbers for the current character "in a vacuum": base
-	## value + stats, equipment, and standing player-side buffs/debuffs, with
-	## no enemy- or position-specific terms (those stay on the hover preview,
-	## see calculate_damage_preview). Feeds the numbers printed on the card
-	## face so the hand shows what each card actually does for THIS character.
+	## value + every deterministic player-side term — stats, equipment,
+	## passives, keystones, standing buffs/debuffs — with no enemy- or
+	## position-specific modifiers (those stay on the hover preview, see
+	## calculate_damage_preview). Feeds the numbers printed on the card face.
+	## Returns effective values plus the base token each one replaces.
 	var out := {}
 	if not player or not is_instance_valid(player) or not player.is_inside_tree():
 		return out
@@ -6039,42 +6082,52 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 	if not stats:
 		return out
 	var buff_mgr = player.get_buff_manager()
-	var debuff_mgr = player.get_debuff_manager()
 	var on_self = card.get_on_self_bonus()
+	var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
 
-	# Damage — mirrors calculate_damage_preview steps up to the enemy terms.
+	# Damage.
 	if card.card_type == Card.CardType.ATTACK and card.base_damage > 0:
-		var total = card.base_damage + card.bonus_damage + on_self["damage"]
-		if card.is_ranged and stats.ranged_damage_bonus > 0:
-			total += stats.ranged_damage_bonus
-		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_ranged:
-			total += 6
-		var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
-		if hp_mult > 1.0:
-			total += floori(card.base_damage * (hp_mult - 1.0))
-		total = stats.get_effective_physical_damage(total)
-		if stats.is_empowered():
-			total += stats.empower_damage_bonus
-		if buff_mgr:
-			total += buff_mgr.get_strengthen_bonus()
-		if debuff_mgr:
-			var reduction_pct = debuff_mgr.get_damage_reduction_percent()
-			if reduction_pct > 0.0:
-				total = max(1, floori(total * (1.0 - reduction_pct)))
-		out["damage"] = max(0, total)
+		out["damage"] = _card_player_damage(card)
+		out["damage_base"] = card.base_damage
 
-	# Block — mirrors PlayerStats.add_armor without applying it.
-	var shown_block: int = card.block if card.block > 0 else card.base_block
-	if shown_block > 0:
-		var total_block = shown_block + on_self["block"] + stats.enchantment_block_bonus + stats.sphere_bonus_block
+	# Block — mirrors PlayerStats.add_armor without applying it, including
+	# the per-card quirks (hardcoded amounts, base_block readers).
+	var block_base: int
+	if BLOCK_AMOUNT_OVERRIDES.has(card.card_id):
+		block_base = BLOCK_AMOUNT_OVERRIDES[card.card_id]
+	elif card.card_id in BASE_BLOCK_CARDS:
+		block_base = card.base_block
+	else:
+		block_base = card.block if card.block > 0 else card.base_block
+	if block_base > 0:
+		var total_block = block_base + on_self["block"]
+		# Harnessed Power's block leg only reaches cards whose _execute
+		# reads the live block field.
+		if hp_mult > 1.0 and not BLOCK_AMOUNT_OVERRIDES.has(card.card_id) \
+				and card.card_id not in BASE_BLOCK_CARDS:
+			total_block += floori(card.base_block * (hp_mult - 1.0))
+		total_block += stats.enchantment_block_bonus + stats.sphere_bonus_block
+		# Bolster is consumed by exactly one card's armor pipeline.
+		if card.card_id == "smith_thy_soul" and buff_mgr:
+			total_block += buff_mgr.get_bolster_bonus()
 		if stats.has_skill_tree_passive("sword_specialist") \
 				and player.get_inventory() and player.get_inventory().has_only_swords_equipped():
 			total_block = floori(total_block * 1.25)
 		out["block"] = total_block
+		out["block_base"] = block_base
 
-	# Heal — the WIS pipeline.
+	# Heal — the full heal() pipeline: on-self item bonus, Harnessed Power's
+	# heal leg, Blood Libation stacks, then INT/equipment/percent scaling.
 	if card.heal_amount > 0:
-		out["heal"] = stats.get_effective_heal_amount(card.heal_amount)
+		var raw = card.heal_amount + on_self["heal"]
+		if hp_mult > 1.0:
+			raw += floori(card.heal_amount * (hp_mult - 1.0))
+		if stats.has_skill_tree_passive("blood_libation") and stats.sanguine_stacks > 0:
+			raw += stats.sanguine_stacks
+			if stats.sanguine_stacks >= 5:
+				raw *= 2
+		out["heal"] = stats.get_effective_heal_amount(raw)
+		out["heal_base"] = card.heal_amount
 
 	return out
 
