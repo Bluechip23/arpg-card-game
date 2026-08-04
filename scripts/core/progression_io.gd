@@ -40,6 +40,8 @@ static func to_disk(live: Dictionary, stats_override: Dictionary = {}) -> Dictio
 			if node.unlocked:
 				ids.append(node.id)
 		disk["sphere_unlocked_ids"] = ids
+	# City-loop state is already plain data — it round-trips as-is.
+	CityBridge.carry_keys(live, disk)
 	return disk
 
 ## Rebuild a live progression dict (consumable by Main._restore_player_progression
@@ -65,4 +67,5 @@ static func to_live(disk: Dictionary) -> Dictionary:
 			# add every saved node id.
 			node.unlocked = id_set.has(node.id) or node.unlocked
 		live["sphere_grid"] = sg
+	CityBridge.carry_keys(disk, live)
 	return live

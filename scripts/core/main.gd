@@ -4152,6 +4152,19 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	if quest_manager:
 		quest_manager.on_enemy_killed(enemy.enemy_name)
 
+	# City loop: every kill adds habitat resources to the satchel headed home,
+	# and ticks any brewing calamity's countdown (STORY.md §6).
+	if not sandbox_mode and current_character:
+		var zone := CityBridge.zone_for_area(
+			dungeon_manager.interior_kind if dungeon_manager else "", current_world_level)
+		var loot_tier: String = enemy_spawner.get_loot_tier(enemy.enemy_type)
+		var elite := loot_tier == DropRates.TIER_ELITE or loot_tier == DropRates.TIER_BOSS
+		var gained := CityBridge.add_kill_to_satchel(player_progression, zone, elite)
+		if not gained.is_empty():
+			add_battle_log("Satchel: %s" % CityBridge.format_resources(gained), Color(0.75, 0.7, 0.5))
+		if CalamitySystem.on_kill(player_progression):
+			_announce_calamity()
+
 	# First-room tutorial: the very first rat felled in the story carries the
 	# Bladed Doughnut (injected into its loot in _on_loot_dropped, which fires
 	# right after this handler).
@@ -4179,6 +4192,24 @@ func _on_all_enemies_defeated() -> void:
 	_clear_summoned_worms()
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
+
+func _announce_calamity() -> void:
+	## A calamity just struck the city — Olorin's flute sounds the alarm
+	## (the signal item he gave the player when the city was founded).
+	var warning := CalamitySystem.warning_text(player_progression)
+	add_battle_log("A shrill flute-note pierces the air! %s" % warning, Color(1.0, 0.4, 0.35))
+	print("[MAIN] Calamity struck: %s" % warning)
+	if olorin:
+		olorin.show_tutorial(
+			"calamity_strike",
+			"The Flute Cries Out",
+			[
+				"A single piercing note cuts through the din of battle — Olorin's flute, and it does not sing for nothing.",
+				"\"%s\"" % warning,
+				"Return to town swiftly and the garrison will not stand alone. Linger, and the city must weather it without you.",
+			],
+			true  # the flute sounds for every calamity, not just the first
+		)
 
 # ============================================
 # FIRE WALLS (Fire Goblin Shaman)
@@ -9164,6 +9195,8 @@ func _save_player_progression() -> Dictionary:
 	}
 	# Deck state (each pile saved separately to preserve hand exactly)
 	progression["deck_state"] = deck_manager.save_deck_state()
+	# City-loop state (satchel, city, pending calamity) rides along untouched.
+	CityBridge.carry_keys(player_progression, progression)
 	# Equipped items and stored items (Resource objects survive scene change)
 	var inv = player.get_inventory()
 	if inv:

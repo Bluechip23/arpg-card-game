@@ -449,13 +449,30 @@ disasters. The player gets **a heads-up before they land**, not an ambush:
 
 ### 6.5 Code status
 
-`scripts/city/city_state.gd` (resources/buildings/power/persistence),
-`scripts/city/expedition_system.gd` (habitat yields; kills → resources),
-`scripts/city/raid_system.gd` (rival generation, raid resolution, defense
-log). Saved per character in `SaveData.city`. The loop is data-complete and
-tested (`tests/test_city_loop.gd`) but **not yet wired to any UI** — hooking it
-into the town hub (`scripts/menus/town.gd`) is the next big pass, along with
-resource drops, NPC unlocks, and the calamity/warning system.
+**The loop is wired into the game.** The pieces:
+
+- `scripts/city/city_state.gd` — resources/buildings/power/persistence.
+- `scripts/city/expedition_system.gd` — habitat yields; kills → resources.
+- `scripts/city/raid_system.gd` — rival generation, raid resolution, defense log.
+- `scripts/city/city_bridge.gd` — carries city state (city + satchel +
+  pending calamity) inside the `player_progression` dict that already rides
+  between scenes and into saves (`SaveData.city` + `ProgressionIO`).
+- `scripts/city/calamity_system.gd` — schedules a calamity when leaving town,
+  ticks its countdown on kills, strikes (Olorin's flute sounds, `main.gd
+  _announce_calamity`), resolves on reaching town (prompt return = the hero
+  joins the defense).
+- `main.gd _on_enemy_killed` — every kill adds habitat resources to the
+  satchel (elites/bosses triple) and ticks the calamity countdown.
+- `town.gd` — the **Town Hall** building on the plaza opens the city panel
+  (stores, production, power, building upgrades, chronicle of attacks);
+  `_arrive_home()` banks the satchel, resolves struck calamities, and hands
+  over the flute on the founding shipment.
+- Tested end-to-end: `tests/test_city_loop.gd` (data loop) and
+  `tests/test_city_wiring.gd` (game wiring).
+
+Still ahead: building *placement*/visuals, NPC recruitment beats beyond the
+Sellsword, raids surfaced in the UI, defense as a *playable battle* rather
+than a resolution roll, and the multi-hero end-game.
 
 > The `CLAUDE.md` guardrail still applies: the persistent character remains
 > the spine — the city is what that character builds with their power, not a
@@ -498,7 +515,7 @@ the repo. Keep this table honest as the code changes.
 | **The Sewers (Act 1, Part 1)** | `dungeon_manager.gd` (`interior_kind == "sewer"`: `_generate_sewer_layout`, `_build_sewer_decorations`, `_define_sewer_spawn_zones`), `main.gd` (`_apply_world_ambience` sewer branch + `_ensure_player_torch`), `torch_flicker.gd`, `sewer_critter.gd` | **Built.** The opening dungeon: trunk + water channels, Rat King arena, west→east rat/ooze → boss → croc/swarm/crawler progression, dim torchlit atmosphere, reduced fog. Reached via a sewer grate site in World 1. See Section 5.4. |
 | **The Greenwood (Act 1, Forest)** | `dungeon_manager.gd` (`interior_kind == "forest"`: `_generate_forest_layout`, `_place_forest_features`, `_build_forest_decorations`, `_define_forest_spawn_zones`), `main.gd` (forest ambience, terrain-trap + tree-climb systems, tutorial), `sewer_critter.gd` (squirrels) | **Built.** Open clearings/trails/hills; climbable trees → high ground (+ one-time tutorial); bear traps (7 dmg / 10 to bears) and hunter dart tripwires (5 dmg) that hit players *and* enemies; pits; squirrels; bright fog. Reached via a forest trailhead site in World 1. See Section 5.4. |
 | **Caves (Act 1, Cave)** | `dungeon_manager.gd` (`interior_kind == "cave"`: `_generate_cave_layout` + `_place_cave_puddles`, `_build_cave_decorations`, darkened `CAVE_PALETTE`), `main.gd` (cave ambience + player torch) | **Built/enhanced.** Dark stone tunnels darker than the sewers; stalagmites, stalactites (dripping), puddles, divots, player torch. Reached via cave-mouth sites. See Section 5.4. |
-| **The City (end-game loop)** | `scripts/city/city_state.gd`, `expedition_system.gd`, `raid_system.gd`; saved in `SaveData.city` | Data-complete and tested (`tests/test_city_loop.gd`); not yet wired to UI. See Section 6. |
+| **The City (end-game loop)** | `scripts/city/` (state, expeditions, raids, bridge, calamities); Town Hall panel in `town.gd`; kill hook in `main.gd`; saved in `SaveData.city` | Wired and tested (`tests/test_city_loop.gd`, `tests/test_city_wiring.gd`). See Section 6.5. |
 | **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; feeds the compendium and future intent-reveals. 11 enemy types today (Section 5.3). |
 | **Quests** | `scripts/core/quest_manager.gd` | Currently kill-quests only; Olorin is the sole giver. |
 | **Town hub** | `scripts/menus/town.gd` | Persistent vendors (Blacksmith, Armory, Card Dealer, Accessory Shop, Stash) + Olorin + waypoint/transport. The shell the city loop will be wired into. |
@@ -532,10 +549,10 @@ Decided:
   with stalagmites/stalactites, puddles and a player torch. See Section 5.4 / §8.
 
 Still open:
-0. **Wire the city loop into the game** (Section 6.5): resource drops during
-   adventures, sending resources home, building UI in the town hub, NPC
-   unlock/recruitment beats, Olorin's signal item, and the calamity/warning
-   system. Also decide **who designs the town** (player authority vs.
+0. **Grow the city loop** (the wiring is in — Section 6.5): building
+   placement/visuals, NPC unlock/recruitment beats beyond the Sellsword,
+   raids in the UI, calamity defense as a playable battle, the multi-hero
+   end-game. Also decide **who designs the town** (player authority vs.
    premeditated unlocks — Section 6.4).
 1. **Solidify creature themes:** go habitat by habitat and define each
    creature's tier, role, signature mechanic, and drops (Section 5.2 template).

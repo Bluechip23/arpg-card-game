@@ -106,6 +106,11 @@ var vendor_info: Dictionary = {
 		"name": "Sellsword",
 		"description": "Hire a battle-partner. They fight alongside you — switch control with TAB.",
 		"type": "sellsword"
+	},
+	"TownHall": {
+		"name": "Town Hall",
+		"description": "The heart of the city. Raise buildings with the resources you send home.",
+		"type": "town_hall"
 	}
 }
 
@@ -169,6 +174,9 @@ func _ready() -> void:
 	# Create the Sellsword co-op recruiter NPC
 	_create_sellsword_npc()
 
+	# The Town Hall — the city loop's front door
+	_create_town_hall_npc()
+
 	# Create transport portal
 	_create_town_waypoint()
 
@@ -178,6 +186,10 @@ func _ready() -> void:
 	# Initialize camera
 	_camera_focus = player.position + Vector3(3, 0, 0)
 	_update_camera()
+
+	# Coming home: bank the satchel, weather any struck calamity, first-time
+	# flute hand-off. Shown as a notice overlay once the town is up.
+	_arrive_home()
 
 func _update_camera() -> void:
 	var camera = get_viewport().get_camera_3d()
@@ -468,6 +480,12 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 
 	if info["type"] == "sellsword":
 		_open_sellsword_ui()
+		vendor_panel.visible = true
+		interact_prompt.text = ""
+		return
+
+	if info["type"] == "town_hall":
+		_open_town_hall_ui()
 		vendor_panel.visible = true
 		interact_prompt.text = ""
 		return
@@ -2515,6 +2533,9 @@ func _build_save_data(slot: int) -> SaveData:
 	# main.gd handed off when travelling here; pair it with a fresh stats snapshot.
 	var stats_snapshot := stats.save_progression() if stats else {}
 	data.progression = ProgressionIO.to_disk(player_progression, stats_snapshot)
+	# The city also lives in its dedicated SaveData field (the progression
+	# snapshot carries the satchel + calamity keys via ProgressionIO).
+	data.city = player_progression.get("city", {})
 	data.progression["quest_state"] = quest_manager.save_state() if quest_manager else {}
 	data.progression["discovered_waypoints"] = discovered_waypoints.duplicate(true)
 	data.progression["opened_chests"] = opened_chests.duplicate(true)
@@ -2628,6 +2649,9 @@ func _go_to_battle() -> void:
 		_close_vendor()
 
 	print("[TOWN] Heading to battle!")
+	# Leaving home: if the city stands and nothing is brewing, fate arms the
+	# next calamity — its countdown ticks on kills out in the world.
+	CalamitySystem.schedule(player_progression)
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	# Save current player progression before transitioning
 	var stats = player.get_stats()
@@ -2665,3 +2689,228 @@ func _go_to_battle() -> void:
 	main_scene.opened_chests = opened_chests
 	get_tree().root.add_child(main_scene)
 	queue_free()
+
+# ============================================
+# THE TOWN HALL (city loop — STORY.md §6)
+# ============================================
+
+func _create_town_hall_npc() -> void:
+	## The Town Hall building marker: a small stone hall on the plaza's north
+	## edge. Interacting opens the city panel (resources, buildings, defenses).
+	var hall = StaticBody3D.new()
+	hall.name = "TownHall"
+	hall.position = Vector3(10, 0, 12)
+
+	# A squat stone hall with a timber roof and banner — chunky primitives,
+	# same language as the market stalls.
+	_npc_box(hall, "Base", Vector3(0, 0.8, 0), Vector3(3.2, 1.6, 2.2), Color(0.52, 0.5, 0.48))
+	_npc_box(hall, "Roof", Vector3(0, 1.85, 0), Vector3(3.6, 0.5, 2.6), Color(0.4, 0.26, 0.16))
+	_npc_box(hall, "Door", Vector3(0, 0.55, 1.12), Vector3(0.7, 1.1, 0.08), Color(0.3, 0.2, 0.12))
+	_npc_box(hall, "Banner", Vector3(1.2, 1.5, 1.14), Vector3(0.5, 0.9, 0.04), Color(0.75, 0.62, 0.28))
+
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(3.4, 2.2, 2.4)
+	collision.shape = shape
+	collision.position = Vector3(0, 1.1, 0)
+	hall.add_child(collision)
+
+	var label = Label3D.new()
+	label.text = "TOWN HALL"
+	label.font_size = 26
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(0.95, 0.85, 0.5)
+	label.outline_size = 8
+	label.position = Vector3(0, 2.7, 0)
+	hall.add_child(label)
+
+	$Vendors.add_child(hall)
+	print("[TOWN] Created Town Hall at position %s" % hall.position)
+
+func _open_town_hall_ui() -> void:
+	if not CityBridge.city_started(player_progression):
+		_add_info_label("The city awaits its first shipment.", Color(0.85, 0.85, 0.9))
+		_add_info_label("Fight out in the world and your satchel fills with lumber, stone, gold and essence. It is banked here the moment you come home.", Color(0.6, 0.6, 0.72))
+		return
+
+	var city := CityBridge.get_city(player_progression)
+
+	# ── Overview ──
+	var res_parts: Array[String] = []
+	for res in CityState.RESOURCES:
+		res_parts.append("%s %d" % [res.capitalize(), int(city.resources.get(res, 0))])
+	_add_info_label("Stores: %s   (cap %d)" % ["  ".join(res_parts), city.get_storage_cap()], Color(1.0, 0.85, 0.4))
+	var prod := city.get_production_per_hour()
+	if not prod.is_empty():
+		_add_info_label("Production: %s per hour" % _format_city_cost(prod), Color(0.6, 0.9, 0.6))
+	_add_info_label("City power %d — defense %d, garrison attack %d, %d%% of stores protected" % [
+		city.get_power(), city.get_defense_power(), city.get_attack_power(),
+		int(city.get_protected_fraction() * 100)], Color(0.7, 0.85, 1.0))
+	var brewing := CalamitySystem.pending(player_progression)
+	if not brewing.is_empty():
+		if brewing.get("struck", false):
+			_add_info_label("The city is under threat RIGHT NOW — %s" % CalamitySystem.warning_text(player_progression), Color(1.0, 0.4, 0.35))
+		else:
+			_add_info_label("Olorin's flute is silent... for now.", Color(0.6, 0.6, 0.72))
+
+	# ── Buildings ──
+	_add_section_separator("Buildings")
+	for id in CityState.BUILDING_DEFS:
+		_add_town_hall_building_row(city, id)
+
+	# ── Defense log ──
+	if city.defense_log.size() > 0:
+		_add_section_separator("Chronicle of Attacks")
+		for i in range(mini(city.defense_log.size(), 5)):
+			var entry: Dictionary = city.defense_log[i]
+			var text: String
+			if entry.get("won", false):
+				text = "%s breached the defenses — lost %s" % [
+					entry.get("attacker", "?"), _format_city_cost(entry.get("loot", {}))]
+			else:
+				text = "%s was driven off — nothing lost" % entry.get("attacker", "?")
+			_add_info_label(text, Color(1.0, 0.55, 0.45) if entry.get("won", false) else Color(0.55, 0.9, 0.55))
+
+func _add_town_hall_building_row(city: CityState, id: String) -> void:
+	var def: Dictionary = CityState.BUILDING_DEFS[id]
+	var lvl := city.get_building_level(id)
+	var btn := Button.new()
+	btn.custom_minimum_size.y = 44
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.add_theme_font_size_override("font_size", 13)
+	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+	var action: String
+	if lvl >= int(def["max_level"]):
+		action = "MAX"
+		btn.disabled = true
+	else:
+		var cost := city.get_upgrade_cost(id)
+		action = "Upgrade: %s" % _format_city_cost(cost)
+		if id != "town_hall" and lvl >= city.get_building_level("town_hall"):
+			action += "  (needs Town Hall Lv %d)" % (lvl + 1)
+			btn.disabled = true
+		elif not city.can_afford(cost):
+			action += "  (not enough resources)"
+			btn.disabled = true
+	btn.text = "  %s  Lv %d/%d — %s\n      %s" % [def["name"], lvl, int(def["max_level"]), def["desc"], action]
+	btn.pressed.connect(_on_upgrade_building.bind(id))
+	vendor_item_list.add_child(btn)
+
+func _on_upgrade_building(id: String) -> void:
+	var city := CityBridge.get_city(player_progression)
+	if city.upgrade(id):
+		CityBridge.store_city(player_progression, city)
+		print("[TOWN] Upgraded %s to Lv %d" % [id, city.get_building_level(id)])
+	# Rebuild the panel with fresh levels, costs and stores either way.
+	for child in vendor_item_list.get_children():
+		child.queue_free()
+	_open_town_hall_ui()
+
+func _format_city_cost(amounts: Dictionary) -> String:
+	var parts: Array[String] = []
+	for res in CityState.RESOURCES:
+		if amounts.has(res) and int(amounts[res]) > 0:
+			parts.append("%d %s" % [int(amounts[res]), res])
+	return ", ".join(parts) if parts.size() > 0 else "nothing"
+
+# ============================================
+# COMING HOME (bank the satchel, weather calamities)
+# ============================================
+
+func _arrive_home() -> void:
+	var lines: Array[String] = []
+	var now := int(Time.get_unix_time_from_system())
+
+	# A struck calamity resolves the moment the hero reaches home. Whether
+	# they made it back promptly decides if they stood with the garrison.
+	if CalamitySystem.has_struck(player_progression):
+		var power := ExpeditionSystem.hero_power(player.get_stats() if player else null)
+		var outcome := CalamitySystem.resolve(player_progression, power, now)
+		if not outcome.is_empty():
+			if outcome["hero_joined"]:
+				lines.append("You answered the flute in time — you stood with the garrison against the %s." % outcome["name"])
+			else:
+				lines.append("The flute called, but you tarried. The city faced the %s alone." % outcome["name"])
+			if outcome["held"]:
+				lines.append("The city HELD. Nothing was lost.")
+			else:
+				lines.append("The city suffered — lost %s." % _format_city_cost(outcome["lost"]))
+
+	# Bank the satchel (founding the city on the first shipment).
+	var pouch := CityBridge.satchel(player_progression)
+	var founding := not CityBridge.city_started(player_progression) and not pouch.is_empty()
+	if not pouch.is_empty() or CityBridge.city_started(player_progression):
+		var result := CityBridge.bank_satchel(player_progression, now)
+		if not result["produced"].is_empty():
+			lines.append("While you were away, the city produced %s." % _format_city_cost(result["produced"]))
+		if not result["banked"].is_empty():
+			lines.append("Satchel banked: %s." % _format_city_cost(result["banked"]))
+		if not result["lost"].is_empty():
+			lines.append("The warehouses overflowed — %s went to waste. Raise the Warehouse." % _format_city_cost(result["lost"]))
+
+	# The first shipment founds the city — and Olorin hands over the flute.
+	if founding and starting_character and not starting_character.seen_tutorial_ids.has("olorin_flute"):
+		starting_character.seen_tutorial_ids.append("olorin_flute")
+		lines.append("Olorin presses a bone-white flute into your hands: \"The city grows — and what grows, draws eyes. When this flute sounds, wherever you are, home needs you.\"")
+		lines.append("Visit the TOWN HALL to raise the city's buildings.")
+
+	if lines.size() > 0:
+		_show_town_notice("The City", lines)
+
+func _show_town_notice(title_text: String, lines: Array[String]) -> void:
+	var overlay := ColorRect.new()
+	overlay.name = "TownNotice"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0.0, 0.0, 0.0, 0.6)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var p_style := StyleBoxFlat.new()
+	p_style.bg_color = Color(0.1, 0.1, 0.15, 1.0)
+	p_style.border_width_left = 2
+	p_style.border_width_right = 2
+	p_style.border_width_top = 2
+	p_style.border_width_bottom = 2
+	p_style.border_color = Color(0.75, 0.62, 0.28)
+	p_style.corner_radius_top_left = 8
+	p_style.corner_radius_top_right = 8
+	p_style.corner_radius_bottom_left = 8
+	p_style.corner_radius_bottom_right = 8
+	p_style.content_margin_left = 28
+	p_style.content_margin_right = 28
+	p_style.content_margin_top = 22
+	p_style.content_margin_bottom = 22
+	panel.add_theme_stylebox_override("panel", p_style)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	vbox.custom_minimum_size = Vector2(460, 0)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = title_text
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	for line in lines:
+		var lbl := Label.new()
+		lbl.text = line
+		lbl.add_theme_font_size_override("font_size", 14)
+		lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl.custom_minimum_size = Vector2(460, 0)
+		vbox.add_child(lbl)
+
+	var ok := Button.new()
+	ok.text = "Continue"
+	ok.custom_minimum_size = Vector2(460, 38)
+	ok.pressed.connect(overlay.queue_free)
+	vbox.add_child(ok)
+
+	$UI.add_child(overlay)
