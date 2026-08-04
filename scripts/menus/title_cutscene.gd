@@ -9,8 +9,8 @@ extends Control
 ## that drift to the top of the screen and become the two O's of OLORIN.
 ## The remaining letters pop in green with a purple outline. Click/ESC skips.
 ##
-## The actors are Mana Seed NPC sprites — Olorin is the mystic sheet (his town
-## NPC sprite) and the boy is the NPC-pack boy — drawn frame-by-frame from a
+## The actors are Mana Seed NPC sprites — Olorin is the old-man sheet (his
+## town NPC sprite) and the boy is the NPC-pack boy — drawn frame-by-frame from a
 ## single clock (_t) alongside the procedural props (pipe, chair, smoke,
 ## bubbles, title), so skipping is just jumping the clock to the end.
 
@@ -41,8 +41,8 @@ const SMOKE := Color(0.82, 0.82, 0.88)
 const TITLE_GREEN := Color(0.3, 0.85, 0.38)
 const TITLE_PURPLE := Color(0.55, 0.2, 0.8)
 
-# ---- Actor sprites (Mana Seed NPC packs, 32px cells, rows S/W/N/E) ----
-const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc mystic A v02.png"
+# ---- Actor sprites (Mana Seed NPC packs, 32px cells, rows S/E/N/W) ----
+const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"
 const BOY_SHEET := "res://assets/sprites/NPCpackage2/npc boy v01.png"
 const CELL := 32
 const ROW_S := 0
@@ -130,7 +130,7 @@ func _standing_mouth(facing: float) -> Vector2:
 	return _olorin_foot() + Vector2(16.0 * facing, -84.0)
 
 func _pipe_ground_pos() -> Vector2:
-	return Vector2(_olorin_x() - 46.0, _ground_y() - 6.0)
+	return Vector2(_olorin_x() - 46.0, _ground_y() - 10.0)
 
 func _title_font() -> Font:
 	return ThemeDB.fallback_font
@@ -186,7 +186,7 @@ func _draw() -> void:
 	elif _t < T_SNAP:
 		# Still standing; the pipe has dropped to the ground.
 		var facing := -1.0 if _t < T_TURN else 1.0  # turns around after the boy leaves
-		_draw_pipe(_pipe_ground_pos(), 0.35, PIPE_SCALE)
+		_draw_pipe(_pipe_ground_pos(), -0.12, PIPE_SCALE)
 		var scratching := _t >= T_TURN and _t < T_BUBBLE3_END
 		_draw_olorin_standing(_olorin_foot(), facing, scratching)
 	else:
@@ -208,10 +208,10 @@ func _draw() -> void:
 				var to := _mouth_pos()
 				var p := from.lerp(to, u)
 				p.y -= sin(u * PI) * 40.0  # gentle arc
-				_draw_pipe(p, lerpf(0.35, PIPE_LOUNGE_ANGLE, u), PIPE_SCALE)
+				_draw_pipe(p, lerpf(-0.12, PIPE_LOUNGE_ANGLE, u), PIPE_SCALE)
 				_draw_sparkle_trail(p, _t)
 			elif _t < T_LIE:
-				_draw_pipe(_pipe_ground_pos(), 0.35, PIPE_SCALE)
+				_draw_pipe(_pipe_ground_pos(), -0.12, PIPE_SCALE)
 			# Post-arrival idle puffs (after the big rings are out).
 			if _t > T_RING2 + 0.8:
 				_draw_small_puffs(_smoke_source(), _t)

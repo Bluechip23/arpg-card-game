@@ -2188,11 +2188,11 @@ func _create_olorin_npc() -> void:
 	olorin.name = "Olorin"
 	olorin.position = Vector3(14, 0, 8)
 
-	# The wise old wanderer himself — the mystic sheet from the NPC pack
-	# (robed, hooded, staff), matching the 16-bit party/NPC pipeline.
+	# The wise old wanderer himself — the old-man sheet from the NPC pack
+	# (grey beard, walking stick), matching the 16-bit party/NPC pipeline.
 	var fig = Sprite3D.new()
 	fig.name = "Figure"
-	fig.texture = load("res://assets/sprites/NPCpackage1/npc mystic A v02.png")
+	fig.texture = load("res://assets/sprites/NPCpackage1/npc old man A v01.png")
 	fig.region_enabled = true
 	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
 	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -2326,7 +2326,27 @@ func _create_town_waypoint() -> void:
 	_town_waypoint_node = Node3D.new()
 	_town_waypoint_node.name = "TransportPortal"
 
-	# Pixel rune-ring on the ground, matching the dungeon waypoints.
+	# Slightly raised dirt mound so the portal reads as a landmark (matches
+	# the dungeon waypoints).
+	var mound = MeshInstance3D.new()
+	var mound_mesh = CylinderMesh.new()
+	mound_mesh.top_radius = 0.68
+	mound_mesh.bottom_radius = 0.95
+	mound_mesh.height = 0.22
+	mound_mesh.radial_segments = 12
+	mound.mesh = mound_mesh
+	var mound_mat = StandardMaterial3D.new()
+	mound_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
+	mound_mat.albedo_color = Color(1, 1, 1).lerp(Color(0.62, 0.5, 0.36), 0.5)
+	mound_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mound_mat.uv1_triplanar = true
+	mound_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	mound_mat.roughness = 1.0
+	mound.material_override = mound_mat
+	mound.position = Vector3(0, 0.11, 0)
+	_town_waypoint_node.add_child(mound)
+
+	# Pixel rune-ring on the mound's top, matching the dungeon waypoints.
 	var pillar = Sprite3D.new()
 	pillar.texture = load("res://assets/textures/props/waypoint_ring.png")
 	pillar.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -2334,7 +2354,7 @@ func _create_town_waypoint() -> void:
 	pillar.pixel_size = 0.045
 	pillar.rotation_degrees = Vector3(-90, 0, 0)
 	pillar.modulate = Color8(0x62, 0xa3, 0xb0)  # TEAL_1 (transport)
-	pillar.position = Vector3(0, 0.03, 0)
+	pillar.position = Vector3(0, 0.25, 0)
 	_town_waypoint_node.add_child(pillar)
 
 	# Name label
