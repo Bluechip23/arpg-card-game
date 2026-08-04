@@ -111,8 +111,10 @@ func _boy_arrive_x() -> float:
 	return _olorin_x() - 215.0
 
 func _mouth_pos() -> Vector2:
-	## Olorin's mouth while lounging — where the pipe's mouthpiece sits.
-	return Vector2(_olorin_x() + 38.0, _ground_y() - 94.0)
+	## Olorin's mouth while lounging — where the pipe's mouthpiece sits. Lying
+	## on his back, the face is on the sky side of the head, up and left of
+	## the head's centre.
+	return Vector2(_olorin_x() + 33.0, _ground_y() - 102.0)
 
 func _smoke_source() -> Vector2:
 	## The lounging pipe's bowl — where puffs and the great rings come from.
@@ -339,10 +341,10 @@ func _draw_npc_frame(tex: Texture2D, col: int, row: int, foot: Vector2,
 
 func _draw_olorin_lounging(base: Vector2, pipe_in_hand: bool) -> void:
 	## Olorin reclined on the chair: feet left, head up on the incline (right).
-	## The north-facing (back) sprite tipped along the chair's angle, so he's
-	## gazing up at the sky rather than out at the viewer.
+	## The west-facing profile sprite tipped backward along the chair's angle —
+	## his back on the cloth, face to the sky.
 	var feet := Vector2(base.x - 50.0, base.y - 36.0)
-	_draw_npc_frame(_olorin_tex, 0, ROW_N, feet, OLORIN_SCALE, deg_to_rad(58.0))
+	_draw_npc_frame(_olorin_tex, 0, ROW_W, feet, OLORIN_SCALE, deg_to_rad(58.0))
 	if pipe_in_hand:
 		_draw_pipe(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE)
 
