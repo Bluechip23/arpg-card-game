@@ -963,6 +963,7 @@ func _setup_action_buttons() -> void:
 	atk_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	atk_row.add_theme_constant_override("separation", 5)
 	var atk_icon := TextureRect.new()
+	atk_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 	atk_icon.texture = UIGlyphs.get_glyph("sword")
 	atk_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	atk_icon.custom_minimum_size = Vector2(22, 22)
@@ -3064,11 +3065,23 @@ func _refresh_unit_tracker() -> void:
 	if unit_tracker:
 		unit_tracker.refresh()
 
+func _refresh_hand_card_values() -> void:
+	## Re-print the stat-adjusted numbers on the hand's card faces (see
+	## get_card_vacuum_values) after a buff/stat shift.
+	if not hand_container:
+		return
+	for child in hand_container.get_children():
+		if child is CardUI:
+			child.update_chance_display()
+
 func select_character(character: CharacterData) -> void:
 	current_character = character
 	
 	player.initialize_character(character)
 	deck_manager.connect_player_stats(player.get_stats())
+	# Card faces print stat-adjusted numbers for this character (see
+	# get_card_vacuum_values); the provider is polled on every card refresh.
+	CardUI.value_provider = get_card_vacuum_values
 
 	debuff_bar.connect_manager(player.get_debuff_manager())
 	deck_manager.connect_debuff_manager(player.get_debuff_manager())
@@ -3081,6 +3094,9 @@ func select_character(character: CharacterData) -> void:
 	overflow_manager.initialize(player.get_stats())
 	deck_manager.connect_overflow_manager(overflow_manager)
 	buff_bar.connect_manager(player.get_buff_manager())
+	# Standing buffs (strengthen, empower, …) move the numbers printed on the
+	# card faces — re-render hand descriptions whenever they shift.
+	player.get_buff_manager().buffs_changed.connect(_refresh_hand_card_values)
 	manifest_ui.connect_overflow_manager(overflow_manager)
 	overflow_ui.connect_overflow_manager(overflow_manager)
 	quiver_ui.connect_overflow_manager(overflow_manager)
@@ -6008,6 +6024,59 @@ func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
 			total_damage -= armor_absorbed
 
 	return max(0, total_damage)
+
+
+func get_card_vacuum_values(card: Card) -> Dictionary:
+	## Effective card numbers for the current character "in a vacuum": base
+	## value + stats, equipment, and standing player-side buffs/debuffs, with
+	## no enemy- or position-specific terms (those stay on the hover preview,
+	## see calculate_damage_preview). Feeds the numbers printed on the card
+	## face so the hand shows what each card actually does for THIS character.
+	var out := {}
+	if not player or not is_instance_valid(player) or not player.is_inside_tree():
+		return out
+	var stats = player.get_stats()
+	if not stats:
+		return out
+	var buff_mgr = player.get_buff_manager()
+	var debuff_mgr = player.get_debuff_manager()
+	var on_self = card.get_on_self_bonus()
+
+	# Damage — mirrors calculate_damage_preview steps up to the enemy terms.
+	if card.card_type == Card.CardType.ATTACK and card.base_damage > 0:
+		var total = card.base_damage + card.bonus_damage + on_self["damage"]
+		if card.is_ranged and stats.ranged_damage_bonus > 0:
+			total += stats.ranged_damage_bonus
+		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_ranged:
+			total += 6
+		var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
+		if hp_mult > 1.0:
+			total += floori(card.base_damage * (hp_mult - 1.0))
+		total = stats.get_effective_physical_damage(total)
+		if stats.is_empowered():
+			total += stats.empower_damage_bonus
+		if buff_mgr:
+			total += buff_mgr.get_strengthen_bonus()
+		if debuff_mgr:
+			var reduction_pct = debuff_mgr.get_damage_reduction_percent()
+			if reduction_pct > 0.0:
+				total = max(1, floori(total * (1.0 - reduction_pct)))
+		out["damage"] = max(0, total)
+
+	# Block — mirrors PlayerStats.add_armor without applying it.
+	var shown_block: int = card.block if card.block > 0 else card.base_block
+	if shown_block > 0:
+		var total_block = shown_block + on_self["block"] + stats.enchantment_block_bonus + stats.sphere_bonus_block
+		if stats.has_skill_tree_passive("sword_specialist") \
+				and player.get_inventory() and player.get_inventory().has_only_swords_equipped():
+			total_block = floori(total_block * 1.25)
+		out["block"] = total_block
+
+	# Heal — the WIS pipeline.
+	if card.heal_amount > 0:
+		out["heal"] = stats.get_effective_heal_amount(card.heal_amount)
+
+	return out
 
 func play_selected_card(target) -> void:
 	if selected_card_index < 0:

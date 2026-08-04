@@ -45,6 +45,7 @@ func _setup_minimap() -> void:
 	main._minimap_panel.add_theme_stylebox_override("panel", style)
 
 	main._minimap_texture_rect = TextureRect.new()
+	main._minimap_texture_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 	main._minimap_texture_rect.custom_minimum_size = Vector2(main.MINIMAP_SIZE, main.MINIMAP_SIZE)
 	main._minimap_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	# Ignore the source image's native size so the rect (and its PanelContainer) stays
@@ -228,6 +229,7 @@ func _setup_tab_menu() -> void:
 
 	# Large map texture rect for dungeon map
 	main._tab_map_texture_rect = TextureRect.new()
+	main._tab_map_texture_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 	main._tab_map_texture_rect.custom_minimum_size = Vector2(400, 350)
 	main._tab_map_texture_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main._tab_map_texture_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL

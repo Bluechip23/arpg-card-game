@@ -143,6 +143,7 @@ func _create_save_slot_card(save: SaveData, slot: int) -> void:
 
 	if save.sprite_path != "" and ResourceLoader.exists(save.sprite_path):
 		var tex = TextureRect.new()
+		tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 		tex.texture = load(save.sprite_path)
 		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex.size_flags_horizontal = Control.SIZE_EXPAND_FILL

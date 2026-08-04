@@ -295,6 +295,48 @@ func get_colored_description() -> String:
 
 	return result
 
+## Description with the card's base numbers swapped for this character's
+## effective values (computed by main.get_card_vacuum_values): what the card
+## does in a vacuum — stats, equipment, and standing buffs, before any
+## enemy-specific modifiers (those stay on the hover preview). Boosted
+## numbers print green, debuffed ones red.
+func get_display_description(effective: Dictionary) -> String:
+	var text := description
+	if rng_outcomes_data.size() > 0 and has_been_rolled():
+		text = get_colored_description()
+	if effective.is_empty():
+		return text
+	if effective.has("damage") and effective["damage"] != base_damage:
+		text = _sub_number(text, base_damage, effective["damage"])
+	var shown_block: int = block if block > 0 else base_block
+	if effective.has("block") and effective["block"] != shown_block:
+		text = _sub_number(text, shown_block, effective["block"])
+	if effective.has("heal") and effective["heal"] != heal_amount:
+		text = _sub_number(text, heal_amount, effective["heal"])
+	return text
+
+
+## Replace the first standalone occurrence of base_val in text with the
+## effective value, colored by whether it went up or down. Digits glued to
+## the match or a trailing "%" disqualify it (so "30" inside "130" or "30%"
+## is left alone).
+static func _sub_number(text: String, base_val: int, shown: int) -> String:
+	var needle := str(base_val)
+	var from := 0
+	while true:
+		var pos := text.find(needle, from)
+		if pos < 0:
+			return text
+		var end := pos + needle.length()
+		var before_ok := pos == 0 or not text[pos - 1].is_valid_int()
+		var after_ok := end >= text.length() or (not text[end].is_valid_int() and text[end] != "%")
+		if before_ok and after_ok:
+			var color := "#8be98b" if shown > base_val else "#ff9c9c"
+			return "%s[color=%s]%d[/color]%s" % [text.substr(0, pos), color, shown, text.substr(end)]
+		from = pos + 1
+	return text
+
+
 func _find_standalone_percent(text: String, percent_str: String, from: int) -> int:
 	# Find a percentage like "30%" but not inside "-30%" or "130%"
 	var pos = text.find(percent_str, from)

@@ -58,8 +58,15 @@ const RUN_FRAME_TIME := 0.11
 const PIPE_SCALE := 1.8
 const PIPE_LOUNGE_ANGLE := -1.75  # radians; bowl end up and slightly over his face
 
-var _olorin_tex: Texture2D = load(OLORIN_SHEET)
-var _boy_tex: Texture2D = load(BOY_SHEET)
+# Sheets pre-scaled with nearest-neighbour at load, so the chunky pixels
+# survive the project's linear canvas filtering (which keeps text smooth).
+var _olorin_tex: Texture2D = _baked_sheet(OLORIN_SHEET, OLORIN_SCALE)
+var _boy_tex: Texture2D = _baked_sheet(BOY_SHEET, BOY_SCALE)
+
+static func _baked_sheet(path: String, factor: float) -> ImageTexture:
+	var img: Image = (load(path) as Texture2D).get_image()
+	img.resize(int(img.get_width() * factor), int(img.get_height() * factor), Image.INTERPOLATE_NEAREST)
+	return ImageTexture.create_from_image(img)
 
 var _t: float = 0.0
 var _finished_emitted: bool = false
@@ -330,13 +337,15 @@ func _draw_lawn_chair(base: Vector2, scale_u: float) -> void:
 
 func _draw_npc_frame(tex: Texture2D, col: int, row: int, foot: Vector2,
 		s: float, rot: float = 0.0) -> void:
-	## Draw one 32px NPC-sheet cell scaled by `s`, anchored so the cell's
-	## bottom-centre (the feet) sits at `foot`. `rot` tips the whole sprite
-	## around the foot anchor (radians, clockwise-positive).
-	draw_set_transform(foot, rot, Vector2(s, s))
+	## Draw one NPC-sheet cell for an actor whose sheet was baked at scale `s`
+	## (see _baked_sheet), anchored so the cell's bottom-centre (the feet)
+	## sits at `foot`. `rot` tips the whole sprite around the foot anchor
+	## (radians, clockwise-positive).
+	var cs := CELL * s
+	draw_set_transform(foot, rot, Vector2.ONE)
 	draw_texture_rect_region(tex,
-		Rect2(Vector2(-CELL / 2.0, -CELL), Vector2(CELL, CELL)),
-		Rect2(col * CELL, row * CELL, CELL, CELL))
+		Rect2(Vector2(-cs / 2.0, -cs), Vector2(cs, cs)),
+		Rect2(col * cs, row * cs, cs, cs))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 func _draw_olorin_lounging(base: Vector2, pipe_in_hand: bool) -> void:

@@ -420,6 +420,7 @@ func _create_status_icon(color: Color, stacks: int, effect_name: String = "") ->
 	if glyph_tex:
 		circle_style.bg_color = color.darkened(0.55)
 		var glyph = TextureRect.new()
+		glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 		glyph.texture = glyph_tex
 		glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
