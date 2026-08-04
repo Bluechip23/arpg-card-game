@@ -29,7 +29,14 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 
+[gui]
+
+theme/default_font_multichannel_signed_distance_field=true
+theme/default_font_generate_mipmaps=true
+
 [rendering]
 
-textures/canvas_textures/default_texture_filter=0
+; Linear canvas filtering so font glyphs stay smooth under UI scaling and
+; the fan rotation; pixel-art UI icons opt back into NEAREST per-node.
+textures/canvas_textures/default_texture_filter=1
 anti_aliasing/quality/msaa_3d=2

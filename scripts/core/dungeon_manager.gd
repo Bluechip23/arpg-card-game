@@ -3369,7 +3369,20 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	var wp_root = Node3D.new()
 	wp_root.name = "Waypoint_%s" % target
 
-	# Waypoint visual: chunky pixel rune-ring laid flat on the ground,
+	# Slightly raised dirt mound under the ring, so waypoints read as a
+	# landmark at a glance instead of a flat glow on the ground.
+	var mound = MeshInstance3D.new()
+	var mound_mesh = CylinderMesh.new()
+	mound_mesh.top_radius = 0.68
+	mound_mesh.bottom_radius = 0.95
+	mound_mesh.height = 0.22
+	mound_mesh.radial_segments = 12
+	mound.mesh = mound_mesh
+	mound.material_override = _pixel_mat("res://assets/textures/tile_dirt.png", Color(0.62, 0.5, 0.36))
+	mound.position = Vector3(0, 0.11, 0)
+	wp_root.add_child(mound)
+
+	# Waypoint visual: chunky pixel rune-ring laid flat on the mound's top,
 	# tinted per destination (master-palette tints, style guide §2).
 	var pillar = Sprite3D.new()
 	pillar.texture = load("res://assets/textures/props/waypoint_ring.png")
@@ -3390,7 +3403,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 		_:
 			tint = Color8(0xb6, 0xc5, 0xc5)  # STEEL_6
 	pillar.modulate = Color(tint, 0.75)  # dimmed until discovered
-	pillar.position = Vector3(0, 0.03, 0)
+	pillar.position = Vector3(0, 0.25, 0)  # resting on the mound's top
 	wp_root.add_child(pillar)
 
 	# Label

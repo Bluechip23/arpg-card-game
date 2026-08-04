@@ -87,6 +87,7 @@ func _build_ui() -> void:
 	_sprite_panel = sprite_panel
 
 	_sprite_texture = TextureRect.new()
+	_sprite_texture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 	_sprite_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_sprite_texture.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sprite_texture.size_flags_vertical = Control.SIZE_EXPAND_FILL
