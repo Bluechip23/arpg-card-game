@@ -661,6 +661,21 @@ func increment_cycles_in_hand() -> void:
 func reset_hand_tracking() -> void:
 	cycles_in_hand = 0
 	rng_outcomes.clear()
+## How many cards this card's effect draws when it resolves. The deck manager
+## reserves hand slots for queued cards using this, so a tempo draw can't
+## steal the slot a played Draw freed (which made its effect resolve into a
+## full hand and silently do nothing).
+func get_effect_draw_count() -> int:
+	match card_id:
+		"draw", "quick_shot", "bob_and_weave", "deep_pockets", "the_lights_favor", "reposition":
+			return 1
+		"potion_of_continuance", "healthy_habit":
+			return 2
+		"reload", "prepare":
+			return 3
+	return 0
+
+
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
 

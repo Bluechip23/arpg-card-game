@@ -41,6 +41,11 @@ var prep_utility_discount: int = 0  # Preparation: reduces next utility card cos
 var prep_utility_charges: int = 0   # How many more utility cards get the discount
 var discards_this_cycle: int = 0  # Cards discarded since last tempo cycle
 var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
+# Hand slots held for queued cards whose effects draw (Draw, Reload, …).
+# While such a card ticks toward its resolve, the slot it freed on play must
+# not be stolen by a tempo draw — otherwise the effect resolves into a full
+# hand and silently does nothing.
+var reserved_draw_slots: int = 0
 var fire_spells_this_turn: int = 0  # Fireball synergy: fire spells cast since the cycle started
 
 func connect_player_stats(stats) -> void:
@@ -119,6 +124,7 @@ func initialize_deck(character: CharacterData) -> void:
 	jail_pile.clear()
 	maintained_cards.clear()
 	peaked_card = null
+	reserved_draw_slots = 0
 	
 	# Create default starter deck based on character
 	_create_default_deck(character)
@@ -299,10 +305,16 @@ func attempt_draw() -> void:
 		print("[DECK] Cannot draw - Cuffed!")
 		return
 
-	if hand.size() >= get_hand_cap():
+	# Tempo draws respect reserved slots (queued draw-effect cards); the
+	# resolving effects themselves draw through draw_card() unaffected.
+	if hand.size() + reserved_draw_slots >= get_hand_cap():
 		handle_overflow()
 	else:
 		draw_card()
+
+func release_draw_reservation(card: Card) -> void:
+	## Frees the hand slots held for a queued card (on resolve or cancel).
+	reserved_draw_slots = maxi(0, reserved_draw_slots - card.get_effect_draw_count())
 
 func handle_overflow() -> void:
 	# Default overflow does NOTHING: with no active overflow effect the player
@@ -559,13 +571,21 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			_update_debuff_card_indices(debuff_mgr, random_index)
 	
 	hand_updated.emit()
-	
+
+	# Queued play: hold the freed slot for this card's own draw effect until
+	# it resolves (released in execute_deferred_card / on cancel).
+	if defer_execution:
+		reserved_draw_slots += card.get_effect_draw_count()
+
 	print("[DECK] Played: %s (cost %d mana) | Hand: %d/%d" % [card.card_name, mana_cost, hand.size(), get_hand_cap()])
-	
+
 	return { "played": true, "half_tempo": was_half_tempo }
 
 ## Execute a deferred card (called when the resolve tick fires in the ticked tempo system)
 func execute_deferred_card(card: Card, target, player_node = null) -> void:
+	# The card is resolving: its held hand slots become real again so its own
+	# draw effect can use them.
+	release_draw_reservation(card)
 	var damage_reduction_pct = 0.0
 	var self_damage_percent = 0.0
 	var buff_mgr = null
