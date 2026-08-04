@@ -9,8 +9,10 @@ extends Control
 ## that drift to the top of the screen and become the two O's of OLORIN.
 ## The remaining letters pop in green with a purple outline. Click/ESC skips.
 ##
-## Everything is drawn procedurally in _draw() from a single clock (_t), so
-## skipping is just jumping the clock to the end.
+## The actors are Mana Seed NPC sprites — Olorin is the mystic sheet (his town
+## NPC sprite) and the boy is the NPC-pack boy — drawn frame-by-frame from a
+## single clock (_t) alongside the procedural props (pipe, chair, smoke,
+## bubbles, title), so skipping is just jumping the clock to the end.
 
 signal cutscene_finished
 
@@ -32,20 +34,27 @@ const T_RING2 := 24.6          # second big ring puffed
 const T_RINGS_PARKED := 26.2   # rings in place as the two O's
 const END_T := 27.6            # letters done, menu may appear
 
-# ---- Palette ----
-const ROBE := Color(0.58, 0.58, 0.68)
-const ROBE_DARK := Color(0.44, 0.44, 0.54)
-const HAT := Color(0.42, 0.38, 0.58)
-const BEARD := Color(0.92, 0.92, 0.9)
-const SKIN := Color(0.85, 0.68, 0.52)
-const BOY_SHIRT := Color(0.75, 0.25, 0.2)
-const BOY_PANTS := Color(0.25, 0.35, 0.65)
-const BOY_HAIR := Color(0.4, 0.26, 0.14)
+# ---- Palette (props & effects; the actors are sprites) ----
 const WOOD := Color(0.5, 0.34, 0.18)
 const CHAIR_CLOTH := Color(0.3, 0.55, 0.4)
 const SMOKE := Color(0.82, 0.82, 0.88)
 const TITLE_GREEN := Color(0.3, 0.85, 0.38)
 const TITLE_PURPLE := Color(0.55, 0.2, 0.8)
+
+# ---- Actor sprites (Mana Seed NPC packs, 32px cells, rows S/W/N/E) ----
+const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc mystic A v02.png"
+const BOY_SHEET := "res://assets/sprites/NPCpackage2/npc boy v01.png"
+const CELL := 32
+const ROW_S := 0
+const ROW_E := 1
+const ROW_N := 2
+const ROW_W := 3
+const OLORIN_SCALE := 4.5  # a touch taller than the boy — presence
+const BOY_SCALE := 4.0
+const RUN_FRAME_TIME := 0.11
+
+var _olorin_tex: Texture2D = load(OLORIN_SHEET)
+var _boy_tex: Texture2D = load(BOY_SHEET)
 
 var _t: float = 0.0
 var _finished_emitted: bool = false
@@ -93,11 +102,20 @@ func _olorin_x() -> float:
 	return size.x * 0.68
 
 func _boy_arrive_x() -> float:
-	return _olorin_x() - 120.0
+	# The sprites are ~130px wide, so stop the boy well short of Olorin.
+	return _olorin_x() - 215.0
 
 func _mouth_pos() -> Vector2:
 	## Olorin's mouth while lounging (ring emission point).
-	return Vector2(_olorin_x() + 34.0, _ground_y() - 74.0)
+	return Vector2(_olorin_x() + 34.0, _ground_y() - 86.0)
+
+func _olorin_foot() -> Vector2:
+	## Ground point under standing Olorin's feet.
+	return Vector2(_olorin_x() - 70.0, _ground_y())
+
+func _standing_mouth(facing: float) -> Vector2:
+	## Olorin's mouth while standing (pipe anchor). facing: -1 left, +1 right.
+	return _olorin_foot() + Vector2(14.0 * facing, -80.0)
 
 func _pipe_ground_pos() -> Vector2:
 	return Vector2(_olorin_x() - 46.0, _ground_y() - 6.0)
@@ -148,10 +166,8 @@ func _draw() -> void:
 	# ---------- Phase-dependent actors ----------
 	if _t < T_STAND:
 		# Standing in the field, pipe in hand, puffing away as the boy runs up.
-		var sbase := Vector2(ox - 70.0, g)
-		_draw_olorin_standing(sbase, -1.0, false)  # facing left, toward the boy
-		var smouth := Vector2(sbase.x + 4.0, g - 82.0)
-		draw_line(Vector2(sbase.x + 10.0, g - 58.0), smouth + Vector2(-2, 8), ROBE_DARK, 6.0)
+		_draw_olorin_standing(_olorin_foot(), -1.0, false)  # facing left, toward the boy
+		var smouth := _standing_mouth(-1.0)
 		_draw_pipe(smouth + Vector2(2, 6), -0.35, 1.0)
 		_draw_small_puffs(smouth, _t)
 	elif _t < T_SNAP:
@@ -159,7 +175,7 @@ func _draw() -> void:
 		var facing := -1.0 if _t < T_TURN else 1.0  # turns around after the boy leaves
 		_draw_pipe(_pipe_ground_pos(), 0.35, 1.0)
 		var scratching := _t >= T_TURN and _t < T_BUBBLE3_END
-		_draw_olorin_standing(Vector2(ox - 70.0, g), facing, scratching)
+		_draw_olorin_standing(_olorin_foot(), facing, scratching)
 	else:
 		# New lawn chair (snapped into existence) + lying back down.
 		var chair_scale = clampf((_t - T_SNAP) / 0.35, 0.0, 1.0)
@@ -167,24 +183,17 @@ func _draw() -> void:
 		if _t < T_SNAP + 0.3:
 			_draw_snap_flash(Vector2(ox - 60.0, g - 70.0), (_t - T_SNAP) / 0.3)
 		if _t < T_LIE:
-			_draw_olorin_standing(Vector2(ox - 70.0, g), 1.0, false)
+			_draw_olorin_standing(_olorin_foot(), 1.0, false)
 		else:
 			var pipe_in_hand := _t >= T_PIPE_ARRIVE
 			_draw_olorin_lounging(Vector2(ox, g), pipe_in_hand)
-			# Telekinesis: Olorin stretches a hand out and the pipe arcs to it.
+			# Telekinesis: the pipe arcs to Olorin's mouth on a sparkle trail.
 			if _t >= T_LIE and _t < T_PIPE_ARRIVE:
 				var u = smoothstep(0.0, 1.0, (_t - T_LIE) / (T_PIPE_ARRIVE - T_LIE))
 				var from := _pipe_ground_pos()
 				var to := _mouth_pos() + Vector2(6, 10)
 				var p := from.lerp(to, u)
 				p.y -= sin(u * PI) * 40.0  # gentle arc
-				# Outstretched arm, fingers spread toward the pipe.
-				var shoulder := Vector2(ox + 20.0, g - 60.0)
-				var hand := shoulder + (p - shoulder).normalized() * 34.0
-				draw_line(shoulder, hand, ROBE_DARK, 6.0)
-				for f in range(3):
-					var fa := (p - hand).angle() + (f - 1) * 0.35
-					draw_line(hand, hand + Vector2(cos(fa), sin(fa)) * 7.0, SKIN, 2.5)
 				_draw_pipe(p, lerpf(0.35, -0.2, u), 1.0)
 				_draw_sparkle_trail(p, _t)
 			elif _t < T_LIE:
@@ -209,24 +218,24 @@ func _draw() -> void:
 
 	# ---------- Speech bubbles ----------
 	if _t >= T_BOY_ARRIVE and _t < T_BUBBLE1_END:
-		_draw_bubble(Vector2(_boy_arrive_x() + 10.0, g - 150.0), [
+		_draw_bubble(Vector2(_boy_arrive_x() + 10.0, g - 200.0), [
 			"Olorin! Olorin! The world! It has",
 			"become ablaze of evil and distress!",
 			"PLEASE HELP! Will you?!",
-		], Vector2(_boy_arrive_x(), g - 66.0))
+		], Vector2(_boy_arrive_x(), g - 84.0))
 	elif _t >= T_STAND and _t < T_BUBBLE2_END:
-		_draw_bubble(Vector2(ox - 80.0, g - 190.0), [
+		_draw_bubble(Vector2(ox - 80.0, g - 195.0), [
 			"Of course, of course I will.",
-		], Vector2(ox - 70.0, g - 120.0))
+		], Vector2(ox - 70.0, g - 110.0))
 	elif _t >= T_BUBBLE2_END and _t < T_GREAT_END:
-		_draw_bubble(Vector2(_boy_arrive_x() + 10.0, g - 140.0), [
+		_draw_bubble(Vector2(_boy_arrive_x() + 10.0, g - 155.0), [
 			"Great!",
-		], Vector2(_boy_arrive_x(), g - 66.0))
+		], Vector2(_boy_arrive_x(), g - 84.0))
 	elif _t >= T_TURN + 0.6 and _t < T_BUBBLE3_END:
-		_draw_bubble(Vector2(ox - 90.0, g - 190.0), [
+		_draw_bubble(Vector2(ox - 90.0, g - 195.0), [
 			"On second thought, that sounds like",
 			"something I care not much to do....",
-		], Vector2(ox - 70.0, g - 120.0))
+		], Vector2(ox - 70.0, g - 110.0))
 
 	# ---------- The two great smoke rings → title O's ----------
 	var layout := _olorin_layout()
@@ -305,96 +314,38 @@ func _draw_lawn_chair(base: Vector2, scale_u: float) -> void:
 	_draw_lounge_chair(Vector2.ZERO, CHAIR_CLOTH)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
+func _draw_npc_frame(tex: Texture2D, col: int, row: int, foot: Vector2,
+		s: float, rot: float = 0.0) -> void:
+	## Draw one 32px NPC-sheet cell scaled by `s`, anchored so the cell's
+	## bottom-centre (the feet) sits at `foot`. `rot` tips the whole sprite
+	## around the foot anchor (radians, clockwise-positive).
+	draw_set_transform(foot, rot, Vector2(s, s))
+	draw_texture_rect_region(tex,
+		Rect2(Vector2(-CELL / 2.0, -CELL), Vector2(CELL, CELL)),
+		Rect2(col * CELL, row * CELL, CELL, CELL))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
 func _draw_olorin_lounging(base: Vector2, pipe_in_hand: bool) -> void:
 	## Olorin reclined on the chair: feet left, head up on the incline (right).
-	var x := base.x
-	var y := base.y
-	# Body robe along the chair
-	var robe := PackedVector2Array([
-		Vector2(x - 52, y - 40), Vector2(x - 48, y - 56),
-		Vector2(x + 14, y - 52), Vector2(x + 40, y - 72),
-		Vector2(x + 30, y - 40), Vector2(x - 40, y - 34),
-	])
-	draw_colored_polygon(robe, ROBE)
-	# Feet poking out
-	draw_circle(Vector2(x - 54, y - 46), 6.0, ROBE_DARK)
-	draw_circle(Vector2(x - 54, y - 56), 6.0, ROBE_DARK)
-	# Head
-	var head := Vector2(x + 40, y - 82)
-	draw_circle(head, 11.0, SKIN)
-	# Beard flowing down-left
-	var beard := PackedVector2Array([
-		head + Vector2(-8, 2), head + Vector2(8, 4),
-		head + Vector2(2, 30), head + Vector2(-14, 22),
-	])
-	draw_colored_polygon(beard, BEARD)
-	# Pointy hat, tipped back
-	var hat := PackedVector2Array([
-		head + Vector2(-14, -4), head + Vector2(14, -6), head + Vector2(30, -34),
-	])
-	draw_colored_polygon(hat, HAT)
-	draw_line(head + Vector2(-16, -3), head + Vector2(16, -5), HAT.darkened(0.25), 4.0)
-	# Arm + pipe
+	## The front-facing sprite tipped back along the chair's angle.
+	var feet := Vector2(base.x - 50.0, base.y - 36.0)
+	_draw_npc_frame(_olorin_tex, 0, ROW_S, feet, OLORIN_SCALE, deg_to_rad(58.0))
 	if pipe_in_hand:
-		draw_line(Vector2(x + 16, y - 52), Vector2(x + 32, y - 72), ROBE_DARK, 6.0)
 		_draw_pipe(_mouth_pos() + Vector2(4, 8), -0.35, 1.0)
 
-func _draw_olorin_standing(base: Vector2, facing: float, scratching: bool) -> void:
-	## Standing wizard. facing: -1 looks left, +1 looks right.
-	var x := base.x
-	var y := base.y
-	# Robe
-	var robe := PackedVector2Array([
-		Vector2(x - 22, y), Vector2(x + 22, y),
-		Vector2(x + 12, y - 78), Vector2(x - 12, y - 78),
-	])
-	draw_colored_polygon(robe, ROBE)
-	# Head
-	var head := Vector2(x, y - 90)
-	draw_circle(head, 11.0, SKIN)
-	# Beard hangs down
-	var beard := PackedVector2Array([
-		head + Vector2(-9 , 2), head + Vector2(9, 2),
-		head + Vector2(3 * facing, 34), head + Vector2(-6 * facing, 26),
-	])
-	draw_colored_polygon(beard, BEARD)
-	# Hat
-	var hat := PackedVector2Array([
-		head + Vector2(-15, -4), head + Vector2(15, -4), head + Vector2(6 * facing, -36),
-	])
-	draw_colored_polygon(hat, HAT)
-	draw_line(head + Vector2(-17, -3), head + Vector2(17, -3), HAT.darkened(0.25), 4.0)
-	# Arms
-	if scratching:
-		# One hand up scratching the chin (tiny oscillation).
-		var wob := sin(_t * 10.0) * 2.0
-		draw_line(Vector2(x + 10 * facing, y - 60), head + Vector2(10 * facing, 12 + wob), ROBE_DARK, 6.0)
-		draw_line(Vector2(x - 10 * facing, y - 60), Vector2(x - 18 * facing, y - 40), ROBE_DARK, 6.0)
-	else:
-		draw_line(Vector2(x - 12, y - 60), Vector2(x - 20, y - 36), ROBE_DARK, 6.0)
-		draw_line(Vector2(x + 12, y - 60), Vector2(x + 20, y - 36), ROBE_DARK, 6.0)
+func _draw_olorin_standing(foot: Vector2, facing: float, scratching: bool) -> void:
+	## Standing wizard. facing: -1 looks left, +1 looks right. While pondering
+	## ("scratching"), a slow rock on the heels.
+	var row := ROW_W if facing < 0.0 else ROW_E
+	var rot := sin(_t * 3.0) * 0.035 if scratching else 0.0
+	_draw_npc_frame(_olorin_tex, 0, row, foot, OLORIN_SCALE, rot)
 
 func _draw_boy(base: Vector2, t: float, running: bool, facing: float) -> void:
-	## A small boy. facing +1 = running right, -1 = running left.
-	var x := base.x
-	var y := base.y
-	var bob := absf(sin(t * 10.0)) * 3.0 if running else 0.0
-	y -= bob
-	# Legs (alternate while running)
-	var swing := sin(t * 12.0) * 8.0 if running else 0.0
-	draw_line(Vector2(x, y - 22), Vector2(x - 6 + swing * facing, y), BOY_PANTS, 5.0)
-	draw_line(Vector2(x, y - 22), Vector2(x + 6 - swing * facing, y), BOY_PANTS, 5.0)
-	# Torso
-	draw_rect(Rect2(x - 8, y - 40, 16, 18), BOY_SHIRT)
-	# Arms pumping
-	var arm_swing := sin(t * 12.0 + PI) * 7.0 if running else 0.0
-	draw_line(Vector2(x - 7, y - 36), Vector2(x - 12 + arm_swing * facing, y - 26), BOY_SHIRT.darkened(0.2), 4.0)
-	draw_line(Vector2(x + 7, y - 36), Vector2(x + 12 - arm_swing * facing, y - 26), BOY_SHIRT.darkened(0.2), 4.0)
-	# Head + hair
-	var head := Vector2(x, y - 50)
-	draw_circle(head, 9.0, SKIN)
-	draw_circle(head + Vector2(-2 * facing, -4), 8.0, BOY_HAIR)
-	draw_circle(head + Vector2(1 * facing, -1), 7.0, SKIN)
+	## The small boy. facing +1 = running right, -1 = running left. Standing
+	## still he faces east, toward Olorin.
+	var row := ROW_E if facing > 0.0 else ROW_W
+	var col := int(t / RUN_FRAME_TIME) % 4 if running else 0
+	_draw_npc_frame(_boy_tex, col, row, base, BOY_SCALE)
 
 func _draw_pipe(pos: Vector2, angle: float, s: float) -> void:
 	## Small smoking pipe: stem + bowl.

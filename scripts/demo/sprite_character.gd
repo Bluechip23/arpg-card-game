@@ -18,9 +18,9 @@ enum Facing { SOUTH, NORTH, EAST, WEST }
 
 const SEED := "res://assets/sprites/SeedcharacterBase"
 
-# Sheet rows per facing. The character base runs S,N,E,W; NPC packs run S,W,N,E.
+# Sheet rows per facing. The character base runs S,N,E,W; NPC packs run S,E,N,W.
 const DOLL_ROW := {Facing.SOUTH: 0, Facing.NORTH: 1, Facing.EAST: 2, Facing.WEST: 3}
-const NPC_ROW := {Facing.SOUTH: 0, Facing.WEST: 1, Facing.NORTH: 2, Facing.EAST: 3}
+const NPC_ROW := {Facing.SOUTH: 0, Facing.EAST: 1, Facing.NORTH: 2, Facing.WEST: 3}
 
 # Attack frame timings from the pack's guide ("attacks look good at 160/65/65/200ms").
 const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]

@@ -3,19 +3,20 @@ extends Control
 
 ## Animation Lab — a development workbench for authoring card/passive animations.
 ##
-## Shows a generic 3D character in a viewport "box" with a scrollable list of
-## every card and passive on the side. Selecting an entry makes the character
-## perform that entry's animation, so animations can be iterated on here instead
-## of having to reproduce situations in a real battle.
+## Shows a character in a viewport "box" with a scrollable list of every card
+## and passive on the side. Selecting an entry makes the character perform that
+## entry's animation, so animations can be iterated on here instead of having
+## to reproduce situations in a real battle.
 ##
-## The character is intentionally generic — animations are skeletal/procedural and
-## do not depend on which character is shown. Cards play the action returned by
-## Card.get_animation_action(); as unique per-card animations are authored there
-## (and in CharacterFigure.play_action), this lab picks them up automatically.
+## Characters render through SpriteFigure — the same Mana Seed billboard
+## sprites battle uses — so the lab previews exactly what ships. Cards play the
+## action returned by Card.get_animation_action(); as per-card animations are
+## authored there (and in SpriteFigure.play_action), this lab picks them up
+## automatically.
 
 const TitleMenuScene := "res://scenes/menus/title_menu.tscn"
 
-var _figure: CharacterFigure = null
+var _figure: SpriteFigure = null
 var _list_vbox: VBoxContainer = null
 var _status_label: Label = null
 var _filter_edit: LineEdit = null
@@ -168,11 +169,11 @@ func _build_viewport() -> void:
 
 	var camera := Camera3D.new()
 	camera.current = true
-	camera.position = Vector3(0, 1.7, 3.7)
+	camera.position = Vector3(0, 1.35, 3.0)
 	vp.add_child(camera)
-	camera.look_at(Vector3(0, 0.85, 0), Vector3.UP)
+	camera.look_at(Vector3(0, 0.7, 0), Vector3.UP)
 
-	_figure = CharacterFigure.new()
+	_figure = SpriteFigure.new()
 	vp.add_child(_figure)
 	_figure.setup("Brad")
 	_figure.set_facing(_current_dir)
@@ -201,7 +202,8 @@ func _build_viewport() -> void:
 	replay.pressed.connect(_on_replay)
 	controls.add_child(replay)
 
-	# --- Character selector (shield-based moves need Brad) ---
+	# --- Character selector (Jeremy/Ryan are paper dolls with real attack
+	# poses; Brad/Cory/Stephen are NPC sheets with the overlay weapon swing) ---
 	var char_row := HBoxContainer.new()
 	char_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	char_row.add_theme_constant_override("separation", 6)
