@@ -204,16 +204,7 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 	if randf() < card_chance:
 		loot["card"] = _get_random_loot_card()
 
-	# Rats carry the Infestation card — a roguelike-only summon. Rolled separately
-	# so it isn't crowded out by the normal card pool, and only if nothing else
-	# already filled the card slot this drop.
-	if loot["card"] == null and _is_rat(enemy.enemy_type) and randf() < 0.25:
-		loot["card"] = Card.create_infestation()
-
 	return loot
-
-func _is_rat(type: Enemy.EnemyType) -> bool:
-	return type == Enemy.EnemyType.WERERAT or type == Enemy.EnemyType.ARCHER_RAT
 
 func _get_item_drop_chance(type: Enemy.EnemyType) -> float:
 	match type:

@@ -8,8 +8,7 @@ extends Resource
 @export var current_location: String = "Town"
 @export var time_played_seconds: float = 0.0
 @export var sprite_path: String = ""
-# World/story progress this character has reached. Used for display and (later)
-# to gate the roguelike to characters that have started the story.
+# World/story progress this character has reached.
 @export var world_level: int = 1
 
 # Full character data for loading back into the game
@@ -29,16 +28,6 @@ extends Resource
 # Disk-safe progression snapshot (see ProgressionIO). Holds level/stats, deck,
 # sphere inventory + unlocked nodes, quest state, waypoints and opened chests.
 @export var progression: Dictionary = {}
-
-# The character's single in-progress roguelike run (RoguelikeRun.to_dict()).
-# Empty when there is no active run. A character can only have one at a time;
-# it is resumed on re-entry and cleared when the run ends (victory or death).
-@export var active_run: Dictionary = {}
-
-# The character's shared roguelike world meta-progression (WorldData.to_dict()):
-# relics, vendors, events and node upgrades unlocked so far. A run freezes a
-# snapshot of this at start; new unlocks land here for future runs.
-@export var world_meta: Dictionary = {}
 
 # The character's city (CityState.to_dict()) — the city end-game loop:
 # expeditions gather resources, buildings grow the city, raids loot rivals.

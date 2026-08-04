@@ -15,8 +15,9 @@ without confirming.
 
 > Reminder from `CLAUDE.md`: **this is a TRUE RPG, not a roguelike.** One
 > persistent character, one journey through a story with a beginning, middle,
-> and end. The roguelike is the *end-game loop* that unlocks after the story —
-> not the spine of the game.
+> and end. The end-game is **the City** — defending and growing the home base
+> the player has been feeding all game (Section 6). It layers directly on top
+> of the story; nothing resets.
 
 ---
 
@@ -158,12 +159,12 @@ stop the invasion.*
 ## 5. The Bestiary
 
 Enemies are not just obstacles — they are a **persistent record**. Each
-character tracks the monsters they've defeated in story mode
-(`CharacterData.defeated_monster_ids`), and certain enemies drop **relics** that
-carry into the roguelike (`CharacterData.unlocked_relic_ids`, e.g. the Hydra →
-Hydra Heart). Design every notable creature with two lives in mind: its role in
-the **story** *and* its echo in the **roguelike** (bestiary entry, intent-reveal
-gate, relic/card source).
+character tracks the monsters they've defeated
+(`CharacterData.defeated_monster_ids`), and certain enemies drop **cards** into
+the character's permanent collection (e.g. the Hydra → Growth Within
+Resilience). Design every notable creature with two lives in mind: its role in
+the **story** *and* its echo in the **end-game** (bestiary entry, intent-reveal
+gate, card source, expedition-zone resident).
 
 ### 5.1 How enemies work (so creatures are buildable, not just flavor)
 Grounded in `scripts/battle/enemy.gd`:
@@ -194,8 +195,8 @@ Grounded in `scripts/battle/enemy.gd`:
   **pull/hook** (Infected Hunter), **armor-on-hit** (Earth Mage), **flying /
   ignores high ground** (Giant Hawk). Concepts to add: **summoning**, **charge
   lanes**, **on-death bursts**, **stealth/sound-only visibility**.
-- **Drops:** elites/bosses can drop roguelike **relics + cards**. Every kill is
-  recorded to the bestiary.
+- **Drops:** elites/bosses can drop **cards**. Every kill is recorded to the
+  bestiary, and kills feed the city's expedition rewards (Section 6).
 
 ### 5.2 Creature design template
 When we solidify a creature, capture it with these fields:
@@ -203,7 +204,7 @@ When we solidify a creature, capture it with these fields:
 - **Role** (melee rusher / armored tank / ranged kiter / evasive skirmisher /
   support / scaling / swarm / summoner / charger / ambusher) ·
 - **Signature mechanic** (prefer existing status effects/patterns from 5.1) ·
-- **Relic / card hook** (elites & bosses — what it feeds the roguelike) ·
+- **Card / resource hook** (elites & bosses — what it feeds the end-game) ·
 - **Status:** `existing` (in code) · `[TBD]` (roster only, theme not yet set).
 
 ### 5.3 Organizing principle — by habitat, not by Act
@@ -380,66 +381,92 @@ built level. The roster is themed and in code:*
 
 ---
 
-## 6. End-Game: The Roguelike
+## 6. End-Game & Meta-Game: The City
 
-After the story ends, the game's primary long-tail loop is a **roguelike**, and
-it is intended to be **multiplayer** (the game's design supports cooperative
-play).
+**The game is, at its heart, a base builder.** The player adventures through
+the story, gathers **resources**, and sends them back to the **home base**. The
+town grows stronger, more robust, and more resilient with everything sent home
+— and after the story ends, defending and growing that city *is* the end-game.
+There is no separate mode bolted on; the end-game is layered **directly on top
+of** the story systems the player has used all along.
 
-- **Scenario structure:** each battle is a **mini-zone of normal gameplay** —
-  the player(s) start at one end of an area, walk around, and play cards, much
-  like a single Gloomhaven scenario but lighter-weight per room.
-- **Current room objective:** *"defeat all monsters."* The only room type so far.
-- **Future idea (noted, not committed):** objective-based rooms (escort,
-  survive, reach-the-exit).
-- **What persists:** this is the *one* place run-based structure is allowed,
-  because it is the **end-game** — not the spine of the game. The persistent
-  character built through the story is what *enters* the roguelike; see
-  `world_data.gd` for how a story playthrough seeds a shared pool of unlocks.
+> The previously planned roguelike end-game has been **removed** (code and
+> all). It may return someday as a separate mode, but it effectively meant
+> building a second game alongside this one — the City is the one end-game.
 
-> Keep the `CLAUDE.md` guardrail in mind: roguelike mechanics belong **here**,
-> in the end-game. They must not leak into the persistent story RPG.
+### 6.1 The loop during the story
 
-### 6.5 The City (second end-game pillar — in design)
+- **Gather** — adventuring naturally yields resources (gold, lumber, stone,
+  arcane essence) on top of the usual XP/cards/items. Kills in each habitat
+  feed habitat-flavored yields (`expedition_system.gd`).
+- **Send home** — resources flow back to the base, upgrading production
+  (Lumber Mill, Quarry, Essence Extractor), storage (Warehouse), protection
+  (Vault), military (Barracks, Walls), and hero support (Hero Hall). The Town
+  Hall gates building levels, pacing growth.
+- **Recruit** — along the journey the player **unlocks NPCs** who return to
+  town: builders, shopkeepers, and knights/defenders who help hold the city
+  against whatever comes. (The Sellsword co-op partner is the first of these;
+  the pattern generalizes.)
 
-The roguelike alone makes the end-game a classic ARPG treadmill (kill → loot →
-equip → kill harder). To break that, the end-game grows a **city loop**
-alongside (or eventually instead of) it:
+### 6.2 Calamities — defending the base
 
-- **Expeditions** — heroes venture into the bestiary habitats (Forest, Sewer,
-  Graveyard, Cave, Mountains, Underworld, Heavens), fight monsters with the
-  normal battle systems, and haul **resources** home (gold, lumber, stone,
-  arcane essence). Richer habitats yield more.
-- **Building** — resources upgrade city buildings: production (Lumber Mill,
-  Quarry, Essence Extractor), storage (Warehouse), protection (Vault),
-  military (Barracks, Walls), and hero support (Hero Hall). The Town Hall
-  gates building levels, pacing growth.
-- **Raids** — the city's military plus your hero's power invade **rival
+The city periodically faces **calamities**: monster invasions and natural
+disasters. The player gets **a heads-up before they land**, not an ambush:
+
+- **Olorin's summons** — early in the game Olorin gives the player a signal
+  item (working idea: a **flute**, its note heard wherever the player is) so
+  he can call them back when the base — or something elsewhere — needs them.
+- **Card stash matters** — this is where a deep **card collection** (stash,
+  not deck size) pays off. Certain calamities/invasions are easier with
+  certain cards in the deck; a player keeps their core build but may make a
+  few smart swaps for the scenario ahead. Adjusting is helpful, not required.
+
+### 6.3 After the story
+
+- **Defend & build** — waves of calamities keep coming; the city and the
+  character(s) keep growing to meet them.
+- **Farm zones** — continuous missions/"zones" (drawn from the bestiary
+  habitats: Forest, Sewer, Graveyard, Cave, Mountains, Underworld, Heavens)
+  the player can re-enter to farm XP, cards, item drops, and resources.
+- **Raids** — the city's military plus your hero's power can invade **rival
   cities** for loot; rivals invade yours while you're away (a defense log
   shows what happened). PvP is *asynchronous*, Clash-of-Clans style: you
   attack a snapshot of a city, never a live player — so generated rivals and
   real player-city snapshots share one code path.
-- **The loop:** expedition → resources → build → power grows → raid richer
-  targets → defend what you've built → repeat, with the persistent hero at
-  the center of every step.
+- **Multiple heroes (planned)** — eventually the player can field **several
+  of their characters together** in the end-game: characters they've built
+  reside in the same city and can be played jointly in its defense.
 
-Code: `scripts/city/city_state.gd` (resources/buildings/power/persistence),
+### 6.4 Design consequences & open questions
+
+- **Flatter story progression** — because the end-game sits directly on top of
+  the story (not adjacent to it), the story itself needs **less level/stat
+  progression** headroom; growth continues seamlessly into the end-game.
+- **`[TBD]` Who designs the town?** Undecided: does the *player* have authority
+  over how the town is constructed (earn resources → choose what to build), or
+  is construction *premeditated* (accomplish a goal → receive a specific wall)?
+  Possibly a hybrid.
+
+### 6.5 Code status
+
+`scripts/city/city_state.gd` (resources/buildings/power/persistence),
 `scripts/city/expedition_system.gd` (habitat yields; kills → resources),
 `scripts/city/raid_system.gd` (rival generation, raid resolution, defense
-log). Saved per character in `SaveData.city`. Building *placement*/visuals and
-the city screen are later passes; the loop is data-complete and tested
-(`tests/test_city_loop.gd`).
+log). Saved per character in `SaveData.city`. The loop is data-complete and
+tested (`tests/test_city_loop.gd`) but **not yet wired to any UI** — hooking it
+into the town hub (`scripts/menus/town.gd`) is the next big pass, along with
+resource drops, NPC unlocks, and the calamity/warning system.
 
-> The same guardrail applies: the city is **end-game**. The persistent
-> character remains the spine — the city is what that character builds with
-> their power, not a replacement for them.
+> The `CLAUDE.md` guardrail still applies: the persistent character remains
+> the spine — the city is what that character builds with their power, not a
+> replacement for them. Nothing about the city loop ever resets.
 
 ---
 
 ## 7. The Persistent Character (Cast)
 
 The player carries **one** character through the entire story and into the
-roguelike. The current playable roster (`scripts/character/character_data.gd`):
+end-game. The current playable roster (`scripts/character/character_data.gd`):
 
 | Character | Fantasy | Signature archetypes | Slot specialty |
 |-----------|---------|----------------------|----------------|
@@ -471,25 +498,29 @@ the repo. Keep this table honest as the code changes.
 | **The Sewers (Act 1, Part 1)** | `dungeon_manager.gd` (`interior_kind == "sewer"`: `_generate_sewer_layout`, `_build_sewer_decorations`, `_define_sewer_spawn_zones`), `main.gd` (`_apply_world_ambience` sewer branch + `_ensure_player_torch`), `torch_flicker.gd`, `sewer_critter.gd` | **Built.** The opening dungeon: trunk + water channels, Rat King arena, west→east rat/ooze → boss → croc/swarm/crawler progression, dim torchlit atmosphere, reduced fog. Reached via a sewer grate site in World 1. See Section 5.4. |
 | **The Greenwood (Act 1, Forest)** | `dungeon_manager.gd` (`interior_kind == "forest"`: `_generate_forest_layout`, `_place_forest_features`, `_build_forest_decorations`, `_define_forest_spawn_zones`), `main.gd` (forest ambience, terrain-trap + tree-climb systems, tutorial), `sewer_critter.gd` (squirrels) | **Built.** Open clearings/trails/hills; climbable trees → high ground (+ one-time tutorial); bear traps (7 dmg / 10 to bears) and hunter dart tripwires (5 dmg) that hit players *and* enemies; pits; squirrels; bright fog. Reached via a forest trailhead site in World 1. See Section 5.4. |
 | **Caves (Act 1, Cave)** | `dungeon_manager.gd` (`interior_kind == "cave"`: `_generate_cave_layout` + `_place_cave_puddles`, `_build_cave_decorations`, darkened `CAVE_PALETTE`), `main.gd` (cave ambience + player torch) | **Built/enhanced.** Dark stone tunnels darker than the sewers; stalagmites, stalactites (dripping), puddles, divots, player torch. Reached via cave-mouth sites. See Section 5.4. |
-| **Roguelike unlock pool** | `scripts/roguelike/world_data.gd` (`WorldData`) | The end-game meta-container a story playthrough builds. A code-level concept, **not** a story Act. |
-| **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; gates roguelike intent-reveals. 11 enemy types today (Section 5.3). |
-| **Relics from monsters** | `CharacterData.unlocked_relic_ids`, `scripts/roguelike/relics.gd` | e.g. Hydra → Hydra Heart. The story↔roguelike bridge. |
+| **The City (end-game loop)** | `scripts/city/city_state.gd`, `expedition_system.gd`, `raid_system.gd`; saved in `SaveData.city` | Data-complete and tested (`tests/test_city_loop.gd`); not yet wired to UI. See Section 6. |
+| **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; feeds the compendium and future intent-reveals. 11 enemy types today (Section 5.3). |
 | **Quests** | `scripts/core/quest_manager.gd` | Currently kill-quests only; Olorin is the sole giver. |
-| **Town hub** | `scripts/menus/town.gd` | Persistent vendors (Blacksmith, Armory, Card Dealer, Accessory Shop, Stash) + Olorin + waypoint/transport. |
+| **Town hub** | `scripts/menus/town.gd` | Persistent vendors (Blacksmith, Armory, Card Dealer, Accessory Shop, Stash) + Olorin + waypoint/transport. The shell the city loop will be wired into. |
 
 ### Code naming follow-up `[TODO]`
-The narrative uses **"Act"** exclusively, but the code still says `world_level`,
-`WorldData`, and `WORLD_PALETTES`. Aligning the code to "Act" is a **separate,
-larger refactor** (touches `dungeon_manager.gd`, `main.gd`, save serialization,
-the roguelike, and tests). Tracked here; not done yet. There is also a **count
-mismatch**: 4 Acts vs. 5 dungeon palettes — to be reconciled, ideally by
-re-theming palettes toward **habitats** rather than acts.
+The narrative uses **"Act"** exclusively, but the code still says `world_level`
+and `WORLD_PALETTES`. Aligning the code to "Act" is a **separate, larger
+refactor** (touches `dungeon_manager.gd`, `main.gd`, save serialization, and
+tests). Tracked here; not done yet. There is also a **count mismatch**: 4 Acts
+vs. 5 dungeon palettes — to be reconciled, ideally by re-theming palettes
+toward **habitats** rather than acts.
 
 ---
 
 ## 9. Open Questions & Next Steps
 
 Decided:
+- ✅ **The game is a base builder at heart.** The end-game is the **City**
+  (Section 6): send resources home during the story, recruit NPCs, defend
+  against calamities, farm zones, eventually field multiple heroes together.
+  The roguelike end-game is **removed** (may return someday as a separate
+  mode).
 - ✅ **Terminology:** four **Acts** across one world; each Act is a plane.
 - ✅ **Bestiary taxonomy:** catalogued by **habitat** (Forest, Graveyard, Cave,
   Sewer, Mountains, Underworld, Heavens), as flexible guidelines.
@@ -501,6 +532,11 @@ Decided:
   with stalagmites/stalactites, puddles and a player torch. See Section 5.4 / §8.
 
 Still open:
+0. **Wire the city loop into the game** (Section 6.5): resource drops during
+   adventures, sending resources home, building UI in the town hub, NPC
+   unlock/recruitment beats, Olorin's signal item, and the calamity/warning
+   system. Also decide **who designs the town** (player authority vs.
+   premeditated unlocks — Section 6.4).
 1. **Solidify creature themes:** go habitat by habitat and define each
    creature's tier, role, signature mechanic, and drops (Section 5.2 template).
    *(Next pass — the roster names are captured; mechanics are `[TBD]`.)*

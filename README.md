@@ -329,4 +329,4 @@ Your character grows along several permanent axes:
 - **Equipment** — loot, vendors, and quest rewards across all acts.
 - **Story** — a four-act journey (Earth → Hell → Heaven → a final return to Earth). Everything above carries forward between acts; nothing resets.
 
-After the story concludes, an end-game **roguelike arena** unlocks that borrows your persistent character for high-stakes runs — a victory lap, not the main event.
+- **The home base** — resources gathered on the adventure are sent back to town, growing it stronger and more resilient. NPCs unlocked along the journey return as builders, shopkeepers, and defenders. After the story concludes, the end-game layers directly on top: defend the city against waves of calamities, farm continuous zones for XP/cards/items, and keep building both the city and the character(s) who protect it.

@@ -46,11 +46,11 @@ const CARD_RARITIES := {
 	"healthy_habit": Rarity.COMMON, "anticipation": Rarity.COMMON, "prepare": Rarity.COMMON,
 	"meister_of_faustmesser": Rarity.COMMON, "give_in": Rarity.COMMON, "provider": Rarity.COMMON,
 	"healthy_bliss": Rarity.COMMON, "patience": Rarity.COMMON, "gargle_and_spit": Rarity.COMMON,
-	# --- Rare (68) ---
+	# --- Rare (67) ---
 	"life_swap": Rarity.RARE, "charge": Rarity.RARE, "heroic_leap": Rarity.RARE,
 	"morphine": Rarity.RARE, "turtle_up": Rarity.RARE, "hold_the_line": Rarity.RARE,
 	"surrounding_ice": Rarity.RARE, "worst_that_could_happen": Rarity.RARE, "house_money": Rarity.RARE,
-	"try_this": Rarity.RARE, "infestation": Rarity.RARE, "snowballs_chance": Rarity.RARE,
+	"try_this": Rarity.RARE, "snowballs_chance": Rarity.RARE,
 	"shadows": Rarity.RARE, "preparation": Rarity.RARE, "exacerbate_wounds": Rarity.RARE,
 	"volatile_mixture": Rarity.RARE, "understanding": Rarity.RARE, "shuriken_pouch": Rarity.RARE,
 	"enchanted_quiver": Rarity.RARE, "tighten_string": Rarity.RARE, "down_town": Rarity.RARE,
@@ -84,12 +84,12 @@ const CARD_RARITIES := {
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
 # Shuriken), status junk, generated copies, and cards with their own bespoke
-# drop paths (Infestation from rats, Hydra Bite from the Hydra).
+# drop paths (Hydra Bite from the Hydra).
 const DROP_EXCLUDED_CARD_IDS := {
 	"sprinkle": true, "sprinkle_bomb": true, "splinter": true,
 	"shuriken": true, "savage_strike_copy": true,
 	"minor_wounds": true, "lightly_dazed": true,
-	"infestation": true, "hydra_bite": true,
+	"hydra_bite": true,
 }
 
 @export var card_id: String = "slash"
@@ -145,7 +145,6 @@ var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell 
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
 var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
-var roguelike_only: bool = false  # If true, card can only be PLAYED during a roguelike run (still collectible in the story)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
@@ -2502,21 +2501,6 @@ static func create_if_pigs_could_fly() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 2
 	card.target_types = ["enemy"]
-	return card
-
-static func create_infestation() -> Card:
-	var card = Card.new()
-	card.card_id = "infestation"
-	card.card_name = "Infestation"
-	card.description = "Roguelike only. Summon 5 rats (3 HP) that scurry toward enemies, moving 1 square each tempo. A rat dies on contact, dealing 2 damage. Enemies can kill them first."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
-	card.mana_cost = 2
-	card.tempo_cost = 2
-	card.damage = 0
-	card.base_damage = 0
-	card.target_types = ["self"]
-	card.roguelike_only = true
 	return card
 
 static func create_snowballs_chance() -> Card:
