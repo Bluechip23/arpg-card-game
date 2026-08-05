@@ -77,14 +77,14 @@ Every character has six core attributes:
 
 | Stat | Effect |
 |---|---|
-| **Strength (STR)** | +1 melee damage for every 2 points. +10 carry capacity per point. Spare capacity also speeds up your attack-speed counter. Inversely, being close to your capacity will slow it down. |
-| **Dexterity (DEX)** | The primary attack-speed stat. Every (30 − DEX) attacks (through a card or auto) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. Additionally, every 1 point in DEX increases **crit damage by 5%**. |
-| **Intelligence (INT)** | +1 spell and heal power for every 2 points. +1 mana regen for every 5 points. |
-| **Wisdom (WIS)** | +1 hand size for every 5 points. Each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5). |
-| **Determination (DET)** | Controls how low health affects your other stats. At 10 it does nothing. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. High-DET builds are strongest on the brink of death. |
-| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. **1 point** moves a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. 
+| **Strength (STR)** | +0.5 melee damage per point. +10 carry capacity per point. Spare capacity also speeds up your attack-speed counter. Inversely, being close to your capacity will slow it down. |
+| **Dexterity (DEX)** | The primary attack-speed stat. Every (45 − 0.5 × DEX) attacks (through a card or auto) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
+| **Intelligence (INT)** | +0.5 spell and heal power per point. +0.15 mana regen per point (about +1 per 7). |
+| **Wisdom (WIS)** | +1 hand size for every 5 points. Every 4 points draw your next card 1 tempo sooner (base: every 25 tempo). |
+| **Determination (DET)** | Controls how low health affects your other stats. At 15 it does nothing. Above 15, your stats *climb* as your health drops; below 15, they *fall*. The lower your health, the bigger the swing — roughly ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below. High-DET builds are strongest on the brink of death. |
+| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 3 cycles. **1 point** moves a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. 
 
-All characters share a base **5% critical hit chance** and **150% critical damage**. Crit chance is raised only by items, cards, and other effects — no stat affects it. Crit damage scales with Dexterity (+5% per point).
+All characters share a base **5% critical hit chance** and **110% critical damage**. Crit chance is raised only by items, cards, and other effects — no stat affects it. Crit damage scales with Dexterity (+3% per point).
 
 ---
 
@@ -263,6 +263,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
   - drops your **total** carry capacity to 80% while gripped,
   - consumes a second (empty) hand slot,
   - grants bonus damage from the item's *original* weight (+1 per 10 weight) — shields instead gain bonus block armor.
+- **Dual wielding is the mirror trade**, detected automatically when a *matched pair* fills both hands — two weapons, or two shields (classic weapon-and-shield stays neutral). Both items weigh **1.35×** while paired, but the attack-speed counter drops by **4**. Light pairs buy real attack speed; heavy pairs mostly buy the second weapon's damage, since the extra weight eats the speed back through encumbrance.
 
 ### Equipment builds (loadouts I / II / III)
 

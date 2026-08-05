@@ -68,7 +68,7 @@ var maintained_mana: int = 0  # Mana reserved by maintained Power cards
 var base_carry_capacity: int = 50
 var current_carry_load: int = 0
 
-var base_attack_speed_counter: int = 30
+var base_attack_speed_counter: int = 45
 var current_attack_counter: int = 0
 
 var base_draw_timer: float = 5.0
@@ -275,6 +275,7 @@ var st_scouted_hits: int = 0          # Scouted: consecutive hits on the same en
 var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit ready
 var st_exposed_blind_spot_crit: int = 0  # Exposed Blind Spot: bonus crit % for next attack
 var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
+var st_dominate_cooldown: int = 0     # Dominate: remaining cooldown tempo
 var st_deadly_crit_active: bool = false  # Deadly: +50% crit damage while resolving an attack on an isolated target
 
 # Cory passive tracking
@@ -652,35 +653,40 @@ func _on_mana_changed_for_det(_cur: float, _max_val: int) -> void:
 		stats_updated.emit()
 	_det_mana_last_pct = new_pct
 
+# DET's swing is deliberately gentle per point: at the cap (~63 DET) the
+# death's-door bonus lands near +50%, not the multi-hundred-percent spikes
+# an uncapped multiplier produced under the old 1/5/7/10% tiers.
+const DET_NEUTRAL: int = 15
+
 func get_determination_modifier() -> float:
 	# Returns multiplier for stats based on determination and the driving
 	# resource percent — health normally, mana under Willspring.
-	# At DET 10: no effect (1.0)
-	# Below 10: penalties as the resource drains
-	# Above 10: bonuses as the resource drains
+	# At DET_NEUTRAL: no effect (1.0)
+	# Below it: penalties as the resource drains
+	# Above it: bonuses as the resource drains
 
 	var health_pct = get_determination_resource_percent()
-	var det_diff = determination - 10  # Positive = above 10, negative = below
-	
+	var det_diff = determination - DET_NEUTRAL
+
 	# Determine which threshold and effect percentage
 	var effect_per_point = 0.0
-	
+
 	if health_pct <= 0.1:
-		# 10% health or below: 10% per point
-		effect_per_point = 0.10
-	elif health_pct <= 0.4:
-		# 40% health: 7% per point
-		effect_per_point = 0.07
-	elif health_pct <= 0.6:
-		# 60% health: 5% per point
-		effect_per_point = 0.05
-	elif health_pct <= 0.8:
-		# 80% health: 1% per point
+		# 10% health or below: 1% per point
 		effect_per_point = 0.01
+	elif health_pct <= 0.4:
+		# 40% health: 0.6% per point
+		effect_per_point = 0.006
+	elif health_pct <= 0.6:
+		# 60% health: 0.25% per point
+		effect_per_point = 0.0025
+	elif health_pct <= 0.8:
+		# 80% health: 0.1% per point
+		effect_per_point = 0.001
 	else:
 		# Above 80%: no effect
 		return 1.0
-	
+
 	# Calculate total modifier
 	var total_modifier = det_diff * effect_per_point
 
@@ -688,10 +694,10 @@ func get_determination_modifier() -> float:
 	if keystone_det_amplify:
 		total_modifier *= DET_AMPLIFY_FACTOR
 
-	# Return as multiplier. The lower clamp normally bottoms out at 0.1; Unbroken
-	# Will raises it to DET_FLOOR_MODIFIER so a penalty can't halve stats past 50%.
-	# Only the downside is clamped — a positive (buff) modifier is left uncapped.
-	var floor_clamp = DET_FLOOR_MODIFIER if keystone_det_floor else 0.1
+	# Return as multiplier. The penalty side only clamps at zero (Unbroken Will
+	# raises that floor to DET_FLOOR_MODIFIER); the buff side is uncapped — at
+	# these per-point rates the reachable ceiling stays modest.
+	var floor_clamp = DET_FLOOR_MODIFIER if keystone_det_floor else 0.0
 	return max(floor_clamp, 1.0 + total_modifier)
 
 func get_determination_description() -> String:
@@ -731,8 +737,8 @@ func get_free_carry_capacity() -> int:
 	return get_carry_capacity() - current_carry_load
 
 func get_strength_damage_bonus() -> int:
-	# Uses effective strength
-	return floori(strength / 2.0)
+	# Uses effective strength: +0.5 melee damage per point (rounds down)
+	return floori(strength * 0.5)
 
 func set_carry_load(weight: int) -> void:
 	current_carry_load = weight
@@ -755,7 +761,7 @@ func is_overburdened() -> bool:
 ## cycles (TempoManager drives the refresh). spend_flash_points() is the
 ## generic hook — movement costs FLASH_COST_MOVE today; future spends
 ## (dodge-blocks, attack-speed proc ticks) draw from the same pool.
-const FLASH_REFRESH_CYCLES: int = 2
+const FLASH_REFRESH_CYCLES: int = 3
 const FLASH_COST_MOVE: int = 1
 const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
 const FLASH_BLOCK_ARMOR: int = 2
@@ -830,10 +836,21 @@ func get_capacity_speed_modifier() -> int:
 	var mod = sqrt(float(CAPACITY_BASELINE_FREE)) - sqrt(float(max(0, free_capacity)))
 	return clampi(roundi(mod), -CAPACITY_SPEED_BONUS_CAP, OVERBURDENED_SPEED_PENALTY)
 
+# DEX pays per-point into crit damage too, so its counter contribution is
+# fractional. The minimum of 1 is deliberately reachable by a maxed light
+# build — proc-per-attack is the DEX capstone fantasy (Dominate's cooldown
+# keeps that from looping).
+const DEX_COUNTER_PER_POINT: float = 0.5
+const ATTACK_COUNTER_MIN: int = 1
+const DUAL_WIELD_COUNTER_BONUS: int = 4  # attacks shaved while dual wielding
+
 func get_attack_speed_threshold() -> int:
 	# Uses effective dexterity
-	var threshold = base_attack_speed_counter - dexterity + get_capacity_speed_modifier()
-	return max(5, threshold)
+	var threshold = base_attack_speed_counter - floori(dexterity * DEX_COUNTER_PER_POINT) \
+			+ get_capacity_speed_modifier()
+	if inventory and inventory.is_dual_wielding():
+		threshold -= DUAL_WIELD_COUNTER_BONUS
+	return max(ATTACK_COUNTER_MIN, threshold)
 
 func register_attack() -> Dictionary:
 	current_attack_counter -= 1
@@ -878,12 +895,12 @@ func get_attacks_until_proc() -> int:
 # ============================================
 
 func get_intelligence_spell_bonus() -> int:
-	# Every 2 point = +1 spell damage (flat, like strength)
-	return floori(intelligence / 2.0)
+	# +0.5 spell/heal power per point (flat, like strength; rounds down)
+	return floori(intelligence * 0.5)
 
 func get_intelligence_mana_regen_bonus() -> float:
-	# Every 5 points = +1 mana regen
-	return floorf(intelligence / 5.0)
+	# +0.15 mana regen per point (rounds down — roughly +1 per 7 INT)
+	return floorf(intelligence * 0.15)
 
 func get_int_spell_proc_chance() -> float:
 	## Arcane Echo: percent chance (INT/3) to echo bonus damage on a spell cast.
@@ -898,18 +915,19 @@ func get_int_spell_proc_damage() -> int:
 # ============================================
 
 func get_wisdom_hand_bonus() -> int:
-	# Uses effective wisdom
-	return floori(wisdom / 5.0)
+	# Uses effective wisdom: +0.2 hand size per point (rounds down)
+	return floori(wisdom * 0.2)
 
 func get_wisdom_draw_bonus() -> float:
-	# Uses effective wisdom: each point draws cards 1 global tempo sooner
-	return float(wisdom)
+	# Uses effective wisdom: +0.25 tempo shaved off the draw interval per
+	# point (rounds down) — no dead zone anywhere in the reachable range.
+	return floorf(wisdom * 0.25)
 
 func get_effective_draw_timer() -> float:
 	## Card-draw interval in GLOBAL TEMPO. base_draw_timer is in 5-tempo cycles
-	## (default 5 cycles = 25 tempo); the floor is one cycle (5 tempo).
+	## (default 5 cycles = 25 tempo); the minimum of 1 is effectively no floor.
 	var timer = base_draw_timer * 5.0 - get_wisdom_draw_bonus()
-	return max(5.0, timer)
+	return max(1.0, timer)
 
 # ============================================
 # COMBINED CALCULATIONS
@@ -923,11 +941,11 @@ func get_tempo_until_mana_regen() -> int:
 	## raindrop). Clamped to at least 1 so it never reads 0 between ticks.
 	return maxi(1, int(ceil(_tempo_until_mana_regen)))
 
-# Crit damage: every crit multiplies damage by 150% base, and Dexterity adds
-# +5% per point on top — DEX's second job alongside the attack-speed proc.
+# Crit damage: every crit multiplies damage by 110% base, and Dexterity adds
+# +3% per point on top — DEX's second job alongside the attack-speed proc.
 # No stat affects crit CHANCE; that stays on items, cards, and other effects.
-const BASE_CRIT_DAMAGE: float = 1.5
-const CRIT_DAMAGE_PER_DEX: float = 0.05
+const BASE_CRIT_DAMAGE: float = 1.1
+const CRIT_DAMAGE_PER_DEX: float = 0.03
 
 func get_crit_damage_multiplier() -> float:
 	## Uses effective Dexterity, so Determination swings crit damage too.

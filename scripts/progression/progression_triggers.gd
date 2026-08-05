@@ -801,6 +801,10 @@ func _trigger_skill_tree_on_cycle() -> void:
 	if stats.st_stimulant_cooldown > 0:
 		stats.st_stimulant_cooldown -= 5
 
+	# Dominate: tick cooldown
+	if stats.st_dominate_cooldown > 0:
+		stats.st_dominate_cooldown -= 5
+
 	# Ladder Work: bank last cycle's non-play discards for the opening strike.
 	# An unspent bank is overwritten — the spike must be used within the cycle.
 	if stats.has_skill_tree_passive("ladder_work"):
@@ -1324,8 +1328,11 @@ func _trigger_skill_tree_stephen_on_dex_proc() -> void:
 	if not stats:
 		return
 
-	# Dominate: on attack speed proc, gain a 0m/0t basic attack card
-	if stats.has_skill_tree_passive("dominate"):
+	# Dominate: on attack speed proc, gain a 0m/0t basic attack card (5 tempo
+	# cooldown — at very low proc thresholds the free attack would otherwise
+	# chain into the next proc and loop forever)
+	if stats.has_skill_tree_passive("dominate") and stats.st_dominate_cooldown <= 0:
+		stats.st_dominate_cooldown = 5
 		var free_attack = Card.create_slash()
 		free_attack.mana_cost = 0
 		free_attack.tempo_cost = 0

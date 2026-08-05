@@ -1123,8 +1123,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		bonus_damage -= _ranged_bonus_applied
 
 static func crit_multiply(damage: int, player_stats: PlayerStats) -> int:
-	## The one crit-damage formula: 150% base + 5% per point of Dexterity.
-	## Falls back to the 150% base when no stats are available.
+	## The one crit-damage formula: 110% base + 3% per point of Dexterity.
+	## Falls back to the 110% base when no stats are available.
 	var mult := player_stats.get_crit_damage_multiplier() if player_stats else PlayerStats.BASE_CRIT_DAMAGE
 	return floori(damage * mult)
 

@@ -762,8 +762,8 @@ func _build_combat_info_text() -> String:
 	if player_stats.max_health > 0:
 		hp_pct = int(round(100.0 * player_stats.current_health / player_stats.max_health))
 	var now_mult := player_stats.get_determination_modifier()
-	# 50% health falls in the <=60% Determination bracket: 5% per DET point.
-	var mult_50: float = maxf(0.1, 1.0 + (player_stats.determination - 10) * 0.05)
+	# 50% health falls in the <=60% Determination bracket: 0.25% per DET point.
+	var mult_50: float = maxf(0.0, 1.0 + (player_stats.determination - PlayerStats.DET_NEUTRAL) * 0.0025)
 	lines.append("HP now       %d%%  (stats x%.2f)" % [hp_pct, now_mult])
 	lines.append("At 50%% HP    stats x%.2f  (%s%d%% via DET %d)" % [
 		mult_50,

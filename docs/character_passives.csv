@@ -34,7 +34,7 @@ Stephen,Avenger,11,Swing for the Fences,Cards that have >4 tempo cost deal their
 Stephen,The Apex,13,Skilled Momentum,"If you have played 4 attacks in a row, your 5th will be played twice"
 Stephen,Sentinel,14,Lethal Resourcefulness,"If you have 3 or less cards in your hand, playing a non-attack card triggers a free basic attack"
 Stephen,Ranger,16,Laced Arrow,"When applying burn, cold, or shock, apply 1 additional instance"
-Stephen,Avenger,18,Dominate,"When triggering an attack speed proc, the proc resolves normally and you also gain a 0m/0t basic attack card"
+Stephen,Avenger,18,Dominate,"When triggering an attack speed proc, the proc resolves normally and you also gain a 0m/0t basic attack card (5 tempo cooldown)"
 Cory,Monk,2,Energy Barrier,"Every 3rd time you gain mana from a source other than mana regen, put an Energy Barrier in your hand (0m/0t, gain 5 armor, erase 1)"
 Cory,Lurker,3,Prey on the Weak,"When applying a debuff to an enemy below 50% health, deal 3 damage to them"
 Cory,Atrophist,4,Wither,Add +1 charge to all debuffs applied to enemies

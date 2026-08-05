@@ -39,27 +39,29 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=red]Strength (STR)[/color]
 - +10 carry capacity per point (base capacity 50)
-- +1 physical damage per 2 points
+- +0.5 physical damage per point
 - Heavy weapons require high STR
 - Spare carry capacity also speeds up the attack counter a little (capped — see DEX)
 
 [color=green]Dexterity (DEX)[/color]
-- Attack speed counter = 30 - DEX, adjusted by encumbrance
+- Attack speed counter = 45 - 0.5 x DEX, adjusted by encumbrance
 - Encumbrance (capped): traveling light shaves up to 8 attacks off, heavy loads add up to 7, overburdened is +10
+- Dual wielding (a matched pair in both hands) shaves 4 more
 - When counter hits 0: DEX PROC
 - DEX PROC = Next attack costs 2 less mana AND half tempo (rounded down)!
+- Also +3% crit damage per point (base crit 110%)
 
 [color=blue]Intelligence (INT)[/color]
-- +1 spell damage per 2 points
-- +1 mana regen per 5 points
+- +0.5 spell damage per point
+- +0.15 mana regen per point (about +1 per 7)
 - Also boosts healing amount
 
 [color=purple]Wisdom (WIS)[/color]
 - +1 hand size per 5 points
-- Draws cards 1 tempo sooner per point (base: every 25 tempo, fastest: every 5)
+- Draws cards 1 tempo sooner per 4 points (base: every 25 tempo)
 
 [color=cyan]Agility (AGI)[/color]
-- 1 Flash point per AGI point, refreshed every 2 cycles
+- 1 Flash point per AGI point, refreshed every 3 cycles
 - Spending Flash is a CHOICE — the Flash row above Attack shows your pool (lightning bolt)
 - Boots toggle: while on, moving a tile spends 1 Flash point (no tempo cost)
 - Sidestep button: spend 3 Flash for 2 block
@@ -70,10 +72,10 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=orange]Determination (DET)[/color]
 - Modifies STR/DEX/INT/WIS/AGI at low health
-- DET 10 = no effect
-- Below 10 = penalty when hurt
-- Above 10 = bonus when hurt
-- Scales with health thresholds: 1% per point at 80% HP, 5% at 60%, 7% at 40%, 10% at 10%
+- DET 15 = no effect
+- Below 15 = penalty when hurt
+- Above 15 = bonus when hurt
+- Scales with health thresholds: 0.1% per point at 80% HP, 0.25% at 60%, 0.6% at 40%, 1% at 10%
 - Does NOT affect HP, Mana, or itself
 
 [font_size=18][color=cyan]━━━ CARD TYPES ━━━[/color][/font_size]
