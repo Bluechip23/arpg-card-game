@@ -68,7 +68,7 @@ var maintained_mana: int = 0  # Mana reserved by maintained Power cards
 var base_carry_capacity: int = 50
 var current_carry_load: int = 0
 
-var base_attack_speed_counter: int = 46
+var base_attack_speed_counter: int = 45
 var current_attack_counter: int = 0
 
 var base_draw_timer: float = 5.0
@@ -715,8 +715,8 @@ func get_determination_description() -> String:
 # ============================================
 
 # Wielding something two-handed ties up both arms: total carry capacity drops
-# to 80%. (The gripped item's own weight drops to 60% — see Inventory's
-# two-handed constants — so the trade only pays off for genuinely heavy gear.)
+# to 80%. (The gripped item's own weight halves — see Inventory's two-handed
+# constants — so the trade only pays off for genuinely heavy gear.)
 const TWO_HAND_CAPACITY_MULT: float = 0.8
 
 var two_hand_grip_active: bool = false  # set by Inventory.set_two_handed
@@ -737,8 +737,8 @@ func get_free_carry_capacity() -> int:
 	return get_carry_capacity() - current_carry_load
 
 func get_strength_damage_bonus() -> int:
-	# Uses effective strength: +0.6 melee damage per point (rounds down)
-	return floori(strength * 0.6)
+	# Uses effective strength: +0.5 melee damage per point (rounds down)
+	return floori(strength * 0.5)
 
 func set_carry_load(weight: int) -> void:
 	current_carry_load = weight
@@ -824,7 +824,7 @@ func spend_flash_for_proc_tick() -> bool:
 # spare capacity has diminishing returns, and the clamp keeps the whole term
 # smaller than a modest DEX investment — DEX stays the primary attack-speed
 # stat, with STR/loadout as a bounded secondary influence.
-const CAPACITY_BASELINE_FREE: int = 60      # free capacity that neither helps nor hurts
+const CAPACITY_BASELINE_FREE: int = 50      # free capacity that neither helps nor hurts
 const CAPACITY_SPEED_BONUS_CAP: int = 8     # most attacks light loading can shave off
 const OVERBURDENED_SPEED_PENALTY: int = 10  # flat penalty while over carry capacity
 
@@ -840,7 +840,7 @@ func get_capacity_speed_modifier() -> int:
 # fractional. The minimum of 1 is deliberately reachable by a maxed light
 # build — proc-per-attack is the DEX capstone fantasy (Dominate's cooldown
 # keeps that from looping).
-const DEX_COUNTER_PER_POINT: float = 0.6
+const DEX_COUNTER_PER_POINT: float = 0.5
 const ATTACK_COUNTER_MIN: int = 1
 const DUAL_WIELD_COUNTER_BONUS: int = 4  # attacks shaved while dual wielding
 
@@ -895,12 +895,12 @@ func get_attacks_until_proc() -> int:
 # ============================================
 
 func get_intelligence_spell_bonus() -> int:
-	# +0.6 spell/heal power per point (flat, like strength; rounds down)
-	return floori(intelligence * 0.6)
+	# +0.5 spell/heal power per point (flat, like strength; rounds down)
+	return floori(intelligence * 0.5)
 
 func get_intelligence_mana_regen_bonus() -> float:
-	# +0.16 mana regen per point (rounds down — roughly +1 per 6 INT)
-	return floorf(intelligence * 0.16)
+	# +0.15 mana regen per point (rounds down — roughly +1 per 7 INT)
+	return floorf(intelligence * 0.15)
 
 func get_int_spell_proc_chance() -> float:
 	## Arcane Echo: percent chance (INT/3) to echo bonus damage on a spell cast.

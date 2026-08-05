@@ -39,12 +39,12 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=red]Strength (STR)[/color]
 - +10 carry capacity per point (base capacity 50)
-- +0.6 physical damage per point
+- +0.5 physical damage per point
 - Heavy weapons require high STR
 - Spare carry capacity also speeds up the attack counter a little (capped — see DEX)
 
 [color=green]Dexterity (DEX)[/color]
-- Attack speed counter = 46 - 0.6 x DEX, adjusted by encumbrance
+- Attack speed counter = 45 - 0.5 x DEX, adjusted by encumbrance
 - Encumbrance (capped): traveling light shaves up to 8 attacks off, heavy loads add up to 7, overburdened is +10
 - Dual wielding (a matched pair in both hands) shaves 4 more
 - When counter hits 0: DEX PROC
@@ -52,8 +52,8 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Also +3% crit damage per point (base crit 110%)
 
 [color=blue]Intelligence (INT)[/color]
-- +0.6 spell damage per point
-- +0.16 mana regen per point (about +1 per 6)
+- +0.5 spell damage per point
+- +0.15 mana regen per point (about +1 per 7)
 - Also boosts healing amount
 
 [color=purple]Wisdom (WIS)[/color]

@@ -36,7 +36,7 @@ func _initialize() -> void:
 	_check(base_cap == stats.base_carry_capacity + stats.strength * 10,
 		"capacity = base + STR*10 (%d)" % base_cap)
 
-	# --- Two-handed grip: weight drops to 60%, capacity drops to 80% ---
+	# --- Two-handed grip: weight halves, capacity drops to 80% ---
 	var sword := ItemData.create_heavy_greatsword()  # weight 130
 	_check(inv.equip_item(sword, 0), "greatsword equips one-handed in slot 0")
 	_check(inv.get_total_weight() == 130, "one-handed carried weight is 130")
@@ -44,7 +44,7 @@ func _initialize() -> void:
 	_check(inv.set_two_handed(0, true), "greatsword can be gripped two-handed")
 	_check(inv.two_handed_slot == 0, "grip tracked on slot 0")
 	_check(inv.two_handed_lock_slot == 1, "grip claims empty slot 1 as the second hand")
-	_check(inv.get_total_weight() == 78, "two-handed carried weight drops to 78 (60%)")
+	_check(inv.get_total_weight() == 65, "two-handed carried weight halves to 65")
 	_check(stats.get_carry_capacity() == floori(base_cap * PlayerStats.TWO_HAND_CAPACITY_MULT),
 		"capacity drops to 80%% while gripped (%d)" % stats.get_carry_capacity())
 	_check(stats.two_hand_damage_bonus == floori(130 / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR),
@@ -127,7 +127,7 @@ func _initialize() -> void:
 	_check(r2["success"], "switch to build II succeeds again")
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 1) == null, "build II sheds the shield")
 	_check(inv.two_handed_slot == 0, "build II restores the two-handed grip")
-	_check(inv.get_total_weight() == 78, "build II carried weight is the gripped sword (60%)")
+	_check(inv.get_total_weight() == 65, "build II carried weight is the halved sword")
 
 	print("=== Done: %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

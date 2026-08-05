@@ -55,7 +55,8 @@ func _initialize() -> void:
 	_check(inv.get_total_weight() == 162, "both swords weigh 1.35x (81 + 81)")
 
 	# --- Counter bonus: -4, on top of DEX and encumbrance ---
-	var expected: int = 46 - floori(stats.dexterity * PlayerStats.DEX_COUNTER_PER_POINT) \
+	var expected: int = stats.base_attack_speed_counter \
+			- floori(stats.dexterity * PlayerStats.DEX_COUNTER_PER_POINT) \
 			+ stats.get_capacity_speed_modifier() - PlayerStats.DUAL_WIELD_COUNTER_BONUS
 	_check(stats.get_attack_speed_threshold() == max(PlayerStats.ATTACK_COUNTER_MIN, expected),
 		"dual wielding shaves %d off the counter (got %d)" % [

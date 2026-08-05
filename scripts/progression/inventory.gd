@@ -41,12 +41,12 @@ const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 # TWO-HANDED & DUAL WIELDING
 # ============================================
 # Any weapon or shield can be gripped with both hands — a per-slot player
-# choice, never an item property. The grip cuts the item's carried weight
-# to 60% (letting weaker characters wield huge gear) but drops TOTAL carry
-# capacity to 80% (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second
-# hand slot. Weapons gain damage from their ORIGINAL weight; shields gain
-# Basic Block armor the same way.
-const TWO_HAND_WEIGHT_MULT: float = 0.6
+# choice, never an item property. The grip halves the item's carried weight
+# (letting weaker characters wield huge gear) but drops TOTAL carry capacity
+# to 80% (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second hand
+# slot. Weapons gain damage from their ORIGINAL weight; shields gain Basic
+# Block armor the same way.
+const TWO_HAND_WEIGHT_MULT: float = 0.5
 const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 10.0  # +1 damage/block per 10 weight
 
 # Dual wielding is the mirror trade, detected automatically from the loadout:

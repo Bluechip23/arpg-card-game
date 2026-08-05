@@ -77,9 +77,9 @@ Every character has six core attributes:
 
 | Stat | Effect |
 |---|---|
-| **Strength (STR)** | +0.6 melee damage per point. +10 carry capacity per point. Spare capacity also speeds up your attack-speed counter. Inversely, being close to your capacity will slow it down. |
-| **Dexterity (DEX)** | The primary attack-speed stat. Every (46 − 0.6 × DEX) attacks (through a card or auto) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
-| **Intelligence (INT)** | +0.6 spell and heal power per point. +0.16 mana regen per point (about +1 per 6). |
+| **Strength (STR)** | +0.5 melee damage per point. +10 carry capacity per point. Spare capacity also speeds up your attack-speed counter. Inversely, being close to your capacity will slow it down. |
+| **Dexterity (DEX)** | The primary attack-speed stat. Every (45 − 0.5 × DEX) attacks (through a card or auto) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
+| **Intelligence (INT)** | +0.5 spell and heal power per point. +0.15 mana regen per point (about +1 per 7). |
 | **Wisdom (WIS)** | +1 hand size for every 5 points. Every 4 points draw your next card 1 tempo sooner (base: every 25 tempo). |
 | **Determination (DET)** | Controls how low health affects your other stats. At 15 it does nothing. Above 15, your stats *climb* as your health drops; below 15, they *fall*. The lower your health, the bigger the swing — roughly ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below. High-DET builds are strongest on the brink of death. |
 | **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 3 cycles. **1 point** moves a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. 
@@ -259,7 +259,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 - **Any item can go in any hand** — there is no main-hand/off-hand *type* restriction. You can wear a shield in your main hand and a sword in an off-hand, a quiver alongside a bow, and so on. The 90% off-hand reduction is about *which slot* an item sits in, not what type of item it is.
 - **Exception — bows are two-handed.** A bow never shares the hands with another weapon or shield; the only hand item that rides along with a bow is a quiver.
 - **Any weapon or shield can be gripped with both hands** — it's a player choice per slot, not an item property. Two-handing:
-  - cuts the item's carried weight to 60% (letting a weaker character wield huge gear),
+  - halves the item's carried weight (letting a weaker character wield huge gear),
   - drops your **total** carry capacity to 80% while gripped,
   - consumes a second (empty) hand slot,
   - grants bonus damage from the item's *original* weight (+1 per 10 weight) — shields instead gain bonus block armor.
