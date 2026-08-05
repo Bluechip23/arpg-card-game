@@ -51,9 +51,8 @@ Built in **Godot 4.6**.
 
 The game takes place on a grid system. You move your character tile by tile, draw cards over time, and play them against enemies in range. There are no discrete "your turn / enemy turn" phases. Instead, everything runs on a global clock system which progresses by the use of **tempo**. Playing cards, moving, and even waiting advances the clock. As the clock advances, enemies and the environment take their actions. Fighting well means strategically using time as a resource, not just mana or health.
 
-Between fights you explore the world, complete quests, visit town vendors, manage your equipment and deck, and advance the story. Waypoints, quests, NPCs, and vendors persist for the whole game.
-
-Underneath the adventure runs the game's second engine: everything you kill and gather feeds the **home base** you are building back in town — see the next section.
+Between fights you explore the world, complete quests, visit town vendors, manage your equipment and deck, and advance the story. There are _no_ battle scenes. All battles are live.
+While progressing through the world, slaying monsters and developing your characters build, you are also collecting resources to send back to base.
 
 ---
 
@@ -61,15 +60,15 @@ Underneath the adventure runs the game's second engine: everything you kill and 
 
 *Trials of Olorin* is, at its heart, a **base builder**. The path of the game:
 
-1. **Adventure & gather.** Every kill out in the world adds habitat-flavored resources — **gold, lumber, stone, and arcane essence** — to your satchel. The Sewers skew toward gold, the Forest toward lumber, the Caves toward stone; richer realms yield richer hauls, and elites and bosses count triple.
-2. **Send it home.** The moment you return to town, your satchel is banked into the city stores. The first shipment founds the city — and Olorin hands you a **bone-white flute** you'll come to know well.
-3. **Build.** At the **Town Hall** you spend banked resources raising buildings: production (Lumber Mill, Quarry, Essence Extractor), storage (Warehouse), protection (Vault), military (Barracks, Walls), and hero support (Hero Hall). The Town Hall's own level gates everything else, pacing the city's growth. Buildings produce while you're away.
-4. **Defend.** A growing city draws eyes. **Calamities** — monster invasions and natural disasters — build up while you adventure. You are never ambushed blind: when one strikes, **Olorin's flute sounds**, wherever you are. Return promptly and you stand with the garrison; linger and the city weathers it alone. Walls blunt disasters, the Vault shelters a share of your stores, and every attack is written into the city's chronicle.
-5. **Repeat, forever.** After the story concludes, the end-game layers directly on top of this loop: defend the city against escalating threats, farm the world's zones for XP, cards, items, and resources, and keep building both the city and the character(s) who protect it. Nothing resets.
+1. **Adventure & gather.** defeating enemies and completing quests add habitat-flavored resources to your satchel.
+2. **Send it home.** The moment you return to town, your satchel is banked into the city stores. The first shipment founds the city and Olorin hands you a **bone-white flute** you'll come to know well.
+3. **Build.** At the **Town Hall** you spend banked resources raising buildings: production (Lumber Mill, Quarry, Essence Extractor), storage (Warehouse), protection (Vault), military (Barracks, Walls), and hero support (Hero Hall).
+4. **Defend.** A growing city draws eyes. Monster invasions and natural disasters build up while you adventure. You are never ambushed blind: when one strikes, **Olorin's flute sounds**, wherever you are. Return promptly and you stand with the garrison; linger and the city weathers it alone. Walls blunt disasters, the Vault shelters a share of your stores, and every attack is written into the city's chronicle.
+5. **Repeat, forever.** After the story concludes, the end-game layers directly on top of this loop. Defend the city against escalating threats, farm the world's zones for XP, cards, items, resources, and keep building both the city and the character(s) who protect it. 
 
-Your **card stash matters** here too: certain calamities are easier with certain cards in your deck. Your core build stays your core build — but a few smart swaps before answering the flute can turn a sack into a stand.
+Your **card stash matters**: certain base events are easier with certain cards in your deck. Your core build stays your core build, however, a few smart swaps before answering the flute can turn a sack into a stand.
 
-Recruited NPCs are part of the same fabric: allies found on the journey (starting with the Sellsword's battle-partners) return to town to staff and defend it. Eventually, multiple characters you've built will be able to reside in — and jointly defend — the same city.
+Recruited NPCs are part of the same fabric: allies found on the journey (starting with the Sellsword's battle-partners) return to town to staff and defend it. Eventually, multiple characters you've built will be able to reside in and defend the city.
 
 ---
 
@@ -78,7 +77,7 @@ Recruited NPCs are part of the same fabric: allies found on the journey (startin
 **Tempo is the universal clock.** Basically every system in the game (enemy actions, mana regeneration, card draws, buff and debuff durations) is driven by it.
 
 - Cards have a **tempo cost** alongside their mana cost. Playing a card schedules that many tempo **ticks**; the card's effect resolves on a specific tick (some cards hit immediately, some at the end of their wind-up).
-- Cards you play queue **sequentially**. Your second card starts ticking after your first finishes. In co-op, each character has their own queue but uses the same global ticker — players act simultaneously, play cards independently, while utilizing the same tempo bar.
+- Cards you play queue **sequentially**. Your second card starts ticking after your first finishes. In co-op, each character has their own queue but uses the same global ticker. Meaning players act simultaneously, play cards independently, while utilizing the same tempo bar.
 - By default, **movement costs 1 tempo per tile**.
 - Every **5 global tempo = 1 cycle**. Cycles are the game's heartbeat:
   - Mana regenerates once per cycle.
@@ -87,7 +86,7 @@ Recruited NPCs are part of the same fabric: allies found on the journey (startin
   - Per-cycle effects (regen, poison, burn, etc.) trigger or decrease.
 - By default, **card draws** trigger every 25 tempo (5 cycles).
 
-Because enemies act on tempo, a cheap fast card and an expensive slow card dictate how the game will play out. **ENEMIES CAN TAKE MULTIPLE ACTIONS IN A ROW.** In other words: if you play a card worth 8 tempo, while it ticks, an enemy who attacks every 4 tempo will hit you twice.
+Because enemies act on tempo, a cheap fast card and an expensive slow card dictate how the game will play out. **ENEMIES CAN TAKE MULTIPLE ACTIONS IN A ROW.** In other words, if you play a card worth 8 tempo, while it ticks, an enemy who attacks every 4 tempo will hit you twice.
 
 ---
 
@@ -97,26 +96,26 @@ Every character has six core attributes:
 
 | Stat | Effect |
 |---|---|
-| **Strength (STR)** | +0.5 melee damage per point. +10 carry capacity per point. Spare capacity also speeds up your attack-speed counter. Inversely, being close to your capacity will slow it down. |
-| **Dexterity (DEX)** | The primary attack-speed stat. Every (45 − 0.5 × DEX) attacks (through a card or auto) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. The counter bottoms out at 1 — a maxed, light-traveling DEX build procs on every attack. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
+| **Strength (STR)** | +0.5 melee damage per point. +10 carry capacity per point. Spare capacity also weighs (hehe) into your attack-speed counter. Inversely, being close to your capacity will slow it down. |
+| **Dexterity (DEX)** | The primary attack-speed stat. Every (45 − 0.5 × DEX) attacks (through a card or your auto attack) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. The counter bottoms out at 1. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
 | **Intelligence (INT)** | +0.5 spell and heal power per point. +0.15 mana regen per point (about +1 per 7). |
-| **Wisdom (WIS)** | +1 hand size for every 5 points. Every 4 points draw your next card 1 tempo sooner (base: every 25 tempo, minimum 1). |
-| **Determination (DET)** | Controls how low health affects your other stats. At 15 it does nothing. Above 15, your stats *climb* as your health drops; below 15, they *fall*. The lower your health, the bigger the swing — roughly ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below. High-DET builds are strongest on the brink of death. |
+| **Wisdom (WIS)** | +1 hand size for every 5 points. Every 4 points draw your next card 1 tempo sooner. |
+| **Determination (DET)** | Controls how low health affects your other stats. At 15 it does nothing. Above 15, your stats *climb* as your health drops; below 15, they *fall*. The lower your health, the bigger the swing. roughly ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below.|
 | **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 3 cycles. Spending them is a choice: **3 points** move a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. Without Flash, each tile moved costs 1 tempo. |
 
-All characters share a base **5% critical hit chance** and **110% critical damage**. Crit chance is raised only by items, cards, and other effects — no stat affects it. Crit damage scales with Dexterity (+3% per point).
+All characters share a base **5% critical hit chance** and **110% critical damage**. Crit chance is raised only by items, cards, and other effects. No stat affects it. As previously mentioned, crit damage scales with Dexterity.
 
 ---
 
 ## Resources: Health, Mana, Armor
 
 ### Health
-Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**. **There is no pure vitality stat to increase health**. Reaching 0 means dead sauce. Healing is boosted by Intelligence and equipment. **Temporary HP** from certain effects absorbs damage before anything else, but expires on a timer.
+Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**. **There is no pure vitality stat to increase health**. Reaching 0 means dead sauce. Healing is boosted by Intelligence and equipment.
 
 ### Mana
 The cost of playing most cards.
 
-- Regenerates once per **cycle** (base regen + Intelligence bonus).
+- Regenerates on a tempo system. Influenced by the intelligence stat.
 - **Power cards with Maintain reserve mana** from your pool while their effect persists. Reserved mana doesn't regenerate back until the card is dismissed or broken.
 - If your mana ever hits 0, **all maintained cards break** and are discarded at once.
 
@@ -124,8 +123,7 @@ The cost of playing most cards.
 Damage absorption that sits in front of your health.
 
 - Incoming damage is absorbed in order: **armor → temporary HP → health**. Armor is always the first line of defense; items, nodes, enemy attacks, or cards may manipulate this order.
-- Armor **decays 2 per cycle** by default — it's a wall you keep rebuilding, not a bank. Some effects (Fortify) pause decay; others (Brittle) accelerate it.
-- Defense cards, items, passives, and per-cycle effects all grant armor, and "on armor gain" triggers make armor stacking a viable engine.
+- Armor **decays 2 per cycle** by default. Some effects (Fortify) pause decay; others (Brittle) accelerate it.
 
 ---
 
@@ -138,7 +136,7 @@ Your deck is your moveset. Cards move between several zones during combat:
 - **Discard pile** — where played and discarded cards go, awaiting reshuffle.
 - **Jail** — cards locked away for a set amount of tempo. Jailed cards can't be played; when their time expires they're released to the discard pile.
 - **Maintained** — active Power cards sit here, reserving mana.
-- **Manifest zone** — cards converted into clickable tokens by certain overflow effects.
+- **Manifest zone** — cards converted into clickable tokens by certain in game circumstances.
 
 ### Card types
 
@@ -146,15 +144,15 @@ Your deck is your moveset. Cards move between several zones during combat:
 |---|---|
 | **Attack** | Deals damage. Melee by default; ranged attacks have base range 5. |
 | **Defense** | Grants armor or blocks. |
-| **Utility** | Draw, healing, movement, buffs — support effects. |
+| **Utility** | Draw, healing, movement, buffs, support effects |
 | **Power** | Persistent effect with a **Maintain** cost that reserves mana while active. |
-| **Reaction** | Triggers automatically from your hand when its condition is met. Costs 0 mana and 0 tempo; cannot be played manually. |
+| **Reaction** | Triggers automatically from your hand when its condition is met. |
 | **Enchantment** | Cannot be played. Provides a passive buff *while in your hand*, then auto-discards after 2 cycles. |
-| **Unplayable** | Dead weight — takes up a hand slot. Usually inflicted by enemies. |
+| **Unplayable** | Dead weight and takes up a hand slot. Usually inflicted by enemies. |
 
 ### Drawing and overflow
 
-If a draw would exceed your hand size, it **overflows**. **By default, nothing happens** — you simply don't draw the extra card, and it stays on top of your draw pile. Cards and items can set an active *overflow mode* that instead does something with the overflowing card, turning the situation into an engine:
+If a draw would exceed your hand size, it **overflows**. **By default, nothing happens**. You simply don't draw the extra card and it stays on top of your draw pile. Cards and items can set an active *overflow mode* that instead does something with the overflowing card.:
 
 | Overflow mode | Result |
 |---|---|
@@ -162,8 +160,8 @@ If a draw would exceed your hand size, it **overflows**. **By default, nothing h
 | **Enhance** | Attack cards gain bonus damage, then are discarded. |
 | **Peak** | You see the next card on the draw pile. |
 | **Skip** | The card is sent straight to the discard pile. |
-| **Overcharge** | Triggers a special effect on each overflow. |
-| **Manifest** | The card becomes a token in the manifest zone — click to activate its manifest effect. |
+| **Overcharge** | Triggers a special effect on each overflow (ie: heal 4 on overflow, gain 2 armor on overflow, deal 2 damage to a random enemy etc. |
+| **Manifest** | The card becomes a token in the manifest zone. |
 
 ---
 
@@ -186,7 +184,7 @@ Mechanics that appear on cards:
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
 | **Chisel** | Card can only be played while slotted into an item — never from hand alone. |
 
-Some cards carry **RNG outcomes** — percentages printed on the card that roll when played, either pass/fail or a weighted pick between multiple results. Chance-boosting effects tilt these rolls in your favor. **The player knows when drawn if the cards RNG effect will trigger. Holding the card in your hand for an extended time will re roll the RNG outcome.**
+Some cards carry **RNG outcomes**. When the **card is drawn** the player is told if the card will be successful or a failure. **Holding the card for a certain amount of tempo will re roll this outcome**. The player will see the new outcome as well. Chance-boosting effects tilt these rolls in your favor.
 
 ---
 
