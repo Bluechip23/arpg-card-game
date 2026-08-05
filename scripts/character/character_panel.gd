@@ -762,8 +762,8 @@ func _build_combat_info_text() -> String:
 	if player_stats.max_health > 0:
 		hp_pct = int(round(100.0 * player_stats.current_health / player_stats.max_health))
 	var now_mult := player_stats.get_determination_modifier()
-	# 50% health falls in the <=60% Determination bracket: 5% per DET point.
-	var mult_50: float = maxf(0.1, 1.0 + (player_stats.determination - 10) * 0.05)
+	# 50% health falls in the <=60% Determination bracket: 0.25% per DET point.
+	var mult_50: float = maxf(0.0, 1.0 + (player_stats.determination - PlayerStats.DET_NEUTRAL) * 0.0025)
 	lines.append("HP now       %d%%  (stats x%.2f)" % [hp_pct, now_mult])
 	lines.append("At 50%% HP    stats x%.2f  (%s%d%% via DET %d)" % [
 		mult_50,
@@ -1328,7 +1328,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 			else:
 				th_text = "Wield Two-Handed (+%d damage)" % th_bonus
 		var th_btn = _make_action_button(th_text, Color(0.3, 0.24, 0.1), Color(0.85, 0.7, 0.3))
-		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 80%% and occupies a second hand slot.\nCosts %d tempo in combat." % inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON)
+		th_btn.tooltip_text = "Two-handing cuts this item's carried weight to 60%% but cuts total\ncarry capacity to 80%% and occupies a second hand slot.\nCosts %d tempo in combat." % inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON)
 		th_btn.pressed.connect(_on_toggle_two_handed)
 		vbox.add_child(th_btn)
 

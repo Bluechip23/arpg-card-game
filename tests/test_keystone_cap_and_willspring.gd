@@ -64,7 +64,7 @@ func _test_willspring_modifier() -> void:
 	var stats = PlayerStats.new()
 	get_root().add_child(stats)
 	stats.initialize(data)
-	stats.determination = 20  # det_diff = +10
+	stats.determination = 65  # det_diff = +50
 
 	# Full health AND full mana: no effect either way.
 	_check(_approx(stats.get_determination_modifier(), 1.0), "full resources: modifier 1.0")
@@ -72,25 +72,25 @@ func _test_willspring_modifier() -> void:
 	# Low HEALTH, full mana: normally a buff — under Willspring, nothing.
 	stats.current_health = maxi(1, int(stats.max_health * 0.1))
 	var health_driven = stats.get_determination_modifier()
-	_check(_approx(health_driven, 2.0), "without keystone, low health drives the buff (got %.2f)" % health_driven)
+	_check(_approx(health_driven, 1.5), "without keystone, low health drives the buff (got %.2f)" % health_driven)
 
 	stats.keystone_det_mana = true
 	_check(_approx(stats.get_determination_modifier(), 1.0),
 		"with Willspring, low health is ignored while mana is full")
 
-	# Low MANA now drives the swing: 10% mana -> 0.10/point -> 2.0.
+	# Low MANA now drives the swing: 10% mana -> 0.01/point -> 1.5.
 	stats.current_mana = maxf(0.0, stats.max_mana * 0.1)
-	_check(_approx(stats.get_determination_modifier(), 2.0),
+	_check(_approx(stats.get_determination_modifier(), 1.5),
 		"with Willspring, 10%% mana drives the buff (got %.2f)" % stats.get_determination_modifier())
 
 	# Effective stats read it live.
-	var expected_str = maxi(1, floori(stats.base_strength * 2.0))
+	var expected_str = maxi(1, floori(stats.base_strength * 1.5))
 	_check(stats.strength == expected_str,
-		"effective STR doubles at 10%% mana (got %d, expected %d)" % [stats.strength, expected_str])
+		"effective STR scales x1.5 at 10%% mana (got %d, expected %d)" % [stats.strength, expected_str])
 
 	# Low DET flips it into a penalty as mana drains.
-	stats.determination = 3  # det_diff = -7 -> 1.0 - 0.7 = 0.30
-	_check(_approx(stats.get_determination_modifier(), 0.30),
+	stats.determination = 3  # det_diff = -12 -> 1.0 - 0.12 = 0.88
+	_check(_approx(stats.get_determination_modifier(), 0.88),
 		"low DET at 10%% mana is a penalty (got %.2f)" % stats.get_determination_modifier())
 
 	# Refilling mana clears the effect even at low health.

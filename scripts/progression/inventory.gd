@@ -38,16 +38,26 @@ const RING_DOUBLE_TRIGGER_CYCLES: int = 3
 const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 
 # ============================================
-# TWO-HANDED WIELDING
+# TWO-HANDED & DUAL WIELDING
 # ============================================
 # Any weapon or shield can be gripped with both hands — a per-slot player
-# choice, never an item property. The grip halves the item's carried weight
-# (letting weaker characters wield huge gear) but drops TOTAL carry capacity
-# to 80% (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second hand
-# slot. Weapons gain damage from their ORIGINAL weight; shields gain Basic
-# Block armor the same way.
-const TWO_HAND_WEIGHT_MULT: float = 0.5
+# choice, never an item property. The grip cuts the item's carried weight
+# to 60% (letting weaker characters wield huge gear) but drops TOTAL carry
+# capacity to 80% (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second
+# hand slot. Weapons gain damage from their ORIGINAL weight; shields gain
+# Basic Block armor the same way.
+const TWO_HAND_WEIGHT_MULT: float = 0.6
 const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 10.0  # +1 damage/block per 10 weight
+
+# Dual wielding is the mirror trade, detected automatically from the loadout:
+# a MATCHED pair in the two hand slots (two weapons, or two shields — classic
+# weapon-and-shield stays the neutral baseline). Fighting with both hands is
+# taxing: BOTH items weigh 1.35x, but the attack-speed counter drops by
+# PlayerStats.DUAL_WIELD_COUNTER_BONUS. Light pairs buy real speed; heavy
+# pairs mostly buy the second weapon's damage (the extra weight eats the
+# speed through encumbrance). Bows never dual wield — they refuse to share
+# the hand slots at all.
+const DUAL_WIELD_WEIGHT_MULT: float = 1.35
 
 var two_handed_slot: int = -1       # weapon slot currently gripped with both hands
 var two_handed_lock_slot: int = -1  # the empty hand slot the grip occupies
@@ -240,9 +250,9 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 			return false
 
 	# Hard carry gate: refuse an equip that would push the character (further)
-	# past capacity. Two-handing halves an item's carried weight, which is what
-	# lets a weaker character take on heavy gear.
-	if not _bulk_build_switch and not _carry_change_allowed(_effective_item_weight(item, -1), two_handed_slot >= 0):
+	# past capacity. Uses the PROSPECTIVE delta so grip discounts and the
+	# dual-wield surcharge (which re-weighs the OTHER hand too) are counted.
+	if not _bulk_build_switch and not _carry_change_allowed(_prospective_weight_delta(item, slot_array, slot_index), two_handed_slot >= 0):
 		print("[INVENTORY] %s is too heavy! Carry: %d/%d, item weight %d" % [
 			item.item_name, get_total_weight(),
 			player_stats.get_carry_capacity() if player_stats else 0, item.weight])
@@ -925,9 +935,9 @@ func get_total_weight() -> int:
 	return total
 
 ## Carried weight of one item: chest reduction (Brad), the Balanced Load keystone,
-## and the two-handed grip all lighten the load, stacking multiplicatively. Pass
-## the weapon-slot index (or -1 when not equipped in a hand) so the grip discount
-## applies to the right slot.
+## and the two-handed grip lighten the load; the dual-wield surcharge raises it.
+## All stack multiplicatively. Pass the weapon-slot index (or -1 when not
+## equipped in a hand) so the hand modifiers apply to the right slot.
 func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 	var w = item.weight
 	if item.item_type == ItemData.ItemType.CHEST:
@@ -938,7 +948,19 @@ func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 		w = floori(w * (1.0 - PlayerStats.STR_LIGHT_SLOT_REDUCTION))
 	if weapon_slot_index >= 0 and weapon_slot_index == two_handed_slot:
 		w = floori(w * TWO_HAND_WEIGHT_MULT)
+	elif weapon_slot_index >= 0 and is_dual_wielding():
+		w = floori(w * DUAL_WIELD_WEIGHT_MULT)
 	return w
+
+## Weight change from placing item into slot_index, computed by trial
+## placement (get_total_weight is side-effect free). Catches the dual-wield
+## surcharge a new hand item imposes on the item ALREADY in the other hand.
+func _prospective_weight_delta(item: ItemData, slot_array: Array, slot_index: int) -> int:
+	var before = get_total_weight()
+	slot_array[slot_index] = item
+	var after = get_total_weight()
+	slot_array[slot_index] = null
+	return after - before
 
 ## Weighted Strikes keystone: the weight-to-damage bonus that two-handing grants,
 ## extended to one-handed weapons so a heavy single-hander feeds basic attacks.
@@ -987,6 +1009,24 @@ func get_slot_info() -> Dictionary:
 
 func is_two_handing() -> bool:
 	return two_handed_slot >= 0
+
+func is_dual_wielding() -> bool:
+	## True while a MATCHED pair fills both hand slots: two weapons, or two
+	## shields. Weapon-and-shield is the neutral classic and doesn't count.
+	## No toggle — the state is read straight off the loadout. A two-handed
+	## grip locks the other hand, so the states are naturally exclusive.
+	if two_handed_slot >= 0 or equipped_weapons.size() < 2:
+		return false
+	var main_hand = equipped_weapons[0]
+	var off_hand = equipped_weapons[1]
+	if main_hand == null or off_hand == null:
+		return false
+	if main_hand.item_type != ItemData.ItemType.WEAPON \
+			or off_hand.item_type != ItemData.ItemType.WEAPON:
+		return false
+	var main_is_shield = main_hand.weapon_subtype == ItemData.WeaponSubtype.SHIELD
+	var off_is_shield = off_hand.weapon_subtype == ItemData.WeaponSubtype.SHIELD
+	return main_is_shield == off_is_shield
 
 func get_two_handed_item() -> ItemData:
 	if two_handed_slot < 0 or two_handed_slot >= equipped_weapons.size():
@@ -1069,7 +1109,9 @@ func _disable_two_handed() -> bool:
 	var slot_index = two_handed_slot
 	var item = equipped_weapons[slot_index] if slot_index < equipped_weapons.size() else null
 	if item:
-		# Carry gate on reverting: the item's full weight comes back.
+		# Carry gate on reverting: the item's full weight comes back (and the
+	# freed hand may re-form a dual-wield pair, which _effective_item_weight
+	# already prices in via the released slot's index).
 		var weight_delta = _effective_item_weight(item, -1) - _effective_item_weight(item, slot_index)
 		if not _carry_change_allowed(weight_delta, false):
 			print("[INVENTORY] Too heavy to hold %s in one hand right now" % item.item_name)
