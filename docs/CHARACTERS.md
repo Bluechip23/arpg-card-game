@@ -99,7 +99,8 @@ the order and speed of your plays — and his kit supports two opposite rhythms:
 hitting the *same* enemy three times in a row banks +6 range and an auto-crit on your next
 attack — spendable on **any** target (*Scouted*), so a melee Stephen can grind the streak on
 the enemy in his face and then whip a Dagger Throw at the archer in the back; triggering an
-attack-speed proc mints a free 0-mana/0-tempo basic attack (*Dominate*). Alternating also
+attack-speed proc mints a free 0-mana/0-tempo basic attack, at most once per 5 tempo
+(*Dominate*). Alternating also
 pays: drawing a Defense card right after playing an attack (or vice versa) discounts its tempo
 (*Clean Exchange*). This is a build about not breaking stride. And positioning is damage too:
 *Deadly* grants +3 damage and +50% crit damage against a target with **no allies within 2

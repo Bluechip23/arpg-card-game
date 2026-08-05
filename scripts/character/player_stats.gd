@@ -275,6 +275,7 @@ var st_scouted_hits: int = 0          # Scouted: consecutive hits on the same en
 var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit ready
 var st_exposed_blind_spot_crit: int = 0  # Exposed Blind Spot: bonus crit % for next attack
 var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
+var st_dominate_cooldown: int = 0     # Dominate: remaining cooldown tempo
 var st_deadly_crit_active: bool = false  # Deadly: +50% crit damage while resolving an attack on an isolated target
 
 # Cory passive tracking

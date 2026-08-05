@@ -188,7 +188,7 @@ static func create_stephen() -> CharacterData:
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
 			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to an enemy in melee range and halve the Glut"},
 			{"name": "Swing for the Fences", "description": "Cards that have >4 tempo cost deal their tempo cost as additional damage"},
-			{"name": "Dominate", "description": "When triggering an attack speed proc, gain a 0m/0t basic attack card"},
+			{"name": "Dominate", "description": "When triggering an attack speed proc, gain a 0m/0t basic attack card (5 tempo cooldown)"},
 		]},
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"

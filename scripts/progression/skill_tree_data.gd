@@ -479,7 +479,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When applying burn, cold, or shock, apply 1 additional instance",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 18, slot = 3, archetype = "Avenger", name = "Dominate",
-			description = "When triggering an attack speed proc, the proc resolves normally and you also gain a 0m/0t basic attack card",
+			description = "When triggering an attack speed proc, the proc resolves normally and you also gain a 0m/0t basic attack card (5 tempo cooldown)",
 			color = Color(0.8, 0.4, 0.9)},
 	]
 
