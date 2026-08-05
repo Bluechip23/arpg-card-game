@@ -762,7 +762,7 @@ func is_overburdened() -> bool:
 ## generic hook — movement costs FLASH_COST_MOVE today; future spends
 ## (dodge-blocks, attack-speed proc ticks) draw from the same pool.
 const FLASH_REFRESH_CYCLES: int = 3
-const FLASH_COST_MOVE: int = 1
+const FLASH_COST_MOVE: int = 3
 const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
 const FLASH_BLOCK_ARMOR: int = 2
 const FLASH_STRIKE_DAMAGE: int = 1   # Flash Cut keystone: damage per Sidestep spend (placeholder)
@@ -776,8 +776,9 @@ var flash_movement_enabled: bool = false
 
 func get_max_flash_points() -> int:
 	# Movement enchantments feed the pool too: each old "+1 free move per tempo"
-	# bonus is worth 5 flash points per refresh window.
-	return agility + enchantment_movement_bonus * 5
+	# bonus is worth 5 FREE MOVES of flash per refresh window (denominated in
+	# moves, so it scales with the move cost).
+	return agility + enchantment_movement_bonus * 5 * FLASH_COST_MOVE
 
 func refresh_flash_points() -> void:
 	current_flash_points = get_max_flash_points()
