@@ -4,6 +4,26 @@
 
 *Trials of Olorin* is a **true RPG, not a roguelike**. There is no permadeath (besides hardcore), no run resets, no meta-currency loop. Your character's stats, deck, equipment, and progression are permanent and cumulative from the opening scene to the end of the story. Make decisions wisely.
 
+## A look at the game
+
+The battlefield is a fully 3D, elevation-aware grid rendered in pixel art — the camera orbits freely and zooms from close-up character work to a full tactical overview. Along the bottom: your hand of cards; top-center: the tempo bar that drives everything; left rail: the live enemy tracker.
+
+| Default battle view | Orbited camera |
+|---|---|
+| ![Default view](docs/screenshots/view_default.png) | ![Rotated view](docs/screenshots/view_rotated.png) |
+
+| Zoomed in | Zoomed out (tactical) |
+|---|---|
+| ![Zoom in](docs/screenshots/view_zoom_in.png) | ![Zoom out](docs/screenshots/view_zoom_out.png) |
+
+Characters are procedurally animated — every card and action has real motion and effects, no canned videos:
+
+| Basic attack mid-swing | Gathering a fireball | Level up (mist swirl + full restore) |
+|---|---|---|
+| ![Attack](docs/screenshots/anim_attack.png) | ![Spell cast](docs/screenshots/anim_spell.png) | ![Level up](docs/screenshots/anim_level_up.png) |
+
+*(All shots are real frames from the running game — regenerate them any time with `tests/capture_screenshots.gd`.)*
+
 Built in **Godot 4.6**.
 
 ---
