@@ -47,7 +47,9 @@ const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 # slot. Weapons gain damage from their ORIGINAL weight; shields gain Basic
 # Block armor the same way.
 const TWO_HAND_WEIGHT_MULT: float = 0.5
-const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 10.0  # +1 damage/block per 10 weight
+# +1 damage/block per 20 weight (5% of weight). At 10% a heavy mid-tier weapon
+# effectively doubled its damage; 5% reserves the doubling for true monsters.
+const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 20.0
 
 # Dual wielding (a pair of weapons — or a pair of shields — in hand slots):
 # EVERY item in the pair carries 15% extra weight, so a heavy main hand can't

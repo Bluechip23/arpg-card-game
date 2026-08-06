@@ -59,9 +59,9 @@ func _test_weighted_strikes() -> void:
 	print("-- Weighted Strikes: one-handed weight-to-damage --")
 	var pair = _mk_inv("Ryan")
 	var inv: Inventory = pair[1]
-	inv.equip_item(_heavy_sword(80), 0)  # 80 weight -> 80/10 = 8 damage
-	_check(inv.get_single_hand_weight_damage_bonus() == 8,
-		"an 80-weight one-hander grants +8 (got %d)" % inv.get_single_hand_weight_damage_bonus())
+	inv.equip_item(_heavy_sword(80), 0)  # 80 weight -> 80/20 = 4 damage
+	_check(inv.get_single_hand_weight_damage_bonus() == 4,
+		"an 80-weight one-hander grants +4 (got %d)" % inv.get_single_hand_weight_damage_bonus())
 	# Gripped two-handed, its heft is counted via two_hand_damage_bonus, not here.
 	inv.set_two_handed(0, true)
 	_check(inv.get_single_hand_weight_damage_bonus() == 0,

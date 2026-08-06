@@ -326,7 +326,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
   - halves the item's carried weight (letting a weaker character wield huge gear),
   - drops your **total** carry capacity to 70% while gripped,
   - consumes a second (empty) hand slot,
-  - grants bonus damage from the item's *original* weight (+1 per 10 weight) — shields instead gain bonus block armor.
+  - grants bonus damage from the item's *original* weight (+1 per 20 weight) — shields instead gain bonus block armor.
 
 ### Equipment builds (loadouts I / II / III)
 
