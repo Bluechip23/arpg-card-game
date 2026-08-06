@@ -756,7 +756,7 @@ func is_overburdened() -> bool:
 ## generic hook — movement costs FLASH_COST_MOVE today; future spends
 ## (dodge-blocks, attack-speed proc ticks) draw from the same pool.
 const FLASH_REFRESH_CYCLES: int = 2
-const FLASH_COST_MOVE: int = 1
+const FLASH_COST_MOVE: int = 3
 const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
 const FLASH_BLOCK_ARMOR: int = 2
 const FLASH_STRIKE_DAMAGE: int = 1   # Flash Cut keystone: damage per Sidestep spend (placeholder)

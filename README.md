@@ -82,7 +82,7 @@ Every character has six core attributes:
 | **Intelligence (INT)** | +1 spell and heal power for every 2 points. +1 mana regen for every 5 points. |
 | **Wisdom (WIS)** | +1 hand size for every 5 points. Each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5). |
 | **Determination (DET)** | Controls how low health affects your other stats. At 10 it does nothing. Above 10, your stats *climb* as your health drops; below 10, they *fall*. The lower your health, the bigger the swing — roughly ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below. High-DET builds are strongest on the brink of death. |
-| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. **1 point** moves a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. 
+| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 2 cycles. **3 points** move a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. 
 
 All characters share a base **5% critical hit chance** and **150% critical damage**. Crit chance is raised only by items, cards, and other effects — no stat affects it. Crit damage scales with Dexterity (+5% per point).
 

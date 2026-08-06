@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Verifies Agility flash points: pool = 1 per AGI point (+5 per movement
-## enchantment), movement spends 1 point before costing tempo, and the pool
+## enchantment), movement spends 3 points before costing tempo, and the pool
 ## refreshes every 2 tempo cycles.
 ## Run: godot --headless --path . --script tests/test_flash_points.gd
 
@@ -32,9 +32,8 @@ func _initialize() -> void:
 
 	# --- Toggled on, movement spends flash first, then tempo ---
 	stats.flash_movement_enabled = true
-	for i in range(3):
-		tm.add_movement_tempo()
-	_check(stats.current_flash_points == 0, "3 moves spend the 3-point pool")
+	tm.add_movement_tempo()
+	_check(stats.current_flash_points == 0, "one move spends the 3-point pool (moves cost 3 flash)")
 	_check(tm.get_global_tempo() == 1, "flash moves cost no tempo")
 
 	tm.add_movement_tempo()
