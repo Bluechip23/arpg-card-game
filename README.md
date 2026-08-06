@@ -319,15 +319,14 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 
 - Weapon slot 1 is your main hand; additional hand slots are **off-hands**, which apply their bonuses at reduced (90%) effectiveness by default.
 - **Any item can go in any hand** — there is no main-hand/off-hand *type* restriction. You can wear a shield in your main hand and a sword in an off-hand, a quiver alongside a bow, and so on. The 90% off-hand reduction is about *which slot* an item sits in, not what type of item it is.
-- **Dual wielding carries a weight tax.** Holding a pair of weapons — or a pair of **shields**, twin-shield stances are welcome — makes **every** item of the pair count **15% heavier** toward your carry load. The penalty hits both hands, so a huge main-hand weapon can't hide behind a feather-light off-hand. Twin daggers barely notice; pairing two real weapons is a Strength commitment. Sword-and-shield mixes classes and doesn't count as dual wielding.
-- **The free hand.** Wielding exactly one hand item — weapon **or** shield — with your other hand truly empty is a stance of its own: the flash **parry costs 2 instead of 3**, and **every 12th attack echoes**, triggering twice (attack cards included). The echo is free — it never advances the attack-speed counter and can't itself echo. The two-handed grip fills both hands and a quiver occupies a hand, so neither qualifies.
-- **Exception — bows are two-handed.** A bow never shares the hands with another weapon or shield; the only hand item that rides along with a bow is a quiver.
+- **Dual wielding carries a weight tax.** Holding a pair of weapons, or a pair of **shields**, makes **every** item of the pair count **15% heavier** toward your carry load but the attack-speed counter drops by **4**. The penalty hits both hands, so a huge main-hand weapon can't hide behind a feather-light off-hand. Twin daggers barely notice while pairing two real weapons is a Strength commitment. Sword-and-shield mixes classes and doesn't count as dual wielding.
+- **The free hand.** Wielding exactly one hand item, weapon **or** shield, with your other hand truly empty is a stance of its own. This comes with the benefit of flash **parry costs 2 instead of 3**, and **every 12th attack echoes**. The echo is free and does not advance the attack-speed counter and can't itself echo. The two-handed grip fills both hands and a quiver occupies a hand, so neither qualifies.
+- **Exception — bows are two-handed.** A bow never shares the hands with another weapon or shield.
 - **Any weapon or shield can be gripped with both hands** — it's a player choice per slot, not an item property. Two-handing:
   - halves the item's carried weight (letting a weaker character wield huge gear),
   - drops your **total** carry capacity to 80% while gripped,
   - consumes a second (empty) hand slot,
   - grants bonus damage from the item's *original* weight (+1 per 10 weight) — shields instead gain bonus block armor.
-- **Dual wielding is the mirror trade**, detected automatically when a *matched pair* fills both hands — two weapons, or two shields (classic weapon-and-shield stays neutral). Both items weigh **1.35×** while paired, but the attack-speed counter drops by **4**. Light pairs buy real attack speed; heavy pairs mostly buy the second weapon's damage, since the extra weight eats the speed back through encumbrance.
 
 ### Equipment builds (loadouts I / II / III)
 
