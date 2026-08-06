@@ -6,7 +6,7 @@ extends CanvasLayer
 signal closed
 signal card_slotted(card: Card, item: ItemData)
 signal card_unslotted(card: Card, item: ItemData)
-## Emitted after any gear change with its tempo price (equip/unequip/regrip/
+## Emitted after any gear change with its tempo price (equip/unequip/two-hand/
 ## build switch). main.gd charges it on the tempo clock — but only in combat.
 signal swap_tempo_spent(cost: int, action: String)
 
@@ -1165,7 +1165,7 @@ func _move_equipped(item_type: int, from_slot: int, to_slot: int) -> bool:
 		inventory.unequip_item(item_type, to_slot)
 		inventory.equip_item(target, from_slot)
 	if not inventory.equip_item(moving, to_slot):
-		# Target slot refused (e.g. held by a two-handed grip) — put it back.
+		# Target slot refused (e.g. locked by two-handing) — put it back.
 		inventory.equip_item(moving, from_slot)
 		return false
 	return true
@@ -1290,14 +1290,14 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 
 	vbox.add_child(_make_separator())
 
-	# Two-handed grip status (equipped weapons/shields only)
+	# Two-handing status (equipped weapons/shields only)
 	if storage_index < 0 and inventory and item.item_type == ItemData.ItemType.WEAPON \
 			and inventory.two_handed_slot == slot_index:
 		var th_info = Label.new()
 		var carried = floori(item.weight * Inventory.TWO_HAND_WEIGHT_MULT)
 		var bonus = floori(item.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
 		var bonus_word = "block" if item.weapon_subtype == ItemData.WeaponSubtype.SHIELD else "damage"
-		th_info.text = "Gripped two-handed: carried weight %d (of %d), +%d %s" % [carried, item.weight, bonus, bonus_word]
+		th_info.text = "Two-handing: carried weight %d (of %d), +%d %s" % [carried, item.weight, bonus, bonus_word]
 		th_info.add_theme_font_size_override("font_size", 12)
 		th_info.add_theme_color_override("font_color", Color(0.95, 0.8, 0.45))
 		th_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1315,11 +1315,11 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		unequip_btn.pressed.connect(_on_unequip_item)
 		vbox.add_child(unequip_btn)
 
-	# Two-handed grip toggle for anything held in a hand slot (not quivers).
+	# Two-handing toggle for anything held in a hand slot (not quivers).
 	if storage_index < 0 and inventory and item.item_type == ItemData.ItemType.WEAPON:
-		var gripped = inventory.two_handed_slot == slot_index
+		var two_handed = inventory.two_handed_slot == slot_index
 		var th_text: String
-		if gripped:
+		if two_handed:
 			th_text = "Release to One Hand"
 		else:
 			var th_bonus = floori(item.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
@@ -1431,7 +1431,7 @@ func _on_equip_stored_item() -> void:
 	var max_slots = inventory._get_max_slots(_detail_item.item_type)
 	var target_slot = -1
 	for i in range(max_slots):
-		if slot_array[i] == null and not inventory.is_grip_locked_slot(i if slot_array == inventory.equipped_weapons else -1):
+		if slot_array[i] == null and not inventory.is_two_hand_locked_slot(i if slot_array == inventory.equipped_weapons else -1):
 			target_slot = i
 			break
 
