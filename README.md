@@ -324,7 +324,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 - **Exception — bows are two-handed.** A bow never shares the hands with another weapon or shield; the only hand item that rides along with a bow is a quiver.
 - **Any weapon or shield can be gripped with both hands** — it's a player choice per slot, not an item property. Two-handing:
   - halves the item's carried weight (letting a weaker character wield huge gear),
-  - drops your **total** carry capacity to 80% while gripped,
+  - drops your **total** carry capacity to 70% while gripped,
   - consumes a second (empty) hand slot,
   - grants bonus damage from the item's *original* weight (+1 per 10 weight) — shields instead gain bonus block armor.
 - **Dual wielding is the mirror trade**, detected automatically when a *matched pair* fills both hands — two weapons, or two shields (classic weapon-and-shield stays neutral). Both items weigh **1.35×** while paired, but the attack-speed counter drops by **4**. Light pairs buy real attack speed; heavy pairs mostly buy the second weapon's damage, since the extra weight eats the speed back through encumbrance.
