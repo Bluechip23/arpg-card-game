@@ -1149,7 +1149,7 @@ func _refresh_stash_lists() -> void:
 
 	# Update count labels
 	if _stash_inv_count_label and is_instance_valid(_stash_inv_count_label):
-		_stash_inv_count_label.text = "Inventory (%d/%d)" % [inventory.stored_items.size(), inventory.max_storage_slots]
+		_stash_inv_count_label.text = "Inventory (%d/%d)" % [inventory.used_storage_slots(), inventory.max_storage_slots]
 	if _stash_stash_count_label and is_instance_valid(_stash_stash_count_label):
 		_stash_stash_count_label.text = "Stash (%d/%d)" % [inventory.stash_items.size(), inventory.max_stash_slots]
 

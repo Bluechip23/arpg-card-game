@@ -487,7 +487,7 @@ end-game. The current playable roster (`scripts/character/character_data.gd`):
 
 | Character | Fantasy | Signature archetypes | Slot specialty |
 |-----------|---------|----------------------|----------------|
-| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | 2 off-hand slots; chest items weigh 20% less |
+| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | War Rack (back-slung gear swap); chest items weigh 20% less |
 | **Ryan** | Dexterous duelist / rogue | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 3 belt slots; belt cards cost 1 less mana |
 | **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | standard slots; +10% off-hand enchantments (others −10%) |
 | **Cory** | Druid / monk / witherer | Monk, Lurker, Druid, Atrophist | 2 gauntlet slots; gauntlet-skill synergy |

@@ -83,11 +83,18 @@ enum GauntletSkillType {
 #   Basic/Common/Rare:  max level 2 — costs 3 extra copies (4 found in total)
 #   Legendary/Mythic:   max level 3 — Lv.2 costs 1 extra copy (2 total),
 #                       Lv.3 costs 2 more copies (4 total)
-# Level 2 is a pure stat boost. Level 3 (legendary/mythic only) is the big
-# power spike: level_3_overrides rewrites item properties so a baked-in skill
+# Level 2 is a stat boost — by default every nonzero flat bonus gets +1, but
+# an item can define bespoke level_2_overrides instead. Level 3
+# (legendary/mythic only) is the big power spike: level_3_overrides rewrites
+# item properties — skills, granted cards, on-self abilities — so the item
 # can transform into something build-defining.
 @export var rarity: Rarity = Rarity.BASIC
 @export var item_level: int = 1
+# Property name -> new value, applied when the item reaches level 2. When
+# empty, the default +1-to-every-nonzero-bonus boost applies instead.
+@export var level_2_overrides: Dictionary = {}
+# Replaces `description` at level 2 (when non-empty).
+@export var level_2_description: String = ""
 # Property name -> new value, applied when the item reaches level 3.
 @export var level_3_overrides: Dictionary = {}
 # Replaces `description` at level 3 (when non-empty) so the tooltip
@@ -275,14 +282,18 @@ func level_up() -> bool:
 		return false
 	item_level += 1
 	if item_level == 2:
-		_apply_level_2_stat_boost()
+		_apply_level_2_boost()
 	elif item_level == 3:
-		_apply_level_3_transformation()
+		_apply_overrides(level_3_overrides, level_3_description)
 	return true
 
-## Level 2 is a pure stat booster. Placeholder tuning: every nonzero flat
-## bonus the item provides gets +1 (design note: "max number +1").
-func _apply_level_2_stat_boost() -> void:
+## Level 2 is a stat boost. Items with bespoke level_2_overrides apply those;
+## everything else gets the default: every nonzero flat bonus the item
+## provides gets +1 (design note: "max number +1").
+func _apply_level_2_boost() -> void:
+	if not level_2_overrides.is_empty():
+		_apply_overrides(level_2_overrides, level_2_description)
+		return
 	for prop in ["strength_bonus", "dexterity_bonus", "intelligence_bonus",
 			"wisdom_bonus", "determination_bonus", "agility_bonus",
 			"health_bonus", "mana_bonus", "armor_bonus", "weapon_damage",
@@ -292,13 +303,28 @@ func _apply_level_2_stat_boost() -> void:
 		if value > 0:
 			set(prop, value + 1)
 
-## Level 3 rewrites properties per level_3_overrides — this is where a
-## legendary/mythic's baked-in skill transforms.
-func _apply_level_3_transformation() -> void:
-	for prop in level_3_overrides:
-		set(prop, level_3_overrides[prop])
-	if level_3_description != "":
-		description = level_3_description
+## Rewrite properties from an overrides dict — the machinery behind both the
+## Lv.2 bespoke boost and the Lv.3 transformation. Typed arrays are assigned
+## in place, and overriding the granted/mastery card lists resets their built
+## instances so the new cards are constructed on the next equip (forged items
+## are always unequipped, so no live deck references exist).
+func _apply_overrides(overrides: Dictionary, new_description: String) -> void:
+	var cards_changed := false
+	for prop in overrides:
+		var current = get(prop)
+		var value = overrides[prop]
+		if current is Array and value is Array:
+			current.assign(value)
+		else:
+			set(prop, value)
+		if prop == "granted_card_ids" or prop == "mastery_card_ids":
+			cards_changed = true
+	if cards_changed:
+		granted_card_instances.clear()
+		mastery_card_instances.clear()
+		granted_cards_built = false
+	if new_description != "":
+		description = new_description
 
 func get_type_name() -> String:
 	match item_type:

@@ -33,7 +33,7 @@ func _initialize() -> void:
 	# --- Toggled on, movement spends 3 flash first, then tempo ---
 	stats.flash_movement_enabled = true
 	tm.add_movement_tempo()
-	_check(stats.current_flash_points == 0, "a flash move spends the 3-point pool")
+	_check(stats.current_flash_points == 0, "one move spends the 3-point pool (moves cost 3 flash)")
 	_check(tm.get_global_tempo() == 1, "flash moves cost no tempo")
 
 	tm.add_movement_tempo()

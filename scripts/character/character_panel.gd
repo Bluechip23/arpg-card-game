@@ -1804,8 +1804,7 @@ func _update_storage_grid() -> void:
 	# Inventory header row: "INVENTORY (X/20)" on left, "Gold: X" and "Culling Stones: X" on right
 	var inv_header_hbox = HBoxContainer.new()
 
-	var total_count = inventory.get_stored_item_count() + inventory.get_stored_card_count()
-	var storage_header = _make_section_header("INVENTORY (%d/%d)" % [total_count, inventory.max_storage_slots])
+	var storage_header = _make_section_header("INVENTORY (%d/%d)" % [inventory.used_storage_slots(), inventory.max_storage_slots])
 	inv_header_hbox.add_child(storage_header)
 
 	var spacer = Control.new()
@@ -1840,7 +1839,13 @@ func _update_storage_grid() -> void:
 	grid.add_theme_constant_override("v_separation", 4)
 	equipment_container.add_child(grid)
 
-	for i in range(inventory.max_storage_slots):
+	# Cards share the slot pool, so the grid draws max_storage_slots cells:
+	# item cells (filled or empty) for whatever the cards don't occupy. A save
+	# holding more than fits (from before the pool was shared) still shows
+	# every item — caps only gate NEW pickups.
+	var item_cells: int = maxi(inventory.get_stored_item_count(),
+			inventory.max_storage_slots - inventory.get_stored_card_count())
+	for i in range(item_cells):
 		var cell = _create_storage_cell(i)
 		grid.add_child(cell)
 

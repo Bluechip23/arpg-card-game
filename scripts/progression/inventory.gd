@@ -49,15 +49,12 @@ const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 const TWO_HAND_WEIGHT_MULT: float = 0.5
 const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 10.0  # +1 damage/block per 10 weight
 
-# Dual wielding is the mirror trade, detected automatically from the loadout:
-# a MATCHED pair in the two hand slots (two weapons, or two shields — classic
-# weapon-and-shield stays the neutral baseline). Fighting with both hands is
-# taxing: BOTH items weigh 1.35x, but the attack-speed counter drops by
-# PlayerStats.DUAL_WIELD_COUNTER_BONUS. Light pairs buy real speed; heavy
-# pairs mostly buy the second weapon's damage (the extra weight eats the
-# speed through encumbrance). Bows never dual wield — they refuse to share
-# the hand slots at all.
-const DUAL_WIELD_WEIGHT_MULT: float = 1.35
+# Dual wielding (a pair of weapons — or a pair of shields — in hand slots):
+# EVERY item in the pair carries 15% extra weight, so a heavy main hand can't
+# hide from the penalty behind a feather off-hand. Two small blades barely
+# notice; pairing real weapons (or walking in behind twin shields) is a
+# strength commitment. Sword-and-board mixes classes and pays nothing.
+const DUAL_WIELD_WEIGHT_MULT: float = 1.15
 
 var two_handed_slot: int = -1       # weapon slot currently gripped with both hands
 var two_handed_lock_slot: int = -1  # the empty hand slot the grip occupies
@@ -98,7 +95,9 @@ var equipped_gauntlets: Array[ItemData] = []
 var equipped_weapons: Array[ItemData] = []
 var equipped_quivers: Array[ItemData] = []
 
-# Non-equipped item storage (grid inventory)
+# Non-equipped storage (grid inventory). Items and looted cards share the ONE
+# pool of max_storage_slots — there is no separate card inventory; the two
+# arrays only keep the types apart.
 var stored_items: Array[ItemData] = []
 var max_storage_slots: int = 20
 
@@ -106,9 +105,8 @@ var max_storage_slots: int = 20
 var stash_items: Array[ItemData] = []
 var max_stash_slots: int = 30
 
-# Card inventory - cards picked up from loot go here (not directly to deck)
+# Cards picked up from loot (they occupy regular inventory slots)
 var stored_cards: Array = []  # Array of Card objects
-var max_card_storage: int = 20
 
 # Consumables
 var culling_stones: int = 99  # Used to permanently remove cards from deck
@@ -948,19 +946,30 @@ func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 		w = floori(w * (1.0 - PlayerStats.STR_LIGHT_SLOT_REDUCTION))
 	if weapon_slot_index >= 0 and weapon_slot_index == two_handed_slot:
 		w = floori(w * TWO_HAND_WEIGHT_MULT)
-	elif weapon_slot_index >= 0 and is_dual_wielding():
+	# Dual wielding taxes every item of the wielded pair — the big one included.
+	if weapon_slot_index >= 0 and item.item_type == ItemData.ItemType.WEAPON \
+			and _wielded_class_count(_is_shield(item)) >= 2:
 		w = floori(w * DUAL_WIELD_WEIGHT_MULT)
 	return w
 
-## Weight change from placing item into slot_index, computed by trial
-## placement (get_total_weight is side-effect free). Catches the dual-wield
-## surcharge a new hand item imposes on the item ALREADY in the other hand.
-func _prospective_weight_delta(item: ItemData, slot_array: Array, slot_index: int) -> int:
-	var before = get_total_weight()
-	slot_array[slot_index] = item
-	var after = get_total_weight()
-	slot_array[slot_index] = null
-	return after - before
+func _is_shield(item: ItemData) -> bool:
+	return item != null and item.weapon_subtype == ItemData.WeaponSubtype.SHIELD
+
+## Hand items of one wielding class: weapons, or shields (dual-wielding
+## shields is a legitimate stance and pays the same pair tax).
+func _wielded_class_count(shields: bool) -> int:
+	var count = 0
+	for w in equipped_weapons:
+		if w != null and w.item_type == ItemData.ItemType.WEAPON and _is_shield(w) == shields:
+			count += 1
+	return count
+
+func is_dual_wielding() -> bool:
+	## A pair of weapons OR a pair of shields in hand slots. Sword-and-shield
+	## mixes classes and doesn't count. (A bow never shares hands with another
+	## weapon, and the two-handed grip locks its second slot, so those states
+	## never count by construction.)
+	return _wielded_class_count(false) >= 2 or _wielded_class_count(true) >= 2
 
 ## Weighted Strikes keystone: the weight-to-damage bonus that two-handing grants,
 ## extended to one-handed weapons so a heavy single-hander feeds basic attacks.
@@ -1297,7 +1306,7 @@ func switch_build(target: int) -> Dictionary:
 	for it in incoming:
 		if stored_items.has(it):
 			from_storage += 1
-	if stored_items.size() + to_storage - from_storage > max_storage_slots:
+	if used_storage_slots() + to_storage - from_storage > max_storage_slots:
 		result["reason"] = "Not enough inventory space"
 		return result
 
@@ -1586,12 +1595,12 @@ func rack_take_item(index: int) -> ItemData:
 # ============================================
 
 func store_item(item: ItemData) -> bool:
-	if stored_items.size() >= max_storage_slots:
-		print("[INVENTORY] Storage full! (%d/%d)" % [stored_items.size(), max_storage_slots])
+	if is_storage_full():
+		print("[INVENTORY] Storage full! (%d/%d)" % [used_storage_slots(), max_storage_slots])
 		return false
 	stored_items.append(item)
 	storage_changed.emit()
-	print("[INVENTORY] Stored %s (%d/%d)" % [item.item_name, stored_items.size(), max_storage_slots])
+	print("[INVENTORY] Stored %s (%d/%d)" % [item.item_name, used_storage_slots(), max_storage_slots])
 	return true
 
 func remove_stored_item(index: int) -> ItemData:
@@ -1611,8 +1620,12 @@ func get_stored_item(index: int) -> ItemData:
 func get_stored_item_count() -> int:
 	return stored_items.size()
 
+func used_storage_slots() -> int:
+	## Items and looted cards share the one slot pool.
+	return stored_items.size() + stored_cards.size()
+
 func is_storage_full() -> bool:
-	return stored_items.size() >= max_storage_slots
+	return used_storage_slots() >= max_storage_slots
 
 # ============================================
 # STASH STORAGE
@@ -1710,16 +1723,16 @@ func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
 	return true
 
 # ============================================
-# CARD INVENTORY
+# STORED CARDS (share the inventory slot pool)
 # ============================================
 
 func store_card(card) -> bool:
-	if stored_cards.size() >= max_card_storage:
-		print("[INVENTORY] Card storage full! (%d/%d)" % [stored_cards.size(), max_card_storage])
+	if is_storage_full():
+		print("[INVENTORY] Storage full! (%d/%d)" % [used_storage_slots(), max_storage_slots])
 		return false
 	stored_cards.append(card)
 	storage_changed.emit()
-	print("[INVENTORY] Stored card: %s (%d/%d)" % [card.card_name, stored_cards.size(), max_card_storage])
+	print("[INVENTORY] Stored card: %s (%d/%d)" % [card.card_name, used_storage_slots(), max_storage_slots])
 	return true
 
 func remove_stored_card(index: int):
@@ -1728,7 +1741,7 @@ func remove_stored_card(index: int):
 	var card = stored_cards[index]
 	stored_cards.remove_at(index)
 	storage_changed.emit()
-	print("[INVENTORY] Removed card from storage: %s (%d/%d)" % [card.card_name, stored_cards.size(), max_card_storage])
+	print("[INVENTORY] Removed card from storage: %s (%d/%d)" % [card.card_name, used_storage_slots(), max_storage_slots])
 	return card
 
 func get_stored_card(index: int):

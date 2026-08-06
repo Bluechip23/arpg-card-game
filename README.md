@@ -319,6 +319,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 
 - Weapon slot 1 is your main hand; additional hand slots are **off-hands**, which apply their bonuses at reduced (90%) effectiveness by default.
 - **Any item can go in any hand** — there is no main-hand/off-hand *type* restriction. You can wear a shield in your main hand and a sword in an off-hand, a quiver alongside a bow, and so on. The 90% off-hand reduction is about *which slot* an item sits in, not what type of item it is.
+- **Dual wielding carries a weight tax.** Holding a pair of weapons — or a pair of **shields**, twin-shield stances are welcome — makes **every** item of the pair count **15% heavier** toward your carry load. The penalty hits both hands, so a huge main-hand weapon can't hide behind a feather-light off-hand. Twin daggers barely notice; pairing two real weapons is a Strength commitment. Sword-and-shield mixes classes and doesn't count as dual wielding.
 - **Exception — bows are two-handed.** A bow never shares the hands with another weapon or shield; the only hand item that rides along with a bow is a quiver.
 - **Any weapon or shield can be gripped with both hands** — it's a player choice per slot, not an item property. Two-handing:
   - halves the item's carried weight (letting a weaker character wield huge gear),

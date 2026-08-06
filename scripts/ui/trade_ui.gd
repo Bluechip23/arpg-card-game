@@ -193,7 +193,7 @@ func _rebuild_list(side: int) -> void:
 	if not any_equipped:
 		list.add_child(_empty_label("(nothing equipped)"))
 
-	list.add_child(_section_label("STORAGE (%d/%d)" % [inv.get_stored_item_count(), inv.max_storage_slots]))
+	list.add_child(_section_label("STORAGE (%d/%d)" % [inv.used_storage_slots(), inv.max_storage_slots]))
 	if inv.stored_items.is_empty():
 		list.add_child(_empty_label("(empty)"))
 	for i in range(inv.stored_items.size()):

@@ -1,9 +1,8 @@
 extends SceneTree
 
-## Verifies dual wielding: auto-detected matched pair (two weapons or two
-## shields) in the hand slots. Both items weigh 1.35x; the attack-speed
-## counter drops by 4. Weapon+shield stays neutral, the carry gate prices the
-## surcharge on BOTH hands, and releasing the pair restores the weights.
+## Dual-wield weight penalty: holding two or more non-shield weapons taxes
+## EVERY wielded weapon's carried weight by 15% (DUAL_WIELD_WEIGHT_MULT), so a
+## heavy main hand can't hide behind a feather off-hand. Shields don't count.
 ## Run: godot --headless --path . --script tests/test_dual_wield.gd
 
 var failures := 0
@@ -15,78 +14,70 @@ func _check(cond: bool, msg: String) -> void:
 		failures += 1
 		printerr("  FAIL: %s" % msg)
 
-func _sword(weight: int, name: String) -> ItemData:
-	var s = ItemData.new()
-	s.item_name = name
-	s.item_type = ItemData.ItemType.WEAPON
-	s.weight = weight
-	s.weapon_damage = 5
-	return s
-
-func _shield(weight: int, name: String) -> ItemData:
-	var s = _sword(weight, name)
-	s.weapon_subtype = ItemData.WeaponSubtype.SHIELD
-	return s
-
 func _initialize() -> void:
-	print("=== Dual wielding test ===")
+	print("=== Dual-wield weight penalty test ===")
 
-	var stats = PlayerStats.new()
+	var data := CharacterData.create_ryan()
+	var stats := PlayerStats.new()
 	get_root().add_child(stats)
-	stats.initialize(CharacterData.create_ryan())  # all stats 3
-	var inv = Inventory.new()
+	stats.initialize(data)
+
+	var inv := Inventory.new()
 	get_root().add_child(inv)
-	inv.initialize("Ryan")
+	inv.initialize(data.character_name)
 	inv.connect_player_stats(stats)
 
-	# --- Carry gate prices the 1.35x surcharge on BOTH hands ---
-	stats.base_strength = 10  # capacity 150
-	var a := _sword(60, "Left Fang")
-	var b := _sword(60, "Right Fang")
-	_check(inv.equip_item(a, 0), "first sword equips alone (weight 60)")
-	_check(not inv.is_dual_wielding(), "one weapon is not dual wielding")
-	_check(inv.get_total_weight() == 60, "single sword carries at full weight")
-	# Pair would weigh floori(60*1.35) x2 = 162 > 150 capacity.
-	_check(not inv.equip_item(b, 1), "second sword refused: the pair would overload (162 > 150)")
+	# Plenty of capacity so the equip gate never interferes with the math.
+	stats.base_strength = 30
 
-	stats.base_strength = 20  # capacity 250 — now the pair fits
-	_check(inv.equip_item(b, 1), "second sword equips with capacity for the pair")
-	_check(inv.is_dual_wielding(), "two weapons = dual wielding")
-	_check(inv.get_total_weight() == 162, "both swords weigh 1.35x (81 + 81)")
+	# --- Sword + shield is NOT dual wielding ---
+	var sword := ItemData.create_iron_sword()      # weight 80
+	var shield := ItemData.create_wooden_shield()  # weight 4
+	_check(inv.equip_item(sword, 0), "sword equips in main hand")
+	_check(inv.equip_item(shield, 1), "shield equips in off hand")
+	_check(not inv.is_dual_wielding(), "sword + shield does not count as dual wielding")
+	_check(inv.get_total_weight() == 84, "sword + shield carries at raw weight (84)")
 
-	# --- Counter bonus: -4, on top of DEX and encumbrance ---
-	var expected: int = stats.base_attack_speed_counter \
-			- floori(stats.dexterity * PlayerStats.DEX_COUNTER_PER_POINT) \
-			+ stats.get_capacity_speed_modifier() - PlayerStats.DUAL_WIELD_COUNTER_BONUS
-	_check(stats.get_attack_speed_threshold() == max(PlayerStats.ATTACK_COUNTER_MIN, expected),
-		"dual wielding shaves %d off the counter (got %d)" % [
-			PlayerStats.DUAL_WIELD_COUNTER_BONUS, stats.get_attack_speed_threshold()])
-
-	# --- Unequipping one hand ends the pair and restores weights ---
+	# --- Sword + dagger: BOTH weapons pay the 15% ---
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	_check(not inv.is_dual_wielding(), "losing the off-hand ends dual wielding")
-	_check(inv.get_total_weight() == 60, "remaining sword drops back to full weight")
+	var dagger := ItemData.create_shadow_dagger()  # weight 10
+	_check(inv.equip_item(dagger, 1), "dagger equips in off hand")
+	_check(inv.is_dual_wielding(), "sword + dagger counts as dual wielding")
+	# floor(80 * 1.15) + floor(10 * 1.15) = 92 + 11
+	_check(inv.get_total_weight() == 103,
+		"both weapons taxed: 92 + 11 = %d" % inv.get_total_weight())
 
-	# --- Weapon + shield is the neutral classic, not a pair ---
-	var board := _shield(40, "Oak Board")
-	_check(inv.equip_item(board, 1), "shield equips beside the sword")
-	_check(not inv.is_dual_wielding(), "sword-and-board is NOT dual wielding")
-	_check(inv.get_total_weight() == 100, "sword + shield carry at full weight (60 + 40)")
+	# --- Dropping to one weapon removes the penalty ---
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	_check(not inv.is_dual_wielding(), "one weapon is not dual wielding")
+	_check(inv.get_total_weight() == 80, "solo sword back to raw weight (80)")
 
-	# --- Two shields ARE a pair ---
+	# --- Two small blades: the tax is pocket change ---
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
-	var board2 := _shield(40, "Pine Board")
-	_check(inv.equip_item(board2, 0), "second shield equips")
-	_check(inv.is_dual_wielding(), "two shields = dual wielding")
-	_check(inv.get_total_weight() == 108, "both shields weigh 1.35x (54 + 54)")
+	inv.equip_item(ItemData.create_shadow_dagger(), 0)
+	inv.equip_item(ItemData.create_shadow_dagger(), 1)
+	_check(inv.get_total_weight() == 22, "twin daggers: 11 + 11 (only +2 over raw)")
 
-	# --- A two-handed grip can never coexist with a pair ---
+	# --- Two real weapons: a felt commitment ---
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
-	_check(inv.set_two_handed(1, true), "lone shield braces two-handed")
-	_check(not inv.is_dual_wielding(), "a two-handed grip is not dual wielding")
-	_check(not inv.equip_item(board2, 0), "the grip-locked hand refuses a second shield")
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	inv.equip_item(ItemData.create_serpent_fang(), 0)  # weight 40
+	inv.equip_item(ItemData.create_serpent_fang(), 1)
+	_check(inv.get_total_weight() == 92, "paired fangs: 46 + 46 = 92 (+12 over raw)")
 
-	stats.free()
-	inv.free()
+	# --- Dual-wielding SHIELDS is a stance too, and pays the same pair tax ---
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	inv.equip_item(ItemData.create_spiked_shield(), 0)  # weight 40
+	inv.equip_item(ItemData.create_spiked_shield(), 1)
+	_check(inv.is_dual_wielding(), "twin shields count as dual wielding")
+	_check(inv.get_total_weight() == 92, "paired shields taxed: 46 + 46 = 92")
+
+	# --- Mixed classes stay untaxed: shield + fang ---
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	inv.equip_item(ItemData.create_serpent_fang(), 1)
+	_check(not inv.is_dual_wielding(), "shield + weapon mixes classes — not dual wielding")
+	_check(inv.get_total_weight() == 80, "shield + fang carries at raw weight (80)")
+
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

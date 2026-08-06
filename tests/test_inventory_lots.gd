@@ -21,7 +21,7 @@ func _initialize() -> void:
 	# Expected slot counts: baseline everywhere, one deviation per character.
 	var expected := {
 		"Ryan":    {"helm": 1, "ring": 2, "belt": 3, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
-		"Brad":    {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 3, "boots": 1, "gauntlets": 1},
+		"Brad":    {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Jeremy":  {"helm": 1, "ring": 4, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Stephen": {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Cory":    {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 2},
@@ -44,6 +44,8 @@ func _initialize() -> void:
 	# --- Passive modifiers land on the right characters ---
 	inv.initialize("Ryan")
 	_check(inv.belt_card_mana_reduction == 1, "Ryan: belt cards cost 1 less mana")
+	inv.initialize("Brad")
+	_check(inv.has_back_rack, "Brad: carries the War Rack (baseline hand slots)")
 	inv.initialize("Brad")
 	_check(is_equal_approx(inv.chest_weight_reduction, 0.20), "Brad: chest items weigh 20% less")
 	_check(is_equal_approx(inv.get_off_hand_modifier(), 0.9), "Brad: off-hand items take the -10% penalty")
@@ -115,8 +117,28 @@ func _initialize() -> void:
 	_check(_badge_tip(panel, ItemData.ItemType.WEAPON, 1).contains("10% bonus"),
 		"Stephen: off hand carries the +10% bonus badge")
 
+	_test_shared_storage_pool()
+
 	print("=== Done: %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
+
+func _test_shared_storage_pool() -> void:
+	## Items and looted cards share the ONE inventory pool — no separate card cap.
+	print("-- Shared storage pool --")
+	var inv := Inventory.new()
+	inv.initialize("Ryan")
+
+	for i in range(inv.max_storage_slots - 1):
+		_check(inv.store_item(ItemData.create_iron_sword()), "item %d fits" % (i + 1))
+	_check(inv.store_card(Card.create_slash()), "a card takes the last shared slot")
+	_check(inv.used_storage_slots() == inv.max_storage_slots, "pool reads full")
+	_check(inv.is_storage_full(), "is_storage_full counts items AND cards")
+	_check(not inv.store_item(ItemData.create_iron_sword()), "no item slot left — cards count")
+	_check(not inv.store_card(Card.create_slash()), "no card slot left either")
+
+	inv.remove_stored_card(0)
+	_check(inv.store_item(ItemData.create_iron_sword()), "freeing a card frees a slot for an item")
+	inv.free()
 
 ## Build a bare slot cell and return its passive badge's tooltip ("" if none).
 func _badge_tip(panel, item_type: int, slot_index: int) -> String:
