@@ -26,6 +26,7 @@ func _initialize() -> void:
 	_test_basic_forge()
 	_test_forge_requires_copies()
 	_test_legendary_path()
+	_test_level_overrides()
 	_test_fodder_rules()
 	_test_mythic_molding()
 	_test_loot_pools()
@@ -130,6 +131,41 @@ func _test_legendary_path() -> void:
 		"mythic Lv.3 swaps in the awakened skill")
 	_check(myth.gauntlet_skill_cooldown == 3, "awakened skill has reduced cooldown")
 	inv.free()
+
+func _test_level_overrides() -> void:
+	print("-- Bespoke level overrides --")
+
+	# Lv.2: an item with level_2_overrides applies those INSTEAD of the
+	# default +1-to-every-nonzero-bonus boost.
+	var item = ItemData.create_iron_sword()
+	var dmg = item.weapon_damage
+	item.level_2_overrides = {"weapon_damage": dmg + 5, "on_self_damage": 4}
+	item.level_2_description = "A different beast at Lv.2"
+	item.level_up()
+	_check(item.weapon_damage == dmg + 5, "bespoke Lv.2 override sets its own values")
+	_check(item.on_self_damage == 4, "bespoke Lv.2 override can touch non-stat fields")
+	_check(item.description == "A different beast at Lv.2", "bespoke Lv.2 description applies")
+
+	# Default path is untouched for items without overrides.
+	var plain = ItemData.create_iron_sword()
+	var plain_dmg = plain.weapon_damage
+	plain.level_up()
+	_check(plain.weapon_damage == plain_dmg + 1, "items without overrides keep the default +1 boost")
+
+	# Lv.3 can rewrite the granted-card list; built instances reset so the
+	# new cards are constructed on the next equip.
+	var relic = ItemData.create_worldsplitter_gauntlets()
+	relic.granted_cards_built = true
+	var stale := Card.create_dagger_throw()
+	stale.granted_by_item = relic
+	relic.granted_card_instances.append(stale)
+	relic.level_3_overrides["granted_card_ids"] = ["healing_potion"]
+	relic.level_up()  # -> Lv.2
+	relic.level_up()  # -> Lv.3 transformation
+	_check(relic.granted_card_ids.size() == 1 and relic.granted_card_ids[0] == "healing_potion",
+		"Lv.3 override rewrites the granted-card list")
+	_check(relic.granted_card_instances.is_empty() and not relic.granted_cards_built,
+		"stale granted-card instances reset so the new cards build on equip")
 
 func _test_fodder_rules() -> void:
 	print("-- Fodder rules --")
