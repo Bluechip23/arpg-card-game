@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## Verifies the bow rule: bows are two-handed weapons. While a bow is in the
 ## hands, the only other hand item allowed is a quiver — no swords, shields,
 ## or second bows, in either equip order. The War Rack refuses to bring a bow
@@ -32,9 +34,9 @@ func _initialize() -> void:
 	var rig = _fresh_inventory("Stephen")
 	var inv: Inventory = rig[0]
 
-	var bow = ItemData.create_bow_of_true_sight()
-	var sword = ItemData.create_iron_sword()
-	var shield = ItemData.create_wooden_shield()
+	var bow = Fixtures.bow()
+	var sword = Fixtures.sword()
+	var shield = Fixtures.shield()
 
 	# --- Bow first: nothing but a quiver joins it ---
 	_check(inv.equip_item(bow, 0), "bow equips into empty hands")
@@ -65,8 +67,8 @@ func _initialize() -> void:
 	# --- War Rack: a bow can't come down alongside other gear ---
 	var rig2 = _fresh_inventory("Brad")
 	var binv: Inventory = rig2[0]
-	var bow2 = ItemData.create_bow_of_deep_wounds()
-	var sword2 = ItemData.create_iron_sword()
+	var bow2 = Fixtures.bow(50)
+	var sword2 = Fixtures.sword()
 	binv.rack_store_item(bow2)
 	binv.rack_store_item(sword2)
 	var check: Dictionary = binv.can_rack_exchange(false)

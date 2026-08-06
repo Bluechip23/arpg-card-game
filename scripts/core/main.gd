@@ -7931,17 +7931,9 @@ func _on_give_item(item_name: String) -> void:
 	var item: ItemData = null
 	
 	match item_name:
-		"Iron Helm": item = ItemData.create_iron_helm()
-		"Leather Chest": item = ItemData.create_leather_chest()
-		"Iron Sword": item = ItemData.create_iron_sword()
-		"Wooden Shield": item = ItemData.create_wooden_shield()
-		"Gold Ring": item = ItemData.create_gold_ring()
-		"Flame Dagger": item = ItemData.create_flame_dagger()
+		"Wooden Sword": item = ItemData.create_wooden_sword()
 		"Frost Orb": item = ItemData.create_frost_orb()
-		"Ring of Vengeance": item = ItemData.create_ring_of_vengeance()
-		"Ring of Fortitude": item = ItemData.create_ring_of_fortitude()
-		"Berserker Gauntlets": item = ItemData.create_berserker_gauntlets()
-		"Guardian Gauntlets": item = ItemData.create_guardian_gauntlets()
+		"Bladed Doughnut": item = ItemData.create_bladed_doughnut()
 	
 	if item:
 		var inv = player.get_inventory()

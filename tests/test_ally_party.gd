@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## Smoke test for the co-op party features:
 ##   * character panel pages between party members (arrows + rebind)
 ##   * the panel's level/XP progress row tracks the viewed character
@@ -93,7 +95,7 @@ func _initialize() -> void:
 	await process_frame
 
 	p1.stats.gain_gold(50)
-	var helm := ItemData.create_iron_helm()
+	var helm := Fixtures.helm()
 	p1.inv.store_item(helm)
 	var sword := ItemData.new()
 	sword.item_name = "Trade Sword"
@@ -128,8 +130,8 @@ func _initialize() -> void:
 
 	# Storage-full guard: receiver at capacity keeps the giver's item in place.
 	while not p2.inv.is_storage_full():
-		p2.inv.store_item(ItemData.create_iron_helm())
-	var keeper := ItemData.create_iron_helm()
+		p2.inv.store_item(Fixtures.helm())
+	var keeper := Fixtures.helm()
 	p1.inv.store_item(keeper)
 	trade._on_give_stored(0, p1.inv.stored_items.find(keeper))
 	_check(p1.inv.stored_items.has(keeper), "storage-full guard keeps the item with the giver")

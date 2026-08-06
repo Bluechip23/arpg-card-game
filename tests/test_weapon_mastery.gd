@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## Verifies weapon mastery breakpoints:
 ##   * A breakpoint is a reward, not a requirement — anyone can equip the weapon.
 ##   * Mastery cards enter the deck only when the wielder's BASE stat meets the
@@ -44,7 +46,7 @@ func _initialize() -> void:
 	get_root().add_child(deck)
 	inv.connect_deck_manager(deck)
 
-	var sledge = ItemData.create_earthsplitter_sledge()
+	var sledge = Fixtures.mastery_sledge()
 	_check(sledge.has_mastery(), "sledge carries a mastery breakpoint")
 	_check(sledge.get_mastery_stat_label() == "STR 15", "breakpoint label reads STR 15")
 	_check(not sledge.is_mastered_by(stats), "STR 12 does not master the sledge")
@@ -69,7 +71,7 @@ func _initialize() -> void:
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 
 	# --- Determination swings do NOT flicker mastery (base stat only) ---
-	var fang = ItemData.create_serpent_fang()
+	var fang = Fixtures.mastery_fang()
 	stats.base_dexterity = 14  # one short of DEX 15
 	stats.determination = 65
 	stats.current_health = maxi(1, int(stats.max_health * 0.1))  # effective DEX x1.5

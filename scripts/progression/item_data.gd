@@ -20,7 +20,9 @@ static func get_weapon_subtype_name(subtype: int) -> String:
 		WeaponSubtype.TOME: return "Tome"
 		WeaponSubtype.STAFF: return "Staff"
 	return "Weapon"
-enum Rarity { BASIC, COMMON, RARE, LEGENDARY, MYTHIC }
+# Order matters for save compat — only append new rarities. (BASIC was
+# removed: former basic items are simply Common now.)
+enum Rarity { COMMON, RARE, LEGENDARY, MYTHIC }
 enum SpecialEffect {
 	NONE,
 	OVERFLOW_HEAL_ARMOR,
@@ -80,7 +82,7 @@ enum GauntletSkillType {
 # ============================================
 # Every item exists at level 1 (the only level that drops) and can be forged
 # up by consuming extra copies of the same item at the Blacksmith:
-#   Basic/Common/Rare:  max level 2 — costs 3 extra copies (4 found in total)
+#   Common/Rare:        max level 2 — costs 3 extra copies (4 found in total)
 #   Legendary/Mythic:   max level 3 — Lv.2 costs 1 extra copy (2 total),
 #                       Lv.3 costs 2 more copies (4 total)
 # Level 2 is a stat boost — by default every nonzero flat bonus gets +1, but
@@ -88,7 +90,7 @@ enum GauntletSkillType {
 # (legendary/mythic only) is the big power spike: level_3_overrides rewrites
 # item properties — skills, granted cards, on-self abilities — so the item
 # can transform into something build-defining.
-@export var rarity: Rarity = Rarity.BASIC
+@export var rarity: Rarity = Rarity.COMMON
 @export var item_level: int = 1
 # Property name -> new value, applied when the item reaches level 2. When
 # empty, the default +1-to-every-nonzero-bonus boost applies instead.
@@ -237,7 +239,6 @@ var current_cooldown: int = 0  # Current cooldown remaining
 
 func get_rarity_name() -> String:
 	match rarity:
-		Rarity.BASIC: return "Basic"
 		Rarity.COMMON: return "Common"
 		Rarity.RARE: return "Rare"
 		Rarity.LEGENDARY: return "Legendary"
@@ -246,7 +247,6 @@ func get_rarity_name() -> String:
 
 func get_rarity_color() -> Color:
 	match rarity:
-		Rarity.BASIC: return Color(0.75, 0.75, 0.75)
 		Rarity.COMMON: return Color(0.45, 0.85, 0.45)
 		Rarity.RARE: return Color(0.4, 0.6, 1.0)
 		Rarity.LEGENDARY: return Color(1.0, 0.6, 0.2)
@@ -260,7 +260,7 @@ func can_level_up() -> bool:
 	return item_level < get_max_level()
 
 ## Extra copies the forge consumes to reach the NEXT level (on top of the item
-## itself). Totals match the design: basic/common/rare need 4 copies found for
+## itself). Totals match the design: common/rare need 4 copies found for
 ## Lv.2; legendary/mythic need 2 found for Lv.2 and 4 found for Lv.3.
 func get_copies_for_next_level() -> int:
 	if not can_level_up():
@@ -269,7 +269,7 @@ func get_copies_for_next_level() -> int:
 		return 1 if item_level == 1 else 2
 	return 3
 
-## Display name with the forge level, e.g. "Iron Sword (Lv.2)".
+## Display name with the forge level, e.g. "Wooden Sword (Lv.2)".
 func get_display_name() -> String:
 	if item_level <= 1:
 		return item_name
@@ -519,188 +519,8 @@ func get_card_slot_summary() -> String:
 	return "\n".join(parts)
 
 # ============================================
-# SIGNATURE ITEMS (formerly character starting items — now regular loot;
-# no character starts with an item)
+# WEAPONS
 # ============================================
-
-static func create_bloodbound_plate() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Bloodbound Plate"
-	item.item_type = ItemType.CHEST
-	item.item_type_name = "Chest"
-	item.rarity = Rarity.RARE
-	item.weight = 5
-	item.determination_bonus = 2
-	item.special_effect = SpecialEffect.OVERFLOW_HEAL_ARMOR
-	item.special_effect_value = 2    # Heal 2 on overflow
-	item.special_effect_value_2 = 1  # +1 Armor whenever armor is gained
-	item.description = "+2 DET. Overflow: Heal 2. +1 Armor on Armor Gain"
-	return item
-
-static func create_flickerstep_boots() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Flickerstep Boots"
-	item.item_type = ItemType.BOOTS
-	item.item_type_name = "Boots"
-	item.rarity = Rarity.RARE
-	item.weight = 2
-	item.dexterity_bonus = 2
-	item.special_effect = SpecialEffect.GRANT_BLINK_CARD
-	item.special_effect_value = 1
-	item.description = "+2 DEX. Grants 1 Blink card"
-	return item
-
-static func create_grasping_gauntlets() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Grasping Gauntlets"
-	item.item_type = ItemType.GAUNTLETS
-	item.item_type_name = "Gauntlets"
-	item.rarity = Rarity.RARE
-	item.weight = 3
-	item.hand_size_bonus = 2
-	item.special_effect = SpecialEffect.INCREASE_HAND_SIZE
-	item.special_effect_value = 2
-	# Active skill: Power Grip
-	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
-	item.gauntlet_skill_name = "Power Grip"
-	item.gauntlet_skill_description = "Deal 8 damage"
-	item.gauntlet_skill_cooldown = 3
-	item.gauntlet_skill_mana_cost = 2
-	item.gauntlet_skill_effect_id = "power_grip"
-	item.description = "+2 Hand Size. Skill: Power Grip"
-	return item
-
-static func create_scholars_signet() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Scholar's Signet"
-	item.item_type = ItemType.RING
-	item.item_type_name = "Ring"
-	item.rarity = Rarity.RARE
-	item.weight = 0
-	item.intelligence_bonus = 3
-	item.special_effect = SpecialEffect.CHANCE_BOOST
-	item.special_effect_value = 3
-	# Ring trigger: On play utility card, gain mana
-	item.ring_trigger = RingTrigger.ON_PLAY_UTILITY_CARD
-	item.ring_effect = RingEffect.GAIN_MANA
-	item.ring_effect_value = 1
-	item.description = "+3 INT. +3% chance. On Utility: +1 Mana"
-	return item
-
-static func create_adventurers_belt() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Adventurer's Belt"
-	item.item_type = ItemType.BELT
-	item.item_type_name = "Belt"
-	item.rarity = Rarity.RARE
-	item.weight = 1
-	item.special_effect = SpecialEffect.GRANT_CARDS
-	item.granted_card_ids.assign(["healing_potion", "dagger_throw"])
-	item.card_slots = 2
-	item.on_self_heal = 1
-	item.description = "Grants Healing Potion & Dagger Throw. 2 card slots, On-Self: +1 heal"
-	return item
-
-# ============================================
-# SAMPLE RINGS WITH TRIGGERS
-# ============================================
-
-static func create_ring_of_vengeance() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Ring of Vengeance"
-	item.item_type = ItemType.RING
-	item.item_type_name = "Ring"
-	item.rarity = Rarity.RARE
-	item.weight = 0
-	item.strength_bonus = 1
-	item.ring_trigger = RingTrigger.ON_ENEMY_KILL
-	item.ring_effect = RingEffect.HEAL_TO_FULL
-	item.description = "+1 STR. On Kill: Heal to Full"
-	return item
-
-static func create_ring_of_fortitude() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Ring of Fortitude"
-	item.item_type = ItemType.RING
-	item.item_type_name = "Ring"
-	item.rarity = Rarity.RARE
-	item.weight = 0
-	item.determination_bonus = 2
-	item.ring_trigger = RingTrigger.ON_GAIN_ARMOR_THRESHOLD
-	item.ring_trigger_threshold = 10
-	item.ring_effect = RingEffect.GAIN_MANA
-	item.ring_effect_value = 3
-	item.description = "+2 DET. On Gain 10+ Armor: +3 Mana"
-	return item
-
-static func create_ring_of_the_scholar() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Ring of the Scholar"
-	item.item_type = ItemType.RING
-	item.item_type_name = "Ring"
-	item.rarity = Rarity.RARE
-	item.weight = 0
-	item.intelligence_bonus = 2
-	item.ring_trigger = RingTrigger.ON_DRAW_CARD
-	item.ring_effect = RingEffect.GAIN_MANA
-	item.ring_effect_value = 1
-	item.description = "+2 INT. On Draw: +1 Mana"
-	return item
-
-# ============================================
-# SAMPLE GAUNTLETS WITH SKILLS
-# ============================================
-
-static func create_berserker_gauntlets() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Berserker Gauntlets"
-	item.item_type = ItemType.GAUNTLETS
-	item.item_type_name = "Gauntlets"
-	item.rarity = Rarity.RARE
-	item.weight = 4
-	item.strength_bonus = 2
-	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
-	item.gauntlet_skill_name = "Rage Strike"
-	item.gauntlet_skill_description = "Deal 15 damage, take 3 damage"
-	item.gauntlet_skill_cooldown = 4
-	item.gauntlet_skill_mana_cost = 3
-	item.gauntlet_skill_effect_id = "rage_strike"
-	item.description = "+2 STR. Skill: Rage Strike"
-	return item
-
-static func create_guardian_gauntlets() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Guardian Gauntlets"
-	item.item_type = ItemType.GAUNTLETS
-	item.item_type_name = "Gauntlets"
-	item.rarity = Rarity.RARE
-	item.weight = 5
-	item.armor_bonus = 2
-	item.gauntlet_skill_type = GauntletSkillType.PASSIVE
-	item.gauntlet_skill_name = "Stalwart"
-	item.gauntlet_skill_description = "Armor decays 1 less per turn"
-	item.gauntlet_skill_effect_id = "stalwart"
-	item.description = "+2 Armor. Passive: -1 Armor Decay"
-	return item
-
-# ============================================
-# SAMPLE OFF-HAND WEAPONS
-# ============================================
-
-static func create_flame_dagger() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Flame Dagger"
-	item.item_type = ItemType.WEAPON
-	item.weapon_subtype = WeaponSubtype.DAGGER
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.COMMON
-	item.weight = 3
-	item.weapon_damage = 5
-	item.fire_damage_percent = 10.0
-	item.card_slots = 1
-	item.on_self_damage = 1
-	item.description = "5 dmg, +10% Fire Damage. 1 card slot, On-Self: +1 dmg"
-	return item
 
 static func create_frost_orb() -> ItemData:
 	var item = ItemData.new()
@@ -716,339 +536,6 @@ static func create_frost_orb() -> ItemData:
 	return item
 
 # ============================================
-# GENERIC ITEMS
-# ============================================
-
-static func create_iron_helm() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Iron Helm"
-	item.item_type = ItemType.HELM
-	item.item_type_name = "Helm"
-	item.weight = 3
-	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
-	item.special_effect_value = 2
-	item.card_slots = 1
-	item.on_self_block = 1
-	item.description = "+2 Armor on every Armor gain. 1 card slot, On-Self: +1 block"
-	return item
-
-static func create_leather_chest() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Leather Chest"
-	item.item_type = ItemType.CHEST
-	item.item_type_name = "Chest"
-	item.weight = 5
-	item.health_bonus = 2
-	item.special_effect = SpecialEffect.ARMOR_PER_TURN
-	item.special_effect_value = 3
-	item.description = "+3 Armor per turn, +2 Max HP"
-	return item
-
-static func create_iron_sword() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Iron Sword"
-	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Weapon"
-	item.weight = 80
-	item.weapon_damage = 10
-	item.card_slots = 1
-	item.on_self_damage = 2
-	item.description = "+10 Melee Attack damage. Weight 80. 1 card slot, On-Self: +2 dmg"
-	return item
-
-static func create_wooden_shield() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Wooden Shield"
-	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Shield"
-	item.weight = 4
-	item.armor_bonus = 5  # Block value when using basic block action
-	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
-	item.special_effect_value = 2
-	item.weapon_subtype = WeaponSubtype.SHIELD
-	item.card_slots = 1
-	item.on_self_block = 2
-	item.description = "Block: 5. +2 Armor on every Armor gain. 1 card slot, On-Self: +2 block"
-	return item
-
-static func create_gold_ring() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Gold Ring"
-	item.item_type = ItemType.RING
-	item.item_type_name = "Ring"
-	item.rarity = Rarity.COMMON
-	item.weight = 0
-	item.mana_bonus = 2
-	item.ring_trigger = RingTrigger.ON_ENEMY_KILL
-	item.ring_effect = RingEffect.DRAW_CARD
-	item.ring_effect_value = 1
-	item.description = "+2 Mana. On Kill: Draw 1 card"
-	return item
-
-static func create_heavy_greatsword() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Heavy Greatsword"
-	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.RARE
-	item.weight = 130
-	item.weapon_damage = 25
-	item.card_slots = 2
-	item.on_self_damage = 3
-	item.description = "+25 Melee Attack damage. Weight 130. 2 card slots, On-Self: +3 dmg"
-	return item
-
-static func create_leather_boots() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Leather Boots"
-	item.item_type = ItemType.BOOTS
-	item.item_type_name = "Boots"
-	item.weight = 2
-	item.agility_bonus = 2
-	item.card_slots = 1
-	item.on_self_mana_reduction = 1
-	item.description = "+2 Agility. 1 card slot, On-Self: -1 mana cost"
-	return item
-
-static func create_iron_gauntlets() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Iron Gauntlets"
-	item.item_type = ItemType.GAUNTLETS
-	item.item_type_name = "Gauntlets"
-	item.weight = 3
-	item.strength_bonus = 1
-	item.special_effect = SpecialEffect.ARMOR_ON_ARMOR_GAIN
-	item.special_effect_value = 1
-	item.description = "+1 Strength. +1 Armor on every Armor gain"
-	return item
-
-static func create_utility_belt() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Utility Belt"
-	item.item_type = ItemType.BELT
-	item.item_type_name = "Belt"
-	item.weight = 1
-	item.wisdom_bonus = 1
-	item.special_effect = SpecialEffect.GRANT_CARDS
-	item.granted_card_ids.assign(["dagger_throw", "potion_of_continuance"])
-	item.description = "+1 Wisdom. Grants Dagger Throw & Potion of Continuance"
-	return item
-
-# ============================================
-# QUIVERS
-# ============================================
-
-static func create_ice_quiver() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Ice Quiver"
-	item.item_type = ItemType.QUIVER
-	item.item_type_name = "Quiver"
-	item.rarity = Rarity.COMMON
-	item.weight = 2
-	item.ranged_damage_bonus = 1
-	item.on_self_apply_cold = 1
-	item.card_slots = 3
-	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
-	item.description = "All ranged attacks gain +1 damage. On-Self (Arrow): Apply 1 Cold on hit. 3 Arrow card slots."
-	return item
-
-static func create_fire_quiver() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Fire Quiver"
-	item.item_type = ItemType.QUIVER
-	item.item_type_name = "Quiver"
-	item.rarity = Rarity.COMMON
-	item.weight = 2
-	item.ranged_damage_bonus = 2
-	item.on_self_apply_burn = 1
-	item.card_slots = 1
-	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
-	item.description = "All ranged attacks gain +2 damage. On-Self (Arrow): Apply 1 Burn on hit. 1 Arrow card slot."
-	return item
-
-# ============================================
-# SPECIAL BELTS
-# ============================================
-
-static func create_belt_of_greater_healing() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Belt of Greater Healing"
-	item.item_type = ItemType.BELT
-	item.item_type_name = "Belt"
-	item.rarity = Rarity.COMMON
-	item.weight = 2
-	item.healing_bonus = 2
-	item.on_self_heal = 1
-	item.special_effect = SpecialEffect.GRANT_CARDS
-	item.granted_card_ids.assign(["gulped_potion"])
-	item.card_slots = 2
-	item.allowed_card_keywords = [Card.CardKeyword.POCKET]
-	item.description = "All healing effects get +2. Grants Gulped Potion. On-Self: Heal 1 to all allies. 2 Pocket card slots."
-	return item
-
-# ============================================
-# WEAPON ITEMS
-# ============================================
-
-static func create_spiked_shield() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Spiked Shield"
-	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Shield"
-	item.rarity = Rarity.RARE
-	item.weapon_subtype = WeaponSubtype.SHIELD
-	item.weight = 40
-	item.special_effect = SpecialEffect.THORNS_PER_TEMPO
-	item.special_effect_value = 3  # Gain 3 thorns
-	item.special_effect_value_2 = 5  # Every 5 tempo
-	item.on_self_thorns = 3
-	item.block_bonus_to_defense_cards = 1
-	item.card_slots = 1
-	item.description = "Gain 3 Thorns every 5 tempo. On-Self: +3 Thorns on play. +1 block to defense cards. Weight 40."
-	return item
-
-static func create_bow_of_true_sight() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Bow of True Sight"
-	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Bow"
-	item.rarity = Rarity.RARE
-	item.weapon_subtype = WeaponSubtype.BOW
-	item.weight = 30
-	item.weapon_damage = 3
-	item.ranged_damage_bonus = 3
-	item.on_self_damage = 3
-	item.movement_per_tempo_bonus = -2
-	item.card_slots = 1
-	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
-	item.description = "+3 damage. +3 range. -2 movement/tempo. Weight 30. 1 Arrow card slot."
-	return item
-
-static func create_bow_of_deep_wounds() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Bow of Deep Wounds"
-	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Bow"
-	item.rarity = Rarity.RARE
-	item.weapon_subtype = WeaponSubtype.BOW
-	item.weight = 50
-	item.weapon_damage = 10
-	item.on_self_damage = 3
-	item.card_slots = 2
-	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
-	item.description = "+10 damage. On-Self: +3 damage +1 tempo. Weight 50. 2 Arrow card slots."
-	return item
-
-static func create_club() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Club"
-	item.item_type = ItemType.WEAPON
-	item.weapon_subtype = WeaponSubtype.HAMMER
-	item.item_type_name = "Weapon"
-	item.weight = 25
-	item.weapon_damage = 1
-	item.description = "+1 damage. Weight 25."
-	return item
-
-# ============================================
-# MASTERY BREAKPOINT WEAPONS (examples)
-# ============================================
-
-static func create_serpent_fang() -> ItemData:
-	## Polearm with a DEX breakpoint: anyone can wield it, but a dexterous
-	## hand unlocks its sweeping technique.
-	var item = ItemData.new()
-	item.item_name = "Serpent Fang"
-	item.item_type = ItemType.WEAPON
-	item.weapon_subtype = WeaponSubtype.POLEARM
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.RARE
-	item.weight = 40
-	item.weapon_damage = 6
-	item.mastery_stat = "dexterity"
-	item.mastery_threshold = 15
-	item.mastery_card_ids.assign(["sweeping_disarm"])
-	item.mastery_description = "grants Sweeping Disarm while wielded"
-	item.description = "+6 damage. Weight 40. Mastery (DEX 15): grants Sweeping Disarm while wielded."
-	return item
-
-static func create_earthsplitter_sledge() -> ItemData:
-	## Sledgehammer with a STR breakpoint: raw muscle unlocks the heavy swing.
-	var item = ItemData.new()
-	item.item_name = "Earthsplitter Sledge"
-	item.item_type = ItemType.WEAPON
-	item.weapon_subtype = WeaponSubtype.HAMMER
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.RARE
-	item.weight = 90
-	item.weapon_damage = 12
-	item.mastery_stat = "strength"
-	item.mastery_threshold = 15
-	item.mastery_card_ids.assign(["heavy_swing"])
-	item.mastery_description = "grants Heavy Swing while wielded"
-	item.description = "+12 damage. Weight 90. Mastery (STR 15): grants Heavy Swing while wielded."
-	return item
-
-static func create_cyclops_ring() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Cyclops Ring"
-	item.item_type = ItemType.RING
-	item.item_type_name = "Ring"
-	item.rarity = Rarity.RARE
-	item.weight = 0
-	item.fire_resistance_percent = 15.0
-	item.block_bonus_to_defense_cards = 2
-	item.damage_bonus_to_attack_cards = 2
-	item.card_slots = 1
-	item.allowed_card_keywords = [Card.CardKeyword.GEM]
-	item.description = "15% Fire Resistance. +2 block to defense cards. +2 damage to attack cards. 1 Gem card slot."
-	return item
-
-static func create_trailblazers() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Trailblazers"
-	item.item_type = ItemType.BOOTS
-	item.item_type_name = "Boots"
-	item.rarity = Rarity.COMMON
-	item.weight = 10
-	item.special_effect = SpecialEffect.ON_TEMPO_MOVEMENT_DAMAGE
-	item.special_effect_value = 5  # Deal 5 damage
-	item.card_slots = 1
-	item.description = "When causing tempo with movement, deal 5 damage to nearest enemy. Weight 10. 1 card slot."
-	return item
-
-static func create_shadow_dagger() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Shadow Dagger"
-	item.item_type = ItemType.WEAPON
-	item.weapon_subtype = WeaponSubtype.DAGGER
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.RARE
-	item.weight = 10
-	item.weapon_damage = 4
-	item.special_effect = SpecialEffect.ON_KILL_INVISIBLE
-	item.special_effect_value = 75  # Cooldown 75 tempo
-	item.special_effect_value_2 = 10  # Crit chance %
-	item.on_self_damage = 4
-	item.card_slots = 1
-	item.allowed_card_keywords = [Card.CardKeyword.POCKET]
-	item.description = "+4 damage. On Kill: Become invisible (75 tempo cooldown). On-Self (Pocket): Zero mana cards gain 10% extra crit chance. Weight 10."
-	return item
-
-static func create_pocket_knife() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Pocket Knife"
-	item.item_type = ItemType.WEAPON
-	item.weapon_subtype = WeaponSubtype.DAGGER
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.COMMON
-	item.weight = 1
-	item.weapon_damage = 1
-	item.special_effect = SpecialEffect.POCKET_KNIFE_PROC
-	item.description = "On attack speed proc: attack resolves on first tick and costs 2 less tempo (after halving). Weight 1."
-	return item
-
-# ============================================
 # TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
 # ============================================
 
@@ -1059,7 +546,7 @@ static func create_wooden_sword() -> ItemData:
 	item.item_name = "Wooden Sword"
 	item.item_type = ItemType.WEAPON
 	item.item_type_name = "Weapon"
-	item.rarity = Rarity.BASIC
+	item.rarity = Rarity.COMMON
 	item.weight = 2
 	item.weapon_damage = 0
 	item.card_slots = 1
@@ -1070,140 +557,8 @@ static func create_wooden_sword() -> ItemData:
 	return item
 
 # ============================================
-# LEGENDARY ITEMS (max level 3)
+# MYTHIC ITEMS (max level 3)
 # ============================================
-# Some legendaries carry a baked-in skill; level 3 transforms it via
-# level_3_overrides into the build-defining version.
-
-static func create_dawnbreaker_greatsword() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Dawnbreaker Greatsword"
-	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.LEGENDARY
-	item.weight = 110
-	item.weapon_damage = 20
-	item.strength_bonus = 2
-	item.card_slots = 2
-	item.on_self_damage = 3
-	item.description = "+20 Melee Attack damage, +2 STR. Weight 110. 2 card slots, On-Self: +3 dmg"
-	item.level_3_overrides = {
-		"damage_bonus_to_attack_cards": 3,
-		"on_self_damage": 6,
-	}
-	item.level_3_description = "+20 Melee Attack damage, +2 STR. ALL attack cards deal +3 damage. Weight 110. 2 card slots, On-Self: +6 dmg"
-	return item
-
-static func create_aegis_of_the_colossus() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Aegis of the Colossus"
-	item.item_type = ItemType.WEAPON
-	item.item_type_name = "Shield"
-	item.weapon_subtype = WeaponSubtype.SHIELD
-	item.rarity = Rarity.LEGENDARY
-	item.weight = 45
-	item.armor_bonus = 8
-	item.block_bonus_to_defense_cards = 1
-	item.card_slots = 1
-	item.on_self_block = 2
-	item.description = "Block: 8. +1 block to defense cards. Weight 45. 1 card slot, On-Self: +2 block"
-	item.level_3_overrides = {
-		"block_bonus_to_defense_cards": 3,
-		"special_effect": SpecialEffect.ARMOR_ON_ARMOR_GAIN,
-		"special_effect_value": 3,
-	}
-	item.level_3_description = "Block: 8. +3 block to defense cards. +3 Armor on every Armor gain. Weight 45. 1 card slot, On-Self: +2 block"
-	return item
-
-static func create_ring_of_the_phoenix() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Ring of the Phoenix"
-	item.item_type = ItemType.RING
-	item.item_type_name = "Ring"
-	item.rarity = Rarity.LEGENDARY
-	item.weight = 0
-	item.determination_bonus = 2
-	item.ring_trigger = RingTrigger.ON_TAKE_DAMAGE
-	item.ring_effect = RingEffect.GAIN_ARMOR
-	item.ring_effect_value = 2
-	item.description = "+2 DET. On Take Damage: Gain 2 Armor"
-	item.level_3_overrides = {
-		"ring_effect_value": 4,
-		"determination_bonus": 4,
-	}
-	item.level_3_description = "+4 DET. On Take Damage: Gain 4 Armor"
-	return item
-
-# ============================================
-# MYTHIC ITEMS (max level 3, all carry a skill)
-# ============================================
-
-static func create_worldsplitter_gauntlets() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Worldsplitter Gauntlets"
-	item.item_type = ItemType.GAUNTLETS
-	item.item_type_name = "Gauntlets"
-	item.rarity = Rarity.MYTHIC
-	item.weight = 5
-	item.strength_bonus = 3
-	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
-	item.gauntlet_skill_name = "Worldsplitter"
-	item.gauntlet_skill_description = "Deal 20 damage"
-	item.gauntlet_skill_cooldown = 4
-	item.gauntlet_skill_mana_cost = 3
-	item.gauntlet_skill_effect_id = "worldsplitter"
-	item.description = "+3 STR. Skill: Worldsplitter (deal 20 damage)"
-	item.level_3_overrides = {
-		"gauntlet_skill_effect_id": "worldsplitter_awakened",
-		"gauntlet_skill_name": "Worldsplitter Awakened",
-		"gauntlet_skill_description": "Deal 30 damage, gain 5 Armor",
-		"gauntlet_skill_cooldown": 3,
-	}
-	item.level_3_description = "+3 STR. Skill: Worldsplitter Awakened (deal 30 damage, gain 5 Armor)"
-	return item
-
-static func create_crown_of_the_first_king() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Crown of the First King"
-	item.item_type = ItemType.HELM
-	item.item_type_name = "Helm"
-	item.rarity = Rarity.MYTHIC
-	item.weight = 4
-	item.wisdom_bonus = 2
-	item.hand_size_bonus = 1
-	item.special_effect = SpecialEffect.INCREASE_HAND_SIZE
-	item.special_effect_value = 1
-	item.card_slots = 1
-	item.description = "+2 WIS, +1 Hand Size. 1 card slot"
-	item.level_3_overrides = {
-		"hand_size_bonus": 2,
-		"special_effect_value": 2,
-		"mana_bonus": 3,
-		"card_slots": 2,
-	}
-	item.level_3_description = "+2 WIS, +2 Hand Size, +3 Mana. 2 card slots"
-	return item
-
-static func create_eternity_quiver() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Eternity Quiver"
-	item.item_type = ItemType.QUIVER
-	item.item_type_name = "Quiver"
-	item.rarity = Rarity.MYTHIC
-	item.weight = 2
-	item.ranged_damage_bonus = 3
-	item.on_self_apply_burn = 1
-	item.card_slots = 2
-	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
-	item.description = "All ranged attacks gain +3 damage. On-Self (Arrow): Apply 1 Burn on hit. 2 Arrow card slots."
-	item.level_3_overrides = {
-		"ranged_damage_bonus": 5,
-		"on_self_apply_burn": 2,
-		"on_self_apply_cold": 1,
-		"card_slots": 3,
-	}
-	item.level_3_description = "All ranged attacks gain +5 damage. On-Self (Arrow): Apply 2 Burn and 1 Cold on hit. 3 Arrow card slots."
-	return item
 
 static func create_bladed_doughnut() -> ItemData:
 	## Tutorial mythic: the first rat of the story drops it, and Olorin eats it.

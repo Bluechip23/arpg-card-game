@@ -5,6 +5,8 @@ extends SceneTree
 ## heavy main hand can't hide behind a feather off-hand. Shields don't count.
 ## Run: godot --headless --path . --script tests/test_dual_wield.gd
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 var failures := 0
 
 func _check(cond: bool, msg: String) -> void:
@@ -31,8 +33,8 @@ func _initialize() -> void:
 	stats.base_strength = 30
 
 	# --- Sword + shield is NOT dual wielding ---
-	var sword := ItemData.create_iron_sword()      # weight 80
-	var shield := ItemData.create_wooden_shield()  # weight 4
+	var sword := Fixtures.sword()      # weight 80
+	var shield := Fixtures.shield()    # weight 4
 	_check(inv.equip_item(sword, 0), "sword equips in main hand")
 	_check(inv.equip_item(shield, 1), "shield equips in off hand")
 	_check(not inv.is_dual_wielding(), "sword + shield does not count as dual wielding")
@@ -40,7 +42,7 @@ func _initialize() -> void:
 
 	# --- Sword + dagger: BOTH weapons pay the 15% ---
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	var dagger := ItemData.create_shadow_dagger()  # weight 10
+	var dagger := Fixtures.dagger()  # weight 10
 	_check(inv.equip_item(dagger, 1), "dagger equips in off hand")
 	_check(inv.is_dual_wielding(), "sword + dagger counts as dual wielding")
 	# floor(80 * 1.15) + floor(10 * 1.15) = 92 + 11
@@ -54,28 +56,28 @@ func _initialize() -> void:
 
 	# --- Two small blades: the tax is pocket change ---
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
-	inv.equip_item(ItemData.create_shadow_dagger(), 0)
-	inv.equip_item(ItemData.create_shadow_dagger(), 1)
+	inv.equip_item(Fixtures.dagger(), 0)
+	inv.equip_item(Fixtures.dagger(), 1)
 	_check(inv.get_total_weight() == 22, "twin daggers: 11 + 11 (only +2 over raw)")
 
 	# --- Two real weapons: a felt commitment ---
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	inv.equip_item(ItemData.create_serpent_fang(), 0)  # weight 40
-	inv.equip_item(ItemData.create_serpent_fang(), 1)
+	inv.equip_item(Fixtures.polearm(), 0)  # weight 40
+	inv.equip_item(Fixtures.polearm(), 1)
 	_check(inv.get_total_weight() == 92, "paired fangs: 46 + 46 = 92 (+12 over raw)")
 
 	# --- Dual-wielding SHIELDS is a stance too, and pays the same pair tax ---
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	inv.equip_item(ItemData.create_spiked_shield(), 0)  # weight 40
-	inv.equip_item(ItemData.create_spiked_shield(), 1)
+	inv.equip_item(Fixtures.shield(40), 0)  # weight 40
+	inv.equip_item(Fixtures.shield(40), 1)
 	_check(inv.is_dual_wielding(), "twin shields count as dual wielding")
 	_check(inv.get_total_weight() == 92, "paired shields taxed: 46 + 46 = 92")
 
 	# --- Mixed classes stay untaxed: shield + fang ---
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	inv.equip_item(ItemData.create_serpent_fang(), 1)
+	inv.equip_item(Fixtures.polearm(), 1)
 	_check(not inv.is_dual_wielding(), "shield + weapon mixes classes — not dual wielding")
 	_check(inv.get_total_weight() == 80, "shield + fang carries at raw weight (80)")
 

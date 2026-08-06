@@ -94,7 +94,7 @@ func _test_on_kill_conjure() -> void:
 func _test_wooden_sword() -> void:
 	print("-- The Wooden Sword (Olorin's trade) --")
 	var sword = ItemData.create_wooden_sword()
-	_check(sword.rarity == ItemData.Rarity.BASIC, "Wooden Sword is Basic")
+	_check(sword.rarity == ItemData.Rarity.COMMON, "Wooden Sword is Common (Basic no longer exists)")
 	_check(sword.strength_bonus == 0 and sword.weapon_damage == 0 and sword.armor_bonus == 0
 		and sword.health_bonus == 0 and sword.mana_bonus == 0,
 		"provides no stats")
