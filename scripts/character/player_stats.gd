@@ -758,9 +758,9 @@ func is_overburdened() -> bool:
 # ============================================
 
 ## Flash points: 1 per AGI point, refreshed every FLASH_REFRESH_CYCLES tempo
-## cycles (TempoManager drives the refresh). spend_flash_points() is the
-## generic hook — movement costs FLASH_COST_MOVE today; future spends
-## (dodge-blocks, attack-speed proc ticks) draw from the same pool.
+## cycles — 3 cycles = 15 tempo (TempoManager drives the refresh).
+## spend_flash_points() is the generic hook — movement costs FLASH_COST_MOVE;
+## dodge-blocks, attack-speed proc ticks etc. draw from the same pool.
 const FLASH_REFRESH_CYCLES: int = 3
 const FLASH_COST_MOVE: int = 3
 const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way"
@@ -768,6 +768,16 @@ const FLASH_BLOCK_ARMOR: int = 2
 const FLASH_STRIKE_DAMAGE: int = 1   # Flash Cut keystone: damage per Sidestep spend (placeholder)
 const FLASH_COST_PROC_TICK: int = 5  # advance the attack-speed counter 1 tick
 const FLASH_COST_DRAW: int = 4       # Flash Reserves keystone: draw a card
+
+# ---- The free-hand stance ----
+# Exactly one hand item (weapon OR shield) with a genuinely empty hand.
+# Kept fresh by Inventory. Benefits: the flash parry costs 1 less, and every
+# SINGLE_HAND_ECHO_EVERY-th attack echoes — it triggers twice. The echo is
+# free: it never advances the attack-speed counter and can't itself echo.
+const SINGLE_HAND_ECHO_EVERY: int = 12
+var free_hand_stance: bool = false
+var _free_hand_attack_count: int = 0
+var _pending_free_hand_echo: bool = false
 
 var current_flash_points: int = 0
 # HUD toggle (the lightning-bolt button): spending flash on movement is the
@@ -791,17 +801,24 @@ func spend_flash_points(amount: int) -> bool:
 	flash_points_changed.emit(current_flash_points, get_max_flash_points())
 	return true
 
+func get_flash_block_cost() -> int:
+	## The free-hand stance parries cheaper (3 → 2): one hand item, one hand
+	## empty, nothing between you and the sidestep.
+	return FLASH_COST_BLOCK - 1 if free_hand_stance else FLASH_COST_BLOCK
+
 func spend_flash_for_block() -> bool:
-	## Convert FLASH_COST_BLOCK flash points into FLASH_BLOCK_ARMOR armor.
+	## Convert flash points into FLASH_BLOCK_ARMOR armor (cost via
+	## get_flash_block_cost — the free-hand stance discounts it).
 	## Raw armor on purpose — this is a sidestep, not a block card, so
 	## enchantment/sphere block bonuses don't apply.
-	if not spend_flash_points(FLASH_COST_BLOCK):
+	var cost := get_flash_block_cost()
+	if not spend_flash_points(cost):
 		return false
 	current_armor += FLASH_BLOCK_ARMOR
 	armor_changed.emit(current_armor)
 	armor_gained.emit(FLASH_BLOCK_ARMOR)
 	print("[STATS] Flash block: -%d flash → +%d armor (%d armor total)" % [
-		FLASH_COST_BLOCK, FLASH_BLOCK_ARMOR, current_armor])
+		cost, FLASH_BLOCK_ARMOR, current_armor])
 	return true
 
 func spend_flash_for_strike() -> bool:
@@ -814,7 +831,7 @@ func spend_flash_for_proc_tick() -> bool:
 	## hands"). Reuses register_attack, so reaching 0 fires the proc normally.
 	if not spend_flash_points(FLASH_COST_PROC_TICK):
 		return false
-	register_attack()
+	register_attack(false)  # a bought tick, not a real attack — no echo credit
 	return true
 
 # ============================================
@@ -853,9 +870,19 @@ func get_attack_speed_threshold() -> int:
 		threshold -= DUAL_WIELD_COUNTER_BONUS
 	return max(ATTACK_COUNTER_MIN, threshold)
 
-func register_attack() -> Dictionary:
+func register_attack(is_real_attack: bool = true) -> Dictionary:
 	current_attack_counter -= 1
-	
+
+	# Free hand: every 12th registered attack echoes. Echoes themselves are
+	# never registered, so they can't advance this count or the DEX counter —
+	# and bought counter ticks (flash proc-tick) aren't attacks either.
+	if free_hand_stance and is_real_attack:
+		_free_hand_attack_count += 1
+		if _free_hand_attack_count >= SINGLE_HAND_ECHO_EVERY:
+			_free_hand_attack_count = 0
+			_pending_free_hand_echo = true
+			print("[STATS] Free hand echo! The attack strikes twice.")
+
 	print("[STATS] Attack counter: %d / %d" % [current_attack_counter, get_attack_speed_threshold()])
 	
 	if current_attack_counter <= 0:
@@ -890,6 +917,13 @@ func register_attack() -> Dictionary:
 
 func get_attacks_until_proc() -> int:
 	return current_attack_counter
+
+func consume_free_hand_echo() -> bool:
+	## True exactly once per armed echo — the attack that was just registered
+	## should repeat. Callers fire the repeat WITHOUT registering it again.
+	var fire := _pending_free_hand_echo
+	_pending_free_hand_echo = false
+	return fire
 
 # ============================================
 # INTELLIGENCE CALCULATIONS

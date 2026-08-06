@@ -414,9 +414,11 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 func _recalculate_carry_load() -> void:
 	if not player_stats:
 		return
-	
+
 	var total_weight = get_total_weight()
 	player_stats.set_carry_load(total_weight)
+	# Equipment changed — re-read the free-hand stance while we're here.
+	player_stats.free_hand_stance = is_free_handing()
 	
 func _apply_special_effect(item: ItemData, equipping: bool) -> void:
 	if not player_stats:
@@ -970,6 +972,21 @@ func is_dual_wielding() -> bool:
 	## weapon, and the two-handed grip locks its second slot, so those states
 	## never count by construction.)
 	return _wielded_class_count(false) >= 2 or _wielded_class_count(true) >= 2
+
+func is_free_handing() -> bool:
+	## The free-hand stance: exactly ONE hand item — weapon OR shield — with a
+	## genuinely empty hand. The two-handed grip fills both hands, and a quiver
+	## occupies a hand too, so neither qualifies.
+	if two_handed_slot >= 0:
+		return false
+	var held = 0
+	for w in equipped_weapons:
+		if w != null:
+			held += 1
+	for q in equipped_quivers:
+		if q != null:
+			held += 1
+	return held == 1 and weapon_slots >= 2
 
 ## Weighted Strikes keystone: the weight-to-damage bonus that two-handing grants,
 ## extended to one-handed weapons so a heavy single-hander feeds basic attacks.
