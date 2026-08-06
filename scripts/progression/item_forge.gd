@@ -7,8 +7,12 @@ extends RefCounted
 ## Rules (see ItemData's rarity section for the copy math):
 ##   * Only level-1 items drop; higher levels exist only through the forge.
 ##   * Fodder copies must be level 1, unequipped (inventory or stash), carry no
-##     slotted cards (so enchanted cards are never silently destroyed), and
-##     must not be the item being upgraded.
+##     SLOTTED cards (so enchanted cards are never silently destroyed — pull
+##     them out at the Blacksmith first), and must not be the item being
+##     upgraded. Cards an item GRANTS on its own (granted/mastery instances)
+##     belong to the item and die with the consumed copy — they never block
+##     forging, otherwise no card-granting item could ever be fodder once
+##     equipped.
 ##   * The upgraded item itself must also be unequipped — town restores stat
 ##     snapshots without re-applying equip bonuses, so forging an equipped
 ##     item would desync player stats.
@@ -22,7 +26,7 @@ static func get_fodder_copies(inv: Inventory, target: ItemData) -> Array[ItemDat
 			if item == null or item == target:
 				continue
 			if item.item_name == target.item_name and item.item_level == 1 \
-					and item.slotted_cards.is_empty() and item.granted_card_instances.is_empty():
+					and item.slotted_cards.is_empty():
 				copies.append(item)
 	return copies
 
@@ -51,7 +55,7 @@ static func forge(inv: Inventory, target: ItemData) -> bool:
 	return true
 
 ## Mold two spare mythic items down into one Mythic Mold. Both must be
-## unequipped level-1 mythics with no slotted/granted card instances attached.
+## unequipped level-1 mythics with no cards slotted into them.
 static func can_mold(inv: Inventory, a: ItemData, b: ItemData) -> bool:
 	if a == null or b == null or a == b:
 		return false
@@ -60,7 +64,7 @@ static func can_mold(inv: Inventory, a: ItemData, b: ItemData) -> bool:
 			return false
 		if not is_unequipped(inv, item):
 			return false
-		if not item.slotted_cards.is_empty() or not item.granted_card_instances.is_empty():
+		if not item.slotted_cards.is_empty():
 			return false
 	return true
 
@@ -126,7 +130,7 @@ static func get_moldable_mythics(inv: Inventory) -> Array[ItemData]:
 			if item == null:
 				continue
 			if item.rarity == ItemData.Rarity.MYTHIC and item.item_level == 1 \
-					and item.slotted_cards.is_empty() and item.granted_card_instances.is_empty():
+					and item.slotted_cards.is_empty():
 				result.append(item)
 	return result
 

@@ -267,6 +267,50 @@ Characters equip items into typed slots: **Helm, Chest, Rings, Belt, Boots, Gaun
 
 Items grant stat bonuses, resource bonuses, hand size, weapon damage, and special effects. Each item has a general theme, although they do not always follow them specifically.
 
+### Rarity & drops
+
+Every item — weapons and armor alike — has one of five rarities:
+
+| Rarity | Color | Max level |
+|---|---|---|
+| **Basic** | Gray | 2 |
+| **Common** | Green | 2 |
+| **Rare** | Blue | 2 |
+| **Legendary** | Orange | 3 |
+| **Mythic** | Purple | 3 |
+
+**Only level-1 items ever drop** — higher levels exist exclusively through the Blacksmith's Forge (below).
+
+What drops depends on the source. Tougher enemies skew toward better loot (weights, roughly percentages):
+
+| Source | Basic | Common | Rare | Legendary |
+|---|---|---|---|---|
+| Trash enemies | 62 | 30 | 8 | — |
+| Mid-tier enemies | 45 | 33 | 18 | 4 |
+| Elites | 20 | 35 | 35 | 10 |
+| Bosses | — | 20 | 55 | 25 |
+| Chests | 54 | 30 | 12 | 3 (+1 mythic) |
+
+**Mythics play by their own rules.** Outside of the rare chest roll, mythics never come from the regular loot table — they come from the per-act **pity system** ("mythic creep"): each act all-but-guarantees one mythic per character. Until it drops, every story kill raises the chance (starting at 0.2%, +0.05% per kill — it typically lands around kill 60 and is near-certain by 150). Once the act's mythic has dropped, mythic chances return to a small per-kill baseline (mid 0.2%, elite 1%, boss 5% — trash enemies never roll one). **Act 1 is the exception:** after its one guaranteed mythic, act 1 never drops another for that character, chests included.
+
+The tuning target: a full story playthrough yields on the order of **1,000 item drops** and around **10 mythics** — enough to forge one mythic to Lv.3 while keeping spares for the build.
+
+### Item levels & the Forge
+
+Items are upgraded at the town Blacksmith's **Forge** by consuming spare copies of the same item:
+
+- **Basic / Common / Rare** items reach **Lv.2** by consuming **3 spare copies** (4 found in total).
+- **Legendary / Mythic** items reach **Lv.2** with **1 spare copy** (2 found), and **Lv.3** with **2 more** (4 found in total).
+
+What a level does:
+
+- **Lv.2 — a stat boost.** damage, stats, armor, health, and so on.
+- **Lv.3 — a transformation** (legendary/mythic only). The item's baked-in skill, granted cards, on self abilities, are potentially rewritten into a stronger form.
+
+Forge rules: the upgrade target and all copies must be **unequipped** (inventory or stash), and copies must be level 1. A copy currently holding a card **you slotted into it** can't be used to forge until you extract the card at the Blacksmith. Empty card slots are fine, and cards an item **grants on its own** never block forging.
+
+**Mythic Molds**: mold **two spare level-1 mythics** down into one **Mythic Mold**. Redeemable at the Blacksmith for a fresh copy of **any mythic you have owned before** (never an unfound one). Seven mythic drops therefore guarantee a Lv.3 mythic of your choice.
+
 ### Weight & carry capacity
 
 Every item has weight. Your capacity is **50 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs while traveling light speeds them up (both capped). **Total carrying weight is used when understanding attack speed, not just weapon weight.**
