@@ -65,5 +65,19 @@ func _initialize() -> void:
 	inv.equip_item(ItemData.create_serpent_fang(), 1)
 	_check(inv.get_total_weight() == 92, "paired fangs: 46 + 46 = 92 (+12 over raw)")
 
+	# --- Dual-wielding SHIELDS is a stance too, and pays the same pair tax ---
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	inv.equip_item(ItemData.create_spiked_shield(), 0)  # weight 40
+	inv.equip_item(ItemData.create_spiked_shield(), 1)
+	_check(inv.is_dual_wielding(), "twin shields count as dual wielding")
+	_check(inv.get_total_weight() == 92, "paired shields taxed: 46 + 46 = 92")
+
+	# --- Mixed classes stay untaxed: shield + fang ---
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	inv.equip_item(ItemData.create_serpent_fang(), 1)
+	_check(not inv.is_dual_wielding(), "shield + weapon mixes classes — not dual wielding")
+	_check(inv.get_total_weight() == 80, "shield + fang carries at raw weight (80)")
+
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
