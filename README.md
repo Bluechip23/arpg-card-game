@@ -289,7 +289,7 @@ What a level does:
 - **Lv.2 — a stat boost.** Every nonzero flat bonus the item grants gets **+1** (damage, stats, armor, health, and so on).
 - **Lv.3 — a transformation** (legendary/mythic only). The item's baked-in skill is rewritten into a stronger form, with a new description — this is the chase: the item stops being a bigger number and becomes a different weapon.
 
-Forge rules: the upgrade target and all fodder copies must be **unequipped** (inventory or stash), and fodder must be level 1 with **no cards slotted** — the forge never silently destroys an enchantment.
+Forge rules: the upgrade target and all fodder copies must be **unequipped** (inventory or stash), and fodder must be level 1. A copy currently holding a card **you slotted into it** can't be fodder until you extract the card at the Blacksmith — the forge never silently destroys an enchantment. Empty card slots are fine, and cards an item **grants on its own** never block forging (they belong to the item and vanish with the consumed copy).
 
 **Mythic Molds** solve the "wrong mythic" problem: mold **two spare level-1 mythics** down into one **Mythic Mold**, redeemable at the Blacksmith for a fresh copy of **any mythic you have owned before** (never an unfound one). Seven mythic drops therefore guarantee a Lv.3 mythic of your choice: keep one, mold the other six into three copies of it.
 

@@ -146,6 +146,17 @@ func _test_fodder_rules() -> void:
 		"copies holding enchanted cards are not fodder")
 	_check(not ItemForge.can_forge(inv, target), "not enough clean copies -> blocked")
 
+	# A copy that GRANTS cards on its own (built once it was first equipped)
+	# is still fodder — its intrinsic cards die with it, nothing of the
+	# player's is lost.
+	var granting = inv.stored_items[2]
+	granting.granted_cards_built = true
+	var granted := Card.create_dagger_throw()
+	granted.granted_by_item = granting
+	granting.granted_card_instances.append(granted)
+	_check(ItemForge.get_fodder_copies(inv, target).has(granting),
+		"previously-equipped card-granting copies remain valid fodder")
+
 	# An equipped item cannot be the forge target
 	var equipped_target = ItemData.create_iron_helm()
 	inv.equip_item(equipped_target, 0)
@@ -161,6 +172,12 @@ func _test_mythic_molding() -> void:
 	var b = ItemData.create_eternity_quiver()
 	inv.store_item(a)
 	inv.stash_item(b)
+
+	# Having been equipped (granted-card instances built) does not block molding.
+	a.granted_cards_built = true
+	var a_card := Card.create_dagger_throw()
+	a_card.granted_by_item = a
+	a.granted_card_instances.append(a_card)
 
 	_check(ItemForge.get_moldable_mythics(inv).size() == 2, "both spare mythics are moldable")
 	_check(ItemForge.mold_mythics(inv, a, b), "2 mythics mold into 1 Mythic Mold")
