@@ -267,7 +267,7 @@ func _get_random_loot_item(type: Enemy.EnemyType) -> ItemData:
 	var rarity = DropRates.roll_weighted(weights)
 	var pool = ItemData.get_items_of_rarity(rarity)
 	if pool.is_empty():
-		pool = ItemData.get_items_of_rarity(ItemData.Rarity.BASIC)
+		pool = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
 	return pool[randi() % pool.size()]
 
 func _get_random_loot_card() -> Card:

@@ -431,26 +431,12 @@ func _get_vendor_items(vendor_type: String) -> Array[ItemData]:
 	var items: Array[ItemData] = []
 	match vendor_type:
 		"armory":
-			items.append(ItemData.create_iron_sword())
-			items.append(ItemData.create_heavy_greatsword())
-			items.append(ItemData.create_flame_dagger())
+			items.append(ItemData.create_wooden_sword())
 			items.append(ItemData.create_frost_orb())
-			items.append(ItemData.create_wooden_shield())
-			items.append(ItemData.create_iron_helm())
-			items.append(ItemData.create_leather_chest())
-			items.append(ItemData.create_iron_gauntlets())
-			items.append(ItemData.create_berserker_gauntlets())
-			items.append(ItemData.create_guardian_gauntlets())
 		"accessory":
-			items.append(ItemData.create_ice_quiver())
-			items.append(ItemData.create_fire_quiver())
-			items.append(ItemData.create_belt_of_greater_healing())
-			items.append(ItemData.create_utility_belt())
-			items.append(ItemData.create_leather_boots())
-			items.append(ItemData.create_gold_ring())
-			items.append(ItemData.create_ring_of_vengeance())
-			items.append(ItemData.create_ring_of_fortitude())
-			items.append(ItemData.create_ring_of_the_scholar())
+			# No accessory items exist right now — the shelf stands empty
+			# until new accessories are added to ItemData.
+			pass
 	return items
 
 func _open_vendor(vendor_node: StaticBody3D) -> void:

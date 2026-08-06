@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## Smoke test for the drag-and-drop inventory panel.
 ## Run: godot --headless --path . --script tests/test_inventory_dragdrop.gd
 
@@ -45,10 +47,10 @@ func _initialize() -> void:
 	_check(true, "panel instantiated without crashing")
 
 	# --- Put an item in storage, then equip it via the drop router ---
-	var helm := ItemData.create_iron_helm()  # HELM, has card slots + on-self block
+	var helm := Fixtures.helm()  # HELM, has card slots + on-self block
 	inv.store_item(helm)
 	var stored_before := inv.get_stored_item_count()
-	_check(stored_before >= 1, "iron helm stored")
+	_check(stored_before >= 1, "test helm stored")
 
 	# Storage index of the helm
 	var helm_idx := inv.stored_items.find(helm)
@@ -60,7 +62,7 @@ func _initialize() -> void:
 	_check(inv.get_stored_item_count() == stored_before - 1, "helm removed from storage after equip")
 
 	# --- Type guard: a belt payload must be rejected by a helm slot ---
-	var belt := ItemData.create_utility_belt()
+	var belt := Fixtures.belt()
 	var belt_payload := {"kind": "item", "source": "storage", "item": belt}
 	var helm_cell := EquipmentSlotCell.new()
 	helm_cell.setup(panel, ItemData.ItemType.HELM, 0, helm)
@@ -86,8 +88,8 @@ func _initialize() -> void:
 	_check(inv.stored_items.has(helm), "helm back in storage")
 
 	# --- Move/swap between two ring slots (Ryan has 2 ring slots) ---
-	var r1 := ItemData.create_gold_ring()
-	var r2 := ItemData.create_ring_of_vengeance()
+	var r1 := Fixtures.ring("Test Ring A")
+	var r2 := Fixtures.ring("Test Ring B")
 	inv.equip_item(r1, 0)
 	inv.equip_item(r2, 1)
 	panel._move_equipped(ItemData.ItemType.RING, 0, 1)
@@ -95,7 +97,7 @@ func _initialize() -> void:
 	_check(inv.get_equipped_item(ItemData.ItemType.RING, 0) == r2, "ring swapped into slot 0")
 
 	# --- Quivers occupy weapon slots (no separate quiver slot) ---
-	var quiver := ItemData.create_ice_quiver()
+	var quiver := Fixtures.quiver()
 	_check(inv._get_slot_array(ItemData.ItemType.QUIVER) == inv.equipped_weapons,
 		"quiver routes to the weapon slot array")
 	inv.equip_item(quiver, 1)  # into an off-hand weapon slot
@@ -104,7 +106,7 @@ func _initialize() -> void:
 	# A weapon slot cell accepts a quiver drop; a boots slot does not.
 	var weapon_cell := EquipmentSlotCell.new()
 	weapon_cell.setup(panel, ItemData.ItemType.WEAPON, 0, null)
-	var quiver_payload := {"kind": "item", "source": "storage", "item": ItemData.create_fire_quiver()}
+	var quiver_payload := {"kind": "item", "source": "storage", "item": Fixtures.quiver()}
 	_check(weapon_cell._can_drop_data(Vector2.ZERO, quiver_payload), "weapon slot accepts a quiver")
 	weapon_cell.free()
 	var boots_cell := EquipmentSlotCell.new()
@@ -114,8 +116,8 @@ func _initialize() -> void:
 
 	# --- Card sub-slot: red plus / on-self detection ---
 	var card_slot := InventoryCardSlot.new()
-	card_slot.setup(panel, helm)  # iron helm has on_self_block = 1
-	_check(card_slot.has_on_self(), "iron helm card slot reports an on-self effect (red plus)")
+	card_slot.setup(panel, helm)  # test helm has on_self_block = 1
+	_check(card_slot.has_on_self(), "test helm card slot reports an on-self effect (red plus)")
 	_check(card_slot.tooltip_text.find("On-Self") != -1, "card slot tooltip describes the on-self effect")
 	card_slot.free()
 

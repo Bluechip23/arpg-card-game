@@ -68,17 +68,9 @@ func _on_apply_debuff_pressed() -> void:
 func _setup_dropdowns() -> void:
 	if item_dropdown:
 		item_dropdown.clear()
-		item_dropdown.add_item("Iron Helm")
-		item_dropdown.add_item("Leather Chest")
-		item_dropdown.add_item("Iron Sword")
-		item_dropdown.add_item("Wooden Shield")
-		item_dropdown.add_item("Gold Ring")
-		item_dropdown.add_item("Flame Dagger")
+		item_dropdown.add_item("Wooden Sword")
 		item_dropdown.add_item("Frost Orb")
-		item_dropdown.add_item("Ring of Vengeance")
-		item_dropdown.add_item("Ring of Fortitude")
-		item_dropdown.add_item("Berserker Gauntlets")
-		item_dropdown.add_item("Guardian Gauntlets")
+		item_dropdown.add_item("Bladed Doughnut")
 	if has_node("Panel/VBox/DebuffDropdown"):
 		var debuff_dropdown = $Panel/VBox/DebuffDropdown as OptionButton
 		debuff_dropdown.clear()

@@ -7,7 +7,7 @@ extends RefCounted
 ## A 30-50h story playthrough should produce ~1,000 item drops and land the
 ## player ~10 mythics — enough for one Lv.3 mythic (7 mythic drops guarantee
 ## one via Mythic Molds) while keeping 3-4 spares for the build. Legendaries
-## ~3%, rares ~12% of item drops; commons/basics fill the rest so something
+## ~3%, rares ~12% of item drops; commons fill the rest so something
 ## always trickles in. Cards drop alongside items so "empty" kills still
 ## feel like potential progression.
 ##
@@ -48,8 +48,7 @@ const MYTHIC_BASELINE_BY_TIER := {
 # Chests: flat baseline. Mythic/legendary stay at baseline in every act
 # (act 1 additionally locks chest mythics once its mythic is found).
 const CHEST_ITEM_WEIGHTS := {
-	ItemData.Rarity.BASIC: 54,
-	ItemData.Rarity.COMMON: 30,
+	ItemData.Rarity.COMMON: 84,
 	ItemData.Rarity.RARE: 12,
 	ItemData.Rarity.LEGENDARY: 3,
 	ItemData.Rarity.MYTHIC: 1,
@@ -59,19 +58,16 @@ const CHEST_ITEM_WEIGHTS := {
 # the per-kill pity layer above, so the numbers stay in one system.
 const ENEMY_ITEM_WEIGHTS := {
 	TIER_TRASH: {
-		ItemData.Rarity.BASIC: 62,
-		ItemData.Rarity.COMMON: 30,
+		ItemData.Rarity.COMMON: 92,
 		ItemData.Rarity.RARE: 8,
 	},
 	TIER_MID: {
-		ItemData.Rarity.BASIC: 45,
-		ItemData.Rarity.COMMON: 33,
+		ItemData.Rarity.COMMON: 78,
 		ItemData.Rarity.RARE: 18,
 		ItemData.Rarity.LEGENDARY: 4,
 	},
 	TIER_ELITE: {
-		ItemData.Rarity.BASIC: 20,
-		ItemData.Rarity.COMMON: 35,
+		ItemData.Rarity.COMMON: 55,
 		ItemData.Rarity.RARE: 35,
 		ItemData.Rarity.LEGENDARY: 10,
 	},

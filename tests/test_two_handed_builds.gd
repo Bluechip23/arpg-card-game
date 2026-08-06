@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## Smoke test for weight-based two-handed wielding, the carry-capacity equip
 ## gate, equipment-swap tempo costs, and the three equipment builds (I/II/III).
 ## Run: godot --headless --path . --script tests/test_two_handed_builds.gd
@@ -37,7 +39,7 @@ func _initialize() -> void:
 		"capacity = base + STR*10 (%d)" % base_cap)
 
 	# --- Two-handed grip: weight halves, capacity drops to 80% ---
-	var sword := ItemData.create_heavy_greatsword()  # weight 130
+	var sword := Fixtures.greatsword()  # weight 130
 	_check(inv.equip_item(sword, 0), "greatsword equips one-handed in slot 0")
 	_check(inv.get_total_weight() == 130, "one-handed carried weight is 130")
 
@@ -54,7 +56,7 @@ func _initialize() -> void:
 		"two-hand bonus flows into physical damage")
 
 	# The locked hand refuses items; there is no third hand slot.
-	var shield := ItemData.create_wooden_shield()
+	var shield := Fixtures.shield()
 	_check(not inv.equip_item(shield, 1), "locked hand slot refuses the shield")
 	_check(not inv.equip_item(shield, 2), "no third hand slot exists")
 

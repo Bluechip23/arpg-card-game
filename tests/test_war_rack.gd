@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## Verifies Brad's War Rack:
 ##   * Brad-only; rack items count carried weight at full (no grip discount).
 ##   * rack_exchange swaps hands <-> back wholesale.
@@ -52,9 +54,9 @@ func _initialize() -> void:
 	_check(not other.has_back_rack, "Ryan does not")
 
 	# --- Setup via exchange: hammer to hands, exchange to back, then sword+shield ---
-	var hammer = ItemData.create_earthsplitter_sledge()  # weight 90, grants Heavy Swing at STR 15
-	var sword = ItemData.create_iron_sword()
-	var shield = ItemData.create_wooden_shield()
+	var hammer = Fixtures.mastery_sledge()  # weight 90, grants Heavy Swing at STR 15
+	var sword = Fixtures.sword()
+	var shield = Fixtures.shield()
 	_check(inv.equip_item(hammer, 0), "hammer equips in hand")
 	var r0: Dictionary = inv.rack_exchange(false)
 	_check(r0["success"], "paid exchange stows the hammer on the back")
