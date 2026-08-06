@@ -1720,6 +1720,9 @@ func _on_attack_pressed() -> void:
 		# Proc-bonus attacks don't count towards the next cycle
 		if not basic_attack_proc:
 			stats.register_attack()
+			if stats.consume_free_hand_echo() and is_instance_valid(target):
+				target.take_damage(damage, true)
+				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
 		if debuff_mgr:
 			debuff_mgr.on_attack()
 		add_battle_log("Basic Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
@@ -4554,11 +4557,12 @@ func _on_flash_block_pressed() -> void:
 	if stats.keystone_flash_strike:
 		_flash_strike(stats)
 		return
+	var parry_cost := stats.get_flash_block_cost()
 	if stats.spend_flash_for_block():
 		add_battle_log("Sidestep! -%d flash, +%d block." % [
-			PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_BLOCK_ARMOR], Color(1.0, 0.9, 0.4))
+			parry_cost, PlayerStats.FLASH_BLOCK_ARMOR], Color(1.0, 0.9, 0.4))
 	else:
-		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
+		add_battle_log("Not enough flash points (%d needed)." % parry_cost, Color(1.0, 0.5, 0.5))
 
 func _flash_strike(stats) -> void:
 	## Flash Cut: spend Sidestep flash to strike the nearest enemy in reach.
@@ -6478,6 +6482,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		# Proc-bonus attacks don't count towards the next cycle
 		if ba_stats and not data.get("basic_attack_proc", false):
 			ba_stats.register_attack()
+			if ba_stats.consume_free_hand_echo() and is_instance_valid(target):
+				target.take_damage(damage, true)
+				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
 
 		if ba_debuff_mgr:
 			ba_debuff_mgr.on_attack()
@@ -8007,6 +8014,9 @@ func _on_manifest_card_clicked(index: int) -> void:
 				var stats = player.get_stats()
 				if stats:
 					stats.register_attack()
+					if stats.consume_free_hand_echo() and is_instance_valid(rand_enemy):
+						rand_enemy.take_damage(result["manifest_value"], true)
+						add_battle_log("Free hand echo! The shuriken strikes twice.", Color(1.0, 0.9, 0.4))
 				print("[MAIN] Shuriken! Dealt %d damage to %s" % [result["manifest_value"], rand_enemy.enemy_name])
 			else:
 				print("[MAIN] Shuriken thrown but no enemies present")
@@ -8079,6 +8089,10 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	# Register attack for attack speed counter (DEX proc)
 	if card.card_type == Card.CardType.ATTACK:
 		stats.register_attack()
+		# Free hand: the 12th attack echoes — the card runs again, free.
+		if stats.consume_free_hand_echo():
+			card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
+			add_battle_log("Free hand echo: %s strikes twice!" % card.card_name, Color(1.0, 0.9, 0.4))
 
 	# Notify debuffs of attack
 	if debuff_mgr and card.card_type == Card.CardType.ATTACK:

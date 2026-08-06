@@ -101,7 +101,7 @@ Every character has six core attributes:
 | **Intelligence (INT)** | +0.5 spell and heal power per point. +0.15 mana regen per point (about +1 per 7). |
 | **Wisdom (WIS)** | +1 hand size for every 5 points. Every 4 points draw your next card 1 tempo sooner. |
 | **Determination (DET)** | Controls how low health affects your other stats. At 15 it does nothing. Above 15, your stats *climb* as your health drops; below 15, they *fall*. The lower your health, the bigger the swing. roughly ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below.|
-| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 3 cycles. Spending them is a choice: **3 points** move a tile without spending tempo, **3 points** buy 2 block, **5 points** advance the attack-speed counter one tick. Without Flash, each tile moved costs 1 tempo. |
+| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 3 cycles (15 tempo). Spending them is a choice: **3 points** move a tile without spending tempo, **3 points** buy 2 block (**2 points** with a free hand), **5 points** advance the attack-speed counter one tick. Without Flash, each tile moved costs 1 tempo. |
 
 All characters share a base **5% critical hit chance** and **110% critical damage**. Crit chance is raised only by items, cards, and other effects. No stat affects it. As previously mentioned, crit damage scales with Dexterity.
 
@@ -320,6 +320,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 - Weapon slot 1 is your main hand; additional hand slots are **off-hands**, which apply their bonuses at reduced (90%) effectiveness by default.
 - **Any item can go in any hand** — there is no main-hand/off-hand *type* restriction. You can wear a shield in your main hand and a sword in an off-hand, a quiver alongside a bow, and so on. The 90% off-hand reduction is about *which slot* an item sits in, not what type of item it is.
 - **Dual wielding carries a weight tax.** Holding a pair of weapons — or a pair of **shields**, twin-shield stances are welcome — makes **every** item of the pair count **15% heavier** toward your carry load. The penalty hits both hands, so a huge main-hand weapon can't hide behind a feather-light off-hand. Twin daggers barely notice; pairing two real weapons is a Strength commitment. Sword-and-shield mixes classes and doesn't count as dual wielding.
+- **The free hand.** Wielding exactly one hand item — weapon **or** shield — with your other hand truly empty is a stance of its own: the flash **parry costs 2 instead of 3**, and **every 12th attack echoes**, triggering twice (attack cards included). The echo is free — it never advances the attack-speed counter and can't itself echo. The two-handed grip fills both hands and a quiver occupies a hand, so neither qualifies.
 - **Exception — bows are two-handed.** A bow never shares the hands with another weapon or shield; the only hand item that rides along with a bow is a quiver.
 - **Any weapon or shield can be gripped with both hands** — it's a player choice per slot, not an item property. Two-handing:
   - halves the item's carried weight (letting a weaker character wield huge gear),

@@ -522,6 +522,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# Proc-bonus attacks don't count towards the next cycle
 		if card.card_type == Card.CardType.ATTACK and player_stats and not was_half_tempo:
 			player_stats.register_attack()
+			# Free hand: the 12th attack echoes — the card runs again, free.
+			if player_stats.consume_free_hand_echo():
+				card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+				print("[DECK] Free hand echo: %s strikes twice!" % card.card_name)
 
 		if debuff_mgr and card.card_type == Card.CardType.ATTACK:
 			debuff_mgr.on_attack()
@@ -626,6 +630,10 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	# Register attack for attack speed counter (DEX proc)
 	if card.card_type == Card.CardType.ATTACK and player_stats:
 		player_stats.register_attack()
+		# Free hand: the 12th attack echoes — the card runs again, free.
+		if player_stats.consume_free_hand_echo():
+			card.execute(target, effect_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+			print("[DECK] Free hand echo: %s strikes twice!" % card.card_name)
 
 	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
 		debuff_mgr.on_attack()

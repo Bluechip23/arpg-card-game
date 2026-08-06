@@ -414,9 +414,11 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 func _recalculate_carry_load() -> void:
 	if not player_stats:
 		return
-	
+
 	var total_weight = get_total_weight()
 	player_stats.set_carry_load(total_weight)
+	# Equipment changed — re-read the free-hand stance while we're here.
+	player_stats.free_hand_stance = is_free_handing()
 	
 func _apply_special_effect(item: ItemData, equipping: bool) -> void:
 	if not player_stats:
@@ -965,11 +967,37 @@ func _wielded_class_count(shields: bool) -> int:
 	return count
 
 func is_dual_wielding() -> bool:
-	## A pair of weapons OR a pair of shields in hand slots. Sword-and-shield
-	## mixes classes and doesn't count. (A bow never shares hands with another
-	## weapon, and the two-handed grip locks its second slot, so those states
-	## never count by construction.)
+	## True while a MATCHED pair fills the hands: two weapons, or two shields.
+	## Weapon-and-shield is the neutral classic and doesn't count. No toggle —
+	## the state is read straight off the loadout. (A bow never shares hands
+	## with another weapon, and the two-handed grip locks its second slot, so
+	## those states never count by construction.)
 	return _wielded_class_count(false) >= 2 or _wielded_class_count(true) >= 2
+
+func is_free_handing() -> bool:
+	## The free-hand stance: exactly ONE hand item — weapon OR shield — with a
+	## genuinely empty hand. The two-handed grip fills both hands, and a quiver
+	## occupies a hand too, so neither qualifies.
+	if two_handed_slot >= 0:
+		return false
+	var held = 0
+	for w in equipped_weapons:
+		if w != null:
+			held += 1
+	for q in equipped_quivers:
+		if q != null:
+			held += 1
+	return held == 1 and weapon_slots >= 2
+
+## Weight change from placing item into slot_index, computed by trial
+## placement (get_total_weight is side-effect free). Catches the dual-wield
+## surcharge a new hand item imposes on the item ALREADY in the other hand.
+func _prospective_weight_delta(item: ItemData, slot_array: Array, slot_index: int) -> int:
+	var before = get_total_weight()
+	slot_array[slot_index] = item
+	var after = get_total_weight()
+	slot_array[slot_index] = null
+	return after - before
 
 ## Weighted Strikes keystone: the weight-to-damage bonus that two-handing grants,
 ## extended to one-handed weapons so a heavy single-hander feeds basic attacks.
@@ -1018,24 +1046,6 @@ func get_slot_info() -> Dictionary:
 
 func is_two_handing() -> bool:
 	return two_handed_slot >= 0
-
-func is_dual_wielding() -> bool:
-	## True while a MATCHED pair fills both hand slots: two weapons, or two
-	## shields. Weapon-and-shield is the neutral classic and doesn't count.
-	## No toggle — the state is read straight off the loadout. A two-handed
-	## grip locks the other hand, so the states are naturally exclusive.
-	if two_handed_slot >= 0 or equipped_weapons.size() < 2:
-		return false
-	var main_hand = equipped_weapons[0]
-	var off_hand = equipped_weapons[1]
-	if main_hand == null or off_hand == null:
-		return false
-	if main_hand.item_type != ItemData.ItemType.WEAPON \
-			or off_hand.item_type != ItemData.ItemType.WEAPON:
-		return false
-	var main_is_shield = main_hand.weapon_subtype == ItemData.WeaponSubtype.SHIELD
-	var off_is_shield = off_hand.weapon_subtype == ItemData.WeaponSubtype.SHIELD
-	return main_is_shield == off_is_shield
 
 func get_two_handed_item() -> ItemData:
 	if two_handed_slot < 0 or two_handed_slot >= equipped_weapons.size():
