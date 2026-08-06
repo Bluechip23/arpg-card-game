@@ -71,8 +71,8 @@ func _initialize() -> void:
 	# --- Determination swings do NOT flicker mastery (base stat only) ---
 	var fang = ItemData.create_serpent_fang()
 	stats.base_dexterity = 14  # one short of DEX 15
-	stats.determination = 20
-	stats.current_health = maxi(1, int(stats.max_health * 0.1))  # effective DEX doubles
+	stats.determination = 65
+	stats.current_health = maxi(1, int(stats.max_health * 0.1))  # effective DEX x1.5
 	_check(stats.dexterity >= 15, "effective DEX is over the threshold (sanity)")
 	_check(not fang.is_mastered_by(stats), "mastery ignores the Determination swing — base DEX 14 stays locked")
 	stats.current_health = stats.max_health

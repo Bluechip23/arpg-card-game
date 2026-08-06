@@ -18,12 +18,12 @@ func _build_legend() -> void:
 	
 	# Stats Section
 	_add_section_header("CORE STATS")
-	_add_keyword("Strength (STR)", "+10 carry capacity per point, +1 physical damage per 2 points")
-	_add_keyword("Dexterity (DEX)", "-1 attack speed counter per point. At 0 counter: next attack costs 2 less mana + half tempo. Also +5% crit damage per point (base 150%)")
-	_add_keyword("Intelligence (INT)", "+1 spell damage per 2 points, +1 mana regen per 5 points")
-	_add_keyword("Wisdom (WIS)", "+1 hand size per 5 points; draws cards 1 tempo sooner per point (base every 25 tempo, fastest every 5)")
-	_add_keyword("Agility (AGI)", "Each AGI point grants 1 Flash point, refreshed every 2 cycles. Spent by choice via the Flash row: boots toggle = 1 Flash per tile moved (no tempo), sidestep = 3 Flash for 2 block, daggers = 5 Flash for 1 attack-speed tick. Otherwise each tile costs 1 tempo.")
-	_add_keyword("Determination (DET)", "Modifies STR/DEX/INT/WIS/AGI at low health thresholds. DET 10 = no effect. Above 10 = bonus when hurt, below 10 = penalty when hurt")
+	_add_keyword("Strength (STR)", "+10 carry capacity per point, +0.5 physical damage per point")
+	_add_keyword("Dexterity (DEX)", "-0.5 attack speed counter per point (base 45). At 0 counter: next attack costs 2 less mana + half tempo. Also +3% crit damage per point (base 110%)")
+	_add_keyword("Intelligence (INT)", "+0.5 spell damage per point, +0.15 mana regen per point (about +1 per 7)")
+	_add_keyword("Wisdom (WIS)", "+1 hand size per 5 points; draws cards 1 tempo sooner per 4 points (base every 25 tempo)")
+	_add_keyword("Agility (AGI)", "Each AGI point grants 1 Flash point, refreshed every 3 cycles. Spent by choice via the Flash row: boots toggle = 3 Flash per tile moved (no tempo), sidestep = 3 Flash for 2 block, daggers = 5 Flash for 1 attack-speed tick. Otherwise each tile costs 1 tempo.")
+	_add_keyword("Determination (DET)", "Modifies STR/DEX/INT/WIS/AGI at low health thresholds. DET 15 = no effect. Above 15 = bonus when hurt, below 15 = penalty when hurt")
 
 	# Debuffs Section
 	_add_section_header("DEBUFFS")

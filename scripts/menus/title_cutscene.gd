@@ -9,8 +9,8 @@ extends Control
 ## that drift to the top of the screen and become the two O's of OLORIN.
 ## The remaining letters pop in green with a purple outline. Click/ESC skips.
 ##
-## The actors are Mana Seed NPC sprites — Olorin is the mystic sheet (his town
-## NPC sprite) and the boy is the NPC-pack boy — drawn frame-by-frame from a
+## The actors are Mana Seed NPC sprites — Olorin is the old-man sheet (his
+## town NPC sprite) and the boy is the NPC-pack boy — drawn frame-by-frame from a
 ## single clock (_t) alongside the procedural props (pipe, chair, smoke,
 ## bubbles, title), so skipping is just jumping the clock to the end.
 
@@ -41,8 +41,8 @@ const SMOKE := Color(0.82, 0.82, 0.88)
 const TITLE_GREEN := Color(0.3, 0.85, 0.38)
 const TITLE_PURPLE := Color(0.55, 0.2, 0.8)
 
-# ---- Actor sprites (Mana Seed NPC packs, 32px cells, rows S/W/N/E) ----
-const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc mystic A v02.png"
+# ---- Actor sprites (Mana Seed NPC packs, 32px cells, rows S/E/N/W) ----
+const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"
 const BOY_SHEET := "res://assets/sprites/NPCpackage2/npc boy v01.png"
 const CELL := 32
 const ROW_S := 0
@@ -58,8 +58,15 @@ const RUN_FRAME_TIME := 0.11
 const PIPE_SCALE := 1.8
 const PIPE_LOUNGE_ANGLE := -1.75  # radians; bowl end up and slightly over his face
 
-var _olorin_tex: Texture2D = load(OLORIN_SHEET)
-var _boy_tex: Texture2D = load(BOY_SHEET)
+# Sheets pre-scaled with nearest-neighbour at load, so the chunky pixels
+# survive the project's linear canvas filtering (which keeps text smooth).
+var _olorin_tex: Texture2D = _baked_sheet(OLORIN_SHEET, OLORIN_SCALE)
+var _boy_tex: Texture2D = _baked_sheet(BOY_SHEET, BOY_SCALE)
+
+static func _baked_sheet(path: String, factor: float) -> ImageTexture:
+	var img: Image = (load(path) as Texture2D).get_image()
+	img.resize(int(img.get_width() * factor), int(img.get_height() * factor), Image.INTERPOLATE_NEAREST)
+	return ImageTexture.create_from_image(img)
 
 var _t: float = 0.0
 var _finished_emitted: bool = false
@@ -111,8 +118,10 @@ func _boy_arrive_x() -> float:
 	return _olorin_x() - 215.0
 
 func _mouth_pos() -> Vector2:
-	## Olorin's mouth while lounging — where the pipe's mouthpiece sits.
-	return Vector2(_olorin_x() + 38.0, _ground_y() - 94.0)
+	## Olorin's mouth while lounging — where the pipe's mouthpiece sits. Lying
+	## on his back, the face is on the sky side of the head, up and left of
+	## the head's centre.
+	return Vector2(_olorin_x() + 33.0, _ground_y() - 102.0)
 
 func _smoke_source() -> Vector2:
 	## The lounging pipe's bowl — where puffs and the great rings come from.
@@ -128,7 +137,7 @@ func _standing_mouth(facing: float) -> Vector2:
 	return _olorin_foot() + Vector2(16.0 * facing, -84.0)
 
 func _pipe_ground_pos() -> Vector2:
-	return Vector2(_olorin_x() - 46.0, _ground_y() - 6.0)
+	return Vector2(_olorin_x() - 46.0, _ground_y() - 10.0)
 
 func _title_font() -> Font:
 	return ThemeDB.fallback_font
@@ -184,7 +193,7 @@ func _draw() -> void:
 	elif _t < T_SNAP:
 		# Still standing; the pipe has dropped to the ground.
 		var facing := -1.0 if _t < T_TURN else 1.0  # turns around after the boy leaves
-		_draw_pipe(_pipe_ground_pos(), 0.35, PIPE_SCALE)
+		_draw_pipe(_pipe_ground_pos(), -0.12, PIPE_SCALE)
 		var scratching := _t >= T_TURN and _t < T_BUBBLE3_END
 		_draw_olorin_standing(_olorin_foot(), facing, scratching)
 	else:
@@ -206,10 +215,10 @@ func _draw() -> void:
 				var to := _mouth_pos()
 				var p := from.lerp(to, u)
 				p.y -= sin(u * PI) * 40.0  # gentle arc
-				_draw_pipe(p, lerpf(0.35, PIPE_LOUNGE_ANGLE, u), PIPE_SCALE)
+				_draw_pipe(p, lerpf(-0.12, PIPE_LOUNGE_ANGLE, u), PIPE_SCALE)
 				_draw_sparkle_trail(p, _t)
 			elif _t < T_LIE:
-				_draw_pipe(_pipe_ground_pos(), 0.35, PIPE_SCALE)
+				_draw_pipe(_pipe_ground_pos(), -0.12, PIPE_SCALE)
 			# Post-arrival idle puffs (after the big rings are out).
 			if _t > T_RING2 + 0.8:
 				_draw_small_puffs(_smoke_source(), _t)
@@ -328,21 +337,23 @@ func _draw_lawn_chair(base: Vector2, scale_u: float) -> void:
 
 func _draw_npc_frame(tex: Texture2D, col: int, row: int, foot: Vector2,
 		s: float, rot: float = 0.0) -> void:
-	## Draw one 32px NPC-sheet cell scaled by `s`, anchored so the cell's
-	## bottom-centre (the feet) sits at `foot`. `rot` tips the whole sprite
-	## around the foot anchor (radians, clockwise-positive).
-	draw_set_transform(foot, rot, Vector2(s, s))
+	## Draw one NPC-sheet cell for an actor whose sheet was baked at scale `s`
+	## (see _baked_sheet), anchored so the cell's bottom-centre (the feet)
+	## sits at `foot`. `rot` tips the whole sprite around the foot anchor
+	## (radians, clockwise-positive).
+	var cs := CELL * s
+	draw_set_transform(foot, rot, Vector2.ONE)
 	draw_texture_rect_region(tex,
-		Rect2(Vector2(-CELL / 2.0, -CELL), Vector2(CELL, CELL)),
-		Rect2(col * CELL, row * CELL, CELL, CELL))
+		Rect2(Vector2(-cs / 2.0, -cs), Vector2(cs, cs)),
+		Rect2(col * cs, row * cs, cs, cs))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 func _draw_olorin_lounging(base: Vector2, pipe_in_hand: bool) -> void:
 	## Olorin reclined on the chair: feet left, head up on the incline (right).
-	## The north-facing (back) sprite tipped along the chair's angle, so he's
-	## gazing up at the sky rather than out at the viewer.
+	## The west-facing profile sprite tipped backward along the chair's angle —
+	## his back on the cloth, face to the sky.
 	var feet := Vector2(base.x - 50.0, base.y - 36.0)
-	_draw_npc_frame(_olorin_tex, 0, ROW_N, feet, OLORIN_SCALE, deg_to_rad(58.0))
+	_draw_npc_frame(_olorin_tex, 0, ROW_W, feet, OLORIN_SCALE, deg_to_rad(58.0))
 	if pipe_in_hand:
 		_draw_pipe(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE)
 

@@ -33,6 +33,11 @@ var _select_tween: Tween = null
 var _is_animating_out: bool = false  # True while play/discard animation runs
 
 const CARD_W: float = 150.0
+
+## Installed by the battle scene: Callable(card) -> {damage/block/heal:int}
+## with the holder's stat-adjusted values, used to print effective numbers on
+## the card face. Invalid (unset) = show authored base values.
+static var value_provider: Callable = Callable()
 const CARD_H: float = 210.0
 const HOVER_LIFT: float = 68.0
 const SELECT_LIFT: float = 96.0
@@ -219,6 +224,7 @@ func _make_cost_badge(host: Node, icon_path: String, pos: Vector2, num_y_bias: f
 	badge.size = Vector2(32, 40)  # matches the icon texture 1:1 (grid rule)
 	host.add_child(badge)
 	var icon := TextureRect.new()
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 	icon.texture = load(icon_path)
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -254,6 +260,7 @@ func _ensure_to_logo() -> void:
 	holder.custom_minimum_size = Vector2(14, 0)
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var shadow := TextureRect.new()
+	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 	shadow.texture = UIGlyphs.get_glyph("to_sigil")
 	shadow.stretch_mode = TextureRect.STRETCH_SCALE
 	shadow.position = Vector2(-4.5, -11.5)
@@ -262,6 +269,7 @@ func _ensure_to_logo() -> void:
 	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(shadow)
 	var seal := TextureRect.new()
+	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 	seal.texture = UIGlyphs.get_glyph("to_sigil")
 	seal.stretch_mode = TextureRect.STRETCH_SCALE
 	seal.position = Vector2(-6, -13)
@@ -403,11 +411,13 @@ func _on_mouse_exited() -> void:
 func _update_description() -> void:
 	if not desc_label or not _card:
 		return
-	# Use colored BBCode description if card has multi-outcome RNG data
-	if _card.rng_outcomes_data.size() > 0 and _card.has_been_rolled():
-		desc_label.text = _card.get_colored_description()
-	else:
-		desc_label.text = _card.description
+	# Numbers on the face reflect the holder's stats/buffs in a vacuum: the
+	# battle scene installs value_provider (main.get_card_vacuum_values);
+	# without one (deck viewers outside battle) base values show unchanged.
+	var effective := {}
+	if value_provider.is_valid():
+		effective = value_provider.call(_card)
+	desc_label.text = _card.get_display_description(effective)
 
 func update_chance_display() -> void:
 	# Called when RNG re-rolls happen - update the description colors

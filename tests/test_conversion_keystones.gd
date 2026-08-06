@@ -54,10 +54,12 @@ func _test_sanguine_barrier() -> void:
 	var stats = _fresh_stats()
 	stats.current_health = stats.max_health - 10
 
-	# Without the keystone: life steal heals.
+	# Without the keystone: life steal heals (through the normal heal pipeline,
+	# so the INT heal bonus at the pre-heal DET state rides along).
+	var expected_heal = 4 + stats.get_intelligence_spell_bonus()
 	stats.apply_life_steal(4)
-	_check(stats.current_health == stats.max_health - 6 and stats.current_temp_health == 0,
-		"without keystone, life steal heals normally")
+	_check(stats.current_health == stats.max_health - 10 + expected_heal and stats.current_temp_health == 0,
+		"without keystone, life steal heals normally (+%d)" % expected_heal)
 
 	# With the keystone: no healing, temp HP instead.
 	stats.keystone_lifesteal_temp_hp = true

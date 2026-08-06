@@ -91,12 +91,12 @@ const STAT_NAMES := {
 	"WIS": "Wisdom", "DET": "Determination", "AGI": "Agility",
 }
 const STAT_INFO := {
-	"STR": "Strength — +1 melee damage for every 2 points, and +10 carry capacity per point. Spare carry capacity also speeds up your attack-speed proc a little (capped — see Dexterity).",
-	"DEX": "Dexterity — your attack-speed stat. Every (30 − Dexterity) attack cards played, your next attack costs half tempo and 2 less mana (minimum every 5). Each point means one fewer attack needed to proc. Traveling light shaves off up to 8 more; being loaded down adds up to 10.",
-	"INT": "Intelligence — +1 spell & heal power for every 2 points, and +1 mana regen for every 5 points.",
-	"WIS": "Wisdom — +1 hand size for every 5 points, and draws cards faster: each point draws your next card 1 tempo sooner (base: every 25 tempo, fastest: every 5).",
-	"DET": "Determination — directly impacts how low health affects your attributes. At 10 it does nothing; above 10 your stats climb as health drops, below 10 they fall. The lower your health, the bigger the swing — about ±1% per point at 80% HP, ±5% at 60%, ±7% at 40%, and ±10% at 10% HP or below.",
-	"AGI": "Agility — 1 Flash point per point, refreshed every 2 tempo cycles. Spend them by choice in battle: 1 point per tile moved (boots toggle), 3 points for 2 block (sidestep), 5 points to advance the attack-speed counter (daggers). Without Flash, each tile costs 1 tempo.",
+	"STR": "Strength — +0.5 melee damage per point, and +10 carry capacity per point. Spare carry capacity also speeds up your attack-speed proc a little (capped — see Dexterity).",
+	"DEX": "Dexterity — your attack-speed stat. Every (45 − 0.5 × Dexterity) attack cards played, your next attack costs half tempo and 2 less mana. Every 2 points mean 1 fewer attack needed to proc. Traveling light shaves off up to 8 more; being loaded down adds up to 10. Dual wielding shaves another 4.",
+	"INT": "Intelligence — +0.5 spell & heal power per point, and +0.15 mana regen per point (about +1 per 7).",
+	"WIS": "Wisdom — +0.2 hand size per point (+1 per 5), and draws cards faster: every 4 points draw your next card 1 tempo sooner (base: every 25 tempo).",
+	"DET": "Determination — directly impacts how low health affects your attributes. At 15 it does nothing; above 15 your stats climb as health drops, below 15 they fall. The lower your health, the bigger the swing — about ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below.",
+	"AGI": "Agility — 1 Flash point per point, refreshed every 3 tempo cycles. Spend them by choice in battle: 3 points per tile moved (boots toggle), 3 points for 2 block (sidestep), 5 points to advance the attack-speed counter (daggers). Without Flash, each tile costs 1 tempo.",
 }
 
 static func stat_full_name(key: String) -> String:
@@ -188,7 +188,7 @@ static func create_stephen() -> CharacterData:
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
 			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to an enemy in melee range and halve the Glut"},
 			{"name": "Swing for the Fences", "description": "Cards that have >4 tempo cost deal their tempo cost as additional damage"},
-			{"name": "Dominate", "description": "When triggering an attack speed proc, gain a 0m/0t basic attack card"},
+			{"name": "Dominate", "description": "When triggering an attack speed proc, gain a 0m/0t basic attack card (5 tempo cooldown)"},
 		]},
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
