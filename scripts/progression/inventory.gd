@@ -88,7 +88,9 @@ var equipped_gauntlets: Array[ItemData] = []
 var equipped_weapons: Array[ItemData] = []
 var equipped_quivers: Array[ItemData] = []
 
-# Non-equipped item storage (grid inventory)
+# Non-equipped storage (grid inventory). Items and looted cards share the ONE
+# pool of max_storage_slots — there is no separate card inventory; the two
+# arrays only keep the types apart.
 var stored_items: Array[ItemData] = []
 var max_storage_slots: int = 20
 
@@ -96,9 +98,8 @@ var max_storage_slots: int = 20
 var stash_items: Array[ItemData] = []
 var max_stash_slots: int = 30
 
-# Card inventory - cards picked up from loot go here (not directly to deck)
+# Cards picked up from loot (they occupy regular inventory slots)
 var stored_cards: Array = []  # Array of Card objects
-var max_card_storage: int = 20
 
 # Consumables
 var culling_stones: int = 99  # Used to permanently remove cards from deck
@@ -1255,7 +1256,7 @@ func switch_build(target: int) -> Dictionary:
 	for it in incoming:
 		if stored_items.has(it):
 			from_storage += 1
-	if stored_items.size() + to_storage - from_storage > max_storage_slots:
+	if used_storage_slots() + to_storage - from_storage > max_storage_slots:
 		result["reason"] = "Not enough inventory space"
 		return result
 
@@ -1544,12 +1545,12 @@ func rack_take_item(index: int) -> ItemData:
 # ============================================
 
 func store_item(item: ItemData) -> bool:
-	if stored_items.size() >= max_storage_slots:
-		print("[INVENTORY] Storage full! (%d/%d)" % [stored_items.size(), max_storage_slots])
+	if is_storage_full():
+		print("[INVENTORY] Storage full! (%d/%d)" % [used_storage_slots(), max_storage_slots])
 		return false
 	stored_items.append(item)
 	storage_changed.emit()
-	print("[INVENTORY] Stored %s (%d/%d)" % [item.item_name, stored_items.size(), max_storage_slots])
+	print("[INVENTORY] Stored %s (%d/%d)" % [item.item_name, used_storage_slots(), max_storage_slots])
 	return true
 
 func remove_stored_item(index: int) -> ItemData:
@@ -1569,8 +1570,12 @@ func get_stored_item(index: int) -> ItemData:
 func get_stored_item_count() -> int:
 	return stored_items.size()
 
+func used_storage_slots() -> int:
+	## Items and looted cards share the one slot pool.
+	return stored_items.size() + stored_cards.size()
+
 func is_storage_full() -> bool:
-	return stored_items.size() >= max_storage_slots
+	return used_storage_slots() >= max_storage_slots
 
 # ============================================
 # STASH STORAGE
@@ -1668,16 +1673,16 @@ func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
 	return true
 
 # ============================================
-# CARD INVENTORY
+# STORED CARDS (share the inventory slot pool)
 # ============================================
 
 func store_card(card) -> bool:
-	if stored_cards.size() >= max_card_storage:
-		print("[INVENTORY] Card storage full! (%d/%d)" % [stored_cards.size(), max_card_storage])
+	if is_storage_full():
+		print("[INVENTORY] Storage full! (%d/%d)" % [used_storage_slots(), max_storage_slots])
 		return false
 	stored_cards.append(card)
 	storage_changed.emit()
-	print("[INVENTORY] Stored card: %s (%d/%d)" % [card.card_name, stored_cards.size(), max_card_storage])
+	print("[INVENTORY] Stored card: %s (%d/%d)" % [card.card_name, used_storage_slots(), max_storage_slots])
 	return true
 
 func remove_stored_card(index: int):
@@ -1686,7 +1691,7 @@ func remove_stored_card(index: int):
 	var card = stored_cards[index]
 	stored_cards.remove_at(index)
 	storage_changed.emit()
-	print("[INVENTORY] Removed card from storage: %s (%d/%d)" % [card.card_name, stored_cards.size(), max_card_storage])
+	print("[INVENTORY] Removed card from storage: %s (%d/%d)" % [card.card_name, used_storage_slots(), max_storage_slots])
 	return card
 
 func get_stored_card(index: int):

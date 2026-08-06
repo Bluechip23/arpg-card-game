@@ -512,13 +512,13 @@ func _refresh_card_inventory() -> void:
 
 	# Header
 	var header = Label.new()
-	header.text = "Card Inventory (%d/%d)" % [inv.get_stored_card_count(), inv.max_card_storage]
+	header.text = "Cards — Inventory %d/%d" % [inv.used_storage_slots(), inv.max_storage_slots]
 	header.add_theme_font_size_override("font_size", 18)
 	header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	main._tab_card_inv_container.add_child(header)
 
 	var desc = Label.new()
-	desc.text = "Cards from enemy loot. Add to your deck or keep for later."
+	desc.text = "Cards from enemy loot — they share your inventory slots. Add to your deck or keep for later."
 	desc.add_theme_font_size_override("font_size", 12)
 	desc.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	main._tab_card_inv_container.add_child(desc)
