@@ -80,11 +80,22 @@ func _initialize() -> void:
 	_check(r["success"] and binv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == bow2,
 		"bow comes down alone")
 
+	# --- Inherently two-handed weapons gain NO two-handing bonuses ---
+	# Their two-handedness is the rule, not the bonus stance: no weight
+	# discount, no weight-to-damage, no capacity cut — and no manual toggle.
+	var bstats: PlayerStats = rig2[1]
+	_check(not binv.set_two_handed(0, true), "a bow refuses the manual two-hand stance")
+	_check(binv.two_handed_slot == -1, "no two-handed slot tracked for the bow")
+	_check(not bstats.two_hand_active, "no two-hand state pushed onto stats")
+	_check(bstats.two_hand_damage_bonus == 0, "bow gains no weight-to-damage bonus")
+	_check(binv.get_total_weight() == bow2.weight, "bow carries at full weight (no discount)")
+
 	# --- Magic staffs are two-hand-only too — and share with NOTHING ---
 	var rig3 = _fresh_inventory("Stephen")
 	var sinv: Inventory = rig3[0]
 	var staff = Fixtures.staff()
 	_check(sinv.equip_item(staff, 0), "staff equips into empty hands")
+	_check(not sinv.set_two_handed(0, true), "a staff refuses the manual two-hand stance too")
 	_check(not sinv.equip_item(Fixtures.sword(), 1), "sword refused alongside the staff")
 	_check(not sinv.equip_item(Fixtures.shield(), 1), "shield refused alongside the staff")
 	_check(not sinv.equip_item(Fixtures.quiver(), 1), "even a quiver is refused alongside the staff")

@@ -308,7 +308,7 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 
 ## Bows and magic staffs are two-hand-only: never sharable with another hand
 ## item. (A quiver may ride along with a bow; a staff shares with nothing.)
-static func _is_two_hand_only(item: ItemData) -> bool:
+static func is_two_hand_only(item: ItemData) -> bool:
 	return item != null and item.item_type == ItemData.ItemType.WEAPON \
 		and (item.weapon_subtype == ItemData.WeaponSubtype.BOW \
 		or item.weapon_subtype == ItemData.WeaponSubtype.STAFF)
@@ -1106,6 +1106,11 @@ func _enable_two_handed(slot_index: int) -> bool:
 	if item == null or item.item_type != ItemData.ItemType.WEAPON:
 		print("[INVENTORY] Nothing in slot %d that can be two-handed" % slot_index)
 		return false
+	# Bows and staffs are two-handed by NATURE, not by choice — the stance is
+	# the rule itself and deliberately grants none of the two-handing bonuses.
+	if is_two_hand_only(item):
+		print("[INVENTORY] %s is inherently two-handed — no bonus stance to take" % item.item_name)
+		return false
 
 	# Two-handing needs a free hand: claim the lowest empty weapon slot.
 	var lock = -1
@@ -1445,7 +1450,7 @@ func can_rack_exchange(free: bool) -> Dictionary:
 			if it.item_type == ItemData.ItemType.QUIVER:
 				continue
 			rack_non_quiver += 1
-			if _is_two_hand_only(it):
+			if is_two_hand_only(it):
 				rack_two_hand_only = true
 		if rack_has_staff:
 			res["reason"] = "A magic staff needs both hands — it can't come down with other gear"
@@ -1507,7 +1512,7 @@ func _rack_free_side_ok(items: Array, is_incoming: bool) -> bool:
 		main = it
 	if main == null:
 		return false
-	if _is_two_hand_only(main):
+	if is_two_hand_only(main):
 		return true
 	if is_incoming:
 		return total == 1  # two-handing needs the other hand free to lock
@@ -1522,7 +1527,7 @@ func _incoming_gets_auto_two_hand(items: Array) -> bool:
 	var it: ItemData = items[0]
 	if it.item_type != ItemData.ItemType.WEAPON:
 		return false
-	return not _is_two_hand_only(it)
+	return not is_two_hand_only(it)
 
 func rack_exchange(free: bool) -> Dictionary:
 	## Swaps everything in the hand slots with everything on the rack.

@@ -1315,8 +1315,10 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		unequip_btn.pressed.connect(_on_unequip_item)
 		vbox.add_child(unequip_btn)
 
-	# Two-handing toggle for anything held in a hand slot (not quivers).
-	if storage_index < 0 and inventory and item.item_type == ItemData.ItemType.WEAPON:
+	# Two-handing toggle for anything held in a hand slot (not quivers, and
+	# not bows/staffs — those are two-handed by nature and gain no bonuses).
+	if storage_index < 0 and inventory and item.item_type == ItemData.ItemType.WEAPON \
+			and not Inventory.is_two_hand_only(item):
 		var two_handed = inventory.two_handed_slot == slot_index
 		var th_text: String
 		if two_handed:
@@ -1328,7 +1330,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 			else:
 				th_text = "Wield Two-Handed (+%d damage)" % th_bonus
 		var th_btn = _make_action_button(th_text, Color(0.3, 0.24, 0.1), Color(0.85, 0.7, 0.3))
-		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 80%% and occupies a second hand slot.\nCosts %d tempo in combat." % inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON)
+		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 70%% and occupies a second hand slot.\nCosts %d tempo in combat." % inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON)
 		th_btn.pressed.connect(_on_toggle_two_handed)
 		vbox.add_child(th_btn)
 
