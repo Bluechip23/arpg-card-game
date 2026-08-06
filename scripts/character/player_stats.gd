@@ -715,9 +715,11 @@ func get_determination_description() -> String:
 # ============================================
 
 # Wielding something two-handed ties up both arms: total carry capacity drops
-# to 80%. (The gripped item's own weight halves — see Inventory's two-handed
-# constants — so the trade only pays off for genuinely heavy gear.)
-const TWO_HAND_CAPACITY_MULT: float = 0.8
+# to 70%. (The gripped item's own weight halves — see Inventory's two-handed
+# constants — so the trade only pays off for genuinely heavy gear.) 0.7 is a
+# deliberate floor: any harsher and a maxed-STR hero gripping the heaviest
+# gear starts losing attack speed, and the grip stops enabling early wields.
+const TWO_HAND_CAPACITY_MULT: float = 0.7
 
 var two_hand_grip_active: bool = false  # set by Inventory.set_two_handed
 var two_hand_damage_bonus: int = 0      # from the gripped weapon's ORIGINAL weight
