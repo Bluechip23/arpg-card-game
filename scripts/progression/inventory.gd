@@ -49,6 +49,12 @@ const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 const TWO_HAND_WEIGHT_MULT: float = 0.5
 const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 10.0  # +1 damage/block per 10 weight
 
+# Dual wielding (two or more non-shield weapons in hand slots): EVERY wielded
+# weapon carries 15% extra weight — applied to both so a heavy main hand can't
+# hide from the penalty behind a feather off-hand. Two small blades barely
+# notice; pairing real weapons is a strength commitment.
+const DUAL_WIELD_WEIGHT_MULT: float = 1.15
+
 var two_handed_slot: int = -1       # weapon slot currently gripped with both hands
 var two_handed_lock_slot: int = -1  # the empty hand slot the grip occupies
 
@@ -926,9 +932,9 @@ func get_total_weight() -> int:
 	return total
 
 ## Carried weight of one item: chest reduction (Brad), the Balanced Load keystone,
-## and the two-handed grip all lighten the load, stacking multiplicatively. Pass
-## the weapon-slot index (or -1 when not equipped in a hand) so the grip discount
-## applies to the right slot.
+## and the two-handed grip lighten the load; the dual-wield penalty adds to it.
+## All stack multiplicatively. Pass the weapon-slot index (or -1 when not
+## equipped in a hand) so the grip discount and dual penalty hit the right slots.
 func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 	var w = item.weight
 	if item.item_type == ItemData.ItemType.CHEST:
@@ -939,7 +945,25 @@ func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 		w = floori(w * (1.0 - PlayerStats.STR_LIGHT_SLOT_REDUCTION))
 	if weapon_slot_index >= 0 and weapon_slot_index == two_handed_slot:
 		w = floori(w * TWO_HAND_WEIGHT_MULT)
+	# Dual wielding taxes every wielded weapon — the big one included.
+	if weapon_slot_index >= 0 and _is_wielded_weapon(item) and is_dual_wielding():
+		w = floori(w * DUAL_WIELD_WEIGHT_MULT)
 	return w
+
+## A damage weapon held in a hand slot (shields guard, they aren't wielded).
+func _is_wielded_weapon(item: ItemData) -> bool:
+	return item != null and item.item_type == ItemData.ItemType.WEAPON \
+			and item.weapon_subtype != ItemData.WeaponSubtype.SHIELD
+
+func is_dual_wielding() -> bool:
+	## Two or more non-shield weapons in hand slots. (A bow never shares hands
+	## with another weapon, and the two-handed grip locks its second slot, so
+	## those states never count as dual wielding by construction.)
+	var count = 0
+	for w in equipped_weapons:
+		if _is_wielded_weapon(w):
+			count += 1
+	return count >= 2
 
 ## Weighted Strikes keystone: the weight-to-damage bonus that two-handing grants,
 ## extended to one-handed weapons so a heavy single-hander feeds basic attacks.
