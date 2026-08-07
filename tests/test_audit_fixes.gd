@@ -29,7 +29,7 @@ func _initialize() -> void:
 
 	var p3 = pt._parse_passive_description("On heal: overheal becomes 200% armor", 0)
 	_check(p3.get("effect", "") == "overheal_armor" and p3.get("value", 0) == 200,
-		"upgraded overheal node keeps its 200 (got " + str(p3.get("effect")) + " " + str(p3.get("value")) + ")")
+		"overheal node keeps its 200 magnitude (got " + str(p3.get("effect")) + " " + str(p3.get("value")) + ")")
 
 	var p4 = pt._parse_passive_description("On attack: 5% freeze enemy for 1 cycle", 0)
 	_check(p4.get("effect", "") == "freeze_enemy" and absf(p4.get("chance", 0.0) - 0.05) < 0.001,

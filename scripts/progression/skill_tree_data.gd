@@ -10,14 +10,12 @@ enum OptionType {
 	CARD,           # Grants a new card to the deck
 	PASSIVE,        # Grants a passive ability
 	STAT_BONUS,     # Flat stat increase
-	CARD_UPGRADE,   # Upgrades an existing card
 }
 
 # Auto-grant types for the 5th column
 enum AutoGrantType {
 	STAT_ALLOCATION,  # Legacy — stat points now come from every level-up (PlayerStats)
 	CARD_REMOVAL,     # Remove a card from deck
-	UPGRADE_CARD,     # Upgrade an existing card
 	HEALTH_BOOST,     # Flat max health increase
 	MANA_BOOST,       # Flat max mana increase
 	PASSIVE,          # Auto-granted passive
@@ -36,24 +34,21 @@ class SkillOption:
 	var passive_data: Dictionary = {}     # trigger, effect, value, chance, etc.
 	var stat_type: String = ""            # For STAT_BONUS: "strength", "dexterity", etc.
 	var stat_amount: int = 0              # For STAT_BONUS
-	var upgrade_card_id: String = ""      # For CARD_UPGRADE
-	var upgrade_result_id: String = ""    # The card it becomes after upgrade
 
 	func get_type_label() -> String:
 		match option_type:
 			OptionType.CARD: return "Card"
 			OptionType.PASSIVE: return "Passive"
 			OptionType.STAT_BONUS: return "Stat Bonus"
-			OptionType.CARD_UPGRADE: return "Upgrade"
 		return "Unknown"
 
 ## The auto-granted 5th column reward for a row
 class AutoGrant:
-	var grant_type: AutoGrantType = AutoGrantType.UPGRADE_CARD
+	var grant_type: AutoGrantType = AutoGrantType.CARD_REMOVAL
 	var name: String = ""
 	var description: String = ""
 	var stat_points: int = 5             # For STAT_ALLOCATION
-	var card_id: String = ""             # For CARD_REMOVAL / UPGRADE target
+	var card_id: String = ""             # For CARD_REMOVAL target
 	var health_amount: int = 0           # For HEALTH_BOOST
 	var mana_amount: int = 0             # For MANA_BOOST
 	var passive_data: Dictionary = {}    # For PASSIVE auto-grants
@@ -62,7 +57,6 @@ class AutoGrant:
 		match grant_type:
 			AutoGrantType.STAT_ALLOCATION: return "+%d Stats" % stat_points
 			AutoGrantType.CARD_REMOVAL: return "Remove Card"
-			AutoGrantType.UPGRADE_CARD: return "Upgrade Card"
 			AutoGrantType.HEALTH_BOOST: return "+%d Health" % health_amount
 			AutoGrantType.MANA_BOOST: return "+%d Mana" % mana_amount
 			AutoGrantType.PASSIVE: return "Passive"
@@ -221,18 +215,20 @@ func get_rows_with_skipped_options(max_level: int) -> Array[SkillRow]:
 				break
 	return result
 
-## Get the auto-grant type for a given level based on the schedule:
-## Levels 2, 5, 10, 15, 20 ... → Card Removal
-## Other levels                 → Card upgrade
+## The auto-granted 5th-column reward for a level, or null when the level
+## carries none. Schedule: levels 2, 5, 10, 15, 20 ... grant a Culling Stone;
+## every other level's reward is its 4 chooseable options alone.
 ## (Stat points are no longer a scheduled grant — every level-up banks
 ## +3 points directly on PlayerStats, allocated from the skill tree screen.)
-static func get_default_auto_grant_type_for_level(level: int) -> AutoGrantType:
-	# Card removal levels: 2, 5, 10, 15, 20, 25...
+static func create_auto_grant_for_level(level: int) -> AutoGrant:
 	var removal_levels := [2, 5, 10, 15, 20, 25, 30]
-	if level in removal_levels:
-		return AutoGrantType.CARD_REMOVAL
-
-	return AutoGrantType.UPGRADE_CARD
+	if level not in removal_levels:
+		return null
+	var auto = AutoGrant.new()
+	auto.grant_type = AutoGrantType.CARD_REMOVAL
+	auto.name = "Culling Stone"
+	auto.description = "Remove 1 card from your deck"
+	return auto
 
 # ============================================
 # PLACEHOLDER TREE BUILDERS (one per character)
@@ -262,20 +258,8 @@ static func create_placeholder_tree(char_name: String, max_level: int = 20, arch
 			opt.icon_color = _get_option_color(i)
 			row.options.append(opt)
 
-		# Create auto-grant based on level schedule
-		var auto = AutoGrant.new()
-		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
-		match auto.grant_type:
-			AutoGrantType.CARD_REMOVAL:
-				auto.name = "Culling Stone"
-				auto.description = "Remove 1 card from your deck"
-			AutoGrantType.UPGRADE_CARD:
-				auto.name = "Card Upgrade"
-				auto.description = "Upgrade an existing card"
-			_:
-				auto.name = "Bonus"
-				auto.description = "Level bonus"
-		row.auto_grant = auto
+		# Auto-grant column: only Culling Stone levels carry one now
+		row.auto_grant = create_auto_grant_for_level(lvl)
 
 		tree.rows.append(row)
 
@@ -403,20 +387,8 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 				opt.icon_color = _get_option_color(i)
 			row.options.append(opt)
 
-		# Create auto-grant based on level schedule
-		var auto = AutoGrant.new()
-		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
-		match auto.grant_type:
-			AutoGrantType.CARD_REMOVAL:
-				auto.name = "Culling Stone"
-				auto.description = "Remove 1 card from your deck"
-			AutoGrantType.UPGRADE_CARD:
-				auto.name = "Card Upgrade"
-				auto.description = "Upgrade an existing card"
-			_:
-				auto.name = "Bonus"
-				auto.description = "Level bonus"
-		row.auto_grant = auto
+		# Auto-grant column: only Culling Stone levels carry one now
+		row.auto_grant = create_auto_grant_for_level(lvl)
 
 		tree.rows.append(row)
 
@@ -533,20 +505,8 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 				opt.icon_color = _get_option_color(i)
 			row.options.append(opt)
 
-		# Create auto-grant based on level schedule
-		var auto = AutoGrant.new()
-		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
-		match auto.grant_type:
-			AutoGrantType.CARD_REMOVAL:
-				auto.name = "Culling Stone"
-				auto.description = "Remove 1 card from your deck"
-			AutoGrantType.UPGRADE_CARD:
-				auto.name = "Card Upgrade"
-				auto.description = "Upgrade an existing card"
-			_:
-				auto.name = "Bonus"
-				auto.description = "Level bonus"
-		row.auto_grant = auto
+		# Auto-grant column: only Culling Stone levels carry one now
+		row.auto_grant = create_auto_grant_for_level(lvl)
 
 		tree.rows.append(row)
 
@@ -660,20 +620,8 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 				opt.icon_color = _get_option_color(i)
 			row.options.append(opt)
 
-		# Create auto-grant based on level schedule
-		var auto = AutoGrant.new()
-		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
-		match auto.grant_type:
-			AutoGrantType.CARD_REMOVAL:
-				auto.name = "Culling Stone"
-				auto.description = "Remove 1 card from your deck"
-			AutoGrantType.UPGRADE_CARD:
-				auto.name = "Card Upgrade"
-				auto.description = "Upgrade an existing card"
-			_:
-				auto.name = "Bonus"
-				auto.description = "Level bonus"
-		row.auto_grant = auto
+		# Auto-grant column: only Culling Stone levels carry one now
+		row.auto_grant = create_auto_grant_for_level(lvl)
 
 		tree.rows.append(row)
 
@@ -786,20 +734,8 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 				opt.icon_color = _get_option_color(i)
 			row.options.append(opt)
 
-		# Create auto-grant based on level schedule
-		var auto = AutoGrant.new()
-		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
-		match auto.grant_type:
-			AutoGrantType.CARD_REMOVAL:
-				auto.name = "Culling Stone"
-				auto.description = "Remove 1 card from your deck"
-			AutoGrantType.UPGRADE_CARD:
-				auto.name = "Card Upgrade"
-				auto.description = "Upgrade an existing card"
-			_:
-				auto.name = "Bonus"
-				auto.description = "Level bonus"
-		row.auto_grant = auto
+		# Auto-grant column: only Culling Stone levels carry one now
+		row.auto_grant = create_auto_grant_for_level(lvl)
 
 		tree.rows.append(row)
 
@@ -917,20 +853,8 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 				opt.icon_color = _get_option_color(i)
 			row.options.append(opt)
 
-		# Create auto-grant based on level schedule
-		var auto = AutoGrant.new()
-		auto.grant_type = get_default_auto_grant_type_for_level(lvl)
-		match auto.grant_type:
-			AutoGrantType.CARD_REMOVAL:
-				auto.name = "Culling Stone"
-				auto.description = "Remove 1 card from your deck"
-			AutoGrantType.UPGRADE_CARD:
-				auto.name = "Card Upgrade"
-				auto.description = "Upgrade an existing card"
-			_:
-				auto.name = "Bonus"
-				auto.description = "Level bonus"
-		row.auto_grant = auto
+		# Auto-grant column: only Culling Stone levels carry one now
+		row.auto_grant = create_auto_grant_for_level(lvl)
 
 		tree.rows.append(row)
 
