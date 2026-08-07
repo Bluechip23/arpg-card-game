@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## The free-hand stance: exactly one hand item (weapon OR shield) with an
 ## empty hand. Benefits: the flash parry costs 2 instead of 3, and every 12th
 ## attack echoes (triggers twice). The echo never advances the attack-speed
@@ -31,11 +33,11 @@ func _initialize() -> void:
 
 	# --- Stance detection ---
 	_check(not inv.is_free_handing(), "empty hands are not the stance (nothing wielded)")
-	inv.equip_item(ItemData.create_iron_sword(), 0)
+	inv.equip_item(Fixtures.sword(), 0)
 	_check(inv.is_free_handing(), "one weapon + empty hand = free-hand stance")
 	_check(stats.free_hand_stance, "inventory pushes the stance onto stats")
 
-	inv.equip_item(ItemData.create_wooden_shield(), 1)
+	inv.equip_item(Fixtures.shield(), 1)
 	_check(not inv.is_free_handing(), "sword + shield fills both hands — no stance")
 	_check(not stats.free_hand_stance, "stats updated when the hand fills")
 
@@ -66,7 +68,7 @@ func _initialize() -> void:
 	_check(stats.consume_free_hand_echo(), "the genuine 12th attack echoes")
 
 	# --- No stance, no echo ---
-	inv.equip_item(ItemData.create_iron_sword(), 0)  # shield + sword again
+	inv.equip_item(Fixtures.sword(), 0)  # shield + sword again
 	_check(not stats.free_hand_stance, "stance off with both hands full")
 	_check(stats.get_flash_block_cost() == 3, "parry back to 3 without the stance")
 	var stray := 0

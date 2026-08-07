@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## Regression test: every derived stat bonus must survive a save_progression ->
 ## restore_progression round trip (world transitions and disk saves both go
 ## through these). The bug this guards: sphere-grid combat bonuses and
@@ -69,10 +71,10 @@ func _test_equipment_bonuses() -> void:
 	var a = _mk(data)
 	var stats_a: PlayerStats = a[0]
 	var inv_a: Inventory = a[1]
-	inv_a.equip_item(ItemData.create_grasping_gauntlets(), 0)   # hand_size_bonus 2
-	inv_a.equip_item(ItemData.create_ice_quiver(), 1)            # ranged_damage_bonus 1
-	inv_a.equip_item(ItemData.create_belt_of_greater_healing(), 0)  # healing_bonus 2
-	inv_a.equip_item(ItemData.create_scholars_signet(), 0)      # CHANCE_BOOST 3
+	inv_a.equip_item(Fixtures.hand_size_gauntlets(), 0)   # hand_size_bonus 2
+	inv_a.equip_item(Fixtures.quiver(), 1)               # ranged_damage_bonus 1
+	inv_a.equip_item(Fixtures.healing_belt(), 0)         # healing_bonus 2
+	inv_a.equip_item(Fixtures.chance_ring(), 0)          # CHANCE_BOOST 3
 
 	var snap = stats_a.save_progression()
 	# A world transition re-installs equipment by direct array assignment WITHOUT

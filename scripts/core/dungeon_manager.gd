@@ -3082,7 +3082,7 @@ func _get_random_item(rng: RandomNumberGenerator) -> ItemData:
 	var rarity = DropRates.roll_weighted(weights, rng)
 	var pool = ItemData.get_items_of_rarity(rarity)
 	if pool.is_empty():
-		pool = ItemData.get_items_of_rarity(ItemData.Rarity.BASIC)
+		pool = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
 	return pool[rng.randi() % pool.size()]
 
 func _get_random_card(rng: RandomNumberGenerator) -> Card:

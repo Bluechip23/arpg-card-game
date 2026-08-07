@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Fixtures = preload("res://tests/item_fixtures.gd")
+
 ## Smoke test for the universal inventory-lot baseline and its per-character
 ## deviations, plus Jeremy's every-3rd-cycle ring double trigger.
 ## Baseline: 1 helm, 2 rings, 1 belt, 1 chest, 1 main hand, 1 off hand,
@@ -64,8 +66,8 @@ func _initialize() -> void:
 	inv.connect_player_stats(stats)
 	_check(inv.ring_double_trigger, "Jeremy: double-trigger passive is on")
 
-	var ring := ItemData.create_scholars_signet()
-	_check(inv.equip_item(ring, 0), "Scholar's Signet equips in ring slot 0")
+	var ring := Fixtures.trigger_ring()
+	_check(inv.equip_item(ring, 0), "trigger ring equips in ring slot 0")
 
 	var fires := [0]
 	inv.ring_triggered.connect(func(_item, _effect): fires[0] += 1)
@@ -129,15 +131,15 @@ func _test_shared_storage_pool() -> void:
 	inv.initialize("Ryan")
 
 	for i in range(inv.max_storage_slots - 1):
-		_check(inv.store_item(ItemData.create_iron_sword()), "item %d fits" % (i + 1))
+		_check(inv.store_item(Fixtures.sword()), "item %d fits" % (i + 1))
 	_check(inv.store_card(Card.create_slash()), "a card takes the last shared slot")
 	_check(inv.used_storage_slots() == inv.max_storage_slots, "pool reads full")
 	_check(inv.is_storage_full(), "is_storage_full counts items AND cards")
-	_check(not inv.store_item(ItemData.create_iron_sword()), "no item slot left — cards count")
+	_check(not inv.store_item(Fixtures.sword()), "no item slot left — cards count")
 	_check(not inv.store_card(Card.create_slash()), "no card slot left either")
 
 	inv.remove_stored_card(0)
-	_check(inv.store_item(ItemData.create_iron_sword()), "freeing a card frees a slot for an item")
+	_check(inv.store_item(Fixtures.sword()), "freeing a card frees a slot for an item")
 	inv.free()
 
 ## Build a bare slot cell and return its passive badge's tooltip ("" if none).

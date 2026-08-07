@@ -59,13 +59,13 @@ func _test_weighted_strikes() -> void:
 	print("-- Weighted Strikes: one-handed weight-to-damage --")
 	var pair = _mk_inv("Ryan")
 	var inv: Inventory = pair[1]
-	inv.equip_item(_heavy_sword(80), 0)  # 80 weight -> 80/10 = 8 damage
-	_check(inv.get_single_hand_weight_damage_bonus() == 8,
-		"an 80-weight one-hander grants +8 (got %d)" % inv.get_single_hand_weight_damage_bonus())
-	# Gripped two-handed, its heft is counted via two_hand_damage_bonus, not here.
+	inv.equip_item(_heavy_sword(80), 0)  # 80 weight -> 80/25 = 3 damage
+	_check(inv.get_single_hand_weight_damage_bonus() == 3,
+		"an 80-weight one-hander grants +3 (got %d)" % inv.get_single_hand_weight_damage_bonus())
+	# Two-handed, its heft is counted via two_hand_damage_bonus, not here.
 	inv.set_two_handed(0, true)
 	_check(inv.get_single_hand_weight_damage_bonus() == 0,
-		"a two-handed weapon is excluded (counted via the grip instead)")
+		"a two-handed weapon is excluded (counted via two-handing instead)")
 
 func _test_balanced_load() -> void:
 	print("-- Balanced Load: chosen-slot weight cut + stacking --")

@@ -723,19 +723,20 @@ func get_determination_description() -> String:
 # ============================================
 
 # Wielding something two-handed ties up both arms: total carry capacity drops
-# to 70%. (The gripped item's own weight halves — see Inventory's two-handed
-# constants — so the trade only pays off for genuinely heavy gear.) 0.7 is a
-# deliberate floor: any harsher and a maxed-STR hero gripping the heaviest
-# gear starts losing attack speed, and the grip stops enabling early wields.
+# to 70%. (The two-handed item's own weight halves — see Inventory's
+# two-handed constants — so the trade only pays off for genuinely heavy
+# gear.) 0.7 is a deliberate floor: any harsher and a maxed-STR hero
+# two-handing the heaviest gear starts losing attack speed, and two-handing
+# stops enabling early wields.
 const TWO_HAND_CAPACITY_MULT: float = 0.7
 
-var two_hand_grip_active: bool = false  # set by Inventory.set_two_handed
-var two_hand_damage_bonus: int = 0      # from the gripped weapon's ORIGINAL weight
+var two_hand_active: bool = false   # set by Inventory.set_two_handed
+var two_hand_damage_bonus: int = 0  # from the two-handed weapon's ORIGINAL weight
 
 func get_carry_capacity() -> int:
-	return get_carry_capacity_for_grip(two_hand_grip_active)
+	return get_carry_capacity_two_handing(two_hand_active)
 
-func get_carry_capacity_for_grip(two_handing: bool) -> int:
+func get_carry_capacity_two_handing(two_handing: bool) -> int:
 	# Uses effective strength (with determination) — a DET berserker's capacity
 	# genuinely spikes at low HP, which can turn a two-hander one-handable.
 	var cap = base_carry_capacity + (strength * 10)
@@ -765,9 +766,9 @@ func set_carry_load(weight: int) -> void:
 	print("[STATS] Carry load: %d / %d" % [current_carry_load, get_carry_capacity()])
 
 func set_two_hand_state(active: bool, damage_bonus: int) -> void:
-	two_hand_grip_active = active
+	two_hand_active = active
 	two_hand_damage_bonus = damage_bonus
-	print("[STATS] Two-handed grip %s (+%d damage), capacity %d" % [
+	print("[STATS] Two-handing %s (+%d damage), capacity %d" % [
 		"ON" if active else "off", damage_bonus, get_carry_capacity()])
 
 func is_overburdened() -> bool:
