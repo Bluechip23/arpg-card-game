@@ -844,7 +844,8 @@ func spend_flash_for_block() -> bool:
 func spend_flash_for_strike() -> bool:
 	## Flash Cut: spend the same flash the Sidestep would, but the caller turns it
 	## into an attack (FLASH_STRIKE_DAMAGE to the nearest enemy) instead of armor.
-	return spend_flash_points(FLASH_COST_BLOCK)
+	## Pays the free-hand discount exactly like the Sidestep.
+	return spend_flash_points(get_flash_block_cost())
 
 func spend_flash_for_proc_tick() -> bool:
 	## Buy one tick of the attack-speed counter with flash points ("quick

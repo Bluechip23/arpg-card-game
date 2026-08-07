@@ -56,7 +56,7 @@ const CARD_RARITIES := {
 	"enchanted_quiver": Rarity.RARE, "tighten_string": Rarity.RARE, "down_town": Rarity.RARE,
 	"sky_fall": Rarity.RARE, "lead_arrow": Rarity.RARE, "last_breath": Rarity.RARE,
 	"bottomless_quiver": Rarity.RARE, "round_em_up": Rarity.RARE, "hydra_bite": Rarity.RARE,
-	"growth_within_resilience": Rarity.RARE, "halo": Rarity.RARE, "armored_discipline": Rarity.RARE,
+	"halo": Rarity.RARE, "armored_discipline": Rarity.RARE,
 	"reckless_strike": Rarity.RARE, "blade_barrage": Rarity.RARE, "cultish_wounds": Rarity.RARE,
 	"fountain_of_life": Rarity.RARE, "absorb_essence": Rarity.RARE, "communal_donation": Rarity.RARE,
 	"repelled_block": Rarity.RARE, "shield_of_growth": Rarity.RARE, "mana_surge": Rarity.RARE,
@@ -113,6 +113,7 @@ var aoe_shape: String = ""  # "cone", "circle", "line"
 var aoe_range: float = 1.5  # In world units (grid cells)
 var chance_effect_percent: float = 0.0  # For AOE per-enemy rolls
 var rng_outcomes: Dictionary = {}  # enemy_id -> bool (for AOE per-enemy indicators)
+var rng_effective_chance: float = 0.0  # chance_effect_percent + boost used on the last roll
 var rng_roll_tempo: int = 0  # Global tempo when RNG was last rolled
 var cycles_in_hand: int = 0  # How many tempo cycles card has been in hand
 
@@ -129,6 +130,7 @@ var range_modifier: int = 0  # Modifies base range: +2 = 7 range, -2 = 3 range
 var card_range: float = 0.0  # Legacy range for specific overrides
 var target_types: Array = ["enemy"]  # "enemy", "ally", "self", "point", "all_nearby"
 var consecutive_uses: int = 0  # Track how many times card played in sequence
+var snap_uses_at_play: int = 0  # uses BEFORE the current play (set by play_card; timing-safe for deferred execution)
 var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
 var has_on_draw: bool = false  # Card triggers an effect when drawn
@@ -240,6 +242,7 @@ func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 	# AOE per-enemy rolls
 	if chance_effect_percent > 0.0:
 		var effective_chance = chance_effect_percent + chance_boost
+		rng_effective_chance = effective_chance
 		for enemy in enemies:
 			if is_instance_valid(enemy):
 				var enemy_roll = randf() * 100.0
@@ -249,7 +252,14 @@ func get_rng_outcome(enemy) -> bool:
 	if not enemy:
 		return false
 	var id = enemy.get_instance_id()
-	return rng_outcomes.get(id, false)
+	if not rng_outcomes.has(id):
+		# Enemy appeared after the pre-roll (spawned mid-fight): roll it now at
+		# the same boosted chance so late arrivals aren't guaranteed misses.
+		if chance_effect_percent <= 0.0:
+			return false
+		var chance = rng_effective_chance if rng_effective_chance > 0.0 else chance_effect_percent
+		rng_outcomes[id] = randf() * 100.0 < chance
+	return rng_outcomes[id]
 
 func has_chance_effect() -> bool:
 	return rng_outcomes_data.size() > 0
@@ -2129,8 +2139,9 @@ func _execute_sweeping_disarm(target, player_stats: PlayerStats, buff_mgr: BuffM
 	print("[CARD] Sweeping Disarm! %d damage, surrounding enemies disarmed" % total_damage)
 
 func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# consecutive_uses tracks how many times played so far (incremented by play_card after execute)
-	var snap_damage = base_damage + (consecutive_uses * 9)
+	# snap_uses_at_play = completed uses BEFORE this play, captured at play
+	# time so deferred execution can't run one use ahead.
+	var snap_damage = base_damage + (snap_uses_at_play * 9)
 	if player_stats:
 		snap_damage = player_stats.get_effective_physical_damage(snap_damage)
 	if buff_mgr:
@@ -2140,8 +2151,8 @@ func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: Buff
 			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(snap_damage, true)
-	# Cost decreases by 1m/1t each use (use consecutive_uses+1 since play_card increments after)
-	var next_uses = consecutive_uses + 1
+	# Cost decreases by 1m/1t each use
+	var next_uses = snap_uses_at_play + 1
 	mana_cost = max(0, 3 - next_uses)
 	tempo_cost = max(0, 3 - next_uses)
 	if next_uses >= sticky:
@@ -2879,6 +2890,7 @@ static func create_sky_attack() -> Card:
 static func create_lead_arrow() -> Card:
 	var card = Card.new()
 	card.card_id = "lead_arrow"
+	card.range_modifier = -2  # "lower range": 5 -> 3 tiles
 	card.card_name = "Lead Arrow"
 	card.description = "1.8x damage. Requires high ground, lower range."
 	card.card_type = CardType.ATTACK
@@ -3119,7 +3131,7 @@ static func create_spider_senses() -> Card:
 	var card = Card.new()
 	card.card_id = "spider_senses"
 	card.card_name = "Spider Senses"
-	card.description = "When you take damage, gain 5 armor."
+	card.description = "Instant. When you take damage, gain 5 armor."
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0
@@ -3171,25 +3183,6 @@ static func create_hydra_bite() -> Card:
 	card.erase_on_play = true
 	card.linger = true  # Generated into hand; may exceed hand cap
 	card.target_types = ["enemy"]
-	return card
-
-static func create_growth_within_resilience() -> Card:
-	var card = Card.new()
-	card.card_id = "growth_within_resilience"
-	card.card_name = "Growth Within Resilience"
-	card.description = "Maintain (3 mana). While maintained, when you take non-fatal damage, add a Hydra Bite (1m / 0t, 7 damage, burned after play) to your hand."
-	card.card_type = CardType.POWER
-	card.card_type_name = "Power"
-	card.mana_cost = 1
-	card.tempo_cost = 2
-	card.damage = 0
-	card.base_damage = 0
-	card.block = 0
-	card.base_block = 0
-	card.heal_amount = 0
-	card.maintain_cost = 3  # Reserved while maintained
-	card.reaction_trigger = "on_damage_taken"  # Consumed by the maintained-card hook in main.gd
-	card.target_types = ["self"]
 	return card
 
 static func create_thrown_stone() -> Card:
@@ -3350,6 +3343,7 @@ func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerSt
 static func create_blade_barrage() -> Card:
 	var card = Card.new()
 	card.card_id = "blade_barrage"
+	card.glut_tempo = 15
 	card.card_name = "Blade Barrage"
 	card.description = "Deal X*10 damage where X = the number of attack cards in your hand. Glut: 15 tempo."
 	card.card_type = CardType.ATTACK
@@ -4600,7 +4594,7 @@ static func create_vengeful_shield() -> Card:
 	var card = Card.new()
 	card.card_id = "vengeful_shield"
 	card.card_name = "Vengeful Shield"
-	card.description = "When taking damage that exposes the player, stun an enemy within melee range and gain 5 armor."
+	card.description = "Instant. When taking damage that exposes the player, stun an enemy within melee range and gain 5 armor."
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0

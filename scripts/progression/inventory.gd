@@ -983,6 +983,9 @@ func is_free_handing() -> bool:
 	var held = 0
 	for w in equipped_weapons:
 		if w != null:
+			# A bow inherently fills both hands — never a free-hand stance.
+			if w.weapon_subtype == ItemData.WeaponSubtype.BOW:
+				return false
 			held += 1
 	for q in equipped_quivers:
 		if q != null:

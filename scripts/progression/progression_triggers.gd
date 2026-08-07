@@ -575,7 +575,7 @@ func _apply_skill_tree_option(option) -> void:
 				stats.add_skill_tree_passive(pid)
 				main.add_battle_log("Eagle Eye: +2 range on ranged attacks", Color(0.4, 0.9, 0.4))
 			"sword_specialist":
-				# Stephen: +25% block when only wielding swords (tracked via passive)
+				# Brad (Warden): +25% block when only wielding swords (tracked via passive)
 				stats.add_skill_tree_passive(pid)
 				main.add_battle_log("Sword Specialist: +25%% block with swords only", Color(0.3, 0.7, 1.0))
 			"tricks_of_death":

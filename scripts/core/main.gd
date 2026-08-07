@@ -4313,17 +4313,6 @@ func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
 
-func _roll_hydra_drops() -> void:
-	## A Hydra can drop the Growth Within Resilience card into the character's
-	## persistent collection (saved in Town).
-	if not current_character:
-		return
-	if randf() < 0.33:
-		if not current_character.purchased_card_ids.has("growth_within_resilience"):
-			current_character.purchased_card_ids.append("growth_within_resilience")
-			add_battle_log("You learn Growth Within Resilience!", Color(0.4, 0.8, 0.4))
-			print("[MAIN] Hydra dropped: Growth Within Resilience card")
-
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
 	# Everyone in the party earns the kill's XP, so the co-op partner's level
@@ -4335,9 +4324,6 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	# monster-intent reveals gated on "defeated before").
 	if current_character and not current_character.defeated_monster_ids.has(enemy.enemy_name):
 		current_character.defeated_monster_ids.append(enemy.enemy_name)
-	# Hydra drops: feed discoveries into the character's persistent collection.
-	if enemy.enemy_type == Enemy.EnemyType.HYDRA:
-		_roll_hydra_drops()
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	# Sphere grid passive triggers for kills
@@ -4756,13 +4742,13 @@ func _flash_strike(stats) -> void:
 			closest_dist = dist
 			target = enemy
 	if not stats.spend_flash_for_strike():
-		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_BLOCK, Color(1.0, 0.5, 0.5))
+		add_battle_log("Not enough flash points (%d needed)." % stats.get_flash_block_cost(), Color(1.0, 0.5, 0.5))
 		return
 	if player.has_method("play_animation"):
 		player.play_animation("attack_slash", _facing_dir_toward(target))
 	target.take_damage(PlayerStats.FLASH_STRIKE_DAMAGE, true)
 	add_battle_log("Flash Cut! -%d flash, %d damage to %s." % [
-		PlayerStats.FLASH_COST_BLOCK, PlayerStats.FLASH_STRIKE_DAMAGE, target.enemy_name], Color(1.0, 0.9, 0.4))
+		stats.get_flash_block_cost(), PlayerStats.FLASH_STRIKE_DAMAGE, target.enemy_name], Color(1.0, 0.9, 0.4))
 
 func _try_arcane_echo(stats) -> void:
 	## Arcane Echo keystone: a spell cast has an INT/3% chance to deal INT/2
@@ -5477,9 +5463,10 @@ func _check_volatile_mixture_in_hand() -> void:
 	for i in range(deck_manager.hand.size() - 1, -1, -1):
 		var card = deck_manager.hand[i]
 		if card.card_id == "volatile_mixture":
+			# Self-damage is FLAT — your own INT doesn't sharpen the blast in
+			# your hand. (The discard leg that hits an ENEMY stays INT-scaled.)
 			var self_damage = card.damage
 			if stats:
-				self_damage = stats.get_effective_spell_damage(card.damage)
 				stats.take_damage(self_damage)
 			deck_manager.hand.remove_at(i)
 			deck_manager.discard_pile.append(card)
@@ -6304,7 +6291,7 @@ func play_selected_card(target) -> void:
 		aoe_indicator.hide_indicator()
 
 	var card = deck_manager.hand[selected_card_index]
-	var tempo_cost = card.tempo_cost
+	var tempo_cost = card.get_burden_tempo_cost()
 	# Specific Strike: +1 tempo per OTHER card in hand (mana handled in play_card).
 	if card.card_id == "specific_strike":
 		tempo_cost += max(0, deck_manager.hand.size() - 1)
@@ -7122,6 +7109,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var wa_hit = enemy_spawner.get_living_enemies()
 			for en in wa_hit:
 				en.take_damage(wa_dmg, true)
+			_apply_misery_spread(wa_hit)
 			add_battle_log("Worms Armageddon! %d damage to %d enemies" % [wa_dmg, wa_hit.size()], Color(0.6, 0.4, 0.2))
 			print("[MAIN] Worms Armageddon hit %d enemies for %d" % [wa_hit.size(), wa_dmg])
 			if card.rng_binary_succeeded():
@@ -7219,7 +7207,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var charge_distance = 5
 			var final_pos = start_pos
 			var charge_stopped = false
-			var enemies_hit_count = 0
+			var charge_hit: Array = []
 
 			for step in range(1, charge_distance + 1):
 				if charge_stopped:
@@ -7253,7 +7241,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				for enemy in enemies_at_pos:
 					enemy.take_damage(card.last_damage_dealt, true)
 					enemy.knockback(start_pos, 2)
-					enemies_hit_count += 1
+					if not enemy in charge_hit:
+						charge_hit.append(enemy)
 
 				final_pos = next_pos
 
@@ -7261,7 +7250,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			final_pos = grid_manager.snap_to_grid(final_pos)
 			player.position = final_pos
 			player.target_position = final_pos
-			print("[MAIN] Charge: moved to %s, hit %d enemies for %d damage" % [final_pos, enemies_hit_count, card.last_damage_dealt])
+			_apply_misery_spread(charge_hit)
+			print("[MAIN] Charge: moved to %s, hit %d enemies for %d damage" % [final_pos, charge_hit.size(), card.last_damage_dealt])
 
 		"heroic_leap":
 			# Jump to click position based on STR, deal AOE damage on landing
@@ -7291,20 +7281,23 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var landing_enemies = enemy_spawner.get_enemies_in_radius(leap_target, 1.5)
 			for enemy in landing_enemies:
 				enemy.take_damage(leap_damage, true)
+			_apply_misery_spread(landing_enemies)
 			print("[MAIN] Heroic Leap: jumped %d/%d tiles to %s, hit %d enemies for %d damage" % [actual_leap, leap_distance, leap_target, landing_enemies.size(), leap_damage])
 
 		"surrounding_ice":
-			# AOE circle around player - roll independently for each enemy
+			# AOE circle around player - uses the pre-rolled per-enemy outcomes
+			# so Loaded Die / House Money chance boosts actually apply.
 			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
-			var hits = 0
+			var ice_hit: Array = []
 			var misses = 0
 			for enemy in nearby:
-				if randf() <= 0.7:  # 70% hit chance (30% miss)
+				if card.get_rng_outcome(enemy):
 					enemy.take_damage(card.last_damage_dealt, true)
-					hits += 1
+					ice_hit.append(enemy)
 				else:
 					misses += 1
-			print("[MAIN] Surrounding Ice: %d hits, %d misses out of %d enemies" % [hits, misses, nearby.size()])
+			_apply_misery_spread(ice_hit)
+			print("[MAIN] Surrounding Ice: %d hits, %d misses out of %d enemies" % [ice_hit.size(), misses, nearby.size()])
 
 		"snowballs_chance":
 			# Searing fire line 3 spaces forward - always hits
@@ -7312,8 +7305,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var direction = Vector3(sbc_diff.x, 0, sbc_diff.z).normalized()
 			var fire_end = player.position + direction * card.aoe_range
 			var fire_enemies = enemy_spawner.get_enemies_in_line(player.position, fire_end, 0.8)
+			var sbc_hit: Array = []
 			for enemy in fire_enemies:
 				enemy.take_damage(card.last_damage_dealt, true)
+				sbc_hit.append(enemy)
 			print("[MAIN] Snowball's Chance: fire line hit %d enemies for %d damage" % [fire_enemies.size(), card.last_damage_dealt])
 			# 50% to also spread snowball cone — uses the pre-rolled outcome so
 			# the result matches the card preview.
@@ -7324,8 +7319,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				for enemy in cone_enemies:
 					if not enemy in fire_enemies:
 						enemy.take_damage(card.last_damage_dealt, true)
+						sbc_hit.append(enemy)
 						extra_hits += 1
 				print("[MAIN] Snowball's Chance: snowball cone hit %d additional enemies!" % extra_hits)
+			_apply_misery_spread(sbc_hit)
 
 		"sky_fall":
 			# Store position for delayed 2-turn landing
@@ -7409,6 +7406,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			for enemy in sd_nearby:
 				enemy.take_damage(card.last_damage_dealt, true)
 				enemy.apply_debuff("disarmed", 1)
+			_apply_misery_spread(sd_nearby)
 			print("[MAIN] Sweeping Disarm: hit %d nearby enemies for %d damage, disarmed" % [sd_nearby.size(), card.last_damage_dealt])
 
 		"shadows":
@@ -7430,6 +7428,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			for enemy in all_enemies:
 				enemy.take_damage(absorb_dmg, true)
 				absorb_total_damage += absorb_dmg
+			_apply_misery_spread(all_enemies)
 			# Damage obstacles (barricades)
 			for i in range(barricade_obstacles.size() - 1, -1, -1):
 				var obs = barricade_obstacles[i]
@@ -7539,6 +7538,22 @@ func _input(event: InputEvent) -> void:
 		# Level progress panel toggle (skill tree + sphere grid tabs)
 		if event.keycode == KEY_L:
 			skill_tree_ui.toggle_panel()
+			return
+
+		# Burden relief: J jails the selected Burden card from hand (1m + 1t),
+		# resetting its accumulated cost. It sits in jail for 30 tempo.
+		if event.keycode == KEY_J:
+			if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size():
+				var bcard = deck_manager.hand[selected_card_index]
+				if bcard.has_burden:
+					if deck_manager.jail_burden_card(selected_card_index):
+						tempo_manager.add_tempo(bcard.burden_jail_cost_tempo)
+						selected_card_index = -1
+						if range_indicator:
+							range_indicator.hide_range()
+						add_battle_log("%s jailed to shed its burden (back in %d tempo)." % [bcard.card_name, bcard.burden_jail_duration], Color(0.8, 0.6, 1.0))
+					else:
+						add_battle_log("Cannot jail — no burden built up (or not enough mana).", Color(1.0, 0.5, 0.4))
 			return
 
 		# Help panel toggle
@@ -8300,7 +8315,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 		debuff_mgr.on_attack()
 
 	# Apply tempo
-	var tempo_cost = card.tempo_cost
+	var tempo_cost = card.get_burden_tempo_cost()
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
 	tempo_manager.add_card_tempo(tempo_cost)
@@ -9073,13 +9088,6 @@ func _on_ally_damage_taken(_amount: int, victim) -> void:
 	if not non_fatal:
 		return
 
-	# Growth Within Resilience (maintained Power): non-fatal damage adds a
-	# single-use Hydra Bite to your hand.
-	for mcard in deck_manager.get_maintained_cards():
-		if mcard.card_id == "growth_within_resilience":
-			deck_manager.add_card_to_hand(Card.create_hydra_bite())
-			add_battle_log("Growth Within Resilience: a Hydra Bite surges into your hand!", Color(0.5, 0.85, 0.4))
-			break
 
 func _on_card_on_draw_triggered(card: Card) -> void:
 	match card.on_draw_effect:
