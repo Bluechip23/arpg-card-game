@@ -5540,15 +5540,18 @@ func _process_healthy_bliss_cards() -> void:
 			continue
 		card.cycles_in_hand += 1
 		if card.cycles_in_hand >= 4:  # 4 cycles = 20 tempo
-			# Heal all allies for 10
+			# Heal ALL allies — every party member, not just the card holder.
 			var stats = player.get_stats()
+			var heal_amt = card.heal_amount
 			if stats:
-				var heal_amt = stats.get_effective_heal_amount(card.heal_amount)
-				stats.heal(heal_amt)
+				heal_amt = stats.get_effective_heal_amount(card.heal_amount)
 				add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
-			for ally in get_tree().get_nodes_in_group("allies"):
-				if ally.has_method("heal"):
-					ally.heal(card.heal_amount)
+			for ally in _all_players():
+				if not is_instance_valid(ally):
+					continue
+				var ally_stats = ally.get_stats()
+				if ally_stats:
+					ally_stats.heal(heal_amt)
 			# Discard the card
 			deck_manager.hand.remove_at(i)
 			deck_manager.discard_pile.append(card)
@@ -9512,7 +9515,6 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.equipped_boots = inv_data.get("equipped_boots", inv.equipped_boots)
 			inv.equipped_gauntlets = inv_data.get("equipped_gauntlets", inv.equipped_gauntlets)
 			inv.equipped_weapons = inv_data.get("equipped_weapons", inv.equipped_weapons)
-			inv.equipped_quivers = inv_data.get("equipped_quivers", inv.equipped_quivers)
 			inv.stored_items = inv_data.get("stored_items", inv.stored_items)
 			inv.rack_items = inv_data.get("rack_items", inv.rack_items)
 			inv.rack_cooldown_tempo = inv_data.get("rack_cooldown_tempo", 0)
@@ -9559,7 +9561,6 @@ func _save_player_progression() -> Dictionary:
 			"equipped_boots": inv.equipped_boots.duplicate(),
 			"equipped_gauntlets": inv.equipped_gauntlets.duplicate(),
 			"equipped_weapons": inv.equipped_weapons.duplicate(),
-			"equipped_quivers": inv.equipped_quivers.duplicate(),
 			"stored_items": inv.stored_items.duplicate(),
 			"stored_cards": inv.stored_cards.duplicate(),
 			"stash_items": inv.stash_items.duplicate(),

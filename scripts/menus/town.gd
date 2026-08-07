@@ -141,7 +141,6 @@ func _ready() -> void:
 				inv.equipped_boots = inv_data.get("equipped_boots", inv.equipped_boots)
 				inv.equipped_gauntlets = inv_data.get("equipped_gauntlets", inv.equipped_gauntlets)
 				inv.equipped_weapons = inv_data.get("equipped_weapons", inv.equipped_weapons)
-				inv.equipped_quivers = inv_data.get("equipped_quivers", inv.equipped_quivers)
 				inv.stored_items = inv_data.get("stored_items", inv.stored_items)
 				inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
 				inv.stash_items = inv_data.get("stash_items", inv.stash_items)
@@ -967,7 +966,7 @@ func _get_owned_mythic_names(inventory) -> Array:
 		inventory.stored_items, inventory.stash_items,
 		inventory.equipped_helms, inventory.equipped_chests, inventory.equipped_rings,
 		inventory.equipped_belts, inventory.equipped_boots, inventory.equipped_gauntlets,
-		inventory.equipped_weapons, inventory.equipped_quivers,
+		inventory.equipped_weapons,
 	]
 	for list in all_lists:
 		for item in list:
@@ -2691,7 +2690,6 @@ func _go_to_battle() -> void:
 			"equipped_boots": live_inv.equipped_boots.duplicate(),
 			"equipped_gauntlets": live_inv.equipped_gauntlets.duplicate(),
 			"equipped_weapons": live_inv.equipped_weapons.duplicate(),
-			"equipped_quivers": live_inv.equipped_quivers.duplicate(),
 			"stored_items": live_inv.stored_items.duplicate(),
 			"stored_cards": live_inv.stored_cards.duplicate(),
 			"stash_items": live_inv.stash_items.duplicate(),

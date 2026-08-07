@@ -570,7 +570,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"unplayable": "Cannot be played. Takes up a hand slot",
 		"enchantment": "Cannot be played. Provides a passive buff while in your hand. Auto-discards after 2 cycles. Effect is lost when the card leaves your hand",
 		# Card Mechanics
-		"maintain": "Reserves X mana from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
+		"maintain": "Reserves the card's mana cost from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
 		"erase": "After X tempo, this card is permanently deleted from the deck",
 		"empower": "Affects the next X cards played: +3 damage for attacks, -3 block for defense",
 		"on-draw": "Card triggers an effect when drawn into hand",
@@ -3285,7 +3285,7 @@ static func create_halo() -> Card:
 	var card = Card.new()
 	card.card_id = "halo"
 	card.card_name = "Halo"
-	card.description = "Maintain 3M: Every cycle, heal all allies in AOE for 3 HP"
+	card.description = "Maintain: Every cycle, heal all allies in AOE for 3 HP"
 	card.card_type = CardType.POWER
 	card.card_type_name = "Power"
 	card.mana_cost = 3  # Initial cast cost
@@ -3312,7 +3312,7 @@ static func create_armored_discipline() -> Card:
 	var card = Card.new()
 	card.card_id = "armored_discipline"
 	card.card_name = "Armored Discipline"
-	card.description = "Maintain 5M: When you take damage to your health, gain that much armor"
+	card.description = "Maintain: When you take damage to your health, gain that much armor"
 	card.card_type = CardType.POWER
 	card.card_type_name = "Power"
 	card.mana_cost = 3
@@ -3322,7 +3322,7 @@ static func create_armored_discipline() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.maintain_cost = 5
+	card.maintain_cost = 3  # Maintain reserve always equals the card's mana cost
 	card.target_types = ["self"]
 	return card
 
@@ -3477,7 +3477,7 @@ static func create_cultish_wounds() -> Card:
 	var card = Card.new()
 	card.card_id = "cultish_wounds"
 	card.card_name = "Cultish Wounds"
-	card.description = "Maintain 2M: Deal 1 damage to self ignoring armor. Repeat every 5 tempo."
+	card.description = "Maintain: Deal 1 damage to self ignoring armor. Repeat every 5 tempo."
 	card.card_type = CardType.POWER
 	card.card_type_name = "Power"
 	card.mana_cost = 2
@@ -3523,7 +3523,7 @@ static func create_fountain_of_life() -> Card:
 	var card = Card.new()
 	card.card_id = "fountain_of_life"
 	card.card_name = "Fountain of Life"
-	card.description = "Maintain 3M: Every cycle, deal 2 damage to self and draw a card."
+	card.description = "Maintain: Every cycle, deal 2 damage to self and draw a card."
 	card.card_type = CardType.POWER
 	card.card_type_name = "Power"
 	card.mana_cost = 3

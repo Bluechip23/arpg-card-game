@@ -9,9 +9,9 @@ during verification and does not appear below.
 Status column tracks triage: first fix batch landed 2026-08-07 (A1, A2, A4,
 A6, A7, B4, B7, B8, B10). Second batch landed 2026-08-07 (A5, B1, B2, B3,
 B5, C1, C2, C3, C4, C6, C7, C8, C9). Third batch landed 2026-08-07 (B9,
-C5, D2, D3, D4, D6, D7, D8, part of D9). B6 kept as-is by design decision.
-Remaining open: A3 (deferred until constellation work), D1, D5, and the
-rest of D9 (all awaiting direction).
+C5, D2, D3, D4, D6, D7, D8, part of D9). Fourth batch landed 2026-08-07
+(D1, D5, rest of D9). B6 kept as-is by design decision. Remaining open:
+A3 only (deferred until constellation work).
 
 ## A. Critical bugs (broken player-facing systems)
 
@@ -58,15 +58,15 @@ rest of D9 (all awaiting direction).
 
 | # | Finding | Where | Status |
 |---|---|---|---|
-| D1 | Halo's face replaces the "3" in "Maintain 3M" with the scaled heal (reads "Maintain 8M") | `card.gd:320-334,3248` | open — awaiting direction (explanation given in chat) |
+| D1 | Halo's face replaces the "3" in "Maintain 3M" with the scaled heal (reads "Maintain 8M") | `card.gd:320-334,3248` | fixed — maintain cards carry a plain "Maintain:" tag (no number); the reserve always equals the card's mana cost (rule applies to all future maintain cards too) |
 | D2 | Fortify Alliance swaps its heal/armor numbers in the stat-aware display | `card.gd:308,3633` | fixed — substitution now prefers the number sitting next to its own keyword (armor/heal/damage) |
 | D3 | Empower's text says "-3 block" but the effect is a 3-mana refund on defense cards | `card.gd:1397,1198` | fixed — empowered defense cards now grant 3 less block, per the text |
 | D4 | Quick Shot shows a literal "X" instead of its damage | `card.gd:2758` | fixed — deals (and displays) 2 damage + half of all modifiers |
-| D5 | Two crit readouts in the character panel disagree under Tactician's Eye | `character_panel.gd:857,667` | open — awaiting direction (explanation given in chat) |
+| D5 | Two crit readouts in the character panel disagree under Tactician's Eye | `character_panel.gd:857,667` | fixed — both readouts include the hand-size crit bonus |
 | D6 | Node 101 "bleed for 3 turns" applies 3 stacks of poison; node 76 "draw costs 0" discounts the next played card | `progression_triggers.gd:1897,1984` | fixed — both nodes are null connectors now |
 | D7 | Node 72 double-cast is near-inert (requires UTILITY + mana>0 + damage>0) | `main.gd:6707`, `progression_triggers.gd:2032` | fixed — node is a null connector now |
 | D8 | Stale docs/comments: inventory.gd says capacity 80% (is 70%); README says dual-wield 1.35× in one spot (is 1.15×); sphere_grid comments claim 100 nodes / 3 conversion keystones (134 / 4); stale "shared node" comments | various | fixed — all four corrected |
-| D9 | Dead code: Reaction `tempo_cost` unused; `SkillOption.passive_data` never read; `equipped_quivers` array permanently empty but still iterated; Healthy Bliss second implementation unreachable | `card.gd:3609`, `skill_tree_data.gd:34,54`, `inventory.gd:930,986`, `main.gd:5549` | partial — Cover's dead reaction tempo cost removed; quiver array & Healthy Bliss explained in chat, awaiting direction |
+| D9 | Dead code: Reaction `tempo_cost` unused; `SkillOption.passive_data` never read; `equipped_quivers` array permanently empty but still iterated; Healthy Bliss second implementation unreachable | `card.gd:3609`, `skill_tree_data.gd:34,54`, `inventory.gd:930,986`, `main.gd:5549` | fixed — Cover's dead reaction tempo cost removed; equipped_quivers array deleted everywhere (incl. save/load); Healthy Bliss heals the real party via _all_players() instead of the empty "allies" group |
 
 ## Verified-correct coverage (no findings)
 
