@@ -1212,6 +1212,8 @@ func _setup_tempo_bar() -> void:
 	_action_label.font_size = 28
 	_action_label.outline_size = 10
 	_action_label.outline_modulate = Color(0, 0, 0, 0.85)
+	_action_label.pixel_size = 0.001
+	_action_label.fixed_size = true  # constant screen size — readable at any zoom
 	_action_label.no_depth_test = true
 	_action_label.render_priority = 20
 	_action_label.modulate = Color(1.0, 0.85, 0.0)  # Yellow text
@@ -2344,6 +2346,14 @@ func _regenerate(amount: int) -> void:
 # ============================================
 # TEMPO BAR VISUAL UPDATE
 # ============================================
+
+func get_action_progress() -> float:
+	## 0..1 fill toward this enemy's next action (-1 when no action is chosen).
+	## Mirrors the overhead tempo bar; the unit tracker draws the same value.
+	if chosen_action.is_empty():
+		return -1.0
+	var cost = chosen_action.get("tempo_cost", 1)
+	return clampf(float(action_tempo_counter) / float(cost), 0.0, 1.0)
 
 func _update_tempo_bar() -> void:
 	if not _tempo_bar_bg or not _tempo_bar_fg:

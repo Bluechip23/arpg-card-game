@@ -14,6 +14,9 @@ var enemy_spawner = null
 var _content: VBoxContainer
 var _toggle_btn: Button
 var _group_entries: Dictionary = {}
+# Tracker-side tempo bars: [{enemy, fg: ColorRect, width: float}] — refreshed
+# each tick by update_tempo_bars() to mirror the overhead action bars.
+var _tempo_bars: Array = []
 # Maps Enemy instance_id -> portrait panel for reverse-lookup from battlefield hover
 var _enemy_to_panel: Dictionary = {}
 var _highlighted_enemy: Enemy = null  # Currently highlighted enemy (from either direction)
@@ -77,6 +80,7 @@ func refresh() -> void:
 		child.queue_free()
 	_group_entries.clear()
 	_enemy_to_panel.clear()
+	_tempo_bars.clear()
 
 	var living = enemy_spawner.get_living_enemies()
 	if living.is_empty():
@@ -181,11 +185,46 @@ func _create_single_entry(enemy: Enemy) -> VBoxContainer:
 	vbox.add_child(square)
 	_enemy_to_panel[enemy.get_instance_id()] = square
 
+	# Next-action tempo bar (yellow), mirroring the overhead bar
+	vbox.add_child(_create_tempo_bar_row(enemy, SQUARE_SIZE))
+
 	# Info underneath
 	var info = _create_info_column(enemy, 11)
 	vbox.add_child(info)
 
 	return vbox
+
+func _create_tempo_bar_row(enemy: Enemy, width: float) -> Control:
+	## A thin dark strip with a yellow fill that tracks the enemy's progress
+	## toward its next action (same value as the bar above its head).
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(width, 5)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var bg := ColorRect.new()
+	bg.color = Color(0.12, 0.12, 0.08, 0.9)
+	bg.size = Vector2(width, 5)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(bg)
+
+	var fg := ColorRect.new()
+	fg.color = Color(1.0, 0.85, 0.0, 0.95)
+	fg.size = Vector2(0, 5)
+	fg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(fg)
+
+	_tempo_bars.append({"enemy": enemy, "fg": fg, "width": width})
+	return holder
+
+func update_tempo_bars() -> void:
+	## Called every tempo tick from main — cheap: resizes the yellow fills.
+	for entry in _tempo_bars:
+		var enemy = entry["enemy"]
+		var fg: ColorRect = entry["fg"]
+		if not is_instance_valid(enemy) or not is_instance_valid(fg) or not enemy.is_alive():
+			continue
+		var progress: float = enemy.get_action_progress()
+		fg.size.x = 0.0 if progress < 0.0 else entry["width"] * progress
 
 # ============================================
 # GROUP SQUARE (for multiple of same type)
@@ -235,6 +274,9 @@ func _create_sub_portrait(enemy: Enemy) -> VBoxContainer:
 	var square = _create_portrait_square(enemy, SUB_SQUARE_SIZE)
 	vbox.add_child(square)
 	_enemy_to_panel[enemy.get_instance_id()] = square
+
+	# Next-action tempo bar, same as single entries
+	vbox.add_child(_create_tempo_bar_row(enemy, SUB_SQUARE_SIZE))
 
 	var info = _create_info_column(enemy, 10)
 	vbox.add_child(info)

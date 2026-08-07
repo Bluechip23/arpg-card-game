@@ -4168,6 +4168,10 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
+	# Mirror each enemy's action progress onto its tracker-side yellow bar.
+	if unit_tracker:
+		unit_tracker.update_tempo_bars()
+
 	# Summoned Bull Worms move/attack after the enemies act.
 	_update_summoned_worms()
 
