@@ -271,6 +271,10 @@ func _parse_passive_description(desc: String, node_id: int) -> Dictionary:
 		passive["effect"] = "gain_armor"
 	elif "mana" in effect_part and "regen" in effect_part:
 		passive["effect"] = "regen_mana"
+	elif "refund" in effect_part:
+		# Must beat the generic mana branch — "refund full mana cost" is a
+		# refund, not a flat gain (a flat gain of 0, as it happens).
+		passive["effect"] = "refund_mana"
 	elif "mana" in effect_part and "gain" in effect_part:
 		passive["effect"] = "gain_mana"
 	elif "mana" in effect_part:

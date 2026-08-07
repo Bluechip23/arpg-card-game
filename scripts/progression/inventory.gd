@@ -1532,6 +1532,9 @@ func rack_exchange(free: bool) -> Dictionary:
 	_bulk_build_switch = false
 
 	rack_items = outgoing
+	# The rack contents just changed hands — recompute the live carry load
+	# (and stance flags) NOW, not on the next unrelated equip.
+	_recalculate_carry_load()
 
 	if free:
 		rack_cooldown_tempo = RACK_FREE_SWAP_COOLDOWN

@@ -114,6 +114,12 @@ func restore_deck_state(state: Dictionary) -> void:
 		var card = _create_card_from_id(card_id)
 		if card:
 			maintained_cards.append(card)
+			# A maintained Power stays maintained across world transitions —
+			# effect intact AND its mana still reserved, exactly as it was.
+			# (Without this, every active Power became free after a zone change.)
+			if player_stats and card.maintain_cost > 0:
+				player_stats.reserve_mana(card.maintain_cost)
+			maintained_card_activated.emit(card)
 	hand_updated.emit()
 	print("[DECK] Restored deck state: hand=%d, draw=%d, discard=%d, jail=%d" % [hand.size(), draw_pile.size(), discard_pile.size(), jail_pile.size()])
 

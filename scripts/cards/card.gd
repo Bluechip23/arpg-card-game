@@ -1940,8 +1940,10 @@ func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats
 
 func _execute_mark(target, _player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("marked", 25)
-	print("[CARD] Mark! Target receives extra damage for 25 tempo")
+		# Enemy debuffs tick in CYCLES (1 cycle = 5 tempo): 5 cycles = the
+		# card's stated 25 tempo.
+		target.apply_debuff("marked", 5)
+	print("[CARD] Mark! Target receives extra damage for 25 tempo (5 cycles)")
 
 func _execute_rise(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Rise! Earth structure created on the map")
@@ -2095,10 +2097,14 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 		target.apply_debuff("slow", 4)  # -4 movement (4 grid spaces)
 	print("[CARD] Trip! %d damage, enemy movement -4" % total_damage)
 
-func _execute_choke(target, _player_stats: PlayerStats) -> void:
+func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("silenced", 3) 
+		target.apply_debuff("silenced", 3)
 		target.apply_debuff("choke_dot", 3)
+		# The grip squeezes with your own strength: each round deals HALF a
+		# basic attack's damage, locked in at cast time.
+		if player_stats and "choke_dot_damage" in target:
+			target.choke_dot_damage = maxi(1, floori(player_stats.get_basic_attack_damage() / 2.0))
 	print("[CARD] Choke! Enemy silenced and taking damage per round. Sticky 3")
 
 func _execute_push(target, _player_stats: PlayerStats) -> void:
@@ -2633,6 +2639,8 @@ static func create_exacerbate_wounds() -> Card:
 	card.card_id = "exacerbate_wounds"
 	card.card_name = "Exacerbate Wounds"
 	card.description = "Deal damage for each card discarded this turn."
+	card.damage = 0
+	card.base_damage = 0  # damage comes from discards, not a base hit
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 0
@@ -2890,6 +2898,8 @@ static func create_last_breath() -> Card:
 	card.card_id = "last_breath"
 	card.card_name = "Last Breath"
 	card.description = "Consume all remaining mana. Deal 3 damage per mana spent."
+	card.damage = 0
+	card.base_damage = 0  # damage comes from mana consumed, not a base hit
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 0
@@ -2984,7 +2994,9 @@ static func create_choke() -> Card:
 	var card = Card.new()
 	card.card_id = "choke"
 	card.card_name = "Choke"
-	card.description = "Silence enemy and deal damage per round."
+	card.description = "Silence enemy. Deals half your auto attack damage every round."
+	card.damage = 0
+	card.base_damage = 0
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 3
@@ -3404,11 +3416,12 @@ static func create_collect_arrows() -> Card:
 	var card = Card.new()
 	card.card_id = "collect_arrows"
 	card.card_name = "Collect Arrows"
-	card.description = "Place two attack cards from your discard pile back into your hand."
+	card.description = "Place two attack cards from your discard pile back into your hand. Glut: 15 tempo."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
 	card.glut_tempo = 15
+	card.target_types = ["self"]  # a self utility — no enemy click required
 	return card
 
 func _execute_blade_barrage(target, player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:

@@ -222,6 +222,21 @@ func _build_grid() -> void:
 	]
 	_create_ring(19, 12, 260.0, center, ring3_types, 3)
 
+	# === Ids 31–36: placeholder NULL nodes between Rings 3 and 4 ===
+	# The old 18-node Ring 3 owned these ids and several constellations still
+	# require them (Windwalker, Storm Runner, Unyielding, Shadow Strike, Iron
+	# Bastion). Until the grid + constellation balancing pass lands, they live
+	# as bare connective nodes at radius 305 so those constellations are
+	# completable again. Each links its nearest Ring 3 arm and Ring 4 node.
+	for k in range(6):
+		var angle = (TAU / 6.0) * k - PI / 2
+		var pos = center + Vector2(cos(angle), sin(angle)) * 305.0
+		var null_node = GridNode.new(31 + k, NodeType.NULL_NODE, "·",
+			"A bare link in the web. It offers nothing but the path onward.", pos, 3)
+		_add_node(null_node)
+		_connect_nodes(31 + k, 19 + k * 2)   # nearest Ring 3 arm node
+		_connect_nodes(31 + k, 37 + k * 4)   # nearest Ring 4 node
+
 	# Wire each arm's diamond. Ring 2 stat nodes sit at even offsets (ids 7,9,..17),
 	# their HP/Mana partner at the following odd offset. The matching Ring 3 nodes
 	# share the same offset (ids 19..30):

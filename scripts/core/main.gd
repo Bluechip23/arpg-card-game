@@ -286,7 +286,6 @@ var _attack_tempo_label: Label = null   # "5T (n)" tempo/proc readout
 var _rack_button: Button = null         # Brad's War Rack swap (free on cooldown / paid)
 # Basic (auto) attack baseline: flat damage before the STR modifier, so early
 # swings never feel like pure chip damage. STR still scales on top of this.
-const BASIC_ATTACK_BASE_DAMAGE := 3
 var _flash_button: Button = null        # bolt + pool count display (60% of the row)
 var _flash_move_button: Button = null   # boots: toggle spending flash on movement
 var _flash_move_sparkle: SparkleBorder = null  # gold cycling border while the toggle is on
@@ -947,7 +946,7 @@ func _setup_action_buttons() -> void:
 	_attack_button.name = "AttackButton"
 	_attack_button.custom_minimum_size = Vector2(0, 36)
 	_attack_button.size_flags_horizontal = Control.SIZE_FILL
-	_attack_button.tooltip_text = "Basic melee attack: %d base + STR modifier damage. Costs 5 tempo." % BASIC_ATTACK_BASE_DAMAGE
+	_attack_button.tooltip_text = "Basic melee attack: %d base + STR modifier damage. Costs 5 tempo." % PlayerStats.BASIC_ATTACK_BASE_DAMAGE
 	_attack_button.pressed.connect(_on_attack_pressed)
 	var atk_row := HBoxContainer.new()
 	atk_row.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1820,7 +1819,7 @@ func _on_attack_pressed() -> void:
 	# Damage: flat baseline + strength modifier (get_effective_physical_damage
 	# already applies Flurry Form's per-hit penalty). Killing Rhythm's armed
 	# bonus, if any, is spent on this swing.
-	var damage = stats.get_effective_physical_damage(BASIC_ATTACK_BASE_DAMAGE)
+	var damage = stats.get_basic_attack_damage()
 	damage += stats.consume_pending_dex_bonus_damage()
 	# Weighted Strikes: a heavy one-handed weapon's heft adds to the basic swing.
 	if stats.keystone_str_weight_basic:
@@ -5948,7 +5947,7 @@ func _refresh_hand_info_popup() -> void:
 ## (dex proc stores, Strengthen, crits) are excluded — they resolve on swing.
 func _get_basic_attack_display_damage() -> int:
 	var stats = player.get_stats()
-	var damage: int = stats.get_effective_physical_damage(BASIC_ATTACK_BASE_DAMAGE)
+	var damage: int = stats.get_basic_attack_damage()
 	if stats.keystone_str_weight_basic:
 		var inv = player.get_inventory()
 		if inv:
@@ -7054,10 +7053,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Hold the target for 3 cycles, dealing base damage at the end of each.
 			if target and target.has_method("apply_debuff"):
 				target.apply_debuff("stun", 3)
+				# Deal what the card face shows — the full stat-scaled number.
+				var vine_dmg := _card_player_damage(card)
 				for cyc in range(1, 4):
-					schedule_delayed_effect(cyc * 5, _vines_tick.bind(target, card.base_damage), "vines")
-				add_battle_log("Vines! Held the enemy for 3 turns (%d dmg/turn)" % card.base_damage, Color(0.4, 0.8, 0.3))
-				print("[MAIN] Vines: held target, %d damage x3 cycles" % card.base_damage)
+					schedule_delayed_effect(cyc * 5, _vines_tick.bind(target, vine_dmg), "vines")
+				add_battle_log("Vines! Held the enemy for 3 turns (%d dmg/turn)" % vine_dmg, Color(0.4, 0.8, 0.3))
+				print("[MAIN] Vines: held target, %d damage x3 cycles" % vine_dmg)
 
 		"release_tension":
 			# Remove one stack of the player-chosen debuff (falls back to the first
@@ -7115,9 +7116,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Misery Loves Company armed.")
 
 		"worms_armageddon":
-			# Rain meteors: base_damage to every enemy on the field; on the 10%
-			# proc, summon two REAL Alaskan Bull Worms (12 HP / 6 dmg / burrowed).
-			var wa_dmg = card.base_damage
+			# Rain meteors: stat-scaled damage (matching the card face) to every
+			# enemy; on the 10% proc, summon two REAL Alaskan Bull Worms.
+			var wa_dmg = _card_player_damage(card)
 			var wa_hit = enemy_spawner.get_living_enemies()
 			for en in wa_hit:
 				en.take_damage(wa_dmg, true)
@@ -7154,8 +7155,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var sk_enemies = enemy_spawner.get_living_enemies()
 			if sk_enemies.size() > 0:
 				var sk_target = sk_enemies[randi() % sk_enemies.size()]
-				sk_target.take_damage(3, true)
-				add_battle_log("Shuriken hit %s for 3!" % sk_target.enemy_name, Color(0.8, 0.9, 1.0))
+				var sk_dmg := _card_player_damage(card)
+				sk_target.take_damage(sk_dmg, true)
+				add_battle_log("Shuriken hit %s for %d!" % [sk_target.enemy_name, sk_dmg], Color(0.8, 0.9, 1.0))
 			else:
 				add_battle_log("Shuriken thrown, but no enemies present.", Color(0.7, 0.7, 0.7))
 
@@ -7420,12 +7422,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_spawn_pillar(rise_pos)
 
 		"absorb_essence":
-			# Deal 1 damage to ALL things on the battlefield (enemies, obstacles, allies)
+			# Deal the card face's stat-scaled damage to ALL things on the
+			# battlefield (enemies, obstacles, allies)
+			var absorb_dmg := _card_player_damage(card)
 			var absorb_total_damage = 0
 			var all_enemies = enemy_spawner.get_living_enemies()
 			for enemy in all_enemies:
-				enemy.take_damage(1, true)
-				absorb_total_damage += 1
+				enemy.take_damage(absorb_dmg, true)
+				absorb_total_damage += absorb_dmg
 			# Damage obstacles (barricades)
 			for i in range(barricade_obstacles.size() - 1, -1, -1):
 				var obs = barricade_obstacles[i]
