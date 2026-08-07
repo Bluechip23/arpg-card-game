@@ -74,7 +74,8 @@ var is_marked: bool = false    # Takes extra damage from player attacks
 var marked_tempo: int = 0      # Remaining tempo for mark
 var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when silenced
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
-var choke_dot_stacks: int = 0  # Choke: take 3 damage per cycle, lose 1 per cycle
+var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per cycle, lose 1 stack per cycle
+var choke_dot_damage: int = 3  # Set at cast: half the caster's auto-attack damage
 var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen
 var is_frozen: bool = false    # Cannot act when frozen
 var frozen_tempo: int = 0      # Remaining tempo for frozen
@@ -1212,6 +1213,8 @@ func _setup_tempo_bar() -> void:
 	_action_label.font_size = 28
 	_action_label.outline_size = 10
 	_action_label.outline_modulate = Color(0, 0, 0, 0.85)
+	_action_label.pixel_size = 0.001
+	_action_label.fixed_size = true  # constant screen size — readable at any zoom
 	_action_label.no_depth_test = true
 	_action_label.render_priority = 20
 	_action_label.modulate = Color(1.0, 0.85, 0.0)  # Yellow text
@@ -1378,10 +1381,10 @@ func _tick_status_durations() -> void:
 			print("[%s] Silence expired, can cast again" % enemy_name)
 			debuff_expired.emit(self, "silenced")
 
-	# Choke: deal 3 damage per cycle, lose 1 stack per cycle
+	# Choke: deal the caster's half-auto-attack damage per cycle, lose 1 stack
 	if choke_dot_stacks > 0:
-		take_damage(3, false)
-		print("[%s] Choke deals 3 damage (%d stacks left)" % [enemy_name, choke_dot_stacks - 1])
+		take_damage(choke_dot_damage, false)
+		print("[%s] Choke deals %d damage (%d stacks left)" % [enemy_name, choke_dot_damage, choke_dot_stacks - 1])
 		choke_dot_stacks -= 1
 		if choke_dot_stacks <= 0:
 			print("[%s] Choke expired" % enemy_name)
@@ -2344,6 +2347,14 @@ func _regenerate(amount: int) -> void:
 # ============================================
 # TEMPO BAR VISUAL UPDATE
 # ============================================
+
+func get_action_progress() -> float:
+	## 0..1 fill toward this enemy's next action (-1 when no action is chosen).
+	## Mirrors the overhead tempo bar; the unit tracker draws the same value.
+	if chosen_action.is_empty():
+		return -1.0
+	var cost = chosen_action.get("tempo_cost", 1)
+	return clampf(float(action_tempo_counter) / float(cost), 0.0, 1.0)
 
 func _update_tempo_bar() -> void:
 	if not _tempo_bar_bg or not _tempo_bar_fg:

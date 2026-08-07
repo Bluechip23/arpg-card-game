@@ -181,7 +181,7 @@ Mechanics that appear on cards:
 | **On-Draw / On-Discard** | Triggers an effect when drawn / discarded. |
 | **In-Hand** | Applies a persistent effect while the card sits in your hand. |
 | **Linger** | Status card that can exceed your hand size limit. While it lingers, normal draws overflow. |
-| **Empower** | Buffs your next cards: +3 damage for attacks, −3 mana for defense. |
+| **Empower** | Affects your next cards: +3 damage for attacks, −3 block for defense. |
 | **Reach** | Adds 1 tile to melee attack range. |
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
 | **Chisel** | Card can only be played while slotted into an item — never from hand alone. |

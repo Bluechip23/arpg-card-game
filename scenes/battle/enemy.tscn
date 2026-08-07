@@ -45,6 +45,10 @@ text = ""
 font_size = 48
 outline_size = 14
 outline_modulate = Color(0, 0, 0, 0.85)
+pixel_size = 0.001
+fixed_size = true
+no_depth_test = true
+render_priority = 10
 
 [node name="HealthLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -53,6 +57,10 @@ text = "100 / 100"
 font_size = 34
 outline_size = 10
 outline_modulate = Color(0, 0, 0, 0.85)
+pixel_size = 0.001
+fixed_size = true
+no_depth_test = true
+render_priority = 10
 
 [node name="HealthBarBG" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)

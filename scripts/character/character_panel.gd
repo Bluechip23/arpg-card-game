@@ -845,7 +845,7 @@ func _on_sandbox_stat_adjust(key: String, delta: int) -> void:
 	update_display()
 
 func _build_derived_stats_text() -> String:
-	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit)
+	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit) + player_stats.get_hand_size_crit_bonus()
 	var carry_flag = " OVER!" if player_stats.is_overburdened() else ""
 	return """HP   %d/%d
 Mana %.0f/%d

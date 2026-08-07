@@ -114,6 +114,12 @@ func restore_deck_state(state: Dictionary) -> void:
 		var card = _create_card_from_id(card_id)
 		if card:
 			maintained_cards.append(card)
+			# A maintained Power stays maintained across world transitions —
+			# effect intact AND its mana still reserved, exactly as it was.
+			# (Without this, every active Power became free after a zone change.)
+			if player_stats and card.maintain_cost > 0:
+				player_stats.reserve_mana(card.maintain_cost)
+			maintained_card_activated.emit(card)
 	hand_updated.emit()
 	print("[DECK] Restored deck state: hand=%d, draw=%d, discard=%d, jail=%d" % [hand.size(), draw_pile.size(), discard_pile.size(), jail_pile.size()])
 
@@ -341,7 +347,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		return { "played": false, "half_tempo": false }
 	
 	var card = hand[index]
-	
+	# Timing-safe snapshot for Consecutive Snap: how many uses were complete
+	# BEFORE this play (the sticky counter increments later this function).
+	card.snap_uses_at_play = card.consecutive_uses
+
 	if card.is_jailed():
 		print("[DECK] Cannot play jailed card!")
 		return { "played": false, "half_tempo": false }
@@ -387,7 +396,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				print("[DECK] Heavy Swing needs an all-attack hand")
 				return { "played": false, "half_tempo": false }
 
-	var mana_cost = card.mana_cost
+	var mana_cost = card.get_burden_mana_cost()  # Burden: +1m per prior play
 	if card.card_type == Card.CardType.ATTACK:
 		mana_cost -= next_attack_mana_discount
 
@@ -589,6 +598,8 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	print("[DECK] Played: %s (cost %d mana) | Hand: %d/%d" % [card.card_name, mana_cost, hand.size(), get_hand_cap()])
 
+	card.apply_burden()  # Burden cards get heavier with every play
+
 	return { "played": true, "half_tempo": was_half_tempo, "mana_spent": mana_paid, "health_spent": health_paid }
 
 ## Execute a deferred card (called when the resolve tick fires in the ticked tempo system)
@@ -695,14 +706,31 @@ func process_turn() -> void:
 	# Process Erase: tick down erase timers on all cards and delete expired ones
 	_process_erase_timers()
 
+func jail_burden_card(index: int) -> bool:
+	## Burden relief: jail the card FROM HAND to reset its accumulated burden
+	## (keyword: 30 tempo in jail, costs 1m — the 1t is charged by the caller).
+	if index < 0 or index >= hand.size():
+		return false
+	var card = hand[index]
+	if not card.has_burden or card.burden_plays <= 0:
+		return false
+	if player_stats and not player_stats.spend_mana(card.burden_jail_cost_mana):
+		return false
+	hand.remove_at(index)
+	card.jail_burden()  # resets plays + arms the 30-tempo jail timer
+	jail_pile.append(card)
+	card_jailed.emit(card)
+	hand_updated.emit()
+	print("[DECK] %s jailed to shed its burden" % card.card_name)
+	return true
+
 func _process_erase_timers() -> void:
-	## Tick down erase_tempo_remaining on all cards with erase_tempo > 0.
-	## When a card's erase timer hits 0, permanently remove it from the deck.
+	## Tick down erase_tempo_remaining on cards with erase_tempo > 0.
+	## Erase timers only tick while the card sits in the player's HAND —
+	## a token resting in the draw/discard piles keeps its fuse intact.
+	## When a card's timer hits 0, permanently remove it from the deck.
 	var piles = [
-		{"pile": draw_pile, "name": "draw pile"},
 		{"pile": hand, "name": "hand"},
-		{"pile": discard_pile, "name": "discard pile"},
-		{"pile": jail_pile, "name": "jail"},
 	]
 	var hand_changed = false
 	for pile_info in piles:

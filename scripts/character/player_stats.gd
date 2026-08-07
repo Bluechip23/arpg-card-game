@@ -454,6 +454,10 @@ func save_progression() -> Dictionary:
 		"keystone_wis_hand_crit": keystone_wis_hand_crit,
 		"keystone_int_regen_armor": keystone_int_regen_armor,
 		"keystone_int_spell_proc": keystone_int_spell_proc,
+		"keystone_lifesteal_temp_hp": keystone_lifesteal_temp_hp,
+		"keystone_armor_temp_hp": keystone_armor_temp_hp,
+		"keystone_mana_blood": keystone_mana_blood,
+		"keystone_det_mana": keystone_det_mana,
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
@@ -536,6 +540,10 @@ func restore_progression(data: Dictionary) -> void:
 	keystone_wis_hand_crit = data.get("keystone_wis_hand_crit", keystone_wis_hand_crit)
 	keystone_int_regen_armor = data.get("keystone_int_regen_armor", keystone_int_regen_armor)
 	keystone_int_spell_proc = data.get("keystone_int_spell_proc", keystone_int_spell_proc)
+	keystone_lifesteal_temp_hp = data.get("keystone_lifesteal_temp_hp", keystone_lifesteal_temp_hp)
+	keystone_armor_temp_hp = data.get("keystone_armor_temp_hp", keystone_armor_temp_hp)
+	keystone_mana_blood = data.get("keystone_mana_blood", keystone_mana_blood)
+	keystone_det_mana = data.get("keystone_det_mana", keystone_det_mana)
 	_det_vitality_hp_applied = data.get("_det_vitality_hp_applied", _det_vitality_hp_applied)
 	# Base stats
 	base_strength = data.get("base_strength", base_strength)
@@ -739,6 +747,16 @@ func get_carry_capacity_two_handing(two_handing: bool) -> int:
 func get_free_carry_capacity() -> int:
 	return get_carry_capacity() - current_carry_load
 
+# The basic attack's flat baseline (STR pipeline applies on top).
+const BASIC_ATTACK_BASE_DAMAGE := 3
+
+func get_basic_attack_damage() -> int:
+	## The deterministic core of a basic swing — baseline through the physical
+	## pipeline. Consumable bonuses (Killing Rhythm, Strengthen, crit) land on
+	## top of this in the attack path; effects that scale off "auto attack
+	## damage" (e.g. Choke) read this value.
+	return get_effective_physical_damage(BASIC_ATTACK_BASE_DAMAGE)
+
 func get_strength_damage_bonus() -> int:
 	# Uses effective strength: +0.5 melee damage per point (rounds down)
 	return floori(strength * 0.5)
@@ -827,7 +845,8 @@ func spend_flash_for_block() -> bool:
 func spend_flash_for_strike() -> bool:
 	## Flash Cut: spend the same flash the Sidestep would, but the caller turns it
 	## into an attack (FLASH_STRIKE_DAMAGE to the nearest enemy) instead of armor.
-	return spend_flash_points(FLASH_COST_BLOCK)
+	## Pays the free-hand discount exactly like the Sidestep.
+	return spend_flash_points(get_flash_block_cost())
 
 func spend_flash_for_proc_tick() -> bool:
 	## Buy one tick of the attack-speed counter with flash points ("quick

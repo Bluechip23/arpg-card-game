@@ -35,16 +35,16 @@ func _initialize() -> void:
 	_check(p4.get("effect", "") == "freeze_enemy" and absf(p4.get("chance", 0.0) - 0.05) < 0.001,
 		"freeze passive parses as freeze_enemy at 5 percent (got " + str(p4.get("effect")) + ")")
 
-	# --- Empower on defense: mana refund, full armor ---
+	# --- Empower on defense: "-3 block" per the card text (D3) ---
 	var stats = load("res://scripts/character/player_stats.gd").new()
 	stats.initialize(CharacterData.create_ryan())
 	stats.current_mana = 0.0
 	stats.apply_empower(2)
 	var block_card = Card.create_block()
 	block_card.execute(null, stats, null)
-	_check(stats.current_armor == block_card.block, "empowered block grants FULL armor (%d)" % stats.current_armor)
-	_check(int(stats.current_mana) == stats.empower_block_reduction,
-		"empowered defense refunds %d mana" % stats.empower_block_reduction)
+	_check(stats.current_armor == block_card.block - stats.empower_block_reduction,
+		"empowered block grants %d less armor (got %d)" % [stats.empower_block_reduction, stats.current_armor])
+	_check(int(stats.current_mana) == 0, "empowered defense no longer refunds mana")
 
 	# --- Sphere resistance actually reduces damage ---
 	stats.current_armor = 0

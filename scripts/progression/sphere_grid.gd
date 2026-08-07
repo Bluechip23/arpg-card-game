@@ -2,7 +2,7 @@ class_name SphereGrid
 extends Resource
 
 ## Data model for the sphere grid leveling system.
-## Contains 100 nodes arranged in concentric rings with connections for pathing.
+## Contains 134 nodes arranged in concentric rings with connections for pathing.
 
 enum NodeType {
 	STAT_BONUS,    # Flat stat increase (STR, DEX, INT, WIS, AGI, DET)
@@ -222,6 +222,21 @@ func _build_grid() -> void:
 	]
 	_create_ring(19, 12, 260.0, center, ring3_types, 3)
 
+	# === Ids 31–36: placeholder NULL nodes between Rings 3 and 4 ===
+	# The old 18-node Ring 3 owned these ids and several constellations still
+	# require them (Windwalker, Storm Runner, Unyielding, Shadow Strike, Iron
+	# Bastion). Until the grid + constellation balancing pass lands, they live
+	# as bare connective nodes at radius 305 so those constellations are
+	# completable again. Each links its nearest Ring 3 arm and Ring 4 node.
+	for k in range(6):
+		var angle = (TAU / 6.0) * k - PI / 2
+		var pos = center + Vector2(cos(angle), sin(angle)) * 305.0
+		var null_node = GridNode.new(31 + k, NodeType.NULL_NODE, "·",
+			"A bare link in the web. It offers nothing but the path onward.", pos, 3)
+		_add_node(null_node)
+		_connect_nodes(31 + k, 19 + k * 2)   # nearest Ring 3 arm node
+		_connect_nodes(31 + k, 37 + k * 4)   # nearest Ring 4 node
+
 	# Wire each arm's diamond. Ring 2 stat nodes sit at even offsets (ids 7,9,..17),
 	# their HP/Mana partner at the following odd offset. The matching Ring 3 nodes
 	# share the same offset (ids 19..30):
@@ -276,7 +291,7 @@ func _build_grid() -> void:
 		_connect_nodes(37 + i, 37 + ((i + 1) % 24))
 
 	# === Ring 5 (outer): 39 nodes at radius 340 ===
-	# IDs 61..99 (39 nodes to reach 100 total)
+	# IDs 61..99 (39 nodes)
 	var ring5_types: Array = []
 	var r5_labels = [
 		[NodeType.COMBAT_BONUS, "Block +3", "Block cards grant +3 additional block"],
@@ -290,11 +305,11 @@ func _build_grid() -> void:
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.STAT_BONUS, "INT +5", "Intelligence +5"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
-		[NodeType.PASSIVE, "Passive", "On spell cast: 5% double cast"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Damage +4", "All attacks deal +4 bonus damage"],
 		[NodeType.STAT_BONUS, "WIS +5", "Wisdom +5"],
 		[NodeType.COMBAT_BONUS, "Life Steal +3%", "Heal for 3% of damage dealt"],
-		[NodeType.PASSIVE, "Passive", "On draw: 10% draw costs 0 mana"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Heal +4", "Heal cards restore +4 additional HP"],
 		[NodeType.KEYSTONE, "Flash Reserves", "Keystone: spend 4 Flash points to draw a card (new battle HUD button).", {"req": {"stat": "agility", "value": 12}, "keystone": "flash_draw"}],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
@@ -337,7 +352,7 @@ func _build_grid() -> void:
 	# IDs 100..129 — high-tier nodes with advanced bonuses
 	var ring6_types: Array = [
 		[NodeType.COMBAT_BONUS, "Crit +7%", "Critical hit chance +7%"],
-		[NodeType.PASSIVE, "Passive", "On crit: apply bleed for 3 turns"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "STR +7", "Strength +7"],
 		[NodeType.KEYSTONE, "Weighted Strikes", "Keystone: your basic attack gains a heavy weapon's weight-to-damage bonus even wielded one-handed (+1 damage per 10 weapon weight).", {"req": {"stat": "strength", "value": 15}, "keystone": "str_weight_basic"}],
 		[NodeType.KEYSTONE, "Balanced Load", "Keystone: pick an equipment slot — its items weigh 10% less, stacking with any other weight reduction on that slot.", {"req": {"stat": "strength", "value": 15}, "keystone": "str_light_slot"}],
@@ -366,7 +381,7 @@ func _build_grid() -> void:
 		[NodeType.KEYSTONE, "Killing Rhythm", "Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_flat_damage"}],
 		[NodeType.KEYSTONE, "Unbroken Will", "Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_floor"}],
 		[NodeType.KEYSTONE, "Wild Abandon", "Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_amplify"}],
-		# --- Conversion keystones (ids 130-132). Ungated for now; final placement
+		# --- Conversion keystones (ids 130-133). Ungated for now; final placement
 		# and any stat gates come with the null-node / layout pass. ---
 		[NodeType.KEYSTONE, "Sanguine Barrier", "Keystone: life steal no longer heals — stolen life becomes temporary HP instead.", {"keystone": "lifesteal_temp_hp"}],
 		[NodeType.KEYSTONE, "Living Bulwark", "Keystone: armor you would gain becomes temporary HP instead.", {"keystone": "armor_temp_hp"}],
@@ -483,7 +498,7 @@ func _build_constellations() -> void:
 	))
 
 	# --- PAIR 3: AGI Sector — Windwalker vs Storm Runner ---
-	# Shared nodes: 5 (AGI+1), 16 (Mana+3), 32 (AGI+3)
+	# Shared nodes: 5 (AGI+1), 16 (Mana+3), 32 (placeholder null node for now)
 	# Windwalker goes toward card draw/prep; Storm Runner toward mana sustain
 	# Storm Runner also shares node 17 with Unyielding — creating a 3-way conflict
 	_add_constellation(Constellation.new(
