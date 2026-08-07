@@ -79,7 +79,7 @@ Recruited NPCs are part of the same fabric: allies found on the journey (startin
 - Cards have a **tempo cost** alongside their mana cost. Playing a card schedules that many tempo **ticks**; the card's effect resolves on a specific tick (some cards hit immediately, some at the end of their wind-up).
 - Cards you play queue **sequentially**. Your second card starts ticking after your first finishes. In co-op, each character has their own queue but uses the same global ticker. Meaning players act simultaneously, play cards independently, while utilizing the same tempo bar.
 - **Playing an action commits you.** While your own card or basic attack is ticking down, you are glued to your position — no movement until your ticks run out. That is the price of tempo.
-- **The action queue is visible and partially reversible.** The ▾ arrow beside the tempo bar opens your queue (last 15 actions). An action whose tempo hasn't started yet carries a red ✕ — cancel it and the card returns to your hand with its tempo refunded. Once an action's own ticks begin, it is locked in. Queue five attacks, take a beating, cancel the three that haven't started, and run.
+- **The action queue is visible and partially reversible.** The ▾ arrow beside the tempo bar opens your queue (last 15 actions). An action whose tempo hasn't started yet carries a red ✕ — cancel it and the card returns to your hand with its tempo AND mana fully refunded. Once an action's own ticks begin, it is locked in. Queue five attacks, take a beating, cancel the three that haven't started, and run.
 - By default, **movement costs 1 tempo per tile**.
 - Every **5 global tempo = 1 cycle**. Cycles are the game's heartbeat:
   - Mana regenerates once per cycle.

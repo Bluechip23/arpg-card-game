@@ -1298,14 +1298,35 @@ func _cancel_queued_action(card: Card) -> void:
 			player = _p1_player if owner_idx == 0 else _p2_player
 			deck_manager = _p1_deck_manager if owner_idx == 0 else _p2_deck_manager
 			_return_dead_target_card(card, entry["data"], "cancelled")
+			_refund_cancelled_action_cost(player, entry["data"])
 			player = prev_p
 			deck_manager = prev_d
 		else:
 			_return_dead_target_card(card, entry["data"], "cancelled")
+			_refund_cancelled_action_cost(player, entry["data"])
 		_on_hand_updated()
 		update_deck_info()
 		_refresh_action_queue()
 		return
+
+func _refund_cancelled_action_cost(p, data: Dictionary) -> void:
+	## A voluntary cancel gives back exactly what the play cost — the mana
+	## spent (or health, when Demonic Rage paid). Dead-target returns keep
+	## their existing behavior; this runs only from the queue's red ✕.
+	var mana_spent: int = data.get("mana_spent", 0)
+	var health_spent: int = data.get("health_spent", 0)
+	if mana_spent <= 0 and health_spent <= 0:
+		return
+	var stats = p.get_stats() if p else null
+	if not stats:
+		return
+	stats.refund_action_cost(mana_spent, health_spent)
+	var parts: Array[String] = []
+	if mana_spent > 0:
+		parts.append("%d mana" % mana_spent)
+	if health_spent > 0:
+		parts.append("%d health" % health_spent)
+	add_battle_log("Refunded %s." % " and ".join(parts), Color(0.5, 0.8, 1.0))
 
 func _reset_tick_bar() -> void:
 	## Reset the tick bar to idle state but still show global tempo progress.
@@ -6384,6 +6405,8 @@ func play_selected_card(target) -> void:
 				"harnessed_bonus_block": harnessed_bonus_block,
 				"is_ranged_attack": is_ranged_attack,
 				"half_tempo": result["half_tempo"],
+				"mana_spent": result.get("mana_spent", 0),
+				"health_spent": result.get("health_spent", 0),
 			},
 		}
 		_pending_resolve_queue.append(resolve_entry)

@@ -1412,6 +1412,17 @@ func spend_mana(amount: int) -> bool:
 		return true
 	return false
 
+func refund_action_cost(mana_amount: int, health_amount: int = 0) -> void:
+	## Voluntary action cancel: give back exactly what the play spent — raw
+	## amounts, no healing/regen bonuses, capped at the maxima. Health covers
+	## plays paid with Demonic Rage.
+	if mana_amount > 0:
+		current_mana = minf(current_mana + mana_amount, float(max_mana))
+		mana_changed.emit(current_mana, max_mana)
+	if health_amount > 0:
+		current_health = mini(current_health + health_amount, max_health)
+		health_changed.emit(current_health, max_health)
+
 func _drain_mana_as_health(amount: int) -> void:
 	## Arcane Blood: mana absorbing damage. Mirrors spend_mana's bookkeeping —
 	## including breaking maintained cards when the pool hits 0.

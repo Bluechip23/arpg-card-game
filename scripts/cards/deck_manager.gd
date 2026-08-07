@@ -440,15 +440,21 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			print("[DECK] Not enough mana! Need %d, have %d" % [mana_cost, int(player_stats.current_mana)])
 			return { "played": false, "half_tempo": false }
 
+	# Remember what this play actually cost so a voluntary cancel can give it
+	# back exactly (mana normally; health when Demonic Rage footed the bill).
+	var mana_paid := 0
+	var health_paid := 0
 	if player_stats and mana_cost > 0:
 		if demonic_rage_active:
 			# Spend health instead of mana
 			var dr_buff_mgr = player_node.get_buff_manager()
 			player_stats.take_damage(mana_cost)
 			dr_buff_mgr.consume_demonic_rage()
+			health_paid = mana_cost
 			print("[DECK] Demonic Rage: paid %d health instead of mana (%d charges left)" % [mana_cost, dr_buff_mgr.get_buff(Buff.BuffType.DEMONIC_RAGE).charges if dr_buff_mgr.has_demonic_rage() else 0])
 		else:
 			player_stats.spend_mana(mana_cost)
+			mana_paid = mana_cost
 
 	# Count this fire spell so the next one this turn is cheaper.
 	if card.is_fire_spell:
@@ -583,7 +589,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	print("[DECK] Played: %s (cost %d mana) | Hand: %d/%d" % [card.card_name, mana_cost, hand.size(), get_hand_cap()])
 
-	return { "played": true, "half_tempo": was_half_tempo }
+	return { "played": true, "half_tempo": was_half_tempo, "mana_spent": mana_paid, "health_spent": health_paid }
 
 ## Execute a deferred card (called when the resolve tick fires in the ticked tempo system)
 func execute_deferred_card(card: Card, target, player_node = null) -> void:
