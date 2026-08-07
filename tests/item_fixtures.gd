@@ -64,6 +64,14 @@ static func bow(weight := 30) -> ItemData:
 	item.weapon_damage = 3
 	return item
 
+static func staff(weight := 20) -> ItemData:
+	var item = _base("Test Staff", ItemData.ItemType.WEAPON)
+	item.weapon_subtype = ItemData.WeaponSubtype.STAFF
+	item.item_type_name = "Weapon"
+	item.weight = weight
+	item.weapon_damage = 5
+	return item
+
 ## Hammer with a STR 15 mastery breakpoint that grants Heavy Swing.
 static func mastery_sledge() -> ItemData:
 	var item = _base("Test Sledge", ItemData.ItemType.WEAPON)
@@ -140,7 +148,7 @@ static func quiver() -> ItemData:
 
 ## Gauntlets that raise hand size (persistence tests).
 static func hand_size_gauntlets() -> ItemData:
-	var item = _base("Test Grip Gauntlets", ItemData.ItemType.GAUNTLETS)
+	var item = _base("Test Hand-Size Gauntlets", ItemData.ItemType.GAUNTLETS)
 	item.item_type_name = "Gauntlets"
 	item.weight = 3
 	item.hand_size_bonus = 2

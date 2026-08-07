@@ -40,14 +40,16 @@ const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 # ============================================
 # TWO-HANDED & DUAL WIELDING
 # ============================================
-# Any weapon or shield can be gripped with both hands — a per-slot player
-# choice, never an item property. The grip halves the item's carried weight
-# (letting weaker characters wield huge gear) but drops TOTAL carry capacity
-# to 80% (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second hand
-# slot. Weapons gain damage from their ORIGINAL weight; shields gain Basic
-# Block armor the same way.
+# Any weapon or shield can be two-handed — a per-slot player choice, never
+# an item property. Two-handing halves the item's carried weight (letting
+# weaker characters wield huge gear) but drops TOTAL carry capacity to 70%
+# (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second hand slot.
+# Weapons gain damage from their ORIGINAL weight; shields gain Basic Block
+# armor the same way.
 const TWO_HAND_WEIGHT_MULT: float = 0.5
-const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 10.0  # +1 damage/block per 10 weight
+# +1 damage/block per 25 weight (4% of weight). At 10% a heavy mid-tier weapon
+# effectively doubled its damage; 4% reserves the doubling for true monsters.
+const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 25.0
 
 # Dual wielding (a pair of weapons — or a pair of shields — in hand slots):
 # EVERY item in the pair carries 15% extra weight, so a heavy main hand can't
@@ -56,8 +58,8 @@ const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 10.0  # +1 damage/block per 10 wei
 # strength commitment. Sword-and-board mixes classes and pays nothing.
 const DUAL_WIELD_WEIGHT_MULT: float = 1.15
 
-var two_handed_slot: int = -1       # weapon slot currently gripped with both hands
-var two_handed_lock_slot: int = -1  # the empty hand slot the grip occupies
+var two_handed_slot: int = -1       # weapon slot currently held with both hands
+var two_handed_lock_slot: int = -1  # the empty hand slot two-handing occupies
 
 # ============================================
 # WAR RACK (Brad's slot identity)
@@ -65,7 +67,7 @@ var two_handed_lock_slot: int = -1  # the empty hand slot the grip occupies
 # Gear strapped across his back. rack_exchange() swaps EVERYTHING in the hand
 # slots with everything on the rack, wholesale. The FREE exchange costs no
 # tempo but sits on a cooldown, requires one side of the exchange to be a
-# single item gripped two-handed (the fantasy is hauling the huge thing off
+# single item held two-handed (the fantasy is hauling the huge thing off
 # his back), and rushes the incoming items' cards straight to hand. Paid
 # exchanges work anytime under the normal swap-tempo rules.
 var has_back_rack: bool = false
@@ -234,13 +236,13 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 		print("[INVENTORY] Slot %d already occupied" % slot_index)
 		return false
 
-	# A two-handed grip occupies a second hand slot — nothing else fits there.
+	# Two-handing occupies a second hand slot — nothing else fits there.
 	if slot_array == equipped_weapons and two_handed_slot >= 0 and slot_index == two_handed_lock_slot:
-		print("[INVENTORY] Slot %d is holding the two-handed grip" % slot_index)
+		print("[INVENTORY] Slot %d is locked by two-handing" % slot_index)
 		return false
 
-	# Bows demand both hands: a bow never shares the hand slots with another
-	# weapon or shield — only a quiver (its own slot) rides along.
+	# Bows and magic staffs demand both hands: they never share the hand slots
+	# with other gear — only a quiver (its own slot) rides along with a bow.
 	if slot_array == equipped_weapons:
 		var conflict = hand_conflict_reason(item, slot_index)
 		if conflict != "":
@@ -248,7 +250,7 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 			return false
 
 	# Hard carry gate: refuse an equip that would push the character (further)
-	# past capacity. Uses the PROSPECTIVE delta so grip discounts and the
+	# past capacity. Uses the PROSPECTIVE delta so two-handing discounts and the
 	# dual-wield surcharge (which re-weighs the OTHER hand too) are counted.
 	if not _bulk_build_switch and not _carry_change_allowed(_prospective_weight_delta(item, slot_array, slot_index), two_handed_slot >= 0):
 		print("[INVENTORY] %s is too heavy! Carry: %d/%d, item weight %d" % [
@@ -258,7 +260,7 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 
 	slot_array[slot_index] = item
 
-	# Slot index > 0 means off-hand. (A later two-handed grip re-applies the
+	# Slot index > 0 means off-hand. (Later two-handing re-applies the
 	# item's bonuses at full strength — see set_two_handed.)
 	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and slot_index > 0)
 
@@ -289,7 +291,7 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 					   slot_index > 0 and slot_index != two_handed_slot)
 
 	slot_array[slot_index] = null
-	# Losing the item releases the two-handed grip with it
+	# Losing the item releases two-handing with it
 	if slot_array == equipped_weapons and slot_index == two_handed_slot:
 		_clear_two_handed_state()
 	_apply_item_bonuses(item, false, is_off_hand)
@@ -304,12 +306,27 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	print("[INVENTORY] Unequipped %s from slot %d" % [item.item_name, slot_index])
 	return item
 
+## Bows and magic staffs are two-hand-only: never sharable with another hand
+## item. (A quiver may ride along with a bow; a staff shares with nothing.)
+static func is_two_hand_only(item: ItemData) -> bool:
+	return item != null and item.item_type == ItemData.ItemType.WEAPON \
+		and (item.weapon_subtype == ItemData.WeaponSubtype.BOW \
+		or item.weapon_subtype == ItemData.WeaponSubtype.STAFF)
+
 func hand_conflict_reason(item: ItemData, slot_index: int) -> String:
-	## Bow rule: bows are two-handed weapons. While a bow is in the hands, the
-	## only other hand item allowed is a quiver (which lives in its own slots).
-	## Returns "" when placing `item` into weapon slot `slot_index` is legal.
-	## The check ignores the item itself so moving it between hand slots works.
+	## Two-hand-only rule: bows and magic staffs are two-handed weapons. While
+	## one is in the hands, the only other hand item allowed is a quiver
+	## alongside a BOW (quivers live in their own slots); a staff shares the
+	## hands with nothing. Returns "" when placing `item` into weapon slot
+	## `slot_index` is legal. The check ignores the item itself so moving it
+	## between hand slots works.
 	if item.item_type == ItemData.ItemType.QUIVER:
+		for i in range(weapon_slots):
+			var other = equipped_weapons[i]
+			if i != slot_index and other != null and other != item \
+					and other.item_type == ItemData.ItemType.WEAPON \
+					and other.weapon_subtype == ItemData.WeaponSubtype.STAFF:
+				return "Both hands are channeling the staff — nothing fits alongside"
 		return ""
 	if item.item_type != ItemData.ItemType.WEAPON:
 		return ""
@@ -319,13 +336,20 @@ func hand_conflict_reason(item: ItemData, slot_index: int) -> String:
 			if i != slot_index and other != null and other != item \
 					and other.item_type != ItemData.ItemType.QUIVER:
 				return "A bow needs both hands — only a quiver can accompany it"
+	elif item.weapon_subtype == ItemData.WeaponSubtype.STAFF:
+		for i in range(weapon_slots):
+			var other = equipped_weapons[i]
+			if i != slot_index and other != null and other != item:
+				return "A magic staff needs both hands — nothing can accompany it"
 	else:
 		for i in range(weapon_slots):
 			var other = equipped_weapons[i]
 			if i != slot_index and other != null and other != item \
-					and other.item_type == ItemData.ItemType.WEAPON \
-					and other.weapon_subtype == ItemData.WeaponSubtype.BOW:
-				return "Both hands are on the bow — only a quiver fits alongside"
+					and other.item_type == ItemData.ItemType.WEAPON:
+				if other.weapon_subtype == ItemData.WeaponSubtype.BOW:
+					return "Both hands are on the bow — only a quiver fits alongside"
+				if other.weapon_subtype == ItemData.WeaponSubtype.STAFF:
+					return "Both hands are channeling the staff — nothing fits alongside"
 	return ""
 
 func get_equipped_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
@@ -910,7 +934,7 @@ func has_only_swords_equipped() -> bool:
 
 func get_total_weight() -> int:
 	# Every slot routes through _effective_item_weight so chest reduction, the
-	# Balanced Load keystone, and the two-handed grip all apply uniformly.
+	# Balanced Load keystone, and two-handing all apply uniformly.
 	var total = 0
 	for item in equipped_helms:
 		if item: total += _effective_item_weight(item)
@@ -929,13 +953,13 @@ func get_total_weight() -> int:
 		if item: total += _effective_item_weight(item, i)
 	for item in equipped_quivers:
 		if item: total += _effective_item_weight(item)
-	# War Rack gear rides on the back at full weight (no grip discount there).
+	# War Rack gear rides on the back at full weight (no two-hand discount there).
 	for item in rack_items:
 		if item: total += _effective_item_weight(item)
 	return total
 
 ## Carried weight of one item: chest reduction (Brad), the Balanced Load keystone,
-## and the two-handed grip lighten the load; the dual-wield surcharge raises it.
+## and two-handing lighten the load; the dual-wield surcharge raises it.
 ## All stack multiplicatively. Pass the weapon-slot index (or -1 when not
 ## equipped in a hand) so the hand modifiers apply to the right slot.
 func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
@@ -970,13 +994,13 @@ func is_dual_wielding() -> bool:
 	## True while a MATCHED pair fills the hands: two weapons, or two shields.
 	## Weapon-and-shield is the neutral classic and doesn't count. No toggle —
 	## the state is read straight off the loadout. (A bow never shares hands
-	## with another weapon, and the two-handed grip locks its second slot, so
+	## with another weapon, and two-handing locks its second slot, so
 	## those states never count by construction.)
 	return _wielded_class_count(false) >= 2 or _wielded_class_count(true) >= 2
 
 func is_free_handing() -> bool:
 	## The free-hand stance: exactly ONE hand item — weapon OR shield — with a
-	## genuinely empty hand. The two-handed grip fills both hands, and a quiver
+	## genuinely empty hand. Two-handing fills both hands, and a quiver
 	## occupies a hand too, so neither qualifies.
 	if two_handed_slot >= 0:
 		return false
@@ -1002,7 +1026,7 @@ func _prospective_weight_delta(item: ItemData, slot_array: Array, slot_index: in
 ## Weighted Strikes keystone: the weight-to-damage bonus that two-handing grants,
 ## extended to one-handed weapons so a heavy single-hander feeds basic attacks.
 ## Sums every equipped weapon held in one hand (skips shields and the weapon
-## already gripped two-handed, whose heft is counted via two_hand_damage_bonus).
+## already two-handed, whose heft is counted via two_hand_damage_bonus).
 func get_single_hand_weight_damage_bonus() -> int:
 	var total = 0
 	for i in range(equipped_weapons.size()):
@@ -1052,8 +1076,8 @@ func get_two_handed_item() -> ItemData:
 		return null
 	return equipped_weapons[two_handed_slot]
 
-func is_grip_locked_slot(slot_index: int) -> bool:
-	## True for the empty hand slot consumed by an active two-handed grip.
+func is_two_hand_locked_slot(slot_index: int) -> bool:
+	## True for the empty hand slot consumed by two-handing.
 	return two_handed_slot >= 0 and slot_index == two_handed_lock_slot
 
 func get_two_hand_block_bonus(shield: ItemData) -> int:
@@ -1063,7 +1087,7 @@ func get_two_hand_block_bonus(shield: ItemData) -> int:
 	return floori(shield.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
 
 func set_two_handed(slot_index: int, enabled: bool) -> bool:
-	## Grip (or release) the weapon/shield in a hand slot with both hands.
+	## Two-hand (or release) the weapon/shield in a hand slot.
 	if enabled:
 		return _enable_two_handed(slot_index)
 	if two_handed_slot != slot_index:
@@ -1080,10 +1104,15 @@ func _enable_two_handed(slot_index: int) -> bool:
 		return false
 	var item = equipped_weapons[slot_index]
 	if item == null or item.item_type != ItemData.ItemType.WEAPON:
-		print("[INVENTORY] Nothing in slot %d that can be gripped two-handed" % slot_index)
+		print("[INVENTORY] Nothing in slot %d that can be two-handed" % slot_index)
+		return false
+	# Bows and staffs are two-handed by NATURE, not by choice — the stance is
+	# the rule itself and deliberately grants none of the two-handing bonuses.
+	if is_two_hand_only(item):
+		print("[INVENTORY] %s is inherently two-handed — no bonus stance to take" % item.item_name)
 		return false
 
-	# The grip needs a free hand: claim the lowest empty weapon slot.
+	# Two-handing needs a free hand: claim the lowest empty weapon slot.
 	var lock = -1
 	for i in range(weapon_slots):
 		if i != slot_index and equipped_weapons[i] == null:
@@ -1099,7 +1128,7 @@ func _enable_two_handed(slot_index: int) -> bool:
 		print("[INVENTORY] Two-handing %s would leave you overburdened" % item.item_name)
 		return false
 
-	# An off-hand item gripped with both hands sheds the off-hand penalty:
+	# An off-hand item held with both hands sheds the off-hand penalty:
 	# strip the penalized bonuses now, re-apply at full strength below.
 	if slot_index > 0:
 		_apply_item_bonuses(item, false, true)
@@ -1120,7 +1149,7 @@ func _enable_two_handed(slot_index: int) -> bool:
 			player_stats.recalculate_derived_stats()
 
 	equipment_changed.emit()
-	print("[INVENTORY] Gripped %s two-handed (weight %d→%d, hand slot %d locked)" % [
+	print("[INVENTORY] Two-handing %s (weight %d→%d, hand slot %d locked)" % [
 		item.item_name, item.weight, floori(item.weight * TWO_HAND_WEIGHT_MULT), lock])
 	return true
 
@@ -1148,7 +1177,7 @@ func _disable_two_handed() -> bool:
 
 	equipment_changed.emit()
 	if item:
-		print("[INVENTORY] Released %s to a one-handed grip" % item.item_name)
+		print("[INVENTORY] Released %s to one hand" % item.item_name)
 	return true
 
 func _clear_two_handed_state() -> void:
@@ -1157,7 +1186,7 @@ func _clear_two_handed_state() -> void:
 	if player_stats:
 		player_stats.set_two_hand_state(false, 0)
 
-## True if a change in carried weight / grip leaves the character no MORE
+## True if a change in carried weight / two-handing leaves the character no MORE
 ## overburdened than they already are. (Being overburdened can still happen
 ## passively — e.g. a DET berserker's capacity spike fading as they heal —
 ## but no deliberate action may make it worse.)
@@ -1167,7 +1196,7 @@ func _carry_change_allowed(load_delta: int, two_handing_after: bool) -> bool:
 	var load_now = get_total_weight()
 	var cap_now = player_stats.get_carry_capacity()
 	var load_after = load_now + load_delta
-	var cap_after = player_stats.get_carry_capacity_for_grip(two_handing_after)
+	var cap_after = player_stats.get_carry_capacity_two_handing(two_handing_after)
 	if load_after <= cap_after:
 		return true
 	return (load_after - cap_after) <= maxi(0, load_now - cap_now)
@@ -1270,13 +1299,13 @@ func switch_build(target: int) -> Dictionary:
 			plan.append(target_item)
 		planned[set_info[0]] = plan
 
-	# Where does the grip land? Only valid on a weapon that's actually coming.
-	var target_grip: int = snap.get("two_handed_slot", -1)
-	if target_grip >= 0:
+	# Where does two-handing land? Only valid on a weapon that's actually coming.
+	var target_two_hand: int = snap.get("two_handed_slot", -1)
+	if target_two_hand >= 0:
 		var pw: Array = planned["weapons"]
-		var grip_item: ItemData = pw[target_grip] if target_grip < pw.size() else null
-		if grip_item == null or grip_item.item_type != ItemData.ItemType.WEAPON:
-			target_grip = -1
+		var two_hand_item: ItemData = pw[target_two_hand] if target_two_hand < pw.size() else null
+		if two_hand_item == null or two_hand_item.item_type != ItemData.ItemType.WEAPON:
+			target_two_hand = -1
 
 	# --- Cost + storage-space + carry validation before touching anything ---
 	var cost = 0
@@ -1299,11 +1328,11 @@ func switch_build(target: int) -> Dictionary:
 				removed.append(live[i])
 			if plan[i] != null:
 				incoming.append(plan[i])
-	# Re-gripping alone (same items, different grip) is a hand action.
-	if target_grip != two_handed_slot and not hands_changed:
+	# Changing only the two-handed slot (same items) is a hand action.
+	if target_two_hand != two_handed_slot and not hands_changed:
 		cost += get_swap_tempo_cost(ItemData.ItemType.WEAPON)
 
-	if cost == 0 and target_grip == two_handed_slot:
+	if cost == 0 and target_two_hand == two_handed_slot:
 		active_build = target
 		result["success"] = true
 		return result
@@ -1331,10 +1360,10 @@ func switch_build(target: int) -> Dictionary:
 				var w: int = plan[i].weight
 				if plan[i].item_type == ItemData.ItemType.CHEST:
 					w = floori(w * (1.0 - chest_weight_reduction))
-				if set_info[0] == "weapons" and i == target_grip:
+				if set_info[0] == "weapons" and i == target_two_hand:
 					w = floori(w * TWO_HAND_WEIGHT_MULT)
 				final_load += w
-		var cap_after = player_stats.get_carry_capacity_for_grip(target_grip >= 0)
+		var cap_after = player_stats.get_carry_capacity_two_handing(target_two_hand >= 0)
 		var over_now = maxi(0, get_total_weight() - player_stats.get_carry_capacity())
 		if final_load > cap_after and (final_load - cap_after) > over_now:
 			result["reason"] = "Too heavy — over carry capacity"
@@ -1373,8 +1402,8 @@ func switch_build(target: int) -> Dictionary:
 	for it in freed:
 		stored_items.append(it)
 
-	if target_grip >= 0:
-		set_two_handed(target_grip, true)
+	if target_two_hand >= 0:
+		set_two_handed(target_two_hand, true)
 	_bulk_build_switch = false
 
 	active_build = target
@@ -1407,19 +1436,26 @@ func can_rack_exchange(free: bool) -> Dictionary:
 	if hands.is_empty() and rack_items.is_empty():
 		res["reason"] = "Nothing to exchange"
 		return res
-	# Bow rule holds for the incoming set too: a bow can't come down alongside
-	# another weapon or shield (equipping it would be refused and strand the
-	# item) — a quiver riding along is fine.
+	# The two-hand-only rule holds for the incoming set too: a bow or staff
+	# can't come down alongside gear it couldn't be equipped with (the equip
+	# would be refused and strand the item). A quiver riding along is fine for
+	# a bow; a staff shares with nothing, quivers included.
 	if rack_items.size() > 1:
-		var rack_has_bow = false
+		var rack_has_staff = false
+		var rack_two_hand_only = false
 		var rack_non_quiver = 0
 		for it in rack_items:
+			if it.item_type == ItemData.ItemType.WEAPON and it.weapon_subtype == ItemData.WeaponSubtype.STAFF:
+				rack_has_staff = true
 			if it.item_type == ItemData.ItemType.QUIVER:
 				continue
 			rack_non_quiver += 1
-			if it.item_type == ItemData.ItemType.WEAPON and it.weapon_subtype == ItemData.WeaponSubtype.BOW:
-				rack_has_bow = true
-		if rack_has_bow and rack_non_quiver > 1:
+			if is_two_hand_only(it):
+				rack_two_hand_only = true
+		if rack_has_staff:
+			res["reason"] = "A magic staff needs both hands — it can't come down with other gear"
+			return res
+		if rack_two_hand_only and rack_non_quiver > 1:
 			res["reason"] = "A bow needs both hands — it can't come down with other gear"
 			return res
 	if free:
@@ -1427,17 +1463,17 @@ func can_rack_exchange(free: bool) -> Dictionary:
 			res["reason"] = "Rack swap recharging (%d tempo)" % rack_cooldown_tempo
 			return res
 		# One side of the free exchange must be a single two-handed item:
-		# the incoming rack item (auto-gripped on arrival), the outgoing weapon
-		# he's already two-handing, or a bow on either side — bows are
-		# inherently two-handed (a quiver may ride along with one).
+		# the incoming rack item (auto-two-handed on arrival), the outgoing
+		# weapon already being two-handed, or a bow/staff on either side —
+		# those are inherently two-handed (a quiver may ride along with a bow).
 		if not _rack_free_side_ok(rack_items, true) and not _rack_free_side_ok(hands, false):
 			res["reason"] = "Free swap needs a single two-handed item on one side"
 			return res
 	# Carry gate on the end state as a whole. The item set is unchanged (hands
-	# and back trade places) but the grip discount and the 80% grip capacity
-	# move with the exchange.
+	# and back trade places) but the two-handing weight discount and the 70%
+	# capacity move with the exchange.
 	if player_stats:
-		var will_grip = free and _incoming_gets_auto_grip(rack_items)
+		var will_two_hand = free and _incoming_gets_auto_two_hand(rack_items)
 		var load = 0
 		for arr in [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets, equipped_quivers]:
 			for it in arr:
@@ -1445,12 +1481,12 @@ func can_rack_exchange(free: bool) -> Dictionary:
 					load += _effective_item_weight(it)
 		for i in range(rack_items.size()):  # future hands
 			var w = _effective_item_weight(rack_items[i])
-			if will_grip and i == 0:
+			if will_two_hand and i == 0:
 				w = floori(rack_items[i].weight * TWO_HAND_WEIGHT_MULT)
 			load += w
 		for it in hands:  # future rack (full weight)
 			load += _effective_item_weight(it, -1)
-		var cap_after = player_stats.get_carry_capacity_for_grip(will_grip)
+		var cap_after = player_stats.get_carry_capacity_two_handing(will_two_hand)
 		var over_now = maxi(0, get_total_weight() - player_stats.get_carry_capacity())
 		if load > cap_after and (load - cap_after) > over_now:
 			res["reason"] = "Too heavy — over carry capacity"
@@ -1460,9 +1496,9 @@ func can_rack_exchange(free: bool) -> Dictionary:
 
 func _rack_free_side_ok(items: Array, is_incoming: bool) -> bool:
 	## Whether one side of a FREE rack exchange counts as "a single two-handed
-	## item": exactly one non-quiver item that is a bow (inherently two-handed),
-	## will be auto-gripped on arrival (lone incoming item), or already carries
-	## the grip (outgoing side).
+	## item": exactly one non-quiver item that is a bow or staff (inherently
+	## two-handed), will be auto-two-handed on arrival (lone incoming item),
+	## or is already being two-handed (outgoing side).
 	var main: ItemData = null
 	var total = 0
 	for it in items:
@@ -1476,27 +1512,27 @@ func _rack_free_side_ok(items: Array, is_incoming: bool) -> bool:
 		main = it
 	if main == null:
 		return false
-	if main.item_type == ItemData.ItemType.WEAPON and main.weapon_subtype == ItemData.WeaponSubtype.BOW:
+	if is_two_hand_only(main):
 		return true
 	if is_incoming:
-		return total == 1  # the grip needs the other hand free to lock
+		return total == 1  # two-handing needs the other hand free to lock
 	return two_handed_slot >= 0
 
-func _incoming_gets_auto_grip(items: Array) -> bool:
-	## The free swap auto-grips a lone incoming item — but not bows (their
-	## two-handedness is the rule itself, and the grip would lock the hand a
-	## quiver needs) and not quivers.
+func _incoming_gets_auto_two_hand(items: Array) -> bool:
+	## The free swap auto-two-hands a lone incoming item — but not bows or
+	## staffs (their two-handedness is the rule itself, and the lock would
+	## claim the hand a bow's quiver needs) and not quivers.
 	if items.size() != 1 or items[0] == null:
 		return false
 	var it: ItemData = items[0]
 	if it.item_type != ItemData.ItemType.WEAPON:
 		return false
-	return it.weapon_subtype != ItemData.WeaponSubtype.BOW
+	return not is_two_hand_only(it)
 
 func rack_exchange(free: bool) -> Dictionary:
 	## Swaps everything in the hand slots with everything on the rack.
-	## free=true: 0 tempo, starts the cooldown, auto-grips a single incoming
-	## item two-handed, and rushes the incoming items' cards to hand.
+	## free=true: 0 tempo, starts the cooldown, auto-two-hands a single
+	## incoming item, and rushes the incoming items' cards to hand.
 	## free=false: normal swap-tempo cost per changed hand slot, no cooldown.
 	var result = {"success": false, "tempo_cost": 0, "reason": ""}
 	var check = can_rack_exchange(free)
@@ -1525,9 +1561,9 @@ func rack_exchange(free: bool) -> Dictionary:
 		equip_item(it, next_slot)
 		if first_slot < 0:
 			first_slot = next_slot
-	# The free swap's single incoming item arrives gripped with both hands
-	# (bows excepted — they are inherently two-handed and never use the grip).
-	if free and first_slot >= 0 and _incoming_gets_auto_grip(incoming):
+	# The free swap's single incoming item arrives held with both hands (bows
+	# and staffs excepted — they are inherently two-handed already).
+	if free and first_slot >= 0 and _incoming_gets_auto_two_hand(incoming):
 		set_two_handed(first_slot, true)
 	_bulk_build_switch = false
 

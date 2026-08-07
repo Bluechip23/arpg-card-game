@@ -38,17 +38,17 @@ func _initialize() -> void:
 	_check(base_cap == stats.base_carry_capacity + stats.strength * 10,
 		"capacity = base + STR*10 (%d)" % base_cap)
 
-	# --- Two-handed grip: weight halves, capacity drops to 80% ---
+	# --- Two-handing: weight halves, capacity drops to 70% ---
 	var sword := Fixtures.greatsword()  # weight 130
 	_check(inv.equip_item(sword, 0), "greatsword equips one-handed in slot 0")
 	_check(inv.get_total_weight() == 130, "one-handed carried weight is 130")
 
-	_check(inv.set_two_handed(0, true), "greatsword can be gripped two-handed")
-	_check(inv.two_handed_slot == 0, "grip tracked on slot 0")
-	_check(inv.two_handed_lock_slot == 1, "grip claims empty slot 1 as the second hand")
+	_check(inv.set_two_handed(0, true), "greatsword can be two-handed")
+	_check(inv.two_handed_slot == 0, "two-handing tracked on slot 0")
+	_check(inv.two_handed_lock_slot == 1, "two-handing claims empty slot 1 as the second hand")
 	_check(inv.get_total_weight() == 65, "two-handed carried weight halves to 65")
 	_check(stats.get_carry_capacity() == floori(base_cap * PlayerStats.TWO_HAND_CAPACITY_MULT),
-		"capacity drops to 80%% while gripped (%d)" % stats.get_carry_capacity())
+		"capacity drops to 70%% while two-handing (%d)" % stats.get_carry_capacity())
 	_check(stats.two_hand_damage_bonus == floori(130 / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR),
 		"+%d damage from the sword's ORIGINAL weight" % stats.two_hand_damage_bonus)
 	_check(stats.get_effective_physical_damage(0) ==
@@ -60,8 +60,8 @@ func _initialize() -> void:
 	_check(not inv.equip_item(shield, 1), "locked hand slot refuses the shield")
 	_check(not inv.equip_item(shield, 2), "no third hand slot exists")
 
-	# --- Release the grip: weight and capacity restore ---
-	_check(inv.set_two_handed(0, false), "grip releases back to one hand")
+	# --- Release two-handing: weight and capacity restore ---
+	_check(inv.set_two_handed(0, false), "two-handing releases back to one hand")
 	_check(inv.get_total_weight() == 130, "weights restore (130)")
 	_check(stats.get_carry_capacity() == base_cap, "capacity restores in full")
 	_check(stats.two_hand_damage_bonus == 0, "damage bonus cleared")
@@ -79,7 +79,7 @@ func _initialize() -> void:
 	_check(inv.equip_item(tower, 1), "tower shield equips in slot 1")
 	_check(inv.set_two_handed(1, true), "tower shield braces two-handed")
 	_check(stats.two_hand_damage_bonus == 0, "braced shield grants no damage bonus")
-	_check(inv.get_two_hand_block_bonus(tower) == 6, "braced shield: +6 Basic Block armor (60/10)")
+	_check(inv.get_two_hand_block_bonus(tower) == 2, "braced shield: +2 Basic Block armor (60/25)")
 	inv.set_two_handed(1, false)
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
 	_check(inv.equip_item(sword, 0), "greatsword re-equips after the brace test")
@@ -92,9 +92,9 @@ func _initialize() -> void:
 	_check(not inv.equip_item(anvil, 1), "over-capacity equip is refused")
 	_check(not stats.is_overburdened(), "character is not overburdened after refusal")
 
-	# --- The off-hand accepts the shield now that the grip is released ---
+	# --- The off-hand accepts the shield now that two-handing is released ---
 	_check(inv.equip_item(shield, 1), "off-hand slot accepts the shield")
-	_check(inv.get_two_hand_block_bonus(shield) == 0, "no block bonus: shield isn't the gripped item")
+	_check(inv.get_two_hand_block_bonus(shield) == 0, "no block bonus: shield isn't the two-handed item")
 	_check(inv.get_total_weight() == 134, "carried weight is sword + shield (130 + 4)")
 
 	# --- Swap tempo costs ---
@@ -115,9 +115,9 @@ func _initialize() -> void:
 	_check(r1["success"] and r1["tempo_cost"] == 0, "first switch to build II is a free copy")
 	_check(inv.active_build == 1, "build II is active")
 
-	# In build II: drop the shield to storage and grip the sword two-handed.
+	# In build II: drop the shield to storage and two-hand the sword.
 	_check(inv.unequip_to_storage(ItemData.ItemType.WEAPON, 1), "build II: shield unequips to storage")
-	_check(inv.set_two_handed(0, true), "build II: greatsword gripped two-handed")
+	_check(inv.set_two_handed(0, true), "build II: greatsword two-handed")
 
 	var r0: Dictionary = inv.switch_build(0)
 	_check(r0["success"], "switch back to build I succeeds")
@@ -128,7 +128,7 @@ func _initialize() -> void:
 	var r2: Dictionary = inv.switch_build(1)
 	_check(r2["success"], "switch to build II succeeds again")
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 1) == null, "build II sheds the shield")
-	_check(inv.two_handed_slot == 0, "build II restores the two-handed grip")
+	_check(inv.two_handed_slot == 0, "build II restores two-handing")
 	_check(inv.get_total_weight() == 65, "build II carried weight is the halved sword")
 
 	print("=== Done: %d failure(s) ===" % failures)

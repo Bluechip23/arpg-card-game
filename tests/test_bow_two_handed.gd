@@ -2,10 +2,11 @@ extends SceneTree
 
 const Fixtures = preload("res://tests/item_fixtures.gd")
 
-## Verifies the bow rule: bows are two-handed weapons. While a bow is in the
-## hands, the only other hand item allowed is a quiver — no swords, shields,
-## or second bows, in either equip order. The War Rack refuses to bring a bow
-## down alongside other gear.
+## Verifies the two-hand-only weapons: bows and magic staffs demand both
+## hands. While a bow is in the hands, the only other hand item allowed is a
+## quiver — no swords, shields, or second bows, in either equip order. A
+## staff shares the hands with nothing at all, quivers included. The War Rack
+## refuses to bring either down alongside other gear.
 ## Run: godot --headless --path . --script tests/test_bow_two_handed.gd
 
 var failures := 0
@@ -78,6 +79,42 @@ func _initialize() -> void:
 	var r: Dictionary = binv.rack_exchange(false)
 	_check(r["success"] and binv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == bow2,
 		"bow comes down alone")
+
+	# --- Inherently two-handed weapons gain NO two-handing bonuses ---
+	# Their two-handedness is the rule, not the bonus stance: no weight
+	# discount, no weight-to-damage, no capacity cut — and no manual toggle.
+	var bstats: PlayerStats = rig2[1]
+	_check(not binv.set_two_handed(0, true), "a bow refuses the manual two-hand stance")
+	_check(binv.two_handed_slot == -1, "no two-handed slot tracked for the bow")
+	_check(not bstats.two_hand_active, "no two-hand state pushed onto stats")
+	_check(bstats.two_hand_damage_bonus == 0, "bow gains no weight-to-damage bonus")
+	_check(binv.get_total_weight() == bow2.weight, "bow carries at full weight (no discount)")
+
+	# --- Magic staffs are two-hand-only too — and share with NOTHING ---
+	var rig3 = _fresh_inventory("Stephen")
+	var sinv: Inventory = rig3[0]
+	var staff = Fixtures.staff()
+	_check(sinv.equip_item(staff, 0), "staff equips into empty hands")
+	_check(not sinv.set_two_handed(0, true), "a staff refuses the manual two-hand stance too")
+	_check(not sinv.equip_item(Fixtures.sword(), 1), "sword refused alongside the staff")
+	_check(not sinv.equip_item(Fixtures.shield(), 1), "shield refused alongside the staff")
+	_check(not sinv.equip_item(Fixtures.quiver(), 1), "even a quiver is refused alongside the staff")
+	_check(sinv.hand_conflict_reason(staff, 1) == "", "moving the staff between hands is legal")
+	_check(sinv.unequip_item(ItemData.ItemType.WEAPON, 0) == staff, "staff unequips")
+	_check(sinv.equip_item(Fixtures.sword(), 0), "sword equips once the staff is gone")
+	_check(not sinv.equip_item(staff, 1), "staff refused while a sword is held")
+	sinv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	_check(sinv.equip_item(Fixtures.quiver(), 1), "quiver equips first")
+	_check(not sinv.equip_item(staff, 0), "staff refused while a quiver is worn")
+
+	# --- War Rack: a staff can't come down with anything, quiver included ---
+	var rig4 = _fresh_inventory("Brad")
+	var binv2: Inventory = rig4[0]
+	binv2.rack_store_item(Fixtures.staff())
+	binv2.rack_store_item(Fixtures.quiver())
+	_check(not binv2.can_rack_exchange(false)["ok"], "rack refuses staff + quiver")
+	_check(binv2.rack_take_item(1) != null, "quiver comes off the rack")
+	_check(binv2.can_rack_exchange(false)["ok"], "staff-only rack exchange is legal")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

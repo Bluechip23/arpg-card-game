@@ -90,11 +90,11 @@ func _build_children() -> void:
 	else:
 		label.add_theme_font_size_override("font_size", 9)
 		label.add_theme_color_override("font_color", Color(0.45, 0.45, 0.55))
-		if inv and item_type == ItemData.ItemType.WEAPON and inv.is_grip_locked_slot(slot_index):
-			# This empty hand is busy holding the two-handed grip.
+		if inv and item_type == ItemData.ItemType.WEAPON and inv.is_two_hand_locked_slot(slot_index):
+			# This empty hand is committed to two-handing.
 			label.text = "Both Hands"
 			label.add_theme_color_override("font_color", Color(0.85, 0.7, 0.35))
-			tooltip_text = "Occupied by the two-handed grip"
+			tooltip_text = "Occupied — two-handing the other hand's weapon"
 		else:
 			label.text = _label_override if _label_override != "" else _panel._slot_type_name(item_type)
 	add_child(label)
@@ -146,10 +146,10 @@ func _add_passive_badge() -> void:
 				text_color = Color(0.8, 0.85, 0.95)
 				tip = "Chest items weigh %d%% less." % cut
 		ItemData.ItemType.WEAPON:
-			# Off-hand slots only (index 0 is the main hand). A two-handed grip
-			# sheds the off-hand modifier, so skip gripped/grip-locked slots.
+			# Off-hand slots only (index 0 is the main hand). Two-handing
+			# sheds the off-hand modifier, so skip two-handed/locked slots.
 			if slot_index > 0 and inv.two_handed_slot != slot_index \
-					and not inv.is_grip_locked_slot(slot_index):
+					and not inv.is_two_hand_locked_slot(slot_index):
 				var pct := int(round((inv.get_off_hand_modifier() - 1.0) * 100))
 				if pct > 0:
 					text = "+%d%%" % pct
@@ -227,9 +227,9 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	var dragged: ItemData = data.get("item")
 	if dragged == null:
 		return false
-	# A hand slot occupied by an active two-handed grip accepts nothing.
+	# A hand slot consumed by two-handing accepts nothing.
 	if item_type == ItemData.ItemType.WEAPON and _panel and _panel.inventory \
-			and _panel.inventory.is_grip_locked_slot(slot_index):
+			and _panel.inventory.is_two_hand_locked_slot(slot_index):
 		return false
 	# Bow rule: a bow can't join other hand items (and vice versa) — only a
 	# quiver shares the hands with a bow.
