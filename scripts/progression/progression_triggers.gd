@@ -543,7 +543,7 @@ func _apply_skill_tree_option(option) -> void:
 	if not stats:
 		return
 
-	if option.option_type == SkillTreeData.OptionType.PASSIVE or option.option_type == SkillTreeData.OptionType.PASSIVE_MUTATION:
+	if option.option_type == SkillTreeData.OptionType.PASSIVE:
 		var pid = option.passive_id
 		if pid == "":
 			pid = option.name.to_lower().replace(" ", "_")

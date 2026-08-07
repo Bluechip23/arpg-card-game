@@ -939,16 +939,18 @@ func _set_elevation_rect(rect: Rect2i, elev: int) -> void:
 				elevation[x][z] = elev
 
 func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> void:
-	## Sandbox helper: carve a walkable raised platform centred on `center`. Tiles
-	## are forced to FLOOR, given elevation `elev` (so the player glides up onto
+	## Sandbox helper: carve a walkable raised platform centred on `center`.
+	## FLOOR tiles are given elevation `elev` (so the player glides up onto
 	## them and gets the High Ground bonus), and a raised slab + cliff sides are
-	## rendered so the platform is visible.
+	## rendered so the platform is visible. WALL tiles are never consumed —
+	## walls are a hard cutoff no matter the elevation beside them.
 	var pal = get_palette()
 	for x in range(center.x - radius, center.x + radius + 1):
 		for z in range(center.y - radius, center.y + radius + 1):
 			if x < 0 or x >= GRID_W or z < 0 or z >= GRID_H:
 				continue
-			grid[x][z] = Tile.FLOOR
+			if grid[x][z] != Tile.FLOOR:
+				continue
 			elevation[x][z] = elev
 			var h: float = elev * ELEV_STEP
 			# Cliff body up to just under the top, then a lit top surface.

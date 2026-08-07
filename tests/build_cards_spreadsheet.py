@@ -78,7 +78,7 @@ for cname, rows in trees.items():
     for r in rows:
         if r["type"] == "Card" and r["card_id"]:
             tree_card_map.setdefault(r["card_id"], (cname, r["level"]))
-        elif r["type"] in ("Passive", "Mutation"):
+        elif r["type"] == "Passive":
             desc = r["description"]
             arch = ""
             m = re.match(re.escape(r["name"]) + r" \((.+?)\): (.*)$", desc, re.S)

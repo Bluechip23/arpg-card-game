@@ -164,8 +164,9 @@ func cancel_card_ticks(card: Card) -> int:
 	for i in range(_active_cards.size() - 1, -1, -1):
 		var entry = _active_cards[i]
 		if entry["card"] == card:
-			# Calculate remaining ticks for this card (unelapsed ticks + any delay)
-			var remaining = (entry["total_ticks"] - entry["ticks_elapsed"]) + entry["delay"]
+			# Refund only the card's OWN unelapsed ticks — its queue delay is
+			# just waiting on earlier actions, not tempo this card would spend.
+			var remaining = entry["total_ticks"] - entry["ticks_elapsed"]
 			cancelled_ticks += remaining
 			_active_cards.remove_at(i)
 			print("[TEMPO] Cancelled card '%s': removed %d ticks" % [card.card_name, remaining])
@@ -203,6 +204,19 @@ func _recalculate_delays() -> void:
 ## Check if ticks are currently being processed
 func is_ticking() -> bool:
 	return _ticking
+
+## True once this card's own ticks have begun (its queue delay elapsed) —
+## the point of no return: a started action can no longer be cancelled.
+func is_card_started(card: Card) -> bool:
+	for e in _active_cards:
+		if e["card"] == card:
+			return e["delay"] <= 0
+	return false
+
+## True while this owner has ANY action ticking or queued — the "glued to
+## your position" state: no movement until the ticks run out.
+func owner_is_busy(owner_id: int = 0) -> bool:
+	return _owner_busy_ticks(owner_id) > 0
 
 ## Get ticking progress for the currently active card (the one actually ticking, not delayed).
 func get_active_card_progress(owner_id: int = 0) -> Dictionary:

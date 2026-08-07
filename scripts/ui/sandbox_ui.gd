@@ -115,10 +115,12 @@ func _build_ui() -> void:
 	_toggle.text = "≡ Sandbox"
 	_toggle.add_theme_font_size_override("font_size", 14)
 	add_child(_toggle)
+	# Sits LEFT of the battle-log column (which spans x -200..-8 on $UI) so
+	# the log toggle underneath this CanvasLayer stays clickable in sandbox.
 	_toggle.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_toggle.offset_left = -128.0
+	_toggle.offset_left = -328.0
 	_toggle.offset_top = 44.0
-	_toggle.offset_right = -8.0
+	_toggle.offset_right = -208.0
 	_toggle.offset_bottom = 76.0
 	_toggle.pressed.connect(_on_toggle)
 
@@ -301,7 +303,7 @@ func _refresh_passive_list() -> void:
 	var seen := {}
 	for row in tree.rows:
 		for opt in row.options:
-			if opt.option_type != SkillTreeData.OptionType.PASSIVE and opt.option_type != SkillTreeData.OptionType.PASSIVE_MUTATION:
+			if opt.option_type != SkillTreeData.OptionType.PASSIVE:
 				continue
 			if seen.has(opt.name):
 				continue

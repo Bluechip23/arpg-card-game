@@ -254,6 +254,14 @@ var _tick_bar_total_ticks: int = 0            # Total ticks for current card
 var _tick_bar_resolve_tick: int = 0           # Which tick resolves the card
 var _tick_bar_current_tick: int = 0           # How many ticks have elapsed
 
+# Action queue dropdown (▾ beside the tick bar label): lists queued actions;
+# entries whose ticks haven't started carry a red ✕ to cancel them.
+const ACTION_QUEUE_MAX_ROWS: int = 15
+var _queue_toggle_btn: Button = null
+var _queue_panel: PanelContainer = null
+var _queue_list: VBoxContainer = null
+var _queue_open: bool = false
+
 # Pause system
 var _is_paused: bool = false
 var _pause_button: Button = null
@@ -1110,14 +1118,49 @@ func _setup_tick_bar() -> void:
 	shelf.add_theme_stylebox_override("panel", shelf_style)
 	tick_container.add_child(shelf)
 
-	# Status label
+	# Status label + queue dropdown arrow, side by side
+	var label_row = HBoxContainer.new()
+	label_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	label_row.add_theme_constant_override("separation", 4)
+	tick_container.add_child(label_row)
+
 	_tick_bar_label = Label.new()
 	_tick_bar_label.name = "TickBarLabel"
 	_tick_bar_label.text = "Ready"
 	_tick_bar_label.add_theme_font_size_override("font_size", 11)
 	_tick_bar_label.add_theme_color_override("font_color", Color(0.7, 0.6, 0.4))
 	_tick_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tick_container.add_child(_tick_bar_label)
+	label_row.add_child(_tick_bar_label)
+
+	_queue_toggle_btn = Button.new()
+	_queue_toggle_btn.name = "QueueToggle"
+	_queue_toggle_btn.text = "▾"
+	_queue_toggle_btn.tooltip_text = "Show the action queue — cancel queued actions before their tempo starts"
+	_queue_toggle_btn.custom_minimum_size = Vector2(22, 16)
+	_queue_toggle_btn.add_theme_font_size_override("font_size", 11)
+	_queue_toggle_btn.flat = true
+	_queue_toggle_btn.pressed.connect(_toggle_action_queue)
+	label_row.add_child(_queue_toggle_btn)
+
+	# The dropdown itself: hangs below the tick bar, hidden until opened.
+	_queue_panel = PanelContainer.new()
+	_queue_panel.name = "ActionQueuePanel"
+	_queue_panel.visible = false
+	var q_style := StyleBoxFlat.new()
+	q_style.bg_color = Color(0.09, 0.07, 0.05, 0.95)
+	q_style.border_color = Color(0.82, 0.66, 0.28)
+	q_style.set_border_width_all(1)
+	q_style.set_corner_radius_all(4)
+	q_style.content_margin_left = 8
+	q_style.content_margin_right = 8
+	q_style.content_margin_top = 6
+	q_style.content_margin_bottom = 6
+	_queue_panel.add_theme_stylebox_override("panel", q_style)
+	tick_container.add_child(_queue_panel)
+
+	_queue_list = VBoxContainer.new()
+	_queue_list.add_theme_constant_override("separation", 2)
+	_queue_panel.add_child(_queue_list)
 
 func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, card_name: String = "") -> void:
 	## Update the 20-tick global tempo bar. This is a rolling counter that fills
@@ -1170,6 +1213,120 @@ func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, c
 			_tick_bar_label.text = "(%d) Complete" % gt
 		else:
 			_tick_bar_label.text = "(%d) %d / 20" % [gt, filled]
+
+	_refresh_action_queue()
+
+func _toggle_action_queue() -> void:
+	_queue_open = not _queue_open
+	if _queue_panel:
+		_queue_panel.visible = _queue_open
+	if _queue_toggle_btn:
+		_queue_toggle_btn.text = "▴" if _queue_open else "▾"
+	_refresh_action_queue()
+
+func _refresh_action_queue() -> void:
+	## Rebuild the dropdown rows from _pending_resolve_queue (latest
+	## ACTION_QUEUE_MAX_ROWS). An action whose ticks have started is locked
+	## ("ticking…"); anything still waiting carries a red ✕ to cancel it.
+	if not _queue_open or _queue_list == null:
+		return
+	for child in _queue_list.get_children():
+		child.queue_free()
+
+	if _pending_resolve_queue.is_empty():
+		var empty := Label.new()
+		empty.text = "Nothing queued."
+		empty.add_theme_font_size_override("font_size", 11)
+		empty.add_theme_color_override("font_color", Color(0.5, 0.45, 0.4))
+		_queue_list.add_child(empty)
+		return
+
+	var start: int = maxi(0, _pending_resolve_queue.size() - ACTION_QUEUE_MAX_ROWS)
+	for i in range(start, _pending_resolve_queue.size()):
+		var entry: Dictionary = _pending_resolve_queue[i]
+		var card: Card = entry["card"]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+
+		var name_lbl := Label.new()
+		var action_name: String = "Basic Attack" if entry["data"].get("is_basic_attack", false) else card.card_name
+		if is_multiplayer and entry.get("owner_index", 0) == 1:
+			action_name += "  (P2)"
+		name_lbl.text = action_name
+		name_lbl.add_theme_font_size_override("font_size", 12)
+		name_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lbl.custom_minimum_size = Vector2(140, 0)
+		row.add_child(name_lbl)
+
+		if tempo_manager.is_card_started(card):
+			var ticking := Label.new()
+			ticking.text = "ticking…"
+			ticking.add_theme_font_size_override("font_size", 11)
+			ticking.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+			row.add_child(ticking)
+		else:
+			var cancel_btn := Button.new()
+			cancel_btn.text = "✕"
+			cancel_btn.tooltip_text = "Cancel this action (it hasn't started ticking yet)"
+			cancel_btn.custom_minimum_size = Vector2(22, 18)
+			cancel_btn.add_theme_font_size_override("font_size", 12)
+			cancel_btn.add_theme_color_override("font_color", Color(1.0, 0.35, 0.3))
+			cancel_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.55, 0.5))
+			cancel_btn.pressed.connect(_cancel_queued_action.bind(card))
+			row.add_child(cancel_btn)
+
+		_queue_list.add_child(row)
+
+func _cancel_queued_action(card: Card) -> void:
+	## Red ✕: pull a queued action before its tempo starts. Once its ticks
+	## begin the player is locked in and this refuses.
+	if tempo_manager.is_card_started(card):
+		add_battle_log("Too late — that action's tempo is already ticking!", Color(1.0, 0.5, 0.4))
+		_refresh_action_queue()
+		return
+	for i in range(_pending_resolve_queue.size()):
+		var entry: Dictionary = _pending_resolve_queue[i]
+		if entry["card"] != card:
+			continue
+		_pending_resolve_queue.remove_at(i)
+		# Co-op: return the card to its OWNER's hand, not the active player's.
+		var owner_idx: int = entry.get("owner_index", 0)
+		if is_multiplayer and owner_idx != _active_index:
+			var prev_p := player
+			var prev_d := deck_manager
+			player = _p1_player if owner_idx == 0 else _p2_player
+			deck_manager = _p1_deck_manager if owner_idx == 0 else _p2_deck_manager
+			_return_dead_target_card(card, entry["data"], "cancelled")
+			_refund_cancelled_action_cost(player, entry["data"])
+			player = prev_p
+			deck_manager = prev_d
+		else:
+			_return_dead_target_card(card, entry["data"], "cancelled")
+			_refund_cancelled_action_cost(player, entry["data"])
+		_on_hand_updated()
+		update_deck_info()
+		_refresh_action_queue()
+		return
+
+func _refund_cancelled_action_cost(p, data: Dictionary) -> void:
+	## A voluntary cancel gives back exactly what the play cost — the mana
+	## spent (or health, when Demonic Rage paid). Dead-target returns keep
+	## their existing behavior; this runs only from the queue's red ✕.
+	var mana_spent: int = data.get("mana_spent", 0)
+	var health_spent: int = data.get("health_spent", 0)
+	if mana_spent <= 0 and health_spent <= 0:
+		return
+	var stats = p.get_stats() if p else null
+	if not stats:
+		return
+	stats.refund_action_cost(mana_spent, health_spent)
+	var parts: Array[String] = []
+	if mana_spent > 0:
+		parts.append("%d mana" % mana_spent)
+	if health_spent > 0:
+		parts.append("%d health" % health_spent)
+	add_battle_log("Refunded %s." % " and ".join(parts), Color(0.5, 0.8, 1.0))
 
 func _reset_tick_bar() -> void:
 	## Reset the tick bar to idle state but still show global tempo progress.
@@ -1750,6 +1907,7 @@ func _on_attack_pressed() -> void:
 		var resolve_entry := {
 			"card": basic_card,
 			"target": target,
+			"owner_index": _active_index,
 			"data": {
 				"is_basic_attack": true,
 				"basic_attack_damage": damage,
@@ -1761,7 +1919,7 @@ func _on_attack_pressed() -> void:
 
 		# Start ticked tempo
 		_update_tick_bar(0, tempo_cost, resolve_tick, "Basic Attack")
-		tempo_manager.add_card_tempo(tempo_cost, basic_card, resolve_tick)
+		tempo_manager.add_card_tempo(tempo_cost, basic_card, resolve_tick, _active_index)
 
 		add_battle_log("Winding up Basic Attack on %s (resolves tick %d/%d)" % [target.enemy_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
 		print("[MAIN] Basic Attack queued: %d damage to %s (%d tempo, resolve tick %d)" % [damage, target.enemy_name, tempo_cost, resolve_tick])
@@ -3265,15 +3423,28 @@ func _on_player_move_completed() -> void:
 	# Sphere grid passive triggers for movement
 	progression_triggers._trigger_sphere_passives("on_move", {})
 
+func _movement_locked() -> bool:
+	## While the active character's own action ticks run (card or basic
+	## attack), they are glued in place — that is the point of tempo. Cancel
+	## un-started queued actions from the tempo bar's queue dropdown to free
+	## up sooner; the currently ticking action always finishes.
+	return tempo_manager != null and tempo_manager.owner_is_busy(_active_index)
+
+func _notify_movement_locked() -> void:
+	add_battle_log("Committed! Your action is still ticking — cancel queued actions (▾ by the tempo bar) to bail out.", Color(1.0, 0.6, 0.3))
+
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
+	if _movement_locked():
+		_notify_movement_locked()
+		return
 	var debuff_mgr = player.get_debuff_manager()
-	
+
 	# Check Tethered range
 	if debuff_mgr and debuff_mgr.is_tethered():
 		if not debuff_mgr.is_within_tether_range(target_pos, grid_manager.grid_size):
 			print("[MAIN] Cannot move - Tethered! Out of range.")
 			return
-	
+
 	player.move_to_grid(target_pos, spaces)
 
 func _on_move_cancelled() -> void:
@@ -3285,6 +3456,9 @@ func _on_move_lock_in(target_pos: Vector3, spaces: int) -> void:
 	## Queue the active character's move without spending tempo or moving yet, so
 	## the player can TAB to the partner and queue theirs too. The "Move Players"
 	## button then runs every locked move together on shared tempo.
+	if _movement_locked():
+		_notify_movement_locked()
+		return
 	var debuff_mgr = player.get_debuff_manager()
 	if debuff_mgr and debuff_mgr.is_tethered():
 		if not debuff_mgr.is_within_tether_range(target_pos, grid_manager.grid_size):
@@ -4849,7 +5023,7 @@ func _on_hand_updated() -> void:
 		max_fan_angle = 0.0
 
 	# Draw pile position for draw animation origin (bottom-left of screen)
-	var draw_origin = Vector2(-80, card_y + 40)
+	var draw_origin = _get_draw_pile_pos()
 
 	var dex_proc_active = deck_manager.next_attack_half_tempo or deck_manager.next_attack_mana_discount > 0
 	var pocket_knife = false
@@ -4943,6 +5117,9 @@ func _wasd_step(dir: Vector2) -> void:
 	if player.is_moving:
 		return  # one hop at a time; tap again once the step lands
 	if not grid_manager:
+		return
+	if _movement_locked():
+		_notify_movement_locked()
 		return
 
 	# Camera ground basis: forward is where the camera looks (−offset on XZ),
@@ -6228,6 +6405,8 @@ func play_selected_card(target) -> void:
 				"harnessed_bonus_block": harnessed_bonus_block,
 				"is_ranged_attack": is_ranged_attack,
 				"half_tempo": result["half_tempo"],
+				"mana_spent": result.get("mana_spent", 0),
+				"health_spent": result.get("health_spent", 0),
 			},
 		}
 		_pending_resolve_queue.append(resolve_entry)
@@ -6745,6 +6924,15 @@ func _get_discard_pile_pos() -> Vector2:
 		var container_global = hand_container.get_global_rect().position
 		return label_global - container_global + Vector2(40, 0)
 	return Vector2(-100, 0)
+
+func _get_draw_pile_pos() -> Vector2:
+	## The draw pile button's position in hand_container local coords, so drawn
+	## cards visibly emerge from the pile (mirror of _get_discard_pile_pos).
+	if _draw_pile_btn and is_instance_valid(_draw_pile_btn):
+		var btn_global = _draw_pile_btn.get_global_rect().get_center()
+		var container_global = hand_container.get_global_rect().position
+		return btn_global - container_global
+	return Vector2(-80, 0)
 
 func _animate_shuffle() -> void:
 	## Shakes the draw pile label to indicate a shuffle.
@@ -7502,6 +7690,11 @@ func _input(event: InputEvent) -> void:
 				if clicked_ally and clicked_ally != player:
 					_show_ally_menu(clicked_ally, event.position)
 					return
+
+			# Glued while your own action ticks — no new move orders.
+			if _movement_locked():
+				_notify_movement_locked()
+				return
 
 			var spaces = grid_manager.get_distance_in_cells(player.position, mouse_pos)
 
@@ -8628,10 +8821,14 @@ func is_barricade_at(world_pos: Vector3) -> bool:
 	return false
 
 func _sync_blocked_tiles() -> void:
-	## Syncs the barricade positions + dungeon walls to the player and all enemies for pathfinding.
-	var tiles: Array[Vector2i] = []
+	## Syncs blockers to the player and all enemies for pathfinding. Defers to
+	## the full dungeon sync (walls + pits + barricades + tree trunks) so no
+	## call site silently un-blocks hazards; outside a dungeon only barricades
+	## exist.
 	if dungeon_manager:
-		tiles.append_array(dungeon_manager.get_wall_tiles())
+		_sync_dungeon_blocked_tiles()
+		return
+	var tiles: Array[Vector2i] = []
 	for obs in barricade_obstacles:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
 	player.blocked_tiles = tiles

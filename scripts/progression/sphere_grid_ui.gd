@@ -76,8 +76,6 @@ const COLOR_HOVER_RING := Color(1.0, 1.0, 0.6, 0.9)
 
 # Detail popup colors
 const COLOR_POPUP_BG := Color(0.14, 0.14, 0.2, 0.97)
-const COLOR_UPGRADE := Color(0.4, 0.85, 1.0)
-const COLOR_TRANSMUTE := Color(1.0, 0.7, 0.3)
 const COLOR_SECTION_HEADER := Color(0.8, 0.8, 0.9)
 const COLOR_DIM_TEXT := Color(0.65, 0.65, 0.75)
 
@@ -1058,22 +1056,6 @@ func _position_popup(node: SphereGrid.GridNode) -> void:
 func _build_passive_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
 	_add_popup_label(vbox, node.description, 14, Color(0.95, 0.8, 0.5))
 
-	# Upgrade path
-	if node.upgrade_paths.size() > 0:
-		_add_popup_separator(vbox)
-		_add_popup_label(vbox, "UPGRADE PATH", 12, COLOR_SECTION_HEADER)
-		for path in node.upgrade_paths:
-			_add_popup_label(vbox, path["label"], 13, COLOR_UPGRADE)
-			_add_popup_label(vbox, "  %s" % path["description"], 11, COLOR_DIM_TEXT)
-
-	# Transmute path
-	if node.transmute_paths.size() > 0:
-		_add_popup_separator(vbox)
-		_add_popup_label(vbox, "TRANSMUTE PATH", 12, COLOR_SECTION_HEADER)
-		for path in node.transmute_paths:
-			_add_popup_label(vbox, path["label"], 13, COLOR_TRANSMUTE)
-			_add_popup_label(vbox, "  %s" % path["description"], 11, COLOR_DIM_TEXT)
-
 func _build_stat_popup_content(vbox: VBoxContainer, node: SphereGrid.GridNode) -> void:
 	_add_popup_label(vbox, node.description, 15, Color(0.8, 0.9, 1.0))
 
@@ -1239,20 +1221,6 @@ func _update_info_label() -> void:
 
 	# Description
 	lines.append(node.description)
-
-	# Upgrade paths preview
-	if node.upgrade_paths.size() > 0:
-		var path_names: Array[String] = []
-		for p in node.upgrade_paths:
-			path_names.append(p["label"])
-		lines.append("Upgrades: %s" % ", ".join(path_names))
-
-	# Transmute paths preview
-	if node.transmute_paths.size() > 0:
-		var path_names: Array[String] = []
-		for p in node.transmute_paths:
-			path_names.append(p["label"])
-		lines.append("Transmutes: %s" % ", ".join(path_names))
 
 	# Sphere requirement
 	if not node.unlocked and node.node_type != SphereGrid.NodeType.START:
