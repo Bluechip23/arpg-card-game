@@ -55,6 +55,9 @@ func _ready() -> void:
 	_content.add_theme_constant_override("separation", 6)
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.visible = not collapsed
+	# Sit BELOW the toggle button — never on top of it, so collapsing is
+	# always one clean click.
+	_content.position = Vector2(0, 28)
 	add_child(_content)
 
 func initialize(spawner) -> void:

@@ -134,7 +134,7 @@ var regen_accumulator: int = 0
 var _tempo_bar_bg: MeshInstance3D
 var _tempo_bar_fg: MeshInstance3D
 var _action_label: Label3D
-var _tempo_bar_width: float = 0.6
+var _tempo_bar_width: float = 0.85
 
 # Armor bar visuals (gray bar below health, only for armored enemies)
 var _armor_bar_sprite: Sprite3D
@@ -1175,7 +1175,7 @@ func _setup_tempo_bar() -> void:
 	# Background bar (dark)
 	_tempo_bar_bg = MeshInstance3D.new()
 	var bg_quad = QuadMesh.new()
-	bg_quad.size = Vector2(_tempo_bar_width, 0.06)
+	bg_quad.size = Vector2(_tempo_bar_width, 0.09)
 	_tempo_bar_bg.mesh = bg_quad
 	var bg_mat = StandardMaterial3D.new()
 	bg_mat.albedo_color = Color(0.15, 0.15, 0.1, 0.7)
@@ -1191,7 +1191,7 @@ func _setup_tempo_bar() -> void:
 	# Foreground bar (yellow fill)
 	_tempo_bar_fg = MeshInstance3D.new()
 	var fg_quad = QuadMesh.new()
-	fg_quad.size = Vector2(0.01, 0.06)
+	fg_quad.size = Vector2(0.01, 0.09)
 	_tempo_bar_fg.mesh = fg_quad
 	var fg_mat = StandardMaterial3D.new()
 	fg_mat.albedo_color = Color(1.0, 0.85, 0.0, 0.9)  # Yellow
@@ -1204,18 +1204,23 @@ func _setup_tempo_bar() -> void:
 	_tempo_bar_fg.visible = false
 	add_child(_tempo_bar_fg)
 
-	# Action label (above tempo bar)
+	# Action label (above tempo bar) — sized and outlined to stay readable
+	# from a zoomed-out camera, like the name label.
 	_action_label = Label3D.new()
-	_action_label.position = Vector3(0, 1.25, 0)
+	_action_label.position = Vector3(0, 1.29, 0)
 	_action_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_action_label.font_size = 14
+	_action_label.font_size = 28
+	_action_label.outline_size = 10
+	_action_label.outline_modulate = Color(0, 0, 0, 0.85)
+	_action_label.no_depth_test = true
+	_action_label.render_priority = 20
 	_action_label.modulate = Color(1.0, 0.85, 0.0)  # Yellow text
 	_action_label.text = ""
 	add_child(_action_label)
 
-	# Move name label up to make room for the tempo bar
+	# Move name label up to make room for the tempo bar + larger action text
 	if name_label:
-		name_label.position.y = 1.35
+		name_label.position.y = 1.5
 
 const _ARMOR_BAR_PIXEL_WIDTH: int = 200
 const _ARMOR_BAR_PIXEL_HEIGHT: int = 24

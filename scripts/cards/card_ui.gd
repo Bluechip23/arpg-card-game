@@ -509,20 +509,32 @@ func _kill_hover_tween() -> void:
 # ============================================
 
 func animate_draw_in(from_pos: Vector2, final_pos: Vector2, delay: float = 0.0) -> void:
-	## Animate card sliding from draw pile area into its hand position.
+	## Drawn card squeezes OUT of the draw pile — the tube-suck discard in
+	## reverse, a touch faster: it emerges thin and stretched at the pile,
+	## un-squashes mid-flight, and settles into its hand slot.
+	pivot_offset = Vector2(size.x * 0.5, size.y)
 	position = from_pos
 	modulate.a = 0.0
-	scale = Vector2(0.7, 0.7)
-	rotation_degrees = -15.0
+	scale = Vector2(0.06, 1.4)
+	rotation_degrees = -12.0
+	var final_z := z_index  # the fan's stacking index, restored after the flight
+	z_index = 150
 
-	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	var tween = create_tween()
 	if delay > 0:
 		tween.tween_interval(delay)
+	# Pop out of the tube: fly toward the hand while the card re-inflates.
 	tween.set_parallel(true)
-	tween.tween_property(self, "position", final_pos, 0.3)
-	tween.tween_property(self, "modulate:a", 1.0, 0.2)
-	tween.tween_property(self, "scale", Vector2.ONE, 0.25)
-	tween.tween_property(self, "rotation_degrees", _base_rotation, 0.25)
+	tween.tween_property(self, "modulate:a", 1.0, 0.08)
+	tween.tween_property(self, "position", final_pos, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "scale", Vector2(0.5, 1.08), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# ...then the last un-squash snaps it back to a real card in the fan.
+	tween.chain()
+	tween.set_parallel(true)
+	tween.tween_property(self, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "rotation_degrees", _base_rotation, 0.12)
+	tween.chain()
+	tween.tween_callback(func(): z_index = final_z)
 
 func animate_slide_to(target_pos: Vector2, duration: float = 0.2) -> void:
 	## Smoothly slide card to a new hand position (rearrange).
