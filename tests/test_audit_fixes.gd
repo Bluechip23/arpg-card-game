@@ -33,7 +33,7 @@ func _initialize() -> void:
 
 	var p4 = pt._parse_passive_description("On attack: 5% freeze enemy for 1 cycle", 0)
 	_check(p4.get("effect", "") == "freeze_enemy" and absf(p4.get("chance", 0.0) - 0.05) < 0.001,
-		"freeze transmute parses as freeze_enemy at 5 percent (got " + str(p4.get("effect")) + ")")
+		"freeze passive parses as freeze_enemy at 5 percent (got " + str(p4.get("effect")) + ")")
 
 	# --- Empower on defense: mana refund, full armor ---
 	var stats = load("res://scripts/character/player_stats.gd").new()

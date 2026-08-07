@@ -301,7 +301,7 @@ func _refresh_passive_list() -> void:
 	var seen := {}
 	for row in tree.rows:
 		for opt in row.options:
-			if opt.option_type != SkillTreeData.OptionType.PASSIVE and opt.option_type != SkillTreeData.OptionType.PASSIVE_MUTATION:
+			if opt.option_type != SkillTreeData.OptionType.PASSIVE:
 				continue
 			if seen.has(opt.name):
 				continue

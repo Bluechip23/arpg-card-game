@@ -9,10 +9,8 @@ extends RefCounted
 enum OptionType {
 	CARD,           # Grants a new card to the deck
 	PASSIVE,        # Grants a passive ability
-	PASSIVE_MUTATION, # Modifies an existing passive
 	STAT_BONUS,     # Flat stat increase
 	CARD_UPGRADE,   # Upgrades an existing card
-	CARD_MUTATION,  # Mutates/transforms an existing card
 }
 
 # Auto-grant types for the 5th column
@@ -20,7 +18,6 @@ enum AutoGrantType {
 	STAT_ALLOCATION,  # Legacy — stat points now come from every level-up (PlayerStats)
 	CARD_REMOVAL,     # Remove a card from deck
 	UPGRADE_CARD,     # Upgrade an existing card
-	MUTATE_CARD,      # Mutate/transform an existing card
 	HEALTH_BOOST,     # Flat max health increase
 	MANA_BOOST,       # Flat max mana increase
 	PASSIVE,          # Auto-granted passive
@@ -35,21 +32,19 @@ class SkillOption:
 
 	# Type-specific data
 	var card_id: String = ""              # For CARD type
-	var passive_id: String = ""           # For PASSIVE / PASSIVE_MUTATION
+	var passive_id: String = ""           # For PASSIVE
 	var passive_data: Dictionary = {}     # trigger, effect, value, chance, etc.
 	var stat_type: String = ""            # For STAT_BONUS: "strength", "dexterity", etc.
 	var stat_amount: int = 0              # For STAT_BONUS
-	var upgrade_card_id: String = ""      # For CARD_UPGRADE / CARD_MUTATION
-	var upgrade_result_id: String = ""    # The card it becomes after upgrade/mutation
+	var upgrade_card_id: String = ""      # For CARD_UPGRADE
+	var upgrade_result_id: String = ""    # The card it becomes after upgrade
 
 	func get_type_label() -> String:
 		match option_type:
 			OptionType.CARD: return "Card"
 			OptionType.PASSIVE: return "Passive"
-			OptionType.PASSIVE_MUTATION: return "Mutation"
 			OptionType.STAT_BONUS: return "Stat Bonus"
 			OptionType.CARD_UPGRADE: return "Upgrade"
-			OptionType.CARD_MUTATION: return "Card Mutation"
 		return "Unknown"
 
 ## The auto-granted 5th column reward for a row
@@ -58,7 +53,7 @@ class AutoGrant:
 	var name: String = ""
 	var description: String = ""
 	var stat_points: int = 5             # For STAT_ALLOCATION
-	var card_id: String = ""             # For CARD_REMOVAL / UPGRADE / MUTATE target
+	var card_id: String = ""             # For CARD_REMOVAL / UPGRADE target
 	var health_amount: int = 0           # For HEALTH_BOOST
 	var mana_amount: int = 0             # For MANA_BOOST
 	var passive_data: Dictionary = {}    # For PASSIVE auto-grants
@@ -68,7 +63,6 @@ class AutoGrant:
 			AutoGrantType.STAT_ALLOCATION: return "+%d Stats" % stat_points
 			AutoGrantType.CARD_REMOVAL: return "Remove Card"
 			AutoGrantType.UPGRADE_CARD: return "Upgrade Card"
-			AutoGrantType.MUTATE_CARD: return "Mutate Card"
 			AutoGrantType.HEALTH_BOOST: return "+%d Health" % health_amount
 			AutoGrantType.MANA_BOOST: return "+%d Mana" % mana_amount
 			AutoGrantType.PASSIVE: return "Passive"
@@ -229,7 +223,7 @@ func get_rows_with_skipped_options(max_level: int) -> Array[SkillRow]:
 
 ## Get the auto-grant type for a given level based on the schedule:
 ## Levels 2, 5, 10, 15, 20 ... → Card Removal
-## Other levels                 → Alternating upgrade / mutate
+## Other levels                 → Card upgrade
 ## (Stat points are no longer a scheduled grant — every level-up banks
 ## +3 points directly on PlayerStats, allocated from the skill tree screen.)
 static func get_default_auto_grant_type_for_level(level: int) -> AutoGrantType:
@@ -238,11 +232,7 @@ static func get_default_auto_grant_type_for_level(level: int) -> AutoGrantType:
 	if level in removal_levels:
 		return AutoGrantType.CARD_REMOVAL
 
-	# Fallback: alternate between upgrade and mutate for other levels
-	if level % 2 == 1:
-		return AutoGrantType.UPGRADE_CARD
-	else:
-		return AutoGrantType.MUTATE_CARD
+	return AutoGrantType.UPGRADE_CARD
 
 # ============================================
 # PLACEHOLDER TREE BUILDERS (one per character)
@@ -282,9 +272,6 @@ static func create_placeholder_tree(char_name: String, max_level: int = 20, arch
 			AutoGrantType.UPGRADE_CARD:
 				auto.name = "Card Upgrade"
 				auto.description = "Upgrade an existing card"
-			AutoGrantType.MUTATE_CARD:
-				auto.name = "Card Mutation"
-				auto.description = "Mutate an existing card"
 			_:
 				auto.name = "Bonus"
 				auto.description = "Level bonus"
@@ -426,9 +413,6 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 			AutoGrantType.UPGRADE_CARD:
 				auto.name = "Card Upgrade"
 				auto.description = "Upgrade an existing card"
-			AutoGrantType.MUTATE_CARD:
-				auto.name = "Card Mutation"
-				auto.description = "Mutate an existing card"
 			_:
 				auto.name = "Bonus"
 				auto.description = "Level bonus"
@@ -559,9 +543,6 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			AutoGrantType.UPGRADE_CARD:
 				auto.name = "Card Upgrade"
 				auto.description = "Upgrade an existing card"
-			AutoGrantType.MUTATE_CARD:
-				auto.name = "Card Mutation"
-				auto.description = "Mutate an existing card"
 			_:
 				auto.name = "Bonus"
 				auto.description = "Level bonus"
@@ -689,9 +670,6 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			AutoGrantType.UPGRADE_CARD:
 				auto.name = "Card Upgrade"
 				auto.description = "Upgrade an existing card"
-			AutoGrantType.MUTATE_CARD:
-				auto.name = "Card Mutation"
-				auto.description = "Mutate an existing card"
 			_:
 				auto.name = "Bonus"
 				auto.description = "Level bonus"
@@ -818,9 +796,6 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			AutoGrantType.UPGRADE_CARD:
 				auto.name = "Card Upgrade"
 				auto.description = "Upgrade an existing card"
-			AutoGrantType.MUTATE_CARD:
-				auto.name = "Card Mutation"
-				auto.description = "Mutate an existing card"
 			_:
 				auto.name = "Bonus"
 				auto.description = "Level bonus"
@@ -952,9 +927,6 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			AutoGrantType.UPGRADE_CARD:
 				auto.name = "Card Upgrade"
 				auto.description = "Upgrade an existing card"
-			AutoGrantType.MUTATE_CARD:
-				auto.name = "Card Mutation"
-				auto.description = "Mutate an existing card"
 			_:
 				auto.name = "Bonus"
 				auto.description = "Level bonus"

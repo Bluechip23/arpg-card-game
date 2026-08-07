@@ -63,7 +63,6 @@ const COLOR_CHOSEN_TEXT := Color(0.4, 1.0, 0.5)
 const COLOR_BLACKED_TEXT := Color(0.25, 0.25, 0.3)
 const COLOR_TYPE_CARD := Color(0.3, 0.7, 1.0)
 const COLOR_TYPE_PASSIVE := Color(0.4, 0.9, 0.4)
-const COLOR_TYPE_MUTATION := Color(0.9, 0.5, 0.2)
 const COLOR_TYPE_STAT := Color(0.7, 0.7, 1.0)
 const COLOR_TYPE_UPGRADE := Color(0.3, 0.8, 1.0)
 const COLOR_AUTO_TEXT := Color(1.0, 0.85, 0.4)
@@ -1094,10 +1093,8 @@ func _get_type_color(option_type: SkillTreeData.OptionType) -> Color:
 	match option_type:
 		SkillTreeData.OptionType.CARD: return COLOR_TYPE_CARD
 		SkillTreeData.OptionType.PASSIVE: return COLOR_TYPE_PASSIVE
-		SkillTreeData.OptionType.PASSIVE_MUTATION: return COLOR_TYPE_MUTATION
 		SkillTreeData.OptionType.STAT_BONUS: return COLOR_TYPE_STAT
 		SkillTreeData.OptionType.CARD_UPGRADE: return COLOR_TYPE_UPGRADE
-		SkillTreeData.OptionType.CARD_MUTATION: return COLOR_TYPE_MUTATION
 	return COLOR_TEXT
 
 func _scroll_to_current_level() -> void:

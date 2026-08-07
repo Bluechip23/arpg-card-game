@@ -307,8 +307,7 @@ func _collect_passives() -> Array:
 	for tree in trees:
 		for row in tree.rows:
 			for opt in row.options:
-				if opt.option_type == SkillTreeData.OptionType.PASSIVE \
-						or opt.option_type == SkillTreeData.OptionType.PASSIVE_MUTATION:
+				if opt.option_type == SkillTreeData.OptionType.PASSIVE:
 					var key: String = opt.name if opt.name != "" else opt.passive_id
 					if key == "" or seen.has(key):
 						continue

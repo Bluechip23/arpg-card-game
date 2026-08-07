@@ -29,13 +29,9 @@ class GridNode:
 	var unlocked: bool = false
 	var ring: int = 0               # Which ring this node belongs to (0=center)
 
-	# Upgrade paths (2 per node for passive nodes)
+	# Upgrade paths (per passive node)
 	# Each entry: { "label": String, "description": String }
 	var upgrade_paths: Array = []
-
-	# Transmute paths (2 per card/passive node)
-	# Each entry: { "label": String, "description": String }
-	var transmute_paths: Array = []
 
 	# Upgrade level (0 = base, incremented by upgrade runes)
 	var upgrade_level: int = 0
@@ -400,15 +396,14 @@ func _build_grid() -> void:
 ## SHELVED CONTENT — the original Ring 3 (combat bonuses, on-hit/on-heal/on-block
 ## passives, a Culling Stone, a Retrospective) that the FREE_STAT / vitality arm
 ## layer replaced. Kept here (not wired into the grid) so it can be resurfaced
-## later — e.g. folded into an outer ring or a future sector. The paired dicts are
-## the upgrade / transmute paths the passive nodes used to carry.
+## later — e.g. folded into an outer ring or a future sector. The paired dicts
+## are the upgrade paths the passive nodes used to carry.
 func _shelved_ring3_nodes() -> Array:
 	return [
 		{ "type": NodeType.COMBAT_BONUS, "label": "Block +1", "desc": "Block cards grant +1 additional block" },
 		{ "type": NodeType.STAT_BONUS, "label": "STR +3", "desc": "Strength +3" },
 		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On attack: 10% apply bleed",
-			"upgrade": [{"label": "On attack: 20% apply bleed", "description": "Major bleed chance"}],
-			"transmute": [{"label": "On attack: 10% apply poison", "description": "Poison instead of bleed"}] },
+			"upgrade": [{"label": "On attack: 20% apply bleed", "description": "Major bleed chance"}] },
 		{ "type": NodeType.COMBAT_BONUS, "label": "Thorns +1", "desc": "Deal 1 damage to attackers when hit" },
 		{ "type": NodeType.STAT_BONUS, "label": "DEX +3", "desc": "Dexterity +3" },
 		{ "type": NodeType.CULLING_STONE, "label": "Cull Stone", "desc": "Grants 1 Culling Stone" },
@@ -418,16 +413,14 @@ func _shelved_ring3_nodes() -> Array:
 		{ "type": NodeType.COMBAT_BONUS, "label": "Heal +2", "desc": "Heal cards restore +2 additional HP" },
 		{ "type": NodeType.STAT_BONUS, "label": "WIS +3", "desc": "Wisdom +3" },
 		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On heal: 15% cleanse debuff",
-			"upgrade": [{"label": "On heal: 30% cleanse debuff", "description": "Major cleanse chance"}],
-			"transmute": [{"label": "On heal: always cleanse weakest debuff", "description": "Guaranteed cleanse on heal"}] },
+			"upgrade": [{"label": "On heal: 30% cleanse debuff", "description": "Major cleanse chance"}] },
 		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +3%", "desc": "Critical hit chance +3%" },
 		{ "type": NodeType.STAT_BONUS, "label": "AGI +3", "desc": "Agility +3" },
 		{ "type": NodeType.COMBAT_BONUS, "label": "Regen +1", "desc": "Regenerate 1 HP per tempo cycle" },
 		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +1%", "desc": "Critical hit chance +1%" },
 		{ "type": NodeType.STAT_BONUS, "label": "DET +3", "desc": "Determination +3" },
 		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On block: reflect 2 damage",
-			"upgrade": [{"label": "On block: reflect 5 damage", "description": "Major reflect"}],
-			"transmute": [{"label": "On block: 30% stun attacker", "description": "Chance to stun on block"}] },
+			"upgrade": [{"label": "On block: reflect 5 damage", "description": "Major reflect"}] },
 	]
 
 func _create_ring(start_id: int, count: int, radius: float, center: Vector2, type_data: Array, ring: int) -> void:
@@ -462,114 +455,91 @@ static func requirement_text(node: GridNode) -> String:
 	return "Requires %s %d" % [stat_name.substr(0, 3).to_upper(), int(node.requirements.get("value", 0))]
 
 func _assign_node_details() -> void:
-	## Assigns upgrade paths and transmute paths to passive nodes.
+	## Assigns upgrade paths to passive nodes.
 	## Called after the grid is fully built.
 
-	# --- Passive node upgrade/transmute paths ---
+	# --- Passive node upgrade paths ---
 	# Ring 2 has no passive nodes: each stat branch is now the stat itself plus a
 	# reinforcing HP/Mana node (see _build_grid), so there are no Ring 2 passives
 	# to assign here. Passive upgrade paths begin at Ring 3.
 
 	# Ring 3 has no passive nodes anymore — it is the FREE_STAT / vitality arm layer
-	# (see _build_grid). The old Ring 3 passives and their upgrade/transmute paths
+	# (see _build_grid). The old Ring 3 passives and their upgrade paths
 	# are preserved in _shelved_ring3_nodes() for later resurfacing.
 
 	# Ring 4 passives
 	_assign_passive(37,
-		[{"label": "On crit: deal 100% bonus", "description": "Double damage on crit"}],
-		[{"label": "On crit: deal 50% bonus and heal 2", "description": "Crit with lifesteal"}])
+		[{"label": "On crit: deal 100% bonus", "description": "Double damage on crit"}])
 
 	_assign_passive(41,
-		[{"label": "On kill: draw 2 cards", "description": "Draw more on kill"}],
-		[{"label": "On kill: draw 1 card and reduce its cost by 1", "description": "Discounted draw on kill"}])
+		[{"label": "On kill: draw 2 cards", "description": "Draw more on kill"}])
 
 	_assign_passive(45,
-		[{"label": "On spell cast: 20% refund mana", "description": "Major refund chance"}],
-		[{"label": "On spell cast: 10% cast twice", "description": "Chance to double cast"}])
+		[{"label": "On spell cast: 20% refund mana", "description": "Major refund chance"}])
 
 	_assign_passive(49,
-		[{"label": "On tempo cycle: all enemies -3 armor", "description": "Major armor shred"}],
-		[{"label": "On tempo cycle: all enemies -1 armor and take 1 damage", "description": "Shred with damage"}])
+		[{"label": "On tempo cycle: all enemies -3 armor", "description": "Major armor shred"}])
 
 	# Node 53 is now a Culling Stone — no passive to assign
 
 	_assign_passive(57,
-		[{"label": "On move: 20% gain haste", "description": "Major haste chance"}],
-		[{"label": "On move: 10% gain haste and draw a card", "description": "Haste with draw"}])
+		[{"label": "On move: 20% gain haste", "description": "Major haste chance"}])
 
 	# Ring 5 passives: IDs 62, 65, 69, 72, 76, 80, 83, 87, 91, 95, 99
 	_assign_passive(62,
-		[{"label": "On attack: 12% stun enemy", "description": "Major stun chance"}],
-		[{"label": "On attack: 5% freeze enemy for 1 cycle", "description": "Chance to freeze instead of stun"}])
+		[{"label": "On attack: 12% stun enemy", "description": "Major stun chance"}])
 
 	_assign_passive(65,
-		[{"label": "On kill: gain 7 armor", "description": "Major armor on kill"}],
-		[{"label": "On kill: gain 3 armor and 2 tempo", "description": "Armor and tempo on kill"}])
+		[{"label": "On kill: gain 7 armor", "description": "Major armor on kill"}])
 
 	_assign_passive(69,
-		[{"label": "On block: 25% counterattack", "description": "Major counter chance"}],
-		[{"label": "On block: 15% counterattack for double damage", "description": "Powerful counter"}])
+		[{"label": "On block: 25% counterattack", "description": "Major counter chance"}])
 
 	_assign_passive(72,
-		[{"label": "On spell cast: 12% double cast", "description": "Major double cast chance"}],
-		[{"label": "On spell cast: 5% triple cast", "description": "Chance to triple cast"}])
+		[{"label": "On spell cast: 12% double cast", "description": "Major double cast chance"}])
 
 	_assign_passive(76,
-		[{"label": "On draw: 20% draw costs 0 mana", "description": "Major free draw chance"}],
-		[{"label": "On draw: 10% draw costs 0 and draw an extra card", "description": "Free draw with bonus"}])
+		[{"label": "On draw: 20% draw costs 0 mana", "description": "Major free draw chance"}])
 
 	_assign_passive(80,
-		[{"label": "On cycle: 40% gain empower", "description": "Major empower chance"}],
-		[{"label": "On cycle: 20% gain empower and draw a card", "description": "Empower with draw"}])
+		[{"label": "On cycle: 40% gain empower", "description": "Major empower chance"}])
 
 	_assign_passive(83,
-		[{"label": "On heal: overheal becomes 200% armor", "description": "Major overheal conversion"}],
-		[{"label": "On heal: overheal becomes armor and gain 1 mana", "description": "Overheal with mana"}])
+		[{"label": "On heal: overheal becomes 200% armor", "description": "Major overheal conversion"}])
 
 	_assign_passive(87,
-		[{"label": "On crit: heal 7 HP", "description": "Major crit healing"}],
-		[{"label": "On crit: heal 3 HP and gain 2 mana", "description": "Crit healing with mana"}])
+		[{"label": "On crit: heal 7 HP", "description": "Major crit healing"}])
 
 	_assign_passive(91,
-		[{"label": "On discard: deal 7 to random enemy", "description": "Major discard damage"}],
-		[{"label": "On discard: deal 3 to all enemies", "description": "AOE discard damage"}])
+		[{"label": "On discard: deal 7 to random enemy", "description": "Major discard damage"}])
 
 	_assign_passive(95,
-		[{"label": "On move: next card costs 3 less", "description": "Major cost reduction on move"}],
-		[{"label": "On move: next card is free", "description": "Free next card on move"}])
+		[{"label": "On move: next card costs 3 less", "description": "Major cost reduction on move"}])
 
 	_assign_passive(99,
-		[{"label": "On tempo cycle: draw 2 cards and gain 1 mana", "description": "Major cycle draw"}],
-		[{"label": "On tempo cycle: draw 1 card and gain 3 armor", "description": "Defensive cycle"}])
+		[{"label": "On tempo cycle: draw 2 cards and gain 1 mana", "description": "Major cycle draw"}])
 
 	# Ring 6 passives: IDs 101, 108, 111, 115, 119, 122, 129
 	_assign_passive(101,
-		[{"label": "On crit: apply bleed for 5 turns", "description": "Extended crit bleed"}],
-		[{"label": "On crit: apply poison for 3 turns", "description": "Crit poison instead of bleed"}])
+		[{"label": "On crit: apply bleed for 5 turns", "description": "Extended crit bleed"}])
 
 	_assign_passive(108,
-		[{"label": "On kill: draw 3 cards and gain 3 mana", "description": "Major kill reward"}],
-		[{"label": "On kill: draw 2 cards and heal 5 HP", "description": "Kill sustain with draw"}])
+		[{"label": "On kill: draw 3 cards and gain 3 mana", "description": "Major kill reward"}])
 
 	_assign_passive(111,
-		[{"label": "On spell cast: 20% refund full mana cost", "description": "Major mana refund"}],
-		[{"label": "On spell cast: 10% refund and draw a card", "description": "Refund with draw"}])
+		[{"label": "On spell cast: 20% refund full mana cost", "description": "Major mana refund"}])
 
 	_assign_passive(115,
-		[{"label": "On block: heal 6 HP", "description": "Major block healing"}],
-		[{"label": "On block: heal 3 HP and gain 1 mana", "description": "Block healing with mana"}])
+		[{"label": "On block: heal 6 HP", "description": "Major block healing"}])
 
 	_assign_passive(119,
-		[{"label": "On move: gain 4 armor and 2 mana", "description": "Major move reward"}],
-		[{"label": "On move: gain 2 armor and draw a card", "description": "Move reward with draw"}])
+		[{"label": "On move: gain 4 armor and 2 mana", "description": "Major move reward"}])
 
 	_assign_passive(122,
-		[{"label": "On tempo cycle: all enemies take 4 damage", "description": "Major cycle damage"}],
-		[{"label": "On tempo cycle: all enemies take 2 damage and lose 1 armor", "description": "Cycle damage with shred"}])
+		[{"label": "On tempo cycle: all enemies take 4 damage", "description": "Major cycle damage"}])
 
 	_assign_passive(129,
-		[{"label": "On heal: gain 4 mana", "description": "Major heal mana"}],
-		[{"label": "On heal: gain 2 mana and draw a card", "description": "Heal mana with draw"}])
+		[{"label": "On heal: gain 4 mana", "description": "Major heal mana"}])
 
 # ============================================
 # CONSTELLATION DEFINITIONS
@@ -768,9 +738,8 @@ func get_constellation_edges(id: String) -> Array:
 				edges.append([nid, conn_id])
 	return edges
 
-func _assign_passive(node_id: int, upgrades: Array, transmutes: Array) -> void:
+func _assign_passive(node_id: int, upgrades: Array) -> void:
 	var node = get_node_by_id(node_id)
 	if not node or node.node_type != NodeType.PASSIVE:
 		return
 	node.upgrade_paths = upgrades
-	node.transmute_paths = transmutes

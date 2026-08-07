@@ -278,9 +278,4 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 - Paper Feathers can be found from enemy loot and chests
 - You can also create Paper Feathers by converting cards into Origami Swans at Olorin (20 swans = 1 feather)
 
-[color=yellow]Mutating Spheres:[/color]
-- Passive spheres can be mutated (transmuted) into a different version that fits your play style
-- Each Passive node has 2 possible mutations to choose from
-- Example: "On kill: heal 1 HP" can mutate into "On kill: gain 2 mana" or "On kill: gain 2 armor"
-
 """
