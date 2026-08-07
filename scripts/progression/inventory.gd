@@ -43,7 +43,7 @@ const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 # Any weapon or shield can be gripped with both hands — a per-slot player
 # choice, never an item property. The grip halves the item's carried weight
 # (letting weaker characters wield huge gear) but drops TOTAL carry capacity
-# to 80% (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second hand
+# to 70% (PlayerStats.TWO_HAND_CAPACITY_MULT) and consumes a second hand
 # slot. Weapons gain damage from their ORIGINAL weight; shields gain Basic
 # Block armor the same way.
 const TWO_HAND_WEIGHT_MULT: float = 0.5
@@ -1437,7 +1437,7 @@ func can_rack_exchange(free: bool) -> Dictionary:
 			res["reason"] = "Free swap needs a single two-handed item on one side"
 			return res
 	# Carry gate on the end state as a whole. The item set is unchanged (hands
-	# and back trade places) but the grip discount and the 80% grip capacity
+	# and back trade places) but the grip discount and the 70% grip capacity
 	# move with the exchange.
 	if player_stats:
 		var will_grip = free and _incoming_gets_auto_grip(rack_items)

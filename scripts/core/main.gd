@@ -6129,8 +6129,7 @@ const SPELL_SCALED_CARDS := ["surrounding_ice", "snowballs_chance", "sprinkle_bo
 
 # Block cards whose _execute hardcodes the armor amount instead of reading
 # the block fields — the display must match what add_armor actually gets.
-const BLOCK_AMOUNT_OVERRIDES := {"turtle_up": 5, "hold_the_line": 5, "meditate": 5,
-		"vengeful_shield": 5, "mana_surge": 8}
+const BLOCK_AMOUNT_OVERRIDES := {"hold_the_line": 5, "vengeful_shield": 5}
 
 # Block cards whose _execute reads base_block (not block), so they miss the
 # play-time Harnessed Power block bonus.
@@ -6193,6 +6192,9 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 		var reduction_pct = debuff_mgr.get_damage_reduction_percent()
 		if reduction_pct > 0.0:
 			total = max(1, floori(total * (1.0 - reduction_pct)))
+	# Quick Shot: 2 base + HALF of everything on top (mirrors its _execute).
+	if card.card_id == "quick_shot":
+		total = card.base_damage + floori((total - card.base_damage) / 2.0)
 	return max(0, total)
 
 

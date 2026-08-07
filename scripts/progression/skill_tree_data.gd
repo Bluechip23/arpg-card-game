@@ -450,7 +450,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 
 	# Card reward placements — Stephen's archer/ranger cards
 	var card_placements := [
-		{level = 2, slot = 1, card_id = "quick_shot", name = "Quick Shot", description = "Deal 6 damage, draw a card. Ranged, Arrow. (1 mana, 1 tempo)"},
+		{level = 2, slot = 1, card_id = "quick_shot", name = "Quick Shot", description = "Deal 2 damage + half modifiers, draw a card. Ranged, Arrow. (1 mana, 1 tempo)"},
 		{level = 3, slot = 0, card_id = "mixed_bag", name = "Mixed Bag", description = "Shoot a standard arrow, 7 damage. Ranged, Arrow. (1 mana, 1 tempo)"},
 		{level = 4, slot = 0, card_id = "rise", name = "Rise", description = "Lift the earth creating a structure on the map. (1 mana, 4 tempo)"},
 		{level = 5, slot = 0, card_id = "reload", name = "Reload", description = "Draw 3 cards. (3 mana, 3 tempo)"},

@@ -181,7 +181,7 @@ Mechanics that appear on cards:
 | **On-Draw / On-Discard** | Triggers an effect when drawn / discarded. |
 | **In-Hand** | Applies a persistent effect while the card sits in your hand. |
 | **Linger** | Status card that can exceed your hand size limit. While it lingers, normal draws overflow. |
-| **Empower** | Buffs your next cards: +3 damage for attacks, −3 mana for defense. |
+| **Empower** | Affects your next cards: +3 damage for attacks, −3 block for defense. |
 | **Reach** | Adds 1 tile to melee attack range. |
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
 | **Chisel** | Card can only be played while slotted into an item — never from hand alone. |
@@ -329,7 +329,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
   - drops your **total** carry capacity to 70% while gripped,
   - consumes a second (empty) hand slot,
   - grants bonus damage from the item's *original* weight (+1 per 10 weight) — shields instead gain bonus block armor.
-- **Dual wielding is the mirror trade**, detected automatically when a *matched pair* fills both hands — two weapons, or two shields (classic weapon-and-shield stays neutral). Both items weigh **1.35×** while paired, but the attack-speed counter drops by **4**. Light pairs buy real attack speed; heavy pairs mostly buy the second weapon's damage, since the extra weight eats the speed back through encumbrance.
+- **Dual wielding is the mirror trade**, detected automatically when a *matched pair* fills both hands — two weapons, or two shields (classic weapon-and-shield stays neutral). Both items weigh **1.15×** while paired, but the attack-speed counter drops by **4**. Light pairs buy real attack speed; heavy pairs mostly buy the second weapon's damage, since the extra weight eats the speed back through encumbrance.
 
 ### Equipment builds (loadouts I / II / III)
 

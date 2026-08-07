@@ -8,9 +8,10 @@ during verification and does not appear below.
 
 Status column tracks triage: first fix batch landed 2026-08-07 (A1, A2, A4,
 A6, A7, B4, B7, B8, B10). Second batch landed 2026-08-07 (A5, B1, B2, B3,
-B5, C1, C2, C3, C4, C6, C7, C8, C9). B6 kept as-is by design decision.
-Remaining open: A3 (deferred until constellation work), B9 (awaiting
-direction), C5, and the D items.
+B5, C1, C2, C3, C4, C6, C7, C8, C9). Third batch landed 2026-08-07 (B9,
+C5, D2, D3, D4, D6, D7, D8, part of D9). B6 kept as-is by design decision.
+Remaining open: A3 (deferred until constellation work), D1, D5, and the
+rest of D9 (all awaiting direction).
 
 ## A. Critical bugs (broken player-facing systems)
 
@@ -36,7 +37,7 @@ direction), C5, and the D items.
 | B6 | Loaded Die / House Money boost applies to every unrolled chance card at once, and multi-outcome rolls (Oops, What's the Worst) ignore the boost entirely | `main.gd:4971-4976`, `card.gd:228-238` | kept as-is by design decision |
 | B7 | Shuriken / Vines / Worms Armageddon / Absorb Essence deal raw base damage while the card face shows the STR/INT-scaled number | `main.gd:7157,7058,7120,7427` | fixed — all 4 deal the face's scaled damage |
 | B8 | Choke, Last Breath, Exacerbate Wounds inherit the class-default `base_damage = 10` → phantom ~10+STR hover preview on no-damage cards | `card.gd:2983,2888,2631` | fixed — Choke = half auto/round; others base 0 |
-| B9 | `BLOCK_AMOUNT_OVERRIDES` lists cards that grant no armor (Turtle Up, Meditate, Mana Surge); Mana Surge's substitution can corrupt a color tag by matching the `8` inside a hex code | `main.gd:6146` | open — awaiting direction (explanation given in chat) |
+| B9 | `BLOCK_AMOUNT_OVERRIDES` lists cards that grant no armor (Turtle Up, Meditate, Mana Surge); Mana Surge's substitution can corrupt a color tag by matching the `8` inside a hex code | `main.gd:6146` | fixed — Turtle Up / Meditate / Mana Surge removed from the override table |
 | B10 | Mark lasts 125 tempo, not the stated 25 (value stored as cycles, ticked per 5 tempo) | `card.gd:1941`, `enemy.gd:2785,1369` | fixed — 5 cycles = the stated 25 tempo |
 
 ## C. Mismatches (code ≠ description; behavior defensible but undocumented)
@@ -47,7 +48,7 @@ direction), C5, and the D items.
 | C2 | A lone bow (no quiver) qualifies for the free-hand stance — README says a bow fills both hands | `inventory.gd:977-989` | fixed — a bow never counts as free-handing |
 | C3 | Lead Arrow's "lower range" not implemented (standard 5-tile range) | `card.gd:2871-2886` | fixed — range 3 (−2 modifier) |
 | C4 | Misery Loves Company spreads on only 4 of ~12 AoE cards | `main.gd:6997-7038` vs `7294,7307,7403,...` | fixed — spread added to every damaging AoE (Charge, Heroic Leap, Surrounding Ice, Snowball's Chance, Sweeping Disarm, Worms Armageddon, Absorb Essence); Round 'Em Up deals no damage so it stays out |
-| C5 | AoE shading radius ≠ real effect: Internal Combustion (1.5 shown / 3.0 real), Round 'Em Up (1.5/2.0), Worms (circle shown / all enemies real), Spirit Arrow (1.5 / full pierce), Absorb Essence draws a 100-tile circle, God of Thunder flagged AoE but single-target | `card.gd` + `main.gd` (per pairs) | open |
+| C5 | AoE shading radius ≠ real effect: Internal Combustion (1.5 shown / 3.0 real), Round 'Em Up (1.5/2.0), Worms (circle shown / all enemies real), Spirit Arrow (1.5 / full pierce), Absorb Essence draws a 100-tile circle, God of Thunder flagged AoE but single-target | `card.gd` + `main.gd` (per pairs) | fixed — IC 3.0, REU 2.0, Worms 100 (all-field, like Absorb Essence, which stays as-is), Spirit Arrow full-length line, God of Thunder no longer AoE-flagged |
 | C6 | Volatile Mixture's self-damage scales with your own INT; text says flat 8 | `main.gd:5481-5484` | fixed — self-damage flat 8; damage to enemies stays INT-scaled (intended) |
 | C7 | Lethal Recall keys off the literal word "Instant" in descriptions — misses Spider Senses & Vengeful Shield (reactions), matches Healthy Bliss (utility) | `main.gd:6788` | fixed — both cards now say "Instant." and are treated as Instants |
 | C8 | Anticipation's Prepare token is placed in the discard pile where its own erase timer deletes it before it can be drawn | `card.gd:3849,4478`, `deck_manager.gd:698-719` | fixed — erase timers now only tick while the card is in hand |
@@ -57,15 +58,15 @@ direction), C5, and the D items.
 
 | # | Finding | Where | Status |
 |---|---|---|---|
-| D1 | Halo's face replaces the "3" in "Maintain 3M" with the scaled heal (reads "Maintain 8M") | `card.gd:320-334,3248` | open |
-| D2 | Fortify Alliance swaps its heal/armor numbers in the stat-aware display | `card.gd:308,3633` | open |
-| D3 | Empower's text says "-3 block" but the effect is a 3-mana refund on defense cards | `card.gd:1397,1198` | open |
-| D4 | Quick Shot shows a literal "X" instead of its damage | `card.gd:2758` | open |
-| D5 | Two crit readouts in the character panel disagree under Tactician's Eye | `character_panel.gd:857,667` | open |
-| D6 | Node 101 "bleed for 3 turns" applies 3 stacks of poison; node 76 "draw costs 0" discounts the next played card | `progression_triggers.gd:1897,1984` | open |
-| D7 | Node 72 double-cast is near-inert (requires UTILITY + mana>0 + damage>0) | `main.gd:6707`, `progression_triggers.gd:2032` | open |
-| D8 | Stale docs/comments: inventory.gd says capacity 80% (is 70%); README says dual-wield 1.35× in one spot (is 1.15×); sphere_grid comments claim 100 nodes / 3 conversion keystones (134 / 4); stale "shared node" comments | various | open |
-| D9 | Dead code: Reaction `tempo_cost` unused; `SkillOption.passive_data` never read; `equipped_quivers` array permanently empty but still iterated; Healthy Bliss second implementation unreachable | `card.gd:3609`, `skill_tree_data.gd:34,54`, `inventory.gd:930,986`, `main.gd:5549` | open |
+| D1 | Halo's face replaces the "3" in "Maintain 3M" with the scaled heal (reads "Maintain 8M") | `card.gd:320-334,3248` | open — awaiting direction (explanation given in chat) |
+| D2 | Fortify Alliance swaps its heal/armor numbers in the stat-aware display | `card.gd:308,3633` | fixed — substitution now prefers the number sitting next to its own keyword (armor/heal/damage) |
+| D3 | Empower's text says "-3 block" but the effect is a 3-mana refund on defense cards | `card.gd:1397,1198` | fixed — empowered defense cards now grant 3 less block, per the text |
+| D4 | Quick Shot shows a literal "X" instead of its damage | `card.gd:2758` | fixed — deals (and displays) 2 damage + half of all modifiers |
+| D5 | Two crit readouts in the character panel disagree under Tactician's Eye | `character_panel.gd:857,667` | open — awaiting direction (explanation given in chat) |
+| D6 | Node 101 "bleed for 3 turns" applies 3 stacks of poison; node 76 "draw costs 0" discounts the next played card | `progression_triggers.gd:1897,1984` | fixed — both nodes are null connectors now |
+| D7 | Node 72 double-cast is near-inert (requires UTILITY + mana>0 + damage>0) | `main.gd:6707`, `progression_triggers.gd:2032` | fixed — node is a null connector now |
+| D8 | Stale docs/comments: inventory.gd says capacity 80% (is 70%); README says dual-wield 1.35× in one spot (is 1.15×); sphere_grid comments claim 100 nodes / 3 conversion keystones (134 / 4); stale "shared node" comments | various | fixed — all four corrected |
+| D9 | Dead code: Reaction `tempo_cost` unused; `SkillOption.passive_data` never read; `equipped_quivers` array permanently empty but still iterated; Healthy Bliss second implementation unreachable | `card.gd:3609`, `skill_tree_data.gd:34,54`, `inventory.gd:930,986`, `main.gd:5549` | partial — Cover's dead reaction tempo cost removed; quiver array & Healthy Bliss explained in chat, awaiting direction |
 
 ## Verified-correct coverage (no findings)
 

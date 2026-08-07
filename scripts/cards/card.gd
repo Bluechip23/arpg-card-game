@@ -319,29 +319,60 @@ func get_display_description(effective: Dictionary) -> String:
 		var base_key: String = kind + "_base"
 		if effective.has(kind) and effective.has(base_key) \
 				and effective[kind] != effective[base_key]:
-			text = _sub_number(text, effective[base_key], effective[kind])
+			text = _sub_number(text, effective[base_key], effective[kind], kind)
 	return text
 
 
-## Replace the first standalone occurrence of base_val in text with the
-## effective value, colored by whether it went up or down. Digits glued to
-## the match or a trailing "%" disqualify it (so "30" inside "130" or "30%"
-## is left alone).
-static func _sub_number(text: String, base_val: int, shown: int) -> String:
+## Words that identify which number in a description belongs to which stat,
+## so two stats sharing the same base value (e.g. Fortify Alliance's 5 heal
+## / 5 armor) each land on their own slot instead of grabbing left to right.
+const _SUB_HINTS := {
+	"damage": ["damage", "deal"],
+	"block": ["armor", "block"],
+	"heal": ["heal", "restore"],
+}
+
+
+## Replace the standalone occurrence of base_val in text with the effective
+## value, colored by whether it went up or down. Digits glued to the match
+## or a trailing "%" disqualify it (so "30" inside "130" or "30%" is left
+## alone). When the kind is known, an occurrence sitting next to that kind's
+## keyword ("armor", "heal", ...) wins over an earlier unrelated one.
+static func _sub_number(text: String, base_val: int, shown: int, kind: String = "") -> String:
 	var needle := str(base_val)
+	var candidates: Array[int] = []
 	var from := 0
 	while true:
 		var pos := text.find(needle, from)
 		if pos < 0:
-			return text
+			break
 		var end := pos + needle.length()
 		var before_ok := pos == 0 or not text[pos - 1].is_valid_int()
 		var after_ok := end >= text.length() or (not text[end].is_valid_int() and text[end] != "%")
-		if before_ok and after_ok:
-			var color := "#8be98b" if shown > base_val else "#ff9c9c"
-			return "%s[color=%s]%d[/color]%s" % [text.substr(0, pos), color, shown, text.substr(end)]
+		# Never match inside a BBCode tag (e.g. digits of a #hex color from an
+		# earlier substitution).
+		var open := text.rfind("[", pos)
+		var in_tag := open >= 0 and text.find("]", open) >= end
+		if before_ok and after_ok and not in_tag:
+			candidates.append(pos)
 		from = pos + 1
-	return text
+	if candidates.is_empty():
+		return text
+	var chosen: int = candidates[0]
+	if kind in _SUB_HINTS:
+		for pos in candidates:
+			var context := text.substr(maxi(0, pos - 20), 20 + needle.length() + 20).to_lower()
+			var hinted := false
+			for word in _SUB_HINTS[kind]:
+				if word in context:
+					hinted = true
+					break
+			if hinted:
+				chosen = pos
+				break
+	var end2 := chosen + needle.length()
+	var color := "#8be98b" if shown > base_val else "#ff9c9c"
+	return "%s[color=%s]%d[/color]%s" % [text.substr(0, chosen), color, shown, text.substr(end2)]
 
 
 func _find_standalone_percent(text: String, percent_str: String, from: int) -> int:
@@ -541,7 +572,7 @@ static func get_keyword_definitions() -> Dictionary:
 		# Card Mechanics
 		"maintain": "Reserves X mana from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
 		"erase": "After X tempo, this card is permanently deleted from the deck",
-		"empower": "Buffs the next X cards played: +3 damage for attacks, -3 mana cost for defense",
+		"empower": "Affects the next X cards played: +3 damage for attacks, -3 block for defense",
 		"on-draw": "Card triggers an effect when drawn into hand",
 		"on-discard": "Card triggers an effect when discarded",
 		"in-hand": "Card applies a persistent effect while it remains in your hand",
@@ -1208,11 +1239,11 @@ func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats
 func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_mgr: BuffManager = null) -> void:
 	var armor_amount = block
 
-	# Empower on defense: "-3 mana cost" per the card text — since empower is
-	# consumed at execution (after the cost was paid), refund the discount.
+	# Empower on defense: "-3 block" per the card text — the aggression
+	# trade-off weakens defensive plays while empowered.
 	if is_empowered and player_stats:
-		player_stats.gain_mana(player_stats.empower_block_reduction)
-		print("[CARD] Empowered defense: %d mana refunded" % player_stats.empower_block_reduction)
+		armor_amount = maxi(0, armor_amount - player_stats.empower_block_reduction)
+		print("[CARD] Empowered defense: -%d block" % player_stats.empower_block_reduction)
 
 	if player_stats:
 		player_stats.add_armor(armor_amount)
@@ -1959,11 +1990,14 @@ func _execute_rise(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Rise! Earth structure created on the map")
 
 func _execute_quick_shot(target, player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
+	# 2 base damage + HALF of every modifier on top (stats, bonuses, buffs).
+	var full = base_damage + bonus_damage
 	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
+		full = player_stats.get_effective_physical_damage(full)
 	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
+		full += buff_mgr.consume_strengthen()
+	var total_damage = base_damage + int(floor((full - base_damage) / 2.0))
+	if buff_mgr:
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 			buff_mgr.consume_enlightened()
@@ -2774,13 +2808,13 @@ static func create_quick_shot() -> Card:
 	var card = Card.new()
 	card.card_id = "quick_shot"
 	card.card_name = "Quick Shot"
-	card.description = "Deal X damage, draw a card."
+	card.description = "Deal 2 damage + half modifiers. Draw a card."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 1
 	card.tempo_cost = 1
-	card.damage = 6
-	card.base_damage = 6
+	card.damage = 2
+	card.base_damage = 2
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
@@ -2985,6 +3019,7 @@ static func create_round_em_up() -> Card:
 	card.range_modifier = 3
 	card.is_aoe = true
 	card.aoe_shape = "circle"
+	card.aoe_range = 2.0  # matches the real 2-square pull radius
 	return card
 
 static func create_trip() -> Card:
@@ -3613,7 +3648,7 @@ static func create_cover() -> Card:
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0
-	card.tempo_cost = 2
+	card.tempo_cost = 0  # Reactions never charge tempo; cost removed for now
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -4701,6 +4736,7 @@ static func create_internal_combustion() -> Card:
 	card.heal_amount = 0
 	card.is_aoe = true
 	card.aoe_shape = "circle"
+	card.aoe_range = 3.0  # matches the real 3-tile blast
 	card.target_types = ["self"]
 	return card
 
@@ -5049,8 +5085,6 @@ static func create_god_of_thunder() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.is_ranged = true
-	card.is_aoe = true
-	card.aoe_shape = "circle"
 	card.target_types = ["point"]
 	card.resolve_tick = 8  # Long channel for massive spell
 	return card
@@ -5072,6 +5106,7 @@ static func create_worms_armageddon() -> Card:
 	card.is_ranged = true
 	card.is_aoe = true
 	card.aoe_shape = "circle"
+	card.aoe_range = 100.0  # hits every enemy on the field, like Absorb Essence
 	card.rng_outcomes_data = [{"percent": 10.0}]
 	card.target_types = ["point"]
 	return card
@@ -5227,6 +5262,7 @@ static func create_spirit_arrow() -> Card:
 	card.is_ranged = true
 	card.is_aoe = true
 	card.aoe_shape = "line"
+	card.aoe_range = 100.0  # pierces the full line, not just 1.5 tiles
 	card.card_keyword = CardKeyword.ARROW
 	card.target_types = ["point"]
 	return card
