@@ -947,8 +947,6 @@ func get_total_weight() -> int:
 	for i in range(equipped_weapons.size()):
 		var item = equipped_weapons[i]
 		if item: total += _effective_item_weight(item, i)
-	for item in equipped_quivers:
-		if item: total += _effective_item_weight(item)
 	# War Rack gear rides on the back at full weight (no two-hand discount there).
 	for item in rack_items:
 		if item: total += _effective_item_weight(item)
@@ -1728,10 +1726,22 @@ func move_stash_to_inventory(stash_index: int) -> bool:
 	print("[INVENTORY] Moved %s from stash to inventory" % item.item_name)
 	return true
 
+func ensure_return_scroll() -> void:
+	## Every adventurer carries exactly one Return Scroll. Called after any
+	## inventory restore so old saves (and fresh characters) always have it.
+	for item in stored_items:
+		if item and item.special_id == "return_scroll":
+			return
+	stored_items.append(ItemData.create_return_scroll())
+	storage_changed.emit()
+	print("[INVENTORY] Return Scroll added to storage")
+
 func equip_from_storage(storage_index: int, slot_index: int) -> bool:
 	var item = get_stored_item(storage_index)
 	if item == null:
 		return false
+	if item.special_id != "":
+		return false  # utility items (Return Scroll) never equip
 	var slot_array = _get_slot_array(item.item_type)
 	var max_slots = _get_max_slots(item.item_type)
 	if slot_index < 0 or slot_index >= max_slots:

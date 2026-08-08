@@ -76,6 +76,9 @@ enum GauntletSkillType {
 @export var item_name: String = "Unknown Item"
 @export var item_type: ItemType = ItemType.WEAPON
 @export var item_type_name: String = "Weapon"
+# Non-equipment utility items (e.g. "return_scroll"): right-clicked in the
+# inventory instead of equipped. Anything with a special_id refuses to equip.
+@export var special_id: String = ""
 
 # ============================================
 # RARITY & FORGE LEVELS
@@ -521,6 +524,19 @@ func get_card_slot_summary() -> String:
 # ============================================
 # WEAPONS
 # ============================================
+
+static func create_return_scroll() -> ItemData:
+	## Utility scroll every adventurer carries: right-click it in the
+	## inventory to open a town portal where you stand.
+	var item = ItemData.new()
+	item.item_name = "Return Scroll"
+	item.item_type = ItemType.WEAPON  # storage bookkeeping only — never equips
+	item.item_type_name = "Scroll"
+	item.rarity = Rarity.COMMON
+	item.weight = 0
+	item.special_id = "return_scroll"
+	item.description = "Right-click to open a portal back to town. Walk in with [Shift]."
+	return item
 
 static func create_frost_orb() -> ItemData:
 	var item = ItemData.new()

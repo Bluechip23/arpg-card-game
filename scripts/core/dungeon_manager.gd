@@ -1958,6 +1958,7 @@ func _place_climbable_trees(clearing_cells: Array) -> void:
 		var label = Label3D.new()
 		label.name = "InteractLabel"
 		label.text = "[Shift] Climb"
+		WorldText.crisp(label)
 		label.font_size = 16
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.modulate = Color(0.7, 1.0, 0.5)
@@ -2594,6 +2595,7 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(1.0, 0.95, 0.75)
 	label.position = Vector3(0, 3.2, 0)
+	WorldText.crisp(label)
 	site_root.add_child(label)
 
 	# Interact prompt (shown when the player is near the entrance)
@@ -2605,6 +2607,7 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
 	interact_label.position = Vector3(0, 2.6, 0)
 	interact_label.visible = false
+	WorldText.crisp(interact_label)
 	site_root.add_child(interact_label)
 
 	_visuals_root.add_child(site_root)
@@ -2852,6 +2855,7 @@ func _place_exit_site() -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(0.7, 0.85, 1.0)
 	label.position = Vector3(0, 2.0, 0)
+	WorldText.crisp(label)
 	site_root.add_child(label)
 
 	var interact_label = Label3D.new()
@@ -2862,6 +2866,7 @@ func _place_exit_site() -> void:
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
 	interact_label.position = Vector3(0, 1.7, 0)
 	interact_label.visible = false
+	WorldText.crisp(interact_label)
 	site_root.add_child(interact_label)
 
 	_visuals_root.add_child(site_root)
@@ -3024,6 +3029,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	label.modulate = Color(1.0, 0.9, 0.4)
 	label.position = Vector3(0, 1.0, 0)
 	label.visible = false
+	WorldText.crisp(label)
 	chest_root.add_child(label)
 
 	var world_pos = grid_manager.grid_to_world(grid_pos)
@@ -3416,6 +3422,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(1.0, 1.0, 0.8)
 	label.position = Vector3(0, 0.8, 0)
+	WorldText.crisp(label)
 	wp_root.add_child(label)
 
 	# Interact label (shown when nearby)
@@ -3427,6 +3434,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
 	interact_label.position = Vector3(0, 1.2, 0)
 	interact_label.visible = false
+	WorldText.crisp(interact_label)
 	wp_root.add_child(interact_label)
 
 	var world_pos = grid_manager.grid_to_world(grid_pos)

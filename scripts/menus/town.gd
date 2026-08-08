@@ -2222,6 +2222,7 @@ func _create_olorin_npc() -> void:
 	label.modulate = Color(0.8, 0.6, 1.0)
 	label.outline_size = 8
 	label.position = Vector3(0, 2.2, 0)
+	WorldText.crisp(label)
 	olorin.add_child(label)
 
 	# Quest indicator
@@ -2233,6 +2234,7 @@ func _create_olorin_npc() -> void:
 	quest_indicator.modulate = Color(1.0, 0.85, 0.0)
 	quest_indicator.outline_size = 12
 	quest_indicator.position = Vector3(0, 2.8, 0)
+	WorldText.crisp(quest_indicator)
 	olorin.add_child(quest_indicator)
 
 	$Vendors.add_child(olorin)
@@ -2276,6 +2278,7 @@ func _create_sellsword_npc() -> void:
 	label.modulate = Color(1.0, 0.8, 0.45)
 	label.outline_size = 8
 	label.position = Vector3(0, 2.2, 0)
+	WorldText.crisp(label)
 	sellsword.add_child(label)
 
 	$Vendors.add_child(sellsword)
@@ -2367,6 +2370,7 @@ func _create_town_waypoint() -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(0.5, 0.7, 1.0)
 	label.position = Vector3(0, 2.5, 0)
+	WorldText.crisp(label)
 	_town_waypoint_node.add_child(label)
 
 	# Interact label
@@ -2378,6 +2382,7 @@ func _create_town_waypoint() -> void:
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
 	interact_label.position = Vector3(0, 3.0, 0)
 	interact_label.visible = false
+	WorldText.crisp(interact_label)
 	_town_waypoint_node.add_child(interact_label)
 
 	# Position near the town entrance area
@@ -2726,6 +2731,7 @@ func _create_town_hall_npc() -> void:
 	label.modulate = Color(0.95, 0.85, 0.5)
 	label.outline_size = 8
 	label.position = Vector3(0, 2.7, 0)
+	WorldText.crisp(label)
 	hall.add_child(label)
 
 	$Vendors.add_child(hall)

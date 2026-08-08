@@ -1213,7 +1213,7 @@ func _setup_tempo_bar() -> void:
 	_action_label.font_size = 28
 	_action_label.outline_size = 10
 	_action_label.outline_modulate = Color(0, 0, 0, 0.85)
-	_action_label.pixel_size = 0.001
+	_action_label.pixel_size = 0.0015
 	_action_label.fixed_size = true  # constant screen size — readable at any zoom
 	_action_label.no_depth_test = true
 	_action_label.render_priority = 20

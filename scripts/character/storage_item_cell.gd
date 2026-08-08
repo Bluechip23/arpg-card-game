@@ -40,3 +40,6 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if item and _panel:
 			_panel._on_stored_item_clicked(item, index)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if item and _panel:
+			_panel._on_stored_item_right_clicked(item, index)
