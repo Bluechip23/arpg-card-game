@@ -31,14 +31,17 @@ func _initialize() -> void:
 		var script = load(path)
 		_check(script != null and script.can_instantiate(), "%s parses" % path.get_file())
 
-	# --- WorldText.crisp: constant screen size + outline + depth-free ---
+	# --- WorldText.crisp: constant screen size, supersampled, no mip smear ---
 	var lbl = Label3D.new()
 	lbl.font_size = 16
 	WorldText.crisp(lbl)
 	_check(lbl.fixed_size and lbl.no_depth_test, "crisp label is fixed-size and never buried")
-	_check(absf(lbl.pixel_size - 0.0015) < 0.0001, "crisp label pixel_size 0.0015")
-	_check(lbl.font_size >= 28, "small fonts scale up to >=28 (got %d)" % lbl.font_size)
-	_check(lbl.outline_size >= 8, "crisp label always outlined")
+	var expected_pixel := 1.0 / (WorldText.PX_FACTOR * WorldText.SUPERSAMPLE)
+	_check(absf(lbl.pixel_size - expected_pixel) < 0.00005, "crisp label maps 1 screen px per 2 font px")
+	_check(lbl.font_size >= 26 and lbl.font_size <= 40,
+		"glyphs render supersampled at a modest screen size (font %d)" % lbl.font_size)
+	_check(lbl.outline_size >= 4, "crisp label always outlined")
+	_check(lbl.texture_filter == BaseMaterial3D.TEXTURE_FILTER_LINEAR, "linear filter, no mipmaps")
 	lbl.free()
 
 	# --- Return Scroll item ---
@@ -71,6 +74,24 @@ func _initialize() -> void:
 	_check(dm.discard_pile.size() == 1 and dm.discard_pile[0].card_id == "provider",
 		"added card landed in the discard pile")
 	_check(inv.get_stored_card_count() == 0, "card left the inventory")
+
+	# --- Destroying storage: items go, the Return Scroll refuses ---
+	var junk = ItemData.new()
+	junk.item_name = "Rusty Junk"
+	inv.stored_items.append(junk)
+	var junk_idx = inv.stored_items.size() - 1
+	_check(inv.destroy_stored_item(junk_idx), "unwanted item can be destroyed")
+	_check(not inv.stored_items.has(junk), "destroyed item is gone from storage")
+	var s_idx := -1
+	for i in range(inv.stored_items.size()):
+		if inv.stored_items[i] and inv.stored_items[i].special_id == "return_scroll":
+			s_idx = i
+	_check(not inv.destroy_stored_item(s_idx), "the Return Scroll cannot be destroyed")
+
+	# --- Destroying a stored card removes it for good ---
+	inv.stored_cards.append(Card.create_block())
+	var destroyed = inv.remove_stored_card(inv.get_stored_card_count() - 1)
+	_check(destroyed != null and inv.get_stored_card_count() == 0, "stored card destroyed from inventory")
 
 	# --- Manage Deck: culling removes exactly one instance ---
 	var c1 = Card.create_block()

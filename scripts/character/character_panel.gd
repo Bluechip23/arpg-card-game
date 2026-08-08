@@ -1318,6 +1318,12 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		var equip_btn = _make_action_button("Equip", Color(0.15, 0.35, 0.2), Color(0.3, 0.7, 0.4))
 		equip_btn.pressed.connect(_on_equip_stored_item)
 		vbox.add_child(equip_btn)
+		# Destroy (drop) — permanent, so the button itself asks twice.
+		if item.special_id == "":
+			var destroy_btn = _make_action_button("Destroy", Color(0.3, 0.1, 0.1), Color(0.85, 0.3, 0.3))
+			destroy_btn.tooltip_text = "Permanently remove this item from your inventory."
+			destroy_btn.pressed.connect(_on_destroy_stored_item.bind(destroy_btn))
+			vbox.add_child(destroy_btn)
 	else:
 		# Equipped item - show Unequip button
 		var unequip_btn = _make_action_button("Unequip", Color(0.35, 0.15, 0.15), Color(0.7, 0.35, 0.35))
@@ -1456,6 +1462,23 @@ func _on_equip_stored_item() -> void:
 		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type), "Equipped %s" % item.item_name)
 	else:
 		_flash_inventory_message("Can't equip %s — too heavy" % item.item_name)
+	_close_detail_panel()
+	update_display()
+
+func _on_destroy_stored_item(btn: Button) -> void:
+	## Permanent, so it takes two clicks: the first arms the button.
+	if not is_instance_valid(btn):
+		return
+	if btn.text != "Really destroy?":
+		btn.text = "Really destroy?"
+		return
+	if not inventory or _detail_storage_index < 0:
+		return
+	var doomed = _detail_item.item_name if _detail_item else "item"
+	if inventory.destroy_stored_item(_detail_storage_index):
+		var main_node = get_node_or_null("/root/Main")
+		if main_node and main_node.has_method("add_battle_log"):
+			main_node.add_battle_log("Destroyed %s." % doomed, Color(1.0, 0.5, 0.4))
 	_close_detail_panel()
 	update_display()
 
@@ -2117,6 +2140,16 @@ func _show_card_confirm_modal(card: Card) -> void:
 	confirm_btn.pressed.connect(_on_card_confirm_yes)
 	btn_row.add_child(confirm_btn)
 
+	# Destroy — permanent, so the button itself asks twice.
+	var destroy_btn = Button.new()
+	destroy_btn.text = "Destroy"
+	destroy_btn.custom_minimum_size = Vector2(90, 30)
+	destroy_btn.add_theme_font_size_override("font_size", 11)
+	destroy_btn.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4))
+	destroy_btn.tooltip_text = "Permanently destroy this card."
+	destroy_btn.pressed.connect(_on_card_destroy_pressed.bind(destroy_btn))
+	btn_row.add_child(destroy_btn)
+
 	var cancel_btn = Button.new()
 	cancel_btn.text = "Cancel"
 	cancel_btn.custom_minimum_size = Vector2(80, 30)
@@ -2130,6 +2163,24 @@ func _show_card_confirm_modal(card: Card) -> void:
 	await get_tree().process_frame
 	if is_instance_valid(_card_confirm_popup) and is_instance_valid(panel):
 		_card_confirm_popup.position = (panel.size - _card_confirm_popup.size) / 2
+
+func _on_card_destroy_pressed(btn: Button) -> void:
+	## Permanent, so it takes two clicks: the first arms the button.
+	if not is_instance_valid(btn):
+		return
+	if btn.text != "Really destroy?":
+		btn.text = "Really destroy?"
+		return
+	if _pending_card and _pending_card_index >= 0 and inventory:
+		var card_name = _pending_card.card_name
+		if inventory.remove_stored_card(_pending_card_index) != null:
+			var main_node = get_node_or_null("/root/Main")
+			if main_node and main_node.has_method("add_battle_log"):
+				main_node.add_battle_log("Destroyed card: %s" % card_name, Color(1.0, 0.5, 0.4))
+	_pending_card = null
+	_pending_card_index = -1
+	_dismiss_card_confirm_modal()
+	update_display()
 
 func _on_card_confirm_yes() -> void:
 	if _pending_card and _pending_card_index >= 0 and inventory and deck_manager:

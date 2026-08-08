@@ -1726,6 +1726,19 @@ func move_stash_to_inventory(stash_index: int) -> bool:
 	print("[INVENTORY] Moved %s from stash to inventory" % item.item_name)
 	return true
 
+func destroy_stored_item(index: int) -> bool:
+	## Permanently deletes an item from storage (player chose to drop it).
+	## The Return Scroll is indestructible — it would just come back anyway.
+	if index < 0 or index >= stored_items.size():
+		return false
+	var item = stored_items[index]
+	if item and item.special_id != "":
+		return false
+	stored_items.remove_at(index)
+	storage_changed.emit()
+	print("[INVENTORY] Destroyed stored item: %s" % (item.item_name if item else "(empty)"))
+	return true
+
 func ensure_return_scroll() -> void:
 	## Every adventurer carries exactly one Return Scroll. Called after any
 	## inventory restore so old saves (and fresh characters) always have it.
