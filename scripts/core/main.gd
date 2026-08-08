@@ -303,6 +303,7 @@ var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
 var _armor_bar_label: Label = null
 var _xp_bar_label: Label = null
+var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
 var _pending_quiver_card: Card = null
@@ -1385,6 +1386,22 @@ func _setup_stat_bars() -> void:
 	# character panel instead.
 	if xp_pair[1]:
 		xp_pair[1].visible = false
+
+	# Current level, just right of the XP bar (below the mana drop).
+	_level_badge_label = Label.new()
+	_level_badge_label.name = "LevelBadge"
+	_level_badge_label.text = "Lvl: 1"
+	_level_badge_label.tooltip_text = "Character level"
+	_level_badge_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	_level_badge_label.add_theme_font_size_override("font_size", 13)
+	_level_badge_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.2))
+	_level_badge_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_level_badge_label.add_theme_constant_override("outline_size", 4)
+	_level_badge_label.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	_level_badge_label.offset_left = 6.0
+	_level_badge_label.offset_top = -9.0
+	_level_badge_label.offset_bottom = 9.0
+	_xp_bar.get_parent().add_child(_level_badge_label)
 
 	# Buffs and debuffs sit directly under the (thin) XP bar rather than off to
 	# the right of the health bar.
@@ -4926,6 +4943,8 @@ func _update_xp_display() -> void:
 		_xp_bar.value = stats.current_xp
 	if stats and _xp_bar_label:
 		_xp_bar_label.text = "(%d) %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
+	if stats and _level_badge_label:
+		_level_badge_label.text = "Lvl: %d" % stats.current_level
 
 func _on_flash_points_changed(_current: int, _max_points: int) -> void:
 	_update_flash_button()

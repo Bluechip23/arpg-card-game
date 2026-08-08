@@ -75,6 +75,24 @@ func _initialize() -> void:
 		"added card landed in the discard pile")
 	_check(inv.get_stored_card_count() == 0, "card left the inventory")
 
+	# --- Destroying storage: items go, the Return Scroll refuses ---
+	var junk = ItemData.new()
+	junk.item_name = "Rusty Junk"
+	inv.stored_items.append(junk)
+	var junk_idx = inv.stored_items.size() - 1
+	_check(inv.destroy_stored_item(junk_idx), "unwanted item can be destroyed")
+	_check(not inv.stored_items.has(junk), "destroyed item is gone from storage")
+	var s_idx := -1
+	for i in range(inv.stored_items.size()):
+		if inv.stored_items[i] and inv.stored_items[i].special_id == "return_scroll":
+			s_idx = i
+	_check(not inv.destroy_stored_item(s_idx), "the Return Scroll cannot be destroyed")
+
+	# --- Destroying a stored card removes it for good ---
+	inv.stored_cards.append(Card.create_block())
+	var destroyed = inv.remove_stored_card(inv.get_stored_card_count() - 1)
+	_check(destroyed != null and inv.get_stored_card_count() == 0, "stored card destroyed from inventory")
+
 	# --- Manage Deck: culling removes exactly one instance ---
 	var c1 = Card.create_block()
 	var c2 = Card.create_block()
