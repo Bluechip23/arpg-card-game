@@ -454,7 +454,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 3, slot = 0, card_id = "mixed_bag", name = "Mixed Bag", description = "Shoot a standard arrow, 7 damage. Ranged, Arrow. (1 mana, 1 tempo)"},
 		{level = 4, slot = 0, card_id = "rise", name = "Rise", description = "Lift the earth creating a structure on the map. (1 mana, 4 tempo)"},
 		{level = 5, slot = 0, card_id = "reload", name = "Reload", description = "Draw 3 cards. (3 mana, 3 tempo)"},
-		{level = 6, slot = 0, card_id = "mark", name = "Mark", description = "Target receives extra damage from your attacks. Ranged +7. (3 mana, 0 tempo)"},
+		{level = 6, slot = 0, card_id = "mark", name = "Mark", description = "Marked target takes +3 damage from your attacks for 25 tempo. Ranged +7. (3 mana, 0 tempo)"},
 		{level = 7, slot = 0, card_id = "barricade", name = "Barricade", description = "Create a barricade of land in front of you. (3 mana, 2 tempo)"},
 		{level = 8, slot = 1, card_id = "tighten_string", name = "Tighten String", description = "Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit. (3 mana, 3 tempo)"},
 		{level = 9, slot = 0, card_id = "down_town", name = "Down Town", description = "Very long range (+7) shot, 12 damage. Arrow. (3 mana, 5 tempo)"},

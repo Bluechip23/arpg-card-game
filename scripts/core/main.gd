@@ -1832,7 +1832,6 @@ func _on_attack_pressed() -> void:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			damage = Card.crit_multiply(damage, stats)
-			buff_mgr.consume_enlightened()
 
 	# Debuff damage reduction
 	if debuff_mgr:
@@ -6374,6 +6373,11 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 	## terms are excluded; the hover preview passes them via extra_flat /
 	## adds them on top. Shared by get_card_vacuum_values and
 	## calculate_damage_preview so the two never drift apart.
+	# Absorb Essence is defined as a flat 1 to everything — its payoff scales
+	# through Energy Ball instead, so no player amplification applies here.
+	if card.card_id == "absorb_essence":
+		return 1
+
 	var stats = player.get_stats()
 	var buff_mgr = player.get_buff_manager()
 	var debuff_mgr = player.get_debuff_manager()
@@ -7653,14 +7657,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_spawn_pillar(rise_pos)
 
 		"absorb_essence":
-			# Deal the card face's stat-scaled damage to ALL things on the
-			# battlefield (enemies, obstacles, allies)
-			var absorb_dmg := _card_player_damage(card)
+			# A flat 1 damage to ALL things on the battlefield (enemies,
+			# obstacles, self) — deliberately NOT stat-scaled. The payoff scales
+			# through Energy Ball, which does take the caster's amplifications.
 			var absorb_total_damage = 0
 			var all_enemies = enemy_spawner.get_living_enemies()
 			for enemy in all_enemies:
-				enemy.take_damage(absorb_dmg, true)
-				absorb_total_damage += absorb_dmg
+				enemy.take_damage(1, true)
+				absorb_total_damage += 1
 			_apply_misery_spread(all_enemies)
 			# Damage obstacles (barricades)
 			for i in range(barricade_obstacles.size() - 1, -1, -1):

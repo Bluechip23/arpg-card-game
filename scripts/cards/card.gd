@@ -147,6 +147,7 @@ var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell 
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
 var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
+var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
@@ -1191,7 +1192,6 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 			print("[CARD] CRITICAL HIT! Damage doubled!")
-			buff_mgr.consume_enlightened()
 
 	# Cursed: reduce damage dealt by percentage
 	if damage_reduction_pct > 0.0:
@@ -1586,7 +1586,6 @@ func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
@@ -1607,7 +1606,6 @@ func _execute_charge(_target, player_stats: PlayerStats, buff_mgr: BuffManager =
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	print("[CARD] Charge! %d damage to all enemies in path" % total_damage)
 
@@ -1623,19 +1621,18 @@ func _execute_heroic_leap(_target, player_stats: PlayerStats, buff_mgr: BuffMana
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	print("[CARD] Heroic Leap! %d paces, %d damage on landing" % [leap_distance, total_damage])
 
 func _execute_morphine(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if not player_stats:
 		return
-	# Add 4 temp HP (can exceed max health)
-	player_stats.current_health += 4
-	player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
+	# Real temp HP via the shared pool: absorbed by damage like any temp HP and
+	# expires on its own 15-tempo timer. The buff carries the 2-damage penalty.
+	player_stats.add_temp_health(4, 15)
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_morphine(4, 15, "Morphine"))
-	print("[CARD] Morphine! Gained 4 temp HP. Will lose it and take 2 damage in 15 tempo")
+	print("[CARD] Morphine! Gained 4 temp HP. Will take 2 damage in 15 tempo")
 
 func _execute_turtle_up(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -1663,15 +1660,6 @@ func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) 
 		buff_mgr.approach_tempo_remaining = 10
 	print("[CARD] Approach! Slowed for 10 tempo, gain 5 armor per movement")
 
-func _execute_hold_the_line(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# All allies gain 5 armor, 2 determination, 2 strength
-	if player_stats:
-		player_stats.add_armor(5)
-		player_stats.determination += 2
-		player_stats.base_strength += 2
-		player_stats.recalculate_derived_stats()
-	print("[CARD] Hold the Line! All allies gain 5 armor, +2 DET, +2 STR")
-
 # ============================================
 # JEREMY CARD EXECUTE FUNCTIONS
 # ============================================
@@ -1684,7 +1672,6 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 		last_damage_dealt = total_damage
@@ -1753,12 +1740,15 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	# Always deal base 5 damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
-	# Use pre-rolled RNG: index 0 = +15 damage, index 1 = stun
-	if rng_selected_index == 0:
+	# Use pre-rolled RNG: index 0 = +15 damage, index 1 = stun. Paths that
+	# skipped the pre-roll flip a live coin instead of always landing on stun.
+	var wtch_outcome = rng_selected_index
+	if wtch_outcome < 0:
+		wtch_outcome = 0 if randf() < 0.5 else 1
+	if wtch_outcome == 0:
 		if target and target.has_method("take_damage"):
 			target.take_damage(15, true)
 		print("[CARD] What's the worst? +15 bonus damage! Total: %d" % (total_damage + 15))
@@ -1807,18 +1797,6 @@ func _execute_lady_luck(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_enlightened(30, 5, "Lady Luck"))
 	print("[CARD] Lady Luck! Crit chance +30% for 5 attacks")
-
-func _execute_try_this(target, player_stats: PlayerStats) -> void:
-	# Increase ally mana pool by 3 and hand size by 2 for 10 tempo. 10% reverse
-	if player_stats:
-		if randf() < 0.1:
-			player_stats.max_mana = max(1, player_stats.max_mana - 3)
-			player_stats.adjust_temp_hand(-2)
-			print("[CARD] Try This! Reversed! -3 mana pool, -2 hand size")
-		else:
-			player_stats.max_mana += 3
-			player_stats.adjust_temp_hand(2)
-			print("[CARD] Try This! +3 mana pool, +2 hand size for 10 tempo")
 
 func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = 15
@@ -1891,7 +1869,6 @@ func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager 
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 	print("[CARD] Exacerbate Wounds! %d cards discarded this cycle = %d damage" % [discard_count, total_damage])
@@ -1954,7 +1931,6 @@ func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 			print("[CARD] CRITICAL HIT! Damage doubled!")
-			buff_mgr.consume_enlightened()
 
 	if damage_reduction_pct > 0.0:
 		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
@@ -2000,7 +1976,6 @@ func _execute_quick_shot(target, player_stats: PlayerStats, deck_manager = null,
 	if buff_mgr:
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 	if deck_manager:
@@ -2033,7 +2008,6 @@ func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 	print("[CARD] Down Town! Long range (+7) shot for %d damage" % total_damage)
@@ -2056,7 +2030,6 @@ func _execute_sky_attack(target, player_stats: PlayerStats, buff_mgr: BuffManage
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 	print("[CARD] Sky Attack! Leaped and shot from above for %d damage (High Ground)" % total_damage)
@@ -2070,7 +2043,6 @@ func _execute_lead_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManage
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 	print("[CARD] Lead Arrow! 1.8x damage from high ground: %d" % total_damage)
@@ -2089,7 +2061,6 @@ func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManag
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 	print("[CARD] Last Breath! Consumed %d mana for %d damage" % [mana_used, total_damage])
@@ -2102,7 +2073,6 @@ func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 	print("[CARD] Mixed Bag! Standard arrow for %d damage" % total_damage)
@@ -2115,7 +2085,6 @@ func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManag
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true)
 	print("[CARD] Quick Arrow! Free arrow for %d damage" % total_damage)
@@ -2167,7 +2136,6 @@ func _execute_sweeping_disarm(target, player_stats: PlayerStats, buff_mgr: BuffM
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	last_damage_dealt = total_damage
 	# Actual damage and disarm applied by main.gd _apply_card_world_effects to all nearby enemies
 	print("[CARD] Sweeping Disarm! %d damage, surrounding enemies disarmed" % total_damage)
@@ -2182,7 +2150,6 @@ func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: Buff
 		snap_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			snap_damage = crit_multiply(snap_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if target and target.has_method("take_damage"):
 		target.take_damage(snap_damage, true)
 	# Cost decreases by 1m/1t each use
@@ -2782,7 +2749,7 @@ static func create_mark() -> Card:
 	var card = Card.new()
 	card.card_id = "mark"
 	card.card_name = "Mark"
-	card.description = "Target receives extra damage from your attacks."
+	card.description = "Marked: your attacks deal +3 damage to the target for 25 tempo."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 3
@@ -3360,7 +3327,6 @@ func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerSt
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if damage_reduction_pct > 0.0:
 		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
 	last_damage_dealt = total_damage
@@ -3987,7 +3953,6 @@ func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManage
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			buff_mgr.consume_enlightened()
 	if damage_reduction_pct > 0:
 		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
 	if target and target.has_method("take_damage"):
@@ -4129,7 +4094,9 @@ func _execute_multi_hit(target, hits: int, player_stats: PlayerStats, damage_red
 			dmg = player_stats.get_effective_physical_damage(dmg)
 		if buff_mgr:
 			dmg += buff_mgr.consume_strengthen()
-			if buff_mgr.roll_crit(crit_step * hit):
+			# +crit_step% per hit starting from the FIRST hit ("each time
+			# gaining 10% crit chance"), not from the second.
+			if buff_mgr.roll_crit(crit_step * (hit + 1)):
 				dmg = crit_multiply(dmg, player_stats)
 				print("[CARD] %s CRIT on hit %d!" % [card_name, hit + 1])
 		if damage_reduction_pct > 0.0:
@@ -4526,7 +4493,8 @@ static func create_meister_of_faustmesser() -> Card:
 	var card = Card.new()
 	card.card_id = "meister_of_faustmesser"
 	card.card_name = "Meister of Faustmesser"
-	card.description = "Put all zero mana cost cards from discard pile into your hand."
+	card.description = "Put all zero mana cost cards from discard pile into your hand. Jail: 20."
+	card.jail_on_play = 20
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0

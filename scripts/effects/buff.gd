@@ -144,6 +144,9 @@ func get_icon_key() -> String:
 
 func tick() -> bool:
 	# Called each cycle (5 tempo). Returns true if buff expired by duration.
+	# Negative duration = "until depleted": never expires by the clock.
+	if duration < 0:
+		return false
 	if duration > 0:
 		duration -= 5
 	return duration <= 0
@@ -165,6 +168,8 @@ func is_charge_based() -> bool:
 func is_expired() -> bool:
 	if is_charge_based():
 		return charges <= 0
+	if duration < 0:
+		return false  # "until depleted" — expiry comes from elsewhere, not the clock
 	return duration <= 0
 
 func get_icon_color() -> Color:
@@ -200,7 +205,9 @@ func get_icon_color() -> Color:
 
 func get_short_display() -> String:
 	if is_charge_based():
-		return "%s(%d×%d)" % [buff_name, value, charges]
+		if value > 0:
+			return "%s(%d×%d)" % [buff_name, value, charges]
+		return "%s(%d)" % [buff_name, charges]  # value-less charges: "Life Steal(1)", not "(0×1)"
 	elif value > 0:
 		return "%s(%d)" % [buff_name, value]
 	return buff_name

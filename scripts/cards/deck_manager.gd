@@ -572,6 +572,13 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# Erased — removed from the deck entirely the moment it's played (not discarded).
 		card_discarded.emit(card)
 		print("[DECK] %s erased after play." % card.card_name)
+	elif card.jail_on_play > 0:
+		# Jail-on-play (e.g. Meister of Faustmesser): the card sits in jail for
+		# its stated tempo before returning to the discard pile.
+		card.jail_time_remaining = card.jail_on_play
+		jail_pile.append(card)
+		card_jailed.emit(card)
+		print("[DECK] %s jailed for %d tempo after play." % [card.card_name, card.jail_on_play])
 	else:
 		discard_pile.append(card)
 		discards_this_cycle += 1
