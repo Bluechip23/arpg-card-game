@@ -9163,14 +9163,14 @@ func spawn_town_portal() -> void:
 	label.text = "Town Portal"
 	label.modulate = Color(0.85, 0.6, 1.0)
 	label.position = Vector3(0, 2.3, 0)
-	WorldText.crisp(label, 32)
+	WorldText.crisp(label, 18)
 	portal_root.add_child(label)
 
 	var interact_label = Label3D.new()
 	interact_label.text = "[Shift] Enter"
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
 	interact_label.position = Vector3(0, 2.0, 0)
-	WorldText.crisp(interact_label, 24)
+	WorldText.crisp(interact_label, 14)
 	portal_root.add_child(interact_label)
 
 	_town_portal_node = portal_root

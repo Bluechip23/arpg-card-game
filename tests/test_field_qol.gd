@@ -31,14 +31,17 @@ func _initialize() -> void:
 		var script = load(path)
 		_check(script != null and script.can_instantiate(), "%s parses" % path.get_file())
 
-	# --- WorldText.crisp: constant screen size + outline + depth-free ---
+	# --- WorldText.crisp: constant screen size, supersampled, no mip smear ---
 	var lbl = Label3D.new()
 	lbl.font_size = 16
 	WorldText.crisp(lbl)
 	_check(lbl.fixed_size and lbl.no_depth_test, "crisp label is fixed-size and never buried")
-	_check(absf(lbl.pixel_size - 0.0015) < 0.0001, "crisp label pixel_size 0.0015")
-	_check(lbl.font_size >= 28, "small fonts scale up to >=28 (got %d)" % lbl.font_size)
-	_check(lbl.outline_size >= 8, "crisp label always outlined")
+	var expected_pixel := 1.0 / (WorldText.PX_FACTOR * WorldText.SUPERSAMPLE)
+	_check(absf(lbl.pixel_size - expected_pixel) < 0.00005, "crisp label maps 1 screen px per 2 font px")
+	_check(lbl.font_size >= 26 and lbl.font_size <= 40,
+		"glyphs render supersampled at a modest screen size (font %d)" % lbl.font_size)
+	_check(lbl.outline_size >= 4, "crisp label always outlined")
+	_check(lbl.texture_filter == BaseMaterial3D.TEXTURE_FILTER_LINEAR, "linear filter, no mipmaps")
 	lbl.free()
 
 	# --- Return Scroll item ---
