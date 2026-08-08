@@ -6,6 +6,15 @@ extends Resource
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
 enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL, SWIFT, BUCKLER, CROWN, FIST }
 
+# The card's SCHOOL — how the card is delivered — orthogonal to CardType (its
+# role: offense/defense/utility). A spell can be offensive (Fireball) or
+# supportive (Magic Barrier); either way Silence stops it. Disarm stops
+# PHYSICAL offensive cards only. SPELL damage scales with INT, PHYSICAL with
+# STR. Broad effects ("offensive cards +X") key off CardType and hit every
+# school; school-specific effects ("spell damage +X") narrow by this field.
+# TRAP is reserved for future placed-device cards; nothing is tagged yet.
+enum CardSchool { PHYSICAL, SPELL, TRAP }
+
 # Stack-signature prefix shared by every pure instant (reaction) card so they
 # all merge into a single un-lettered hand stack.
 const INSTANT_STACK_SIG_PREFIX := "INSTANT|"
@@ -150,6 +159,7 @@ var erase_on_play: bool = false  # If true, card is erased from the deck entirel
 var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
+var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
 var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
 var has_reach: bool = false  # Reach: adds 1 square to melee attack range
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
@@ -1178,8 +1188,13 @@ func _execute_gain_mana(player_stats: PlayerStats) -> void:
 func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
 
+	# Generic single-target path scales by the card's school: spells (Spark)
+	# ride the INT pipeline, everything else stays STR physical.
 	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
+		if school == CardSchool.SPELL:
+			total_damage = player_stats.get_effective_spell_damage(total_damage)
+		else:
+			total_damage = player_stats.get_effective_physical_damage(total_damage)
 
 	if is_empowered and player_stats:
 		total_damage += player_stats.empower_damage_bonus
@@ -1451,6 +1466,7 @@ static func create_empower() -> Card:
 static func create_blink() -> Card:
 	var card = Card.new()
 	card.card_id = "blink"
+	card.school = CardSchool.SPELL
 	card.card_name = "Blink"
 	card.description = "Teleport to cursor"
 	card.card_type = CardType.UTILITY
@@ -2408,6 +2424,7 @@ static func create_trick_shot() -> Card:
 static func create_surrounding_ice() -> Card:
 	var card = Card.new()
 	card.card_id = "surrounding_ice"
+	card.school = CardSchool.SPELL
 	card.card_name = "Surrounding Ice"
 	card.description = "Ice stalagmites deal heavy damage around you. 30% miss chance per enemy."
 	card.card_type = CardType.ATTACK
@@ -2521,6 +2538,7 @@ static func create_hope_this_works() -> Card:
 static func create_lady_luck() -> Card:
 	var card = Card.new()
 	card.card_id = "lady_luck"
+	card.school = CardSchool.SPELL
 	card.card_name = "Lady Luck"
 	card.description = "Bless an ally. Crit chance +30% for 5 attacks."
 	card.card_type = CardType.UTILITY
@@ -2548,6 +2566,7 @@ static func create_try_this() -> Card:
 static func create_if_pigs_could_fly() -> Card:
 	var card = Card.new()
 	card.card_id = "if_pigs_could_fly"
+	card.school = CardSchool.SPELL
 	card.card_name = "If Pigs Could Fly"
 	card.description = "Summon a flying pig that explodes on the target."
 	card.card_type = CardType.ATTACK
@@ -2564,6 +2583,7 @@ static func create_if_pigs_could_fly() -> Card:
 static func create_snowballs_chance() -> Card:
 	var card = Card.new()
 	card.card_id = "snowballs_chance"
+	card.school = CardSchool.SPELL
 	card.card_name = "A Snowball's Chance"
 	card.description = "Searing fire 3 spaces forward. 50% to also spread snowballs in a cone."
 	card.card_type = CardType.ATTACK
@@ -2675,6 +2695,7 @@ static func create_reposition() -> Card:
 static func create_volatile_mixture() -> Card:
 	var card = Card.new()
 	card.card_id = "volatile_mixture"
+	card.school = CardSchool.SPELL
 	card.card_name = "Volatile Mixture"
 	card.description = "Discard: deal 8 damage to enemy. End of turn in hand: 8 self-damage."
 	card.card_type = CardType.UTILITY
@@ -2762,6 +2783,7 @@ static func create_mark() -> Card:
 static func create_rise() -> Card:
 	var card = Card.new()
 	card.card_id = "rise"
+	card.school = CardSchool.SPELL
 	card.card_name = "Rise"
 	card.description = "Lift the earth creating a structure on the map."
 	card.card_type = CardType.UTILITY
@@ -2845,6 +2867,7 @@ static func create_down_town() -> Card:
 static func create_barricade() -> Card:
 	var card = Card.new()
 	card.card_id = "barricade"
+	card.school = CardSchool.SPELL
 	card.card_name = "Barricade"
 	card.description = "Create a barricade of land in front of you."
 	card.card_type = CardType.UTILITY
@@ -3251,6 +3274,7 @@ func _execute_thrown_stone(target, player_stats: PlayerStats, buff_mgr: BuffMana
 static func create_halo() -> Card:
 	var card = Card.new()
 	card.card_id = "halo"
+	card.school = CardSchool.SPELL
 	card.card_name = "Halo"
 	card.description = "Maintain: Every cycle, heal all allies in AOE for 3 HP"
 	card.card_type = CardType.POWER
@@ -3488,6 +3512,7 @@ static func create_self_infliction() -> Card:
 static func create_fountain_of_life() -> Card:
 	var card = Card.new()
 	card.card_id = "fountain_of_life"
+	card.school = CardSchool.SPELL
 	card.card_name = "Fountain of Life"
 	card.description = "Maintain: Every cycle, deal 2 damage to self and draw a card."
 	card.card_type = CardType.POWER
@@ -3547,6 +3572,7 @@ func _execute_bob_and_weave(player_stats: PlayerStats, deck_manager, buff_mgr: B
 static func create_absorb_essence() -> Card:
 	var card = Card.new()
 	card.card_id = "absorb_essence"
+	card.school = CardSchool.SPELL
 	card.card_name = "Absorb Essence"
 	card.description = "Deal 1 damage to ALL things on the battlefield. Delay: 10 tempo, obtain Energy Ball."
 	card.card_type = CardType.ATTACK
@@ -3573,6 +3599,7 @@ func _execute_absorb_essence(player_stats: PlayerStats, buff_mgr: BuffManager = 
 static func create_energy_ball() -> Card:
 	var card = Card.new()
 	card.card_id = "energy_ball"
+	card.school = CardSchool.SPELL
 	card.card_name = "Energy Ball"
 	card.description = "Deal X damage where X = total damage done by Absorb Essence. Erased after use."
 	card.card_type = CardType.ATTACK
@@ -3674,6 +3701,7 @@ func _execute_fortify_alliance(target, player_stats: PlayerStats, buff_mgr: Buff
 static func create_communal_donation() -> Card:
 	var card = Card.new()
 	card.card_id = "communal_donation"
+	card.school = CardSchool.SPELL
 	card.card_name = "Communal Donation"
 	card.description = "Deal damage to yourself and heal allies based on the damage done. Choose amount and allocation."
 	card.card_type = CardType.UTILITY
@@ -3776,6 +3804,7 @@ func _execute_shield_of_growth(player_stats: PlayerStats, buff_mgr: BuffManager 
 static func create_gift_from_the_phoenix() -> Card:
 	var card = Card.new()
 	card.card_id = "gift_from_the_phoenix"
+	card.school = CardSchool.SPELL
 	card.card_name = "Gift from the Phoenix"
 	card.description = "Instant: When your life drops below 50%, heal up to 80% and apply 5 burn to the nearest enemy."
 	card.card_type = CardType.REACTION
@@ -3946,9 +3975,10 @@ func _execute_vengeful_shield(player_stats: PlayerStats, buff_mgr: BuffManager =
 # ============================================
 
 func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0) -> void:
+	# An orb of raw mana — spell school, so INT scales it (was physical).
 	var total_damage = base_damage + bonus_damage
 	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
+		total_damage = player_stats.get_effective_spell_damage(total_damage)
 	if buff_mgr:
 		total_damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
@@ -4158,6 +4188,7 @@ func _execute_shed_weight(deck_manager) -> void:
 static func create_mana_surge() -> Card:
 	var card = Card.new()
 	card.card_id = "mana_surge"
+	card.school = CardSchool.SPELL
 	card.card_name = "Mana Surge"
 	card.description = "Deal 5 damage, gain 1 mana."
 	card.card_type = CardType.ATTACK
@@ -4177,6 +4208,7 @@ static func create_mana_surge() -> Card:
 static func create_magic_barrier() -> Card:
 	var card = Card.new()
 	card.card_id = "magic_barrier"
+	card.school = CardSchool.SPELL
 	card.card_name = "Magic Barrier"
 	card.description = "Gain 8 armor. Instant."
 	card.card_type = CardType.REACTION
@@ -4201,6 +4233,7 @@ static func create_magic_barrier() -> Card:
 static func create_shepherds_mark() -> Card:
 	var card = Card.new()
 	card.card_id = "shepherds_mark"
+	card.school = CardSchool.SPELL
 	card.card_name = "Shepherd's Mark"
 	card.description = "Mark the healed ally for 10 tempo. If they would take lethal damage, they survive at 1 HP and gain 10 armor, but Jeremy takes 8 damage."
 	card.card_type = CardType.UTILITY
@@ -4527,6 +4560,7 @@ static func create_item_mastery() -> Card:
 static func create_mirror_mirror() -> Card:
 	var card = Card.new()
 	card.card_id = "mirror_mirror"
+	card.school = CardSchool.SPELL
 	card.card_name = "Mirror Mirror"
 	card.description = "Duplicate a card in your hand. The duplicate has Erase: 5."
 	card.card_type = CardType.UTILITY
@@ -4544,6 +4578,7 @@ static func create_mirror_mirror() -> Card:
 static func create_harness_lightning() -> Card:
 	var card = Card.new()
 	card.card_id = "harness_lightning"
+	card.school = CardSchool.SPELL
 	card.card_name = "Harness Lightning"
 	card.description = "Create an orb of lightning that circles you. Deals 4 damage every 5 tempo to a random enemy within 3 spaces. Lasts 30 tempo."
 	card.card_type = CardType.UTILITY
@@ -4652,6 +4687,7 @@ static func create_release_tension() -> Card:
 static func create_vines() -> Card:
 	var card = Card.new()
 	card.card_id = "vines"
+	card.school = CardSchool.SPELL
 	card.card_name = "Vines"
 	card.description = "Summon vines holding an enemy in place for 3 turns. Deal 4 damage per turn the enemy is held still."
 	card.card_type = CardType.ATTACK
@@ -4851,6 +4887,7 @@ static func create_living_armor() -> Card:
 static func create_the_lights_favor() -> Card:
 	var card = Card.new()
 	card.card_id = "the_lights_favor"
+	card.school = CardSchool.SPELL
 	card.card_name = "The Light's Favor"
 	card.description = "Heal 5 and draw a card."
 	card.card_type = CardType.UTILITY
@@ -4942,6 +4979,7 @@ static func create_roll() -> Card:
 static func create_cryonics() -> Card:
 	var card = Card.new()
 	card.card_id = "cryonics"
+	card.school = CardSchool.SPELL
 	card.card_name = "Cryonics"
 	card.description = "Encase an ally in ice for 15 tempo. They cannot act but are untargetable. They heal 3 health per 5 tempo."
 	card.card_type = CardType.UTILITY
@@ -4961,6 +4999,7 @@ static func create_cryonics() -> Card:
 static func create_friendship() -> Card:
 	var card = Card.new()
 	card.card_id = "friendship"
+	card.school = CardSchool.SPELL
 	card.card_name = "Friendship"
 	card.description = "Choose two allies. When one heals, they both heal. When one takes damage, they split it."
 	card.card_type = CardType.UTILITY
@@ -4979,6 +5018,7 @@ static func create_friendship() -> Card:
 static func create_provider() -> Card:
 	var card = Card.new()
 	card.card_id = "provider"
+	card.school = CardSchool.SPELL
 	card.card_name = "Provider"
 	card.description = "Heal an ally 6 health and give them one mana. Burden."
 	card.card_type = CardType.UTILITY
@@ -4998,6 +5038,7 @@ static func create_provider() -> Card:
 static func create_fireball() -> Card:
 	var card = Card.new()
 	card.card_id = "fireball"
+	card.school = CardSchool.SPELL
 	card.card_name = "Fireball"
 	card.description = "Hurl a massive fireball. Range +5, 12 damage, apply 3 burn. Costs 1 less mana for each other fire spell cast this turn. AOE circle 4 squares."
 	card.is_fire_spell = true
@@ -5022,6 +5063,7 @@ static func create_fireball() -> Card:
 static func create_spark() -> Card:
 	var card = Card.new()
 	card.card_id = "spark"
+	card.school = CardSchool.SPELL
 	card.card_name = "Spark"
 	card.description = "Deal 3 damage. Ranged -2. Subtract 2 tempo from 2 random cards in your hand. In 15 tempo, add 2 tempo to two random cards in your hand."
 	card.card_type = CardType.ATTACK
@@ -5041,6 +5083,7 @@ static func create_spark() -> Card:
 static func create_god_of_thunder() -> Card:
 	var card = Card.new()
 	card.card_id = "god_of_thunder"
+	card.school = CardSchool.SPELL
 	card.card_name = "God of Thunder"
 	card.description = "Absorb all shock on enemies and cast down a massive bolt of lightning dealing damage based on the amount of shock absorbed."
 	card.card_type = CardType.ATTACK
@@ -5060,6 +5103,7 @@ static func create_god_of_thunder() -> Card:
 static func create_worms_armageddon() -> Card:
 	var card = Card.new()
 	card.card_id = "worms_armageddon"
+	card.school = CardSchool.SPELL
 	card.card_name = "Worms Armageddon"
 	card.description = "Rain massive meteors dealing 23 damage. 10% to summon two Alaskan Bull Worms (12 HP, 6 damage, burrowed until attacking, untargetable while burrowed, 1 movement per tempo)."
 	card.card_type = CardType.ATTACK
@@ -5082,6 +5126,7 @@ static func create_worms_armageddon() -> Card:
 static func create_healthy_bliss() -> Card:
 	var card = Card.new()
 	card.card_id = "healthy_bliss"
+	card.school = CardSchool.SPELL
 	card.card_name = "Healthy Bliss"
 	card.description = "Instant: Once this has been in your hand for 20 tempo, automatically heal all allies for 10 health."
 	card.card_type = CardType.UTILITY
@@ -5263,6 +5308,7 @@ static func create_sprinkle_bomb() -> Card:
 	## an AOE bomb.
 	var card = Card.new()
 	card.card_id = "sprinkle_bomb"
+	card.school = CardSchool.SPELL
 	card.card_name = "Sprinkle Bomb"
 	card.description = "Deal 25 damage to every enemy in a 2-tile radius. Erased after play. AOE circle."
 	card.card_type = CardType.ATTACK

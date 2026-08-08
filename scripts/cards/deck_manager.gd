@@ -380,14 +380,19 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			print("[DECK] Cannot play cards - Stunned or Frozen!")
 			return { "played": false, "half_tempo": false }
 		
-		if card.card_type == Card.CardType.ATTACK and not debuff_mgr.can_play_attack_cards():
+		# Disarm blocks PHYSICAL offensive cards (offensive → attack school).
+		# A disarmed caster can still hurl spells; Silence is their counter.
+		if card.card_type == Card.CardType.ATTACK and card.school == Card.CardSchool.PHYSICAL \
+				and not debuff_mgr.can_play_attack_cards():
 			print("[DECK] Cannot play attack cards - Disarmed!")
 			return { "played": false, "half_tempo": false }
-		
-		if (card.card_type == Card.CardType.UTILITY or card.card_type == Card.CardType.POWER) and card.mana_cost > 0:
-			if not debuff_mgr.can_play_spell_cards():
-				print("[DECK] Cannot play spell cards - Silenced!")
-				return { "played": false, "half_tempo": false }
+
+		# Silence blocks the SPELL school in ANY role — offense (Fireball),
+		# defense (Magic Barrier), or support (Lady Luck). What matters is the
+		# casting, not what the spell does.
+		if card.school == Card.CardSchool.SPELL and not debuff_mgr.can_play_spell_cards():
+			print("[DECK] Cannot play spell cards - Silenced!")
+			return { "played": false, "half_tempo": false }
 	
 	# Heavy Swing: only playable when the hand holds nothing but attack cards.
 	if card.card_id == "heavy_swing":
@@ -805,6 +810,13 @@ func trigger_reactions(trigger_type: String) -> Array[Card]:
 	for i in range(hand.size() - 1, -1, -1):
 		var card = hand[i]
 		if card.card_type == Card.CardType.REACTION and card.reaction_trigger == trigger_type:
+			# Silence stops spell-school instants (Magic Barrier, Gift from the
+			# Phoenix) from firing — the reflex is still a cast.
+			if card.school == Card.CardSchool.SPELL and debuff_manager \
+					and debuff_manager.has_method("can_play_spell_cards") \
+					and not debuff_manager.can_play_spell_cards():
+				print("[DECK] Silenced — spell reaction %s cannot fire" % card.card_name)
+				continue
 			hand.remove_at(i)
 			triggered.append(card)
 			discard_pile.append(card)
