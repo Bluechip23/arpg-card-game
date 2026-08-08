@@ -1661,6 +1661,7 @@ func _spawn_seance_specter(stats: PlayerStats, pos: Vector3) -> void:
 	label.font_size = 12
 	label.modulate = Color(0.7, 0.5, 1.0)
 	label.position = Vector3(0, 0.7, 0)
+	WorldText.crisp(label)
 	marker.add_child(label)
 
 	stats.st_seance_specters.append({

@@ -180,13 +180,15 @@ func _create_single_entry(enemy: Enemy) -> VBoxContainer:
 	vbox.add_theme_constant_override("separation", 2)
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# Portrait square
+	# Portrait square with the vertical action-tempo bar on its left
 	var square = _create_portrait_square(enemy, SQUARE_SIZE)
-	vbox.add_child(square)
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_create_tempo_bar_column(enemy, SQUARE_SIZE))
+	row.add_child(square)
+	vbox.add_child(row)
 	_enemy_to_panel[enemy.get_instance_id()] = square
-
-	# Next-action tempo bar (yellow), mirroring the overhead bar
-	vbox.add_child(_create_tempo_bar_row(enemy, SQUARE_SIZE))
 
 	# Info underneath
 	var info = _create_info_column(enemy, 11)
@@ -194,26 +196,28 @@ func _create_single_entry(enemy: Enemy) -> VBoxContainer:
 
 	return vbox
 
-func _create_tempo_bar_row(enemy: Enemy, width: float) -> Control:
-	## A thin dark strip with a yellow fill that tracks the enemy's progress
-	## toward its next action (same value as the bar above its head).
+func _create_tempo_bar_column(enemy: Enemy, sz: float) -> Control:
+	## A vertical strip beside the portrait square: dark background with a
+	## yellow fill that rises as the enemy's next action approaches (same
+	## value as the bar above its head).
 	var holder := Control.new()
-	holder.custom_minimum_size = Vector2(width, 5)
+	holder.custom_minimum_size = Vector2(7, sz)
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var bg := ColorRect.new()
 	bg.color = Color(0.12, 0.12, 0.08, 0.9)
-	bg.size = Vector2(width, 5)
+	bg.size = Vector2(7, sz)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(bg)
 
 	var fg := ColorRect.new()
 	fg.color = Color(1.0, 0.85, 0.0, 0.95)
-	fg.size = Vector2(0, 5)
+	fg.size = Vector2(7, 0)
+	fg.position = Vector2(0, sz)
 	fg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(fg)
 
-	_tempo_bars.append({"enemy": enemy, "fg": fg, "width": width})
+	_tempo_bars.append({"enemy": enemy, "fg": fg, "height": sz})
 	return holder
 
 func update_tempo_bars() -> void:
@@ -223,8 +227,10 @@ func update_tempo_bars() -> void:
 		var fg: ColorRect = entry["fg"]
 		if not is_instance_valid(enemy) or not is_instance_valid(fg) or not enemy.is_alive():
 			continue
-		var progress: float = enemy.get_action_progress()
-		fg.size.x = 0.0 if progress < 0.0 else entry["width"] * progress
+		var progress: float = clampf(enemy.get_action_progress(), 0.0, 1.0)
+		var h: float = entry["height"] * progress
+		fg.size.y = h
+		fg.position.y = entry["height"] - h
 
 # ============================================
 # GROUP SQUARE (for multiple of same type)
@@ -272,11 +278,13 @@ func _create_sub_portrait(enemy: Enemy) -> VBoxContainer:
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var square = _create_portrait_square(enemy, SUB_SQUARE_SIZE)
-	vbox.add_child(square)
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_create_tempo_bar_column(enemy, SUB_SQUARE_SIZE))
+	row.add_child(square)
+	vbox.add_child(row)
 	_enemy_to_panel[enemy.get_instance_id()] = square
-
-	# Next-action tempo bar, same as single entries
-	vbox.add_child(_create_tempo_bar_row(enemy, SUB_SQUARE_SIZE))
 
 	var info = _create_info_column(enemy, 10)
 	vbox.add_child(info)

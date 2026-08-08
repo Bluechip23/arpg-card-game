@@ -2092,6 +2092,11 @@ func _setup_deck_list_panel() -> void:
 	deck_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(deck_list_container)
 
+	var manage_btn = Button.new()
+	manage_btn.text = "Manage Deck"
+	manage_btn.pressed.connect(_open_manage_deck_panel)
+	vbox.add_child(manage_btn)
+
 	var close_btn = Button.new()
 	close_btn.text = "Close"
 	close_btn.pressed.connect(_on_deck_list_button_pressed)
@@ -2170,6 +2175,225 @@ func _populate_deck_list() -> void:
 		entry.mouse_entered.connect(_on_deck_list_entry_hovered.bind(card_ref, entry))
 		entry.mouse_exited.connect(_on_deck_list_entry_unhovered)
 		deck_list_container.add_child(entry)
+
+# ============================================
+# MANAGE DECK (cull / add cards mid-run)
+# ============================================
+
+var manage_deck_panel: PanelContainer = null
+var _md_deck_list: VBoxContainer = null
+var _md_stored_list: VBoxContainer = null
+var _md_stones_label: Label = null
+var _md_pending_cull: String = ""  # two-click confirm: name of the card armed for culling
+
+func _open_manage_deck_panel() -> void:
+	if manage_deck_panel == null:
+		_build_manage_deck_panel()
+	_md_pending_cull = ""
+	manage_deck_panel.visible = true
+	_refresh_manage_deck_panel()
+
+func _build_manage_deck_panel() -> void:
+	var ui = $UI as CanvasLayer
+	manage_deck_panel = PanelContainer.new()
+	manage_deck_panel.name = "ManageDeckPanel"
+	ui.add_child(manage_deck_panel)
+	manage_deck_panel.set_anchors_preset(Control.PRESET_CENTER)
+	manage_deck_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	manage_deck_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	manage_deck_panel.custom_minimum_size = Vector2(580, 500)
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.15, 0.97)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.5, 0.45, 0.25)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 10.0
+	style.content_margin_bottom = 10.0
+	manage_deck_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	manage_deck_panel.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "Manage Deck"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	vbox.add_child(title)
+
+	_md_stones_label = Label.new()
+	_md_stones_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_md_stones_label.add_theme_font_size_override("font_size", 13)
+	_md_stones_label.add_theme_color_override("font_color", Color(0.9, 0.65, 0.35))
+	vbox.add_child(_md_stones_label)
+
+	vbox.add_child(HSeparator.new())
+
+	var columns = HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 12)
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(columns)
+
+	# Left column: current deck, click to cull.
+	var left_box = VBoxContainer.new()
+	left_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(left_box)
+	var left_title = Label.new()
+	left_title.text = "Deck — click to cull (1 stone)"
+	left_title.add_theme_font_size_override("font_size", 13)
+	left_title.add_theme_color_override("font_color", Color(1.0, 0.55, 0.4))
+	left_box.add_child(left_title)
+	var left_scroll = ScrollContainer.new()
+	left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left_scroll.custom_minimum_size = Vector2(260, 360)
+	left_box.add_child(left_scroll)
+	_md_deck_list = VBoxContainer.new()
+	_md_deck_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_scroll.add_child(_md_deck_list)
+
+	# Right column: cards carried in the inventory, click to add.
+	var right_box = VBoxContainer.new()
+	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(right_box)
+	var right_title = Label.new()
+	right_title.text = "Cards on you — click to add (to discard)"
+	right_title.add_theme_font_size_override("font_size", 13)
+	right_title.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+	right_box.add_child(right_title)
+	var right_scroll = ScrollContainer.new()
+	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_scroll.custom_minimum_size = Vector2(260, 360)
+	right_box.add_child(right_scroll)
+	_md_stored_list = VBoxContainer.new()
+	_md_stored_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_scroll.add_child(_md_stored_list)
+
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.pressed.connect(func(): manage_deck_panel.visible = false)
+	vbox.add_child(close_btn)
+
+	manage_deck_panel.visible = false
+
+func _refresh_manage_deck_panel() -> void:
+	if manage_deck_panel == null or not manage_deck_panel.visible:
+		return
+	var inv = player.get_inventory()
+	_md_stones_label.text = "Culling Stones: %d" % (inv.get_culling_stone_count() if inv else 0)
+
+	for child in _md_deck_list.get_children():
+		child.queue_free()
+	for child in _md_stored_list.get_children():
+		child.queue_free()
+
+	# Left: unique deck cards with counts (same scope as the deck list view).
+	var card_counts: Dictionary = {}
+	var all_cards: Array = []
+	all_cards.append_array(deck_manager.draw_pile)
+	all_cards.append_array(deck_manager.hand)
+	all_cards.append_array(deck_manager.discard_pile)
+	all_cards.append_array(deck_manager.jail_pile)
+	for card in all_cards:
+		card_counts[card.card_name] = card_counts.get(card.card_name, 0) + 1
+	var names = card_counts.keys()
+	names.sort()
+	for card_name in names:
+		var entry = Button.new()
+		if _md_pending_cull == card_name:
+			entry.text = "Cull %s? (click to confirm)" % card_name
+			entry.add_theme_color_override("font_color", Color(1.0, 0.35, 0.3))
+		else:
+			entry.text = "%s (%d)" % [card_name, card_counts[card_name]]
+			entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.flat = true
+		entry.add_theme_color_override("font_hover_color", Color(1.0, 0.6, 0.4))
+		entry.add_theme_font_size_override("font_size", 14)
+		entry.pressed.connect(_on_manage_cull_pressed.bind(card_name))
+		_md_deck_list.add_child(entry)
+
+	# Right: cards carried in storage (NOT the town stash).
+	var stored_count = inv.get_stored_card_count() if inv else 0
+	if stored_count == 0:
+		var none = Label.new()
+		none.text = "(no cards on you)"
+		none.add_theme_font_size_override("font_size", 13)
+		none.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		_md_stored_list.add_child(none)
+	for i in range(stored_count):
+		var card = inv.get_stored_card(i)
+		if card == null:
+			continue
+		var entry = Button.new()
+		entry.text = card.card_name
+		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.flat = true
+		entry.add_theme_color_override("font_color", Color(0.75, 0.95, 0.75))
+		entry.add_theme_color_override("font_hover_color", Color(0.5, 1.0, 0.6))
+		entry.add_theme_font_size_override("font_size", 14)
+		entry.pressed.connect(_on_manage_add_pressed.bind(i))
+		_md_stored_list.add_child(entry)
+
+func _on_manage_cull_pressed(card_name: String) -> void:
+	# First click arms the cull, second click on the same entry confirms.
+	if _md_pending_cull != card_name:
+		_md_pending_cull = card_name
+		_refresh_manage_deck_panel()
+		return
+	_md_pending_cull = ""
+	var inv = player.get_inventory()
+	if not inv or inv.get_culling_stone_count() <= 0:
+		add_battle_log("No Culling Stones left.", Color(1.0, 0.5, 0.4))
+		_refresh_manage_deck_panel()
+		return
+	# Prefer culling an instance the player won't miss mid-fight.
+	var target: Card = null
+	for pile in [deck_manager.discard_pile, deck_manager.draw_pile, deck_manager.jail_pile, deck_manager.hand]:
+		for c in pile:
+			if c.card_name == card_name:
+				target = c
+				break
+		if target:
+			break
+	if target == null or not inv.use_culling_stone():
+		_refresh_manage_deck_panel()
+		return
+	deck_manager.remove_card_from_all_piles(target)
+	# Keep the character's card lists in sync, matching the town cull flow.
+	if starting_character:
+		var pidx = starting_character.purchased_card_ids.find(target.card_id)
+		if pidx >= 0:
+			starting_character.purchased_card_ids.remove_at(pidx)
+		else:
+			starting_character.removed_card_ids.append(target.card_id)
+	add_battle_log("Culled %s from the deck." % card_name, Color(1.0, 0.6, 0.3))
+	update_deck_info()
+	if deck_list_visible:
+		_populate_deck_list()
+	_refresh_manage_deck_panel()
+
+func _on_manage_add_pressed(index: int) -> void:
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	var card = inv.get_stored_card(index)
+	if card == null:
+		return
+	if inv.add_card_to_deck(index, deck_manager):
+		add_battle_log("Added %s to your discard pile." % card.card_name, Color(0.4, 1.0, 0.5))
+		update_deck_info()
+		if deck_list_visible:
+			_populate_deck_list()
+		_refresh_manage_deck_panel()
 
 func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
 	# Clear previous preview content
@@ -3269,6 +3493,9 @@ func select_character(character: CharacterData) -> void:
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
+	# Every adventurer carries a Return Scroll (right-click it to portal home).
+	if player.get_inventory():
+		player.get_inventory().ensure_return_scroll()
 	# War Rack (Brad): show the swap button and keep its cooldown display live.
 	var rack_inv = player.get_inventory()
 	if rack_inv:
@@ -3954,6 +4181,7 @@ func _show_downed_marker(idx: int, downed: bool) -> void:
 	tag.modulate = Color(1.0, 0.25, 0.25)
 	tag.outline_size = 10
 	tag.position = Vector3(0, 2.6, 0)
+	WorldText.crisp(tag)
 	p.add_child(tag)
 	_downed_markers[idx] = tag
 
@@ -7518,6 +7746,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Chest / waypoint / cave / building interaction (Shift key)
 		if event.keycode == KEY_SHIFT:
+			if _try_interact_town_portal():
+				return
 			if _try_climb_tree():
 				return
 			if _try_interact_site():
@@ -8380,6 +8610,7 @@ func _create_ally_marker(ally_name: String, pos: Vector3, color: Color) -> void:
 	label.text = ally_name
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = Vector3(0, 0.5, 0)
+	WorldText.crisp(label)
 	marker.add_child(label)
 
 # ============================================
@@ -8817,6 +9048,7 @@ func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 24
 	label.position = Vector3(0, 0.7, 0)
+	WorldText.crisp(label)
 	marker.add_child(label)
 
 	return {"node": marker, "health": health, "position": pos, "label": label}
@@ -8877,6 +9109,86 @@ func _sync_occupied_tiles() -> void:
 		living[i].occupied_tiles = other_cells
 
 # ============================================
+# TOWN PORTAL (Return Scroll)
+# ============================================
+
+var _town_portal_node: Node3D = null
+
+func spawn_town_portal() -> void:
+	## Right-clicking the Return Scroll conjures a purple portal on the tile
+	## beside the player. [Shift] next to it travels home to town.
+	if is_instance_valid(_town_portal_node):
+		_town_portal_node.queue_free()
+
+	var portal_root = Node3D.new()
+	portal_root.name = "TownPortal"
+	var spot = grid_manager.snap_to_grid(player.position + Vector3(grid_manager.grid_size, 0, 0))
+	portal_root.position = Vector3(spot.x, 0, spot.z)
+
+	# Swirling purple oval — a flattened torus standing upright.
+	var ring = MeshInstance3D.new()
+	var torus = TorusMesh.new()
+	torus.inner_radius = 0.55
+	torus.outer_radius = 0.75
+	ring.mesh = torus
+	ring.rotation_degrees = Vector3(90, 0, 0)
+	ring.position = Vector3(0, 1.1, 0)
+	var ring_mat = StandardMaterial3D.new()
+	ring_mat.albedo_color = Color(0.6, 0.25, 0.95)
+	ring_mat.emission_enabled = true
+	ring_mat.emission = Color(0.55, 0.2, 0.9)
+	ring_mat.emission_energy_multiplier = 1.6
+	ring.material_override = ring_mat
+	portal_root.add_child(ring)
+
+	# Glowing translucent film inside the ring.
+	var film = MeshInstance3D.new()
+	var disc = CylinderMesh.new()
+	disc.top_radius = 0.58
+	disc.bottom_radius = 0.58
+	disc.height = 0.05
+	film.mesh = disc
+	film.rotation_degrees = Vector3(90, 0, 0)
+	film.position = Vector3(0, 1.1, 0)
+	var film_mat = StandardMaterial3D.new()
+	film_mat.albedo_color = Color(0.75, 0.45, 1.0, 0.55)
+	film_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	film_mat.emission_enabled = true
+	film_mat.emission = Color(0.7, 0.4, 1.0)
+	film_mat.emission_energy_multiplier = 1.2
+	film.material_override = film_mat
+	portal_root.add_child(film)
+
+	var label = Label3D.new()
+	label.text = "Town Portal"
+	label.modulate = Color(0.85, 0.6, 1.0)
+	label.position = Vector3(0, 2.3, 0)
+	WorldText.crisp(label, 32)
+	portal_root.add_child(label)
+
+	var interact_label = Label3D.new()
+	interact_label.text = "[Shift] Enter"
+	interact_label.modulate = Color(1.0, 0.9, 0.4)
+	interact_label.position = Vector3(0, 2.0, 0)
+	WorldText.crisp(interact_label, 24)
+	portal_root.add_child(interact_label)
+
+	_town_portal_node = portal_root
+	add_child(portal_root)
+	add_battle_log("A town portal shimmers open beside you.", Color(0.8, 0.55, 1.0))
+	print("[MAIN] Town portal opened at %s" % portal_root.position)
+
+func _try_interact_town_portal() -> bool:
+	if not is_instance_valid(_town_portal_node):
+		return false
+	var flat_dist = Vector2(player.position.x - _town_portal_node.position.x,
+			player.position.z - _town_portal_node.position.z).length()
+	if flat_dist > grid_manager.grid_size * 1.6:
+		return false
+	_travel_to_town()
+	return true
+
+# ============================================
 # RISE PILLAR
 # ============================================
 
@@ -8911,6 +9223,7 @@ func _spawn_pillar(pos: Vector3) -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 24
 	label.position = Vector3(0, 2.3, 0)
+	WorldText.crisp(label)
 	pillar_root.add_child(label)
 
 	var pillar_data = {"node": pillar_root, "position": pos, "tempo_remaining": 5}
@@ -9514,6 +9827,7 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 			inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
+			inv.ensure_return_scroll()  # older saves predate the scroll
 			inv.equipment_changed.emit()
 
 	# Update UI displays

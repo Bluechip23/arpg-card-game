@@ -79,6 +79,7 @@ func _build_visuals() -> void:
 	_health_label.pixel_size = 0.005
 	_health_label.position = Vector3(0, 1.7, 0)
 	_health_label.modulate = Color(0.9, 0.85, 0.95)
+	WorldText.crisp(_health_label)
 	add_child(_health_label)
 
 func surface() -> void:

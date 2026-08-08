@@ -1199,6 +1199,15 @@ func _make_section_header(text: String) -> Label:
 func _on_equipped_item_clicked(item: ItemData, item_type: ItemData.ItemType, slot_index: int) -> void:
 	_show_detail_panel(item, item_type, slot_index, -1)
 
+func _on_stored_item_right_clicked(item: ItemData, _storage_index: int) -> void:
+	## Right-click uses utility items. The Return Scroll opens a town portal
+	## beside the player (interact with [Shift] to travel home).
+	if item.special_id == "return_scroll":
+		var main_node = get_node_or_null("/root/Main")
+		if main_node and main_node.has_method("spawn_town_portal"):
+			main_node.spawn_town_portal()
+			toggle_panel()  # close the inventory so the portal is visible
+
 func _on_stored_item_clicked(item: ItemData, storage_index: int) -> void:
 	_show_detail_panel(item, item.item_type, -1, storage_index)
 
