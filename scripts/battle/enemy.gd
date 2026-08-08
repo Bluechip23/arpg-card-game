@@ -72,6 +72,7 @@ var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
 var marked_tempo: int = 0      # Remaining tempo for mark
+const MARKED_BONUS_DAMAGE := 3  # Flat bonus the player's attacks gain vs a marked target
 var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when silenced
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
 var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per cycle, lose 1 stack per cycle
@@ -1432,6 +1433,14 @@ func _tick_status_durations() -> void:
 			print("[%s] Bleed expired" % enemy_name)
 			debuff_expired.emit(self, "bleed")
 
+	# Cold: thaws 1 stack per cycle so it's a combo window, not a permanent
+	# ratchet toward Frozen (mirrors the player-side Cold expiring over time)
+	if cold_stacks > 0:
+		cold_stacks -= 1
+		if cold_stacks <= 0:
+			print("[%s] Cold thawed" % enemy_name)
+			debuff_expired.emit(self, "cold")
+
 	# Shock: deal current stacks damage, then lose 1 stack per cycle
 	if shock_stacks > 0:
 		take_damage(shock_stacks, false)
@@ -2572,7 +2581,9 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	if from_player and enemy_type == EnemyType.MINI_BEAR:
 		_alert_mini_bear_pack()
 
-	if wear_down_tempo > 0:
+	# Wear Down stacks only off the player's hits — DoT ticks (poison, burn,
+	# shock) route through take_damage too and must not count as "hits".
+	if from_player and wear_down_tempo > 0:
 		attack_reduction += 1
 		print("[%s] Wear Down stacks! Attack reduced by %d" % [enemy_name, attack_reduction])
 		_update_status_indicators()
@@ -2582,6 +2593,11 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		print("[%s] Premeditated bonus: +%d damage!" % [enemy_name, bonus_damage_next_hit])
 		amount += bonus_damage_next_hit
 		bonus_damage_next_hit = 0
+
+	# Marked (Mark card): the player's attacks deal bonus damage to this target.
+	if from_player and is_marked:
+		amount += MARKED_BONUS_DAMAGE
+		print("[%s] Marked: +%d damage!" % [enemy_name, MARKED_BONUS_DAMAGE])
 
 	# Armor Break: double damage to armor, no health damage. Zero effect on unarmored.
 	var just_exposed = false
@@ -2777,9 +2793,11 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			chosen_action = {}
 			print("[%s] Stunned for %d tempo cycles!" % [enemy_name, stun_tempo])
 		"slow":
-			slow_amount = value
-			slow_tempo = 2  # Lasts 2 tempo cycles
-			print("[%s] Slowed by %d movement for 2 tempo cycles" % [enemy_name, value])
+			# A weaker slow never overwrites a stronger active one, and
+			# re-application refreshes rather than truncates the timer.
+			slow_amount = max(slow_amount, value)
+			slow_tempo = max(slow_tempo, 2)  # Lasts 2 tempo cycles
+			print("[%s] Slowed by %d movement for %d tempo cycles" % [enemy_name, slow_amount, slow_tempo])
 		"disarmed":
 			is_disarmed = true
 			disarmed_tempo = value

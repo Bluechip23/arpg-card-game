@@ -183,13 +183,11 @@ func process_turn_end() -> void:
 				expired.append(buff)
 
 	for buff in expired:
-		# Morphine penalty on expiry: lose the temp HP and take 2 damage
+		# Morphine penalty on expiry: take 2 damage. The temp HP itself lives in
+		# the PlayerStats temp-health pool and expires on its own matching timer.
 		if buff.buff_type == Buff.BuffType.MORPHINE and owner_stats:
-			var hp_to_remove = buff.value
-			owner_stats.current_health = max(0, owner_stats.current_health - hp_to_remove)
-			owner_stats.health_changed.emit(owner_stats.current_health, owner_stats.max_health)
 			owner_stats.take_damage(2)
-			print("[BUFF] Morphine expired! Lost %d temp HP and took 2 damage" % hp_to_remove)
+			print("[BUFF] Morphine expired! Took 2 damage")
 
 		buffs.erase(buff)
 		buff_removed.emit(buff)
@@ -373,16 +371,6 @@ func get_enlightened_crit_chance() -> int:
 	var enlightened = get_buff(Buff.BuffType.ENLIGHTENED)
 	return enlightened.value if enlightened else 0
 
-func consume_enlightened() -> int:
-	# Returns crit chance bonus and uses a charge
-	var enlightened = get_buff(Buff.BuffType.ENLIGHTENED)
-	if enlightened:
-		var bonus = enlightened.value
-		if enlightened.use_charge():
-			remove_buff(Buff.BuffType.ENLIGHTENED)
-		return bonus
-	return 0
-
 func roll_crit(base_crit_chance: int = 0) -> bool:
 	# Include the character's innate base crit chance (default 5%)
 	var innate_crit = 0
@@ -409,6 +397,14 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	# Consume Exposed Blind Spot bonus after rolling (win or lose)
 	if ebs_crit > 0 and owner_stats:
 		owner_stats.st_exposed_blind_spot_crit = 0
+
+	# Enlightened is "+X% crit for the next Y ATTACKS": every attack roll spends
+	# a charge, crit or not. (Consuming only on successful crits let the buff
+	# outlast its stated attack count ~3x.)
+	var enlightened = get_buff(Buff.BuffType.ENLIGHTENED)
+	if enlightened:
+		if enlightened.use_charge():
+			remove_buff(Buff.BuffType.ENLIGHTENED)
 
 	if is_crit:
 		print("[BUFF] CRITICAL HIT! (rolled %d < %d)" % [roll, total_chance])

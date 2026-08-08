@@ -31,12 +31,24 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 		tether_origin = owner_node.position
 
 func apply_debuff(debuff: Debuff) -> void:
+	# Burn lifecycle is stack-driven (value = cycles remaining, damage doubling
+	# 1, 2, 4...), mirroring the enemy-side model — never duration-expired.
+	if debuff.debuff_type == Debuff.DebuffType.BURN:
+		debuff.duration = -1
+
 	var existing = get_debuff(debuff.debuff_type)
 
 	if existing:
-		existing.duration = max(existing.duration, debuff.duration)
+		# -1 means "until depleted/cleansed" — it always wins the merge.
+		if existing.duration < 0 or debuff.duration < 0:
+			existing.duration = -1
+		else:
+			existing.duration = max(existing.duration, debuff.duration)
 		existing.stacks += 1
-		existing.value = debuff.value * existing.stacks
+		# Accumulate — recomputing from the newest instance's value corrupted
+		# heterogeneous stacks (Bleed 3 + Bleed 1 used to become 2, not 4).
+		existing.value += debuff.value
+		existing._set_name_and_description()
 		print("[DEBUFF] %s stacked to %d (value: %d)" % [debuff.debuff_name, existing.stacks, existing.value])
 	else:
 		debuffs.append(debuff)
@@ -114,12 +126,20 @@ func process_turn_start() -> Dictionary:
 		"pull_tiles": 0
 	}
 
-	# Burn: damage doubles each cycle (1, 2, 4, 8...)
+	# Burn: damage doubles each cycle (1, 2, 4, 8...); each stack is one cycle
+	# of burning, so "apply 5 burn" actually burns longer than "apply 1 burn"
+	# (previously stacks were cosmetic and only the doubling counter mattered).
 	var burn = get_debuff(Debuff.DebuffType.BURN)
 	if burn:
 		result["damage_taken"] += burn_damage_next
 		print("[DEBUFF] Burn deals %d damage (doubles next cycle)" % burn_damage_next)
 		burn_damage_next *= 2
+		burn.value -= 1
+		burn._set_name_and_description()
+		if burn.value <= 0:
+			remove_debuff(Debuff.DebuffType.BURN)
+			burn_damage_next = 1
+			print("[DEBUFF] Burn expired (0 stacks)")
 
 	# Poison: deal value damage, then lose 1 poison. Elixir flips it to healing.
 	var poison = get_debuff(Debuff.DebuffType.POISON)
@@ -447,5 +467,8 @@ func on_attack() -> int:
 func get_debuff_display_list() -> Array[String]:
 	var list: Array[String] = []
 	for debuff in debuffs:
-		list.append("%s (%d)" % [debuff.get_short_display(), debuff.duration])
+		if debuff.duration < 0:
+			list.append("%s (∞)" % debuff.get_short_display())
+		else:
+			list.append("%s (%d)" % [debuff.get_short_display(), debuff.duration])
 	return list

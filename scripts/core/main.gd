@@ -1849,7 +1849,6 @@ func _on_attack_pressed() -> void:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			damage = Card.crit_multiply(damage, stats)
-			buff_mgr.consume_enlightened()
 
 	# Debuff damage reduction
 	if debuff_mgr:
@@ -6371,12 +6370,6 @@ func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
 	return max(0, total_damage)
 
 
-# Cards whose damage runs through the INT spell pipeline instead of STR
-# physical (their _execute_* calls get_effective_spell_damage; there is no
-# per-card field for this, so the routing lives here).
-const SPELL_SCALED_CARDS := ["surrounding_ice", "snowballs_chance", "sprinkle_bomb",
-		"fireball", "if_pigs_could_fly", "energy_ball", "volatile_mixture"]
-
 # Block cards whose _execute hardcodes the armor amount instead of reading
 # the block fields — the display must match what add_armor actually gets.
 const BLOCK_AMOUNT_OVERRIDES := {"hold_the_line": 5, "vengeful_shield": 5}
@@ -6393,6 +6386,11 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 	## terms are excluded; the hover preview passes them via extra_flat /
 	## adds them on top. Shared by get_card_vacuum_values and
 	## calculate_damage_preview so the two never drift apart.
+	# Absorb Essence is defined as a flat 1 to everything — its payoff scales
+	# through Energy Ball instead, so no player amplification applies here.
+	if card.card_id == "absorb_essence":
+		return 1
+
 	var stats = player.get_stats()
 	var buff_mgr = player.get_buff_manager()
 	var debuff_mgr = player.get_debuff_manager()
@@ -6418,9 +6416,9 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 	if hp_mult > 1.0:
 		total += floori(card.base_damage * (hp_mult - 1.0))
 
-	# Stat scaling: INT spell pipeline for the spell cards, STR physical
+	# Stat scaling by school: INT spell pipeline for SPELL cards, STR physical
 	# (strength, enchantments, sphere, two-handed grip) for everything else.
-	if card.card_id in SPELL_SCALED_CARDS:
+	if card.school == Card.CardSchool.SPELL:
 		total = stats.get_effective_spell_damage(total)
 	else:
 		total = stats.get_effective_physical_damage(total)
@@ -6553,7 +6551,7 @@ func play_selected_card(target) -> void:
 	# Arcane Overflow: -1 tempo on spells when primed (had 0 mana after previous spell)
 	var ao_stats = player.get_stats()
 	if ao_stats and ao_stats.has_skill_tree_passive("arcane_overflow") and ao_stats.st_arcane_overflow_discount:
-		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+		if card.school == Card.CardSchool.SPELL:
 			tempo_cost = maxi(0, tempo_cost - 1)
 			resolve_tick = mini(resolve_tick, tempo_cost)
 
@@ -6942,7 +6940,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	progression_triggers._trigger_sphere_passives("on_card_play", {"card": card, "target": target})
 	if card.card_type == Card.CardType.ATTACK:
 		progression_triggers._trigger_sphere_passives("on_attack", {"card": card, "target": target})
-	if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+	# "Casting a spell" is defined by the school tag — offensive spells
+	# (Fireball) count exactly like support ones (previously only paid
+	# utility cards qualified, so Fireball never triggered caster passives).
+	if card.school == Card.CardSchool.SPELL:
 		progression_triggers._trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
 		_try_arcane_echo(player.get_stats())
 
@@ -7672,14 +7673,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_spawn_pillar(rise_pos)
 
 		"absorb_essence":
-			# Deal the card face's stat-scaled damage to ALL things on the
-			# battlefield (enemies, obstacles, allies)
-			var absorb_dmg := _card_player_damage(card)
+			# A flat 1 damage to ALL things on the battlefield (enemies,
+			# obstacles, self) — deliberately NOT stat-scaled. The payoff scales
+			# through Energy Ball, which does take the caster's amplifications.
 			var absorb_total_damage = 0
 			var all_enemies = enemy_spawner.get_living_enemies()
 			for enemy in all_enemies:
-				enemy.take_damage(absorb_dmg, true)
-				absorb_total_damage += absorb_dmg
+				enemy.take_damage(1, true)
+				absorb_total_damage += 1
 			_apply_misery_spread(all_enemies)
 			# Damage obstacles (barricades)
 			for i in range(barricade_obstacles.size() - 1, -1, -1):

@@ -136,6 +136,9 @@ func _set_name_and_description() -> void:
 
 func tick() -> bool:
 	# Called each cycle (5 tempo). Returns true if debuff expired.
+	# Negative duration = "until cleansed / stack-driven": never expires here.
+	if duration < 0:
+		return false
 	if duration > 0:
 		duration -= 5
 	return duration <= 0

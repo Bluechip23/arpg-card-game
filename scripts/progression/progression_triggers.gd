@@ -1594,14 +1594,15 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 		return
 
 	# Arcane Overflow: consume discount if active, then check if we hit 0 mana for next spell
+	# "Spell" = school tag, so offensive spells (Fireball) count too.
 	if stats.has_skill_tree_passive("arcane_overflow"):
 		# Apply stored discount from previous spell
-		if stats.st_arcane_overflow_discount and card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+		if stats.st_arcane_overflow_discount and card.school == Card.CardSchool.SPELL:
 			# Discount was already applied at card play time via _get_arcane_overflow_discount()
 			stats.st_arcane_overflow_discount = false
 			main.add_battle_log("Arcane Overflow: -1 tempo!", Color(0.9, 0.3, 0.3))
 		# Check if casting this spell left us at 0 mana → prime next spell
-		if card.card_type == Card.CardType.UTILITY and card.mana_cost > 0 and stats.current_mana == 0:
+		if card.school == Card.CardSchool.SPELL and card.mana_cost > 0 and stats.current_mana == 0:
 			stats.st_arcane_overflow_discount = true
 			main.add_battle_log("Arcane Overflow: 0 mana! Next spell -1 tempo", Color(0.9, 0.3, 0.3))
 
@@ -1634,7 +1635,7 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 			main.add_battle_log("Fresh Start: cleansed %s!" % removed.debuff_name, Color(0.8, 0.4, 0.9))
 
 	# Seance: casting a spell that targets an empty tile → summon a Specter
-	if stats.has_skill_tree_passive("seance") and card.card_type == Card.CardType.UTILITY and card.mana_cost > 0:
+	if stats.has_skill_tree_passive("seance") and card.school == Card.CardSchool.SPELL:
 		# Check if the spell targeted an empty tile (no enemy target)
 		if target == null or not (target is Enemy):
 			var spawn_pos = main.player.position + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
