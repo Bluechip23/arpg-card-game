@@ -721,7 +721,7 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		# Apply new discount
 		if card.mana_cost > 0:
 			stats.st_from_hip_original_cost = card.mana_cost
-			card.mana_cost -= 1
+			card.mana_cost = maxi(0, card.mana_cost - 10)
 			stats.st_from_hip_card = card
 			main.add_battle_log("From the Hip: %s -1m" % card.card_name, Color(0.9, 0.3, 0.3))
 
@@ -924,8 +924,8 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 					if not enemy.is_alive():
 						kills += 1
 				if kills > 0:
-					stats.gain_mana(kills)
-				main.add_battle_log("Enraged Will: AOE swing for %d! (+%d mana)" % [dmg, kills], Color(0.9, 0.3, 0.3))
+					stats.gain_mana(kills * 10)
+				main.add_battle_log("Enraged Will: AOE swing for %d! (+%d mana)" % [dmg, kills * 10], Color(0.9, 0.3, 0.3))
 
 	# Corrupted Strength: state is updated per cycle, no action needed on damage taken
 
@@ -974,15 +974,15 @@ func _trigger_skill_tree_brad_on_defense_card_play(card: Card) -> void:
 	if not stats:
 		return
 
-	# The Way of the Plate: every other Defense card costs -1m/-1t
+	# The Way of the Plate: every other Defense card costs -10m/-1t
 	if stats.has_skill_tree_passive("the_way_of_the_plate"):
 		stats.st_defense_cards_played += 1
 		if stats.st_defense_cards_played >= 2:
 			stats.st_defense_cards_played = 0
 			# Refund 1 mana and 1 tempo
-			stats.gain_mana(1)
+			stats.gain_mana(10)
 			main.tempo_manager.add_tempo(-1)
-			main.add_battle_log("Way of the Plate: -1m/-1t refund!", Color(0.3, 0.7, 1.0))
+			main.add_battle_log("Way of the Plate: -10m/-1t refund!", Color(0.3, 0.7, 1.0))
 
 	# Pristine Armor: +2 armor on defense cards, +5 bonus for 3 in a row
 	if stats.has_skill_tree_passive("pristine_armor"):
@@ -1041,12 +1041,12 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 			# Discount a random attack card by 2 mana
 			var attacks: Array[Card] = []
 			for c in main.deck_manager.hand:
-				if c.card_type == Card.CardType.ATTACK and c.mana_cost >= 2:
+				if c.card_type == Card.CardType.ATTACK and c.mana_cost >= 20:
 					attacks.append(c)
 			if attacks.size() > 0:
 				var target_card = attacks[randi() % attacks.size()]
-				target_card.mana_cost -= 2
-				main.add_battle_log("Ancestral Aid: %s -2m (offense)" % target_card.card_name, Color(0.4, 0.9, 0.4))
+				target_card.mana_cost -= 20
+				main.add_battle_log("Ancestral Aid: %s -20m (offense)" % target_card.card_name, Color(0.4, 0.9, 0.4))
 		elif defense_count > attack_count:
 			stats.heal(3)
 			main.add_battle_log("Ancestral Aid: +3 HP regen (defense)", Color(0.4, 0.9, 0.4))
@@ -1370,19 +1370,19 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 	if not stats:
 		return
 
-	# Self Reliance: 3 cards in one tempo cycle → the NEXT card costs -1m.
+	# Self Reliance: 3 cards in one tempo cycle → the NEXT card costs -10m.
 	# Consume BEFORE tracking this play so the discount earned by the 3rd card
 	# never applies to that same 3rd card.
 	if stats.st_self_reliance_discount and card.mana_cost > 0:
-		stats.gain_mana(1)  # Refund 1 mana as discount
+		stats.gain_mana(10)  # Refund 10 mana as discount
 		stats.st_self_reliance_discount = false
-		main.add_battle_log("Self Reliance: -1m applied!", Color(0.9, 0.3, 0.3))
+		main.add_battle_log("Self Reliance: -10m applied!", Color(0.9, 0.3, 0.3))
 
 	if stats.has_skill_tree_passive("self_reliance"):
 		stats.st_cards_this_cycle.append(card.card_type_name)
 		if stats.st_cards_this_cycle.size() >= 3 and not stats.st_self_reliance_discount:
 			stats.st_self_reliance_discount = true
-			main.add_battle_log("Self Reliance: next card costs -1m!", Color(0.9, 0.3, 0.3))
+			main.add_battle_log("Self Reliance: next card costs -10m!", Color(0.9, 0.3, 0.3))
 
 	# Budding: track card types (no back-to-back same type)
 	if stats.has_skill_tree_passive("budding"):
@@ -1620,7 +1620,7 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 		var total_spent = 0
 		for entry in stats.st_mana_spent_window:
 			total_spent += entry["amount"]
-		if total_spent >= 10:
+		if total_spent >= 100:
 			stats.st_mana_spent_window.clear()
 			var surge = Card.create_mana_surge()
 			main.deck_manager.add_card_to_hand(surge)

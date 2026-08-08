@@ -149,7 +149,7 @@ func initialize(char_name: String) -> void:
 	match character_name:
 		"Ryan":
 			belt_slots = 3
-			belt_card_mana_reduction = 1
+			belt_card_mana_reduction = 10
 		"Brad":
 			chest_weight_reduction = 0.20
 			has_back_rack = true  # War Rack: hands <-> back exchange (see rack_exchange)
@@ -177,7 +177,7 @@ func _print_passives() -> void:
 	if off_hand_bonus > 0:
 		print("[INVENTORY] Passive: +%.0f%% off-hand bonuses" % (off_hand_bonus * 100))
 	if gauntlet_cooldown_mana:
-		print("[INVENTORY] Passive: Gain 1 mana when gauntlet skill comes off cooldown")
+		print("[INVENTORY] Passive: Gain 10 mana when gauntlet skill comes off cooldown")
 
 func _init_slot_arrays() -> void:
 	equipped_helms.clear()
@@ -683,8 +683,8 @@ func process_turn() -> void:
 				
 				# Cory's passive: gain mana when skill comes off cooldown
 				if gauntlet_cooldown_mana and player_stats:
-					player_stats.gain_mana(1)
-					print("[INVENTORY] Cory passive: Gained 1 mana from cooldown")
+					player_stats.gain_mana(10)
+					print("[INVENTORY] Cory passive: Gained 10 mana from cooldown")
 
 	# Grant armor-per-turn from chest items (e.g. Leather Chest)
 	if player_stats:

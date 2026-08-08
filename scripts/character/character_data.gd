@@ -25,8 +25,8 @@ func get_base_character() -> String:
 
 # Derived/Direct Stats
 @export var base_health: int = 10
-@export var base_mana: int = 10
-@export var base_mana_regen: float = 1.0  # Energy regen per turn
+@export var base_mana: int = 50
+@export var base_mana_regen: float = 10.0  # Mana regen per cycle
 @export var base_draw_timer: int = 5  # Turns between draws
 # Uniform for all characters — hand size only grows via WIS (+1 per 5) and gear.
 @export var base_hand_size: int = 4
@@ -116,8 +116,8 @@ static func create_ryan() -> CharacterData:
 	data.determination = 3
 	data.agility = 3
 	data.base_health = 10
-	data.base_mana = 5
-	data.base_mana_regen = 1.0
+	data.base_mana = 50
+	data.base_mana_regen = 10.0
 	data.base_draw_timer = 5
 	data.archetypes = [
 		{"name": "Relentless Blade", "description": "Constant pressure, and 1000 cuts is how you fight. Aggression, and lacerations are your north star."},
@@ -141,8 +141,8 @@ static func create_jeremy() -> CharacterData:
 	data.determination = 3
 	data.agility = 3
 	data.base_health = 10
-	data.base_mana = 5
-	data.base_mana_regen = 1.0
+	data.base_mana = 50
+	data.base_mana_regen = 10.0
 	data.base_draw_timer = 5
 	data.archetypes = [
 		{"name": "Evocation", "description": "Master of the elements. Blasting enemies with power is your cup of tea."},
@@ -166,8 +166,8 @@ static func create_stephen() -> CharacterData:
 	data.determination = 3
 	data.agility = 3
 	data.base_health = 10
-	data.base_mana = 5
-	data.base_mana_regen = 1.0
+	data.base_mana = 50
+	data.base_mana_regen = 10.0
 	data.base_draw_timer = 5
 	data.archetypes = [
 		{"name": "The Apex", "description": "The most efficient and dangerous killer. No tactic is out of question, master of all things offense.", "abilities": [
@@ -207,8 +207,8 @@ static func create_cory() -> CharacterData:
 	data.determination = 3
 	data.agility = 3
 	data.base_health = 10
-	data.base_mana = 5
-	data.base_mana_regen = 1.0
+	data.base_mana = 50
+	data.base_mana_regen = 10.0
 	data.base_draw_timer = 5
 	data.archetypes = [
 		{"name": "Lurker", "description": "You gain strength from your enemies wounds, becoming stronger as they become weaker, trapping them, or holding them in place, preparing for you to devour."},
@@ -232,8 +232,8 @@ static func create_brad() -> CharacterData:
 	data.determination = 3
 	data.agility = 3
 	data.base_health = 10
-	data.base_mana = 5
-	data.base_mana_regen = 1.0
+	data.base_mana = 50
+	data.base_mana_regen = 10.0
 	data.base_draw_timer = 5
 	data.archetypes = [
 		{"name": "Berserker", "description": "Health is simply an inconvenience. Pain is your greatest strength, causing you to get stronger as you edge near death.", "abilities": [

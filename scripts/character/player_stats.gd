@@ -57,9 +57,9 @@ var determination: int = 10  # Determination doesn't modify itself
 var max_health: int = 10
 var current_health: int = 10
 
-var max_mana: int = 10
-var current_mana: float = 10.0
-var base_mana_regen: float = 1.0
+var max_mana: int = 50
+var current_mana: float = 50.0
+var base_mana_regen: float = 10.0
 var maintained_mana: int = 0  # Mana reserved by maintained Power cards
 
 # ============================================
@@ -956,8 +956,10 @@ func get_intelligence_spell_bonus() -> int:
 	return floori(intelligence * 0.5)
 
 func get_intelligence_mana_regen_bonus() -> float:
-	# +0.15 mana regen per point (rounds down — roughly +1 per 7 INT)
-	return floorf(intelligence * 0.15)
+	# +1 mana regen per point — INT is the sustain stat, the way STR is the
+	# damage stat. Every point matters on the x10 mana scale: at INT 75 a
+	# caster regenerates a big spell (~80 mana) every cycle.
+	return float(intelligence)
 
 func get_int_spell_proc_chance() -> float:
 	## Arcane Echo: percent chance (INT/3) to echo bonus damage on a spell cast.
@@ -1208,12 +1210,13 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		temp_health_changed.emit(current_temp_health)
 
 	# Arcane Blood: mana soaks half of what would hit health (health keeps the
-	# odd point). If mana can't cover its share, health takes the leftover —
-	# so death still only comes from HP reaching 0.
+	# odd point) at the standing 10-mana-per-1-damage exchange rate. If mana
+	# can't cover its share, health takes the leftover — so death still only
+	# comes from HP reaching 0.
 	if keystone_mana_blood and remaining > 1 and current_mana > 0:
-		var mana_share = mini(remaining / 2, floori(current_mana))
+		var mana_share = mini(remaining / 2, floori(current_mana / 10.0))
 		if mana_share > 0:
-			_drain_mana_as_health(mana_share)
+			_drain_mana_as_health(mana_share * 10)
 			remaining -= mana_share
 
 	if remaining > 0:

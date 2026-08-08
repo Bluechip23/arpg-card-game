@@ -59,7 +59,7 @@ func _set_name_and_description() -> void:
 			description = "Deal %d damage back to attackers" % value
 		BuffType.FOCUSED:
 			buff_name = "Focused"
-			description = "Gain 1 extra mana per cycle"
+			description = "Gain 10 extra mana per cycle"
 		BuffType.REGEN:
 			buff_name = "Regen"
 			description = "Heal %d HP per cycle" % value

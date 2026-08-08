@@ -93,7 +93,7 @@ func _set_name_and_description() -> void:
 			description = "Attack cards cost %d more mana" % value
 		DebuffType.DRAIN:
 			debuff_name = "Drain"
-			description = "Lose 1 mana per cycle, lose 1 drain per cycle"
+			description = "Lose 10 mana per cycle, lose 1 drain per cycle"
 		DebuffType.WEIGHTED:
 			debuff_name = "Weighted"
 			description = "Cards cost %d more tempo" % value

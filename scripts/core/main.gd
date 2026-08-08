@@ -5471,10 +5471,10 @@ func _on_apply_debuff(debuff_name: String) -> void:
 		"Cuffed": debuff = Debuff.create(Debuff.DebuffType.CUFFED, 0, 3)
 		"Shocked (3)": debuff = Debuff.create(Debuff.DebuffType.SHOCKED, 3, 3)
 		"Slowed (2)": debuff = Debuff.create(Debuff.DebuffType.SLOWED, 2, 3)
-		"Staggered (1)": debuff = Debuff.create(Debuff.DebuffType.STAGGERED, 1, 3)
+		"Staggered (10)": debuff = Debuff.create(Debuff.DebuffType.STAGGERED, 10, 3)
 		"Drain (2)": debuff = Debuff.create(Debuff.DebuffType.DRAIN, 2, 3)
 		"Weighted (1)": debuff = Debuff.create(Debuff.DebuffType.WEIGHTED, 1, 3)
-		"Hexed (2)": debuff = Debuff.create(Debuff.DebuffType.HEXED, 2, 3)
+		"Hexed (20)": debuff = Debuff.create(Debuff.DebuffType.HEXED, 20, 3)
 		"Locked": debuff = Debuff.create(Debuff.DebuffType.LOCKED, 0, 2)
 		"Rooted": debuff = Debuff.create(Debuff.DebuffType.ROOTED, 0, 2)
 		"Tethered (3)": 
@@ -5719,7 +5719,7 @@ func _recalculate_enchantment_bonuses() -> void:
 			"movement_1":
 				movement_bonus += 1
 			"mana_regen_1":
-				mana_regen_bonus += 1.0
+				mana_regen_bonus += 10.0
 	var changed = (stats.enchantment_damage_bonus != damage_bonus
 		or stats.enchantment_block_bonus != block_bonus
 		or stats.enchantment_mana_regen_bonus != mana_regen_bonus
@@ -5860,7 +5860,7 @@ func _vines_tick(en, dmg: int) -> void:
 
 func _try_this_revert(tt_stats) -> void:
 	if is_instance_valid(tt_stats):
-		tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
+		tt_stats.max_mana = max(10, tt_stats.max_mana - 30)
 		tt_stats.adjust_temp_hand(-2)
 
 func _stun_nearest_enemy(within: float) -> void:
@@ -7363,14 +7363,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if tt_stats:
 				var tt_backfired: bool = card.rng_binary_succeeded() if card.has_been_rolled() else randf() < 0.1
 				if tt_backfired:
-					tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
+					tt_stats.max_mana = max(10, tt_stats.max_mana - 30)
 					tt_stats.adjust_temp_hand(-2)
-					add_battle_log("Try This backfired! -3 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
+					add_battle_log("Try This backfired! -30 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
 				else:
-					tt_stats.max_mana += 3
+					tt_stats.max_mana += 30
 					tt_stats.adjust_temp_hand(2)
 					schedule_delayed_effect(10, _try_this_revert.bind(tt_stats), "try_this")
-					add_battle_log("Try This! +3 mana pool, +2 hand size for 10 tempo", Color(0.6, 1.0, 0.6))
+					add_battle_log("Try This! +30 mana pool, +2 hand size for 10 tempo", Color(0.6, 1.0, 0.6))
 
 		"shuriken":
 			# Deal 3 damage to a RANDOM living enemy, as the card describes.
@@ -8517,9 +8517,10 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 		return
 	if mana_cost > 0:
 		if quiver_demonic_rage:
-			stats.take_damage(mana_cost)
+			var quiver_dr_hp = maxi(1, ceili(mana_cost / 10.0))
+			stats.take_damage(quiver_dr_hp)
 			buff_mgr.consume_demonic_rage()
-			print("[MAIN] Quiver: Demonic Rage paid %d health instead of mana" % mana_cost)
+			print("[MAIN] Quiver: Demonic Rage paid %d health instead of %d mana" % [quiver_dr_hp, mana_cost])
 		else:
 			stats.spend_mana(mana_cost)
 
