@@ -145,7 +145,7 @@ func _build_ui() -> void:
 
 	# ── Skill Tree Button ────────────────────────
 	var skill_tree_button = Button.new()
-	skill_tree_button.text = "SKILL TREE"
+	skill_tree_button.text = "PLAYER PASSIVES"
 	skill_tree_button.add_theme_font_size_override("font_size", 13)
 	skill_tree_button.pressed.connect(_on_skill_tree_pressed)
 

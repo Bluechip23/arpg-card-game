@@ -751,7 +751,7 @@ func _show_skill_tree_popup(character: CharacterData) -> void:
 	outer_vbox.add_child(header_hbox)
 
 	var title = Label.new()
-	title.text = "%s - Skill Tree" % character.character_name
+	title.text = "%s - Player Passives" % character.character_name
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -799,6 +799,10 @@ func _show_skill_tree_popup(character: CharacterData) -> void:
 	for row in tree.rows:
 		for option in row.options:
 			if option.option_type == SkillTreeData.OptionType.PASSIVE:
+				# Unassigned tree slots default to PASSIVE with placeholder
+				# text — they'd flood the list as an empty "General" group.
+				if option.description.contains("Placeholder - to be defined"):
+					continue
 				var arch := "General"
 				var desc := option.description
 				# Parse archetype from description: "Name (Archetype): Description"
