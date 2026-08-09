@@ -5104,8 +5104,9 @@ func _update_brain_button() -> void:
 		return
 	var pool: int = stats.current_brain_points
 	_brain_button.text = "%d" % pool
-	_brain_button.tooltip_text = "Brain points: %d / %d (1 per WIS, refresh every %d cycles)." % [
-		pool, stats.get_max_brain_points(), PlayerStats.BRAIN_REFRESH_CYCLES]
+	_brain_button.tooltip_text = "Brain points: %d / %d (1 per WIS, refresh every %d cycles).\nRefills in %d tempo." % [
+		pool, stats.get_max_brain_points(), PlayerStats.BRAIN_REFRESH_CYCLES,
+		tempo_manager.get_tempo_until_brain_refresh() if tempo_manager else 0]
 	# Spend buttons fade while unaffordable (still clickable — the click explains).
 	if _brain_peek_button:
 		var pk = stats.get_next_brain_peek_cost()
@@ -5114,6 +5115,9 @@ func _update_brain_button() -> void:
 			pk, PlayerStats.BRAIN_PEEK_COST_STEP]
 	if _brain_draw_button:
 		var dc = stats.get_next_brain_draw_cost()
+		# The button wears the price of the NEXT draw so the player always
+		# knows where they are on the ladder.
+		_brain_draw_button.text = "%d" % dc
 		_brain_draw_button.modulate.a = 1.0 if pool >= dc else 0.45
 		_brain_draw_button.tooltip_text = "Insight: spend %d brain to draw a card.\nEach draw this window costs more (5, 10, 15, 20, 25...)." % dc
 
@@ -5136,8 +5140,9 @@ func _update_flash_button() -> void:
 		return
 	var pool: int = stats.current_flash_points
 	_flash_button.text = "%d" % pool
-	_flash_button.tooltip_text = "Flash points: %d / %d (refresh every %d cycles)." % [
-		pool, stats.get_max_flash_points(), PlayerStats.FLASH_REFRESH_CYCLES]
+	_flash_button.tooltip_text = "Flash points: %d / %d (refresh every %d cycles).\nRefills in %d tempo." % [
+		pool, stats.get_max_flash_points(), PlayerStats.FLASH_REFRESH_CYCLES,
+		tempo_manager.get_tempo_until_flash_refresh() if tempo_manager else 0]
 	# Spend buttons fade while unaffordable (still clickable — the click explains).
 	if _flash_move_button:
 		_flash_move_button.set_pressed_no_signal(stats.flash_movement_enabled)
@@ -6176,6 +6181,9 @@ func _on_tempo_changed(current: int, threshold: int) -> void:
 	update_turn_display()
 	update_tempo_display()
 	_update_mana_regen_indicator()
+	# Keep the "refills in N tempo" tooltips on the point pools current.
+	_update_flash_button()
+	_update_brain_button()
 
 func update_tempo_display() -> void:
 	if tempo_label:

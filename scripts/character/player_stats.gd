@@ -874,8 +874,10 @@ func spend_flash_for_proc_tick() -> bool:
 ## tiles. Both pools are independent children of the ACTION POINTS category
 ## (see the action_points_spent signal).
 const BRAIN_REFRESH_CYCLES: int = 5
-## Cost of each draw bought within one refresh window (then +5 per extra).
-## Totals 75 across five draws — a maxed 75-WIS pool buys exactly all five.
+## Cost of each draw bought within one refresh window (then +5 per extra,
+## with no cap — pools above 75 keep buying). The first five total 75, so a
+## 75-WIS pool buys the full set in one window; WIS itself has no maximum
+## (DET and items push it higher).
 const BRAIN_DRAW_COSTS := [5, 10, 15, 20, 25]
 const BRAIN_PEEK_BASE_COST: int = 5   # first peek each window
 const BRAIN_PEEK_COST_STEP: int = 2   # each further peek costs this much more
