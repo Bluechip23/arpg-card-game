@@ -379,6 +379,8 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var sphere_crit = 0.0
 	if owner_stats and "sphere_bonus_crit" in owner_stats:
 		sphere_crit = owner_stats.sphere_bonus_crit
+	if owner_stats and "equipment_crit_bonus" in owner_stats:
+		sphere_crit += owner_stats.equipment_crit_bonus
 	# Exposed Blind Spot: one-time crit bonus from being attacked
 	var ebs_crit = 0
 	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats:

@@ -8513,7 +8513,10 @@ func _on_give_item(item_name: String) -> void:
 		"Wooden Sword": item = ItemData.create_wooden_sword()
 		"Frost Orb": item = ItemData.create_frost_orb()
 		"Bladed Doughnut": item = ItemData.create_bladed_doughnut()
-	
+		_:
+			# Any other item (all helms, etc.) resolves by name via factory discovery.
+			item = ItemData.create_by_name(item_name)
+
 	if item:
 		var inv = player.get_inventory()
 		# Find first empty equipment slot

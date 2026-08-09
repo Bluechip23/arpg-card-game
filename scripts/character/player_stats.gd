@@ -152,6 +152,13 @@ var sphere_bonus_regen: int = 0       # Health regenerated per tempo cycle
 var sphere_bonus_armor_per_cycle: int = 0  # Armor gained per tempo cycle
 var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2.0 = 2%)
 var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
+# Equipment-granted equivalents (added/removed by Inventory on equip/unequip,
+# mirroring the base_* stat pattern). Kept separate from the sphere bonuses so
+# unequip subtracts exactly what the item added.
+var equipment_crit_bonus: float = 0.0        # +% crit chance from gear (Monocle, Duelist's Visor)
+var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear (Hanibals Mask)
+var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gear (Thick Steel Helm)
+var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
 # Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
 var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0
@@ -1225,9 +1232,11 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	if type_resist > 0.0:
 		remaining = floori(remaining * (1.0 - min(type_resist, 100.0) / 100.0))
 
-	# Sphere grid flat resistance ("Resist +X%"): percent reduction on all damage.
-	if sphere_bonus_resistance > 0.0:
-		remaining = floori(remaining * (1.0 - minf(sphere_bonus_resistance, 90.0) / 100.0))
+	# Flat all-damage resistance from the sphere grid ("Resist +X%") plus any
+	# equipment resistance (e.g. Thick Steel Helm): percent reduction on all damage.
+	var flat_resist := sphere_bonus_resistance + equipment_resistance_bonus
+	if flat_resist > 0.0:
+		remaining = floori(remaining * (1.0 - minf(flat_resist, 90.0) / 100.0))
 
 	# Iron Bastion: chance to shrug off part of the hit.
 	if damage_proc_reduction_chance > 0.0 and remaining > 0 and randf() < damage_proc_reduction_chance:

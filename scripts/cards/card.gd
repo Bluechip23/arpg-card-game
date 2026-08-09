@@ -1126,11 +1126,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if ls_dealt > 0:
 			player_stats.apply_life_steal(max(1, floori(ls_dealt * 0.05)))
 
-	# Sphere grid "Life Steal +X%" nodes: attacks heal a percentage of damage dealt.
-	if card_type == CardType.ATTACK and player_stats and player_stats.sphere_bonus_life_steal > 0.0:
-		var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
-		if sls_dealt > 0:
-			player_stats.apply_life_steal(max(1, floori(sls_dealt * player_stats.sphere_bonus_life_steal / 100.0)))
+	# Sphere grid "Life Steal +X%" nodes AND equipment lifesteal (e.g. Hanibals
+	# Mask): attacks heal a percentage of damage dealt.
+	if card_type == CardType.ATTACK and player_stats:
+		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.equipment_lifesteal_bonus
+		if ls_pct > 0.0:
+			var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
+			if sls_dealt > 0:
+				player_stats.apply_life_steal(max(1, floori(sls_dealt * ls_pct / 100.0)))
 
 	# Clear armor break flag on target after attack resolves
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
@@ -1259,6 +1262,10 @@ func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_
 	if is_empowered and player_stats:
 		armor_amount = maxi(0, armor_amount - player_stats.empower_block_reduction)
 		print("[CARD] Empowered defense: -%d block" % player_stats.empower_block_reduction)
+
+	# Equipment "+X block to armor-granting defense cards" (Burgonet, Thick Steel).
+	if player_stats and armor_amount > 0 and player_stats.equipment_defense_card_block > 0:
+		armor_amount += player_stats.equipment_defense_card_block
 
 	if player_stats:
 		player_stats.add_armor(armor_amount)

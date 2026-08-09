@@ -255,6 +255,7 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 		return false
 
 	slot_array[slot_index] = item
+	item.armor_per_tempo_accum = 0  # periodic-armor counter restarts on equip
 
 	# Slot index > 0 means off-hand. (Later two-handing re-applies the
 	# item's bonuses at full strength — see set_two_handed.)
@@ -287,6 +288,7 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 					   slot_index > 0 and slot_index != two_handed_slot)
 
 	slot_array[slot_index] = null
+	item.armor_per_tempo_accum = 0  # counter resets when unequipped (per spec)
 	# Losing the item releases two-handing with it
 	if slot_array == equipped_weapons and slot_index == two_handed_slot:
 		_clear_two_handed_state()
@@ -422,6 +424,17 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	if item.healing_bonus > 0:
 		player_stats.healing_bonus += item.healing_bonus * multiplier
 		print("[INVENTORY] Healing bonus now: +%d" % player_stats.healing_bonus)
+
+	# Equipment crit / lifesteal / all-resistance (helms and beyond). Float
+	# fields, so applied directly with the ±1 multiplier like the base stats.
+	if item.crit_chance_percent != 0.0:
+		player_stats.equipment_crit_bonus += item.crit_chance_percent * multiplier
+	if item.lifesteal_percent != 0.0:
+		player_stats.equipment_lifesteal_bonus += item.lifesteal_percent * multiplier
+	if item.all_resistance_percent != 0.0:
+		player_stats.equipment_resistance_bonus += item.all_resistance_percent * multiplier
+	if item.block_bonus_to_defense_cards != 0:
+		player_stats.equipment_defense_card_block += item.block_bonus_to_defense_cards * multiplier
 
 	# Recalculate derived stats
 	player_stats.recalculate_derived_stats()
@@ -686,12 +699,19 @@ func process_turn() -> void:
 					player_stats.gain_mana(10)
 					print("[INVENTORY] Cory passive: Gained 10 mana from cooldown")
 
-	# Grant armor-per-turn from chest items (e.g. Leather Chest)
+	# Grant periodic armor (ARMOR_PER_TURN) from any equipped chest or helm.
+	# process_turn() fires once per 5-tempo cycle; each item banks 5 tempo and
+	# grants its armor once its own interval (default 5, e.g. 15 for Mail Coif)
+	# is reached. The accumulator resets on equip/unequip.
 	if player_stats:
-		for item in equipped_chests:
+		for item in equipped_chests + equipped_helms:
 			if item and item.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN:
-				player_stats.add_armor(item.special_effect_value)
-				print("[INVENTORY] %s: +%d armor per turn" % [item.item_name, item.special_effect_value])
+				item.armor_per_tempo_accum += 5  # one cycle = 5 tempo
+				var interval: int = maxi(5, item.armor_per_tempo_interval)
+				while item.armor_per_tempo_accum >= interval:
+					item.armor_per_tempo_accum -= interval
+					player_stats.add_armor(item.special_effect_value)
+					print("[INVENTORY] %s: +%d armor (every %d tempo)" % [item.item_name, item.special_effect_value, interval])
 
 # ============================================
 # RING TRIGGER SYSTEM
