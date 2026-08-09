@@ -41,6 +41,10 @@ var prep_utility_discount: int = 0  # Preparation: reduces next utility card cos
 var prep_utility_charges: int = 0   # How many more utility cards get the discount
 var discards_this_cycle: int = 0  # Cards discarded since last tempo cycle
 var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
+# Brain-point peeks (Wisdom): how many cards from the top of the draw pile are
+# currently revealed. Drawing consumes one revealed card; shuffling the pile
+# invalidates all of them.
+var brain_peek_depth: int = 0
 # Hand slots held for queued cards whose effects draw (Draw, Reload, …).
 # While such a card ticks toward its resolve, the slot it freed on play must
 # not be stolen by a tempo draw — otherwise the effect resolves into a full
@@ -239,6 +243,7 @@ func _create_card_from_data(card_data: Dictionary) -> Card:
 
 func shuffle_draw_pile() -> void:
 	draw_pile.shuffle()
+	brain_peek_depth = 0  # Shuffling scrambles everything the player had scried
 	deck_shuffled.emit()
 
 func shuffle_discard_into_draw() -> void:
@@ -278,6 +283,9 @@ func draw_card() -> Card:
 
 	hand.append(card)
 	peaked_card = null
+	# The drawn card was the top of the pile — one revealed card is consumed.
+	if brain_peek_depth > 0:
+		brain_peek_depth -= 1
 	card_drawn.emit(card)
 	hand_updated.emit()
 
@@ -405,9 +413,9 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	if card.card_type == Card.CardType.ATTACK:
 		mana_cost -= next_attack_mana_discount
 
-	# Specific Strike: +1 mana per OTHER card in hand.
+	# Specific Strike: +10 mana per OTHER card in hand.
 	if card.card_id == "specific_strike":
-		mana_cost += max(0, hand.size() - 1)
+		mana_cost += max(0, hand.size() - 1) * 10
 	# Exhausted Assault: free to play while you have no mana.
 	if card.card_id == "exhausted_assault" and player_stats and player_stats.current_mana <= 0:
 		mana_cost = 0
@@ -424,10 +432,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		mana_cost -= prep_utility_discount
 		print("[DECK] Preparation discount: -%d mana (%d charges left)" % [prep_utility_discount, prep_utility_charges])
 
-	# Fireball synergy: -1 mana for each OTHER fire spell already cast this turn.
+	# Fireball synergy: -10 mana for each OTHER fire spell already cast this turn.
 	if card.is_fire_spell and fire_spells_this_turn > 0:
-		mana_cost -= fire_spells_this_turn
-		print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this turn)" % [fire_spells_this_turn, fire_spells_this_turn])
+		mana_cost -= fire_spells_this_turn * 10
+		print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this turn)" % [fire_spells_this_turn * 10, fire_spells_this_turn])
 
 	if debuff_mgr:
 		if card.card_type == Card.CardType.ATTACK:
@@ -438,15 +446,17 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	mana_cost = max(0, mana_cost)
 
-	# Demonic Rage: mana costs use health instead
+	# Demonic Rage: mana costs use health instead, at the standing
+	# 10-mana-per-1-HP exchange rate (mana runs on a x10 scale; HP does not).
 	var demonic_rage_active = false
+	var demonic_rage_hp_cost = maxi(1, ceili(mana_cost / 10.0)) if mana_cost > 0 else 0
 	if mana_cost > 0 and player_node and player_node.has_method("get_buff_manager"):
 		var dr_buff_mgr = player_node.get_buff_manager()
 		if dr_buff_mgr and dr_buff_mgr.has_demonic_rage():
 			demonic_rage_active = true
 			# Check if player has enough health (must survive)
-			if player_stats and player_stats.current_health <= mana_cost:
-				print("[DECK] Demonic Rage: not enough health to pay %d!" % mana_cost)
+			if player_stats and player_stats.current_health <= demonic_rage_hp_cost:
+				print("[DECK] Demonic Rage: not enough health to pay %d!" % demonic_rage_hp_cost)
 				return { "played": false, "half_tempo": false }
 
 	if not demonic_rage_active:
@@ -460,12 +470,12 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	var health_paid := 0
 	if player_stats and mana_cost > 0:
 		if demonic_rage_active:
-			# Spend health instead of mana
+			# Spend health instead of mana (10 mana = 1 HP)
 			var dr_buff_mgr = player_node.get_buff_manager()
-			player_stats.take_damage(mana_cost)
+			player_stats.take_damage(demonic_rage_hp_cost)
 			dr_buff_mgr.consume_demonic_rage()
-			health_paid = mana_cost
-			print("[DECK] Demonic Rage: paid %d health instead of mana (%d charges left)" % [mana_cost, dr_buff_mgr.get_buff(Buff.BuffType.DEMONIC_RAGE).charges if dr_buff_mgr.has_demonic_rage() else 0])
+			health_paid = demonic_rage_hp_cost
+			print("[DECK] Demonic Rage: paid %d health instead of %d mana (%d charges left)" % [demonic_rage_hp_cost, mana_cost, dr_buff_mgr.get_buff(Buff.BuffType.DEMONIC_RAGE).charges if dr_buff_mgr.has_demonic_rage() else 0])
 		else:
 			player_stats.spend_mana(mana_cost)
 			mana_paid = mana_cost
@@ -700,8 +710,8 @@ func assign_hexed_locked_cards(debuff_mgr) -> void:
 
 func apply_dex_proc_bonus() -> void:
 	next_attack_half_tempo = true
-	next_attack_mana_discount = 2
-	print("[DECK] Next attack: HALF TEMPO + 2 mana discount!")
+	next_attack_mana_discount = 20
+	print("[DECK] Next attack: HALF TEMPO + 20 mana discount!")
 
 func process_turn() -> void:
 	discards_this_cycle = 0
@@ -762,6 +772,15 @@ func _process_erase_timers() -> void:
 
 func get_peaked_card() -> Card:
 	return peaked_card
+
+func get_brain_peeked_cards() -> Array[Card]:
+	## The revealed top of the draw pile (brain-point peeks), in draw order —
+	## element 0 is the very next card. Top of the pile is the array's BACK.
+	var out: Array[Card] = []
+	var depth = mini(brain_peek_depth, draw_pile.size())
+	for i in range(depth):
+		out.append(draw_pile[draw_pile.size() - 1 - i])
+	return out
 
 func get_draw_pile_size() -> int:
 	return draw_pile.size()

@@ -87,11 +87,11 @@ func _setup_dropdowns() -> void:
 		debuff_dropdown.add_item("Cuffed")
 		debuff_dropdown.add_item("Shocked (3)")
 		debuff_dropdown.add_item("Slowed (2)")
-		debuff_dropdown.add_item("Staggered (1)")
+		debuff_dropdown.add_item("Staggered (10)")
 		debuff_dropdown.add_item("Drain (2)")
 		debuff_dropdown.add_item("Weighted (1)")
 		# New debuffs
-		debuff_dropdown.add_item("Hexed (2)")
+		debuff_dropdown.add_item("Hexed (20)")
 		debuff_dropdown.add_item("Locked")
 		debuff_dropdown.add_item("Rooted")
 		debuff_dropdown.add_item("Tethered (3)")

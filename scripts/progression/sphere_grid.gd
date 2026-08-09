@@ -311,7 +311,10 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Life Steal +3%", "Heal for 3% of damage dealt"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Heal +4", "Heal cards restore +4 additional HP"],
-		[NodeType.KEYSTONE, "Flash Reserves", "Keystone: spend 4 Flash points to draw a card (new battle HUD button).", {"req": {"stat": "agility", "value": 12}, "keystone": "flash_draw"}],
+		# Flash Reserves (AGI flash → draw) retired: card-drawing is Wisdom's
+		# domain now (brain points). Node kept as a connector; refill with a
+		# body-flavored AGI keystone later.
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.PASSIVE, "Passive", "On cycle: 20% gain empower"],
 		[NodeType.STAT_BONUS, "DET +5", "Determination +5"],

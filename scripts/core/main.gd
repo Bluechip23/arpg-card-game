@@ -291,7 +291,9 @@ var _flash_move_button: Button = null   # boots: toggle spending flash on moveme
 var _flash_move_sparkle: SparkleBorder = null  # gold cycling border while the toggle is on
 var _flash_block_button: Button = null  # duck: 3 flash → 2 block
 var _flash_proc_button: Button = null   # daggers: 5 flash → 1 attack-speed tick
-var _flash_draw_button: Button = null   # cards: 4 flash → draw (Flash Reserves keystone only)
+var _brain_button: Button = null        # brain + pool count display (60% of the row)
+var _brain_peek_button: Button = null   # eye: escalating cost → reveal next draw-pile card
+var _brain_draw_button: Button = null   # card+: escalating cost → draw a card
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
 
 # Stat bar UI references
@@ -928,17 +930,45 @@ func _setup_action_buttons() -> void:
 	_flash_proc_button.pressed.connect(_on_flash_proc_pressed)
 	flash_row.add_child(_flash_proc_button)
 
-	# Hidden until the Flash Reserves keystone is unlocked on the sphere grid.
-	_flash_draw_button = Button.new()
-	_flash_draw_button.name = "FlashDrawButton"
-	_flash_draw_button.icon = UIGlyphs.get_glyph("card_draw")
-	_flash_draw_button.expand_icon = true
-	_flash_draw_button.custom_minimum_size = Vector2(26, 36)
-	_flash_draw_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_flash_draw_button.size_flags_stretch_ratio = 4.0 / 3.0
-	_flash_draw_button.pressed.connect(_on_flash_draw_pressed)
-	_flash_draw_button.visible = false
-	flash_row.add_child(_flash_draw_button)
+	# Brain row (below Flash, above Attack): Wisdom's pool. Same layout —
+	# left 60%: brain + pool count (display only). Right 40%: two spend
+	# buttons — the eye peeks the next draw-pile card, the card+ buys a draw.
+	# Both prices escalate within each refresh window. Flash and Brain are
+	# independent pools under the shared ACTION POINTS category.
+	var brain_row = HBoxContainer.new()
+	brain_row.name = "BrainRow"
+	brain_row.add_theme_constant_override("separation", 2)
+	vbox.add_child(brain_row)
+
+	_brain_button = Button.new()
+	_brain_button.name = "BrainCount"
+	_brain_button.icon = UIGlyphs.get_glyph("brain")
+	_brain_button.text = "0"
+	_brain_button.custom_minimum_size = Vector2(0, 36)
+	_brain_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_brain_button.size_flags_stretch_ratio = 6.0
+	_brain_button.focus_mode = Control.FOCUS_NONE
+	brain_row.add_child(_brain_button)
+
+	_brain_peek_button = Button.new()
+	_brain_peek_button.name = "BrainPeekButton"
+	_brain_peek_button.icon = UIGlyphs.get_glyph("eye")
+	_brain_peek_button.expand_icon = true
+	_brain_peek_button.custom_minimum_size = Vector2(26, 36)
+	_brain_peek_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_brain_peek_button.size_flags_stretch_ratio = 2.0
+	_brain_peek_button.pressed.connect(_on_brain_peek_pressed)
+	brain_row.add_child(_brain_peek_button)
+
+	_brain_draw_button = Button.new()
+	_brain_draw_button.name = "BrainDrawButton"
+	_brain_draw_button.icon = UIGlyphs.get_glyph("card_plus")
+	_brain_draw_button.expand_icon = true
+	_brain_draw_button.custom_minimum_size = Vector2(26, 36)
+	_brain_draw_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_brain_draw_button.size_flags_stretch_ratio = 2.0
+	_brain_draw_button.pressed.connect(_on_brain_draw_pressed)
+	brain_row.add_child(_brain_draw_button)
 
 	# Attack button (top): sword + damage + tempo cost + attacks until the
 	# speed proc. Damage renders red beside the sword, so the button hosts an
@@ -3488,7 +3518,9 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().armor_gained.connect(_on_player_armor_gained)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
+	player.get_stats().brain_points_changed.connect(_on_brain_points_changed)
 	_update_flash_button()
+	_update_brain_button()
 	# The skill tree screen spends the banked level-up stat points.
 	skill_tree_ui.player_stats = player.get_stats()
 	# The sphere grid checks stat-gated node requirements against the player.
@@ -5015,15 +5047,75 @@ func _try_arcane_echo(stats) -> void:
 	target.take_damage(dmg, true)
 	add_battle_log("Arcane Echo! %d bonus damage to %s." % [dmg, target.enemy_name], Color(0.6, 0.4, 1.0))
 
-func _on_flash_draw_pressed() -> void:
+func _on_brain_draw_pressed() -> void:
 	var stats = player.get_stats() if player else null
-	if not stats or not stats.keystone_flash_draw:
+	if not stats:
 		return
-	if stats.spend_flash_points(PlayerStats.FLASH_COST_DRAW):
-		deck_manager.attempt_draw()
-		add_battle_log("Flash Reserves! -%d flash, drew a card." % PlayerStats.FLASH_COST_DRAW, Color(1.0, 0.9, 0.4))
-	else:
-		add_battle_log("Not enough flash points (%d needed)." % PlayerStats.FLASH_COST_DRAW, Color(1.0, 0.5, 0.5))
+	var cost = stats.get_next_brain_draw_cost()
+	if stats.current_brain_points < cost:
+		add_battle_log("Not enough brain points (%d needed)." % cost, Color(1.0, 0.5, 0.5))
+		return
+	var debuff_mgr = player.get_debuff_manager()
+	if debuff_mgr and debuff_mgr.has_method("can_draw_cards") and not debuff_mgr.can_draw_cards():
+		add_battle_log("Cuffed — cannot draw cards.", Color(1.0, 0.5, 0.5))
+		return
+	if deck_manager.hand.size() >= deck_manager.get_hand_cap():
+		add_battle_log("Hand is full.", Color(1.0, 0.5, 0.5))
+		return
+	if deck_manager.get_draw_pile_size() == 0 and deck_manager.get_discard_pile_size() == 0:
+		add_battle_log("No cards left to draw.", Color(1.0, 0.5, 0.5))
+		return
+	if stats.spend_brain_for_draw():
+		deck_manager.draw_card()
+		add_battle_log("Insight! -%d brain, drew a card (next: %d)." % [
+			cost, stats.get_next_brain_draw_cost()], Color(0.85, 0.6, 0.9))
+		update_peaked_display()
+		_update_brain_button()
+
+func _on_brain_peek_pressed() -> void:
+	var stats = player.get_stats() if player else null
+	if not stats:
+		return
+	var cost = stats.get_next_brain_peek_cost()
+	if stats.current_brain_points < cost:
+		add_battle_log("Not enough brain points (%d needed)." % cost, Color(1.0, 0.5, 0.5))
+		return
+	if deck_manager.brain_peek_depth >= deck_manager.get_draw_pile_size():
+		add_battle_log("The draw pile is already fully revealed.", Color(1.0, 0.5, 0.5))
+		return
+	if stats.spend_brain_for_peek():
+		deck_manager.brain_peek_depth += 1
+		var seen = deck_manager.get_brain_peeked_cards()
+		if seen.size() > 0:
+			add_battle_log("Peek! -%d brain — card %d down is %s (next peek: %d)." % [
+				cost, seen.size(), seen[seen.size() - 1].card_name,
+				stats.get_next_brain_peek_cost()], Color(0.85, 0.6, 0.9))
+		update_peaked_display()
+		_update_brain_button()
+
+func _on_brain_points_changed(_current: int, _max_points: int) -> void:
+	_update_brain_button()
+
+func _update_brain_button() -> void:
+	if not _brain_button:
+		return
+	var stats = player.get_stats() if player else null
+	if not stats:
+		return
+	var pool: int = stats.current_brain_points
+	_brain_button.text = "%d" % pool
+	_brain_button.tooltip_text = "Brain points: %d / %d (1 per WIS, refresh every %d cycles)." % [
+		pool, stats.get_max_brain_points(), PlayerStats.BRAIN_REFRESH_CYCLES]
+	# Spend buttons fade while unaffordable (still clickable — the click explains).
+	if _brain_peek_button:
+		var pk = stats.get_next_brain_peek_cost()
+		_brain_peek_button.modulate.a = 1.0 if pool >= pk else 0.45
+		_brain_peek_button.tooltip_text = "Peek: spend %d brain to reveal the next unseen card of your draw pile.\nEach peek this window costs %d more." % [
+			pk, PlayerStats.BRAIN_PEEK_COST_STEP]
+	if _brain_draw_button:
+		var dc = stats.get_next_brain_draw_cost()
+		_brain_draw_button.modulate.a = 1.0 if pool >= dc else 0.45
+		_brain_draw_button.tooltip_text = "Insight: spend %d brain to draw a card.\nEach draw this window costs more (5, 10, 15, 20, 25...)." % dc
 
 func _on_flash_proc_pressed() -> void:
 	var stats = player.get_stats() if player else null
@@ -5065,10 +5157,6 @@ func _update_flash_button() -> void:
 	if _flash_proc_button:
 		_flash_proc_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_PROC_TICK else 0.45
 		_flash_proc_button.tooltip_text = "Quick hands: spend %d flash to advance the attack-speed counter by 1 tick." % PlayerStats.FLASH_COST_PROC_TICK
-	if _flash_draw_button:
-		_flash_draw_button.visible = stats.keystone_flash_draw
-		_flash_draw_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_DRAW else 0.45
-		_flash_draw_button.tooltip_text = "Flash Reserves: spend %d flash to draw a card." % PlayerStats.FLASH_COST_DRAW
 
 func _on_dexterity_proc() -> void:
 	print("[MAIN] Dexterity proc! Next attack: half tempo + 2 mana discount!")
@@ -5153,6 +5241,8 @@ func _on_hand_updated() -> void:
 	if hand_card_preview:
 		hand_card_preview.visible = false
 	_current_hand_hover_index = -1
+	# Drawing consumes revealed peek knowledge — keep the NEXT display honest.
+	update_peaked_display()
 
 	# Cory: Regrowth — draw 4 when hand is empty
 	if deck_manager.hand.is_empty():
@@ -5490,10 +5580,10 @@ func _on_apply_debuff(debuff_name: String) -> void:
 		"Cuffed": debuff = Debuff.create(Debuff.DebuffType.CUFFED, 0, 3)
 		"Shocked (3)": debuff = Debuff.create(Debuff.DebuffType.SHOCKED, 3, 3)
 		"Slowed (2)": debuff = Debuff.create(Debuff.DebuffType.SLOWED, 2, 3)
-		"Staggered (1)": debuff = Debuff.create(Debuff.DebuffType.STAGGERED, 1, 3)
+		"Staggered (10)": debuff = Debuff.create(Debuff.DebuffType.STAGGERED, 10, 3)
 		"Drain (2)": debuff = Debuff.create(Debuff.DebuffType.DRAIN, 2, 3)
 		"Weighted (1)": debuff = Debuff.create(Debuff.DebuffType.WEIGHTED, 1, 3)
-		"Hexed (2)": debuff = Debuff.create(Debuff.DebuffType.HEXED, 2, 3)
+		"Hexed (20)": debuff = Debuff.create(Debuff.DebuffType.HEXED, 20, 3)
 		"Locked": debuff = Debuff.create(Debuff.DebuffType.LOCKED, 0, 2)
 		"Rooted": debuff = Debuff.create(Debuff.DebuffType.ROOTED, 0, 2)
 		"Tethered (3)": 
@@ -5738,7 +5828,7 @@ func _recalculate_enchantment_bonuses() -> void:
 			"movement_1":
 				movement_bonus += 1
 			"mana_regen_1":
-				mana_regen_bonus += 1.0
+				mana_regen_bonus += 10.0
 	var changed = (stats.enchantment_damage_bonus != damage_bonus
 		or stats.enchantment_block_bonus != block_bonus
 		or stats.enchantment_mana_regen_bonus != mana_regen_bonus
@@ -5879,7 +5969,7 @@ func _vines_tick(en, dmg: int) -> void:
 
 func _try_this_revert(tt_stats) -> void:
 	if is_instance_valid(tt_stats):
-		tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
+		tt_stats.max_mana = max(10, tt_stats.max_mana - 30)
 		tt_stats.adjust_temp_hand(-2)
 
 func _stun_nearest_enemy(within: float) -> void:
@@ -6247,13 +6337,22 @@ func update_selected_display() -> void:
 		selected_label.visible = false
 
 func update_peaked_display() -> void:
-	if peaked_label:
+	if not peaked_label:
+		return
+	# Brain-point peeks reveal the top N draw-pile cards; the overflow PEAK
+	# mode reveals just the next one. Brain knowledge supersedes it when present.
+	var names: Array[String] = []
+	for c in deck_manager.get_brain_peeked_cards():
+		names.append(c.card_name)
+	if names.is_empty():
 		var peaked = deck_manager.get_peaked_card()
 		if peaked and deck_manager.current_overflow_mode == DeckManager.OverflowMode.PEAK:
-			peaked_label.text = "NEXT CARD: %s" % peaked.card_name
-			peaked_label.visible = true
-		else:
-			peaked_label.visible = false
+			names.append(peaked.card_name)
+	if names.is_empty():
+		peaked_label.visible = false
+	else:
+		peaked_label.text = "NEXT: %s" % " → ".join(names)
+		peaked_label.visible = true
 
 func update_card_highlights() -> void:
 	# Highlight the stack that contains the selected card.
@@ -7382,14 +7481,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if tt_stats:
 				var tt_backfired: bool = card.rng_binary_succeeded() if card.has_been_rolled() else randf() < 0.1
 				if tt_backfired:
-					tt_stats.max_mana = max(1, tt_stats.max_mana - 3)
+					tt_stats.max_mana = max(10, tt_stats.max_mana - 30)
 					tt_stats.adjust_temp_hand(-2)
-					add_battle_log("Try This backfired! -3 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
+					add_battle_log("Try This backfired! -30 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
 				else:
-					tt_stats.max_mana += 3
+					tt_stats.max_mana += 30
 					tt_stats.adjust_temp_hand(2)
 					schedule_delayed_effect(10, _try_this_revert.bind(tt_stats), "try_this")
-					add_battle_log("Try This! +3 mana pool, +2 hand size for 10 tempo", Color(0.6, 1.0, 0.6))
+					add_battle_log("Try This! +30 mana pool, +2 hand size for 10 tempo", Color(0.6, 1.0, 0.6))
 
 		"shuriken":
 			# Deal 3 damage to a RANDOM living enemy, as the card describes.
@@ -8536,9 +8635,10 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 		return
 	if mana_cost > 0:
 		if quiver_demonic_rage:
-			stats.take_damage(mana_cost)
+			var quiver_dr_hp = maxi(1, ceili(mana_cost / 10.0))
+			stats.take_damage(quiver_dr_hp)
 			buff_mgr.consume_demonic_rage()
-			print("[MAIN] Quiver: Demonic Rage paid %d health instead of mana" % mana_cost)
+			print("[MAIN] Quiver: Demonic Rage paid %d health instead of %d mana" % [quiver_dr_hp, mana_cost])
 		else:
 			stats.spend_mana(mana_cost)
 

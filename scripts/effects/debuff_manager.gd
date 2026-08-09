@@ -163,11 +163,11 @@ func process_turn_start() -> Dictionary:
 			owner_stats.elixir_active = false
 			print("[DEBUFF] Elixir wore off")
 
-	# Drain: lose 1 mana, then lose 1 drain stack
+	# Drain: lose 10 mana, then lose 1 drain stack
 	var drain = get_debuff(Debuff.DebuffType.DRAIN)
 	if drain:
-		result["mana_lost"] += 1
-		print("[DEBUFF] Drain steals 1 mana")
+		result["mana_lost"] += 10
+		print("[DEBUFF] Drain steals 10 mana")
 		drain.value -= 1
 		drain._set_name_and_description()
 		if drain.value <= 0:

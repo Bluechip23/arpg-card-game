@@ -114,8 +114,8 @@ func process_turn_start() -> Dictionary:
 				print("[BUFF] Regen heals %d" % buff.value)
 			
 			Buff.BuffType.FOCUSED:
-				result["mana_gained"] += 1
-				print("[BUFF] Focused grants +1 mana")
+				result["mana_gained"] += 10
+				print("[BUFF] Focused grants +10 mana")
 			
 			Buff.BuffType.BLESSED:
 				result["extra_draws"] += buff.value

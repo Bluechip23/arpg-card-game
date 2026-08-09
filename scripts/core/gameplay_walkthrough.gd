@@ -53,12 +53,16 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [color=blue]Intelligence (INT)[/color]
 - +0.5 spell damage per point
-- +0.15 mana regen per point (about +1 per 7)
+- +1 mana regen per point
 - Also boosts healing amount
 
 [color=purple]Wisdom (WIS)[/color]
-- +1 hand size per 5 points
-- Draws cards 1 tempo sooner per 4 points (base: every 25 tempo)
+- 1 Brain point per WIS point, refreshed every 5 cycles — the Brain row below Flash shows your pool (brain icon)
+- Eye button: Peek — reveal the next unseen card of your draw pile (5 brain, +2 per peek that window)
+- Card+ button: Insight — draw a card (5 brain, then 10, 15, 20, 25 that window)
+- Secondary: +1 hand size per 10 points
+- The auto draw timer is a flat 25 tempo — WIS no longer speeds it up
+- Brain and Flash points are both ACTION POINTS — independent pools under one category
 
 [color=cyan]Agility (AGI)[/color]
 - 1 Flash point per AGI point, refreshed every 3 cycles
@@ -224,7 +228,7 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 [color=green]Brad:[/color] Chest items weigh 20% less. War Rack: gear strapped to his back swaps with his hands — FREE on a 25-tempo cooldown (one side must be a single two-handed item; incoming cards rush to hand), or at normal swap cost anytime
 [color=blue]Jeremy:[/color] Every 3rd cycle, the first ring trigger triggers twice (4 ring slots)
 [color=purple]Stephen:[/color] +10% off-hand enchantments, others get -10% (standard slots)
-[color=orange]Cory:[/color] Gain 1 mana when gauntlet skill comes off cooldown (2 gauntlet slots)
+[color=orange]Cory:[/color] Gain 10 mana when gauntlet skill comes off cooldown (2 gauntlet slots)
 
 [font_size=18][color=cyan]━━━ RNG ━━━[/color][/font_size]
 
