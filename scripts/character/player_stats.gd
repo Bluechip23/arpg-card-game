@@ -21,6 +21,13 @@ signal gold_changed(amount: int)
 signal healed(amount: int)
 signal shepherds_mark_triggered  # Whispers of the Flock: mark prevented lethal damage
 signal flash_points_changed(current: int, max_points: int)
+signal brain_points_changed(current: int, max_points: int)
+# ACTION POINTS umbrella: flash (AGI/body) and brain (WIS/mind) are independent
+# pools under one parent category — like attack/spell under Offensive. Both
+# spend paths emit this with their pool tag so future items, sphere nodes,
+# cards, and enemies can react to "spending action points", "spending brain
+# points", or "spending flash points" specifically.
+signal action_points_spent(pool: String, amount: int)
 
 var character_data: CharacterData
 
@@ -153,7 +160,6 @@ var damage_proc_reduction_percent: float = 50.0
 # SPHERE GRID KEYSTONES (build-defining nodes)
 # ============================================
 var keystone_det_vitality: bool = false  # Bulwark Soul: +2 max HP per DET point, retroactive + ongoing
-var keystone_flash_draw: bool = false    # Flash Reserves: spend flash points to draw cards
 var keystone_dex_ranged: bool = false    # Deadeye Form: ranged damage scales with DEX instead of STR
 # Unbroken Will: Determination's penalty can never push the stat multiplier
 # below DET_FLOOR_MODIFIER (instead of the default 0.1) — half your stats is
@@ -414,6 +420,9 @@ func initialize(data: CharacterData) -> void:
 	maintained_mana = 0
 	_tempo_until_mana_regen = mana_regen_tempo_interval
 	current_flash_points = get_max_flash_points()
+	current_brain_points = get_max_brain_points()
+	brain_draws_bought = 0
+	brain_peeks_bought = 0
 
 	# Calculate derived stats
 	recalculate_derived_stats()
@@ -440,7 +449,6 @@ func save_progression() -> Dictionary:
 		"gold": gold,
 		# Sphere grid keystones
 		"keystone_det_vitality": keystone_det_vitality,
-		"keystone_flash_draw": keystone_flash_draw,
 		"keystone_dex_ranged": keystone_dex_ranged,
 		"keystone_det_floor": keystone_det_floor,
 		"keystone_det_amplify": keystone_det_amplify,
@@ -526,7 +534,6 @@ func restore_progression(data: Dictionary) -> void:
 	gold = data.get("gold", gold)
 	# Sphere grid keystones
 	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)
-	keystone_flash_draw = data.get("keystone_flash_draw", keystone_flash_draw)
 	keystone_dex_ranged = data.get("keystone_dex_ranged", keystone_dex_ranged)
 	keystone_det_floor = data.get("keystone_det_floor", keystone_det_floor)
 	keystone_det_amplify = data.get("keystone_det_amplify", keystone_det_amplify)
@@ -788,7 +795,6 @@ const FLASH_COST_BLOCK: int = 3   # "quick enough to get slightly out of the way
 const FLASH_BLOCK_ARMOR: int = 2
 const FLASH_STRIKE_DAMAGE: int = 1   # Flash Cut keystone: damage per Sidestep spend (placeholder)
 const FLASH_COST_PROC_TICK: int = 5  # advance the attack-speed counter 1 tick
-const FLASH_COST_DRAW: int = 4       # Flash Reserves keystone: draw a card
 
 # ---- The free-hand stance ----
 # Exactly one hand item (weapon OR shield) with a genuinely empty hand.
@@ -820,6 +826,7 @@ func spend_flash_points(amount: int) -> bool:
 		return false
 	current_flash_points -= amount
 	flash_points_changed.emit(current_flash_points, get_max_flash_points())
+	action_points_spent.emit("flash", amount)
 	return true
 
 func get_flash_block_cost() -> int:
@@ -854,6 +861,72 @@ func spend_flash_for_proc_tick() -> bool:
 	if not spend_flash_points(FLASH_COST_PROC_TICK):
 		return false
 	register_attack(false)  # a bought tick, not a real attack — no echo credit
+	return true
+
+# ============================================
+# WISDOM / BRAIN POINTS
+# ============================================
+
+## Brain points: 1 per WIS point, refreshed every BRAIN_REFRESH_CYCLES tempo
+## cycles (5 cycles = 25 tempo — slower than flash on purpose: the body is
+## twitchy, the mind is deliberate). Spends are card-economy only, upholding
+## the AGI/WIS domain line: flash never touches cards, brain never touches
+## tiles. Both pools are independent children of the ACTION POINTS category
+## (see the action_points_spent signal).
+const BRAIN_REFRESH_CYCLES: int = 5
+## Cost of each draw bought within one refresh window (then +5 per extra).
+## Totals 75 across five draws — a maxed 75-WIS pool buys exactly all five.
+const BRAIN_DRAW_COSTS := [5, 10, 15, 20, 25]
+const BRAIN_PEEK_BASE_COST: int = 5   # first peek each window
+const BRAIN_PEEK_COST_STEP: int = 2   # each further peek costs this much more
+
+var current_brain_points: int = 0
+var brain_draws_bought: int = 0   # draws bought this refresh window (escalates the price)
+var brain_peeks_bought: int = 0   # peeks bought this refresh window (escalates the price)
+
+func get_max_brain_points() -> int:
+	return wisdom
+
+func refresh_brain_points() -> void:
+	current_brain_points = get_max_brain_points()
+	brain_draws_bought = 0
+	brain_peeks_bought = 0
+	brain_points_changed.emit(current_brain_points, get_max_brain_points())
+
+func get_next_brain_draw_cost() -> int:
+	if brain_draws_bought < BRAIN_DRAW_COSTS.size():
+		return BRAIN_DRAW_COSTS[brain_draws_bought]
+	return BRAIN_DRAW_COSTS[-1] + 5 * (brain_draws_bought - BRAIN_DRAW_COSTS.size() + 1)
+
+func get_next_brain_peek_cost() -> int:
+	return BRAIN_PEEK_BASE_COST + BRAIN_PEEK_COST_STEP * brain_peeks_bought
+
+func spend_brain_points(amount: int) -> bool:
+	if current_brain_points < amount:
+		return false
+	current_brain_points -= amount
+	brain_points_changed.emit(current_brain_points, get_max_brain_points())
+	action_points_spent.emit("brain", amount)
+	return true
+
+func spend_brain_for_draw() -> bool:
+	## Buy an extra card draw (the caller performs the actual draw).
+	var cost := get_next_brain_draw_cost()
+	if not spend_brain_points(cost):
+		return false
+	brain_draws_bought += 1
+	print("[STATS] Brain draw bought: -%d brain (%d left, next costs %d)" % [
+		cost, current_brain_points, get_next_brain_draw_cost()])
+	return true
+
+func spend_brain_for_peek() -> bool:
+	## Buy one card of peek depth (the deck manager tracks what's revealed).
+	var cost := get_next_brain_peek_cost()
+	if not spend_brain_points(cost):
+		return false
+	brain_peeks_bought += 1
+	print("[STATS] Brain peek bought: -%d brain (%d left, next costs %d)" % [
+		cost, current_brain_points, get_next_brain_peek_cost()])
 	return true
 
 # ============================================
@@ -974,19 +1047,16 @@ func get_int_spell_proc_damage() -> int:
 # ============================================
 
 func get_wisdom_hand_bonus() -> int:
-	# Uses effective wisdom: +0.2 hand size per point (rounds down)
-	return floori(wisdom * 0.2)
-
-func get_wisdom_draw_bonus() -> float:
-	# Uses effective wisdom: +0.25 tempo shaved off the draw interval per
-	# point (rounds down) — no dead zone anywhere in the reachable range.
-	return floorf(wisdom * 0.25)
+	# Secondary WIS perk: +1 hand size per 10 points (rounds down). Hand size
+	# growth mainly lives on gear and the sphere grid; WIS's primary identity
+	# is brain points (1 per point).
+	return floori(wisdom / 10.0)
 
 func get_effective_draw_timer() -> float:
-	## Card-draw interval in GLOBAL TEMPO. base_draw_timer is in 5-tempo cycles
-	## (default 5 cycles = 25 tempo); the minimum of 1 is effectively no floor.
-	var timer = base_draw_timer * 5.0 - get_wisdom_draw_bonus()
-	return max(1.0, timer)
+	## Card-draw interval in GLOBAL TEMPO — a flat base (default 5 cycles =
+	## 25 tempo). WIS no longer accelerates it; extra draws come from
+	## brain-point purchases instead.
+	return max(1.0, base_draw_timer * 5.0)
 
 # ============================================
 # COMBINED CALCULATIONS
@@ -1633,14 +1703,14 @@ func get_stats_summary() -> String:
 	return """STR: %d (base %d) → +%d carry, +%d phys dmg
 DEX: %d (base %d) → proc in %d atks
 INT: %d (base %d) → +%d spell dmg, +%.0f regen
-WIS: %d (base %d) → +%d hand, -%.0f tempo draw
+WIS: %d (base %d) → +%d hand, %d/%d brain points
 AGI: %d (base %d) → %d/%d flash points
 DET: %d → %s
 Level: %d | XP: %d / %d""" % [
 		strength, base_strength, strength * 10, get_strength_damage_bonus(),
 		dexterity, base_dexterity, get_attacks_until_proc(),
 		intelligence, base_intelligence, get_intelligence_spell_bonus(), get_intelligence_mana_regen_bonus(),
-		wisdom, base_wisdom, get_wisdom_hand_bonus(), get_wisdom_draw_bonus(),
+		wisdom, base_wisdom, get_wisdom_hand_bonus(), current_brain_points, get_max_brain_points(),
 		agility, base_agility, current_flash_points, get_max_flash_points(),
 		determination, get_determination_description(),
 		current_level, current_xp, get_xp_to_next_level()

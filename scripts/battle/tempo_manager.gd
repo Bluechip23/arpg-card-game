@@ -36,6 +36,7 @@ signal ticking_finished()  # All pending ticks have been processed
 var current_tempo: int = 0   # Accumulator for the UI bar (resets at each cycle)
 var global_tempo: int = 0    # Ever-increasing universal tempo clock
 var _cycles_since_flash_refresh: int = 0  # Counts cycles toward the flash-point refresh
+var _cycles_since_brain_refresh: int = 0  # Counts cycles toward the brain-point refresh
 var spaces_moved_this_cycle: int = 0  # Total tiles moved since last cycle (for passives like Let's Dance)
 var last_tempo_source: String = ""  # Tracks what caused the last tempo addition ("movement", "card", etc.)
 
@@ -56,6 +57,7 @@ func initialize(p_stats: PlayerStats) -> void:
 	current_tempo = 0
 	global_tempo = 0
 	_cycles_since_flash_refresh = 0
+	_cycles_since_brain_refresh = 0
 	_ticking = false
 	_pending_ticks = 0
 	_active_cards.clear()
@@ -249,6 +251,13 @@ func _check_threshold() -> void:
 			_cycles_since_flash_refresh = 0
 			player_stats.refresh_flash_points()
 			print("[TEMPO] Flash points refreshed: %d" % player_stats.current_flash_points)
+		# Brain points (Wisdom) refresh every BRAIN_REFRESH_CYCLES cycles —
+		# deliberately slower than flash: the mind plans, the body reacts.
+		_cycles_since_brain_refresh += times_triggered
+		if player_stats and _cycles_since_brain_refresh >= PlayerStats.BRAIN_REFRESH_CYCLES:
+			_cycles_since_brain_refresh = 0
+			player_stats.refresh_brain_points()
+			print("[TEMPO] Brain points refreshed: %d" % player_stats.current_brain_points)
 		tempo_threshold_reached.emit(times_triggered)
 		turn_triggered.emit()
 		tempo_changed.emit(current_tempo, tempo_threshold)

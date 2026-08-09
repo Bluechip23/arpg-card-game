@@ -33,6 +33,9 @@ static func get_glyph(key: String) -> Texture2D:
 		"duck": _draw_duck(img)
 		"dual_daggers": _draw_dual_daggers(img)
 		"info": _draw_info(img)
+		"brain": _draw_brain(img)
+		"eye": _draw_eye(img)
+		"card_plus": _draw_card_plus(img)
 		_:
 			_cache[key] = null
 			return null
@@ -279,6 +282,61 @@ static func _draw_info(img: Image) -> void:
 	_ring(img, 12.0, 12.0, 9.0, 2.5, blue)
 	_rect(img, 11, 6, 3, 3, bright)   # the dot
 	_rect(img, 11, 10, 3, 8, bright)  # the stem
+
+static func _draw_brain(img: Image) -> void:
+	## A pink brain: two lobes with a center cleft and fold squiggles
+	## (the brain-points pool — Wisdom's counterpart to the flash bolt).
+	var pink := Color(0.95, 0.62, 0.72)
+	var deep := Color(0.72, 0.38, 0.5)
+	var stem := Color(0.82, 0.5, 0.58)
+	# Two overlapping lobes form the mass.
+	_disc(img, 8.5, 10.0, 5.5, pink)
+	_disc(img, 15.5, 10.0, 5.5, pink)
+	_disc(img, 12.0, 13.0, 6.0, pink)
+	# Center cleft between the hemispheres.
+	_rect(img, 11, 5, 2, 11, deep)
+	# Fold squiggles on each lobe.
+	_line(img, 5.0, 9.0, 8.0, 7.0, deep, 1.0)
+	_line(img, 5.5, 12.0, 8.5, 11.0, deep, 1.0)
+	_line(img, 16.0, 7.0, 19.0, 9.0, deep, 1.0)
+	_line(img, 15.5, 11.0, 18.5, 12.0, deep, 1.0)
+	# Brain stem.
+	_rect(img, 13, 17, 3, 3, stem)
+
+static func _draw_eye(img: Image) -> void:
+	## An open eye (peek): almond outline, iris, and bright pupil glint.
+	var white := Color(0.92, 0.94, 0.97)
+	var lid := Color(0.35, 0.45, 0.7)
+	var iris := Color(0.35, 0.65, 0.9)
+	var dark := Color(0.12, 0.16, 0.3)
+	# Almond: stacked shrinking rows of white bounded by lid lines.
+	_rect(img, 6, 10, 12, 4, white)
+	_rect(img, 8, 8, 8, 2, white)
+	_rect(img, 8, 14, 8, 2, white)
+	_line(img, 4.0, 12.0, 9.0, 7.0, lid, 1.2)
+	_line(img, 9.0, 7.0, 15.0, 7.0, lid, 1.2)
+	_line(img, 15.0, 7.0, 20.0, 12.0, lid, 1.2)
+	_line(img, 4.0, 12.0, 9.0, 17.0, lid, 1.2)
+	_line(img, 9.0, 17.0, 15.0, 17.0, lid, 1.2)
+	_line(img, 15.0, 17.0, 20.0, 12.0, lid, 1.2)
+	# Iris + pupil + glint.
+	_disc(img, 12.0, 12.0, 3.5, iris)
+	_disc(img, 12.0, 12.0, 1.8, dark)
+	_px(img, 13, 10, Color(1, 1, 1))
+
+static func _draw_card_plus(img: Image) -> void:
+	## A single card with a bold plus sign (buy a draw with brain points).
+	var face := Color(0.9, 0.9, 0.95)
+	var edge := Color(0.2, 0.25, 0.4)
+	var gold := Color(1.0, 0.85, 0.3)
+	_rect(img, 6, 3, 12, 17, face)
+	_rect(img, 6, 3, 12, 1, edge)
+	_rect(img, 6, 19, 12, 1, edge)
+	_rect(img, 6, 3, 1, 17, edge)
+	_rect(img, 17, 3, 1, 17, edge)
+	# Plus sign centered on the card.
+	_rect(img, 10, 7, 4, 10, gold)
+	_rect(img, 7, 10, 10, 4, gold)
 
 static func _ring(img: Image, cx: float, cy: float, r: float, th: float, c: Color) -> void:
 	## Circle outline of thickness th centered at (cx, cy).

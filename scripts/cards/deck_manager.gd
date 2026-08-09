@@ -41,6 +41,10 @@ var prep_utility_discount: int = 0  # Preparation: reduces next utility card cos
 var prep_utility_charges: int = 0   # How many more utility cards get the discount
 var discards_this_cycle: int = 0  # Cards discarded since last tempo cycle
 var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
+# Brain-point peeks (Wisdom): how many cards from the top of the draw pile are
+# currently revealed. Drawing consumes one revealed card; shuffling the pile
+# invalidates all of them.
+var brain_peek_depth: int = 0
 # Hand slots held for queued cards whose effects draw (Draw, Reload, …).
 # While such a card ticks toward its resolve, the slot it freed on play must
 # not be stolen by a tempo draw — otherwise the effect resolves into a full
@@ -239,6 +243,7 @@ func _create_card_from_data(card_data: Dictionary) -> Card:
 
 func shuffle_draw_pile() -> void:
 	draw_pile.shuffle()
+	brain_peek_depth = 0  # Shuffling scrambles everything the player had scried
 	deck_shuffled.emit()
 
 func shuffle_discard_into_draw() -> void:
@@ -278,6 +283,9 @@ func draw_card() -> Card:
 
 	hand.append(card)
 	peaked_card = null
+	# The drawn card was the top of the pile — one revealed card is consumed.
+	if brain_peek_depth > 0:
+		brain_peek_depth -= 1
 	card_drawn.emit(card)
 	hand_updated.emit()
 
@@ -764,6 +772,15 @@ func _process_erase_timers() -> void:
 
 func get_peaked_card() -> Card:
 	return peaked_card
+
+func get_brain_peeked_cards() -> Array[Card]:
+	## The revealed top of the draw pile (brain-point peeks), in draw order —
+	## element 0 is the very next card. Top of the pile is the array's BACK.
+	var out: Array[Card] = []
+	var depth = mini(brain_peek_depth, draw_pile.size())
+	for i in range(depth):
+		out.append(draw_pile[draw_pile.size() - 1 - i])
+	return out
 
 func get_draw_pile_size() -> int:
 	return draw_pile.size()
