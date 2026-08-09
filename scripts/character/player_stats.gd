@@ -935,26 +935,29 @@ func spend_brain_for_peek() -> bool:
 # DEXTERITY / ATTACK SPEED
 # ============================================
 
-# Encumbrance term of the attack-speed threshold. Square-root scaling means
-# spare capacity has diminishing returns, and the clamp keeps the whole term
-# smaller than a modest DEX investment — DEX stays the primary attack-speed
-# stat, with STR/loadout as a bounded secondary influence.
-const CAPACITY_BASELINE_FREE: int = 50      # free capacity that neither helps nor hurts
-const CAPACITY_SPEED_BONUS_CAP: int = 8     # most attacks light loading can shave off
+# Encumbrance term of the attack-speed threshold. Carrying weight only ever
+# SLOWS the counter: a naked character takes no modifier at all, and the
+# penalty grows with the FRACTION of carry capacity in use — capacity itself
+# (STR) never speeds anything up, it just raises how much you can wear before
+# the penalty bites. Speeding the counter up belongs to DEX, items, and other
+# effects, which keeps that space open for itemization.
+const CAPACITY_SPEED_MAX_PENALTY: int = 7   # penalty at 100% of carry capacity
 const OVERBURDENED_SPEED_PENALTY: int = 10  # flat penalty while over carry capacity
 
 func get_capacity_speed_modifier() -> int:
-	## Positive = slower (loaded down), negative = faster (light on your feet).
+	## 0 while unencumbered; positive (slower) as the load ratio climbs.
 	if is_overburdened():
 		return OVERBURDENED_SPEED_PENALTY
-	var free_capacity = get_free_carry_capacity()
-	var mod = sqrt(float(CAPACITY_BASELINE_FREE)) - sqrt(float(max(0, free_capacity)))
-	return clampi(roundi(mod), -CAPACITY_SPEED_BONUS_CAP, OVERBURDENED_SPEED_PENALTY)
+	var capacity = get_carry_capacity()
+	if capacity <= 0 or current_carry_load <= 0:
+		return 0
+	var ratio = clampf(float(current_carry_load) / float(capacity), 0.0, 1.0)
+	return roundi(ratio * CAPACITY_SPEED_MAX_PENALTY)
 
 # DEX pays per-point into crit damage too, so its counter contribution is
 # fractional. The minimum of 1 is deliberately reachable by a maxed light
 # build — proc-per-attack is the DEX capstone fantasy (Dominate's cooldown
-# keeps that from looping).
+# keeps that from looping). Encumbrance only ever ADDS to the threshold.
 const DEX_COUNTER_PER_POINT: float = 0.5
 const ATTACK_COUNTER_MIN: int = 1
 const DUAL_WIELD_COUNTER_BONUS: int = 4  # attacks shaved while dual wielding

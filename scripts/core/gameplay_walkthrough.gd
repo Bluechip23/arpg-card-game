@@ -41,11 +41,11 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - +10 carry capacity per point (base capacity 50)
 - +0.5 physical damage per point
 - Heavy weapons require high STR
-- Spare carry capacity also speeds up the attack counter a little (capped — see DEX)
+- More capacity = more gear before the encumbrance attack-speed penalty bites (see DEX)
 
 [color=green]Dexterity (DEX)[/color]
 - Attack speed counter = 45 - 0.5 x DEX, adjusted by encumbrance
-- Encumbrance (capped): traveling light shaves up to 8 attacks off, heavy loads add up to 7, overburdened is +10
+- Encumbrance only SLOWS: +0 when unencumbered, up to +7 as your load nears capacity, +10 flat while overburdened
 - Dual wielding (a matched pair in both hands) shaves 4 more
 - When counter hits 0: DEX PROC
 - DEX PROC = Next attack costs 20 less mana AND half tempo (rounded down)!
