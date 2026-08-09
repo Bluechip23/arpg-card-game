@@ -294,6 +294,7 @@ var _flash_proc_button: Button = null   # daggers: 5 flash → 1 attack-speed ti
 var _brain_button: Button = null        # brain + pool count display (60% of the row)
 var _brain_peek_button: Button = null   # eye: escalating cost → reveal next draw-pile card
 var _brain_draw_button: Button = null   # card+: escalating cost → draw a card
+var _brain_draw_cost_label: Label = null  # small price badge on the draw button's corner
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
 
 # Stat bar UI references
@@ -950,11 +951,14 @@ func _setup_action_buttons() -> void:
 	_brain_button.focus_mode = Control.FOCUS_NONE
 	brain_row.add_child(_brain_button)
 
+	# The two spend buttons mirror the flash row's THREE in total footprint
+	# (2 × 39 min = 3 × 26, 2 × 2.0 ratio = 3 × 4/3), so both rows resolve to
+	# identical count-button widths — the brain square matches the bolt square.
 	_brain_peek_button = Button.new()
 	_brain_peek_button.name = "BrainPeekButton"
 	_brain_peek_button.icon = UIGlyphs.get_glyph("eye")
 	_brain_peek_button.expand_icon = true
-	_brain_peek_button.custom_minimum_size = Vector2(26, 36)
+	_brain_peek_button.custom_minimum_size = Vector2(39, 36)
 	_brain_peek_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_brain_peek_button.size_flags_stretch_ratio = 2.0
 	_brain_peek_button.pressed.connect(_on_brain_peek_pressed)
@@ -964,11 +968,26 @@ func _setup_action_buttons() -> void:
 	_brain_draw_button.name = "BrainDrawButton"
 	_brain_draw_button.icon = UIGlyphs.get_glyph("card_plus")
 	_brain_draw_button.expand_icon = true
-	_brain_draw_button.custom_minimum_size = Vector2(26, 36)
+	_brain_draw_button.custom_minimum_size = Vector2(39, 36)
 	_brain_draw_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_brain_draw_button.size_flags_stretch_ratio = 2.0
 	_brain_draw_button.pressed.connect(_on_brain_draw_pressed)
 	brain_row.add_child(_brain_draw_button)
+	# The next draw's price rides the button's top-right corner as a small
+	# badge, leaving the card+ glyph full-size underneath.
+	_brain_draw_cost_label = Label.new()
+	_brain_draw_cost_label.add_theme_font_size_override("font_size", 9)
+	_brain_draw_cost_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	_brain_draw_cost_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	_brain_draw_cost_label.add_theme_constant_override("outline_size", 4)
+	_brain_draw_cost_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_brain_draw_cost_label.offset_left = -18.0
+	_brain_draw_cost_label.offset_right = -2.0
+	_brain_draw_cost_label.offset_top = 1.0
+	_brain_draw_cost_label.offset_bottom = 12.0
+	_brain_draw_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_brain_draw_cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_brain_draw_button.add_child(_brain_draw_cost_label)
 
 	# Attack button (top): sword + damage + tempo cost + attacks until the
 	# speed proc. Damage renders red beside the sword, so the button hosts an
@@ -5115,9 +5134,10 @@ func _update_brain_button() -> void:
 			pk, PlayerStats.BRAIN_PEEK_COST_STEP]
 	if _brain_draw_button:
 		var dc = stats.get_next_brain_draw_cost()
-		# The button wears the price of the NEXT draw so the player always
-		# knows where they are on the ladder.
-		_brain_draw_button.text = "%d" % dc
+		# The corner badge wears the NEXT draw's price so the player always
+		# knows where they are on the ladder; the glyph keeps the full button.
+		if _brain_draw_cost_label:
+			_brain_draw_cost_label.text = "%d" % dc
 		_brain_draw_button.modulate.a = 1.0 if pool >= dc else 0.45
 		_brain_draw_button.tooltip_text = "Insight: spend %d brain to draw a card.\nEach draw this window costs more (5, 10, 15, 20, 25...)." % dc
 

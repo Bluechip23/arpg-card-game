@@ -56,7 +56,9 @@ const RUN_FRAME_TIME := 0.11
 # Pipe: sized to read against the 4.5x sprite. While lounging the pipe stands
 # nearly upright in Olorin's mouth, bowl to the sky.
 const PIPE_SCALE := 1.8
-const PIPE_LOUNGE_ANGLE := -1.75  # radians; bowl end up and slightly over his face
+# Radians; stem rises from the mouth with the bowl end up and its opening to
+# the sky. (-1.75 tipped 10° PAST vertical, flipping the bowl face-down.)
+const PIPE_LOUNGE_ANGLE := -1.15
 
 # Sheets pre-scaled with nearest-neighbour at load, so the chunky pixels
 # survive the project's linear canvas filtering (which keeps text smooth).
@@ -118,10 +120,12 @@ func _boy_arrive_x() -> float:
 	return _olorin_x() - 215.0
 
 func _mouth_pos() -> Vector2:
-	## Olorin's mouth while lounging — where the pipe's mouthpiece sits. Lying
-	## on his back, the face is on the sky side of the head, up and left of
-	## the head's centre.
-	return Vector2(_olorin_x() + 33.0, _ground_y() - 102.0)
+	## Olorin's mouth while lounging — where the pipe's mouthpiece sits.
+	## Derived from the standing mouth anchor (foot + (-16, -84), west-facing)
+	## rotated 58° about the lounging feet pivot — the same transform
+	## _draw_olorin_lounging applies to the sprite, so the mouthpiece tracks
+	## the mouth instead of drifting up the tipped head onto the forehead.
+	return Vector2(_olorin_x() + 13.0, _ground_y() - 94.0)
 
 func _smoke_source() -> Vector2:
 	## The lounging pipe's bowl — where puffs and the great rings come from.
