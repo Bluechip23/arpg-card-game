@@ -14,7 +14,7 @@ var current_turn: int = 0
 var tempo_until_draw: float = 0.0
 
 ## Card draw interval in global tempo. Default 25 = 5 cycles × 5 tempo/cycle.
-## Reduced by Wisdom: each WIS point = -1 tempo (floor: 5 tempo).
+## A flat interval — WIS no longer reduces it (extra draws come from brain points).
 var draw_every_x_tempo: float = 25.0
 
 var player_stats: PlayerStats
@@ -29,7 +29,7 @@ func initialize(p_stats: PlayerStats, p_deck: DeckManager) -> void:
 
 ## Call this on every global tempo advance (from main.gd via tempo_advanced signal).
 func process_tempo(amount: int) -> void:
-	# Update draw interval from stats (Wisdom can change)
+	# Update draw interval from stats
 	if player_stats:
 		draw_every_x_tempo = _get_effective_draw_tempo()
 

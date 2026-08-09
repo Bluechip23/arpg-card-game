@@ -48,7 +48,7 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Encumbrance (capped): traveling light shaves up to 8 attacks off, heavy loads add up to 7, overburdened is +10
 - Dual wielding (a matched pair in both hands) shaves 4 more
 - When counter hits 0: DEX PROC
-- DEX PROC = Next attack costs 2 less mana AND half tempo (rounded down)!
+- DEX PROC = Next attack costs 20 less mana AND half tempo (rounded down)!
 - Also +3% crit damage per point (base crit 110%)
 
 [color=blue]Intelligence (INT)[/color]

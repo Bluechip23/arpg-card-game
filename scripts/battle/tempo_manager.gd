@@ -316,3 +316,11 @@ func get_threshold() -> int:
 
 func get_tempo_percent() -> float:
 	return float(current_tempo) / float(tempo_threshold)
+
+func get_tempo_until_flash_refresh() -> int:
+	## Whole tempo remaining before the next flash-point refill.
+	return maxi(1, (PlayerStats.FLASH_REFRESH_CYCLES - _cycles_since_flash_refresh) * tempo_threshold - current_tempo)
+
+func get_tempo_until_brain_refresh() -> int:
+	## Whole tempo remaining before the next brain-point refill.
+	return maxi(1, (PlayerStats.BRAIN_REFRESH_CYCLES - _cycles_since_brain_refresh) * tempo_threshold - current_tempo)

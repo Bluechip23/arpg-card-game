@@ -99,13 +99,17 @@ Every character has six core attributes:
 | Stat | Effect |
 |---|---|
 | **Strength (STR)** | +0.5 melee damage per point. +10 carry capacity per point. Spare capacity also weighs (hehe) into your attack-speed counter. Inversely, being close to your capacity will slow it down. |
-| **Dexterity (DEX)** | The primary attack-speed stat. Every (45 − 0.5 × DEX) attacks (through a card or your auto attack) triggers an **attack speed proc**: your next attack costs **half tempo and 2 less mana**. The counter bottoms out at 1. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
-| **Intelligence (INT)** | +0.5 spell and heal power per point. +0.15 mana regen per point (about +1 per 7). |
-| **Wisdom (WIS)** | +1 hand size for every 5 points. Every 4 points draw your next card 1 tempo sooner. |
+| **Dexterity (DEX)** | The primary attack-speed stat. Every (45 − 0.5 × DEX) attacks (through a card or your auto attack) triggers an **attack speed proc**: your next attack costs **half tempo and 20 less mana**. The counter bottoms out at 1. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
+| **Intelligence (INT)** | +0.5 spell and heal power per point. +1 mana regen per point. |
+| **Wisdom (WIS)** | Grants **Brain points**: 1 per WIS point, refreshed every 5 cycles (25 tempo). Spending them is a choice: **Peek** reveals the next unseen card of your draw pile (5 brain, +2 per further peek that window); **Insight** draws a card (5 brain, then 10/15/20/25 that window). Secondary: +1 hand size per 10 points. The auto draw timer stays a flat 25 tempo. |
 | **Determination (DET)** | Controls how low health affects your other stats. At 15 it does nothing. Above 15, your stats *climb* as your health drops; below 15, they *fall*. The lower your health, the bigger the swing. roughly ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below.|
 | **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 3 cycles (15 tempo). Spending them is a choice: **3 points** move a tile without spending tempo, **3 points** buy 2 block (**2 points** with a free hand), **5 points** advance the attack-speed counter one tick. Without Flash, each tile moved costs 1 tempo. |
 
 All characters share a base **5% critical hit chance** and **110% critical damage**. Crit chance is raised only by items, cards, and other effects. No stat affects it. As previously mentioned, crit damage scales with Dexterity.
+
+### Action Points
+
+**Action Points** is the parent category over the game's two spendable stat pools: **Flash points** (Agility — the body) and **Brain points** (Wisdom — the mind). The pools are fully independent — separate counts, refresh timers, and spend menus — but they share the category, the way attack and spell cards share the Offensive category. Flash buys physical tricks (tempo-free movement, sidestep blocks, attack-speed ticks); Brain buys card knowledge and card flow (peeks, extra draws). Items, sphere nodes, cards, and enemies can interact with Action Points broadly or with either pool specifically, which makes "the action-point character" its own build alongside pure AGI or pure WIS.
 
 ---
 
