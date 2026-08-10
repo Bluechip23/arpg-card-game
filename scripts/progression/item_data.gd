@@ -249,6 +249,7 @@ func get_mastery_text(stats = null) -> String:
 @export var crit_fire_cone_range: int = 0
 
 # Per-cycle helm passives (item pass 1)
+@export var flash_crit_threshold: int = 0        # after spending X flash points, arm a guaranteed ranged crit (Feathered Hat)
 @export var auto_purge_per_cycle: int = 0        # cleanse X of the wearer's debuffs each cycle (Horned Nasal Helm)
 @export var void_resistance_percent: float = 0.0  # nearby enemies take +X% damage — "lowered resistance" (Mane)
 @export var void_resistance_radius: int = 0       # aura radius in tiles (Mane 2)
@@ -689,9 +690,7 @@ static func create_dragon_skull() -> ItemData:
 static func create_feathered_hat() -> ItemData:
 	var item = _new_helm("Feathered Hat", Rarity.LEGENDARY, 10)
 	item.agility_bonus = 8
-	# GAP (rider): accumulate 40 flash points SPENT (via the action_points_spent
-	# signal); at 40 it arms "next ranged offensive card crits", consumed on that
-	# crit which resets the counter to 0. See audit.
+	item.flash_crit_threshold = 40  # spend 40 flash → next ranged offensive card crits
 	item.description = "+8 AGI. Once you have spent an accumulated 40 flash points, your next ranged offensive card crits (resets to 0 on use)."
 	return item
 

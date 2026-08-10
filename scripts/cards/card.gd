@@ -819,6 +819,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			player_stats.temp_on_self_crit_bonus += _temp_crit_applied
 			print("[CARD] On-Self: +%.0f%% crit from %s" % [_temp_crit_applied, slotted_in_item.item_name])
 
+	# Feathered Hat: an armed guaranteed crit is spent by the next ranged
+	# offensive card, whatever item it is (or isn't) slotted in.
+	if card_type == CardType.ATTACK and is_ranged and player_stats and player_stats.flash_crit_armed:
+		player_stats.flash_crit_armed = false
+		_temp_crit_applied += 100.0
+		player_stats.temp_on_self_crit_bonus += 100.0
+		print("[CARD] Feathered Hat: guaranteed crit consumed")
+
 	# Apply ranged damage bonus from equipped items (quivers)
 	var _ranged_bonus_applied = 0
 	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.ranged_damage_bonus > 0:

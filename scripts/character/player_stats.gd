@@ -160,6 +160,8 @@ var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear
 var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gear (Thick Steel Helm)
 var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
 var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
+var flash_crit_accum: int = 0                # Feathered Hat: flash points spent toward the next armed crit
+var flash_crit_armed: bool = false           # Feathered Hat: next ranged offensive card is a guaranteed crit
 # Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
 var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0

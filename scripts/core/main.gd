@@ -3521,6 +3521,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
 	player.get_stats().brain_points_changed.connect(_on_brain_points_changed)
+	player.get_stats().action_points_spent.connect(_on_action_points_spent)
 	_update_flash_button()
 	_update_brain_button()
 	# The skill tree screen spends the banked level-up stat points.
@@ -7201,6 +7202,52 @@ func _helm_range_bonus(card) -> int:
 				break
 	return bonus
 
+## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
+## a little INT-scaled spell damage. (The utility heal is applied in execute().)
+func _helm_card_world_effects(card) -> void:
+	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
+		return
+	if card.card_type != Card.CardType.UTILITY:
+		return
+	var osb = card.slotted_in_item.get_on_self_bonus()
+	var spell_dmg := int(osb.get("utility_spell_damage", 0))
+	if spell_dmg <= 0:
+		return
+	var stats = player.get_stats()
+	var dmg: int = stats.get_effective_spell_damage(spell_dmg) if stats else spell_dmg
+	var candidates: Array = []
+	for e in enemy_spawner.get_living_enemies():
+		if e and is_instance_valid(e) and grid_manager.get_distance_in_cells(player.position, e.position) <= 3:
+			candidates.append(e)
+	if candidates.is_empty():
+		return
+	var victim = candidates[randi() % candidates.size()]
+	if victim.has_method("take_damage"):
+		victim.take_damage(dmg, true, DamageTypes.Type.FIRE)
+		add_battle_log("%s: %d spell damage to %s" % [card.slotted_in_item.item_name, dmg, victim.enemy_name], Color(0.5, 0.85, 0.6))
+
+## Feathered Hat: accumulate flash points spent; once the wearer has spent the
+## helm's threshold, arm a guaranteed crit for the next ranged offensive card.
+func _on_action_points_spent(pool: String, amount: int) -> void:
+	if pool != "flash" or not player or amount <= 0:
+		return
+	var inv = player.get_inventory()
+	var stats = player.get_stats()
+	if not inv or not stats:
+		return
+	var threshold := 0
+	for helm in inv.equipped_helms:
+		if helm and helm.flash_crit_threshold > 0:
+			threshold = helm.flash_crit_threshold
+			break
+	if threshold <= 0:
+		return
+	stats.flash_crit_accum += amount
+	if stats.flash_crit_accum >= threshold and not stats.flash_crit_armed:
+		stats.flash_crit_accum -= threshold  # carry any overflow toward the next one
+		stats.flash_crit_armed = true
+		add_battle_log("Feathered Hat: your next ranged attack will crit!", Color(0.8, 0.9, 1.0))
+
 ## Helm passives that tick once per tempo cycle (5 tempo):
 ##   - Horned Nasal Helm: purge N random debuffs off the wearer.
 ##   - Mane of Narashimha: refresh a +damage "void resistance" aura on enemies
@@ -7404,6 +7451,9 @@ func _animate_shuffle() -> void:
 
 func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_mouse_world_position()
+
+	# Generic helm on-self world effects (independent of card_id).
+	_helm_card_world_effects(card)
 
 	match card.card_id:
 		"spark":
