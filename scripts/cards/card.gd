@@ -790,6 +790,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if card_type != CardType.ATTACK and player_stats and player_stats.consecutive_attacks_draw_at > 0:
 		player_stats.consecutive_attacks = 0
 
+	# Knife Toed Boots: mark melee offensive resolution so crit_multiply adds the
+	# flat melee-crit bonus for EVERY executor's crit, not just specific cards.
+	if player_stats:
+		player_stats.resolving_melee_offensive = is_offensive() and not is_ranged
+
 	# Blind (e.g. Giant Hawk): an attack against an enemy may miss entirely.
 	# Enemies expose take_damage but not get_stats (players have get_stats).
 	if card_type == CardType.ATTACK and player_stats and player_stats.is_blinded \
@@ -1312,9 +1317,18 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
 		player_stats.pending_spell_power_bonus = 0
 
+	# Clear the melee-offensive marker so it can't leak past this resolution.
+	if player_stats:
+		player_stats.resolving_melee_offensive = false
+
 static func crit_multiply(damage: int, player_stats: PlayerStats) -> int:
 	## The one crit-damage formula: 110% base + 3% per point of Dexterity.
 	## Falls back to the 110% base when no stats are available.
+	## Knife Toed Boots: while a melee offensive card is resolving, every crit
+	## adds a flat unscaled bonus on top of the multiplied damage.
+	if player_stats and player_stats.resolving_melee_offensive \
+			and player_stats.equipment_melee_crit_bonus > 0:
+		return floori(damage * player_stats.get_crit_damage_multiplier()) + player_stats.equipment_melee_crit_bonus
 	var mult := player_stats.get_crit_damage_multiplier() if player_stats else PlayerStats.BASE_CRIT_DAMAGE
 	return floori(damage * mult)
 
@@ -1344,9 +1358,6 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 		# Crit check with Enlightened
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
-			# Knife Toed Boots: melee crits deal a flat bonus on top (no scaling).
-			if not is_ranged and player_stats and player_stats.equipment_melee_crit_bonus > 0:
-				total_damage += player_stats.equipment_melee_crit_bonus
 			print("[CARD] CRITICAL HIT! Damage doubled!")
 
 	# Cursed: reduce damage dealt by percentage
@@ -1525,6 +1536,11 @@ func get_burden_mana_cost() -> int:
 func is_offensive() -> bool:
 	return card_type == CardType.ATTACK or damage > 0 or base_damage > 0
 
+# Boots of Speed: tempo shaved off while this card sits in hand. It lasts until
+# the card is played or discarded (cleared when the card leaves the hand and
+# again defensively on redraw), never a permanent change to the card.
+var temp_hand_tempo_reduction: int = 0
+
 func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost
 	if has_burden:
@@ -1532,6 +1548,8 @@ func get_burden_tempo_cost() -> int:
 	# Boot Holsters: slotted attack cards cost less tempo.
 	if card_type == CardType.ATTACK and slotted_in_item:
 		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
+	# Boots of Speed: in-hand reduction, until played or discarded.
+	cost -= temp_hand_tempo_reduction
 	# The Headbandz Lv.3: Out of Guesses quickens to 1 tempo.
 	if card_id == "out_of_guesses" and granted_by_item and granted_by_item.item_level >= 3:
 		cost = 1

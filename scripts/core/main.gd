@@ -7339,16 +7339,18 @@ func _clear_fire_spots() -> void:
 func _on_movement_flash_threshold() -> void:
 	if not deck_manager or deck_manager.hand.is_empty():
 		return
-	# Prefer a card that still has tempo to remove.
+	# Prefer a card whose effective tempo can still drop. The reduction rides
+	# temp_hand_tempo_reduction, so it lasts until the card is played or
+	# discarded — never a permanent change to the card.
 	var candidates: Array = []
 	for c in deck_manager.hand:
-		if c and c.tempo_cost > 0:
+		if c and c.get_burden_tempo_cost() > 0:
 			candidates.append(c)
 	if candidates.is_empty():
 		return
 	var pick = candidates[randi() % candidates.size()]
-	pick.tempo_cost = max(0, pick.tempo_cost - 1)
-	add_battle_log("Boots of Speed: -1 tempo on %s" % pick.card_name, Color(0.7, 0.9, 1.0))
+	pick.temp_hand_tempo_reduction += 1
+	add_battle_log("Boots of Speed: -1 tempo on %s (until played or discarded)" % pick.card_name, Color(0.7, 0.9, 1.0))
 	update_deck_info()
 
 ## Cyde Livingstons Sneakers: a run of consecutive attacks draws a card.

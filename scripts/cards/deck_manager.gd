@@ -269,6 +269,10 @@ func draw_card() -> Card:
 
 	var card = draw_pile.pop_back()
 
+	# In-hand tempo reduction (Boots of Speed) lasts until played or discarded —
+	# a card can only re-enter the hand through a draw, so a fresh draw is clean.
+	card.temp_hand_tempo_reduction = 0
+
 	# Reset enchantment cycle counter when drawn into hand
 	if card.card_type == Card.CardType.ENCHANTMENT:
 		card.cycles_in_hand = 0
@@ -822,6 +826,7 @@ func discard_card_from_hand(card: Card) -> bool:
 	if idx < 0:
 		return false
 	hand.remove_at(idx)
+	card.temp_hand_tempo_reduction = 0  # in-hand reduction ends on discard
 	discard_pile.append(card)
 	discards_this_cycle += 1
 	card_discarded.emit(card)
