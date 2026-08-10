@@ -85,10 +85,15 @@ const CARD_RARITIES := {
 	"internal_combustion": Rarity.LEGENDARY, "shield_slam": Rarity.LEGENDARY, "tower_shield": Rarity.LEGENDARY,
 	"succumb": Rarity.LEGENDARY, "fireball": Rarity.LEGENDARY, "adrenaline_shot": Rarity.LEGENDARY,
 	"exhausted_assault": Rarity.LEGENDARY,
+	# Helm-granted (item pass 1)
+	"twenty_twenty": Rarity.LEGENDARY, "its_alive": Rarity.LEGENDARY,
 	# --- Mythic (8) ---
 	"if_pigs_could_fly": Rarity.MYTHIC, "gift_from_the_phoenix": Rarity.MYTHIC, "petey_the_pet_rock": Rarity.MYTHIC,
 	"mirror_mirror": Rarity.MYTHIC, "god_of_thunder": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
 	"sprinkle": Rarity.MYTHIC, "sprinkle_bomb": Rarity.MYTHIC,
+	# Helm-granted (item pass 1)
+	"neither_man_nor_beast": Rarity.MYTHIC, "resourceful_replenish": Rarity.MYTHIC,
+	"out_of_guesses": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -99,6 +104,9 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"shuriken": true, "savage_strike_copy": true,
 	"minor_wounds": true, "lightly_dazed": true,
 	"hydra_bite": true,
+	# Helm-granted cards only arrive via their helm, never from random drops.
+	"neither_man_nor_beast": true, "resourceful_replenish": true,
+	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
 }
 
 @export var card_id: String = "slash"
@@ -846,6 +854,20 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"dagger_throw":
 			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent)
+		# === Helm-granted cards (item pass 1) ===
+		"neither_man_nor_beast":
+			_execute_neither_man_nor_beast(target)
+		"resourceful_replenish":
+			_execute_resourceful_replenish(buff_mgr)
+		"out_of_guesses":
+			_execute_out_of_guesses(deck_manager)
+		"twenty_twenty":
+			# Passive Maintain: the +3 ranged range is injected at card-play time in
+			# main.gd (see _apply range block); nothing to do on activation.
+			print("[CARD] 20/20 maintained: +3 range on ranged offensive cards")
+		"its_alive":
+			# Resurrect handled as a world effect in main.gd (needs grid + corpses).
+			print("[CARD] ITS ALIVE!!!!! — resurrection resolved in world effects")
 		# === Brad Cards ===
 		"life_swap":
 			_execute_life_swap(target, player_stats, buff_mgr)
@@ -1254,6 +1276,41 @@ func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats
 		var self_dmg = floori(total_damage * self_damage_percent)
 		if self_dmg > 0:
 			player_stats.take_damage(self_dmg)
+
+## Neither Man nor Beast (Mane of Narashimha): 5 flat damage that bypasses armor
+## and resistances, and the target cannot heal that damage for 10 tempo.
+func _execute_neither_man_nor_beast(target) -> void:
+	if target and target.has_method("take_damage"):
+		# ignore_armor = true; enemies have no per-type resistances, so bypassing
+		# armor fulfills "ignoring all resistances and armor".
+		target.take_damage(5, true, damage_type, true)
+		last_damage_dealt = 5
+		if target.has_method("apply_debuff"):
+			target.apply_debuff("narashimha", 2)  # 10 tempo = 2 cycles
+		print("[CARD] Neither Man nor Beast: 5 unresistable damage + Narashimha")
+
+## Resourceful Replenish (Hanibals Mask): arm a one-shot % life steal on the
+## next attack. Base 5%; the mask's upgrade swaps in an 8% copy.
+func _execute_resourceful_replenish(buff_mgr: BuffManager) -> void:
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_life_steal_percent(5, "Resourceful Replenish"))
+	print("[CARD] Resourceful Replenish: next attack lifesteals 5%")
+
+## Out of Guesses (The Headbandz): discard the whole hand, then draw that many.
+func _execute_out_of_guesses(deck_manager) -> void:
+	if not deck_manager:
+		return
+	var to_discard: Array = []
+	for c in deck_manager.hand:
+		if c != self:  # the card being played is discarded by the play flow itself
+			to_discard.append(c)
+	var n = to_discard.size()
+	for c in to_discard:
+		deck_manager.discard_card_from_hand(c)
+	for _i in range(n):
+		deck_manager.draw_card()
+	print("[CARD] Out of Guesses: discarded %d, drew %d" % [n, n])
+
 func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_mgr: BuffManager = null) -> void:
 	var armor_amount = block
 
@@ -5108,6 +5165,73 @@ static func create_god_of_thunder() -> Card:
 	card.is_ranged = true
 	card.target_types = ["point"]
 	card.resolve_tick = 8  # Long channel for massive spell
+	return card
+
+# ============================================
+# HELM-GRANTED CARDS (item pass 1)
+# ============================================
+
+static func create_neither_man_nor_beast() -> Card:
+	var card = Card.new()
+	card.card_id = "neither_man_nor_beast"
+	card.card_name = "Neither Man nor Beast"
+	card.description = "Deal 5 damage ignoring all resistances and armor. The target cannot heal that damage for 10 tempo."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 10
+	card.tempo_cost = 2
+	card.damage = 5
+	card.base_damage = 5
+	card.target_types = ["enemy"]
+	return card
+
+static func create_resourceful_replenish() -> Card:
+	var card = Card.new()
+	card.card_id = "resourceful_replenish"
+	card.card_name = "Resourceful Replenish"
+	card.description = "Your next attack heals you for 5% of the damage dealt."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 20
+	card.tempo_cost = 2
+	card.target_types = ["self"]
+	return card
+
+static func create_out_of_guesses() -> Card:
+	var card = Card.new()
+	card.card_id = "out_of_guesses"
+	card.card_name = "Out of Guesses"
+	card.description = "Discard your whole hand, then draw that many cards."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 15
+	card.tempo_cost = 3
+	card.target_types = ["self"]
+	return card
+
+static func create_twenty_twenty() -> Card:
+	var card = Card.new()
+	card.card_id = "twenty_twenty"
+	card.card_name = "20/20"
+	card.description = "Maintain: gain +3 range on all ranged offensive cards."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 15
+	card.maintain_cost = 15
+	card.tempo_cost = 3
+	card.target_types = ["self"]
+	return card
+
+static func create_its_alive() -> Card:
+	var card = Card.new()
+	card.card_id = "its_alive"
+	card.card_name = "ITS ALIVE!!!!!"
+	card.description = "Resurrect a nearby corpse into Frankensteins Monster — a summon that fights for you."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 20
+	card.tempo_cost = 5
+	card.target_types = ["point"]
 	return card
 
 static func create_worms_armageddon() -> Card:

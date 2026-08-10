@@ -693,9 +693,9 @@ static func create_the_headbandz() -> ItemData:
 	var item = _new_helm("The Headbandz", Rarity.MYTHIC, 8)
 	item.card_slots = 5
 	item.on_self_mana_reduction_percent = 20.0
-	# GAP (rider): granted card "Out of Guesses" — discard your whole hand and
-	# draw that many cards. Upgrade path (mana-reduction 35%, card 1 tempo) via
-	# level overrides once the card exists.
+	var headbandz_cards: Array[String] = ["out_of_guesses"]
+	item.granted_card_ids = headbandz_cards
+	# Upgrade path (mana-reduction 35%, Out of Guesses 1 tempo) via level overrides.
 	item.description = "No stats. Cards slotted in its 5 slots cost 20% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 3 tempo). Upgraded: 35% mana reduction; Out of Guesses costs 1 tempo."
 	return item
 
@@ -704,8 +704,9 @@ static func create_hanibals_mask() -> ItemData:
 	item.health_bonus = 25
 	item.card_slots = 2
 	item.lifesteal_percent = 15.0
-	# GAP (rider): granted card "Resourceful Replenish" (life steal 5%, upgraded 8%).
-	# Upgrade path (+50 life) via level overrides once the card exists.
+	var hanibals_cards: Array[String] = ["resourceful_replenish"]
+	item.granted_card_ids = hanibals_cards
+	# Upgrade path (+50 life, Resourceful Replenish 8%) via level overrides.
 	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish: Life steal 5% (20 mana, 2 tempo). Upgraded: 50 life; Resourceful Replenish 8%."
 	return item
 
@@ -715,9 +716,10 @@ static func create_mane_of_narashimha() -> ItemData:
 	item.intelligence_bonus = 5
 	item.determination_bonus = 5
 	item.card_slots = 1
-	# GAP (rider): granted card "Neither Man nor Beast" + new Narashimha debuff
-	# (target cannot heal the damage for 10 tempo) + a "void resistance" aura
-	# lowering nearby enemies' resistances. See audit.
+	var mane_cards: Array[String] = ["neither_man_nor_beast"]
+	item.granted_card_ids = mane_cards
+	# Narashimha debuff is wired (enemy.gd). Void-resistance aura is a passive
+	# hook (see main.gd). Upgrade path (7/7/7 stats, 8% aura) via level overrides.
 	item.description = "+5 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 5 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius). Upgraded: 7/7/7 stats; aura 8%."
 	return item
 
@@ -779,8 +781,9 @@ static func create_monocle() -> ItemData:
 	var item = _new_helm("Monocle", Rarity.LEGENDARY, 0)
 	item.crit_chance_percent = 10.0
 	item.card_slots = 1
-	# GAP (rider): granted maintain card "20/20" (+3 range on ranged offensive
-	# cards) + on-self "if offensive range card, +5 range and 50% crit". See audit.
+	var monocle_cards: Array[String] = ["twenty_twenty"]
+	item.granted_card_ids = monocle_cards
+	# On-self "if offensive ranged card, +5 range and 50% crit" is a card-play hook.
 	item.description = "+10% crit chance. On-self: if an offensive ranged card, gain +5 range and 50% crit. Grants 20/20 (Maintain): gain 3 range on all ranged offensive cards (15 mana, 3 tempo)."
 	return item
 

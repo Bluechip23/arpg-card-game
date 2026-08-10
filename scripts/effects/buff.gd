@@ -98,7 +98,11 @@ func _set_name_and_description() -> void:
 			description = "Reduce all incoming damage by %d%% for %d tempo" % [value, duration]
 		BuffType.LIFE_STEAL:
 			buff_name = "Life Steal"
-			description = "Next attack heals you for damage dealt"
+			# value 0 = legacy full-damage heal; value > 0 = percentage of damage
+			if value > 0:
+				description = "Next attack heals you for %d%% of damage dealt" % value
+			else:
+				description = "Next attack heals you for damage dealt"
 		BuffType.MORPHINE:
 			buff_name = "Morphine"
 			description = "Temp HP active. Lose %d HP and take 2 damage when expired" % value
@@ -301,6 +305,13 @@ static func create_resilient(percent_reduction: int = 15, tempo: int = 15, sourc
 
 static func create_life_steal(source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.LIFE_STEAL, 0, -1, 1)  # 1 charge - next attack
+	buff.source_name = source
+	return buff
+
+## Percentage-based life steal (Resourceful Replenish): next attack heals for
+## `pct`% of the damage dealt instead of the full amount.
+static func create_life_steal_percent(pct: int, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.LIFE_STEAL, pct, -1, 1)  # value carries the percent
 	buff.source_name = source
 	return buff
 

@@ -87,6 +87,7 @@ var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
 var bleed_stacks: int = 0      # Bleed: take X damage per tile moved, lose 1 per cycle
+var narashimha_tempo: int = 0   # Narashimha (Mane of Narashimha): cannot heal while > 0
 var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
 
 # Hydra: grows stronger with every hit it takes. After the 4th hit it gains bulk
@@ -1432,6 +1433,13 @@ func _tick_status_durations() -> void:
 			print("[%s] Bleed expired" % enemy_name)
 			debuff_expired.emit(self, "bleed")
 
+	# Narashimha: the no-heal window counts down one cycle at a time
+	if narashimha_tempo > 0:
+		narashimha_tempo -= 1
+		if narashimha_tempo <= 0:
+			print("[%s] Narashimha wound closes" % enemy_name)
+			debuff_expired.emit(self, "narashimha")
+
 	# Cold: thaws 1 stack per cycle so it's a combo window, not a permanent
 	# ratchet toward Frozen (mirrors the player-side Cold expiring over time)
 	if cold_stacks > 0:
@@ -2332,6 +2340,10 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 func _regenerate(amount: int) -> void:
 	if is_dead:
 		return
+	# Narashimha (Mane of Narashimha): the wound will not close — no healing.
+	if narashimha_tempo > 0:
+		print("[%s] Narashimha: cannot heal (%d cycles left)" % [enemy_name, narashimha_tempo])
+		return
 	var healed = min(amount, max_health - current_health)
 	if healed <= 0:
 		return
@@ -2551,9 +2563,11 @@ func attack_player(player_node: Node3D) -> void:
 ## Deal damage to this enemy. Armor absorbs first, remainder hits health.
 ## Set from_player = true when the damage originates from the player's card/attack.
 ## Returns true if the enemy was just Exposed (armor broken to 0).
-func take_damage(amount: int, from_player: bool = false, damage_type: int = DamageTypes.Type.PHYSICAL) -> bool:
+func take_damage(amount: int, from_player: bool = false, damage_type: int = DamageTypes.Type.PHYSICAL, ignore_armor: bool = false) -> bool:
 	# damage_type is wired through for symmetry with the player pipeline. Enemies
 	# have no per-type resistances yet, so it is accepted but not yet applied.
+	# ignore_armor: skip the armor-absorption chain entirely so the full amount
+	# hits health (Neither Man nor Beast "ignoring all resistances and armor").
 	if is_dead:
 		return false
 
@@ -2600,7 +2614,9 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 
 	# Armor Break: double damage to armor, no health damage. Zero effect on unarmored.
 	var just_exposed = false
-	if armor_break_incoming and current_armor <= 0:
+	if ignore_armor:
+		pass  # bypass armor entirely — the full amount falls through to health below
+	elif armor_break_incoming and current_armor <= 0:
 		amount = 0
 		print("[%s] Armor Break: no armor to break, no damage dealt" % enemy_name)
 	elif armor_break_incoming and current_armor > 0:
@@ -2837,6 +2853,10 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"bleed":
 			bleed_stacks += value
 			print("[%s] Bleeding! Stacks: %d (damage per tile moved)" % [enemy_name, bleed_stacks])
+		"narashimha":
+			# value is the no-heal window in tempo cycles (10 tempo = 2 cycles)
+			narashimha_tempo = max(narashimha_tempo, value)
+			print("[%s] Narashimha: cannot heal for %d tempo cycles" % [enemy_name, narashimha_tempo])
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	debuff_applied.emit(self, debuff_name, value)
@@ -3013,6 +3033,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Shock", "color": Color(1.0, 1.0, 0.3), "stacks": shock_stacks})
 	if bleed_stacks > 0:
 		effects.append({"name": "Bleed", "color": Color(0.85, 0.15, 0.2), "stacks": bleed_stacks})
+	if narashimha_tempo > 0:
+		effects.append({"name": "Narashimha", "color": Color(0.35, 0.0, 0.4), "stacks": narashimha_tempo})
 
 	return effects
 
