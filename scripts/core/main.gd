@@ -69,6 +69,7 @@ const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
 var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
 var _corpses: Array = []         # {cell: Vector2i, position: Vector3} left by dead enemies, for resurrection
 var _fire_spots: Array = []      # Elemental Trail Blazers: {cell, tempo, damage, node}
+var _purge_cycle_accum: int = 0  # Horned Nasal Helm: cycles banked toward the next auto-purge
 const FrankensteinScript = preload("res://scripts/battle/frankensteins_monster.gd")
 var minimap_tab_ui: MinimapTabUI = null
 var player2_ui: Player2UI = null
@@ -7287,7 +7288,8 @@ func _maybe_drop_fire_trail(cell: Vector2i) -> void:
 	for spot in _fire_spots:
 		if spot["cell"] == cell:
 			return
-	var scaled: int = stats.get_effective_spell_damage(dmg)
+	# Fire spots deal INT/5 (min 1) — deliberately NOT the full spell pipeline.
+	var scaled: int = maxi(1, floori(stats.intelligence / 5.0))
 	var node := _make_fire_spot_visual(grid_manager.grid_to_world(cell))
 	add_child(node)
 	_fire_spots.append({"cell": cell, "tempo": persist, "damage": scaled, "node": node})
@@ -7404,17 +7406,30 @@ func _helm_on_cycle_passives() -> void:
 	if not inv:
 		return
 	var purge_count := 0
+	var purge_interval := 1
 	var aura_percent := 0.0
 	var aura_radius := 0
 	var summon_heal := 0
 	for helm in inv.equipped_helms:
 		if not helm:
 			continue
-		purge_count += helm.auto_purge_per_cycle
+		if helm.auto_purge_per_cycle > 0:
+			purge_count += helm.auto_purge_per_cycle
+			purge_interval = maxi(purge_interval, helm.auto_purge_interval_cycles)
 		if helm.void_resistance_percent > aura_percent:
 			aura_percent = helm.void_resistance_percent
 			aura_radius = helm.void_resistance_radius
 		summon_heal = maxi(summon_heal, helm.summon_heal_aura)
+
+	# Auto-purge runs on its own cadence (Horned Nasal: every 3 cycles).
+	if purge_count > 0:
+		_purge_cycle_accum += 1
+		if _purge_cycle_accum < purge_interval:
+			purge_count = 0  # not this cycle
+		else:
+			_purge_cycle_accum = 0
+	else:
+		_purge_cycle_accum = 0
 
 	# Frankensteins Screws: heal summons below 25% HP within 3 tiles of the wearer.
 	if summon_heal > 0 and grid_manager:

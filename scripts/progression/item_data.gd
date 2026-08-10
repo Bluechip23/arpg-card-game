@@ -239,7 +239,7 @@ func get_mastery_text(stats = null) -> String:
 @export var missing_life_threshold: int = 0         # only below this enemy health% (Jordan 1s 50)
 @export var melee_crit_flat_bonus: int = 0          # flat extra damage when a melee attack crits (Knife Toed Boots 10)
 @export var consecutive_attack_draw: int = 0        # draw a card after X consecutive attacks (Cyde Livingstons Sneakers 5)
-@export var fire_trail_damage: int = 0              # flash-move leaves fire dealing X (+INT) damage (Elemental Trail Blazers 5)
+@export var fire_trail_damage: int = 0              # >0 enables the fire trail; spots deal INT/5 damage (Elemental Trail Blazers)
 @export var fire_trail_tempo: int = 0               # how long a fire spot persists (Elemental Trail Blazers 3)
 @export var ally_regen_per_cycle: int = 0           # heal+mana per cycle to allies in radius (Guardian Greaves 10)
 @export var ally_regen_radius: int = 0              # aura radius in tiles (Guardian Greaves 4)
@@ -286,7 +286,8 @@ func get_mastery_text(stats = null) -> String:
 
 # Per-cycle helm passives (item pass 1)
 @export var flash_crit_threshold: int = 0        # after spending X flash points, arm a guaranteed ranged crit (Feathered Hat)
-@export var auto_purge_per_cycle: int = 0        # cleanse X of the wearer's debuffs each cycle (Horned Nasal Helm)
+@export var auto_purge_per_cycle: int = 0        # cleanse X of the wearer's debuffs per purge tick (Horned Nasal Helm)
+@export var auto_purge_interval_cycles: int = 1  # cycles between purge ticks (Horned Nasal 3 = every 15 tempo)
 @export var void_resistance_percent: float = 0.0  # nearby enemies take +X% damage — "lowered resistance" (Mane)
 @export var void_resistance_radius: int = 0       # aura radius in tiles (Mane 2)
 @export var summon_heal_aura: int = 0             # heal summons below 25% HP within 3 tiles by X/cycle (Frankensteins Screws)
@@ -755,8 +756,9 @@ static func create_horned_nasal_helm() -> ItemData:
 	item.determination_bonus = 6
 	item.card_slots = 1
 	item.on_self_apply_bleed = 1  # on-self: "if an offensive card apply 1 bleed"
-	item.auto_purge_per_cycle = 2  # purge 2 random debuffs every 5 tempo (1 cycle)
-	item.description = "+6 DET. On-self: if an offensive card, apply 1 Bleed. Purge 2 random debuffs every 5 tempo while equipped."
+	item.auto_purge_per_cycle = 2       # purge 2 random debuffs...
+	item.auto_purge_interval_cycles = 3  # ...every 3 cycles (15 tempo)
+	item.description = "+6 DET. On-self: if an offensive card, apply 1 Bleed. Purge 2 random debuffs every 15 tempo while equipped."
 	return item
 
 static func create_the_headbandz() -> ItemData:
@@ -811,7 +813,7 @@ static func create_mane_of_narashimha() -> ItemData:
 	item.level_3_overrides = {"strength_bonus": 7, "intelligence_bonus": 7,
 		"determination_bonus": 7, "void_resistance_percent": 8.0}
 	item.level_3_description = "+7 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void resistance aura: lower all nearby enemies' resistances by 8% (2-square radius)."
-	item.description = "+5 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 5 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius). Upgraded: 7/7/7 stats; aura 8%."
+	item.description = "+5 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius). Upgraded: 7/7/7 stats; aura 8%."
 	return item
 
 static func create_shamans_mask() -> ItemData:
@@ -877,10 +879,10 @@ static func create_monocle() -> ItemData:
 	item.card_slots = 1
 	item.on_self_range_offensive = 5
 	item.on_self_range_requires_ranged = true
-	item.on_self_crit_ranged_percent = 50.0
+	item.on_self_crit_ranged_percent = 25.0
 	var monocle_cards: Array[String] = ["twenty_twenty"]
 	item.granted_card_ids = monocle_cards
-	item.description = "+10% crit chance. On-self: if an offensive ranged card, gain +5 range and 50% crit. Grants 20/20 (Maintain): gain 3 range on all ranged offensive cards (15 mana, 3 tempo)."
+	item.description = "+10% crit chance. On-self: if an offensive ranged card, gain +5 range and 25% crit. Grants 20/20 (Maintain): gain 3 range on all ranged offensive cards (15 mana, 3 tempo)."
 	return item
 
 static func create_theif_hat() -> ItemData:
@@ -918,8 +920,8 @@ static func create_cloth_slippers() -> ItemData:
 
 static func create_brown_boots() -> ItemData:
 	var item = _new_boot("Brown Boots", Rarity.COMMON, 8)
-	item.agility_bonus = 5
-	item.description = "+5 AGI."
+	item.agility_bonus = 3
+	item.description = "+3 AGI."
 	return item
 
 static func create_steel_boots() -> ItemData:
@@ -983,7 +985,7 @@ static func create_elemental_trail_blazers() -> ItemData:
 	item.agility_bonus = 5
 	item.fire_trail_damage = 5
 	item.fire_trail_tempo = 3
-	item.description = "+5 INT, +5 AGI. When moving with flash points, leave a trail of fire. Each fire spot deals 5 damage (scales with INT) then extinguishes; fire persists 3 tempo."
+	item.description = "+5 INT, +5 AGI. When moving with flash points, leave a trail of fire. Each fire spot deals INT/5 damage then extinguishes; fire persists 3 tempo."
 	return item
 
 static func create_mountain_boots() -> ItemData:
@@ -1051,27 +1053,27 @@ static func create_guardian_greaves() -> ItemData:
 	item.intelligence_bonus = 5
 	item.wisdom_bonus = 4
 	item.strength_bonus = 5
-	item.ally_regen_per_cycle = 10
+	item.ally_regen_per_cycle = 6
 	item.ally_regen_radius = 4
 	item.ally_physical_resist = 5.0
 	var guardian_cards: Array[String] = ["mend"]
 	item.granted_card_ids = guardian_cards
 	# Mend restoring 40%/40% at Lv.3 is read live off item_level (see the mend
 	# world effect in main.gd); no field changes at Lv.3.
-	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, give 10 health and mana regen to all allies within 4 squares, plus 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
-	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, give 10 health and mana regen to all allies within 4 squares, plus 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo). Upgraded: 40% / 40%."
+	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, give 6 health and mana regen to all allies (you included) within 4 squares, plus 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, give 6 health and mana regen to all allies (you included) within 4 squares, plus 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
 	return item
 
 static func create_chain_crocs() -> ItemData:
 	var item = _new_boot("Chain Crocs", Rarity.RARE, 35)
 	item.card_slots = 2
-	item.agility_bonus = -4
+	item.agility_bonus = -2
 	item.wisdom_bonus = -2
 	item.on_self_mana_reduction_percent = 20.0
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 5
 	item.armor_per_tempo_interval = 15
-	item.description = "-4 AGI, -2 WIS. On-self: mana cost reduced 20%. Gain 5 armor every 15 tempo while equipped (counter resets when unequipped)."
+	item.description = "-2 AGI, -2 WIS. On-self: mana cost reduced 20%. Gain 5 armor every 15 tempo while equipped (counter resets when unequipped)."
 	return item
 
 static func create_knife_toed_boots() -> ItemData:
@@ -1089,8 +1091,8 @@ static func create_boots_of_speed() -> ItemData:
 	var item = _new_boot("Boots of Speed", Rarity.RARE, 1)
 	item.agility_bonus = 5
 	item.dexterity_bonus = 5
-	item.movement_flash_tempo_threshold = 51  # 51 movement-flash spent → -1 tempo from a hand card
-	item.description = "+5 AGI, +5 DEX. After an accumulated 51 flash points spent on movement, remove 1 tempo from a card in your hand."
+	item.movement_flash_tempo_threshold = 36  # 36 movement-flash spent → -1 tempo from a hand card
+	item.description = "+5 AGI, +5 DEX. After an accumulated 36 flash points spent on movement, remove 1 tempo from a card in your hand."
 	return item
 
 static func create_caster_boots() -> ItemData:

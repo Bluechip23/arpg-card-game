@@ -5323,13 +5323,13 @@ static func create_neither_man_nor_beast() -> Card:
 	var card = Card.new()
 	card.card_id = "neither_man_nor_beast"
 	card.card_name = "Neither Man nor Beast"
-	card.description = "Deal 5 damage ignoring all resistances and armor. The target cannot heal that damage for 10 tempo."
+	card.description = "Deal 10 damage ignoring all resistances and armor. The target cannot heal that damage for 10 tempo."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 10
 	card.tempo_cost = 2
-	card.damage = 5
-	card.base_damage = 5
+	card.damage = 10
+	card.base_damage = 10
 	card.target_types = ["enemy"]
 	return card
 
