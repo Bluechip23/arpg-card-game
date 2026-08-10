@@ -4457,6 +4457,8 @@ func _clear_locked_markers() -> void:
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()
+	# Summons are ordinary units to enemy target selection
+	enemy_spawner.summons = _frankensteins + _summoned_worms
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
@@ -7547,10 +7549,13 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		max_range += _helm_range_bonus(card)
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
-		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square
+		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square.
+		# Dragon Skull's "+1 range on ANY offensive card" extends melee reach too
+		# (the 20/20 and Monocle parts of the helper are ranged-gated internally).
 		var melee_range = 1.5
 		if card.has_reach:
 			melee_range += 1.0
+		melee_range += float(_helm_range_bonus(card))
 		return distance_tiles <= melee_range
 
 func _get_nearest_enemy() -> Enemy:

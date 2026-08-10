@@ -2263,6 +2263,13 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 	var effective_damage = max(0, base_damage - attack_reduction)
 	print("[%s] %s for %d damage! (base %d, reduction %d)" % [enemy_name, attack_name, effective_damage, base_damage, attack_reduction])
 
+	# Summon targets (Frankensteins Monster, surfaced Bull Worms) have no player
+	# stat pipeline — the hit goes straight through their own take_damage.
+	if not player_node.has_method("get_stats") and player_node.has_method("take_damage"):
+		if effective_damage > 0:
+			player_node.take_damage(effective_damage)
+		return
+
 	if player_node.has_method("get_stats"):
 		var player_stats_ref = player_node.get_stats()
 		if player_stats_ref and effective_damage > 0:
