@@ -804,6 +804,21 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		heal_amount += on_self_hl
 		print("[CARD] On-Self: +%d heal from %s" % [on_self_hl, slotted_in_item.item_name])
 
+	# Conditional on-self riders (Shamans mask / Monocle). The random-enemy spell
+	# damage (Shamans) and +range (Dragon Skull/Monocle) resolve in main.gd where
+	# the world is available; here we handle the parts local to card resolution.
+	var _temp_crit_applied := 0.0
+	if slotted_in_item:
+		# Shamans mask: utility cards heal the player directly on play.
+		if card_type == CardType.UTILITY and on_self.get("utility_heal", 0) > 0 and player_stats:
+			player_stats.heal(on_self["utility_heal"])
+			print("[CARD] On-Self: %s healed %d (utility)" % [slotted_in_item.item_name, on_self["utility_heal"]])
+		# Monocle: offensive ranged cards gain a one-shot crit chance for this play.
+		if card_type == CardType.ATTACK and is_ranged and on_self.get("crit_ranged_percent", 0.0) > 0.0 and player_stats:
+			_temp_crit_applied = on_self["crit_ranged_percent"]
+			player_stats.temp_on_self_crit_bonus += _temp_crit_applied
+			print("[CARD] On-Self: +%.0f%% crit from %s" % [_temp_crit_applied, slotted_in_item.item_name])
+
 	# Apply ranged damage bonus from equipped items (quivers)
 	var _ranged_bonus_applied = 0
 	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.ranged_damage_bonus > 0:
@@ -1186,6 +1201,17 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			elif target.has_method("apply_debuff"):
 				target.apply_debuff("cold", on_self_cold)
 			print("[CARD] On-Self: Applied %d Cold to target from %s" % [on_self_cold, source_name])
+		var on_self_bleed = on_self.get("apply_bleed", 0)
+		if on_self_bleed > 0:
+			if target.has_method("get_debuff_manager"):
+				var target_debuff_mgr = target.get_debuff_manager()
+				if target_debuff_mgr:
+					var bleed = Debuff.create(Debuff.DebuffType.BLEED, on_self_bleed, 15)
+					bleed.source_name = source_name
+					target_debuff_mgr.apply_debuff(bleed)
+			elif target.has_method("apply_debuff"):
+				target.apply_debuff("bleed", on_self_bleed)
+			print("[CARD] On-Self: Applied %d Bleed to target from %s" % [on_self_bleed, source_name])
 
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
@@ -1198,6 +1224,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Clean up ranged bonus
 	if _ranged_bonus_applied > 0:
 		bonus_damage -= _ranged_bonus_applied
+
+	# Clear the one-shot on-self crit so it never leaks to the next card.
+	if _temp_crit_applied > 0.0 and player_stats:
+		player_stats.temp_on_self_crit_bonus = max(0.0, player_stats.temp_on_self_crit_bonus - _temp_crit_applied)
 
 static func crit_multiply(damage: int, player_stats: PlayerStats) -> int:
 	## The one crit-damage formula: 110% base + 3% per point of Dexterity.

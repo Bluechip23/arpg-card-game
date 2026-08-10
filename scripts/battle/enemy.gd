@@ -88,6 +88,7 @@ var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cyc
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
 var bleed_stacks: int = 0      # Bleed: take X damage per tile moved, lose 1 per cycle
 var narashimha_tempo: int = 0   # Narashimha (Mane of Narashimha): cannot heal while > 0
+var void_resistance_percent: float = 0.0  # Mane aura: take this % extra player damage (refreshed each cycle)
 var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
 
 # Hydra: grows stronger with every hit it takes. After the 4th hit it gains bulk
@@ -2611,6 +2612,11 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	if from_player and is_marked:
 		amount += MARKED_BONUS_DAMAGE
 		print("[%s] Marked: +%d damage!" % [enemy_name, MARKED_BONUS_DAMAGE])
+
+	# Void resistance (Mane of Narashimha aura): resistances lowered, so the
+	# player's hits land for extra damage while the enemy is inside the aura.
+	if from_player and void_resistance_percent > 0.0:
+		amount = floori(amount * (1.0 + void_resistance_percent / 100.0))
 
 	# Armor Break: double damage to armor, no health damage. Zero effect on unarmored.
 	var just_exposed = false

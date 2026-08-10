@@ -212,6 +212,13 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_mana_reduction: int = 0
 @export var on_self_mana_reduction_percent: float = 0.0  # % mana-cost cut for slotted cards (The Headbandz)
 
+# Conditional on-self riders for slotted cards (item pass 1)
+@export var on_self_range_offensive: int = 0        # +range on offensive slotted cards (Dragon Skull 1, Monocle 5)
+@export var on_self_range_requires_ranged: bool = false  # if true the +range needs a RANGED offensive card (Monocle)
+@export var on_self_crit_ranged_percent: float = 0.0     # +% crit on an offensive RANGED slotted card (Monocle 50)
+@export var on_self_utility_heal: int = 0           # heal when a UTILITY card is slotted-played (Shamans mask 3)
+@export var on_self_utility_spell_damage: int = 0   # spell damage to a random nearby enemy on UTILITY play (Shamans 1)
+
 # On-self debuff application (for quivers, etc.)
 @export var on_self_apply_burn: int = 0  # Apply X burn stacks on hit
 @export var on_self_apply_cold: int = 0  # Apply X cold stacks on hit
@@ -235,6 +242,16 @@ func get_mastery_text(stats = null) -> String:
 
 # On-self special effects (beyond flat bonuses)
 @export var on_self_thorns: int = 0  # Card grants X thorns on play
+
+# On-crit fire cone (Dragon Skull): when the wearer lands a crit, breathe a fire
+# blast in a cone in front of them. Damage = base + INT/2; range in tiles.
+@export var crit_fire_cone_damage: int = 0
+@export var crit_fire_cone_range: int = 0
+
+# Per-cycle helm passives (item pass 1)
+@export var auto_purge_per_cycle: int = 0        # cleanse X of the wearer's debuffs each cycle (Horned Nasal Helm)
+@export var void_resistance_percent: float = 0.0  # nearby enemies take +X% damage — "lowered resistance" (Mane)
+@export var void_resistance_radius: int = 0       # aura radius in tiles (Mane 2)
 
 # On-kill card conjuring (Bladed Doughnut): every enemy kill while this item
 # is equipped adds a fresh copy of this card directly to the hand.
@@ -496,6 +513,11 @@ func get_on_self_bonus() -> Dictionary:
 		"apply_cold": on_self_apply_cold,
 		"apply_bleed": on_self_apply_bleed,
 		"thorns": on_self_thorns,
+		"range_offensive": on_self_range_offensive,
+		"range_requires_ranged": on_self_range_requires_ranged,
+		"crit_ranged_percent": on_self_crit_ranged_percent,
+		"utility_heal": on_self_utility_heal,
+		"utility_spell_damage": on_self_utility_spell_damage,
 	}
 
 func get_card_slot_summary() -> String:
@@ -658,8 +680,9 @@ static func create_dragon_skull() -> ItemData:
 	item.strength_bonus = 8
 	item.dexterity_bonus = 8
 	item.card_slots = 2
-	# GAP (rider): on-self "+1 range if ANY offensive card"; on crit "10 + INT/2
-	# damage fire blast in a 3-range cone". Not yet wired — see audit.
+	item.on_self_range_offensive = 1  # +1 range on any offensive slotted card
+	item.crit_fire_cone_damage = 10   # on crit: 10 + INT/2 fire damage...
+	item.crit_fire_cone_range = 3     # ...in a 3-range cone in front of the wearer
 	item.description = "+8 STR, +8 DEX. On-self: if ANY offensive card, gain +1 range. When landing a critical strike, the helm breathes a 10 damage blast of fire in a 3 range cone in front of it (scales with INT: +1 damage per 2 INT)."
 	return item
 
@@ -685,7 +708,7 @@ static func create_horned_nasal_helm() -> ItemData:
 	item.determination_bonus = 6
 	item.card_slots = 1
 	item.on_self_apply_bleed = 1  # on-self: "if an offensive card apply 1 bleed"
-	# GAP (rider): "purge 2 random debuffs every 5 tempo while equipped" — see audit.
+	item.auto_purge_per_cycle = 2  # purge 2 random debuffs every 5 tempo (1 cycle)
 	item.description = "+6 DET. On-self: if an offensive card, apply 1 Bleed. Purge 2 random debuffs every 5 tempo while equipped."
 	return item
 
@@ -718,8 +741,9 @@ static func create_mane_of_narashimha() -> ItemData:
 	item.card_slots = 1
 	var mane_cards: Array[String] = ["neither_man_nor_beast"]
 	item.granted_card_ids = mane_cards
-	# Narashimha debuff is wired (enemy.gd). Void-resistance aura is a passive
-	# hook (see main.gd). Upgrade path (7/7/7 stats, 8% aura) via level overrides.
+	item.void_resistance_percent = 5.0  # nearby enemies take +5% damage (lowered resistance)
+	item.void_resistance_radius = 2
+	# Narashimha debuff is wired (enemy.gd). Upgrade path (7/7/7, 8% aura) via overrides.
 	item.description = "+5 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 5 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius). Upgraded: 7/7/7 stats; aura 8%."
 	return item
 
@@ -728,8 +752,8 @@ static func create_shamans_mask() -> ItemData:
 	item.wisdom_bonus = 2
 	item.health_bonus = 10
 	item.card_slots = 3
-	# GAP (rider): on-self "utility cards heal 3 and deal 1 spell damage to a
-	# random enemy within 3 range" — conditional on-self, see audit.
+	item.on_self_utility_heal = 3         # utility cards heal 3
+	item.on_self_utility_spell_damage = 1  # ...and deal 1 spell damage to a random enemy in 3
 	item.description = "+2 WIS, +10 life. On-self: utility cards heal 3 and deal 1 spell damage to a random enemy within 3 range."
 	return item
 
@@ -781,9 +805,11 @@ static func create_monocle() -> ItemData:
 	var item = _new_helm("Monocle", Rarity.LEGENDARY, 0)
 	item.crit_chance_percent = 10.0
 	item.card_slots = 1
+	item.on_self_range_offensive = 5
+	item.on_self_range_requires_ranged = true
+	item.on_self_crit_ranged_percent = 50.0
 	var monocle_cards: Array[String] = ["twenty_twenty"]
 	item.granted_card_ids = monocle_cards
-	# On-self "if offensive ranged card, +5 range and 50% crit" is a card-play hook.
 	item.description = "+10% crit chance. On-self: if an offensive ranged card, gain +5 range and 50% crit. Grants 20/20 (Maintain): gain 3 range on all ranged offensive cards (15 mana, 3 tempo)."
 	return item
 

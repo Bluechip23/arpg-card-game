@@ -5725,6 +5725,9 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	progression_triggers._trigger_skill_tree_brad_on_cycle()
 	progression_triggers._trigger_skill_tree_cory_on_cycle()
 	progression_triggers._trigger_skill_tree_jeremy_on_cycle()
+
+	# Helm per-cycle passives (Horned Nasal auto-purge, Mane void-resistance aura)
+	_helm_on_cycle_passives()
 	if tempo_manager.last_tempo_source == "movement":
 		progression_triggers._trigger_skill_tree_on_movement_cycle()
 
@@ -6426,6 +6429,8 @@ func select_card(index: int) -> void:
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
 			effective_range += st_stats.sphere_bonus_range
+		# Helm on-self range (Dragon Skull/Monocle) + 20/20 maintain
+		effective_range += _helm_range_bonus(card)
 		range_indicator.position = player.position
 		range_indicator.show_range(effective_range)
 		add_battle_log("%s selected — Range: %d tiles" % [card.card_name, int(effective_range)], Color(0.6, 0.85, 1.0))
@@ -7175,6 +7180,101 @@ func _get_distance_to_target(target) -> int:
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	return roundi(flat_dist / grid_manager.grid_size)
 
+## Extra range a helm grants a card at play time. Kept in one place so the range
+## preview and the range enforcement stay in lockstep.
+##   - On-self +range from the item the card is slotted in (Dragon Skull +1 to
+##     any offensive card; Monocle +5 to offensive ranged cards).
+##   - 20/20 (Monocle's granted Maintain): +3 range on ranged offensive cards.
+func _helm_range_bonus(card) -> int:
+	if card == null or card.card_type != Card.CardType.ATTACK:
+		return 0
+	var bonus := 0
+	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
+		var osb = card.slotted_in_item.get_on_self_bonus()
+		var r := int(osb.get("range_offensive", 0))
+		if r > 0 and (not osb.get("range_requires_ranged", false) or card.is_ranged):
+			bonus += r
+	if card.is_ranged and deck_manager:
+		for mc in deck_manager.get_maintained_cards():
+			if mc and mc.card_id == "twenty_twenty":
+				bonus += 3
+				break
+	return bonus
+
+## Helm passives that tick once per tempo cycle (5 tempo):
+##   - Horned Nasal Helm: purge N random debuffs off the wearer.
+##   - Mane of Narashimha: refresh a +damage "void resistance" aura on enemies
+##     within radius, and clear it from those who left the aura.
+func _helm_on_cycle_passives() -> void:
+	if not player:
+		return
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	var purge_count := 0
+	var aura_percent := 0.0
+	var aura_radius := 0
+	for helm in inv.equipped_helms:
+		if not helm:
+			continue
+		purge_count += helm.auto_purge_per_cycle
+		if helm.void_resistance_percent > aura_percent:
+			aura_percent = helm.void_resistance_percent
+			aura_radius = helm.void_resistance_radius
+
+	# Auto-purge: remove up to purge_count random debuffs from the wearer.
+	if purge_count > 0:
+		var dm = player.get_debuff_manager()
+		if dm and dm.debuffs.size() > 0:
+			var list = dm.debuffs.duplicate()
+			list.shuffle()
+			var removed := 0
+			for i in range(min(purge_count, list.size())):
+				dm.remove_debuff(list[i].debuff_type)
+				removed += 1
+			if removed > 0:
+				add_battle_log("Horned Nasal Helm purges %d debuff(s)" % removed, Color(0.7, 0.6, 0.9))
+
+	# Void-resistance aura: presence-based, refreshed every cycle so it follows
+	# the player and lapses the moment an enemy leaves the radius.
+	if enemy_spawner and grid_manager:
+		for e in enemy_spawner.get_living_enemies():
+			if not e or not is_instance_valid(e):
+				continue
+			if aura_percent > 0.0 and grid_manager.get_distance_in_cells(player.position, e.position) <= aura_radius:
+				e.void_resistance_percent = aura_percent
+			else:
+				e.void_resistance_percent = 0.0
+
+## Dragon Skull: on a landed crit, breathe a fire cone in front of the wearer.
+## Damage = the helm's base + INT/2 (spell-style scaling), fire-typed.
+func _helm_crit_fire_cone(target) -> void:
+	if not player or not enemy_spawner or not grid_manager:
+		return
+	if target == null or not is_instance_valid(target):
+		return  # need a target to orient the cone
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	var stats = player.get_stats()
+	var intel: int = stats.intelligence if stats else 0
+	for helm in inv.equipped_helms:
+		if not helm or helm.crit_fire_cone_damage <= 0:
+			continue
+		var dmg: int = helm.crit_fire_cone_damage + int(intel / 2.0)
+		var direction: Vector3 = (target.position - player.position)
+		direction.y = 0.0
+		if direction.length() < 0.01:
+			continue
+		direction = direction.normalized()
+		var length := float(helm.crit_fire_cone_range) * grid_manager.grid_size
+		var hit := enemy_spawner.get_enemies_in_cone(player.position, direction, length, 45.0)
+		for e in hit:
+			if e and is_instance_valid(e) and e.has_method("take_damage"):
+				e.take_damage(dmg, true, DamageTypes.Type.FIRE)
+		if not hit.is_empty():
+			add_battle_log("%s breathes fire! %d damage to %d enemies" % [helm.item_name, dmg, hit.size()], Color(1.0, 0.5, 0.1))
+
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node3D:
 		return true
@@ -7206,6 +7306,8 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
 			max_range += st_stats.sphere_bonus_range
+		# Helm on-self range (Dragon Skull/Monocle) + 20/20 maintain
+		max_range += _helm_range_bonus(card)
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
 		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square
