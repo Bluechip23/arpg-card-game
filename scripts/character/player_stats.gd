@@ -162,6 +162,11 @@ var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card 
 var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
 var flash_crit_accum: int = 0                # Feathered Hat: flash points spent toward the next armed crit
 var flash_crit_armed: bool = false           # Feathered Hat: next ranged offensive card is a guaranteed crit
+# Wizard Hat: every Nth attack arms +spell power on the next spell card played.
+var equipment_spell_power_every_n: int = 0   # trigger every N attacks (Wizard Hat 3)
+var equipment_spell_power_amount: int = 0    # spell-power granted when it triggers (Wizard Hat 5)
+var _wizard_attack_counter: int = 0
+var pending_spell_power_bonus: int = 0       # applied to the next spell card's damage, then cleared on play
 # Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
 var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0
@@ -896,8 +901,17 @@ var current_brain_points: int = 0
 var brain_draws_bought: int = 0   # draws bought this refresh window (escalates the price)
 var brain_peeks_bought: int = 0   # peeks bought this refresh window (escalates the price)
 
+var equipment_brain_points_bonus: int = 0  # +max brain points from gear (Scholars Cap)
+var equipment_peek_discount: int = 0        # brain-point Peek cost reduction from gear (Scholars Cap)
+
 func get_max_brain_points() -> int:
-	return wisdom
+	return wisdom + equipment_brain_points_bonus
+
+func gain_brain_points(amount: int) -> void:
+	if amount <= 0:
+		return
+	current_brain_points = min(get_max_brain_points(), current_brain_points + amount)
+	brain_points_changed.emit(current_brain_points, get_max_brain_points())
 
 func refresh_brain_points() -> void:
 	current_brain_points = get_max_brain_points()
@@ -911,7 +925,7 @@ func get_next_brain_draw_cost() -> int:
 	return BRAIN_DRAW_COSTS[-1] + 5 * (brain_draws_bought - BRAIN_DRAW_COSTS.size() + 1)
 
 func get_next_brain_peek_cost() -> int:
-	return BRAIN_PEEK_BASE_COST + BRAIN_PEEK_COST_STEP * brain_peeks_bought
+	return max(1, BRAIN_PEEK_BASE_COST + BRAIN_PEEK_COST_STEP * brain_peeks_bought - equipment_peek_discount)
 
 func spend_brain_points(amount: int) -> bool:
 	if current_brain_points < amount:
@@ -982,6 +996,14 @@ func get_attack_speed_threshold() -> int:
 
 func register_attack(is_real_attack: bool = true) -> Dictionary:
 	current_attack_counter -= 1
+
+	# Wizard Hat: every Nth real attack arms bonus spell power on the next spell.
+	if is_real_attack and equipment_spell_power_every_n > 0:
+		_wizard_attack_counter += 1
+		if _wizard_attack_counter >= equipment_spell_power_every_n:
+			_wizard_attack_counter = 0
+			pending_spell_power_bonus += equipment_spell_power_amount
+			print("[STATS] Wizard Hat: next spell gains +%d spell power" % equipment_spell_power_amount)
 
 	# Free hand: every 12th registered attack echoes. Echoes themselves are
 	# never registered, so they can't advance this count or the DEX counter —
@@ -1120,8 +1142,9 @@ func consume_pending_dex_bonus_damage() -> int:
 	return b
 
 func get_effective_spell_damage(base_damage: int) -> int:
-	# INT: +1 damage per point (flat)
-	return max(1, base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage)
+	# INT: +1 damage per point (flat). Wizard Hat's armed spell power (if any)
+	# rides along; it's cleared on the spell's play, not here (this is a query).
+	return max(1, base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage + pending_spell_power_bonus)
 
 func get_effective_heal_amount(base_heal: int) -> int:
 	# INT also boosts healing (flat) + flat healing_bonus from equipment + sphere grid heal bonus

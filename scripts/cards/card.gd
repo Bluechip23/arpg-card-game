@@ -809,6 +809,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# the world is available; here we handle the parts local to card resolution.
 	var _temp_crit_applied := 0.0
 	if slotted_in_item:
+		# Scholars Cap: any slotted card play refunds brain points.
+		if on_self.get("brain_regen", 0) > 0 and player_stats and player_stats.has_method("gain_brain_points"):
+			player_stats.gain_brain_points(on_self["brain_regen"])
+			print("[CARD] On-Self: %s regained %d brain points" % [slotted_in_item.item_name, on_self["brain_regen"]])
 		# Shamans mask: utility cards heal the player directly on play.
 		if card_type == CardType.UTILITY and on_self.get("utility_heal", 0) > 0 and player_stats:
 			player_stats.heal(on_self["utility_heal"])
@@ -1236,6 +1240,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Clear the one-shot on-self crit so it never leaks to the next card.
 	if _temp_crit_applied > 0.0 and player_stats:
 		player_stats.temp_on_self_crit_bonus = max(0.0, player_stats.temp_on_self_crit_bonus - _temp_crit_applied)
+
+	# Wizard Hat: a spell card consumes the armed spell-power bonus on play.
+	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
+		player_stats.pending_spell_power_bonus = 0
 
 static func crit_multiply(damage: int, player_stats: PlayerStats) -> int:
 	## The one crit-damage formula: 110% base + 3% per point of Dexterity.

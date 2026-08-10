@@ -218,6 +218,16 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_crit_ranged_percent: float = 0.0     # +% crit on an offensive RANGED slotted card (Monocle 50)
 @export var on_self_utility_heal: int = 0           # heal when a UTILITY card is slotted-played (Shamans mask 3)
 @export var on_self_utility_spell_damage: int = 0   # spell damage to a random nearby enemy on UTILITY play (Shamans 1)
+@export var on_self_brain_regen: int = 0            # regain X brain points when a slotted card is played (Scholars Cap 2)
+
+# Brain-point gear (Scholars Cap)
+@export var brain_points_bonus: int = 0             # +X max brain points while equipped
+@export var peek_brain_discount: int = 0            # brain-point Peek costs X less
+
+# Spell-power-on-attack cadence (Wizard Hat): every N attacks, arm +X spell
+# power on the next spell card played.
+@export var spell_power_per_attacks: int = 0
+@export var spell_power_bonus: int = 0
 
 # On-self debuff application (for quivers, etc.)
 @export var on_self_apply_burn: int = 0  # Apply X burn stacks on hit
@@ -520,6 +530,7 @@ func get_on_self_bonus() -> Dictionary:
 		"crit_ranged_percent": on_self_crit_ranged_percent,
 		"utility_heal": on_self_utility_heal,
 		"utility_spell_damage": on_self_utility_spell_damage,
+		"brain_regen": on_self_brain_regen,
 	}
 
 func get_card_slot_summary() -> String:
@@ -653,8 +664,8 @@ static func create_leather_cap() -> ItemData:
 	item.description = "+5 health."
 	return item
 
-static func create_baseball_cap() -> ItemData:
-	var item = _new_helm("Baseball Cap", Rarity.COMMON, 5)
+static func create_baseball_hat() -> ItemData:
+	var item = _new_helm("Baseball Hat", Rarity.COMMON, 5)
 	item.dexterity_bonus = 1
 	item.strength_bonus = 1
 	item.agility_bonus = 1
@@ -723,6 +734,17 @@ static func create_the_headbandz() -> ItemData:
 	item.description = "No stats. Cards slotted in its 5 slots cost 20% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 3 tempo). Upgraded: 35% mana reduction; Out of Guesses costs 1 tempo."
 	return item
 
+static func create_scholars_cap() -> ItemData:
+	var item = _new_helm("Scholars Cap", Rarity.MYTHIC, 5)
+	item.card_slots = 2
+	item.wisdom_bonus = 5
+	item.brain_points_bonus = 5
+	item.peek_brain_discount = 1
+	item.on_self_brain_regen = 2  # slotted cards regain 2 brain points on play
+	# Upgrade path (on-self 3 brain, +7/+7) via level overrides.
+	item.description = "+5 WIS, +5 max brain points. Peek costs 1 less brain point. On-self: regain 2 brain points. Upgraded: +7 WIS, +7 max brain points; on-self regains 3."
+	return item
+
 static func create_hanibals_mask() -> ItemData:
 	var item = _new_helm("Hanibals Mask", Rarity.MYTHIC, 5)
 	item.health_bonus = 25
@@ -762,14 +784,16 @@ static func create_wizard_hat() -> ItemData:
 	var item = _new_helm("Wizard Hat", Rarity.RARE, 10)
 	item.intelligence_bonus = 8
 	item.wisdom_bonus = 2
-	item.description = "+8 INT, +2 WIS."
+	item.spell_power_per_attacks = 3  # every 3rd attack...
+	item.spell_power_bonus = 5        # ...arms +5 spell power on the next spell card
+	item.description = "+8 INT, +2 WIS. Every 3rd attack, your next spell card gains +5 spell power."
 	return item
 
 static func create_dunce_cap() -> ItemData:
 	var item = _new_helm("Dunce Cap", Rarity.RARE, 15)
-	item.strength_bonus = 12
-	item.intelligence_bonus = -2
-	item.description = "+12 STR, -2 INT."
+	item.strength_bonus = 8
+	item.intelligence_bonus = -6
+	item.description = "+8 STR, -6 INT."
 	return item
 
 static func create_burgonet() -> ItemData:

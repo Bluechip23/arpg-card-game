@@ -435,6 +435,14 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.equipment_resistance_bonus += item.all_resistance_percent * multiplier
 	if item.block_bonus_to_defense_cards != 0:
 		player_stats.equipment_defense_card_block += item.block_bonus_to_defense_cards * multiplier
+	if item.brain_points_bonus != 0:
+		player_stats.equipment_brain_points_bonus += item.brain_points_bonus * multiplier
+	if item.peek_brain_discount != 0:
+		player_stats.equipment_peek_discount += item.peek_brain_discount * multiplier
+	if item.spell_power_per_attacks != 0:
+		player_stats.equipment_spell_power_every_n += item.spell_power_per_attacks * multiplier
+	if item.spell_power_bonus != 0:
+		player_stats.equipment_spell_power_amount += item.spell_power_bonus * multiplier
 
 	# Recalculate derived stats
 	player_stats.recalculate_derived_stats()
