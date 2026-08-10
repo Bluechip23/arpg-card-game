@@ -167,6 +167,19 @@ var equipment_spell_power_every_n: int = 0   # trigger every N attacks (Wizard H
 var equipment_spell_power_amount: int = 0    # spell-power granted when it triggers (Wizard Hat 5)
 var _wizard_attack_counter: int = 0
 var pending_spell_power_bonus: int = 0       # applied to the next spell card's damage, then cleared on play
+# Boots pass-2 equipment riders
+var equipment_sidestep_bonus_armor: int = 0  # +armor on a flash sidestep (Titanium Toe Tuckers)
+var equipment_movement_flash_discount: int = 0  # movement flash costs this much less (Rollerblades)
+var equipment_highground_damage_percent: float = 0.0  # +% damage from high ground (Mountain Boots)
+var on_high_ground: bool = false             # updated by main each cycle; gates the high-ground bonus
+var equipment_melee_crit_bonus: int = 0      # flat extra damage on a melee crit (Knife Toed Boots)
+var equipment_trap_damage_percent: float = 0.0  # +% trap damage (Hermes) — traps not yet implemented
+var movement_flash_accum: int = 0            # flash spent on movement toward the Boots of Speed threshold
+var movement_flash_tempo_threshold: int = 0  # Boots of Speed: at this accum, fire the -1-tempo bonus
+signal movement_flash_threshold_reached      # main removes 1 tempo from a hand card
+var consecutive_attacks: int = 0             # Cyde Livingstons Sneakers streak counter
+var consecutive_attacks_draw_at: int = 0     # streak length that triggers a draw (Cyde 5)
+signal consecutive_attacks_reached           # main draws a card
 # Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
 var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0
@@ -864,11 +877,12 @@ func spend_flash_for_block() -> bool:
 	var cost := get_flash_block_cost()
 	if not spend_flash_points(cost):
 		return false
-	current_armor += FLASH_BLOCK_ARMOR
+	var sidestep_armor := FLASH_BLOCK_ARMOR + equipment_sidestep_bonus_armor  # Titanium Toe Tuckers
+	current_armor += sidestep_armor
 	armor_changed.emit(current_armor)
-	armor_gained.emit(FLASH_BLOCK_ARMOR)
+	armor_gained.emit(sidestep_armor)
 	print("[STATS] Flash block: -%d flash → +%d armor (%d armor total)" % [
-		cost, FLASH_BLOCK_ARMOR, current_armor])
+		cost, sidestep_armor, current_armor])
 	return true
 
 func spend_flash_for_strike() -> bool:
@@ -1012,6 +1026,13 @@ func register_attack(is_real_attack: bool = true) -> Dictionary:
 			pending_spell_power_bonus += equipment_spell_power_amount
 			print("[STATS] Wizard Hat: next spell gains +%d spell power" % equipment_spell_power_amount)
 
+	# Cyde Livingstons Sneakers: a run of consecutive attacks draws a card.
+	if is_real_attack and consecutive_attacks_draw_at > 0:
+		consecutive_attacks += 1
+		if consecutive_attacks >= consecutive_attacks_draw_at:
+			consecutive_attacks = 0
+			consecutive_attacks_reached.emit()
+
 	# Free hand: every 12th registered attack echoes. Echoes themselves are
 	# never registered, so they can't advance this count or the DEX counter —
 	# and bought counter ticks (flash proc-tick) aren't attacks either.
@@ -1126,17 +1147,23 @@ func get_crit_damage_multiplier() -> float:
 	var deadly_bonus := 0.5 if st_deadly_crit_active else 0.0
 	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus
 
+## Mountain Boots: +% damage while attacking from high ground.
+func _apply_highground(damage: int) -> int:
+	if on_high_ground and equipment_highground_damage_percent > 0.0:
+		return floori(damage * (1.0 + equipment_highground_damage_percent / 100.0))
+	return damage
+
 func get_effective_physical_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	if keystone_dex_twin_strike:
 		damage -= DEX_TWIN_STRIKE_DAMAGE_PENALTY
-	return max(1, damage)
+	return max(1, _apply_highground(damage))
 
 func get_effective_ranged_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	if keystone_dex_twin_strike:
 		damage -= DEX_TWIN_STRIKE_DAMAGE_PENALTY
-	return max(1, damage)
+	return max(1, _apply_highground(damage))
 
 func get_dex_proc_flat_bonus() -> int:
 	## Killing Rhythm: DEX-scaled bonus damage granted on each would-be proc.
@@ -1151,7 +1178,7 @@ func consume_pending_dex_bonus_damage() -> int:
 func get_effective_spell_damage(base_damage: int) -> int:
 	# INT: +1 damage per point (flat). Wizard Hat's armed spell power (if any)
 	# rides along; it's cleared on the spell's play, not here (this is a query).
-	return max(1, base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage + pending_spell_power_bonus)
+	return max(1, _apply_highground(base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage + pending_spell_power_bonus))
 
 func get_effective_heal_amount(base_heal: int) -> int:
 	# INT also boosts healing (flat) + flat healing_bonus from equipment + sphere grid heal bonus

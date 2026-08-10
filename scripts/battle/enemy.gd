@@ -89,6 +89,8 @@ var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycl
 var bleed_stacks: int = 0      # Bleed: take X damage per tile moved, lose 1 per cycle
 var narashimha_tempo: int = 0   # Narashimha (Mane of Narashimha): cannot heal while > 0
 var void_resistance_percent: float = 0.0  # Mane aura: take this % extra player damage (refreshed each cycle)
+var missing_life_damage_rate: float = 0.0  # Jordan 1s: +rate × missing-health% bonus player damage
+var missing_life_threshold: int = 0        # Jordan 1s: only while at/below this health %
 var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
 
 # Hydra: grows stronger with every hit it takes. After the 4th hit it gains bulk
@@ -2617,6 +2619,12 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# player's hits land for extra damage while the enemy is inside the aura.
 	if from_player and void_resistance_percent > 0.0:
 		amount = floori(amount * (1.0 + void_resistance_percent / 100.0))
+
+	# Jordan 1s: below the threshold health %, add rate × missing-health% damage.
+	if from_player and missing_life_damage_rate > 0.0 and max_health > 0:
+		var health_pct: float = float(current_health) / float(max_health) * 100.0
+		if health_pct <= missing_life_threshold:
+			amount += floori(missing_life_damage_rate * (100.0 - health_pct))
 
 	# Armor Break: double damage to armor, no health damage. Zero effect on unarmored.
 	var just_exposed = false

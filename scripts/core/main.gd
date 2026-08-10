@@ -3525,6 +3525,8 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
 	player.get_stats().brain_points_changed.connect(_on_brain_points_changed)
 	player.get_stats().action_points_spent.connect(_on_action_points_spent)
+	player.get_stats().movement_flash_threshold_reached.connect(_on_movement_flash_threshold)
+	player.get_stats().consecutive_attacks_reached.connect(_on_consecutive_attacks_reached)
 	_update_flash_button()
 	_update_brain_button()
 	# The skill tree screen spends the banked level-up stat points.
@@ -7217,24 +7219,70 @@ func _helm_range_bonus(card) -> int:
 func _helm_card_world_effects(card) -> void:
 	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
 		return
-	if card.card_type != Card.CardType.UTILITY:
-		return
 	var osb = card.slotted_in_item.get_on_self_bonus()
-	var spell_dmg := int(osb.get("utility_spell_damage", 0))
-	if spell_dmg <= 0:
+
+	# Shamans mask: a UTILITY card zaps a random enemy within 3 for spell damage.
+	if card.card_type == Card.CardType.UTILITY:
+		var spell_dmg := int(osb.get("utility_spell_damage", 0))
+		if spell_dmg > 0:
+			var stats = player.get_stats()
+			var dmg: int = stats.get_effective_spell_damage(spell_dmg) if stats else spell_dmg
+			var victim = _random_enemy_within(3)
+			if victim:
+				victim.take_damage(dmg, true, DamageTypes.Type.FIRE)
+				add_battle_log("%s: %d spell damage to %s" % [card.slotted_in_item.item_name, dmg, victim.enemy_name], Color(0.5, 0.85, 0.6))
+
+	# Boot Holsters: a slotted instant (REACTION) hits the nearest enemy in 3.
+	if card.card_type == Card.CardType.REACTION:
+		var inst_dmg := int(osb.get("instant_damage_nearest", 0))
+		if inst_dmg > 0:
+			var nearest = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			if nearest and grid_manager.get_distance_in_cells(player.position, nearest.position) <= 3:
+				nearest.take_damage(inst_dmg, true)
+				add_battle_log("%s: %d damage to %s" % [card.slotted_in_item.item_name, inst_dmg, nearest.enemy_name], Color(0.8, 0.7, 0.4))
+
+	# Houdinis Slippers: any slotted card turns the player invisible for a while.
+	var invis_tempo := int(osb.get("invisible_tempo", 0))
+	if invis_tempo > 0:
+		var bm = player.get_buff_manager()
+		if bm:
+			bm.apply_buff(Buff.create_invisible(invis_tempo, card.slotted_in_item.item_name))
+			_set_player_invisible(true)
+			add_battle_log("%s: you vanish for %d tempo" % [card.slotted_in_item.item_name, invis_tempo], Color(0.7, 0.7, 0.9))
+
+## Boots of Speed: enough movement flash spent → shave 1 tempo off a hand card.
+func _on_movement_flash_threshold() -> void:
+	if not deck_manager or deck_manager.hand.is_empty():
 		return
-	var stats = player.get_stats()
-	var dmg: int = stats.get_effective_spell_damage(spell_dmg) if stats else spell_dmg
+	# Prefer a card that still has tempo to remove.
 	var candidates: Array = []
-	for e in enemy_spawner.get_living_enemies():
-		if e and is_instance_valid(e) and grid_manager.get_distance_in_cells(player.position, e.position) <= 3:
-			candidates.append(e)
+	for c in deck_manager.hand:
+		if c and c.tempo_cost > 0:
+			candidates.append(c)
 	if candidates.is_empty():
 		return
-	var victim = candidates[randi() % candidates.size()]
-	if victim.has_method("take_damage"):
-		victim.take_damage(dmg, true, DamageTypes.Type.FIRE)
-		add_battle_log("%s: %d spell damage to %s" % [card.slotted_in_item.item_name, dmg, victim.enemy_name], Color(0.5, 0.85, 0.6))
+	var pick = candidates[randi() % candidates.size()]
+	pick.tempo_cost = max(0, pick.tempo_cost - 1)
+	add_battle_log("Boots of Speed: -1 tempo on %s" % pick.card_name, Color(0.7, 0.9, 1.0))
+	update_deck_info()
+
+## Cyde Livingstons Sneakers: a run of consecutive attacks draws a card.
+func _on_consecutive_attacks_reached() -> void:
+	if not deck_manager:
+		return
+	deck_manager.draw_card()
+	add_battle_log("Cyde Livingstons Sneakers: 5 attacks — draw a card!", Color(0.7, 0.9, 0.7))
+	update_deck_info()
+
+## Returns a random living enemy within `tiles` of the player, or null.
+func _random_enemy_within(tiles: int):
+	var candidates: Array = []
+	for e in enemy_spawner.get_living_enemies():
+		if e and is_instance_valid(e) and grid_manager.get_distance_in_cells(player.position, e.position) <= tiles:
+			candidates.append(e)
+	if candidates.is_empty():
+		return null
+	return candidates[randi() % candidates.size()]
 
 ## Feathered Hat: accumulate flash points spent; once the wearer has spent the
 ## helm's threshold, arm a guaranteed crit for the next ranged offensive card.
@@ -7302,8 +7350,20 @@ func _helm_on_cycle_passives() -> void:
 			if removed > 0:
 				add_battle_log("Horned Nasal Helm purges %d debuff(s)" % removed, Color(0.7, 0.6, 0.9))
 
-	# Void-resistance aura: presence-based, refreshed every cycle so it follows
-	# the player and lapses the moment an enemy leaves the radius.
+	# Boots: keep the high-ground flag current, and read Jordan's missing-life rate.
+	var stats = player.get_stats()
+	if stats:
+		stats.on_high_ground = _is_on_high_ground(player.position)
+	var jordan_rate := 0.0
+	var jordan_threshold := 0
+	for boot in inv.equipped_boots:
+		if boot and boot.missing_life_damage_rate > 0.0:
+			jordan_rate = boot.missing_life_damage_rate
+			jordan_threshold = boot.missing_life_threshold
+			break
+
+	# Void-resistance aura (Mane): presence-based, refreshed every cycle so it
+	# follows the player. Also stamp Jordan's missing-life rate on every enemy.
 	if enemy_spawner and grid_manager:
 		for e in enemy_spawner.get_living_enemies():
 			if not e or not is_instance_valid(e):
@@ -7312,6 +7372,8 @@ func _helm_on_cycle_passives() -> void:
 				e.void_resistance_percent = aura_percent
 			else:
 				e.void_resistance_percent = 0.0
+			e.missing_life_damage_rate = jordan_rate
+			e.missing_life_threshold = jordan_threshold
 
 ## Dragon Skull: on a landed crit, breathe a fire cone in front of the wearer.
 ## Damage = the helm's base + INT/2 (spell-style scaling), fire-typed.

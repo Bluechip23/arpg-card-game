@@ -443,6 +443,22 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.equipment_spell_power_every_n += item.spell_power_per_attacks * multiplier
 	if item.spell_power_bonus != 0:
 		player_stats.equipment_spell_power_amount += item.spell_power_bonus * multiplier
+	# Boots pass-2 riders
+	if item.sidestep_bonus_armor != 0:
+		player_stats.equipment_sidestep_bonus_armor += item.sidestep_bonus_armor * multiplier
+	if item.movement_flash_discount != 0:
+		player_stats.equipment_movement_flash_discount += item.movement_flash_discount * multiplier
+	if item.highground_damage_percent != 0.0:
+		player_stats.equipment_highground_damage_percent += item.highground_damage_percent * multiplier
+	if item.melee_crit_flat_bonus != 0:
+		player_stats.equipment_melee_crit_bonus += item.melee_crit_flat_bonus * multiplier
+	if item.trap_damage_percent != 0.0:
+		player_stats.equipment_trap_damage_percent += item.trap_damage_percent * multiplier
+	if item.movement_flash_tempo_threshold != 0:
+		# Last equipped boot with a threshold wins (only one boots slot in practice).
+		player_stats.movement_flash_tempo_threshold = item.movement_flash_tempo_threshold if multiplier > 0 else 0
+	if item.consecutive_attack_draw != 0:
+		player_stats.consecutive_attacks_draw_at = item.consecutive_attack_draw if multiplier > 0 else 0
 
 	# Recalculate derived stats
 	player_stats.recalculate_derived_stats()

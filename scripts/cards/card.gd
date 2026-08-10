@@ -781,6 +781,10 @@ func get_effect_draw_count() -> int:
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
 
+	# Cyde Livingstons Sneakers: a non-attack card breaks the consecutive-attack streak.
+	if card_type != CardType.ATTACK and player_stats and player_stats.consecutive_attacks_draw_at > 0:
+		player_stats.consecutive_attacks = 0
+
 	# Blind (e.g. Giant Hawk): an attack against an enemy may miss entirely.
 	# Enemies expose take_damage but not get_stats (players have get_stats).
 	if card_type == CardType.ATTACK and player_stats and player_stats.is_blinded \
@@ -828,6 +832,19 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if on_self.get("flash_regen", 0) > 0 and player_stats and player_stats.has_method("gain_flash_points"):
 			player_stats.gain_flash_points(on_self["flash_regen"])
 			print("[CARD] On-Self: %s restored %d flash point(s)" % [slotted_in_item.item_name, on_self["flash_regen"]])
+		# Caster Boots: bonus damage equal to a % of the wearer's INT.
+		if on_self.get("int_damage_percent", 0.0) > 0.0 and player_stats:
+			var int_bonus := floori(player_stats.intelligence * on_self["int_damage_percent"] / 100.0)
+			if int_bonus > 0:
+				bonus_damage += int_bonus
+				print("[CARD] On-Self: +%d damage (%.0f%% of INT) from %s" % [int_bonus, on_self["int_damage_percent"], slotted_in_item.item_name])
+		# Boots of the Balancer: armor scaling with the wearer's missing health.
+		if on_self.get("armor_per_missing_health10", 0) > 0 and player_stats:
+			var missing_pct := (1.0 - player_stats.get_health_percent()) * 100.0
+			var bal_armor: int = int(on_self["armor_per_missing_health10"]) * int(missing_pct / 10.0)
+			if bal_armor > 0:
+				player_stats.add_armor(bal_armor)
+				print("[CARD] On-Self: +%d armor (missing-health) from %s" % [bal_armor, slotted_in_item.item_name])
 		# Shamans mask: utility cards heal the player directly on play.
 		if card_type == CardType.UTILITY and on_self.get("utility_heal", 0) > 0 and player_stats:
 			player_stats.heal(on_self["utility_heal"])
@@ -1301,6 +1318,9 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 		# Crit check with Enlightened
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
+			# Knife Toed Boots: melee crits deal a flat bonus on top (no scaling).
+			if not is_ranged and player_stats and player_stats.equipment_melee_crit_bonus > 0:
+				total_damage += player_stats.equipment_melee_crit_bonus
 			print("[CARD] CRITICAL HIT! Damage doubled!")
 
 	# Cursed: reduce damage dealt by percentage
@@ -1466,9 +1486,13 @@ func get_burden_mana_cost() -> int:
 	return mana_cost
 
 func get_burden_tempo_cost() -> int:
+	var cost := tempo_cost
 	if has_burden:
-		return tempo_cost + burden_plays
-	return tempo_cost
+		cost += burden_plays
+	# Boot Holsters: slotted attack cards cost less tempo.
+	if card_type == CardType.ATTACK and slotted_in_item:
+		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
+	return max(0, cost)
 
 func apply_burden() -> void:
 	if has_burden:

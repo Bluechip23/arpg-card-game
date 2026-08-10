@@ -292,11 +292,19 @@ func add_movement_tempo() -> void:
 	# Flash points (Agility) make the move tempo-free — but only when the player
 	# has toggled flash movement on (the HUD lightning-bolt button). Spending
 	# the pool is a choice, not automatic.
-	if player_stats and player_stats.flash_movement_enabled \
-			and player_stats.spend_flash_points(PlayerStats.FLASH_COST_MOVE):
-		print("[TEMPO] Flash move (%d left) | %d tiles this cycle" % [
-			player_stats.current_flash_points, spaces_moved_this_cycle])
-		return
+	if player_stats and player_stats.flash_movement_enabled:
+		# Rollerblades discount the movement flash cost (min 1).
+		var move_cost: int = max(1, PlayerStats.FLASH_COST_MOVE - player_stats.equipment_movement_flash_discount)
+		if player_stats.spend_flash_points(move_cost):
+			print("[TEMPO] Flash move (%d left) | %d tiles this cycle" % [
+				player_stats.current_flash_points, spaces_moved_this_cycle])
+			# Boots of Speed: bank movement flash; at the threshold, fire the bonus.
+			if player_stats.movement_flash_tempo_threshold > 0:
+				player_stats.movement_flash_accum += move_cost
+				if player_stats.movement_flash_accum >= player_stats.movement_flash_tempo_threshold:
+					player_stats.movement_flash_accum -= player_stats.movement_flash_tempo_threshold
+					player_stats.movement_flash_threshold_reached.emit()
+			return
 	last_tempo_source = "movement"
 	add_tempo(1)
 
