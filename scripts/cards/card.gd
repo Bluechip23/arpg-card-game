@@ -885,7 +885,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"neither_man_nor_beast":
 			_execute_neither_man_nor_beast(target)
 		"resourceful_replenish":
-			_execute_resourceful_replenish(buff_mgr)
+			# Maintain: the 5% lifesteal is applied passively in the attack path
+			# while this card is maintained; nothing to do on activation.
+			print("[CARD] Resourceful Replenish maintained: attacks lifesteal 5%")
 		"out_of_guesses":
 			_execute_out_of_guesses(deck_manager)
 		"twenty_twenty":
@@ -1175,10 +1177,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if ls_dealt > 0:
 			player_stats.apply_life_steal(max(1, floori(ls_dealt * 0.05)))
 
-	# Sphere grid "Life Steal +X%" nodes AND equipment lifesteal (e.g. Hanibals
-	# Mask): attacks heal a percentage of damage dealt.
+	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hanibals Mask),
+	# and a maintained Resourceful Replenish: attacks heal a % of damage dealt.
 	if card_type == CardType.ATTACK and player_stats:
 		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.equipment_lifesteal_bonus
+		if deck_manager and deck_manager.has_method("get_maintained_cards"):
+			for mc in deck_manager.get_maintained_cards():
+				if mc and mc.card_id == "resourceful_replenish":
+					ls_pct += 5.0
 		if ls_pct > 0.0:
 			var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 			if sls_dealt > 0:
@@ -1334,13 +1340,6 @@ func _execute_neither_man_nor_beast(target) -> void:
 		if target.has_method("apply_debuff"):
 			target.apply_debuff("narashimha", 2)  # 10 tempo = 2 cycles
 		print("[CARD] Neither Man nor Beast: 5 unresistable damage + Narashimha")
-
-## Resourceful Replenish (Hanibals Mask): arm a one-shot % life steal on the
-## next attack. Base 5%; the mask's upgrade swaps in an 8% copy.
-func _execute_resourceful_replenish(buff_mgr: BuffManager) -> void:
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_life_steal_percent(5, "Resourceful Replenish"))
-	print("[CARD] Resourceful Replenish: next attack lifesteals 5%")
 
 ## Out of Guesses (The Headbandz): discard the whole hand, then draw that many.
 func _execute_out_of_guesses(deck_manager) -> void:
@@ -5235,10 +5234,11 @@ static func create_resourceful_replenish() -> Card:
 	var card = Card.new()
 	card.card_id = "resourceful_replenish"
 	card.card_name = "Resourceful Replenish"
-	card.description = "Your next attack heals you for 5% of the damage dealt."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
+	card.description = "Maintain: your attacks heal you for 5% of the damage dealt."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
 	card.mana_cost = 20
+	card.maintain_cost = 20
 	card.tempo_cost = 2
 	card.target_types = ["self"]
 	return card

@@ -753,7 +753,7 @@ static func create_hanibals_mask() -> ItemData:
 	var hanibals_cards: Array[String] = ["resourceful_replenish"]
 	item.granted_card_ids = hanibals_cards
 	# Upgrade path (+50 life, Resourceful Replenish 8%) via level overrides.
-	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish: Life steal 5% (20 mana, 2 tempo). Upgraded: 50 life; Resourceful Replenish 8%."
+	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 5% (20 mana, 2 tempo). Upgraded: 50 life; Resourceful Replenish 8%."
 	return item
 
 static func create_mane_of_narashimha() -> ItemData:
