@@ -938,12 +938,14 @@ func _set_elevation_rect(rect: Rect2i, elev: int) -> void:
 			if grid[x][z] == Tile.FLOOR:
 				elevation[x][z] = elev
 
-func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> void:
-	## Sandbox helper: carve a walkable raised platform centred on `center`.
-	## FLOOR tiles are given elevation `elev` (so the player glides up onto
-	## them and gets the High Ground bonus), and a raised slab + cliff sides are
-	## rendered so the platform is visible. WALL tiles are never consumed —
-	## walls are a hard cutoff no matter the elevation beside them.
+func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> Dictionary:
+	## Carve a walkable raised platform centred on `center` (sandbox helper and
+	## Terrain formation card). FLOOR tiles are given elevation `elev` (so the
+	## player glides up onto them and gets the High Ground bonus), and a raised
+	## slab + cliff sides are rendered so the platform is visible. WALL tiles are
+	## never consumed — walls are a hard cutoff no matter the elevation beside
+	## them. Returns a handle {cells, nodes} usable with remove_high_ground().
+	var handle := {"cells": [], "nodes": []}
 	var pal = get_palette()
 	for x in range(center.x - radius, center.x + radius + 1):
 		for z in range(center.y - radius, center.y + radius + 1):
@@ -951,7 +953,10 @@ func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> void
 				continue
 			if grid[x][z] != Tile.FLOOR:
 				continue
+			if elevation[x][z] != 0:
+				continue  # never stack on / overwrite existing high ground
 			elevation[x][z] = elev
+			handle["cells"].append(Vector2i(x, z))
 			var h: float = elev * ELEV_STEP
 			# Cliff body up to just under the top, then a lit top surface.
 			var cliff := MeshInstance3D.new()
@@ -963,6 +968,7 @@ func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> void
 			cm.albedo_color = pal.get("cliff", Color(0.4, 0.38, 0.34))
 			cliff.material_override = cm
 			_visuals_root.add_child(cliff)
+			handle["nodes"].append(cliff)
 			var top := MeshInstance3D.new()
 			var tb := BoxMesh.new()
 			tb.size = Vector3(1.0, 0.08, 1.0)
@@ -972,6 +978,19 @@ func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> void
 			tm.albedo_color = pal.get("floor_a", Color(0.5, 0.5, 0.45)).lightened(0.14)
 			top.material_override = tm
 			_visuals_root.add_child(top)
+			handle["nodes"].append(top)
+	return handle
+
+func remove_high_ground(handle: Dictionary) -> void:
+	## Undo a build_high_ground() using its returned handle: flatten the raised
+	## cells back to ground level and free the platform visuals (Terrain
+	## formation's hill expiring).
+	for cell in handle.get("cells", []):
+		if cell.x >= 0 and cell.x < GRID_W and cell.y >= 0 and cell.y < GRID_H:
+			elevation[cell.x][cell.y] = 0
+	for node in handle.get("nodes", []):
+		if is_instance_valid(node):
+			node.queue_free()
 
 
 func get_elevation(grid_pos: Vector2i) -> int:

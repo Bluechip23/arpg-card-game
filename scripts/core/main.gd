@@ -7437,11 +7437,36 @@ func _helm_on_cycle_passives() -> void:
 		stats.on_high_ground = _is_on_high_ground(player.position)
 	var jordan_rate := 0.0
 	var jordan_threshold := 0
+	var greaves_regen := 0
+	var greaves_radius := 0
+	var greaves_resist := 0.0
 	for boot in inv.equipped_boots:
-		if boot and boot.missing_life_damage_rate > 0.0:
+		if boot and boot.missing_life_damage_rate > 0.0 and jordan_rate == 0.0:
 			jordan_rate = boot.missing_life_damage_rate
 			jordan_threshold = boot.missing_life_threshold
-			break
+		if boot and boot.ally_regen_per_cycle > 0 and greaves_regen == 0:
+			greaves_regen = boot.ally_regen_per_cycle
+			greaves_radius = boot.ally_regen_radius
+			greaves_resist = boot.ally_physical_resist
+
+	# Guardian Greaves aura: allies (players and summons) within the radius are
+	# healed and given mana each cycle; players also hold 5% physical resist
+	# while inside. Resist is presence-based — reset first, then re-applied.
+	for ally in _all_players():
+		if is_instance_valid(ally) and ally.get_stats():
+			ally.get_stats().aura_physical_resist = 0.0
+	if greaves_regen > 0 and grid_manager:
+		for ally in _all_players():
+			if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > greaves_radius:
+				continue
+			var a_st = ally.get_stats()
+			if a_st:
+				a_st.heal(greaves_regen)
+				a_st.gain_mana(greaves_regen)
+				a_st.aura_physical_resist = greaves_resist
+		for m in _frankensteins:
+			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
+				m.heal(greaves_regen)
 
 	# Void-resistance aura (Mane): presence-based, refreshed every cycle so it
 	# follows the player. Also stamp Jordan's missing-life rate on every enemy.
@@ -7621,6 +7646,85 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	match card.card_id:
 		"its_alive":
 			_resurrect_frankenstein()
+
+		"shift":
+			# Rollerblades: free move, but bounded — up to 2 tiles.
+			var shift_pos = grid_manager.snap_to_grid(mouse_pos)
+			var shift_cell = grid_manager.world_to_grid(shift_pos)
+			var shift_dist = grid_manager.get_distance_in_cells(player.position, shift_pos)
+			if shift_dist > 2:
+				add_battle_log("shift: too far — 2 spaces max", Color(1.0, 0.4, 0.4))
+			elif shift_cell in player.blocked_tiles:
+				add_battle_log("shift: cannot move into a wall or obstacle!", Color(1.0, 0.4, 0.4))
+			else:
+				player.blink_to(shift_pos)
+				progression_triggers._trigger_skill_tree_on_displacement()
+
+		"escape_and_bewilder":
+			# Houdinis Slippers: blink up to 5; stun everyone near the vacated tile.
+			var eb_origin: Vector3 = player.position
+			var eb_pos = grid_manager.snap_to_grid(mouse_pos)
+			var eb_cell = grid_manager.world_to_grid(eb_pos)
+			if grid_manager.get_distance_in_cells(eb_origin, eb_pos) > 5:
+				add_battle_log("Escape and bewilder: too far — 5 spaces max", Color(1.0, 0.4, 0.4))
+			elif eb_cell in player.blocked_tiles:
+				add_battle_log("Escape and bewilder: cannot blink into a wall!", Color(1.0, 0.4, 0.4))
+			else:
+				player.blink_to(eb_pos)
+				progression_triggers._trigger_skill_tree_on_displacement()
+				var stunned := 0
+				for e in enemy_spawner.get_living_enemies():
+					if e and is_instance_valid(e) and grid_manager.get_distance_in_cells(eb_origin, e.position) <= 3:
+						e.apply_debuff("stun", 1)  # 3 tempo ≈ 1 cycle
+						stunned += 1
+				if stunned > 0:
+					add_battle_log("Escape and bewilder: %d enem%s stunned!" % [stunned, "y" if stunned == 1 else "ies"], Color(0.7, 0.7, 0.95))
+
+		"donate_cleats":
+			# Cyde Livingstons Sneakers: lend an ally (or yourself) +5 AGI / +4 DEX for 5 tempo.
+			var dc_node = target if (target and is_instance_valid(target) and target.has_method("get_stats")) else player
+			var dc_stats = dc_node.get_stats()
+			if dc_stats:
+				dc_stats.base_agility += 5
+				dc_stats.base_dexterity += 4
+				dc_stats.recalculate_derived_stats()
+				schedule_delayed_effect(5, func():
+					if is_instance_valid(dc_node) and dc_node.get_stats():
+						dc_stats.base_agility -= 5
+						dc_stats.base_dexterity -= 4
+						dc_stats.recalculate_derived_stats(), "donate_cleats")
+				add_battle_log("Donate Cleats: +5 AGI, +4 DEX for 5 tempo", Color(0.6, 0.9, 0.6))
+
+		"terrain_formation":
+			# Mountain Boots: raise a walkable hill (works under units too); 5 tempo.
+			var tf_cell = grid_manager.world_to_grid(grid_manager.snap_to_grid(mouse_pos))
+			var tf_handle = dungeon_manager.build_high_ground(tf_cell, 1, 1) if dungeon_manager else {}
+			if tf_handle.get("cells", []).is_empty():
+				add_battle_log("Terrain formation: no ground to raise there", Color(1.0, 0.4, 0.4))
+			else:
+				schedule_delayed_effect(5, func():
+					if dungeon_manager:
+						dungeon_manager.remove_high_ground(tf_handle), "terrain_formation")
+				add_battle_log("Terrain formation: a hill rises! (5 tempo)", Color(0.7, 0.6, 0.4))
+
+		"mend":
+			# Guardian Greaves: allies within 4 restore 20% HP/mana + armor = health restored.
+			var mend_healed := 0
+			for ally in _all_players():
+				if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > 4:
+					continue
+				var a_st = ally.get_stats()
+				if a_st:
+					var heal_amt: int = maxi(1, floori(a_st.max_health * 0.2))
+					a_st.heal(heal_amt)
+					a_st.gain_mana(maxi(1, floori(a_st.max_mana * 0.2)))
+					a_st.add_armor(heal_amt)
+					mend_healed += 1
+			for m in _frankensteins:
+				if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= 4:
+					m.heal(maxi(1, floori(m.max_health * 0.2)))
+					mend_healed += 1
+			add_battle_log("Mend: %d all%s restored" % [mend_healed, "y" if mend_healed == 1 else "ies"], Color(0.5, 0.9, 0.7))
 
 		"spark":
 			# Damage is dealt in execute(); here: shift hand tempo now + later.
@@ -9933,6 +10037,17 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var triggered = deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+	# Tight Rope: fires only on the hit that dropped the player below 20% health.
+	var tr_stats = player.get_stats()
+	if tr_stats and tr_stats.max_health > 0:
+		var pct := float(tr_stats.current_health) / float(tr_stats.max_health)
+		var prev_pct := float(tr_stats.current_health + _amount) / float(tr_stats.max_health)
+		if pct < 0.2 and prev_pct >= 0.2:
+			var low_triggered = deck_manager.trigger_reactions("on_health_below_20")
+			for card in low_triggered:
+				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+			if low_triggered.size() > 0:
+				_refresh_unit_tracker()
 	# Cover: an ally taking damage (self in solo) fires its mitigation reaction.
 	var cover_reactions = deck_manager.trigger_reactions("on_ally_damage_taken")
 	for card in cover_reactions:

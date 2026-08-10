@@ -180,6 +180,7 @@ signal movement_flash_threshold_reached      # main removes 1 tempo from a hand 
 var consecutive_attacks: int = 0             # Cyde Livingstons Sneakers streak counter
 var consecutive_attacks_draw_at: int = 0     # streak length that triggers a draw (Cyde 5)
 signal consecutive_attacks_reached           # main draws a card
+var aura_physical_resist: float = 0.0        # Guardian Greaves aura: % physical resist, refreshed each cycle
 # Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
 var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0
@@ -1288,7 +1289,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		remaining = floori(remaining * 0.9)
 
 	# Per-type resistance (e.g. elemental resists once cards start tagging types).
+	# Guardian Greaves' aura adds transient physical resist on top.
 	var type_resist = get_damage_resistance(damage_type)
+	if damage_type == DamageTypes.Type.PHYSICAL:
+		type_resist += aura_physical_resist
 	if type_resist > 0.0:
 		remaining = floori(remaining * (1.0 - min(type_resist, 100.0) / 100.0))
 

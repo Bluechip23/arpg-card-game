@@ -240,6 +240,9 @@ func get_mastery_text(stats = null) -> String:
 @export var consecutive_attack_draw: int = 0        # draw a card after X consecutive attacks (Cyde Livingstons Sneakers 5)
 @export var fire_trail_damage: int = 0              # flash-move leaves fire dealing X (+INT) damage (Elemental Trail Blazers 5)
 @export var fire_trail_tempo: int = 0               # how long a fire spot persists (Elemental Trail Blazers 3)
+@export var ally_regen_per_cycle: int = 0           # heal+mana per cycle to allies in radius (Guardian Greaves 10)
+@export var ally_regen_radius: int = 0              # aura radius in tiles (Guardian Greaves 4)
+@export var ally_physical_resist: float = 0.0       # % physical resist to allies in radius (Guardian Greaves 5)
 
 # Brain-point gear (Scholars Cap)
 @export var brain_points_bonus: int = 0             # +X max brain points while equipped
@@ -935,7 +938,8 @@ static func create_rollerblades() -> ItemData:
 	item.strength_bonus = 5
 	item.on_self_reaction_armor = 10  # slotted instant → +10 armor
 	item.movement_flash_discount = 1  # movement flash costs 1 less
-	# GAP (granted card): "shift" (bounded 2-space free move) — needs movement card support.
+	var roller_cards: Array[String] = ["shift"]
+	item.granted_card_ids = roller_cards
 	item.description = "+6 AGI, +5 STR. On-self: if an instant, gain 10 armor in addition to its effect. -1 cost to movement flash points. Grants shift: move 2 spaces for free (0 mana / 0 tempo)."
 	return item
 
@@ -944,7 +948,8 @@ static func create_cyde_livingstons_sneakers() -> ItemData:
 	item.agility_bonus = 5
 	item.dexterity_bonus = 4
 	item.consecutive_attack_draw = 5  # 5 consecutive attacks → draw a card
-	# GAP (granted card): "Donate Cleats" (ally AGI/DEX buff) — needs ally targeting.
+	var cyde_cards: Array[String] = ["donate_cleats"]
+	item.granted_card_ids = cyde_cards
 	item.description = "+5 AGI, +4 DEX. If you play 5 consecutive attacks, draw a card. Grants Donate Cleats: for 5 tempo, grant 5 AGI and 4 DEX to an ally (35 mana, 0 tempo)."
 	return item
 
@@ -972,7 +977,8 @@ static func create_mountain_boots() -> ItemData:
 	var item = _new_boot("Mountain Boots", Rarity.LEGENDARY, 40)
 	item.health_bonus = 15
 	item.highground_damage_percent = 20.0
-	# GAP (granted card): "Terrain formation" (create a walkable hill) — needs terrain support.
+	var mountain_cards: Array[String] = ["terrain_formation"]
+	item.granted_card_ids = mountain_cards
 	item.description = "+15 health. When attacking from high ground, gain an additional 20% damage. Grants Terrain formation: create a hill you can walk on for 5 tempo (25 mana, 3 tempo)."
 	return item
 
@@ -981,7 +987,8 @@ static func create_houdinis_slippers() -> ItemData:
 	item.card_slots = 1
 	item.health_bonus = -10
 	item.on_self_invisible_tempo = 5  # slotted card → invisible 5 tempo
-	# GAP (granted card): "Escape and bewilder" (blink + AOE stun) — needs a movement+stun card.
+	var houdini_cards: Array[String] = ["escape_and_bewilder"]
+	item.granted_card_ids = houdini_cards
 	item.description = "-10 health. On-self: become invisible for 5 tempo (standard invisibility rules). Grants Escape and bewilder: blink up to 5 spaces and stun all enemies within 3 of the space you left for 3 tempo (50 mana, 2 tempo)."
 	return item
 
@@ -993,7 +1000,8 @@ static func create_boots_of_the_balancer() -> ItemData:
 	item.strength_bonus = 5
 	item.determination_bonus = 2
 	item.on_self_armor_per_missing_health10 = 5  # 5 armor per 10% missing health
-	# GAP (granted card): "Tight rope" (below-20%-HP instant) — needs a threshold reaction card.
+	var balancer_cards: Array[String] = ["tight_rope"]
+	item.granted_card_ids = balancer_cards
 	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health and 15 Strengthen. Upgraded: each 6% missing health; Tight rope gains a second copy."
 	return item
 
@@ -1022,7 +1030,11 @@ static func create_guardian_greaves() -> ItemData:
 	item.intelligence_bonus = 5
 	item.wisdom_bonus = 4
 	item.strength_bonus = 5
-	# GAP (rider): grants "Mend" (AOE heal/mana/armor); per-cycle regen + resist aura.
+	item.ally_regen_per_cycle = 10
+	item.ally_regen_radius = 4
+	item.ally_physical_resist = 5.0
+	var guardian_cards: Array[String] = ["mend"]
+	item.granted_card_ids = guardian_cards
 	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, give 10 health and mana regen to all allies within 4 squares, plus 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo). Upgraded: 40% / 40%."
 	return item
 

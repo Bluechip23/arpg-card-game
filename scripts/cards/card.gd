@@ -96,6 +96,10 @@ const CARD_RARITIES := {
 	"out_of_guesses": Rarity.MYTHIC,
 	# Boot-granted (item pass 1)
 	"shiv": Rarity.RARE,
+	# Boot-granted (item pass 2)
+	"shift": Rarity.LEGENDARY, "donate_cleats": Rarity.LEGENDARY,
+	"terrain_formation": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
+	"tight_rope": Rarity.MYTHIC, "mend": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -109,7 +113,8 @@ const DROP_EXCLUDED_CARD_IDS := {
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
 	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
-	"shiv": true,
+	"shiv": true, "shift": true, "donate_cleats": true, "terrain_formation": true,
+	"escape_and_bewilder": true, "tight_rope": true, "mend": true,
 }
 
 @export var card_id: String = "slash"
@@ -932,6 +937,16 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"shiv":
 			# Knife Toed Boots: a cheap melee jab. Same physical path as Slash.
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+		"tight_rope":
+			# Boots of the Balancer instant: fired by the below-20%-health trigger.
+			if player_stats:
+				player_stats.add_temp_health(20, 15)
+			if buff_mgr:
+				buff_mgr.apply_buff(Buff.create_strengthen(15, 1, "Tight Rope"))
+			print("[CARD] Tight Rope: +20 temp health, +15 damage on next attack")
+		"shift", "donate_cleats", "terrain_formation", "escape_and_bewilder", "mend":
+			# Boot-granted world effects — resolved in main._apply_card_world_effects.
+			pass
 		# === Brad Cards ===
 		"life_swap":
 			_execute_life_swap(target, player_stats, buff_mgr)
@@ -5320,6 +5335,79 @@ static func create_its_alive() -> Card:
 	card.mana_cost = 20
 	card.tempo_cost = 5
 	card.target_types = ["point"]
+	return card
+
+static func create_tight_rope() -> Card:
+	var card = Card.new()
+	card.card_id = "tight_rope"
+	card.card_name = "Tight Rope"
+	card.description = "Instant. When a hit puts you below 20% health, gain 20 temp health and +15 damage on your next attack."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.target_types = ["self"]
+	card.reaction_trigger = "on_health_below_20"
+	return card
+
+static func create_shift() -> Card:
+	var card = Card.new()
+	card.card_id = "shift"
+	card.card_name = "shift"
+	card.description = "Move up to 2 spaces for free."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.target_types = ["point"]
+	return card
+
+static func create_donate_cleats() -> Card:
+	var card = Card.new()
+	card.card_id = "donate_cleats"
+	card.card_name = "Donate Cleats"
+	card.description = "For 5 tempo, grant an ally +5 AGI and +4 DEX."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 35
+	card.tempo_cost = 0
+	card.target_types = ["ally", "self"]
+	return card
+
+static func create_terrain_formation() -> Card:
+	var card = Card.new()
+	card.card_id = "terrain_formation"
+	card.card_name = "Terrain formation"
+	card.description = "Create a hill you can walk on. The hill lasts 5 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 25
+	card.tempo_cost = 3
+	card.target_types = ["point"]
+	return card
+
+static func create_escape_and_bewilder() -> Card:
+	var card = Card.new()
+	card.card_id = "escape_and_bewilder"
+	card.card_name = "Escape and bewilder"
+	card.description = "Blink up to 5 spaces. Enemies within 3 of the space you left are stunned for 3 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 50
+	card.tempo_cost = 2
+	card.target_types = ["point"]
+	return card
+
+static func create_mend() -> Card:
+	var card = Card.new()
+	card.card_id = "mend"
+	card.card_name = "Mend"
+	card.description = "Allies within 4 squares restore 20% health and 20% mana, and gain armor equal to the health restored."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 30
+	card.tempo_cost = 4
+	card.target_types = ["self"]
 	return card
 
 static func create_shiv() -> Card:
