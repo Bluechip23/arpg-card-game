@@ -68,6 +68,7 @@ var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
 const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
 var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
 var _corpses: Array = []         # {cell: Vector2i, position: Vector3} left by dead enemies, for resurrection
+var _fire_spots: Array = []      # Elemental Trail Blazers: {cell, tempo, damage, node}
 const FrankensteinScript = preload("res://scripts/battle/frankensteins_monster.gd")
 var minimap_tab_ui: MinimapTabUI = null
 var player2_ui: Player2UI = null
@@ -3669,7 +3670,12 @@ func _on_player_tile_reached() -> void:
 			tempo_manager.add_tempo(climb_cost)
 			add_battle_log("Climbing! +%d tempo" % climb_cost, Color(0.8, 0.7, 0.4))
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
+	var _vacated_cell := _player_last_grid_cell
 	_player_last_grid_cell = player_cell
+
+	# Elemental Trail Blazers: moving with flash points leaves fire on the vacated tile.
+	if _vacated_cell.x >= 0 and _vacated_cell != player_cell:
+		_maybe_drop_fire_trail(_vacated_cell)
 
 	# Fire walls (Fire Goblin Shaman): burn the player if they stepped into one.
 	_check_fire_walls(player_cell)
@@ -4459,6 +4465,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_summoned_worms()
 	# Frankensteins Monsters act on their own tempo cadence.
 	_update_frankensteins(amount)
+	# Elemental Trail Blazers: fire spots burn enemies then fade.
+	_update_fire_spots(amount)
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
@@ -4663,6 +4671,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 func _on_all_enemies_defeated() -> void:
 	_clear_summoned_worms()
 	_clear_frankensteins()
+	_clear_fire_spots()
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
@@ -7249,6 +7258,78 @@ func _helm_card_world_effects(card) -> void:
 			bm.apply_buff(Buff.create_invisible(invis_tempo, card.slotted_in_item.item_name))
 			_set_player_invisible(true)
 			add_battle_log("%s: you vanish for %d tempo" % [card.slotted_in_item.item_name, invis_tempo], Color(0.7, 0.7, 0.9))
+
+## Elemental Trail Blazers: if the player moved on flash points and the boots are
+## worn, ignite the tile they just left. Damage scales with INT like a spell.
+func _maybe_drop_fire_trail(cell: Vector2i) -> void:
+	if not player or not grid_manager:
+		return
+	var stats = player.get_stats()
+	if not stats or not stats.flash_movement_enabled:
+		return  # only "when moving with flash points"
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	var dmg := 0
+	var persist := 0
+	for boot in inv.equipped_boots:
+		if boot and boot.fire_trail_damage > 0:
+			dmg = boot.fire_trail_damage
+			persist = boot.fire_trail_tempo
+			break
+	if dmg <= 0:
+		return
+	# Skip if a fire spot already burns here.
+	for spot in _fire_spots:
+		if spot["cell"] == cell:
+			return
+	var scaled: int = stats.get_effective_spell_damage(dmg)
+	var node := _make_fire_spot_visual(grid_manager.grid_to_world(cell))
+	add_child(node)
+	_fire_spots.append({"cell": cell, "tempo": persist, "damage": scaled, "node": node})
+
+func _make_fire_spot_visual(world_pos: Vector3) -> Node3D:
+	var n := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.35
+	mesh.bottom_radius = 0.4
+	mesh.height = 0.08
+	n.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.45, 0.1)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.4, 0.05)
+	n.material_override = mat
+	n.position = Vector3(world_pos.x, 0.05, world_pos.z)
+	return n
+
+## Per-tempo: burn any enemy standing on a fire spot (which then extinguishes),
+## and age out spots whose timer has run down.
+func _update_fire_spots(amount: int) -> void:
+	if _fire_spots.is_empty() or not grid_manager or not enemy_spawner:
+		return
+	var survivors: Array = []
+	for spot in _fire_spots:
+		var extinguished := false
+		for e in enemy_spawner.get_living_enemies():
+			if e and is_instance_valid(e) and grid_manager.world_to_grid(e.position) == spot["cell"]:
+				e.take_damage(spot["damage"], true, DamageTypes.Type.FIRE)
+				add_battle_log("Fire scorches %s for %d!" % [e.enemy_name, spot["damage"]], Color(1.0, 0.5, 0.1))
+				extinguished = true
+				break
+		spot["tempo"] -= amount
+		if extinguished or spot["tempo"] <= 0:
+			if is_instance_valid(spot["node"]):
+				spot["node"].queue_free()
+		else:
+			survivors.append(spot)
+	_fire_spots = survivors
+
+func _clear_fire_spots() -> void:
+	for spot in _fire_spots:
+		if is_instance_valid(spot["node"]):
+			spot["node"].queue_free()
+	_fire_spots.clear()
 
 ## Boots of Speed: enough movement flash spent → shave 1 tempo off a hand card.
 func _on_movement_flash_threshold() -> void:

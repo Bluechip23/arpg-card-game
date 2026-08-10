@@ -238,6 +238,8 @@ func get_mastery_text(stats = null) -> String:
 @export var missing_life_threshold: int = 0         # only below this enemy health% (Jordan 1s 50)
 @export var melee_crit_flat_bonus: int = 0          # flat extra damage when a melee attack crits (Knife Toed Boots 10)
 @export var consecutive_attack_draw: int = 0        # draw a card after X consecutive attacks (Cyde Livingstons Sneakers 5)
+@export var fire_trail_damage: int = 0              # flash-move leaves fire dealing X (+INT) damage (Elemental Trail Blazers 5)
+@export var fire_trail_tempo: int = 0               # how long a fire spot persists (Elemental Trail Blazers 3)
 
 # Brain-point gear (Scholars Cap)
 @export var brain_points_bonus: int = 0             # +X max brain points while equipped
@@ -961,7 +963,8 @@ static func create_elemental_trail_blazers() -> ItemData:
 	var item = _new_boot("Elemental Trail Blazers", Rarity.LEGENDARY, 10)
 	item.intelligence_bonus = 5
 	item.agility_bonus = 5
-	# GAP (rider): fire trail while moving with flash points (5 + INT scaling, 3 tempo).
+	item.fire_trail_damage = 5
+	item.fire_trail_tempo = 3
 	item.description = "+5 INT, +5 AGI. When moving with flash points, leave a trail of fire. Each fire spot deals 5 damage (scales with INT) then extinguishes; fire persists 3 tempo."
 	return item
 
