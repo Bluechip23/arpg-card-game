@@ -219,6 +219,9 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_utility_heal: int = 0           # heal when a UTILITY card is slotted-played (Shamans mask 3)
 @export var on_self_utility_spell_damage: int = 0   # spell damage to a random nearby enemy on UTILITY play (Shamans 1)
 @export var on_self_brain_regen: int = 0            # regain X brain points when a slotted card is played (Scholars Cap 2)
+@export var on_self_armor_any: int = 0             # gain X armor when ANY slotted card is played (Titanium Toe Tuckers 8)
+@export var on_self_reaction_armor: int = 0        # gain X armor when a slotted REACTION/instant card plays (Rollerblades 10)
+@export var on_self_flash_regen: int = 0           # restore X flash points when a slotted card is played (Hermes Boots 1)
 
 # Brain-point gear (Scholars Cap)
 @export var brain_points_bonus: int = 0             # +X max brain points while equipped
@@ -531,6 +534,9 @@ func get_on_self_bonus() -> Dictionary:
 		"utility_heal": on_self_utility_heal,
 		"utility_spell_damage": on_self_utility_spell_damage,
 		"brain_regen": on_self_brain_regen,
+		"armor_any": on_self_armor_any,
+		"reaction_armor": on_self_reaction_armor,
+		"flash_regen": on_self_flash_regen,
 	}
 
 func get_card_slot_summary() -> String:
@@ -843,6 +849,191 @@ static func create_theif_hat() -> ItemData:
 	item.agility_bonus = 2
 	item.dexterity_bonus = 1
 	item.description = "+2 AGI, +1 DEX."
+	return item
+
+# ============================================
+# BOOTS (first boots pass — feet slot)
+# ============================================
+static func _new_boot(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = ItemData.new()
+	item.item_name = nm
+	item.item_type = ItemType.BOOTS
+	item.item_type_name = "Boots"
+	item.rarity = r
+	item.weight = wt
+	return item
+
+static func create_leather_boots() -> ItemData:
+	var item = _new_boot("Leather Boots", Rarity.COMMON, 15)
+	item.agility_bonus = 1
+	item.health_bonus = 5
+	item.description = "+1 AGI, +5 life."
+	return item
+
+static func create_cloth_slippers() -> ItemData:
+	var item = _new_boot("Cloth Slippers", Rarity.COMMON, 5)
+	item.dexterity_bonus = 2
+	item.agility_bonus = 1
+	item.description = "+2 DEX, +1 AGI."
+	return item
+
+static func create_brown_boots() -> ItemData:
+	var item = _new_boot("Brown Boots", Rarity.COMMON, 8)
+	item.agility_bonus = 5
+	item.description = "+5 AGI."
+	return item
+
+static func create_steel_boots() -> ItemData:
+	var item = _new_boot("Steel Boots", Rarity.COMMON, 25)
+	item.strength_bonus = 3
+	item.health_bonus = 10
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 1
+	item.armor_per_tempo_interval = 15
+	item.description = "+3 STR, +10 health. Gain 1 armor every 15 tempo while equipped."
+	return item
+
+static func create_titanium_toe_tuckers() -> ItemData:
+	var item = _new_boot("Titanium Toe Tuckers", Rarity.LEGENDARY, 50)
+	item.card_slots = 2
+	item.strength_bonus = 10
+	item.agility_bonus = -2
+	item.dexterity_bonus = -2
+	item.health_bonus = 10
+	item.on_self_armor_any = 8  # ANY slotted card grants +8 armor
+	# GAP (rider): "side step provides an additional 2 armor" — needs a sidestep hook.
+	item.description = "+10 STR, -2 AGI, -2 DEX, +10 health. On-self: ANY card provides +8 armor. Side step provides an additional 2 armor."
+	return item
+
+static func create_rollerblades() -> ItemData:
+	var item = _new_boot("Rollerblades", Rarity.LEGENDARY, 20)
+	item.card_slots = 1
+	item.agility_bonus = 6
+	item.strength_bonus = 5
+	item.on_self_reaction_armor = 10  # slotted instant → +10 armor
+	# GAP (rider): grants "shift" (move 2 free); -1 cost to movement flash points.
+	item.description = "+6 AGI, +5 STR. On-self: if an instant, gain 10 armor in addition to its effect. -1 cost to movement flash points. Grants shift: move 2 spaces for free (0 mana / 0 tempo)."
+	return item
+
+static func create_cyde_livingstons_sneakers() -> ItemData:
+	var item = _new_boot("Cyde Livingstons Sneakers", Rarity.LEGENDARY, 10)
+	item.agility_bonus = 5
+	item.dexterity_bonus = 4
+	# GAP (rider): grants "Donate Cleats" (ally buff); 5 consecutive attacks → draw.
+	item.description = "+5 AGI, +4 DEX. If you play 5 consecutive attacks, draw a card. Grants Donate Cleats: for 5 tempo, grant 5 AGI and 4 DEX to an ally (35 mana, 0 tempo)."
+	return item
+
+static func create_boot_holsters() -> ItemData:
+	var item = _new_boot("Boot Holsters", Rarity.LEGENDARY, 5)
+	item.card_slots = 3
+	item.wisdom_bonus = 3
+	item.agility_bonus = 3
+	item.dexterity_bonus = 1
+	# GAP (rider): on-self "if instant, +10 damage to nearest enemy in 3; if attack, -1 tempo".
+	item.description = "+3 WIS, +3 AGI, +1 DEX. On-self: if an instant, deal 10 damage to the nearest enemy within 3 squares; if an attack card, -1 tempo."
+	return item
+
+static func create_elemental_trail_blazers() -> ItemData:
+	var item = _new_boot("Elemental Trail Blazers", Rarity.LEGENDARY, 10)
+	item.intelligence_bonus = 5
+	item.agility_bonus = 5
+	# GAP (rider): fire trail while moving with flash points (5 + INT scaling, 3 tempo).
+	item.description = "+5 INT, +5 AGI. When moving with flash points, leave a trail of fire. Each fire spot deals 5 damage (scales with INT) then extinguishes; fire persists 3 tempo."
+	return item
+
+static func create_mountain_boots() -> ItemData:
+	var item = _new_boot("Mountain Boots", Rarity.LEGENDARY, 40)
+	item.health_bonus = 15
+	# GAP (rider): grants "Terrain formation" (hill); +20% damage from high ground.
+	item.description = "+15 health. When attacking from high ground, gain an additional 20% damage. Grants Terrain formation: create a hill you can walk on for 5 tempo (25 mana, 3 tempo)."
+	return item
+
+static func create_houdinis_slippers() -> ItemData:
+	var item = _new_boot("Houdinis Slippers", Rarity.LEGENDARY, 2)
+	item.card_slots = 1
+	item.health_bonus = -10
+	# GAP (rider): grants "Escape and bewilder" (blink + AOE stun); on-self invisibility.
+	item.description = "-10 health. On-self: become invisible for 5 tempo (standard invisibility rules). Grants Escape and bewilder: blink up to 5 spaces and stun all enemies within 3 of the space you left for 3 tempo (50 mana, 2 tempo)."
+	return item
+
+static func create_boots_of_the_balancer() -> ItemData:
+	var item = _new_boot("Boots of the Balancer", Rarity.MYTHIC, 15)
+	item.card_slots = 1
+	item.health_bonus = 15
+	item.wisdom_bonus = 3
+	item.strength_bonus = 5
+	item.determination_bonus = 2
+	# GAP (rider): on-self "5 armor per 10% missing health"; grants Tight rope (threshold instant).
+	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health and 15 Strengthen. Upgraded: each 6% missing health; Tight rope gains a second copy."
+	return item
+
+static func create_hermes_boots() -> ItemData:
+	var item = _new_boot("Hermes Boots", Rarity.MYTHIC, 0)
+	item.card_slots = 4
+	item.agility_bonus = 4
+	item.on_self_flash_regen = 1  # slotted card restores 1 flash point
+	# GAP (rider): traps deal 25% more damage.
+	item.description = "+4 AGI. On-self: restore 1 flash point. Your traps deal 25% more damage. Upgraded: +6 AGI; traps deal 50% more."
+	return item
+
+static func create_jordan_1s() -> ItemData:
+	var item = _new_boot("Jordan 1s", Rarity.MYTHIC, 10)
+	item.agility_bonus = 8
+	item.determination_bonus = 8
+	item.strength_bonus = 8
+	item.dexterity_bonus = 8
+	# GAP (rider): deal additional damage based on the enemy's missing life.
+	item.description = "+8 AGI, +8 DET, +8 STR, +8 DEX. You deal additional damage based on the enemy's missing life. Upgraded: 10/10/10/10."
+	return item
+
+static func create_guardian_greaves() -> ItemData:
+	var item = _new_boot("Guardian Greaves", Rarity.MYTHIC, 40)
+	item.intelligence_bonus = 5
+	item.wisdom_bonus = 4
+	item.strength_bonus = 5
+	# GAP (rider): grants "Mend" (AOE heal/mana/armor); per-cycle regen + resist aura.
+	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, give 10 health and mana regen to all allies within 4 squares, plus 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo). Upgraded: 40% / 40%."
+	return item
+
+static func create_chain_crocs() -> ItemData:
+	var item = _new_boot("Chain Crocs", Rarity.RARE, 35)
+	item.card_slots = 2
+	item.agility_bonus = -4
+	item.wisdom_bonus = -2
+	item.on_self_mana_reduction_percent = 20.0
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 5
+	item.armor_per_tempo_interval = 15
+	item.description = "-4 AGI, -2 WIS. On-self: mana cost reduced 20%. Gain 5 armor every 15 tempo while equipped (counter resets when unequipped)."
+	return item
+
+static func create_knife_toed_boots() -> ItemData:
+	var item = _new_boot("Knife Toed Boots", Rarity.RARE, 30)
+	item.agility_bonus = -3
+	item.dexterity_bonus = 2
+	item.strength_bonus = 5
+	var knife_cards: Array[String] = ["shiv"]
+	item.granted_card_ids = knife_cards
+	# GAP (rider): melee offensive crits deal an additional flat 10 (no scaling).
+	item.description = "-3 AGI, +2 DEX, +5 STR. When melee offensive cards crit, deal an additional flat 10 damage. Grants shiv: melee, 2 damage (5 mana, 1 tempo)."
+	return item
+
+static func create_boots_of_speed() -> ItemData:
+	var item = _new_boot("Boots of Speed", Rarity.RARE, 1)
+	item.agility_bonus = 5
+	item.dexterity_bonus = 5
+	# GAP (rider): after 51 flash points spent on movement, -1 tempo from a card in hand.
+	item.description = "+5 AGI, +5 DEX. After an accumulated 51 flash points spent on movement, remove 1 tempo from a card in your hand."
+	return item
+
+static func create_caster_boots() -> ItemData:
+	var item = _new_boot("Caster Boots", Rarity.RARE, 15)
+	item.card_slots = 1
+	item.intelligence_bonus = 6
+	item.agility_bonus = 2
+	item.wisdom_bonus = 2
+	# GAP (rider): on-self "deal an additional 10% damage based on your INT".
+	item.description = "+6 INT, +2 AGI, +2 WIS. On-self: deal an additional 10% damage based on your INT."
 	return item
 
 # ============================================

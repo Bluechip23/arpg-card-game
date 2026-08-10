@@ -712,7 +712,7 @@ func process_turn() -> void:
 	# grants its armor once its own interval (default 5, e.g. 15 for Mail Coif)
 	# is reached. The accumulator resets on equip/unequip.
 	if player_stats:
-		for item in equipped_chests + equipped_helms:
+		for item in equipped_chests + equipped_helms + equipped_boots:
 			if item and item.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN:
 				item.armor_per_tempo_accum += 5  # one cycle = 5 tempo
 				var interval: int = maxi(5, item.armor_per_tempo_interval)

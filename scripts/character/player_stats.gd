@@ -844,6 +844,13 @@ func spend_flash_points(amount: int) -> bool:
 	action_points_spent.emit("flash", amount)
 	return true
 
+func gain_flash_points(amount: int) -> void:
+	## Restore flash points, capped at max (Hermes Boots on-self).
+	if amount <= 0:
+		return
+	current_flash_points = min(get_max_flash_points(), current_flash_points + amount)
+	flash_points_changed.emit(current_flash_points, get_max_flash_points())
+
 func get_flash_block_cost() -> int:
 	## The free-hand stance parries cheaper (3 → 2): one hand item, one hand
 	## empty, nothing between you and the sidestep.

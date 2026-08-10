@@ -94,6 +94,8 @@ const CARD_RARITIES := {
 	# Helm-granted (item pass 1)
 	"neither_man_nor_beast": Rarity.MYTHIC, "resourceful_replenish": Rarity.MYTHIC,
 	"out_of_guesses": Rarity.MYTHIC,
+	# Boot-granted (item pass 1)
+	"shiv": Rarity.RARE,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -104,9 +106,10 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"shuriken": true, "savage_strike_copy": true,
 	"minor_wounds": true, "lightly_dazed": true,
 	"hydra_bite": true,
-	# Helm-granted cards only arrive via their helm, never from random drops.
+	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
 	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
+	"shiv": true,
 }
 
 @export var card_id: String = "slash"
@@ -813,6 +816,18 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if on_self.get("brain_regen", 0) > 0 and player_stats and player_stats.has_method("gain_brain_points"):
 			player_stats.gain_brain_points(on_self["brain_regen"])
 			print("[CARD] On-Self: %s regained %d brain points" % [slotted_in_item.item_name, on_self["brain_regen"]])
+		# Titanium Toe Tuckers: any slotted card grants armor.
+		if on_self.get("armor_any", 0) > 0 and player_stats:
+			player_stats.add_armor(on_self["armor_any"])
+			print("[CARD] On-Self: %s granted %d armor (any card)" % [slotted_in_item.item_name, on_self["armor_any"]])
+		# Rollerblades: a slotted instant (REACTION) grants extra armor.
+		if card_type == CardType.REACTION and on_self.get("reaction_armor", 0) > 0 and player_stats:
+			player_stats.add_armor(on_self["reaction_armor"])
+			print("[CARD] On-Self: %s granted %d armor (instant)" % [slotted_in_item.item_name, on_self["reaction_armor"]])
+		# Hermes Boots: any slotted card restores flash points.
+		if on_self.get("flash_regen", 0) > 0 and player_stats and player_stats.has_method("gain_flash_points"):
+			player_stats.gain_flash_points(on_self["flash_regen"])
+			print("[CARD] On-Self: %s restored %d flash point(s)" % [slotted_in_item.item_name, on_self["flash_regen"]])
 		# Shamans mask: utility cards heal the player directly on play.
 		if card_type == CardType.UTILITY and on_self.get("utility_heal", 0) > 0 and player_stats:
 			player_stats.heal(on_self["utility_heal"])
@@ -897,6 +912,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"its_alive":
 			# Resurrect handled as a world effect in main.gd (needs grid + corpses).
 			print("[CARD] ITS ALIVE!!!!! — resurrection resolved in world effects")
+		"shiv":
+			# Knife Toed Boots: a cheap melee jab. Same physical path as Slash.
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Brad Cards ===
 		"life_swap":
 			_execute_life_swap(target, player_stats, buff_mgr)
@@ -5278,6 +5296,20 @@ static func create_its_alive() -> Card:
 	card.mana_cost = 20
 	card.tempo_cost = 5
 	card.target_types = ["point"]
+	return card
+
+static func create_shiv() -> Card:
+	var card = Card.new()
+	card.card_id = "shiv"
+	card.card_name = "Shiv"
+	card.description = "Melee. 2 damage."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 5
+	card.tempo_cost = 1
+	card.damage = 2
+	card.base_damage = 2
+	card.target_types = ["enemy"]
 	return card
 
 static func create_worms_armageddon() -> Card:
