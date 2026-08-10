@@ -262,7 +262,8 @@ func get_mastery_text(stats = null) -> String:
 # Passive bonuses
 @export var ranged_damage_bonus: int = 0  # +X damage to all ranged attacks
 @export var healing_bonus: int = 0  # +X to all healing effects
-@export var block_bonus_to_defense_cards: int = 0  # +X block to all defense cards
+@export var block_bonus_to_defense_cards: int = 0  # +X armor added to armor-granting defense cards
+@export var block_to_armorless_defense_cards: int = 0  # defense cards granting NO armor grant X instead (Burgonet)
 @export var damage_bonus_to_attack_cards: int = 0  # +X damage to all attack cards
 @export var fire_resistance_percent: float = 0.0  # X% fire resistance
 @export var all_resistance_percent: float = 0.0  # X% resistance to ALL damage types
@@ -844,7 +845,8 @@ static func create_burgonet() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 2
 	item.armor_per_tempo_interval = 5
-	item.block_bonus_to_defense_cards = 2
+	item.block_bonus_to_defense_cards = 2      # armor-granting defense cards: +2 on top
+	item.block_to_armorless_defense_cards = 2  # armorless defense cards: grant 2
 	# NOTE (rider nuance): "additional two if it already grants armor" — the base
 	# +2 to armor-granting defense cards is wired; the extra-to-zero-armor-defense
 	# branch is flagged in the audit for your confirmation.

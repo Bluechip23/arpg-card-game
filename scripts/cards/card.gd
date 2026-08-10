@@ -856,14 +856,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			player_stats.heal(on_self["utility_heal"])
 			print("[CARD] On-Self: %s healed %d (utility)" % [slotted_in_item.item_name, on_self["utility_heal"]])
 		# Monocle: offensive ranged cards gain a one-shot crit chance for this play.
-		if card_type == CardType.ATTACK and is_ranged and on_self.get("crit_ranged_percent", 0.0) > 0.0 and player_stats:
+		if is_offensive() and is_ranged and on_self.get("crit_ranged_percent", 0.0) > 0.0 and player_stats:
 			_temp_crit_applied = on_self["crit_ranged_percent"]
 			player_stats.temp_on_self_crit_bonus += _temp_crit_applied
 			print("[CARD] On-Self: +%.0f%% crit from %s" % [_temp_crit_applied, slotted_in_item.item_name])
 
 	# Feathered Hat: an armed guaranteed crit is spent by the next ranged
-	# offensive card, whatever item it is (or isn't) slotted in.
-	if card_type == CardType.ATTACK and is_ranged and player_stats and player_stats.flash_crit_armed:
+	# offensive card — any damaging ranged card, whatever item it's slotted in.
+	if is_offensive() and is_ranged and player_stats and player_stats.flash_crit_armed:
 		player_stats.flash_crit_armed = false
 		_temp_crit_applied += 100.0
 		player_stats.temp_on_self_crit_bonus += 100.0
@@ -921,7 +921,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent)
 		# === Helm-granted cards (item pass 1) ===
 		"neither_man_nor_beast":
-			_execute_neither_man_nor_beast(target)
+			_execute_neither_man_nor_beast(target, player_stats, buff_mgr)
 		"resourceful_replenish":
 			# Maintain: the 5% lifesteal is applied passively in the attack path
 			# while this card is maintained; nothing to do on activation.
@@ -1246,8 +1246,17 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
 		target.set_armor_break_incoming(false)
 
-	# Apply on-self debuffs (burn/cold from quivers) to target after attack
-	if card_type == CardType.ATTACK and target and last_damage_dealt > 0:
+	# Burgonet: a DEFENSE card that grants no armor of its own grants the boots'
+	# flat amount instead. (Armor-granting defense cards get their +2 inside
+	# _execute_block, on top of what they already provide.)
+	if card_type == CardType.DEFENSE and block <= 0 and player_stats \
+			and player_stats.equipment_armorless_defense_block > 0:
+		player_stats.add_armor(player_stats.equipment_armorless_defense_block)
+		print("[CARD] %s grants %d armor (armorless defense card)" % [card_name, player_stats.equipment_armorless_defense_block])
+
+	# Apply on-self debuffs (burn/cold/bleed from quivers and helms) to target
+	# after any offensive card that dealt damage
+	if is_offensive() and target and last_damage_dealt > 0:
 		var on_self_burn = on_self.get("apply_burn", 0)
 		var on_self_cold = on_self.get("apply_cold", 0)
 		var source_name = slotted_in_item.item_name if slotted_in_item else "Equipment"
@@ -1384,17 +1393,26 @@ func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats
 		if self_dmg > 0:
 			player_stats.take_damage(self_dmg)
 
-## Neither Man nor Beast (Mane of Narashimha): 5 flat damage that bypasses armor
-## and resistances, and the target cannot heal that damage for 10 tempo.
-func _execute_neither_man_nor_beast(target) -> void:
+## Neither Man nor Beast (Mane of Narashimha): 5 base damage through the normal
+## additive pipeline (STR, strengthen, on-self, crit) that bypasses armor and
+## resistances; the target cannot heal back THIS hit's damage for 10 tempo.
+func _execute_neither_man_nor_beast(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	var total_damage = base_damage + bonus_damage
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = crit_multiply(total_damage, player_stats)
+			print("[CARD] CRITICAL HIT!")
+	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		# ignore_armor = true; enemies have no per-type resistances, so bypassing
 		# armor fulfills "ignoring all resistances and armor".
-		target.take_damage(5, true, damage_type, true)
-		last_damage_dealt = 5
+		target.take_damage(total_damage, true, damage_type, true)
 		if target.has_method("apply_debuff"):
 			target.apply_debuff("narashimha", 2)  # 10 tempo = 2 cycles
-		print("[CARD] Neither Man nor Beast: 5 unresistable damage + Narashimha")
+		print("[CARD] Neither Man nor Beast: %d unresistable damage + Narashimha" % total_damage)
 
 ## Out of Guesses (The Headbandz): discard the whole hand, then draw that many.
 func _execute_out_of_guesses(deck_manager) -> void:
@@ -1501,6 +1519,11 @@ func get_burden_mana_cost() -> int:
 	if has_burden:
 		return mana_cost + burden_plays * 10
 	return mana_cost
+
+## "Offensive card" as the item specs use the term: anything that deals damage,
+## not just CardType.ATTACK — a damaging utility/spell counts too.
+func is_offensive() -> bool:
+	return card_type == CardType.ATTACK or damage > 0 or base_damage > 0
 
 func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost

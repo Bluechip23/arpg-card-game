@@ -7211,7 +7211,7 @@ func _get_distance_to_target(target) -> int:
 ##     any offensive card; Monocle +5 to offensive ranged cards).
 ##   - 20/20 (Monocle's granted Maintain): +3 range on ranged offensive cards.
 func _helm_range_bonus(card) -> int:
-	if card == null or card.card_type != Card.CardType.ATTACK:
+	if card == null or not card.is_offensive():
 		return 0
 	var bonus := 0
 	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
@@ -7233,16 +7233,15 @@ func _helm_card_world_effects(card) -> void:
 		return
 	var osb = card.slotted_in_item.get_on_self_bonus()
 
-	# Shamans mask: a UTILITY card zaps a random enemy within 3 for spell damage.
+	# Shamans mask: a UTILITY card zaps a random enemy within 3. The zap is a
+	# fixed 1 spell damage — capped at 1, no INT/enchant/sphere modifiers.
 	if card.card_type == Card.CardType.UTILITY:
 		var spell_dmg := int(osb.get("utility_spell_damage", 0))
 		if spell_dmg > 0:
-			var stats = player.get_stats()
-			var dmg: int = stats.get_effective_spell_damage(spell_dmg) if stats else spell_dmg
 			var victim = _random_enemy_within(3)
 			if victim:
-				victim.take_damage(dmg, true, DamageTypes.Type.FIRE)
-				add_battle_log("%s: %d spell damage to %s" % [card.slotted_in_item.item_name, dmg, victim.enemy_name], Color(0.5, 0.85, 0.6))
+				victim.take_damage(spell_dmg, true)
+				add_battle_log("%s: %d spell damage to %s" % [card.slotted_in_item.item_name, spell_dmg, victim.enemy_name], Color(0.5, 0.85, 0.6))
 
 	# Boot Holsters: a slotted instant (REACTION) hits the nearest enemy in 3.
 	if card.card_type == Card.CardType.REACTION:
@@ -9339,17 +9338,9 @@ func _update_frankensteins(amount: int) -> void:
 	var enemies = enemy_spawner.get_living_enemies()
 	var blocked = player.blocked_tiles
 
-	# Adjacent enemies swat the monster (its resistances soften the blows).
-	for enemy in enemies:
-		if not is_instance_valid(enemy) or not enemy.is_alive():
-			continue
-		var ecell = grid_manager.world_to_grid(enemy.position)
-		for m in _frankensteins.duplicate():
-			if not is_instance_valid(m) or m.is_dead:
-				continue
-			if _manhattan(m.get_cell(), ecell) == 1:
-				m.take_damage(enemy.attack_damage)
-				break
+	# NOTE: enemies treat the monster like any other unit. Today enemy AI only
+	# targets players, so nothing here makes enemies attack it — making summons
+	# real targets in enemy target-selection is an enemy-AI pass.
 
 	var mon_cells: Array = []
 	for m in _frankensteins:

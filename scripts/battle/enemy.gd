@@ -87,7 +87,8 @@ var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
 var bleed_stacks: int = 0      # Bleed: take X damage per tile moved, lose 1 per cycle
-var narashimha_tempo: int = 0   # Narashimha (Mane of Narashimha): cannot heal while > 0
+var narashimha_tempo: int = 0    # Narashimha (Mane of Narashimha): cycles the heal cap holds for
+var narashimha_heal_cap: int = -1  # health ceiling while active — the NMnB damage cannot be healed back (-1 = unset)
 var void_resistance_percent: float = 0.0  # Mane aura: take this % extra player damage (refreshed each cycle)
 var missing_life_damage_rate: float = 0.0  # Jordan 1s: +rate × missing-health% bonus player damage
 var missing_life_threshold: int = 0        # Jordan 1s: only while at/below this health %
@@ -1436,10 +1437,11 @@ func _tick_status_durations() -> void:
 			print("[%s] Bleed expired" % enemy_name)
 			debuff_expired.emit(self, "bleed")
 
-	# Narashimha: the no-heal window counts down one cycle at a time
+	# Narashimha: the heal-cap window counts down one cycle at a time
 	if narashimha_tempo > 0:
 		narashimha_tempo -= 1
 		if narashimha_tempo <= 0:
+			narashimha_heal_cap = -1
 			print("[%s] Narashimha wound closes" % enemy_name)
 			debuff_expired.emit(self, "narashimha")
 
@@ -2343,11 +2345,13 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 func _regenerate(amount: int) -> void:
 	if is_dead:
 		return
-	# Narashimha (Mane of Narashimha): the wound will not close — no healing.
-	if narashimha_tempo > 0:
-		print("[%s] Narashimha: cannot heal (%d cycles left)" % [enemy_name, narashimha_tempo])
-		return
-	var healed = min(amount, max_health - current_health)
+	# Narashimha (Mane of Narashimha): the wound from Neither Man nor Beast will
+	# not close — healing works normally but can never restore health above the
+	# cap recorded when the hit landed, so THAT damage stays lost until expiry.
+	var heal_ceiling = max_health
+	if narashimha_tempo > 0 and narashimha_heal_cap >= 0:
+		heal_ceiling = min(heal_ceiling, narashimha_heal_cap)
+	var healed = min(amount, heal_ceiling - current_health)
 	if healed <= 0:
 		return
 	current_health += healed
@@ -2868,9 +2872,13 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			bleed_stacks += value
 			print("[%s] Bleeding! Stacks: %d (damage per tile moved)" % [enemy_name, bleed_stacks])
 		"narashimha":
-			# value is the no-heal window in tempo cycles (10 tempo = 2 cycles)
+			# value is the window in tempo cycles (10 tempo = 2 cycles). Applied
+			# right after the Neither Man nor Beast hit, so current health IS the
+			# ceiling: healing can never bring health back above this point,
+			# which is exactly "cannot heal the damage dealt by this card".
 			narashimha_tempo = max(narashimha_tempo, value)
-			print("[%s] Narashimha: cannot heal for %d tempo cycles" % [enemy_name, narashimha_tempo])
+			narashimha_heal_cap = current_health if narashimha_heal_cap < 0 else min(narashimha_heal_cap, current_health)
+			print("[%s] Narashimha: cannot heal above %d for %d cycles" % [enemy_name, narashimha_heal_cap, narashimha_tempo])
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	debuff_applied.emit(self, debuff_name, value)
