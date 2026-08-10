@@ -802,7 +802,7 @@ static func create_hanibals_mask() -> ItemData:
 
 static func create_mane_of_narashimha() -> ItemData:
 	var item = _new_helm("Mane of Narashimha", Rarity.MYTHIC, 15)
-	item.strength_bonus = 5
+	item.strength_bonus = 10
 	item.intelligence_bonus = 5
 	item.determination_bonus = 5
 	item.card_slots = 1
@@ -810,10 +810,10 @@ static func create_mane_of_narashimha() -> ItemData:
 	item.granted_card_ids = mane_cards
 	item.void_resistance_percent = 5.0  # nearby enemies take +5% damage (lowered resistance)
 	item.void_resistance_radius = 2
-	item.level_3_overrides = {"strength_bonus": 7, "intelligence_bonus": 7,
+	item.level_3_overrides = {"strength_bonus": 12, "intelligence_bonus": 7,
 		"determination_bonus": 7, "void_resistance_percent": 8.0}
-	item.level_3_description = "+7 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void resistance aura: lower all nearby enemies' resistances by 8% (2-square radius)."
-	item.description = "+5 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius). Upgraded: 7/7/7 stats; aura 8%."
+	item.level_3_description = "+12 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void resistance aura: lower all nearby enemies' resistances by 8% (2-square radius)."
+	item.description = "+10 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius)."
 	return item
 
 static func create_shamans_mask() -> ItemData:
