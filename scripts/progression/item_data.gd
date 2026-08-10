@@ -223,7 +223,8 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_reaction_armor: int = 0        # gain X armor when a slotted REACTION/instant card plays (Rollerblades 10)
 @export var on_self_flash_regen: int = 0           # restore X flash points when a slotted card is played (Hermes Boots 1)
 @export var on_self_int_damage_percent: float = 0.0  # +X% of INT as bonus damage on slotted cards (Caster Boots 10)
-@export var on_self_armor_per_missing_health10: int = 0  # armor per 10% missing health on slotted play (Boots of the Balancer 5)
+@export var on_self_armor_per_missing_health10: int = 0  # armor per missing-health step on slotted play (Boots of the Balancer 5)
+@export var on_self_missing_health_step: int = 10        # % of missing health per armor grant (Balancer Lv3 tightens to 6)
 @export var on_self_instant_damage_nearest: int = 0  # slotted instant → X damage to nearest enemy within 3 (Boot Holsters 10)
 @export var on_self_attack_tempo_reduction: int = 0  # slotted attack costs X less tempo (Boot Holsters 1)
 @export var on_self_invisible_tempo: int = 0       # slotted card → become invisible X tempo (Houdinis Slippers 5)
@@ -560,6 +561,7 @@ func get_on_self_bonus() -> Dictionary:
 		"flash_regen": on_self_flash_regen,
 		"int_damage_percent": on_self_int_damage_percent,
 		"armor_per_missing_health10": on_self_armor_per_missing_health10,
+		"missing_health_step": on_self_missing_health_step,
 		"instant_damage_nearest": on_self_instant_damage_nearest,
 		"attack_tempo_reduction": on_self_attack_tempo_reduction,
 		"invisible_tempo": on_self_invisible_tempo,
@@ -762,8 +764,11 @@ static func create_the_headbandz() -> ItemData:
 	item.on_self_mana_reduction_percent = 20.0
 	var headbandz_cards: Array[String] = ["out_of_guesses"]
 	item.granted_card_ids = headbandz_cards
-	# Upgrade path (mana-reduction 35%, Out of Guesses 1 tempo) via level overrides.
-	item.description = "No stats. Cards slotted in its 5 slots cost 20% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 3 tempo). Upgraded: 35% mana reduction; Out of Guesses costs 1 tempo."
+	item.description = "No stats. Cards slotted in its 5 slots cost 20% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 3 tempo)."
+	item.level_3_overrides = {"on_self_mana_reduction_percent": 35.0}
+	# Out of Guesses dropping to 1 tempo at Lv.3 is read live off item_level
+	# (see Card.get_burden_tempo_cost).
+	item.level_3_description = "No stats. Cards slotted in its 5 slots cost 35% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 1 tempo)."
 	return item
 
 static func create_scholars_cap() -> ItemData:
@@ -773,7 +778,8 @@ static func create_scholars_cap() -> ItemData:
 	item.brain_points_bonus = 5
 	item.peek_brain_discount = 1
 	item.on_self_brain_regen = 2  # slotted cards regain 2 brain points on play
-	# Upgrade path (on-self 3 brain, +7/+7) via level overrides.
+	item.level_3_overrides = {"wisdom_bonus": 7, "brain_points_bonus": 7, "on_self_brain_regen": 3}
+	item.level_3_description = "+7 WIS, +7 max brain points. Peek costs 1 less brain point. On-self: regain 3 brain points."
 	item.description = "+5 WIS, +5 max brain points. Peek costs 1 less brain point. On-self: regain 2 brain points. Upgraded: +7 WIS, +7 max brain points; on-self regains 3."
 	return item
 
@@ -784,8 +790,11 @@ static func create_hanibals_mask() -> ItemData:
 	item.lifesteal_percent = 15.0
 	var hanibals_cards: Array[String] = ["resourceful_replenish"]
 	item.granted_card_ids = hanibals_cards
-	# Upgrade path (+50 life, Resourceful Replenish 8%) via level overrides.
-	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 5% (20 mana, 2 tempo). Upgraded: 50 life; Resourceful Replenish 8%."
+	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 5% (20 mana, 2 tempo)."
+	item.level_3_overrides = {"health_bonus": 50}
+	# Resourceful Replenish maintaining at 8% at Lv.3 is read live off item_level
+	# (see the maintained-lifesteal block in Card.execute).
+	item.level_3_description = "+50 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 8% (20 mana, 2 tempo)."
 	return item
 
 static func create_mane_of_narashimha() -> ItemData:
@@ -798,7 +807,9 @@ static func create_mane_of_narashimha() -> ItemData:
 	item.granted_card_ids = mane_cards
 	item.void_resistance_percent = 5.0  # nearby enemies take +5% damage (lowered resistance)
 	item.void_resistance_radius = 2
-	# Narashimha debuff is wired (enemy.gd). Upgrade path (7/7/7, 8% aura) via overrides.
+	item.level_3_overrides = {"strength_bonus": 7, "intelligence_bonus": 7,
+		"determination_bonus": 7, "void_resistance_percent": 8.0}
+	item.level_3_description = "+7 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void resistance aura: lower all nearby enemies' resistances by 8% (2-square radius)."
 	item.description = "+5 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 5 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius). Upgraded: 7/7/7 stats; aura 8%."
 	return item
 
@@ -1002,6 +1013,9 @@ static func create_boots_of_the_balancer() -> ItemData:
 	item.on_self_armor_per_missing_health10 = 5  # 5 armor per 10% missing health
 	var balancer_cards: Array[String] = ["tight_rope"]
 	item.granted_card_ids = balancer_cards
+	item.level_3_overrides = {"on_self_missing_health_step": 6,
+		"granted_card_ids": ["tight_rope", "tight_rope"]}
+	item.level_3_description = "+16 health, +4 WIS, +6 STR, +3 DET. On-self: gain 5 armor for each 6% health you are missing. Grants two copies of Tight rope."
 	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health and 15 Strengthen. Upgraded: each 6% missing health; Tight rope gains a second copy."
 	return item
 
@@ -1011,6 +1025,8 @@ static func create_hermes_boots() -> ItemData:
 	item.agility_bonus = 4
 	item.on_self_flash_regen = 1  # slotted card restores 1 flash point
 	item.trap_damage_percent = 25.0  # stored; applies once the trap system exists
+	item.level_3_overrides = {"agility_bonus": 6, "trap_damage_percent": 50.0}
+	item.level_3_description = "+6 AGI. On-self: restore 1 flash point. Your traps deal 50% more damage."
 	item.description = "+4 AGI. On-self: restore 1 flash point. Your traps deal 25% more damage. Upgraded: +6 AGI; traps deal 50% more."
 	return item
 
@@ -1022,6 +1038,9 @@ static func create_jordan_1s() -> ItemData:
 	item.dexterity_bonus = 8
 	item.missing_life_damage_rate = 0.5  # +0.5 damage per missing enemy-health %
 	item.missing_life_threshold = 50     # ...only while the enemy is at/below 50% health
+	item.level_3_overrides = {"agility_bonus": 10, "determination_bonus": 10,
+		"strength_bonus": 10, "dexterity_bonus": 10}
+	item.level_3_description = "+10 AGI, +10 DET, +10 STR, +10 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
 	item.description = "+8 AGI, +8 DET, +8 STR, +8 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %. Upgraded: 10/10/10/10."
 	return item
 
@@ -1035,6 +1054,9 @@ static func create_guardian_greaves() -> ItemData:
 	item.ally_physical_resist = 5.0
 	var guardian_cards: Array[String] = ["mend"]
 	item.granted_card_ids = guardian_cards
+	# Mend restoring 40%/40% at Lv.3 is read live off item_level (see the mend
+	# world effect in main.gd); no field changes at Lv.3.
+	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, give 10 health and mana regen to all allies within 4 squares, plus 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
 	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, give 10 health and mana regen to all allies within 4 squares, plus 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo). Upgraded: 40% / 40%."
 	return item
 

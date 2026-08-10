@@ -846,7 +846,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		# Boots of the Balancer: armor scaling with the wearer's missing health.
 		if on_self.get("armor_per_missing_health10", 0) > 0 and player_stats:
 			var missing_pct := (1.0 - player_stats.get_health_percent()) * 100.0
-			var bal_armor: int = int(on_self["armor_per_missing_health10"]) * int(missing_pct / 10.0)
+			var bal_step: int = maxi(1, int(on_self.get("missing_health_step", 10)))
+			var bal_armor: int = int(on_self["armor_per_missing_health10"]) * int(missing_pct / bal_step)
 			if bal_armor > 0:
 				player_stats.add_armor(bal_armor)
 				print("[CARD] On-Self: +%d armor (missing-health) from %s" % [bal_armor, slotted_in_item.item_name])
@@ -1234,7 +1235,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if deck_manager and deck_manager.has_method("get_maintained_cards"):
 			for mc in deck_manager.get_maintained_cards():
 				if mc and mc.card_id == "resourceful_replenish":
-					ls_pct += 5.0
+					# Hanibals Mask Lv.3 maintains at 8% instead of 5%.
+					ls_pct += 8.0 if (mc.granted_by_item and mc.granted_by_item.item_level >= 3) else 5.0
 		if ls_pct > 0.0:
 			var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 			if sls_dealt > 0:
@@ -1507,6 +1509,9 @@ func get_burden_tempo_cost() -> int:
 	# Boot Holsters: slotted attack cards cost less tempo.
 	if card_type == CardType.ATTACK and slotted_in_item:
 		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
+	# The Headbandz Lv.3: Out of Guesses quickens to 1 tempo.
+	if card_id == "out_of_guesses" and granted_by_item and granted_by_item.item_level >= 3:
+		cost = 1
 	return max(0, cost)
 
 func apply_burden() -> void:

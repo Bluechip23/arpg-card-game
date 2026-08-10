@@ -220,12 +220,41 @@ func get_off_hand_modifier() -> float:
 	# Stephen gets bonus, others get penalty
 	return DEFAULT_OFF_HAND_PENALTY + off_hand_bonus
 
+# Story rule: a character can wear one mythic per 10 character levels
+# (level 0-9 none, 10-19 one, 20-29 two, ...). Sandbox turns this off —
+# that's where testing happens (see main._setup_sandbox).
+var enforce_mythic_limit: bool = true
+signal equip_blocked(item: ItemData, reason: String)
+
+func get_mythic_capacity() -> int:
+	if not player_stats:
+		return 0
+	return int(player_stats.current_level / 10.0)
+
+func count_equipped_mythics() -> int:
+	var n := 0
+	# (Quiver items live in the weapon slots — there is no separate quiver array.)
+	for arr in [equipped_helms, equipped_chests, equipped_rings, equipped_belts,
+			equipped_boots, equipped_gauntlets, equipped_weapons]:
+		for it in arr:
+			if it and it.rarity == ItemData.Rarity.MYTHIC:
+				n += 1
+	return n
+
 func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	var slot_array = _get_slot_array(item.item_type)
 	var max_slots = _get_max_slots(item.item_type)
-	
+
 	if slot_index < 0 or slot_index >= max_slots:
 		print("[INVENTORY] Invalid slot index %d for %s" % [slot_index, item.item_name])
+		return false
+
+	if enforce_mythic_limit and item.rarity == ItemData.Rarity.MYTHIC \
+			and count_equipped_mythics() >= get_mythic_capacity():
+		var reason = "Mythic limit: level %d allows %d mythic(s) equipped" % [
+			player_stats.current_level if player_stats else 0, get_mythic_capacity()]
+		print("[INVENTORY] %s — cannot equip %s" % [reason, item.item_name])
+		equip_blocked.emit(item, reason)
 		return false
 	
 	if slot_array[slot_index] != null:

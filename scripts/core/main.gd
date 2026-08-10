@@ -3827,6 +3827,9 @@ func _setup_sandbox() -> void:
 	## Free-play arena: no story enemies spawn, the player gets a fat pool of
 	## health/mana to experiment with, a couple of raised platforms give High
 	## Ground to play with, and the Sandbox control panel opens.
+	# Testing ground: the story-mode mythic equip limit does not apply here.
+	if player and player.get_inventory():
+		player.get_inventory().enforce_mythic_limit = false
 	var start_cell = grid_manager.world_to_grid(player.position)
 	# Two raised platforms flanking the start so High Ground is always nearby.
 	if dungeon_manager:
@@ -7708,21 +7711,23 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				add_battle_log("Terrain formation: a hill rises! (5 tempo)", Color(0.7, 0.6, 0.4))
 
 		"mend":
-			# Guardian Greaves: allies within 4 restore 20% HP/mana + armor = health restored.
+			# Guardian Greaves: allies within 4 restore 20% HP/mana + armor = health
+			# restored. At item Lv.3 the restore doubles to 40%/40%.
+			var mend_pct := 0.4 if (card.granted_by_item and card.granted_by_item.item_level >= 3) else 0.2
 			var mend_healed := 0
 			for ally in _all_players():
 				if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > 4:
 					continue
 				var a_st = ally.get_stats()
 				if a_st:
-					var heal_amt: int = maxi(1, floori(a_st.max_health * 0.2))
+					var heal_amt: int = maxi(1, floori(a_st.max_health * mend_pct))
 					a_st.heal(heal_amt)
-					a_st.gain_mana(maxi(1, floori(a_st.max_mana * 0.2)))
+					a_st.gain_mana(maxi(1, floori(a_st.max_mana * mend_pct)))
 					a_st.add_armor(heal_amt)
 					mend_healed += 1
 			for m in _frankensteins:
 				if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= 4:
-					m.heal(maxi(1, floori(m.max_health * 0.2)))
+					m.heal(maxi(1, floori(m.max_health * mend_pct)))
 					mend_healed += 1
 			add_battle_log("Mend: %d all%s restored" % [mend_healed, "y" if mend_healed == 1 else "ies"], Color(0.5, 0.9, 0.7))
 
