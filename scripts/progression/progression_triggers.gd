@@ -792,6 +792,9 @@ func _trigger_skill_tree_on_crit(target) -> void:
 				main._set_player_invisible(true)
 				main.add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
 
+	# Dragon Skull: landing a crit breathes a fire cone in front of the wearer.
+	main._helm_crit_fire_cone(target)
+
 func _trigger_skill_tree_on_cycle() -> void:
 	var stats = main.player.get_stats()
 	if not stats:

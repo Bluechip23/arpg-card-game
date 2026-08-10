@@ -340,17 +340,22 @@ func has_life_steal() -> bool:
 func consume_life_steal(damage_dealt: int) -> int:
 	var life_steal = get_buff(Buff.BuffType.LIFE_STEAL)
 	if life_steal:
+		# value 0 = legacy full-damage heal; value > 0 = percentage of damage
+		# (Resourceful Replenish's 5% / 8%).
+		var stolen = damage_dealt
+		if life_steal.value > 0:
+			stolen = max(1, floori(damage_dealt * life_steal.value / 100.0))
 		if life_steal.use_charge():
 			remove_buff(Buff.BuffType.LIFE_STEAL)
 		if owner_stats:
 			# Player stats funnel life steal through apply_life_steal (Sanguine
 			# Barrier keystone may convert it to temp HP); enemies just heal.
 			if owner_stats.has_method("apply_life_steal"):
-				owner_stats.apply_life_steal(damage_dealt)
+				owner_stats.apply_life_steal(stolen)
 			else:
-				owner_stats.heal(damage_dealt)
-			print("[BUFF] Life Steal recovered %d!" % damage_dealt)
-		return damage_dealt
+				owner_stats.heal(stolen)
+			print("[BUFF] Life Steal recovered %d!" % stolen)
+		return stolen
 	return 0
 
 func get_strengthen_bonus() -> int:
@@ -379,6 +384,11 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var sphere_crit = 0.0
 	if owner_stats and "sphere_bonus_crit" in owner_stats:
 		sphere_crit = owner_stats.sphere_bonus_crit
+	if owner_stats and "equipment_crit_bonus" in owner_stats:
+		sphere_crit += owner_stats.equipment_crit_bonus
+	# One-shot on-self crit (Monocle: offensive ranged slotted card)
+	if owner_stats and "temp_on_self_crit_bonus" in owner_stats:
+		sphere_crit += owner_stats.temp_on_self_crit_bonus
 	# Exposed Blind Spot: one-time crit bonus from being attacked
 	var ebs_crit = 0
 	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats:

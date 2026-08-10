@@ -152,6 +152,37 @@ var sphere_bonus_regen: int = 0       # Health regenerated per tempo cycle
 var sphere_bonus_armor_per_cycle: int = 0  # Armor gained per tempo cycle
 var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2.0 = 2%)
 var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
+# Equipment-granted equivalents (added/removed by Inventory on equip/unequip,
+# mirroring the base_* stat pattern). Kept separate from the sphere bonuses so
+# unequip subtracts exactly what the item added.
+var equipment_crit_bonus: float = 0.0        # +% crit chance from gear (Monocle, Duelist's Visor)
+var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear (Hanibals Mask)
+var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gear (Thick Steel Helm)
+var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
+var equipment_armorless_defense_block: int = 0  # armor granted by DEFENSE cards that grant none themselves (Burgonet)
+var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
+var flash_crit_accum: int = 0                # Feathered Hat: flash points spent toward the next armed crit
+var flash_crit_armed: bool = false           # Feathered Hat: next ranged offensive card is a guaranteed crit
+# Wizard Hat: every Nth attack arms +spell power on the next spell card played.
+var equipment_spell_power_every_n: int = 0   # trigger every N attacks (Wizard Hat 3)
+var equipment_spell_power_amount: int = 0    # spell-power granted when it triggers (Wizard Hat 5)
+var _wizard_attack_counter: int = 0
+var pending_spell_power_bonus: int = 0       # applied to the next spell card's damage, then cleared on play
+# Boots pass-2 equipment riders
+var equipment_sidestep_bonus_armor: int = 0  # +armor on a flash sidestep (Titanium Toe Tuckers)
+var equipment_movement_flash_discount: int = 0  # movement flash costs this much less (Rollerblades)
+var equipment_highground_damage_percent: float = 0.0  # +% damage from high ground (Mountain Boots)
+var on_high_ground: bool = false             # updated by main each cycle; gates the high-ground bonus
+var equipment_melee_crit_bonus: int = 0      # flat extra damage on a melee crit (Knife Toed Boots)
+var resolving_melee_offensive: bool = false  # transient: set while a melee offensive CARD resolves (gates the above)
+var equipment_trap_damage_percent: float = 0.0  # +% trap damage (Hermes) — traps not yet implemented
+var movement_flash_accum: int = 0            # flash spent on movement toward the Boots of Speed threshold
+var movement_flash_tempo_threshold: int = 0  # Boots of Speed: at this accum, fire the -1-tempo bonus
+signal movement_flash_threshold_reached      # main removes 1 tempo from a hand card
+var consecutive_attacks: int = 0             # Cyde Livingstons Sneakers streak counter
+var consecutive_attacks_draw_at: int = 0     # streak length that triggers a draw (Cyde 5)
+signal consecutive_attacks_reached           # main draws a card
+var aura_physical_resist: float = 0.0        # Guardian Greaves aura: % physical resist, refreshed each cycle
 # Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
 var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0
@@ -829,6 +860,13 @@ func spend_flash_points(amount: int) -> bool:
 	action_points_spent.emit("flash", amount)
 	return true
 
+func gain_flash_points(amount: int) -> void:
+	## Restore flash points, capped at max (Hermes Boots on-self).
+	if amount <= 0:
+		return
+	current_flash_points = min(get_max_flash_points(), current_flash_points + amount)
+	flash_points_changed.emit(current_flash_points, get_max_flash_points())
+
 func get_flash_block_cost() -> int:
 	## The free-hand stance parries cheaper (3 → 2): one hand item, one hand
 	## empty, nothing between you and the sidestep.
@@ -842,11 +880,12 @@ func spend_flash_for_block() -> bool:
 	var cost := get_flash_block_cost()
 	if not spend_flash_points(cost):
 		return false
-	current_armor += FLASH_BLOCK_ARMOR
+	var sidestep_armor := FLASH_BLOCK_ARMOR + equipment_sidestep_bonus_armor  # Titanium Toe Tuckers
+	current_armor += sidestep_armor
 	armor_changed.emit(current_armor)
-	armor_gained.emit(FLASH_BLOCK_ARMOR)
+	armor_gained.emit(sidestep_armor)
 	print("[STATS] Flash block: -%d flash → +%d armor (%d armor total)" % [
-		cost, FLASH_BLOCK_ARMOR, current_armor])
+		cost, sidestep_armor, current_armor])
 	return true
 
 func spend_flash_for_strike() -> bool:
@@ -886,8 +925,17 @@ var current_brain_points: int = 0
 var brain_draws_bought: int = 0   # draws bought this refresh window (escalates the price)
 var brain_peeks_bought: int = 0   # peeks bought this refresh window (escalates the price)
 
+var equipment_brain_points_bonus: int = 0  # +max brain points from gear (Scholars Cap)
+var equipment_peek_discount: int = 0        # brain-point Peek cost reduction from gear (Scholars Cap)
+
 func get_max_brain_points() -> int:
-	return wisdom
+	return wisdom + equipment_brain_points_bonus
+
+func gain_brain_points(amount: int) -> void:
+	if amount <= 0:
+		return
+	current_brain_points = min(get_max_brain_points(), current_brain_points + amount)
+	brain_points_changed.emit(current_brain_points, get_max_brain_points())
 
 func refresh_brain_points() -> void:
 	current_brain_points = get_max_brain_points()
@@ -901,7 +949,7 @@ func get_next_brain_draw_cost() -> int:
 	return BRAIN_DRAW_COSTS[-1] + 5 * (brain_draws_bought - BRAIN_DRAW_COSTS.size() + 1)
 
 func get_next_brain_peek_cost() -> int:
-	return BRAIN_PEEK_BASE_COST + BRAIN_PEEK_COST_STEP * brain_peeks_bought
+	return max(1, BRAIN_PEEK_BASE_COST + BRAIN_PEEK_COST_STEP * brain_peeks_bought - equipment_peek_discount)
 
 func spend_brain_points(amount: int) -> bool:
 	if current_brain_points < amount:
@@ -935,26 +983,29 @@ func spend_brain_for_peek() -> bool:
 # DEXTERITY / ATTACK SPEED
 # ============================================
 
-# Encumbrance term of the attack-speed threshold. Square-root scaling means
-# spare capacity has diminishing returns, and the clamp keeps the whole term
-# smaller than a modest DEX investment — DEX stays the primary attack-speed
-# stat, with STR/loadout as a bounded secondary influence.
-const CAPACITY_BASELINE_FREE: int = 50      # free capacity that neither helps nor hurts
-const CAPACITY_SPEED_BONUS_CAP: int = 8     # most attacks light loading can shave off
+# Encumbrance term of the attack-speed threshold. Carrying weight only ever
+# SLOWS the counter: a naked character takes no modifier at all, and the
+# penalty grows with the FRACTION of carry capacity in use — capacity itself
+# (STR) never speeds anything up, it just raises how much you can wear before
+# the penalty bites. Speeding the counter up belongs to DEX, items, and other
+# effects, which keeps that space open for itemization.
+const CAPACITY_SPEED_MAX_PENALTY: int = 7   # penalty at 100% of carry capacity
 const OVERBURDENED_SPEED_PENALTY: int = 10  # flat penalty while over carry capacity
 
 func get_capacity_speed_modifier() -> int:
-	## Positive = slower (loaded down), negative = faster (light on your feet).
+	## 0 while unencumbered; positive (slower) as the load ratio climbs.
 	if is_overburdened():
 		return OVERBURDENED_SPEED_PENALTY
-	var free_capacity = get_free_carry_capacity()
-	var mod = sqrt(float(CAPACITY_BASELINE_FREE)) - sqrt(float(max(0, free_capacity)))
-	return clampi(roundi(mod), -CAPACITY_SPEED_BONUS_CAP, OVERBURDENED_SPEED_PENALTY)
+	var capacity = get_carry_capacity()
+	if capacity <= 0 or current_carry_load <= 0:
+		return 0
+	var ratio = clampf(float(current_carry_load) / float(capacity), 0.0, 1.0)
+	return roundi(ratio * CAPACITY_SPEED_MAX_PENALTY)
 
 # DEX pays per-point into crit damage too, so its counter contribution is
 # fractional. The minimum of 1 is deliberately reachable by a maxed light
 # build — proc-per-attack is the DEX capstone fantasy (Dominate's cooldown
-# keeps that from looping).
+# keeps that from looping). Encumbrance only ever ADDS to the threshold.
 const DEX_COUNTER_PER_POINT: float = 0.5
 const ATTACK_COUNTER_MIN: int = 1
 const DUAL_WIELD_COUNTER_BONUS: int = 4  # attacks shaved while dual wielding
@@ -969,6 +1020,21 @@ func get_attack_speed_threshold() -> int:
 
 func register_attack(is_real_attack: bool = true) -> Dictionary:
 	current_attack_counter -= 1
+
+	# Wizard Hat: every Nth real attack arms bonus spell power on the next spell.
+	if is_real_attack and equipment_spell_power_every_n > 0:
+		_wizard_attack_counter += 1
+		if _wizard_attack_counter >= equipment_spell_power_every_n:
+			_wizard_attack_counter = 0
+			pending_spell_power_bonus += equipment_spell_power_amount
+			print("[STATS] Wizard Hat: next spell gains +%d spell power" % equipment_spell_power_amount)
+
+	# Cyde Livingstons Sneakers: a run of consecutive attacks draws a card.
+	if is_real_attack and consecutive_attacks_draw_at > 0:
+		consecutive_attacks += 1
+		if consecutive_attacks >= consecutive_attacks_draw_at:
+			consecutive_attacks = 0
+			consecutive_attacks_reached.emit()
 
 	# Free hand: every 12th registered attack echoes. Echoes themselves are
 	# never registered, so they can't advance this count or the DEX counter —
@@ -1084,17 +1150,23 @@ func get_crit_damage_multiplier() -> float:
 	var deadly_bonus := 0.5 if st_deadly_crit_active else 0.0
 	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus
 
+## Mountain Boots: +% damage while attacking from high ground.
+func _apply_highground(damage: int) -> int:
+	if on_high_ground and equipment_highground_damage_percent > 0.0:
+		return floori(damage * (1.0 + equipment_highground_damage_percent / 100.0))
+	return damage
+
 func get_effective_physical_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	if keystone_dex_twin_strike:
 		damage -= DEX_TWIN_STRIKE_DAMAGE_PENALTY
-	return max(1, damage)
+	return max(1, _apply_highground(damage))
 
 func get_effective_ranged_damage(base_damage: int) -> int:
 	var damage = base_damage + get_strength_damage_bonus() + ranged_damage_bonus + enchantment_damage_bonus + sphere_bonus_damage + two_hand_damage_bonus
 	if keystone_dex_twin_strike:
 		damage -= DEX_TWIN_STRIKE_DAMAGE_PENALTY
-	return max(1, damage)
+	return max(1, _apply_highground(damage))
 
 func get_dex_proc_flat_bonus() -> int:
 	## Killing Rhythm: DEX-scaled bonus damage granted on each would-be proc.
@@ -1107,8 +1179,9 @@ func consume_pending_dex_bonus_damage() -> int:
 	return b
 
 func get_effective_spell_damage(base_damage: int) -> int:
-	# INT: +1 damage per point (flat)
-	return max(1, base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage)
+	# INT: +1 damage per point (flat). Wizard Hat's armed spell power (if any)
+	# rides along; it's cleared on the spell's play, not here (this is a query).
+	return max(1, _apply_highground(base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage + pending_spell_power_bonus))
 
 func get_effective_heal_amount(base_heal: int) -> int:
 	# INT also boosts healing (flat) + flat healing_bonus from equipment + sphere grid heal bonus
@@ -1218,13 +1291,18 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		remaining = floori(remaining * 0.9)
 
 	# Per-type resistance (e.g. elemental resists once cards start tagging types).
+	# Guardian Greaves' aura adds transient physical resist on top.
 	var type_resist = get_damage_resistance(damage_type)
+	if damage_type == DamageTypes.Type.PHYSICAL:
+		type_resist += aura_physical_resist
 	if type_resist > 0.0:
 		remaining = floori(remaining * (1.0 - min(type_resist, 100.0) / 100.0))
 
-	# Sphere grid flat resistance ("Resist +X%"): percent reduction on all damage.
-	if sphere_bonus_resistance > 0.0:
-		remaining = floori(remaining * (1.0 - minf(sphere_bonus_resistance, 90.0) / 100.0))
+	# Flat all-damage resistance from the sphere grid ("Resist +X%") plus any
+	# equipment resistance (e.g. Thick Steel Helm): percent reduction on all damage.
+	var flat_resist := sphere_bonus_resistance + equipment_resistance_bonus
+	if flat_resist > 0.0:
+		remaining = floori(remaining * (1.0 - minf(flat_resist, 90.0) / 100.0))
 
 	# Iron Bastion: chance to shrug off part of the hit.
 	if damage_proc_reduction_chance > 0.0 and remaining > 0 and randf() < damage_proc_reduction_chance:

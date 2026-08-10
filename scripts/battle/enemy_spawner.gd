@@ -115,10 +115,28 @@ func _reserve_occupancy(living: Array, acting) -> void:
 	acting.occupied_tiles = cells
 
 ## Pick the nearest living player for this enemy to act against (co-op aware).
+# Player summons (Frankensteins Monsters, Bull Worms). Main refreshes this
+# each tempo tick so enemies treat summons as ordinary targetable units.
+var summons: Array = []
+
+func _living_summons() -> Array:
+	var out := []
+	for s in summons:
+		if not is_instance_valid(s):
+			continue
+		if s.get("is_dead") == true:
+			continue
+		if s.get("burrowed") == true:
+			continue  # burrowed worms are untargetable
+		out.append(s)
+	return out
+
 func _target_for(enemy: Enemy) -> Node3D:
 	var candidates := _living_players()
 	if candidates.is_empty():
 		return player  # solo fallback (or both downed — let it act on P1)
+	# Summons count as units: the enemy simply goes for whatever is nearest.
+	candidates = candidates + _living_summons()
 	var best: Node3D = null
 	var best_d := INF
 	for p in candidates:

@@ -98,8 +98,8 @@ Every character has six core attributes:
 
 | Stat | Effect |
 |---|---|
-| **Strength (STR)** | +0.5 melee damage per point. +10 carry capacity per point. Spare capacity also weighs (hehe) into your attack-speed counter. Inversely, being close to your capacity will slow it down. |
-| **Dexterity (DEX)** | The primary attack-speed stat. Every (45 − 0.5 × DEX) attacks (through a card or your auto attack) triggers an **attack speed proc**: your next attack costs **half tempo and 20 less mana**. The counter bottoms out at 1. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
+| **Strength (STR)** | +0.5 melee damage per point. +10 carry capacity per point. Capacity never speeds your attacks up — it just raises how much you can wear before the encumbrance penalty slows them (see Dexterity). |
+| **Dexterity (DEX)** | The primary attack-speed stat. Every (45 − 0.5 × DEX) attacks (through a card or your auto attack) triggers an **attack speed proc**: your next attack costs **half tempo and 20 less mana**. The counter bottoms out at 1. Encumbrance only ever slows it: **+0 unencumbered**, up to **+7** as your load nears capacity, **+10** flat while overburdened. Additionally, every 1 point in DEX increases **crit damage by 3%**. |
 | **Intelligence (INT)** | +0.5 spell and heal power per point. +1 mana regen per point. |
 | **Wisdom (WIS)** | Grants **Brain points**: 1 per WIS point, refreshed every 5 cycles (25 tempo). Spending them is a choice: **Peek** reveals the next unseen card of your draw pile (5 brain, +2 per further peek that window); **Insight** draws a card (5 brain, then 10/15/20/25 that window). Secondary: +1 hand size per 10 points. The auto draw timer stays a flat 25 tempo. |
 | **Determination (DET)** | Controls how low health affects your other stats. At 15 it does nothing. Above 15, your stats *climb* as your health drops; below 15, they *fall*. The lower your health, the bigger the swing. roughly ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below.|
@@ -319,7 +319,7 @@ Forge rules: the upgrade target and all copies must be **unequipped** (inventory
 
 ### Weight & carry capacity
 
-Every item has weight. Your capacity is **50 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity, and carrying close to your limit slows your attack-speed procs while traveling light speeds them up (both capped). **Total carrying weight is used when understanding attack speed, not just weapon weight.**
+Every item has weight. Your capacity is **50 + 10 per point of Strength**. You cannot take an action that pushes you (further) over capacity. Carrying weight only ever slows your attack-speed procs — a naked character takes no modifier, and the penalty scales with the fraction of capacity in use (up to +7, or +10 flat while overburdened). **Total carrying weight is used when understanding attack speed, not just weapon weight.**
 
 ### Hands, off-hands, and two-handing
 

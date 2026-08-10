@@ -269,6 +269,10 @@ func draw_card() -> Card:
 
 	var card = draw_pile.pop_back()
 
+	# In-hand tempo reduction (Boots of Speed) lasts until played or discarded —
+	# a card can only re-enter the hand through a draw, so a fresh draw is clean.
+	card.temp_hand_tempo_reduction = 0
+
 	# Reset enchantment cycle counter when drawn into hand
 	if card.card_type == Card.CardType.ENCHANTMENT:
 		card.cycles_in_hand = 0
@@ -426,6 +430,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if on_self["mana_reduction"] > 0:
 			mana_cost -= on_self["mana_reduction"]
 			print("[DECK] On-Self mana reduction: -%d from %s" % [on_self["mana_reduction"], card.slotted_in_item.item_name])
+		# The Headbandz: percentage mana-cost cut for slotted cards.
+		var pct = on_self.get("mana_reduction_percent", 0.0)
+		if pct > 0.0:
+			mana_cost = floori(mana_cost * (1.0 - pct / 100.0))
+			print("[DECK] On-Self mana reduction: -%.0f%% from %s" % [pct, card.slotted_in_item.item_name])
 
 	# Preparation: utility cards cost less (limited charges)
 	if prep_utility_discount > 0 and prep_utility_charges > 0 and card.card_type == Card.CardType.UTILITY:
@@ -817,6 +826,7 @@ func discard_card_from_hand(card: Card) -> bool:
 	if idx < 0:
 		return false
 	hand.remove_at(idx)
+	card.temp_hand_tempo_reduction = 0  # in-hand reduction ends on discard
 	discard_pile.append(card)
 	discards_this_cycle += 1
 	card_discarded.emit(card)

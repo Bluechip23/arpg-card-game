@@ -210,21 +210,87 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_block: int = 0
 @export var on_self_heal: int = 0
 @export var on_self_mana_reduction: int = 0
+@export var on_self_mana_reduction_percent: float = 0.0  # % mana-cost cut for slotted cards (The Headbandz)
+
+# Conditional on-self riders for slotted cards (item pass 1)
+@export var on_self_range_offensive: int = 0        # +range on offensive slotted cards (Dragon Skull 1, Monocle 5)
+@export var on_self_range_requires_ranged: bool = false  # if true the +range needs a RANGED offensive card (Monocle)
+@export var on_self_crit_ranged_percent: float = 0.0     # +% crit on an offensive RANGED slotted card (Monocle 50)
+@export var on_self_utility_heal: int = 0           # heal when a UTILITY card is slotted-played (Shamans mask 3)
+@export var on_self_utility_spell_damage: int = 0   # spell damage to a random nearby enemy on UTILITY play (Shamans 1)
+@export var on_self_brain_regen: int = 0            # regain X brain points when a slotted card is played (Scholars Cap 2)
+@export var on_self_armor_any: int = 0             # gain X armor when ANY slotted card is played (Titanium Toe Tuckers 8)
+@export var on_self_reaction_armor: int = 0        # gain X armor when a slotted REACTION/instant card plays (Rollerblades 10)
+@export var on_self_flash_regen: int = 0           # restore X flash points when a slotted card is played (Hermes Boots 1)
+@export var on_self_int_damage_percent: float = 0.0  # +X% of INT as bonus damage on slotted cards (Caster Boots 10)
+@export var on_self_armor_per_missing_health10: int = 0  # armor per missing-health step on slotted play (Boots of the Balancer 5)
+@export var on_self_missing_health_step: int = 10        # % of missing health per armor grant (Balancer Lv3 tightens to 6)
+@export var on_self_instant_damage_nearest: int = 0  # slotted instant → X damage to nearest enemy within 3 (Boot Holsters 10)
+@export var on_self_attack_tempo_reduction: int = 0  # slotted attack costs X less tempo (Boot Holsters 1)
+@export var on_self_invisible_tempo: int = 0       # slotted card → become invisible X tempo (Houdinis Slippers 5)
+
+# Boots pass-2 passive riders
+@export var sidestep_bonus_armor: int = 0          # +armor on a flash sidestep (Titanium Toe Tuckers 2)
+@export var movement_flash_discount: int = 0       # movement flash costs X less (Rollerblades 1)
+@export var movement_flash_tempo_threshold: int = 0  # after X movement flash spent, -1 tempo from a hand card (Boots of Speed 51)
+@export var highground_damage_percent: float = 0.0  # +X% damage while attacking from high ground (Mountain Boots 20)
+@export var trap_damage_percent: float = 0.0        # +X% trap damage (Hermes Boots 25) — traps not yet implemented
+@export var missing_life_damage_rate: float = 0.0   # +rate × enemy missing-health% as bonus damage (Jordan 1s 0.5)
+@export var missing_life_threshold: int = 0         # only below this enemy health% (Jordan 1s 50)
+@export var melee_crit_flat_bonus: int = 0          # flat extra damage when a melee attack crits (Knife Toed Boots 10)
+@export var consecutive_attack_draw: int = 0        # draw a card after X consecutive attacks (Cyde Livingstons Sneakers 5)
+@export var fire_trail_damage: int = 0              # >0 enables the fire trail; spots deal INT/5 damage (Elemental Trail Blazers)
+@export var fire_trail_tempo: int = 0               # how long a fire spot persists (Elemental Trail Blazers 3)
+@export var ally_regen_per_cycle: int = 0           # heal+mana per cycle to allies in radius (Guardian Greaves 10)
+@export var ally_regen_radius: int = 0              # aura radius in tiles (Guardian Greaves 4)
+@export var ally_physical_resist: float = 0.0       # % physical resist to allies in radius (Guardian Greaves 5)
+
+# Brain-point gear (Scholars Cap)
+@export var brain_points_bonus: int = 0             # +X max brain points while equipped
+@export var peek_brain_discount: int = 0            # brain-point Peek costs X less
+
+# Spell-power-on-attack cadence (Wizard Hat): every N attacks, arm +X spell
+# power on the next spell card played.
+@export var spell_power_per_attacks: int = 0
+@export var spell_power_bonus: int = 0
 
 # On-self debuff application (for quivers, etc.)
 @export var on_self_apply_burn: int = 0  # Apply X burn stacks on hit
 @export var on_self_apply_cold: int = 0  # Apply X cold stacks on hit
+@export var on_self_apply_bleed: int = 0  # Apply X bleed stacks on hit (Horned Nasal Helm)
 
 # Passive bonuses
 @export var ranged_damage_bonus: int = 0  # +X damage to all ranged attacks
 @export var healing_bonus: int = 0  # +X to all healing effects
-@export var block_bonus_to_defense_cards: int = 0  # +X block to all defense cards
+@export var block_bonus_to_defense_cards: int = 0  # +X armor added to armor-granting defense cards
+@export var block_to_armorless_defense_cards: int = 0  # defense cards granting NO armor grant X instead (Burgonet)
 @export var damage_bonus_to_attack_cards: int = 0  # +X damage to all attack cards
 @export var fire_resistance_percent: float = 0.0  # X% fire resistance
+@export var all_resistance_percent: float = 0.0  # X% resistance to ALL damage types
+@export var crit_chance_percent: float = 0.0  # +X% crit chance while equipped
+@export var lifesteal_percent: float = 0.0  # +X% of attack damage healed while equipped
 @export var movement_per_tempo_bonus: int = 0  # +X movement per tempo
+
+# Periodic armor (ARMOR_PER_TURN special_effect): armor granted every
+# armor_per_tempo_interval tempo while equipped. Default 5 = once per cycle
+# (the legacy cadence); Kettle/Mail use 15, Burgonet uses 5.
+@export var armor_per_tempo_interval: int = 5
 
 # On-self special effects (beyond flat bonuses)
 @export var on_self_thorns: int = 0  # Card grants X thorns on play
+
+# On-crit fire cone (Dragon Skull): when the wearer lands a crit, breathe a fire
+# blast in a cone in front of them. Damage = base + INT/2; range in tiles.
+@export var crit_fire_cone_damage: int = 0
+@export var crit_fire_cone_range: int = 0
+
+# Per-cycle helm passives (item pass 1)
+@export var flash_crit_threshold: int = 0        # after spending X flash points, arm a guaranteed ranged crit (Feathered Hat)
+@export var auto_purge_per_cycle: int = 0        # cleanse X of the wearer's debuffs per purge tick (Horned Nasal Helm)
+@export var auto_purge_interval_cycles: int = 1  # cycles between purge ticks (Horned Nasal 3 = every 15 tempo)
+@export var void_resistance_percent: float = 0.0  # nearby enemies take +X% damage — "lowered resistance" (Mane)
+@export var void_resistance_radius: int = 0       # aura radius in tiles (Mane 2)
+@export var summon_heal_aura: int = 0             # heal summons below 25% HP within 3 tiles by X/cycle (Frankensteins Screws)
 
 # On-kill card conjuring (Bladed Doughnut): every enemy kill while this item
 # is equipped adds a fresh copy of this card directly to the hand.
@@ -232,6 +298,9 @@ func get_mastery_text(stats = null) -> String:
 
 # Runtime tracking
 var current_cooldown: int = 0  # Current cooldown remaining
+# ARMOR_PER_TURN accumulator: tempo banked toward the next armor grant. Reset
+# to 0 on equip/unequip so the counter restarts (per the helm spec).
+var armor_per_tempo_accum: int = 0
 
 # Description
 @export var description: String = ""
@@ -478,9 +547,26 @@ func get_on_self_bonus() -> Dictionary:
 		"block": on_self_block,
 		"heal": on_self_heal,
 		"mana_reduction": on_self_mana_reduction,
+		"mana_reduction_percent": on_self_mana_reduction_percent,
 		"apply_burn": on_self_apply_burn,
 		"apply_cold": on_self_apply_cold,
+		"apply_bleed": on_self_apply_bleed,
 		"thorns": on_self_thorns,
+		"range_offensive": on_self_range_offensive,
+		"range_requires_ranged": on_self_range_requires_ranged,
+		"crit_ranged_percent": on_self_crit_ranged_percent,
+		"utility_heal": on_self_utility_heal,
+		"utility_spell_damage": on_self_utility_spell_damage,
+		"brain_regen": on_self_brain_regen,
+		"armor_any": on_self_armor_any,
+		"reaction_armor": on_self_reaction_armor,
+		"flash_regen": on_self_flash_regen,
+		"int_damage_percent": on_self_int_damage_percent,
+		"armor_per_missing_health10": on_self_armor_per_missing_health10,
+		"missing_health_step": on_self_missing_health_step,
+		"instant_damage_nearest": on_self_instant_damage_nearest,
+		"attack_tempo_reduction": on_self_attack_tempo_reduction,
+		"invisible_tempo": on_self_invisible_tempo,
 	}
 
 func get_card_slot_summary() -> String:
@@ -593,6 +679,430 @@ static func create_bladed_doughnut() -> ItemData:
 		"on_kill_card_id": "sprinkle_bomb",
 	}
 	item.level_3_description = "+15 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
+	return item
+
+# ============================================
+# HELMS (first item pass — head slot)
+# ============================================
+# Shared setup for every helm so the 19 factories stay declarative.
+static func _new_helm(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = ItemData.new()
+	item.item_name = nm
+	item.item_type = ItemType.HELM
+	item.item_type_name = "Helm"
+	item.rarity = r
+	item.weight = wt
+	return item
+
+static func create_leather_cap() -> ItemData:
+	var item = _new_helm("Leather Cap", Rarity.COMMON, 3)
+	item.health_bonus = 5
+	item.description = "+5 health."
+	return item
+
+static func create_baseball_hat() -> ItemData:
+	var item = _new_helm("Baseball Hat", Rarity.COMMON, 5)
+	item.dexterity_bonus = 1
+	item.strength_bonus = 1
+	item.agility_bonus = 1
+	item.description = "+1 DEX, +1 STR, +1 AGI."
+	return item
+
+static func create_kettle_hat() -> ItemData:
+	var item = _new_helm("Kettle Hat", Rarity.COMMON, 15)
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 2
+	item.armor_per_tempo_interval = 15
+	item.description = "Gain 2 armor every 15 tempo while equipped (counter resets when unequipped)."
+	return item
+
+static func create_mail_coif() -> ItemData:
+	var item = _new_helm("Mail Coif", Rarity.COMMON, 25)
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 5
+	item.armor_per_tempo_interval = 15
+	item.description = "Gain 5 armor every 15 tempo while equipped (counter resets when unequipped)."
+	return item
+
+static func create_dragon_skull() -> ItemData:
+	var item = _new_helm("Dragon Skull", Rarity.LEGENDARY, 30)
+	item.strength_bonus = 8
+	item.dexterity_bonus = 8
+	item.card_slots = 2
+	item.on_self_range_offensive = 1  # +1 range on any offensive slotted card
+	item.crit_fire_cone_damage = 10   # on crit: 10 + INT/2 fire damage...
+	item.crit_fire_cone_range = 3     # ...in a 3-range cone in front of the wearer
+	item.description = "+8 STR, +8 DEX. On-self: if ANY offensive card, gain +1 range. When landing a critical strike, the helm breathes a 10 damage blast of fire in a 3 range cone in front of it (scales with INT: +1 damage per 2 INT)."
+	return item
+
+static func create_feathered_hat() -> ItemData:
+	var item = _new_helm("Feathered Hat", Rarity.LEGENDARY, 10)
+	item.agility_bonus = 8
+	item.flash_crit_threshold = 40  # spend 40 flash → next ranged offensive card crits
+	item.description = "+8 AGI. Once you have spent an accumulated 40 flash points, your next ranged offensive card crits (resets to 0 on use)."
+	return item
+
+static func create_frankensteins_screws() -> ItemData:
+	var item = _new_helm("Frankensteins Screws", Rarity.LEGENDARY, 10)
+	item.intelligence_bonus = 5
+	var frank_cards: Array[String] = ["its_alive"]
+	item.granted_card_ids = frank_cards
+	item.summon_heal_aura = 3  # summons below 25% HP within 3 tiles heal 3/cycle
+	item.description = "+5 INT. Grants ITS ALIVE!!!!!: Resurrect a dead corpse into Frankensteins Monster (50 + summoner INT×0.8 HP; moves every 8 tempo/4 spaces; attacks every 5 tempo for 10 + INT×0.25; 5% + INT/10 resist to all). 20 mana, 5 tempo. When your summons are below 25% health and within 3 squares of you, they heal 3 per cycle."
+	return item
+
+static func create_horned_nasal_helm() -> ItemData:
+	var item = _new_helm("Horned Nasal Helm", Rarity.LEGENDARY, 30)
+	item.determination_bonus = 6
+	item.card_slots = 1
+	item.on_self_apply_bleed = 1  # on-self: "if an offensive card apply 1 bleed"
+	item.auto_purge_per_cycle = 2       # purge 2 random debuffs...
+	item.auto_purge_interval_cycles = 3  # ...every 3 cycles (15 tempo)
+	item.description = "+6 DET. On-self: if an offensive card, apply 1 Bleed. Purge 2 random debuffs every 15 tempo while equipped."
+	return item
+
+static func create_the_headbandz() -> ItemData:
+	var item = _new_helm("The Headbandz", Rarity.MYTHIC, 8)
+	item.card_slots = 5
+	item.on_self_mana_reduction_percent = 20.0
+	var headbandz_cards: Array[String] = ["out_of_guesses"]
+	item.granted_card_ids = headbandz_cards
+	item.description = "No stats. Cards slotted in its 5 slots cost 20% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 3 tempo)."
+	item.level_3_overrides = {"on_self_mana_reduction_percent": 35.0}
+	# Out of Guesses dropping to 1 tempo at Lv.3 is read live off item_level
+	# (see Card.get_burden_tempo_cost).
+	item.level_3_description = "No stats. Cards slotted in its 5 slots cost 35% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 1 tempo)."
+	return item
+
+static func create_scholars_cap() -> ItemData:
+	var item = _new_helm("Scholars Cap", Rarity.MYTHIC, 5)
+	item.card_slots = 2
+	item.wisdom_bonus = 5
+	item.brain_points_bonus = 5
+	item.peek_brain_discount = 1
+	item.on_self_brain_regen = 2  # slotted cards regain 2 brain points on play
+	item.level_3_overrides = {"wisdom_bonus": 7, "brain_points_bonus": 7, "on_self_brain_regen": 3}
+	item.level_3_description = "+7 WIS, +7 max brain points. Peek costs 1 less brain point. On-self: regain 3 brain points."
+	item.description = "+5 WIS, +5 max brain points. Peek costs 1 less brain point. On-self: regain 2 brain points. Upgraded: +7 WIS, +7 max brain points; on-self regains 3."
+	return item
+
+static func create_hanibals_mask() -> ItemData:
+	var item = _new_helm("Hanibals Mask", Rarity.MYTHIC, 5)
+	item.health_bonus = 25
+	item.card_slots = 2
+	item.lifesteal_percent = 15.0
+	var hanibals_cards: Array[String] = ["resourceful_replenish"]
+	item.granted_card_ids = hanibals_cards
+	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 5% (20 mana, 2 tempo)."
+	item.level_3_overrides = {"health_bonus": 50}
+	# Resourceful Replenish maintaining at 8% at Lv.3 is read live off item_level
+	# (see the maintained-lifesteal block in Card.execute).
+	item.level_3_description = "+50 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 8% (20 mana, 2 tempo)."
+	return item
+
+static func create_mane_of_narashimha() -> ItemData:
+	var item = _new_helm("Mane of Narashimha", Rarity.MYTHIC, 15)
+	item.strength_bonus = 10
+	item.intelligence_bonus = 5
+	item.determination_bonus = 5
+	item.card_slots = 1
+	var mane_cards: Array[String] = ["neither_man_nor_beast"]
+	item.granted_card_ids = mane_cards
+	item.void_resistance_percent = 5.0  # nearby enemies take +5% damage (lowered resistance)
+	item.void_resistance_radius = 2
+	item.level_3_overrides = {"strength_bonus": 12, "intelligence_bonus": 7,
+		"determination_bonus": 7, "void_resistance_percent": 8.0}
+	item.level_3_description = "+12 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void resistance aura: lower all nearby enemies' resistances by 8% (2-square radius)."
+	item.description = "+10 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius)."
+	return item
+
+static func create_shamans_mask() -> ItemData:
+	var item = _new_helm("Shamans mask", Rarity.RARE, 10)
+	item.wisdom_bonus = 2
+	item.health_bonus = 10
+	item.card_slots = 3
+	item.on_self_utility_heal = 3         # utility cards heal 3
+	item.on_self_utility_spell_damage = 1  # ...and deal 1 spell damage to a random enemy in 3
+	item.description = "+2 WIS, +10 life. On-self: utility cards heal 3 and deal 1 spell damage to a random enemy within 3 range."
+	return item
+
+static func create_wizard_hat() -> ItemData:
+	var item = _new_helm("Wizard Hat", Rarity.RARE, 10)
+	item.intelligence_bonus = 8
+	item.wisdom_bonus = 2
+	item.spell_power_per_attacks = 3  # every 3rd attack...
+	item.spell_power_bonus = 5        # ...arms +5 spell power on the next spell card
+	item.description = "+8 INT, +2 WIS. Every 3rd attack, your next spell card gains +5 spell power."
+	return item
+
+static func create_dunce_cap() -> ItemData:
+	var item = _new_helm("Dunce Cap", Rarity.RARE, 15)
+	item.strength_bonus = 8
+	item.intelligence_bonus = -6
+	item.description = "+8 STR, -6 INT."
+	return item
+
+static func create_burgonet() -> ItemData:
+	var item = _new_helm("Burgonet", Rarity.RARE, 40)
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 2
+	item.armor_per_tempo_interval = 5
+	item.block_bonus_to_defense_cards = 2      # armor-granting defense cards: +2 on top
+	item.block_to_armorless_defense_cards = 2  # armorless defense cards: grant 2
+	# NOTE (rider nuance): "additional two if it already grants armor" — the base
+	# +2 to armor-granting defense cards is wired; the extra-to-zero-armor-defense
+	# branch is flagged in the audit for your confirmation.
+	item.description = "Gain 2 armor every 5 tempo while equipped (resets if unequipped). All defensive cards grant 2 armor (additional 2 if they already grant armor)."
+	return item
+
+static func create_summoners_cap() -> ItemData:
+	var item = _new_helm("Summoners Cap", Rarity.RARE, 20)
+	item.intelligence_bonus = 3
+	item.card_slots = 1
+	item.on_self_heal = 3  # "heal 3 to cards that heal" (applies to slotted cards)
+	var summoner_cards: Array[String] = ["heal"]  # the existing basic "Heal" card
+	item.granted_card_ids = summoner_cards
+	item.description = "+3 INT. On-self: heal 3 to cards that heal. Grants a Heal card."
+	return item
+
+static func create_thick_steel_helm() -> ItemData:
+	var item = _new_helm("Thick Steel Helm", Rarity.LEGENDARY, 55)
+	item.health_bonus = 25
+	item.all_resistance_percent = 10.0
+	item.block_bonus_to_defense_cards = 2
+	item.description = "+25 health, 10% resistance to all damage. Armor-providing cards grant 2 additional armor."
+	return item
+
+static func create_monocle() -> ItemData:
+	var item = _new_helm("Monocle", Rarity.LEGENDARY, 0)
+	item.crit_chance_percent = 10.0
+	item.card_slots = 1
+	item.on_self_range_offensive = 5
+	item.on_self_range_requires_ranged = true
+	item.on_self_crit_ranged_percent = 25.0
+	var monocle_cards: Array[String] = ["twenty_twenty"]
+	item.granted_card_ids = monocle_cards
+	item.description = "+10% crit chance. On-self: if an offensive ranged card, gain +5 range and 25% crit. Grants 20/20 (Maintain): gain 3 range on all ranged offensive cards (15 mana, 3 tempo)."
+	return item
+
+static func create_theif_hat() -> ItemData:
+	var item = _new_helm("Theif Hat", Rarity.COMMON, 3)
+	item.agility_bonus = 2
+	item.dexterity_bonus = 1
+	item.description = "+2 AGI, +1 DEX."
+	return item
+
+# ============================================
+# BOOTS (first boots pass — feet slot)
+# ============================================
+static func _new_boot(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = ItemData.new()
+	item.item_name = nm
+	item.item_type = ItemType.BOOTS
+	item.item_type_name = "Boots"
+	item.rarity = r
+	item.weight = wt
+	return item
+
+static func create_leather_boots() -> ItemData:
+	var item = _new_boot("Leather Boots", Rarity.COMMON, 15)
+	item.agility_bonus = 1
+	item.health_bonus = 5
+	item.description = "+1 AGI, +5 life."
+	return item
+
+static func create_cloth_slippers() -> ItemData:
+	var item = _new_boot("Cloth Slippers", Rarity.COMMON, 5)
+	item.dexterity_bonus = 2
+	item.agility_bonus = 1
+	item.description = "+2 DEX, +1 AGI."
+	return item
+
+static func create_brown_boots() -> ItemData:
+	var item = _new_boot("Brown Boots", Rarity.COMMON, 8)
+	item.agility_bonus = 3
+	item.description = "+3 AGI."
+	return item
+
+static func create_steel_boots() -> ItemData:
+	var item = _new_boot("Steel Boots", Rarity.COMMON, 25)
+	item.strength_bonus = 3
+	item.health_bonus = 10
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 1
+	item.armor_per_tempo_interval = 15
+	item.description = "+3 STR, +10 health. Gain 1 armor every 15 tempo while equipped."
+	return item
+
+static func create_titanium_toe_tuckers() -> ItemData:
+	var item = _new_boot("Titanium Toe Tuckers", Rarity.LEGENDARY, 50)
+	item.card_slots = 2
+	item.strength_bonus = 10
+	item.agility_bonus = -2
+	item.dexterity_bonus = -2
+	item.health_bonus = 10
+	item.on_self_armor_any = 8  # ANY slotted card grants +8 armor
+	item.sidestep_bonus_armor = 2
+	item.description = "+10 STR, -2 AGI, -2 DEX, +10 health. On-self: ANY card provides +8 armor. Side step provides an additional 2 armor."
+	return item
+
+static func create_rollerblades() -> ItemData:
+	var item = _new_boot("Rollerblades", Rarity.LEGENDARY, 20)
+	item.card_slots = 1
+	item.agility_bonus = 6
+	item.strength_bonus = 5
+	item.on_self_reaction_armor = 10  # slotted instant → +10 armor
+	item.movement_flash_discount = 1  # movement flash costs 1 less
+	var roller_cards: Array[String] = ["shift"]
+	item.granted_card_ids = roller_cards
+	item.description = "+6 AGI, +5 STR. On-self: if an instant, gain 10 armor in addition to its effect. -1 cost to movement flash points. Grants shift: move 2 spaces for free (0 mana / 0 tempo)."
+	return item
+
+static func create_cyde_livingstons_sneakers() -> ItemData:
+	var item = _new_boot("Cyde Livingstons Sneakers", Rarity.LEGENDARY, 10)
+	item.agility_bonus = 5
+	item.dexterity_bonus = 4
+	item.consecutive_attack_draw = 5  # 5 consecutive attacks → draw a card
+	var cyde_cards: Array[String] = ["donate_cleats"]
+	item.granted_card_ids = cyde_cards
+	item.description = "+5 AGI, +4 DEX. If you play 5 consecutive attacks, draw a card. Grants Donate Cleats: for 5 tempo, grant 5 AGI and 4 DEX to an ally (35 mana, 0 tempo)."
+	return item
+
+static func create_boot_holsters() -> ItemData:
+	var item = _new_boot("Boot Holsters", Rarity.LEGENDARY, 5)
+	item.card_slots = 3
+	item.wisdom_bonus = 3
+	item.agility_bonus = 3
+	item.dexterity_bonus = 1
+	item.on_self_instant_damage_nearest = 10
+	item.on_self_attack_tempo_reduction = 1
+	item.description = "+3 WIS, +3 AGI, +1 DEX. On-self: if an instant, deal 10 damage to the nearest enemy within 3 squares; if an attack card, -1 tempo."
+	return item
+
+static func create_elemental_trail_blazers() -> ItemData:
+	var item = _new_boot("Elemental Trail Blazers", Rarity.LEGENDARY, 10)
+	item.intelligence_bonus = 5
+	item.agility_bonus = 5
+	item.fire_trail_damage = 5
+	item.fire_trail_tempo = 3
+	item.description = "+5 INT, +5 AGI. When moving with flash points, leave a trail of fire. Each fire spot deals INT/5 damage then extinguishes; fire persists 3 tempo."
+	return item
+
+static func create_mountain_boots() -> ItemData:
+	var item = _new_boot("Mountain Boots", Rarity.LEGENDARY, 40)
+	item.health_bonus = 15
+	item.highground_damage_percent = 20.0
+	var mountain_cards: Array[String] = ["terrain_formation"]
+	item.granted_card_ids = mountain_cards
+	item.description = "+15 health. When attacking from high ground, gain an additional 20% damage. Grants Terrain formation: create a hill you can walk on for 5 tempo (25 mana, 3 tempo)."
+	return item
+
+static func create_houdinis_slippers() -> ItemData:
+	var item = _new_boot("Houdinis Slippers", Rarity.LEGENDARY, 2)
+	item.card_slots = 1
+	item.health_bonus = -10
+	item.on_self_invisible_tempo = 5  # slotted card → invisible 5 tempo
+	var houdini_cards: Array[String] = ["escape_and_bewilder"]
+	item.granted_card_ids = houdini_cards
+	item.description = "-10 health. On-self: become invisible for 5 tempo (standard invisibility rules). Grants Escape and bewilder: blink up to 5 spaces and stun all enemies within 3 of the space you left for 3 tempo (50 mana, 2 tempo)."
+	return item
+
+static func create_boots_of_the_balancer() -> ItemData:
+	var item = _new_boot("Boots of the Balancer", Rarity.MYTHIC, 15)
+	item.card_slots = 1
+	item.health_bonus = 15
+	item.wisdom_bonus = 3
+	item.strength_bonus = 5
+	item.determination_bonus = 2
+	item.on_self_armor_per_missing_health10 = 5  # 5 armor per 10% missing health
+	var balancer_cards: Array[String] = ["tight_rope"]
+	item.granted_card_ids = balancer_cards
+	item.level_3_overrides = {"on_self_missing_health_step": 6,
+		"granted_card_ids": ["tight_rope", "tight_rope"]}
+	item.level_3_description = "+16 health, +4 WIS, +6 STR, +3 DET. On-self: gain 5 armor for each 6% health you are missing. Grants two copies of Tight rope."
+	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health and 15 Strengthen. Upgraded: each 6% missing health; Tight rope gains a second copy."
+	return item
+
+static func create_hermes_boots() -> ItemData:
+	var item = _new_boot("Hermes Boots", Rarity.MYTHIC, 0)
+	item.card_slots = 4
+	item.agility_bonus = 4
+	item.on_self_flash_regen = 1  # slotted card restores 1 flash point
+	item.trap_damage_percent = 25.0  # stored; applies once the trap system exists
+	item.level_3_overrides = {"agility_bonus": 6, "trap_damage_percent": 50.0}
+	item.level_3_description = "+6 AGI. On-self: restore 1 flash point. Your traps deal 50% more damage."
+	item.description = "+4 AGI. On-self: restore 1 flash point. Your traps deal 25% more damage. Upgraded: +6 AGI; traps deal 50% more."
+	return item
+
+static func create_jordan_1s() -> ItemData:
+	var item = _new_boot("Jordan 1s", Rarity.MYTHIC, 10)
+	item.agility_bonus = 8
+	item.determination_bonus = 8
+	item.strength_bonus = 8
+	item.dexterity_bonus = 8
+	item.missing_life_damage_rate = 0.5  # +0.5 damage per missing enemy-health %
+	item.missing_life_threshold = 50     # ...only while the enemy is at/below 50% health
+	item.level_3_overrides = {"agility_bonus": 10, "determination_bonus": 10,
+		"strength_bonus": 10, "dexterity_bonus": 10}
+	item.level_3_description = "+10 AGI, +10 DET, +10 STR, +10 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
+	item.description = "+8 AGI, +8 DET, +8 STR, +8 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %. Upgraded: 10/10/10/10."
+	return item
+
+static func create_guardian_greaves() -> ItemData:
+	var item = _new_boot("Guardian Greaves", Rarity.MYTHIC, 40)
+	item.intelligence_bonus = 5
+	item.wisdom_bonus = 4
+	item.strength_bonus = 5
+	item.ally_regen_per_cycle = 6
+	item.ally_regen_radius = 4
+	item.ally_physical_resist = 5.0
+	var guardian_cards: Array[String] = ["mend"]
+	item.granted_card_ids = guardian_cards
+	# Mend restoring 40%/40% at Lv.3 is read live off item_level (see the mend
+	# world effect in main.gd); no field changes at Lv.3.
+	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, give 6 health and mana regen to all allies (you included) within 4 squares, plus 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, give 6 health and mana regen to all allies (you included) within 4 squares, plus 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	return item
+
+static func create_chain_crocs() -> ItemData:
+	var item = _new_boot("Chain Crocs", Rarity.RARE, 35)
+	item.card_slots = 2
+	item.agility_bonus = -2
+	item.wisdom_bonus = -2
+	item.on_self_mana_reduction_percent = 20.0
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 5
+	item.armor_per_tempo_interval = 15
+	item.description = "-2 AGI, -2 WIS. On-self: mana cost reduced 20%. Gain 5 armor every 15 tempo while equipped (counter resets when unequipped)."
+	return item
+
+static func create_knife_toed_boots() -> ItemData:
+	var item = _new_boot("Knife Toed Boots", Rarity.RARE, 30)
+	item.agility_bonus = -3
+	item.dexterity_bonus = 2
+	item.strength_bonus = 5
+	var knife_cards: Array[String] = ["shiv"]
+	item.granted_card_ids = knife_cards
+	item.melee_crit_flat_bonus = 10  # melee crits deal +10 flat (no scaling)
+	item.description = "-3 AGI, +2 DEX, +5 STR. When melee offensive cards crit, deal an additional flat 10 damage. Grants shiv: melee, 2 damage (5 mana, 1 tempo)."
+	return item
+
+static func create_boots_of_speed() -> ItemData:
+	var item = _new_boot("Boots of Speed", Rarity.RARE, 1)
+	item.agility_bonus = 5
+	item.dexterity_bonus = 5
+	item.movement_flash_tempo_threshold = 36  # 36 movement-flash spent → -1 tempo from a hand card
+	item.description = "+5 AGI, +5 DEX. After an accumulated 36 flash points spent on movement, remove 1 tempo from a card in your hand."
+	return item
+
+static func create_caster_boots() -> ItemData:
+	var item = _new_boot("Caster Boots", Rarity.RARE, 15)
+	item.card_slots = 1
+	item.intelligence_bonus = 6
+	item.agility_bonus = 2
+	item.wisdom_bonus = 2
+	item.on_self_int_damage_percent = 10.0  # +10% of INT as bonus damage on slotted cards
+	item.description = "+6 INT, +2 AGI, +2 WIS. On-self: deal an additional 10% damage based on your INT."
 	return item
 
 # ============================================

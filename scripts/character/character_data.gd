@@ -91,8 +91,8 @@ const STAT_NAMES := {
 	"WIS": "Wisdom", "DET": "Determination", "AGI": "Agility",
 }
 const STAT_INFO := {
-	"STR": "Strength — +0.5 melee damage per point, and +10 carry capacity per point. Spare carry capacity also speeds up your attack-speed proc a little (capped — see Dexterity).",
-	"DEX": "Dexterity — your attack-speed stat. Every (45 − 0.5 × Dexterity) attack cards played, your next attack costs half tempo and 20 less mana. Every 2 points mean 1 fewer attack needed to proc. Traveling light shaves off up to 8 more; being loaded down adds up to 10. Dual wielding shaves another 4.",
+	"STR": "Strength — +0.5 melee damage per point, and +10 carry capacity per point. More capacity lets you wear more gear before the encumbrance attack-speed penalty bites (see Dexterity).",
+	"DEX": "Dexterity — your attack-speed stat. Every (45 − 0.5 × Dexterity) attack cards played, your next attack costs half tempo and 20 less mana. Every 2 points mean 1 fewer attack needed to proc. Carrying gear slows the counter by up to +7 as your load approaches capacity (+10 flat while overburdened); an unencumbered character takes no modifier. Dual wielding shaves 4 off.",
 	"INT": "Intelligence — +0.5 spell & heal power per point, and +1 mana regen per point.",
 	"WIS": "Wisdom — 1 Brain point per point, refreshed every 5 cycles. Spend them in battle: Peek reveals the next unseen draw-pile card (5, +2 per peek that window); Insight draws a card (5, then 10/15/20/25 that window). Secondary: +1 hand size per 10 points. The auto draw timer stays a flat 25 tempo.",
 	"DET": "Determination — directly impacts how low health affects your attributes. At 15 it does nothing; above 15 your stats climb as health drops, below 15 they fall. The lower your health, the bigger the swing — about ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below.",

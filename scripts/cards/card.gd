@@ -85,10 +85,21 @@ const CARD_RARITIES := {
 	"internal_combustion": Rarity.LEGENDARY, "shield_slam": Rarity.LEGENDARY, "tower_shield": Rarity.LEGENDARY,
 	"succumb": Rarity.LEGENDARY, "fireball": Rarity.LEGENDARY, "adrenaline_shot": Rarity.LEGENDARY,
 	"exhausted_assault": Rarity.LEGENDARY,
+	# Helm-granted (item pass 1)
+	"twenty_twenty": Rarity.LEGENDARY, "its_alive": Rarity.LEGENDARY,
 	# --- Mythic (8) ---
 	"if_pigs_could_fly": Rarity.MYTHIC, "gift_from_the_phoenix": Rarity.MYTHIC, "petey_the_pet_rock": Rarity.MYTHIC,
 	"mirror_mirror": Rarity.MYTHIC, "god_of_thunder": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
 	"sprinkle": Rarity.MYTHIC, "sprinkle_bomb": Rarity.MYTHIC,
+	# Helm-granted (item pass 1)
+	"neither_man_nor_beast": Rarity.MYTHIC, "resourceful_replenish": Rarity.MYTHIC,
+	"out_of_guesses": Rarity.MYTHIC,
+	# Boot-granted (item pass 1)
+	"shiv": Rarity.RARE,
+	# Boot-granted (item pass 2)
+	"shift": Rarity.LEGENDARY, "donate_cleats": Rarity.LEGENDARY,
+	"terrain_formation": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
+	"tight_rope": Rarity.MYTHIC, "mend": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -99,6 +110,11 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"shuriken": true, "savage_strike_copy": true,
 	"minor_wounds": true, "lightly_dazed": true,
 	"hydra_bite": true,
+	# Helm/boot-granted cards only arrive via their item, never from random drops.
+	"neither_man_nor_beast": true, "resourceful_replenish": true,
+	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
+	"shiv": true, "shift": true, "donate_cleats": true, "terrain_formation": true,
+	"escape_and_bewilder": true, "tight_rope": true, "mend": true,
 }
 
 @export var card_id: String = "slash"
@@ -770,6 +786,15 @@ func get_effect_draw_count() -> int:
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
 
+	# Cyde Livingstons Sneakers: a non-attack card breaks the consecutive-attack streak.
+	if card_type != CardType.ATTACK and player_stats and player_stats.consecutive_attacks_draw_at > 0:
+		player_stats.consecutive_attacks = 0
+
+	# Knife Toed Boots: mark melee offensive resolution so crit_multiply adds the
+	# flat melee-crit bonus for EVERY executor's crit, not just specific cards.
+	if player_stats:
+		player_stats.resolving_melee_offensive = is_offensive() and not is_ranged
+
 	# Blind (e.g. Giant Hawk): an attack against an enemy may miss entirely.
 	# Enemies expose take_damage but not get_stats (players have get_stats).
 	if card_type == CardType.ATTACK and player_stats and player_stats.is_blinded \
@@ -795,6 +820,59 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if on_self_hl > 0:
 		heal_amount += on_self_hl
 		print("[CARD] On-Self: +%d heal from %s" % [on_self_hl, slotted_in_item.item_name])
+
+	# Conditional on-self riders (Shamans mask / Monocle). The random-enemy spell
+	# damage (Shamans) and +range (Dragon Skull/Monocle) resolve in main.gd where
+	# the world is available; here we handle the parts local to card resolution.
+	var _temp_crit_applied := 0.0
+	if slotted_in_item:
+		# Scholars Cap: any slotted card play refunds brain points.
+		if on_self.get("brain_regen", 0) > 0 and player_stats and player_stats.has_method("gain_brain_points"):
+			player_stats.gain_brain_points(on_self["brain_regen"])
+			print("[CARD] On-Self: %s regained %d brain points" % [slotted_in_item.item_name, on_self["brain_regen"]])
+		# Titanium Toe Tuckers: any slotted card grants armor.
+		if on_self.get("armor_any", 0) > 0 and player_stats:
+			player_stats.add_armor(on_self["armor_any"])
+			print("[CARD] On-Self: %s granted %d armor (any card)" % [slotted_in_item.item_name, on_self["armor_any"]])
+		# Rollerblades: a slotted instant (REACTION) grants extra armor.
+		if card_type == CardType.REACTION and on_self.get("reaction_armor", 0) > 0 and player_stats:
+			player_stats.add_armor(on_self["reaction_armor"])
+			print("[CARD] On-Self: %s granted %d armor (instant)" % [slotted_in_item.item_name, on_self["reaction_armor"]])
+		# Hermes Boots: any slotted card restores flash points.
+		if on_self.get("flash_regen", 0) > 0 and player_stats and player_stats.has_method("gain_flash_points"):
+			player_stats.gain_flash_points(on_self["flash_regen"])
+			print("[CARD] On-Self: %s restored %d flash point(s)" % [slotted_in_item.item_name, on_self["flash_regen"]])
+		# Caster Boots: bonus damage equal to a % of the wearer's INT.
+		if on_self.get("int_damage_percent", 0.0) > 0.0 and player_stats:
+			var int_bonus := floori(player_stats.intelligence * on_self["int_damage_percent"] / 100.0)
+			if int_bonus > 0:
+				bonus_damage += int_bonus
+				print("[CARD] On-Self: +%d damage (%.0f%% of INT) from %s" % [int_bonus, on_self["int_damage_percent"], slotted_in_item.item_name])
+		# Boots of the Balancer: armor scaling with the wearer's missing health.
+		if on_self.get("armor_per_missing_health10", 0) > 0 and player_stats:
+			var missing_pct := (1.0 - player_stats.get_health_percent()) * 100.0
+			var bal_step: int = maxi(1, int(on_self.get("missing_health_step", 10)))
+			var bal_armor: int = int(on_self["armor_per_missing_health10"]) * int(missing_pct / bal_step)
+			if bal_armor > 0:
+				player_stats.add_armor(bal_armor)
+				print("[CARD] On-Self: +%d armor (missing-health) from %s" % [bal_armor, slotted_in_item.item_name])
+		# Shamans mask: utility cards heal the player directly on play.
+		if card_type == CardType.UTILITY and on_self.get("utility_heal", 0) > 0 and player_stats:
+			player_stats.heal(on_self["utility_heal"])
+			print("[CARD] On-Self: %s healed %d (utility)" % [slotted_in_item.item_name, on_self["utility_heal"]])
+		# Monocle: offensive ranged cards gain a one-shot crit chance for this play.
+		if is_offensive() and is_ranged and on_self.get("crit_ranged_percent", 0.0) > 0.0 and player_stats:
+			_temp_crit_applied = on_self["crit_ranged_percent"]
+			player_stats.temp_on_self_crit_bonus += _temp_crit_applied
+			print("[CARD] On-Self: +%.0f%% crit from %s" % [_temp_crit_applied, slotted_in_item.item_name])
+
+	# Feathered Hat: an armed guaranteed crit is spent by the next ranged
+	# offensive card — any damaging ranged card, whatever item it's slotted in.
+	if is_offensive() and is_ranged and player_stats and player_stats.flash_crit_armed:
+		player_stats.flash_crit_armed = false
+		_temp_crit_applied += 100.0
+		player_stats.temp_on_self_crit_bonus += 100.0
+		print("[CARD] Feathered Hat: guaranteed crit consumed")
 
 	# Apply ranged damage bonus from equipped items (quivers)
 	var _ranged_bonus_applied = 0
@@ -846,6 +924,35 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"dagger_throw":
 			_execute_dagger_throw(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent)
+		# === Helm-granted cards (item pass 1) ===
+		"neither_man_nor_beast":
+			_execute_neither_man_nor_beast(target, player_stats, buff_mgr)
+		"resourceful_replenish":
+			# Maintain: the 5% lifesteal is applied passively in the attack path
+			# while this card is maintained; nothing to do on activation.
+			print("[CARD] Resourceful Replenish maintained: attacks lifesteal 5%")
+		"out_of_guesses":
+			_execute_out_of_guesses(deck_manager)
+		"twenty_twenty":
+			# Passive Maintain: the +3 ranged range is injected at card-play time in
+			# main.gd (see _apply range block); nothing to do on activation.
+			print("[CARD] 20/20 maintained: +3 range on ranged offensive cards")
+		"its_alive":
+			# Resurrect handled as a world effect in main.gd (needs grid + corpses).
+			print("[CARD] ITS ALIVE!!!!! — resurrection resolved in world effects")
+		"shiv":
+			# Knife Toed Boots: a cheap melee jab. Same physical path as Slash.
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+		"tight_rope":
+			# Boots of the Balancer instant: fired by the below-20%-health trigger.
+			if player_stats:
+				player_stats.add_temp_health(20, 15)
+			if buff_mgr:
+				buff_mgr.apply_buff(Buff.create_strengthen(15, 1, "Tight Rope"))
+			print("[CARD] Tight Rope: +20 temp health, +15 damage on next attack")
+		"shift", "donate_cleats", "terrain_formation", "escape_and_bewilder", "mend":
+			# Boot-granted world effects — resolved in main._apply_card_world_effects.
+			pass
 		# === Brad Cards ===
 		"life_swap":
 			_execute_life_swap(target, player_stats, buff_mgr)
@@ -1126,18 +1233,35 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if ls_dealt > 0:
 			player_stats.apply_life_steal(max(1, floori(ls_dealt * 0.05)))
 
-	# Sphere grid "Life Steal +X%" nodes: attacks heal a percentage of damage dealt.
-	if card_type == CardType.ATTACK and player_stats and player_stats.sphere_bonus_life_steal > 0.0:
-		var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
-		if sls_dealt > 0:
-			player_stats.apply_life_steal(max(1, floori(sls_dealt * player_stats.sphere_bonus_life_steal / 100.0)))
+	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hanibals Mask),
+	# and a maintained Resourceful Replenish: attacks heal a % of damage dealt.
+	if card_type == CardType.ATTACK and player_stats:
+		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.equipment_lifesteal_bonus
+		if deck_manager and deck_manager.has_method("get_maintained_cards"):
+			for mc in deck_manager.get_maintained_cards():
+				if mc and mc.card_id == "resourceful_replenish":
+					# Hanibals Mask Lv.3 maintains at 8% instead of 5%.
+					ls_pct += 8.0 if (mc.granted_by_item and mc.granted_by_item.item_level >= 3) else 5.0
+		if ls_pct > 0.0:
+			var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
+			if sls_dealt > 0:
+				player_stats.apply_life_steal(max(1, floori(sls_dealt * ls_pct / 100.0)))
 
 	# Clear armor break flag on target after attack resolves
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
 		target.set_armor_break_incoming(false)
 
-	# Apply on-self debuffs (burn/cold from quivers) to target after attack
-	if card_type == CardType.ATTACK and target and last_damage_dealt > 0:
+	# Burgonet: a DEFENSE card that grants no armor of its own grants the boots'
+	# flat amount instead. (Armor-granting defense cards get their +2 inside
+	# _execute_block, on top of what they already provide.)
+	if card_type == CardType.DEFENSE and block <= 0 and player_stats \
+			and player_stats.equipment_armorless_defense_block > 0:
+		player_stats.add_armor(player_stats.equipment_armorless_defense_block)
+		print("[CARD] %s grants %d armor (armorless defense card)" % [card_name, player_stats.equipment_armorless_defense_block])
+
+	# Apply on-self debuffs (burn/cold/bleed from quivers and helms) to target
+	# after any offensive card that dealt damage
+	if is_offensive() and target and last_damage_dealt > 0:
 		var on_self_burn = on_self.get("apply_burn", 0)
 		var on_self_cold = on_self.get("apply_cold", 0)
 		var source_name = slotted_in_item.item_name if slotted_in_item else "Equipment"
@@ -1161,6 +1285,17 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			elif target.has_method("apply_debuff"):
 				target.apply_debuff("cold", on_self_cold)
 			print("[CARD] On-Self: Applied %d Cold to target from %s" % [on_self_cold, source_name])
+		var on_self_bleed = on_self.get("apply_bleed", 0)
+		if on_self_bleed > 0:
+			if target.has_method("get_debuff_manager"):
+				var target_debuff_mgr = target.get_debuff_manager()
+				if target_debuff_mgr:
+					var bleed = Debuff.create(Debuff.DebuffType.BLEED, on_self_bleed, 15)
+					bleed.source_name = source_name
+					target_debuff_mgr.apply_debuff(bleed)
+			elif target.has_method("apply_debuff"):
+				target.apply_debuff("bleed", on_self_bleed)
+			print("[CARD] On-Self: Applied %d Bleed to target from %s" % [on_self_bleed, source_name])
 
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
@@ -1174,9 +1309,26 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if _ranged_bonus_applied > 0:
 		bonus_damage -= _ranged_bonus_applied
 
+	# Clear the one-shot on-self crit so it never leaks to the next card.
+	if _temp_crit_applied > 0.0 and player_stats:
+		player_stats.temp_on_self_crit_bonus = max(0.0, player_stats.temp_on_self_crit_bonus - _temp_crit_applied)
+
+	# Wizard Hat: a spell card consumes the armed spell-power bonus on play.
+	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
+		player_stats.pending_spell_power_bonus = 0
+
+	# Clear the melee-offensive marker so it can't leak past this resolution.
+	if player_stats:
+		player_stats.resolving_melee_offensive = false
+
 static func crit_multiply(damage: int, player_stats: PlayerStats) -> int:
 	## The one crit-damage formula: 110% base + 3% per point of Dexterity.
 	## Falls back to the 110% base when no stats are available.
+	## Knife Toed Boots: while a melee offensive card is resolving, every crit
+	## adds a flat unscaled bonus on top of the multiplied damage.
+	if player_stats and player_stats.resolving_melee_offensive \
+			and player_stats.equipment_melee_crit_bonus > 0:
+		return floori(damage * player_stats.get_crit_damage_multiplier()) + player_stats.equipment_melee_crit_bonus
 	var mult := player_stats.get_crit_damage_multiplier() if player_stats else PlayerStats.BASE_CRIT_DAMAGE
 	return floori(damage * mult)
 
@@ -1251,6 +1403,43 @@ func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats
 		var self_dmg = floori(total_damage * self_damage_percent)
 		if self_dmg > 0:
 			player_stats.take_damage(self_dmg)
+
+## Neither Man nor Beast (Mane of Narashimha): 5 base damage through the normal
+## additive pipeline (STR, strengthen, on-self, crit) that bypasses armor and
+## resistances; the target cannot heal back THIS hit's damage for 10 tempo.
+func _execute_neither_man_nor_beast(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
+	var total_damage = base_damage + bonus_damage
+	if player_stats:
+		total_damage = player_stats.get_effective_physical_damage(total_damage)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = crit_multiply(total_damage, player_stats)
+			print("[CARD] CRITICAL HIT!")
+	last_damage_dealt = total_damage
+	if target and target.has_method("take_damage"):
+		# ignore_armor = true; enemies have no per-type resistances, so bypassing
+		# armor fulfills "ignoring all resistances and armor".
+		target.take_damage(total_damage, true, damage_type, true)
+		if target.has_method("apply_debuff"):
+			target.apply_debuff("narashimha", 2)  # 10 tempo = 2 cycles
+		print("[CARD] Neither Man nor Beast: %d unresistable damage + Narashimha" % total_damage)
+
+## Out of Guesses (The Headbandz): discard the whole hand, then draw that many.
+func _execute_out_of_guesses(deck_manager) -> void:
+	if not deck_manager:
+		return
+	var to_discard: Array = []
+	for c in deck_manager.hand:
+		if c != self:  # the card being played is discarded by the play flow itself
+			to_discard.append(c)
+	var n = to_discard.size()
+	for c in to_discard:
+		deck_manager.discard_card_from_hand(c)
+	for _i in range(n):
+		deck_manager.draw_card()
+	print("[CARD] Out of Guesses: discarded %d, drew %d" % [n, n])
+
 func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_mgr: BuffManager = null) -> void:
 	var armor_amount = block
 
@@ -1259,6 +1448,10 @@ func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_
 	if is_empowered and player_stats:
 		armor_amount = maxi(0, armor_amount - player_stats.empower_block_reduction)
 		print("[CARD] Empowered defense: -%d block" % player_stats.empower_block_reduction)
+
+	# Equipment "+X block to armor-granting defense cards" (Burgonet, Thick Steel).
+	if player_stats and armor_amount > 0 and player_stats.equipment_defense_card_block > 0:
+		armor_amount += player_stats.equipment_defense_card_block
 
 	if player_stats:
 		player_stats.add_armor(armor_amount)
@@ -1338,10 +1531,29 @@ func get_burden_mana_cost() -> int:
 		return mana_cost + burden_plays * 10
 	return mana_cost
 
+## "Offensive card" as the item specs use the term: anything that deals damage,
+## not just CardType.ATTACK — a damaging utility/spell counts too.
+func is_offensive() -> bool:
+	return card_type == CardType.ATTACK or damage > 0 or base_damage > 0
+
+# Boots of Speed: tempo shaved off while this card sits in hand. It lasts until
+# the card is played or discarded (cleared when the card leaves the hand and
+# again defensively on redraw), never a permanent change to the card.
+var temp_hand_tempo_reduction: int = 0
+
 func get_burden_tempo_cost() -> int:
+	var cost := tempo_cost
 	if has_burden:
-		return tempo_cost + burden_plays
-	return tempo_cost
+		cost += burden_plays
+	# Boot Holsters: slotted attack cards cost less tempo.
+	if card_type == CardType.ATTACK and slotted_in_item:
+		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
+	# Boots of Speed: in-hand reduction, until played or discarded.
+	cost -= temp_hand_tempo_reduction
+	# The Headbandz Lv.3: Out of Guesses quickens to 1 tempo.
+	if card_id == "out_of_guesses" and granted_by_item and granted_by_item.item_level >= 3:
+		cost = 1
+	return max(0, cost)
 
 func apply_burden() -> void:
 	if has_burden:
@@ -5101,6 +5313,161 @@ static func create_god_of_thunder() -> Card:
 	card.is_ranged = true
 	card.target_types = ["point"]
 	card.resolve_tick = 8  # Long channel for massive spell
+	return card
+
+# ============================================
+# HELM-GRANTED CARDS (item pass 1)
+# ============================================
+
+static func create_neither_man_nor_beast() -> Card:
+	var card = Card.new()
+	card.card_id = "neither_man_nor_beast"
+	card.card_name = "Neither Man nor Beast"
+	card.description = "Deal 10 damage ignoring all resistances and armor. The target cannot heal that damage for 10 tempo."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 10
+	card.tempo_cost = 2
+	card.damage = 10
+	card.base_damage = 10
+	card.target_types = ["enemy"]
+	return card
+
+static func create_resourceful_replenish() -> Card:
+	var card = Card.new()
+	card.card_id = "resourceful_replenish"
+	card.card_name = "Resourceful Replenish"
+	card.description = "Maintain: your attacks heal you for 5% of the damage dealt."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 20
+	card.maintain_cost = 20
+	card.tempo_cost = 2
+	card.target_types = ["self"]
+	return card
+
+static func create_out_of_guesses() -> Card:
+	var card = Card.new()
+	card.card_id = "out_of_guesses"
+	card.card_name = "Out of Guesses"
+	card.description = "Discard your whole hand, then draw that many cards."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 15
+	card.tempo_cost = 3
+	card.target_types = ["self"]
+	return card
+
+static func create_twenty_twenty() -> Card:
+	var card = Card.new()
+	card.card_id = "twenty_twenty"
+	card.card_name = "20/20"
+	card.description = "Maintain: gain +3 range on all ranged offensive cards."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 15
+	card.maintain_cost = 15
+	card.tempo_cost = 3
+	card.target_types = ["self"]
+	return card
+
+static func create_its_alive() -> Card:
+	var card = Card.new()
+	card.card_id = "its_alive"
+	card.card_name = "ITS ALIVE!!!!!"
+	card.description = "Resurrect a nearby corpse into Frankensteins Monster — a summon that fights for you."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 20
+	card.tempo_cost = 5
+	card.target_types = ["point"]
+	return card
+
+static func create_tight_rope() -> Card:
+	var card = Card.new()
+	card.card_id = "tight_rope"
+	card.card_name = "Tight Rope"
+	card.description = "Instant. When a hit puts you below 20% health, gain 20 temp health and +15 damage on your next attack."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.target_types = ["self"]
+	card.reaction_trigger = "on_health_below_20"
+	return card
+
+static func create_shift() -> Card:
+	var card = Card.new()
+	card.card_id = "shift"
+	card.card_name = "shift"
+	card.description = "Move up to 2 spaces for free."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.target_types = ["point"]
+	return card
+
+static func create_donate_cleats() -> Card:
+	var card = Card.new()
+	card.card_id = "donate_cleats"
+	card.card_name = "Donate Cleats"
+	card.description = "For 5 tempo, grant an ally +5 AGI and +4 DEX."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 35
+	card.tempo_cost = 0
+	card.target_types = ["ally", "self"]
+	return card
+
+static func create_terrain_formation() -> Card:
+	var card = Card.new()
+	card.card_id = "terrain_formation"
+	card.card_name = "Terrain formation"
+	card.description = "Create a hill you can walk on. The hill lasts 5 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 25
+	card.tempo_cost = 3
+	card.target_types = ["point"]
+	return card
+
+static func create_escape_and_bewilder() -> Card:
+	var card = Card.new()
+	card.card_id = "escape_and_bewilder"
+	card.card_name = "Escape and bewilder"
+	card.description = "Blink up to 5 spaces. Enemies within 3 of the space you left are stunned for 3 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 50
+	card.tempo_cost = 2
+	card.target_types = ["point"]
+	return card
+
+static func create_mend() -> Card:
+	var card = Card.new()
+	card.card_id = "mend"
+	card.card_name = "Mend"
+	card.description = "Allies within 4 squares restore 20% health and 20% mana, and gain armor equal to the health restored."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 30
+	card.tempo_cost = 4
+	card.target_types = ["self"]
+	return card
+
+static func create_shiv() -> Card:
+	var card = Card.new()
+	card.card_id = "shiv"
+	card.card_name = "Shiv"
+	card.description = "Melee. 2 damage."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 5
+	card.tempo_cost = 1
+	card.damage = 2
+	card.base_damage = 2
+	card.target_types = ["enemy"]
 	return card
 
 static func create_worms_armageddon() -> Card:

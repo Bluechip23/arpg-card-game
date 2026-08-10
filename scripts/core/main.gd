@@ -66,6 +66,11 @@ var _doughnut_looter: Player = null
 var _doughnut_pickup_cell: Vector2i = Vector2i(-999, -999)
 var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
 const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
+var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
+var _corpses: Array = []         # {cell: Vector2i, position: Vector3} left by dead enemies, for resurrection
+var _fire_spots: Array = []      # Elemental Trail Blazers: {cell, tempo, damage, node}
+var _purge_cycle_accum: int = 0  # Horned Nasal Helm: cycles banked toward the next auto-purge
+const FrankensteinScript = preload("res://scripts/battle/frankensteins_monster.gd")
 var minimap_tab_ui: MinimapTabUI = null
 var player2_ui: Player2UI = null
 var current_world_level: int = 1
@@ -3538,6 +3543,9 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
 	player.get_stats().brain_points_changed.connect(_on_brain_points_changed)
+	player.get_stats().action_points_spent.connect(_on_action_points_spent)
+	player.get_stats().movement_flash_threshold_reached.connect(_on_movement_flash_threshold)
+	player.get_stats().consecutive_attacks_reached.connect(_on_consecutive_attacks_reached)
 	_update_flash_button()
 	_update_brain_button()
 	# The skill tree screen spends the banked level-up stat points.
@@ -3680,7 +3688,12 @@ func _on_player_tile_reached() -> void:
 			tempo_manager.add_tempo(climb_cost)
 			add_battle_log("Climbing! +%d tempo" % climb_cost, Color(0.8, 0.7, 0.4))
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
+	var _vacated_cell := _player_last_grid_cell
 	_player_last_grid_cell = player_cell
+
+	# Elemental Trail Blazers: moving with flash points leaves fire on the vacated tile.
+	if _vacated_cell.x >= 0 and _vacated_cell != player_cell:
+		_maybe_drop_fire_trail(_vacated_cell)
 
 	# Fire walls (Fire Goblin Shaman): burn the player if they stepped into one.
 	_check_fire_walls(player_cell)
@@ -3832,6 +3845,9 @@ func _setup_sandbox() -> void:
 	## Free-play arena: no story enemies spawn, the player gets a fat pool of
 	## health/mana to experiment with, a couple of raised platforms give High
 	## Ground to play with, and the Sandbox control panel opens.
+	# Testing ground: the story-mode mythic equip limit does not apply here.
+	if player and player.get_inventory():
+		player.get_inventory().enforce_mythic_limit = false
 	var start_cell = grid_manager.world_to_grid(player.position)
 	# Two raised platforms flanking the start so High Ground is always nearby.
 	if dungeon_manager:
@@ -4459,6 +4475,8 @@ func _clear_locked_markers() -> void:
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()
+	# Summons are ordinary units to enemy target selection
+	enemy_spawner.summons = _frankensteins + _summoned_worms
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
@@ -4468,6 +4486,10 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 
 	# Summoned Bull Worms move/attack after the enemies act.
 	_update_summoned_worms()
+	# Frankensteins Monsters act on their own tempo cadence.
+	_update_frankensteins(amount)
+	# Elemental Trail Blazers: fire spots burn enemies then fade.
+	_update_fire_spots(amount)
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
@@ -4610,6 +4632,10 @@ func _on_enemy_attacked_player(enemy: Enemy) -> void:
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
+	# Snapshot a corpse where the enemy fell so ITS ALIVE!!!!! can raise it. The
+	# enemy is still valid here (it frees a moment later), so its position is good.
+	if grid_manager and is_instance_valid(enemy):
+		_corpses.append({"cell": grid_manager.world_to_grid(enemy.position), "position": enemy.position})
 	# Everyone in the party earns the kill's XP, so the co-op partner's level
 	# progresses alongside the active player's.
 	for p in _all_players():
@@ -4667,6 +4693,8 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 
 func _on_all_enemies_defeated() -> void:
 	_clear_summoned_worms()
+	_clear_frankensteins()
+	_clear_fire_spots()
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
@@ -5744,6 +5772,9 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	progression_triggers._trigger_skill_tree_brad_on_cycle()
 	progression_triggers._trigger_skill_tree_cory_on_cycle()
 	progression_triggers._trigger_skill_tree_jeremy_on_cycle()
+
+	# Helm per-cycle passives (Horned Nasal auto-purge, Mane void-resistance aura)
+	_helm_on_cycle_passives()
 	if tempo_manager.last_tempo_source == "movement":
 		progression_triggers._trigger_skill_tree_on_movement_cycle()
 
@@ -6445,6 +6476,8 @@ func select_card(index: int) -> void:
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
 			effective_range += st_stats.sphere_bonus_range
+		# Helm on-self range (Dragon Skull/Monocle) + 20/20 maintain
+		effective_range += _helm_range_bonus(card)
 		range_indicator.position = player.position
 		range_indicator.show_range(effective_range)
 		add_battle_log("%s selected — Range: %d tiles" % [card.card_name, int(effective_range)], Color(0.6, 0.85, 1.0))
@@ -7194,6 +7227,329 @@ func _get_distance_to_target(target) -> int:
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	return roundi(flat_dist / grid_manager.grid_size)
 
+## Extra range a helm grants a card at play time. Kept in one place so the range
+## preview and the range enforcement stay in lockstep.
+##   - On-self +range from the item the card is slotted in (Dragon Skull +1 to
+##     any offensive card; Monocle +5 to offensive ranged cards).
+##   - 20/20 (Monocle's granted Maintain): +3 range on ranged offensive cards.
+func _helm_range_bonus(card) -> int:
+	if card == null or not card.is_offensive():
+		return 0
+	var bonus := 0
+	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
+		var osb = card.slotted_in_item.get_on_self_bonus()
+		var r := int(osb.get("range_offensive", 0))
+		if r > 0 and (not osb.get("range_requires_ranged", false) or card.is_ranged):
+			bonus += r
+	if card.is_ranged and deck_manager:
+		for mc in deck_manager.get_maintained_cards():
+			if mc and mc.card_id == "twenty_twenty":
+				bonus += 3
+				break
+	return bonus
+
+## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
+## a little INT-scaled spell damage. (The utility heal is applied in execute().)
+func _helm_card_world_effects(card) -> void:
+	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
+		return
+	var osb = card.slotted_in_item.get_on_self_bonus()
+
+	# Shamans mask: a UTILITY card zaps a random enemy within 3. The zap is a
+	# fixed 1 spell damage — capped at 1, no INT/enchant/sphere modifiers.
+	if card.card_type == Card.CardType.UTILITY:
+		var spell_dmg := int(osb.get("utility_spell_damage", 0))
+		if spell_dmg > 0:
+			var victim = _random_enemy_within(3)
+			if victim:
+				victim.take_damage(spell_dmg, true)
+				add_battle_log("%s: %d spell damage to %s" % [card.slotted_in_item.item_name, spell_dmg, victim.enemy_name], Color(0.5, 0.85, 0.6))
+
+	# Boot Holsters: a slotted instant (REACTION) hits the nearest enemy in 3.
+	if card.card_type == Card.CardType.REACTION:
+		var inst_dmg := int(osb.get("instant_damage_nearest", 0))
+		if inst_dmg > 0:
+			var nearest = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			if nearest and grid_manager.get_distance_in_cells(player.position, nearest.position) <= 3:
+				nearest.take_damage(inst_dmg, true)
+				add_battle_log("%s: %d damage to %s" % [card.slotted_in_item.item_name, inst_dmg, nearest.enemy_name], Color(0.8, 0.7, 0.4))
+
+	# Houdinis Slippers: any slotted card turns the player invisible for a while.
+	var invis_tempo := int(osb.get("invisible_tempo", 0))
+	if invis_tempo > 0:
+		var bm = player.get_buff_manager()
+		if bm:
+			bm.apply_buff(Buff.create_invisible(invis_tempo, card.slotted_in_item.item_name))
+			_set_player_invisible(true)
+			add_battle_log("%s: you vanish for %d tempo" % [card.slotted_in_item.item_name, invis_tempo], Color(0.7, 0.7, 0.9))
+
+## Elemental Trail Blazers: if the player moved on flash points and the boots are
+## worn, ignite the tile they just left. Damage scales with INT like a spell.
+func _maybe_drop_fire_trail(cell: Vector2i) -> void:
+	if not player or not grid_manager:
+		return
+	var stats = player.get_stats()
+	if not stats or not stats.flash_movement_enabled:
+		return  # only "when moving with flash points"
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	var dmg := 0
+	var persist := 0
+	for boot in inv.equipped_boots:
+		if boot and boot.fire_trail_damage > 0:
+			dmg = boot.fire_trail_damage
+			persist = boot.fire_trail_tempo
+			break
+	if dmg <= 0:
+		return
+	# Skip if a fire spot already burns here.
+	for spot in _fire_spots:
+		if spot["cell"] == cell:
+			return
+	# Fire spots deal INT/5 (min 1) — deliberately NOT the full spell pipeline.
+	var scaled: int = maxi(1, floori(stats.intelligence / 5.0))
+	var node := _make_fire_spot_visual(grid_manager.grid_to_world(cell))
+	add_child(node)
+	_fire_spots.append({"cell": cell, "tempo": persist, "damage": scaled, "node": node})
+
+func _make_fire_spot_visual(world_pos: Vector3) -> Node3D:
+	var n := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.35
+	mesh.bottom_radius = 0.4
+	mesh.height = 0.08
+	n.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.45, 0.1)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.4, 0.05)
+	n.material_override = mat
+	n.position = Vector3(world_pos.x, 0.05, world_pos.z)
+	return n
+
+## Per-tempo: burn any enemy standing on a fire spot (which then extinguishes),
+## and age out spots whose timer has run down.
+func _update_fire_spots(amount: int) -> void:
+	if _fire_spots.is_empty() or not grid_manager or not enemy_spawner:
+		return
+	var survivors: Array = []
+	for spot in _fire_spots:
+		var extinguished := false
+		for e in enemy_spawner.get_living_enemies():
+			if e and is_instance_valid(e) and grid_manager.world_to_grid(e.position) == spot["cell"]:
+				e.take_damage(spot["damage"], true, DamageTypes.Type.FIRE)
+				add_battle_log("Fire scorches %s for %d!" % [e.enemy_name, spot["damage"]], Color(1.0, 0.5, 0.1))
+				extinguished = true
+				break
+		spot["tempo"] -= amount
+		if extinguished or spot["tempo"] <= 0:
+			if is_instance_valid(spot["node"]):
+				spot["node"].queue_free()
+		else:
+			survivors.append(spot)
+	_fire_spots = survivors
+
+func _clear_fire_spots() -> void:
+	for spot in _fire_spots:
+		if is_instance_valid(spot["node"]):
+			spot["node"].queue_free()
+	_fire_spots.clear()
+
+## Boots of Speed: enough movement flash spent → shave 1 tempo off a hand card.
+func _on_movement_flash_threshold() -> void:
+	if not deck_manager or deck_manager.hand.is_empty():
+		return
+	# Prefer a card whose effective tempo can still drop. The reduction rides
+	# temp_hand_tempo_reduction, so it lasts until the card is played or
+	# discarded — never a permanent change to the card.
+	var candidates: Array = []
+	for c in deck_manager.hand:
+		if c and c.get_burden_tempo_cost() > 0:
+			candidates.append(c)
+	if candidates.is_empty():
+		return
+	var pick = candidates[randi() % candidates.size()]
+	pick.temp_hand_tempo_reduction += 1
+	add_battle_log("Boots of Speed: -1 tempo on %s (until played or discarded)" % pick.card_name, Color(0.7, 0.9, 1.0))
+	update_deck_info()
+
+## Cyde Livingstons Sneakers: a run of consecutive attacks draws a card.
+func _on_consecutive_attacks_reached() -> void:
+	if not deck_manager:
+		return
+	deck_manager.draw_card()
+	add_battle_log("Cyde Livingstons Sneakers: 5 attacks — draw a card!", Color(0.7, 0.9, 0.7))
+	update_deck_info()
+
+## Returns a random living enemy within `tiles` of the player, or null.
+func _random_enemy_within(tiles: int):
+	var candidates: Array = []
+	for e in enemy_spawner.get_living_enemies():
+		if e and is_instance_valid(e) and grid_manager.get_distance_in_cells(player.position, e.position) <= tiles:
+			candidates.append(e)
+	if candidates.is_empty():
+		return null
+	return candidates[randi() % candidates.size()]
+
+## Feathered Hat: accumulate flash points spent; once the wearer has spent the
+## helm's threshold, arm a guaranteed crit for the next ranged offensive card.
+func _on_action_points_spent(pool: String, amount: int) -> void:
+	if pool != "flash" or not player or amount <= 0:
+		return
+	var inv = player.get_inventory()
+	var stats = player.get_stats()
+	if not inv or not stats:
+		return
+	var threshold := 0
+	for helm in inv.equipped_helms:
+		if helm and helm.flash_crit_threshold > 0:
+			threshold = helm.flash_crit_threshold
+			break
+	if threshold <= 0:
+		return
+	stats.flash_crit_accum += amount
+	if stats.flash_crit_accum >= threshold and not stats.flash_crit_armed:
+		stats.flash_crit_accum -= threshold  # carry any overflow toward the next one
+		stats.flash_crit_armed = true
+		add_battle_log("Feathered Hat: your next ranged attack will crit!", Color(0.8, 0.9, 1.0))
+
+## Helm passives that tick once per tempo cycle (5 tempo):
+##   - Horned Nasal Helm: purge N random debuffs off the wearer.
+##   - Mane of Narashimha: refresh a +damage "void resistance" aura on enemies
+##     within radius, and clear it from those who left the aura.
+func _helm_on_cycle_passives() -> void:
+	if not player:
+		return
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	var purge_count := 0
+	var purge_interval := 1
+	var aura_percent := 0.0
+	var aura_radius := 0
+	var summon_heal := 0
+	for helm in inv.equipped_helms:
+		if not helm:
+			continue
+		if helm.auto_purge_per_cycle > 0:
+			purge_count += helm.auto_purge_per_cycle
+			purge_interval = maxi(purge_interval, helm.auto_purge_interval_cycles)
+		if helm.void_resistance_percent > aura_percent:
+			aura_percent = helm.void_resistance_percent
+			aura_radius = helm.void_resistance_radius
+		summon_heal = maxi(summon_heal, helm.summon_heal_aura)
+
+	# Auto-purge runs on its own cadence (Horned Nasal: every 3 cycles).
+	if purge_count > 0:
+		_purge_cycle_accum += 1
+		if _purge_cycle_accum < purge_interval:
+			purge_count = 0  # not this cycle
+		else:
+			_purge_cycle_accum = 0
+	else:
+		_purge_cycle_accum = 0
+
+	# Frankensteins Screws: heal summons below 25% HP within 3 tiles of the wearer.
+	if summon_heal > 0 and grid_manager:
+		for m in _frankensteins:
+			if not is_instance_valid(m) or m.is_dead:
+				continue
+			if m.get_health_percent() < 0.25 and grid_manager.get_distance_in_cells(player.position, m.position) <= 3:
+				m.heal(summon_heal)
+
+	# Auto-purge: remove up to purge_count random debuffs from the wearer.
+	if purge_count > 0:
+		var dm = player.get_debuff_manager()
+		if dm and dm.debuffs.size() > 0:
+			var list = dm.debuffs.duplicate()
+			list.shuffle()
+			var removed := 0
+			for i in range(min(purge_count, list.size())):
+				dm.remove_debuff(list[i].debuff_type)
+				removed += 1
+			if removed > 0:
+				add_battle_log("Horned Nasal Helm purges %d debuff(s)" % removed, Color(0.7, 0.6, 0.9))
+
+	# Boots: keep the high-ground flag current, and read Jordan's missing-life rate.
+	var stats = player.get_stats()
+	if stats:
+		stats.on_high_ground = _is_on_high_ground(player.position)
+	var jordan_rate := 0.0
+	var jordan_threshold := 0
+	var greaves_regen := 0
+	var greaves_radius := 0
+	var greaves_resist := 0.0
+	for boot in inv.equipped_boots:
+		if boot and boot.missing_life_damage_rate > 0.0 and jordan_rate == 0.0:
+			jordan_rate = boot.missing_life_damage_rate
+			jordan_threshold = boot.missing_life_threshold
+		if boot and boot.ally_regen_per_cycle > 0 and greaves_regen == 0:
+			greaves_regen = boot.ally_regen_per_cycle
+			greaves_radius = boot.ally_regen_radius
+			greaves_resist = boot.ally_physical_resist
+
+	# Guardian Greaves aura: allies (players and summons) within the radius are
+	# healed and given mana each cycle; players also hold 5% physical resist
+	# while inside. Resist is presence-based — reset first, then re-applied.
+	for ally in _all_players():
+		if is_instance_valid(ally) and ally.get_stats():
+			ally.get_stats().aura_physical_resist = 0.0
+	if greaves_regen > 0 and grid_manager:
+		for ally in _all_players():
+			if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > greaves_radius:
+				continue
+			var a_st = ally.get_stats()
+			if a_st:
+				a_st.heal(greaves_regen)
+				a_st.gain_mana(greaves_regen)
+				a_st.aura_physical_resist = greaves_resist
+		for m in _frankensteins:
+			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
+				m.heal(greaves_regen)
+
+	# Void-resistance aura (Mane): presence-based, refreshed every cycle so it
+	# follows the player. Also stamp Jordan's missing-life rate on every enemy.
+	if enemy_spawner and grid_manager:
+		for e in enemy_spawner.get_living_enemies():
+			if not e or not is_instance_valid(e):
+				continue
+			if aura_percent > 0.0 and grid_manager.get_distance_in_cells(player.position, e.position) <= aura_radius:
+				e.void_resistance_percent = aura_percent
+			else:
+				e.void_resistance_percent = 0.0
+			e.missing_life_damage_rate = jordan_rate
+			e.missing_life_threshold = jordan_threshold
+
+## Dragon Skull: on a landed crit, breathe a fire cone in front of the wearer.
+## Damage = the helm's base + INT/2 (spell-style scaling), fire-typed.
+func _helm_crit_fire_cone(target) -> void:
+	if not player or not enemy_spawner or not grid_manager:
+		return
+	if target == null or not is_instance_valid(target):
+		return  # need a target to orient the cone
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	var stats = player.get_stats()
+	var intel: int = stats.intelligence if stats else 0
+	for helm in inv.equipped_helms:
+		if not helm or helm.crit_fire_cone_damage <= 0:
+			continue
+		var dmg: int = helm.crit_fire_cone_damage + int(intel / 2.0)
+		var direction: Vector3 = (target.position - player.position)
+		direction.y = 0.0
+		if direction.length() < 0.01:
+			continue
+		direction = direction.normalized()
+		var length := float(helm.crit_fire_cone_range) * grid_manager.grid_size
+		var hit := enemy_spawner.get_enemies_in_cone(player.position, direction, length, 45.0)
+		for e in hit:
+			if e and is_instance_valid(e) and e.has_method("take_damage"):
+				e.take_damage(dmg, true, DamageTypes.Type.FIRE)
+		if not hit.is_empty():
+			add_battle_log("%s breathes fire! %d damage to %d enemies" % [helm.item_name, dmg, hit.size()], Color(1.0, 0.5, 0.1))
+
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node3D:
 		return true
@@ -7225,12 +7581,17 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
 			max_range += st_stats.sphere_bonus_range
+		# Helm on-self range (Dragon Skull/Monocle) + 20/20 maintain
+		max_range += _helm_range_bonus(card)
 		return distance_tiles <= max_range + 0.5  # Small tolerance
 	else:
-		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square
+		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square.
+		# Dragon Skull's "+1 range on ANY offensive card" extends melee reach too
+		# (the 20/20 and Monocle parts of the helper are ranged-gated internally).
 		var melee_range = 1.5
 		if card.has_reach:
 			melee_range += 1.0
+		melee_range += float(_helm_range_bonus(card))
 		return distance_tiles <= melee_range
 
 func _get_nearest_enemy() -> Enemy:
@@ -7322,7 +7683,94 @@ func _animate_shuffle() -> void:
 func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_mouse_world_position()
 
+	# Generic helm on-self world effects (independent of card_id).
+	_helm_card_world_effects(card)
+
 	match card.card_id:
+		"its_alive":
+			_resurrect_frankenstein()
+
+		"shift":
+			# Rollerblades: free move, but bounded — up to 2 tiles.
+			var shift_pos = grid_manager.snap_to_grid(mouse_pos)
+			var shift_cell = grid_manager.world_to_grid(shift_pos)
+			var shift_dist = grid_manager.get_distance_in_cells(player.position, shift_pos)
+			if shift_dist > 2:
+				add_battle_log("shift: too far — 2 spaces max", Color(1.0, 0.4, 0.4))
+			elif shift_cell in player.blocked_tiles:
+				add_battle_log("shift: cannot move into a wall or obstacle!", Color(1.0, 0.4, 0.4))
+			else:
+				player.blink_to(shift_pos)
+				progression_triggers._trigger_skill_tree_on_displacement()
+
+		"escape_and_bewilder":
+			# Houdinis Slippers: blink up to 5; stun everyone near the vacated tile.
+			var eb_origin: Vector3 = player.position
+			var eb_pos = grid_manager.snap_to_grid(mouse_pos)
+			var eb_cell = grid_manager.world_to_grid(eb_pos)
+			if grid_manager.get_distance_in_cells(eb_origin, eb_pos) > 5:
+				add_battle_log("Escape and bewilder: too far — 5 spaces max", Color(1.0, 0.4, 0.4))
+			elif eb_cell in player.blocked_tiles:
+				add_battle_log("Escape and bewilder: cannot blink into a wall!", Color(1.0, 0.4, 0.4))
+			else:
+				player.blink_to(eb_pos)
+				progression_triggers._trigger_skill_tree_on_displacement()
+				var stunned := 0
+				for e in enemy_spawner.get_living_enemies():
+					if e and is_instance_valid(e) and grid_manager.get_distance_in_cells(eb_origin, e.position) <= 3:
+						e.apply_debuff("stun", 1)  # 3 tempo ≈ 1 cycle
+						stunned += 1
+				if stunned > 0:
+					add_battle_log("Escape and bewilder: %d enem%s stunned!" % [stunned, "y" if stunned == 1 else "ies"], Color(0.7, 0.7, 0.95))
+
+		"donate_cleats":
+			# Cyde Livingstons Sneakers: lend an ally (or yourself) +5 AGI / +4 DEX for 5 tempo.
+			var dc_node = target if (target and is_instance_valid(target) and target.has_method("get_stats")) else player
+			var dc_stats = dc_node.get_stats()
+			if dc_stats:
+				dc_stats.base_agility += 5
+				dc_stats.base_dexterity += 4
+				dc_stats.recalculate_derived_stats()
+				schedule_delayed_effect(5, func():
+					if is_instance_valid(dc_node) and dc_node.get_stats():
+						dc_stats.base_agility -= 5
+						dc_stats.base_dexterity -= 4
+						dc_stats.recalculate_derived_stats(), "donate_cleats")
+				add_battle_log("Donate Cleats: +5 AGI, +4 DEX for 5 tempo", Color(0.6, 0.9, 0.6))
+
+		"terrain_formation":
+			# Mountain Boots: raise a walkable hill (works under units too); 5 tempo.
+			var tf_cell = grid_manager.world_to_grid(grid_manager.snap_to_grid(mouse_pos))
+			var tf_handle = dungeon_manager.build_high_ground(tf_cell, 1, 1) if dungeon_manager else {}
+			if tf_handle.get("cells", []).is_empty():
+				add_battle_log("Terrain formation: no ground to raise there", Color(1.0, 0.4, 0.4))
+			else:
+				schedule_delayed_effect(5, func():
+					if dungeon_manager:
+						dungeon_manager.remove_high_ground(tf_handle), "terrain_formation")
+				add_battle_log("Terrain formation: a hill rises! (5 tempo)", Color(0.7, 0.6, 0.4))
+
+		"mend":
+			# Guardian Greaves: allies within 4 restore 20% HP/mana + armor = health
+			# restored. At item Lv.3 the restore doubles to 40%/40%.
+			var mend_pct := 0.4 if (card.granted_by_item and card.granted_by_item.item_level >= 3) else 0.2
+			var mend_healed := 0
+			for ally in _all_players():
+				if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > 4:
+					continue
+				var a_st = ally.get_stats()
+				if a_st:
+					var heal_amt: int = maxi(1, floori(a_st.max_health * mend_pct))
+					a_st.heal(heal_amt)
+					a_st.gain_mana(maxi(1, floori(a_st.max_mana * mend_pct)))
+					a_st.add_armor(heal_amt)
+					mend_healed += 1
+			for m in _frankensteins:
+				if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= 4:
+					m.heal(maxi(1, floori(m.max_health * mend_pct)))
+					mend_healed += 1
+			add_battle_log("Mend: %d all%s restored" % [mend_healed, "y" if mend_healed == 1 else "ies"], Color(0.5, 0.9, 0.7))
+
 		"spark":
 			# Damage is dealt in execute(); here: shift hand tempo now + later.
 			_adjust_random_hand_tempo(deck_manager, 2, -2)
@@ -8532,7 +8980,10 @@ func _on_give_item(item_name: String) -> void:
 		"Wooden Sword": item = ItemData.create_wooden_sword()
 		"Frost Orb": item = ItemData.create_frost_orb()
 		"Bladed Doughnut": item = ItemData.create_bladed_doughnut()
-	
+		_:
+			# Any other item (all helms, etc.) resolves by name via factory discovery.
+			item = ItemData.create_by_name(item_name)
+
 	if item:
 		var inv = player.get_inventory()
 		# Find first empty equipment slot
@@ -8861,6 +9312,119 @@ func _living_enemy_cells() -> Array:
 	for e in enemy_spawner.get_living_enemies():
 		cells.append(grid_manager.world_to_grid(e.position))
 	return cells
+
+# ============================================
+# FRANKENSTEINS MONSTER (ITS ALIVE!!!!! summon)
+# ============================================
+
+## Raise the nearest corpse into a Frankensteins Monster. Called by the
+## its_alive card's world effect. No corpse in reach → the card fizzles.
+func _resurrect_frankenstein() -> void:
+	if not grid_manager or not player:
+		return
+	# Drop any corpses whose tile is now occupied by a living enemy or the player.
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var enemy_cells = _living_enemy_cells()
+	# Pick the corpse closest to the player.
+	var best_idx := -1
+	var best_dist := INF
+	for i in range(_corpses.size()):
+		var d = player.position.distance_to(_corpses[i]["position"])
+		if d < best_dist:
+			best_dist = d
+			best_idx = i
+	if best_idx < 0:
+		add_battle_log("ITS ALIVE!!!!! fizzles — no corpse to raise.", Color(0.7, 0.7, 0.7))
+		return
+	var corpse = _corpses[best_idx]
+	_corpses.remove_at(best_idx)
+	# Find a free tile at/near the corpse (its own cell first).
+	var spawn_cell: Vector2i = corpse["cell"]
+	var blocked = player.blocked_tiles
+	if spawn_cell == player_cell or spawn_cell in enemy_cells or spawn_cell in blocked:
+		var placed := false
+		for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+			var c = corpse["cell"] + off
+			if c != player_cell and not (c in enemy_cells) and not (c in blocked):
+				spawn_cell = c
+				placed = true
+				break
+		if not placed:
+			add_battle_log("ITS ALIVE!!!!! fizzles — no room to raise the corpse.", Color(0.7, 0.7, 0.7))
+			return
+	var stats = player.get_stats()
+	var summoner_int: int = stats.intelligence if stats else 0
+	var monster = FrankensteinScript.new()
+	add_child(monster)
+	monster.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), summoner_int)
+	monster.died.connect(func(m): _frankensteins.erase(m))
+	_frankensteins.append(monster)
+	add_battle_log("ITS ALIVE!!!!! A Frankensteins Monster rises (%d HP)!" % monster.max_health, Color(0.6, 0.9, 0.6))
+
+func _clear_frankensteins() -> void:
+	for m in _frankensteins:
+		if is_instance_valid(m):
+			m.queue_free()
+	_frankensteins.clear()
+	_corpses.clear()
+
+## Per-tempo Frankenstein AI. Moves MOVE_STEPS tiles every MOVE_INTERVAL tempo
+## toward the nearest enemy, and attacks every ATTACK_INTERVAL tempo when adjacent.
+func _update_frankensteins(amount: int) -> void:
+	if _frankensteins.is_empty():
+		return
+	_frankensteins = _frankensteins.filter(func(m): return is_instance_valid(m) and not m.is_dead)
+	if not grid_manager or not enemy_spawner:
+		return
+	var enemies = enemy_spawner.get_living_enemies()
+	var blocked = player.blocked_tiles
+
+	# NOTE: enemies treat the monster like any other unit. Today enemy AI only
+	# targets players, so nothing here makes enemies attack it — making summons
+	# real targets in enemy target-selection is an enemy-AI pass.
+
+	var mon_cells: Array = []
+	for m in _frankensteins:
+		if is_instance_valid(m) and not m.is_dead:
+			mon_cells.append(m.get_cell())
+
+	for m in _frankensteins.duplicate():
+		if not is_instance_valid(m) or m.is_dead:
+			continue
+		var target_enemy = _nearest_enemy_to(m.position, enemies)
+		if target_enemy == null:
+			continue
+		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		# Attack on cadence when adjacent.
+		m.attack_accum += amount
+		if _manhattan(m.get_cell(), tcell) <= 1:
+			if m.attack_accum >= m.ATTACK_INTERVAL:
+				m.attack_accum -= m.ATTACK_INTERVAL
+				target_enemy.take_damage(m.attack_damage, true)
+				add_battle_log("Frankensteins Monster smashes %s for %d!" % [target_enemy.enemy_name, m.attack_damage], Color(0.6, 0.9, 0.6))
+			continue
+		# Move on cadence: MOVE_STEPS tiles per MOVE_INTERVAL tempo. get_cell()
+		# only updates once _process lerps the body, so walk the path locally and
+		# issue a single move to the end tile. One move action per tick (overflow
+		# stays banked in move_accum) keeps cadence stable if amount is large.
+		m.move_accum += amount
+		if m.move_accum >= m.MOVE_INTERVAL:
+			m.move_accum -= m.MOVE_INTERVAL
+			var cur = m.get_cell()
+			mon_cells.erase(cur)
+			for _step in range(m.MOVE_STEPS):
+				var tc = grid_manager.world_to_grid(target_enemy.position)
+				if _manhattan(cur, tc) <= 1:
+					break
+				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), mon_cells)
+				if nxt == cur:
+					break
+				cur = nxt
+			mon_cells.append(cur)
+			if cur != m.get_cell():
+				m.move_to_cell(cur)
+
+	_frankensteins = _frankensteins.filter(func(m): return is_instance_valid(m) and not m.is_dead)
 
 func _nearest_enemy_to(pos: Vector3, enemies: Array) -> Enemy:
 	var nearest: Enemy = null
@@ -9510,6 +10074,17 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var triggered = deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+	# Tight Rope: fires only on the hit that dropped the player below 20% health.
+	var tr_stats = player.get_stats()
+	if tr_stats and tr_stats.max_health > 0:
+		var pct := float(tr_stats.current_health) / float(tr_stats.max_health)
+		var prev_pct := float(tr_stats.current_health + _amount) / float(tr_stats.max_health)
+		if pct < 0.2 and prev_pct >= 0.2:
+			var low_triggered = deck_manager.trigger_reactions("on_health_below_20")
+			for card in low_triggered:
+				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+			if low_triggered.size() > 0:
+				_refresh_unit_tracker()
 	# Cover: an ally taking damage (self in solo) fires its mitigation reaction.
 	var cover_reactions = deck_manager.trigger_reactions("on_ally_damage_taken")
 	for card in cover_reactions:

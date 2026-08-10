@@ -220,12 +220,41 @@ func get_off_hand_modifier() -> float:
 	# Stephen gets bonus, others get penalty
 	return DEFAULT_OFF_HAND_PENALTY + off_hand_bonus
 
+# Story rule: a character can wear one mythic per 10 character levels
+# (level 0-9 none, 10-19 one, 20-29 two, ...). Sandbox turns this off —
+# that's where testing happens (see main._setup_sandbox).
+var enforce_mythic_limit: bool = true
+signal equip_blocked(item: ItemData, reason: String)
+
+func get_mythic_capacity() -> int:
+	if not player_stats:
+		return 0
+	return int(player_stats.current_level / 10.0)
+
+func count_equipped_mythics() -> int:
+	var n := 0
+	# (Quiver items live in the weapon slots — there is no separate quiver array.)
+	for arr in [equipped_helms, equipped_chests, equipped_rings, equipped_belts,
+			equipped_boots, equipped_gauntlets, equipped_weapons]:
+		for it in arr:
+			if it and it.rarity == ItemData.Rarity.MYTHIC:
+				n += 1
+	return n
+
 func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	var slot_array = _get_slot_array(item.item_type)
 	var max_slots = _get_max_slots(item.item_type)
-	
+
 	if slot_index < 0 or slot_index >= max_slots:
 		print("[INVENTORY] Invalid slot index %d for %s" % [slot_index, item.item_name])
+		return false
+
+	if enforce_mythic_limit and item.rarity == ItemData.Rarity.MYTHIC \
+			and count_equipped_mythics() >= get_mythic_capacity():
+		var reason = "Mythic limit: level %d allows %d mythic(s) equipped" % [
+			player_stats.current_level if player_stats else 0, get_mythic_capacity()]
+		print("[INVENTORY] %s — cannot equip %s" % [reason, item.item_name])
+		equip_blocked.emit(item, reason)
 		return false
 	
 	if slot_array[slot_index] != null:
@@ -255,6 +284,7 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 		return false
 
 	slot_array[slot_index] = item
+	item.armor_per_tempo_accum = 0  # periodic-armor counter restarts on equip
 
 	# Slot index > 0 means off-hand. (Later two-handing re-applies the
 	# item's bonuses at full strength — see set_two_handed.)
@@ -287,6 +317,7 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 					   slot_index > 0 and slot_index != two_handed_slot)
 
 	slot_array[slot_index] = null
+	item.armor_per_tempo_accum = 0  # counter resets when unequipped (per spec)
 	# Losing the item releases two-handing with it
 	if slot_array == equipped_weapons and slot_index == two_handed_slot:
 		_clear_two_handed_state()
@@ -422,6 +453,43 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	if item.healing_bonus > 0:
 		player_stats.healing_bonus += item.healing_bonus * multiplier
 		print("[INVENTORY] Healing bonus now: +%d" % player_stats.healing_bonus)
+
+	# Equipment crit / lifesteal / all-resistance (helms and beyond). Float
+	# fields, so applied directly with the ±1 multiplier like the base stats.
+	if item.crit_chance_percent != 0.0:
+		player_stats.equipment_crit_bonus += item.crit_chance_percent * multiplier
+	if item.lifesteal_percent != 0.0:
+		player_stats.equipment_lifesteal_bonus += item.lifesteal_percent * multiplier
+	if item.all_resistance_percent != 0.0:
+		player_stats.equipment_resistance_bonus += item.all_resistance_percent * multiplier
+	if item.block_bonus_to_defense_cards != 0:
+		player_stats.equipment_defense_card_block += item.block_bonus_to_defense_cards * multiplier
+	if item.block_to_armorless_defense_cards != 0:
+		player_stats.equipment_armorless_defense_block += item.block_to_armorless_defense_cards * multiplier
+	if item.brain_points_bonus != 0:
+		player_stats.equipment_brain_points_bonus += item.brain_points_bonus * multiplier
+	if item.peek_brain_discount != 0:
+		player_stats.equipment_peek_discount += item.peek_brain_discount * multiplier
+	if item.spell_power_per_attacks != 0:
+		player_stats.equipment_spell_power_every_n += item.spell_power_per_attacks * multiplier
+	if item.spell_power_bonus != 0:
+		player_stats.equipment_spell_power_amount += item.spell_power_bonus * multiplier
+	# Boots pass-2 riders
+	if item.sidestep_bonus_armor != 0:
+		player_stats.equipment_sidestep_bonus_armor += item.sidestep_bonus_armor * multiplier
+	if item.movement_flash_discount != 0:
+		player_stats.equipment_movement_flash_discount += item.movement_flash_discount * multiplier
+	if item.highground_damage_percent != 0.0:
+		player_stats.equipment_highground_damage_percent += item.highground_damage_percent * multiplier
+	if item.melee_crit_flat_bonus != 0:
+		player_stats.equipment_melee_crit_bonus += item.melee_crit_flat_bonus * multiplier
+	if item.trap_damage_percent != 0.0:
+		player_stats.equipment_trap_damage_percent += item.trap_damage_percent * multiplier
+	if item.movement_flash_tempo_threshold != 0:
+		# Last equipped boot with a threshold wins (only one boots slot in practice).
+		player_stats.movement_flash_tempo_threshold = item.movement_flash_tempo_threshold if multiplier > 0 else 0
+	if item.consecutive_attack_draw != 0:
+		player_stats.consecutive_attacks_draw_at = item.consecutive_attack_draw if multiplier > 0 else 0
 
 	# Recalculate derived stats
 	player_stats.recalculate_derived_stats()
@@ -686,12 +754,19 @@ func process_turn() -> void:
 					player_stats.gain_mana(10)
 					print("[INVENTORY] Cory passive: Gained 10 mana from cooldown")
 
-	# Grant armor-per-turn from chest items (e.g. Leather Chest)
+	# Grant periodic armor (ARMOR_PER_TURN) from any equipped chest or helm.
+	# process_turn() fires once per 5-tempo cycle; each item banks 5 tempo and
+	# grants its armor once its own interval (default 5, e.g. 15 for Mail Coif)
+	# is reached. The accumulator resets on equip/unequip.
 	if player_stats:
-		for item in equipped_chests:
+		for item in equipped_chests + equipped_helms + equipped_boots:
 			if item and item.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN:
-				player_stats.add_armor(item.special_effect_value)
-				print("[INVENTORY] %s: +%d armor per turn" % [item.item_name, item.special_effect_value])
+				item.armor_per_tempo_accum += 5  # one cycle = 5 tempo
+				var interval: int = maxi(5, item.armor_per_tempo_interval)
+				while item.armor_per_tempo_accum >= interval:
+					item.armor_per_tempo_accum -= interval
+					player_stats.add_armor(item.special_effect_value)
+					print("[INVENTORY] %s: +%d armor (every %d tempo)" % [item.item_name, item.special_effect_value, interval])
 
 # ============================================
 # RING TRIGGER SYSTEM
