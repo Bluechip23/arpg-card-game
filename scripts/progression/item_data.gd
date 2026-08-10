@@ -253,6 +253,7 @@ func get_mastery_text(stats = null) -> String:
 @export var auto_purge_per_cycle: int = 0        # cleanse X of the wearer's debuffs each cycle (Horned Nasal Helm)
 @export var void_resistance_percent: float = 0.0  # nearby enemies take +X% damage — "lowered resistance" (Mane)
 @export var void_resistance_radius: int = 0       # aura radius in tiles (Mane 2)
+@export var summon_heal_aura: int = 0             # heal summons below 25% HP within 3 tiles by X/cycle (Frankensteins Screws)
 
 # On-kill card conjuring (Bladed Doughnut): every enemy kill while this item
 # is equipped adds a fresh copy of this card directly to the hand.
@@ -697,8 +698,9 @@ static func create_feathered_hat() -> ItemData:
 static func create_frankensteins_screws() -> ItemData:
 	var item = _new_helm("Frankensteins Screws", Rarity.LEGENDARY, 10)
 	item.intelligence_bonus = 5
-	# GAP (rider): granted card "ITS ALIVE!!!!!" (resurrect a corpse to
-	# Frankensteins Monster) + summon healing aura. Summon subsystem — see audit.
+	var frank_cards: Array[String] = ["its_alive"]
+	item.granted_card_ids = frank_cards
+	item.summon_heal_aura = 3  # summons below 25% HP within 3 tiles heal 3/cycle
 	item.description = "+5 INT. Grants ITS ALIVE!!!!!: Resurrect a dead corpse into Frankensteins Monster (50 + summoner INT×0.8 HP; moves every 8 tempo/4 spaces; attacks every 5 tempo for 10 + INT×0.25; 5% + INT/10 resist to all). 20 mana, 5 tempo. When your summons are below 25% health and within 3 squares of you, they heal 3 per cycle."
 	return item
 

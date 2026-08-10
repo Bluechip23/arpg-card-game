@@ -66,6 +66,9 @@ var _doughnut_looter: Player = null
 var _doughnut_pickup_cell: Vector2i = Vector2i(-999, -999)
 var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
 const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
+var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
+var _corpses: Array = []         # {cell: Vector2i, position: Vector3} left by dead enemies, for resurrection
+const FrankensteinScript = preload("res://scripts/battle/frankensteins_monster.gd")
 var minimap_tab_ui: MinimapTabUI = null
 var player2_ui: Player2UI = null
 var current_world_level: int = 1
@@ -4452,6 +4455,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 
 	# Summoned Bull Worms move/attack after the enemies act.
 	_update_summoned_worms()
+	# Frankensteins Monsters act on their own tempo cadence.
+	_update_frankensteins(amount)
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
@@ -4594,6 +4599,10 @@ func _on_enemy_attacked_player(enemy: Enemy) -> void:
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
+	# Snapshot a corpse where the enemy fell so ITS ALIVE!!!!! can raise it. The
+	# enemy is still valid here (it frees a moment later), so its position is good.
+	if grid_manager and is_instance_valid(enemy):
+		_corpses.append({"cell": grid_manager.world_to_grid(enemy.position), "position": enemy.position})
 	# Everyone in the party earns the kill's XP, so the co-op partner's level
 	# progresses alongside the active player's.
 	for p in _all_players():
@@ -4651,6 +4660,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 
 func _on_all_enemies_defeated() -> void:
 	_clear_summoned_worms()
+	_clear_frankensteins()
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
@@ -7261,6 +7271,7 @@ func _helm_on_cycle_passives() -> void:
 	var purge_count := 0
 	var aura_percent := 0.0
 	var aura_radius := 0
+	var summon_heal := 0
 	for helm in inv.equipped_helms:
 		if not helm:
 			continue
@@ -7268,6 +7279,15 @@ func _helm_on_cycle_passives() -> void:
 		if helm.void_resistance_percent > aura_percent:
 			aura_percent = helm.void_resistance_percent
 			aura_radius = helm.void_resistance_radius
+		summon_heal = maxi(summon_heal, helm.summon_heal_aura)
+
+	# Frankensteins Screws: heal summons below 25% HP within 3 tiles of the wearer.
+	if summon_heal > 0 and grid_manager:
+		for m in _frankensteins:
+			if not is_instance_valid(m) or m.is_dead:
+				continue
+			if m.get_health_percent() < 0.25 and grid_manager.get_distance_in_cells(player.position, m.position) <= 3:
+				m.heal(summon_heal)
 
 	# Auto-purge: remove up to purge_count random debuffs from the wearer.
 	if purge_count > 0:
@@ -7456,6 +7476,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	_helm_card_world_effects(card)
 
 	match card.card_id:
+		"its_alive":
+			_resurrect_frankenstein()
+
 		"spark":
 			# Damage is dealt in execute(); here: shift hand tempo now + later.
 			_adjust_random_hand_tempo(deck_manager, 2, -2)
@@ -8997,6 +9020,127 @@ func _living_enemy_cells() -> Array:
 	for e in enemy_spawner.get_living_enemies():
 		cells.append(grid_manager.world_to_grid(e.position))
 	return cells
+
+# ============================================
+# FRANKENSTEINS MONSTER (ITS ALIVE!!!!! summon)
+# ============================================
+
+## Raise the nearest corpse into a Frankensteins Monster. Called by the
+## its_alive card's world effect. No corpse in reach → the card fizzles.
+func _resurrect_frankenstein() -> void:
+	if not grid_manager or not player:
+		return
+	# Drop any corpses whose tile is now occupied by a living enemy or the player.
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var enemy_cells = _living_enemy_cells()
+	# Pick the corpse closest to the player.
+	var best_idx := -1
+	var best_dist := INF
+	for i in range(_corpses.size()):
+		var d = player.position.distance_to(_corpses[i]["position"])
+		if d < best_dist:
+			best_dist = d
+			best_idx = i
+	if best_idx < 0:
+		add_battle_log("ITS ALIVE!!!!! fizzles — no corpse to raise.", Color(0.7, 0.7, 0.7))
+		return
+	var corpse = _corpses[best_idx]
+	_corpses.remove_at(best_idx)
+	# Find a free tile at/near the corpse (its own cell first).
+	var spawn_cell: Vector2i = corpse["cell"]
+	var blocked = player.blocked_tiles
+	if spawn_cell == player_cell or spawn_cell in enemy_cells or spawn_cell in blocked:
+		var placed := false
+		for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+			var c = corpse["cell"] + off
+			if c != player_cell and not (c in enemy_cells) and not (c in blocked):
+				spawn_cell = c
+				placed = true
+				break
+		if not placed:
+			add_battle_log("ITS ALIVE!!!!! fizzles — no room to raise the corpse.", Color(0.7, 0.7, 0.7))
+			return
+	var stats = player.get_stats()
+	var summoner_int: int = stats.intelligence if stats else 0
+	var monster = FrankensteinScript.new()
+	add_child(monster)
+	monster.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), summoner_int)
+	monster.died.connect(func(m): _frankensteins.erase(m))
+	_frankensteins.append(monster)
+	add_battle_log("ITS ALIVE!!!!! A Frankensteins Monster rises (%d HP)!" % monster.max_health, Color(0.6, 0.9, 0.6))
+
+func _clear_frankensteins() -> void:
+	for m in _frankensteins:
+		if is_instance_valid(m):
+			m.queue_free()
+	_frankensteins.clear()
+	_corpses.clear()
+
+## Per-tempo Frankenstein AI. Moves MOVE_STEPS tiles every MOVE_INTERVAL tempo
+## toward the nearest enemy, and attacks every ATTACK_INTERVAL tempo when adjacent.
+func _update_frankensteins(amount: int) -> void:
+	if _frankensteins.is_empty():
+		return
+	_frankensteins = _frankensteins.filter(func(m): return is_instance_valid(m) and not m.is_dead)
+	if not grid_manager or not enemy_spawner:
+		return
+	var enemies = enemy_spawner.get_living_enemies()
+	var blocked = player.blocked_tiles
+
+	# Adjacent enemies swat the monster (its resistances soften the blows).
+	for enemy in enemies:
+		if not is_instance_valid(enemy) or not enemy.is_alive():
+			continue
+		var ecell = grid_manager.world_to_grid(enemy.position)
+		for m in _frankensteins.duplicate():
+			if not is_instance_valid(m) or m.is_dead:
+				continue
+			if _manhattan(m.get_cell(), ecell) == 1:
+				m.take_damage(enemy.attack_damage)
+				break
+
+	var mon_cells: Array = []
+	for m in _frankensteins:
+		if is_instance_valid(m) and not m.is_dead:
+			mon_cells.append(m.get_cell())
+
+	for m in _frankensteins.duplicate():
+		if not is_instance_valid(m) or m.is_dead:
+			continue
+		var target_enemy = _nearest_enemy_to(m.position, enemies)
+		if target_enemy == null:
+			continue
+		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		# Attack on cadence when adjacent.
+		m.attack_accum += amount
+		if _manhattan(m.get_cell(), tcell) <= 1:
+			if m.attack_accum >= m.ATTACK_INTERVAL:
+				m.attack_accum -= m.ATTACK_INTERVAL
+				target_enemy.take_damage(m.attack_damage, true)
+				add_battle_log("Frankensteins Monster smashes %s for %d!" % [target_enemy.enemy_name, m.attack_damage], Color(0.6, 0.9, 0.6))
+			continue
+		# Move on cadence: MOVE_STEPS tiles per MOVE_INTERVAL tempo. get_cell()
+		# only updates once _process lerps the body, so walk the path locally and
+		# issue a single move to the end tile. One move action per tick (overflow
+		# stays banked in move_accum) keeps cadence stable if amount is large.
+		m.move_accum += amount
+		if m.move_accum >= m.MOVE_INTERVAL:
+			m.move_accum -= m.MOVE_INTERVAL
+			var cur = m.get_cell()
+			mon_cells.erase(cur)
+			for _step in range(m.MOVE_STEPS):
+				var tc = grid_manager.world_to_grid(target_enemy.position)
+				if _manhattan(cur, tc) <= 1:
+					break
+				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), mon_cells)
+				if nxt == cur:
+					break
+				cur = nxt
+			mon_cells.append(cur)
+			if cur != m.get_cell():
+				m.move_to_cell(cur)
+
+	_frankensteins = _frankensteins.filter(func(m): return is_instance_valid(m) and not m.is_dead)
 
 func _nearest_enemy_to(pos: Vector3, enemies: Array) -> Enemy:
 	var nearest: Enemy = null
