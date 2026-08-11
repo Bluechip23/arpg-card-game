@@ -5419,6 +5419,8 @@ static func create_resourceful_replenish() -> Card:
 	card.maintain_cost = 20
 	card.tempo_cost = 2
 	card.target_types = ["self"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_out_of_guesses() -> Card:
@@ -5431,6 +5433,8 @@ static func create_out_of_guesses() -> Card:
 	card.mana_cost = 15
 	card.tempo_cost = 3
 	card.target_types = ["self"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_twenty_twenty() -> Card:
@@ -5444,6 +5448,8 @@ static func create_twenty_twenty() -> Card:
 	card.maintain_cost = 25
 	card.tempo_cost = 3
 	card.target_types = ["self"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_its_alive() -> Card:
@@ -5456,6 +5462,8 @@ static func create_its_alive() -> Card:
 	card.mana_cost = 20
 	card.tempo_cost = 5
 	card.target_types = ["point"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_stance_switch() -> Card:
@@ -5468,6 +5476,8 @@ static func create_stance_switch() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 2
 	card.target_types = ["enemy"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_switch_kick() -> Card:
@@ -5495,6 +5505,8 @@ static func create_return_cut() -> Card:
 	card.tempo_cost = 0
 	card.target_types = ["self"]
 	card.reaction_trigger = "on_attack_blocked"
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_smoke_bomb() -> Card:
@@ -5508,6 +5520,8 @@ static func create_smoke_bomb() -> Card:
 	card.tempo_cost = 2
 	card.jail_on_play = 20
 	card.target_types = ["point"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_tight_rope() -> Card:
@@ -5521,6 +5535,8 @@ static func create_tight_rope() -> Card:
 	card.tempo_cost = 0
 	card.target_types = ["self"]
 	card.reaction_trigger = "on_health_below_20"
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_shift() -> Card:
@@ -5533,6 +5549,8 @@ static func create_shift() -> Card:
 	card.mana_cost = 0
 	card.tempo_cost = 0
 	card.target_types = ["point"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_donate_cleats() -> Card:
@@ -5545,6 +5563,8 @@ static func create_donate_cleats() -> Card:
 	card.mana_cost = 35
 	card.tempo_cost = 0
 	card.target_types = ["ally", "self"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_terrain_formation() -> Card:
@@ -5557,6 +5577,8 @@ static func create_terrain_formation() -> Card:
 	card.mana_cost = 25
 	card.tempo_cost = 3
 	card.target_types = ["point"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_escape_and_bewilder() -> Card:
@@ -5569,6 +5591,8 @@ static func create_escape_and_bewilder() -> Card:
 	card.mana_cost = 50
 	card.tempo_cost = 2
 	card.target_types = ["point"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_mend() -> Card:
@@ -5581,6 +5605,8 @@ static func create_mend() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.target_types = ["self"]
+	card.damage = 0
+	card.base_damage = 0
 	return card
 
 static func create_shiv() -> Card:

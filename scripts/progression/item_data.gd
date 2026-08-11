@@ -1077,7 +1077,7 @@ static func create_jordan_1s() -> ItemData:
 	item.level_3_overrides = {"agility_bonus": 8, "determination_bonus": 9,
 		"strength_bonus": 9, "dexterity_bonus": 8}
 	item.level_3_description = "+8 AGI, +9 DET, +9 STR, +8 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
-	item.description = "+6 AGI, +7 DET, +7 STR, +6 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %. Upgraded: 10/10/10/10."
+	item.description = "+6 AGI, +7 DET, +7 STR, +6 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
 	return item
 
 static func create_guardian_greaves() -> ItemData:
@@ -1224,7 +1224,7 @@ static func create_spidey_web_shooters() -> ItemData:
 	item.hand_size_bonus = 1
 	item.on_self_disarm_offensive = 1  # the target skips its next 1 attack
 	_set_skill(item, "Coming in!", "Pull yourself to the target from up to 5 squares away.", "coming_in", 2)
-	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards disarm the target for 1 attack. Skill — Coming in!: pull yourself to the target from 5 squares (8 tempo CD)."
+	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards disarm the target for 1 attack. Skill — Coming in!: pull yourself to the target from 5 squares (10 tempo CD)."
 	return item
 
 static func create_gravity_gauntlets() -> ItemData:
@@ -1286,8 +1286,8 @@ static func create_gauntlets_of_dungeon_mastering() -> ItemData:
 	item.on_self_summon_wolf = 1
 	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4)
 	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
-	item.level_3_description = "+3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf. Skill — House Rule (15 tempo CD)."
-	item.description = "+3 WIS, +4 INT, +3 STR. On-self: summon a wolf (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
+	item.level_3_description = "+3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
+	item.description = "+3 WIS, +4 INT, +3 STR. On-self: summon a wolf, up to a pack of 3 (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
 	return item
 
 static func create_hallowed_trunk() -> ItemData:
