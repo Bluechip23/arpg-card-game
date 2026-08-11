@@ -3,7 +3,7 @@ extends Resource
 
 ## Defines an item's properties
 
-enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON, QUIVER }
+enum ItemType { HELM, CHEST, RING, BELT, BOOTS, GAUNTLETS, WEAPON, QUIVER, SCROLL }
 # Order matters for save compat — only append new subtypes.
 enum WeaponSubtype { SWORD, BOW, SHIELD, OTHER, POLEARM, DAGGER, AXE, HAMMER, WAND, TOME, STAFF }
 
@@ -331,6 +331,9 @@ func get_rarity_name() -> String:
 	return "Unknown"
 
 func get_rarity_color() -> Color:
+	# Town scrolls read maroon in the inventory, whatever their rarity.
+	if special_id == "return_scroll":
+		return Color(0.55, 0.12, 0.18)
 	match rarity:
 		Rarity.COMMON: return Color(0.45, 0.85, 0.45)
 		Rarity.RARE: return Color(0.4, 0.6, 1.0)
@@ -421,6 +424,7 @@ func get_type_name() -> String:
 		ItemType.GAUNTLETS: return "Gauntlets"
 		ItemType.WEAPON: return "Weapon"
 		ItemType.QUIVER: return "Quiver"
+		ItemType.SCROLL: return "Town Scroll"
 	return "Unknown"
 
 func get_ring_trigger_name() -> String:
@@ -631,15 +635,16 @@ func get_card_slot_summary() -> String:
 
 static func create_return_scroll() -> ItemData:
 	## Utility scroll every adventurer carries: right-click it in the
-	## inventory to open a town portal where you stand.
+	## inventory to open a town portal where you stand. The portal's twin
+	## appears in town, and stepping through either end crosses over.
 	var item = ItemData.new()
 	item.item_name = "Return Scroll"
-	item.item_type = ItemType.WEAPON  # storage bookkeeping only — never equips
-	item.item_type_name = "Scroll"
+	item.item_type = ItemType.SCROLL  # town scroll — never equips
+	item.item_type_name = "Town Scroll"
 	item.rarity = Rarity.COMMON
 	item.weight = 0
 	item.special_id = "return_scroll"
-	item.description = "Right-click to open a portal back to town. Walk in with [Shift]."
+	item.description = "Right-click to open a portal back to town. Walk in with [Shift]. Its twin waits in town to bring you back."
 	return item
 
 static func create_frost_orb() -> ItemData:

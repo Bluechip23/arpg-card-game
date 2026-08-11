@@ -624,6 +624,27 @@ func _ready() -> void:
 			quest_manager.quest_updated.connect(_on_quest_activity_upd)
 			quest_manager.quest_completed.connect(_on_quest_activity_id)
 	_refresh_hud_notifications()
+	# Stepped back through the town-side twin of a Return Scroll portal:
+	# restore the player to where they set it and re-open the battle-side end.
+	if portal_return_position != null:
+		call_deferred("_apply_portal_return")
+
+func _apply_portal_return() -> void:
+	if portal_return_position == null or not player:
+		return
+	var back = portal_return_position
+	portal_return_position = null
+	var cell = grid_manager.world_to_grid(back)
+	# Land beside the portal tile, not inside it.
+	var land = cell + Vector2i(0, 1)
+	if land in player.blocked_tiles:
+		land = cell + Vector2i(1, 0)
+	var world = grid_manager.grid_to_world(land)
+	player.position = Vector3(world.x, player.position.y, world.z)
+	if "target_position" in player:
+		player.target_position = player.position
+	spawn_town_portal(back)
+	add_battle_log("You step back through your portal.", Color(0.8, 0.55, 1.0))
 
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
@@ -10086,16 +10107,24 @@ func _sync_occupied_tiles() -> void:
 # ============================================
 
 var _town_portal_node: Node3D = null
+# Set by town when the player steps back through their portal: the world spot
+# to restore them to (and re-open the battle-side portal at).
+var portal_return_position = null
 
-func spawn_town_portal() -> void:
+func spawn_town_portal(at = null) -> void:
 	## Right-clicking the Return Scroll conjures a purple portal on the tile
-	## beside the player. [Shift] next to it travels home to town.
+	## beside the player (or exactly at `at` when re-opening after a return).
+	## [Shift] next to it travels home to town — where its twin awaits.
 	if is_instance_valid(_town_portal_node):
 		_town_portal_node.queue_free()
 
 	var portal_root = Node3D.new()
 	portal_root.name = "TownPortal"
-	var spot = grid_manager.snap_to_grid(player.position + Vector3(grid_manager.grid_size, 0, 0))
+	var spot
+	if at != null:
+		spot = at
+	else:
+		spot = grid_manager.snap_to_grid(player.position + Vector3(grid_manager.grid_size, 0, 0))
 	portal_root.position = Vector3(spot.x, 0, spot.z)
 
 	# Swirling purple oval — a flattened torus standing upright.
@@ -10158,8 +10187,16 @@ func _try_interact_town_portal() -> bool:
 			player.position.z - _town_portal_node.position.z).length()
 	if flat_dist > grid_manager.grid_size * 1.6:
 		return false
+	# Going through the scroll's portal: its twin opens in town, remembering
+	# this spot so stepping back through returns the player right here.
+	_pending_portal_return = {
+		"world_level": current_world_level,
+		"position": _town_portal_node.position,
+	}
 	_travel_to_town()
 	return true
+
+var _pending_portal_return: Dictionary = {}
 
 # ============================================
 # RISE PILLAR
@@ -10886,6 +10923,9 @@ func _travel_to_town() -> void:
 		town_scene.player_progression = saved_progression
 	if "opened_chests" in town_scene:
 		town_scene.opened_chests = opened_chests
+	# Arriving via the Return Scroll portal: hand town the twin's anchor.
+	if not _pending_portal_return.is_empty() and "portal_return" in town_scene:
+		town_scene.portal_return = _pending_portal_return
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
