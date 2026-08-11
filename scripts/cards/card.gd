@@ -5430,8 +5430,8 @@ static func create_twenty_twenty() -> Card:
 	card.description = "Maintain: gain +3 range on all ranged offensive cards."
 	card.card_type = CardType.POWER
 	card.card_type_name = "Power"
-	card.mana_cost = 15
-	card.maintain_cost = 15
+	card.mana_cost = 25
+	card.maintain_cost = 25
 	card.tempo_cost = 3
 	card.target_types = ["self"]
 	return card

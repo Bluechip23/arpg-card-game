@@ -762,8 +762,8 @@ static func create_dragon_skull() -> ItemData:
 static func create_feathered_hat() -> ItemData:
 	var item = _new_helm("Feathered Hat", Rarity.LEGENDARY, 10)
 	item.agility_bonus = 8
-	item.flash_crit_threshold = 40  # spend 40 flash → next ranged offensive card crits
-	item.description = "+8 AGI. Once you have spent an accumulated 40 flash points, your next ranged offensive card crits (resets to 0 on use)."
+	item.flash_crit_threshold = 25  # spend 25 flash → next ranged offensive card crits
+	item.description = "+8 AGI. Once you have spent an accumulated 25 flash points, your next ranged offensive card crits (resets to 0 on use)."
 	return item
 
 static func create_frankensteins_screws() -> ItemData:
@@ -906,7 +906,7 @@ static func create_monocle() -> ItemData:
 	item.on_self_crit_ranged_percent = 25.0
 	var monocle_cards: Array[String] = ["twenty_twenty"]
 	item.granted_card_ids = monocle_cards
-	item.description = "+10% crit chance. On-self: if an offensive ranged card, gain +5 range and 25% crit. Grants 20/20 (Maintain): gain 3 range on all ranged offensive cards (15 mana, 3 tempo)."
+	item.description = "+10% crit chance. On-self: if an offensive ranged card, gain +5 range and 25% crit. Grants 20/20 (Maintain): gain 3 range on all ranged offensive cards (25 mana, 3 tempo)."
 	return item
 
 static func create_theif_hat() -> ItemData:
@@ -1060,16 +1060,16 @@ static func create_hermes_boots() -> ItemData:
 
 static func create_jordan_1s() -> ItemData:
 	var item = _new_boot("Jordan 1s", Rarity.MYTHIC, 10)
-	item.agility_bonus = 8
-	item.determination_bonus = 8
-	item.strength_bonus = 8
-	item.dexterity_bonus = 8
+	item.agility_bonus = 7
+	item.determination_bonus = 7
+	item.strength_bonus = 7
+	item.dexterity_bonus = 7
 	item.missing_life_damage_rate = 0.5  # +0.5 damage per missing enemy-health %
 	item.missing_life_threshold = 50     # ...only while the enemy is at/below 50% health
 	item.level_3_overrides = {"agility_bonus": 10, "determination_bonus": 10,
 		"strength_bonus": 10, "dexterity_bonus": 10}
 	item.level_3_description = "+10 AGI, +10 DET, +10 STR, +10 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
-	item.description = "+8 AGI, +8 DET, +8 STR, +8 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %. Upgraded: 10/10/10/10."
+	item.description = "+7 AGI, +7 DET, +7 STR, +7 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %. Upgraded: 10/10/10/10."
 	return item
 
 static func create_guardian_greaves() -> ItemData:
@@ -1113,10 +1113,10 @@ static func create_knife_toed_boots() -> ItemData:
 
 static func create_boots_of_speed() -> ItemData:
 	var item = _new_boot("Boots of Speed", Rarity.RARE, 1)
-	item.agility_bonus = 5
-	item.dexterity_bonus = 5
+	item.agility_bonus = 4
+	item.dexterity_bonus = 4
 	item.movement_flash_tempo_threshold = 36  # 36 movement-flash spent → -1 tempo from a hand card
-	item.description = "+5 AGI, +5 DEX. After an accumulated 36 flash points spent on movement, remove 1 tempo from a card in your hand."
+	item.description = "+4 AGI, +4 DEX. After an accumulated 36 flash points spent on movement, remove 1 tempo from a card in your hand."
 	return item
 
 static func create_caster_boots() -> ItemData:
@@ -1272,15 +1272,15 @@ static func create_sleeved_katar() -> ItemData:
 static func create_gauntlets_of_dungeon_mastering() -> ItemData:
 	var item = _new_gauntlet("Gauntlets of Dungeon Mastering", Rarity.MYTHIC, 15)
 	item.card_slots = 1
-	item.hand_size_bonus = 2
+	item.hand_size_bonus = 1
 	item.wisdom_bonus = 3
 	item.intelligence_bonus = 4
 	item.strength_bonus = 3
 	item.on_self_summon_wolf = 1
 	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4)
 	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
-	item.level_3_description = "+2 hand size, +3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf. Skill — House Rule (15 tempo CD)."
-	item.description = "+2 hand size, +3 WIS, +4 INT, +3 STR. On-self: summon a wolf (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
+	item.level_3_description = "+1 hand size, +3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf. Skill — House Rule (15 tempo CD)."
+	item.description = "+1 hand size, +3 WIS, +4 INT, +3 STR. On-self: summon a wolf (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
 	return item
 
 static func create_hallowed_trunk() -> ItemData:
