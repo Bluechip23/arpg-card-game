@@ -228,6 +228,19 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_instant_damage_nearest: int = 0  # slotted instant → X damage to nearest enemy within 3 (Boot Holsters 10)
 @export var on_self_attack_tempo_reduction: int = 0  # slotted attack costs X less tempo (Boot Holsters 1)
 @export var on_self_invisible_tempo: int = 0       # slotted card → become invisible X tempo (Houdinis Slippers 5)
+@export var on_self_melee_damage: int = 0          # +X damage on slotted MELEE offensive cards (Roman Bracers 5)
+@export var on_self_draw_card: int = 0             # draw X cards when a slotted card is played (Momentum Mits 1)
+@export var on_self_summon_wolf: int = 0           # summon X wolves when a slotted card is played (Dungeon Mastering 1)
+@export var on_self_root_offensive: int = 0        # slotted offensive card roots the target X cycles (Gravity Gauntlets 1)
+@export var on_self_disarm_offensive: int = 0      # slotted offensive card disarms the target X cycles (Spidey 1)
+
+# Gauntlet passive riders
+@export var armor_gain_thorns_threshold: int = 0   # every X armor gained... (Spiked Mitts 25)
+@export var armor_gain_thorns_amount: int = 0      # ...gain X thorns (Spiked Mitts 5)
+@export var armor_loss_regen_threshold: int = 0    # every X armor removed → 1 regen stack (Hallowed Trunk 10)
+@export var regen_include_health: bool = false     # Hallowed Trunk Lv3: health lost counts too
+@export var draw_every_cycles: int = 0             # draw 1 card every X cycles (Cuffs of Current 3)
+@export var crit_damage_percent: float = 0.0       # +X% crit damage multiplier (Sleeved Katar 25)
 
 # Boots pass-2 passive riders
 @export var sidestep_bonus_armor: int = 0          # +armor on a flash sidestep (Titanium Toe Tuckers 2)
@@ -567,6 +580,11 @@ func get_on_self_bonus() -> Dictionary:
 		"instant_damage_nearest": on_self_instant_damage_nearest,
 		"attack_tempo_reduction": on_self_attack_tempo_reduction,
 		"invisible_tempo": on_self_invisible_tempo,
+		"melee_damage": on_self_melee_damage,
+		"draw_card": on_self_draw_card,
+		"summon_wolf": on_self_summon_wolf,
+		"root_offensive": on_self_root_offensive,
+		"disarm_offensive": on_self_disarm_offensive,
 	}
 
 func get_card_slot_summary() -> String:
@@ -1103,6 +1121,234 @@ static func create_caster_boots() -> ItemData:
 	item.wisdom_bonus = 2
 	item.on_self_int_damage_percent = 10.0  # +10% of INT as bonus damage on slotted cards
 	item.description = "+6 INT, +2 AGI, +2 WIS. On-self: deal an additional 10% damage based on your INT."
+	return item
+
+# ============================================
+# GAUNTLETS (first gauntlets pass — hands slot)
+# ============================================
+# Skill cooldowns tick once per 5-tempo cycle, so the spec's tempo values are
+# stored as cycles (20t=4, 15t=3, 10t=2, 8t=2, 25t=5).
+static func _new_gauntlet(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = ItemData.new()
+	item.item_name = nm
+	item.item_type = ItemType.GAUNTLETS
+	item.item_type_name = "Gauntlets"
+	item.rarity = r
+	item.weight = wt
+	return item
+
+static func _set_skill(item: ItemData, nm: String, desc: String, effect_id: String, cd_cycles: int) -> void:
+	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
+	item.gauntlet_skill_name = nm
+	item.gauntlet_skill_description = desc
+	item.gauntlet_skill_effect_id = effect_id
+	item.gauntlet_skill_cooldown = cd_cycles
+
+static func create_chain_gloves() -> ItemData:
+	var item = _new_gauntlet("Chain Gloves", Rarity.COMMON, 15)
+	item.hand_size_bonus = 1
+	item.strength_bonus = 2
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 1
+	item.armor_per_tempo_interval = 15
+	_set_skill(item, "Guard", "Gain 2 armor.", "chain_guard", 4)
+	item.description = "+1 hand size, +2 STR. Gain 1 armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."
+	return item
+
+static func create_leather_gauntlets() -> ItemData:
+	var item = _new_gauntlet("Leather gauntlets", Rarity.COMMON, 5)
+	item.hand_size_bonus = 1
+	item.health_bonus = 5
+	item.description = "+1 hand size, +5 life."
+	return item
+
+static func create_brass_knuckles() -> ItemData:
+	var item = _new_gauntlet("Brass Knuckles", Rarity.COMMON, 10)
+	item.damage_bonus_to_attack_cards = 5
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 1
+	item.armor_per_tempo_interval = 20
+	item.description = "+5 damage on attack cards. Gain 1 armor every 20 tempo."
+	return item
+
+static func create_cloth_bracer() -> ItemData:
+	var item = _new_gauntlet("Cloth bracer", Rarity.COMMON, 5)
+	item.hand_size_bonus = 1
+	item.dexterity_bonus = 2
+	_set_skill(item, "Band aid", "Heal 5 HP.", "band_aid", 4)
+	item.description = "+1 hand size, +2 DEX. Skill — Band aid: heal 5 HP (20 tempo CD)."
+	return item
+
+static func create_mits_of_chingiz() -> ItemData:
+	var item = _new_gauntlet("Mits of Chingiz", Rarity.LEGENDARY, 5)
+	item.determination_bonus = 2
+	item.strength_bonus = 5
+	item.agility_bonus = 2
+	var chingiz_cards: Array[String] = ["stance_switch"]
+	item.granted_card_ids = chingiz_cards
+	# "3 count" is a cooldown passive handled in main: two offensive cards in a
+	# row add a Switch Kick to the hand (20 tempo CD).
+	item.gauntlet_skill_type = GauntletSkillType.PASSIVE
+	item.gauntlet_skill_name = "3 count"
+	item.gauntlet_skill_description = "Playing two offensive cards in a row adds a Switch Kick to your hand."
+	item.gauntlet_skill_effect_id = "three_count"
+	item.description = "+2 DET, +5 STR, +2 AGI. Grants Stance Switch: remove 10 armor from the enemy and apply 2 Vulnerable. 3 count: playing two offensive cards in a row adds a Switch Kick to your hand (20 tempo CD)."
+	return item
+
+static func create_techno_wraps() -> ItemData:
+	var item = _new_gauntlet("Techno Wraps", Rarity.LEGENDARY, 10)
+	item.wisdom_bonus = 3
+	item.intelligence_bonus = 3
+	_set_skill(item, "Future is bright", "Shuffle your discard pile into your draw pile.", "future_is_bright", 3)
+	item.description = "+3 WIS, +3 INT. Skill — Future is bright: shuffle your discard pile into your draw pile (15 tempo CD)."
+	return item
+
+static func create_spidey_web_shooters() -> ItemData:
+	var item = _new_gauntlet("Spidey Web Shooters", Rarity.LEGENDARY, 2)
+	item.card_slots = 2
+	item.dexterity_bonus = 3
+	item.agility_bonus = 3
+	item.hand_size_bonus = 1
+	item.on_self_disarm_offensive = 1  # duration unspecified — 1 cycle pending ruling
+	_set_skill(item, "Coming in!", "Pull yourself to the target from up to 5 squares away.", "coming_in", 2)
+	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards disarm the target. Skill — Coming in!: pull yourself to the target from 5 squares (8 tempo CD)."
+	return item
+
+static func create_gravity_gauntlets() -> ItemData:
+	var item = _new_gauntlet("Gravity Gauntlets", Rarity.LEGENDARY, 20)
+	item.card_slots = 1
+	item.intelligence_bonus = 6
+	item.wisdom_bonus = 3
+	item.agility_bonus = 2
+	item.on_self_root_offensive = 1  # duration unspecified — 1 cycle pending ruling
+	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2)
+	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 tempo CD)."
+	return item
+
+static func create_spiked_mitts() -> ItemData:
+	var item = _new_gauntlet("Spiked Mitts", Rarity.LEGENDARY, 35)
+	item.card_slots = 1
+	item.health_bonus = 10
+	item.strength_bonus = 5
+	item.dexterity_bonus = -2
+	item.on_self_armor_any = 5  # ANY slotted card grants +5 armor
+	item.armor_gain_thorns_threshold = 25
+	item.armor_gain_thorns_amount = 5
+	_set_skill(item, "Well placed guard", "Gain 5 thorns.", "well_placed_guard", 3)
+	item.description = "+10 health, +5 STR, -2 DEX. On-self: ANY card provides +5 armor. Every 25 armor gained, gain 5 thorns. Skill — Well placed guard: gain 5 thorns (15 tempo CD)."
+	return item
+
+static func create_momentum_mits() -> ItemData:
+	var item = _new_gauntlet("Momentum Mits", Rarity.LEGENDARY, 10)
+	item.card_slots = 2
+	item.strength_bonus = 5
+	item.intelligence_bonus = 5
+	item.wisdom_bonus = -3
+	item.agility_bonus = -3
+	item.on_self_draw_card = 1  # slotted card play draws a card
+	_set_skill(item, "Continue to move", "Draw a card.", "continue_to_move", 5)
+	item.description = "+5 STR, +5 INT, -3 WIS, -3 AGI. On-self: draw a card. Skill — Continue to move: draw a card (25 tempo CD)."
+	return item
+
+static func create_sleeved_katar() -> ItemData:
+	var item = _new_gauntlet("Sleeved Katar", Rarity.LEGENDARY, 35)
+	item.card_slots = 1
+	item.agility_bonus = 3
+	item.strength_bonus = 5
+	item.dexterity_bonus = 3
+	item.crit_damage_percent = 25.0
+	item.crit_chance_percent = 5.0
+	var katar_cards: Array[String] = ["return_cut"]
+	item.granted_card_ids = katar_cards
+	_set_skill(item, "Defense one with offense", "Gain 5 armor; your next melee offensive card deals +5 damage.", "defense_one", 5)
+	item.description = "+3 AGI, +5 STR, +3 DEX, +25% crit damage, +5% crit chance. Grants Return Cut (Instant): when an attack fails to break your armor, counter with a melee strike (+5% crit). Skill — Defense one with offense: gain 5 armor and your next melee offensive card gets +5 damage (25 tempo CD)."
+	return item
+
+static func create_gauntlets_of_dungeon_mastering() -> ItemData:
+	var item = _new_gauntlet("Gauntlets of Dungeon Mastering", Rarity.MYTHIC, 15)
+	item.card_slots = 1
+	item.hand_size_bonus = 2
+	item.wisdom_bonus = 3
+	item.intelligence_bonus = 4
+	item.strength_bonus = 3
+	item.on_self_summon_wolf = 1
+	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4)
+	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
+	item.level_3_description = "+2 hand size, +3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf. Skill — House Rule (15 tempo CD)."
+	item.description = "+2 hand size, +3 WIS, +4 INT, +3 STR. On-self: summon a wolf (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
+	return item
+
+static func create_hallowed_trunk() -> ItemData:
+	var item = _new_gauntlet("Hallowed Trunk", Rarity.MYTHIC, 45)
+	item.strength_bonus = 10
+	item.health_bonus = 15
+	item.dexterity_bonus = -3
+	item.armor_loss_regen_threshold = 10
+	_set_skill(item, "imbue tree", "Gain 5 regen and 10 thorns.", "imbue_tree", 2)
+	item.level_3_overrides = {"health_bonus": 30, "regen_include_health": true}
+	item.level_3_description = "+10 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
+	item.description = "+10 STR, +15 life, -3 DEX. Every 10 armor removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
+	return item
+
+static func create_cuffs_of_current() -> ItemData:
+	var item = _new_gauntlet("Cuffs of Current", Rarity.MYTHIC, 10)
+	item.intelligence_bonus = 6
+	item.hand_size_bonus = 2
+	item.draw_every_cycles = 3
+	_set_skill(item, "Zeet", "Deal damage equal to your INT / 2.", "zeet", 3)
+	item.level_3_overrides = {"intelligence_bonus": 8}
+	item.level_3_description = "+8 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal INT/2 damage; bounces once, dealing 1/4 damage to an enemy near the target (15 tempo CD)."
+	item.description = "+6 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal damage equal to your INT / 2 (15 tempo CD)."
+	return item
+
+static func create_concealed_carry() -> ItemData:
+	var item = _new_gauntlet("Concealed Carry", Rarity.MYTHIC, 2)
+	item.dexterity_bonus = 2
+	item.agility_bonus = 2
+	item.hand_size_bonus = -1
+	var cc_cards: Array[String] = ["smoke_bomb"]
+	item.granted_card_ids = cc_cards
+	_set_skill(item, "Lethal Poke", "A 0-base-damage melee attack. On crit, +1.5 damage on top.", "lethal_poke", 3)
+	item.level_3_overrides = {"dexterity_bonus": 5, "agility_bonus": 5, "hand_size_bonus": 0,
+		"gauntlet_skill_cooldown": 2}
+	item.level_3_description = "+5 DEX, +5 AGI. Grants smoke bomb. Skill — Lethal Poke (10 tempo CD)."
+	item.description = "+2 DEX, +2 AGI, -1 hand size. Grants smoke bomb: a 2-square cloud granting allies inside invisibility and 10% crit while they stay in it (8 tempo; card jailed 20 after play). Skill — Lethal Poke: 0-base melee attack; on crit, +1.5 damage on top (15 tempo CD)."
+	return item
+
+static func create_medic_wraps() -> ItemData:
+	var item = _new_gauntlet("Medic Wraps", Rarity.RARE, 15)
+	item.strength_bonus = 3
+	item.dexterity_bonus = -2
+	item.health_bonus = 5
+	_set_skill(item, "Slurp and pad", "Heal an ally for 5 HP and gain 3 armor.", "slurp_and_pad", 3)
+	item.description = "+3 STR, -2 DEX, +5 life. Skill — Slurp and pad: heal an ally 5 HP and gain 3 armor (15 tempo CD)."
+	return item
+
+static func create_roman_bracers() -> ItemData:
+	var item = _new_gauntlet("Roman Bracers", Rarity.RARE, 5)
+	item.card_slots = 1
+	item.health_bonus = 15
+	item.strength_bonus = 5
+	item.on_self_melee_damage = 5  # slotted melee offensive cards +5 damage
+	_set_skill(item, "Slice", "Perform a basic melee attack for 2 tempo.", "slice", 2)
+	item.description = "+15 life, +5 STR. On-self: +5 damage on melee cards. Skill — Slice: a basic melee attack costing 2 tempo (10 tempo CD)."
+	return item
+
+static func create_copper_bracers() -> ItemData:
+	var item = _new_gauntlet("Copper Bracers", Rarity.RARE, 10)
+	item.health_bonus = 10
+	item.strength_bonus = 2
+	item.agility_bonus = 1
+	item.wisdom_bonus = 3
+	_set_skill(item, "Clang", "Gain 8 armor.", "clang", 3)
+	item.description = "+10 life, +2 STR, +1 AGI, +3 WIS. Skill — Clang: gain 8 armor (15 tempo CD)."
+	return item
+
+static func create_fanned_bracers() -> ItemData:
+	var item = _new_gauntlet("Fanned Bracers", Rarity.RARE, 15)
+	item.health_bonus = 20
+	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 4)
+	item.description = "+20 life. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (20 tempo CD)."
 	return item
 
 # ============================================

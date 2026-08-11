@@ -87,6 +87,10 @@ var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
 var bleed_stacks: int = 0      # Bleed: take X damage per tile moved, lose 1 per cycle
+var vulnerable_stacks: int = 0   # Vulnerable: next hit from the player deals +30%; 1 stack consumed per hit
+var weaken_stacks: int = 0       # Weaken: this enemy deals -30% damage; 1 stack consumed per attack
+var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can still attack/cast
+var disarmed_attacks: int = 0    # Disarm-for-N-attacks (Switch Kick): skip that many attack actions
 var narashimha_tempo: int = 0    # Narashimha (Mane of Narashimha): cycles the heal cap holds for
 var narashimha_heal_cap: int = -1  # health ceiling while active — the NMnB damage cannot be healed back (-1 = unset)
 var void_resistance_percent: float = 0.0  # Mane aura: take this % extra player damage (refreshed each cycle)
@@ -1437,6 +1441,13 @@ func _tick_status_durations() -> void:
 			print("[%s] Bleed expired" % enemy_name)
 			debuff_expired.emit(self, "bleed")
 
+	# Rooted: the hold releases one cycle at a time
+	if rooted_tempo > 0:
+		rooted_tempo -= 1
+		if rooted_tempo <= 0:
+			print("[%s] Root released" % enemy_name)
+			debuff_expired.emit(self, "root")
+
 	# Narashimha: the heal-cap window counts down one cycle at a time
 	if narashimha_tempo > 0:
 		narashimha_tempo -= 1
@@ -2119,6 +2130,11 @@ func _try_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
 		print("[%s] Disarmed - cannot attack!" % enemy_name)
 		return _try_move(target_node)
+	# Switch Kick: disarmed for a number of ATTACKS, not a duration.
+	if disarmed_attacks > 0:
+		disarmed_attacks -= 1
+		print("[%s] Disarmed for this attack! (%d left)" % [enemy_name, disarmed_attacks])
+		return _try_move(target_node)
 	var diff = target_node.position - position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= attack_range:
@@ -2261,6 +2277,12 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		_enemy_figure.set_facing_from_velocity(Vector3(face_diff.x, 0, face_diff.z))
 
 	var effective_damage = max(0, base_damage - attack_reduction)
+	# Weaken (Fan Save): -30% damage dealt, one stack consumed per attack.
+	if weaken_stacks > 0:
+		effective_damage = floori(effective_damage * 0.7)
+		weaken_stacks -= 1
+		print("[%s] Weakened! -30%% damage (%d stacks left)" % [enemy_name, weaken_stacks])
+		_update_status_indicators()
 	print("[%s] %s for %d damage! (base %d, reduction %d)" % [enemy_name, attack_name, effective_damage, base_damage, attack_reduction])
 
 	# Summon targets (Frankensteins Monster, surfaced Bull Worms) have no player
@@ -2272,6 +2294,9 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 
 	if player_node.has_method("get_stats"):
 		var player_stats_ref = player_node.get_stats()
+		# Remember who is striking so counters (Return Cut) know their target.
+		if player_stats_ref and "last_attacker" in player_stats_ref:
+			player_stats_ref.last_attacker = self
 		if player_stats_ref and effective_damage > 0:
 			var debuff_mgr = null
 			var buff_mgr = null
@@ -2331,6 +2356,10 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 ## Dash multiple tiles toward a position in one action.
 ## Stops at any barricade tile encountered along the path.
 func _dash_towards_target(pos: Vector3, tiles: int) -> void:
+	# Rooted (Gravity Gauntlets): held in place — attacks/casts fine, no movement.
+	if rooted_tempo > 0:
+		print("[%s] Rooted - cannot dash!" % enemy_name)
+		return
 	# Enemies trapped on a rise pillar cannot dash
 	if grid_manager:
 		var current_cell = grid_manager.world_to_grid(position)
@@ -2536,6 +2565,10 @@ func intended_cell() -> Vector2i:
 	return grid_manager.world_to_grid(position)
 
 func move_towards_target(pos: Vector3) -> void:
+	# Rooted (Gravity Gauntlets): held in place — attacks/casts fine, no movement.
+	if rooted_tempo > 0:
+		print("[%s] Rooted - cannot move!" % enemy_name)
+		return
 	# Enemies trapped on a rise pillar cannot move until it expires
 	if grid_manager:
 		var current_cell = grid_manager.world_to_grid(position)
@@ -2630,6 +2663,13 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# player's hits land for extra damage while the enemy is inside the aura.
 	if from_player and void_resistance_percent > 0.0:
 		amount = floori(amount * (1.0 + void_resistance_percent / 100.0))
+
+	# Vulnerable: the hit lands 30% harder, consuming one stack.
+	if from_player and vulnerable_stacks > 0:
+		amount = floori(amount * 1.3)
+		vulnerable_stacks -= 1
+		print("[%s] Vulnerable! +30%% damage (%d stacks left)" % [enemy_name, vulnerable_stacks])
+		_update_status_indicators()
 
 	# Jordan 1s: below the threshold health %, add rate × missing-health% damage.
 	if from_player and missing_life_damage_rate > 0.0 and max_health > 0:
@@ -2878,6 +2918,19 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"bleed":
 			bleed_stacks += value
 			print("[%s] Bleeding! Stacks: %d (damage per tile moved)" % [enemy_name, bleed_stacks])
+		"vulnerable":
+			vulnerable_stacks += value
+			print("[%s] Vulnerable! Stacks: %d (+30%% per hit taken)" % [enemy_name, vulnerable_stacks])
+		"weaken":
+			weaken_stacks += value
+			print("[%s] Weakened! Stacks: %d (-30%% damage dealt)" % [enemy_name, weaken_stacks])
+		"root":
+			# value is the hold in tempo cycles; can attack and cast, cannot move
+			rooted_tempo = max(rooted_tempo, value)
+			print("[%s] Rooted for %d tempo cycles!" % [enemy_name, rooted_tempo])
+		"disarm_attacks":
+			disarmed_attacks += value
+			print("[%s] Disarmed for %d attack(s)!" % [enemy_name, disarmed_attacks])
 		"narashimha":
 			# value is the window in tempo cycles (10 tempo = 2 cycles). Applied
 			# right after the Neither Man nor Beast hit, so current health IS the
@@ -3064,6 +3117,14 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Bleed", "color": Color(0.85, 0.15, 0.2), "stacks": bleed_stacks})
 	if narashimha_tempo > 0:
 		effects.append({"name": "Narashimha", "color": Color(0.35, 0.0, 0.4), "stacks": narashimha_tempo})
+	if vulnerable_stacks > 0:
+		effects.append({"name": "Vulnerable", "color": Color(1.0, 0.6, 0.2), "stacks": vulnerable_stacks})
+	if weaken_stacks > 0:
+		effects.append({"name": "Weaken", "color": Color(0.5, 0.5, 0.8), "stacks": weaken_stacks})
+	if rooted_tempo > 0:
+		effects.append({"name": "Rooted", "color": Color(0.4, 0.3, 0.15), "stacks": rooted_tempo})
+	if disarmed_attacks > 0:
+		effects.append({"name": "Disarmed", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_attacks})
 
 	return effects
 

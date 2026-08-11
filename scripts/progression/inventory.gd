@@ -9,6 +9,7 @@ signal item_unequipped(item: ItemData, slot_type: String, slot_index: int)
 signal overflow_heal_armor_triggered(heal: int, armor: int)
 signal ring_triggered(item: ItemData, effect: String)
 signal gauntlet_skill_ready(item: ItemData)
+signal gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target)
 signal storage_changed
 signal card_enchanted(card: Card, item: ItemData)
 signal card_extracted(card: Card, item: ItemData, destroyed_item: bool)
@@ -490,6 +491,14 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.movement_flash_tempo_threshold = item.movement_flash_tempo_threshold if multiplier > 0 else 0
 	if item.consecutive_attack_draw != 0:
 		player_stats.consecutive_attacks_draw_at = item.consecutive_attack_draw if multiplier > 0 else 0
+	# Gauntlets pass
+	if item.crit_damage_percent != 0.0:
+		player_stats.equipment_crit_damage_bonus += (item.crit_damage_percent / 100.0) * multiplier
+	if item.damage_bonus_to_attack_cards != 0:
+		player_stats.equipment_attack_card_damage += item.damage_bonus_to_attack_cards * multiplier
+	if item.armor_loss_regen_threshold != 0:
+		player_stats.equipment_armor_loss_regen_threshold = item.armor_loss_regen_threshold if multiplier > 0 else 0
+		player_stats.equipment_regen_include_health = item.regen_include_health and multiplier > 0
 
 	# Recalculate derived stats
 	player_stats.recalculate_derived_stats()
@@ -759,7 +768,7 @@ func process_turn() -> void:
 	# grants its armor once its own interval (default 5, e.g. 15 for Mail Coif)
 	# is reached. The accumulator resets on equip/unequip.
 	if player_stats:
-		for item in equipped_chests + equipped_helms + equipped_boots:
+		for item in equipped_chests + equipped_helms + equipped_boots + equipped_gauntlets:
 			if item and item.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN:
 				item.armor_per_tempo_accum += 5  # one cycle = 5 tempo
 				var interval: int = maxi(5, item.armor_per_tempo_interval)
@@ -949,6 +958,57 @@ func _execute_gauntlet_skill(gauntlet: ItemData, target) -> void:
 			if player_stats:
 				player_stats.add_armor(5)
 			print("[SKILL] Worldsplitter Awakened deals 30 damage, +5 Armor!")
+
+		# === Gauntlets pass (simple, stats/deck-local skills) ===
+		"chain_guard":
+			if player_stats:
+				player_stats.add_armor(2)
+				print("[SKILL] Guard: +2 armor")
+		"band_aid":
+			if player_stats:
+				player_stats.heal(5)
+				print("[SKILL] Band aid: healed 5")
+		"clang":
+			if player_stats:
+				player_stats.add_armor(8)
+				print("[SKILL] Clang: +8 armor")
+		"slurp_and_pad":
+			# Allies include self: heal the target ally if one was given, else self.
+			var heal_target = target if (target and is_instance_valid(target) and target.has_method("get_stats") and target.get_stats()) else null
+			if heal_target:
+				heal_target.get_stats().heal(5)
+			elif player_stats:
+				player_stats.heal(5)
+			if player_stats:
+				player_stats.add_armor(3)
+			print("[SKILL] Slurp and pad: healed 5, +3 armor")
+		"continue_to_move":
+			if deck_manager:
+				deck_manager.draw_card()
+				print("[SKILL] Continue to move: drew a card")
+		"future_is_bright":
+			if deck_manager:
+				deck_manager.shuffle_discard_into_draw()
+				print("[SKILL] Future is bright: discard shuffled into draw")
+		"house_rule":
+			# Pick from discard: recovers the most recent discard until a picker
+			# UI exists (flagged).
+			if deck_manager and deck_manager.discard_pile.size() > 0:
+				var back = deck_manager.discard_pile.pop_back()
+				deck_manager.add_card_to_hand(back)
+				print("[SKILL] House Rule: recovered %s from the discard pile" % back.card_name)
+		"defense_one":
+			if player_stats:
+				player_stats.add_armor(5)
+				player_stats.pending_melee_damage_bonus += 5
+				print("[SKILL] Defense one with offense: +5 armor, next melee card +5 damage")
+		"fan_save":
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("weaken", 1)
+				print("[SKILL] Fan Save: 1 Weaken applied")
+		_:
+			# World-scale skills (pulls, summons, INT nukes) resolve in main.
+			gauntlet_world_skill.emit(gauntlet.gauntlet_skill_effect_id, gauntlet, target)
 
 func get_passive_effects() -> Array[String]:
 	var effects: Array[String] = []

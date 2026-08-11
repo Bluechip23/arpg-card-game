@@ -100,6 +100,9 @@ const CARD_RARITIES := {
 	"shift": Rarity.LEGENDARY, "donate_cleats": Rarity.LEGENDARY,
 	"terrain_formation": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
 	"tight_rope": Rarity.MYTHIC, "mend": Rarity.MYTHIC,
+	# Gauntlet-granted
+	"stance_switch": Rarity.LEGENDARY, "switch_kick": Rarity.LEGENDARY,
+	"return_cut": Rarity.LEGENDARY, "smoke_bomb": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -115,6 +118,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
 	"shiv": true, "shift": true, "donate_cleats": true, "terrain_formation": true,
 	"escape_and_bewilder": true, "tight_rope": true, "mend": true,
+	"stance_switch": true, "switch_kick": true, "return_cut": true, "smoke_bomb": true,
 }
 
 @export var card_id: String = "slash"
@@ -874,6 +878,30 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		player_stats.temp_on_self_crit_bonus += 100.0
 		print("[CARD] Feathered Hat: guaranteed crit consumed")
 
+	# Gauntlet flat riders on this play (tracked for cleanup)
+	var _gauntlet_bonus_applied := 0
+	if player_stats:
+		# Brass Knuckles: +X damage on attack cards.
+		if card_type == CardType.ATTACK and player_stats.equipment_attack_card_damage > 0:
+			_gauntlet_bonus_applied += player_stats.equipment_attack_card_damage
+		# Sleeved Katar's skill: one-shot +X on the next melee offensive card.
+		if is_offensive() and not is_ranged and player_stats.pending_melee_damage_bonus > 0:
+			_gauntlet_bonus_applied += player_stats.pending_melee_damage_bonus
+			player_stats.pending_melee_damage_bonus = 0
+	if slotted_in_item:
+		# Roman Bracers: slotted melee offensive cards hit harder.
+		var osb_melee := int(get_on_self_bonus().get("melee_damage", 0))
+		if osb_melee > 0 and is_offensive() and not is_ranged:
+			_gauntlet_bonus_applied += osb_melee
+	if _gauntlet_bonus_applied > 0:
+		bonus_damage += _gauntlet_bonus_applied
+
+	# Momentum Mits: playing a slotted card draws.
+	if slotted_in_item and deck_manager:
+		var osb_draw := int(get_on_self_bonus().get("draw_card", 0))
+		for _d in range(osb_draw):
+			deck_manager.draw_card()
+
 	# Apply ranged damage bonus from equipped items (quivers)
 	var _ranged_bonus_applied = 0
 	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.ranged_damage_bonus > 0:
@@ -950,9 +978,32 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			if buff_mgr:
 				buff_mgr.apply_buff(Buff.create_strengthen(15, 1, "Tight Rope"))
 			print("[CARD] Tight Rope: +20 temp health, +15 damage on next attack")
-		"shift", "donate_cleats", "terrain_formation", "escape_and_bewilder", "mend":
-			# Boot-granted world effects — resolved in main._apply_card_world_effects.
+		"shift", "donate_cleats", "terrain_formation", "escape_and_bewilder", "mend", "smoke_bomb":
+			# Item-granted world effects — resolved in main._apply_card_world_effects.
 			pass
+		"stance_switch":
+			# Mits of Chingiz: strip 10 armor, then 2 Vulnerable either way.
+			if target and target.has_method("apply_debuff"):
+				if "current_armor" in target and target.current_armor > 0:
+					target.current_armor = max(0, target.current_armor - 10)
+					if target.has_method("_update_armor_bar"):
+						target._update_armor_bar()
+					print("[CARD] Stance Switch: stripped 10 armor")
+				target.apply_debuff("vulnerable", 2)
+		"switch_kick":
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("disarm_attacks", 1)
+		"return_cut":
+			# Counter the attacker whose hit our armor just ate, +5% crit.
+			if player_stats and player_stats.last_attacker and is_instance_valid(player_stats.last_attacker):
+				var rc_dmg: int = player_stats.get_effective_physical_damage(0)
+				if buff_mgr and buff_mgr.roll_crit(5):
+					rc_dmg = crit_multiply(rc_dmg, player_stats)
+					print("[CARD] Return Cut CRITS!")
+				player_stats.last_attacker.take_damage(rc_dmg, true)
+				last_damage_dealt = rc_dmg
+				print("[CARD] Return Cut counters for %d!" % rc_dmg)
 		# === Brad Cards ===
 		"life_swap":
 			_execute_life_swap(target, player_stats, buff_mgr)
@@ -1308,6 +1359,17 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Clean up ranged bonus
 	if _ranged_bonus_applied > 0:
 		bonus_damage -= _ranged_bonus_applied
+	if _gauntlet_bonus_applied > 0:
+		bonus_damage -= _gauntlet_bonus_applied
+
+	# Gravity Gauntlets / Spidey Web Shooters: a slotted offensive card holds or
+	# disarms its target.
+	if slotted_in_item and is_offensive() and target and target.has_method("apply_debuff"):
+		var osb_late = get_on_self_bonus()
+		if int(osb_late.get("root_offensive", 0)) > 0:
+			target.apply_debuff("root", int(osb_late["root_offensive"]))
+		if int(osb_late.get("disarm_offensive", 0)) > 0:
+			target.apply_debuff("disarmed", int(osb_late["disarm_offensive"]))
 
 	# Clear the one-shot on-self crit so it never leaks to the next card.
 	if _temp_crit_applied > 0.0 and player_stats:
@@ -5380,6 +5442,58 @@ static func create_its_alive() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 20
 	card.tempo_cost = 5
+	card.target_types = ["point"]
+	return card
+
+static func create_stance_switch() -> Card:
+	var card = Card.new()
+	card.card_id = "stance_switch"
+	card.card_name = "Stance Switch"
+	card.description = "Remove 10 armor from the enemy and apply 2 Vulnerable. No armor? Just apply 2 Vulnerable."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 10
+	card.tempo_cost = 2
+	card.target_types = ["enemy"]
+	return card
+
+static func create_switch_kick() -> Card:
+	var card = Card.new()
+	card.card_id = "switch_kick"
+	card.card_name = "Switch Kick"
+	card.description = "Deal 2 damage and disarm the enemy for 1 attack."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 2
+	card.tempo_cost = 2
+	card.damage = 2
+	card.base_damage = 2
+	card.target_types = ["enemy"]
+	return card
+
+static func create_return_cut() -> Card:
+	var card = Card.new()
+	card.card_id = "return_cut"
+	card.card_name = "Return Cut"
+	card.description = "Instant. When an attack fails to break through your armor, immediately counter with a melee strike (+5% crit chance)."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.target_types = ["self"]
+	card.reaction_trigger = "on_attack_blocked"
+	return card
+
+static func create_smoke_bomb() -> Card:
+	var card = Card.new()
+	card.card_id = "smoke_bomb"
+	card.card_name = "smoke bomb"
+	card.description = "A puff of smoke (2-square radius): allies inside are invisible and gain 10% crit chance while they stay in it. Lasts 8 tempo. Jailed for 20 after play."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 1
+	card.jail_on_play = 20
 	card.target_types = ["point"]
 	return card
 
