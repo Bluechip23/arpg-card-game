@@ -6,13 +6,12 @@ extends Node3D
 ## 3 tempo, attacks apply bleed. Wolfpack: each OTHER friendly wolf grants +20%
 ## attack damage and +1 bleed (computed by main at attack time).
 ##
-## NOTE: the spec gives no attack damage number — 5 is a placeholder awaiting
-## a ruling. This node owns visuals/health/movement; main.gd drives per-tempo
-## decisions (_update_wolves) via the cadence accumulators.
+## This node owns visuals/health/movement; main.gd drives per-tempo decisions
+## (_update_wolves) via the cadence accumulators.
 
 signal died(wolf)
 
-const BASE_ATTACK := 5      # PLACEHOLDER — spec doesn't state wolf attack damage
+const BASE_ATTACK := 5      # confirmed: wolves hit for 5 before pack bonuses
 const MOVE_INTERVAL := 3    # tempo between moves
 const MOVE_STEPS := 2       # tiles per move
 const ATTACK_INTERVAL := 5  # tempo between attacks

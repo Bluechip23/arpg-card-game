@@ -1369,7 +1369,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if int(osb_late.get("root_offensive", 0)) > 0:
 			target.apply_debuff("root", int(osb_late["root_offensive"]))
 		if int(osb_late.get("disarm_offensive", 0)) > 0:
-			target.apply_debuff("disarmed", int(osb_late["disarm_offensive"]))
+			target.apply_debuff("disarm_attacks", int(osb_late["disarm_offensive"]))
 
 	# Clear the one-shot on-self crit so it never leaks to the next card.
 	if _temp_crit_applied > 0.0 and player_stats:
@@ -5491,8 +5491,8 @@ static func create_smoke_bomb() -> Card:
 	card.description = "A puff of smoke (2-square radius): allies inside are invisible and gain 10% crit chance while they stay in it. Lasts 8 tempo. Jailed for 20 after play."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
-	card.mana_cost = 0
-	card.tempo_cost = 1
+	card.mana_cost = 30
+	card.tempo_cost = 2
 	card.jail_on_play = 20
 	card.target_types = ["point"]
 	return card

@@ -232,7 +232,7 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_draw_card: int = 0             # draw X cards when a slotted card is played (Momentum Mits 1)
 @export var on_self_summon_wolf: int = 0           # summon X wolves when a slotted card is played (Dungeon Mastering 1)
 @export var on_self_root_offensive: int = 0        # slotted offensive card roots the target X cycles (Gravity Gauntlets 1)
-@export var on_self_disarm_offensive: int = 0      # slotted offensive card disarms the target X cycles (Spidey 1)
+@export var on_self_disarm_offensive: int = 0      # slotted offensive card disarms the target for X ATTACKS (Spidey 1)
 
 # Gauntlet passive riders
 @export var armor_gain_thorns_threshold: int = 0   # every X armor gained... (Spiked Mitts 25)
@@ -424,7 +424,7 @@ func get_type_name() -> String:
 		ItemType.GAUNTLETS: return "Gauntlets"
 		ItemType.WEAPON: return "Weapon"
 		ItemType.QUIVER: return "Quiver"
-		ItemType.SCROLL: return "Town Scroll"
+		ItemType.SCROLL: return "Scroll"
 	return "Unknown"
 
 func get_ring_trigger_name() -> String:
@@ -639,8 +639,8 @@ static func create_return_scroll() -> ItemData:
 	## appears in town, and stepping through either end crosses over.
 	var item = ItemData.new()
 	item.item_name = "Return Scroll"
-	item.item_type = ItemType.SCROLL  # town scroll — never equips
-	item.item_type_name = "Town Scroll"
+	item.item_type = ItemType.SCROLL  # utility scroll — never equips
+	item.item_type_name = "Scroll"
 	item.rarity = Rarity.COMMON
 	item.weight = 0
 	item.special_id = "return_scroll"
@@ -1214,9 +1214,9 @@ static func create_spidey_web_shooters() -> ItemData:
 	item.dexterity_bonus = 3
 	item.agility_bonus = 3
 	item.hand_size_bonus = 1
-	item.on_self_disarm_offensive = 1  # duration unspecified — 1 cycle pending ruling
+	item.on_self_disarm_offensive = 1  # the target skips its next 1 attack
 	_set_skill(item, "Coming in!", "Pull yourself to the target from up to 5 squares away.", "coming_in", 2)
-	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards disarm the target. Skill — Coming in!: pull yourself to the target from 5 squares (8 tempo CD)."
+	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards disarm the target for 1 attack. Skill — Coming in!: pull yourself to the target from 5 squares (8 tempo CD)."
 	return item
 
 static func create_gravity_gauntlets() -> ItemData:
@@ -1225,7 +1225,7 @@ static func create_gravity_gauntlets() -> ItemData:
 	item.intelligence_bonus = 6
 	item.wisdom_bonus = 3
 	item.agility_bonus = 2
-	item.on_self_root_offensive = 1  # duration unspecified — 1 cycle pending ruling
+	item.on_self_root_offensive = 1  # hold for 1 cycle (5 tempo)
 	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2)
 	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 tempo CD)."
 	return item
@@ -1313,11 +1313,11 @@ static func create_concealed_carry() -> ItemData:
 	item.hand_size_bonus = -1
 	var cc_cards: Array[String] = ["smoke_bomb"]
 	item.granted_card_ids = cc_cards
-	_set_skill(item, "Lethal Poke", "A 0-base-damage melee attack. On crit, +1.5 damage on top.", "lethal_poke", 3)
+	_set_skill(item, "Lethal Poke", "A 0-base-damage melee attack. Crits deal x1.5 on top of the crit.", "lethal_poke", 3)
 	item.level_3_overrides = {"dexterity_bonus": 5, "agility_bonus": 5, "hand_size_bonus": 0,
 		"gauntlet_skill_cooldown": 2}
 	item.level_3_description = "+5 DEX, +5 AGI. Grants smoke bomb. Skill — Lethal Poke (10 tempo CD)."
-	item.description = "+2 DEX, +2 AGI, -1 hand size. Grants smoke bomb: a 2-square cloud granting allies inside invisibility and 10% crit while they stay in it (8 tempo; card jailed 20 after play). Skill — Lethal Poke: 0-base melee attack; on crit, +1.5 damage on top (15 tempo CD)."
+	item.description = "+2 DEX, +2 AGI, -1 hand size. Grants smoke bomb: a 2-square cloud granting allies inside invisibility and 10% crit while they stay in it (8 tempo; card jailed 20 after play). Skill — Lethal Poke: 0-base melee attack; crits deal x1.5 on top of the crit (15 tempo CD)."
 	return item
 
 static func create_medic_wraps() -> ItemData:

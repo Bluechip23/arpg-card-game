@@ -7573,12 +7573,12 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 				tempo_manager.add_tempo(2)
 				add_battle_log("Slice! %d damage (2 tempo)" % sdmg, Color(0.9, 0.7, 0.5))
 		"lethal_poke":
-			# 0-base melee; a crit adds a flat 1.5 on top of the multiplied hit.
+			# 0-base melee; a crit is multiplied a further x1.5 on top.
 			if target and is_instance_valid(target) and target.has_method("take_damage") and stats:
 				var pdmg: int = stats.get_effective_physical_damage(0)
 				var pbm = player.get_buff_manager()
 				if pbm and pbm.roll_crit():
-					pdmg = floori(float(Card.crit_multiply(pdmg, stats)) + 1.5)
+					pdmg = floori(float(Card.crit_multiply(pdmg, stats)) * 1.5)
 					add_battle_log("Lethal Poke CRITS!", Color(1.0, 0.5, 0.5))
 				target.take_damage(pdmg, true)
 				add_battle_log("Lethal Poke: %d damage" % pdmg, Color(0.8, 0.8, 0.8))
