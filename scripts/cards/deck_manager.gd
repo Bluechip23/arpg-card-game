@@ -424,6 +424,14 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	if card.card_id == "exhausted_assault" and player_stats and player_stats.current_mana <= 0:
 		mana_cost = 0
 
+	# Ryan's belt passive covers BOTH kinds of belt card: the ones a belt
+	# grants (discounted at creation in Inventory) and the ones slotted into a
+	# belt, handled here so the two paths behave the same.
+	if card.is_slotted() and inventory and inventory.belt_card_mana_reduction > 0 \
+			and card.slotted_in_item and card.slotted_in_item.item_type == ItemData.ItemType.BELT:
+		mana_cost = max(0, mana_cost - inventory.belt_card_mana_reduction)
+		print("[DECK] Belt passive: -%d mana on slotted %s" % [inventory.belt_card_mana_reduction, card.card_name])
+
 	# On-Self mana reduction from item card slot
 	if card.is_slotted():
 		var on_self = card.get_on_self_bonus()

@@ -506,6 +506,10 @@ func get_free_card_slots() -> int:
 func can_slot_card(card) -> bool:
 	if slotted_cards.size() >= card_slots:
 		return false
+	# A card an item provides is part of that item's kit — it can never be
+	# slotted into anything (including the item that granted it).
+	if card.granted_by_item != null:
+		return false
 	# Check Picky compatibility: card must go into same item type it came from
 	if card.slot_compatibility == 0 and card.source_item_type >= 0:  # PICKY = 0
 		if card.source_item_type != item_type:
