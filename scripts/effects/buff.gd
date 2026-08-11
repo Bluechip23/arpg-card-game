@@ -71,7 +71,7 @@ func _set_name_and_description() -> void:
 			description = "Armor does not decay"
 		BuffType.ENLIGHTENED:
 			buff_name = "Enlightened"
-			description = "+%d%% crit chance for next %d attacks" % [value, charges]
+			description = "10%% crit chance for the next %d attacks (stacks extend, never add)" % charges
 		BuffType.STRENGTHEN:
 			buff_name = "Strengthen"
 			description = "+%d damage on next %d attacks" % [value, charges]

@@ -103,6 +103,15 @@ const CARD_RARITIES := {
 	# Gauntlet-granted
 	"stance_switch": Rarity.LEGENDARY, "switch_kick": Rarity.LEGENDARY,
 	"return_cut": Rarity.LEGENDARY, "smoke_bomb": Rarity.MYTHIC,
+	# Belt-granted
+	"serene_center": Rarity.LEGENDARY, "stone_encase": Rarity.LEGENDARY,
+	"m_for_mini": Rarity.LEGENDARY, "hemotoxins": Rarity.LEGENDARY,
+	"poof_and_weave": Rarity.LEGENDARY, "healing_tonic": Rarity.LEGENDARY,
+	"poison_bomb": Rarity.RARE,
+	"chain_lightning": Rarity.MYTHIC, "ice_grenade": Rarity.MYTHIC, "fire_punch": Rarity.MYTHIC,
+	"gift_from_the_gods": Rarity.MYTHIC,
+	"protection_from_alnitak": Rarity.MYTHIC, "balance_of_alnilam": Rarity.MYTHIC,
+	"crack_of_mintaka": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -119,6 +128,11 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"shiv": true, "shift": true, "donate_cleats": true, "terrain_formation": true,
 	"escape_and_bewilder": true, "tight_rope": true, "mend": true,
 	"stance_switch": true, "switch_kick": true, "return_cut": true, "smoke_bomb": true,
+	"serene_center": true, "stone_encase": true, "m_for_mini": true, "hemotoxins": true,
+	"poof_and_weave": true, "healing_tonic": true, "poison_bomb": true,
+	"chain_lightning": true, "ice_grenade": true, "fire_punch": true,
+	"gift_from_the_gods": true, "protection_from_alnitak": true,
+	"balance_of_alnilam": true, "crack_of_mintaka": true,
 }
 
 @export var card_id: String = "slash"
@@ -828,9 +842,45 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Conditional on-self riders (Shamans mask / Monocle). The random-enemy spell
 	# damage (Shamans) and +range (Dragon Skull/Monocle) resolve in main.gd where
 	# the world is available; here we handle the parts local to card resolution.
+	var _gauntlet_bonus_applied := 0
+
+	# Alchemist belt (passive, any healing card): heals add a % of YOUR max
+	# health. Rides the on_self heal cleanup so it never sticks to the card.
+	if heal_amount > 0 and player_stats and player_stats.equipment_heal_maxhp_percent > 0.0:
+		var _alch_bonus: int = floori(player_stats.max_health * player_stats.equipment_heal_maxhp_percent / 100.0)
+		heal_amount += _alch_bonus
+		on_self_hl += _alch_bonus
+
 	var _temp_crit_applied := 0.0
 	var _temp_crit_dmg_applied := 0.0
 	if slotted_in_item:
+		# Studded belt: the long-dead on_self_thorns finally fires — slotted
+		# plays grant thorns.
+		if int(on_self.get("thorns", 0)) > 0 and buff_mgr:
+			buff_mgr.apply_buff(Buff.create_thorns(int(on_self["thorns"]), 15, slotted_in_item.item_name))
+		# Slotted Sash: offensive cards +damage; defense cards +armor.
+		if int(on_self.get("offensive_damage", 0)) > 0 and is_offensive():
+			bonus_damage += int(on_self["offensive_damage"])
+			_gauntlet_bonus_applied += int(on_self["offensive_damage"])
+		if int(on_self.get("defense_armor", 0)) > 0 and card_type == CardType.DEFENSE and player_stats:
+			player_stats.add_armor(int(on_self["defense_armor"]))
+		# Strap of Stone: timed physical resistance on slotted play.
+		if int(on_self.get("physical_resilient", 0)) > 0 and buff_mgr:
+			buff_mgr.apply_buff(Buff.create_resilient(int(on_self["physical_resilient"]), 10, slotted_in_item.item_name, DamageTypes.Type.PHYSICAL))
+		# Belt of Wumbology: Strengthen on slotted play.
+		if int(on_self.get("strengthen_value", 0)) > 0 and buff_mgr:
+			buff_mgr.apply_buff(Buff.create_strengthen(int(on_self["strengthen_value"]), maxi(1, int(on_self.get("strengthen_attacks", 1))), slotted_in_item.item_name))
+		# Shadow Obi: slotted cards hit harder while invisible.
+		if int(on_self.get("damage_while_invisible", 0)) > 0 and buff_mgr and buff_mgr.has_buff(Buff.BuffType.INVISIBLE):
+			bonus_damage += int(on_self["damage_while_invisible"])
+			_gauntlet_bonus_applied += int(on_self["damage_while_invisible"])
+		# Megingjord: double damage (mana doubling lives in the cost calc). The
+		# extra is folded into bonus_damage and tracked for cleanup.
+		var _dmg_mult: float = float(on_self.get("damage_multiplier", 1.0))
+		if _dmg_mult > 1.0:
+			var _mult_extra: int = floori((base_damage + bonus_damage) * (_dmg_mult - 1.0))
+			bonus_damage += _mult_extra
+			_gauntlet_bonus_applied += _mult_extra
 		# Feathered Hat: slotted cards get +10% crit damage for this play, and
 		# playing them drains the flash-crit counter by 2.
 		if on_self.get("crit_damage_percent", 0.0) > 0.0 and player_stats:
@@ -887,7 +937,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		print("[CARD] Feathered Hat: guaranteed crit consumed")
 
 	# Gauntlet flat riders on this play (tracked for cleanup)
-	var _gauntlet_bonus_applied := 0
 	if player_stats:
 		# Generic +X on attack cards (no current item; kept wired).
 		if card_type == CardType.ATTACK and player_stats.equipment_attack_card_damage > 0:
@@ -992,6 +1041,75 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"shift", "donate_cleats", "terrain_formation", "escape_and_bewilder", "mend", "smoke_bomb":
 			# Item-granted world effects — resolved in main._apply_card_world_effects.
 			pass
+		"serene_center":
+			# Equator: health (temp included) and mana both go to half of max —
+			# up or down. 100 max + 20 temp -> 60, temp cleared.
+			if player_stats:
+				var target_hp: int = maxi(1, floori((player_stats.max_health + player_stats.current_temp_health) / 2.0))
+				player_stats.current_health = mini(target_hp, player_stats.max_health)
+				player_stats.current_temp_health = 0
+				player_stats.temp_health_tempo_remaining = 0
+				player_stats.current_mana = floori(player_stats.max_mana / 2.0)
+				player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
+				player_stats.temp_health_changed.emit(0)
+				player_stats.mana_changed.emit(player_stats.current_mana, player_stats.max_mana)
+				print("[CARD] Serene Center: health %d, mana %d" % [player_stats.current_health, player_stats.current_mana])
+		"stone_encase":
+			# Strap of Stone: 50 armor now; the self-stun resolves in main's world
+			# effects (it needs the player's debuff manager).
+			if player_stats:
+				player_stats.add_armor(50)
+				print("[CARD] Stone Encase: +50 armor")
+		"m_for_mini":
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("vulnerable", 2)
+				target.apply_debuff("weaken", 2)
+				print("[CARD] M for Mini: 2 Vulnerable + 2 Weaken")
+		"hemotoxins":
+			if target and target.has_method("apply_debuff"):
+				var hemo_stacks := 10
+				if "current_health" in target and "max_health" in target and target.max_health > 0 \
+						and float(target.current_health) / float(target.max_health) < 0.5:
+					hemo_stacks = 20
+				target.apply_debuff("poison", hemo_stacks)
+				last_damage_dealt = 0
+				print("[CARD] Hemotoxins: %d Poison" % hemo_stacks)
+		"protection_from_alnitak":
+			# Orion's Belt: armor through the normal defense path (Burgonet et al
+			# still apply), plus a Brace equal to the room left in your hand —
+			# this card has already left it, so hand.size() is the live count.
+			_execute_block(player_stats, is_empowered, buff_mgr)
+			if buff_mgr and deck_manager:
+				var brace_pct: int = maxi(0, deck_manager.get_hand_cap() - deck_manager.hand.size())
+				buff_mgr.apply_buff(Buff.create_brace(brace_pct, 5, "Protection From Alnitak"))
+				print("[CARD] Protection From Alnitak: Brace %d%% for 5 attacks" % brace_pct)
+		"balance_of_alnilam":
+			# The played card leaves the hand before execute, so "only card in
+			# hand" reads as an empty hand here. Lv.3 belt: draw 10.
+			if deck_manager and deck_manager.hand.is_empty():
+				var alnilam_draws := 10 if (granted_by_item and granted_by_item.item_level >= 3) else 6
+				for _i in range(alnilam_draws):
+					deck_manager.draw_card()
+				print("[CARD] Balance of Alnilam: drew %d" % alnilam_draws)
+			else:
+				print("[CARD] Balance of Alnilam: other cards in hand — no draw")
+		"gift_from_the_gods":
+			if buff_mgr:
+				var gift_stacks := 4 if (granted_by_item and granted_by_item.item_level >= 3) else 3
+				buff_mgr.apply_buff(Buff.new(Buff.BuffType.ENLIGHTENED, 10, -1, gift_stacks))
+				if granted_by_item and granted_by_item.item_level >= 3 and player_stats:
+					var gift_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
+					if gift_dm:
+						var gift_list = gift_dm.debuffs.duplicate()
+						gift_list.shuffle()
+						for i in range(mini(3, gift_list.size())):
+							gift_dm.remove_debuff(gift_list[i].debuff_type)
+				print("[CARD] Gift from the Gods: %d Enlightened" % gift_stacks)
+		"chain_lightning", "ice_grenade", "fire_punch", "poison_bomb", "crack_of_mintaka", "poof_and_weave":
+			# World-scale belt cards — resolved in main._apply_card_world_effects.
+			pass
+		"healing_tonic":
+			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"stance_switch":
 			# Mits of Chingiz: strip 10 armor, then 2 Vulnerable either way.
 			if target and target.has_method("apply_debuff"):
@@ -1313,6 +1431,31 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
 		target.set_armor_break_incoming(false)
 
+	# Girdle of Aphrodite: offensive slotted cards Taunt their enemy target;
+	# utility/defense slotted cards heal their (ally/self) target.
+	if slotted_in_item and target:
+		var osb_g = get_on_self_bonus()
+		if is_offensive() and int(osb_g.get("taunt_cycles", 0)) > 0 and target.has_method("apply_taunt") and buff_mgr:
+			target.apply_taunt(buff_mgr.owner_node, int(osb_g["taunt_cycles"]))
+			print("[CARD] On-Self: %s taunts the target" % slotted_in_item.item_name)
+		if not is_offensive() and int(osb_g.get("support_heal", 0)) > 0:
+			var heal_who = target if (target.has_method("get_stats") and target.get_stats()) else null
+			if heal_who:
+				heal_who.get_stats().heal(int(osb_g["support_heal"]))
+			elif player_stats:
+				player_stats.heal(int(osb_g["support_heal"]))
+			print("[CARD] On-Self: %s heals %d" % [slotted_in_item.item_name, int(osb_g["support_heal"])])
+		# Corset of Cure: cleanse stacks of a random debuff on the card's target
+		# (players/allies only — enemies keep their ailments).
+		if int(osb_g.get("cleanse_stacks", 0)) > 0 and target.has_method("get_debuff_manager"):
+			var cdm = target.get_debuff_manager()
+			if cdm and cdm.debuffs.size() > 0:
+				var pick = cdm.debuffs[randi() % cdm.debuffs.size()]
+				pick.stacks -= int(osb_g["cleanse_stacks"])
+				if pick.stacks <= 0:
+					cdm.remove_debuff(pick.debuff_type)
+				print("[CARD] On-Self: cleansed %d stacks of %s" % [int(osb_g["cleanse_stacks"]), pick.debuff_name])
+
 	# Burgonet: a DEFENSE card that grants no armor of its own grants the boots'
 	# flat amount instead. (Armor-granting defense cards get their +2 inside
 	# _execute_block, on top of what they already provide.)
@@ -1347,6 +1490,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			elif target.has_method("apply_debuff"):
 				target.apply_debuff("cold", on_self_cold)
 			print("[CARD] On-Self: Applied %d Cold to target from %s" % [on_self_cold, source_name])
+		# Assasian Belt: Vulnerable on the struck target.
+		var on_self_vuln = int(on_self.get("apply_vulnerable", 0))
+		if on_self_vuln > 0 and target.has_method("apply_debuff"):
+			target.apply_debuff("vulnerable", on_self_vuln)
 		var on_self_bleed = on_self.get("apply_bleed", 0)
 		if on_self_bleed > 0:
 			if target.has_method("get_debuff_manager"):
@@ -1623,6 +1770,9 @@ func get_burden_tempo_cost() -> int:
 	# Boot Holsters: slotted attack cards cost less tempo.
 	if card_type == CardType.ATTACK and slotted_in_item:
 		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
+	# Potion Belt: slotted utility cards refund tempo.
+	if card_type == CardType.UTILITY and slotted_in_item:
+		cost -= int(slotted_in_item.get_on_self_bonus().get("utility_tempo_refund", 0))
 	# Boots of Speed: in-hand reduction, until played or discarded.
 	cost -= temp_hand_tempo_reduction
 	# The Headbandz Lv.3: Out of Guesses quickens to 1 tempo.
@@ -5464,6 +5614,224 @@ static func create_its_alive() -> Card:
 	card.target_types = ["point"]
 	card.damage = 0
 	card.base_damage = 0
+	return card
+
+static func create_protection_from_alnitak() -> Card:
+	var card = Card.new()
+	card.card_id = "protection_from_alnitak"
+	card.card_name = "Protection From Alnitak"
+	card.description = "Gain 10 armor and Brace for 5 attacks. The Brace percentage equals your empty hand slots (max hand size minus cards held)."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 20
+	card.tempo_cost = 1
+	card.block = 10
+	card.base_block = 10
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_balance_of_alnilam() -> Card:
+	var card = Card.new()
+	card.card_id = "balance_of_alnilam"
+	card.card_name = "Balance of Alnilam"
+	card.description = "If this is the only card in your hand, draw 6 cards."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 10
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_crack_of_mintaka() -> Card:
+	var card = Card.new()
+	card.card_id = "crack_of_mintaka"
+	card.card_name = "Crack of Mintaka"
+	card.description = "Discard any number of cards, then deal 10 damage to an enemy within that many squares, with +3% crit damage per card discarded."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 30
+	card.tempo_cost = 4
+	card.damage = 10
+	card.base_damage = 10
+	card.target_types = ["enemy"]
+	return card
+
+static func create_serene_center() -> Card:
+	var card = Card.new()
+	card.card_id = "serene_center"
+	card.card_name = "Serene Center"
+	card.description = "Set your health (temp health included) and your mana to half of their maximums — whether that raises or lowers them."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 30
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_stone_encase() -> Card:
+	var card = Card.new()
+	card.card_id = "stone_encase"
+	card.card_name = "Stone Encase"
+	card.description = "Gain 50 armor and become stunned for 5 tempo."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 45
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_m_for_mini() -> Card:
+	var card = Card.new()
+	card.card_id = "m_for_mini"
+	card.card_name = "M for Mini"
+	card.description = "Apply 2 Vulnerable and 2 Weaken to an enemy."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 15
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_hemotoxins() -> Card:
+	var card = Card.new()
+	card.card_id = "hemotoxins"
+	card.card_name = "Hemotoxins"
+	card.description = "Apply 10 Poison. If the target is below 50% health, apply 20 instead."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 50
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_poof_and_weave() -> Card:
+	var card = Card.new()
+	card.card_id = "poof_and_weave"
+	card.card_name = "Poof and Weave"
+	card.description = "Become invisible, gain 10 armor and draw a card."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 40
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_healing_tonic() -> Card:
+	var card = Card.new()
+	card.card_id = "healing_tonic"
+	card.card_name = "Healing Tonic"
+	card.description = "Heal an ally within 5 squares for 5."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.card_keyword = CardKeyword.POCKET
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.heal_amount = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["ally", "self"]
+	return card
+
+static func create_poison_bomb() -> Card:
+	var card = Card.new()
+	card.card_id = "poison_bomb"
+	card.card_name = "Poison Bomb"
+	card.description = "A cloud of poison: all enemies in a 2-square radius gain 6 Poison."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.school = CardSchool.SPELL
+	card.card_keyword = CardKeyword.POCKET
+	card.mana_cost = 10
+	card.tempo_cost = 3
+	card.is_ranged = true
+	card.range_modifier = 1  # range 6
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 2.0
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["point"]
+	return card
+
+static func create_chain_lightning() -> Card:
+	var card = Card.new()
+	card.card_id = "chain_lightning"
+	card.card_name = "Chain Lightning"
+	card.description = "Deal 10 damage, then bounce to nearby enemies, losing 2 damage per bounce until it reaches zero."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 50
+	card.tempo_cost = 8
+	card.is_ranged = true
+	card.range_modifier = 3  # range 8
+	card.damage = 10
+	card.base_damage = 10
+	card.target_types = ["enemy"]
+	return card
+
+static func create_ice_grenade() -> Card:
+	var card = Card.new()
+	card.card_id = "ice_grenade"
+	card.card_name = "Ice Grenade"
+	card.description = "Deal 5 damage and apply 2 Cold in a 2-square radius. Two shots — each aimed separately."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 10
+	card.tempo_cost = 2
+	card.is_ranged = true
+	card.range_modifier = 0  # range 5
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 2.0
+	card.sticky = 2  # two throws before it discards
+	card.damage = 5
+	card.base_damage = 5
+	card.target_types = ["point"]
+	return card
+
+static func create_fire_punch() -> Card:
+	var card = Card.new()
+	card.card_id = "fire_punch"
+	card.card_name = "Fire Punch"
+	card.description = "Melee: 0 base damage (+STR scaling). Leaves a path of fire behind the target. Puts a copy with Erase 5 in your hand (the copy does not copy itself)."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 5
+	card.tempo_cost = 1
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_gift_from_the_gods() -> Card:
+	var card = Card.new()
+	card.card_id = "gift_from_the_gods"
+	card.card_name = "Gift from the Gods"
+	card.description = "Gain 3 Enlightened (10% crit chance; one stack is consumed per attack)."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 20  # PLACEHOLDER — no cost was specified
+	card.tempo_cost = 2  # PLACEHOLDER
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
 	return card
 
 static func create_stance_switch() -> Card:
