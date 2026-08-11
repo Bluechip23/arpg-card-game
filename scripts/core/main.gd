@@ -7377,8 +7377,14 @@ func _update_fire_spots(amount: int) -> void:
 # WOLVES (Gauntlets of Dungeon Mastering)
 # ============================================
 
+const WOLF_PACK_CAP := 3
+
 func _spawn_wolf() -> void:
 	if not grid_manager or not player:
+		return
+	_wolves = _wolves.filter(func(w): return is_instance_valid(w) and not w.is_dead)
+	if _wolves.size() >= WOLF_PACK_CAP:
+		add_battle_log("The pack is full (%d wolves)." % WOLF_PACK_CAP, Color(0.7, 0.7, 0.8))
 		return
 	var player_cell = grid_manager.world_to_grid(player.position)
 	var spawn_cell = player_cell + Vector2i(1, 0)

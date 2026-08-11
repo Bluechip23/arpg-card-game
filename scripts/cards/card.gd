@@ -881,9 +881,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Gauntlet flat riders on this play (tracked for cleanup)
 	var _gauntlet_bonus_applied := 0
 	if player_stats:
-		# Brass Knuckles: +X damage on attack cards.
+		# Generic +X on attack cards (no current item; kept wired).
 		if card_type == CardType.ATTACK and player_stats.equipment_attack_card_damage > 0:
 			_gauntlet_bonus_applied += player_stats.equipment_attack_card_damage
+		# Brass Knuckles: +X on melee offensive cards only.
+		if is_offensive() and not is_ranged and player_stats.equipment_melee_card_damage > 0:
+			_gauntlet_bonus_applied += player_stats.equipment_melee_card_damage
 		# Sleeved Katar's skill: one-shot +X on the next melee offensive card.
 		if is_offensive() and not is_ranged and player_stats.pending_melee_damage_bonus > 0:
 			_gauntlet_bonus_applied += player_stats.pending_melee_damage_bonus

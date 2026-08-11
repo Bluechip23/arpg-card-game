@@ -185,7 +185,8 @@ signal consecutive_attacks_reached           # main draws a card
 var aura_physical_resist: float = 0.0        # Guardian Greaves aura: % physical resist, refreshed each cycle
 # Gauntlets pass
 var equipment_crit_damage_bonus: float = 0.0 # +crit damage multiplier from gear (Sleeved Katar 0.25)
-var equipment_attack_card_damage: int = 0    # +X damage on attack cards (Brass Knuckles)
+var equipment_attack_card_damage: int = 0    # +X damage on attack cards (generic channel)
+var equipment_melee_card_damage: int = 0     # +X damage on melee offensive cards only (Brass Knuckles)
 var pending_melee_damage_bonus: int = 0      # next melee offensive card +X (Katar's Defense One with Offense)
 var equipment_armor_loss_regen_threshold: int = 0  # Hallowed Trunk: armor lost per regen stack (0 = off)
 var equipment_regen_include_health: bool = false   # Hallowed Trunk Lv3: health lost counts too

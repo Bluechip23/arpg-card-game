@@ -278,6 +278,7 @@ func get_mastery_text(stats = null) -> String:
 @export var block_bonus_to_defense_cards: int = 0  # +X armor added to armor-granting defense cards
 @export var block_to_armorless_defense_cards: int = 0  # defense cards granting NO armor grant X instead (Burgonet)
 @export var damage_bonus_to_attack_cards: int = 0  # +X damage to all attack cards
+@export var damage_bonus_to_melee_cards: int = 0   # +X damage to melee offensive cards only (Brass Knuckles)
 @export var fire_resistance_percent: float = 0.0  # X% fire resistance
 @export var all_resistance_percent: float = 0.0  # X% resistance to ALL damage types
 @export var crit_chance_percent: float = 0.0  # +X% crit chance while equipped
@@ -1151,13 +1152,12 @@ static func _set_skill(item: ItemData, nm: String, desc: String, effect_id: Stri
 
 static func create_chain_gloves() -> ItemData:
 	var item = _new_gauntlet("Chain Gloves", Rarity.COMMON, 15)
-	item.hand_size_bonus = 1
 	item.strength_bonus = 2
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 1
 	item.armor_per_tempo_interval = 15
 	_set_skill(item, "Guard", "Gain 2 armor.", "chain_guard", 4)
-	item.description = "+1 hand size, +2 STR. Gain 1 armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."
+	item.description = "+2 STR. Gain 1 armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."
 	return item
 
 static func create_leather_gauntlets() -> ItemData:
@@ -1169,11 +1169,11 @@ static func create_leather_gauntlets() -> ItemData:
 
 static func create_brass_knuckles() -> ItemData:
 	var item = _new_gauntlet("Brass Knuckles", Rarity.COMMON, 10)
-	item.damage_bonus_to_attack_cards = 5
+	item.damage_bonus_to_melee_cards = 2
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 1
 	item.armor_per_tempo_interval = 20
-	item.description = "+5 damage on attack cards. Gain 1 armor every 20 tempo."
+	item.description = "+2 damage on melee offensive cards. Gain 1 armor every 20 tempo."
 	return item
 
 static func create_cloth_bracer() -> ItemData:
@@ -1245,7 +1245,7 @@ static func create_spiked_mitts() -> ItemData:
 
 static func create_momentum_mits() -> ItemData:
 	var item = _new_gauntlet("Momentum Mits", Rarity.LEGENDARY, 10)
-	item.card_slots = 2
+	item.card_slots = 1
 	item.strength_bonus = 5
 	item.intelligence_bonus = 5
 	item.wisdom_bonus = -3
@@ -1332,11 +1332,12 @@ static func create_medic_wraps() -> ItemData:
 static func create_roman_bracers() -> ItemData:
 	var item = _new_gauntlet("Roman Bracers", Rarity.RARE, 5)
 	item.card_slots = 1
+	item.hand_size_bonus = 1
 	item.health_bonus = 15
 	item.strength_bonus = 5
 	item.on_self_melee_damage = 5  # slotted melee offensive cards +5 damage
 	_set_skill(item, "Slice", "Perform a basic melee attack for 2 tempo.", "slice", 2)
-	item.description = "+15 life, +5 STR. On-self: +5 damage on melee cards. Skill — Slice: a basic melee attack costing 2 tempo (10 tempo CD)."
+	item.description = "+15 life, +5 STR, +1 hand size. On-self: +5 damage on melee cards. Skill — Slice: a basic melee attack costing 2 tempo (10 tempo CD)."
 	return item
 
 static func create_copper_bracers() -> ItemData:
@@ -1352,8 +1353,9 @@ static func create_copper_bracers() -> ItemData:
 static func create_fanned_bracers() -> ItemData:
 	var item = _new_gauntlet("Fanned Bracers", Rarity.RARE, 15)
 	item.health_bonus = 20
-	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 4)
-	item.description = "+20 life. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (20 tempo CD)."
+	item.hand_size_bonus = 1
+	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 2)
+	item.description = "+20 life, +1 hand size. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (10 tempo CD)."
 	return item
 
 # ============================================
