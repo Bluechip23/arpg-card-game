@@ -161,6 +161,7 @@ var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gea
 var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
 var equipment_armorless_defense_block: int = 0  # armor granted by DEFENSE cards that grant none themselves (Burgonet)
 var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
+var temp_crit_damage_bonus: float = 0.0      # one-shot +crit-damage multiplier for the resolving card (Feathered Hat 0.10)
 var flash_crit_accum: int = 0                # Feathered Hat: flash points spent toward the next armed crit
 var flash_crit_armed: bool = false           # Feathered Hat: next ranged offensive card is a guaranteed crit
 # Wizard Hat: every Nth attack arms +spell power on the next spell card played.
@@ -1160,7 +1161,7 @@ func get_crit_damage_multiplier() -> float:
 	## Uses effective Dexterity, so Determination swings crit damage too.
 	## Deadly adds +50% while resolving an attack on an isolated target.
 	var deadly_bonus := 0.5 if st_deadly_crit_active else 0.0
-	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + equipment_crit_damage_bonus
+	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + equipment_crit_damage_bonus + temp_crit_damage_bonus
 
 ## Mountain Boots: +% damage while attacking from high ground.
 func _apply_highground(damage: int) -> int:

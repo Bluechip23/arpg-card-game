@@ -229,6 +229,8 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_attack_tempo_reduction: int = 0  # slotted attack costs X less tempo (Boot Holsters 1)
 @export var on_self_invisible_tempo: int = 0       # slotted card → become invisible X tempo (Houdinis Slippers 5)
 @export var on_self_melee_damage: int = 0          # +X damage on slotted MELEE offensive cards (Roman Bracers 5)
+@export var on_self_crit_damage_percent: float = 0.0  # +X% crit damage for the slotted play (Feathered Hat 10)
+@export var on_self_flash_counter_drain: int = 0   # slotted play drains X from the flash-crit counter (Feathered Hat 2)
 @export var on_self_draw_card: int = 0             # draw X cards when a slotted card is played (Momentum Mits 1)
 @export var on_self_summon_wolf: int = 0           # summon X wolves when a slotted card is played (Dungeon Mastering 1)
 @export var on_self_root_offensive: int = 0        # slotted offensive card roots the target X cycles (Gravity Gauntlets 1)
@@ -586,6 +588,8 @@ func get_on_self_bonus() -> Dictionary:
 		"attack_tempo_reduction": on_self_attack_tempo_reduction,
 		"invisible_tempo": on_self_invisible_tempo,
 		"melee_damage": on_self_melee_damage,
+		"crit_damage_percent": on_self_crit_damage_percent,
+		"flash_counter_drain": on_self_flash_counter_drain,
 		"draw_card": on_self_draw_card,
 		"summon_wolf": on_self_summon_wolf,
 		"root_offensive": on_self_root_offensive,
@@ -762,8 +766,12 @@ static func create_dragon_skull() -> ItemData:
 static func create_feathered_hat() -> ItemData:
 	var item = _new_helm("Feathered Hat", Rarity.LEGENDARY, 10)
 	item.agility_bonus = 8
+	item.card_slots = 2
 	item.flash_crit_threshold = 25  # spend 25 flash → next ranged offensive card crits
-	item.description = "+8 AGI. Once you have spent an accumulated 25 flash points, your next ranged offensive card crits (resets to 0 on use)."
+	item.on_self_damage = 5
+	item.on_self_crit_damage_percent = 10.0
+	item.on_self_flash_counter_drain = 2
+	item.description = "+8 AGI, 2 card slots. On-self: +5 damage, +10% crit damage, and -2 from the flash point counter. Once you have spent an accumulated 25 flash points, your next ranged offensive card crits (resets to 0 on use)."
 	return item
 
 static func create_frankensteins_screws() -> ItemData:
@@ -1060,16 +1068,16 @@ static func create_hermes_boots() -> ItemData:
 
 static func create_jordan_1s() -> ItemData:
 	var item = _new_boot("Jordan 1s", Rarity.MYTHIC, 10)
-	item.agility_bonus = 7
+	item.agility_bonus = 6
 	item.determination_bonus = 7
 	item.strength_bonus = 7
-	item.dexterity_bonus = 7
+	item.dexterity_bonus = 6
 	item.missing_life_damage_rate = 0.5  # +0.5 damage per missing enemy-health %
 	item.missing_life_threshold = 50     # ...only while the enemy is at/below 50% health
-	item.level_3_overrides = {"agility_bonus": 10, "determination_bonus": 10,
-		"strength_bonus": 10, "dexterity_bonus": 10}
-	item.level_3_description = "+10 AGI, +10 DET, +10 STR, +10 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
-	item.description = "+7 AGI, +7 DET, +7 STR, +7 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %. Upgraded: 10/10/10/10."
+	item.level_3_overrides = {"agility_bonus": 8, "determination_bonus": 9,
+		"strength_bonus": 9, "dexterity_bonus": 8}
+	item.level_3_description = "+8 AGI, +9 DET, +9 STR, +8 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
+	item.description = "+6 AGI, +7 DET, +7 STR, +6 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %. Upgraded: 10/10/10/10."
 	return item
 
 static func create_guardian_greaves() -> ItemData:
@@ -1114,9 +1122,9 @@ static func create_knife_toed_boots() -> ItemData:
 static func create_boots_of_speed() -> ItemData:
 	var item = _new_boot("Boots of Speed", Rarity.RARE, 1)
 	item.agility_bonus = 4
-	item.dexterity_bonus = 4
+	item.dexterity_bonus = 3
 	item.movement_flash_tempo_threshold = 36  # 36 movement-flash spent → -1 tempo from a hand card
-	item.description = "+4 AGI, +4 DEX. After an accumulated 36 flash points spent on movement, remove 1 tempo from a card in your hand."
+	item.description = "+4 AGI, +3 DEX. After an accumulated 36 flash points spent on movement, remove 1 tempo from a card in your hand."
 	return item
 
 static func create_caster_boots() -> ItemData:
@@ -1272,15 +1280,14 @@ static func create_sleeved_katar() -> ItemData:
 static func create_gauntlets_of_dungeon_mastering() -> ItemData:
 	var item = _new_gauntlet("Gauntlets of Dungeon Mastering", Rarity.MYTHIC, 15)
 	item.card_slots = 1
-	item.hand_size_bonus = 1
 	item.wisdom_bonus = 3
 	item.intelligence_bonus = 4
 	item.strength_bonus = 3
 	item.on_self_summon_wolf = 1
 	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4)
 	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
-	item.level_3_description = "+1 hand size, +3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf. Skill — House Rule (15 tempo CD)."
-	item.description = "+1 hand size, +3 WIS, +4 INT, +3 STR. On-self: summon a wolf (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
+	item.level_3_description = "+3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf. Skill — House Rule (15 tempo CD)."
+	item.description = "+3 WIS, +4 INT, +3 STR. On-self: summon a wolf (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
 	return item
 
 static func create_hallowed_trunk() -> ItemData:
@@ -1310,14 +1317,14 @@ static func create_concealed_carry() -> ItemData:
 	var item = _new_gauntlet("Concealed Carry", Rarity.MYTHIC, 2)
 	item.dexterity_bonus = 2
 	item.agility_bonus = 2
-	item.hand_size_bonus = -1
+	item.hand_size_bonus = 1
 	var cc_cards: Array[String] = ["smoke_bomb"]
 	item.granted_card_ids = cc_cards
 	_set_skill(item, "Lethal Poke", "A 0-base-damage melee attack. Crits deal x1.5 on top of the crit.", "lethal_poke", 3)
-	item.level_3_overrides = {"dexterity_bonus": 5, "agility_bonus": 5, "hand_size_bonus": 0,
+	item.level_3_overrides = {"dexterity_bonus": 5, "agility_bonus": 5, "hand_size_bonus": 1,
 		"gauntlet_skill_cooldown": 2}
-	item.level_3_description = "+5 DEX, +5 AGI. Grants smoke bomb. Skill — Lethal Poke (10 tempo CD)."
-	item.description = "+2 DEX, +2 AGI, -1 hand size. Grants smoke bomb: a 2-square cloud granting allies inside invisibility and 10% crit while they stay in it (8 tempo; card jailed 20 after play). Skill — Lethal Poke: 0-base melee attack; crits deal x1.5 on top of the crit (15 tempo CD)."
+	item.level_3_description = "+5 DEX, +5 AGI, +1 hand size. Grants smoke bomb. Skill — Lethal Poke (10 tempo CD)."
+	item.description = "+2 DEX, +2 AGI, +1 hand size. Grants smoke bomb: a 2-square cloud granting allies inside invisibility and 10% crit while they stay in it (8 tempo; card jailed 20 after play). Skill — Lethal Poke: 0-base melee attack; crits deal x1.5 on top of the crit (15 tempo CD)."
 	return item
 
 static func create_medic_wraps() -> ItemData:

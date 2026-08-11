@@ -829,7 +829,15 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# damage (Shamans) and +range (Dragon Skull/Monocle) resolve in main.gd where
 	# the world is available; here we handle the parts local to card resolution.
 	var _temp_crit_applied := 0.0
+	var _temp_crit_dmg_applied := 0.0
 	if slotted_in_item:
+		# Feathered Hat: slotted cards get +10% crit damage for this play, and
+		# playing them drains the flash-crit counter by 2.
+		if on_self.get("crit_damage_percent", 0.0) > 0.0 and player_stats:
+			_temp_crit_dmg_applied = on_self["crit_damage_percent"] / 100.0
+			player_stats.temp_crit_damage_bonus += _temp_crit_dmg_applied
+		if int(on_self.get("flash_counter_drain", 0)) > 0 and player_stats:
+			player_stats.flash_crit_accum = max(0, player_stats.flash_crit_accum - int(on_self["flash_counter_drain"]))
 		# Scholars Cap: any slotted card play refunds brain points.
 		if on_self.get("brain_regen", 0) > 0 and player_stats and player_stats.has_method("gain_brain_points"):
 			player_stats.gain_brain_points(on_self["brain_regen"])
@@ -1377,6 +1385,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Clear the one-shot on-self crit so it never leaks to the next card.
 	if _temp_crit_applied > 0.0 and player_stats:
 		player_stats.temp_on_self_crit_bonus = max(0.0, player_stats.temp_on_self_crit_bonus - _temp_crit_applied)
+	if _temp_crit_dmg_applied > 0.0 and player_stats:
+		player_stats.temp_crit_damage_bonus = max(0.0, player_stats.temp_crit_damage_bonus - _temp_crit_dmg_applied)
 
 	# Wizard Hat: a spell card consumes the armed spell-power bonus on play.
 	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
