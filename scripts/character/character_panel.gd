@@ -1251,6 +1251,15 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(vbox)
 
+	# An equipped mythic shows its own art here, blown up from the same sprite
+	# the equipment slot displays.
+	var equipped := storage_index < 0
+	if equipped and item.has_appearance_art():
+		var art_holder = CenterContainer.new()
+		art_holder.add_child(EquipmentSlotCellScript.make_pixel_art_rect(
+			item.get_appearance_texture(), Vector2(96, 96)))
+		vbox.add_child(art_holder)
+
 	# Item name (colored by type)
 	var item_name_lbl = Label.new()
 	item_name_lbl.text = item.item_name
@@ -1286,6 +1295,16 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		effect_lbl.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 		effect_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(effect_lbl)
+
+	# What the thing actually looks like (mythics carry this).
+	if item.appearance != "":
+		vbox.add_child(_make_separator())
+		var look_lbl = Label.new()
+		look_lbl.text = item.appearance
+		look_lbl.add_theme_font_size_override("font_size", 12)
+		look_lbl.add_theme_color_override("font_color", item.get_rarity_color())
+		look_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(look_lbl)
 
 	# Description
 	if item.description != "":
