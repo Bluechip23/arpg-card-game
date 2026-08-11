@@ -3881,6 +3881,7 @@ func _setup_sandbox() -> void:
 	sandbox_ui.name = "SandboxUI"
 	add_child(sandbox_ui)
 	sandbox_ui.add_card_requested.connect(_on_sandbox_add_card)
+	sandbox_ui.add_item_requested.connect(_on_give_item)
 	sandbox_ui.spawn_enemy_requested.connect(_on_sandbox_spawn_enemy)
 	sandbox_ui.clear_enemies_requested.connect(_on_sandbox_clear_enemies)
 	sandbox_ui.refill_requested.connect(_sandbox_refill)

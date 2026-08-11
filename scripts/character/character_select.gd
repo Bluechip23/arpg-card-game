@@ -400,6 +400,18 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 
 	vb.add_child(HSeparator.new())
 
+	# The stat rows live in a scroll capped to the window height, so the
+	# Back/Confirm buttons below always stay on-screen — no more tabbing blind.
+	var rows_scroll := ScrollContainer.new()
+	rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var vp_h := get_viewport_rect().size.y
+	rows_scroll.custom_minimum_size = Vector2(660, clampf(vp_h - 340.0, 180.0, 420.0))
+	vb.add_child(rows_scroll)
+	var rows_vb := VBoxContainer.new()
+	rows_vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows_vb.add_theme_constant_override("separation", 8)
+	rows_scroll.add_child(rows_vb)
+
 	for key in CharacterData.STAT_KEYS:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -440,7 +452,7 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 		desc.add_theme_color_override("font_color", Color(0.66, 0.66, 0.74))
 		row.add_child(desc)
 
-		vb.add_child(row)
+		rows_vb.add_child(row)
 
 	vb.add_child(HSeparator.new())
 

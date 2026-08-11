@@ -13,6 +13,7 @@ signal clear_enemies_requested
 signal refill_requested
 signal add_ally_requested(character_name: String)
 signal grant_passive_requested(option)  # SkillTreeData.SkillOption
+signal add_item_requested(item_name: String)
 
 # card_id lists grouped by the character whose kit they belong to, matching
 # the canonical cards-and-passives spreadsheet (each character owns their full
@@ -45,6 +46,10 @@ var _passive_list: VBoxContainer = null
 var _passive_scroll: ScrollContainer = null
 var _enemy_realm_dd: OptionButton = null
 var _enemy_list: VBoxContainer = null
+var _item_type_dd: OptionButton = null
+var _item_list: VBoxContainer = null
+
+const ITEM_TYPE_ORDER := ["Helms", "Boots", "Gauntlets", "Weapons", "Other"]
 var _ally_dd: OptionButton = null
 var _ally_btn: Button = null
 var _open: bool = false
@@ -149,9 +154,15 @@ func _build_ui() -> void:
 	_panel.offset_bottom = -8.0
 	_panel.visible = false
 
+	# The whole panel scrolls when the window is short, so no section — or the
+	# utility buttons at the bottom — is ever cut off screen.
+	var outer_scroll := ScrollContainer.new()
+	outer_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_panel.add_child(outer_scroll)
 	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_theme_constant_override("separation", 6)
-	_panel.add_child(vbox)
+	outer_scroll.add_child(vbox)
 
 	var title := Label.new()
 	title.text = "SANDBOX"
@@ -241,6 +252,25 @@ func _build_ui() -> void:
 
 	vbox.add_child(HSeparator.new())
 
+	# ---- Add Item section (helms, boots, gauntlets, weapons, the lot) ----
+	vbox.add_child(_header("Add Item"))
+	_item_type_dd = OptionButton.new()
+	for label in ITEM_TYPE_ORDER:
+		_item_type_dd.add_item(label)
+	_item_type_dd.item_selected.connect(func(_i): _refresh_item_list())
+	vbox.add_child(_item_type_dd)
+	var item_scroll := ScrollContainer.new()
+	item_scroll.custom_minimum_size = Vector2(0, 150)
+	item_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(item_scroll)
+	_item_list = VBoxContainer.new()
+	_item_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_item_list.add_theme_constant_override("separation", 2)
+	item_scroll.add_child(_item_list)
+	_refresh_item_list()
+
+	vbox.add_child(HSeparator.new())
+
 	# ---- Utility buttons ----
 	var clear_btn := Button.new()
 	clear_btn.text = "Clear All Enemies"
@@ -251,6 +281,38 @@ func _build_ui() -> void:
 	refill_btn.pressed.connect(func(): refill_requested.emit())
 	vbox.add_child(refill_btn)
 
+
+func _refresh_item_list() -> void:
+	## Rebuild the Add Item list for the selected type. Every discovered item
+	## appears; clicking a row gives the item (equips, or stores when full).
+	if not _item_list:
+		return
+	for c in _item_list.get_children():
+		c.queue_free()
+	var want = ITEM_TYPE_ORDER[_item_type_dd.selected] if _item_type_dd else "Helms"
+	var rows: Array = []
+	for it in ItemData.get_all_items():
+		var bucket := "Other"
+		match it.item_type:
+			ItemData.ItemType.HELM: bucket = "Helms"
+			ItemData.ItemType.BOOTS: bucket = "Boots"
+			ItemData.ItemType.GAUNTLETS: bucket = "Gauntlets"
+			ItemData.ItemType.WEAPON: bucket = "Weapons"
+		if bucket == want:
+			rows.append(it)
+	rows.sort_custom(func(a, b):
+		if a.rarity != b.rarity:
+			return a.rarity < b.rarity
+		return a.item_name < b.item_name)
+	for it in rows:
+		var btn := Button.new()
+		btn.text = "%s  (%s)" % [it.item_name, ["Common", "Rare", "Legendary", "Mythic"][it.rarity]]
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.add_theme_font_size_override("font_size", 12)
+		btn.add_theme_color_override("font_color", it.get_rarity_color())
+		var nm: String = it.item_name
+		btn.pressed.connect(func(): add_item_requested.emit(nm))
+		_item_list.add_child(btn)
 
 func mark_ally_added() -> void:
 	## Called by Main once an ally is on the field — only one ally is supported.
