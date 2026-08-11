@@ -29,6 +29,11 @@ var quest_manager: QuestManager = null
 var _quest_panel: PanelContainer = null
 var _quest_panel_open: bool = false
 var _town_waypoint_node: Node3D = null
+# Return Scroll: the twin of a portal opened out in the world. Stepping through
+# it returns the player to the exact spot where they set it.
+var portal_return: Dictionary = {}
+var _return_portal_node: Node3D = null
+var _near_return_portal: bool = false
 var _near_town_waypoint: bool = false
 
 # Camera orbit state (same as main scene)
@@ -117,6 +122,10 @@ var vendor_info: Dictionary = {
 func _ready() -> void:
 	_unify_town_style()
 	player.set_grid_manager(grid_manager)
+
+	# The Return Scroll's twin portal shimmers beside the arrival spot.
+	if not portal_return.is_empty():
+		_spawn_return_portal()
 
 	if starting_character:
 		player.initialize_character(starting_character)
@@ -301,7 +310,15 @@ func _process(_delta: float) -> void:
 		if wp_label:
 			wp_label.visible = wp_dist < INTERACT_DISTANCE + 1
 
-	if _near_town_waypoint:
+	# Check proximity to the Return Scroll's twin portal
+	_near_return_portal = false
+	if is_instance_valid(_return_portal_node):
+		if player.position.distance_to(_return_portal_node.position) < INTERACT_DISTANCE:
+			_near_return_portal = true
+
+	if _near_return_portal:
+		interact_prompt.text = "Press [Shift] to step back through your portal"
+	elif _near_town_waypoint:
 		interact_prompt.text = "Press [Shift] to use Transport Portal"
 	elif nearby_vendor:
 		var info = vendor_info.get(nearby_vendor.name, null)
@@ -315,6 +332,9 @@ func _input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_SHIFT:
 				if _modal_open or vendor_open or _stash_open:
+					return
+				if _near_return_portal:
+					_go_to_battle(true)
 					return
 				if _near_town_waypoint:
 					_go_to_battle()
@@ -2654,7 +2674,7 @@ func _close_vendor() -> void:
 	vendor_panel.visible = false
 	print("[TOWN] Closed vendor")
 
-func _go_to_battle() -> void:
+func _go_to_battle(via_portal: bool = false) -> void:
 	if vendor_open:
 		_close_vendor()
 
@@ -2696,8 +2716,62 @@ func _go_to_battle() -> void:
 	main_scene.quest_state = saved_quest_state
 	main_scene.player_progression = saved_progression
 	main_scene.opened_chests = opened_chests
+	# Return Scroll: stepping through the twin drops the player back at the
+	# exact spot where they opened the portal (same world, same tile).
+	if via_portal and not portal_return.is_empty():
+		main_scene.current_world_level = portal_return.get("world_level", return_world_level)
+		main_scene.portal_return_position = portal_return.get("position")
 	get_tree().root.add_child(main_scene)
 	queue_free()
+
+func _spawn_return_portal() -> void:
+	## The twin of the Return Scroll portal, matching the battle-side visual.
+	var portal_root = Node3D.new()
+	portal_root.name = "ReturnPortal"
+	portal_root.position = player.position + Vector3(2.0, 0, 1.0)
+
+	var ring = MeshInstance3D.new()
+	var torus = TorusMesh.new()
+	torus.inner_radius = 0.55
+	torus.outer_radius = 0.75
+	ring.mesh = torus
+	ring.rotation_degrees = Vector3(90, 0, 0)
+	ring.position = Vector3(0, 1.1, 0)
+	var ring_mat = StandardMaterial3D.new()
+	ring_mat.albedo_color = Color(0.6, 0.25, 0.95)
+	ring_mat.emission_enabled = true
+	ring_mat.emission = Color(0.55, 0.2, 0.9)
+	ring_mat.emission_energy_multiplier = 1.6
+	ring.material_override = ring_mat
+	portal_root.add_child(ring)
+
+	var film = MeshInstance3D.new()
+	var disc = CylinderMesh.new()
+	disc.top_radius = 0.58
+	disc.bottom_radius = 0.58
+	disc.height = 0.05
+	film.mesh = disc
+	film.rotation_degrees = Vector3(90, 0, 0)
+	film.position = Vector3(0, 1.1, 0)
+	var film_mat = StandardMaterial3D.new()
+	film_mat.albedo_color = Color(0.75, 0.45, 1.0, 0.55)
+	film_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	film_mat.emission_enabled = true
+	film_mat.emission = Color(0.7, 0.4, 1.0)
+	film_mat.emission_energy_multiplier = 1.2
+	film.material_override = film_mat
+	portal_root.add_child(film)
+
+	var label = Label3D.new()
+	label.text = "Your Portal"
+	label.modulate = Color(0.85, 0.6, 1.0)
+	label.position = Vector3(0, 2.3, 0)
+	WorldText.crisp(label, 32)
+	portal_root.add_child(label)
+
+	_return_portal_node = portal_root
+	add_child(portal_root)
+	print("[TOWN] Return portal opened at %s" % portal_root.position)
 
 # ============================================
 # THE TOWN HALL (city loop — STORY.md §6)

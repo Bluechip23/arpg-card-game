@@ -66,6 +66,9 @@ func _test_on_kill_conjure() -> void:
 	print("-- On-kill conjuring --")
 	var inv = Inventory.new()
 	inv.initialize("Ryan")
+	# Mechanics test = testing ground: the story-mode mythic equip limit is off
+	# here, same as the sandbox (the doughnut is a Mythic).
+	inv.enforce_mythic_limit = false
 	var dm = DeckManager.new()
 	inv.connect_deck_manager(dm)
 
@@ -114,6 +117,9 @@ func _test_wooden_sword() -> void:
 	# Equipping brings Splinter into the deck; unequipping removes it
 	var inv = Inventory.new()
 	inv.initialize("Ryan")
+	# Mechanics test = testing ground: the story-mode mythic equip limit is off
+	# here, same as the sandbox (the doughnut is a Mythic).
+	inv.enforce_mythic_limit = false
 	var dm = DeckManager.new()
 	inv.connect_deck_manager(dm)
 	var gifted = ItemData.create_wooden_sword()
@@ -130,7 +136,7 @@ func _test_wooden_sword() -> void:
 func _test_splinter_and_bleed() -> void:
 	print("-- Splinter and enemy bleed --")
 	var s = Card.create_splinter()
-	_check(s.mana_cost == 2 and s.tempo_cost == 2, "Splinter costs 2 mana / 2 tempo")
+	_check(s.mana_cost == 20 and s.tempo_cost == 2, "Splinter costs 20 mana / 2 tempo (post mana rescale)")
 	_check(s.is_ranged and s.get_effective_range() == 3, "Splinter has range 3")
 	_check(s.base_damage == 0, "Splinter deals no direct damage")
 

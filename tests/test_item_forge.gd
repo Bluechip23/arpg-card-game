@@ -249,9 +249,15 @@ func _test_loot_pools() -> void:
 		_check(pool.size() > 0, "rarity tier %d has %d item(s)" % [r, pool.size()])
 		for item in pool:
 			_check(item.item_level == 1, "%s drops at level 1" % item.item_name)
+	# Mythics exist across the gear slots now (helms, boots, gauntlets) alongside
+	# the story's Bladed Doughnut — every one of them must reach forge level 3.
+	var mythic_count := 0
 	for item in ItemData.get_all_items():
-		_check(item.rarity != ItemData.Rarity.MYTHIC or item.item_name == "Bladed Doughnut",
-			"%s: the Bladed Doughnut is the only mythic" % item.item_name)
+		if item.rarity == ItemData.Rarity.MYTHIC:
+			mythic_count += 1
+			_check(item.get_max_level() == 3,
+				"%s (mythic) forges to level 3" % item.item_name)
+	_check(mythic_count > 1, "the roster carries %d mythics" % mythic_count)
 
 	var by_name = ItemData.create_by_name("Wooden Sword")
 	_check(by_name != null and by_name.item_name == "Wooden Sword", "create_by_name finds items")

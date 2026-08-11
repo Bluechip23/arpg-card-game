@@ -70,6 +70,13 @@ var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
 var _corpses: Array = []         # {cell: Vector2i, position: Vector3} left by dead enemies, for resurrection
 var _fire_spots: Array = []      # Elemental Trail Blazers: {cell, tempo, damage, node}
 var _purge_cycle_accum: int = 0  # Horned Nasal Helm: cycles banked toward the next auto-purge
+var _wolves: Array = []          # Gauntlets of Dungeon Mastering: summoned wolves
+const WolfScript = preload("res://scripts/battle/summoned_wolf.gd")
+var _smoke_zones: Array = []     # smoke bomb: {position, tempo}
+var _three_count_cd: int = 0     # Mits of Chingiz: cycles until 3 count can fire again
+var _offensive_streak: int = 0   # consecutive offensive cards played (3 count)
+var _cuffs_cycle_accum: int = 0  # Cuffs of Current: cycles banked toward the next free draw
+var _spiked_armor_accum: int = 0 # Spiked Mitts: armor gained banked toward the next thorns grant
 const FrankensteinScript = preload("res://scripts/battle/frankensteins_monster.gd")
 var minimap_tab_ui: MinimapTabUI = null
 var player2_ui: Player2UI = null
@@ -618,6 +625,27 @@ func _ready() -> void:
 			quest_manager.quest_updated.connect(_on_quest_activity_upd)
 			quest_manager.quest_completed.connect(_on_quest_activity_id)
 	_refresh_hud_notifications()
+	# Stepped back through the town-side twin of a Return Scroll portal:
+	# restore the player to where they set it and re-open the battle-side end.
+	if portal_return_position != null:
+		call_deferred("_apply_portal_return")
+
+func _apply_portal_return() -> void:
+	if portal_return_position == null or not player:
+		return
+	var back = portal_return_position
+	portal_return_position = null
+	var cell = grid_manager.world_to_grid(back)
+	# Land beside the portal tile, not inside it.
+	var land = cell + Vector2i(0, 1)
+	if land in player.blocked_tiles:
+		land = cell + Vector2i(1, 0)
+	var world = grid_manager.grid_to_world(land)
+	player.position = Vector3(world.x, player.position.y, world.z)
+	if "target_position" in player:
+		player.target_position = player.position
+	spawn_town_portal(back)
+	add_battle_log("You step back through your portal.", Color(0.8, 0.55, 1.0))
 
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
@@ -3546,6 +3574,10 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().action_points_spent.connect(_on_action_points_spent)
 	player.get_stats().movement_flash_threshold_reached.connect(_on_movement_flash_threshold)
 	player.get_stats().consecutive_attacks_reached.connect(_on_consecutive_attacks_reached)
+	player.get_stats().attack_fully_blocked.connect(_on_attack_fully_blocked)
+	player.get_stats().armor_gained.connect(_on_armor_gained_spiked)
+	if player.get_inventory():
+		player.get_inventory().gauntlet_world_skill.connect(_on_gauntlet_world_skill)
 	_update_flash_button()
 	_update_brain_button()
 	# The skill tree screen spends the banked level-up stat points.
@@ -3866,6 +3898,7 @@ func _setup_sandbox() -> void:
 	sandbox_ui.name = "SandboxUI"
 	add_child(sandbox_ui)
 	sandbox_ui.add_card_requested.connect(_on_sandbox_add_card)
+	sandbox_ui.add_item_requested.connect(_on_give_item)
 	sandbox_ui.spawn_enemy_requested.connect(_on_sandbox_spawn_enemy)
 	sandbox_ui.clear_enemies_requested.connect(_on_sandbox_clear_enemies)
 	sandbox_ui.refill_requested.connect(_sandbox_refill)
@@ -4476,7 +4509,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()
 	# Summons are ordinary units to enemy target selection
-	enemy_spawner.summons = _frankensteins + _summoned_worms
+	enemy_spawner.summons = _frankensteins + _summoned_worms + _wolves
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
@@ -4490,6 +4523,9 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_frankensteins(amount)
 	# Elemental Trail Blazers: fire spots burn enemies then fade.
 	_update_fire_spots(amount)
+	# Wolves hunt on their own cadence; smoke clouds shelter then disperse.
+	_update_wolves(amount)
+	_update_smoke_zones(amount)
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
@@ -4695,6 +4731,8 @@ func _on_all_enemies_defeated() -> void:
 	_clear_summoned_worms()
 	_clear_frankensteins()
 	_clear_fire_spots()
+	_clear_wolves()
+	_smoke_zones.clear()
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
@@ -7274,6 +7312,11 @@ func _helm_card_world_effects(card) -> void:
 				nearest.take_damage(inst_dmg, true)
 				add_battle_log("%s: %d damage to %s" % [card.slotted_in_item.item_name, inst_dmg, nearest.enemy_name], Color(0.8, 0.7, 0.4))
 
+	# Gauntlets of Dungeon Mastering: a slotted card play summons a wolf.
+	var wolf_count := int(osb.get("summon_wolf", 0))
+	for _wi in range(wolf_count):
+		_spawn_wolf()
+
 	# Houdinis Slippers: any slotted card turns the player invisible for a while.
 	var invis_tempo := int(osb.get("invisible_tempo", 0))
 	if invis_tempo > 0:
@@ -7349,6 +7392,235 @@ func _update_fire_spots(amount: int) -> void:
 		else:
 			survivors.append(spot)
 	_fire_spots = survivors
+
+# ============================================
+# WOLVES (Gauntlets of Dungeon Mastering)
+# ============================================
+
+const WOLF_PACK_CAP := 3
+
+func _spawn_wolf() -> void:
+	if not grid_manager or not player:
+		return
+	_wolves = _wolves.filter(func(w): return is_instance_valid(w) and not w.is_dead)
+	if _wolves.size() >= WOLF_PACK_CAP:
+		add_battle_log("The pack is full (%d wolves)." % WOLF_PACK_CAP, Color(0.7, 0.7, 0.8))
+		return
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var spawn_cell = player_cell + Vector2i(1, 0)
+	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+		var c = player_cell + off
+		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+			spawn_cell = c
+			break
+	var wolf = WolfScript.new()
+	add_child(wolf)
+	wolf.setup(grid_manager, grid_manager.grid_to_world(spawn_cell))
+	wolf.died.connect(func(w): _wolves.erase(w))
+	_wolves.append(wolf)
+	add_battle_log("A wolf answers the call! (%d in the pack)" % _wolves.size(), Color(0.7, 0.7, 0.8))
+
+func _clear_wolves() -> void:
+	for w in _wolves:
+		if is_instance_valid(w):
+			w.queue_free()
+	_wolves.clear()
+
+## Per-tempo wolf AI: moves 2 tiles per 3 tempo toward the nearest enemy,
+## attacks every 5 tempo when adjacent. Wolfpack: each OTHER living wolf grants
+## +20% attack damage and +1 bleed stack on hits.
+func _update_wolves(amount: int) -> void:
+	if _wolves.is_empty():
+		return
+	_wolves = _wolves.filter(func(w): return is_instance_valid(w) and not w.is_dead)
+	if not grid_manager or not enemy_spawner:
+		return
+	var enemies = enemy_spawner.get_living_enemies()
+	var blocked = player.blocked_tiles
+	var pack_others: int = max(0, _wolves.size() - 1)
+	var wolf_cells: Array = []
+	for w in _wolves:
+		wolf_cells.append(w.get_cell())
+	for w in _wolves.duplicate():
+		if not is_instance_valid(w) or w.is_dead:
+			continue
+		var target_enemy = _nearest_enemy_to(w.position, enemies)
+		if target_enemy == null:
+			continue
+		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		w.attack_accum += amount
+		if _manhattan(w.get_cell(), tcell) <= 1:
+			if w.attack_accum >= w.ATTACK_INTERVAL:
+				w.attack_accum -= w.ATTACK_INTERVAL
+				var dmg: int = floori(w.BASE_ATTACK * (1.0 + 0.2 * pack_others))
+				target_enemy.take_damage(dmg, true)
+				if target_enemy.has_method("apply_debuff"):
+					target_enemy.apply_debuff("bleed", 1 + pack_others)
+				add_battle_log("Wolf bites %s for %d (+%d bleed)!" % [target_enemy.enemy_name, dmg, 1 + pack_others], Color(0.7, 0.7, 0.8))
+			continue
+		w.move_accum += amount
+		if w.move_accum >= w.MOVE_INTERVAL:
+			w.move_accum -= w.MOVE_INTERVAL
+			var cur = w.get_cell()
+			wolf_cells.erase(cur)
+			for _step in range(w.MOVE_STEPS):
+				var tc = grid_manager.world_to_grid(target_enemy.position)
+				if _manhattan(cur, tc) <= 1:
+					break
+				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), wolf_cells)
+				if nxt == cur:
+					break
+				cur = nxt
+			wolf_cells.append(cur)
+			if cur != w.get_cell():
+				w.move_to_cell(cur)
+	_wolves = _wolves.filter(func(w): return is_instance_valid(w) and not w.is_dead)
+
+# ============================================
+# SMOKE ZONES (smoke bomb) & GAUNTLET TRIGGERS
+# ============================================
+
+## Allies inside a cloud (2-square radius) stay invisible and hold +10% crit.
+func _update_smoke_zones(amount: int) -> void:
+	# Reset the smoke crit; re-applied below for anyone still inside a cloud.
+	for p in _all_players():
+		if is_instance_valid(p) and p.get_stats():
+			p.get_stats().aura_crit_bonus = 0.0
+	if _smoke_zones.is_empty():
+		return
+	var survivors: Array = []
+	for zone in _smoke_zones:
+		zone["tempo"] -= amount
+		for p in _all_players():
+			if not is_instance_valid(p) or not p.get_stats():
+				continue
+			if grid_manager.get_distance_in_cells(zone["position"], p.position) <= 2:
+				p.get_stats().aura_crit_bonus = 10.0
+				var bm = p.get_buff_manager()
+				if bm:
+					bm.apply_buff(Buff.create_invisible(2, "smoke bomb"))
+		if zone["tempo"] > 0:
+			survivors.append(zone)
+	_smoke_zones = survivors
+
+## Return Cut: armor just ate an entire enemy hit.
+func _on_attack_fully_blocked() -> void:
+	if not deck_manager:
+		return
+	var triggered = deck_manager.trigger_reactions("on_attack_blocked")
+	for card in triggered:
+		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+	if triggered.size() > 0:
+		_refresh_unit_tracker()
+
+## Spiked Mitts: bank armor gained; every threshold, gain thorns.
+func _on_armor_gained_spiked(amount: int) -> void:
+	if not player:
+		return
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	for g in inv.equipped_gauntlets:
+		if g and g.armor_gain_thorns_threshold > 0:
+			_spiked_armor_accum += amount
+			while _spiked_armor_accum >= g.armor_gain_thorns_threshold:
+				_spiked_armor_accum -= g.armor_gain_thorns_threshold
+				var bm = player.get_buff_manager()
+				if bm:
+					bm.apply_buff(Buff.create_thorns(g.armor_gain_thorns_amount, 15, g.item_name))
+					add_battle_log("%s: +%d thorns!" % [g.item_name, g.armor_gain_thorns_amount], Color(0.8, 0.7, 0.5))
+			return
+
+## World-scale gauntlet skills (need grid/enemies/tempo — routed from inventory).
+func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> void:
+	var stats = player.get_stats() if player else null
+	match effect_id:
+		"coming_in":
+			# Pull yourself to the target from up to 5 squares.
+			if target and is_instance_valid(target) and grid_manager:
+				if grid_manager.get_distance_in_cells(player.position, target.position) > 5:
+					add_battle_log("Coming in!: too far — 5 squares max", Color(1.0, 0.4, 0.4))
+					return
+				var tcell = grid_manager.world_to_grid(target.position)
+				for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+					var c = tcell + off
+					if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+						player.blink_to(grid_manager.grid_to_world(c))
+						progression_triggers._trigger_skill_tree_on_displacement()
+						add_battle_log("Coming in!", Color(0.6, 0.8, 1.0))
+						return
+		"suck":
+			# Pull every enemy within 2 squares of the cursor point toward it.
+			var center = grid_manager.snap_to_grid(get_mouse_world_position())
+			var pulled := 0
+			for e in enemy_spawner.get_living_enemies():
+				if not e or not is_instance_valid(e):
+					continue
+				if grid_manager.get_distance_in_cells(center, e.position) <= 2:
+					var ccell = grid_manager.world_to_grid(center)
+					for off in [Vector2i.ZERO, Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+						var c = ccell + off
+						var taken := false
+						for other in enemy_spawner.get_living_enemies():
+							if other != e and is_instance_valid(other) and grid_manager.world_to_grid(other.position) == c:
+								taken = true
+								break
+						if not taken and not (c in player.blocked_tiles):
+							e.position = grid_manager.grid_to_world(c)
+							pulled += 1
+							break
+			add_battle_log("Suck: %d enem%s pulled in!" % [pulled, "y" if pulled == 1 else "ies"], Color(0.6, 0.5, 0.9))
+		"zeet":
+			if target and is_instance_valid(target) and target.has_method("take_damage") and stats:
+				var zdmg: int = int(stats.intelligence / 2.0)
+				target.take_damage(zdmg, true, DamageTypes.Type.LIGHTNING)
+				add_battle_log("Zeet! %d lightning damage" % zdmg, Color(0.5, 0.8, 1.0))
+				# Lv.3: one bounce for quarter damage to an enemy near the target.
+				if gauntlet.item_level >= 3:
+					var bounce = null
+					var bd := INF
+					for e in enemy_spawner.get_living_enemies():
+						if e != target and is_instance_valid(e) and grid_manager.get_distance_in_cells(target.position, e.position) <= 2:
+							var d = target.position.distance_to(e.position)
+							if d < bd:
+								bd = d
+								bounce = e
+					if bounce:
+						bounce.take_damage(maxi(1, zdmg / 4), true, DamageTypes.Type.LIGHTNING)
+						add_battle_log("Zeet bounces to %s!" % bounce.enemy_name, Color(0.5, 0.8, 1.0))
+		"slice":
+			# A basic melee strike (fist formula: STR-scaled from 0 base), 2 tempo.
+			if target and is_instance_valid(target) and target.has_method("take_damage") and stats:
+				var sdmg: int = stats.get_effective_physical_damage(0)
+				var bm = player.get_buff_manager()
+				if bm and bm.roll_crit():
+					sdmg = Card.crit_multiply(sdmg, stats)
+				target.take_damage(sdmg, true)
+				tempo_manager.add_tempo(2)
+				add_battle_log("Slice! %d damage (2 tempo)" % sdmg, Color(0.9, 0.7, 0.5))
+		"lethal_poke":
+			# 0-base melee; a crit is multiplied a further x1.5 on top.
+			if target and is_instance_valid(target) and target.has_method("take_damage") and stats:
+				var pdmg: int = stats.get_effective_physical_damage(0)
+				var pbm = player.get_buff_manager()
+				if pbm and pbm.roll_crit():
+					pdmg = floori(float(Card.crit_multiply(pdmg, stats)) * 1.5)
+					add_battle_log("Lethal Poke CRITS!", Color(1.0, 0.5, 0.5))
+				target.take_damage(pdmg, true)
+				add_battle_log("Lethal Poke: %d damage" % pdmg, Color(0.8, 0.8, 0.8))
+		"well_placed_guard":
+			var bm2 = player.get_buff_manager()
+			if bm2:
+				bm2.apply_buff(Buff.create_thorns(5, 15, "Well placed guard"))
+				add_battle_log("Well placed guard: +5 thorns", Color(0.8, 0.7, 0.5))
+		"imbue_tree":
+			var bm3 = player.get_buff_manager()
+			if bm3:
+				bm3.apply_buff(Buff.create_regen(5, 15, "imbue tree"))
+				bm3.apply_buff(Buff.create_thorns(10, 15, "imbue tree"))
+				add_battle_log("imbue tree: +5 regen, +10 thorns", Color(0.5, 0.9, 0.5))
+		_:
+			print("[MAIN] Unknown gauntlet world skill: %s" % effect_id)
 
 func _clear_fire_spots() -> void:
 	for spot in _fire_spots:
@@ -7439,6 +7711,24 @@ func _helm_on_cycle_passives() -> void:
 			aura_percent = helm.void_resistance_percent
 			aura_radius = helm.void_resistance_radius
 		summon_heal = maxi(summon_heal, helm.summon_heal_aura)
+
+	# Gauntlet cycle passives: Cuffs of Current free draw; 3 count cooldown tick.
+	if _three_count_cd > 0:
+		_three_count_cd -= 1
+	var cuffs_every := 0
+	for g in inv.equipped_gauntlets:
+		if g and g.draw_every_cycles > 0:
+			cuffs_every = g.draw_every_cycles
+			break
+	if cuffs_every > 0:
+		_cuffs_cycle_accum += 1
+		if _cuffs_cycle_accum >= cuffs_every:
+			_cuffs_cycle_accum = 0
+			if deck_manager:
+				deck_manager.draw_card()
+				add_battle_log("Cuffs of Current: free draw", Color(0.5, 0.8, 1.0))
+	else:
+		_cuffs_cycle_accum = 0
 
 	# Auto-purge runs on its own cadence (Horned Nasal: every 3 cycles).
 	if purge_count > 0:
@@ -7686,9 +7976,27 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	# Generic helm on-self world effects (independent of card_id).
 	_helm_card_world_effects(card)
 
+	# Mits of Chingiz "3 count": two offensive cards in a row add a Switch Kick
+	# to the hand (then a 20-tempo cooldown).
+	if card.is_offensive():
+		_offensive_streak += 1
+	else:
+		_offensive_streak = 0
+	if _offensive_streak >= 2 and _three_count_cd <= 0 \
+			and deck_manager.inventory and deck_manager.inventory.has_passive_effect("three_count"):
+		deck_manager.add_card_to_hand(Card.create_by_id("switch_kick"))
+		_three_count_cd = 4  # cycles
+		_offensive_streak = 0
+		add_battle_log("3 count! A Switch Kick slides into your hand", Color(0.9, 0.8, 0.5))
+
 	match card.card_id:
 		"its_alive":
 			_resurrect_frankenstein()
+
+		"smoke_bomb":
+			var smoke_pos = grid_manager.snap_to_grid(mouse_pos)
+			_smoke_zones.append({"position": smoke_pos, "tempo": 8})
+			add_battle_log("Smoke bomb! Allies inside vanish (8 tempo)", Color(0.7, 0.7, 0.7))
 
 		"shift":
 			# Rollerblades: free move, but bounded — up to 2 tiles.
@@ -9825,16 +10133,24 @@ func _sync_occupied_tiles() -> void:
 # ============================================
 
 var _town_portal_node: Node3D = null
+# Set by town when the player steps back through their portal: the world spot
+# to restore them to (and re-open the battle-side portal at).
+var portal_return_position = null
 
-func spawn_town_portal() -> void:
+func spawn_town_portal(at = null) -> void:
 	## Right-clicking the Return Scroll conjures a purple portal on the tile
-	## beside the player. [Shift] next to it travels home to town.
+	## beside the player (or exactly at `at` when re-opening after a return).
+	## [Shift] next to it travels home to town — where its twin awaits.
 	if is_instance_valid(_town_portal_node):
 		_town_portal_node.queue_free()
 
 	var portal_root = Node3D.new()
 	portal_root.name = "TownPortal"
-	var spot = grid_manager.snap_to_grid(player.position + Vector3(grid_manager.grid_size, 0, 0))
+	var spot
+	if at != null:
+		spot = at
+	else:
+		spot = grid_manager.snap_to_grid(player.position + Vector3(grid_manager.grid_size, 0, 0))
 	portal_root.position = Vector3(spot.x, 0, spot.z)
 
 	# Swirling purple oval — a flattened torus standing upright.
@@ -9897,8 +10213,16 @@ func _try_interact_town_portal() -> bool:
 			player.position.z - _town_portal_node.position.z).length()
 	if flat_dist > grid_manager.grid_size * 1.6:
 		return false
+	# Going through the scroll's portal: its twin opens in town, remembering
+	# this spot so stepping back through returns the player right here.
+	_pending_portal_return = {
+		"world_level": current_world_level,
+		"position": _town_portal_node.position,
+	}
 	_travel_to_town()
 	return true
+
+var _pending_portal_return: Dictionary = {}
 
 # ============================================
 # RISE PILLAR
@@ -10625,6 +10949,9 @@ func _travel_to_town() -> void:
 		town_scene.player_progression = saved_progression
 	if "opened_chests" in town_scene:
 		town_scene.opened_chests = opened_chests
+	# Arriving via the Return Scroll portal: hand town the twin's anchor.
+	if not _pending_portal_return.is_empty() and "portal_return" in town_scene:
+		town_scene.portal_return = _pending_portal_return
 	get_tree().root.add_child(town_scene)
 	queue_free()
 

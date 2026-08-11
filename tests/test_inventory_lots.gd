@@ -45,7 +45,7 @@ func _initialize() -> void:
 
 	# --- Passive modifiers land on the right characters ---
 	inv.initialize("Ryan")
-	_check(inv.belt_card_mana_reduction == 1, "Ryan: belt cards cost 1 less mana")
+	_check(inv.belt_card_mana_reduction == 10, "Ryan: belt cards cost 10 less mana (post mana rescale)")
 	inv.initialize("Brad")
 	_check(inv.has_back_rack, "Brad: carries the War Rack (baseline hand slots)")
 	inv.initialize("Brad")
@@ -92,8 +92,8 @@ func _initialize() -> void:
 	panel.inventory = inv
 
 	inv.initialize("Ryan")
-	_check(_badge_tip(panel, ItemData.ItemType.BELT, 0).contains("1 less mana"),
-		"Ryan: belt slots carry the -1 mana badge")
+	_check(_badge_tip(panel, ItemData.ItemType.BELT, 0).contains("10 less mana"),
+		"Ryan: belt slots carry the -10 mana badge (post mana rescale)")
 	_check(_badge_tip(panel, ItemData.ItemType.GAUNTLETS, 0) == "",
 		"Ryan: gauntlet slots carry no badge")
 	_check(_badge_tip(panel, ItemData.ItemType.WEAPON, 0) == "",

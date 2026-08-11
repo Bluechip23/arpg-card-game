@@ -161,6 +161,7 @@ var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gea
 var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
 var equipment_armorless_defense_block: int = 0  # armor granted by DEFENSE cards that grant none themselves (Burgonet)
 var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
+var temp_crit_damage_bonus: float = 0.0      # one-shot +crit-damage multiplier for the resolving card (Feathered Hat 0.10)
 var flash_crit_accum: int = 0                # Feathered Hat: flash points spent toward the next armed crit
 var flash_crit_armed: bool = false           # Feathered Hat: next ranged offensive card is a guaranteed crit
 # Wizard Hat: every Nth attack arms +spell power on the next spell card played.
@@ -183,6 +184,18 @@ var consecutive_attacks: int = 0             # Cyde Livingstons Sneakers streak 
 var consecutive_attacks_draw_at: int = 0     # streak length that triggers a draw (Cyde 5)
 signal consecutive_attacks_reached           # main draws a card
 var aura_physical_resist: float = 0.0        # Guardian Greaves aura: % physical resist, refreshed each cycle
+# Gauntlets pass
+var equipment_crit_damage_bonus: float = 0.0 # +crit damage multiplier from gear (Sleeved Katar 0.25)
+var equipment_attack_card_damage: int = 0    # +X damage on attack cards (generic channel)
+var equipment_melee_card_damage: int = 0     # +X damage on melee offensive cards only (Brass Knuckles)
+var pending_melee_damage_bonus: int = 0      # next melee offensive card +X (Katar's Defense One with Offense)
+var equipment_armor_loss_regen_threshold: int = 0  # Hallowed Trunk: armor lost per regen stack (0 = off)
+var equipment_regen_include_health: bool = false   # Hallowed Trunk Lv3: health lost counts too
+var aura_crit_bonus: float = 0.0             # smoke bomb zone: +% crit while inside (refreshed per tick)
+var last_attacker = null                     # enemy that is currently striking us (Return Cut)
+signal attack_fully_blocked                  # armor absorbed an entire hit (Return Cut trigger)
+var _armor_loss_accum: int = 0
+var _health_loss_accum: int = 0
 # Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
 var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0
@@ -321,7 +334,7 @@ var st_expel_charges: int = 2          # Expel Negativity: shared charge pool (2
 var st_expel_last_used_tempo: int = -100  # Expel Negativity: global tempo when charges were last exhausted
 var st_enraged_will_last_tempo: int = -100  # Enraged Will: global tempo of the last AOE swing (10 tempo cooldown)
 var st_cards_this_cycle: Array[String] = []  # Self Reliance: card types played this tempo cycle
-var st_self_reliance_discount: bool = false   # Self Reliance: next card costs -1m
+var st_self_reliance_discount: bool = false   # Self Reliance: next card costs -10m
 var st_budding_types: Array[String] = []     # Budding: card types played (no back-to-back)
 var st_budding_last_type: String = ""         # Budding: last card type to prevent back-to-back
 var st_serial_killer_enemies: Dictionary = {} # Serial Killer: enemies already triggered (enemy_id -> true)
@@ -1148,7 +1161,7 @@ func get_crit_damage_multiplier() -> float:
 	## Uses effective Dexterity, so Determination swings crit damage too.
 	## Deadly adds +50% while resolving an attack on an isolated target.
 	var deadly_bonus := 0.5 if st_deadly_crit_active else 0.0
-	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus
+	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + equipment_crit_damage_bonus + temp_crit_damage_bonus
 
 ## Mountain Boots: +% damage while attacking from high ground.
 func _apply_highground(damage: int) -> int:
@@ -1335,15 +1348,25 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 
 		var effective_armor = floori(current_armor * armor_effectiveness)
 
+		var armor_before := current_armor
 		if effective_armor >= remaining:
 			var armor_used = ceili(remaining / armor_effectiveness) if armor_effectiveness > 0 else remaining
 			current_armor = max(0, current_armor - armor_used)
 			remaining = 0
 			print("[STATS] Armor absorbed damage. Armor: %d" % current_armor)
+			# Return Cut: the whole hit was eaten by armor.
+			attack_fully_blocked.emit()
 		else:
 			remaining -= effective_armor
 			current_armor = 0
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
+
+		# Hallowed Trunk: bank armor lost toward regen stacks.
+		if equipment_armor_loss_regen_threshold > 0 and buff_mgr:
+			_armor_loss_accum += armor_before - current_armor
+			while _armor_loss_accum >= equipment_armor_loss_regen_threshold:
+				_armor_loss_accum -= equipment_armor_loss_regen_threshold
+				buff_mgr.apply_buff(Buff.create_regen(1, 15, "Hallowed Trunk"))
 
 		armor_changed.emit(current_armor)
 
@@ -1370,6 +1393,12 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 			remaining -= mana_share
 
 	if remaining > 0:
+		# Hallowed Trunk Lv3: health lost also banks toward regen stacks.
+		if equipment_armor_loss_regen_threshold > 0 and equipment_regen_include_health and buff_mgr:
+			_health_loss_accum += remaining
+			while _health_loss_accum >= equipment_armor_loss_regen_threshold:
+				_health_loss_accum -= equipment_armor_loss_regen_threshold
+				buff_mgr.apply_buff(Buff.create_regen(1, 15, "Hallowed Trunk"))
 		var old_pct = get_health_percent()
 		current_health = max(0, current_health - remaining)
 		health_changed.emit(current_health, max_health)
