@@ -835,7 +835,7 @@ static func create_the_headbandz() -> ItemData:
 	item.granted_card_ids = headbandz_cards
 	item.description = "No stats. Cards slotted in its 5 slots cost 20% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 3 tempo)."
 	_set_appearance(item, "the_headbandz",
-		"A wide band of sweat-stained indigo cloth, knotted at the right temple with the tails left long enough to whip about. Five little gems are sewn along the brow — one per slot — and they dim as the mana drains out of them.")
+		"A headband with three cards slotted upright across the front, faces out — everyone can read them but you.")
 	item.level_3_overrides = {"on_self_mana_reduction_percent": 35.0}
 	# Out of Guesses dropping to 1 tempo at Lv.3 is read live off item_level
 	# (see Card.get_burden_tempo_cost).
@@ -865,7 +865,7 @@ static func create_hanibals_mask() -> ItemData:
 	item.granted_card_ids = hanibals_cards
 	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 5% (20 mana, 2 tempo)."
 	_set_appearance(item, "hanibals_mask",
-		"A muzzle of dark leather with a steel grate bolted over the mouth and a strap running cheek to cheek into brass buckles. The straps are drawn tight enough to leave marks, and the whole thing is always faintly warm.")
+		"Hannibal Lecter's mask: a hard leather muzzle strapped over the lower face, with a steel grille bolted across the mouth.")
 	item.level_3_overrides = {"health_bonus": 50}
 	# Resourceful Replenish maintaining at 8% at Lv.3 is read live off item_level
 	# (see the maintained-lifesteal block in Card.execute).
@@ -886,7 +886,7 @@ static func create_mane_of_narashimha() -> ItemData:
 		"determination_bonus": 7, "void_resistance_percent": 8.0}
 	item.level_3_description = "+12 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void resistance aura: lower all nearby enemies' resistances by 8% (2-square radius)."
 	_set_appearance(item, "mane_of_narashimha",
-		"A lion's mane worn as a hood, the fur gone gold-white at the tips and combed out in a ragged halo. It frames a hollow where a face should be; two amber eyes catch the light from somewhere inside it, and the upper fangs are still set in the brow.")
+		"An enormous lion's mane. It hoods the top of the head and falls all the way down the back to mid-spine.")
 	item.description = "+10 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius)."
 	return item
 
@@ -1095,7 +1095,7 @@ static func create_boots_of_the_balancer() -> ItemData:
 		"granted_card_ids": ["tight_rope", "tight_rope"]}
 	item.level_3_description = "+16 health, +4 WIS, +6 STR, +3 DET. On-self: gain 5 armor for each 6% health you are missing. Grants two copies of Tight rope."
 	_set_appearance(item, "boots_of_the_balancer",
-		"Close-laced boots with a brass scale-and-beam stamped down each shaft, the two pans hanging dead level no matter how you stand. The soles are wrapped in rope for grip on a wire.")
+		"The thin, flexible shoes a tightrope walker works in.")
 	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health and 15 Strengthen. Upgraded: each 6% missing health; Tight rope gains a second copy."
 	return item
 
@@ -1109,7 +1109,7 @@ static func create_hermes_boots() -> ItemData:
 	item.level_3_description = "+6 AGI. On-self: restore 1 flash point. Your traps deal 50% more damage."
 	item.description = "+4 AGI. On-self: restore 1 flash point. Your traps deal 25% more damage. Upgraded: +6 AGI; traps deal 50% more."
 	_set_appearance(item, "hermes_boots",
-		"Weightless sandals of pale wrapped leather with a white feathered wing at each ankle. They rest a finger's width above the ground and never gather dust.")
+		"Hermes' famous slippers, with a feathered wing sweeping off each side.")
 	return item
 
 static func create_jordan_1s() -> ItemData:
@@ -1125,7 +1125,7 @@ static func create_jordan_1s() -> ItemData:
 	item.level_3_description = "+8 AGI, +9 DET, +9 STR, +8 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
 	item.description = "+6 AGI, +7 DET, +7 STR, +6 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
 	_set_appearance(item, "jordan_1s",
-		"High-tops in red and bone-white leather, double-laced to the ankle, with a padded collar and a long white swoop cutting down the flank. However far you walk in them, they come back spotless.")
+		"Black and red Jordan 1s.")
 	return item
 
 static func create_guardian_greaves() -> ItemData:
@@ -1142,8 +1142,9 @@ static func create_guardian_greaves() -> ItemData:
 	# world effect in main.gd); no field changes at Lv.3.
 	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, give 6 health and mana regen to all allies (you included) within 4 squares, plus 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
 	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, give 6 health and mana regen to all allies (you included) within 4 squares, plus 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	# Modelled on DOTA 2's Guardian Greaves.
 	_set_appearance(item, "guardian_greaves",
-		"Full plate greaves, heavy as an anvil, banded across the shin and stamped with a gold shield at the knee. A soft light bleeds out of the seams and falls on whoever stands beside you.")
+		"Holy plate warboots, steel banded in gold and winged at the ankle, with a healing light spilling out of the seams.")
 	return item
 
 static func create_chain_crocs() -> ItemData:
@@ -1338,7 +1339,7 @@ static func create_gauntlets_of_dungeon_mastering() -> ItemData:
 	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
 	item.level_3_description = "+3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
 	_set_appearance(item, "gauntlets_of_dungeon_mastering",
-		"A worn leather glove, split-fingered and ink-stained, with a gold twenty-sided die set into the back of the hand. Nobody has ever caught it moving, but it is never showing the number you left it on.")
+		"Silver gauntlets with a twenty-sided die set on each of the knuckles.")
 	item.description = "+3 WIS, +4 INT, +3 STR. On-self: summon a wolf, up to a pack of 3 (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
 	return item
 
@@ -1352,7 +1353,7 @@ static func create_hallowed_trunk() -> ItemData:
 	item.level_3_overrides = {"health_bonus": 30, "regen_include_health": true}
 	item.level_3_description = "+10 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
 	_set_appearance(item, "hallowed_trunk",
-		"Bark grown into the shape of an arm — a whole hollowed trunk, knot-holed and split, with sap beading in the cracks and two green shoots pushing out of the knuckles. It is still growing.")
+		"A hollowed-out tree trunk, worn over the arm, with fluorescent green butterflies resting on the bark.")
 	item.description = "+10 STR, +15 life, -3 DEX. Every 10 armor removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
 	return item
 
@@ -1365,7 +1366,7 @@ static func create_cuffs_of_current() -> ItemData:
 	item.level_3_overrides = {"intelligence_bonus": 8}
 	item.level_3_description = "+8 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal INT/2 damage; bounces once, dealing 1/4 damage to an enemy near the target (15 tempo CD)."
 	_set_appearance(item, "cuffs_of_current",
-		"Twin steel cuffs left unfinished at the seam, with a live arc of blue lightning crossing the gap where the metal should meet. Your hair stands up the moment you buckle them on.")
+		"Four gold rings — one at each wrist and one just below each elbow — with light blue electricity coming off them.")
 	item.description = "+6 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal damage equal to your INT / 2 (15 tempo CD)."
 	return item
 
@@ -1381,7 +1382,7 @@ static func create_concealed_carry() -> ItemData:
 		"gauntlet_skill_cooldown": 2}
 	item.level_3_description = "+5 DEX, +5 AGI, +1 hand size. Grants smoke bomb. Skill — Lethal Poke (10 tempo CD)."
 	_set_appearance(item, "concealed_carry",
-		"A plain strapped forearm wrap you would not look at twice, buckled at the elbow. A spring-loaded blade lies folded flat along the underside of the wrist, and there is a small holster stitched inside the cuff.")
+		"Gauntlets that appear to be made of clouds of smoke.")
 	item.description = "+2 DEX, +2 AGI, +1 hand size. Grants smoke bomb: a 2-square cloud granting allies inside invisibility and 10% crit while they stay in it (8 tempo; card jailed 20 after play). Skill — Lethal Poke: 0-base melee attack; crits deal x1.5 on top of the crit (15 tempo CD)."
 	return item
 

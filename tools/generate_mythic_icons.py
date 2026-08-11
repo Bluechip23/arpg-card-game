@@ -45,6 +45,9 @@ MATS = {
     "dark":    dict(hi="453f60", base="452e5b", sh="2b2540", core="2b2540"),
     "spark":   dict(hi="f2fdff", base="737ec4", sh="4539b8", core="2b2540"),
     "teal":    dict(hi="62a3b0", base="4e8c8c", sh="32716c", core="205858"),
+    # Light-blue arc current, and the gray-violet billow of smoke.
+    "current": dict(hi="f2fdff", base="62a3b0", sh="3e6794", core="2b2540"),
+    "smoke":   dict(hi="b6c5c5", base="686878", sh="52525f", core="453f60"),
 }
 
 
@@ -201,21 +204,23 @@ def bladed_doughnut():
 def the_headbandz():
     ## "A wide indigo band knotted at the side with long tails, five little
     ## gems sewn along the brow."
+    ## "Three cards slotted upright across the front of the band, faces out."
     c = Canvas()
-    # Brow band straight across, tapering slightly at the far end.
-    c.rect((1, 11, 23, 19), "cloth")
-    c.rect((1, 12, 2, 18), "cloth", "hi")
-    c.rect((1, 18, 23, 18), "cloth", "sh")
-    # Knot on the right temple, with two tails trailing down off it.
-    c.ellipse((21, 9, 28, 20), "cloth")
-    c.rect((23, 9, 25, 20), "cloth", "sh")
-    c.poly([(25, 19), (28, 20), (29, 29), (26, 29)], "cloth")
-    c.poly([(20, 19), (23, 20), (21, 29), (18, 27)], "cloth")
-    c.carve(_rect_mask((24, 21, 25, 31)))
-    # Five gems sewn along the brow — one per card slot.
-    for gx in (3, 7, 11, 15, 19):
-        c.rect((gx, 14, gx + 1, 16), "gold")
-        c.dot(gx, 14, "gold", "hi")
+    # The three cards stand above the band, the middle one riding highest,
+    # each in its own dark sleeve so they read as three separate cards.
+    for i, cx in enumerate((2, 12, 22)):
+        top = 2 if i == 1 else 5
+        c.rect((cx - 1, top - 1, cx + 8, 21), "dark")
+        c.rect((cx, top, cx + 7, 21), "bone")
+        c.rect((cx + 1, top + 1, cx + 6, top + 2), "cloth", "hi")  # header band
+        c.rect((cx + 2, top + 5, cx + 5, top + 10), "cloth")       # the pip
+    # The band itself, wrapped across the bottom of the cards.
+    c.rect((1, 20, 30, 27), "cloth")
+    c.rect((1, 21, 30, 21), "cloth", "hi")
+    c.rect((1, 26, 30, 26), "cloth", "sh")
+    for sx in range(3, 30, 6):  # stitching along the band
+        c.dot(sx, 23, "cloth", "sh")
+        c.dot(sx + 1, 24, "cloth", "sh")
     return c
 
 
@@ -244,255 +249,237 @@ def scholars_cap():
 
 
 def hanibals_mask():
-    ## "A muzzle of dark leather, steel grate over the mouth, two buckles at
-    ## the temple, straps pulled tight."
+    ## Hannibal Lecter's mask: a hard leather muzzle over the lower face with a
+    ## steel grille bolted across the mouth, strapped around the head.
     c = Canvas()
-    # Straps running off both cheeks, pulled tight into buckles at the ends.
-    c.rect((1, 12, 30, 15), "leather", "sh")
-    c.rect((1, 11, 4, 16), "gold")
-    c.rect((27, 11, 30, 16), "gold")
-    # Mask face.
-    c.ellipse((7, 3, 24, 29), "leather")
-    c.rect((7, 10, 24, 24), "leather")
-    # Eye slits.
-    c.rect((10, 9, 13, 11), "dark", "sh")
-    c.rect((18, 9, 21, 11), "dark", "sh")
-    c.dot(10, 9, "dark", "hi")
-    c.dot(18, 9, "dark", "hi")
-    # Steel grate over the mouth: five bars behind two bands.
-    c.rect((9, 16, 22, 26), "dark", "sh")
+    # Straps: one over the crown, one around the head, buckled at both cheeks.
+    c.rect((2, 13, 29, 16), "leather", "sh")
+    c.rect((13, 1, 18, 12), "leather", "sh")
+    c.rect((2, 12, 5, 17), "iron")
+    c.rect((26, 12, 29, 17), "iron")
+    # The muzzle: covers the nose down to the chin, tapering to the jaw.
+    c.poly([(8, 8), (23, 8), (24, 20), (20, 27), (11, 27), (7, 20)], "leather")
+    c.rect((10, 6, 21, 9), "leather")
+    # Breathing holes punched over the nose.
+    for hx in (13, 16, 19):
+        c.dot(hx, 10, "dark", "sh")
+    # The grille: vertical bars crossed by two horizontals, over the mouth.
+    c.rect((9, 14, 22, 24), "dark", "sh")
     for bx in range(10, 23, 3):
-        c.rect((bx, 16, bx, 26), "steel")
-    c.rect((9, 18, 22, 19), "steel", "sh")
-    c.rect((9, 23, 22, 24), "steel", "sh")
-    # Stitched seam down the nose.
-    c.line([(15, 12), (15, 15)], "leather", "sh")
+        c.rect((bx, 14, bx, 24), "iron", "hi")
+    c.rect((9, 16, 22, 16), "iron", "hi")
+    c.rect((9, 22, 22, 22), "iron", "hi")
     return c
 
 
 def mane_of_narashimha():
-    ## "A lion's mane worn like a hood, gold-white at the tips, framing a dark
-    ## hollow. Amber eyes inside it; the upper fangs still sit in the brow."
+    ## A huge lion's mane: it hoods the top of the head and falls all the way
+    ## down the back to mid-spine.
     c = Canvas()
-    # Ragged mane: a disc with fur spikes pushed out all the way round.
-    for i in range(12):
-        ang = i / 12.0
-        dx = [1, 0.87, 0.5, 0, -0.5, -0.87, -1, -0.87, -0.5, 0, 0.5, 0.87][i]
-        dy = [0, 0.5, 0.87, 1, 0.87, 0.5, 0, -0.5, -0.87, -1, -0.87, -0.5][i]
-        tip = (16 + dx * 15.5, 16 + dy * 15.5)
-        c.poly([(16 + (dx * 10 - dy * 4), 16 + (dy * 10 + dx * 4)),
-                (16 + (dx * 10 + dy * 4), 16 + (dy * 10 - dx * 4)),
-                tip], "gold")
-    c.ellipse((3, 3, 28, 28), "gold")
-    c.ellipse((6, 6, 25, 25), "leather")
-    # Fur strands combed outward through the inner ring.
-    for i in range(12):
-        a = math.tau * (i + 0.5) / 12.0
-        c.line([(16 + math.cos(a) * 7, 16 + math.sin(a) * 7),
-                (16 + math.cos(a) * 11, 16 + math.sin(a) * 11)], "leather", "sh")
-    # The face hollow, with a muzzle pushed out of the dark.
-    c.ellipse((9, 10, 22, 26), "dark")
-    c.ellipse((12, 17, 19, 23), "leather", "sh")
-    c.rect((15, 18, 16, 19), "dark", "sh")
-    # Amber eyes above, upper fangs biting down out of the muzzle.
-    c.rect((11, 14, 12, 15), "gold", "hi")
-    c.rect((19, 14, 20, 15), "gold", "hi")
-    c.dot(14, 22, "bone", "hi")
-    c.dot(14, 23, "bone", "hi")
-    c.dot(17, 22, "bone", "hi")
-    c.dot(17, 23, "bone", "hi")
+    # The fall: from the shoulders it hangs straight down the back, widening.
+    c.poly([(8, 8), (23, 8), (26, 20), (25, 29), (6, 29), (5, 20)], "gold")
+    # The hood over the crown.
+    c.ellipse((7, 1, 24, 16), "gold")
+    # Shaggy edge down both sides and a ragged fringe along the bottom.
+    for sy in range(9, 29, 3):
+        w = 4 + (sy - 9) // 6
+        c.poly([(7, sy), (7, sy + 3), (7 - w, sy + 2)], "gold")
+        c.poly([(24, sy), (24, sy + 3), (24 + w, sy + 2)], "gold")
+    for fx in range(5, 26, 4):
+        c.poly([(fx, 26), (fx + 4, 26), (fx + 2, 31)], "gold")
+    # Tufts over the crown.
+    for i in range(7):
+        a = math.pi + math.pi * i / 6.0
+        c.poly([(15.5 + math.cos(a) * 8, 8 + math.sin(a) * 7),
+                (15.5 + math.cos(a) * 9.5, 8 + math.sin(a) * 8.5),
+                (15.5 + math.cos(a) * 11, 8 + math.sin(a) * 10)], "gold")
+    # Fur combed downward through the fall.
+    for fx in range(8, 25, 3):
+        c.line([(fx, 14), (fx - 1, 27)], "gold", "sh")
+    # The face opening at the front of the hood.
+    c.ellipse((11, 4, 20, 15), "dark")
+    c.ellipse((13, 6, 18, 13), "dark", "sh")
     return c
 
 
 def boots_of_the_balancer():
-    ## "Close-laced boots with a brass scale-and-beam stamped on the shaft,
-    ## pans hanging level, soles wrapped in rope."
+    ## Shoes made for walking a tightrope: thin, flexible, and shown on the wire.
     c = Canvas()
-    # Boot: shaft above, foot striding forward, rope-wrapped sole.
-    c.poly([(8, 2), (19, 2), (20, 19), (7, 19)], "leather")
-    c.poly([(7, 18), (20, 18), (27, 22), (29, 26), (7, 26)], "leather")
-    c.rect((6, 26, 29, 28), "bone", "sh")
-    for rx in range(7, 29, 3):
-        c.dot(rx, 27, "bone", "hi")
-    # Brass scale stamped on the shaft: post, beam, two pans hanging level.
-    c.rect((13, 4, 14, 16), "gold")
-    c.rect((9, 6, 18, 6), "gold")
-    for cx in (9, 18):  # chains down to the pans
-        c.line([(cx, 7), (cx, 9)], "gold", "sh")
-    c.poly([(7, 10), (11, 10), (10, 12), (8, 12)], "gold", "hi")
-    c.poly([(16, 10), (20, 10), (19, 12), (17, 12)], "gold", "hi")
-    c.rect((8, 12, 10, 12), "gold", "sh")
-    c.rect((17, 12, 19, 12), "gold", "sh")
-    # Close lacing over the instep.
-    for ly in range(20, 26, 2):
-        c.line([(21, ly), (25, ly + 1)], "bone", "hi")
+    # The wire, taut across the icon, the shoe balanced on top of it.
+    c.rect((0, 24, 31, 24), "bone", "hi")
+    c.rect((0, 25, 31, 25), "bone", "sh")
+    # One slim shoe in profile, sitting mid-wire: heel back-left, toe forward.
+    c.poly([(7, 11), (13, 9), (19, 12), (23, 17), (25, 22), (7, 22)], "leather")
+    c.rect((6, 21, 25, 23), "leather", "sh")   # thin gripping sole
+    c.rect((6, 11, 9, 22), "leather", "sh")    # stiff heel counter
+    c.poly([(23, 18), (26, 21), (26, 23), (23, 23)], "leather")  # tapered toe
+    # Lacing pulled tight across the instep.
+    for ly in range(12, 20, 2):
+        c.line([(12, ly), (18, ly + 1)], "bone", "hi")
     return c
 
 
 def hermes_boots():
-    ## "Weightless sandals of pale wrapped leather, a white feathered wing at
-    ## each ankle, resting a finger's width off the ground."
+    ## Hermes' winged slippers: a soft low slipper with a feathered wing
+    ## sweeping off each side of the heel.
     c = Canvas()
-    # Wings sweeping back off both ankles.
+    # Wings: three stepped feathers off each side, swept back and up.
     for side in (-1, 1):
-        ox = 16 + side * 7
-        for i, (dx, dy) in enumerate(((4, 0), (6, 2), (7, 5))):
-            c.poly([(ox, 9 + i * 2), (ox + side * dx, 8 + dy), (ox, 13 + i * 2)], "bone")
-    # Sandal body + sole.
-    c.rect((11, 8, 20, 20), "leather")
-    c.poly([(11, 19), (20, 19), (26, 22), (26, 25), (11, 25)], "leather")
-    c.rect((10, 25, 26, 26), "bone", "sh")
-    # Wrapping straps.
-    for sy in (11, 15, 19):
-        c.rect((11, sy, 20, sy), "bone", "hi")
-    # Hovering: a two-step dash of ground it never touches.
-    for dx in range(11, 26, 4):
-        c.dot(dx, 29, "steel", "sh")
-        c.dot(dx + 1, 29, "steel", "sh")
+        ox = 16 - side * 3
+        for i in range(3):
+            tip_x = ox + side * (9 + i * 3)
+            c.poly([(ox, 14 - i), (tip_x, 8 - i * 3), (tip_x - side * 3, 15 - i)], "bone")
+        c.line([(ox, 14), (ox + side * 13, 7)], "bone", "sh")
+    # The slipper: low soft upper with the toe curling up, open at the ankle.
+    c.poly([(6, 16), (10, 13), (20, 13), (25, 16), (27, 20), (26, 23), (6, 23)], "leather")
+    c.poly([(26, 15), (29, 13), (29, 18), (26, 19)], "leather")   # curled toe
+    c.rect((5, 22, 27, 24), "leather", "sh")                       # sole
+    c.ellipse((9, 12, 18, 18), "dark", "sh")                       # foot opening
+    c.line([(10, 20), (24, 20)], "gold")                           # trim
     return c
 
 
 def jordan_1s():
-    ## "High-tops in red and bone-white leather, double-laced, a wing stitched
-    ## over the ankle and a black swoop down the flank. Somehow spotless."
+    ## Black and red Jordan 1s: black collar, red quarter panel and toe, black
+    ## swoop, on a black sole with a red stripe.
     c = Canvas()
-    # Upper: ankle collar back-left, toe forward-right.
-    c.poly([(5, 6), (16, 6), (16, 14), (27, 18), (29, 22), (5, 22)], "blood")
-    c.rect((5, 6, 15, 21), "blood")
-    # Bone-white sole with a raised heel.
-    c.poly([(3, 21), (29, 21), (29, 26), (3, 26)], "bone")
-    c.rect((3, 22, 29, 23), "bone", "hi")
-    c.rect((3, 25, 29, 26), "bone", "sh")
-    # Collar padding + the wing stitched over the ankle.
-    c.rect((5, 6, 15, 8), "bone")
-    c.line([(7, 10), (12, 10)], "bone", "hi")
-    c.line([(7, 11), (11, 11)], "bone", "hi")
-    c.dot(9, 12, "bone", "hi")
-    # Double lacing up the instep.
-    for ly in range(11, 21, 3):
-        c.line([(16, ly), (21, ly + 1)], "bone", "hi")
-        c.line([(16, ly + 1), (21, ly + 2)], "bone", "sh")
-    # The swoop down the flank: a bone-white sweep with a dark keyline under it.
-    c.line([(6, 19), (17, 15)], "bone", "hi", width=2)
-    c.line([(17, 15), (25, 18)], "bone", "hi", width=2)
-    c.line([(6, 21), (17, 17)], "dark", "sh")
-    c.line([(17, 17), (25, 20)], "dark", "sh")
+    # Upper in black: ankle collar back-left, toe forward-right.
+    c.poly([(5, 5), (16, 5), (16, 13), (27, 17), (29, 21), (5, 21)], "dark")
+    c.rect((5, 5, 15, 20), "dark")
+    # Red collar trim, heel panel and toe cap — the rest stays black.
+    c.rect((5, 5, 15, 7), "blood")
+    c.poly([(5, 13), (12, 13), (12, 21), (5, 21)], "blood")
+    c.poly([(23, 15), (29, 20), (29, 21), (23, 21)], "blood")
+    # Sole: black midsole with a red stripe running through it.
+    c.poly([(3, 20), (29, 20), (29, 26), (3, 26)], "dark")
+    c.rect((3, 22, 29, 23), "blood")
+    c.rect((3, 25, 29, 26), "dark", "sh")
+    # Lacing up the instep.
+    for ly in range(10, 20, 3):
+        c.line([(16, ly), (21, ly + 1)], "smoke", "hi")
+    # The swoop down the flank: red where it crosses the black midfoot.
+    c.line([(8, 19), (17, 14)], "blood", "hi", width=2)
+    c.line([(17, 14), (24, 17)], "blood", "hi", width=2)
     return c
 
 
 def guardian_greaves():
-    ## "Full plate greaves, heavy as an anvil, a shield engraved on each shin,
-    ## a soft light bleeding out of the seams."
+    ## Holy plate warboots, steel banded in gold, winged at the ankle, with a
+    ## healing light spilling out of the seams. Modelled on DOTA 2's Guardian
+    ## Greaves — drawn from the item's description, not the Valve icon, so it
+    ## is worth a second pass against a reference.
     c = Canvas()
-    for ox in (5, 18):
-        c.rect((ox, 4, ox + 8, 24), "steel")
-        c.poly([(ox - 1, 24), (ox + 9, 24), (ox + 10, 29), (ox - 2, 29)], "steel")
-        # Plate seams across the shin.
-        for sy in (9, 14, 19):
-            c.rect((ox, sy, ox + 8, sy), "steel", "sh")
-            c.rect((ox, sy + 1, ox + 8, sy + 1), "steel", "hi")
-        # Engraved shield on the shin.
-        c.poly([(ox + 1, 5), (ox + 7, 5), (ox + 7, 9), (ox + 4, 12), (ox + 1, 9)], "gold")
-        c.rect((ox + 3, 7, ox + 5, 8), "gold", "sh")
-    # Light bleeding out of the seams, top-left key light first.
-    for (lx, ly) in ((3, 6), (2, 12), (15, 3), (30, 9), (29, 17), (14, 27)):
+    for ox in (4, 18):
+        # Greave over the shin, boot flaring out at the foot.
+        c.rect((ox + 1, 5, ox + 9, 22), "steel")
+        c.poly([(ox, 22), (ox + 10, 22), (ox + 11, 29), (ox - 1, 29)], "steel")
+        # Gold bands across the plate, and a gold sole rail.
+        for sy in (10, 16):
+            c.rect((ox + 1, sy, ox + 9, sy + 1), "gold")
+        c.rect((ox - 1, 27, ox + 11, 28), "gold", "sh")
+        # Wing plates sweeping off the ankle.
+        c.poly([(ox + 1, 19), (ox - 3, 17), (ox - 2, 23)], "gold")
+        c.poly([(ox + 9, 19), (ox + 13, 17), (ox + 12, 23)], "gold")
+        # The crown of the greave.
+        c.rect((ox, 4, ox + 10, 6), "gold")
+    # Holy light spilling out from under the plate.
+    for (lx, ly) in ((2, 8), (15, 3), (30, 8), (16, 13), (1, 24), (30, 24), (16, 25)):
         c.dot(lx, ly, "teal", "hi")
     return c
 
 
 def gauntlets_of_dungeon_mastering():
-    ## "A worn leather glove with a gold twenty-sided die set into the back of
-    ## the hand. It rerolls itself when nobody is looking."
+    ## Silver gauntlets with a twenty-sided die set on each of the knuckles.
     c = Canvas()
-    # Fingers, hand, flared cuff — the fingers keep visible gaps between them.
-    for fx in range(9, 24, 4):
-        c.rect((fx, 4, fx + 2, 11), "leather")
-    c.rect((8, 9, 24, 23), "leather")
-    for gx in range(12, 24, 4):
-        c.carve(_rect_mask((gx, 3, gx, 9)))
-    c.poly([(8, 14), (5, 16), (5, 21), (8, 22)], "leather")  # thumb
-    c.poly([(6, 23), (26, 23), (28, 29), (4, 29)], "leather")
-    c.rect((6, 25, 28, 25), "leather", "sh")
-    # The d20 set into the back of the hand: hexagon shell, faceted face.
-    c.poly([(16, 9), (24, 13), (24, 22), (16, 26), (8, 22), (8, 13)], "dark")
-    c.poly([(16, 10), (23, 14), (23, 21), (16, 25), (9, 21), (9, 14)], "gold", "sh")
-    c.poly([(16, 12), (21, 22), (11, 22)], "gold", "hi")   # the face turned up
-    for tip, corners in (((16, 12), ((9, 14), (23, 14))),
-                         ((21, 22), ((23, 21), (16, 25))),
-                         ((11, 22), ((9, 21), (16, 25)))):
-        for corner in corners:
-            c.line([tip, corner], "gold", "base")
+    # Silver plate: short fingers up top, back of the hand, flared cuff.
+    for fx in range(8, 25, 4):
+        c.rect((fx, 4, fx + 2, 10), "steel")
+    c.rect((7, 9, 25, 23), "steel")
+    for gx in range(11, 25, 4):
+        c.carve(_rect_mask((gx, 3, gx, 8)))
+    c.poly([(7, 15), (4, 17), (4, 22), (7, 23)], "steel")  # thumb
+    c.poly([(5, 23), (27, 23), (29, 29), (3, 29)], "steel")
+    c.rect((5, 26, 29, 26), "steel", "sh")
+    c.rect((7, 17, 25, 17), "steel", "sh")                 # knuckle ridge line
+    # A d20 sitting on each knuckle: dark bezel, gold shell, face turned up.
+    for kx in (9, 13, 17, 21):
+        c.poly([(kx, 9), (kx + 3, 11), (kx + 3, 14), (kx, 16),
+                (kx - 3, 14), (kx - 3, 11)], "dark")
+        c.poly([(kx, 10), (kx + 2, 11), (kx + 2, 14), (kx, 15),
+                (kx - 2, 14), (kx - 2, 11)], "gold", "sh")
+        c.poly([(kx, 11), (kx + 2, 14), (kx - 2, 14)], "gold", "hi")
     return c
 
 
 def hallowed_trunk():
-    ## "Bark grown into the shape of an arm — a hollowed trunk, knot-holed and
-    ## split, sap beading in the cracks, green shoots out of the knuckles."
+    ## A hollowed-out tree trunk with fluorescent green butterflies on it.
     c = Canvas()
-    c.rect((9, 4, 22, 24), "wood")
-    # Splayed roots for fingers.
-    c.poly([(8, 22), (14, 22), (11, 30), (5, 29)], "wood")
-    c.poly([(13, 22), (19, 22), (19, 30), (13, 30)], "wood")
-    c.poly([(18, 22), (24, 22), (27, 29), (21, 30)], "wood")
+    c.rect((8, 3, 23, 25), "wood")
+    # Splayed roots at the foot of the trunk.
+    c.poly([(7, 23), (14, 23), (11, 30), (4, 29)], "wood")
+    c.poly([(13, 23), (19, 23), (19, 30), (13, 30)], "wood")
+    c.poly([(18, 23), (25, 23), (28, 29), (21, 30)], "wood")
     # Bark grooves down the trunk.
-    for gx in (11, 15, 20):
-        c.line([(gx, 6), (gx, 21)], "wood", "sh")
-    # The hollow knot.
-    c.ellipse((12, 9, 19, 16), "dark")
-    c.ellipse((14, 11, 17, 14), "dark", "sh")
-    # Sap beading out of the cracks.
-    for (sx, sy) in ((11, 18), (20, 8), (16, 20)):
-        c.dot(sx, sy, "gold", "hi")
-        c.dot(sx, sy + 1, "gold", "sh")
-    # Green shoots pushing out of the knuckles.
-    c.line([(22, 6), (26, 3)], "leaf")
-    c.poly([(25, 2), (28, 3), (25, 5)], "leaf")
-    c.line([(10, 5), (7, 3)], "leaf")
-    c.poly([(4, 2), (8, 3), (5, 5)], "leaf")
+    for gx in (10, 14, 21):
+        c.line([(gx, 5), (gx, 22)], "wood", "sh")
+    # The hollow itself, opened right through the trunk.
+    c.ellipse((11, 8, 20, 20), "dark")
+    c.ellipse((13, 11, 18, 17), "dark", "sh")
+    # Fluorescent green butterflies resting on the bark and drifting off it.
+    for (bx, by) in ((9, 6), (20, 13), (16, 22), (25, 5), (5, 17)):
+        c.poly([(bx - 2, by - 2), (bx, by), (bx - 2, by + 1)], "leaf", "hi")
+        c.poly([(bx + 2, by - 2), (bx, by), (bx + 2, by + 1)], "leaf", "hi")
+        c.dot(bx, by, "leaf", "sh")
     return c
 
 
 def cuffs_of_current():
-    ## "Twin steel cuffs, unfinished at the seam, a live arc of blue lightning
-    ## crossing the gap."
+    ## Four gold rings — one at each wrist, one below each elbow — with light
+    ## blue electricity coming off them. Each arm's pair is drawn as a column.
     c = Canvas()
-    for (y0, y1) in ((5, 11), (20, 26)):
-        c.rect((4, y0, 27, y1), "steel")
-        c.rect((4, y0 + 2, 27, y0 + 2), "steel", "sh")
-        # Rivets along the band.
-        for rx in range(6, 27, 5):
-            c.dot(rx, y1 - 1, "steel", "sh")
-    # The unfinished seam: a gap bitten out of both cuffs.
-    c.carve(_rect_mask((13, 4, 18, 12)))
-    c.carve(_rect_mask((13, 19, 18, 27)))
-    # Live arc crossing the gaps, top to bottom.
-    arc = [(16, 2), (14, 7), (17, 10), (15, 15), (18, 18), (14, 23), (17, 26), (15, 30)]
-    c.line(arc, "spark", "sh", width=2)
-    c.line([(p[0], p[1]) for p in arc], "spark", "hi")
-    # Sparks jumping off the arc.
-    for (sx, sy) in ((11, 14), (21, 16), (12, 24), (20, 8)):
-        c.dot(sx, sy, "spark", "hi")
+    for ox, oy0 in ((7, 4), (22, 10)):   # the two arms, one held higher
+        for oy in (oy0, oy0 + 14):
+            # The ring, seen slightly on edge: a gold band with a dark bore.
+            c.ellipse((ox - 6, oy - 3, ox + 6, oy + 3), "gold")
+            c.ellipse((ox - 4, oy - 2, ox + 4, oy + 2), "dark", "sh")
+            c.rect((ox - 6, oy - 3, ox + 6, oy - 3), "gold", "hi")
+            c.rect((ox - 6, oy + 3, ox + 6, oy + 3), "gold", "sh")
+        # Current running down between each arm's two rings.
+        c.line([(ox - 3, oy0 + 4), (ox + 2, oy0 + 7), (ox - 2, oy0 + 9),
+                (ox + 3, oy0 + 12)], "current", "hi")
+        c.line([(ox + 4, oy0 + 5), (ox + 6, oy0 + 8), (ox + 3, oy0 + 10)], "current", "sh")
+    # Arcs snapping between the two arms, and sparks thrown clear.
+    c.line([(13, 6), (17, 9), (15, 12), (19, 14)], "current", "hi")
+    c.line([(12, 20), (16, 22), (14, 25), (18, 26)], "current", "hi")
+    for (sx, sy) in ((2, 10), (29, 17), (3, 22), (28, 29), (16, 2)):
+        c.dot(sx, sy, "current", "hi")
     return c
 
 
 def concealed_carry():
-    ## "A plain forearm wrap you would not look at twice, with a spring-loaded
-    ## blade folded flat along the underside and a holster inside the cuff."
+    ## A gauntlet that appears to be made of clouds of smoke: the shape of a
+    ## hand, billowed out of overlapping puffs, trailing off at the edges.
     c = Canvas()
-    # The wrap.
-    c.poly([(6, 4), (20, 4), (22, 19), (8, 19)], "leather")
-    for sy in (7, 11, 15):
-        c.rect((6, sy, 21, sy), "leather", "sh")
-        c.rect((6, sy + 1, 21, sy + 1), "leather", "hi")
-    # Buckle at the top of the cuff.
-    c.rect((11, 2, 15, 5), "iron")
-    # The hidden blade, out of its housing and running down past the wrist.
-    c.rect((12, 18, 17, 21), "iron")
-    c.poly([(13, 20), (17, 20), (24, 30), (20, 30)], "steel")
-    c.line([(15, 21), (22, 30)], "steel", "hi")
-    # Small holster stitched inside the cuff.
-    c.poly([(3, 9), (7, 9), (7, 17), (3, 16)], "leather", "sh")
-    c.dot(5, 11, "iron", "hi")
+    # Fingers: four billowed columns with gaps of open air between them.
+    for fx in (9, 14, 19, 24):
+        c.ellipse((fx - 3, 3, fx + 1, 9), "smoke")
+        c.rect((fx - 3, 6, fx + 1, 13), "smoke")
+        c.ellipse((fx - 3, 10, fx + 1, 15), "smoke")
+    # Back of the hand and the cuff, massed out of overlapping puffs.
+    for (bx, by, r) in ((12, 16, 6), (20, 16, 6), (9, 21, 5), (23, 21, 5),
+                        (16, 21, 7), (12, 26, 5), (20, 26, 5)):
+        c.ellipse((bx - r, by - r, bx + r, by + r), "smoke")
+    c.ellipse((2, 15, 9, 24), "smoke")   # thumb, curling off the side
+    # Open air between the fingers, so the hand reads out of the cloud.
+    for gx in (11, 16, 21):
+        c.carve(_poly_mask([(gx, 2), (gx + 1, 2), (gx + 1, 13), (gx, 13)]))
+    # Highlights where the cloud catches the key light, upper-left first.
+    for (hx, hy, r) in ((8, 17, 3), (14, 22, 3), (5, 22, 2)):
+        c.ellipse((hx - r, hy - r, hx + r, hy - 1), "smoke", "hi")
+    # Wisps tearing off the edges instead of an outline.
+    for (wx, wy) in ((4, 11), (29, 12), (1, 27), (28, 28), (16, 30), (26, 6)):
+        c.dot(wx, wy, "smoke", "hi")
+        c.dot(wx + (1 if wx < 16 else -1), wy + 1, "smoke", "sh")
     return c
 
 

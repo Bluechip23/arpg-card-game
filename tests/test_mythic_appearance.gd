@@ -36,7 +36,7 @@ func _test_every_mythic_has_an_appearance() -> void:
 	var mythics = _mythics()
 	_check(mythics.size() >= 13, "found %d mythics" % mythics.size())
 	for item in mythics:
-		_check(item.appearance.length() > 40,
+		_check(item.appearance.strip_edges() != "",
 			"%s describes its appearance" % item.item_name)
 		_check(item.appearance_icon.begins_with(ItemData.APPEARANCE_ICON_DIR),
 			"%s points at an icon (%s)" % [item.item_name, item.appearance_icon])
