@@ -5827,8 +5827,8 @@ static func create_gift_from_the_gods() -> Card:
 	card.description = "Gain 3 Enlightened (10% crit chance; one stack is consumed per attack)."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
-	card.mana_cost = 20  # PLACEHOLDER — no cost was specified
-	card.tempo_cost = 2  # PLACEHOLDER
+	card.mana_cost = 40
+	card.tempo_cost = 4
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
