@@ -443,6 +443,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if pct > 0.0:
 			mana_cost = floori(mana_cost * (1.0 - pct / 100.0))
 			print("[DECK] On-Self mana reduction: -%.0f%% from %s" % [pct, card.slotted_in_item.item_name])
+		# Megingjord: slotted cards cost double mana (and deal double damage).
+		var mana_mult = float(on_self.get("mana_multiplier", 1.0))
+		if mana_mult > 1.0:
+			mana_cost = ceili(mana_cost * mana_mult)
+			print("[DECK] On-Self mana multiplier: x%.1f from %s" % [mana_mult, card.slotted_in_item.item_name])
 
 	# Preparation: utility cards cost less (limited charges)
 	if prep_utility_discount > 0 and prep_utility_charges > 0 and card.card_type == Card.CardType.UTILITY:

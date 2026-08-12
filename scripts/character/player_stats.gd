@@ -192,6 +192,7 @@ var pending_melee_damage_bonus: int = 0      # next melee offensive card +X (Kat
 var equipment_armor_loss_regen_threshold: int = 0  # Hallowed Trunk: armor lost per regen stack (0 = off)
 var equipment_regen_include_health: bool = false   # Hallowed Trunk Lv3: health lost counts too
 var aura_crit_bonus: float = 0.0             # smoke bomb zone: +% crit while inside (refreshed per tick)
+var equipment_heal_maxhp_percent: float = 0.0  # healing cards add this % of max health (Alchemist belt)
 var last_attacker = null                     # enemy that is currently striking us (Return Cut)
 signal attack_fully_blocked                  # armor absorbed an entire hit (Return Cut trigger)
 var _armor_loss_accum: int = 0

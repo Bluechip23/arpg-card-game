@@ -149,7 +149,7 @@ func initialize(char_name: String) -> void:
 	# Per-character deviations from the baseline.
 	match character_name:
 		"Ryan":
-			belt_slots = 3
+			belt_slots = 2
 			belt_card_mana_reduction = 10
 		"Brad":
 			chest_weight_reduction = 0.20
@@ -498,6 +498,8 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.equipment_attack_card_damage += item.damage_bonus_to_attack_cards * multiplier
 	if item.damage_bonus_to_melee_cards != 0:
 		player_stats.equipment_melee_card_damage += item.damage_bonus_to_melee_cards * multiplier
+	if item.heal_bonus_max_health_percent != 0.0:
+		player_stats.equipment_heal_maxhp_percent += item.heal_bonus_max_health_percent * multiplier
 	if item.armor_loss_regen_threshold != 0:
 		player_stats.equipment_armor_loss_regen_threshold = item.armor_loss_regen_threshold if multiplier > 0 else 0
 		player_stats.equipment_regen_include_health = item.regen_include_health and multiplier > 0

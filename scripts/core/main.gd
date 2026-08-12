@@ -3575,6 +3575,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().movement_flash_threshold_reached.connect(_on_movement_flash_threshold)
 	player.get_stats().consecutive_attacks_reached.connect(_on_consecutive_attacks_reached)
 	player.get_stats().attack_fully_blocked.connect(_on_attack_fully_blocked)
+	player.get_debuff_manager().debuff_removed.connect(_on_player_debuff_removed)
 	player.get_stats().armor_gained.connect(_on_armor_gained_spiked)
 	if player.get_inventory():
 		player.get_inventory().gauntlet_world_skill.connect(_on_gauntlet_world_skill)
@@ -4372,6 +4373,74 @@ func _show_release_tension_picker(card: Card, enemy) -> void:
 	cancel.custom_minimum_size = Vector2(260, 32)
 	cancel.pressed.connect(func(): overlay.queue_free())
 	vbox.add_child(cancel)
+
+func show_hand_multi_picker(prompt: String, on_done: Callable) -> void:
+	## Multi-select hand picker: toggle any number of cards, then press Done.
+	## Calls on_done(Array[Card]) with the selection (possibly empty). Resolves
+	## immediately with [] when the hand is empty.
+	if deck_manager.hand.is_empty():
+		on_done.call([])
+		return
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "HandMultiPicker"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var pstyle := StyleBoxFlat.new()
+	pstyle.bg_color = Color(0.12, 0.13, 0.18, 1.0)
+	pstyle.set_border_width_all(2)
+	pstyle.border_color = Color(0.6, 0.5, 0.3)
+	pstyle.set_corner_radius_all(8)
+	pstyle.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", pstyle)
+	overlay.add_child(panel)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	vbox.custom_minimum_size = Vector2(300, 0)
+	panel.add_child(vbox)
+	var title := Label.new()
+	title.text = prompt
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	vbox.add_child(title)
+	var picked: Array = []
+	var count_lbl := Label.new()
+	count_lbl.text = "0 selected"
+	count_lbl.add_theme_font_size_override("font_size", 13)
+	vbox.add_child(count_lbl)
+	var rows_scroll := ScrollContainer.new()
+	rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	rows_scroll.custom_minimum_size = Vector2(300, minf(320.0, deck_manager.hand.size() * 40.0))
+	vbox.add_child(rows_scroll)
+	var rows := VBoxContainer.new()
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows_scroll.add_child(rows)
+	for c in deck_manager.hand:
+		var b := Button.new()
+		b.toggle_mode = true
+		b.text = "%s  (%dm/%dt)" % [c.card_name, c.mana_cost, c.get_burden_tempo_cost()]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var cc = c
+		b.toggled.connect(func(on: bool):
+			if on:
+				picked.append(cc)
+			else:
+				picked.erase(cc)
+			count_lbl.text = "%d selected" % picked.size())
+		rows.add_child(b)
+	var done := Button.new()
+	done.text = "Done"
+	done.custom_minimum_size = Vector2(120, 34)
+	done.pressed.connect(func():
+		overlay.queue_free()
+		on_done.call(picked))
+	vbox.add_child(done)
 
 func show_hand_card_picker(prompt: String, on_pick: Callable, exclude: Card = null) -> void:
 	## Reusable hand-card picker: presents the cards in hand (minus `exclude`) and
@@ -7288,7 +7357,7 @@ func _helm_range_bonus(card) -> int:
 
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
 ## a little INT-scaled spell damage. (The utility heal is applied in execute().)
-func _helm_card_world_effects(card) -> void:
+func _helm_card_world_effects(card, target = null) -> void:
 	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
 		return
 	var osb = card.slotted_in_item.get_on_self_bonus()
@@ -7316,6 +7385,24 @@ func _helm_card_world_effects(card) -> void:
 	var wolf_count := int(osb.get("summon_wolf", 0))
 	for _wi in range(wolf_count):
 		_spawn_wolf()
+
+	# Slotted Sash: a slotted UTILITY card Weakens a random enemy within 5.
+	if card.card_type == Card.CardType.UTILITY and int(osb.get("utility_weaken", 0)) > 0:
+		var sash_victim = _random_enemy_within(5)
+		if sash_victim and sash_victim.has_method("apply_debuff"):
+			sash_victim.apply_debuff("weaken", int(osb["utility_weaken"]))
+			add_battle_log("%s: %s Weakened" % [card.slotted_in_item.item_name, sash_victim.enemy_name], Color(0.6, 0.6, 0.85))
+
+	# Tactical belt: a slotted card detonates around its target (enemies only).
+	if int(osb.get("target_aoe_damage", 0)) > 0 and target and is_instance_valid(target) and "position" in target:
+		var blast := int(osb["target_aoe_damage"])
+		var blast_hits := 0
+		for be in enemy_spawner.get_living_enemies():
+			if be and is_instance_valid(be) and grid_manager.get_distance_in_cells(target.position, be.position) <= 1:
+				be.take_damage(blast, true)
+				blast_hits += 1
+		if blast_hits > 0:
+			add_battle_log("%s: explosive hits %d for %d" % [card.slotted_in_item.item_name, blast_hits, blast], Color(1.0, 0.6, 0.3))
 
 	# Houdinis Slippers: any slotted card turns the player invisible for a while.
 	var invis_tempo := int(osb.get("invisible_tempo", 0))
@@ -7628,6 +7715,21 @@ func _clear_fire_spots() -> void:
 			spot["node"].queue_free()
 	_fire_spots.clear()
 
+## Corset of Cure: a debuff leaving the player conjures the belt's tonic.
+func _on_player_debuff_removed(_debuff) -> void:
+	if not player or not deck_manager:
+		return
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	for belt in inv.equipped_belts:
+		if belt and belt.debuff_removed_conjure_id != "":
+			var tonic = deck_manager._create_card_from_id(belt.debuff_removed_conjure_id)
+			if tonic:
+				deck_manager.add_card_to_hand(tonic)
+				add_battle_log("%s: a %s appears in your hand" % [belt.item_name, tonic.card_name], Color(0.9, 0.6, 0.7))
+			return
+
 ## Boots of Speed: enough movement flash spent → shave 1 tempo off a hand card.
 func _on_movement_flash_threshold() -> void:
 	if not deck_manager or deck_manager.hand.is_empty():
@@ -7882,6 +7984,10 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		if card.has_reach:
 			melee_range += 1.0
 		melee_range += float(_helm_range_bonus(card))
+		# Crack of Mintaka: reach at targeting time is the hand — the most cards
+		# the player COULD discard; the post-discard check is authoritative.
+		if card.card_id == "crack_of_mintaka" and deck_manager:
+			melee_range += float(deck_manager.hand.size())
 		return distance_tiles <= melee_range
 
 func _get_nearest_enemy() -> Enemy:
@@ -7974,7 +8080,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_mouse_world_position()
 
 	# Generic helm on-self world effects (independent of card_id).
-	_helm_card_world_effects(card)
+	_helm_card_world_effects(card, target)
 
 	# Mits of Chingiz "3 count": two offensive cards in a row add a Switch Kick
 	# to the hand (then a 20-tempo cooldown).
@@ -7989,9 +8095,141 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		_offensive_streak = 0
 		add_battle_log("3 count! A Switch Kick slides into your hand", Color(0.9, 0.8, 0.5))
 
+	# Shadow Obi: any card cheaper than 2 tempo zaps a random enemy.
+	if player and player.get_inventory():
+		for zap_belt in player.get_inventory().equipped_belts:
+			if zap_belt and zap_belt.cheap_card_zap_damage > 0 and card.get_burden_tempo_cost() < 2:
+				var zap_victim = _random_enemy_within(9999)
+				if zap_victim:
+					zap_victim.take_damage(zap_belt.cheap_card_zap_damage, true)
+					add_battle_log("%s: %d damage to %s" % [zap_belt.item_name, zap_belt.cheap_card_zap_damage, zap_victim.enemy_name], Color(0.5, 0.4, 0.7))
+				break
+
 	match card.card_id:
 		"its_alive":
 			_resurrect_frankenstein()
+
+		"stone_encase":
+			# Strap of Stone: the armor landed in execute; the self-stun is ours.
+			var se_dm = player.get_debuff_manager()
+			if se_dm:
+				se_dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 5))
+				add_battle_log("Stone Encase: encased — stunned for 5 tempo", Color(0.7, 0.65, 0.5))
+
+		"poof_and_weave":
+			var pw_bm = player.get_buff_manager()
+			if pw_bm:
+				pw_bm.apply_buff(Buff.create_invisible(5, "Poof and Weave"))
+				_set_player_invisible(true)
+			player.get_stats().add_armor(10)
+			deck_manager.draw_card()
+			add_battle_log("Poof and Weave: gone in a wisp (+10 armor, +1 card)", Color(0.7, 0.7, 0.9))
+
+		"chain_lightning":
+			if target and is_instance_valid(target):
+				var cl_stats = player.get_stats()
+				var cl_dmg: int = cl_stats.get_effective_spell_damage(10) if cl_stats else 10
+				var cl_hit: Array = []
+				var cl_current = target
+				while cl_dmg > 0 and cl_current and is_instance_valid(cl_current):
+					cl_current.take_damage(cl_dmg, true, DamageTypes.Type.LIGHTNING)
+					cl_hit.append(cl_current)
+					add_battle_log("Chain Lightning arcs: %d to %s" % [cl_dmg, cl_current.enemy_name], Color(0.5, 0.8, 1.0))
+					cl_dmg -= 2
+					var next_hop = null
+					var hop_d := INF
+					for ce in enemy_spawner.get_living_enemies():
+						if ce and is_instance_valid(ce) and not (ce in cl_hit) \
+								and grid_manager.get_distance_in_cells(cl_current.position, ce.position) <= 3:
+							var d = cl_current.position.distance_to(ce.position)
+							if d < hop_d:
+								hop_d = d
+								next_hop = ce
+					cl_current = next_hop
+
+		"ice_grenade":
+			var ig_point = grid_manager.snap_to_grid(mouse_pos)
+			var ig_stats = player.get_stats()
+			var ig_dmg: int = ig_stats.get_effective_spell_damage(5) if ig_stats else 5
+			var ig_hits := 0
+			for ie in enemy_spawner.get_living_enemies():
+				if ie and is_instance_valid(ie) and grid_manager.get_distance_in_cells(ig_point, ie.position) <= 2:
+					ie.take_damage(ig_dmg, true, DamageTypes.Type.ICE)
+					if ie.has_method("apply_debuff"):
+						ie.apply_debuff("cold", 2)
+					ig_hits += 1
+			add_battle_log("Ice Grenade: %d enem%s chilled for %d" % [ig_hits, "y" if ig_hits == 1 else "ies", ig_dmg], Color(0.6, 0.85, 1.0))
+
+		"poison_bomb":
+			var pbm_point = grid_manager.snap_to_grid(mouse_pos)
+			var pbm_hits := 0
+			for pe in enemy_spawner.get_living_enemies():
+				if pe and is_instance_valid(pe) and grid_manager.get_distance_in_cells(pbm_point, pe.position) <= 2:
+					if pe.has_method("apply_debuff"):
+						pe.apply_debuff("poison", 6)
+						pbm_hits += 1
+			add_battle_log("Poison Bomb: %d enem%s poisoned (6)" % [pbm_hits, "y" if pbm_hits == 1 else "ies"], Color(0.4, 0.8, 0.3))
+
+		"fire_punch":
+			if target and is_instance_valid(target):
+				var fp_stats = player.get_stats()
+				var fp_dmg: int = fp_stats.get_effective_physical_damage(0) if fp_stats else 0
+				var fp_bm = player.get_buff_manager()
+				if fp_bm and fp_bm.roll_crit():
+					fp_dmg = Card.crit_multiply(fp_dmg, fp_stats)
+				target.take_damage(fp_dmg, true, DamageTypes.Type.FIRE)
+				add_battle_log("Fire Punch: %d damage" % fp_dmg, Color(1.0, 0.5, 0.2))
+				# Fire path behind the target: 2 tiles along the strike direction,
+				# reusing the Trail Blazers fire-spot system (INT/5 per spot).
+				var fp_dir: Vector3 = (target.position - player.position)
+				fp_dir.y = 0.0
+				if fp_dir.length() > 0.01:
+					fp_dir = fp_dir.normalized()
+					var fp_int: int = maxi(1, floori((fp_stats.intelligence if fp_stats else 0) / 5.0))
+					for step in [1, 2]:
+						var fp_cell = grid_manager.world_to_grid(target.position + fp_dir * float(step) * grid_manager.grid_size)
+						var fp_taken := false
+						for spot in _fire_spots:
+							if spot["cell"] == fp_cell:
+								fp_taken = true
+								break
+						if not fp_taken:
+							var fp_node := _make_fire_spot_visual(grid_manager.grid_to_world(fp_cell))
+							add_child(fp_node)
+							_fire_spots.append({"cell": fp_cell, "tempo": 3, "damage": fp_int, "node": fp_node})
+				# Conjure the Erase-5 copy — the copy never copies itself.
+				if not card.has_meta("fire_punch_copy"):
+					var fp_copy = Card.create_by_id("fire_punch")
+					fp_copy.erase_tempo = 5
+					fp_copy.set_meta("fire_punch_copy", true)
+					deck_manager.add_card_to_hand(fp_copy)
+
+		"crack_of_mintaka":
+			var cm_target = target
+			var cm_lv3: bool = card.granted_by_item != null and card.granted_by_item.item_level >= 3
+			show_hand_multi_picker("Crack of Mintaka — discard how many?", func(picked: Array):
+				var cm_x: int = picked.size()
+				for pc in picked:
+					deck_manager.discard_card_from_hand(pc)
+				if cm_target == null or not is_instance_valid(cm_target):
+					add_battle_log("Crack of Mintaka: no target — %d card(s) spent" % cm_x, Color(1.0, 0.4, 0.4))
+					return
+				var cm_dist: int = grid_manager.get_distance_in_cells(player.position, cm_target.position)
+				if cm_dist > cm_x:
+					add_battle_log("Crack of Mintaka: the belt falls short (%d needed, %d discarded)" % [cm_dist, cm_x], Color(1.0, 0.4, 0.4))
+					return
+				var cm_stats = player.get_stats()
+				var cm_dmg: int = cm_stats.get_effective_physical_damage(10)
+				var cm_mult: int = 5 if cm_lv3 else 3
+				var cm_bonus: float = float(cm_x * cm_mult) / 100.0
+				cm_stats.temp_crit_damage_bonus += cm_bonus
+				var cm_bm = player.get_buff_manager()
+				if cm_bm and cm_bm.roll_crit():
+					cm_dmg = Card.crit_multiply(cm_dmg, cm_stats)
+					add_battle_log("Crack of Mintaka CRITS!", Color(1.0, 0.6, 0.3))
+				cm_stats.temp_crit_damage_bonus = maxf(0.0, cm_stats.temp_crit_damage_bonus - cm_bonus)
+				cm_target.take_damage(cm_dmg, true)
+				add_battle_log("Crack of Mintaka: %d damage at range %d" % [cm_dmg, cm_x], Color(0.9, 0.8, 0.5)))
 
 		"smoke_bomb":
 			var smoke_pos = grid_manager.snap_to_grid(mouse_pos)

@@ -231,6 +231,26 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_melee_damage: int = 0          # +X damage on slotted MELEE offensive cards (Roman Bracers 5)
 @export var on_self_crit_damage_percent: float = 0.0  # +X% crit damage for the slotted play (Feathered Hat 10)
 @export var on_self_flash_counter_drain: int = 0   # slotted play drains X from the flash-crit counter (Feathered Hat 2)
+@export var on_self_defense_armor: int = 0         # slotted DEFENSE card grants +X armor (Slotted Sash 3)
+@export var on_self_utility_weaken: int = 0        # slotted UTILITY card weakens a random enemy within 5 (Slotted Sash 1)
+@export var on_self_physical_resilient: int = 0    # slotted play: X% physical resist for 10 tempo (Strap of Stone 10)
+@export var on_self_strengthen_value: int = 0      # slotted play: Strengthen +X... (Belt of Wumbology 10)
+@export var on_self_strengthen_attacks: int = 0    # ...for X attacks (Belt of Wumbology 2)
+@export var on_self_cleanse_stacks: int = 0        # slotted play: cleanse X stacks of a random debuff on the card's target (Corset 3)
+@export var on_self_damage_while_invisible: int = 0  # slotted cards +X damage while invisible (Shadow Obi 5)
+@export var on_self_taunt_cycles: int = 0          # slotted OFFENSIVE card taunts the enemy target X cycles (Girdle 3)
+@export var on_self_support_heal: int = 0          # slotted UTILITY/DEFENSE card heals its target X (Girdle 15)
+@export var on_self_damage_multiplier: float = 1.0 # slotted card damage x this (Megingjord 2.0)
+@export var on_self_mana_multiplier: float = 1.0   # slotted card mana cost x this (Megingjord 2.0)
+
+# Belt passive riders
+@export var on_self_offensive_damage: int = 0      # slotted OFFENSIVE cards +X damage (Slotted Sash 3)
+@export var on_self_apply_vulnerable: int = 0      # slotted offensive card applies X Vulnerable (Assasian Belt 1)
+@export var on_self_target_aoe_damage: int = 0     # slotted card play detonates X AOE damage around its target (Tactical belt 2)
+@export var on_self_utility_tempo_refund: int = 0  # slotted UTILITY cards cost X less tempo (Potion Belt 1)
+@export var debuff_removed_conjure_id: String = "" # losing a debuff conjures this card into hand (Corset of Cure)
+@export var heal_bonus_max_health_percent: float = 0.0  # heal cards add X% of YOUR max health (Alchemist belt 4)
+@export var cheap_card_zap_damage: int = 0         # playing a card under 2 tempo zaps a random enemy for X (Shadow Obi 3)
 @export var on_self_draw_card: int = 0             # draw X cards when a slotted card is played (Momentum Mits 1)
 @export var on_self_summon_wolf: int = 0           # summon X wolves when a slotted card is played (Dungeon Mastering 1)
 @export var on_self_root_offensive: int = 0        # slotted offensive card roots the target X cycles (Gravity Gauntlets 1)
@@ -594,6 +614,21 @@ func get_on_self_bonus() -> Dictionary:
 		"melee_damage": on_self_melee_damage,
 		"crit_damage_percent": on_self_crit_damage_percent,
 		"flash_counter_drain": on_self_flash_counter_drain,
+		"defense_armor": on_self_defense_armor,
+		"utility_weaken": on_self_utility_weaken,
+		"physical_resilient": on_self_physical_resilient,
+		"strengthen_value": on_self_strengthen_value,
+		"strengthen_attacks": on_self_strengthen_attacks,
+		"cleanse_stacks": on_self_cleanse_stacks,
+		"damage_while_invisible": on_self_damage_while_invisible,
+		"taunt_cycles": on_self_taunt_cycles,
+		"support_heal": on_self_support_heal,
+		"damage_multiplier": on_self_damage_multiplier,
+		"mana_multiplier": on_self_mana_multiplier,
+		"offensive_damage": on_self_offensive_damage,
+		"apply_vulnerable": on_self_apply_vulnerable,
+		"target_aoe_damage": on_self_target_aoe_damage,
+		"utility_tempo_refund": on_self_utility_tempo_refund,
 		"draw_card": on_self_draw_card,
 		"summon_wolf": on_self_summon_wolf,
 		"root_offensive": on_self_root_offensive,
@@ -1367,6 +1402,230 @@ static func create_fanned_bracers() -> ItemData:
 	item.hand_size_bonus = 1
 	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 2)
 	item.description = "+20 life, +1 hand size. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (10 tempo CD)."
+	return item
+
+# ============================================
+# BELTS (first belts pass — waist slot)
+# ============================================
+static func _new_belt(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = ItemData.new()
+	item.item_name = nm
+	item.item_type = ItemType.BELT
+	item.item_type_name = "Belt"
+	item.rarity = r
+	item.weight = wt
+	return item
+
+static func create_leather_belt() -> ItemData:
+	var item = _new_belt("Leather belt", Rarity.COMMON, 10)
+	item.card_slots = 1
+	item.strength_bonus = 3
+	item.agility_bonus = 1
+	item.on_self_damage = 1
+	item.description = "+3 STR, +1 AGI. On-self: +1 damage."
+	return item
+
+static func create_waistband() -> ItemData:
+	var item = _new_belt("Waistband", Rarity.COMMON, 2)
+	item.card_slots = 1
+	item.agility_bonus = 2
+	item.wisdom_bonus = 2
+	item.on_self_armor_any = 2
+	item.description = "+2 AGI, +2 WIS. On-self: gain 2 armor."
+	return item
+
+static func create_studded_belt() -> ItemData:
+	var item = _new_belt("Studded belt", Rarity.COMMON, 15)
+	item.card_slots = 2
+	item.health_bonus = 5
+	item.strength_bonus = 2
+	item.on_self_thorns = 3
+	item.description = "+5 health, +2 STR. On-self: gain 3 thorns."
+	return item
+
+static func create_band_of_aid() -> ItemData:
+	var item = _new_belt("Band of Aid", Rarity.COMMON, 5)
+	item.card_slots = 1
+	item.dexterity_bonus = 2
+	item.health_bonus = 5
+	item.on_self_heal = 1
+	item.description = "+2 DEX, +5 health. On-self: heal 1."
+	return item
+
+static func create_holster() -> ItemData:
+	var item = _new_belt("Holster", Rarity.RARE, 10)
+	item.card_slots = 2
+	item.strength_bonus = 3
+	item.dexterity_bonus = 2
+	item.on_self_damage = 2
+	item.description = "+3 STR, +2 DEX. On-self: +2 damage to attack cards."
+	return item
+
+static func create_tactical_belt() -> ItemData:
+	var item = _new_belt("Tactical belt", Rarity.RARE, 25)
+	item.card_slots = 3
+	item.intelligence_bonus = 5
+	item.wisdom_bonus = 2
+	item.on_self_target_aoe_damage = 2  # radius-1 blast around the card's target, enemies only
+	item.description = "+5 INT, +2 WIS. On-self: an AOE explosive deals 2 damage around the target (allies unharmed)."
+	return item
+
+static func create_assasian_belt() -> ItemData:
+	var item = _new_belt("Assasian Belt", Rarity.RARE, 10)
+	item.card_slots = 1
+	item.agility_bonus = 5
+	item.dexterity_bonus = 1
+	var ab_cards: Array[String] = ["shuriken", "shuriken"]
+	item.granted_card_ids = ab_cards
+	item.on_self_apply_vulnerable = 1
+	item.description = "+5 AGI, +1 DEX. On-self: apply 1 Vulnerable. Grants two Shurikens."
+	return item
+
+static func create_potion_belt() -> ItemData:
+	var item = _new_belt("Potion Belt", Rarity.RARE, 20)
+	item.card_slots = 2
+	item.wisdom_bonus = 3
+	item.intelligence_bonus = 3
+	var pb_cards: Array[String] = ["healing_potion", "poison_bomb"]
+	item.granted_card_ids = pb_cards
+	item.on_self_utility_tempo_refund = 1
+	item.description = "+3 WIS, +3 INT. On-self: utility cards refund 1 tempo. Grants a Healing Potion and a Poison Bomb."
+	return item
+
+static func create_the_slotted_sash() -> ItemData:
+	var item = _new_belt("The Slotted Sash", Rarity.LEGENDARY, 10)
+	item.card_slots = 6
+	item.wisdom_bonus = 3
+	item.intelligence_bonus = 2
+	item.on_self_offensive_damage = 2
+	item.on_self_defense_armor = 2
+	item.on_self_utility_weaken = 1
+	item.description = "+3 WIS, +2 INT. 6 card slots. On-self: offensive cards +2 damage; defense cards +2 armor; utility cards apply 1 Weaken to a random enemy within 5 squares."
+	return item
+
+static func create_equator() -> ItemData:
+	var item = _new_belt("Equator", Rarity.LEGENDARY, 45)
+	item.card_slots = 2
+	item.strength_bonus = 6
+	item.determination_bonus = 2
+	item.wisdom_bonus = 2
+	item.on_self_apply_burn = 4
+	var eq_cards: Array[String] = ["serene_center"]
+	item.granted_card_ids = eq_cards
+	item.description = "+6 STR, +2 DET, +2 WIS. On-self: apply 4 Burn. Grants Serene Center: set your health (temp included) and mana to half of max (30 mana, 4 tempo)."
+	return item
+
+static func create_strap_of_stone() -> ItemData:
+	var item = _new_belt("Strap of Stone", Rarity.LEGENDARY, 50)
+	item.card_slots = 1
+	item.health_bonus = 20
+	item.strength_bonus = 3
+	item.on_self_physical_resilient = 10
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 10
+	item.armor_per_tempo_interval = 20
+	var ss_cards: Array[String] = ["stone_encase"]
+	item.granted_card_ids = ss_cards
+	item.description = "+20 life, +3 STR. Gain 10 armor every 20 tempo. On-self: gain 10% physical resistance for 10 tempo. Grants Stone Encase: gain 50 armor and become stunned for 5 tempo (45 mana, 5 tempo)."
+	return item
+
+static func create_belt_of_wumbology() -> ItemData:
+	var item = _new_belt("Belt of Wumbology", Rarity.LEGENDARY, 15)
+	item.card_slots = 2
+	item.strength_bonus = 5
+	item.health_bonus = 5
+	item.wisdom_bonus = 1
+	item.intelligence_bonus = 5
+	item.on_self_strengthen_value = 10
+	item.on_self_strengthen_attacks = 2
+	var bw_cards: Array[String] = ["m_for_mini"]
+	item.granted_card_ids = bw_cards
+	item.description = "+5 STR, +5 health, +1 WIS, +5 INT. On-self: Strengthen +10 for your next 2 attacks. Grants M for Mini: apply 2 Vulnerable and 2 Weaken (15 mana, 2 tempo)."
+	return item
+
+static func create_corset_of_cure() -> ItemData:
+	var item = _new_belt("Corset of Cure", Rarity.LEGENDARY, 25)
+	item.card_slots = 3
+	item.health_bonus = 25
+	item.determination_bonus = 1
+	item.wisdom_bonus = 1
+	item.dexterity_bonus = 1
+	item.on_self_cleanse_stacks = 3
+	item.debuff_removed_conjure_id = "healing_tonic"
+	item.description = "+25 health, +1 DET, +1 WIS, +1 DEX. On-self: cleanse 3 stacks of a random debuff on the card's target. When a debuff is removed from you, gain a Healing Tonic (0m/0t, range 5, heal an ally 5)."
+	return item
+
+static func create_alchemeist_belt() -> ItemData:
+	var item = _new_belt("Alchemeist belt", Rarity.LEGENDARY, 10)
+	item.card_slots = 3
+	item.wisdom_bonus = 5
+	item.intelligence_bonus = 5
+	item.health_bonus = 15
+	item.dexterity_bonus = -4
+	item.heal_bonus_max_health_percent = 4.0
+	var al_cards: Array[String] = ["hemotoxins"]
+	item.granted_card_ids = al_cards
+	item.description = "+5 WIS, +5 INT, +15 health, -4 DEX. Healing cards heal an additional 4% of your max health (self or ally). Grants Hemotoxins: apply 10 Poison — doubled if the target is below 50% health (50 mana, 5 tempo)."
+	return item
+
+static func create_shadow_obi() -> ItemData:
+	var item = _new_belt("Shadow Obi", Rarity.LEGENDARY, 10)
+	item.card_slots = 2
+	item.agility_bonus = 8
+	item.dexterity_bonus = 4
+	item.on_self_damage_while_invisible = 5
+	item.cheap_card_zap_damage = 3
+	var so_cards: Array[String] = ["poof_and_weave"]
+	item.granted_card_ids = so_cards
+	item.description = "+8 AGI, +4 DEX. On-self: +5 damage while invisible. Playing a card that costs less than 2 tempo deals 3 damage to a random enemy. Grants Poof and Weave: become invisible, gain 10 armor and draw a card (40 mana, 5 tempo)."
+	return item
+
+static func create_belt_of_scrolls() -> ItemData:
+	var item = _new_belt("Belt of Scrolls", Rarity.MYTHIC, 10)
+	item.wisdom_bonus = 8
+	item.intelligence_bonus = 8
+	var bs_cards: Array[String] = ["chain_lightning", "ice_grenade", "fire_punch"]
+	item.granted_card_ids = bs_cards
+	item.description = "+8 WIS, +8 INT. Grants Chain Lightning (10 damage bouncing between enemies, -2 per bounce), Ice Grenade (5 damage + 2 Cold in a 2-square radius; two separately-aimed shots), and Fire Punch (STR-scaled melee that leaves a fire path behind the target and copies itself with Erase 5)."
+	return item
+
+static func create_megingjord() -> ItemData:
+	var item = _new_belt("Megingjörð", Rarity.MYTHIC, 50)
+	item.card_slots = 1
+	item.strength_bonus = 15
+	item.health_bonus = 30
+	item.on_self_damage_multiplier = 2.0
+	item.on_self_mana_multiplier = 2.0
+	var mg_cards: Array[String] = ["gift_from_the_gods"]
+	item.granted_card_ids = mg_cards
+	item.level_3_overrides = {"strength_bonus": 20, "health_bonus": 45}
+	item.level_3_description = "+20 STR, +45 life. On-self: double damage, double mana cost. Grants Gift from the Gods: gain 4 Enlightened and cleanse 3 negative effects."
+	item.description = "+15 STR, +30 life. On-self: double damage, double mana cost. Grants Gift from the Gods: gain 3 Enlightened (10% crit chance, one stack consumed per attack)."
+	return item
+
+static func create_orions_belt() -> ItemData:
+	var item = _new_belt("Orions Belt", Rarity.MYTHIC, 5)
+	item.strength_bonus = 5
+	item.dexterity_bonus = 3
+	var ob_cards: Array[String] = ["protection_from_alnitak", "balance_of_alnilam", "crack_of_mintaka"]
+	item.granted_card_ids = ob_cards
+	item.description = "+5 STR, +3 DEX. Grants Protection From Alnitak (10 armor + Brace equal to your empty hand slots for 5 attacks), Balance of Alnilam (if this is your only card, draw 6), and Crack of Mintaka (discard any number of cards; melee strike with range and crit damage per card discarded)."
+	return item
+
+static func create_girdle_of_aphrodite() -> ItemData:
+	var item = _new_belt("Girdle of Aphrodite", Rarity.MYTHIC, 15)
+	item.card_slots = 2
+	item.health_bonus = 10
+	item.determination_bonus = 2
+	item.agility_bonus = 2
+	item.dexterity_bonus = 2
+	item.wisdom_bonus = 2
+	item.on_self_taunt_cycles = 3   # 15 tempo
+	item.on_self_support_heal = 15
+	item.level_3_overrides = {"card_slots": 3, "health_bonus": 20, "determination_bonus": 2,
+		"agility_bonus": 3, "dexterity_bonus": 3, "wisdom_bonus": 4, "on_self_support_heal": 35}
+	item.level_3_description = "+20 health, +2 DET, +3 AGI, +3 DEX, +4 WIS. 3 card slots. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 35."
+	item.description = "+10 health, +2 DET, +2 AGI, +2 DEX, +2 WIS. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 15."
 	return item
 
 # ============================================
