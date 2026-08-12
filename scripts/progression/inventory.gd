@@ -503,6 +503,27 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	if item.armor_loss_regen_threshold != 0:
 		player_stats.equipment_armor_loss_regen_threshold = item.armor_loss_regen_threshold if multiplier > 0 else 0
 		player_stats.equipment_regen_include_health = item.regen_include_health and multiplier > 0
+	# Chests pass
+	if item.block_physical_resist_percent != 0.0:
+		player_stats.equipment_block_physical_resist += item.block_physical_resist_percent * multiplier
+	if item.resist_per_missing10 != 0.0:
+		player_stats.equipment_resist_per_missing10 += item.resist_per_missing10 * multiplier
+	if item.gold_gain_heal != 0:
+		player_stats.equipment_gold_gain_heal += item.gold_gain_heal * multiplier
+	if item.hp_diff_damage_divisor != 0:
+		# Last equipped chest with a divisor wins (only one chest slot in practice).
+		player_stats.equipment_hp_diff_divisor = item.hp_diff_damage_divisor if multiplier > 0 else 0
+	if item.ranged_range_bonus != 0:
+		player_stats.equipment_ranged_range_bonus += item.ranged_range_bonus * multiplier
+	if item.movement_tempo_penalty != 0:
+		player_stats.movement_tempo_surcharge += item.movement_tempo_penalty * multiplier
+	# Chest runtime state restarts on every equip/unequip, like the armor accum.
+	item.banked_damage = 0.0
+	item.banked_stacks = 0
+	item.exposed_armor_cd_left = 0
+	if item.death_crit_stack_radius > 0:
+		item.death_crit_stacks = 0
+		player_stats.death_stack_crit_damage = 0.0
 
 	# Recalculate derived stats
 	player_stats.recalculate_derived_stats()
@@ -780,6 +801,27 @@ func process_turn() -> void:
 					item.armor_per_tempo_accum -= interval
 					player_stats.add_armor(item.special_effect_value)
 					print("[INVENTORY] %s: +%d armor (every %d tempo)" % [item.item_name, item.special_effect_value, interval])
+
+	# Chests pass: the Exposed-armor proc cooldown (Adimantium) ticks per cycle.
+	for chest in equipped_chests:
+		if chest and chest.exposed_armor_cd_left > 0:
+			chest.exposed_armor_cd_left -= 1
+			if chest.exposed_armor_cd_left == 0:
+				print("[INVENTORY] %s: Exposed-armor reaction ready" % chest.item_name)
+
+## Chests pass: Exposed was just applied to the wearer — armored chests react.
+## Briarhide has no cooldown; Adimantium honors exposed_armor_cooldown_cycles.
+func on_player_exposed() -> void:
+	if not player_stats:
+		return
+	for chest in equipped_chests:
+		if chest == null or chest.exposed_armor_gain <= 0:
+			continue
+		if chest.exposed_armor_cd_left > 0:
+			continue
+		player_stats.add_armor(chest.exposed_armor_gain)
+		chest.exposed_armor_cd_left = maxi(0, chest.exposed_armor_cooldown_cycles)
+		print("[INVENTORY] %s: +%d armor (Exposed reaction)" % [chest.item_name, chest.exposed_armor_gain])
 
 # ============================================
 # RING TRIGGER SYSTEM

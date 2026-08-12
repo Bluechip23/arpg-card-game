@@ -75,6 +75,8 @@ func _build_legend() -> void:
 	_add_keyword("Morphine", "Gain temp HP. Lose it and take 2 damage when expired", Color(1.0, 0.6, 0.8))
 	_add_keyword("Wear Down", "Each attack reduces target's attack by 1 (stacks) for X tempo", Color(0.9, 0.6, 0.3))
 	_add_keyword("Armor Break", "Next attack deals double damage to armor only", Color(0.8, 0.6, 0.2))
+	_add_keyword("Keen", "+X% crit chance for Y tempo", Color(1.0, 0.9, 0.3))
+	_add_keyword("Might", "+X STR for Y tempo (damage, not carry weight)", Color(1.0, 0.4, 0.2))
 
 	# Overflow Section
 	_add_section_header("OVERFLOW MODES")

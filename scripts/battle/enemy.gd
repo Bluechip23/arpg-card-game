@@ -94,6 +94,25 @@ var disarmed_attacks: int = 0    # Disarm-for-N-attacks (Switch Kick): skip that
 var narashimha_tempo: int = 0    # Narashimha (Mane of Narashimha): cycles the heal cap holds for
 var narashimha_heal_cap: int = -1  # health ceiling while active — the NMnB damage cannot be healed back (-1 = unset)
 var void_resistance_percent: float = 0.0  # Mane aura: take this % extra player damage (refreshed each cycle)
+# Per-type damage resistances: DamageTypes.Type -> percent reduction. Empty by
+# default (no enemy resists anything yet); Blue Robe's adaptive damage type
+# reads this table via get_lowest_resistance_type().
+var damage_resistances: Dictionary = {}
+
+## The damage type this enemy resists LEAST. Fire is checked first, so ties
+## break toward fire (Blue Robe's ruling: "fire is always the first check").
+func get_lowest_resistance_type() -> int:
+	var order: Array = [DamageTypes.Type.FIRE, DamageTypes.Type.PHYSICAL,
+		DamageTypes.Type.LIGHTNING, DamageTypes.Type.POISON, DamageTypes.Type.ICE,
+		DamageTypes.Type.WIND, DamageTypes.Type.EARTH]
+	var best: int = DamageTypes.Type.FIRE
+	var best_val: float = INF
+	for t in order:
+		var v: float = float(damage_resistances.get(t, 0.0))
+		if v < best_val:
+			best_val = v
+			best = t
+	return best
 var missing_life_damage_rate: float = 0.0  # Jordan 1s: +rate × missing-health% bonus player damage
 var missing_life_threshold: int = 0        # Jordan 1s: only while at/below this health %
 var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
@@ -2612,12 +2631,18 @@ func attack_player(player_node: Node3D) -> void:
 ## Set from_player = true when the damage originates from the player's card/attack.
 ## Returns true if the enemy was just Exposed (armor broken to 0).
 func take_damage(amount: int, from_player: bool = false, damage_type: int = DamageTypes.Type.PHYSICAL, ignore_armor: bool = false) -> bool:
-	# damage_type is wired through for symmetry with the player pipeline. Enemies
-	# have no per-type resistances yet, so it is accepted but not yet applied.
 	# ignore_armor: skip the armor-absorption chain entirely so the full amount
 	# hits health (Neither Man nor Beast "ignoring all resistances and armor").
 	if is_dead:
 		return false
+
+	# Per-type resistance: percent reduction from damage_resistances (empty for
+	# most enemies today — Blue Robe reads this table for its adaptive type).
+	# ignore_armor hits bypass resistances too (Neither Man nor Beast).
+	if not ignore_armor:
+		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
+		if type_resist > 0.0:
+			amount = floori(amount * (1.0 - minf(type_resist, 90.0) / 100.0))
 
 	# Remember the raw incoming damage of this hit (before armor math) so
 	# on-expose passives like Easy Target can repeat "your damage".

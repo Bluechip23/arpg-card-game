@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dkcam4nm5x10"
-path="res://.godot/imported/hanibals_mask.png-124423e53ce16164ed084f8829dde7fd.ctex"
+uid="uid://cjt30e7gs8d0t"
+path="res://.godot/imported/adimantium.png-54df63f56074280f72d7c335cbf0a2b5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/items/mythic/hanibals_mask.png"
-dest_files=["res://.godot/imported/hanibals_mask.png-124423e53ce16164ed084f8829dde7fd.ctex"]
+source_file="res://assets/items/mythic/adimantium.png"
+dest_files=["res://.godot/imported/adimantium.png-54df63f56074280f72d7c335cbf0a2b5.ctex"]
 
 [params]
 

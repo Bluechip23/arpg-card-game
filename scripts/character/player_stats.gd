@@ -156,7 +156,7 @@ var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e
 # mirroring the base_* stat pattern). Kept separate from the sphere bonuses so
 # unequip subtracts exactly what the item added.
 var equipment_crit_bonus: float = 0.0        # +% crit chance from gear (Monocle, Duelist's Visor)
-var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear (Hanibals Mask)
+var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear (Hannibals Mask)
 var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gear (Thick Steel Helm)
 var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
 var equipment_armorless_defense_block: int = 0  # armor granted by DEFENSE cards that grant none themselves (Burgonet)
@@ -200,6 +200,16 @@ var _health_loss_accum: int = 0
 # Iron Bastion constellation: chance to reduce an incoming hit by a percentage.
 var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0
+# Chests pass
+var equipment_block_physical_resist: float = 0.0  # +% physical resist while armor is up (Smithed Excellence)
+var equipment_resist_per_missing10: float = 0.0   # +% all-resist per full 10% missing health (Divine Resistance)
+var equipment_gold_gain_heal: int = 0             # heal X whenever gold is gained (Suit and Tie)
+var equipment_hp_diff_divisor: int = 0            # health-gap bonus damage divisor, 0 = off (Tigers Sunday Red)
+var equipment_ranged_range_bonus: int = 0         # +range on ranged offensive cards (Tigers Sunday Red)
+var movement_tempo_surcharge: int = 0             # each tile moved on tempo costs this much extra (Adimantium)
+var temp_strength_bonus: int = 0                  # summed MIGHT buffs (Ragnarok); damage only, never carry
+var death_stack_crit_damage: float = 0.0          # Hide of Garmr Lv3: +crit-damage multiplier from death stacks
+var free_move_tiles: int = 0                      # Shadow Cowl shift: tiles that cost no tempo and no flash
 
 # ============================================
 # SPHERE GRID KEYSTONES (build-defining nodes)
@@ -810,8 +820,9 @@ func get_basic_attack_damage() -> int:
 	return get_effective_physical_damage(BASIC_ATTACK_BASE_DAMAGE)
 
 func get_strength_damage_bonus() -> int:
-	# Uses effective strength: +0.5 melee damage per point (rounds down)
-	return floori(strength * 0.5)
+	# Uses effective strength: +0.5 melee damage per point (rounds down).
+	# temp_strength_bonus is the summed MIGHT buffs (Ragnarok) — damage only.
+	return floori((strength + temp_strength_bonus) * 0.5)
 
 func set_carry_load(weight: int) -> void:
 	current_carry_load = weight
@@ -1162,7 +1173,8 @@ func get_crit_damage_multiplier() -> float:
 	## Uses effective Dexterity, so Determination swings crit damage too.
 	## Deadly adds +50% while resolving an attack on an isolated target.
 	var deadly_bonus := 0.5 if st_deadly_crit_active else 0.0
-	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + equipment_crit_damage_bonus + temp_crit_damage_bonus
+	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + equipment_crit_damage_bonus \
+		+ temp_crit_damage_bonus + death_stack_crit_damage
 
 ## Mountain Boots: +% damage while attacking from high ground.
 func _apply_highground(damage: int) -> int:
@@ -1309,12 +1321,18 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	var type_resist = get_damage_resistance(damage_type)
 	if damage_type == DamageTypes.Type.PHYSICAL:
 		type_resist += aura_physical_resist
+		# Smithed Excellence: extra physical resist while you have block up.
+		if current_armor > 0 and equipment_block_physical_resist > 0.0:
+			type_resist += equipment_block_physical_resist
 	if type_resist > 0.0:
 		remaining = floori(remaining * (1.0 - min(type_resist, 100.0) / 100.0))
 
 	# Flat all-damage resistance from the sphere grid ("Resist +X%") plus any
 	# equipment resistance (e.g. Thick Steel Helm): percent reduction on all damage.
 	var flat_resist := sphere_bonus_resistance + equipment_resistance_bonus
+	# Divine Resistance: +X% all-type resist per full 10% of missing health.
+	if equipment_resist_per_missing10 > 0.0:
+		flat_resist += equipment_resist_per_missing10 * int((1.0 - get_health_percent()) * 10.0)
 	if flat_resist > 0.0:
 		remaining = floori(remaining * (1.0 - minf(flat_resist, 90.0) / 100.0))
 
@@ -1337,7 +1355,11 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Apply Brace and Resilient from buffs (Resilient may be type-gated, e.g. Harden)
 	if buff_mgr:
 		remaining = buff_mgr.calculate_damage_reduction(remaining, damage_type)
-	
+
+	# Vined Encasing (Briarhide Plate): thorns shed value equal to damage received.
+	if buff_mgr and remaining > 0 and buff_mgr.has_method("decay_thorns_by_damage"):
+		buff_mgr.decay_thorns_by_damage(remaining)
+
 	# Default absorption order: Armor -> temp HP -> HP. Armor is always the
 	# first line of defense; items, nodes, enemies, or cards may manipulate
 	# this later, but this is the baseline.
@@ -1838,6 +1860,9 @@ func gain_gold(amount: int) -> void:
 	gold += amount
 	gold_changed.emit(gold)
 	print("[STATS] Gained %d gold! (Total: %d)" % [amount, gold])
+	# Suit and Tie: obtaining gold heals — any source, Negotiate included.
+	if amount > 0 and equipment_gold_gain_heal > 0:
+		heal(equipment_gold_gain_heal)
 
 func spend_gold(amount: int) -> bool:
 	if gold < amount:

@@ -62,20 +62,35 @@ func apply_buff(buff: Buff) -> void:
 		buffs.append(buff)
 		print("[BUFF] Applied: %s for %s" % [buff.buff_name, buff.get_duration_display()])
 	
+	_recompute_might()
 	buff_applied.emit(buff)
 	buffs_changed.emit()
 
 func _is_stackable(type: Buff.BuffType) -> bool:
 	match type:
-		Buff.BuffType.THORNS, Buff.BuffType.REGEN, Buff.BuffType.STRENGTHEN, Buff.BuffType.BOLSTER:
+		Buff.BuffType.THORNS, Buff.BuffType.REGEN, Buff.BuffType.STRENGTHEN, Buff.BuffType.BOLSTER, \
+		Buff.BuffType.KEEN, Buff.BuffType.MIGHT:
 			return true
 	return false
+
+## Might (Ragnarok): mirror the summed MIGHT value onto the owner's
+## temp_strength_bonus so STR-derived damage picks it up. Called whenever the
+## buff list changes.
+func _recompute_might() -> void:
+	if not owner_stats or not "temp_strength_bonus" in owner_stats:
+		return
+	var total := 0
+	for buff in buffs:
+		if buff.buff_type == Buff.BuffType.MIGHT:
+			total += buff.value
+	owner_stats.temp_strength_bonus = total
 
 func remove_buff(type: Buff.BuffType) -> void:
 	for i in range(buffs.size() - 1, -1, -1):
 		if buffs[i].buff_type == type:
 			var removed = buffs[i]
 			buffs.remove_at(i)
+			_recompute_might()
 			buff_removed.emit(removed)
 			buffs_changed.emit()
 			print("[BUFF] Removed: %s" % removed.buff_name)
@@ -92,6 +107,7 @@ func has_buff(type: Buff.BuffType) -> bool:
 
 func clear_all_buffs() -> void:
 	buffs.clear()
+	_recompute_might()
 	buffs_changed.emit()
 	print("[BUFF] All buffs cleared")
 
@@ -194,6 +210,7 @@ func process_turn_end() -> void:
 		print("[BUFF] Expired: %s" % buff.buff_name)
 
 	if expired.size() > 0:
+		_recompute_might()
 		buffs_changed.emit()
 
 	# Keep the flag-driven display buffs in sync with their source state and
@@ -308,14 +325,33 @@ func on_attacked(attacker) -> void:
 		attacker.take_damage(thorns.value)
 		thorns_triggered.emit(thorns.value)
 		print("[BUFF] Thorns deals %d damage to attacker!" % thorns.value)
-		# Lose 1 thorn after each hit
-		thorns.value -= 1
-		thorns._set_name_and_description()
-		if thorns.value <= 0:
-			remove_buff(Buff.BuffType.THORNS)
-			print("[BUFF] Thorns expired (0 stacks remaining)")
-		else:
-			buffs_changed.emit()
+		# Lose 1 thorn after each hit. Vined Encasing thorns skip this — they
+		# shed via decay_thorns_by_damage instead.
+		if not thorns.decay_by_damage:
+			thorns.value -= 1
+			thorns._set_name_and_description()
+			if thorns.value <= 0:
+				remove_buff(Buff.BuffType.THORNS)
+				print("[BUFF] Thorns expired (0 stacks remaining)")
+			else:
+				buffs_changed.emit()
+
+## Vined Encasing (Briarhide Plate): "lose X thorns when you receive X damage".
+## Called from PlayerStats.take_damage with the post-mitigation damage amount.
+func decay_thorns_by_damage(amount: int) -> void:
+	if amount <= 0:
+		return
+	var thorns = get_buff(Buff.BuffType.THORNS)
+	if thorns == null or not thorns.decay_by_damage:
+		return
+	thorns.value -= amount
+	thorns._set_name_and_description()
+	if thorns.value <= 0:
+		remove_buff(Buff.BuffType.THORNS)
+		print("[BUFF] Vined Encasing thorns shredded away")
+	else:
+		buffs_changed.emit()
+		print("[BUFF] Vined Encasing: -%d thorns (%d left)" % [amount, thorns.value])
 
 func has_wear_down() -> bool:
 	return has_buff(Buff.BuffType.WEAR_DOWN)
@@ -407,7 +443,12 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var hand_crit = 0
 	if owner_stats and owner_stats.has_method("get_hand_size_crit_bonus"):
 		hand_crit = owner_stats.get_hand_size_crit_bonus()
-	var total_chance = innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit + hand_crit
+	# Keen (Ragnarok): timed flat crit chance.
+	var keen_crit = 0
+	var keen_buff = get_buff(Buff.BuffType.KEEN)
+	if keen_buff:
+		keen_crit = keen_buff.value
+	var total_chance = innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit + hand_crit + keen_crit
 	if total_chance <= 0:
 		return false
 

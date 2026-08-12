@@ -486,6 +486,12 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			print("[DECK] Not enough mana! Need %d, have %d" % [mana_cost, int(player_stats.current_mana)])
 			return { "played": false, "half_tempo": false }
 
+	# Health-cost cards (Mind Mend): paid in HP on top of any mana, and the
+	# play is refused rather than letting the cost kill you.
+	if card.health_cost > 0 and player_stats and player_stats.current_health <= card.health_cost:
+		print("[DECK] Not enough health! %s costs %d health" % [card.card_name, card.health_cost])
+		return { "played": false, "half_tempo": false }
+
 	# Remember what this play actually cost so a voluntary cancel can give it
 	# back exactly (mana normally; health when Demonic Rage footed the bill).
 	var mana_paid := 0
@@ -501,6 +507,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		else:
 			player_stats.spend_mana(mana_cost)
 			mana_paid = mana_cost
+	# The health price is a true cost: it ignores armor, and a cancel refunds it.
+	if card.health_cost > 0 and player_stats:
+		player_stats.take_direct_damage(card.health_cost)
+		health_paid += card.health_cost
+		print("[DECK] %s: paid %d health" % [card.card_name, card.health_cost])
 
 	# Count this fire spell so the next one this turn is cheaper.
 	if card.is_fire_spell:
@@ -823,6 +834,30 @@ func add_card_to_deck_from_id(card_id: String) -> bool:
 		return true
 	print("[DECK] WARNING: Sphere grid tried to unlock unknown card: %s" % card_id)
 	return false
+
+## Ragnarok (Hide of Garmr): free every jailed card at once. Cards go to the
+## hand while it has room; overflow lands in the discard pile (still counts as
+## released). `exclude` skips the card doing the releasing — a jail-on-play card
+## is already sitting in the jail pile by the time a deferred execute runs.
+func release_jailed_to_hand(exclude: Card = null) -> int:
+	var released := 0
+	for i in range(jail_pile.size() - 1, -1, -1):
+		var card = jail_pile[i]
+		if card == exclude:
+			continue
+		jail_pile.remove_at(i)
+		card.jail_time_remaining = 0
+		released += 1
+		if card.linger or hand.size() < get_hand_cap():
+			hand.append(card)
+			print("[DECK] Ragnarok releases %s to hand" % card.card_name)
+		else:
+			discard_pile.append(card)
+			non_play_discard.emit(card)
+			print("[DECK] Ragnarok releases %s — hand full, discarded" % card.card_name)
+	if released > 0:
+		hand_updated.emit()
+	return released
 
 func add_card_to_hand(card: Card) -> void:
 	# Linger cards can exceed hand size; non-linger cards are blocked at capacity

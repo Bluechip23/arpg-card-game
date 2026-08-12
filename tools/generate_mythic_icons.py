@@ -248,7 +248,7 @@ def scholars_cap():
     return c
 
 
-def hanibals_mask():
+def hannibals_mask():
     ## Hannibal Lecter's mask: a hard leather muzzle over the lower face with a
     ## steel grille bolted across the mouth, strapped around the head.
     c = Canvas()
@@ -483,11 +483,183 @@ def concealed_carry():
     return c
 
 
+def belt_of_scrolls():
+    ## A wide leather belt hung with rolled parchment scrolls in loops, wax
+    ## seals swinging below them.
+    c = Canvas()
+    # The belt band across the middle, with a simple frame buckle.
+    c.rect((1, 10, 30, 17), "leather")
+    c.rect((13, 9, 18, 18), "gold")
+    c.rect((15, 11, 16, 16), "leather", "sh")
+    # Scrolls tucked into loops on both sides of the buckle.
+    for sx in (3, 8, 21, 26):
+        c.rect((sx, 6, sx + 3, 20), "bone")
+        c.rect((sx, 6, sx + 3, 7), "bone", "hi")     # rolled top edge
+        c.rect((sx, 12, sx + 3, 14), "leather", "sh")  # the loop holding it
+        # The wax seal swinging below on a short cord.
+        c.line([(sx + 1, 20), (sx + 1, 23)], "leather", "sh")
+        c.ellipse((sx, 23, sx + 2, 25), "blood")
+    return c
+
+
+def megingjord():
+    ## Thor's girdle: broad iron-studded leather, a massive square buckle
+    ## scored with runes.
+    c = Canvas()
+    # The broad band.
+    c.rect((1, 9, 30, 20), "leather")
+    c.rect((1, 9, 30, 10), "leather", "hi")
+    c.rect((1, 19, 30, 20), "leather", "sh")
+    # Iron studs marching down both wings.
+    for sx in (3, 7, 24, 28):
+        for sy in (12, 17):
+            c.dot(sx, sy, "iron", "hi")
+            c.dot(sx + 1, sy + 1, "iron", "sh")
+    # The massive square buckle.
+    c.rect((10, 6, 21, 23), "iron")
+    c.rect((12, 8, 19, 21), "leather", "sh")
+    # Runes scored into the tongue.
+    c.line([(14, 10), (14, 19)], "gold", "hi")
+    c.line([(14, 12), (17, 10)], "gold", "hi")
+    c.line([(14, 15), (17, 19)], "gold", "hi")
+    return c
+
+
+def orions_belt():
+    ## A midnight band with three star-bright studs in a perfect row.
+    c = Canvas()
+    # The midnight-blue band, slightly sagging like the asterism.
+    c.poly([(1, 11), (30, 9), (30, 16), (1, 18)], "cloth")
+    c.line([(1, 11), (30, 9)], "cloth", "hi")
+    c.line([(1, 18), (30, 16)], "cloth", "sh")
+    # Alnitak, Alnilam, Mintaka: three stars set in a row, each with a sparkle.
+    for i, (sx, sy) in enumerate(((6, 14), (15, 13), (24, 12))):
+        c.ellipse((sx - 1, sy - 1, sx + 1, sy + 1), "spark", "hi")
+        c.dot(sx, sy - 2, "spark")
+        c.dot(sx, sy + 2, "spark")
+        c.dot(sx - 2, sy, "spark")
+        c.dot(sx + 2, sy, "spark")
+    return c
+
+
+def girdle_of_aphrodite():
+    ## A slender golden girdle woven like braided hair, clasped with a scallop
+    ## shell at the front.
+    c = Canvas()
+    # The slender band, dipping gently at the front.
+    c.poly([(1, 12), (30, 12), (30, 17), (16, 20), (1, 17)], "gold")
+    # The braid: alternating weave marks along the band.
+    for bx in range(3, 29, 4):
+        c.line([(bx, 13), (bx + 2, 17)], "gold", "sh")
+        c.line([(bx + 2, 13), (bx, 17)], "gold", "hi")
+    # The scallop-shell clasp at the front dip.
+    c.ellipse((11, 14, 21, 24), "rose")
+    c.poly([(11, 16), (21, 16), (16, 25)], "rose")
+    for fx in (13, 16, 19):
+        c.line([(16, 24), (fx, 16)], "rose", "sh")
+    c.rect((11, 15, 21, 15), "rose", "hi")
+    return c
+
+
+def adimantium():
+    ## Teal chest piece with a gold jewel on the chest.
+    c = Canvas()
+    # Pauldron flares over each shoulder.
+    c.ellipse((1, 4, 10, 12), "teal")
+    c.ellipse((21, 4, 30, 12), "teal")
+    # The breastplate: broad at the chest, tapering to the waist.
+    c.poly([(5, 4), (26, 4), (25, 18), (21, 28), (10, 28), (6, 18)], "teal")
+    # Neckline opening.
+    c.ellipse((12, 2, 19, 7), "dark")
+    # Ridged plate lines following the taper.
+    c.line([(8, 21), (23, 21)], "teal", "sh")
+    c.line([(9, 25), (22, 25)], "teal", "sh")
+    # The gold jewel: a faceted diamond set center-chest.
+    c.poly([(15.5, 9), (20, 14), (15.5, 19), (11, 14)], "gold")
+    c.dot(14, 12, "gold", "hi")
+    c.dot(17, 16, "gold", "sh")
+    return c
+
+
+def tigers_sunday_red():
+    ## Sunday red: a red polo — short sleeves, open collar, buttoned placket.
+    c = Canvas()
+    # Sleeves out to each side.
+    c.poly([(2, 8), (8, 5), (9, 15), (3, 16)], "blood")
+    c.poly([(29, 8), (23, 5), (22, 15), (28, 16)], "blood")
+    # The body of the polo.
+    c.poly([(7, 4), (24, 4), (25, 28), (6, 28)], "blood")
+    # Collar: two folded points around the neck opening.
+    c.poly([(13, 2), (18, 2), (15, 6)], "dark")
+    c.poly([(10, 2), (15, 2), (12, 9)], "blood", "sh")
+    c.poly([(21, 2), (16, 2), (19, 9)], "blood", "sh")
+    # Placket with pearl buttons.
+    c.rect((15, 7, 16, 15), "blood", "sh")
+    c.dot(15, 9, "bone", "hi")
+    c.dot(15, 12, "bone", "hi")
+    c.dot(15, 15, "bone", "hi")
+    # Hem shadow.
+    c.line([(7, 27), (24, 27)], "blood", "sh")
+    return c
+
+
+def divine_resistance():
+    ## A shiny silver chest with a crescent moon and a sun on the breastplate.
+    c = Canvas()
+    # Pauldrons.
+    c.ellipse((1, 4, 10, 12), "steel")
+    c.ellipse((21, 4, 30, 12), "steel")
+    # The polished cuirass.
+    c.poly([(5, 4), (26, 4), (25, 18), (21, 28), (10, 28), (6, 18)], "steel")
+    c.ellipse((12, 2, 19, 7), "dark")
+    # Mirror shine streaking down the left of the plate.
+    c.line([(8, 9), (11, 23)], "steel", "hi")
+    # The sun: a gold disc ringed with rays, right of center.
+    c.ellipse((17, 11, 23, 17), "gold")
+    for a8 in range(8):
+        a = math.tau * a8 / 8.0
+        c.dot(int(round(20 + math.cos(a) * 4.5)), int(round(14 + math.sin(a) * 4.5)), "gold", "hi")
+    # The crescent moon left of center: a bone disc with the bite returned to steel.
+    c.ellipse((8, 11, 14, 17), "bone")
+    c.ellipse((10, 10, 15, 16), "steel")
+    return c
+
+
+def hide_of_garmr():
+    ## A furry grey hide worn as a chest piece: shaggy fur, a spiked collar,
+    ## and the wolf's head resting at the chest.
+    c = Canvas()
+    # The hide: a furry torso with a ragged hem.
+    c.poly([(6, 7), (25, 7), (26, 20), (24, 28), (7, 28), (5, 20)], "smoke")
+    for fx in range(5, 27, 4):
+        c.poly([(fx, 26), (fx + 4, 26), (fx + 2, 31)], "smoke")
+    # Shaggy side fur.
+    for sy in range(9, 25, 4):
+        c.poly([(6, sy), (6, sy + 3), (2, sy + 2)], "smoke")
+        c.poly([(25, sy), (25, sy + 3), (29, sy + 2)], "smoke")
+    # Fur combed downward.
+    for fx in range(8, 25, 3):
+        c.line([(fx, 12), (fx - 1, 26)], "smoke", "sh")
+    # The spiked collar across the shoulders.
+    c.rect((5, 5, 26, 8), "leather")
+    for sx in range(6, 26, 4):
+        c.poly([(sx, 5), (sx + 2, 1), (sx + 3, 5)], "iron")
+    # The wolf's head at the chest: ears, skull, muzzle, eyes.
+    c.poly([(11, 12), (13, 9), (14, 12)], "iron")
+    c.poly([(20, 12), (18, 9), (17, 12)], "iron")
+    c.ellipse((10, 11, 21, 22), "iron")
+    c.poly([(13, 20), (18, 20), (15, 25)], "iron", "sh")
+    c.dot(13, 15, "dark", "sh")
+    c.dot(18, 15, "dark", "sh")
+    c.dot(15, 22, "dark", "sh")
+    return c
+
+
 ICONS = {
     "bladed_doughnut": bladed_doughnut,
     "the_headbandz": the_headbandz,
     "scholars_cap": scholars_cap,
-    "hanibals_mask": hanibals_mask,
+    "hannibals_mask": hannibals_mask,
     "mane_of_narashimha": mane_of_narashimha,
     "boots_of_the_balancer": boots_of_the_balancer,
     "hermes_boots": hermes_boots,
@@ -497,6 +669,14 @@ ICONS = {
     "hallowed_trunk": hallowed_trunk,
     "cuffs_of_current": cuffs_of_current,
     "concealed_carry": concealed_carry,
+    "belt_of_scrolls": belt_of_scrolls,
+    "megingjord": megingjord,
+    "orions_belt": orions_belt,
+    "girdle_of_aphrodite": girdle_of_aphrodite,
+    "adimantium": adimantium,
+    "tigers_sunday_red": tigers_sunday_red,
+    "divine_resistance": divine_resistance,
+    "hide_of_garmr": hide_of_garmr,
 }
 
 

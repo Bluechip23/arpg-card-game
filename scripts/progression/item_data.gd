@@ -256,6 +256,15 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_root_offensive: int = 0        # slotted offensive card roots the target X cycles (Gravity Gauntlets 1)
 @export var on_self_disarm_offensive: int = 0      # slotted offensive card disarms the target for X ATTACKS (Spidey 1)
 
+# Chest on-self riders (chests pass 1)
+@export var on_self_ranged_damage: int = 0         # +X damage on slotted RANGED offensive cards (Elvish Cloak 2, Chewbaccas 5)
+@export var on_self_ranged_tempo_reduction: int = 0  # slotted RANGED offensive cards cost X less tempo (Chewbaccas 1)
+@export var on_self_resist_all_percent: float = 0.0  # slotted play: X% resist to ALL damage types... (Smithed Excellence 2)
+@export var on_self_resist_all_tempo: int = 0        # ...for X tempo (Smithed Excellence 3)
+@export var on_self_offensive_shift: int = 0       # slotted offensive card: shift X spaces after the hit (Shadow Cowl 2)
+@export var on_self_offensive_heal_percent: float = 0.0  # slotted offensive card heals X% of max health (Tigers Sunday Red 5)
+@export var on_self_adaptive_damage_type: bool = false   # slotted card deals its damage as the target's LOWEST resistance type, fire checked first (Blue Robe)
+
 # Gauntlet passive riders
 @export var armor_gain_thorns_threshold: int = 0   # every X armor gained... (Spiked Mitts 25)
 @export var armor_gain_thorns_amount: int = 0      # ...gain X thorns (Spiked Mitts 5)
@@ -332,11 +341,32 @@ func get_mastery_text(stats = null) -> String:
 # is equipped adds a fresh copy of this card directly to the hand.
 @export var on_kill_card_id: String = ""
 
+# Chest passive riders (chests pass 1)
+@export var block_physical_resist_percent: float = 0.0  # while you have armor up, +X% physical resist (Smithed Excellence 10)
+@export var casing_damage: int = 0        # >0: playing a ranged offensive card drops a bullet casing dealing X (Chewbaccas Bandolier 8)
+@export var casing_tempo: int = 0         # casing self-detonates after X tempo if nothing steps on it (Chewbaccas 5)
+@export var damage_bank_percent: float = 0.0  # bank X% of every damage instance taken as a stack (Supernova Cuirass 2)
+@export var damage_bank_max_stacks: int = 0   # stack cap (Supernova 10)
+@export var exposed_armor_gain: int = 0       # gain X armor when Exposed is applied to you (Briarhide 5, Adimantium 10)
+@export var exposed_armor_cooldown_cycles: int = 0  # cycles between procs; 0 = no cooldown (Adimantium 15, Lv3 10; Briarhide none)
+@export var gold_gain_heal: int = 0           # heal X whenever you obtain gold (Suit and Tie 3)
+@export var movement_tempo_penalty: int = 0   # each tile moved on tempo costs X extra tempo (Adimantium 1)
+@export var ranged_range_bonus: int = 0       # +X range on ALL ranged offensive cards while equipped (Tigers Sunday Red 1)
+@export var hp_diff_damage_divisor: int = 0   # bonus damage % = (your health% - enemy health%) / X, never below 0 (Tigers 4, Lv3 3)
+@export var resist_per_missing10: float = 0.0 # +X% resist to all damage types per 10% missing health (Divine Resistance 1.0, Lv3 1.5)
+@export var death_crit_stack_radius: int = 0  # Garmr Lv3: any death within X squares grants a stack (2)
+@export var death_crit_damage_per_stack: float = 0.0  # each stack: +X% crit damage; at 5 stacks purge + 10% current health self-damage (Garmr 5)
+
 # Runtime tracking
 var current_cooldown: int = 0  # Current cooldown remaining
 # ARMOR_PER_TURN accumulator: tempo banked toward the next armor grant. Reset
 # to 0 on equip/unequip so the counter restarts (per the helm spec).
 var armor_per_tempo_accum: int = 0
+# Chest pass runtime state (reset on equip/unequip alongside the armor accum)
+var banked_damage: float = 0.0     # Supernova Cuirass: total damage banked across stacks
+var banked_stacks: int = 0         # Supernova Cuirass: current stack count
+var exposed_armor_cd_left: int = 0 # Exposed-armor proc cooldown, in cycles remaining
+var death_crit_stacks: int = 0     # Hide of Garmr Lv3: current death stacks
 
 # Description
 @export var description: String = ""
@@ -661,6 +691,13 @@ func get_on_self_bonus() -> Dictionary:
 		"summon_wolf": on_self_summon_wolf,
 		"root_offensive": on_self_root_offensive,
 		"disarm_offensive": on_self_disarm_offensive,
+		"ranged_damage": on_self_ranged_damage,
+		"ranged_tempo_reduction": on_self_ranged_tempo_reduction,
+		"resist_all_percent": on_self_resist_all_percent,
+		"resist_all_tempo": on_self_resist_all_tempo,
+		"offensive_shift": on_self_offensive_shift,
+		"offensive_heal_percent": on_self_offensive_heal_percent,
+		"adaptive_damage_type": on_self_adaptive_damage_type,
 	}
 
 func get_card_slot_summary() -> String:
@@ -891,15 +928,15 @@ static func create_scholars_cap() -> ItemData:
 		"A stiff black mortarboard with a gold tassel that never stops swinging, even in still air. The underside of the board is inked edge to edge with equations somebody kept correcting.")
 	return item
 
-static func create_hanibals_mask() -> ItemData:
-	var item = _new_helm("Hanibals Mask", Rarity.MYTHIC, 5)
+static func create_hannibals_mask() -> ItemData:
+	var item = _new_helm("Hannibals Mask", Rarity.MYTHIC, 5)
 	item.health_bonus = 25
 	item.card_slots = 2
 	item.lifesteal_percent = 15.0
-	var hanibals_cards: Array[String] = ["resourceful_replenish"]
-	item.granted_card_ids = hanibals_cards
+	var hannibals_cards: Array[String] = ["resourceful_replenish"]
+	item.granted_card_ids = hannibals_cards
 	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 5% (20 mana, 2 tempo)."
-	_set_appearance(item, "hanibals_mask",
+	_set_appearance(item, "hannibals_mask",
 		"Hannibal Lecter's mask: a hard leather muzzle strapped over the lower face, with a steel grille bolted across the mouth.")
 	item.level_3_overrides = {"health_bonus": 50}
 	# Resourceful Replenish maintaining at 8% at Lv.3 is read live off item_level
@@ -1642,6 +1679,8 @@ static func create_belt_of_scrolls() -> ItemData:
 	item.intelligence_bonus = 8
 	var bs_cards: Array[String] = ["chain_lightning", "ice_grenade", "fire_punch"]
 	item.granted_card_ids = bs_cards
+	_set_appearance(item, "belt_of_scrolls",
+		"A wide leather belt hung with rolled parchment scrolls, each tucked into its own loop with a wax seal swinging below it.")
 	item.description = "+8 WIS, +8 INT. Grants Chain Lightning (10 damage bouncing between enemies, -2 per bounce), Ice Grenade (5 damage + 2 Cold in a 2-square radius; two separately-aimed shots), and Fire Punch (STR-scaled melee that leaves a fire path behind the target and copies itself with Erase 5)."
 	return item
 
@@ -1654,6 +1693,8 @@ static func create_megingjord() -> ItemData:
 	item.on_self_mana_multiplier = 2.0
 	var mg_cards: Array[String] = ["gift_from_the_gods"]
 	item.granted_card_ids = mg_cards
+	_set_appearance(item, "megingjord",
+		"Thor's girdle: a broad iron-studded leather band with a massive square buckle scored with runes.")
 	item.level_3_overrides = {"strength_bonus": 20, "health_bonus": 45}
 	item.level_3_description = "+20 STR, +45 life. On-self: double damage, double mana cost. Grants Gift from the Gods: gain 4 Enlightened and cleanse 3 negative effects."
 	item.description = "+15 STR, +30 life. On-self: double damage, double mana cost. Grants Gift from the Gods: gain 3 Enlightened (10% crit chance, one stack consumed per attack)."
@@ -1665,6 +1706,8 @@ static func create_orions_belt() -> ItemData:
 	item.dexterity_bonus = 3
 	var ob_cards: Array[String] = ["protection_from_alnitak", "balance_of_alnilam", "crack_of_mintaka"]
 	item.granted_card_ids = ob_cards
+	_set_appearance(item, "orions_belt",
+		"A midnight-blue band with three star-bright studs in a perfect row — Alnitak, Alnilam, and Mintaka.")
 	item.description = "+5 STR, +3 DEX. Grants Protection From Alnitak (10 armor + Brace equal to your empty hand slots for 5 attacks), Balance of Alnilam (if this is your only card, draw 6), and Crack of Mintaka (discard any number of cards; melee strike with range and crit damage per card discarded)."
 	return item
 
@@ -1678,10 +1721,248 @@ static func create_girdle_of_aphrodite() -> ItemData:
 	item.wisdom_bonus = 2
 	item.on_self_taunt_cycles = 3   # 15 tempo
 	item.on_self_support_heal = 15
+	_set_appearance(item, "girdle_of_aphrodite",
+		"A slender golden girdle woven like braided hair, clasped at the front with a scallop shell.")
 	item.level_3_overrides = {"card_slots": 3, "health_bonus": 20, "determination_bonus": 2,
 		"agility_bonus": 3, "dexterity_bonus": 3, "wisdom_bonus": 4, "on_self_support_heal": 35}
 	item.level_3_description = "+20 health, +2 DET, +3 AGI, +3 DEX, +4 WIS. 3 card slots. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 35."
 	item.description = "+10 health, +2 DET, +2 AGI, +2 DEX, +2 WIS. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 15."
+	return item
+
+# ============================================
+# CHESTS (first chests pass — torso slot)
+# ============================================
+static func _new_chest(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = ItemData.new()
+	item.item_name = nm
+	item.item_type = ItemType.CHEST
+	item.item_type_name = "Chest"
+	item.rarity = r
+	item.weight = wt
+	return item
+
+static func create_wooden_plank() -> ItemData:
+	var item = _new_chest("Wooden Plank", Rarity.COMMON, 45)
+	item.health_bonus = 30
+	item.description = "+30 health."
+	return item
+
+static func create_elvish_cloak() -> ItemData:
+	var item = _new_chest("Elvish Cloak", Rarity.COMMON, 10)
+	item.card_slots = 1
+	item.dexterity_bonus = 2
+	item.agility_bonus = 1
+	item.on_self_ranged_damage = 2
+	item.description = "+2 DEX, +1 AGI. On-self: ranged offensive cards deal +2 damage."
+	return item
+
+static func create_steel_plate() -> ItemData:
+	var item = _new_chest("Steel Plate", Rarity.COMMON, 80)
+	item.strength_bonus = 3
+	item.health_bonus = 10
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 8
+	item.armor_per_tempo_interval = 20
+	item.description = "+3 STR, +10 health. Gain 8 block every 20 tempo."
+	return item
+
+static func create_tattered_cloth() -> ItemData:
+	var item = _new_chest("Tattered Cloth", Rarity.COMMON, 10)
+	item.determination_bonus = 2
+	item.agility_bonus = 2
+	item.wisdom_bonus = 2
+	item.dexterity_bonus = 2
+	item.health_bonus = 15
+	item.description = "+2 DET, +2 AGI, +2 WIS, +2 DEX, +15 health."
+	return item
+
+static func create_velvet_plate() -> ItemData:
+	var item = _new_chest("Velvet Plate", Rarity.RARE, 150)
+	item.card_slots = 1
+	item.strength_bonus = 4
+	item.health_bonus = 20
+	item.on_self_heal = 5
+	item.description = "+4 STR, +20 health. On-self: heal 5."
+	return item
+
+static func create_buffed_leather() -> ItemData:
+	var item = _new_chest("Buffed Leather", Rarity.RARE, 100)
+	item.health_bonus = 40
+	item.description = "+40 health."
+	return item
+
+static func create_chain_mail() -> ItemData:
+	var item = _new_chest("Chain Mail", Rarity.RARE, 200)
+	item.health_bonus = 15
+	item.special_effect = SpecialEffect.ARMOR_PER_TURN
+	item.special_effect_value = 8
+	item.armor_per_tempo_interval = 15
+	var cm_cards: Array[String] = ["clang_up"]
+	item.granted_card_ids = cm_cards
+	item.description = "+15 health. Gain 8 armor every 15 tempo. Grants Clang Up: gain 10 block (20 mana, 5 tempo)."
+	return item
+
+static func create_suit_and_tie() -> ItemData:
+	var item = _new_chest("Suit and Tie", Rarity.RARE, 10)
+	item.intelligence_bonus = 3
+	item.wisdom_bonus = 2
+	item.determination_bonus = 1
+	item.gold_gain_heal = 3
+	var st_cards: Array[String] = ["negotiate"]
+	item.granted_card_ids = st_cards
+	item.description = "+3 INT, +2 WIS, +1 DET. Heal 3 whenever you obtain gold. Grants Negotiate: steal 5 gold from an enemy (20 mana, 3 tempo)."
+	return item
+
+static func create_smithed_excellence() -> ItemData:
+	var item = _new_chest("Smithed Excellence", Rarity.LEGENDARY, 65)
+	item.card_slots = 3
+	item.health_bonus = 30
+	item.strength_bonus = 5
+	item.wisdom_bonus = 4
+	item.on_self_resist_all_percent = 2.0
+	item.on_self_resist_all_tempo = 3
+	item.block_physical_resist_percent = 10.0
+	item.description = "+30 health, +5 STR, +4 WIS. On-self: gain 2% resistance to all damage types for 3 tempo. While you have block, you have an additional 10% physical resistance."
+	return item
+
+static func create_shadow_cowl() -> ItemData:
+	var item = _new_chest("Shadow Cowl", Rarity.LEGENDARY, 10)
+	item.card_slots = 4
+	item.health_bonus = -10
+	item.agility_bonus = 5
+	item.dexterity_bonus = 7
+	item.on_self_offensive_damage = 2
+	item.on_self_offensive_shift = 2
+	item.description = "-10 health, +5 AGI, +7 DEX. On-self: offensive cards deal +2 damage and shift you 2 spaces."
+	return item
+
+static func create_chewbaccas_bandolier() -> ItemData:
+	var item = _new_chest("Chewbaccas Bandolier", Rarity.LEGENDARY, 45)
+	item.card_slots = 2
+	item.strength_bonus = 8
+	item.agility_bonus = 2
+	item.health_bonus = -10
+	item.dexterity_bonus = 2
+	item.wisdom_bonus = -2
+	item.on_self_ranged_tempo_reduction = 1
+	item.on_self_ranged_damage = 5
+	item.casing_damage = 8
+	item.casing_tempo = 5
+	item.description = "+8 STR, +2 AGI, +2 DEX, -10 health, -2 WIS. On-self: ranged offensive cards cost 1 less tempo and deal +5 damage. After playing a ranged offensive card, drop a bullet casing — when an enemy steps on it, or after 5 tempo, it explodes for 8 damage (never hurts allies or summons)."
+	return item
+
+static func create_supernova_cuirass() -> ItemData:
+	var item = _new_chest("Supernova Cuirass", Rarity.LEGENDARY, 250)
+	item.determination_bonus = 2
+	item.health_bonus = 10
+	item.damage_bank_percent = 2.0
+	item.damage_bank_max_stacks = 10
+	var sc_cards: Array[String] = ["detonova"]
+	item.granted_card_ids = sc_cards
+	item.description = "+2 DET, +10 health. When taking damage, 2% of it is harnessed into the cuirass as a stack (max 10). Grants Detonova: purge your stacks and deal the banked total as fire damage 2 squares around you — does NOT scale with INT (60 mana, 5 tempo)."
+	return item
+
+static func create_trench_of_tranquility() -> ItemData:
+	var item = _new_chest("Trench of Tranquility", Rarity.LEGENDARY, 100)
+	item.card_slots = 2
+	item.health_bonus = 25
+	item.mana_bonus = 35
+	item.intelligence_bonus = 5
+	item.strength_bonus = 5
+	item.determination_bonus = 2
+	item.agility_bonus = -5
+	item.on_self_heal = 5
+	var tt_cards: Array[String] = ["mind_mend", "deep_breaths"]
+	item.granted_card_ids = tt_cards
+	item.description = "+25 health, +35 mana, +5 INT, +5 STR, +2 DET, -5 AGI. On-self: heal 5. Grants Mind Mend: restore 60 mana (costs 15 HEALTH, 3 tempo) and Deep Breaths: heal 20 (30 mana, 4 tempo)."
+	return item
+
+static func create_briarhide_plate() -> ItemData:
+	var item = _new_chest("Briarhide Plate", Rarity.LEGENDARY, 300)
+	item.health_bonus = 35
+	item.exposed_armor_gain = 5
+	var bp_cards: Array[String] = ["vined_encasing"]
+	item.granted_card_ids = bp_cards
+	item.description = "+35 health. When Exposed is applied to you, gain 5 armor. Grants Vined Encasing: gain 0.5 thorns per point of armor you currently have, for 20 tempo — you lose X thorns whenever you receive X damage (50 mana, 4 tempo)."
+	return item
+
+static func create_blue_robe() -> ItemData:
+	var item = _new_chest("Blue Robe", Rarity.LEGENDARY, 25)
+	item.card_slots = 2
+	item.wisdom_bonus = 5
+	item.intelligence_bonus = 8
+	item.health_bonus = 20
+	item.on_self_adaptive_damage_type = true
+	item.description = "+5 WIS, +8 INT, +20 health. On-self: the card's damage type adapts to each enemy hit — it always deals the type they resist LEAST (fire is checked first)."
+	return item
+
+static func create_adimantium() -> ItemData:
+	var item = _new_chest("Adimantium", Rarity.MYTHIC, 350)
+	item.card_slots = 2
+	item.strength_bonus = 8
+	item.agility_bonus = -2
+	item.dexterity_bonus = -1
+	item.on_self_block = 8
+	item.movement_tempo_penalty = 1
+	item.exposed_armor_gain = 10
+	item.exposed_armor_cooldown_cycles = 15
+	var ad_cards: Array[String] = ["adimantium_wall"]
+	item.granted_card_ids = ad_cards
+	# Adimantium Wall granting 55 block at Lv.3 is read live off item_level
+	# (see Card.execute's adimantium_wall case).
+	item.level_3_overrides = {"exposed_armor_gain": 15, "exposed_armor_cooldown_cycles": 10}
+	item.level_3_description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move costs 1 extra tempo. When Exposed is applied to you, gain 15 armor (10-cycle cooldown). Grants Adimantium Wall: gain 55 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
+	_set_appearance(item, "adimantium",
+		"Teal chest piece with a gold jewel on the chest.")
+	item.description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move costs 1 extra tempo. When Exposed is applied to you, gain 10 armor (15-cycle cooldown). Grants Adimantium Wall: gain 40 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
+	return item
+
+static func create_tigers_sunday_red() -> ItemData:
+	var item = _new_chest("Tigers Sunday Red", Rarity.MYTHIC, 10)
+	item.card_slots = 2
+	item.health_bonus = 15
+	item.agility_bonus = 5
+	item.dexterity_bonus = 5
+	item.on_self_offensive_heal_percent = 5.0
+	item.ranged_range_bonus = 1
+	item.hp_diff_damage_divisor = 4
+	item.level_3_overrides = {"on_self_offensive_heal_percent": 8.0, "hp_diff_damage_divisor": 3}
+	item.level_3_description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 8% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 3 (never below 0)."
+	_set_appearance(item, "tigers_sunday_red",
+		"Red Polo.")
+	item.description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 5% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 4 (never below 0)."
+	return item
+
+static func create_divine_resistance() -> ItemData:
+	var item = _new_chest("Divine Resistance", Rarity.MYTHIC, 400)
+	item.health_bonus = 45
+	item.strength_bonus = 5
+	item.resist_per_missing10 = 1.0
+	var dr_cards: Array[String] = ["preemptive_answer"]
+	item.granted_card_ids = dr_cards
+	item.level_3_overrides = {"resist_per_missing10": 1.5}
+	item.level_3_description = "+45 health, +5 STR. Gain 1.5% resistance to all damage types per 10% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
+	_set_appearance(item, "divine_resistance",
+		"Shiny silver chest, with a crescent moon and sun on the chest.")
+	item.description = "+45 health, +5 STR. Gain 1% resistance to all damage types per 10% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
+	return item
+
+static func create_hide_of_garmr() -> ItemData:
+	var item = _new_chest("Hide of Garmr", Rarity.MYTHIC, 80)
+	item.health_bonus = 25
+	item.agility_bonus = 8
+	item.dexterity_bonus = 8
+	item.strength_bonus = 8
+	var hg_cards: Array[String] = ["ragnarok"]
+	item.granted_card_ids = hg_cards
+	# Ragnarok healing 15 / granting 7 STR per released card at Lv.3 is read
+	# live off item_level (see Card.execute's ragnarok case).
+	item.level_3_overrides = {"agility_bonus": 9, "dexterity_bonus": 9, "strength_bonus": 9,
+		"death_crit_stack_radius": 2, "death_crit_damage_per_stack": 5.0}
+	item.level_3_description = "+25 health, +9 AGI, +9 DEX, +9 STR. When there is a death of any kind within 2 squares of you (your own summons included), gain a stack: each stack grants +5% crit damage. At 5 stacks, purge them all and take 10% of your current health as damage. Grants Ragnarok: release all jailed cards into your hand — for each, heal 15 and gain 10% crit chance and 7 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
+	_set_appearance(item, "hide_of_garmr",
+		"Furry grey hide in the shape of a chest piece, a spiked collar and a wolf head at the chest.")
+	item.description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
 	return item
 
 # ============================================
@@ -1711,7 +1992,14 @@ static func get_items_of_rarity(r: Rarity) -> Array[ItemData]:
 
 ## Recreate a fresh level-1 instance of an item by name (forge fodder checks,
 ## mold redemption). Returns null for unknown names.
+# Old item names that live on in saved data (owned_mythic_names, molds).
+const RENAMED_ITEMS := {
+	"Hanibals Mask": "Hannibals Mask",
+}
+
 static func create_by_name(item_name_to_find: String) -> ItemData:
+	if RENAMED_ITEMS.has(item_name_to_find):
+		item_name_to_find = RENAMED_ITEMS[item_name_to_find]
 	for item in get_all_items():
 		if item.item_name == item_name_to_find:
 			return item

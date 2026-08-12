@@ -112,6 +112,12 @@ const CARD_RARITIES := {
 	"gift_from_the_gods": Rarity.MYTHIC,
 	"protection_from_alnitak": Rarity.MYTHIC, "balance_of_alnilam": Rarity.MYTHIC,
 	"crack_of_mintaka": Rarity.MYTHIC,
+	# Chest-granted
+	"clang_up": Rarity.RARE, "negotiate": Rarity.RARE,
+	"detonova": Rarity.LEGENDARY, "mind_mend": Rarity.LEGENDARY,
+	"deep_breaths": Rarity.LEGENDARY, "vined_encasing": Rarity.LEGENDARY,
+	"adimantium_wall": Rarity.MYTHIC, "preemptive_answer": Rarity.MYTHIC,
+	"ragnarok": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -133,6 +139,9 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"chain_lightning": true, "ice_grenade": true, "fire_punch": true,
 	"gift_from_the_gods": true, "protection_from_alnitak": true,
 	"balance_of_alnilam": true, "crack_of_mintaka": true,
+	"clang_up": true, "negotiate": true, "detonova": true, "mind_mend": true,
+	"deep_breaths": true, "vined_encasing": true, "adimantium_wall": true,
+	"preemptive_answer": true, "ragnarok": true,
 }
 
 @export var card_id: String = "slash"
@@ -141,6 +150,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 @export var card_type: CardType = CardType.ATTACK
 @export var card_type_name: String = "Attack"
 @export var mana_cost: int = 1
+@export var health_cost: int = 0  # Paid in HEALTH on play, on top of mana (Mind Mend). Refuses the play at or below the cost.
 @export var damage: int = 10
 @export var block: int = 0
 @export var heal_amount: int = 0
@@ -853,6 +863,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 
 	var _temp_crit_applied := 0.0
 	var _temp_crit_dmg_applied := 0.0
+	var _adaptive_type_prev := -999  # Blue Robe: original damage_type to restore after this play
 	if slotted_in_item:
 		# Studded belt: the long-dead on_self_thorns finally fires — slotted
 		# plays grant thorns.
@@ -927,6 +938,26 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_temp_crit_applied = on_self["crit_ranged_percent"]
 			player_stats.temp_on_self_crit_bonus += _temp_crit_applied
 			print("[CARD] On-Self: +%.0f%% crit from %s" % [_temp_crit_applied, slotted_in_item.item_name])
+		# Elvish Cloak / Chewbaccas Bandolier: slotted RANGED offensive cards hit harder.
+		if int(on_self.get("ranged_damage", 0)) > 0 and is_offensive() and is_ranged:
+			bonus_damage += int(on_self["ranged_damage"])
+			_gauntlet_bonus_applied += int(on_self["ranged_damage"])
+			print("[CARD] On-Self: +%d damage (ranged) from %s" % [int(on_self["ranged_damage"]), slotted_in_item.item_name])
+		# Smithed Excellence: timed all-type resistance on slotted play.
+		if on_self.get("resist_all_percent", 0.0) > 0.0 and buff_mgr:
+			buff_mgr.apply_buff(Buff.create_resilient(int(on_self["resist_all_percent"]),
+				maxi(1, int(on_self.get("resist_all_tempo", 3))), slotted_in_item.item_name, DamageTypes.ALL))
+		# Tigers Sunday Red: offensive slotted cards heal a % of max health.
+		if on_self.get("offensive_heal_percent", 0.0) > 0.0 and is_offensive() and player_stats:
+			var tsr_heal: int = maxi(1, floori(player_stats.max_health * on_self["offensive_heal_percent"] / 100.0))
+			player_stats.heal(tsr_heal)
+			print("[CARD] On-Self: %s healed %d (offensive)" % [slotted_in_item.item_name, tsr_heal])
+		# Blue Robe: the slotted card deals the type its target resists LEAST
+		# (fire checked first, so ties break toward fire). Restored in cleanup.
+		if bool(on_self.get("adaptive_damage_type", false)) and target and target.has_method("get_lowest_resistance_type"):
+			_adaptive_type_prev = damage_type
+			damage_type = target.get_lowest_resistance_type()
+			print("[CARD] On-Self: %s adapts to %s damage" % [slotted_in_item.item_name, DamageTypes.type_name(damage_type)])
 
 	# Feathered Hat: an armed guaranteed crit is spent by the next ranged
 	# offensive card — any damaging ranged card, whatever item it's slotted in.
@@ -948,6 +979,18 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if is_offensive() and not is_ranged and player_stats.pending_melee_damage_bonus > 0:
 			_gauntlet_bonus_applied += player_stats.pending_melee_damage_bonus
 			player_stats.pending_melee_damage_bonus = 0
+		# Tigers Sunday Red: bonus damage scaling with the health-percent gap
+		# between you and the target — clamped at zero, never a penalty.
+		if is_offensive() and player_stats.equipment_hp_diff_divisor > 0 and target \
+				and "current_health" in target and "max_health" in target and target.max_health > 0:
+			var tsr_php: float = player_stats.get_health_percent() * 100.0
+			var tsr_ehp: float = float(target.current_health) / float(target.max_health) * 100.0
+			var tsr_gap_pct: float = maxf(0.0, tsr_php - tsr_ehp) / float(player_stats.equipment_hp_diff_divisor)
+			if tsr_gap_pct > 0.0:
+				var tsr_gap_bonus: int = floori((base_damage + bonus_damage) * tsr_gap_pct / 100.0)
+				if tsr_gap_bonus > 0:
+					_gauntlet_bonus_applied += tsr_gap_bonus
+					print("[CARD] Tigers Sunday Red: +%d damage (%.0f%% health-gap bonus)" % [tsr_gap_bonus, tsr_gap_pct])
 	if slotted_in_item:
 		# Roman Bracers: slotted melee offensive cards hit harder.
 		var osb_melee := int(get_on_self_bonus().get("melee_damage", 0))
@@ -1110,6 +1153,71 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			pass
 		"healing_tonic":
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
+		"clang_up":
+			# Chain Mail: block through the normal defense path.
+			_execute_block(player_stats, is_empowered, buff_mgr)
+		"negotiate":
+			# Suit and Tie: enemies carry no purse, so the steal mints the gold.
+			# gain_gold also fires the chest's heal-on-gold passive.
+			if player_stats:
+				player_stats.gain_gold(5)
+				print("[CARD] Negotiate: stole 5 gold")
+		"detonova":
+			# Supernova Cuirass: world-scale AoE — resolved in main._apply_card_world_effects.
+			pass
+		"mind_mend":
+			# Trench of Tranquility: the 15-health cost is charged at play time
+			# (see DeckManager.play_card's health_cost block).
+			if player_stats:
+				player_stats.gain_mana(60)
+				print("[CARD] Mind Mend: +60 mana")
+		"deep_breaths":
+			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
+		"vined_encasing":
+			# Briarhide Plate: thorns from current armor; the buff sheds value
+			# equal to damage received instead of 1 per hit.
+			if player_stats and buff_mgr:
+				var vined_thorns: int = floori(player_stats.current_armor * 0.5)
+				if vined_thorns > 0:
+					var vined_buff = Buff.create_thorns(vined_thorns, 20, "Vined Encasing")
+					vined_buff.decay_by_damage = true
+					buff_mgr.apply_buff(vined_buff)
+					print("[CARD] Vined Encasing: %d thorns for 20 tempo" % vined_thorns)
+				else:
+					print("[CARD] Vined Encasing: no armor — no thorns")
+		"adimantium_wall":
+			# Adimantium Lv.3 upgrades the wall from 40 to 55 block.
+			var wall_lv3_bonus: int = 15 if (granted_by_item and granted_by_item.item_level >= 3) else 0
+			block += wall_lv3_bonus
+			_execute_block(player_stats, is_empowered, buff_mgr)
+			block -= wall_lv3_bonus
+		"preemptive_answer":
+			# Divine Resistance instant: fired by the below-25%-health trigger.
+			if player_stats:
+				var pa_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
+				if pa_dm:
+					var pa_list = pa_dm.debuffs.duplicate()
+					pa_list.shuffle()
+					for i in range(mini(3, pa_list.size())):
+						pa_dm.remove_debuff(pa_list[i].debuff_type)
+				player_stats.heal(20)
+				print("[CARD] Preemptive Answer: purged up to 3 debuffs, healed 20")
+		"ragnarok":
+			# Hide of Garmr: free the jail. Lv.3 heals 15 and grants 7 STR per card.
+			if deck_manager:
+				var released: int = deck_manager.release_jailed_to_hand(self)
+				if released > 0:
+					var rg_lv3: bool = granted_by_item != null and granted_by_item.item_level >= 3
+					var rg_heal: int = (15 if rg_lv3 else 10) * released
+					var rg_str: int = (7 if rg_lv3 else 5) * released
+					if player_stats:
+						player_stats.heal(rg_heal)
+					if buff_mgr:
+						buff_mgr.apply_buff(Buff.create_keen(10 * released, 10, "Ragnarok"))
+						buff_mgr.apply_buff(Buff.create_might(rg_str, 10, "Ragnarok"))
+					print("[CARD] Ragnarok: released %d — healed %d, +%d%% crit, +%d STR for 10 tempo" % [released, rg_heal, 10 * released, rg_str])
+				else:
+					print("[CARD] Ragnarok: no jailed cards to release")
 		"stance_switch":
 			# Mits of Chingiz: strip 10 armor, then 2 Vulnerable either way.
 			if target and target.has_method("apply_debuff"):
@@ -1413,14 +1521,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if ls_dealt > 0:
 			player_stats.apply_life_steal(max(1, floori(ls_dealt * 0.05)))
 
-	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hanibals Mask),
+	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hannibals Mask),
 	# and a maintained Resourceful Replenish: attacks heal a % of damage dealt.
 	if card_type == CardType.ATTACK and player_stats:
 		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.equipment_lifesteal_bonus
 		if deck_manager and deck_manager.has_method("get_maintained_cards"):
 			for mc in deck_manager.get_maintained_cards():
 				if mc and mc.card_id == "resourceful_replenish":
-					# Hanibals Mask Lv.3 maintains at 8% instead of 5%.
+					# Hannibals Mask Lv.3 maintains at 8% instead of 5%.
 					ls_pct += 8.0 if (mc.granted_by_item and mc.granted_by_item.item_level >= 3) else 5.0
 		if ls_pct > 0.0:
 			var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
@@ -1534,6 +1642,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		player_stats.temp_on_self_crit_bonus = max(0.0, player_stats.temp_on_self_crit_bonus - _temp_crit_applied)
 	if _temp_crit_dmg_applied > 0.0 and player_stats:
 		player_stats.temp_crit_damage_bonus = max(0.0, player_stats.temp_crit_damage_bonus - _temp_crit_dmg_applied)
+	if _adaptive_type_prev != -999:
+		damage_type = _adaptive_type_prev  # Blue Robe: the type swap never sticks to the card
 
 	# Wizard Hat: a spell card consumes the armed spell-power bonus on play.
 	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
@@ -1590,7 +1700,7 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 	last_damage_dealt = total_damage
 
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 
 		# Thorns check - if target has buff_manager
 		if target.has_method("get_buff_manager"):
@@ -1619,7 +1729,7 @@ func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats
 	print("[CARD] Dagger Throw deals %d damage!" % total_damage)
 	
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	
 	if self_damage_percent > 0.0 and player_stats:
 		var self_dmg = floori(total_damage * self_damage_percent)
@@ -1770,6 +1880,9 @@ func get_burden_tempo_cost() -> int:
 	# Boot Holsters: slotted attack cards cost less tempo.
 	if card_type == CardType.ATTACK and slotted_in_item:
 		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
+	# Chewbaccas Bandolier: slotted RANGED offensive cards cost less tempo.
+	if is_offensive() and is_ranged and slotted_in_item:
+		cost -= int(slotted_in_item.get_on_self_bonus().get("ranged_tempo_reduction", 0))
 	# Potion Belt: slotted utility cards refund tempo.
 	if card_type == CardType.UTILITY and slotted_in_item:
 		cost -= int(slotted_in_item.get_on_self_bonus().get("utility_tempo_refund", 0))
@@ -2042,7 +2155,7 @@ func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 			total_damage = crit_multiply(total_damage, player_stats)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Poke deals %d damage!" % total_damage)
 
 func _execute_armor_break(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2100,7 +2213,7 @@ func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = n
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(5)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_brace(30, 1, "Parry"))
 	print("[CARD] Parry! Gained 5 armor, dealt %d damage. Next damage reduced" % total_damage)
@@ -2127,7 +2240,7 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
 	# 80% bounce chance, -20% per bounce; each bounce repeats the attack's damage.
 	# The FIRST bounce honors the pre-rolled outcome shown on the card preview;
@@ -2144,7 +2257,7 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 			break
 		bounces += 1
 		if target and target.has_method("take_damage"):
-			target.take_damage(total_damage, true)
+			target.take_damage(total_damage, true, damage_type)
 			last_damage_dealt += total_damage
 		bounce_chance -= 20.0
 		if bounce_chance <= 0:
@@ -2196,7 +2309,7 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 			total_damage = crit_multiply(total_damage, player_stats)
 	# Always deal base 5 damage
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	# Use pre-rolled RNG: index 0 = +15 damage, index 1 = stun. Paths that
 	# skipped the pre-roll flip a live coin instead of always landing on stun.
 	var wtch_outcome = rng_selected_index
@@ -2257,7 +2370,7 @@ func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: Buf
 	if player_stats:
 		total_damage = player_stats.get_effective_spell_damage(15)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] If Pigs Could Fly! Flying pig explodes for %d damage!" % total_damage)
 
 func _execute_snowballs_chance(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2324,7 +2437,7 @@ func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager 
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Exacerbate Wounds! %d cards discarded this cycle = %d damage" % [discard_count, total_damage])
 
 func _execute_reposition(deck_manager) -> void:
@@ -2431,7 +2544,7 @@ func _execute_quick_shot(target, player_stats: PlayerStats, deck_manager = null,
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	if deck_manager:
 		deck_manager.draw_card()
 	print("[CARD] Quick Shot! %d damage + drew a card" % total_damage)
@@ -2463,7 +2576,7 @@ func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Down Town! Long range (+7) shot for %d damage" % total_damage)
 
 func _execute_barricade(target, _player_stats: PlayerStats) -> void:
@@ -2485,7 +2598,7 @@ func _execute_sky_attack(target, player_stats: PlayerStats, buff_mgr: BuffManage
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Sky Attack! Leaped and shot from above for %d damage (High Ground)" % total_damage)
 
 func _execute_lead_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2498,7 +2611,7 @@ func _execute_lead_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManage
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Lead Arrow! 1.8x damage from high ground: %d" % total_damage)
 
 func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2518,7 +2631,7 @@ func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManag
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Last Breath! Consumed %d mana for %d damage" % [mana_used, total_damage])
 
 func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2530,7 +2643,7 @@ func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Mixed Bag! Standard arrow for %d damage" % total_damage)
 
 func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2542,7 +2655,7 @@ func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManag
 		if buff_mgr.roll_crit():
 			total_damage = crit_multiply(total_damage, player_stats)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Quick Arrow! Free arrow for %d damage" % total_damage)
 
 func _execute_bottomless_quiver(_player_stats: PlayerStats) -> void:
@@ -2561,7 +2674,7 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(5)
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	if target and target.has_method("apply_debuff"):
 		target.apply_debuff("slow", 4)  # -4 movement (4 grid spaces)
 	print("[CARD] Trip! %d damage, enemy movement -4" % total_damage)
@@ -3703,7 +3816,7 @@ func _execute_thrown_stone(target, player_stats: PlayerStats, buff_mgr: BuffMana
 			total_damage = crit_multiply(total_damage, player_stats)
 			print("[CARD] Thrown Stone CRIT!")
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
 		print("[CARD] Thrown Stone dealt %d damage!" % total_damage)
 
@@ -3795,7 +3908,7 @@ func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerSt
 		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 	if self_damage_percent > 0.0 and player_stats:
 		var self_dmg = floori(total_damage * self_damage_percent)
 		if self_dmg > 0:
@@ -3899,7 +4012,7 @@ func _execute_blade_barrage(target, player_stats: PlayerStats, deck_manager, buf
 			total_damage = crit_multiply(total_damage, player_stats)
 			print("[CARD] Blade Barrage CRIT!")
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
 	print("[CARD] Blade Barrage: %d attack cards in hand, dealt %d damage! Glut: 15 tempo" % [attack_count, total_damage])
 
@@ -4069,7 +4182,7 @@ func _execute_energy_ball(target, player_stats: PlayerStats, buff_mgr: BuffManag
 			total_damage = crit_multiply(total_damage, player_stats)
 			print("[CARD] Energy Ball CRIT!")
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
 	print("[CARD] Energy Ball dealt %d damage (from Absorb Essence)!" % total_damage)
 
@@ -4426,7 +4539,7 @@ func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	if damage_reduction_pct > 0:
 		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
 	if target and target.has_method("take_damage"):
-		target.take_damage(total_damage, true)
+		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
 	# Gain 10 mana
 	if player_stats:
@@ -6031,6 +6144,151 @@ static func create_healthy_bliss() -> Card:
 	card.heal_amount = 10
 	card.target_types = ["ally"]
 	card.in_hand_heal_tempo = 20  # Heals all allies once it has spent this long in hand
+	return card
+
+# ============================================
+# CHEST-GRANTED CARDS (chests pass 1)
+# ============================================
+
+static func create_clang_up() -> Card:
+	var card = Card.new()
+	card.card_id = "clang_up"
+	card.card_name = "Clang Up"
+	card.description = "Gain 10 block."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 20
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 10
+	card.base_block = 10
+	card.target_types = ["self"]
+	return card
+
+static func create_negotiate() -> Card:
+	var card = Card.new()
+	card.card_id = "negotiate"
+	card.card_name = "Negotiate"
+	card.description = "Steal 5 gold from an enemy."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 20
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.is_ranged = true
+	card.target_types = ["enemy"]
+	return card
+
+static func create_detonova() -> Card:
+	var card = Card.new()
+	card.card_id = "detonova"
+	card.card_name = "Detonova"
+	card.description = "Purge the cuirass's stacks and deal the banked total as fire damage to all enemies within 2 squares of you. Does NOT scale with INT."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 60
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 2.0
+	card.damage_type = DamageTypes.Type.FIRE
+	card.school = CardSchool.SPELL
+	card.target_types = ["self"]
+	return card
+
+static func create_mind_mend() -> Card:
+	var card = Card.new()
+	card.card_id = "mind_mend"
+	card.card_name = "Mind Mend"
+	card.description = "Restore 60 mana. Costs 15 HEALTH instead of mana."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.health_cost = 15
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_deep_breaths() -> Card:
+	var card = Card.new()
+	card.card_id = "deep_breaths"
+	card.card_name = "Deep Breaths"
+	card.description = "Heal 20."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 30
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.heal_amount = 20
+	card.target_types = ["self"]
+	return card
+
+static func create_vined_encasing() -> Card:
+	var card = Card.new()
+	card.card_id = "vined_encasing"
+	card.card_name = "Vined Encasing"
+	card.description = "Gain 0.5 thorns for each point of armor you currently have, for 20 tempo. You lose X thorns whenever you receive X damage."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 50
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_adimantium_wall() -> Card:
+	var card = Card.new()
+	card.card_id = "adimantium_wall"
+	card.card_name = "Adimantium Wall"
+	card.description = "Gain 40 block. Jailed for 40 tempo after play."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 35
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 40
+	card.base_block = 40
+	card.jail_on_play = 40
+	card.target_types = ["self"]
+	return card
+
+static func create_preemptive_answer() -> Card:
+	var card = Card.new()
+	card.card_id = "preemptive_answer"
+	card.card_name = "Preemptive Answer"
+	card.description = "Instant: when you drop to 25% health, purge 3 debuffs and heal 20."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.reaction_trigger = "on_hp_below_25"
+	card.target_types = ["self"]
+	return card
+
+static func create_ragnarok() -> Card:
+	var card = Card.new()
+	card.card_id = "ragnarok"
+	card.card_name = "Ragnarok"
+	card.description = "Release all jailed cards into your hand. For each released card: heal 10 and gain 10% crit chance and 5 STR for 10 tempo. Jailed for 30 tempo after play."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 45
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.jail_on_play = 30
+	card.target_types = ["self"]
 	return card
 
 # ============================================
