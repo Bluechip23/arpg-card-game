@@ -1220,12 +1220,13 @@ func _setup_tempo_bar() -> void:
 	_action_label = Label3D.new()
 	_action_label.position = Vector3(0, 1.29, 0)
 	_action_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_action_label.font_size = 28
-	_action_label.outline_size = 10
-	_action_label.outline_modulate = Color(0, 0, 0, 0.85)
-	_action_label.pixel_size = 0.0015
+	_action_label.font_size = 26  # 2x supersampled -> 13px on screen
+	_action_label.outline_size = 6
+	_action_label.outline_modulate = Color(0, 0, 0, 1.0)
+	_action_label.pixel_size = 0.00107
 	_action_label.fixed_size = true  # constant screen size — readable at any zoom
 	_action_label.no_depth_test = true
+	_action_label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR  # no mip smear
 	_action_label.render_priority = 20
 	_action_label.modulate = Color(1.0, 0.85, 0.0)  # Yellow text
 	_action_label.text = ""

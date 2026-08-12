@@ -17,6 +17,7 @@ from PIL import Image
 PALETTE_GPL = "resources/palette/master_palette.gpl"
 COLOR_TARGETS = [
     "assets/ui/*.png",
+    "assets/items/mythic/*.png",
     "assets/sprites/generated/monsters/*.png",
     "assets/textures/tile_*.png",
     "assets/textures/props/*.png",

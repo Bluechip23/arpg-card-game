@@ -36,12 +36,13 @@ surface_material_override/0 = SubResource("StandardMaterial3D_1")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 billboard = 1
 text = "PLAYER"
-font_size = 40
-outline_size = 10
-outline_modulate = Color(0, 0, 0, 0.85)
-pixel_size = 0.0015
+font_size = 30
+outline_size = 7
+outline_modulate = Color(0, 0, 0, 1)
+pixel_size = 0.00107
 fixed_size = true
 no_depth_test = true
+texture_filter = 1
 render_priority = 10
 
 [node name="CharacterSprite" type="Sprite3D" parent="."]

@@ -3451,7 +3451,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	interact_label.font_size = 16
 	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
-	interact_label.position = Vector3(0, 1.2, 0)
+	interact_label.position = Vector3(0, 1.55, 0)  # clear of the name at far zoom
 	interact_label.visible = false
 	WorldText.crisp(interact_label)
 	wp_root.add_child(interact_label)

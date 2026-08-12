@@ -53,21 +53,26 @@ func _build_children() -> void:
 	for c in get_children():
 		c.queue_free()
 
-	# Shadowed silhouette fills the square (the equipped item's own type when
-	# filled, e.g. a quiver sitting in a weapon slot shows a quiver shadow).
-	# An equipped weapon shows its specific shape — an axe reads as an axe, a
-	# dagger as a dagger — instead of the generic any-weapon composite.
-	var sil = ItemSilhouetteScript.new()
-	var sil_subtype: int = -1
-	if item and item.item_type == ItemData.ItemType.WEAPON:
-		sil_subtype = item.weapon_subtype
-	sil.setup(item.item_type if item else item_type, item == null, sil_subtype)
-	sil.set_anchors_preset(Control.PRESET_FULL_RECT)
-	sil.offset_top = 4
-	sil.offset_bottom = -16
-	sil.offset_left = 6
-	sil.offset_right = -6
-	add_child(sil)
+	# An item that carries its own art (the mythics — see ItemData.appearance)
+	# shows that art here while it is equipped. Everything else falls back to
+	# the shadowed silhouette of its slot type (the equipped item's own type
+	# when filled, e.g. a quiver sitting in a weapon slot shows a quiver
+	# shadow). An equipped weapon shows its specific shape — an axe reads as an
+	# axe, a dagger as a dagger — instead of the generic any-weapon composite.
+	var art: Control = _make_item_art() if item else null
+	if art == null:
+		var sil = ItemSilhouetteScript.new()
+		var sil_subtype: int = -1
+		if item and item.item_type == ItemData.ItemType.WEAPON:
+			sil_subtype = item.weapon_subtype
+		sil.setup(item.item_type if item else item_type, item == null, sil_subtype)
+		art = sil
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art.offset_top = 4
+	art.offset_bottom = -16
+	art.offset_left = 6
+	art.offset_right = -6
+	add_child(art)
 
 	# Bottom label: item title when equipped, slot type name when empty.
 	var label := Label.new()
@@ -111,6 +116,35 @@ func _build_children() -> void:
 		add_child(card_slot)
 
 	_add_passive_badge()
+
+## The equipped item's own sprite, drawn from its appearance description, blown
+## up by whole texels to fill the slot. Null for items without art (everything
+## but the mythics today).
+func _make_item_art() -> Control:
+	var tex: Texture2D = item.get_appearance_texture()
+	if tex == null:
+		return null
+	var box := custom_minimum_size - Vector2(12, 20)  # the offsets applied below
+	var holder := CenterContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(make_pixel_art_rect(tex, box))
+	return holder
+
+## A nearest-filtered TextureRect scaled by a WHOLE number of texels so it fits
+## inside `box` (style guide §1: pixel art is never scaled fractionally).
+static func make_pixel_art_rect(tex: Texture2D, box: Vector2) -> TextureRect:
+	var src := tex.get_size()
+	var steps: float = 1.0
+	if src.x > 0 and src.y > 0:
+		steps = maxf(1.0, floorf(minf(box.x / src.x, box.y / src.y)))
+	var rect := TextureRect.new()
+	rect.texture = tex
+	rect.custom_minimum_size = src * steps
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rect
 
 ## Top-left corner badge advertising a character passive that affects this
 ## slot type: Ryan's belt mana discount, Cory's gauntlet mana refund, Jeremy's
@@ -197,6 +231,8 @@ func _build_item_tooltip() -> String:
 	if item.item_type == ItemData.ItemType.WEAPON:
 		type_line = ItemData.get_weapon_subtype_name(item.weapon_subtype)
 	var lines: Array[String] = [item.item_name, type_line]
+	if item.appearance != "":
+		lines.append(item.appearance)
 	if item.description != "":
 		lines.append(item.description)
 	lines.append("Drag to move • Click for details")
