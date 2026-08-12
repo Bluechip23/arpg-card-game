@@ -745,7 +745,7 @@ static func create_bladed_doughnut() -> ItemData:
 	item.level_3_overrides = {
 		"on_kill_card_id": "sprinkle_bomb",
 	}
-	item.level_3_description = "+15 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
+	item.level_3_description = "+16 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
 	return item
 
 # ============================================
@@ -854,7 +854,7 @@ static func create_scholars_cap() -> ItemData:
 	item.on_self_brain_regen = 2  # slotted cards regain 2 brain points on play
 	item.level_3_overrides = {"wisdom_bonus": 7, "brain_points_bonus": 7, "on_self_brain_regen": 3}
 	item.level_3_description = "+7 WIS, +7 max brain points. Peek costs 1 less brain point. On-self: regain 3 brain points."
-	item.description = "+5 WIS, +5 max brain points. Peek costs 1 less brain point. On-self: regain 2 brain points. Upgraded: +7 WIS, +7 max brain points; on-self regains 3."
+	item.description = "+5 WIS, +5 max brain points. Peek costs 1 less brain point. On-self: regain 2 brain points."
 	return item
 
 static func create_hanibals_mask() -> ItemData:
@@ -1091,7 +1091,7 @@ static func create_boots_of_the_balancer() -> ItemData:
 	item.level_3_overrides = {"on_self_missing_health_step": 6,
 		"granted_card_ids": ["tight_rope", "tight_rope"]}
 	item.level_3_description = "+16 health, +4 WIS, +6 STR, +3 DET. On-self: gain 5 armor for each 6% health you are missing. Grants two copies of Tight rope."
-	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health and 15 Strengthen. Upgraded: each 6% missing health; Tight rope gains a second copy."
+	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health and 15 Strengthen."
 	return item
 
 static func create_hermes_boots() -> ItemData:
@@ -1102,7 +1102,7 @@ static func create_hermes_boots() -> ItemData:
 	item.trap_damage_percent = 25.0  # stored; applies once the trap system exists
 	item.level_3_overrides = {"agility_bonus": 6, "trap_damage_percent": 50.0}
 	item.level_3_description = "+6 AGI. On-self: restore 1 flash point. Your traps deal 50% more damage."
-	item.description = "+4 AGI. On-self: restore 1 flash point. Your traps deal 25% more damage. Upgraded: +6 AGI; traps deal 50% more."
+	item.description = "+4 AGI. On-self: restore 1 flash point. Your traps deal 25% more damage."
 	return item
 
 static func create_jordan_1s() -> ItemData:
@@ -1244,6 +1244,7 @@ static func create_mits_of_chingiz() -> ItemData:
 	item.gauntlet_skill_name = "3 count"
 	item.gauntlet_skill_description = "Playing two offensive cards in a row adds a Switch Kick to your hand."
 	item.gauntlet_skill_effect_id = "three_count"
+	item.gauntlet_skill_cooldown = 4  # 20 tempo, read by main's 3 count trigger
 	item.description = "+2 DET, +5 STR, +2 AGI. Grants Stance Switch: remove 10 armor from the enemy and apply 2 Vulnerable. 3 count: playing two offensive cards in a row adds a Switch Kick to your hand (20 tempo CD)."
 	return item
 
@@ -1325,7 +1326,7 @@ static func create_gauntlets_of_dungeon_mastering() -> ItemData:
 	item.on_self_summon_wolf = 1
 	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4)
 	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
-	item.level_3_description = "+3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
+	item.level_3_description = "+4 WIS, +5 INT, +4 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
 	item.description = "+3 WIS, +4 INT, +3 STR. On-self: summon a wolf, up to a pack of 3 (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
 	return item
 
@@ -1337,7 +1338,7 @@ static func create_hallowed_trunk() -> ItemData:
 	item.armor_loss_regen_threshold = 10
 	_set_skill(item, "imbue tree", "Gain 5 regen and 10 thorns.", "imbue_tree", 2)
 	item.level_3_overrides = {"health_bonus": 30, "regen_include_health": true}
-	item.level_3_description = "+10 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
+	item.level_3_description = "+11 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
 	item.description = "+10 STR, +15 life, -3 DEX. Every 10 armor removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
 	return item
 

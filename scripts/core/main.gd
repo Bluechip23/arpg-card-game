@@ -8072,7 +8072,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	if _offensive_streak >= 2 and _three_count_cd <= 0 \
 			and deck_manager.inventory and deck_manager.inventory.has_passive_effect("three_count"):
 		deck_manager.add_card_to_hand(Card.create_by_id("switch_kick"))
-		_three_count_cd = 4  # cycles
+		# Cooldown comes from the gauntlet itself so the item and its tooltip
+		# stay the single source of truth.
+		_three_count_cd = 4
+		for tc_g in deck_manager.inventory.equipped_gauntlets:
+			if tc_g and tc_g.gauntlet_skill_effect_id == "three_count":
+				_three_count_cd = maxi(1, tc_g.gauntlet_skill_cooldown)
+				break
 		_offensive_streak = 0
 		add_battle_log("3 count! A Switch Kick slides into your hand", Color(0.9, 0.8, 0.5))
 
