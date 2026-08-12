@@ -775,7 +775,7 @@ static func create_bladed_doughnut() -> ItemData:
 	item.level_3_overrides = {
 		"on_kill_card_id": "sprinkle_bomb",
 	}
-	item.level_3_description = "+15 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
+	item.level_3_description = "+16 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
 	return item
 
 # ============================================
@@ -1291,6 +1291,7 @@ static func create_mits_of_chingiz() -> ItemData:
 	item.gauntlet_skill_name = "3 count"
 	item.gauntlet_skill_description = "Playing two offensive cards in a row adds a Switch Kick to your hand."
 	item.gauntlet_skill_effect_id = "three_count"
+	item.gauntlet_skill_cooldown = 4  # 20 tempo, read by main's 3 count trigger
 	item.description = "+2 DET, +5 STR, +2 AGI. Grants Stance Switch: remove 10 armor from the enemy and apply 2 Vulnerable. 3 count: playing two offensive cards in a row adds a Switch Kick to your hand (20 tempo CD)."
 	return item
 
