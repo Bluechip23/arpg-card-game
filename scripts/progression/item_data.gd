@@ -1453,7 +1453,7 @@ static func create_band_of_aid() -> ItemData:
 	return item
 
 static func create_holster() -> ItemData:
-	var item = _new_belt("Holster", Rarity.RARE, 25)
+	var item = _new_belt("Holster", Rarity.RARE, 10)
 	item.card_slots = 2
 	item.strength_bonus = 3
 	item.dexterity_bonus = 2
@@ -1497,10 +1497,10 @@ static func create_the_slotted_sash() -> ItemData:
 	item.card_slots = 6
 	item.wisdom_bonus = 3
 	item.intelligence_bonus = 2
-	item.on_self_offensive_damage = 3
-	item.on_self_defense_armor = 3
+	item.on_self_offensive_damage = 2
+	item.on_self_defense_armor = 2
 	item.on_self_utility_weaken = 1
-	item.description = "+3 WIS, +2 INT. 6 card slots. On-self: offensive cards +3 damage; defense cards +3 armor; utility cards Weaken a random enemy within 5 squares."
+	item.description = "+3 WIS, +2 INT. 6 card slots. On-self: offensive cards +2 damage; defense cards +2 armor; utility cards apply 1 Weaken to a random enemy within 5 squares."
 	return item
 
 static func create_equator() -> ItemData:
@@ -1516,7 +1516,7 @@ static func create_equator() -> ItemData:
 	return item
 
 static func create_strap_of_stone() -> ItemData:
-	var item = _new_belt("Strap of Stone", Rarity.LEGENDARY, 80)
+	var item = _new_belt("Strap of Stone", Rarity.LEGENDARY, 50)
 	item.card_slots = 1
 	item.health_bonus = 20
 	item.strength_bonus = 3

@@ -149,7 +149,7 @@ func initialize(char_name: String) -> void:
 	# Per-character deviations from the baseline.
 	match character_name:
 		"Ryan":
-			belt_slots = 3
+			belt_slots = 2
 			belt_card_mana_reduction = 10
 		"Brad":
 			chest_weight_reduction = 0.20

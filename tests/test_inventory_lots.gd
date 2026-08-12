@@ -22,7 +22,7 @@ func _initialize() -> void:
 
 	# Expected slot counts: baseline everywhere, one deviation per character.
 	var expected := {
-		"Ryan":    {"helm": 1, "ring": 2, "belt": 3, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
+		"Ryan":    {"helm": 1, "ring": 2, "belt": 2, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Brad":    {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Jeremy":  {"helm": 1, "ring": 4, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Stephen": {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
