@@ -139,6 +139,12 @@ func _initialize() -> void:
 				"budding", "circle_of_life", "regrowth", "death_as_lifeblood"],
 			"gear": [["cuffs_of_current"], ["copper_bracers", 1], ["suit_and_tie"],
 				["wizard_hat"], ["potion_belt"], ["cloth_slippers"]]},
+		{"who": "Cory", "name": "TANK — Attrition Grove (armor-loop sustain tank)",
+			"alloc": {"strength": 43, "determination": 8},
+			"passives": ["wither", "territorial_death", "death_as_lifeblood",
+				"expel_negativity", "budding", "circle_of_life", "eat"],
+			"gear": [["briarhide_plate"], ["hallowed_trunk"], ["spiked_mitts", 1],
+				["strap_of_stone"], ["thick_steel_helm"], ["steel_boots"]]},
 	]
 	for b in builds:
 		_simulate(b)
