@@ -292,8 +292,13 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	# Interactables (placed before visuals so decorations avoid their tiles)
 	_reserved.clear()
 	_reserve_area(player_start, 1)
+	trap_defs.clear()  # every interior lays its own hazards (forest re-clears, harmlessly)
 	if interior_kind == "forest":
 		_place_forest_features()  # climbable trees, traps and pits (reserves tiles)
+	if interior_kind == "cave":
+		_place_cave_webs()  # spiked spiderwebs strung across the tunnels
+	if interior_kind == "building":
+		_place_wall_dart_shooters()  # dart shooters set into the walls
 	if interior_kind == "":
 		_place_waypoints()
 		_place_sites()
@@ -2192,6 +2197,176 @@ func _build_dart_trap_mesh(root: Node3D, pos: Vector2i, perp: Vector2i) -> void:
 	tmat.metallic = 0.0  # no modern specular pop
 	tube.material_override = tmat
 	tube.position = post_pos + Vector3(0, 0.9, 0)
+	root.add_child(tube)
+
+# ============================================
+# INTERIOR HAZARDS — cave spiderwebs and building wall darts (traps pass 1).
+# Both ride the same trap_defs pipeline as the forest traps: single-use,
+# sprung by main._trigger_terrain_traps_for when anything steps on a tile.
+# ============================================
+
+func _place_cave_webs() -> void:
+	## Spiked spiderwebs strung across the tunnels — sticky silk threaded with
+	## barbs. Stepping in deals damage and snares (player: Slowed; enemy: root).
+	var candidates: Array = []
+	for x in range(1, GRID_W - 1):
+		for y in range(1, GRID_H - 1):
+			var pos := Vector2i(x, y)
+			if not is_floor(pos) or _reserved.has(pos):
+				continue
+			# Webs anchor where silk has something to hang from: beside a wall.
+			var wall_neighbors := 0
+			for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if not is_floor(pos + off):
+					wall_neighbors += 1
+			if wall_neighbors >= 1:
+				candidates.append({"pos": pos})
+	if candidates.is_empty():
+		return
+	var want = clampi(candidates.size() / 40, 3, 8)
+	var picks = _spaced_sample(candidates, want, 6)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		if _reserved.has(pos):
+			continue
+		_reserved[pos] = true
+		var root = Node3D.new()
+		root.name = "SpikedWeb_%d" % i
+		root.position = Vector3(pos.x + 0.5, 0.03, pos.y + 0.5)
+		_visuals_root.add_child(root)
+		_build_web_mesh(root)
+		trap_defs.append({
+			"kind": "web",
+			"tiles": [pos],
+			"grid_pos": pos,
+			"node": root,
+			"sprung": false,
+		})
+
+func _build_web_mesh(root: Node3D) -> void:
+	var silk = StandardMaterial3D.new()
+	silk.albedo_color = Color(0.78, 0.80, 0.78, 0.85)
+	silk.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	silk.metallic = 0.0  # no modern specular pop
+	silk.roughness = 0.9
+	# Radial threads laid low over the tile.
+	for k in range(6):
+		var a = TAU * k / 6.0
+		var thread = MeshInstance3D.new()
+		var tmesh = BoxMesh.new()
+		tmesh.size = Vector3(0.86, 0.015, 0.03)
+		thread.mesh = tmesh
+		thread.material_override = silk
+		thread.rotation = Vector3(0, a, 0)
+		thread.position = Vector3(0, 0.05, 0)
+		root.add_child(thread)
+	# Two spiral rings.
+	for r in [0.18, 0.34]:
+		var ring = MeshInstance3D.new()
+		var rmesh = TorusMesh.new()
+		rmesh.inner_radius = r - 0.015
+		rmesh.outer_radius = r + 0.015
+		ring.mesh = rmesh
+		ring.material_override = silk
+		ring.position = Vector3(0, 0.05, 0)
+		root.add_child(ring)
+	# The spikes: barbs of chitin worked into the silk.
+	var barb_mat = StandardMaterial3D.new()
+	barb_mat.albedo_color = Color(0.22, 0.20, 0.24)
+	barb_mat.metallic = 0.0  # no modern specular pop
+	for k in range(5):
+		var a = TAU * k / 5.0 + 0.4
+		var barb = MeshInstance3D.new()
+		var cone = CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = 0.035
+		cone.height = 0.16
+		cone.radial_segments = 4
+		barb.mesh = cone
+		barb.material_override = barb_mat
+		barb.position = Vector3(cos(a) * 0.24, 0.09, sin(a) * 0.24)
+		root.add_child(barb)
+
+func _place_wall_dart_shooters() -> void:
+	## Dart shooters set into the building's walls: a nozzle at chest height
+	## covering the tiles straight out from the wall face. Stepping into the
+	## firing line takes a dart. Single use, like the hunters' tripwires.
+	var candidates: Array = []
+	for x in range(1, GRID_W - 1):
+		for y in range(1, GRID_H - 1):
+			var pos := Vector2i(x, y)
+			if not is_floor(pos) or _reserved.has(pos):
+				continue
+			for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if not is_floor(pos + off):
+					# floor tile with a wall behind it: a mount point firing -off
+					candidates.append({"pos": pos, "wall": pos + off, "dir": -off})
+					break
+	if candidates.is_empty():
+		return
+	var want = clampi(candidates.size() / 35, 2, 6)
+	var picks = _spaced_sample(candidates, want, 7)
+	var shooter_idx := 0
+	for cand in picks:
+		var pos: Vector2i = cand["pos"]
+		if _reserved.has(pos):
+			continue
+		# The firing line: from the wall face out across the room, up to 3 tiles.
+		var dir: Vector2i = cand["dir"]
+		var line: Array = []
+		for step in range(3):
+			var t: Vector2i = pos + dir * step
+			if not is_floor(t) or _reserved.has(t):
+				break
+			line.append(t)
+		if line.is_empty():
+			continue
+		for t in line:
+			_reserved[t] = true
+		var root = Node3D.new()
+		root.name = "WallDart_%d" % shooter_idx
+		shooter_idx += 1
+		_visuals_root.add_child(root)
+		_build_wall_dart_mesh(root, cand["wall"], dir)
+		trap_defs.append({
+			"kind": "wall_dart",
+			"tiles": line,
+			"grid_pos": pos,
+			"node": root,
+			"sprung": false,
+		})
+
+func _build_wall_dart_mesh(root: Node3D, wall: Vector2i, dir: Vector2i) -> void:
+	# The housing: a small brass plate proud of the wall face.
+	var face = Vector3(wall.x + 0.5 + dir.x * 0.45, 1.0, wall.y + 0.5 + dir.y * 0.45)
+	var plate = MeshInstance3D.new()
+	var pmesh = BoxMesh.new()
+	pmesh.size = Vector3(0.06 + abs(dir.y) * 0.30, 0.36, 0.06 + abs(dir.x) * 0.30)
+	plate.mesh = pmesh
+	var pmat = StandardMaterial3D.new()
+	pmat.albedo_color = Color(0.45, 0.36, 0.18)
+	pmat.metallic = 0.0  # no modern specular pop
+	pmat.roughness = 0.6
+	plate.material_override = pmat
+	plate.position = face
+	root.add_child(plate)
+	# The nozzle: a short dark tube aimed down the firing line.
+	var tube = MeshInstance3D.new()
+	var tmesh = CylinderMesh.new()
+	tmesh.top_radius = 0.05
+	tmesh.bottom_radius = 0.05
+	tmesh.height = 0.22
+	tmesh.radial_segments = 6
+	tube.mesh = tmesh
+	if dir.x != 0:
+		tube.rotation_degrees = Vector3(0, 0, 90)
+	else:
+		tube.rotation_degrees = Vector3(90, 0, 0)
+	var tmat = StandardMaterial3D.new()
+	tmat.albedo_color = Color(0.14, 0.12, 0.10)
+	tmat.metallic = 0.0  # no modern specular pop
+	tube.material_override = tmat
+	tube.position = face + Vector3(dir.x * 0.12, 0, dir.y * 0.12)
 	root.add_child(tube)
 
 # ============================================

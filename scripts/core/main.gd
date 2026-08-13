@@ -185,6 +185,8 @@ const TREE_CANOPY_Y := 2.0          # height the player rests at while up a tree
 const BEAR_TRAP_DAMAGE := 7         # to anything that steps on a sprung trap…
 const BEAR_TRAP_BEAR_DAMAGE := 10   # …but bears take extra
 const DART_TRAP_DAMAGE := 5         # hunters' tripwire dart volley
+const WEB_TRAP_DAMAGE := 5          # cave spiked spiderwebs (also snares)
+const WALL_DART_DAMAGE := 6         # building wall dart shooters
 var _climbed_tree_tile: Vector2i = Vector2i(-1, -1)  # tree the player is currently up, or (-1,-1)
 
 # Player 2 state
@@ -4914,14 +4916,21 @@ func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
 	var kind: String = trap["kind"]
 	var dmg: int
 	var label: String
-	if kind == "bear":
-		dmg = BEAR_TRAP_DAMAGE
-		if not is_player and _is_bear(unit):
-			dmg = BEAR_TRAP_BEAR_DAMAGE
-		label = "bear trap"
-	else:
-		dmg = DART_TRAP_DAMAGE
-		label = "hunters' darts"
+	match kind:
+		"bear":
+			dmg = BEAR_TRAP_DAMAGE
+			if not is_player and _is_bear(unit):
+				dmg = BEAR_TRAP_BEAR_DAMAGE
+			label = "bear trap"
+		"web":
+			dmg = WEB_TRAP_DAMAGE
+			label = "spiked web"
+		"wall_dart":
+			dmg = WALL_DART_DAMAGE
+			label = "wall dart"
+		_:
+			dmg = DART_TRAP_DAMAGE
+			label = "hunters' darts"
 
 	if is_player:
 		var stats = player.get_stats()
@@ -4929,9 +4938,19 @@ func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
 			var dmgr = player.get_debuff_manager() if player.has_method("get_debuff_manager") else null
 			var bmgr = player.get_buff_manager() if player.has_method("get_buff_manager") else null
 			stats.take_damage(dmg, dmgr, bmgr)
+			# Spiked webs snare whoever blunders in.
+			if kind == "web" and dmgr:
+				dmgr.apply_debuff(Debuff.create_slowed(2, 10, "Spiked Web"))
 		add_battle_log("A %s snaps shut — %d damage!" % [label, dmg], Color(0.9, 0.5, 0.2))
 	elif is_instance_valid(unit):
+		# Hermes Boots: trap damage against enemies is amplified — the whole
+		# point of dancing them into the hazards.
+		var tstats = player.get_stats() if player else null
+		if tstats and tstats.equipment_trap_damage_percent > 0.0:
+			dmg = floori(dmg * (1.0 + tstats.equipment_trap_damage_percent / 100.0))
 		unit.take_damage(dmg, false)
+		if kind == "web" and unit.has_method("apply_debuff"):
+			unit.apply_debuff("root", 5)
 		add_battle_log("%s hits a %s for %d!" % [unit.enemy_name, label, dmg], Color(0.8, 0.7, 0.4))
 
 	_animate_trap_sprung(trap)
@@ -4944,11 +4963,19 @@ func _is_bear(enemy) -> bool:
 	return "Bear" in enemy.enemy_name
 
 func _animate_trap_sprung(trap: Dictionary) -> void:
-	## Visual feedback: bear traps darken (snapped shut); dart traps flash red.
+	## Visual feedback: bear traps darken (snapped shut), dart traps and wall
+	## shooters flash red, webs collapse to a torn grey.
 	var node = trap.get("node")
 	if not node or not is_instance_valid(node):
 		return
-	var tint = Color(0.35, 0.1, 0.1) if trap["kind"] == "dart" else Color(0.08, 0.08, 0.09)
+	var tint: Color
+	match trap["kind"]:
+		"dart", "wall_dart":
+			tint = Color(0.35, 0.1, 0.1)
+		"web":
+			tint = Color(0.30, 0.30, 0.32)
+		_:
+			tint = Color(0.08, 0.08, 0.09)
 	for child in node.get_children():
 		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
 			(child.material_override as StandardMaterial3D).albedo_color = tint
