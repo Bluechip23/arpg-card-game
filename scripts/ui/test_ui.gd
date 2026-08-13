@@ -99,7 +99,6 @@ func _setup_dropdowns() -> void:
 		debuff_dropdown.add_item("Linked (25)")
 		debuff_dropdown.add_item("Clumsy (30)")
 		debuff_dropdown.add_item("Vulnerable (25)")
-		debuff_dropdown.add_item("Exposed (50)")
 		debuff_dropdown.add_item("Brittle (2)")
 	if has_node("Panel/VBox/OverflowDropdown"):
 		var overflow_dropdown = $Panel/VBox/OverflowDropdown as OptionButton

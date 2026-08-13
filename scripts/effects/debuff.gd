@@ -28,7 +28,6 @@ enum DebuffType {
 	VULNERABLE,
 	LINKED,
 	BRITTLE,
-	EXPOSED,
 	COLD,
 	BLIND
 }
@@ -121,9 +120,6 @@ func _set_name_and_description() -> void:
 		DebuffType.VULNERABLE:
 			debuff_name = "Vulnerable"
 			description = "Take 30%% more damage on next %d attack(s)" % value
-		DebuffType.EXPOSED:
-			debuff_name = "Exposed"
-			description = "Remove 30%% more armor when hit, %d stack(s)" % value
 		DebuffType.BRITTLE:
 			debuff_name = "Brittle"
 			description = "Armor decays extra 2 per cycle, %d stack(s)" % value
@@ -169,7 +165,6 @@ func get_icon_color() -> Color:
 		DebuffType.LINKED: return Color(0.8, 0.4, 0.4)
 		DebuffType.CLUMSY: return Color(0.9, 0.6, 0.2)
 		DebuffType.VULNERABLE: return Color(1.0, 0.3, 0.3)
-		DebuffType.EXPOSED: return Color(0.9, 0.7, 0.5)
 		DebuffType.BRITTLE: return Color(0.7, 0.7, 0.6)
 		DebuffType.COLD: return Color(0.4, 0.7, 1.0)
 		DebuffType.BLIND: return Color(0.85, 0.85, 0.4)

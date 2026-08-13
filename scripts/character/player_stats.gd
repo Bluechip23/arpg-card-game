@@ -1381,24 +1381,16 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Default absorption order: Armor -> temp HP -> HP. Armor is always the
 	# first line of defense; items, nodes, enemies, or cards may manipulate
 	# this later, but this is the baseline.
-	# Armor absorption with Exposed modifier
 	if current_armor > 0 and remaining > 0:
-		var armor_effectiveness = 1.0
-		if debuff_mgr:
-			armor_effectiveness = debuff_mgr.get_armor_effectiveness()
-
-		var effective_armor = floori(current_armor * armor_effectiveness)
-
 		var armor_before := current_armor
-		if effective_armor >= remaining:
-			var armor_used = ceili(remaining / armor_effectiveness) if armor_effectiveness > 0 else remaining
-			current_armor = max(0, current_armor - armor_used)
+		if current_armor >= remaining:
+			current_armor -= remaining
 			remaining = 0
 			print("[STATS] Armor absorbed damage. Armor: %d" % current_armor)
 			# Return Cut: the whole hit was eaten by armor.
 			attack_fully_blocked.emit()
 		else:
-			remaining -= effective_armor
+			remaining -= current_armor
 			current_armor = 0
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
 			# Briarhide / Adimantium: the shell cracked — armored chests react.

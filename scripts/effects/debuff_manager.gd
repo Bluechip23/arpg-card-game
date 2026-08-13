@@ -269,19 +269,6 @@ func _apply_vulnerable_modifier(damage: int) -> int:
 			print("[DEBUFF] Vulnerable expired (0 stacks)")
 	return damage
 
-func get_armor_effectiveness() -> float:
-	# Returns multiplier for armor (1.0 = full, 0.7 = 30% less effective)
-	# Exposed: always 30% armor penalty, consume 1 stack on hit
-	var exposed = get_debuff(Debuff.DebuffType.EXPOSED)
-	if exposed:
-		exposed.value -= 1
-		exposed._set_name_and_description()
-		if exposed.value <= 0:
-			remove_debuff(Debuff.DebuffType.EXPOSED)
-			print("[DEBUFF] Exposed expired (0 stacks)")
-		return 0.7  # 30% less armor effectiveness
-	return 1.0
-
 func modify_incoming_damage(damage: int) -> int:
 	# Apply Vulnerable
 	return _apply_vulnerable_modifier(damage)

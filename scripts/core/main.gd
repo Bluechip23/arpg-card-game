@@ -5786,7 +5786,6 @@ func _on_apply_debuff(debuff_name: String) -> void:
 		"Linked (25)": debuff = Debuff.create(Debuff.DebuffType.LINKED, 25, 3)
 		"Clumsy (30)": debuff = Debuff.create(Debuff.DebuffType.CLUMSY, 30, 3)
 		"Vulnerable (25)": debuff = Debuff.create(Debuff.DebuffType.VULNERABLE, 25, 3)
-		"Exposed (50)": debuff = Debuff.create(Debuff.DebuffType.EXPOSED, 50, 3)
 		"Brittle (2)": debuff = Debuff.create(Debuff.DebuffType.BRITTLE, 2, 3)
 	if debuff and debuff_mgr:
 		debuff_mgr.apply_debuff(debuff)
