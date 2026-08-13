@@ -655,6 +655,89 @@ def hide_of_garmr():
     return c
 
 
+def sabre_tooth():
+    ## A khatar: sabertooth tiger head at the grip, a giant tooth as the blade.
+    c = Canvas()
+    # The tooth blade: a long curved fang sweeping up.
+    c.poly([(13, 16), (18, 16), (17, 6), (15, 1)], "bone")
+    c.line([(15, 3), (16, 12)], "bone", "hi")
+    # The tiger head grip: gold-furred head with dark stripes and bared fangs.
+    c.ellipse((9, 15, 22, 27), "gold")
+    c.poly([(9, 17), (12, 13), (13, 18)], "gold")   # ears
+    c.poly([(22, 17), (19, 13), (18, 18)], "gold")
+    for sx in (11, 15, 19):
+        c.line([(sx, 16), (sx + 1, 20)], "leather", "sh")  # stripes
+    c.dot(13, 20, "dark", "sh")
+    c.dot(18, 20, "dark", "sh")
+    # Bared side fangs below the jaw and the crossbar the fist holds.
+    c.poly([(11, 26), (13, 26), (12, 30)], "bone")
+    c.poly([(20, 26), (18, 26), (19, 30)], "bone")
+    c.rect((7, 28, 24, 30), "iron")
+    return c
+
+
+def poseidons_trident():
+    ## Poseidon's trident: three barbed tines on a long sea-worn shaft.
+    c = Canvas()
+    # The shaft, rising through the middle.
+    c.line([(15, 30), (15, 12)], "teal", None, 3)
+    c.rect((14, 12, 16, 30), "teal")
+    # The crossbar.
+    c.rect((7, 12, 24, 14), "gold")
+    # Three tines: outer pair curve up from the bar, center runs straight.
+    c.rect((7, 3, 9, 12), "gold")
+    c.poly([(7, 3), (9, 3), (8, 0)], "gold", "hi")
+    c.rect((22, 3, 24, 12), "gold")
+    c.poly([(22, 3), (24, 3), (23, 0)], "gold", "hi")
+    c.rect((14, 1, 16, 12), "gold")
+    c.poly([(14, 1), (16, 1), (15, -2)], "gold", "hi")
+    # Sea-spray droplets.
+    for (wx, wy) in ((5, 8), (26, 7), (11, 5), (20, 4)):
+        c.dot(wx, wy, "current", "hi")
+    return c
+
+
+def sword_of_theseus():
+    ## A long broadsword: minotaur-head grip, horn cross-guards, and a second
+    ## small blade jutting from the pommel.
+    c = Canvas()
+    # The main blade, wide and long.
+    c.poly([(13, 0), (18, 0), (17, 17), (14, 17)], "steel")
+    c.line([(15, 1), (15, 15)], "steel", "hi")
+    # Horn cross-guards curving out and up.
+    c.poly([(5, 17), (13, 17), (12, 20), (6, 20)], "bone")
+    c.poly([(5, 17), (7, 17), (4, 12)], "bone")
+    c.poly([(18, 17), (26, 17), (25, 20), (19, 20)], "bone")
+    c.poly([(24, 17), (26, 17), (27, 12)], "bone")
+    # The minotaur head grip.
+    c.ellipse((12, 19, 19, 26), "leather")
+    c.dot(14, 22, "dark", "sh")
+    c.dot(17, 22, "dark", "sh")
+    # The pommel's second blade, jutting down.
+    c.poly([(14, 26), (17, 26), (15, 31)], "steel")
+    return c
+
+
+def umbral_eclipse():
+    ## A double-headed hammer: a face on both ends, the lunar cycle inlaid
+    ## along the handle, a full moon on both hammer faces.
+    c = Canvas()
+    # The two hammer heads, top and bottom.
+    c.rect((8, 1, 23, 9), "iron")
+    c.rect((8, 22, 23, 30), "iron")
+    # Full moons on both faces.
+    c.ellipse((13, 2, 18, 7), "bone", "hi")
+    c.ellipse((13, 23, 18, 28), "bone", "hi")
+    # The shaft between them.
+    c.rect((14, 9, 17, 22), "wood")
+    # The lunar cycle inlaid down the handle: waxing, full, waning.
+    c.dot(15, 11, "bone", "sh")
+    c.ellipse((14, 13, 16, 15), "bone")
+    c.ellipse((14, 17, 16, 19), "bone", "hi")
+    c.dot(15, 21, "bone", "sh")
+    return c
+
+
 ICONS = {
     "bladed_doughnut": bladed_doughnut,
     "the_headbandz": the_headbandz,
@@ -677,6 +760,10 @@ ICONS = {
     "tigers_sunday_red": tigers_sunday_red,
     "divine_resistance": divine_resistance,
     "hide_of_garmr": hide_of_garmr,
+    "sabre_tooth": sabre_tooth,
+    "poseidons_trident": poseidons_trident,
+    "sword_of_theseus": sword_of_theseus,
+    "umbral_eclipse": umbral_eclipse,
 }
 
 

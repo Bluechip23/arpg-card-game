@@ -118,6 +118,12 @@ const CARD_RARITIES := {
 	"deep_breaths": Rarity.LEGENDARY, "vined_encasing": Rarity.LEGENDARY,
 	"adimantium_wall": Rarity.MYTHIC, "preemptive_answer": Rarity.MYTHIC,
 	"ragnarok": Rarity.MYTHIC,
+	# Weapon-granted
+	"hard_helmet": Rarity.COMMON, "slice": Rarity.COMMON,
+	"death_vortex": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY,
+	"feed_into_the_pain": Rarity.LEGENDARY, "psionic_flow": Rarity.LEGENDARY,
+	"purge_wrath": Rarity.LEGENDARY, "sanguine_the_penguin": Rarity.LEGENDARY,
+	"wrath_of_the_sea": Rarity.MYTHIC, "monk_of_the_night": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -142,6 +148,9 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"clang_up": true, "negotiate": true, "detonova": true, "mind_mend": true,
 	"deep_breaths": true, "vined_encasing": true, "adimantium_wall": true,
 	"preemptive_answer": true, "ragnarok": true,
+	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true,
+	"feed_into_the_pain": true, "psionic_flow": true, "purge_wrath": true,
+	"sanguine_the_penguin": true, "wrath_of_the_sea": true, "monk_of_the_night": true,
 }
 
 @export var card_id: String = "slash"
@@ -151,6 +160,8 @@ const DROP_EXCLUDED_CARD_IDS := {
 @export var card_type_name: String = "Attack"
 @export var mana_cost: int = 1
 @export var health_cost: int = 0  # Paid in HEALTH on play, on top of mana (Mind Mend). Refuses the play at or below the cost.
+@export var percent_mana_cost: float = 0.0  # Costs this fraction of CURRENT mana instead of mana_cost (Wrath of the Sea 0.5). The spend is recorded on last_percent_mana_paid.
+var last_percent_mana_paid: int = 0  # What the last percent_mana_cost play actually spent (drives Wrath of the Sea's damage)
 @export var damage: int = 10
 @export var block: int = 0
 @export var heal_amount: int = 0
@@ -864,6 +875,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	var _temp_crit_applied := 0.0
 	var _temp_crit_dmg_applied := 0.0
 	var _adaptive_type_prev := -999  # Blue Robe: original damage_type to restore after this play
+	var _overdrive_extra := 0        # Fallen's Wrath: bonus whose half rebounds on the wielder
 	if slotted_in_item:
 		# Studded belt: the long-dead on_self_thorns finally fires — slotted
 		# plays grant thorns.
@@ -871,7 +883,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			buff_mgr.apply_buff(Buff.create_thorns(int(on_self["thorns"]), 15, slotted_in_item.item_name))
 		# Slotted Sash: offensive cards +damage; defense cards +armor.
 		if int(on_self.get("offensive_damage", 0)) > 0 and is_offensive():
-			bonus_damage += int(on_self["offensive_damage"])
 			_gauntlet_bonus_applied += int(on_self["offensive_damage"])
 		if int(on_self.get("defense_armor", 0)) > 0 and card_type == CardType.DEFENSE and player_stats:
 			player_stats.add_armor(int(on_self["defense_armor"]))
@@ -883,14 +894,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			buff_mgr.apply_buff(Buff.create_strengthen(int(on_self["strengthen_value"]), maxi(1, int(on_self.get("strengthen_attacks", 1))), slotted_in_item.item_name))
 		# Shadow Obi: slotted cards hit harder while invisible.
 		if int(on_self.get("damage_while_invisible", 0)) > 0 and buff_mgr and buff_mgr.has_buff(Buff.BuffType.INVISIBLE):
-			bonus_damage += int(on_self["damage_while_invisible"])
 			_gauntlet_bonus_applied += int(on_self["damage_while_invisible"])
 		# Megingjord: double damage (mana doubling lives in the cost calc). The
 		# extra is folded into bonus_damage and tracked for cleanup.
 		var _dmg_mult: float = float(on_self.get("damage_multiplier", 1.0))
 		if _dmg_mult > 1.0:
-			var _mult_extra: int = floori((base_damage + bonus_damage) * (_dmg_mult - 1.0))
-			bonus_damage += _mult_extra
+			var _mult_extra: int = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * (_dmg_mult - 1.0))
 			_gauntlet_bonus_applied += _mult_extra
 		# Feathered Hat: slotted cards get +10% crit damage for this play, and
 		# playing them drains the flash-crit counter by 2.
@@ -940,7 +949,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			print("[CARD] On-Self: +%.0f%% crit from %s" % [_temp_crit_applied, slotted_in_item.item_name])
 		# Elvish Cloak / Chewbaccas Bandolier: slotted RANGED offensive cards hit harder.
 		if int(on_self.get("ranged_damage", 0)) > 0 and is_offensive() and is_ranged:
-			bonus_damage += int(on_self["ranged_damage"])
 			_gauntlet_bonus_applied += int(on_self["ranged_damage"])
 			print("[CARD] On-Self: +%d damage (ranged) from %s" % [int(on_self["ranged_damage"]), slotted_in_item.item_name])
 		# Smithed Excellence: timed all-type resistance on slotted play.
@@ -958,6 +966,30 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_adaptive_type_prev = damage_type
 			damage_type = target.get_lowest_resistance_type()
 			print("[CARD] On-Self: %s adapts to %s damage" % [slotted_in_item.item_name, DamageTypes.type_name(damage_type)])
+		# Rusty Dagger: flat crit chance for the slotted play.
+		if on_self.get("crit_percent", 0.0) > 0.0 and player_stats:
+			_temp_crit_applied += on_self["crit_percent"]
+			player_stats.temp_on_self_crit_bonus += on_self["crit_percent"]
+		# Bessy: hit Weakened enemies even harder.
+		if on_self.get("weakened_damage_percent", 0.0) > 0.0 and is_offensive() and target \
+				and "weaken_stacks" in target and target.weaken_stacks > 0:
+			var wkd_bonus: int = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * on_self["weakened_damage_percent"] / 100.0)
+			_gauntlet_bonus_applied += wkd_bonus
+			print("[CARD] On-Self: +%d damage vs Weakened (%s)" % [wkd_bonus, slotted_in_item.item_name])
+		# Hammer of Ajax: your bulk behind every blow.
+		if on_self.get("max_hp_damage_percent", 0.0) > 0.0 and is_offensive() and player_stats:
+			var ajax_bonus: int = floori(player_stats.max_health * on_self["max_hp_damage_percent"] / 100.0)
+			_gauntlet_bonus_applied += ajax_bonus
+		# Sword of Theseus: profit from the slow already on the target.
+		if int(on_self.get("slow_damage_per_stack", 0)) > 0 and is_offensive() and target and "slow_amount" in target:
+			var slow_bonus: int = target.slow_amount * int(on_self["slow_damage_per_stack"])
+			if slow_bonus > 0:
+				_gauntlet_bonus_applied += slow_bonus
+		# Fallen's Wrath overdrive: 1.5x damage — half the bonus rebounds on you.
+		var _od_mult: float = float(on_self.get("overdrive_multiplier", 1.0))
+		if _od_mult > 1.0 and is_offensive():
+			_overdrive_extra = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * (_od_mult - 1.0))
+			_gauntlet_bonus_applied += _overdrive_extra
 
 	# Feathered Hat: an armed guaranteed crit is spent by the next ranged
 	# offensive card — any damaging ranged card, whatever item it's slotted in.
@@ -991,6 +1023,32 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 				if tsr_gap_bonus > 0:
 					_gauntlet_bonus_applied += tsr_gap_bonus
 					print("[CARD] Tigers Sunday Red: +%d damage (%.0f%% health-gap bonus)" % [tsr_gap_bonus, tsr_gap_pct])
+		# Weapons pass: Wrath and Vitality ride every offensive card.
+		if is_offensive() and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
+			for wpn in player_stats.inventory.equipped_weapons:
+				if wpn == null:
+					continue
+				if wpn.wrath_weapon and wpn.wrath > 0:
+					_gauntlet_bonus_applied += wpn.wrath
+					print("[CARD] Fallen's Wrath: +%d damage (Wrath)" % wpn.wrath)
+				if wpn.vitality_weapon and wpn.vitality_stacks > 0:
+					_gauntlet_bonus_applied += wpn.vitality_stacks * 2
+		# Purge Wrath: the armed percent lands on this attack, then clears.
+		if is_offensive() and player_stats.pending_wrath_percent > 0:
+			var pwp_bonus: int = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * player_stats.pending_wrath_percent / 100.0)
+			_gauntlet_bonus_applied += pwp_bonus
+			print("[CARD] Purge Wrath: +%d damage (+%d%%)" % [pwp_bonus, player_stats.pending_wrath_percent])
+			player_stats.pending_wrath_percent = 0
+		# Armor Chopper: attacks shred extra enemy armor (armor only).
+		if is_offensive() and player_stats.equipment_armor_shred > 0 and target \
+				and "current_armor" in target and target.current_armor > 0:
+			target.current_armor = max(0, target.current_armor - player_stats.equipment_armor_shred)
+			if target.has_method("_update_armor_bar"):
+				target._update_armor_bar()
+			print("[CARD] Armor Chopper: shredded %d armor" % player_stats.equipment_armor_shred)
+		# Spartan Spear: +2 melee damage while a shield is up.
+		if is_offensive() and not is_ranged and player_stats.equipment_shield_melee_damage > 0:
+			_gauntlet_bonus_applied += player_stats.equipment_shield_melee_damage
 	if slotted_in_item:
 		# Roman Bracers: slotted melee offensive cards hit harder.
 		var osb_melee := int(get_on_self_bonus().get("melee_damage", 0))
@@ -1218,6 +1276,32 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 					print("[CARD] Ragnarok: released %d — healed %d, +%d%% crit, +%d STR for 10 tempo" % [released, rg_heal, 10 * released, rg_str])
 				else:
 					print("[CARD] Ragnarok: no jailed cards to release")
+		"hard_helmet":
+			# Construction Hammer instant: armor here; the 2-damage zap to the
+			# closest enemy resolves at the trigger site in main.
+			if player_stats:
+				player_stats.add_armor(8)
+				print("[CARD] Hard Helmet: +8 armor")
+		"slice":
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+		"death_vortex", "earth_rattle", "psionic_flow", "sanguine_the_penguin", "wrath_of_the_sea", "monk_of_the_night":
+			# Weapon world effects (and the maintained Monk) — resolved in main.
+			pass
+		"feed_into_the_pain":
+			# Hammer of Ajax instant: fired by taking damage below 30% health.
+			if buff_mgr:
+				buff_mgr.apply_buff(Buff.create_strengthen(20, 4, "Feed into the Pain"))
+			if player_stats:
+				player_stats.add_temp_health(25, 15)
+			print("[CARD] Feed into the Pain: Strengthen 20 for 4 attacks, +25 temp HP")
+		"purge_wrath":
+			# Fallen's Wrath: arm the next attack with +Wrath% and reset the counter.
+			if player_stats and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
+				for pw_w in player_stats.inventory.equipped_weapons:
+					if pw_w and pw_w.wrath_weapon and pw_w.wrath > 0:
+						player_stats.pending_wrath_percent += pw_w.wrath
+						print("[CARD] Purge Wrath: next attack +%d%% — Wrath purged" % pw_w.wrath)
+						pw_w.wrath = 0
 		"stance_switch":
 			# Mits of Chingiz: strip 10 armor, then 2 Vulnerable either way.
 			if target and target.has_method("apply_debuff"):
@@ -1522,9 +1606,14 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			player_stats.apply_life_steal(max(1, floori(ls_dealt * 0.05)))
 
 	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hannibals Mask),
-	# and a maintained Resourceful Replenish: attacks heal a % of damage dealt.
+	# Vitality stacks (Nine Ruins: +1% each), and a maintained Resourceful
+	# Replenish: attacks heal a % of damage dealt.
 	if card_type == CardType.ATTACK and player_stats:
 		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.equipment_lifesteal_bonus
+		if player_stats.inventory and "equipped_weapons" in player_stats.inventory:
+			for ls_w in player_stats.inventory.equipped_weapons:
+				if ls_w and ls_w.vitality_weapon and ls_w.vitality_stacks > 0:
+					ls_pct += float(ls_w.vitality_stacks)
 		if deck_manager and deck_manager.has_method("get_maintained_cards"):
 			for mc in deck_manager.get_maintained_cards():
 				if mc and mc.card_id == "resourceful_replenish":
@@ -1534,6 +1623,38 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			var sls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 			if sls_dealt > 0:
 				player_stats.apply_life_steal(max(1, floori(sls_dealt * ls_pct / 100.0)))
+
+	# Monk of the Night (Umbral Eclipse, maintained): attacks bank part of
+	# their damage as block. Lv.3 converts 15% instead of 10%.
+	if is_offensive() and player_stats and deck_manager and deck_manager.has_method("get_maintained_cards"):
+		for monk in deck_manager.get_maintained_cards():
+			if monk and monk.card_id == "monk_of_the_night":
+				var monk_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
+				var monk_pct := 0.15 if (monk.granted_by_item and monk.granted_by_item.item_level >= 3) else 0.10
+				var monk_block: int = floori(monk_dealt * monk_pct)
+				if monk_block > 0:
+					player_stats.add_armor(monk_block)
+					print("[CARD] Monk of the Night: +%d block from the strike" % monk_block)
+				break
+
+	# Fallen's Wrath overdrive: half the bonus rebounds on the wielder.
+	if _overdrive_extra > 0 and player_stats:
+		player_stats.take_direct_damage(ceili(_overdrive_extra / 2.0))
+		print("[CARD] Overdrive: took %d rebound damage" % ceili(_overdrive_extra / 2.0))
+
+	# Sabre Tooth: striking the same target twice in a row ticks the
+	# attack-speed counter an extra time and rakes 5 more Bleed.
+	if is_offensive() and target and player_stats and player_stats.inventory \
+			and "equipped_weapons" in player_stats.inventory:
+		for st_w in player_stats.inventory.equipped_weapons:
+			if st_w and st_w.same_target_bleed > 0:
+				if player_stats.last_attack_target == target:
+					player_stats.register_attack()
+					if target.has_method("apply_debuff"):
+						target.apply_debuff("bleed", st_w.same_target_bleed)
+					print("[CARD] Sabre Tooth: extra attack tick + %d Bleed" % st_w.same_target_bleed)
+				break
+		player_stats.last_attack_target = target
 
 	# Clear armor break flag on target after attack resolves
 	if armor_break_consumed and target and target.has_method("set_armor_break_incoming"):
@@ -1613,6 +1734,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			elif target.has_method("apply_debuff"):
 				target.apply_debuff("bleed", on_self_bleed)
 			print("[CARD] On-Self: Applied %d Bleed to target from %s" % [on_self_bleed, source_name])
+		# Sword of Theseus: slotted attacks bog the target down.
+		var on_self_slow = int(on_self.get("apply_slow", 0))
+		if on_self_slow > 0 and is_offensive() and target.has_method("apply_debuff"):
+			target.apply_debuff("slow", on_self_slow)
+			print("[CARD] On-Self: Applied %d Slow to target from %s" % [on_self_slow, source_name])
 
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
@@ -1883,6 +2009,9 @@ func get_burden_tempo_cost() -> int:
 	# Chewbaccas Bandolier: slotted RANGED offensive cards cost less tempo.
 	if is_offensive() and is_ranged and slotted_in_item:
 		cost -= int(slotted_in_item.get_on_self_bonus().get("ranged_tempo_reduction", 0))
+	# Side Card Sabre: slotted cards cost less while the sabre is paired.
+	if slotted_in_item:
+		cost -= int(slotted_in_item.get_on_self_bonus().get("pair_tempo_reduction", 0))
 	# Potion Belt: slotted utility cards refund tempo.
 	if card_type == CardType.UTILITY and slotted_in_item:
 		cost -= int(slotted_in_item.get_on_self_bonus().get("utility_tempo_refund", 0))
@@ -6144,6 +6273,167 @@ static func create_healthy_bliss() -> Card:
 	card.heal_amount = 10
 	card.target_types = ["ally"]
 	card.in_hand_heal_tempo = 20  # Heals all allies once it has spent this long in hand
+	return card
+
+# ============================================
+# WEAPON-GRANTED CARDS (weapons pass 1)
+# ============================================
+
+static func create_hard_helmet() -> Card:
+	var card = Card.new()
+	card.card_id = "hard_helmet"
+	card.card_name = "Hard Helmet"
+	card.description = "Instant: when you play a utility card, gain 8 armor and deal 2 damage to the closest enemy."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.reaction_trigger = "on_utility_played"
+	card.target_types = ["self"]
+	return card
+
+static func create_slice() -> Card:
+	var card = Card.new()
+	card.card_id = "slice"
+	card.card_name = "Slice"
+	card.description = "Deal 15 damage."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 10
+	card.tempo_cost = 3
+	card.damage = 15
+	card.base_damage = 15
+	card.target_types = ["enemy"]
+	return card
+
+static func create_death_vortex() -> Card:
+	var card = Card.new()
+	card.card_id = "death_vortex"
+	card.card_name = "Death Vortex"
+	card.description = "Instant: after you are hit 5 times, spin — 15 damage to all adjacent enemies. If the Vortex kills, it returns to your hand."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 1.0
+	card.reaction_trigger = "on_hit_streak_5"
+	card.target_types = ["self"]
+	return card
+
+static func create_earth_rattle() -> Card:
+	var card = Card.new()
+	card.card_id = "earth_rattle"
+	card.card_name = "Earth Rattle"
+	card.description = "Smash the ground: 15 damage in a 3-square quake around the impact. Enemies hit are Slowed 2 and Weakened 2 for 5 cycles."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 60
+	card.tempo_cost = 6
+	card.damage = 0
+	card.base_damage = 0
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 3.0
+	card.target_types = ["enemy"]
+	return card
+
+static func create_feed_into_the_pain() -> Card:
+	var card = Card.new()
+	card.card_id = "feed_into_the_pain"
+	card.card_name = "Feed into the Pain"
+	card.description = "Instant: when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.reaction_trigger = "on_damage_taken_low"
+	card.target_types = ["self"]
+	return card
+
+static func create_psionic_flow() -> Card:
+	var card = Card.new()
+	card.card_id = "psionic_flow"
+	card.card_name = "Psionic Flow"
+	card.description = "Instant: when an ally takes damage within 3 squares, restore 8 to them and push the attacker back 1 — or when you play an attack, deal +8 damage and push the target back 1. Whichever comes first."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.reaction_trigger = "psionic_flow"
+	card.target_types = ["self"]
+	return card
+
+static func create_purge_wrath() -> Card:
+	var card = Card.new()
+	card.card_id = "purge_wrath"
+	card.card_name = "Purge Wrath"
+	card.description = "Your next attack deals bonus damage equal to your Wrath as a percent, on top of the flat Wrath bonus. Wrath resets to 0."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 55
+	card.tempo_cost = 8
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_sanguine_the_penguin() -> Card:
+	var card = Card.new()
+	card.card_id = "sanguine_the_penguin"
+	card.card_name = "Sanguine the Penguin"
+	card.description = "Instant: at 9 Vitality, the stacks purge and Sanguine the blood penguin waddles forth — 50 HP, stays beside you, 8 damage every 5 tempo; damage he takes heals you half as much."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.reaction_trigger = "on_vitality_9"
+	card.target_types = ["self"]
+	return card
+
+static func create_wrath_of_the_sea() -> Card:
+	var card = Card.new()
+	card.card_id = "wrath_of_the_sea"
+	card.card_name = "Wrath of the Sea"
+	card.description = "Spend HALF your current mana. Blink to a point and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst; all of them are shoved to its edge. Gain 15 mana per enemy hit."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 0
+	card.percent_mana_cost = 0.5
+	card.tempo_cost = 8
+	card.damage = 0
+	card.base_damage = 0
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 2.0
+	card.school = CardSchool.SPELL
+	card.target_types = ["point"]
+	return card
+
+static func create_monk_of_the_night() -> Card:
+	var card = Card.new()
+	card.card_id = "monk_of_the_night"
+	card.card_name = "Monk of the Night"
+	card.description = "Maintain: your attack cards grant 10% of their damage as block."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 50
+	card.maintain_cost = 50
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
 	return card
 
 # ============================================

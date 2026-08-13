@@ -212,6 +212,14 @@ var movement_tempo_surcharge: int = 0             # each tile moved on tempo cos
 var temp_strength_bonus: int = 0                  # summed MIGHT buffs (Ragnarok); damage only, never carry
 var death_stack_crit_damage: float = 0.0          # Hide of Garmr Lv3: +crit-damage multiplier from death stacks
 var free_move_tiles: int = 0                      # Shadow Cowl shift: tiles that cost no tempo and no flash
+# Weapons pass
+var equipment_armor_shred: int = 0                # attacks strip this much extra enemy armor (Armor Chopper)
+var equipment_shield_melee_damage: int = 0        # +melee damage while a shield is up (Spartan Spear)
+var equipment_melee_reach: int = 0                # +melee reach while a shield is up (Spartan Spear)
+var equipment_attack_speed_penalty: int = 0       # attack-speed proc threshold penalty (Bessy)
+var pending_wrath_percent: int = 0                # Purge Wrath: next attack's % bonus, then cleared
+var last_attack_target = null                     # Sabre Tooth: previous attack's target
+var hit_streak: int = 0                           # Axe's Axe: hits taken toward the Death Vortex trigger
 
 # ============================================
 # SPHERE GRID KEYSTONES (build-defining nodes)
@@ -1040,7 +1048,7 @@ const DUAL_WIELD_COUNTER_BONUS: int = 4  # attacks shaved while dual wielding
 func get_attack_speed_threshold() -> int:
 	# Uses effective dexterity
 	var threshold = base_attack_speed_counter - floori(dexterity * DEX_COUNTER_PER_POINT) \
-			+ get_capacity_speed_modifier()
+			+ get_capacity_speed_modifier() + equipment_attack_speed_penalty
 	if inventory and inventory.is_dual_wielding():
 		threshold -= DUAL_WIELD_COUNTER_BONUS
 	return max(ATTACK_COUNTER_MIN, threshold)
@@ -1358,6 +1366,18 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Apply Brace and Resilient from buffs (Resilient may be type-gated, e.g. Harden)
 	if buff_mgr:
 		remaining = buff_mgr.calculate_damage_reduction(remaining, damage_type)
+
+	# Fallen's Wrath: every damage instance stokes the counter, and holding
+	# 10+ Wrath means every hit lands half again as hard. Applied before
+	# armor so the risk is real.
+	if remaining > 0 and inventory and "equipped_weapons" in inventory:
+		for fw_w in inventory.equipped_weapons:
+			if fw_w and fw_w.wrath_weapon:
+				fw_w.wrath = mini(30, fw_w.wrath + 1)
+				if fw_w.wrath >= 10:
+					remaining = floori(remaining * 1.5)
+					print("[STATS] Fallen's Wrath: 10+ Wrath — the hit lands 50%% harder")
+				break
 
 	# Vined Encasing (Briarhide Plate): thorns shed value equal to damage received.
 	if buff_mgr and remaining > 0 and buff_mgr.has_method("decay_thorns_by_damage"):

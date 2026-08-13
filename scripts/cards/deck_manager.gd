@@ -466,6 +466,13 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if debuff_mgr.is_card_hexed(index):
 			mana_cost += debuff_mgr.get_hexed_mana_increase()
 
+	# Percent-mana cards (Wrath of the Sea): the price is a fraction of CURRENT
+	# mana — discounts don't touch it, and the actual spend is recorded on the
+	# card so its damage can read what the sea drank.
+	if card.percent_mana_cost > 0.0 and player_stats:
+		mana_cost = maxi(0, floori(player_stats.current_mana * card.percent_mana_cost))
+		card.last_percent_mana_paid = mana_cost
+
 	mana_cost = max(0, mana_cost)
 
 	# Demonic Rage: mana costs use health instead, at the standing
