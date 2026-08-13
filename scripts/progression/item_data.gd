@@ -800,19 +800,6 @@ static func create_return_scroll() -> ItemData:
 	item.description = "Right-click to open a portal back to town. Walk in with [Shift]. Its twin waits in town to bring you back."
 	return item
 
-static func create_frost_orb() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Frost Orb"
-	item.item_type = ItemType.WEAPON
-	item.weapon_subtype = WeaponSubtype.WAND
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.COMMON
-	item.weight = 2
-	item.health_bonus = 100
-	item.ice_damage_percent = 10.0
-	item.description = "+100 HP, +10% Ice Damage"
-	return item
-
 # ============================================
 # TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
 # ============================================
@@ -1889,7 +1876,7 @@ static func create_bessy() -> ItemData:
 	item.on_self_weakened_damage_percent = 25.0
 	var by_cards: Array[String] = ["earth_rattle"]
 	item.granted_card_ids = by_cards
-	item.description = "15 weapon damage. Attack-speed procs take 5 more swings — she is HEAVY. On-self: +25% damage to Weakened enemies (on top of Weaken itself). Grants Earth Rattle: smash the ground — 15 damage in a 3-square quake; enemies hit are Slowed 2 and Weakened 2 for 5 cycles (60 mana, 6 tempo)."
+	item.description = "15 weapon damage. Attack-speed procs take 5 more swings — she is HEAVY. On-self: +25% damage to Weakened enemies (on top of Weaken itself). Grants Earth Rattle: smash the ground — 40 damage in a 3-square quake; enemies hit are Slowed 2 and Weakened 2 (60 mana, 6 tempo)."
 	return item
 
 static func create_hammer_of_ajax() -> ItemData:

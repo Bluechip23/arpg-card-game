@@ -981,8 +981,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			var ajax_bonus: int = floori(player_stats.max_health * on_self["max_hp_damage_percent"] / 100.0)
 			_gauntlet_bonus_applied += ajax_bonus
 		# Sword of Theseus: profit from the slow already on the target.
-		if int(on_self.get("slow_damage_per_stack", 0)) > 0 and is_offensive() and target and "slow_amount" in target:
-			var slow_bonus: int = target.slow_amount * int(on_self["slow_damage_per_stack"])
+		if int(on_self.get("slow_damage_per_stack", 0)) > 0 and is_offensive() and target and "slow_stacks" in target:
+			var slow_bonus: int = target.slow_stacks * int(on_self["slow_damage_per_stack"])
 			if slow_bonus > 0:
 				_gauntlet_bonus_applied += slow_bonus
 		# Fallen's Wrath overdrive: 1.5x damage — half the bonus rebounds on you.
@@ -6330,7 +6330,7 @@ static func create_earth_rattle() -> Card:
 	var card = Card.new()
 	card.card_id = "earth_rattle"
 	card.card_name = "Earth Rattle"
-	card.description = "Smash the ground: 15 damage in a 3-square quake around the impact. Enemies hit are Slowed 2 and Weakened 2 for 5 cycles."
+	card.description = "Smash the ground: 40 damage in a 3-square quake around the impact. Enemies hit are Slowed 2 and Weakened 2."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 60

@@ -69,7 +69,6 @@ func _setup_dropdowns() -> void:
 	if item_dropdown:
 		item_dropdown.clear()
 		item_dropdown.add_item("Wooden Sword")
-		item_dropdown.add_item("Frost Orb")
 		item_dropdown.add_item("Bladed Doughnut")
 	if has_node("Panel/VBox/DebuffDropdown"):
 		var debuff_dropdown = $Panel/VBox/DebuffDropdown as OptionButton

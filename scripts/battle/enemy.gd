@@ -66,8 +66,10 @@ var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
 var attack_reduction: int = 0
 var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
-var slow_amount: int = 0       # Movement reduction from slow debuff
-var slow_tempo: int = 0        # Remaining tempo cycles for slow
+# Slowed (reworked): a flat -1 tile on every movement; slow_stacks counts how
+# many movements it affects, one consumed per move. Stacks accumulate freely
+# (Sword of Theseus ramps them) — no timed expiry.
+var slow_stacks: int = 0
 var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
@@ -1383,12 +1385,6 @@ func _tick_status_durations() -> void:
 			attack_reduction = 0
 			print("[%s] Wear Down expired, attack restored" % enemy_name)
 
-	if slow_tempo > 0:
-		slow_tempo -= 1
-		if slow_tempo <= 0:
-			slow_amount = 0
-			print("[%s] Slow expired, movement restored" % enemy_name)
-			debuff_expired.emit(self, "slow")
 
 	if disarmed_tempo > 0:
 		disarmed_tempo -= 1
@@ -2186,8 +2182,9 @@ func _try_scurry(target_node: Node3D) -> bool:
 	## Wererat dashes 5 tiles toward the target.
 	var tiles = 5
 	var effective_tiles = tiles
-	if slow_amount > 0:
-		effective_tiles = max(1, tiles - slow_amount)
+	if slow_stacks > 0:
+		effective_tiles = max(0, tiles - 1)
+		_consume_slow_stack()
 	_dash_towards_target(target_node.position, effective_tiles)
 	print("[%s] Scurries %d tiles toward target!" % [enemy_name, effective_tiles])
 	return true
@@ -2238,8 +2235,9 @@ func _try_scurry_away(target_node: Node3D) -> bool:
 	## Archer Rat: Run 5 paces away from threat.
 	var tiles = 5
 	var effective_tiles = tiles
-	if slow_amount > 0:
-		effective_tiles = max(1, tiles - slow_amount)
+	if slow_stacks > 0:
+		effective_tiles = max(0, tiles - 1)
+		_consume_slow_stack()
 
 	if grid_manager:
 		var threat_cell = grid_manager.world_to_grid(target_node.position)
@@ -2265,8 +2263,9 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 
 	var tiles = 2
 	var effective_tiles = tiles
-	if slow_amount > 0:
-		effective_tiles = max(1, tiles - slow_amount)
+	if slow_stacks > 0:
+		effective_tiles = max(0, tiles - 1)
+		_consume_slow_stack()
 
 	if grid_manager:
 		var player_cell = grid_manager.world_to_grid(target_node.position)
@@ -2600,8 +2599,9 @@ func move_towards_target(pos: Vector3) -> void:
 	if tiles < 1:
 		tiles = 1
 	var effective_tiles = tiles
-	if slow_amount > 0:
-		effective_tiles = max(0, tiles - slow_amount)
+	if slow_stacks > 0:
+		effective_tiles = max(0, tiles - 1)
+		_consume_slow_stack()
 	if effective_tiles <= 0:
 		print("[%s] Too slowed to move!" % enemy_name)
 		return
@@ -2899,11 +2899,9 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			chosen_action = {}
 			print("[%s] Stunned for %d tempo cycles!" % [enemy_name, stun_tempo])
 		"slow":
-			# A weaker slow never overwrites a stronger active one, and
-			# re-application refreshes rather than truncates the timer.
-			slow_amount = max(slow_amount, value)
-			slow_tempo = max(slow_tempo, 2)  # Lasts 2 tempo cycles
-			print("[%s] Slowed by %d movement for %d tempo cycles" % [enemy_name, slow_amount, slow_tempo])
+			# Slowed stacks freely: every movement is -1 tile and eats a stack.
+			slow_stacks += value
+			print("[%s] Slowed! -1 movement for the next %d movement(s)" % [enemy_name, slow_stacks])
 		"disarmed":
 			is_disarmed = true
 			disarmed_tempo = value
@@ -3115,8 +3113,8 @@ func get_active_effects() -> Array[Dictionary]:
 	if wear_down_tempo > 0:
 		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_tempo
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
-	if slow_tempo > 0:
-		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_amount})
+	if slow_stacks > 0:
+		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
 	if is_disarmed and disarmed_tempo > 0:
 		effects.append({"name": "Disarm", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_tempo})
 	if is_marked and marked_tempo > 0:
@@ -3153,6 +3151,14 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Disarmed", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_attacks})
 
 	return effects
+
+## Slowed: every movement action burns one stack; the debuff ends at zero.
+func _consume_slow_stack() -> void:
+	slow_stacks = max(0, slow_stacks - 1)
+	if slow_stacks == 0:
+		print("[%s] Slow worn off, movement restored" % enemy_name)
+		debuff_expired.emit(self, "slow")
+	_update_status_indicators()
 
 func _update_status_indicators() -> void:
 	## Renders colored circles above the enemy's head for active buffs/debuffs.

@@ -8764,7 +8764,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var er_hit = enemy_spawner.get_enemies_in_radius(er_center, 3.0)
 			for er_en in er_hit:
 				if er_en and is_instance_valid(er_en):
-					er_en.take_damage(15, true)
+					er_en.take_damage(40, true)
 					if er_en.has_method("apply_debuff"):
 						er_en.apply_debuff("slow", 2)
 						er_en.apply_debuff("weaken", 2)
@@ -9922,7 +9922,6 @@ func _on_give_item(item_name: String) -> void:
 	
 	match item_name:
 		"Wooden Sword": item = ItemData.create_wooden_sword()
-		"Frost Orb": item = ItemData.create_frost_orb()
 		"Bladed Doughnut": item = ItemData.create_bladed_doughnut()
 		_:
 			# Any other item (all helms, etc.) resolves by name via factory discovery.
