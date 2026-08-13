@@ -289,6 +289,11 @@ func add_card_tempo(tempo_cost: int, card: Card = null, resolve_tick: int = 1, o
 
 func add_movement_tempo() -> void:
 	spaces_moved_this_cycle += 1
+	# Shadow Cowl shift: free tiles spend neither tempo nor flash.
+	if player_stats and player_stats.free_move_tiles > 0:
+		player_stats.free_move_tiles -= 1
+		print("[TEMPO] Shift: free tile (%d left)" % player_stats.free_move_tiles)
+		return
 	# Flash points (Agility) make the move tempo-free — but only when the player
 	# has toggled flash movement on (the HUD lightning-bolt button). Spending
 	# the pool is a choice, not automatic.
@@ -306,7 +311,9 @@ func add_movement_tempo() -> void:
 					player_stats.movement_flash_threshold_reached.emit()
 			return
 	last_tempo_source = "movement"
-	add_tempo(1)
+	# Adimantium: heavy plate makes every tile cost extra tempo.
+	var surcharge: int = player_stats.movement_tempo_surcharge if player_stats else 0
+	add_tempo(1 + maxi(0, surcharge))
 
 func add_pass_through_tempo() -> void:
 	## Moving through an occupied tile always costs 2 tempo regardless of flash points.

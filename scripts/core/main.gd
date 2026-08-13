@@ -69,6 +69,7 @@ const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
 var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
 var _corpses: Array = []         # {cell: Vector2i, position: Vector3} left by dead enemies, for resurrection
 var _fire_spots: Array = []      # Elemental Trail Blazers: {cell, tempo, damage, node}
+var _bullet_casings: Array = []  # Chewbaccas Bandolier: {cell, tempo, damage, node}
 var _purge_cycle_accum: int = 0  # Horned Nasal Helm: cycles banked toward the next auto-purge
 var _wolves: Array = []          # Gauntlets of Dungeon Mastering: summoned wolves
 const WolfScript = preload("res://scripts/battle/summoned_wolf.gd")
@@ -3576,6 +3577,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().consecutive_attacks_reached.connect(_on_consecutive_attacks_reached)
 	player.get_stats().attack_fully_blocked.connect(_on_attack_fully_blocked)
 	player.get_debuff_manager().debuff_removed.connect(_on_player_debuff_removed)
+	player.get_stats().armor_broken.connect(_on_player_armor_broken)
 	player.get_stats().armor_gained.connect(_on_armor_gained_spiked)
 	if player.get_inventory():
 		player.get_inventory().gauntlet_world_skill.connect(_on_gauntlet_world_skill)
@@ -4592,6 +4594,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_frankensteins(amount)
 	# Elemental Trail Blazers: fire spots burn enemies then fade.
 	_update_fire_spots(amount)
+	# Chewbaccas Bandolier: casings explode on contact or when their timer runs out.
+	_update_bullet_casings(amount)
 	# Wolves hunt on their own cadence; smoke clouds shelter then disperse.
 	_update_wolves(amount)
 	_update_smoke_zones(amount)
@@ -4741,6 +4745,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	# enemy is still valid here (it frees a moment later), so its position is good.
 	if grid_manager and is_instance_valid(enemy):
 		_corpses.append({"cell": grid_manager.world_to_grid(enemy.position), "position": enemy.position})
+		_garmr_death_stack(enemy.position)
 	# Everyone in the party earns the kill's XP, so the co-op partner's level
 	# progresses alongside the active player's.
 	for p in _all_players():
@@ -4800,6 +4805,7 @@ func _on_all_enemies_defeated() -> void:
 	_clear_summoned_worms()
 	_clear_frankensteins()
 	_clear_fire_spots()
+	_clear_bullet_casings()
 	_clear_wolves()
 	_smoke_zones.clear()
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
@@ -7353,6 +7359,9 @@ func _helm_range_bonus(card) -> int:
 			if mc and mc.card_id == "twenty_twenty":
 				bonus += 3
 				break
+	# Tigers Sunday Red: +range on ALL ranged offensive cards while equipped.
+	if card.is_ranged and player and player.get_stats():
+		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
 	return bonus
 
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
@@ -7412,6 +7421,14 @@ func _helm_card_world_effects(card, target = null) -> void:
 			bm.apply_buff(Buff.create_invisible(invis_tempo, card.slotted_in_item.item_name))
 			_set_player_invisible(true)
 			add_battle_log("%s: you vanish for %d tempo" % [card.slotted_in_item.item_name, invis_tempo], Color(0.7, 0.7, 0.9))
+
+	# Shadow Cowl: an offensive slotted card lets you shift — the next N tiles
+	# of movement are free (no tempo, no flash).
+	if card.is_offensive() and int(osb.get("offensive_shift", 0)) > 0:
+		var cowl_stats = player.get_stats()
+		if cowl_stats:
+			cowl_stats.free_move_tiles += int(osb["offensive_shift"])
+			add_battle_log("%s: shift — next %d tiles are free" % [card.slotted_in_item.item_name, int(osb["offensive_shift"])], Color(0.6, 0.6, 0.85))
 
 ## Elemental Trail Blazers: if the player moved on flash points and the boots are
 ## worn, ignite the tile they just left. Damage scales with INT like a spell.
@@ -7481,6 +7498,134 @@ func _update_fire_spots(amount: int) -> void:
 	_fire_spots = survivors
 
 # ============================================
+# BULLET CASINGS (Chewbaccas Bandolier)
+# ============================================
+
+## After a ranged offensive card, the bandolier ejects a casing. The first one
+## lands on the wearer's square; while that square holds a casing, later ones
+## bounce to a random adjacent square without one. Fully surrounded = no drop.
+func _maybe_drop_bullet_casing(card) -> void:
+	if not player or not grid_manager or card == null:
+		return
+	if not (card.is_offensive() and card.is_ranged):
+		return
+	var inv = player.get_inventory()
+	if not inv:
+		return
+	var dmg := 0
+	var persist := 0
+	for chest in inv.equipped_chests:
+		if chest and chest.casing_damage > 0:
+			dmg = chest.casing_damage
+			persist = maxi(1, chest.casing_tempo)
+			break
+	if dmg <= 0:
+		return
+	var player_cell: Vector2i = grid_manager.world_to_grid(player.position)
+	var drop_cell := player_cell
+	if _casing_at(player_cell):
+		var open: Array = []
+		for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1),
+				Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(-1,-1)]:
+			var c: Vector2i = player_cell + off
+			if not _casing_at(c) and not (c in player.blocked_tiles):
+				open.append(c)
+		if open.is_empty():
+			print("[MAIN] Bandolier: fully surrounded by casings — no drop")
+			return
+		drop_cell = open[randi() % open.size()]
+	var node := _make_casing_visual(grid_manager.grid_to_world(drop_cell))
+	add_child(node)
+	_bullet_casings.append({"cell": drop_cell, "tempo": persist, "damage": dmg, "node": node})
+
+func _casing_at(cell: Vector2i) -> bool:
+	for casing in _bullet_casings:
+		if casing["cell"] == cell:
+			return true
+	return false
+
+func _make_casing_visual(world_pos: Vector3) -> Node3D:
+	var n := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.12
+	mesh.bottom_radius = 0.15
+	mesh.height = 0.12
+	n.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.85, 0.65, 0.2)
+	mat.emission_enabled = true
+	mat.emission = Color(0.6, 0.45, 0.1)
+	n.material_override = mat
+	n.position = Vector3(world_pos.x, 0.07, world_pos.z)
+	return n
+
+## Per-tempo: a casing explodes when an enemy stands on it, or when its timer
+## runs out — 8 damage to enemies within 1 square. Allies, summons, and the
+## player are never hurt.
+func _update_bullet_casings(amount: int) -> void:
+	if _bullet_casings.is_empty() or not grid_manager or not enemy_spawner:
+		return
+	var survivors: Array = []
+	for casing in _bullet_casings:
+		var stepped := false
+		for e in enemy_spawner.get_living_enemies():
+			if e and is_instance_valid(e) and grid_manager.world_to_grid(e.position) == casing["cell"]:
+				stepped = true
+				break
+		casing["tempo"] -= amount
+		if stepped or casing["tempo"] <= 0:
+			var blast_pos: Vector3 = grid_manager.grid_to_world(casing["cell"])
+			var hit := 0
+			for e in enemy_spawner.get_living_enemies():
+				if e and is_instance_valid(e) and grid_manager.get_distance_in_cells(blast_pos, e.position) <= 1:
+					e.take_damage(casing["damage"], true)
+					hit += 1
+			if hit > 0:
+				add_battle_log("Casing explodes! %d damage to %d enem%s" % [casing["damage"], hit, "y" if hit == 1 else "ies"], Color(1.0, 0.7, 0.2))
+			if is_instance_valid(casing["node"]):
+				casing["node"].queue_free()
+		else:
+			survivors.append(casing)
+	_bullet_casings = survivors
+
+func _clear_bullet_casings() -> void:
+	for casing in _bullet_casings:
+		if is_instance_valid(casing["node"]):
+			casing["node"].queue_free()
+	_bullet_casings.clear()
+
+# ============================================
+# DEATH STACKS (Hide of Garmr Lv.3)
+# ============================================
+
+## Any death within the hide's radius — enemy, wolf, worm, or Frankenstein —
+## feeds the frenzy: +5% crit damage per stack. The 5th stack purges them all
+## and tears 10% of the wearer's CURRENT health away.
+func _garmr_death_stack(death_pos: Vector3) -> void:
+	if not player or not grid_manager:
+		return
+	var inv = player.get_inventory()
+	var stats = player.get_stats()
+	if not inv or not stats:
+		return
+	for chest in inv.equipped_chests:
+		if chest == null or chest.death_crit_stack_radius <= 0:
+			continue
+		if grid_manager.get_distance_in_cells(player.position, death_pos) > chest.death_crit_stack_radius:
+			continue
+		chest.death_crit_stacks += 1
+		if chest.death_crit_stacks >= 5:
+			chest.death_crit_stacks = 0
+			stats.death_stack_crit_damage = 0.0
+			var recoil: int = maxi(1, floori(stats.current_health * 0.10))
+			stats.take_direct_damage(recoil)
+			add_battle_log("%s: frenzy purged — %d recoil damage!" % [chest.item_name, recoil], Color(0.9, 0.3, 0.3))
+		else:
+			stats.death_stack_crit_damage = chest.death_crit_stacks * chest.death_crit_damage_per_stack / 100.0
+			add_battle_log("%s: %d death stack(s), +%d%% crit damage" % [chest.item_name,
+				chest.death_crit_stacks, int(chest.death_crit_stacks * chest.death_crit_damage_per_stack)], Color(0.8, 0.5, 0.5))
+
+# ============================================
 # WOLVES (Gauntlets of Dungeon Mastering)
 # ============================================
 
@@ -7503,7 +7648,7 @@ func _spawn_wolf() -> void:
 	var wolf = WolfScript.new()
 	add_child(wolf)
 	wolf.setup(grid_manager, grid_manager.grid_to_world(spawn_cell))
-	wolf.died.connect(func(w): _wolves.erase(w))
+	wolf.died.connect(func(w): _garmr_death_stack(w.position); _wolves.erase(w))
 	_wolves.append(wolf)
 	add_battle_log("A wolf answers the call! (%d in the pack)" % _wolves.size(), Color(0.7, 0.7, 0.8))
 
@@ -7729,6 +7874,12 @@ func _on_player_debuff_removed(_debuff) -> void:
 				deck_manager.add_card_to_hand(tonic)
 				add_battle_log("%s: a %s appears in your hand" % [belt.item_name, tonic.card_name], Color(0.9, 0.6, 0.7))
 			return
+
+## Briarhide Plate / Adimantium: a hit breaking through the player's armor
+## makes armored chests react ("exposed" per the chest spec = armor broken).
+func _on_player_armor_broken() -> void:
+	if player and player.get_inventory():
+		player.get_inventory().on_player_exposed()
 
 ## Boots of Speed: enough movement flash spent → shave 1 tempo off a hand card.
 func _on_movement_flash_threshold() -> void:
@@ -8082,6 +8233,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	# Generic helm on-self world effects (independent of card_id).
 	_helm_card_world_effects(card, target)
 
+	# Chewbaccas Bandolier: any ranged offensive card ejects a casing.
+	_maybe_drop_bullet_casing(card)
+
 	# Mits of Chingiz "3 count": two offensive cards in a row add a Switch Kick
 	# to the hand (then a 20-tempo cooldown).
 	if card.is_offensive():
@@ -8404,6 +8558,22 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_apply_misery_spread(ic_hit)
 			add_battle_log("Internal Combustion! %d damage to %d enemies" % [ic_amount, ic_hit.size()], Color(1.0, 0.6, 0.2))
 			print("[MAIN] Internal Combustion: shed %d armor, hit %d enemies" % [ic_amount, ic_hit.size()])
+
+		"detonova":
+			# Supernova Cuirass: purge the banked stacks and vent them as fire
+			# damage 2 squares around the wearer. Flat banked total — no INT.
+			var dn_item = card.granted_by_item
+			if dn_item:
+				var dn_amount: int = floori(dn_item.banked_damage)
+				dn_item.banked_damage = 0.0
+				dn_item.banked_stacks = 0
+				if dn_amount > 0:
+					var dn_hit = enemy_spawner.get_enemies_in_radius(player.position, 2.0)
+					for dn_en in dn_hit:
+						dn_en.take_damage(dn_amount, true, DamageTypes.Type.FIRE)
+					add_battle_log("Detonova! %d fire damage to %d enemies" % [dn_amount, dn_hit.size()], Color(1.0, 0.5, 0.1))
+				else:
+					add_battle_log("Detonova fizzles — nothing banked", Color(0.7, 0.6, 0.5))
 
 		"god_of_thunder":
 			# Drain all shock from every enemy, then bolt the target for the total.
@@ -9791,7 +9961,7 @@ func _spawn_bull_worms(count: int) -> void:
 		var worm = SummonedWormScript.new()
 		add_child(worm)
 		worm.setup(grid_manager, grid_manager.grid_to_world(cell))
-		worm.died.connect(func(w): _summoned_worms.erase(w))
+		worm.died.connect(func(w): _garmr_death_stack(w.position); _summoned_worms.erase(w))
 		_summoned_worms.append(worm)
 		spawned += 1
 	if spawned > 0:
@@ -9909,7 +10079,7 @@ func _resurrect_frankenstein() -> void:
 	var monster = FrankensteinScript.new()
 	add_child(monster)
 	monster.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), summoner_int)
-	monster.died.connect(func(m): _frankensteins.erase(m))
+	monster.died.connect(func(m): _garmr_death_stack(m.position); _frankensteins.erase(m))
 	_frankensteins.append(monster)
 	add_battle_log("ITS ALIVE!!!!! A Frankensteins Monster rises (%d HP)!" % monster.max_health, Color(0.6, 0.9, 0.6))
 
@@ -10653,6 +10823,25 @@ func _on_player_damage_taken(_amount: int) -> void:
 				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if low_triggered.size() > 0:
 				_refresh_unit_tracker()
+		# Preemptive Answer (Divine Resistance): fires on the hit that dropped
+		# the player to 25% health or below.
+		if pct <= 0.25 and prev_pct > 0.25:
+			var pa_triggered = deck_manager.trigger_reactions("on_hp_below_25")
+			for card in pa_triggered:
+				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+			if pa_triggered.size() > 0:
+				add_battle_log("Preemptive Answer! Debuffs purged, healed 20.", Color(0.9, 0.9, 0.6))
+				_refresh_unit_tracker()
+		# Wooden Plank: the hit that drops you below half health starts a
+		# trickle of Regen.
+		if pct < 0.5 and prev_pct >= 0.5:
+			var wp_inv = player.get_inventory()
+			var wp_bm = player.get_buff_manager()
+			if wp_inv and wp_bm:
+				for wp_chest in wp_inv.equipped_chests:
+					if wp_chest and wp_chest.low_health_regen > 0:
+						wp_bm.apply_buff(Buff.create_regen(wp_chest.low_health_regen, 15, wp_chest.item_name))
+						add_battle_log("%s: +%d Regen" % [wp_chest.item_name, wp_chest.low_health_regen], Color(0.5, 0.9, 0.5))
 	# Cover: an ally taking damage (self in solo) fires its mitigation reaction.
 	var cover_reactions = deck_manager.trigger_reactions("on_ally_damage_taken")
 	for card in cover_reactions:

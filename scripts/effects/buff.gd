@@ -30,7 +30,9 @@ enum BuffType {
 	DEMONIC_RAGE,
 	POISONED_BLOOD,
 	ELIXIR,
-	GENERIC
+	GENERIC,
+	KEEN,
+	MIGHT
 }
 
 var buff_type: BuffType
@@ -44,6 +46,7 @@ var stacks: int = 1           # Some buffs can stack
 var damage_type: int = -1     # Typed damage reduction (Resilient); -1 = all types
 var custom_color: Color = Color.WHITE  # GENERIC display buffs: badge tint
 var custom_icon_key: String = ""       # GENERIC display buffs: StatusIcons glyph key
+var decay_by_damage: bool = false      # THORNS variant (Vined Encasing): lose X thorns per X damage received instead of 1 per hit
 
 func _init(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) -> void:
 	buff_type = type
@@ -136,6 +139,12 @@ func _set_name_and_description() -> void:
 		BuffType.ELIXIR:
 			buff_name = "Elixir"
 			description = "Poison ticks heal you instead of dealing damage"
+		BuffType.KEEN:
+			buff_name = "Keen"
+			description = "+%d%% crit chance for %d tempo" % [value, duration]
+		BuffType.MIGHT:
+			buff_name = "Might"
+			description = "+%d STR for %d tempo" % [value, duration]
 		BuffType.GENERIC:
 			pass  # name/description are set directly by create_generic()
 
@@ -204,6 +213,8 @@ func get_icon_color() -> Color:
 		BuffType.DEMONIC_RAGE: return Color(0.8, 0.1, 0.2)
 		BuffType.POISONED_BLOOD: return Color(0.5, 0.1, 0.4)
 		BuffType.ELIXIR: return Color(0.3, 0.9, 0.5)
+		BuffType.KEEN: return Color(1.0, 0.9, 0.3)
+		BuffType.MIGHT: return Color(1.0, 0.4, 0.2)
 		BuffType.GENERIC: return custom_color
 	return Color.WHITE
 
@@ -301,6 +312,20 @@ static func create_resilient(percent_reduction: int = 15, tempo: int = 15, sourc
 	var buff = Buff.new(BuffType.RESILIENT, percent_reduction, tempo)
 	buff.source_name = source
 	buff.damage_type = damage_type  # -1 = reduces all damage; else only that type
+	return buff
+
+## Ragnarok (Hide of Garmr): timed flat crit chance. Stacks value.
+static func create_keen(crit_percent: int, tempo: int = 10, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.KEEN, crit_percent, tempo)
+	buff.source_name = source
+	return buff
+
+## Ragnarok (Hide of Garmr): timed STR. Read as temp_strength_bonus on the
+## owner's stats (recomputed by BuffManager whenever buffs change); it boosts
+## damage but not carry capacity, so gear never pops off mid-fury.
+static func create_might(str_bonus: int, tempo: int = 10, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.MIGHT, str_bonus, tempo)
+	buff.source_name = source
 	return buff
 
 static func create_life_steal(source: String = "") -> Buff:
