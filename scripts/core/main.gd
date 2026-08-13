@@ -3577,7 +3577,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().consecutive_attacks_reached.connect(_on_consecutive_attacks_reached)
 	player.get_stats().attack_fully_blocked.connect(_on_attack_fully_blocked)
 	player.get_debuff_manager().debuff_removed.connect(_on_player_debuff_removed)
-	player.get_debuff_manager().debuff_applied.connect(_on_player_debuff_applied)
+	player.get_stats().armor_broken.connect(_on_player_armor_broken)
 	player.get_stats().armor_gained.connect(_on_armor_gained_spiked)
 	if player.get_inventory():
 		player.get_inventory().gauntlet_world_skill.connect(_on_gauntlet_world_skill)
@@ -7875,10 +7875,9 @@ func _on_player_debuff_removed(_debuff) -> void:
 				add_battle_log("%s: a %s appears in your hand" % [belt.item_name, tonic.card_name], Color(0.9, 0.6, 0.7))
 			return
 
-## Briarhide Plate / Adimantium: Exposed landing on the player grants armor.
-func _on_player_debuff_applied(debuff) -> void:
-	if debuff == null or debuff.debuff_type != Debuff.DebuffType.EXPOSED:
-		return
+## Briarhide Plate / Adimantium: a hit breaking through the player's armor
+## makes armored chests react ("exposed" per the chest spec = armor broken).
+func _on_player_armor_broken() -> void:
 	if player and player.get_inventory():
 		player.get_inventory().on_player_exposed()
 
@@ -10833,16 +10832,16 @@ func _on_player_damage_taken(_amount: int) -> void:
 			if pa_triggered.size() > 0:
 				add_battle_log("Preemptive Answer! Debuffs purged, healed 20.", Color(0.9, 0.9, 0.6))
 				_refresh_unit_tracker()
-		# Supernova Cuirass: bank 2% of every damage instance as a stack.
-		var sn_inv = player.get_inventory()
-		if sn_inv and _amount > 0:
-			for sn_chest in sn_inv.equipped_chests:
-				if sn_chest and sn_chest.damage_bank_percent > 0.0 \
-						and sn_chest.banked_stacks < sn_chest.damage_bank_max_stacks:
-					sn_chest.banked_damage += _amount * sn_chest.damage_bank_percent / 100.0
-					sn_chest.banked_stacks += 1
-					print("[MAIN] %s harnessed %.1f damage (%d/%d stacks)" % [sn_chest.item_name,
-						_amount * sn_chest.damage_bank_percent / 100.0, sn_chest.banked_stacks, sn_chest.damage_bank_max_stacks])
+		# Wooden Plank: the hit that drops you below half health starts a
+		# trickle of Regen.
+		if pct < 0.5 and prev_pct >= 0.5:
+			var wp_inv = player.get_inventory()
+			var wp_bm = player.get_buff_manager()
+			if wp_inv and wp_bm:
+				for wp_chest in wp_inv.equipped_chests:
+					if wp_chest and wp_chest.low_health_regen > 0:
+						wp_bm.apply_buff(Buff.create_regen(wp_chest.low_health_regen, 15, wp_chest.item_name))
+						add_battle_log("%s: +%d Regen" % [wp_chest.item_name, wp_chest.low_health_regen], Color(0.5, 0.9, 0.5))
 	# Cover: an ally taking damage (self in solo) fires its mitigation reaction.
 	var cover_reactions = deck_manager.trigger_reactions("on_ally_damage_taken")
 	for card in cover_reactions:

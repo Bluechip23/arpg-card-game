@@ -345,15 +345,18 @@ func get_mastery_text(stats = null) -> String:
 @export var block_physical_resist_percent: float = 0.0  # while you have armor up, +X% physical resist (Smithed Excellence 10)
 @export var casing_damage: int = 0        # >0: playing a ranged offensive card drops a bullet casing dealing X (Chewbaccas Bandolier 8)
 @export var casing_tempo: int = 0         # casing self-detonates after X tempo if nothing steps on it (Chewbaccas 5)
-@export var damage_bank_percent: float = 0.0  # bank X% of every damage instance taken as a stack (Supernova Cuirass 2)
+@export var damage_bank_percent: float = 0.0  # absorb X% of every damage instance into the cuirass as a stack (Supernova Cuirass 10)
+@export var damage_bank_mitigate_percent: float = 0.0  # a further X% of the hit is mitigated outright while stacks have room (Supernova 2)
 @export var damage_bank_max_stacks: int = 0   # stack cap (Supernova 10)
-@export var exposed_armor_gain: int = 0       # gain X armor when Exposed is applied to you (Briarhide 5, Adimantium 10)
+@export var exposed_armor_gain: int = 0       # gain X armor when your armor is BROKEN THROUGH (Briarhide 5, Adimantium 10)
 @export var exposed_armor_cooldown_cycles: int = 0  # cycles between procs; 0 = no cooldown (Adimantium 15, Lv3 10; Briarhide none)
+@export var low_health_regen: int = 0         # gain X Regen when dropping below 50% health (Wooden Plank 1)
 @export var gold_gain_heal: int = 0           # heal X whenever you obtain gold (Suit and Tie 3)
 @export var movement_tempo_penalty: int = 0   # each tile moved on tempo costs X extra tempo (Adimantium 1)
 @export var ranged_range_bonus: int = 0       # +X range on ALL ranged offensive cards while equipped (Tigers Sunday Red 1)
 @export var hp_diff_damage_divisor: int = 0   # bonus damage % = (your health% - enemy health%) / X, never below 0 (Tigers 4, Lv3 3)
-@export var resist_per_missing10: float = 0.0 # +X% resist to all damage types per 10% missing health (Divine Resistance 1.0, Lv3 1.5)
+@export var resist_per_missing10: float = 0.0 # +X% resist to all damage types per missing-health step (Divine Resistance 1.0, Lv3 1.5)
+@export var resist_missing_step: int = 10     # % of missing health per resist grant (Divine Resistance 8, Lv3 7)
 @export var death_crit_stack_radius: int = 0  # Garmr Lv3: any death within X squares grants a stack (2)
 @export var death_crit_damage_per_stack: float = 0.0  # each stack: +X% crit damage; at 5 stacks purge + 10% current health self-damage (Garmr 5)
 
@@ -1743,8 +1746,9 @@ static func _new_chest(nm: String, r: Rarity, wt: int) -> ItemData:
 
 static func create_wooden_plank() -> ItemData:
 	var item = _new_chest("Wooden Plank", Rarity.COMMON, 45)
-	item.health_bonus = 30
-	item.description = "+30 health."
+	item.health_bonus = 15
+	item.low_health_regen = 1
+	item.description = "+15 health. When you drop below 50% health, gain 1 Regen."
 	return item
 
 static func create_elvish_cloak() -> ItemData:
@@ -1772,17 +1776,17 @@ static func create_tattered_cloth() -> ItemData:
 	item.agility_bonus = 2
 	item.wisdom_bonus = 2
 	item.dexterity_bonus = 2
-	item.health_bonus = 15
-	item.description = "+2 DET, +2 AGI, +2 WIS, +2 DEX, +15 health."
+	item.health_bonus = 5
+	item.description = "+2 DET, +2 AGI, +2 WIS, +2 DEX, +5 health."
 	return item
 
 static func create_velvet_plate() -> ItemData:
-	var item = _new_chest("Velvet Plate", Rarity.RARE, 150)
+	var item = _new_chest("Velvet Plate", Rarity.RARE, 120)
 	item.card_slots = 1
-	item.strength_bonus = 4
+	item.strength_bonus = 5
 	item.health_bonus = 20
-	item.on_self_heal = 5
-	item.description = "+4 STR, +20 health. On-self: heal 5."
+	item.on_self_heal = 10
+	item.description = "+5 STR, +20 health. On-self: heal 10."
 	return item
 
 static func create_buffed_leather() -> ItemData:
@@ -1855,11 +1859,12 @@ static func create_supernova_cuirass() -> ItemData:
 	var item = _new_chest("Supernova Cuirass", Rarity.LEGENDARY, 250)
 	item.determination_bonus = 2
 	item.health_bonus = 10
-	item.damage_bank_percent = 2.0
+	item.damage_bank_percent = 10.0
+	item.damage_bank_mitigate_percent = 2.0
 	item.damage_bank_max_stacks = 10
 	var sc_cards: Array[String] = ["detonova"]
 	item.granted_card_ids = sc_cards
-	item.description = "+2 DET, +10 health. When taking damage, 2% of it is harnessed into the cuirass as a stack (max 10). Grants Detonova: purge your stacks and deal the banked total as fire damage 2 squares around you — does NOT scale with INT (60 mana, 5 tempo)."
+	item.description = "+2 DET, +10 health. While the cuirass has stack room (max 10), it absorbs 10% of every hit — harnessed as a stack — and mitigates a further 2% entirely. Grants Detonova: purge your stacks and deal the absorbed total as fire damage 2 squares around you — does NOT scale with INT (60 mana, 5 tempo)."
 	return item
 
 static func create_trench_of_tranquility() -> ItemData:
@@ -1883,7 +1888,7 @@ static func create_briarhide_plate() -> ItemData:
 	item.exposed_armor_gain = 5
 	var bp_cards: Array[String] = ["vined_encasing"]
 	item.granted_card_ids = bp_cards
-	item.description = "+35 health. When Exposed is applied to you, gain 5 armor. Grants Vined Encasing: gain 0.5 thorns per point of armor you currently have, for 20 tempo — you lose X thorns whenever you receive X damage (50 mana, 4 tempo)."
+	item.description = "+35 health. When your armor is broken through, gain 5 armor. Grants Vined Encasing: gain 1 thorn per point of armor you currently have, for 20 tempo — you lose X thorns whenever you receive X damage (50 mana, 4 tempo)."
 	return item
 
 static func create_blue_robe() -> ItemData:
@@ -1911,10 +1916,10 @@ static func create_adimantium() -> ItemData:
 	# Adimantium Wall granting 55 block at Lv.3 is read live off item_level
 	# (see Card.execute's adimantium_wall case).
 	item.level_3_overrides = {"exposed_armor_gain": 15, "exposed_armor_cooldown_cycles": 10}
-	item.level_3_description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move costs 1 extra tempo. When Exposed is applied to you, gain 15 armor (10-cycle cooldown). Grants Adimantium Wall: gain 55 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
+	item.level_3_description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move costs 1 extra tempo. When your armor is broken through, gain 15 armor (10-cycle cooldown). Grants Adimantium Wall: gain 55 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
 	_set_appearance(item, "adimantium",
 		"Teal chest piece with a gold jewel on the chest.")
-	item.description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move costs 1 extra tempo. When Exposed is applied to you, gain 10 armor (15-cycle cooldown). Grants Adimantium Wall: gain 40 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
+	item.description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move costs 1 extra tempo. When your armor is broken through, gain 10 armor (15-cycle cooldown). Grants Adimantium Wall: gain 40 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
 	return item
 
 static func create_tigers_sunday_red() -> ItemData:
@@ -1923,14 +1928,14 @@ static func create_tigers_sunday_red() -> ItemData:
 	item.health_bonus = 15
 	item.agility_bonus = 5
 	item.dexterity_bonus = 5
-	item.on_self_offensive_heal_percent = 5.0
+	item.on_self_offensive_heal_percent = 3.0
 	item.ranged_range_bonus = 1
 	item.hp_diff_damage_divisor = 4
-	item.level_3_overrides = {"on_self_offensive_heal_percent": 8.0, "hp_diff_damage_divisor": 3}
-	item.level_3_description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 8% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 3 (never below 0)."
+	item.level_3_overrides = {"on_self_offensive_heal_percent": 6.0, "hp_diff_damage_divisor": 3}
+	item.level_3_description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 6% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 3 (never below 0)."
 	_set_appearance(item, "tigers_sunday_red",
 		"Red Polo.")
-	item.description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 5% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 4 (never below 0)."
+	item.description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 3% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 4 (never below 0)."
 	return item
 
 static func create_divine_resistance() -> ItemData:
@@ -1938,13 +1943,14 @@ static func create_divine_resistance() -> ItemData:
 	item.health_bonus = 45
 	item.strength_bonus = 5
 	item.resist_per_missing10 = 1.0
+	item.resist_missing_step = 8
 	var dr_cards: Array[String] = ["preemptive_answer"]
 	item.granted_card_ids = dr_cards
-	item.level_3_overrides = {"resist_per_missing10": 1.5}
-	item.level_3_description = "+45 health, +5 STR. Gain 1.5% resistance to all damage types per 10% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
+	item.level_3_overrides = {"resist_per_missing10": 1.5, "resist_missing_step": 7}
+	item.level_3_description = "+45 health, +5 STR. Gain 1.5% resistance to all damage types per 7% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
 	_set_appearance(item, "divine_resistance",
 		"Shiny silver chest, with a crescent moon and sun on the chest.")
-	item.description = "+45 health, +5 STR. Gain 1% resistance to all damage types per 10% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
+	item.description = "+45 health, +5 STR. Gain 1% resistance to all damage types per 8% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
 	return item
 
 static func create_hide_of_garmr() -> ItemData:

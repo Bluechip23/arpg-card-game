@@ -78,15 +78,30 @@ func _test_weights_and_stats() -> void:
 	var cloth = ItemData.create_tattered_cloth()
 	_check(cloth.item_name == "Tattered Cloth", "Tattered Cloth spelling")
 	_check(cloth.determination_bonus == 2 and cloth.agility_bonus == 2 \
-		and cloth.wisdom_bonus == 2 and cloth.dexterity_bonus == 2 and cloth.health_bonus == 15,
-		"Tattered Cloth stat spread")
+		and cloth.wisdom_bonus == 2 and cloth.dexterity_bonus == 2 and cloth.health_bonus == 5,
+		"Tattered Cloth stat spread (balance: 5 health)")
+	var plank = ItemData.create_wooden_plank()
+	_check(plank.health_bonus == 15 and plank.low_health_regen == 1,
+		"Wooden Plank: 15 health + 1 Regen below half")
+	var velvet = ItemData.create_velvet_plate()
+	_check(velvet.weight == 120 and velvet.strength_bonus == 5 and velvet.on_self_heal == 10,
+		"Velvet Plate: w120, +5 STR, heal 10")
+	var tigers = ItemData.create_tigers_sunday_red()
+	_check(tigers.on_self_offensive_heal_percent == 3.0, "Tigers heals 3% (Lv3 6%)")
 	var cowl = ItemData.create_shadow_cowl()
 	_check(cowl.health_bonus == -10 and cowl.card_slots == 4, "Shadow Cowl: -10 health, 4 slots")
 	var adim = ItemData.create_adimantium()
 	adim.item_level = 2
 	adim.level_up()  # -> 3
 	_check(adim.exposed_armor_gain == 15 and adim.exposed_armor_cooldown_cycles == 10,
-		"Adimantium Lv.3: 15 armor on Exposed, 10-cycle cooldown")
+		"Adimantium Lv.3: 15 armor on armor-break, 10-cycle cooldown")
+	var divine = ItemData.create_divine_resistance()
+	_check(divine.resist_per_missing10 == 1.0 and divine.resist_missing_step == 8,
+		"Divine Resistance: 1% per 8% missing")
+	divine.item_level = 2
+	divine.level_up()  # -> 3
+	_check(divine.resist_per_missing10 == 1.5 and divine.resist_missing_step == 7,
+		"Divine Resistance Lv.3: 1.5% per 7% missing")
 
 func _test_granted_cards() -> void:
 	print("-- Granted cards --")
@@ -207,14 +222,15 @@ func _test_jail_release() -> void:
 
 func _test_resist_scaling() -> void:
 	print("-- Resist scaling --")
-	# Divine Resistance: 1% per full 10% missing health.
+	# Divine Resistance: 1% per full 8% missing health.
 	var stats = _mk_stats()
 	stats.equipment_resist_per_missing10 = 1.0
-	stats.current_health = 100  # 50% missing -> +5%
+	stats.equipment_resist_missing_step = 8
+	stats.current_health = 100  # 50% missing -> 6 full steps of 8% -> +6%
 	var hp_before: int = stats.current_health
 	stats.take_damage(100)
 	var dmg_taken: int = hp_before - stats.current_health
-	_check(dmg_taken == 95, "at 50%% missing health, 100 damage lands as 95 (took %d)" % dmg_taken)
+	_check(dmg_taken == 94, "at 50%% missing health, 100 damage lands as 94 (took %d)" % dmg_taken)
 	stats.free()
 
 	# Smithed Excellence: +10% physical resist only while armor is up.
@@ -232,6 +248,36 @@ func _test_resist_scaling() -> void:
 	_check(total_lost == 90, "with armor up, 100 physical lands as 90 (took %d)" % total_lost)
 	stats2.free()
 	stats3.free()
+
+	# Supernova Cuirass: 10% absorbed into the cuirass, 2% mitigated outright.
+	var stats4 = _mk_stats()
+	stats4.base_strength = 60  # carry capacity for the 250-weight cuirass
+	stats4.strength = 60
+	var inv4 = _mk_inv(stats4)
+	var nova = ItemData.create_supernova_cuirass()
+	_check(inv4.equip_item(nova), "Supernova equips")
+	var hp4: int = stats4.current_health
+	stats4.take_damage(100)
+	_check(is_equal_approx(nova.banked_damage, 10.0), "absorbed 10 into the cuirass (banked %.1f)" % nova.banked_damage)
+	_check(nova.banked_stacks == 1, "one stack per hit")
+	_check(hp4 - stats4.current_health == 88, "hit reduced by 12%% (took %d)" % (hp4 - stats4.current_health))
+	nova.banked_stacks = nova.damage_bank_max_stacks
+	var hp5: int = stats4.current_health
+	stats4.take_damage(100)
+	_check(hp5 - stats4.current_health == 100, "a full cuirass absorbs nothing")
+	stats4.free()
+	inv4.free()
+
+	# Armor break: the signal that drives Briarhide/Adimantium reactions.
+	var stats5 = _mk_stats()
+	var broke := [0]
+	stats5.armor_broken.connect(func(): broke[0] += 1)
+	stats5.current_armor = 10
+	stats5.take_damage(30)
+	_check(broke[0] == 1, "breaking through armor emits armor_broken")
+	stats5.take_damage(30)
+	_check(broke[0] == 1, "armorless hits do not emit armor_broken")
+	stats5.free()
 
 func _test_gold_heal() -> void:
 	print("-- Suit and Tie gold heal --")

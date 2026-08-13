@@ -1174,10 +1174,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"deep_breaths":
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"vined_encasing":
-			# Briarhide Plate: thorns from current armor; the buff sheds value
-			# equal to damage received instead of 1 per hit.
+			# Briarhide Plate: thorns from current armor (1:1); the buff sheds
+			# value equal to damage received instead of 1 per hit.
 			if player_stats and buff_mgr:
-				var vined_thorns: int = floori(player_stats.current_armor * 0.5)
+				var vined_thorns: int = player_stats.current_armor
 				if vined_thorns > 0:
 					var vined_buff = Buff.create_thorns(vined_thorns, 20, "Vined Encasing")
 					vined_buff.decay_by_damage = true
@@ -6185,7 +6185,7 @@ static func create_detonova() -> Card:
 	var card = Card.new()
 	card.card_id = "detonova"
 	card.card_name = "Detonova"
-	card.description = "Purge the cuirass's stacks and deal the banked total as fire damage to all enemies within 2 squares of you. Does NOT scale with INT."
+	card.description = "Purge the cuirass's stacks and deal the absorbed total as fire damage to all enemies within 2 squares of you. Does NOT scale with INT."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 60
@@ -6234,7 +6234,7 @@ static func create_vined_encasing() -> Card:
 	var card = Card.new()
 	card.card_id = "vined_encasing"
 	card.card_name = "Vined Encasing"
-	card.description = "Gain 0.5 thorns for each point of armor you currently have, for 20 tempo. You lose X thorns whenever you receive X damage."
+	card.description = "Gain 1 thorn for each point of armor you currently have, for 20 tempo. You lose X thorns whenever you receive X damage."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 50

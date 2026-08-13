@@ -202,7 +202,9 @@ var damage_proc_reduction_chance: float = 0.0
 var damage_proc_reduction_percent: float = 50.0
 # Chests pass
 var equipment_block_physical_resist: float = 0.0  # +% physical resist while armor is up (Smithed Excellence)
-var equipment_resist_per_missing10: float = 0.0   # +% all-resist per full 10% missing health (Divine Resistance)
+var equipment_resist_per_missing10: float = 0.0   # +% all-resist per missing-health step (Divine Resistance)
+var equipment_resist_missing_step: int = 10       # % of missing health per resist grant (Divine Resistance 8, Lv3 7)
+signal armor_broken                               # a hit just broke through your armor (Briarhide / Adimantium react)
 var equipment_gold_gain_heal: int = 0             # heal X whenever gold is gained (Suit and Tie)
 var equipment_hp_diff_divisor: int = 0            # health-gap bonus damage divisor, 0 = off (Tigers Sunday Red)
 var equipment_ranged_range_bonus: int = 0         # +range on ranged offensive cards (Tigers Sunday Red)
@@ -1330,9 +1332,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Flat all-damage resistance from the sphere grid ("Resist +X%") plus any
 	# equipment resistance (e.g. Thick Steel Helm): percent reduction on all damage.
 	var flat_resist := sphere_bonus_resistance + equipment_resistance_bonus
-	# Divine Resistance: +X% all-type resist per full 10% of missing health.
+	# Divine Resistance: +X% all-type resist per full step of missing health.
 	if equipment_resist_per_missing10 > 0.0:
-		flat_resist += equipment_resist_per_missing10 * int((1.0 - get_health_percent()) * 10.0)
+		var resist_step: int = maxi(1, equipment_resist_missing_step)
+		flat_resist += equipment_resist_per_missing10 * int((1.0 - get_health_percent()) * 100.0 / resist_step)
 	if flat_resist > 0.0:
 		remaining = floori(remaining * (1.0 - minf(flat_resist, 90.0) / 100.0))
 
@@ -1360,6 +1363,21 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	if buff_mgr and remaining > 0 and buff_mgr.has_method("decay_thorns_by_damage"):
 		buff_mgr.decay_thorns_by_damage(remaining)
 
+	# Supernova Cuirass: while it has stack room, the plate drinks part of the
+	# hit — damage_bank_percent is absorbed into the cuirass (fuel for
+	# Detonova) and damage_bank_mitigate_percent simply vanishes.
+	if remaining > 0 and inventory and "equipped_chests" in inventory:
+		for sn_chest in inventory.equipped_chests:
+			if sn_chest and sn_chest.damage_bank_percent > 0.0 \
+					and sn_chest.banked_stacks < sn_chest.damage_bank_max_stacks:
+				var sn_absorbed: float = remaining * sn_chest.damage_bank_percent / 100.0
+				var sn_cut: int = floori(remaining * (sn_chest.damage_bank_percent + sn_chest.damage_bank_mitigate_percent) / 100.0)
+				sn_chest.banked_damage += sn_absorbed
+				sn_chest.banked_stacks += 1
+				remaining -= sn_cut
+				print("[STATS] %s absorbed %.1f (%d/%d stacks), hit reduced by %d" % [sn_chest.item_name,
+					sn_absorbed, sn_chest.banked_stacks, sn_chest.damage_bank_max_stacks, sn_cut])
+
 	# Default absorption order: Armor -> temp HP -> HP. Armor is always the
 	# first line of defense; items, nodes, enemies, or cards may manipulate
 	# this later, but this is the baseline.
@@ -1383,6 +1401,9 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 			remaining -= effective_armor
 			current_armor = 0
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
+			# Briarhide / Adimantium: the shell cracked — armored chests react.
+			# The reaction armor arrives AFTER this hit resolves.
+			armor_broken.emit()
 
 		# Hallowed Trunk: bank armor lost toward regen stacks.
 		if equipment_armor_loss_regen_threshold > 0 and buff_mgr:

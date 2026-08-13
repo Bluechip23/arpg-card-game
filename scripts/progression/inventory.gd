@@ -508,6 +508,8 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.equipment_block_physical_resist += item.block_physical_resist_percent * multiplier
 	if item.resist_per_missing10 != 0.0:
 		player_stats.equipment_resist_per_missing10 += item.resist_per_missing10 * multiplier
+		# Step travels with the percent (only one chest slot in practice).
+		player_stats.equipment_resist_missing_step = item.resist_missing_step if multiplier > 0 else 10
 	if item.gold_gain_heal != 0:
 		player_stats.equipment_gold_gain_heal += item.gold_gain_heal * multiplier
 	if item.hp_diff_damage_divisor != 0:
@@ -809,8 +811,9 @@ func process_turn() -> void:
 			if chest.exposed_armor_cd_left == 0:
 				print("[INVENTORY] %s: Exposed-armor reaction ready" % chest.item_name)
 
-## Chests pass: Exposed was just applied to the wearer — armored chests react.
-## Briarhide has no cooldown; Adimantium honors exposed_armor_cooldown_cycles.
+## Chests pass: a hit just broke through the wearer's armor ("exposed" in the
+## chest spec) — armored chests react by regrowing some. Briarhide has no
+## cooldown; Adimantium honors exposed_armor_cooldown_cycles.
 func on_player_exposed() -> void:
 	if not player_stats:
 		return
