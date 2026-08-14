@@ -1352,7 +1352,7 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	_cycle_accumulator += amount
 
 	# Tree form (Cupids Bow): counted in raw tempo, not cycles. The tree keeps
-	# every buff and debuff it had, cannot act, and regenerates 5 health on
+	# every buff and debuff it had, cannot act, and regenerates 3 health on
 	# each of its first 3 tempo.
 	if tree_tempo > 0:
 		for _t in range(amount):
@@ -1361,7 +1361,7 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 			tree_tempo -= 1
 			if tree_regen_ticks > 0:
 				tree_regen_ticks -= 1
-				_regenerate(5)
+				_regenerate(3)
 		if tree_tempo <= 0:
 			_exit_tree_form()
 

@@ -2414,7 +2414,7 @@ static func create_cupids_bow() -> ItemData:
 	item.intelligence_bonus = 4
 	var cb_cards: Array[String] = ["cupids_golden_arrow", "cupids_lead_arrow"]
 	item.granted_card_ids = cb_cards
-	item.description = "+3 WIS, +5 STR, +4 INT. Grants Golden — 10 damage, 2 Vulnerable, 50% chance to taunt the enemy toward you — and Lead — 10 damage, 2 Weaken, 50% chance to send the enemy fleeing (each 45 mana, 3 tempo). An enemy struck by both arrows turns into a tree for 4 tempo: it keeps every buff and debuff, cannot act, and regenerates 5 health on each of its first 3 tempo."
+	item.description = "+3 WIS, +5 STR, +4 INT. Grants Golden — 10 damage, 2 Vulnerable, 50% chance to taunt the enemy toward you — and Lead — 10 damage, 2 Weaken, 50% chance to send the enemy fleeing (each 45 mana, 3 tempo). An enemy struck by both arrows turns into a tree for 4 tempo: it keeps every buff and debuff, cannot act, and regenerates 3 health on each of its first 3 tempo."
 	return item
 
 static func create_the_rapid_recurve() -> ItemData:
@@ -2480,10 +2480,10 @@ static func create_belthronding() -> ItemData:
 	var bt_cards: Array[String] = ["balistic_arrow"]
 	item.granted_card_ids = bt_cards
 	item.level_3_overrides = {"strength_bonus": 12, "dexterity_bonus": 10}
-	item.level_3_description = "+12 STR, +20 health, +10 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
+	item.level_3_description = "+12 STR, +20 health, +10 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
 	_set_appearance(item, "belthronding",
 		"Crafted entirely from rare, dark black yew-wood, its stiff ends fitted with hard animal horn.")
-	item.description = "+10 STR, +20 health, +8 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
+	item.description = "+10 STR, +20 health, +8 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
 	return item
 
 static func create_bow_of_budding_blasts() -> ItemData:

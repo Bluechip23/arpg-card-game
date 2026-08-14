@@ -8254,13 +8254,20 @@ func _ranged_on_self_world_effects(card: Card, target) -> void:
 		return
 	var osb = card.get_on_self_bonus()
 	# Belthronding: playing a slotted card loads the close-range trap.
+	# Balance ruling: at most 3 copies may wait in the hand at once — the
+	# stockpiled punishment nova is capped, not endless.
 	var conjure_id: String = str(osb.get("conjure_on_play_id", ""))
 	if conjure_id != "" and deck_manager:
-		var trap = deck_manager._create_card_from_id(conjure_id)
-		if trap:
-			trap.shop_excluded = true
-			deck_manager.add_card_to_hand(trap)
-			add_battle_log("Close is Favored waits in your hand.", Color(0.85, 0.75, 0.5))
+		var held := 0
+		for hc in deck_manager.hand:
+			if hc.card_id == conjure_id:
+				held += 1
+		if held < 3:
+			var trap = deck_manager._create_card_from_id(conjure_id)
+			if trap:
+				trap.shop_excluded = true
+				deck_manager.add_card_to_hand(trap)
+				add_battle_log("Close is Favored waits in your hand. (%d/3)" % (held + 1), Color(0.85, 0.75, 0.5))
 	# The Rapid Recurve: the shot lands a second time at full damage.
 	if bool(osb.get("double_shot", false)) and card.is_offensive() and card.last_damage_dealt > 0 \
 			and target != null and is_instance_valid(target) and "is_dead" in target and not target.is_dead:

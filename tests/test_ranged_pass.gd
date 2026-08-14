@@ -195,13 +195,13 @@ func _test_enemy_plumbing() -> void:
 	_check(e.apply_cupid_mark(false), "the second mark completes the pair")
 	_check(e.tree_tempo == 4 and e.tree_regen_ticks == 3, "tree form: 4 tempo, 3 regen ticks")
 	_check(not e.cupid_golden and not e.cupid_lead, "marks consumed by the transform")
-	# The tree cannot act and regenerates 5 on each of its first 3 tempo.
+	# The tree cannot act and regenerates 3 on each of its first 3 tempo.
 	e.max_health = 100
 	e.current_health = 50
 	e.on_tempo_advanced(1, null)
-	_check(e.current_health == 55 and e.tree_tempo == 3, "tree heals 5 per tempo (health %d)" % e.current_health)
+	_check(e.current_health == 53 and e.tree_tempo == 3, "tree heals 3 per tempo (health %d)" % e.current_health)
 	e.on_tempo_advanced(3, null)
-	_check(e.tree_tempo == 0 and e.current_health == 65, "tree form expires after 4 tempo, healed 15 total")
+	_check(e.tree_tempo == 0 and e.current_health == 59, "tree form expires after 4 tempo, healed 9 total")
 	# zone_weakened chips in only when no weaken stacks are present.
 	e.zone_weakened = true
 	var fx_names := []
