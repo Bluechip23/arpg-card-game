@@ -156,6 +156,37 @@ enum GauntletSkillType {
 var slotted_cards: Array = []  # Cards currently in the slots
 var allowed_card_keywords: Array = []  # Empty = any card allowed. e.g. [Card.CardKeyword.ARROW] = only arrow cards
 
+# Colored card slots (Mauls Sabre — the first of its kind; nothing else uses
+# this yet). When slot_colors is non-empty, slot index i is the color
+# slot_colors[i], and slot_effects[i] is that slot's OWN on-self payload —
+# effects belong to the colored slot, not the item as a whole. Payload keys:
+#   damage: +X damage when the slotted card is played (offensive only)
+#   block: +X block when the slotted card is played
+#   weaken / vulnerable: applied to the target on a damaging hit
+#   discard: discard X random cards from the hand on play
+#   combo_after: the color that primes this slot's combo — it fires when this
+#     slot's card is played IMMEDIATELY after that color (any other play in
+#     between breaks the chain):
+#   combo_vulnerable: ...the target also takes X Vulnerable
+#   combo_tempo: ...the play costs X less tempo
+@export var slot_colors: Array = []
+@export var slot_effects: Array = []
+var last_color_played: String = ""  # runtime: this item's color if its card was the most recent play, else ""
+
+## The color of the slot the card occupies ("" when uncolored/not slotted).
+func get_slot_color(card) -> String:
+	var idx = slotted_cards.find(card)
+	if idx >= 0 and idx < slot_colors.size():
+		return str(slot_colors[idx])
+	return ""
+
+## The payload of the colored slot the card occupies ({} when none).
+func get_slot_effect(card) -> Dictionary:
+	var idx = slotted_cards.find(card)
+	if idx >= 0 and idx < slot_effects.size() and slot_effects[idx] is Dictionary:
+		return slot_effects[idx]
+	return {}
+
 # Granted cards (GRANT_CARDS / GRANT_BLINK_CARD). Built once the first time the
 # item is equipped, then reused for the item's lifetime so the SAME instances
 # come and go with the item on every swap — preserving per-card state (jail
@@ -779,9 +810,13 @@ func get_card_slot_summary() -> String:
 		return ""
 	var parts: Array[String] = []
 	parts.append("Slots: %d/%d" % [slotted_cards.size(), card_slots])
-	for card in slotted_cards:
+	for i in range(slotted_cards.size()):
+		var card = slotted_cards[i]
 		var suffix = " [Molded]" if card.is_molded else ""
-		parts.append("  - %s%s" % [card.card_name, suffix])
+		var color_tag := ""
+		if i < slot_colors.size():
+			color_tag = "[%s] " % str(slot_colors[i]).capitalize()
+		parts.append("  - %s%s%s" % [color_tag, card.card_name, suffix])
 	if on_self_damage > 0:
 		parts.append("On-Self: +%d damage" % on_self_damage)
 	if on_self_block > 0:
@@ -1933,12 +1968,21 @@ static func create_laurentius_lost_spear() -> ItemData:
 	return item
 
 static func create_mauls_sabre() -> ItemData:
+	## The first colored-slot item: a blue slot and a red slot, each carrying
+	## its own payload, with combos for weaving one immediately after the
+	## other. The colored-slot system debuts here and nowhere else for now.
 	var item = _new_weapon("Mauls Sabre", Rarity.LEGENDARY, WeaponSubtype.STAFF, 40)
 	item.card_slots = 2
 	item.agility_bonus = 8
 	item.strength_bonus = 3
 	item.dexterity_bonus = 4
-	item.description = "+8 AGI, +3 STR, +4 DEX."
+	item.hand_size_bonus = 1
+	item.slot_colors = ["blue", "red"]
+	item.slot_effects = [
+		{"block": 8, "damage": 5, "weaken": 1, "combo_after": "red", "combo_vulnerable": 1},
+		{"discard": 2, "damage": 15, "combo_after": "blue", "combo_tempo": 1},
+	]
+	item.description = "+8 AGI, +3 STR, +4 DEX, +1 hand size. Two colored slots. Blue slot: its card gains +8 block, +5 damage, and applies 1 Weaken. Red slot: playing its card discards 2 random cards and deals +15 damage. Combo — blue played immediately after red also applies 1 Vulnerable; red played immediately after blue costs 1 less tempo."
 	return item
 
 static func create_fallens_wrath() -> ItemData:

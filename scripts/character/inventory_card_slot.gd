@@ -33,10 +33,15 @@ func _build_tooltip() -> String:
 
 	# Card info first (appears ABOVE the on-self effect).
 	if item.slotted_cards.size() > 0:
-		for card in item.slotted_cards:
+		for ci in range(item.slotted_cards.size()):
+			var card = item.slotted_cards[ci]
 			var lines: Array[String] = []
 			var tag := " (Molded)" if card.is_molded else " (%s)" % card.get_slot_keyword()
-			lines.append("%s%s" % [card.card_name, tag])
+			# Colored slots (Mauls Sabre): name the slot's color.
+			var color_tag := ""
+			if ci < item.slot_colors.size():
+				color_tag = "[%s] " % str(item.slot_colors[ci]).capitalize()
+			lines.append("%s%s%s" % [color_tag, card.card_name, tag])
 			lines.append("%s  •  %d Mana / %d Tempo" % [card.card_type_name, card.mana_cost, card.tempo_cost])
 			if card.description != "":
 				lines.append(card.description)

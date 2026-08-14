@@ -1597,9 +1597,17 @@ func _open_card_slot_panel(item: ItemData) -> void:
 
 			var card_label = Label.new()
 			var tag = " [Molded]" if card.is_molded else " [%s]" % card.get_slot_keyword()
-			card_label.text = "%s%s" % [card.card_name, tag]
+			# Colored slots (Mauls Sabre): name and tint the slot's color.
+			var color_prefix := ""
+			var label_color := Color(0.7, 0.55, 0.9)
+			if i < item.slot_colors.size():
+				color_prefix = "[%s] " % str(item.slot_colors[i]).capitalize()
+				match str(item.slot_colors[i]):
+					"blue": label_color = Color(0.5, 0.7, 1.0)
+					"red": label_color = Color(1.0, 0.5, 0.5)
+			card_label.text = "%s%s%s" % [color_prefix, card.card_name, tag]
 			card_label.add_theme_font_size_override("font_size", 12)
-			card_label.add_theme_color_override("font_color", Color(0.7, 0.55, 0.9))
+			card_label.add_theme_color_override("font_color", label_color)
 			card_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			row_hbox.add_child(card_label)
 
@@ -1627,6 +1635,18 @@ func _open_card_slot_panel(item: ItemData) -> void:
 				row_hbox.add_child(remove_btn)
 
 			vbox.add_child(row_hbox)
+
+	# Colored slots (Mauls Sabre): show which colored slots are still open —
+	# slot order decides the color, so the player should see what's next.
+	for i in range(item.slotted_cards.size(), mini(item.card_slots, item.slot_colors.size())):
+		var open_label = Label.new()
+		open_label.text = "  (open [%s] slot)" % str(item.slot_colors[i]).capitalize()
+		open_label.add_theme_font_size_override("font_size", 12)
+		match str(item.slot_colors[i]):
+			"blue": open_label.add_theme_color_override("font_color", Color(0.4, 0.55, 0.8))
+			"red": open_label.add_theme_color_override("font_color", Color(0.8, 0.4, 0.4))
+			_: open_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
+		vbox.add_child(open_label)
 
 	vbox.add_child(_make_separator())
 

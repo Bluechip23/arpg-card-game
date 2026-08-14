@@ -884,6 +884,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	var _temp_crit_dmg_applied := 0.0
 	var _adaptive_type_prev := -999  # Blue Robe: original damage_type to restore after this play
 	var _overdrive_extra := 0        # Fallen's Wrath: bonus whose half rebounds on the wielder
+	var _slot_block_applied := 0     # Mauls Sabre colored slot: block granted this play, stripped after
 	if slotted_in_item:
 		# Studded belt: the long-dead on_self_thorns finally fires — slotted
 		# plays grant thorns.
@@ -998,6 +999,28 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if _od_mult > 1.0 and is_offensive():
 			_overdrive_extra = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * (_od_mult - 1.0))
 			_gauntlet_bonus_applied += _overdrive_extra
+		# Colored slots (Mauls Sabre): the slot's own payload rides its card's
+		# play. Combo effects read combo_prev_color, captured at play time.
+		var _slot_fx: Dictionary = slotted_in_item.get_slot_effect(self)
+		if not _slot_fx.is_empty():
+			if int(_slot_fx.get("damage", 0)) > 0 and is_offensive():
+				_gauntlet_bonus_applied += int(_slot_fx["damage"])
+			if int(_slot_fx.get("block", 0)) > 0:
+				_slot_block_applied = int(_slot_fx["block"])
+				block += _slot_block_applied
+			if int(_slot_fx.get("discard", 0)) > 0 and deck_manager:
+				for _d in range(int(_slot_fx["discard"])):
+					if deck_manager.hand.size() == 0:
+						break
+					var toss_i = randi() % deck_manager.hand.size()
+					var tossed = deck_manager.hand[toss_i]
+					deck_manager.hand.remove_at(toss_i)
+					deck_manager.discard_pile.append(tossed)
+					deck_manager.discards_this_cycle += 1
+					deck_manager.card_discarded.emit(tossed)
+					deck_manager.non_play_discard.emit(tossed)
+					print("[CARD] %s (%s slot): discarded %s" % [card_name, slotted_in_item.get_slot_color(self), tossed.card_name])
+				deck_manager.hand_updated.emit()
 		# Quiver of Wet Stones: slotted hits grind extra enemy armor (armor only).
 		if int(on_self.get("armor_shred", 0)) > 0 and is_offensive() and target \
 				and "current_armor" in target and target.current_armor > 0:
@@ -1777,6 +1800,21 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if on_self_weaken > 0 and target.has_method("apply_debuff"):
 			target.apply_debuff("weaken", on_self_weaken)
 			print("[CARD] On-Self: Applied %d Weaken to target from %s" % [on_self_weaken, source_name])
+		# Colored slots (Mauls Sabre): the slot's debuff payload, plus the
+		# combo bonus when this color was primed by the other one.
+		var slot_fx_late: Dictionary = slotted_in_item.get_slot_effect(self)
+		if not slot_fx_late.is_empty() and target.has_method("apply_debuff"):
+			if int(slot_fx_late.get("weaken", 0)) > 0:
+				target.apply_debuff("weaken", int(slot_fx_late["weaken"]))
+				print("[CARD] %s slot: applied %d Weaken" % [slotted_in_item.get_slot_color(self), int(slot_fx_late["weaken"])])
+			if int(slot_fx_late.get("vulnerable", 0)) > 0:
+				target.apply_debuff("vulnerable", int(slot_fx_late["vulnerable"]))
+			if int(slot_fx_late.get("combo_vulnerable", 0)) > 0 \
+					and str(slot_fx_late.get("combo_after", "")) != "" \
+					and has_meta("combo_prev_color") \
+					and str(get_meta("combo_prev_color")) == str(slot_fx_late["combo_after"]):
+				target.apply_debuff("vulnerable", int(slot_fx_late["combo_vulnerable"]))
+				print("[CARD] Combo! %s after %s: +%d Vulnerable" % [slotted_in_item.get_slot_color(self), str(slot_fx_late["combo_after"]), int(slot_fx_late["combo_vulnerable"])])
 
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
@@ -1791,6 +1829,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		bonus_damage -= _ranged_bonus_applied
 	if _gauntlet_bonus_applied > 0:
 		bonus_damage -= _gauntlet_bonus_applied
+	if _slot_block_applied > 0:
+		block -= _slot_block_applied  # Mauls Sabre colored slot: never sticks to the card
 
 	# Gravity Gauntlets / Spidey Web Shooters: a slotted offensive card holds or
 	# disarms its target.
@@ -2053,6 +2093,15 @@ func get_burden_tempo_cost() -> int:
 	# Tightened Cross Bow (+1) / Stringless Sender (-1): signed tempo delta.
 	if slotted_in_item:
 		cost += int(slotted_in_item.get_on_self_bonus().get("tempo_penalty", 0))
+	# Colored slots (Mauls Sabre): a primed combo makes this play faster —
+	# red immediately after blue. Reads the item's live last_color_played, so
+	# the number on the card face updates the moment the combo is primed.
+	if slotted_in_item and slotted_in_item.slot_colors.size() > 0:
+		var slot_fx: Dictionary = slotted_in_item.get_slot_effect(self)
+		if int(slot_fx.get("combo_tempo", 0)) > 0 \
+				and str(slot_fx.get("combo_after", "")) != "" \
+				and slotted_in_item.last_color_played == str(slot_fx["combo_after"]):
+			cost -= int(slot_fx["combo_tempo"])
 	# Potion Belt: slotted utility cards refund tempo.
 	if card_type == CardType.UTILITY and slotted_in_item:
 		cost -= int(slotted_in_item.get_on_self_bonus().get("utility_tempo_refund", 0))

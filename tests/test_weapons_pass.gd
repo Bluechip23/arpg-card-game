@@ -41,8 +41,41 @@ func _initialize() -> void:
 	_test_wrath()
 	_test_bessy_and_flash()
 	_test_stephen_swap_perk()
+	_test_mauls_sabre()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
+
+func _test_mauls_sabre() -> void:
+	print("-- Mauls Sabre: colored slots --")
+	var sabre = ItemData.create_mauls_sabre()
+	_check(sabre.slot_colors == ["blue", "red"], "a blue slot and a red slot")
+	_check(sabre.hand_size_bonus == 1, "+1 hand size")
+	var blue_fx: Dictionary = sabre.slot_effects[0]
+	var red_fx: Dictionary = sabre.slot_effects[1]
+	_check(blue_fx.get("block", 0) == 8 and blue_fx.get("damage", 0) == 5 and blue_fx.get("weaken", 0) == 1,
+		"blue payload: 8 block, +5 damage, 1 Weaken")
+	_check(red_fx.get("discard", 0) == 2 and red_fx.get("damage", 0) == 15,
+		"red payload: discard 2, +15 damage")
+	# Slot order decides the color.
+	var first = Card.create_slice()
+	var second = Card.create_quick_shot()
+	_check(sabre.slot_card(first) and sabre.slot_card(second), "two cards slot into the staff")
+	_check(sabre.get_slot_color(first) == "blue" and sabre.get_slot_color(second) == "red",
+		"first card takes blue, second takes red")
+	_check(sabre.get_slot_effect(second).get("combo_after", "") == "blue", "red combos off blue")
+	# The red-after-blue combo shaves 1 tempo, live on the card face.
+	var base := second.get_burden_tempo_cost()
+	_check(base == second.tempo_cost, "no combo primed: full tempo")
+	sabre.last_color_played = "blue"
+	_check(second.get_burden_tempo_cost() == max(0, base - 1), "blue primed: red costs 1 less tempo")
+	sabre.last_color_played = "red"
+	_check(second.get_burden_tempo_cost() == base, "wrong color primed: full tempo again")
+	# An uncolored item is untouched by the machinery.
+	var plain = ItemData.create_pick()
+	var pc = Card.create_slice()
+	plain.slot_card(pc)
+	_check(plain.get_slot_color(pc) == "" and plain.get_slot_effect(pc).is_empty(),
+		"uncolored slots report no color and no payload")
 
 func _test_stephen_swap_perk() -> void:
 	print("-- Stephen: man of arms --")
