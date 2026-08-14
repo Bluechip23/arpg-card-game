@@ -1001,6 +1001,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_gauntlet_bonus_applied += _overdrive_extra
 		# Colored slots (Mauls Sabre): the slot's own payload rides its card's
 		# play. Combo effects read combo_prev_color, captured at play time.
+		# The discard cost is player-chosen, so it lives in main.gd
+		# (_colored_slot_discard) where the hand picker exists.
 		var _slot_fx: Dictionary = slotted_in_item.get_slot_effect(self)
 		if not _slot_fx.is_empty():
 			if int(_slot_fx.get("damage", 0)) > 0 and is_offensive():
@@ -1008,19 +1010,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			if int(_slot_fx.get("block", 0)) > 0:
 				_slot_block_applied = int(_slot_fx["block"])
 				block += _slot_block_applied
-			if int(_slot_fx.get("discard", 0)) > 0 and deck_manager:
-				for _d in range(int(_slot_fx["discard"])):
-					if deck_manager.hand.size() == 0:
-						break
-					var toss_i = randi() % deck_manager.hand.size()
-					var tossed = deck_manager.hand[toss_i]
-					deck_manager.hand.remove_at(toss_i)
-					deck_manager.discard_pile.append(tossed)
-					deck_manager.discards_this_cycle += 1
-					deck_manager.card_discarded.emit(tossed)
-					deck_manager.non_play_discard.emit(tossed)
-					print("[CARD] %s (%s slot): discarded %s" % [card_name, slotted_in_item.get_slot_color(self), tossed.card_name])
-				deck_manager.hand_updated.emit()
 		# Quiver of Wet Stones: slotted hits grind extra enemy armor (armor only).
 		if int(on_self.get("armor_shred", 0)) > 0 and is_offensive() and target \
 				and "current_armor" in target and target.current_armor > 0:

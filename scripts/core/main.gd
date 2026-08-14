@@ -8246,6 +8246,29 @@ func _check_melee_range_reactions() -> void:
 			deck_manager.discard_pile.erase(card)
 			deck_manager.card_erased.emit(card)
 
+## Colored slots (Mauls Sabre): the red slot's discard is a cost the player
+## pays on their own terms — one picker per card owed, chained. The picker
+## auto-resolves when only one candidate remains and the cost simply runs dry
+## with the hand, so an empty or thin hand never soft-locks the play.
+func _colored_slot_discard(card: Card) -> void:
+	if card.slotted_in_item == null:
+		return
+	var fx: Dictionary = card.slotted_in_item.get_slot_effect(card)
+	var owed: int = int(fx.get("discard", 0))
+	if owed <= 0:
+		return
+	_pick_slot_discard(owed, card.slotted_in_item.get_slot_color(card))
+
+func _pick_slot_discard(owed: int, color: String) -> void:
+	if owed <= 0 or deck_manager.hand.is_empty():
+		return
+	show_hand_card_picker("%s slot — discard which card? (%d to go)" % [color.capitalize(), owed],
+		func(picked):
+			if picked != null:
+				deck_manager.discard_card_from_hand(picked)
+				add_battle_log("Discarded %s to the %s slot." % [picked.card_name, color], Color(1.0, 0.5, 0.5))
+			_pick_slot_discard(owed - 1, color))
+
 ## Slotted-item riders that need the world (ranged pass 1): Belthronding's
 ## conjure, the Rapid Recurve's second shot, the Stringless Sender's bounce,
 ## and the Sack of Bone Arrows' kill-raised skeleton.
@@ -8840,6 +8863,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 	# Slotted-item riders that need the world (ranged pass 1).
 	_ranged_on_self_world_effects(card, target)
+
+	# Colored slots (Mauls Sabre): the red slot's discard cost, player-chosen.
+	_colored_slot_discard(card)
 
 	# Mits of Chingiz "3 count": two offensive cards in a row add a Switch Kick
 	# to the hand (then a 20-tempo cooldown).
