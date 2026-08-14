@@ -76,6 +76,11 @@ var _penguin = null              # Nine Ruins of Sanguine: the blood penguin (on
 const PenguinScript = preload("res://scripts/battle/sanguine_penguin.gd")
 const WolfScript = preload("res://scripts/battle/summoned_wolf.gd")
 var _smoke_zones: Array = []     # smoke bomb: {position, tempo}
+var _skeletons: Array = []       # Sack of Bone Arrows: raised skeletons (cap 3)
+const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
+var _spirit_bows: Array = []     # Bow of Budding Blasts: maintained spirit bow + budded turrets
+const SpiritBowScript = preload("res://scripts/battle/spirit_bow_summon.gd")
+var _mark_zones: Array = []      # Territorial Mark: {cells: Array[Vector2i], tempo, nodes}
 var _three_count_cd: int = 0     # Mits of Chingiz: cycles until 3 count can fire again
 var _offensive_streak: int = 0   # consecutive offensive cards played (3 count)
 var _cuffs_cycle_accum: int = 0  # Cuffs of Current: cycles banked toward the next free draw
@@ -4585,6 +4590,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_sync_occupied_tiles()
 	# Summons are ordinary units to enemy target selection
 	enemy_spawner.summons = _frankensteins + _summoned_worms + _wolves \
+		+ _skeletons + _spirit_bows \
 		+ ([_penguin] if (_penguin != null and is_instance_valid(_penguin)) else [])
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
@@ -4606,6 +4612,14 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Wolves hunt on their own cadence; smoke clouds shelter then disperse.
 	_update_wolves(amount)
 	_update_smoke_zones(amount)
+	# Bone-arrow skeletons sprint at whatever their quiver's kill left behind.
+	_update_skeletons(amount)
+	# Spirit bows stalk and shoot; budded turrets just shoot.
+	_update_spirit_bows(amount)
+	# Territorial Mark: refresh which enemies stand in the blue smoke.
+	_update_mark_zones(amount)
+	# Close is Favored: any enemy inside melee reach springs the trap.
+	_check_melee_range_reactions()
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
@@ -4816,6 +4830,13 @@ func _on_all_enemies_defeated() -> void:
 	_clear_penguin()
 	_clear_wolves()
 	_smoke_zones.clear()
+	_clear_skeletons()
+	_clear_spirit_bows()
+	_clear_mark_zones()
+	# Wrist Rocket's banked crit is battle-scoped.
+	var pst = player.get_stats() if player else null
+	if pst:
+		pst.improvised_ammo_crit_bonus = 0.0
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
@@ -5736,6 +5757,18 @@ func _on_card_discarded(card: Card) -> void:
 
 func _handle_on_discard_effect(card: Card) -> void:
 	match card.on_discard_effect:
+		"improvised_ammo_blast":
+			# Wrist Rocket: the discarded shell pops for 4 on the nearest enemy
+			# and banks +10% crit for Improvised Ammo (stacks, battle-scoped).
+			var ia_stats = player.get_stats() if player else null
+			if ia_stats:
+				ia_stats.improvised_ammo_crit_bonus += 10.0
+				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit this battle." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
+			if enemy_spawner and player:
+				var ia_near = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+				if ia_near:
+					ia_near.take_damage(4, true)
+					add_battle_log("The discarded shell pops! %s takes 4." % ia_near.enemy_name, Color(0.8, 0.7, 0.5))
 		"discard_2_cards":
 			if deck_manager and deck_manager.hand.size() > 0:
 				var cards_to_discard = mini(2, deck_manager.hand.size())
@@ -7284,6 +7317,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	if buff_mgr and buff_mgr.last_crit_hit:
 		buff_mgr.last_crit_hit = false
 		progression_triggers._trigger_skill_tree_on_crit(target)
+		# Bow of Budding Blasts: a crit with a slotted card buds a bow turret.
+		if card.slotted_in_item and bool(card.get_on_self_bonus().get("crit_bud_bow", false)):
+			_spawn_bud_bow()
 
 	# Apply world effects (knockback, movement, AOE)
 	_apply_card_world_effects(card, target)
@@ -7685,6 +7721,7 @@ func _update_penguin(amount: int) -> void:
 		if prey and grid_manager.get_distance_in_cells(_penguin.position, prey.position) <= 1.5:
 			prey.take_damage(_penguin.BASE_ATTACK, false)
 			add_battle_log("Sanguine pecks %s for %d!" % [prey.enemy_name, _penguin.BASE_ATTACK], Color(0.9, 0.4, 0.4))
+			_belthronding_share(_penguin.position, _penguin.BASE_ATTACK)
 
 func _clear_penguin() -> void:
 	if _penguin and is_instance_valid(_penguin):
@@ -7858,6 +7895,7 @@ func _update_wolves(amount: int) -> void:
 				if target_enemy.has_method("apply_debuff"):
 					target_enemy.apply_debuff("bleed", 1 + pack_others)
 				add_battle_log("Wolf bites %s for %d (+%d bleed)!" % [target_enemy.enemy_name, dmg, 1 + pack_others], Color(0.7, 0.7, 0.8))
+				_belthronding_share(w.position, dmg)
 			continue
 		w.move_accum += amount
 		if w.move_accum >= w.MOVE_INTERVAL:
@@ -7876,6 +7914,387 @@ func _update_wolves(amount: int) -> void:
 			if cur != w.get_cell():
 				w.move_to_cell(cur)
 	_wolves = _wolves.filter(func(w): return is_instance_valid(w) and not w.is_dead)
+
+# ============================================
+# RANGED PASS: SKELETONS, SPIRIT BOWS, MARK ZONES
+# ============================================
+
+## Sack of Bone Arrows: a kill made with a card slotted in the quiver raises a
+## skeleton at half the victim's max health, on or beside the corpse's cell.
+func _spawn_bone_skeleton(hp: int, near_pos: Vector3) -> void:
+	if not grid_manager:
+		return
+	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
+	if _skeletons.size() >= 3:
+		add_battle_log("The bones will not answer — three skeletons already stand.", Color(0.8, 0.85, 0.75))
+		return
+	var corpse_cell = grid_manager.world_to_grid(near_pos)
+	var spawn_cell = corpse_cell
+	if spawn_cell in player.blocked_tiles or spawn_cell in _living_enemy_cells():
+		for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+			var c = corpse_cell + off
+			if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+				spawn_cell = c
+				break
+	var skel = SkeletonScript.new()
+	add_child(skel)
+	skel.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp)
+	skel.died.connect(func(s): _garmr_death_stack(s.position); _skeletons.erase(s))
+	_skeletons.append(skel)
+	add_battle_log("A skeleton claws out of the kill! (%d/3, %d HP)" % [_skeletons.size(), hp], Color(0.8, 0.85, 0.75))
+
+func _clear_skeletons() -> void:
+	for s in _skeletons:
+		if is_instance_valid(s):
+			s.queue_free()
+	_skeletons.clear()
+
+## Per-tempo skeleton AI: sprints 4 tiles per tempo at the nearest enemy,
+## swings for 5 every 5 tempo when adjacent.
+func _update_skeletons(amount: int) -> void:
+	if _skeletons.is_empty():
+		return
+	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
+	if not grid_manager or not enemy_spawner:
+		return
+	var enemies = enemy_spawner.get_living_enemies()
+	var blocked = player.blocked_tiles
+	var skel_cells: Array = []
+	for s in _skeletons:
+		skel_cells.append(s.get_cell())
+	for s in _skeletons.duplicate():
+		if not is_instance_valid(s) or s.is_dead:
+			continue
+		var target_enemy = _nearest_enemy_to(s.position, enemies)
+		if target_enemy == null:
+			continue
+		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		s.attack_accum += amount
+		if _manhattan(s.get_cell(), tcell) <= 1:
+			if s.attack_accum >= s.ATTACK_INTERVAL:
+				s.attack_accum -= s.ATTACK_INTERVAL
+				target_enemy.take_damage(s.BASE_ATTACK, true)
+				add_battle_log("Skeleton rakes %s for %d!" % [target_enemy.enemy_name, s.BASE_ATTACK], Color(0.8, 0.85, 0.75))
+				_belthronding_share(s.position, s.BASE_ATTACK)
+			continue
+		s.move_accum += amount
+		if s.move_accum >= s.MOVE_INTERVAL:
+			s.move_accum -= s.MOVE_INTERVAL
+			var cur = s.get_cell()
+			skel_cells.erase(cur)
+			for _step in range(s.MOVE_STEPS):
+				var tc = grid_manager.world_to_grid(target_enemy.position)
+				if _manhattan(cur, tc) <= 1:
+					break
+				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), skel_cells)
+				if nxt == cur:
+					break
+				cur = nxt
+			skel_cells.append(cur)
+			if cur != s.get_cell():
+				s.move_to_cell(cur)
+	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
+
+## Bow of Budding Blasts: the maintained Spirit Bow (one at a time).
+func _summon_spirit_bow() -> void:
+	if not grid_manager or not player:
+		return
+	_refresh_bow_instances()
+	for b in _spirit_bows:
+		if not b.is_bud:
+			return  # one spirit bow at a time; the maintain is already up
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var spawn_cell = player_cell + Vector2i(1, 0)
+	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+		var c = player_cell + off
+		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+			spawn_cell = c
+			break
+	var bow = SpiritBowScript.new()
+	add_child(bow)
+	bow.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), false)
+	bow.died.connect(func(b): _garmr_death_stack(b.position); _spirit_bows.erase(b); _refresh_bow_instances())
+	_spirit_bows.append(bow)
+	_refresh_bow_instances()
+	add_battle_log("A spirit bow takes shape beside you.", Color(0.5, 0.85, 0.8))
+
+## Bow of Budding Blasts: a slotted crit buds a rooted bow turret (cap 4).
+func _spawn_bud_bow() -> void:
+	if not grid_manager or not player:
+		return
+	_refresh_bow_instances()
+	var buds := 0
+	for b in _spirit_bows:
+		if b.is_bud:
+			buds += 1
+	if buds >= 4:
+		return  # four bows is the max
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var spawn_cell = player_cell + Vector2i(-1, 0)
+	for off in [Vector2i(-1,0), Vector2i(1,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(1,1), Vector2i(-1,-1)]:
+		var c = player_cell + off
+		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+			spawn_cell = c
+			break
+	var bow = SpiritBowScript.new()
+	add_child(bow)
+	bow.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), true)
+	bow.died.connect(func(b): _garmr_death_stack(b.position); _spirit_bows.erase(b); _refresh_bow_instances())
+	_spirit_bows.append(bow)
+	_refresh_bow_instances()
+	add_battle_log("A bow buds from the crit! (%d bud%s)" % [buds + 1, "" if buds == 0 else "s"], Color(0.5, 0.85, 0.8))
+
+func _clear_spirit_bows() -> void:
+	for b in _spirit_bows:
+		if is_instance_valid(b):
+			b.queue_free()
+	_spirit_bows.clear()
+	_refresh_bow_instances()
+
+## Keep PlayerStats.bow_instance_count matched to the living bow summons —
+## the Bow of Budding Blasts reads it for its +2 damage / +5% crit stacking.
+func _refresh_bow_instances() -> void:
+	_spirit_bows = _spirit_bows.filter(func(b): return is_instance_valid(b) and not b.is_dead)
+	var st = player.get_stats() if player else null
+	if st:
+		st.bow_instance_count = _spirit_bows.size()
+
+## Per-tempo spirit-bow AI. The maintained bow stalks the nearest enemy one
+## square per tempo and shoots every 4 tempo; buds are rooted and shoot every
+## 5. Every bow's shot gains +2 damage per living bow and crits (x1.5) with
+## 5% chance per living bow. The maintained bow dissolves the moment its
+## Spirit Bow card stops being maintained.
+func _update_spirit_bows(amount: int) -> void:
+	if _spirit_bows.is_empty():
+		return
+	_refresh_bow_instances()
+	if not grid_manager or not enemy_spawner:
+		return
+	# Maintain check: no reserved Spirit Bow card, no spirit bow.
+	var maintained := false
+	if deck_manager:
+		for mc in deck_manager.maintained_cards:
+			if mc.card_id == "spirit_bow":
+				maintained = true
+				break
+	for b in _spirit_bows.duplicate():
+		if not b.is_bud and not maintained:
+			add_battle_log("The spirit bow dissolves — its mana is no longer held.", Color(0.5, 0.85, 0.8))
+			b.die()
+	_refresh_bow_instances()
+	var enemies = enemy_spawner.get_living_enemies()
+	var blocked = player.blocked_tiles
+	var instance_count: int = _spirit_bows.size()
+	var bow_cells: Array = []
+	for b in _spirit_bows:
+		bow_cells.append(b.get_cell())
+	for b in _spirit_bows.duplicate():
+		if not is_instance_valid(b) or b.is_dead:
+			continue
+		var target_enemy = _nearest_enemy_to(b.position, enemies)
+		if target_enemy == null:
+			continue
+		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		b.attack_accum += amount
+		if _manhattan(b.get_cell(), tcell) <= b.ATTACK_RANGE:
+			if b.attack_accum >= b.attack_interval():
+				b.attack_accum -= b.attack_interval()
+				var dmg: int = b.base_attack() + 2 * instance_count
+				if randf() * 100.0 < 5.0 * instance_count:
+					dmg = floori(dmg * 1.5)
+					add_battle_log("The bow's shot crits!", Color(0.5, 0.85, 0.8))
+				target_enemy.take_damage(dmg, true)
+				add_battle_log("%s pierces %s for %d!" % ["A budded bow" if b.is_bud else "The spirit bow", target_enemy.enemy_name, dmg], Color(0.5, 0.85, 0.8))
+				_belthronding_share(b.position, dmg)
+				b.spend_attack()
+			continue
+		if b.is_bud:
+			continue  # rooted where it sprouted
+		b.move_accum += amount
+		if b.move_accum >= b.SPIRIT_MOVE_INTERVAL:
+			b.move_accum -= b.SPIRIT_MOVE_INTERVAL
+			var cur = b.get_cell()
+			bow_cells.erase(cur)
+			var nxt = _rat_step_toward(cur, tcell, blocked, _living_enemy_cells(), bow_cells)
+			bow_cells.append(nxt)
+			if nxt != cur:
+				b.move_to_cell(nxt)
+	_refresh_bow_instances()
+
+## Belthronding: when an ally (summons included) deals damage within the bow's
+## radius of the wielder, the wielder takes a share of it as well.
+func _belthronding_share(dealer_pos: Vector3, damage: int) -> void:
+	if damage <= 0 or not player or not is_instance_valid(player) or not grid_manager:
+		return
+	var inv = player.get_inventory()
+	if inv == null:
+		return
+	for w in inv.equipped_weapons:
+		if w != null and w is ItemData and w.ally_damage_share_percent > 0.0:
+			if grid_manager.get_distance_in_cells(dealer_pos, player.position) <= w.ally_damage_share_radius:
+				var share: int = maxi(1, floori(damage * w.ally_damage_share_percent / 100.0))
+				var st = player.get_stats()
+				if st:
+					st.take_direct_damage(share)
+					add_battle_log("Belthronding drinks the echo — you take %d." % share, Color(0.8, 0.6, 0.6))
+			return
+
+## Territorial Mark (Bow of Arash): the corridor of cells within 2 squares of
+## the arrow's flight line, shooter to target.
+func _territorial_mark_cells(from_cell: Vector2i, to_cell: Vector2i) -> Array:
+	var cells: Array = []
+	var a := Vector2(from_cell)
+	var b := Vector2(to_cell)
+	var seg := b - a
+	var seg_len_sq := seg.length_squared()
+	for x in range(mini(from_cell.x, to_cell.x) - 2, maxi(from_cell.x, to_cell.x) + 3):
+		for y in range(mini(from_cell.y, to_cell.y) - 2, maxi(from_cell.y, to_cell.y) + 3):
+			var p := Vector2(x, y)
+			var t := 0.0
+			if seg_len_sq > 0.0:
+				t = clampf((p - a).dot(seg) / seg_len_sq, 0.0, 1.0)
+			if p.distance_to(a + seg * t) <= 2.0:
+				cells.append(Vector2i(x, y))
+	return cells
+
+func _create_mark_zone(cells: Array, tempo: int) -> void:
+	var nodes: Array = []
+	for c in cells:
+		var n := _make_mark_smoke_visual(grid_manager.grid_to_world(c))
+		add_child(n)
+		nodes.append(n)
+	_mark_zones.append({"cells": cells, "tempo": tempo, "nodes": nodes})
+
+## The blue glistening smoke of the mark: a translucent emissive disc per cell.
+func _make_mark_smoke_visual(world_pos: Vector3) -> Node3D:
+	var node := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.42
+	mesh.bottom_radius = 0.46
+	mesh.height = 0.1
+	node.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.35, 0.6, 0.95, 0.35)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 0.55, 0.9)
+	mat.emission_energy_multiplier = 0.6
+	node.material_override = mat
+	node.position = Vector3(world_pos.x, 0.06, world_pos.z)
+	return node
+
+func _clear_mark_zones() -> void:
+	for z in _mark_zones:
+		for n in z["nodes"]:
+			if is_instance_valid(n):
+				n.queue_free()
+	_mark_zones.clear()
+	if enemy_spawner:
+		for e in enemy_spawner.get_living_enemies():
+			e.zone_weakened = false
+
+## Age the mark zones, then refresh which enemies stand in the blue smoke.
+## zone_weakened is a persistent no-stack Weaken that lifts on leaving.
+func _update_mark_zones(amount: int) -> void:
+	if _mark_zones.is_empty():
+		return
+	var survivors: Array = []
+	for z in _mark_zones:
+		z["tempo"] -= amount
+		if z["tempo"] > 0:
+			survivors.append(z)
+		else:
+			for n in z["nodes"]:
+				if is_instance_valid(n):
+					n.queue_free()
+	_mark_zones = survivors
+	if enemy_spawner:
+		for e in enemy_spawner.get_living_enemies():
+			var cell = grid_manager.world_to_grid(e.position)
+			var inside := false
+			for z in _mark_zones:
+				if cell in z["cells"]:
+					inside = true
+					break
+			e.zone_weakened = inside
+
+## Close is Favored (Belthronding): the trap in the hand springs on the first
+## enemy found inside melee reach.
+func _check_melee_range_reactions() -> void:
+	if deck_manager == null or enemy_spawner == null or player == null or not grid_manager:
+		return
+	var has_trap := false
+	for c in deck_manager.hand:
+		if c.card_type == Card.CardType.REACTION and c.reaction_trigger == "on_enemy_melee_range":
+			has_trap = true
+			break
+	if not has_trap:
+		return
+	var adj = null
+	for e in enemy_spawner.get_living_enemies():
+		if grid_manager.get_distance_in_cells(e.position, player.position) <= 1:
+			adj = e
+			break
+	if adj == null:
+		return
+	var fired = deck_manager.trigger_reactions("on_enemy_melee_range")
+	for card in fired:
+		card.execute(adj, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		add_battle_log("Close is Favored! %s takes %d." % [adj.enemy_name, card.last_damage_dealt], Color(0.85, 0.75, 0.5))
+		if card.erase_on_play:
+			# Erased, not discarded — trigger_reactions parked it in the discard pile.
+			deck_manager.discard_pile.erase(card)
+			deck_manager.card_erased.emit(card)
+
+## Slotted-item riders that need the world (ranged pass 1): Belthronding's
+## conjure, the Rapid Recurve's second shot, the Stringless Sender's bounce,
+## and the Sack of Bone Arrows' kill-raised skeleton.
+func _ranged_on_self_world_effects(card: Card, target) -> void:
+	if card.slotted_in_item == null:
+		return
+	var osb = card.get_on_self_bonus()
+	# Belthronding: playing a slotted card loads the close-range trap.
+	# Balance ruling: at most 3 copies may wait in the hand at once — the
+	# stockpiled punishment nova is capped, not endless.
+	var conjure_id: String = str(osb.get("conjure_on_play_id", ""))
+	if conjure_id != "" and deck_manager:
+		var held := 0
+		for hc in deck_manager.hand:
+			if hc.card_id == conjure_id:
+				held += 1
+		if held < 3:
+			var trap = deck_manager._create_card_from_id(conjure_id)
+			if trap:
+				trap.shop_excluded = true
+				deck_manager.add_card_to_hand(trap)
+				add_battle_log("Close is Favored waits in your hand. (%d/3)" % (held + 1), Color(0.85, 0.75, 0.5))
+	# The Rapid Recurve: the shot lands a second time at full damage.
+	if bool(osb.get("double_shot", false)) and card.is_offensive() and card.last_damage_dealt > 0 \
+			and target != null and is_instance_valid(target) and "is_dead" in target and not target.is_dead:
+		target.take_damage(card.last_damage_dealt, true)
+		add_battle_log("Double Shot! %s takes %d again." % [target.enemy_name, card.last_damage_dealt], Color(1.0, 0.7, 0.4))
+	# Stringless Sender: 20% chance the shot bounces to the nearest other
+	# enemy at full damage — last_damage_dealt already embeds the crit result,
+	# so a crit success (or failure) is mimicked exactly.
+	if float(osb.get("bounce_percent", 0.0)) > 0.0 and card.is_offensive() \
+			and card.last_damage_dealt > 0 and target != null and is_instance_valid(target) \
+			and randf() * 100.0 < float(osb["bounce_percent"]):
+		var hop = null
+		var hop_d := INF
+		for ce in enemy_spawner.get_living_enemies():
+			if ce and is_instance_valid(ce) and ce != target:
+				var d = target.position.distance_to(ce.position)
+				if d < hop_d:
+					hop_d = d
+					hop = ce
+		if hop:
+			hop.take_damage(card.last_damage_dealt, true)
+			add_battle_log("The shot bounces! %s takes %d." % [hop.enemy_name, card.last_damage_dealt], Color(0.6, 0.8, 1.0))
+	# Sack of Bone Arrows: a kill made with the slotted card raises a skeleton
+	# at half the victim's max health.
+	if bool(osb.get("kill_summon_skeleton", false)) and card.is_offensive() \
+			and target != null and is_instance_valid(target) and "is_dead" in target and target.is_dead:
+		_spawn_bone_skeleton(maxi(1, floori(target.max_health / 2.0)), target.position)
 
 # ============================================
 # SMOKE ZONES (smoke bomb) & GAUNTLET TRIGGERS
@@ -8419,6 +8838,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	# Weapon riders that watch every resolved card (weapons pass 1).
 	_weapon_post_card_effects(card, target)
 
+	# Slotted-item riders that need the world (ranged pass 1).
+	_ranged_on_self_world_effects(card, target)
+
 	# Mits of Chingiz "3 count": two offensive cards in a row add a Switch Kick
 	# to the hand (then a 20-tempo cooldown).
 	if card.is_offensive():
@@ -8873,6 +9295,47 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_misery_active = true
 			add_battle_log("Misery Loves Company! Your next AOE spreads debuffs.", Color(0.8, 0.5, 0.9))
 			print("[MAIN] Misery Loves Company armed.")
+
+		"improvised_ammo":
+			# Wrist Rocket: the played copy also weakens its target.
+			if target and is_instance_valid(target) and target.has_method("apply_debuff"):
+				target.apply_debuff("weaken", 3)
+				add_battle_log("Improvised Ammo weakens %s (3 stacks)." % target.enemy_name, Color(0.8, 0.7, 0.5))
+
+		"cupids_golden_arrow":
+			# Cupids Bow: 2 Vulnerable always; 50% (pre-rolled) taunt; golden mark.
+			if target and is_instance_valid(target):
+				if target.has_method("apply_debuff"):
+					target.apply_debuff("vulnerable", 2)
+				if card.rng_binary_succeeded() and target.has_method("apply_taunt"):
+					target.apply_taunt(player, 1)
+					add_battle_log("%s is drawn helplessly toward you!" % target.enemy_name, Color(1.0, 0.75, 0.5))
+				if target.has_method("apply_cupid_mark") and target.apply_cupid_mark(true):
+					add_battle_log("%s turns into a tree!" % target.enemy_name, Color(0.4, 0.8, 0.4))
+
+		"cupids_lead_arrow":
+			# Cupids Bow: 2 Weaken always; 50% (pre-rolled) fear; lead mark.
+			if target and is_instance_valid(target):
+				if target.has_method("apply_debuff"):
+					target.apply_debuff("weaken", 2)
+				if card.rng_binary_succeeded() and target.has_method("apply_fear"):
+					target.apply_fear(player, 1)
+					add_battle_log("%s flees from you in dread!" % target.enemy_name, Color(0.75, 0.55, 0.95))
+				if target.has_method("apply_cupid_mark") and target.apply_cupid_mark(false):
+					add_battle_log("%s turns into a tree!" % target.enemy_name, Color(0.4, 0.8, 0.4))
+
+		"territorial_mark":
+			# Bow of Arash: the flight corridor glistens blue for 25 tempo;
+			# enemies inside it are Weakened until they leave.
+			if target and is_instance_valid(target) and grid_manager:
+				var tm_from = grid_manager.world_to_grid(player.position)
+				var tm_to = grid_manager.world_to_grid(target.position)
+				_create_mark_zone(_territorial_mark_cells(tm_from, tm_to), 25)
+				_update_mark_zones(0)
+				add_battle_log("The arrow's path glistens with blue smoke — the land is marked.", Color(0.45, 0.65, 0.95))
+
+		"spirit_bow":
+			_summon_spirit_bow()
 
 		"worms_armageddon":
 			# Rain meteors: stat-scaled damage (matching the card face) to every
@@ -10238,6 +10701,7 @@ func _update_summoned_worms() -> void:
 				add_battle_log("A Bull Worm erupts from the ground!", Color(0.85, 0.75, 0.9))
 			target_enemy.take_damage(worm.CONTACT_DAMAGE, true)
 			add_battle_log("Bull Worm bites %s for %d!" % [target_enemy.enemy_name, worm.CONTACT_DAMAGE], Color(0.85, 0.75, 0.9))
+			_belthronding_share(worm.position, worm.CONTACT_DAMAGE)
 			continue
 		# 1 movement per tempo while hunting.
 		var next_cell = _rat_step_toward(wcell, tcell, blocked, _living_enemy_cells(), worm_cells)
@@ -10345,6 +10809,7 @@ func _update_frankensteins(amount: int) -> void:
 				m.attack_accum -= m.ATTACK_INTERVAL
 				target_enemy.take_damage(m.attack_damage, true)
 				add_battle_log("Frankensteins Monster smashes %s for %d!" % [target_enemy.enemy_name, m.attack_damage], Color(0.6, 0.9, 0.6))
+				_belthronding_share(m.position, m.attack_damage)
 			continue
 		# Move on cadence: MOVE_STEPS tiles per MOVE_INTERVAL tempo. get_cell()
 		# only updates once _process lerps the body, so walk the path locally and

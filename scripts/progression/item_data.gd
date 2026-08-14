@@ -328,6 +328,25 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var on_self_apply_burn: int = 0  # Apply X burn stacks on hit
 @export var on_self_apply_cold: int = 0  # Apply X cold stacks on hit
 @export var on_self_apply_bleed: int = 0  # Apply X bleed stacks on hit (Horned Nasal Helm)
+@export var on_self_apply_shock: int = 0  # Apply X shock stacks on hit (Shock Quiver 2)
+@export var on_self_apply_weaken: int = 0  # Apply X weaken stacks on hit (Improvised Ammo rides on this too)
+
+# Ranged on-self riders (ranged pass 1). All of these apply only to cards
+# slotted into the item that carries them — the "arrows fired from this
+# bow/quiver" model.
+@export var on_self_armor_shred: int = 0        # slotted hit shreds X extra enemy armor, armor only (Quiver of Wet Stones 4)
+@export var on_self_tempo_penalty: int = 0      # slotted cards cost X MORE tempo; negative = less (Tightened Cross Bow +1, Stringless Sender -1)
+@export var on_self_double_shot: bool = false   # slotted offensive card hits its target a second time at full damage (The Rapid Recurve)
+@export var on_self_jail_tempo: int = 0         # slotted card is jailed X tempo after play instead of discarding (The Rapid Recurve 20)
+@export var on_self_bounce_percent: float = 0.0 # X% chance a slotted shot bounces to the nearest other enemy at full damage, crit result mimicked (Stringless Sender 20)
+@export var on_self_mana_to_life: bool = false  # half a slotted card's mana cost is paid as LIFE instead (Bow of Arash)
+@export var on_self_kill_summon_skeleton: bool = false  # a kill with a slotted card raises a skeleton at 50% of the victim's max health (Sack of Bone Arrows)
+@export var on_self_conjure_on_play_id: String = ""     # playing a slotted card puts a copy of this card into the hand (Belthronding: close_is_favored)
+@export var on_self_crit_bud_bow: bool = false  # a crit with a slotted card buds a spirit-bow turret; also arms the per-bow-instance damage/crit stacking (Bow of Budding Blasts)
+
+# Ranged passive riders (not on-self — always on while equipped)
+@export var ally_damage_share_percent: float = 0.0  # you take X% of damage allies/summons deal within the radius (Belthronding 10)
+@export var ally_damage_share_radius: int = 0       # radius in squares for the share above (Belthronding 3)
 
 # Passive bonuses
 @export var ranged_damage_bonus: int = 0  # +X damage to all ranged attacks
@@ -742,6 +761,17 @@ func get_on_self_bonus() -> Dictionary:
 		"offensive_shift": on_self_offensive_shift,
 		"offensive_heal_percent": on_self_offensive_heal_percent,
 		"adaptive_damage_type": on_self_adaptive_damage_type,
+		"apply_shock": on_self_apply_shock,
+		"apply_weaken": on_self_apply_weaken,
+		"armor_shred": on_self_armor_shred,
+		"tempo_penalty": on_self_tempo_penalty,
+		"double_shot": on_self_double_shot,
+		"jail_tempo": on_self_jail_tempo,
+		"bounce_percent": on_self_bounce_percent,
+		"mana_to_life": on_self_mana_to_life,
+		"kill_summon_skeleton": on_self_kill_summon_skeleton,
+		"conjure_on_play_id": on_self_conjure_on_play_id,
+		"crit_bud_bow": on_self_crit_bud_bow,
 	}
 
 func get_card_slot_summary() -> String:
@@ -2239,6 +2269,235 @@ static func create_hide_of_garmr() -> ItemData:
 	_set_appearance(item, "hide_of_garmr",
 		"Furry grey hide in the shape of a chest piece, a spiked collar and a wolf head at the chest.")
 	item.description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
+	return item
+
+# ============================================
+# RANGED (first ranged pass — bows & quivers)
+# ============================================
+# Bows are two-handed (Inventory.is_two_hand_only) and admit only a quiver
+# alongside them; the quiver rides in the other hand slot and takes that
+# slot's off-hand modifier like any hand item. The Boomerang and Wrist Rocket
+# are the one-handed exceptions — thrown "bows" that still pair with a quiver.
+static func _new_bow(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = _new_weapon(nm, r, WeaponSubtype.BOW, wt)
+	item.item_type_name = "Bow"
+	return item
+
+static func _new_quiver(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = ItemData.new()
+	item.item_name = nm
+	item.item_type = ItemType.QUIVER
+	item.item_type_name = "Quiver"
+	item.rarity = r
+	item.weight = wt
+	return item
+
+static func create_short_bow() -> ItemData:
+	var item = _new_bow("Short Bow", Rarity.COMMON, 20)
+	item.agility_bonus = 3
+	item.dexterity_bonus = 1
+	item.description = "+3 AGI, +1 DEX. A simple two-handed bow — pairs with a quiver."
+	return item
+
+static func create_boomerang() -> ItemData:
+	var item = _new_weapon("Boomerang", Rarity.COMMON, WeaponSubtype.OTHER, 5)
+	item.strength_bonus = 3
+	item.description = "+3 STR. A one-handed throwing arm that counts as a bow — pairs with a quiver."
+	return item
+
+static func create_cross_bow() -> ItemData:
+	var item = _new_bow("Cross Bow", Rarity.COMMON, 30)
+	item.dexterity_bonus = 1
+	item.agility_bonus = -2
+	item.intelligence_bonus = 3
+	item.description = "+1 DEX, -2 AGI, +3 INT. Heavy machinery for careful hands."
+	return item
+
+static func create_standard_quiver() -> ItemData:
+	var item = _new_quiver("Standard Quiver", Rarity.COMMON, 20)
+	item.card_slots = 2
+	item.agility_bonus = 1
+	item.dexterity_bonus = 1
+	item.on_self_range_offensive = 1
+	item.description = "+1 AGI, +1 DEX. 2 card slots. On-self: +1 range."
+	return item
+
+static func create_fire_quiver() -> ItemData:
+	var item = _new_quiver("Fire Quiver", Rarity.RARE, 20)
+	item.card_slots = 2
+	item.dexterity_bonus = 3
+	item.agility_bonus = 1
+	item.on_self_apply_burn = 1
+	item.on_self_damage = 2
+	item.description = "+3 DEX, +1 AGI. 2 card slots. On-self: +2 damage and apply 1 Burn."
+	return item
+
+static func create_quiver_of_wet_stones() -> ItemData:
+	var item = _new_quiver("Quiver of Wet Stones", Rarity.RARE, 30)
+	item.card_slots = 2
+	item.strength_bonus = 5
+	item.dexterity_bonus = 1
+	item.on_self_damage = 2
+	item.on_self_armor_shred = 4
+	item.description = "+5 STR, +1 DEX. 2 card slots. On-self: +2 damage and an additional 4 damage to armor."
+	return item
+
+static func create_frost_quiver() -> ItemData:
+	var item = _new_quiver("Frost Quiver", Rarity.RARE, 20)
+	item.card_slots = 2
+	item.wisdom_bonus = 5
+	item.agility_bonus = 1
+	item.on_self_apply_cold = 1
+	item.on_self_damage = 1
+	item.on_self_armor_any = 2
+	item.description = "+5 WIS, +1 AGI. 2 card slots. On-self: +1 damage, apply 1 Cold, and gain 2 armor."
+	return item
+
+static func create_shock_quiver() -> ItemData:
+	var item = _new_quiver("Shock Quiver", Rarity.RARE, 10)
+	item.card_slots = 2
+	item.agility_bonus = 3
+	item.wisdom_bonus = 2
+	item.dexterity_bonus = 2
+	item.on_self_apply_shock = 2
+	item.on_self_crit_percent = 5.0
+	item.description = "+3 AGI, +2 WIS, +2 DEX. 2 card slots. On-self: apply 2 Shock and +5% crit chance."
+	return item
+
+static func create_long_bow() -> ItemData:
+	var item = _new_bow("Long Bow", Rarity.RARE, 25)
+	item.card_slots = 2
+	item.dexterity_bonus = 2
+	item.agility_bonus = 4
+	item.health_bonus = 5
+	item.on_self_range_offensive = 2
+	item.on_self_damage = 2
+	item.description = "+2 DEX, +4 AGI, +5 health. 2 card slots. On-self: +2 range and +2 damage."
+	return item
+
+static func create_tightened_cross_bow() -> ItemData:
+	var item = _new_bow("Tightened Cross Bow", Rarity.RARE, 40)
+	item.card_slots = 2
+	item.dexterity_bonus = 3
+	item.agility_bonus = -2
+	item.intelligence_bonus = 5
+	item.strength_bonus = 2
+	item.on_self_damage = 5
+	item.on_self_tempo_penalty = 1
+	item.description = "+3 DEX, -2 AGI, +5 INT, +2 STR. 2 card slots. On-self: +5 damage but +1 tempo."
+	return item
+
+static func create_sack_of_bone_arrows() -> ItemData:
+	var item = _new_quiver("Sack of Bone Arrows", Rarity.LEGENDARY, 40)
+	item.card_slots = 2
+	item.wisdom_bonus = 5
+	item.intelligence_bonus = 3
+	item.on_self_kill_summon_skeleton = true
+	item.description = "+5 WIS, +3 INT. 2 card slots. On-self: a kill raises a skeleton with half the victim's max health — 5 damage, 4 squares per tempo, attacks every 5 tempo; up to 3 at once."
+	return item
+
+static func create_wrist_rocket() -> ItemData:
+	var item = _new_weapon("Wrist Rocket", Rarity.LEGENDARY, WeaponSubtype.OTHER, 10)
+	item.card_slots = 1
+	item.dexterity_bonus = 5
+	item.agility_bonus = 6
+	item.crit_chance_percent = 10.0
+	var wr_cards: Array[String] = ["improvised_ammo", "improvised_ammo"]
+	item.granted_card_ids = wr_cards
+	item.description = "+5 DEX, +6 AGI, +10% crit chance. One-handed; pairs with a quiver. Grants 2 copies of Improvised Ammo: deal 8 damage and apply 3 Weaken — or discard it to deal 4 damage to the nearest enemy and give Improvised Ammo +10% crit chance this battle (45 mana, 0 tempo)."
+	return item
+
+static func create_cupids_bow() -> ItemData:
+	var item = _new_bow("Cupids Bow", Rarity.LEGENDARY, 30)
+	item.wisdom_bonus = 3
+	item.strength_bonus = 5
+	item.intelligence_bonus = 4
+	var cb_cards: Array[String] = ["cupids_golden_arrow", "cupids_lead_arrow"]
+	item.granted_card_ids = cb_cards
+	item.description = "+3 WIS, +5 STR, +4 INT. Grants Golden — 10 damage, 2 Vulnerable, 50% chance to taunt the enemy toward you — and Lead — 10 damage, 2 Weaken, 50% chance to send the enemy fleeing (each 45 mana, 3 tempo). An enemy struck by both arrows turns into a tree for 4 tempo: it keeps every buff and debuff, cannot act, and regenerates 3 health on each of its first 3 tempo."
+	return item
+
+static func create_the_rapid_recurve() -> ItemData:
+	var item = _new_bow("The Rapid Recurve", Rarity.LEGENDARY, 60)
+	item.card_slots = 2
+	item.strength_bonus = 8
+	item.agility_bonus = -4
+	item.dexterity_bonus = 2
+	item.on_self_double_shot = true
+	item.on_self_mana_multiplier = 1.5
+	item.on_self_jail_tempo = 20
+	item.description = "+8 STR, -4 AGI, +2 DEX. 2 card slots. On-self: Double Shot — the card hits a second time at full damage, costs 1.5x mana, and is jailed 20 tempo after play."
+	return item
+
+static func create_capacious_extremus() -> ItemData:
+	var item = _new_quiver("Capacious Extremus", Rarity.LEGENDARY, 15)
+	item.card_slots = 4
+	item.intelligence_bonus = 8
+	item.wisdom_bonus = 2
+	item.on_self_mana_reduction_percent = 10.0
+	item.description = "+8 INT, +2 WIS. 4 card slots. On-self: mana cost decreased by 10%."
+	return item
+
+static func create_stringless_sender() -> ItemData:
+	var item = _new_bow("Stringless Sender", Rarity.LEGENDARY, 20)
+	item.card_slots = 2
+	item.intelligence_bonus = 6
+	item.agility_bonus = 6
+	item.wisdom_bonus = 1
+	item.dexterity_bonus = 1
+	item.on_self_tempo_penalty = -1
+	item.on_self_mana_reduction = -10
+	item.on_self_bounce_percent = 20.0
+	item.description = "+6 INT, +6 AGI, +1 WIS, +1 DEX. 2 card slots. On-self: -1 tempo, +10 mana cost, and a 20% chance the shot bounces to a second target at full damage — a crit success or failure carries over with it."
+	return item
+
+static func create_bow_of_arash() -> ItemData:
+	var item = _new_bow("Bow of Arash", Rarity.MYTHIC, 25)
+	item.card_slots = 3
+	item.agility_bonus = 5
+	item.dexterity_bonus = 2
+	item.wisdom_bonus = 4
+	item.ranged_range_bonus = 2
+	item.on_self_mana_to_life = true
+	var ba_cards: Array[String] = ["territorial_mark"]
+	item.granted_card_ids = ba_cards
+	item.level_3_overrides = {"ranged_range_bonus": 3, "agility_bonus": 6}
+	item.level_3_description = "+3 range on ranged cards, +6 AGI, +2 DEX, +4 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
+	_set_appearance(item, "bow_of_arash",
+		"A longbow of divine origin: golden limbs, a bright string, and the blue glisten of its territorial mark drifting off the wood.")
+	item.description = "+2 range on ranged cards, +5 AGI, +2 DEX, +4 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
+	return item
+
+static func create_belthronding() -> ItemData:
+	var item = _new_bow("Belthronding", Rarity.MYTHIC, 60)
+	item.card_slots = 2
+	item.strength_bonus = 10
+	item.health_bonus = 20
+	item.dexterity_bonus = 8
+	item.on_self_conjure_on_play_id = "close_is_favored"
+	item.ally_damage_share_percent = 10.0
+	item.ally_damage_share_radius = 3
+	var bt_cards: Array[String] = ["balistic_arrow"]
+	item.granted_card_ids = bt_cards
+	item.level_3_overrides = {"strength_bonus": 12, "dexterity_bonus": 10}
+	item.level_3_description = "+12 STR, +20 health, +10 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
+	_set_appearance(item, "belthronding",
+		"Crafted entirely from rare, dark black yew-wood, its stiff ends fitted with hard animal horn.")
+	item.description = "+10 STR, +20 health, +8 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
+	return item
+
+static func create_bow_of_budding_blasts() -> ItemData:
+	var item = _new_bow("Bow of Budding Blasts", Rarity.MYTHIC, 35)
+	item.card_slots = 2
+	item.intelligence_bonus = 3
+	item.wisdom_bonus = 4
+	item.mana_bonus = 25
+	item.on_self_crit_bud_bow = true
+	var bb_cards: Array[String] = ["spirit_bow"]
+	item.granted_card_ids = bb_cards
+	_set_appearance(item, "bow_of_budding_blasts",
+		"A bow with the slick, slimy texture of a sea cucumber — smaller bows budding off its flanks.")
+	item.description = "+3 INT, +4 WIS, +25 mana. 2 card slots. On-self: a crit buds a bow turret — 6 damage, attacks every 5 tempo, dies to any damage or after 2 attacks; up to 4 at once. This bow and its bow summons gain +2 damage and +5% crit chance per living bow summon. Grants Spirit Bow (Maintain): a spirit bow that stalks your enemies, 1 square per tempo, loosing a 10-damage shot every 4 tempo (65 mana, 3 tempo)."
 	return item
 
 # ============================================

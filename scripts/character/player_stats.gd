@@ -218,6 +218,9 @@ var equipment_shield_melee_damage: int = 0        # +melee damage while a shield
 var equipment_melee_reach: int = 0                # +melee reach while a shield is up (Spartan Spear)
 var equipment_attack_speed_penalty: int = 0       # attack-speed proc threshold penalty (Bessy)
 var pending_wrath_percent: int = 0                # Purge Wrath: next attack's % bonus, then cleared
+# Ranged pass
+var improvised_ammo_crit_bonus: float = 0.0       # Wrist Rocket: +% crit on Improvised Ammo, banked by discards; battle-scoped
+var bow_instance_count: int = 0                   # Bow of Budding Blasts: living bow summons (main keeps this current)
 var last_attack_target = null                     # Sabre Tooth: previous attack's target
 var hit_streak: int = 0                           # Axe's Axe: hits taken toward the Death Vortex trigger
 
