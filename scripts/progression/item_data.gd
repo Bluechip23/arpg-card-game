@@ -1789,8 +1789,7 @@ static func create_rusty_dagger() -> ItemData:
 	item.agility_bonus = 3
 	item.dexterity_bonus = 1
 	item.on_self_crit_percent = 15.0
-	item.crit_damage_percent = 30.0
-	item.description = "+3 AGI, +1 DEX. On-self: +15% crit chance. While wielded, your crits deal 30% more damage."
+	item.description = "+3 AGI, +1 DEX. On-self: +15% crit chance."
 	return item
 
 static func create_construction_hammer() -> ItemData:
