@@ -40,8 +40,42 @@ func _initialize() -> void:
 	_test_spartan()
 	_test_wrath()
 	_test_bessy_and_flash()
+	_test_stephen_swap_perk()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
+
+func _test_stephen_swap_perk() -> void:
+	print("-- Stephen: man of arms --")
+	var stats = _mk_stats()
+	var inv = Inventory.new()
+	get_root().add_child(inv)
+	inv.initialize("Stephen")
+	inv.connect_player_stats(stats)
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 1,
+		"Stephen swaps weapons for 1 tempo")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST) == 8,
+		"armor still costs Stephen full price")
+	# Build switch: a weapons-only difference is free.
+	var sword = ItemData.create_short_sword()
+	inv.equip_item(sword, 0)
+	inv.switch_build(1)  # initializes build 2 as a copy
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	inv.stored_items.append(sword)
+	var pick = ItemData.create_pick()
+	inv.equip_item(pick, 0)
+	var back = inv.switch_build(0)  # restore the sword build: only hands differ
+	_check(back["success"] and back["tempo_cost"] == 0,
+		"weapons-only build switch is free (cost %d)" % back["tempo_cost"])
+	stats.free()
+	inv.free()
+
+	# Everyone else pays the old rates.
+	var stats2 = _mk_stats()
+	var inv2 = _mk_inv(stats2)
+	_check(inv2.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 2,
+		"Ryan still swaps weapons for 2")
+	stats2.free()
+	inv2.free()
 
 func _test_roster() -> void:
 	print("-- Roster --")
