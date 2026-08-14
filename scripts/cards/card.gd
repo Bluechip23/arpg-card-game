@@ -124,6 +124,11 @@ const CARD_RARITIES := {
 	"feed_into_the_pain": Rarity.LEGENDARY, "psionic_flow": Rarity.LEGENDARY,
 	"purge_wrath": Rarity.LEGENDARY, "sanguine_the_penguin": Rarity.LEGENDARY,
 	"wrath_of_the_sea": Rarity.MYTHIC, "monk_of_the_night": Rarity.MYTHIC,
+	# Ranged-item-granted (ranged pass 1)
+	"improvised_ammo": Rarity.LEGENDARY,
+	"cupids_golden_arrow": Rarity.LEGENDARY, "cupids_lead_arrow": Rarity.LEGENDARY,
+	"territorial_mark": Rarity.MYTHIC, "balistic_arrow": Rarity.MYTHIC,
+	"close_is_favored": Rarity.MYTHIC, "spirit_bow": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -151,6 +156,9 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true,
 	"feed_into_the_pain": true, "psionic_flow": true, "purge_wrath": true,
 	"sanguine_the_penguin": true, "wrath_of_the_sea": true, "monk_of_the_night": true,
+	"improvised_ammo": true, "cupids_golden_arrow": true, "cupids_lead_arrow": true,
+	"territorial_mark": true, "balistic_arrow": true, "close_is_favored": true,
+	"spirit_bow": true,
 }
 
 @export var card_id: String = "slash"
@@ -990,6 +998,26 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if _od_mult > 1.0 and is_offensive():
 			_overdrive_extra = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * (_od_mult - 1.0))
 			_gauntlet_bonus_applied += _overdrive_extra
+		# Quiver of Wet Stones: slotted hits grind extra enemy armor (armor only).
+		if int(on_self.get("armor_shred", 0)) > 0 and is_offensive() and target \
+				and "current_armor" in target and target.current_armor > 0:
+			target.current_armor = max(0, target.current_armor - int(on_self["armor_shred"]))
+			if target.has_method("_update_armor_bar"):
+				target._update_armor_bar()
+			print("[CARD] On-Self: shredded %d armor (%s)" % [int(on_self["armor_shred"]), slotted_in_item.item_name])
+		# Bow of Budding Blasts: this bow hits harder for every living bow summon.
+		if bool(on_self.get("crit_bud_bow", false)) and player_stats and player_stats.bow_instance_count > 0:
+			var bud_n: int = player_stats.bow_instance_count
+			if is_offensive():
+				_gauntlet_bonus_applied += 2 * bud_n
+			_temp_crit_applied += 5.0 * bud_n
+			player_stats.temp_on_self_crit_bonus += 5.0 * bud_n
+			print("[CARD] On-Self: +%d damage / +%d%% crit from %d bow(s)" % [2 * bud_n, 5 * bud_n, bud_n])
+
+	# Wrist Rocket: crit chance banked by discarded Improvised Ammo copies.
+	if card_id == "improvised_ammo" and player_stats and player_stats.improvised_ammo_crit_bonus > 0.0:
+		_temp_crit_applied += player_stats.improvised_ammo_crit_bonus
+		player_stats.temp_on_self_crit_bonus += player_stats.improvised_ammo_crit_bonus
 
 	# Feathered Hat: an armed guaranteed crit is spent by the next ranged
 	# offensive card — any damaging ranged card, whatever item it's slotted in.
@@ -1739,6 +1767,16 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if on_self_slow > 0 and is_offensive() and target.has_method("apply_debuff"):
 			target.apply_debuff("slow", on_self_slow)
 			print("[CARD] On-Self: Applied %d Slow to target from %s" % [on_self_slow, source_name])
+		# Shock Quiver: slotted hits jolt the target.
+		var on_self_shock = int(on_self.get("apply_shock", 0))
+		if on_self_shock > 0 and target.has_method("apply_debuff"):
+			target.apply_debuff("shock", on_self_shock)
+			print("[CARD] On-Self: Applied %d Shock to target from %s" % [on_self_shock, source_name])
+		# Weaken from the item the card is slotted in.
+		var on_self_weaken = int(on_self.get("apply_weaken", 0))
+		if on_self_weaken > 0 and target.has_method("apply_debuff"):
+			target.apply_debuff("weaken", on_self_weaken)
+			print("[CARD] On-Self: Applied %d Weaken to target from %s" % [on_self_weaken, source_name])
 
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
@@ -2012,6 +2050,9 @@ func get_burden_tempo_cost() -> int:
 	# Side Card Sabre: slotted cards cost less while the sabre is paired.
 	if slotted_in_item:
 		cost -= int(slotted_in_item.get_on_self_bonus().get("pair_tempo_reduction", 0))
+	# Tightened Cross Bow (+1) / Stringless Sender (-1): signed tempo delta.
+	if slotted_in_item:
+		cost += int(slotted_in_item.get_on_self_bonus().get("tempo_penalty", 0))
 	# Potion Belt: slotted utility cards refund tempo.
 	if card_type == CardType.UTILITY and slotted_in_item:
 		cost -= int(slotted_in_item.get_on_self_bonus().get("utility_tempo_refund", 0))
@@ -6785,6 +6826,150 @@ static func create_splinter() -> Card:
 	card.is_ranged = true
 	card.range_modifier = -2  # base 5 - 2 = range 3
 	card.target_types = ["enemy"]
+	return card
+
+# ============================================
+# ITEM-GRANTED CARDS (ranged pass 1)
+# ============================================
+
+static func create_improvised_ammo() -> Card:
+	## Granted by the Wrist Rocket (2 copies). Playing it hits and Weakens;
+	## discarding it instead pops for 4 to the nearest enemy and permanently
+	## (for the battle) sharpens Improvised Ammo's crit chance.
+	var card = Card.new()
+	card.card_id = "improvised_ammo"
+	card.card_name = "Improvised Ammo"
+	card.description = "Deal 8 damage and apply 3 Weaken. If discarded: deal 4 damage to the nearest enemy and Improvised Ammo gains +10% crit chance this battle."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 45
+	card.tempo_cost = 0
+	card.damage = 8
+	card.base_damage = 8
+	card.is_ranged = true
+	card.card_keyword = CardKeyword.ARROW
+	card.target_types = ["enemy"]
+	card.has_on_discard = true
+	card.on_discard_effect = "improvised_ammo_blast"
+	card.shop_excluded = true
+	return card
+
+static func create_cupids_golden_arrow() -> Card:
+	## Cupids Bow. The golden arrow of Eros — the struck heart is drawn in.
+	var card = Card.new()
+	card.card_id = "cupids_golden_arrow"
+	card.card_name = "Golden"
+	card.description = "Deal 10 damage and apply 2 Vulnerable. 50% chance to taunt the enemy, forcing it toward you. An enemy carrying both the Golden and Lead marks turns into a tree for 4 tempo."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 45
+	card.tempo_cost = 3
+	card.damage = 10
+	card.base_damage = 10
+	card.is_ranged = true
+	card.card_keyword = CardKeyword.ARROW
+	card.target_types = ["enemy"]
+	card.rng_outcomes_data = [{percent = 50.0}]
+	card.shop_excluded = true
+	return card
+
+static func create_cupids_lead_arrow() -> Card:
+	## Cupids Bow. The leaden arrow — the struck heart flees.
+	var card = Card.new()
+	card.card_id = "cupids_lead_arrow"
+	card.card_name = "Lead"
+	card.description = "Deal 10 damage and apply 2 Weaken. 50% chance to send the enemy fleeing away from you. An enemy carrying both the Golden and Lead marks turns into a tree for 4 tempo."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 45
+	card.tempo_cost = 3
+	card.damage = 10
+	card.base_damage = 10
+	card.is_ranged = true
+	card.card_keyword = CardKeyword.ARROW
+	card.target_types = ["enemy"]
+	card.rng_outcomes_data = [{percent = 50.0}]
+	card.shop_excluded = true
+	return card
+
+static func create_territorial_mark() -> Card:
+	## Bow of Arash. The arrow's flight path stays marked in blue glistening
+	## smoke; enemies standing in the mark are Weakened while inside it.
+	var card = Card.new()
+	card.card_id = "territorial_mark"
+	card.card_name = "Territorial Mark"
+	card.description = "Deal 15 damage at range 10. The arrow's path — and 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside are Weakened until they leave."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 45
+	card.health_cost = 35
+	card.tempo_cost = 5
+	card.damage = 15
+	card.base_damage = 15
+	card.is_ranged = true
+	card.range_modifier = 5  # base 5 + 5 = range 10
+	card.card_keyword = CardKeyword.ARROW
+	card.target_types = ["enemy"]
+	card.shop_excluded = true
+	return card
+
+static func create_balistic_arrow() -> Card:
+	## Belthronding. Hitting an enemy does not stop this arrow — same line
+	## pierce as Spirit Arrow, much heavier head.
+	var card = Card.new()
+	card.card_id = "balistic_arrow"
+	card.card_name = "Balistic Arrow"
+	card.description = "Deal 30 damage. Hitting an enemy does not stop this arrow — it pierces everything in a direct line."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 75
+	card.tempo_cost = 5
+	card.damage = 30
+	card.base_damage = 30
+	card.is_ranged = true
+	card.is_aoe = true
+	card.aoe_shape = "line"
+	card.aoe_range = 100.0  # pierces the full line
+	card.card_keyword = CardKeyword.ARROW
+	card.target_types = ["point"]
+	card.shop_excluded = true
+	return card
+
+static func create_close_is_favored() -> Card:
+	## Conjured by Belthronding whenever a slotted card is played. Sits in the
+	## hand as a trap for anything that closes the distance.
+	var card = Card.new()
+	card.card_id = "close_is_favored"
+	card.card_name = "Close is Favored"
+	card.description = "Instant: when an enemy gets within melee range, deal 13 damage to it. This card is erased."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 13
+	card.base_damage = 13
+	card.reaction_trigger = "on_enemy_melee_range"
+	card.target_types = ["enemy"]
+	card.erase_on_play = true
+	card.shop_excluded = true
+	return card
+
+static func create_spirit_bow() -> Card:
+	## Bow of Budding Blasts. A maintained spirit bow that fights alongside
+	## you for as long as the mana stays reserved.
+	var card = Card.new()
+	card.card_id = "spirit_bow"
+	card.card_name = "Spirit Bow"
+	card.description = "Maintain: summon a spirit bow that stalks your enemies — 1 square per tempo, a 10-damage shot every 4 tempo. Lasts while the mana stays reserved."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 65
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.maintain_cost = 65  # Maintain reserve always equals the card's mana cost
+	card.target_types = ["self"]
+	card.shop_excluded = true
 	return card
 
 # ============================================

@@ -738,6 +738,60 @@ def umbral_eclipse():
     return c
 
 
+def bow_of_arash():
+    ## Arash's divine longbow: golden limbs drawn in a great arc, a bright
+    ## string, and the blue glisten of its territorial mark about the grip.
+    c = Canvas()
+    # The string, taut down the right side between the limb tips.
+    c.line([(23, 3), (23, 28)], "bone", "hi")
+    # The golden limb, arcing out to the left.
+    c.line([(23, 3), (14, 5), (8, 10), (6, 16), (8, 22), (14, 27), (23, 28)],
+           "gold", None, 3)
+    # A leather-wrapped grip at the belly of the arc.
+    c.rect((4, 14, 9, 18), "leather")
+    # The blue glistening smoke of the mark, drifting off the limbs.
+    for (wx, wy) in ((3, 8), (2, 21), (12, 1), (12, 30), (1, 15)):
+        c.dot(wx, wy, "current", "hi")
+    return c
+
+
+def belthronding():
+    ## Belthronding: a longbow of dark black yew-wood, its stiff ends fitted
+    ## with hard animal horn.
+    c = Canvas()
+    # The string, drawn down the right.
+    c.line([(22, 4), (22, 27)], "bone", "sh")
+    # The black yew limb.
+    c.line([(22, 4), (13, 6), (8, 11), (6, 16), (8, 21), (13, 25), (22, 27)],
+           "dark", None, 3)
+    # Stiff horn ends, capping both limb tips.
+    c.poly([(19, 2), (24, 3), (21, 7)], "bone")
+    c.poly([(19, 29), (24, 28), (21, 24)], "bone")
+    # A leather wrap at the grip.
+    c.rect((4, 14, 9, 18), "leather")
+    return c
+
+
+def bow_of_budding_blasts():
+    ## Bow of Budding Blasts: a thick, slimy sea-cucumber of a bow, little
+    ## bows budding off its flanks.
+    c = Canvas()
+    # The string, bowed down the right side.
+    c.line([(23, 4), (23, 27)], "current", "hi")
+    # The slimy body: fat overlapping lobes along the arc.
+    for box in ((16, 2, 24, 8), (10, 5, 18, 12), (6, 10, 14, 21),
+                (10, 19, 18, 26), (16, 23, 24, 29)):
+        c.ellipse(box, "teal")
+    # Buds sprouting off the flank — each a tiny bow-to-be.
+    c.ellipse((2, 8, 6, 12), "leaf")
+    c.ellipse((1, 19, 5, 23), "leaf")
+    c.ellipse((13, 0, 17, 3), "leaf")
+    # Slime beads glistening down the belly.
+    for (wx, wy) in ((9, 14), (11, 23), (18, 6), (8, 18)):
+        c.dot(wx, wy, "current", "hi")
+    return c
+
+
 ICONS = {
     "bladed_doughnut": bladed_doughnut,
     "the_headbandz": the_headbandz,
@@ -764,6 +818,9 @@ ICONS = {
     "poseidons_trident": poseidons_trident,
     "sword_of_theseus": sword_of_theseus,
     "umbral_eclipse": umbral_eclipse,
+    "bow_of_arash": bow_of_arash,
+    "belthronding": belthronding,
+    "bow_of_budding_blasts": bow_of_budding_blasts,
 }
 
 

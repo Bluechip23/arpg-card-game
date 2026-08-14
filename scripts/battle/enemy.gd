@@ -95,6 +95,14 @@ var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can 
 var disarmed_attacks: int = 0    # Disarm-for-N-attacks (Switch Kick): skip that many attack actions
 var narashimha_tempo: int = 0    # Narashimha (Mane of Narashimha): cycles the heal cap holds for
 var narashimha_heal_cap: int = -1  # health ceiling while active — the NMnB damage cannot be healed back (-1 = unset)
+# Ranged pass (Cupids Bow / Bow of Arash)
+var fear_source: Node3D = null   # Feared (Lead arrow): run AWAY from this node while it lasts
+var fear_tempo: int = 0          # Remaining tempo cycles for fear
+var cupid_golden: bool = false   # Struck by Cupids golden arrow — half the tree condition
+var cupid_lead: bool = false     # Struck by Cupids lead arrow — the other half
+var tree_tempo: int = 0          # Tree form (Cupids Bow): raw TEMPO remaining; cannot act, keeps all buffs/debuffs
+var tree_regen_ticks: int = 0    # Tree form: heals 5 on each of its first 3 tempo
+var zone_weakened: bool = false  # Standing in a Territorial Mark: -30% damage, no stack consumed; refreshed per tick by main
 var void_resistance_percent: float = 0.0  # Mane aura: take this % extra player damage (refreshed each cycle)
 # Per-type damage resistances: DamageTypes.Type -> percent reduction. Empty by
 # default (no enemy resists anything yet); Blue Robe's adaptive damage type
@@ -1343,6 +1351,20 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	action_tempo_counter += amount
 	_cycle_accumulator += amount
 
+	# Tree form (Cupids Bow): counted in raw tempo, not cycles. The tree keeps
+	# every buff and debuff it had, cannot act, and regenerates 5 health on
+	# each of its first 3 tempo.
+	if tree_tempo > 0:
+		for _t in range(amount):
+			if tree_tempo <= 0:
+				break
+			tree_tempo -= 1
+			if tree_regen_ticks > 0:
+				tree_regen_ticks -= 1
+				_regenerate(5)
+		if tree_tempo <= 0:
+			_exit_tree_form()
+
 	# Armored Troll passive: regenerate 2 HP every 6 global tempo
 	if enemy_type == EnemyType.ARMORED_TROLL:
 		regen_accumulator += amount
@@ -1378,6 +1400,12 @@ func _tick_status_durations() -> void:
 		if taunt_tempo <= 0:
 			taunt_target = null
 			print("[%s] Taunt expired" % enemy_name)
+
+	if fear_tempo > 0:
+		fear_tempo -= 1
+		if fear_tempo <= 0:
+			fear_source = null
+			print("[%s] Fear expired" % enemy_name)
 
 	if wear_down_tempo > 0:
 		wear_down_tempo -= 1
@@ -1502,6 +1530,8 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 	if is_frozen:
 		print("[%s] Frozen - cannot act!" % enemy_name)
 		return
+	if tree_tempo > 0:
+		return  # A tree does not act.
 
 	# Skip actions if player is invisible
 	if player_node.has_method("get_buff_manager"):
@@ -2302,6 +2332,11 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		weaken_stacks -= 1
 		print("[%s] Weakened! -30%% damage (%d stacks left)" % [enemy_name, weaken_stacks])
 		_update_status_indicators()
+	elif zone_weakened:
+		# Territorial Mark: the same -30%, but persistent while inside the
+		# zone — no stack to consume, it lifts the moment the enemy leaves.
+		effective_damage = floori(effective_damage * 0.7)
+		print("[%s] Weakened by the Territorial Mark! -30%% damage" % enemy_name)
 	print("[%s] %s for %d damage! (base %d, reduction %d)" % [enemy_name, attack_name, effective_damage, base_damage, attack_reduction])
 
 	# Summon targets (Frankensteins Monster, surfaced Bull Worms) have no player
@@ -2607,6 +2642,11 @@ func move_towards_target(pos: Vector3) -> void:
 		return
 
 	if grid_manager:
+		# Feared (Cupids lead arrow): run AWAY from the fear source instead.
+		if fear_tempo > 0 and fear_source and is_instance_valid(fear_source):
+			var flee_cell = grid_manager.world_to_grid(fear_source.position)
+			_start_path(_build_greedy_path(position, flee_cell, effective_tiles, true))
+			return
 		var player_cell = grid_manager.world_to_grid(pos)
 		# Follow a tile-by-tile route so we never glide through walls or corners.
 		_start_path(_build_greedy_path(position, player_cell, effective_tiles))
@@ -2881,6 +2921,76 @@ func apply_taunt(taunter: Node3D, cycles: int) -> void:
 	print("[%s] Taunted for %d tempo cycles" % [enemy_name, cycles])
 	_update_status_indicators()
 
+func apply_fear(source: Node3D, cycles: int) -> void:
+	## Feared (Cupids lead arrow): movement runs AWAY from the source.
+	fear_source = source
+	fear_tempo = cycles
+	print("[%s] Feared for %d tempo cycles" % [enemy_name, cycles])
+	_update_status_indicators()
+
+## Cupids Bow: mark the enemy with one arrow; once both marks land, the enemy
+## becomes a tree. Returns true when this mark completed the pair.
+func apply_cupid_mark(golden: bool) -> bool:
+	if golden:
+		cupid_golden = true
+	else:
+		cupid_lead = true
+	print("[%s] Cupid mark: %s" % [enemy_name, "golden" if golden else "lead"])
+	if cupid_golden and cupid_lead and tree_tempo <= 0:
+		cupid_golden = false
+		cupid_lead = false
+		_enter_tree_form()
+		return true
+	_update_status_indicators()
+	return false
+
+var _tree_node: Node3D = null
+
+func _enter_tree_form() -> void:
+	## 4 tempo as a tree: keeps every buff/debuff, cannot act, and heals 5 on
+	## each of its first 3 tempo. The body is hidden behind a little tree.
+	tree_tempo = 4
+	tree_regen_ticks = 3
+	print("[%s] Turned into a tree!" % enemy_name)
+	if _enemy_figure:
+		_enemy_figure.visible = false
+	if _tree_node == null:
+		_tree_node = Node3D.new()
+		var trunk := MeshInstance3D.new()
+		var trunk_mesh := CylinderMesh.new()
+		trunk_mesh.top_radius = 0.09
+		trunk_mesh.bottom_radius = 0.13
+		trunk_mesh.height = 0.6
+		trunk.mesh = trunk_mesh
+		var trunk_mat := StandardMaterial3D.new()
+		trunk_mat.albedo_color = Color(0.42, 0.28, 0.12)
+		trunk.material_override = trunk_mat
+		trunk.position.y = 0.3
+		_tree_node.add_child(trunk)
+		var crown := MeshInstance3D.new()
+		var crown_mesh := SphereMesh.new()
+		crown_mesh.radius = 0.35
+		crown_mesh.height = 0.6
+		crown.mesh = crown_mesh
+		var crown_mat := StandardMaterial3D.new()
+		crown_mat.albedo_color = Color(0.22, 0.55, 0.2)
+		crown.material_override = crown_mat
+		crown.position.y = 0.85
+		_tree_node.add_child(crown)
+		add_child(_tree_node)
+	_tree_node.visible = true
+	_update_status_indicators()
+
+func _exit_tree_form() -> void:
+	tree_tempo = 0
+	tree_regen_ticks = 0
+	if _tree_node:
+		_tree_node.visible = false
+	if _enemy_figure:
+		_enemy_figure.visible = true
+	print("[%s] No longer a tree" % enemy_name)
+	_update_status_indicators()
+
 func set_armor_break_incoming(value: bool) -> void:
 	armor_break_incoming = value
 
@@ -3110,6 +3220,14 @@ func get_active_effects() -> Array[Dictionary]:
 
 	if taunt_tempo > 0:
 		effects.append({"name": "Taunt", "color": Color(1.0, 0.6, 0.0), "stacks": taunt_tempo})
+	if fear_tempo > 0:
+		effects.append({"name": "Fear", "color": Color(0.75, 0.55, 0.95), "stacks": fear_tempo})
+	if tree_tempo > 0:
+		effects.append({"name": "Tree", "color": Color(0.3, 0.7, 0.3), "stacks": tree_tempo})
+	elif cupid_golden or cupid_lead:
+		effects.append({"name": "Cupid", "color": Color(1.0, 0.75, 0.8), "stacks": (1 if cupid_golden else 0) + (1 if cupid_lead else 0)})
+	if zone_weakened and weaken_stacks <= 0:
+		effects.append({"name": "Weaken", "color": Color(0.8, 0.5, 0.9), "stacks": 1})
 	if wear_down_tempo > 0:
 		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_tempo
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})

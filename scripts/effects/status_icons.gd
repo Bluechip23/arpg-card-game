@@ -517,6 +517,24 @@ static func _draw(img: Image, key: String) -> bool:
 			var orange := Color(1.0, 0.6, 0.0)
 			_rect(img, 8, 4, 3, 10, orange); _disc(img, 9, 18, 1.8, orange)
 			_rect(img, 14, 4, 3, 10, orange); _disc(img, 15, 18, 1.8, orange)
+		"fear":
+			# A fleeing figure — legs mid-sprint, motion lines behind.
+			var fpurp := Color(0.75, 0.55, 0.95)
+			_disc(img, 15, 6, 2.5, fpurp)
+			_line(img, 14, 9, 12, 14, fpurp, 2.0)
+			_line(img, 12, 14, 8, 19, fpurp, 2.0)
+			_line(img, 12, 14, 16, 18, fpurp, 2.0)
+			_line(img, 3, 7, 8, 7, fpurp); _line(img, 2, 11, 7, 11, fpurp)
+		"tree":
+			# A little tree: trunk and crown.
+			_rect(img, 11, 13, 3, 8, Color(0.42, 0.28, 0.12))
+			_disc(img, 12, 9, 6, Color(0.25, 0.6, 0.25))
+		"cupid":
+			# A pink heart pierced by an arrow.
+			var pink := Color(1.0, 0.6, 0.7)
+			_disc(img, 9, 9, 3.6, pink); _disc(img, 15, 9, 3.6, pink)
+			_tri(img, Vector2(5.5, 11), Vector2(18.5, 11), Vector2(12, 20), pink)
+			_line(img, 3, 16, 20, 6, Color(0.95, 0.9, 0.6), 1.2)
 		"marked":
 			# A red target reticle.
 			var mred := Color(1.0, 0.25, 0.25)

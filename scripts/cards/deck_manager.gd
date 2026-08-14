@@ -435,9 +435,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	# On-Self mana reduction from item card slot
 	if card.is_slotted():
 		var on_self = card.get_on_self_bonus()
-		if on_self["mana_reduction"] > 0:
+		if on_self["mana_reduction"] != 0:
+			# Positive = discount; negative = surcharge (Stringless Sender -10).
 			mana_cost -= on_self["mana_reduction"]
-			print("[DECK] On-Self mana reduction: -%d from %s" % [on_self["mana_reduction"], card.slotted_in_item.item_name])
+			print("[DECK] On-Self mana adjustment: %+d from %s" % [-on_self["mana_reduction"], card.slotted_in_item.item_name])
 		# The Headbandz: percentage mana-cost cut for slotted cards.
 		var pct = on_self.get("mana_reduction_percent", 0.0)
 		if pct > 0.0:
@@ -475,6 +476,16 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	mana_cost = max(0, mana_cost)
 
+	# Bow of Arash: half a slotted card's mana cost is converted to LIFE. The
+	# life half is a true cost like health_cost — armor-ignoring, refundable.
+	var arash_life_cost := 0
+	if mana_cost > 0 and card.is_slotted() \
+			and bool(card.get_on_self_bonus().get("mana_to_life", false)):
+		arash_life_cost = floori(mana_cost / 2.0)
+		mana_cost -= arash_life_cost
+		if arash_life_cost > 0:
+			print("[DECK] Bow of Arash: %d of %s's cost is paid in life" % [arash_life_cost, card.card_name])
+
 	# Demonic Rage: mana costs use health instead, at the standing
 	# 10-mana-per-1-HP exchange rate (mana runs on a x10 scale; HP does not).
 	var demonic_rage_active = false
@@ -498,6 +509,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	if card.health_cost > 0 and player_stats and player_stats.current_health <= card.health_cost:
 		print("[DECK] Not enough health! %s costs %d health" % [card.card_name, card.health_cost])
 		return { "played": false, "half_tempo": false }
+	# The Arash life half obeys the same rule: refuse rather than let it kill.
+	if arash_life_cost > 0 and player_stats \
+			and player_stats.current_health <= arash_life_cost + card.health_cost:
+		print("[DECK] Not enough health! %s needs %d life for the Bow of Arash" % [card.card_name, arash_life_cost])
+		return { "played": false, "half_tempo": false }
 
 	# Remember what this play actually cost so a voluntary cancel can give it
 	# back exactly (mana normally; health when Demonic Rage footed the bill).
@@ -519,6 +535,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		player_stats.take_direct_damage(card.health_cost)
 		health_paid += card.health_cost
 		print("[DECK] %s: paid %d health" % [card.card_name, card.health_cost])
+	# The Bow of Arash's converted half is paid the same way.
+	if arash_life_cost > 0 and player_stats:
+		player_stats.take_direct_damage(arash_life_cost)
+		health_paid += arash_life_cost
+		print("[DECK] %s: paid %d life (Bow of Arash)" % [card.card_name, arash_life_cost])
 
 	# Count this fire spell so the next one this turn is cheaper.
 	if card.is_fire_spell:
@@ -634,6 +655,12 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		jail_pile.append(card)
 		card_jailed.emit(card)
 		print("[DECK] %s jailed for %d tempo after play." % [card.card_name, card.jail_on_play])
+	elif card.is_slotted() and int(card.get_on_self_bonus().get("jail_tempo", 0)) > 0:
+		# The Rapid Recurve: cards fired from it are jailed after every play.
+		card.jail_time_remaining = int(card.get_on_self_bonus().get("jail_tempo", 0))
+		jail_pile.append(card)
+		card_jailed.emit(card)
+		print("[DECK] %s jailed for %d tempo by %s." % [card.card_name, card.jail_time_remaining, card.slotted_in_item.item_name])
 	else:
 		discard_pile.append(card)
 		discards_this_cycle += 1
