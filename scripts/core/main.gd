@@ -9592,6 +9592,19 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			else:
 				player.blink_to(blink_pos)
 				progression_triggers._trigger_skill_tree_on_displacement()
+
+		"vault":
+			# Mauls Sabre: a staff is also a pole — the leap clears enemies and
+			# obstacles in between, but the landing tile must be open ground.
+			var vault_pos = grid_manager.snap_to_grid(mouse_pos)
+			var vault_cell = grid_manager.world_to_grid(vault_pos)
+			if vault_cell in player.blocked_tiles or vault_cell in _living_enemy_cells():
+				add_battle_log("Nowhere to land the vault!", Color(1.0, 0.4, 0.4))
+				print("[MAIN] Vault blocked: landing tile occupied")
+			else:
+				player.blink_to(vault_pos)
+				progression_triggers._trigger_skill_tree_on_displacement()
+				add_battle_log("You vault over the fray!", Color(0.8, 0.6, 0.9))
 		"push":
 			# Push enemy away by the card's range_modifier (min 1).
 			var push_dist = max(1, int(card.range_modifier))
