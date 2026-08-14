@@ -41,26 +41,8 @@ func _initialize() -> void:
 	_test_wrath()
 	_test_bessy_and_flash()
 	_test_stephen_swap_perk()
-	_test_mauls_sabre()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
-
-func _test_mauls_sabre() -> void:
-	print("-- Mauls Sabre: the two ends --")
-	var sabre = ItemData.create_mauls_sabre()
-	_check(sabre.on_self_alternating_ends, "the ends alternate")
-	_check(sabre.granted_card_ids.size() == 1 and sabre.granted_card_ids[0] == "vault", "grants Vault")
-	var vault = Card.create_by_id("vault")
-	_check(vault != null and vault.tempo_cost == 0 and vault.jail_on_play == 10,
-		"Vault: 0 tempo, jailed 10 after play")
-	_check(vault.card_type == Card.CardType.UTILITY, "Vault is a utility leap")
-	# Parity drives the tempo cost: maul end full price, sabre end 1 faster.
-	var strike = Card.create_slice()
-	var base := strike.get_burden_tempo_cost()
-	_check(sabre.slot_card(strike), "an attack slots into the staff")
-	_check(strike.get_burden_tempo_cost() == base, "maul end (even parity): full tempo")
-	sabre.end_swings = 1
-	_check(strike.get_burden_tempo_cost() == max(0, base - 1), "sabre end (odd parity): -1 tempo")
 
 func _test_stephen_swap_perk() -> void:
 	print("-- Stephen: man of arms --")

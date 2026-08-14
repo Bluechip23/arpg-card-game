@@ -264,10 +264,6 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_overdrive_multiplier: float = 1.0    # deal Xx damage; take HALF the bonus as self-damage (Fallen's Wrath 1.5)
 @export var on_self_apply_slow: int = 0                  # slotted attacks apply X slow (Sword of Theseus 2, Lv3 3)
 @export var on_self_slow_damage_per_stack: int = 0       # +X damage per slow stack already on the target (Theseus 1)
-# Mauls Sabre: slotted offensive plays alternate ends — the maul end (+8
-# damage, 5 armor shred), then the sabre end (-1 tempo, +15% crit). The
-# runtime parity lives in end_swings (runtime tracking block).
-@export var on_self_alternating_ends: bool = false
 
 # Weapon passive riders (weapons pass 1)
 @export var bonus_damage_to_armor: int = 0        # your attacks shred X extra enemy armor — armor only (Armor Chopper 10)
@@ -419,7 +415,6 @@ var banked_damage: float = 0.0     # Supernova Cuirass: total damage banked acro
 var banked_stacks: int = 0         # Supernova Cuirass: current stack count
 var exposed_armor_cd_left: int = 0 # Exposed-armor proc cooldown, in cycles remaining
 var death_crit_stacks: int = 0     # Hide of Garmr Lv3: current death stacks
-var end_swings: int = 0            # Mauls Sabre: offensive plays so far — even parity swings the maul end, odd the sabre end
 
 # Description
 @export var description: String = ""
@@ -758,7 +753,6 @@ func get_on_self_bonus() -> Dictionary:
 		"overdrive_multiplier": on_self_overdrive_multiplier,
 		"apply_slow": on_self_apply_slow,
 		"slow_damage_per_stack": on_self_slow_damage_per_stack,
-		"alternating_ends": on_self_alternating_ends,
 		"pair_tempo_reduction": 1 if (offhand_pair_bonus and pair_active) else 0,
 		"ranged_damage": on_self_ranged_damage,
 		"ranged_tempo_reduction": on_self_ranged_tempo_reduction,
@@ -1939,17 +1933,12 @@ static func create_laurentius_lost_spear() -> ItemData:
 	return item
 
 static func create_mauls_sabre() -> ItemData:
-	## A blade on both ends of the staff, and nothing else in your hands — a
-	## staff shares the hands with NOTHING, so the sabre IS the whole kit.
 	var item = _new_weapon("Mauls Sabre", Rarity.LEGENDARY, WeaponSubtype.STAFF, 40)
 	item.card_slots = 2
 	item.agility_bonus = 8
 	item.strength_bonus = 3
 	item.dexterity_bonus = 4
-	item.on_self_alternating_ends = true
-	var ms_cards: Array[String] = ["vault"]
-	item.granted_card_ids = ms_cards
-	item.description = "+8 AGI, +3 STR, +4 DEX. 2 card slots. On-self: offensive plays alternate ends — the maul end deals +8 damage and shreds 5 armor; the sabre end costs 1 less tempo and gains 15% crit. Grants Vault: leap up to 3 squares over anything (10 mana, 0 tempo; jailed 10 tempo after play)."
+	item.description = "+8 AGI, +3 STR, +4 DEX."
 	return item
 
 static func create_fallens_wrath() -> ItemData:

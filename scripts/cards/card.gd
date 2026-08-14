@@ -129,7 +129,6 @@ const CARD_RARITIES := {
 	"cupids_golden_arrow": Rarity.LEGENDARY, "cupids_lead_arrow": Rarity.LEGENDARY,
 	"territorial_mark": Rarity.MYTHIC, "balistic_arrow": Rarity.MYTHIC,
 	"close_is_favored": Rarity.MYTHIC, "spirit_bow": Rarity.MYTHIC,
-	"vault": Rarity.LEGENDARY,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -159,7 +158,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"sanguine_the_penguin": true, "wrath_of_the_sea": true, "monk_of_the_night": true,
 	"improvised_ammo": true, "cupids_golden_arrow": true, "cupids_lead_arrow": true,
 	"territorial_mark": true, "balistic_arrow": true, "close_is_favored": true,
-	"spirit_bow": true, "vault": true,
+	"spirit_bow": true,
 }
 
 @export var card_id: String = "slash"
@@ -999,22 +998,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if _od_mult > 1.0 and is_offensive():
 			_overdrive_extra = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * (_od_mult - 1.0))
 			_gauntlet_bonus_applied += _overdrive_extra
-		# Mauls Sabre: offensive plays alternate ends — the heavy maul, then
-		# the flashing sabre (whose -1 tempo lives in get_burden_tempo_cost).
-		if bool(on_self.get("alternating_ends", false)) and is_offensive():
-			if slotted_in_item.end_swings % 2 == 0:
-				_gauntlet_bonus_applied += 8
-				if target and "current_armor" in target and target.current_armor > 0:
-					target.current_armor = max(0, target.current_armor - 5)
-					if target.has_method("_update_armor_bar"):
-						target._update_armor_bar()
-				print("[CARD] Mauls Sabre: the maul end lands (+8 damage, 5 armor shred)")
-			else:
-				_temp_crit_applied += 15.0
-				if player_stats:
-					player_stats.temp_on_self_crit_bonus += 15.0
-				print("[CARD] Mauls Sabre: the sabre end flashes (+15% crit)")
-			slotted_in_item.end_swings += 1
 		# Quiver of Wet Stones: slotted hits grind extra enemy armor (armor only).
 		if int(on_self.get("armor_shred", 0)) > 0 and is_offensive() and target \
 				and "current_armor" in target and target.current_armor > 0:
@@ -2070,10 +2053,6 @@ func get_burden_tempo_cost() -> int:
 	# Tightened Cross Bow (+1) / Stringless Sender (-1): signed tempo delta.
 	if slotted_in_item:
 		cost += int(slotted_in_item.get_on_self_bonus().get("tempo_penalty", 0))
-	# Mauls Sabre: the sabre end (every second offensive play) is 1 tempo faster.
-	if slotted_in_item and is_offensive() and slotted_in_item.end_swings % 2 == 1 \
-			and bool(slotted_in_item.get_on_self_bonus().get("alternating_ends", false)):
-		cost -= 1
 	# Potion Belt: slotted utility cards refund tempo.
 	if card_type == CardType.UTILITY and slotted_in_item:
 		cost -= int(slotted_in_item.get_on_self_bonus().get("utility_tempo_refund", 0))
@@ -6972,26 +6951,6 @@ static func create_close_is_favored() -> Card:
 	card.reaction_trigger = "on_enemy_melee_range"
 	card.target_types = ["enemy"]
 	card.erase_on_play = true
-	card.shop_excluded = true
-	return card
-
-static func create_vault() -> Card:
-	## Granted by Mauls Sabre — a staff is also a pole. Blink-style leap with
-	## a short reach and a jail-based cooldown.
-	var card = Card.new()
-	card.card_id = "vault"
-	card.card_name = "Vault"
-	card.description = "Leap up to 3 squares, over enemies and obstacles alike. Jailed 10 tempo after play."
-	card.card_type = CardType.UTILITY
-	card.card_type_name = "Utility"
-	card.mana_cost = 10
-	card.tempo_cost = 0
-	card.damage = 0
-	card.base_damage = 0
-	card.is_ranged = true
-	card.range_modifier = -2  # base 5 - 2 = reach 3
-	card.target_types = ["point"]
-	card.jail_on_play = 10
 	card.shop_excluded = true
 	return card
 
