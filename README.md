@@ -258,7 +258,7 @@ Negative effects, applied by enemies and hazards (and occasionally self-inflicte
 | **Linked** | Share X% of damage taken with your ally (co-op partner). |
 | **Clumsy** | X% chance to discard a random card whenever you play one. |
 | **Vulnerable** | Take 30% more damage on the next X attack(s). |
-| **Exposed** | Your armor absorbs 30% less damage. |
+| **Exposed** | Your armor has been broken through — a hit got past it. Armored chests (Briarhide Plate, Adimantium) react to it; enemy-side passives trigger when you expose THEM. |
 | **Brittle** | Armor decays an extra 2 per cycle. |
 | **Cold** | Stacking. At 5 stacks, become Frozen. |
 | **Blind** | X% chance for your attacks to miss. |

@@ -34,7 +34,7 @@ func _mythics() -> Array[ItemData]:
 func _test_every_mythic_has_an_appearance() -> void:
 	print("-- Appearance text --")
 	var mythics = _mythics()
-	_check(mythics.size() >= 21, "found %d mythics" % mythics.size())
+	_check(mythics.size() >= 25, "found %d mythics" % mythics.size())
 	for item in mythics:
 		_check(item.appearance.strip_edges() != "",
 			"%s describes its appearance" % item.item_name)

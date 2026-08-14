@@ -30,6 +30,9 @@ var belt_card_mana_reduction: int = 0     # Ryan
 var ring_double_trigger: bool = false     # Jeremy
 var off_hand_bonus: float = 0.0           # Stephen (+10%), others get -10% penalty
 var gauntlet_cooldown_mana: bool = false  # Cory
+# Stephen: weapon-slot swaps cost 1 tempo (not 2) and the weapon portion of a
+# build switch is free — armor changes always pay full price.
+var weapon_swap_discount: bool = false
 
 # Jeremy's double trigger only arms every Nth cycle (every cycle proved busted).
 const RING_DOUBLE_TRIGGER_CYCLES: int = 3
@@ -145,6 +148,7 @@ func initialize(char_name: String) -> void:
 	ring_double_trigger = false
 	off_hand_bonus = 0.0
 	gauntlet_cooldown_mana = false
+	weapon_swap_discount = false
 
 	# Per-character deviations from the baseline.
 	match character_name:
@@ -159,6 +163,7 @@ func initialize(char_name: String) -> void:
 			ring_double_trigger = true  # doubles every RING_DOUBLE_TRIGGER_CYCLES cycles
 		"Stephen":
 			off_hand_bonus = 0.2  # +10% instead of -10% = +20% total swing
+			weapon_swap_discount = true  # man of arms: cheap hands, full-price armor
 		"Cory":
 			gauntlets_slots = 2
 			gauntlet_cooldown_mana = true
@@ -179,6 +184,8 @@ func _print_passives() -> void:
 		print("[INVENTORY] Passive: +%.0f%% off-hand bonuses" % (off_hand_bonus * 100))
 	if gauntlet_cooldown_mana:
 		print("[INVENTORY] Passive: Gain 10 mana when gauntlet skill comes off cooldown")
+	if weapon_swap_discount:
+		print("[INVENTORY] Passive: Weapon swaps cost 1 tempo; build-switch weapon changes are free")
 
 func _init_slot_arrays() -> void:
 	equipped_helms.clear()
@@ -526,6 +533,17 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	if item.death_crit_stack_radius > 0:
 		item.death_crit_stacks = 0
 		player_stats.death_stack_crit_damage = 0.0
+	# Weapons pass
+	if item.bonus_damage_to_armor != 0:
+		player_stats.equipment_armor_shred += item.bonus_damage_to_armor * multiplier
+	if item.attack_speed_threshold_bonus != 0:
+		player_stats.equipment_attack_speed_penalty += item.attack_speed_threshold_bonus * multiplier
+	# Weapon runtime state restarts on every equip/unequip.
+	item.wrath = 0
+	item.vitality_stacks = 0
+	item.pair_active = false
+	if item.item_type == ItemData.ItemType.WEAPON:
+		_recalc_weapon_synergies()
 
 	# Recalculate derived stats
 	player_stats.recalculate_derived_stats()
@@ -811,6 +829,34 @@ func process_turn() -> void:
 			if chest.exposed_armor_cd_left == 0:
 				print("[INVENTORY] %s: Exposed-armor reaction ready" % chest.item_name)
 
+## Weapons pass: hand-pairing synergies, recomputed whenever equipment changes.
+## Spartan Spear: +1 melee reach and +2 melee damage while ANY hand holds a
+## shield. Side Card Sabre: paired (off hand, non-shield main weapon) makes it
+## weightless and its slotted cards 1 tempo cheaper.
+func _recalc_weapon_synergies() -> void:
+	if not player_stats:
+		return
+	var has_shield := false
+	var has_spartan := false
+	var main_weapon: ItemData = equipped_weapons[0] if equipped_weapons.size() > 0 else null
+	for wpn in equipped_weapons:
+		if wpn == null:
+			continue
+		if wpn.weapon_subtype == ItemData.WeaponSubtype.SHIELD:
+			has_shield = true
+		if wpn.shield_synergy:
+			has_spartan = true
+	var spartan_on := has_shield and has_spartan
+	player_stats.equipment_melee_reach = 1 if spartan_on else 0
+	player_stats.equipment_shield_melee_damage = 2 if spartan_on else 0
+	# Side Card Sabre pairs from the OFF hand only.
+	for i in range(equipped_weapons.size()):
+		var wpn = equipped_weapons[i]
+		if wpn and wpn.offhand_pair_bonus:
+			wpn.pair_active = i == 1 and main_weapon != null and main_weapon != wpn \
+				and main_weapon.weapon_subtype != ItemData.WeaponSubtype.SHIELD
+	_recalculate_carry_load()  # pairing can zero the sabre's weight
+
 ## Chests pass: a hit just broke through the wearer's armor ("exposed" in the
 ## chest spec) — armored chests react by regrowing some. Briarhide has no
 ## cooldown; Adimantium honors exposed_armor_cooldown_cycles.
@@ -910,6 +956,13 @@ func on_armor_gained(amount: int) -> void:
 func on_enemy_killed() -> void:
 	trigger_rings(ItemData.RingTrigger.ON_ENEMY_KILL)
 	_conjure_on_kill_cards()
+	# Axe's Axe: kills bank flash points — deliberately allowed past the cap.
+	if player_stats:
+		for wpn in equipped_weapons:
+			if wpn and wpn.kill_flash_points > 0:
+				player_stats.current_flash_points += wpn.kill_flash_points
+				player_stats.flash_points_changed.emit(player_stats.current_flash_points, player_stats.get_max_flash_points())
+				print("[INVENTORY] %s: +%d flash points banked (%d held)" % [wpn.item_name, wpn.kill_flash_points, player_stats.current_flash_points])
 
 ## Items with on_kill_card_id (Bladed Doughnut) conjure a fresh copy of their
 ## card straight into the hand on every kill.
@@ -1144,6 +1197,9 @@ func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 	var w = item.weight
 	if item.item_type == ItemData.ItemType.CHEST:
 		w = floori(w * (1.0 - chest_weight_reduction))
+	# Side Card Sabre: weightless while paired in the off hand.
+	if item.offhand_pair_bonus and item.pair_active:
+		w = 0
 	# Balanced Load keystone: the chosen slot's items weigh 10% less.
 	if player_stats and player_stats.keystone_str_light_slot \
 			and item.item_type == player_stats.str_light_slot_type:
@@ -1390,6 +1446,9 @@ func get_swap_tempo_cost(item_type: ItemData.ItemType, unequip_only: bool = fals
 	match item_type:
 		ItemData.ItemType.HELM, ItemData.ItemType.RING, ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER:
 			cost = 2
+			# Stephen: a lifetime among weapons — swapping steel takes half the time.
+			if item_type == ItemData.ItemType.WEAPON and weapon_swap_discount:
+				cost = 1
 		ItemData.ItemType.GAUNTLETS, ItemData.ItemType.BELT, ItemData.ItemType.BOOTS:
 			cost = 3
 		ItemData.ItemType.CHEST:
@@ -1497,7 +1556,10 @@ func switch_build(target: int) -> Dictionary:
 				continue
 			if set_info[0] == "weapons":
 				hands_changed = true
-			if plan[i] == null:
+			# Stephen: the weapon portion of a build switch is free.
+			if set_info[0] == "weapons" and weapon_swap_discount:
+				pass
+			elif plan[i] == null:
 				cost += get_swap_tempo_cost(live[i].item_type, true)
 			else:
 				cost += get_swap_tempo_cost(plan[i].item_type, false)
@@ -1505,8 +1567,9 @@ func switch_build(target: int) -> Dictionary:
 				removed.append(live[i])
 			if plan[i] != null:
 				incoming.append(plan[i])
-	# Changing only the two-handed slot (same items) is a hand action.
-	if target_two_hand != two_handed_slot and not hands_changed:
+	# Changing only the two-handed slot (same items) is a hand action —
+	# also part of Stephen's free weapon portion.
+	if target_two_hand != two_handed_slot and not hands_changed and not weapon_swap_discount:
 		cost += get_swap_tempo_cost(ItemData.ItemType.WEAPON)
 
 	if cost == 0 and target_two_hand == two_handed_slot:

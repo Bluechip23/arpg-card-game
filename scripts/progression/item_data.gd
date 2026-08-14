@@ -256,6 +256,32 @@ func get_mastery_text(stats = null) -> String:
 @export var on_self_root_offensive: int = 0        # slotted offensive card roots the target X cycles (Gravity Gauntlets 1)
 @export var on_self_disarm_offensive: int = 0      # slotted offensive card disarms the target for X ATTACKS (Spidey 1)
 
+# Weapon on-self riders (weapons pass 1)
+@export var on_self_crit_percent: float = 0.0            # +% crit chance for the slotted play, any card (Rusty Dagger 15)
+@export var on_self_weakened_damage_percent: float = 0.0 # +% damage vs Weakened targets, on top of Weaken itself (Bessy 25)
+@export var on_self_max_hp_damage_percent: float = 0.0   # +damage equal to X% of YOUR max health (Hammer of Ajax 10)
+@export var on_self_self_targets_allies: bool = false    # slotted self-target cards may target allies (Laurentius's Lost Spear)
+@export var on_self_overdrive_multiplier: float = 1.0    # deal Xx damage; take HALF the bonus as self-damage (Fallen's Wrath 1.5)
+@export var on_self_apply_slow: int = 0                  # slotted attacks apply X slow (Sword of Theseus 2, Lv3 3)
+@export var on_self_slow_damage_per_stack: int = 0       # +X damage per slow stack already on the target (Theseus 1)
+
+# Weapon passive riders (weapons pass 1)
+@export var bonus_damage_to_armor: int = 0        # your attacks shred X extra enemy armor — armor only (Armor Chopper 10)
+@export var shield_synergy: bool = false          # while ANY hand holds a shield: +1 melee reach, +2 melee damage (Spartan Spear)
+@export var offhand_pair_bonus: bool = false      # in OFF hand beside a non-shield main weapon: weightless + slotted cards -1 tempo (Side Card Sabre)
+@export var kill_flash_points: int = 0            # +X flash points per kill — MAY exceed the cap (Axe's Axe 5)
+@export var attack_speed_threshold_bonus: int = 0 # attack-speed proc threshold +X while wielded — heavy iron swings slow (Bessy 5)
+@export var wrath_weapon: bool = false            # Fallen's Wrath: +1 Wrath per damage instance taken (max 30); attacks +Wrath damage; 10+ Wrath = take +50%
+@export var vitality_weapon: bool = false         # Nine Ruins: +1 Vitality per attack (max 9); +1% lifesteal +2 damage per stack; 9 summons the penguin
+@export var same_target_bleed: int = 0            # Sabre Tooth: 2nd consecutive hit on one target: +1 attack-speed tick + X bleed
+@export var pierce_targets: int = 0               # attacks strike X squares in a line through the target (Poseidons Trident 2, Lv3 3)
+@export var armor_gain_melee_damage: int = 0      # gaining armor deals X damage to an enemy in melee range (Umbral Eclipse 5, Lv3 8)
+@export var insight_flash_restore: int = 0        # Insight (brain-point) draws restore X flash points (Umbral Eclipse 2, Lv3 3)
+# Weapon runtime state (reset on equip/unequip like the chest accumulators)
+var pair_active: bool = false   # Side Card Sabre: currently paired with a main-hand weapon
+var wrath: int = 0              # Fallen's Wrath counter
+var vitality_stacks: int = 0    # Nine Ruins: current Vitality
+
 # Chest on-self riders (chests pass 1)
 @export var on_self_ranged_damage: int = 0         # +X damage on slotted RANGED offensive cards (Elvish Cloak 2, Chewbaccas 5)
 @export var on_self_ranged_tempo_reduction: int = 0  # slotted RANGED offensive cards cost X less tempo (Chewbaccas 1)
@@ -278,7 +304,7 @@ func get_mastery_text(stats = null) -> String:
 @export var movement_flash_discount: int = 0       # movement flash costs X less (Rollerblades 1)
 @export var movement_flash_tempo_threshold: int = 0  # after X movement flash spent, -1 tempo from a hand card (Boots of Speed 51)
 @export var highground_damage_percent: float = 0.0  # +X% damage while attacking from high ground (Mountain Boots 20)
-@export var trap_damage_percent: float = 0.0        # +X% trap damage (Hermes Boots 25) — traps not yet implemented
+@export var trap_damage_percent: float = 0.0        # traps you spring on ENEMIES deal +X% (Hermes Boots 25)
 @export var missing_life_damage_rate: float = 0.0   # +rate × enemy missing-health% as bonus damage (Jordan 1s 0.5)
 @export var missing_life_threshold: int = 0         # only below this enemy health% (Jordan 1s 50)
 @export var melee_crit_flat_bonus: int = 0          # flat extra damage when a melee attack crits (Knife Toed Boots 10)
@@ -628,6 +654,10 @@ func slot_card(card) -> bool:
 		return false
 	slotted_cards.append(card)
 	card.slotted_in_item = self
+	# Laurentius's Lost Spear: slotted self-target cards may also aim at allies.
+	if on_self_self_targets_allies and card.target_types.has("self") and not card.target_types.has("ally"):
+		card.target_types.append("ally")
+		card.set_meta("ally_target_granted", true)
 	print("[ITEM] %s: slotted card '%s' (%d/%d slots)" % [item_name, card.card_name, slotted_cards.size(), card_slots])
 	return true
 
@@ -640,6 +670,10 @@ func unslot_card(card_index: int):
 		return null
 	slotted_cards.remove_at(card_index)
 	card.slotted_in_item = null
+	# Take back the Laurentius ally-targeting grant with the slot.
+	if card.get_meta("ally_target_granted", false):
+		card.target_types.erase("ally")
+		card.remove_meta("ally_target_granted")
 	# Track source item type for Picky cards
 	if card.source_item_type < 0:
 		card.source_item_type = item_type
@@ -694,6 +728,13 @@ func get_on_self_bonus() -> Dictionary:
 		"summon_wolf": on_self_summon_wolf,
 		"root_offensive": on_self_root_offensive,
 		"disarm_offensive": on_self_disarm_offensive,
+		"crit_percent": on_self_crit_percent,
+		"weakened_damage_percent": on_self_weakened_damage_percent,
+		"max_hp_damage_percent": on_self_max_hp_damage_percent,
+		"overdrive_multiplier": on_self_overdrive_multiplier,
+		"apply_slow": on_self_apply_slow,
+		"slow_damage_per_stack": on_self_slow_damage_per_stack,
+		"pair_tempo_reduction": 1 if (offhand_pair_bonus and pair_active) else 0,
 		"ranged_damage": on_self_ranged_damage,
 		"ranged_tempo_reduction": on_self_ranged_tempo_reduction,
 		"resist_all_percent": on_self_resist_all_percent,
@@ -757,19 +798,6 @@ static func create_return_scroll() -> ItemData:
 	item.weight = 0
 	item.special_id = "return_scroll"
 	item.description = "Right-click to open a portal back to town. Walk in with [Shift]. Its twin waits in town to bring you back."
-	return item
-
-static func create_frost_orb() -> ItemData:
-	var item = ItemData.new()
-	item.item_name = "Frost Orb"
-	item.item_type = ItemType.WEAPON
-	item.weapon_subtype = WeaponSubtype.WAND
-	item.item_type_name = "Weapon"
-	item.rarity = Rarity.COMMON
-	item.weight = 2
-	item.health_bonus = 100
-	item.ice_damage_percent = 10.0
-	item.description = "+100 HP, +10% Ice Damage"
 	return item
 
 # ============================================
@@ -1730,6 +1758,248 @@ static func create_girdle_of_aphrodite() -> ItemData:
 		"agility_bonus": 3, "dexterity_bonus": 3, "wisdom_bonus": 4, "on_self_support_heal": 35}
 	item.level_3_description = "+20 health, +2 DET, +3 AGI, +3 DEX, +4 WIS. 3 card slots. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 35."
 	item.description = "+10 health, +2 DET, +2 AGI, +2 DEX, +2 WIS. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 15."
+	return item
+
+# ============================================
+# WEAPONS (first weapons pass — both hands)
+# ============================================
+static func _new_weapon(nm: String, r: Rarity, sub: WeaponSubtype, wt: int) -> ItemData:
+	var item = ItemData.new()
+	item.item_name = nm
+	item.item_type = ItemType.WEAPON
+	item.item_type_name = "Weapon"
+	item.weapon_subtype = sub
+	item.rarity = r
+	item.weight = wt
+	return item
+
+static func create_pick() -> ItemData:
+	var item = _new_weapon("Pick", Rarity.COMMON, WeaponSubtype.AXE, 50)
+	item.card_slots = 1
+	item.strength_bonus = 3
+	item.health_bonus = 5
+	item.agility_bonus = 1
+	item.on_self_damage = 5
+	item.description = "+3 STR, +5 health, +1 AGI. On-self: +5 damage."
+	return item
+
+static func create_rusty_dagger() -> ItemData:
+	var item = _new_weapon("Rusty Dagger", Rarity.COMMON, WeaponSubtype.DAGGER, 10)
+	item.card_slots = 1
+	item.agility_bonus = 3
+	item.dexterity_bonus = 1
+	item.on_self_crit_percent = 15.0
+	item.description = "+3 AGI, +1 DEX. On-self: +15% crit chance."
+	return item
+
+static func create_construction_hammer() -> ItemData:
+	var item = _new_weapon("Construction Hammer", Rarity.COMMON, WeaponSubtype.HAMMER, 15)
+	item.agility_bonus = 2
+	item.strength_bonus = 2
+	var ch_cards: Array[String] = ["hard_helmet"]
+	item.granted_card_ids = ch_cards
+	item.description = "+2 AGI, +2 STR. Grants Hard Helmet (instant): when you play a utility card, gain 8 armor and deal 2 damage to the closest enemy."
+	return item
+
+static func create_short_sword() -> ItemData:
+	var item = _new_weapon("Short Sword", Rarity.COMMON, WeaponSubtype.SWORD, 25)
+	item.dexterity_bonus = 2
+	item.strength_bonus = 3
+	var ss_cards: Array[String] = ["slice"]
+	item.granted_card_ids = ss_cards
+	item.description = "+2 DEX, +3 STR. Grants Slice: deal 15 damage (10 mana, 3 tempo)."
+	return item
+
+static func create_wooden_spear() -> ItemData:
+	var item = _new_weapon("Wooden Spear", Rarity.COMMON, WeaponSubtype.POLEARM, 20)
+	item.card_slots = 1
+	item.wisdom_bonus = 3
+	item.strength_bonus = 3
+	item.dexterity_bonus = 1
+	item.on_self_apply_bleed = 1
+	item.description = "+3 WIS, +3 STR, +1 DEX. On-self: apply 1 Bleed."
+	return item
+
+static func create_armor_chopper() -> ItemData:
+	var item = _new_weapon("Armor Chopper", Rarity.RARE, WeaponSubtype.AXE, 120)
+	item.health_bonus = 5
+	item.strength_bonus = 3
+	item.bonus_damage_to_armor = 10
+	item.description = "+5 health, +3 STR. Your attacks deal an additional 10 damage to enemy armor."
+	return item
+
+static func create_lions_halberd() -> ItemData:
+	var item = _new_weapon("Lions Halberd", Rarity.RARE, WeaponSubtype.AXE, 120)
+	item.card_slots = 1
+	item.dexterity_bonus = 3
+	item.agility_bonus = 3
+	item.on_self_damage = 10
+	item.description = "+3 DEX, +3 AGI. On-self: +10 damage."
+	return item
+
+static func create_spartan_spear() -> ItemData:
+	var item = _new_weapon("Spartan Spear", Rarity.RARE, WeaponSubtype.POLEARM, 80)
+	item.wisdom_bonus = 3
+	item.agility_bonus = 2
+	item.strength_bonus = 4
+	item.shield_synergy = true
+	item.description = "+3 WIS, +2 AGI, +4 STR. While wielding a shield, gain Reach and +2 melee damage."
+	return item
+
+static func create_side_card_sabre() -> ItemData:
+	var item = _new_weapon("Side Card Sabre", Rarity.RARE, WeaponSubtype.SWORD, 20)
+	item.card_slots = 2
+	item.agility_bonus = 2
+	item.dexterity_bonus = 2
+	item.offhand_pair_bonus = true
+	item.description = "+2 AGI, +2 DEX. In your off hand beside a main-hand weapon (shields don't count): this sword is weightless and its slotted cards cost 1 less tempo."
+	return item
+
+static func create_axes_axe() -> ItemData:
+	var item = _new_weapon("Axe's Axe", Rarity.LEGENDARY, WeaponSubtype.AXE, 150)
+	item.strength_bonus = 8
+	item.determination_bonus = 6
+	item.intelligence_bonus = -6
+	item.wisdom_bonus = -4
+	item.kill_flash_points = 5
+	var aa_cards: Array[String] = ["death_vortex", "death_vortex", "death_vortex"]
+	item.granted_card_ids = aa_cards
+	item.description = "+8 STR, +6 DET, -6 INT, -4 WIS. Grants 3 Death Vortexes (instant): after you are hit 5 times, every copy in hand fires — a spin attack dealing 15 damage to all adjacent enemies; a Vortex that kills returns to your hand. Killing an enemy banks 5 flash points (may exceed your cap)."
+	return item
+
+static func create_bessy() -> ItemData:
+	var item = _new_weapon("Bessy", Rarity.LEGENDARY, WeaponSubtype.HAMMER, 450)
+	item.card_slots = 1
+	item.weapon_damage = 15
+	item.attack_speed_threshold_bonus = 5
+	item.on_self_weakened_damage_percent = 25.0
+	var by_cards: Array[String] = ["earth_rattle"]
+	item.granted_card_ids = by_cards
+	item.description = "15 weapon damage. Attack-speed procs take 5 more swings — she is HEAVY. On-self: +25% damage to Weakened enemies (on top of Weaken itself). Grants Earth Rattle: smash the ground — 40 damage in a 3-square quake; enemies hit are Slowed 2 and Weakened 2 (60 mana, 6 tempo)."
+	return item
+
+static func create_hammer_of_ajax() -> ItemData:
+	var item = _new_weapon("Hammer of Ajax", Rarity.LEGENDARY, WeaponSubtype.HAMMER, 250)
+	item.card_slots = 1
+	item.determination_bonus = 8
+	item.strength_bonus = 8
+	item.agility_bonus = -2
+	item.on_self_max_hp_damage_percent = 10.0
+	var ha_cards: Array[String] = ["feed_into_the_pain"]
+	item.granted_card_ids = ha_cards
+	item.description = "+8 DET, +8 STR, -2 AGI. On-self: +damage equal to 10% of your max health. Grants Feed into the Pain (instant): when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP."
+	return item
+
+static func create_laurentius_lost_spear() -> ItemData:
+	var item = _new_weapon("Laurentius's Lost Spear", Rarity.LEGENDARY, WeaponSubtype.POLEARM, 75)
+	item.card_slots = 2
+	item.strength_bonus = 6
+	item.wisdom_bonus = 2
+	item.intelligence_bonus = 6
+	item.on_self_self_targets_allies = true
+	var ll_cards: Array[String] = ["psionic_flow", "psionic_flow"]
+	item.granted_card_ids = ll_cards
+	item.description = "+6 STR, +2 WIS, +6 INT. On-self: slotted self-target cards may target allies. Grants 2 Psionic Flows (instant): when an ally takes damage within 3 squares, restore 8 to them and push the attacker back 1 — or, when you play an attack, deal +8 damage and push the target back 1. Whichever comes first."
+	return item
+
+static func create_mauls_sabre() -> ItemData:
+	var item = _new_weapon("Mauls Sabre", Rarity.LEGENDARY, WeaponSubtype.STAFF, 40)
+	item.card_slots = 2
+	item.agility_bonus = 8
+	item.strength_bonus = 3
+	item.dexterity_bonus = 4
+	item.description = "+8 AGI, +3 STR, +4 DEX."
+	return item
+
+static func create_fallens_wrath() -> ItemData:
+	var item = _new_weapon("Fallen's Wrath", Rarity.LEGENDARY, WeaponSubtype.SWORD, 50)
+	item.card_slots = 2
+	item.intelligence_bonus = 5
+	item.strength_bonus = 5
+	item.wisdom_bonus = 5
+	item.health_bonus = 25
+	item.wrath_weapon = true
+	item.on_self_overdrive_multiplier = 1.5
+	var fw_cards: Array[String] = ["purge_wrath"]
+	item.granted_card_ids = fw_cards
+	item.description = "+5 INT, +5 STR, +5 WIS, +25 health. Each damage instance you take grants 1 Wrath (max 30); your attacks deal +Wrath damage; at 10+ Wrath you take 50% more damage. On-self: deal 1.5x damage, take half the bonus yourself. Grants Purge Wrath: your next attack deals +Wrath% bonus damage; Wrath resets to 0 (55 mana, 8 tempo)."
+	return item
+
+static func create_nine_ruins_of_sanguine() -> ItemData:
+	var item = _new_weapon("Nine Ruins of Sanguine", Rarity.LEGENDARY, WeaponSubtype.DAGGER, 15)
+	item.dexterity_bonus = 7
+	item.wisdom_bonus = 2
+	item.vitality_weapon = true
+	var nr_cards: Array[String] = ["sanguine_the_penguin"]
+	item.granted_card_ids = nr_cards
+	item.description = "+7 DEX, +2 WIS. Every attack grants 1 Vitality (max 9): each stack gives +1% lifesteal and +2 attack damage. At 9, the stacks purge and Sanguine the blood penguin waddles forth — 50 HP, stays beside you, 8 damage every 5 tempo, can be hit (even by you); damage HE takes heals YOU half as much. No Vitality while he lives."
+	return item
+
+static func create_sabre_tooth() -> ItemData:
+	var item = _new_weapon("Sabre Tooth", Rarity.MYTHIC, WeaponSubtype.DAGGER, 10)
+	item.card_slots = 1
+	item.dexterity_bonus = 10
+	item.agility_bonus = 5
+	item.determination_bonus = 3
+	item.on_self_apply_bleed = 5
+	item.same_target_bleed = 5
+	_set_appearance(item, "sabre_tooth",
+		"A khatar with a sabertooth tiger head where the hand grip is, and a giant sabertooth tooth as the blade.")
+	item.description = "+10 DEX, +5 AGI, +3 DET. On-self: apply 5 Bleed. Striking the same target twice in a row ticks the attack-speed counter an extra time and inflicts 5 Bleed."
+	return item
+
+static func create_poseidons_trident() -> ItemData:
+	var item = _new_weapon("Poseidons Trident", Rarity.MYTHIC, WeaponSubtype.POLEARM, 80)
+	item.card_slots = 2
+	item.intelligence_bonus = 10
+	item.wisdom_bonus = 8
+	item.health_bonus = 15
+	item.mana_bonus = 25
+	item.pierce_targets = 2
+	var pt_cards: Array[String] = ["wrath_of_the_sea"]
+	item.granted_card_ids = pt_cards
+	# Wrath of the Sea granting 18 mana per enemy at Lv.3 is read live off
+	# item_level (see main's wrath_of_the_sea world case).
+	item.level_3_overrides = {"health_bonus": 20, "mana_bonus": 35, "pierce_targets": 3}
+	item.level_3_description = "+10 INT, +8 WIS, +20 health, +35 mana. Your attacks strike 3 squares in a line. Grants Wrath of the Sea: spend half your current mana, blink, and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst — all of them shoved to its edge; gain 18 mana per enemy hit (8 tempo)."
+	_set_appearance(item, "poseidons_trident",
+		"Poseidon's trident.")
+	item.description = "+10 INT, +8 WIS, +15 health, +25 mana. Your attacks strike 2 squares in a line. Grants Wrath of the Sea: spend half your current mana, blink, and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst — all of them shoved to its edge; gain 15 mana per enemy hit (8 tempo)."
+	return item
+
+static func create_sword_of_theseus() -> ItemData:
+	var item = _new_weapon("Sword of Theseus", Rarity.MYTHIC, WeaponSubtype.SWORD, 30)
+	item.card_slots = 5
+	item.strength_bonus = 8
+	item.determination_bonus = 7
+	item.lifesteal_percent = 5.0
+	item.on_self_apply_slow = 2
+	item.on_self_slow_damage_per_stack = 1
+	item.level_3_overrides = {"lifesteal_percent": 8.0, "on_self_apply_slow": 3}
+	item.level_3_description = "+8 STR, +7 DET, 8% lifesteal. 5 card slots. On-self: attacks apply 3 Slow and deal +1 damage per Slow already on the target."
+	_set_appearance(item, "sword_of_theseus",
+		"A long broadsword with a minotaur head as the grip and horns as the cross-guards. A second small blade juts from the pommel.")
+	item.description = "+8 STR, +7 DET, 5% lifesteal. 5 card slots. On-self: attacks apply 2 Slow and deal +1 damage per Slow already on the target."
+	return item
+
+static func create_umbral_eclipse() -> ItemData:
+	var item = _new_weapon("Umbral Eclipse", Rarity.MYTHIC, WeaponSubtype.HAMMER, 200)
+	item.card_slots = 2
+	item.wisdom_bonus = 8
+	item.agility_bonus = 8
+	item.strength_bonus = 3
+	item.mana_bonus = 15
+	item.armor_gain_melee_damage = 5
+	item.insight_flash_restore = 2
+	var ue_cards: Array[String] = ["monk_of_the_night"]
+	item.granted_card_ids = ue_cards
+	# Monk of the Night converting 15% at Lv.3 is read live off item_level
+	# (see the maintained-block conversion in Card.execute).
+	item.level_3_overrides = {"armor_gain_melee_damage": 8, "insight_flash_restore": 3}
+	item.level_3_description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 8 damage to an enemy in melee range. Insight draws restore 3 flash points. Grants Monk of the Night (Maintain): attack cards grant 15% of their damage as block (50 mana, 4 tempo)."
+	_set_appearance(item, "umbral_eclipse",
+		"A double-sided hammer — a head on both ends of the shaft — with the full lunar cycle inlaid along the handle and a full moon on both hammer faces.")
+	item.description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 5 damage to an enemy in melee range. Insight draws restore 2 flash points. Grants Monk of the Night (Maintain): attack cards grant 10% of their damage as block (50 mana, 4 tempo)."
 	return item
 
 # ============================================

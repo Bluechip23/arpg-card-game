@@ -51,7 +51,7 @@ func _build_legend() -> void:
 	_add_keyword("Linked", "Share X% damage taken with nearest ally", Color(0.8, 0.4, 0.4))
 	_add_keyword("Clumsy", "X% chance to discard random card when playing", Color(0.9, 0.6, 0.2))
 	_add_keyword("Vulnerable", "Take 30% more damage on next X attack(s), lose 1 stack per hit", Color(1.0, 0.3, 0.3))
-	_add_keyword("Exposed", "Remove 30% more armor when hit, lose 1 stack per hit", Color(0.9, 0.7, 0.5))
+	_add_keyword("Exposed", "Your armor was broken through — a hit got past it", Color(0.9, 0.7, 0.5))
 	_add_keyword("Brittle", "Armor decays extra 2 per cycle, lose 1 stack per cycle", Color(0.7, 0.7, 0.6))
 	_add_keyword("Cold", "Stacking debuff. At 5 stacks, enemy becomes Frozen for 1 turn", Color(0.4, 0.7, 1.0))
 

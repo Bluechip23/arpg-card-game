@@ -176,7 +176,7 @@ var equipment_highground_damage_percent: float = 0.0  # +% damage from high grou
 var on_high_ground: bool = false             # updated by main each cycle; gates the high-ground bonus
 var equipment_melee_crit_bonus: int = 0      # flat extra damage on a melee crit (Knife Toed Boots)
 var resolving_melee_offensive: bool = false  # transient: set while a melee offensive CARD resolves (gates the above)
-var equipment_trap_damage_percent: float = 0.0  # +% trap damage (Hermes) — traps not yet implemented
+var equipment_trap_damage_percent: float = 0.0  # +% trap damage against enemies (Hermes Boots)
 var movement_flash_accum: int = 0            # flash spent on movement toward the Boots of Speed threshold
 var movement_flash_tempo_threshold: int = 0  # Boots of Speed: at this accum, fire the -1-tempo bonus
 signal movement_flash_threshold_reached      # main removes 1 tempo from a hand card
@@ -212,6 +212,14 @@ var movement_tempo_surcharge: int = 0             # each tile moved on tempo cos
 var temp_strength_bonus: int = 0                  # summed MIGHT buffs (Ragnarok); damage only, never carry
 var death_stack_crit_damage: float = 0.0          # Hide of Garmr Lv3: +crit-damage multiplier from death stacks
 var free_move_tiles: int = 0                      # Shadow Cowl shift: tiles that cost no tempo and no flash
+# Weapons pass
+var equipment_armor_shred: int = 0                # attacks strip this much extra enemy armor (Armor Chopper)
+var equipment_shield_melee_damage: int = 0        # +melee damage while a shield is up (Spartan Spear)
+var equipment_melee_reach: int = 0                # +melee reach while a shield is up (Spartan Spear)
+var equipment_attack_speed_penalty: int = 0       # attack-speed proc threshold penalty (Bessy)
+var pending_wrath_percent: int = 0                # Purge Wrath: next attack's % bonus, then cleared
+var last_attack_target = null                     # Sabre Tooth: previous attack's target
+var hit_streak: int = 0                           # Axe's Axe: hits taken toward the Death Vortex trigger
 
 # ============================================
 # SPHERE GRID KEYSTONES (build-defining nodes)
@@ -1040,7 +1048,7 @@ const DUAL_WIELD_COUNTER_BONUS: int = 4  # attacks shaved while dual wielding
 func get_attack_speed_threshold() -> int:
 	# Uses effective dexterity
 	var threshold = base_attack_speed_counter - floori(dexterity * DEX_COUNTER_PER_POINT) \
-			+ get_capacity_speed_modifier()
+			+ get_capacity_speed_modifier() + equipment_attack_speed_penalty
 	if inventory and inventory.is_dual_wielding():
 		threshold -= DUAL_WIELD_COUNTER_BONUS
 	return max(ATTACK_COUNTER_MIN, threshold)
@@ -1359,6 +1367,18 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	if buff_mgr:
 		remaining = buff_mgr.calculate_damage_reduction(remaining, damage_type)
 
+	# Fallen's Wrath: every damage instance stokes the counter, and holding
+	# 10+ Wrath means every hit lands half again as hard. Applied before
+	# armor so the risk is real.
+	if remaining > 0 and inventory and "equipped_weapons" in inventory:
+		for fw_w in inventory.equipped_weapons:
+			if fw_w and fw_w.wrath_weapon:
+				fw_w.wrath = mini(30, fw_w.wrath + 1)
+				if fw_w.wrath >= 10:
+					remaining = floori(remaining * 1.5)
+					print("[STATS] Fallen's Wrath: 10+ Wrath — the hit lands 50%% harder")
+				break
+
 	# Vined Encasing (Briarhide Plate): thorns shed value equal to damage received.
 	if buff_mgr and remaining > 0 and buff_mgr.has_method("decay_thorns_by_damage"):
 		buff_mgr.decay_thorns_by_damage(remaining)
@@ -1381,24 +1401,16 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Default absorption order: Armor -> temp HP -> HP. Armor is always the
 	# first line of defense; items, nodes, enemies, or cards may manipulate
 	# this later, but this is the baseline.
-	# Armor absorption with Exposed modifier
 	if current_armor > 0 and remaining > 0:
-		var armor_effectiveness = 1.0
-		if debuff_mgr:
-			armor_effectiveness = debuff_mgr.get_armor_effectiveness()
-
-		var effective_armor = floori(current_armor * armor_effectiveness)
-
 		var armor_before := current_armor
-		if effective_armor >= remaining:
-			var armor_used = ceili(remaining / armor_effectiveness) if armor_effectiveness > 0 else remaining
-			current_armor = max(0, current_armor - armor_used)
+		if current_armor >= remaining:
+			current_armor -= remaining
 			remaining = 0
 			print("[STATS] Armor absorbed damage. Armor: %d" % current_armor)
 			# Return Cut: the whole hit was eaten by armor.
 			attack_fully_blocked.emit()
 		else:
-			remaining -= effective_armor
+			remaining -= current_armor
 			current_armor = 0
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
 			# Briarhide / Adimantium: the shell cracked — armored chests react.

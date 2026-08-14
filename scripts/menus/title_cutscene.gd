@@ -57,8 +57,10 @@ const RUN_FRAME_TIME := 0.11
 # nearly upright in Olorin's mouth, bowl to the sky.
 const PIPE_SCALE := 1.8
 # Radians; stem rises from the mouth with the bowl end up and its opening to
-# the sky. (-1.75 tipped 10° PAST vertical, flipping the bowl face-down.)
-const PIPE_LOUNGE_ANGLE := -1.15
+# the sky. The lounge pipe is drawn MIRRORED (flip_h) so the bowl's ember
+# faces right — toward beyond Olorin's head — instead of back over his face;
+# with the flip, positive angle tips the opening right of vertical.
+const PIPE_LOUNGE_ANGLE := 1.15
 
 # Sheets pre-scaled with nearest-neighbour at load, so the chunky pixels
 # survive the project's linear canvas filtering (which keeps text smooth).
@@ -129,7 +131,7 @@ func _mouth_pos() -> Vector2:
 
 func _smoke_source() -> Vector2:
 	## The lounging pipe's bowl — where puffs and the great rings come from.
-	return _pipe_bowl(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE)
+	return _pipe_bowl(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE, true)
 
 func _olorin_foot() -> Vector2:
 	## Ground point under standing Olorin's feet.
@@ -195,9 +197,10 @@ func _draw() -> void:
 		_draw_pipe(smouth, -0.3, PIPE_SCALE, true)
 		_draw_small_puffs(_pipe_bowl(smouth, -0.3, PIPE_SCALE, true), _t)
 	elif _t < T_SNAP:
-		# Still standing; the pipe has dropped to the ground.
+		# Still standing; the pipe has dropped to the ground. Mirrored like the
+		# standing pipe it fell from, and like the lounge pipe it will become.
 		var facing := -1.0 if _t < T_TURN else 1.0  # turns around after the boy leaves
-		_draw_pipe(_pipe_ground_pos(), -0.12, PIPE_SCALE)
+		_draw_pipe(_pipe_ground_pos(), 0.12, PIPE_SCALE, true)
 		var scratching := _t >= T_TURN and _t < T_BUBBLE3_END
 		_draw_olorin_standing(_olorin_foot(), facing, scratching)
 	else:
@@ -219,10 +222,10 @@ func _draw() -> void:
 				var to := _mouth_pos()
 				var p := from.lerp(to, u)
 				p.y -= sin(u * PI) * 40.0  # gentle arc
-				_draw_pipe(p, lerpf(-0.12, PIPE_LOUNGE_ANGLE, u), PIPE_SCALE)
+				_draw_pipe(p, lerpf(0.12, PIPE_LOUNGE_ANGLE, u), PIPE_SCALE, true)
 				_draw_sparkle_trail(p, _t)
 			elif _t < T_LIE:
-				_draw_pipe(_pipe_ground_pos(), -0.12, PIPE_SCALE)
+				_draw_pipe(_pipe_ground_pos(), 0.12, PIPE_SCALE, true)
 			# Post-arrival idle puffs (after the big rings are out).
 			if _t > T_RING2 + 0.8:
 				_draw_small_puffs(_smoke_source(), _t)
@@ -359,7 +362,7 @@ func _draw_olorin_lounging(base: Vector2, pipe_in_hand: bool) -> void:
 	var feet := Vector2(base.x - 50.0, base.y - 36.0)
 	_draw_npc_frame(_olorin_tex, 0, ROW_W, feet, OLORIN_SCALE, deg_to_rad(58.0))
 	if pipe_in_hand:
-		_draw_pipe(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE)
+		_draw_pipe(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE, true)
 
 func _draw_olorin_standing(foot: Vector2, facing: float, scratching: bool) -> void:
 	## Standing wizard. facing: -1 looks left, +1 looks right. While pondering

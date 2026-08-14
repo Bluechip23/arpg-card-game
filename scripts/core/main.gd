@@ -72,6 +72,8 @@ var _fire_spots: Array = []      # Elemental Trail Blazers: {cell, tempo, damage
 var _bullet_casings: Array = []  # Chewbaccas Bandolier: {cell, tempo, damage, node}
 var _purge_cycle_accum: int = 0  # Horned Nasal Helm: cycles banked toward the next auto-purge
 var _wolves: Array = []          # Gauntlets of Dungeon Mastering: summoned wolves
+var _penguin = null              # Nine Ruins of Sanguine: the blood penguin (one at a time)
+const PenguinScript = preload("res://scripts/battle/sanguine_penguin.gd")
 const WolfScript = preload("res://scripts/battle/summoned_wolf.gd")
 var _smoke_zones: Array = []     # smoke bomb: {position, tempo}
 var _three_count_cd: int = 0     # Mits of Chingiz: cycles until 3 count can fire again
@@ -185,6 +187,8 @@ const TREE_CANOPY_Y := 2.0          # height the player rests at while up a tree
 const BEAR_TRAP_DAMAGE := 7         # to anything that steps on a sprung trap…
 const BEAR_TRAP_BEAR_DAMAGE := 10   # …but bears take extra
 const DART_TRAP_DAMAGE := 5         # hunters' tripwire dart volley
+const WEB_TRAP_DAMAGE := 5          # cave spiked spiderwebs (also snares)
+const WALL_DART_DAMAGE := 6         # building wall dart shooters
 var _climbed_tree_tile: Vector2i = Vector2i(-1, -1)  # tree the player is currently up, or (-1,-1)
 
 # Player 2 state
@@ -4580,7 +4584,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()
 	# Summons are ordinary units to enemy target selection
-	enemy_spawner.summons = _frankensteins + _summoned_worms + _wolves
+	enemy_spawner.summons = _frankensteins + _summoned_worms + _wolves \
+		+ ([_penguin] if (_penguin != null and is_instance_valid(_penguin)) else [])
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
 
@@ -4596,6 +4601,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_fire_spots(amount)
 	# Chewbaccas Bandolier: casings explode on contact or when their timer runs out.
 	_update_bullet_casings(amount)
+	# Sanguine the penguin waddles after the wielder and pecks on his own clock.
+	_update_penguin(amount)
 	# Wolves hunt on their own cadence; smoke clouds shelter then disperse.
 	_update_wolves(amount)
 	_update_smoke_zones(amount)
@@ -4806,6 +4813,7 @@ func _on_all_enemies_defeated() -> void:
 	_clear_frankensteins()
 	_clear_fire_spots()
 	_clear_bullet_casings()
+	_clear_penguin()
 	_clear_wolves()
 	_smoke_zones.clear()
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
@@ -4914,14 +4922,21 @@ func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
 	var kind: String = trap["kind"]
 	var dmg: int
 	var label: String
-	if kind == "bear":
-		dmg = BEAR_TRAP_DAMAGE
-		if not is_player and _is_bear(unit):
-			dmg = BEAR_TRAP_BEAR_DAMAGE
-		label = "bear trap"
-	else:
-		dmg = DART_TRAP_DAMAGE
-		label = "hunters' darts"
+	match kind:
+		"bear":
+			dmg = BEAR_TRAP_DAMAGE
+			if not is_player and _is_bear(unit):
+				dmg = BEAR_TRAP_BEAR_DAMAGE
+			label = "bear trap"
+		"web":
+			dmg = WEB_TRAP_DAMAGE
+			label = "spiked web"
+		"wall_dart":
+			dmg = WALL_DART_DAMAGE
+			label = "wall dart"
+		_:
+			dmg = DART_TRAP_DAMAGE
+			label = "hunters' darts"
 
 	if is_player:
 		var stats = player.get_stats()
@@ -4929,9 +4944,19 @@ func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
 			var dmgr = player.get_debuff_manager() if player.has_method("get_debuff_manager") else null
 			var bmgr = player.get_buff_manager() if player.has_method("get_buff_manager") else null
 			stats.take_damage(dmg, dmgr, bmgr)
+			# Spiked webs snare whoever blunders in.
+			if kind == "web" and dmgr:
+				dmgr.apply_debuff(Debuff.create_slowed(2, 10, "Spiked Web"))
 		add_battle_log("A %s snaps shut — %d damage!" % [label, dmg], Color(0.9, 0.5, 0.2))
 	elif is_instance_valid(unit):
+		# Hermes Boots: trap damage against enemies is amplified — the whole
+		# point of dancing them into the hazards.
+		var tstats = player.get_stats() if player else null
+		if tstats and tstats.equipment_trap_damage_percent > 0.0:
+			dmg = floori(dmg * (1.0 + tstats.equipment_trap_damage_percent / 100.0))
 		unit.take_damage(dmg, false)
+		if kind == "web" and unit.has_method("apply_debuff"):
+			unit.apply_debuff("root", 5)
 		add_battle_log("%s hits a %s for %d!" % [unit.enemy_name, label, dmg], Color(0.8, 0.7, 0.4))
 
 	_animate_trap_sprung(trap)
@@ -4944,11 +4969,19 @@ func _is_bear(enemy) -> bool:
 	return "Bear" in enemy.enemy_name
 
 func _animate_trap_sprung(trap: Dictionary) -> void:
-	## Visual feedback: bear traps darken (snapped shut); dart traps flash red.
+	## Visual feedback: bear traps darken (snapped shut), dart traps and wall
+	## shooters flash red, webs collapse to a torn grey.
 	var node = trap.get("node")
 	if not node or not is_instance_valid(node):
 		return
-	var tint = Color(0.35, 0.1, 0.1) if trap["kind"] == "dart" else Color(0.08, 0.08, 0.09)
+	var tint: Color
+	match trap["kind"]:
+		"dart", "wall_dart":
+			tint = Color(0.35, 0.1, 0.1)
+		"web":
+			tint = Color(0.30, 0.30, 0.32)
+		_:
+			tint = Color(0.08, 0.08, 0.09)
 	for child in node.get_children():
 		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
 			(child.material_override as StandardMaterial3D).albedo_color = tint
@@ -5229,6 +5262,13 @@ func _on_brain_draw_pressed() -> void:
 		deck_manager.draw_card()
 		add_battle_log("Insight! -%d brain, drew a card (next: %d)." % [
 			cost, stats.get_next_brain_draw_cost()], Color(0.85, 0.6, 0.9))
+		# Umbral Eclipse: brain-point draws restore flash.
+		if player and player.get_inventory():
+			for ue_w in player.get_inventory().equipped_weapons:
+				if ue_w and ue_w.insight_flash_restore > 0:
+					stats.gain_flash_points(ue_w.insight_flash_restore)
+					add_battle_log("%s: +%d flash" % [ue_w.item_name, ue_w.insight_flash_restore], Color(0.6, 0.6, 0.9))
+					break
 		update_peaked_display()
 		_update_brain_button()
 
@@ -5759,7 +5799,6 @@ func _on_apply_debuff(debuff_name: String) -> void:
 		"Linked (25)": debuff = Debuff.create(Debuff.DebuffType.LINKED, 25, 3)
 		"Clumsy (30)": debuff = Debuff.create(Debuff.DebuffType.CLUMSY, 30, 3)
 		"Vulnerable (25)": debuff = Debuff.create(Debuff.DebuffType.VULNERABLE, 25, 3)
-		"Exposed (50)": debuff = Debuff.create(Debuff.DebuffType.EXPOSED, 50, 3)
 		"Brittle (2)": debuff = Debuff.create(Debuff.DebuffType.BRITTLE, 2, 3)
 	if debuff and debuff_mgr:
 		debuff_mgr.apply_debuff(debuff)
@@ -7595,6 +7634,136 @@ func _clear_bullet_casings() -> void:
 	_bullet_casings.clear()
 
 # ============================================
+# SANGUINE THE PENGUIN (Nine Ruins of Sanguine)
+# ============================================
+
+func _summon_penguin() -> void:
+	if _penguin != null and is_instance_valid(_penguin):
+		return
+	if not grid_manager or not player:
+		return
+	var pcell: Vector2i = grid_manager.world_to_grid(player.position)
+	var spawn := pcell + Vector2i(1, 0)
+	for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var c: Vector2i = pcell + off
+		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+			spawn = c
+			break
+	var peng = PenguinScript.new()
+	add_child(peng)
+	peng.setup(grid_manager, grid_manager.grid_to_world(spawn))
+	# Every point Sanguine bleeds heals the wielder for half.
+	peng.hurt.connect(func(amount):
+		if player and player.get_stats() and amount > 0:
+			player.get_stats().heal(maxi(1, floori(amount / 2.0))))
+	peng.died.connect(func(p): _garmr_death_stack(p.position); _penguin = null)
+	_penguin = peng
+	add_battle_log("Sanguine the blood penguin waddles forth!", Color(0.9, 0.4, 0.4))
+
+## Per-tempo: Sanguine mimics the wielder — never straying more than a square —
+## and pecks a melee-range enemy every 5 tempo.
+func _update_penguin(amount: int) -> void:
+	if _penguin == null or not is_instance_valid(_penguin) or _penguin.is_dead:
+		return
+	if not grid_manager or not player:
+		return
+	var pcell: Vector2i = grid_manager.world_to_grid(player.position)
+	var mycell: Vector2i = _penguin.get_cell()
+	if absi(pcell.x - mycell.x) > 1 or absi(pcell.y - mycell.y) > 1:
+		var dest := pcell + Vector2i(1, 0)
+		for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+				Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+			var c: Vector2i = pcell + off
+			if not (c in player.blocked_tiles):
+				dest = c
+				break
+		_penguin.move_to_cell(dest)
+	_penguin.attack_accum += amount
+	if _penguin.attack_accum >= _penguin.ATTACK_INTERVAL and enemy_spawner:
+		_penguin.attack_accum = 0
+		var prey = _nearest_enemy_to(_penguin.position, enemy_spawner.get_living_enemies())
+		if prey and grid_manager.get_distance_in_cells(_penguin.position, prey.position) <= 1.5:
+			prey.take_damage(_penguin.BASE_ATTACK, false)
+			add_battle_log("Sanguine pecks %s for %d!" % [prey.enemy_name, _penguin.BASE_ATTACK], Color(0.9, 0.4, 0.4))
+
+func _clear_penguin() -> void:
+	if _penguin and is_instance_valid(_penguin):
+		_penguin.queue_free()
+	_penguin = null
+
+# ============================================
+# WEAPON CARD RIDERS (weapons pass 1) — generic post-resolution effects
+# ============================================
+
+func _weapon_post_card_effects(card: Card, target) -> void:
+	if card == null or not player or not deck_manager:
+		return
+	var stats = player.get_stats()
+	if stats == null:
+		return
+
+	# Hard Helmet (Construction Hammer): a utility play can trigger the instant.
+	if card.card_type == Card.CardType.UTILITY:
+		var hh = deck_manager.trigger_reactions("on_utility_played")
+		for hh_card in hh:
+			hh_card.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+			var hh_victim = _get_nearest_enemy()
+			if hh_victim:
+				hh_victim.take_damage(2, true)
+				add_battle_log("Hard Helmet clonks %s for 2!" % hh_victim.enemy_name, Color(0.8, 0.7, 0.4))
+
+	# Psionic Flow, attack mode: the strike hits harder and shoves.
+	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy:
+		var pf = deck_manager.trigger_reactions("psionic_flow")
+		for _pf_card in pf:
+			target.take_damage(8, true)
+			if target.has_method("knockback"):
+				target.knockback(player.position, 1)
+			add_battle_log("Psionic Flow: +8 damage, target shoved back!", Color(0.6, 0.7, 1.0))
+
+	# Poseidons Trident: the thrust continues through the target in a line.
+	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy \
+			and card.last_damage_dealt > 0 and grid_manager and enemy_spawner:
+		var pierce := 0
+		var pt_inv = player.get_inventory()
+		if pt_inv:
+			for pw in pt_inv.equipped_weapons:
+				if pw and pw.pierce_targets > 1:
+					pierce = pw.pierce_targets
+					break
+		if pierce > 1:
+			var dirv: Vector3 = target.position - player.position
+			var step := Vector2i(signi(roundi(dirv.x)), 0) if absf(dirv.x) >= absf(dirv.z) \
+				else Vector2i(0, signi(roundi(dirv.z)))
+			if step != Vector2i.ZERO:
+				var tcell: Vector2i = grid_manager.world_to_grid(target.position)
+				for i in range(1, pierce):
+					var c: Vector2i = tcell + step * i
+					for e in enemy_spawner.get_living_enemies():
+						if e != target and e and is_instance_valid(e) and grid_manager.world_to_grid(e.position) == c:
+							e.take_damage(card.last_damage_dealt, true)
+							add_battle_log("The trident runs %s through!" % e.enemy_name, Color(0.4, 0.7, 0.9))
+
+	# Nine Ruins of Sanguine: attacks build Vitality; the ninth calls the penguin.
+	if card.is_offensive():
+		var nr_inv = player.get_inventory()
+		if nr_inv:
+			for vw in nr_inv.equipped_weapons:
+				if vw and vw.vitality_weapon:
+					var penguin_alive: bool = _penguin != null and is_instance_valid(_penguin)
+					if not penguin_alive and vw.vitality_stacks < 9:
+						vw.vitality_stacks += 1
+						if vw.vitality_stacks >= 9:
+							vw.vitality_stacks = 0
+							var vt = deck_manager.trigger_reactions("on_vitality_9")
+							for vt_card in vt:
+								vt_card.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+							_summon_penguin()
+						else:
+							print("[MAIN] %s: Vitality %d/9" % [vw.item_name, vw.vitality_stacks])
+					break
+
+# ============================================
 # DEATH STACKS (Hide of Garmr Lv.3)
 # ============================================
 
@@ -7752,6 +7921,14 @@ func _on_armor_gained_spiked(amount: int) -> void:
 	var inv = player.get_inventory()
 	if not inv:
 		return
+	# Umbral Eclipse: every armor gain lashes out at an enemy in melee range.
+	for ue_w in inv.equipped_weapons:
+		if ue_w and ue_w.armor_gain_melee_damage > 0 and enemy_spawner and grid_manager:
+			var ue_victim = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			if ue_victim and grid_manager.get_distance_in_cells(player.position, ue_victim.position) <= 1.5:
+				ue_victim.take_damage(ue_w.armor_gain_melee_damage, true)
+				add_battle_log("%s: %d moonlit damage to %s" % [ue_w.item_name, ue_w.armor_gain_melee_damage, ue_victim.enemy_name], Color(0.6, 0.6, 0.9))
+			break
 	for g in inv.equipped_gauntlets:
 		if g and g.armor_gain_thorns_threshold > 0:
 			_spiked_armor_accum += amount
@@ -8134,6 +8311,9 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		var melee_range = 1.5
 		if card.has_reach:
 			melee_range += 1.0
+		# Spartan Spear: Reach while a shield is up.
+		if player and player.get_stats():
+			melee_range += float(player.get_stats().equipment_melee_reach)
 		melee_range += float(_helm_range_bonus(card))
 		# Crack of Mintaka: reach at targeting time is the hand — the most cards
 		# the player COULD discard; the post-discard check is authoritative.
@@ -8235,6 +8415,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 	# Chewbaccas Bandolier: any ranged offensive card ejects a casing.
 	_maybe_drop_bullet_casing(card)
+
+	# Weapon riders that watch every resolved card (weapons pass 1).
+	_weapon_post_card_effects(card, target)
 
 	# Mits of Chingiz "3 count": two offensive cards in a row add a Switch Kick
 	# to the hand (then a 20-tempo cooldown).
@@ -8574,6 +8757,45 @@ func _apply_card_world_effects(card: Card, target) -> void:
 					add_battle_log("Detonova! %d fire damage to %d enemies" % [dn_amount, dn_hit.size()], Color(1.0, 0.5, 0.1))
 				else:
 					add_battle_log("Detonova fizzles — nothing banked", Color(0.7, 0.6, 0.5))
+
+		"earth_rattle":
+			# Bessy: smash the ground — a quake around the impact tile.
+			var er_center: Vector3 = target.position if (target != null and is_instance_valid(target)) else grid_manager.snap_to_grid(mouse_pos)
+			var er_hit = enemy_spawner.get_enemies_in_radius(er_center, 3.0)
+			for er_en in er_hit:
+				if er_en and is_instance_valid(er_en):
+					er_en.take_damage(40, true)
+					if er_en.has_method("apply_debuff"):
+						er_en.apply_debuff("slow", 2)
+						er_en.apply_debuff("weaken", 2)
+			add_battle_log("Earth Rattle! %d enem%s quake — Slowed and Weakened" % [er_hit.size(), "y" if er_hit.size() == 1 else "ies"], Color(0.7, 0.5, 0.3))
+
+		"wrath_of_the_sea":
+			# Poseidons Trident: blink, then the sea bursts in a 4x4 around the
+			# landing — damage = the mana the card drank, through the STR pipeline.
+			var ws_pos = grid_manager.snap_to_grid(mouse_pos)
+			var ws_cell = grid_manager.world_to_grid(ws_pos)
+			if ws_cell in player.blocked_tiles:
+				add_battle_log("Wrath of the Sea: cannot land there!", Color(1.0, 0.4, 0.4))
+			else:
+				player.blink_to(ws_pos)
+				progression_triggers._trigger_skill_tree_on_displacement()
+				var ws_stats = player.get_stats()
+				var ws_dmg: int = ws_stats.get_effective_physical_damage(card.last_percent_mana_paid) if ws_stats else card.last_percent_mana_paid
+				var ws_lv3: bool = card.granted_by_item != null and card.granted_by_item.item_level >= 3
+				var ws_hits := 0
+				for ws_en in enemy_spawner.get_living_enemies():
+					if ws_en and is_instance_valid(ws_en):
+						var ws_ec: Vector2i = grid_manager.world_to_grid(ws_en.position)
+						if ws_ec.x >= ws_cell.x - 1 and ws_ec.x <= ws_cell.x + 2 \
+								and ws_ec.y >= ws_cell.y - 1 and ws_ec.y <= ws_cell.y + 2:
+							ws_en.take_damage(ws_dmg, true)
+							if is_instance_valid(ws_en) and ws_en.has_method("knockback"):
+								ws_en.knockback(ws_pos, 2)
+							ws_hits += 1
+				if ws_hits > 0 and ws_stats:
+					ws_stats.gain_mana((18 if ws_lv3 else 15) * ws_hits)
+				add_battle_log("Wrath of the Sea! %d damage to %d — the tide throws them back" % [ws_dmg, ws_hits], Color(0.3, 0.6, 0.9))
 
 		"god_of_thunder":
 			# Drain all shock from every enemy, then bolt the target for the total.
@@ -9700,7 +9922,6 @@ func _on_give_item(item_name: String) -> void:
 	
 	match item_name:
 		"Wooden Sword": item = ItemData.create_wooden_sword()
-		"Frost Orb": item = ItemData.create_frost_orb()
 		"Bladed Doughnut": item = ItemData.create_bladed_doughnut()
 		_:
 			# Any other item (all helms, etc.) resolves by name via factory discovery.
@@ -10832,6 +11053,41 @@ func _on_player_damage_taken(_amount: int) -> void:
 			if pa_triggered.size() > 0:
 				add_battle_log("Preemptive Answer! Debuffs purged, healed 20.", Color(0.9, 0.9, 0.6))
 				_refresh_unit_tracker()
+		# Hammer of Ajax: taking a hit below 30% health feeds the pain.
+		if pct < 0.3 and deck_manager:
+			var fitp = deck_manager.trigger_reactions("on_damage_taken_low")
+			for fitp_card in fitp:
+				fitp_card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+			if fitp.size() > 0:
+				_refresh_unit_tracker()
+		# Axe's Axe: five hits taken wind the Death Vortexes — every copy in
+		# hand spins at once; a copy that kills climbs back into the hand.
+		tr_stats.hit_streak = mini(5, tr_stats.hit_streak + 1)
+		if tr_stats.hit_streak >= 5 and deck_manager and enemy_spawner:
+			var vortexes = deck_manager.trigger_reactions("on_hit_streak_5")
+			if vortexes.size() > 0:
+				tr_stats.hit_streak = 0
+				for dv_card in vortexes:
+					var spun = enemy_spawner.get_enemies_in_radius(player.position, 1.5)
+					var dv_kills := 0
+					for dv_en in spun:
+						if dv_en and is_instance_valid(dv_en) and not dv_en.is_dead:
+							dv_en.take_damage(15, true)
+							if dv_en.is_dead:
+								dv_kills += 1
+					add_battle_log("Death Vortex! 15 damage to %d enem%s" % [spun.size(), "y" if spun.size() == 1 else "ies"], Color(0.9, 0.3, 0.3))
+					if dv_kills > 0 and deck_manager.discard_pile.has(dv_card):
+						deck_manager.discard_pile.erase(dv_card)
+						deck_manager.add_card_to_hand(dv_card)
+						add_battle_log("The Vortex returns to your hand!", Color(0.9, 0.5, 0.3))
+		# Psionic Flow, guard mode: an ally (self in solo) was struck within reach.
+		if deck_manager and tr_stats.last_attacker and is_instance_valid(tr_stats.last_attacker):
+			var pf_guard = deck_manager.trigger_reactions("psionic_flow")
+			for _pfg in pf_guard:
+				tr_stats.heal(8)
+				if tr_stats.last_attacker.has_method("knockback"):
+					tr_stats.last_attacker.knockback(player.position, 1)
+				add_battle_log("Psionic Flow guards: 8 restored, attacker shoved!", Color(0.6, 0.7, 1.0))
 		# Wooden Plank: the hit that drops you below half health starts a
 		# trickle of Regen.
 		if pct < 0.5 and prev_pct >= 0.5:

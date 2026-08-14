@@ -69,7 +69,6 @@ func _setup_dropdowns() -> void:
 	if item_dropdown:
 		item_dropdown.clear()
 		item_dropdown.add_item("Wooden Sword")
-		item_dropdown.add_item("Frost Orb")
 		item_dropdown.add_item("Bladed Doughnut")
 	if has_node("Panel/VBox/DebuffDropdown"):
 		var debuff_dropdown = $Panel/VBox/DebuffDropdown as OptionButton
@@ -99,7 +98,6 @@ func _setup_dropdowns() -> void:
 		debuff_dropdown.add_item("Linked (25)")
 		debuff_dropdown.add_item("Clumsy (30)")
 		debuff_dropdown.add_item("Vulnerable (25)")
-		debuff_dropdown.add_item("Exposed (50)")
 		debuff_dropdown.add_item("Brittle (2)")
 	if has_node("Panel/VBox/OverflowDropdown"):
 		var overflow_dropdown = $Panel/VBox/OverflowDropdown as OptionButton

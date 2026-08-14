@@ -192,7 +192,7 @@ static func create_stephen() -> CharacterData:
 		]},
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
-	data.slot_specialty = "Standard slots"
+	data.slot_specialty = "Weapon swaps cost 1 tempo; the weapon portion of a build switch is free"
 	data.sprite_path = "res://assets/characters/stephen_south.png"
 	return data
 
