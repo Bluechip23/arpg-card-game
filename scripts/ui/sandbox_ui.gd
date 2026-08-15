@@ -49,7 +49,7 @@ var _enemy_list: VBoxContainer = null
 var _item_type_dd: OptionButton = null
 var _item_list: VBoxContainer = null
 
-const ITEM_TYPE_ORDER := ["Helms", "Boots", "Gauntlets", "Weapons", "Quivers", "Other"]
+const ITEM_TYPE_ORDER := ["Helms", "Chests", "Belts", "Boots", "Gauntlets", "Weapons", "Quivers", "Rings", "Other"]
 var _ally_dd: OptionButton = null
 var _ally_btn: Button = null
 var _open: bool = false
@@ -295,10 +295,13 @@ func _refresh_item_list() -> void:
 		var bucket := "Other"
 		match it.item_type:
 			ItemData.ItemType.HELM: bucket = "Helms"
+			ItemData.ItemType.CHEST: bucket = "Chests"
+			ItemData.ItemType.BELT: bucket = "Belts"
 			ItemData.ItemType.BOOTS: bucket = "Boots"
 			ItemData.ItemType.GAUNTLETS: bucket = "Gauntlets"
 			ItemData.ItemType.WEAPON: bucket = "Weapons"
 			ItemData.ItemType.QUIVER: bucket = "Quivers"
+			ItemData.ItemType.RING: bucket = "Rings"
 		if bucket == want:
 			rows.append(it)
 	rows.sort_custom(func(a, b):
