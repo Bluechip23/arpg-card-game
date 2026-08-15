@@ -82,6 +82,18 @@ func spawn_enemy(type: Enemy.EnemyType, pos: Vector3) -> Enemy:
 	enemy_spawned.emit(enemy)
 	return enemy
 
+## Quietly remove an enemy WITHOUT killing it: no loot, no on-kill triggers,
+## no death animation (The Precious ring wraiths vanish when shadow form
+## ends). Since no died signal fires, the wave check is re-run here.
+func despawn_enemy(enemy: Enemy) -> void:
+	if enemy == null or not is_instance_valid(enemy):
+		return
+	enemies.erase(enemy)
+	enemy.queue_free()
+	if get_living_enemies().size() == 0:
+		all_enemies_defeated.emit()
+		print("[SPAWNER] All enemies defeated (last hostile vanished)")
+
 func clear_enemies() -> void:
 	for enemy in enemies:
 		if is_instance_valid(enemy):

@@ -5,6 +5,7 @@ extends Node
 
 signal debuff_applied(debuff: Debuff)
 signal debuff_removed(debuff: Debuff)
+signal debuff_expired(debuff: Debuff)  # NATURAL expiry only, never purges (mirrors the enemy-side signal)
 signal debuff_ticked(debuff: Debuff)
 signal debuffs_changed
 signal magnetize_pull(tiles: int, direction: Vector3)
@@ -236,6 +237,9 @@ func process_turn_end() -> void:
 		if debuff.debuff_type == Debuff.DebuffType.BURN:
 			burn_damage_next = 1
 		debuffs.erase(debuff)
+		# Natural expiry only — a purge goes through remove_debuff and never
+		# fires this. Marvolo's Misunderstanding detonates off it.
+		debuff_expired.emit(debuff)
 		debuff_removed.emit(debuff)
 		print("[DEBUFF] Expired: %s" % debuff.debuff_name)
 

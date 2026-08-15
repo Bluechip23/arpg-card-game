@@ -41,6 +41,7 @@ func _refresh_display() -> void:
 		var icon = BuffIconScene.instantiate() as BuffIconUI
 		add_child(icon)
 		icon.setup(buff)
+		icon.buff_manager = buff_manager  # ring pass: shadow-form badge is clickable
 
 	# Keep pinned controls at the front of the row.
 	for i in range(_pinned.size() - 1, -1, -1):

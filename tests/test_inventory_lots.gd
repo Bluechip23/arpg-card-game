@@ -24,7 +24,7 @@ func _initialize() -> void:
 	var expected := {
 		"Ryan":    {"helm": 1, "ring": 2, "belt": 2, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Brad":    {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
-		"Jeremy":  {"helm": 1, "ring": 4, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
+		"Jeremy":  {"helm": 1, "ring": 3, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Stephen": {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 1},
 		"Cory":    {"helm": 1, "ring": 2, "belt": 1, "chest": 1, "weapon": 2, "boots": 1, "gauntlets": 2},
 	}

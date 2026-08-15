@@ -81,6 +81,11 @@ const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
 var _spirit_bows: Array = []     # Bow of Budding Blasts: maintained spirit bow + budded turrets
 const SpiritBowScript = preload("res://scripts/battle/spirit_bow_summon.gd")
 var _mark_zones: Array = []      # Territorial Mark: {cells: Array[Vector2i], tempo, nodes}
+var _clones: Array = []          # Draupnir: duplicates of the bearer (live until killed — no battle-end cleanup)
+const CloneScript = preload("res://scripts/battle/summoned_clone.gd")
+var _wraiths: Array = []         # The Precious: the hostile hunters, on the field only during shadow form
+var _draupnir_spawn_frame: int = -1  # frame of the last clone spawn (Jeremy's doubled fire lands the same frame)
+var _harnessed_reentry: bool = false # guard: the Harnessed Sun's +2 burn must not amplify itself
 var _three_count_cd: int = 0     # Mits of Chingiz: cycles until 3 count can fire again
 var _offensive_streak: int = 0   # consecutive offensive cards played (3 count)
 var _cuffs_cycle_accum: int = 0  # Cuffs of Current: cycles banked toward the next free draw
@@ -1991,6 +1996,7 @@ func _on_attack_pressed() -> void:
 			debuff_mgr.on_attack()
 		add_battle_log("Basic Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
 		print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
+		_ring_note_big_hit(damage)
 	elif tempo_cost <= 0:
 		# Dex proc reduced tempo to 0: resolve immediately
 		if player.has_method("play_animation"):
@@ -2004,6 +2010,7 @@ func _on_attack_pressed() -> void:
 			debuff_mgr.on_attack()
 		add_battle_log("Basic Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
 		print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
+		_ring_note_big_hit(damage)
 	else:
 		# Queue basic attack through the ticked tempo system.
 		# Damage resolves on tick 1; remaining ticks are cooldown.
@@ -3609,6 +3616,13 @@ func select_character(character: CharacterData) -> void:
 	# Ring procs pop a ring icon over the owner's head (like the heal heart).
 	if player.get_inventory():
 		player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(player))
+	# Ring pass 1: bespoke ring procs, counters, and their world-side payloads.
+	if player.get_inventory():
+		player.get_inventory().custom_ring_fired.connect(_on_custom_ring_fired)
+	player.get_stats().marvolo_triggered.connect(_on_marvolo_triggered)
+	player.get_stats().shadow_form_ended.connect(_on_shadow_form_ended)
+	player.get_buff_manager().buff_applied.connect(_on_player_buff_applied_ring)
+	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
@@ -4590,7 +4604,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_sync_occupied_tiles()
 	# Summons are ordinary units to enemy target selection
 	enemy_spawner.summons = _frankensteins + _summoned_worms + _wolves \
-		+ _skeletons + _spirit_bows \
+		+ _skeletons + _spirit_bows + _clones \
 		+ ([_penguin] if (_penguin != null and is_instance_valid(_penguin)) else [])
 	# Each enemy manages its own action counter independently
 	enemy_spawner.on_tempo_advanced(amount)
@@ -4620,6 +4634,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_mark_zones(amount)
 	# Close is Favored: any enemy inside melee reach springs the trap.
 	_check_melee_range_reactions()
+	# Draupnir duplicates fight on their own cadence.
+	_update_clones(amount)
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
@@ -4700,6 +4716,18 @@ var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
 	progression_triggers._trigger_skill_tree_on_debuff_applied(enemy, debuff_name, value)
+	# Ring pass: feed the poison/burn accumulators and the Circlet checklist,
+	# then the Harnessed Sun amplifies burns (+2) — guarded so the bonus
+	# never amplifies itself (it still counts toward the 25-burn total).
+	if player and player.get_inventory():
+		player.get_inventory().on_player_debuff_applied(debuff_name, value)
+		if debuff_name == "burn" and not _harnessed_reentry:
+			for hs_r in player.get_inventory().equipped_rings:
+				if hs_r != null and hs_r.item_name == "Harnessed Sun":
+					_harnessed_reentry = true
+					enemy.apply_debuff("burn", 2)
+					_harnessed_reentry = false
+					break
 	# Stephen: Disarm Mastery — extra disarm stack (guarded against recursion)
 	if debuff_name == "disarmed" and not _disarm_mastery_applying:
 		_disarm_mastery_applying = true
@@ -4830,13 +4858,11 @@ func _on_all_enemies_defeated() -> void:
 	_clear_penguin()
 	_clear_wolves()
 	_smoke_zones.clear()
-	_clear_skeletons()
+	# Bone-arrow skeletons and Draupnir duplicates deliberately survive the
+	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
 	_clear_mark_zones()
-	# Wrist Rocket's banked crit is battle-scoped.
-	var pst = player.get_stats() if player else null
-	if pst:
-		pst.improvised_ammo_crit_bonus = 0.0
+	# (The Wrist Rocket's banked crit is cumulative — one journey, no resets.)
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
@@ -5763,7 +5789,7 @@ func _handle_on_discard_effect(card: Card) -> void:
 			var ia_stats = player.get_stats() if player else null
 			if ia_stats:
 				ia_stats.improvised_ammo_crit_bonus += 10.0
-				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit this battle." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
+				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit, forever." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
 			if enemy_spawner and player:
 				var ia_near = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 				if ia_near:
@@ -5793,6 +5819,9 @@ func _on_deck_shuffled() -> void:
 	_animate_shuffle()
 	# Cory: Circle of Life
 	progression_triggers._trigger_skill_tree_cory_on_shuffle()
+	# Ring of Thomas the Train Tracks rides every shuffle.
+	if player and player.get_inventory():
+		player.get_inventory().on_deck_shuffled()
 
 func _on_card_peaked(card: Card) -> void:
 	update_peaked_display()
@@ -7321,6 +7350,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		if card.slotted_in_item and bool(card.get_on_self_bonus().get("crit_bud_bow", false)):
 			_spawn_bud_bow()
 
+	# Cyclops Ring: hits of 25+ feed the counter — but never while a
+	# Strengthen is active, so the empowered hits can't feed the next round.
+	_ring_note_big_hit(card.last_damage_dealt)
+
 	# Apply world effects (knockback, movement, AOE)
 	_apply_card_world_effects(card, target)
 
@@ -8246,6 +8279,29 @@ func _check_melee_range_reactions() -> void:
 			deck_manager.discard_pile.erase(card)
 			deck_manager.card_erased.emit(card)
 
+## Colored slots (Mauls Sabre): the red slot's discard is a cost the player
+## pays on their own terms — one picker per card owed, chained. The picker
+## auto-resolves when only one candidate remains and the cost simply runs dry
+## with the hand, so an empty or thin hand never soft-locks the play.
+func _colored_slot_discard(card: Card) -> void:
+	if card.slotted_in_item == null:
+		return
+	var fx: Dictionary = card.slotted_in_item.get_slot_effect(card)
+	var owed: int = int(fx.get("discard", 0))
+	if owed <= 0:
+		return
+	_pick_slot_discard(owed, card.slotted_in_item.get_slot_color(card))
+
+func _pick_slot_discard(owed: int, color: String) -> void:
+	if owed <= 0 or deck_manager.hand.is_empty():
+		return
+	show_hand_card_picker("%s slot — discard which card? (%d to go)" % [color.capitalize(), owed],
+		func(picked):
+			if picked != null:
+				deck_manager.discard_card_from_hand(picked)
+				add_battle_log("Discarded %s to the %s slot." % [picked.card_name, color], Color(1.0, 0.5, 0.5))
+			_pick_slot_discard(owed - 1, color))
+
 ## Slotted-item riders that need the world (ranged pass 1): Belthronding's
 ## conjure, the Rapid Recurve's second shot, the Stringless Sender's bounce,
 ## and the Sack of Bone Arrows' kill-raised skeleton.
@@ -8295,6 +8351,266 @@ func _ranged_on_self_world_effects(card: Card, target) -> void:
 	if bool(osb.get("kill_summon_skeleton", false)) and card.is_offensive() \
 			and target != null and is_instance_valid(target) and "is_dead" in target and target.is_dead:
 		_spawn_bone_skeleton(maxi(1, floori(target.max_health / 2.0)), target.position)
+
+# ============================================
+# RING PASS: BESPOKE PROCS, SHADOW FORM, WRAITHS, CLONES
+# ============================================
+
+## Every bespoke ring proc lands here (Inventory counts; main executes).
+## Jeremy's doubled fire simply calls this twice.
+func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
+	var stats = player.get_stats()
+	var buff_mgr = player.get_buff_manager()
+	match kind:
+		"zap":
+			# Heal Stone / Gold Band / Emerald: 2 damage to a random enemy within 5.
+			var near: Array = []
+			for e in enemy_spawner.get_living_enemies():
+				if grid_manager.get_distance_in_cells(player.position, e.position) <= 5:
+					near.append(e)
+			if near.size() > 0:
+				var victim = near[randi() % near.size()]
+				victim.take_damage(value, true)
+				add_battle_log("%s sparks! %s takes %d." % [ring.item_name, victim.enemy_name, value], Color(0.9, 0.85, 0.5))
+		"stone_hide":
+			buff_mgr.apply_buff(Buff.create_resilient(value, 15, ring.item_name, DamageTypes.ALL))
+			add_battle_log("Stone skin! %d%% resistance to all damage for 15 tempo." % value, Color(0.7, 0.65, 0.55))
+		"cleanse_self":
+			buff_mgr.apply_buff(Buff.create_cleanse(value, ring.item_name))
+			add_battle_log("The Harnessed Sun burns a debuff away.", Color(1.0, 0.8, 0.3))
+		"captain_planet":
+			stats.heal(15)
+			for _d in range(3):
+				deck_manager.draw_card()
+			for cid in ["fireball", "rise"]:
+				var cp_card = deck_manager._create_card_from_id(cid)
+				if cp_card:
+					deck_manager.add_card_to_hand(cp_card)
+			add_battle_log("By your powers combined! Heal 15, draw 3, Fireball and Rise arrive.", Color(0.3, 0.8, 1.0))
+		"cyclops_strengthen":
+			buff_mgr.apply_buff(Buff.create_strengthen(value, 2, ring.item_name))
+			ring.ring_counters["empowered"] = 2  # the ring's own hits sit out of the counter
+			add_battle_log("The Cyclops Ring swells: Strengthen %d for 2 hits." % value, Color(1.0, 0.6, 0.4))
+		"thomas_regen":
+			buff_mgr.apply_buff(Buff.create_regen(value, 15, ring.item_name))
+			add_battle_log("The wheels turn: %d Regen." % value, Color(0.4, 0.75, 1.0))
+		"thomas_heal":
+			stats.heal(value)
+			add_battle_log("Right on schedule — heal %d." % value, Color(0.4, 0.75, 1.0))
+		"nibelung_curse":
+			_conjure_nibelung_curse(ring, value)
+		"shadow_form":
+			_enter_shadow_form(ring)
+		"draupnir_clone":
+			_spawn_draupnir_clone(ring)
+
+## The Nibelung Curse: one copy may exist across every zone; the L3 ring
+## multiplies the stored total by 1.5.
+func _conjure_nibelung_curse(ring: ItemData, total: int) -> void:
+	for zone in [deck_manager.hand, deck_manager.draw_pile, deck_manager.discard_pile, deck_manager.jail_pile]:
+		for c in zone:
+			if c.card_id == "the_nibelung_curse":
+				print("[MAIN] Nibelung Curse already exists — a new one is not made")
+				return
+	var cv: int = floori(total * (1.5 if ring.item_level >= 3 else 1.0))
+	var card = deck_manager._create_card_from_id("the_nibelung_curse")
+	if card == null:
+		return
+	card.set_meta("curse_value", cv)
+	card.description = "Target yourself to take %d healing, or an enemy to deal %d damage. Erased after use." % [cv, cv]
+	deck_manager.add_card_to_hand(card)
+	add_battle_log("The Nibelung Curse arrives, carrying %d." % cv, Color(0.9, 0.7, 0.3))
+
+## The Precious: enter shadow form and let the wraiths out. Surviving wraiths
+## return exactly as they were left (state kept on the ring); killed ones
+## come back fresh next time.
+func _enter_shadow_form(ring: ItemData) -> void:
+	var stats = player.get_stats()
+	if stats.shadow_form_tempo > 0:
+		return
+	stats.enter_shadow_form(tempo_manager.global_tempo)
+	player.get_buff_manager().apply_buff(Buff.create_invisible(10, "Shadow Form"))
+	_set_player_invisible(true)
+	add_battle_log("You slip into shadow form — and you are not alone here.", Color(0.6, 0.5, 0.85))
+	var count: int = 2 if ring.item_level >= 3 else 3
+	var stored: Array = ring.ring_counters.get("wraiths", [])
+	var player_cell = grid_manager.world_to_grid(player.position)
+	for i in range(count):
+		var cell := _random_free_cell_near(player_cell, 10)
+		var world = grid_manager.grid_to_world(cell)
+		if dungeon_manager:
+			world.y = dungeon_manager.get_elevation_world_y(cell)
+		var wraith = enemy_spawner.spawn_enemy(Enemy.EnemyType.RING_WRAITH, world)
+		if i < stored.size() and stored[i] is Dictionary:
+			var s: Dictionary = stored[i]
+			wraith.current_health = clampi(int(s.get("hp", wraith.max_health)), 1, wraith.max_health)
+			for k in ["burn_stacks", "cold_stacks", "poison_stacks", "shock_stacks",
+					"bleed_stacks", "weaken_stacks", "vulnerable_stacks", "slow_stacks"]:
+				wraith.set(k, int(s.get(k, 0)))
+			wraith._update_status_indicators()
+		_wraiths.append(wraith)
+	_refresh_unit_tracker()
+
+## Shadow form ended (expiry or badge click): the wraiths vanish, remembering
+## everything.
+func _on_shadow_form_ended() -> void:
+	var ring: ItemData = null
+	if player.get_inventory():
+		for r in player.get_inventory().equipped_rings:
+			if r != null and r.item_name == "The Precious":
+				ring = r
+				break
+	var stored: Array = []
+	for w in _wraiths:
+		if is_instance_valid(w) and w.is_alive():
+			var s: Dictionary = {"hp": w.current_health}
+			for k in ["burn_stacks", "cold_stacks", "poison_stacks", "shock_stacks",
+					"bleed_stacks", "weaken_stacks", "vulnerable_stacks", "slow_stacks"]:
+				s[k] = int(w.get(k))
+			stored.append(s)
+			enemy_spawner.despawn_enemy(w)
+	_wraiths.clear()
+	if ring:
+		ring.ring_counters["wraiths"] = stored
+	var bm = player.get_buff_manager()
+	if bm and bm.is_invisible():
+		bm.remove_buff(Buff.BuffType.INVISIBLE)
+	_set_player_invisible(false)
+	add_battle_log("The shadow lifts. The wraiths withdraw — for now.", Color(0.6, 0.5, 0.85))
+	_refresh_unit_tracker()
+
+## A random unoccupied cell within `radius` squares (falls back to beside the
+## anchor when the shadow is crowded).
+func _random_free_cell_near(anchor: Vector2i, radius: int) -> Vector2i:
+	for _try in range(40):
+		var off := Vector2i(randi_range(-radius, radius), randi_range(-radius, radius))
+		if off == Vector2i.ZERO:
+			continue
+		var c := anchor + off
+		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+			return c
+	return anchor + Vector2i(1, 1)
+
+## Draupnir: drip a duplicate of the bearer. Normally blocked while one
+## walks; the one exception is Jeremy's doubled fire, which lands on the same
+## frame as the first and is allowed through.
+func _spawn_draupnir_clone(ring: ItemData) -> void:
+	var stats = player.get_stats()
+	if stats.draupnir_clone_alive and Engine.get_process_frames() != _draupnir_spawn_frame:
+		return
+	var player_cell = grid_manager.world_to_grid(player.position)
+	var spawn_cell = player_cell + Vector2i(1, 0)
+	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1), Vector2i(1,1), Vector2i(-1,-1)]:
+		var c = player_cell + off
+		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+			spawn_cell = c
+			break
+	var hp: int = maxi(1, floori(stats.max_health * (0.5 if ring.item_level >= 3 else 0.25)))
+	var clone = CloneScript.new()
+	add_child(clone)
+	clone.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp)
+	clone.died.connect(func(c):
+		_garmr_death_stack(c.position)
+		_clones.erase(c)
+		var st = player.get_stats()
+		if st:
+			st.draupnir_clone_alive = _clones.size() > 0
+			player.get_buff_manager().apply_buff(Buff.create_strengthen(10, 2, "Draupnir"))
+			add_battle_log("The duplicate shatters — Strengthen 10 for 2 attacks.", Color(0.9, 0.8, 0.4)))
+	_clones.append(clone)
+	stats.draupnir_clone_alive = true
+	_draupnir_spawn_frame = Engine.get_process_frames()
+	add_battle_log("Draupnir drips — a duplicate of you steps out (%d HP)." % hp, Color(0.9, 0.8, 0.4))
+
+## Per-tempo clone AI: 2 tiles per 3 tempo toward the nearest enemy; swings
+## every 7 tempo for a fraction of the bearer's basic attack, computed at the
+## moment it lands. Its swings feed the bearer's attack-speed counter.
+func _update_clones(amount: int) -> void:
+	if _clones.is_empty():
+		return
+	_clones = _clones.filter(func(c): return is_instance_valid(c) and not c.is_dead)
+	if not grid_manager or not enemy_spawner:
+		return
+	var stats = player.get_stats()
+	var dmg_frac := 0.5
+	if player.get_inventory():
+		for r in player.get_inventory().equipped_rings:
+			if r != null and r.item_name == "Draupnir" and r.item_level >= 3:
+				dmg_frac = 0.75
+	var enemies = enemy_spawner.get_living_enemies()
+	var blocked = player.blocked_tiles
+	var clone_cells: Array = []
+	for c in _clones:
+		clone_cells.append(c.get_cell())
+	for c in _clones.duplicate():
+		if not is_instance_valid(c) or c.is_dead:
+			continue
+		var target_enemy = _nearest_enemy_to(c.position, enemies)
+		if target_enemy == null:
+			continue
+		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		c.attack_accum += amount
+		if _manhattan(c.get_cell(), tcell) <= 1:
+			if c.attack_accum >= c.ATTACK_INTERVAL:
+				c.attack_accum -= c.ATTACK_INTERVAL
+				var dmg: int = maxi(1, floori(stats.get_basic_attack_damage() * dmg_frac))
+				target_enemy.take_damage(dmg, true)
+				stats.register_attack(false)  # the echo advances the DEX counter, nothing else
+				add_battle_log("Your duplicate strikes %s for %d!" % [target_enemy.enemy_name, dmg], Color(0.9, 0.8, 0.4))
+				_belthronding_share(c.position, dmg)
+			continue
+		c.move_accum += amount
+		if c.move_accum >= c.MOVE_INTERVAL:
+			c.move_accum -= c.MOVE_INTERVAL
+			var cur = c.get_cell()
+			clone_cells.erase(cur)
+			for _step in range(c.MOVE_STEPS):
+				var tc = grid_manager.world_to_grid(target_enemy.position)
+				if _manhattan(cur, tc) <= 1:
+					break
+				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), clone_cells)
+				if nxt == cur:
+					break
+				cur = nxt
+			clone_cells.append(cur)
+			if cur != c.get_cell():
+				c.move_to_cell(cur)
+	_clones = _clones.filter(func(c): return is_instance_valid(c) and not c.is_dead)
+	if stats:
+		stats.draupnir_clone_alive = _clones.size() > 0
+
+## Marvolo Gaunt just saved the bearer — now the ring misunderstands. The
+## debuff is real and purgeable; only NATURAL expiry detonates it.
+func _on_marvolo_triggered() -> void:
+	var dm = player.get_debuff_manager()
+	if dm:
+		dm.apply_debuff(Debuff.create_generic("Marvolo's Misunderstanding",
+			"The ring's gift, misunderstood: take 25 damage when this expires — unless it is purged first.",
+			25, 7, "Marvolo Gaunt"))
+	add_battle_log("Marvolo Gaunt refuses your death — but the ring misunderstands.", Color(0.7, 0.9, 0.5))
+
+func _on_player_debuff_expired(debuff: Debuff) -> void:
+	if debuff.debuff_type == Debuff.DebuffType.GENERIC and debuff.source_name == "Marvolo Gaunt":
+		player.get_stats().take_direct_damage(debuff.value)
+		add_battle_log("Marvolo's Misunderstanding lands: %d damage." % debuff.value, Color(0.9, 0.4, 0.4))
+
+func _on_player_buff_applied_ring(buff: Buff) -> void:
+	if player and player.get_inventory():
+		player.get_inventory().on_player_buff_applied(buff.buff_type)
+
+## Cyclops Ring: a single player hit of 25+ counts. Only the ring's OWN two
+## empowered hits are excluded — a Strengthen from any other source counts
+## fine. The exclusion is tracked as a 2-hit counter set when the ring fires.
+func _ring_note_big_hit(damage: int) -> void:
+	if damage <= 0 or player == null or player.get_inventory() == null:
+		return
+	for r in player.get_inventory().equipped_rings:
+		if r != null and r.item_name == "Cyclops Ring" and int(r.ring_counters.get("empowered", 0)) > 0:
+			r.ring_counters["empowered"] = int(r.ring_counters["empowered"]) - 1
+			return
+	if damage < 25:
+		return
+	player.get_inventory().on_player_big_hit()
 
 # ============================================
 # SMOKE ZONES (smoke bomb) & GAUNTLET TRIGGERS
@@ -8841,6 +9157,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	# Slotted-item riders that need the world (ranged pass 1).
 	_ranged_on_self_world_effects(card, target)
 
+	# Colored slots (Mauls Sabre): the red slot's discard cost, player-chosen.
+	_colored_slot_discard(card)
+
 	# Mits of Chingiz "3 count": two offensive cards in a row add a Switch Kick
 	# to the hand (then a 20-tempo cooldown).
 	if card.is_offensive():
@@ -9336,6 +9655,35 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"spirit_bow":
 			_summon_spirit_bow()
+
+		"tricks_of_alberich":
+			# Ring of Nibelung: taunt 4 squares; profit from every enemy caught.
+			var toa_caught = enemy_spawner.get_enemies_in_radius(player.position, 4.0)
+			for te in toa_caught:
+				if te.has_method("apply_taunt"):
+					te.apply_taunt(player, 1)  # 1 cycle = the spec's 5 tempo
+			var toa_stats = player.get_stats()
+			var toa_bm = player.get_buff_manager()
+			if toa_bm:
+				toa_bm.apply_buff(Buff.create_might(10, 5, "Tricks of Alberich"))
+			if toa_stats and toa_caught.size() > 0:
+				toa_stats.add_armor(4 * toa_caught.size())
+			if toa_bm and toa_caught.size() > 0:
+				toa_bm.apply_buff(Buff.create_regen(2 * toa_caught.size(), 15, "Tricks of Alberich"))
+			add_battle_log("Tricks of Alberich! %d enem%s taunted — +10 STR, +%d armor, %d Regen." % [
+				toa_caught.size(), "y" if toa_caught.size() == 1 else "ies",
+				4 * toa_caught.size(), 2 * toa_caught.size()], Color(0.9, 0.7, 0.3))
+
+		"the_nibelung_curse":
+			# The stored total goes wherever it's pointed: an enemy takes it as
+			# damage; yourself (or no valid enemy target) takes it as healing.
+			var nc_value: int = int(card.get_meta("curse_value", 0))
+			if target != null and is_instance_valid(target) and target is Enemy:
+				target.take_damage(nc_value, true)
+				add_battle_log("The Nibelung Curse strikes %s for %d!" % [target.enemy_name, nc_value], Color(0.9, 0.7, 0.3))
+			else:
+				player.get_stats().heal(nc_value)
+				add_battle_log("You embrace the Nibelung Curse: heal %d." % nc_value, Color(0.9, 0.7, 0.3))
 
 		"worms_armageddon":
 			# Rain meteors: stat-scaled damage (matching the card face) to every

@@ -545,6 +545,18 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	if card.is_fire_spell:
 		fire_spells_this_turn += 1
 
+	# Colored slots (Mauls Sabre): capture what preceded this play for the
+	# card's combo checks, then record this play. Any unrelated play breaks
+	# the chain — "immediately after" means immediately.
+	if inventory:
+		for cw in inventory.equipped_weapons:
+			if cw != null and cw.slot_colors.size() > 0:
+				if card.slotted_in_item == cw:
+					card.set_meta("combo_prev_color", cw.last_color_played)
+					cw.last_color_played = cw.get_slot_color(card)
+				else:
+					cw.last_color_played = ""
+
 	var was_half_tempo = next_attack_half_tempo and card.card_type == Card.CardType.ATTACK
 
 	# Only consume proc bonus when an attack card is played

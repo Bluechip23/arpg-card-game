@@ -792,6 +792,65 @@ def bow_of_budding_blasts():
     return c
 
 
+def _ring_band(c, cx=15, cy=17, outer=9, inner=5, mat="gold"):
+    ## Shared ring silhouette: a band drawn as an ellipse with a carved hole,
+    ## slightly squashed so it reads as a ring lying toward the viewer.
+    c.stamp(_ellipse_mask((cx - outer, cy - outer + 2, cx + outer, cy + outer)), mat)
+    c.carve(_ellipse_mask((cx - inner, cy - inner + 3, cx + inner, cy + inner - 1)))
+
+
+def the_precious():
+    ## The One Ring: plain gold, the elvish script glowing faintly around the
+    ## band. It looks like nothing much. That is the point.
+    c = Canvas()
+    _ring_band(c, 15, 16, 10, 6, "gold")
+    # The fire-script, tracing the outer band.
+    for (sx, sy) in ((9, 10), (13, 8), (18, 8), (22, 11), (24, 16), (22, 21),
+                     (17, 24), (11, 23), (7, 18)):
+        c.dot(sx, sy, "blood", "hi")
+    return c
+
+
+def draupnir():
+    ## Draupnir: the Viking arm-ring that drips new rings — three small bands
+    ## falling from the great one.
+    c = Canvas()
+    _ring_band(c, 15, 12, 8, 4, "gold")
+    # The dripping child-rings.
+    for (rx, ry) in ((6, 24), (15, 27), (24, 24)):
+        c.stamp(_ellipse_mask((rx - 3, ry - 3, rx + 3, ry + 3)), "gold")
+        c.carve(_ellipse_mask((rx - 1, ry - 1, rx + 1, ry + 1)))
+    return c
+
+
+def ring_of_nibelung():
+    ## The Ring of the Nibelung: a plain band forged from Rhine-gold,
+    ## Alberich's curse gleaming red in its heart.
+    c = Canvas()
+    _ring_band(c, 15, 16, 10, 6, "gold")
+    # The curse: a red gleam seated at the band's crown.
+    c.ellipse((12, 5, 18, 10), "blood")
+    c.dot(14, 6, "blood", "hi")
+    return c
+
+
+def ring_of_thomas_the_train_tracks():
+    ## A ring whose band is laid track — sleepers across the rails — crowned
+    ## not with a diamond but with that famous round blue face.
+    c = Canvas()
+    _ring_band(c, 15, 18, 9, 5, "iron")
+    # Sleepers: little rungs across the band.
+    for (tx, ty) in ((7, 15), (9, 22), (15, 25), (21, 22), (23, 15)):
+        c.rect((tx - 1, ty - 1, tx + 1, ty + 1), "wood")
+    # The face where the stone should be: blue roundel, coal-smudge smile.
+    c.ellipse((10, 2, 20, 12), "cloth")
+    c.ellipse((12, 4, 18, 10), "bone")
+    c.dot(13, 6, "dark", "sh")
+    c.dot(17, 6, "dark", "sh")
+    c.line([(13, 9), (17, 9)], "dark", "sh")
+    return c
+
+
 ICONS = {
     "bladed_doughnut": bladed_doughnut,
     "the_headbandz": the_headbandz,
@@ -821,6 +880,10 @@ ICONS = {
     "bow_of_arash": bow_of_arash,
     "belthronding": belthronding,
     "bow_of_budding_blasts": bow_of_budding_blasts,
+    "the_precious": the_precious,
+    "draupnir": draupnir,
+    "ring_of_nibelung": ring_of_nibelung,
+    "ring_of_thomas_the_train_tracks": ring_of_thomas_the_train_tracks,
 }
 
 
