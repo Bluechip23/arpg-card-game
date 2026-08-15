@@ -144,7 +144,10 @@ func process_turn_start() -> Dictionary:
 	# Apply effects
 	if owner_stats:
 		if result["health_gained"] > 0:
+			# Regen ticks are not "actual heals" — ring heal counters skip them.
+			owner_stats._passive_heal = true
 			owner_stats.heal(result["health_gained"])
+			owner_stats._passive_heal = false
 		if result["mana_gained"] > 0:
 			owner_stats.gain_mana(result["mana_gained"])
 		if result["armor_gained"] > 0:

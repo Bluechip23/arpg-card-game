@@ -767,7 +767,7 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			description = "Allies near you are healed 3 health every 5 tempo",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 4, slot = 2, archetype = "Poltergeist", name = "Tricks of Death",
-			description = "Increase all % chances by 10",
+			description = "Increase all % chances on your CARDS by 10 (item procs like the Stringless Sender's bounce are unaffected)",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 5, slot = 3, archetype = "Abjurer", name = "A Mage's Favor",
 			description = "When a card rerolls to a different outcome in your hand, put a Magic Barrier in your hand. 0m/0t Instant: when targeted by an enemy attack, gain 8 armor. Only triggers once per reroll batch.",

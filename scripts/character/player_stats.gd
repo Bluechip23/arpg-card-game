@@ -227,6 +227,7 @@ var shadow_form_tempo: int = 0                    # The Precious: raw tempo rema
 var shadow_form_entered_at: int = 0               # global tempo when the form began (must spend >= 1 tempo inside)
 var _shadow_mana_stash: int = 0                   # max mana withheld while in shadow form, restored on exit
 var draupnir_clone_alive: bool = false            # Draupnir: a duplicate walks (main keeps this current); the ring waits while true
+var _passive_heal: bool = false                   # transient: this heal is regen/lifesteal — ring heal counters ignore it (actual heals only)
 signal marvolo_triggered                          # Marvolo Gaunt's lethal save just fired (main applies the Misunderstanding)
 signal shadow_form_ended                          # shadow form just ended (expiry or toggle) — main hides the wraiths
 var last_attack_target = null                     # Sabre Tooth: previous attack's target
@@ -1577,12 +1578,11 @@ func _pay_whispers_cost() -> void:
 		print("[STATS] Shepherd's Mark cost: 8 HP (non-lethal, self-cast).")
 
 func take_direct_damage(amount: int) -> void:
-	## Deal damage directly to HP, bypassing armor entirely.
+	## Deal damage directly to HP, bypassing armor entirely. Deliberately NOT
+	## blocked by Marvolo's invulnerability: this path carries self-paid costs
+	## (card health costs, the Bow of Arash's life half, Shepherd's cost, the
+	## Misunderstanding itself) — the ring's grace stops enemies, not bills.
 	if amount <= 0:
-		return
-	# Marvolo Gaunt: the ring's grace holds against direct damage too.
-	if invulnerable_tempo > 0:
-		print("[STATS] Invulnerable — %d direct damage ignored" % amount)
 		return
 	var old_pct = get_health_percent()
 	current_health = max(0, current_health - amount)
@@ -1676,7 +1676,10 @@ func heal(amount: int, from_ally: bool = false) -> void:
 		stats_updated.emit()
 
 	if actual_heal > 0 and inventory:
-		inventory.on_healed(actual_heal)
+		# Ring counters (Heal Stone, Nibelung) count ACTUAL heals only —
+		# regen ticks and lifesteal pass 0 so the trigger still fires but the
+		# counters stand still.
+		inventory.on_healed(0 if _passive_heal else actual_heal)
 
 func apply_life_steal(amount: int) -> void:
 	## Single funnel for all life-steal healing (buff, skill-tree passive, sphere
@@ -1688,7 +1691,10 @@ func apply_life_steal(amount: int) -> void:
 		add_temp_health(amount, CONVERSION_TEMP_HP_TEMPO)
 		print("[STATS] Sanguine Barrier: %d life steal became temp HP" % amount)
 	else:
+		# Lifesteal is not an "actual heal" — ring heal counters skip it.
+		_passive_heal = true
 		heal(amount)
+		_passive_heal = false
 
 func add_armor(amount: int) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
