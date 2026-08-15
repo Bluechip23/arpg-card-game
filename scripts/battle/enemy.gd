@@ -27,7 +27,10 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# Underworld act (design mock-ups — stats & moves TBD)
 	CERBERUS, SUCCUBUS, DEMON, IFRIT, MIND_EATER, SPECTER, MAGMA_SPIDER, PIT_FIEND, ASH_HARPY, INFLAMED_MINOTAUR,
 	# Heavens act (design mock-ups — stats & moves TBD)
-	CHERUB, DJINN, CORRUPTED_ARCHANGEL }
+	CHERUB, DJINN, CORRUPTED_ARCHANGEL,
+	# The Precious (ring pass 1): hostile hunters that appear in shadow form.
+	# Appended at the tail — enum order is save-compat-sensitive.
+	RING_WRAITH }
 
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
@@ -96,6 +99,7 @@ var disarmed_attacks: int = 0    # Disarm-for-N-attacks (Switch Kick): skip that
 var narashimha_tempo: int = 0    # Narashimha (Mane of Narashimha): cycles the heal cap holds for
 var narashimha_heal_cap: int = -1  # health ceiling while active — the NMnB damage cannot be healed back (-1 = unset)
 # Ranged pass (Cupids Bow / Bow of Arash)
+var ignores_invisibility: bool = false  # Ring wraiths: act even when the player is invisible/shadow-formed
 var fear_source: Node3D = null   # Feared (Lead arrow): run AWAY from this node while it lasts
 var fear_tempo: int = 0          # Remaining tempo cycles for fear
 var cupid_golden: bool = false   # Struck by Cupids golden arrow — half the tree condition
@@ -232,6 +236,17 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			move_distance = 0.5
 			xp_reward = 25
 			_set_mesh_color(Color(0.4, 0.0, 0.2))
+
+		EnemyType.RING_WRAITH:
+			# The Precious: hunts the ring-bearer through the shadow world.
+			# Shadow form does not hide the player from these.
+			enemy_name = "Ring Wraith"
+			max_health = 100
+			attack_damage = 15
+			move_distance = 5.0
+			xp_reward = 0  # they resummon — no farming the shadow
+			ignores_invisibility = true
+			_set_mesh_color(Color(0.12, 0.1, 0.18))
 
 		EnemyType.WERERAT:
 			enemy_name = "Wererat"
@@ -728,6 +743,11 @@ func _setup_actions() -> void:
 			actions = [
 				{"name": "attack", "tempo_cost": 3},
 				{"name": "move",   "tempo_cost": 5},
+			]
+		EnemyType.RING_WRAITH:
+			actions = [
+				{"name": "attack", "tempo_cost": 2},
+				{"name": "move",   "tempo_cost": 4},
 			]
 		EnemyType.ELITE:
 			actions = [
@@ -1533,8 +1553,8 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 	if tree_tempo > 0:
 		return  # A tree does not act.
 
-	# Skip actions if player is invisible
-	if player_node.has_method("get_buff_manager"):
+	# Skip actions if player is invisible (ring wraiths see through everything)
+	if not ignores_invisibility and player_node.has_method("get_buff_manager"):
 		var p_buff_mgr = player_node.get_buff_manager()
 		if p_buff_mgr and p_buff_mgr.is_invisible():
 			return

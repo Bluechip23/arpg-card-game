@@ -129,6 +129,8 @@ const CARD_RARITIES := {
 	"cupids_golden_arrow": Rarity.LEGENDARY, "cupids_lead_arrow": Rarity.LEGENDARY,
 	"territorial_mark": Rarity.MYTHIC, "balistic_arrow": Rarity.MYTHIC,
 	"close_is_favored": Rarity.MYTHIC, "spirit_bow": Rarity.MYTHIC,
+	# Ring-granted (rings pass 1)
+	"tricks_of_alberich": Rarity.MYTHIC, "the_nibelung_curse": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -159,6 +161,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"improvised_ammo": true, "cupids_golden_arrow": true, "cupids_lead_arrow": true,
 	"territorial_mark": true, "balistic_arrow": true, "close_is_favored": true,
 	"spirit_bow": true,
+	"tricks_of_alberich": true, "the_nibelung_curse": true,
 }
 
 @export var card_id: String = "slash"
@@ -7007,6 +7010,47 @@ static func create_spirit_bow() -> Card:
 	card.base_damage = 0
 	card.maintain_cost = 65  # Maintain reserve always equals the card's mana cost
 	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+# ============================================
+# ITEM-GRANTED CARDS (rings pass 1)
+# ============================================
+
+static func create_tricks_of_alberich() -> Card:
+	## Ring of Nibelung. The dwarf-king's bargain: all eyes on you, and you
+	## profit from every gaze.
+	var card = Card.new()
+	card.card_id = "tricks_of_alberich"
+	card.card_name = "Tricks of Alberich"
+	card.description = "Taunt enemies in a 4-square radius. Gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 50
+	card.tempo_cost = 6
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_the_nibelung_curse() -> Card:
+	## Ring of Nibelung. Five heals charge it; the card carries their summed
+	## total in the "curse_value" meta — take it as healing, or give it as
+	## damage. Only one may exist at a time.
+	var card = Card.new()
+	card.card_id = "the_nibelung_curse"
+	card.card_name = "The Nibelung Curse"
+	card.description = "Target yourself to take the stored healing, or an enemy to deal it as damage. Erased after use."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 70
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.is_ranged = true
+	card.target_types = ["enemy", "self"]
+	card.erase_on_play = true
 	card.shop_excluded = true
 	return card
 

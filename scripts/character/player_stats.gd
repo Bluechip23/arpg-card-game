@@ -221,6 +221,14 @@ var pending_wrath_percent: int = 0                # Purge Wrath: next attack's %
 # Ranged pass
 var improvised_ammo_crit_bonus: float = 0.0       # Wrist Rocket: +% crit on Improvised Ammo, banked by discards; battle-scoped
 var bow_instance_count: int = 0                   # Bow of Budding Blasts: living bow summons (main keeps this current)
+# Ring pass
+var invulnerable_tempo: int = 0                   # Marvolo Gaunt: raw tempo of full damage immunity (ticks in process_tempo)
+var shadow_form_tempo: int = 0                    # The Precious: raw tempo remaining in shadow form (0 = not in it)
+var shadow_form_entered_at: int = 0               # global tempo when the form began (must spend >= 1 tempo inside)
+var _shadow_mana_stash: int = 0                   # max mana withheld while in shadow form, restored on exit
+var draupnir_clone_alive: bool = false            # Draupnir: a duplicate walks (main keeps this current); the ring waits while true
+signal marvolo_triggered                          # Marvolo Gaunt's lethal save just fired (main applies the Misunderstanding)
+signal shadow_form_ended                          # shadow form just ended (expiry or toggle) — main hides the wraiths
 var last_attack_target = null                     # Sabre Tooth: previous attack's target
 var hit_streak: int = 0                           # Axe's Axe: hits taken toward the Death Vortex trigger
 
@@ -1235,6 +1243,13 @@ func get_effective_heal_amount(base_heal: int) -> int:
 
 ## Called every global tempo advance. Handles mana regen on its own interval.
 func process_tempo(amount: int) -> void:
+	# Ring pass timers run on raw tempo.
+	if invulnerable_tempo > 0:
+		invulnerable_tempo = max(0, invulnerable_tempo - amount)
+	if shadow_form_tempo > 0:
+		shadow_form_tempo = max(0, shadow_form_tempo - amount)
+		if shadow_form_tempo <= 0:
+			exit_shadow_form()
 	_tempo_until_mana_regen -= float(amount)
 	if _tempo_until_mana_regen <= 0.0:
 		_tempo_until_mana_regen += mana_regen_tempo_interval
@@ -1312,6 +1327,10 @@ func add_damage_resistance(damage_type: int, percent: float) -> void:
 	damage_resistances[damage_type] = get_damage_resistance(damage_type) + percent
 
 func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: int = DamageTypes.Type.PHYSICAL) -> void:
+	# Marvolo Gaunt: nothing touches you while the ring's grace holds.
+	if invulnerable_tempo > 0:
+		print("[STATS] Invulnerable — %d damage ignored" % amount)
+		return
 	# Friendship: split incoming damage 50/50 (pre-modifier). The partner takes
 	# its half through its own debuff/buff managers; we keep the remainder.
 	if friendship_partner and not _friendship_echo and amount > 1:
@@ -1482,12 +1501,66 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		shepherds_mark_triggered.emit()
 		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor.")
 
+	# Marvolo Gaunt: a lethal blow leaves you at 1 instead. Deliberately AFTER
+	# Shepherd's Mark, so the mark wins the race and the ring's 50-tempo
+	# cooldown isn't burned when the mark would have saved you anyway.
+	_try_marvolo_save()
+
 	if current_health <= 0:
 		died.emit()
 
 	# Blood Libation: gain a Sanguine stack whenever Jeremy takes damage.
 	if has_skill_tree_passive("blood_libation"):
 		sanguine_stacks = min(5, sanguine_stacks + 1)
+
+## Marvolo Gaunt: if lethal damage just landed and the ring is equipped and
+## off cooldown, survive at 1 HP, become untouchable for 3 tempo, and heal 25.
+## The ring then misunderstands: main applies the purgeable 25-damage-in-7
+## debuff off the marvolo_triggered signal (the debuff manager isn't
+## reachable from here).
+func _try_marvolo_save() -> void:
+	if current_health > 0 or inventory == null:
+		return
+	for r in inventory.equipped_rings:
+		if r != null and r.item_name == "Marvolo Gaunt" and int(r.ring_counters.get("cd", 0)) <= 0:
+			r.ring_counters["cd"] = 50  # tempo
+			current_health = 1
+			invulnerable_tempo = 3
+			health_changed.emit(current_health, max_health)
+			heal(25)
+			marvolo_triggered.emit()
+			print("[STATS] Marvolo Gaunt: saved at 1 HP — invulnerable 3 tempo, healed 25. The ring misunderstands.")
+			return
+
+## The Precious: enter shadow form. Halves the max mana pool (restored on
+## exit) and grants 10 brain + 10 flash points that may exceed their caps.
+func enter_shadow_form(global_tempo_now: int) -> void:
+	if shadow_form_tempo > 0:
+		return
+	shadow_form_tempo = 10
+	shadow_form_entered_at = global_tempo_now
+	_shadow_mana_stash = max_mana - floori(max_mana / 2.0)
+	max_mana -= _shadow_mana_stash
+	current_mana = min(current_mana, max_mana)
+	mana_changed.emit(current_mana, max_mana)
+	# Deliberately uncapped — the shadow gives generously, beyond the maxima.
+	current_brain_points += 10
+	brain_points_changed.emit(current_brain_points, get_max_brain_points())
+	current_flash_points += 10
+	flash_points_changed.emit(current_flash_points, get_max_flash_points())
+	stats_updated.emit()
+	print("[STATS] Shadow form: mana halved (-%d), +10 brain, +10 flash." % _shadow_mana_stash)
+
+func exit_shadow_form() -> void:
+	if shadow_form_tempo <= 0 and _shadow_mana_stash == 0:
+		return
+	shadow_form_tempo = 0
+	max_mana += _shadow_mana_stash
+	_shadow_mana_stash = 0
+	mana_changed.emit(current_mana, max_mana)
+	stats_updated.emit()
+	shadow_form_ended.emit()
+	print("[STATS] Shadow form ends — the world sharpens back.")
 
 func _pay_whispers_cost() -> void:
 	## The 8-HP cost of a triggered Shepherd's Mark goes to whoever cast it.
@@ -1506,6 +1579,10 @@ func _pay_whispers_cost() -> void:
 func take_direct_damage(amount: int) -> void:
 	## Deal damage directly to HP, bypassing armor entirely.
 	if amount <= 0:
+		return
+	# Marvolo Gaunt: the ring's grace holds against direct damage too.
+	if invulnerable_tempo > 0:
+		print("[STATS] Invulnerable — %d direct damage ignored" % amount)
 		return
 	var old_pct = get_health_percent()
 	current_health = max(0, current_health - amount)
@@ -1527,6 +1604,10 @@ func take_direct_damage(amount: int) -> void:
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
 		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor.")
+
+	# Marvolo Gaunt: the same lethal save guards the direct-damage path (a
+	# save on only one of the two paths would be a real hole).
+	_try_marvolo_save()
 
 	if current_health <= 0:
 		died.emit()
@@ -1595,7 +1676,7 @@ func heal(amount: int, from_ally: bool = false) -> void:
 		stats_updated.emit()
 
 	if actual_heal > 0 and inventory:
-		inventory.on_healed()
+		inventory.on_healed(actual_heal)
 
 func apply_life_steal(amount: int) -> void:
 	## Single funnel for all life-steal healing (buff, skill-tree passive, sphere

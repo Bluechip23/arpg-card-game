@@ -8,6 +8,7 @@ signal item_equipped(item: ItemData, slot_type: String, slot_index: int)
 signal item_unequipped(item: ItemData, slot_type: String, slot_index: int)
 signal overflow_heal_armor_triggered(heal: int, armor: int)
 signal ring_triggered(item: ItemData, effect: String)
+signal custom_ring_fired(ring: ItemData, kind: String, value: int)  # ring pass 1 bespoke procs; main executes the world side
 signal gauntlet_skill_ready(item: ItemData)
 signal gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target)
 signal storage_changed
@@ -850,6 +851,13 @@ func process_turn() -> void:
 			if chest.exposed_armor_cd_left == 0:
 				print("[INVENTORY] %s: Exposed-armor reaction ready" % chest.item_name)
 
+	# Ring pass: Marvolo Gaunt's 50-tempo cooldown ticks per cycle (5 tempo).
+	for ring in equipped_rings:
+		if ring and int(ring.ring_counters.get("cd", 0)) > 0:
+			ring.ring_counters["cd"] = maxi(0, int(ring.ring_counters["cd"]) - 5)
+			if int(ring.ring_counters["cd"]) == 0:
+				print("[INVENTORY] %s: ready again" % ring.item_name)
+
 ## Weapons pass: hand-pairing synergies, recomputed whenever equipment changes.
 ## Spartan Spear: +1 melee reach and +2 melee damage while ANY hand holds a
 ## shield. Side Card Sabre: paired (off hand, non-shield main weapon) makes it
@@ -956,6 +964,22 @@ func on_armor_gained(amount: int) -> void:
 	armor_gained_this_turn += amount
 	trigger_rings(ItemData.RingTrigger.ON_GAIN_ARMOR_THRESHOLD, armor_gained_this_turn)
 
+	# Ring pass: cumulative armor-gained counters (never reset — one journey).
+	for r in equipped_rings:
+		if r == null:
+			continue
+		match r.item_name:
+			"Gold Band":
+				r.ring_counters["shield"] = int(r.ring_counters.get("shield", 0)) + amount
+				while int(r.ring_counters["shield"]) >= 5:
+					r.ring_counters["shield"] = int(r.ring_counters["shield"]) - 5
+					_fire_custom_ring(r, "zap", 2)
+			"Ring of Stone Hide":
+				r.ring_counters["block"] = int(r.ring_counters.get("block", 0)) + amount
+				while int(r.ring_counters["block"]) >= 100:
+					r.ring_counters["block"] = int(r.ring_counters["block"]) - 100
+					_fire_custom_ring(r, "stone_hide", 10)
+
 	# Apply armor-on-armor-gain passives across all equipment slots
 	if not _applying_armor_instance_bonus and player_stats:
 		_applying_armor_instance_bonus = true
@@ -1015,9 +1039,138 @@ func on_card_drawn() -> void:
 
 func on_damage_taken() -> void:
 	trigger_rings(ItemData.RingTrigger.ON_TAKE_DAMAGE)
+	# Ring pass: enemy hits landed on you. Counters are cumulative — one
+	# journey, no battles, no resets.
+	for r in equipped_rings:
+		if r == null:
+			continue
+		match r.item_name:
+			"The Precious":
+				# Every 4th enemy hit drags you into shadow form. Hits taken
+				# while already inside the shadow don't advance the counter.
+				if player_stats and player_stats.shadow_form_tempo > 0:
+					continue
+				r.ring_counters["hits"] = int(r.ring_counters.get("hits", 0)) + 1
+				if int(r.ring_counters["hits"]) >= 4:
+					r.ring_counters["hits"] = 0
+					_fire_custom_ring(r, "shadow_form")
+			"Draupnir":
+				# Every 9th hit taken splits you in two — but the trigger
+				# waits while a duplicate already walks (Jeremy's doubled
+				# fire is the one way past that, handled in main).
+				r.ring_counters["hits"] = int(r.ring_counters.get("hits", 0)) + 1
+				if int(r.ring_counters["hits"]) >= 9 \
+						and player_stats and not player_stats.draupnir_clone_alive:
+					r.ring_counters["hits"] = 0
+					_fire_custom_ring(r, "draupnir_clone")
 
-func on_healed() -> void:
+func on_healed(amount: int = 0) -> void:
 	trigger_rings(ItemData.RingTrigger.ON_HEAL)
+	if amount <= 0:
+		return
+	for r in equipped_rings:
+		if r == null:
+			continue
+		match r.item_name:
+			"Heal Stone":
+				r.ring_counters["heal"] = int(r.ring_counters.get("heal", 0)) + amount
+				while int(r.ring_counters["heal"]) >= 5:
+					r.ring_counters["heal"] = int(r.ring_counters["heal"]) - 5
+					_fire_custom_ring(r, "zap", 2)
+			"Ring of Nibelung":
+				# 5 heal INSTANCES charge the curse; their summed amount is
+				# its value. If a curse card already exists, main simply
+				# doesn't make another — the charge is spent either way.
+				r.ring_counters["heals"] = int(r.ring_counters.get("heals", 0)) + 1
+				r.ring_counters["heal_sum"] = int(r.ring_counters.get("heal_sum", 0)) + amount
+				if int(r.ring_counters["heals"]) >= 5:
+					var nc_total: int = int(r.ring_counters["heal_sum"])
+					r.ring_counters["heals"] = 0
+					r.ring_counters["heal_sum"] = 0
+					_fire_custom_ring(r, "nibelung_curse", nc_total)
+
+## Ring pass: the player applied a debuff to an enemy (relayed from the
+## spawner). Feeds the poison/burn accumulators and the Circlet's checklist.
+func on_player_debuff_applied(dname: String, value: int) -> void:
+	for r in equipped_rings:
+		if r == null:
+			continue
+		match r.item_name:
+			"Emerald":
+				if dname == "poison":
+					r.ring_counters["poison"] = int(r.ring_counters.get("poison", 0)) + value
+					while int(r.ring_counters["poison"]) >= 5:
+						r.ring_counters["poison"] = int(r.ring_counters["poison"]) - 5
+						_fire_custom_ring(r, "zap", 2)
+			"Harnessed Sun":
+				if dname == "burn":
+					r.ring_counters["burn"] = int(r.ring_counters.get("burn", 0)) + value
+					while int(r.ring_counters["burn"]) >= 25:
+						r.ring_counters["burn"] = int(r.ring_counters["burn"]) - 25
+						_fire_custom_ring(r, "cleanse_self", 1)
+			"Captain Planets Circlet":
+				if dname in ["burn", "cold", "silenced"]:
+					_captain_planet_check(r, dname)
+
+## Ring pass: the player gained a buff (relayed from the BuffManager).
+func on_player_buff_applied(buff_type: int) -> void:
+	for r in equipped_rings:
+		if r == null:
+			continue
+		if r.item_name == "Captain Planets Circlet":
+			if buff_type == Buff.BuffType.STRENGTHEN:
+				_captain_planet_check(r, "strengthen")
+			elif buff_type == Buff.BuffType.REGEN:
+				_captain_planet_check(r, "regen")
+
+## By your powers combined: tick one box; when all five are ticked, fire and
+## clear the checklist.
+func _captain_planet_check(ring: ItemData, key: String) -> void:
+	var seen: Dictionary = ring.ring_counters.get("planet", {})
+	seen[key] = true
+	ring.ring_counters["planet"] = seen
+	for need in ["burn", "cold", "silenced", "strengthen", "regen"]:
+		if not seen.get(need, false):
+			return
+	ring.ring_counters["planet"] = {}
+	_fire_custom_ring(ring, "captain_planet")
+
+## Ring pass: the deck was shuffled (reshuffle from discard, or any other
+## shuffle — they all count).
+func on_deck_shuffled() -> void:
+	for r in equipped_rings:
+		if r == null:
+			continue
+		if r.item_name == "Ring of Thomas the Train Tracks":
+			_fire_custom_ring(r, "thomas_regen", 10 if r.item_level >= 3 else 7)
+			r.ring_counters["shuffles"] = int(r.ring_counters.get("shuffles", 0)) + 1
+			var every: int = 2 if r.item_level >= 3 else 3
+			if int(r.ring_counters["shuffles"]) >= every:
+				r.ring_counters["shuffles"] = 0
+				_fire_custom_ring(r, "thomas_heal", 35 if r.item_level >= 3 else 25)
+
+## Ring pass: the player landed a single hit of 25+ (Cyclops Ring). Counted
+## by main at the damage sites; strengthened hits are excluded there.
+func on_player_big_hit() -> void:
+	for r in equipped_rings:
+		if r == null:
+			continue
+		if r.item_name == "Cyclops Ring":
+			r.ring_counters["big_hits"] = int(r.ring_counters.get("big_hits", 0)) + 1
+			if int(r.ring_counters["big_hits"]) >= 3:
+				r.ring_counters["big_hits"] = 0
+				_fire_custom_ring(r, "cyclops_strengthen", 15)
+
+## Bespoke ring procs route through here so Jeremy's double-trigger passive
+## covers them exactly like the enum rings: when armed, the first proc of the
+## cycle fires its payload twice.
+func _fire_custom_ring(ring: ItemData, kind: String, value: int = 0) -> void:
+	custom_ring_fired.emit(ring, kind, value)
+	ring_triggered.emit(ring, kind)
+	if is_ring_double_trigger_armed() and not ring_triggered_this_turn:
+		ring_triggered_this_turn = true
+		custom_ring_fired.emit(ring, kind, value)
+		print("[INVENTORY] Jeremy: %s fires twice!" % ring.item_name)
 
 # ============================================
 # GAUNTLET SKILL SYSTEM

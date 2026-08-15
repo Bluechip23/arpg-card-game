@@ -29,7 +29,9 @@ enum DebuffType {
 	LINKED,
 	BRITTLE,
 	COLD,
-	BLIND
+	BLIND,
+	# Appended at the tail — enum order is save-compat-sensitive.
+	GENERIC  # bespoke named debuff (Marvolo's Misunderstanding); keeps its custom name/description
 }
 
 var debuff_type: DebuffType
@@ -49,7 +51,18 @@ func _init(type: DebuffType, val: int = 0, dur: int = 15) -> void:
 	duration = dur
 	_set_name_and_description()
 
+## A bespoke named debuff whose name/description survive every refresh —
+## mirrors Buff.create_generic (see the GENERIC pass below).
+static func create_generic(nm: String, desc: String, val: int, dur: int, source: String = "") -> Debuff:
+	var d := Debuff.new(DebuffType.GENERIC, val, dur)
+	d.debuff_name = nm
+	d.description = desc
+	d.source_name = source
+	return d
+
 func _set_name_and_description() -> void:
+	if debuff_type == DebuffType.GENERIC:
+		return  # custom name/description are set by create_generic and never stomped
 	match debuff_type:
 		DebuffType.BLEED:
 			debuff_name = "Bleed"

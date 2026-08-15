@@ -6,6 +6,7 @@ extends PanelContainer
 const BADGE := 30  # px — a small round badge
 
 var buff: Buff
+var buff_manager: BuffManager = null  # set by the bar; enables click behavior
 var _glyph_rect: TextureRect = null
 var _count_label: Label = null
 var _built: bool = false
@@ -16,6 +17,27 @@ func setup(b: Buff) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+
+func _gui_input(event: InputEvent) -> void:
+	## The Precious: while in shadow form, clicking the Invisible badge steps
+	## back out — allowed only after at least 1 tempo spent inside.
+	if not (event is InputEventMouseButton and event.pressed \
+			and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if buff == null or buff.buff_type != Buff.BuffType.INVISIBLE:
+		return
+	if buff_manager == null or buff_manager.owner_stats == null:
+		return
+	var stats = buff_manager.owner_stats
+	if stats.shadow_form_tempo <= 0:
+		return
+	# The counter starts at 10 and ticks per tempo — still at 10 means not a
+	# single tempo has passed inside yet.
+	if stats.shadow_form_tempo >= 10:
+		print("[BUFF UI] Shadow form holds — spend at least 1 tempo inside first")
+		return
+	accept_event()
+	stats.exit_shadow_form()
 
 func _build_badge() -> void:
 	## A compact round badge: type-coloured circle, glyph, and an xN count.
