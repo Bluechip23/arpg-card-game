@@ -4862,10 +4862,7 @@ func _on_all_enemies_defeated() -> void:
 	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
 	_clear_mark_zones()
-	# Wrist Rocket's banked crit is battle-scoped.
-	var pst = player.get_stats() if player else null
-	if pst:
-		pst.improvised_ammo_crit_bonus = 0.0
+	# (The Wrist Rocket's banked crit is cumulative — one journey, no resets.)
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
@@ -5792,7 +5789,7 @@ func _handle_on_discard_effect(card: Card) -> void:
 			var ia_stats = player.get_stats() if player else null
 			if ia_stats:
 				ia_stats.improvised_ammo_crit_bonus += 10.0
-				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit this battle." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
+				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit, forever." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
 			if enemy_spawner and player:
 				var ia_near = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 				if ia_near:
@@ -8392,6 +8389,7 @@ func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
 			add_battle_log("By your powers combined! Heal 15, draw 3, Fireball and Rise arrive.", Color(0.3, 0.8, 1.0))
 		"cyclops_strengthen":
 			buff_mgr.apply_buff(Buff.create_strengthen(value, 2, ring.item_name))
+			ring.ring_counters["empowered"] = 2  # the ring's own hits sit out of the counter
 			add_battle_log("The Cyclops Ring swells: Strengthen %d for 2 hits." % value, Color(1.0, 0.6, 0.4))
 		"thomas_regen":
 			buff_mgr.apply_buff(Buff.create_regen(value, 15, ring.item_name))
@@ -8600,13 +8598,17 @@ func _on_player_buff_applied_ring(buff: Buff) -> void:
 	if player and player.get_inventory():
 		player.get_inventory().on_player_buff_applied(buff.buff_type)
 
-## Cyclops Ring: a single player hit of 25+ counts — unless a Strengthen is
-## up (its empowered hits are excluded from the counter by design).
+## Cyclops Ring: a single player hit of 25+ counts. Only the ring's OWN two
+## empowered hits are excluded — a Strengthen from any other source counts
+## fine. The exclusion is tracked as a 2-hit counter set when the ring fires.
 func _ring_note_big_hit(damage: int) -> void:
-	if damage < 25 or player == null or player.get_inventory() == null:
+	if damage <= 0 or player == null or player.get_inventory() == null:
 		return
-	var bm = player.get_buff_manager()
-	if bm and bm.get_strengthen_bonus() > 0:
+	for r in player.get_inventory().equipped_rings:
+		if r != null and r.item_name == "Cyclops Ring" and int(r.ring_counters.get("empowered", 0)) > 0:
+			r.ring_counters["empowered"] = int(r.ring_counters["empowered"]) - 1
+			return
+	if damage < 25:
 		return
 	player.get_inventory().on_player_big_hit()
 

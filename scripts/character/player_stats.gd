@@ -219,7 +219,7 @@ var equipment_melee_reach: int = 0                # +melee reach while a shield 
 var equipment_attack_speed_penalty: int = 0       # attack-speed proc threshold penalty (Bessy)
 var pending_wrath_percent: int = 0                # Purge Wrath: next attack's % bonus, then cleared
 # Ranged pass
-var improvised_ammo_crit_bonus: float = 0.0       # Wrist Rocket: +% crit on Improvised Ammo, banked by discards; battle-scoped
+var improvised_ammo_crit_bonus: float = 0.0       # Wrist Rocket: +% crit on Improvised Ammo, banked by discards; cumulative — never resets
 var bow_instance_count: int = 0                   # Bow of Budding Blasts: living bow summons (main keeps this current)
 # Ring pass
 var invulnerable_tempo: int = 0                   # Marvolo Gaunt: raw tempo of full damage immunity (ticks in process_tempo)

@@ -2452,7 +2452,7 @@ static func create_wrist_rocket() -> ItemData:
 	item.crit_chance_percent = 10.0
 	var wr_cards: Array[String] = ["improvised_ammo", "improvised_ammo"]
 	item.granted_card_ids = wr_cards
-	item.description = "+5 DEX, +6 AGI, +10% crit chance. One-handed; pairs with a quiver. Grants 2 copies of Improvised Ammo: deal 8 damage and apply 3 Weaken — or discard it to deal 4 damage to the nearest enemy and give Improvised Ammo +10% crit chance this battle (45 mana, 0 tempo)."
+	item.description = "+5 DEX, +6 AGI, +10% crit chance. One-handed; pairs with a quiver. Grants 2 copies of Improvised Ammo: deal 8 damage and apply 3 Weaken — or discard it to deal 4 damage to the nearest enemy and permanently give Improvised Ammo +10% crit chance (45 mana, 0 tempo)."
 	return item
 
 static func create_cupids_bow() -> ItemData:

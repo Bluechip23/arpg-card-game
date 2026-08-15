@@ -6880,7 +6880,7 @@ static func create_improvised_ammo() -> Card:
 	var card = Card.new()
 	card.card_id = "improvised_ammo"
 	card.card_name = "Improvised Ammo"
-	card.description = "Deal 8 damage and apply 3 Weaken. If discarded: deal 4 damage to the nearest enemy and Improvised Ammo gains +10% crit chance this battle."
+	card.description = "Deal 8 damage and apply 3 Weaken. If discarded: deal 4 damage to the nearest enemy and Improvised Ammo permanently gains +10% crit chance."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 45
