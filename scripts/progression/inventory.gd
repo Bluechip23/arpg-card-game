@@ -159,7 +159,7 @@ func initialize(char_name: String) -> void:
 			chest_weight_reduction = 0.20
 			has_back_rack = true  # War Rack: hands <-> back exchange (see rack_exchange)
 		"Jeremy":
-			ring_slots = 4
+			ring_slots = 3  # ruled down from 4 — "4 is nuts pants"
 			ring_double_trigger = true  # doubles every RING_DOUBLE_TRIGGER_CYCLES cycles
 		"Stephen":
 			off_hand_bonus = 0.2  # +10% instead of -10% = +20% total swing
@@ -249,6 +249,17 @@ func count_equipped_mythics() -> int:
 				n += 1
 	return n
 
+## Equipped copies of an item by name, across every slot. `exclude` skips one
+## specific instance so moving an item between slots never counts itself.
+func count_equipped_copies(item_name: String, exclude: ItemData = null) -> int:
+	var n := 0
+	for arr in [equipped_helms, equipped_chests, equipped_rings, equipped_belts,
+			equipped_boots, equipped_gauntlets, equipped_weapons]:
+		for it in arr:
+			if it and it != exclude and it.item_name == item_name:
+				n += 1
+	return n
+
 func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	var slot_array = _get_slot_array(item.item_type)
 	var max_slots = _get_max_slots(item.item_type)
@@ -263,6 +274,16 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 			player_stats.current_level if player_stats else 0, get_mythic_capacity()]
 		print("[INVENTORY] %s — cannot equip %s" % [reason, item.item_name])
 		equip_blocked.emit(item, reason)
+		return false
+
+	# Duplicate rule: at most ONE equipped copy of the same legendary or
+	# mythic item; commons and rares allow a second copy, never a third.
+	var dupe_cap: int = 2 if item.rarity in [ItemData.Rarity.COMMON, ItemData.Rarity.RARE] else 1
+	if count_equipped_copies(item.item_name, item) >= dupe_cap:
+		var dupe_reason = "Only %d cop%s of %s may be worn at once" % [
+			dupe_cap, "y" if dupe_cap == 1 else "ies", item.item_name]
+		print("[INVENTORY] %s" % dupe_reason)
+		equip_blocked.emit(item, dupe_reason)
 		return false
 	
 	if slot_array[slot_index] != null:

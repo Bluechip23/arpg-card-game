@@ -70,9 +70,9 @@ bounce), **Risk It** (30% for a full-heal Biscuit), **Oops** (a randomized 2–5
 **House Money** (force your next odds to hit). You aren't praying to RNG — you're stacking
 modifiers until the dice are loaded, then rolling.
 
-**Gear identity:** Jeremy runs **4 ring slots**, and every 3rd cycle his **first ring trigger
+**Gear identity:** Jeremy runs **3 ring slots**, and every 3rd cycle his **first ring trigger
 fires twice**. Rings are the game's on-trigger engine pieces (on-utility → mana, on-draw →
-mana, on-kill → heal), so Jeremy is the character who turns four small triggers into a
+mana, on-kill → heal), so Jeremy is the character who turns three small triggers into a
 compounding machine — and his doubling passive rewards *choosing* which ring fires first each
 cycle. He starts bare-fingered; every ring found in the world is a new engine part.
 
@@ -229,7 +229,7 @@ loadouts in the middle of combat.
 | Character | Core reward loop | Slot identity | Character passive |
 |---|---|---|---|
 | **Ryan** | Discard/cycle your hand; sequence-dependent effects; cheap Pocket cards | 3 belt slots | Belt cards cost 1 less mana |
-| **Jeremy** | Be at 0 mana / ≤2 cards and get stronger; rig % chances; ring-trigger engine | 4 ring slots | Every 3rd cycle, first ring trigger fires twice |
+| **Jeremy** | Be at 0 mana / ≤2 cards and get stronger; rig % chances; ring-trigger engine | 3 ring slots | Every 3rd cycle, first ring trigger fires twice |
 | **Stephen** | Unbroken attack chains or oversized slow swings; range & high ground | Standard slots, full-power off-hands | +10% off-hand enchantments (others −10%) |
 | **Cory** | Displace/lock enemies; debuffs that heal you; play 3+ cards per cycle | 2 gauntlet slots | +1 mana when a gauntlet skill comes off cooldown |
 | **Brad** | Spend health for power; stockpile armor then detonate it; mid-fight gear swaps | War Rack (back-slung loadout swap) | Chest items weigh 20% less |
