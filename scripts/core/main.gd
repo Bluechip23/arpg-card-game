@@ -8324,11 +8324,21 @@ func _ranged_on_self_world_effects(card: Card, target) -> void:
 				trap.shop_excluded = true
 				deck_manager.add_card_to_hand(trap)
 				add_battle_log("Close is Favored waits in your hand. (%d/3)" % (held + 1), Color(0.85, 0.75, 0.5))
-	# The Rapid Recurve: the shot lands a second time at full damage.
-	if bool(osb.get("double_shot", false)) and card.is_offensive() and card.last_damage_dealt > 0 \
+	# The Rapid Recurve: the card fires a SECOND, fully separate shot — its
+	# own crit roll, its own ailments, its own Strengthen charge — by
+	# re-executing the card against the target. World effects don't re-run
+	# for the second shot, so the doubling can never recurse.
+	if bool(osb.get("double_shot", false)) and card.is_offensive() \
 			and target != null and is_instance_valid(target) and "is_dead" in target and not target.is_dead:
-		target.take_damage(card.last_damage_dealt, true)
-		add_battle_log("Double Shot! %s takes %d again." % [target.enemy_name, card.last_damage_dealt], Color(1.0, 0.7, 0.4))
+		card.execute(target, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		add_battle_log("Double Shot! The second arrow takes %d." % card.last_damage_dealt, Color(1.0, 0.7, 0.4))
+		# The second shot is its own hit for every counter that watches hits —
+		# and its own crit, consumed here so the flag never leaks forward.
+		_ring_note_big_hit(card.last_damage_dealt)
+		var ds_bm = player.get_buff_manager()
+		if ds_bm and ds_bm.last_crit_hit:
+			ds_bm.last_crit_hit = false
+			progression_triggers._trigger_skill_tree_on_crit(target)
 	# Stringless Sender: 20% chance the shot bounces to the nearest other
 	# enemy at full damage — last_damage_dealt already embeds the crit result,
 	# so a crit success (or failure) is mimicked exactly.
@@ -8385,8 +8395,11 @@ func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
 			for cid in ["fireball", "rise"]:
 				var cp_card = deck_manager._create_card_from_id(cid)
 				if cp_card:
+					# Conjured copies never pollute the deck: erased 10 tempo
+					# after arriving, played or not.
+					cp_card.erase_tempo = 10
 					deck_manager.add_card_to_hand(cp_card)
-			add_battle_log("By your powers combined! Heal 15, draw 3, Fireball and Rise arrive.", Color(0.3, 0.8, 1.0))
+			add_battle_log("By your powers combined! Heal 15, draw 3, Fireball and Rise arrive (10 tempo).", Color(0.3, 0.8, 1.0))
 		"cyclops_strengthen":
 			buff_mgr.apply_buff(Buff.create_strengthen(value, 2, ring.item_name))
 			ring.ring_counters["empowered"] = 2  # the ring's own hits sit out of the counter
@@ -8956,7 +8969,10 @@ func _helm_on_cycle_passives() -> void:
 				continue
 			var a_st = ally.get_stats()
 			if a_st:
+				# Aura regen is not an "actual heal" — ring counters skip it.
+				a_st._passive_heal = true
 				a_st.heal(greaves_regen)
+				a_st._passive_heal = false
 				a_st.gain_mana(greaves_regen)
 				a_st.aura_physical_resist = greaves_resist
 		for m in _frankensteins:

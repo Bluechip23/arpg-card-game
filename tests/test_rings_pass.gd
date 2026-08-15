@@ -220,10 +220,13 @@ func _test_marvolo() -> void:
 	_check(stats.invulnerable_tempo == 3, "invulnerable for 3 tempo")
 	_check(int(mg.ring_counters.get("cd", 0)) == 50, "50-tempo cooldown set")
 	var hp_before: int = stats.current_health
-	stats.take_direct_damage(50)
-	_check(stats.current_health == hp_before, "invulnerability eats the next hit")
-	stats.process_tempo(3)
+	stats.take_damage(50)
+	_check(stats.current_health == hp_before, "invulnerability eats the next enemy hit")
 	stats.take_direct_damage(5)
+	_check(stats.current_health == hp_before - 5, "self-paid costs still bite while invulnerable")
+	hp_before = stats.current_health
+	stats.process_tempo(3)
+	stats.take_damage(5)
 	_check(stats.current_health == hp_before - 5, "invulnerability expires after 3 tempo")
 	# On cooldown: the next lethal blow is really lethal.
 	var died := [false]

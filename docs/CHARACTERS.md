@@ -64,7 +64,8 @@ Where other characters build up, Jeremy *spends down* — the kit is strongest a
 the tank.
 
 His second axis is probability. *Tricks of Death* adds a flat +10 to every % chance on his
-cards, which makes him the game's best user of its gamble cards: **Trick Shot** (80% to
+**cards** — item-side rolls, like the Stringless Sender's bounce, are not cards and roll flat —
+which makes him the game's best user of its gamble cards: **Trick Shot** (80% to
 bounce), **Risk It** (30% for a full-heal Biscuit), **Oops** (a randomized 2–5 hit flurry),
 **What's the Worst?** (coin-flip between bonus damage and a stun), **Loaded Die** and
 **House Money** (force your next odds to hit). You aren't praying to RNG — you're stacking
