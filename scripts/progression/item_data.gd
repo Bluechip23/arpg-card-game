@@ -2826,6 +2826,18 @@ static func create_crooked_dueling_shield() -> ItemData:
 # (ring_counters) — one journey, no battles, no resets — with world-side
 # payloads executed by main off Inventory.custom_ring_fired. Random-enemy
 # procs reach 5 squares.
+## Rings are the mana slot. Rather than sprinkling a few points of mana across
+## every helm, belt and boot — leaving the player hunting for a pool one item at
+## a time — the whole budget lives here, granted by rarity. A caster builds
+## their pool out of rings and spends the other slots on what those slots are
+## actually for. Every ring gets this automatically, including future ones.
+const RING_MANA_BY_RARITY := {
+	Rarity.COMMON: 50,
+	Rarity.RARE: 75,
+	Rarity.LEGENDARY: 125,
+	Rarity.MYTHIC: 150,
+}
+
 static func _new_ring(nm: String, r: Rarity, wt: int = 5) -> ItemData:
 	var item = ItemData.new()
 	item.item_name = nm
@@ -2833,25 +2845,26 @@ static func _new_ring(nm: String, r: Rarity, wt: int = 5) -> ItemData:
 	item.item_type_name = "Ring"
 	item.rarity = r
 	item.weight = wt
+	item.mana_bonus = int(RING_MANA_BY_RARITY.get(r, 0))
 	return item
 
 static func create_heal_stone() -> ItemData:
 	var item = _new_ring("Heal Stone", Rarity.COMMON)
-	item.description = "Every 5 healing done, deal 2 damage to a random enemy within 5 squares."
+	item.description = "+50 mana. Every 5 healing done, deal 2 damage to a random enemy within 5 squares."
 	return item
 
 static func create_gold_band() -> ItemData:
 	var item = _new_ring("Gold Band", Rarity.COMMON)
 	item.health_bonus = 5
 	item.intelligence_bonus = 2
-	item.description = "+5 health, +2 INT. Every 5 shield gained, deal 2 damage to a random enemy within 5 squares."
+	item.description = "+50 mana. +5 health, +2 INT. Every 5 shield gained, deal 2 damage to a random enemy within 5 squares."
 	return item
 
 static func create_emerald() -> ItemData:
 	var item = _new_ring("Emerald", Rarity.COMMON)
 	item.dexterity_bonus = 1
 	item.agility_bonus = 3
-	item.description = "+1 DEX, +3 AGI. Every 5 Poison applied, deal 2 damage to a random enemy within 5 squares."
+	item.description = "+50 mana. +1 DEX, +3 AGI. Every 5 Poison applied, deal 2 damage to a random enemy within 5 squares."
 	return item
 
 static func create_friendship_ring() -> ItemData:
@@ -2859,13 +2872,13 @@ static func create_friendship_ring() -> ItemData:
 	item.health_bonus = 10
 	item.wisdom_bonus = 4
 	item.healing_bonus = 5
-	item.description = "+10 health, +4 WIS, +5 to heals."
+	item.description = "+75 mana. +10 health, +4 WIS, +5 to heals."
 	return item
 
 static func create_scholars_signet() -> ItemData:
 	var item = _new_ring("Scholars Signet", Rarity.RARE)
 	item.wisdom_bonus = 8
-	item.description = "+8 WIS."
+	item.description = "+75 mana. +8 WIS."
 	return item
 
 static func create_diamond_ring() -> ItemData:
@@ -2873,12 +2886,12 @@ static func create_diamond_ring() -> ItemData:
 	item.all_resistance_percent = 3.0
 	item.health_bonus = 10
 	item.strength_bonus = 3
-	item.description = "3% resistance to all damage, +10 health, +3 STR."
+	item.description = "+75 mana. 3% resistance to all damage, +10 health, +3 STR."
 	return item
 
 static func create_captain_planets_circlet() -> ItemData:
 	var item = _new_ring("Captain Planets Circlet", Rarity.LEGENDARY)
-	item.description = "Each time you have applied at least 1 Burn, 1 Cold, 1 Silence, 1 Strengthen, and 1 Regen (any targets), the powers combine: heal 15, draw 3 cards, and add a Fireball and a Rise to your hand."
+	item.description = "+125 mana. Each time you have applied at least 1 Burn, 1 Cold, 1 Silence, 1 Strengthen, and 1 Regen (any targets), the powers combine: heal 15, draw 3 cards, and add a Fireball and a Rise to your hand."
 	return item
 
 static func create_cyclops_ring() -> ItemData:
@@ -2887,14 +2900,14 @@ static func create_cyclops_ring() -> ItemData:
 	item.intelligence_bonus = -3
 	item.wisdom_bonus = -3
 	item.agility_bonus = -3
-	item.description = "+10 STR, -3 INT, -3 WIS, -3 AGI. Landing 3 hits of 25+ damage grants Strengthen 15 for 2 hits — the strengthened hits don't feed the counter."
+	item.description = "+125 mana. +10 STR, -3 INT, -3 WIS, -3 AGI. Landing 3 hits of 25+ damage grants Strengthen 15 for 2 hits — the strengthened hits don't feed the counter."
 	return item
 
 static func create_ring_of_stone_hide() -> ItemData:
 	var item = _new_ring("Ring of Stone Hide", Rarity.LEGENDARY)
 	item.strength_bonus = 4
 	item.block_bonus_to_defense_cards = 4
-	item.description = "+4 STR, +4 block on block-applying cards. Every 100 block gained, encase yourself in stone skin for 15 tempo: 10% resistance to ALL damage."
+	item.description = "+125 mana. +4 STR, +4 block on block-applying cards. Every 100 block gained, encase yourself in stone skin for 15 tempo: 10% resistance to ALL damage."
 	return item
 
 static func create_legend_has_it() -> ItemData:
@@ -2906,20 +2919,20 @@ static func create_legend_has_it() -> ItemData:
 	item.wisdom_bonus = 3
 	item.determination_bonus = 3
 	item.dexterity_bonus = 3
-	item.description = "5% resistance to all damage, +5 STR, +5 INT, +3 AGI, +3 WIS, +3 DET, +3 DEX. Legend has it, that's all it does."
+	item.description = "+125 mana. 5% resistance to all damage, +5 STR, +5 INT, +3 AGI, +3 WIS, +3 DET, +3 DEX. Legend has it, that's all it does."
 	return item
 
 static func create_harnessed_sun() -> ItemData:
 	var item = _new_ring("Harnessed Sun", Rarity.LEGENDARY)
 	item.intelligence_bonus = 2
 	item.wisdom_bonus = 2
-	item.description = "+2 INT, +2 WIS, +2 Burn on burn-applying effects. Every 25 Burn applied, cleanse 1 stack of a debuff on you."
+	item.description = "+125 mana. +2 INT, +2 WIS, +2 Burn on burn-applying effects. Every 25 Burn applied, cleanse 1 stack of a debuff on you."
 	return item
 
 static func create_marvolo_gaunt() -> ItemData:
 	var item = _new_ring("Marvolo Gaunt", Rarity.LEGENDARY)
 	item.intelligence_bonus = 5
-	item.description = "+5 INT. A lethal blow leaves you at 1 health instead: become invulnerable for 3 tempo and heal 25. Then the ring misunderstands — Marvolo's Misunderstanding deals 25 damage after 7 tempo unless purged (50-tempo cooldown)."
+	item.description = "+125 mana. +5 INT. A lethal blow leaves you at 1 health instead: become invulnerable for 3 tempo and heal 25. Then the ring misunderstands — Marvolo's Misunderstanding deals 25 damage after 7 tempo unless purged (50-tempo cooldown)."
 	return item
 
 static func create_the_precious() -> ItemData:
@@ -2928,10 +2941,10 @@ static func create_the_precious() -> ItemData:
 	item.intelligence_bonus = -2
 	item.wisdom_bonus = 2
 	item.level_3_overrides = {"dexterity_bonus": 8}
-	item.level_3_description = "+8 DEX, -2 INT, +2 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. TWO ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
+	item.level_3_description = "+150 mana. +8 DEX, -2 INT, +2 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. TWO ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
 	_set_appearance(item, "the_precious",
 		"A plain gold ring with elvish writing traced faintly around the band.")
-	item.description = "+5 DEX, -2 INT, +2 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. THREE ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
+	item.description = "+150 mana. +5 DEX, -2 INT, +2 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. THREE ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
 	return item
 
 static func create_ring_of_nibelung() -> ItemData:
@@ -2941,10 +2954,10 @@ static func create_ring_of_nibelung() -> ItemData:
 	item.wisdom_bonus = 2
 	var rn_cards: Array[String] = ["tricks_of_alberich"]
 	item.granted_card_ids = rn_cards
-	item.level_3_description = "+10 health, +5 INT, +2 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand at 1.5x the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
+	item.level_3_description = "+150 mana. +10 health, +5 INT, +2 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand at 1.5x the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
 	_set_appearance(item, "ring_of_nibelung",
 		"A plain band forged of Rhine-gold, Alberich's curse gleaming red in its heart.")
-	item.description = "+10 health, +5 INT, +2 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand carrying the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
+	item.description = "+150 mana. +10 health, +5 INT, +2 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand carrying the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
 	return item
 
 static func create_draupnir() -> ItemData:
@@ -2952,10 +2965,10 @@ static func create_draupnir() -> ItemData:
 	item.strength_bonus = 5
 	item.intelligence_bonus = 8
 	item.level_3_overrides = {"intelligence_bonus": 10}
-	item.level_3_description = "+5 STR, +10 INT. Every 9th hit you take, the ring drips a duplicate of you: half your health, attacks for 3/4 of your basic attack every 7 tempo (its swings feed your attack-speed counter), moves 2 squares per 3 tempo, uncontrollable. Only one at a time — the trigger waits while one walks. When a duplicate dies, gain Strengthen 10 for 2 attacks."
+	item.level_3_description = "+150 mana. +5 STR, +10 INT. Every 9th hit you take, the ring drips a duplicate of you: half your health, attacks for 3/4 of your basic attack every 7 tempo (its swings feed your attack-speed counter), moves 2 squares per 3 tempo, uncontrollable. Only one at a time — the trigger waits while one walks. When a duplicate dies, gain Strengthen 10 for 2 attacks."
 	_set_appearance(item, "draupnir",
 		"Exactly like the Viking Draupnir: a heavy gold arm-ring dripping smaller rings of itself.")
-	item.description = "+5 STR, +8 INT. Every 9th hit you take, the ring drips a duplicate of you: a quarter of your health, attacks for half your basic attack every 7 tempo (its swings feed your attack-speed counter), moves 2 squares per 3 tempo, uncontrollable. Only one at a time — the trigger waits while one walks. When a duplicate dies, gain Strengthen 10 for 2 attacks."
+	item.description = "+150 mana. +5 STR, +8 INT. Every 9th hit you take, the ring drips a duplicate of you: a quarter of your health, attacks for half your basic attack every 7 tempo (its swings feed your attack-speed counter), moves 2 squares per 3 tempo, uncontrollable. Only one at a time — the trigger waits while one walks. When a duplicate dies, gain Strengthen 10 for 2 attacks."
 	return item
 
 static func create_ring_of_thomas_the_train_tracks() -> ItemData:
@@ -2963,10 +2976,10 @@ static func create_ring_of_thomas_the_train_tracks() -> ItemData:
 	item.determination_bonus = 5
 	item.health_bonus = 10
 	item.level_3_overrides = {"determination_bonus": 8}
-	item.level_3_description = "+8 DET, +10 health. Shuffling your deck grants 10 Regen; every 2nd shuffle also heals 35."
+	item.level_3_description = "+150 mana. +8 DET, +10 health. Shuffling your deck grants 10 Regen; every 2nd shuffle also heals 35."
 	_set_appearance(item, "ring_of_thomas_the_train_tracks",
 		"A ring whose band is laid train track — and where the diamond should sit, the smiling face of Thomas the Tank Engine.")
-	item.description = "+5 DET, +10 health. Shuffling your deck grants 7 Regen; every 3rd shuffle also heals 25."
+	item.description = "+150 mana. +5 DET, +10 health. Shuffling your deck grants 7 Regen; every 3rd shuffle also heals 25."
 	return item
 
 # ============================================
