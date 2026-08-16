@@ -62,8 +62,54 @@ func _simulate(build: Dictionary) -> void:
 		stats.hand_size, stats.get_crit_damage_multiplier(), stats.current_carry_load, stats.get_carry_capacity()])
 	print("  Card slots on gear: %d | Granted cards: %s" % [slots_total, ", ".join(granted) if granted.size() > 0 else "none"])
 	print("  Passives: %s" % ", ".join(build["passives"]))
+	_print_shield_lines(stats, inv)
 	stats.free()
 	inv.free()
+
+## Shields pass: the defensive channels a shield build lives or dies on. Only
+## printed when a shield is actually in hand, so the older builds read as before.
+func _print_shield_lines(stats: PlayerStats, inv: Inventory) -> void:
+	var shields := inv.get_equipped_shields()
+	if shields.is_empty():
+		return
+	var names: Array[String] = []
+	var brace_block := 0
+	for s in shields:
+		names.append("%s (w%d)" % [s.item_name, s.weight])
+		# What bracing THIS shield two-handed would be worth (it isn't braced
+		# in the sim, so ask the weight formula directly).
+		brace_block = maxi(brace_block, floori(s.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR))
+	print("  SHIELDS: %s" % ", ".join(names))
+	# What a hit actually costs after the shield's flat bite. 12 is a typical
+	# mid-act enemy swing; the burn line matters because damage-over-time ticks
+	# run through the same take_damage path the flat reduction sits on.
+	var flat: int = stats.equipment_flat_damage_reduction
+	print("  Mitigation: flat -%d/hit  (a 12 lands as %d, a 4 lands as %d)" % [
+		flat, maxi(0, 12 - flat), maxi(0, 4 - flat)])
+	print("  vs a doubling burn 1/2/4/8/16 -> %d/%d/%d/%d/%d" % [
+		maxi(0, 1 - flat), maxi(0, 2 - flat), maxi(0, 4 - flat),
+		maxi(0, 8 - flat), maxi(0, 16 - flat)])
+	print("  Block cards: %+d armor each | Bracing two-handed would add %+d" % [
+		stats.equipment_defense_card_block, brace_block])
+	var full_hp_ls: float = stats.get_equipment_lifesteal()
+	var hurt_hp: int = stats.current_health
+	stats.current_health = int(stats.max_health * 0.3)
+	var hurt_ls: float = stats.get_equipment_lifesteal()
+	stats.current_health = hurt_hp
+	print("  Lifesteal: %.0f%% healthy -> %.0f%% below half | Flash %d (+%d from gear)" % [
+		full_hp_ls, hurt_ls, stats.get_max_flash_points(), stats.equipment_flash_bonus])
+	for s in shields:
+		if s.overdraw_spell_charges > 0:
+			print("  Overdraw: %s, %d charges, 1 back per %d tempo, %d mana a shot" % [
+				s.overdraw_spell_id, s.overdraw_spell_charges, s.overdraw_spell_recharge, s.overdraw_spell_mana])
+		if s.overdraw_card_max > 0:
+			print("  Overdraw: up to %d %s held, %+d block each (%+d at full)" % [
+				s.overdraw_card_max, s.overdraw_card_id, s.overdraw_card_block,
+				s.overdraw_card_block * s.overdraw_card_max])
+		if s.on_self_block_max_mana_percent > 0.0:
+			print("  On-self block: %.0f%% of %d max mana = %+d per slotted card" % [
+				s.on_self_block_max_mana_percent, stats.max_mana,
+				floori(stats.max_mana * s.on_self_block_max_mana_percent / 100.0)])
 
 func _initialize() -> void:
 	var builds: Array = [
@@ -145,6 +191,68 @@ func _initialize() -> void:
 				"expel_negativity", "budding", "circle_of_life", "eat"],
 			"gear": [["briarhide_plate"], ["hallowed_trunk"], ["spiked_mitts", 1],
 				["strap_of_stone"], ["thick_steel_helm"], ["steel_boots"]]},
+		# ---- Shields pass 1: one build per shield archetype. Slot 1 is the off
+		# hand, so every one of these is a real weapon-and-board loadout. ----
+		{"who": "Brad", "name": "SHIELD/TANK — Castle Wall (the -3 hand size test)",
+			"alloc": {"strength": 34, "determination": 9, "wisdom": 8},
+			"passives": ["in_the_trenches", "the_way_of_the_plate", "pristine_armor",
+				"stone_skin", "ancestral_aid", "vines_codependence", "solemn_independence"],
+			"gear": [["short_sword", 0], ["castle_wall", 1], ["steel_plate"],
+				["thick_steel_helm"], ["steel_boots"]]},
+		{"who": "Brad", "name": "SHIELD/TANK — Buckler + Vanguard (double flat reduction)",
+			"alloc": {"strength": 30, "determination": 15, "agility": 6},
+			"passives": ["in_the_trenches", "the_way_of_the_plate", "pristine_armor",
+				"stone_skin", "ancestral_aid", "redemption", "point_to_prove"],
+			"gear": [["buckler", 0], ["vanguard", 1], ["steel_plate"],
+				["thick_steel_helm"], ["steel_boots"]]},
+		{"who": "Stephen", "name": "SHIELD/BRUISER — Sword Breaker duelist (tempo tax + Fortify)",
+			"alloc": {"strength": 20, "dexterity": 16, "wisdom": 15},
+			"passives": ["clean_exchange", "exposed_blind_spot", "lethal_resourcefulness",
+				"deadly", "patience_is_a_virtue", "swing_for_the_fences", "scouted"],
+			"gear": [["short_sword", 0], ["sword_breaker", 1], ["smithed_excellence"],
+				["burgonet"], ["chain_crocs"]]},
+		{"who": "Stephen", "name": "SHIELD/DUELIST — Crooked Dueling Shield (crit->Weaken->Vulnerable)",
+			"alloc": {"dexterity": 27, "agility": 18, "strength": 6},
+			"passives": ["deadly", "scouted", "skilled_momentum", "clean_exchange",
+				"dominate", "patience_is_a_virtue", "lethal_resourcefulness"],
+			"gear": [["rusty_dagger", 0], ["crooked_dueling_shield", 1], ["shadow_cowl"],
+				["feathered_hat"], ["knife_toed_boots"]]},
+		{"who": "Jeremy", "name": "SHIELD/MAGE — Presence of Mind (mana as armor)",
+			"alloc": {"intelligence": 30, "wisdom": 21},
+			"passives": ["arcane_overflow", "harnessed_power", "mana_surge",
+				"tricks_of_death", "seance", "a_mages_favor", "fresh_start"],
+			"gear": [["presence_of_mind", 1], ["blue_robe"], ["wizard_hat"],
+				["caster_boots"], ["techno_wraps"]]},
+		{"who": "Jeremy", "name": "SHIELD/SUPPORT — Coffin Lid (halved heals, shared out)",
+			"alloc": {"wisdom": 24, "intelligence": 15, "determination": 12},
+			"passives": ["i_heal_you", "whispers_of_the_flock", "blood_libation",
+				"fresh_start", "a_mages_favor", "kinetic_armor", "tricks_of_death"],
+			"gear": [["coffin_lid", 1], ["trench_of_tranquility"], ["shamans_mask"],
+				["corset_of_cure"], ["medic_wraps"]]},
+		{"who": "Cory", "name": "SHIELD/ATTRITION — Treebeards Branch (the 75-weight test)",
+			"alloc": {"strength": 43, "determination": 8},
+			"passives": ["wither", "territorial_death", "death_as_lifeblood",
+				"expel_negativity", "budding", "circle_of_life", "eat"],
+			"gear": [["treebeards_branch", 1], ["briarhide_plate"], ["hallowed_trunk"],
+				["strap_of_stone"], ["thick_steel_helm"], ["steel_boots"]]},
+		{"who": "Ryan", "name": "SHIELD/COMBO — Slotted Rope Half Sleeve (Cinquedea engine)",
+			"alloc": {"dexterity": 21, "agility": 15, "wisdom": 15},
+			"passives": ["keep_them_guessing", "from_the_hip", "nimble_assault",
+				"ladder_work", "quick_step", "stimulant", "surprise_opener"],
+			"gear": [["rusty_dagger", 0], ["slotted_rope_half_sleeve", 1],
+				["the_slotted_sash"], ["shadow_cowl"], ["boot_holsters"]]},
+		{"who": "Ryan", "name": "SHIELD/MYTHIC — Steve Rodgers Bastion (mana off every hit)",
+			"alloc": {"agility": 20, "dexterity": 25, "strength": 6},
+			"passives": ["now_you_see_me", "surprise_opener", "eye_scrape",
+				"ladder_work", "lets_dance", "quick_step", "keep_them_guessing"],
+			"gear": [["short_sword", 0], ["steve_rodgers_bastion", 1], ["shadow_cowl"],
+				["feathered_hat"], ["houdinis_slippers"]]},
+		{"who": "Cory", "name": "SHIELD/EARLY — Wooden Shield + Spiked Shield (commons/rares)",
+			"alloc": {"strength": 20, "wisdom": 16, "intelligence": 15},
+			"passives": ["wither", "territorial_death", "death_as_lifeblood",
+				"expel_negativity", "budding", "circle_of_life", "eat"],
+			"gear": [["wooden_shield", 0], ["spiked_shield", 1], ["buffed_leather"],
+				["leather_cap"], ["leather_boots"]]},
 	]
 	for b in builds:
 		_simulate(b)
