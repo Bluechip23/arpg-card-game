@@ -308,6 +308,44 @@ func get_mastery_text(stats = null) -> String:
 @export var pierce_targets: int = 0               # attacks strike X squares in a line through the target (Poseidons Trident 2, Lv3 3)
 @export var armor_gain_melee_damage: int = 0      # gaining armor deals X damage to an enemy in melee range (Umbral Eclipse 5, Lv3 8)
 @export var insight_flash_restore: int = 0        # Insight (brain-point) draws restore X flash points (Umbral Eclipse 2, Lv3 3)
+# ============================================
+# SHIELD RIDERS (shields pass 1)
+# ============================================
+# On-self riders: these ride cards slotted INTO the shield.
+@export var on_self_fortify: int = 0             # slotted play grants Fortify — armor stops decaying (Sword Breaker 1)
+@export var on_self_knockback: int = 0           # slotted card knocks its target back X squares (Vengeful Shield 1)
+@export var on_self_discard: int = 0             # slotted play discards X cards from hand (Slotted Rope Half Sleeve 1)
+@export var on_self_lifesteal_percent: float = 0.0  # slotted cards carry X% lifesteal (Coffin Lid 10)
+@export var on_self_chance_boost: float = 0.0    # +X percentage points to a slotted card's rolls (Delfins 10)
+@export var on_self_block_max_mana_percent: float = 0.0  # slotted play grants block worth X% of MAX mana (Presence of Mind 10, Lv2 15)
+
+# Always-on shield passives.
+@export var flat_damage_reduction: int = 0       # every incoming hit is cut by X, flat (Buckler 3, Vanguard 3)
+@export var melee_retaliate_bleed: int = 0       # a melee attacker takes X Bleed for striking you (Wooden Shield 1)
+@export var regen_per_cycle: int = 0             # gain X Regen every cycle (Vanguard 1)
+@export var thorns_per_cycle: int = 0            # gain X Thorns every cycle (Spiked Shield 1)
+@export var blocked_melee_tempo_tax: int = 0     # melee damage your armor swallows whole adds X tempo to that enemy's next melee attack (Sword Breaker 2)
+@export var low_health_lifesteal_bonus: float = 0.0  # +X% lifesteal below half health (Coffin Lid 8)
+@export var flash_points_bonus: int = 0          # +X max flash points (Slotted Rope Half Sleeve 4)
+@export var damage_taken_mana_gain: int = 0      # gain X mana whenever an enemy damages you (Steve Rodgers 5)
+@export var duelist_shield: bool = false         # Crooked Dueling Shield: the full-block / crit Weaken-Vulnerable engine
+
+# Overdraw riders — they fire when a draw overflows a full hand.
+@export var overdraw_heal: int = 0               # heal X (Castle Wall 5)
+@export var overdraw_regen: int = 0              # gain X Regen (Treebeards Branch 3)
+@export var overdraw_peak: int = 0               # reveal the next X draw-pile cards (Delfins 4)
+@export var overdraw_card_id: String = ""        # conjure this card into the manifest zone (Slotted Rope Half Sleeve: cinquedea)
+@export var overdraw_card_max: int = 0           # ...up to X held there at once (5)
+@export var overdraw_card_block: int = 0         # each one held grants +X block on block cards (1)
+@export var overdraw_spell_id: String = ""       # cast this on overdraw, paying its mana and a charge (Castle Wall: rain_of_arrows)
+@export var overdraw_spell_mana: int = 0         # what the cast costs (45)
+@export var overdraw_spell_charges: int = 0      # charge capacity (3)
+@export var overdraw_spell_recharge: int = 0     # tempo per charge regained — charges refill even when some remain (15)
+# Shield runtime state (reset on equip/unequip like the chest accumulators)
+var overdraw_charges_left: int = 0   # charges in hand right now
+var overdraw_recharge_accum: int = 0 # tempo banked toward the next charge
+var conjured_in_manifest: int = 0    # Cinquedea copies currently parked in the manifest zone
+
 # Weapon runtime state (reset on equip/unequip like the chest accumulators)
 var pair_active: bool = false   # Side Card Sabre: currently paired with a main-hand weapon
 var wrath: int = 0              # Fallen's Wrath counter
@@ -698,9 +736,10 @@ func _get_default_keyword_for_item_type() -> int:
 		ItemType.QUIVER: return 1    # ARROW
 		ItemType.WEAPON:
 			match weapon_subtype:
-				WeaponSubtype.SHIELD: return 6  # BUCKLER
+				# Shields take any card. The Buckler keyword exists but no card
+				# carries it yet, and a shield's slots must not sit dead.
 				WeaponSubtype.BOW: return -1     # ARROW + standard attacks (handled by allowed_card_keywords)
-				_: return -1  # Swords and other weapons accept any card
+				_: return -1  # Shields, swords and other weapons accept any card
 	return -1  # CHEST and others accept any card
 
 func slot_card(card) -> bool:
@@ -807,6 +846,12 @@ func get_on_self_bonus() -> Dictionary:
 		"kill_summon_skeleton": on_self_kill_summon_skeleton,
 		"conjure_on_play_id": on_self_conjure_on_play_id,
 		"crit_bud_bow": on_self_crit_bud_bow,
+		"fortify": on_self_fortify,
+		"knockback": on_self_knockback,
+		"discard": on_self_discard,
+		"lifesteal_percent": on_self_lifesteal_percent,
+		"chance_boost": on_self_chance_boost,
+		"block_max_mana_percent": on_self_block_max_mana_percent,
 	}
 
 func get_card_slot_summary() -> String:
@@ -2546,6 +2591,215 @@ static func create_bow_of_budding_blasts() -> ItemData:
 	_set_appearance(item, "bow_of_budding_blasts",
 		"A bow with the slick, slimy texture of a sea cucumber — smaller bows budding off its flanks.")
 	item.description = "+3 INT, +4 WIS, +25 mana. 2 card slots. On-self: a crit buds a bow turret — 6 damage, attacks every 5 tempo, dies to any damage or after 2 attacks; up to 4 at once. This bow and its bow summons gain +2 damage and +5% crit chance per living bow summon. Grants Spirit Bow (Maintain): a spirit bow that stalks your enemies, 1 square per tempo, loosing a 10-damage shot every 4 tempo (65 mana, 3 tempo)."
+	return item
+
+# ============================================
+# SHIELDS (first shields pass — the off hand that fights back)
+# ============================================
+# Shields are hand items like any other weapon (Inventory gates them purely by
+# weight), and they take ANY card in their slots. Three ideas run through the
+# set: flat damage reduction that shrugs off chip damage, punishment for the
+# enemy who chose to swing at you, and Overdraw — a full hand turning an
+# unwanted draw into a payout.
+static func _new_shield(nm: String, r: Rarity, wt: int) -> ItemData:
+	var item = _new_weapon(nm, r, WeaponSubtype.SHIELD, wt)
+	item.item_type_name = "Shield"
+	return item
+
+static func create_buckler() -> ItemData:
+	var item = _new_shield("Buckler", Rarity.COMMON, 15)
+	item.strength_bonus = 2
+	item.determination_bonus = 1
+	item.flat_damage_reduction = 3
+	item.description = "+2 STR, +1 DET. Every hit that reaches you is 3 damage lighter."
+	return item
+
+static func create_wooden_shield() -> ItemData:
+	var item = _new_shield("Wooden Shield", Rarity.COMMON, 20)
+	item.strength_bonus = 2
+	item.agility_bonus = 3
+	item.melee_retaliate_bleed = 1
+	item.description = "+2 STR, +3 AGI. An enemy that strikes you in melee splinters itself — 1 Bleed."
+	return item
+
+static func create_vengeful_shield() -> ItemData:
+	var item = _new_shield("Vengeful Shield", Rarity.RARE, 50)
+	item.card_slots = 3
+	item.health_bonus = 10
+	item.determination_bonus = 2
+	item.strength_bonus = 3
+	item.on_self_knockback = 1
+	item.description = "+10 health, +2 DET, +3 STR. 3 card slots. On-self: the card's target is shoved back 1 space."
+	return item
+
+static func create_vanguard() -> ItemData:
+	var item = _new_shield("Vanguard", Rarity.RARE, 45)
+	item.strength_bonus = 5
+	item.flat_damage_reduction = 3
+	item.regen_per_cycle = 1
+	item.description = "+5 STR. Every hit that reaches you is 3 damage lighter, and you gain 1 Regen every cycle."
+	return item
+
+static func create_spiked_shield() -> ItemData:
+	var item = _new_shield("Spiked Shield", Rarity.RARE, 50)
+	item.strength_bonus = 2
+	item.wisdom_bonus = 2
+	item.intelligence_bonus = 2
+	item.thorns_per_cycle = 1
+	item.description = "+2 STR, +2 WIS, +2 INT. Gain 1 Thorns every cycle."
+	return item
+
+static func create_castle_wall() -> ItemData:
+	var item = _new_shield("Castle wall", Rarity.LEGENDARY, 50)
+	item.card_slots = 2
+	item.strength_bonus = 8
+	item.agility_bonus = -4
+	item.wisdom_bonus = -5
+	item.health_bonus = 55
+	item.hand_size_bonus = -3
+	item.on_self_block = 8
+	var cw_cards: Array[String] = ["huck"]
+	item.granted_card_ids = cw_cards
+	item.overdraw_heal = 5
+	item.overdraw_spell_id = "rain_of_arrows"
+	item.overdraw_spell_mana = 45
+	item.overdraw_spell_charges = 3
+	item.overdraw_spell_recharge = 15
+	item.description = "+8 STR, -4 AGI, -5 WIS, +55 health, -3 hand size. 2 card slots. On-self: +8 block. Overdraw: heal 5 and loose Rain of Arrows — 45 mana for 10 damage in a 3-square radius around you (3 charges, one back every 15 tempo, and charges refill even when some remain). Grants Huck: deal damage equal to your armor, then lose all of it (100 mana, 5 tempo)."
+	return item
+
+static func create_sword_breaker() -> ItemData:
+	# Per the design sheet this legendary carries NO stat line at all — its
+	# whole budget is the on-self armor+Fortify and the tempo tax.
+	var item = _new_shield("Sword Breaker", Rarity.LEGENDARY, 35)
+	item.card_slots = 3
+	item.on_self_armor_any = 4
+	item.on_self_fortify = 1
+	item.blocked_melee_tempo_tax = 2
+	var sb_cards: Array[String] = ["song_of_a_swords_sing"]
+	item.granted_card_ids = sb_cards
+	item.description = "3 card slots. On-self: gain 4 armor and Fortify — your armor stops decaying. Melee damage your armor swallows whole costs that enemy 2 extra tempo on its next melee attack. Grants Song of a Swords Sing: Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (35 mana, 3 tempo)."
+	return item
+
+static func create_coffin_lid() -> ItemData:
+	var item = _new_shield("Coffin Lid", Rarity.LEGENDARY, 45)
+	item.card_slots = 2
+	item.intelligence_bonus = 7
+	item.strength_bonus = 2
+	item.wisdom_bonus = 2
+	item.determination_bonus = 3
+	item.on_self_lifesteal_percent = 10.0
+	item.low_health_lifesteal_bonus = 8.0
+	var cl_cards: Array[String] = ["curse_of_the_living"]
+	item.granted_card_ids = cl_cards
+	item.description = "+7 INT, +2 STR, +2 WIS, +3 DET. 2 card slots. On-self: 10% lifesteal. Below half health all your lifesteal is 8% stronger. Grants Curse of the Living (Maintain): every heal you take is halved, and each ally is healed for half of what remains (65 mana, 7 tempo)."
+	return item
+
+static func create_treebeards_branch() -> ItemData:
+	var item = _new_shield("Treebeards Branch", Rarity.LEGENDARY, 75)
+	item.card_slots = 2
+	item.health_bonus = 30
+	item.strength_bonus = 3
+	item.wisdom_bonus = 3
+	item.on_self_thorns = 3
+	item.overdraw_regen = 3
+	var tb_cards: Array[String] = ["bark_up"]
+	item.granted_card_ids = tb_cards
+	item.description = "+30 health, +3 STR, +3 WIS. 2 card slots. On-self: gain 3 Thorns. Overdraw: gain 3 Regen. Grants Bark Up: convert every point of your Regen and Thorns into armor (45 mana, 3 tempo)."
+	return item
+
+static func create_slotted_rope_half_sleeve() -> ItemData:
+	var item = _new_shield("Slotted Rope Half Sleeve", Rarity.LEGENDARY, 45)
+	item.card_slots = 2
+	item.agility_bonus = 4
+	item.dexterity_bonus = 7
+	item.flash_points_bonus = 4
+	item.block_bonus_to_defense_cards = -3
+	item.on_self_discard = 1
+	item.on_self_block = 3
+	item.overdraw_card_id = "cinquedea"
+	item.overdraw_card_max = 5
+	item.overdraw_card_block = 1
+	item.description = "+4 AGI, +7 DEX, +4 flash points, -3 block from your block cards. 2 card slots. On-self: discard a card and gain 3 block. Overdraw: a Cinquedea drops into your manifest zone (up to 5). Each one waiting there gives your block cards +1 block — spend it and that point goes with it. Cinquedea: 6 damage and 1 Weaken at range 4 (10 mana, 0 tempo)."
+	return item
+
+static func create_elemental_emblem() -> ItemData:
+	# The design sheet gives this legendary a stat line and nothing else — no
+	# slots, no card, no rider. Left exactly as specified.
+	var item = _new_shield("Elemental emblem", Rarity.LEGENDARY, 30)
+	item.intelligence_bonus = 10
+	item.strength_bonus = -5
+	item.agility_bonus = -3
+	item.description = "+10 INT, -5 STR, -3 AGI."
+	return item
+
+static func create_delfins_deterministic_round_shield() -> ItemData:
+	var item = _new_shield("Delfins Deterministic Round Shield", Rarity.MYTHIC, 40)
+	item.card_slots = 3
+	item.intelligence_bonus = 6
+	item.wisdom_bonus = 5
+	item.strength_bonus = 3
+	item.on_self_chance_boost = 10.0
+	item.overdraw_peak = 4
+	var dd_cards: Array[String] = ["mage_shield"]
+	item.granted_card_ids = dd_cards
+	_set_appearance(item, "delfins_deterministic_round_shield",
+		"A wooden shield banded with iron.")
+	item.description = "+6 INT, +5 WIS, +3 STR. 3 card slots. On-self: +10% to the card's rolls. Overdraw: Peak the next 4 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 10 block."
+	return item
+
+static func create_steve_rodgers_bastion() -> ItemData:
+	var item = _new_shield("Steve Rodgers Bastion of Reverberation", Rarity.MYTHIC, 45)
+	item.strength_bonus = 5
+	item.dexterity_bonus = 3
+	item.agility_bonus = 5
+	item.determination_bonus = 4
+	item.damage_taken_mana_gain = 5
+	var sr_cards: Array[String] = ["reverberate_regrowth", "bouncing_shield"]
+	item.granted_card_ids = sr_cards
+	_set_appearance(item, "steve_rodgers_bastion",
+		"The Captain America shield.")
+	item.description = "+5 STR, +3 DEX, +5 AGI, +4 DET. Every enemy hit you take gives you 5 mana. Grants Reverberate Regrowth (Maintain): when your armor is broken through, the armor that hit ate comes back 5 tempo later (55 mana). Grants Bouncing Shield: hurl the shield — it bounces between enemies for 5 damage each, and every target hit sends back 5 block and 10 temporary mana (which may sit above your maximum, 15 tempo). You lose half your armor while it is in the air (55 mana, 4 tempo)."
+	return item
+
+static func create_presence_of_mind() -> ItemData:
+	var item = _new_shield("Presence of Mind", Rarity.MYTHIC, 25)
+	item.card_slots = 2
+	item.intelligence_bonus = 5
+	item.strength_bonus = 8
+	item.wisdom_bonus = 2
+	item.mana_bonus = 25
+	item.health_bonus = -10
+	item.on_self_block_max_mana_percent = 10.0
+	var pm_cards: Array[String] = ["mind_over_matter"]
+	item.granted_card_ids = pm_cards
+	item.level_2_overrides = {"on_self_block_max_mana_percent": 15.0}
+	item.level_2_description = "+5 INT, +8 STR, +2 WIS, +25 mana, -10 health. 2 card slots. On-self: extra block worth 15% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
+	_set_appearance(item, "presence_of_mind",
+		"A black kite shield marked in yellow: a man sitting in meditation, a half crescent moon above his head.")
+	item.description = "+5 INT, +8 STR, +2 WIS, +25 mana, -10 health. 2 card slots. On-self: extra block worth 10% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
+	return item
+
+static func create_crooked_dueling_shield() -> ItemData:
+	## The second colored-slot item after Mauls Sabre: a blue slot that Weakens
+	## and a red slot that makes the target Vulnerable, rewarding the duelist
+	## who plays them back to back in either order.
+	var item = _new_shield("Crooked Dueling Shield", Rarity.MYTHIC, 20)
+	item.card_slots = 2
+	item.dexterity_bonus = 7
+	item.agility_bonus = 7
+	item.strength_bonus = 4
+	item.duelist_shield = true
+	item.slot_colors = ["blue", "red"]
+	item.slot_effects = [
+		{"weaken": 1, "combo_after": "red", "combo_armor": 10},
+		{"vulnerable": 1, "combo_after": "blue", "combo_armor": 10},
+	]
+	item.level_2_overrides = {"dexterity_bonus": 10, "agility_bonus": 10, "strength_bonus": 5}
+	item.level_2_description = "+10 DEX, +10 AGI, +5 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
+	_set_appearance(item, "crooked_dueling_shield",
+		"A steel shield shaped like an S, swelling slightly fatter through the center.")
+	item.description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
 	return item
 
 # ============================================

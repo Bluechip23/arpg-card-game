@@ -395,6 +395,12 @@ func get_buff_manager() -> BuffManager:
 func on_attacked_by(attacker) -> void:
 	# Called when this player is attacked
 	buff_manager.on_attacked(attacker)
+	# Shields pass: a shield only answers a blow struck from arm's length, so
+	# the melee test lives here, where both positions are known.
+	if inventory and is_instance_valid(attacker):
+		var reach_diff: Vector3 = attacker.position - position
+		var in_melee: bool = Vector3(reach_diff.x, 0, reach_diff.z).length() <= 1.5
+		inventory.on_attacked_by(attacker, in_melee)
 
 # ============================================
 # FLOATING NUMBERS

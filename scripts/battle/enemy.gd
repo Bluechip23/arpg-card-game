@@ -168,6 +168,21 @@ var actions: Array[Dictionary] = []
 ## Currently chosen action. The enemy commits to this action and waits for tempo.
 var chosen_action: Dictionary = {}
 
+## Sword Breaker: tempo added to this enemy's NEXT melee attack, spent when that
+## attack finally lands. Everything an enemy does from arm's length counts as a
+## melee attack except the actions named here — repositioning, fleeing, healing,
+## and the ranged/utility casts.
+const NON_MELEE_ACTIONS := {
+	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
+	"scurry_away": true, "get_into_range": true, "flee": true, "vanish": true,
+	"hydra_heal": true, "treant_heal": true, "sear_wounds": true,
+	"collect_soul": true, "summon_skeleton": true, "fire_wall": true,
+	"shoot": true, "ember": true, "dark_bolt": true, "frost_bolt": true,
+	"fire_bolt": true, "spark_bolt": true, "sludge_spit": true, "web": true,
+	"hook": true, "breath_swarm": true, "screech": true, "gust": true,
+}
+var next_melee_tempo_tax: int = 0
+
 ## Armored Troll passive: accumulator for regeneration (heals 2 HP every 6 global tempo).
 var regen_accumulator: int = 0
 
@@ -1570,8 +1585,16 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 	if chosen_action.is_empty():
 		return
 
-	# Fire when enough tempo has accumulated for the chosen action
-	if action_tempo_counter >= chosen_action["tempo_cost"]:
+	# Fire when enough tempo has accumulated for the chosen action. Sword
+	# Breaker's tax makes exactly one melee swing arrive late.
+	var action_cost: int = chosen_action["tempo_cost"]
+	var taxed: bool = next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(chosen_action["name"])
+	if taxed:
+		action_cost += next_melee_tempo_tax
+	if action_tempo_counter >= action_cost:
+		if taxed:
+			print("[%s] Sword Breaker: swing delayed %d tempo" % [enemy_name, next_melee_tempo_tax])
+			next_melee_tempo_tax = 0
 		var move_target = player_node
 		if taunt_target and is_instance_valid(taunt_target):
 			move_target = taunt_target

@@ -560,6 +560,20 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.equipment_armor_shred += item.bonus_damage_to_armor * multiplier
 	if item.attack_speed_threshold_bonus != 0:
 		player_stats.equipment_attack_speed_penalty += item.attack_speed_threshold_bonus * multiplier
+	# Shields pass
+	if item.flat_damage_reduction != 0:
+		player_stats.equipment_flat_damage_reduction += item.flat_damage_reduction * multiplier
+	if item.low_health_lifesteal_bonus != 0.0:
+		player_stats.equipment_low_health_lifesteal += item.low_health_lifesteal_bonus * multiplier
+	if item.flash_points_bonus != 0:
+		player_stats.equipment_flash_bonus += item.flash_points_bonus * multiplier
+	# Shield runtime state restarts on every equip/unequip. An Overdraw shield
+	# comes to hand with a full magazine; its conjured blades do not travel.
+	if item.overdraw_card_block > 0 and item.conjured_in_manifest > 0:
+		player_stats.equipment_defense_card_block -= item.overdraw_card_block * item.conjured_in_manifest
+	item.conjured_in_manifest = 0
+	item.overdraw_charges_left = item.overdraw_spell_charges if multiplier > 0 else 0
+	item.overdraw_recharge_accum = 0
 	# Weapon runtime state restarts on every equip/unequip.
 	item.wrath = 0
 	item.vitality_stacks = 0
@@ -851,6 +865,23 @@ func process_turn() -> void:
 			if chest.exposed_armor_cd_left == 0:
 				print("[INVENTORY] %s: Exposed-armor reaction ready" % chest.item_name)
 
+	# Shields pass: Overdraw spell charges refill on their own clock (Castle
+	# wall: one back every 15 tempo). Deliberately NOT gated on being empty —
+	# a charge comes back even while others are still in the magazine.
+	for shield in get_equipped_shields():
+		if shield.overdraw_spell_charges <= 0 or shield.overdraw_spell_recharge <= 0:
+			continue
+		if shield.overdraw_charges_left >= shield.overdraw_spell_charges:
+			shield.overdraw_recharge_accum = 0
+			continue
+		shield.overdraw_recharge_accum += 5  # one cycle = 5 tempo
+		while shield.overdraw_recharge_accum >= shield.overdraw_spell_recharge \
+				and shield.overdraw_charges_left < shield.overdraw_spell_charges:
+			shield.overdraw_recharge_accum -= shield.overdraw_spell_recharge
+			shield.overdraw_charges_left += 1
+			print("[INVENTORY] %s: %d/%d Overdraw charge(s) ready" % [shield.item_name,
+				shield.overdraw_charges_left, shield.overdraw_spell_charges])
+
 	# Ring pass: Marvolo Gaunt's 50-tempo cooldown ticks per cycle (5 tempo).
 	for ring in equipped_rings:
 		if ring and int(ring.ring_counters.get("cd", 0)) > 0:
@@ -1039,6 +1070,12 @@ func on_card_drawn() -> void:
 
 func on_damage_taken() -> void:
 	trigger_rings(ItemData.RingTrigger.ON_TAKE_DAMAGE)
+	# Shields pass: Steve Rodgers' bastion turns every blow into mana.
+	if player_stats:
+		for shield in get_equipped_shields():
+			if shield.damage_taken_mana_gain > 0:
+				player_stats.gain_mana(shield.damage_taken_mana_gain)
+				print("[INVENTORY] %s: +%d mana from the hit" % [shield.item_name, shield.damage_taken_mana_gain])
 	# Ring pass: enemy hits landed on you. Counters are cumulative — one
 	# journey, no battles, no resets.
 	for r in equipped_rings:
@@ -1063,6 +1100,21 @@ func on_damage_taken() -> void:
 						and player_stats and not player_stats.draupnir_clone_alive:
 					r.ring_counters["hits"] = 0
 					_fire_custom_ring(r, "draupnir_clone")
+
+## Shields pass: an enemy just struck the wearer. `in_melee` is decided by the
+## player node (it owns both positions); a shield's retaliation only answers a
+## blow landed at arm's length.
+func on_attacked_by(attacker, in_melee: bool) -> void:
+	if not in_melee or attacker == null or not is_instance_valid(attacker):
+		return
+	if not attacker.has_method("apply_debuff"):
+		return
+	for shield in get_equipped_shields():
+		if shield.melee_retaliate_bleed > 0:
+			attacker.apply_debuff("bleed", shield.melee_retaliate_bleed)
+			print("[INVENTORY] %s: %s bleeds %d for closing in" % [shield.item_name,
+				attacker.enemy_name if "enemy_name" in attacker else "the attacker",
+				shield.melee_retaliate_bleed])
 
 func on_healed(amount: int = 0) -> void:
 	trigger_rings(ItemData.RingTrigger.ON_HEAL)
@@ -1315,10 +1367,21 @@ func check_overflow_effects() -> void:
 # ============================================
 
 func get_equipped_shield() -> ItemData:
+	## The first shield in either hand. Reads the subtype, not the name — a
+	## Buckler and a Castle wall are every bit as much shields as the ones that
+	## happen to be called one.
 	for weapon in equipped_weapons:
-		if weapon and "Shield" in weapon.item_name:
+		if _is_shield(weapon):
 			return weapon
 	return null
+
+func get_equipped_shields() -> Array[ItemData]:
+	## Every shield currently in hand (two, if the player is holding a pair).
+	var shields: Array[ItemData] = []
+	for weapon in equipped_weapons:
+		if _is_shield(weapon):
+			shields.append(weapon)
+	return shields
 
 func has_shield_equipped() -> bool:
 	return get_equipped_shield() != null

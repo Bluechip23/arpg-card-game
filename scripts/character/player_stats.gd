@@ -205,6 +205,7 @@ var equipment_block_physical_resist: float = 0.0  # +% physical resist while arm
 var equipment_resist_per_missing10: float = 0.0   # +% all-resist per missing-health step (Divine Resistance)
 var equipment_resist_missing_step: int = 10       # % of missing health per resist grant (Divine Resistance 8, Lv3 7)
 signal armor_broken                               # a hit just broke through your armor (Briarhide / Adimantium react)
+signal curse_of_the_living_shared(amount: int)    # Coffin Lid: heal every ally by this much
 var equipment_gold_gain_heal: int = 0             # heal X whenever gold is gained (Suit and Tie)
 var equipment_hp_diff_divisor: int = 0            # health-gap bonus damage divisor, 0 = off (Tigers Sunday Red)
 var equipment_ranged_range_bonus: int = 0         # +range on ranged offensive cards (Tigers Sunday Red)
@@ -218,6 +219,16 @@ var equipment_shield_melee_damage: int = 0        # +melee damage while a shield
 var equipment_melee_reach: int = 0                # +melee reach while a shield is up (Spartan Spear)
 var equipment_attack_speed_penalty: int = 0       # attack-speed proc threshold penalty (Bessy)
 var pending_wrath_percent: int = 0                # Purge Wrath: next attack's % bonus, then cleared
+# Shields pass: the off hand that fights back.
+var equipment_flat_damage_reduction: int = 0      # every incoming hit is cut by this, flat (Buckler / Vanguard 3)
+var equipment_low_health_lifesteal: float = 0.0   # +% lifesteal while below half health (Coffin Lid 8)
+var equipment_flash_bonus: int = 0                # +max flash points from gear (Slotted Rope Half Sleeve 4)
+var current_temp_mana: int = 0                    # Bouncing Shield: mana that sits ABOVE the maximum
+var temp_mana_tempo_remaining: int = 0            # tempo left on the temp-mana pool
+var pending_mana_ward: bool = false               # Mind over Matter: next hit is halved and paid out of mana
+var last_exposed_armor: int = 0                   # armor the most recent armor-breaking hit ate
+var pending_armor_return: int = 0                 # Reverberate Regrowth: armor owed back after an Exposed hit
+var pending_armor_return_tempo: int = 0           # raw tempo until that armor reverberates back
 # Ranged pass
 var improvised_ammo_crit_bonus: float = 0.0       # Wrist Rocket: +% crit on Improvised Ammo, banked by discards; cumulative — never resets
 var bow_instance_count: int = 0                   # Bow of Budding Blasts: living bow summons (main keeps this current)
@@ -893,7 +904,7 @@ func get_max_flash_points() -> int:
 	# Movement enchantments feed the pool too: each old "+1 free move per tempo"
 	# bonus is worth 5 FREE MOVES of flash per refresh window (denominated in
 	# moves, so it scales with the move cost).
-	return agility + enchantment_movement_bonus * 5 * FLASH_COST_MOVE
+	return agility + enchantment_movement_bonus * 5 * FLASH_COST_MOVE + equipment_flash_bonus
 
 func refresh_flash_points() -> void:
 	current_flash_points = get_max_flash_points()
@@ -1251,6 +1262,19 @@ func process_tempo(amount: int) -> void:
 		shadow_form_tempo = max(0, shadow_form_tempo - amount)
 		if shadow_form_tempo <= 0:
 			exit_shadow_form()
+	# Reverberate Regrowth: the armor the Exposed hit ate comes back on time.
+	if pending_armor_return > 0:
+		pending_armor_return_tempo = max(0, pending_armor_return_tempo - amount)
+		if pending_armor_return_tempo <= 0:
+			var echoed: int = pending_armor_return
+			pending_armor_return = 0
+			add_armor(echoed)
+			print("[STATS] Reverberate Regrowth: %d armor echoes back" % echoed)
+	# Temporary mana (Bouncing Shield) runs on raw tempo, like the ring timers.
+	if current_temp_mana > 0 and temp_mana_tempo_remaining > 0:
+		temp_mana_tempo_remaining = max(0, temp_mana_tempo_remaining - amount)
+		if temp_mana_tempo_remaining <= 0:
+			_expire_temp_mana()
 	_tempo_until_mana_regen -= float(amount)
 	if _tempo_until_mana_regen <= 0.0:
 		_tempo_until_mana_regen += mana_regen_tempo_interval
@@ -1343,6 +1367,24 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		_friendship_echo = false
 		friendship_partner._friendship_echo = false
 
+	# Mind over Matter (Presence of Mind): the armed hit is halved and what is
+	# left is paid out of the mana pool, point for point. Mana that can't cover
+	# it lets the remainder through the normal pipeline — the ward is spent
+	# either way.
+	if pending_mana_ward and amount > 0:
+		var ward_incoming := amount
+		pending_mana_ward = false
+		amount = amount - floori(amount * 0.5)
+		var ward_paid: int = mini(amount, floori(current_mana))
+		if ward_paid > 0:
+			_spend_temp_mana_first(ward_paid)
+			amount -= ward_paid
+		print("[STATS] Mind over Matter: %d damage paid in mana, %d left over" % [ward_paid, amount])
+		if amount <= 0:
+			# The blow still landed as far as reaction cards are concerned.
+			damage_taken.emit(ward_incoming)
+			return
+
 	var remaining = amount
 
 	# Stone Skin: 10% damage resistance against Fire, Physical, and Lightning only.
@@ -1369,6 +1411,11 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		flat_resist += equipment_resist_per_missing10 * int((1.0 - get_health_percent()) * 100.0 / resist_step)
 	if flat_resist > 0.0:
 		remaining = floori(remaining * (1.0 - minf(flat_resist, 90.0) / 100.0))
+
+	# Shields (Buckler, Vanguard): a flat bite taken out of every hit, applied
+	# after the percentage resists so it is worth the most against chip damage.
+	if equipment_flat_damage_reduction > 0 and remaining > 0:
+		remaining = maxi(0, remaining - equipment_flat_damage_reduction)
 
 	# Iron Bastion: chance to shrug off part of the hit.
 	if damage_proc_reduction_chance > 0.0 and remaining > 0 and randf() < damage_proc_reduction_chance:
@@ -1435,6 +1482,8 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		else:
 			remaining -= current_armor
 			current_armor = 0
+			# Reverberate Regrowth reads what the breaking hit actually ate.
+			last_exposed_armor = armor_before
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
 			# Briarhide / Adimantium: the shell cracked — armored chests react.
 			# The reaction armor arrives AFTER this hit resolves.
@@ -1626,6 +1675,18 @@ func _crossed_threshold(old_pct: float, new_pct: float) -> bool:
 			return true
 	return false
 
+func _curse_of_the_living_active() -> bool:
+	## True while the Coffin Lid's Curse of the Living is being maintained.
+	if inventory == null or not ("deck_manager" in inventory) or inventory.deck_manager == null:
+		return false
+	var dm = inventory.deck_manager
+	if not dm.has_method("get_maintained_cards"):
+		return false
+	for mc in dm.get_maintained_cards():
+		if mc and mc.card_id == "curse_of_the_living":
+			return true
+	return false
+
 func heal(amount: int, from_ally: bool = false) -> void:
 	# Corrupted Strength / Solemn Independence: block ally healing while active
 	if from_ally and (st_corrupted_strength_no_ally_heal or solemn_active):
@@ -1646,6 +1707,15 @@ func heal(amount: int, from_ally: bool = false) -> void:
 			amount *= 2
 			bl_consume = true
 			sanguine_stacks = 0
+	# Curse of the Living (Coffin Lid, maintained): the dead take half of
+	# everything you are given and pass half of the rest to your allies. The
+	# share is emitted for main to deliver — allies aren't reachable from here.
+	var curse_share := 0
+	if amount > 0 and _curse_of_the_living_active():
+		var kept: int = amount - floori(amount / 2.0)
+		curse_share = ceili(kept / 2.0)
+		amount = kept
+		print("[STATS] Curse of the Living: heal halved to %d, %d to each ally" % [kept, curse_share])
 	var boosted_amount = get_effective_heal_amount(amount)
 	var old_health_pct = get_health_percent()
 
@@ -1664,6 +1734,9 @@ func heal(amount: int, from_ally: bool = false) -> void:
 	health_changed.emit(current_health, max_health)
 	if actual_heal > 0:
 		healed.emit(actual_heal)
+
+	if curse_share > 0:
+		curse_of_the_living_shared.emit(curse_share)
 
 	var new_health_pct = get_health_percent()
 	print("[STATS] Healed %d (base %d)! Health: %d/%d" % [actual_heal, amount, current_health, max_health])
@@ -1751,12 +1824,49 @@ func add_temp_health(amount: int, duration_tempo: int) -> void:
 	if _crossed_threshold(old_pct, get_health_percent()):
 		recalculate_derived_stats()
 
+## Bouncing Shield (Steve Rodgers): mana granted ON TOP of the pool, exactly
+## as temp health sits on top of health. It lifts the available ceiling too, so
+## a maintained card stops squeezing you while the temp mana lasts.
+func add_temp_mana(amount: int, duration_tempo: int) -> void:
+	if amount <= 0:
+		return
+	current_temp_mana += amount
+	temp_mana_tempo_remaining = maxi(temp_mana_tempo_remaining, duration_tempo)
+	current_mana += amount
+	mana_changed.emit(current_mana, max_mana)
+	mana_gained.emit(amount, false)
+	print("[STATS] Gained %d temporary mana for %d tempo (pool: %d/%d)" % [amount, duration_tempo, int(current_mana), get_available_max_mana()])
+
+func _spend_temp_mana_first(amount: int) -> void:
+	## Drain the temp pool before the real one — temp mana is the volatile
+	## half, so it should be what a cost eats first.
+	var from_temp: int = mini(current_temp_mana, amount)
+	current_temp_mana -= from_temp
+	current_mana = maxf(0.0, current_mana - amount)
+	mana_changed.emit(current_mana, max_mana)
+	if current_mana <= 0 and maintained_mana > 0:
+		_break_maintained_cards()
+
+func _expire_temp_mana() -> void:
+	if current_temp_mana <= 0:
+		return
+	print("[STATS] Temporary mana expired (-%d)" % current_temp_mana)
+	current_temp_mana = 0
+	temp_mana_tempo_remaining = 0
+	current_mana = minf(current_mana, float(get_available_max_mana()))
+	mana_changed.emit(current_mana, max_mana)
+
+## Total lifesteal percent from gear, including the Coffin Lid's below-half
+## bonus. Sphere-grid lifesteal and per-card riders are added by the caller.
+func get_equipment_lifesteal() -> float:
+	var pct := equipment_lifesteal_bonus
+	if equipment_low_health_lifesteal > 0.0 and get_health_percent() < 0.5:
+		pct += equipment_low_health_lifesteal
+	return pct
+
 func spend_mana(amount: int) -> bool:
 	if current_mana >= amount:
-		current_mana -= amount
-		mana_changed.emit(current_mana, max_mana)
-		if current_mana <= 0 and maintained_mana > 0:
-			_break_maintained_cards()
+		_spend_temp_mana_first(amount)
 		return true
 	return false
 
@@ -1794,8 +1904,9 @@ func gain_mana(amount: int) -> void:
 # ============================================
 
 func get_available_max_mana() -> int:
-	## Max mana minus mana reserved by maintained cards
-	return max(0, max_mana - maintained_mana)
+	## Max mana minus mana reserved by maintained cards, plus any temporary
+	## mana — which deliberately eclipses the maximum while it lasts.
+	return max(0, max_mana - maintained_mana) + current_temp_mana
 
 func reserve_mana(amount: int) -> void:
 	## Reserve mana for a maintained Power card

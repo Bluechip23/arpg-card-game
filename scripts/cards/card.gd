@@ -131,6 +131,12 @@ const CARD_RARITIES := {
 	"close_is_favored": Rarity.MYTHIC, "spirit_bow": Rarity.MYTHIC,
 	# Ring-granted (rings pass 1)
 	"tricks_of_alberich": Rarity.MYTHIC, "the_nibelung_curse": Rarity.MYTHIC,
+	# Shield-granted (shields pass 1)
+	"huck": Rarity.LEGENDARY, "rain_of_arrows": Rarity.LEGENDARY,
+	"song_of_a_swords_sing": Rarity.LEGENDARY, "curse_of_the_living": Rarity.LEGENDARY,
+	"bark_up": Rarity.LEGENDARY, "cinquedea": Rarity.LEGENDARY,
+	"mage_shield": Rarity.MYTHIC, "reverberate_regrowth": Rarity.MYTHIC,
+	"bouncing_shield": Rarity.MYTHIC, "mind_over_matter": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -162,6 +168,11 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"territorial_mark": true, "balistic_arrow": true, "close_is_favored": true,
 	"spirit_bow": true,
 	"tricks_of_alberich": true, "the_nibelung_curse": true,
+	# Shield-granted cards (shields pass 1).
+	"huck": true, "rain_of_arrows": true, "song_of_a_swords_sing": true,
+	"curse_of_the_living": true, "bark_up": true, "cinquedea": true,
+	"mage_shield": true, "reverberate_regrowth": true, "bouncing_shield": true,
+	"mind_over_matter": true,
 }
 
 @export var card_id: String = "slash"
@@ -292,8 +303,25 @@ func get_slot_keyword() -> String:
 			return "Pliable"
 	return "Picky"
 
+## How many KINDS of debuff an enemy is carrying — stacks within one kind count
+## once (Song of a Swords Sing: "1 burn, 1 frost, 1 disarm = 3; 3 disarm = 1").
+static func count_debuff_kinds(enemy) -> int:
+	if enemy == null:
+		return 0
+	var kinds := 0
+	for field in ["burn_stacks", "cold_stacks", "poison_stacks", "shock_stacks",
+			"bleed_stacks", "vulnerable_stacks", "weaken_stacks", "slow_stacks",
+			"choke_dot_stacks", "disarmed_attacks", "stun_tempo", "silenced_tempo",
+			"rooted_tempo", "frozen_tempo", "disarmed_tempo", "marked_tempo"]:
+		if field in enemy and int(enemy.get(field)) > 0:
+			kinds += 1
+	return kinds
+
 func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 	rng_outcomes.clear()
+
+	# Delfins Deterministic Round Shield: cards slotted into it roll better.
+	chance_boost += float(get_on_self_bonus().get("chance_boost", 0.0))
 
 	if rng_outcomes_data.size() == 1:
 		# Binary: single percentage, success or fail
@@ -1006,13 +1034,31 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		# play. Combo effects read combo_prev_color, captured at play time.
 		# The discard cost is player-chosen, so it lives in main.gd
 		# (_colored_slot_discard) where the hand picker exists.
+		# Sword Breaker: a slotted play locks your armor down.
+		if int(on_self.get("fortify", 0)) > 0 and buff_mgr:
+			buff_mgr.apply_buff(Buff.create_fortify(15, slotted_in_item.item_name))
+		# Presence of Mind: extra block measured against the mana pool itself.
+		if on_self.get("block_max_mana_percent", 0.0) > 0.0 and player_stats:
+			var pom_block: int = floori(player_stats.max_mana * on_self["block_max_mana_percent"] / 100.0)
+			if pom_block > 0:
+				_slot_block_applied += pom_block
+				block += pom_block
+				print("[CARD] On-Self: +%d block (%.0f%% of max mana) from %s" % [pom_block, on_self["block_max_mana_percent"], slotted_in_item.item_name])
 		var _slot_fx: Dictionary = slotted_in_item.get_slot_effect(self)
 		if not _slot_fx.is_empty():
 			if int(_slot_fx.get("damage", 0)) > 0 and is_offensive():
 				_gauntlet_bonus_applied += int(_slot_fx["damage"])
 			if int(_slot_fx.get("block", 0)) > 0:
-				_slot_block_applied = int(_slot_fx["block"])
-				block += _slot_block_applied
+				_slot_block_applied += int(_slot_fx["block"])
+				block += int(_slot_fx["block"])
+			# Crooked Dueling Shield: the blue/red pair, played back to back in
+			# either order, pays out armor.
+			if int(_slot_fx.get("combo_armor", 0)) > 0 and player_stats \
+					and str(_slot_fx.get("combo_after", "")) != "" \
+					and has_meta("combo_prev_color") \
+					and str(get_meta("combo_prev_color")) == str(_slot_fx["combo_after"]):
+				player_stats.add_armor(int(_slot_fx["combo_armor"]))
+				print("[CARD] Colored combo: +%d armor from %s" % [int(_slot_fx["combo_armor"]), slotted_in_item.item_name])
 		# Quiver of Wet Stones: slotted hits grind extra enemy armor (armor only).
 		if int(on_self.get("armor_shred", 0)) > 0 and is_offensive() and target \
 				and "current_armor" in target and target.current_armor > 0:
@@ -1358,6 +1404,52 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 			if target and target.has_method("apply_debuff"):
 				target.apply_debuff("disarm_attacks", 1)
+		# === Shields pass 1 ===
+		"huck", "rain_of_arrows", "bouncing_shield":
+			# World-scale shield cards — resolved in main._apply_card_world_effects.
+			pass
+		"reverberate_regrowth", "curse_of_the_living":
+			# Maintained shield powers: the Bastion's echo fires off the
+			# armor_broken signal and the Curse rides every heal(). Playing them
+			# only puts them into maintenance.
+			pass
+		"mage_shield":
+			# Delfins: the instant's 10 block, through the normal defense path.
+			_execute_block(player_stats, is_empowered, buff_mgr)
+		"mind_over_matter":
+			# Presence of Mind: arm the ward. The halving and the mana payment
+			# happen inside PlayerStats.take_damage on the next hit.
+			if player_stats:
+				player_stats.pending_mana_ward = true
+				print("[CARD] Mind over Matter: the next hit will be met with mana")
+		"bark_up":
+			# Treebeards Branch: every point of Regen and Thorns hardens into
+			# armor, and both buffs are spent doing it.
+			if player_stats and buff_mgr:
+				var bark_total := 0
+				for bark_type in [Buff.BuffType.REGEN, Buff.BuffType.THORNS]:
+					var bark_buff = buff_mgr.get_buff(bark_type)
+					if bark_buff:
+						bark_total += bark_buff.value
+						buff_mgr.remove_buff(bark_type)
+				if bark_total > 0:
+					player_stats.add_armor(bark_total)
+					print("[CARD] Bark Up: %d Regen+Thorns hardened into armor" % bark_total)
+				else:
+					print("[CARD] Bark Up: nothing green to harden")
+		"song_of_a_swords_sing":
+			# Sword Breaker: catch the blade, then read the enemy's suffering by
+			# KIND — 3 Burn is one kind; Burn + Frost + Disarm is three.
+			if target and target.has_method("apply_debuff"):
+				var sword_kinds := count_debuff_kinds(target)
+				target.apply_debuff("disarm_attacks", 1)
+				if player_stats and sword_kinds > 0:
+					player_stats.add_armor(sword_kinds * 2)
+				print("[CARD] Song of a Swords Sing: Disarm 1, +%d armor from %d kind(s)" % [sword_kinds * 2, sword_kinds])
+		"cinquedea":
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("weaken", 1)
 		"return_cut":
 			# Counter the attacker whose hit our armor just ate, +5% crit.
 			if player_stats and player_stats.last_attacker and is_instance_valid(player_stats.last_attacker):
@@ -1652,7 +1744,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Vitality stacks (Nine Ruins: +1% each), and a maintained Resourceful
 	# Replenish: attacks heal a % of damage dealt.
 	if card_type == CardType.ATTACK and player_stats:
-		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.equipment_lifesteal_bonus
+		# get_equipment_lifesteal folds in the Coffin Lid's below-half bonus.
+		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.get_equipment_lifesteal()
+		# Coffin Lid: cards slotted into it drink on their own.
+		ls_pct += float(get_on_self_bonus().get("lifesteal_percent", 0.0))
 		if player_stats.inventory and "equipped_weapons" in player_stats.inventory:
 			for ls_w in player_stats.inventory.equipped_weapons:
 				if ls_w and ls_w.vitality_weapon and ls_w.vitality_stacks > 0:
@@ -1849,6 +1944,31 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if player_stats:
 		player_stats.resolving_melee_offensive = false
 
+## Crooked Dueling Shield: true while a crit is resolving so the Weaken lands
+## after the damage. Set and cleared inside _execute_slash.
+var _duelist_crit: bool = false
+
+static func _duelist_shield_equipped(player_stats) -> bool:
+	if player_stats == null or player_stats.inventory == null:
+		return false
+	if not ("equipped_weapons" in player_stats.inventory):
+		return false
+	for w in player_stats.inventory.equipped_weapons:
+		if w and w.duelist_shield:
+			return true
+	return false
+
+static func _duelist_crit_prelude(target, player_stats) -> void:
+	## The crit is about to land: if the duelist's mark (Weaken) is already on
+	## the target, 2 Vulnerable go in ahead of it.
+	if target == null or not is_instance_valid(target) or not target.has_method("apply_debuff"):
+		return
+	if not _duelist_shield_equipped(player_stats):
+		return
+	if "weaken_stacks" in target and target.weaken_stacks > 0:
+		target.apply_debuff("vulnerable", 2)
+		print("[CARD] Crooked Dueling Shield: 2 Vulnerable land ahead of the crit")
+
 static func crit_multiply(damage: int, player_stats: PlayerStats) -> int:
 	## The one crit-damage formula: 110% base + 3% per point of Dexterity.
 	## Falls back to the 110% base when no stats are available.
@@ -1885,7 +2005,11 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 
 		# Crit check with Enlightened
 		if buff_mgr.roll_crit():
+			# Crooked Dueling Shield: a crit into an already-Weakened target
+			# lands 2 Vulnerable FIRST, so the crit itself is amplified.
+			_duelist_crit_prelude(target, player_stats)
 			total_damage = crit_multiply(total_damage, player_stats)
+			_duelist_crit = true
 			print("[CARD] CRITICAL HIT! Damage doubled!")
 
 	# Cursed: reduce damage dealt by percentage
@@ -1897,6 +2021,13 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
+		# Crooked Dueling Shield: every crit leaves the target Weakened.
+		if _duelist_crit:
+			_duelist_crit = false
+			if is_instance_valid(target) and target.has_method("apply_debuff") \
+					and _duelist_shield_equipped(player_stats):
+				target.apply_debuff("weaken", 1)
+				print("[CARD] Crooked Dueling Shield: the crit leaves 1 Weaken")
 
 		# Thorns check - if target has buff_manager
 		if target.has_method("get_buff_manager"):
@@ -7051,6 +7182,196 @@ static func create_the_nibelung_curse() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy", "self"]
 	card.erase_on_play = true
+	card.shop_excluded = true
+	return card
+
+# ============================================
+# ITEM-GRANTED CARDS (shields pass 1)
+# ============================================
+# Every one of these arrives with its shield and leaves with it. The world-side
+# payloads (Huck's armor conversion, the arrow rain, the bouncing shield) live
+# in main's _apply_card_world_effects, where the grid and the enemies are.
+
+static func create_huck() -> Card:
+	## Castle wall. Throw the wall itself: everything you were hiding behind,
+	## delivered at once.
+	var card = Card.new()
+	card.card_id = "huck"
+	card.card_name = "Huck"
+	card.description = "Deal damage equal to your armor, then lose all of it."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 100
+	card.tempo_cost = 5
+	card.damage = 0
+	card.base_damage = 0
+	card.is_ranged = true
+	card.target_types = ["enemy"]
+	card.shop_excluded = true
+	return card
+
+static func create_rain_of_arrows() -> Card:
+	## Castle wall's Overdraw payload — the wall answers with its archers. Never
+	## held in hand; the shield fires it off a charge.
+	var card = Card.new()
+	card.card_id = "rain_of_arrows"
+	card.card_name = "Rain of Arrows"
+	card.description = "Deal 10 damage in a 3-square radius around you."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 45
+	card.tempo_cost = 0
+	card.damage = 10
+	card.base_damage = 10
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 3.0
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_song_of_a_swords_sing() -> Card:
+	## Sword Breaker. Catch the blade in the notches and twist: the more the
+	## enemy is already suffering, the more the shield takes from it.
+	var card = Card.new()
+	card.card_id = "song_of_a_swords_sing"
+	card.card_name = "Song of a Swords Sing"
+	card.description = "Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three)."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 35
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.is_ranged = false
+	card.target_types = ["enemy"]
+	card.shop_excluded = true
+	return card
+
+static func create_curse_of_the_living() -> Card:
+	## Coffin Lid. The dead share what they are given, whether or not the living
+	## wanted to.
+	var card = Card.new()
+	card.card_id = "curse_of_the_living"
+	card.card_name = "Curse of the Living"
+	card.description = "Maintain: every heal you take is halved, and each ally is healed for half of what remains (rounded up)."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 65
+	card.maintain_cost = 65
+	card.tempo_cost = 7
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_bark_up() -> Card:
+	## Treebeards Branch. The bark hardens: everything green about you turns to
+	## plating.
+	var card = Card.new()
+	card.card_id = "bark_up"
+	card.card_name = "Bark Up"
+	card.description = "Convert every point of your Regen and Thorns into armor."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 45
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_cinquedea() -> Card:
+	## Slotted Rope Half Sleeve. The little ox-tongue blades tucked into the
+	## sleeve's loops — each one waiting there stiffens your guard.
+	var card = Card.new()
+	card.card_id = "cinquedea"
+	card.card_name = "Cinquedea"
+	card.description = "Deal 6 damage and apply 1 Weaken. Range 4."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 10
+	card.tempo_cost = 0
+	card.damage = 6
+	card.base_damage = 6
+	card.is_ranged = true
+	card.range_modifier = -1  # base ranged reach is 5; this one throws 4
+	card.target_types = ["enemy"]
+	card.shop_excluded = true
+	return card
+
+static func create_mage_shield() -> Card:
+	## Delfins Deterministic Round Shield. No dice: the block is simply there.
+	var card = Card.new()
+	card.card_id = "mage_shield"
+	card.card_name = "Mage Shield"
+	card.description = "Instant. When you take damage, gain 10 block."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	# Instants in this game fire free and are spent out of the hand — the same
+	# contract as Return Cut and Hard Helmet.
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 10
+	card.base_block = 10
+	card.target_types = ["self"]
+	card.reaction_trigger = "on_damage_taken"
+	card.shop_excluded = true
+	return card
+
+static func create_reverberate_regrowth() -> Card:
+	## Steve Rodgers Bastion of Reverberation. The blow that cracks the guard is
+	## the blow the guard remembers.
+	var card = Card.new()
+	card.card_id = "reverberate_regrowth"
+	card.card_name = "Reverberate Regrowth"
+	card.description = "Maintain: when your armor is broken through, the armor that hit ate comes back 5 tempo later."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 55
+	card.maintain_cost = 55
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_bouncing_shield() -> Card:
+	## Steve Rodgers Bastion of Reverberation. It comes back. It always comes
+	## back — and it brings something with it from every body it touched.
+	var card = Card.new()
+	card.card_id = "bouncing_shield"
+	card.card_name = "Bouncing Shield"
+	card.description = "Throw the shield: 5 damage to each enemy it bounces through (up to 5, each within 5 squares of the last). Every target hit returns 5 block and 10 temporary mana that may sit above your maximum, for 15 tempo. You lose half your armor while it flies."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 55
+	card.tempo_cost = 4
+	card.damage = 5
+	card.base_damage = 5
+	card.is_ranged = true
+	card.target_types = ["enemy"]
+	card.shop_excluded = true
+	return card
+
+static func create_mind_over_matter() -> Card:
+	## Presence of Mind. Meet the blow with the mind instead of the body.
+	var card = Card.new()
+	card.card_id = "mind_over_matter"
+	card.card_name = "Mind over Matter"
+	card.description = "The next hit you take is halved, and what is left is paid out of your mana instead of your health."
+	card.card_type = CardType.DEFENSE
+	card.card_type_name = "Defense"
+	card.mana_cost = 20
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
 	card.shop_excluded = true
 	return card
 

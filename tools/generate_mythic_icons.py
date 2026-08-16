@@ -851,6 +851,78 @@ def ring_of_thomas_the_train_tracks():
     return c
 
 
+def delfins_deterministic_round_shield():
+    ## "A wooden shield banded with iron."
+    c = Canvas()
+    # The round board.
+    c.ellipse((3, 2, 28, 29), "wood")
+    # Iron bands: a vertical spine and a horizontal crossbar, plus the rim.
+    c.rect((14, 3, 17, 28), "iron")
+    c.rect((4, 14, 27, 17), "iron")
+    rim = ImageChops.difference(_ellipse_mask((3, 2, 28, 29)), _ellipse_mask((5, 4, 26, 27)))
+    c.stamp(rim, "iron")
+    # Iron boss riveted over the crossing.
+    c.ellipse((12, 12, 19, 19), "iron")
+    c.dot(14, 14, "iron", "hi")
+    c.dot(17, 17, "iron", "sh")
+    # Plank seams read through the timber on both wings.
+    c.line([(8, 5), (8, 26)], "wood", "sh")
+    c.line([(23, 5), (23, 26)], "wood", "sh")
+    return c
+
+
+def steve_rodgers_bastion():
+    ## "The Captain America shield."
+    c = Canvas()
+    c.ellipse((2, 2, 29, 29), "blood")
+    c.ellipse((5, 5, 26, 26), "bone")
+    c.ellipse((8, 8, 23, 23), "blood")
+    c.ellipse((11, 11, 20, 20), "cloth")
+    # The white star at the center.
+    star = []
+    for i in range(10):
+        a = math.tau * i / 10.0 - math.pi / 2.0
+        r = 5.0 if i % 2 == 0 else 2.1
+        star.append((15.5 + math.cos(a) * r, 15.5 + math.sin(a) * r))
+    c.poly(star, "bone", "hi")
+    return c
+
+
+def presence_of_mind():
+    ## "A black kite shield marked in yellow: a man sitting in meditation, a
+    ## half crescent moon above his head."
+    c = Canvas()
+    # Kite shield: square shoulders tapering to a point.
+    c.poly([(6, 2), (25, 2), (25, 16), (15.5, 30), (6, 16)], "dark")
+    # The crescent, cut from a disc by a second disc offset to the right.
+    moon = ImageChops.subtract(_ellipse_mask((11, 4, 20, 12)), _ellipse_mask((14, 4, 23, 12)))
+    c.stamp(moon, "gold", "hi")
+    # The meditant: head, folded legs, arms resting on the knees.
+    c.ellipse((14, 13, 17, 16), "gold", "hi")
+    c.poly([(11, 23), (20, 23), (18, 19), (13, 19)], "gold", "base")
+    c.line([(12, 20), (14, 22)], "gold", "hi")
+    c.line([(19, 20), (17, 22)], "gold", "hi")
+    return c
+
+
+def crooked_dueling_shield():
+    ## "A steel shield shaped like an S, swelling slightly fatter through the
+    ## center."
+    c = Canvas()
+    # The S: an upper hook curling right, a lower hook curling left, and a
+    # thickened waist where the two meet.
+    c.poly([(20, 2), (26, 4), (25, 9), (14, 10), (10, 7), (12, 3)], "steel")
+    c.poly([(11, 22), (6, 27), (12, 30), (22, 28), (24, 24), (18, 22)], "steel")
+    c.poly([(10, 8), (21, 8), (23, 16), (21, 24), (10, 24), (8, 16)], "steel")
+    # A darker fuller runs the length of the swell.
+    c.line([(15, 10), (15, 22)], "steel", "sh")
+    c.line([(17, 10), (17, 22)], "steel", "sh")
+    # Rivets at each hook.
+    c.dot(21, 5, "iron", "hi")
+    c.dot(11, 27, "iron", "hi")
+    return c
+
+
 ICONS = {
     "bladed_doughnut": bladed_doughnut,
     "the_headbandz": the_headbandz,
@@ -884,6 +956,10 @@ ICONS = {
     "draupnir": draupnir,
     "ring_of_nibelung": ring_of_nibelung,
     "ring_of_thomas_the_train_tracks": ring_of_thomas_the_train_tracks,
+    "delfins_deterministic_round_shield": delfins_deterministic_round_shield,
+    "steve_rodgers_bastion": steve_rodgers_bastion,
+    "presence_of_mind": presence_of_mind,
+    "crooked_dueling_shield": crooked_dueling_shield,
 }
 
 
