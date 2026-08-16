@@ -870,8 +870,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 
 	# Knife Toed Boots: mark melee offensive resolution so crit_multiply adds the
 	# flat melee-crit bonus for EVERY executor's crit, not just specific cards.
+	# The victim rides along for the same reason — the Crooked Dueling Shield's
+	# crit rider fires inside crit_multiply, so it reaches every executor.
 	if player_stats:
 		player_stats.resolving_melee_offensive = is_offensive() and not is_ranged
+		player_stats.resolving_attack_target = target
 
 	# Blind (e.g. Giant Hawk): an attack against an enemy may miss entirely.
 	# Enemies expose take_damage but not get_stats (players have get_stats).
@@ -1940,13 +1943,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
 		player_stats.pending_spell_power_bonus = 0
 
-	# Clear the melee-offensive marker so it can't leak past this resolution.
+	# Clear the resolution markers so they can't leak past this play.
 	if player_stats:
 		player_stats.resolving_melee_offensive = false
-
-## Crooked Dueling Shield: true while a crit is resolving so the Weaken lands
-## after the damage. Set and cleared inside _execute_slash.
-var _duelist_crit: bool = false
+		player_stats.resolving_attack_target = null
 
 static func _duelist_shield_equipped(player_stats) -> bool:
 	if player_stats == null or player_stats.inventory == null:
@@ -1958,9 +1958,12 @@ static func _duelist_shield_equipped(player_stats) -> bool:
 			return true
 	return false
 
-static func _duelist_crit_prelude(target, player_stats) -> void:
-	## The crit is about to land: if the duelist's mark (Weaken) is already on
-	## the target, 2 Vulnerable go in ahead of it.
+static func _duelist_crit_rider(target, player_stats) -> void:
+	## Crooked Dueling Shield, on EVERY crit the wielder lands: an already
+	## Weakened target eats 2 Vulnerable first — they go in before the damage,
+	## so the crit itself is amplified by them — and then the crit leaves its
+	## own Weaken behind. Order matters: the Vulnerable check reads the Weaken
+	## the target already had, never the one this crit is about to apply.
 	if target == null or not is_instance_valid(target) or not target.has_method("apply_debuff"):
 		return
 	if not _duelist_shield_equipped(player_stats):
@@ -1968,12 +1971,20 @@ static func _duelist_crit_prelude(target, player_stats) -> void:
 	if "weaken_stacks" in target and target.weaken_stacks > 0:
 		target.apply_debuff("vulnerable", 2)
 		print("[CARD] Crooked Dueling Shield: 2 Vulnerable land ahead of the crit")
+	target.apply_debuff("weaken", 1)
+	print("[CARD] Crooked Dueling Shield: the crit leaves 1 Weaken")
 
-static func crit_multiply(damage: int, player_stats: PlayerStats) -> int:
+static func crit_multiply(damage: int, player_stats: PlayerStats, target = null) -> int:
 	## The one crit-damage formula: 110% base + 3% per point of Dexterity.
 	## Falls back to the 110% base when no stats are available.
 	## Knife Toed Boots: while a melee offensive card is resolving, every crit
 	## adds a flat unscaled bonus on top of the multiplied damage.
+	## Every crit in the game funnels through here, so crit riders that need
+	## the victim live here too — `target` falls back to the card resolution's
+	## own victim, which Card.execute parks on the stats for exactly this.
+	if player_stats:
+		var victim = target if target != null else player_stats.resolving_attack_target
+		_duelist_crit_rider(victim, player_stats)
 	if player_stats and player_stats.resolving_melee_offensive \
 			and player_stats.equipment_melee_crit_bonus > 0:
 		return floori(damage * player_stats.get_crit_damage_multiplier()) + player_stats.equipment_melee_crit_bonus
@@ -2005,11 +2016,7 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 
 		# Crit check with Enlightened
 		if buff_mgr.roll_crit():
-			# Crooked Dueling Shield: a crit into an already-Weakened target
-			# lands 2 Vulnerable FIRST, so the crit itself is amplified.
-			_duelist_crit_prelude(target, player_stats)
-			total_damage = crit_multiply(total_damage, player_stats)
-			_duelist_crit = true
+			total_damage = crit_multiply(total_damage, player_stats, target)
 			print("[CARD] CRITICAL HIT! Damage doubled!")
 
 	# Cursed: reduce damage dealt by percentage
@@ -2021,13 +2028,6 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
-		# Crooked Dueling Shield: every crit leaves the target Weakened.
-		if _duelist_crit:
-			_duelist_crit = false
-			if is_instance_valid(target) and target.has_method("apply_debuff") \
-					and _duelist_shield_equipped(player_stats):
-				target.apply_debuff("weaken", 1)
-				print("[CARD] Crooked Dueling Shield: the crit leaves 1 Weaken")
 
 		# Thorns check - if target has buff_manager
 		if target.has_method("get_buff_manager"):

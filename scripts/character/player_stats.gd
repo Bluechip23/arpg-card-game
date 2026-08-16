@@ -176,6 +176,7 @@ var equipment_highground_damage_percent: float = 0.0  # +% damage from high grou
 var on_high_ground: bool = false             # updated by main each cycle; gates the high-ground bonus
 var equipment_melee_crit_bonus: int = 0      # flat extra damage on a melee crit (Knife Toed Boots)
 var resolving_melee_offensive: bool = false  # transient: set while a melee offensive CARD resolves (gates the above)
+var resolving_attack_target = null           # transient: the victim of the card currently resolving (crit riders read it)
 var equipment_trap_damage_percent: float = 0.0  # +% trap damage against enemies (Hermes Boots)
 var movement_flash_accum: int = 0            # flash spent on movement toward the Boots of Speed threshold
 var movement_flash_tempo_threshold: int = 0  # Boots of Speed: at this accum, fire the -1-tempo bonus

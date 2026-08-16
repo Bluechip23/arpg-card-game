@@ -1946,7 +1946,7 @@ func _on_attack_pressed() -> void:
 	if buff_mgr:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			damage = Card.crit_multiply(damage, stats)
+			damage = Card.crit_multiply(damage, stats, target)
 
 	# Debuff damage reduction
 	if debuff_mgr:
@@ -8797,7 +8797,7 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 				var sdmg: int = stats.get_effective_physical_damage(0)
 				var bm = player.get_buff_manager()
 				if bm and bm.roll_crit():
-					sdmg = Card.crit_multiply(sdmg, stats)
+					sdmg = Card.crit_multiply(sdmg, stats, target)
 				target.take_damage(sdmg, true)
 				tempo_manager.add_tempo(2)
 				add_battle_log("Slice! %d damage (2 tempo)" % sdmg, Color(0.9, 0.7, 0.5))
@@ -8807,7 +8807,7 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 				var pdmg: int = stats.get_effective_physical_damage(0)
 				var pbm = player.get_buff_manager()
 				if pbm and pbm.roll_crit():
-					pdmg = floori(float(Card.crit_multiply(pdmg, stats)) * 1.5)
+					pdmg = floori(float(Card.crit_multiply(pdmg, stats, target)) * 1.5)
 					add_battle_log("Lethal Poke CRITS!", Color(1.0, 0.5, 0.5))
 				target.take_damage(pdmg, true)
 				add_battle_log("Lethal Poke: %d damage" % pdmg, Color(0.8, 0.8, 0.8))
@@ -9452,7 +9452,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var fp_dmg: int = fp_stats.get_effective_physical_damage(0) if fp_stats else 0
 				var fp_bm = player.get_buff_manager()
 				if fp_bm and fp_bm.roll_crit():
-					fp_dmg = Card.crit_multiply(fp_dmg, fp_stats)
+					fp_dmg = Card.crit_multiply(fp_dmg, fp_stats, target)
 				target.take_damage(fp_dmg, true, DamageTypes.Type.FIRE)
 				add_battle_log("Fire Punch: %d damage" % fp_dmg, Color(1.0, 0.5, 0.2))
 				# Fire path behind the target: 2 tiles along the strike direction,
@@ -9501,7 +9501,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				cm_stats.temp_crit_damage_bonus += cm_bonus
 				var cm_bm = player.get_buff_manager()
 				if cm_bm and cm_bm.roll_crit():
-					cm_dmg = Card.crit_multiply(cm_dmg, cm_stats)
+					cm_dmg = Card.crit_multiply(cm_dmg, cm_stats, cm_target)
 					add_battle_log("Crack of Mintaka CRITS!", Color(1.0, 0.6, 0.3))
 				cm_stats.temp_crit_damage_bonus = maxf(0.0, cm_stats.temp_crit_damage_bonus - cm_bonus)
 				cm_target.take_damage(cm_dmg, true)

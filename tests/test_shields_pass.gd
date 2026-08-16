@@ -58,7 +58,41 @@ func _initialize() -> void:
 	_test_bark_up()
 	_test_debuff_kinds()
 	_test_tempo_tax()
+	_test_duelist_crit_rider()
 	print("=== %d failure(s) ===" % failures)
+
+func _test_duelist_crit_rider() -> void:
+	## The rider lives in crit_multiply — the one funnel EVERY crit in the game
+	## passes through — so it fires for every executor, not just the standard
+	## attack path.
+	print("-- Crooked Dueling Shield: every crit --")
+	var stats = _mk_stats()
+	var inv = _mk_inv(stats)
+	var crooked = ItemData.create_crooked_dueling_shield()
+	var stub = _DebuffStub.new()
+
+	# No shield: crits leave nothing behind.
+	Card.crit_multiply(10, stats, stub)
+	_check(stub.weaken_stacks == 0 and stub.vulnerable_stacks == 0,
+		"without the shield a crit applies nothing")
+
+	inv.equip_item(crooked, 0)
+	Card.crit_multiply(10, stats, stub)
+	_check(stub.weaken_stacks == 1 and stub.vulnerable_stacks == 0,
+		"first crit on a clean target: 1 Weaken, no Vulnerable (W%d V%d)" % [stub.weaken_stacks, stub.vulnerable_stacks])
+	Card.crit_multiply(10, stats, stub)
+	_check(stub.vulnerable_stacks == 2 and stub.weaken_stacks == 2,
+		"crit into an already-Weakened target: 2 Vulnerable first, then its own Weaken (W%d V%d)" % [stub.weaken_stacks, stub.vulnerable_stacks])
+
+	# The victim falls back to the card resolution's own target, so executors
+	# that never pass one still fire the rider.
+	var parked = _DebuffStub.new()
+	stats.resolving_attack_target = parked
+	Card.crit_multiply(10, stats)
+	_check(parked.weaken_stacks == 1, "a crit with no explicit target uses the resolving card's victim")
+	stats.resolving_attack_target = null
+	stats.free()
+	inv.free()
 	quit(1 if failures > 0 else 0)
 
 func _test_roster() -> void:
@@ -367,6 +401,13 @@ func _test_debuff_kinds() -> void:
 	dummy.free()
 
 class _DebuffStub:
+	## Stands in for an enemy: the same debuff fields, and apply_debuff so crit
+	## riders can write to it.
+	func apply_debuff(debuff_name: String, value: int) -> void:
+		var field := "%s_stacks" % debuff_name
+		if field in self:
+			set(field, int(get(field)) + value)
+
 	var burn_stacks: int = 0
 	var cold_stacks: int = 0
 	var poison_stacks: int = 0
