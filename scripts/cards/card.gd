@@ -1417,8 +1417,13 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			# only puts them into maintenance.
 			pass
 		"mage_shield":
-			# Delfins: the instant's 10 block, through the normal defense path.
+			# Delfins: the instant's block, through the normal defense path.
+			# A forged shield raises it from 10 to 15 — read live off the item,
+			# so the same card instance follows the shield's level.
+			var mage_forged: int = 5 if (granted_by_item and granted_by_item.item_level >= 2) else 0
+			block += mage_forged
 			_execute_block(player_stats, is_empowered, buff_mgr)
+			block -= mage_forged
 		"mind_over_matter":
 			# Presence of Mind: arm the ward. The halving and the mana payment
 			# happen inside PlayerStats.take_damage on the next hit.

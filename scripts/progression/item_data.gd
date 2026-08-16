@@ -2669,16 +2669,18 @@ static func create_castle_wall() -> ItemData:
 	return item
 
 static func create_sword_breaker() -> ItemData:
-	# Per the design sheet this legendary carries NO stat line at all — its
-	# whole budget is the on-self armor+Fortify and the tempo tax.
 	var item = _new_shield("Sword Breaker", Rarity.LEGENDARY, 35)
 	item.card_slots = 3
+	item.dexterity_bonus = 3
+	item.determination_bonus = 3
+	item.health_bonus = 25
+	item.mana_bonus = 25
 	item.on_self_armor_any = 4
 	item.on_self_fortify = 1
 	item.blocked_melee_tempo_tax = 2
 	var sb_cards: Array[String] = ["song_of_a_swords_sing"]
 	item.granted_card_ids = sb_cards
-	item.description = "3 card slots. On-self: gain 4 armor and Fortify — your armor stops decaying. Melee damage your armor swallows whole costs that enemy 2 extra tempo on its next melee attack. Grants Song of a Swords Sing: Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (35 mana, 3 tempo)."
+	item.description = "+3 DEX, +3 DET, +25 health, +25 mana. 3 card slots. On-self: gain 4 armor and Fortify — your armor stops decaying. Melee damage your armor swallows whole costs that enemy 2 extra tempo on its next melee attack. Grants Song of a Swords Sing: Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (35 mana, 3 tempo)."
 	return item
 
 static func create_coffin_lid() -> ItemData:
@@ -2743,6 +2745,11 @@ static func create_delfins_deterministic_round_shield() -> ItemData:
 	item.overdraw_peak = 4
 	var dd_cards: Array[String] = ["mage_shield"]
 	item.granted_card_ids = dd_cards
+	# Mage Shield's block reads the shield's level live at play time (see the
+	# mage_shield case in Card.execute), so it isn't listed here.
+	item.level_2_overrides = {"intelligence_bonus": 6, "wisdom_bonus": 7, "strength_bonus": 5,
+		"on_self_chance_boost": 13.0, "overdraw_peak": 5}
+	item.level_2_description = "+6 INT, +7 WIS, +5 STR. 3 card slots. On-self: +13% to the card's rolls. Overdraw: Peak the next 5 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 15 block."
 	_set_appearance(item, "delfins_deterministic_round_shield",
 		"A wooden shield banded with iron.")
 	item.description = "+6 INT, +5 WIS, +3 STR. 3 card slots. On-self: +10% to the card's rolls. Overdraw: Peak the next 4 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 10 block."
@@ -2757,6 +2764,11 @@ static func create_steve_rodgers_bastion() -> ItemData:
 	item.damage_taken_mana_gain = 5
 	var sr_cards: Array[String] = ["reverberate_regrowth", "bouncing_shield"]
 	item.granted_card_ids = sr_cards
+	# Bouncing Shield's temp-mana duration reads the shield's level live (see
+	# the bouncing_shield case in main), so it isn't listed here.
+	item.level_2_overrides = {"strength_bonus": 6, "dexterity_bonus": 3, "agility_bonus": 5,
+		"determination_bonus": 5, "mana_bonus": 30, "damage_taken_mana_gain": 7}
+	item.level_2_description = "+6 STR, +3 DEX, +5 AGI, +5 DET, +30 mana. Every enemy hit you take gives you 7 mana. Grants Reverberate Regrowth (Maintain): when your armor is broken through, the armor that hit ate comes back 5 tempo later (55 mana). Grants Bouncing Shield: hurl the shield — it bounces between enemies for 5 damage each, and every target hit sends back 5 block and 10 temporary mana (which may sit above your maximum, 20 tempo). You lose half your armor while it is in the air (55 mana, 4 tempo)."
 	_set_appearance(item, "steve_rodgers_bastion",
 		"The Captain America shield.")
 	item.description = "+5 STR, +3 DEX, +5 AGI, +4 DET. Every enemy hit you take gives you 5 mana. Grants Reverberate Regrowth (Maintain): when your armor is broken through, the armor that hit ate comes back 5 tempo later (55 mana). Grants Bouncing Shield: hurl the shield — it bounces between enemies for 5 damage each, and every target hit sends back 5 block and 10 temporary mana (which may sit above your maximum, 15 tempo). You lose half your armor while it is in the air (55 mana, 4 tempo)."
@@ -2773,8 +2785,9 @@ static func create_presence_of_mind() -> ItemData:
 	item.on_self_block_max_mana_percent = 10.0
 	var pm_cards: Array[String] = ["mind_over_matter"]
 	item.granted_card_ids = pm_cards
-	item.level_2_overrides = {"on_self_block_max_mana_percent": 15.0}
-	item.level_2_description = "+5 INT, +8 STR, +2 WIS, +25 mana, -10 health. 2 card slots. On-self: extra block worth 15% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
+	item.level_2_overrides = {"intelligence_bonus": 7, "strength_bonus": 9, "wisdom_bonus": 2,
+		"mana_bonus": 45, "health_bonus": -10, "on_self_block_max_mana_percent": 15.0}
+	item.level_2_description = "+7 INT, +9 STR, +2 WIS, +45 mana, -10 health. 2 card slots. On-self: extra block worth 15% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
 	_set_appearance(item, "presence_of_mind",
 		"A black kite shield marked in yellow: a man sitting in meditation, a half crescent moon above his head.")
 	item.description = "+5 INT, +8 STR, +2 WIS, +25 mana, -10 health. 2 card slots. On-self: extra block worth 10% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
@@ -2795,8 +2808,12 @@ static func create_crooked_dueling_shield() -> ItemData:
 		{"weaken": 1, "combo_after": "red", "combo_armor": 10},
 		{"vulnerable": 1, "combo_after": "blue", "combo_armor": 10},
 	]
-	item.level_2_overrides = {"dexterity_bonus": 10, "agility_bonus": 10, "strength_bonus": 5}
-	item.level_2_description = "+10 DEX, +10 AGI, +5 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
+	item.level_2_overrides = {"dexterity_bonus": 10, "agility_bonus": 10, "strength_bonus": 5,
+		"slot_effects": [
+			{"weaken": 1, "combo_after": "red", "combo_armor": 20},
+			{"vulnerable": 1, "combo_after": "blue", "combo_armor": 20},
+		]}
+	item.level_2_description = "+10 DEX, +10 AGI, +5 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 20 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
 	_set_appearance(item, "crooked_dueling_shield",
 		"A steel shield shaped like an S, swelling slightly fatter through the center.")
 	item.description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."

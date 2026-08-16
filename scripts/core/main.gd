@@ -9733,10 +9733,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						bs_next = bs_en
 				bs_from = bs_next
 			if bs_hit.size() > 0 and bs_stats:
+				# A forged Bastion holds its temp mana 20 tempo instead of 15.
+				var bs_tempo: int = 20 if (card.granted_by_item and card.granted_by_item.item_level >= 2) else 15
 				bs_stats.add_armor(5 * bs_hit.size())
-				bs_stats.add_temp_mana(10 * bs_hit.size(), 15)
-				add_battle_log("Bouncing Shield! %d target(s) — +%d block, +%d temp mana for 15 tempo" % [
-					bs_hit.size(), 5 * bs_hit.size(), 10 * bs_hit.size()], Color(0.6, 0.75, 1.0))
+				bs_stats.add_temp_mana(10 * bs_hit.size(), bs_tempo)
+				add_battle_log("Bouncing Shield! %d target(s) — +%d block, +%d temp mana for %d tempo" % [
+					bs_hit.size(), 5 * bs_hit.size(), 10 * bs_hit.size(), bs_tempo], Color(0.6, 0.75, 1.0))
 			else:
 				add_battle_log("Bouncing Shield: it comes straight back", Color(0.7, 0.6, 0.5))
 

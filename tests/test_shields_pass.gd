@@ -59,7 +59,59 @@ func _initialize() -> void:
 	_test_debuff_kinds()
 	_test_tempo_tax()
 	_test_duelist_crit_rider()
+	_test_mythic_upgrades()
 	print("=== %d failure(s) ===" % failures)
+
+func _test_mythic_upgrades() -> void:
+	## Every mythic's forged (Lv.2) numbers, straight off the design sheet.
+	print("-- Mythic upgrades --")
+	var delfin = ItemData.create_delfins_deterministic_round_shield()
+	delfin.level_up()
+	_check(delfin.intelligence_bonus == 6 and delfin.wisdom_bonus == 7 and delfin.strength_bonus == 5,
+		"Delfins Lv.2: 6 INT / 7 WIS / 5 STR")
+	_check(is_equal_approx(delfin.on_self_chance_boost, 13.0), "Delfins Lv.2: +13% to rolls")
+	_check(delfin.overdraw_peak == 5, "Delfins Lv.2: Peak 5")
+	# Mage Shield's block reads the shield's level live, so the same card
+	# instance is worth 10 unforged and 15 forged.
+	var stats = _mk_stats()
+	var mage = Card.create_by_id("mage_shield")
+	mage.granted_by_item = ItemData.create_delfins_deterministic_round_shield()
+	stats.current_armor = 0
+	mage.execute(null, stats, null, 0.0, 0.0, null)
+	var unforged: int = stats.current_armor
+	mage.granted_by_item = delfin
+	stats.current_armor = 0
+	mage.execute(null, stats, null, 0.0, 0.0, null)
+	_check(stats.current_armor == unforged + 5,
+		"Mage Shield: 10 block unforged -> 15 forged (%d -> %d)" % [unforged, stats.current_armor])
+	_check(mage.block == 10, "and the +5 never sticks to the card")
+
+	var bastion = ItemData.create_steve_rodgers_bastion()
+	bastion.level_up()
+	_check(bastion.strength_bonus == 6 and bastion.dexterity_bonus == 3
+		and bastion.agility_bonus == 5 and bastion.determination_bonus == 5
+		and bastion.mana_bonus == 30, "Bastion Lv.2: 6 STR / 3 DEX / 5 AGI / 5 DET / +30 mana")
+	_check(bastion.damage_taken_mana_gain == 7, "Bastion Lv.2: 7 mana per hit taken")
+
+	var pom = ItemData.create_presence_of_mind()
+	pom.level_up()
+	_check(pom.intelligence_bonus == 7 and pom.strength_bonus == 9 and pom.wisdom_bonus == 2
+		and pom.mana_bonus == 45 and pom.health_bonus == -10,
+		"Presence of Mind Lv.2: 7 INT / 9 STR / 2 WIS / +45 mana / -10 health")
+	_check(is_equal_approx(pom.on_self_block_max_mana_percent, 15.0),
+		"Presence of Mind Lv.2: block worth 15% of max mana")
+
+	var crooked = ItemData.create_crooked_dueling_shield()
+	crooked.level_up()
+	_check(crooked.dexterity_bonus == 10 and crooked.agility_bonus == 10 and crooked.strength_bonus == 5,
+		"Crooked Lv.2: 10 DEX / 10 AGI / 5 STR")
+	_check(int(crooked.slot_effects[0].get("combo_armor", 0)) == 20
+		and int(crooked.slot_effects[1].get("combo_armor", 0)) == 20,
+		"Crooked Lv.2: the combo pays 20 armor")
+	_check(int(crooked.slot_effects[0].get("weaken", 0)) == 1
+		and int(crooked.slot_effects[1].get("vulnerable", 0)) == 1,
+		"and the slots keep their Weaken and Vulnerable")
+	stats.free()
 
 func _test_duelist_crit_rider() -> void:
 	## The rider lives in crit_multiply — the one funnel EVERY crit in the game
@@ -114,10 +166,11 @@ func _test_roster() -> void:
 		var m = ItemData.create_by_name(nm)
 		_check(m.appearance != "" and m.appearance_icon != "",
 			"%s is a mythic with appearance + icon" % nm)
-	# Per the design sheet these two carry exactly what was specified and no more.
 	var sb = ItemData.create_sword_breaker()
-	_check(sb.strength_bonus == 0 and sb.dexterity_bonus == 0 and sb.health_bonus == 0,
-		"Sword Breaker ships with no stat line, as specified")
+	_check(sb.dexterity_bonus == 3 and sb.determination_bonus == 3
+		and sb.health_bonus == 25 and sb.mana_bonus == 25,
+		"Sword Breaker: +3 DEX, +3 DET, +25 health, +25 mana")
+	# Per the design sheet this one carries exactly what was specified, no more.
 	var ee = ItemData.create_elemental_emblem()
 	_check(ee.intelligence_bonus == 10 and ee.strength_bonus == -5 and ee.agility_bonus == -3
 		and ee.card_slots == 0 and ee.granted_card_ids.is_empty(),
