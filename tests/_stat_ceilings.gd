@@ -41,6 +41,8 @@ func _bonus_for(item: ItemData, stat: String) -> int:
 		"wisdom": return item.wisdom_bonus
 		"agility": return item.agility_bonus
 		"determination": return item.determination_bonus
+		"health": return item.health_bonus
+		"mana": return item.mana_bonus
 	return 0
 
 ## Every item of `types`, richest in `stat` first; ties go to the lighter one
@@ -58,13 +60,22 @@ func _candidates(stat: String, types: Array) -> Array:
 		return a.weight < b.weight)
 	return out
 
-func _build(cname: String, stat: String) -> Dictionary:
+## `stat` is what the greedy chases in every slot. `alloc` is where the 51
+## level-up points go (defaults to the same stat; health and mana aren't
+## allocatable, so those runs point it somewhere useful). `bulwark` turns on
+## the Bulwark Soul keystone, the only thing besides levels and gear that
+## moves max health: +2 HP per point of Determination, retroactive.
+func _build(cname: String, stat: String, alloc: String = "", bulwark: bool = false) -> Dictionary:
+	if alloc == "":
+		alloc = stat
 	var stats = PlayerStats.new()
 	get_root().add_child(stats)
 	stats.initialize(_char_data(cname))
 	for _i in range(LEVEL - 1):
 		stats._level_up()
-	stats.apply_stat_allocation({stat: stats.unspent_stat_points})
+	stats.keystone_det_vitality = bulwark
+	stats.apply_stat_allocation({alloc: stats.unspent_stat_points})
+	stats.refresh_det_vitality()
 	var inv = Inventory.new()
 	get_root().add_child(inv)
 	inv.initialize(cname)
@@ -102,10 +113,16 @@ func _build(cname: String, stat: String) -> Dictionary:
 		gear_health += it.health_bonus
 		if it.mana_bonus != 0:
 			mana_sources.append("%s %+d" % [it.item_name, it.mana_bonus])
+	# Bulwark Soul is retroactive, so re-sync after the gear moved Determination.
+	stats.refresh_det_vitality()
+	var headline: int = stats.max_health if stat == "health" \
+		else (stats.max_mana if stat == "mana" else stats.get_base_stat(stat))
 	var result := {
 		"who": cname, "stat": stat, "worn": worn,
-		"value": stats.get_base_stat(stat),
-		"effective": int(stats.get(stat)) if stat != "determination" else stats.determination,
+		"value": headline,
+		# health and mana are pools, not stats — nothing to read a modified
+		# value off, so the headline is the whole story for those runs.
+		"effective": headline if stat in ["health", "mana", "determination"] else int(stats.get(stat)),
 		"max_mana": stats.max_mana, "gear_mana": gear_mana,
 		"max_health": stats.max_health, "gear_health": gear_health,
 		"mana_sources": mana_sources,
@@ -151,14 +168,56 @@ func _initialize() -> void:
 	print("  %-14s %3s   %-18s %6s" % ["stat", "max", "mana pool", "health"])
 	for line in summary:
 		print("  %s" % line)
-	_mana_census()
+	_resource_ceiling("health")
+	_resource_ceiling("mana")
+	_resource_census("mana")
+	_resource_census("health")
 	quit(0)
 
-## Which slots can carry mana at all, and how much the best item in each is
-## worth. This is the other half of the picture: a stat ceiling only strands a
-## build at 50 mana because most slots have nothing to offer.
-func _mana_census() -> void:
-	print("\n================ MANA CENSUS ================")
+## The pool ceilings: the most health, and the most mana, a level-18 character
+## can actually reach. Health is chased two ways — with and without Bulwark
+## Soul (+2 HP per Determination point), which is the only non-gear, non-level
+## source in the game, and which pulls the allocation onto Determination.
+func _resource_ceiling(which: String) -> void:
+	print("\n================ MAX %s ================" % which.to_upper())
+	var runs: Array = []
+	for cname in CHARACTERS:
+		if which == "health":
+			runs.append(_build(cname, "health", "determination", false))
+			var bw := _build(cname, "health", "determination", true)
+			bw["who"] = "%s + Bulwark Soul" % cname
+			runs.append(bw)
+		else:
+			# Nothing allocatable raises the mana POOL, so the points go to INT
+			# for regen — the number that says whether the pool is worth having.
+			runs.append(_build(cname, "mana", "intelligence", false))
+	runs.sort_custom(func(a, b): return a["value"] > b["value"])
+	var ladder: Array[String] = []
+	for r in runs:
+		ladder.append("%s %d" % [r["who"], r["value"]])
+	print("  Ceiling by character: %s" % "  |  ".join(ladder))
+	var best: Dictionary = runs[0]
+	print("  BEST: %s at %d %s" % [best["who"], best["value"], which])
+	var names: Array[String] = []
+	for it in best["worn"]:
+		var amt := _bonus_for(it, which)
+		if amt != 0:
+			names.append("%s %+d" % [it.item_name, amt])
+	print("  FROM: %s" % ", ".join(names))
+	print("  (base pool without gear: %d)" % [best["value"] - (best["gear_health"] if which == "health" else best["gear_mana"])])
+	print("  ALL STATS: %s" % best["all"])
+	print("  The other pool: %s | Carry %d/%d" % [
+		("mana %d" % best["max_mana"]) if which == "health" else ("health %d" % best["max_health"]),
+		best["carry"], best["cap"]])
+	if which == "mana":
+		print("  Regen %.0f per tick — the pool is %.1f ticks deep." % [
+			best["regen"], float(best["value"]) / maxf(1.0, best["regen"])])
+
+## Which slots can carry a resource at all, and how much the best item in each
+## is worth. This is the other half of the picture: a stat ceiling only strands
+## a build at the base pool because most slots have nothing to offer.
+func _resource_census(which: String) -> void:
+	print("\n================ %s CENSUS ================" % which.to_upper())
 	var type_names := {
 		ItemData.ItemType.HELM: "Helm", ItemData.ItemType.CHEST: "Chest",
 		ItemData.ItemType.BELT: "Belt", ItemData.ItemType.BOOTS: "Boots",
@@ -166,25 +225,30 @@ func _mana_census() -> void:
 		ItemData.ItemType.QUIVER: "Quiver", ItemData.ItemType.RING: "Ring",
 	}
 	var all := ItemData.get_all_items()
-	var with_mana := 0
+	var with_it := 0
+	var grand := 0
 	for t in type_names:
 		var total := 0
-		var carriers: Array[String] = []
+		var carriers := 0
+		var sum := 0
 		var best := 0
 		var best_name := "-"
 		for it in all:
 			if it.item_type != t or it.special_id != "":
 				continue
 			total += 1
-			if it.mana_bonus > 0:
-				with_mana += 1
-				carriers.append("%s +%d" % [it.item_name, it.mana_bonus])
-				if it.mana_bonus > best:
-					best = it.mana_bonus
+			var amount: int = it.mana_bonus if which == "mana" else it.health_bonus
+			if amount > 0:
+				with_it += 1
+				carriers += 1
+				sum += amount
+				grand += amount
+				if amount > best:
+					best = amount
 					best_name = it.item_name
-		print("  %-14s %2d/%2d items carry mana | best %+d (%s)" % [
-			type_names[t], carriers.size(), total, best, best_name])
-		if not carriers.is_empty():
-			print("                 %s" % ", ".join(carriers))
+		print("  %-14s %2d/%2d items carry %s | best %+d (%s) | avg over the whole slot %+.1f" % [
+			type_names[t], carriers, total, which, best, best_name,
+			float(sum) / float(maxi(1, total))])
 	print("  ---")
-	print("  %d of %d items in the game carry any mana at all." % [with_mana, all.size()])
+	print("  %d of %d items carry any %s at all — %d points across the catalog." % [
+		with_it, all.size(), which, grand])
