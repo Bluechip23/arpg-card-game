@@ -49,7 +49,7 @@ var _enemy_list: VBoxContainer = null
 var _item_type_dd: OptionButton = null
 var _item_list: VBoxContainer = null
 
-const ITEM_TYPE_ORDER := ["Helms", "Chests", "Belts", "Boots", "Gauntlets", "Weapons", "Quivers", "Rings", "Other"]
+const ITEM_TYPE_ORDER := ["Helms", "Chests", "Belts", "Boots", "Gauntlets", "Weapons", "Shields", "Quivers", "Rings", "Other"]
 var _ally_dd: OptionButton = null
 var _ally_btn: Button = null
 var _open: bool = false
@@ -299,7 +299,9 @@ func _refresh_item_list() -> void:
 			ItemData.ItemType.BELT: bucket = "Belts"
 			ItemData.ItemType.BOOTS: bucket = "Boots"
 			ItemData.ItemType.GAUNTLETS: bucket = "Gauntlets"
-			ItemData.ItemType.WEAPON: bucket = "Weapons"
+			ItemData.ItemType.WEAPON:
+					# Shields get their own shelf — they are a build, not a sidearm.
+					bucket = "Shields" if it.weapon_subtype == ItemData.WeaponSubtype.SHIELD else "Weapons"
 			ItemData.ItemType.QUIVER: bucket = "Quivers"
 			ItemData.ItemType.RING: bucket = "Rings"
 		if bucket == want:

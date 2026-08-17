@@ -507,6 +507,7 @@ func _ready() -> void:
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
+	overflow_manager.overdraw_processed.connect(_on_overdraw_processed)
 	overflow_manager.overflow_effects_changed.connect(func():
 		if _hand_info_popup and _hand_info_popup.visible:
 			_refresh_hand_info_popup())
@@ -1945,7 +1946,7 @@ func _on_attack_pressed() -> void:
 	if buff_mgr:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
-			damage = Card.crit_multiply(damage, stats)
+			damage = Card.crit_multiply(damage, stats, target)
 
 	# Debuff damage reduction
 	if debuff_mgr:
@@ -3595,6 +3596,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_debuff_manager().debuff_removed.connect(_on_player_debuff_removed)
 	player.get_stats().armor_broken.connect(_on_player_armor_broken)
 	player.get_stats().armor_gained.connect(_on_armor_gained_spiked)
+	player.get_stats().curse_of_the_living_shared.connect(_on_curse_of_the_living_shared)
 	if player.get_inventory():
 		player.get_inventory().gauntlet_world_skill.connect(_on_gauntlet_world_skill)
 	_update_flash_button()
@@ -5989,6 +5991,8 @@ func _on_tempo_threshold_reached(times: int) -> void:
 
 	# Helm per-cycle passives (Horned Nasal auto-purge, Mane void-resistance aura)
 	_helm_on_cycle_passives()
+	# Shield per-cycle passives (Vanguard's Regen, Spiked Shield's Thorns)
+	_shield_on_cycle_passives()
 	if tempo_manager.last_tempo_source == "movement":
 		progression_triggers._trigger_skill_tree_on_movement_cycle()
 
@@ -8302,6 +8306,21 @@ func _pick_slot_discard(owed: int, color: String) -> void:
 				add_battle_log("Discarded %s to the %s slot." % [picked.card_name, color], Color(1.0, 0.5, 0.5))
 			_pick_slot_discard(owed - 1, color))
 
+## Slotted-shield riders that need the world (shields pass 1): the Vengeful
+## Shield's shove and the Slotted Rope Half Sleeve's discard.
+func _shield_on_self_world_effects(card: Card, target) -> void:
+	if card.slotted_in_item == null:
+		return
+	var osb = card.get_on_self_bonus()
+	var shove: int = int(osb.get("knockback", 0))
+	if shove > 0 and target != null and is_instance_valid(target) and target.has_method("knockback"):
+		target.knockback(player.position, shove)
+		add_battle_log("%s: %s is shoved back %d" % [card.slotted_in_item.item_name,
+			target.enemy_name if "enemy_name" in target else "the target", shove], Color(0.8, 0.75, 0.6))
+	var owed: int = int(osb.get("discard", 0))
+	if owed > 0:
+		_pick_slot_discard(owed, card.slotted_in_item.item_name)
+
 ## Slotted-item riders that need the world (ranged pass 1): Belthronding's
 ## conjure, the Rapid Recurve's second shot, the Stringless Sender's bounce,
 ## and the Sack of Bone Arrows' kill-raised skeleton.
@@ -8654,6 +8673,7 @@ func _update_smoke_zones(amount: int) -> void:
 
 ## Return Cut: armor just ate an entire enemy hit.
 func _on_attack_fully_blocked() -> void:
+	_shields_on_attack_blocked()
 	if not deck_manager:
 		return
 	var triggered = deck_manager.trigger_reactions("on_attack_blocked")
@@ -8661,6 +8681,32 @@ func _on_attack_fully_blocked() -> void:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
 	if triggered.size() > 0:
 		_refresh_unit_tracker()
+
+## Shields pass: armor swallowed an entire hit. The Sword Breaker taxes the
+## melee swing that failed, and the Crooked Dueling Shield punishes the duelist
+## who tried it.
+func _shields_on_attack_blocked() -> void:
+	if not player or not player.get_inventory():
+		return
+	var stats = player.get_stats()
+	var attacker = stats.last_attacker if stats else null
+	if attacker == null or not is_instance_valid(attacker):
+		return
+	var reach_diff: Vector3 = attacker.position - player.position
+	var in_melee: bool = Vector3(reach_diff.x, 0, reach_diff.z).length() <= 1.5
+	for shield in player.get_inventory().get_equipped_shields():
+		if shield.blocked_melee_tempo_tax > 0 and in_melee and "next_melee_tempo_tax" in attacker:
+			attacker.next_melee_tempo_tax = shield.blocked_melee_tempo_tax
+			add_battle_log("%s: %s's next swing comes %d tempo late" % [shield.item_name,
+				attacker.enemy_name, shield.blocked_melee_tempo_tax], Color(0.7, 0.8, 1.0))
+		if shield.duelist_shield and attacker.has_method("apply_debuff"):
+			# Weaken the attacker that isn't Weakened yet; punish the one that is.
+			if "weaken_stacks" in attacker and attacker.weaken_stacks > 0:
+				attacker.take_damage(5, true)
+				add_battle_log("%s: 5 damage through the parry" % shield.item_name, Color(0.8, 0.85, 1.0))
+			else:
+				attacker.apply_debuff("weaken", 2)
+				add_battle_log("%s: %s is Weakened 2" % [shield.item_name, attacker.enemy_name], Color(0.8, 0.85, 1.0))
 
 ## Spiked Mitts: bank armor gained; every threshold, gain thorns.
 func _on_armor_gained_spiked(amount: int) -> void:
@@ -8751,7 +8797,7 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 				var sdmg: int = stats.get_effective_physical_damage(0)
 				var bm = player.get_buff_manager()
 				if bm and bm.roll_crit():
-					sdmg = Card.crit_multiply(sdmg, stats)
+					sdmg = Card.crit_multiply(sdmg, stats, target)
 				target.take_damage(sdmg, true)
 				tempo_manager.add_tempo(2)
 				add_battle_log("Slice! %d damage (2 tempo)" % sdmg, Color(0.9, 0.7, 0.5))
@@ -8761,7 +8807,7 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 				var pdmg: int = stats.get_effective_physical_damage(0)
 				var pbm = player.get_buff_manager()
 				if pbm and pbm.roll_crit():
-					pdmg = floori(float(Card.crit_multiply(pdmg, stats)) * 1.5)
+					pdmg = floori(float(Card.crit_multiply(pdmg, stats, target)) * 1.5)
 					add_battle_log("Lethal Poke CRITS!", Color(1.0, 0.5, 0.5))
 				target.take_damage(pdmg, true)
 				add_battle_log("Lethal Poke: %d damage" % pdmg, Color(0.8, 0.8, 0.8))
@@ -8805,6 +8851,133 @@ func _on_player_debuff_removed(_debuff) -> void:
 func _on_player_armor_broken() -> void:
 	if player and player.get_inventory():
 		player.get_inventory().on_player_exposed()
+	# Reverberate Regrowth (Steve Rodgers, maintained): the armor that hit ate
+	# comes back 5 tempo later. Only one debt is carried at a time.
+	if not player or not deck_manager or not deck_manager.has_method("get_maintained_cards"):
+		return
+	var rr_stats = player.get_stats()
+	if rr_stats == null or rr_stats.last_exposed_armor <= 0:
+		return
+	for rr in deck_manager.get_maintained_cards():
+		if rr and rr.card_id == "reverberate_regrowth":
+			rr_stats.pending_armor_return = rr_stats.last_exposed_armor
+			rr_stats.pending_armor_return_tempo = 5
+			add_battle_log("Reverberate Regrowth: %d armor will echo back in 5 tempo" % rr_stats.last_exposed_armor,
+				Color(0.6, 0.75, 1.0))
+			return
+
+## Coffin Lid's Curse of the Living: the halved heal's leftover is passed on to
+## every ally. from_ally = true so nothing bounces back through the curse.
+func _on_curse_of_the_living_shared(amount: int) -> void:
+	if amount <= 0:
+		return
+	var healed_any := 0
+	for ally in _all_players():
+		if ally == player or not is_instance_valid(ally) or not ally.get_stats():
+			continue
+		ally.get_stats().heal(amount, true)
+		healed_any += 1
+	if healed_any > 0:
+		add_battle_log("Curse of the Living: %d ally(s) healed %d" % [healed_any, amount], Color(0.6, 0.5, 0.75))
+
+## Shields pass: the per-cycle grants (Vanguard's Regen, Spiked Shield's Thorns).
+func _shield_on_cycle_passives() -> void:
+	if not player or not player.get_inventory():
+		return
+	var buff_mgr = player.get_buff_manager()
+	if not buff_mgr:
+		return
+	for shield in player.get_inventory().get_equipped_shields():
+		if shield.regen_per_cycle > 0:
+			buff_mgr.apply_buff(Buff.create_regen(shield.regen_per_cycle, 15, shield.item_name))
+		if shield.thorns_per_cycle > 0:
+			buff_mgr.apply_buff(Buff.create_thorns(shield.thorns_per_cycle, 15, shield.item_name))
+
+## A draw overflowed a full hand. Every equipped Overdraw rider collects.
+func _on_overdraw_processed(_card: Card) -> void:
+	if not player or not player.get_inventory():
+		return
+	var stats = player.get_stats()
+	var buff_mgr = player.get_buff_manager()
+	for shield in player.get_inventory().get_equipped_shields():
+		if shield.overdraw_heal > 0 and stats:
+			stats.heal(shield.overdraw_heal)
+		if shield.overdraw_regen > 0 and buff_mgr:
+			buff_mgr.apply_buff(Buff.create_regen(shield.overdraw_regen, 15, shield.item_name))
+			add_battle_log("%s: Overdraw — +%d Regen" % [shield.item_name, shield.overdraw_regen], Color(0.5, 0.85, 0.5))
+		if shield.overdraw_peak > 0:
+			_overdraw_peak(shield)
+		if shield.overdraw_card_id != "":
+			_overdraw_conjure_to_manifest(shield)
+		if shield.overdraw_spell_id != "":
+			_overdraw_cast_spell(shield)
+
+## Delfins: Peak reveals the top of the draw pile — up to X cards deep.
+func _overdraw_peak(shield: ItemData) -> void:
+	if not deck_manager or deck_manager.draw_pile.is_empty():
+		return
+	var depth: int = mini(shield.overdraw_peak, deck_manager.draw_pile.size())
+	var names: Array[String] = []
+	for i in range(depth):
+		var seen: Card = deck_manager.draw_pile[deck_manager.draw_pile.size() - 1 - i]
+		names.append(seen.card_name)
+	# The peaked slot shows the very next card; the rest are named in the log.
+	deck_manager.peaked_card = deck_manager.draw_pile.back()
+	deck_manager.card_peaked.emit(deck_manager.peaked_card)
+	add_battle_log("%s: Peak %d — %s" % [shield.item_name, depth, ", ".join(names)], Color(0.7, 0.8, 1.0))
+
+## Slotted Rope Half Sleeve: a Cinquedea drops into the manifest zone, and each
+## one waiting there stiffens your block cards by 1.
+func _overdraw_conjure_to_manifest(shield: ItemData) -> void:
+	if not overflow_manager:
+		return
+	if shield.conjured_in_manifest >= shield.overdraw_card_max:
+		return
+	var blade = Card.create_by_id(shield.overdraw_card_id)
+	if blade == null:
+		return
+	overflow_manager.manifest_zone.append({
+		"card": blade,
+		"effect": null,
+		"manifest_name": blade.card_name,
+		"manifest_id": shield.overdraw_card_id,
+		"manifest_description": blade.description,
+		"manifest_value": blade.base_damage,
+		"mana_cost": blade.mana_cost,
+		"tempo_cost": blade.tempo_cost,
+		"source_item": shield,
+	})
+	shield.conjured_in_manifest += 1
+	if shield.overdraw_card_block > 0 and player.get_stats():
+		player.get_stats().equipment_defense_card_block += shield.overdraw_card_block
+	overflow_manager.manifest_card_added.emit(blade.card_name, blade)
+	overflow_manager.overflow_effects_changed.emit()
+	add_battle_log("%s: a %s waits in the manifest zone (%d/%d)" % [shield.item_name,
+		blade.card_name, shield.conjured_in_manifest, shield.overdraw_card_max], Color(0.8, 0.8, 0.6))
+
+## Castle wall: Overdraw looses Rain of Arrows — it costs a charge AND its mana.
+## Short of either, the heal still lands and the arrows simply don't fly.
+func _overdraw_cast_spell(shield: ItemData) -> void:
+	var stats = player.get_stats()
+	if stats == null:
+		return
+	if shield.overdraw_charges_left <= 0:
+		add_battle_log("%s: no Overdraw charge — the archers are reloading" % shield.item_name, Color(0.7, 0.6, 0.5))
+		return
+	if not stats.spend_mana(shield.overdraw_spell_mana):
+		add_battle_log("%s: not enough mana for %s" % [shield.item_name, shield.overdraw_spell_id], Color(0.7, 0.6, 0.5))
+		return
+	shield.overdraw_charges_left -= 1
+	match shield.overdraw_spell_id:
+		"rain_of_arrows":
+			var rained = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
+			for en in rained:
+				if en and is_instance_valid(en):
+					en.take_damage(10, true)
+			add_battle_log("Rain of Arrows! 10 damage to %d enem%s (%d charge(s) left)" % [rained.size(),
+				"y" if rained.size() == 1 else "ies", shield.overdraw_charges_left], Color(0.85, 0.8, 0.5))
+		_:
+			print("[MAIN] Unknown Overdraw spell: %s" % shield.overdraw_spell_id)
 
 ## Boots of Speed: enough movement flash spent → shave 1 tempo off a hand card.
 func _on_movement_flash_threshold() -> void:
@@ -9176,6 +9349,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	# Colored slots (Mauls Sabre): the red slot's discard cost, player-chosen.
 	_colored_slot_discard(card)
 
+	# Shield on-self riders that need the world (shields pass 1).
+	_shield_on_self_world_effects(card, target)
+
 	# Mits of Chingiz "3 count": two offensive cards in a row add a Switch Kick
 	# to the hand (then a 20-tempo cooldown).
 	if card.is_offensive():
@@ -9276,7 +9452,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var fp_dmg: int = fp_stats.get_effective_physical_damage(0) if fp_stats else 0
 				var fp_bm = player.get_buff_manager()
 				if fp_bm and fp_bm.roll_crit():
-					fp_dmg = Card.crit_multiply(fp_dmg, fp_stats)
+					fp_dmg = Card.crit_multiply(fp_dmg, fp_stats, target)
 				target.take_damage(fp_dmg, true, DamageTypes.Type.FIRE)
 				add_battle_log("Fire Punch: %d damage" % fp_dmg, Color(1.0, 0.5, 0.2))
 				# Fire path behind the target: 2 tiles along the strike direction,
@@ -9325,7 +9501,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				cm_stats.temp_crit_damage_bonus += cm_bonus
 				var cm_bm = player.get_buff_manager()
 				if cm_bm and cm_bm.roll_crit():
-					cm_dmg = Card.crit_multiply(cm_dmg, cm_stats)
+					cm_dmg = Card.crit_multiply(cm_dmg, cm_stats, cm_target)
 					add_battle_log("Crack of Mintaka CRITS!", Color(1.0, 0.6, 0.3))
 				cm_stats.temp_crit_damage_bonus = maxf(0.0, cm_stats.temp_crit_damage_bonus - cm_bonus)
 				cm_target.take_damage(cm_dmg, true)
@@ -9514,6 +9690,57 @@ func _apply_card_world_effects(card: Card, target) -> void:
 					add_battle_log("Detonova! %d fire damage to %d enemies" % [dn_amount, dn_hit.size()], Color(1.0, 0.5, 0.1))
 				else:
 					add_battle_log("Detonova fizzles — nothing banked", Color(0.7, 0.6, 0.5))
+
+		"huck":
+			# Castle wall: throw the wall. Everything you were hiding behind,
+			# delivered at once — and then you have nothing behind.
+			var hk_stats = player.get_stats()
+			var hk_armor: int = hk_stats.current_armor if hk_stats else 0
+			if hk_armor <= 0:
+				add_battle_log("Huck: no armor to throw", Color(0.7, 0.6, 0.5))
+			elif target and is_instance_valid(target) and target.has_method("take_damage"):
+				hk_stats.current_armor = 0
+				hk_stats.armor_changed.emit(0)
+				target.take_damage(hk_armor, true)
+				add_battle_log("Huck! %d damage to %s — the wall is gone" % [hk_armor, target.enemy_name],
+					Color(0.8, 0.7, 0.5))
+
+		"bouncing_shield":
+			# Steve Rodgers: the shield leaves your arm (half your armor goes
+			# with it), then chains from body to body, each one sending back
+			# block and temporary mana.
+			var bs_stats = player.get_stats()
+			if bs_stats and bs_stats.current_armor > 0:
+				var bs_lost: int = floori(bs_stats.current_armor / 2.0)
+				bs_stats.current_armor -= bs_lost
+				bs_stats.armor_changed.emit(bs_stats.current_armor)
+			var bs_hit: Array = []
+			var bs_from = target
+			while bs_from != null and is_instance_valid(bs_from) and bs_hit.size() < 5:
+				# Remember where it struck before the hit, so a kill still tells
+				# the shield where to bounce from.
+				var bs_at: Vector3 = bs_from.position
+				bs_from.take_damage(5, true)
+				bs_hit.append(bs_from)
+				var bs_next = null
+				var bs_best := 99.0
+				for bs_en in enemy_spawner.get_living_enemies():
+					if bs_en == null or not is_instance_valid(bs_en) or bs_en in bs_hit:
+						continue
+					var bs_d: float = grid_manager.get_distance_in_cells(bs_at, bs_en.position)
+					if bs_d <= 5.0 and bs_d < bs_best:
+						bs_best = bs_d
+						bs_next = bs_en
+				bs_from = bs_next
+			if bs_hit.size() > 0 and bs_stats:
+				# A forged Bastion holds its temp mana 20 tempo instead of 15.
+				var bs_tempo: int = 20 if (card.granted_by_item and card.granted_by_item.item_level >= 2) else 15
+				bs_stats.add_armor(5 * bs_hit.size())
+				bs_stats.add_temp_mana(10 * bs_hit.size(), bs_tempo)
+				add_battle_log("Bouncing Shield! %d target(s) — +%d block, +%d temp mana for %d tempo" % [
+					bs_hit.size(), 5 * bs_hit.size(), 10 * bs_hit.size(), bs_tempo], Color(0.6, 0.75, 1.0))
+			else:
+				add_battle_log("Bouncing Shield: it comes straight back", Color(0.7, 0.6, 0.5))
 
 		"earth_rattle":
 			# Bessy: smash the ground — a quake around the impact tile.
@@ -10795,13 +11022,43 @@ func _on_give_card(card_name: String) -> void:
 		deck_manager.hand_updated.emit()
 		print("[MAIN] Gave card: %s" % card_name)
 func _on_manifest_card_clicked(index: int) -> void:
+	# Slotted Rope Half Sleeve: spending a Cinquedea takes its +1 block with it.
+	# Read before activate_manifest pops the entry.
+	var sleeve: ItemData = null
+	if index >= 0 and index < overflow_manager.manifest_zone.size():
+		var entry: Dictionary = overflow_manager.manifest_zone[index]
+		sleeve = entry.get("source_item", null)
+		# Item-conjured blades keep their own mana cost; the zone's own
+		# manifests (skeletons, mushrooms) remain free as they always were.
+		if sleeve != null and int(entry.get("mana_cost", 0)) > 0:
+			if not player.get_stats().spend_mana(int(entry["mana_cost"])):
+				add_battle_log("Not enough mana for %s" % entry.get("manifest_name", "that"), Color(1.0, 0.4, 0.4))
+				return
+
 	var result = overflow_manager.activate_manifest(index)
-	
+
 	if result.is_empty():
 		return
-	
+
+	# Unequipping the source already gave its block back, so only a blade that
+	# is still counted takes a point with it.
+	if sleeve != null and sleeve.conjured_in_manifest > 0:
+		sleeve.conjured_in_manifest -= 1
+		if sleeve.overdraw_card_block > 0 and player.get_stats():
+			player.get_stats().equipment_defense_card_block -= sleeve.overdraw_card_block
+
 	# Execute manifest effect
 	match result["manifest_id"]:
+		"cinquedea":
+			# Range 4, 6 damage, 1 Weaken — the nearest enemy in reach.
+			var cq_victim = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			if cq_victim and grid_manager.get_distance_in_cells(player.position, cq_victim.position) <= 4:
+				cq_victim.take_damage(6, true)
+				if is_instance_valid(cq_victim) and cq_victim.has_method("apply_debuff"):
+					cq_victim.apply_debuff("weaken", 1)
+				add_battle_log("Cinquedea: 6 damage and 1 Weaken to %s" % cq_victim.enemy_name, Color(0.85, 0.85, 0.7))
+			else:
+				add_battle_log("Cinquedea: nothing within 4 squares", Color(0.7, 0.6, 0.5))
 		"summon_skeleton":
 			_spawn_summoned_creature("skeleton", result["manifest_value"])
 		"summon_spirit":

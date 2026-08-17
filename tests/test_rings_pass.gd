@@ -46,8 +46,45 @@ func _initialize() -> void:
 	_test_shadow_form_stats()
 	_test_generic_debuff()
 	_test_cards_and_wraith()
+	_test_ring_mana()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
+
+func _test_ring_mana() -> void:
+	## Rings are the mana slot: every one carries a pool by rarity, and the
+	## rule lives in _new_ring so future rings can't be forgotten.
+	print("-- Rings carry the mana --")
+	var by_rarity := {ItemData.Rarity.COMMON: 50, ItemData.Rarity.RARE: 75,
+		ItemData.Rarity.LEGENDARY: 125, ItemData.Rarity.MYTHIC: 150}
+	var rings := 0
+	for item in ItemData.get_all_items():
+		if item.item_type != ItemData.ItemType.RING:
+			continue
+		rings += 1
+		var want: int = by_rarity[item.rarity]
+		_check(item.mana_bonus == want, "%s (%s) carries %d mana (has %d)" % [
+			item.item_name, item.get_rarity_name(), want, item.mana_bonus])
+		_check(item.description.begins_with("+%d mana." % want),
+			"%s says so in its description" % item.item_name)
+	_check(rings == 16, "all 16 rings checked (saw %d)" % rings)
+	# The pool actually lands on the wearer, and leaves with the ring.
+	var stats = PlayerStats.new()
+	get_root().add_child(stats)
+	stats.initialize(CharacterData.create_jeremy())
+	var inv = Inventory.new()
+	get_root().add_child(inv)
+	inv.initialize("Jeremy")
+	inv.connect_player_stats(stats)
+	inv.enforce_mythic_limit = false
+	var base_mana: int = stats.max_mana
+	inv.equip_item(ItemData.create_heal_stone(), 0)
+	_check(stats.max_mana == base_mana + 50, "a common ring adds its 50 to the pool")
+	inv.equip_item(ItemData.create_draupnir(), 1)
+	_check(stats.max_mana == base_mana + 200, "a mythic beside it brings the pool to +200")
+	inv.unequip_item(ItemData.ItemType.RING, 1)
+	_check(stats.max_mana == base_mana + 50, "and the pool leaves with the ring")
+	stats.free()
+	inv.free()
 
 func _test_roster() -> void:
 	print("-- Roster --")

@@ -1820,6 +1820,14 @@ func _build_item_effect_text(item: ItemData) -> String:
 			lines.append("[Passive] +%d%% chance effects" % item.special_effect_value)
 		ItemData.SpecialEffect.GRANT_CARDS:
 			lines.append("[Equip] Grants cards: %s" % ", ".join(item.granted_card_ids))
+	# Shields pass: Overdraw charges are live state worth showing.
+	if item.overdraw_spell_charges > 0:
+		lines.append("[Overdraw] %s: %d/%d charge(s), one back every %d tempo" % [
+			item.overdraw_spell_id.capitalize().replace("_", " "),
+			item.overdraw_charges_left, item.overdraw_spell_charges, item.overdraw_spell_recharge])
+	if item.overdraw_card_max > 0:
+		lines.append("[Overdraw] %d/%d %s waiting" % [item.conjured_in_manifest,
+			item.overdraw_card_max, item.overdraw_card_id.capitalize()])
 	if item.has_mastery():
 		lines.append("[%s]" % item.get_mastery_text(player_stats))
 	if item.has_card_slots():

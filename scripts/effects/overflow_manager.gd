@@ -8,6 +8,9 @@ signal overflow_effect_removed(effect: OverflowEffect)
 signal overflow_effects_changed
 signal manifest_card_added(manifest_name: String, card: Card)
 signal overcharge_triggered(effect_id: String, value: int)
+## A draw just overflowed a full hand. Equipment Overdraw riders (shields pass 1)
+## hang off this — main resolves them where the world and the buffs are.
+signal overdraw_processed(card: Card)
 signal peak_triggered(card: Card)
 signal quiver_changed
 
@@ -159,8 +162,12 @@ func process_overflow(card: Card) -> void:
 		print("[OVERFLOW] No effects active, card discarded: %s" % card.card_name)
 
 func _process_secondary_effects(card: Card) -> void:
+	# Equipment Overdraw riders fire on every overflow, whatever the primary
+	# effect did with the card.
+	overdraw_processed.emit(card)
+
 	# Peak and Overcharge don't block other effects
-	
+
 	# Peak - always show next card if active
 	var peak_effect = get_first_effect_of_type(OverflowEffect.OverflowType.PEAK)
 	if peak_effect:
