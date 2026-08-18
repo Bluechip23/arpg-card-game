@@ -495,8 +495,9 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			var wc_dm = debuff_mgr if debuff_mgr else debuff_manager
 			if sw_w.no_debuff_mana_discount_percent > 0.0 and wc_dm \
 					and "debuffs" in wc_dm and wc_dm.debuffs.is_empty():
-				mana_cost = floori(mana_cost * (1.0 - sw_w.no_debuff_mana_discount_percent / 100.0))
-				print("[DECK] %s: -%.0f%% mana (no debuffs)" % [sw_w.item_name, sw_w.no_debuff_mana_discount_percent])
+				var wc_pct: float = sw_w.no_debuff_mana_discount_percent * sw_w.rider_scale()
+				mana_cost = floori(mana_cost * (1.0 - wc_pct / 100.0))
+				print("[DECK] %s: -%.1f%% mana (no debuffs)" % [sw_w.item_name, wc_pct])
 
 	# Grounding (Reaction Rod): -5 mana per absorbable Shock in range, kept
 	# live on the card by main each tempo tick.

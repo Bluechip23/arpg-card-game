@@ -7674,11 +7674,12 @@ func _helm_range_bonus(card) -> int:
 	# Tigers Sunday Red: +range on ALL ranged offensive cards while equipped.
 	if card.is_ranged and player and player.get_stats():
 		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
-	# Wand of Deliverance: +range on ALL cards while it is in a hand.
+	# Wand of Deliverance: +range on ALL cards while it is in a hand
+	# (10% weaker — floored — from the off hand, like everything else).
 	if player and player.get_inventory():
 		for wr_w in player.get_inventory().equipped_weapons:
 			if wr_w != null and wr_w.range_bonus_all_cards > 0:
-				bonus += wr_w.range_bonus_all_cards
+				bonus += floori(wr_w.range_bonus_all_cards * wr_w.rider_scale())
 	return bonus
 
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for

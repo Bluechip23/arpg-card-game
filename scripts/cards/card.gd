@@ -1141,10 +1141,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 				if wpn == null:
 					continue
 				if wpn.wrath_weapon and wpn.wrath > 0:
-					_gauntlet_bonus_applied += wpn.wrath
-					print("[CARD] Fallen's Wrath: +%d damage (Wrath)" % wpn.wrath)
+					_gauntlet_bonus_applied += floori(wpn.wrath * wpn.rider_scale())
+					print("[CARD] Fallen's Wrath: +%d damage (Wrath)" % floori(wpn.wrath * wpn.rider_scale()))
 				if wpn.vitality_weapon and wpn.vitality_stacks > 0:
-					_gauntlet_bonus_applied += wpn.vitality_stacks * 2
+					_gauntlet_bonus_applied += floori(wpn.vitality_stacks * 2 * wpn.rider_scale())
 		# Blast Stick: offensive spells hit harder the more they cost — the
 		# bonus reads the SURCHARGED price, matching what the wielder pays.
 		if is_offensive() and school == CardSchool.SPELL \
@@ -1969,6 +1969,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 						["vulnerable", sw.attack_apply_vulnerable]]:
 					var sw_amt: int = int(sw_pair[1])
 					if sw_amt > 0:
+						if sw.rider_fizzles():
+							print("[CARD] %s: off-hand %s fizzles" % [sw.item_name, str(sw_pair[0])])
+							continue
 						target.apply_debuff(str(sw_pair[0]), sw_amt)
 						print("[CARD] %s: applied %d %s on hit" % [sw.item_name, sw_amt, str(sw_pair[0])])
 		# Colored slots (Mauls Sabre): the slot's debuff payload, plus the

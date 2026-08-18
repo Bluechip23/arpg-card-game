@@ -346,6 +346,47 @@ var overdraw_charges_left: int = 0   # charges in hand right now
 var overdraw_recharge_accum: int = 0 # tempo banked toward the next charge
 var conjured_in_manifest: int = 0    # Cinquedea copies currently parked in the manifest zone
 
+# Off-hand state (set by Inventory on every equip/swap/unequip): EVERYTHING
+# about a weapon is 10% weaker in the off hand, not just its stat block —
+# flat channels and on-self riders scale by OFF_HAND_RIDER_SCALE (floored),
+# and per-hit integer riders roll a 10% fizzle at their consumption sites
+# (exactly 10% weaker in expectation, no rounding cliffs on 1-3 stack
+# riders). Maluses keep full strength — a softer drawback would be a buff.
+# Shields and quivers are exempt: they are off-hand items by design.
+var is_in_off_hand: bool = false
+const OFF_HAND_RIDER_SCALE := 0.9
+
+func rider_scale() -> float:
+	return OFF_HAND_RIDER_SCALE if is_in_off_hand else 1.0
+
+## Per-application off-hand roll for integer on-hit riders.
+func rider_fizzles() -> bool:
+	return is_in_off_hand and randf() < (1.0 - OFF_HAND_RIDER_SCALE)
+
+# On-self benefit keys the off-hand penalty scales (see get_on_self_bonus).
+# Maluses (surcharges, jail tempo, self-discards) and structural keys
+# (booleans, step sizes, durations, the Side Card Sabre's own off-hand pair
+# bonus) are deliberately absent.
+const _OFF_HAND_SCALED_ON_SELF := [
+	"damage", "block", "heal", "mana_reduction", "mana_reduction_percent",
+	"apply_burn", "apply_cold", "apply_bleed", "apply_shock", "apply_weaken",
+	"apply_vulnerable", "apply_slow", "slow_damage_per_stack", "thorns",
+	"range_offensive", "crit_ranged_percent", "utility_heal",
+	"utility_spell_damage", "brain_regen", "armor_any", "reaction_armor",
+	"flash_regen", "int_damage_percent", "armor_per_missing_health10",
+	"instant_damage_nearest", "attack_tempo_reduction", "melee_damage",
+	"crit_damage_percent", "defense_armor", "utility_weaken",
+	"physical_resilient", "strengthen_value", "cleanse_stacks",
+	"damage_while_invisible", "support_heal", "offensive_damage",
+	"target_aoe_damage", "utility_tempo_refund", "draw_card", "summon_wolf",
+	"root_offensive", "disarm_offensive", "crit_percent",
+	"weakened_damage_percent", "max_hp_damage_percent", "ranged_damage",
+	"ranged_tempo_reduction", "resist_all_percent", "offensive_shift",
+	"offensive_heal_percent", "armor_shred", "chance_boost",
+	"lifesteal_percent", "knockback", "fortify", "block_max_mana_percent",
+	"bounce_percent",
+]
+
 # Weapon runtime state (reset on equip/unequip like the chest accumulators)
 var pair_active: bool = false   # Side Card Sabre: currently paired with a main-hand weapon
 var wrath: int = 0              # Fallen's Wrath counter
@@ -806,7 +847,7 @@ func unslot_card(card_index: int):
 	return card
 
 func get_on_self_bonus() -> Dictionary:
-	return {
+	var osb := {
 		"damage": on_self_damage,
 		"block": on_self_block,
 		"heal": on_self_heal,
@@ -885,6 +926,17 @@ func get_on_self_bonus() -> Dictionary:
 		"chance_boost": on_self_chance_boost,
 		"block_max_mana_percent": on_self_block_max_mana_percent,
 	}
+	# Off hand: every benefit this weapon's slots confer is 10% weaker too
+	# (floored for ints). Only positive values scale — a negative
+	# mana_reduction is a surcharge, and maluses keep their full bite.
+	if is_in_off_hand:
+		for osb_k in _OFF_HAND_SCALED_ON_SELF:
+			var osb_v = osb.get(osb_k)
+			if osb_v is int and osb_v > 0:
+				osb[osb_k] = floori(osb_v * OFF_HAND_RIDER_SCALE)
+			elif osb_v is float and osb_v > 0.0:
+				osb[osb_k] = osb_v * OFF_HAND_RIDER_SCALE
+	return osb
 
 func get_card_slot_summary() -> String:
 	if card_slots == 0:

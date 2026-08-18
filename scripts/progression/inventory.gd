@@ -449,12 +449,25 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	
 	var multiplier = 1 if equipping else -1
 	var stats: Dictionary
-	
+
 	if is_off_hand:
 		stats = item.get_effective_stats(true, get_off_hand_modifier())
 		print("[INVENTORY] Applying off-hand modifier: %.0f%%" % (get_off_hand_modifier() * 100))
 	else:
 		stats = item.get_effective_stats(false, 1.0)
+
+	# Off-hand rider penalty: the WHOLE weapon is 10% weaker in the off hand,
+	# riders included (ItemData.rider_scale / rider_fizzles read this flag at
+	# every consumption site). Shields and quivers are off-hand items by
+	# design and stay exempt. The flag is set on equip and cleared on
+	# unequip, so the flat-channel scaling below stays symmetric.
+	if item.item_type == ItemData.ItemType.WEAPON \
+			and item.weapon_subtype != ItemData.WeaponSubtype.SHIELD:
+		item.is_in_off_hand = equipping and is_off_hand
+	# The flat channels a hand weapon can carry take the same 10% (floored).
+	var rider_mult: float = ItemData.OFF_HAND_RIDER_SCALE if (is_off_hand \
+			and item.item_type == ItemData.ItemType.WEAPON \
+			and item.weapon_subtype != ItemData.WeaponSubtype.SHIELD) else 1.0
 	
 	# Modify base stats (determination will apply automatically)
 	player_stats.base_strength += stats["strength_bonus"] * multiplier
@@ -481,19 +494,19 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 
 	# Healing bonus (from belts)
 	if item.healing_bonus > 0:
-		player_stats.healing_bonus += item.healing_bonus * multiplier
+		player_stats.healing_bonus += floori(item.healing_bonus * rider_mult) * multiplier
 		print("[INVENTORY] Healing bonus now: +%d" % player_stats.healing_bonus)
 
 	# Equipment crit / lifesteal / all-resistance (helms and beyond). Float
 	# fields, so applied directly with the ±1 multiplier like the base stats.
 	if item.crit_chance_percent != 0.0:
-		player_stats.equipment_crit_bonus += item.crit_chance_percent * multiplier
+		player_stats.equipment_crit_bonus += item.crit_chance_percent * rider_mult * multiplier
 	if item.lifesteal_percent != 0.0:
-		player_stats.equipment_lifesteal_bonus += item.lifesteal_percent * multiplier
+		player_stats.equipment_lifesteal_bonus += item.lifesteal_percent * rider_mult * multiplier
 	if item.all_resistance_percent != 0.0:
-		player_stats.equipment_resistance_bonus += item.all_resistance_percent * multiplier
+		player_stats.equipment_resistance_bonus += item.all_resistance_percent * rider_mult * multiplier
 	if item.block_bonus_to_defense_cards != 0:
-		player_stats.equipment_defense_card_block += item.block_bonus_to_defense_cards * multiplier
+		player_stats.equipment_defense_card_block += floori(item.block_bonus_to_defense_cards * rider_mult) * multiplier
 	if item.block_to_armorless_defense_cards != 0:
 		player_stats.equipment_armorless_defense_block += item.block_to_armorless_defense_cards * multiplier
 	if item.brain_points_bonus != 0:
@@ -524,7 +537,7 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	if item.crit_damage_percent != 0.0:
 		player_stats.equipment_crit_damage_bonus += (item.crit_damage_percent / 100.0) * multiplier
 	if item.damage_bonus_to_attack_cards != 0:
-		player_stats.equipment_attack_card_damage += item.damage_bonus_to_attack_cards * multiplier
+		player_stats.equipment_attack_card_damage += floori(item.damage_bonus_to_attack_cards * rider_mult) * multiplier
 	if item.damage_bonus_to_melee_cards != 0:
 		player_stats.equipment_melee_card_damage += item.damage_bonus_to_melee_cards * multiplier
 	if item.heal_bonus_max_health_percent != 0.0:
@@ -557,7 +570,7 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.death_stack_crit_damage = 0.0
 	# Weapons pass
 	if item.bonus_damage_to_armor != 0:
-		player_stats.equipment_armor_shred += item.bonus_damage_to_armor * multiplier
+		player_stats.equipment_armor_shred += floori(item.bonus_damage_to_armor * rider_mult) * multiplier
 	if item.attack_speed_threshold_bonus != 0:
 		player_stats.equipment_attack_speed_penalty += item.attack_speed_threshold_bonus * multiplier
 	# Shields pass
@@ -1118,6 +1131,9 @@ func on_attacked_by(attacker, in_melee: bool) -> void:
 	# Reaction Rod: a melee attacker completes the circuit.
 	for rr_w in equipped_weapons:
 		if rr_w != null and rr_w.melee_retaliate_shock > 0:
+			if rr_w.rider_fizzles():
+				print("[INVENTORY] %s: off-hand retaliation fizzles" % rr_w.item_name)
+				continue
 			attacker.apply_debuff("shock", rr_w.melee_retaliate_shock)
 			print("[INVENTORY] %s: %s takes %d Shock for closing in" % [rr_w.item_name,
 				attacker.enemy_name if "enemy_name" in attacker else "the attacker",

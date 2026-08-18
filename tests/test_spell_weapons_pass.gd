@@ -27,8 +27,38 @@ func _initialize() -> void:
 	_test_feral_slots()
 	_test_phoenix()
 	_test_round2()
+	_test_off_hand_penalty()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
+
+func _test_off_hand_penalty() -> void:
+	print("-- Off hand: the WHOLE weapon is 10% weaker --")
+	var clarity = ItemData.create_wand_of_clarity()
+	_check(not clarity.is_in_off_hand and clarity.rider_scale() == 1.0, "main hand: full strength")
+	_check(clarity.get_on_self_bonus().get("brain_regen", 0) == 2, "main hand: full on-self riders")
+	clarity.is_in_off_hand = true
+	_check(clarity.rider_scale() == 0.9, "off hand: riders scale to 90%")
+	_check(clarity.get_on_self_bonus().get("brain_regen", 0) == 1
+		and clarity.get_on_self_bonus().get("flash_regen", 0) == 1,
+		"off hand: on-self benefits floored to 90%")
+	var book = ItemData.create_earth_book()
+	book.is_in_off_hand = true
+	_check(book.get_on_self_bonus().get("armor_any", 0) == 2, "off-hand Earth Book: 3 armor becomes 2")
+	# Maluses keep their bite: a negative mana_reduction (a surcharge, e.g.
+	# the Stringless Sender's +10 mana) never scales down in the off hand.
+	var malus = ItemData.new()
+	malus.item_name = "Malus Probe"
+	malus.on_self_mana_reduction = -10
+	malus.is_in_off_hand = true
+	_check(int(malus.get_on_self_bonus().get("mana_reduction", 0)) == -10,
+		"off hand leaves surcharges at full strength")
+	# The fizzle roll never fires in the main hand.
+	var orb = ItemData.create_ice_orb()
+	var oh_fizzled := false
+	for _i in range(50):
+		if orb.rider_fizzles():
+			oh_fizzled = true
+	_check(not oh_fizzled, "main hand: on-hit riders never fizzle")
 
 func _test_round2() -> void:
 	print("-- Round 2: Clarity, Reaction Rod, Cane instants, Crops --")
