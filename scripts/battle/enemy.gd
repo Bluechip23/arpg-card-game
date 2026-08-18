@@ -2462,17 +2462,17 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 					print("[%s] Repelled Block triggered! Enemy pushed back 4, player pushed back 2" % enemy_name)
 					return  # Skip damage entirely
 
+			# Defensive Sacrifice (Abjurers Cane): main may intercept the blow
+			# to offer the discard choice. When it does, it owns this hit —
+			# it applies the (possibly halved) damage and calls
+			# _finish_player_hit itself once the player has chosen.
+			var ds_main = get_tree().current_scene
+			if ds_main and ds_main.has_method("offer_defensive_sacrifice") \
+					and ds_main.offer_defensive_sacrifice(self, player_node, effective_damage, debuff_mgr, buff_mgr, dmg_type):
+				return
+
 			player_stats_ref.take_damage(effective_damage, debuff_mgr, buff_mgr, dmg_type)
-
-			if player_node.has_method("get_inventory"):
-				var p_inventory = player_node.get_inventory()
-				if p_inventory:
-					p_inventory.on_damage_taken()
-
-			# Trigger on_attacked passives (thorns, In the Trenches, Phalanx, etc.)
-			if player_node.has_method("on_attacked_by"):
-				player_node.on_attacked_by(self)
-			attacked_player.emit(self)
+			_finish_player_hit(player_node)
 
 	# Attack flash on figure, sprite, or mesh
 	if _enemy_figure:
@@ -2488,6 +2488,19 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 			var orig_color = mat.albedo_color
 			tween.tween_property(mat, "albedo_color", Color.ORANGE, 0.1)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
+
+## The riders that follow a landed hit on the player — split out so the
+## Defensive Sacrifice mediation in main can finish a deferred hit the
+## same way the direct path does.
+func _finish_player_hit(player_node: Node3D) -> void:
+	if player_node.has_method("get_inventory"):
+		var p_inventory = player_node.get_inventory()
+		if p_inventory:
+			p_inventory.on_damage_taken()
+	# Trigger on_attacked passives (thorns, In the Trenches, Phalanx, etc.)
+	if player_node.has_method("on_attacked_by"):
+		player_node.on_attacked_by(self)
+	attacked_player.emit(self)
 
 ## Dash multiple tiles toward a position in one action.
 ## Stops at any barricade tile encountered along the path.

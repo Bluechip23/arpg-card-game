@@ -1115,6 +1115,13 @@ func on_attacked_by(attacker, in_melee: bool) -> void:
 			print("[INVENTORY] %s: %s bleeds %d for closing in" % [shield.item_name,
 				attacker.enemy_name if "enemy_name" in attacker else "the attacker",
 				shield.melee_retaliate_bleed])
+	# Reaction Rod: a melee attacker completes the circuit.
+	for rr_w in equipped_weapons:
+		if rr_w != null and rr_w.melee_retaliate_shock > 0:
+			attacker.apply_debuff("shock", rr_w.melee_retaliate_shock)
+			print("[INVENTORY] %s: %s takes %d Shock for closing in" % [rr_w.item_name,
+				attacker.enemy_name if "enemy_name" in attacker else "the attacker",
+				rr_w.melee_retaliate_shock])
 
 func on_healed(amount: int = 0) -> void:
 	trigger_rings(ItemData.RingTrigger.ON_HEAL)

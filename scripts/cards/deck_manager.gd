@@ -1010,6 +1010,20 @@ func trigger_one_reaction_jailed(trigger_type: String, jail_tempo: int) -> Card:
 			return card
 	return null
 
+## Spend a choice instant straight from hand into the discard pile WITHOUT
+## counting as a discard (no card_discarded / non_play_discard) — using
+## Defensive Sacrifice is spending it, not discarding it, so it must not feed
+## its own cane's discard-block rider.
+func spend_reaction_from_hand(card: Card) -> void:
+	var i = hand.find(card)
+	if i < 0:
+		return
+	hand.remove_at(i)
+	discard_pile.append(card)
+	reaction_triggered.emit(card)
+	hand_updated.emit()
+	print("[DECK] %s spent from hand" % card.card_name)
+
 func remove_card_from_all_piles(card: Card) -> bool:
 	## Removes a specific card instance from draw pile, hand, discard pile, or jail.
 	## Used when enchanting a card into an item.
