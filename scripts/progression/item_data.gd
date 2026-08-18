@@ -435,6 +435,9 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var spell_damage_per_mana_percent: float = 0.0  # offensive SPELL cards deal +X% of their FINAL (surcharged) mana cost as damage (Blast Stick 20)
 @export var elemental_charge_damage: int = 0       # applying Burn/Shock/Cold deals +X damage per stack applied (Elemental Weaver 1)
 @export var burn_backlash_self: int = 0            # applying Burn to an enemy burns YOU X — per occasion, not per stack (Phoenix Feather 1)
+@export var no_debuff_mana_discount_percent: float = 0.0  # ALL cards cost X% less while you carry no debuffs (Wand of Clarity 15)
+@export var melee_retaliate_shock: int = 0         # a melee attacker takes X Shock for striking you (Reaction Rod 4)
+@export var card_pull_target: int = 0              # every targeted card play pulls its target X squares toward you — allies included (Shepherds Crook 1)
 @export var reaper_weapon: bool = false            # Reaper Scythe: targets above half health suffer 10% lifesteal; below, 10% of the damage returns as mana and the card costs 10% less
 @export var feral_weapon: bool = false             # Feral Evocation: the colored-slot element-conversion engine
 @export var feral_change_damage: int = 0           # damage to a random enemy within 4 squares each time a slotted card changes color (Feral Evocation 4, Lv3 6)
@@ -2928,18 +2931,51 @@ static func create_car_battery() -> ItemData:
 
 static func create_abjurers_cane() -> ItemData:
 	var item = _new_weapon("Abjurers Cane", Rarity.LEGENDARY, WeaponSubtype.STAFF, 25)
+	item.wisdom_bonus = 5
+	item.intelligence_bonus = 4
+	item.agility_bonus = 4
 	item.discard_gain_block = 3
-	item.description = "Two-handed. When you discard a card, gain 3 block."
+	var ac_cards: Array[String] = ["defensive_sacrifice", "defensive_sacrifice"]
+	item.granted_card_ids = ac_cards
+	item.description = "+5 WIS, +4 INT, +4 AGI. Two-handed. When you discard a card, gain 3 block. Grants TWO copies of Defensive Sacrifice (instant): when an enemy attack lands on you, you may discard a card of your choice — if you do, halve the damage and gain 10 mana; decline and the card stays in your hand."
+	return item
+
+static func create_wand_of_clarity() -> ItemData:
+	var item = _new_weapon("Wand of Clarity", Rarity.LEGENDARY, WeaponSubtype.WAND, 5)
+	item.card_slots = 1
+	item.wisdom_bonus = 6
+	item.mana_bonus = 30
+	item.on_self_brain_regen = 2
+	item.on_self_flash_regen = 2
+	item.no_debuff_mana_discount_percent = 15.0
+	var wc_cards: Array[String] = ["clear_mind"]
+	item.granted_card_ids = wc_cards
+	item.description = "+6 WIS, +30 mana. 1 card slot. While you carry no debuffs, ALL your cards cost 15% less mana. On-self: regain 2 brain points and 2 flash points. Grants Clear Mind: purge 3 random debuffs on you — whole stacks — and draw 1 card for each (50 mana, 4 tempo)."
+	return item
+
+static func create_reaction_rod() -> ItemData:
+	var item = _new_weapon("Reaction Rod", Rarity.LEGENDARY, WeaponSubtype.WAND, 15)
+	item.intelligence_bonus = 5
+	item.agility_bonus = 2
+	item.determination_bonus = 2
+	item.melee_retaliate_shock = 4
+	var rr_cards: Array[String] = ["grounding"]
+	item.granted_card_ids = rr_cards
+	item.description = "+5 INT, +2 AGI, +2 DET. An enemy striking you from melee range takes 4 Shock. Grants Grounding: absorb every Shock within 10 squares of you and deal 10 damage to each enemy in that radius, shocked or not — the cast costs 5 less mana per Shock absorbed (200 mana, 10 tempo)."
 	return item
 
 static func create_shepherds_crook() -> ItemData:
 	var item = _new_weapon("Shepherds Crook", Rarity.LEGENDARY, WeaponSubtype.STAFF, 25)
+	item.card_slots = 4
 	item.health_bonus = 20
 	item.mana_bonus = 20
 	item.intelligence_bonus = 4
 	item.wisdom_bonus = 3
 	item.healing_bonus = 5
-	item.description = "+20 health, +20 mana, +4 INT, +3 WIS. Two-handed. All your healing heals 5 more."
+	item.card_pull_target = 1
+	var sc_cards: Array[String] = ["crops"]
+	item.granted_card_ids = sc_cards
+	item.description = "+20 health, +20 mana, +4 INT, +3 WIS. 4 card slots. Two-handed. All your healing heals 5 more. Every targeted card you play pulls its target 1 square toward you — allies included. Grants Crops: grow 5 berry bushels at random within 8 squares; an ally who walks over one eats it for 20 life and 20 mana (70 mana, 7 tempo)."
 	return item
 
 static func create_blast_stick() -> ItemData:

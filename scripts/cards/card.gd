@@ -141,6 +141,8 @@ const CARD_RARITIES := {
 	"element_pollination": Rarity.LEGENDARY,
 	"from_the_ashes": Rarity.MYTHIC, "polymorph": Rarity.MYTHIC,
 	"reapers_taking": Rarity.MYTHIC,
+	"clear_mind": Rarity.LEGENDARY, "grounding": Rarity.LEGENDARY,
+	"defensive_sacrifice": Rarity.LEGENDARY, "crops": Rarity.LEGENDARY,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -180,6 +182,8 @@ const DROP_EXCLUDED_CARD_IDS := {
 	# Spell-weapon-granted cards (spell weapons pass 1).
 	"element_pollination": true, "from_the_ashes": true,
 	"polymorph": true, "reapers_taking": true,
+	"clear_mind": true, "grounding": true,
+	"defensive_sacrifice": true, "crops": true,
 }
 
 @export var card_id: String = "slash"
@@ -1409,7 +1413,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"death_vortex", "earth_rattle", "psionic_flow", "sanguine_the_penguin", "wrath_of_the_sea", "monk_of_the_night":
 			# Weapon world effects (and the maintained Monk) — resolved in main.
 			pass
-		"from_the_ashes", "reapers_taking", "polymorph":
+		"from_the_ashes", "reapers_taking", "polymorph", "clear_mind", "grounding", "crops", "defensive_sacrifice":
 			# Spell-weapon world effects — resolved at their trigger sites in main.
 			pass
 		"element_pollination":
@@ -7518,6 +7522,79 @@ static func create_polymorph() -> Card:
 	card.base_damage = 0
 	card.jail_on_play = 25
 	card.reaction_trigger = "on_enemy_fifth_debuff"
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_clear_mind() -> Card:
+	## Wand of Clarity: shed what clouds you and read clearly again.
+	var card = Card.new()
+	card.card_id = "clear_mind"
+	card.card_name = "Clear Mind"
+	card.description = "Purge 3 random debuffs on you — whole stacks — and draw 1 card for each debuff purged."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 50
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_grounding() -> Card:
+	## Reaction Rod: earth the whole field through the wielder. The -5 mana per
+	## absorbable Shock is kept live on the card by main each tempo tick and
+	## read at cost time in DeckManager.play_card.
+	var card = Card.new()
+	card.card_id = "grounding"
+	card.card_name = "Grounding"
+	card.description = "Absorb every Shock within 10 squares of you — enemies, allies and yourself — and deal 10 damage to each enemy in that radius, shocked or not. Costs 5 less mana per Shock absorbed."
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 200
+	card.tempo_cost = 10
+	card.damage = 0
+	card.base_damage = 0
+	card.is_ranged = true
+	card.is_aoe = true
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_defensive_sacrifice() -> Card:
+	## Abjurers Cane: an instant with a CHOICE — main prompts the wielder when
+	## an enemy attack lands; declining leaves the card in hand unspent.
+	var card = Card.new()
+	card.card_id = "defensive_sacrifice"
+	card.card_name = "Defensive Sacrifice"
+	card.description = "Instant: when an enemy attack lands on you, you may discard a card of your choice — if you do, halve the damage and gain 10 mana. Decline and this card stays in your hand."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.reaction_trigger = "on_player_attacked_choice"
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_crops() -> Card:
+	## Shepherds Crook: sow the field with berries for the flock.
+	var card = Card.new()
+	card.card_id = "crops"
+	card.card_name = "Crops"
+	card.description = "Grow 5 berry bushels at random within 8 squares of you. An ally who walks over one eats it for 20 life and 20 mana."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 70
+	card.tempo_cost = 7
+	card.damage = 0
+	card.base_damage = 0
 	card.target_types = ["self"]
 	card.shop_excluded = true
 	return card

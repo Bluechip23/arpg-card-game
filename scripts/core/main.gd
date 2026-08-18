@@ -4634,6 +4634,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_spirit_bows(amount)
 	# Elemental Weaver: refresh the pollination flag enemies read while ticking.
 	_update_element_pollination()
+	# Reaction Rod: keep Grounding's Shock discount current on the card face.
+	_update_grounding_discount()
 	# Territorial Mark: refresh which enemies stand in the blue smoke.
 	_update_mark_zones(amount)
 	# Close is Favored: any enemy inside melee reach springs the trap.
@@ -8229,6 +8231,35 @@ func _update_element_pollination() -> void:
 				break
 	Card.element_pollination_active = pol_active
 
+func _update_grounding_discount() -> void:
+	## Grounding costs 5 less per absorbable Shock within 10 squares. The count
+	## is stamped onto the hand copy each tempo tick so DeckManager can read it
+	## at cost time without reaching into the world.
+	if not deck_manager:
+		return
+	var gd_cards: Array = []
+	for gd_c in deck_manager.hand:
+		if gd_c and gd_c.card_id == "grounding":
+			gd_cards.append(gd_c)
+	if gd_cards.is_empty():
+		return
+	var gd_shock := 0
+	if enemy_spawner and grid_manager and player:
+		for gd_e in enemy_spawner.get_living_enemies():
+			if gd_e and is_instance_valid(gd_e) and gd_e.shock_stacks > 0 \
+					and grid_manager.get_distance_in_cells(player.position, gd_e.position) <= 10:
+				gd_shock += gd_e.shock_stacks
+		for gd_ally in _all_players():
+			if is_instance_valid(gd_ally) and gd_ally.has_method("get_debuff_manager") \
+					and grid_manager.get_distance_in_cells(player.position, gd_ally.position) <= 10:
+				var gd_adm = gd_ally.get_debuff_manager()
+				if gd_adm:
+					var gd_sh = gd_adm.get_debuff(Debuff.DebuffType.SHOCKED)
+					if gd_sh:
+						gd_shock += maxi(gd_sh.value, 1)
+	for gd_c2 in gd_cards:
+		gd_c2.set_meta("grounding_discount", gd_shock * 5)
+
 func _update_spirit_bows(amount: int) -> void:
 	if _spirit_bows.is_empty():
 		return
@@ -9761,6 +9792,56 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_apply_misery_spread(fb_hit)
 			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
 			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
+
+		"clear_mind":
+			# Wand of Clarity: purge 3 random debuffs — whole stacks — and
+			# draw 1 card for each actually purged.
+			var cm_dm = player.get_debuff_manager()
+			var cm_purged := 0
+			if cm_dm:
+				for _cm_i in range(3):
+					if cm_dm.debuffs.is_empty():
+						break
+					var cm_pick = cm_dm.debuffs[randi() % cm_dm.debuffs.size()]
+					cm_dm.remove_debuff(cm_pick.debuff_type)
+					cm_purged += 1
+			for _cm_d in range(cm_purged):
+				deck_manager.draw_card()
+			if cm_purged > 0:
+				add_battle_log("Clear Mind: %d debuff(s) purged, %d card(s) drawn." % [cm_purged, cm_purged], Color(0.7, 0.9, 1.0))
+			else:
+				add_battle_log("Clear Mind: nothing clouding you.", Color(0.7, 0.9, 1.0))
+
+		"grounding":
+			# Reaction Rod: absorb every Shock within 10 squares — enemies,
+			# allies and the wielder — then 10 damage to each enemy in radius,
+			# shocked or not. (The -5 mana per Shock landed at cost time.)
+			var gr_absorbed := 0
+			var gr_hit: Array = []
+			for gr_e in enemy_spawner.get_living_enemies():
+				if gr_e and is_instance_valid(gr_e) \
+						and grid_manager.get_distance_in_cells(player.position, gr_e.position) <= 10:
+					gr_hit.append(gr_e)
+					if gr_e.shock_stacks > 0:
+						gr_absorbed += gr_e.shock_stacks
+						gr_e.shock_stacks = 0
+						if gr_e.has_method("_update_status_indicators"):
+							gr_e._update_status_indicators()
+			for gr_ally in _all_players():
+				if not is_instance_valid(gr_ally) or not gr_ally.has_method("get_debuff_manager"):
+					continue
+				if grid_manager.get_distance_in_cells(player.position, gr_ally.position) > 10:
+					continue
+				var gr_adm = gr_ally.get_debuff_manager()
+				if gr_adm:
+					var gr_sh = gr_adm.get_debuff(Debuff.DebuffType.SHOCKED)
+					if gr_sh:
+						gr_absorbed += maxi(gr_sh.value, 1)
+						gr_adm.remove_debuff(Debuff.DebuffType.SHOCKED)
+			for gr_e2 in gr_hit:
+				gr_e2.take_damage(10, true, DamageTypes.Type.LIGHTNING)
+			_apply_misery_spread(gr_hit)
+			add_battle_log("Grounding! %d Shock absorbed — 10 damage to %d enemies." % [gr_absorbed, gr_hit.size()], Color(1.0, 1.0, 0.4))
 
 		"from_the_ashes":
 			# Wand of the Phoenix Feather: purge every self-Burn stack; enemies

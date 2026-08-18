@@ -490,6 +490,19 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 					and int(target.current_health) * 2 < int(target.max_health):
 				mana_cost = floori(mana_cost * 0.9)
 				print("[DECK] %s: -10%% mana against a target below half health" % sw_w.item_name)
+			# Wand of Clarity: a clear mind casts cheaper — while no debuff
+			# clouds you, ALL cards cost 15% less.
+			var wc_dm = debuff_mgr if debuff_mgr else debuff_manager
+			if sw_w.no_debuff_mana_discount_percent > 0.0 and wc_dm \
+					and "debuffs" in wc_dm and wc_dm.debuffs.is_empty():
+				mana_cost = floori(mana_cost * (1.0 - sw_w.no_debuff_mana_discount_percent / 100.0))
+				print("[DECK] %s: -%.0f%% mana (no debuffs)" % [sw_w.item_name, sw_w.no_debuff_mana_discount_percent])
+
+	# Grounding (Reaction Rod): -5 mana per absorbable Shock in range, kept
+	# live on the card by main each tempo tick.
+	if card.card_id == "grounding" and card.has_meta("grounding_discount"):
+		mana_cost -= int(card.get_meta("grounding_discount"))
+		print("[DECK] Grounding: -%d mana (Shock in range)" % int(card.get_meta("grounding_discount")))
 
 	# Percent-mana cards (Wrath of the Sea): the price is a fraction of CURRENT
 	# mana — discounts don't touch it, and the actual spend is recorded on the
