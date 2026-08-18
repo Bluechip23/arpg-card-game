@@ -137,6 +137,10 @@ const CARD_RARITIES := {
 	"bark_up": Rarity.LEGENDARY, "cinquedea": Rarity.LEGENDARY,
 	"mage_shield": Rarity.MYTHIC, "reverberate_regrowth": Rarity.MYTHIC,
 	"bouncing_shield": Rarity.MYTHIC, "mind_over_matter": Rarity.MYTHIC,
+	# Spell-weapon-granted (spell weapons pass 1)
+	"element_pollination": Rarity.LEGENDARY,
+	"from_the_ashes": Rarity.MYTHIC, "polymorph": Rarity.MYTHIC,
+	"reapers_taking": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -173,6 +177,9 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"curse_of_the_living": true, "bark_up": true, "cinquedea": true,
 	"mage_shield": true, "reverberate_regrowth": true, "bouncing_shield": true,
 	"mind_over_matter": true,
+	# Spell-weapon-granted cards (spell weapons pass 1).
+	"element_pollination": true, "from_the_ashes": true,
+	"polymorph": true, "reapers_taking": true,
 }
 
 @export var card_id: String = "slash"
@@ -237,6 +244,7 @@ var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo a
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
+var element: String = ""  # Elemental identity for Feral Evocation's colored slots: "red" (Burn), "blue" (Cold), "yellow" (Shock), "green" (Poison). "" = not elemental.
 var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
 var has_reach: bool = false  # Reach: adds 1 square to melee attack range
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
@@ -864,6 +872,14 @@ func get_effect_draw_count() -> int:
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
 
+	# Feral Evocation: arm the element remap for this play. Always assigned —
+	# a non-feral play clears any remap a previous play left behind; main also
+	# clears it once the play's world effects have resolved.
+	Card.active_element_remap = ""
+	if slotted_in_item and slotted_in_item.feral_weapon:
+		var feral_col: String = str(get_meta("feral_color")) if has_meta("feral_color") else slotted_in_item.get_slot_color(self)
+		Card.active_element_remap = str(Card.ELEMENT_DEBUFFS.get(feral_col, ""))
+
 	# Cyde Livingstons Sneakers: a non-attack card breaks the consecutive-attack streak.
 	if card_type != CardType.ATTACK and player_stats and player_stats.consecutive_attacks_draw_at > 0:
 		player_stats.consecutive_attacks = 0
@@ -1125,6 +1141,20 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 					print("[CARD] Fallen's Wrath: +%d damage (Wrath)" % wpn.wrath)
 				if wpn.vitality_weapon and wpn.vitality_stacks > 0:
 					_gauntlet_bonus_applied += wpn.vitality_stacks * 2
+		# Blast Stick: offensive spells hit harder the more they cost — the
+		# bonus reads the SURCHARGED price, matching what the wielder pays.
+		if is_offensive() and school == CardSchool.SPELL \
+				and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
+			for bs_w in player_stats.inventory.equipped_weapons:
+				if bs_w == null or bs_w.spell_damage_per_mana_percent <= 0.0:
+					continue
+				var bs_cost: int = get_burden_mana_cost()
+				if bs_w.spell_mana_surcharge_percent > 0.0:
+					bs_cost = ceili(bs_cost * (1.0 + bs_w.spell_mana_surcharge_percent / 100.0))
+				var bs_bonus: int = floori(bs_cost * bs_w.spell_damage_per_mana_percent / 100.0)
+				if bs_bonus > 0:
+					_gauntlet_bonus_applied += bs_bonus
+					print("[CARD] %s: +%d damage (%.0f%% of %d mana)" % [bs_w.item_name, bs_bonus, bs_w.spell_damage_per_mana_percent, bs_cost])
 		# Purge Wrath: the armed percent lands on this attack, then clears.
 		if is_offensive() and player_stats.pending_wrath_percent > 0:
 			var pwp_bonus: int = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * player_stats.pending_wrath_percent / 100.0)
@@ -1379,6 +1409,13 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"death_vortex", "earth_rattle", "psionic_flow", "sanguine_the_penguin", "wrath_of_the_sea", "monk_of_the_night":
 			# Weapon world effects (and the maintained Monk) — resolved in main.
 			pass
+		"from_the_ashes", "reapers_taking", "polymorph":
+			# Spell-weapon world effects — resolved at their trigger sites in main.
+			pass
+		"element_pollination":
+			# Maintain: the elemental cross-pollination is read live off the
+			# maintained pile (Card.element_pollination_active); nothing on activation.
+			print("[CARD] Element Pollination maintained: Burn splashes, Shock freezes at 5, Cold ticks doubling damage")
 		"feed_into_the_pain":
 			# Hammer of Ajax instant: fired by taking damage below 30% health.
 			if buff_mgr:
@@ -1770,6 +1807,26 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			if sls_dealt > 0:
 				player_stats.apply_life_steal(max(1, floori(sls_dealt * ls_pct / 100.0)))
 
+	# Reaper Scythe: damage against a target still above half health drinks 10%
+	# back as life; against one below half, 10% returns as MANA instead (the
+	# matching 10% mana-cost discount lives in DeckManager.play_card).
+	if is_offensive() and player_stats and target \
+			and "current_health" in target and "max_health" in target:
+		var rs_dealt: int = last_damage_dealt if last_damage_dealt > 0 else 0
+		if rs_dealt > 0 and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
+			for rs_w in player_stats.inventory.equipped_weapons:
+				if rs_w == null or not rs_w.reaper_weapon:
+					continue
+				# The hit has already landed — judge the target by its PRE-hit pool.
+				var rs_hp_before: int = mini(int(target.current_health) + rs_dealt, int(target.max_health))
+				if rs_hp_before * 2 > int(target.max_health):
+					player_stats.apply_life_steal(max(1, floori(rs_dealt * 0.10)))
+					print("[CARD] Reaper Scythe: drank %d life" % max(1, floori(rs_dealt * 0.10)))
+				else:
+					player_stats.gain_mana(max(1, floori(rs_dealt * 0.10)))
+					print("[CARD] Reaper Scythe: reclaimed %d mana" % max(1, floori(rs_dealt * 0.10)))
+				break
+
 	# Monk of the Night (Umbral Eclipse, maintained): attacks bank part of
 	# their damage as block. Lv.3 converts 15% instead of 10%.
 	if is_offensive() and player_stats and deck_manager and deck_manager.has_method("get_maintained_cards"):
@@ -1895,6 +1952,21 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if on_self_weaken > 0 and target.has_method("apply_debuff"):
 			target.apply_debuff("weaken", on_self_weaken)
 			print("[CARD] On-Self: Applied %d Weaken to target from %s" % [on_self_weaken, source_name])
+		# Spell weapons: global on-hit debuffs — unlike the on_self family these
+		# ride EVERY damaging offensive card, slotted anywhere or nowhere
+		# (Fire/Frost Book, Ice Orb, Car Battery, Circe's Wand, Reaper Scythe).
+		if player_stats and player_stats.inventory and "equipped_weapons" in player_stats.inventory \
+				and target.has_method("apply_debuff"):
+			for sw in player_stats.inventory.equipped_weapons:
+				if sw == null:
+					continue
+				for sw_pair in [["burn", sw.attack_apply_burn], ["cold", sw.attack_apply_cold],
+						["shock", sw.attack_apply_shock], ["silenced", sw.attack_apply_silence],
+						["vulnerable", sw.attack_apply_vulnerable]]:
+					var sw_amt: int = int(sw_pair[1])
+					if sw_amt > 0:
+						target.apply_debuff(str(sw_pair[0]), sw_amt)
+						print("[CARD] %s: applied %d %s on hit" % [sw.item_name, sw_amt, str(sw_pair[0])])
 		# Colored slots (Mauls Sabre): the slot's debuff payload, plus the
 		# combo bonus when this color was primed by the other one.
 		var slot_fx_late: Dictionary = slotted_in_item.get_slot_effect(self)
@@ -2128,6 +2200,11 @@ func _execute_discard(deck_manager) -> void:
 		var discarded = deck_manager.hand[random_index]
 		deck_manager.hand.remove_at(random_index)
 		deck_manager.discard_pile.append(discarded)
+		# A true discard, not a play — announce it so discard-reactive passives
+		# (Ladder Work, Abjurers Cane) see it like any other.
+		deck_manager.discards_this_cycle += 1
+		deck_manager.card_discarded.emit(discarded)
+		deck_manager.non_play_discard.emit(discarded)
 		deck_manager.hand_updated.emit()
 		print("[CARD] Discarded: %s" % discarded.card_name)
 	else:
@@ -5938,6 +6015,7 @@ static func create_provider() -> Card:
 static func create_fireball() -> Card:
 	var card = Card.new()
 	card.card_id = "fireball"
+	card.element = "red"  # Feral Evocation slot color
 	card.school = CardSchool.SPELL
 	card.card_name = "Fireball"
 	card.description = "Hurl a massive fireball. Range +5, 12 damage, apply 3 burn. Costs 10 less mana for each other fire spell cast this turn. AOE circle 4 squares."
@@ -6165,6 +6243,7 @@ static func create_m_for_mini() -> Card:
 static func create_hemotoxins() -> Card:
 	var card = Card.new()
 	card.card_id = "hemotoxins"
+	card.element = "green"  # Feral Evocation slot color
 	card.card_name = "Hemotoxins"
 	card.description = "Apply 10 Poison. If the target is below 50% health, apply 20 instead."
 	card.card_type = CardType.ATTACK
@@ -6210,6 +6289,7 @@ static func create_healing_tonic() -> Card:
 static func create_poison_bomb() -> Card:
 	var card = Card.new()
 	card.card_id = "poison_bomb"
+	card.element = "green"  # Feral Evocation slot color
 	card.card_name = "Poison Bomb"
 	card.description = "A cloud of poison: all enemies in a 2-square radius gain 6 Poison."
 	card.card_type = CardType.ATTACK
@@ -6231,6 +6311,7 @@ static func create_poison_bomb() -> Card:
 static func create_chain_lightning() -> Card:
 	var card = Card.new()
 	card.card_id = "chain_lightning"
+	card.element = "yellow"  # Feral Evocation slot color
 	card.card_name = "Chain Lightning"
 	card.description = "Deal 10 damage, then bounce to nearby enemies, losing 2 damage per bounce until it reaches zero."
 	card.card_type = CardType.ATTACK
@@ -6248,6 +6329,7 @@ static func create_chain_lightning() -> Card:
 static func create_ice_grenade() -> Card:
 	var card = Card.new()
 	card.card_id = "ice_grenade"
+	card.element = "blue"  # Feral Evocation slot color
 	card.card_name = "Ice Grenade"
 	card.description = "Deal 5 damage and apply 2 Cold in a 2-square radius. Two shots — each aimed separately."
 	card.card_type = CardType.ATTACK
@@ -7381,10 +7463,101 @@ static func create_mind_over_matter() -> Card:
 	return card
 
 # ============================================
+# SPELL-WEAPON-GRANTED CARDS (spell weapons pass 1)
+# ============================================
+
+static func create_element_pollination() -> Card:
+	## Elemental Weaver maintain: cross-pollinates the three weather elements.
+	var card = Card.new()
+	card.card_id = "element_pollination"
+	card.card_name = "Element Pollination"
+	card.description = "Maintain: your Burn also splashes nearby enemies like Shock, your Shock freezes at 5 stacks like Cold, and your Cold ticks doubling damage like Burn — on top of their normal effects."
+	card.card_type = CardType.POWER
+	card.card_type_name = "Power"
+	card.mana_cost = 60
+	card.maintain_cost = 60
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_from_the_ashes() -> Card:
+	## Wand of the Phoenix Feather: purge every self-Burn and turn it outward.
+	## Lv.3 heals x8 and regens 3/4 — read live off granted_by_item in main.
+	var card = Card.new()
+	card.card_id = "from_the_ashes"
+	card.card_name = "From the Ashes"
+	card.description = "Purge ALL your Burn: enemies within 3 squares take 5 damage per stack purged; heal 5 per stack and gain Regen equal to half the stacks."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 80
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_polymorph() -> Card:
+	## Circe's Wand instant: the 5th distinct debuff makes the enemy a pig.
+	## Jailed 25 tempo after it fires (handled at the trigger site) — the
+	## cauldron needs restirring between transformations.
+	var card = Card.new()
+	card.card_id = "polymorph"
+	card.card_name = "Polymorph"
+	card.description = "Instant: when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks. Jailed 25 tempo after it fires."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.jail_on_play = 25
+	card.reaction_trigger = "on_enemy_fifth_debuff"
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+static func create_reapers_taking() -> Card:
+	## Reaper Scythe instant: an enemy dropping below a quarter within 5
+	## squares pulls the reaper to them. Lv.3 deals 35 — read live off
+	## granted_by_item at the trigger site in main.
+	var card = Card.new()
+	card.card_id = "reapers_taking"
+	card.card_name = "Reaper's Taking"
+	card.description = "Instant: when an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Instant"
+	card.school = CardSchool.SPELL
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.reaction_trigger = "on_enemy_low_health_nearby"
+	card.target_types = ["self"]
+	card.shop_excluded = true
+	return card
+
+# ============================================
 # RARITY HELPERS
 # ============================================
 
 static var _factory_map: Dictionary = {}  # card_id -> factory method name
+
+# Feral Evocation: while a converted card's play resolves, any Burn/Cold/
+# Shock/Poison it lands on an enemy is swapped to this element's debuff
+# ("" = off). Main sets it around the play; Enemy.apply_debuff reads it.
+static var active_element_remap: String = ""
+# Element Pollination (Elemental Weaver maintain): recomputed by main every
+# tempo tick off the maintained pile; enemies read it during debuff ticking.
+static var element_pollination_active: bool = false
+
+# The colored-slot element table shared by Feral Evocation's engine.
+const ELEMENT_DEBUFFS := {"red": "burn", "blue": "cold", "yellow": "shock", "green": "poison"}
 
 func get_rarity() -> Rarity:
 	return CARD_RARITIES.get(card_id, Rarity.COMMON)

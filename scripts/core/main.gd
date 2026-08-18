@@ -4632,6 +4632,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_skeletons(amount)
 	# Spirit bows stalk and shoot; budded turrets just shoot.
 	_update_spirit_bows(amount)
+	# Elemental Weaver: refresh the pollination flag enemies read while ticking.
+	_update_element_pollination()
 	# Territorial Mark: refresh which enemies stand in the blue smoke.
 	_update_mark_zones(amount)
 	# Close is Favored: any enemy inside melee reach springs the trap.
@@ -4714,6 +4716,8 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 var _disarm_mastery_applying: bool = false  # Guard against recursive disarm
 var _wither_applying: bool = false  # Guard against recursive wither
 var _laced_arrow_applying: bool = false  # Guard against recursive laced arrow
+var _polymorph_firing: bool = false  # Guard: Polymorph's own debuff must not re-trigger it
+var _reapers_taking_firing: bool = false  # Guard: Reaper's Taking's damage must not re-trigger it
 var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee range state
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
@@ -4754,6 +4758,40 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 			_wither_applying = false
 	# Cory: Prey on the Weak — bonus damage on debuff to low HP enemy
 	progression_triggers._trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value)
+	# Spell weapons pass: weapon passives that watch every debuff you land.
+	var sw_inv = player.get_inventory() if player else null
+	if sw_inv and "equipped_weapons" in sw_inv:
+		for sw_w in sw_inv.equipped_weapons:
+			if sw_w == null:
+				continue
+			# Elemental Weaver: applying Burn, Shock or Cold stings the target
+			# for +X per charge applied.
+			if sw_w.elemental_charge_damage > 0 and debuff_name in ["burn", "shock", "cold"] \
+					and is_instance_valid(enemy) and not enemy.is_dead:
+				var ew_dmg: int = sw_w.elemental_charge_damage * maxi(value, 1)
+				enemy.take_damage(ew_dmg, true)
+				add_battle_log("Elemental Weaver: +%d damage (%d charge(s) woven)" % [ew_dmg, maxi(value, 1)], Color(0.7, 0.5, 1.0))
+			# Wand of the Phoenix Feather: each Burn occasion singes the wielder
+			# for 1 — riders like Laced Arrow / Wither / Harnessed Sun amplify
+			# the SAME occasion, so their guarded re-entries don't singe again.
+			if sw_w.burn_backlash_self > 0 and debuff_name == "burn" \
+					and not _harnessed_reentry and not _laced_arrow_applying and not _wither_applying:
+				var pb_dm = player.get_debuff_manager()
+				if pb_dm:
+					var pb_burn = Debuff.create(Debuff.DebuffType.BURN, sw_w.burn_backlash_self, 15)
+					pb_burn.source_name = sw_w.item_name
+					pb_dm.apply_debuff(pb_burn)
+					add_battle_log("The phoenix feather singes you: %d Burn" % sw_w.burn_backlash_self, Color(1.0, 0.5, 0.2))
+	# Circe's Wand: landing a 5th distinct debuff springs Polymorph from hand.
+	if not _polymorph_firing and deck_manager and is_instance_valid(enemy) and not enemy.is_dead \
+			and enemy.polymorph_tempo <= 0 and Card.count_debuff_kinds(enemy) >= 5:
+		var pm_card = deck_manager.trigger_one_reaction_jailed("on_enemy_fifth_debuff", 25)
+		if pm_card:
+			_polymorph_firing = true
+			pm_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+			enemy.apply_debuff("polymorph", 5)
+			_polymorph_firing = false
+			add_battle_log("Polymorph! %s is a pig for 5 tempo!" % enemy.enemy_name, Color(1.0, 0.6, 0.8))
 
 func _on_enemy_debuff_expired(enemy: Enemy, debuff_name: String) -> void:
 	progression_triggers._trigger_skill_tree_on_debuff_expired(enemy)
@@ -4784,6 +4822,34 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 
 func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
+	# Reaper's Taking (Reaper Scythe): an enemy dropping below a quarter within
+	# 5 squares pulls the reaper to them — edge-detected on the crossing hit.
+	if _reapers_taking_firing or enemy == null or not is_instance_valid(enemy) \
+			or enemy.is_dead or enemy.max_health <= 0 or not deck_manager or not grid_manager:
+		return
+	var rt_after: int = enemy.current_health
+	var rt_before: int = rt_after + damage
+	var rt_quarter: float = enemy.max_health * 0.25
+	if rt_after <= 0 or float(rt_after) >= rt_quarter or float(rt_before) < rt_quarter:
+		return
+	if grid_manager.get_distance_in_cells(player.position, enemy.position) > 5:
+		return
+	var rt_cards = deck_manager.trigger_reactions("on_enemy_low_health_nearby")
+	for rt_card in rt_cards:
+		_reapers_taking_firing = true
+		rt_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		# Step through the veil to the victim's side: nearest free adjacent tile.
+		var rt_cell: Vector2i = grid_manager.world_to_grid(enemy.position)
+		for rt_off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var rt_c: Vector2i = rt_cell + rt_off
+			if not (rt_c in player.blocked_tiles):
+				if player.has_method("blink_to"):
+					player.blink_to(grid_manager.grid_to_world(rt_c))
+				break
+		var rt_dmg: int = 35 if (rt_card.granted_by_item and rt_card.granted_by_item.item_level >= 3) else 20
+		enemy.take_damage(rt_dmg, true)
+		add_battle_log("Reaper's Taking! The scythe crosses the field — %d damage to %s!" % [rt_dmg, enemy.enemy_name], Color(0.4, 0.7, 1.0))
+		_reapers_taking_firing = false
 
 func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
@@ -4864,6 +4930,9 @@ func _on_all_enemies_defeated() -> void:
 	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
 	_clear_mark_zones()
+	# Spell weapons: no element remap or pollination survives the wave.
+	Card.active_element_remap = ""
+	Card.element_pollination_active = false
 	# (The Wrist Rocket's banked crit is cumulative — one journey, no resets.)
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
@@ -5760,6 +5829,12 @@ func _on_non_play_discard(_card: Card) -> void:
 	var stats = player.get_stats() if player else null
 	if stats and stats.has_skill_tree_passive("ladder_work"):
 		stats.st_ladder_discard_count += 1
+	# Abjurers Cane: every true discard raises the guard.
+	if stats and player.get_inventory():
+		for ac_w in player.get_inventory().equipped_weapons:
+			if ac_w != null and ac_w.discard_gain_block > 0:
+				stats.add_armor(ac_w.discard_gain_block)
+				add_battle_log("Abjurers Cane: +%d block" % ac_w.discard_gain_block, Color(0.6, 0.75, 0.95))
 
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
@@ -7474,6 +7549,11 @@ func _helm_range_bonus(card) -> int:
 	# Tigers Sunday Red: +range on ALL ranged offensive cards while equipped.
 	if card.is_ranged and player and player.get_stats():
 		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
+	# Wand of Deliverance: +range on ALL cards while it is in a hand.
+	if player and player.get_inventory():
+		for wr_w in player.get_inventory().equipped_weapons:
+			if wr_w != null and wr_w.range_bonus_all_cards > 0:
+				bonus += wr_w.range_bonus_all_cards
 	return bonus
 
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
@@ -7769,12 +7849,47 @@ func _clear_penguin() -> void:
 # WEAPON CARD RIDERS (weapons pass 1) — generic post-resolution effects
 # ============================================
 
+func _feral_current_color(item: ItemData, card: Card) -> String:
+	## The element a feral-slotted card counts as RIGHT NOW: a conversion
+	## override when one is held, its slot's printed color otherwise.
+	if card.has_meta("feral_color"):
+		return str(card.get_meta("feral_color"))
+	return item.get_slot_color(card)
+
+func _feral_conversion_effects(card: Card) -> void:
+	## Feral Evocation: playing a slotted elemental card converts every OTHER
+	## card slotted in the staff that is currently IN HAND to its element —
+	## cards not in hand keep their color (they weren't there to be swayed).
+	## Each actual change zaps a random enemy within 4 squares. Conversion
+	## resets when a card leaves the hand (cleared on draw in DeckManager).
+	if card == null or card.slotted_in_item == null or not card.slotted_in_item.feral_weapon:
+		return
+	var fe_item = card.slotted_in_item
+	var fe_color := _feral_current_color(fe_item, card)
+	if fe_color == "":
+		return
+	for fe_other in deck_manager.hand:
+		if fe_other == card or fe_other.slotted_in_item != fe_item:
+			continue
+		if _feral_current_color(fe_item, fe_other) == fe_color:
+			continue
+		fe_other.set_meta("feral_color", fe_color)
+		add_battle_log("Feral Evocation: %s turns %s!" % [fe_other.card_name, fe_color], Color(0.8, 0.5, 1.0))
+		if fe_item.feral_change_damage > 0:
+			var fe_victim = _random_enemy_within(4)
+			if fe_victim:
+				fe_victim.take_damage(fe_item.feral_change_damage, true)
+				add_battle_log("The staff lashes out: %d damage to %s!" % [fe_item.feral_change_damage, fe_victim.enemy_name], Color(0.8, 0.5, 1.0))
+
 func _weapon_post_card_effects(card: Card, target) -> void:
 	if card == null or not player or not deck_manager:
 		return
 	var stats = player.get_stats()
 	if stats == null:
 		return
+
+	# Feral Evocation: the played color pollinates the rest of the hand.
+	_feral_conversion_effects(card)
 
 	# Hard Helmet (Construction Hammer): a utility play can trigger the instant.
 	if card.card_type == Card.CardType.UTILITY:
@@ -8101,6 +8216,19 @@ func _refresh_bow_instances() -> void:
 ## 5. Every bow's shot gains +2 damage per living bow and crits (x1.5) with
 ## 5% chance per living bow. The maintained bow dissolves the moment its
 ## Spirit Bow card stops being maintained.
+func _update_element_pollination() -> void:
+	## Elemental Weaver: cache the maintain's on/off state where enemies can
+	## read it during their own debuff ticking. Recomputed every tempo tick, so
+	## break, dismiss and unequip all propagate within a tick — never stored as
+	## a set-and-forget flag (the break/restore paths would leak it).
+	var pol_active := false
+	if deck_manager:
+		for pol_mc in deck_manager.maintained_cards:
+			if pol_mc and pol_mc.card_id == "element_pollination":
+				pol_active = true
+				break
+	Card.element_pollination_active = pol_active
+
 func _update_spirit_bows(amount: int) -> void:
 	if _spirit_bows.is_empty():
 		return
@@ -9634,6 +9762,34 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
 			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
 
+		"from_the_ashes":
+			# Wand of the Phoenix Feather: purge every self-Burn stack; enemies
+			# within 3 squares take 5 damage per stack, the wielder heals 5 per
+			# stack (Lv.3: 8) and gains Regen worth half the stacks (Lv.3: 3/4).
+			var fta_dm = player.get_debuff_manager()
+			var fta_burn := 0
+			if fta_dm:
+				var fta_d = fta_dm.get_debuff(Debuff.DebuffType.BURN)
+				if fta_d:
+					fta_burn = maxi(fta_d.value, 0)
+					fta_dm.remove_debuff(Debuff.DebuffType.BURN)
+			if fta_burn > 0:
+				var fta_lv3: bool = card.granted_by_item != null and card.granted_by_item.item_level >= 3
+				var fta_hit = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
+				for fta_e in fta_hit:
+					fta_e.take_damage(fta_burn * 5, true, DamageTypes.Type.FIRE)
+				_apply_misery_spread(fta_hit)
+				var fta_stats = player.get_stats()
+				if fta_stats:
+					fta_stats.heal(fta_burn * (8 if fta_lv3 else 5))
+				var fta_regen: int = ceili(fta_burn * (0.75 if fta_lv3 else 0.5))
+				var fta_bm = player.get_buff_manager()
+				if fta_bm and fta_regen > 0:
+					fta_bm.apply_buff(Buff.create_regen(fta_regen, -1, "From the Ashes"))
+				add_battle_log("From the Ashes! %d Burn purged — %d damage to %d enemies, healed %d." % [fta_burn, fta_burn * 5, fta_hit.size(), fta_burn * (8 if fta_lv3 else 5)], Color(1.0, 0.5, 0.2))
+			else:
+				add_battle_log("From the Ashes fizzles — no Burn to purge.", Color(1.0, 0.5, 0.2))
+
 		"sprinkle_bomb":
 			# Bladed Doughnut Lv.3: the Sprinkle detonates as an AOE circle.
 			var sb_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
@@ -10280,6 +10436,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"communal_donation":
 			_open_donation_panel()
+
+	# Feral Evocation: the play and its world effects have fully resolved —
+	# drop the element remap so nothing later inherits it.
+	Card.active_element_remap = ""
 
 func _is_ui_window_open() -> bool:
 	## True when any scrollable HUD window is open. Mouse-wheel/drag over the

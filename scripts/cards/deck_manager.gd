@@ -273,6 +273,11 @@ func draw_card() -> Card:
 	# a card can only re-enter the hand through a draw, so a fresh draw is clean.
 	card.temp_hand_tempo_reduction = 0
 
+	# Feral Evocation: conversion only holds while the card stays in hand — a
+	# card re-entering through a draw is back to its printed element.
+	if card.has_meta("feral_color"):
+		card.remove_meta("feral_color")
+
 	# Reset enchantment cycle counter when drawn into hand
 	if card.card_type == Card.CardType.ENCHANTMENT:
 		card.cycles_in_hand = 0
@@ -466,6 +471,25 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 		if debuff_mgr.is_card_hexed(index):
 			mana_cost += debuff_mgr.get_hexed_mana_increase()
+
+	# Spell weapons: global percentage adjustments from the wielder's weapons.
+	if inventory and "equipped_weapons" in inventory:
+		for sw_w in inventory.equipped_weapons:
+			if sw_w == null:
+				continue
+			# Blast Stick: offensive spells cost more — and its damage rider
+			# reads this same surcharged price.
+			if sw_w.spell_mana_surcharge_percent > 0.0 and card.is_offensive() \
+					and card.school == Card.CardSchool.SPELL:
+				mana_cost = ceili(mana_cost * (1.0 + sw_w.spell_mana_surcharge_percent / 100.0))
+				print("[DECK] %s: +%.0f%% mana on offensive spell" % [sw_w.item_name, sw_w.spell_mana_surcharge_percent])
+			# Reaper Scythe: a card aimed at a target below half health costs
+			# 10% less — the reaping is easier once the soul is loose.
+			if sw_w.reaper_weapon and target != null and is_instance_valid(target) \
+					and "current_health" in target and "max_health" in target \
+					and int(target.current_health) * 2 < int(target.max_health):
+				mana_cost = floori(mana_cost * 0.9)
+				print("[DECK] %s: -10%% mana against a target below half health" % sw_w.item_name)
 
 	# Percent-mana cards (Wrath of the Sea): the price is a fraction of CURRENT
 	# mana — discounts don't touch it, and the actual spend is recorded on the
@@ -949,6 +973,29 @@ func trigger_reactions(trigger_type: String) -> Array[Card]:
 	if triggered.size() > 0:
 		hand_updated.emit()
 	return triggered
+
+## Fire exactly ONE reaction card of the given trigger from hand, jailing it
+## for jail_tempo instead of discarding — Polymorph's 25-tempo cooldown, so a
+## second copy in hand survives for the next transformation. Returns the fired
+## card, or null when none was in hand (or Silence stopped every copy).
+func trigger_one_reaction_jailed(trigger_type: String, jail_tempo: int) -> Card:
+	for i in range(hand.size()):
+		var card = hand[i]
+		if card.card_type == Card.CardType.REACTION and card.reaction_trigger == trigger_type:
+			if card.school == Card.CardSchool.SPELL and debuff_manager \
+					and debuff_manager.has_method("can_play_spell_cards") \
+					and not debuff_manager.can_play_spell_cards():
+				print("[DECK] Silenced — spell reaction %s cannot fire" % card.card_name)
+				continue
+			hand.remove_at(i)
+			card.jail_time_remaining = jail_tempo
+			jail_pile.append(card)
+			card_jailed.emit(card)
+			reaction_triggered.emit(card)
+			hand_updated.emit()
+			print("[DECK] Reaction triggered: %s (jailed %d tempo)" % [card.card_name, jail_tempo])
+			return card
+	return null
 
 func remove_card_from_all_piles(card: Card) -> bool:
 	## Removes a specific card instance from draw pile, hand, discard pile, or jail.
