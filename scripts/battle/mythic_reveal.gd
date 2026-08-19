@@ -9,9 +9,13 @@ extends Node3D
 ##  4. Clicking the icon claims it — main stores it in the player's inventory.
 signal claimed(item: ItemData)
 
-const GLOW_RADIUS := 3.0        # tiles the glow expands before it ends
 const GLOW_DURATION := 1.4      # seconds for the expansion
 const PRESENT_CLICK_RADIUS := 1.2
+
+# Tunable per spawn (the Animation Lab shrinks and pins these to keep the
+# present inside its preview camera's frame).
+var glow_radius: float = 3.0    # tiles the glow expands before it ends
+var fixed_angle: float = NAN    # radians; NAN = random direction
 
 var item: ItemData = null
 var state: String = "glow"      # "glow" -> "present" -> "icon" -> (freed)
@@ -29,9 +33,9 @@ static func start(p_item: ItemData, origin: Vector3) -> MythicReveal:
 	return r
 
 func _ready() -> void:
-	# The present lands where the glow ends: a random direction, GLOW_RADIUS out.
-	var angle := randf() * TAU
-	_present_offset = Vector3(cos(angle), 0, sin(angle)) * GLOW_RADIUS
+	# The present lands where the glow ends: a random direction, glow_radius out.
+	var angle := fixed_angle if not is_nan(fixed_angle) else randf() * TAU
+	_present_offset = Vector3(cos(angle), 0, sin(angle)) * glow_radius
 	_run_glow()
 
 ## World position the player must click during "present"/"icon".
@@ -76,7 +80,7 @@ func _run_glow() -> void:
 	disc.scale = Vector3(0.2, 1, 0.2)
 	add_child(disc)
 	var tw := create_tween()
-	tw.tween_property(disc, "scale", Vector3(GLOW_RADIUS, 1, GLOW_RADIUS), GLOW_DURATION) \
+	tw.tween_property(disc, "scale", Vector3(glow_radius, 1, glow_radius), GLOW_DURATION) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, GLOW_DURATION) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
