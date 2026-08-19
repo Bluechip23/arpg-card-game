@@ -627,6 +627,8 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if debuff_mgr.get_locked_card_index() == index:
 			debuff_mgr.remove_debuff(Debuff.DebuffType.LOCKED)
 		_update_debuff_card_indices(debuff_mgr, index)
+		# Weighted/Clumsy burn a stack on every card; Staggered on attack cards.
+		debuff_mgr.on_card_played(card.card_type == Card.CardType.ATTACK)
 
 	var damage_reduction_pct = 0.0
 	var self_damage_percent = 0.0

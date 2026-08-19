@@ -662,7 +662,7 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		var is_poison_outcome = false
 
 		# Poisoned Blood flips heal → poison outcome (regen = poison)
-		if buff_mgr and buff_mgr.poisoned_blood_active and card.heal_amount > 0:
+		if buff_mgr and buff_mgr.has_poisoned_blood() and card.heal_amount > 0:
 			is_heal_outcome = false
 			is_poison_outcome = true
 
@@ -1306,7 +1306,7 @@ func _trigger_skill_tree_stephen_on_disarm_applied(target, value: int) -> void:
 
 	# Disarm Mastery: when applying disarm, apply 1 more
 	if stats.has_skill_tree_passive("disarm_mastery") and target and target.has_method("apply_debuff"):
-		target.apply_debuff("disarmed", 1)
+		target.apply_debuff("disarmed", 5)
 		main.add_battle_log("Disarm Mastery: +1 disarm", Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
@@ -1932,7 +1932,7 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 				if main.player.has_method("get_buff_manager"):
 					var bm = main.player.get_buff_manager()
 					if bm and bm.has_method("apply_buff"):
-						bm.apply_buff(Buff.create_haste(5))
+						bm.apply_buff(Buff.create_haste(1, 5))
 						main.add_battle_log("Passive: Gained haste", Color(0.3, 1.0, 0.5))
 			"gain_empower":
 				stats.apply_empower(1)

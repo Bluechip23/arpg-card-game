@@ -32,10 +32,12 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 		tether_origin = owner_node.position
 
 func apply_debuff(debuff: Debuff) -> void:
-	# Burn lifecycle is stack-driven (value = cycles remaining, damage doubling
-	# 1, 2, 4...), mirroring the enemy-side model — never duration-expired.
-	if debuff.debuff_type == Debuff.DebuffType.BURN:
-		debuff.duration = -1
+	# Stack-driven debuffs never expire by the clock — their stacks are burned
+	# by what they react to (movement, damage, card plays), mirroring Burn.
+	match debuff.debuff_type:
+		Debuff.DebuffType.BURN, Debuff.DebuffType.BLEED, Debuff.DebuffType.SLOWED, \
+		Debuff.DebuffType.STAGGERED, Debuff.DebuffType.WEIGHTED, Debuff.DebuffType.CLUMSY:
+			debuff.duration = -1
 
 	var existing = get_debuff(debuff.debuff_type)
 
@@ -142,12 +144,14 @@ func process_turn_start() -> Dictionary:
 			burn_damage_next = 1
 			print("[DEBUFF] Burn expired (0 stacks)")
 
-	# Poison: deal value damage, then lose 1 poison. Elixir flips it to healing.
+	# Poison: deal value damage, then lose 1 poison. Elixir flips a tick to
+	# healing and burns one Elixir stack per converted tick.
 	var poison = get_debuff(Debuff.DebuffType.POISON)
 	if poison:
-		if owner_stats and "elixir_active" in owner_stats and owner_stats.elixir_active:
+		if owner_stats and "elixir_stacks" in owner_stats and owner_stats.elixir_stacks > 0:
 			owner_stats.heal(poison.value)
-			print("[DEBUFF] Elixir: Poison healed %d instead!" % poison.value)
+			owner_stats.elixir_stacks -= 1
+			print("[DEBUFF] Elixir: Poison healed %d instead! (%d stack(s) left)" % [poison.value, owner_stats.elixir_stacks])
 		else:
 			result["damage_taken"] += poison.value
 			print("[DEBUFF] Poison deals %d damage" % poison.value)
@@ -156,13 +160,6 @@ func process_turn_start() -> Dictionary:
 		if poison.value <= 0:
 			remove_debuff(Debuff.DebuffType.POISON)
 			print("[DEBUFF] Poison expired (0 stacks)")
-
-	# Elixir wears off over time (5 tempo per cycle).
-	if owner_stats and "elixir_active" in owner_stats and owner_stats.elixir_active:
-		owner_stats.elixir_tempo -= 5
-		if owner_stats.elixir_tempo <= 0:
-			owner_stats.elixir_active = false
-			print("[DEBUFF] Elixir wore off")
 
 	# Drain: lose 10 mana, then lose 1 drain stack
 	var drain = get_debuff(Debuff.DebuffType.DRAIN)
@@ -225,11 +222,18 @@ func process_turn_end() -> void:
 			remove_debuff(Debuff.DebuffType.BRITTLE)
 			print("[DEBUFF] Brittle expired (0 stacks)")
 
-	var expired: Array[Debuff] = []
+	# Timed durations no longer tick here — advance_time (below) runs on every
+	# raw tempo advance so durations like "3 tempo" work.
 
+## Advance timed debuff durations by raw tempo. Called on every tempo advance
+## (any amount), so stun/frozen/etc handle durations not divisible by 5.
+func advance_time(amount: int) -> void:
+	if amount <= 0 or debuffs.is_empty():
+		return
+	var expired: Array[Debuff] = []
 	for debuff in debuffs:
 		debuff_ticked.emit(debuff)
-		if debuff.tick():
+		if debuff.advance_time(amount):
 			expired.append(debuff)
 
 	for debuff in expired:
@@ -278,16 +282,10 @@ func modify_incoming_damage(damage: int) -> int:
 	return _apply_vulnerable_modifier(damage)
 
 func calculate_linked_damage(damage: int) -> int:
-	# Returns damage to share with linked ally, then consume 1 stack
+	# Fixed 20% share while Linked lasts; the debuff drains by tempo, not hits.
 	var linked = get_debuff(Debuff.DebuffType.LINKED)
 	if linked:
-		var shared = floori(damage * linked.value / 100.0)
-		linked.value -= 1
-		linked._set_name_and_description()
-		if linked.value <= 0:
-			remove_debuff(Debuff.DebuffType.LINKED)
-			print("[DEBUFF] Linked expired (0 stacks)")
-		return shared
+		return floori(damage * Debuff.LINKED_SHARE / 100.0)
 	return 0
 
 # ============================================
@@ -301,9 +299,22 @@ func can_move() -> bool:
 		return false
 	return true
 
-func get_movement_reduction() -> int:
+func is_slowed() -> bool:
+	return has_debuff(Debuff.DebuffType.SLOWED)
+
+## Slowed: burn one stack for a tile moved. Called by the tempo charger, which
+## also prices the tile at Debuff.SLOWED_TEMPO_PER_TILE instead of 1.
+func consume_slowed_stack() -> void:
 	var slowed = get_debuff(Debuff.DebuffType.SLOWED)
-	return slowed.value if slowed else 0
+	if slowed == null:
+		return
+	slowed.value -= 1
+	slowed._set_name_and_description()
+	if slowed.value <= 0:
+		remove_debuff(Debuff.DebuffType.SLOWED)
+		print("[DEBUFF] Slowed expired (0 stacks)")
+	else:
+		debuffs_changed.emit()
 
 func get_random_movement_direction() -> bool:
 	return has_debuff(Debuff.DebuffType.INEBRIATE)
@@ -312,8 +323,8 @@ func is_tethered() -> bool:
 	return has_debuff(Debuff.DebuffType.TETHERED)
 
 func get_tether_range() -> int:
-	var tethered = get_debuff(Debuff.DebuffType.TETHERED)
-	return tethered.value if tethered else 0
+	# Fixed leash: the debuff's stacks are its remaining tempo, never the radius.
+	return Debuff.TETHER_RANGE if is_tethered() else 0
 
 func set_tether_origin(pos: Vector3) -> void:
 	tether_origin = pos
@@ -358,12 +369,29 @@ func can_draw_cards() -> bool:
 	return not has_debuff(Debuff.DebuffType.CUFFED)
 
 func get_attack_mana_increase() -> int:
-	var staggered = get_debuff(Debuff.DebuffType.STAGGERED)
-	return staggered.value if staggered else 0
+	# Fixed surcharge while any stacks remain; stacks burn per attack card played.
+	return Debuff.STAGGERED_MANA if has_debuff(Debuff.DebuffType.STAGGERED) else 0
 
 func get_tempo_increase() -> int:
-	var weighted = get_debuff(Debuff.DebuffType.WEIGHTED)
-	return weighted.value if weighted else 0
+	# Fixed surcharge while any stacks remain; stacks burn per card played.
+	return Debuff.WEIGHTED_TEMPO if has_debuff(Debuff.DebuffType.WEIGHTED) else 0
+
+## Stack bookkeeping when a card is successfully played: Weighted and Clumsy
+## burn on every card, Staggered only on attack cards.
+func on_card_played(is_attack_card: bool) -> void:
+	for entry in [[Debuff.DebuffType.WEIGHTED, true], [Debuff.DebuffType.CLUMSY, true],
+			[Debuff.DebuffType.STAGGERED, is_attack_card]]:
+		if not entry[1]:
+			continue
+		var d = get_debuff(entry[0])
+		if d == null:
+			continue
+		d.value -= 1
+		d._set_name_and_description()
+		if d.value <= 0:
+			remove_debuff(entry[0])
+		else:
+			debuffs_changed.emit()
 
 func get_hexed_mana_increase() -> int:
 	var hexed = get_debuff(Debuff.DebuffType.HEXED)
@@ -400,8 +428,8 @@ func is_card_hexed(index: int) -> bool:
 	return false
 
 func get_clumsy_chance() -> int:
-	var clumsy = get_debuff(Debuff.DebuffType.CLUMSY)
-	return clumsy.value if clumsy else 0
+	# Fixed chance while any stacks remain; stacks burn per card played.
+	return Debuff.CLUMSY_CHANCE if has_debuff(Debuff.DebuffType.CLUMSY) else 0
 
 func roll_clumsy() -> bool:
 	# Returns true if clumsy triggers (should discard a card)
@@ -432,12 +460,22 @@ func get_self_damage_percent() -> float:
 # ============================================
 
 func on_movement(tiles_moved: int) -> int:
+	# Bleed: 1 damage per tile moved, and each point of damage removes a stack.
 	var bleed = get_debuff(Debuff.DebuffType.BLEED)
 	if bleed:
-		var damage = bleed.value * tiles_moved
+		var damage = mini(bleed.value, tiles_moved)
+		if damage <= 0:
+			return 0
+		bleed.value -= damage
+		bleed._set_name_and_description()
 		if owner_stats:
 			owner_stats.take_damage(damage)
-		print("[DEBUFF] Bleed triggered: %d damage from %d tiles" % [damage, tiles_moved])
+		print("[DEBUFF] Bleed triggered: %d damage from %d tiles (%d stack(s) left)" % [damage, tiles_moved, bleed.value])
+		if bleed.value <= 0:
+			remove_debuff(Debuff.DebuffType.BLEED)
+			print("[DEBUFF] Bleed expired (0 stacks)")
+		else:
+			debuffs_changed.emit()
 		return damage
 	return 0
 

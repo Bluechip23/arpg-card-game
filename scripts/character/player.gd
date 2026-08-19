@@ -306,10 +306,11 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		print("[PLAYER] Cannot move - stunned or rooted!")
 		return false
 
-	var reduction = debuff_manager.get_movement_reduction()
-	spaces = max(1, spaces - reduction)
+	# Slowed no longer trims spaces — it taxes tempo per tile instead (see
+	# TempoManager.add_movement_tempo), burning a stack per tile.
 
-	# Add haste bonus movement
+	# Haste: charge-based — the bonus tiles are tempo-free, and each non-flash
+	# move burns one charge (flash-point moves leave the charges alone).
 	var haste_bonus = buff_manager.get_haste_bonus()
 	if haste_bonus > 0:
 		spaces += haste_bonus
@@ -325,6 +326,7 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		is_moving = true
 		spaces_to_move = 1
 		spaces_moved = 0
+		_consume_haste_for_move(haste_bonus)
 		move_started.emit(1)
 		return true
 
@@ -341,10 +343,24 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		_last_position = position
 		target_position = move_path.pop_front()
 		is_moving = true
+		_consume_haste_for_move(haste_bonus)
 		move_started.emit(spaces_to_move)
 		return true
 
 	return false
+
+## Haste bookkeeping when a move actually starts: the bonus tiles ride free
+## (via the free-move-tiles pool the tempo charger already honors) and one
+## charge burns — unless the move is flash-powered, which is exempt.
+func _consume_haste_for_move(haste_bonus: int) -> void:
+	if haste_bonus <= 0:
+		return
+	var pstats = get_stats()
+	if pstats and pstats.flash_movement_enabled:
+		return
+	if pstats:
+		pstats.free_move_tiles += haste_bonus
+	buff_manager.consume_haste()
 
 func stop_moving() -> void:
 	is_moving = false

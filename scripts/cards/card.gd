@@ -1226,7 +1226,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Wear Down: apply debuff BEFORE attack execution so the first hit stacks reduction
 	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
 		if target and target.has_method("apply_wear_down"):
-			target.apply_wear_down(3)
+			target.apply_wear_down(15)
 			print("[CARD] Wear Down triggered! Enemy attack will be reduced")
 
 	# Armor Break: flag enemy so take_damage uses armor-only double-damage logic
@@ -1894,7 +1894,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if slotted_in_item and target:
 		var osb_g = get_on_self_bonus()
 		if is_offensive() and int(osb_g.get("taunt_cycles", 0)) > 0 and target.has_method("apply_taunt") and buff_mgr:
-			target.apply_taunt(buff_mgr.owner_node, int(osb_g["taunt_cycles"]))
+			target.apply_taunt(buff_mgr.owner_node, int(osb_g["taunt_cycles"]) * 5)
 			print("[CARD] On-Self: %s taunts the target" % slotted_in_item.item_name)
 		if not is_offensive() and int(osb_g.get("support_heal", 0)) > 0:
 			var heal_who = target if (target.has_method("get_stats") and target.get_stats()) else null
@@ -2033,7 +2033,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if slotted_in_item and is_offensive() and target and target.has_method("apply_debuff"):
 		var osb_late = get_on_self_bonus()
 		if int(osb_late.get("root_offensive", 0)) > 0:
-			target.apply_debuff("root", int(osb_late["root_offensive"]))
+			target.apply_debuff("root", int(osb_late["root_offensive"]) * 5)
 		if int(osb_late.get("disarm_offensive", 0)) > 0:
 			target.apply_debuff("disarm_attacks", int(osb_late["disarm_offensive"]))
 
@@ -2187,7 +2187,7 @@ func _execute_neither_man_nor_beast(target, player_stats: PlayerStats, buff_mgr:
 		# armor fulfills "ignoring all resistances and armor".
 		target.take_damage(total_damage, true, damage_type, true)
 		if target.has_method("apply_debuff"):
-			target.apply_debuff("narashimha", 2)  # 10 tempo = 2 cycles
+			target.apply_debuff("narashimha", 10)  # 10 tempo
 		print("[CARD] Neither Man nor Beast: %d unresistable damage + Narashimha" % total_damage)
 
 ## Out of Guesses (The Headbandz): discard the whole hand, then draw that many.
@@ -2259,12 +2259,14 @@ func _execute_blink(_player_node) -> void:
 	print("[CARD] Blinked!")
 
 func _execute_heal_with_poison_check(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# General healing logic: if Poison Blood is active and target is an enemy, deal damage instead
-	if buff_mgr and buff_mgr.poisoned_blood_active and target and target.has_method("take_damage") and not target.has_method("get_stats"):
+	# General healing logic: if Poison Blood is active and target is an enemy,
+	# deal damage instead — burning one Poisoned Blood charge per converted heal.
+	if buff_mgr and buff_mgr.has_poisoned_blood() and target and target.has_method("take_damage") and not target.has_method("get_stats"):
 		var dmg = heal_amount
 		if player_stats:
 			dmg = player_stats.get_effective_heal_amount(heal_amount)
 		target.take_damage(dmg, true)
+		buff_mgr.consume_poisoned_blood()
 		print("[CARD] Poisoned Blood: %s dealt %d damage!" % [card_name, dmg])
 	else:
 		if player_stats:
@@ -2674,7 +2676,7 @@ func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = n
 func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Slow self for 10 tempo (2 cycles), gain 5 armor per movement taken
 	if buff_mgr and buff_mgr.debuff_manager:
-		buff_mgr.debuff_manager.apply_debuff(Debuff.create_slowed(2, 10, "Approach"))
+		buff_mgr.debuff_manager.apply_debuff(Debuff.create_slowed(2, "Approach"))
 	if buff_mgr:
 		buff_mgr.approach_armor_per_move = 5
 		buff_mgr.approach_tempo_remaining = 10
@@ -2774,7 +2776,7 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 		print("[CARD] What's the worst? +15 bonus damage! Total: %d" % (total_damage + 15))
 	else:
 		if target and target.has_method("apply_debuff"):
-			target.apply_debuff("stun", 1)
+			target.apply_debuff("stun", 5)
 		print("[CARD] What's the worst? Target stunned! Dealt %d" % total_damage)
 
 func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2849,23 +2851,19 @@ func buff_mgr_exists(target) -> bool:
 	return target and target.has_method("get_buff_manager") and target.get_buff_manager() != null
 
 func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Heal cards now deal damage instead of healing for 15 tempo (3 cycles)
+	# Stack-oriented: the next 3 heal cards deal damage instead of healing.
 	if buff_mgr:
-		buff_mgr.poisoned_blood_active = true
-		buff_mgr.poisoned_blood_tempo = 15
-		# Surface it as a visible active effect in the buff bar.
-		buff_mgr.apply_buff(Buff.create_poisoned_blood(15, "Poisoned Blood"))
-	print("[CARD] Poisoned Blood! Heal cards now deal damage instead for 15 tempo")
+		buff_mgr.apply_buff(Buff.create_poisoned_blood(3, "Poisoned Blood"))
+	print("[CARD] Poisoned Blood! Your next 3 heal cards deal damage instead")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Poison now heals instead of hurting for the next ~30 cycles.
+	# Stack-oriented: the next 5 poison ticks heal instead of hurting.
 	if player_stats:
-		player_stats.elixir_active = true
-		player_stats.elixir_tempo = 150
+		player_stats.elixir_stacks += 5
 	# Surface it as a visible active effect in the buff bar.
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_elixir(150, "Elixir"))
-	print("[CARD] Elixir! Poison now heals you instead")
+		buff_mgr.sync_flag_buffs()
+	print("[CARD] Elixir! Your next 5 poison ticks heal you instead")
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -2979,7 +2977,7 @@ func _execute_mark(target, _player_stats: PlayerStats, buff_mgr: BuffManager = n
 	if target and target.has_method("apply_debuff"):
 		# Enemy debuffs tick in CYCLES (1 cycle = 5 tempo): 5 cycles = the
 		# card's stated 25 tempo.
-		target.apply_debuff("marked", 5)
+		target.apply_debuff("marked", 25)
 	print("[CARD] Mark! Target receives extra damage for 25 tempo (5 cycles)")
 
 func _execute_rise(target, _player_stats: PlayerStats) -> void:
@@ -3134,7 +3132,7 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 
 func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("silenced", 3)
+		target.apply_debuff("silenced", 15)
 		target.apply_debuff("choke_dot", 3)
 		# The grip squeezes with your own strength: each round deals HALF a
 		# basic attack's damage, locked in at cast time.
@@ -3631,7 +3629,7 @@ static func create_poisoned_blood() -> Card:
 	var card = Card.new()
 	card.card_id = "poisoned_blood"
 	card.card_name = "Poisoned Blood"
-	card.description = "Heal cards now apply damage instead."
+	card.description = "Your next 3 heal cards deal damage instead of healing."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
@@ -3643,7 +3641,7 @@ static func create_elixir() -> Card:
 	var card = Card.new()
 	card.card_id = "elixir"
 	card.card_name = "Elixir"
-	card.description = "Poison cards now heal instead."
+	card.description = "Your next 5 poison ticks heal you instead of hurting."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
@@ -5060,7 +5058,7 @@ func _execute_tower_shield(player_stats: PlayerStats, buff_mgr: BuffManager) -> 
 	if player_stats:
 		player_stats.add_armor(block)
 	if buff_mgr and buff_mgr.debuff_manager:
-		buff_mgr.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.STAGGERED, 10, 40))
+		buff_mgr.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.STAGGERED, 4, -1))
 	print("[CARD] Tower Shield! +%d armor, staggered for 40 tempo" % block)
 
 func _execute_harden(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:

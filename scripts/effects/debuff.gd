@@ -34,6 +34,17 @@ enum DebuffType {
 	GENERIC  # bespoke named debuff (Marvolo's Misunderstanding); keeps its custom name/description
 }
 
+# Fixed magnitudes for the stack-driven debuffs: the stack COUNT is the only
+# per-application knob; how hard each stack hits is a constant. First-pass
+# numbers — balance later.
+const SLOWED_TEMPO_PER_TILE := 3   # slowed movement costs this much tempo per tile (normally 1)
+const STAGGERED_MANA := 15         # extra mana per attack card while staggered
+const WEIGHTED_TEMPO := 2          # extra tempo per card while weighted
+const TETHER_RANGE := 5            # tiles from the application point
+const LINKED_SHARE := 20           # % damage shared with the nearest ally
+const CLUMSY_CHANCE := 30          # % chance to discard on card play
+const BLIND_MISS := 80             # % chance for attacks to miss
+
 var debuff_type: DebuffType
 var debuff_name: String
 var description: String
@@ -66,7 +77,7 @@ func _set_name_and_description() -> void:
 	match debuff_type:
 		DebuffType.BLEED:
 			debuff_name = "Bleed"
-			description = "On movement: take %d damage" % value
+			description = "Take 1 damage per tile moved; each damage removes a stack (%d left)" % value
 		DebuffType.STUN:
 			debuff_name = "Stun"
 			description = "Cannot take any actions"
@@ -99,16 +110,16 @@ func _set_name_and_description() -> void:
 			description = "Deal %d damage to nearby allies per cycle, lose 1 per cycle" % value
 		DebuffType.SLOWED:
 			debuff_name = "Slowed"
-			description = "Lose %d movement per cycle" % value
+			description = "Movement costs %d tempo per tile; each tile burns a stack (%d left)" % [SLOWED_TEMPO_PER_TILE, value]
 		DebuffType.STAGGERED:
 			debuff_name = "Staggered"
-			description = "Attack cards cost %d more mana" % value
+			description = "Attack cards cost %d more mana; each attack card burns a stack (%d left)" % [STAGGERED_MANA, value]
 		DebuffType.DRAIN:
 			debuff_name = "Drain"
 			description = "Lose 10 mana per cycle, lose 1 drain per cycle"
 		DebuffType.WEIGHTED:
 			debuff_name = "Weighted"
-			description = "Cards cost %d more tempo" % value
+			description = "Cards cost %d more tempo; each card played burns a stack (%d left)" % [WEIGHTED_TEMPO, value]
 		DebuffType.HEXED:
 			debuff_name = "Hexed"
 			description = "One random card costs +%d mana" % value
@@ -120,16 +131,16 @@ func _set_name_and_description() -> void:
 			description = "Cannot move"
 		DebuffType.TETHERED:
 			debuff_name = "Tethered"
-			description = "Cannot move more than %d tiles from start" % value
+			description = "Cannot move more than %d tiles from where it was applied" % TETHER_RANGE
 		DebuffType.MAGNETIZED:
 			debuff_name = "Magnetized"
 			description = "Pulled %d tiles toward nearest enemy each cycle" % value
 		DebuffType.LINKED:
 			debuff_name = "Linked"
-			description = "Share %d%% damage taken with nearest ally" % value
+			description = "Share %d%% damage taken with nearest ally" % LINKED_SHARE
 		DebuffType.CLUMSY:
 			debuff_name = "Clumsy"
-			description = "%d%% chance to discard random card when playing" % value
+			description = "%d%% chance to discard a random card when playing; each card burns a stack (%d left)" % [CLUMSY_CHANCE, value]
 		DebuffType.VULNERABLE:
 			debuff_name = "Vulnerable"
 			description = "Take 30%% more damage on next %d attack(s)" % value
@@ -141,15 +152,15 @@ func _set_name_and_description() -> void:
 			description = "At 5 stacks, become Frozen for 1 turn. Current: %d stack(s)" % value
 		DebuffType.BLIND:
 			debuff_name = "Blind"
-			description = "%d%% chance for your attacks to miss" % (value if value > 0 else 50)
+			description = "%d%% chance for your attacks to miss" % (value if value > 0 else BLIND_MISS)
 
-func tick() -> bool:
-	# Called each cycle (5 tempo). Returns true if debuff expired.
-	# Negative duration = "until cleansed / stack-driven": never expires here.
+func advance_time(amount: int) -> bool:
+	# Duration counts RAW tempo, decremented on every tempo advance — so a
+	# 3-tempo stun works. Negative duration = "until cleansed / stack-driven":
+	# never expires here. Returns true when expired.
 	if duration < 0:
 		return false
-	if duration > 0:
-		duration -= 5
+	duration -= amount
 	return duration <= 0
 
 func get_icon_color() -> Color:
@@ -191,7 +202,9 @@ func get_short_display() -> String:
 static func create(type: DebuffType, val: int = 0, dur: int = 15) -> Debuff:
 	return Debuff.new(type, val, dur)
 
-static func create_slowed(movement_loss: int = 2, duration: int = 10, source: String = "") -> Debuff:
-	var debuff = Debuff.new(DebuffType.SLOWED, movement_loss, duration)
+static func create_slowed(stacks_count: int = 2, source: String = "") -> Debuff:
+	# Stack-driven: each tile moved costs SLOWED_TEMPO_PER_TILE tempo and burns
+	# one stack. Never expires by the clock.
+	var debuff = Debuff.new(DebuffType.SLOWED, stacks_count, -1)
 	debuff.source_name = source
 	return debuff

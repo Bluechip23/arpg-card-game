@@ -16,8 +16,6 @@ var owner_node: Node3D
 var debuff_manager = null  # DebuffManager - untyped to avoid circular dependency
 var approach_armor_per_move: int = 0
 var approach_tempo_remaining: int = 0
-var poisoned_blood_active: bool = false
-var poisoned_blood_tempo: int = 0
 var understanding_tempo: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
 var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
 var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
@@ -123,23 +121,29 @@ func process_turn_start() -> Dictionary:
 		"extra_draws": 0
 	}
 	
+	var depleted: Array[Buff] = []
 	for buff in buffs:
 		match buff.buff_type:
 			Buff.BuffType.REGEN:
 				result["health_gained"] += buff.value
 				print("[BUFF] Regen heals %d" % buff.value)
-			
+
 			Buff.BuffType.FOCUSED:
 				result["mana_gained"] += 10
 				print("[BUFF] Focused grants +10 mana")
-			
+
 			Buff.BuffType.BLESSED:
+				# Charge-based: the cycle's extra draws burn one charge.
 				result["extra_draws"] += buff.value
 				print("[BUFF] Blessed grants %d extra draw(s)" % buff.value)
-			
+				if buff.use_charge():
+					depleted.append(buff)
+
 			Buff.BuffType.SMITH:
 				result["armor_gained"] += buff.value
 				print("[BUFF] Smith grants %d armor" % buff.value)
+	for buff in depleted:
+		remove_buff(buff.buff_type)
 	
 	# Apply effects
 	if owner_stats:
@@ -155,50 +159,36 @@ func process_turn_start() -> Dictionary:
 	
 	return result
 
-func process_turn_end() -> void:
+## Advance timed buff durations by raw tempo. Called on every tempo advance
+## (any amount), so durations not divisible by 5 work.
+func advance_time(amount: int) -> void:
+	if amount <= 0:
+		return
 	# Tick approach armor-on-move
 	if approach_tempo_remaining > 0:
-		approach_tempo_remaining -= 5
+		approach_tempo_remaining -= amount
 		if approach_tempo_remaining <= 0:
+			approach_tempo_remaining = 0
 			approach_armor_per_move = 0
 			print("[BUFF] Approach expired")
 
-	# Tick poisoned blood
-	if poisoned_blood_tempo > 0:
-		poisoned_blood_tempo -= 5
-		if poisoned_blood_tempo <= 0:
-			poisoned_blood_active = false
-			print("[BUFF] Poisoned Blood expired")
-
 	# Tick understanding delayed crit
 	if understanding_tempo > 0:
-		understanding_tempo -= 5
+		understanding_tempo -= amount
 		if understanding_tempo <= 0:
+			understanding_tempo = 0
 			apply_buff(Buff.create_enlightened(100, 1, "Understanding"))
 			print("[BUFF] Understanding ready! Next attack will auto-crit")
 
-	# Regen: lose 1 regen value at end of turn
-	var regen = get_buff(Buff.BuffType.REGEN)
-	if regen:
-		regen.value -= 1
-		regen._set_name_and_description()
-		if regen.value <= 0:
-			remove_buff(Buff.BuffType.REGEN)
-			print("[BUFF] Regen expired (0 stacks remaining)")
-		else:
-			print("[BUFF] Regen decayed to %d" % regen.value)
-			buffs_changed.emit()
-
 	var expired: Array[Buff] = []
-
 	for buff in buffs:
 		if not buff.is_charge_based():
-			# Flag-driven display wrappers (Poisoned Blood / Elixir / GENERIC) have
-			# their lifecycle driven by sync_flag_buffs(), not the duration tick.
-			if buff.buff_type == Buff.BuffType.POISONED_BLOOD or buff.buff_type == Buff.BuffType.ELIXIR or buff.buff_type == Buff.BuffType.GENERIC:
+			# Flag-driven display wrappers (Elixir / GENERIC) have their
+			# lifecycle driven by sync_flag_buffs(), not the duration tick.
+			if buff.buff_type == Buff.BuffType.ELIXIR or buff.buff_type == Buff.BuffType.GENERIC:
 				continue
 			buff_ticked.emit(buff)
-			if buff.tick():
+			if buff.advance_time(amount):
 				expired.append(buff)
 
 	for buff in expired:
@@ -216,6 +206,23 @@ func process_turn_end() -> void:
 		_recompute_might()
 		buffs_changed.emit()
 
+func process_turn_end() -> void:
+	# Regen and Smith: lose 1 value at end of turn (Smith is "Regen for armor").
+	for decay_type in [Buff.BuffType.REGEN, Buff.BuffType.SMITH]:
+		var decaying = get_buff(decay_type)
+		if decaying:
+			decaying.value -= 1
+			decaying._set_name_and_description()
+			if decaying.value <= 0:
+				remove_buff(decay_type)
+				print("[BUFF] %s expired (0 stacks remaining)" % decaying.buff_name)
+			else:
+				print("[BUFF] %s decayed to %d" % [decaying.buff_name, decaying.value])
+				buffs_changed.emit()
+
+	# Timed durations no longer tick here — advance_time (above) runs on every
+	# raw tempo advance so durations like "3 tempo" work.
+
 	# Keep the flag-driven display buffs in sync with their source state and
 	# refresh their shown duration/count.
 	sync_flag_buffs()
@@ -223,24 +230,15 @@ func process_turn_end() -> void:
 func sync_flag_buffs() -> void:
 	## Surfaces effects that are tracked as raw flags (not real Buffs) as visible
 	## badges. Safe to call any time — it adds/updates/removes to match state.
-	# Poisoned Blood — state lives on this manager.
-	if poisoned_blood_active:
-		var pb = get_buff(Buff.BuffType.POISONED_BLOOD)
-		if pb:
-			pb.duration = max(poisoned_blood_tempo, 0)
-		else:
-			apply_buff(Buff.create_poisoned_blood(max(poisoned_blood_tempo, 5), "Poisoned Blood"))
-	elif has_buff(Buff.BuffType.POISONED_BLOOD):
-		remove_buff(Buff.BuffType.POISONED_BLOOD)
-
-	# Elixir — state lives on owner_stats.
-	var elixir_on: bool = owner_stats != null and "elixir_active" in owner_stats and owner_stats.elixir_active
+	# Elixir — stack state lives on owner_stats (one stack per poison tick healed).
+	var elixir_on: bool = owner_stats != null and "elixir_stacks" in owner_stats and owner_stats.elixir_stacks > 0
 	if elixir_on:
 		var ex = get_buff(Buff.BuffType.ELIXIR)
-		if ex:
-			ex.duration = max(owner_stats.elixir_tempo, 0)
-		else:
-			apply_buff(Buff.create_elixir(max(owner_stats.elixir_tempo, 5), "Elixir"))
+		if ex == null:
+			ex = Buff.create_elixir(owner_stats.elixir_stacks, "Elixir")
+			apply_buff(ex)
+		ex.stacks = owner_stats.elixir_stacks
+		ex.description = "Your next %d poison ticks heal you instead of dealing damage" % ex.stacks
 	elif has_buff(Buff.BuffType.ELIXIR):
 		remove_buff(Buff.BuffType.ELIXIR)
 
@@ -500,6 +498,24 @@ func get_haste_bonus() -> int:
 
 func get_extra_movement_per_tempo() -> int:
 	return get_haste_bonus()
+
+func consume_haste() -> void:
+	# One charge per (non-flash) move action.
+	var haste = get_buff(Buff.BuffType.HASTE)
+	if haste and haste.use_charge():
+		remove_buff(Buff.BuffType.HASTE)
+
+# ============================================
+# POISONED BLOOD (heal cards deal damage; one charge per converted heal)
+# ============================================
+
+func has_poisoned_blood() -> bool:
+	return has_buff(Buff.BuffType.POISONED_BLOOD)
+
+func consume_poisoned_blood() -> void:
+	var pb = get_buff(Buff.BuffType.POISONED_BLOOD)
+	if pb and pb.use_charge():
+		remove_buff(Buff.BuffType.POISONED_BLOOD)
 
 func on_movement(tiles: int) -> int:
 	var armor_gained = 0
