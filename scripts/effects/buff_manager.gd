@@ -159,36 +159,28 @@ func process_turn_start() -> Dictionary:
 	
 	return result
 
-func process_turn_end() -> void:
+## Advance timed buff durations by raw tempo. Called on every tempo advance
+## (any amount), so durations not divisible by 5 work.
+func advance_time(amount: int) -> void:
+	if amount <= 0:
+		return
 	# Tick approach armor-on-move
 	if approach_tempo_remaining > 0:
-		approach_tempo_remaining -= 5
+		approach_tempo_remaining -= amount
 		if approach_tempo_remaining <= 0:
+			approach_tempo_remaining = 0
 			approach_armor_per_move = 0
 			print("[BUFF] Approach expired")
 
 	# Tick understanding delayed crit
 	if understanding_tempo > 0:
-		understanding_tempo -= 5
+		understanding_tempo -= amount
 		if understanding_tempo <= 0:
+			understanding_tempo = 0
 			apply_buff(Buff.create_enlightened(100, 1, "Understanding"))
 			print("[BUFF] Understanding ready! Next attack will auto-crit")
 
-	# Regen and Smith: lose 1 value at end of turn (Smith is "Regen for armor").
-	for decay_type in [Buff.BuffType.REGEN, Buff.BuffType.SMITH]:
-		var decaying = get_buff(decay_type)
-		if decaying:
-			decaying.value -= 1
-			decaying._set_name_and_description()
-			if decaying.value <= 0:
-				remove_buff(decay_type)
-				print("[BUFF] %s expired (0 stacks remaining)" % decaying.buff_name)
-			else:
-				print("[BUFF] %s decayed to %d" % [decaying.buff_name, decaying.value])
-				buffs_changed.emit()
-
 	var expired: Array[Buff] = []
-
 	for buff in buffs:
 		if not buff.is_charge_based():
 			# Flag-driven display wrappers (Elixir / GENERIC) have their
@@ -196,7 +188,7 @@ func process_turn_end() -> void:
 			if buff.buff_type == Buff.BuffType.ELIXIR or buff.buff_type == Buff.BuffType.GENERIC:
 				continue
 			buff_ticked.emit(buff)
-			if buff.tick():
+			if buff.advance_time(amount):
 				expired.append(buff)
 
 	for buff in expired:
@@ -213,6 +205,23 @@ func process_turn_end() -> void:
 	if expired.size() > 0:
 		_recompute_might()
 		buffs_changed.emit()
+
+func process_turn_end() -> void:
+	# Regen and Smith: lose 1 value at end of turn (Smith is "Regen for armor").
+	for decay_type in [Buff.BuffType.REGEN, Buff.BuffType.SMITH]:
+		var decaying = get_buff(decay_type)
+		if decaying:
+			decaying.value -= 1
+			decaying._set_name_and_description()
+			if decaying.value <= 0:
+				remove_buff(decay_type)
+				print("[BUFF] %s expired (0 stacks remaining)" % decaying.buff_name)
+			else:
+				print("[BUFF] %s decayed to %d" % [decaying.buff_name, decaying.value])
+				buffs_changed.emit()
+
+	# Timed durations no longer tick here — advance_time (above) runs on every
+	# raw tempo advance so durations like "3 tempo" work.
 
 	# Keep the flag-driven display buffs in sync with their source state and
 	# refresh their shown duration/count.

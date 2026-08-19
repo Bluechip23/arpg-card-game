@@ -4618,6 +4618,21 @@ func _clear_locked_markers() -> void:
 
 ## Fires on every global tempo addition - routes to per-system handlers.
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
+	# Timed statuses (stun, frozen, blind...) tick on RAW tempo so durations
+	# like "3 tempo" work; per-cycle effects still run on the 5-tempo turn.
+	for tick_p in _all_players():
+		if not is_instance_valid(tick_p):
+			continue
+		var tick_dm = tick_p.get_debuff_manager()
+		if tick_dm:
+			tick_dm.advance_time(amount)
+		var tick_bm = tick_p.get_buff_manager()
+		if tick_bm:
+			tick_bm.advance_time(amount)
+		var tick_stats = tick_p.get_stats()
+		if tick_stats:
+			tick_stats.advance_status_tempo(amount)
+
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()
 	# Summons are ordinary units to enemy target selection
@@ -5021,7 +5036,7 @@ func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
 			dmg = floori(dmg * (1.0 + tstats.equipment_trap_damage_percent / 100.0))
 		unit.take_damage(dmg, false)
 		if kind == "web" and unit.has_method("apply_debuff"):
-			unit.apply_debuff("root", 5)
+			unit.apply_debuff("root", 25)
 		add_battle_log("%s hits a %s for %d!" % [unit.enemy_name, label, dmg], Color(0.8, 0.7, 0.4))
 
 	_animate_trap_sprung(trap)
@@ -9576,7 +9591,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var stunned := 0
 				for e in enemy_spawner.get_living_enemies():
 					if e and is_instance_valid(e) and grid_manager.get_distance_in_cells(eb_origin, e.position) <= 3:
-						e.apply_debuff("stun", 1)  # 3 tempo ≈ 1 cycle
+						e.apply_debuff("stun", 3)  # 3 tempo, as the card says
 						stunned += 1
 				if stunned > 0:
 					add_battle_log("Escape and bewilder: %d enem%s stunned!" % [stunned, "y" if stunned == 1 else "ies"], Color(0.7, 0.7, 0.95))
@@ -9831,7 +9846,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"vines":
 			# Hold the target for 3 cycles, dealing base damage at the end of each.
 			if target and target.has_method("apply_debuff"):
-				target.apply_debuff("stun", 3)
+				target.apply_debuff("stun", 15)
 				# Deal what the card face shows — the full stat-scaled number.
 				var vine_dmg := _card_player_damage(card)
 				for cyc in range(1, 4):
@@ -9879,7 +9894,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var hit_enemy = enemy_spawner.get_enemy_at_position(np)
 				if hit_enemy:
 					hit_enemy.take_damage(10, true)
-					hit_enemy.apply_debuff("disarmed", 1)
+					hit_enemy.apply_debuff("disarmed", 5)
 					add_battle_log("Roll into %s! 10 damage + disarm" % hit_enemy.enemy_name, Color(0.9, 0.8, 0.4))
 					break
 				if is_multiplayer and _p2_player and grid_manager.world_to_grid(_p2_player.position) == grid_manager.world_to_grid(np):
@@ -9906,7 +9921,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				if target.has_method("apply_debuff"):
 					target.apply_debuff("vulnerable", 2)
 				if card.rng_binary_succeeded() and target.has_method("apply_taunt"):
-					target.apply_taunt(player, 1)
+					target.apply_taunt(player, 5)
 					add_battle_log("%s is drawn helplessly toward you!" % target.enemy_name, Color(1.0, 0.75, 0.5))
 				if target.has_method("apply_cupid_mark") and target.apply_cupid_mark(true):
 					add_battle_log("%s turns into a tree!" % target.enemy_name, Color(0.4, 0.8, 0.4))
@@ -9917,7 +9932,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				if target.has_method("apply_debuff"):
 					target.apply_debuff("weaken", 2)
 				if card.rng_binary_succeeded() and target.has_method("apply_fear"):
-					target.apply_fear(player, 1)
+					target.apply_fear(player, 5)
 					add_battle_log("%s flees from you in dread!" % target.enemy_name, Color(0.75, 0.55, 0.95))
 				if target.has_method("apply_cupid_mark") and target.apply_cupid_mark(false):
 					add_battle_log("%s turns into a tree!" % target.enemy_name, Color(0.4, 0.8, 0.4))
@@ -9940,7 +9955,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var toa_caught = enemy_spawner.get_enemies_in_radius(player.position, 4.0)
 			for te in toa_caught:
 				if te.has_method("apply_taunt"):
-					te.apply_taunt(player, 1)  # 1 cycle = the spec's 5 tempo
+					te.apply_taunt(player, 5)  # the spec's 5 tempo
 			var toa_stats = player.get_stats()
 			var toa_bm = player.get_buff_manager()
 			if toa_bm:
@@ -10057,7 +10072,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Force nearby enemies to target this player for 2 turns
 			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
 			for enemy in nearby:
-				enemy.apply_taunt(player, 2)
+				enemy.apply_taunt(player, 10)
 			print("[MAIN] Taunted %d enemies for 2 turns" % nearby.size())
 
 		"charge":
@@ -10267,7 +10282,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var sd_nearby = enemy_spawner.get_enemies_in_radius(player.position, sd_radius)
 			for enemy in sd_nearby:
 				enemy.take_damage(card.last_damage_dealt, true)
-				enemy.apply_debuff("disarmed", 1)
+				enemy.apply_debuff("disarmed", 5)
 			_apply_misery_spread(sd_nearby)
 			print("[MAIN] Sweeping Disarm: hit %d nearby enemies for %d damage, disarmed" % [sd_nearby.size(), card.last_damage_dealt])
 

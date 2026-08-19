@@ -87,7 +87,7 @@ func _initialize() -> void:
 	# --- Slowed: stack per tile, never expires by clock ---
 	dm.apply_debuff(Debuff.create_slowed(2, "Test"))
 	_check(dm.is_slowed(), "Slowed active")
-	dm.process_turn_end()
+	dm.advance_time(50)
 	_check(dm.is_slowed(), "Slowed survives the clock")
 	dm.consume_slowed_stack()
 	dm.consume_slowed_stack()
@@ -121,6 +121,23 @@ func _initialize() -> void:
 	_check(dm.calculate_linked_damage(10) == 2, "Linked share unchanged by the hit")
 	_check(dm.has_debuff(Debuff.DebuffType.LINKED), "Linked persists (tempo-driven)")
 	dm.clear_all_debuffs()
+
+	# --- Per-tempo ticking: a 3-tempo stun works at any granularity ---
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 3))
+	dm.advance_time(2)
+	_check(dm.has_debuff(Debuff.DebuffType.STUN), "Stun(3) survives 2 tempo")
+	dm.advance_time(1)
+	_check(not dm.has_debuff(Debuff.DebuffType.STUN), "Stun(3) expires on the 3rd tempo exactly")
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.FROZEN, 0, 7))
+	dm.advance_time(7)
+	_check(not dm.has_debuff(Debuff.DebuffType.FROZEN), "Frozen(7) handles a non-multiple-of-5 duration")
+
+	# Buffs tick per tempo too (Fortify 4 outlasts 3 tempo, dies on the 4th).
+	bm.apply_buff(Buff.create_fortify(4, "Test"))
+	bm.advance_time(3)
+	_check(bm.has_buff(Buff.BuffType.FORTIFY), "Fortify(4) survives 3 tempo")
+	bm.advance_time(1)
+	_check(not bm.has_buff(Buff.BuffType.FORTIFY), "Fortify(4) expires on the 4th tempo")
 
 	# --- Blind default is 80% ---
 	var blind = Debuff.create(Debuff.DebuffType.BLIND, 0, 10)

@@ -1430,7 +1430,12 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 			regen_accumulator -= 5
 			_regenerate(2)
 
-	# Tick status effect durations once per tempo cycle (every 5 global tempo)
+	# Timed statuses (stun, frozen, disarm...) run on RAW tempo so durations
+	# like "3 tempo" work; only the per-cycle DOT/stack ticks wait for the
+	# 5-tempo accumulator below.
+	_tick_timed_statuses(amount)
+
+	# Tick per-cycle DOTs/stacks once per tempo cycle (every 5 global tempo)
 	while _cycle_accumulator >= 5:
 		_cycle_accumulator -= 5
 		_tick_status_durations()
@@ -1438,47 +1443,104 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	_check_and_fire_actions(player_node)
 	_update_tempo_bar()
 
-func _tick_status_durations() -> void:
+## Timed statuses count in RAW TEMPO (any granularity), decremented by every
+## tempo advance. All apply_* entry points take tempo, not cycles.
+func _tick_timed_statuses(amount: int) -> void:
+	if amount <= 0:
+		return
+	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
+		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
+		or frozen_tempo > 0 or stun_tempo > 0 or inebriated_tempo > 0 \
+		or rooted_tempo > 0 or narashimha_tempo > 0
+	if not any:
+		return
+
 	if taunt_tempo > 0:
-		taunt_tempo -= 1
+		taunt_tempo -= amount
 		if taunt_tempo <= 0:
+			taunt_tempo = 0
 			taunt_target = null
 			print("[%s] Taunt expired" % enemy_name)
 
 	if fear_tempo > 0:
-		fear_tempo -= 1
+		fear_tempo -= amount
 		if fear_tempo <= 0:
+			fear_tempo = 0
 			fear_source = null
 			print("[%s] Fear expired" % enemy_name)
 
 	if wear_down_tempo > 0:
-		wear_down_tempo -= 1
+		wear_down_tempo -= amount
 		if wear_down_tempo <= 0:
+			wear_down_tempo = 0
 			attack_reduction = 0
 			print("[%s] Wear Down expired, attack restored" % enemy_name)
 
-
 	if disarmed_tempo > 0:
-		disarmed_tempo -= 1
+		disarmed_tempo -= amount
 		if disarmed_tempo <= 0:
+			disarmed_tempo = 0
 			is_disarmed = false
 			print("[%s] Disarm expired, can attack again" % enemy_name)
 			debuff_expired.emit(self, "disarmed")
 
 	if marked_tempo > 0:
-		marked_tempo -= 1
+		marked_tempo -= amount
 		if marked_tempo <= 0:
+			marked_tempo = 0
 			is_marked = false
 			print("[%s] Mark expired" % enemy_name)
 			debuff_expired.emit(self, "marked")
 
 	if silenced_tempo > 0:
-		silenced_tempo -= 1
+		silenced_tempo -= amount
 		if silenced_tempo <= 0:
+			silenced_tempo = 0
 			is_silenced = false
 			print("[%s] Silence expired, can cast again" % enemy_name)
 			debuff_expired.emit(self, "silenced")
 
+	if frozen_tempo > 0:
+		frozen_tempo -= amount
+		if frozen_tempo <= 0:
+			frozen_tempo = 0
+			is_frozen = false
+			print("[%s] Frozen expired, can act again" % enemy_name)
+			debuff_expired.emit(self, "frozen")
+
+	if stun_tempo > 0:
+		stun_tempo -= amount
+		if stun_tempo <= 0:
+			stun_tempo = 0
+			is_stunned = false
+			print("[%s] Stun expired, can act again" % enemy_name)
+			debuff_expired.emit(self, "stun")
+
+	if inebriated_tempo > 0:
+		inebriated_tempo -= amount
+		if inebriated_tempo <= 0:
+			inebriated_tempo = 0
+			print("[%s] Sobered up — movement restored" % enemy_name)
+			debuff_expired.emit(self, "inebriate")
+
+	if rooted_tempo > 0:
+		rooted_tempo -= amount
+		if rooted_tempo <= 0:
+			rooted_tempo = 0
+			print("[%s] Root released" % enemy_name)
+			debuff_expired.emit(self, "root")
+
+	if narashimha_tempo > 0:
+		narashimha_tempo -= amount
+		if narashimha_tempo <= 0:
+			narashimha_tempo = 0
+			narashimha_heal_cap = -1
+			print("[%s] Narashimha wound closes" % enemy_name)
+			debuff_expired.emit(self, "narashimha")
+
+	_update_status_indicators()
+
+func _tick_status_durations() -> void:
 	# Choke: deal the caster's half-auto-attack damage per cycle, lose 1 stack
 	if choke_dot_stacks > 0:
 		take_damage(choke_dot_damage, false)
@@ -1487,20 +1549,6 @@ func _tick_status_durations() -> void:
 		if choke_dot_stacks <= 0:
 			print("[%s] Choke expired" % enemy_name)
 			debuff_expired.emit(self, "choke")
-
-	if frozen_tempo > 0:
-		frozen_tempo -= 1
-		if frozen_tempo <= 0:
-			is_frozen = false
-			print("[%s] Frozen expired, can act again" % enemy_name)
-			debuff_expired.emit(self, "frozen")
-
-	if stun_tempo > 0:
-		stun_tempo -= 1
-		if stun_tempo <= 0:
-			is_stunned = false
-			print("[%s] Stun expired, can act again" % enemy_name)
-			debuff_expired.emit(self, "stun")
 
 	# Burn: deal doubling damage each cycle (1, 2, 4, 8...)
 	if burn_stacks > 0:
@@ -1524,28 +1572,8 @@ func _tick_status_durations() -> void:
 
 	# Bleed no longer clots by time — stacks fall as the wound bleeds (1 damage
 	# per tile moved, 1 stack per damage; see the tile-step in _physics_process).
-
-	# Inebriated: the stupor lifts one cycle at a time.
-	if inebriated_tempo > 0:
-		inebriated_tempo -= 1
-		if inebriated_tempo <= 0:
-			print("[%s] Sobered up — movement restored" % enemy_name)
-			debuff_expired.emit(self, "inebriate")
-
-	# Rooted: the hold releases one cycle at a time
-	if rooted_tempo > 0:
-		rooted_tempo -= 1
-		if rooted_tempo <= 0:
-			print("[%s] Root released" % enemy_name)
-			debuff_expired.emit(self, "root")
-
-	# Narashimha: the heal-cap window counts down one cycle at a time
-	if narashimha_tempo > 0:
-		narashimha_tempo -= 1
-		if narashimha_tempo <= 0:
-			narashimha_heal_cap = -1
-			print("[%s] Narashimha wound closes" % enemy_name)
-			debuff_expired.emit(self, "narashimha")
+	# Timed statuses (stun, frozen, root, inebriate...) tick per raw tempo in
+	# _tick_timed_statuses, not here.
 
 	# Cold: thaws 1 stack per cycle so it's a combo window, not a permanent
 	# ratchet toward Frozen (mirrors the player-side Cold expiring over time)
@@ -2999,17 +3027,17 @@ func hide_damage_preview() -> void:
 # STATUS EFFECTS
 # ============================================
 
-func apply_taunt(taunter: Node3D, cycles: int) -> void:
+func apply_taunt(taunter: Node3D, tempo: int) -> void:
 	taunt_target = taunter
-	taunt_tempo = cycles
-	print("[%s] Taunted for %d tempo cycles" % [enemy_name, cycles])
+	taunt_tempo = tempo
+	print("[%s] Taunted for %d tempo" % [enemy_name, tempo])
 	_update_status_indicators()
 
-func apply_fear(source: Node3D, cycles: int) -> void:
+func apply_fear(source: Node3D, tempo: int) -> void:
 	## Feared (Cupids lead arrow): movement runs AWAY from the source.
 	fear_source = source
-	fear_tempo = cycles
-	print("[%s] Feared for %d tempo cycles" % [enemy_name, cycles])
+	fear_tempo = tempo
+	print("[%s] Feared for %d tempo" % [enemy_name, tempo])
 	_update_status_indicators()
 
 ## Cupids Bow: mark the enemy with one arrow; once both marks land, the enemy
@@ -3078,9 +3106,9 @@ func _exit_tree_form() -> void:
 func set_armor_break_incoming(value: bool) -> void:
 	armor_break_incoming = value
 
-func apply_wear_down(cycles: int) -> void:
-	wear_down_tempo = max(wear_down_tempo, cycles)
-	print("[%s] Wear Down applied for %d tempo cycles" % [enemy_name, wear_down_tempo])
+func apply_wear_down(tempo: int) -> void:
+	wear_down_tempo = max(wear_down_tempo, tempo)
+	print("[%s] Wear Down applied for %d tempo" % [enemy_name, wear_down_tempo])
 	_update_status_indicators()
 
 func apply_debuff(debuff_name: String, value: int) -> void:
@@ -3088,14 +3116,14 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"inebriate":
 			# Matches the player's Inebriate: movement direction is randomized.
 			inebriated_tempo = max(inebriated_tempo, value)
-			print("[%s] Inebriated for %d tempo cycles — movement randomized!" % [enemy_name, inebriated_tempo])
+			print("[%s] Inebriated for %d tempo — movement randomized!" % [enemy_name, inebriated_tempo])
 		"stun":
 			is_stunned = true
 			stun_tempo = max(stun_tempo, value)
 			# Reset action tempo counter so stun delays their next action
 			action_tempo_counter = 0
 			chosen_action = {}
-			print("[%s] Stunned for %d tempo cycles!" % [enemy_name, stun_tempo])
+			print("[%s] Stunned for %d tempo!" % [enemy_name, stun_tempo])
 		"slow":
 			# Slowed stacks freely: every movement is -1 tile and eats a stack.
 			slow_stacks += value
@@ -3103,17 +3131,17 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"disarmed":
 			is_disarmed = true
 			disarmed_tempo = value
-			print("[%s] Disarmed for %d tempo cycles" % [enemy_name, value])
+			print("[%s] Disarmed for %d tempo" % [enemy_name, value])
 		"marked":
 			is_marked = true
 			marked_tempo = value
-			print("[%s] Marked for %d tempo cycles" % [enemy_name, value])
+			print("[%s] Marked for %d tempo" % [enemy_name, value])
 		"silenced":
 			is_silenced = true
 			silenced_tempo = max(silenced_tempo, value)
 			# Drop any queued spell so the enemy re-decides now that it's muted
 			chosen_action = {}
-			print("[%s] Silenced for %d tempo cycles!" % [enemy_name, silenced_tempo])
+			print("[%s] Silenced for %d tempo!" % [enemy_name, silenced_tempo])
 		"choke_dot":
 			choke_dot_stacks += value
 			print("[%s] Choke DoT applied! Stacks: %d" % [enemy_name, choke_dot_stacks])
@@ -3126,7 +3154,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			if cold_stacks >= 5:
 				cold_stacks = 0
 				is_frozen = true
-				frozen_tempo = max(frozen_tempo, 1)  # Frozen for 1 tempo cycle
+				frozen_tempo = max(frozen_tempo, 5)  # Frozen for 5 tempo (one cycle)
 				# Reset action tempo counter so frozen delays their next action
 				action_tempo_counter = 0
 				chosen_action = {}
@@ -3147,27 +3175,27 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			weaken_stacks += value
 			print("[%s] Weakened! Stacks: %d (-30%% damage dealt)" % [enemy_name, weaken_stacks])
 		"root":
-			# value is the hold in tempo cycles; can attack and cast, cannot move
+			# value is the hold in raw tempo; can attack and cast, cannot move
 			rooted_tempo = max(rooted_tempo, value)
-			print("[%s] Rooted for %d tempo cycles!" % [enemy_name, rooted_tempo])
+			print("[%s] Rooted for %d tempo!" % [enemy_name, rooted_tempo])
 		"disarm_attacks":
 			disarmed_attacks += value
 			print("[%s] Disarmed for %d attack(s)!" % [enemy_name, disarmed_attacks])
 		"narashimha":
-			# value is the window in tempo cycles (10 tempo = 2 cycles). Applied
-			# right after the Neither Man nor Beast hit, so current health IS the
-			# ceiling: healing can never bring health back above this point,
-			# which is exactly "cannot heal the damage dealt by this card".
+			# value is the window in raw tempo. Applied right after the Neither
+			# Man nor Beast hit, so current health IS the ceiling: healing can
+			# never bring health back above this point, which is exactly
+			# "cannot heal the damage dealt by this card".
 			narashimha_tempo = max(narashimha_tempo, value)
 			narashimha_heal_cap = current_health if narashimha_heal_cap < 0 else min(narashimha_heal_cap, current_health)
-			print("[%s] Narashimha: cannot heal above %d for %d cycles" % [enemy_name, narashimha_heal_cap, narashimha_tempo])
+			print("[%s] Narashimha: cannot heal above %d for %d tempo" % [enemy_name, narashimha_heal_cap, narashimha_tempo])
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	debuff_applied.emit(self, debuff_name, value)
 	_update_status_indicators()
 
-func apply_stun(tempo_cycles: int = 1) -> void:
-	apply_debuff("stun", tempo_cycles)
+func apply_stun(tempo: int = 5) -> void:
+	apply_debuff("stun", tempo)
 
 func knockback(away_from: Vector3, spaces: int = 1) -> void:
 	if is_dead:

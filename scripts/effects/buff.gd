@@ -155,13 +155,13 @@ func get_icon_key() -> String:
 		return custom_icon_key
 	return buff_name
 
-func tick() -> bool:
-	# Called each cycle (5 tempo). Returns true if buff expired by duration.
-	# Negative duration = "until depleted": never expires by the clock.
+func advance_time(amount: int) -> bool:
+	# Duration counts RAW tempo, decremented on every tempo advance. Negative
+	# duration = "until depleted": never expires by the clock. Returns true
+	# when expired.
 	if duration < 0:
 		return false
-	if duration > 0:
-		duration -= 5
+	duration -= amount
 	return duration <= 0
 
 func use_charge() -> bool:

@@ -222,11 +222,18 @@ func process_turn_end() -> void:
 			remove_debuff(Debuff.DebuffType.BRITTLE)
 			print("[DEBUFF] Brittle expired (0 stacks)")
 
-	var expired: Array[Debuff] = []
+	# Timed durations no longer tick here — advance_time (below) runs on every
+	# raw tempo advance so durations like "3 tempo" work.
 
+## Advance timed debuff durations by raw tempo. Called on every tempo advance
+## (any amount), so stun/frozen/etc handle durations not divisible by 5.
+func advance_time(amount: int) -> void:
+	if amount <= 0 or debuffs.is_empty():
+		return
+	var expired: Array[Debuff] = []
 	for debuff in debuffs:
 		debuff_ticked.emit(debuff)
-		if debuff.tick():
+		if debuff.advance_time(amount):
 			expired.append(debuff)
 
 	for debuff in expired:

@@ -1308,7 +1308,7 @@ func _trigger_skill_tree_stephen_on_disarm_applied(target, value: int) -> void:
 
 	# Disarm Mastery: when applying disarm, apply 1 more
 	if stats.has_skill_tree_passive("disarm_mastery") and target and target.has_method("apply_debuff"):
-		target.apply_debuff("disarmed", 1)
+		target.apply_debuff("disarmed", 5)
 		main.add_battle_log("Disarm Mastery: +1 disarm", Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:

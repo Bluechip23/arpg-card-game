@@ -154,13 +154,13 @@ func _set_name_and_description() -> void:
 			debuff_name = "Blind"
 			description = "%d%% chance for your attacks to miss" % (value if value > 0 else BLIND_MISS)
 
-func tick() -> bool:
-	# Called each cycle (5 tempo). Returns true if debuff expired.
-	# Negative duration = "until cleansed / stack-driven": never expires here.
+func advance_time(amount: int) -> bool:
+	# Duration counts RAW tempo, decremented on every tempo advance — so a
+	# 3-tempo stun works. Negative duration = "until cleansed / stack-driven":
+	# never expires here. Returns true when expired.
 	if duration < 0:
 		return false
-	if duration > 0:
-		duration -= 5
+	duration -= amount
 	return duration <= 0
 
 func get_icon_color() -> Color:

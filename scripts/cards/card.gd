@@ -1192,7 +1192,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Wear Down: apply debuff BEFORE attack execution so the first hit stacks reduction
 	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
 		if target and target.has_method("apply_wear_down"):
-			target.apply_wear_down(3)
+			target.apply_wear_down(15)
 			print("[CARD] Wear Down triggered! Enemy attack will be reduced")
 
 	# Armor Break: flag enemy so take_damage uses armor-only double-damage logic
@@ -1833,7 +1833,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if slotted_in_item and target:
 		var osb_g = get_on_self_bonus()
 		if is_offensive() and int(osb_g.get("taunt_cycles", 0)) > 0 and target.has_method("apply_taunt") and buff_mgr:
-			target.apply_taunt(buff_mgr.owner_node, int(osb_g["taunt_cycles"]))
+			target.apply_taunt(buff_mgr.owner_node, int(osb_g["taunt_cycles"]) * 5)
 			print("[CARD] On-Self: %s taunts the target" % slotted_in_item.item_name)
 		if not is_offensive() and int(osb_g.get("support_heal", 0)) > 0:
 			var heal_who = target if (target.has_method("get_stats") and target.get_stats()) else null
@@ -1954,7 +1954,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	if slotted_in_item and is_offensive() and target and target.has_method("apply_debuff"):
 		var osb_late = get_on_self_bonus()
 		if int(osb_late.get("root_offensive", 0)) > 0:
-			target.apply_debuff("root", int(osb_late["root_offensive"]))
+			target.apply_debuff("root", int(osb_late["root_offensive"]) * 5)
 		if int(osb_late.get("disarm_offensive", 0)) > 0:
 			target.apply_debuff("disarm_attacks", int(osb_late["disarm_offensive"]))
 
@@ -2108,7 +2108,7 @@ func _execute_neither_man_nor_beast(target, player_stats: PlayerStats, buff_mgr:
 		# armor fulfills "ignoring all resistances and armor".
 		target.take_damage(total_damage, true, damage_type, true)
 		if target.has_method("apply_debuff"):
-			target.apply_debuff("narashimha", 2)  # 10 tempo = 2 cycles
+			target.apply_debuff("narashimha", 10)  # 10 tempo
 		print("[CARD] Neither Man nor Beast: %d unresistable damage + Narashimha" % total_damage)
 
 ## Out of Guesses (The Headbandz): discard the whole hand, then draw that many.
@@ -2692,7 +2692,7 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 		print("[CARD] What's the worst? +15 bonus damage! Total: %d" % (total_damage + 15))
 	else:
 		if target and target.has_method("apply_debuff"):
-			target.apply_debuff("stun", 1)
+			target.apply_debuff("stun", 5)
 		print("[CARD] What's the worst? Target stunned! Dealt %d" % total_damage)
 
 func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2893,7 +2893,7 @@ func _execute_mark(target, _player_stats: PlayerStats, buff_mgr: BuffManager = n
 	if target and target.has_method("apply_debuff"):
 		# Enemy debuffs tick in CYCLES (1 cycle = 5 tempo): 5 cycles = the
 		# card's stated 25 tempo.
-		target.apply_debuff("marked", 5)
+		target.apply_debuff("marked", 25)
 	print("[CARD] Mark! Target receives extra damage for 25 tempo (5 cycles)")
 
 func _execute_rise(target, _player_stats: PlayerStats) -> void:
@@ -3048,7 +3048,7 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 
 func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("silenced", 3)
+		target.apply_debuff("silenced", 15)
 		target.apply_debuff("choke_dot", 3)
 		# The grip squeezes with your own strength: each round deals HALF a
 		# basic attack's damage, locked in at cast time.

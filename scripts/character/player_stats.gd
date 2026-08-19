@@ -1337,14 +1337,21 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 			healing_boost_percent = 0.0
 			print("[STATS] Healing boost expired")
 
-	# Tick blind
-	if blind_tempo > 0:
-		blind_tempo -= 5
-		if blind_tempo <= 0:
-			is_blinded = false
-			print("[STATS] Blind wore off")
+	# Blind ticks per raw tempo in advance_status_tempo, not here.
 
 	recalculate_derived_stats()
+
+## Timed status flags that count RAW tempo — called on every tempo advance
+## (any amount), so durations not divisible by 5 work.
+func advance_status_tempo(amount: int) -> void:
+	if amount <= 0:
+		return
+	if blind_tempo > 0:
+		blind_tempo -= amount
+		if blind_tempo <= 0:
+			blind_tempo = 0
+			is_blinded = false
+			print("[STATS] Blind wore off")
 
 # ============================================
 # RESOURCE MANAGEMENT

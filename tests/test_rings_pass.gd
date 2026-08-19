@@ -306,8 +306,8 @@ func _test_generic_debuff() -> void:
 	_check(expired.is_empty(), "a purge never counts as expiry")
 	var d2 = Debuff.create_generic("Marvolo's Misunderstanding", "Take 25.", 25, 7, "Marvolo Gaunt")
 	dm.apply_debuff(d2)
-	dm.process_turn_end()
-	dm.process_turn_end()
+	dm.advance_time(5)
+	dm.advance_time(5)
 	_check(expired == ["Marvolo's Misunderstanding"], "natural expiry fires the detonation signal")
 	dm.free()
 
