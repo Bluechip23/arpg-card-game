@@ -346,6 +346,47 @@ var overdraw_charges_left: int = 0   # charges in hand right now
 var overdraw_recharge_accum: int = 0 # tempo banked toward the next charge
 var conjured_in_manifest: int = 0    # Cinquedea copies currently parked in the manifest zone
 
+# Off-hand state (set by Inventory on every equip/swap/unequip): EVERYTHING
+# about a weapon is 10% weaker in the off hand, not just its stat block —
+# flat channels and on-self riders scale by OFF_HAND_RIDER_SCALE (floored),
+# and per-hit integer riders roll a 10% fizzle at their consumption sites
+# (exactly 10% weaker in expectation, no rounding cliffs on 1-3 stack
+# riders). Maluses keep full strength — a softer drawback would be a buff.
+# Shields and quivers are exempt: they are off-hand items by design.
+var is_in_off_hand: bool = false
+const OFF_HAND_RIDER_SCALE := 0.9
+
+func rider_scale() -> float:
+	return OFF_HAND_RIDER_SCALE if is_in_off_hand else 1.0
+
+## Per-application off-hand roll for integer on-hit riders.
+func rider_fizzles() -> bool:
+	return is_in_off_hand and randf() < (1.0 - OFF_HAND_RIDER_SCALE)
+
+# On-self benefit keys the off-hand penalty scales (see get_on_self_bonus).
+# Maluses (surcharges, jail tempo, self-discards) and structural keys
+# (booleans, step sizes, durations, the Side Card Sabre's own off-hand pair
+# bonus) are deliberately absent.
+const _OFF_HAND_SCALED_ON_SELF := [
+	"damage", "block", "heal", "mana_reduction", "mana_reduction_percent",
+	"apply_burn", "apply_cold", "apply_bleed", "apply_shock", "apply_weaken",
+	"apply_vulnerable", "apply_slow", "slow_damage_per_stack", "thorns",
+	"range_offensive", "crit_ranged_percent", "utility_heal",
+	"utility_spell_damage", "brain_regen", "armor_any", "reaction_armor",
+	"flash_regen", "int_damage_percent", "armor_per_missing_health10",
+	"instant_damage_nearest", "attack_tempo_reduction", "melee_damage",
+	"crit_damage_percent", "defense_armor", "utility_weaken",
+	"physical_resilient", "strengthen_value", "cleanse_stacks",
+	"damage_while_invisible", "support_heal", "offensive_damage",
+	"target_aoe_damage", "utility_tempo_refund", "draw_card", "summon_wolf",
+	"root_offensive", "disarm_offensive", "crit_percent",
+	"weakened_damage_percent", "max_hp_damage_percent", "ranged_damage",
+	"ranged_tempo_reduction", "resist_all_percent", "offensive_shift",
+	"offensive_heal_percent", "armor_shred", "chance_boost",
+	"lifesteal_percent", "knockback", "fortify", "block_max_mana_percent",
+	"bounce_percent",
+]
+
 # Weapon runtime state (reset on equip/unequip like the chest accumulators)
 var pair_active: bool = false   # Side Card Sabre: currently paired with a main-hand weapon
 var wrath: int = 0              # Fallen's Wrath counter
@@ -416,6 +457,31 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 # Ranged passive riders (not on-self — always on while equipped)
 @export var ally_damage_share_percent: float = 0.0  # you take X% of damage allies/summons deal within the radius (Belthronding 10)
 @export var ally_damage_share_radius: int = 0       # radius in squares for the share above (Belthronding 3)
+
+# ============================================
+# SPELL WEAPON RIDERS (spell weapons pass 1)
+# ============================================
+# Global on-hit debuffs: unlike the on_self_apply_* family these ride EVERY
+# damaging offensive card the wielder plays, not just cards slotted here.
+@export var attack_apply_burn: int = 0        # your damaging attacks apply X Burn (Fire Book 1)
+@export var attack_apply_cold: int = 0        # ... X Cold (Frost Book 1, Ice Orb 2)
+@export var attack_apply_shock: int = 0       # ... X Shock (Car Battery 3)
+@export var attack_apply_silence: int = 0     # ... X Silence (Circe's Wand 1)
+@export var attack_apply_vulnerable: int = 0  # ... X Vulnerable (Reaper Scythe 1)
+
+# Always-on spell weapon passives.
+@export var discard_gain_block: int = 0            # discarding a card grants X block (Abjurers Cane 3)
+@export var range_bonus_all_cards: int = 0         # +X range on ALL cards (Wand of Deliverance 2)
+@export var spell_mana_surcharge_percent: float = 0.0   # offensive SPELL cards cost X% more mana (Blast Stick 10)
+@export var spell_damage_per_mana_percent: float = 0.0  # offensive SPELL cards deal +X% of their FINAL (surcharged) mana cost as damage (Blast Stick 20)
+@export var elemental_charge_damage: int = 0       # applying Burn/Shock/Cold deals +X damage per stack applied (Elemental Weaver 1)
+@export var burn_backlash_self: int = 0            # applying Burn to an enemy burns YOU X — per occasion, not per stack (Phoenix Feather 1)
+@export var no_debuff_mana_discount_percent: float = 0.0  # ALL cards cost X% less while you carry no debuffs (Wand of Clarity 15)
+@export var melee_retaliate_shock: int = 0         # a melee attacker takes X Shock for striking you (Reaction Rod 4)
+@export var card_pull_target: int = 0              # every targeted card play pulls its target X squares toward you — allies included (Shepherds Crook 1)
+@export var reaper_weapon: bool = false            # Reaper Scythe: targets above half health suffer 10% lifesteal; below, 10% of the damage returns as mana and the card costs 10% less
+@export var feral_weapon: bool = false             # Feral Evocation: the colored-slot element-conversion engine
+@export var feral_change_damage: int = 0           # damage to a random enemy within 4 squares each time a slotted card changes color (Feral Evocation 4, Lv3 6)
 
 # Passive bonuses
 @export var ranged_damage_bonus: int = 0  # +X damage to all ranged attacks
@@ -713,6 +779,13 @@ func can_slot_card(card) -> bool:
 	if card.slot_compatibility == 0 and card.source_item_type >= 0:  # PICKY = 0
 		if card.source_item_type != item_type:
 			return false
+	# Feral Evocation: each colored slot takes only a card of its element —
+	# red Burn, blue Cold, yellow Shock, green Poison. Slots fill in order, so
+	# the next free slot's color is the gate.
+	if feral_weapon and slotted_cards.size() < slot_colors.size():
+		var feral_slot_color = str(slot_colors[slotted_cards.size()])
+		if card.element != feral_slot_color:
+			return false
 	# Check card keyword compatibility
 	# If item has explicit allowed_card_keywords, use those
 	if allowed_card_keywords.size() > 0:
@@ -774,7 +847,7 @@ func unslot_card(card_index: int):
 	return card
 
 func get_on_self_bonus() -> Dictionary:
-	return {
+	var osb := {
 		"damage": on_self_damage,
 		"block": on_self_block,
 		"heal": on_self_heal,
@@ -853,6 +926,17 @@ func get_on_self_bonus() -> Dictionary:
 		"chance_boost": on_self_chance_boost,
 		"block_max_mana_percent": on_self_block_max_mana_percent,
 	}
+	# Off hand: every benefit this weapon's slots confer is 10% weaker too
+	# (floored for ints). Only positive values scale — a negative
+	# mana_reduction is a surcharge, and maluses keep their full bite.
+	if is_in_off_hand:
+		for osb_k in _OFF_HAND_SCALED_ON_SELF:
+			var osb_v = osb.get(osb_k)
+			if osb_v is int and osb_v > 0:
+				osb[osb_k] = floori(osb_v * OFF_HAND_RIDER_SCALE)
+			elif osb_v is float and osb_v > 0.0:
+				osb[osb_k] = osb_v * OFF_HAND_RIDER_SCALE
+	return osb
 
 func get_card_slot_summary() -> String:
 	if card_slots == 0:
@@ -2817,6 +2901,233 @@ static func create_crooked_dueling_shield() -> ItemData:
 	_set_appearance(item, "crooked_dueling_shield",
 		"A steel shield shaped like an S, swelling slightly fatter through the center.")
 	item.description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
+	return item
+
+# ============================================
+# SPELL WEAPONS (spell weapons pass 1)
+# ============================================
+# Wands, tomes and orbs share a hand; anything marked STAFF demands both
+# (Inventory.is_two_hand_only). Orbs are wands with a rounder silhouette.
+
+static func create_frost_book() -> ItemData:
+	var item = _new_weapon("Frost Book", Rarity.COMMON, WeaponSubtype.TOME, 10)
+	item.card_slots = 1
+	item.intelligence_bonus = 2
+	item.wisdom_bonus = 1
+	item.health_bonus = 5
+	item.attack_apply_cold = 1
+	item.damage_bonus_to_attack_cards = 1
+	item.description = "+2 INT, +1 WIS, +5 health. 1 card slot. Your damaging attacks apply 1 Cold and deal +1 damage."
+	return item
+
+static func create_fire_book() -> ItemData:
+	var item = _new_weapon("Fire Book", Rarity.COMMON, WeaponSubtype.TOME, 10)
+	item.card_slots = 1
+	item.agility_bonus = 3
+	item.intelligence_bonus = 2
+	item.attack_apply_burn = 1
+	item.damage_bonus_to_attack_cards = 1
+	item.description = "+3 AGI, +2 INT. 1 card slot. Your damaging attacks apply 1 Burn and deal +1 damage."
+	return item
+
+static func create_earth_book() -> ItemData:
+	var item = _new_weapon("Earth Book", Rarity.COMMON, WeaponSubtype.TOME, 10)
+	item.card_slots = 1
+	item.intelligence_bonus = 2
+	item.block_bonus_to_defense_cards = 1
+	item.on_self_armor_any = 3
+	item.damage_bonus_to_attack_cards = 1
+	item.description = "+2 INT. 1 card slot. Your block-providing cards grant +1 block and your attacks deal +1 damage. On-self: gain 3 armor."
+	return item
+
+static func create_magic_staff() -> ItemData:
+	var item = _new_weapon("Magic Staff", Rarity.COMMON, WeaponSubtype.STAFF, 15)
+	item.card_slots = 1
+	item.intelligence_bonus = 2
+	item.wisdom_bonus = 2
+	item.damage_bonus_to_attack_cards = 4
+	item.description = "+2 INT, +2 WIS. 1 card slot. Two-handed. Your attacks deal +4 damage."
+	return item
+
+static func create_wand_of_deliverance() -> ItemData:
+	var item = _new_weapon("Wand of Deliverance", Rarity.RARE, WeaponSubtype.WAND, 8)
+	item.card_slots = 2
+	item.intelligence_bonus = 5
+	item.wisdom_bonus = 2
+	item.range_bonus_all_cards = 2
+	item.damage_bonus_to_attack_cards = 2
+	item.description = "+5 INT, +2 WIS. 2 card slots. All your cards gain +2 range and your attacks deal +2 damage."
+	return item
+
+static func create_ice_orb() -> ItemData:
+	var item = _new_weapon("Ice Orb", Rarity.RARE, WeaponSubtype.WAND, 2)
+	item.card_slots = 2
+	item.health_bonus = 10
+	item.intelligence_bonus = 3
+	item.wisdom_bonus = 1
+	item.mana_bonus = 20
+	item.attack_apply_cold = 2
+	item.damage_bonus_to_attack_cards = 2
+	item.description = "+10 health, +3 INT, +1 WIS, +20 mana. 2 card slots. Your damaging attacks apply 2 Cold and deal +2 damage."
+	return item
+
+static func create_car_battery() -> ItemData:
+	var item = _new_weapon("Car Battery", Rarity.RARE, WeaponSubtype.STAFF, 30)
+	item.card_slots = 2
+	item.intelligence_bonus = 3
+	item.agility_bonus = 3
+	item.dexterity_bonus = 3
+	item.attack_apply_shock = 3
+	item.description = "+3 INT, +3 AGI, +3 DEX. 2 card slots. Two-handed. Your damaging attacks apply 3 Shock."
+	return item
+
+static func create_abjurers_cane() -> ItemData:
+	var item = _new_weapon("Abjurers Cane", Rarity.LEGENDARY, WeaponSubtype.STAFF, 25)
+	item.wisdom_bonus = 5
+	item.intelligence_bonus = 4
+	item.agility_bonus = 4
+	item.discard_gain_block = 3
+	var ac_cards: Array[String] = ["defensive_sacrifice", "defensive_sacrifice"]
+	item.granted_card_ids = ac_cards
+	item.description = "+5 WIS, +4 INT, +4 AGI. Two-handed. When you discard a card, gain 3 block. Grants TWO copies of Defensive Sacrifice (instant): when an enemy attack lands on you, you may discard a card of your choice — if you do, halve the damage and gain 10 mana; decline and the card stays in your hand."
+	return item
+
+static func create_wand_of_clarity() -> ItemData:
+	var item = _new_weapon("Wand of Clarity", Rarity.LEGENDARY, WeaponSubtype.WAND, 5)
+	item.card_slots = 1
+	item.wisdom_bonus = 6
+	item.mana_bonus = 30
+	item.on_self_brain_regen = 2
+	item.on_self_flash_regen = 2
+	item.no_debuff_mana_discount_percent = 15.0
+	var wc_cards: Array[String] = ["clear_mind"]
+	item.granted_card_ids = wc_cards
+	item.description = "+6 WIS, +30 mana. 1 card slot. While you carry no debuffs, ALL your cards cost 15% less mana. On-self: regain 2 brain points and 2 flash points. Grants Clear Mind: purge 3 random debuffs on you — whole stacks — and draw 1 card for each (50 mana, 4 tempo)."
+	return item
+
+static func create_reaction_rod() -> ItemData:
+	var item = _new_weapon("Reaction Rod", Rarity.LEGENDARY, WeaponSubtype.WAND, 15)
+	item.intelligence_bonus = 5
+	item.agility_bonus = 2
+	item.determination_bonus = 2
+	item.melee_retaliate_shock = 4
+	var rr_cards: Array[String] = ["grounding"]
+	item.granted_card_ids = rr_cards
+	item.description = "+5 INT, +2 AGI, +2 DET. An enemy striking you from melee range takes 4 Shock. Grants Grounding: absorb every Shock within 10 squares of you and deal 10 damage to each enemy in that radius, shocked or not — the cast costs 5 less mana per Shock absorbed (200 mana, 10 tempo)."
+	return item
+
+static func create_shepherds_crook() -> ItemData:
+	var item = _new_weapon("Shepherds Crook", Rarity.LEGENDARY, WeaponSubtype.STAFF, 25)
+	item.card_slots = 4
+	item.health_bonus = 20
+	item.mana_bonus = 20
+	item.intelligence_bonus = 4
+	item.wisdom_bonus = 3
+	item.healing_bonus = 5
+	item.card_pull_target = 1
+	var sc_cards: Array[String] = ["crops"]
+	item.granted_card_ids = sc_cards
+	item.description = "+20 health, +20 mana, +4 INT, +3 WIS. 4 card slots. Two-handed. All your healing heals 5 more. Every targeted card you play pulls its target 1 square toward you — allies included. Grants Crops: grow 5 berry bushels at random within 8 squares; an ally who walks over one eats it for 20 life and 20 mana (70 mana, 7 tempo)."
+	return item
+
+static func create_blast_stick() -> ItemData:
+	var item = _new_weapon("Blast Stick", Rarity.LEGENDARY, WeaponSubtype.STAFF, 45)
+	item.card_slots = 2
+	item.intelligence_bonus = 18
+	item.agility_bonus = -8
+	item.strength_bonus = 1
+	item.spell_mana_surcharge_percent = 10.0
+	item.spell_damage_per_mana_percent = 20.0
+	item.description = "+18 INT, -8 AGI, +1 STR. 2 card slots. Two-handed. Offensive spells cost 10% more mana — and deal bonus damage equal to 20% of what they cost."
+	return item
+
+static func create_elemental_weaver() -> ItemData:
+	var item = _new_weapon("Elemental Weaver", Rarity.LEGENDARY, WeaponSubtype.STAFF, 20)
+	item.intelligence_bonus = 5
+	item.wisdom_bonus = 3
+	item.mana_bonus = 35
+	item.elemental_charge_damage = 1
+	var ew_cards: Array[String] = ["element_pollination"]
+	item.granted_card_ids = ew_cards
+	item.description = "+5 INT, +3 WIS, +35 mana. Two-handed. Applying Burn, Shock or Cold deals +1 damage per stack applied. Grants Element Pollination (Maintain): your Burn also splashes nearby enemies like Shock, Shock freezes at 5 stacks like Cold, and Cold ticks doubling damage like Burn — on top of their normal effects (60 mana, 3 tempo)."
+	return item
+
+static func create_wand_of_the_phoenix_feather() -> ItemData:
+	var item = _new_weapon("Wand of the Phoenix Feather", Rarity.MYTHIC, WeaponSubtype.WAND, 5)
+	item.card_slots = 2
+	item.health_bonus = 25
+	item.wisdom_bonus = 4
+	item.burn_backlash_self = 1
+	var pf_cards: Array[String] = ["from_the_ashes"]
+	item.granted_card_ids = pf_cards
+	# From the Ashes healing x8 / regen 3/4 at Lv.3 is read live off item_level
+	# (see _execute_from_the_ashes in Card).
+	item.level_3_overrides = {"health_bonus": 45}
+	item.level_3_description = "+45 health, +4 WIS. 2 card slots. Applying Burn to an enemy burns you 1 — once per play, not per stack. Grants From the Ashes: purge ALL your Burn; every enemy within 3 squares takes 5 damage per stack purged, you heal 8 per stack and gain Regen equal to three quarters of it (80 mana, 2 tempo)."
+	_set_appearance(item, "wand_of_the_phoenix_feather",
+		"A red wand shaped like a single long feather, with a phoenix head at the pommel.")
+	item.description = "+25 health, +4 WIS. 2 card slots. Applying Burn to an enemy burns you 1 — once per play, not per stack. Grants From the Ashes: purge ALL your Burn; every enemy within 3 squares takes 5 damage per stack purged, you heal 5 per stack and gain Regen equal to half of it (80 mana, 2 tempo)."
+	return item
+
+static func create_circes_wand_of_cauldron_stirring() -> ItemData:
+	var item = _new_weapon("Circe's Wand of Cauldron Stirring", Rarity.MYTHIC, WeaponSubtype.WAND, 10)
+	item.card_slots = 1
+	item.wisdom_bonus = 8
+	item.strength_bonus = -5
+	item.mana_bonus = 20
+	item.attack_apply_silence = 1
+	var cw_cards: Array[String] = ["polymorph", "polymorph"]
+	item.granted_card_ids = cw_cards
+	var cw_cards_l3: Array[String] = ["polymorph", "polymorph", "polymorph"]
+	item.level_3_overrides = {"granted_card_ids": cw_cards_l3}
+	item.level_3_description = "+8 WIS, -5 STR, +20 mana. 1 card slot. Your damaging attacks apply 1 Silence. Grants THREE copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
+	_set_appearance(item, "circes_wand_of_cauldron_stirring",
+		"A thin tree branch with smaller living branches coiled around its length — the sorceress's wand exactly as the tale tells it.")
+	item.description = "+8 WIS, -5 STR, +20 mana. 1 card slot. Your damaging attacks apply 1 Silence. Grants TWO copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
+	return item
+
+static func create_reaper_scythe() -> ItemData:
+	var item = _new_weapon("Reaper Scythe", Rarity.MYTHIC, WeaponSubtype.STAFF, 45)
+	item.card_slots = 1
+	item.wisdom_bonus = 8
+	item.strength_bonus = 8
+	item.dexterity_bonus = 3
+	item.agility_bonus = -5
+	item.attack_apply_vulnerable = 1
+	item.reaper_weapon = true
+	var rs_cards: Array[String] = ["reapers_taking"]
+	item.granted_card_ids = rs_cards
+	# Reaper's Taking hitting for 35 at Lv.3 is read live off item_level
+	# (see _execute_reapers_taking in Card).
+	item.level_3_overrides = {"wisdom_bonus": 10, "dexterity_bonus": 4}
+	item.level_3_description = "+10 WIS, +8 STR, +4 DEX, -5 AGI. 1 card slot. Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 35 damage."
+	_set_appearance(item, "reaper_scythe",
+		"A towering reaper's scythe, a blue substance forever dripping from the edge of its blade.")
+	item.description = "+8 WIS, +8 STR, +3 DEX, -5 AGI. 1 card slot. Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."
+	return item
+
+static func create_feral_evocation() -> ItemData:
+	## The third colored-slot item (after Mauls Sabre and the Crooked Dueling
+	## Shield) — and the first where the slots hold ELEMENTS: red Burn, blue
+	## Cold, yellow Shock, green Poison. Playing one color converts every other
+	## slotted card currently in hand to that color; conversion resets when a
+	## card leaves the hand. Each conversion zaps a random nearby enemy.
+	var item = _new_weapon("Feral Evocation", Rarity.MYTHIC, WeaponSubtype.STAFF, 25)
+	item.card_slots = 4
+	item.wisdom_bonus = 5
+	item.intelligence_bonus = 10
+	item.feral_weapon = true
+	item.feral_change_damage = 4
+	item.slot_colors = ["red", "blue", "yellow", "green"]
+	item.slot_effects = [{}, {}, {}, {}]
+	item.level_3_overrides = {"intelligence_bonus": 12, "mana_bonus": 15,
+		"card_slots": 5, "feral_change_damage": 6,
+		"slot_colors": ["red", "blue", "yellow", "green", "red"],
+		"slot_effects": [{}, {}, {}, {}, {}]}
+	item.level_3_description = "+5 WIS, +12 INT, +15 mana. Two-handed. Five elemental slots — red (Burn) x2, blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 6 damage to a random enemy within 4 squares."
+	_set_appearance(item, "feral_evocation",
+		"A great white staff crowned by a tiger's open mouth, a purple orb glowing between its fangs.")
+	item.description = "+5 WIS, +10 INT. Two-handed. Four elemental slots — red (Burn), blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 4 damage to a random enemy within 4 squares."
 	return item
 
 # ============================================

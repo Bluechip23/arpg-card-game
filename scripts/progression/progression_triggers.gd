@@ -595,10 +595,8 @@ func _apply_skill_tree_option(option) -> void:
 			stats.stats_updated.emit()
 			main.add_battle_log("+%d %s" % [option.stat_amount, option.stat_type.capitalize()], Color(0.3, 0.8, 1.0))
 
-	elif option.option_type == SkillTreeData.OptionType.CARD:
-		if option.card_id != "":
-			if main.deck_manager.add_card_to_deck_from_id(option.card_id):
-				main.add_battle_log("Card added: %s" % option.name, Color(0.5, 1.0, 0.5))
+	# NOTE: the skill tree no longer offers CARD options — cards are bought at
+	# the Card Dealer or found on drops, never granted by leveling.
 
 # ============================================
 # SKILL TREE PASSIVE TRIGGERS

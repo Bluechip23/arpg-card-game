@@ -1241,6 +1241,91 @@ def crooked_dueling_shield():
     return c
 
 
+def wand_of_the_phoenix_feather():
+    ## A red wand shaped like a single long feather, a phoenix head at the
+    ## pommel — golden beak, dark eye, a small crest of flame.
+    c = Canvas()
+    # The feather: a curved spine sweeping up to the tip.
+    spine = [(16, 25), (15, 18), (15, 11), (17, 3)]
+    _stroke(c, spine, "blood", r_end=0.6, r_mid=1.0)
+    # Barbs off both sides of the spine, longer near the pommel.
+    for i, (bx, by) in enumerate(((15, 22), (15, 19), (15, 16), (15, 13), (15, 10), (16, 7))):
+        w = 5 - i // 2
+        c.line([(bx - w, by + 2), (bx, by)], "blood", "sh")
+        c.line([(bx + w, by + 1), (bx, by)], "blood")
+    c.line([(15, 23), (16, 5)], "blood", "hi")  # the spine catches the light
+    # The phoenix head at the pommel.
+    c.ellipse((12, 25, 19, 30), "gold")
+    c.poly([(19, 26), (24, 28), (19, 29)], "gold", "sh")   # the beak
+    c.dot(15, 27, "dark", "sh")                            # the eye
+    for (fx, fy) in ((12, 24), (14, 23), (16, 24)):        # the flame crest
+        c.dot(fx, fy, "blood", "hi")
+    return c
+
+
+def circes_wand_of_cauldron_stirring():
+    ## A thin tree branch with living smaller branches coiled around its
+    ## length — the sorceress's wand exactly as the tale tells it.
+    c = Canvas()
+    # The branch itself, running corner to corner.
+    c.line([(6, 29), (25, 3)], "wood", None, 2)
+    c.line([(7, 28), (25, 4)], "wood", "hi")
+    # Two live shoots spiral around it, crossing over and back.
+    _stroke(c, [(8, 30), (12, 24), (10, 20), (15, 16), (13, 12), (19, 8), (17, 5), (23, 2)],
+            "leaf", r_end=0.5, r_mid=0.7)
+    _stroke(c, [(5, 26), (10, 23), (14, 19), (12, 14), (18, 11), (16, 7), (22, 4)],
+            "wood", r_end=0.5, r_mid=0.6)
+    # Buds where the coils cross the branch.
+    for (lx, ly) in ((11, 22), (14, 14), (20, 6)):
+        c.dot(lx, ly, "leaf", "hi")
+    return c
+
+
+def reaper_scythe():
+    ## A towering reaper's scythe, a blue substance forever dripping from the
+    ## edge of its great crescent blade.
+    c = Canvas()
+    # The snath: a long haft with the reaper's slight double bend.
+    _stroke(c, [(9, 31), (12, 21), (12, 11), (15, 3)], "wood", r_end=1.0, r_mid=1.3)
+    # The blade sweeping off the head to the right, hollow along its belly.
+    c.poly([(15, 2), (21, 2), (27, 5), (30, 10), (25, 8), (19, 6), (15, 5)], "steel")
+    c.line([(16, 2), (27, 5)], "steel", "hi")
+    # The blue substance, beading along the edge and falling free.
+    for (dx, dy) in ((19, 8), (23, 9), (28, 11)):
+        c.dot(dx, dy, "current", "hi")
+    c.line([(21, 10), (21, 12)], "current")
+    c.dot(25, 14, "current")
+    c.dot(21, 16, "current", "sh")
+    return c
+
+
+def feral_evocation():
+    ## A great white staff crowned by a tiger's open mouth, a purple orb
+    ## glowing between its fangs.
+    c = Canvas()
+    # The staff, stout and bone-white.
+    c.rect((14, 13, 17, 31), "bone")
+    c.rect((14, 13, 14, 31), "bone", "hi")
+    c.rect((17, 13, 17, 31), "bone", "sh")
+    # The tiger's skull, ears up, jaw hinged wide.
+    c.poly([(9, 2), (22, 2), (24, 6), (20, 8), (11, 8), (7, 6)], "gold")
+    c.poly([(9, 2), (8, 0), (11, 3)], "gold")          # ears
+    c.poly([(22, 2), (23, 0), (20, 3)], "gold")
+    for sx in (12, 15, 18):                            # the stripes
+        c.line([(sx, 2), (sx, 3)], "dark", "sh")
+    c.dot(11, 5, "dark", "sh")                         # eyes
+    c.dot(20, 5, "dark", "sh")
+    # The lower jaw, open wide where the mouth swallows the staff's head.
+    c.poly([(9, 13), (22, 13), (20, 11), (11, 11)], "gold")
+    # Fangs closing on the orb from above and below.
+    c.poly([(10, 8), (12, 8), (11, 11)], "bone", "hi")
+    c.poly([(21, 8), (19, 8), (20, 11)], "bone", "hi")
+    # The purple orb glowing between them.
+    c.ellipse((13, 7, 18, 12), "cloth")
+    c.dot(14, 8, "cloth", "hi")
+    return c
+
+
 ICONS = {
     "bladed_doughnut": bladed_doughnut,
     "the_headbandz": the_headbandz,
@@ -1278,6 +1363,10 @@ ICONS = {
     "steve_rodgers_bastion": steve_rodgers_bastion,
     "presence_of_mind": presence_of_mind,
     "crooked_dueling_shield": crooked_dueling_shield,
+    "wand_of_the_phoenix_feather": wand_of_the_phoenix_feather,
+    "circes_wand_of_cauldron_stirring": circes_wand_of_cauldron_stirring,
+    "reaper_scythe": reaper_scythe,
+    "feral_evocation": feral_evocation,
 }
 
 

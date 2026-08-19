@@ -70,6 +70,7 @@ var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
 var _corpses: Array = []         # {cell: Vector2i, position: Vector3} left by dead enemies, for resurrection
 var _fire_spots: Array = []      # Elemental Trail Blazers: {cell, tempo, damage, node}
 var _bullet_casings: Array = []  # Chewbaccas Bandolier: {cell, tempo, damage, node}
+var _berry_bushels: Array = []   # Crops (Shepherds Crook): {cell, node} — last until an ally eats them
 var _purge_cycle_accum: int = 0  # Horned Nasal Helm: cycles banked toward the next auto-purge
 var _wolves: Array = []          # Gauntlets of Dungeon Mastering: summoned wolves
 var _penguin = null              # Nine Ruins of Sanguine: the blood penguin (one at a time)
@@ -3764,6 +3765,8 @@ func _on_player_tile_reached() -> void:
 
 	# Forest hazards: bear traps / hunters' darts spring on whoever steps on them.
 	_trigger_terrain_traps_for(player_cell, player, true)
+	# Crops: stepping onto a berry bushel eats it (checks every ally).
+	_check_berry_bushels()
 
 	# Player Y follows terrain smoothly via ground_y_provider (see player.gd)
 
@@ -4469,10 +4472,13 @@ func show_hand_multi_picker(prompt: String, on_done: Callable) -> void:
 		on_done.call(picked))
 	vbox.add_child(done)
 
-func show_hand_card_picker(prompt: String, on_pick: Callable, exclude: Card = null) -> void:
+func show_hand_card_picker(prompt: String, on_pick: Callable, exclude: Card = null, on_cancel: Callable = Callable()) -> void:
 	## Reusable hand-card picker: presents the cards in hand (minus `exclude`) and
 	## calls on_pick(chosen_card) with the selection. Auto-resolves when there are
-	## 0 or 1 candidates, so callers don't have to special-case those.
+	## 0 or 1 candidates, so callers don't have to special-case those. Pass
+	## `on_cancel` when the flow must resume after a Cancel (Defensive Sacrifice
+	## holds a paused tree — a silent Cancel would hard-lock it). The overlay
+	## runs PROCESS_MODE_ALWAYS so it stays live under a paused tree.
 	var candidates: Array = []
 	for c in deck_manager.hand:
 		if c != exclude:
@@ -4490,6 +4496,7 @@ func show_hand_card_picker(prompt: String, on_pick: Callable, exclude: Card = nu
 	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.process_mode = Node.PROCESS_MODE_ALWAYS
 	ui.add_child(overlay)
 
 	var panel := PanelContainer.new()
@@ -4529,8 +4536,119 @@ func show_hand_card_picker(prompt: String, on_pick: Callable, exclude: Card = nu
 	var cancel := Button.new()
 	cancel.text = "Cancel"
 	cancel.custom_minimum_size = Vector2(260, 32)
-	cancel.pressed.connect(func(): overlay.queue_free())
+	cancel.pressed.connect(func():
+		overlay.queue_free()
+		if on_cancel.is_valid():
+			on_cancel.call())
 	vbox.add_child(cancel)
+
+var _ds_prompt_active: bool = false  # Defensive Sacrifice: one prompt at a time
+
+func offer_defensive_sacrifice(attacker, player_node, dmg: int, dmgr, bmgr, dmg_type: int) -> bool:
+	## Abjurers Cane: an enemy attack is about to land. If a Defensive
+	## Sacrifice sits in hand (with something else to give up), pause the
+	## battle and offer the choice. Returns true when main takes ownership of
+	## the hit; false lets the enemy apply it normally. A second attack in the
+	## same tick lands normally while a prompt is open.
+	if _ds_prompt_active or dmg <= 0 or not deck_manager or player_node != player:
+		return false
+	var ds: Card = null
+	for ds_c in deck_manager.hand:
+		if ds_c and ds_c.card_id == "defensive_sacrifice":
+			ds = ds_c
+			break
+	if ds == null or deck_manager.hand.size() < 2:
+		return false
+	_ds_prompt_active = true
+	get_tree().paused = true
+	_show_defensive_sacrifice_prompt(dmg,
+		func():  # YES — pick the card to give up.
+			show_hand_card_picker("Defensive Sacrifice — discard which card?",
+				func(chosen):
+					if chosen == null or not deck_manager.discard_card_from_hand(chosen):
+						_ds_resume(attacker, player_node, dmg, dmgr, bmgr, dmg_type)
+						return
+					deck_manager.spend_reaction_from_hand(ds)
+					var ds_stats = player.get_stats()
+					if ds_stats:
+						ds_stats.gain_mana(10)
+					var ds_half: int = floori(dmg / 2.0)
+					add_battle_log("Defensive Sacrifice! The blow is halved to %d — +10 mana." % ds_half, Color(0.6, 0.75, 0.95))
+					_ds_resume(attacker, player_node, ds_half, dmgr, bmgr, dmg_type),
+				ds,
+				func():  # picker cancelled — that's declining: full hit, card kept.
+					_ds_resume(attacker, player_node, dmg, dmgr, bmgr, dmg_type)),
+		func():  # NO — the card stays in hand, the blow lands whole.
+			_ds_resume(attacker, player_node, dmg, dmgr, bmgr, dmg_type))
+	return true
+
+func _ds_resume(attacker, player_node, dmg: int, dmgr, bmgr, dmg_type: int) -> void:
+	## Unpause and land the (possibly halved) deferred hit, then run the
+	## enemy's post-hit riders exactly as the direct path would have.
+	get_tree().paused = false
+	_ds_prompt_active = false
+	if is_instance_valid(player_node) and player_node.has_method("get_stats") and player_node.get_stats():
+		player_node.get_stats().take_damage(dmg, dmgr, bmgr, dmg_type)
+	if is_instance_valid(attacker) and attacker.has_method("_finish_player_hit") \
+			and is_instance_valid(player_node):
+		attacker._finish_player_hit(player_node)
+
+func _show_defensive_sacrifice_prompt(dmg: int, on_yes: Callable, on_no: Callable) -> void:
+	## A yes/no overlay that stays live while the tree is paused.
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "DefensiveSacrificePrompt"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	ui.add_child(overlay)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var pstyle := StyleBoxFlat.new()
+	pstyle.bg_color = Color(0.12, 0.13, 0.18, 1.0)
+	pstyle.set_border_width_all(2)
+	pstyle.border_color = Color(0.5, 0.6, 0.8)
+	pstyle.set_corner_radius_all(8)
+	pstyle.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", pstyle)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	vbox.custom_minimum_size = Vector2(320, 0)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Defensive Sacrifice: discard a card to halve %d incoming damage and gain 10 mana?" % dmg
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.custom_minimum_size = Vector2(320, 0)
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var yes := Button.new()
+	yes.text = "Sacrifice"
+	yes.custom_minimum_size = Vector2(150, 36)
+	yes.pressed.connect(func():
+		overlay.queue_free()
+		on_yes.call())
+	row.add_child(yes)
+	var no := Button.new()
+	no.text = "Take the hit"
+	no.custom_minimum_size = Vector2(150, 36)
+	no.pressed.connect(func():
+		overlay.queue_free()
+		on_no.call())
+	row.add_child(no)
+	vbox.add_child(row)
 
 func _show_defeat_overlay() -> void:
 	var ui = $UI as CanvasLayer
@@ -4632,6 +4750,13 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_skeletons(amount)
 	# Spirit bows stalk and shoot; budded turrets just shoot.
 	_update_spirit_bows(amount)
+	# Elemental Weaver: refresh the pollination flag enemies read while ticking.
+	_update_element_pollination()
+	# Reaction Rod: keep Grounding's Shock discount current on the card face.
+	_update_grounding_discount()
+	# Crops: catch an ally who ended up standing on a bushel (P2 movement
+	# routes through the shared tile handler reading the active player only).
+	_check_berry_bushels()
 	# Territorial Mark: refresh which enemies stand in the blue smoke.
 	_update_mark_zones(amount)
 	# Close is Favored: any enemy inside melee reach springs the trap.
@@ -4714,6 +4839,8 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 var _disarm_mastery_applying: bool = false  # Guard against recursive disarm
 var _wither_applying: bool = false  # Guard against recursive wither
 var _laced_arrow_applying: bool = false  # Guard against recursive laced arrow
+var _polymorph_firing: bool = false  # Guard: Polymorph's own debuff must not re-trigger it
+var _reapers_taking_firing: bool = false  # Guard: Reaper's Taking's damage must not re-trigger it
 var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee range state
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
@@ -4754,6 +4881,40 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 			_wither_applying = false
 	# Cory: Prey on the Weak — bonus damage on debuff to low HP enemy
 	progression_triggers._trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value)
+	# Spell weapons pass: weapon passives that watch every debuff you land.
+	var sw_inv = player.get_inventory() if player else null
+	if sw_inv and "equipped_weapons" in sw_inv:
+		for sw_w in sw_inv.equipped_weapons:
+			if sw_w == null:
+				continue
+			# Elemental Weaver: applying Burn, Shock or Cold stings the target
+			# for +X per charge applied.
+			if sw_w.elemental_charge_damage > 0 and debuff_name in ["burn", "shock", "cold"] \
+					and is_instance_valid(enemy) and not enemy.is_dead:
+				var ew_dmg: int = sw_w.elemental_charge_damage * maxi(value, 1)
+				enemy.take_damage(ew_dmg, true)
+				add_battle_log("Elemental Weaver: +%d damage (%d charge(s) woven)" % [ew_dmg, maxi(value, 1)], Color(0.7, 0.5, 1.0))
+			# Wand of the Phoenix Feather: each Burn occasion singes the wielder
+			# for 1 — riders like Laced Arrow / Wither / Harnessed Sun amplify
+			# the SAME occasion, so their guarded re-entries don't singe again.
+			if sw_w.burn_backlash_self > 0 and debuff_name == "burn" \
+					and not _harnessed_reentry and not _laced_arrow_applying and not _wither_applying:
+				var pb_dm = player.get_debuff_manager()
+				if pb_dm:
+					var pb_burn = Debuff.create(Debuff.DebuffType.BURN, sw_w.burn_backlash_self, 15)
+					pb_burn.source_name = sw_w.item_name
+					pb_dm.apply_debuff(pb_burn)
+					add_battle_log("The phoenix feather singes you: %d Burn" % sw_w.burn_backlash_self, Color(1.0, 0.5, 0.2))
+	# Circe's Wand: landing a 5th distinct debuff springs Polymorph from hand.
+	if not _polymorph_firing and deck_manager and is_instance_valid(enemy) and not enemy.is_dead \
+			and enemy.polymorph_tempo <= 0 and Card.count_debuff_kinds(enemy) >= 5:
+		var pm_card = deck_manager.trigger_one_reaction_jailed("on_enemy_fifth_debuff", 25)
+		if pm_card:
+			_polymorph_firing = true
+			pm_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+			enemy.apply_debuff("polymorph", 5)
+			_polymorph_firing = false
+			add_battle_log("Polymorph! %s is a pig for 5 tempo!" % enemy.enemy_name, Color(1.0, 0.6, 0.8))
 
 func _on_enemy_debuff_expired(enemy: Enemy, debuff_name: String) -> void:
 	progression_triggers._trigger_skill_tree_on_debuff_expired(enemy)
@@ -4784,6 +4945,34 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 
 func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
+	# Reaper's Taking (Reaper Scythe): an enemy dropping below a quarter within
+	# 5 squares pulls the reaper to them — edge-detected on the crossing hit.
+	if _reapers_taking_firing or enemy == null or not is_instance_valid(enemy) \
+			or enemy.is_dead or enemy.max_health <= 0 or not deck_manager or not grid_manager:
+		return
+	var rt_after: int = enemy.current_health
+	var rt_before: int = rt_after + damage
+	var rt_quarter: float = enemy.max_health * 0.25
+	if rt_after <= 0 or float(rt_after) >= rt_quarter or float(rt_before) < rt_quarter:
+		return
+	if grid_manager.get_distance_in_cells(player.position, enemy.position) > 5:
+		return
+	var rt_cards = deck_manager.trigger_reactions("on_enemy_low_health_nearby")
+	for rt_card in rt_cards:
+		_reapers_taking_firing = true
+		rt_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		# Step through the veil to the victim's side: nearest free adjacent tile.
+		var rt_cell: Vector2i = grid_manager.world_to_grid(enemy.position)
+		for rt_off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var rt_c: Vector2i = rt_cell + rt_off
+			if not (rt_c in player.blocked_tiles):
+				if player.has_method("blink_to"):
+					player.blink_to(grid_manager.grid_to_world(rt_c))
+				break
+		var rt_dmg: int = 35 if (rt_card.granted_by_item and rt_card.granted_by_item.item_level >= 3) else 20
+		enemy.take_damage(rt_dmg, true)
+		add_battle_log("Reaper's Taking! The scythe crosses the field — %d damage to %s!" % [rt_dmg, enemy.enemy_name], Color(0.4, 0.7, 1.0))
+		_reapers_taking_firing = false
 
 func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
@@ -4864,6 +5053,11 @@ func _on_all_enemies_defeated() -> void:
 	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
 	_clear_mark_zones()
+	# Spell weapons: no element remap or pollination survives the wave, and
+	# unpicked berries wilt with it.
+	Card.active_element_remap = ""
+	Card.element_pollination_active = false
+	_clear_berry_bushels()
 	# (The Wrist Rocket's banked crit is cumulative — one journey, no resets.)
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
@@ -5760,6 +5954,12 @@ func _on_non_play_discard(_card: Card) -> void:
 	var stats = player.get_stats() if player else null
 	if stats and stats.has_skill_tree_passive("ladder_work"):
 		stats.st_ladder_discard_count += 1
+	# Abjurers Cane: every true discard raises the guard.
+	if stats and player.get_inventory():
+		for ac_w in player.get_inventory().equipped_weapons:
+			if ac_w != null and ac_w.discard_gain_block > 0:
+				stats.add_armor(ac_w.discard_gain_block)
+				add_battle_log("Abjurers Cane: +%d block" % ac_w.discard_gain_block, Color(0.6, 0.75, 0.95))
 
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
@@ -7474,6 +7674,12 @@ func _helm_range_bonus(card) -> int:
 	# Tigers Sunday Red: +range on ALL ranged offensive cards while equipped.
 	if card.is_ranged and player and player.get_stats():
 		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
+	# Wand of Deliverance: +range on ALL cards while it is in a hand
+	# (10% weaker — floored — from the off hand, like everything else).
+	if player and player.get_inventory():
+		for wr_w in player.get_inventory().equipped_weapons:
+			if wr_w != null and wr_w.range_bonus_all_cards > 0:
+				bonus += floori(wr_w.range_bonus_all_cards * wr_w.rider_scale())
 	return bonus
 
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
@@ -7769,12 +7975,57 @@ func _clear_penguin() -> void:
 # WEAPON CARD RIDERS (weapons pass 1) — generic post-resolution effects
 # ============================================
 
+func _feral_current_color(item: ItemData, card: Card) -> String:
+	## The element a feral-slotted card counts as RIGHT NOW: a conversion
+	## override when one is held, its slot's printed color otherwise.
+	if card.has_meta("feral_color"):
+		return str(card.get_meta("feral_color"))
+	return item.get_slot_color(card)
+
+func _feral_conversion_effects(card: Card) -> void:
+	## Feral Evocation: playing a slotted elemental card converts every OTHER
+	## card slotted in the staff that is currently IN HAND to its element —
+	## cards not in hand keep their color (they weren't there to be swayed).
+	## Each actual change zaps a random enemy within 4 squares. Conversion
+	## resets when a card leaves the hand (cleared on draw in DeckManager).
+	if card == null or card.slotted_in_item == null or not card.slotted_in_item.feral_weapon:
+		return
+	var fe_item = card.slotted_in_item
+	var fe_color := _feral_current_color(fe_item, card)
+	if fe_color == "":
+		return
+	for fe_other in deck_manager.hand:
+		if fe_other == card or fe_other.slotted_in_item != fe_item:
+			continue
+		if _feral_current_color(fe_item, fe_other) == fe_color:
+			continue
+		fe_other.set_meta("feral_color", fe_color)
+		add_battle_log("Feral Evocation: %s turns %s!" % [fe_other.card_name, fe_color], Color(0.8, 0.5, 1.0))
+		if fe_item.feral_change_damage > 0:
+			var fe_victim = _random_enemy_within(4)
+			if fe_victim:
+				fe_victim.take_damage(fe_item.feral_change_damage, true)
+				add_battle_log("The staff lashes out: %d damage to %s!" % [fe_item.feral_change_damage, fe_victim.enemy_name], Color(0.8, 0.5, 1.0))
+
 func _weapon_post_card_effects(card: Card, target) -> void:
 	if card == null or not player or not deck_manager:
 		return
 	var stats = player.get_stats()
 	if stats == null:
 		return
+
+	# Feral Evocation: the played color pollinates the rest of the hand.
+	_feral_conversion_effects(card)
+
+	# Shepherds Crook: every targeted card play pulls its target one square
+	# toward the wielder — enemies and allies alike.
+	if target != null and is_instance_valid(target) and target != player and player.get_inventory():
+		var pull_amt := 0
+		for pull_w in player.get_inventory().equipped_weapons:
+			if pull_w != null and pull_w.card_pull_target > 0:
+				pull_amt += pull_w.card_pull_target
+		if pull_amt > 0:
+			_pull_toward_player(target, pull_amt)
 
 	# Hard Helmet (Construction Hammer): a utility play can trigger the instant.
 	if card.card_type == Card.CardType.UTILITY:
@@ -8101,6 +8352,123 @@ func _refresh_bow_instances() -> void:
 ## 5. Every bow's shot gains +2 damage per living bow and crits (x1.5) with
 ## 5% chance per living bow. The maintained bow dissolves the moment its
 ## Spirit Bow card stops being maintained.
+func _update_element_pollination() -> void:
+	## Elemental Weaver: cache the maintain's on/off state where enemies can
+	## read it during their own debuff ticking. Recomputed every tempo tick, so
+	## break, dismiss and unequip all propagate within a tick — never stored as
+	## a set-and-forget flag (the break/restore paths would leak it).
+	var pol_active := false
+	if deck_manager:
+		for pol_mc in deck_manager.maintained_cards:
+			if pol_mc and pol_mc.card_id == "element_pollination":
+				pol_active = true
+				break
+	Card.element_pollination_active = pol_active
+
+func _make_bushel_visual(cell: Vector2i) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	var mesh_res := SphereMesh.new()
+	mesh_res.radius = 0.22
+	mesh_res.height = 0.32
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.45, 0.85, 0.35)
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 0.6, 0.25)
+	mat.emission_energy_multiplier = 0.6
+	mesh_res.material = mat
+	node.mesh = mesh_res
+	node.position = grid_manager.grid_to_world(cell)
+	node.position.y = 0.18
+	add_child(node)
+	return node
+
+func _check_berry_bushels() -> void:
+	## Crops (Shepherds Crook): an ally standing on a bushel eats it — 20 life,
+	## 20 mana — and "ally" includes the player. One bushel, one meal.
+	if _berry_bushels.is_empty() or not grid_manager:
+		return
+	for bb_p in _all_players():
+		if not is_instance_valid(bb_p) or not bb_p.has_method("get_stats"):
+			continue
+		var bb_stats = bb_p.get_stats()
+		if bb_stats == null:
+			continue
+		var bb_cell: Vector2i = grid_manager.world_to_grid(bb_p.position)
+		for i in range(_berry_bushels.size() - 1, -1, -1):
+			var bb = _berry_bushels[i]
+			if bb["cell"] == bb_cell:
+				bb_stats.heal(20)
+				bb_stats.gain_mana(20)
+				if is_instance_valid(bb["node"]):
+					bb["node"].queue_free()
+				_berry_bushels.remove_at(i)
+				add_battle_log("Berries! +20 life, +20 mana.", Color(0.5, 0.9, 0.4))
+
+func _clear_berry_bushels() -> void:
+	for bb in _berry_bushels:
+		if is_instance_valid(bb["node"]):
+			bb["node"].queue_free()
+	_berry_bushels.clear()
+
+func _pull_toward_player(target, squares: int) -> void:
+	## Shepherds Crook: reel a unit toward the player one cell at a time —
+	## stopping at blocked tiles, and at arm's length (never onto the player).
+	if not grid_manager or not is_instance_valid(target) or target == player:
+		return
+	var t_cell: Vector2i = grid_manager.world_to_grid(target.position)
+	var p_cell: Vector2i = grid_manager.world_to_grid(player.position)
+	var start_cell: Vector2i = t_cell
+	for _i in range(squares):
+		var diff: Vector2i = p_cell - t_cell
+		if maxi(absi(diff.x), absi(diff.y)) <= 1:
+			break  # already beside the shepherd
+		var step := Vector2i(signi(diff.x), signi(diff.y))
+		var next_cell: Vector2i = t_cell + step
+		if next_cell == p_cell or (next_cell in player.blocked_tiles):
+			break
+		t_cell = next_cell
+	if t_cell == start_cell:
+		return
+	var dest: Vector3 = grid_manager.grid_to_world(t_cell)
+	if target.has_method("blink_to"):
+		target.blink_to(dest)  # allies snap cleanly (grid + ground height)
+	else:
+		dest.y = target.position.y
+		target.position = dest
+		if "target_position" in target:
+			target.target_position = dest
+	var pull_name: String = target.enemy_name if "enemy_name" in target else "an ally"
+	add_battle_log("The crook pulls %s a square closer." % pull_name, Color(0.5, 0.9, 0.4))
+
+func _update_grounding_discount() -> void:
+	## Grounding costs 5 less per absorbable Shock within 10 squares. The count
+	## is stamped onto the hand copy each tempo tick so DeckManager can read it
+	## at cost time without reaching into the world.
+	if not deck_manager:
+		return
+	var gd_cards: Array = []
+	for gd_c in deck_manager.hand:
+		if gd_c and gd_c.card_id == "grounding":
+			gd_cards.append(gd_c)
+	if gd_cards.is_empty():
+		return
+	var gd_shock := 0
+	if enemy_spawner and grid_manager and player:
+		for gd_e in enemy_spawner.get_living_enemies():
+			if gd_e and is_instance_valid(gd_e) and gd_e.shock_stacks > 0 \
+					and grid_manager.get_distance_in_cells(player.position, gd_e.position) <= 10:
+				gd_shock += gd_e.shock_stacks
+		for gd_ally in _all_players():
+			if is_instance_valid(gd_ally) and gd_ally.has_method("get_debuff_manager") \
+					and grid_manager.get_distance_in_cells(player.position, gd_ally.position) <= 10:
+				var gd_adm = gd_ally.get_debuff_manager()
+				if gd_adm:
+					var gd_sh = gd_adm.get_debuff(Debuff.DebuffType.SHOCKED)
+					if gd_sh:
+						gd_shock += maxi(gd_sh.value, 1)
+	for gd_c2 in gd_cards:
+		gd_c2.set_meta("grounding_discount", gd_shock * 5)
+
 func _update_spirit_bows(amount: int) -> void:
 	if _spirit_bows.is_empty():
 		return
@@ -9634,6 +10002,109 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
 			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
 
+		"crops":
+			# Shepherds Crook: 5 berry bushels at random open cells within 8
+			# squares. They last until an ally eats them; enemies trample past.
+			var cr_cells: Array = []
+			var cr_pcell: Vector2i = grid_manager.world_to_grid(player.position)
+			var cr_tries := 0
+			while cr_cells.size() < 5 and cr_tries < 200:
+				cr_tries += 1
+				var cr_off := Vector2i(randi_range(-8, 8), randi_range(-8, 8))
+				if absi(cr_off.x) + absi(cr_off.y) > 8 or cr_off == Vector2i.ZERO:
+					continue
+				var cr_cell: Vector2i = cr_pcell + cr_off
+				if cr_cell in player.blocked_tiles or cr_cell in cr_cells:
+					continue
+				var cr_dup := false
+				for cr_b in _berry_bushels:
+					if cr_b["cell"] == cr_cell:
+						cr_dup = true
+						break
+				if not cr_dup:
+					cr_cells.append(cr_cell)
+			for cr_c in cr_cells:
+				_berry_bushels.append({"cell": cr_c, "node": _make_bushel_visual(cr_c)})
+			add_battle_log("Crops! %d berry bushels take root." % cr_cells.size(), Color(0.5, 0.9, 0.4))
+
+		"clear_mind":
+			# Wand of Clarity: purge 3 random debuffs — whole stacks — and
+			# draw 1 card for each actually purged.
+			var cm_dm = player.get_debuff_manager()
+			var cm_purged := 0
+			if cm_dm:
+				for _cm_i in range(3):
+					if cm_dm.debuffs.is_empty():
+						break
+					var cm_pick = cm_dm.debuffs[randi() % cm_dm.debuffs.size()]
+					cm_dm.remove_debuff(cm_pick.debuff_type)
+					cm_purged += 1
+			for _cm_d in range(cm_purged):
+				deck_manager.draw_card()
+			if cm_purged > 0:
+				add_battle_log("Clear Mind: %d debuff(s) purged, %d card(s) drawn." % [cm_purged, cm_purged], Color(0.7, 0.9, 1.0))
+			else:
+				add_battle_log("Clear Mind: nothing clouding you.", Color(0.7, 0.9, 1.0))
+
+		"grounding":
+			# Reaction Rod: absorb every Shock within 10 squares — enemies,
+			# allies and the wielder — then 10 damage to each enemy in radius,
+			# shocked or not. (The -5 mana per Shock landed at cost time.)
+			var gr_absorbed := 0
+			var gr_hit: Array = []
+			for gr_e in enemy_spawner.get_living_enemies():
+				if gr_e and is_instance_valid(gr_e) \
+						and grid_manager.get_distance_in_cells(player.position, gr_e.position) <= 10:
+					gr_hit.append(gr_e)
+					if gr_e.shock_stacks > 0:
+						gr_absorbed += gr_e.shock_stacks
+						gr_e.shock_stacks = 0
+						if gr_e.has_method("_update_status_indicators"):
+							gr_e._update_status_indicators()
+			for gr_ally in _all_players():
+				if not is_instance_valid(gr_ally) or not gr_ally.has_method("get_debuff_manager"):
+					continue
+				if grid_manager.get_distance_in_cells(player.position, gr_ally.position) > 10:
+					continue
+				var gr_adm = gr_ally.get_debuff_manager()
+				if gr_adm:
+					var gr_sh = gr_adm.get_debuff(Debuff.DebuffType.SHOCKED)
+					if gr_sh:
+						gr_absorbed += maxi(gr_sh.value, 1)
+						gr_adm.remove_debuff(Debuff.DebuffType.SHOCKED)
+			for gr_e2 in gr_hit:
+				gr_e2.take_damage(10, true, DamageTypes.Type.LIGHTNING)
+			_apply_misery_spread(gr_hit)
+			add_battle_log("Grounding! %d Shock absorbed — 10 damage to %d enemies." % [gr_absorbed, gr_hit.size()], Color(1.0, 1.0, 0.4))
+
+		"from_the_ashes":
+			# Wand of the Phoenix Feather: purge every self-Burn stack; enemies
+			# within 3 squares take 5 damage per stack, the wielder heals 5 per
+			# stack (Lv.3: 8) and gains Regen worth half the stacks (Lv.3: 3/4).
+			var fta_dm = player.get_debuff_manager()
+			var fta_burn := 0
+			if fta_dm:
+				var fta_d = fta_dm.get_debuff(Debuff.DebuffType.BURN)
+				if fta_d:
+					fta_burn = maxi(fta_d.value, 0)
+					fta_dm.remove_debuff(Debuff.DebuffType.BURN)
+			if fta_burn > 0:
+				var fta_lv3: bool = card.granted_by_item != null and card.granted_by_item.item_level >= 3
+				var fta_hit = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
+				for fta_e in fta_hit:
+					fta_e.take_damage(fta_burn * 5, true, DamageTypes.Type.FIRE)
+				_apply_misery_spread(fta_hit)
+				var fta_stats = player.get_stats()
+				if fta_stats:
+					fta_stats.heal(fta_burn * (8 if fta_lv3 else 5))
+				var fta_regen: int = ceili(fta_burn * (0.75 if fta_lv3 else 0.5))
+				var fta_bm = player.get_buff_manager()
+				if fta_bm and fta_regen > 0:
+					fta_bm.apply_buff(Buff.create_regen(fta_regen, -1, "From the Ashes"))
+				add_battle_log("From the Ashes! %d Burn purged — %d damage to %d enemies, healed %d." % [fta_burn, fta_burn * 5, fta_hit.size(), fta_burn * (8 if fta_lv3 else 5)], Color(1.0, 0.5, 0.2))
+			else:
+				add_battle_log("From the Ashes fizzles — no Burn to purge.", Color(1.0, 0.5, 0.2))
+
 		"sprinkle_bomb":
 			# Bladed Doughnut Lv.3: the Sprinkle detonates as an AOE circle.
 			var sb_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
@@ -10280,6 +10751,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"communal_donation":
 			_open_donation_panel()
+
+	# Feral Evocation: the play and its world effects have fully resolved —
+	# drop the element remap so nothing later inherits it.
+	Card.active_element_remap = ""
 
 func _is_ui_window_open() -> bool:
 	## True when any scrollable HUD window is open. Mouse-wheel/drag over the

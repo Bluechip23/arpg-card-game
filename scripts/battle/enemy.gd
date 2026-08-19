@@ -89,6 +89,8 @@ var is_stunned: bool = false   # Cannot act when stunned
 var stun_tempo: int = 0        # Remaining tempo cycles for stun
 var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
 var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
+var cold_damage_next: int = 1  # Element Pollination: Cold's doubling tick while the Weaver maintain is up
+var polymorph_tempo: int = 0   # Polymorph (Circe's Wand): cycles left as a pig — walk and basic melee only
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
 var bleed_stacks: int = 0      # Bleed: take X damage per tile moved, lose 1 per cycle
@@ -1497,12 +1499,26 @@ func _tick_status_durations() -> void:
 	if burn_stacks > 0:
 		take_damage(burn_damage_next, false)
 		print("[%s] Burn deals %d damage (doubles next cycle)" % [enemy_name, burn_damage_next])
+		# Element Pollination: the flames jump — burn splashes nearby enemies
+		# like Shock while the Elemental Weaver's maintain is up.
+		if Card.element_pollination_active:
+			for pol_e in _sibling_enemies():
+				if pol_e != self and position.distance_to(pol_e.position) <= 2.5:
+					pol_e.take_damage(burn_damage_next, false)
+					print("[%s] Element Pollination: burn splashes %d to %s" % [enemy_name, burn_damage_next, pol_e.enemy_name])
 		burn_damage_next *= 2
 		burn_stacks -= 1
 		if burn_stacks <= 0:
 			burn_damage_next = 1
 			print("[%s] Burn expired" % enemy_name)
 			debuff_expired.emit(self, "burn")
+
+	# Polymorph: the pig wears off one cycle at a time
+	if polymorph_tempo > 0:
+		polymorph_tempo -= 1
+		if polymorph_tempo <= 0:
+			print("[%s] Polymorph wears off" % enemy_name)
+			debuff_expired.emit(self, "polymorph")
 
 	# Poison: deal current stacks damage, then lose 1 stack per cycle
 	if poison_stacks > 0:
@@ -1538,8 +1554,15 @@ func _tick_status_durations() -> void:
 	# Cold: thaws 1 stack per cycle so it's a combo window, not a permanent
 	# ratchet toward Frozen (mirrors the player-side Cold expiring over time)
 	if cold_stacks > 0:
+		# Element Pollination: the frost bites — Cold ticks doubling damage
+		# like Burn while the Elemental Weaver's maintain is up.
+		if Card.element_pollination_active:
+			take_damage(cold_damage_next, false)
+			print("[%s] Element Pollination: cold bites for %d (doubles next cycle)" % [enemy_name, cold_damage_next])
+			cold_damage_next *= 2
 		cold_stacks -= 1
 		if cold_stacks <= 0:
+			cold_damage_next = 1
 			print("[%s] Cold thawed" % enemy_name)
 			debuff_expired.emit(self, "cold")
 
@@ -1615,6 +1638,22 @@ func _choose_action(player_node: Node3D) -> void:
 		return
 
 	var distance = _get_cell_distance(player_node)
+
+	# Polymorph (Circe's Wand): a pig only walks and bites — no spells,
+	# no abilities, whatever the species would normally reach for. The first
+	# action not in NON_MELEE_ACTIONS is the type's basic melee attack.
+	if polymorph_tempo > 0:
+		chosen_action = {}
+		if distance <= 1:
+			for pig_a in actions:
+				if not NON_MELEE_ACTIONS.has(str(pig_a["name"])):
+					chosen_action = pig_a
+					break
+		if chosen_action.is_empty():
+			chosen_action = _get_action("move")
+		if chosen_action.is_empty() and actions.size() > 0:
+			chosen_action = actions[0]
+		return
 
 	match enemy_type:
 		EnemyType.WERERAT:
@@ -2423,17 +2462,17 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 					print("[%s] Repelled Block triggered! Enemy pushed back 4, player pushed back 2" % enemy_name)
 					return  # Skip damage entirely
 
+			# Defensive Sacrifice (Abjurers Cane): main may intercept the blow
+			# to offer the discard choice. When it does, it owns this hit —
+			# it applies the (possibly halved) damage and calls
+			# _finish_player_hit itself once the player has chosen.
+			var ds_main = get_tree().current_scene
+			if ds_main and ds_main.has_method("offer_defensive_sacrifice") \
+					and ds_main.offer_defensive_sacrifice(self, player_node, effective_damage, debuff_mgr, buff_mgr, dmg_type):
+				return
+
 			player_stats_ref.take_damage(effective_damage, debuff_mgr, buff_mgr, dmg_type)
-
-			if player_node.has_method("get_inventory"):
-				var p_inventory = player_node.get_inventory()
-				if p_inventory:
-					p_inventory.on_damage_taken()
-
-			# Trigger on_attacked passives (thorns, In the Trenches, Phalanx, etc.)
-			if player_node.has_method("on_attacked_by"):
-				player_node.on_attacked_by(self)
-			attacked_player.emit(self)
+			_finish_player_hit(player_node)
 
 	# Attack flash on figure, sprite, or mesh
 	if _enemy_figure:
@@ -2449,6 +2488,19 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 			var orig_color = mat.albedo_color
 			tween.tween_property(mat, "albedo_color", Color.ORANGE, 0.1)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
+
+## The riders that follow a landed hit on the player — split out so the
+## Defensive Sacrifice mediation in main can finish a deferred hit the
+## same way the direct path does.
+func _finish_player_hit(player_node: Node3D) -> void:
+	if player_node.has_method("get_inventory"):
+		var p_inventory = player_node.get_inventory()
+		if p_inventory:
+			p_inventory.on_damage_taken()
+	# Trigger on_attacked passives (thorns, In the Trenches, Phalanx, etc.)
+	if player_node.has_method("on_attacked_by"):
+		player_node.on_attacked_by(self)
+	attacked_player.emit(self)
 
 ## Dash multiple tiles toward a position in one action.
 ## Stops at any barricade tile encountered along the path.
@@ -3043,6 +3095,12 @@ func apply_wear_down(cycles: int) -> void:
 	_update_status_indicators()
 
 func apply_debuff(debuff_name: String, value: int) -> void:
+	# Feral Evocation: while a converted card's play resolves, any of the four
+	# slot elements it lands is swapped to the converted color's element.
+	if Card.active_element_remap != "" and debuff_name in ["burn", "cold", "shock", "poison"] \
+			and debuff_name != Card.active_element_remap:
+		print("[%s] Feral Evocation: %s becomes %s" % [enemy_name, debuff_name, Card.active_element_remap])
+		debuff_name = Card.active_element_remap
 	match debuff_name:
 		"stun":
 			is_stunned = true
@@ -3080,6 +3138,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			print("[%s] Cold applied! Stacks: %d/5" % [enemy_name, cold_stacks])
 			if cold_stacks >= 5:
 				cold_stacks = 0
+				cold_damage_next = 1  # Element Pollination's doubling tick restarts with the freeze
 				is_frozen = true
 				frozen_tempo = max(frozen_tempo, 1)  # Frozen for 1 tempo cycle
 				# Reset action tempo counter so frozen delays their next action
@@ -3092,6 +3151,15 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"shock":
 			shock_stacks += value
 			print("[%s] Shocked! Stacks: %d" % [enemy_name, shock_stacks])
+			# Element Pollination: Shock stuns at 5 stacks like Cold freezes,
+			# while the Elemental Weaver's maintain is up.
+			if Card.element_pollination_active and shock_stacks >= 5:
+				shock_stacks = 0
+				is_stunned = true
+				stun_tempo = max(stun_tempo, 1)  # Stunned for 1 tempo cycle
+				action_tempo_counter = 0
+				chosen_action = {}
+				print("[%s] STUNNED! Shock reached 5 stacks (Element Pollination)!" % enemy_name)
 		"bleed":
 			bleed_stacks += value
 			print("[%s] Bleeding! Stacks: %d (damage per tile moved)" % [enemy_name, bleed_stacks])
@@ -3116,6 +3184,12 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			narashimha_tempo = max(narashimha_tempo, value)
 			narashimha_heal_cap = current_health if narashimha_heal_cap < 0 else min(narashimha_heal_cap, current_health)
 			print("[%s] Narashimha: cannot heal above %d for %d cycles" % [enemy_name, narashimha_heal_cap, narashimha_tempo])
+		"polymorph":
+			# Circe's Wand: value is the window in raw tempo (5 tempo = 1 cycle).
+			# A pig re-decides what it was about to do — with far fewer options.
+			polymorph_tempo = max(polymorph_tempo, maxi(1, ceili(value / 5.0)))
+			chosen_action = {}
+			print("[%s] POLYMORPH! A pig for %d cycle(s) — walk and bite only" % [enemy_name, polymorph_tempo])
 		_:
 			print("[%s] Unknown debuff: %s" % [enemy_name, debuff_name])
 	debuff_applied.emit(self, debuff_name, value)
@@ -3288,6 +3362,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Exposed", "color": Color(1.0, 1.0, 0.3), "stacks": 1})
 	if is_stunned and stun_tempo > 0:
 		effects.append({"name": "Stun", "color": Color(1.0, 1.0, 0.0), "stacks": stun_tempo})
+	if polymorph_tempo > 0:
+		effects.append({"name": "Polymorph", "color": Color(1.0, 0.6, 0.8), "stacks": polymorph_tempo})
 	if is_frozen and frozen_tempo > 0:
 		effects.append({"name": "Frozen", "color": Color(0.5, 0.8, 1.0), "stacks": frozen_tempo})
 	if burn_stacks > 0:
