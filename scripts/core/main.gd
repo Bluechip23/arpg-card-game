@@ -175,6 +175,7 @@ const CARD_KEYS = [
 ]
 
 var selected_card_index: int = -1
+var targeting_arrow: TargetingArrow = null  # red player→mouse arrow for unit-targeted cards
 var current_character: CharacterData = null
 var starting_character: CharacterData = null
 var player2_character: CharacterData = null
@@ -561,6 +562,7 @@ func _ready() -> void:
 	_setup_stat_bars()
 	_setup_deck_info_vertical()
 	_setup_battle_log()
+	_setup_targeting_arrow()
 
 	if starting_character:
 		select_character(starting_character)
@@ -1140,6 +1142,14 @@ func _setup_action_buttons() -> void:
 	_pause_button.add_theme_stylebox_override("hover", pause_hover)
 	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
 	bottom_row.add_child(_pause_button)
+
+func _setup_targeting_arrow() -> void:
+	## Screen-space red arrow from the player to the mouse while a card that
+	## targets a specific enemy/ally is selected (see TargetingArrow).
+	targeting_arrow = TargetingArrow.new()
+	targeting_arrow.name = "TargetingArrow"
+	targeting_arrow.main = self
+	($UI as CanvasLayer).add_child(targeting_arrow)
 
 func _setup_tick_bar() -> void:
 	## Build the 20-tick global tempo bar centered at the top of the screen,

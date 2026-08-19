@@ -343,6 +343,11 @@ func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 				rng_selected_index = i
 				break
 		print("[CARD] %s RNG: rolled outcome %d (%.0f%%)" % [card_name, rng_selected_index, rng_outcomes_data[rng_selected_index].percent])
+	elif chance_effect_percent > 0.0:
+		# Pure per-enemy chance (Surrounding Ice): no card-level outcome to roll,
+		# but mark the card rolled so the hand pipeline doesn't re-randomize the
+		# per-enemy outcomes below on every hand refresh.
+		rng_selected_index = 0
 
 	# AOE per-enemy rolls
 	if chance_effect_percent > 0.0:
@@ -367,7 +372,8 @@ func get_rng_outcome(enemy) -> bool:
 	return rng_outcomes[id]
 
 func has_chance_effect() -> bool:
-	return rng_outcomes_data.size() > 0
+	# Card-level outcomes OR per-enemy AOE rolls — both need the roll/reroll pipeline.
+	return rng_outcomes_data.size() > 0 or chance_effect_percent > 0.0
 
 func has_been_rolled() -> bool:
 	return rng_selected_index != -1
@@ -3333,8 +3339,10 @@ static func create_surrounding_ice() -> Card:
 	card.tempo_cost = 4
 	card.damage = 15
 	card.base_damage = 15
+	# Per-enemy 70% hit rolls only — a card-level binary roll used to sit here
+	# too, but nothing consumed it at resolution: it just miscolored the "30%"
+	# in the description as if it predicted the outcome.
 	card.chance_effect_percent = 70.0
-	card.rng_outcomes_data = [{percent = 30.0}]
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_types = ["all_nearby"]
@@ -3492,7 +3500,9 @@ static func create_snowballs_chance() -> Card:
 	card.tempo_cost = 3
 	card.damage = 10
 	card.base_damage = 10
-	card.chance_effect_percent = 50.0
+	# Chance lives in the card-level binary roll (does the cone spread?). The
+	# fire line always hits, so per-enemy rolls (chance_effect_percent) would
+	# only paint false red "miss" tiles on enemies the line is guaranteed to hit.
 	card.rng_outcomes_data = [{percent = 50.0}]
 	card.is_aoe = true
 	card.aoe_shape = "line"

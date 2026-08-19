@@ -2369,17 +2369,19 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		_enemy_figure.set_facing_from_velocity(Vector3(face_diff.x, 0, face_diff.z))
 
 	var effective_damage = max(0, base_damage - attack_reduction)
-	# Weaken (Fan Save): -30% damage dealt, one stack consumed per attack.
+	# Weaken (Fan Save): -30% damage dealt (plus the player's Weaken Amp sphere
+	# nodes), one stack consumed per attack.
+	var weaken_percent: float = 30.0 + _player_sphere_amp("sphere_weaken_amp")
 	if weaken_stacks > 0:
-		effective_damage = floori(effective_damage * 0.7)
+		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - weaken_percent / 100.0))
 		weaken_stacks -= 1
-		print("[%s] Weakened! -30%% damage (%d stacks left)" % [enemy_name, weaken_stacks])
+		print("[%s] Weakened! -%d%% damage (%d stacks left)" % [enemy_name, int(weaken_percent), weaken_stacks])
 		_update_status_indicators()
 	elif zone_weakened:
-		# Territorial Mark: the same -30%, but persistent while inside the
+		# Territorial Mark: the same reduction, but persistent while inside the
 		# zone — no stack to consume, it lifts the moment the enemy leaves.
-		effective_damage = floori(effective_damage * 0.7)
-		print("[%s] Weakened by the Territorial Mark! -30%% damage" % enemy_name)
+		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - weaken_percent / 100.0))
+		print("[%s] Weakened by the Territorial Mark! -%d%% damage" % [enemy_name, int(weaken_percent)])
 	print("[%s] %s for %d damage! (base %d, reduction %d)" % [enemy_name, attack_name, effective_damage, base_damage, attack_reduction])
 
 	# Summon targets (Frankensteins Monster, surfaced Bull Worms) have no player
@@ -2713,6 +2715,17 @@ func attack_player(player_node: Node3D) -> void:
 ## Deal damage to this enemy. Armor absorbs first, remainder hits health.
 ## Set from_player = true when the damage originates from the player's card/attack.
 ## Returns true if the enemy was just Exposed (armor broken to 0).
+## The player's sphere-grid debuff amps (Vuln Amp / Weaken Amp nodes) apply to
+## every Vulnerable/Weaken this enemy carries. Enemies sit under main, which
+## holds the player — returns 0 outside that tree (tests, summons).
+func _player_sphere_amp(field: String) -> float:
+	var main = get_parent()
+	if main and "player" in main and main.player and main.player.has_method("get_stats"):
+		var stats = main.player.get_stats()
+		if stats and field in stats:
+			return float(stats.get(field))
+	return 0.0
+
 func take_damage(amount: int, from_player: bool = false, damage_type: int = DamageTypes.Type.PHYSICAL, ignore_armor: bool = false) -> bool:
 	# ignore_armor: skip the armor-absorption chain entirely so the full amount
 	# hits health (Neither Man nor Beast "ignoring all resistances and armor").
@@ -2773,11 +2786,13 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	if from_player and void_resistance_percent > 0.0:
 		amount = floori(amount * (1.0 + void_resistance_percent / 100.0))
 
-	# Vulnerable: the hit lands 30% harder, consuming one stack.
+	# Vulnerable: the hit lands 30% harder (plus the player's Vuln Amp sphere
+	# nodes), consuming one stack.
 	if from_player and vulnerable_stacks > 0:
-		amount = floori(amount * 1.3)
+		var vuln_percent: float = 30.0 + _player_sphere_amp("sphere_vulnerable_amp")
+		amount = floori(amount * (1.0 + vuln_percent / 100.0))
 		vulnerable_stacks -= 1
-		print("[%s] Vulnerable! +30%% damage (%d stacks left)" % [enemy_name, vulnerable_stacks])
+		print("[%s] Vulnerable! +%d%% damage (%d stacks left)" % [enemy_name, int(vuln_percent), vulnerable_stacks])
 		_update_status_indicators()
 
 	# Jordan 1s: below the threshold health %, add rate × missing-health% damage.

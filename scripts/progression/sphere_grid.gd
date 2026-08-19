@@ -148,12 +148,12 @@ func _build_grid() -> void:
 
 	# === Ring 1: 6 nodes at radius 90 (pushed out from 70) ===
 	var ring1_types = [
-		[NodeType.STAT_BONUS, "STR +2", "Strength +2"],
-		[NodeType.STAT_BONUS, "DEX +2", "Dexterity +2"],
-		[NodeType.STAT_BONUS, "INT +2", "Intelligence +2"],
-		[NodeType.STAT_BONUS, "WIS +2", "Wisdom +2"],
-		[NodeType.STAT_BONUS, "AGI +2", "Agility +2"],
-		[NodeType.STAT_BONUS, "DET +2", "Determination +2"],
+		[NodeType.STAT_BONUS, "STR +1", "Strength +1"],
+		[NodeType.STAT_BONUS, "DEX +1", "Dexterity +1"],
+		[NodeType.STAT_BONUS, "INT +1", "Intelligence +1"],
+		[NodeType.STAT_BONUS, "WIS +1", "Wisdom +1"],
+		[NodeType.STAT_BONUS, "AGI +1", "Agility +1"],
+		[NodeType.STAT_BONUS, "DET +1", "Determination +1"],
 	]
 	_create_ring(1, 6, 90.0, center, ring1_types, 1)
 
@@ -172,17 +172,17 @@ func _build_grid() -> void:
 	# (ring1 node 1+i connects to ring2 nodes 7+i*2 and 7+i*2+1):
 	#   STR -> 7,8 | DEX -> 9,10 | INT -> 11,12 | WIS -> 13,14 | AGI -> 15,16 | DET -> 17,18
 	var ring2_types = [
-		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],   # STR branch
+		[NodeType.STAT_BONUS, "STR +1", "Strength +1"],   # STR branch
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # STR branch -> HP
-		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],  # DEX branch
+		[NodeType.STAT_BONUS, "DEX +1", "Dexterity +1"],  # DEX branch
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DEX branch -> HP
-		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"], # INT branch
+		[NodeType.STAT_BONUS, "INT +1", "Intelligence +1"], # INT branch
 		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # INT branch -> Mana
-		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],     # WIS branch
+		[NodeType.STAT_BONUS, "WIS +1", "Wisdom +1"],     # WIS branch
 		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # WIS branch -> Mana
-		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],    # AGI branch
+		[NodeType.STAT_BONUS, "AGI +1", "Agility +1"],    # AGI branch
 		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # AGI branch -> Mana
-		[NodeType.STAT_BONUS, "DET +3", "Determination +3"], # DET branch
+		[NodeType.STAT_BONUS, "DET +1", "Determination +1"], # DET branch
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DET branch -> HP
 	]
 	_create_ring(7, 12, 170.0, center, ring2_types, 2)
@@ -198,26 +198,26 @@ func _build_grid() -> void:
 	# === Ring 3: 12 nodes at radius 260 — each stat arm continues outward ===
 	# Every Ring 2 arm (stat node + HP/Mana node) fans into two Ring 3 nodes that
 	# sit directly outside their Ring 2 parents (same 12 angular slots as Ring 2):
-	#   * outside each STAT node -> a FREE_STAT "+4 Stats" node (points banked to
+	#   * outside each STAT node -> a FREE_STAT "+3 Stats" node (points banked to
 	#     the player's pool, allocated freely on the stat screen)
 	#   * outside each HP/Mana node -> a bigger vitality node (HP +12 / Mana +7)
 	# The stat node also links across to its arm's vitality node, and the vitality
 	# type always matches the stat (HP for STR/DEX/DET, Mana for INT/WIS/AGI), so a
-	# DET arm reads DET -> {+4 Stats, HP} exactly as requested.
+	# DET arm reads DET -> {+3 Stats, HP} exactly as requested.
 	# Order mirrors Ring 2 (ids 7..18): STR-stat, STR-hp, DEX-stat, DEX-hp,
 	# INT-stat, INT-mana, WIS-stat, WIS-mana, AGI-stat, AGI-mana, DET-stat, DET-hp.
 	var ring3_types = [
-		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 7  (STR)
+		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 7  (STR)
 		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 8  (STR HP)
-		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 9  (DEX)
+		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 9  (DEX)
 		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 10 (DEX HP)
-		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 11 (INT)
+		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 11 (INT)
 		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 12 (INT Mana)
-		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 13 (WIS)
+		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 13 (WIS)
 		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 14 (WIS Mana)
-		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 15 (AGI)
+		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 15 (AGI)
 		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 16 (AGI Mana)
-		[NodeType.FREE_STAT, "+4 Stats", "Bank 4 stat points to spend however you like"], # outside 17 (DET)
+		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 17 (DET)
 		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 18 (DET HP)
 	]
 	_create_ring(19, 12, 260.0, center, ring3_types, 3)
@@ -256,27 +256,27 @@ func _build_grid() -> void:
 	var ring4_types = [
 		[NodeType.PASSIVE, "Passive", "On crit: deal 50% bonus"],
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],
-		[NodeType.STAT_BONUS, "STR +4", "Strength +4"],
-		[NodeType.COMBAT_BONUS, "Block +2", "Block cards grant +2 additional block"],
+		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
+		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
 		[NodeType.PASSIVE, "Passive", "On kill: draw 1 card"],
-		[NodeType.COMBAT_BONUS, "Life Steal +2%", "Heal for 2% of damage dealt"],
-		[NodeType.STAT_BONUS, "DEX +4", "Dexterity +4"],
-		[NodeType.COMBAT_BONUS, "Thorns +2", "Deal 2 damage to attackers when hit"],
+		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Heal for 1% of damage dealt"],
+		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
+		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
-		[NodeType.STAT_BONUS, "INT +4", "Intelligence +4"],
-		[NodeType.COMBAT_BONUS, "Damage +3", "All attacks deal +3 bonus damage"],
+		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
+		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
 		[NodeType.PASSIVE, "Passive", "On tempo cycle: all enemies -1 armor"],
-		[NodeType.COMBAT_BONUS, "Resist +3%", "Reduce all incoming damage by 3%"],
-		[NodeType.STAT_BONUS, "WIS +4", "Wisdom +4"],
-		[NodeType.COMBAT_BONUS, "Heal +3", "Heal cards restore +3 additional HP"],
+		[NodeType.COMBAT_BONUS, "Resist +1%", "Reduce all incoming damage by 1%"],
+		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
+		[NodeType.COMBAT_BONUS, "Heal +1", "Heal cards restore +1 additional HP"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 armor each tempo cycle"],
-		[NodeType.STAT_BONUS, "AGI +4", "Agility +4"],
-		[NodeType.COMBAT_BONUS, "Crit +5%", "Critical hit chance +5%"],
+		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],
+		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%"],
 		[NodeType.PASSIVE, "Passive", "On move: 10% gain haste"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.STAT_BONUS, "DET +4", "Determination +4"],
+		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 	]
 	_create_ring(37, 24, 350.0, center, ring4_types, 4)
@@ -294,47 +294,47 @@ func _build_grid() -> void:
 	# IDs 61..99 (39 nodes)
 	var ring5_types: Array = []
 	var r5_labels = [
-		[NodeType.COMBAT_BONUS, "Block +3", "Block cards grant +3 additional block"],
+		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
 		[NodeType.PASSIVE, "Passive", "On attack: 5% stun enemy"],
-		[NodeType.STAT_BONUS, "STR +5", "Strength +5"],
+		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
 		[NodeType.PASSIVE, "Passive", "On kill: gain 3 armor"],
-		[NodeType.STAT_BONUS, "DEX +5", "Dexterity +5"],
+		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
 		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
-		[NodeType.COMBAT_BONUS, "Thorns +3", "Deal 3 damage to attackers when hit"],
+		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
-		[NodeType.STAT_BONUS, "INT +5", "Intelligence +5"],
+		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
-		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.COMBAT_BONUS, "Damage +4", "All attacks deal +4 bonus damage"],
-		[NodeType.STAT_BONUS, "WIS +5", "Wisdom +5"],
-		[NodeType.COMBAT_BONUS, "Life Steal +3%", "Heal for 3% of damage dealt"],
-		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.COMBAT_BONUS, "Heal +4", "Heal cards restore +4 additional HP"],
+		[NodeType.COMBAT_BONUS, "Vuln Amp +25%", "Vulnerable you apply amplifies damage by an extra 25% (30% base)"],
+		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
+		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
+		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Heal for 1% of damage dealt"],
+		[NodeType.COMBAT_BONUS, "Weaken Amp +25%", "Weaken you apply saps an extra 25% of enemy damage (30% base)"],
+		[NodeType.COMBAT_BONUS, "Heal +1", "Heal cards restore +1 additional HP"],
 		# Flash Reserves (AGI flash → draw) retired: card-drawing is Wisdom's
 		# domain now (brain points). Node kept as a connector; refill with a
 		# body-flavored AGI keystone later.
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
 		[NodeType.PASSIVE, "Passive", "On cycle: 20% gain empower"],
-		[NodeType.STAT_BONUS, "DET +5", "Determination +5"],
-		[NodeType.COMBAT_BONUS, "Crit +20%", "Critical hit chance +20%", {"req": {"stat": "dexterity", "value": 20}}],
+		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
+		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%", {"req": {"stat": "dexterity", "value": 20}}],
 		[NodeType.PASSIVE, "Passive", "On heal: overheal becomes armor"],
-		[NodeType.COMBAT_BONUS, "Range +2", "Ranged attacks gain +2 range"],
+		[NodeType.COMBAT_BONUS, "Range +1", "Ranged attacks gain +1 range"],
 		[NodeType.KEYSTONE, "Bulwark Soul", "Keystone: gain +2 max health per point of Determination — past and future.", {"req": {"stat": "determination", "value": 12}, "keystone": "det_vitality"}],
-		[NodeType.COMBAT_BONUS, "Armor +4", "Start each combat with +4 armor"],
+		[NodeType.COMBAT_BONUS, "Armor +1", "Start each combat with +1 armor"],
 		[NodeType.PASSIVE, "Passive", "On crit: heal 3 HP"],
 		[NodeType.HEALTH, "HP +25", "Max Health +25"],
 		[NodeType.KEYSTONE, "Deadeye Form", "Keystone: ranged attacks scale with Dexterity instead of Strength.", {"req": {"stat": "dexterity", "value": 15}, "keystone": "dex_ranged"}],
-		[NodeType.COMBAT_BONUS, "Block +4", "Block cards grant +4 additional block"],
+		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
-		[NodeType.COMBAT_BONUS, "Resist +5%", "Reduce all incoming damage by 5%"],
-		[NodeType.STAT_BONUS, "INT +6", "Intelligence +6"],
-		[NodeType.COMBAT_BONUS, "Arm/Cyc +2", "Gain 2 armor each tempo cycle"],
+		[NodeType.COMBAT_BONUS, "Resist +1%", "Reduce all incoming damage by 1%"],
+		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
+		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 armor each tempo cycle"],
 		[NodeType.PASSIVE, "Passive", "On move: next card costs 1 less"],
 		[NodeType.HEALTH, "HP +30", "Max Health +30"],
-		[NodeType.STAT_BONUS, "WIS +6", "Wisdom +6"],
-		[NodeType.COMBAT_BONUS, "Regen +2", "Regenerate 2 HP per tempo cycle"],
+		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
+		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
 		[NodeType.PASSIVE, "Passive", "On tempo cycle: draw 1 card"],
 	]
 	for entry in r5_labels:
@@ -354,31 +354,31 @@ func _build_grid() -> void:
 	# === Ring 6 (outermost): 30 nodes at radius 540 ===
 	# IDs 100..129 — high-tier nodes with advanced bonuses
 	var ring6_types: Array = [
-		[NodeType.COMBAT_BONUS, "Crit +7%", "Critical hit chance +7%"],
-		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.STAT_BONUS, "STR +7", "Strength +7"],
+		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%"],
+		[NodeType.COMBAT_BONUS, "Vuln Amp +25%", "Vulnerable you apply amplifies damage by an extra 25% (stacks with other Vuln Amp nodes)"],
+		[NodeType.STAT_BONUS, "STR +5", "Strength +5"],
 		[NodeType.KEYSTONE, "Weighted Strikes", "Keystone: your basic attack gains a heavy weapon's weight-to-damage bonus even wielded one-handed (+1 damage per 10 weapon weight).", {"req": {"stat": "strength", "value": 15}, "keystone": "str_weight_basic"}],
 		[NodeType.KEYSTONE, "Balanced Load", "Keystone: pick an equipment slot — its items weigh 10% less, stacking with any other weight reduction on that slot.", {"req": {"stat": "strength", "value": 15}, "keystone": "str_light_slot"}],
-		[NodeType.STAT_BONUS, "DEX +7", "Dexterity +7"],
+		[NodeType.STAT_BONUS, "DEX +5", "Dexterity +5"],
 		[NodeType.KEYSTONE, "Flurry Form", "Keystone: your Dexterity attack proc now strikes TWICE, but every attack deals 2 less damage — a faster, lighter flurry.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_twin_strike"}],
 		[NodeType.KEYSTONE, "Arcane Ward", "Keystone: every time your mana regenerates, gain armor equal to half your Intelligence.", {"req": {"stat": "intelligence", "value": 15}, "keystone": "int_regen_armor"}],
 		[NodeType.PASSIVE, "Passive", "On kill: draw 2 cards and gain 2 mana"],
-		[NodeType.STAT_BONUS, "INT +7", "Intelligence +7"],
+		[NodeType.STAT_BONUS, "INT +5", "Intelligence +5"],
 		[NodeType.KEYSTONE, "Arcane Echo", "Keystone: each spell you cast has an INT/3% chance to deal INT/2 bonus damage to a random enemy.", {"req": {"stat": "intelligence", "value": 15}, "keystone": "int_spell_proc"}],
 		[NodeType.PASSIVE, "Passive", "On spell cast: 10% refund full mana cost"],
 		[NodeType.KEYSTONE, "Quick Study", "Keystone: whenever your hand empties, immediately draw 1 card — without disturbing the countdown to your next timed draw.", {"req": {"stat": "wisdom", "value": 15}, "keystone": "wis_empty_draw"}],
-		[NodeType.STAT_BONUS, "WIS +7", "Wisdom +7"],
+		[NodeType.STAT_BONUS, "WIS +5", "Wisdom +5"],
 		[NodeType.KEYSTONE, "Tactician's Eye", "Keystone: gain +2% critical hit chance for every card currently in your hand.", {"req": {"stat": "wisdom", "value": 15}, "keystone": "wis_hand_crit"}],
 		[NodeType.PASSIVE, "Passive", "On block: heal 3 HP"],
-		[NodeType.COMBAT_BONUS, "Heal +6", "Heal cards restore +6 additional HP"],
-		[NodeType.STAT_BONUS, "AGI +7", "Agility +7"],
+		[NodeType.COMBAT_BONUS, "Heal +1", "Heal cards restore +1 additional HP"],
+		[NodeType.STAT_BONUS, "AGI +5", "Agility +5"],
 		[NodeType.KEYSTONE, "Flash Cut", "Keystone: the Sidestep action becomes an attack — spend 3 Flash points to strike the nearest enemy for 1 damage instead of gaining block.", {"req": {"stat": "agility", "value": 15}, "keystone": "flash_strike"}],
 		[NodeType.PASSIVE, "Passive", "On move: gain 2 armor and 1 mana"],
-		[NodeType.STAT_BONUS, "DET +7", "Determination +7"],
-		[NodeType.COMBAT_BONUS, "Block +5", "Block cards grant +5 additional block"],
+		[NodeType.STAT_BONUS, "DET +5", "Determination +5"],
+		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
 		[NodeType.PASSIVE, "Passive", "On tempo cycle: all enemies take 2 damage"],
 		[NodeType.HEALTH, "HP +35", "Max Health +35"],
-		[NodeType.COMBAT_BONUS, "Thorns +5", "Deal 5 damage to attackers when hit"],
+		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
 		[NodeType.MANA, "Mana +15", "Max Mana +15"],
 		[NodeType.KEYSTONE, "Killing Rhythm", "Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_flat_damage"}],
@@ -410,22 +410,22 @@ func _build_grid() -> void:
 func _shelved_ring3_nodes() -> Array:
 	return [
 		{ "type": NodeType.COMBAT_BONUS, "label": "Block +1", "desc": "Block cards grant +1 additional block" },
-		{ "type": NodeType.STAT_BONUS, "label": "STR +3", "desc": "Strength +3" },
+		{ "type": NodeType.STAT_BONUS, "label": "STR +1", "desc": "Strength +1" },
 		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On attack: 10% apply bleed" },
 		{ "type": NodeType.COMBAT_BONUS, "label": "Thorns +1", "desc": "Deal 1 damage to attackers when hit" },
-		{ "type": NodeType.STAT_BONUS, "label": "DEX +3", "desc": "Dexterity +3" },
+		{ "type": NodeType.STAT_BONUS, "label": "DEX +1", "desc": "Dexterity +1" },
 		{ "type": NodeType.CULLING_STONE, "label": "Cull Stone", "desc": "Grants 1 Culling Stone" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Damage +2", "desc": "All attacks deal +2 bonus damage" },
-		{ "type": NodeType.STAT_BONUS, "label": "INT +3", "desc": "Intelligence +3" },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Damage +1", "desc": "All attacks deal +1 bonus damage" },
+		{ "type": NodeType.STAT_BONUS, "label": "INT +1", "desc": "Intelligence +1" },
 		{ "type": NodeType.RETROSPECTIVE, "label": "Retrospect", "desc": "Reclaim a skipped skill tree reward" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Heal +2", "desc": "Heal cards restore +2 additional HP" },
-		{ "type": NodeType.STAT_BONUS, "label": "WIS +3", "desc": "Wisdom +3" },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Heal +1", "desc": "Heal cards restore +1 additional HP" },
+		{ "type": NodeType.STAT_BONUS, "label": "WIS +1", "desc": "Wisdom +1" },
 		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On heal: 15% cleanse debuff" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +3%", "desc": "Critical hit chance +3%" },
-		{ "type": NodeType.STAT_BONUS, "label": "AGI +3", "desc": "Agility +3" },
+		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +1%", "desc": "Critical hit chance +1%" },
+		{ "type": NodeType.STAT_BONUS, "label": "AGI +1", "desc": "Agility +1" },
 		{ "type": NodeType.COMBAT_BONUS, "label": "Regen +1", "desc": "Regenerate 1 HP per tempo cycle" },
 		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +1%", "desc": "Critical hit chance +1%" },
-		{ "type": NodeType.STAT_BONUS, "label": "DET +3", "desc": "Determination +3" },
+		{ "type": NodeType.STAT_BONUS, "label": "DET +1", "desc": "Determination +1" },
 		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On block: reflect 2 damage" },
 	]
 
@@ -465,7 +465,7 @@ func _build_constellations() -> void:
 	_constellation_map.clear()
 
 	# --- PAIR 1: STR Sector — Iron Will vs Blood Hunter ---
-	# Shared nodes: 1 (STR+2), 8 (STR-branch HP)
+	# Shared nodes: 1 (STR+1), 8 (STR-branch HP)
 	# Iron Will goes toward HP/Life Steal; Blood Hunter toward Bleed/Wear Down
 	_add_constellation(Constellation.new(
 		"iron_will", "Iron Will",
@@ -483,7 +483,7 @@ func _build_constellations() -> void:
 	))
 
 	# --- PAIR 2: INT Sector — Arcane Current vs Mind Weaver ---
-	# Shared nodes: 3 (INT+2), 11 (INT+3)
+	# Shared nodes: 3 (INT+1), 11 (INT+1)
 	# Arcane Current goes toward raw spell power; Mind Weaver toward card economy
 	_add_constellation(Constellation.new(
 		"arcane_current", "Arcane Current",

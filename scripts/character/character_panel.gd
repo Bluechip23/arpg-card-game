@@ -756,6 +756,14 @@ func _build_combat_info_text() -> String:
 		res_parts.append("All damage %.0f%%" % player_stats.sphere_bonus_resistance)
 	lines.append("Resists      " + (", ".join(res_parts) if res_parts.size() > 0 else "none"))
 
+	# Sphere-grid debuff amps: how much harder the player's Vulnerable/Weaken hit.
+	if player_stats.sphere_vulnerable_amp > 0.0:
+		lines.append("Vuln Amp     +%.0f%%  (Vulnerable amplifies %d%% total)" % [
+			player_stats.sphere_vulnerable_amp, int(30.0 + player_stats.sphere_vulnerable_amp)])
+	if player_stats.sphere_weaken_amp > 0.0:
+		lines.append("Weaken Amp   +%.0f%%  (Weaken saps %d%% total)" % [
+			player_stats.sphere_weaken_amp, int(30.0 + player_stats.sphere_weaken_amp)])
+
 	# Determination: stats scale with missing health. Show where the hero
 	# stands now and exactly what their stats become at 50% health.
 	var hp_pct := 0

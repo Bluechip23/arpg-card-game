@@ -110,15 +110,61 @@ func hide_indicator() -> void:
 func _process(delta: float) -> void:
 	if visible:
 		_rebuild_mesh()
+		_refresh_rng_tiles()
 
 func set_mouse_world_position(pos: Vector3) -> void:
 	mouse_world_pos = pos
 
+# ============================================
+# PER-ENEMY CHANCE TILES (green = hit, red = miss)
+# ============================================
+
+var _rng_card: Card = null
+var _rng_enemies: Array = []
+var _rng_tiles: Dictionary = {}  # enemy instance id -> MeshInstance3D
+
 func update_enemy_rng_indicators(enemies: Array, card: Card) -> void:
-	# RNG indicators are handled in the UI layer now - no 3D indicators needed
-	if not card.has_chance_effect():
-		return
-	# The RNG visual feedback is shown through the card UI system
+	## While a chance AOE card is selected, tile each enemy inside the shape
+	## green or red for its PRE-ROLLED outcome (card.get_rng_outcome), so the
+	## preview always matches what resolves when the card is played.
+	_rng_enemies = enemies
+	_rng_card = card if (card != null and card.chance_effect_percent > 0.0) else null
+	_refresh_rng_tiles()
+
+func _refresh_rng_tiles() -> void:
+	var wanted := {}
+	if visible and _rng_card != null:
+		for enemy in _rng_enemies:
+			if is_instance_valid(enemy) and not enemy.is_dead and _is_enemy_in_aoe(enemy):
+				wanted[enemy.get_instance_id()] = enemy
+	for id in wanted:
+		var tile: MeshInstance3D = _rng_tiles.get(id)
+		if tile == null:
+			tile = _make_rng_tile()
+			_rng_tiles[id] = tile
+		var enemy = wanted[id]
+		tile.visible = true
+		tile.global_position = Vector3(enemy.global_position.x, 0.03, enemy.global_position.z)
+		var mat := tile.material_override as StandardMaterial3D
+		mat.albedo_color = Color(0.15, 0.9, 0.25, 0.45) if _rng_card.get_rng_outcome(enemy) \
+			else Color(0.95, 0.12, 0.1, 0.45)
+	for id in _rng_tiles:
+		if not wanted.has(id):
+			_rng_tiles[id].visible = false
+
+func _make_rng_tile() -> MeshInstance3D:
+	var tile := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(0.9, 0.9)  # slightly inside a 1.0 grid cell
+	tile.mesh = plane
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.no_depth_test = true
+	tile.material_override = mat
+	add_child(tile)  # inherits the indicator's visibility, so hide_indicator() hides tiles too
+	return tile
 
 func _is_enemy_in_aoe(enemy) -> bool:
 	var diff = enemy.global_position - global_position
@@ -138,4 +184,16 @@ func _is_enemy_in_aoe(enemy) -> bool:
 		var angle_threshold = cos(deg_to_rad(cone_angle / 2.0))
 		return dot >= angle_threshold
 
-	return true  # Circle and line - just check range
+	if shape == "line":
+		# Match the resolution corridor (get_enemies_in_line uses width 0.8):
+		# inside the segment along the aim direction AND close enough sideways.
+		var local_mouse = mouse_world_pos - global_position
+		var dir = Vector3(local_mouse.x, 0, local_mouse.z).normalized()
+		if dir.length() < 0.01:
+			return false
+		var along = flat_diff.dot(dir)
+		if along < 0.0 or along > aoe_range:
+			return false
+		return (flat_diff - dir * along).length() <= 0.8
+
+	return true  # Circle - just check range

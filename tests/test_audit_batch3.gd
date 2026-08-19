@@ -55,12 +55,14 @@ func _initialize() -> void:
 		"empowered block is %d less armor" % stats.empower_block_reduction)
 	stats.free()
 
-	# --- D6/D7: nodes 72, 76, 101 are null connectors ---
+	# --- D6/D7: former null connectors 72, 76, 101 now hold the debuff-amp
+	# nodes (Vuln Amp / Weaken Amp), added in the playstyle-amplification pass ---
 	var grid = SphereGrid.new()
-	for nid in [72, 76, 101]:
-		var node = grid.get_node_by_id(nid)
-		_check(node != null and node.node_type == SphereGrid.NodeType.NULL_NODE,
-			"sphere node %d is a NULL_NODE" % nid)
+	for pair in [[72, "Vuln Amp +25%"], [76, "Weaken Amp +25%"], [101, "Vuln Amp +25%"]]:
+		var node = grid.get_node_by_id(pair[0])
+		_check(node != null and node.node_type == SphereGrid.NodeType.COMBAT_BONUS \
+			and node.label == pair[1],
+			"sphere node %d is the '%s' amp node" % [pair[0], pair[1]])
 
 	# --- D9: Cover's dead reaction tempo cost removed ---
 	_check(Card.create_cover().tempo_cost == 0, "Cover (reaction) charges no tempo")
