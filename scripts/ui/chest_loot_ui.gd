@@ -85,7 +85,8 @@ func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) ->
 	margin.add_child(vbox)
 
 	# Title
-	var has_rewards = contents.get("item") != null or contents.get("card") != null
+	var has_rewards = contents.get("item") != null or contents.get("card") != null \
+		or contents.get("card_pack") != null
 	var title = Label.new()
 	title.text = "Treasure Chest!" if gold_just_claimed else ("Unclaimed Loot" if has_rewards else "Empty Chest")
 	title.add_theme_font_size_override("font_size", 22)
@@ -152,6 +153,32 @@ func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) ->
 			btn_hbox.add_child(slot_btn)
 
 		vbox.add_child(btn_hbox)
+
+	# Card pack reward
+	var pack_tier = contents.get("card_pack")
+	if pack_tier != null:
+		vbox.add_child(HSeparator.new())
+		var pack := CardPack.create(pack_tier)
+		var pack_lbl = Label.new()
+		pack_lbl.text = pack.get_display_name()
+		pack_lbl.add_theme_font_size_override("font_size", 18)
+		pack_lbl.add_theme_color_override("font_color", pack.get_tier_color())
+		pack_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(pack_lbl)
+		var pack_desc = Label.new()
+		pack_desc.text = "A sealed pack of %d cards." % int(DropRates.PACK_CARD_COUNT.get(pack_tier, 3))
+		pack_desc.add_theme_font_size_override("font_size", 13)
+		pack_desc.add_theme_color_override("font_color", Color(0.8, 0.8, 0.85))
+		pack_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(pack_desc)
+		var open_btn = Button.new()
+		open_btn.text = "Open Pack"
+		open_btn.custom_minimum_size = Vector2(150, 36)
+		open_btn.add_theme_font_size_override("font_size", 15)
+		_style_chest_button(open_btn, Color(0.3, 0.15, 0.4), Color(0.6, 0.35, 0.8))
+		open_btn.pressed.connect(_on_chest_open_pack.bind(pack))
+		open_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		vbox.add_child(open_btn)
 
 	vbox.add_child(HSeparator.new())
 
@@ -278,14 +305,16 @@ func _get_compatible_items_for_card(card: Card, inv: Inventory) -> Array[ItemDat
 	return result
 
 func _on_chest_pick_up_item(item: ItemData) -> void:
+	# Mythics get the full reveal sequence (glow → present → icon) instead of
+	# slipping quietly into the bag; the item is stored when the sequence ends.
+	if item.rarity == ItemData.Rarity.MYTHIC:
+		main.dungeon_manager.remove_chest_item(_current_chest_idx)
+		_close_chest_modal()
+		main._start_mythic_reveal(item, main.player)
+		return
 	var inv = main.player.get_inventory()
 	if inv.store_item(item):
 		main.add_battle_log("Picked up %s!" % item.item_name, Color(1.0, 0.85, 0.3))
-		# Mythic ownership history: molds only recreate mythics the
-		# character has actually held.
-		if item.rarity == ItemData.Rarity.MYTHIC and main.current_character \
-				and not main.current_character.owned_mythic_names.has(item.item_name):
-			main.current_character.owned_mythic_names.append(item.item_name)
 		main.dungeon_manager.remove_chest_item(_current_chest_idx)
 	else:
 		main.add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))
@@ -321,6 +350,74 @@ func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
 		main.dungeon_manager.remove_chest_card(_current_chest_idx)
 	_close_chest_modal()
 
+func _on_chest_open_pack(pack: CardPack) -> void:
+	## Rip the pack open: cards roll fresh, land in the card inventory, and a
+	## small results modal shows what was pulled.
+	var inv = main.player.get_inventory()
+	var cards: Array = pack.open()
+	var pulled: Array[String] = []
+	for pc in cards:
+		if inv and inv.store_card(pc):
+			pulled.append(pc.card_name)
+		else:
+			main.add_battle_log("Card inventory full! %s was lost." % pc.card_name, Color(1.0, 0.4, 0.4))
+	main.add_battle_log("Opened a %s: %s" % [pack.get_display_name(), ", ".join(pulled)], pack.get_tier_color())
+	main.dungeon_manager.remove_chest_pack(_current_chest_idx)
+	_close_chest_modal()
+	_show_pack_results(pack, cards)
+
+func _show_pack_results(pack: CardPack, cards: Array) -> void:
+	## Lightweight reveal panel: the pack's name and each card pulled, colored
+	## by its own rarity. Auto-dismissed by its Close button.
+	var ui = main.get_node("UI") as CanvasLayer
+	var panel = PanelContainer.new()
+	panel.name = "PackResults"
+	panel.custom_minimum_size = Vector2(320, 0)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.07, 0.1, 0.98)
+	style.set_border_width_all(2)
+	style.border_color = pack.get_tier_color()
+	style.set_corner_radius_all(10)
+	panel.add_theme_stylebox_override("panel", style)
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	panel.add_child(margin)
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+	var title = Label.new()
+	title.text = "%s opened!" % pack.get_display_name()
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", pack.get_tier_color())
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+	vbox.add_child(HSeparator.new())
+	for pc in cards:
+		var lbl = Label.new()
+		lbl.text = "%s  (%s)" % [pc.card_name, pc.get_rarity_name()]
+		lbl.add_theme_font_size_override("font_size", 14)
+		match pc.get_rarity():
+			Card.Rarity.RARE: lbl.add_theme_color_override("font_color", Color(0.4, 0.6, 1.0))
+			Card.Rarity.LEGENDARY: lbl.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
+			Card.Rarity.MYTHIC: lbl.add_theme_color_override("font_color", Color(0.9, 0.35, 0.9))
+			_: lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(lbl)
+	var close = Button.new()
+	close.text = "Nice!"
+	close.custom_minimum_size = Vector2(110, 32)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_style_chest_button(close, Color(0.15, 0.35, 0.2), Color(0.35, 0.7, 0.4))
+	close.pressed.connect(panel.queue_free)
+	vbox.add_child(close)
+	ui.add_child(panel)
+
 func _on_chest_overlay_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_close_chest_modal()
@@ -332,7 +429,8 @@ func _close_chest_modal() -> void:
 		var contents = chest["contents"]
 		var has_item = contents.get("item") != null
 		var has_card = contents.get("card") != null
-		if not has_item and not has_card:
+		var has_pack = contents.get("card_pack") != null
+		if not has_item and not has_card and not has_pack:
 			main.dungeon_manager.mark_chest_looted(_current_chest_idx)
 
 	_current_chest_idx = -1

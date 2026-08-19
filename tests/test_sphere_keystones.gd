@@ -25,7 +25,7 @@ func _initialize() -> void:
 		"node 85 is the Bulwark Soul keystone")
 	var crit_gate = grid.get_node_by_id(82)
 	_check(crit_gate.requirements.get("stat", "") == "dexterity" and crit_gate.requirements.get("value", 0) == 20,
-		"Crit +20 node is gated behind DEX 20")
+		"Crit node (id 82) is gated behind DEX 20")
 	_check(grid.get_node_by_id(58).node_type == SphereGrid.NodeType.NULL_NODE
 		and grid.get_node_by_id(60).node_type == SphereGrid.NodeType.NULL_NODE,
 		"ring 4 null connectors exist (ids 58, 60)")
@@ -50,12 +50,12 @@ func _initialize() -> void:
 		"future DET points keep granting +2 HP each")
 
 	# --- Keystone flags survive save/restore ---
-	stats.keystone_flash_draw = true
+	stats.keystone_dex_ranged = true
 	var saved = stats.save_progression()
 	var fresh = load("res://scripts/character/player_stats.gd").new()
 	fresh.initialize(CharacterData.create_ryan())
 	fresh.restore_progression(saved)
-	_check(fresh.keystone_det_vitality and fresh.keystone_flash_draw,
+	_check(fresh.keystone_det_vitality and fresh.keystone_dex_ranged,
 		"keystones survive save/restore")
 	_check(fresh.max_health == stats.max_health, "Bulwark HP survives save/restore")
 

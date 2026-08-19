@@ -21,6 +21,9 @@ var _list_vbox: VBoxContainer = null
 var _status_label: Label = null
 var _filter_edit: LineEdit = null
 var _left_column: VBoxContainer = null
+var _viewport: SubViewport = null
+var _camera: Camera3D = null
+var _reveal: MythicReveal = null  # active Mythic Reveal preview, if any
 
 # Each entry button: { "button": Button, "search": String }
 var _entry_buttons: Array[Dictionary] = []
@@ -140,6 +143,9 @@ func _build_viewport() -> void:
 	vp.transparent_bg = false
 	vp.msaa_3d = Viewport.MSAA_4X
 	vp_container.add_child(vp)
+	_viewport = vp
+	# Clicks in the preview drive click-to-advance sequences (Mythic Reveal).
+	vp_container.gui_input.connect(_on_viewport_input)
 
 	# World environment so the shaded figure is clearly lit.
 	var world_env := WorldEnvironment.new()
@@ -172,6 +178,7 @@ func _build_viewport() -> void:
 	camera.position = Vector3(0, 1.35, 3.0)
 	vp.add_child(camera)
 	camera.look_at(Vector3(0, 0.7, 0), Vector3.UP)
+	_camera = camera
 
 	_figure = SpriteFigure.new()
 	vp.add_child(_figure)
@@ -239,6 +246,7 @@ func _populate_list() -> void:
 	_add_section_header("SYSTEMIC")
 	# Feedback driven by game events rather than cards (previewable here).
 	_add_entry("Level Up", "level_up", "level up levelup mist swirl")
+	_add_entry("Mythic Reveal", "mythic_reveal", "mythic reveal loot glow present gift ribbon icon")
 
 	_add_section_header("PASSIVES")
 	for entry in _collect_passives():
@@ -344,7 +352,8 @@ func _on_entry_selected(label: String, action: String, grants_armor: bool = fals
 	_current_armor = grants_armor
 	_current_heal = grants_heal
 	_play_current()
-	_status_label.text = "%s  →  action: \"%s\"" % [label, action]
+	if action != "mythic_reveal":  # the reveal preview writes its own status line
+		_status_label.text = "%s  →  action: \"%s\"" % [label, action]
 
 
 func _on_replay() -> void:
@@ -371,12 +380,60 @@ func _on_set_character(character_name: String) -> void:
 func _play_current() -> void:
 	if not _figure:
 		return
+	_clear_reveal()
+	if _current_action == "mythic_reveal":
+		_play_mythic_reveal()
+		return
 	_figure.play_action(_current_action, _current_dir)
 	# Preview the systemic overhead icons (battle drives these from real stat changes).
 	if _current_armor:
 		_figure.pop_armor_icon()
 	if _current_heal:
 		_figure.pop_heart()
+
+
+# =============================================================
+# MYTHIC REVEAL PREVIEW
+# =============================================================
+
+func _clear_reveal() -> void:
+	if _reveal and is_instance_valid(_reveal):
+		_reveal.queue_free()
+	_reveal = null
+
+
+## Runs the real MythicReveal node (scripts/battle/mythic_reveal.gd) in the
+## preview viewport with a random mythic's icon. The radius is shrunk and the
+## direction pinned eastward so the present stays inside the camera frame;
+## in battle it uses the full radius and a random direction.
+func _play_mythic_reveal() -> void:
+	var pool: Array = ItemData.get_items_of_rarity(ItemData.Rarity.MYTHIC)
+	var item: ItemData = pool[randi() % pool.size()] if not pool.is_empty() else null
+	_reveal = MythicReveal.start(item, Vector3.ZERO)
+	_reveal.glow_radius = 1.6
+	_reveal.fixed_angle = 0.0  # +X: lands to the figure's right, in frame
+	_reveal.claimed.connect(func(claimed_item):
+		_status_label.text = "Mythic claimed: %s — Replay to run it again." % (claimed_item.item_name if claimed_item else "?"))
+	_viewport.add_child(_reveal)
+	var iname: String = item.item_name if item else "?"
+	_status_label.text = "Mythic Reveal (%s) — click the present, then the icon." % iname
+
+
+func _on_viewport_input(event: InputEvent) -> void:
+	## Forward preview clicks to click-to-advance sequences: project the mouse
+	## through the lab camera onto the ground plane and hand it to the reveal.
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if _reveal == null or not is_instance_valid(_reveal) or _camera == null:
+		return
+	var origin: Vector3 = _camera.project_ray_origin(event.position)
+	var dir: Vector3 = _camera.project_ray_normal(event.position)
+	if absf(dir.y) < 0.0001:
+		return
+	var t: float = -origin.y / dir.y  # intersect the y=0 ground plane
+	if t <= 0.0:
+		return
+	_reveal.try_click(origin + dir * t)
 
 
 func _on_filter_changed(text: String) -> void:

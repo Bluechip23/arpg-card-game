@@ -152,6 +152,8 @@ var sphere_bonus_regen: int = 0       # Health regenerated per tempo cycle
 var sphere_bonus_armor_per_cycle: int = 0  # Armor gained per tempo cycle
 var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2.0 = 2%)
 var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
+var sphere_vulnerable_amp: float = 0.0     # Extra percentage points on YOUR Vulnerable's damage amp (25.0 → enemies take +55% instead of +30%)
+var sphere_weaken_amp: float = 0.0         # Extra percentage points on YOUR Weaken's damage reduction (25.0 → enemies deal -55% instead of -30%)
 # Equipment-granted equivalents (added/removed by Inventory on equip/unequip,
 # mirroring the base_* stat pattern). Kept separate from the sphere bonuses so
 # unequip subtracts exactly what the item added.
@@ -596,6 +598,8 @@ func save_progression() -> Dictionary:
 		"sphere_bonus_life_steal": sphere_bonus_life_steal,
 		"sphere_bonus_resistance": sphere_bonus_resistance,
 		"sphere_bonus_range": sphere_bonus_range,
+		"sphere_vulnerable_amp": sphere_vulnerable_amp,
+		"sphere_weaken_amp": sphere_weaken_amp,
 		"damage_proc_reduction_chance": damage_proc_reduction_chance,
 		"damage_proc_reduction_percent": damage_proc_reduction_percent,
 		"damage_resistances": damage_resistances.duplicate(true),
@@ -678,6 +682,8 @@ func restore_progression(data: Dictionary) -> void:
 	sphere_bonus_life_steal = data.get("sphere_bonus_life_steal", sphere_bonus_life_steal)
 	sphere_bonus_resistance = data.get("sphere_bonus_resistance", sphere_bonus_resistance)
 	sphere_bonus_range = data.get("sphere_bonus_range", sphere_bonus_range)
+	sphere_vulnerable_amp = data.get("sphere_vulnerable_amp", sphere_vulnerable_amp)
+	sphere_weaken_amp = data.get("sphere_weaken_amp", sphere_weaken_amp)
 	damage_proc_reduction_chance = data.get("damage_proc_reduction_chance", damage_proc_reduction_chance)
 	damage_proc_reduction_percent = data.get("damage_proc_reduction_percent", damage_proc_reduction_percent)
 	damage_resistances = data.get("damage_resistances", damage_resistances)
@@ -2010,7 +2016,8 @@ func apply_sphere_grid_mana(amount: int) -> void:
 func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void:
 	## Applies a neutral combat bonus from a sphere grid node.
 	## Parses labels like "Block +2", "Thorns +1", "Damage +3", "Heal +2", "Crit +5%", "Armor +3",
-	## "Regen +1", "Arm/Cyc +1", "Life Steal +3%", "Resist +3%", "Range +1"
+	## "Regen +1", "Arm/Cyc +1", "Life Steal +3%", "Resist +3%", "Range +1",
+	## "Vuln Amp +25%", "Weaken Amp +25%"
 	var regex = RegEx.new()
 	regex.compile("(.+?)\\s*\\+(\\d+)")
 	var result = regex.search(label)
@@ -2046,6 +2053,10 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			sphere_bonus_resistance += float(value)
 		"range":
 			sphere_bonus_range += value
+		"vuln amp":
+			sphere_vulnerable_amp += float(value)
+		"weaken amp":
+			sphere_weaken_amp += float(value)
 	stats_updated.emit()
 	print("[STATS] Sphere grid combat bonus: %s" % label)
 

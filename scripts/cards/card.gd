@@ -28,6 +28,22 @@ const INSTANT_STACK_SIG_PREFIX := "INSTANT|"
 # system for cards. Retune a card's tier by editing this one dictionary.
 enum Rarity { BASIC, COMMON, RARE, LEGENDARY, MYTHIC }
 
+# How many copies of one card a deck may hold, by rarity. -1 = unlimited
+# (spam all the Slashes you like); rarer cards are capped so build-defining
+# effects stay singular. First-pass numbers — balance later.
+const MAX_COPIES_BY_RARITY := {
+	Rarity.BASIC: -1,
+	Rarity.COMMON: -1,
+	Rarity.RARE: 3,
+	Rarity.LEGENDARY: 1,
+	Rarity.MYTHIC: 1,
+}
+
+## Deck copy cap for a card id (-1 = unlimited).
+static func max_deck_copies(cid: String) -> int:
+	var r = CARD_RARITIES.get(cid, Rarity.COMMON)
+	return int(MAX_COPIES_BY_RARITY.get(r, -1))
+
 const CARD_RARITIES := {
 	# --- Basic (24) ---
 	"slash": Rarity.BASIC, "block": Rarity.BASIC, "discard": Rarity.BASIC,
@@ -355,6 +371,11 @@ func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 				rng_selected_index = i
 				break
 		print("[CARD] %s RNG: rolled outcome %d (%.0f%%)" % [card_name, rng_selected_index, rng_outcomes_data[rng_selected_index].percent])
+	elif chance_effect_percent > 0.0:
+		# Pure per-enemy chance (Surrounding Ice): no card-level outcome to roll,
+		# but mark the card rolled so the hand pipeline doesn't re-randomize the
+		# per-enemy outcomes below on every hand refresh.
+		rng_selected_index = 0
 
 	# AOE per-enemy rolls
 	if chance_effect_percent > 0.0:
@@ -379,7 +400,8 @@ func get_rng_outcome(enemy) -> bool:
 	return rng_outcomes[id]
 
 func has_chance_effect() -> bool:
-	return rng_outcomes_data.size() > 0
+	# Card-level outcomes OR per-enemy AOE rolls — both need the roll/reroll pipeline.
+	return rng_outcomes_data.size() > 0 or chance_effect_percent > 0.0
 
 func has_been_rolled() -> bool:
 	return rng_selected_index != -1
@@ -3417,8 +3439,10 @@ static func create_surrounding_ice() -> Card:
 	card.tempo_cost = 4
 	card.damage = 15
 	card.base_damage = 15
+	# Per-enemy 70% hit rolls only — a card-level binary roll used to sit here
+	# too, but nothing consumed it at resolution: it just miscolored the "30%"
+	# in the description as if it predicted the outcome.
 	card.chance_effect_percent = 70.0
-	card.rng_outcomes_data = [{percent = 30.0}]
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_types = ["all_nearby"]
@@ -3576,7 +3600,9 @@ static func create_snowballs_chance() -> Card:
 	card.tempo_cost = 3
 	card.damage = 10
 	card.base_damage = 10
-	card.chance_effect_percent = 50.0
+	# Chance lives in the card-level binary roll (does the cone spread?). The
+	# fire line always hits, so per-enemy rolls (chance_effect_percent) would
+	# only paint false red "miss" tiles on enemies the line is guaranteed to hit.
 	card.rng_outcomes_data = [{percent = 50.0}]
 	card.is_aoe = true
 	card.aoe_shape = "line"

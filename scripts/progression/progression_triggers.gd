@@ -113,10 +113,10 @@ func _apply_sphere_grid_node(node) -> void:
 		SphereGrid.NodeType.FREE_STAT:
 			# Banks freely-allocatable stat points, exactly like a level-up. The
 			# player spends them on the stat screen. Amount is read from the label
-			# ("+4 Stats"), defaulting to 4.
+			# ("+3 Stats"), defaulting to 3.
 			var amount = _parse_numeric_value(node.label)
 			if amount <= 0:
-				amount = 4
+				amount = 3
 			stats.grant_stat_points(amount)
 			main.add_battle_log("Sphere Grid: +%d stat points to allocate" % amount, Color(0.75, 0.6, 1.0))
 			if main.has_method("_refresh_hud_notifications"):

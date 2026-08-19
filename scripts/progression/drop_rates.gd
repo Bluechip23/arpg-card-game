@@ -89,6 +89,57 @@ const CARD_WEIGHTS := {
 	Card.Rarity.MYTHIC: 2,
 }
 
+# ---- Card packs ---------------------------------------------------------------
+# When a card drop succeeds, this fraction of the time it arrives as a sealed
+# PACK instead of a single card. Pack tiers reuse the item rarity ladder.
+const PACK_CHANCE_OF_CARD_DROP: float = 0.25
+
+# Which tier of pack drops (same shape for enemies and chests for now).
+const PACK_TIER_WEIGHTS := {
+	ItemData.Rarity.COMMON: 70,
+	ItemData.Rarity.RARE: 22,
+	ItemData.Rarity.LEGENDARY: 7,
+	ItemData.Rarity.MYTHIC: 1,
+}
+
+# Cards per pack, by pack tier. First-pass numbers — balance later.
+const PACK_CARD_COUNT := {
+	ItemData.Rarity.COMMON: 3,
+	ItemData.Rarity.RARE: 4,
+	ItemData.Rarity.LEGENDARY: 4,
+	ItemData.Rarity.MYTHIC: 5,
+}
+
+# Card-rarity weights INSIDE a pack, by pack tier. Higher tiers drop the
+# floor rarities and lean rarer, but the cheap end always outweighs the
+# expensive end of whatever range the tier offers.
+const PACK_CARD_WEIGHTS := {
+	ItemData.Rarity.COMMON: {
+		Card.Rarity.BASIC: 45,
+		Card.Rarity.COMMON: 38,
+		Card.Rarity.RARE: 15,
+		Card.Rarity.LEGENDARY: 2,
+	},
+	ItemData.Rarity.RARE: {
+		Card.Rarity.BASIC: 20,
+		Card.Rarity.COMMON: 42,
+		Card.Rarity.RARE: 30,
+		Card.Rarity.LEGENDARY: 7,
+		Card.Rarity.MYTHIC: 1,
+	},
+	ItemData.Rarity.LEGENDARY: {
+		Card.Rarity.COMMON: 30,
+		Card.Rarity.RARE: 45,
+		Card.Rarity.LEGENDARY: 20,
+		Card.Rarity.MYTHIC: 5,
+	},
+	ItemData.Rarity.MYTHIC: {
+		Card.Rarity.RARE: 40,
+		Card.Rarity.LEGENDARY: 40,
+		Card.Rarity.MYTHIC: 20,
+	},
+}
+
 # ---- Helpers ----------------------------------------------------------------
 
 ## Weighted pick over a {key: weight} table. Pass an RNG for deterministic

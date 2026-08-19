@@ -908,9 +908,27 @@ func get_discard_pile_size() -> int:
 func get_jail_pile_size() -> int:
 	return jail_pile.size()
 
+## Copies of a card currently in the deck, across every zone the deck owns.
+func count_copies_in_deck(card_id: String) -> int:
+	var n := 0
+	for pile in [draw_pile, discard_pile, hand, jail_pile]:
+		for c in pile:
+			if c.card_id == card_id:
+				n += 1
+	return n
+
+## Rarity-based copy limit (see Card.MAX_COPIES_BY_RARITY): true when the deck
+## has room for one more copy of this card.
+func can_add_copy(card_id: String) -> bool:
+	var cap := Card.max_deck_copies(card_id)
+	return cap < 0 or count_copies_in_deck(card_id) < cap
+
 func add_card_to_deck_from_id(card_id: String) -> bool:
 	## Creates a card from its ID and adds it to the discard pile (available next shuffle).
 	## Used by the sphere grid when unlocking card nodes.
+	if not can_add_copy(card_id):
+		print("[DECK] Copy limit reached for %s (%d max) — not added" % [card_id, Card.max_deck_copies(card_id)])
+		return false
 	var card = _create_card_from_id(card_id)
 	if card:
 		discard_pile.append(card)

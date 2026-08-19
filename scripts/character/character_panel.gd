@@ -756,6 +756,14 @@ func _build_combat_info_text() -> String:
 		res_parts.append("All damage %.0f%%" % player_stats.sphere_bonus_resistance)
 	lines.append("Resists      " + (", ".join(res_parts) if res_parts.size() > 0 else "none"))
 
+	# Sphere-grid debuff amps: how much harder the player's Vulnerable/Weaken hit.
+	if player_stats.sphere_vulnerable_amp > 0.0:
+		lines.append("Vuln Amp     +%.0f%%  (Vulnerable amplifies %d%% total)" % [
+			player_stats.sphere_vulnerable_amp, int(30.0 + player_stats.sphere_vulnerable_amp)])
+	if player_stats.sphere_weaken_amp > 0.0:
+		lines.append("Weaken Amp   +%.0f%%  (Weaken saps %d%% total)" % [
+			player_stats.sphere_weaken_amp, int(30.0 + player_stats.sphere_weaken_amp)])
+
 	# Determination: stats scale with missing health. Show where the hero
 	# stands now and exactly what their stats become at 50% health.
 	var hp_pct := 0
@@ -2232,10 +2240,13 @@ func _on_card_destroy_pressed(btn: Button) -> void:
 func _on_card_confirm_yes() -> void:
 	if _pending_card and _pending_card_index >= 0 and inventory and deck_manager:
 		var card_name = _pending_card.card_name
+		var main_node = get_node_or_null("/root/Main")
 		if inventory.add_card_to_deck(_pending_card_index, deck_manager):
-			var main_node = get_node_or_null("/root/Main")
 			if main_node and main_node.has_method("add_battle_log"):
 				main_node.add_battle_log("Added %s to deck!" % card_name, Color(0.4, 1.0, 0.5))
+		elif not deck_manager.can_add_copy(_pending_card.card_id):
+			if main_node and main_node.has_method("add_battle_log"):
+				main_node.add_battle_log("Deck limit reached for %s (%s)." % [card_name, _pending_card.get_rarity_name()], Color(1.0, 0.5, 0.3))
 	_pending_card = null
 	_pending_card_index = -1
 	_dismiss_card_confirm_modal()

@@ -176,6 +176,7 @@ const CARD_KEYS = [
 ]
 
 var selected_card_index: int = -1
+var targeting_arrow: TargetingArrow = null  # red player→mouse arrow for unit-targeted cards
 var current_character: CharacterData = null
 var starting_character: CharacterData = null
 var player2_character: CharacterData = null
@@ -562,6 +563,7 @@ func _ready() -> void:
 	_setup_stat_bars()
 	_setup_deck_info_vertical()
 	_setup_battle_log()
+	_setup_targeting_arrow()
 
 	if starting_character:
 		select_character(starting_character)
@@ -1141,6 +1143,14 @@ func _setup_action_buttons() -> void:
 	_pause_button.add_theme_stylebox_override("hover", pause_hover)
 	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
 	bottom_row.add_child(_pause_button)
+
+func _setup_targeting_arrow() -> void:
+	## Screen-space red arrow from the player to the mouse while a card that
+	## targets a specific enemy/ally is selected (see TargetingArrow).
+	targeting_arrow = TargetingArrow.new()
+	targeting_arrow.name = "TargetingArrow"
+	targeting_arrow.main = self
+	($UI as CanvasLayer).add_child(targeting_arrow)
 
 func _setup_tick_bar() -> void:
 	## Build the 20-tick global tempo bar centered at the top of the screen,
@@ -2511,6 +2521,11 @@ func _on_manage_add_pressed(index: int) -> void:
 		if deck_list_visible:
 			_populate_deck_list()
 		_refresh_manage_deck_panel()
+	elif not deck_manager.can_add_copy(card.card_id):
+		add_battle_log("Deck limit: only %d cop%s of %s (%s) allowed." % [
+			Card.max_deck_copies(card.card_id),
+			"y" if Card.max_deck_copies(card.card_id) == 1 else "ies",
+			card.card_name, card.get_rarity_name()], Color(1.0, 0.5, 0.3))
 
 func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
 	# Clear previous preview content
@@ -10925,6 +10940,11 @@ func _input(event: InputEvent) -> void:
 	
 	# Left click - play card or use gauntlet skill
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# Mythic reveal sequence: clicking the present opens it; clicking the
+		# revealed icon claims the item.
+		if _try_click_mythic_reveal():
+			return
+
 		# Quiver card pending targeting
 		if _pending_quiver_card != null:
 			var mouse_pos = get_mouse_world_position()
@@ -12767,6 +12787,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
 	var has_any: bool = int(loot.get("gold", 0)) > 0 \
 		or loot.get("item") != null or loot.get("card") != null \
+		or loot.get("card_pack") != null \
 		or int(loot.get("culling_stones", 0)) > 0
 	if not has_any:
 		return
@@ -12800,6 +12821,11 @@ func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 	if card:
 		var c := _loot_mesh(drop, _mesh_box(Vector3(0.11, 0.15, 0.012)), Vector3(-0.13, 0.1, -0.05), Color(0.92, 0.9, 0.84), true)
 		c.rotation_degrees = Vector3(-14, 24, 0)
+	if loot.get("card_pack") != null:
+		# A sealed pack: a fat card-shaped box in its tier color.
+		var pack := CardPack.create(loot["card_pack"])
+		var p := _loot_mesh(drop, _mesh_box(Vector3(0.13, 0.17, 0.05)), Vector3(0.14, 0.12, 0.08), pack.get_tier_color(), true)
+		p.rotation_degrees = Vector3(-10, -20, 0)
 	if int(loot.get("culling_stones", 0)) > 0:
 		_loot_mesh(drop, _mesh_sphere(0.05), Vector3(0.0, 0.05, -0.13), Color(0.55, 0.3, 0.75), true)
 	# Pulsing glint above the pile + a gentle bob, looping until picked up.
@@ -12863,6 +12889,42 @@ func _check_loot_pickup() -> void:
 			else:
 				i += 1
 
+# ---- Mythic reveal ceremony -------------------------------------------------
+
+var _mythic_reveals: Array = []  # active MythicReveal nodes
+
+func _start_mythic_reveal(item: ItemData, looter: Player) -> void:
+	## Looting a mythic kicks off the ceremony (glow → present → icon) instead
+	## of a quiet inventory insert; _finish_mythic_reveal stores it on claim.
+	var reveal := MythicReveal.start(item, looter.position)
+	add_child(reveal)
+	reveal.claimed.connect(func(claimed_item): _finish_mythic_reveal(claimed_item, looter))
+	reveal.tree_exited.connect(func(): _mythic_reveals.erase(reveal))
+	_mythic_reveals.append(reveal)
+	add_battle_log("A MYTHIC reveals itself: %s!" % item.item_name, Color(0.9, 0.35, 0.9))
+
+func _finish_mythic_reveal(item: ItemData, looter: Player) -> void:
+	var inv = looter.get_inventory() if is_instance_valid(looter) else (player.get_inventory() if player else null)
+	if inv == null:
+		return
+	if inv.store_item(item) or inv.stash_item(item):
+		add_battle_log("MYTHIC claimed: %s!" % item.item_name, Color(0.9, 0.35, 0.9))
+		# Mythic ownership history: Mythic Molds can only recreate mythics the
+		# character has actually held.
+		if current_character and not current_character.owned_mythic_names.has(item.item_name):
+			current_character.owned_mythic_names.append(item.item_name)
+	else:
+		add_battle_log("Inventory AND stash full! %s slipped away..." % item.item_name, Color(1.0, 0.4, 0.4))
+
+func _try_click_mythic_reveal() -> bool:
+	if _mythic_reveals.is_empty():
+		return false
+	var mouse_pos = get_mouse_world_position()
+	for reveal in _mythic_reveals.duplicate():
+		if is_instance_valid(reveal) and reveal.try_click(mouse_pos):
+			return true
+	return false
+
 func _pop_loot_drop(node: Node3D) -> void:
 	## Little pickup flourish: the pile hops up, shrinks and vanishes.
 	if not is_instance_valid(node):
@@ -12898,6 +12960,8 @@ func _loot_summary(loot: Dictionary) -> String:
 	var card: Card = loot.get("card")
 	if card:
 		parts.append("Card: %s" % card.card_name)
+	if loot.get("card_pack") != null:
+		parts.append("%s" % CardPack.create(loot["card_pack"]).get_display_name())
 	return "\n".join(parts)
 
 ## Hovering a loot pile shows what's inside it (called every frame from
@@ -12982,6 +13046,12 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 
 	# Item drop
 	var item: ItemData = loot.get("item")
+	if item and item.rarity == ItemData.Rarity.MYTHIC:
+		# Mythics don't slip quietly into the bag: the reveal sequence takes
+		# over (expanding glow → present → icon), and the item lands in the
+		# inventory when the player clicks the revealed icon.
+		_start_mythic_reveal(item, looter)
+		item = null
 	if item:
 		var inventory = looter.get_inventory()
 		if inventory:
@@ -13014,6 +13084,20 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 				messages.append("Card: %s (inventory)" % card.card_name)
 			else:
 				messages.append("Card dropped (inventory full): %s" % card.card_name)
+
+	# Card pack - rips open on pickup, cards go to inventory
+	if loot.get("card_pack") != null:
+		var pack := CardPack.create(loot["card_pack"])
+		var inventory = looter.get_inventory()
+		if inventory:
+			var pulled: Array[String] = []
+			for pc in pack.open():
+				if inventory.store_card(pc):
+					pulled.append(pc.card_name)
+				else:
+					messages.append("Card dropped (inventory full): %s" % pc.card_name)
+			messages.append("%s: %s" % [pack.get_display_name(), ", ".join(pulled)])
+			add_battle_log("Ripped open a %s!" % pack.get_display_name(), pack.get_tier_color())
 
 	if messages.size() > 0:
 		var loot_text = "Looted: " + ", ".join(messages)

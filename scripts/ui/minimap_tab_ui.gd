@@ -591,6 +591,8 @@ func _on_add_card_to_deck(card_index: int) -> void:
 			if inv.add_card_to_deck(card_index, main.deck_manager):
 				main.add_battle_log("Added %s to deck (discard pile)" % card.card_name, Color(0.4, 1.0, 0.5))
 				_refresh_card_inventory()
+			elif not main.deck_manager.can_add_copy(card.card_id):
+				main.add_battle_log("Deck limit reached for %s (%s)." % [card.card_name, card.get_rarity_name()], Color(1.0, 0.5, 0.3))
 
 func _on_destroy_stored_card(card_index: int) -> void:
 	var inv = main.player.get_inventory()
