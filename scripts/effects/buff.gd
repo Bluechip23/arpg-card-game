@@ -68,7 +68,7 @@ func _set_name_and_description() -> void:
 			description = "Heal %d HP per cycle" % value
 		BuffType.BLESSED:
 			buff_name = "Blessed"
-			description = "Draw %d additional card(s) per cycle" % value
+			description = "Draw %d additional card(s) per cycle for %d more cycle(s)" % [value, charges]
 		BuffType.FORTIFY:
 			buff_name = "Fortify"
 			description = "Armor does not decay"
@@ -83,13 +83,13 @@ func _set_name_and_description() -> void:
 			description = "+%d armor next %d times you gain armor" % [value, charges]
 		BuffType.HASTE:
 			buff_name = "Haste"
-			description = "+%d movement per tempo spent" % value
+			description = "+%d tempo-free movement on your next %d move(s)" % [value, charges]
 		BuffType.CLEANSE:
 			buff_name = "Cleanse"
 			description = "Remove %d negative effect(s)" % value
 		BuffType.SMITH:
 			buff_name = "Smith"
-			description = "Gain %d armor per cycle" % value
+			description = "Gain %d armor per cycle, decaying by 1 each cycle" % value
 		BuffType.STEADY:
 			buff_name = "Steady"
 			description = "Next action does not add tempo"
@@ -129,16 +129,16 @@ func _set_name_and_description() -> void:
 			description = "All damage taken increases armor by that amount for %d tempo" % duration
 		BuffType.PHOENIX_GRACE:
 			buff_name = "Phoenix Grace"
-			description = "When HP drops below 50%, heal to 80% and apply 5 burn to nearest enemy"
+			description = "When HP drops below 50%%: heal to 80%% and apply 5 burn to the nearest enemy (%d charge(s))" % charges
 		BuffType.DEMONIC_RAGE:
 			buff_name = "Demonic Rage"
 			description = "Next %d mana costs use health instead" % charges
 		BuffType.POISONED_BLOOD:
 			buff_name = "Poisoned Blood"
-			description = "Your heal cards deal damage to enemies instead of healing"
+			description = "Your next %d heal cards deal damage to enemies instead of healing" % charges
 		BuffType.ELIXIR:
 			buff_name = "Elixir"
-			description = "Poison ticks heal you instead of dealing damage"
+			description = "Your next %d poison ticks heal you instead of dealing damage" % stacks
 		BuffType.KEEN:
 			buff_name = "Keen"
 			description = "+%d%% crit chance for %d tempo" % [value, duration]
@@ -174,7 +174,9 @@ func use_charge() -> bool:
 
 func is_charge_based() -> bool:
 	match buff_type:
-		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, BuffType.PHOENIX_GRACE, BuffType.DEMONIC_RAGE:
+		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, \
+		BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, BuffType.PHOENIX_GRACE, \
+		BuffType.DEMONIC_RAGE, BuffType.BLESSED, BuffType.HASTE, BuffType.POISONED_BLOOD:
 			return true
 	return false
 
@@ -257,8 +259,9 @@ static func create_regen(heal_per_cycle: int = 2, duration: int = 15, source: St
 	buff.source_name = source
 	return buff
 
-static func create_blessed(extra_draws: int = 1, duration: int = 15, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.BLESSED, extra_draws, duration)
+static func create_blessed(extra_draws: int = 1, cycles: int = 3, source: String = "") -> Buff:
+	# Charge-based: draws extra cards each cycle and burns one charge per cycle.
+	var buff = Buff.new(BuffType.BLESSED, extra_draws, -1, cycles)
 	buff.source_name = source
 	return buff
 
@@ -282,8 +285,9 @@ static func create_bolster(extra_armor: int = 2, times: int = 3, source: String 
 	buff.source_name = source
 	return buff
 
-static func create_haste(extra_movement: int = 1, duration: int = 15, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.HASTE, extra_movement, duration)
+static func create_haste(extra_movement: int = 1, movements: int = 3, source: String = "") -> Buff:
+	# Charge-based: each non-flash move gets tempo-free bonus tiles and burns a charge.
+	var buff = Buff.new(BuffType.HASTE, extra_movement, -1, movements)
 	buff.source_name = source
 	return buff
 
@@ -375,8 +379,9 @@ static func create_shield_of_growth(duration: int = 10, source: String = "") -> 
 	buff.source_name = source
 	return buff
 
-static func create_phoenix_grace(source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.PHOENIX_GRACE, 0, -1, 1)  # 1 charge
+static func create_phoenix_grace(charges: int = 1, source: String = "") -> Buff:
+	# Stack-oriented: each HP-below-50% rescue burns one charge.
+	var buff = Buff.new(BuffType.PHOENIX_GRACE, 0, -1, charges)
 	buff.source_name = source
 	return buff
 
@@ -385,15 +390,17 @@ static func create_demonic_rage(uses: int = 5, source: String = "") -> Buff:
 	buff.source_name = source
 	return buff
 
-static func create_poisoned_blood(tempo: int = 15, source: String = "") -> Buff:
-	# Display-only wrapper; lifecycle is driven by BuffManager.poisoned_blood_active.
-	var buff = Buff.new(BuffType.POISONED_BLOOD, 0, tempo)
+static func create_poisoned_blood(heals: int = 3, source: String = "") -> Buff:
+	# Stack-oriented: each heal card converted to damage burns one charge.
+	var buff = Buff.new(BuffType.POISONED_BLOOD, 0, -1, heals)
 	buff.source_name = source
 	return buff
 
-static func create_elixir(tempo: int = 150, source: String = "") -> Buff:
-	# Display-only wrapper; lifecycle is driven by PlayerStats.elixir_active.
-	var buff = Buff.new(BuffType.ELIXIR, 0, tempo)
+static func create_elixir(ticks: int = 5, source: String = "") -> Buff:
+	# Display wrapper; lifecycle is driven by PlayerStats.elixir_stacks (one
+	# stack burned per poison tick healed) and synced by BuffManager.
+	var buff = Buff.new(BuffType.ELIXIR, 0, -1)
+	buff.stacks = ticks
 	buff.source_name = source
 	return buff
 

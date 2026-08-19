@@ -2175,12 +2175,14 @@ func _execute_blink(_player_node) -> void:
 	print("[CARD] Blinked!")
 
 func _execute_heal_with_poison_check(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# General healing logic: if Poison Blood is active and target is an enemy, deal damage instead
-	if buff_mgr and buff_mgr.poisoned_blood_active and target and target.has_method("take_damage") and not target.has_method("get_stats"):
+	# General healing logic: if Poison Blood is active and target is an enemy,
+	# deal damage instead — burning one Poisoned Blood charge per converted heal.
+	if buff_mgr and buff_mgr.has_poisoned_blood() and target and target.has_method("take_damage") and not target.has_method("get_stats"):
 		var dmg = heal_amount
 		if player_stats:
 			dmg = player_stats.get_effective_heal_amount(heal_amount)
 		target.take_damage(dmg, true)
+		buff_mgr.consume_poisoned_blood()
 		print("[CARD] Poisoned Blood: %s dealt %d damage!" % [card_name, dmg])
 	else:
 		if player_stats:
@@ -2590,7 +2592,7 @@ func _execute_parry(target, player_stats: PlayerStats, buff_mgr: BuffManager = n
 func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Slow self for 10 tempo (2 cycles), gain 5 armor per movement taken
 	if buff_mgr and buff_mgr.debuff_manager:
-		buff_mgr.debuff_manager.apply_debuff(Debuff.create_slowed(2, 10, "Approach"))
+		buff_mgr.debuff_manager.apply_debuff(Debuff.create_slowed(2, "Approach"))
 	if buff_mgr:
 		buff_mgr.approach_armor_per_move = 5
 		buff_mgr.approach_tempo_remaining = 10
@@ -2765,23 +2767,19 @@ func buff_mgr_exists(target) -> bool:
 	return target and target.has_method("get_buff_manager") and target.get_buff_manager() != null
 
 func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Heal cards now deal damage instead of healing for 15 tempo (3 cycles)
+	# Stack-oriented: the next 3 heal cards deal damage instead of healing.
 	if buff_mgr:
-		buff_mgr.poisoned_blood_active = true
-		buff_mgr.poisoned_blood_tempo = 15
-		# Surface it as a visible active effect in the buff bar.
-		buff_mgr.apply_buff(Buff.create_poisoned_blood(15, "Poisoned Blood"))
-	print("[CARD] Poisoned Blood! Heal cards now deal damage instead for 15 tempo")
+		buff_mgr.apply_buff(Buff.create_poisoned_blood(3, "Poisoned Blood"))
+	print("[CARD] Poisoned Blood! Your next 3 heal cards deal damage instead")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Poison now heals instead of hurting for the next ~30 cycles.
+	# Stack-oriented: the next 5 poison ticks heal instead of hurting.
 	if player_stats:
-		player_stats.elixir_active = true
-		player_stats.elixir_tempo = 150
+		player_stats.elixir_stacks += 5
 	# Surface it as a visible active effect in the buff bar.
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_elixir(150, "Elixir"))
-	print("[CARD] Elixir! Poison now heals you instead")
+		buff_mgr.sync_flag_buffs()
+	print("[CARD] Elixir! Your next 5 poison ticks heal you instead")
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -3547,7 +3545,7 @@ static func create_poisoned_blood() -> Card:
 	var card = Card.new()
 	card.card_id = "poisoned_blood"
 	card.card_name = "Poisoned Blood"
-	card.description = "Heal cards now apply damage instead."
+	card.description = "Your next 3 heal cards deal damage instead of healing."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
@@ -3559,7 +3557,7 @@ static func create_elixir() -> Card:
 	var card = Card.new()
 	card.card_id = "elixir"
 	card.card_name = "Elixir"
-	card.description = "Poison cards now heal instead."
+	card.description = "Your next 5 poison ticks heal you instead of hurting."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
@@ -4976,7 +4974,7 @@ func _execute_tower_shield(player_stats: PlayerStats, buff_mgr: BuffManager) -> 
 	if player_stats:
 		player_stats.add_armor(block)
 	if buff_mgr and buff_mgr.debuff_manager:
-		buff_mgr.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.STAGGERED, 10, 40))
+		buff_mgr.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.STAGGERED, 4, -1))
 	print("[CARD] Tower Shield! +%d armor, staggered for 40 tempo" % block)
 
 func _execute_harden(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:

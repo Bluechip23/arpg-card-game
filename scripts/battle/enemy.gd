@@ -69,10 +69,12 @@ var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
 var attack_reduction: int = 0
 var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
-# Slowed (reworked): a flat -1 tile on every movement; slow_stacks counts how
-# many movements it affects, one consumed per move. Stacks accumulate freely
+# Slowed (matches the player's): movement actions cost extra tempo
+# (Debuff.SLOWED_TEMPO_PER_TILE vs the normal 1); slow_stacks counts how many
+# movements it affects, one consumed per move. Stacks accumulate freely
 # (Sword of Theseus ramps them) — no timed expiry.
 var slow_stacks: int = 0
+var inebriated_tempo: int = 0  # Inebriate (matches the player's): movement direction randomized
 var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
@@ -91,7 +93,7 @@ var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
 var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
-var bleed_stacks: int = 0      # Bleed: take X damage per tile moved, lose 1 per cycle
+var bleed_stacks: int = 0      # Bleed: 1 damage per tile moved; each damage removes a stack
 var vulnerable_stacks: int = 0   # Vulnerable: next hit from the player deals +30%; 1 stack consumed per hit
 var weaken_stacks: int = 0       # Weaken: this enemy deals -30% damage; 1 stack consumed per attack
 var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can still attack/cast
@@ -182,6 +184,13 @@ const NON_MELEE_ACTIONS := {
 	"hook": true, "breath_swarm": true, "screech": true, "gust": true,
 }
 var next_melee_tempo_tax: int = 0
+
+# Movement actions, for the debuffs that tax or scramble movement (Slowed,
+# Inebriate) — mirrors how the same debuffs treat the player's moves.
+const MOVEMENT_ACTIONS := {
+	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
+	"scurry_away": true, "get_into_range": true, "flee": true,
+}
 
 ## Armored Troll passive: accumulator for regeneration (heals 2 HP every 6 global tempo).
 var regen_accumulator: int = 0
@@ -1513,12 +1522,15 @@ func _tick_status_durations() -> void:
 			print("[%s] Poison expired" % enemy_name)
 			debuff_expired.emit(self, "poison")
 
-	# Bleed: no cycle damage (it hurts per tile moved) — clots 1 stack per cycle
-	if bleed_stacks > 0:
-		bleed_stacks -= 1
-		if bleed_stacks <= 0:
-			print("[%s] Bleed expired" % enemy_name)
-			debuff_expired.emit(self, "bleed")
+	# Bleed no longer clots by time — stacks fall as the wound bleeds (1 damage
+	# per tile moved, 1 stack per damage; see the tile-step in _physics_process).
+
+	# Inebriated: the stupor lifts one cycle at a time.
+	if inebriated_tempo > 0:
+		inebriated_tempo -= 1
+		if inebriated_tempo <= 0:
+			print("[%s] Sobered up — movement restored" % enemy_name)
+			debuff_expired.emit(self, "inebriate")
 
 	# Rooted: the hold releases one cycle at a time
 	if rooted_tempo > 0:
@@ -1591,10 +1603,18 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 	var taxed: bool = next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(chosen_action["name"])
 	if taxed:
 		action_cost += next_melee_tempo_tax
+	# Slowed (matches the player's): movement actions take extra tempo; the
+	# stack burns when the move actually fires.
+	var slowed_move: bool = slow_stacks > 0 and MOVEMENT_ACTIONS.has(chosen_action["name"])
+	if slowed_move:
+		action_cost += Debuff.SLOWED_TEMPO_PER_TILE - 1
 	if action_tempo_counter >= action_cost:
 		if taxed:
 			print("[%s] Sword Breaker: swing delayed %d tempo" % [enemy_name, next_melee_tempo_tax])
 			next_melee_tempo_tax = 0
+		if slowed_move:
+			print("[%s] Slowed: move delayed %d extra tempo" % [enemy_name, Debuff.SLOWED_TEMPO_PER_TILE - 1])
+			_consume_slow_stack()
 		var move_target = player_node
 		if taunt_target and is_instance_valid(taunt_target):
 			move_target = taunt_target
@@ -1869,6 +1889,23 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 	# Play animation for this action
 	_play_enemy_animation(action_name)
 
+	# Inebriated (matches the player's): movement staggers off in a random
+	# direction instead of going where the AI wanted.
+	if inebriated_tempo > 0 and MOVEMENT_ACTIONS.has(action_name):
+		var drunk_dir := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
+		if drunk_dir.length() < 0.1:
+			drunk_dir = Vector3(1, 0, 0)
+		drunk_dir = drunk_dir.normalized()
+		var stagger_tiles := 2
+		if grid_manager:
+			var drunk_cell = grid_manager.world_to_grid(position + drunk_dir * float(stagger_tiles))
+			_start_path(_build_greedy_path(position, drunk_cell, stagger_tiles))
+		else:
+			target_position = position + drunk_dir * float(stagger_tiles)
+			is_moving = true
+		print("[%s] Inebriated! Staggers off in a random direction" % enemy_name)
+		return true
+
 	match action_name:
 		"attack":
 			return _try_attack(move_target)
@@ -2108,7 +2145,7 @@ func _blind_player(player_node: Node3D, tempo: int) -> void:
 		if st:
 			st.is_blinded = true
 			st.blind_tempo = tempo
-	_apply_player_debuff(player_node, Debuff.create(Debuff.DebuffType.BLIND, 50, tempo))
+	_apply_player_debuff(player_node, Debuff.create(Debuff.DebuffType.BLIND, Debuff.BLIND_MISS, tempo))
 	print("[%s] Blinds the target!" % enemy_name)
 
 ## Generic elemental strike: moves into range if needed, otherwise hits for `dmg`
@@ -2124,7 +2161,7 @@ func _try_elemental(target_node: Node3D, dmg: int, label: String, opts := {}) ->
 	if int(opts.get("shock", 0)) > 0:
 		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.SHOCKED, int(opts["shock"]), 15))
 	if int(opts.get("slow", 0)) > 0:
-		_apply_player_debuff(target_node, Debuff.create_slowed(int(opts["slow"]), 15, enemy_name))
+		_apply_player_debuff(target_node, Debuff.create_slowed(int(opts["slow"]), enemy_name))
 	if int(opts.get("bleed", 0)) > 0:
 		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.BLEED, int(opts["bleed"]), 15))
 	turn_completed.emit()
@@ -2252,14 +2289,11 @@ func _try_bite(target_node: Node3D) -> bool:
 	return _try_move(target_node)
 
 func _try_scurry(target_node: Node3D) -> bool:
-	## Wererat dashes 5 tiles toward the target.
+	## Wererat dashes 5 tiles toward the target. (Slowed now taxes the move's
+	## tempo in _check_and_fire_actions instead of trimming tiles.)
 	var tiles = 5
-	var effective_tiles = tiles
-	if slow_stacks > 0:
-		effective_tiles = max(0, tiles - 1)
-		_consume_slow_stack()
-	_dash_towards_target(target_node.position, effective_tiles)
-	print("[%s] Scurries %d tiles toward target!" % [enemy_name, effective_tiles])
+	_dash_towards_target(target_node.position, tiles)
+	print("[%s] Scurries %d tiles toward target!" % [enemy_name, tiles])
 	return true
 
 func _try_kick(target_node: Node3D) -> bool:
@@ -2307,23 +2341,19 @@ func _try_shoot(target_node: Node3D) -> bool:
 func _try_scurry_away(target_node: Node3D) -> bool:
 	## Archer Rat: Run 5 paces away from threat.
 	var tiles = 5
-	var effective_tiles = tiles
-	if slow_stacks > 0:
-		effective_tiles = max(0, tiles - 1)
-		_consume_slow_stack()
 
 	if grid_manager:
 		var threat_cell = grid_manager.world_to_grid(target_node.position)
-		_start_path(_build_greedy_path(position, threat_cell, effective_tiles, true))
+		_start_path(_build_greedy_path(position, threat_cell, tiles, true))
 	else:
 		var diff = position - target_node.position
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		if direction.length() < 0.1:
 			direction = Vector3(1, 0, 0)
-		target_position = position + direction * (effective_tiles * 1.0)
+		target_position = position + direction * (tiles * 1.0)
 		is_moving = true
 
-	print("[%s] Scurries %d tiles away from threat!" % [enemy_name, effective_tiles])
+	print("[%s] Scurries %d tiles away from threat!" % [enemy_name, tiles])
 	return true
 
 func _try_get_into_range(target_node: Node3D) -> bool:
@@ -2335,20 +2365,16 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 		return _try_shoot(target_node)
 
 	var tiles = 2
-	var effective_tiles = tiles
-	if slow_stacks > 0:
-		effective_tiles = max(0, tiles - 1)
-		_consume_slow_stack()
 
 	if grid_manager:
 		var player_cell = grid_manager.world_to_grid(target_node.position)
-		_start_path(_build_greedy_path(position, player_cell, effective_tiles))
+		_start_path(_build_greedy_path(position, player_cell, tiles))
 	else:
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
-		target_position = position + direction * (effective_tiles * 1.0)
+		target_position = position + direction * (tiles * 1.0)
 		is_moving = true
 
-	print("[%s] Moves %d tiles to get into range!" % [enemy_name, effective_tiles])
+	print("[%s] Moves %d tiles to get into range!" % [enemy_name, tiles])
 	return true
 
 ## Deal damage to the player with attack flash.
@@ -2572,10 +2598,15 @@ func _physics_process(delta: float) -> void:
 			# Snap XZ only — Y keeps gliding toward the terrain height
 			position.x = target_position.x
 			position.z = target_position.z
-			# Bleed: every tile reached tears the wound open
+			# Bleed: every tile reached tears the wound open — 1 damage per
+			# tile, and each point of damage removes a stack.
 			if bleed_stacks > 0 and not is_dead:
-				take_damage(bleed_stacks, false)
-				print("[%s] Bleed deals %d damage (moved a tile)" % [enemy_name, bleed_stacks])
+				take_damage(1, false)
+				bleed_stacks -= 1
+				print("[%s] Bleed deals 1 damage (moved a tile, %d stack(s) left)" % [enemy_name, bleed_stacks])
+				if bleed_stacks <= 0:
+					debuff_expired.emit(self, "bleed")
+				_update_status_indicators()
 			# Advance to the next waypoint if the route has more tiles, so we
 			# follow the path around corners instead of stopping short.
 			if not _move_path.is_empty():
@@ -2678,27 +2709,22 @@ func move_towards_target(pos: Vector3) -> void:
 	var tiles = int(move_distance)
 	if tiles < 1:
 		tiles = 1
-	var effective_tiles = tiles
-	if slow_stacks > 0:
-		effective_tiles = max(0, tiles - 1)
-		_consume_slow_stack()
-	if effective_tiles <= 0:
-		print("[%s] Too slowed to move!" % enemy_name)
-		return
+	# Slowed no longer trims tiles — it taxes the move action's tempo instead
+	# (see _check_and_fire_actions), matching the player's Slowed.
 
 	if grid_manager:
 		# Feared (Cupids lead arrow): run AWAY from the fear source instead.
 		if fear_tempo > 0 and fear_source and is_instance_valid(fear_source):
 			var flee_cell = grid_manager.world_to_grid(fear_source.position)
-			_start_path(_build_greedy_path(position, flee_cell, effective_tiles, true))
+			_start_path(_build_greedy_path(position, flee_cell, tiles, true))
 			return
 		var player_cell = grid_manager.world_to_grid(pos)
 		# Follow a tile-by-tile route so we never glide through walls or corners.
-		_start_path(_build_greedy_path(position, player_cell, effective_tiles))
+		_start_path(_build_greedy_path(position, player_cell, tiles))
 	else:
 		var diff = pos - position
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
-		var new_target = position + direction * (effective_tiles * 1.0)
+		var new_target = position + direction * (tiles * 1.0)
 		target_position = new_target
 		is_moving = true
 
@@ -3059,6 +3085,10 @@ func apply_wear_down(cycles: int) -> void:
 
 func apply_debuff(debuff_name: String, value: int) -> void:
 	match debuff_name:
+		"inebriate":
+			# Matches the player's Inebriate: movement direction is randomized.
+			inebriated_tempo = max(inebriated_tempo, value)
+			print("[%s] Inebriated for %d tempo cycles — movement randomized!" % [enemy_name, inebriated_tempo])
 		"stun":
 			is_stunned = true
 			stun_tempo = max(stun_tempo, value)
@@ -3291,6 +3321,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
 	if slow_stacks > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
+	if inebriated_tempo > 0:
+		effects.append({"name": "Inebriate", "color": Color(0.8, 0.4, 0.8), "stacks": inebriated_tempo})
 	if is_disarmed and disarmed_tempo > 0:
 		effects.append({"name": "Disarm", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_tempo})
 	if is_marked and marked_tempo > 0:

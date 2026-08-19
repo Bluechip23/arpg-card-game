@@ -41,6 +41,7 @@ var spaces_moved_this_cycle: int = 0  # Total tiles moved since last cycle (for 
 var last_tempo_source: String = ""  # Tracks what caused the last tempo addition ("movement", "card", etc.)
 
 var player_stats: PlayerStats
+var debuff_manager = null  # DebuffManager — Slowed prices movement tempo here
 
 # Tick system state
 var _ticking: bool = false          # Whether we're currently processing ticks
@@ -313,7 +314,13 @@ func add_movement_tempo() -> void:
 	last_tempo_source = "movement"
 	# Adimantium: heavy plate makes every tile cost extra tempo.
 	var surcharge: int = player_stats.movement_tempo_surcharge if player_stats else 0
-	add_tempo(1 + maxi(0, surcharge))
+	# Slowed: the tile costs SLOWED_TEMPO_PER_TILE instead of 1, and burns a stack.
+	var base_cost := 1
+	if debuff_manager and debuff_manager.is_slowed():
+		base_cost = Debuff.SLOWED_TEMPO_PER_TILE
+		debuff_manager.consume_slowed_stack()
+		print("[TEMPO] Slowed: tile costs %d tempo" % base_cost)
+	add_tempo(base_cost + maxi(0, surcharge))
 
 func add_pass_through_tempo() -> void:
 	## Moving through an occupied tile always costs 2 tempo regardless of flash points.
