@@ -3178,15 +3178,18 @@ func _restore_opened_chests() -> void:
 		_set_chest_open_visual(i)
 
 		if state is Dictionary:
-			# Partially opened: gold was claimed, apply item/card claim flags
+			# Partially opened: gold was claimed, apply item/card/pack claim flags
 			chest_nodes[i]["contents"]["_gold_claimed"] = true
 			if state.get("item_taken", false):
 				chest_nodes[i]["contents"]["item"] = null
 			if state.get("card_taken", false):
 				chest_nodes[i]["contents"]["card"] = null
+			if state.get("pack_taken", false):
+				chest_nodes[i]["contents"]["card_pack"] = null
 			# Check if now fully looted
 			var contents = chest_nodes[i]["contents"]
-			if contents.get("item") == null and contents.get("card") == null:
+			if contents.get("item") == null and contents.get("card") == null \
+					and contents.get("card_pack") == null:
 				mark_chest_looted(i)
 		else:
 			# Legacy true value or fully looted
@@ -3257,10 +3260,14 @@ func _generate_chest_contents(chest_index: int) -> Dictionary:
 		rng.seed = hash("chest_w%d_%s_c%d" % [world_level, interior_id, chest_index])
 
 	var gold = rng.randi_range(15, 50) + (world_level - 1) * 10
-	var contents: Dictionary = {"gold": gold, "item": null, "card": null}
+	var contents: Dictionary = {"gold": gold, "item": null, "card": null, "card_pack": null}
 
 	if rng.randf() < 0.5:
 		contents["item"] = _get_random_item(rng)
+	elif rng.randf() < DropRates.PACK_CHANCE_OF_CARD_DROP:
+		# A sealed card pack: the TIER is seeded (same chest, same pack), the
+		# cards inside roll fresh when it's ripped open.
+		contents["card_pack"] = DropRates.roll_weighted(DropRates.PACK_TIER_WEIGHTS, rng)
 	else:
 		contents["card"] = _get_random_card(rng)
 
@@ -3810,7 +3817,7 @@ func open_chest(index: int) -> Dictionary:
 	if first_open:
 		var key = _chest_key(index)
 		if not _opened_chests_ref.has(key):
-			_opened_chests_ref[key] = {"item_taken": false, "card_taken": false}
+			_opened_chests_ref[key] = {"item_taken": false, "card_taken": false, "pack_taken": false}
 
 	print("[DUNGEON] Opened chest %d: %s" % [index, chest_nodes[index]["contents"]])
 	return chest_nodes[index]["contents"]
@@ -3844,6 +3851,14 @@ func remove_chest_card(index: int) -> void:
 		var key = _chest_key(index)
 		if _opened_chests_ref.has(key) and _opened_chests_ref[key] is Dictionary:
 			_opened_chests_ref[key]["card_taken"] = true
+
+func remove_chest_pack(index: int) -> void:
+	## Removes the card-pack reward from a chest's contents and updates persistence.
+	if index >= 0 and index < chest_nodes.size():
+		chest_nodes[index]["contents"]["card_pack"] = null
+		var key = _chest_key(index)
+		if _opened_chests_ref.has(key) and _opened_chests_ref[key] is Dictionary:
+			_opened_chests_ref[key]["pack_taken"] = true
 
 func update_chest_prompts(player_grid: Vector2i) -> void:
 	## Show/hide interact labels based on player proximity and fog reveal.

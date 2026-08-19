@@ -2304,7 +2304,13 @@ func get_stored_card_count() -> int:
 	return stored_cards.size()
 
 func add_card_to_deck(card_index: int, dm) -> bool:
-	## Moves a card from inventory to the player's discard pile.
+	## Moves a card from inventory to the player's discard pile, respecting the
+	## rarity copy limit (unlimited commons; e.g. one copy of a legendary).
+	var peek = get_stored_card(card_index)
+	if peek != null and dm and not dm.can_add_copy(peek.card_id):
+		print("[INVENTORY] Deck copy limit reached for '%s' (%d max) — card stays in inventory"
+			% [peek.card_name, Card.max_deck_copies(peek.card_id)])
+		return false
 	var card = remove_stored_card(card_index)
 	if card == null:
 		return false

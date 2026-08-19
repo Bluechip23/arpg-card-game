@@ -28,6 +28,22 @@ const INSTANT_STACK_SIG_PREFIX := "INSTANT|"
 # system for cards. Retune a card's tier by editing this one dictionary.
 enum Rarity { BASIC, COMMON, RARE, LEGENDARY, MYTHIC }
 
+# How many copies of one card a deck may hold, by rarity. -1 = unlimited
+# (spam all the Slashes you like); rarer cards are capped so build-defining
+# effects stay singular. First-pass numbers — balance later.
+const MAX_COPIES_BY_RARITY := {
+	Rarity.BASIC: -1,
+	Rarity.COMMON: -1,
+	Rarity.RARE: 3,
+	Rarity.LEGENDARY: 1,
+	Rarity.MYTHIC: 1,
+}
+
+## Deck copy cap for a card id (-1 = unlimited).
+static func max_deck_copies(cid: String) -> int:
+	var r = CARD_RARITIES.get(cid, Rarity.COMMON)
+	return int(MAX_COPIES_BY_RARITY.get(r, -1))
+
 const CARD_RARITIES := {
 	# --- Basic (24) ---
 	"slash": Rarity.BASIC, "block": Rarity.BASIC, "discard": Rarity.BASIC,

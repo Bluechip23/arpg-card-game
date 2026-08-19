@@ -200,7 +200,7 @@ func _on_enemy_turn_completed() -> void:
 # ============================================
 
 func _generate_loot(enemy: Enemy) -> Dictionary:
-	var loot: Dictionary = {"gold": 0, "item": null, "card": null, "culling_stones": 0}
+	var loot: Dictionary = {"gold": 0, "item": null, "card": null, "card_pack": null, "culling_stones": 0}
 
 	# Gold drop (always) - amount based on enemy type
 	match enemy.enemy_type:
@@ -229,10 +229,14 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 	if randf() < item_chance:
 		loot["item"] = _get_random_loot_item(enemy.enemy_type)
 
-	# Card drop chance (rarer than items)
+	# Card drop chance (rarer than items). A successful card drop sometimes
+	# arrives as a sealed PACK instead of a single card (see DropRates).
 	var card_chance = _get_card_drop_chance(enemy.enemy_type)
 	if randf() < card_chance:
-		loot["card"] = _get_random_loot_card()
+		if randf() < DropRates.PACK_CHANCE_OF_CARD_DROP:
+			loot["card_pack"] = DropRates.roll_weighted(DropRates.PACK_TIER_WEIGHTS)
+		else:
+			loot["card"] = _get_random_loot_card()
 
 	return loot
 
