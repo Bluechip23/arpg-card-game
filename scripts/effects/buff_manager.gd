@@ -34,11 +34,15 @@ func connect_debuff_manager(dm) -> void:
 # ============================================
 
 func apply_buff(buff: Buff) -> void:
+	# Sphere-grid buff amps: buffs YOU gain arrive stronger (playstyle
+	# amplification nodes). Runs before Cleanse so its amp counts too.
+	_amp_incoming_buff(buff)
+
 	# Handle Cleanse immediately
 	if buff.buff_type == Buff.BuffType.CLEANSE:
 		_execute_cleanse(buff.value)
 		return
-	
+
 	# Check if buff already exists (refresh or stack)
 	var existing = get_buff(buff.buff_type)
 	
@@ -63,6 +67,47 @@ func apply_buff(buff: Buff) -> void:
 	_recompute_might()
 	buff_applied.emit(buff)
 	buffs_changed.emit()
+
+## Sphere-grid amp nodes strengthen matching buffs at application time, so the
+## badge, description, and mechanics all agree. Enlightened's crit amp lives in
+## get_enlightened_crit_chance instead (its value field is the auto-crit flag).
+func _amp_incoming_buff(buff: Buff) -> void:
+	if owner_stats == null:
+		return
+	match buff.buff_type:
+		Buff.BuffType.HASTE:
+			if "sphere_haste_amp" in owner_stats and owner_stats.sphere_haste_amp > 0:
+				buff.charges += owner_stats.sphere_haste_amp
+				buff._set_name_and_description()
+		Buff.BuffType.BLESSED:
+			var changed := false
+			if "sphere_blessed_draw_amp" in owner_stats and owner_stats.sphere_blessed_draw_amp > 0:
+				buff.value += owner_stats.sphere_blessed_draw_amp
+				changed = true
+			if "sphere_blessed_amp" in owner_stats and owner_stats.sphere_blessed_amp > 0:
+				buff.charges += owner_stats.sphere_blessed_amp
+				changed = true
+			if changed:
+				buff._set_name_and_description()
+		Buff.BuffType.BRACE:
+			if "sphere_brace_amp" in owner_stats and owner_stats.sphere_brace_amp > 0:
+				buff.value += owner_stats.sphere_brace_amp
+				buff._set_name_and_description()
+		Buff.BuffType.STRENGTHEN:
+			if "sphere_strengthen_amp" in owner_stats and owner_stats.sphere_strengthen_amp > 0:
+				buff.value += owner_stats.sphere_strengthen_amp
+				buff._set_name_and_description()
+		Buff.BuffType.BOLSTER:
+			if "sphere_bolster_amp" in owner_stats and owner_stats.sphere_bolster_amp > 0:
+				buff.value += owner_stats.sphere_bolster_amp
+				buff._set_name_and_description()
+		Buff.BuffType.CLEANSE:
+			if "sphere_cleanse_amp" in owner_stats and owner_stats.sphere_cleanse_amp > 0:
+				buff.value += owner_stats.sphere_cleanse_amp
+		Buff.BuffType.RESILIENT:
+			if "sphere_resilient_amp" in owner_stats and owner_stats.sphere_resilient_amp > 0:
+				buff.value += owner_stats.sphere_resilient_amp
+				buff._set_name_and_description()
 
 func _is_stackable(type: Buff.BuffType) -> bool:
 	match type:
@@ -417,8 +462,14 @@ func get_enlightened_crit_chance() -> int:
 	if enlightened == null:
 		return 0
 	# Understanding's delayed auto-crit stores value 100 — a guaranteed crit
-	# source stays guaranteed; everything else is the flat 10.
-	return 100 if enlightened.value >= 100 else 10
+	# source stays guaranteed; everything else is the flat 10 plus the
+	# sphere-grid Enlight Amp.
+	if enlightened.value >= 100:
+		return 100
+	var amp := 0
+	if owner_stats and "sphere_enlightened_amp" in owner_stats:
+		amp = int(owner_stats.sphere_enlightened_amp)
+	return 10 + amp
 
 func roll_crit(base_crit_chance: int = 0) -> bool:
 	# Include the character's innate base crit chance (default 5%)

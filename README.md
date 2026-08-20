@@ -84,8 +84,8 @@ Recruited NPCs are part of the same fabric: allies found on the journey (startin
 - Every **5 global tempo = 1 cycle**. Cycles are the game's heartbeat:
   - Mana regenerates once per cycle.
   - Armor decays once per cycle.
-  - Buffs and debuffs tick down once per cycle.
-  - Per-cycle effects (regen, poison, burn, etc.) trigger or decrease.
+  - Per-cycle effects (Regen/Smith ticks, poison, burn, Blessed draws, etc.) trigger or decrease once per cycle.
+- **Timed buff/debuff durations tick down with raw tempo**, not in cycle chunks — a 3-tempo stun lasts exactly 3 tempo. Charge/stack-driven effects ignore the clock entirely and burn on what they react to (attacks, moves, cards played, hits taken).
 - By default, **card draws** trigger every 25 tempo (5 cycles).
 
 Because enemies act on tempo, a cheap fast card and an expensive slow card dictate how the game will play out. **ENEMIES CAN TAKE MULTIPLE ACTIONS IN A ROW.** In other words, if you play a card worth 8 tempo, while it ticks, an enemy who attacks every 4 tempo will hit you twice.
@@ -196,72 +196,67 @@ Some cards carry **RNG outcomes**. When the **card is drawn** the player is told
 
 ## Buffs
 
-Positive effects. Duration-based buffs tick down each cycle; charge-based buffs deplete as they're used.
+Positive effects. Duration-based buffs tick down with raw tempo; charge-based buffs ignore the clock and burn one charge per use (an attack, a move, a cycle — whatever the buff reacts to).
 
 | Buff | Effect |
 |---|---|
-| **Thorns** | Deal X damage back to attackers. |
-| **Focused** | Gain 1 extra mana per cycle. |
-| **Regen** | Heal X HP per cycle. |
-| **Blessed** | Draw X additional card(s) per cycle. |
-| **Fortify** | Armor does not decay. |
-| **Enlightened** | +X% crit chance for the next Y attacks. |
-| **Strengthen** | +X damage on the next Y attacks. |
-| **Bolster** | +X armor the next Y times you gain armor. |
-| **Haste** | Your next move command travels X extra tiles. |
+| **Thorns** | Deal X damage back to attackers; lose 1 thorn per hit taken. |
+| **Focused** | Gain 10 extra mana per cycle. |
+| **Regen** | Heal X HP per cycle; X decays by 1 each cycle. |
+| **Blessed** | Draw X additional card(s) per cycle for Y cycles — each cycle burns a charge. |
+| **Fortify** | Armor does not decay while this lasts. |
+| **Enlightened** | +10% crit chance for the next Y attacks — every attack burns a charge, crit or not. Reapplying extends the attacks, never raises the %. |
+| **Strengthen** | +X damage on the next Y attacks — each attack burns a charge. |
+| **Bolster** | +X armor the next Y times you gain armor — each gain burns a charge. |
+| **Haste** | +X tempo-free tiles on your next Y moves — each non-flash move burns a charge (flash-point moves are exempt). |
 | **Cleanse** | Remove X negative effect(s) instantly. |
-| **Smith** | Gain X armor per cycle. |
-| **Steady** | Your next action adds no tempo. |
-| **Brace** | Reduce incoming attack damage by X% for Y attacks. |
-| **Resilient** | Reduce all incoming damage by X% for Y tempo (can be limited to one damage type). |
+| **Smith** | Gain X armor per cycle; X decays by 1 each cycle (Regen, but for armor). |
+| **Steady** | Your next action adds no tempo — each action burns a charge. |
+| **Brace** | Reduce incoming attack damage by X% for Y attacks — each incoming attack burns a charge. |
+| **Resilient** | Reduce all incoming damage by X%, draining by tempo (can be limited to one damage type). |
 | **Life Steal** | Your next attack heals you for the damage dealt. |
-| **Morphine** | Gain temporary HP; when it expires, lose it and take 2 damage. |
-| **Wear Down** | Each of your attacks reduces the target's attack by 1 (stacking). |
 | **Invisible** | Cannot be targeted by enemies. |
-| **Armor Break** | Next attack deals double damage to armor only (no health damage). |
-| **Shield Ready** | Gain X armor after Y tempo. |
-| **Repelled Block** | If the next melee attack is fully blocked by armor, negate it and knock the enemy back 4 tiles. |
-| **Shield of Growth** | All damage taken increases your armor by that amount. |
-| **Phoenix Grace** | When HP drops below 50%, heal to 80% and apply 5 burn to the nearest enemy. |
-| **Demonic Rage** | Your next X mana costs are paid with health instead. |
-| **Poisoned Blood** | Your heal cards deal damage to enemies instead of healing. |
-| **Elixir** | Poison ticks heal you instead of damaging you. |
+
+**Explicit buffs** are effects owned by a specific card or item rather than the general roster above — their exact behavior lives on their source: *Wear Down, Morphine, Armor Break, Shield Ready, Repelled Block, Shield of Growth, Phoenix Grace, Demonic Rage, Poisoned Blood, Elixir*. The stack-oriented ones (Phoenix Grace, Demonic Rage, Poisoned Blood, Elixir) burn one stack each time their effect triggers.
+
+**Amplification:** sphere-grid Amp nodes strengthen the buffs *you* gain — extra Haste/Blessed charges, +10% Enlightened crit, +10% Brace/Resilient reduction, +5 Strengthen damage, +5 Bolster armor, +1 Cleanse removal, +1 Blessed draw.
 
 ---
 
 ## Debuffs
 
-Negative effects, applied by enemies and hazards (and occasionally self-inflicted by powerful cards).
+Negative effects, applied by enemies and hazards (and occasionally self-inflicted by powerful cards). Timed debuffs tick down with raw tempo; stack-driven debuffs never expire by the clock — their stacks burn on what they react to. Inebriate and Slowed behave identically for players and enemies.
 
 | Debuff | Effect |
 |---|---|
-| **Bleed** | Take X damage per tile moved. |
-| **Stun** | Cannot take any actions. |
-| **Disarm** | Cannot play attack cards. |
-| **Silence** | Cannot play spell cards. |
-| **Burn** | Damage doubles each cycle (1, 2, 4, 8…). |
+| **Bleed** | Take 1 damage per tile moved; each point of damage removes a stack. |
+| **Stun** | Cannot take any actions for X tempo. |
+| **Disarm** | Cannot play attack cards for X tempo. |
+| **Silence** | Cannot play spell cards for X tempo. |
+| **Burn** | Damage doubles each cycle (1, 2, 4, 8…); one stack per cycle. |
 | **Poison** | Take X damage per cycle; lose 1 stack per cycle. |
-| **Inebriate** | Movement direction is randomized. |
+| **Inebriate** | Movement direction is randomized for X tempo. |
 | **Cursed** | Deal 20% less damage, and deal 20% of your damage to yourself. |
-| **Frozen** | Cannot play cards. |
-| **Cuffed** | Cannot draw cards. |
+| **Frozen** | Cannot play cards for X tempo. |
+| **Cuffed** | Cannot draw cards for X tempo. |
 | **Shocked** | Deal X damage to nearby allies per cycle; loses 1 stack per cycle. |
-| **Slowed** | Each move command travels X fewer tiles (never below 1). |
-| **Staggered** | Attack cards cost X more mana. |
-| **Drain** | Lose 1 mana per cycle; loses 1 stack per cycle. |
-| **Weighted** | Cards cost X more tempo. |
+| **Slowed** | Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack. |
+| **Staggered** | Attack cards cost 15 more mana; each attack card played burns a stack. |
+| **Drain** | Lose mana per cycle; loses 1 stack per cycle. |
+| **Weighted** | Cards cost 2 more tempo; each card played burns a stack. |
 | **Hexed** | One random card in hand costs +X mana. |
 | **Locked** | One random card in hand cannot be played. |
-| **Rooted** | Cannot move. |
-| **Tethered** | Cannot move more than X tiles from where it was applied. |
+| **Rooted** | Cannot move for X tempo. |
+| **Tethered** | Cannot move more than 5 tiles from where it was applied. |
 | **Magnetized** | Pulled X tiles toward the nearest enemy each cycle. |
-| **Linked** | Share X% of damage taken with your ally (co-op partner). |
-| **Clumsy** | X% chance to discard a random card whenever you play one. |
-| **Vulnerable** | Take 30% more damage on the next X attack(s). |
-| **Exposed** | Your armor has been broken through — a hit got past it. Armored chests (Briarhide Plate, Adimantium) react to it; enemy-side passives trigger when you expose THEM. |
+| **Linked** | Share 20% of damage taken with your ally (co-op partner); drains by tempo. |
+| **Clumsy** | 30% chance to discard a random card whenever you play one; each card played burns a stack. |
+| **Vulnerable** | Take 30% more damage on the next X attack(s) — one stack per hit. |
 | **Brittle** | Armor decays an extra 2 per cycle. |
 | **Cold** | Stacking. At 5 stacks, become Frozen. |
-| **Blind** | X% chance for your attacks to miss. |
+| **Blind** | 80% chance for your attacks to miss; drains by tempo. |
+
+**Exposed** is not a debuff — it's the *moment* armor is broken through. Armored chests (Briarhide Plate, Adimantium) react to it on you; enemy-side passives trigger when you expose THEM.
 
 ---
 
