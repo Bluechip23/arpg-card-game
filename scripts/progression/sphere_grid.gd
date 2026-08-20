@@ -2,7 +2,7 @@ class_name SphereGrid
 extends Resource
 
 ## Data model for the sphere grid leveling system.
-## Contains 139 nodes arranged in concentric rings (plus the outer
+## Contains 143 nodes arranged in concentric rings (plus the outer
 ## amplification arc) with connections for pathing.
 
 enum NodeType {
@@ -404,7 +404,7 @@ func _build_grid() -> void:
 	for i in range(34):
 		_connect_nodes(100 + i, 100 + ((i + 1) % 34))
 
-	# === Amplification arc: 5 buff-amp nodes at radius 620 (ids 134-138) ===
+	# === Amplification arc: 9 buff-amp nodes at radius 620 (ids 134-142) ===
 	# Playstyle amplification for the buffs YOU gain — the self-buff twin of
 	# the Vuln/Weaken debuff-amp nodes. Each hangs off its two nearest Ring 6
 	# nodes by angle.
@@ -414,6 +414,10 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Brace Amp +10%", "Brace you gain blocks 10 more percentage points of damage"],
 		[NodeType.COMBAT_BONUS, "Blessed Draw +1", "Blessed you gain draws 1 extra card per cycle"],
 		[NodeType.COMBAT_BONUS, "Blessed Amp +1", "Blessed you gain lasts 1 extra cycle"],
+		[NodeType.COMBAT_BONUS, "Strength Amp +5", "Strengthen you gain deals 5 more damage per attack"],
+		[NodeType.COMBAT_BONUS, "Bolster Amp +5", "Bolster you gain grants 5 more armor per charge"],
+		[NodeType.COMBAT_BONUS, "Cleanse Amp +1", "Cleanse you gain removes 1 extra debuff"],
+		[NodeType.COMBAT_BONUS, "Resil Amp +10%", "Resilient you gain negates 10 more percentage points of damage"],
 	]
 	for k in range(amp_types.size()):
 		var amp_angle = (TAU / amp_types.size()) * k - PI / 2

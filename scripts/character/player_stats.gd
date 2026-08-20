@@ -159,6 +159,10 @@ var sphere_enlightened_amp: float = 0.0    # +percentage points on Enlightened's
 var sphere_brace_amp: int = 0              # +percentage points on Brace's damage reduction
 var sphere_blessed_draw_amp: int = 0       # +cards per cycle on Blessed
 var sphere_blessed_amp: int = 0            # +charges (cycles) on Blessed applications
+var sphere_strengthen_amp: int = 0         # +damage on Strengthen applications
+var sphere_bolster_amp: int = 0            # +armor on Bolster applications
+var sphere_cleanse_amp: int = 0            # +debuffs removed per Cleanse
+var sphere_resilient_amp: int = 0          # +percentage points on Resilient's reduction
 # Equipment-granted equivalents (added/removed by Inventory on equip/unequip,
 # mirroring the base_* stat pattern). Kept separate from the sphere bonuses so
 # unequip subtracts exactly what the item added.
@@ -610,6 +614,10 @@ func save_progression() -> Dictionary:
 		"sphere_brace_amp": sphere_brace_amp,
 		"sphere_blessed_draw_amp": sphere_blessed_draw_amp,
 		"sphere_blessed_amp": sphere_blessed_amp,
+		"sphere_strengthen_amp": sphere_strengthen_amp,
+		"sphere_bolster_amp": sphere_bolster_amp,
+		"sphere_cleanse_amp": sphere_cleanse_amp,
+		"sphere_resilient_amp": sphere_resilient_amp,
 		"damage_proc_reduction_chance": damage_proc_reduction_chance,
 		"damage_proc_reduction_percent": damage_proc_reduction_percent,
 		"damage_resistances": damage_resistances.duplicate(true),
@@ -699,6 +707,10 @@ func restore_progression(data: Dictionary) -> void:
 	sphere_brace_amp = data.get("sphere_brace_amp", sphere_brace_amp)
 	sphere_blessed_draw_amp = data.get("sphere_blessed_draw_amp", sphere_blessed_draw_amp)
 	sphere_blessed_amp = data.get("sphere_blessed_amp", sphere_blessed_amp)
+	sphere_strengthen_amp = data.get("sphere_strengthen_amp", sphere_strengthen_amp)
+	sphere_bolster_amp = data.get("sphere_bolster_amp", sphere_bolster_amp)
+	sphere_cleanse_amp = data.get("sphere_cleanse_amp", sphere_cleanse_amp)
+	sphere_resilient_amp = data.get("sphere_resilient_amp", sphere_resilient_amp)
 	damage_proc_reduction_chance = data.get("damage_proc_reduction_chance", damage_proc_reduction_chance)
 	damage_proc_reduction_percent = data.get("damage_proc_reduction_percent", damage_proc_reduction_percent)
 	damage_resistances = data.get("damage_resistances", damage_resistances)
@@ -2040,7 +2052,8 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 	## Parses labels like "Block +2", "Thorns +1", "Damage +3", "Heal +2", "Crit +5%", "Armor +3",
 	## "Regen +1", "Arm/Cyc +1", "Life Steal +3%", "Resist +3%", "Range +1",
 	## "Vuln Amp +25%", "Weaken Amp +25%", "Haste Amp +1", "Enlight Amp +10%",
-	## "Brace Amp +10%", "Blessed Draw +1", "Blessed Amp +1"
+	## "Brace Amp +10%", "Blessed Draw +1", "Blessed Amp +1", "Strength Amp +5",
+	## "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%"
 	var regex = RegEx.new()
 	regex.compile("(.+?)\\s*\\+(\\d+)")
 	var result = regex.search(label)
@@ -2090,6 +2103,14 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			sphere_blessed_draw_amp += value
 		"blessed amp":
 			sphere_blessed_amp += value
+		"strength amp":
+			sphere_strengthen_amp += value
+		"bolster amp":
+			sphere_bolster_amp += value
+		"cleanse amp":
+			sphere_cleanse_amp += value
+		"resil amp":
+			sphere_resilient_amp += value
 	stats_updated.emit()
 	print("[STATS] Sphere grid combat bonus: %s" % label)
 

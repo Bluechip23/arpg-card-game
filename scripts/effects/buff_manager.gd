@@ -34,14 +34,14 @@ func connect_debuff_manager(dm) -> void:
 # ============================================
 
 func apply_buff(buff: Buff) -> void:
+	# Sphere-grid buff amps: buffs YOU gain arrive stronger (playstyle
+	# amplification nodes). Runs before Cleanse so its amp counts too.
+	_amp_incoming_buff(buff)
+
 	# Handle Cleanse immediately
 	if buff.buff_type == Buff.BuffType.CLEANSE:
 		_execute_cleanse(buff.value)
 		return
-
-	# Sphere-grid buff amps: buffs YOU gain arrive stronger (playstyle
-	# amplification nodes — Haste Amp, Brace Amp, Blessed Draw/Amp).
-	_amp_incoming_buff(buff)
 
 	# Check if buff already exists (refresh or stack)
 	var existing = get_buff(buff.buff_type)
@@ -92,6 +92,21 @@ func _amp_incoming_buff(buff: Buff) -> void:
 		Buff.BuffType.BRACE:
 			if "sphere_brace_amp" in owner_stats and owner_stats.sphere_brace_amp > 0:
 				buff.value += owner_stats.sphere_brace_amp
+				buff._set_name_and_description()
+		Buff.BuffType.STRENGTHEN:
+			if "sphere_strengthen_amp" in owner_stats and owner_stats.sphere_strengthen_amp > 0:
+				buff.value += owner_stats.sphere_strengthen_amp
+				buff._set_name_and_description()
+		Buff.BuffType.BOLSTER:
+			if "sphere_bolster_amp" in owner_stats and owner_stats.sphere_bolster_amp > 0:
+				buff.value += owner_stats.sphere_bolster_amp
+				buff._set_name_and_description()
+		Buff.BuffType.CLEANSE:
+			if "sphere_cleanse_amp" in owner_stats and owner_stats.sphere_cleanse_amp > 0:
+				buff.value += owner_stats.sphere_cleanse_amp
+		Buff.BuffType.RESILIENT:
+			if "sphere_resilient_amp" in owner_stats and owner_stats.sphere_resilient_amp > 0:
+				buff.value += owner_stats.sphere_resilient_amp
 				buff._set_name_and_description()
 
 func _is_stackable(type: Buff.BuffType) -> bool:
