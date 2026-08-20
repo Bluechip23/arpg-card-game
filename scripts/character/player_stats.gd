@@ -153,6 +153,12 @@ var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2
 var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
 var sphere_vulnerable_amp: float = 0.0     # Extra percentage points on YOUR Vulnerable's damage amp (25.0 → enemies take +55% instead of +30%)
 var sphere_weaken_amp: float = 0.0         # Extra percentage points on YOUR Weaken's damage reduction (25.0 → enemies deal -55% instead of -30%)
+# Buff amps: sphere-grid bonuses to the buffs YOU gain (playstyle amplification).
+var sphere_haste_amp: int = 0              # +charges (movements) on Haste applications
+var sphere_enlightened_amp: float = 0.0    # +percentage points on Enlightened's crit chance (10% base)
+var sphere_brace_amp: int = 0              # +percentage points on Brace's damage reduction
+var sphere_blessed_draw_amp: int = 0       # +cards per cycle on Blessed
+var sphere_blessed_amp: int = 0            # +charges (cycles) on Blessed applications
 # Equipment-granted equivalents (added/removed by Inventory on equip/unequip,
 # mirroring the base_* stat pattern). Kept separate from the sphere bonuses so
 # unequip subtracts exactly what the item added.
@@ -599,6 +605,11 @@ func save_progression() -> Dictionary:
 		"sphere_bonus_range": sphere_bonus_range,
 		"sphere_vulnerable_amp": sphere_vulnerable_amp,
 		"sphere_weaken_amp": sphere_weaken_amp,
+		"sphere_haste_amp": sphere_haste_amp,
+		"sphere_enlightened_amp": sphere_enlightened_amp,
+		"sphere_brace_amp": sphere_brace_amp,
+		"sphere_blessed_draw_amp": sphere_blessed_draw_amp,
+		"sphere_blessed_amp": sphere_blessed_amp,
 		"damage_proc_reduction_chance": damage_proc_reduction_chance,
 		"damage_proc_reduction_percent": damage_proc_reduction_percent,
 		"damage_resistances": damage_resistances.duplicate(true),
@@ -683,6 +694,11 @@ func restore_progression(data: Dictionary) -> void:
 	sphere_bonus_range = data.get("sphere_bonus_range", sphere_bonus_range)
 	sphere_vulnerable_amp = data.get("sphere_vulnerable_amp", sphere_vulnerable_amp)
 	sphere_weaken_amp = data.get("sphere_weaken_amp", sphere_weaken_amp)
+	sphere_haste_amp = data.get("sphere_haste_amp", sphere_haste_amp)
+	sphere_enlightened_amp = data.get("sphere_enlightened_amp", sphere_enlightened_amp)
+	sphere_brace_amp = data.get("sphere_brace_amp", sphere_brace_amp)
+	sphere_blessed_draw_amp = data.get("sphere_blessed_draw_amp", sphere_blessed_draw_amp)
+	sphere_blessed_amp = data.get("sphere_blessed_amp", sphere_blessed_amp)
 	damage_proc_reduction_chance = data.get("damage_proc_reduction_chance", damage_proc_reduction_chance)
 	damage_proc_reduction_percent = data.get("damage_proc_reduction_percent", damage_proc_reduction_percent)
 	damage_resistances = data.get("damage_resistances", damage_resistances)
@@ -2023,7 +2039,8 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 	## Applies a neutral combat bonus from a sphere grid node.
 	## Parses labels like "Block +2", "Thorns +1", "Damage +3", "Heal +2", "Crit +5%", "Armor +3",
 	## "Regen +1", "Arm/Cyc +1", "Life Steal +3%", "Resist +3%", "Range +1",
-	## "Vuln Amp +25%", "Weaken Amp +25%"
+	## "Vuln Amp +25%", "Weaken Amp +25%", "Haste Amp +1", "Enlight Amp +10%",
+	## "Brace Amp +10%", "Blessed Draw +1", "Blessed Amp +1"
 	var regex = RegEx.new()
 	regex.compile("(.+?)\\s*\\+(\\d+)")
 	var result = regex.search(label)
@@ -2063,6 +2080,16 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			sphere_vulnerable_amp += float(value)
 		"weaken amp":
 			sphere_weaken_amp += float(value)
+		"haste amp":
+			sphere_haste_amp += value
+		"enlight amp":
+			sphere_enlightened_amp += float(value)
+		"brace amp":
+			sphere_brace_amp += value
+		"blessed draw":
+			sphere_blessed_draw_amp += value
+		"blessed amp":
+			sphere_blessed_amp += value
 	stats_updated.emit()
 	print("[STATS] Sphere grid combat bonus: %s" % label)
 

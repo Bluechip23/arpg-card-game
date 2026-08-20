@@ -2,7 +2,8 @@ class_name SphereGrid
 extends Resource
 
 ## Data model for the sphere grid leveling system.
-## Contains 134 nodes arranged in concentric rings with connections for pathing.
+## Contains 139 nodes arranged in concentric rings (plus the outer
+## amplification arc) with connections for pathing.
 
 enum NodeType {
 	STAT_BONUS,    # Flat stat increase (STR, DEX, INT, WIS, AGI, DET)
@@ -402,6 +403,27 @@ func _build_grid() -> void:
 	# Connect ring 6 adjacent
 	for i in range(34):
 		_connect_nodes(100 + i, 100 + ((i + 1) % 34))
+
+	# === Amplification arc: 5 buff-amp nodes at radius 620 (ids 134-138) ===
+	# Playstyle amplification for the buffs YOU gain — the self-buff twin of
+	# the Vuln/Weaken debuff-amp nodes. Each hangs off its two nearest Ring 6
+	# nodes by angle.
+	var amp_types := [
+		[NodeType.COMBAT_BONUS, "Haste Amp +1", "Haste you gain lasts 1 extra movement"],
+		[NodeType.COMBAT_BONUS, "Enlight Amp +10%", "Enlightened you gain grants +10% more crit chance (20% total)"],
+		[NodeType.COMBAT_BONUS, "Brace Amp +10%", "Brace you gain blocks 10 more percentage points of damage"],
+		[NodeType.COMBAT_BONUS, "Blessed Draw +1", "Blessed you gain draws 1 extra card per cycle"],
+		[NodeType.COMBAT_BONUS, "Blessed Amp +1", "Blessed you gain lasts 1 extra cycle"],
+	]
+	for k in range(amp_types.size()):
+		var amp_angle = (TAU / amp_types.size()) * k - PI / 2
+		var amp_pos = center + Vector2(cos(amp_angle), sin(amp_angle)) * 620.0
+		var a = amp_types[k]
+		var amp_node = GridNode.new(134 + k, a[0], a[1], a[2], amp_pos, 7)
+		_add_node(amp_node)
+		var nearest := int(round(float(k) * 34.0 / float(amp_types.size()))) % 34
+		_connect_nodes(134 + k, 100 + nearest)
+		_connect_nodes(134 + k, 100 + ((nearest + 1) % 34))
 
 ## SHELVED CONTENT — the original Ring 3 (combat bonuses, on-hit/on-heal/on-block
 ## passives, a Culling Stone, a Retrospective) that the FREE_STAT / vitality arm
