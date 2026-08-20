@@ -217,10 +217,6 @@ Positive effects. Duration-based buffs tick down with raw tempo; charge-based bu
 | **Life Steal** | Your next attack heals you for the damage dealt. |
 | **Invisible** | Cannot be targeted by enemies. |
 
-**Explicit buffs** are effects owned by a specific card or item rather than the general roster above — their exact behavior lives on their source: *Wear Down, Morphine, Armor Break, Shield Ready, Repelled Block, Shield of Growth, Phoenix Grace, Demonic Rage, Poisoned Blood, Elixir*. The stack-oriented ones (Phoenix Grace, Demonic Rage, Poisoned Blood, Elixir) burn one stack each time their effect triggers.
-
-**Amplification:** sphere-grid Amp nodes strengthen the buffs *you* gain — extra Haste/Blessed charges, +10% Enlightened crit, +10% Brace/Resilient reduction, +5 Strengthen damage, +5 Bolster armor, +1 Cleanse removal, +1 Blessed draw.
-
 ---
 
 ## Debuffs
@@ -255,8 +251,6 @@ Negative effects, applied by enemies and hazards (and occasionally self-inflicte
 | **Brittle** | Armor decays an extra 2 per cycle. |
 | **Cold** | Stacking. At 5 stacks, become Frozen. |
 | **Blind** | 80% chance for your attacks to miss; drains by tempo. |
-
-**Exposed** is not a debuff — it's the *moment* armor is broken through. Armored chests (Briarhide Plate, Adimantium) react to it on you; enemy-side passives trigger when you expose THEM.
 
 ---
 
