@@ -142,7 +142,7 @@ func _build_tab_bar() -> void:
 	_tab_bar.offset_right = -120.0  # Leave room for close button
 	_tab_bar.offset_bottom = 72.0
 
-	_tab_btn_skill_tree = _make_tab_button("Skill Tree", true)
+	_tab_btn_skill_tree = _make_tab_button("Passives", true)
 	_tab_btn_skill_tree.pressed.connect(_on_tab_skill_tree)
 	_tab_bar.add_child(_tab_btn_skill_tree)
 
@@ -276,9 +276,9 @@ func _update_title() -> void:
 	match _current_tab:
 		Tab.SKILL_TREE:
 			if character_name != "":
-				title_label.text = "%s - SKILL TREE" % character_name.to_upper()
+				title_label.text = "%s - PASSIVES" % character_name.to_upper()
 			else:
-				title_label.text = "SKILL TREE"
+				title_label.text = "PASSIVES"
 		Tab.SPHERE_GRID:
 			title_label.text = "SPHERE GRID"
 
@@ -286,7 +286,22 @@ func _update_title() -> void:
 # TABLE BUILDING
 # ============================================
 
+# ---- Lane view geometry ----
+const NODE_SIZE: float = 56.0        # circle diameter
+const CONNECTOR_W: float = 46.0      # line segment between stages
+const LANE_NAME_W: float = 150.0
+const COLOR_NODE_LOCKED := Color(0.10, 0.10, 0.13)
+const COLOR_NODE_EMPTY := Color(0.13, 0.14, 0.20)
+const COLOR_COUNT := Color(0.45, 0.85, 1.0)     # the "x / 15" readout
+const COLOR_COUNT_DIM := Color(0.35, 0.35, 0.45)
+const COLOR_MAXED := Color(1.0, 0.85, 0.3)      # gold ring on a maxed passive
+
 func _rebuild_table() -> void:
+	## LANE VIEW: one horizontal chain of circular nodes per archetype.
+	## Each passive is LEVELED with banked passive points ("x / 15" under its
+	## circle); a lane's later stages unlock at 5 / 15 / 25... points invested
+	## in that lane. Effects are unchanged for now — level 1 turns a passive
+	## on, deeper levels are the hook for the upcoming scaling pass.
 	_refresh_stat_alloc_button()
 	if not skill_tree:
 		return
@@ -295,38 +310,161 @@ func _rebuild_table() -> void:
 
 	_update_title()
 
-	# Clear existing rows
+	# Clear existing content
 	for child in table_container.get_children():
 		child.queue_free()
 	_row_panels.clear()
 
-	# Show retrospective info
-	var pending_retro = skill_tree.get_pending_retro_level(player_level)
-	var has_token = sphere_inventory and sphere_inventory.has_retrospective_token()
-	if pending_retro > 0 or has_token:
-		var retro_label = Label.new()
-		if pending_retro > 0:
-			retro_label.text = "Retrospective Level! You may choose a previously skipped option instead of a new one."
-		elif has_token:
-			var token_count = sphere_inventory.retrospective_tokens
-			retro_label.text = "Retrospective Token%s: %d — reclaim a skipped option as a bonus pick!" % ["s" if token_count > 1 else "", token_count]
-		retro_label.add_theme_font_size_override("font_size", 12)
-		retro_label.add_theme_color_override("font_color", COLOR_RETRO_TEXT)
-		retro_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		table_container.add_child(retro_label)
+	table_container.add_theme_constant_override("separation", 18)
 
-	# Add column header
-	_build_header_row()
+	# Points header
+	var pool: int = player_stats.unspent_passive_points if player_stats else 0
+	var pts_label = Label.new()
+	pts_label.text = "Passive Points: %d" % pool
+	pts_label.add_theme_font_size_override("font_size", 18)
+	pts_label.add_theme_color_override("font_color", COLOR_AUTO_TEXT if pool > 0 else COLOR_DIM)
+	pts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	table_container.add_child(pts_label)
 
-	# Add separator
-	var sep = HSeparator.new()
-	sep.add_theme_constant_override("separation", 2)
-	table_container.add_child(sep)
+	var hint = Label.new()
+	hint.text = "Click a circle to invest a point (max %d per passive). Later stages unlock at %d / %d / %d points in that archetype." % [
+		SkillTreeData.PASSIVE_MAX_LEVEL, SkillTreeData.stage_unlock_cost(1),
+		SkillTreeData.stage_unlock_cost(2), SkillTreeData.stage_unlock_cost(3)]
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", COLOR_DIM)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	table_container.add_child(hint)
 
-	# Build rows for ALL levels so the player can see future choices
-	for row in skill_tree.rows:
-		var is_locked = row.level > player_level
-		_build_skill_row(row, is_locked)
+	table_container.add_child(HSeparator.new())
+
+	for lane in skill_tree.get_archetype_lanes():
+		table_container.add_child(_build_lane_row(lane))
+
+## Total points invested in a lane (drives its stage gates).
+func _lane_points(lane: Dictionary) -> int:
+	var total := 0
+	if player_stats:
+		for opt in lane["passives"]:
+			total += player_stats.get_passive_level(opt.passive_id)
+	return total
+
+func _build_lane_row(lane: Dictionary) -> Control:
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 0)
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN
+
+	var lane_pts := _lane_points(lane)
+	var lane_color: Color = lane["color"]
+
+	# Lane name plate (the archetype), with its invested total.
+	var name_box = VBoxContainer.new()
+	name_box.custom_minimum_size = Vector2(LANE_NAME_W, NODE_SIZE)
+	name_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	var name_lbl = Label.new()
+	name_lbl.text = lane["name"]
+	name_lbl.add_theme_font_size_override("font_size", 15)
+	name_lbl.add_theme_color_override("font_color", lane_color)
+	name_box.add_child(name_lbl)
+	var pts_lbl = Label.new()
+	pts_lbl.text = "%d pts invested" % lane_pts
+	pts_lbl.add_theme_font_size_override("font_size", 11)
+	pts_lbl.add_theme_color_override("font_color", COLOR_DIM)
+	name_box.add_child(pts_lbl)
+	row.add_child(name_box)
+
+	var passives: Array = lane["passives"]
+	for stage in range(passives.size()):
+		var stage_unlocked: bool = lane_pts >= SkillTreeData.stage_unlock_cost(stage)
+		if stage > 0:
+			row.add_child(_build_connector(stage_unlocked, lane_color))
+		row.add_child(_build_passive_node(lane, stage, lane_pts))
+	return row
+
+func _build_connector(active: bool, lane_color: Color) -> Control:
+	var holder = Control.new()
+	holder.custom_minimum_size = Vector2(CONNECTOR_W, NODE_SIZE + 20)
+	var line = ColorRect.new()
+	line.color = Color(lane_color.r, lane_color.g, lane_color.b, 0.85) if active else Color(0.25, 0.25, 0.3)
+	line.position = Vector2(0, NODE_SIZE / 2.0 - 2.0)
+	line.size = Vector2(CONNECTOR_W, 4)
+	holder.add_child(line)
+	return holder
+
+func _build_passive_node(lane: Dictionary, stage: int, lane_pts: int) -> Control:
+	var opt: SkillTreeData.SkillOption = lane["passives"][stage]
+	var level: int = player_stats.get_passive_level(opt.passive_id) if player_stats else 0
+	var maxed: bool = level >= SkillTreeData.PASSIVE_MAX_LEVEL
+	var unlock_cost: int = SkillTreeData.stage_unlock_cost(stage)
+	var stage_unlocked: bool = lane_pts >= unlock_cost
+	var lane_color: Color = lane["color"]
+
+	var box = VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.alignment = BoxContainer.ALIGNMENT_BEGIN
+
+	var btn = Button.new()
+	btn.custom_minimum_size = Vector2(NODE_SIZE, NODE_SIZE)
+	btn.focus_mode = Control.FOCUS_NONE
+
+	var style = StyleBoxFlat.new()
+	style.set_corner_radius_all(int(NODE_SIZE / 2.0))
+	style.set_border_width_all(3)
+	if not stage_unlocked:
+		style.bg_color = COLOR_NODE_LOCKED
+		style.border_color = Color(0.22, 0.22, 0.28)
+	elif maxed:
+		style.bg_color = Color(lane_color.r * 0.35, lane_color.g * 0.35, lane_color.b * 0.35)
+		style.border_color = COLOR_MAXED
+	elif level > 0:
+		style.bg_color = Color(lane_color.r * 0.25, lane_color.g * 0.25, lane_color.b * 0.25)
+		style.border_color = lane_color
+	else:
+		style.bg_color = COLOR_NODE_EMPTY
+		style.border_color = Color(lane_color.r, lane_color.g, lane_color.b, 0.45)
+	btn.add_theme_stylebox_override("normal", style)
+	var hover = style.duplicate() as StyleBoxFlat
+	hover.bg_color = style.bg_color.lightened(0.12)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", hover)
+
+	# Short glyph inside the circle: the passive's initials.
+	var initials := ""
+	for word in opt.name.split(" ", false):
+		initials += word.substr(0, 1)
+		if initials.length() >= 2:
+			break
+	btn.text = initials if stage_unlocked else "🔒"
+	btn.add_theme_font_size_override("font_size", 16)
+	btn.add_theme_color_override("font_color", lane_color if stage_unlocked else COLOR_DIM)
+
+	if stage_unlocked:
+		btn.tooltip_text = "%s (Level %d / %d)\n%s%s" % [
+			opt.name, level, SkillTreeData.PASSIVE_MAX_LEVEL, opt.description,
+			"" if maxed else "\n\nClick to invest 1 passive point."]
+	else:
+		btn.tooltip_text = "%s — LOCKED\nRequires %d points invested in %s (you have %d).\n\n%s" % [
+			opt.name, unlock_cost, lane["name"], lane_pts, opt.description]
+
+	btn.pressed.connect(_on_passive_node_pressed.bind(opt.passive_id, lane, stage))
+	box.add_child(btn)
+
+	var count = Label.new()
+	count.text = ("%d / %d" % [level, SkillTreeData.PASSIVE_MAX_LEVEL]) if stage_unlocked else ("needs %d" % unlock_cost)
+	count.add_theme_font_size_override("font_size", 12)
+	count.add_theme_color_override("font_color", (COLOR_MAXED if maxed else COLOR_COUNT) if stage_unlocked else COLOR_COUNT_DIM)
+	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	count.custom_minimum_size = Vector2(NODE_SIZE, 0)
+	box.add_child(count)
+	return box
+
+func _on_passive_node_pressed(passive_id: String, lane: Dictionary, stage: int) -> void:
+	if player_stats == null:
+		return
+	# Stage gate re-checked at click time (the pool/levels may have changed).
+	if _lane_points(lane) < SkillTreeData.stage_unlock_cost(stage):
+		return
+	if player_stats.allocate_passive_point(passive_id):
+		_rebuild_table()
 
 func _build_header_row() -> void:
 	var hbox = HBoxContainer.new()
@@ -1096,11 +1234,10 @@ func _get_type_color(option_type: SkillTreeData.OptionType) -> Color:
 	return COLOR_TEXT
 
 func _scroll_to_current_level() -> void:
+	# Lane view: everything fits on screen — always show from the top.
 	if not is_instance_valid(scroll_container):
 		return
-	var target_row = player_level - 1
-	var scroll_y = max(0, (target_row - 3) * (ROW_HEIGHT + ROW_GAP))
-	scroll_container.call_deferred("set_v_scroll", int(scroll_y))
+	scroll_container.call_deferred("set_v_scroll", 0)
 
 func _input(event: InputEvent) -> void:
 	if not visible:

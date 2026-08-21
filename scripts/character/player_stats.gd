@@ -433,6 +433,39 @@ func add_skill_tree_passive(passive_id: String) -> void:
 		print("[STATS] Skill tree passive added: %s" % passive_id)
 
 # ============================================
+# PASSIVE POINT ALLOCATION (lane view)
+# ============================================
+# Passives are LEVELED with banked passive points (1 point = +1 level, up to
+# PASSIVE_MAX_LEVEL). A passive's effect activates at level 1 — per-level
+# scaling of the effects themselves comes in a later balancing pass.
+const PASSIVE_POINTS_PER_LEVEL: int = 3  # Passive points banked each level-up
+const PASSIVE_MAX_LEVEL: int = 15
+
+var unspent_passive_points: int = 0
+var passive_levels: Dictionary = {}  # passive_id -> level (1..PASSIVE_MAX_LEVEL)
+
+func get_passive_level(passive_id: String) -> int:
+	return int(passive_levels.get(passive_id, 0))
+
+## Spend one banked passive point on a passive. Stage gating (lane point
+## requirements) is checked by the caller/UI — this enforces pool and cap.
+func allocate_passive_point(passive_id: String) -> bool:
+	if unspent_passive_points <= 0:
+		print("[STATS] No passive points banked")
+		return false
+	var lvl := get_passive_level(passive_id)
+	if lvl >= PASSIVE_MAX_LEVEL:
+		print("[STATS] %s is already at max level %d" % [passive_id, PASSIVE_MAX_LEVEL])
+		return false
+	passive_levels[passive_id] = lvl + 1
+	unspent_passive_points -= 1
+	if lvl == 0:
+		add_skill_tree_passive(passive_id)  # effect turns on at level 1
+	stats_updated.emit()
+	print("[STATS] %s leveled to %d (%d passive point(s) left)" % [passive_id, lvl + 1, unspent_passive_points])
+	return true
+
+# ============================================
 # EXPERIENCE / LEVEL
 # ============================================
 const HP_PER_LEVEL: int = 2          # Max health gained automatically each level
@@ -560,6 +593,8 @@ func save_progression() -> Dictionary:
 		"current_xp": current_xp,
 		"total_xp": total_xp,
 		"unspent_stat_points": unspent_stat_points,
+		"unspent_passive_points": unspent_passive_points,
+		"passive_levels": passive_levels.duplicate(),
 		"gold": gold,
 		# Sphere grid keystones
 		"keystone_det_vitality": keystone_det_vitality,
@@ -668,6 +703,8 @@ func restore_progression(data: Dictionary) -> void:
 	current_xp = data.get("current_xp", current_xp)
 	total_xp = data.get("total_xp", total_xp)
 	unspent_stat_points = data.get("unspent_stat_points", unspent_stat_points)
+	unspent_passive_points = data.get("unspent_passive_points", unspent_passive_points)
+	passive_levels = data.get("passive_levels", passive_levels)
 	gold = data.get("gold", gold)
 	# Sphere grid keystones
 	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)
@@ -757,8 +794,14 @@ func restore_progression(data: Dictionary) -> void:
 	ranged_damage_bonus = data.get("ranged_damage_bonus", ranged_damage_bonus)
 	healing_bonus = data.get("healing_bonus", healing_bonus)
 	chance_boost = data.get("chance_boost", chance_boost)
-	# Skill tree passives
-	skill_tree_passives = data.get("skill_tree_passives", skill_tree_passives)
+	# Skill tree passives. assign() converts untyped arrays (JSON-restored
+	# saves) into the typed Array[String] instead of failing the assignment.
+	if data.has("skill_tree_passives"):
+		skill_tree_passives.assign(data["skill_tree_passives"])
+	# Back-compat: passives unlocked under the old one-cost model count as level 1.
+	for pid in skill_tree_passives:
+		if not passive_levels.has(pid):
+			passive_levels[pid] = 1
 	# Recalculate derived stats with restored values
 	recalculate_derived_stats()
 	refresh_flash_points()
@@ -2250,9 +2293,11 @@ func _level_up() -> void:
 	current_xp -= get_xp_to_next_level()
 	current_level += 1
 
-	# Every level: the health floor rises and stat points bank for allocation.
+	# Every level: the health floor rises; stat and passive points bank for
+	# allocation from the skill tree screen.
 	max_health += HP_PER_LEVEL
 	unspent_stat_points += STAT_POINTS_PER_LEVEL
+	unspent_passive_points += PASSIVE_POINTS_PER_LEVEL
 
 	# Full health and mana on level up
 	current_health = max_health

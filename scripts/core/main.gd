@@ -3455,21 +3455,14 @@ func _on_hud_help_pressed() -> void:
 		help_panel.show_panel(0)
 
 func _skill_tree_has_pending() -> bool:
-	## True when the player has an unspent skill-tree choice at or below their
-	## current level (a level-up point waiting to be spent).
-	if not skill_tree_ui or not skill_tree_ui.skill_tree or not player:
+	## True when the player has banked stat or passive points waiting to be
+	## spent from the passives screen.
+	if not skill_tree_ui or not player:
 		return false
 	var stats = player.get_stats()
 	if not stats:
 		return false
-	if stats.unspent_stat_points > 0:
-		return true
-	var tree = skill_tree_ui.skill_tree
-	var lvl: int = stats.current_level
-	for row in tree.get_rows_up_to_level(lvl):
-		if not row.is_chosen():
-			return true
-	return tree.get_pending_retro_level(lvl) > 0
+	return stats.unspent_stat_points > 0 or stats.unspent_passive_points > 0
 
 func _refresh_hud_notifications() -> void:
 	if not hud_icon_bar:

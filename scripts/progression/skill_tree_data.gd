@@ -34,6 +34,7 @@ class SkillOption:
 	var passive_data: Dictionary = {}     # trigger, effect, value, chance, etc.
 	var stat_type: String = ""            # For STAT_BONUS: "strength", "dexterity", etc.
 	var stat_amount: int = 0              # For STAT_BONUS
+	var archetype: String = ""            # For PASSIVE: which archetype lane it belongs to
 
 	func get_type_label() -> String:
 		match option_type:
@@ -80,6 +81,39 @@ class SkillRow:
 ## The full skill tree for a character
 var character_name: String = ""
 var rows: Array[SkillRow] = []
+
+# ============================================
+# PASSIVE ALLOCATION MODEL (lane view)
+# ============================================
+# Passives are no longer one-cost picks: each is LEVELED with passive points
+# (up to PASSIVE_MAX_LEVEL). The UI shows one horizontal lane per archetype;
+# a lane's later stages unlock as points are invested in that lane.
+
+const PASSIVE_MAX_LEVEL: int = 15
+
+## Points invested in a lane required to unlock its stage at `index`
+## (0-based): stage 0 is free, then 5, 15, 25, 35...
+static func stage_unlock_cost(stage: int) -> int:
+	if stage <= 0:
+		return 0
+	return 5 + 10 * (stage - 1)
+
+## Lanes for the passive-allocation UI: one entry per archetype, its passives
+## in row order (left to right = the lane's stages).
+## Returns [{ "name": String, "color": Color, "passives": Array[SkillOption] }]
+func get_archetype_lanes() -> Array:
+	var lanes: Array = []
+	var by_name := {}
+	for row in rows:
+		for opt in row.options:
+			if opt.option_type != OptionType.PASSIVE or opt.archetype == "" or opt.passive_id == "":
+				continue
+			if not by_name.has(opt.archetype):
+				var lane := {"name": opt.archetype, "color": opt.icon_color, "passives": []}
+				by_name[opt.archetype] = lane
+				lanes.append(lane)
+			by_name[opt.archetype]["passives"].append(opt)
+	return lanes
 
 ## Get the row for a specific level (returns null if not defined)
 func get_row_for_level(level: int) -> SkillRow:
@@ -348,6 +382,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+				opt.archetype = p.archetype
 			else:
 				opt.name = "Brad Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
@@ -433,6 +468,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+				opt.archetype = p.archetype
 			else:
 				opt.name = "Stephen Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
@@ -518,6 +554,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+				opt.archetype = p.archetype
 			else:
 				opt.name = "Ryan Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
@@ -606,6 +643,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+				opt.archetype = p.archetype
 			else:
 				opt.name = "Cory Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
@@ -691,6 +729,7 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 				opt.option_type = OptionType.PASSIVE
 				opt.passive_id = p.name.to_lower().replace(" ", "_")
 				opt.icon_color = p.color
+				opt.archetype = p.archetype
 			else:
 				opt.name = "Jeremy Lv%d Option %d" % [lvl, i + 1]
 				opt.description = "Placeholder - to be defined"
