@@ -20,21 +20,21 @@ func _initialize() -> void:
 	stats.initialize(CharacterData.create_ryan())
 
 	# --- Label parsing ---
-	stats.apply_sphere_grid_combat_bonus("Vuln Amp +25%", "")
-	_check(absf(stats.sphere_vulnerable_amp - 25.0) < 0.001, "Vuln Amp +25%% parses to 25")
+	stats.apply_sphere_grid_combat_bonus("Vuln Amp +15%", "")
+	_check(absf(stats.sphere_vulnerable_amp - 15.0) < 0.001, "Vuln Amp +15%% parses to 15 (30%% -> 45%%)")
 	stats.apply_sphere_grid_combat_bonus("Weaken Amp +25%", "")
 	_check(absf(stats.sphere_weaken_amp - 25.0) < 0.001, "Weaken Amp +25%% parses to 25")
 
 	# --- Stacking (a second Vuln Amp node exists on Ring 6) ---
-	stats.apply_sphere_grid_combat_bonus("Vuln Amp +25%", "")
-	_check(absf(stats.sphere_vulnerable_amp - 50.0) < 0.001, "second Vuln Amp node stacks to 50")
+	stats.apply_sphere_grid_combat_bonus("Vuln Amp +15%", "")
+	_check(absf(stats.sphere_vulnerable_amp - 30.0) < 0.001, "second Vuln Amp node stacks to 30")
 
 	# --- Save / restore round-trip ---
 	var saved = stats.save_progression()
 	var fresh = load("res://scripts/character/player_stats.gd").new()
 	fresh.initialize(CharacterData.create_ryan())
 	fresh.restore_progression(saved)
-	_check(absf(fresh.sphere_vulnerable_amp - 50.0) < 0.001, "vulnerable amp survives save/restore")
+	_check(absf(fresh.sphere_vulnerable_amp - 30.0) < 0.001, "vulnerable amp survives save/restore")
 	_check(absf(fresh.sphere_weaken_amp - 25.0) < 0.001, "weaken amp survives save/restore")
 
 	# --- Buff amps: label parsing ---
@@ -92,14 +92,44 @@ func _initialize() -> void:
 	for node in grid.get_all_nodes():
 		if "Amp +" in node.label or "Draw +" in node.label:
 			amp_labels.append(node.label)
-	_check(amp_labels.count("Vuln Amp +25%") == 2, "grid holds two Vuln Amp nodes")
+	_check(amp_labels.count("Vuln Amp +15%") == 2, "grid holds two Vuln Amp nodes")
 	_check(amp_labels.count("Weaken Amp +25%") == 1, "grid holds one Weaken Amp node")
 	for lbl in ["Haste Amp +1", "Enlight Amp +10%", "Brace Amp +10%", "Blessed Draw +1",
 			"Blessed Amp +1", "Strength Amp +5", "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%"]:
 		_check(amp_labels.count(lbl) == 1, "grid holds the '%s' node" % lbl)
-	# The arc hangs off Ring 6 so it's pathable.
-	for nid in range(134, 143):
+	# Hex arc: the debuff amps.
+	for lbl in ["Bleed Amp +1", "Stun Amp +1", "Disarm Amp +1", "Silence Amp +1",
+			"Burn Amp +1", "Poison Amp +5", "Curse Amp +10%", "Curse Pain +10%",
+			"Shatter +5", "Shock Amp +1", "Slow Amp +1", "Root Amp +1"]:
+		var found := 0
+		for node in grid.get_all_nodes():
+			if node.label == lbl:
+				found += 1
+		_check(found == 1, "grid holds the '%s' node" % lbl)
+	# Both arcs hang off Ring 6 so they're pathable.
+	for nid in range(134, 155):
 		_check(not grid.get_connections_for(nid).is_empty(), "amp node %d is connected" % nid)
+
+	# --- Debuff-amp label parsing ---
+	stats.apply_sphere_grid_combat_bonus("Bleed Amp +1", "")
+	stats.apply_sphere_grid_combat_bonus("Stun Amp +1", "")
+	stats.apply_sphere_grid_combat_bonus("Disarm Amp +1", "")
+	stats.apply_sphere_grid_combat_bonus("Silence Amp +1", "")
+	stats.apply_sphere_grid_combat_bonus("Burn Amp +1", "")
+	stats.apply_sphere_grid_combat_bonus("Poison Amp +5", "")
+	stats.apply_sphere_grid_combat_bonus("Curse Amp +10%", "")
+	stats.apply_sphere_grid_combat_bonus("Curse Pain +10%", "")
+	stats.apply_sphere_grid_combat_bonus("Shatter +5", "")
+	stats.apply_sphere_grid_combat_bonus("Shock Amp +1", "")
+	stats.apply_sphere_grid_combat_bonus("Slow Amp +1", "")
+	stats.apply_sphere_grid_combat_bonus("Root Amp +1", "")
+	_check(stats.sphere_bleed_amp == 1 and stats.sphere_stun_amp == 1 \
+		and stats.sphere_disarm_amp == 1 and stats.sphere_silence_amp == 1 \
+		and stats.sphere_burn_amp == 1 and stats.sphere_poison_amp == 5 \
+		and stats.sphere_curse_amp == 10 and stats.sphere_curse_pain_amp == 10 \
+		and stats.sphere_shatter_amp == 5 and stats.sphere_shock_amp == 1 \
+		and stats.sphere_slow_amp == 1 and stats.sphere_root_amp == 1,
+		"all twelve debuff amps parse")
 
 	# --- Buff amps survive save/restore ---
 	var saved2 = stats.save_progression()

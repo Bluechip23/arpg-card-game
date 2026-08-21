@@ -219,7 +219,7 @@ Positive effects. Duration-based buffs tick down with raw tempo; charge-based bu
 
 **Explicit buffs** are effects owned by a specific card or item rather than the general roster above — their exact behavior lives on their source: *Wear Down, Morphine, Armor Break, Shield Ready, Repelled Block, Shield of Growth, Phoenix Grace, Demonic Rage, Poisoned Blood, Elixir*. The stack-oriented ones (Phoenix Grace, Demonic Rage, Poisoned Blood, Elixir) burn one stack each time their effect triggers.
 
-**Amplification:** sphere-grid Amp nodes strengthen the buffs *you* gain — extra Haste/Blessed charges, +10% Enlightened crit, +10% Brace/Resilient reduction, +5 Strengthen damage, +5 Bolster armor, +1 Cleanse removal, +1 Blessed draw.
+**Amplification:** sphere-grid Amp nodes strengthen the buffs *you* gain — extra Haste/Blessed charges, +10% Enlightened crit, +10% Brace/Resilient reduction, +5 Strengthen damage, +5 Bolster armor, +1 Cleanse removal, +1 Blessed draw. A second arc amplifies the debuffs *you* apply — heavier Bleed/Burn/Poison ticks, longer Stuns/Disarms/Silences/Roots, crueler Curses, Shatter damage on thaw, extra Shock stacks, 4-tempo Slows, and 45% Vulnerable.
 
 ---
 

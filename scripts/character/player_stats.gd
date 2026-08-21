@@ -163,6 +163,20 @@ var sphere_strengthen_amp: int = 0         # +damage on Strengthen applications
 var sphere_bolster_amp: int = 0            # +armor on Bolster applications
 var sphere_cleanse_amp: int = 0            # +debuffs removed per Cleanse
 var sphere_resilient_amp: int = 0          # +percentage points on Resilient's reduction
+# Debuff amps: sphere-grid bonuses to the debuffs YOU apply to enemies
+# (read by enemy.gd via _player_sphere_amp).
+var sphere_bleed_amp: int = 0              # +damage per tile on your Bleed
+var sphere_stun_amp: int = 0               # +tempo on your Stuns
+var sphere_disarm_amp: int = 0             # +tempo on your Disarms
+var sphere_silence_amp: int = 0            # +tempo on your Silences
+var sphere_burn_amp: int = 0               # +flat damage after each of your Burn ticks
+var sphere_poison_amp: int = 0             # your Poison ticks: stacks% chance of this much bonus damage
+var sphere_curse_amp: int = 0              # +percentage points on Cursed's damage-dealt reduction (20% base)
+var sphere_curse_pain_amp: int = 0         # +percentage points on Cursed's self-damage (20% base)
+var sphere_shatter_amp: int = 0            # enemies take this much damage when your Frozen thaws
+var sphere_shock_amp: int = 0              # +stacks on your Shock applications
+var sphere_slow_amp: int = 0               # +tempo per tile on your Slows (3 base)
+var sphere_root_amp: int = 0               # +tempo on your Roots
 # Equipment-granted equivalents (added/removed by Inventory on equip/unequip,
 # mirroring the base_* stat pattern). Kept separate from the sphere bonuses so
 # unequip subtracts exactly what the item added.
@@ -618,6 +632,18 @@ func save_progression() -> Dictionary:
 		"sphere_bolster_amp": sphere_bolster_amp,
 		"sphere_cleanse_amp": sphere_cleanse_amp,
 		"sphere_resilient_amp": sphere_resilient_amp,
+		"sphere_bleed_amp": sphere_bleed_amp,
+		"sphere_stun_amp": sphere_stun_amp,
+		"sphere_disarm_amp": sphere_disarm_amp,
+		"sphere_silence_amp": sphere_silence_amp,
+		"sphere_burn_amp": sphere_burn_amp,
+		"sphere_poison_amp": sphere_poison_amp,
+		"sphere_curse_amp": sphere_curse_amp,
+		"sphere_curse_pain_amp": sphere_curse_pain_amp,
+		"sphere_shatter_amp": sphere_shatter_amp,
+		"sphere_shock_amp": sphere_shock_amp,
+		"sphere_slow_amp": sphere_slow_amp,
+		"sphere_root_amp": sphere_root_amp,
 		"damage_proc_reduction_chance": damage_proc_reduction_chance,
 		"damage_proc_reduction_percent": damage_proc_reduction_percent,
 		"damage_resistances": damage_resistances.duplicate(true),
@@ -711,6 +737,18 @@ func restore_progression(data: Dictionary) -> void:
 	sphere_bolster_amp = data.get("sphere_bolster_amp", sphere_bolster_amp)
 	sphere_cleanse_amp = data.get("sphere_cleanse_amp", sphere_cleanse_amp)
 	sphere_resilient_amp = data.get("sphere_resilient_amp", sphere_resilient_amp)
+	sphere_bleed_amp = data.get("sphere_bleed_amp", sphere_bleed_amp)
+	sphere_stun_amp = data.get("sphere_stun_amp", sphere_stun_amp)
+	sphere_disarm_amp = data.get("sphere_disarm_amp", sphere_disarm_amp)
+	sphere_silence_amp = data.get("sphere_silence_amp", sphere_silence_amp)
+	sphere_burn_amp = data.get("sphere_burn_amp", sphere_burn_amp)
+	sphere_poison_amp = data.get("sphere_poison_amp", sphere_poison_amp)
+	sphere_curse_amp = data.get("sphere_curse_amp", sphere_curse_amp)
+	sphere_curse_pain_amp = data.get("sphere_curse_pain_amp", sphere_curse_pain_amp)
+	sphere_shatter_amp = data.get("sphere_shatter_amp", sphere_shatter_amp)
+	sphere_shock_amp = data.get("sphere_shock_amp", sphere_shock_amp)
+	sphere_slow_amp = data.get("sphere_slow_amp", sphere_slow_amp)
+	sphere_root_amp = data.get("sphere_root_amp", sphere_root_amp)
 	damage_proc_reduction_chance = data.get("damage_proc_reduction_chance", damage_proc_reduction_chance)
 	damage_proc_reduction_percent = data.get("damage_proc_reduction_percent", damage_proc_reduction_percent)
 	damage_resistances = data.get("damage_resistances", damage_resistances)
@@ -2053,7 +2091,9 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 	## "Regen +1", "Arm/Cyc +1", "Life Steal +3%", "Resist +3%", "Range +1",
 	## "Vuln Amp +25%", "Weaken Amp +25%", "Haste Amp +1", "Enlight Amp +10%",
 	## "Brace Amp +10%", "Blessed Draw +1", "Blessed Amp +1", "Strength Amp +5",
-	## "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%"
+	## "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%", and the debuff amps
+	## "Bleed/Stun/Disarm/Silence/Burn/Shock/Slow/Root Amp +N", "Poison Amp +5",
+	## "Curse Amp +10%", "Curse Pain +10%", "Shatter +5"
 	var regex = RegEx.new()
 	regex.compile("(.+?)\\s*\\+(\\d+)")
 	var result = regex.search(label)
@@ -2111,6 +2151,30 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			sphere_cleanse_amp += value
 		"resil amp":
 			sphere_resilient_amp += value
+		"bleed amp":
+			sphere_bleed_amp += value
+		"stun amp":
+			sphere_stun_amp += value
+		"disarm amp":
+			sphere_disarm_amp += value
+		"silence amp":
+			sphere_silence_amp += value
+		"burn amp":
+			sphere_burn_amp += value
+		"poison amp":
+			sphere_poison_amp += value
+		"curse amp":
+			sphere_curse_amp += value
+		"curse pain":
+			sphere_curse_pain_amp += value
+		"shatter":
+			sphere_shatter_amp += value
+		"shock amp":
+			sphere_shock_amp += value
+		"slow amp":
+			sphere_slow_amp += value
+		"root amp":
+			sphere_root_amp += value
 	stats_updated.emit()
 	print("[STATS] Sphere grid combat bonus: %s" % label)
 

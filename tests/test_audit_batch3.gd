@@ -58,7 +58,7 @@ func _initialize() -> void:
 	# --- D6/D7: former null connectors 72, 76, 101 now hold the debuff-amp
 	# nodes (Vuln Amp / Weaken Amp), added in the playstyle-amplification pass ---
 	var grid = SphereGrid.new()
-	for pair in [[72, "Vuln Amp +25%"], [76, "Weaken Amp +25%"], [101, "Vuln Amp +25%"]]:
+	for pair in [[72, "Vuln Amp +15%"], [76, "Weaken Amp +25%"], [101, "Vuln Amp +15%"]]:
 		var node = grid.get_node_by_id(pair[0])
 		_check(node != null and node.node_type == SphereGrid.NodeType.COMBAT_BONUS \
 			and node.label == pair[1],

@@ -2,8 +2,8 @@ class_name SphereGrid
 extends Resource
 
 ## Data model for the sphere grid leveling system.
-## Contains 143 nodes arranged in concentric rings (plus the outer
-## amplification arc) with connections for pathing.
+## Contains 155 nodes arranged in concentric rings (plus the outer buff-amp
+## and debuff-amp arcs) with connections for pathing.
 
 enum NodeType {
 	STAT_BONUS,    # Flat stat increase (STR, DEX, INT, WIS, AGI, DET)
@@ -306,7 +306,7 @@ func _build_grid() -> void:
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
-		[NodeType.COMBAT_BONUS, "Vuln Amp +25%", "Vulnerable you apply amplifies damage by an extra 25% (30% base)"],
+		[NodeType.COMBAT_BONUS, "Vuln Amp +15%", "Vulnerable you apply amplifies damage by 45% instead of 30%"],
 		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Heal for 1% of damage dealt"],
@@ -356,7 +356,7 @@ func _build_grid() -> void:
 	# IDs 100..129 — high-tier nodes with advanced bonuses
 	var ring6_types: Array = [
 		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%"],
-		[NodeType.COMBAT_BONUS, "Vuln Amp +25%", "Vulnerable you apply amplifies damage by an extra 25% (stacks with other Vuln Amp nodes)"],
+		[NodeType.COMBAT_BONUS, "Vuln Amp +15%", "Vulnerable you apply amplifies damage by an extra 15% (stacks with the other Vuln Amp node)"],
 		[NodeType.STAT_BONUS, "STR +5", "Strength +5"],
 		[NodeType.KEYSTONE, "Weighted Strikes", "Keystone: your basic attack gains a heavy weapon's weight-to-damage bonus even wielded one-handed (+1 damage per 10 weapon weight).", {"req": {"stat": "strength", "value": 15}, "keystone": "str_weight_basic"}],
 		[NodeType.KEYSTONE, "Balanced Load", "Keystone: pick an equipment slot — its items weigh 10% less, stacking with any other weight reduction on that slot.", {"req": {"stat": "strength", "value": 15}, "keystone": "str_light_slot"}],
@@ -428,6 +428,34 @@ func _build_grid() -> void:
 		var nearest := int(round(float(k) * 34.0 / float(amp_types.size()))) % 34
 		_connect_nodes(134 + k, 100 + nearest)
 		_connect_nodes(134 + k, 100 + ((nearest + 1) % 34))
+
+	# === Hex arc: 12 debuff-amp nodes at radius 700 (ids 143-154) ===
+	# Amplification for the debuffs YOU apply to enemies. Offset half a step
+	# from the buff-amp arc so the two arcs interleave; each hangs off its two
+	# nearest Ring 6 nodes by angle.
+	var hex_types := [
+		[NodeType.COMBAT_BONUS, "Bleed Amp +1", "Bleed you apply deals 1 additional damage per tile moved"],
+		[NodeType.COMBAT_BONUS, "Stun Amp +1", "Stuns you apply last 1 additional tempo"],
+		[NodeType.COMBAT_BONUS, "Disarm Amp +1", "Disarms you apply last 1 additional tempo"],
+		[NodeType.COMBAT_BONUS, "Silence Amp +1", "Silences you apply last 1 additional tempo"],
+		[NodeType.COMBAT_BONUS, "Burn Amp +1", "Burn you apply deals 1 additional damage after each normal tick"],
+		[NodeType.COMBAT_BONUS, "Poison Amp +5", "Poison you apply: each tick has a stacks% chance to spike for 5 bonus damage"],
+		[NodeType.COMBAT_BONUS, "Curse Amp +10%", "Cursed enemies deal 30% less damage instead of 20%"],
+		[NodeType.COMBAT_BONUS, "Curse Pain +10%", "Cursed enemies deal 30% of their damage to themselves instead of 20%"],
+		[NodeType.COMBAT_BONUS, "Shatter +5", "Enemies take 5 damage when your Frozen thaws"],
+		[NodeType.COMBAT_BONUS, "Shock Amp +1", "Shock you apply lands 1 additional stack"],
+		[NodeType.COMBAT_BONUS, "Slow Amp +1", "Slows you apply make movement cost 4 tempo instead of 3"],
+		[NodeType.COMBAT_BONUS, "Root Amp +1", "Roots you apply last 1 additional tempo"],
+	]
+	for k in range(hex_types.size()):
+		var hex_angle = (TAU / hex_types.size()) * (k + 0.5) - PI / 2
+		var hex_pos = center + Vector2(cos(hex_angle), sin(hex_angle)) * 700.0
+		var h = hex_types[k]
+		var hex_node = GridNode.new(143 + k, h[0], h[1], h[2], hex_pos, 8)
+		_add_node(hex_node)
+		var hex_nearest := int(round((float(k) + 0.5) * 34.0 / float(hex_types.size()))) % 34
+		_connect_nodes(143 + k, 100 + hex_nearest)
+		_connect_nodes(143 + k, 100 + ((hex_nearest + 1) % 34))
 
 ## SHELVED CONTENT — the original Ring 3 (combat bonuses, on-hit/on-heal/on-block
 ## passives, a Culling Stone, a Retrospective) that the FREE_STAT / vitality arm
