@@ -32,6 +32,37 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# Appended at the tail — enum order is save-compat-sensitive.
 	RING_WRAITH }
 
+## Intended player level per enemy type — the anchor for the level-gap XP
+## falloff (PlayerStats.get_xp_multiplier): kills more than a few levels below
+## the player pay reduced (eventually zero) XP, so low zones can't be farmed.
+## 0 = no band (mock-ups, XP-less enemies) -> no falloff applied.
+## Bands follow the Act 1 pacing: Sewers 1-5, Graveyard 6-12, Cave 8-15,
+## Forest 12-20 (player hits 25 by end of Act 1).
+const INTENDED_LEVELS := {
+	EnemyType.MINION: 1, EnemyType.ELITE: 5, EnemyType.BOSS: 10,
+	# Sewer
+	EnemyType.WERERAT: 2, EnemyType.ARCHER_RAT: 2, EnemyType.SLUDGE: 2,
+	EnemyType.SWARM: 3, EnemyType.PIPE_CRAWLER: 3,
+	EnemyType.SEWER_CROC: 5, EnemyType.RAT_KING: 5,
+	# Graveyard
+	EnemyType.ZOMBIE: 7, EnemyType.SKELETON: 7, EnemyType.SCREECHER: 8,
+	EnemyType.CRYPT_CRAWLER: 8, EnemyType.WERERABBIT: 8, EnemyType.CONSUMED: 9,
+	EnemyType.WEREWOLF: 10, EnemyType.VAMPIRE: 10, EnemyType.SPIRIT_COLLECTOR: 10,
+	EnemyType.NECROMANCER: 11, EnemyType.BONE_DRAGON: 12, EnemyType.GRAVE_TITAN: 12,
+	# Cave
+	EnemyType.FIRE_GOBLIN_SOLDIER: 9, EnemyType.FIRE_GOBLIN_MAGE: 9,
+	EnemyType.FIRE_GOBLIN_SHAMAN: 10, EnemyType.ARMORED_TROLL: 12, EnemyType.HYDRA: 14,
+	# Forest
+	EnemyType.COYOTE: 12, EnemyType.MINI_BEAR: 13, EnemyType.SPARK_MAGE: 13,
+	EnemyType.WOLF: 14, EnemyType.AIR_MAGE: 14, EnemyType.GIANT_HAWK: 15,
+	EnemyType.ICE_MAGE: 15, EnemyType.FIRE_MAGE: 15, EnemyType.INFECTED_HUNTER: 16,
+	EnemyType.GIANT_BEAVER: 16, EnemyType.EARTH_MAGE: 17, EnemyType.BUGBEAR: 17,
+	EnemyType.LARGE_BEAR: 18, EnemyType.TREANT: 19,
+}
+
+func get_intended_level() -> int:
+	return int(INTENDED_LEVELS.get(enemy_type, 0))
+
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
 @export var max_health: int = 30

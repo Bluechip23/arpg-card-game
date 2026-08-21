@@ -438,7 +438,7 @@ func add_skill_tree_passive(passive_id: String) -> void:
 # Passives are LEVELED with banked passive points (1 point = +1 level, up to
 # PASSIVE_MAX_LEVEL). A passive's effect activates at level 1 — per-level
 # scaling of the effects themselves comes in a later balancing pass.
-const PASSIVE_POINTS_PER_LEVEL: int = 3  # Passive points banked each level-up
+const PASSIVE_POINTS_PER_LEVEL: int = 1  # Passive points banked each level-up
 const PASSIVE_MAX_LEVEL: int = 15
 
 var unspent_passive_points: int = 0
@@ -2279,7 +2279,31 @@ func spend_gold(amount: int) -> bool:
 	print("[STATS] Spent %d gold! (Total: %d)" % [amount, gold])
 	return true
 
-func gain_xp(amount: int) -> void:
+# Level-gap XP falloff: kills far below the player's level stop paying out.
+# Full XP within XP_FALLOFF_GRACE levels of the source; beyond that, XP drops
+# XP_FALLOFF_PER_LEVEL per extra level (reaching 0 at grace + ~7 levels over).
+const XP_FALLOFF_GRACE: int = 5
+const XP_FALLOFF_PER_LEVEL: float = 0.15
+
+func get_xp_multiplier(source_level: int) -> float:
+	## Multiplier for XP from a source of the given level (0 = unbanded source,
+	## no falloff). Never penalizes fighting above your level.
+	if source_level <= 0:
+		return 1.0
+	var gap = current_level - source_level - XP_FALLOFF_GRACE
+	if gap <= 0:
+		return 1.0
+	return maxf(0.0, 1.0 - XP_FALLOFF_PER_LEVEL * gap)
+
+func gain_xp(amount: int, source_level: int = 0) -> void:
+	var mult = get_xp_multiplier(source_level)
+	if mult < 1.0:
+		var reduced = int(floor(amount * mult))
+		print("[STATS] XP reduced %d -> %d (level %d vs enemy level %d)" % [
+			amount, reduced, current_level, source_level])
+		amount = reduced
+	if amount <= 0:
+		return
 	current_xp += amount
 	total_xp += amount
 	print("[STATS] Gained %d XP! (%d / %d to level %d)" % [amount, current_xp, get_xp_to_next_level(), current_level + 1])

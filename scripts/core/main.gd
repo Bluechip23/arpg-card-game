@@ -5012,7 +5012,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	# progresses alongside the active player's.
 	for p in _all_players():
 		if is_instance_valid(p) and p.get_stats():
-			p.get_stats().gain_xp(enemy.xp_reward)
+			p.get_stats().gain_xp(enemy.xp_reward, enemy.get_intended_level())
 	# Bestiary: record kills per character (feeds the compendium and any future
 	# monster-intent reveals gated on "defeated before").
 	if current_character and not current_character.defeated_monster_ids.has(enemy.enemy_name):
