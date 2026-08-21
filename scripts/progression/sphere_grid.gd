@@ -2,8 +2,8 @@ class_name SphereGrid
 extends Resource
 
 ## Data model for the sphere grid leveling system.
-## Contains 143 nodes arranged in concentric rings (plus the outer
-## amplification arc) with connections for pathing.
+## Contains 155 nodes arranged in concentric rings (plus the outer buff-amp
+## and debuff-amp arcs) with connections for pathing.
 
 enum NodeType {
 	STAT_BONUS,    # Flat stat increase (STR, DEX, INT, WIS, AGI, DET)
@@ -178,11 +178,11 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "DEX +1", "Dexterity +1"],  # DEX branch
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DEX branch -> HP
 		[NodeType.STAT_BONUS, "INT +1", "Intelligence +1"], # INT branch
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # INT branch -> Mana
+		[NodeType.MANA, "Mana +10", "Max Mana +10"],      #INT branch -> Mana
 		[NodeType.STAT_BONUS, "WIS +1", "Wisdom +1"],     # WIS branch
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # WIS branch -> Mana
+		[NodeType.MANA, "Mana +10", "Max Mana +10"],      #WIS branch -> Mana
 		[NodeType.STAT_BONUS, "AGI +1", "Agility +1"],    # AGI branch
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # AGI branch -> Mana
+		[NodeType.MANA, "Mana +10", "Max Mana +10"],      #AGI branch -> Mana
 		[NodeType.STAT_BONUS, "DET +1", "Determination +1"], # DET branch
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DET branch -> HP
 	]
@@ -201,7 +201,7 @@ func _build_grid() -> void:
 	# sit directly outside their Ring 2 parents (same 12 angular slots as Ring 2):
 	#   * outside each STAT node -> a FREE_STAT "+3 Stats" node (points banked to
 	#     the player's pool, allocated freely on the stat screen)
-	#   * outside each HP/Mana node -> a bigger vitality node (HP +12 / Mana +7)
+	#   * outside each HP/Mana node -> a bigger vitality node (HP +12 / Mana +15)
 	# The stat node also links across to its arm's vitality node, and the vitality
 	# type always matches the stat (HP for STR/DEX/DET, Mana for INT/WIS/AGI), so a
 	# DET arm reads DET -> {+3 Stats, HP} exactly as requested.
@@ -213,11 +213,11 @@ func _build_grid() -> void:
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 9  (DEX)
 		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 10 (DEX HP)
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 11 (INT)
-		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 12 (INT Mana)
+		[NodeType.MANA, "Mana +15", "Max Mana +15"],                                       # outside 12 (INT Mana)
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 13 (WIS)
-		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 14 (WIS Mana)
+		[NodeType.MANA, "Mana +15", "Max Mana +15"],                                       # outside 14 (WIS Mana)
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 15 (AGI)
-		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 16 (AGI Mana)
+		[NodeType.MANA, "Mana +15", "Max Mana +15"],                                       # outside 16 (AGI Mana)
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 17 (DET)
 		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 18 (DET HP)
 	]
@@ -255,19 +255,19 @@ func _build_grid() -> void:
 
 	# === Ring 4: 24 nodes at radius 280 ===
 	var ring4_types = [
-		[NodeType.PASSIVE, "Passive", "On crit: deal 50% bonus"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],
 		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
 		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
-		[NodeType.PASSIVE, "Passive", "On kill: draw 1 card"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Heal for 1% of damage dealt"],
 		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
 		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
-		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
-		[NodeType.PASSIVE, "Passive", "On tempo cycle: all enemies -1 armor"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Resist +1%", "Reduce all incoming damage by 1%"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.COMBAT_BONUS, "Heal +1", "Heal cards restore +1 additional HP"],
@@ -275,7 +275,7 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 armor each tempo cycle"],
 		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],
 		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%"],
-		[NodeType.PASSIVE, "Passive", "On move: 10% gain haste"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
@@ -296,17 +296,17 @@ func _build_grid() -> void:
 	var ring5_types: Array = []
 	var r5_labels = [
 		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
-		[NodeType.PASSIVE, "Passive", "On attack: 5% stun enemy"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
-		[NodeType.PASSIVE, "Passive", "On kill: gain 3 armor"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
 		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
 		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
-		[NodeType.COMBAT_BONUS, "Vuln Amp +25%", "Vulnerable you apply amplifies damage by an extra 25% (30% base)"],
+		[NodeType.COMBAT_BONUS, "Vuln Amp +15%", "Vulnerable you apply amplifies damage by 45% instead of 30%"],
 		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Heal for 1% of damage dealt"],
@@ -316,15 +316,15 @@ func _build_grid() -> void:
 		# domain now (brain points). Node kept as a connector; refill with a
 		# body-flavored AGI keystone later.
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
-		[NodeType.PASSIVE, "Passive", "On cycle: 20% gain empower"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%", {"req": {"stat": "dexterity", "value": 20}}],
-		[NodeType.PASSIVE, "Passive", "On heal: overheal becomes armor"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Range +1", "Ranged attacks gain +1 range"],
 		[NodeType.KEYSTONE, "Bulwark Soul", "Keystone: gain +2 max health per point of Determination — past and future.", {"req": {"stat": "determination", "value": 12}, "keystone": "det_vitality"}],
 		[NodeType.COMBAT_BONUS, "Armor +1", "Start each combat with +1 armor"],
-		[NodeType.PASSIVE, "Passive", "On crit: heal 3 HP"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.HEALTH, "HP +25", "Max Health +25"],
 		[NodeType.KEYSTONE, "Deadeye Form", "Keystone: ranged attacks scale with Dexterity instead of Strength.", {"req": {"stat": "dexterity", "value": 15}, "keystone": "dex_ranged"}],
 		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
@@ -332,11 +332,11 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Resist +1%", "Reduce all incoming damage by 1%"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 armor each tempo cycle"],
-		[NodeType.PASSIVE, "Passive", "On move: next card costs 1 less"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.HEALTH, "HP +30", "Max Health +30"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
-		[NodeType.PASSIVE, "Passive", "On tempo cycle: draw 1 card"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 	]
 	for entry in r5_labels:
 		ring5_types.append(entry)
@@ -356,32 +356,32 @@ func _build_grid() -> void:
 	# IDs 100..129 — high-tier nodes with advanced bonuses
 	var ring6_types: Array = [
 		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%"],
-		[NodeType.COMBAT_BONUS, "Vuln Amp +25%", "Vulnerable you apply amplifies damage by an extra 25% (stacks with other Vuln Amp nodes)"],
+		[NodeType.COMBAT_BONUS, "Vuln Amp +15%", "Vulnerable you apply amplifies damage by an extra 15% (stacks with the other Vuln Amp node)"],
 		[NodeType.STAT_BONUS, "STR +5", "Strength +5"],
 		[NodeType.KEYSTONE, "Weighted Strikes", "Keystone: your basic attack gains a heavy weapon's weight-to-damage bonus even wielded one-handed (+1 damage per 10 weapon weight).", {"req": {"stat": "strength", "value": 15}, "keystone": "str_weight_basic"}],
 		[NodeType.KEYSTONE, "Balanced Load", "Keystone: pick an equipment slot — its items weigh 10% less, stacking with any other weight reduction on that slot.", {"req": {"stat": "strength", "value": 15}, "keystone": "str_light_slot"}],
 		[NodeType.STAT_BONUS, "DEX +5", "Dexterity +5"],
 		[NodeType.KEYSTONE, "Flurry Form", "Keystone: your Dexterity attack proc now strikes TWICE, but every attack deals 2 less damage — a faster, lighter flurry.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_twin_strike"}],
 		[NodeType.KEYSTONE, "Arcane Ward", "Keystone: every time your mana regenerates, gain armor equal to half your Intelligence.", {"req": {"stat": "intelligence", "value": 15}, "keystone": "int_regen_armor"}],
-		[NodeType.PASSIVE, "Passive", "On kill: draw 2 cards and gain 2 mana"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "INT +5", "Intelligence +5"],
 		[NodeType.KEYSTONE, "Arcane Echo", "Keystone: each spell you cast has an INT/3% chance to deal INT/2 bonus damage to a random enemy.", {"req": {"stat": "intelligence", "value": 15}, "keystone": "int_spell_proc"}],
-		[NodeType.PASSIVE, "Passive", "On spell cast: 10% refund full mana cost"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.KEYSTONE, "Quick Study", "Keystone: whenever your hand empties, immediately draw 1 card — without disturbing the countdown to your next timed draw.", {"req": {"stat": "wisdom", "value": 15}, "keystone": "wis_empty_draw"}],
 		[NodeType.STAT_BONUS, "WIS +5", "Wisdom +5"],
 		[NodeType.KEYSTONE, "Tactician's Eye", "Keystone: gain +2% critical hit chance for every card currently in your hand.", {"req": {"stat": "wisdom", "value": 15}, "keystone": "wis_hand_crit"}],
-		[NodeType.PASSIVE, "Passive", "On block: heal 3 HP"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Heal +1", "Heal cards restore +1 additional HP"],
 		[NodeType.STAT_BONUS, "AGI +5", "Agility +5"],
 		[NodeType.KEYSTONE, "Flash Cut", "Keystone: the Sidestep action becomes an attack — spend 3 Flash points to strike the nearest enemy for 1 damage instead of gaining block.", {"req": {"stat": "agility", "value": 15}, "keystone": "flash_strike"}],
-		[NodeType.PASSIVE, "Passive", "On move: gain 2 armor and 1 mana"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "DET +5", "Determination +5"],
 		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
-		[NodeType.PASSIVE, "Passive", "On tempo cycle: all enemies take 2 damage"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.HEALTH, "HP +35", "Max Health +35"],
 		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
-		[NodeType.MANA, "Mana +15", "Max Mana +15"],
+		[NodeType.MANA, "Mana +20", "Max Mana +20"],
 		[NodeType.KEYSTONE, "Killing Rhythm", "Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_flat_damage"}],
 		[NodeType.KEYSTONE, "Unbroken Will", "Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_floor"}],
 		[NodeType.KEYSTONE, "Wild Abandon", "Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_amplify"}],
@@ -428,6 +428,61 @@ func _build_grid() -> void:
 		var nearest := int(round(float(k) * 34.0 / float(amp_types.size()))) % 34
 		_connect_nodes(134 + k, 100 + nearest)
 		_connect_nodes(134 + k, 100 + ((nearest + 1) % 34))
+
+	# === Hex arc: 12 debuff-amp nodes at radius 700 (ids 143-154) ===
+	# Amplification for the debuffs YOU apply to enemies. Offset half a step
+	# from the buff-amp arc so the two arcs interleave; each hangs off its two
+	# nearest Ring 6 nodes by angle.
+	var hex_types := [
+		[NodeType.COMBAT_BONUS, "Bleed Amp +1", "Bleed you apply deals 1 additional damage per tile moved"],
+		[NodeType.COMBAT_BONUS, "Stun Amp +1", "Stuns you apply last 1 additional tempo"],
+		[NodeType.COMBAT_BONUS, "Disarm Amp +1", "Disarms you apply last 1 additional tempo"],
+		[NodeType.COMBAT_BONUS, "Silence Amp +1", "Silences you apply last 1 additional tempo"],
+		[NodeType.COMBAT_BONUS, "Burn Amp +1", "Burn you apply deals 1 additional damage after each normal tick"],
+		[NodeType.COMBAT_BONUS, "Poison Amp +5", "Poison you apply: each tick has a stacks% chance to spike for 5 bonus damage"],
+		[NodeType.COMBAT_BONUS, "Curse Amp +10%", "Cursed enemies deal 30% less damage instead of 20%"],
+		[NodeType.COMBAT_BONUS, "Curse Pain +10%", "Cursed enemies deal 30% of their damage to themselves instead of 20%"],
+		[NodeType.COMBAT_BONUS, "Shatter +5", "Enemies take 5 damage when your Frozen thaws"],
+		[NodeType.COMBAT_BONUS, "Shock Amp +1", "Shock you apply lands 1 additional stack"],
+		[NodeType.COMBAT_BONUS, "Slow Amp +1", "Slows you apply make movement cost 4 tempo instead of 3"],
+		[NodeType.COMBAT_BONUS, "Root Amp +1", "Roots you apply last 1 additional tempo"],
+	]
+	for k in range(hex_types.size()):
+		var hex_angle = (TAU / hex_types.size()) * (k + 0.5) - PI / 2
+		var hex_pos = center + Vector2(cos(hex_angle), sin(hex_angle)) * 700.0
+		var h = hex_types[k]
+		var hex_node = GridNode.new(143 + k, h[0], h[1], h[2], hex_pos, 8)
+		_add_node(hex_node)
+		var hex_nearest := int(round((float(k) + 0.5) * 34.0 / float(hex_types.size()))) % 34
+		_connect_nodes(143 + k, 100 + hex_nearest)
+		_connect_nodes(143 + k, 100 + ((hex_nearest + 1) % 34))
+
+## SHELVED CONTENT — the 16 triggered PASSIVE nodes retired from Rings 4-6
+## (their slots became NULL connectors so ring pathing and constellations —
+## Iron Bastion needs node 37 — stay intact). These proc effects are destined
+## for ITEMS instead: the end-game blacksmith's engraving pass will let gear
+## carry them ("on kill: gain 3 armor" is a weapon property, "on block: heal
+## 3 HP" is a shield property). The trigger pipeline itself stays alive —
+## constellation bonuses still register through it.
+func _shelved_passive_procs() -> Array:
+	return [
+		{ "trigger": "on_crit", "desc": "On crit: deal 50% bonus" },
+		{ "trigger": "on_kill", "desc": "On kill: draw 1 card" },
+		{ "trigger": "on_tempo_cycle", "desc": "On tempo cycle: all enemies -1 armor" },
+		{ "trigger": "on_move", "desc": "On move: 10% gain haste" },
+		{ "trigger": "on_attack", "desc": "On attack: 5% stun enemy" },
+		{ "trigger": "on_kill", "desc": "On kill: gain 3 armor" },
+		{ "trigger": "on_cycle", "desc": "On cycle: 20% gain empower" },
+		{ "trigger": "on_heal", "desc": "On heal: overheal becomes armor" },
+		{ "trigger": "on_crit", "desc": "On crit: heal 3 HP" },
+		{ "trigger": "on_move", "desc": "On move: next card costs 1 less" },
+		{ "trigger": "on_tempo_cycle", "desc": "On tempo cycle: draw 1 card" },
+		{ "trigger": "on_kill", "desc": "On kill: draw 2 cards and gain 2 mana" },
+		{ "trigger": "on_spell_cast", "desc": "On spell cast: 10% refund full mana cost" },
+		{ "trigger": "on_block", "desc": "On block: heal 3 HP" },
+		{ "trigger": "on_move", "desc": "On move: gain 2 armor and 1 mana" },
+		{ "trigger": "on_tempo_cycle", "desc": "On tempo cycle: all enemies take 2 damage" },
+	]
 
 ## SHELVED CONTENT — the original Ring 3 (combat bonuses, on-hit/on-heal/on-block
 ## passives, a Culling Stone, a Retrospective) that the FREE_STAT / vitality arm

@@ -439,7 +439,6 @@ func _draw_legend() -> void:
 		[COLOR_MANA, "circle", "Mana"],
 		[COLOR_CULLING, "hexagon", "Culling Stone"],
 		[COLOR_FEATHER, "hexagon", "Feather"],
-		[COLOR_RETROSPECTIVE, "star", "Retrospective"],
 		[COLOR_FREE_STAT, "star", "Free Stats"],
 		[COLOR_UNLOCKED, "circle", "Unlocked"],
 		[COLOR_UNLOCKABLE, "circle", "Available"],

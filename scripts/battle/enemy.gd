@@ -75,6 +75,10 @@ var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
 # (Sword of Theseus ramps them) — no timed expiry.
 var slow_stacks: int = 0
 var inebriated_tempo: int = 0  # Inebriate (matches the player's): movement direction randomized
+# Cursed (matches the player's): deals 20% less damage and takes 20% of the
+# damage it deals as self-damage — both boosted by the player's Curse Amp /
+# Curse Pain sphere nodes. Counts in raw tempo.
+var cursed_tempo: int = 0
 var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
@@ -1453,7 +1457,7 @@ func _tick_timed_statuses(amount: int) -> void:
 	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
 		or frozen_tempo > 0 or stun_tempo > 0 or inebriated_tempo > 0 \
-		or rooted_tempo > 0 or narashimha_tempo > 0
+		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0
 	if not any:
 		return
 
@@ -1509,6 +1513,11 @@ func _tick_timed_statuses(amount: int) -> void:
 			is_frozen = false
 			print("[%s] Frozen expired, can act again" % enemy_name)
 			debuff_expired.emit(self, "frozen")
+			# Shatter (sphere node): the thaw itself hurts.
+			var shatter := int(_player_sphere_amp("sphere_shatter_amp"))
+			if shatter > 0 and not is_dead:
+				take_damage(shatter, false)
+				print("[%s] Shatter! Took %d damage coming out of Frozen" % [enemy_name, shatter])
 
 	if stun_tempo > 0:
 		stun_tempo -= amount
@@ -1524,6 +1533,13 @@ func _tick_timed_statuses(amount: int) -> void:
 			inebriated_tempo = 0
 			print("[%s] Sobered up — movement restored" % enemy_name)
 			debuff_expired.emit(self, "inebriate")
+
+	if cursed_tempo > 0:
+		cursed_tempo -= amount
+		if cursed_tempo <= 0:
+			cursed_tempo = 0
+			print("[%s] Curse lifted" % enemy_name)
+			debuff_expired.emit(self, "cursed")
 
 	if rooted_tempo > 0:
 		rooted_tempo -= amount
@@ -1563,6 +1579,12 @@ func _tick_status_durations() -> void:
 				if pol_e != self and position.distance_to(pol_e.position) <= 2.5:
 					pol_e.take_damage(burn_damage_next, false)
 					print("[%s] Element Pollination: burn splashes %d to %s" % [enemy_name, burn_damage_next, pol_e.enemy_name])
+		# Burn Amp (sphere node): a flat extra hit lands after the normal tick,
+		# outside the doubling.
+		var burn_extra := int(_player_sphere_amp("sphere_burn_amp"))
+		if burn_extra > 0 and not is_dead:
+			take_damage(burn_extra, false)
+			print("[%s] Burn Amp adds %d damage" % [enemy_name, burn_extra])
 		burn_damage_next *= 2
 		burn_stacks -= 1
 		if burn_stacks <= 0:
@@ -1581,6 +1603,12 @@ func _tick_status_durations() -> void:
 	if poison_stacks > 0:
 		take_damage(poison_stacks, false)
 		print("[%s] Poison deals %d damage" % [enemy_name, poison_stacks])
+		# Poison Amp (sphere node): each tick has a stacks% chance of a bonus
+		# damage instance — more stacks, more likely the venom spikes.
+		var poison_bonus := int(_player_sphere_amp("sphere_poison_amp"))
+		if poison_bonus > 0 and not is_dead and randf() * 100.0 < float(poison_stacks):
+			take_damage(poison_bonus, false)
+			print("[%s] Poison Amp spikes for %d bonus damage (%d%% chance hit)" % [enemy_name, poison_bonus, poison_stacks])
 		poison_stacks -= 1
 		if poison_stacks <= 0:
 			print("[%s] Poison expired" % enemy_name)
@@ -1654,17 +1682,19 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 	var taxed: bool = next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(chosen_action["name"])
 	if taxed:
 		action_cost += next_melee_tempo_tax
-	# Slowed (matches the player's): movement actions take extra tempo; the
-	# stack burns when the move actually fires.
+	# Slowed (matches the player's): movement actions take extra tempo (Slow
+	# Amp sphere node makes it even heavier); the stack burns when the move
+	# actually fires.
 	var slowed_move: bool = slow_stacks > 0 and MOVEMENT_ACTIONS.has(chosen_action["name"])
 	if slowed_move:
-		action_cost += Debuff.SLOWED_TEMPO_PER_TILE - 1
+		action_cost += Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1
 	if action_tempo_counter >= action_cost:
 		if taxed:
 			print("[%s] Sword Breaker: swing delayed %d tempo" % [enemy_name, next_melee_tempo_tax])
 			next_melee_tempo_tax = 0
 		if slowed_move:
-			print("[%s] Slowed: move delayed %d extra tempo" % [enemy_name, Debuff.SLOWED_TEMPO_PER_TILE - 1])
+			print("[%s] Slowed: move delayed %d extra tempo" % [enemy_name,
+				Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1])
 			_consume_slow_stack()
 		var move_target = player_node
 		if taunt_target and is_instance_valid(taunt_target):
@@ -2475,6 +2505,17 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		# zone — no stack to consume, it lifts the moment the enemy leaves.
 		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - weaken_percent / 100.0))
 		print("[%s] Weakened by the Territorial Mark! -%d%% damage" % [enemy_name, int(weaken_percent)])
+	# Cursed (player-applied): deals (20 + Curse Amp)% less damage, and takes
+	# (20 + Curse Pain)% of the damage it deals back as self-damage.
+	if cursed_tempo > 0:
+		var curse_reduce: float = 20.0 + _player_sphere_amp("sphere_curse_amp")
+		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - curse_reduce / 100.0))
+		print("[%s] Cursed! -%d%% damage dealt" % [enemy_name, int(curse_reduce)])
+		var curse_pain: float = 20.0 + _player_sphere_amp("sphere_curse_pain_amp")
+		var self_dmg: int = floori(effective_damage * curse_pain / 100.0)
+		if self_dmg > 0 and not is_dead:
+			take_damage(self_dmg, false)
+			print("[%s] Cursed! Takes %d self-damage (%d%% of the blow)" % [enemy_name, self_dmg, int(curse_pain)])
 	print("[%s] %s for %d damage! (base %d, reduction %d)" % [enemy_name, attack_name, effective_damage, base_damage, attack_reduction])
 
 	# Summon targets (Frankensteins Monster, surfaced Bull Worms) have no player
@@ -2681,9 +2722,12 @@ func _physics_process(delta: float) -> void:
 			# Bleed: every tile reached tears the wound open — 1 damage per
 			# tile, and each point of damage removes a stack.
 			if bleed_stacks > 0 and not is_dead:
-				take_damage(1, false)
+				# Bleed Amp (sphere node): each tile tears 1 + amp damage; one
+				# stack still closes per tile.
+				var bleed_tile_dmg := 1 + int(_player_sphere_amp("sphere_bleed_amp"))
+				take_damage(bleed_tile_dmg, false)
 				bleed_stacks -= 1
-				print("[%s] Bleed deals 1 damage (moved a tile, %d stack(s) left)" % [enemy_name, bleed_stacks])
+				print("[%s] Bleed deals %d damage (moved a tile, %d stack(s) left)" % [enemy_name, bleed_tile_dmg, bleed_stacks])
 				if bleed_stacks <= 0:
 					debuff_expired.emit(self, "bleed")
 				_update_status_indicators()
@@ -3177,7 +3221,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			print("[%s] Inebriated for %d tempo — movement randomized!" % [enemy_name, inebriated_tempo])
 		"stun":
 			is_stunned = true
-			stun_tempo = max(stun_tempo, value)
+			stun_tempo = max(stun_tempo, value + int(_player_sphere_amp("sphere_stun_amp")))
 			# Reset action tempo counter so stun delays their next action
 			action_tempo_counter = 0
 			chosen_action = {}
@@ -3188,15 +3232,15 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			print("[%s] Slowed! -1 movement for the next %d movement(s)" % [enemy_name, slow_stacks])
 		"disarmed":
 			is_disarmed = true
-			disarmed_tempo = value
-			print("[%s] Disarmed for %d tempo" % [enemy_name, value])
+			disarmed_tempo = value + int(_player_sphere_amp("sphere_disarm_amp"))
+			print("[%s] Disarmed for %d tempo" % [enemy_name, disarmed_tempo])
 		"marked":
 			is_marked = true
 			marked_tempo = value
 			print("[%s] Marked for %d tempo" % [enemy_name, value])
 		"silenced":
 			is_silenced = true
-			silenced_tempo = max(silenced_tempo, value)
+			silenced_tempo = max(silenced_tempo, value + int(_player_sphere_amp("sphere_silence_amp")))
 			# Drop any queued spell so the enemy re-decides now that it's muted
 			chosen_action = {}
 			print("[%s] Silenced for %d tempo!" % [enemy_name, silenced_tempo])
@@ -3222,7 +3266,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			poison_stacks += value
 			print("[%s] Poisoned! Stacks: %d" % [enemy_name, poison_stacks])
 		"shock":
-			shock_stacks += value
+			shock_stacks += value + int(_player_sphere_amp("sphere_shock_amp"))
 			print("[%s] Shocked! Stacks: %d" % [enemy_name, shock_stacks])
 			# Element Pollination: Shock stuns at 5 stacks like Cold freezes,
 			# while the Elemental Weaver's maintain is up.
@@ -3244,8 +3288,13 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			print("[%s] Weakened! Stacks: %d (-30%% damage dealt)" % [enemy_name, weaken_stacks])
 		"root":
 			# value is the hold in raw tempo; can attack and cast, cannot move
-			rooted_tempo = max(rooted_tempo, value)
+			rooted_tempo = max(rooted_tempo, value + int(_player_sphere_amp("sphere_root_amp")))
 			print("[%s] Rooted for %d tempo!" % [enemy_name, rooted_tempo])
+		"cursed":
+			# Matches the player's Cursed: deals less damage AND hurts itself on
+			# every attack (base 20%/20%, boosted by Curse Amp / Curse Pain).
+			cursed_tempo = max(cursed_tempo, value)
+			print("[%s] Cursed for %d tempo!" % [enemy_name, cursed_tempo])
 		"disarm_attacks":
 			disarmed_attacks += value
 			print("[%s] Disarmed for %d attack(s)!" % [enemy_name, disarmed_attacks])
@@ -3425,6 +3474,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
 	if inebriated_tempo > 0:
 		effects.append({"name": "Inebriate", "color": Color(0.8, 0.4, 0.8), "stacks": inebriated_tempo})
+	if cursed_tempo > 0:
+		effects.append({"name": "Cursed", "color": Color(0.3, 0.0, 0.3), "stacks": cursed_tempo})
 	if is_disarmed and disarmed_tempo > 0:
 		effects.append({"name": "Disarm", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_tempo})
 	if is_marked and marked_tempo > 0:

@@ -163,6 +163,20 @@ var sphere_strengthen_amp: int = 0         # +damage on Strengthen applications
 var sphere_bolster_amp: int = 0            # +armor on Bolster applications
 var sphere_cleanse_amp: int = 0            # +debuffs removed per Cleanse
 var sphere_resilient_amp: int = 0          # +percentage points on Resilient's reduction
+# Debuff amps: sphere-grid bonuses to the debuffs YOU apply to enemies
+# (read by enemy.gd via _player_sphere_amp).
+var sphere_bleed_amp: int = 0              # +damage per tile on your Bleed
+var sphere_stun_amp: int = 0               # +tempo on your Stuns
+var sphere_disarm_amp: int = 0             # +tempo on your Disarms
+var sphere_silence_amp: int = 0            # +tempo on your Silences
+var sphere_burn_amp: int = 0               # +flat damage after each of your Burn ticks
+var sphere_poison_amp: int = 0             # your Poison ticks: stacks% chance of this much bonus damage
+var sphere_curse_amp: int = 0              # +percentage points on Cursed's damage-dealt reduction (20% base)
+var sphere_curse_pain_amp: int = 0         # +percentage points on Cursed's self-damage (20% base)
+var sphere_shatter_amp: int = 0            # enemies take this much damage when your Frozen thaws
+var sphere_shock_amp: int = 0              # +stacks on your Shock applications
+var sphere_slow_amp: int = 0               # +tempo per tile on your Slows (3 base)
+var sphere_root_amp: int = 0               # +tempo on your Roots
 # Equipment-granted equivalents (added/removed by Inventory on equip/unequip,
 # mirroring the base_* stat pattern). Kept separate from the sphere bonuses so
 # unequip subtracts exactly what the item added.
@@ -419,6 +433,39 @@ func add_skill_tree_passive(passive_id: String) -> void:
 		print("[STATS] Skill tree passive added: %s" % passive_id)
 
 # ============================================
+# PASSIVE POINT ALLOCATION (lane view)
+# ============================================
+# Passives are LEVELED with banked passive points (1 point = +1 level, up to
+# PASSIVE_MAX_LEVEL). A passive's effect activates at level 1 — per-level
+# scaling of the effects themselves comes in a later balancing pass.
+const PASSIVE_POINTS_PER_LEVEL: int = 3  # Passive points banked each level-up
+const PASSIVE_MAX_LEVEL: int = 15
+
+var unspent_passive_points: int = 0
+var passive_levels: Dictionary = {}  # passive_id -> level (1..PASSIVE_MAX_LEVEL)
+
+func get_passive_level(passive_id: String) -> int:
+	return int(passive_levels.get(passive_id, 0))
+
+## Spend one banked passive point on a passive. Stage gating (lane point
+## requirements) is checked by the caller/UI — this enforces pool and cap.
+func allocate_passive_point(passive_id: String) -> bool:
+	if unspent_passive_points <= 0:
+		print("[STATS] No passive points banked")
+		return false
+	var lvl := get_passive_level(passive_id)
+	if lvl >= PASSIVE_MAX_LEVEL:
+		print("[STATS] %s is already at max level %d" % [passive_id, PASSIVE_MAX_LEVEL])
+		return false
+	passive_levels[passive_id] = lvl + 1
+	unspent_passive_points -= 1
+	if lvl == 0:
+		add_skill_tree_passive(passive_id)  # effect turns on at level 1
+	stats_updated.emit()
+	print("[STATS] %s leveled to %d (%d passive point(s) left)" % [passive_id, lvl + 1, unspent_passive_points])
+	return true
+
+# ============================================
 # EXPERIENCE / LEVEL
 # ============================================
 const HP_PER_LEVEL: int = 2          # Max health gained automatically each level
@@ -546,6 +593,8 @@ func save_progression() -> Dictionary:
 		"current_xp": current_xp,
 		"total_xp": total_xp,
 		"unspent_stat_points": unspent_stat_points,
+		"unspent_passive_points": unspent_passive_points,
+		"passive_levels": passive_levels.duplicate(),
 		"gold": gold,
 		# Sphere grid keystones
 		"keystone_det_vitality": keystone_det_vitality,
@@ -618,6 +667,18 @@ func save_progression() -> Dictionary:
 		"sphere_bolster_amp": sphere_bolster_amp,
 		"sphere_cleanse_amp": sphere_cleanse_amp,
 		"sphere_resilient_amp": sphere_resilient_amp,
+		"sphere_bleed_amp": sphere_bleed_amp,
+		"sphere_stun_amp": sphere_stun_amp,
+		"sphere_disarm_amp": sphere_disarm_amp,
+		"sphere_silence_amp": sphere_silence_amp,
+		"sphere_burn_amp": sphere_burn_amp,
+		"sphere_poison_amp": sphere_poison_amp,
+		"sphere_curse_amp": sphere_curse_amp,
+		"sphere_curse_pain_amp": sphere_curse_pain_amp,
+		"sphere_shatter_amp": sphere_shatter_amp,
+		"sphere_shock_amp": sphere_shock_amp,
+		"sphere_slow_amp": sphere_slow_amp,
+		"sphere_root_amp": sphere_root_amp,
 		"damage_proc_reduction_chance": damage_proc_reduction_chance,
 		"damage_proc_reduction_percent": damage_proc_reduction_percent,
 		"damage_resistances": damage_resistances.duplicate(true),
@@ -642,6 +703,8 @@ func restore_progression(data: Dictionary) -> void:
 	current_xp = data.get("current_xp", current_xp)
 	total_xp = data.get("total_xp", total_xp)
 	unspent_stat_points = data.get("unspent_stat_points", unspent_stat_points)
+	unspent_passive_points = data.get("unspent_passive_points", unspent_passive_points)
+	passive_levels = data.get("passive_levels", passive_levels)
 	gold = data.get("gold", gold)
 	# Sphere grid keystones
 	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)
@@ -711,6 +774,18 @@ func restore_progression(data: Dictionary) -> void:
 	sphere_bolster_amp = data.get("sphere_bolster_amp", sphere_bolster_amp)
 	sphere_cleanse_amp = data.get("sphere_cleanse_amp", sphere_cleanse_amp)
 	sphere_resilient_amp = data.get("sphere_resilient_amp", sphere_resilient_amp)
+	sphere_bleed_amp = data.get("sphere_bleed_amp", sphere_bleed_amp)
+	sphere_stun_amp = data.get("sphere_stun_amp", sphere_stun_amp)
+	sphere_disarm_amp = data.get("sphere_disarm_amp", sphere_disarm_amp)
+	sphere_silence_amp = data.get("sphere_silence_amp", sphere_silence_amp)
+	sphere_burn_amp = data.get("sphere_burn_amp", sphere_burn_amp)
+	sphere_poison_amp = data.get("sphere_poison_amp", sphere_poison_amp)
+	sphere_curse_amp = data.get("sphere_curse_amp", sphere_curse_amp)
+	sphere_curse_pain_amp = data.get("sphere_curse_pain_amp", sphere_curse_pain_amp)
+	sphere_shatter_amp = data.get("sphere_shatter_amp", sphere_shatter_amp)
+	sphere_shock_amp = data.get("sphere_shock_amp", sphere_shock_amp)
+	sphere_slow_amp = data.get("sphere_slow_amp", sphere_slow_amp)
+	sphere_root_amp = data.get("sphere_root_amp", sphere_root_amp)
 	damage_proc_reduction_chance = data.get("damage_proc_reduction_chance", damage_proc_reduction_chance)
 	damage_proc_reduction_percent = data.get("damage_proc_reduction_percent", damage_proc_reduction_percent)
 	damage_resistances = data.get("damage_resistances", damage_resistances)
@@ -719,8 +794,14 @@ func restore_progression(data: Dictionary) -> void:
 	ranged_damage_bonus = data.get("ranged_damage_bonus", ranged_damage_bonus)
 	healing_bonus = data.get("healing_bonus", healing_bonus)
 	chance_boost = data.get("chance_boost", chance_boost)
-	# Skill tree passives
-	skill_tree_passives = data.get("skill_tree_passives", skill_tree_passives)
+	# Skill tree passives. assign() converts untyped arrays (JSON-restored
+	# saves) into the typed Array[String] instead of failing the assignment.
+	if data.has("skill_tree_passives"):
+		skill_tree_passives.assign(data["skill_tree_passives"])
+	# Back-compat: passives unlocked under the old one-cost model count as level 1.
+	for pid in skill_tree_passives:
+		if not passive_levels.has(pid):
+			passive_levels[pid] = 1
 	# Recalculate derived stats with restored values
 	recalculate_derived_stats()
 	refresh_flash_points()
@@ -2053,7 +2134,9 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 	## "Regen +1", "Arm/Cyc +1", "Life Steal +3%", "Resist +3%", "Range +1",
 	## "Vuln Amp +25%", "Weaken Amp +25%", "Haste Amp +1", "Enlight Amp +10%",
 	## "Brace Amp +10%", "Blessed Draw +1", "Blessed Amp +1", "Strength Amp +5",
-	## "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%"
+	## "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%", and the debuff amps
+	## "Bleed/Stun/Disarm/Silence/Burn/Shock/Slow/Root Amp +N", "Poison Amp +5",
+	## "Curse Amp +10%", "Curse Pain +10%", "Shatter +5"
 	var regex = RegEx.new()
 	regex.compile("(.+?)\\s*\\+(\\d+)")
 	var result = regex.search(label)
@@ -2111,6 +2194,30 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			sphere_cleanse_amp += value
 		"resil amp":
 			sphere_resilient_amp += value
+		"bleed amp":
+			sphere_bleed_amp += value
+		"stun amp":
+			sphere_stun_amp += value
+		"disarm amp":
+			sphere_disarm_amp += value
+		"silence amp":
+			sphere_silence_amp += value
+		"burn amp":
+			sphere_burn_amp += value
+		"poison amp":
+			sphere_poison_amp += value
+		"curse amp":
+			sphere_curse_amp += value
+		"curse pain":
+			sphere_curse_pain_amp += value
+		"shatter":
+			sphere_shatter_amp += value
+		"shock amp":
+			sphere_shock_amp += value
+		"slow amp":
+			sphere_slow_amp += value
+		"root amp":
+			sphere_root_amp += value
 	stats_updated.emit()
 	print("[STATS] Sphere grid combat bonus: %s" % label)
 
@@ -2186,9 +2293,11 @@ func _level_up() -> void:
 	current_xp -= get_xp_to_next_level()
 	current_level += 1
 
-	# Every level: the health floor rises and stat points bank for allocation.
+	# Every level: the health floor rises; stat and passive points bank for
+	# allocation from the skill tree screen.
 	max_health += HP_PER_LEVEL
 	unspent_stat_points += STAT_POINTS_PER_LEVEL
+	unspent_passive_points += PASSIVE_POINTS_PER_LEVEL
 
 	# Full health and mana on level up
 	current_health = max_health
