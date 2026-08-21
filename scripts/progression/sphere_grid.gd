@@ -178,11 +178,11 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "DEX +1", "Dexterity +1"],  # DEX branch
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DEX branch -> HP
 		[NodeType.STAT_BONUS, "INT +1", "Intelligence +1"], # INT branch
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # INT branch -> Mana
+		[NodeType.MANA, "Mana +10", "Max Mana +10"],      #INT branch -> Mana
 		[NodeType.STAT_BONUS, "WIS +1", "Wisdom +1"],     # WIS branch
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # WIS branch -> Mana
+		[NodeType.MANA, "Mana +10", "Max Mana +10"],      #WIS branch -> Mana
 		[NodeType.STAT_BONUS, "AGI +1", "Agility +1"],    # AGI branch
-		[NodeType.MANA, "Mana +5", "Max Mana +5"],        # AGI branch -> Mana
+		[NodeType.MANA, "Mana +10", "Max Mana +10"],      #AGI branch -> Mana
 		[NodeType.STAT_BONUS, "DET +1", "Determination +1"], # DET branch
 		[NodeType.HEALTH, "HP +10", "Max Health +10"],    # DET branch -> HP
 	]
@@ -201,7 +201,7 @@ func _build_grid() -> void:
 	# sit directly outside their Ring 2 parents (same 12 angular slots as Ring 2):
 	#   * outside each STAT node -> a FREE_STAT "+3 Stats" node (points banked to
 	#     the player's pool, allocated freely on the stat screen)
-	#   * outside each HP/Mana node -> a bigger vitality node (HP +12 / Mana +7)
+	#   * outside each HP/Mana node -> a bigger vitality node (HP +12 / Mana +15)
 	# The stat node also links across to its arm's vitality node, and the vitality
 	# type always matches the stat (HP for STR/DEX/DET, Mana for INT/WIS/AGI), so a
 	# DET arm reads DET -> {+3 Stats, HP} exactly as requested.
@@ -213,11 +213,11 @@ func _build_grid() -> void:
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 9  (DEX)
 		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 10 (DEX HP)
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 11 (INT)
-		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 12 (INT Mana)
+		[NodeType.MANA, "Mana +15", "Max Mana +15"],                                       # outside 12 (INT Mana)
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 13 (WIS)
-		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 14 (WIS Mana)
+		[NodeType.MANA, "Mana +15", "Max Mana +15"],                                       # outside 14 (WIS Mana)
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 15 (AGI)
-		[NodeType.MANA, "Mana +7", "Max Mana +7"],                                         # outside 16 (AGI Mana)
+		[NodeType.MANA, "Mana +15", "Max Mana +15"],                                       # outside 16 (AGI Mana)
 		[NodeType.FREE_STAT, "+3 Stats", "Bank 3 stat points to spend however you like"], # outside 17 (DET)
 		[NodeType.HEALTH, "HP +12", "Max Health +12"],                                     # outside 18 (DET HP)
 	]
@@ -381,7 +381,7 @@ func _build_grid() -> void:
 		[NodeType.HEALTH, "HP +35", "Max Health +35"],
 		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
-		[NodeType.MANA, "Mana +15", "Max Mana +15"],
+		[NodeType.MANA, "Mana +20", "Max Mana +20"],
 		[NodeType.KEYSTONE, "Killing Rhythm", "Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_flat_damage"}],
 		[NodeType.KEYSTONE, "Unbroken Will", "Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_floor"}],
 		[NodeType.KEYSTONE, "Wild Abandon", "Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_amplify"}],
