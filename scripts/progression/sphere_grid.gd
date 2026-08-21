@@ -263,7 +263,7 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Heal for 1% of damage dealt"],
 		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
 		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
-		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
@@ -316,7 +316,7 @@ func _build_grid() -> void:
 		# domain now (brain points). Node kept as a connector; refill with a
 		# body-flavored AGI keystone later.
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.RETROSPECTIVE, "Retrospect", "Reclaim a skipped skill tree reward"],
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%", {"req": {"stat": "dexterity", "value": 20}}],

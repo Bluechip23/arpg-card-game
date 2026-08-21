@@ -550,13 +550,11 @@ func _ready() -> void:
 	# Skill tree connection — also link sphere grid into the tabbed panel
 	skill_tree_ui.connect_sphere_grid(sphere_grid_ui)
 	skill_tree_ui.sphere_inventory = sphere_inventory
-	skill_tree_ui.option_chosen.connect(progression_triggers._on_skill_tree_option_chosen)
 	skill_tree_ui.stats_allocated.connect(progression_triggers._on_skill_tree_stats_allocated)
-	skill_tree_ui.retrospective_chosen.connect(progression_triggers._on_skill_tree_retrospective_chosen)
-	# Clear the EXP notification dot once a point is actually spent.
-	skill_tree_ui.option_chosen.connect(func(_l, _o): _refresh_hud_notifications())
+	# Clear the EXP notification dot once points are actually spent (stat
+	# allocations signal; passive spends are caught when the panel closes).
 	skill_tree_ui.stats_allocated.connect(func(_a): _refresh_hud_notifications())
-	skill_tree_ui.retrospective_chosen.connect(func(_l, _o): _refresh_hud_notifications())
+	skill_tree_ui.closed.connect(_refresh_hud_notifications)
 
 	_setup_action_buttons()
 	_setup_tick_bar()
