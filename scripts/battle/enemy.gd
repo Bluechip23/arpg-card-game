@@ -2643,7 +2643,7 @@ func _finish_player_hit(player_node: Node3D) -> void:
 		var p_inventory = player_node.get_inventory()
 		if p_inventory:
 			p_inventory.on_damage_taken()
-	# Trigger on_attacked passives (thorns, In the Trenches, Phalanx, etc.)
+	# Trigger on_attacked passives (thorns, In the Trenches, etc.)
 	if player_node.has_method("on_attacked_by"):
 		player_node.on_attacked_by(self)
 	attacked_player.emit(self)

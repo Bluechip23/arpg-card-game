@@ -570,10 +570,6 @@ func _apply_skill_tree_option(option) -> void:
 				# Stephen: +2 range on ranged attacks (tracked via passive)
 				stats.add_skill_tree_passive(pid)
 				main.add_battle_log("Eagle Eye: +2 range on ranged attacks", Color(0.4, 0.9, 0.4))
-			"sword_specialist":
-				# Brad (Warden): +25% block when only wielding swords (tracked via passive)
-				stats.add_skill_tree_passive(pid)
-				main.add_battle_log("Sword Specialist: +25%% block with swords only", Color(0.3, 0.7, 1.0))
 			"tricks_of_death":
 				# Jeremy: +10% to all % chances (permanent chance_boost)
 				stats.chance_boost += 10.0
@@ -924,8 +920,6 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 					stats.gain_mana(kills * 10)
 				main.add_battle_log("Enraged Will: AOE swing for %d! (+%d mana)" % [dmg, kills * 10], Color(0.9, 0.3, 0.3))
 
-	# Corrupted Strength: state is updated per cycle, no action needed on damage taken
-
 func _trigger_skill_tree_brad_on_attacked(attacker) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
@@ -1054,23 +1048,6 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 
 	# Directed Strength is checked at attack time, not per-cycle
 
-	# Corrupted Strength: check nearby enemies, toggle active state, apply armor + HP drain
-	if stats.has_skill_tree_passive("corrupted_strength"):
-		var nearby_enemies = main.enemy_spawner.get_enemies_in_radius(main.player.position, 3.0) if main.enemy_spawner else []
-		var was_active = stats.st_corrupted_strength_active
-		stats.st_corrupted_strength_active = nearby_enemies.size() >= 3
-		stats.st_corrupted_strength_no_ally_heal = stats.st_corrupted_strength_active
-		if stats.st_corrupted_strength_active:
-			stats.add_armor(5)
-			stats.current_health = max(1, stats.current_health - 2)
-			stats.health_changed.emit(stats.current_health, stats.max_health)
-			if not was_active:
-				main.add_battle_log("Corrupted Strength: darkness surges! +5 dmg, +5 armor/cycle, no ally healing", Color(0.8, 0.4, 0.9))
-			else:
-				main.add_battle_log("Corrupted Strength: +5 armor, -2 HP", Color(0.8, 0.4, 0.9))
-		elif was_active:
-			main.add_battle_log("Corrupted Strength: darkness recedes", Color(0.6, 0.4, 0.6))
-
 func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 	## Returns bonus damage from Brad passives.
 	var stats = main.player.get_stats()
@@ -1084,11 +1061,6 @@ func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 
 	# Life Steal: all attacks life steal by 5% — applied directly in Card.execute()
 	# (the generic LIFE_STEAL buff heals 100%, so it must NOT be used here).
-
-	# Corrupted Strength: +5 damage while active (3+ enemies within 2 tiles)
-	if stats.has_skill_tree_passive("corrupted_strength") and stats.st_corrupted_strength_active:
-		bonus += 5
-		main.add_battle_log("Corrupted Strength: +5 damage!", Color(0.8, 0.4, 0.9))
 
 	return bonus
 
@@ -1267,16 +1239,6 @@ func _trigger_skill_tree_stephen_on_attacked(attacker) -> void:
 			stats.st_exposed_blind_spot_crit = non_attack_count
 			main.add_battle_log("Exposed Blind Spot: +%d%% crit on next attack!" % non_attack_count, Color(0.3, 0.7, 1.0))
 
-	# Phalanx: melee attack → deal damage = number of Defense cards in hand
-	if stats.has_skill_tree_passive("phalanx") and attacker and attacker.has_method("take_damage"):
-		var defense_count = 0
-		for c in main.deck_manager.hand:
-			if c.card_type == Card.CardType.DEFENSE:
-				defense_count += 1
-		if defense_count > 0:
-			attacker.take_damage(defense_count, true)
-			main.add_battle_log("Phalanx: %d damage back!" % defense_count, Color(0.3, 0.7, 1.0))
-
 func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
@@ -1298,16 +1260,6 @@ func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 					target.take_damage(dmg, true)
 					main.add_battle_log("Lethal Resourcefulness: free attack for %d!" % dmg, Color(0.3, 0.7, 1.0))
 					stats.st_lethal_resource_attacking = false
-
-func _trigger_skill_tree_stephen_on_disarm_applied(target, value: int) -> void:
-	var stats = main.player.get_stats()
-	if not stats:
-		return
-
-	# Disarm Mastery: when applying disarm, apply 1 more
-	if stats.has_skill_tree_passive("disarm_mastery") and target and target.has_method("apply_debuff"):
-		target.apply_debuff("disarmed", 5)
-		main.add_battle_log("Disarm Mastery: +1 disarm", Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
 	var stats = main.player.get_stats()

@@ -382,8 +382,6 @@ var st_ladder_banked: int = 0          # Ladder Work: last cycle's count, spent 
 
 # Brad passive tracking
 var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount
-var st_corrupted_strength_active: bool = false  # Corrupted Strength: true when 3+ enemies within 2 tiles
-var st_corrupted_strength_no_ally_heal: bool = false  # Corrupted Strength: blocks ally healing while active
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
 var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when charges were last exhausted
@@ -1810,8 +1808,8 @@ func _curse_of_the_living_active() -> bool:
 	return false
 
 func heal(amount: int, from_ally: bool = false) -> void:
-	# Corrupted Strength / Solemn Independence: block ally healing while active
-	if from_ally and (st_corrupted_strength_no_ally_heal or solemn_active):
+	# Solemn Independence: block ally healing while active
+	if from_ally and solemn_active:
 		return
 	# Friendship: the partner receives the same base heal (their modifiers apply).
 	if friendship_partner and not _friendship_echo and amount > 0:
@@ -1893,9 +1891,6 @@ func apply_life_steal(amount: int) -> void:
 
 func add_armor(amount: int) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
-	# Sword Specialist: +25% block when only wielding swords
-	if has_skill_tree_passive("sword_specialist") and inventory and inventory.has_only_swords_equipped():
-		total = floori(total * 1.25)
 	# Living Bulwark: the full armor gain (bonuses included) becomes temp HP.
 	# Armor-gain hooks (overhead icon, on_armor_gained item procs) don't fire —
 	# no armor was actually gained.
@@ -1920,9 +1915,6 @@ func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
 	if buff_mgr:
 		total += buff_mgr.consume_bolster()
-	# Sword Specialist: +25% block when only wielding swords
-	if has_skill_tree_passive("sword_specialist") and inventory and inventory.has_only_swords_equipped():
-		total = floori(total * 1.25)
 	# Living Bulwark: converted to temp HP (see add_armor).
 	if keystone_armor_temp_hp:
 		if total > 0:

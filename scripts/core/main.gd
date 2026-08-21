@@ -4858,7 +4858,6 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	if olorin:
 		olorin.show_combat_intro()
 
-var _disarm_mastery_applying: bool = false  # Guard against recursive disarm
 var _wither_applying: bool = false  # Guard against recursive wither
 var _laced_arrow_applying: bool = false  # Guard against recursive laced arrow
 var _polymorph_firing: bool = false  # Guard: Polymorph's own debuff must not re-trigger it
@@ -4879,11 +4878,6 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 					enemy.apply_debuff("burn", 2)
 					_harnessed_reentry = false
 					break
-	# Stephen: Disarm Mastery — extra disarm stack (guarded against recursion)
-	if debuff_name == "disarmed" and not _disarm_mastery_applying:
-		_disarm_mastery_applying = true
-		progression_triggers._trigger_skill_tree_stephen_on_disarm_applied(enemy, value)
-		_disarm_mastery_applying = false
 	# Stephen: Laced Arrow — when applying burn, cold, or shock, apply +1 additional (guarded against recursion)
 	if not _laced_arrow_applying and debuff_name in ["burn", "cold", "shock"]:
 		var stats = player.get_stats()
@@ -7108,9 +7102,6 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 		# Bolster is consumed by exactly one card's armor pipeline.
 		if card.card_id == "smith_thy_soul" and buff_mgr:
 			total_block += buff_mgr.get_bolster_bonus()
-		if stats.has_skill_tree_passive("sword_specialist") \
-				and player.get_inventory() and player.get_inventory().has_only_swords_equipped():
-			total_block = floori(total_block * 1.25)
 		out["block"] = total_block
 		out["block_base"] = block_base
 
