@@ -273,7 +273,7 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 [color=yellow]Node Types:[/color]
 - [color=red]Stat[/color] - Grants flat stat bonuses (STR, DEX, INT, WIS, AGI, DET)
 - [color=purple]+3 Stats[/color] - Banks 3 stat points to your pool; spend them on any stats from the stat screen, just like leveling up
-- [color=green]Passive[/color] - Grants a triggered passive ability (e.g., "On kill: heal 1 HP")
+- [color=green]Constellations[/color] - Connecting the right nodes grants triggered passive bonuses (item gear carries the other proc effects)
 - [color=coral]Health[/color] - Increases max health
 - [color=cyan]Mana[/color] - Increases max mana
 - [color=gold]Keystone[/color] - Rare, build-defining nodes that rewrite the rules of an entire system (how life steal works, what armor becomes, what drives Determination...). A character can attach at most [color=gold]3 Keystones[/color] - choose the ones that define your build
