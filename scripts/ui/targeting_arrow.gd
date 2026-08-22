@@ -49,7 +49,7 @@ func _draw() -> void:
 	var dir := to - from
 	if dir.length() < 8.0:
 		return
-	var thickness := _cm_to_px()
+	var thickness := _cm_to_px() / 3.0
 	var color := Color(0.9, 0.08, 0.08, 0.85)
 	var n := dir.normalized()
 	# Arrowhead: a triangle at the pointer, wider than the shaft; the shaft
