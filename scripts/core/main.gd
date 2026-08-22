@@ -87,6 +87,7 @@ const CloneScript = preload("res://scripts/battle/summoned_clone.gd")
 var _wraiths: Array = []         # The Precious: the hostile hunters, on the field only during shadow form
 var _draupnir_spawn_frame: int = -1  # frame of the last clone spawn (Jeremy's doubled fire lands the same frame)
 var _harnessed_reentry: bool = false # guard: the Harnessed Sun's +2 burn must not amplify itself
+var _phoenix_singed_this_play: bool = false # Phoenix Feather: backlash fires once per play, not per burn source
 var _three_count_cd: int = 0     # Mits of Chingiz: cycles until 3 count can fire again
 var _offensive_streak: int = 0   # consecutive offensive cards played (3 count)
 var _cuffs_cycle_accum: int = 0  # Cuffs of Current: cycles banked toward the next free draw
@@ -177,6 +178,15 @@ const CARD_KEYS = [
 
 var selected_card_index: int = -1
 var _basic_attack_pending: bool = false  # Attack button armed — next enemy click swings
+var _pending_gauntlet_skill: ItemData = null  # Targeted gauntlet skill armed — next click picks its target
+
+# Gauntlet skills that need a target picked by clicking (like cards do).
+const ENEMY_TARGET_GAUNTLET_SKILLS := ["power_grip", "rage_strike", "worldsplitter",
+	"worldsplitter_awakened", "zeet", "slice", "lethal_poke", "fan_save", "coming_in"]
+# Melee strikes among them: the clicked enemy must be adjacent (~1.5 tiles).
+const MELEE_GAUNTLET_SKILLS := ["power_grip", "rage_strike", "worldsplitter",
+	"worldsplitter_awakened", "slice", "lethal_poke"]
+const POINT_TARGET_GAUNTLET_SKILLS := ["suck"]
 var current_character: CharacterData = null
 var starting_character: CharacterData = null
 var player2_character: CharacterData = null
@@ -509,6 +519,7 @@ func _ready() -> void:
 	# into the discard pile / instant spin) before the hand UI rebuilds.
 	deck_manager.card_discarded.connect(_animate_card_discard)
 	deck_manager.reaction_triggered.connect(_animate_card_instant)
+	deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	test_ui.apply_overflow_requested.connect(_on_apply_overflow)
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
@@ -618,6 +629,7 @@ func _ready() -> void:
 		if _p2_deck_manager:
 			_p2_deck_manager.card_discarded.connect(_animate_card_discard)
 			_p2_deck_manager.reaction_triggered.connect(_animate_card_instant)
+			_p2_deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 			_p2_deck_manager.card_erased.connect(_animate_card_erase)
 		if _p2_player and _p2_player.get_inventory():
 			_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
@@ -1957,7 +1969,8 @@ func _on_attack_pressed() -> void:
 			print("[MAIN] Basic Attack - Cannot attack while Disarmed!")
 			return
 
-	# Arm the attack; deselect any card so the two targeting modes never overlap.
+	# Arm the attack; deselect any card so the targeting modes never overlap.
+	_pending_gauntlet_skill = null
 	if selected_card_index >= 0:
 		selected_card_index = -1
 		if range_indicator:
@@ -3462,17 +3475,73 @@ func _update_gauntlet_skills_ui() -> void:
 
 func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 	var inventory = player.get_inventory()
-	
-	# For targeted skills, we need to select a target
-	# For now, use closest enemy or require click
-	var enemies = enemy_spawner.get_living_enemies()
-	var target = enemies[0] if enemies.size() > 0 else null
-	
-	if inventory.use_gauntlet_skill(gauntlet, target):
+	if not inventory or not inventory.can_use_gauntlet_skill(gauntlet):
+		return
+	var fx: String = gauntlet.gauntlet_skill_effect_id
+
+	# House Rule: pick the discard card FIRST — mana/cooldown are only paid
+	# once a card is actually chosen (Cancel costs nothing).
+	if fx == "house_rule":
+		if deck_manager.discard_pile.is_empty():
+			add_battle_log("House Rule: the discard pile is empty.", Color(1.0, 0.6, 0.3))
+			return
+		show_card_list_picker("House Rule — take which card?", deck_manager.discard_pile.duplicate(),
+			func(chosen):
+				if chosen != null:
+					_fire_gauntlet_skill(gauntlet, chosen))
+		return
+
+	# Targeted skills arm like selecting a card: the next click picks the
+	# target (see _unhandled_input). Pressing the button again disarms.
+	if fx in ENEMY_TARGET_GAUNTLET_SKILLS or fx in POINT_TARGET_GAUNTLET_SKILLS:
+		if _pending_gauntlet_skill == gauntlet:
+			_pending_gauntlet_skill = null
+			return
+		_set_basic_attack_pending(false)
+		if selected_card_index >= 0:
+			select_card(-1)
+		_pending_gauntlet_skill = gauntlet
+		var what: String = "an enemy" if fx in ENEMY_TARGET_GAUNTLET_SKILLS else "a target point"
+		add_battle_log("%s armed — click %s." % [gauntlet.gauntlet_skill_name, what], Color(1.0, 0.85, 0.4))
+		return
+
+	_fire_gauntlet_skill(gauntlet, null)
+
+## Pay the skill's costs and run it. Callers have already validated the target,
+## so a no-op can no longer eat the cooldown.
+func _fire_gauntlet_skill(gauntlet: ItemData, target) -> void:
+	var inventory = player.get_inventory()
+	if inventory and inventory.use_gauntlet_skill(gauntlet, target):
 		tempo_manager.add_tempo(1)  # Skills cost 1 tempo
 		# A little gauntlet pops over the user's head (like the heal heart).
 		player.show_gauntlet_skill()
 		_update_gauntlet_skills_ui()
+
+## Range prechecks BEFORE any cost is paid — an invalid target must not burn
+## the skill's cooldown, mana, or tempo.
+func _validate_gauntlet_skill_target(gauntlet: ItemData, target) -> bool:
+	var fx: String = gauntlet.gauntlet_skill_effect_id
+	if fx in MELEE_GAUNTLET_SKILLS:
+		var diff = player.position - target.position
+		if Vector3(diff.x, 0, diff.z).length() > 1.5:
+			var tiles = _get_distance_to_target(target)
+			add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [target.enemy_name, tiles], Color(1.0, 0.4, 0.4))
+			return false
+	if fx == "coming_in":
+		if grid_manager.get_distance_in_cells(player.position, target.position) > 5:
+			add_battle_log("Coming in!: too far — 5 squares max", Color(1.0, 0.4, 0.4))
+			return false
+		var tcell = grid_manager.world_to_grid(target.position)
+		var has_free := false
+		for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var c = tcell + off
+			if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+				has_free = true
+				break
+		if not has_free:
+			add_battle_log("Coming in!: no open square beside %s." % target.enemy_name, Color(1.0, 0.4, 0.4))
+			return false
+	return true
 
 func _on_gauntlet_skill_ready(_gauntlet: ItemData) -> void:
 	_update_gauntlet_skills_ui()
@@ -4070,6 +4139,7 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 	if _p2_deck_manager:
 		_p2_deck_manager.card_discarded.connect(_animate_card_discard)
 		_p2_deck_manager.reaction_triggered.connect(_animate_card_instant)
+		_p2_deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 		_p2_deck_manager.card_erased.connect(_animate_card_erase)
 	if _p2_player and _p2_player.get_inventory():
 		_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
@@ -4558,6 +4628,11 @@ func show_hand_card_picker(prompt: String, on_pick: Callable, exclude: Card = nu
 	for c in deck_manager.hand:
 		if c != exclude:
 			candidates.append(c)
+	show_card_list_picker(prompt, candidates, on_pick, on_cancel)
+
+func show_card_list_picker(prompt: String, candidates: Array, on_pick: Callable, on_cancel: Callable = Callable()) -> void:
+	## The picker UI itself, over an arbitrary card list (hand, discard pile —
+	## House Rule picks from the discard through this). Same auto-resolve rules.
 	if candidates.is_empty():
 		on_pick.call(null)
 		return
@@ -4985,7 +5060,9 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 			# for 1 — riders like Laced Arrow / Wither / Harnessed Sun amplify
 			# the SAME occasion, so their guarded re-entries don't singe again.
 			if sw_w.burn_backlash_self > 0 and debuff_name == "burn" \
-					and not _harnessed_reentry and not _laced_arrow_applying and not _wither_applying:
+					and not _harnessed_reentry and not _laced_arrow_applying and not _wither_applying \
+					and not _phoenix_singed_this_play:
+				_phoenix_singed_this_play = true
 				var pb_dm = player.get_debuff_manager()
 				if pb_dm:
 					var pb_burn = Debuff.create(Debuff.DebuffType.BURN, sw_w.burn_backlash_self, 15)
@@ -5750,7 +5827,7 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 	for rcard in exposed_reactions:
 		rcard.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 		if rcard.card_id == "vengeful_shield":
-			_stun_nearest_enemy(2.0)
+			_stun_nearest_enemy(1.5)  # melee range, per the card text
 	if exposed_reactions.size() > 0:
 		_refresh_unit_tracker()
 	for card in deck_manager.get_maintained_cards():
@@ -6043,6 +6120,14 @@ func _animate_card_discard(card: Card) -> void:
 	if ui:
 		ui.animate_played_to_discard(_get_discard_pile_pos())
 
+## Lethal Recall's memory: a reaction that actually TRIGGERS counts as the
+## "last instant card" (they fire from trigger sites, never through the manual
+## play path below, so without this hook Lethal Recall could never arm).
+func _arm_lethal_recall(card: Card) -> void:
+	if card.card_id != "lethal_recall":
+		_last_played_card = card
+		_last_played_target = null
+
 func _animate_card_instant(card: Card) -> void:
 	## Instant (reaction) cards pop up, spin twice, then discard.
 	var ui := _hand_ui_for_card(card)
@@ -6284,7 +6369,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		_process_pending_sky_falls()
 		_process_pending_absorb_essences()
 		_process_glut_countdown()
-		_process_in_hand_cards()
 
 	# Sphere grid passive triggers for tempo cycle
 	progression_triggers._trigger_sphere_passives("on_cycle", {})
@@ -6450,34 +6534,43 @@ func _process_enchantment_cycles() -> void:
 		deck_manager.hand_updated.emit()
 
 func _process_healthy_bliss_cards() -> void:
-	var hand_changed = false
-	for i in range(deck_manager.hand.size() - 1, -1, -1):
-		var card = deck_manager.hand[i]
-		if card.card_id != "healthy_bliss":
+	## The single Healthy Bliss implementation: after 4 cycles (20 tempo) in
+	## hand, heal every party member (stat-scaled) and discard the card.
+	## cycles_in_hand resets on draw, so a reshuffled copy works again.
+	var decks := [deck_manager]
+	if is_multiplayer and _p1_deck_manager and _p2_deck_manager:
+		decks = [_p1_deck_manager, _p2_deck_manager]
+	for dmgr in decks:
+		if not dmgr:
 			continue
-		card.cycles_in_hand += 1
-		if card.cycles_in_hand >= 4:  # 4 cycles = 20 tempo
-			# Heal ALL allies — every party member, not just the card holder.
-			var stats = player.get_stats()
-			var heal_amt = card.heal_amount
-			if stats:
-				heal_amt = stats.get_effective_heal_amount(card.heal_amount)
-				add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
-			for ally in _all_players():
-				if not is_instance_valid(ally):
-					continue
-				var ally_stats = ally.get_stats()
-				if ally_stats:
-					ally_stats.heal(heal_amt)
-			# Discard the card
-			deck_manager.hand.remove_at(i)
-			deck_manager.discard_pile.append(card)
-			deck_manager.non_play_discard.emit(card)
-			card.cycles_in_hand = 0
-			hand_changed = true
-			print("[MAIN] Healthy Bliss triggered after 20 tempo in hand")
-	if hand_changed:
-		deck_manager.hand_updated.emit()
+		var hand_changed = false
+		for i in range(dmgr.hand.size() - 1, -1, -1):
+			var card = dmgr.hand[i]
+			if card.card_id != "healthy_bliss":
+				continue
+			card.cycles_in_hand += 1
+			if card.cycles_in_hand >= 4:  # 4 cycles = 20 tempo
+				# Heal ALL allies — every party member, not just the card holder.
+				var stats = player.get_stats()
+				var heal_amt = card.heal_amount
+				if stats:
+					heal_amt = stats.get_effective_heal_amount(card.heal_amount)
+					add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
+				for ally in _all_players():
+					if not is_instance_valid(ally):
+						continue
+					var ally_stats = ally.get_stats()
+					if ally_stats:
+						ally_stats.heal(heal_amt)
+				# Discard the card
+				dmgr.hand.remove_at(i)
+				dmgr.discard_pile.append(card)
+				dmgr.non_play_discard.emit(card)
+				card.cycles_in_hand = 0
+				hand_changed = true
+				print("[MAIN] Healthy Bliss triggered after 20 tempo in hand")
+		if hand_changed:
+			dmgr.hand_updated.emit()
 
 func _process_pending_sky_falls() -> void:
 	for i in range(pending_sky_falls.size() - 1, -1, -1):
@@ -6654,26 +6747,6 @@ func _succumb_phase2(caster) -> void:
 		bm.debuff_manager.apply_debuff(Debuff.create(Debuff.DebuffType.DISARM, 1, 10))
 	add_battle_log("Succumb: took 10 more damage; cuffed, drained, disarmed", Color(1.0, 0.3, 0.3))
 
-func _process_in_hand_cards() -> void:
-	## Per-cycle: advance in-hand timers (Healthy Bliss). When one elapses, heal
-	## all allies and discard the card.
-	var decks := [deck_manager]
-	if is_multiplayer and _p1_deck_manager and _p2_deck_manager:
-		decks = [_p1_deck_manager, _p2_deck_manager]
-	for dmgr in decks:
-		if not dmgr:
-			continue
-		for i in range(dmgr.hand.size() - 1, -1, -1):
-			var c = dmgr.hand[i]
-			if c.in_hand_heal_tempo > 0:
-				c.in_hand_heal_tempo -= 5
-				if c.in_hand_heal_tempo <= 0:
-					for p in _all_players():
-						if is_instance_valid(p) and p.get_stats():
-							p.get_stats().heal(c.heal_amount)
-					add_battle_log("Healthy Bliss heals all allies for %d!" % c.heal_amount, Color(0.5, 1.0, 0.6))
-					print("[MAIN] Healthy Bliss triggered: healed all allies %d" % c.heal_amount)
-					dmgr.discard_card_from_hand(c)
 
 func _process_pending_absorb_essences() -> void:
 	for i in range(pending_absorb_essences.size() - 1, -1, -1):
@@ -6949,8 +7022,10 @@ func update_card_highlights() -> void:
 			card_ui.set_selected(sel_card != null and sel_card in g["cards"])
 
 func select_card(index: int) -> void:
-	# Selecting a card disarms a pending basic attack — one targeting mode at a time.
+	# Selecting a card disarms a pending basic attack or armed gauntlet skill —
+	# one targeting mode at a time.
 	_set_basic_attack_pending(false)
+	_pending_gauntlet_skill = null
 	if index < 0 or index >= deck_manager.hand.size():
 		selected_card_index = -1
 		if aoe_indicator:
@@ -7245,13 +7320,13 @@ func play_selected_card(target) -> void:
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
 
-	# Tighten String: +3 tempo, +6 damage, +6 range, +20% crit on ranged attacks
+	# Tighten String: +3 tempo, +6 damage, +6 range, Enlightened (+10% crit)
 	var tighten_applied = false
 	if buff_mgr and buff_mgr.tighten_string_charges > 0 and is_ranged_attack:
 		tempo_cost += 3
 		card.bonus_damage += 6
 		card.range_modifier += 6
-		buff_mgr.apply_buff(Buff.create_enlightened(20, 1, "Tighten String"))
+		buff_mgr.apply_buff(Buff.create_enlightened(10, 1, "Tighten String"))
 		tighten_applied = true
 
 	# High Ground: +4 damage, +2 range when shooting from elevated position (pillar or terrain elevation)
@@ -7532,6 +7607,7 @@ func _undo_card_temp_mods(card: Card, data: Dictionary) -> void:
 
 func _resolve_queued_card(resolved_card: Card) -> void:
 	## Find the matching card in the pending queue and execute its effect.
+	_phoenix_singed_this_play = false  # Phoenix Feather backlash: once per play
 	var queue_index := -1
 	for i in range(_pending_resolve_queue.size()):
 		if _pending_resolve_queue[i]["card"] == resolved_card:
@@ -8751,6 +8827,7 @@ func _check_melee_range_reactions() -> void:
 	var fired = deck_manager.trigger_reactions("on_enemy_melee_range")
 	for card in fired:
 		card.execute(adj, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		_last_played_target = adj  # Lethal Recall replays this instant at its enemy
 		add_battle_log("Close is Favored! %s takes %d." % [adj.enemy_name, card.last_damage_dealt], Color(0.85, 0.75, 0.5))
 		if card.erase_on_play:
 			# Erased, not discarded — trigger_reactions parked it in the discard pile.
@@ -9266,14 +9343,15 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 						bounce.take_damage(maxi(1, zdmg / 4), true, DamageTypes.Type.LIGHTNING)
 						add_battle_log("Zeet bounces to %s!" % bounce.enemy_name, Color(0.5, 0.8, 1.0))
 		"slice":
-			# A basic melee strike (fist formula: STR-scaled from 0 base), 2 tempo.
+			# A basic melee strike (fist formula: STR-scaled from 0 base), 2 tempo
+			# TOTAL: the generic activation already charges 1, so add just 1 here.
 			if target and is_instance_valid(target) and target.has_method("take_damage") and stats:
 				var sdmg: int = stats.get_effective_physical_damage(0)
 				var bm = player.get_buff_manager()
 				if bm and bm.roll_crit():
 					sdmg = Card.crit_multiply(sdmg, stats, target)
 				target.take_damage(sdmg, true)
-				tempo_manager.add_tempo(2)
+				tempo_manager.add_tempo(1)
 				add_battle_log("Slice! %d damage (2 tempo)" % sdmg, Color(0.9, 0.7, 0.5))
 		"lethal_poke":
 			# 0-base melee; a crit is multiplied a further x1.5 on top.
@@ -9507,7 +9585,7 @@ func _on_action_points_spent(pool: String, amount: int) -> void:
 		return
 	stats.flash_crit_accum += amount
 	if stats.flash_crit_accum >= threshold and not stats.flash_crit_armed:
-		stats.flash_crit_accum -= threshold  # carry any overflow toward the next one
+		stats.flash_crit_accum = 0  # "resets to 0 on use" — no overflow carry
 		stats.flash_crit_armed = true
 		add_battle_log("Feathered Hat: your next ranged attack will crit!", Color(0.8, 0.9, 1.0))
 
@@ -10057,9 +10135,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var a_st = ally.get_stats()
 				if a_st:
 					var heal_amt: int = maxi(1, floori(a_st.max_health * mend_pct))
+					var mend_hp_before: int = a_st.current_health
 					a_st.heal(heal_amt)
 					a_st.gain_mana(maxi(1, floori(a_st.max_mana * mend_pct)))
-					a_st.add_armor(heal_amt)
+					# Armor equals the health ACTUALLY restored — a full-health
+					# ally gets none, per "armor based on health restored".
+					var mend_armor: int = a_st.current_health - mend_hp_before
+					if mend_armor > 0:
+						a_st.add_armor(mend_armor)
 					mend_healed += 1
 			for m in _frankensteins:
 				if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= 4:
@@ -10222,7 +10305,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			add_battle_log("Sprinkle Bomb! %d damage to %d enemies" % [sb_dmg, sb_hit.size()], Color(1.0, 0.6, 0.85))
 			print("[MAIN] Sprinkle Bomb hit %d enemies for %d" % [sb_hit.size(), sb_dmg])
 
-		"spirit_arrow":
+		"spirit_arrow", "balistic_arrow":
 			# Pierce every enemy along the line from the player through the target.
 			var sa_dmg = card.last_damage_dealt
 			var aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
@@ -10234,8 +10317,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			for en in sa_hit:
 				en.take_damage(sa_dmg, true)
 			_apply_misery_spread(sa_hit)
-			add_battle_log("Spirit Arrow pierced %d enemies for %d" % [sa_hit.size(), sa_dmg], Color(0.7, 0.9, 1.0))
-			print("[MAIN] Spirit Arrow pierced %d enemies for %d" % [sa_hit.size(), sa_dmg])
+			add_battle_log("%s pierced %d enemies for %d" % [card.card_name, sa_hit.size(), sa_dmg], Color(0.7, 0.9, 1.0))
+			print("[MAIN] %s pierced %d enemies for %d" % [card.card_name, sa_hit.size(), sa_dmg])
 
 		"internal_combustion":
 			# Shed half your armor; deal that much to everything around you.
@@ -10532,9 +10615,18 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if tt_stats:
 				var tt_backfired: bool = card.rng_binary_succeeded() if card.has_been_rolled() else randf() < 0.1
 				if tt_backfired:
-					tt_stats.max_mana = max(10, tt_stats.max_mana - 30)
+					# The reverse is the same TEMPORARY effect, mirrored — it
+					# reverts after the same 10 tempo (tracking the actual cut
+					# so the 10-mana floor never over-refunds).
+					var tt_mana_cut: int = tt_stats.max_mana - max(10, tt_stats.max_mana - 30)
+					tt_stats.max_mana -= tt_mana_cut
 					tt_stats.adjust_temp_hand(-2)
-					add_battle_log("Try This backfired! -30 mana pool, -2 hand size", Color(1.0, 0.5, 0.4))
+					var tt_restore := func():
+						if is_instance_valid(tt_stats):
+							tt_stats.max_mana += tt_mana_cut
+							tt_stats.adjust_temp_hand(2)
+					schedule_delayed_effect(10, tt_restore, "try_this")
+					add_battle_log("Try This backfired! -30 mana pool, -2 hand size for 10 tempo", Color(1.0, 0.5, 0.4))
 				else:
 					tt_stats.max_mana += 30
 					tt_stats.adjust_temp_hand(2)
@@ -11012,6 +11104,7 @@ func _input(event: InputEvent) -> void:
 				add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
 			selected_card_index = -1
 			_set_basic_attack_pending(false)
+			_pending_gauntlet_skill = null
 			_pending_quiver_card = null
 			_pending_quiver_index = -1
 			_pending_quiver_target_type = ""
@@ -11035,6 +11128,22 @@ func _input(event: InputEvent) -> void:
 		# Mythic reveal sequence: clicking the present opens it; clicking the
 		# revealed icon claims the item.
 		if _try_click_mythic_reveal():
+			return
+
+		# Gauntlet skill armed: this click picks its target.
+		if _pending_gauntlet_skill != null:
+			var gsk: ItemData = _pending_gauntlet_skill
+			var gsk_mouse = get_mouse_world_position()
+			if gsk.gauntlet_skill_effect_id in POINT_TARGET_GAUNTLET_SKILLS:
+				_pending_gauntlet_skill = null
+				_fire_gauntlet_skill(gsk, null)  # Suck reads the clicked point via the mouse
+			else:
+				var gsk_enemy = enemy_spawner.get_enemy_at_position(gsk_mouse)
+				if gsk_enemy == null:
+					add_battle_log("No enemy at that position!", Color(1.0, 0.6, 0.3))
+				elif _validate_gauntlet_skill_target(gsk, gsk_enemy):
+					_pending_gauntlet_skill = null
+					_fire_gauntlet_skill(gsk, gsk_enemy)
 			return
 
 		# Basic attack armed: this click picks the enemy to swing at.
@@ -11173,7 +11282,8 @@ func _input(event: InputEvent) -> void:
 		if event.pressed:
 			# Only start orbiting if no card action is pending and no UI window
 			# is capturing the drag (otherwise dragging a scrollbar spins the map).
-			if selected_card_index < 0 and _pending_quiver_card == null and not _basic_attack_pending and not _is_ui_window_open():
+			if selected_card_index < 0 and _pending_quiver_card == null and not _basic_attack_pending \
+					and _pending_gauntlet_skill == null and not _is_ui_window_open():
 				_camera_orbiting = true
 				_camera_drag_start = event.position
 		else:
@@ -11626,6 +11736,13 @@ func _on_manifest_card_clicked(index: int) -> void:
 	if index >= 0 and index < overflow_manager.manifest_zone.size():
 		var entry: Dictionary = overflow_manager.manifest_zone[index]
 		sleeve = entry.get("source_item", null)
+		# Cinquedea needs a victim within 4 squares — check BEFORE any cost is
+		# paid or the blade consumed, so a whiff costs nothing.
+		if str(entry.get("manifest_id", "")) == "cinquedea":
+			var cq_check = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			if cq_check == null or grid_manager.get_distance_in_cells(player.position, cq_check.position) > 4:
+				add_battle_log("Cinquedea: nothing within 4 squares", Color(0.7, 0.6, 0.5))
+				return
 		# Item-conjured blades keep their own mana cost; the zone's own
 		# manifests (skeletons, mushrooms) remain free as they always were.
 		if sleeve != null and int(entry.get("mana_cost", 0)) > 0:
@@ -13312,6 +13429,11 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 			inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
 			inv.ensure_return_scroll()  # older saves predate the scroll
+			# Bring item-owned cards back into the deck. On an in-memory
+			# transition the restored piles hold the items' own instances, so
+			# this is a no-op; on a disk load (fresh copies / missing cards) it
+			# re-grants what equipped items own.
+			inv.apply_equipped_item_card_effects()
 			inv.equipment_changed.emit()
 
 	# Update UI displays

@@ -339,6 +339,12 @@ func _on_chest_slot_card(card: Card, compatible_items: Array[ItemData]) -> void:
 		var target_item = compatible_items[0]
 		var inv = main.player.get_inventory()
 		if inv.enchant_card(card, target_item):
+			# A chest card was never in a deck zone — enchanted cards live in
+			# the deck AND the slot, so put it into the draw pile too (the
+			# equip/unequip card lifecycle tracks it from here).
+			if main.deck_manager and not inv._card_in_any_zone(card):
+				main.deck_manager.draw_pile.append(card)
+				main.deck_manager.shuffle_draw_pile()
 			main.add_battle_log("Slotted %s into %s!" % [card.card_name, target_item.item_name], Color(0.8, 0.6, 1.0))
 			claimed = true
 		else:

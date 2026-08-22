@@ -71,26 +71,58 @@ func get_hand_cap() -> int:
 	return 6
 
 ## Save the full deck state across all piles (for world transitions).
+##
+## Two layers travel together:
+##   * "live"  — the actual Card instances (Resources, so they survive scene
+##     changes exactly like the ItemData arrays do). In-memory transitions
+##     restore from these, preserving EVERYTHING: jail timers, burden plays,
+##     erase timers, sticky uses, and — critically — the granted_by_item /
+##     slotted_in_item links to the equipment that owns them.
+##   * per-pile data lists — plain dictionaries for the disk path
+##     (ProgressionIO strips "live" before writing a SaveData resource).
 func save_deck_state() -> Dictionary:
 	var state := {}
-	state["hand"] = []
-	for card in hand:
-		state["hand"].append(card.card_id)
-	state["draw_pile"] = []
-	for card in draw_pile:
-		state["draw_pile"].append(card.card_id)
-	state["discard_pile"] = []
-	for card in discard_pile:
-		state["discard_pile"].append(card.card_id)
-	state["jail_pile"] = []
-	for card in jail_pile:
-		state["jail_pile"].append(card.card_id)
-	state["maintained"] = []
-	for card in maintained_cards:
-		state["maintained"].append(card.card_id)
+	for pair in [["hand", hand], ["draw_pile", draw_pile], ["discard_pile", discard_pile],
+			["jail_pile", jail_pile], ["maintained", maintained_cards]]:
+		var entries := []
+		for card in pair[1]:
+			entries.append(_card_to_state(card))
+		state[pair[0]] = entries
+	state["live"] = {
+		"hand": hand.duplicate(),
+		"draw_pile": draw_pile.duplicate(),
+		"discard_pile": discard_pile.duplicate(),
+		"jail_pile": jail_pile.duplicate(),
+		"maintained": maintained_cards.duplicate(),
+	}
 	return state
 
+## Volatile per-card state that must survive the disk round-trip (item links
+## can't — equipment isn't serialized to disk — but timers and counters can).
+func _card_to_state(card: Card) -> Dictionary:
+	return {
+		"id": card.card_id,
+		"jail": card.jail_time_remaining,
+		"burden_plays": card.burden_plays,
+		"erase_remaining": card.erase_tempo_remaining,
+		"enhanced": card.is_enhanced,
+	}
+
+## Rebuild one card from a saved entry — a state Dictionary, or a bare id
+## String from a pre-state-format save.
+func _card_from_state(entry) -> Card:
+	var cid: String = entry.get("id", "") if entry is Dictionary else str(entry)
+	var card = _create_card_from_id(cid)
+	if card and entry is Dictionary:
+		card.jail_time_remaining = int(entry.get("jail", 0))
+		card.burden_plays = int(entry.get("burden_plays", 0))
+		card.erase_tempo_remaining = int(entry.get("erase_remaining", card.erase_tempo_remaining))
+		card.is_enhanced = bool(entry.get("enhanced", false))
+	return card
+
 ## Restore deck state from saved piles (preserves hand, draw, discard, jail exactly).
+## Prefers the live Card instances (in-memory world transitions); falls back to
+## the data lists (disk loads, where the original instances are gone).
 func restore_deck_state(state: Dictionary) -> void:
 	draw_pile.clear()
 	hand.clear()
@@ -98,32 +130,42 @@ func restore_deck_state(state: Dictionary) -> void:
 	jail_pile.clear()
 	maintained_cards.clear()
 	peaked_card = null
-	for card_id in state.get("draw_pile", []):
-		var card = _create_card_from_id(card_id)
-		if card:
-			draw_pile.append(card)
-	for card_id in state.get("hand", []):
-		var card = _create_card_from_id(card_id)
-		if card:
-			hand.append(card)
-	for card_id in state.get("discard_pile", []):
-		var card = _create_card_from_id(card_id)
-		if card:
-			discard_pile.append(card)
-	for card_id in state.get("jail_pile", []):
-		var card = _create_card_from_id(card_id)
-		if card:
-			jail_pile.append(card)
-	for card_id in state.get("maintained", []):
-		var card = _create_card_from_id(card_id)
-		if card:
+	var live: Dictionary = state.get("live", {})
+	if not live.is_empty():
+		draw_pile.assign(live.get("draw_pile", []))
+		hand.assign(live.get("hand", []))
+		discard_pile.assign(live.get("discard_pile", []))
+		jail_pile.assign(live.get("jail_pile", []))
+		for card in live.get("maintained", []):
 			maintained_cards.append(card)
-			# A maintained Power stays maintained across world transitions —
-			# effect intact AND its mana still reserved, exactly as it was.
-			# (Without this, every active Power became free after a zone change.)
-			if player_stats and card.maintain_cost > 0:
-				player_stats.reserve_mana(card.maintain_cost)
-			maintained_card_activated.emit(card)
+	else:
+		for entry in state.get("draw_pile", []):
+			var card = _card_from_state(entry)
+			if card:
+				draw_pile.append(card)
+		for entry in state.get("hand", []):
+			var card = _card_from_state(entry)
+			if card:
+				hand.append(card)
+		for entry in state.get("discard_pile", []):
+			var card = _card_from_state(entry)
+			if card:
+				discard_pile.append(card)
+		for entry in state.get("jail_pile", []):
+			var card = _card_from_state(entry)
+			if card:
+				jail_pile.append(card)
+		for entry in state.get("maintained", []):
+			var card = _card_from_state(entry)
+			if card:
+				maintained_cards.append(card)
+	for card in maintained_cards:
+		# A maintained Power stays maintained across world transitions —
+		# effect intact AND its mana still reserved, exactly as it was.
+		# (Without this, every active Power became free after a zone change.)
+		if player_stats and card.maintain_cost > 0:
+			player_stats.reserve_mana(card.maintain_cost)
+		maintained_card_activated.emit(card)
 	hand_updated.emit()
 	print("[DECK] Restored deck state: hand=%d, draw=%d, discard=%d, jail=%d" % [hand.size(), draw_pile.size(), discard_pile.size(), jail_pile.size()])
 
@@ -287,7 +329,7 @@ func draw_card() -> Card:
 		card.consecutive_uses = 0
 		# Restore original mana/tempo costs for cards that modify them during use
 		if card.card_id == "consecutive_snap":
-			card.mana_cost = 3
+			card.mana_cost = 30  # factory cost (post mana rescale)
 			card.tempo_cost = 3
 
 	hand.append(card)

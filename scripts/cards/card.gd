@@ -252,7 +252,7 @@ var discard_on_draw: bool = false  # If true, card is discarded immediately afte
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
-var in_hand_heal_tempo: int = 0  # Healthy Bliss: heal all allies once this many tempo elapse in hand
+var in_hand_heal_tempo: int = 0  # (legacy field — Healthy Bliss now runs on cycles_in_hand in main)
 var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
 var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card picker (e.g. Reposition)
 var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
@@ -938,11 +938,28 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		bonus_damage += on_self_dmg
 		print("[CARD] On-Self: +%d damage from %s" % [on_self_dmg, slotted_in_item.item_name])
 	if on_self_blk > 0:
-		block += on_self_blk
-		print("[CARD] On-Self: +%d block from %s" % [on_self_blk, slotted_in_item.item_name])
+		if base_block > 0 or card_type == CardType.DEFENSE:
+			block += on_self_blk
+			print("[CARD] On-Self: +%d block from %s" % [on_self_blk, slotted_in_item.item_name])
+		else:
+			# The card grants no block of its own (an attack in a shield slot):
+			# nothing downstream reads `block`, so the rider lands as armor
+			# directly. Zeroed so the cleanup pass has nothing to revert.
+			if player_stats:
+				player_stats.add_armor(on_self_blk)
+				print("[CARD] On-Self: +%d armor from %s" % [on_self_blk, slotted_in_item.item_name])
+			on_self_blk = 0
 	if on_self_hl > 0:
-		heal_amount += on_self_hl
-		print("[CARD] On-Self: +%d heal from %s" % [on_self_hl, slotted_in_item.item_name])
+		if heal_amount > 0:
+			heal_amount += on_self_hl
+			print("[CARD] On-Self: +%d heal from %s" % [on_self_hl, slotted_in_item.item_name])
+		else:
+			# Non-healing card (Band of Aid under an attack): heal directly —
+			# no heal executor would ever read heal_amount.
+			if player_stats:
+				player_stats.heal(on_self_hl)
+				print("[CARD] On-Self: healed %d from %s" % [on_self_hl, slotted_in_item.item_name])
+			on_self_hl = 0
 
 	# Conditional on-self riders (Shamans mask / Monocle). The random-enemy spell
 	# damage (Shamans) and +range (Dragon Skull/Monocle) resolve in main.gd where
@@ -1009,11 +1026,13 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if on_self.get("flash_regen", 0) > 0 and player_stats and player_stats.has_method("gain_flash_points"):
 			player_stats.gain_flash_points(on_self["flash_regen"])
 			print("[CARD] On-Self: %s restored %d flash point(s)" % [slotted_in_item.item_name, on_self["flash_regen"]])
-		# Caster Boots: bonus damage equal to a % of the wearer's INT.
+		# Caster Boots: bonus damage equal to a % of the wearer's INT. Tracked
+		# (not written straight into bonus_damage) so cleanup reverts it and
+		# repeat plays don't compound.
 		if on_self.get("int_damage_percent", 0.0) > 0.0 and player_stats:
 			var int_bonus := floori(player_stats.intelligence * on_self["int_damage_percent"] / 100.0)
 			if int_bonus > 0:
-				bonus_damage += int_bonus
+				_gauntlet_bonus_applied += int_bonus
 				print("[CARD] On-Self: +%d damage (%.0f%% of INT) from %s" % [int_bonus, on_self["int_damage_percent"], slotted_in_item.item_name])
 		# Boots of the Balancer: armor scaling with the wearer's missing health.
 		if on_self.get("armor_per_missing_health10", 0) > 0 and player_stats:
@@ -1083,19 +1102,29 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if int(on_self.get("fortify", 0)) > 0 and buff_mgr:
 			buff_mgr.apply_buff(Buff.create_fortify(15, slotted_in_item.item_name))
 		# Presence of Mind: extra block measured against the mana pool itself.
+		# Non-block cards get it as direct armor (nothing reads their `block`).
 		if on_self.get("block_max_mana_percent", 0.0) > 0.0 and player_stats:
 			var pom_block: int = floori(player_stats.max_mana * on_self["block_max_mana_percent"] / 100.0)
 			if pom_block > 0:
-				_slot_block_applied += pom_block
-				block += pom_block
+				if base_block > 0 or card_type == CardType.DEFENSE:
+					_slot_block_applied += pom_block
+					block += pom_block
+				else:
+					player_stats.add_armor(pom_block)
 				print("[CARD] On-Self: +%d block (%.0f%% of max mana) from %s" % [pom_block, on_self["block_max_mana_percent"], slotted_in_item.item_name])
 		var _slot_fx: Dictionary = slotted_in_item.get_slot_effect(self)
 		if not _slot_fx.is_empty():
 			if int(_slot_fx.get("damage", 0)) > 0 and is_offensive():
 				_gauntlet_bonus_applied += int(_slot_fx["damage"])
 			if int(_slot_fx.get("block", 0)) > 0:
-				_slot_block_applied += int(_slot_fx["block"])
-				block += int(_slot_fx["block"])
+				# Slot block payload: block-granting cards carry it as block;
+				# anything else banks it as armor directly.
+				if base_block > 0 or card_type == CardType.DEFENSE:
+					_slot_block_applied += int(_slot_fx["block"])
+					block += int(_slot_fx["block"])
+				elif player_stats:
+					player_stats.add_armor(int(_slot_fx["block"]))
+					print("[CARD] Slot: +%d armor from %s" % [int(_slot_fx["block"]), slotted_in_item.item_name])
 			# Crooked Dueling Shield: the blue/red pair, played back to back in
 			# either order, pays out armor.
 			if int(_slot_fx.get("combo_armor", 0)) > 0 and player_stats \
@@ -1220,8 +1249,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 
 	# Deadeye Form keystone: ranged attacks scale with DEX instead of STR.
 	# The physical pipeline adds STR/2 downstream, so swap in the difference.
+	# Tracked and reverted in cleanup — a permanent mutation would compound
+	# on every play of the same card.
+	var _deadeye_delta := 0
 	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.keystone_dex_ranged:
-		bonus_damage += floori(player_stats.dexterity / 2.0) - player_stats.get_strength_damage_bonus()
+		_deadeye_delta = floori(player_stats.dexterity / 2.0) - player_stats.get_strength_damage_bonus()
+		bonus_damage += _deadeye_delta
 
 	# Wear Down: apply debuff BEFORE attack execution so the first hit stacks reduction
 	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
@@ -1792,8 +1825,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_shed_weight(deck_manager)
 		"fireball":
 			_compute_attack_damage(player_stats, true)   # AOE + burn applied in main
-		"spirit_arrow":
+		"spirit_arrow", "balistic_arrow":
 			_compute_attack_damage(player_stats, false)   # pierced line applied in main
+		"improvised_ammo", "cupids_golden_arrow", "cupids_lead_arrow", "territorial_mark", "close_is_favored":
+			# Single-target damage lands here; their debuff/zone/mark riders
+			# resolve in main._apply_card_world_effects (or the trigger site).
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship", "worms_armageddon":
 			pass  # Effect applied in main._apply_card_world_effects (needs world access)
 		_:
@@ -1878,7 +1915,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		for st_w in player_stats.inventory.equipped_weapons:
 			if st_w and st_w.same_target_bleed > 0:
 				if player_stats.last_attack_target == target:
-					player_stats.register_attack()
+					# Only the attack-speed counter ticks — not the "real
+					# attack" streaks (Wizard Hat, sneakers, free-hand echo).
+					player_stats.register_attack(false)
 					if target.has_method("apply_debuff"):
 						target.apply_debuff("bleed", st_w.same_target_bleed)
 					print("[CARD] Sabre Tooth: extra attack tick + %d Bleed" % st_w.same_target_bleed)
@@ -1942,7 +1981,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			if target.has_method("get_debuff_manager"):
 				var target_debuff_mgr = target.get_debuff_manager()
 				if target_debuff_mgr:
-					var cold = Debuff.create(Debuff.DebuffType.COLD, 1, 30)
+					var cold = Debuff.create(Debuff.DebuffType.COLD, on_self_cold, 30)
 					cold.source_name = source_name
 					target_debuff_mgr.apply_debuff(cold)
 			elif target.has_method("apply_debuff"):
@@ -2025,6 +2064,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		bonus_damage -= _ranged_bonus_applied
 	if _gauntlet_bonus_applied > 0:
 		bonus_damage -= _gauntlet_bonus_applied
+	if _deadeye_delta != 0:
+		bonus_damage -= _deadeye_delta  # Deadeye Form: per-play swap, never sticks
 	if _slot_block_applied > 0:
 		block -= _slot_block_applied  # Mauls Sabre colored slot: never sticks to the card
 
@@ -2773,16 +2814,23 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 	if wtch_outcome == 0:
 		if target and target.has_method("take_damage"):
 			target.take_damage(15, true)
-		print("[CARD] What's the worst? +15 bonus damage! Total: %d" % (total_damage + 15))
+		total_damage += 15  # the rider counts toward the logged/lifesteal total
+		print("[CARD] What's the worst? +15 bonus damage! Total: %d" % total_damage)
 	else:
 		if target and target.has_method("apply_debuff"):
 			target.apply_debuff("stun", 5)
 		print("[CARD] What's the worst? Target stunned! Dealt %d" % total_damage)
+	last_damage_dealt = total_damage
 
 func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var hit_damage = base_damage + bonus_damage
 	if player_stats:
 		hit_damage = player_stats.get_effective_physical_damage(hit_damage)
+	# Strengthen and crit ride the FIRST hit, matching the face preview.
+	if buff_mgr:
+		hit_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			hit_damage = crit_multiply(hit_damage, player_stats, target)
 	# Use the pre-rolled outcome (30% = 5 hits, 40% = 3 hits, 30% = 2 hits) so
 	# the result matches what the card preview showed.
 	var hits = 2
@@ -2793,6 +2841,7 @@ func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	for i in range(hits):
 		if target and target.has_method("take_damage"):
 			target.take_damage(hit_damage, true)
+	last_damage_dealt = hits * hit_damage
 	print("[CARD] Oops! Hit %d times for %d each (total: %d)" % [hits, hit_damage, hits * hit_damage])
 
 func _execute_house_money(player_stats: PlayerStats) -> void:
@@ -2815,17 +2864,22 @@ func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffM
 		print("[CARD] Hope This Works... it didn't work")
 
 func _execute_lady_luck(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Bless an ally - crit chance +30% for 5 attacks
+	# Bless an ally: Enlightened for 5 attacks (flat +10% crit while it holds).
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_enlightened(30, 5, "Lady Luck"))
-	print("[CARD] Lady Luck! Crit chance +30% for 5 attacks")
+		buff_mgr.apply_buff(Buff.create_enlightened(10, 5, "Lady Luck"))
+	print("[CARD] Lady Luck! Enlightened: +10% crit chance for 5 attacks")
 
 func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = 15
 	if player_stats:
 		total_damage = player_stats.get_effective_spell_damage(15)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = crit_multiply(total_damage, player_stats, target)
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
+	last_damage_dealt = total_damage
 	print("[CARD] If Pigs Could Fly! Flying pig explodes for %d damage!" % total_damage)
 
 func _execute_snowballs_chance(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -2957,7 +3011,7 @@ func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats
 	last_damage_dealt = total_damage
 
 	if target and target.has_method("take_damage"):
-		var just_exposed = target.take_damage(total_damage)
+		var just_exposed = target.take_damage(total_damage, true)
 		# If this attack broke the enemy's armor, mark them for bonus damage
 		if just_exposed and target.has_method("is_alive") and target.is_alive():
 			target.bonus_damage_next_hit = 15
@@ -2975,10 +3029,9 @@ func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats
 
 func _execute_mark(target, _player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if target and target.has_method("apply_debuff"):
-		# Enemy debuffs tick in CYCLES (1 cycle = 5 tempo): 5 cycles = the
-		# card's stated 25 tempo.
+		# Enemy timed debuffs tick on raw tempo — 25 = the card's 25 tempo.
 		target.apply_debuff("marked", 25)
-	print("[CARD] Mark! Target receives extra damage for 25 tempo (5 cycles)")
+	print("[CARD] Mark! Target receives extra damage for 25 tempo")
 
 func _execute_rise(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Rise! Earth structure created on the map")
@@ -3013,10 +3066,10 @@ func _execute_enchanted_quiver(player_stats: PlayerStats, deck_manager = null, b
 	print("[CARD] Enchanted Quiver! Next 3 ranged attacks create free arrow cards")
 
 func _execute_tighten_string(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit
+	# Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, Enlightened (+10% crit)
 	if buff_mgr:
 		buff_mgr.tighten_string_charges = 3
-	print("[CARD] Tighten String! Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit")
+	print("[CARD] Tighten String! Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +10% crit")
 
 func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -3038,7 +3091,7 @@ func _execute_sky_fall(target, player_stats: PlayerStats, buff_mgr: BuffManager 
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(total_damage)
 	last_damage_dealt = total_damage
-	print("[CARD] Sky Fall! Arrow shot upward. In 2 turns, it lands for %d damage" % total_damage)
+	print("[CARD] Sky Fall! Arrow shot upward. In 10 tempo, it lands for %d damage" % total_damage)
 
 func _execute_sky_attack(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -3124,10 +3177,15 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	var total_damage = 5
 	if player_stats:
 		total_damage = player_stats.get_effective_physical_damage(5)
+	if buff_mgr:
+		total_damage += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total_damage = crit_multiply(total_damage, player_stats, target)
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	if target and target.has_method("apply_debuff"):
 		target.apply_debuff("slow", 4)  # -4 movement (4 grid spaces)
+	last_damage_dealt = total_damage
 	print("[CARD] Trip! %d damage, enemy movement -4" % total_damage)
 
 func _execute_choke(target, player_stats: PlayerStats) -> void:
@@ -3546,7 +3604,7 @@ static func create_lady_luck() -> Card:
 	card.card_id = "lady_luck"
 	card.school = CardSchool.SPELL
 	card.card_name = "Lady Luck"
-	card.description = "Bless an ally. Crit chance +30% for 5 attacks."
+	card.description = "Bless an ally. Enlightened: +10% crit chance for 5 attacks."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 40
@@ -3846,7 +3904,7 @@ static func create_tighten_string() -> Card:
 	var card = Card.new()
 	card.card_id = "tighten_string"
 	card.card_name = "Tighten String"
-	card.description = "Next 3 ranged attacks: +3 tempo cost, +6 damage, +6 range, +20% crit chance."
+	card.description = "Next 3 ranged attacks: +3 tempo cost, +6 damage, +6 range, +10% crit chance."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 30
@@ -4622,8 +4680,7 @@ static func create_energy_ball() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 5
 	card.target_types = ["enemy"]
-	card.erase_tempo = 1
-	card.erase_tempo_remaining = 1
+	card.erase_on_play = true  # "Erased after use" — never recycles from discard
 	return card
 
 func _execute_energy_ball(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4905,17 +4962,19 @@ func _execute_prepare(deck_manager = null) -> void:
 		print("[CARD] Prepare: Drew 3 cards")
 
 func _execute_meister_of_faustmesser(deck_manager = null) -> void:
-	# Put all zero mana cost cards from discard pile into hand
-	if deck_manager and deck_manager.has_method("get_discard_pile"):
-		var discard = deck_manager.get_discard_pile()
-		var zero_cost_cards: Array = []
-		for card in discard:
-			if card.mana_cost == 0:
-				zero_cost_cards.append(card)
-		for card in zero_cost_cards:
-			if deck_manager.has_method("move_from_discard_to_hand"):
-				deck_manager.move_from_discard_to_hand(card)
-		print("[CARD] Meister of Faustmesser: Moved %d zero-cost cards from discard to hand" % zero_cost_cards.size())
+	# Put all zero mana cost cards from discard pile into hand. Hand-cap rules
+	# still apply (add_card_to_hand rejects non-Linger cards at capacity).
+	if not deck_manager:
+		return
+	var moved := 0
+	for c in deck_manager.discard_pile.duplicate():
+		if c.mana_cost == 0:
+			var before: int = deck_manager.hand.size()
+			deck_manager.add_card_to_hand(c)
+			if deck_manager.hand.size() > before:
+				deck_manager.discard_pile.erase(c)
+				moved += 1
+	print("[CARD] Meister of Faustmesser: Moved %d zero-cost cards from discard to hand" % moved)
 
 func _execute_item_mastery(player_stats: PlayerStats, deck_manager = null) -> void:
 	# Place all cards from items into hand - handled by main.gd
@@ -5198,7 +5257,7 @@ static func create_mana_surge() -> Card:
 	card.card_id = "mana_surge"
 	card.school = CardSchool.SPELL
 	card.card_name = "Mana Surge"
-	card.description = "Deal 5 damage, gain 10 mana."
+	card.description = "Deal 5 damage, gain 10 mana. Erased after play."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 0
@@ -5208,8 +5267,7 @@ static func create_mana_surge() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.erase_tempo = 1
-	card.erase_tempo_remaining = 1
+	card.erase_on_play = true  # one-shot: erased after play, not while in hand
 	card.target_types = ["enemy"]
 	return card
 
@@ -5228,8 +5286,7 @@ static func create_magic_barrier() -> Card:
 	card.block = 8
 	card.base_block = 8
 	card.heal_amount = 0
-	card.erase_tempo = 1
-	card.erase_tempo_remaining = 1
+	card.erase_on_play = true  # consumed when it triggers, not while waiting
 	card.reaction_trigger = "on_damage_taken"
 	card.target_types = ["self"]
 	return card
@@ -7188,7 +7245,7 @@ static func create_territorial_mark() -> Card:
 	var card = Card.new()
 	card.card_id = "territorial_mark"
 	card.card_name = "Territorial Mark"
-	card.description = "Deal 15 damage at range 10. The arrow's path — and 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside are Weakened until they leave."
+	card.description = "Costs 35 health. Deal 15 damage at range 10. The arrow's path — and 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside are Weakened until they leave."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 45

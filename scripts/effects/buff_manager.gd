@@ -243,6 +243,12 @@ func advance_time(amount: int) -> void:
 			owner_stats.take_damage(2)
 			print("[BUFF] Morphine expired! Took 2 damage")
 
+		# Shield Ready's delayed payload: the promised armor lands when the
+		# countdown runs out.
+		if buff.buff_type == Buff.BuffType.SHIELD_READY and owner_stats:
+			owner_stats.add_armor(buff.value)
+			print("[BUFF] Shield Ready! +%d armor lands" % buff.value)
+
 		buffs.erase(buff)
 		buff_removed.emit(buff)
 		print("[BUFF] Expired: %s" % buff.buff_name)

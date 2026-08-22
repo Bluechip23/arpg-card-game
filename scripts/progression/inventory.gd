@@ -316,9 +316,12 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	slot_array[slot_index] = item
 	item.armor_per_tempo_accum = 0  # periodic-armor counter restarts on equip
 
-	# Slot index > 0 means off-hand. (Later two-handing re-applies the
+	# Slot index > 0 means off-hand. Shields are exempt: they're off-hand
+	# items by design, so their stat blocks never take the 10% penalty
+	# (matching the rider exemption below). (Later two-handing re-applies the
 	# item's bonuses at full strength — see set_two_handed.)
-	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and slot_index > 0)
+	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and slot_index > 0
+		and item.weapon_subtype != ItemData.WeaponSubtype.SHIELD)
 
 	_apply_item_bonuses(item, true, is_off_hand)
 	_apply_special_effect(item, true)
@@ -344,7 +347,8 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 		return null
 	
 	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
-					   slot_index > 0 and slot_index != two_handed_slot)
+					   slot_index > 0 and slot_index != two_handed_slot and
+					   item.weapon_subtype != ItemData.WeaponSubtype.SHIELD)
 
 	slot_array[slot_index] = null
 	item.armor_per_tempo_accum = 0  # counter resets when unequipped (per spec)
@@ -475,7 +479,9 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	player_stats.base_intelligence += stats["intelligence_bonus"] * multiplier
 	player_stats.base_wisdom += stats["wisdom_bonus"] * multiplier
 	player_stats.base_agility += stats["agility_bonus"] * multiplier
-	player_stats.determination += item.determination_bonus * multiplier
+	# DET takes the same off-hand scaling as every other stat ("EVERYTHING
+	# about a weapon is 10% weaker in the off hand").
+	player_stats.determination += stats["determination_bonus"] * multiplier
 	
 	# Direct resource modifications (not affected by determination)
 	player_stats.max_health += stats["health_bonus"] * multiplier
@@ -857,12 +863,12 @@ func process_turn() -> void:
 					player_stats.gain_mana(10)
 					print("[INVENTORY] Cory passive: Gained 10 mana from cooldown")
 
-	# Grant periodic armor (ARMOR_PER_TURN) from any equipped chest or helm.
+	# Grant periodic armor (ARMOR_PER_TURN) from any equipped armor piece.
 	# process_turn() fires once per 5-tempo cycle; each item banks 5 tempo and
-	# grants its armor once its own interval (default 5, e.g. 15 for Mail Coif)
-	# is reached. The accumulator resets on equip/unequip.
+	# grants its armor once its own interval (default 5, e.g. 15 for Mail Coif,
+	# 20 for Strap of Stone) is reached. The accumulator resets on equip/unequip.
 	if player_stats:
-		for item in equipped_chests + equipped_helms + equipped_boots + equipped_gauntlets:
+		for item in equipped_chests + equipped_helms + equipped_boots + equipped_gauntlets + equipped_belts:
 			if item and item.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN:
 				item.armor_per_tempo_accum += 5  # one cycle = 5 tempo
 				var interval: int = maxi(5, item.armor_per_tempo_interval)
@@ -1347,12 +1353,19 @@ func _execute_gauntlet_skill(gauntlet: ItemData, target) -> void:
 				deck_manager.shuffle_discard_into_draw()
 				print("[SKILL] Future is bright: discard shuffled into draw")
 		"house_rule":
-			# Pick from discard: recovers the most recent discard until a picker
-			# UI exists (flagged).
+			# "Pick a card from your discard pile": main's picker chose it and
+			# passes it in as `target`. Falls back to the most recent discard
+			# when no pick rides along (e.g. tests calling straight through).
 			if deck_manager and deck_manager.discard_pile.size() > 0:
-				var back = deck_manager.discard_pile.pop_back()
-				deck_manager.add_card_to_hand(back)
-				print("[SKILL] House Rule: recovered %s from the discard pile" % back.card_name)
+				var picked = target if (target is Card and target in deck_manager.discard_pile) \
+						else deck_manager.discard_pile.back()
+				var before: int = deck_manager.hand.size()
+				deck_manager.add_card_to_hand(picked)
+				if deck_manager.hand.size() > before:
+					deck_manager.discard_pile.erase(picked)
+					print("[SKILL] House Rule: recovered %s from the discard pile" % picked.card_name)
+				else:
+					print("[SKILL] House Rule: hand full — %s stays in the discard" % picked.card_name)
 		"defense_one":
 			if player_stats:
 				player_stats.add_armor(5)

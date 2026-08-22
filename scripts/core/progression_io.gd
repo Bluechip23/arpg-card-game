@@ -30,7 +30,12 @@ static func to_disk(live: Dictionary, stats_override: Dictionary = {}) -> Dictio
 	elif live.has("stats"):
 		disk["stats"] = live["stats"]
 	if live.has("deck_state"):
-		disk["deck_state"] = live["deck_state"]
+		# The deck snapshot carries live Card references under "live" for
+		# in-memory transitions — strip them for disk (only the plain data
+		# lists are serializable; item links can't survive a disk save anyway).
+		var deck: Dictionary = live["deck_state"].duplicate()
+		deck.erase("live")
+		disk["deck_state"] = deck
 	if live.has("sphere_inventory"):
 		disk["sphere_inventory"] = live["sphere_inventory"]
 	var sg = live.get("sphere_grid")
