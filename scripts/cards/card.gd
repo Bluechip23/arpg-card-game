@@ -2351,7 +2351,7 @@ func get_burden_tempo_cost() -> int:
 func apply_burden() -> void:
 	if has_burden:
 		burden_plays += 1
-		print("[CARD] %s burden increased! Plays: %d (+%dm/+%dt)" % [card_name, burden_plays, burden_plays, burden_plays])
+		print("[CARD] %s burden increased! Plays: %d (+%dm/+%dt)" % [card_name, burden_plays, burden_plays * 10, burden_plays])
 
 func jail_burden() -> void:
 	if has_burden:

@@ -38,7 +38,7 @@ func _initialize() -> void:
 	var base_t = prov.tempo_cost
 	prov.apply_burden()
 	prov.apply_burden()
-	_check(prov.get_burden_mana_cost() == base_m + 2, "2 plays -> mana cost +2 (got %d)" % prov.get_burden_mana_cost())
+	_check(prov.get_burden_mana_cost() == base_m + 20, "2 plays -> mana cost +20 (10 per play, post mana rescale; got %d)" % prov.get_burden_mana_cost())
 	_check(prov.get_burden_tempo_cost() == base_t + 2, "2 plays -> tempo cost +2 (got %d)" % prov.get_burden_tempo_cost())
 	prov.jail_burden()
 	_check(prov.burden_plays == 0, "jail resets burden plays")
