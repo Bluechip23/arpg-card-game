@@ -1054,7 +1054,8 @@ func on_enemy_killed() -> void:
 				print("[INVENTORY] %s: +%d flash points banked (%d held)" % [wpn.item_name, wpn.kill_flash_points, player_stats.current_flash_points])
 
 ## Items with on_kill_card_id (Bladed Doughnut) conjure a fresh copy of their
-## card straight into the hand on every kill.
+## card straight into the hand on every kill. A full hand rejects the card
+## (same rule as add_card_to_hand — only Linger cards may exceed the cap).
 func _conjure_on_kill_cards() -> void:
 	if not deck_manager:
 		return
@@ -1065,10 +1066,14 @@ func _conjure_on_kill_cards() -> void:
 			if item == null or item.on_kill_card_id == "":
 				continue
 			var card = deck_manager._create_card_from_id(item.on_kill_card_id)
-			if card:
-				deck_manager.hand.append(card)
-				conjured = true
-				print("[INVENTORY] %s: conjured '%s' into hand on kill" % [item.item_name, card.card_name])
+			if card == null:
+				continue
+			if not card.linger and deck_manager.hand.size() >= deck_manager.get_hand_cap():
+				print("[INVENTORY] %s: hand full — '%s' fizzles" % [item.item_name, card.card_name])
+				continue
+			deck_manager.hand.append(card)
+			conjured = true
+			print("[INVENTORY] %s: conjured '%s' into hand on kill" % [item.item_name, card.card_name])
 	if conjured:
 		deck_manager.hand_updated.emit()
 

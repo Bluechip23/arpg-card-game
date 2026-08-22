@@ -91,6 +91,13 @@ func _test_on_kill_conjure() -> void:
 	_check(dm.hand.size() == 3 and dm.hand[2].card_id == "sprinkle_bomb",
 		"Lv.3 doughnut conjures a Sprinkle Bomb instead")
 
+	# A full hand rejects the conjured card instead of overflowing
+	while dm.hand.size() < dm.get_hand_cap():
+		dm.hand.append(Card.create_slash())
+	inv.on_enemy_killed()
+	_check(dm.hand.size() == dm.get_hand_cap(),
+		"hand full -> the conjured card fizzles instead of overflowing")
+
 	dm.free()
 	inv.free()
 
