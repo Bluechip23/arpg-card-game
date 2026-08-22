@@ -4,9 +4,3 @@
 
 [node name="GauntletSkillUi" type="Button" unique_id=1405405277]
 script = ExtResource("1_opnq6")
-
-[node name="CooldownLabel" type="Label" parent="." unique_id=649854676]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 23.0
-text = "Skill"

@@ -176,7 +176,7 @@ const CARD_KEYS = [
 ]
 
 var selected_card_index: int = -1
-var targeting_arrow: TargetingArrow = null  # red player→mouse arrow for unit-targeted cards
+var _basic_attack_pending: bool = false  # Attack button armed — next enemy click swings
 var current_character: CharacterData = null
 var starting_character: CharacterData = null
 var player2_character: CharacterData = null
@@ -561,7 +561,6 @@ func _ready() -> void:
 	_setup_stat_bars()
 	_setup_deck_info_vertical()
 	_setup_battle_log()
-	_setup_targeting_arrow()
 
 	if starting_character:
 		select_character(starting_character)
@@ -1141,14 +1140,6 @@ func _setup_action_buttons() -> void:
 	_pause_button.add_theme_stylebox_override("hover", pause_hover)
 	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
 	bottom_row.add_child(_pause_button)
-
-func _setup_targeting_arrow() -> void:
-	## Screen-space red arrow from the player to the mouse while a card that
-	## targets a specific enemy/ally is selected (see TargetingArrow).
-	targeting_arrow = TargetingArrow.new()
-	targeting_arrow.name = "TargetingArrow"
-	targeting_arrow.main = self
-	($UI as CanvasLayer).add_child(targeting_arrow)
 
 func _setup_tick_bar() -> void:
 	## Build the 20-tick global tempo bar centered at the top of the screen,
@@ -1905,6 +1896,13 @@ func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
 				battle_log_label.append_text(lines[i] + "\n")
 
 func _on_attack_pressed() -> void:
+	## The button works like selecting a card: it arms the attack, and the
+	## player then clicks the enemy they want to hit (see _unhandled_input).
+	## Pressing again disarms it.
+	if _basic_attack_pending:
+		_set_basic_attack_pending(false)
+		return
+
 	var stats = player.get_stats()
 	if not stats:
 		return
@@ -1920,21 +1918,51 @@ func _on_attack_pressed() -> void:
 			print("[MAIN] Basic Attack - Cannot attack while Disarmed!")
 			return
 
-	# Find closest enemy in melee range (~1.5 tiles)
-	var nearby = enemy_spawner.get_enemies_in_radius(player.position, 1.5)
-	if nearby.is_empty():
-		add_battle_log("No enemy in melee range!", Color(1.0, 0.6, 0.3))
-		print("[MAIN] Basic Attack - No enemy in melee range!")
+	# Arm the attack; deselect any card so the two targeting modes never overlap.
+	if selected_card_index >= 0:
+		selected_card_index = -1
+		if range_indicator:
+			range_indicator.hide_range()
+		if aoe_indicator:
+			aoe_indicator.hide_indicator()
+		update_selected_display()
+		update_card_highlights()
+	_set_basic_attack_pending(true)
+	add_battle_log("Basic Attack armed — click an enemy in melee range.", Color(1.0, 0.85, 0.4))
+
+func _set_basic_attack_pending(pending: bool) -> void:
+	_basic_attack_pending = pending
+	# Tint the button while armed so the mode is visible.
+	if _attack_button:
+		_attack_button.modulate = Color(1.0, 0.75, 0.55) if pending else Color(1, 1, 1)
+
+## The armed basic attack fires at the clicked enemy. The range check happens
+## HERE, against the enemy the player chose — never auto-picked, and never
+## walking the player into range.
+func _execute_basic_attack(target: Enemy) -> void:
+	var stats = player.get_stats()
+	if not stats:
 		return
 
-	var target = nearby[0]
-	var closest_dist = INF
-	for enemy in nearby:
-		var diff = player.position - enemy.position
-		var dist = Vector3(diff.x, 0, diff.z).length()
-		if dist < closest_dist:
-			closest_dist = dist
-			target = enemy
+	var debuff_mgr = player.get_debuff_manager()
+	if debuff_mgr:
+		if not debuff_mgr.can_play_cards():
+			add_battle_log("Cannot attack — Stunned or Frozen!", Color(1.0, 0.4, 0.4))
+			return
+		if not debuff_mgr.can_play_attack_cards():
+			add_battle_log("Cannot attack — Disarmed!", Color(1.0, 0.4, 0.4))
+			return
+
+	# Melee reach is ~1.5 tiles. Out of range = the swing simply doesn't happen.
+	var diff = player.position - target.position
+	var dist = Vector3(diff.x, 0, diff.z).length()
+	if dist > 1.5:
+		var tiles = _get_distance_to_target(target)
+		add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [target.enemy_name, tiles], Color(1.0, 0.4, 0.4))
+		print("[MAIN] Basic Attack - %s out of melee range" % target.enemy_name)
+		return
+
+	_set_basic_attack_pending(false)
 
 	# NOTE: the swing animation plays when the attack RESOLVES (immediately for
 	# Steady/zero-tempo below, otherwise on its resolve tick in
@@ -3384,6 +3412,7 @@ func _setup_gauntlet_skills_ui() -> void:
 		if gauntlet.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 			var skill_ui = GauntletSkillUIScene.instantiate() as GauntletSkillUI
 			gauntlet_skills_container.add_child(skill_ui)
+			skill_ui.tempo_manager = tempo_manager
 			skill_ui.setup(gauntlet)
 			skill_ui.skill_activated.connect(_on_gauntlet_skill_activated)
 
@@ -4741,6 +4770,9 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 		var tick_stats = tick_p.get_stats()
 		if tick_stats:
 			tick_stats.advance_status_tempo(amount)
+	# Gauntlet skill circles show tempo-granular recharge progress, so they
+	# refresh on every tempo step, not just at cycle boundaries.
+	_update_gauntlet_skills_ui()
 
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()
@@ -6878,6 +6910,8 @@ func update_card_highlights() -> void:
 			card_ui.set_selected(sel_card != null and sel_card in g["cards"])
 
 func select_card(index: int) -> void:
+	# Selecting a card disarms a pending basic attack — one targeting mode at a time.
+	_set_basic_attack_pending(false)
 	if index < 0 or index >= deck_manager.hand.size():
 		selected_card_index = -1
 		if aoe_indicator:
@@ -10938,6 +10972,7 @@ func _input(event: InputEvent) -> void:
 				player.cancel_movement()
 				add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
 			selected_card_index = -1
+			_set_basic_attack_pending(false)
 			_pending_quiver_card = null
 			_pending_quiver_index = -1
 			_pending_quiver_target_type = ""
@@ -10961,6 +10996,17 @@ func _input(event: InputEvent) -> void:
 		# Mythic reveal sequence: clicking the present opens it; clicking the
 		# revealed icon claims the item.
 		if _try_click_mythic_reveal():
+			return
+
+		# Basic attack armed: this click picks the enemy to swing at.
+		if _basic_attack_pending:
+			var atk_mouse_pos = get_mouse_world_position()
+			var atk_enemy = enemy_spawner.get_enemy_at_position(atk_mouse_pos)
+			if atk_enemy:
+				_execute_basic_attack(atk_enemy)
+			else:
+				add_battle_log("No enemy at that position!", Color(1.0, 0.6, 0.3))
+				print("[MAIN] Basic Attack - no enemy clicked")
 			return
 
 		# Quiver card pending targeting
@@ -11088,7 +11134,7 @@ func _input(event: InputEvent) -> void:
 		if event.pressed:
 			# Only start orbiting if no card action is pending and no UI window
 			# is capturing the drag (otherwise dragging a scrollbar spins the map).
-			if selected_card_index < 0 and _pending_quiver_card == null and not _is_ui_window_open():
+			if selected_card_index < 0 and _pending_quiver_card == null and not _basic_attack_pending and not _is_ui_window_open():
 				_camera_orbiting = true
 				_camera_drag_start = event.position
 		else:
