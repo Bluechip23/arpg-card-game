@@ -278,6 +278,18 @@ var _pending_resolve_queue: Array[Dictionary] = []  # [{card, target, data}] —
 # Tick tempo bar UI (20 vertical bars showing tick progress)
 var _tick_bar_rects: Array[ColorRect] = []    # The 20 vertical bar ColorRects
 var _tick_bar_label: Label = null             # Label showing "Tick X/Y" text
+var _tick_speed_buttons: Array[Button] = []   # Speed-tier arrows on the tempo bar
+
+# Tick speed tiers, selectable right on the tempo counter. Forward (fast
+# forward) arrows are faster than normal, rewind arrows slower; one ▶ is
+# normal 1.0× speed. "secs" is seconds per tick (TempoManager.tick_speed).
+const TICK_SPEED_TIERS := [
+	{"label": "◀◀", "mult": 0.5, "secs": 3.0},
+	{"label": "◀", "mult": 0.75, "secs": 2.0},
+	{"label": "▶", "mult": 1.0, "secs": 1.5},
+	{"label": "▶▶", "mult": 2.0, "secs": 0.75},
+	{"label": "▶▶▶", "mult": 4.0, "secs": 0.375},
+]
 var _tick_bar_card_name_label: Label = null   # Label showing current card name
 var _tick_bar_total_ticks: int = 0            # Total ticks for current card
 var _tick_bar_resolve_tick: int = 0           # Which tick resolves the card
@@ -684,7 +696,15 @@ func _on_help_closed() -> void:
 
 func _on_tick_speed_changed(speed: float) -> void:
 	tempo_manager.tick_speed = speed
+	_update_tick_speed_buttons()
 	print("[MAIN] Tick speed changed to %.2fs" % speed)
+
+func _update_tick_speed_buttons() -> void:
+	## Gold-light the active speed tier's arrows; the rest stay dim.
+	for i in range(_tick_speed_buttons.size()):
+		var active: bool = absf(float(TICK_SPEED_TIERS[i]["secs"]) - tempo_manager.tick_speed) < 0.01
+		_tick_speed_buttons[i].add_theme_color_override("font_color",
+			Color(1.0, 0.85, 0.4) if active else Color(0.45, 0.42, 0.38))
 
 func _update_camera() -> void:
 	var camera = get_world_camera()
@@ -1239,6 +1259,25 @@ func _setup_tick_bar() -> void:
 	_queue_toggle_btn.flat = true
 	_queue_toggle_btn.pressed.connect(_toggle_action_queue)
 	label_row.add_child(_queue_toggle_btn)
+
+	# Speed tiers live on the counter itself: tap an arrow to change the tick
+	# speed in real time. ▶ is normal; more forward arrows are faster, rewind
+	# arrows slower.
+	var speed_gap = Control.new()
+	speed_gap.custom_minimum_size.x = 10
+	label_row.add_child(speed_gap)
+	_tick_speed_buttons.clear()
+	for tier in TICK_SPEED_TIERS:
+		var sbtn = Button.new()
+		sbtn.text = tier["label"]
+		sbtn.tooltip_text = "%.2f× speed (%.2fs per tick)" % [tier["mult"], tier["secs"]]
+		sbtn.flat = true
+		sbtn.custom_minimum_size = Vector2(24, 16)
+		sbtn.add_theme_font_size_override("font_size", 10)
+		sbtn.pressed.connect(_on_tick_speed_changed.bind(float(tier["secs"])))
+		label_row.add_child(sbtn)
+		_tick_speed_buttons.append(sbtn)
+	_update_tick_speed_buttons()
 
 	# The dropdown itself: hangs below the tick bar, hidden until opened.
 	_queue_panel = PanelContainer.new()
