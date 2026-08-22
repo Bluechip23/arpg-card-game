@@ -279,8 +279,8 @@ func get_loot_tier(type: Enemy.EnemyType) -> String:
 	match type:
 		Enemy.EnemyType.MINION, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, \
 		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.SWARM, Enemy.EnemyType.COYOTE, \
-		Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.SLUDGE, \
-		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.SCREECHER:
+		Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SLUDGE, \
+		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SCREECHER:
 			return DropRates.TIER_TRASH
 		Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.LARGE_BEAR, \
 		Enemy.EnemyType.TREANT, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.VAMPIRE, \

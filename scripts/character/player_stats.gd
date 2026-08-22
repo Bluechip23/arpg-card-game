@@ -382,8 +382,6 @@ var st_ladder_banked: int = 0          # Ladder Work: last cycle's count, spent 
 
 # Brad passive tracking
 var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount
-var st_corrupted_strength_active: bool = false  # Corrupted Strength: true when 3+ enemies within 2 tiles
-var st_corrupted_strength_no_ally_heal: bool = false  # Corrupted Strength: blocks ally healing while active
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
 var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when charges were last exhausted
@@ -438,7 +436,7 @@ func add_skill_tree_passive(passive_id: String) -> void:
 # Passives are LEVELED with banked passive points (1 point = +1 level, up to
 # PASSIVE_MAX_LEVEL). A passive's effect activates at level 1 — per-level
 # scaling of the effects themselves comes in a later balancing pass.
-const PASSIVE_POINTS_PER_LEVEL: int = 3  # Passive points banked each level-up
+const PASSIVE_POINTS_PER_LEVEL: int = 1  # Passive points banked each level-up
 const PASSIVE_MAX_LEVEL: int = 15
 
 var unspent_passive_points: int = 0
@@ -1810,8 +1808,8 @@ func _curse_of_the_living_active() -> bool:
 	return false
 
 func heal(amount: int, from_ally: bool = false) -> void:
-	# Corrupted Strength / Solemn Independence: block ally healing while active
-	if from_ally and (st_corrupted_strength_no_ally_heal or solemn_active):
+	# Solemn Independence: block ally healing while active
+	if from_ally and solemn_active:
 		return
 	# Friendship: the partner receives the same base heal (their modifiers apply).
 	if friendship_partner and not _friendship_echo and amount > 0:
@@ -1893,9 +1891,6 @@ func apply_life_steal(amount: int) -> void:
 
 func add_armor(amount: int) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
-	# Sword Specialist: +25% block when only wielding swords
-	if has_skill_tree_passive("sword_specialist") and inventory and inventory.has_only_swords_equipped():
-		total = floori(total * 1.25)
 	# Living Bulwark: the full armor gain (bonuses included) becomes temp HP.
 	# Armor-gain hooks (overhead icon, on_armor_gained item procs) don't fire —
 	# no armor was actually gained.
@@ -1920,9 +1915,6 @@ func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
 	if buff_mgr:
 		total += buff_mgr.consume_bolster()
-	# Sword Specialist: +25% block when only wielding swords
-	if has_skill_tree_passive("sword_specialist") and inventory and inventory.has_only_swords_equipped():
-		total = floori(total * 1.25)
 	# Living Bulwark: converted to temp HP (see add_armor).
 	if keystone_armor_temp_hp:
 		if total > 0:
@@ -2279,7 +2271,31 @@ func spend_gold(amount: int) -> bool:
 	print("[STATS] Spent %d gold! (Total: %d)" % [amount, gold])
 	return true
 
-func gain_xp(amount: int) -> void:
+# Level-gap XP falloff: kills far below the player's level stop paying out.
+# Full XP within XP_FALLOFF_GRACE levels of the source; beyond that, XP drops
+# XP_FALLOFF_PER_LEVEL per extra level (reaching 0 at grace + ~7 levels over).
+const XP_FALLOFF_GRACE: int = 5
+const XP_FALLOFF_PER_LEVEL: float = 0.15
+
+func get_xp_multiplier(source_level: int) -> float:
+	## Multiplier for XP from a source of the given level (0 = unbanded source,
+	## no falloff). Never penalizes fighting above your level.
+	if source_level <= 0:
+		return 1.0
+	var gap = current_level - source_level - XP_FALLOFF_GRACE
+	if gap <= 0:
+		return 1.0
+	return maxf(0.0, 1.0 - XP_FALLOFF_PER_LEVEL * gap)
+
+func gain_xp(amount: int, source_level: int = 0) -> void:
+	var mult = get_xp_multiplier(source_level)
+	if mult < 1.0:
+		var reduced = int(floor(amount * mult))
+		print("[STATS] XP reduced %d -> %d (level %d vs enemy level %d)" % [
+			amount, reduced, current_level, source_level])
+		amount = reduced
+	if amount <= 0:
+		return
 	current_xp += amount
 	total_xp += amount
 	print("[STATS] Gained %d XP! (%d / %d to level %d)" % [amount, current_xp, get_xp_to_next_level(), current_level + 1])

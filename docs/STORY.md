@@ -318,11 +318,11 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 *The game's opening dungeon — see **The Sewers (Act 1, Part 1)** below for the
 built level. The roster is themed and in code:*
 - **Rats** — *in code as Wererat / Archer Rat*. The player's first kills; the Wererat scurries and bites, the Archer Rat kites.
-- **Sludge Being** — *in code*. Minion. **Ranged ooze** (8 HP): wades close or spits acid from range 6. The "oozes" the player fights alongside the rats at the entrance.
-- **Pipe Crawler** — *in code*. Minion. **Fast skirmisher** (15 HP): creeps out of the wall pipes, moves on a cheap 2-tempo so it closes quickly.
-- **Sewer Crocodile** — *in code*. Elite. **Armored ambusher** (25 HP, 15 armor, 10 dmg): lurks in the channels; break its armor to expose it, or its bite hurts. Guards the deepest chamber.
-- **Rat King** — *in code*. Elite, **first mini-boss**. A crowned rat that fights flanked by a summoned-in army of Wererats, Archer Rats and Swarms in the central cistern arena. Bites and repositions on a relentless 2-tempo.
-- **Swarm** — *in code*. Minion. **Fast swarm** (8 HP): one creature rendered as a boil of vermin/insects; blitzes 8 tiles at a time. *one creature, but a bunch of bugs representing one*
+- **Sludge Being** — *in code*. Minion. **Ranged ooze** (10 HP): wades close or spits acid from range 6. The "oozes" the player fights alongside the rats at the entrance.
+- **Pipe Crawler** — *in code*. Minion. **Fast skirmisher** (20 HP): creeps out of the wall pipes, moves on a cheap 2-tempo so it closes quickly; its claw can disarm you.
+- **Sewer Crocodile** — *in code*. Elite. **Armored ambusher** (40 HP, 20 armor, 12 dmg): lurks in the channels; break its armor to expose it, or its bite hurts. Guards the deepest chamber.
+- **Rat King** — *in code*. Elite, **first mini-boss** (90 HP, 10 armor). A crowned rat that fights flanked by a summoned-in army of Wererats, Archer Rats and Swarms in the central cistern arena. Bites and repositions relentlessly.
+- **Swarm** — *in code*. Minion. **Fast swarm** (10 HP): one creature rendered as a boil of vermin/insects; blitzes 8 tiles at a time. *one creature, but a bunch of bugs representing one*
 - **Faithless cultist** — `[TBD]`.
 - **The drowned** — `[TBD]`.
 - **Slime** — `[TBD]` (smaller cousin of the Sludge Being).

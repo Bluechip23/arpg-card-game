@@ -32,6 +32,37 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# Appended at the tail — enum order is save-compat-sensitive.
 	RING_WRAITH }
 
+## Intended player level per enemy type — the anchor for the level-gap XP
+## falloff (PlayerStats.get_xp_multiplier): kills more than a few levels below
+## the player pay reduced (eventually zero) XP, so low zones can't be farmed.
+## 0 = no band (mock-ups, XP-less enemies) -> no falloff applied.
+## Bands follow the Act 1 pacing: Sewers 1-5, Graveyard 6-12, Cave 8-15,
+## Forest 12-20 (player hits 25 by end of Act 1).
+const INTENDED_LEVELS := {
+	EnemyType.MINION: 1, EnemyType.ELITE: 5, EnemyType.BOSS: 10,
+	# Sewer
+	EnemyType.WERERAT: 2, EnemyType.ARCHER_RAT: 2, EnemyType.SLUDGE: 2,
+	EnemyType.SWARM: 3, EnemyType.PIPE_CRAWLER: 3,
+	EnemyType.SEWER_CROC: 5, EnemyType.RAT_KING: 5,
+	# Graveyard
+	EnemyType.ZOMBIE: 7, EnemyType.SKELETON: 7, EnemyType.SCREECHER: 8,
+	EnemyType.CRYPT_CRAWLER: 8, EnemyType.WERERABBIT: 8, EnemyType.CONSUMED: 9,
+	EnemyType.WEREWOLF: 10, EnemyType.VAMPIRE: 10, EnemyType.SPIRIT_COLLECTOR: 10,
+	EnemyType.NECROMANCER: 11, EnemyType.BONE_DRAGON: 12, EnemyType.GRAVE_TITAN: 12,
+	# Cave
+	EnemyType.FIRE_GOBLIN_SOLDIER: 9, EnemyType.FIRE_GOBLIN_MAGE: 9,
+	EnemyType.FIRE_GOBLIN_SHAMAN: 10, EnemyType.ARMORED_TROLL: 12, EnemyType.HYDRA: 14,
+	# Forest
+	EnemyType.COYOTE: 12, EnemyType.MINI_BEAR: 13, EnemyType.SPARK_MAGE: 13,
+	EnemyType.WOLF: 14, EnemyType.AIR_MAGE: 14, EnemyType.GIANT_HAWK: 15,
+	EnemyType.ICE_MAGE: 15, EnemyType.FIRE_MAGE: 15, EnemyType.INFECTED_HUNTER: 16,
+	EnemyType.GIANT_BEAVER: 16, EnemyType.EARTH_MAGE: 17, EnemyType.BUGBEAR: 17,
+	EnemyType.LARGE_BEAR: 18, EnemyType.TREANT: 19,
+}
+
+func get_intended_level() -> int:
+	return int(INTENDED_LEVELS.get(enemy_type, 0))
+
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
 @export var max_health: int = 30
@@ -281,34 +312,34 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 		EnemyType.WERERAT:
 			enemy_name = "Wererat"
 			max_health = 8
-			attack_damage = 2
+			attack_damage = 3
 			move_distance = 1.0
-			xp_reward = 5
+			xp_reward = 3
 			_set_mesh_color(Color(0.5, 0.35, 0.2))  # Brown
 
 		EnemyType.SKELETON:
 			enemy_name = "Skeleton"
-			max_health = 18
-			max_armor = 10
-			attack_damage = 5
+			max_health = 20
+			max_armor = 12
+			attack_damage = 6
 			move_distance = 1.0
-			xp_reward = 5
+			xp_reward = 7
 			_set_mesh_color(Color(0.85, 0.85, 0.75))  # Bone white
 
 		EnemyType.ARMORED_TROLL:
 			enemy_name = "Armored Troll"
-			max_health = 45
-			max_armor = 30
-			attack_damage = 4
+			max_health = 60
+			max_armor = 40
+			attack_damage = 7
 			move_distance = 1.0
-			xp_reward = 8
+			xp_reward = 30
 			_set_mesh_color(Color(0.2, 0.4, 0.15))  # Dark green
 
 		EnemyType.ARCHER_RAT:
 			enemy_name = "Archer Rat"
-			max_health = 5
+			max_health = 6
 			max_armor = 0
-			attack_damage = 1
+			attack_damage = 2
 			attack_range = 4.0  # Ranged attacker
 			move_distance = 2.0  # Moves 2 tiles when repositioning
 			xp_reward = 4
@@ -316,201 +347,201 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 
 		EnemyType.HYDRA:
 			enemy_name = "Hydra"
-			max_health = 30
-			attack_damage = 4         # +accumulated strength
+			max_health = 80
+			attack_damage = 7         # +accumulated strength
 			attack_range = 1.5        # Melee
 			move_distance = 3.0       # Moves 3 spaces
 			aggro_range = 12.0
-			xp_reward = 15
+			xp_reward = 60
 			_set_mesh_color(Color(0.2, 0.55, 0.35))  # Scaled green
 
 		EnemyType.FIRE_GOBLIN_SOLDIER:
 			enemy_name = "Fire Goblin Soldier"
-			max_health = 4
-			attack_damage = 1
+			max_health = 6
+			attack_damage = 2
 			attack_range = 1.5        # Range 0 — must be adjacent
 			move_distance = 4.0       # Moves 4 spaces
-			xp_reward = 4
+			xp_reward = 3
 			_set_mesh_color(Color(0.85, 0.35, 0.15))  # Ember orange
 
 		EnemyType.FIRE_GOBLIN_MAGE:
 			enemy_name = "Fire Goblin Mage"
-			max_health = 6
-			attack_damage = 6         # Ember damage
+			max_health = 10
+			attack_damage = 7         # Ember damage
 			attack_range = 4.0
 			move_distance = 2.0
-			xp_reward = 6
+			xp_reward = 8
 			_set_mesh_color(Color(0.9, 0.45, 0.2))
 
 		EnemyType.FIRE_GOBLIN_SHAMAN:
 			enemy_name = "Fire Goblin Shaman"
-			max_health = 8
-			attack_damage = 4         # Fire wall damage
+			max_health = 16
+			attack_damage = 6         # Fire wall damage
 			attack_range = 5.0
 			move_distance = 2.0
-			xp_reward = 8
+			xp_reward = 12
 			_set_mesh_color(Color(0.95, 0.55, 0.25))
 
 		# ===================== FOREST ACT =====================
 		EnemyType.GIANT_BEAVER:
 			enemy_name = "Giant Beaver"
-			max_health = 50
-			attack_damage = 6         # Chomp damage; Tail Whip deals 4
+			max_health = 60
+			attack_damage = 9         # Chomp damage; Tail Whip deals 6
 			attack_range = 1.5
 			move_distance = 3.0       # 3 spaces / 6 tempo
-			xp_reward = 12
+			xp_reward = 20
 			_set_mesh_color(Color(0.45, 0.30, 0.18))
 
 		EnemyType.MINI_BEAR:
 			enemy_name = "Mini Bear"
-			max_health = 10
-			attack_damage = 2
+			max_health = 14
+			attack_damage = 4
 			attack_range = 1.5
 			move_distance = 5.0       # 5 spaces / 5 tempo
-			xp_reward = 4
+			xp_reward = 6
 			_set_mesh_color(Color(0.40, 0.26, 0.16))
 
 		EnemyType.LARGE_BEAR:
 			enemy_name = "Large Bear"
-			max_health = 75
-			attack_damage = 8
+			max_health = 90
+			attack_damage = 12
 			attack_range = 1.5
 			move_distance = 6.0       # 6 spaces / 7 tempo
-			xp_reward = 16
-			bleed_on_attack = 3
+			xp_reward = 35
+			bleed_on_attack = 4
 			_set_mesh_color(Color(0.32, 0.20, 0.12))
 
 		EnemyType.WOLF:
 			enemy_name = "Wolf"
-			max_health = 18
-			attack_damage = 4
+			max_health = 30
+			attack_damage = 7
 			attack_range = 1.5
 			move_distance = 4.0       # 4 spaces / 3 tempo
-			xp_reward = 6
+			xp_reward = 12
 			_set_mesh_color(Color(0.45, 0.45, 0.48))
 
 		EnemyType.COYOTE:
 			enemy_name = "Coyote"
-			max_health = 5
-			attack_damage = 1
+			max_health = 6
+			attack_damage = 2
 			attack_range = 1.5
 			move_distance = 4.0       # 4 spaces / 3 tempo
-			xp_reward = 2
+			xp_reward = 3
 			_set_mesh_color(Color(0.62, 0.52, 0.36))
 
 		EnemyType.BUGBEAR:
 			enemy_name = "Bugbear"
-			max_health = 25
-			attack_damage = 3
+			max_health = 50
+			attack_damage = 6
 			attack_range = 1.5
 			move_distance = 6.0       # 6 spaces / 4 tempo
-			xp_reward = 9
+			xp_reward = 20
 			_set_mesh_color(Color(0.36, 0.30, 0.22))
 
 		EnemyType.INFECTED_HUNTER:
 			enemy_name = "Infected Hunter"
-			max_health = 21
-			attack_damage = 4         # AOE swipe in front
+			max_health = 40
+			attack_damage = 8         # AOE swipe in front
 			attack_range = 1.5
 			move_distance = 2.0       # 2 spaces / 3 tempo
 			aggro_range = 12.0        # so it can hook from range 7
-			xp_reward = 9
+			xp_reward = 18
 			_set_mesh_color(Color(0.40, 0.50, 0.30))
 
 		EnemyType.GIANT_HAWK:
 			enemy_name = "Giant Hawk"
-			max_health = 15
-			attack_damage = 6
+			max_health = 28
+			attack_damage = 9
 			attack_range = 2.0
 			move_distance = 8.0       # 8 spaces / 3 tempo
-			xp_reward = 7
+			xp_reward = 14
 			immune_to_high_ground = true
-			attack_blind_chance = 0.15
+			attack_blind_chance = 0.2
 			_set_mesh_color(Color(0.50, 0.38, 0.24))
 
 		EnemyType.TREANT:
 			enemy_name = "Treant"
-			max_health = 75
-			attack_damage = 10
+			max_health = 110
+			attack_damage = 14
 			attack_range = 1.5
 			move_distance = 9.0       # 9 spaces / 10 tempo
 			aggro_range = 12.0
-			xp_reward = 16
+			xp_reward = 35
 			damage_type = DamageTypes.Type.EARTH
 			_set_mesh_color(Color(0.32, 0.42, 0.20))
 
 		EnemyType.ICE_MAGE:
 			enemy_name = "Ice Mage"
-			max_health = 35
-			attack_damage = 3
+			max_health = 40
+			attack_damage = 6
 			attack_range = 3.0
 			move_distance = 3.0       # 3 spaces / 5 tempo
-			xp_reward = 9
+			xp_reward = 14
 			damage_type = DamageTypes.Type.ICE
 			attacks_slow = true
 			_set_mesh_color(Color(0.55, 0.75, 0.95))
 
 		EnemyType.FIRE_MAGE:
 			enemy_name = "Fire Mage"
-			max_health = 25
-			attack_damage = 4
+			max_health = 32
+			attack_damage = 7
 			attack_range = 2.0
 			move_distance = 2.0       # 2 spaces / 3 tempo
-			xp_reward = 8
+			xp_reward = 14
 			damage_type = DamageTypes.Type.FIRE
-			attack_burn = 1
+			attack_burn = 2
 			_set_mesh_color(Color(0.90, 0.35, 0.20))
 
 		EnemyType.SPARK_MAGE:
 			enemy_name = "Spark Mage"
-			max_health = 10
-			attack_damage = 1
+			max_health = 16
+			attack_damage = 3
 			attack_range = 6.0
 			move_distance = 2.0       # 2 spaces / 3 tempo
-			xp_reward = 6
+			xp_reward = 8
 			damage_type = DamageTypes.Type.LIGHTNING
 			attack_shock = 1
 			_set_mesh_color(Color(0.85, 0.85, 0.40))
 
 		EnemyType.AIR_MAGE:
 			enemy_name = "Air Mage"
-			max_health = 20
-			attack_damage = 2
+			max_health = 30
+			attack_damage = 5
 			attack_range = 8.0
 			move_distance = 6.0       # 6 spaces / 3 tempo
-			xp_reward = 8
+			xp_reward = 12
 			damage_type = DamageTypes.Type.WIND
 			_set_mesh_color(Color(0.70, 0.85, 0.80))
 
 		EnemyType.EARTH_MAGE:
 			enemy_name = "Earth Mage"
-			max_health = 50
-			attack_damage = 6
+			max_health = 65
+			attack_damage = 9
 			attack_range = 1.5
 			move_distance = 5.0       # 5 spaces / 5 tempo
-			xp_reward = 10
+			xp_reward = 18
 			damage_type = DamageTypes.Type.EARTH
-			armor_per_hit = 3
+			armor_per_hit = 4
 			_set_mesh_color(Color(0.45, 0.35, 0.25))
 
 		# ===================== GRAVEYARD ACT =====================
 		EnemyType.ZOMBIE:
 			enemy_name = "Zombie"
-			max_health = 10
-			attack_damage = 3
+			max_health = 12
+			attack_damage = 5
 			attack_range = 1.5
 			move_distance = 3.0
-			xp_reward = 4
+			xp_reward = 5
 			_set_mesh_color(Color(0.49, 0.57, 0.40))
 
 		EnemyType.WEREWOLF:
 			enemy_name = "Werewolf"
-			max_health = 25
-			attack_damage = 7         # +3 vs armor (armour-piercing)
+			max_health = 55
+			attack_damage = 10        # +3 vs armor (armour-piercing)
 			attack_range = 1.5
 			move_distance = 3.0
 			aggro_range = 12.0
-			xp_reward = 12
+			xp_reward = 22
 			_set_mesh_color(Color(0.44, 0.45, 0.47))
 
 		EnemyType.WERERABBIT:
@@ -524,126 +555,127 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 
 		EnemyType.VAMPIRE:
 			enemy_name = "Vampire"
-			max_health = 20
-			attack_damage = 8         # Life steal on health damage
+			max_health = 45
+			attack_damage = 10        # Life steal on health damage
 			attack_range = 1.5
 			move_distance = 5.0
-			xp_reward = 14
+			xp_reward = 24
 			_set_mesh_color(Color(0.16, 0.15, 0.20))
 
 		EnemyType.NECROMANCER:
 			enemy_name = "Necromancer"
-			max_health = 45
-			attack_damage = 2
+			max_health = 60
+			attack_damage = 4
 			attack_range = 10.0
 			move_distance = 8.0
 			aggro_range = 14.0
-			xp_reward = 16
+			xp_reward = 30
 			_set_mesh_color(Color(0.12, 0.11, 0.16))
 
 		EnemyType.BONE_DRAGON:
 			enemy_name = "Bone Dragon"
-			max_health = 50
-			attack_damage = 10
+			max_health = 150
+			attack_damage = 12
 			attack_range = 1.5
 			move_distance = 5.0
 			aggro_range = 14.0
-			xp_reward = 25
+			xp_reward = 80
 			_set_mesh_color(Color(0.91, 0.89, 0.84))
 
 		EnemyType.SPIRIT_COLLECTOR:
 			enemy_name = "Spirit Collector"
-			max_health = 30
-			attack_damage = 5
+			max_health = 50
+			attack_damage = 8
 			attack_range = 1.5
 			move_distance = 3.0
-			xp_reward = 12
+			xp_reward = 20
 			_set_mesh_color(Color(0.60, 0.52, 0.33))
 
 		EnemyType.GRAVE_TITAN:
 			enemy_name = "Grave Titan"
-			max_health = 50
-			max_armor = 15
-			attack_damage = 12
+			max_health = 130
+			max_armor = 30
+			attack_damage = 15
 			attack_range = 1.5
 			move_distance = 4.0
 			aggro_range = 12.0
-			xp_reward = 20
+			xp_reward = 80
 			_set_mesh_color(Color(0.84, 0.85, 0.87))
 
 		EnemyType.CRYPT_CRAWLER:
 			enemy_name = "Crypt Crawler"
-			max_health = 15
-			attack_damage = 5
+			max_health = 28
+			attack_damage = 6
 			attack_range = 1.5
 			move_distance = 3.0
-			xp_reward = 9
+			xp_reward = 12
 			_set_mesh_color(Color(0.20, 0.17, 0.22))
 
 		EnemyType.SCREECHER:
 			enemy_name = "Screecher"
-			max_health = 10
-			attack_damage = 2
+			max_health = 14
+			attack_damage = 5
 			attack_range = 1.5
 			move_distance = 4.0       # 4 spaces / 2 tempo while invisible
-			xp_reward = 6
+			xp_reward = 8
 			_set_mesh_color(Color(0.07, 0.07, 0.10))
 
 		EnemyType.CONSUMED:
 			enemy_name = "The Consumed"
-			max_health = 18
-			attack_damage = 5
+			max_health = 35
+			attack_damage = 8
 			attack_range = 1.5
 			move_distance = 5.0       # 5 spaces / 3 tempo
-			xp_reward = 10
+			xp_reward = 14
 			_set_mesh_color(Color(0.35, 0.29, 0.28))
 
 		# ===================== SEWER ACT =====================
 		EnemyType.SLUDGE:
 			enemy_name = "Sludge Being"
-			max_health = 8
+			max_health = 10
 			attack_damage = 3
 			attack_range = 6.0        # Can spit at range
 			move_distance = 3.0
-			xp_reward = 5
+			xp_reward = 4
 			_set_mesh_color(Color(0.25, 0.63, 0.36))
 
 		EnemyType.PIPE_CRAWLER:
 			enemy_name = "Pipe Crawler"
-			max_health = 15
-			attack_damage = 4
+			max_health = 20
+			attack_damage = 5
 			attack_range = 1.5
 			move_distance = 2.0
-			xp_reward = 7
+			xp_reward = 8
 			_set_mesh_color(Color(0.48, 0.54, 0.43))
 
 		EnemyType.SEWER_CROC:
 			enemy_name = "Sewer Crocodile"
-			max_health = 25
-			max_armor = 15
-			attack_damage = 10
+			max_health = 40
+			max_armor = 20
+			attack_damage = 12
 			attack_range = 1.5
 			move_distance = 2.0
 			aggro_range = 12.0
-			xp_reward = 14
+			xp_reward = 25
 			_set_mesh_color(Color(0.27, 0.38, 0.23))
 
 		EnemyType.RAT_KING:
 			enemy_name = "Rat King"
-			max_health = 15
-			attack_damage = 4
+			max_health = 90
+			max_armor = 10
+			attack_damage = 6
 			attack_range = 1.5
 			move_distance = 2.0
-			xp_reward = 8
+			xp_reward = 60
 			_set_mesh_color(Color(0.5, 0.35, 0.2))
 
 		EnemyType.SWARM:
 			enemy_name = "Swarm"
-			max_health = 8
+			max_health = 10
 			attack_damage = 3
 			attack_range = 1.5
 			move_distance = 8.0       # 8 spaces / 3 tempo — very fast
-			xp_reward = 5
+			xp_reward = 4
 			_set_mesh_color(Color(0.18, 0.16, 0.13))
 
 	current_health = max_health
@@ -992,7 +1024,7 @@ func _setup_actions() -> void:
 			]
 		EnemyType.RAT_KING:
 			actions = [
-				{"name": "bite", "tempo_cost": 2},
+				{"name": "bite", "tempo_cost": 3},
 				{"name": "move", "tempo_cost": 2},
 			]
 		EnemyType.SWARM:
@@ -1025,7 +1057,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.LARGE_BEAR: "Elite",
 		EnemyType.WOLF: "Minion",
 		EnemyType.COYOTE: "Minion",
-		EnemyType.BUGBEAR: "Minion",
+		EnemyType.BUGBEAR: "Elite",
 		EnemyType.INFECTED_HUNTER: "Elite",
 		EnemyType.GIANT_HAWK: "Minion",
 		EnemyType.TREANT: "Elite",
@@ -1058,49 +1090,50 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.MAGMA_SPIDER: "Elite", EnemyType.PIT_FIEND: "Boss", EnemyType.ASH_HARPY: "Minion",
 		EnemyType.INFLAMED_MINOTAUR: "Elite",
 		EnemyType.CHERUB: "Minion", EnemyType.DJINN: "Elite", EnemyType.CORRUPTED_ARCHANGEL: "Boss",
+		EnemyType.RING_WRAITH: "Elite",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
 		EnemyType.ELITE: {"name": "Elite", "health": 80, "armor": 0, "damage": 6, "xp": 10},
 		EnemyType.BOSS: {"name": "Boss", "health": 200, "armor": 0, "damage": 10, "xp": 25},
-		EnemyType.WERERAT: {"name": "Wererat", "health": 8, "armor": 0, "damage": 2, "xp": 5},
-		EnemyType.SKELETON: {"name": "Skeleton", "health": 18, "armor": 10, "damage": 5, "xp": 5},
-		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 45, "armor": 30, "damage": 4, "xp": 8},
-		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 5, "armor": 0, "damage": 1, "xp": 4},
-		EnemyType.HYDRA: {"name": "Hydra", "health": 30, "armor": 0, "damage": 4, "xp": 15},
-		EnemyType.FIRE_GOBLIN_SOLDIER: {"name": "Fire Goblin Soldier", "health": 4, "armor": 0, "damage": 1, "xp": 4},
-		EnemyType.FIRE_GOBLIN_MAGE: {"name": "Fire Goblin Mage", "health": 6, "armor": 0, "damage": 6, "xp": 6},
-		EnemyType.FIRE_GOBLIN_SHAMAN: {"name": "Fire Goblin Shaman", "health": 8, "armor": 0, "damage": 4, "xp": 8},
-		EnemyType.GIANT_BEAVER: {"name": "Giant Beaver", "health": 50, "armor": 0, "damage": 6, "xp": 12},
-		EnemyType.MINI_BEAR: {"name": "Mini Bear", "health": 10, "armor": 0, "damage": 2, "xp": 4},
-		EnemyType.LARGE_BEAR: {"name": "Large Bear", "health": 75, "armor": 0, "damage": 8, "xp": 16},
-		EnemyType.WOLF: {"name": "Wolf", "health": 18, "armor": 0, "damage": 4, "xp": 6},
-		EnemyType.COYOTE: {"name": "Coyote", "health": 5, "armor": 0, "damage": 1, "xp": 2},
-		EnemyType.BUGBEAR: {"name": "Bugbear", "health": 25, "armor": 0, "damage": 3, "xp": 9},
-		EnemyType.INFECTED_HUNTER: {"name": "Infected Hunter", "health": 21, "armor": 0, "damage": 4, "xp": 9},
-		EnemyType.GIANT_HAWK: {"name": "Giant Hawk", "health": 15, "armor": 0, "damage": 6, "xp": 7},
-		EnemyType.TREANT: {"name": "Treant", "health": 75, "armor": 0, "damage": 10, "xp": 16},
-		EnemyType.ICE_MAGE: {"name": "Ice Mage", "health": 35, "armor": 0, "damage": 3, "xp": 9},
-		EnemyType.FIRE_MAGE: {"name": "Fire Mage", "health": 25, "armor": 0, "damage": 4, "xp": 8},
-		EnemyType.SPARK_MAGE: {"name": "Spark Mage", "health": 10, "armor": 0, "damage": 1, "xp": 6},
-		EnemyType.AIR_MAGE: {"name": "Air Mage", "health": 20, "armor": 0, "damage": 2, "xp": 8},
-		EnemyType.EARTH_MAGE: {"name": "Earth Mage", "health": 50, "armor": 0, "damage": 6, "xp": 10},
-		EnemyType.ZOMBIE: {"name": "Zombie", "health": 10, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.WEREWOLF: {"name": "Werewolf", "health": 25, "armor": 0, "damage": 7, "xp": 12},
+		EnemyType.WERERAT: {"name": "Wererat", "health": 8, "armor": 0, "damage": 3, "xp": 3},
+		EnemyType.SKELETON: {"name": "Skeleton", "health": 20, "armor": 12, "damage": 6, "xp": 7},
+		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 60, "armor": 40, "damage": 7, "xp": 30},
+		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 6, "armor": 0, "damage": 2, "xp": 4},
+		EnemyType.HYDRA: {"name": "Hydra", "health": 80, "armor": 0, "damage": 7, "xp": 60},
+		EnemyType.FIRE_GOBLIN_SOLDIER: {"name": "Fire Goblin Soldier", "health": 6, "armor": 0, "damage": 2, "xp": 3},
+		EnemyType.FIRE_GOBLIN_MAGE: {"name": "Fire Goblin Mage", "health": 10, "armor": 0, "damage": 7, "xp": 8},
+		EnemyType.FIRE_GOBLIN_SHAMAN: {"name": "Fire Goblin Shaman", "health": 16, "armor": 0, "damage": 6, "xp": 12},
+		EnemyType.GIANT_BEAVER: {"name": "Giant Beaver", "health": 60, "armor": 0, "damage": 9, "xp": 20},
+		EnemyType.MINI_BEAR: {"name": "Mini Bear", "health": 14, "armor": 0, "damage": 4, "xp": 6},
+		EnemyType.LARGE_BEAR: {"name": "Large Bear", "health": 90, "armor": 0, "damage": 12, "xp": 35},
+		EnemyType.WOLF: {"name": "Wolf", "health": 30, "armor": 0, "damage": 7, "xp": 12},
+		EnemyType.COYOTE: {"name": "Coyote", "health": 6, "armor": 0, "damage": 2, "xp": 3},
+		EnemyType.BUGBEAR: {"name": "Bugbear", "health": 50, "armor": 0, "damage": 6, "xp": 20},
+		EnemyType.INFECTED_HUNTER: {"name": "Infected Hunter", "health": 40, "armor": 0, "damage": 8, "xp": 18},
+		EnemyType.GIANT_HAWK: {"name": "Giant Hawk", "health": 28, "armor": 0, "damage": 9, "xp": 14},
+		EnemyType.TREANT: {"name": "Treant", "health": 110, "armor": 0, "damage": 14, "xp": 35},
+		EnemyType.ICE_MAGE: {"name": "Ice Mage", "health": 40, "armor": 0, "damage": 6, "xp": 14},
+		EnemyType.FIRE_MAGE: {"name": "Fire Mage", "health": 32, "armor": 0, "damage": 7, "xp": 14},
+		EnemyType.SPARK_MAGE: {"name": "Spark Mage", "health": 16, "armor": 0, "damage": 3, "xp": 8},
+		EnemyType.AIR_MAGE: {"name": "Air Mage", "health": 30, "armor": 0, "damage": 5, "xp": 12},
+		EnemyType.EARTH_MAGE: {"name": "Earth Mage", "health": 65, "armor": 0, "damage": 9, "xp": 18},
+		EnemyType.ZOMBIE: {"name": "Zombie", "health": 12, "armor": 0, "damage": 5, "xp": 5},
+		EnemyType.WEREWOLF: {"name": "Werewolf", "health": 55, "armor": 0, "damage": 10, "xp": 22},
 		EnemyType.WERERABBIT: {"name": "Wererabbit", "health": 25, "armor": 0, "damage": 0, "xp": 8},
-		EnemyType.VAMPIRE: {"name": "Vampire", "health": 20, "armor": 0, "damage": 8, "xp": 14},
-		EnemyType.NECROMANCER: {"name": "Necromancer", "health": 45, "armor": 0, "damage": 2, "xp": 16},
-		EnemyType.BONE_DRAGON: {"name": "Bone Dragon", "health": 50, "armor": 0, "damage": 10, "xp": 25},
-		EnemyType.SPIRIT_COLLECTOR: {"name": "Spirit Collector", "health": 30, "armor": 0, "damage": 5, "xp": 12},
-		EnemyType.GRAVE_TITAN: {"name": "Grave Titan", "health": 50, "armor": 15, "damage": 12, "xp": 20},
-		EnemyType.CRYPT_CRAWLER: {"name": "Crypt Crawler", "health": 15, "armor": 0, "damage": 5, "xp": 9},
-		EnemyType.SCREECHER: {"name": "Screecher", "health": 10, "armor": 0, "damage": 2, "xp": 6},
-		EnemyType.CONSUMED: {"name": "The Consumed", "health": 18, "armor": 0, "damage": 5, "xp": 10},
-		EnemyType.SLUDGE: {"name": "Sludge Being", "health": 8, "armor": 0, "damage": 3, "xp": 5},
-		EnemyType.PIPE_CRAWLER: {"name": "Pipe Crawler", "health": 15, "armor": 0, "damage": 4, "xp": 7},
-		EnemyType.SEWER_CROC: {"name": "Sewer Crocodile", "health": 25, "armor": 15, "damage": 10, "xp": 14},
-		EnemyType.RAT_KING: {"name": "Rat King", "health": 15, "armor": 0, "damage": 4, "xp": 8},
-		EnemyType.SWARM: {"name": "Swarm", "health": 8, "armor": 0, "damage": 3, "xp": 5},
+		EnemyType.VAMPIRE: {"name": "Vampire", "health": 45, "armor": 0, "damage": 10, "xp": 24},
+		EnemyType.NECROMANCER: {"name": "Necromancer", "health": 60, "armor": 0, "damage": 4, "xp": 30},
+		EnemyType.BONE_DRAGON: {"name": "Bone Dragon", "health": 150, "armor": 0, "damage": 12, "xp": 80},
+		EnemyType.SPIRIT_COLLECTOR: {"name": "Spirit Collector", "health": 50, "armor": 0, "damage": 8, "xp": 20},
+		EnemyType.GRAVE_TITAN: {"name": "Grave Titan", "health": 130, "armor": 30, "damage": 15, "xp": 80},
+		EnemyType.CRYPT_CRAWLER: {"name": "Crypt Crawler", "health": 28, "armor": 0, "damage": 6, "xp": 12},
+		EnemyType.SCREECHER: {"name": "Screecher", "health": 14, "armor": 0, "damage": 5, "xp": 8},
+		EnemyType.CONSUMED: {"name": "The Consumed", "health": 35, "armor": 0, "damage": 8, "xp": 14},
+		EnemyType.SLUDGE: {"name": "Sludge Being", "health": 10, "armor": 0, "damage": 3, "xp": 4},
+		EnemyType.PIPE_CRAWLER: {"name": "Pipe Crawler", "health": 20, "armor": 0, "damage": 5, "xp": 8},
+		EnemyType.SEWER_CROC: {"name": "Sewer Crocodile", "health": 40, "armor": 20, "damage": 12, "xp": 25},
+		EnemyType.RAT_KING: {"name": "Rat King", "health": 90, "armor": 10, "damage": 6, "xp": 60},
+		EnemyType.SWARM: {"name": "Swarm", "health": 10, "armor": 0, "damage": 3, "xp": 4},
 		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.WYVERN: {"name": "Wyvern", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.ROC: {"name": "Roc", "health": 0, "armor": 0, "damage": 0, "xp": 0},
@@ -1122,6 +1155,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CHERUB: {"name": "Cherub", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.DJINN: {"name": "Djinn", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -1163,7 +1197,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SLUDGE: [{"name": "Melee", "tempo": 5}, {"name": "Spit", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.PIPE_CRAWLER: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 2}],
 		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
-		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 2}, {"name": "Move", "tempo": 2}],
+		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Move", "tempo": 2}],
 		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.WEREGOAT: [], EnemyType.WYVERN: [], EnemyType.ROC: [],
 		EnemyType.ICE_TROLL: [], EnemyType.SNOW_WRAITH: [], EnemyType.GRANITE_COLOSSUS: [],
@@ -1173,44 +1207,45 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.MAGMA_SPIDER: [], EnemyType.PIT_FIEND: [], EnemyType.ASH_HARPY: [],
 		EnemyType.INFLAMED_MINOTAUR: [],
 		EnemyType.CHERUB: [], EnemyType.DJINN: [], EnemyType.CORRUPTED_ARCHANGEL: [],
+		EnemyType.RING_WRAITH: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 4}],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ELITE: "Stronger than minions.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.BOSS: "High health and damage.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		EnemyType.WERERAT: "Fast and evasive (8 HP, 2 dmg).\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
+		EnemyType.WERERAT: "Fast and evasive (8 HP, 3 dmg).\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		EnemyType.ARMORED_TROLL: "Regenerates 2 HP every 6 global tempo.\nAt range ≤1: 60% Smash / 40% Kick.\nOtherwise: Moves toward player.",
-		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 1 damage.\nAt range >4: Moves 2 tiles closer.",
-		EnemyType.HYDRA: "Grows stronger with every hit she takes: +2 strength per hit. On the 4th hit she also gains +20 max HP and unlocks Heal.\nStrike (8 tempo): 4 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
-		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 1 damage.\nMove (2 tempo): 4 spaces.",
-		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 6 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
-		EnemyType.FIRE_GOBLIN_SHAMAN: "Support caster (range 5).\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 4 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 4.\nMove (3 tempo): 2 spaces.",
-		EnemyType.GIANT_BEAVER: "Chomp (4 tempo): 6 damage, stuns 3 tempo. Then Tail Whip (2 tempo later): 4 damage + Vulnerable (15 tempo).\nMove (6 tempo): 3 spaces.",
-		EnemyType.MINI_BEAR: "Travels in packs. When a packmate in sight is hurt, gains +1 attack damage.\nAttack (3 tempo): 2 damage.\nMove (5 tempo): 5 spaces.",
-		EnemyType.LARGE_BEAR: "Very tanky. Maul applies Bleed (you take damage when you move). Drops to all fours below 20% HP.\nMaul (4 tempo): 8 damage + 3 Bleed.\nMove (7 tempo): 6 spaces.",
-		EnemyType.WOLF: "Within 4 tiles of another wolf: +2 HP regen/cycle and +2 attack damage.\nBite (5 tempo): 4 damage.\nMove (3 tempo): 4 spaces.",
-		EnemyType.COYOTE: "Fragile nuisance.\nNip (4 tempo): 1 damage.\nMove (3 tempo): 4 spaces.",
-		EnemyType.BUGBEAR: "First Strike: if it hits you before you have hit it, +5 damage.\nStrike (5 tempo): 3 damage.\nMove (4 tempo): 6 spaces.",
-		EnemyType.INFECTED_HUNTER: "Hook (range 7, 8 tempo, starts charged): pulls you to it over 2 tempo.\nCleave (3 tempo): 4 damage in front.\nMove (3 tempo): 2 spaces.",
-		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo): 6 damage, 15% to Blind for 5 tempo.\nMove (3 tempo): 8 spaces.",
-		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%.\nSlam (10 tempo): 10 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nMove (10 tempo): 9 spaces.",
-		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 3 ice damage + Slow.\nMove (5 tempo): 3 spaces.",
-		EnemyType.FIRE_MAGE: "Attacks apply 1 Burn.\nFire Bolt (range 2, 3 tempo): 4 fire damage + 1 Burn.\nMove (3 tempo): 2 spaces.",
-		EnemyType.SPARK_MAGE: "Attacks apply 1 Shock.\nSpark (range 6, 2 tempo): 1 lightning damage + 1 Shock.\nMove (3 tempo): 2 spaces.",
-		EnemyType.AIR_MAGE: "Long-range caster.\nGust (range 8, 5 tempo): 2 wind damage.\nMove (3 tempo): 6 spaces.",
-		EnemyType.EARTH_MAGE: "Gains 3 armor every time it is hit.\nBoulder (melee, 6 tempo): 6 earth damage.\nMove (5 tempo): 5 spaces.",
-		EnemyType.ZOMBIE: "Slow, beefy undead.\nAt range ≤1: Attacks (3 dmg, 6 tempo).\nOtherwise: shambles toward player (3 spaces / 8 tempo).",
-		EnemyType.WEREWOLF: "Bear-sized grey beast with armor-piercing claws.\nClaw (5 tempo): 7 damage; deals +3 extra to armor.\nMove (3 tempo): 3 spaces.",
+		EnemyType.ARMORED_TROLL: "Regenerates 3 HP every 6 global tempo.\nAt range ≤1: 60% Smash (14 dmg + Lightly Dazed card) / 40% Kick (6 dmg).\nOtherwise: Moves toward player.",
+		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 2 damage.\nAt range >4: Moves 2 tiles closer.",
+		EnemyType.HYDRA: "Grows stronger with every hit she takes: +2 strength per hit. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
+		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 2 damage.\nMove (2 tempo): 4 spaces.",
+		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 7 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
+		EnemyType.FIRE_GOBLIN_SHAMAN: "Support caster (range 5).\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 6 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 6.\nMove (3 tempo): 2 spaces.",
+		EnemyType.GIANT_BEAVER: "Chomp (4 tempo): 9 damage, stuns 3 tempo. Then Tail Whip (2 tempo later): 6 damage + Vulnerable (15 tempo).\nMove (6 tempo): 3 spaces.",
+		EnemyType.MINI_BEAR: "Travels in packs. When a packmate in sight is hurt, gains +2 attack damage.\nAttack (3 tempo): 4 damage.\nMove (5 tempo): 5 spaces.",
+		EnemyType.LARGE_BEAR: "Very tanky. Maul applies Bleed (you take damage when you move). Drops to all fours below 20% HP.\nMaul (4 tempo): 12 damage + 4 Bleed.\nMove (7 tempo): 6 spaces.",
+		EnemyType.WOLF: "Within 4 tiles of another wolf: +2 HP regen/cycle and +2 attack damage.\nBite (5 tempo): 7 damage.\nMove (3 tempo): 4 spaces.",
+		EnemyType.COYOTE: "Fragile nuisance.\nNip (4 tempo): 2 damage.\nMove (3 tempo): 4 spaces.",
+		EnemyType.BUGBEAR: "First Strike: if it hits you before you have hit it, +8 damage.\nStrike (5 tempo): 6 damage.\nMove (4 tempo): 6 spaces.",
+		EnemyType.INFECTED_HUNTER: "Hook (range 7, 8 tempo, starts charged): pulls you to it over 2 tempo.\nCleave (3 tempo): 8 damage in front.\nMove (3 tempo): 2 spaces.",
+		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo): 9 damage, 20% to Blind for 5 tempo.\nMove (3 tempo): 8 spaces.",
+		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%.\nSlam (10 tempo): 14 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nMove (10 tempo): 9 spaces.",
+		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 6 ice damage + Slow.\nMove (5 tempo): 3 spaces.",
+		EnemyType.FIRE_MAGE: "Attacks apply 2 Burn.\nFire Bolt (range 2, 3 tempo): 7 fire damage + 2 Burn.\nMove (3 tempo): 2 spaces.",
+		EnemyType.SPARK_MAGE: "Attacks apply 1 Shock.\nSpark (range 6, 2 tempo): 3 lightning damage + 1 Shock.\nMove (3 tempo): 2 spaces.",
+		EnemyType.AIR_MAGE: "Long-range caster.\nGust (range 8, 5 tempo): 5 wind damage.\nMove (3 tempo): 6 spaces.",
+		EnemyType.EARTH_MAGE: "Gains 4 armor every time it is hit.\nBoulder (melee, 6 tempo): 9 earth damage.\nMove (5 tempo): 5 spaces.",
+		EnemyType.ZOMBIE: "Slow, beefy undead.\nAt range ≤1: Attacks (5 dmg, 6 tempo).\nOtherwise: shambles toward player (3 spaces / 8 tempo).",
+		EnemyType.WEREWOLF: "Bear-sized grey beast with armor-piercing claws.\nClaw (5 tempo): 10 damage; deals +3 extra to armor.\nMove (3 tempo): 3 spaces.",
 		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
-		EnemyType.VAMPIRE: "Victorian aristocrat with life steal.\nBite (5 tempo): 8 damage; heals for 100% of damage dealt to health (not armor).\nMove (5 tempo): 5 spaces.",
-		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead.\nBolt (5 tempo): 2 damage.\nSummon (8 tempo): raises undead. After 5 of its summons die, it raises a Bone Dragon.\nMove (6 tempo): 8 spaces.",
-		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely.\nBite (5 tempo): 10 damage.\nBreath Swarm (6 tempo): 8 damage in a line (6 spaces); spawns an insect swarm for each unit hit.\nMove (5 tempo): 5 spaces.",
-		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 5 damage.\nCollect Soul (8 tempo): 2 damage; adds a 'Release Soul' card to your hand (deals 1 damage per tempo until played, then is erased).",
-		EnemyType.GRAVE_TITAN: "Yeti-like brute (15 armor) hauling a boulder.\nSmash (8 tempo): 12 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 8 damage.\nMove (8 tempo): 4 spaces.",
-		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 5 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
-		EnemyType.SCREECHER: "Soul-creature — invisible (a black void ghost) until it strikes.\nScreech (5 tempo): 2 damage; it becomes visible for 3 tempo, then fades again.\nDrift: 4 spaces / 2 tempo while invisible (2 spaces / 5 tempo while visible).",
-		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 5 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 4 damage to everything nearby.",
+		EnemyType.VAMPIRE: "Victorian aristocrat with life steal.\nBite (5 tempo): 10 damage; heals for 100% of damage dealt to health (not armor).\nMove (5 tempo): 5 spaces.",
+		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead.\nBolt (5 tempo): 4 damage.\nSummon (8 tempo): raises undead. After 5 of its summons die, it raises a Bone Dragon.\nMove (6 tempo): 8 spaces.",
+		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage in a line (6 spaces); spawns an insect swarm for each unit hit.\nMove (5 tempo): 5 spaces.",
+		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (deals 1 damage per tempo until played, then is erased).",
+		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
+		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
+		EnemyType.SCREECHER: "Soul-creature — invisible (a black void ghost) until it strikes.\nScreech (5 tempo): 5 damage; it becomes visible for 3 tempo, then fades again.\nDrift: 4 spaces / 2 tempo while invisible (2 spaces / 5 tempo while visible).",
+		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
 		# --- Mountains (design mock-ups — stats & moves TBD) ---
 		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.WYVERN: "A large serpentine flier with talons and wings — no arms.\n[Design mock-up — stats & moves TBD.]",
@@ -1236,10 +1271,11 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.CORRUPTED_ARCHANGEL: "Black eyes and long black hair, white wings and robes, wielding a black two-handed sword.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
-		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 4 damage; 15% chance to disarm you.\nMove (2 tempo): 2 spaces.",
-		EnemyType.SEWER_CROC: "Armoured ambush predator (15 armor).\nBite (6 tempo): 10 damage.\nMove (5 tempo): 2 spaces.",
-		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm.\nBite (2 tempo): 4 damage.\nMove (2 tempo): 2 spaces.",
+		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 5 damage; 25% chance to disarm you (5 tempo).\nMove (2 tempo): 2 spaces.",
+		EnemyType.SEWER_CROC: "Armoured ambush predator (20 armor).\nBite (6 tempo): 12 damage.\nMove (5 tempo): 2 spaces.",
+		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor).\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.",
 		EnemyType.SWARM: "A single unit made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
+		EnemyType.RING_WRAITH: "The Precious: hunts the ring-bearer through the shadow world. Shadow form does not hide you from these.\nAttack (2 tempo): 15 damage.\nMove (4 tempo): 5 spaces.\nResummons on death — grants no XP.",
 	}
 
 	var result: Array = []
@@ -1415,12 +1451,12 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		if tree_tempo <= 0:
 			_exit_tree_form()
 
-	# Armored Troll passive: regenerate 2 HP every 6 global tempo
+	# Armored Troll passive: regenerate 3 HP every 6 global tempo
 	if enemy_type == EnemyType.ARMORED_TROLL:
 		regen_accumulator += amount
 		while regen_accumulator >= 6:
 			regen_accumulator -= 6
-			_regenerate(2)
+			_regenerate(3)
 
 	# Treant passive: heals 5 HP every 5 tempo, +2 per 10% HP below 60%.
 	if enemy_type == EnemyType.TREANT:
@@ -2050,7 +2086,7 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"wolf_bite":
 			return _try_wolf_bite(move_target)
 		"coyote_nip":
-			return _try_elemental(move_target, 1, "Nip")
+			return _try_elemental(move_target, attack_damage, "Nip")
 		"bugbear_strike":
 			return _try_bugbear_strike(move_target)
 		"cleave":
@@ -2112,7 +2148,7 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"sludge_spit":
 			return _try_elemental(move_target, attack_damage, "Spit")
 		"pipe_attack":
-			return _try_elemental(move_target, attack_damage, "Claw")
+			return _try_pipe_claw(move_target)
 		"croc_bite":
 			return _try_elemental(move_target, attack_damage, "Bite")
 		_:
@@ -2206,8 +2242,8 @@ func _try_sear_wounds() -> bool:
 			a.take_damage(2, false)  # from_player = false: doesn't enrage a Hydra
 	for a in allies:
 		if is_instance_valid(a) and a.is_alive():
-			a._regenerate(4)
-	print("[%s] Sears wounds — 2 to all, then heals 4." % enemy_name)
+			a._regenerate(6)
+	print("[%s] Sears wounds — 2 to all, then heals 6." % enemy_name)
 	turn_completed.emit()
 	return true
 
@@ -2276,7 +2312,7 @@ func _try_chomp(target_node: Node3D) -> bool:
 func _try_tail_whip(target_node: Node3D) -> bool:
 	_beaver_followup = false
 	if not is_disarmed and _in_attack_range(target_node):
-		_deal_damage_to_player(target_node, 4, "Tail Whip")
+		_deal_damage_to_player(target_node, 6, "Tail Whip")
 		# Vulnerable: target takes extra damage (≈15 tempo window).
 		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.VULNERABLE, 5, 15))
 		turn_completed.emit()
@@ -2294,8 +2330,8 @@ func _try_wolf_bite(target_node: Node3D) -> bool:
 	return _try_elemental(target_node, dmg, "Bite")
 
 func _try_bugbear_strike(target_node: Node3D) -> bool:
-	# First Strike: if the player has not hit this bugbear yet, +5 damage.
-	var dmg = attack_damage + (5 if hits_taken == 0 else 0)
+	# First Strike: if the player has not hit this bugbear yet, +8 damage.
+	var dmg = attack_damage + (8 if hits_taken == 0 else 0)
 	return _try_elemental(target_node, dmg, "Strike")
 
 func _try_swoop(target_node: Node3D) -> bool:
@@ -2349,6 +2385,19 @@ func _treant_heal_amount() -> int:
 		amt += 2 * int((60.0 - pct) / 10.0)
 	return amt
 
+func _try_pipe_claw(target_node: Node3D) -> bool:
+	## Pipe Crawler: claw with a 25% chance to disarm the player (5 tempo).
+	if is_disarmed:
+		return _try_move(target_node)
+	if not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, attack_damage, "Claw")
+	if randf() < 0.25:
+		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.DISARM, 0, 5))
+		print("[%s] Claw knocks the weapon loose — disarmed!" % enemy_name)
+	turn_completed.emit()
+	return true
+
 func _try_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
 		print("[%s] Disarmed - cannot attack!" % enemy_name)
@@ -2380,7 +2429,7 @@ func _try_bite(target_node: Node3D) -> bool:
 	var diff = target_node.position - position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= attack_range:
-		_deal_damage_to_player(target_node, 3, "Bite")
+		_deal_damage_to_player(target_node, attack_damage, "Bite")
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)
@@ -2399,7 +2448,7 @@ func _try_kick(target_node: Node3D) -> bool:
 	var diff = target_node.position - position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= attack_range:
-		_deal_damage_to_player(target_node, 4, "Kick")
+		_deal_damage_to_player(target_node, 6, "Kick")
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)
@@ -2410,7 +2459,7 @@ func _try_smash(target_node: Node3D) -> bool:
 	var diff = target_node.position - position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= attack_range:
-		_deal_damage_to_player(target_node, 10, "Smash")
+		_deal_damage_to_player(target_node, 14, "Smash")
 		# Inject Lightly Dazed card into player's hand
 		if target_node.has_method("get_deck_manager"):
 			var dm = target_node.get_deck_manager()
@@ -2594,7 +2643,7 @@ func _finish_player_hit(player_node: Node3D) -> void:
 		var p_inventory = player_node.get_inventory()
 		if p_inventory:
 			p_inventory.on_damage_taken()
-	# Trigger on_attacked passives (thorns, In the Trenches, Phalanx, etc.)
+	# Trigger on_attacked passives (thorns, In the Trenches, etc.)
 	if player_node.has_method("on_attacked_by"):
 		player_node.on_attacked_by(self)
 	attacked_player.emit(self)
@@ -2901,10 +2950,10 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		strength += 2
 		print("[%s] Enraged by hit %d — strength now %d" % [enemy_name, hits_taken, strength])
 		if hits_taken == 4:
-			max_health += 20
-			current_health += 20
+			max_health += 40
+			current_health += 40
 			hydra_heal_unlocked = true
-			print("[%s] Grows hardier (+20 max HP) and prepares to heal!" % enemy_name)
+			print("[%s] Grows hardier (+40 max HP) and prepares to heal!" % enemy_name)
 			update_health_display()
 
 	# Forest traits that react to being hit by the player.
@@ -3037,11 +3086,11 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	return just_exposed
 
 func _alert_mini_bear_pack() -> void:
-	## When this mini bear is hurt, packmates within sight gain +1 attack damage.
+	## When this mini bear is hurt, packmates within sight gain +2 attack damage.
 	for e in _sibling_enemies():
 		if e != self and e.enemy_type == EnemyType.MINI_BEAR and e.is_alive():
 			if position.distance_to(e.position) <= e.aggro_range:
-				e.pack_attack_bonus += 1
+				e.pack_attack_bonus += 2
 				print("[%s] Packmate hurt — attack now +%d" % [e.enemy_name, e.pack_attack_bonus])
 
 # ============================================
@@ -3413,15 +3462,37 @@ func update_name_display() -> void:
 			_:
 				name_label.modulate = Color(1.0, 1.0, 1.0)
 
+const CONSUMED_EXPLOSION_DAMAGE: int = 8
+const CONSUMED_EXPLOSION_RANGE: float = 1.9   # adjacent tiles (incl. diagonals)
+
 func die() -> void:
 	is_dead = true
 	chosen_action = {}
 	print("[%s] Defeated!" % enemy_name)
+	if enemy_type == EnemyType.CONSUMED:
+		_consumed_explode()
 	died.emit(self)
 
 	# Hide tempo bar on death
 	if _tempo_bar_bg:
 		_tempo_bar_bg.visible = false
+	_die_visuals()
+
+func _consumed_explode() -> void:
+	## The Consumed: on death, explodes for damage to EVERYTHING nearby —
+	## the player and fellow enemies alike.
+	print("[%s] Bursts apart in a wave of hatred!" % enemy_name)
+	var main = get_parent()
+	if main and "player" in main and main.player and is_instance_valid(main.player):
+		var diff = main.player.position - position
+		if Vector3(diff.x, 0, diff.z).length() <= CONSUMED_EXPLOSION_RANGE:
+			_deal_damage_to_player(main.player, CONSUMED_EXPLOSION_DAMAGE, "Death Burst")
+	for e in _sibling_enemies():
+		if e != self and is_instance_valid(e) and e.is_alive():
+			if position.distance_to(e.position) <= CONSUMED_EXPLOSION_RANGE:
+				e.take_damage(CONSUMED_EXPLOSION_DAMAGE, false)
+
+func _die_visuals() -> void:
 	if _tempo_bar_fg:
 		_tempo_bar_fg.visible = false
 	if _action_label:
