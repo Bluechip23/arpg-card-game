@@ -1998,7 +1998,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 						print("[CARD] %s: applied %d %s on hit" % [sw.item_name, sw_amt, str(sw_pair[0])])
 		# Colored slots (Mauls Sabre): the slot's debuff payload, plus the
 		# combo bonus when this color was primed by the other one.
-		var slot_fx_late: Dictionary = slotted_in_item.get_slot_effect(self)
+		var slot_fx_late: Dictionary = slotted_in_item.get_slot_effect(self) if slotted_in_item else {}
 		if not slot_fx_late.is_empty() and target.has_method("apply_debuff"):
 			if int(slot_fx_late.get("weaken", 0)) > 0:
 				target.apply_debuff("weaken", int(slot_fx_late["weaken"]))
