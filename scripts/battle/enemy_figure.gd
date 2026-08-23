@@ -150,9 +150,75 @@ func _build() -> void:
 		"cherub": _build_cherub()
 		"djinn": _build_djinn()
 		"corrupted_archangel": _build_corrupted_archangel()
+		# Generic tiers / custom enemies (no bespoke art): a proper brute
+		# figure instead of the old floating coloured box.
+		"brute_minion": _build_brute(0)
+		"brute_elite": _build_brute(1)
+		"brute_boss": _build_brute(2)
 		_: _build_rat()
 	_collect_step_parts()
+	_auto_ground()
+	_attach_shadow()
 	_built = true
+
+# Kinds whose bodies deliberately ride above the ground (flyers, wraiths, the
+# gale-borne air mage) — auto-grounding must not pull them down.
+const HOVER_KINDS := {
+	"giant_hawk": true, "screecher": true, "swarm": true, "roc": true,
+	"wyvern": true, "snow_wraith": true, "specter": true, "ash_harpy": true,
+	"djinn": true, "air_mage": true, "cherub": true,
+}
+
+## The built model's bounds in figure-local space (across every visual part).
+func _visual_bounds() -> AABB:
+	var out := AABB()
+	var first := true
+	if not is_inside_tree():
+		return out
+	var inv := global_transform.affine_inverse()
+	for child in find_children("*", "VisualInstance3D", true, false):
+		if child.name == "Shadow":
+			continue  # the ground-plane shadow must not count as "feet"
+		var aabb: AABB = child.get_aabb()
+		var rel: Transform3D = inv * child.global_transform
+		for i in range(8):
+			var p: Vector3 = rel * aabb.get_endpoint(i)
+			if first:
+				out = AABB(p, Vector3.ZERO)
+				first = false
+			else:
+				out = out.expand(p)
+	return out
+
+## Feet exactly on the floor: measure the built model's lowest point and shift
+## the whole model so it neither hovers above y=0 nor sinks through it.
+## (Interaction pass: several builders left a small gap — the "floating a tiny
+## bit" — and a couple clipped under.) Hover kinds keep their deliberate gap.
+func _auto_ground() -> void:
+	if HOVER_KINDS.has(_kind) or not is_inside_tree():
+		return
+	var bounds := _visual_bounds()
+	if bounds.size == Vector3.ZERO:
+		return
+	var min_y := bounds.position.y
+	if absf(min_y) < 0.01:
+		return
+	for child in get_children():
+		if child is Node3D and child.name != "Shadow":  # shadow stays on the floor
+			child.position.y -= min_y
+	# Keep the idle-bob baseline honest for bob roots that are direct children.
+	if _bob_node and _bob_node.get_parent() == self:
+		_bob_y = _bob_node.position.y
+
+## Contact shadow (style guide §4) — the single strongest grounding cue. The
+## sprite figures already carry one; the procedural models never did, which is
+## most of why they read as floating. Sized from the model's real footprint.
+func _attach_shadow() -> void:
+	if not is_inside_tree() or has_node("Shadow"):
+		return
+	var bounds := _visual_bounds()
+	var width: float = clampf(maxf(bounds.size.x, bounds.size.z) * 0.8, 0.35, 1.8)
+	BlobShadow.attach(self, width)
 
 
 ## Gather the foot/paw meshes (children of the bob node) so the walk cycle can
@@ -1361,6 +1427,47 @@ func _build_zombie() -> void:
 	_bx(root, "Jaw", Vector3(0, 0.85, 0.16), Vector3(0.1, 0.04, 0.08), skin2)
 
 
+## Generic-tier brute (Minion / Elite / Boss and custom enemies): a stocky
+## humanoid thug in the tier's old box colour, so sprite-less enemies read as
+## creatures instead of crates. Elites add pauldrons; bosses grow and get horns.
+func _build_brute(tier: int) -> void:
+	_shadow(0.26 + tier * 0.05)
+	var skin: Color = [Color(0.8, 0.25, 0.22), Color(0.58, 0.14, 0.14), Color(0.42, 0.08, 0.24)][tier]
+	var skin2 := skin.lightened(0.18)
+	var cloth := Color(0.22, 0.18, 0.15)
+	var dark := Color(0.1, 0.08, 0.08)
+	var root := Node3D.new(); root.name = "Body"; add_child(root); _bob_node = root; _bob_y = 0.0
+	root.scale = Vector3.ONE * (1.0 + tier * 0.18)
+	_bx(root, "LegL", Vector3(-0.1, 0.19, 0), Vector3(0.14, 0.38, 0.14), cloth)
+	_bx(root, "LegR", Vector3(0.1, 0.19, 0), Vector3(0.14, 0.38, 0.14), cloth)
+	_bx(root, "FootL", Vector3(-0.1, 0.03, 0.04), Vector3(0.15, 0.06, 0.2), dark)
+	_bx(root, "FootR", Vector3(0.1, 0.03, 0.04), Vector3(0.15, 0.06, 0.2), dark)
+	_bx(root, "Torso", Vector3(0, 0.58, 0), Vector3(0.42, 0.42, 0.26), skin)
+	_bx(root, "Belt", Vector3(0, 0.4, 0), Vector3(0.44, 0.07, 0.28), dark)
+	_bx(root, "Chest", Vector3(0, 0.68, 0.1), Vector3(0.34, 0.18, 0.1), skin2)
+	# Arms on shoulder pivots so the attack swing works.
+	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.26, 0.74, 0); root.add_child(sh_l)
+	_cy(sh_l, "ArmL", Vector3(0, -0.16, 0), 0.055, 0.065, 0.34, skin); _sp(sh_l, "FistL", Vector3(0, -0.34, 0), 0.07, skin2)
+	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.26, 0.74, 0); root.add_child(sh_r)
+	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0), 0.055, 0.065, 0.34, skin); _sp(sh_r, "FistR", Vector3(0, -0.34, 0), 0.07, skin2)
+	_arm_l = sh_l; _arm_r = sh_r; _atk_pivot = sh_r; _atk_rest = Vector3.ZERO
+	# Head sunk into the shoulders, heavy brow.
+	_sp(root, "Head", Vector3(0, 0.92, 0.02), 0.15, skin)
+	_bx(root, "Brow", Vector3(0, 0.97, 0.11), Vector3(0.22, 0.05, 0.08), skin2)
+	_sp(root, "EyeL", Vector3(-0.06, 0.92, 0.14), 0.022, dark)
+	_sp(root, "EyeR", Vector3(0.06, 0.92, 0.14), 0.022, dark)
+	if tier >= 1:
+		# Elite: iron pauldrons.
+		_sp(root, "PadL", Vector3(-0.27, 0.82, 0), 0.1, Color(0.35, 0.35, 0.4), Vector3(1.0, 0.7, 1.0))
+		_sp(root, "PadR", Vector3(0.27, 0.82, 0), 0.1, Color(0.35, 0.35, 0.4), Vector3(1.0, 0.7, 1.0))
+	if tier >= 2:
+		# Boss: swept horns and burning eyes.
+		_cy(root, "HornL", Vector3(-0.11, 1.06, 0), 0.01, 0.035, 0.16, Color(0.85, 0.8, 0.65), Vector3(0, 0, 24))
+		_cy(root, "HornR", Vector3(0.11, 1.06, 0), 0.01, 0.035, 0.16, Color(0.85, 0.8, 0.65), Vector3(0, 0, -24))
+		_sp(root, "EyeGlowL", Vector3(-0.06, 0.92, 0.14), 0.024, Color(1.0, 0.6, 0.2), Vector3.ONE, true)
+		_sp(root, "EyeGlowR", Vector3(0.06, 0.92, 0.14), 0.024, Color(1.0, 0.6, 0.2), Vector3.ONE, true)
+
+
 ## Werewolf: bear-tall, grey, hunched, with long arms whose claws reach the ground.
 func _build_werewolf() -> void:
 	_shadow(0.34)
@@ -2492,7 +2599,9 @@ func _process(delta: float) -> void:
 	_time += delta
 	var freq := 5.0 if _walking else 2.0
 	var amp := 0.02 if _walking else 0.012
-	_bob_node.position.y = _bob_y + sin(_time * freq) * amp
+	# Positive-only bob: the body breathes UP from its rest — a full sine dips
+	# the feet through the floor half of every cycle.
+	_bob_node.position.y = _bob_y + maxf(0.0, sin(_time * freq)) * amp
 	# Step the feet while moving; ease them back to a planted stand otherwise.
 	if _walking:
 		_step_cycle()

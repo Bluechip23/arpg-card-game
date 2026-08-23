@@ -688,6 +688,12 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 	_setup_armor_bar()
 	_setup_sprite()
 
+	# Custom/generic-tier enemies keep the coloured box, which never had a
+	# contact shadow — the strongest grounding cue — so they read as floating.
+	# Figure kinds attach their own inside SpriteEnemyFigure / EnemyFigure.
+	if _enemy_figure == null and not has_node("Shadow"):
+		BlobShadow.attach(self, 0.62)
+
 	if grid_manager:
 		position = grid_manager.snap_to_grid(position)
 		target_position = position
@@ -764,8 +770,14 @@ func _setup_sprite() -> void:
 		EnemyType.CHERUB: kind = "cherub"
 		EnemyType.DJINN: kind = "djinn"
 		EnemyType.CORRUPTED_ARCHANGEL: kind = "corrupted_archangel"
+		# Generic tiers / custom enemies without bespoke art: a procedural
+		# brute figure in the tier's colour (the old floating coloured box
+		# never read as a creature).
+		EnemyType.MINION: kind = "brute_minion"
+		EnemyType.ELITE: kind = "brute_elite"
+		EnemyType.BOSS: kind = "brute_boss"
 		_:
-			return  # Generic tiers (Minion/Elite/Boss) keep their coloured box
+			return  # Unknown types keep their coloured box
 
 	figure_kind = kind
 	# Prefer the MonsterKit battler sprite when this kind has one; the
