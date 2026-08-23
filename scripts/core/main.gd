@@ -6006,6 +6006,8 @@ func _on_hand_updated() -> void:
 		# The instant stack has no play key — its badge reads AUTO instead.
 		var badge_letter: String = "" if group["slot"] == HandSlotsScript.INSTANT_SLOT else _slot_letter(group["slot"])
 		card_ui.set_keybind_badge(badge_letter, count, rep.is_slotted())
+		# Slotted chip: red dot + a glyph of the item type holding this card.
+		card_ui.set_slotted_item(rep.slotted_in_item)
 		group["card_ui"] = card_ui
 
 		var final_pos = Vector2(start_x + g * spacing, card_y)
