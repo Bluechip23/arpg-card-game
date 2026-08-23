@@ -174,15 +174,33 @@ var allowed_card_keywords: Array = []  # Empty = any card allowed. e.g. [Card.Ca
 var last_color_played: String = ""  # runtime: this item's color if its card was the most recent play, else ""
 
 ## The color of the slot the card occupies ("" when uncolored/not slotted).
+## The colored-slot index this card occupies. Stamped at slot time and kept
+## for the card's whole stay, so unslotting a NEIGHBOR never silently
+## reassigns this card's color, payload, or combo identity.
+func _slot_index_of(card) -> int:
+	if card != null and card is Object and card.has_meta("slot_color_index"):
+		return int(card.get_meta("slot_color_index"))
+	return slotted_cards.find(card)
+
+## The lowest colored-slot index not currently occupied (-1 when full).
+func _next_free_slot_index() -> int:
+	var taken := {}
+	for c in slotted_cards:
+		taken[_slot_index_of(c)] = true
+	for i in range(card_slots):
+		if not taken.has(i):
+			return i
+	return -1
+
 func get_slot_color(card) -> String:
-	var idx = slotted_cards.find(card)
+	var idx = _slot_index_of(card)
 	if idx >= 0 and idx < slot_colors.size():
 		return str(slot_colors[idx])
 	return ""
 
 ## The payload of the colored slot the card occupies ({} when none).
 func get_slot_effect(card) -> Dictionary:
-	var idx = slotted_cards.find(card)
+	var idx = _slot_index_of(card)
 	if idx >= 0 and idx < slot_effects.size() and slot_effects[idx] is Dictionary:
 		return slot_effects[idx]
 	return {}
@@ -412,7 +430,7 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 # Boots pass-2 passive riders
 @export var sidestep_bonus_armor: int = 0          # +armor on a flash sidestep (Titanium Toe Tuckers 2)
 @export var movement_flash_discount: int = 0       # movement flash costs X less (Rollerblades 1)
-@export var movement_flash_tempo_threshold: int = 0  # after X movement flash spent, -1 tempo from a hand card (Boots of Speed 51)
+@export var movement_flash_tempo_threshold: int = 0  # after X movement flash spent, -1 tempo from a hand card (Boots of Speed 36)
 @export var highground_damage_percent: float = 0.0  # +X% damage while attacking from high ground (Mountain Boots 20)
 @export var trap_damage_percent: float = 0.0        # traps you spring on ENEMIES deal +X% (Hermes Boots 25)
 @export var missing_life_damage_rate: float = 0.0   # +rate × enemy missing-health% as bonus damage (Jordan 1s 0.5)
@@ -775,17 +793,22 @@ func can_slot_card(card) -> bool:
 	# slotted into anything (including the item that granted it).
 	if card.granted_by_item != null:
 		return false
+	# One home per card: a card already enchanted into an item can't also be
+	# slotted into another.
+	if card.slotted_in_item != null:
+		return false
 	# Check Picky compatibility: card must go into same item type it came from
 	if card.slot_compatibility == 0 and card.source_item_type >= 0:  # PICKY = 0
 		if card.source_item_type != item_type:
 			return false
 	# Feral Evocation: each colored slot takes only a card of its element —
-	# red Burn, blue Cold, yellow Shock, green Poison. Slots fill in order, so
-	# the next free slot's color is the gate.
-	if feral_weapon and slotted_cards.size() < slot_colors.size():
-		var feral_slot_color = str(slot_colors[slotted_cards.size()])
-		if card.element != feral_slot_color:
-			return false
+	# red Burn, blue Cold, yellow Shock, green Poison. The lowest FREE slot's
+	# color is the gate (an unslotted middle element can be refilled).
+	if feral_weapon:
+		var feral_idx := _next_free_slot_index()
+		if feral_idx >= 0 and feral_idx < slot_colors.size():
+			if card.element != str(slot_colors[feral_idx]):
+				return false
 	# Check card keyword compatibility
 	# If item has explicit allowed_card_keywords, use those
 	if allowed_card_keywords.size() > 0:
@@ -818,7 +841,11 @@ func _get_default_keyword_for_item_type() -> int:
 func slot_card(card) -> bool:
 	if not can_slot_card(card):
 		return false
+	# Stamp the slot the card takes (the lowest free one) BEFORE appending, so
+	# its color/payload identity survives neighbors unslotting.
+	var free_idx := _next_free_slot_index()
 	slotted_cards.append(card)
+	card.set_meta("slot_color_index", free_idx if free_idx >= 0 else slotted_cards.size() - 1)
 	card.slotted_in_item = self
 	# Laurentius's Lost Spear: slotted self-target cards may also aim at allies.
 	if on_self_self_targets_allies and card.target_types.has("self") and not card.target_types.has("ally"):
@@ -836,6 +863,8 @@ func unslot_card(card_index: int):
 		return null
 	slotted_cards.remove_at(card_index)
 	card.slotted_in_item = null
+	if card.has_meta("slot_color_index"):
+		card.remove_meta("slot_color_index")
 	# Take back the Laurentius ally-targeting grant with the slot.
 	if card.get_meta("ally_target_granted", false):
 		card.target_types.erase("ally")
@@ -1161,7 +1190,7 @@ static func create_hannibals_mask() -> ItemData:
 	var item = _new_helm("Hannibals Mask", Rarity.MYTHIC, 5)
 	item.health_bonus = 25
 	item.card_slots = 2
-	item.lifesteal_percent = 15.0
+	item.on_self_lifesteal_percent = 15.0  # slotted cards only, per the description
 	var hannibals_cards: Array[String] = ["resourceful_replenish"]
 	item.granted_card_ids = hannibals_cards
 	item.description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 5% (20 mana, 2 tempo)."
@@ -1639,7 +1668,7 @@ static func create_gauntlets_of_dungeon_mastering() -> ItemData:
 	item.on_self_summon_wolf = 1
 	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4)
 	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
-	item.level_3_description = "+3 WIS, +4 INT, +3 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
+	item.level_3_description = "+4 WIS, +5 INT, +4 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
 	_set_appearance(item, "gauntlets_of_dungeon_mastering",
 		"Silver gauntlets with a twenty-sided die set on each of the knuckles.")
 	item.description = "+3 WIS, +4 INT, +3 STR. On-self: summon a wolf, up to a pack of 3 (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
@@ -1653,7 +1682,7 @@ static func create_hallowed_trunk() -> ItemData:
 	item.armor_loss_regen_threshold = 10
 	_set_skill(item, "imbue tree", "Gain 5 regen and 10 thorns.", "imbue_tree", 2)
 	item.level_3_overrides = {"health_bonus": 30, "regen_include_health": true}
-	item.level_3_description = "+10 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
+	item.level_3_description = "+11 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
 	_set_appearance(item, "hallowed_trunk",
 		"A hollowed-out tree trunk, worn over the arm, with fluorescent green butterflies resting on the bark.")
 	item.description = "+10 STR, +15 life, -3 DEX. Every 10 armor removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
@@ -2168,7 +2197,7 @@ static func create_poseidons_trident() -> ItemData:
 	# Wrath of the Sea granting 18 mana per enemy at Lv.3 is read live off
 	# item_level (see main's wrath_of_the_sea world case).
 	item.level_3_overrides = {"health_bonus": 20, "mana_bonus": 35, "pierce_targets": 3}
-	item.level_3_description = "+10 INT, +8 WIS, +20 health, +35 mana. Your attacks strike 3 squares in a line. Grants Wrath of the Sea: spend half your current mana, blink, and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst — all of them shoved to its edge; gain 18 mana per enemy hit (8 tempo)."
+	item.level_3_description = "+11 INT, +9 WIS, +21 health, +36 mana. Your attacks strike 3 squares in a line. Grants Wrath of the Sea: spend half your current mana, blink, and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst — all of them shoved to its edge; gain 18 mana per enemy hit (8 tempo)."
 	_set_appearance(item, "poseidons_trident",
 		"Poseidon's trident.")
 	item.description = "+10 INT, +8 WIS, +15 health, +25 mana. Your attacks strike 2 squares in a line. Grants Wrath of the Sea: spend half your current mana, blink, and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst — all of them shoved to its edge; gain 15 mana per enemy hit (8 tempo)."
@@ -2183,7 +2212,7 @@ static func create_sword_of_theseus() -> ItemData:
 	item.on_self_apply_slow = 2
 	item.on_self_slow_damage_per_stack = 1
 	item.level_3_overrides = {"lifesteal_percent": 8.0, "on_self_apply_slow": 3}
-	item.level_3_description = "+8 STR, +7 DET, 8% lifesteal. 5 card slots. On-self: attacks apply 3 Slow and deal +1 damage per Slow already on the target."
+	item.level_3_description = "+9 STR, +8 DET, 8% lifesteal. 5 card slots. On-self: attacks apply 3 Slow and deal +1 damage per Slow already on the target."
 	_set_appearance(item, "sword_of_theseus",
 		"A long broadsword with a minotaur head as the grip and horns as the cross-guards. A second small blade juts from the pommel.")
 	item.description = "+8 STR, +7 DET, 5% lifesteal. 5 card slots. On-self: attacks apply 2 Slow and deal +1 damage per Slow already on the target."
@@ -2203,7 +2232,7 @@ static func create_umbral_eclipse() -> ItemData:
 	# Monk of the Night converting 15% at Lv.3 is read live off item_level
 	# (see the maintained-block conversion in Card.execute).
 	item.level_3_overrides = {"armor_gain_melee_damage": 8, "insight_flash_restore": 3}
-	item.level_3_description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 8 damage to an enemy in melee range. Insight draws restore 3 flash points. Grants Monk of the Night (Maintain): attack cards grant 15% of their damage as block (50 mana, 4 tempo)."
+	item.level_3_description = "+9 WIS, +9 AGI, +4 STR, +16 mana. Gaining armor deals 8 damage to an enemy in melee range. Insight draws restore 3 flash points. Grants Monk of the Night (Maintain): attack cards grant 15% of their damage as block (50 mana, 4 tempo)."
 	_set_appearance(item, "umbral_eclipse",
 		"A double-sided hammer — a head on both ends of the shaft — with the full lunar cycle inlaid along the handle and a full moon on both hammer faces.")
 	item.description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 5 damage to an enemy in melee range. Insight draws restore 2 flash points. Grants Monk of the Night (Maintain): attack cards grant 10% of their damage as block (50 mana, 4 tempo)."
@@ -2409,7 +2438,7 @@ static func create_tigers_sunday_red() -> ItemData:
 	item.ranged_range_bonus = 1
 	item.hp_diff_damage_divisor = 4
 	item.level_3_overrides = {"on_self_offensive_heal_percent": 6.0, "hp_diff_damage_divisor": 3}
-	item.level_3_description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 6% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 3 (never below 0)."
+	item.level_3_description = "+16 health, +6 AGI, +6 DEX. On-self: offensive cards heal you 6% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 3 (never below 0)."
 	_set_appearance(item, "tigers_sunday_red",
 		"Red Polo.")
 	item.description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 3% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 4 (never below 0)."
@@ -2424,7 +2453,7 @@ static func create_divine_resistance() -> ItemData:
 	var dr_cards: Array[String] = ["preemptive_answer"]
 	item.granted_card_ids = dr_cards
 	item.level_3_overrides = {"resist_per_missing10": 1.5, "resist_missing_step": 7}
-	item.level_3_description = "+45 health, +5 STR. Gain 1.5% resistance to all damage types per 7% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
+	item.level_3_description = "+46 health, +6 STR. Gain 1.5% resistance to all damage types per 7% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
 	_set_appearance(item, "divine_resistance",
 		"Shiny silver chest, with a crescent moon and sun on the chest.")
 	item.description = "+45 health, +5 STR. Gain 1% resistance to all damage types per 8% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
@@ -2442,7 +2471,7 @@ static func create_hide_of_garmr() -> ItemData:
 	# live off item_level (see Card.execute's ragnarok case).
 	item.level_3_overrides = {"agility_bonus": 9, "dexterity_bonus": 9, "strength_bonus": 9,
 		"death_crit_stack_radius": 2, "death_crit_damage_per_stack": 5.0}
-	item.level_3_description = "+25 health, +9 AGI, +9 DEX, +9 STR. When there is a death of any kind within 2 squares of you (your own summons included), gain a stack: each stack grants +5% crit damage. At 5 stacks, purge them all and take 10% of your current health as damage. Grants Ragnarok: release all jailed cards into your hand — for each, heal 15 and gain 10% crit chance and 7 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
+	item.level_3_description = "+26 health, +9 AGI, +9 DEX, +9 STR. When there is a death of any kind within 2 squares of you (your own summons included), gain a stack: each stack grants +5% crit damage. At 5 stacks, purge them all and take 10% of your current health as damage. Grants Ragnarok: release all jailed cards into your hand — for each, heal 15 and gain 10% crit chance and 7 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
 	_set_appearance(item, "hide_of_garmr",
 		"Furry grey hide in the shape of a chest piece, a spiked collar and a wolf head at the chest.")
 	item.description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
@@ -2639,7 +2668,7 @@ static func create_bow_of_arash() -> ItemData:
 	var ba_cards: Array[String] = ["territorial_mark"]
 	item.granted_card_ids = ba_cards
 	item.level_3_overrides = {"ranged_range_bonus": 3, "agility_bonus": 6}
-	item.level_3_description = "+3 range on ranged cards, +6 AGI, +2 DEX, +4 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
+	item.level_3_description = "+3 range on ranged cards, +7 AGI, +3 DEX, +5 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
 	_set_appearance(item, "bow_of_arash",
 		"A longbow of divine origin: golden limbs, a bright string, and the blue glisten of its territorial mark drifting off the wood.")
 	item.description = "+2 range on ranged cards, +5 AGI, +2 DEX, +4 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
@@ -2657,7 +2686,7 @@ static func create_belthronding() -> ItemData:
 	var bt_cards: Array[String] = ["balistic_arrow"]
 	item.granted_card_ids = bt_cards
 	item.level_3_overrides = {"strength_bonus": 12, "dexterity_bonus": 10}
-	item.level_3_description = "+12 STR, +20 health, +10 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
+	item.level_3_description = "+13 STR, +21 health, +11 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
 	_set_appearance(item, "belthronding",
 		"Crafted entirely from rare, dark black yew-wood, its stiff ends fitted with hard animal horn.")
 	item.description = "+10 STR, +20 health, +8 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
@@ -3063,7 +3092,7 @@ static func create_wand_of_the_phoenix_feather() -> ItemData:
 	# From the Ashes healing x8 / regen 3/4 at Lv.3 is read live off item_level
 	# (see _execute_from_the_ashes in Card).
 	item.level_3_overrides = {"health_bonus": 45}
-	item.level_3_description = "+45 health, +4 WIS. 2 card slots. Applying Burn to an enemy burns you 1 — once per play, not per stack. Grants From the Ashes: purge ALL your Burn; every enemy within 3 squares takes 5 damage per stack purged, you heal 8 per stack and gain Regen equal to three quarters of it (80 mana, 2 tempo)."
+	item.level_3_description = "+46 health, +5 WIS. 2 card slots. Applying Burn to an enemy burns you 1 — once per play, not per stack. Grants From the Ashes: purge ALL your Burn; every enemy within 3 squares takes 5 damage per stack purged, you heal 8 per stack and gain Regen equal to three quarters of it (80 mana, 2 tempo)."
 	_set_appearance(item, "wand_of_the_phoenix_feather",
 		"A red wand shaped like a single long feather, with a phoenix head at the pommel.")
 	item.description = "+25 health, +4 WIS. 2 card slots. Applying Burn to an enemy burns you 1 — once per play, not per stack. Grants From the Ashes: purge ALL your Burn; every enemy within 3 squares takes 5 damage per stack purged, you heal 5 per stack and gain Regen equal to half of it (80 mana, 2 tempo)."
@@ -3080,7 +3109,7 @@ static func create_circes_wand_of_cauldron_stirring() -> ItemData:
 	item.granted_card_ids = cw_cards
 	var cw_cards_l3: Array[String] = ["polymorph", "polymorph", "polymorph"]
 	item.level_3_overrides = {"granted_card_ids": cw_cards_l3}
-	item.level_3_description = "+8 WIS, -5 STR, +20 mana. 1 card slot. Your damaging attacks apply 1 Silence. Grants THREE copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
+	item.level_3_description = "+9 WIS, -5 STR, +21 mana. 1 card slot. Your damaging attacks apply 1 Silence. Grants THREE copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
 	_set_appearance(item, "circes_wand_of_cauldron_stirring",
 		"A thin tree branch with smaller living branches coiled around its length — the sorceress's wand exactly as the tale tells it.")
 	item.description = "+8 WIS, -5 STR, +20 mana. 1 card slot. Your damaging attacks apply 1 Silence. Grants TWO copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
@@ -3100,7 +3129,7 @@ static func create_reaper_scythe() -> ItemData:
 	# Reaper's Taking hitting for 35 at Lv.3 is read live off item_level
 	# (see _execute_reapers_taking in Card).
 	item.level_3_overrides = {"wisdom_bonus": 10, "dexterity_bonus": 4}
-	item.level_3_description = "+10 WIS, +8 STR, +4 DEX, -5 AGI. 1 card slot. Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 35 damage."
+	item.level_3_description = "+11 WIS, +9 STR, +5 DEX, -5 AGI. 1 card slot. Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 35 damage."
 	_set_appearance(item, "reaper_scythe",
 		"A towering reaper's scythe, a blue substance forever dripping from the edge of its blade.")
 	item.description = "+8 WIS, +8 STR, +3 DEX, -5 AGI. 1 card slot. Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."
@@ -3124,7 +3153,7 @@ static func create_feral_evocation() -> ItemData:
 		"card_slots": 5, "feral_change_damage": 6,
 		"slot_colors": ["red", "blue", "yellow", "green", "red"],
 		"slot_effects": [{}, {}, {}, {}, {}]}
-	item.level_3_description = "+5 WIS, +12 INT, +15 mana. Two-handed. Five elemental slots — red (Burn) x2, blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 6 damage to a random enemy within 4 squares."
+	item.level_3_description = "+6 WIS, +13 INT, +16 mana. Two-handed. Five elemental slots — red (Burn) x2, blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 6 damage to a random enemy within 4 squares."
 	_set_appearance(item, "feral_evocation",
 		"A great white staff crowned by a tiger's open mouth, a purple orb glowing between its fangs.")
 	item.description = "+5 WIS, +10 INT. Two-handed. Four elemental slots — red (Burn), blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 4 damage to a random enemy within 4 squares."
@@ -3252,7 +3281,7 @@ static func create_the_precious() -> ItemData:
 	item.intelligence_bonus = -2
 	item.wisdom_bonus = 2
 	item.level_3_overrides = {"dexterity_bonus": 8}
-	item.level_3_description = "+150 mana. +8 DEX, -2 INT, +2 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. TWO ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
+	item.level_3_description = "+151 mana. +9 DEX, -2 INT, +3 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. TWO ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
 	_set_appearance(item, "the_precious",
 		"A plain gold ring with elvish writing traced faintly around the band.")
 	item.description = "+150 mana. +5 DEX, -2 INT, +2 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. THREE ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
@@ -3265,7 +3294,7 @@ static func create_ring_of_nibelung() -> ItemData:
 	item.wisdom_bonus = 2
 	var rn_cards: Array[String] = ["tricks_of_alberich"]
 	item.granted_card_ids = rn_cards
-	item.level_3_description = "+150 mana. +10 health, +5 INT, +2 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand at 1.5x the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
+	item.level_3_description = "+151 mana. +11 health, +6 INT, +3 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand at 1.5x the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
 	_set_appearance(item, "ring_of_nibelung",
 		"A plain band forged of Rhine-gold, Alberich's curse gleaming red in its heart.")
 	item.description = "+150 mana. +10 health, +5 INT, +2 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand carrying the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
@@ -3276,7 +3305,7 @@ static func create_draupnir() -> ItemData:
 	item.strength_bonus = 5
 	item.intelligence_bonus = 8
 	item.level_3_overrides = {"intelligence_bonus": 10}
-	item.level_3_description = "+150 mana. +5 STR, +10 INT. Every 9th hit you take, the ring drips a duplicate of you: half your health, attacks for 3/4 of your basic attack every 7 tempo (its swings feed your attack-speed counter), moves 2 squares per 3 tempo, uncontrollable. Only one at a time — the trigger waits while one walks. When a duplicate dies, gain Strengthen 10 for 2 attacks."
+	item.level_3_description = "+151 mana. +6 STR, +11 INT. Every 9th hit you take, the ring drips a duplicate of you: half your health, attacks for 3/4 of your basic attack every 7 tempo (its swings feed your attack-speed counter), moves 2 squares per 3 tempo, uncontrollable. Only one at a time — the trigger waits while one walks. When a duplicate dies, gain Strengthen 10 for 2 attacks."
 	_set_appearance(item, "draupnir",
 		"Exactly like the Viking Draupnir: a heavy gold arm-ring dripping smaller rings of itself.")
 	item.description = "+150 mana. +5 STR, +8 INT. Every 9th hit you take, the ring drips a duplicate of you: a quarter of your health, attacks for half your basic attack every 7 tempo (its swings feed your attack-speed counter), moves 2 squares per 3 tempo, uncontrollable. Only one at a time — the trigger waits while one walks. When a duplicate dies, gain Strengthen 10 for 2 attacks."
@@ -3287,7 +3316,7 @@ static func create_ring_of_thomas_the_train_tracks() -> ItemData:
 	item.determination_bonus = 5
 	item.health_bonus = 10
 	item.level_3_overrides = {"determination_bonus": 8}
-	item.level_3_description = "+150 mana. +8 DET, +10 health. Shuffling your deck grants 10 Regen; every 2nd shuffle also heals 35."
+	item.level_3_description = "+151 mana. +9 DET, +11 health. Shuffling your deck grants 10 Regen; every 2nd shuffle also heals 35."
 	_set_appearance(item, "ring_of_thomas_the_train_tracks",
 		"A ring whose band is laid train track — and where the diamond should sit, the smiling face of Thomas the Tank Engine.")
 	item.description = "+150 mana. +5 DET, +10 health. Shuffling your deck grants 7 Regen; every 3rd shuffle also heals 25."
@@ -3311,10 +3340,18 @@ static func get_all_items() -> Array[ItemData]:
 
 ## Fresh level-1 instances of every item of the given rarity (used for
 ## rarity-weighted loot and for redeeming Mythic Molds).
+# Items that exist in the factory list but must never roll as random loot:
+# the Return Scroll (a utility every character already carries) and Olorin's
+# tutorial trade sword. (The Bladed Doughnut stays listed — Mythic Mold
+# redemption enumerates mythics through get_items_of_rarity.)
+const DROP_EXCLUDED_ITEM_NAMES := {
+	"Return Scroll": true, "Wooden Sword": true,
+}
+
 static func get_items_of_rarity(r: Rarity) -> Array[ItemData]:
 	var items: Array[ItemData] = []
 	for item in get_all_items():
-		if item.rarity == r:
+		if item.rarity == r and not DROP_EXCLUDED_ITEM_NAMES.has(item.item_name):
 			items.append(item)
 	return items
 

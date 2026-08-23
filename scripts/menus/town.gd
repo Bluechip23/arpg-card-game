@@ -640,7 +640,10 @@ func _get_all_cards() -> Array[Card]:
 		var method_name: String = method["name"]
 		if method_name.begins_with("create_") and method["args"].size() == 0:
 			var card = card_script.call(method_name)
-			if card is Card and not card.shop_excluded:
+			# Item-kit and token cards (DROP_EXCLUDED) are never sold either —
+			# they only enter play through the item or effect that owns them.
+			if card is Card and not card.shop_excluded \
+					and not Card.DROP_EXCLUDED_CARD_IDS.has(card.card_id):
 				cards.append(card)
 	# Sort by card type then name
 	cards.sort_custom(func(a, b):
@@ -749,7 +752,10 @@ func _get_player_items_for_vendor(vendor_type: String) -> Array[Dictionary]:
 	for slot_type in slot_types:
 		var slot_array = inventory._get_slot_array(slot_type)
 		for i in range(slot_array.size()):
-			if slot_array[i] != null:
+			# Filter by the item's ACTUAL type: quivers share the weapon slot
+			# array, so without this every weapon would list twice (and under
+			# the accessory vendor).
+			if slot_array[i] != null and slot_array[i].item_type == slot_type:
 				result.append({"item": slot_array[i], "slot_type": slot_type, "slot_index": i})
 
 	# Also include stored items
@@ -1476,6 +1482,15 @@ func _on_sell_item_confirmed() -> void:
 		_close_detail_modal()
 		return
 
+	# Enchanted cards live ON the item — selling it would destroy them
+	# silently (the same invariant the Item Forge enforces for fodder).
+	# The player must unslot the cards first.
+	if _detail_item.slotted_cards.size() > 0:
+		print("[TOWN] Cannot sell %s — it holds %d enchanted card(s). Unslot them first." % [
+			_detail_item.item_name, _detail_item.slotted_cards.size()])
+		_close_detail_modal()
+		return
+
 	if _detail_sell_slot_type >= 0:
 		# Equipped item — unequip it
 		inventory.unequip_item(_detail_sell_slot_type, _detail_sell_slot_index)
@@ -1656,9 +1671,58 @@ func _on_buy_card_confirmed() -> void:
 		return
 
 	starting_character.purchased_card_ids.append(_detail_card.card_id)
+	# Once a deck_state snapshot exists (any world transition has happened),
+	# restore_deck_state rebuilds the deck from IT, not from the character's
+	# card lists — so the purchase must also land in the snapshot or the
+	# bought card never reaches the deck.
+	_deck_state_add_card(_detail_card.card_id)
 	print("[TOWN] Added %s to deck (purchased_card_ids: %d)" % [_detail_card.card_name, starting_character.purchased_card_ids.size()])
 	_close_detail_modal()
 	_refresh_vendor_panel()
+
+## The carried deck snapshot ({} when the character has never left the first
+## battle scene — the deck is then built fresh from the character's lists).
+func _deck_state() -> Dictionary:
+	return player_progression.get("deck_state", {})
+
+## Add a newly bought card to the carried deck snapshot's draw pile — both the
+## disk-safe data list and (when present) the live Card references.
+func _deck_state_add_card(card_id: String) -> void:
+	var state: Dictionary = _deck_state()
+	if state.is_empty():
+		return
+	if not state.has("draw_pile"):
+		state["draw_pile"] = []
+	state["draw_pile"].append({"id": card_id})
+	if state.has("live"):
+		var card = Card.create_by_id(card_id)
+		if card:
+			if not state["live"].has("draw_pile"):
+				state["live"]["draw_pile"] = []
+			state["live"]["draw_pile"].append(card)
+	print("[TOWN] Deck snapshot: added %s to the draw pile" % card_id)
+
+## Remove one copy of a card from the carried deck snapshot (culling).
+func _deck_state_remove_card(card_id: String) -> bool:
+	var state: Dictionary = _deck_state()
+	if state.is_empty():
+		return false
+	for pile in ["hand", "draw_pile", "discard_pile", "jail_pile", "maintained"]:
+		var data_list: Array = state.get(pile, [])
+		for i in range(data_list.size()):
+			var e = data_list[i]
+			var eid: String = e.get("id", "") if e is Dictionary else str(e)
+			if eid == card_id:
+				data_list.remove_at(i)
+				if state.has("live"):
+					var live_pile: Array = state["live"].get(pile, [])
+					for j in range(live_pile.size()):
+						if live_pile[j].card_id == card_id:
+							live_pile.remove_at(j)
+							break
+				print("[TOWN] Deck snapshot: culled %s from %s" % [card_id, pile])
+				return true
+	return false
 
 # ============================================
 # CULLING STONE CONFIRMATION
@@ -1696,6 +1760,10 @@ func _on_cull_stone_confirmed() -> void:
 		return
 
 	var card_id = deck_ids[_pending_cull_index]
+
+	# The deck snapshot (when one exists) is what the deck is rebuilt from
+	# after town — cull there too or the card comes right back.
+	_deck_state_remove_card(card_id)
 
 	# Try to remove from purchased_card_ids first
 	var purchased_idx = starting_character.purchased_card_ids.find(card_id)

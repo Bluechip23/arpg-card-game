@@ -584,8 +584,36 @@ func initialize(data: CharacterData) -> void:
 
 ## Capture all persistent progression state into a dictionary for world transitions.
 ## This preserves everything that accumulates during gameplay and must survive scene changes.
+# Every equipment-derived channel field _apply_item_bonuses (and the weapon
+# synergy recompute) can write. Equipment is re-installed on load by direct
+# array assignment with NO _apply_item_bonuses re-run, so every one of these
+# must round-trip through save/restore_progression or the equipped item's
+# bonus silently vanishes after a world transition.
+const EQUIPMENT_SAVE_FIELDS: Array[String] = [
+	"equipment_hand_bonus", "ranged_damage_bonus", "healing_bonus", "chance_boost",
+	"equipment_crit_bonus", "equipment_lifesteal_bonus", "equipment_resistance_bonus",
+	"equipment_defense_card_block", "equipment_armorless_defense_block",
+	"equipment_brain_points_bonus", "equipment_peek_discount",
+	"equipment_spell_power_every_n", "equipment_spell_power_amount",
+	"equipment_sidestep_bonus_armor", "equipment_movement_flash_discount",
+	"equipment_highground_damage_percent", "equipment_melee_crit_bonus",
+	"equipment_trap_damage_percent", "movement_flash_tempo_threshold",
+	"consecutive_attacks_draw_at", "equipment_crit_damage_bonus",
+	"equipment_attack_card_damage", "equipment_melee_card_damage",
+	"equipment_heal_maxhp_percent", "equipment_armor_loss_regen_threshold",
+	"equipment_regen_include_health", "equipment_hp_diff_divisor",
+	"equipment_armor_shred", "equipment_attack_speed_penalty",
+	"equipment_block_physical_resist", "equipment_flash_bonus",
+	"equipment_flat_damage_reduction", "equipment_gold_gain_heal",
+	"equipment_low_health_lifesteal", "equipment_ranged_range_bonus",
+	"equipment_resist_missing_step", "death_stack_crit_damage",
+	"free_hand_stance", "movement_tempo_surcharge",
+	"equipment_melee_reach", "equipment_shield_melee_damage",
+	"improvised_ammo_crit_bonus",
+]
+
 func save_progression() -> Dictionary:
-	return {
+	var out := {
 		# Level / XP
 		"current_level": current_level,
 		"current_xp": current_xp,
@@ -680,17 +708,13 @@ func save_progression() -> Dictionary:
 		"damage_proc_reduction_chance": damage_proc_reduction_chance,
 		"damage_proc_reduction_percent": damage_proc_reduction_percent,
 		"damage_resistances": damage_resistances.duplicate(true),
-		# Equipment-derived bonuses stored OUTSIDE base stats. Equipment is
-		# re-installed on load by direct array assignment (no _apply_item_bonuses
-		# re-run), so these too must round-trip or an equipped item's hand-size /
-		# ranged / healing / chance bonus vanishes after a transition.
-		"equipment_hand_bonus": equipment_hand_bonus,
-		"ranged_damage_bonus": ranged_damage_bonus,
-		"healing_bonus": healing_bonus,
-		"chance_boost": chance_boost,
 		# Skill tree passives
 		"skill_tree_passives": skill_tree_passives.duplicate(),
 	}
+	# Equipment-derived channel fields (see EQUIPMENT_SAVE_FIELDS).
+	for f in EQUIPMENT_SAVE_FIELDS:
+		out[f] = get(f)
+	return out
 
 ## Restore persistent progression state from a dictionary after scene transition.
 func restore_progression(data: Dictionary) -> void:
@@ -787,11 +811,10 @@ func restore_progression(data: Dictionary) -> void:
 	damage_proc_reduction_chance = data.get("damage_proc_reduction_chance", damage_proc_reduction_chance)
 	damage_proc_reduction_percent = data.get("damage_proc_reduction_percent", damage_proc_reduction_percent)
 	damage_resistances = data.get("damage_resistances", damage_resistances)
-	# Equipment-derived bonuses stored outside base stats (see save_progression).
-	equipment_hand_bonus = data.get("equipment_hand_bonus", equipment_hand_bonus)
-	ranged_damage_bonus = data.get("ranged_damage_bonus", ranged_damage_bonus)
-	healing_bonus = data.get("healing_bonus", healing_bonus)
-	chance_boost = data.get("chance_boost", chance_boost)
+	# Equipment-derived channel fields (see EQUIPMENT_SAVE_FIELDS).
+	for f in EQUIPMENT_SAVE_FIELDS:
+		if data.has(f):
+			set(f, data[f])
 	# Skill tree passives. assign() converts untyped arrays (JSON-restored
 	# saves) into the typed Array[String] instead of failing the assignment.
 	if data.has("skill_tree_passives"):
@@ -1593,6 +1616,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# this later, but this is the baseline.
 	if current_armor > 0 and remaining > 0:
 		var armor_before := current_armor
+		var armor_broke := false
 		if current_armor >= remaining:
 			current_armor -= remaining
 			remaining = 0
@@ -1605,16 +1629,21 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 			# Reverberate Regrowth reads what the breaking hit actually ate.
 			last_exposed_armor = armor_before
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
-			# Briarhide / Adimantium: the shell cracked — armored chests react.
-			# The reaction armor arrives AFTER this hit resolves.
-			armor_broken.emit()
+			armor_broke = true
 
-		# Hallowed Trunk: bank armor lost toward regen stacks.
+		# Hallowed Trunk: bank the armor THIS hit removed. Computed before the
+		# armor_broken reaction below, whose fresh armor (Briarhide/Adimantium)
+		# would otherwise corrupt the delta.
 		if equipment_armor_loss_regen_threshold > 0 and buff_mgr:
 			_armor_loss_accum += armor_before - current_armor
 			while _armor_loss_accum >= equipment_armor_loss_regen_threshold:
 				_armor_loss_accum -= equipment_armor_loss_regen_threshold
 				buff_mgr.apply_buff(Buff.create_regen(1, 15, "Hallowed Trunk"))
+
+		if armor_broke:
+			# Briarhide / Adimantium: the shell cracked — armored chests react.
+			# The reaction armor arrives AFTER this hit resolves.
+			armor_broken.emit()
 
 		armor_changed.emit(current_armor)
 
@@ -1654,6 +1683,12 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 
 		if _crossed_threshold(old_pct, get_health_percent()):
 			recalculate_derived_stats()
+
+	# Shield of Growth: while the buff holds, all damage done to you grows your
+	# armor by the same amount (the armor lands AFTER the hit resolves).
+	if buff_mgr and amount > 0 and buff_mgr.get_buff(Buff.BuffType.SHIELD_OF_GROWTH):
+		add_armor(amount)
+		print("[STATS] Shield of Growth: +%d armor from the hit" % amount)
 
 	# Emit damage_taken for reaction card triggers
 	damage_taken.emit(amount)

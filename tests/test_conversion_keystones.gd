@@ -102,16 +102,17 @@ func _test_arcane_blood() -> void:
 	stats.current_armor = 0
 	stats.current_temp_health = 0
 	stats.current_health = 30
-	stats.current_mana = 10.0
+	stats.current_mana = 100.0
 
-	# 10 damage -> 5 mana, 5 health.
+	# Post mana rescale the exchange rate is 10 mana per 1 damage soaked.
+	# 10 damage -> mana soaks 5 (50 mana), health takes 5.
 	stats.take_damage(10)
-	_check(stats.current_health == 25 and int(stats.current_mana) == 5,
-		"10 damage split evenly: HP 30->%d, mana 10->%d" % [stats.current_health, int(stats.current_mana)])
+	_check(stats.current_health == 25 and int(stats.current_mana) == 50,
+		"10 damage split evenly: HP 30->%d, mana 100->%d" % [stats.current_health, int(stats.current_mana)])
 
-	# Odd damage -> health takes the extra point (7 -> 4 HP / 3 mana).
+	# Odd damage -> health takes the extra point (7 -> 4 HP / 3-damage mana share).
 	stats.take_damage(7)
-	_check(stats.current_health == 21 and int(stats.current_mana) == 2,
+	_check(stats.current_health == 21 and int(stats.current_mana) == 20,
 		"odd split gives health the extra point: HP %d, mana %d" % [stats.current_health, int(stats.current_mana)])
 
 	# Mana can't cover its share -> health takes the leftover (10 -> mana soaks 2, HP takes 8).
