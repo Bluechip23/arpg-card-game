@@ -266,7 +266,10 @@ func _build_card_factory_map() -> void:
 	var card_script: Script = Card
 	for method in card_script.get_script_method_list():
 		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
+		# Factories with only DEFAULTED args count too (rank-scaled conjured
+		# cards like energy_barrier) — they rebuild at their default values.
+		if method_name.begins_with("create_") \
+				and method["args"].size() - method["default_args"].size() == 0:
 			var card = card_script.call(method_name)
 			if card is Card:
 				_card_factory_map[card.card_id] = method_name

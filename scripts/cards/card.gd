@@ -2722,7 +2722,7 @@ func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) 
 	if buff_mgr:
 		buff_mgr.approach_armor_per_move = 5
 		buff_mgr.approach_tempo_remaining = 10
-	print("[CARD] Approach! Slowed for 10 tempo, gain 5 armor per movement")
+	print("[CARD] Approach! Slowed 2, gain 5 armor per movement for 10 tempo")
 
 # ============================================
 # JEREMY CARD EXECUTE FUNCTIONS
@@ -3185,9 +3185,9 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("slow", 4)  # -4 movement (4 grid spaces)
+		target.apply_debuff("slow", 4)  # next 4 movements delayed, one stack each
 	last_damage_dealt = total_damage
-	print("[CARD] Trip! %d damage, enemy movement -4" % total_damage)
+	print("[CARD] Trip! %d damage, enemy slowed 4" % total_damage)
 
 func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
@@ -3442,7 +3442,7 @@ static func create_approach() -> Card:
 	var card = Card.new()
 	card.card_id = "approach"
 	card.card_name = "Approach"
-	card.description = "Slowed for 10 tempo. For each movement taken, gain 5 armor."
+	card.description = "Gain 2 Slowed (your next 2 tiles cost 3 tempo each). For each movement taken in the next 10 tempo, gain 5 armor."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 10
@@ -3819,7 +3819,7 @@ static func create_premeditated() -> Card:
 	var card = Card.new()
 	card.card_id = "premeditated"
 	card.card_name = "Premeditated"
-	card.description = "Deal 8 damage. If this Exposes the enemy, your next attack to that enemy deals 15 damage."
+	card.description = "Deal 8 damage. If this Exposes the enemy, your next attack to that enemy deals +15 bonus damage."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 20
@@ -4083,7 +4083,7 @@ static func create_trip() -> Card:
 	var card = Card.new()
 	card.card_id = "trip"
 	card.card_name = "Trip"
-	card.description = "Deal 5 damage. Decrease enemy movement by 4."
+	card.description = "Deal 5 damage. Apply 4 Slow — the enemy's next 4 movements are delayed."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 20
@@ -5925,7 +5925,7 @@ static func create_tower_shield() -> Card:
 	var card = Card.new()
 	card.card_id = "tower_shield"
 	card.card_name = "Tower Shield"
-	card.description = "Gain 40 armor. Become staggered for 40 tempo."
+	card.description = "Gain 40 armor. Gain 4 Staggered (your next 4 attack cards cost 15 more mana)."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 50
@@ -7752,7 +7752,10 @@ static func create_by_id(cid: String) -> Card:
 		var script: Script = Card
 		for method in script.get_script_method_list():
 			var method_name: String = method["name"]
-			if method_name.begins_with("create_") and method["args"].size() == 0:
+			# Factories with only DEFAULTED args count too (rank-scaled conjured
+			# cards like energy_barrier) — they rebuild at their default values.
+			if method_name.begins_with("create_") \
+					and method["args"].size() - method["default_args"].size() == 0:
 				var card = script.call(method_name)
 				if card is Card:
 					_factory_map[card.card_id] = method_name

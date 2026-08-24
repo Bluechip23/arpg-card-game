@@ -10678,6 +10678,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var ice_target = target if target is Player else player
 			var ice_idx = 1 if ice_target == _p2_player else 0
 			ice_target.untargetable = true
+			# "Cannot act" is a real 15-tempo Stun on the iced character, so the
+			# ice's trade-off holds in solo play too — not just via the co-op
+			# active-player switch below.
+			var ice_dm = ice_target.get_debuff_manager()
+			if ice_dm:
+				ice_dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 15))
 			for cyc in range(1, 4):
 				schedule_delayed_effect(cyc * 5, _cryonics_heal.bind(ice_target), "cryonics")
 			schedule_delayed_effect(15, _cryonics_end.bind(ice_target), "cryonics_end")

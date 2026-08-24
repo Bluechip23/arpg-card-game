@@ -3306,9 +3306,9 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			chosen_action = {}
 			print("[%s] Stunned for %d tempo!" % [enemy_name, stun_tempo])
 		"slow":
-			# Slowed stacks freely: every movement is -1 tile and eats a stack.
+			# Slowed stacks freely: every movement is delayed (+2 tempo) and eats a stack.
 			slow_stacks += value
-			print("[%s] Slowed! -1 movement for the next %d movement(s)" % [enemy_name, slow_stacks])
+			print("[%s] Slowed! Delayed movement for the next %d movement(s)" % [enemy_name, slow_stacks])
 		"disarmed":
 			is_disarmed = true
 			disarmed_tempo = value + int(_player_sphere_amp("sphere_disarm_amp"))
