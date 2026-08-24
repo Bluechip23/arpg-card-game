@@ -2256,9 +2256,11 @@ func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_
 		armor_amount = maxi(0, armor_amount - player_stats.empower_block_reduction)
 		print("[CARD] Empowered defense: -%d block" % player_stats.empower_block_reduction)
 
-	# Equipment "+X block to armor-granting defense cards" (Burgonet, Thick Steel).
-	if player_stats and armor_amount > 0 and player_stats.equipment_defense_card_block > 0:
-		armor_amount += player_stats.equipment_defense_card_block
+	# Equipment "+X block to armor-granting defense cards" (Burgonet, Thick
+	# Steel) — the total can be NEGATIVE (Slotted Rope Half Sleeve's -3), so
+	# apply any non-zero sum, floored at 0 block.
+	if player_stats and armor_amount > 0 and player_stats.equipment_defense_card_block != 0:
+		armor_amount = maxi(0, armor_amount + player_stats.equipment_defense_card_block)
 
 	if player_stats:
 		player_stats.add_armor(armor_amount)

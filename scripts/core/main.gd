@@ -9658,10 +9658,18 @@ func _helm_on_cycle_passives() -> void:
 	else:
 		_purge_cycle_accum = 0
 
-	# Frankensteins Screws: heal summons below 25% HP within 3 tiles of the wearer.
+	# Frankensteins Screws: heal SUMMONS below 25% HP within 3 tiles of the
+	# wearer — all summon types, not just Frankenstein's Monsters.
 	if summon_heal > 0 and grid_manager:
-		for m in _frankensteins:
-			if not is_instance_valid(m) or m.is_dead:
+		var fs_summons: Array = []
+		fs_summons.append_array(_frankensteins)
+		fs_summons.append_array(_wolves)
+		fs_summons.append_array(_skeletons)
+		fs_summons.append_array(_spirit_bows)
+		if _penguin != null:
+			fs_summons.append(_penguin)
+		for m in fs_summons:
+			if m == null or not is_instance_valid(m) or m.is_dead:
 				continue
 			if m.get_health_percent() < 0.25 and grid_manager.get_distance_in_cells(player.position, m.position) <= 3:
 				m.heal(summon_heal)
