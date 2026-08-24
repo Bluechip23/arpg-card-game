@@ -36,12 +36,56 @@ static func get_glyph(key: String) -> Texture2D:
 		"brain": _draw_brain(img)
 		"eye": _draw_eye(img)
 		"card_plus": _draw_card_plus(img)
+		"bow": _draw_bow(img)
+		"dagger": _draw_dagger(img)
+		"axe": _draw_axe(img)
+		"hammer": _draw_hammer(img)
+		"polearm": _draw_polearm(img)
+		"wand": _draw_wand(img)
+		"tome": _draw_tome(img)
+		"staff": _draw_staff(img)
+		"quiver": _draw_quiver(img)
+		"helm": _draw_helm(img)
+		"chestplate": _draw_chestplate(img)
+		"ring": _draw_ring(img)
+		"belt": _draw_belt(img)
+		"gauntlet": _draw_gauntlet(img)
 		_:
 			_cache[key] = null
 			return null
 	var tex := ImageTexture.create_from_image(img)
 	_cache[key] = tex
 	return tex
+
+
+## The glyph key representing an item's slot type — a kite shield for shields,
+## a bow for bows, a sword for swords, a ring for rings… Used by the slotted-
+## card badge so a card shows WHICH kind of item it is enchanted into.
+static func item_glyph_key(item) -> String:
+	if item == null:
+		return ""
+	match int(item.item_type):
+		0: return "helm"        # ItemData.ItemType.HELM
+		1: return "chestplate"  # CHEST
+		2: return "ring"        # RING
+		3: return "belt"        # BELT
+		4: return "boots"       # BOOTS
+		5: return "gauntlet"    # GAUNTLETS
+		7: return "quiver"      # QUIVER
+		6:                      # WEAPON — by subtype
+			match int(item.weapon_subtype):
+				0: return "sword"
+				1: return "bow"
+				2: return "shield"
+				4: return "polearm"
+				5: return "dagger"
+				6: return "axe"
+				7: return "hammer"
+				8: return "wand"
+				9: return "tome"
+				10: return "staff"
+				_: return "sword"  # OTHER and anything new
+	return "sword"
 
 
 # =============================================================
@@ -443,3 +487,182 @@ static func _draw_feather(img: Image) -> void:
 		_line(img, qx, qy, qx - spread, qy - spread * 0.7, vane if i % 2 == 0 else shade, 2.2)
 	# Quill runs the full length, with a bare tip at the bottom.
 	_line(img, 4, 21, 20, 3, quill, 1.2)
+
+
+# =============================================================
+# ITEM-TYPE GLYPHS (slotted-card badge: which item holds the card)
+# =============================================================
+
+static func _draw_bow(img: Image) -> void:
+	## Strung bow with a nocked arrow pointing up-right.
+	var wood := Color(0.62, 0.4, 0.2)
+	var string := Color(0.9, 0.9, 0.82)
+	var head := Color(0.82, 0.84, 0.9)
+	# Limb: an arc bowing toward the lower-left.
+	for i in range(20):
+		var t := float(i) / 19.0
+		var ang := lerpf(PI * 0.62, PI * 1.38, t)
+		_px(img, int(11.0 + 8.5 * cos(ang) + 4.0), int(12.0 + 8.5 * sin(ang)), wood)
+		_px(img, int(11.0 + 7.5 * cos(ang) + 4.0), int(12.0 + 7.5 * sin(ang)), wood)
+	_line(img, 12, 4, 12, 20, string, 1.0)
+	# Arrow across the middle.
+	_line(img, 7, 12, 18, 12, wood, 1.0)
+	_tri(img, Vector2(21, 12), Vector2(17, 9.5), Vector2(17, 14.5), head)
+
+static func _draw_dagger(img: Image) -> void:
+	## Single short blade, point up.
+	var blade := Color(0.82, 0.84, 0.9)
+	var hilt := Color(0.5, 0.32, 0.16)
+	_tri(img, Vector2(12, 2), Vector2(9, 13), Vector2(15, 13), blade)
+	_line(img, 12, 5, 12, 13, Color(0.95, 0.97, 1.0), 1.0)
+	_rect(img, 7, 13, 11, 2, hilt)
+	_line(img, 12, 15, 12, 20, hilt, 2.4)
+	_rect(img, 10, 20, 5, 3, Color(0.72, 0.6, 0.3))
+
+static func _draw_axe(img: Image) -> void:
+	## Haft up-right with a broad wedge blade.
+	var wood := Color(0.55, 0.36, 0.18)
+	var steel := Color(0.78, 0.8, 0.88)
+	var edge := Color(0.94, 0.96, 1.0)
+	_line(img, 6, 21, 16, 5, wood, 2.2)
+	_tri(img, Vector2(15, 3), Vector2(21, 9), Vector2(12, 10), steel)
+	_line(img, 20, 10, 21, 9, edge, 1.4)
+	_line(img, 15, 3, 21, 9, edge, 1.0)
+
+static func _draw_hammer(img: Image) -> void:
+	## War hammer: vertical haft, heavy rectangular head.
+	var wood := Color(0.55, 0.36, 0.18)
+	var steel := Color(0.7, 0.72, 0.82)
+	_line(img, 12, 8, 12, 22, wood, 2.4)
+	_rect(img, 5, 3, 14, 7, steel)
+	_rect(img, 5, 3, 14, 2, Color(0.88, 0.9, 0.98))
+	_rect(img, 5, 8, 14, 2, Color(0.5, 0.52, 0.62))
+
+static func _draw_polearm(img: Image) -> void:
+	## Long diagonal haft ending in a leaf-shaped spearhead.
+	var wood := Color(0.55, 0.36, 0.18)
+	var steel := Color(0.82, 0.84, 0.9)
+	_line(img, 4, 22, 16, 8, wood, 1.8)
+	_tri(img, Vector2(20, 2), Vector2(13, 9), Vector2(18, 12), steel)
+	_line(img, 20, 2, 15, 10, Color(0.95, 0.97, 1.0), 1.0)
+
+static func _draw_wand(img: Image) -> void:
+	## Short wand with a four-point star spark at the tip.
+	var wood := Color(0.5, 0.32, 0.16)
+	var spark := Color(1.0, 0.9, 0.4)
+	_line(img, 8, 21, 15, 10, wood, 2.0)
+	_line(img, 17, 7, 17, 3, spark, 1.4)
+	_line(img, 17, 7, 17, 11, spark, 1.4)
+	_line(img, 13, 7, 21, 7, spark, 1.4)
+	_px(img, 17, 7, Color(1.0, 1.0, 0.85))
+
+static func _draw_tome(img: Image) -> void:
+	## Closed spellbook: cover, pale page edge, clasp.
+	var cover := Color(0.45, 0.25, 0.5)
+	var page := Color(0.9, 0.88, 0.76)
+	var clasp := Color(0.85, 0.7, 0.3)
+	_rect(img, 5, 5, 13, 15, cover)
+	_rect(img, 18, 6, 2, 14, page)
+	_rect(img, 5, 5, 13, 2, Color(0.58, 0.36, 0.62))
+	_rect(img, 15, 11, 5, 3, clasp)
+	_line(img, 7, 8, 7, 18, Color(0.32, 0.16, 0.36), 1.0)
+
+static func _draw_staff(img: Image) -> void:
+	## Full-length staff crowned with an orb.
+	var wood := Color(0.5, 0.34, 0.18)
+	var orb := Color(0.45, 0.75, 0.95)
+	_line(img, 10, 22, 14, 7, wood, 2.0)
+	for py in range(2, 9):
+		for px in range(11, 18):
+			if Vector2(px - 14, py - 5).length() <= 3.2:
+				_px(img, px, py, orb)
+	_px(img, 13, 4, Color(0.85, 0.95, 1.0))
+
+static func _draw_quiver(img: Image) -> void:
+	## Leather tube, tilted, with two fletched arrows poking out the top.
+	var leather := Color(0.55, 0.36, 0.18)
+	var band := Color(0.72, 0.6, 0.3)
+	var fletch := Color(0.85, 0.3, 0.3)
+	_line(img, 9, 21, 14, 8, leather, 4.6)
+	_line(img, 10, 19, 13, 11, Color(0.42, 0.26, 0.12), 1.4)
+	_line(img, 9.5, 17, 15, 15, band, 1.6)
+	# Arrows: shafts up-right of the mouth, fletching triangles.
+	_line(img, 14, 9, 18, 3, Color(0.8, 0.72, 0.5), 1.0)
+	_line(img, 11, 8, 13, 2, Color(0.8, 0.72, 0.5), 1.0)
+	_tri(img, Vector2(18, 3), Vector2(20, 1), Vector2(20, 5), fletch)
+	_tri(img, Vector2(13, 2), Vector2(15, 0), Vector2(15, 4), fletch)
+
+static func _draw_helm(img: Image) -> void:
+	## Round-domed helm with a dark eye slit and a nose guard.
+	var steel := Color(0.7, 0.72, 0.82)
+	var lit := Color(0.88, 0.9, 0.98)
+	var slit := Color(0.12, 0.12, 0.16)
+	for py in range(5, 20):
+		var w := 8
+		if py < 10:
+			w = int(sqrt(maxf(0.0, 64.0 - pow(10.0 - py, 2) * 2.2)))
+		for px in range(12 - w, 12 + w):
+			_px(img, px, py, steel)
+	_rect(img, 6, 6, 5, 2, lit)
+	_rect(img, 6, 12, 12, 2, slit)
+	_line(img, 12, 12, 12, 19, Color(0.5, 0.52, 0.62), 2.0)
+
+static func _draw_chestplate(img: Image) -> void:
+	## Breastplate: shoulders, tapered waist, centre ridge.
+	var steel := Color(0.7, 0.72, 0.82)
+	var lit := Color(0.88, 0.9, 0.98)
+	for py in range(4, 21):
+		var w := 9
+		if py <= 7:
+			w = 9
+		elif py <= 13:
+			w = 8
+		else:
+			w = 8 - (py - 13)
+		if w <= 2:
+			continue
+		for px in range(12 - w, 12 + w):
+			_px(img, px, py, steel)
+	_rect(img, 4, 4, 4, 3, lit)   # pauldron highlights
+	_rect(img, 16, 4, 4, 3, lit)
+	_line(img, 12, 5, 12, 19, Color(0.5, 0.52, 0.62), 1.4)
+	_line(img, 8, 8, 10, 10, lit, 1.0)
+
+static func _draw_ring(img: Image) -> void:
+	## Gold band with a red gem on top.
+	var gold := Color(0.9, 0.75, 0.3)
+	var gold_dark := Color(0.65, 0.5, 0.18)
+	var gem := Color(0.9, 0.25, 0.3)
+	for py in range(0, SZ):
+		for px in range(0, SZ):
+			var d := Vector2(px - 12, py - 14).length()
+			if d >= 4.5 and d <= 7.5:
+				_px(img, px, py, gold if px + py < 26 else gold_dark)
+	_rect(img, 10, 3, 5, 5, gem)
+	_px(img, 11, 4, Color(1.0, 0.7, 0.72))
+
+static func _draw_belt(img: Image) -> void:
+	## Curved leather strap with a square gold buckle.
+	var leather := Color(0.55, 0.36, 0.18)
+	var dark := Color(0.42, 0.26, 0.12)
+	var buckle := Color(0.85, 0.7, 0.3)
+	for i in range(22):
+		var t := float(i) / 21.0
+		var x := lerpf(2.0, 22.0, t)
+		var y := 12.0 + sin(t * PI) * 3.0
+		_line(img, x, y - 2, x, y + 2, leather if i % 5 else dark, 1.0)
+	_rect(img, 9, 9, 7, 8, buckle)
+	_rect(img, 11, 11, 3, 4, Color(0.12, 0.12, 0.16))
+
+static func _draw_gauntlet(img: Image) -> void:
+	## Armored fist: knuckle plates over a clenched mitt, cuff below.
+	var steel := Color(0.7, 0.72, 0.82)
+	var lit := Color(0.88, 0.9, 0.98)
+	var dark := Color(0.5, 0.52, 0.62)
+	_rect(img, 6, 4, 12, 10, steel)      # fist block
+	for kx in range(6, 18, 3):           # knuckles
+		_rect(img, kx, 4, 2, 3, lit)
+	_rect(img, 4, 8, 3, 5, steel)        # thumb
+	_rect(img, 6, 13, 12, 2, dark)
+	_rect(img, 5, 15, 14, 6, steel)      # cuff
+	_rect(img, 5, 15, 14, 2, lit)

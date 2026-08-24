@@ -15,6 +15,7 @@ const ICON_DIR := "res://assets/items/gauntlet_skills/"
 var gauntlet: ItemData
 var tempo_manager: TempoManager = null  # set by main before setup(); drives the counter
 var _on_cooldown: bool = false
+var _is_passive: bool = false  # 3 count: shown for its icon + recharge, never clickable
 var _icon_tex: Texture2D = null
 
 func _ready() -> void:
@@ -26,14 +27,22 @@ func _ready() -> void:
 
 func setup(item: ItemData) -> void:
 	gauntlet = item
+	_is_passive = item.gauntlet_skill_type == ItemData.GauntletSkillType.PASSIVE
 	var icon_path := ICON_DIR + item.gauntlet_skill_effect_id + ".png"
 	_icon_tex = load(icon_path) if ResourceLoader.exists(icon_path) else null
-	tooltip_text = "%s\n%s\nCost: %d Mana | Recharge: %d tempo" % [
-		item.gauntlet_skill_name,
-		item.gauntlet_skill_description,
-		item.gauntlet_skill_mana_cost,
-		_total_recharge_tempo(),
-	]
+	if _is_passive:
+		tooltip_text = "%s\n%s\nPassive — fires automatically | Recharge: %d tempo" % [
+			item.gauntlet_skill_name,
+			item.gauntlet_skill_description,
+			_total_recharge_tempo(),
+		]
+	else:
+		tooltip_text = "%s\n%s\nCost: %d Mana | Recharge: %d tempo" % [
+			item.gauntlet_skill_name,
+			item.gauntlet_skill_description,
+			item.gauntlet_skill_mana_cost,
+			_total_recharge_tempo(),
+		]
 	update_display()
 
 ## Full recharge time in tempo. current_cooldown is stored in 5-tempo cycles
@@ -61,7 +70,7 @@ func update_display() -> void:
 	else:
 		# Active and fully visible
 		modulate = Color(1, 1, 1, 1)
-		disabled = false
+		disabled = _is_passive  # passives never take a click
 	queue_redraw()
 
 func _draw() -> void:
@@ -70,7 +79,9 @@ func _draw() -> void:
 	var center := size / 2.0
 	var radius := minf(size.x, size.y) / 2.0 - 1.0
 	draw_circle(center, radius, Color(0.16, 0.14, 0.2, 0.95))
-	draw_arc(center, radius, 0.0, TAU, 48, Color(0.85, 0.7, 0.35), 2.0, true)
+	# Gold rim for clickable skills; silver for automatic passives.
+	var rim := Color(0.62, 0.64, 0.7) if _is_passive else Color(0.85, 0.7, 0.35)
+	draw_arc(center, radius, 0.0, TAU, 48, rim, 2.0, true)
 
 	var font := get_theme_default_font()
 	if _icon_tex:
@@ -95,5 +106,5 @@ func _draw() -> void:
 			HORIZONTAL_ALIGNMENT_CENTER, -1, counter_size, Color(1.0, 0.85, 0.4))
 
 func _pressed() -> void:
-	if not _on_cooldown and gauntlet:
+	if not _on_cooldown and gauntlet and not _is_passive:
 		skill_activated.emit(gauntlet)

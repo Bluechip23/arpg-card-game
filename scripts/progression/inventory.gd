@@ -850,16 +850,18 @@ func process_turn() -> void:
 			print("[INVENTORY] War Rack free swap ready!")
 		rack_changed.emit()  # keeps the HUD countdown live
 	
-	# Process gauntlet cooldowns
+	# Process gauntlet cooldowns. Passive skills (3 count) tick here too so
+	# their circle in the skill bar shows a live recharge counter.
 	for gauntlet in equipped_gauntlets:
-		if gauntlet and gauntlet.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
+		if gauntlet and gauntlet.gauntlet_skill_type != ItemData.GauntletSkillType.NONE:
 			var came_off_cooldown = gauntlet.reduce_cooldown()
 			if came_off_cooldown:
 				print("[INVENTORY] %s skill ready!" % gauntlet.gauntlet_skill_name)
 				gauntlet_skill_ready.emit(gauntlet)
-				
-				# Cory's passive: gain mana when skill comes off cooldown
-				if gauntlet_cooldown_mana and player_stats:
+
+				# Cory's passive: gain mana when an ACTIVE skill comes off cooldown
+				if gauntlet_cooldown_mana and player_stats \
+						and gauntlet.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 					player_stats.gain_mana(10)
 					print("[INVENTORY] Cory passive: Gained 10 mana from cooldown")
 

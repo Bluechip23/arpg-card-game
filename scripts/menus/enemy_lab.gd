@@ -79,6 +79,10 @@ const KIND_BY_TYPE := {
 	Enemy.EnemyType.CHERUB: "cherub",
 	Enemy.EnemyType.DJINN: "djinn",
 	Enemy.EnemyType.CORRUPTED_ARCHANGEL: "corrupted_archangel",
+	# Generic tiers: the same brute figures battle now uses instead of boxes.
+	Enemy.EnemyType.MINION: "brute_minion",
+	Enemy.EnemyType.ELITE: "brute_elite",
+	Enemy.EnemyType.BOSS: "brute_boss",
 }
 
 # Coloured box fallback for the generic tiers (mirrors Enemy.initialize colours).

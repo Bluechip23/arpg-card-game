@@ -329,7 +329,12 @@ func _process(delta: float) -> void:
 				_apply_npc_frame(_walk_frame)
 			_sprite.position.y = _base_y
 		else:
-			# Waddle: quick bob only — pixel art never rotates off-axis (§5).
-			_sprite.position.y = _base_y + absf(sin(_time * 9.0)) * 0.06
+			# Waddle: a whole-pixel hop, never below the ground line — pixel
+			# art never rotates off-axis (§5), and sub-pixel vertical drift
+			# reads as floating.
+			_sprite.position.y = _base_y + floorf(absf(sin(_time * 9.0)) * 1.9) * PIXEL_SIZE
 	else:
-		_sprite.position.y = _base_y + sin(_time * 2.2) * 0.02
+		# Idle breathe: a single-pixel lift on the slow cycle's crest. The old
+		# ±0.02 sine dipped the feet under the floor half the time and hovered
+		# them the other half.
+		_sprite.position.y = _base_y + (PIXEL_SIZE if sin(_time * 2.2) > 0.55 else 0.0)

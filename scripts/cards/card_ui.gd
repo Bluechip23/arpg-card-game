@@ -244,6 +244,63 @@ func _make_cost_badge(host: Node, icon_path: String, pos: Vector2, num_y_bias: f
 	return [badge, num]
 
 
+var _slot_badge: Control = null
+
+## Slotted-card chip: the red dot plus a small glyph of the item TYPE holding
+## this card (kite shield for shields, bow for bows, sword for swords, ring
+## for rings, …). Hangs off the card's left edge below the mana badge. Pass
+## null to remove it.
+func set_slotted_item(item) -> void:
+	if _slot_badge and is_instance_valid(_slot_badge):
+		_slot_badge.queue_free()
+		_slot_badge = null
+	if item == null:
+		return
+	var host: Node = get_node_or_null("Panel")
+	if host == null:
+		return
+	var key: String = UIGlyphs.item_glyph_key(item)
+	var tex: Texture2D = UIGlyphs.get_glyph(key)
+	if tex == null:
+		return
+	var chip := PanelContainer.new()
+	chip.name = "SlotBadge"
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.position = Vector2(-10, 30)
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.1, 0.09, 0.12, 0.92)
+	st.set_border_width_all(1)
+	st.border_color = Color(0.45, 0.4, 0.55)
+	st.set_corner_radius_all(6)
+	st.content_margin_left = 4
+	st.content_margin_right = 4
+	st.content_margin_top = 2
+	st.content_margin_bottom = 2
+	chip.add_theme_stylebox_override("panel", st)
+	host.add_child(chip)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(row)
+	var dot := Panel.new()
+	dot.custom_minimum_size = Vector2(7, 7)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var dst := StyleBoxFlat.new()
+	dst.bg_color = Color(0.92, 0.2, 0.2)
+	dst.set_corner_radius_all(4)
+	dot.add_theme_stylebox_override("panel", dst)
+	row.add_child(dot)
+	var icon := TextureRect.new()
+	icon.texture = tex
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(UIGlyphs.SZ, UIGlyphs.SZ)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(icon)
+	_slot_badge = chip
+
+
 ## Small "TO" (Trials of Olorin) monogram seal in the middle of the card,
 ## riding the type bar like a trading-card set emblem.
 func _ensure_to_logo() -> void:

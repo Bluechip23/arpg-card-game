@@ -23,6 +23,21 @@ from generate_mythic_icons import (  # noqa: E402
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "items", "gauntlet_skills")
 
 
+def three_count():
+    ## "A pair of black boxing mits with laces." (Mits of Chingiz — passive.)
+    c = Canvas()
+    # Two mitts side by side, angled inward, cuffs at the bottom.
+    for (cx, tilt) in ((10, -1), (22, 1)):
+        c.ellipse((cx - 6, 4, cx + 6, 20), "dark")
+        c.ellipse((cx - 6 + tilt * 2, 3, cx + 2 + tilt * 4, 12), "dark", "hi")
+        c.rect((cx - 4, 19, cx + 4, 27), "blood")
+        # The laces: white cross-stitching down the inner face.
+        for ly in (8, 12, 16):
+            c.line([(cx - 2, ly), (cx + 2, ly + 3)], "bone", "hi")
+            c.line([(cx + 2, ly), (cx - 2, ly + 3)], "bone", "hi")
+    return c
+
+
 def chain_guard():
     ## "A small breast plate."
     c = Canvas()
@@ -274,6 +289,7 @@ def fan_save():
 
 
 ICONS = {
+    "three_count": three_count,
     "chain_guard": chain_guard,
     "band_aid": band_aid,
     "future_is_bright": future_is_bright,

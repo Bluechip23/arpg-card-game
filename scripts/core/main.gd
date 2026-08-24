@@ -3461,7 +3461,9 @@ func _setup_gauntlet_skills_ui() -> void:
 	
 	var skills = inventory.get_available_gauntlet_skills()
 	for gauntlet in skills:
-		if gauntlet.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
+		# Passive skills (3 count) show too — non-clickable, but their icon
+		# and recharge counter keep the player informed.
+		if gauntlet.gauntlet_skill_type != ItemData.GauntletSkillType.NONE:
 			var skill_ui = GauntletSkillUIScene.instantiate() as GauntletSkillUI
 			gauntlet_skills_container.add_child(skill_ui)
 			skill_ui.tempo_manager = tempo_manager
@@ -6014,6 +6016,8 @@ func _on_hand_updated() -> void:
 		# The instant stack has no play key — its badge reads AUTO instead.
 		var badge_letter: String = "" if group["slot"] == HandSlotsScript.INSTANT_SLOT else _slot_letter(group["slot"])
 		card_ui.set_keybind_badge(badge_letter, count, rep.is_slotted())
+		# Slotted chip: red dot + a glyph of the item type holding this card.
+		card_ui.set_slotted_item(rep.slotted_in_item)
 		group["card_ui"] = card_ui
 
 		var final_pos = Vector2(start_x + g * spacing, card_y)
@@ -9944,8 +9948,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		for tc_g in deck_manager.inventory.equipped_gauntlets:
 			if tc_g and tc_g.gauntlet_skill_effect_id == "three_count":
 				_three_count_cd = maxi(1, tc_g.gauntlet_skill_cooldown)
+				# Mirror onto the item so its circle in the skill bar shows the
+				# recharge counter (both tick once per cycle, staying in sync).
+				tc_g.current_cooldown = _three_count_cd
 				break
 		_offensive_streak = 0
+		_update_gauntlet_skills_ui()
 		add_battle_log("3 count! A Switch Kick slides into your hand", Color(0.9, 0.8, 0.5))
 
 	# Shadow Obi: any card cheaper than 2 tempo zaps a random enemy.
