@@ -747,7 +747,8 @@ func _build_combat_info_text() -> String:
 	# Resistance changes, per damage type + blanket reductions
 	var res_parts: Array[String] = []
 	if player_stats.has_skill_tree_passive("stone_skin"):
-		res_parts.append("Phys/Fire/Lightning 10% (Stone Skin)")
+		var ss_resist: float = PassiveScaling.value("stone_skin", "resist", player_stats.get_passive_level("stone_skin"))
+		res_parts.append("Phys/Fire/Lightning %s%% (Stone Skin)" % String.num(ss_resist, 2))
 	for t in range(7):
 		var v := player_stats.get_damage_resistance(t)
 		if v > 0.0:

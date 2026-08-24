@@ -183,25 +183,26 @@ where hand, deck, and gauntlets all cycle continuously.
 ## Brad — health is a dial, armor is ammunition
 
 Brad is for players who treat their HP bar as a resource to spend, not a score to protect.
-His passives make low health *valuable*: below 50% HP he gains +5 strength (*Directed
-Strength*), dropping below 25% triggers a free AOE swing that refunds mana per kill — and it
-can keep re-triggering every 10 tempo while he stays in the danger zone (*Enraged Will*) — and
-5% life steal on every attack (*Life Steal*) claws him back up so he can ride the line instead
-of dying on it. Cards like **Self Infliction** (burn 80% of
+His passives make low health *valuable*: below 50% HP he gains rank-scaled strength (up to
++15, *Directed Strength*), dropping below a rank-scaled threshold (10%→25% HP) triggers a free
+AOE swing that refunds mana per kill — and it can keep re-triggering on a rank-scaled cooldown
+(25→10 tempo) while he stays in the danger zone (*Enraged Will*) — and 1%→8% life steal on
+every attack (*Life Steal*) claws him back up so he can ride the line instead of dying on it. Cards like **Self Infliction** (burn 80% of
 remaining health for +5 DET / +5 STR), **Demonic Rage** (pay mana costs with health),
 **Morphine**, and **Succumb** are throttle controls — he deliberately steers his own HP into
 the band where he hits hardest, and Determination gear steepens the same curve (the lower his
 health, the higher his stats).
 
-The other half of the kit is armor as a *stockpile*. Defense cards grant +2 armor and chaining
-three in a row adds +5 more (*Pristine Armor*), every other Defense card refunds its costs
-(*The Way of the Plate*), healing grants thorns (*Vines Codependence*) — and then the payoff
+The other half of the kit is armor as a *stockpile*. Defense cards grant +1→5 armor and chaining
+three in a row adds +3→14 more (*Pristine Armor*), every 9th→2nd Defense card refunds its costs
+(*The Way of the Plate*), healing grants thorns and regen (*Vines Codependence*) — and then the payoff
 cards spend the pile: **Shield Slam** (damage based on current armor, lose half),
 **Internal Combustion** (sacrifice half your armor for AOE damage), **Tower Shield** (+40
 armor at the cost of being staggered), **Shield of Growth** (converts incoming damage *into*
-armor). Armor in, armor out. Being swarmed is a buff — *Solemn Independence* grants +5 damage
-and armor-per-cycle when 3+ enemies are close (at the cost of ally healing), and *In the
-Trenches* gives free attacks and knockbacks against anyone who steps adjacent.
+armor). Armor in, armor out. Being swarmed is a buff — *Solemn Independence* grants +5%→12%
+bonus attack damage and armor-per-cycle when 3+ enemies are close (at the cost of ally
+healing), and *In the Trenches* gives free attacks and knockbacks against anyone who steps
+adjacent.
 
 **Gear identity:** Brad's slot identity is the **War Rack** — gear strapped across his back
 that swaps *wholesale* with everything in his hands mid-fight. The free exchange (25-tempo

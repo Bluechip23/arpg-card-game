@@ -381,8 +381,9 @@ var st_ladder_discard_count: int = 0   # Ladder Work: non-play discards this cyc
 var st_ladder_banked: int = 0          # Ladder Work: last cycle's count, spent on first attack
 
 # Brad passive tracking
-var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount
+var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards toward the rank-scaled refund
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
+var st_ancestral_cycle_counter: int = 0  # Ancestral Aid: counts cycles toward the every-5-cycles trigger
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
 var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when charges were last exhausted
 
@@ -434,8 +435,9 @@ func add_skill_tree_passive(passive_id: String) -> void:
 # PASSIVE POINT ALLOCATION (lane view)
 # ============================================
 # Passives are LEVELED with banked passive points (1 point = +1 level, up to
-# PASSIVE_MAX_LEVEL). A passive's effect activates at level 1 — per-level
-# scaling of the effects themselves comes in a later balancing pass.
+# PASSIVE_MAX_LEVEL). A passive's effect activates at level 1; per-rank
+# effect values live in PassiveScaling (Brad's are wired up — the other
+# characters' scaling comes in a later balancing pass).
 const PASSIVE_POINTS_PER_LEVEL: int = 1  # Passive points banked each level-up
 const PASSIVE_MAX_LEVEL: int = 15
 
@@ -488,10 +490,12 @@ var strength: int:
 		return max(1, get_effective_stat(base_strength) + _directed_strength_mod())
 
 func _directed_strength_mod() -> int:
-	## Brad's Directed Strength passive: +5 STR below 50% health, lost above.
+	## Brad's Directed Strength passive: +1..15 STR (rank-scaled) below 50% health, lost above.
 	if not has_skill_tree_passive("directed_strength"):
 		return 0
-	return 5 if get_health_percent() <= 0.5 else 0
+	if get_health_percent() > 0.5:
+		return 0
+	return int(PassiveScaling.value("directed_strength", "strength", get_passive_level("directed_strength")))
 
 var dexterity: int:
 	get:
@@ -1530,9 +1534,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 
 	var remaining = amount
 
-	# Stone Skin: 10% damage resistance against Fire, Physical, and Lightning only.
+	# Stone Skin: 1%..11.5% (rank-scaled) damage resistance against Fire, Physical, and Lightning only.
 	if has_skill_tree_passive("stone_skin") and damage_type in [DamageTypes.Type.PHYSICAL, DamageTypes.Type.FIRE, DamageTypes.Type.LIGHTNING]:
-		remaining = floori(remaining * 0.9)
+		var ss_resist: float = PassiveScaling.value("stone_skin", "resist", get_passive_level("stone_skin"))
+		remaining = floori(remaining * (1.0 - ss_resist / 100.0))
 
 	# Per-type resistance (e.g. elemental resists once cards start tagging types).
 	# Guardian Greaves' aura adds transient physical resist on top.

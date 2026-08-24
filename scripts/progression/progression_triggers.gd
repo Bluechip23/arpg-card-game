@@ -750,10 +750,14 @@ func _trigger_skill_tree_on_attack(card: Card, target) -> void:
 		target.take_damage(lw_bonus, true)
 		main.add_battle_log("Ladder Work: opening strike +%d!" % lw_bonus, Color(0.3, 0.7, 1.0))
 
-	# Solemn Independence: +5 damage on attacks while surrounded (3+ enemies w/in 2)
+	# Solemn Independence: +5%..12% bonus attack damage (rank-scaled) while
+	# surrounded (3+ enemies w/in 2)
 	if stats.has_skill_tree_passive("solemn_independence") and target and target is Enemy and _solemn_surrounded():
-		target.take_damage(5, true)
-		main.add_battle_log("Solemn Independence: +5 damage!", Color(0.8, 0.4, 0.9))
+		var si_pct: int = PassiveScaling.value("solemn_independence", "damage_percent", stats.get_passive_level("solemn_independence"))
+		if card.last_damage_dealt > 0:
+			var si_bonus = maxi(1, ceili(card.last_damage_dealt * si_pct / 100.0))
+			target.take_damage(si_bonus, true)
+			main.add_battle_log("Solemn Independence: +%d damage (%d%%)!" % [si_bonus, si_pct], Color(0.8, 0.4, 0.9))
 
 func _solemn_surrounded() -> bool:
 	## True when 3 or more living enemies are within 2 tiles of the player.
@@ -808,14 +812,15 @@ func _trigger_skill_tree_on_cycle() -> void:
 		stats.st_ladder_banked = stats.st_ladder_discard_count
 		stats.st_ladder_discard_count = 0
 
-	# Solemn Independence: while surrounded (3+ enemies w/in 2), +5 armor/cycle and
-	# block ally healing (the flag is read in PlayerStats.heal). Refresh it each
-	# cycle so the "cannot be healed by allies" clause tracks positioning.
+	# Solemn Independence: while surrounded (3+ enemies w/in 2), +1..8 armor/cycle
+	# (rank-scaled) and block ally healing (the flag is read in PlayerStats.heal).
+	# Refresh it each cycle so the "cannot be healed by allies" clause tracks positioning.
 	if stats.has_skill_tree_passive("solemn_independence"):
 		stats.solemn_active = _solemn_surrounded()
 		if stats.solemn_active:
-			stats.add_armor(5)
-			main.add_battle_log("Solemn Independence: +5 armor (surrounded)", Color(0.4, 0.9, 0.4))
+			var si_armor: int = PassiveScaling.value("solemn_independence", "armor", stats.get_passive_level("solemn_independence"))
+			stats.add_armor(si_armor)
+			main.add_battle_log("Solemn Independence: +%d armor (surrounded)" % si_armor, Color(0.4, 0.9, 0.4))
 	elif stats.solemn_active:
 		stats.solemn_active = false
 
@@ -901,12 +906,16 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 	if not stats:
 		return
 
-	# Enraged Will: dropping below 25% HP → one Reach AOE swing (1 base + 1 Reach
-	# = 2 range) + gain 1 mana per kill. 10 tempo cooldown — staying low can
-	# re-trigger it once the cooldown elapses.
+	# Enraged Will: dropping below the rank-scaled HP threshold (10%..25%) → one
+	# Reach AOE swing (1 base + 1 Reach = 2 range) + gain 1 mana per kill.
+	# Rank-scaled cooldown (25..10 tempo) — staying low can re-trigger it once
+	# the cooldown elapses.
 	if stats.has_skill_tree_passive("enraged_will"):
+		var ew_lvl: int = stats.get_passive_level("enraged_will")
+		var ew_cooldown: int = PassiveScaling.value("enraged_will", "cooldown", ew_lvl)
+		var ew_threshold: float = PassiveScaling.value("enraged_will", "hp_threshold", ew_lvl)
 		var ew_elapsed = main.tempo_manager.get_global_tempo() - stats.st_enraged_will_last_tempo
-		if stats.get_health_percent() <= 0.25 and stats.current_health > 0 and ew_elapsed >= 10:
+		if stats.get_health_percent() <= ew_threshold and stats.current_health > 0 and ew_elapsed >= ew_cooldown:
 			stats.st_enraged_will_last_tempo = main.tempo_manager.get_global_tempo()
 			var enemies = main.enemy_spawner.get_enemies_in_radius(main.player.position, 2.0) if main.enemy_spawner else []
 			if enemies.size() > 0:
@@ -947,7 +956,9 @@ func _trigger_skill_tree_brad_itt_on_enter(enemy: Enemy) -> void:
 	if stats.st_itt_charges <= 0:
 		return
 	stats.st_itt_charges -= 1
-	var dmg = stats.get_effective_physical_damage(0)
+	# Free attack at 93%..107% damage (rank-scaled: -7%..+7%).
+	var itt_mod: int = PassiveScaling.value("in_the_trenches", "damage_mod", stats.get_passive_level("in_the_trenches"))
+	var dmg = maxi(1, roundi(stats.get_effective_physical_damage(0) * (100 + itt_mod) / 100.0))
 	enemy.take_damage(dmg, true)
 	main.add_battle_log("In the Trenches: free attack on %s for %d! (%d charge(s) left)" % [enemy.enemy_name, dmg, stats.st_itt_charges], Color(0.3, 0.7, 1.0))
 	if stats.st_itt_charges <= 0:
@@ -965,45 +976,57 @@ func _trigger_skill_tree_brad_on_defense_card_play(card: Card) -> void:
 	if not stats:
 		return
 
-	# The Way of the Plate: every other Defense card costs -10m/-1t
+	# The Way of the Plate: every Nth Defense card (rank-scaled: 9..2) refunds -10m/-1t
 	if stats.has_skill_tree_passive("the_way_of_the_plate"):
+		var wp_required: int = PassiveScaling.value("the_way_of_the_plate", "cards_required", stats.get_passive_level("the_way_of_the_plate"))
 		stats.st_defense_cards_played += 1
-		if stats.st_defense_cards_played >= 2:
+		if stats.st_defense_cards_played >= wp_required:
 			stats.st_defense_cards_played = 0
 			# Refund 1 mana and 1 tempo
 			stats.gain_mana(10)
 			main.tempo_manager.add_tempo(-1)
 			main.add_battle_log("Way of the Plate: -10m/-1t refund!", Color(0.3, 0.7, 1.0))
 
-	# Pristine Armor: +2 armor on defense cards, +5 bonus for 3 in a row
+	# Pristine Armor: +1..5 armor on defense cards, +3..14 bonus for 3 in a row (rank-scaled)
 	if stats.has_skill_tree_passive("pristine_armor"):
-		stats.add_armor(2)
+		var pa_lvl: int = stats.get_passive_level("pristine_armor")
+		var pa_armor: int = PassiveScaling.value("pristine_armor", "armor", pa_lvl)
+		var pa_streak_bonus: int = PassiveScaling.value("pristine_armor", "streak_bonus", pa_lvl)
+		stats.add_armor(pa_armor)
 		stats.st_consecutive_defense += 1
 		if stats.st_consecutive_defense >= 3:
 			stats.st_consecutive_defense = 0
-			stats.add_armor(5)
-			main.add_battle_log("Pristine Armor: +2 armor, +5 bonus (3 in a row)!", Color(0.3, 0.7, 1.0))
+			stats.add_armor(pa_streak_bonus)
+			main.add_battle_log("Pristine Armor: +%d armor, +%d bonus (3 in a row)!" % [pa_armor, pa_streak_bonus], Color(0.3, 0.7, 1.0))
 		else:
-			main.add_battle_log("Pristine Armor: +2 armor", Color(0.3, 0.7, 1.0))
+			main.add_battle_log("Pristine Armor: +%d armor" % pa_armor, Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_brad_on_heal() -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Vines Codependence: whenever you heal, gain 3 thorns
+	# Vines Codependence: whenever you heal, gain 1..8 thorns and 0..7 regen (rank-scaled)
 	if stats.has_skill_tree_passive("vines_codependence"):
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
-			buff_mgr.apply_buff(Buff.new(Buff.BuffType.THORNS, 3, 30))
-			main.add_battle_log("Vines Codependence: +3 thorns", Color(0.4, 0.9, 0.4))
+			var vc_lvl: int = stats.get_passive_level("vines_codependence")
+			var vc_thorns: int = PassiveScaling.value("vines_codependence", "thorns", vc_lvl)
+			var vc_regen: int = PassiveScaling.value("vines_codependence", "regen", vc_lvl)
+			buff_mgr.apply_buff(Buff.new(Buff.BuffType.THORNS, vc_thorns, 30))
+			if vc_regen > 0:
+				buff_mgr.apply_buff(Buff.create_regen(vc_regen, 15, "Vines Codependence"))
+				main.add_battle_log("Vines Codependence: +%d thorns, +%d regen" % [vc_thorns, vc_regen], Color(0.4, 0.9, 0.4))
+			else:
+				main.add_battle_log("Vines Codependence: +%d thorns" % vc_thorns, Color(0.4, 0.9, 0.4))
 
-	# Redemption: gain crit on next attack when healing (self or ally)
+	# Redemption: gain 1%..15% crit chance (rank-scaled) on next attack when healing (self or ally)
 	if stats.has_skill_tree_passive("redemption"):
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Redemption"))
-			main.add_battle_log("Redemption: crit on next attack!", Color(0.8, 0.4, 0.9))
+			var rd_crit: int = PassiveScaling.value("redemption", "crit_chance", stats.get_passive_level("redemption"))
+			buff_mgr.apply_buff(Buff.create_enlightened(rd_crit, 1, "Redemption"))
+			main.add_battle_log("Redemption: +%d%% crit on next attack!" % rd_crit, Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_brad_on_heal_ally(ally_name: String) -> void:
 	var stats = main.player.get_stats()
@@ -1019,32 +1042,40 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 	if not stats:
 		return
 
-	# Ancestral Aid: depends on hand composition — more attacks = -2m to attack, more defense = +3 HP regen
+	# Ancestral Aid: every 5 cycles, depends on hand composition — more attacks =
+	# rank-scaled mana discount on a random attack, more defense = rank-scaled heal
 	if stats.has_skill_tree_passive("ancestral_aid"):
-		var attack_count = 0
-		var defense_count = 0
-		for c in main.deck_manager.hand:
-			if c.card_type == Card.CardType.ATTACK:
-				attack_count += 1
-			elif c.card_type == Card.CardType.DEFENSE:
-				defense_count += 1
-		if attack_count > defense_count:
-			# Discount a random attack card by 2 mana
-			var attacks: Array[Card] = []
+		stats.st_ancestral_cycle_counter += 1
+		if stats.st_ancestral_cycle_counter >= 5:
+			stats.st_ancestral_cycle_counter = 0
+			var aa_lvl: int = stats.get_passive_level("ancestral_aid")
+			var aa_discount: int = PassiveScaling.value("ancestral_aid", "mana_discount", aa_lvl)
+			var aa_heal: int = PassiveScaling.value("ancestral_aid", "heal", aa_lvl)
+			var attack_count = 0
+			var defense_count = 0
 			for c in main.deck_manager.hand:
-				if c.card_type == Card.CardType.ATTACK and c.mana_cost >= 20:
-					attacks.append(c)
-			if attacks.size() > 0:
-				var target_card = attacks[randi() % attacks.size()]
-				target_card.mana_cost -= 20
-				main.add_battle_log("Ancestral Aid: %s -20m (offense)" % target_card.card_name, Color(0.4, 0.9, 0.4))
-		elif defense_count > attack_count:
-			stats.heal(3)
-			main.add_battle_log("Ancestral Aid: +3 HP regen (defense)", Color(0.4, 0.9, 0.4))
-		else:
-			# Tied — small heal
-			stats.heal(1)
-			main.add_battle_log("Ancestral Aid: +1 HP (balanced)", Color(0.4, 0.9, 0.4))
+				if c.card_type == Card.CardType.ATTACK:
+					attack_count += 1
+				elif c.card_type == Card.CardType.DEFENSE:
+					defense_count += 1
+			if attack_count > defense_count:
+				# Discount a random attack card (capped at the card's remaining cost)
+				var attacks: Array[Card] = []
+				for c in main.deck_manager.hand:
+					if c.card_type == Card.CardType.ATTACK and c.mana_cost > 0:
+						attacks.append(c)
+				if attacks.size() > 0:
+					var target_card = attacks[randi() % attacks.size()]
+					var applied = mini(aa_discount, target_card.mana_cost)
+					target_card.mana_cost -= applied
+					main.add_battle_log("Ancestral Aid: %s -%dm (offense)" % [target_card.card_name, applied], Color(0.4, 0.9, 0.4))
+			elif defense_count > attack_count:
+				stats.heal(aa_heal)
+				main.add_battle_log("Ancestral Aid: +%d HP (defense)" % aa_heal, Color(0.4, 0.9, 0.4))
+			else:
+				# Tied — small heal
+				stats.heal(1)
+				main.add_battle_log("Ancestral Aid: +1 HP (balanced)", Color(0.4, 0.9, 0.4))
 
 	# Directed Strength is checked at attack time, not per-cycle
 
@@ -1055,12 +1086,13 @@ func _trigger_skill_tree_brad_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
-	# Directed Strength (-5 STR above 50% HP, +5 below) is applied as a real
-	# strength modifier in PlayerStats._directed_strength_mod(), so every
+	# Directed Strength (+1..15 STR below 50% HP, rank-scaled) is applied as a
+	# real strength modifier in PlayerStats._directed_strength_mod(), so every
 	# strength-scaled formula picks it up — not as flat bonus damage here.
 
-	# Life Steal: all attacks life steal by 5% — applied directly in Card.execute()
-	# (the generic LIFE_STEAL buff heals 100%, so it must NOT be used here).
+	# Life Steal: all attacks life steal by 1%..8% (rank-scaled) — applied directly
+	# in Card.execute() (the generic LIFE_STEAL buff heals 100%, so it must NOT be
+	# used here).
 
 	return bonus
 
@@ -1076,24 +1108,29 @@ func _on_point_to_prove_triggered(debuff: Debuff) -> void:
 		main.point_to_prove_dialog.declined.disconnect(_ptp_declined_callable)
 
 	var debuff_name = Debuff.DebuffType.keys()[debuff.debuff_type].capitalize()
-	var cost = 5
+	# Cost is a rank-scaled percentage of max HP (20%..6%).
+	var stats = main.player.get_stats()
+	var cost := 5
+	if stats:
+		var ptp_pct: int = PassiveScaling.value("point_to_prove", "hp_percent", stats.get_passive_level("point_to_prove"))
+		cost = maxi(1, ceili(stats.max_health * ptp_pct / 100.0))
 	main.point_to_prove_dialog.show_dialog(debuff_name, debuff.debuff_type, cost)
-	_ptp_confirmed_callable = _on_point_to_prove_confirmed.bind(debuff)
+	_ptp_confirmed_callable = _on_point_to_prove_confirmed.bind(debuff, cost)
 	_ptp_declined_callable = _on_point_to_prove_declined
 	main.point_to_prove_dialog.confirmed.connect(_ptp_confirmed_callable, CONNECT_ONE_SHOT)
 	main.point_to_prove_dialog.declined.connect(_ptp_declined_callable, CONNECT_ONE_SHOT)
 
-func _on_point_to_prove_confirmed(debuff_type: int, debuff: Debuff) -> void:
+func _on_point_to_prove_confirmed(debuff_type: int, debuff: Debuff, cost: int) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 	# Sacrifice HP to remove the debuff
-	stats.take_direct_damage(5)
+	stats.take_direct_damage(cost)
 	var debuff_mgr = main.player.get_debuff_manager()
 	if debuff_mgr:
 		debuff_mgr.remove_debuff(debuff.debuff_type)
 	var debuff_name = Debuff.DebuffType.keys()[debuff_type].capitalize()
-	main.add_battle_log("Point to Prove: Sacrificed 5 HP to ignore %s!" % debuff_name, Color(0.9, 0.7, 0.3))
+	main.add_battle_log("Point to Prove: Sacrificed %d HP to ignore %s!" % [cost, debuff_name], Color(0.9, 0.7, 0.3))
 
 func _on_point_to_prove_declined(debuff_type: int) -> void:
 	var debuff_name = Debuff.DebuffType.keys()[debuff_type].capitalize()

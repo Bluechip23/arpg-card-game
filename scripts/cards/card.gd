@@ -1842,11 +1842,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if dealt > 0:
 			buff_mgr.consume_life_steal(dealt)
 
-	# Life Steal passive (Brad): all attacks heal for 5% of damage dealt.
+	# Life Steal passive (Brad): all attacks heal for 1%..8% (rank-scaled) of damage dealt.
 	if card_type == CardType.ATTACK and player_stats and player_stats.has_skill_tree_passive("life_steal"):
 		var ls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 		if ls_dealt > 0:
-			player_stats.apply_life_steal(max(1, floori(ls_dealt * 0.05)))
+			var ls_passive_pct: float = PassiveScaling.value("life_steal", "percent", player_stats.get_passive_level("life_steal"))
+			player_stats.apply_life_steal(max(1, floori(ls_dealt * ls_passive_pct / 100.0)))
 
 	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hannibals Mask),
 	# Vitality stacks (Nine Ruins: +1% each), and a maintained Resourceful

@@ -1,16 +1,16 @@
 Character,Archetype,Level,Passive Name,Description
-Brad,Berserker,2,Enraged Will,"When you drop below 25% HP, perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill. Cooldown: 10 tempo"
-Brad,Warden,3,In the Trenches,"When an enemy enters an adjacent square, perform a free attack. When an enemy attacks you from adjacent, knock them back. 2 charges, 10 tempo cooldown"
-Brad,The Ancient,4,Stone Skin,"Gain 10% Fire, Physical and Lightning resistance"
-Brad,The Fallen,5,Point to Prove,"When stunned or disarmed, choose to sacrifice 5 HP to ignore the ailment"
-Brad,Berserker,7,Directed Strength,"Gain 5 strength when below 50% health, lose it when going above"
-Brad,Warden,8,The Way of the Plate,Every other Defense card refunds 1 mana and 1 tempo
-Brad,The Ancient,9,Ancestral Aid,"Each cycle: more attacks in hand -> discount a random attack by 2m. More defense -> heal 3 HP"
-Brad,The Fallen,11,Redemption,"When healing (self or ally), gain crit chance on your next attack"
-Brad,Berserker,13,Life Steal,All attacks life steal by 5%
-Brad,Warden,14,Pristine Armor,Defense cards grant +2 armor. Playing 3 defense cards in a row grants an additional +5 armor
-Brad,The Ancient,16,Vines Codependence,"Whenever you heal, gain 3 thorns"
-Brad,The Fallen,18,Solemn Independence,"When 3+ enemies are within 2 tiles: +5 damage on all attacks, +5 armor per tempo cycle, but cannot be healed by allies"
+Brad,Berserker,2,Enraged Will,"When you drop below 10%->25% HP (rank 1->15), perform a Reach AOE swing hitting all nearby enemies. Gain 1 mana per kill. Cooldown: 25->10 tempo"
+Brad,Warden,3,In the Trenches,"When an enemy enters an adjacent square, perform a free attack at -7%->+7% damage (rank 1->15). When an enemy attacks you from adjacent, knock them back. 2 charges, 10 tempo cooldown"
+Brad,The Ancient,4,Stone Skin,"Gain 1%->11.5% Fire, Physical and Lightning resistance (rank 1->15)"
+Brad,The Fallen,5,Point to Prove,"When stunned or disarmed, choose to sacrifice 20%->6% of max HP (rank 1->15) to ignore the ailment"
+Brad,Berserker,7,Directed Strength,"Gain 1->15 strength (rank 1->15) when below 50% health, lose it when going above"
+Brad,Warden,8,The Way of the Plate,Every 9th->2nd Defense card played (rank 1->15) refunds 1 mana and 1 tempo
+Brad,The Ancient,9,Ancestral Aid,"Every 5 cycles: more attacks in hand -> discount a random attack by 5m->19m. More defense -> heal 3->17 HP (rank 1->15)"
+Brad,The Fallen,11,Redemption,"When healing (self or ally), gain 1%->15% crit chance (rank 1->15) on your next attack"
+Brad,Berserker,13,Life Steal,All attacks life steal by 1%->8% (rank 1->15)
+Brad,Warden,14,Pristine Armor,Defense cards grant +1->5 armor. Playing 3 defense cards in a row grants an additional +3->14 armor (rank 1->15)
+Brad,The Ancient,16,Vines Codependence,"Whenever you heal, gain 1->8 thorns and 0->7 regen (rank 1->15)"
+Brad,The Fallen,18,Solemn Independence,"When 3+ enemies are within 2 tiles: +5%->12% damage on all attacks and +1->8 armor per tempo cycle (rank 1->15), but cannot be healed by allies"
 Ryan,Relentless Blade,2,Keep Them Guessing,"When discarding a card, -1t from a random card in your hand"
 Ryan,Light Foot,3,Quick Step,"Anytime an instant is played from your hand, gain 5 armor"
 Ryan,Apothecary,4,Stimulant,"When healing yourself or an ally with a Pocket card, the healed character draws a card. 5 tempo cooldown."
