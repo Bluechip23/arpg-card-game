@@ -1006,8 +1006,11 @@ func _trigger_skill_tree_brad_on_heal() -> void:
 	if not stats:
 		return
 
-	# Vines Codependence: whenever you heal, gain 1..8 thorns and 0..7 regen (rank-scaled)
-	if stats.has_skill_tree_passive("vines_codependence"):
+	# Vines Codependence: whenever you heal, gain 1..8 thorns and 0..7 regen
+	# (rank-scaled). Direct heals only — regen ticks and life steal set
+	# _passive_heal, and must not re-trigger this (its own regen would
+	# self-refresh forever otherwise).
+	if stats.has_skill_tree_passive("vines_codependence") and not stats._passive_heal:
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
 			var vc_lvl: int = stats.get_passive_level("vines_codependence")

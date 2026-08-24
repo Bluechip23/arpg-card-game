@@ -9,7 +9,7 @@ Brad,The Ancient,9,Ancestral Aid,"Every 5 cycles: more attacks in hand -> discou
 Brad,The Fallen,11,Redemption,"When healing (self or ally), gain 1%->15% crit chance (rank 1->15) on your next attack"
 Brad,Berserker,13,Life Steal,All attacks life steal by 1%->8% (rank 1->15)
 Brad,Warden,14,Pristine Armor,Defense cards grant +1->5 armor. Playing 3 defense cards in a row grants an additional +3->14 armor (rank 1->15)
-Brad,The Ancient,16,Vines Codependence,"Whenever you heal, gain 1->8 thorns and 0->7 regen (rank 1->15)"
+Brad,The Ancient,16,Vines Codependence,"Whenever you heal (direct heals only — regen and life steal don't count), gain 1->8 thorns and 0->7 regen (rank 1->15)"
 Brad,The Fallen,18,Solemn Independence,"When 3+ enemies are within 2 tiles: +5%->12% damage on all attacks and +1->8 armor per tempo cycle (rank 1->15), but cannot be healed by allies"
 Ryan,Relentless Blade,2,Keep Them Guessing,"When discarding a card, -1t from a random card in your hand"
 Ryan,Light Foot,3,Quick Step,"Anytime an instant is played from your hand, gain 5 armor"

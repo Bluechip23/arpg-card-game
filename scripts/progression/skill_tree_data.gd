@@ -340,7 +340,7 @@ static func create_brad_tree(max_level: int = 20) -> SkillTreeData:
 			description = "Defense cards grant +1→5 armor. Playing 3 defense cards in a row grants an additional +3→14 armor (scales with rank)",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 16, slot = 1, archetype = "The Ancient", name = "Vines Codependence",
-			description = "Whenever you heal, gain 1→8 thorns and 0→7 regen (scales with rank)",
+			description = "Whenever you heal (direct heals only — regen and life steal don't count), gain 1→8 thorns and 0→7 regen (scales with rank)",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 18, slot = 3, archetype = "The Fallen", name = "Solemn Independence",
 			description = "When 3+ enemies are within 2 tiles: +5%→12% damage on all attacks and +1→8 armor per tempo cycle (scales with rank), but cannot be healed by allies",
