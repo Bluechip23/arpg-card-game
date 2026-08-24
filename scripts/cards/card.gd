@@ -4475,19 +4475,20 @@ static func create_minor_wounds() -> Card:
 	card.target_types = []
 	return card
 
-static func create_energy_barrier() -> Card:
+static func create_energy_barrier(armor: int = 5) -> Card:
+	# armor comes from the Energy Barrier passive's rank (3..17)
 	var card = Card.new()
 	card.card_id = "energy_barrier"
 	card.card_name = "Energy Barrier"
-	card.description = "Gain 5 armor. Erase 1."
+	card.description = "Gain %d armor. Erase 1." % armor
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 0
 	card.tempo_cost = 0
 	card.damage = 0
 	card.base_damage = 0
-	card.block = 5
-	card.base_block = 5
+	card.block = armor
+	card.base_block = armor
 	card.heal_amount = 0
 	card.erase_tempo = 1
 	card.erase_tempo_remaining = 1

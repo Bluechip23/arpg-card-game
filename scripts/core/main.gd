@@ -5011,6 +5011,9 @@ var _reapers_taking_firing: bool = false  # Guard: Reaper's Taking's damage must
 var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee range state
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
+	# Capture "was this a NEW debuff type on the enemy" before the riders below
+	# (Harnessed Sun / Laced Arrow / Wither) re-apply and overwrite the flag.
+	var debuff_was_new: bool = enemy.last_debuff_was_new
 	progression_triggers._trigger_skill_tree_on_debuff_applied(enemy, debuff_name, value)
 	# Ring pass: feed the poison/burn accumulators and the Circlet checklist,
 	# then the Harnessed Sun amplifies burns (+2) — guarded so the bonus
@@ -5033,16 +5036,20 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 				enemy.apply_debuff(debuff_name, 1)
 				add_battle_log("Laced Arrow: +1 %s" % debuff_name, Color(0.4, 0.9, 0.4))
 			_laced_arrow_applying = false
-	# Cory: Wither — +1 charge to all debuffs applied (guarded against recursion)
+	# Cory: Wither — +1 charge to the applied debuff, on a rank-scaled tempo
+	# cooldown (15..1; guarded against recursion)
 	if not _wither_applying:
 		var stats = player.get_stats()
 		if stats and stats.has_skill_tree_passive("wither"):
-			_wither_applying = true
-			if enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, 1)
-			_wither_applying = false
+			var wither_cd: int = PassiveScaling.value("wither", "cooldown", stats.get_passive_level("wither"))
+			if tempo_manager.get_global_tempo() - stats.st_wither_last_tempo >= wither_cd:
+				stats.st_wither_last_tempo = tempo_manager.get_global_tempo()
+				_wither_applying = true
+				if enemy.has_method("apply_debuff"):
+					enemy.apply_debuff(debuff_name, 1)
+				_wither_applying = false
 	# Cory: Prey on the Weak — bonus damage on debuff to low HP enemy
-	progression_triggers._trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value)
+	progression_triggers._trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value, debuff_was_new)
 	# Spell weapons pass: weapon passives that watch every debuff you land.
 	var sw_inv = player.get_inventory() if player else null
 	if sw_inv and "equipped_weapons" in sw_inv:

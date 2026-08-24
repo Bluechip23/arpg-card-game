@@ -1345,11 +1345,13 @@ func _trigger_skill_tree_cory_on_mana_gain(amount: int, is_regen: bool) -> void:
 		return
 
 	# Energy Barrier: every 3rd non-regen mana gain → put Energy Barrier in hand
+	# (the card's armor scales with rank: 3..17)
 	if stats.has_skill_tree_passive("energy_barrier") and not is_regen and amount > 0:
 		stats.st_mana_gain_counter += 1
 		if stats.st_mana_gain_counter >= 3:
 			stats.st_mana_gain_counter = 0
-			var barrier = Card.create_energy_barrier()
+			var eb_armor: int = PassiveScaling.value("energy_barrier", "armor", stats.get_passive_level("energy_barrier"))
+			var barrier = Card.create_energy_barrier(eb_armor)
 			main.deck_manager.hand.append(barrier)
 			main.deck_manager.hand_updated.emit()
 			main.add_battle_log("Energy Barrier: defense card added to hand!", Color(0.9, 0.3, 0.3))
@@ -1359,19 +1361,23 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 	if not stats:
 		return
 
-	# Self Reliance: 3 cards in one tempo cycle → the NEXT card costs -10m.
-	# Consume BEFORE tracking this play so the discount earned by the 3rd card
-	# never applies to that same 3rd card.
+	# Self Reliance: 3 cards in one tempo cycle → the NEXT card gets a rank-scaled
+	# mana discount (10..80m, capped at the card's cost). Consume BEFORE tracking
+	# this play so the discount earned by the 3rd card never applies to that same
+	# 3rd card.
 	if stats.st_self_reliance_discount and card.mana_cost > 0:
-		stats.gain_mana(10)  # Refund 10 mana as discount
+		var sr_discount: int = PassiveScaling.value("self_reliance", "mana_discount", stats.get_passive_level("self_reliance"))
+		var sr_applied: int = mini(sr_discount, card.mana_cost)
+		stats.gain_mana(sr_applied)  # Refund as discount
 		stats.st_self_reliance_discount = false
-		main.add_battle_log("Self Reliance: -10m applied!", Color(0.9, 0.3, 0.3))
+		main.add_battle_log("Self Reliance: -%dm applied!" % sr_applied, Color(0.9, 0.3, 0.3))
 
 	if stats.has_skill_tree_passive("self_reliance"):
 		stats.st_cards_this_cycle.append(card.card_type_name)
 		if stats.st_cards_this_cycle.size() >= 3 and not stats.st_self_reliance_discount:
 			stats.st_self_reliance_discount = true
-			main.add_battle_log("Self Reliance: next card costs -10m!", Color(0.9, 0.3, 0.3))
+			var sr_next: int = PassiveScaling.value("self_reliance", "mana_discount", stats.get_passive_level("self_reliance"))
+			main.add_battle_log("Self Reliance: next card costs -%dm!" % sr_next, Color(0.9, 0.3, 0.3))
 
 	# Budding: track card types (no back-to-back same type)
 	if stats.has_skill_tree_passive("budding"):
@@ -1391,25 +1397,27 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 					stats.st_budding_types.append(ctype)
 			stats.st_budding_last_type = ctype
 
-			# Check if all 3 types played
+			# Check if all 3 types played — heal and temp HP scale with rank (5..19)
 			if stats.st_budding_types.has("attack") and stats.st_budding_types.has("defense") and stats.st_budding_types.has("utility"):
-				stats.heal(3)
-				stats.add_temp_health(5, 15)
+				var bud_amount: int = PassiveScaling.value("budding", "amount", stats.get_passive_level("budding"))
+				stats.heal(bud_amount)
+				stats.add_temp_health(bud_amount, 15)
 				stats.st_budding_types.clear()
 				stats.st_budding_last_type = ""
-				main.add_battle_log("Budding: healed 3, +5 temp HP!", Color(0.8, 0.4, 0.9))
+				main.add_battle_log("Budding: healed %d, +%d temp HP!" % [bud_amount, bud_amount], Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Expel Negativity: transfer a debuff to an enemy when below 50% HP.
-	# 2 charges, refreshed 10 tempo after both are spent; only one charge can
-	# trigger per damage event.
+	# Expel Negativity: transfer a debuff to an enemy when below the rank-scaled
+	# HP threshold (35%..63%). 2 charges, refreshed 10 tempo after both are
+	# spent; only one charge can trigger per damage event.
 	if stats.has_skill_tree_passive("expel_negativity"):
 		_expel_try_refresh_charges(stats)
-		if stats.st_expel_charges > 0 and stats.get_health_percent() <= 0.5:
+		var en_threshold: float = PassiveScaling.value("expel_negativity", "hp_threshold", stats.get_passive_level("expel_negativity"))
+		if stats.st_expel_charges > 0 and stats.get_health_percent() <= en_threshold:
 			var debuff_mgr = main.player.get_debuff_manager()
 			if debuff_mgr and debuff_mgr.debuffs.size() > 0:
 				var debuff = debuff_mgr.debuffs[randi() % debuff_mgr.debuffs.size()]
@@ -1439,14 +1447,16 @@ func _trigger_skill_tree_cory_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
-	# Eat: +1% damage for each percentage point the enemy is below 35% health.
-	# Judged against the enemy's health BEFORE this hit landed.
+	# Eat: +1% damage for each percentage point the enemy is below the
+	# rank-scaled threshold (11%..39%). Judged against the enemy's health
+	# BEFORE this hit landed.
 	if stats.has_skill_tree_passive("eat") and target is Enemy and is_instance_valid(target) \
 			and target.is_alive() and card.last_damage_dealt > 0:
+		var eat_threshold := float(PassiveScaling.value("eat", "threshold_percent", stats.get_passive_level("eat")))
 		var pre_health = mini(target.max_health, target.current_health + card.last_damage_dealt)
 		var pre_pct = 100.0 * float(pre_health) / float(target.max_health)
-		if pre_pct < 35.0:
-			var bonus_pct = 35.0 - pre_pct
+		if pre_pct < eat_threshold:
+			var bonus_pct = eat_threshold - pre_pct
 			bonus += maxi(1, floori(card.last_damage_dealt * bonus_pct / 100.0))
 			main.add_battle_log("Eat: +%d%% damage (+%d) on weakened prey!" % [roundi(bonus_pct), bonus], Color(0.3, 0.7, 1.0))
 
@@ -1457,9 +1467,10 @@ func _trigger_skill_tree_cory_on_kill(enemy: Enemy) -> void:
 	if not stats:
 		return
 
-	# Eat: killing enemies heals 5% of YOUR max HP
+	# Eat: killing enemies heals a rank-scaled % of YOUR max HP (1%..15%)
 	if stats.has_skill_tree_passive("eat"):
-		var heal_amount = max(1, floori(stats.max_health * 0.05))
+		var eat_heal_pct: int = PassiveScaling.value("eat", "heal_percent", stats.get_passive_level("eat"))
+		var heal_amount = max(1, floori(stats.max_health * eat_heal_pct / 100.0))
 		stats.heal(heal_amount)
 		main.add_battle_log("Eat: healed %d HP!" % heal_amount, Color(0.3, 0.7, 1.0))
 
@@ -1468,12 +1479,14 @@ func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> voi
 	if not stats:
 		return
 
-	# Serial Killer: first time enemy drops below 25% HP → player permanently invisible to them
+	# Serial Killer: first time enemy drops below the rank-scaled HP threshold
+	# (11%..25%) → player permanently invisible to them
 	if stats.has_skill_tree_passive("serial_killer") and enemy.is_alive():
 		var enemy_id = enemy.get_instance_id()
 		if enemy_id not in stats.st_serial_killer_enemies:
+			var sk_threshold: float = PassiveScaling.value("serial_killer", "hp_threshold", stats.get_passive_level("serial_killer"))
 			var hp_pct = float(enemy.current_health) / float(enemy.max_health)
-			if hp_pct <= 0.25:
+			if hp_pct <= sk_threshold:
 				stats.st_serial_killer_enemies[enemy_id] = true
 				# Add player to enemy's ignore list so it never targets them again
 				enemy.target = null
@@ -1481,17 +1494,20 @@ func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> voi
 					enemy.invisible_to_players.append(main.player)
 				main.add_battle_log("Serial Killer: invisible to %s!" % enemy.enemy_name, Color(0.3, 0.7, 1.0))
 
-func _trigger_skill_tree_cory_on_debuff_applied(target, debuff_name: String, value: int) -> void:
+func _trigger_skill_tree_cory_on_debuff_applied(target, debuff_name: String, value: int, was_new: bool = true) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Prey on the Weak: debuff on enemy below 50% HP → deal 3 damage
-	if stats.has_skill_tree_passive("prey_on_the_weak") and target and target is Enemy:
+	# Prey on the Weak: NEW debuff type on an enemy below 50% HP → rank-scaled
+	# damage (3..17). Unique debuffs only — re-stacking a debuff the enemy
+	# already has doesn't re-trigger it.
+	if stats.has_skill_tree_passive("prey_on_the_weak") and was_new and target and target is Enemy:
 		var hp_pct = float(target.current_health) / float(target.max_health)
 		if hp_pct < 0.5 and target.has_method("take_damage"):
-			target.take_damage(3, true)
-			main.add_battle_log("Prey on the Weak: 3 damage to %s!" % target.enemy_name, Color(0.3, 0.7, 1.0))
+			var pw_damage: int = PassiveScaling.value("prey_on_the_weak", "damage", stats.get_passive_level("prey_on_the_weak"))
+			target.take_damage(pw_damage, true)
+			main.add_battle_log("Prey on the Weak: %d damage to %s!" % [pw_damage, target.enemy_name], Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_cory_on_cycle() -> void:
 	var stats = main.player.get_stats()
@@ -1505,27 +1521,30 @@ func _trigger_skill_tree_cory_on_cycle() -> void:
 	if stats.st_regrowth_cooldown > 0:
 		stats.st_regrowth_cooldown -= 5
 
-	# Death as Lifeblood: heal for each nearby debuffed enemy
+	# Death as Lifeblood: every cycle, regen per enemy within 2 squares
+	# (rank-scaled: 1..5 each, counting at most 3..12 enemies)
 	if stats.has_skill_tree_passive("death_as_lifeblood"):
-		var nearby = main.enemy_spawner.get_enemies_in_radius(main.player.position, 5.0) if main.enemy_spawner else []
-		var debuffed_count = 0
-		for enemy in nearby:
-			if enemy.has_method("get_active_effects"):
-				var effects = enemy.get_active_effects()
-				if effects.size() > 0:
-					debuffed_count += 1
-		if debuffed_count > 0:
-			stats.heal(debuffed_count)
-			main.add_battle_log("Death as Lifeblood: healed %d HP" % debuffed_count, Color(0.4, 0.9, 0.4))
+		var dal_lvl: int = stats.get_passive_level("death_as_lifeblood")
+		var dal_regen: int = PassiveScaling.value("death_as_lifeblood", "regen_per_enemy", dal_lvl)
+		var dal_max: int = PassiveScaling.value("death_as_lifeblood", "max_enemies", dal_lvl)
+		var nearby = main.enemy_spawner.get_enemies_in_radius(main.player.position, 2.0) if main.enemy_spawner else []
+		var counted: int = mini(nearby.size(), dal_max)
+		if counted > 0:
+			# Regen, not an "actual heal" — ring heal counters and heal-triggered
+			# passives skip it.
+			stats._passive_heal = true
+			stats.heal(counted * dal_regen)
+			stats._passive_heal = false
+			main.add_battle_log("Death as Lifeblood: regenerated %d HP (%d enemies)" % [counted * dal_regen, counted], Color(0.4, 0.9, 0.4))
 
 func _trigger_skill_tree_cory_on_hand_empty() -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Regrowth: draw 4 cards when hand is empty (cooldown 25 tempo)
+	# Regrowth: draw 4 cards when hand is empty (rank-scaled cooldown 25..11 tempo)
 	if stats.has_skill_tree_passive("regrowth") and stats.st_regrowth_cooldown <= 0:
-		stats.st_regrowth_cooldown = 25
+		stats.st_regrowth_cooldown = PassiveScaling.value("regrowth", "cooldown", stats.get_passive_level("regrowth"))
 		for i in range(4):
 			main.deck_manager.attempt_draw()
 		main.add_battle_log("Regrowth: drew 4 cards!", Color(0.8, 0.4, 0.9))
@@ -1535,43 +1554,43 @@ func _trigger_skill_tree_cory_on_shuffle() -> void:
 	if not stats:
 		return
 
-	# Circle of Life: gain 15 armor and +3 damage for 3 attacks
+	# Circle of Life: gain rank-scaled armor and the same bonus attack damage
+	# for 3 attacks (10..24)
 	if stats.has_skill_tree_passive("circle_of_life"):
-		stats.add_armor(15)
+		var col_amount: int = PassiveScaling.value("circle_of_life", "amount", stats.get_passive_level("circle_of_life"))
+		stats.add_armor(col_amount)
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
-			buff_mgr.apply_buff(Buff.new(Buff.BuffType.STRENGTHEN, 3, -1, 3))
-		main.add_battle_log("Circle of Life: +15 armor, +3 damage (3 attacks)!", Color(0.8, 0.4, 0.9))
+			buff_mgr.apply_buff(Buff.new(Buff.BuffType.STRENGTHEN, col_amount, -1, 3))
+		main.add_battle_log("Circle of Life: +%d armor, +%d damage (3 attacks)!" % [col_amount, col_amount], Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_cory_on_enemy_enter_melee(enemy: Enemy) -> void:
-	var stats = main.player.get_stats()
-	if not stats:
-		return
-
 	# Territorial Death: re-apply 1 random existing debuff
-	if stats.has_skill_tree_passive("territorial_death") and enemy.has_method("get_active_effects"):
-		var effects = enemy.get_active_effects()
-		if effects.size() > 0:
-			var random_effect = effects[randi() % effects.size()]
-			var debuff_name = random_effect.get("name", "").to_lower()
-			if debuff_name != "" and enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
-				main.add_battle_log("Territorial Death: re-applied %s to %s!" % [random_effect.get("name", "?"), enemy.enemy_name], Color(0.4, 0.9, 0.4))
+	_territorial_death_reapply(enemy, "")
 
 func _trigger_skill_tree_cory_on_enemy_leave_melee(enemy: Enemy) -> void:
+	# Territorial Death: re-apply 1 random existing debuff when enemy leaves melee range
+	_territorial_death_reapply(enemy, " (leaving)")
+
+func _territorial_death_reapply(enemy: Enemy, log_suffix: String) -> void:
+	## Shared Territorial Death body — rank-scaled tempo cooldown (15..1) gates
+	## the re-apply, shared across enter and leave triggers.
 	var stats = main.player.get_stats()
 	if not stats:
 		return
-
-	# Territorial Death: re-apply 1 random existing debuff when enemy leaves melee range
-	if stats.has_skill_tree_passive("territorial_death") and enemy.has_method("get_active_effects"):
-		var effects = enemy.get_active_effects()
-		if effects.size() > 0:
-			var random_effect = effects[randi() % effects.size()]
-			var debuff_name = random_effect.get("name", "").to_lower()
-			if debuff_name != "" and enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
-				main.add_battle_log("Territorial Death: re-applied %s to %s (leaving)!" % [random_effect.get("name", "?"), enemy.enemy_name], Color(0.4, 0.9, 0.4))
+	if not stats.has_skill_tree_passive("territorial_death") or not enemy.has_method("get_active_effects"):
+		return
+	var td_cooldown: int = PassiveScaling.value("territorial_death", "cooldown", stats.get_passive_level("territorial_death"))
+	if main.tempo_manager.get_global_tempo() - stats.st_territorial_last_tempo < td_cooldown:
+		return
+	var effects = enemy.get_active_effects()
+	if effects.size() > 0:
+		var random_effect = effects[randi() % effects.size()]
+		var debuff_name = random_effect.get("name", "").to_lower()
+		if debuff_name != "" and enemy.has_method("apply_debuff"):
+			stats.st_territorial_last_tempo = main.tempo_manager.get_global_tempo()
+			enemy.apply_debuff(debuff_name, random_effect.get("stacks", 1))
+			main.add_battle_log("Territorial Death: re-applied %s to %s%s!" % [random_effect.get("name", "?"), enemy.enemy_name, log_suffix], Color(0.4, 0.9, 0.4))
 
 # ============================================
 # JEREMY SKILL TREE PASSIVE TRIGGERS

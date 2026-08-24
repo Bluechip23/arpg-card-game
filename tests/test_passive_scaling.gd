@@ -63,6 +63,41 @@ func _initialize() -> void:
 	_check(PassiveScaling.value("pristine_armor", "armor", 15) == 5, "Pristine Armor rank 15 = +5 armor")
 	_check(PassiveScaling.value("pristine_armor", "streak_bonus", 15) == 14, "Pristine Armor rank 15 streak = +14")
 
+	# --- Cory endpoints ---
+	_check(PassiveScaling.value("wither", "cooldown", 1) == 15, "Wither rank 1 cooldown 15")
+	_check(PassiveScaling.value("wither", "cooldown", 15) == 1, "Wither rank 15 cooldown 1")
+	_check(PassiveScaling.value("territorial_death", "cooldown", 1) == 15, "Territorial Death rank 1 cooldown 15")
+	_check(PassiveScaling.value("territorial_death", "cooldown", 15) == 1, "Territorial Death rank 15 cooldown 1")
+	_check(PassiveScaling.value("death_as_lifeblood", "regen_per_enemy", 1) == 1, "Death as Lifeblood rank 1 = 1/enemy")
+	_check(PassiveScaling.value("death_as_lifeblood", "regen_per_enemy", 15) == 5, "Death as Lifeblood rank 15 = 5/enemy")
+	_check(PassiveScaling.value("death_as_lifeblood", "max_enemies", 1) == 3, "Death as Lifeblood rank 1 max 3 enemies")
+	_check(PassiveScaling.value("death_as_lifeblood", "max_enemies", 15) == 12, "Death as Lifeblood rank 15 max 12 enemies")
+	_check(PassiveScaling.value("budding", "amount", 1) == 5, "Budding rank 1 = 5")
+	_check(PassiveScaling.value("budding", "amount", 15) == 19, "Budding rank 15 = 19")
+	_check(PassiveScaling.value("circle_of_life", "amount", 1) == 10, "Circle of Life rank 1 = 10")
+	_check(PassiveScaling.value("circle_of_life", "amount", 15) == 24, "Circle of Life rank 15 = 24")
+	_check(PassiveScaling.value("regrowth", "cooldown", 1) == 25, "Regrowth rank 1 cooldown 25")
+	_check(PassiveScaling.value("regrowth", "cooldown", 15) == 11, "Regrowth rank 15 cooldown 11")
+	_check(PassiveScaling.value("prey_on_the_weak", "damage", 1) == 3, "Prey on the Weak rank 1 = 3")
+	_check(PassiveScaling.value("prey_on_the_weak", "damage", 15) == 17, "Prey on the Weak rank 15 = 17")
+	_check(PassiveScaling.value("eat", "heal_percent", 1) == 1, "Eat rank 1 heals 1%")
+	_check(PassiveScaling.value("eat", "heal_percent", 15) == 15, "Eat rank 15 heals 15%")
+	_check(PassiveScaling.value("eat", "threshold_percent", 1) == 11, "Eat rank 1 threshold 11%")
+	_check(PassiveScaling.value("eat", "threshold_percent", 15) == 39, "Eat rank 15 threshold 39%")
+	_check(is_equal_approx(PassiveScaling.value("serial_killer", "hp_threshold", 1), 0.11), "Serial Killer rank 1 = 11%")
+	_check(is_equal_approx(PassiveScaling.value("serial_killer", "hp_threshold", 15), 0.25), "Serial Killer rank 15 = 25%")
+	_check(PassiveScaling.value("energy_barrier", "armor", 1) == 3, "Energy Barrier rank 1 = 3 armor")
+	_check(PassiveScaling.value("energy_barrier", "armor", 15) == 17, "Energy Barrier rank 15 = 17 armor")
+	_check(is_equal_approx(PassiveScaling.value("expel_negativity", "hp_threshold", 1), 0.35), "Expel Negativity rank 1 = 35%")
+	_check(is_equal_approx(PassiveScaling.value("expel_negativity", "hp_threshold", 15), 0.63), "Expel Negativity rank 15 = 63%")
+	_check(PassiveScaling.value("self_reliance", "mana_discount", 1) == 10, "Self Reliance rank 1 = 10m (design 1)")
+	_check(PassiveScaling.value("self_reliance", "mana_discount", 15) == 80, "Self Reliance rank 15 = 80m (design 8)")
+
+	# --- Energy Barrier card carries the rank-scaled armor ---
+	var eb := Card.create_energy_barrier(9)
+	_check(eb.block == 9 and eb.base_block == 9, "Energy Barrier card block follows the passive rank")
+	_check("9 armor" in eb.description, "Energy Barrier card description shows the scaled armor")
+
 	# --- Out-of-range levels clamp (legacy save with no recorded level = rank 1) ---
 	_check(PassiveScaling.value("life_steal", "percent", 0) == PassiveScaling.value("life_steal", "percent", 1),
 		"level 0 clamps to rank 1")

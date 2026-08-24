@@ -143,23 +143,24 @@ and lockdown cards are his bread and butter: **Round 'Em Up** (drag enemies towa
 **Push**, **Swap**, **Trip** (−4 movement), **Choke** (silence), **Sweeping Disarm**,
 **Vines** (root + damage per turn held). His passives then punish enemies for existing inside
 the arrangement: entering or leaving melee range re-applies a random debuff they already have
-(*Territorial Death*), every debuff he applies carries +1 charge (*Wither*), debuffing a
-wounded enemy deals bonus damage (*Prey on the Weak*), and he **passively regenerates health
-for each debuffed enemy near him** (*Death as Lifeblood*). The debuffs aren't just offense —
-they are literally his sustain.
+(*Territorial Death*, on a rank-scaled 15→1 tempo cooldown), debuffs he applies carry +1
+charge on a rank-scaled 15→1 tempo cooldown (*Wither*), landing a NEW debuff on a wounded
+enemy deals rank-scaled bonus damage (*Prey on the Weak*), and he **passively regenerates
+health for each enemy within 2 squares of him** (*Death as Lifeblood*). The enemies aren't
+just targets — they are literally his sustain.
 
 His second axis is *throughput*. Cory wants to play a lot of cards, of every type: playing an
-attack, a utility, and a defense in any order heals him and grants temp HP (*Budding*), three
-cards inside one tempo cycle discounts the next one (*Self Reliance*), emptying his hand draws
-4 fresh cards (*Regrowth*), and shuffling his deck grants 15 armor and a damage buff
-(*Circle of Life*). Even **Meditate** (discard everything, redraw, heal to 80%) plays into the
+attack, a utility, and a defense in any order heals him and grants temp HP (5→19 of each,
+*Budding*), three cards inside one tempo cycle discounts the next one (*Self Reliance*),
+emptying his hand draws 4 fresh cards (*Regrowth*, cooldown 25→11 tempo), and shuffling his
+deck grants 10→24 armor and the same damage buff (*Circle of Life*). Even **Meditate** (discard everything, redraw, heal to 80%) plays into the
 reset loop. Nothing in the kit wants you to sit on cards.
 
 **Gear identity:** Cory runs **2 gauntlet slots** — gauntlets are the active-skill item type —
 and his character passive grants **1 mana every time a gauntlet skill comes off cooldown**.
 Gauntlets give him what his deck doesn't need to: reliable, repeatable damage on a clock, with
 a mana rebate every rotation. *Energy Barrier* turns every third non-regen mana gain into a
-free 5-armor card, so the gauntlet rebate itself feeds a defensive engine. He starts
+free armor card (3→17 armor with rank), so the gauntlet rebate itself feeds a defensive engine. He starts
 bare-handed; every pair of gauntlets found is a new skill on his bar.
 
 **Cards that sing in his hands:** beyond the control suite — **Consecutive Snap** (3 damage
@@ -168,11 +169,11 @@ that grows +9 and gets cheaper each reuse, rewarding repetition), **Defensive Aw
 debuff on the board with one AOE), **Release Tension** (cash debuffs in for healing),
 **Exposed Artery** (scales off missing health, finishing what the attrition started), with
 *Eat* turning him into a genuine closer — +1% damage for every percentage point the enemy sits
-below 35% health, plus a heal of 5% of his max HP on every kill — and *Serial Killer* making
-him invisible to any enemy that drops below 25%, with the ambush out of that invisibility
-landing as a guaranteed crit (and revealing him). *Expel Negativity* rounds out the attrition
-loop: dropping below 50% health bounces a debuff off him onto an enemy (2 charges on a
-10-tempo refresh, one per hit).
+below a rank-scaled 11%→39% threshold, plus a heal of 1%→15% of his max HP on every kill — and
+*Serial Killer* making him invisible to any enemy that drops below 11%→25%, with the ambush
+out of that invisibility landing as a guaranteed crit (and revealing him). *Expel Negativity*
+rounds out the attrition loop: dropping below 35%→63% health bounces a debuff off him onto an
+enemy (2 charges on a 10-tempo refresh, one per hit).
 
 **Pick Cory if you want:** to dictate where every unit on the grid stands, to win long fights
 through debuff attrition that heals you while it kills them, and a machine-gun card cadence

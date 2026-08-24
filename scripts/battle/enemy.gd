@@ -3256,6 +3256,35 @@ func apply_wear_down(tempo: int) -> void:
 	print("[%s] Wear Down applied for %d tempo" % [enemy_name, wear_down_tempo])
 	_update_status_indicators()
 
+## True when a debuff of this apply_debuff key is already active on this enemy.
+## Keys mirror the match arms in apply_debuff.
+func has_debuff_type(debuff_name: String) -> bool:
+	match debuff_name:
+		"inebriate": return inebriated_tempo > 0
+		"stun": return is_stunned and stun_tempo > 0
+		"slow": return slow_stacks > 0
+		"disarmed": return is_disarmed and disarmed_tempo > 0
+		"marked": return is_marked and marked_tempo > 0
+		"silenced": return is_silenced and silenced_tempo > 0
+		"choke_dot": return choke_dot_stacks > 0
+		"burn": return burn_stacks > 0
+		"cold": return cold_stacks > 0 or (is_frozen and frozen_tempo > 0)
+		"poison": return poison_stacks > 0
+		"shock": return shock_stacks > 0
+		"bleed": return bleed_stacks > 0
+		"vulnerable": return vulnerable_stacks > 0
+		"weaken": return weaken_stacks > 0
+		"root": return rooted_tempo > 0
+		"cursed": return cursed_tempo > 0
+		"disarm_attacks": return disarmed_attacks > 0
+		"narashimha": return narashimha_tempo > 0
+		"polymorph": return polymorph_tempo > 0
+	return false
+
+# Whether the most recent apply_debuff added a debuff type the enemy did not
+# already have (read by Prey on the Weak, which triggers on unique debuffs only).
+var last_debuff_was_new: bool = false
+
 func apply_debuff(debuff_name: String, value: int) -> void:
 	# Feral Evocation: while a converted card's play resolves, any of the four
 	# slot elements it lands is swapped to the converted color's element.
@@ -3263,6 +3292,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			and debuff_name != Card.active_element_remap:
 		print("[%s] Feral Evocation: %s becomes %s" % [enemy_name, debuff_name, Card.active_element_remap])
 		debuff_name = Card.active_element_remap
+	last_debuff_was_new = not has_debuff_type(debuff_name)
 	match debuff_name:
 		"inebriate":
 			# Matches the player's Inebriate: movement direction is randomized.
