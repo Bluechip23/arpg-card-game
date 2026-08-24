@@ -378,7 +378,13 @@ var sphere_bonus_range: int = 0       # Bonus range for ranged attacks
 var skill_tree_passives: Array[String] = []  # Active passive IDs from skill tree choices
 
 # Stateful tracking for skill tree passives
-var st_crit_counter: int = 0          # Eye Scrape: tracks crits toward every-3rd invisibility
+var st_crit_counter: int = 0          # Eye Scrape: tracks crits toward the rank-scaled invisibility threshold
+var st_eye_scrape_last_tempo: int = -100  # Eye Scrape: global tempo of the last invisibility (10 tempo cooldown)
+var st_ktg_discard_count: int = 0     # Keep Them Guessing: discards toward the rank-scaled -3t proc
+var st_from_hip_original_tempo: int = 0   # From the Hip: tempo cost to restore when the discount clears
+var st_pop_rocks_last_tempo: int = -100   # Pop Rocks: global tempo of the last burst (rank-scaled cooldown)
+var st_nimble_last_tempo: int = -100      # Nimble Assault: global tempo of the last free draw (rank-scaled cooldown)
+var st_nysm_last_tempo: int = -100        # Now You See Me: global tempo of the last invisibility (rank-scaled cooldown)
 var st_from_hip_card: Card = null     # From the Hip: the card currently discounted
 var st_from_hip_original_cost: int = 0  # From the Hip: original mana cost to restore
 var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which enemies have been struck
@@ -511,7 +517,7 @@ func _directed_strength_mod() -> int:
 
 var dexterity: int:
 	get:
-		return get_effective_stat(base_dexterity)
+		return get_effective_stat(base_dexterity) + _ladder_work_mod("dexterity")
 
 var intelligence: int:
 	get:
@@ -523,7 +529,13 @@ var wisdom: int:
 
 var agility: int:
 	get:
-		return get_effective_stat(base_agility)
+		return get_effective_stat(base_agility) + _ladder_work_mod("agility")
+
+func _ladder_work_mod(key: String) -> int:
+	## Ryan's Ladder Work passive: rank-scaled +DEX (1..8) and +AGI (1..15).
+	if not has_skill_tree_passive("ladder_work"):
+		return 0
+	return int(PassiveScaling.value("ladder_work", key, get_passive_level("ladder_work")))
 
 func get_effective_stat(base_value: int) -> int:
 	var modifier = get_determination_modifier()

@@ -7200,9 +7200,10 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 	# Swing for the Fences: heavy swings (tempo > 4) land the tempo again.
 	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
 		total += card.tempo_cost
-	# Ladder Work: banked discards cash in on the cycle's first attack.
+	# Ladder Work: banked discards cash in on the cycle's first attack
+	# (rank-scaled 1..6 damage per banked card).
 	if stats.has_skill_tree_passive("ladder_work") and stats.st_ladder_banked > 0:
-		total += stats.st_ladder_banked * 2
+		total += stats.st_ladder_banked * int(PassiveScaling.value("ladder_work", "damage_per_discard", stats.get_passive_level("ladder_work")))
 
 	# Cursed debuff: percentage reduction, applied last like the pipeline.
 	if debuff_mgr:

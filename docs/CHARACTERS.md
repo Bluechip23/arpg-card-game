@@ -13,8 +13,8 @@ describe the playstyle each kit produces, not a class fantasy.
 ## Ryan — play out of your pockets, treat your hand like a conveyor belt
 
 Ryan is for players who want their hand constantly moving. His passives turn discarding — 
-normally a dead action — into fuel: discarding a card shaves tempo off a random card still in
-your hand (*Keep Them Guessing*), and cards like **Exacerbate Wounds** (damage per card
+normally a dead action — into fuel: every 18→4 discards (rank-scaled) shave -3 tempo off a
+random card still in your hand (*Keep Them Guessing*), and cards like **Exacerbate Wounds** (damage per card
 discarded), **Reposition** (discard one, draw one), and **Volatile Mixture** (a hot potato that
 deals 8 to an enemy if discarded — or 8 to *you* if you're still holding it) all reward the
 churn. The churn now has a payoff button: *Ladder Work* banks every card that hits his discard
@@ -24,10 +24,11 @@ Everything that slips out of his hand sideways sharpens the opening knife.
 
 His second axis is *sequencing*. Several passives care about what you just did, not what you're
 doing: *From the Hip* discounts your most recently drawn attack until you play anything,
-*Nimble Assault* rewards holding a hand with no Defense cards in it by turning every attack
-into a draw, *Surprise Opener* front-loads his aggression (+3 on his first strike against an
-enemy, +4 more if they had no armor, +5 more if he's the first thing to touch them — up to +12
-for a clean ambush), and *Mad Scientist* literally changes what his potions do based on the
+*Nimble Assault* rewards holding a hand with no Defense cards in it by turning attacks
+into draws (on a rank-scaled 15→8 tempo cooldown), *Surprise Opener* front-loads his
+aggression (rank-scaled: +1→8 on his first strike against an enemy, +1→15 more if they had no
+armor, +3→17 more if he's the first thing to touch them — up to +40 for a clean max-rank
+ambush), and *Mad Scientist* literally changes what his potions do based on the
 last card played. Playing Ryan well means thinking one card ahead, all the time — and the
 endgame deck this points toward is radical: **cull every Defense card**, let Agility's
 sidestep and movement provide the blocking, and run pure attacks, utilities, and instants so
@@ -43,7 +44,7 @@ a card. He starts with nothing equipped, so hunting belts early is his natural g
 **Cards that sing in his hands:** fast, cheap, and sneaky ones. **Shuriken Pouch** turns
 overflow cards into free 3-damage Shurikens, **Preparation** discounts his next two utilities,
 **Shadows** grants invisibility — which his passives hand out for free when he blinks or gets
-displaced (*Now You See Me*) and on every third crit (*Eye Scrape*). The poison line
+displaced (*Now You See Me*) and on every 15th→1st crit (*Eye Scrape*, rank-scaled). The poison line
 (**Poisoned Blood**, **Elixir**, *Pop Rocks* — burst damage for re-poisoning an already
 poisoned enemy) rewards committing to stacking one target rather than spreading damage around.
 

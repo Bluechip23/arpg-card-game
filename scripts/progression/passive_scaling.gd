@@ -130,6 +130,55 @@ const TABLES := {
 	"blood_libation": {
 		"heal_per_stack": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 	},
+
+	# --- Ryan ---
+	"stimulant": {
+		"cooldown": [19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5],
+	},
+	"pop_rocks": {
+		"cooldown": [19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5],
+	},
+	"mad_scientist": {
+		"regen": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+		"strengthen": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+		"poison": [2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9],
+		"phys_defense": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+	},
+	"quick_step": {
+		"armor": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+	},
+	"ladder_work": {
+		# Rank 1 grants all three; then +1 DEX every other rank, +1 AGI every
+		# rank, +1 damage-per-discard every 3rd rank
+		"dexterity": [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8],
+		"agility": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		"damage_per_discard": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6],
+	},
+	"let's_dance": {
+		# Armor and damage both = spaces moved / divisor, rounded down
+		"divisor": [8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1],
+	},
+	"keep_them_guessing": {
+		"discards_required": [18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4],
+	},
+	"from_the_hip": {
+		"mana": [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 65, 70, 75],
+		"tempo": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2],
+	},
+	"nimble_assault": {
+		"cooldown": [15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8],
+	},
+	"now_you_see_me": {
+		"cooldown": [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+	},
+	"surprise_opener": {
+		"first_strike": [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8],
+		"no_armor": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		"first_source": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+	},
+	"eye_scrape": {
+		"crits_required": [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+	},
 }
 
 ## Look up a passive's value for `key` at `level`. Levels outside 1..15 are

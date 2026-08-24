@@ -126,6 +126,61 @@ func _initialize() -> void:
 			_check(false, "Whispers rank %d cooldown = 65 - armor" % r)
 			break
 
+	# --- Ryan endpoints ---
+	_check(PassiveScaling.value("stimulant", "cooldown", 1) == 19, "Stimulant rank 1 cooldown 19")
+	_check(PassiveScaling.value("stimulant", "cooldown", 15) == 5, "Stimulant rank 15 cooldown 5")
+	_check(PassiveScaling.value("pop_rocks", "cooldown", 1) == 19, "Pop Rocks rank 1 cooldown 19")
+	_check(PassiveScaling.value("pop_rocks", "cooldown", 15) == 5, "Pop Rocks rank 15 cooldown 5")
+	_check(PassiveScaling.value("mad_scientist", "regen", 1) == 2, "Mad Scientist rank 1 = +2 regen")
+	_check(PassiveScaling.value("mad_scientist", "regen", 15) == 16, "Mad Scientist rank 15 = +16 regen")
+	_check(PassiveScaling.value("mad_scientist", "strengthen", 15) == 16, "Mad Scientist rank 15 = +16 strengthen")
+	_check(PassiveScaling.value("mad_scientist", "poison", 1) == 2, "Mad Scientist rank 1 = +2 poison")
+	_check(PassiveScaling.value("mad_scientist", "poison", 15) == 9, "Mad Scientist rank 15 = +9 poison")
+	_check(PassiveScaling.value("mad_scientist", "phys_defense", 1) == 1, "Mad Scientist rank 1 = -1% defense")
+	_check(PassiveScaling.value("mad_scientist", "phys_defense", 15) == 15, "Mad Scientist rank 15 = -15% defense")
+	_check(PassiveScaling.value("quick_step", "armor", 1) == 2, "Quick Step rank 1 = 2 armor")
+	_check(PassiveScaling.value("quick_step", "armor", 15) == 16, "Quick Step rank 15 = 16 armor")
+	_check(PassiveScaling.value("ladder_work", "dexterity", 1) == 1, "Ladder Work rank 1 = +1 DEX")
+	_check(PassiveScaling.value("ladder_work", "dexterity", 15) == 8, "Ladder Work rank 15 = +8 DEX")
+	_check(PassiveScaling.value("ladder_work", "agility", 1) == 1, "Ladder Work rank 1 = +1 AGI")
+	_check(PassiveScaling.value("ladder_work", "agility", 15) == 15, "Ladder Work rank 15 = +15 AGI")
+	_check(PassiveScaling.value("ladder_work", "damage_per_discard", 1) == 1, "Ladder Work rank 1 = +1/discard")
+	_check(PassiveScaling.value("ladder_work", "damage_per_discard", 15) == 6, "Ladder Work rank 15 = +6/discard")
+	_check(PassiveScaling.value("let's_dance", "divisor", 1) == 8, "Let's Dance rank 1 divisor 8")
+	_check(PassiveScaling.value("let's_dance", "divisor", 15) == 1, "Let's Dance rank 15 divisor 1")
+	_check(PassiveScaling.value("keep_them_guessing", "discards_required", 1) == 18, "Keep Them Guessing rank 1 = 18 discards")
+	_check(PassiveScaling.value("keep_them_guessing", "discards_required", 15) == 4, "Keep Them Guessing rank 15 = 4 discards")
+	_check(PassiveScaling.value("from_the_hip", "mana", 1) == 10, "From the Hip rank 1 = 10m (design 1)")
+	_check(PassiveScaling.value("from_the_hip", "mana", 15) == 75, "From the Hip rank 15 = 75m (design 7.5)")
+	_check(PassiveScaling.value("from_the_hip", "tempo", 10) == 0, "From the Hip rank 10 = no tempo discount")
+	_check(PassiveScaling.value("from_the_hip", "tempo", 11) == 1, "From the Hip rank 11 = -1t")
+	_check(PassiveScaling.value("from_the_hip", "tempo", 15) == 2, "From the Hip rank 15 = -2t")
+	_check(PassiveScaling.value("nimble_assault", "cooldown", 1) == 15, "Nimble Assault rank 1 cooldown 15")
+	_check(PassiveScaling.value("nimble_assault", "cooldown", 15) == 8, "Nimble Assault rank 15 cooldown 8")
+	_check(PassiveScaling.value("now_you_see_me", "cooldown", 1) == 15, "Now You See Me rank 1 cooldown 15")
+	_check(PassiveScaling.value("now_you_see_me", "cooldown", 15) == 1, "Now You See Me rank 15 cooldown 1")
+	_check(PassiveScaling.value("surprise_opener", "first_strike", 1) == 1, "Surprise Opener rank 1 first strike +1")
+	_check(PassiveScaling.value("surprise_opener", "first_strike", 15) == 8, "Surprise Opener rank 15 first strike +8")
+	_check(PassiveScaling.value("surprise_opener", "no_armor", 15) == 15, "Surprise Opener rank 15 no-armor +15")
+	_check(PassiveScaling.value("surprise_opener", "first_source", 1) == 3, "Surprise Opener rank 1 first-source +3")
+	_check(PassiveScaling.value("surprise_opener", "first_source", 15) == 17, "Surprise Opener rank 15 first-source +17")
+	_check(PassiveScaling.value("eye_scrape", "crits_required", 1) == 15, "Eye Scrape rank 1 = every 15th crit")
+	_check(PassiveScaling.value("eye_scrape", "crits_required", 15) == 1, "Eye Scrape rank 15 = every crit")
+
+	# --- Ladder Work DEX/AGI flow through the stat getters, not baked stats ---
+	var rstats = PlayerStats.new()
+	rstats.unspent_passive_points = 20
+	var base_dex: int = rstats.dexterity
+	var base_agi: int = rstats.agility
+	rstats.allocate_passive_point("ladder_work")
+	_check(rstats.dexterity == base_dex + 1 and rstats.agility == base_agi + 1,
+		"Ladder Work rank 1 grants +1 DEX and +1 AGI dynamically")
+	for i in range(14):
+		rstats.allocate_passive_point("ladder_work")
+	_check(rstats.dexterity == base_dex + 8 and rstats.agility == base_agi + 15,
+		"Ladder Work rank 15 grants +8 DEX and +15 AGI dynamically")
+	rstats.free()
+
 	# --- Jeremy's conjured cards carry the rank-scaled values ---
 	var ms := Card.create_mana_surge(12)
 	_check(ms.damage == 12 and ms.base_damage == 12, "Mana Surge card damage follows the passive rank")

@@ -551,13 +551,11 @@ func _apply_skill_tree_option(option) -> void:
 		# Special handling for stat-granting passives (apply immediately + register)
 		match pid:
 			"ladder_work":
-				# Ryan: +3 dexterity and +3 agility, plus the opening-strike
-				# spike (registered so the cycle/attack triggers can find it)
-				stats.base_dexterity += 3
-				stats.base_agility += 3
-				stats.stats_updated.emit()
+				# Ryan: rank-scaled +DEX/+AGI (read live via the stat getters,
+				# NOT baked into base stats), plus the opening-strike spike
 				stats.add_skill_tree_passive(pid)
-				main.add_battle_log("Ladder Work: +3 DEX, +3 AGI — and your opening strike each cycle feeds on the discard pile", Color(0.3, 0.7, 1.0))
+				stats.stats_updated.emit()
+				main.add_battle_log("Ladder Work: +DEX, +AGI — and your opening strike each cycle feeds on the discard pile", Color(0.3, 0.7, 1.0))
 			"stone_skin":
 				# Brad: +10% Fire, Physical, Lightning resistance
 				stats.add_skill_tree_passive(pid)
@@ -603,14 +601,18 @@ func _trigger_skill_tree_on_discard(card: Card) -> void:
 	if not stats:
 		return
 
-	# Keep Them Guessing: -1t from a random card in hand
+	# Keep Them Guessing: after a rank-scaled number of discards (18..4),
+	# -3t from a random card in hand
 	if stats.has_skill_tree_passive("keep_them_guessing"):
-		if main.deck_manager and main.deck_manager.hand.size() > 0:
+		var ktg_required: int = PassiveScaling.value("keep_them_guessing", "discards_required", stats.get_passive_level("keep_them_guessing"))
+		stats.st_ktg_discard_count += 1
+		if stats.st_ktg_discard_count >= ktg_required and main.deck_manager and main.deck_manager.hand.size() > 0:
+			stats.st_ktg_discard_count = 0
 			var random_idx = randi() % main.deck_manager.hand.size()
 			var target_card = main.deck_manager.hand[random_idx]
 			if target_card.tempo_cost > 0:
-				target_card.tempo_cost -= 1
-				main.add_battle_log("Keep Them Guessing: %s -1t" % target_card.card_name, Color(0.9, 0.3, 0.3))
+				target_card.tempo_cost = maxi(0, target_card.tempo_cost - 3)
+				main.add_battle_log("Keep Them Guessing: %s -3t" % target_card.card_name, Color(0.9, 0.3, 0.3))
 
 func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 	var stats = main.player.get_stats()
@@ -622,31 +624,39 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		var discounted = stats.st_from_hip_card
 		if is_instance_valid(discounted):
 			discounted.mana_cost = stats.st_from_hip_original_cost
+			discounted.tempo_cost = stats.st_from_hip_original_tempo
 		stats.st_from_hip_card = null
 		stats.st_from_hip_original_cost = 0
+		stats.st_from_hip_original_tempo = 0
 
 	# Nimble Assault: cards in hand but no Defense cards → draw on attack.
 	# An empty hand does NOT qualify — there must be cards, just no Defense.
+	# Rank-scaled tempo cooldown (15..8).
 	if stats.has_skill_tree_passive("nimble_assault") and card.card_type == Card.CardType.ATTACK \
 			and main.deck_manager.hand.size() > 0:
-		var has_defense = false
-		for c in main.deck_manager.hand:
-			if c.card_type == Card.CardType.DEFENSE:
-				has_defense = true
-				break
-		if not has_defense:
-			main.deck_manager.attempt_draw()
-			main.add_battle_log("Nimble Assault: drew a card!", Color(0.9, 0.3, 0.3))
+		var na_cooldown: int = PassiveScaling.value("nimble_assault", "cooldown", stats.get_passive_level("nimble_assault"))
+		if main.tempo_manager.get_global_tempo() - stats.st_nimble_last_tempo >= na_cooldown:
+			var has_defense = false
+			for c in main.deck_manager.hand:
+				if c.card_type == Card.CardType.DEFENSE:
+					has_defense = true
+					break
+			if not has_defense:
+				stats.st_nimble_last_tempo = main.tempo_manager.get_global_tempo()
+				main.deck_manager.attempt_draw()
+				main.add_battle_log("Nimble Assault: drew a card!", Color(0.9, 0.3, 0.3))
 
-	# Quick Step: instant played from hand → +5 armor
+	# Quick Step: instant played from hand → rank-scaled armor (2..16)
 	if stats.has_skill_tree_passive("quick_step"):
 		if card.card_type == Card.CardType.REACTION or card.tempo_cost == 0:
-			stats.add_armor(5)
-			main.add_battle_log("Quick Step: +5 armor", Color(0.3, 0.7, 1.0))
+			var qs_armor: int = PassiveScaling.value("quick_step", "armor", stats.get_passive_level("quick_step"))
+			stats.add_armor(qs_armor)
+			main.add_battle_log("Quick Step: +%d armor" % qs_armor, Color(0.3, 0.7, 1.0))
 
-	# Stimulant: healing with a Pocket card → healed target draws a card (5 tempo cooldown)
+	# Stimulant: healing with a Pocket card → healed target draws a card
+	# (rank-scaled cooldown 19..5 tempo)
 	if stats.has_skill_tree_passive("stimulant") and card.card_keyword == Card.CardKeyword.POCKET and card.heal_amount > 0 and stats.st_stimulant_cooldown <= 0:
-		stats.st_stimulant_cooldown = 5
+		stats.st_stimulant_cooldown = PassiveScaling.value("stimulant", "cooldown", stats.get_passive_level("stimulant"))
 		main.deck_manager.attempt_draw()
 		main.add_battle_log("Stimulant: healed target drew a card!", Color(0.4, 0.9, 0.4))
 
@@ -662,30 +672,35 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 			is_heal_outcome = false
 			is_poison_outcome = true
 
+		var ms_lvl: int = stats.get_passive_level("mad_scientist")
 		if is_heal_outcome:
 			if last_type == Card.CardType.UTILITY:
-				# Utility → Heal: add 3 stacks of regen to the healed target
+				# Utility → Heal: rank-scaled regen (2..16) on the healed target
 				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_regen(3, 15, "Mad Scientist"))
-					main.add_battle_log("Mad Scientist: +3 regen!", Color(0.4, 0.9, 0.4))
+					var ms_regen: int = PassiveScaling.value("mad_scientist", "regen", ms_lvl)
+					buff_mgr.apply_buff(Buff.create_regen(ms_regen, 15, "Mad Scientist"))
+					main.add_battle_log("Mad Scientist: +%d regen!" % ms_regen, Color(0.4, 0.9, 0.4))
 			elif last_type == Card.CardType.ATTACK:
-				# Attack → Heal: give healed target 3 strengthen
+				# Attack → Heal: rank-scaled strengthen (2..16) on the healed target
 				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_strengthen(3, 3, "Mad Scientist"))
-					main.add_battle_log("Mad Scientist: +3 strengthen!", Color(0.4, 0.9, 0.4))
+					var ms_str: int = PassiveScaling.value("mad_scientist", "strengthen", ms_lvl)
+					buff_mgr.apply_buff(Buff.create_strengthen(ms_str, 3, "Mad Scientist"))
+					main.add_battle_log("Mad Scientist: +%d strengthen!" % ms_str, Color(0.4, 0.9, 0.4))
 
 		elif is_poison_outcome:
 			if last_type == Card.CardType.UTILITY:
-				# Utility → Poison: add 3 additional stacks of poison
+				# Utility → Poison: rank-scaled bonus poison stacks (2..9)
 				if target and target.has_method("apply_debuff"):
-					target.apply_debuff("poison", 3)
-					main.add_battle_log("Mad Scientist: +3 poison stacks!", Color(0.4, 0.9, 0.4))
+					var ms_poison: int = PassiveScaling.value("mad_scientist", "poison", ms_lvl)
+					target.apply_debuff("poison", ms_poison)
+					main.add_battle_log("Mad Scientist: +%d poison stacks!" % ms_poison, Color(0.4, 0.9, 0.4))
 			elif last_type == Card.CardType.DEFENSE:
-				# Defense → Poison: lower enemy physical defense by 10%
+				# Defense → Poison: lower enemy physical defense by a rank-scaled % (1..15)
 				if target and target is Enemy and target.current_armor > 0:
-					var armor_loss = max(1, target.current_armor / 10)
+					var ms_def: int = PassiveScaling.value("mad_scientist", "phys_defense", ms_lvl)
+					var armor_loss = max(1, floori(target.current_armor * ms_def / 100.0))
 					target.reduce_armor(armor_loss)
-					main.add_battle_log("Mad Scientist: -%d armor! (-10%%)" % armor_loss, Color(0.4, 0.9, 0.4))
+					main.add_battle_log("Mad Scientist: -%d armor! (-%d%%)" % [armor_loss, ms_def], Color(0.4, 0.9, 0.4))
 
 func _trigger_skill_tree_on_draw(card: Card) -> void:
 	var stats = main.player.get_stats()
@@ -703,17 +718,26 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 				card.tempo_cost -= 1
 				main.add_battle_log("Clean Exchange: %s -1t" % card.card_name, Color(0.3, 0.7, 1.0))
 
-	# From the Hip: if an attack card, discount the most recently drawn card by -1m
+	# From the Hip: if an attack card, discount the most recently drawn card's
+	# mana (rank-scaled 10..75m) and, at high ranks, tempo (1..2t)
 	if stats.has_skill_tree_passive("from_the_hip") and card.card_type == Card.CardType.ATTACK:
 		# Clear previous discount if any
 		if stats.st_from_hip_card != null and is_instance_valid(stats.st_from_hip_card):
 			stats.st_from_hip_card.mana_cost = stats.st_from_hip_original_cost
+			stats.st_from_hip_card.tempo_cost = stats.st_from_hip_original_tempo
 		# Apply new discount
 		if card.mana_cost > 0:
+			var fh_lvl: int = stats.get_passive_level("from_the_hip")
+			var fh_mana: int = PassiveScaling.value("from_the_hip", "mana", fh_lvl)
+			var fh_tempo: int = PassiveScaling.value("from_the_hip", "tempo", fh_lvl)
 			stats.st_from_hip_original_cost = card.mana_cost
-			card.mana_cost = maxi(0, card.mana_cost - 10)
+			stats.st_from_hip_original_tempo = card.tempo_cost
+			card.mana_cost = maxi(0, card.mana_cost - fh_mana)
+			if fh_tempo > 0:
+				card.tempo_cost = maxi(0, card.tempo_cost - fh_tempo)
 			stats.st_from_hip_card = card
-			main.add_battle_log("From the Hip: %s -1m" % card.card_name, Color(0.9, 0.3, 0.3))
+			var fh_label := "-%dm" % fh_mana if fh_tempo == 0 else "-%dm/-%dt" % [fh_mana, fh_tempo]
+			main.add_battle_log("From the Hip: %s %s" % [card.card_name, fh_label], Color(0.9, 0.3, 0.3))
 
 func _trigger_skill_tree_on_attack(card: Card, target) -> void:
 	var stats = main.player.get_stats()
@@ -732,20 +756,25 @@ func _trigger_skill_tree_on_attack(card: Card, target) -> void:
 			if stats.st_pre_attack_target_id == enemy_id:
 				pre_armor = stats.st_pre_attack_armor
 				pre_health = stats.st_pre_attack_health
-			var bonus = 3
+			# All three bonuses scale with rank: first strike 1..8, no armor
+			# 1..15, first source of damage 3..17
+			var so_lvl: int = stats.get_passive_level("surprise_opener")
+			var bonus: int = PassiveScaling.value("surprise_opener", "first_strike", so_lvl)
 			if pre_armor <= 0:
-				bonus += 4
+				bonus += int(PassiveScaling.value("surprise_opener", "no_armor", so_lvl))
 			# First source of damage: they were still at full HP before this hit
 			if pre_health >= target.max_health:
-				bonus += 5
+				bonus += int(PassiveScaling.value("surprise_opener", "first_source", so_lvl))
 			target.take_damage(bonus, true)
 			main.add_battle_log("Surprise Opener: +%d bonus damage!" % bonus, Color(0.8, 0.4, 0.9))
 
 	# Ladder Work: the first attack each cycle spends the banked count of cards
-	# that hit the discard pile without being played last cycle (+2 damage each)
+	# that hit the discard pile without being played last cycle (rank-scaled
+	# 1..6 damage each)
 	if stats.has_skill_tree_passive("ladder_work") and stats.st_ladder_banked > 0 \
 			and target and target is Enemy and target.has_method("take_damage"):
-		var lw_bonus = stats.st_ladder_banked * 2
+		var lw_per: int = PassiveScaling.value("ladder_work", "damage_per_discard", stats.get_passive_level("ladder_work"))
+		var lw_bonus = stats.st_ladder_banked * lw_per
 		stats.st_ladder_banked = 0
 		target.take_damage(lw_bonus, true)
 		main.add_battle_log("Ladder Work: opening strike +%d!" % lw_bonus, Color(0.3, 0.7, 1.0))
@@ -779,11 +808,15 @@ func _trigger_skill_tree_on_crit(target) -> void:
 	# Sphere-grid on-crit passives (heal on crit, bleed on crit, Shadow Strike).
 	_trigger_sphere_passives("on_crit", {"target": target})
 
-	# Eye Scrape: every 3rd crit → invisibility
+	# Eye Scrape: every Nth crit (rank-scaled 15..1) → invisibility, on a
+	# 10 tempo cooldown
 	if stats.has_skill_tree_passive("eye_scrape"):
+		var es_required: int = PassiveScaling.value("eye_scrape", "crits_required", stats.get_passive_level("eye_scrape"))
 		stats.st_crit_counter += 1
-		if stats.st_crit_counter >= 3:
+		if stats.st_crit_counter >= es_required \
+				and main.tempo_manager.get_global_tempo() - stats.st_eye_scrape_last_tempo >= 10:
 			stats.st_crit_counter = 0
+			stats.st_eye_scrape_last_tempo = main.tempo_manager.get_global_tempo()
 			var buff_mgr = main.player.get_buff_manager()
 			if buff_mgr:
 				buff_mgr.apply_buff(Buff.create_invisible(10, "Eye Scrape"))
@@ -824,26 +857,28 @@ func _trigger_skill_tree_on_cycle() -> void:
 	elif stats.solemn_active:
 		stats.solemn_active = false
 
-	# Let's Dance: gain armor = spaces moved/2, deal damage = spaces moved to nearest enemy within 3
+	# Let's Dance: gain armor AND deal damage to the nearest enemy within 3,
+	# both equal to spaces moved / divisor (rank-scaled 8..1), rounded down
 	if stats.has_skill_tree_passive("let's_dance"):
 		var spaces = main.tempo_manager.spaces_moved_this_cycle
 		if spaces > 0:
-			var armor = floori(spaces / 2.0)
-			if armor > 0:
-				stats.add_armor(armor)
-				main.add_battle_log("Let's Dance: +%d armor (%d spaces)" % [armor, spaces], Color(0.3, 0.7, 1.0))
-			# Deal damage to nearest enemy within 3 range
-			var nearest: Enemy = null
-			var nearest_dist: float = INF
-			if main.enemy_spawner:
-				for enemy in main.enemy_spawner.get_living_enemies():
-					var dist = main.player.position.distance_to(enemy.position)
-					if dist <= 3.0 and dist < nearest_dist:
-						nearest_dist = dist
-						nearest = enemy
-			if nearest:
-				nearest.take_damage(spaces, true)
-				main.add_battle_log("Let's Dance: %d damage to %s!" % [spaces, nearest.enemy_name], Color(0.3, 0.7, 1.0))
+			var ld_divisor: int = PassiveScaling.value("let's_dance", "divisor", stats.get_passive_level("let's_dance"))
+			var ld_amount = floori(spaces / float(ld_divisor))
+			if ld_amount > 0:
+				stats.add_armor(ld_amount)
+				main.add_battle_log("Let's Dance: +%d armor (%d spaces)" % [ld_amount, spaces], Color(0.3, 0.7, 1.0))
+				# Deal damage to nearest enemy within 3 range
+				var nearest: Enemy = null
+				var nearest_dist: float = INF
+				if main.enemy_spawner:
+					for enemy in main.enemy_spawner.get_living_enemies():
+						var dist = main.player.position.distance_to(enemy.position)
+						if dist <= 3.0 and dist < nearest_dist:
+							nearest_dist = dist
+							nearest = enemy
+				if nearest:
+					nearest.take_damage(ld_amount, true)
+					main.add_battle_log("Let's Dance: %d damage to %s!" % [ld_amount, nearest.enemy_name], Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_on_heal_ally(ally_name: String) -> void:
 	var stats = main.player.get_stats()
@@ -861,23 +896,29 @@ func _trigger_skill_tree_on_displacement() -> void:
 	if not stats:
 		return
 
-	# Now You See Me: displacement → invisibility
+	# Now You See Me: displacement → invisibility (rank-scaled tempo cooldown 15..1)
 	if stats.has_skill_tree_passive("now_you_see_me"):
-		var buff_mgr = main.player.get_buff_manager()
-		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_invisible(10, "Now You See Me"))
-			main._set_player_invisible(true)
-			main.add_battle_log("Now You See Me: Invisibility!", Color(0.8, 0.4, 0.9))
+		var nysm_cooldown: int = PassiveScaling.value("now_you_see_me", "cooldown", stats.get_passive_level("now_you_see_me"))
+		if main.tempo_manager.get_global_tempo() - stats.st_nysm_last_tempo >= nysm_cooldown:
+			var buff_mgr = main.player.get_buff_manager()
+			if buff_mgr:
+				stats.st_nysm_last_tempo = main.tempo_manager.get_global_tempo()
+				buff_mgr.apply_buff(Buff.create_invisible(10, "Now You See Me"))
+				main._set_player_invisible(true)
+				main.add_battle_log("Now You See Me: Invisibility!", Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_on_debuff_applied(target, debuff_name: String, value: int) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Pop Rocks: applying poison to already-poisoned enemy deals 1/3 current stacks as immediate damage
+	# Pop Rocks: applying poison to already-poisoned enemy deals 1/3 current
+	# stacks as immediate damage (rank-scaled tempo cooldown 19..5)
 	if stats.has_skill_tree_passive("pop_rocks") and debuff_name == "poison" and target and target.has_method("take_damage"):
+		var pr_cooldown: int = PassiveScaling.value("pop_rocks", "cooldown", stats.get_passive_level("pop_rocks"))
 		var prev_stacks = target.poison_stacks - value
-		if prev_stacks > 0:
+		if prev_stacks > 0 and main.tempo_manager.get_global_tempo() - stats.st_pop_rocks_last_tempo >= pr_cooldown:
+			stats.st_pop_rocks_last_tempo = main.tempo_manager.get_global_tempo()
 			var pop_damage = max(1, target.poison_stacks / 3)
 			target.take_damage(pop_damage, true)
 			main.add_battle_log("Pop Rocks: %d damage! (%d poison stacks)" % [pop_damage, target.poison_stacks], Color(0.4, 0.9, 0.4))
