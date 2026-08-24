@@ -6416,14 +6416,18 @@ func _process_maintained_card_effects() -> void:
 	var stats = player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
 		# Halo: heal allies within its AOE (3 tiles of the caster). The caster
-		# always heals; a partner must be inside the radius.
+		# always heals; a partner must be inside the radius. Blood Libation
+		# boosts the caster's performed heal once for the whole sweep.
+		var halo_heal: int = maintained_result["total_heal"]
+		if stats:
+			halo_heal = stats.boost_performed_heal(halo_heal)
 		for ally in _all_players():
 			if not is_instance_valid(ally) or not ally.get_stats():
 				continue
 			var halo_diff = ally.position - player.position
 			if ally != player and Vector3(halo_diff.x, 0, halo_diff.z).length() > 3.0:
 				continue
-			ally.get_stats().heal(maintained_result["total_heal"])
+			ally.get_stats().heal(halo_heal, ally != player, true)
 		print("[MAIN] Maintained cards healed for %d HP" % maintained_result["total_heal"])
 	if maintained_result["self_damage"] > 0 and stats:
 		stats.take_direct_damage(maintained_result["self_damage"])
@@ -6562,13 +6566,15 @@ func _process_healthy_bliss_cards() -> void:
 				var heal_amt = card.heal_amount
 				if stats:
 					heal_amt = stats.get_effective_heal_amount(card.heal_amount)
+					# Blood Libation boosts the caster's performed heal ONCE for the sweep
+					heal_amt = stats.boost_performed_heal(heal_amt)
 					add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
 				for ally in _all_players():
 					if not is_instance_valid(ally):
 						continue
 					var ally_stats = ally.get_stats()
 					if ally_stats:
-						ally_stats.heal(heal_amt)
+						ally_stats.heal(heal_amt, ally != player, true)
 				# Discard the card
 				dmgr.hand.remove_at(i)
 				dmgr.discard_pile.append(card)
@@ -7268,7 +7274,8 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 		if hp_mult > 1.0:
 			raw += floori(card.heal_amount * (hp_mult - 1.0))
 		if stats.has_skill_tree_passive("blood_libation") and stats.sanguine_stacks > 0:
-			raw += stats.sanguine_stacks
+			var bl_per: int = PassiveScaling.value("blood_libation", "heal_per_stack", stats.get_passive_level("blood_libation"))
+			raw += stats.sanguine_stacks * bl_per
 			if stats.sanguine_stacks >= 5:
 				raw *= 2
 		out["heal"] = stats.get_effective_heal_amount(raw)

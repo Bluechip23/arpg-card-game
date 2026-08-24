@@ -1879,7 +1879,27 @@ func _curse_of_the_living_active() -> bool:
 			return true
 	return false
 
-func heal(amount: int, from_ally: bool = false) -> void:
+## Blood Libation, PERFORMER side: Sanguine stacks boost every heal this
+## character performs (+1..15 per stack, rank-scaled). At 5 stacks the heal
+## doubles, the stacks are consumed, and the performer takes 10 non-lethal
+## damage FIRST — the boosted heal lands after. Ally-targeted heals boost
+## ONCE at the call site via this helper, then pass sanguine_applied=true
+## into heal() so a caster healing themself in the same sweep isn't boosted
+## twice.
+func boost_performed_heal(amount: int) -> int:
+	if amount <= 0 or sanguine_stacks <= 0 or not has_skill_tree_passive("blood_libation"):
+		return amount
+	var bl_per_stack: int = PassiveScaling.value("blood_libation", "heal_per_stack", get_passive_level("blood_libation"))
+	amount += sanguine_stacks * bl_per_stack
+	if sanguine_stacks >= 5:
+		amount *= 2
+		sanguine_stacks = 0
+		current_health = max(1, current_health - 10)
+		health_changed.emit(current_health, max_health)
+		print("[STATS] Blood Libation burst! Took 10 non-lethal, heal doubled.")
+	return amount
+
+func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) -> void:
 	# Solemn Independence: block ally healing while active
 	if from_ally and solemn_active:
 		return
@@ -1890,16 +1910,11 @@ func heal(amount: int, from_ally: bool = false) -> void:
 		friendship_partner.heal(amount, from_ally)
 		_friendship_echo = false
 		friendship_partner._friendship_echo = false
-	# Blood Libation: Sanguine stacks add rank-scaled healing each (+1..15); at 5
-	# the heal doubles and the stacks are consumed.
-	var bl_consume := false
-	if sanguine_stacks > 0 and has_skill_tree_passive("blood_libation"):
-		var bl_per_stack: int = PassiveScaling.value("blood_libation", "heal_per_stack", get_passive_level("blood_libation"))
-		amount += sanguine_stacks * bl_per_stack
-		if sanguine_stacks >= 5:
-			amount *= 2
-			bl_consume = true
-			sanguine_stacks = 0
+	# Blood Libation boosts healing this character PERFORMS: self-performed
+	# heals are boosted here; heals received FROM allies never use the
+	# receiver's own stacks (the caster's stacks are applied at the call site).
+	if not from_ally and not sanguine_applied:
+		amount = boost_performed_heal(amount)
 	# Curse of the Living (Coffin Lid, maintained): the dead take half of
 	# everything you are given and pass half of the rest to your allies. The
 	# share is emitted for main to deliver — allies aren't reachable from here.
@@ -1912,13 +1927,8 @@ func heal(amount: int, from_ally: bool = false) -> void:
 	var boosted_amount = get_effective_heal_amount(amount)
 	var old_health_pct = get_health_percent()
 
-	# Blood Libation: the 5-stack burst costs 10 non-lethal HP FIRST — the
-	# damage resolves before the (doubled) heal lands. A self-heal therefore
-	# takes the hit, then heals up from the lowered health.
-	if bl_consume:
-		current_health = max(1, current_health - 10)
-		health_changed.emit(current_health, max_health)
-		print("[STATS] Blood Libation burst! Took 10 non-lethal, heal doubled.")
+	# (Blood Libation's 5-stack burst damage resolves inside
+	# boost_performed_heal, BEFORE the boosted heal lands — on the performer.)
 
 	var old_health = current_health
 	current_health += boosted_amount

@@ -1814,7 +1814,9 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 				var p_stats = partner.get_stats()
 				var diff = partner.position - main.player.position
 				if p_stats and p_stats.current_health > 0 and Vector3(diff.x, 0, diff.z).length() <= 3.0:
-					p_stats.heal(3)
+					# An ally heal — Solemn Independence's "cannot be healed by
+					# allies" applies; the aura tick carries no Sanguine boost.
+					p_stats.heal(3, true)
 					healed_any = true
 			if healed_any:
 				main.add_battle_log("I Heal You: healed allies 3 HP", Color(0.3, 0.7, 1.0))

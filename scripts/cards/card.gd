@@ -5063,9 +5063,10 @@ func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	print("[CARD] Mana Surge: %d damage, +10 mana!" % total_damage)
 
 func _execute_magic_barrier(player_stats: PlayerStats) -> void:
+	## Armor comes from the card's block (set from A Mage's Favor's rank, 2..16).
 	if player_stats:
-		player_stats.add_armor(8)
-	print("[CARD] Magic Barrier: +8 armor!")
+		player_stats.add_armor(block)
+	print("[CARD] Magic Barrier: +%d armor!" % block)
 
 func _execute_shepherds_mark(player_stats: PlayerStats, deck_manager = null) -> void:
 	# player_stats is the MARK TARGET (rerouted to the ally when ally-targeted).
