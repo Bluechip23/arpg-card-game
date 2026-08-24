@@ -1842,11 +1842,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if dealt > 0:
 			buff_mgr.consume_life_steal(dealt)
 
-	# Life Steal passive (Brad): all attacks heal for 5% of damage dealt.
+	# Life Steal passive (Brad): all attacks heal for 1%..8% (rank-scaled) of damage dealt.
 	if card_type == CardType.ATTACK and player_stats and player_stats.has_skill_tree_passive("life_steal"):
 		var ls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 		if ls_dealt > 0:
-			player_stats.apply_life_steal(max(1, floori(ls_dealt * 0.05)))
+			var ls_passive_pct: float = PassiveScaling.value("life_steal", "percent", player_stats.get_passive_level("life_steal"))
+			player_stats.apply_life_steal(max(1, floori(ls_dealt * ls_passive_pct / 100.0)))
 
 	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hannibals Mask),
 	# Vitality stacks (Nine Ruins: +1% each), and a maintained Resourceful
@@ -2255,9 +2256,11 @@ func _execute_block(player_stats: PlayerStats, is_empowered: bool = false, buff_
 		armor_amount = maxi(0, armor_amount - player_stats.empower_block_reduction)
 		print("[CARD] Empowered defense: -%d block" % player_stats.empower_block_reduction)
 
-	# Equipment "+X block to armor-granting defense cards" (Burgonet, Thick Steel).
-	if player_stats and armor_amount > 0 and player_stats.equipment_defense_card_block > 0:
-		armor_amount += player_stats.equipment_defense_card_block
+	# Equipment "+X block to armor-granting defense cards" (Burgonet, Thick
+	# Steel) — the total can be NEGATIVE (Slotted Rope Half Sleeve's -3), so
+	# apply any non-zero sum, floored at 0 block.
+	if player_stats and armor_amount > 0 and player_stats.equipment_defense_card_block != 0:
+		armor_amount = maxi(0, armor_amount + player_stats.equipment_defense_card_block)
 
 	if player_stats:
 		player_stats.add_armor(armor_amount)
@@ -2721,7 +2724,7 @@ func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) 
 	if buff_mgr:
 		buff_mgr.approach_armor_per_move = 5
 		buff_mgr.approach_tempo_remaining = 10
-	print("[CARD] Approach! Slowed for 10 tempo, gain 5 armor per movement")
+	print("[CARD] Approach! Slowed 2, gain 5 armor per movement for 10 tempo")
 
 # ============================================
 # JEREMY CARD EXECUTE FUNCTIONS
@@ -3184,9 +3187,9 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("slow", 4)  # -4 movement (4 grid spaces)
+		target.apply_debuff("slow", 4)  # next 4 movements delayed, one stack each
 	last_damage_dealt = total_damage
-	print("[CARD] Trip! %d damage, enemy movement -4" % total_damage)
+	print("[CARD] Trip! %d damage, enemy slowed 4" % total_damage)
 
 func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
@@ -3441,7 +3444,7 @@ static func create_approach() -> Card:
 	var card = Card.new()
 	card.card_id = "approach"
 	card.card_name = "Approach"
-	card.description = "Slowed for 10 tempo. For each movement taken, gain 5 armor."
+	card.description = "Gain 2 Slowed (your next 2 tiles cost 3 tempo each). For each movement taken in the next 10 tempo, gain 5 armor."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 10
@@ -3818,7 +3821,7 @@ static func create_premeditated() -> Card:
 	var card = Card.new()
 	card.card_id = "premeditated"
 	card.card_name = "Premeditated"
-	card.description = "Deal 8 damage. If this Exposes the enemy, your next attack to that enemy deals 15 damage."
+	card.description = "Deal 8 damage. If this Exposes the enemy, your next attack to that enemy deals +15 bonus damage."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 20
@@ -4082,7 +4085,7 @@ static func create_trip() -> Card:
 	var card = Card.new()
 	card.card_id = "trip"
 	card.card_name = "Trip"
-	card.description = "Deal 5 damage. Decrease enemy movement by 4."
+	card.description = "Deal 5 damage. Apply 4 Slow — the enemy's next 4 movements are delayed."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 20
@@ -4474,19 +4477,20 @@ static func create_minor_wounds() -> Card:
 	card.target_types = []
 	return card
 
-static func create_energy_barrier() -> Card:
+static func create_energy_barrier(armor: int = 5) -> Card:
+	# armor comes from the Energy Barrier passive's rank (3..17)
 	var card = Card.new()
 	card.card_id = "energy_barrier"
 	card.card_name = "Energy Barrier"
-	card.description = "Gain 5 armor. Erase 1."
+	card.description = "Gain %d armor. Erase 1." % armor
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 0
 	card.tempo_cost = 0
 	card.damage = 0
 	card.base_damage = 0
-	card.block = 5
-	card.base_block = 5
+	card.block = armor
+	card.base_block = armor
 	card.heal_amount = 0
 	card.erase_tempo = 1
 	card.erase_tempo_remaining = 1
@@ -5061,9 +5065,10 @@ func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	print("[CARD] Mana Surge: %d damage, +10 mana!" % total_damage)
 
 func _execute_magic_barrier(player_stats: PlayerStats) -> void:
+	## Armor comes from the card's block (set from A Mage's Favor's rank, 2..16).
 	if player_stats:
-		player_stats.add_armor(8)
-	print("[CARD] Magic Barrier: +8 armor!")
+		player_stats.add_armor(block)
+	print("[CARD] Magic Barrier: +%d armor!" % block)
 
 func _execute_shepherds_mark(player_stats: PlayerStats, deck_manager = null) -> void:
 	# player_stats is the MARK TARGET (rerouted to the ally when ally-targeted).
@@ -5252,18 +5257,19 @@ func _execute_shed_weight(deck_manager) -> void:
 			reduced += 1
 	print("[CARD] Shed Weight! Discarded %d defensive card(s); reduced %d card(s) by 1 tempo" % [discarded, reduced])
 
-static func create_mana_surge() -> Card:
+static func create_mana_surge(damage_amount: int = 5) -> Card:
+	# damage_amount comes from the Mana Surge passive's rank (4..18)
 	var card = Card.new()
 	card.card_id = "mana_surge"
 	card.school = CardSchool.SPELL
 	card.card_name = "Mana Surge"
-	card.description = "Deal 5 damage, gain 10 mana. Erased after play."
+	card.description = "Deal %d damage, gain 10 mana. Erased after play." % damage_amount
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 0
 	card.tempo_cost = 2
-	card.damage = 5
-	card.base_damage = 5
+	card.damage = damage_amount
+	card.base_damage = damage_amount
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
@@ -5271,20 +5277,21 @@ static func create_mana_surge() -> Card:
 	card.target_types = ["enemy"]
 	return card
 
-static func create_magic_barrier() -> Card:
+static func create_magic_barrier(armor: int = 8) -> Card:
+	# armor comes from A Mage's Favor's rank (2..16)
 	var card = Card.new()
 	card.card_id = "magic_barrier"
 	card.school = CardSchool.SPELL
 	card.card_name = "Magic Barrier"
-	card.description = "Gain 8 armor. Instant."
+	card.description = "Gain %d armor. Instant." % armor
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0
 	card.tempo_cost = 0
 	card.damage = 0
 	card.base_damage = 0
-	card.block = 8
-	card.base_block = 8
+	card.block = armor
+	card.base_block = armor
 	card.heal_amount = 0
 	card.erase_on_play = true  # consumed when it triggers, not while waiting
 	card.reaction_trigger = "on_damage_taken"
@@ -5295,12 +5302,13 @@ static func create_magic_barrier() -> Card:
 # SHEPHERD'S MARK (Whispers of the Flock)
 # ============================================
 
-static func create_shepherds_mark() -> Card:
+static func create_shepherds_mark(armor: int = 10) -> Card:
+	# armor comes from Whispers of the Flock's rank (5..19)
 	var card = Card.new()
 	card.card_id = "shepherds_mark"
 	card.school = CardSchool.SPELL
 	card.card_name = "Shepherd's Mark"
-	card.description = "Mark the healed ally for 10 tempo. If they would take lethal damage, they survive at 1 HP and gain 10 armor, but Jeremy takes 8 damage."
+	card.description = "Mark the healed ally for 10 tempo. If they would take lethal damage, they survive at 1 HP and gain %d armor, but Jeremy takes 8 damage." % armor
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
@@ -5919,7 +5927,7 @@ static func create_tower_shield() -> Card:
 	var card = Card.new()
 	card.card_id = "tower_shield"
 	card.card_name = "Tower Shield"
-	card.description = "Gain 40 armor. Become staggered for 40 tempo."
+	card.description = "Gain 40 armor. Gain 4 Staggered (your next 4 attack cards cost 15 more mana)."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 50
@@ -7746,7 +7754,10 @@ static func create_by_id(cid: String) -> Card:
 		var script: Script = Card
 		for method in script.get_script_method_list():
 			var method_name: String = method["name"]
-			if method_name.begins_with("create_") and method["args"].size() == 0:
+			# Factories with only DEFAULTED args count too (rank-scaled conjured
+			# cards like energy_barrier) — they rebuild at their default values.
+			if method_name.begins_with("create_") \
+					and method["args"].size() - method["default_args"].size() == 0:
 				var card = script.call(method_name)
 				if card is Card:
 					_factory_map[card.card_id] = method_name

@@ -5011,6 +5011,9 @@ var _reapers_taking_firing: bool = false  # Guard: Reaper's Taking's damage must
 var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee range state
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
+	# Capture "was this a NEW debuff type on the enemy" before the riders below
+	# (Harnessed Sun / Laced Arrow / Wither) re-apply and overwrite the flag.
+	var debuff_was_new: bool = enemy.last_debuff_was_new
 	progression_triggers._trigger_skill_tree_on_debuff_applied(enemy, debuff_name, value)
 	# Ring pass: feed the poison/burn accumulators and the Circlet checklist,
 	# then the Harnessed Sun amplifies burns (+2) — guarded so the bonus
@@ -5024,25 +5027,32 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 					enemy.apply_debuff("burn", 2)
 					_harnessed_reentry = false
 					break
-	# Stephen: Laced Arrow — when applying burn, cold, or shock, apply +1 additional (guarded against recursion)
+	# Stephen: Laced Arrow — when applying burn, cold, or shock, a rank-scaled
+	# chance (50%..100%) to apply +1 additional charge (guarded against recursion)
 	if not _laced_arrow_applying and debuff_name in ["burn", "cold", "shock"]:
 		var stats = player.get_stats()
 		if stats and stats.has_skill_tree_passive("laced_arrow"):
-			_laced_arrow_applying = true
-			if enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, 1)
-				add_battle_log("Laced Arrow: +1 %s" % debuff_name, Color(0.4, 0.9, 0.4))
-			_laced_arrow_applying = false
-	# Cory: Wither — +1 charge to all debuffs applied (guarded against recursion)
+			var la_chance: int = PassiveScaling.value("laced_arrow", "chance", stats.get_passive_level("laced_arrow"))
+			if randi() % 100 < la_chance:
+				_laced_arrow_applying = true
+				if enemy.has_method("apply_debuff"):
+					enemy.apply_debuff(debuff_name, 1)
+					add_battle_log("Laced Arrow: +1 %s" % debuff_name, Color(0.4, 0.9, 0.4))
+				_laced_arrow_applying = false
+	# Cory: Wither — +1 charge to the applied debuff, on a rank-scaled tempo
+	# cooldown (15..1; guarded against recursion)
 	if not _wither_applying:
 		var stats = player.get_stats()
 		if stats and stats.has_skill_tree_passive("wither"):
-			_wither_applying = true
-			if enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, 1)
-			_wither_applying = false
+			var wither_cd: int = PassiveScaling.value("wither", "cooldown", stats.get_passive_level("wither"))
+			if tempo_manager.get_global_tempo() - stats.st_wither_last_tempo >= wither_cd:
+				stats.st_wither_last_tempo = tempo_manager.get_global_tempo()
+				_wither_applying = true
+				if enemy.has_method("apply_debuff"):
+					enemy.apply_debuff(debuff_name, 1)
+				_wither_applying = false
 	# Cory: Prey on the Weak — bonus damage on debuff to low HP enemy
-	progression_triggers._trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value)
+	progression_triggers._trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value, debuff_was_new)
 	# Spell weapons pass: weapon passives that watch every debuff you land.
 	var sw_inv = player.get_inventory() if player else null
 	if sw_inv and "equipped_weapons" in sw_inv:
@@ -5922,7 +5932,7 @@ func _on_hand_updated() -> void:
 	# consumed once a card is actually rolled.
 	var enemies = enemy_spawner.get_living_enemies()
 	var _rng_stats = player.get_stats()
-	var chance_boost = _rng_stats.chance_boost + _rng_stats.next_odds_boost
+	var chance_boost = _rng_stats.get_chance_boost() + _rng_stats.next_odds_boost
 	for card in deck_manager.hand:
 		if card.has_chance_effect() and not card.has_been_rolled():
 			card.roll_rng(enemies, chance_boost)
@@ -6409,14 +6419,18 @@ func _process_maintained_card_effects() -> void:
 	var stats = player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
 		# Halo: heal allies within its AOE (3 tiles of the caster). The caster
-		# always heals; a partner must be inside the radius.
+		# always heals; a partner must be inside the radius. Blood Libation
+		# boosts the caster's performed heal once for the whole sweep.
+		var halo_heal: int = maintained_result["total_heal"]
+		if stats:
+			halo_heal = stats.boost_performed_heal(halo_heal)
 		for ally in _all_players():
 			if not is_instance_valid(ally) or not ally.get_stats():
 				continue
 			var halo_diff = ally.position - player.position
 			if ally != player and Vector3(halo_diff.x, 0, halo_diff.z).length() > 3.0:
 				continue
-			ally.get_stats().heal(maintained_result["total_heal"])
+			ally.get_stats().heal(halo_heal, ally != player, true)
 		print("[MAIN] Maintained cards healed for %d HP" % maintained_result["total_heal"])
 	if maintained_result["self_damage"] > 0 and stats:
 		stats.take_direct_damage(maintained_result["self_damage"])
@@ -6555,13 +6569,15 @@ func _process_healthy_bliss_cards() -> void:
 				var heal_amt = card.heal_amount
 				if stats:
 					heal_amt = stats.get_effective_heal_amount(card.heal_amount)
+					# Blood Libation boosts the caster's performed heal ONCE for the sweep
+					heal_amt = stats.boost_performed_heal(heal_amt)
 					add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
 				for ally in _all_players():
 					if not is_instance_valid(ally):
 						continue
 					var ally_stats = ally.get_stats()
 					if ally_stats:
-						ally_stats.heal(heal_amt)
+						ally_stats.heal(heal_amt, ally != player, true)
 				# Discard the card
 				dmgr.hand.remove_at(i)
 				dmgr.discard_pile.append(card)
@@ -6805,7 +6821,7 @@ func _apply_magnetize_pull(tiles: int) -> void:
 	print("[MAIN] Magnetized pulled player %d tiles toward %s" % [tiles, nearest_enemy.enemy_name])
 func _reroll_card_rng() -> void:
 	var enemies = enemy_spawner.get_living_enemies()
-	var chance_boost = player.get_stats().chance_boost
+	var chance_boost = player.get_stats().get_chance_boost()
 	var any_outcome_changed = false
 
 	for card in deck_manager.hand:
@@ -7068,13 +7084,12 @@ func select_card(index: int) -> void:
 		# Include High Ground bonus if on pillar or elevated terrain
 		if card.card_type == Card.CardType.ATTACK and _is_on_high_ground(player.position):
 			effective_range += 2
-		# Eagle Eye: +2 range on ranged attacks
+		# (Eagle Eye no longer grants range — it now deals range-scaled bonus
+		# damage on ranged offensive cards.)
 		var st_stats = player.get_stats()
-		if st_stats and st_stats.has_skill_tree_passive("eagle_eye"):
-			effective_range += 2
-		# Scouted: +6 range on next attack after 3 consecutive hits
+		# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
 		if st_stats and st_stats.st_scouted_bonus_active:
-			effective_range += 6
+			effective_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
 			effective_range += st_stats.sphere_bonus_range
@@ -7190,12 +7205,14 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 		total += stats.empower_damage_bonus
 	if buff_mgr:
 		total += buff_mgr.get_strengthen_bonus()
-	# Swing for the Fences: heavy swings (tempo > 4) land the tempo again.
+	# Swing for the Fences: heavy swings (tempo > 4) land their tempo times a
+	# rank-scaled multiplier (100%..800%).
 	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
-		total += card.tempo_cost
-	# Ladder Work: banked discards cash in on the cycle's first attack.
+		total += maxi(1, roundi(card.tempo_cost * int(PassiveScaling.value("swing_for_the_fences", "multiplier", stats.get_passive_level("swing_for_the_fences"))) / 100.0))
+	# Ladder Work: banked discards cash in on the cycle's first attack
+	# (rank-scaled 1..6 damage per banked card).
 	if stats.has_skill_tree_passive("ladder_work") and stats.st_ladder_banked > 0:
-		total += stats.st_ladder_banked * 2
+		total += stats.st_ladder_banked * int(PassiveScaling.value("ladder_work", "damage_per_discard", stats.get_passive_level("ladder_work")))
 
 	# Cursed debuff: percentage reduction, applied last like the pipeline.
 	if debuff_mgr:
@@ -7260,7 +7277,8 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 		if hp_mult > 1.0:
 			raw += floori(card.heal_amount * (hp_mult - 1.0))
 		if stats.has_skill_tree_passive("blood_libation") and stats.sanguine_stacks > 0:
-			raw += stats.sanguine_stacks
+			var bl_per: int = PassiveScaling.value("blood_libation", "heal_per_stack", stats.get_passive_level("blood_libation"))
+			raw += stats.sanguine_stacks * bl_per
 			if stats.sanguine_stacks >= 5:
 				raw *= 2
 		out["heal"] = stats.get_effective_heal_amount(raw)
@@ -9643,10 +9661,18 @@ func _helm_on_cycle_passives() -> void:
 	else:
 		_purge_cycle_accum = 0
 
-	# Frankensteins Screws: heal summons below 25% HP within 3 tiles of the wearer.
+	# Frankensteins Screws: heal SUMMONS below 25% HP within 3 tiles of the
+	# wearer — all summon types, not just Frankenstein's Monsters.
 	if summon_heal > 0 and grid_manager:
-		for m in _frankensteins:
-			if not is_instance_valid(m) or m.is_dead:
+		var fs_summons: Array = []
+		fs_summons.append_array(_frankensteins)
+		fs_summons.append_array(_wolves)
+		fs_summons.append_array(_skeletons)
+		fs_summons.append_array(_spirit_bows)
+		if _penguin != null:
+			fs_summons.append(_penguin)
+		for m in fs_summons:
+			if m == null or not is_instance_valid(m) or m.is_dead:
 				continue
 			if m.get_health_percent() < 0.25 and grid_manager.get_distance_in_cells(player.position, m.position) <= 3:
 				m.heal(summon_heal)
@@ -9767,13 +9793,12 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		# High Ground: +2 range
 		if card.card_type == Card.CardType.ATTACK and _is_on_high_ground(player.position):
 			max_range += 2
-		# Eagle Eye: +2 range on ranged attacks
+		# (Eagle Eye no longer grants range — it now deals range-scaled bonus
+		# damage on ranged offensive cards.)
 		var st_stats = player.get_stats()
-		if st_stats and st_stats.has_skill_tree_passive("eagle_eye"):
-			max_range += 2
-		# Scouted: +6 range on next attack after 3 consecutive hits
+		# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
 		if st_stats and st_stats.st_scouted_bonus_active:
-			max_range += 6
+			max_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
 			max_range += st_stats.sphere_bonus_range
@@ -10663,6 +10688,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var ice_target = target if target is Player else player
 			var ice_idx = 1 if ice_target == _p2_player else 0
 			ice_target.untargetable = true
+			# "Cannot act" is a real 15-tempo Stun on the iced character, so the
+			# ice's trade-off holds in solo play too — not just via the co-op
+			# active-player switch below.
+			var ice_dm = ice_target.get_debuff_manager()
+			if ice_dm:
+				ice_dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 15))
 			for cyc in range(1, 4):
 				schedule_delayed_effect(cyc * 5, _cryonics_heal.bind(ice_target), "cryonics")
 			schedule_delayed_effect(15, _cryonics_end.bind(ice_target), "cryonics_end")
@@ -12978,7 +13009,7 @@ func _on_card_erased(card: Card) -> void:
 func _on_shepherds_mark_triggered() -> void:
 	# The 8-HP cost is paid inside PlayerStats._pay_whispers_cost() (routed to the
 	# actual caster, non-lethal on a self-cast) — this handler just narrates.
-	add_battle_log("Shepherd's Mark: Lethal damage prevented! 1 HP + 10 armor!", Color(0.3, 0.7, 1.0))
+	add_battle_log("Shepherd's Mark: Lethal damage prevented! Survived at 1 HP with bonus armor!", Color(0.3, 0.7, 1.0))
 	add_battle_log("Shepherd's Mark: the caster pays 8 HP.", Color(0.9, 0.3, 0.3))
 
 # ============================================

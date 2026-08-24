@@ -104,6 +104,14 @@ var empower_damage_bonus: int = 3
 var empower_block_reduction: int = 3
 var chance_boost: float = 0.0
 var next_odds_boost: float = 0.0  # One-shot boost (Loaded Die / House Money), consumed on next roll
+
+## Total % chance boost for card rolls: equipment/buff sources (chance_boost)
+## plus Jeremy's Tricks of Death, read live from its rank (+5%..12%).
+func get_chance_boost() -> float:
+	var total := chance_boost
+	if has_skill_tree_passive("tricks_of_death"):
+		total += float(PassiveScaling.value("tricks_of_death", "chance", get_passive_level("tricks_of_death")))
+	return total
 var elixir_stacks: int = 0  # Elixir: next N poison ticks heal instead of hurting (1 stack per tick)
 var is_blinded: bool = false      # Blind (e.g. Giant Hawk): attacks may miss
 var blind_tempo: int = 0
@@ -370,7 +378,13 @@ var sphere_bonus_range: int = 0       # Bonus range for ranged attacks
 var skill_tree_passives: Array[String] = []  # Active passive IDs from skill tree choices
 
 # Stateful tracking for skill tree passives
-var st_crit_counter: int = 0          # Eye Scrape: tracks crits toward every-3rd invisibility
+var st_crit_counter: int = 0          # Eye Scrape: tracks crits toward the rank-scaled invisibility threshold
+var st_eye_scrape_last_tempo: int = -100  # Eye Scrape: global tempo of the last invisibility (10 tempo cooldown)
+var st_ktg_discard_count: int = 0     # Keep Them Guessing: discards toward the rank-scaled -3t proc
+var st_from_hip_original_tempo: int = 0   # From the Hip: tempo cost to restore when the discount clears
+var st_pop_rocks_last_tempo: int = -100   # Pop Rocks: global tempo of the last burst (rank-scaled cooldown)
+var st_nimble_last_tempo: int = -100      # Nimble Assault: global tempo of the last free draw (rank-scaled cooldown)
+var st_nysm_last_tempo: int = -100        # Now You See Me: global tempo of the last invisibility (rank-scaled cooldown)
 var st_from_hip_card: Card = null     # From the Hip: the card currently discounted
 var st_from_hip_original_cost: int = 0  # From the Hip: original mana cost to restore
 var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which enemies have been struck
@@ -381,8 +395,9 @@ var st_ladder_discard_count: int = 0   # Ladder Work: non-play discards this cyc
 var st_ladder_banked: int = 0          # Ladder Work: last cycle's count, spent on first attack
 
 # Brad passive tracking
-var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards for every-other discount
+var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards toward the rank-scaled refund
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
+var st_ancestral_cycle_counter: int = 0  # Ancestral Aid: counts cycles toward the every-5-cycles trigger
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
 var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when charges were last exhausted
 
@@ -394,7 +409,10 @@ var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit rea
 var st_exposed_blind_spot_crit: int = 0  # Exposed Blind Spot: bonus crit % for next attack
 var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
 var st_dominate_cooldown: int = 0     # Dominate: remaining cooldown tempo
-var st_deadly_crit_active: bool = false  # Deadly: +50% crit damage while resolving an attack on an isolated target
+var st_deadly_crit_active: bool = false  # Deadly: rank-scaled bonus crit damage while resolving an attack on an isolated target
+var st_scouted_crit_active: bool = false  # Scouted: rank-scaled bonus crit damage while resolving the scouted attack
+var st_lethal_last_tempo: int = -100      # Lethal Resourcefulness: global tempo of the last free attack (rank-scaled cooldown)
+var st_skilled_momentum_last_tempo: int = -100  # Skilled Momentum: global tempo of the last double strike (5 tempo cooldown)
 
 # Cory passive tracking
 var st_mana_gain_counter: int = 0     # Energy Barrier: counts non-regen mana gains toward every-3rd
@@ -407,10 +425,14 @@ var st_budding_types: Array[String] = []     # Budding: card types played (no ba
 var st_budding_last_type: String = ""         # Budding: last card type to prevent back-to-back
 var st_serial_killer_enemies: Dictionary = {} # Serial Killer: enemies already triggered (enemy_id -> true)
 var st_regrowth_cooldown: int = 0     # Regrowth: remaining cooldown tempo
+var st_wither_last_tempo: int = -100  # Wither: global tempo of the last bonus charge (rank-scaled cooldown)
+var st_territorial_last_tempo: int = -100  # Territorial Death: global tempo of the last re-apply (rank-scaled cooldown)
 var st_stimulant_cooldown: int = 0    # Stimulant: remaining cooldown tempo
 
 # Jeremy passive tracking
 var st_arcane_overflow_discount: bool = false  # Arcane Overflow: next spell costs -1 tempo
+var st_arcane_overflow_last_tempo: int = -100  # Arcane Overflow: global tempo of the last prime (rank-scaled cooldown)
+var st_fresh_start_last_tempo: int = -100      # Fresh Start: global tempo of the last cleanse (rank-scaled cooldown)
 var st_mana_spent_window: Array = []  # Mana Surge: [{amount, tempo}] entries within 5 tempo window
 var st_whispers_cooldown: int = 0     # Whispers of the Flock: remaining cooldown tempo
 var st_whispers_active: bool = false  # Whispers of the Flock: mark currently active
@@ -434,8 +456,9 @@ func add_skill_tree_passive(passive_id: String) -> void:
 # PASSIVE POINT ALLOCATION (lane view)
 # ============================================
 # Passives are LEVELED with banked passive points (1 point = +1 level, up to
-# PASSIVE_MAX_LEVEL). A passive's effect activates at level 1 — per-level
-# scaling of the effects themselves comes in a later balancing pass.
+# PASSIVE_MAX_LEVEL). A passive's effect activates at level 1; per-rank
+# effect values live in PassiveScaling (Brad's are wired up — the other
+# characters' scaling comes in a later balancing pass).
 const PASSIVE_POINTS_PER_LEVEL: int = 1  # Passive points banked each level-up
 const PASSIVE_MAX_LEVEL: int = 15
 
@@ -488,14 +511,16 @@ var strength: int:
 		return max(1, get_effective_stat(base_strength) + _directed_strength_mod())
 
 func _directed_strength_mod() -> int:
-	## Brad's Directed Strength passive: +5 STR below 50% health, lost above.
+	## Brad's Directed Strength passive: +1..15 STR (rank-scaled) below 50% health, lost above.
 	if not has_skill_tree_passive("directed_strength"):
 		return 0
-	return 5 if get_health_percent() <= 0.5 else 0
+	if get_health_percent() > 0.5:
+		return 0
+	return int(PassiveScaling.value("directed_strength", "strength", get_passive_level("directed_strength")))
 
 var dexterity: int:
 	get:
-		return get_effective_stat(base_dexterity)
+		return get_effective_stat(base_dexterity) + _ladder_work_mod("dexterity")
 
 var intelligence: int:
 	get:
@@ -507,7 +532,13 @@ var wisdom: int:
 
 var agility: int:
 	get:
-		return get_effective_stat(base_agility)
+		return get_effective_stat(base_agility) + _ladder_work_mod("agility")
+
+func _ladder_work_mod(key: String) -> int:
+	## Ryan's Ladder Work passive: rank-scaled +DEX (1..8) and +AGI (1..15).
+	if not has_skill_tree_passive("ladder_work"):
+		return 0
+	return int(PassiveScaling.value("ladder_work", key, get_passive_level("ladder_work")))
 
 func get_effective_stat(base_value: int) -> int:
 	var modifier = get_determination_modifier()
@@ -1340,9 +1371,15 @@ const CRIT_DAMAGE_PER_DEX: float = 0.03
 
 func get_crit_damage_multiplier() -> float:
 	## Uses effective Dexterity, so Determination swings crit damage too.
-	## Deadly adds +50% while resolving an attack on an isolated target.
-	var deadly_bonus := 0.5 if st_deadly_crit_active else 0.0
-	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + equipment_crit_damage_bonus \
+	## Deadly adds rank-scaled crit damage (+2%..30%) while resolving an attack
+	## on an isolated target; Scouted adds its own (+2%..30%) on the scouted strike.
+	var deadly_bonus := 0.0
+	if st_deadly_crit_active:
+		deadly_bonus = float(PassiveScaling.value("deadly", "crit_damage", get_passive_level("deadly"))) / 100.0
+	var scouted_bonus := 0.0
+	if st_scouted_crit_active:
+		scouted_bonus = float(PassiveScaling.value("scouted", "crit_damage", get_passive_level("scouted"))) / 100.0
+	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + scouted_bonus + equipment_crit_damage_bonus \
 		+ temp_crit_damage_bonus + death_stack_crit_damage
 
 ## Mountain Boots: +% damage while attacking from high ground.
@@ -1530,9 +1567,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 
 	var remaining = amount
 
-	# Stone Skin: 10% damage resistance against Fire, Physical, and Lightning only.
+	# Stone Skin: 1%..11.5% (rank-scaled) damage resistance against Fire, Physical, and Lightning only.
 	if has_skill_tree_passive("stone_skin") and damage_type in [DamageTypes.Type.PHYSICAL, DamageTypes.Type.FIRE, DamageTypes.Type.LIGHTNING]:
-		remaining = floori(remaining * 0.9)
+		var ss_resist: float = PassiveScaling.value("stone_skin", "resist", get_passive_level("stone_skin"))
+		remaining = floori(remaining * (1.0 - ss_resist / 100.0))
 
 	# Per-type resistance (e.g. elemental resists once cards start tagging types).
 	# Guardian Greaves' aura adds transient physical resist on top.
@@ -1696,15 +1734,16 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Whispers of the Flock: Shepherd's Mark prevents lethal damage
 	# When triggered, the marked target survives but the CASTER takes 8 damage
 	if current_health <= 0 and st_whispers_active:
+		var wf_armor: int = _whispers_scaled("armor")
 		current_health = 1
-		add_armor(10)
+		add_armor(wf_armor)
 		st_whispers_active = false
 		st_whispers_tempo = 0
-		st_whispers_cooldown = 20
+		st_whispers_cooldown = _whispers_scaled("cooldown")
 		health_changed.emit(current_health, max_health)
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
-		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor.")
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + %d armor." % wf_armor)
 
 	# Marvolo Gaunt: a lethal blow leaves you at 1 instead. Deliberately AFTER
 	# Shepherd's Mark, so the mark wins the race and the ring's 50-tempo
@@ -1767,6 +1806,12 @@ func exit_shadow_form() -> void:
 	shadow_form_ended.emit()
 	print("[STATS] Shadow form ends — the world sharpens back.")
 
+## Whispers of the Flock rank-scaled values, read from the CASTER's rank —
+## the mark can sit on an ally who doesn't own the passive.
+func _whispers_scaled(key: String) -> int:
+	var caster = st_whispers_caster if st_whispers_caster else self
+	return int(PassiveScaling.value("whispers_of_the_flock", key, caster.get_passive_level("whispers_of_the_flock")))
+
 func _pay_whispers_cost() -> void:
 	## The 8-HP cost of a triggered Shepherd's Mark goes to whoever cast it.
 	## A self-cast mark can't re-kill the survivor it just saved — it costs
@@ -1799,15 +1844,16 @@ func take_direct_damage(amount: int) -> void:
 	# Whispers of the Flock: Shepherd's Mark prevents lethal damage (direct damage too)
 	# When triggered, the marked target survives but the CASTER takes 8 damage
 	if current_health <= 0 and st_whispers_active:
+		var wf_armor: int = _whispers_scaled("armor")
 		current_health = 1
-		add_armor(10)
+		add_armor(wf_armor)
 		st_whispers_active = false
 		st_whispers_tempo = 0
-		st_whispers_cooldown = 20
+		st_whispers_cooldown = _whispers_scaled("cooldown")
 		health_changed.emit(current_health, max_health)
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
-		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor.")
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + %d armor." % wf_armor)
 
 	# Marvolo Gaunt: the same lethal save guards the direct-damage path (a
 	# save on only one of the two paths would be a real hole).
@@ -1842,7 +1888,27 @@ func _curse_of_the_living_active() -> bool:
 			return true
 	return false
 
-func heal(amount: int, from_ally: bool = false) -> void:
+## Blood Libation, PERFORMER side: Sanguine stacks boost every heal this
+## character performs (+1..15 per stack, rank-scaled). At 5 stacks the heal
+## doubles, the stacks are consumed, and the performer takes 10 non-lethal
+## damage FIRST — the boosted heal lands after. Ally-targeted heals boost
+## ONCE at the call site via this helper, then pass sanguine_applied=true
+## into heal() so a caster healing themself in the same sweep isn't boosted
+## twice.
+func boost_performed_heal(amount: int) -> int:
+	if amount <= 0 or sanguine_stacks <= 0 or not has_skill_tree_passive("blood_libation"):
+		return amount
+	var bl_per_stack: int = PassiveScaling.value("blood_libation", "heal_per_stack", get_passive_level("blood_libation"))
+	amount += sanguine_stacks * bl_per_stack
+	if sanguine_stacks >= 5:
+		amount *= 2
+		sanguine_stacks = 0
+		current_health = max(1, current_health - 10)
+		health_changed.emit(current_health, max_health)
+		print("[STATS] Blood Libation burst! Took 10 non-lethal, heal doubled.")
+	return amount
+
+func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) -> void:
 	# Solemn Independence: block ally healing while active
 	if from_ally and solemn_active:
 		return
@@ -1853,15 +1919,11 @@ func heal(amount: int, from_ally: bool = false) -> void:
 		friendship_partner.heal(amount, from_ally)
 		_friendship_echo = false
 		friendship_partner._friendship_echo = false
-	# Blood Libation: Sanguine stacks add +1 healing each; at 5 the heal doubles
-	# and the stacks are consumed.
-	var bl_consume := false
-	if sanguine_stacks > 0 and has_skill_tree_passive("blood_libation"):
-		amount += sanguine_stacks
-		if sanguine_stacks >= 5:
-			amount *= 2
-			bl_consume = true
-			sanguine_stacks = 0
+	# Blood Libation boosts healing this character PERFORMS: self-performed
+	# heals are boosted here; heals received FROM allies never use the
+	# receiver's own stacks (the caster's stacks are applied at the call site).
+	if not from_ally and not sanguine_applied:
+		amount = boost_performed_heal(amount)
 	# Curse of the Living (Coffin Lid, maintained): the dead take half of
 	# everything you are given and pass half of the rest to your allies. The
 	# share is emitted for main to deliver — allies aren't reachable from here.
@@ -1874,13 +1936,8 @@ func heal(amount: int, from_ally: bool = false) -> void:
 	var boosted_amount = get_effective_heal_amount(amount)
 	var old_health_pct = get_health_percent()
 
-	# Blood Libation: the 5-stack burst costs 10 non-lethal HP FIRST — the
-	# damage resolves before the (doubled) heal lands. A self-heal therefore
-	# takes the hit, then heals up from the lowered health.
-	if bl_consume:
-		current_health = max(1, current_health - 10)
-		health_changed.emit(current_health, max_health)
-		print("[STATS] Blood Libation burst! Took 10 non-lethal, heal doubled.")
+	# (Blood Libation's 5-stack burst damage resolves inside
+	# boost_performed_heal, BEFORE the boosted heal lands — on the performer.)
 
 	var old_health = current_health
 	current_health += boosted_amount

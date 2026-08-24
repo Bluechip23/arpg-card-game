@@ -63,6 +63,24 @@ const INTENDED_LEVELS := {
 func get_intended_level() -> int:
 	return int(INTENDED_LEVELS.get(enemy_type, 0))
 
+## Rebalance multipliers for the 15-point passive rework. The hand-tuned base
+## stats were set against the old FLAT passives, whose values sat around the
+## middle of the new rank tables. Under the rework a player near an enemy's
+## intended level is WEAKER than that old baseline early (few passive points,
+## low ranks) and considerably STRONGER late (a maxed lane tops the old flat
+## values across the board: 8% lifesteal vs 5%, 11.5% resists vs 10%, 800%
+## Swing vs 100%, ...). Level ~8 is the crossover where old flat power roughly
+## equals the expected new rank, so enemies scale off their intended level:
+## early enemies ease off slightly, later enemies grow into the player's
+## compounding ranks. Band 0 (unbanded, e.g. Ring Wraith) is untouched.
+static func passive_power_scale(band: int) -> Dictionary:
+	if band <= 0:
+		return {"hp": 1.0, "dmg": 1.0}
+	return {
+		"hp": clampf(1.0 + (band - 8) * 0.05, 0.9, 1.45),
+		"dmg": clampf(1.0 + (band - 8) * 0.035, 0.9, 1.3),
+	}
+
 @export var enemy_name: String = "Enemy"
 @export var enemy_type: EnemyType = EnemyType.MINION
 @export var max_health: int = 30
@@ -74,6 +92,7 @@ func get_intended_level() -> int:
 var xp_reward: int = 5                 # XP granted to player on kill
 
 var current_health: int = 30
+var _pps_dmg: float = 1.0  # Cached passive_power_scale damage multiplier (for hardcoded attack numbers)
 var max_armor: int = 0
 var current_armor: int = 0
 var is_exposed: bool = false          # True once armor has been broken to 0
@@ -678,6 +697,18 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			xp_reward = 4
 			_set_mesh_color(Color(0.18, 0.16, 0.13))
 
+	# Passive-rework rebalance: scale the hand-tuned stats by the enemy's
+	# intended level (see passive_power_scale). XP is deliberately untouched —
+	# progression pacing is its own dial. The damage multiplier is cached for
+	# the attacks that hardcode their numbers (Kick/Smash/Tail Whip/Death Burst).
+	var pps := passive_power_scale(get_intended_level())
+	_pps_dmg = pps["dmg"]
+	if max_health > 0:
+		max_health = maxi(1, roundi(max_health * pps["hp"]))
+		max_armor = roundi(max_armor * pps["hp"])
+		if attack_damage > 0:
+			attack_damage = maxi(1, roundi(attack_damage * pps["dmg"]))
+
 	current_health = max_health
 	current_armor = max_armor
 	update_health_display()
@@ -1281,15 +1312,31 @@ static func get_all_enemy_data() -> Array:
 	var result: Array = []
 	for enemy_type in EnemyType.values():
 		var s = _stats[enemy_type]
+		# Apply the same passive-rework scaling initialize() uses, so the
+		# compendium shows the numbers the player actually fights.
+		var pps := passive_power_scale(int(INTENDED_LEVELS.get(enemy_type, 0)))
+		var hp: int = int(s["health"])
+		var armor: int = int(s["armor"])
+		var dmg: int = int(s["damage"])
+		var special_text: String = _specials[enemy_type]
+		if hp > 0:
+			hp = maxi(1, roundi(hp * pps["hp"]))
+			armor = roundi(armor * pps["hp"])
+			if dmg > 0:
+				dmg = maxi(1, roundi(dmg * pps["dmg"]))
+			# The prose above quotes base action numbers — flag the band scaling
+			# instead of hand-editing every blurb.
+			if not is_equal_approx(pps["hp"], 1.0) or not is_equal_approx(pps["dmg"], 1.0):
+				special_text += "\n(Level-band rebalance: action numbers above are base — actual HP x%.2f, damage x%.2f.)" % [pps["hp"], pps["dmg"]]
 		result.append({
 			"name": s["name"],
 			"type": _type_display[enemy_type],
-			"health": s["health"],
-			"armor": s["armor"],
-			"damage": s["damage"],
+			"health": hp,
+			"armor": armor,
+			"damage": dmg,
 			"xp": s["xp"],
 			"actions": _actions[enemy_type],
-			"special": _specials[enemy_type],
+			"special": special_text,
 		})
 	return result
 
@@ -2312,7 +2359,7 @@ func _try_chomp(target_node: Node3D) -> bool:
 func _try_tail_whip(target_node: Node3D) -> bool:
 	_beaver_followup = false
 	if not is_disarmed and _in_attack_range(target_node):
-		_deal_damage_to_player(target_node, 6, "Tail Whip")
+		_deal_damage_to_player(target_node, maxi(1, roundi(6 * _pps_dmg)), "Tail Whip")
 		# Vulnerable: target takes extra damage (≈15 tempo window).
 		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.VULNERABLE, 5, 15))
 		turn_completed.emit()
@@ -2448,7 +2495,7 @@ func _try_kick(target_node: Node3D) -> bool:
 	var diff = target_node.position - position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= attack_range:
-		_deal_damage_to_player(target_node, 6, "Kick")
+		_deal_damage_to_player(target_node, maxi(1, roundi(6 * _pps_dmg)), "Kick")
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)
@@ -2459,7 +2506,7 @@ func _try_smash(target_node: Node3D) -> bool:
 	var diff = target_node.position - position
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= attack_range:
-		_deal_damage_to_player(target_node, 14, "Smash")
+		_deal_damage_to_player(target_node, maxi(1, roundi(14 * _pps_dmg)), "Smash")
 		# Inject Lightly Dazed card into player's hand
 		if target_node.has_method("get_deck_manager"):
 			var dm = target_node.get_deck_manager()
@@ -3256,6 +3303,35 @@ func apply_wear_down(tempo: int) -> void:
 	print("[%s] Wear Down applied for %d tempo" % [enemy_name, wear_down_tempo])
 	_update_status_indicators()
 
+## True when a debuff of this apply_debuff key is already active on this enemy.
+## Keys mirror the match arms in apply_debuff.
+func has_debuff_type(debuff_name: String) -> bool:
+	match debuff_name:
+		"inebriate": return inebriated_tempo > 0
+		"stun": return is_stunned and stun_tempo > 0
+		"slow": return slow_stacks > 0
+		"disarmed": return is_disarmed and disarmed_tempo > 0
+		"marked": return is_marked and marked_tempo > 0
+		"silenced": return is_silenced and silenced_tempo > 0
+		"choke_dot": return choke_dot_stacks > 0
+		"burn": return burn_stacks > 0
+		"cold": return cold_stacks > 0 or (is_frozen and frozen_tempo > 0)
+		"poison": return poison_stacks > 0
+		"shock": return shock_stacks > 0
+		"bleed": return bleed_stacks > 0
+		"vulnerable": return vulnerable_stacks > 0
+		"weaken": return weaken_stacks > 0
+		"root": return rooted_tempo > 0
+		"cursed": return cursed_tempo > 0
+		"disarm_attacks": return disarmed_attacks > 0
+		"narashimha": return narashimha_tempo > 0
+		"polymorph": return polymorph_tempo > 0
+	return false
+
+# Whether the most recent apply_debuff added a debuff type the enemy did not
+# already have (read by Prey on the Weak, which triggers on unique debuffs only).
+var last_debuff_was_new: bool = false
+
 func apply_debuff(debuff_name: String, value: int) -> void:
 	# Feral Evocation: while a converted card's play resolves, any of the four
 	# slot elements it lands is swapped to the converted color's element.
@@ -3263,6 +3339,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			and debuff_name != Card.active_element_remap:
 		print("[%s] Feral Evocation: %s becomes %s" % [enemy_name, debuff_name, Card.active_element_remap])
 		debuff_name = Card.active_element_remap
+	last_debuff_was_new = not has_debuff_type(debuff_name)
 	match debuff_name:
 		"inebriate":
 			# Matches the player's Inebriate: movement direction is randomized.
@@ -3276,9 +3353,9 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			chosen_action = {}
 			print("[%s] Stunned for %d tempo!" % [enemy_name, stun_tempo])
 		"slow":
-			# Slowed stacks freely: every movement is -1 tile and eats a stack.
+			# Slowed stacks freely: every movement is delayed (+2 tempo) and eats a stack.
 			slow_stacks += value
-			print("[%s] Slowed! -1 movement for the next %d movement(s)" % [enemy_name, slow_stacks])
+			print("[%s] Slowed! Delayed movement for the next %d movement(s)" % [enemy_name, slow_stacks])
 		"disarmed":
 			is_disarmed = true
 			disarmed_tempo = value + int(_player_sphere_amp("sphere_disarm_amp"))
@@ -3486,7 +3563,7 @@ func _consumed_explode() -> void:
 	if main and "player" in main and main.player and is_instance_valid(main.player):
 		var diff = main.player.position - position
 		if Vector3(diff.x, 0, diff.z).length() <= CONSUMED_EXPLOSION_RANGE:
-			_deal_damage_to_player(main.player, CONSUMED_EXPLOSION_DAMAGE, "Death Burst")
+			_deal_damage_to_player(main.player, maxi(1, roundi(CONSUMED_EXPLOSION_DAMAGE * _pps_dmg)), "Death Burst")
 	for e in _sibling_enemies():
 		if e != self and is_instance_valid(e) and e.is_alive():
 			if position.distance_to(e.position) <= CONSUMED_EXPLOSION_RANGE:

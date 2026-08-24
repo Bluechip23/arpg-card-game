@@ -26,18 +26,30 @@ func _initialize() -> void:
 		by_name[e["name"]] = e
 	_check(by_name.has("Ring Wraith"), "Ring Wraith present in compendium")
 	if by_name.has("Ring Wraith"):
-		_check(by_name["Ring Wraith"]["health"] == 100, "Ring Wraith compendium HP matches code (100)")
+		_check(by_name["Ring Wraith"]["health"] == 100, "Ring Wraith compendium HP matches code (100, unbanded so unscaled)")
 
-	# --- Spot-check restrengthened stats (compendium side) ---
-	_check(by_name["Rat King"]["health"] == 90 and by_name["Rat King"]["armor"] == 10,
-		"Rat King is a real mini-boss now (90 HP, 10 armor)")
-	_check(by_name["Bone Dragon"]["health"] == 150, "Bone Dragon 150 HP")
-	_check(by_name["Grave Titan"]["health"] == 130 and by_name["Grave Titan"]["armor"] == 30,
-		"Grave Titan 130 HP / 30 armor")
-	_check(by_name["Hydra"]["health"] == 80, "Hydra 80 HP")
-	_check(by_name["Treant"]["health"] == 110, "Treant 110 HP")
-	_check(by_name["Coyote"]["health"] == 6, "Coyote stays blowy-uppy (6 HP)")
-	_check(by_name["Swarm"]["health"] == 10, "Swarm stays blowy-uppy (10 HP)")
+	# --- Passive-rework scaling curve ---
+	var s_low: Dictionary = Enemy.passive_power_scale(2)
+	var s_mid: Dictionary = Enemy.passive_power_scale(8)
+	var s_high: Dictionary = Enemy.passive_power_scale(19)
+	_check(is_equal_approx(s_low["hp"], 0.9) and is_equal_approx(s_low["dmg"], 0.9),
+		"early bands ease off to x0.9 (weak low-rank passives)")
+	_check(is_equal_approx(s_mid["hp"], 1.0) and is_equal_approx(s_mid["dmg"], 1.0),
+		"band 8 is the crossover (x1.0)")
+	_check(is_equal_approx(s_high["hp"], 1.45) and is_equal_approx(s_high["dmg"], 1.3),
+		"late bands grow to x1.45 HP / x1.3 damage (maxed lanes)")
+	_check(is_equal_approx(Enemy.passive_power_scale(0)["hp"], 1.0), "unbanded enemies unscaled")
+
+	# --- Spot-check restrengthened stats (compendium side, base x band scale) ---
+	_check(by_name["Rat King"]["health"] == 81 and by_name["Rat King"]["armor"] == 9,
+		"Rat King is a real mini-boss (90x0.9 HP, 10x0.9 armor at band 5)")
+	_check(by_name["Bone Dragon"]["health"] == 180, "Bone Dragon 150x1.2 HP (band 12)")
+	_check(by_name["Grave Titan"]["health"] == 156 and by_name["Grave Titan"]["armor"] == 36,
+		"Grave Titan 130x1.2 HP / 30x1.2 armor (band 12)")
+	_check(by_name["Hydra"]["health"] == 104, "Hydra 80x1.3 HP (band 14)")
+	_check(by_name["Treant"]["health"] == 160, "Treant 110x1.45 HP (band 19)")
+	_check(by_name["Coyote"]["health"] == 7, "Coyote stays blowy-uppy (6x1.2 HP)")
+	_check(by_name["Swarm"]["health"] == 9, "Swarm stays blowy-uppy (10x0.9 HP)")
 	_check(by_name["Bugbear"]["type"] == "Elite", "Bugbear display tier fixed to Elite")
 
 	# --- initialize() agrees with the compendium for every implemented enemy ---

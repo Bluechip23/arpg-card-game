@@ -80,11 +80,15 @@ func apply_debuff(debuff: Debuff) -> void:
 	debuff_applied.emit(debuff)
 	debuffs_changed.emit()
 
-	# Point to Prove: signal that player can choose to sacrifice HP to remove stun/disarm
+	# Point to Prove: signal that player can choose to sacrifice HP to remove
+	# stun/disarm. Only offer it when surviving the rank-scaled cost (20%..6%
+	# of max HP) is possible.
 	if owner_stats and owner_stats.has_method("has_skill_tree_passive"):
 		if owner_stats.has_skill_tree_passive("point_to_prove"):
 			if debuff.debuff_type == Debuff.DebuffType.STUN or debuff.debuff_type == Debuff.DebuffType.DISARM:
-				if owner_stats.current_health > 5:
+				var ptp_pct: int = PassiveScaling.value("point_to_prove", "hp_percent", owner_stats.get_passive_level("point_to_prove"))
+				var ptp_cost: int = maxi(1, ceili(owner_stats.max_health * ptp_pct / 100.0))
+				if owner_stats.current_health > ptp_cost:
 					point_to_prove_triggered.emit(debuff)
 
 func _assign_random_card_to_debuff(debuff: Debuff) -> void:

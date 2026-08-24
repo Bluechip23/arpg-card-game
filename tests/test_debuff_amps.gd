@@ -68,7 +68,7 @@ func _initialize() -> void:
 	bm.apply_buff(Buff.create_brace(10, 1, "Test"))
 	_check(bm.get_buff(Buff.BuffType.BRACE).value == 20, "Brace 10% arrives as 20%")
 	bm.apply_buff(Buff.create_enlightened(25, 3, "Test"))
-	_check(bm.get_enlightened_crit_chance() == 20, "Enlightened grants 20% with the amp")
+	_check(bm.get_enlightened_crit_chance() == 35, "Enlightened 25% grants 35% with the amp")
 	bm.apply_buff(Buff.create_strengthen(3, 3, "Test"))
 	_check(bm.get_buff(Buff.BuffType.STRENGTHEN).value == 8, "Strengthen 3 arrives as 8")
 	bm.apply_buff(Buff.create_bolster(2, 3, "Test"))
