@@ -196,7 +196,13 @@ Some cards carry **RNG outcomes**. When the **card is drawn** the player is told
 
 ## Buffs
 
-Positive effects. Duration-based buffs tick down with raw tempo; charge-based buffs ignore the clock and burn one charge per use (an attack, a move, a cycle — whatever the buff reacts to).
+Positive effects. Three lifetime models, and every buff uses exactly one:
+
+- **Duration buffs tick down with raw tempo** — a 15-tempo buff lasts exactly 15 tempo, not "3 cycles."
+- **Charge buffs ignore the clock** and burn one charge per event they react to (an attack, an armor gain, a move, a cycle). They last as long as their charges do.
+- **Per-cycle value buffs** (Regen, Smith) trigger once per cycle and their value **decays by 1 each cycle** — Regen 5 heals 5, then 4, then 3… and expires at 0.
+
+Reapplying a charge buff generally adds or extends charges rather than raising the magnitude (Enlightened is the loudest example: stacks extend how many attacks it covers, never the %). Sphere-grid **amp nodes** can make specific buffs arrive stronger (+charges, +value, or +% depending on the buff).
 
 | Buff | Effect |
 |---|---|
@@ -205,7 +211,7 @@ Positive effects. Duration-based buffs tick down with raw tempo; charge-based bu
 | **Regen** | Heal X HP per cycle; X decays by 1 each cycle. |
 | **Blessed** | Draw X additional card(s) per cycle for Y cycles — each cycle burns a charge. |
 | **Fortify** | Armor does not decay while this lasts. |
-| **Enlightened** | +10% crit chance for the next Y attacks — every attack burns a charge, crit or not. Reapplying extends the attacks, never raises the %. |
+| **Enlightened** | +X% crit chance for the next Y attacks — every attack burns a charge, crit or not. Most sources grant 10%; rank-scaled sources (e.g. Brad's Redemption) grant their own %. A 100% source is a guaranteed crit. Reapplying extends the attacks, never raises the %. |
 | **Strengthen** | +X damage on the next Y attacks — each attack burns a charge. |
 | **Bolster** | +X armor the next Y times you gain armor — each gain burns a charge. |
 | **Haste** | +X tempo-free tiles on your next Y moves — each non-flash move burns a charge (flash-point moves are exempt). |
@@ -214,14 +220,31 @@ Positive effects. Duration-based buffs tick down with raw tempo; charge-based bu
 | **Steady** | Your next action adds no tempo — each action burns a charge. |
 | **Brace** | Reduce incoming attack damage by X% for Y attacks — each incoming attack burns a charge. |
 | **Resilient** | Reduce all incoming damage by X%, draining by tempo (can be limited to one damage type). |
-| **Life Steal** | Your next attack heals you for the damage dealt. |
-| **Invisible** | Cannot be targeted by enemies. |
+| **Life Steal** | Your next attack heals you for the damage dealt (some sources heal a % of the damage instead). |
+| **Invisible** | Cannot be targeted by enemies for X tempo. |
+| **Keen** | +X% crit chance for Y tempo (unlike Enlightened, purely time-based). |
+| **Might** | +X Strength for Y tempo. |
+| **Morphine** | Temp HP is active; when it expires, lose the remaining temp HP and take 2 damage. |
+| **Wear Down** | Your attacks reduce the target's attack by 1 (stacking) while this lasts. |
+| **Armor Break** | Your next attack deals double damage to armor only (no health damage). |
+| **Shield Ready** | Gain X more armor after Y tempo (a delayed armor payout). |
+| **Repelled Block** | If the next melee attack is fully blocked by armor, negate it and push the enemy back 4 tiles. |
+| **Shield of Growth** | All damage taken increases your armor by that amount while this lasts. |
+| **Phoenix Grace** | When HP drops below 50%: heal to 80% and apply 5 burn to the nearest enemy — one charge per rescue. |
+| **Demonic Rage** | Your next Y mana costs are paid with health instead of mana. |
+| **Poisoned Blood** | Your next Y heal cards deal damage to enemies instead of healing (this also flips potion outcomes, e.g. for Ryan's Mad Scientist). |
+| **Elixir** | Your next Y poison ticks heal you instead of hurting you — one stack per tick. |
 
 ---
 
 ## Debuffs
 
-Negative effects, applied by enemies and hazards (and occasionally self-inflicted by powerful cards). Timed debuffs tick down with raw tempo; stack-driven debuffs never expire by the clock — their stacks burn on what they react to. Inebriate and Slowed behave identically for players and enemies.
+Negative effects, applied by enemies and hazards (and occasionally self-inflicted by powerful cards). The same two lifetime models as buffs:
+
+- **Timed debuffs tick down with raw tempo** (Stun 3 = exactly 3 tempo of lockout).
+- **Stack-driven debuffs never expire by the clock** — their stacks burn on what they react to (a tile moved, a card played, a hit taken, a cycle passing).
+
+For stack-driven debuffs, the stack **count** is the only per-application knob — how hard each stack hits is fixed (Slowed always costs 3 tempo per tile, Staggered always adds 15 mana per attack card, Weighted always adds 2 tempo per card, Linked always shares 20%, Clumsy is always a 30% discard chance, Blind is always an 80% miss chance). **Cleanse** removes debuffs instantly; character passives can also interact with them (Brad's *Point to Prove* offers to buy off a Stun/Disarm with a rank-scaled % of max HP; Cory's kit re-applies, transfers, and feeds on them). Enemies run the same debuff vocabulary — Inebriate and Slowed behave identically for players and enemies, and Cory's Wither can add a bonus charge to whatever you land.
 
 | Debuff | Effect |
 |---|---|
@@ -384,7 +407,7 @@ Five playable characters. All of them:
 - allocate the same starting stat pool,
 - have **one item specialty**: a slot layout that favors a particular equipment type (e.g. Brad's chest pieces weigh 20% less and Ryan gets −1 mana cost on belt cards),
 - have a **unique passive** tied to their specialty,
-- have **four distinct paths** of abilities that can be **mixed and matched**. You are never locked into a single path; your build can borrow from all four.
+- have **four distinct paths** (archetypes) of leveled passives that can be **mixed and matched**. You are never locked into a single path; your build can borrow from all four. Each passive holds up to **15 passive points** and grows stronger with every point — see [Passives: the 15-point system](#passives-the-15-point-system).
 
 **All cards are neutral** — no card is restricted to a particular character. Skill trees may still grant specific cards as level-up options, but any card a character can obtain, any other character can use. Character identity comes from the intersection of item specialty, path choices, stat allocation, and the deck you assemble.
 
@@ -394,13 +417,13 @@ Five playable characters. All of them:
 
 Your character grows along several permanent axes:
 
-- **Levels & XP** — combat grants experience. Every level grants **+2 max health and +3 stat points**, banked until you spend them from the skill tree screen.
+- **Levels & XP** — combat grants experience. Every level grants **+2 max health, +3 stat points, and +1 passive point**, banked until you spend them from the skill tree screen.
 - **Stat allocation** — 8 points at character creation, then 3 per level; core stats are yours to distribute and shape around Determination's risk/reward curve.
 - **Sphere grid** — a 100+ node unlock web spent with spheres earned on level-up. Beyond stat nodes, combat bonuses (crit, thorns, life steal, resistances, etc.), and passives, it carries:
   - **Keystones** — nodes that truly define builds. These nodes manipulate *how you play the game*: for instance, using mana as health, gaining bonus uses for flash points, and only receiving temp health instead of healing. A character can attach at most **3 keystones** — choose the ones that define your build.
   - **Null nodes** — small connectors that grant nothing; the toll paid on the road to something bigger.
   - **Constellations** — completing certain node patterns grants an extra bonus. A node can only be connected to one constellation, so choose wisely.
-- **Path abilities** — each character has 4 "paths" that provide unique passives (e.g. Cory: Monk, Druid, Lurker, and Atrophist).
+- **Path abilities** — each character has 4 "paths" (archetypes) of leveled passives (e.g. Cory: Monk, Druid, Lurker, and Atrophist). See below.
 - **Deck crafting** — buy cards from vendors, and use consumables to sculpt the deck:
   - **Culling Stones** permanently remove a card from your deck.
   - **Paper Feathers** — a card-crafting consumable (their new role is being redesigned).
@@ -409,3 +432,19 @@ Your character grows along several permanent axes:
 - **Story** — a four-act journey (Earth → Hell → Heaven → a final return to Earth). Everything above carries forward between acts; nothing resets.
 
 - **The home base** — every kill feeds the city you're building back in town, and the end-game is defending and growing it. See [The Home Base & The City](#the-home-base--the-city).
+
+### Passives: the 15-point system
+
+Path passives are not one-time picks — they are **leveled**, point by point, over the whole game.
+
+- **Earning points.** Every level-up banks **1 passive point** (alongside the +3 stat points). Points are spent from the skill tree screen whenever you like.
+- **The lanes.** The screen shows one horizontal lane per archetype — 4 lanes of 3 passives each, 12 per character (e.g. Brad: Berserker, Warden, The Ancient, The Fallen). Every passive is a circle you click to invest a point into.
+- **15 ranks per passive.** Each passive holds up to **15 points**. The first point turns the effect on; **every further point improves its actual numbers** — magnitudes, thresholds, cooldowns, and trigger requirements all scale per rank. A few examples of what a rank buys:
+  - Brad's *Enraged Will* triggers below 10%→25% HP with its cooldown falling 25→10 tempo.
+  - Cory's *Regrowth* cooldown falls 25→11 tempo; his *Wither* bonus charge comes off cooldown 15→1 tempo.
+  - Jeremy's *Harnessed Power* grows from +18% to +32% card effectiveness.
+  - Ryan's *Quick Step* armor grows from 2 to 16 per instant played.
+- **Stage gates.** A lane's later passives unlock by total investment in that lane: the first passive is open immediately, the second needs **5 points** invested in that archetype, the third needs **15**. Depth in one path is what opens its strongest passive — but nothing stops you from splashing the first passive of all four paths.
+- **Where the numbers live.** The full rank 1→15 tables for every passive are in `scripts/progression/passive_scaling.gd` (one table per passive, one entry per rank); human-readable summaries are in `docs/character_passives.csv` and the in-game tooltips show each passive's rank-1→15 range.
+
+The character's **innate passive** (the item-specialty one, like Brad's lighter chest pieces or Jeremy's ring-trigger double) is separate — it is always on and does not take points.

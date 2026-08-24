@@ -461,21 +461,22 @@ func consume_strengthen() -> int:
 	return 0
 
 func get_enlightened_crit_chance() -> int:
-	# Reworked (Megingjord pass): Enlightened is a flat 10% crit chance while
-	# any stacks remain — multiple stacks never raise the percentage, they only
-	# extend how many attacks it lasts.
+	# Enlightened grants the buff's own crit % while any stacks remain (most
+	# sources grant 10; rank-scaled sources like Brad's Redemption pass 1..15).
+	# Multiple stacks never raise the percentage — they only extend how many
+	# attacks it lasts.
 	var enlightened = get_buff(Buff.BuffType.ENLIGHTENED)
 	if enlightened == null:
 		return 0
 	# Understanding's delayed auto-crit stores value 100 — a guaranteed crit
-	# source stays guaranteed; everything else is the flat 10 plus the
+	# source stays guaranteed; everything else is the buff's % plus the
 	# sphere-grid Enlight Amp.
 	if enlightened.value >= 100:
 		return 100
 	var amp := 0
 	if owner_stats and "sphere_enlightened_amp" in owner_stats:
 		amp = int(owner_stats.sphere_enlightened_amp)
-	return 10 + amp
+	return maxi(1, enlightened.value) + amp
 
 func roll_crit(base_crit_chance: int = 0) -> bool:
 	# Include the character's innate base crit chance (default 5%)
