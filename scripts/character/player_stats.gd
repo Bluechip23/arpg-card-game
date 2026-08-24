@@ -104,6 +104,14 @@ var empower_damage_bonus: int = 3
 var empower_block_reduction: int = 3
 var chance_boost: float = 0.0
 var next_odds_boost: float = 0.0  # One-shot boost (Loaded Die / House Money), consumed on next roll
+
+## Total % chance boost for card rolls: equipment/buff sources (chance_boost)
+## plus Jeremy's Tricks of Death, read live from its rank (+5%..12%).
+func get_chance_boost() -> float:
+	var total := chance_boost
+	if has_skill_tree_passive("tricks_of_death"):
+		total += float(PassiveScaling.value("tricks_of_death", "chance", get_passive_level("tricks_of_death")))
+	return total
 var elixir_stacks: int = 0  # Elixir: next N poison ticks heal instead of hurting (1 stack per tick)
 var is_blinded: bool = false      # Blind (e.g. Giant Hawk): attacks may miss
 var blind_tempo: int = 0
@@ -414,6 +422,8 @@ var st_stimulant_cooldown: int = 0    # Stimulant: remaining cooldown tempo
 
 # Jeremy passive tracking
 var st_arcane_overflow_discount: bool = false  # Arcane Overflow: next spell costs -1 tempo
+var st_arcane_overflow_last_tempo: int = -100  # Arcane Overflow: global tempo of the last prime (rank-scaled cooldown)
+var st_fresh_start_last_tempo: int = -100      # Fresh Start: global tempo of the last cleanse (rank-scaled cooldown)
 var st_mana_spent_window: Array = []  # Mana Surge: [{amount, tempo}] entries within 5 tempo window
 var st_whispers_cooldown: int = 0     # Whispers of the Flock: remaining cooldown tempo
 var st_whispers_active: bool = false  # Whispers of the Flock: mark currently active
@@ -1703,15 +1713,16 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Whispers of the Flock: Shepherd's Mark prevents lethal damage
 	# When triggered, the marked target survives but the CASTER takes 8 damage
 	if current_health <= 0 and st_whispers_active:
+		var wf_armor: int = _whispers_scaled("armor")
 		current_health = 1
-		add_armor(10)
+		add_armor(wf_armor)
 		st_whispers_active = false
 		st_whispers_tempo = 0
-		st_whispers_cooldown = 20
+		st_whispers_cooldown = _whispers_scaled("cooldown")
 		health_changed.emit(current_health, max_health)
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
-		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor.")
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + %d armor." % wf_armor)
 
 	# Marvolo Gaunt: a lethal blow leaves you at 1 instead. Deliberately AFTER
 	# Shepherd's Mark, so the mark wins the race and the ring's 50-tempo
@@ -1774,6 +1785,12 @@ func exit_shadow_form() -> void:
 	shadow_form_ended.emit()
 	print("[STATS] Shadow form ends — the world sharpens back.")
 
+## Whispers of the Flock rank-scaled values, read from the CASTER's rank —
+## the mark can sit on an ally who doesn't own the passive.
+func _whispers_scaled(key: String) -> int:
+	var caster = st_whispers_caster if st_whispers_caster else self
+	return int(PassiveScaling.value("whispers_of_the_flock", key, caster.get_passive_level("whispers_of_the_flock")))
+
 func _pay_whispers_cost() -> void:
 	## The 8-HP cost of a triggered Shepherd's Mark goes to whoever cast it.
 	## A self-cast mark can't re-kill the survivor it just saved — it costs
@@ -1806,15 +1823,16 @@ func take_direct_damage(amount: int) -> void:
 	# Whispers of the Flock: Shepherd's Mark prevents lethal damage (direct damage too)
 	# When triggered, the marked target survives but the CASTER takes 8 damage
 	if current_health <= 0 and st_whispers_active:
+		var wf_armor: int = _whispers_scaled("armor")
 		current_health = 1
-		add_armor(10)
+		add_armor(wf_armor)
 		st_whispers_active = false
 		st_whispers_tempo = 0
-		st_whispers_cooldown = 20
+		st_whispers_cooldown = _whispers_scaled("cooldown")
 		health_changed.emit(current_health, max_health)
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
-		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + 10 armor.")
+		print("[STATS] Shepherd's Mark triggered! Survived at 1 HP + %d armor." % wf_armor)
 
 	# Marvolo Gaunt: the same lethal save guards the direct-damage path (a
 	# save on only one of the two paths would be a real hole).
@@ -1860,11 +1878,12 @@ func heal(amount: int, from_ally: bool = false) -> void:
 		friendship_partner.heal(amount, from_ally)
 		_friendship_echo = false
 		friendship_partner._friendship_echo = false
-	# Blood Libation: Sanguine stacks add +1 healing each; at 5 the heal doubles
-	# and the stacks are consumed.
+	# Blood Libation: Sanguine stacks add rank-scaled healing each (+1..15); at 5
+	# the heal doubles and the stacks are consumed.
 	var bl_consume := false
 	if sanguine_stacks > 0 and has_skill_tree_passive("blood_libation"):
-		amount += sanguine_stacks
+		var bl_per_stack: int = PassiveScaling.value("blood_libation", "heal_per_stack", get_passive_level("blood_libation"))
+		amount += sanguine_stacks * bl_per_stack
 		if sanguine_stacks >= 5:
 			amount *= 2
 			bl_consume = true

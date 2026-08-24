@@ -93,6 +93,60 @@ func _initialize() -> void:
 	_check(PassiveScaling.value("self_reliance", "mana_discount", 1) == 10, "Self Reliance rank 1 = 10m (design 1)")
 	_check(PassiveScaling.value("self_reliance", "mana_discount", 15) == 80, "Self Reliance rank 15 = 80m (design 8)")
 
+	# --- Jeremy endpoints ---
+	_check(PassiveScaling.value("a_mage's_favor", "armor", 1) == 2, "A Mage's Favor rank 1 = 2 armor")
+	_check(PassiveScaling.value("a_mage's_favor", "armor", 15) == 16, "A Mage's Favor rank 15 = 16 armor")
+	_check(PassiveScaling.value("kinetic_armor", "tempo", 1) == 30, "Kinetic Armor rank 1 = 30 tempo hold")
+	_check(PassiveScaling.value("kinetic_armor", "tempo", 15) == 16, "Kinetic Armor rank 15 = 16 tempo hold")
+	_check(PassiveScaling.value("fresh_start", "cooldown", 1) == 25, "Fresh Start rank 1 cooldown 25")
+	_check(PassiveScaling.value("fresh_start", "cooldown", 15) == 11, "Fresh Start rank 15 cooldown 11")
+	_check(PassiveScaling.value("arcane_overflow", "cooldown", 1) == 20, "Arcane Overflow rank 1 cooldown 20")
+	_check(PassiveScaling.value("arcane_overflow", "cooldown", 15) == 6, "Arcane Overflow rank 15 cooldown 6")
+	_check(PassiveScaling.value("harnessed_power", "percent", 1) == 18, "Harnessed Power rank 1 = 18%")
+	_check(PassiveScaling.value("harnessed_power", "percent", 15) == 32, "Harnessed Power rank 15 = 32%")
+	_check(PassiveScaling.value("mana_surge", "damage", 1) == 4, "Mana Surge rank 1 = 4 damage")
+	_check(PassiveScaling.value("mana_surge", "damage", 15) == 18, "Mana Surge rank 15 = 18 damage")
+	_check(is_equal_approx(PassiveScaling.value("tricks_of_death", "chance", 1), 5.0), "Tricks of Death rank 1 = +5%")
+	_check(is_equal_approx(PassiveScaling.value("tricks_of_death", "chance", 15), 12.0), "Tricks of Death rank 15 = +12%")
+	_check(PassiveScaling.value("seance", "specter", 1) == 5, "Seance rank 1 = 5 HP/damage")
+	_check(PassiveScaling.value("seance", "specter", 15) == 33, "Seance rank 15 = 33 HP/damage")
+	_check(PassiveScaling.value("haunted_rebuke", "cooldown", 1) == 25, "Haunted Rebuke rank 1 cooldown 25")
+	_check(PassiveScaling.value("haunted_rebuke", "cooldown", 15) == 11, "Haunted Rebuke rank 15 cooldown 11")
+	_check(PassiveScaling.value("i_heal_you", "interval", 1) == 18, "I Heal You rank 1 every 18 tempo")
+	_check(PassiveScaling.value("i_heal_you", "interval", 15) == 4, "I Heal You rank 15 every 4 tempo")
+	_check(PassiveScaling.value("whispers_of_the_flock", "armor", 1) == 5, "Whispers rank 1 = 5 armor")
+	_check(PassiveScaling.value("whispers_of_the_flock", "armor", 15) == 19, "Whispers rank 15 = 19 armor")
+	_check(PassiveScaling.value("whispers_of_the_flock", "cooldown", 1) == 60, "Whispers rank 1 cooldown 60 (65-5)")
+	_check(PassiveScaling.value("whispers_of_the_flock", "cooldown", 15) == 46, "Whispers rank 15 cooldown 46 (65-19)")
+	_check(PassiveScaling.value("blood_libation", "heal_per_stack", 1) == 1, "Blood Libation rank 1 = +1/stack")
+	_check(PassiveScaling.value("blood_libation", "heal_per_stack", 15) == 15, "Blood Libation rank 15 = +15/stack")
+	# Whispers cooldown stays 65 - armor at every rank
+	for r in range(1, 16):
+		if PassiveScaling.value("whispers_of_the_flock", "cooldown", r) != 65 - int(PassiveScaling.value("whispers_of_the_flock", "armor", r)):
+			_check(false, "Whispers rank %d cooldown = 65 - armor" % r)
+			break
+
+	# --- Jeremy's conjured cards carry the rank-scaled values ---
+	var ms := Card.create_mana_surge(12)
+	_check(ms.damage == 12 and ms.base_damage == 12, "Mana Surge card damage follows the passive rank")
+	var mb := Card.create_magic_barrier(7)
+	_check(mb.block == 7 and mb.base_block == 7, "Magic Barrier card armor follows the passive rank")
+	var sm := Card.create_shepherds_mark(14)
+	_check("14 armor" in sm.description, "Shepherd's Mark card description shows the scaled armor")
+
+	# --- Tricks of Death feeds get_chance_boost dynamically ---
+	var jstats = PlayerStats.new()
+	jstats.unspent_passive_points = 20
+	_check(is_equal_approx(jstats.get_chance_boost(), 0.0), "no chance boost without Tricks of Death")
+	jstats.allocate_passive_point("tricks_of_death")
+	_check(is_equal_approx(jstats.get_chance_boost(), 5.0), "Tricks of Death rank 1 boosts chances by 5")
+	for i in range(14):
+		jstats.allocate_passive_point("tricks_of_death")
+	_check(is_equal_approx(jstats.get_chance_boost(), 12.0), "Tricks of Death rank 15 boosts chances by 12")
+	jstats.chance_boost = 10.0
+	_check(is_equal_approx(jstats.get_chance_boost(), 22.0), "equipment chance boost stacks with Tricks of Death")
+	jstats.free()
+
 	# --- Energy Barrier card carries the rank-scaled armor ---
 	var eb := Card.create_energy_barrier(9)
 	_check(eb.block == 9 and eb.base_block == 9, "Energy Barrier card block follows the passive rank")

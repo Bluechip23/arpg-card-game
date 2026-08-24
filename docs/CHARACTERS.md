@@ -56,14 +56,15 @@ correctly.
 ## Jeremy — empty everything, then get paid for it
 
 Jeremy is for players who like riding the edge of zero. His passives explicitly reward being
-*out* of resources: **cards gain 30% effectiveness while you hold 2 or fewer cards**
+*out* of resources: **cards gain 18%→32% effectiveness while you hold 2 or fewer cards**
 (*Harnessed Power*), ending a cast at exactly 0 mana discounts your next spell's tempo
-(*Arcane Overflow*), spending 10 mana inside 5 tempo hands you a free Mana Surge attack that
-refunds mana, and playing the card that empties your hand cleanses a debuff (*Fresh Start*).
+(*Arcane Overflow*, on a rank-scaled 20→6 tempo cooldown), spending 10 mana inside 5 tempo
+hands you a free Mana Surge attack that refunds mana, and playing the card that empties your
+hand cleanses a debuff (*Fresh Start*, cooldown 25→11 tempo).
 Where other characters build up, Jeremy *spends down* — the kit is strongest at the bottom of
 the tank.
 
-His second axis is probability. *Tricks of Death* adds a flat +10 to every % chance on his
+His second axis is probability. *Tricks of Death* adds a flat +5→12 to every % chance on his
 **cards** — item-side rolls, like the Stringless Sender's bounce, are not cards and roll flat —
 which makes him the game's best user of its gamble cards: **Trick Shot** (80% to
 bounce), **Risk It** (30% for a full-heal Biscuit), **Oops** (a randomized 2–5 hit flurry),
@@ -80,7 +81,7 @@ cycle. He starts bare-fingered; every ring found in the world is a new engine pa
 **Cards that sing in his hands:** big, loud, swingy ones — **Fireball** (cheaper for each fire
 spell already cast), **God of Thunder** (converts accumulated shock into one bolt),
 **Worms Armageddon** — next to a genuinely selfless support line: *I Heal You* passively heals
-nearby allies, **Provider** and **Cryonics** protect them, and *Whispers of the Flock* /
+allies within 3 squares, **Provider** and **Cryonics** protect them, and *Whispers of the Flock* /
 *Blood Libation* let him tank pain personally (8 self-damage, 10 self-damage) to save an ally
 from lethal or double a heal — and Blood Libation's burst resolves damage-first, so a doubled
 self-heal patches the wound it just opened.

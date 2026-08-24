@@ -89,6 +89,47 @@ const TABLES := {
 	"self_reliance": {
 		"mana_discount": [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
 	},
+
+	# --- Jeremy ---
+	"a_mage's_favor": {
+		"armor": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+	},
+	"kinetic_armor": {
+		"tempo": [30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16],
+	},
+	"fresh_start": {
+		"cooldown": [25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11],
+	},
+	"arcane_overflow": {
+		"cooldown": [20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6],
+	},
+	"harnessed_power": {
+		"percent": [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+	},
+	"mana_surge": {
+		"damage": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+	},
+	"tricks_of_death": {
+		"chance": [5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0],
+	},
+	"seance": {
+		# One value drives both the Specter's HP and its on-death damage
+		"specter": [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33],
+	},
+	"haunted_rebuke": {
+		"cooldown": [25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11],
+	},
+	"i_heal_you": {
+		"interval": [18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4],
+	},
+	"whispers_of_the_flock": {
+		"armor": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+		# Design: cooldown = 65 - armor
+		"cooldown": [60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46],
+	},
+	"blood_libation": {
+		"heal_per_stack": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+	},
 }
 
 ## Look up a passive's value for `key` at `level`. Levels outside 1..15 are

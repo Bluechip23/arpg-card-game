@@ -571,10 +571,10 @@ func _apply_skill_tree_option(option) -> void:
 				stats.add_skill_tree_passive(pid)
 				main.add_battle_log("Eagle Eye: +2 range on ranged attacks", Color(0.4, 0.9, 0.4))
 			"tricks_of_death":
-				# Jeremy: +10% to all % chances (permanent chance_boost)
-				stats.chance_boost += 10.0
+				# Jeremy: rank-scaled +% to all card chances — read live via
+				# PlayerStats.get_chance_boost(), NOT baked into chance_boost.
 				stats.add_skill_tree_passive(pid)
-				main.add_battle_log("Tricks of Death: +10%% to all chances", Color(0.4, 0.9, 0.4))
+				main.add_battle_log("Tricks of Death: boosts all card chances", Color(0.4, 0.9, 0.4))
 			_:
 				stats.add_skill_tree_passive(pid)
 				main.add_battle_log("Passive unlocked: %s" % option.name, Color(0.9, 0.7, 0.2))
@@ -1603,6 +1603,7 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 
 	# Arcane Overflow: consume discount if active, then check if we hit 0 mana for next spell
 	# "Spell" = school tag, so offensive spells (Fireball) count too.
+	# Priming is on a rank-scaled tempo cooldown (20..6).
 	if stats.has_skill_tree_passive("arcane_overflow"):
 		# Apply stored discount from previous spell
 		if stats.st_arcane_overflow_discount and card.school == Card.CardSchool.SPELL:
@@ -1611,8 +1612,11 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 			main.add_battle_log("Arcane Overflow: -1 tempo!", Color(0.9, 0.3, 0.3))
 		# Check if casting this spell left us at 0 mana → prime next spell
 		if card.school == Card.CardSchool.SPELL and card.mana_cost > 0 and stats.current_mana == 0:
-			stats.st_arcane_overflow_discount = true
-			main.add_battle_log("Arcane Overflow: 0 mana! Next spell -1 tempo", Color(0.9, 0.3, 0.3))
+			var ao_cooldown: int = PassiveScaling.value("arcane_overflow", "cooldown", stats.get_passive_level("arcane_overflow"))
+			if main.tempo_manager.get_global_tempo() - stats.st_arcane_overflow_last_tempo >= ao_cooldown:
+				stats.st_arcane_overflow_last_tempo = main.tempo_manager.get_global_tempo()
+				stats.st_arcane_overflow_discount = true
+				main.add_battle_log("Arcane Overflow: 0 mana! Next spell -1 tempo", Color(0.9, 0.3, 0.3))
 
 	# Mana Surge: track mana spending, 10 mana in 5 tempo → add Mana Surge card
 	if stats.has_skill_tree_passive("mana_surge") and card.mana_cost > 0:
@@ -1630,17 +1634,23 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 			total_spent += entry["amount"]
 		if total_spent >= 100:
 			stats.st_mana_spent_window.clear()
-			var surge = Card.create_mana_surge()
+			# The conjured card's damage scales with rank (4..18)
+			var ms_damage: int = PassiveScaling.value("mana_surge", "damage", stats.get_passive_level("mana_surge"))
+			var surge = Card.create_mana_surge(ms_damage)
 			main.deck_manager.add_card_to_hand(surge)
 			main.add_battle_log("Mana Surge: card added to hand!", Color(0.9, 0.3, 0.3))
 
 	# Fresh Start: playing a card that empties hand → cleanse a debuff
+	# (rank-scaled tempo cooldown 25..11)
 	if stats.has_skill_tree_passive("fresh_start") and main.deck_manager.hand.is_empty():
-		var debuff_mgr = main.player.get_debuff_manager()
-		if debuff_mgr and debuff_mgr.debuffs.size() > 0:
-			var removed = debuff_mgr.debuffs[0]
-			debuff_mgr.remove_debuff(removed.debuff_type)
-			main.add_battle_log("Fresh Start: cleansed %s!" % removed.debuff_name, Color(0.8, 0.4, 0.9))
+		var fs_cooldown: int = PassiveScaling.value("fresh_start", "cooldown", stats.get_passive_level("fresh_start"))
+		if main.tempo_manager.get_global_tempo() - stats.st_fresh_start_last_tempo >= fs_cooldown:
+			var debuff_mgr = main.player.get_debuff_manager()
+			if debuff_mgr and debuff_mgr.debuffs.size() > 0:
+				stats.st_fresh_start_last_tempo = main.tempo_manager.get_global_tempo()
+				var removed = debuff_mgr.debuffs[0]
+				debuff_mgr.remove_debuff(removed.debuff_type)
+				main.add_battle_log("Fresh Start: cleansed %s!" % removed.debuff_name, Color(0.8, 0.4, 0.9))
 
 	# Seance: casting a spell that targets an empty tile → summon a Specter
 	if stats.has_skill_tree_passive("seance") and card.school == Card.CardSchool.SPELL:
@@ -1652,7 +1662,9 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 			_spawn_seance_specter(stats, spawn_pos)
 
 func _spawn_seance_specter(stats: PlayerStats, pos: Vector3) -> void:
-	## Spawns a Specter for Seance passive: 5 HP, 15 tempo, deals 4 damage to killer on death.
+	## Spawns a Specter for Seance passive: 25 tempo lifetime; its HP and the
+	## damage it deals to its killer on death both scale with rank (5..33).
+	var sp_value: int = PassiveScaling.value("seance", "specter", stats.get_passive_level("seance"))
 	var marker = MeshInstance3D.new()
 	var mesh = BoxMesh.new()
 	mesh.size = Vector3(0.4, 0.8, 0.4)
@@ -1665,7 +1677,7 @@ func _spawn_seance_specter(stats: PlayerStats, pos: Vector3) -> void:
 	add_child(marker)
 
 	var label = Label3D.new()
-	label.text = "Specter (5 HP)"
+	label.text = "Specter (%d HP)" % sp_value
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 12
 	label.modulate = Color(0.7, 0.5, 1.0)
@@ -1676,12 +1688,13 @@ func _spawn_seance_specter(stats: PlayerStats, pos: Vector3) -> void:
 	stats.st_seance_specters.append({
 		"node": marker,
 		"label": label,
-		"hp": 5,
-		"max_hp": 5,
-		"tempo_remaining": 15,
+		"hp": sp_value,
+		"max_hp": sp_value,
+		"death_damage": sp_value,
+		"tempo_remaining": 25,
 		"position": pos,
 	})
-	main.add_battle_log("Seance: Specter summoned! (5 HP, 15 tempo)", Color(0.7, 0.5, 1.0))
+	main.add_battle_log("Seance: Specter summoned! (%d HP, 25 tempo)" % sp_value, Color(0.7, 0.5, 1.0))
 
 func _tick_seance_specters(stats: PlayerStats) -> void:
 	## Tick Seance specters: decrement tempo, remove expired ones.
@@ -1697,8 +1710,9 @@ func _tick_seance_specters(stats: PlayerStats) -> void:
 				label.text = "Specter (%d HP)" % specter["hp"]
 
 	for specter in to_remove:
-		# On death/expiry: deal 4 damage to nearest enemy
+		# On death (not expiry): deal the rank-scaled damage to the nearest enemy
 		if specter["hp"] <= 0:
+			var sp_damage: int = specter.get("death_damage", 4)
 			var enemies = main.enemy_spawner.get_living_enemies() if main.enemy_spawner else []
 			if enemies.size() > 0:
 				var nearest: Enemy = null
@@ -1709,8 +1723,8 @@ func _tick_seance_specters(stats: PlayerStats) -> void:
 						nearest_dist = d
 						nearest = e
 				if nearest:
-					nearest.take_damage(4, true)
-					main.add_battle_log("Seance: Specter destroyed! 4 damage to %s!" % nearest.enemy_name, Color(0.7, 0.5, 1.0))
+					nearest.take_damage(sp_damage, true)
+					main.add_battle_log("Seance: Specter destroyed! %d damage to %s!" % [sp_damage, nearest.enemy_name], Color(0.7, 0.5, 1.0))
 		# Remove the visual marker
 		var node = specter.get("node")
 		if node and is_instance_valid(node):
@@ -1727,9 +1741,9 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 		stats.st_whispers_tempo -= 5
 		if stats.st_whispers_tempo <= 0:
 			stats.st_whispers_active = false
-			# Mark expired without triggering — no penalty
+			# Mark expired without triggering — no penalty (rank-scaled cooldown 60..46)
 			main.add_battle_log("Whispers of the Flock: mark expired.", Color(0.3, 0.7, 1.0))
-			stats.st_whispers_cooldown = 20
+			stats.st_whispers_cooldown = PassiveScaling.value("whispers_of_the_flock", "cooldown", stats.get_passive_level("whispers_of_the_flock"))
 	if stats.st_whispers_cooldown > 0:
 		stats.st_whispers_cooldown -= 5
 
@@ -1737,11 +1751,13 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 	if stats.st_haunted_rebuke_cooldown > 0:
 		stats.st_haunted_rebuke_cooldown -= 5
 
-	# I Heal You: heal nearby allies 3 HP every 5 tempo — covers both summoned
-	# specters (Seance) and a co-op partner standing within 3 tiles.
+	# I Heal You: heal nearby allies 3 HP on a rank-scaled interval (every
+	# 18..4 tempo) — covers both summoned specters (Seance) and a co-op
+	# partner standing within 3 tiles.
 	if stats.has_skill_tree_passive("i_heal_you"):
+		var ihy_interval: int = PassiveScaling.value("i_heal_you", "interval", stats.get_passive_level("i_heal_you"))
 		stats.st_i_heal_you_tempo += 5
-		if stats.st_i_heal_you_tempo >= 5:
+		if stats.st_i_heal_you_tempo >= ihy_interval:
 			stats.st_i_heal_you_tempo = 0
 			var healed_any = false
 			for specter in stats.st_seance_specters:
@@ -1762,11 +1778,13 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 			if healed_any:
 				main.add_battle_log("I Heal You: healed allies 3 HP", Color(0.3, 0.7, 1.0))
 
-	# Kinetic Armor: track armor retention, apply shock after 25 tempo
+	# Kinetic Armor: track armor retention, apply shock after a rank-scaled
+	# hold (30..16 tempo)
 	if stats.has_skill_tree_passive("kinetic_armor"):
 		if stats.current_armor > 0:
+			var ka_tempo: int = PassiveScaling.value("kinetic_armor", "tempo", stats.get_passive_level("kinetic_armor"))
 			stats.st_kinetic_armor_tempo += 5
-			if stats.st_kinetic_armor_tempo >= 25 and not stats.st_kinetic_armor_triggered:
+			if stats.st_kinetic_armor_tempo >= ka_tempo and not stats.st_kinetic_armor_triggered:
 				stats.st_kinetic_armor_triggered = true
 				# Count defense cards across entire deck
 				var defense_count = 0
@@ -1813,7 +1831,7 @@ func _trigger_skill_tree_jeremy_on_enemy_attacked(enemy: Enemy) -> void:
 			if card.card_type == Card.CardType.DEFENSE:
 				defense_in_hand += 1
 		if defense_in_hand >= 3:
-			stats.st_haunted_rebuke_cooldown = 10
+			stats.st_haunted_rebuke_cooldown = PassiveScaling.value("haunted_rebuke", "cooldown", stats.get_passive_level("haunted_rebuke"))
 			# Slow the enemy's next action by adding to their action tempo counter
 			if enemy.has_method("apply_debuff"):
 				enemy.apply_debuff("slow", 3)
@@ -1824,9 +1842,11 @@ func _trigger_skill_tree_jeremy_on_rng_reroll() -> void:
 	if not stats:
 		return
 
-	# A Mage's Favor: RNG reroll changed outcome → Magic Barrier to hand (once per batch)
+	# A Mage's Favor: RNG reroll changed outcome → Magic Barrier to hand (once
+	# per batch; the card's armor scales with rank, 2..16)
 	if stats.has_skill_tree_passive("a_mage's_favor"):
-		var barrier = Card.create_magic_barrier()
+		var mb_armor: int = PassiveScaling.value("a_mage's_favor", "armor", stats.get_passive_level("a_mage's_favor"))
+		var barrier = Card.create_magic_barrier(mb_armor)
 		main.deck_manager.add_card_to_hand(barrier)
 		main.add_battle_log("A Mage's Favor: Magic Barrier added!", Color(0.8, 0.4, 0.9))
 
@@ -1844,17 +1864,20 @@ func _trigger_skill_tree_jeremy_on_heal_ally() -> void:
 				already_holding = true
 				break
 		if not already_holding:
-			var mark_card = Card.create_shepherds_mark()
+			var wf_armor: int = PassiveScaling.value("whispers_of_the_flock", "armor", stats.get_passive_level("whispers_of_the_flock"))
+			var mark_card = Card.create_shepherds_mark(wf_armor)
 			main.deck_manager.add_card_to_hand(mark_card)
 			main.add_battle_log("Whispers of the Flock: Shepherd's Mark added to hand!", Color(0.3, 0.7, 1.0))
 
 func _get_jeremy_harnessed_power_multiplier() -> float:
-	## Returns the Harnessed Power effectiveness multiplier (1.0 = no bonus)
+	## Returns the Harnessed Power effectiveness multiplier (1.0 = no bonus;
+	## rank-scaled +18%..32% with 2 or fewer cards in hand)
 	var stats = main.player.get_stats()
 	if not stats:
 		return 1.0
 	if stats.has_skill_tree_passive("harnessed_power") and main.deck_manager.hand.size() <= 2:
-		return 1.3
+		var hp_percent: int = PassiveScaling.value("harnessed_power", "percent", stats.get_passive_level("harnessed_power"))
+		return 1.0 + hp_percent / 100.0
 	return 1.0
 
 func _apply_all_constellation_bonuses() -> void:

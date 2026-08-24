@@ -5929,7 +5929,7 @@ func _on_hand_updated() -> void:
 	# consumed once a card is actually rolled.
 	var enemies = enemy_spawner.get_living_enemies()
 	var _rng_stats = player.get_stats()
-	var chance_boost = _rng_stats.chance_boost + _rng_stats.next_odds_boost
+	var chance_boost = _rng_stats.get_chance_boost() + _rng_stats.next_odds_boost
 	for card in deck_manager.hand:
 		if card.has_chance_effect() and not card.has_been_rolled():
 			card.roll_rng(enemies, chance_boost)
@@ -6812,7 +6812,7 @@ func _apply_magnetize_pull(tiles: int) -> void:
 	print("[MAIN] Magnetized pulled player %d tiles toward %s" % [tiles, nearest_enemy.enemy_name])
 func _reroll_card_rng() -> void:
 	var enemies = enemy_spawner.get_living_enemies()
-	var chance_boost = player.get_stats().chance_boost
+	var chance_boost = player.get_stats().get_chance_boost()
 	var any_outcome_changed = false
 
 	for card in deck_manager.hand:
@@ -12985,7 +12985,7 @@ func _on_card_erased(card: Card) -> void:
 func _on_shepherds_mark_triggered() -> void:
 	# The 8-HP cost is paid inside PlayerStats._pay_whispers_cost() (routed to the
 	# actual caster, non-lethal on a self-cast) — this handler just narrates.
-	add_battle_log("Shepherd's Mark: Lethal damage prevented! 1 HP + 10 armor!", Color(0.3, 0.7, 1.0))
+	add_battle_log("Shepherd's Mark: Lethal damage prevented! Survived at 1 HP with bonus armor!", Color(0.3, 0.7, 1.0))
 	add_battle_log("Shepherd's Mark: the caster pays 8 HP.", Color(0.9, 0.3, 0.3))
 
 # ============================================

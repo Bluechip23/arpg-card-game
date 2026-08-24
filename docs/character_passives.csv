@@ -47,15 +47,15 @@ Cory,Monk,13,Self Reliance,"When you play 3 cards in a single tempo cycle, your 
 Cory,Atrophist,14,Death as Lifeblood,"Every cycle, regenerate 1->5 HP for each enemy within 2 squares of you, counting up to 3->12 enemies (rank 1->15)"
 Cory,Lurker,16,Serial Killer,"The first time an enemy drops below 11%->25% health (rank 1->15), you become invisible to them. If you attack that enemy out of your invisibility, it is an auto-crit"
 Cory,Druid,18,Regrowth,"When emptying your hand, draw 4 cards. Cooldown 25->11 tempo (rank 1->15)"
-Jeremy,Evocation,2,Arcane Overflow,"When you have 0 mana remaining after casting a spell, your next spell costs -1 tempo"
-Jeremy,Shepherd,3,I Heal You,Allies near you are healed 3 health every 5 tempo
-Jeremy,Poltergeist,4,Tricks of Death,Increase all % chances by 10
-Jeremy,Abjurer,5,A Mage's Favor,"When a card rerolls to a different outcome in your hand, put a Magic Barrier in your hand. 0m/0t Instant: when targeted by an enemy attack, gain 8 armor. Only triggers once per reroll batch."
-Jeremy,Evocation,7,Harnessed Power,Cards gain 30% effectiveness when you have 2 or less cards in your hand
-Jeremy,Shepherd,8,Whispers of the Flock,"When you heal an ally, add a Shepherd's Mark card to your hand (Erase 10). Play it on the healed ally to mark them for 10 tempo. If the marked ally would take lethal damage, they survive at 1 HP and gain 10 armor instead, but Jeremy takes 8 damage. Cooldown: 20 tempo."
-Jeremy,Poltergeist,9,Seance,"When you cast a spell that targets an empty tile, summon a Specter on that tile for 15 tempo. 5 HP, cannot act. Enemies may target it based on proximity. When destroyed, deals 4 damage to its killer."
-Jeremy,Abjurer,11,Kinetic Armor,"While retaining armor for more than 25 tempo, apply shock to the nearest enemy equal to the number of defensive cards in your deck"
-Jeremy,Evocation,13,Mana Surge,"When spending 10 mana within 5 tempo, add a Mana Surge to your hand. Mana Surge: Attack, 0m/2t, deal 5 damage, gain 1 mana."
-Jeremy,Poltergeist,14,Haunted Rebuke,"When an enemy attacks you and you have 3 or more defensive cards in your hand, the enemy's next action takes +3 tempo. Cooldown: 10 tempo."
-Jeremy,Shepherd,16,Blood Libation,"Every time Jeremy takes damage (excluding Blood Libation's own self-damage), gain a stack of Sanguine (max 5). Each stack grants +1 to all healing Jeremy performs. At 5 stacks, Jeremy's next heal is doubled, all Sanguine stacks are consumed, and Jeremy takes 10 non-lethal damage. The damage resolves FIRST, then the heal"
-Jeremy,Abjurer,18,Fresh Start,"When playing a card that leaves your hand empty, cleanse a debuff from yourself"
+Jeremy,Evocation,2,Arcane Overflow,"When you have 0 mana remaining after casting a spell, your next spell costs -1 tempo. Cooldown 20->6 tempo (rank 1->15)"
+Jeremy,Shepherd,3,I Heal You,Allies within 3 squares of you are healed 3 health every 18->4 tempo (rank 1->15)
+Jeremy,Poltergeist,4,Tricks of Death,Increase all % chances by 5->12 (rank 1->15)
+Jeremy,Abjurer,5,A Mage's Favor,"When a card rerolls to a different outcome in your hand, put a Magic Barrier in your hand. 0m/0t Instant: when targeted by an enemy attack, gain 2->16 armor (rank 1->15). Only triggers once per reroll batch."
+Jeremy,Evocation,7,Harnessed Power,Cards gain 18%->32% effectiveness (rank 1->15) when you have 2 or less cards in your hand
+Jeremy,Shepherd,8,Whispers of the Flock,"When you heal an ally, add a Shepherd's Mark card to your hand (Erase 10). Play it on the healed ally to mark them for 10 tempo. If the marked ally would take lethal damage, they survive at 1 HP and gain 5->19 armor instead (rank 1->15), but Jeremy takes 8 damage. Cooldown: 65 minus the armor value (60->46 tempo)."
+Jeremy,Poltergeist,9,Seance,"When you cast a spell that targets an empty tile, summon a Specter on that tile for 25 tempo. 5->33 HP (rank 1->15), cannot act. Enemies may target it based on proximity. When destroyed, deals its HP as damage to its killer."
+Jeremy,Abjurer,11,Kinetic Armor,"While retaining armor for more than 30->16 tempo (rank 1->15), apply shock to the nearest enemy equal to the number of defensive cards in your deck"
+Jeremy,Evocation,13,Mana Surge,"When spending 10 mana within 5 tempo, add a Mana Surge to your hand. Mana Surge: Attack, 0m/2t, deal 4->18 damage (rank 1->15), gain 1 mana."
+Jeremy,Poltergeist,14,Haunted Rebuke,"When an enemy attacks you and you have 3 or more defensive cards in your hand, the enemy's next action takes +3 tempo. Cooldown: 25->11 tempo (rank 1->15)."
+Jeremy,Shepherd,16,Blood Libation,"Every time Jeremy takes damage (excluding Blood Libation's own self-damage), gain a stack of Sanguine (max 5). Each stack grants +1->15 (rank 1->15) to all healing Jeremy performs. At 5 stacks, Jeremy's next heal is doubled, all Sanguine stacks are consumed, and Jeremy takes 10 non-lethal damage. The damage resolves FIRST, then the heal"
+Jeremy,Abjurer,18,Fresh Start,"When playing a card that leaves your hand empty, cleanse a debuff from yourself. Cooldown 25->11 tempo (rank 1->15)"

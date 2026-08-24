@@ -5254,18 +5254,19 @@ func _execute_shed_weight(deck_manager) -> void:
 			reduced += 1
 	print("[CARD] Shed Weight! Discarded %d defensive card(s); reduced %d card(s) by 1 tempo" % [discarded, reduced])
 
-static func create_mana_surge() -> Card:
+static func create_mana_surge(damage_amount: int = 5) -> Card:
+	# damage_amount comes from the Mana Surge passive's rank (4..18)
 	var card = Card.new()
 	card.card_id = "mana_surge"
 	card.school = CardSchool.SPELL
 	card.card_name = "Mana Surge"
-	card.description = "Deal 5 damage, gain 10 mana. Erased after play."
+	card.description = "Deal %d damage, gain 10 mana. Erased after play." % damage_amount
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 0
 	card.tempo_cost = 2
-	card.damage = 5
-	card.base_damage = 5
+	card.damage = damage_amount
+	card.base_damage = damage_amount
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
@@ -5273,20 +5274,21 @@ static func create_mana_surge() -> Card:
 	card.target_types = ["enemy"]
 	return card
 
-static func create_magic_barrier() -> Card:
+static func create_magic_barrier(armor: int = 8) -> Card:
+	# armor comes from A Mage's Favor's rank (2..16)
 	var card = Card.new()
 	card.card_id = "magic_barrier"
 	card.school = CardSchool.SPELL
 	card.card_name = "Magic Barrier"
-	card.description = "Gain 8 armor. Instant."
+	card.description = "Gain %d armor. Instant." % armor
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0
 	card.tempo_cost = 0
 	card.damage = 0
 	card.base_damage = 0
-	card.block = 8
-	card.base_block = 8
+	card.block = armor
+	card.base_block = armor
 	card.heal_amount = 0
 	card.erase_on_play = true  # consumed when it triggers, not while waiting
 	card.reaction_trigger = "on_damage_taken"
@@ -5297,12 +5299,13 @@ static func create_magic_barrier() -> Card:
 # SHEPHERD'S MARK (Whispers of the Flock)
 # ============================================
 
-static func create_shepherds_mark() -> Card:
+static func create_shepherds_mark(armor: int = 10) -> Card:
+	# armor comes from Whispers of the Flock's rank (5..19)
 	var card = Card.new()
 	card.card_id = "shepherds_mark"
 	card.school = CardSchool.SPELL
 	card.card_name = "Shepherd's Mark"
-	card.description = "Mark the healed ally for 10 tempo. If they would take lethal damage, they survive at 1 HP and gain 10 armor, but Jeremy takes 8 damage."
+	card.description = "Mark the healed ally for 10 tempo. If they would take lethal damage, they survive at 1 HP and gain %d armor, but Jeremy takes 8 damage." % armor
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
