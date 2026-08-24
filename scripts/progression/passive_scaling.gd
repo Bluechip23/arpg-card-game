@@ -179,6 +179,49 @@ const TABLES := {
 	"eye_scrape": {
 		"crits_required": [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
 	},
+
+	# --- Stephen ---
+	"patience_is_a_virtue": {
+		# % of the Glut amount dealt as damage before the Glut is halved
+		"multiplier": [10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290],
+	},
+	"swing_for_the_fences": {
+		# % of the card's tempo cost dealt as additional damage
+		"multiplier": [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800],
+	},
+	"dominate": {
+		"strengthen": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+	},
+	"eagle_eye": {
+		# % of the ranged card's range dealt as additional damage
+		"multiplier": [100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240],
+	},
+	"scouted": {
+		"range": [2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6],
+		"crit_damage": [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+	},
+	"laced_arrow": {
+		"chance": [50, 53, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 86, 89, 100],
+	},
+	"clean_exchange": {
+		"block": [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8],
+	},
+	"exposed_blind_spot": {
+		"crit_per_card": [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25, 4.5],
+	},
+	"lethal_resourcefulness": {
+		"cooldown": [40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12],
+	},
+	"deadly": {
+		"damage": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+		"crit_damage": [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+	},
+	"easy_target": {
+		"strengthen": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+	},
+	"skilled_momentum": {
+		"attacks_required": [10, 10, 9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3],
+	},
 }
 
 ## Look up a passive's value for `key` at `level`. Levels outside 1..15 are

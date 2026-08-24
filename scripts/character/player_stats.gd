@@ -409,7 +409,10 @@ var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit rea
 var st_exposed_blind_spot_crit: int = 0  # Exposed Blind Spot: bonus crit % for next attack
 var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
 var st_dominate_cooldown: int = 0     # Dominate: remaining cooldown tempo
-var st_deadly_crit_active: bool = false  # Deadly: +50% crit damage while resolving an attack on an isolated target
+var st_deadly_crit_active: bool = false  # Deadly: rank-scaled bonus crit damage while resolving an attack on an isolated target
+var st_scouted_crit_active: bool = false  # Scouted: rank-scaled bonus crit damage while resolving the scouted attack
+var st_lethal_last_tempo: int = -100      # Lethal Resourcefulness: global tempo of the last free attack (rank-scaled cooldown)
+var st_skilled_momentum_last_tempo: int = -100  # Skilled Momentum: global tempo of the last double strike (5 tempo cooldown)
 
 # Cory passive tracking
 var st_mana_gain_counter: int = 0     # Energy Barrier: counts non-regen mana gains toward every-3rd
@@ -1368,9 +1371,15 @@ const CRIT_DAMAGE_PER_DEX: float = 0.03
 
 func get_crit_damage_multiplier() -> float:
 	## Uses effective Dexterity, so Determination swings crit damage too.
-	## Deadly adds +50% while resolving an attack on an isolated target.
-	var deadly_bonus := 0.5 if st_deadly_crit_active else 0.0
-	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + equipment_crit_damage_bonus \
+	## Deadly adds rank-scaled crit damage (+2%..30%) while resolving an attack
+	## on an isolated target; Scouted adds its own (+2%..30%) on the scouted strike.
+	var deadly_bonus := 0.0
+	if st_deadly_crit_active:
+		deadly_bonus = float(PassiveScaling.value("deadly", "crit_damage", get_passive_level("deadly"))) / 100.0
+	var scouted_bonus := 0.0
+	if st_scouted_crit_active:
+		scouted_bonus = float(PassiveScaling.value("scouted", "crit_damage", get_passive_level("scouted"))) / 100.0
+	return BASE_CRIT_DAMAGE + dexterity * CRIT_DAMAGE_PER_DEX + deadly_bonus + scouted_bonus + equipment_crit_damage_bonus \
 		+ temp_crit_damage_bonus + death_stack_crit_damage
 
 ## Mountain Boots: +% damage while attacking from high ground.

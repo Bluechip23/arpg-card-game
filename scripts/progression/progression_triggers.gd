@@ -707,16 +707,24 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 	if not stats:
 		return
 
-	# Clean Exchange: draw Defense after playing Attack (or vice versa) → drawn card gets -1t
+	# Clean Exchange: draw Defense after playing Attack (or vice versa) → drawn
+	# card gets -1t, and a drawn Defense card also gains rank-scaled block (1..8)
 	if stats.has_skill_tree_passive("clean_exchange") and main._last_played_card:
 		var drawn_is_defense = card.card_type == Card.CardType.DEFENSE
 		var drawn_is_attack = card.card_type == Card.CardType.ATTACK
 		var last_was_attack = main._last_played_card.card_type == Card.CardType.ATTACK
 		var last_was_defense = main._last_played_card.card_type == Card.CardType.DEFENSE
 		if (drawn_is_defense and last_was_attack) or (drawn_is_attack and last_was_defense):
+			var ce_msg := ""
 			if card.tempo_cost > 0:
 				card.tempo_cost -= 1
-				main.add_battle_log("Clean Exchange: %s -1t" % card.card_name, Color(0.3, 0.7, 1.0))
+				ce_msg = "-1t"
+			if drawn_is_defense:
+				var ce_block: int = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
+				card.block += ce_block
+				ce_msg += (", " if ce_msg != "" else "") + "+%d block" % ce_block
+			if ce_msg != "":
+				main.add_battle_log("Clean Exchange: %s %s" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
 
 	# From the Hip: if an attack card, discount the most recently drawn card's
 	# mana (rank-scaled 10..75m) and, at high ranks, tempo (1..2t)
@@ -1191,14 +1199,25 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
-	# Deadly: +3 damage (and +50% crit damage, applied via st_deadly_crit_active)
-	# when the target has no allies within 2 tiles
+	# Deadly: rank-scaled +2..16 damage (and +2%..30% crit damage, applied via
+	# st_deadly_crit_active) when the target has no allies within 2 tiles
 	if stats.has_skill_tree_passive("deadly") and _deadly_isolated(target):
-		bonus += 3
-		main.add_battle_log("Deadly: +3 damage (isolated target)", Color(0.9, 0.3, 0.3))
+		var deadly_dmg: int = PassiveScaling.value("deadly", "damage", stats.get_passive_level("deadly"))
+		bonus += deadly_dmg
+		main.add_battle_log("Deadly: +%d damage (isolated target)" % deadly_dmg, Color(0.9, 0.3, 0.3))
 
-	# Scouted: hitting the same enemy 3 times in a row → +6 range and auto-crit
-	# on the next attack, usable against ANY enemy
+	# Eagle Eye: ranged offensive cards deal additional damage based on their
+	# range (rank-scaled 100%..240% of the card's range)
+	if stats.has_skill_tree_passive("eagle_eye") and card.is_ranged and card.is_offensive():
+		var ee_mult: int = PassiveScaling.value("eagle_eye", "multiplier", stats.get_passive_level("eagle_eye"))
+		var ee_range: int = maxi(1, 5 + card.range_modifier)
+		var ee_bonus: int = maxi(1, roundi(ee_range * ee_mult / 100.0))
+		bonus += ee_bonus
+		main.add_battle_log("Eagle Eye: +%d damage (range %d)" % [ee_bonus, ee_range], Color(0.4, 0.9, 0.4))
+
+	# Scouted: hitting the same enemy 3 times in a row → rank-scaled bonus range
+	# (2..6) and an auto-crit with rank-scaled bonus crit damage on the next
+	# attack, usable against ANY enemy
 	if stats.has_skill_tree_passive("scouted") and target and target is Enemy:
 		var enemy_id = target.get_instance_id()
 		if stats.st_scouted_bonus_active:
@@ -1216,27 +1235,35 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 				var buff_mgr = main.player.get_buff_manager()
 				if buff_mgr:
 					buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Scouted"))
-				main.add_battle_log("Scouted: 3 hits! +6 range and auto-crit on your next attack — any target!", Color(0.4, 0.9, 0.4))
+				var sc_range: int = PassiveScaling.value("scouted", "range", stats.get_passive_level("scouted"))
+				main.add_battle_log("Scouted: 3 hits! +%d range and auto-crit on your next attack — any target!" % sc_range, Color(0.4, 0.9, 0.4))
 		else:
 			# Switched targets — reset streak
 			stats.st_scouted_target_id = enemy_id
 			stats.st_scouted_hits = 1
 
-	# Skilled Momentum: 4 attacks in a row → 5th plays twice
+	# Skilled Momentum: after a rank-scaled streak of attacks (10..3), the next
+	# plays twice. 5 tempo cooldown.
 	if stats.has_skill_tree_passive("skilled_momentum") and card.card_type == Card.CardType.ATTACK:
+		var sm_required: int = PassiveScaling.value("skilled_momentum", "attacks_required", stats.get_passive_level("skilled_momentum"))
 		stats.st_consecutive_attacks += 1
-		if stats.st_consecutive_attacks >= 5:
+		if stats.st_consecutive_attacks >= sm_required + 1 \
+				and main.tempo_manager.get_global_tempo() - stats.st_skilled_momentum_last_tempo >= 5:
 			stats.st_consecutive_attacks = 0
+			stats.st_skilled_momentum_last_tempo = main.tempo_manager.get_global_tempo()
 			# Deal the card's damage again
 			if target and target.has_method("take_damage"):
 				var extra_dmg = card.last_damage_dealt if card.last_damage_dealt > 0 else stats.get_effective_physical_damage(card.base_damage)
 				target.take_damage(extra_dmg, true)
 				main.add_battle_log("Skilled Momentum: double strike for %d!" % extra_dmg, Color(0.9, 0.3, 0.3))
 
-	# Swing for the Fences: cards with >4 tempo cost deal tempo cost as additional damage
+	# Swing for the Fences: cards with >4 tempo cost deal their tempo cost times
+	# a rank-scaled multiplier (100%..800%) as additional damage
 	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
-		bonus += card.tempo_cost
-		main.add_battle_log("Swing for the Fences: +%d damage!" % card.tempo_cost, Color(0.8, 0.4, 0.9))
+		var sf_mult: int = PassiveScaling.value("swing_for_the_fences", "multiplier", stats.get_passive_level("swing_for_the_fences"))
+		var sf_bonus: int = maxi(1, roundi(card.tempo_cost * sf_mult / 100.0))
+		bonus += sf_bonus
+		main.add_battle_log("Swing for the Fences: +%d damage!" % sf_bonus, Color(0.8, 0.4, 0.9))
 
 	return bonus
 
@@ -1260,9 +1287,14 @@ func arm_pre_attack_passives(card: Card, target) -> void:
 		return
 	var is_attack: bool = card != null and card.card_type == Card.CardType.ATTACK
 
-	# Deadly (Stephen): +50% crit damage vs a target with no allies within 2 tiles.
+	# Deadly (Stephen): rank-scaled bonus crit damage vs a target with no allies
+	# within 2 tiles.
 	stats.st_deadly_crit_active = is_attack \
 		and stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
+
+	# Scouted (Stephen): the scouted strike carries rank-scaled bonus crit damage.
+	stats.st_scouted_crit_active = is_attack and stats.st_scouted_bonus_active \
+		and stats.has_skill_tree_passive("scouted")
 
 	# Snapshot the target's pre-hit state for post-resolution passives that
 	# judge "as it was before the hit" conditions (Surprise Opener).
@@ -1288,6 +1320,7 @@ func clear_pre_attack_passives() -> void:
 	var stats = main.player.get_stats()
 	if stats:
 		stats.st_deadly_crit_active = false
+		stats.st_scouted_crit_active = false
 
 func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
 	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
@@ -1299,26 +1332,33 @@ func _trigger_skill_tree_stephen_on_expose(target) -> void:
 		return
 
 	# Easy Target: when exposing an enemy, deal your damage again — repeat the
-	# damage of the hit that broke the armor, not a generic strength swing.
+	# damage of the hit that broke the armor, not a generic strength swing —
+	# and gain rank-scaled Strengthen (1..15).
 	if stats.has_skill_tree_passive("easy_target") and target and target.has_method("take_damage"):
 		var dmg: int = target.last_player_hit_damage if ("last_player_hit_damage" in target and target.last_player_hit_damage > 0) else stats.get_effective_physical_damage(0)
 		target.take_damage(dmg, true)
-		main.add_battle_log("Easy Target: repeated %d damage on expose!" % dmg, Color(0.9, 0.3, 0.3))
+		var et_str: int = PassiveScaling.value("easy_target", "strengthen", stats.get_passive_level("easy_target"))
+		var buff_mgr = main.player.get_buff_manager()
+		if buff_mgr:
+			buff_mgr.apply_buff(Buff.create_strengthen(et_str, 3, "Easy Target"))
+		main.add_battle_log("Easy Target: repeated %d damage on expose, +%d Strengthen!" % [dmg, et_str], Color(0.9, 0.3, 0.3))
 
 func _trigger_skill_tree_stephen_on_attacked(attacker) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Exposed Blind Spot: when struck with melee attack, gain crit chance = number of non-attack cards in hand
+	# Exposed Blind Spot: when struck with melee attack, gain crit chance =
+	# number of non-attack cards in hand × rank-scaled % per card (1%..4.5%)
 	if stats.has_skill_tree_passive("exposed_blind_spot"):
 		var non_attack_count = 0
 		for c in main.deck_manager.hand:
 			if c.card_type != Card.CardType.ATTACK:
 				non_attack_count += 1
 		if non_attack_count > 0:
-			stats.st_exposed_blind_spot_crit = non_attack_count
-			main.add_battle_log("Exposed Blind Spot: +%d%% crit on next attack!" % non_attack_count, Color(0.3, 0.7, 1.0))
+			var ebs_per: float = PassiveScaling.value("exposed_blind_spot", "crit_per_card", stats.get_passive_level("exposed_blind_spot"))
+			stats.st_exposed_blind_spot_crit = maxi(1, roundi(non_attack_count * ebs_per))
+			main.add_battle_log("Exposed Blind Spot: +%d%% crit on next attack!" % stats.st_exposed_blind_spot_crit, Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 	var stats = main.player.get_stats()
@@ -1329,13 +1369,17 @@ func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 	if stats.has_skill_tree_passive("skilled_momentum") and card.card_type != Card.CardType.ATTACK:
 		stats.st_consecutive_attacks = 0
 
-	# Lethal Resourcefulness: 3 or less cards in hand + non-attack → free basic attack
+	# Lethal Resourcefulness: 3 or less cards in hand + non-attack → free basic
+	# attack (rank-scaled tempo cooldown 40..12)
 	if stats.has_skill_tree_passive("lethal_resourcefulness") and not stats.st_lethal_resource_attacking:
-		if card.card_type != Card.CardType.ATTACK and main.deck_manager.hand.size() <= 3:
+		var lr_cooldown: int = PassiveScaling.value("lethal_resourcefulness", "cooldown", stats.get_passive_level("lethal_resourcefulness"))
+		if card.card_type != Card.CardType.ATTACK and main.deck_manager.hand.size() <= 3 \
+				and main.tempo_manager.get_global_tempo() - stats.st_lethal_last_tempo >= lr_cooldown:
 			var target = main._get_nearest_enemy()
 			if target and target.has_method("take_damage"):
 				var dist = main.player.position.distance_to(target.position)
 				if dist <= 2.0:  # Melee range
+					stats.st_lethal_last_tempo = main.tempo_manager.get_global_tempo()
 					stats.st_lethal_resource_attacking = true
 					var dmg = stats.get_effective_physical_damage(0)
 					target.take_damage(dmg, true)
@@ -1347,34 +1391,43 @@ func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
 	if not stats:
 		return
 
-	# Patience is a Virtue: on receiving Glut, deal that much damage to melee enemy and halve Glut
+	# Patience is a Virtue: on receiving Glut, deal the Glut amount times a
+	# rank-scaled multiplier (10%..290%) to a melee enemy, then halve the Glut.
+	# Normal rounding: .5 rounds up.
 	if stats.has_skill_tree_passive("patience_is_a_virtue") and glut_amount > 0:
 		var target = main._get_nearest_enemy()
 		if target and target.has_method("take_damage"):
 			var dist = main.player.position.distance_to(target.position)
 			if dist <= 2.0:  # Melee range
-				target.take_damage(glut_amount, true)
+				var pv_mult: int = PassiveScaling.value("patience_is_a_virtue", "multiplier", stats.get_passive_level("patience_is_a_virtue"))
+				var pv_damage: int = maxi(1, roundi(glut_amount * pv_mult / 100.0))
+				target.take_damage(pv_damage, true)
 				main.glut_tempo_remaining = max(0, main.glut_tempo_remaining / 2)
-				main.add_battle_log("Patience is a Virtue: %d damage, Glut halved!" % glut_amount, Color(0.8, 0.4, 0.9))
+				main.add_battle_log("Patience is a Virtue: %d damage, Glut halved!" % pv_damage, Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_stephen_on_dex_proc() -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Dominate: on attack speed proc, gain a 0m/0t basic attack card (5 tempo
-	# cooldown — at very low proc thresholds the free attack would otherwise
-	# chain into the next proc and loop forever)
+	# Dominate: on attack speed proc, gain a 30m/0t basic attack card and
+	# rank-scaled Strengthen (2..16). 5 tempo cooldown — at very low proc
+	# thresholds the extra attack would otherwise chain into the next proc
+	# and loop forever.
 	if stats.has_skill_tree_passive("dominate") and stats.st_dominate_cooldown <= 0:
 		stats.st_dominate_cooldown = 5
 		var free_attack = Card.create_slash()
-		free_attack.mana_cost = 0
+		free_attack.mana_cost = 30
 		free_attack.tempo_cost = 0
 		free_attack.card_name = "Dominate Strike"
-		free_attack.description = "Free basic attack from Dominate"
+		free_attack.description = "Basic attack from Dominate (30m/0t)"
 		main.deck_manager.hand.append(free_attack)
 		main.deck_manager.hand_updated.emit()
-		main.add_battle_log("Dominate: free 0m/0t attack card!", Color(0.8, 0.4, 0.9))
+		var dom_str: int = PassiveScaling.value("dominate", "strengthen", stats.get_passive_level("dominate"))
+		var buff_mgr = main.player.get_buff_manager()
+		if buff_mgr:
+			buff_mgr.apply_buff(Buff.create_strengthen(dom_str, 3, "Dominate"))
+		main.add_battle_log("Dominate: 30m/0t attack card, +%d Strengthen!" % dom_str, Color(0.8, 0.4, 0.9))
 
 # ============================================
 # CORY SKILL TREE PASSIVE TRIGGERS

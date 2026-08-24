@@ -2097,12 +2097,13 @@ static func create_axes_axe() -> ItemData:
 static func create_bessy() -> ItemData:
 	var item = _new_weapon("Bessy", Rarity.LEGENDARY, WeaponSubtype.HAMMER, 450)
 	item.card_slots = 1
-	item.weapon_damage = 15
+	# weapon_damage removed for now — the stat is inert (no combat path reads
+	# it); design will revisit how weapon damage should work.
 	item.attack_speed_threshold_bonus = 5
 	item.on_self_weakened_damage_percent = 25.0
 	var by_cards: Array[String] = ["earth_rattle"]
 	item.granted_card_ids = by_cards
-	item.description = "15 weapon damage. Attack-speed procs take 5 more swings — she is HEAVY. On-self: +25% damage to Weakened enemies (on top of Weaken itself). Grants Earth Rattle: smash the ground — 40 damage in a 3-square quake; enemies hit are Slowed 2 and Weakened 2 (60 mana, 6 tempo)."
+	item.description = "Attack-speed procs take 5 more swings — she is HEAVY. On-self: +25% damage to Weakened enemies (on top of Weaken itself). Grants Earth Rattle: smash the ground — 40 damage in a 3-square quake; enemies hit are Slowed 2 and Weakened 2 (60 mana, 6 tempo)."
 	return item
 
 static func create_hammer_of_ajax() -> ItemData:

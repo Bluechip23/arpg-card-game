@@ -181,6 +181,57 @@ func _initialize() -> void:
 		"Ladder Work rank 15 grants +8 DEX and +15 AGI dynamically")
 	rstats.free()
 
+	# --- Stephen endpoints ---
+	_check(PassiveScaling.value("patience_is_a_virtue", "multiplier", 1) == 10, "Patience rank 1 = 10%")
+	_check(PassiveScaling.value("patience_is_a_virtue", "multiplier", 15) == 290, "Patience rank 15 = 290%")
+	_check(PassiveScaling.value("swing_for_the_fences", "multiplier", 1) == 100, "Swing rank 1 = 100%")
+	_check(PassiveScaling.value("swing_for_the_fences", "multiplier", 15) == 800, "Swing rank 15 = 800%")
+	_check(PassiveScaling.value("dominate", "strengthen", 1) == 2, "Dominate rank 1 = +2 Strengthen")
+	_check(PassiveScaling.value("dominate", "strengthen", 15) == 16, "Dominate rank 15 = +16 Strengthen")
+	_check(PassiveScaling.value("eagle_eye", "multiplier", 1) == 100, "Eagle Eye rank 1 = 100% of range")
+	_check(PassiveScaling.value("eagle_eye", "multiplier", 15) == 240, "Eagle Eye rank 15 = 240% of range")
+	_check(PassiveScaling.value("scouted", "range", 1) == 2, "Scouted rank 1 = +2 range")
+	_check(PassiveScaling.value("scouted", "range", 12) == 5, "Scouted rank 12 = +5 range")
+	_check(PassiveScaling.value("scouted", "range", 15) == 6, "Scouted rank 15 = +6 range")
+	_check(PassiveScaling.value("scouted", "crit_damage", 1) == 2, "Scouted rank 1 = +2% crit damage")
+	_check(PassiveScaling.value("scouted", "crit_damage", 15) == 30, "Scouted rank 15 = +30% crit damage")
+	_check(PassiveScaling.value("laced_arrow", "chance", 1) == 50, "Laced Arrow rank 1 = 50%")
+	_check(PassiveScaling.value("laced_arrow", "chance", 14) == 89, "Laced Arrow rank 14 = 89%")
+	_check(PassiveScaling.value("laced_arrow", "chance", 15) == 100, "Laced Arrow rank 15 = 100%")
+	_check(PassiveScaling.value("clean_exchange", "block", 1) == 1, "Clean Exchange rank 1 = +1 block")
+	_check(PassiveScaling.value("clean_exchange", "block", 15) == 8, "Clean Exchange rank 15 = +8 block")
+	_check(is_equal_approx(PassiveScaling.value("exposed_blind_spot", "crit_per_card", 1), 1.0), "Exposed Blind Spot rank 1 = 1%/card")
+	_check(is_equal_approx(PassiveScaling.value("exposed_blind_spot", "crit_per_card", 15), 4.5), "Exposed Blind Spot rank 15 = 4.5%/card")
+	_check(PassiveScaling.value("lethal_resourcefulness", "cooldown", 1) == 40, "Lethal Resourcefulness rank 1 cooldown 40")
+	_check(PassiveScaling.value("lethal_resourcefulness", "cooldown", 15) == 12, "Lethal Resourcefulness rank 15 cooldown 12")
+	_check(PassiveScaling.value("deadly", "damage", 1) == 2, "Deadly rank 1 = +2 damage")
+	_check(PassiveScaling.value("deadly", "damage", 15) == 16, "Deadly rank 15 = +16 damage")
+	_check(PassiveScaling.value("deadly", "crit_damage", 1) == 2, "Deadly rank 1 = +2% crit damage")
+	_check(PassiveScaling.value("deadly", "crit_damage", 15) == 30, "Deadly rank 15 = +30% crit damage")
+	_check(PassiveScaling.value("easy_target", "strengthen", 1) == 1, "Easy Target rank 1 = +1 Strengthen")
+	_check(PassiveScaling.value("easy_target", "strengthen", 15) == 15, "Easy Target rank 15 = +15 Strengthen")
+	_check(PassiveScaling.value("skilled_momentum", "attacks_required", 1) == 10, "Skilled Momentum rank 1 = 10 attacks")
+	_check(PassiveScaling.value("skilled_momentum", "attacks_required", 15) == 3, "Skilled Momentum rank 15 = 3 attacks")
+
+	# --- Deadly/Scouted crit damage flow through the crit multiplier ---
+	var sstats = PlayerStats.new()
+	sstats.unspent_passive_points = 20
+	var base_crit_mult: float = sstats.get_crit_damage_multiplier()
+	sstats.allocate_passive_point("deadly")
+	sstats.st_deadly_crit_active = true
+	_check(is_equal_approx(sstats.get_crit_damage_multiplier(), base_crit_mult + 0.02),
+		"Deadly rank 1 adds +2% crit damage while armed")
+	for i in range(14):
+		sstats.allocate_passive_point("deadly")
+	_check(is_equal_approx(sstats.get_crit_damage_multiplier(), base_crit_mult + 0.30),
+		"Deadly rank 15 adds +30% crit damage while armed")
+	sstats.st_deadly_crit_active = false
+	sstats.allocate_passive_point("scouted")
+	sstats.st_scouted_crit_active = true
+	_check(is_equal_approx(sstats.get_crit_damage_multiplier(), base_crit_mult + 0.02),
+		"Scouted rank 1 adds +2% crit damage on the scouted strike")
+	sstats.free()
+
 	# --- Jeremy's conjured cards carry the rank-scaled values ---
 	var ms := Card.create_mana_surge(12)
 	_check(ms.damage == 12 and ms.base_damage == 12, "Mana Surge card damage follows the passive rank")

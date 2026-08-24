@@ -5027,15 +5027,18 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 					enemy.apply_debuff("burn", 2)
 					_harnessed_reentry = false
 					break
-	# Stephen: Laced Arrow — when applying burn, cold, or shock, apply +1 additional (guarded against recursion)
+	# Stephen: Laced Arrow — when applying burn, cold, or shock, a rank-scaled
+	# chance (50%..100%) to apply +1 additional charge (guarded against recursion)
 	if not _laced_arrow_applying and debuff_name in ["burn", "cold", "shock"]:
 		var stats = player.get_stats()
 		if stats and stats.has_skill_tree_passive("laced_arrow"):
-			_laced_arrow_applying = true
-			if enemy.has_method("apply_debuff"):
-				enemy.apply_debuff(debuff_name, 1)
-				add_battle_log("Laced Arrow: +1 %s" % debuff_name, Color(0.4, 0.9, 0.4))
-			_laced_arrow_applying = false
+			var la_chance: int = PassiveScaling.value("laced_arrow", "chance", stats.get_passive_level("laced_arrow"))
+			if randi() % 100 < la_chance:
+				_laced_arrow_applying = true
+				if enemy.has_method("apply_debuff"):
+					enemy.apply_debuff(debuff_name, 1)
+					add_battle_log("Laced Arrow: +1 %s" % debuff_name, Color(0.4, 0.9, 0.4))
+				_laced_arrow_applying = false
 	# Cory: Wither — +1 charge to the applied debuff, on a rank-scaled tempo
 	# cooldown (15..1; guarded against recursion)
 	if not _wither_applying:
@@ -7081,13 +7084,12 @@ func select_card(index: int) -> void:
 		# Include High Ground bonus if on pillar or elevated terrain
 		if card.card_type == Card.CardType.ATTACK and _is_on_high_ground(player.position):
 			effective_range += 2
-		# Eagle Eye: +2 range on ranged attacks
+		# (Eagle Eye no longer grants range — it now deals range-scaled bonus
+		# damage on ranged offensive cards.)
 		var st_stats = player.get_stats()
-		if st_stats and st_stats.has_skill_tree_passive("eagle_eye"):
-			effective_range += 2
-		# Scouted: +6 range on next attack after 3 consecutive hits
+		# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
 		if st_stats and st_stats.st_scouted_bonus_active:
-			effective_range += 6
+			effective_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
 			effective_range += st_stats.sphere_bonus_range
@@ -7203,9 +7205,10 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 		total += stats.empower_damage_bonus
 	if buff_mgr:
 		total += buff_mgr.get_strengthen_bonus()
-	# Swing for the Fences: heavy swings (tempo > 4) land the tempo again.
+	# Swing for the Fences: heavy swings (tempo > 4) land their tempo times a
+	# rank-scaled multiplier (100%..800%).
 	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
-		total += card.tempo_cost
+		total += maxi(1, roundi(card.tempo_cost * int(PassiveScaling.value("swing_for_the_fences", "multiplier", stats.get_passive_level("swing_for_the_fences"))) / 100.0))
 	# Ladder Work: banked discards cash in on the cycle's first attack
 	# (rank-scaled 1..6 damage per banked card).
 	if stats.has_skill_tree_passive("ladder_work") and stats.st_ladder_banked > 0:
@@ -9790,13 +9793,12 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		# High Ground: +2 range
 		if card.card_type == Card.CardType.ATTACK and _is_on_high_ground(player.position):
 			max_range += 2
-		# Eagle Eye: +2 range on ranged attacks
+		# (Eagle Eye no longer grants range — it now deals range-scaled bonus
+		# damage on ranged offensive cards.)
 		var st_stats = player.get_stats()
-		if st_stats and st_stats.has_skill_tree_passive("eagle_eye"):
-			max_range += 2
-		# Scouted: +6 range on next attack after 3 consecutive hits
+		# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
 		if st_stats and st_stats.st_scouted_bonus_active:
-			max_range += 6
+			max_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
 			max_range += st_stats.sphere_bonus_range

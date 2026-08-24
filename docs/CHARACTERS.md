@@ -98,26 +98,28 @@ that snowballs every cycle.
 Stephen is the tempo-system character. Almost every passive he has cares about *cadence* —
 the order and speed of your plays — and his kit supports two opposite rhythms:
 
-**The chain:** four attacks in a row make the fifth resolve **twice** (*Skilled Momentum*);
-hitting the *same* enemy three times in a row banks +6 range and an auto-crit on your next
-attack — spendable on **any** target (*Scouted*), so a melee Stephen can grind the streak on
-the enemy in his face and then whip a Dagger Throw at the archer in the back; triggering an
-attack-speed proc mints a free 0-mana/0-tempo basic attack, at most once per 5 tempo
+**The chain:** a rank-scaled streak of 10→3 attacks in a row makes the next resolve **twice**
+(*Skilled Momentum*, 5-tempo cooldown); hitting the *same* enemy three times in a row banks
++2→6 range and an auto-crit with +2%→30% crit damage on your next attack — spendable on **any**
+target (*Scouted*), so a melee Stephen can grind the streak on the enemy in his face and then
+whip a Dagger Throw at the archer in the back; triggering an attack-speed proc mints a
+30-mana/0-tempo basic attack and rank-scaled Strengthen, at most once per 5 tempo
 (*Dominate*). Alternating also
-pays: drawing a Defense card right after playing an attack (or vice versa) discounts its tempo
-(*Clean Exchange*). This is a build about not breaking stride. And positioning is damage too:
-*Deadly* grants +3 damage and +50% crit damage against a target with **no allies within 2
-spaces** — picking off stragglers, or splitting a pack before the kill, is part of the rhythm.
+pays: drawing a Defense card right after playing an attack (or vice versa) discounts its tempo,
+and a drawn Defense card gains +1→8 block (*Clean Exchange*). This is a build about not
+breaking stride. And positioning is damage too: *Deadly* grants +2→16 damage and +2%→30% crit
+damage against a target with **no allies within 2 spaces** — picking off stragglers, or
+splitting a pack before the kill, is part of the rhythm.
 
-**The haymaker:** any card costing more than 4 tempo deals its tempo cost as *bonus damage*
-(*Swing for the Fences*), and receiving Glut converts it into damage and halves it
-(*Patience is a Virtue*). Cards like **Tighten String** (+3 tempo, +6 damage, +6 range, +20%
+**The haymaker:** any card costing more than 4 tempo deals 100%→800% of its tempo cost as
+*bonus damage* (*Swing for the Fences*), and receiving Glut converts 10%→290% of it into
+damage and halves it (*Patience is a Virtue*). Cards like **Tighten String** (+3 tempo, +6 damage, +6 range, +20%
 crit on your next 3 shots), **Sky Fall** (an arrow that lands 10 tempo later for 18), and
 **Lead Arrow** (1.8× damage from high ground) let you deliberately play slow and heavy instead.
 
-He also runs lean comfortably: with 3 or fewer cards in hand, every non-attack card he plays
-triggers a **free basic attack** (*Lethal Resourcefulness*), so even his Blocks keep the
-pressure on when his hand runs low.
+He also runs lean comfortably: with 3 or fewer cards in hand, playing a non-attack card
+triggers a **free basic attack** on a rank-scaled 40→12 tempo cooldown
+(*Lethal Resourcefulness*), so even his Blocks keep the pressure on when his hand runs low.
 
 **Gear identity:** Stephen's slot layout is standard, but his character passive gives him
 **+10% off-hand enchantment effectiveness while every other character takes −10%**. Off-hands
@@ -129,7 +131,8 @@ and bow-and-quiver user once he's geared up.
 **Reload** (draw 3), **Enchanted Quiver** (free Quick Arrows), **Multishot** (three hits with
 climbing crit), **Spirit Arrow** (pierces everything in a line), **Bottomless Quiver** (banks
 overflow attacks for later), **Last Breath** (dump all mana for 3 damage per point) — plus
-*Laced Arrow* doubling every burn/cold/shock he applies, and terrain cards (**Rise**,
+*Laced Arrow* giving a 50%→100% chance to double every burn/cold/shock he applies, ranged
+cards dealing bonus damage from their range (*Eagle Eye*), and terrain cards (**Rise**,
 **Barricade**, **Sky Attack**) that let him *build* his own high ground.
 
 **Pick Stephen if you want:** a playstyle about sequencing and momentum — either uninterrupted
