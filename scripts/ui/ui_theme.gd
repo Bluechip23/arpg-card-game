@@ -1,8 +1,8 @@
 extends Node
 ## Autoload (UiTheme). Makes every engine tooltip match the game's popup
 ## styling — dark panel, gold border, rounded corners, the T&O sigil in the
-## top-left corner — and re-wraps long one-line tooltip strings into readable
-## blocks instead of letting them run the full width of the screen.
+## top-left corner — and re-wraps any overlong tooltip line into readable
+## blocks instead of letting it run the full width of the screen.
 ## Explicit per-control theme overrides (existing popups) are unaffected.
 
 const WRAP_WIDTH := 52  # characters per tooltip line
@@ -28,11 +28,22 @@ func _wrap_tooltip(node) -> void:
 	if not is_instance_valid(node):
 		return
 	var text: String = node.tooltip_text
-	# Hand-formatted tooltips (already multi-line) are left alone.
-	if text.length() > WRAP_WIDTH and "\n" not in text:
-		node.tooltip_text = wrap_text(text)
+	var wrapped := wrap_text(text)
+	if wrapped != text:
+		node.tooltip_text = wrapped
 
+## Re-wraps overlong lines into WRAP_WIDTH-character blocks. Hand-placed line
+## breaks are kept, so multi-line tooltips only have their long lines re-cut —
+## a single long description line no longer stretches across the screen.
 static func wrap_text(text: String, width: int = WRAP_WIDTH) -> String:
+	if text.length() <= width:
+		return text
+	var out: Array[String] = []
+	for line in text.split("\n"):
+		out.append(_wrap_line(line, width) if line.length() > width else line)
+	return "\n".join(out)
+
+static func _wrap_line(text: String, width: int) -> String:
 	var lines: Array[String] = []
 	var line := ""
 	for word in text.split(" "):
