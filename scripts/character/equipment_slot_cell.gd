@@ -236,7 +236,9 @@ func _build_item_tooltip() -> String:
 	if item.description != "":
 		lines.append(item.description)
 	lines.append("Drag to move • Click for details")
-	return "\n".join(lines)
+	# Wrapped here (not only by UiTheme's node_added pass) because cells can
+	# get a new tooltip on re-equip without being re-added to the tree.
+	return preload("res://scripts/ui/ui_theme.gd").wrap_text("\n".join(lines))
 
 # ---------------------------------------------------------------------------
 # Drag & drop

@@ -200,6 +200,8 @@ var _ally_menu: PopupMenu = null     # right-click context menu on the partner
 var _ally_menu_target: Player = null
 var hud_icon_bar = null              # HudIconBar — top-right icon bar (character / EXP / quest / help)
 var _quest_notify: bool = false      # A quest was added/updated/completed since last opened
+var passive_display_container: GridContainer = null  # right-side tray of PassiveBoxUI boxes (3 rows of 4)
+var _passive_info: Dictionary = {}   # passive_id -> {name, archetype, description}, built lazily from the skill trees
 
 # Active fire walls (Fire Goblin Shaman). Each: {tiles, damage, burn, moves_left, visuals}.
 var _fire_walls: Array = []
@@ -640,6 +642,9 @@ func _ready() -> void:
 
 	# HUD icon bar (character / EXP / quest journal / help)
 	_setup_hud_icon_bar()
+
+	# Right-side passive tray (skill-tree passives with cooldown state)
+	_setup_passive_display_ui()
 
 	# Initialize dungeon
 	_setup_dungeon()
@@ -3558,6 +3563,78 @@ func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
 	_update_block_button_visibility()
 
+func _setup_passive_display_ui() -> void:
+	## Right-side passive tray: one gold-trimmed PassiveBoxUI per active
+	## skill-tree passive, stacked 4 per row (up to 3 rows for a full set of
+	## 12). Cooldown passives fade and show recharge progress like the
+	## gauntlet skill circles; always-on passives stay solid.
+	var ui = $UI as CanvasLayer
+	passive_display_container = GridContainer.new()
+	passive_display_container.name = "PassiveDisplay"
+	passive_display_container.columns = 4
+	ui.add_child(passive_display_container)
+	# Sits just below the battle log's usual footprint, above the hand area.
+	passive_display_container.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	passive_display_container.offset_left = -210.0
+	passive_display_container.offset_right = -10.0
+	passive_display_container.offset_top = -50.0
+	passive_display_container.offset_bottom = 130.0
+	passive_display_container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	passive_display_container.add_theme_constant_override("h_separation", 8)
+	passive_display_container.add_theme_constant_override("v_separation", 8)
+	# Allocating a passive point happens inside the skill tree panel, so the
+	# tray re-checks whenever that panel opens or closes.
+	skill_tree_ui.visibility_changed.connect(_update_passive_display_ui)
+	_update_passive_display_ui()
+
+func _update_passive_display_ui() -> void:
+	if not passive_display_container or not player:
+		return
+	var stats = player.get_stats()
+	if not stats:
+		return
+	# Rebuild when the set of active passives changes (allocation, save load);
+	# otherwise just refresh each box's cooldown state.
+	var built: Array = []
+	for child in passive_display_container.get_children():
+		built.append(child.passive_id)
+	if built != Array(stats.skill_tree_passives):
+		for child in passive_display_container.get_children():
+			passive_display_container.remove_child(child)
+			child.queue_free()
+		for pid in stats.skill_tree_passives:
+			var box := PassiveBoxUI.new()
+			var info: Dictionary = _get_passive_info(pid)
+			passive_display_container.add_child(box)
+			box.setup(pid, info.get("name", ""), info.get("description", ""), stats, tempo_manager)
+	else:
+		for child in passive_display_container.get_children():
+			child.update_display()
+
+## Name/description lookup for a skill-tree passive, built once from every
+## character's tree (ids are unique across characters, and the union keeps the
+## tray working in sandbox mode too).
+func _get_passive_info(passive_id: String) -> Dictionary:
+	if _passive_info.is_empty():
+		for tree in [SkillTreeData.create_brad_tree(), SkillTreeData.create_stephen_tree(),
+				SkillTreeData.create_ryan_tree(), SkillTreeData.create_cory_tree(),
+				SkillTreeData.create_jeremy_tree()]:
+			for row in tree.rows:
+				for opt in row.options:
+					if opt.option_type != SkillTreeData.OptionType.PASSIVE or opt.passive_id == "":
+						continue
+					if _passive_info.has(opt.passive_id):
+						continue
+					# Tree descriptions are prefixed "Name (Archetype): ..." —
+					# strip that so tooltips don't say the name twice.
+					var desc: String = opt.description
+					var prefix := "%s (%s): " % [opt.name, opt.archetype]
+					if desc.begins_with(prefix):
+						desc = desc.trim_prefix(prefix)
+					_passive_info[opt.passive_id] = {
+						"name": opt.name, "archetype": opt.archetype, "description": desc}
+	return _passive_info.get(passive_id, {})
+
 func _setup_hud_icon_bar() -> void:
 	## Top-right icon bar replacing the old I/L/H text hints. Buttons open the
 	## same windows the keyboard shortcuts do; the EXP and Quest icons carry a
@@ -3845,6 +3922,7 @@ func select_character(character: CharacterData) -> void:
 
 	skill_tree_ui.set_skill_tree(skill_tree)
 	skill_tree_ui.set_player_level(player.get_stats().current_level)
+	_update_passive_display_ui()
 
 	print("[MAIN] Selected character: %s" % character.character_name)
 
@@ -4886,9 +4964,11 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 		var tick_stats = tick_p.get_stats()
 		if tick_stats:
 			tick_stats.advance_status_tempo(amount)
-	# Gauntlet skill circles show tempo-granular recharge progress, so they
-	# refresh on every tempo step, not just at cycle boundaries.
+	# Gauntlet skill circles and passive boxes show tempo-granular recharge
+	# progress, so they refresh on every tempo step, not just at cycle
+	# boundaries.
 	_update_gauntlet_skills_ui()
+	_update_passive_display_ui()
 
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()

@@ -3,6 +3,10 @@ extends PanelContainer
 
 ## Popup tooltip for item details
 
+## Text wraps at this width so long effect/description lines read as a
+## compact block instead of stretching across the screen.
+const MAX_TEXT_WIDTH := 280.0
+
 @onready var name_label: Label = $MarginContainer/VBox/NameLabel
 @onready var type_label: Label = $MarginContainer/VBox/TypeLabel
 @onready var stats_label: Label = $MarginContainer/VBox/StatsLabel
@@ -12,6 +16,10 @@ extends PanelContainer
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for label in [name_label, type_label, stats_label, effect_label, description_label]:
+		if label:
+			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			label.custom_minimum_size = Vector2(MAX_TEXT_WIDTH, 0)
 
 func show_item(item: ItemData, pos: Vector2) -> void:
 	if not item:
@@ -43,7 +51,9 @@ func show_item(item: ItemData, pos: Vector2) -> void:
 	if description_label:
 		description_label.text = item.description
 	
-	# Position tooltip near mouse but keep on screen
+	# Snap the panel to the new content (it never shrinks on its own),
+	# then position near the mouse but keep on screen
+	reset_size()
 	position = pos + Vector2(15, 15)
 	var screen_size = get_viewport_rect().size
 	if position.x + size.x > screen_size.x:

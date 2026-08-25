@@ -25,7 +25,7 @@ func setup(char_panel, itm: ItemData) -> void:
 	style.set_corner_radius_all(3)
 	add_theme_stylebox_override("panel", style)
 
-	tooltip_text = _build_tooltip()
+	tooltip_text = preload("res://scripts/ui/ui_theme.gd").wrap_text(_build_tooltip())
 	queue_redraw()
 
 func _build_tooltip() -> String:
