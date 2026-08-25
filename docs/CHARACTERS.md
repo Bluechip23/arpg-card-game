@@ -111,7 +111,7 @@ breaking stride. And positioning is damage too: *Deadly* grants +2→16 damage a
 damage against a target with **no allies within 2 spaces** — picking off stragglers, or
 splitting a pack before the kill, is part of the rhythm.
 
-**The haymaker:** any card costing more than 4 tempo deals 100%→800% of its tempo cost as
+**The haymaker:** any card costing more than 4 tempo deals 100%→380% of its tempo cost as
 *bonus damage* (*Swing for the Fences*), and receiving Glut converts 10%→290% of it into
 damage and halves it (*Patience is a Virtue*). Cards like **Tighten String** (+3 tempo, +6 damage, +6 range, +20%
 crit on your next 3 shots), **Sky Fall** (an arrow that lands 10 tempo later for 18), and
