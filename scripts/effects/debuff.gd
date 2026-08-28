@@ -31,7 +31,8 @@ enum DebuffType {
 	COLD,
 	BLIND,
 	# Appended at the tail — enum order is save-compat-sensitive.
-	GENERIC  # bespoke named debuff (Marvolo's Misunderstanding); keeps its custom name/description
+	GENERIC,  # bespoke named debuff (Marvolo's Misunderstanding); keeps its custom name/description
+	WEAKENED  # deal WEAKENED_REDUCTION% less damage; 1 stack burns per attack (mirrors enemy-side Weaken)
 }
 
 # Fixed magnitudes for the stack-driven debuffs: the stack COUNT is the only
@@ -44,6 +45,7 @@ const TETHER_RANGE := 5            # tiles from the application point
 const LINKED_SHARE := 20           # % damage shared with the nearest ally
 const CLUMSY_CHANCE := 30          # % chance to discard on card play
 const BLIND_MISS := 80             # % chance for attacks to miss
+const WEAKENED_REDUCTION := 30     # % less damage dealt while Weakened (matches the enemy-side Weaken)
 
 var debuff_type: DebuffType
 var debuff_name: String
@@ -153,6 +155,9 @@ func _set_name_and_description() -> void:
 		DebuffType.BLIND:
 			debuff_name = "Blind"
 			description = "%d%% chance for your attacks to miss" % (value if value > 0 else BLIND_MISS)
+		DebuffType.WEAKENED:
+			debuff_name = "Weakened"
+			description = "Deal %d%% less damage; each attack burns a stack (%d left)" % [WEAKENED_REDUCTION, value]
 
 func advance_time(amount: int) -> bool:
 	# Duration counts RAW tempo, decremented on every tempo advance — so a
@@ -192,6 +197,7 @@ func get_icon_color() -> Color:
 		DebuffType.BRITTLE: return Color(0.7, 0.7, 0.6)
 		DebuffType.COLD: return Color(0.4, 0.7, 1.0)
 		DebuffType.BLIND: return Color(0.85, 0.85, 0.4)
+		DebuffType.WEAKENED: return Color(0.5, 0.5, 0.8)
 	return Color.WHITE
 
 func get_short_display() -> String:

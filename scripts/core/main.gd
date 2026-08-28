@@ -6392,6 +6392,7 @@ func _on_apply_debuff(debuff_name: String) -> void:
 		"Clumsy (30)": debuff = Debuff.create(Debuff.DebuffType.CLUMSY, 3, -1)
 		"Vulnerable (25)": debuff = Debuff.create(Debuff.DebuffType.VULNERABLE, 25, 3)
 		"Brittle (2)": debuff = Debuff.create(Debuff.DebuffType.BRITTLE, 2, 3)
+		"Weakened (2)": debuff = Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1)
 	if debuff and debuff_mgr:
 		debuff_mgr.apply_debuff(debuff)
 		_on_hand_updated()  # Refresh cards for Hexed/Locked

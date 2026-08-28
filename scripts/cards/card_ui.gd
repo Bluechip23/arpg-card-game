@@ -109,8 +109,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		is_dex_proc = true
 
 	if debuff_mgr:
-		if debuff_mgr.is_card_hexed(index):
-			display_mana += debuff_mgr.get_hexed_mana_increase()
+		display_mana += debuff_mgr.get_hexed_mana_increase(index)
 			is_hexed = true
 		is_locked = debuff_mgr.is_card_locked(index)
 

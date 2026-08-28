@@ -43,7 +43,7 @@ func _build_legend() -> void:
 	_add_keyword("Staggered", "Attack cards cost X more mana", Color(0.6, 0.4, 0.2))
 	_add_keyword("Drain", "Lose 1 mana per cycle, lose 1 drain per cycle", Color(0.4, 0.0, 0.6))
 	_add_keyword("Weighted", "Cards cost X more tempo", Color(0.4, 0.4, 0.4))
-	_add_keyword("Hexed", "One random card costs +X mana", Color(0.6, 0.0, 0.6))
+	_add_keyword("Hexed", "A random card costs +X mana until played; multiple hexes can sit on different cards at once", Color(0.6, 0.0, 0.6))
 	_add_keyword("Locked", "One random card cannot be played", Color(0.3, 0.3, 0.3))
 	_add_keyword("Rooted", "Cannot move", Color(0.4, 0.25, 0.1))
 	_add_keyword("Tethered", "Cannot move more than X tiles from origin", Color(0.7, 0.7, 0.2))
@@ -53,6 +53,7 @@ func _build_legend() -> void:
 	_add_keyword("Vulnerable", "Take 30% more damage on next X attack(s), lose 1 stack per hit", Color(1.0, 0.3, 0.3))
 	_add_keyword("Exposed", "Your armor was broken through — a hit got past it", Color(0.9, 0.7, 0.5))
 	_add_keyword("Brittle", "Armor decays extra 2 per cycle, lose 1 stack per cycle", Color(0.7, 0.7, 0.6))
+	_add_keyword("Weakened", "Deal 30% less damage; each attack burns a stack", Color(0.5, 0.5, 0.8))
 	_add_keyword("Cold", "Stacking debuff. At 5 stacks, enemy becomes Frozen for 1 turn", Color(0.4, 0.7, 1.0))
 
 	# Buffs Section

@@ -284,7 +284,7 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Wight**
 - **Screeches** — *a soul-like creature that can only be seen from its noise*
 - **Vampire** — *in code*. Elite. Bite **life-steals 100% of health damage** (armor heals nothing); below 50% HP, **Bat Form** flits 6 squares away (2 charges, never recharge), always followed by **Absorb** — draining the healthiest player-side unit on the map (20, then 10).
-- **Necromancer** — *in code*. Elite. **Bolt** (range 10) also **Hexes** a card in the hand (+30 mana until played); **Summon** raises undead (first-pass roster: skeletons/zombies) — after **5 of its summons die it raises a Bone Dragon**.
+- **Necromancer** — *in code*. Elite. **Bolt** (range 10) also **Hexes 2 cards** in the hand (each +30 mana until played); **Summon** raises undead (first-pass roster: skeletons/zombies) — after **5 of its summons die it raises a Bone Dragon**.
 - **Bone dragon** — *in code*. Elite. **Breath Swarm**: 12 damage down a 6-tile line, hatching a **Swarm** beside every unit hit.
 - **Grave digger**
 - **The Consumed** — *a golem-like creature but far worse: something that has had its spirit consumed and is now flesh and hatred*
@@ -379,7 +379,7 @@ built level. The roster is themed and in code:*
 - **Magma Spiders**
 - **Pit Fiends**
 - **Ash Harpies**
-- **Inflamed Minotaur** — *in code*. Elite. Leaves **fire in its wake** (Traps — see 5.1) and heals 10 when the fire burns a player. A hit over 20 damage triggers **Labyrinth Leap** (14 spaces, **minus 1 per Slow stack — Slow is his weakness**, Sword of Theseus applies it; minotaur-specific, not a universal slow rule), then **Bull Rush** one cycle later — damage equal to the spaces covered, spaces×4% stun chance, Vulnerable to everything trampled.
+- **Inflamed Minotaur** — *in code*. Elite. Leaves **fire in its wake** (Traps — see 5.1) and heals 10 when the fire burns a player. A hit over 20 damage triggers **Labyrinth Leap** (14 spaces, **minus 1 per Slow stack — Slow is his weakness**, Sword of Theseus applies it; minotaur-specific, not a universal slow rule), then **Bull Rush** one cycle later — damage equal to the spaces covered, spaces×4% chance to stun **and Weaken**, Vulnerable to everything trampled.
 
 #### Heavens
 - **Cherub**

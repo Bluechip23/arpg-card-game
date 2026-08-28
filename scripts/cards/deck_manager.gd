@@ -514,8 +514,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if card.card_type == Card.CardType.ATTACK:
 			mana_cost += debuff_mgr.get_attack_mana_increase()
 
-		if debuff_mgr.is_card_hexed(index):
-			mana_cost += debuff_mgr.get_hexed_mana_increase()
+		mana_cost += debuff_mgr.get_hexed_mana_increase(index)
 
 	# Spell weapons: global percentage adjustments from the wielder's weapons.
 	if inventory and "equipped_weapons" in inventory:
@@ -667,8 +666,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	hand.remove_at(index)
 
 	if debuff_mgr:
-		if debuff_mgr.get_hexed_card_index() == index:
-			debuff_mgr.remove_debuff(Debuff.DebuffType.HEXED)
+		debuff_mgr.remove_hexes_on_card(index)
 		if debuff_mgr.get_locked_card_index() == index:
 			debuff_mgr.remove_debuff(Debuff.DebuffType.LOCKED)
 		_update_debuff_card_indices(debuff_mgr, index)
@@ -847,10 +845,8 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	print("[DECK] Deferred card executed: %s" % card.card_name)
 
 func _update_debuff_card_indices(debuff_mgr, removed_index: int) -> void:
-	var hexed_index = debuff_mgr.get_hexed_card_index()
-	if hexed_index > removed_index:
-		debuff_mgr.set_hexed_card_index(hexed_index - 1)
-	
+	debuff_mgr.shift_hexed_indices(removed_index)
+
 	var locked_index = debuff_mgr.get_locked_card_index()
 	if locked_index > removed_index:
 		debuff_mgr.set_locked_card_index(locked_index - 1)
@@ -858,16 +854,23 @@ func _update_debuff_card_indices(debuff_mgr, removed_index: int) -> void:
 func assign_hexed_locked_cards(debuff_mgr) -> void:
 	if hand.size() == 0:
 		return
-	
-	if debuff_mgr.has_debuff(Debuff.DebuffType.HEXED) and debuff_mgr.get_hexed_card_index() == -1:
-		var index = randi() % hand.size()
-		debuff_mgr.set_hexed_card_index(index)
+
+	# Every unassigned hex claims its own card, preferring cards no other hex
+	# holds; with more hexes than cards, they stack onto shared cards.
+	for hex in debuff_mgr.get_hexed_debuffs():
+		if hex.affected_card_index != -1:
+			continue
+		var free: Array = []
+		for i in range(hand.size()):
+			if not debuff_mgr.is_card_hexed(i):
+				free.append(i)
+		var index: int = free[randi() % free.size()] if not free.is_empty() else randi() % hand.size()
+		hex.affected_card_index = index
 		print("[DECK] Hexed assigned to card %d: %s" % [index, hand[index].card_name])
-	
+
 	if debuff_mgr.has_debuff(Debuff.DebuffType.LOCKED) and debuff_mgr.get_locked_card_index() == -1:
 		var index = randi() % hand.size()
-		var hexed_index = debuff_mgr.get_hexed_card_index()
-		if hand.size() > 1 and index == hexed_index:
+		if hand.size() > 1 and debuff_mgr.is_card_hexed(index):
 			index = (index + 1) % hand.size()
 		debuff_mgr.set_locked_card_index(index)
 		print("[DECK] Locked assigned to card %d: %s" % [index, hand[index].card_name])

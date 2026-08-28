@@ -1452,7 +1452,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WEREWOLF: "Bear-sized grey beast with armor-piercing claws. Resists 25% physical/fire/lightning.\nClaw (5 tempo): 10 damage, +3 vs armor; a debuffed target is raked a SECOND time for half. Each consecutive claw on the same target arms 1 tempo faster (5, 4, 3...); switching targets resets it.\nMove (3 tempo): 3 spaces.",
 		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
 		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest player-side unit on the map — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
-		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes a card in your hand (+30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
+		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
 		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely. Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside every unit hit.\nMove (5 tempo): 5 spaces.",
 		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (deals 1 damage per tempo until played, then is erased).",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
@@ -1478,7 +1478,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.PIT_FIEND: "A larger, regal demon with a barbed tail and a great whip.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.INFLAMED_MINOTAUR: "A smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off) — and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap.\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, on a hit over 20 damage): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (1 cycle after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun; everything trampled en route is left Vulnerable.\nMove (5 tempo): 6 spaces.",
+		EnemyType.INFLAMED_MINOTAUR: "A smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off) — and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap.\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, on a hit over 20 damage): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (1 cycle after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun AND weaken; everything trampled en route is left Vulnerable.\nMove (5 tempo): 6 spaces.",
 		# --- Heavens (design mock-ups — stats & moves TBD) ---
 		EnemyType.CHERUB: "An adult cupid — winged archer with a bow.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace. Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to each unit hit — cast reaches 5 squares, each bound arcs 4 from the last unit struck.\nMove (3 tempo): 8 spaces.",
@@ -2951,12 +2951,12 @@ func _try_necro_bolt(target_node: Node3D) -> bool:
 	if _get_cell_distance(target_node) > int(attack_range):
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage, "Bolt")
-	# Hex: a random card in the hand costs +30 mana until it is played.
-	# (The sheet asks for TWO hexed cards; the debuff pipeline tracks one
-	# hexed card at a time today — revisit when HEXED can stack.)
+	# Hex: TWO random cards in the hand each cost +30 mana until played
+	# (each hex is its own instance claiming its own card).
 	if target_node.has_method("get_debuff_manager"):
 		var dm = target_node.get_debuff_manager()
 		if dm:
+			dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, 25))
 			dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, 25))
 	turn_completed.emit()
 	return true
@@ -3170,10 +3170,9 @@ func _minotaur_labyrinth_leap() -> void:
 
 func _try_bull_rush(target_node: Node3D) -> bool:
 	## Charges the player: damage scales with the spaces covered by the leap
-	## and the rush combined; stun chance = spaces x 4% (stun is reserved for
-	## the final target). Every player-side unit brushed en route is left
-	## Vulnerable. (The sheet also asks for a weaken on the target — the
-	## player has no Weaken debuff yet, so Vulnerable stands in.)
+	## and the rush combined; stun + weaken chance = spaces x 4% (both are
+	## reserved for the final target). Every player-side unit brushed en
+	## route is left Vulnerable.
 	_minotaur_rush_pending = false
 	var victim: Node3D = target_node
 	# The minotaur always prioritizes a PLAYER over summons.
@@ -3221,7 +3220,8 @@ func _try_bull_rush(target_node: Node3D) -> bool:
 		var chance: int = clampi(total * 4, 0, 100)
 		if randi() % 100 < chance:
 			dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 5))
-			print("[%s] Bull Rush connects square — STUNNED!" % enemy_name)
+			dm.apply_debuff(Debuff.create(Debuff.DebuffType.WEAKENED, 1, -1))
+			print("[%s] Bull Rush connects square — STUNNED and WEAKENED!" % enemy_name)
 	print("[%s] BULL RUSH — %d spaces of momentum, %d damage!" % [enemy_name, total, dmg])
 	turn_completed.emit()
 	return true

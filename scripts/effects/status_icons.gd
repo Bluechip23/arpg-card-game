@@ -22,6 +22,7 @@ static func get_icon(effect_name: String) -> Texture2D:
 		"slow": key = "slowed"
 		"shock": key = "shocked"
 		"stunned": key = "stun"
+		"weaken": key = "weakened"
 	if _cache.has(key):
 		return _cache[key]
 	var img := Image.create(SZ, SZ, false, Image.FORMAT_RGBA8)
@@ -136,6 +137,15 @@ static func _draw(img: Image, key: String) -> bool:
 			_rect(img, 5, 6, 14, 3, Color(0.7, 0.12, 0.2))
 			_tri(img, Vector2(7, 9), Vector2(11, 9), Vector2(9, 18), Color(0.97, 0.97, 1.0))
 			_tri(img, Vector2(13, 9), Vector2(17, 9), Vector2(15, 18), Color(0.97, 0.97, 1.0))
+		"weakened":
+			# A drooping sword: blade sagging left with a blue-grey down arrow.
+			var wkn := Color(0.5, 0.5, 0.8)
+			_rect(img, 13, 6, 3, 9, steel)
+			_line(img, 13, 6, 10, 4, steel)                   # drooped tip
+			_rect(img, 11, 15, 7, 2, wood)
+			_rect(img, 13, 17, 2, 4, wood)
+			_rect(img, 5, 5, 2, 8, wkn)
+			_tri(img, Vector2(3, 13), Vector2(9, 13), Vector2(6, 18), wkn)
 		"wear_down":
 			# A blade being ground down: chipped sword + red arrow pressing down.
 			_rect(img, 13, 4, 4, 11, steel)
