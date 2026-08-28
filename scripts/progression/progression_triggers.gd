@@ -675,13 +675,13 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		var ms_lvl: int = stats.get_passive_level("mad_scientist")
 		if is_heal_outcome:
 			if last_type == Card.CardType.UTILITY:
-				# Utility → Heal: rank-scaled regen (2..16) on the healed target
+				# Utility → Heal: rank-scaled regen (2..8) on the healed target
 				if buff_mgr:
 					var ms_regen: int = PassiveScaling.value("mad_scientist", "regen", ms_lvl)
 					buff_mgr.apply_buff(Buff.create_regen(ms_regen, 15, "Mad Scientist"))
 					main.add_battle_log("Mad Scientist: +%d regen!" % ms_regen, Color(0.4, 0.9, 0.4))
 			elif last_type == Card.CardType.ATTACK:
-				# Attack → Heal: rank-scaled strengthen (2..16) on the healed target
+				# Attack → Heal: rank-scaled strengthen (2..8) on the healed target
 				if buff_mgr:
 					var ms_str: int = PassiveScaling.value("mad_scientist", "strengthen", ms_lvl)
 					buff_mgr.apply_buff(Buff.create_strengthen(ms_str, 3, "Mad Scientist"))
@@ -1005,7 +1005,7 @@ func _trigger_skill_tree_brad_itt_on_enter(enemy: Enemy) -> void:
 	if stats.st_itt_charges <= 0:
 		return
 	stats.st_itt_charges -= 1
-	# Free attack at 93%..107% damage (rank-scaled: -7%..+7%).
+	# Free attack at 50%..120% damage (rank-scaled: -50%..+20%).
 	var itt_mod: int = PassiveScaling.value("in_the_trenches", "damage_mod", stats.get_passive_level("in_the_trenches"))
 	var dmg = maxi(1, roundi(stats.get_effective_physical_damage(0) * (100 + itt_mod) / 100.0))
 	enemy.take_damage(dmg, true)
@@ -1207,7 +1207,7 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 		main.add_battle_log("Deadly: +%d damage (isolated target)" % deadly_dmg, Color(0.9, 0.3, 0.3))
 
 	# Eagle Eye: ranged offensive cards deal additional damage based on their
-	# range (rank-scaled 100%..240% of the card's range)
+	# range (rank-scaled 100%..142% of the card's range)
 	if stats.has_skill_tree_passive("eagle_eye") and card.is_ranged and card.is_offensive():
 		var ee_mult: int = PassiveScaling.value("eagle_eye", "multiplier", stats.get_passive_level("eagle_eye"))
 		var ee_range: int = maxi(1, 5 + card.range_modifier)
@@ -1258,7 +1258,7 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 				main.add_battle_log("Skilled Momentum: double strike for %d!" % extra_dmg, Color(0.9, 0.3, 0.3))
 
 	# Swing for the Fences: cards with >4 tempo cost deal their tempo cost times
-	# a rank-scaled multiplier (100%..800%) as additional damage
+	# a rank-scaled multiplier (100%..380%) as additional damage
 	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
 		var sf_mult: int = PassiveScaling.value("swing_for_the_fences", "multiplier", stats.get_passive_level("swing_for_the_fences"))
 		var sf_bonus: int = maxi(1, roundi(card.tempo_cost * sf_mult / 100.0))

@@ -40,7 +40,7 @@ const TABLES := {
 		"armor": [1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6, 7, 7, 8, 8],
 	},
 	"in_the_trenches": {
-		"damage_mod": [-7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7],
+		"damage_mod": [-50, -45, -40, -35, -30, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20],
 	},
 	"the_way_of_the_plate": {
 		"cards_required": [9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2],
@@ -139,8 +139,9 @@ const TABLES := {
 		"cooldown": [19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5],
 	},
 	"mad_scientist": {
-		"regen": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-		"strengthen": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+		# regen/strengthen use the same every-other cadence as poison, 2..8
+		"regen": [2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 8],
+		"strengthen": [2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 8],
 		"poison": [2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9],
 		"phys_defense": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 	},
@@ -187,14 +188,14 @@ const TABLES := {
 	},
 	"swing_for_the_fences": {
 		# % of the card's tempo cost dealt as additional damage
-		"multiplier": [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800],
+		"multiplier": [100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360, 380],
 	},
 	"dominate": {
 		"strengthen": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
 	},
 	"eagle_eye": {
 		# % of the ranged card's range dealt as additional damage
-		"multiplier": [100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240],
+		"multiplier": [100, 103, 106, 109, 112, 115, 118, 121, 124, 127, 130, 133, 136, 139, 142],
 	},
 	"scouted": {
 		"range": [2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6],

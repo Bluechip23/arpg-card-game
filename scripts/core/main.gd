@@ -7290,7 +7290,7 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 	if buff_mgr:
 		total += buff_mgr.get_strengthen_bonus()
 	# Swing for the Fences: heavy swings (tempo > 4) land their tempo times a
-	# rank-scaled multiplier (100%..800%).
+	# rank-scaled multiplier (100%..380%).
 	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
 		total += maxi(1, roundi(card.tempo_cost * int(PassiveScaling.value("swing_for_the_fences", "multiplier", stats.get_passive_level("swing_for_the_fences"))) / 100.0))
 	# Ladder Work: banked discards cash in on the cycle's first attack
