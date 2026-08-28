@@ -197,6 +197,13 @@ Grounded in `scripts/battle/enemy.gd`:
   lanes**, **on-death bursts**, **stealth/sound-only visibility**.
 - **Drops:** elites/bosses can drop **cards**. Every kill is recorded to the
   bestiary, and kills feed the city's expedition rewards (Section 6).
+- **Design rule — wakes are Traps:** anything a creature (or player) leaves
+  behind in "the wake" of its movement — the Inflamed Minotaur's fire trail,
+  future ice trails, ichor, etc. — is a **Trap** unless a design says
+  otherwise. Keep this convention for all future wake-things.
+- **Elite resist columns:** the elite first-pass sheet specifies three resists
+  per creature — **Physical / Fire / Lightning** (negative = vulnerability).
+  Other damage types stay at 0 until the sheet grows columns for them.
 
 ### 5.2 Creature design template
 When we solidify a creature, capture it with these fields:
@@ -231,15 +238,15 @@ Faithful capture of the roster. `*in code*` = already built. Italic text is the
 original flavor note. Everything else is `[TBD]` theme/mechanics.
 
 #### Forest
-- **Giant Beaver** — *in code*. Elite. Chomp (4 tempo, 6 dmg, **Stun** 3 tempo) queues a **Tail Whip** follow-up (2 tempo later, 4 dmg, **Vulnerable** 15 tempo). Sits upright when still, scurries on all fours.
+- **Giant Beaver** — *in code*. Elite. Chomp (4 tempo, 9 dmg, **Stun** 3 tempo) queues a **Tail Whip** follow-up (2 tempo later, 6 dmg, **Vulnerable** 15 tempo). Sits upright when still, scurries on all fours.
 - **Mini Bear** — *in code*. Minion, *packs*. When a packmate in sight is hurt, the others gain **+1 attack damage**.
 - **Wolf** — *in code*. Minion, *packs*. Within 4 tiles of another wolf: **+2 attack damage and +2 HP regen/cycle**.
 - **Coyote** — *in code*. Minion. Fragile (5 HP) 1-damage nuisance.
 - **Bugbear** — *in code*. Minion. **First Strike**: +5 damage if it hits before the player hits it.
 - **Giant Hawk** — *in code*. Minion. Flying — **ignores the player's high-ground bonus**; 15% to **Blind** on hit (attacks may miss).
-- **Large Bear** — *in code*. Elite. Very tanky; **Maul applies Bleed** (hurts the player on movement); drops to all fours below 20% HP.
+- **Large Bear** — *in code*. Elite. **Maul applies Bleed**; **Roar** leaves everything within 4 squares Vulnerable. Below 50% HP it **toughens** (30% physical resist, permanent) and **rages** — 1.5x attacks, double Bleed, and it heals from bleed damage its enemies take. With Mini Bears present it gains **Strengthen** every time it is hurt. Drops to all fours below 20% HP.
 - **Infected Hunter** — *in code*. Elite. **Hook** (range 7, starts charged) reels the player in over 2 tempo; AOE **Cleave**.
-- **Treant** — *in code*. Elite. Heals 5 HP/5 tempo (**+2 per 10% HP below 60%**); **Root** pins the player 8 tempo (can attack, cannot move); deals **Earth** damage.
+- **Treant** — *in code*. Elite. Heals 5 HP/5 tempo (**+2 per 10% HP below 60%**); every 10 tempo it **strips its enemies' thorns and heals for the total**; **Root** pins the player 8 tempo (can attack, cannot move); deals **Earth** damage. Takes 10% extra fire damage.
 - **Elemental Mages** — *in code*. The five caster variants deal **typed damage**: Ice (→ **Slow**), Fire (→ **Burn**), Spark/Lightning (→ **Shock**), Air/Wind, Earth (**gains 3 armor every time it is hit**).
 - **Druid** — `[TBD]`.
 - **Hydra** — *in code*.
@@ -271,14 +278,14 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Skeleton** — *in code*
 - **Zombie**
 - **Zombie dog**
-- **Werewolf**
+- **Werewolf** — *in code*. Elite. Armor-piercing **Claw** (+3 vs armor) rakes a debuffed target a second time for half; consecutive claws on the same target arm **1 tempo faster** each time (reset on switching targets).
 - **Wererabbit**
 - **Ghoul**
 - **Wight**
 - **Screeches** — *a soul-like creature that can only be seen from its noise*
-- **Vampire**
-- **Necromancer**
-- **Bone dragon**
+- **Vampire** — *in code*. Elite. Bite **life-steals 100% of health damage** (armor heals nothing); below 50% HP, **Bat Form** flits 6 squares away (2 charges, never recharge), always followed by **Absorb** — draining the healthiest player-side unit on the map (20, then 10).
+- **Necromancer** — *in code*. Elite. **Bolt** (range 10) also **Hexes** a card in the hand (+30 mana until played); **Summon** raises undead (first-pass roster: skeletons/zombies) — after **5 of its summons die it raises a Bone Dragon**.
+- **Bone dragon** — *in code*. Elite. **Breath Swarm**: 12 damage down a 6-tile line, hatching a **Swarm** beside every unit hit.
 - **Grave digger**
 - **The Consumed** — *a golem-like creature but far worse: something that has had its spirit consumed and is now flesh and hatred*
 - **Spirit collector**
@@ -352,12 +359,12 @@ built level. The roster is themed and in code:*
 
 #### Mountains
 - **Weregoat**
-- **Wyvern**
+- **Wyvern** — *in code*. Elite. Flier (ignores high ground). **Talon Grab** (2-cycle cooldown): flies above its target, 25 damage, and drags them to an open space **8 squares away**.
 - **Rocs**
-- **Ice Troll**
+- **Ice Troll** — *in code*. Elite. Every attack adds a stack of **frost (Cold) and Brittle**; when an attack **freezes** its target, **Clobber (50)** triggers automatically.
 - **Snow Wraiths**
 - **Granite Colossi**
-- **White Manticores**
+- **White Manticores** — *in code*. Elite. Flier. **Stinger** (5-tempo cooldown): 25 damage + **Clumsy** + **8 Poison**.
 - **Snow leopard**
 - **Sabertooth tiger**
 
@@ -365,18 +372,18 @@ built level. The roster is themed and in code:*
 - **Cerberus**
 - **Succubus**
 - **Demon**
-- **Ifrits**
+- **Ifrits** — *in code*. Elite. **Fire Breath**: a 5x5 sheet of flame that lingers 3 tempo; **Backflip** springs it 3 squares back from any single blow over 40 damage.
 - **Mind eater**
 - **Specters**
 - **Echo Beasts**
 - **Magma Spiders**
 - **Pit Fiends**
 - **Ash Harpies**
-- **Inflamed Minotaur**
+- **Inflamed Minotaur** — *in code*. Elite. Leaves **fire in its wake** (Traps — see 5.1) and heals 10 when the fire burns a player. A hit over 20 damage triggers **Labyrinth Leap** (14 spaces, **minus 1 per Slow stack — Slow is his weakness**, Sword of Theseus applies it; minotaur-specific, not a universal slow rule), then **Bull Rush** one cycle later — damage equal to the spaces covered, spaces×4% stun chance, Vulnerable to everything trampled.
 
 #### Heavens
 - **Cherub**
-- **Djinn**
+- **Djinn** — *in code*. Elite. **Chain Lightning** (35 per unit; cast range 5, bounds arc 4). Every attack against it puts **3 Wishes** in the attacker's hand — each sears the holder for 1/3 of that attack's damage per cycle held, and costs **60 mana (0 tempo)** to be rid of.
 - **Corrupted Archangel**
 
 ---

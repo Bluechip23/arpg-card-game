@@ -193,7 +193,12 @@ func _physics_process(delta: float) -> void:
 			_stuck_frames = 0
 
 			# Trigger bleed damage on movement
-			debuff_manager.on_movement(1)
+			var bled: int = debuff_manager.on_movement(1)
+			if bled > 0:
+				# Rage of the bear: enraged Large Bears feed on bleed damage.
+				var bleed_main = get_parent()
+				if bleed_main and bleed_main.has_method("on_player_bled"):
+					bleed_main.on_player_bled(bled)
 
 			# Trigger buff effects on movement (e.g. Approach armor)
 			buff_manager.on_movement(1)

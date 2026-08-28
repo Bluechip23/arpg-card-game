@@ -229,16 +229,17 @@ func get_off_hand_modifier() -> float:
 	# Stephen gets bonus, others get penalty
 	return DEFAULT_OFF_HAND_PENALTY + off_hand_bonus
 
-# Story rule: a character can wear one mythic per 10 character levels
-# (level 0-9 none, 10-19 one, 20-29 two, ...). Sandbox turns this off —
-# that's where testing happens (see main._setup_sandbox).
+# Story rule: a character can wear one mythic per 15 character levels
+# (level 0-14 none, 15-29 one, 30-44 two, 45-59 three, 60 four) — the
+# player maxes at 4 equipped mythics. Sandbox turns this off — that's
+# where testing happens (see main._setup_sandbox).
 var enforce_mythic_limit: bool = true
 signal equip_blocked(item: ItemData, reason: String)
 
 func get_mythic_capacity() -> int:
 	if not player_stats:
 		return 0
-	return int(player_stats.current_level / 10.0)
+	return int(player_stats.current_level / 15.0)
 
 func count_equipped_mythics() -> int:
 	var n := 0

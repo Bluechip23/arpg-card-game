@@ -892,6 +892,13 @@ func process_turn() -> void:
 	# Process Erase: tick down erase timers on all cards and delete expired ones
 	_process_erase_timers()
 
+	# Djinn Wishes: every wish held in hand sears its holder once per cycle.
+	if player_stats:
+		for held in hand:
+			if held.held_damage_per_cycle > 0:
+				player_stats.take_damage(held.held_damage_per_cycle)
+				print("[DECK] %s sears its holder for %d" % [held.card_name, held.held_damage_per_cycle])
+
 func jail_burden_card(index: int) -> bool:
 	## Burden relief: jail the card FROM HAND to reset its accumulated burden
 	## (keyword: 30 tempo in jail, costs 1m — the 1t is charged by the caller).

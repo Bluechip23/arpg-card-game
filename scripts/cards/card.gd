@@ -52,6 +52,7 @@ const CARD_RARITIES := {
 	"wear_down": Rarity.BASIC, "poke": Rarity.BASIC, "parry": Rarity.BASIC,
 	"approach": Rarity.BASIC, "shuriken": Rarity.BASIC, "quick_shot": Rarity.BASIC,
 	"quick_arrow": Rarity.BASIC, "push": Rarity.BASIC, "lightly_dazed": Rarity.BASIC,
+	"djinn_wish": Rarity.BASIC,
 	"thrown_stone": Rarity.BASIC, "minor_wounds": Rarity.BASIC, "energy_ball": Rarity.BASIC,
 	"armor_patch": Rarity.BASIC, "spark": Rarity.BASIC, "splinter": Rarity.BASIC,
 	# --- Common (48) ---
@@ -167,7 +168,7 @@ const CARD_RARITIES := {
 const DROP_EXCLUDED_CARD_IDS := {
 	"sprinkle": true, "sprinkle_bomb": true, "splinter": true,
 	"shuriken": true, "savage_strike_copy": true,
-	"minor_wounds": true, "lightly_dazed": true,
+	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true,
 	"hydra_bite": true,
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
@@ -260,6 +261,7 @@ var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell 
 var linger: bool = false  # If true, status card can exceed hand size limit when added
 var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
 var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
+var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
 var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
@@ -1704,6 +1706,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"lightly_dazed":
 			pass  # Unplayable card - no execute logic
+		"djinn_wish":
+			pass  # Paying the 60 mana IS the effect — erase_on_play removes it
 		"reckless_strike":
 			_execute_reckless_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Power Cards (Maintain) ===
@@ -4256,6 +4260,30 @@ static func create_lightly_dazed() -> Card:
 	card.erase_tempo = 40
 	card.erase_tempo_remaining = 40
 	card.linger = true
+	card.target_types = ["self"]
+	return card
+
+static func create_djinn_wish(sear_per_cycle: int = 3) -> Card:
+	## Djinn: every attack on it slips 3 of these into the attacker's hand.
+	## Each sears the holder every cycle it is held (1/3 of the triggering
+	## attack's damage); playing it — paying the 60 mana — is the only way out.
+	## (The default sear only matters when a saved wish is rebuilt by id.)
+	var card = Card.new()
+	card.card_id = "djinn_wish"
+	card.card_name = "Wish"
+	card.description = "The Djinn's gift. Sears you for %d every cycle it stays in your hand. Play (60 mana, 0 tempo) to be rid of it." % sear_per_cycle
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Curse"
+	card.mana_cost = 60
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.held_damage_per_cycle = sear_per_cycle
+	card.erase_on_play = true
+	card.linger = true  # forced into hand; may exceed the hand cap
 	card.target_types = ["self"]
 	return card
 

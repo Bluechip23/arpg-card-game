@@ -133,7 +133,10 @@ func _test_card_rarities() -> void:
 	var discovered := {}
 	for method in script.get_script_method_list():
 		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
+		# Mirror Card.create_by_id: factories whose args are ALL defaulted count
+		# too (rank-scaled conjured cards, the Djinn's Wish).
+		if method_name.begins_with("create_") \
+				and method["args"].size() - method["default_args"].size() == 0:
 			var card = script.call(method_name)
 			if card is Card:
 				discovered[card.card_id] = true
