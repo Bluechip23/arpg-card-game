@@ -71,10 +71,12 @@ func apply_debuff(debuff: Debuff) -> void:
 
 		print("[DEBUFF] Applied: %s for %d tempo" % [debuff.debuff_name, debuff.duration])
 	
-	# Cold -> Frozen conversion: at 5 stacks, become Frozen for 1 turn
+	# Cold -> Frozen conversion: at 5 stacks, become Frozen for 1 cycle.
+	# Stacks are the summed VALUE (a Cold-3 application counts 3), matching
+	# the displayed count and the enemy-side conversion.
 	if debuff.debuff_type == Debuff.DebuffType.COLD:
 		var cold = get_debuff(Debuff.DebuffType.COLD)
-		if cold and cold.stacks >= 5:
+		if cold and cold.value >= 5:
 			remove_debuff(Debuff.DebuffType.COLD)
 			var frozen = Debuff.create(Debuff.DebuffType.FROZEN, 0, 5)
 			frozen.source_name = "Cold"
@@ -260,7 +262,7 @@ func advance_time(amount: int) -> void:
 		debuffs_changed.emit()
 
 func process_armor_decay(base_decay: int) -> int:
-	# Returns total armor decay including Brittle (always extra 2 per stack)
+	# Returns total armor decay including Brittle (a flat extra 2 while any stacks remain)
 	var total_decay = base_decay
 	var brittle = get_debuff(Debuff.DebuffType.BRITTLE)
 	if brittle:

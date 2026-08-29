@@ -52,7 +52,7 @@ const CARD_RARITIES := {
 	"wear_down": Rarity.BASIC, "poke": Rarity.BASIC, "parry": Rarity.BASIC,
 	"approach": Rarity.BASIC, "shuriken": Rarity.BASIC, "quick_shot": Rarity.BASIC,
 	"quick_arrow": Rarity.BASIC, "push": Rarity.BASIC, "lightly_dazed": Rarity.BASIC,
-	"djinn_wish": Rarity.BASIC,
+	"djinn_wish": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC,
 	"thrown_stone": Rarity.BASIC, "minor_wounds": Rarity.BASIC, "energy_ball": Rarity.BASIC,
 	"armor_patch": Rarity.BASIC, "spark": Rarity.BASIC, "splinter": Rarity.BASIC,
 	# --- Common (48) ---
@@ -169,6 +169,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"sprinkle": true, "sprinkle_bomb": true, "splinter": true,
 	"shuriken": true, "savage_strike_copy": true,
 	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true,
+	"paralysis": true, "release_soul": true,
 	"hydra_bite": true,
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
@@ -730,14 +731,14 @@ static func get_keyword_definitions() -> Dictionary:
 		"thorns": "Deal X damage back to attackers, lose 1 thorn per hit",
 		"focused": "Gain 10 extra mana per cycle",
 		"regen": "Heal X HP per cycle, lose 1 regen per cycle",
-		"blessed": "Draw X additional card(s) per cycle",
+		"blessed": "Draw X additional card(s) per cycle for Y cycles",
 		"fortify": "Armor does not decay",
 		"enlightened": "+X% crit chance for next Y attacks",
 		"strengthen": "+X damage on next Y attacks",
 		"bolster": "+X armor next Y times you gain armor",
-		"haste": "+X movement per tempo spent",
+		"haste": "+X tempo-free tiles on each of your next Y moves; one charge per move",
 		"cleanse": "Remove X negative effects (instant)",
-		"smith": "Gain X armor per cycle",
+		"smith": "Gain X armor per cycle, decaying by 1 each cycle",
 		"steady": "Next action does not add tempo",
 		"brace": "Reduce incoming attack damage by X% for Y attacks",
 		"resilient": "Reduce all incoming damage by X% for Y tempo",
@@ -750,29 +751,29 @@ static func get_keyword_definitions() -> Dictionary:
 		"stun": "Cannot take any actions",
 		"disarm": "Cannot play attack cards",
 		"silence": "Cannot play spell cards",
-		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...)",
+		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage",
 		"poison": "Take X damage per cycle, lose 1 poison each cycle",
 		"inebriate": "Movement direction is randomized",
 		"cursed": "Deal 20% less damage and deal 20% damage to self",
-		"frozen": "Cannot play cards",
+		"frozen": "Cannot play cards (a frozen enemy cannot act at all)",
 		"cuffed": "Cannot draw cards",
-		"shocked": "Deal X damage to nearby allies per cycle, lose 1 per cycle",
-		"slowed": "Lose X movement per cycle",
-		"staggered": "Attack cards cost X more mana",
+		"shocked": "Arc X damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle",
+		"slowed": "Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack",
+		"staggered": "Attack cards cost 15 more mana; each attack card burns a stack",
 		"drain": "Lose 10 mana per cycle, lose 1 drain per cycle",
-		"weighted": "Cards cost X more tempo",
+		"weighted": "Cards cost 2 more tempo; each card played burns a stack",
 		"hexed": "A random card costs +X mana until played (multiple hexes can sit on different cards)",
 		"locked": "One random card cannot be played",
 		"weakened": "Deal 30% less damage; each attack burns a stack",
 		"rooted": "Cannot move",
 		"tethered": "Cannot move more than X tiles from origin",
 		"magnetized": "Pulled X tiles toward nearest enemy each cycle",
-		"linked": "Share X% damage taken with nearest ally",
-		"clumsy": "X% chance to discard random card when playing",
+		"linked": "20% of damage you take is also dealt to your partner",
+		"clumsy": "30% chance to discard a random card when playing; each card played burns a stack",
 		"vulnerable": "Take 30% more damage on next X attack(s)",
-		"exposed": "Remove 30% more armor when hit",
+		"exposed": "Your armor was broken through — a hit got past it",
 		"brittle": "Armor decays extra 2 per cycle",
-		"cold": "Stacking debuff. At 5 stacks, enemy becomes Frozen",
+		"cold": "Stacking debuff. At 5 stacks the target becomes Frozen for 1 cycle",
 		# Overflow
 		"jailed": "Card goes to jail for 3 turns, cannot be played",
 		"manifest": "Card goes to manifest zone as a token. Click to activate",
@@ -1423,6 +1424,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 				if vined_thorns > 0:
 					var vined_buff = Buff.create_thorns(vined_thorns, 20, "Vined Encasing")
 					vined_buff.decay_by_damage = true
+					vined_buff._set_name_and_description()  # description branches on the shed mode
 					buff_mgr.apply_buff(vined_buff)
 					print("[CARD] Vined Encasing: %d thorns for 20 tempo" % vined_thorns)
 				else:
@@ -1709,6 +1711,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			pass  # Unplayable card - no execute logic
 		"djinn_wish":
 			pass  # Paying the 60 mana IS the effect — erase_on_play removes it
+		"paralysis":
+			pass  # Tearing the webbing free IS the effect — erase_on_play removes it
+		"release_soul":
+			pass  # Releasing the soul IS the effect — erase_on_play removes it
 		"reckless_strike":
 			_execute_reckless_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Power Cards (Maintain) ===
@@ -4285,6 +4291,49 @@ static func create_djinn_wish(sear_per_cycle: int = 3) -> Card:
 	card.held_damage_per_cycle = sear_per_cycle
 	card.erase_on_play = true
 	card.linger = true  # forced into hand; may exceed the hand cap
+	card.target_types = ["self"]
+	return card
+
+static func create_paralysis() -> Card:
+	## Crypt Crawler web: while this sits in your hand you cannot move (other
+	## actions are fine). Playing it tears the webbing free and erases it.
+	var card = Card.new()
+	card.card_id = "paralysis"
+	card.card_name = "Paralysis"
+	card.description = "Webbed! You cannot move while this is in your hand. Play (0 mana, 1 tempo) to tear the webbing free."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Curse"
+	card.mana_cost = 0
+	card.tempo_cost = 1
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.erase_on_play = true
+	card.linger = true  # forced into hand; may exceed the hand cap
+	card.target_types = ["self"]
+	return card
+
+static func create_release_soul() -> Card:
+	## Spirit Collector: your caged soul saps you every cycle it is held
+	## (1 damage per tempo, ticked once per 5-tempo cycle). Play to release it.
+	var card = Card.new()
+	card.card_id = "release_soul"
+	card.card_name = "Release Soul"
+	card.description = "A piece of your soul, caged. Saps 5 damage every cycle it stays in your hand. Play (0 mana, 0 tempo) to release it."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Curse"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.held_damage_per_cycle = 5  # 1 per tempo, charged per cycle
+	card.erase_on_play = true
+	card.linger = true
 	card.target_types = ["self"]
 	return card
 

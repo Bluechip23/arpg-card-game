@@ -311,6 +311,14 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		print("[PLAYER] Cannot move - stunned or rooted!")
 		return false
 
+	# Paralysis (Crypt Crawler web): cannot move while the card sits in hand —
+	# every other action is fine; playing it tears the webbing free.
+	if deck_manager_ref:
+		for held in deck_manager_ref.hand:
+			if held.card_id == "paralysis":
+				print("[PLAYER] Webbed! Cannot move until Paralysis is played.")
+				return false
+
 	# Slowed no longer trims spaces — it taxes tempo per tile instead (see
 	# TempoManager.add_movement_tempo), burning a stack per tile.
 

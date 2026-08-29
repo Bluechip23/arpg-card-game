@@ -124,10 +124,10 @@ var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
 var attack_reduction: int = 0
 var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
-# Slowed (matches the player's): movement actions cost extra tempo
-# (Debuff.SLOWED_TEMPO_PER_TILE vs the normal 1); slow_stacks counts how many
-# movements it affects, one consumed per move. Stacks accumulate freely
-# (Sword of Theseus ramps them) — no timed expiry.
+# Slowed (enemy version): each MOVEMENT ACTION costs extra tempo
+# (+Debuff.SLOWED_TEMPO_PER_TILE - 1) and burns one stack, regardless of how
+# many tiles the action covers — unlike the player, who pays per tile.
+# Stacks accumulate freely (Sword of Theseus ramps them) — no timed expiry.
 var slow_stacks: int = 0
 var inebriated_tempo: int = 0  # Inebriate (matches the player's): movement direction randomized
 # Cursed (matches the player's): deals 20% less damage and takes 20% of the
@@ -168,7 +168,7 @@ var fear_tempo: int = 0          # Remaining tempo cycles for fear
 var cupid_golden: bool = false   # Struck by Cupids golden arrow — half the tree condition
 var cupid_lead: bool = false     # Struck by Cupids lead arrow — the other half
 var tree_tempo: int = 0          # Tree form (Cupids Bow): raw TEMPO remaining; cannot act, keeps all buffs/debuffs
-var tree_regen_ticks: int = 0    # Tree form: heals 5 on each of its first 3 tempo
+var tree_regen_ticks: int = 0    # Tree form: heals 3 on each of its first 3 tempo
 var zone_weakened: bool = false  # Standing in a Territorial Mark: -30% damage, no stack consumed; refreshed per tick by main
 var void_resistance_percent: float = 0.0  # Mane aura: take this % extra player damage (refreshed each cycle)
 # Per-type damage resistances: DamageTypes.Type -> percent reduction. Empty by
@@ -205,7 +205,6 @@ var immune_to_high_ground: bool = false           # Giant Hawk: ignores the play
 var pack_attack_bonus: int = 0                     # Mini Bear: +damage gained when a packmate is hurt
 var bleed_on_attack: int = 0                       # Large Bear: bleed stacks applied on hit
 var armor_per_hit: int = 0                         # Earth Mage: armor gained whenever it is hit
-var attacks_slow: bool = false                     # Ice Mage: attacks apply Slowed
 var attack_burn: int = 0                           # Fire Mage: burn stacks applied on hit
 var attack_shock: int = 0                          # Spark Mage: shock stacks applied on hit
 var attack_blind_chance: float = 0.0               # Giant Hawk: chance to Blind on hit
@@ -231,6 +230,8 @@ var _talon_cooldown: int = 0          # Wyvern: raw tempo until Talon Grab is re
 var _minotaur_rush_pending: bool = false  # Inflamed Minotaur: Bull Rush queued 1 cycle after the leap
 var _minotaur_leap_spaces: int = 0
 var _wake_prev_cell: Vector2i = Vector2i(-9999, -9999)  # Inflamed Minotaur: fire-trail bookkeeping
+var _wererabbit_tempo: int = 0            # Wererabbit: flees 3 cycles (15 tempo), then vanishes
+var _crawler_attack_streak: int = 0       # Crypt Crawler: webs after 3 consecutive bites
 
 # ============================================
 # TEMPO ACTION SYSTEM
@@ -262,6 +263,7 @@ const NON_MELEE_ACTIONS := {
 	"fire_bolt": true, "spark_bolt": true, "sludge_spit": true, "web": true,
 	"hook": true, "breath_swarm": true, "screech": true, "gust": true,
 	"roar": true, "absorb": true, "chain_lightning": true, "fire_breath": true,
+	"boulder_roll": true,
 }
 var next_melee_tempo_tax: int = 0
 
@@ -272,7 +274,7 @@ const MOVEMENT_ACTIONS := {
 	"scurry_away": true, "get_into_range": true, "flee": true,
 }
 
-## Armored Troll passive: accumulator for regeneration (heals 2 HP every 6 global tempo).
+## Armored Troll passive: accumulator for regeneration (heals 3 HP every 6 global tempo).
 var regen_accumulator: int = 0
 
 # ============================================
@@ -525,7 +527,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			move_distance = 3.0       # 3 spaces / 5 tempo
 			xp_reward = 14
 			damage_type = DamageTypes.Type.ICE
-			attacks_slow = true
+			# (Frost Bolt hardcodes its 1 Slow in _execute_action.)
 			_set_mesh_color(Color(0.55, 0.75, 0.95))
 
 		EnemyType.FIRE_MAGE:
@@ -804,6 +806,13 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			damage_type = DamageTypes.Type.LIGHTNING
 			_set_first_pass_resists(15, 15, 15)
 			_set_mesh_color(Color(0.25, 0.45, 0.85))
+
+		_:
+			# Design mock-ups (stats & moves TBD) have no arm yet. Name them so
+			# a stray spawn is identifiable instead of an anonymous default box;
+			# with no actions defined it will simply stand idle.
+			enemy_name = EnemyType.keys()[enemy_type].capitalize()
+			push_warning("[ENEMY] %s is a design mock-up — stats & moves TBD" % enemy_name)
 
 	# Passive-rework rebalance: scale the hand-tuned stats by the enemy's
 	# intended level (see passive_power_scale). XP is deliberately untouched —
@@ -1408,7 +1417,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.WEREGOAT: [], EnemyType.ROC: [],
 		EnemyType.WYVERN: [{"name": "Bite", "tempo": 5}, {"name": "Talon Grab", "tempo": 8}, {"name": "Move", "tempo": 4}],
-		EnemyType.ICE_TROLL: [{"name": "Club", "tempo": 4}, {"name": "Clobber", "tempo": 10}, {"name": "Move", "tempo": 3}],
+		EnemyType.ICE_TROLL: [{"name": "Club", "tempo": 4}, {"name": "Move", "tempo": 3}],
 		EnemyType.SNOW_WRAITH: [], EnemyType.GRANITE_COLOSSUS: [],
 		EnemyType.WHITE_MANTICORE: [{"name": "Bite", "tempo": 3}, {"name": "Stinger", "tempo": 5}, {"name": "Move", "tempo": 2}],
 		EnemyType.SABERTOOTH: [],
@@ -1426,7 +1435,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ELITE: "Stronger than minions.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.BOSS: "High health and damage.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
-		EnemyType.WERERAT: "Fast and evasive (8 HP, 3 dmg).\nAt range ≤1: Bites.\nAt range ≥6: Scurries (dashes away).\nOtherwise: Moves toward player.",
+		EnemyType.WERERAT: "Fast and evasive (8 HP, 3 dmg).\nAt range ≤1: Bites.\nAt range ≥6: Scurries 5 tiles toward you.\nOtherwise: Moves toward player.",
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 3 HP every 6 global tempo. Resists 30% physical / 15% fire / 15% lightning.\nAt range ≤1: 60% Smash (5 tempo, 14 dmg + Lightly Dazed card) / 40% Kick (3 tempo, 6 dmg).\nMove (4 tempo): 2 spaces.",
 		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 2 damage.\nAt range >4: Moves 2 tiles closer.",
@@ -1434,15 +1443,15 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 2 damage.\nMove (2 tempo): 4 spaces.",
 		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 7 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
 		EnemyType.FIRE_GOBLIN_SHAMAN: "Support caster (range 5).\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 6 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 6.\nMove (3 tempo): 2 spaces.",
-		EnemyType.GIANT_BEAVER: "Resists 25% physical.\nChomp (4 tempo): 9 damage, stuns 3 tempo. Then Tail Whip (2 tempo later): 6 damage + Vulnerable (15 tempo).\nMove (6 tempo): 3 spaces.",
+		EnemyType.GIANT_BEAVER: "Resists 25% physical.\nChomp (4 tempo): 9 damage, stuns 3 tempo. Then Tail Whip (2 tempo later): 6 damage + 5 Vulnerable (15 tempo).\nMove (6 tempo): 3 spaces.",
 		EnemyType.MINI_BEAR: "Travels in packs. When a packmate in sight is hurt, gains +2 attack damage.\nAttack (3 tempo): 4 damage.\nMove (5 tempo): 5 spaces.",
-		EnemyType.LARGE_BEAR: "Below 50% HP: gains 30% physical resistance FOREVER, and rages — attacks deal 1.5x, apply double Bleed, and the bear heals from your bleed damage. With Mini Bears present, gains 1 Strengthen (+1 damage) every time it is hurt. Drops to all fours below 20% HP.\nMaul (4 tempo): 12 damage + 4 Bleed.\nRoar (3 tempo): Vulnerable to everything within 4 squares.\nMove (7 tempo): 6 spaces.",
+		EnemyType.LARGE_BEAR: "Below 50% HP: gains 30% physical resistance FOREVER, and rages — attacks deal 1.5x, apply double Bleed, and the bear heals from your bleed damage. With Mini Bears present, gains 1 Strengthen (+1 damage) every time it is hurt. Drops to all fours below 20% HP.\nMaul (4 tempo): 12 damage + 4 Bleed.\nRoar (3 tempo, every 15 tempo): Vulnerable to everything within 4 squares.\nMove (7 tempo): 6 spaces.",
 		EnemyType.WOLF: "Within 4 tiles of another wolf: +2 HP regen/cycle and +2 attack damage.\nBite (5 tempo): 7 damage.\nMove (3 tempo): 4 spaces.",
 		EnemyType.COYOTE: "Fragile nuisance.\nNip (4 tempo): 2 damage.\nMove (3 tempo): 4 spaces.",
 		EnemyType.BUGBEAR: "First Strike: if it hits you before you have hit it, +8 damage.\nStrike (5 tempo): 6 damage.\nMove (4 tempo): 6 spaces.",
-		EnemyType.INFECTED_HUNTER: "Hook (range 7, 8 tempo, starts charged): pulls you to it over 2 tempo.\nCleave (3 tempo): 8 damage in front.\nMove (3 tempo): 2 spaces.",
-		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo): 9 damage, 20% to Blind for 5 tempo.\nMove (3 tempo): 8 spaces.",
-		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%. Every 10 tempo, strips all thorns from its enemies and heals for the total. Resists 25% physical / 55% lightning, but takes 10% EXTRA fire damage.\nSlam (10 tempo): 14 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nMove (10 tempo): 9 spaces.",
+		EnemyType.INFECTED_HUNTER: "Hook (range 2-7, 8 tempo): reels you in beside it.\nCleave (3 tempo): 8 damage.\nMove (3 tempo): 2 spaces.",
+		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo, reach 2): 9 damage, 20% to Blind for 5 tempo.\nMove (3 tempo): 8 spaces.",
+		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%. Every 10 tempo, strips all thorns from its enemies and heals for the total. Resists 25% physical / 55% lightning, but takes 10% EXTRA fire damage.\nSlam (10 tempo): 14 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nHeal (5 tempo): when badly hurt and out of melee, it stops to mend.\nMove (10 tempo): 9 spaces.",
 		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 6 ice damage + Slow.\nMove (5 tempo): 3 spaces.",
 		EnemyType.FIRE_MAGE: "Attacks apply 2 Burn.\nFire Bolt (range 2, 3 tempo): 7 fire damage + 2 Burn.\nMove (3 tempo): 2 spaces.",
 		EnemyType.SPARK_MAGE: "Attacks apply 1 Shock.\nSpark (range 6, 2 tempo): 3 lightning damage + 1 Shock.\nMove (3 tempo): 2 spaces.",
@@ -1454,10 +1463,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest player-side unit on the map — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
 		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
 		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely. Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside every unit hit.\nMove (5 tempo): 5 spaces.",
-		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (deals 1 damage per tempo until played, then is erased).",
+		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (saps 1 damage per tempo — charged 5 per cycle — until played, then is erased).",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
-		EnemyType.SCREECHER: "Soul-creature — invisible (a black void ghost) until it strikes.\nScreech (5 tempo): 5 damage; it becomes visible for 3 tempo, then fades again.\nDrift: 4 spaces / 2 tempo while invisible (2 spaces / 5 tempo while visible).",
+		EnemyType.SCREECHER: "Soul-creature — a barely-there black void ghost, easiest to spot when it strikes.\nScreech (5 tempo): 5 damage.\nDrift (2 tempo): 4 spaces.",
 		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
 		# --- Mountains (design mock-ups — stats & moves TBD) ---
 		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\n[Design mock-up — stats & moves TBD.]",
@@ -1472,13 +1481,13 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.SUCCUBUS: "A winged fey: short shorts, sleeveless top, elbow gloves, long boots and small horns.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.DEMON: "A red, thorned demon wielding a dagger and a trident.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.IFRIT: "A muscular bipedal fire-hound, hunched, with long near-ground arms. Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn; the tiles keep burning for 3 tempo.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
+		EnemyType.IFRIT: "A muscular bipedal fire-hound, hunched, with long near-ground arms. Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo, used from up to 4 tiles out): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn; the tiles keep burning for 3 tempo.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
 		EnemyType.MIND_EATER: "A gaunt, hunched flesh-horror with long raking claws.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.SPECTER: "A dark shadow-form of a humanoid.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.PIT_FIEND: "A larger, regal demon with a barbed tail and a great whip.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.INFLAMED_MINOTAUR: "A smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off) — and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap.\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, on a hit over 20 damage): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (1 cycle after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun AND weaken; everything trampled en route is left Vulnerable.\nMove (5 tempo): 6 spaces.",
+		EnemyType.INFLAMED_MINOTAUR: "A smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off: 10 damage + 2 Burn, lingers 15 tempo) — and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap.\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, on a hit over 20 damage): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (1 cycle after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.",
 		# --- Heavens (design mock-ups — stats & moves TBD) ---
 		EnemyType.CHERUB: "An adult cupid — winged archer with a bow.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace. Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to each unit hit — cast reaches 5 squares, each bound arcs 4 from the last unit struck.\nMove (3 tempo): 8 spaces.",
@@ -1698,6 +1707,10 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		while _treant_thorn_accumulator >= 10:
 			_treant_thorn_accumulator -= 10
 			_treant_strip_thorns()
+
+	# Wererabbit: the escape clock — flees 3 cycles (15 tempo), then vanishes.
+	if enemy_type == EnemyType.WERERABBIT:
+		_wererabbit_tempo += amount
 
 	# Elite first-pass ability cooldowns run on raw tempo.
 	if _roar_cooldown > 0:
@@ -1960,9 +1973,9 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 	var taxed: bool = next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(chosen_action["name"])
 	if taxed:
 		action_cost += next_melee_tempo_tax
-	# Slowed (matches the player's): movement actions take extra tempo (Slow
-	# Amp sphere node makes it even heavier); the stack burns when the move
-	# actually fires.
+	# Slowed (enemy version — per movement action, not per tile): the move
+	# takes extra tempo (Slow Amp sphere node makes it even heavier); the
+	# stack burns when the move actually fires.
 	var slowed_move: bool = slow_stacks > 0 and MOVEMENT_ACTIONS.has(chosen_action["name"])
 	if slowed_move:
 		action_cost += Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1
@@ -2062,7 +2075,12 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.WEREWOLF:
 			_choose_werewolf_action(distance)
 		EnemyType.WERERABBIT:
-			chosen_action = _get_action("flee")  # Loot monster — only flees
+			# Loot monster: flees for 3 cycles (15 tempo), then vanishes in a
+			# puff of smoke — kill it before the clock runs out.
+			if _wererabbit_tempo >= 15:
+				chosen_action = _get_action("vanish")
+			else:
+				chosen_action = _get_action("flee")
 		EnemyType.VAMPIRE:
 			_choose_vampire_action(distance)
 		EnemyType.NECROMANCER:
@@ -2070,11 +2088,11 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.BONE_DRAGON:
 			_choose_bone_dragon_action(distance)
 		EnemyType.SPIRIT_COLLECTOR:
-			_choose_melee_action(distance, "collector_swing")
+			_choose_collector_action(distance)
 		EnemyType.GRAVE_TITAN:
-			_choose_melee_action(distance, "titan_smash")
+			_choose_titan_action(distance)
 		EnemyType.CRYPT_CRAWLER:
-			_choose_melee_action(distance, "crawler_bite")
+			_choose_crawler_action(distance)
 		EnemyType.SCREECHER:
 			_choose_melee_action(distance, "screech")
 		EnemyType.CONSUMED:
@@ -2249,6 +2267,9 @@ func _choose_hunter_action(distance: int) -> void:
 func _choose_treant_action(distance: int) -> void:
 	if distance <= 1:
 		chosen_action = _get_action("treant_slam") if randf() < 0.6 else _get_action("root")
+	elif current_health * 2 < max_health:
+		# Badly hurt and out of melee: draw deep and mend.
+		chosen_action = _get_action("treant_heal")
 	elif distance <= 4:
 		chosen_action = _get_action("root")
 	else:
@@ -2465,9 +2486,9 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"absorb":
 			return _try_vampire_absorb()
 		"flee":
-			return _try_move(move_target)
+			return _try_flee(move_target)
 		"vanish":
-			turn_completed.emit(); return true
+			return _try_vanish()
 		"dark_bolt":
 			return _try_necro_bolt(move_target)
 		"summon_skeleton":
@@ -2479,15 +2500,15 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"collector_swing":
 			return _try_elemental(move_target, attack_damage, "Strike")
 		"collect_soul":
-			return _try_elemental(move_target, attack_damage, "Collect Soul")
+			return _try_collect_soul(move_target)
 		"titan_smash":
 			return _try_elemental(move_target, attack_damage, "Smash")
 		"boulder_roll":
-			return _try_elemental(move_target, attack_damage, "Boulder Roll")
+			return _try_boulder_roll(move_target)
 		"crawler_bite":
-			return _try_elemental(move_target, attack_damage, "Bite")
+			return _try_crawler_bite(move_target)
 		"web":
-			return _try_elemental(move_target, attack_damage, "Web")
+			return _try_crawler_web(move_target)
 		"screech":
 			return _try_elemental(move_target, attack_damage, "Screech")
 		# ----- Sewer act -----
@@ -2601,7 +2622,7 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 
 func _try_sear_wounds() -> bool:
 	## Fire Goblin Shaman: 2 damage to ALL allies (can kill), then heals the
-	## survivors for 4.
+	## survivors for 6.
 	# Sear Wounds is a cast; silence mutes it and the shaman forfeits the action.
 	if is_silenced:
 		print("[%s] Silenced — cannot Sear Wounds." % enemy_name)
@@ -2853,6 +2874,99 @@ func _dash_away_from(pos: Vector3, tiles: int) -> void:
 			direction = Vector3(1, 0, 0)
 		target_position = position + direction * float(tiles)
 		is_moving = true
+
+## --- Wererabbit ---
+
+func _try_flee(target_node: Node3D) -> bool:
+	## Loot monster: always runs AWAY from its pursuer.
+	if is_instance_valid(target_node):
+		_dash_away_from(target_node.position, maxi(1, int(move_distance)))
+	return true
+
+func _try_vanish() -> bool:
+	## The escape: gone in a puff of smoke — no loot, no XP, no death.
+	print("[%s] Vanishes in a puff of smoke!" % enemy_name)
+	var main = get_parent()
+	if main and "enemy_spawner" in main and main.enemy_spawner:
+		main.enemy_spawner.despawn_enemy(self)
+	else:
+		queue_free()
+	return true
+
+## --- Crypt Crawler ---
+
+func _choose_crawler_action(distance: int) -> void:
+	# After 3 consecutive bites it webs its prey.
+	if _crawler_attack_streak >= 3 and distance <= 2:
+		chosen_action = _get_action("web")
+	elif distance <= 1:
+		chosen_action = _get_action("crawler_bite")
+	else:
+		chosen_action = _get_action("move")
+
+func _try_crawler_bite(target_node: Node3D) -> bool:
+	if is_disarmed or not _in_attack_range(target_node):
+		_crawler_attack_streak = 0  # the chain breaks when it can't keep biting
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, attack_damage, "Bite")
+	_crawler_attack_streak += 1
+	turn_completed.emit()
+	return true
+
+func _try_crawler_web(target_node: Node3D) -> bool:
+	## Webs the target: a Paralysis card lands in their hand — they cannot
+	## move until it is played (other actions are fine), then it is erased.
+	_crawler_attack_streak = 0
+	if is_disarmed or _get_cell_distance(target_node) > 2:
+		return _try_move(target_node)
+	if target_node.has_method("get_deck_manager"):
+		var deck = target_node.get_deck_manager()
+		if deck:
+			deck.add_card_to_hand(Card.create_paralysis())
+			print("[%s] Webs its prey — Paralysis added to the hand!" % enemy_name)
+	turn_completed.emit()
+	return true
+
+## --- Spirit Collector ---
+
+func _choose_collector_action(distance: int) -> void:
+	if distance <= 1:
+		# Mostly swings; now and then it cages a piece of your soul.
+		chosen_action = _get_action("collect_soul") if randf() < 0.35 else _get_action("collector_swing")
+	else:
+		chosen_action = _get_action("move")
+
+func _try_collect_soul(target_node: Node3D) -> bool:
+	## 8 damage, and a 'Release Soul' card lands in the hand — it saps the
+	## holder every cycle until played, then is erased.
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, attack_damage, "Collect Soul")
+	if target_node.has_method("get_deck_manager"):
+		var deck = target_node.get_deck_manager()
+		if deck:
+			deck.add_card_to_hand(Card.create_release_soul())
+			print("[%s] Cages a piece of their soul!" % enemy_name)
+	turn_completed.emit()
+	return true
+
+## --- Grave Titan ---
+
+func _choose_titan_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("titan_smash")
+	elif distance <= 3:
+		chosen_action = _get_action("boulder_roll")
+	else:
+		chosen_action = _get_action("move")
+
+func _try_boulder_roll(target_node: Node3D) -> bool:
+	## Rolls the boulder at anything within 3 squares.
+	if is_disarmed or _get_cell_distance(target_node) > 3:
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, attack_damage, "Boulder Roll")
+	turn_completed.emit()
+	return true
 
 ## --- Large Bear ---
 
@@ -4138,7 +4252,7 @@ func apply_cupid_mark(golden: bool) -> bool:
 var _tree_node: Node3D = null
 
 func _enter_tree_form() -> void:
-	## 4 tempo as a tree: keeps every buff/debuff, cannot act, and heals 5 on
+	## 4 tempo as a tree: keeps every buff/debuff, cannot act, and heals 3 on
 	## each of its first 3 tempo. The body is hidden behind a little tree.
 	tree_tempo = 4
 	tree_regen_ticks = 3

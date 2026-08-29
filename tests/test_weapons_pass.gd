@@ -125,7 +125,9 @@ func _test_roster() -> void:
 		var m = ItemData.create_by_name(nm)
 		_check(m.rarity == ItemData.Rarity.MYTHIC and m.appearance != "" and m.appearance_icon != "",
 			"%s is a mythic with appearance + icon" % nm)
-	_check(ItemData.create_bessy().weapon_damage == 15, "Bessy carries the only base weapon damage (15)")
+	# weapon_damage was deliberately removed from Bessy — the stat is inert
+	# (no combat path reads it; see the note in create_bessy).
+	_check(ItemData.create_bessy().weapon_damage == 0, "Bessy no longer carries inert base weapon damage")
 
 func _test_cards() -> void:
 	print("-- Granted cards --")
