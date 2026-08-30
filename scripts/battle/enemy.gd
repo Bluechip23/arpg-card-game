@@ -4585,8 +4585,15 @@ func _die_visuals() -> void:
 	if _enemy_animator:
 		_enemy_animator.stop()
 
+	# Shrinking a PHYSICS body to zero scale makes its basis singular — the
+	# physics server then spams `invert: Condition "det == 0"` every frame.
+	# Drop the collider first and stop the shrink just shy of zero; the node
+	# frees right after, so the difference is invisible.
+	var death_col := get_node_or_null("CollisionShape3D")
+	if death_col is CollisionShape3D:
+		death_col.set_deferred("disabled", true)
 	var tween = create_tween()
-	tween.tween_property(self, "scale", Vector3.ZERO, 0.5)
+	tween.tween_property(self, "scale", Vector3.ONE * 0.01, 0.5)
 	tween.tween_callback(queue_free)
 
 func is_alive() -> bool:
