@@ -3312,7 +3312,8 @@ func _dragon_breath() -> void:
 	var tw := create_tween().set_trans(Tween.TRANS_SINE)
 	tw.tween_property(cone, "scale", Vector3(1, 1, 1), 0.22)
 	tw.tween_interval(0.25)
-	tw.tween_property(cone, "scale", Vector3(1.1, 1.1, 0.0), 0.3)
+	# 0.01, not 0.0 — a zero axis makes the basis singular (det == 0 spam).
+	tw.tween_property(cone, "scale", Vector3(1.1, 1.1, 0.01), 0.3)
 	tw.tween_callback(cone.queue_free)
 
 

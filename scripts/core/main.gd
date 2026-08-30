@@ -4135,6 +4135,14 @@ func _setup_sandbox() -> void:
 	# Testing ground: the story-mode mythic equip limit does not apply here.
 	if player and player.get_inventory():
 		player.get_inventory().enforce_mythic_limit = false
+	# TEMP (testing convenience): sandbox runs on 999 mana so expensive plays
+	# can be spammed. Sandbox never writes saves, so this cannot leak into a
+	# real character. Remove once mana tuning starts.
+	var sb_stats = player.get_stats() if player else null
+	if sb_stats:
+		sb_stats.max_mana = 999
+		sb_stats.current_mana = 999
+		sb_stats.mana_changed.emit(sb_stats.current_mana, sb_stats.max_mana)
 	var start_cell = grid_manager.world_to_grid(player.position)
 	# Two raised platforms flanking the start so High Ground is always nearby.
 	if dungeon_manager:
