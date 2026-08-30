@@ -4989,6 +4989,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_frankensteins(amount)
 	# Elemental Trail Blazers: fire spots burn enemies then fade.
 	_update_fire_spots(amount)
+	# Tempo-fused fire walls (Ifrit breath, Minotaur wake) burn down by the clock.
+	_tick_fire_walls(amount)
 	# Chewbaccas Bandolier: casings explode on contact or when their timer runs out.
 	_update_bullet_casings(amount)
 	# Sanguine the penguin waddles after the wielder and pecks on his own clock.
@@ -5340,15 +5342,20 @@ func _announce_calamity() -> void:
 # FIRE WALLS (Fire Goblin Shaman)
 # ============================================
 
-func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6) -> void:
-	## Called by a Fire Goblin Shaman. Lays a hazard on the given grid cells that
-	## burns the player when they walk into it; expires after a few player moves.
+func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
+		tempo: int = -1, heal_source: Node = null, heal_amount: int = 0) -> void:
+	## Lays a fire hazard on the given grid cells that burns the player when
+	## they walk into it. Expires after `moves` player moves, or — when
+	## `tempo` >= 0 — after that much raw tempo (Ifrit breath, Minotaur wake).
+	## A `heal_source` enemy heals `heal_amount` every time the fire burns a
+	## player (the Inflamed Minotaur feeds on his own wake).
 	var visuals: Array = []
 	for cell in tiles:
 		var v = _spawn_fire_wall_visual(cell)
 		if v:
 			visuals.append(v)
-	_fire_walls.append({"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves, "visuals": visuals})
+	_fire_walls.append({"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves,
+		"tempo_left": tempo, "heal_source": heal_source, "heal_amount": heal_amount, "visuals": visuals})
 	add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
 
 func _spawn_fire_wall_visual(cell: Vector2i) -> MeshInstance3D:
@@ -5379,6 +5386,11 @@ func _check_fire_walls(player_cell: Vector2i) -> void:
 	for wall in _fire_walls:
 		if wall["tiles"].has(player_cell):
 			_burn_player_from_fire(wall["damage"], wall["burn"])
+			# The Inflamed Minotaur feeds on players burned by his wake.
+			var healer = wall.get("heal_source")
+			if healer and is_instance_valid(healer) and int(wall.get("heal_amount", 0)) > 0 \
+					and healer.has_method("_regenerate") and healer.is_alive():
+				healer._regenerate(int(wall["heal_amount"]))
 		wall["moves_left"] -= 1
 		if wall["moves_left"] > 0:
 			survivors.append(wall)
@@ -5387,6 +5399,36 @@ func _check_fire_walls(player_cell: Vector2i) -> void:
 				if is_instance_valid(v):
 					v.queue_free()
 	_fire_walls = survivors
+
+func _tick_fire_walls(amount: int) -> void:
+	## Tempo-fused fire walls (tempo_left >= 0) expire by the clock instead of
+	## waiting on player moves.
+	if _fire_walls.is_empty():
+		return
+	var survivors: Array = []
+	for wall in _fire_walls:
+		var fuse: int = int(wall.get("tempo_left", -1))
+		if fuse < 0:
+			survivors.append(wall)
+			continue
+		fuse -= amount
+		wall["tempo_left"] = fuse
+		if fuse > 0:
+			survivors.append(wall)
+		else:
+			for v in wall["visuals"]:
+				if is_instance_valid(v):
+					v.queue_free()
+	_fire_walls = survivors
+
+## Rage of the bear: enraged (sub-half-health) Large Bears feed on the bleed
+## damage their enemies take. Called by player.gd whenever Bleed tears on a move.
+func on_player_bled(amount: int) -> void:
+	if not enemy_spawner or amount <= 0:
+		return
+	for e in enemy_spawner.get_living_enemies():
+		if e.enemy_type == Enemy.EnemyType.LARGE_BEAR and e.current_health * 2 < e.max_health:
+			e._regenerate(amount)
 
 func _burn_player_from_fire(damage: int, burn: int) -> void:
 	var stats = player.get_stats()
@@ -6336,8 +6378,8 @@ func _on_apply_debuff(debuff_name: String) -> void:
 		"Cuffed": debuff = Debuff.create(Debuff.DebuffType.CUFFED, 0, 3)
 		"Shocked (3)": debuff = Debuff.create(Debuff.DebuffType.SHOCKED, 3, 3)
 		"Slowed (2)": debuff = Debuff.create(Debuff.DebuffType.SLOWED, 2, 3)
-		"Staggered (10)": debuff = Debuff.create(Debuff.DebuffType.STAGGERED, 3, -1)
-		"Drain (2)": debuff = Debuff.create(Debuff.DebuffType.DRAIN, 2, 3)
+		"Staggered (3)": debuff = Debuff.create(Debuff.DebuffType.STAGGERED, 3, -1)
+		"Drain (10x2)": debuff = Debuff.create(Debuff.DebuffType.DRAIN, 2, 3)
 		"Weighted (1)": debuff = Debuff.create(Debuff.DebuffType.WEIGHTED, 3, -1)
 		"Hexed (20)": debuff = Debuff.create(Debuff.DebuffType.HEXED, 20, 3)
 		"Locked": debuff = Debuff.create(Debuff.DebuffType.LOCKED, 0, 2)
@@ -6346,10 +6388,11 @@ func _on_apply_debuff(debuff_name: String) -> void:
 			debuff = Debuff.create(Debuff.DebuffType.TETHERED, 0, 15)
 			debuff_mgr.set_tether_origin(player.position)
 		"Magnetized (1)": debuff = Debuff.create(Debuff.DebuffType.MAGNETIZED, 1, 3)
-		"Linked (25)": debuff = Debuff.create(Debuff.DebuffType.LINKED, 0, 15)
+		"Linked (20)": debuff = Debuff.create(Debuff.DebuffType.LINKED, 0, 15)
 		"Clumsy (30)": debuff = Debuff.create(Debuff.DebuffType.CLUMSY, 3, -1)
 		"Vulnerable (25)": debuff = Debuff.create(Debuff.DebuffType.VULNERABLE, 25, 3)
 		"Brittle (2)": debuff = Debuff.create(Debuff.DebuffType.BRITTLE, 2, 3)
+		"Weakened (2)": debuff = Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1)
 	if debuff and debuff_mgr:
 		debuff_mgr.apply_debuff(debuff)
 		_on_hand_updated()  # Refresh cards for Hexed/Locked

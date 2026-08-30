@@ -193,7 +193,12 @@ func _physics_process(delta: float) -> void:
 			_stuck_frames = 0
 
 			# Trigger bleed damage on movement
-			debuff_manager.on_movement(1)
+			var bled: int = debuff_manager.on_movement(1)
+			if bled > 0:
+				# Rage of the bear: enraged Large Bears feed on bleed damage.
+				var bleed_main = get_parent()
+				if bleed_main and bleed_main.has_method("on_player_bled"):
+					bleed_main.on_player_bled(bled)
 
 			# Trigger buff effects on movement (e.g. Approach armor)
 			buff_manager.on_movement(1)
@@ -305,6 +310,14 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 	if not debuff_manager.can_move():
 		print("[PLAYER] Cannot move - stunned or rooted!")
 		return false
+
+	# Paralysis (Crypt Crawler web): cannot move while the card sits in hand —
+	# every other action is fine; playing it tears the webbing free.
+	if deck_manager_ref:
+		for held in deck_manager_ref.hand:
+			if held.card_id == "paralysis":
+				print("[PLAYER] Webbed! Cannot move until Paralysis is played.")
+				return false
 
 	# Slowed no longer trims spaces — it taxes tempo per tile instead (see
 	# TempoManager.add_movement_tempo), burning a stack per tile.

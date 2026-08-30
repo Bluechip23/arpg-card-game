@@ -59,13 +59,16 @@ func _set_name_and_description() -> void:
 	match buff_type:
 		BuffType.THORNS:
 			buff_name = "Thorns"
-			description = "Deal %d damage back to attackers" % value
+			if decay_by_damage:
+				description = "Deal %d damage back to attackers; thorns shed by damage taken" % value
+			else:
+				description = "Deal %d damage back to attackers, lose 1 thorn per hit" % value
 		BuffType.FOCUSED:
 			buff_name = "Focused"
 			description = "Gain 10 extra mana per cycle"
 		BuffType.REGEN:
 			buff_name = "Regen"
-			description = "Heal %d HP per cycle" % value
+			description = "Heal %d HP per cycle, decaying by 1 each cycle" % value
 		BuffType.BLESSED:
 			buff_name = "Blessed"
 			description = "Draw %d additional card(s) per cycle for %d more cycle(s)" % [value, charges]
@@ -74,7 +77,7 @@ func _set_name_and_description() -> void:
 			description = "Armor does not decay"
 		BuffType.ENLIGHTENED:
 			buff_name = "Enlightened"
-			description = "%d%% crit chance for the next %d attacks (stacks extend, never add)" % [value, charges]
+			description = "%d%% crit chance for the next %d attacks (re-applying refreshes to the higher count, never adds)" % [value, charges]
 		BuffType.STRENGTHEN:
 			buff_name = "Strengthen"
 			description = "+%d damage on next %d attacks" % [value, charges]
@@ -98,7 +101,11 @@ func _set_name_and_description() -> void:
 			description = "Reduce incoming attack damage by %d%% for %d attacks" % [value, charges]
 		BuffType.RESILIENT:
 			buff_name = "Resilient"
-			description = "Reduce all incoming damage by %d%% for %d tempo" % [value, duration]
+			if damage_type >= 0:
+				var type_name: String = DamageTypes.Type.keys()[damage_type].capitalize()
+				description = "Reduce incoming %s damage by %d%% for %d tempo" % [type_name, value, duration]
+			else:
+				description = "Reduce all incoming damage by %d%% for %d tempo" % [value, duration]
 		BuffType.LIFE_STEAL:
 			buff_name = "Life Steal"
 			# value 0 = legacy full-damage heal; value > 0 = percentage of damage
@@ -108,7 +115,7 @@ func _set_name_and_description() -> void:
 				description = "Next attack heals you for damage dealt"
 		BuffType.MORPHINE:
 			buff_name = "Morphine"
-			description = "Temp HP active. Lose %d HP and take 2 damage when expired" % value
+			description = "%d temp HP. When it expires, the remaining temp HP is lost and you take 2 damage" % value
 		BuffType.WEAR_DOWN:
 			buff_name = "Wear Down"
 			description = "Each attack reduces target's attack by 1 (stacks) for %d tempo" % duration
@@ -123,7 +130,7 @@ func _set_name_and_description() -> void:
 			description = "Gain %d more armor in %d tempo" % [value, duration]
 		BuffType.REPELLED_BLOCK:
 			buff_name = "Repelled Block"
-			description = "If next melee attack is fully blocked by armor, negate damage and push enemy back 4 spaces"
+			description = "If next melee attack is fully blocked by armor, negate damage, push the enemy back 4 spaces and yourself back 2"
 		BuffType.SHIELD_OF_GROWTH:
 			buff_name = "Shield of Growth"
 			description = "All damage taken increases armor by that amount for %d tempo" % duration
@@ -316,6 +323,7 @@ static func create_resilient(percent_reduction: int = 15, tempo: int = 15, sourc
 	var buff = Buff.new(BuffType.RESILIENT, percent_reduction, tempo)
 	buff.source_name = source
 	buff.damage_type = damage_type  # -1 = reduces all damage; else only that type
+	buff._set_name_and_description()  # description branches on the type gate
 	return buff
 
 ## Ragnarok (Hide of Garmr): timed flat crit chance. Stacks value.

@@ -36,10 +36,15 @@ func apply_debuff(debuff: Debuff) -> void:
 	# by what they react to (movement, damage, card plays), mirroring Burn.
 	match debuff.debuff_type:
 		Debuff.DebuffType.BURN, Debuff.DebuffType.BLEED, Debuff.DebuffType.SLOWED, \
-		Debuff.DebuffType.STAGGERED, Debuff.DebuffType.WEIGHTED, Debuff.DebuffType.CLUMSY:
+		Debuff.DebuffType.STAGGERED, Debuff.DebuffType.WEIGHTED, Debuff.DebuffType.CLUMSY, \
+		Debuff.DebuffType.WEAKENED:
 			debuff.duration = -1
 
 	var existing = get_debuff(debuff.debuff_type)
+	# Hexed never merges: each hex is its own instance claiming its own card
+	# in hand, so several cards can be hexed at once (Necromancer Bolt hexes 2).
+	if debuff.debuff_type == Debuff.DebuffType.HEXED:
+		existing = null
 
 	if existing:
 		# -1 means "until depleted/cleansed" — it always wins the merge.
@@ -66,10 +71,12 @@ func apply_debuff(debuff: Debuff) -> void:
 
 		print("[DEBUFF] Applied: %s for %d tempo" % [debuff.debuff_name, debuff.duration])
 	
-	# Cold -> Frozen conversion: at 5 stacks, become Frozen for 1 turn
+	# Cold -> Frozen conversion: at 5 stacks, become Frozen for 1 cycle.
+	# Stacks are the summed VALUE (a Cold-3 application counts 3), matching
+	# the displayed count and the enemy-side conversion.
 	if debuff.debuff_type == Debuff.DebuffType.COLD:
 		var cold = get_debuff(Debuff.DebuffType.COLD)
-		if cold and cold.stacks >= 5:
+		if cold and cold.value >= 5:
 			remove_debuff(Debuff.DebuffType.COLD)
 			var frozen = Debuff.create(Debuff.DebuffType.FROZEN, 0, 5)
 			frozen.source_name = "Cold"
@@ -255,7 +262,7 @@ func advance_time(amount: int) -> void:
 		debuffs_changed.emit()
 
 func process_armor_decay(base_decay: int) -> int:
-	# Returns total armor decay including Brittle (always extra 2 per stack)
+	# Returns total armor decay including Brittle (a flat extra 2 while any stacks remain)
 	var total_decay = base_decay
 	var brittle = get_debuff(Debuff.DebuffType.BRITTLE)
 	if brittle:
@@ -397,18 +404,41 @@ func on_card_played(is_attack_card: bool) -> void:
 		else:
 			debuffs_changed.emit()
 
-func get_hexed_mana_increase() -> int:
-	var hexed = get_debuff(Debuff.DebuffType.HEXED)
-	return hexed.value if hexed else 0
+## Every Hexed instance — each one claims its own card in hand.
+func get_hexed_debuffs() -> Array[Debuff]:
+	var out: Array[Debuff] = []
+	for d in debuffs:
+		if d.debuff_type == Debuff.DebuffType.HEXED:
+			out.append(d)
+	return out
 
-func get_hexed_card_index() -> int:
-	var hexed = get_debuff(Debuff.DebuffType.HEXED)
-	return hexed.affected_card_index if hexed else -1
+func get_hexed_mana_increase(index: int) -> int:
+	## Total hex surcharge on THIS card. Hexes usually spread across different
+	## cards, but stack onto one when there are more hexes than cards.
+	var total := 0
+	for d in get_hexed_debuffs():
+		if d.affected_card_index == index:
+			total += d.value
+	return total
 
-func set_hexed_card_index(index: int) -> void:
-	var hexed = get_debuff(Debuff.DebuffType.HEXED)
-	if hexed:
-		hexed.affected_card_index = index
+## Playing a hexed card (paying its surcharge) clears every hex riding it.
+func remove_hexes_on_card(index: int) -> void:
+	var removed_any := false
+	for i in range(debuffs.size() - 1, -1, -1):
+		var d = debuffs[i]
+		if d.debuff_type == Debuff.DebuffType.HEXED and d.affected_card_index == index:
+			debuffs.remove_at(i)
+			debuff_removed.emit(d)
+			removed_any = true
+			print("[DEBUFF] Hex broken (card %d played)" % index)
+	if removed_any:
+		debuffs_changed.emit()
+
+## A card left the hand — every hex claiming a later card shifts down one.
+func shift_hexed_indices(removed_index: int) -> void:
+	for d in get_hexed_debuffs():
+		if d.affected_card_index > removed_index:
+			d.affected_card_index -= 1
 
 func get_locked_card_index() -> int:
 	var locked = get_debuff(Debuff.DebuffType.LOCKED)
@@ -426,9 +456,9 @@ func is_card_locked(index: int) -> bool:
 	return false
 
 func is_card_hexed(index: int) -> bool:
-	var hexed = get_debuff(Debuff.DebuffType.HEXED)
-	if hexed and hexed.affected_card_index == index:
-		return true
+	for d in get_hexed_debuffs():
+		if d.affected_card_index == index:
+			return true
 	return false
 
 func get_clumsy_chance() -> int:
@@ -446,11 +476,16 @@ func roll_clumsy() -> bool:
 	return false
 
 func get_damage_reduction_percent() -> float:
+	var reduction := 0.0
 	# Cursed: always 20% less damage dealt
-	var cursed = get_debuff(Debuff.DebuffType.CURSED)
-	if cursed:
-		return 0.2
-	return 0.0
+	if has_debuff(Debuff.DebuffType.CURSED):
+		reduction += 0.2
+	# Weakened (mirrors the enemy-side Weaken): -30% damage dealt while any
+	# stacks remain; one stack burns per attack (see on_attack).
+	var weakened = get_debuff(Debuff.DebuffType.WEAKENED)
+	if weakened and weakened.value > 0:
+		reduction += Debuff.WEAKENED_REDUCTION / 100.0
+	return minf(reduction, 0.9)
 
 func get_self_damage_percent() -> float:
 	# Cursed: always 20% damage to self
@@ -484,6 +519,17 @@ func on_movement(tiles_moved: int) -> int:
 	return 0
 
 func on_attack() -> int:
+	# Weakened: the attack just resolved (already reduced) — burn one stack.
+	var weakened = get_debuff(Debuff.DebuffType.WEAKENED)
+	if weakened:
+		weakened.value -= 1
+		weakened._set_name_and_description()
+		if weakened.value <= 0:
+			remove_debuff(Debuff.DebuffType.WEAKENED)
+			print("[DEBUFF] Weakened worn off")
+		else:
+			debuffs_changed.emit()
+
 	var burn = get_debuff(Debuff.DebuffType.BURN)
 	if burn:
 		# Burn on-attack uses the current burn_damage_next value

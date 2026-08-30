@@ -86,8 +86,8 @@ func _setup_dropdowns() -> void:
 		debuff_dropdown.add_item("Cuffed")
 		debuff_dropdown.add_item("Shocked (3)")
 		debuff_dropdown.add_item("Slowed (2)")
-		debuff_dropdown.add_item("Staggered (10)")
-		debuff_dropdown.add_item("Drain (2)")
+		debuff_dropdown.add_item("Staggered (3)")
+		debuff_dropdown.add_item("Drain (10x2)")
 		debuff_dropdown.add_item("Weighted (1)")
 		# New debuffs
 		debuff_dropdown.add_item("Hexed (20)")
@@ -95,10 +95,11 @@ func _setup_dropdowns() -> void:
 		debuff_dropdown.add_item("Rooted")
 		debuff_dropdown.add_item("Tethered (3)")
 		debuff_dropdown.add_item("Magnetized (1)")
-		debuff_dropdown.add_item("Linked (25)")
+		debuff_dropdown.add_item("Linked (20)")
 		debuff_dropdown.add_item("Clumsy (30)")
 		debuff_dropdown.add_item("Vulnerable (25)")
 		debuff_dropdown.add_item("Brittle (2)")
+		debuff_dropdown.add_item("Weakened (2)")
 	if has_node("Panel/VBox/OverflowDropdown"):
 		var overflow_dropdown = $Panel/VBox/OverflowDropdown as OptionButton
 		overflow_dropdown.clear()

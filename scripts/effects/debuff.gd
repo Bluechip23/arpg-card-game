@@ -31,7 +31,8 @@ enum DebuffType {
 	COLD,
 	BLIND,
 	# Appended at the tail — enum order is save-compat-sensitive.
-	GENERIC  # bespoke named debuff (Marvolo's Misunderstanding); keeps its custom name/description
+	GENERIC,  # bespoke named debuff (Marvolo's Misunderstanding); keeps its custom name/description
+	WEAKENED  # deal WEAKENED_REDUCTION% less damage; 1 stack burns per attack (mirrors enemy-side Weaken)
 }
 
 # Fixed magnitudes for the stack-driven debuffs: the stack COUNT is the only
@@ -44,6 +45,7 @@ const TETHER_RANGE := 5            # tiles from the application point
 const LINKED_SHARE := 20           # % damage shared with the nearest ally
 const CLUMSY_CHANCE := 30          # % chance to discard on card play
 const BLIND_MISS := 80             # % chance for attacks to miss
+const WEAKENED_REDUCTION := 30     # % less damage dealt while Weakened (matches the enemy-side Weaken)
 
 var debuff_type: DebuffType
 var debuff_name: String
@@ -89,7 +91,7 @@ func _set_name_and_description() -> void:
 			description = "Cannot play spell cards"
 		DebuffType.BURN:
 			debuff_name = "Burn"
-			description = "Burn damage doubles each cycle (1, 2, 4, 8...)"
+			description = "Burn damage doubles each cycle (1, 2, 4, 8...); attacking also triggers the current burn damage"
 		DebuffType.POISON:
 			debuff_name = "Poison"
 			description = "Take %d damage per cycle, lose 1 poison each cycle" % value
@@ -107,7 +109,7 @@ func _set_name_and_description() -> void:
 			description = "Cannot draw cards"
 		DebuffType.SHOCKED:
 			debuff_name = "Shocked"
-			description = "Deal %d damage to nearby allies per cycle, lose 1 per cycle" % value
+			description = "Arc %d damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle" % value
 		DebuffType.SLOWED:
 			debuff_name = "Slowed"
 			description = "Movement costs %d tempo per tile; each tile burns a stack (%d left)" % [SLOWED_TEMPO_PER_TILE, value]
@@ -122,7 +124,7 @@ func _set_name_and_description() -> void:
 			description = "Cards cost %d more tempo; each card played burns a stack (%d left)" % [WEIGHTED_TEMPO, value]
 		DebuffType.HEXED:
 			debuff_name = "Hexed"
-			description = "One random card costs +%d mana" % value
+			description = "One card in your hand costs +%d mana until it is played" % value
 		DebuffType.LOCKED:
 			debuff_name = "Locked"
 			description = "One random card cannot be played"
@@ -137,7 +139,7 @@ func _set_name_and_description() -> void:
 			description = "Pulled %d tiles toward nearest enemy each cycle" % value
 		DebuffType.LINKED:
 			debuff_name = "Linked"
-			description = "Share %d%% damage taken with nearest ally" % LINKED_SHARE
+			description = "%d%% of damage you take is also dealt to your partner" % LINKED_SHARE
 		DebuffType.CLUMSY:
 			debuff_name = "Clumsy"
 			description = "%d%% chance to discard a random card when playing; each card burns a stack (%d left)" % [CLUMSY_CHANCE, value]
@@ -149,10 +151,13 @@ func _set_name_and_description() -> void:
 			description = "Armor decays extra 2 per cycle, %d stack(s)" % value
 		DebuffType.COLD:
 			debuff_name = "Cold"
-			description = "At 5 stacks, become Frozen for 1 turn. Current: %d stack(s)" % value
+			description = "At 5 stacks, become Frozen for 1 cycle. Current: %d stack(s)" % value
 		DebuffType.BLIND:
 			debuff_name = "Blind"
 			description = "%d%% chance for your attacks to miss" % (value if value > 0 else BLIND_MISS)
+		DebuffType.WEAKENED:
+			debuff_name = "Weakened"
+			description = "Deal %d%% less damage; each attack burns a stack (%d left)" % [WEAKENED_REDUCTION, value]
 
 func advance_time(amount: int) -> bool:
 	# Duration counts RAW tempo, decremented on every tempo advance — so a
@@ -192,6 +197,7 @@ func get_icon_color() -> Color:
 		DebuffType.BRITTLE: return Color(0.7, 0.7, 0.6)
 		DebuffType.COLD: return Color(0.4, 0.7, 1.0)
 		DebuffType.BLIND: return Color(0.85, 0.85, 0.4)
+		DebuffType.WEAKENED: return Color(0.5, 0.5, 0.8)
 	return Color.WHITE
 
 func get_short_display() -> String:

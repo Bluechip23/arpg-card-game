@@ -1967,6 +1967,8 @@ static func create_orions_belt() -> ItemData:
 	_set_appearance(item, "orions_belt",
 		"A midnight-blue band with three star-bright studs in a perfect row — Alnitak, Alnilam, and Mintaka.")
 	item.description = "+5 STR, +3 DEX. Grants Protection From Alnitak (10 armor + Brace equal to your empty hand slots for 5 attacks), Balance of Alnilam (if this is your only card, draw 6), and Crack of Mintaka (discard any number of cards; melee strike with range and crit damage per card discarded)."
+	# Balance of Alnilam reads the belt's level live: it draws 10 at Lv3.
+	item.level_3_description = "+5 STR, +3 DEX. Balance of Alnilam now draws 10 when it is your only card; Protection From Alnitak and Crack of Mintaka are unchanged."
 	return item
 
 static func create_girdle_of_aphrodite() -> ItemData:
@@ -2509,7 +2511,7 @@ static func create_short_bow() -> ItemData:
 static func create_boomerang() -> ItemData:
 	var item = _new_weapon("Boomerang", Rarity.COMMON, WeaponSubtype.OTHER, 5)
 	item.strength_bonus = 3
-	item.description = "+3 STR. A one-handed throwing arm that counts as a bow — pairs with a quiver."
+	item.description = "+3 STR. A one-handed throwing arm; pairs with a quiver."
 	return item
 
 static func create_cross_bow() -> ItemData:

@@ -202,10 +202,14 @@ func _on_enemy_turn_completed() -> void:
 func _generate_loot(enemy: Enemy) -> Dictionary:
 	var loot: Dictionary = {"gold": 0, "item": null, "card": null, "card_pack": null, "culling_stones": 0}
 
-	# Gold drop (always) - amount based on enemy type
+	# Ring Wraiths resummon and grant no XP — no loot either, so the shadow
+	# can never be farmed.
+	if enemy.enemy_type == Enemy.EnemyType.RING_WRAITH:
+		return {}
+
+	# Gold drop (always). A few types carry hand-tuned amounts; everything
+	# else pays by its loot tier so no enemy drops zero gold.
 	match enemy.enemy_type:
-		Enemy.EnemyType.MINION:
-			loot["gold"] = randi_range(2, 8)
 		Enemy.EnemyType.WERERAT:
 			loot["gold"] = randi_range(3, 10)
 		Enemy.EnemyType.ARCHER_RAT:
@@ -214,10 +218,16 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 			loot["gold"] = randi_range(5, 15)
 		Enemy.EnemyType.ARMORED_TROLL:
 			loot["gold"] = randi_range(10, 25)
-		Enemy.EnemyType.ELITE:
-			loot["gold"] = randi_range(15, 40)
-		Enemy.EnemyType.BOSS:
-			loot["gold"] = randi_range(30, 80)
+		_:
+			match get_loot_tier(enemy.enemy_type):
+				DropRates.TIER_TRASH:
+					loot["gold"] = randi_range(2, 8)
+				DropRates.TIER_ELITE:
+					loot["gold"] = randi_range(15, 40)
+				DropRates.TIER_BOSS:
+					loot["gold"] = randi_range(30, 80)
+				_:
+					loot["gold"] = randi_range(5, 15)
 
 	# Culling stone drop chance
 	var culling_chance = _get_culling_stone_drop_chance(enemy.enemy_type)
@@ -241,37 +251,42 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 	return loot
 
 func _get_item_drop_chance(type: Enemy.EnemyType) -> float:
+	# Hand-tuned entries first; everything else rolls by its loot tier, so an
+	# elite's drop ODDS match the elite table it rolls on.
 	match type:
-		Enemy.EnemyType.MINION: return 0.05
 		Enemy.EnemyType.WERERAT: return 0.08
 		Enemy.EnemyType.ARCHER_RAT: return 0.06
 		Enemy.EnemyType.SKELETON: return 0.12
 		Enemy.EnemyType.ARMORED_TROLL: return 0.20
-		Enemy.EnemyType.ELITE: return 0.30
-		Enemy.EnemyType.BOSS: return 0.80
-	return 0.05
+	match get_loot_tier(type):
+		DropRates.TIER_TRASH: return 0.05
+		DropRates.TIER_ELITE: return 0.30
+		DropRates.TIER_BOSS: return 0.80
+	return 0.10
 
 func _get_card_drop_chance(type: Enemy.EnemyType) -> float:
 	match type:
-		Enemy.EnemyType.MINION: return 0.03
 		Enemy.EnemyType.WERERAT: return 0.05
 		Enemy.EnemyType.ARCHER_RAT: return 0.04
 		Enemy.EnemyType.SKELETON: return 0.08
 		Enemy.EnemyType.ARMORED_TROLL: return 0.12
-		Enemy.EnemyType.ELITE: return 0.20
-		Enemy.EnemyType.BOSS: return 0.60
-	return 0.03
+	match get_loot_tier(type):
+		DropRates.TIER_TRASH: return 0.03
+		DropRates.TIER_ELITE: return 0.20
+		DropRates.TIER_BOSS: return 0.60
+	return 0.06
 
 func _get_culling_stone_drop_chance(type: Enemy.EnemyType) -> float:
 	match type:
-		Enemy.EnemyType.MINION: return 0.02
 		Enemy.EnemyType.WERERAT: return 0.03
 		Enemy.EnemyType.ARCHER_RAT: return 0.03
 		Enemy.EnemyType.SKELETON: return 0.05
 		Enemy.EnemyType.ARMORED_TROLL: return 0.08
-		Enemy.EnemyType.ELITE: return 0.15
-		Enemy.EnemyType.BOSS: return 0.40
-	return 0.02
+	match get_loot_tier(type):
+		DropRates.TIER_TRASH: return 0.02
+		DropRates.TIER_ELITE: return 0.15
+		DropRates.TIER_BOSS: return 0.40
+	return 0.05
 
 ## Loot tier for an enemy type (see DropRates): trash never rolls high-end
 ## loot on its own, bosses roll the richest table. Unlisted types are "mid".
@@ -286,9 +301,15 @@ func get_loot_tier(type: Enemy.EnemyType) -> String:
 		Enemy.EnemyType.TREANT, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.VAMPIRE, \
 		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.SPIRIT_COLLECTOR, \
 		Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.WYVERN, Enemy.EnemyType.ICE_TROLL, \
-		Enemy.EnemyType.WHITE_MANTICORE:
+		Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.GIANT_BEAVER, \
+		Enemy.EnemyType.BONE_DRAGON, Enemy.EnemyType.IFRIT, \
+		Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.DJINN, \
+		Enemy.EnemyType.FIRE_GOBLIN_SHAMAN, Enemy.EnemyType.CONSUMED, \
+		Enemy.EnemyType.EARTH_MAGE, Enemy.EnemyType.INFECTED_HUNTER:
+			# Bone Dragon rolls elite loot per the first-pass sheet — it is also
+			# Necromancer-summonable, so boss-tier drops would be farmable.
 			return DropRates.TIER_ELITE
-		Enemy.EnemyType.BOSS, Enemy.EnemyType.HYDRA, Enemy.EnemyType.BONE_DRAGON, \
+		Enemy.EnemyType.BOSS, Enemy.EnemyType.HYDRA, \
 		Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.RAT_KING, Enemy.EnemyType.GRANITE_COLOSSUS:
 			return DropRates.TIER_BOSS
 	return DropRates.TIER_MID
