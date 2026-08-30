@@ -109,8 +109,9 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		is_dex_proc = true
 
 	if debuff_mgr:
-		display_mana += debuff_mgr.get_hexed_mana_increase(index)
-			is_hexed = true
+		is_hexed = debuff_mgr.is_card_hexed(index)
+		if is_hexed:
+			display_mana += debuff_mgr.get_hexed_mana_increase(index)
 		is_locked = debuff_mgr.is_card_locked(index)
 
 	# Costs live in the corner badges (mana drop / sand timer); the old title-bar
