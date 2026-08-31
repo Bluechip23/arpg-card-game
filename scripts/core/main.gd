@@ -3564,24 +3564,28 @@ func _on_equipment_changed() -> void:
 	_update_block_button_visibility()
 
 func _setup_passive_display_ui() -> void:
-	## Right-side passive tray: one gold-trimmed PassiveBoxUI per active
-	## skill-tree passive, stacked 4 per row (up to 3 rows for a full set of
-	## 12). Cooldown passives fade and show recharge progress like the
-	## gauntlet skill circles; always-on passives stay solid.
+	## Compact passive tray: one small gold-trimmed PassiveBoxUI per active
+	## skill-tree passive, 4 per row, tucked in beside the discard pile icon
+	## at the bottom-right. Cooldown passives fade while recharging like the
+	## gauntlet skill circles; always-on passives stay solid. Level and
+	## recharge numbers live in each box's tooltip.
 	var ui = $UI as CanvasLayer
 	passive_display_container = GridContainer.new()
 	passive_display_container.name = "PassiveDisplay"
 	passive_display_container.columns = 4
 	ui.add_child(passive_display_container)
-	# Sits just below the battle log's usual footprint, above the hand area.
-	passive_display_container.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	passive_display_container.offset_left = -210.0
-	passive_display_container.offset_right = -10.0
-	passive_display_container.offset_top = -50.0
-	passive_display_container.offset_bottom = 130.0
+	# Bottom-right corner pinned just left of the discard icon (which spans
+	# x -62..-8, y -190..-132 from the corner); the tray grows up and left
+	# from there as passives are allocated.
+	passive_display_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	passive_display_container.offset_left = -68.0
+	passive_display_container.offset_right = -68.0
+	passive_display_container.offset_top = -132.0
+	passive_display_container.offset_bottom = -132.0
 	passive_display_container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	passive_display_container.add_theme_constant_override("h_separation", 8)
-	passive_display_container.add_theme_constant_override("v_separation", 8)
+	passive_display_container.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	passive_display_container.add_theme_constant_override("h_separation", 3)
+	passive_display_container.add_theme_constant_override("v_separation", 3)
 	# Allocating a passive point happens inside the skill tree panel, so the
 	# tray re-checks whenever that panel opens or closes.
 	skill_tree_ui.visibility_changed.connect(_update_passive_display_ui)
