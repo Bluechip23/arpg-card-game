@@ -233,6 +233,7 @@ var _wake_prev_cell: Vector2i = Vector2i(-9999, -9999)  # Inflamed Minotaur: fir
 var _wererabbit_tempo: int = 0            # Wererabbit: flees 3 cycles (15 tempo), then vanishes
 var _crawler_attack_streak: int = 0       # Crypt Crawler: webs after 3 consecutive bites
 
+#region TEMPO ACTION SYSTEM
 # ============================================
 # TEMPO ACTION SYSTEM
 # ============================================
@@ -277,6 +278,8 @@ const MOVEMENT_ACTIONS := {
 ## Armored Troll passive: accumulator for regeneration (heals 3 HP every 6 global tempo).
 var regen_accumulator: int = 0
 
+#endregion
+#region TEMPO BAR VISUALS
 # ============================================
 # TEMPO BAR VISUALS
 # ============================================
@@ -1249,6 +1252,8 @@ func _setup_actions() -> void:
 				{"name": "move",            "tempo_cost": 3},
 			]
 
+#endregion
+#region COMPENDIUM DATA
 # ============================================
 # COMPENDIUM DATA
 # ============================================
@@ -1531,6 +1536,8 @@ static func get_all_enemy_data() -> Array:
 		})
 	return result
 
+#endregion
+#region TEMPO BAR SETUP
 # ============================================
 # TEMPO BAR SETUP
 # ============================================
@@ -1663,6 +1670,8 @@ func _refresh_armor_bar_image() -> void:
 
 	_armor_bar_sprite.texture = ImageTexture.create_from_image(img)
 
+#endregion
+#region TEMPO-DRIVEN ACTION HANDLING
 # ============================================
 # TEMPO-DRIVEN ACTION HANDLING
 # ============================================
@@ -1997,6 +2006,8 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 		# Immediately choose next action so the bar shows what's coming
 		_choose_action(player_node)
 
+#endregion
+#region AI - ACTION SELECTION
 # ============================================
 # AI - ACTION SELECTION
 # ============================================
@@ -2379,6 +2390,8 @@ func _get_action(action_name: String) -> Dictionary:
 			return action
 	return actions[0] if actions.size() > 0 else {}
 
+#endregion
+#region ACTION EXECUTION
 # ============================================
 # ACTION EXECUTION
 # ============================================
@@ -2648,6 +2661,8 @@ func _apply_burn_to_player(player_node: Node3D, stacks: int) -> void:
 	for i in range(stacks):
 		dm.apply_debuff(Debuff.new(Debuff.DebuffType.BURN, 1))
 
+#endregion
+#region FOREST ACT
 # ============================================
 # FOREST ACT — ACTIONS & HELPERS
 # ============================================
@@ -2797,6 +2812,8 @@ func _try_pipe_claw(target_node: Node3D) -> bool:
 	turn_completed.emit()
 	return true
 
+#endregion
+#region ELITE FIRST PASS
 # ============================================
 # ELITE FIRST PASS — ACTIONS & HELPERS
 # ============================================
@@ -3682,6 +3699,8 @@ func _regenerate(amount: int) -> void:
 			tween.tween_property(mat, "albedo_color", Color.GREEN, 0.15)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.15)
 
+#endregion
+#region TEMPO BAR VISUAL UPDATE
 # ============================================
 # TEMPO BAR VISUAL UPDATE
 # ============================================
@@ -3722,6 +3741,8 @@ func _update_tempo_bar() -> void:
 	if _action_label:
 		_action_label.text = chosen_action.get("name", "").capitalize()
 
+#endregion
+#region PHYSICS
 # ============================================
 # PHYSICS
 # ============================================
@@ -3793,6 +3814,8 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
+#endregion
+#region MOVEMENT & COMBAT
 # ============================================
 # MOVEMENT & COMBAT
 # ============================================
@@ -3896,6 +3919,8 @@ func _manhattan_dist(a: Vector2i, b: Vector2i) -> int:
 func attack_player(player_node: Node3D) -> void:
 	_deal_damage_to_player(player_node, attack_damage, "Attack")
 
+#endregion
+#region TAKING DAMAGE
 # ============================================
 # TAKING DAMAGE
 # ============================================
@@ -4141,6 +4166,8 @@ func _alert_mini_bear_pack() -> void:
 				e.pack_attack_bonus += 2
 				print("[%s] Packmate hurt — attack now +%d" % [e.enemy_name, e.pack_attack_bonus])
 
+#endregion
+#region FLOATING DAMAGE NUMBERS
 # ============================================
 # FLOATING DAMAGE NUMBERS
 # ============================================
@@ -4187,6 +4214,8 @@ func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
 	tween.chain()
 	tween.tween_callback(label.queue_free)
 
+#endregion
+#region DAMAGE PREVIEW
 # ============================================
 # DAMAGE PREVIEW
 # ============================================
@@ -4216,6 +4245,8 @@ func hide_damage_preview() -> void:
 	if _damage_preview_label and is_instance_valid(_damage_preview_label):
 		_damage_preview_label.visible = false
 
+#endregion
+#region STATUS EFFECTS
 # ============================================
 # STATUS EFFECTS
 # ============================================
@@ -4475,6 +4506,8 @@ func knockback(away_from: Vector3, spaces: int = 1) -> void:
 	target_position = new_pos
 	print("[%s] Knocked back %d space(s)" % [enemy_name, spaces])
 
+#endregion
+#region HEALTH & DISPLAY
 # ============================================
 # HEALTH & DISPLAY
 # ============================================
@@ -4599,6 +4632,8 @@ func _die_visuals() -> void:
 func is_alive() -> bool:
 	return not is_dead
 
+#endregion
+#region STATUS EFFECT DATA & VISUAL INDICATORS
 # ============================================
 # STATUS EFFECT DATA & VISUAL INDICATORS
 # ============================================
@@ -4778,3 +4813,4 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 		root.add_child(label)
 
 	return root
+#endregion

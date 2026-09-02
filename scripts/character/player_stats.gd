@@ -48,6 +48,7 @@ var sanguine_stacks: int = 0
 # tiles — grants combat bonuses but blocks ally healing.
 var solemn_active: bool = false
 
+#region BASE CORE STATS (before determination modifier)
 # ============================================
 # BASE CORE STATS (before determination modifier)
 # ============================================
@@ -58,6 +59,8 @@ var base_wisdom: int = 10
 var base_agility: int = 10
 var determination: int = 10  # Determination doesn't modify itself
 
+#endregion
+#region RESOURCE STATS
 # ============================================
 # RESOURCE STATS
 # ============================================
@@ -69,6 +72,8 @@ var current_mana: float = 50.0
 var base_mana_regen: float = 10.0
 var maintained_mana: int = 0  # Mana reserved by maintained Power cards
 
+#endregion
+#region DERIVED STATS
 # ============================================
 # DERIVED STATS
 # ============================================
@@ -96,6 +101,8 @@ var armor_decay_per_cycle: int = 2
 var current_temp_health: int = 0
 var temp_health_tempo_remaining: int = 0
 
+#endregion
+#region BUFF TRACKING
 # ============================================
 # BUFF TRACKING
 # ============================================
@@ -128,6 +135,8 @@ var enchantment_mana_regen_bonus: float = 0.0  # Bonus mana regen from enchantme
 var enchantment_movement_bonus: int = 0  # Bonus free moves from enchantments
 var inventory = null  # Inventory - untyped to avoid circular dependency
 
+#endregion
+#region SPHERE GRID BONUSES (tracked separately from equipment)
 # ============================================
 # SPHERE GRID BONUSES (tracked separately from equipment)
 # ============================================
@@ -147,9 +156,13 @@ var sphere_bonus_mana: int = 0
 
 # Base combat stats
 var base_crit_chance: int = 5         # Base 5% crit chance for all characters
+# Per-damage-type resistance, keyed by DamageTypes.Type → percent reduction (0..100).
+# Empty by default; nothing populates it yet, but the take_damage pipeline reads it.
+var damage_resistances: Dictionary = {}
 
 # Combat bonuses from sphere grid (neutral bonuses)
 var sphere_bonus_block: int = 0       # Extra block from block cards
+var sphere_bonus_range: int = 0       # Bonus range for ranged attacks
 var sphere_bonus_thorns: int = 0      # Damage dealt to attackers when hit
 var sphere_bonus_damage: int = 0      # Flat bonus to all attacks
 var sphere_bonus_heal_power: int = 0  # Extra HP from heal cards
@@ -278,6 +291,8 @@ signal shadow_form_ended                          # shadow form just ended (expi
 var last_attack_target = null                     # Sabre Tooth: previous attack's target
 var hit_streak: int = 0                           # Axe's Axe: hits taken toward the Death Vortex trigger
 
+#endregion
+#region SPHERE GRID KEYSTONES (build-defining nodes)
 # ============================================
 # SPHERE GRID KEYSTONES (build-defining nodes)
 # ============================================
@@ -367,11 +382,9 @@ func refresh_det_vitality() -> void:
 	_det_vitality_hp_applied = target
 	health_changed.emit(current_health, max_health)
 	print("[STATS] Bulwark Soul: %+d max HP (now %d)" % [delta, max_health])
-# Per-damage-type resistance, keyed by DamageTypes.Type → percent reduction (0..100).
-# Empty by default; nothing populates it yet, but the take_damage pipeline reads it.
-var damage_resistances: Dictionary = {}
-var sphere_bonus_range: int = 0       # Bonus range for ranged attacks
 
+#endregion
+#region SKILL TREE PASSIVES (from archetype choices)
 # ============================================
 # SKILL TREE PASSIVES (from archetype choices)
 # ============================================
@@ -452,6 +465,8 @@ func add_skill_tree_passive(passive_id: String) -> void:
 		skill_tree_passives.append(passive_id)
 		print("[STATS] Skill tree passive added: %s" % passive_id)
 
+#endregion
+#region PASSIVE POINT ALLOCATION (lane view)
 # ============================================
 # PASSIVE POINT ALLOCATION (lane view)
 # ============================================
@@ -486,6 +501,8 @@ func allocate_passive_point(passive_id: String) -> bool:
 	print("[STATS] %s leveled to %d (%d passive point(s) left)" % [passive_id, lvl + 1, unspent_passive_points])
 	return true
 
+#endregion
+#region EXPERIENCE / LEVEL
 # ============================================
 # EXPERIENCE / LEVEL
 # ============================================
@@ -497,11 +514,15 @@ var current_xp: int = 0
 var total_xp: int = 0  # Lifetime XP earned
 var unspent_stat_points: int = 0  # Banked from level-ups; spent via the skill tree screen
 
+#endregion
+#region GOLD
 # ============================================
 # GOLD
 # ============================================
 var gold: int = 0
 
+#endregion
+#region EFFECTIVE STATS (with determination modifier)
 # ============================================
 # EFFECTIVE STATS (with determination modifier)
 # ============================================
@@ -557,6 +578,8 @@ func get_base_stat(stat_name: String) -> int:
 		"determination": return determination
 	return 0
 
+#endregion
+#region INITIALIZATION
 # ============================================
 # INITIALIZATION
 # ============================================
@@ -891,6 +914,8 @@ func _print_stats() -> void:
 		current_flash_points, get_max_flash_points(), hand_size, get_effective_draw_timer()
 	])
 
+#endregion
+#region DETERMINATION SYSTEM
 # ============================================
 # DETERMINATION SYSTEM
 # ============================================
@@ -980,6 +1005,8 @@ func get_determination_description() -> String:
 	else:
 		return "%.0f%% to stats" % ((modifier - 1.0) * 100)
 
+#endregion
+#region STRENGTH CALCULATIONS
 # ============================================
 # STRENGTH CALCULATIONS
 # ============================================
@@ -1037,6 +1064,8 @@ func set_two_hand_state(active: bool, damage_bonus: int) -> void:
 func is_overburdened() -> bool:
 	return current_carry_load > get_carry_capacity()
 
+#endregion
+#region AGILITY / FLASH POINTS
 # ============================================
 # AGILITY / FLASH POINTS
 # ============================================
@@ -1127,6 +1156,8 @@ func spend_flash_for_proc_tick() -> bool:
 	register_attack(false)  # a bought tick, not a real attack — no echo credit
 	return true
 
+#endregion
+#region WISDOM / BRAIN POINTS
 # ============================================
 # WISDOM / BRAIN POINTS
 # ============================================
@@ -1204,6 +1235,8 @@ func spend_brain_for_peek() -> bool:
 		cost, current_brain_points, get_next_brain_peek_cost()])
 	return true
 
+#endregion
+#region DEXTERITY / ATTACK SPEED
 # ============================================
 # DEXTERITY / ATTACK SPEED
 # ============================================
@@ -1313,6 +1346,8 @@ func consume_free_hand_echo() -> bool:
 	_pending_free_hand_echo = false
 	return fire
 
+#endregion
+#region INTELLIGENCE CALCULATIONS
 # ============================================
 # INTELLIGENCE CALCULATIONS
 # ============================================
@@ -1335,6 +1370,8 @@ func get_int_spell_proc_damage() -> int:
 	## Arcane Echo: bonus damage (INT/2) to a random enemy when it echoes.
 	return floori(intelligence / 2.0)
 
+#endregion
+#region WISDOM CALCULATIONS
 # ============================================
 # WISDOM CALCULATIONS
 # ============================================
@@ -1351,6 +1388,8 @@ func get_effective_draw_timer() -> float:
 	## brain-point purchases instead.
 	return max(1.0, base_draw_timer * 5.0)
 
+#endregion
+#region COMBINED CALCULATIONS
 # ============================================
 # COMBINED CALCULATIONS
 # ============================================
@@ -1422,6 +1461,8 @@ func get_effective_heal_amount(base_heal: int) -> int:
 		amount = floori(amount * (1.0 + healing_boost_percent))
 	return amount
 
+#endregion
+#region TURN PROCESSING
 # ============================================
 # TURN PROCESSING
 # ============================================
@@ -1520,6 +1561,8 @@ func advance_status_tempo(amount: int) -> void:
 			is_blinded = false
 			print("[STATS] Blind wore off")
 
+#endregion
+#region RESOURCE MANAGEMENT
 # ============================================
 # RESOURCE MANAGEMENT
 # ============================================
@@ -2105,6 +2148,8 @@ func gain_mana(amount: int) -> void:
 	mana_gained.emit(amount, false)
 	print("[STATS] Gained %d mana! Mana: %d/%d (reserved: %d)" % [amount, int(current_mana), max_mana, maintained_mana])
 
+#endregion
+#region MAINTAIN SYSTEM (Power Cards)
 # ============================================
 # MAINTAIN SYSTEM (Power Cards)
 # ============================================
@@ -2134,6 +2179,8 @@ func _break_maintained_cards() -> void:
 	maintained_mana = 0
 	maintained_cards_broken.emit()
 
+#endregion
+#region EMPOWER SYSTEM
 # ============================================
 # EMPOWER SYSTEM
 # ============================================
@@ -2152,6 +2199,8 @@ func consume_empower() -> bool:
 func is_empowered() -> bool:
 	return empowered_cards_remaining > 0
 
+#endregion
+#region EQUIPMENT SUPPORT
 # ============================================
 # EQUIPMENT SUPPORT
 # ============================================
@@ -2318,6 +2367,8 @@ func get_sphere_grid_passives_for_trigger(trigger: String) -> Array[Dictionary]:
 			result.append(passive)
 	return result
 
+#endregion
+#region DEBUG / DISPLAY
 # ============================================
 # DEBUG / DISPLAY
 # ============================================
@@ -2339,6 +2390,8 @@ Level: %d | XP: %d / %d""" % [
 		current_level, current_xp, get_xp_to_next_level()
 	]
 
+#endregion
+#region EXPERIENCE / LEVELING
 # ============================================
 # EXPERIENCE / LEVELING
 # ============================================
@@ -2445,3 +2498,4 @@ func grant_stat_points(amount: int) -> void:
 	unspent_stat_points += amount
 	stats_updated.emit()
 	print("[STATS] Granted %d free stat point(s) (%d banked)." % [amount, unspent_stat_points])
+#endregion

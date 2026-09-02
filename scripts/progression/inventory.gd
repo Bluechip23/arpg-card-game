@@ -41,6 +41,7 @@ const RING_DOUBLE_TRIGGER_CYCLES: int = 3
 # Default off-hand penalty
 const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 
+#region TWO-HANDED & DUAL WIELDING
 # ============================================
 # TWO-HANDED & DUAL WIELDING
 # ============================================
@@ -65,6 +66,8 @@ const DUAL_WIELD_WEIGHT_MULT: float = 1.15
 var two_handed_slot: int = -1       # weapon slot currently held with both hands
 var two_handed_lock_slot: int = -1  # the empty hand slot two-handing occupies
 
+#endregion
+#region WAR RACK (Brad's slot identity)
 # ============================================
 # WAR RACK (Brad's slot identity)
 # ============================================
@@ -79,6 +82,8 @@ var rack_items: Array = []           # items on the back (up to weapon_slots)
 var rack_cooldown_tempo: int = 0     # tempo until the next FREE exchange
 const RACK_FREE_SWAP_COOLDOWN: int = 25
 
+#endregion
+#region EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
 # EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
@@ -672,6 +677,8 @@ func apply_equipped_item_card_effects() -> void:
 		deck_manager.shuffle_draw_pile()
 		print("[INVENTORY] Shuffled deck after adding equipped item cards")
 
+#endregion
+#region ITEM-OWNED CARDS (swap in / swap out)
 # ============================================
 # ITEM-OWNED CARDS (swap in / swap out)
 # ============================================
@@ -834,6 +841,8 @@ func _recalculate_total_weapon_weight() -> void:
 	# This now just triggers carry load recalculation
 	_recalculate_carry_load()
 
+#endregion
+#region TURN PROCESSING
 # ============================================
 # TURN PROCESSING
 # ============================================
@@ -954,6 +963,8 @@ func on_player_exposed() -> void:
 		chest.exposed_armor_cd_left = maxi(0, chest.exposed_armor_cooldown_cycles)
 		print("[INVENTORY] %s: +%d armor (Exposed reaction)" % [chest.item_name, chest.exposed_armor_gain])
 
+#endregion
+#region RING TRIGGER SYSTEM
 # ============================================
 # RING TRIGGER SYSTEM
 # ============================================
@@ -1261,6 +1272,8 @@ func _fire_custom_ring(ring: ItemData, kind: String, value: int = 0) -> void:
 		custom_ring_fired.emit(ring, kind, value)
 		print("[INVENTORY] Jeremy: %s fires twice!" % ring.item_name)
 
+#endregion
+#region GAUNTLET SKILL SYSTEM
 # ============================================
 # GAUNTLET SKILL SYSTEM
 # ============================================
@@ -1392,6 +1405,8 @@ func get_passive_effects() -> Array[String]:
 func has_passive_effect(effect_id: String) -> bool:
 	return effect_id in get_passive_effects()
 
+#endregion
+#region OVERFLOW EFFECTS
 # ============================================
 # OVERFLOW EFFECTS
 # ============================================
@@ -1406,6 +1421,8 @@ func check_overflow_effects() -> void:
 				overflow_heal_armor_triggered.emit(heal_amount, 0)
 				print("[INVENTORY] Overflow effect: Healed %d" % heal_amount)
 
+#endregion
+#region UTILITY
 # ============================================
 # UTILITY
 # ============================================
@@ -1578,6 +1595,8 @@ func get_slot_info() -> Dictionary:
 		"weapon": {"max": weapon_slots, "equipped": equipped_weapons}
 	}
 
+#endregion
+#region TWO-HANDED WIELDING
 # ============================================
 # TWO-HANDED WIELDING
 # ============================================
@@ -1715,6 +1734,8 @@ func _carry_change_allowed(load_delta: int, two_handing_after: bool) -> bool:
 		return true
 	return (load_after - cap_after) <= maxi(0, load_now - cap_now)
 
+#endregion
+#region EQUIPMENT SWAP TEMPO COSTS
 # ============================================
 # EQUIPMENT SWAP TEMPO COSTS
 # ============================================
@@ -1736,6 +1757,8 @@ func get_swap_tempo_cost(item_type: ItemData.ItemType, unequip_only: bool = fals
 			cost = 8
 	return floori(cost / 2.0) if unequip_only else cost
 
+#endregion
+#region EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
 # EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
@@ -1935,6 +1958,8 @@ func switch_build(target: int) -> Dictionary:
 	print("[INVENTORY] Switched to build %d (%d tempo worth of swaps)" % [target + 1, cost])
 	return result
 
+#endregion
+#region WAR RACK EXCHANGE
 # ============================================
 # WAR RACK EXCHANGE
 # ============================================
@@ -2160,6 +2185,8 @@ func rack_take_item(index: int) -> ItemData:
 	rack_changed.emit()
 	return item
 
+#endregion
+#region ITEM STORAGE (NON-EQUIPPED INVENTORY)
 # ============================================
 # ITEM STORAGE (NON-EQUIPPED INVENTORY)
 # ============================================
@@ -2197,6 +2224,8 @@ func used_storage_slots() -> int:
 func is_storage_full() -> bool:
 	return used_storage_slots() >= max_storage_slots
 
+#endregion
+#region STASH STORAGE
 # ============================================
 # STASH STORAGE
 # ============================================
@@ -2317,6 +2346,8 @@ func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
 	store_item(item)
 	return true
 
+#endregion
+#region STORED CARDS (share the inventory slot pool)
 # ============================================
 # STORED CARDS (share the inventory slot pool)
 # ============================================
@@ -2366,6 +2397,8 @@ func add_card_to_deck(card_index: int, dm) -> bool:
 	stored_cards.insert(card_index, card)
 	return false
 
+#endregion
+#region CULLING STONES (CONSUMABLE)
 # ============================================
 # CULLING STONES (CONSUMABLE)
 # ============================================
@@ -2381,6 +2414,8 @@ func use_culling_stone() -> bool:
 	print("[INVENTORY] Used culling stone (%d remaining)" % culling_stones)
 	return true
 
+#endregion
+#region PAPER FEATHERS & ORIGAMI SWANS
 # ============================================
 # PAPER FEATHERS & ORIGAMI SWANS
 # ============================================
@@ -2412,6 +2447,8 @@ func add_origami_swans(amount: int) -> void:
 		paper_feathers += 1
 		print("[INVENTORY] Converted 20 Origami Swans into 1 Paper Feather! (%d feathers, %d swans remaining)" % [paper_feathers, origami_swans])
 
+#endregion
+#region MYTHIC MOLDS
 # ============================================
 # MYTHIC MOLDS
 # ============================================
@@ -2439,6 +2476,8 @@ func destroy_cards_for_swans(card_count: int) -> int:
 	print("[INVENTORY] Destroyed %d cards → %d Origami Swans" % [card_count, swans_created])
 	return swans_created
 
+#endregion
+#region CARD ENCHANT / EXTRACT SYSTEM
 # ============================================
 # CARD ENCHANT / EXTRACT SYSTEM
 # ============================================
@@ -2538,3 +2577,4 @@ func get_all_slotted_cards() -> Array:
 				for card in item.slotted_cards:
 					result.append(card)
 	return result
+#endregion

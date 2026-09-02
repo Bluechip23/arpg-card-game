@@ -1138,6 +1138,7 @@ func remove_card_from_all_piles(card: Card) -> bool:
 
 	return false
 
+#region MAINTAINED CARDS (Power / Maintain keyword)
 # ============================================
 # MAINTAINED CARDS (Power / Maintain keyword)
 # ============================================
@@ -1189,3 +1190,4 @@ func dismiss_maintained_card(index: int) -> void:
 	if player_stats:
 		player_stats.release_mana(card.maintain_cost)
 	print("[DECK] Dismissed maintained card: %s (freed %dM)" % [card.card_name, card.maintain_cost])
+#endregion

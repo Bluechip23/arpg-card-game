@@ -80,6 +80,7 @@ enum GauntletSkillType {
 # inventory instead of equipped. Anything with a special_id refuses to equip.
 @export var special_id: String = ""
 
+#region RARITY & FORGE LEVELS
 # ============================================
 # RARITY & FORGE LEVELS
 # ============================================
@@ -213,6 +214,8 @@ func get_slot_effect(card) -> Dictionary:
 var granted_card_instances: Array = []
 var granted_cards_built: bool = false
 
+#endregion
+#region WEAPON MASTERY BREAKPOINT (per-item, optional)
 # ============================================
 # WEAPON MASTERY BREAKPOINT (per-item, optional)
 # ============================================
@@ -326,6 +329,8 @@ func get_mastery_text(stats = null) -> String:
 @export var pierce_targets: int = 0               # attacks strike X squares in a line through the target (Poseidons Trident 2, Lv3 3)
 @export var armor_gain_melee_damage: int = 0      # gaining armor deals X damage to an enemy in melee range (Umbral Eclipse 5, Lv3 8)
 @export var insight_flash_restore: int = 0        # Insight (brain-point) draws restore X flash points (Umbral Eclipse 2, Lv3 3)
+#endregion
+#region SHIELD RIDERS (shields pass 1)
 # ============================================
 # SHIELD RIDERS (shields pass 1)
 # ============================================
@@ -476,6 +481,8 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var ally_damage_share_percent: float = 0.0  # you take X% of damage allies/summons deal within the radius (Belthronding 10)
 @export var ally_damage_share_radius: int = 0       # radius in squares for the share above (Belthronding 3)
 
+#endregion
+#region SPELL WEAPON RIDERS (spell weapons pass 1)
 # ============================================
 # SPELL WEAPON RIDERS (spell weapons pass 1)
 # ============================================
@@ -576,6 +583,8 @@ var ring_counters: Dictionary = {}
 # Description
 @export var description: String = ""
 
+#endregion
+#region APPEARANCE (mythics)
 # ============================================
 # APPEARANCE (mythics)
 # ============================================
@@ -604,6 +613,8 @@ func get_appearance_texture() -> Texture2D:
 		return null
 	return load(appearance_icon) as Texture2D
 
+#endregion
+#region RARITY & FORGE LEVEL HELPERS
 # ============================================
 # RARITY & FORGE LEVEL HELPERS
 # ============================================
@@ -776,6 +787,8 @@ func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Diction
 		"weapon_damage": floori(weapon_damage * modifier)
 	}
 
+#endregion
+#region CARD SLOT SYSTEM
 # ============================================
 # CARD SLOT SYSTEM
 # ============================================
@@ -1009,6 +1022,8 @@ func get_card_slot_summary() -> String:
 			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(parts)
 
+#endregion
+#region WEAPONS
 # ============================================
 # WEAPONS
 # ============================================
@@ -1027,6 +1042,8 @@ static func create_return_scroll() -> ItemData:
 	item.description = "Right-click to open a portal back to town. Walk in with [Shift]. Its twin waits in town to bring you back."
 	return item
 
+#endregion
+#region TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
 # ============================================
 # TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
 # ============================================
@@ -1048,6 +1065,8 @@ static func create_wooden_sword() -> ItemData:
 	item.description = "No stats. 1 card slot, On-Self: attacks deal +1 damage. Grants Splinter while equipped."
 	return item
 
+#endregion
+#region MYTHIC ITEMS (max level 3)
 # ============================================
 # MYTHIC ITEMS (max level 3)
 # ============================================
@@ -1073,6 +1092,8 @@ static func create_bladed_doughnut() -> ItemData:
 	item.level_3_description = "+16 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
 	return item
 
+#endregion
+#region HELMS (first item pass
 # ============================================
 # HELMS (first item pass — head slot)
 # ============================================
@@ -1296,6 +1317,8 @@ static func create_theif_hat() -> ItemData:
 	item.description = "+2 AGI, +1 DEX."
 	return item
 
+#endregion
+#region BOOTS (first boots pass
 # ============================================
 # BOOTS (first boots pass — feet slot)
 # ============================================
@@ -1518,6 +1541,8 @@ static func create_caster_boots() -> ItemData:
 	item.description = "+6 INT, +2 AGI, +2 WIS. On-self: deal an additional 10% damage based on your INT."
 	return item
 
+#endregion
+#region GAUNTLETS (first gauntlets pass
 # ============================================
 # GAUNTLETS (first gauntlets pass — hands slot)
 # ============================================
@@ -1755,6 +1780,8 @@ static func create_fanned_bracers() -> ItemData:
 	item.description = "+20 life, +1 hand size. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (10 tempo CD)."
 	return item
 
+#endregion
+#region BELTS (first belts pass
 # ============================================
 # BELTS (first belts pass — waist slot)
 # ============================================
@@ -1989,6 +2016,8 @@ static func create_girdle_of_aphrodite() -> ItemData:
 	item.description = "+10 health, +2 DET, +2 AGI, +2 DEX, +2 WIS. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 15."
 	return item
 
+#endregion
+#region WEAPONS (first weapons pass
 # ============================================
 # WEAPONS (first weapons pass — both hands)
 # ============================================
@@ -2241,6 +2270,8 @@ static func create_umbral_eclipse() -> ItemData:
 	item.description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 5 damage to an enemy in melee range. Insight draws restore 2 flash points. Grants Monk of the Night (Maintain): attack cards grant 10% of their damage as block (50 mana, 4 tempo)."
 	return item
 
+#endregion
+#region CHESTS (first chests pass
 # ============================================
 # CHESTS (first chests pass — torso slot)
 # ============================================
@@ -2480,6 +2511,8 @@ static func create_hide_of_garmr() -> ItemData:
 	item.description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
 	return item
 
+#endregion
+#region RANGED (first ranged pass
 # ============================================
 # RANGED (first ranged pass — bows & quivers)
 # ============================================
@@ -2709,6 +2742,8 @@ static func create_bow_of_budding_blasts() -> ItemData:
 	item.description = "+3 INT, +4 WIS, +25 mana. 2 card slots. On-self: a crit buds a bow turret — 6 damage, attacks every 5 tempo, dies to any damage or after 2 attacks; up to 4 at once. This bow and its bow summons gain +2 damage and +5% crit chance per living bow summon. Grants Spirit Bow (Maintain): a spirit bow that stalks your enemies, 1 square per tempo, loosing a 10-damage shot every 4 tempo (65 mana, 3 tempo)."
 	return item
 
+#endregion
+#region SHIELDS (first shields pass
 # ============================================
 # SHIELDS (first shields pass — the off hand that fights back)
 # ============================================
@@ -2935,6 +2970,8 @@ static func create_crooked_dueling_shield() -> ItemData:
 	item.description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
 	return item
 
+#endregion
+#region SPELL WEAPONS (spell weapons pass 1)
 # ============================================
 # SPELL WEAPONS (spell weapons pass 1)
 # ============================================
@@ -3162,6 +3199,8 @@ static func create_feral_evocation() -> ItemData:
 	item.description = "+5 WIS, +10 INT. Two-handed. Four elemental slots — red (Burn), blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 4 damage to a random enemy within 4 squares."
 	return item
 
+#endregion
+#region RINGS (first rings pass)
 # ============================================
 # RINGS (first rings pass)
 # ============================================
@@ -3325,6 +3364,8 @@ static func create_ring_of_thomas_the_train_tracks() -> ItemData:
 	item.description = "+150 mana. +5 DET, +10 health. Shuffling your deck grants 7 Regen; every 3rd shuffle also heals 25."
 	return item
 
+#endregion
+#region ITEM FACTORY DISCOVERY
 # ============================================
 # ITEM FACTORY DISCOVERY
 # ============================================
@@ -3372,3 +3413,4 @@ static func create_by_name(item_name_to_find: String) -> ItemData:
 		if item.item_name == item_name_to_find:
 			return item
 	return null
+#endregion
