@@ -9,7 +9,7 @@ extends RefCounted
 ##   * Fodder copies must be level 1, unequipped (inventory or stash), carry no
 ##     SLOTTED cards (so enchanted cards are never silently destroyed — pull
 ##     them out at the Blacksmith first), and must not be the item being
-##     upgraded. Cards an item GRANTS on its own (granted/mastery instances)
+##     upgraded. Cards an item GRANTS on its own (granted instances)
 ##     belong to the item and die with the consumed copy — they never block
 ##     forging, otherwise no card-granting item could ever be fodder once
 ##     equipped.

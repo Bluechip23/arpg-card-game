@@ -54,7 +54,7 @@ func _initialize() -> void:
 	_check(not other.has_back_rack, "Ryan does not")
 
 	# --- Setup via exchange: hammer to hands, exchange to back, then sword+shield ---
-	var hammer = Fixtures.mastery_sledge()  # weight 90, grants Heavy Swing at STR 15
+	var hammer = Fixtures.mastery_sledge()  # weight 90, grants Heavy Swing
 	var sword = Fixtures.sword()
 	var shield = Fixtures.shield()
 	_check(inv.equip_item(hammer, 0), "hammer equips in hand")
@@ -72,7 +72,7 @@ func _initialize() -> void:
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == hammer, "hammer is in hand")
 	_check(inv.two_handed_slot == 0, "hammer arrived two-handed")
 	_check(inv.rack_items.size() == 2, "sword and shield are on the back")
-	_check(_in_hand("Heavy Swing"), "mastered hammer's card rushed to HAND (not discard)")
+	_check(_in_hand("Heavy Swing"), "hammer's granted card rushed to HAND (not discard)")
 	_check(inv.rack_cooldown_tempo == Inventory.RACK_FREE_SWAP_COOLDOWN, "25-tempo cooldown started")
 
 	# --- Free swap refused while recharging; paid swap still works ---

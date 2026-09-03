@@ -1810,8 +1810,6 @@ func _build_item_stats_text(item: ItemData) -> String:
 
 func _build_item_effect_text(item: ItemData) -> String:
 	var lines: Array[String] = []
-	if item.ring_trigger != ItemData.RingTrigger.NONE:
-		lines.append("[Ring] %s → %s" % [item.get_ring_trigger_name(), item.get_ring_effect_name()])
 	if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 		lines.append("[Active] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
 		lines.append("  Cost: %d Mana | CD: %d turns" % [item.gauntlet_skill_mana_cost, item.gauntlet_skill_cooldown])
@@ -1834,8 +1832,6 @@ func _build_item_effect_text(item: ItemData) -> String:
 	if item.overdraw_card_max > 0:
 		lines.append("[Overdraw] %d/%d %s waiting" % [item.conjured_in_manifest,
 			item.overdraw_card_max, item.overdraw_card_id.capitalize()])
-	if item.has_mastery():
-		lines.append("[%s]" % item.get_mastery_text(player_stats))
 	if item.has_card_slots():
 		lines.append("[Card Slots] %d/%d" % [item.slotted_cards.size(), item.card_slots])
 		for card in item.slotted_cards:

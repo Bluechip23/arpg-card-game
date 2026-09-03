@@ -616,13 +616,6 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 	if item.healing_bonus > 0:
 		_add_detail_line(vbox, "+%d Healing Bonus" % item.healing_bonus, Color(0.4, 0.9, 0.4))
 
-	# Ring trigger
-	if item.ring_trigger != ItemData.RingTrigger.NONE:
-		var sep = HSeparator.new()
-		vbox.add_child(sep)
-		_add_detail_line(vbox, "Trigger: %s" % item.get_ring_trigger_name(), Color(1.0, 0.85, 0.3))
-		_add_detail_line(vbox, "Effect: %s" % item.get_ring_effect_name(), Color(0.8, 1.0, 0.5))
-
 	# Gauntlet skill
 	if item.gauntlet_skill_type != ItemData.GauntletSkillType.NONE:
 		var sep = HSeparator.new()

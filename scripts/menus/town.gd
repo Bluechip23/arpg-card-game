@@ -1963,10 +1963,6 @@ func _build_modal_stats(item: ItemData) -> String:
 func _build_modal_effects(item: ItemData) -> String:
 	var lines: Array[String] = []
 
-	# Ring triggers
-	if item.ring_trigger != ItemData.RingTrigger.NONE:
-		lines.append("[Ring] %s -> %s" % [item.get_ring_trigger_name(), item.get_ring_effect_name()])
-
 	# Gauntlet skills
 	if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 		lines.append("[Active Skill] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
@@ -1989,9 +1985,6 @@ func _build_modal_effects(item: ItemData) -> String:
 		ItemData.SpecialEffect.ARMOR_PER_TURN:
 			lines.append("[Passive] +%d Armor per turn" % item.special_effect_value)
 
-	# Weapon mastery breakpoint
-	if item.has_mastery():
-		lines.append("[%s]" % item.get_mastery_text())
 
 	# On-self bonuses
 	var on_self_parts: Array[String] = []

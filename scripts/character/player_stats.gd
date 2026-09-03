@@ -566,7 +566,7 @@ func get_effective_stat(base_value: int) -> int:
 func get_base_stat(stat_name: String) -> int:
 	## Base (unmodified) value of a named stat — allocation and permanent
 	## growth only, untouched by Determination's combat swings. Used by stat
-	## gates and weapon mastery breakpoints.
+	## gates.
 	match stat_name:
 		"strength": return base_strength
 		"dexterity": return base_dexterity

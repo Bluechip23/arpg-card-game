@@ -40,31 +40,7 @@ enum SpecialEffect {
 }
 
 # Ring trigger conditions
-enum RingTrigger {
-	NONE,
-	ON_ENEMY_KILL,
-	ON_GAIN_ARMOR_THRESHOLD,
-	ON_TAKE_DAMAGE,
-	ON_HEAL,
-	ON_PLAY_ATTACK_CARD,
-	ON_PLAY_UTILITY_CARD,
-	ON_DRAW_CARD,
-	ON_DISCARD_CARD,
-	ON_LOW_HEALTH,
-	ON_FULL_MANA
-}
 
-# Ring trigger effects
-enum RingEffect {
-	NONE,
-	HEAL_TO_FULL,
-	GAIN_ARMOR,
-	GAIN_MANA,
-	DRAW_CARD,
-	DEAL_DAMAGE_ALL_ENEMIES,
-	REDUCE_COOLDOWNS,
-	GAIN_TEMP_STRENGTH
-}
 
 # Gauntlet skill types
 enum GauntletSkillType {
@@ -139,10 +115,6 @@ enum GauntletSkillType {
 @export var granted_card_ids: Array[String] = []
 
 # Ring trigger system
-@export var ring_trigger: RingTrigger = RingTrigger.NONE
-@export var ring_trigger_threshold: int = 0  # For threshold-based triggers (e.g., gain 10 armor)
-@export var ring_effect: RingEffect = RingEffect.NONE
-@export var ring_effect_value: int = 0  # Value for the effect (armor amount, mana amount, etc.)
 
 # Gauntlet skill system
 @export var gauntlet_skill_type: GauntletSkillType = GauntletSkillType.NONE
@@ -215,48 +187,7 @@ var granted_card_instances: Array = []
 var granted_cards_built: bool = false
 
 #endregion
-#region WEAPON MASTERY BREAKPOINT (per-item, optional)
-# ============================================
-# WEAPON MASTERY BREAKPOINT (per-item, optional)
-# ============================================
-# Some weapons carry a stat breakpoint: reach the threshold with your BASE
-# stat and this particular weapon reveals its mastery — extra cards granted
-# while it is equipped (riding the same owned-cards plumbing as granted
-# cards). A breakpoint is a REWARD, never a requirement: the weapon works
-# fully for anyone; a high-stat wielder just gets more out of this one.
-# Base stat means allocation/sphere-grid growth — Determination's combat
-# swings never flicker mastery on or off mid-fight.
-@export var mastery_stat: String = ""        # "strength", "dexterity", ... ("" = no breakpoint)
-@export var mastery_threshold: int = 0
-@export var mastery_card_ids: Array[String] = []
-@export var mastery_description: String = "" # short flavor for tooltips
-var mastery_card_instances: Array = []       # built once, reused (like granted cards)
-
-func has_mastery() -> bool:
-	return mastery_stat != "" and mastery_threshold > 0
-
-func is_mastered_by(stats) -> bool:
-	## True when the wielder's BASE stat meets this weapon's breakpoint.
-	if not has_mastery() or stats == null:
-		return false
-	return int(stats.get_base_stat(mastery_stat)) >= mastery_threshold
-
-func get_mastery_stat_label() -> String:
-	return "%s %d" % [mastery_stat.substr(0, 3).to_upper(), mastery_threshold]
-
-func get_mastery_text(stats = null) -> String:
-	## Tooltip line, e.g. "Mastery (DEX 15): Sweeping strikes — UNLOCKED".
-	if not has_mastery():
-		return ""
-	var line := "Mastery (%s)" % get_mastery_stat_label()
-	if mastery_description != "":
-		line += ": %s" % mastery_description
-	elif not mastery_card_ids.is_empty():
-		line += ": grants %s" % ", ".join(mastery_card_ids)
-	if stats != null:
-		line += " — UNLOCKED" if is_mastered_by(stats) else " — locked"
-	return line
-
+#region ON-SELF SLOTTED-CARD BONUSES
 # On-self bonuses (extra bonuses applied to cards slotted in this item)
 @export var on_self_damage: int = 0
 @export var on_self_block: int = 0
@@ -690,7 +621,7 @@ func _apply_level_2_boost() -> void:
 
 ## Rewrite properties from an overrides dict — the machinery behind both the
 ## Lv.2 bespoke boost and the Lv.3 transformation. Typed arrays are assigned
-## in place, and overriding the granted/mastery card lists resets their built
+## in place, and overriding the granted card list resets its built
 ## instances so the new cards are constructed on the next equip (forged items
 ## are always unequipped, so no live deck references exist).
 func _apply_overrides(overrides: Dictionary, new_description: String) -> void:
@@ -702,11 +633,10 @@ func _apply_overrides(overrides: Dictionary, new_description: String) -> void:
 			current.assign(value)
 		else:
 			set(prop, value)
-		if prop == "granted_card_ids" or prop == "mastery_card_ids":
+		if prop == "granted_card_ids":
 			cards_changed = true
 	if cards_changed:
 		granted_card_instances.clear()
-		mastery_card_instances.clear()
 		granted_cards_built = false
 	if new_description != "":
 		description = new_description
@@ -723,31 +653,6 @@ func get_type_name() -> String:
 		ItemType.QUIVER: return "Quiver"
 		ItemType.SCROLL: return "Scroll"
 	return "Unknown"
-
-func get_ring_trigger_name() -> String:
-	match ring_trigger:
-		RingTrigger.ON_ENEMY_KILL: return "On Enemy Kill"
-		RingTrigger.ON_GAIN_ARMOR_THRESHOLD: return "On Gain %d+ Armor" % ring_trigger_threshold
-		RingTrigger.ON_TAKE_DAMAGE: return "On Take Damage"
-		RingTrigger.ON_HEAL: return "On Heal"
-		RingTrigger.ON_PLAY_ATTACK_CARD: return "On Play Attack"
-		RingTrigger.ON_PLAY_UTILITY_CARD: return "On Play Utility"
-		RingTrigger.ON_DRAW_CARD: return "On Draw Card"
-		RingTrigger.ON_DISCARD_CARD: return "On Discard"
-		RingTrigger.ON_LOW_HEALTH: return "On Low Health"
-		RingTrigger.ON_FULL_MANA: return "On Full Mana"
-	return ""
-
-func get_ring_effect_name() -> String:
-	match ring_effect:
-		RingEffect.HEAL_TO_FULL: return "Heal to Full"
-		RingEffect.GAIN_ARMOR: return "Gain %d Armor" % ring_effect_value
-		RingEffect.GAIN_MANA: return "Gain %d Mana" % ring_effect_value
-		RingEffect.DRAW_CARD: return "Draw %d Card(s)" % ring_effect_value
-		RingEffect.DEAL_DAMAGE_ALL_ENEMIES: return "Deal %d to All" % ring_effect_value
-		RingEffect.REDUCE_COOLDOWNS: return "Reduce Cooldowns by %d" % ring_effect_value
-		RingEffect.GAIN_TEMP_STRENGTH: return "+%d STR this turn" % ring_effect_value
-	return ""
 
 func is_on_cooldown() -> bool:
 	return current_cooldown > 0

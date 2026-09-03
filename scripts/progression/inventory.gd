@@ -208,22 +208,9 @@ func _init_slot_arrays() -> void:
 func connect_player_stats(stats) -> void:
 	player_stats = stats
 	stats.inventory = self
-	# Weapon mastery breakpoints check base stats — re-test them whenever stats
-	# change so a fresh allocation immediately releases newly-mastered cards.
-	if not stats.stats_updated.is_connected(refresh_mastery_cards):
-		stats.stats_updated.connect(refresh_mastery_cards)
 
 func connect_deck_manager(deck) -> void:
 	deck_manager = deck
-
-func refresh_mastery_cards() -> void:
-	## Base stats only ever grow, so this only ever RELEASES held-back mastery
-	## cards (via the normal add path, which skips cards already in a zone).
-	if not deck_manager or not player_stats:
-		return
-	for item in equipped_weapons:
-		if item and item.has_mastery() and item.is_mastered_by(player_stats):
-			_add_item_cards_to_deck(item)
 
 func get_off_hand_modifier() -> float:
 	# Stephen gets bonus, others get penalty
@@ -657,8 +644,6 @@ func apply_equipped_item_card_effects() -> void:
 			for card in _get_item_owned_cards(item):
 				if _card_in_any_zone(card):
 					continue
-				if _is_locked_mastery_card(item, card):
-					continue
 				deck_manager.draw_pile.append(card)
 				print("[INVENTORY] Equipped item added %s to deck" % card.card_name)
 				cards_added = true
@@ -683,27 +668,16 @@ func apply_equipped_item_card_effects() -> void:
 # they have detached from the item.
 
 func _get_item_owned_cards(item: ItemData) -> Array:
-	## Every card instance that belongs to this item (granted + slotted +
-	## mastery), no dupes. Mastery cards are OWNED regardless of the wielder's
+	## Every card instance that belongs to this item (granted + slotted), no dupes.
 	## stats — the remove path must always be able to clean them up — but the
-	## add paths skip them until the breakpoint is met (_is_locked_mastery_card).
 	var cards: Array = []
 	for card in item.granted_card_instances:
-		if card and not cards.has(card):
-			cards.append(card)
-	for card in item.mastery_card_instances:
 		if card and not cards.has(card):
 			cards.append(card)
 	for card in item.slotted_cards:
 		if card and not cards.has(card):
 			cards.append(card)
 	return cards
-
-func _is_locked_mastery_card(item: ItemData, card) -> bool:
-	## True for a mastery card whose breakpoint the wielder hasn't reached yet.
-	if not item.mastery_card_instances.has(card):
-		return false
-	return not item.is_mastered_by(player_stats)
 
 func _ensure_granted_card_instances(item: ItemData) -> void:
 	## Build the item's granted-card instances exactly once, then reuse forever.
@@ -726,13 +700,6 @@ func _ensure_granted_card_instances(item: ItemData) -> void:
 			blink_card.granted_by_item = item
 			item.granted_card_instances.append(blink_card)
 
-	# Mastery cards get instances up front too (same lifetime rules as granted
-	# cards) — the add paths simply hold them back until the breakpoint is met.
-	for card_id in item.mastery_card_ids:
-		var card = _create_granted_card(card_id)
-		if card:
-			card.granted_by_item = item
-			item.mastery_card_instances.append(card)
 
 func _create_granted_card(card_id: String) -> Card:
 	## Prefer the deck manager's comprehensive factory; fall back to the local map.
@@ -756,8 +723,6 @@ func _add_item_cards_to_deck(item: ItemData) -> void:
 	for card in owned:
 		if _card_in_any_zone(card):
 			continue  # already live — don't duplicate it into another pile
-		if _is_locked_mastery_card(item, card):
-			continue  # breakpoint not met yet — the card waits on the item
 		if card.is_jailed():
 			deck_manager.jail_pile.append(card)
 			print("[INVENTORY] %s: returned jailed card '%s' (%d tempo left)" % [item.item_name, card.card_name, card.jail_time_remaining])
@@ -955,64 +920,14 @@ func on_player_exposed() -> void:
 # RING TRIGGER SYSTEM
 # ============================================
 
-func trigger_rings(trigger_type: ItemData.RingTrigger, value: int = 0) -> void:
-	for ring in equipped_rings:
-		if ring and ring.ring_trigger == trigger_type:
-			# Check threshold if applicable
-			if trigger_type == ItemData.RingTrigger.ON_GAIN_ARMOR_THRESHOLD:
-				if value < ring.ring_trigger_threshold:
-					continue
-			
-			_execute_ring_effect(ring)
-
-			# Jeremy's passive: every 3rd cycle, the first ring trigger happens twice
-			if is_ring_double_trigger_armed() and not ring_triggered_this_turn:
-				print("[INVENTORY] Jeremy passive: Double trigger!")
-				_execute_ring_effect(ring)
-
-			ring_triggered_this_turn = true
-
 func is_ring_double_trigger_armed() -> bool:
 	## Jeremy's passive only doubles the first ring trigger on every
 	## RING_DOUBLE_TRIGGER_CYCLES-th cycle (a per-cycle double proved busted).
 	return ring_double_trigger and ring_cycle_count > 0 \
 			and ring_cycle_count % RING_DOUBLE_TRIGGER_CYCLES == 0
 
-func _execute_ring_effect(ring: ItemData) -> void:
-	if not player_stats:
-		return
-	
-	match ring.ring_effect:
-		ItemData.RingEffect.HEAL_TO_FULL:
-			player_stats.current_health = player_stats.max_health
-			player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
-			print("[INVENTORY] Ring effect: Healed to full!")
-		
-		ItemData.RingEffect.GAIN_ARMOR:
-			player_stats.add_armor(ring.ring_effect_value)
-			print("[INVENTORY] Ring effect: Gained %d armor" % ring.ring_effect_value)
-		
-		ItemData.RingEffect.GAIN_MANA:
-			player_stats.gain_mana(ring.ring_effect_value)
-			print("[INVENTORY] Ring effect: Gained %d mana" % ring.ring_effect_value)
-		
-		ItemData.RingEffect.DRAW_CARD:
-			if deck_manager:
-				for i in range(ring.ring_effect_value):
-					deck_manager.draw_card()
-			print("[INVENTORY] Ring effect: Drew %d card(s)" % ring.ring_effect_value)
-		
-		ItemData.RingEffect.REDUCE_COOLDOWNS:
-			for gauntlet in equipped_gauntlets:
-				if gauntlet and gauntlet.current_cooldown > 0:
-					gauntlet.current_cooldown = max(0, gauntlet.current_cooldown - ring.ring_effect_value)
-			print("[INVENTORY] Ring effect: Reduced cooldowns by %d" % ring.ring_effect_value)
-	
-	ring_triggered.emit(ring, ring.get_ring_effect_name())
-
 func on_armor_gained(amount: int) -> void:
 	armor_gained_this_turn += amount
-	trigger_rings(ItemData.RingTrigger.ON_GAIN_ARMOR_THRESHOLD, armor_gained_this_turn)
 
 	# Ring pass: cumulative armor-gained counters (never reset — one journey).
 	for r in equipped_rings:
@@ -1049,7 +964,6 @@ func on_armor_gained(amount: int) -> void:
 		_applying_armor_instance_bonus = false
 
 func on_enemy_killed() -> void:
-	trigger_rings(ItemData.RingTrigger.ON_ENEMY_KILL)
 	_conjure_on_kill_cards()
 	# Axe's Axe: kills bank flash points — deliberately allowed past the cap.
 	if player_stats:
@@ -1083,17 +997,13 @@ func _conjure_on_kill_cards() -> void:
 	if conjured:
 		deck_manager.hand_updated.emit()
 
-func on_card_played(card: Card) -> void:
-	if card.card_type == Card.CardType.ATTACK:
-		trigger_rings(ItemData.RingTrigger.ON_PLAY_ATTACK_CARD)
-	elif card.card_type == Card.CardType.UTILITY:
-		trigger_rings(ItemData.RingTrigger.ON_PLAY_UTILITY_CARD)
+func on_card_played(_card: Card) -> void:
+	pass  # Card-play hook point (the enum-ring reactions that lived here were removed; bespoke rings use their own hooks)
 
 func on_card_drawn() -> void:
-	trigger_rings(ItemData.RingTrigger.ON_DRAW_CARD)
+	pass  # Card-draw hook point (same story)
 
 func on_damage_taken() -> void:
-	trigger_rings(ItemData.RingTrigger.ON_TAKE_DAMAGE)
 	# Shields pass: Steve Rodgers' bastion turns every blow into mana.
 	if player_stats:
 		for shield in get_equipped_shields():
@@ -1151,7 +1061,6 @@ func on_attacked_by(attacker, in_melee: bool) -> void:
 				rr_w.melee_retaliate_shock])
 
 func on_healed(amount: int = 0) -> void:
-	trigger_rings(ItemData.RingTrigger.ON_HEAL)
 	if amount <= 0:
 		return
 	for r in equipped_rings:
@@ -2102,8 +2011,6 @@ func _rush_item_cards_to_hand(item: ItemData) -> void:
 		return
 	var moved = false
 	for card in _get_item_owned_cards(item):
-		if _is_locked_mastery_card(item, card):
-			continue
 		var di = deck_manager.discard_pile.find(card)
 		if di < 0:
 			continue
