@@ -3,15 +3,12 @@ extends Node
 
 ## Manages overflow effects on the player
 
-signal overflow_effect_added(effect: OverflowEffect)
-signal overflow_effect_removed(effect: OverflowEffect)
 signal overflow_effects_changed
 signal manifest_card_added(manifest_name: String, card: Card)
 signal overcharge_triggered(effect_id: String, value: int)
 ## A draw just overflowed a full hand. Equipment Overdraw riders (shields pass 1)
 ## hang off this — main resolves them where the world and the buffs are.
 signal overdraw_processed(card: Card)
-signal peak_triggered(card: Card)
 signal quiver_changed
 
 # Active overflow effects
@@ -49,7 +46,6 @@ func add_overflow_effect(effect: OverflowEffect) -> void:
 	_application_counter += 1
 	
 	overflow_effects.append(effect)
-	overflow_effect_added.emit(effect)
 	overflow_effects_changed.emit()
 	
 	print("[OVERFLOW] Added: %s (source: %s)" % [effect.get_display_text(), effect.source_name])
@@ -58,25 +54,8 @@ func remove_overflow_effect(effect: OverflowEffect) -> void:
 	var index = overflow_effects.find(effect)
 	if index >= 0:
 		overflow_effects.remove_at(index)
-		overflow_effect_removed.emit(effect)
 		overflow_effects_changed.emit()
 		print("[OVERFLOW] Removed: %s" % effect.get_display_text())
-
-func remove_overflow_by_source(source_name: String) -> void:
-	for i in range(overflow_effects.size() - 1, -1, -1):
-		if overflow_effects[i].source_name == source_name:
-			var effect = overflow_effects[i]
-			overflow_effects.remove_at(i)
-			overflow_effect_removed.emit(effect)
-	overflow_effects_changed.emit()
-
-func clear_temporary_effects() -> void:
-	for i in range(overflow_effects.size() - 1, -1, -1):
-		if not overflow_effects[i].is_permanent:
-			var effect = overflow_effects[i]
-			overflow_effects.remove_at(i)
-			overflow_effect_removed.emit(effect)
-	overflow_effects_changed.emit()
 
 # ============================================
 # GET ACTIVE EFFECTS BY TYPE
@@ -182,7 +161,6 @@ func _process_jailed(card: Card, effect: OverflowEffect) -> void:
 	card.jail_time_remaining = 15
 	if deck_manager:
 		deck_manager.jail_pile.append(card)
-		deck_manager.card_jailed.emit(card)
 
 	print("[OVERFLOW] Jailed: %s for 15 tempo" % card.card_name)
 	
@@ -254,7 +232,6 @@ func _process_peak(effect: OverflowEffect) -> void:
 		var next_card = deck_manager.draw_pile.back()
 		deck_manager.peaked_card = next_card
 		deck_manager.card_peaked.emit(next_card)
-		peak_triggered.emit(next_card)
 		print("[OVERFLOW] Peak: Next card is %s" % next_card.card_name)
 	
 	if effect.use_charge():
@@ -275,7 +252,8 @@ func _process_overcharge(effect: OverflowEffect) -> void:
 				player_stats.add_armor(effect.effect_value)
 			print("[OVERFLOW] Overcharge: +%d Armor" % effect.effect_value)
 		"damage_all":
-			overcharge_triggered.emit("damage_all", effect.effect_value)
+			# Damage is dealt by main via the unconditional emit below — a second
+			# emit here double-fired the AoE (audit fix).
 			print("[OVERFLOW] Overcharge: %d Damage to All" % effect.effect_value)
 		_:
 			print("[OVERFLOW] Unknown overcharge effect: %s" % effect.overcharge_effect_id)
@@ -291,12 +269,6 @@ func _process_overcharge(effect: OverflowEffect) -> void:
 
 func get_manifest_zone() -> Array[Dictionary]:
 	return manifest_zone
-
-func get_manifest_count() -> int:
-	return manifest_zone.size()
-
-func has_manifest_cards() -> bool:
-	return manifest_zone.size() > 0
 
 func activate_manifest(index: int, target = null) -> Dictionary:
 	if index < 0 or index >= manifest_zone.size():
@@ -322,26 +294,12 @@ func activate_manifest(index: int, target = null) -> Dictionary:
 	overflow_effects_changed.emit()
 	return result
 
-func clear_manifest_zone() -> void:
-	# Discard all cards in manifest zone
-	if deck_manager:
-		for entry in manifest_zone:
-			deck_manager.discard_pile.append(entry["card"])
-	manifest_zone.clear()
-	overflow_effects_changed.emit()
-
 # ============================================
 # QUIVER ZONE FUNCTIONS
 # ============================================
 
 func get_quiver_zone() -> Array[Card]:
 	return quiver_zone
-
-func get_quiver_count() -> int:
-	return quiver_zone.size()
-
-func has_quiver_cards() -> bool:
-	return quiver_zone.size() > 0
 
 func remove_quiver_card(index: int) -> Card:
 	if index < 0 or index >= quiver_zone.size():
@@ -350,13 +308,6 @@ func remove_quiver_card(index: int) -> Card:
 	quiver_zone.remove_at(index)
 	quiver_changed.emit()
 	return card
-
-func clear_quiver_zone() -> void:
-	if deck_manager:
-		for card in quiver_zone:
-			deck_manager.discard_pile.append(card)
-	quiver_zone.clear()
-	quiver_changed.emit()
 
 # ============================================
 # DISPLAY
@@ -367,12 +318,3 @@ func get_active_effects_display() -> Array[String]:
 	for effect in overflow_effects:
 		display.append(effect.get_display_text())
 	return display
-
-func get_overflow_summary() -> String:
-	if overflow_effects.size() == 0:
-		return "No overflow effects"
-	
-	var lines: Array[String] = []
-	for effect in overflow_effects:
-		lines.append(effect.get_display_text())
-	return "\n".join(lines)

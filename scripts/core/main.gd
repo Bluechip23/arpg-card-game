@@ -5681,26 +5681,6 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 	# Trigger instant reaction cards when HP drops below 50%
 	var stats = player.get_stats()
 	if stats and current > 0 and current < max_hp * 0.5:
-		# Phoenix Grace (stack-oriented buff): each rescue burns one charge.
-		var pg_bm = player.get_buff_manager()
-		var pg = pg_bm.get_buff(Buff.BuffType.PHOENIX_GRACE) if pg_bm else null
-		if pg:
-			var pg_heal = int(max_hp * 0.8) - current
-			if pg_heal > 0:
-				stats.heal(pg_heal)
-			var pg_nearest: Enemy = null
-			var pg_dist = INF
-			for pe in enemy_spawner.get_living_enemies():
-				var pd = (pe.position - player.position).length()
-				if pd < pg_dist:
-					pg_dist = pd
-					pg_nearest = pe
-			if pg_nearest:
-				pg_nearest.apply_debuff("burn", 5)
-			if pg.use_charge():
-				pg_bm.remove_buff(Buff.BuffType.PHOENIX_GRACE)
-			add_battle_log("Phoenix Grace! Healed to 80%% HP!", Color(1.0, 0.5, 0.2))
-			return
 		var triggered = deck_manager.trigger_reactions("on_hp_below_50")
 		for card in triggered:
 			if card.card_id == "gift_from_the_phoenix":

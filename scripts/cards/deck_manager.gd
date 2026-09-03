@@ -6,21 +6,17 @@ extends Node
 signal hand_updated
 signal card_drawn(card: Card)
 signal card_discarded(card: Card)
-signal card_jailed(card: Card)
 signal deck_shuffled
 signal card_peaked(card: Card)
 signal overflow_triggered(mode: String, card: Card)
 signal on_draw_triggered(card: Card)
 signal reaction_triggered(card: Card)
-signal maintained_card_activated(card: Card)
-signal maintained_cards_cleared
 signal card_erased(card: Card)
 # A card reached the discard pile by some means other than being played —
 # forced discards, on-draw dumps, triggered instants, jail releases, expiring
 # enchantments. Ryan's Ladder Work counts these toward his opening strike.
 signal non_play_discard(card: Card)
 
-enum OverflowMode { JAILED, ENHANCE, PEAK, SKIP, OVERCHARGE, MANIFEST, NONE }
 
 var draw_pile: Array[Card] = []
 var hand: Array[Card] = []
@@ -165,7 +161,6 @@ func restore_deck_state(state: Dictionary) -> void:
 		# (Without this, every active Power became free after a zone change.)
 		if player_stats and card.maintain_cost > 0:
 			player_stats.reserve_mana(card.maintain_cost)
-		maintained_card_activated.emit(card)
 	hand_updated.emit()
 	print("[DECK] Restored deck state: hand=%d, draw=%d, discard=%d, jail=%d" % [hand.size(), draw_pile.size(), discard_pile.size(), jail_pile.size()])
 
@@ -228,35 +223,7 @@ func _create_default_deck(character: CharacterData) -> void:
 ## Default overflow behavior is NONE: when the hand is full a draw simply does
 ## nothing (the card is left on the draw pile). An overflow mode has to be set
 ## by a card or item for overflow to do anything.
-var current_overflow_mode: OverflowMode = OverflowMode.NONE
 
-func set_overflow_mode(mode: OverflowMode) -> void:
-	current_overflow_mode = mode
-	
-	# Also update overflow_manager if connected
-	if overflow_manager:
-		overflow_manager.clear_temporary_effects()
-		
-		var effect: OverflowEffect = null
-		match mode:
-			OverflowMode.JAILED:
-				effect = OverflowEffect.create_jailed(-1, "Default")
-			OverflowMode.ENHANCE:
-				effect = OverflowEffect.create_enhance(3, -1, "Default")
-			OverflowMode.PEAK:
-				effect = OverflowEffect.create_peak(-1, "Default")
-			OverflowMode.SKIP:
-				effect = OverflowEffect.create_skip(-1, "Default")
-			OverflowMode.MANIFEST:
-				effect = OverflowEffect.create_manifest_skeleton(-1, "Default")
-			OverflowMode.OVERCHARGE:
-				effect = OverflowEffect.create_overcharge_health(2, -1, "Default")
-		
-		if effect:
-			effect.is_permanent = true
-			overflow_manager.add_overflow_effect(effect)
-	
-	print("[DECK] Overflow mode set to: %s" % OverflowMode.keys()[mode])
 ## card_id -> factory method name, built once via reflection
 var _card_factory_map: Dictionary = {}
 
@@ -281,10 +248,6 @@ func _create_card_from_id(card_id: String) -> Card:
 		return card_script.call(_card_factory_map[card_id])
 	print("[DECK] Unknown card_id: %s" % card_id)
 	return null
-
-func _create_card_from_data(card_data: Dictionary) -> Card:
-	var card_id = card_data.get("id", "slash")
-	return _create_card_from_id(card_id)
 
 func shuffle_draw_pile() -> void:
 	draw_pile.shuffle()
@@ -724,7 +687,6 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		maintained_cards.append(card)
 		if player_stats:
 			player_stats.reserve_mana(card.maintain_cost)
-		maintained_card_activated.emit(card)
 		print("[DECK] %s maintained! Reserving %dM. Active maintains: %d" % [card.card_name, card.maintain_cost, maintained_cards.size()])
 	# Sticky cards stay in hand until played enough times
 	elif card.sticky > 0:
@@ -748,13 +710,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# its stated tempo before returning to the discard pile.
 		card.jail_time_remaining = card.jail_on_play
 		jail_pile.append(card)
-		card_jailed.emit(card)
 		print("[DECK] %s jailed for %d tempo after play." % [card.card_name, card.jail_on_play])
 	elif card.is_slotted() and int(card.get_on_self_bonus().get("jail_tempo", 0)) > 0:
 		# The Rapid Recurve: cards fired from it are jailed after every play.
 		card.jail_time_remaining = int(card.get_on_self_bonus().get("jail_tempo", 0))
 		jail_pile.append(card)
-		card_jailed.emit(card)
 		print("[DECK] %s jailed for %d tempo by %s." % [card.card_name, card.jail_time_remaining, card.slotted_in_item.item_name])
 	else:
 		discard_pile.append(card)
@@ -915,7 +875,6 @@ func jail_burden_card(index: int) -> bool:
 	hand.remove_at(index)
 	card.jail_burden()  # resets plays + arms the 30-tempo jail timer
 	jail_pile.append(card)
-	card_jailed.emit(card)
 	hand_updated.emit()
 	print("[DECK] %s jailed to shed its burden" % card.card_name)
 	return true
@@ -962,10 +921,6 @@ func get_draw_pile_size() -> int:
 func get_discard_pile_size() -> int:
 	return discard_pile.size()
 
-func get_jail_pile_size() -> int:
-	return jail_pile.size()
-
-## Copies of a card currently in the deck, across every zone the deck owns.
 func count_copies_in_deck(card_id: String) -> int:
 	var n := 0
 	for pile in [draw_pile, discard_pile, hand, jail_pile]:
@@ -1079,7 +1034,6 @@ func trigger_one_reaction_jailed(trigger_type: String, jail_tempo: int) -> Card:
 			hand.remove_at(i)
 			card.jail_time_remaining = jail_tempo
 			jail_pile.append(card)
-			card_jailed.emit(card)
 			reaction_triggered.emit(card)
 			hand_updated.emit()
 			print("[DECK] Reaction triggered: %s (jailed %d tempo)" % [card.card_name, jail_tempo])
@@ -1146,9 +1100,6 @@ func remove_card_from_all_piles(card: Card) -> bool:
 func get_maintained_cards() -> Array[Card]:
 	return maintained_cards
 
-func get_maintained_card_count() -> int:
-	return maintained_cards.size()
-
 func process_maintained_cards() -> Dictionary:
 	## Called each tempo cycle. Processes ongoing effects from maintained Power cards.
 	## Returns a summary of effects applied.
@@ -1177,7 +1128,6 @@ func break_all_maintained_cards() -> void:
 		print("[DECK] Maintained card discarded: %s (released %dM)" % [card.card_name, card.maintain_cost])
 	maintained_cards.clear()
 	# Note: PlayerStats already reset maintained_mana to 0 when it emitted the signal
-	maintained_cards_cleared.emit()
 
 func dismiss_maintained_card(index: int) -> void:
 	## Player voluntarily dismisses a maintained card to free up mana.

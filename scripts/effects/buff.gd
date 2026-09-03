@@ -26,7 +26,7 @@ enum BuffType {
 	SHIELD_READY,
 	REPELLED_BLOCK,
 	SHIELD_OF_GROWTH,
-	PHOENIX_GRACE,
+	PHOENIX_GRACE,  # retired (nothing applies it); slot kept for enum-order compat
 	DEMONIC_RAGE,
 	POISONED_BLOOD,
 	ELIXIR,
@@ -134,9 +134,6 @@ func _set_name_and_description() -> void:
 		BuffType.SHIELD_OF_GROWTH:
 			buff_name = "Shield of Growth"
 			description = "All damage taken increases armor by that amount for %d tempo" % duration
-		BuffType.PHOENIX_GRACE:
-			buff_name = "Phoenix Grace"
-			description = "When HP drops below 50%%: heal to 80%% and apply 5 burn to the nearest enemy (%d charge(s))" % charges
 		BuffType.DEMONIC_RAGE:
 			buff_name = "Demonic Rage"
 			description = "Next %d mana costs use health instead" % charges
@@ -182,7 +179,7 @@ func use_charge() -> bool:
 func is_charge_based() -> bool:
 	match buff_type:
 		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, \
-		BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, BuffType.PHOENIX_GRACE, \
+		BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, \
 		BuffType.DEMONIC_RAGE, BuffType.BLESSED, BuffType.HASTE, BuffType.POISONED_BLOOD:
 			return true
 	return false
@@ -218,7 +215,6 @@ func get_icon_color() -> Color:
 		BuffType.SHIELD_READY: return Color(0.4, 0.6, 0.9)
 		BuffType.REPELLED_BLOCK: return Color(0.3, 0.5, 1.0)
 		BuffType.SHIELD_OF_GROWTH: return Color(0.3, 0.8, 0.5)
-		BuffType.PHOENIX_GRACE: return Color(1.0, 0.5, 0.2)
 		BuffType.DEMONIC_RAGE: return Color(0.8, 0.1, 0.2)
 		BuffType.POISONED_BLOOD: return Color(0.5, 0.1, 0.4)
 		BuffType.ELIXIR: return Color(0.3, 0.9, 0.5)
@@ -345,13 +341,6 @@ static func create_life_steal(source: String = "") -> Buff:
 	buff.source_name = source
 	return buff
 
-## Percentage-based life steal (Resourceful Replenish): next attack heals for
-## `pct`% of the damage dealt instead of the full amount.
-static func create_life_steal_percent(pct: int, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.LIFE_STEAL, pct, -1, 1)  # value carries the percent
-	buff.source_name = source
-	return buff
-
 static func create_morphine(armor_amount: int = 4, duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.MORPHINE, armor_amount, duration)
 	buff.source_name = source
@@ -384,12 +373,6 @@ static func create_repelled_block(source: String = "") -> Buff:
 
 static func create_shield_of_growth(duration: int = 10, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.SHIELD_OF_GROWTH, 0, duration)
-	buff.source_name = source
-	return buff
-
-static func create_phoenix_grace(charges: int = 1, source: String = "") -> Buff:
-	# Stack-oriented: each HP-below-50% rescue burns one charge.
-	var buff = Buff.new(BuffType.PHOENIX_GRACE, 0, -1, charges)
 	buff.source_name = source
 	return buff
 

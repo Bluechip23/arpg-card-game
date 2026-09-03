@@ -3,8 +3,6 @@ extends PanelContainer
 
 ## Visual representation of a card in hand with tween animations
 
-signal card_hovered(card: Card, card_ui: CardUI)
-signal card_unhovered()
 
 @onready var name_label: Label = $Panel/VBox/TitleBar/TitleHBox/NameLabel
 @onready var type_label: Label = $Panel/VBox/TypeBar/TypeHBox/TypeLabel
@@ -457,13 +455,10 @@ func set_fan_rotation(angle_deg: float) -> void:
 func _on_mouse_entered() -> void:
 	_is_hovered = true
 	_update_visual()
-	if _card:
-		card_hovered.emit(_card, self)
 
 func _on_mouse_exited() -> void:
 	_is_hovered = false
 	_update_visual()
-	card_unhovered.emit()
 
 func _update_description() -> void:
 	if not desc_label or not _card:
@@ -592,13 +587,6 @@ func animate_draw_in(from_pos: Vector2, final_pos: Vector2, delay: float = 0.0) 
 	tween.tween_property(self, "rotation_degrees", _base_rotation, 0.12)
 	tween.chain()
 	tween.tween_callback(func(): z_index = final_z)
-
-func animate_slide_to(target_pos: Vector2, duration: float = 0.2) -> void:
-	## Smoothly slide card to a new hand position (rearrange).
-	_base_x = target_pos.x
-	_base_y = target_pos.y
-	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_property(self, "position", target_pos, duration)
 
 func get_card() -> Card:
 	return _card
@@ -755,10 +743,6 @@ func animate_play(target_screen_pos: Vector2, on_complete: Callable = Callable()
 			on_complete.call()
 		queue_free()
 	)
-
-func animate_discard(discard_pos: Vector2, on_complete: Callable = Callable()) -> void:
-	## Every discard shares the pop-pause-and-tube-suck.
-	animate_played_to_discard(discard_pos, on_complete)
 
 func _apply_gold_trim() -> void:
 	var style = StyleBoxFlat.new()

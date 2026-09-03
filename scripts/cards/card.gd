@@ -82,7 +82,7 @@ const CARD_RARITIES := {
 	"volatile_mixture": Rarity.RARE, "understanding": Rarity.RARE, "shuriken_pouch": Rarity.RARE,
 	"enchanted_quiver": Rarity.RARE, "tighten_string": Rarity.RARE, "down_town": Rarity.RARE,
 	"sky_fall": Rarity.RARE, "lead_arrow": Rarity.RARE, "last_breath": Rarity.RARE,
-	"bottomless_quiver": Rarity.RARE, "round_em_up": Rarity.RARE, "hydra_bite": Rarity.RARE,
+	"bottomless_quiver": Rarity.RARE, "round_em_up": Rarity.RARE,
 	"halo": Rarity.RARE, "armored_discipline": Rarity.RARE,
 	"reckless_strike": Rarity.RARE, "blade_barrage": Rarity.RARE, "cultish_wounds": Rarity.RARE,
 	"fountain_of_life": Rarity.RARE, "absorb_essence": Rarity.RARE, "communal_donation": Rarity.RARE,
@@ -170,8 +170,9 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"sprinkle": true, "sprinkle_bomb": true, "splinter": true,
 	"shuriken": true, "savage_strike_copy": true,
 	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true,
+	"biscuit": true, "energy_ball": true, "quick_arrow": true, "prepare": true,
+	"energy_barrier": true, "mana_surge": true, "magic_barrier": true, "shepherds_mark": true,
 	"paralysis": true, "release_soul": true,
-	"hydra_bite": true,
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
 	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
@@ -240,10 +241,8 @@ var cycles_in_hand: int = 0  # How many tempo cycles card has been in hand
 var rng_outcomes_data: Array = []
 var rng_selected_index: int = -1  # -1=not rolled, >=0=which outcome won, -2=binary fail
 var sticky: int = 0  # Uses before card auto-discards (0 = normal)
-var duration: int = 0  # Effect duration in tempo
 var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
 var range_modifier: int = 0  # Modifies base range: +2 = 7 range, -2 = 3 range
-var card_range: float = 0.0  # Legacy range for specific overrides
 var target_types: Array = ["enemy"]  # "enemy", "ally", "self", "point", "all_nearby"
 var consecutive_uses: int = 0  # Track how many times card played in sequence
 var snap_uses_at_play: int = 0  # uses BEFORE the current play (set by play_card; timing-safe for deferred execution)
@@ -255,7 +254,6 @@ var discard_on_draw: bool = false  # If true, card is discarded immediately afte
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
-var in_hand_heal_tempo: int = 0  # (legacy field — Healthy Bliss now runs on cycles_in_hand in main)
 var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
 var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card picker (e.g. Reposition)
 var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
@@ -269,7 +267,6 @@ var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g.,
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
 var element: String = ""  # Elemental identity for Feral Evocation's colored slots: "red" (Burn), "blue" (Cold), "yellow" (Shock), "green" (Poison). "" = not elemental.
-var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
 var has_reach: bool = false  # Reach: adds 1 square to melee attack range
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
 var delay_tempo: int = 0  # Tempo until the card's effect takes place
@@ -815,10 +812,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"arrow": "Requires a bow/quiver to slot. Ranged bow attack card",
 		"pocket": "Small items like daggers and potions. Slots into belts",
 		"gem": "Gem cards for rings",
-		"chisel": "Card must be slotted in an item to be played. Cannot be played from hand alone",
-		"swift": "Agility and movement cards. Slots into boots",
 		"buckler": "Defensive technique cards. Slots into shields",
-		"crown": "Mental and aura cards. Slots into helmets",
 		"fist": "Unarmed combat cards. Slots into gauntlets",
 	}
 
@@ -863,8 +857,6 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "delay")
 	if has_burden:
 		_add_keyword_match(found_keys, matches, all_keywords, "burden")
-	if is_chisel:
-		_add_keyword_match(found_keys, matches, all_keywords, "chisel")
 	if has_reach:
 		_add_keyword_match(found_keys, matches, all_keywords, "reach")
 
@@ -897,16 +889,6 @@ static func _is_letter(c: String) -> bool:
 	var code = c.unicode_at(0)
 	return (code >= 65 and code <= 90) or (code >= 97 and code <= 122)
 
-func increment_cycles_in_hand() -> void:
-	cycles_in_hand += 1
-
-func reset_hand_tracking() -> void:
-	cycles_in_hand = 0
-	rng_outcomes.clear()
-## How many cards this card's effect draws when it resolves. The deck manager
-## reserves hand slots for queued cards using this, so a tempo draw can't
-## steal the slot a played Draw freed (which made its effect resolve into a
-## full hand and silently do nothing).
 func get_effect_draw_count() -> int:
 	match card_id:
 		"draw", "quick_shot", "bob_and_weave", "deep_pockets", "the_lights_favor", "reposition":
@@ -1726,8 +1708,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_thrown_stone(target, player_stats, buff_mgr)
 		"gulped_potion":
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
-		"lightly_dazed":
-			pass  # Unplayable card - no execute logic
 		"djinn_wish":
 			pass  # Paying the 60 mana IS the effect — erase_on_play removes it
 		"paralysis":
@@ -1808,7 +1788,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"shepherds_mark":
 			_execute_shepherds_mark(player_stats, deck_manager)
 		# === Previously unimplemented effects ===
-		"heavy_swing", "specific_strike", "hydra_bite", "spark", "sprinkle":
+		"heavy_swing", "specific_strike", "spark", "sprinkle":
 			# Straight single-target damage (base_damage carries the value;
 			# hand/tempo riders and play-time cost/gate handled elsewhere).
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -2346,24 +2326,6 @@ func _execute_heal_with_poison_check(target, player_stats: PlayerStats, buff_mgr
 		if player_stats:
 			player_stats.heal(heal_amount)
 			print("[CARD] %s restored health!" % card_name)
-
-func enhance(amount: int) -> bool:
-	# Only enhance attack cards, and only once
-	if card_type != CardType.ATTACK:
-		print("[CARD] %s is not an attack card, cannot enhance" % card_name)
-		return false
-	
-	if is_enhanced:
-		print("[CARD] %s already enhanced, skipping" % card_name)
-		return false
-	
-	bonus_damage += amount
-	is_enhanced = true
-	print("[CARD] %s enhanced! Bonus damage now: %d" % [card_name, bonus_damage])
-	return true
-
-func get_total_damage() -> int:
-	return base_damage + bonus_damage
 
 func is_jailed() -> bool:
 	return jail_time_remaining > 0
@@ -2937,9 +2899,6 @@ func _execute_raged_circulation(target, player_stats: PlayerStats) -> void:
 		player_stats.healing_boost_tempo = 15
 	print("[CARD] Raged Circulation! Healing +30% for 15 tempo")
 
-func buff_mgr_exists(target) -> bool:
-	return target and target.has_method("get_buff_manager") and target.get_buff_manager() != null
-
 func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Stack-oriented: the next 3 heal cards deal damage instead of healing.
 	if buff_mgr:
@@ -2994,6 +2953,8 @@ func _execute_reposition(deck_manager) -> void:
 	deck_manager.hand.remove_at(discard_idx)
 	deck_manager.discard_pile.append(discarded)
 	deck_manager.discards_this_cycle += 1
+	deck_manager.card_discarded.emit(discarded)
+	deck_manager.non_play_discard.emit(discarded)
 	deck_manager.draw_card()
 	deck_manager.hand_updated.emit()
 	picked_card = null
@@ -3289,6 +3250,8 @@ func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
 			var card = deck_manager.hand.pop_back()
 			deck_manager.discard_pile.append(card)
 			deck_manager.discards_this_cycle += 1
+			deck_manager.card_discarded.emit(card)
+			deck_manager.non_play_discard.emit(card)
 		var draw_count = max(0, deck_manager.get_hand_cap() - 2)
 		for i in range(draw_count):
 			deck_manager.draw_card()
@@ -3330,7 +3293,6 @@ static func create_wear_down() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
 	card.tempo_cost = 1
-	card.duration = 15
 	card.target_types = ["self"]
 	return card
 
@@ -3459,7 +3421,6 @@ static func create_turtle_up() -> Card:
 	card.card_type_name = "Defense"
 	card.mana_cost = 30
 	card.tempo_cost = 0
-	card.duration = 20
 	card.target_types = ["self"]
 	return card
 
@@ -3570,7 +3531,6 @@ static func create_biscuit() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 20
 	card.tempo_cost = 0
-	card.duration = 15
 	card.target_types = ["self"]
 	return card
 
@@ -3639,7 +3599,6 @@ static func create_hope_this_works() -> Card:
 	card.mana_cost = 20
 	card.tempo_cost = 3
 	card.rng_outcomes_data = [{percent = 50.0}]
-	card.duration = 15
 	card.target_types = ["ally"]
 	return card
 
@@ -3653,7 +3612,6 @@ static func create_lady_luck() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 40
 	card.tempo_cost = 1
-	card.duration = 10
 	card.target_types = ["ally"]
 	return card
 
@@ -3667,7 +3625,6 @@ static func create_try_this() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.rng_outcomes_data = [{percent = 10.0}]
-	card.duration = 10
 	card.target_types = ["ally"]
 	return card
 
@@ -3762,7 +3719,6 @@ static func create_shadows() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
 	card.tempo_cost = 4
-	card.duration = 10
 	card.target_types = ["self"]
 	return card
 
@@ -3828,7 +3784,6 @@ static func create_understanding() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 50
 	card.tempo_cost = 1
-	card.duration = 10
 	card.target_types = ["self"]
 	return card
 
@@ -3944,7 +3899,6 @@ static func create_enchanted_quiver() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 40
 	card.tempo_cost = 5
-	card.duration = 3
 	card.target_types = ["self"]
 	return card
 
@@ -3957,7 +3911,6 @@ static func create_tighten_string() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 30
 	card.tempo_cost = 3
-	card.duration = 3
 	card.target_types = ["self"]
 	return card
 
@@ -4002,7 +3955,6 @@ static func create_sky_fall() -> Card:
 	card.tempo_cost = 5
 	card.damage = 18
 	card.base_damage = 18
-	card.duration = 10
 	card.is_ranged = true
 	card.range_modifier = 4
 	card.target_types = ["point"]
@@ -4155,7 +4107,6 @@ static func create_choke() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.sticky = 3
-	card.duration = 3
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
@@ -4371,26 +4322,6 @@ static func create_release_soul() -> Card:
 	card.erase_on_play = true
 	card.linger = true
 	card.target_types = ["self"]
-	return card
-
-static func create_hydra_bite() -> Card:
-	var card = Card.new()
-	card.card_id = "hydra_bite"
-	card.card_name = "Hydra Bite"
-	card.description = "Deal 7 damage. Erased from your deck after being played."
-	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
-	card.mana_cost = 10
-	card.tempo_cost = 0
-	card.resolve_tick = 0
-	card.damage = 7
-	card.base_damage = 7
-	card.block = 0
-	card.base_block = 0
-	card.heal_amount = 0
-	card.erase_on_play = true
-	card.linger = true  # Generated into hand; may exceed hand cap
-	card.target_types = ["enemy"]
 	return card
 
 static func create_thrown_stone() -> Card:
@@ -4986,7 +4917,6 @@ static func create_shield_of_growth() -> Card:
 	card.card_type_name = "Defense"
 	card.mana_cost = 40
 	card.tempo_cost = 5
-	card.duration = 10
 	card.target_types = ["self"]
 	return card
 
@@ -5817,7 +5747,6 @@ static func create_harness_lightning() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.duration = 30
 	card.target_types = ["self"]
 	return card
 
@@ -5928,7 +5857,6 @@ static func create_vines() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.duration = 15  # 3 turns ~ 15 tempo
 	card.target_types = ["enemy"]
 	return card
 
@@ -6147,7 +6075,6 @@ static func create_hunker_down() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.duration = 30
 	card.target_types = ["self"]
 	return card
 
@@ -6182,7 +6109,6 @@ static func create_harden() -> Card:
 	card.block = 10
 	card.base_block = 10
 	card.heal_amount = 0
-	card.duration = 15
 	card.target_types = ["self"]
 	return card
 
@@ -6224,7 +6150,6 @@ static func create_cryonics() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 3
-	card.duration = 15
 	card.is_ranged = true
 	card.target_types = ["ally"]
 	return card
@@ -6830,7 +6755,6 @@ static func create_healthy_bliss() -> Card:
 	card.base_block = 0
 	card.heal_amount = 10
 	card.target_types = ["ally"]
-	card.in_hand_heal_tempo = 20  # Heals all allies once it has spent this long in hand
 	return card
 
 # ============================================

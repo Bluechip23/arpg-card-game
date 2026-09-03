@@ -6,7 +6,6 @@ extends Node
 signal debuff_applied(debuff: Debuff)
 signal debuff_removed(debuff: Debuff)
 signal debuff_expired(debuff: Debuff)  # NATURAL expiry only, never purges (mirrors the enemy-side signal)
-signal debuff_ticked(debuff: Debuff)
 signal debuffs_changed
 signal magnetize_pull(tiles: int, direction: Vector3)
 signal point_to_prove_triggered(debuff: Debuff)  # Emitted when stun/disarm hits with Point to Prove active
@@ -243,7 +242,6 @@ func advance_time(amount: int) -> void:
 		return
 	var expired: Array[Debuff] = []
 	for debuff in debuffs:
-		debuff_ticked.emit(debuff)
 		if debuff.advance_time(amount):
 			expired.append(debuff)
 
@@ -340,9 +338,6 @@ func get_tether_range() -> int:
 func set_tether_origin(pos: Vector3) -> void:
 	tether_origin = pos
 
-func get_tether_origin() -> Vector3:
-	return tether_origin
-
 func is_within_tether_range(target_pos: Vector3, grid_size: float = 1.0) -> bool:
 	if not is_tethered():
 		return true
@@ -355,9 +350,6 @@ func is_within_tether_range(target_pos: Vector3, grid_size: float = 1.0) -> bool
 # ============================================
 # CARD QUERIES
 # ============================================
-
-func can_act() -> bool:
-	return not has_debuff(Debuff.DebuffType.STUN)
 
 func can_play_cards() -> bool:
 	if has_debuff(Debuff.DebuffType.STUN):
@@ -542,12 +534,3 @@ func on_attack() -> int:
 # ============================================
 # DISPLAY
 # ============================================
-
-func get_debuff_display_list() -> Array[String]:
-	var list: Array[String] = []
-	for debuff in debuffs:
-		if debuff.duration < 0:
-			list.append("%s (∞)" % debuff.get_short_display())
-		else:
-			list.append("%s (%d)" % [debuff.get_short_display(), debuff.duration])
-	return list

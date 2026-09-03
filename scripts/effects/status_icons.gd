@@ -223,12 +223,6 @@ static func _draw(img: Image, key: String) -> bool:
 			_rect(img, 2, 8, 3, 7, steel)                             # plunger
 			_line(img, 16, 11, 22, 11, steel, 1.0)                    # needle
 			_rect(img, 7, 10, 3, 3, Color(0.8, 0.4, 0.6))             # fluid
-		"phoenix_grace":
-			# A red-orange-yellow feather.
-			var cols := [Color(0.85, 0.2, 0.15), Color(0.95, 0.5, 0.15), Color(1.0, 0.8, 0.3)]
-			for i in range(5):
-				_disc(img, 6 + i * 3, 18 - i * 3, 2.6, cols[mini(i / 2, 2)])
-			_line(img, 4, 20, 19, 5, Color(0.6, 0.3, 0.1))            # quill
 		"cleanse":
 			# A chalice.
 			var gold2 := Color(0.9, 0.75, 0.35)
