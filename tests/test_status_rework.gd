@@ -5,8 +5,7 @@ extends SceneTree
 ## charge-based; Poisoned Blood burns a charge per converted heal; Elixir burns
 ## a stack per healed poison tick; Phoenix Grace is charge-based.
 ## Debuffs — Bleed 1 dmg/tile consuming stacks; Slowed/Weighted/Staggered/
-## Clumsy burn stacks by use; Tethered fixed 5-tile leash; Linked fixed 20%
-## without hit consumption; Blind defaults to 80%.
+## Clumsy burn stacks by use; Blind defaults to 80%.
 ## Run: godot --headless --path . --script tests/test_status_rework.gd
 
 var failures := 0
@@ -106,21 +105,6 @@ func _initialize() -> void:
 	_check(dm.has_debuff(Debuff.DebuffType.WEIGHTED), "Weighted has a stack left")
 	dm.on_card_played(false)  # non-attack card
 	_check(not dm.has_debuff(Debuff.DebuffType.WEIGHTED), "Weighted burned by the second card")
-
-	# --- Tethered: fixed 5-tile leash ---
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.TETHERED, 0, 15))
-	dm.set_tether_origin(Vector3.ZERO)
-	_check(dm.get_tether_range() == Debuff.TETHER_RANGE, "Tether range is the fixed 5")
-	_check(dm.is_within_tether_range(Vector3(4, 0, 0)), "4 tiles: inside the leash")
-	_check(not dm.is_within_tether_range(Vector3(7, 0, 0)), "7 tiles: outside the leash")
-	dm.clear_all_debuffs()
-
-	# --- Linked: fixed 20%, no per-hit consumption ---
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.LINKED, 0, 15))
-	_check(dm.calculate_linked_damage(10) == 2, "Linked shares 20% (2 of 10)")
-	_check(dm.calculate_linked_damage(10) == 2, "Linked share unchanged by the hit")
-	_check(dm.has_debuff(Debuff.DebuffType.LINKED), "Linked persists (tempo-driven)")
-	dm.clear_all_debuffs()
 
 	# --- Per-tempo ticking: a 3-tempo stun works at any granularity ---
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 3))

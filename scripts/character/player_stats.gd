@@ -1625,13 +1625,6 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	if debuff_mgr:
 		remaining = debuff_mgr.modify_incoming_damage(remaining)
 
-	# Linked: share a portion of the damage with the linked ally (co-op).
-	if debuff_mgr and debuff_mgr.linked_ally != null and is_instance_valid(debuff_mgr.linked_ally) and remaining > 0:
-		var linked_share = debuff_mgr.calculate_linked_damage(remaining)
-		if linked_share > 0 and debuff_mgr.linked_ally.has_method("get_stats") and debuff_mgr.linked_ally.get_stats():
-			debuff_mgr.linked_ally.get_stats().take_direct_damage(linked_share)
-			print("[STATS] Linked shares %d damage with the ally" % linked_share)
-
 	# Apply Brace and Resilient from buffs (Resilient may be type-gated, e.g. Harden)
 	if buff_mgr:
 		remaining = buff_mgr.calculate_damage_reduction(remaining, damage_type)

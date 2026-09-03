@@ -129,11 +129,6 @@ var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
 # many tiles the action covers — unlike the player, who pays per tile.
 # Stacks accumulate freely (Sword of Theseus ramps them) — no timed expiry.
 var slow_stacks: int = 0
-var inebriated_tempo: int = 0  # Inebriate (matches the player's): movement direction randomized
-# Cursed (matches the player's): deals 20% less damage and takes 20% of the
-# damage it deals as self-damage — both boosted by the player's Curse Amp /
-# Curse Pain sphere nodes. Counts in raw tempo.
-var cursed_tempo: int = 0
 var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
@@ -1756,8 +1751,8 @@ func _tick_timed_statuses(amount: int) -> void:
 		return
 	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
-		or frozen_tempo > 0 or stun_tempo > 0 or inebriated_tempo > 0 \
-		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0
+		or frozen_tempo > 0 or stun_tempo > 0 \
+		or rooted_tempo > 0 or narashimha_tempo > 0
 	if not any:
 		return
 
@@ -1826,20 +1821,6 @@ func _tick_timed_statuses(amount: int) -> void:
 			is_stunned = false
 			print("[%s] Stun expired, can act again" % enemy_name)
 			debuff_expired.emit(self, "stun")
-
-	if inebriated_tempo > 0:
-		inebriated_tempo -= amount
-		if inebriated_tempo <= 0:
-			inebriated_tempo = 0
-			print("[%s] Sobered up — movement restored" % enemy_name)
-			debuff_expired.emit(self, "inebriate")
-
-	if cursed_tempo > 0:
-		cursed_tempo -= amount
-		if cursed_tempo <= 0:
-			cursed_tempo = 0
-			print("[%s] Curse lifted" % enemy_name)
-			debuff_expired.emit(self, "cursed")
 
 	if rooted_tempo > 0:
 		rooted_tempo -= amount
@@ -2399,23 +2380,6 @@ func _get_action(action_name: String) -> Dictionary:
 func _execute_action(action_name: String, move_target: Node3D) -> bool:
 	# Play animation for this action
 	_play_enemy_animation(action_name)
-
-	# Inebriated (matches the player's): movement staggers off in a random
-	# direction instead of going where the AI wanted.
-	if inebriated_tempo > 0 and MOVEMENT_ACTIONS.has(action_name):
-		var drunk_dir := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
-		if drunk_dir.length() < 0.1:
-			drunk_dir = Vector3(1, 0, 0)
-		drunk_dir = drunk_dir.normalized()
-		var stagger_tiles := 2
-		if grid_manager:
-			var drunk_cell = grid_manager.world_to_grid(position + drunk_dir * float(stagger_tiles))
-			_start_path(_build_greedy_path(position, drunk_cell, stagger_tiles))
-		else:
-			target_position = position + drunk_dir * float(stagger_tiles)
-			is_moving = true
-		print("[%s] Inebriated! Staggers off in a random direction" % enemy_name)
-		return true
 
 	match action_name:
 		"attack":
@@ -3550,17 +3514,6 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		# zone — no stack to consume, it lifts the moment the enemy leaves.
 		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - weaken_percent / 100.0))
 		print("[%s] Weakened by the Territorial Mark! -%d%% damage" % [enemy_name, int(weaken_percent)])
-	# Cursed (player-applied): deals (20 + Curse Amp)% less damage, and takes
-	# (20 + Curse Pain)% of the damage it deals back as self-damage.
-	if cursed_tempo > 0:
-		var curse_reduce: float = 20.0 + _player_sphere_amp("sphere_curse_amp")
-		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - curse_reduce / 100.0))
-		print("[%s] Cursed! -%d%% damage dealt" % [enemy_name, int(curse_reduce)])
-		var curse_pain: float = 20.0 + _player_sphere_amp("sphere_curse_pain_amp")
-		var self_dmg: int = floori(effective_damage * curse_pain / 100.0)
-		if self_dmg > 0 and not is_dead:
-			take_damage(self_dmg, false)
-			print("[%s] Cursed! Takes %d self-damage (%d%% of the blow)" % [enemy_name, self_dmg, int(curse_pain)])
 	print("[%s] %s for %d damage! (base %d, reduction %d)" % [enemy_name, attack_name, effective_damage, base_damage, attack_reduction])
 
 	# Summon targets (Frankensteins Monster, surfaced Bull Worms) have no player
@@ -4339,7 +4292,6 @@ func apply_wear_down(tempo: int) -> void:
 ## Keys mirror the match arms in apply_debuff.
 func has_debuff_type(debuff_name: String) -> bool:
 	match debuff_name:
-		"inebriate": return inebriated_tempo > 0
 		"stun": return is_stunned and stun_tempo > 0
 		"slow": return slow_stacks > 0
 		"disarmed": return is_disarmed and disarmed_tempo > 0
@@ -4354,7 +4306,6 @@ func has_debuff_type(debuff_name: String) -> bool:
 		"vulnerable": return vulnerable_stacks > 0
 		"weaken": return weaken_stacks > 0
 		"root": return rooted_tempo > 0
-		"cursed": return cursed_tempo > 0
 		"disarm_attacks": return disarmed_attacks > 0
 		"narashimha": return narashimha_tempo > 0
 		"polymorph": return polymorph_tempo > 0
@@ -4373,10 +4324,6 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		debuff_name = Card.active_element_remap
 	last_debuff_was_new = not has_debuff_type(debuff_name)
 	match debuff_name:
-		"inebriate":
-			# Matches the player's Inebriate: movement direction is randomized.
-			inebriated_tempo = max(inebriated_tempo, value)
-			print("[%s] Inebriated for %d tempo — movement randomized!" % [enemy_name, inebriated_tempo])
 		"stun":
 			is_stunned = true
 			stun_tempo = max(stun_tempo, value + int(_player_sphere_amp("sphere_stun_amp")))
@@ -4448,11 +4395,6 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			# value is the hold in raw tempo; can attack and cast, cannot move
 			rooted_tempo = max(rooted_tempo, value + int(_player_sphere_amp("sphere_root_amp")))
 			print("[%s] Rooted for %d tempo!" % [enemy_name, rooted_tempo])
-		"cursed":
-			# Matches the player's Cursed: deals less damage AND hurts itself on
-			# every attack (base 20%/20%, boosted by Curse Amp / Curse Pain).
-			cursed_tempo = max(cursed_tempo, value)
-			print("[%s] Cursed for %d tempo!" % [enemy_name, cursed_tempo])
 		"disarm_attacks":
 			disarmed_attacks += value
 			print("[%s] Disarmed for %d attack(s)!" % [enemy_name, disarmed_attacks])
@@ -4663,10 +4605,6 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
 	if slow_stacks > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
-	if inebriated_tempo > 0:
-		effects.append({"name": "Inebriate", "color": Color(0.8, 0.4, 0.8), "stacks": inebriated_tempo})
-	if cursed_tempo > 0:
-		effects.append({"name": "Cursed", "color": Color(0.3, 0.0, 0.3), "stacks": cursed_tempo})
 	if is_disarmed and disarmed_tempo > 0:
 		effects.append({"name": "Disarm", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_tempo})
 	if is_marked and marked_tempo > 0:

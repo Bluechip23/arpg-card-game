@@ -329,11 +329,6 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		spaces += haste_bonus
 		print("[PLAYER] Haste grants +%d movement" % haste_bonus)
 
-	if debuff_manager.get_random_movement_direction():
-		var random_offset = Vector3(randf_range(-3, 3), 0, randf_range(-3, 3))
-		target_pos = position + random_offset
-		print("[PLAYER] Inebriated! Moving in random direction")
-
 	if not grid_manager:
 		target_position = target_pos
 		is_moving = true

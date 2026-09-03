@@ -145,8 +145,6 @@ static func hand_size_gauntlets() -> ItemData:
 	item.item_type_name = "Gauntlets"
 	item.weight = 3
 	item.hand_size_bonus = 2
-	item.special_effect = ItemData.SpecialEffect.INCREASE_HAND_SIZE
-	item.special_effect_value = 2
 	return item
 
 ## Legendary shield with a Lv.3 transformation (forge tests) — mirrors the
@@ -179,7 +177,6 @@ static func mythic_gauntlets() -> ItemData:
 	item.gauntlet_skill_name = "Test Skill"
 	item.gauntlet_skill_description = "Deal 20 damage"
 	item.gauntlet_skill_cooldown = 4
-	item.gauntlet_skill_mana_cost = 3
 	item.gauntlet_skill_effect_id = "test_skill"
 	item.level_3_overrides = {
 		"gauntlet_skill_effect_id": "test_skill_awakened",

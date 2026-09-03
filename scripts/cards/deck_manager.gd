@@ -642,7 +642,6 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	if debuff_mgr:
 		damage_reduction_pct = debuff_mgr.get_damage_reduction_percent()
-		self_damage_percent = debuff_mgr.get_self_damage_percent()
 
 	if player_node and player_node.has_method("get_buff_manager"):
 		buff_mgr = player_node.get_buff_manager()
@@ -774,7 +773,6 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 
 	if debuff_mgr:
 		damage_reduction_pct = debuff_mgr.get_damage_reduction_percent()
-		self_damage_percent = debuff_mgr.get_self_damage_percent()
 
 	# Killing Rhythm (DEX keystone): spend any armed bonus on this attack.
 	var dex_flat_bonus = 0

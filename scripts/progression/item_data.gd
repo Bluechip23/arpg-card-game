@@ -26,8 +26,8 @@ enum Rarity { COMMON, RARE, LEGENDARY, MYTHIC }
 enum SpecialEffect {
 	NONE,
 	OVERFLOW_HEAL_ARMOR,
-	GRANT_BLINK_CARD,
-	INCREASE_HAND_SIZE,
+	GRANT_BLINK_CARD,   # retired (use GRANT_CARDS + granted_card_ids); slot kept for enum-order compat
+	INCREASE_HAND_SIZE, # retired (use the hand_size_bonus field); slot kept for enum-order compat
 	CHANCE_BOOST,
 	GRANT_CARDS,
 	ARMOR_ON_ARMOR_GAIN,
@@ -36,7 +36,7 @@ enum SpecialEffect {
 	ON_TEMPO_MOVEMENT_DAMAGE,
 	ON_KILL_INVISIBLE,
 	CRIT_ZERO_MANA_CARDS,
-	POCKET_KNIFE_PROC
+	POCKET_KNIFE_PROC   # retired (no item carries it); slot kept for enum-order compat
 }
 
 # Ring trigger conditions
@@ -121,7 +121,6 @@ enum GauntletSkillType {
 @export var gauntlet_skill_name: String = ""
 @export var gauntlet_skill_description: String = ""
 @export var gauntlet_skill_cooldown: int = 0  # Turns for active skills
-@export var gauntlet_skill_mana_cost: int = 0  # For active skills
 @export var gauntlet_skill_effect_id: String = ""  # Identifier for the effect
 
 # Card slot system
@@ -178,7 +177,7 @@ func get_slot_effect(card) -> Dictionary:
 		return slot_effects[idx]
 	return {}
 
-# Granted cards (GRANT_CARDS / GRANT_BLINK_CARD). Built once the first time the
+# Granted cards (GRANT_CARDS). Built once the first time the
 # item is equipped, then reused for the item's lifetime so the SAME instances
 # come and go with the item on every swap — preserving per-card state (jail
 # time, enhancement) across equip/unequip. Slotted (enchanted) cards
@@ -743,9 +742,11 @@ func can_slot_card(card) -> bool:
 func _get_default_keyword_for_item_type() -> int:
 	match item_type:
 		ItemType.BELT: return 2      # POCKET
-		ItemType.BOOTS: return 5     # SWIFT
+		# Boots and helms take any card: the Swift/Crown keywords exist but no
+		# card carries them, and those slots must not sit dead (same as shields).
+		ItemType.BOOTS: return -1
 		ItemType.RING: return 3      # GEM
-		ItemType.HELM: return 7      # CROWN
+		ItemType.HELM: return -1
 		ItemType.GAUNTLETS: return 8 # FIST
 		ItemType.QUIVER: return 1    # ARROW
 		ItemType.WEAPON:

@@ -624,7 +624,7 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 		_add_detail_line(vbox, "%s Skill: %s" % [skill_type_str, item.gauntlet_skill_name], Color(0.9, 0.6, 0.3))
 		_add_detail_line(vbox, item.gauntlet_skill_description, Color(0.7, 0.7, 0.8))
 		if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
-			_add_detail_line(vbox, "CD: %d turns, Cost: %dM" % [item.gauntlet_skill_cooldown, item.gauntlet_skill_mana_cost], Color(0.6, 0.6, 0.7))
+			_add_detail_line(vbox, "CD: %d turns" % item.gauntlet_skill_cooldown, Color(0.6, 0.6, 0.7))
 
 	# Card slots
 	if item.card_slots > 0:

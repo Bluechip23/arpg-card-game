@@ -2040,11 +2040,6 @@ func _execute_basic_attack(target: Enemy) -> void:
 		if stats.keystone_dex_twin_strike:
 			damage *= 2
 			print("[MAIN] Flurry Form: basic attack strikes twice!")
-		# Pocket Knife: -2 additional tempo
-		var ba_inv = player.get_inventory()
-		if ba_inv and ba_inv.has_pocket_knife_equipped():
-			tempo_cost = maxi(0, tempo_cost - 2)
-			print("[MAIN] Pocket Knife! Basic attack tempo reduced to %d" % tempo_cost)
 		print("[MAIN] Dex proc on basic attack! Tempo halved to %d" % tempo_cost)
 		_on_hand_updated()
 		_update_attack_button_text()
@@ -3246,10 +3241,6 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	if preview_proc:
 		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
 		preview_tempo = preview_tempo / 2
-		# Pocket Knife: additional -2 tempo
-		var tip_inv = player.get_inventory()
-		if tip_inv and tip_inv.has_pocket_knife_equipped():
-			preview_tempo = maxi(0, preview_tempo - 2)
 
 	var info_row = HBoxContainer.new()
 	info_row.add_theme_constant_override("separation", 8)
@@ -3831,8 +3822,6 @@ func select_character(character: CharacterData) -> void:
 	skill_tree_ui.player_stats = player.get_stats()
 	# The sphere grid checks stat-gated node requirements against the player.
 	sphere_grid_ui.player_stats = player.get_stats()
-	# Magnetized debuff: wire the pull (emitted each cycle-end) to the handler.
-	player.get_debuff_manager().magnetize_pull.connect(func(tiles, _dir): _apply_magnetize_pull(tiles))
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
@@ -4024,14 +4013,6 @@ func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	if _movement_locked():
 		_notify_movement_locked()
 		return
-	var debuff_mgr = player.get_debuff_manager()
-
-	# Check Tethered range
-	if debuff_mgr and debuff_mgr.is_tethered():
-		if not debuff_mgr.is_within_tether_range(target_pos, grid_manager.grid_size):
-			print("[MAIN] Cannot move - Tethered! Out of range.")
-			return
-
 	player.move_to_grid(target_pos, spaces)
 
 func _on_move_cancelled() -> void:
@@ -4048,12 +4029,6 @@ func _on_move_lock_in(target_pos: Vector3, spaces: int) -> void:
 	if _movement_locked():
 		_notify_movement_locked()
 		return
-	var debuff_mgr = player.get_debuff_manager()
-	if debuff_mgr and debuff_mgr.is_tethered():
-		if not debuff_mgr.is_within_tether_range(target_pos, grid_manager.grid_size):
-			print("[MAIN] Cannot lock in move - Tethered! Out of range.")
-			return
-
 	_locked_moves[_active_index] = {"pos": target_pos, "spaces": spaces}
 	_show_locked_marker(_active_index, target_pos)
 	_ensure_move_players_button()
@@ -4504,11 +4479,6 @@ func _all_players() -> Array:
 #endregion
 #region CO-OP: DOWNED & DEFEAT
 func _setup_co_op_defeat() -> void:
-	# Linked debuff: each partner is the other's "nearest ally" for damage sharing.
-	if _p1_player.get_debuff_manager():
-		_p1_player.get_debuff_manager().linked_ally = _p2_player
-	if _p2_player.get_debuff_manager():
-		_p2_player.get_debuff_manager().linked_ally = _p1_player
 	var s1 = _p1_player.get_stats()
 	var s2 = _p2_player.get_stats()
 	if s1:
@@ -6108,10 +6078,6 @@ func _on_hand_updated() -> void:
 	var draw_origin = _get_draw_pile_pos()
 
 	var dex_proc_active = deck_manager.next_attack_half_tempo or deck_manager.next_attack_mana_discount > 0
-	var pocket_knife = false
-	if dex_proc_active:
-		var hand_inv = player.get_inventory()
-		pocket_knife = hand_inv and hand_inv.has_pocket_knife_equipped()
 
 	var anim_ordinal := 0
 	for g in range(group_count):
@@ -6123,7 +6089,7 @@ func _on_hand_updated() -> void:
 		var card_ui = CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
 		# Debuff hexed/locked display keys off the card's real hand index.
-		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active, pocket_knife)
+		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active)
 		card_ui.set_stack_depth(count)
 		# The instant stack has no play key — its badge reads AUTO instead.
 		var badge_letter: String = "" if group["slot"] == HandSlotsScript.INSTANT_SLOT else _slot_letter(group["slot"])
@@ -6875,34 +6841,6 @@ func _process_glut_countdown() -> void:
 		else:
 			print("[MAIN] Glut: %d tempo remaining" % glut_tempo_remaining)
 
-func _apply_magnetize_pull(tiles: int) -> void:
-	var enemies = enemy_spawner.get_living_enemies()
-	if enemies.size() == 0:
-		return
-	
-	# Find nearest enemy
-	var nearest_enemy = enemies[0]
-	var diff = player.position - nearest_enemy.position
-	var nearest_dist = Vector3(diff.x, 0, diff.z).length()
-
-	for enemy in enemies:
-		var e_diff = player.position - enemy.position
-		var dist = Vector3(e_diff.x, 0, e_diff.z).length()
-		if dist < nearest_dist:
-			nearest_dist = dist
-			nearest_enemy = enemy
-
-	# Calculate pull direction
-	var pull_diff = nearest_enemy.position - player.position
-	var direction = Vector3(pull_diff.x, 0, pull_diff.z).normalized()
-	var pull_distance = tiles * grid_manager.grid_size
-	var new_pos = player.position + direction * pull_distance
-	new_pos = grid_manager.snap_to_grid(new_pos)
-	
-	# Move player
-	player.position = new_pos
-	player.target_position = new_pos
-	print("[MAIN] Magnetized pulled player %d tiles toward %s" % [tiles, nearest_enemy.enemy_name])
 #endregion
 #region TEMPO & DECK DISPLAYS
 func _reroll_card_rng() -> void:
@@ -7049,9 +6987,6 @@ func _update_attack_button_text() -> void:
 			_attack_damage_label.text = str(_get_basic_attack_display_damage())
 		if proc_active:
 			var proc_tempo = 5 / 2  # Halved
-			var btn_inv = player.get_inventory()
-			if btn_inv and btn_inv.has_pocket_knife_equipped():
-				proc_tempo = maxi(0, proc_tempo - 2)
 			_attack_tempo_label.text = "%dT (PROC)" % proc_tempo
 		else:
 			_attack_tempo_label.text = "5T (%d)" % proc_count
@@ -7514,13 +7449,6 @@ func play_selected_card(target) -> void:
 			tempo_cost = tempo_cost / 2
 			resolve_tick = resolve_tick / 2
 			resolve_tick = maxi(resolve_tick, mini(1, tempo_cost))  # At least tick 1 if there's any tempo
-			# Pocket Knife: resolve on first tick and -2 additional tempo
-			var inv = player.get_inventory()
-			if inv and inv.has_pocket_knife_equipped():
-				tempo_cost = maxi(0, tempo_cost - 2)
-				if tempo_cost > 0:
-					resolve_tick = 1
-				print("[MAIN] Pocket Knife! Tempo reduced to %d, resolve tick %d" % [tempo_cost, resolve_tick])
 			print("[MAIN] Dex proc! Tempo %d, resolve tick %d" % [tempo_cost, resolve_tick])
 
 		# Start ticked tempo — card ticks are appended sequentially
@@ -7902,7 +7830,6 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		var self_damage = 0.0
 		if debuff_mgr:
 			damage_reduction = debuff_mgr.get_damage_reduction_percent()
-			self_damage = debuff_mgr.get_self_damage_percent()
 		for i in range(2):
 			progression_triggers.arm_pre_attack_passives(replay_card, replay_target)
 			replay_card.execute(replay_target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
@@ -12005,7 +11932,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	# Execute the card
 	var damage_reduction = debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
-	var self_damage = debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
+	var self_damage = 0.0
 	progression_triggers.arm_pre_attack_passives(card, target)
 	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
 	progression_triggers.clear_pre_attack_passives()

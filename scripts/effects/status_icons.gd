@@ -348,15 +348,6 @@ static func _draw(img: Image, key: String) -> bool:
 			var yellow := Color(1.0, 0.95, 0.3)
 			_tri(img, Vector2(14, 2), Vector2(8, 13), Vector2(13, 13), yellow)
 			_tri(img, Vector2(13, 13), Vector2(15, 10), Vector2(9, 22), yellow)
-		"cursed":
-			# A voodoo doll with pins.
-			var burlap := Color(0.6, 0.45, 0.3)
-			_disc(img, 12, 6, 3, burlap)
-			_rect(img, 9, 9, 7, 8, burlap)
-			_rect(img, 5, 10, 4, 2, burlap); _rect(img, 16, 10, 4, 2, burlap)
-			_rect(img, 9, 17, 2, 4, burlap); _rect(img, 14, 17, 2, 4, burlap)
-			_line(img, 7, 4, 12, 11, steel); _disc(img, 7, 4, 1.2, Color(0.9, 0.2, 0.2))
-			_line(img, 19, 7, 13, 13, steel); _disc(img, 19, 7, 1.2, Color(0.9, 0.2, 0.2))
 		"drain":
 			# A green swirl.
 			var g := Color(0.35, 0.8, 0.4)
@@ -413,29 +404,6 @@ static func _draw(img: Image, key: String) -> bool:
 			_rect(img, 4, 12, 16, 4, goo)
 			_drop(img, 7, 19, 1.8, goo)
 			_drop(img, 15, 20, 2.2, goo)
-		"inebriate":
-			# An XXX bottle.
-			var glass := Color(0.35, 0.55, 0.35)
-			_rect(img, 10, 3, 4, 4, glass)
-			_rect(img, 8, 7, 8, 13, glass)
-			_rect(img, 9, 10, 6, 6, Color(0.9, 0.88, 0.8))            # label
-			for i in range(3):
-				_px(img, 10 + i * 2, 12, dark); _px(img, 11 + i * 2, 13, dark); _px(img, 10 + i * 2, 14, dark); _px(img, 11 + i * 2, 11, dark)
-		"tethered":
-			# Two balls connected by a string.
-			_disc(img, 6, 16, 3.4, Color(0.5, 0.5, 0.58))
-			_disc(img, 18, 8, 3.4, Color(0.5, 0.5, 0.58))
-			_line(img, 8, 14, 16, 10, Color(0.8, 0.75, 0.6))
-		"magnetized":
-			# A horseshoe magnet.
-			var red2 := Color(0.85, 0.2, 0.2)
-			_rect(img, 6, 6, 4, 11, red2)
-			_rect(img, 14, 6, 4, 11, red2)
-			_disc(img, 12, 16, 6, red2)
-			_disc(img, 12, 15, 2.5, Color(0, 0, 0, 0))                # inner gap
-			_rect(img, 8, 12, 8, 3, Color(0, 0, 0, 0))
-			_rect(img, 6, 4, 4, 3, Color(0.9, 0.9, 0.95))             # white tips
-			_rect(img, 14, 4, 4, 3, Color(0.9, 0.9, 0.95))
 		"hexed":
 			# A purple cloud.
 			var purple := Color(0.6, 0.3, 0.8)
@@ -497,14 +465,6 @@ static func _draw(img: Image, key: String) -> bool:
 			_line(img, 7, 8, 10, 11, dark); _line(img, 10, 8, 7, 11, dark)
 			_line(img, 14, 8, 17, 11, dark); _line(img, 17, 8, 14, 11, dark)
 			_rect(img, 9, 16, 6, 1, dark)
-		"linked":
-			# Hands shaking.
-			_rect(img, 2, 11, 7, 3, Color(0.85, 0.68, 0.52))
-			_rect(img, 15, 11, 7, 3, Color(0.72, 0.55, 0.4))
-			_disc(img, 10, 12, 2.8, Color(0.85, 0.68, 0.52))
-			_disc(img, 13, 12, 2.8, Color(0.72, 0.55, 0.4))
-			_px(img, 11, 9, Color(0.9, 0.9, 0.6)); _px(img, 13, 8, Color(0.9, 0.9, 0.6))
-
 		# ---------------- extras (no glyph spec given) ----------------
 		"vulnerable":
 			# A cracked heart taking extra damage.
