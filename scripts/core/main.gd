@@ -16,23 +16,16 @@ extends Node3D
 @onready var aoe_indicator: AOEIndicator = $AOEIndicator
 @onready var debuff_bar: DebuffBarUI = $UI/DebuffBar
 @onready var hand_container: Control = $UI/HandArea/HandContainer
-@onready var draw_label = $UI/DeckInfo/DrawPileLabel
-@onready var discard_label = $UI/DeckInfo/DiscardPileLabel
+var draw_label: Label = null     # re-pointed at the pile buttons in _setup_deck_info_vertical
+var discard_label: Label = null
 var _draw_pile_btn: Button = null       # left draw pile button (for its tooltip)
 var _hand_info_btn: Button = null       # small ⓘ button beside the hand icon
 var _hand_info_popup: PanelContainer = null  # hand size / overflow info popup
 var _hand_info_vbox: VBoxContainer = null    # popup content (rebuilt on refresh)
 var _discard_pile_btn: Button = null    # right discard pile button (for its tooltip)
-@onready var jail_label = $UI/DeckInfo/JailPileLabel
-@onready var selected_label: Label = $UI/SelectedLabel
 @onready var peaked_label: Label = $UI/PeakedLabel
 @onready var tempo_label: Label = $UI/TempoContainer/TempoLabel
 @onready var tempo_bar: ProgressBar = $UI/TempoContainer/TempoBar
-@onready var player_health_label: Label = $UI/PlayerHealthLabel
-@onready var player_mana_label: Label = $UI/PlayerManaLabel
-@onready var player_armor_label: Label = $UI/PlayerArmorLabel
-@onready var player_xp_label: Label = $UI/PlayerXPLabel
-@onready var turn_label: Label = $UI/TurnLabel
 @onready var player: Player = $Player
 @onready var tempo_manager: TempoManager = $TempoManager
 @onready var overflow_manager: OverflowManager = $OverflowManager
@@ -140,7 +133,6 @@ var _tab_card_inv_container: VBoxContainer = null
 
 # Card animation tracking
 var _prev_hand_card_ids: Array[String] = []  # Card IDs from last hand update
-var _card_play_animating: bool = false        # Block input during card play animation
 
 # Enemy loot drops lying on the ground, waiting to be picked up.
 # Each entry: {"node": Node3D, "cell": Vector2i, "loot": Dictionary}
@@ -152,7 +144,6 @@ var _loot_tooltip_label: Label = null
 var _chest_modal: PanelContainer = null
 var _chest_modal_open: bool = false
 var _chest_modal_contents: Dictionary = {}
-var _chest_interact_prompt: Label3D = null
 
 
 var battle_log_label: RichTextLabel = null
@@ -303,9 +294,6 @@ const TICK_SPEED_TIERS := [
 	{"label": "▶▶▶", "mult": 4.0, "secs": 0.375},
 ]
 var _tick_bar_card_name_label: Label = null   # Label showing current card name
-var _tick_bar_total_ticks: int = 0            # Total ticks for current card
-var _tick_bar_resolve_tick: int = 0           # Which tick resolves the card
-var _tick_bar_current_tick: int = 0           # How many ticks have elapsed
 
 # Action queue dropdown (▾ beside the tick bar label): lists queued actions;
 # entries whose ticks haven't started carry a red ✕ to cancel them.
@@ -353,12 +341,9 @@ var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack
 # Stat bar UI references
 var _hp_bar: ProgressBar = null
 var _mana_bar: ProgressBar = null
-var _armor_bar: ProgressBar = null
 var _xp_bar: ProgressBar = null
 var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
-var _armor_bar_label: Label = null
-var _xp_bar_label: Label = null
 var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
@@ -568,7 +553,6 @@ func _ready() -> void:
 	test_ui.give_card_requested.connect(_on_give_card)
 	test_ui.apply_buff_requested.connect(_on_apply_buff)
 	
-	help_panel.closed.connect(_on_help_closed)
 	help_panel.tick_speed_changed.connect(_on_tick_speed_changed)
 
 	# Sphere inventory + grid connection
@@ -714,9 +698,6 @@ func get_mouse_world_position() -> Vector3:
 	if t < 0:
 		return Vector3.ZERO
 	return from + dir * t
-
-func _on_help_closed() -> void:
-	pass  # Resume game if needed
 
 func _on_tick_speed_changed(speed: float) -> void:
 	tempo_manager.tick_speed = speed
@@ -1330,9 +1311,6 @@ func _setup_tick_bar() -> void:
 func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, card_name: String = "") -> void:
 	## Update the 20-tick global tempo bar. This is a rolling counter that fills
 	## on ALL tempo sources (cards, movement, attack, wait, block) and resets at 20.
-	_tick_bar_current_tick = ticks_elapsed
-	_tick_bar_total_ticks = total_ticks
-	_tick_bar_resolve_tick = resolve_tick
 
 	if _tick_bar_card_name_label:
 		_tick_bar_card_name_label.text = card_name
@@ -1495,9 +1473,6 @@ func _refund_cancelled_action_cost(p, data: Dictionary) -> void:
 
 func _reset_tick_bar() -> void:
 	## Reset the tick bar to idle state but still show global tempo progress.
-	_tick_bar_current_tick = 0
-	_tick_bar_total_ticks = 0
-	_tick_bar_resolve_tick = 0
 	if _tick_bar_card_name_label:
 		_tick_bar_card_name_label.text = ""
 	# Show the global counter even when no card is active
@@ -1510,14 +1485,6 @@ func _setup_stat_bars() -> void:
 	var ui = $UI as CanvasLayer
 
 	# Hide old label nodes
-	if player_health_label:
-		player_health_label.visible = false
-	if player_mana_label:
-		player_mana_label.visible = false
-	if player_armor_label:
-		player_armor_label.visible = false
-	if player_xp_label:
-		player_xp_label.visible = false
 
 	var stat_container = VBoxContainer.new()
 	stat_container.name = "StatBarsContainer"
@@ -1573,10 +1540,7 @@ func _setup_stat_bars() -> void:
 	# Buffs and debuffs sit directly under the (thin) XP bar rather than off to
 	# the right of the health bar.
 	_reposition_status_bars()
-	_xp_bar_label = null
 	# (Armour no longer has its own bar — the shield badge shows it.)
-	_armor_bar = null
-	_armor_bar_label = null
 
 func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_color: Color, bg_color: Color, height: int = 22) -> Array:
 	## Creates a progress bar with an overlaid centered label. Returns [bar, label].
@@ -1728,10 +1692,6 @@ func _setup_deck_info_vertical() -> void:
 	## Draw and Discard piles become card-stack buttons on opposite edges:
 	## Draw on the left (green up-arrow + turns-until-draw), Discard on the
 	## right (yellow down-arrow + count). The Deck box lives in the top HUD bar.
-	var deck_info = $UI/DeckInfo as HBoxContainer
-	if deck_info:
-		deck_info.visible = false  # retire the old horizontal readout
-
 	var ui = $UI as CanvasLayer
 
 	# Draw pile — sits at the TOP of the left-side action column (above Attack),
@@ -1799,7 +1759,6 @@ func _setup_deck_info_vertical() -> void:
 	_discard_pile_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
 	disc_wrap.add_child(_discard_pile_btn)
 
-	jail_label = null
 
 func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -> Array:
 	## A compact pile button: just the card-stack icon (up-arrow for Draw,
@@ -2001,7 +1960,6 @@ func _on_attack_pressed() -> void:
 			range_indicator.hide_range()
 		if aoe_indicator:
 			aoe_indicator.hide_indicator()
-		update_selected_display()
 		update_card_highlights()
 	_set_basic_attack_pending(true)
 	add_battle_log("Basic Attack armed — click an enemy in melee range.", Color(1.0, 0.85, 0.4))
@@ -3921,9 +3879,7 @@ func select_character(character: CharacterData) -> void:
 		inventory.equipment_changed.connect(_on_equipment_changed)
 	_on_hand_updated()
 	update_deck_info()
-	update_selected_display()
 	update_peaked_display()
-	update_turn_display()
 	_on_player_health_changed(player.get_stats().current_health, player.get_stats().max_health)
 	_on_player_mana_changed(player.get_stats().current_mana, player.get_stats().max_mana)
 	_on_player_armor_changed(player.get_stats().current_armor)
@@ -3981,19 +3937,9 @@ func select_character(character: CharacterData) -> void:
 # Player 2 co-op UI moved to
 # scripts/ui/player2_ui.gd
 
-
-func trigger_turn() -> void:
-	# Simulate one full tempo cycle (5 global tempo) for testing
-	tempo_manager.add_tempo(5)
-
-func trigger_multiple_turns(count: int) -> void:
-	# Each "turn" = 5 global tempo (one cycle)
-	tempo_manager.add_tempo(5 * count)
-
-var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
-
 #endregion
 #region PLAYER MOVEMENT PIPELINE
+var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
 func _on_player_tile_reached() -> void:
 	# Scoop up any loot pile on the tile just reached (checked for BOTH players,
 	# and before the batch-move early-out so batch movers loot too). Looting is
@@ -4439,7 +4385,6 @@ func _on_card_lock_in() -> void:
 	selected_card_index = -1
 	if range_indicator:
 		range_indicator.hide_range()
-	update_selected_display()
 	update_card_highlights()
 	_ensure_play_cards_button()
 	_play_cards_button.text = "▶ Play Cards (%d)" % _locked_cards.size()
@@ -5128,7 +5073,6 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	else:
 		_update_tick_bar(0, 0, 0, "")
 
-	update_turn_display()
 	_refresh_unit_tracker()
 
 #endregion
@@ -5727,8 +5671,6 @@ func _on_turn_ended(turn_number: int) -> void:
 	update_deck_info()
 
 func _on_player_health_changed(current: int, max_hp: int) -> void:
-	if player_health_label:
-		player_health_label.visible = false
 	if _hp_bar:
 		_hp_bar.max_value = max_hp
 		_hp_bar.value = current
@@ -5781,8 +5723,6 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 				print("[MAIN] Gift of the Phoenix triggered! Healed %d HP to %d/%d" % [heal_amount, heal_target, max_hp])
 
 func _on_player_mana_changed(current: float, max_mana: int) -> void:
-	if player_mana_label:
-		player_mana_label.visible = false
 	if _mana_bar:
 		_mana_bar.max_value = max_mana
 		_mana_bar.value = int(current)
@@ -5796,21 +5736,15 @@ func _on_player_armor_gained(_amount: int) -> void:
 		player.show_armor_gained()
 
 func _on_player_armor_changed(current: int) -> void:
-	if player_armor_label:
-		player_armor_label.visible = false
 	if _armor_shield_label:
 		_armor_shield_label.text = "%d" % current
 
 func _update_xp_display() -> void:
-	if player_xp_label:
-		player_xp_label.visible = false
 	var stats = player.get_stats()
 	if stats and _xp_bar:
 		var xp_to_next = stats.get_xp_to_next_level()
 		_xp_bar.max_value = xp_to_next
 		_xp_bar.value = stats.current_xp
-	if stats and _xp_bar_label:
-		_xp_bar_label.text = "(%d) %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
 	if stats and _level_badge_label:
 		_level_badge_label.text = "Lvl: %d" % stats.current_level
 
@@ -6080,15 +6014,6 @@ func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
 	# Cory: Energy Barrier — track non-regen mana gains
 	progression_triggers._trigger_skill_tree_cory_on_mana_gain(amount, is_regen)
 
-func update_turn_display() -> void:
-	# Turn label no longer needed — global tempo is shown on tick bar, atk sp proc on attack button
-	if turn_label:
-		turn_label.visible = false
-	# Update attack button with proc count
-	_update_attack_button_text()
-	# Update draw label with tempo until draw
-	_update_draw_label()
-
 #endregion
 #region HAND RENDERING & SLOTS
 func _on_hand_updated() -> void:
@@ -6159,7 +6084,6 @@ func _on_hand_updated() -> void:
 		if selected_card_index >= 0:
 			selected_card_index = -1
 		update_deck_info()
-		update_selected_display()
 		update_card_highlights()
 		return
 
@@ -6259,7 +6183,6 @@ func _on_hand_updated() -> void:
 		selected_card_index = -1
 
 	update_deck_info()
-	update_selected_display()
 	update_card_highlights()
 
 # ---- Persistent hand-slot / stacking layer ----
@@ -6453,43 +6376,6 @@ func _on_overflow_triggered(mode: String, card: Card) -> void:
 
 #endregion
 #region DEBUG: TEST-UI STATUS HANDLERS
-func _on_apply_debuff(debuff_name: String) -> void:
-	var debuff_mgr = player.get_debuff_manager()
-	var debuff: Debuff = null
-	
-	match debuff_name:
-		# Original debuffs
-		"Bleed (3)": debuff = Debuff.create(Debuff.DebuffType.BLEED, 3, 3)
-		"Stun": debuff = Debuff.create(Debuff.DebuffType.STUN, 0, 1)
-		"Disarm": debuff = Debuff.create(Debuff.DebuffType.DISARM, 0, 3)
-		"Silence": debuff = Debuff.create(Debuff.DebuffType.SILENCE, 0, 3)
-		"Burn (2)": debuff = Debuff.create(Debuff.DebuffType.BURN, 2, 3)
-		"Poison (2)": debuff = Debuff.create(Debuff.DebuffType.POISON, 2, 3)
-		"Inebriate": debuff = Debuff.create(Debuff.DebuffType.INEBRIATE, 0, 3)
-		"Cursed (2)": debuff = Debuff.create(Debuff.DebuffType.CURSED, 2, 3)
-		"Frozen": debuff = Debuff.create(Debuff.DebuffType.FROZEN, 0, 2)
-		"Cuffed": debuff = Debuff.create(Debuff.DebuffType.CUFFED, 0, 3)
-		"Shocked (3)": debuff = Debuff.create(Debuff.DebuffType.SHOCKED, 3, 3)
-		"Slowed (2)": debuff = Debuff.create(Debuff.DebuffType.SLOWED, 2, 3)
-		"Staggered (3)": debuff = Debuff.create(Debuff.DebuffType.STAGGERED, 3, -1)
-		"Drain (10x2)": debuff = Debuff.create(Debuff.DebuffType.DRAIN, 2, 3)
-		"Weighted (1)": debuff = Debuff.create(Debuff.DebuffType.WEIGHTED, 3, -1)
-		"Hexed (20)": debuff = Debuff.create(Debuff.DebuffType.HEXED, 20, 3)
-		"Locked": debuff = Debuff.create(Debuff.DebuffType.LOCKED, 0, 2)
-		"Rooted": debuff = Debuff.create(Debuff.DebuffType.ROOTED, 0, 2)
-		"Tethered (3)":
-			debuff = Debuff.create(Debuff.DebuffType.TETHERED, 0, 15)
-			debuff_mgr.set_tether_origin(player.position)
-		"Magnetized (1)": debuff = Debuff.create(Debuff.DebuffType.MAGNETIZED, 1, 3)
-		"Linked (20)": debuff = Debuff.create(Debuff.DebuffType.LINKED, 0, 15)
-		"Clumsy (30)": debuff = Debuff.create(Debuff.DebuffType.CLUMSY, 3, -1)
-		"Vulnerable (25)": debuff = Debuff.create(Debuff.DebuffType.VULNERABLE, 25, 3)
-		"Brittle (2)": debuff = Debuff.create(Debuff.DebuffType.BRITTLE, 2, 3)
-		"Weakened (2)": debuff = Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1)
-	if debuff and debuff_mgr:
-		debuff_mgr.apply_debuff(debuff)
-		_on_hand_updated()  # Refresh cards for Hexed/Locked
-		print("[MAIN] Applied debuff: %s" % debuff_name)		
 
 func _on_apply_buff(buff_name: String) -> void:
 	var buff_mgr = player.get_buff_manager()
@@ -6520,10 +6406,6 @@ func _on_apply_buff(buff_name: String) -> void:
 			buff = Buff.create_smith(2, 15, "Test")
 		"Steady":
 			buff = Buff.create_steady("Test")
-		"Brace (30%, 1)":
-			buff = Buff.create_brace(30, 1, "Test")
-		"Resilient (15%, 3)":
-			buff = Buff.create_resilient(15, 15, "Test")
 	
 	if buff and buff_mgr:
 		buff_mgr.apply_buff(buff)
@@ -6627,7 +6509,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	_process_enchantment_cycles()
 	_process_healthy_bliss_cards()
 	_update_gauntlet_skills_ui()
-	update_turn_display()
 	_update_enemy_count()
 	_reroll_card_rng()
 	_on_hand_updated()
@@ -7069,7 +6950,6 @@ func _reroll_card_rng() -> void:
 			child.update_chance_display()
 	
 func _on_tempo_changed(current: int, threshold: int) -> void:
-	update_turn_display()
 	update_tempo_display()
 	_update_mana_regen_indicator()
 	# Keep the "refills in N tempo" tooltips on the point pools current.
@@ -7232,23 +7112,13 @@ func _update_attack_button_text() -> void:
 			if _attack_tempo_label:
 				_attack_tempo_label.remove_theme_color_override("font_color")
 
-func update_selected_display() -> void:
-	# Selection is now shown via golden border on the card — hide the text label
-	if selected_label:
-		selected_label.visible = false
-
 func update_peaked_display() -> void:
 	if not peaked_label:
 		return
-	# Brain-point peeks reveal the top N draw-pile cards; the overflow PEAK
-	# mode reveals just the next one. Brain knowledge supersedes it when present.
+	# Brain-point peeks reveal the top N draw-pile cards.
 	var names: Array[String] = []
 	for c in deck_manager.get_brain_peeked_cards():
 		names.append(c.card_name)
-	if names.is_empty():
-		var peaked = deck_manager.get_peaked_card()
-		if peaked and deck_manager.current_overflow_mode == DeckManager.OverflowMode.PEAK:
-			names.append(peaked.card_name)
 	if names.is_empty():
 		peaked_label.visible = false
 	else:
@@ -7278,12 +7148,10 @@ func select_card(index: int) -> void:
 			aoe_indicator.hide_indicator()
 		if range_indicator:
 			range_indicator.hide_range()
-		update_selected_display()
 		update_card_highlights()
 		return
 
 	selected_card_index = index
-	update_selected_display()
 	update_card_highlights()
 
 	# Show AOE indicator if applicable
@@ -7787,7 +7655,6 @@ func _switch_active_player() -> void:
 
 	_on_hand_updated()
 	update_deck_info()
-	update_selected_display()
 	if player2_ui:
 		player2_ui.update_control_indicator()
 	var who := player2_character.character_name if _active_index == 1 else starting_character.character_name
@@ -8679,14 +8546,6 @@ func _spawn_bone_skeleton(hp: int, near_pos: Vector3) -> void:
 	_skeletons.append(skel)
 	add_battle_log("A skeleton claws out of the kill! (%d/3, %d HP)" % [_skeletons.size(), hp], Color(0.8, 0.85, 0.75))
 
-func _clear_skeletons() -> void:
-	for s in _skeletons:
-		if is_instance_valid(s):
-			s.queue_free()
-	_skeletons.clear()
-
-## Per-tempo skeleton AI: sprints 4 tiles per tempo at the nearest enemy,
-## swings for 5 every 5 tempo when adjacent.
 func _update_skeletons(amount: int) -> void:
 	if _skeletons.is_empty():
 		return
@@ -11405,7 +11264,6 @@ func _input(event: InputEvent) -> void:
 				range_indicator.hide_range()
 			if aoe_indicator:
 				aoe_indicator.hide_indicator()
-			update_selected_display()
 			update_card_highlights()
 			move_dialog.hide_dialog()
 			_hide_card_confirm_dialog()
@@ -12822,33 +12680,6 @@ func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
 
 	return {"node": marker, "health": health, "position": pos, "label": label}
 
-func damage_barricade_at(world_pos: Vector3, damage: int) -> bool:
-	## Called when an enemy attacks a barricade obstacle. Returns true if blocked.
-	for i in range(barricade_obstacles.size() - 1, -1, -1):
-		var obs = barricade_obstacles[i]
-		var obs_grid = grid_manager.world_to_grid(obs["position"])
-		var target_grid = grid_manager.world_to_grid(world_pos)
-		if obs_grid == target_grid:
-			obs["health"] -= damage
-			if obs["health"] <= 0:
-				obs["node"].queue_free()
-				barricade_obstacles.remove_at(i)
-				_sync_blocked_tiles()
-				print("[MAIN] Barricade block destroyed!")
-			else:
-				obs["label"].text = "HP: %d" % obs["health"]
-				print("[MAIN] Barricade block hit! HP: %d" % obs["health"])
-			return true
-	return false
-
-func is_barricade_at(world_pos: Vector3) -> bool:
-	for obs in barricade_obstacles:
-		var obs_grid = grid_manager.world_to_grid(obs["position"])
-		var target_grid = grid_manager.world_to_grid(world_pos)
-		if obs_grid == target_grid:
-			return true
-	return false
-
 func _sync_blocked_tiles() -> void:
 	## Syncs blockers to the player and all enemies for pathfinding. Defers to
 	## the full dungeon sync (walls + pits + barricades + tree trunks) so no
@@ -13249,11 +13080,6 @@ func _on_ally_damage_taken(_amount: int, victim) -> void:
 		add_battle_log("Cover! Ally's damage mitigated.", Color(0.5, 0.85, 1.0))
 		_refresh_unit_tracker()
 
-	var stats = player.get_stats()
-	var non_fatal: bool = stats != null and stats.current_health > 0
-	if not non_fatal:
-		return
-
 
 func _on_card_on_draw_triggered(card: Card) -> void:
 	match card.on_draw_effect:
@@ -13478,14 +13304,6 @@ func _pop_loot_drop(node: Node3D) -> void:
 	tw.tween_property(node, "position:y", node.position.y + 0.5, 0.18).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(node, "scale", Vector3.ZERO, 0.18).set_ease(Tween.EASE_IN)
 	tw.tween_callback(node.queue_free)
-
-func _clear_loot_drops() -> void:
-	for entry in _loot_drops:
-		if is_instance_valid(entry["node"]):
-			entry["node"].queue_free()
-	_loot_drops.clear()
-	if _loot_tooltip:
-		_loot_tooltip.visible = false
 
 func _loot_summary(loot: Dictionary) -> String:
 	var parts: Array[String] = []

@@ -46,10 +46,3 @@ static func get_all_saves() -> Array[SaveData]:
 		else:
 			saves.append(null)
 	return saves
-
-static func delete_save(slot: int) -> bool:
-	var path = get_save_path(slot)
-	if not FileAccess.file_exists(path):
-		return false
-	var err = DirAccess.remove_absolute(path)
-	return err == OK

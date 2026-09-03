@@ -72,9 +72,3 @@ func get_distance_in_cells(from_pos: Vector3, to_pos: Vector3) -> int:
 	var to_grid = world_to_grid(to_pos)
 	# Manhattan distance (no diagonal movement)
 	return absi(to_grid.x - from_grid.x) + absi(to_grid.y - from_grid.y)
-
-func get_distance_diagonal(from_pos: Vector3, to_pos: Vector3) -> int:
-	var from_grid = world_to_grid(from_pos)
-	var to_grid = world_to_grid(to_pos)
-	# Chebyshev distance (diagonal movement allowed)
-	return maxi(absi(to_grid.x - from_grid.x), absi(to_grid.y - from_grid.y))
