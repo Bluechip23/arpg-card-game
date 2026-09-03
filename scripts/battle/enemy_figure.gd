@@ -1132,40 +1132,6 @@ func _build_treant() -> void:
 	_sp(root, "Crown2", Vector3(-0.2, 1.88, 0.06), 0.18, leaf2)
 	_sp(root, "Crown3", Vector3(0.2, 1.90, -0.04), 0.18, leaf2)
 
-## Robed elemental caster with a glowing orb. Used by all five mages.
-func _build_mage(robe: Color, trim: Color, orb_c: Color) -> void:
-	_shadow(0.22)
-	var dark := Color.html("20180f")
-	var skin := Color.html("c9b79a")
-	var root := Node3D.new()
-	root.name = "Body"
-	add_child(root)
-	_bob_node = root
-	_bob_y = 0.0
-	# Conical robe
-	_cy(root, "Robe", Vector3(0, 0.34, 0), 0.10, 0.30, 0.68, robe)
-	_bx(root, "Hem", Vector3(0, 0.03, 0.0), Vector3(0.42, 0.06, 0.42), trim)
-	_cy(root, "Sash", Vector3(0, 0.40, 0.0), 0.21, 0.21, 0.06, trim)
-	# Arms: left holds the orb out front, right is the casting arm
-	var sh_l := Node3D.new(); sh_l.name = "ShoulderL"; sh_l.position = Vector3(-0.16, 0.60, 0.04); root.add_child(sh_l)
-	_cy(sh_l, "ArmL", Vector3(0, -0.14, 0.06), 0.035, 0.04, 0.30, robe, Vector3(40, 0, 0))
-	var orb := _sp(sh_l, "Orb", Vector3(0, -0.26, 0.20), 0.09, orb_c, Vector3.ONE, true)
-	(orb.material_override as StandardMaterial3D).emission_energy_multiplier = 2.2
-	_sp(sh_l, "OrbCore", Vector3(0, -0.26, 0.20), 0.05, Color.html("ffffff"), Vector3.ONE, true)
-	var sh_r := Node3D.new(); sh_r.name = "ShoulderR"; sh_r.position = Vector3(0.16, 0.60, 0); root.add_child(sh_r)
-	_cy(sh_r, "ArmR", Vector3(0, -0.16, 0.02), 0.035, 0.04, 0.32, robe)
-	_sp(sh_r, "HandR", Vector3(0, -0.34, 0.03), 0.045, skin)
-	_atk_pivot = sh_r
-	_atk_rest = Vector3.ZERO
-	# Head under a pointed hood
-	_sp(root, "Head", Vector3(0, 0.74, 0.02), 0.13, skin)
-	_cy(root, "Hood", Vector3(0, 0.86, -0.02), 0.0, 0.18, 0.30, robe)
-	_sp(root, "EyeL", Vector3(-0.05, 0.74, 0.11), 0.022, orb_c, Vector3.ONE, true)
-	_sp(root, "EyeR", Vector3(0.05, 0.74, 0.11), 0.022, orb_c, Vector3.ONE, true)
-
-
-## Ice Mage: frost-caller in a deep-blue robe trimmed with white fur, ice
-## crystals jutting from the shoulders and a frozen orb.
 func _build_ice_mage() -> void:
 	_shadow(0.22)
 	var robe := Color.html("2f5a96")

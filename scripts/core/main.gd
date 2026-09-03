@@ -12,7 +12,6 @@ extends Node3D
 @onready var enemy_spawner: EnemySpawner = $EnemySpawner
 @onready var test_ui: TestUI = $TestUi
 @onready var gauntlet_skills_container: HBoxContainer = $UI/GauntletSkillsContainer
-@onready var item_tooltip: ItemTooltip = $UI/ItemTooltip
 @onready var aoe_indicator: AOEIndicator = $AOEIndicator
 @onready var debuff_bar: DebuffBarUI = $UI/DebuffBar
 @onready var hand_container: Control = $UI/HandArea/HandContainer

@@ -70,15 +70,6 @@ func get_base_character() -> String:
 @export var sprite_path: String = ""
 @export var sprite_sheet_path: String = ""  # Path to full animation sprite sheet
 
-# Calculate derived stats from core stats
-func get_max_hand_size() -> int:
-	# Wisdom adds to hand size: every 10 wisdom = +1 hand size (secondary perk)
-	return base_hand_size + floori(wisdom / 10.0)
-
-func get_mana_regen() -> float:
-	# Base mana regen
-	return base_mana_regen
-
 # ============================================
 # CORE STAT REFERENCE
 # ============================================

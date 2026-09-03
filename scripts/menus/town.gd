@@ -26,8 +26,6 @@ var return_world_level: int = 1  # World to return to when leaving town
 var nearby_vendor: StaticBody3D = null
 var vendor_open: bool = false
 var quest_manager: QuestManager = null
-var _quest_panel: PanelContainer = null
-var _quest_panel_open: bool = false
 var _town_waypoint_node: Node3D = null
 # Return Scroll: the twin of a portal opened out in the world. Stepping through
 # it returns the player to the exact spot where they set it.

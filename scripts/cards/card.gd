@@ -1338,7 +1338,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 				player_stats.temp_health_tempo_remaining = 0
 				player_stats.current_mana = floori(player_stats.max_mana / 2.0)
 				player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
-				player_stats.temp_health_changed.emit(0)
 				player_stats.mana_changed.emit(player_stats.current_mana, player_stats.max_mana)
 				print("[CARD] Serene Center: health %d, mana %d" % [player_stats.current_health, player_stats.current_mana])
 		"stone_encase":

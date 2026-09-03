@@ -27,9 +27,6 @@ const ZONES := {
 ## Base resource value of one monster kill, scaled by the zone tier.
 const BASE_LOOT_PER_KILL := 12
 
-static func zone_names() -> Array:
-	return ZONES.keys()
-
 static func rewards_for_kills(zone: String, kills: int, city: CityState = null, elite_kills: int = 0) -> Dictionary:
 	## Convert battle results in a habitat into city resources.
 	## Elites count triple. The city's Hero Hall boosts the whole haul.

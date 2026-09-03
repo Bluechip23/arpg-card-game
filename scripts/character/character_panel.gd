@@ -25,8 +25,6 @@ const StorageItemCellScript = preload("res://scripts/character/storage_item_cell
 var player_stats: PlayerStats
 var inventory: Inventory
 var deck_manager = null  # DeckManager - untyped to avoid circular dependency
-var item_tooltip: ItemTooltip
-var _original_tooltip_parent: Node = null
 
 # Detail side panel state
 var _detail_panel: PanelContainer = null
@@ -328,7 +326,6 @@ func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm
 	if inventory:
 		inventory.equipment_changed.connect(_on_equipment_changed)
 		inventory.storage_changed.connect(_on_storage_changed)
-	item_tooltip = get_node_or_null("/root/Main/UI/ItemTooltip")
 
 func _disconnect_stats() -> void:
 	## Drop every change-signal connection to the currently bound character so
@@ -1853,12 +1850,6 @@ func _build_item_effect_text(item: ItemData) -> String:
 # ============================================
 # OLD TOOLTIP COMPAT (no longer follows mouse)
 # ============================================
-
-func _on_item_hover(_item: ItemData) -> void:
-	pass
-
-func _on_item_hover_end() -> void:
-	pass
 
 func _on_close_pressed() -> void:
 	hide_panel()

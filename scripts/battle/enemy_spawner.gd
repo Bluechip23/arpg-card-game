@@ -49,26 +49,6 @@ func spawn_fire_goblin_pack() -> void:
 	spawn_enemy(Enemy.EnemyType.HYDRA, Vector3(15.0, 0, 9.0))
 	print("[SPAWNER] Fire goblin pack + hydra spawned: %d total" % enemies.size())
 
-func spawn_forest_pack() -> void:
-	## A sampler of the forest-act bestiary for testing. Does not clear existing.
-	spawn_enemy(Enemy.EnemyType.GIANT_BEAVER, Vector3(12.5, 0, 4.0))
-	spawn_enemy(Enemy.EnemyType.MINI_BEAR, Vector3(13.5, 0, 6.0))
-	spawn_enemy(Enemy.EnemyType.MINI_BEAR, Vector3(14.5, 0, 6.5))
-	spawn_enemy(Enemy.EnemyType.LARGE_BEAR, Vector3(16.0, 0, 5.0))
-	spawn_enemy(Enemy.EnemyType.WOLF, Vector3(12.0, 0, 8.0))
-	spawn_enemy(Enemy.EnemyType.WOLF, Vector3(13.0, 0, 9.0))
-	spawn_enemy(Enemy.EnemyType.COYOTE, Vector3(11.5, 0, 6.0))
-	spawn_enemy(Enemy.EnemyType.BUGBEAR, Vector3(17.0, 0, 8.0))
-	spawn_enemy(Enemy.EnemyType.INFECTED_HUNTER, Vector3(18.0, 0, 6.0))
-	spawn_enemy(Enemy.EnemyType.GIANT_HAWK, Vector3(15.0, 0, 11.0))
-	spawn_enemy(Enemy.EnemyType.TREANT, Vector3(19.0, 0, 9.0))
-	spawn_enemy(Enemy.EnemyType.ICE_MAGE, Vector3(20.0, 0, 4.0))
-	spawn_enemy(Enemy.EnemyType.FIRE_MAGE, Vector3(20.0, 0, 6.0))
-	spawn_enemy(Enemy.EnemyType.SPARK_MAGE, Vector3(21.0, 0, 8.0))
-	spawn_enemy(Enemy.EnemyType.AIR_MAGE, Vector3(21.0, 0, 10.0))
-	spawn_enemy(Enemy.EnemyType.EARTH_MAGE, Vector3(19.0, 0, 12.0))
-	print("[SPAWNER] Forest pack spawned: %d total" % enemies.size())
-
 func spawn_enemy(type: Enemy.EnemyType, pos: Vector3) -> Enemy:
 	var enemy = EnemyScene.instantiate() as Enemy
 	get_parent().add_child(enemy)

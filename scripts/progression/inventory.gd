@@ -4,16 +4,11 @@ extends Node
 ## Manages character equipment slots and inventory
 
 signal equipment_changed
-signal item_equipped(item: ItemData, slot_type: String, slot_index: int)
-signal item_unequipped(item: ItemData, slot_type: String, slot_index: int)
-signal overflow_heal_armor_triggered(heal: int, armor: int)
 signal ring_triggered(item: ItemData, effect: String)
 signal custom_ring_fired(ring: ItemData, kind: String, value: int)  # ring pass 1 bespoke procs; main executes the world side
 signal gauntlet_skill_ready(item: ItemData)
 signal gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target)
 signal storage_changed
-signal card_enchanted(card: Card, item: ItemData)
-signal card_extracted(card: Card, item: ItemData, destroyed_item: bool)
 signal rack_changed
 
 # Slot configuration
@@ -239,7 +234,6 @@ func get_off_hand_modifier() -> float:
 # player maxes at 4 equipped mythics. Sandbox turns this off — that's
 # where testing happens (see main._setup_sandbox).
 var enforce_mythic_limit: bool = true
-signal equip_blocked(item: ItemData, reason: String)
 
 func get_mythic_capacity() -> int:
 	if not player_stats:
@@ -280,7 +274,6 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 		var reason = "Mythic limit: level %d allows %d mythic(s) equipped" % [
 			player_stats.current_level if player_stats else 0, get_mythic_capacity()]
 		print("[INVENTORY] %s — cannot equip %s" % [reason, item.item_name])
-		equip_blocked.emit(item, reason)
 		return false
 
 	# Duplicate rule: at most ONE equipped copy of the same legendary or
@@ -290,7 +283,6 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 		var dupe_reason = "Only %d cop%s of %s may be worn at once" % [
 			dupe_cap, "y" if dupe_cap == 1 else "ies", item.item_name]
 		print("[INVENTORY] %s" % dupe_reason)
-		equip_blocked.emit(item, dupe_reason)
 		return false
 	
 	if slot_array[slot_index] != null:
@@ -335,7 +327,6 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	# or to jail if a card was jailed when the item was last removed.
 	_add_item_cards_to_deck(item)
 
-	item_equipped.emit(item, item.get_type_name(), slot_index)
 	equipment_changed.emit()
 
 	print("[INVENTORY] Equipped %s in slot %d" % [item.item_name, slot_index])
@@ -367,7 +358,6 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	# to the item (preserving jail time, enhancement, etc.) for when it returns.
 	_remove_item_cards_from_deck(item)
 
-	item_unequipped.emit(item, item.get_type_name(), slot_index)
 	equipment_changed.emit()
 	
 	print("[INVENTORY] Unequipped %s from slot %d" % [item.item_name, slot_index])
@@ -836,10 +826,6 @@ func _remove_card_from_all_zones(card: Card) -> bool:
 			om.quiver_zone.erase(card)
 			om.quiver_changed.emit()
 	return hand_changed
-
-func _recalculate_total_weapon_weight() -> void:
-	# This now just triggers carry load recalculation
-	_recalculate_carry_load()
 
 #endregion
 #region TURN PROCESSING
@@ -1411,16 +1397,6 @@ func has_passive_effect(effect_id: String) -> bool:
 # OVERFLOW EFFECTS
 # ============================================
 
-func check_overflow_effects() -> void:
-	for item in equipped_chests:
-		if item and item.special_effect == ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR:
-			var heal_amount = item.special_effect_value
-
-			if player_stats:
-				player_stats.heal(heal_amount)
-				overflow_heal_armor_triggered.emit(heal_amount, 0)
-				print("[INVENTORY] Overflow effect: Healed %d" % heal_amount)
-
 #endregion
 #region UTILITY
 # ============================================
@@ -1452,16 +1428,6 @@ func has_pocket_knife_equipped() -> bool:
 		if weapon and weapon.special_effect == ItemData.SpecialEffect.POCKET_KNIFE_PROC:
 			return true
 	return false
-
-func has_only_swords_equipped() -> bool:
-	## Returns true if all equipped weapons are swords (or no weapons equipped).
-	var has_weapon = false
-	for weapon in equipped_weapons:
-		if weapon:
-			has_weapon = true
-			if "Sword" not in weapon.item_name and "sword" not in weapon.item_name:
-				return false
-	return has_weapon
 
 func get_total_weight() -> int:
 	# Every slot routes through _effective_item_weight so chest reduction, the
@@ -1572,18 +1538,6 @@ func get_single_hand_weight_damage_bonus() -> int:
 		total += floori(w.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
 	return total
 
-func get_total_weapon_damage() -> int:
-	var total = 0
-	for i in range(equipped_weapons.size()):
-		var weapon = equipped_weapons[i]
-		if weapon:
-			var is_off_hand = (i > 0 and i != two_handed_slot)
-			if is_off_hand:
-				total += floori(weapon.weapon_damage * get_off_hand_modifier())
-			else:
-				total += weapon.weapon_damage
-	return total
-
 func get_slot_info() -> Dictionary:
 	return {
 		"helm": {"max": helm_slots, "equipped": equipped_helms},
@@ -1600,9 +1554,6 @@ func get_slot_info() -> Dictionary:
 # ============================================
 # TWO-HANDED WIELDING
 # ============================================
-
-func is_two_handing() -> bool:
-	return two_handed_slot >= 0
 
 func get_two_handed_item() -> ItemData:
 	if two_handed_slot < 0 or two_handed_slot >= equipped_weapons.size():
@@ -2248,14 +2199,6 @@ func remove_stash_item(index: int) -> ItemData:
 	print("[INVENTORY] Removed %s from stash (%d/%d)" % [item.item_name, stash_items.size(), max_stash_slots])
 	return item
 
-func get_stash_item(index: int) -> ItemData:
-	if index < 0 or index >= stash_items.size():
-		return null
-	return stash_items[index]
-
-func get_stash_item_count() -> int:
-	return stash_items.size()
-
 func is_stash_full() -> bool:
 	return stash_items.size() >= max_stash_slots
 
@@ -2423,21 +2366,6 @@ func use_culling_stone() -> bool:
 func get_paper_feather_count() -> int:
 	return paper_feathers
 
-func use_paper_feather() -> bool:
-	if paper_feathers <= 0:
-		print("[INVENTORY] No Paper Feathers remaining!")
-		return false
-	paper_feathers -= 1
-	print("[INVENTORY] Used Paper Feather (%d remaining)" % paper_feathers)
-	return true
-
-func add_paper_feather(amount: int = 1) -> void:
-	paper_feathers += amount
-	print("[INVENTORY] Gained %d Paper Feather(s) (%d total)" % [amount, paper_feathers])
-
-func get_origami_swan_count() -> int:
-	return origami_swans
-
 func add_origami_swans(amount: int) -> void:
 	origami_swans += amount
 	print("[INVENTORY] Gained %d Origami Swan(s) (%d total)" % [amount, origami_swans])
@@ -2468,14 +2396,6 @@ func use_mythic_mold() -> bool:
 	print("[INVENTORY] Used Mythic Mold (%d remaining)" % mythic_molds)
 	return true
 
-func destroy_cards_for_swans(card_count: int) -> int:
-	## Destroys cards and returns the number of origami swans created (1 per card).
-	## The actual card removal is handled by the caller.
-	var swans_created = card_count
-	add_origami_swans(swans_created)
-	print("[INVENTORY] Destroyed %d cards → %d Origami Swans" % [card_count, swans_created])
-	return swans_created
-
 #endregion
 #region CARD ENCHANT / EXTRACT SYSTEM
 # ============================================
@@ -2500,7 +2420,6 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 	# Slot the card into the item (card stays in the deck)
 	item.slot_card(card)
 
-	card_enchanted.emit(card, item)
 	equipment_changed.emit()
 	print("[INVENTORY] Enchanted '%s' into %s" % [card.card_name, item.item_name])
 	return true
@@ -2524,7 +2443,6 @@ func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) 
 	card.slotted_in_item = null
 	item.slotted_cards.remove_at(card_index)
 
-	card_extracted.emit(card, item, false)
 	equipment_changed.emit()
 	print("[INVENTORY] Extracted '%s' from %s" % [card.card_name, item.item_name])
 	return card

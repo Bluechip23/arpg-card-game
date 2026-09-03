@@ -99,20 +99,6 @@ func play(anim_name: String, direction: Direction = current_direction, force_res
 func stop() -> void:
 	is_playing = false
 
-
-func set_direction_from_velocity(vel: Vector3) -> void:
-	if vel.length_squared() < 0.01:
-		return
-	# Determine dominant direction
-	if abs(vel.x) > abs(vel.z):
-		current_direction = Direction.EAST if vel.x > 0 else Direction.WEST
-	else:
-		current_direction = Direction.SOUTH if vel.z > 0 else Direction.NORTH
-
-	if sprite:
-		sprite.flip_h = (current_direction == Direction.WEST)
-
-
 func _update_region() -> void:
 	if not sprite or not sprite_sheet_loaded:
 		return
@@ -154,7 +140,3 @@ func is_animation_playing(anim_name: String = "") -> bool:
 	if anim_name == "":
 		return is_playing
 	return is_playing and current_animation == anim_name
-
-
-func get_current_animation() -> String:
-	return current_animation

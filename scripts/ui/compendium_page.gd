@@ -26,7 +26,6 @@ var _enemies_scroll: ScrollContainer
 
 # Hover popup
 var _hover_popup: PanelContainer = null
-var _hover_vbox: VBoxContainer = null
 
 # Data
 var _all_cards: Array = []

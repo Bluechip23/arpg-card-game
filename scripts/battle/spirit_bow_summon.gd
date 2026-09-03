@@ -19,7 +19,6 @@ signal died(bow)
 const SPIRIT_ATTACK := 10       # maintained spirit bow damage
 const SPIRIT_ATTACK_INTERVAL := 4
 const SPIRIT_MOVE_INTERVAL := 1 # 1 square per tempo
-const SPIRIT_MOVE_STEPS := 1
 const BUD_ATTACK := 6           # budded bow damage
 const BUD_ATTACK_INTERVAL := 5
 const ATTACK_RANGE := 6         # shot range in squares, both forms

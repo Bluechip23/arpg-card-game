@@ -432,13 +432,3 @@ static func get_archetype_name(arch: int) -> String:
 		Archetype.ARCHER: return "Archer"
 		Archetype.MONK: return "Monk"
 		_: return "Unknown"
-
-## Get the existing character name for an archetype.
-static func get_character_for_archetype(arch: int) -> String:
-	match arch:
-		Archetype.WARRIOR: return "Brad"
-		Archetype.ROGUE: return "Ryan"
-		Archetype.MAGE: return "Jeremy"
-		Archetype.ARCHER: return "Stephen"
-		Archetype.MONK: return "Cory"
-		_: return "Unknown"

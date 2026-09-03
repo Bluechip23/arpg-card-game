@@ -15,7 +15,6 @@
 [ext_resource type="Script" uid="uid://gux66qga1qrl" path="res://scripts/effects/overflow_manager.gd" id="12_w48qg"]
 [ext_resource type="Script" uid="uid://lu2qeaha3ydo" path="res://scripts/battle/aoe_indicator.gd" id="13_cegan"]
 [ext_resource type="Script" uid="uid://bwhleeil4d864" path="res://scripts/effects/buff_bar_ui.gd" id="17_yaehf"]
-[ext_resource type="PackedScene" uid="uid://bb1b2leqflyno" path="res://scenes/ui/item_tooltip.tscn" id="18_tooltip"]
 [ext_resource type="PackedScene" uid="uid://c678mip6samfq" path="res://scenes/ui/help_panel.tscn" id="19_help"]
 [ext_resource type="PackedScene" uid="uid://dj67nrwolfc4p" path="res://scenes/effects/overflow_ui.tscn" id="20_overflow"]
 [ext_resource type="PackedScene" uid="uid://3cxn1hbdk2os" path="res://scenes/cards/manifest_ui.tscn" id="21_manifest"]
@@ -211,6 +210,3 @@ offset_bottom = -166.0
 grow_horizontal = 2
 grow_vertical = 0
 alignment = 1
-
-[node name="ItemTooltip" parent="UI" unique_id=1519930807 instance=ExtResource("18_tooltip")]
-visible = false
