@@ -4,7 +4,7 @@ extends Node3D
 
 @onready var deck_manager: DeckManager = $DeckManager
 @onready var buff_bar: BuffBarUI = $UI/BuffBar
-@onready var turn_manager: TurnManager = $TurnManager
+@onready var draw_timer: DrawTimer = $DrawTimer
 @onready var grid_manager: GridManager = $GridManager
 @onready var move_dialog: MoveConfirmDialog = $MoveConfirmDialog
 @onready var point_to_prove_dialog: PointToProveDialog = $PointToProveDialog
@@ -519,7 +519,7 @@ func _ready() -> void:
 	tempo_manager.tempo_advanced.connect(_on_tempo_advanced)
 	tempo_manager.card_resolved.connect(_on_card_tick_resolved)
 	tempo_manager.ticking_finished.connect(_on_ticking_finished)
-	turn_manager.turn_ended.connect(_on_turn_ended)
+	draw_timer.turn_ended.connect(_on_turn_ended)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
@@ -3789,7 +3789,7 @@ func select_character(character: CharacterData) -> void:
 	tempo_manager.initialize(player.get_stats())
 	tempo_manager.debuff_manager = player.get_debuff_manager()
 	update_tempo_display()
-	turn_manager.initialize(player.get_stats(), deck_manager)
+	draw_timer.initialize(player.get_stats(), deck_manager)
 	overflow_manager.initialize(player.get_stats())
 	deck_manager.connect_overflow_manager(overflow_manager)
 	buff_bar.connect_manager(player.get_buff_manager())
@@ -5009,8 +5009,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	if stats:
 		stats.process_tempo(amount)
 
-	# Card draw is tracked by turn_manager against its own tempo interval
-	turn_manager.process_tempo(amount)
+	# Card draw is tracked by draw_timer against its own tempo interval
+	draw_timer.process_tempo(amount)
 
 	# Process pillar durations
 	_process_pillars(amount)
@@ -5977,7 +5977,7 @@ func _on_hand_updated() -> void:
 		progression_triggers._trigger_skill_tree_cory_on_hand_empty()
 
 	# Quick Study (WIS keystone): auto-draw 1 when the hand empties. draw_card()
-	# does NOT touch turn_manager.tempo_until_draw, so the timed draw is untouched.
+	# does NOT touch draw_timer.tempo_until_draw, so the timed draw is untouched.
 	# A failed draw (empty deck) emits no hand_updated, so this can't loop.
 	var _qs_stats = player.get_stats() if player else null
 	if _qs_stats and _qs_stats.keystone_wis_empty_draw and deck_manager.hand.is_empty():
@@ -6417,7 +6417,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		stats.process_turn(debuff_mgr, buff_mgr)
 
 		# Advance cycle counter and process inventory
-		turn_manager.take_turn()
+		draw_timer.take_turn()
 
 		# Buff/debuff cycle-end effects (MAGNETIZE pull, BRITTLE decay, duration ticks)
 		if debuff_mgr:
@@ -6891,7 +6891,7 @@ func update_deck_info() -> void:
 	_refresh_pile_popup_if_open()
 
 func _update_draw_label() -> void:
-	var tempo_until = turn_manager.get_tempo_until_draw()
+	var tempo_until = draw_timer.get_tempo_until_draw()
 	if draw_label:
 		# The small number is how many tempo until the next draw.
 		draw_label.text = "%d" % int(tempo_until)
@@ -11839,12 +11839,11 @@ func _on_manifest_card_clicked(index: int) -> void:
 				add_battle_log("Cinquedea: 6 damage and 1 Weaken to %s" % cq_victim.enemy_name, Color(0.85, 0.85, 0.7))
 			else:
 				add_battle_log("Cinquedea: nothing within 4 squares", Color(0.7, 0.6, 0.5))
-		"summon_skeleton":
-			_spawn_summoned_creature("skeleton", result["manifest_value"])
-		"summon_spirit":
-			_spawn_summoned_creature("spirit", result["manifest_value"])
-		"summon_golem":
-			_spawn_summoned_creature("golem", result["manifest_value"])
+		"summon_skeleton", "summon_spirit", "summon_golem":
+			# Summoned allies are not implemented yet — the old path only placed
+			# an inert marker cube. Design pending (see the not-implemented list).
+			add_battle_log("Summons are not implemented yet.", Color(0.7, 0.7, 0.7))
+			print("[MAIN] Manifest %s: summons not implemented" % result["manifest_id"])
 		"use_mushroom":
 			player.get_stats().heal(result["manifest_value"])
 			print("[MAIN] Used Mushroom: Healed %d" % result["manifest_value"])
@@ -11982,44 +11981,6 @@ func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 			for enemy in enemies:
 				enemy.take_damage(value, true)
 			print("[MAIN] Overcharge: Dealt %d damage to %d enemies" % [value, enemies.size()])
-
-func _spawn_summoned_creature(creature_type: String, count: int) -> void:
-	for i in range(count):
-		var offset = Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
-		var spawn_pos = player.position + offset
-
-		if grid_manager:
-			spawn_pos = grid_manager.snap_to_grid(spawn_pos)
-
-		match creature_type:
-			"skeleton":
-				_create_ally_marker("Skeleton", spawn_pos, Color(0.9, 0.9, 0.8))
-			"spirit":
-				_create_ally_marker("Spirit", spawn_pos, Color(0.6, 0.8, 1.0))
-			"golem":
-				_create_ally_marker("Golem", spawn_pos, Color(0.6, 0.5, 0.4))
-
-		print("[MAIN] Summoned %s at %s" % [creature_type, spawn_pos])
-
-func _create_ally_marker(ally_name: String, pos: Vector3, color: Color) -> void:
-	var marker = MeshInstance3D.new()
-	var mesh = BoxMesh.new()
-	mesh.size = Vector3(0.5, 0.5, 0.5)
-	marker.mesh = mesh
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color.a = 0.8
-	marker.material_override = mat
-	marker.position = Vector3(pos.x, 0.25, pos.z)
-	add_child(marker)
-
-	var label = Label3D.new()
-	label.text = ally_name
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.position = Vector3(0, 0.5, 0)
-	WorldText.crisp(label)
-	marker.add_child(label)
 
 #endregion
 #region ALASKAN BULL WORMS (Worm's Armageddon summon)
@@ -12391,12 +12352,6 @@ func _get_ally_names() -> Array:
 	# Player 2 in multiplayer
 	if is_multiplayer and player2_character:
 		allies.append(player2_character.character_name)
-	# Summoned creatures (ally markers)
-	for child in get_children():
-		if child is MeshInstance3D and child.has_node("Label3D"):
-			var label_node = child.get_node("Label3D") as Label3D
-			if label_node:
-				allies.append(label_node.text)
 	# If no allies exist, allow self-heal as fallback
 	if allies.size() == 0:
 		allies.append("Self")

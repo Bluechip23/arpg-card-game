@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://blkcbj5ygec5p" path="res://scripts/core/main.gd" id="1_main"]
 [ext_resource type="Script" uid="uid://c0ano5vpa6dnb" path="res://scripts/cards/deck_manager.gd" id="2_deck"]
-[ext_resource type="Script" uid="uid://cq2ocuplggobr" path="res://scripts/battle/turn_manager.gd" id="3_lquwl"]
+[ext_resource type="Script" uid="uid://cq2ocuplggobr" path="res://scripts/battle/draw_timer.gd" id="3_lquwl"]
 [ext_resource type="Script" uid="uid://b3q0gtfr8os6d" path="res://scripts/battle/grid_manager.gd" id="4_7mycd"]
 [ext_resource type="PackedScene" uid="uid://gmlwi1eaeh72" path="res://scenes/character/player.tscn" id="4_player"]
 [ext_resource type="PackedScene" uid="uid://cpkn0agpgdjlg" path="res://scenes/battle/move_confirm_dialog.tscn" id="5_272bh"]
@@ -72,7 +72,7 @@ surface_material_override/0 = SubResource("StandardMaterial3D_ground")
 [node name="DeckManager" type="Node" parent="." unique_id=694708878]
 script = ExtResource("2_deck")
 
-[node name="TurnManager" type="Node" parent="." unique_id=576270770]
+[node name="DrawTimer" type="Node" parent="." unique_id=576270770]
 script = ExtResource("3_lquwl")
 
 [node name="TempoManager" type="Node" parent="." unique_id=338330519]

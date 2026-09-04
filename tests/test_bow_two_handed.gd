@@ -70,11 +70,11 @@ func _initialize() -> void:
 	var binv: Inventory = rig2[0]
 	var bow2 = Fixtures.bow(50)
 	var sword2 = Fixtures.sword()
-	binv.rack_store_item(bow2)
-	binv.rack_store_item(sword2)
+	binv.rack_items.append(bow2)
+	binv.rack_items.append(sword2)
 	var check: Dictionary = binv.can_rack_exchange(false)
 	_check(not check["ok"], "rack refuses to bring a bow down with a sword")
-	_check(binv.rack_take_item(1) == sword2, "sword comes off the rack")
+	_check(binv.rack_items.pop_back() == sword2, "sword comes off the rack")
 	_check(binv.can_rack_exchange(false)["ok"], "bow-only rack exchange is legal")
 	var r: Dictionary = binv.rack_exchange(false)
 	_check(r["success"] and binv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == bow2,
@@ -110,10 +110,10 @@ func _initialize() -> void:
 	# --- War Rack: a staff can't come down with anything, quiver included ---
 	var rig4 = _fresh_inventory("Brad")
 	var binv2: Inventory = rig4[0]
-	binv2.rack_store_item(Fixtures.staff())
-	binv2.rack_store_item(Fixtures.quiver())
+	binv2.rack_items.append(Fixtures.staff())
+	binv2.rack_items.append(Fixtures.quiver())
 	_check(not binv2.can_rack_exchange(false)["ok"], "rack refuses staff + quiver")
-	_check(binv2.rack_take_item(1) != null, "quiver comes off the rack")
+	_check(binv2.rack_items.pop_back() != null, "quiver comes off the rack")
 	_check(binv2.can_rack_exchange(false)["ok"], "staff-only rack exchange is legal")
 
 	print("=== %d failure(s) ===" % failures)

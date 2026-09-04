@@ -108,7 +108,7 @@ func _initialize() -> void:
 	# hands: sword+shield, rack: hammer only (1 item) -> incoming single always qualifies.
 	# Stow the shield alongside the hammer to force a 2-vs-2 shape.
 	var taken = inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	inv.rack_store_item(taken)
+	inv.rack_items.append(taken)
 	_check(inv.rack_items.size() == 2, "rack holds hammer + shield (2 items)")
 	var check3: Dictionary = inv.can_rack_exchange(true)
 	_check(not check3["ok"], "free swap refused: no single two-handed side")

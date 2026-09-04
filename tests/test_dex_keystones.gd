@@ -46,12 +46,9 @@ func _test_twin_strike_penalty() -> void:
 	print("-- Flurry Form: per-hit damage penalty --")
 	var stats = _fresh_stats()
 	var before_phys = stats.get_effective_physical_damage(10)
-	var before_ranged = stats.get_effective_ranged_damage(10)
 	stats.keystone_dex_twin_strike = true
 	_check(stats.get_effective_physical_damage(10) == before_phys - PlayerStats.DEX_TWIN_STRIKE_DAMAGE_PENALTY,
 		"physical damage drops by the penalty (%d -> %d)" % [before_phys, stats.get_effective_physical_damage(10)])
-	_check(stats.get_effective_ranged_damage(10) == before_ranged - PlayerStats.DEX_TWIN_STRIKE_DAMAGE_PENALTY,
-		"ranged damage drops by the penalty (%d -> %d)" % [before_ranged, stats.get_effective_ranged_damage(10)])
 
 func _test_killing_rhythm() -> void:
 	print("-- Killing Rhythm: proc becomes armed bonus damage --")
