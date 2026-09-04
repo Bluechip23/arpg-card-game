@@ -42,6 +42,7 @@ const WORLD_PALETTES := {
 		"ambient": Color(0.42, 0.47, 0.40),
 		"sun": Color(1.0, 0.96, 0.86),
 		"sun_energy": 1.25,
+		"trail": Color(0.36, 0.29, 0.18),
 	},
 	2: {
 		"name": "Amber Wastes",
@@ -56,6 +57,7 @@ const WORLD_PALETTES := {
 		"ambient": Color(0.50, 0.44, 0.35),
 		"sun": Color(1.0, 0.92, 0.76),
 		"sun_energy": 1.35,
+		"trail": Color(0.45, 0.34, 0.20),
 	},
 	3: {
 		"name": "Frostreach",
@@ -70,6 +72,7 @@ const WORLD_PALETTES := {
 		"ambient": Color(0.42, 0.46, 0.54),
 		"sun": Color(0.88, 0.93, 1.0),
 		"sun_energy": 1.1,
+		"trail": Color(0.40, 0.38, 0.36),
 	},
 	4: {
 		"name": "Emberfall",
@@ -84,6 +87,7 @@ const WORLD_PALETTES := {
 		"ambient": Color(0.38, 0.30, 0.27),
 		"sun": Color(1.0, 0.82, 0.64),
 		"sun_energy": 1.05,
+		"trail": Color(0.30, 0.20, 0.15),
 	},
 	5: {
 		"name": "Umbral Expanse",
@@ -98,6 +102,7 @@ const WORLD_PALETTES := {
 		"ambient": Color(0.33, 0.31, 0.42),
 		"sun": Color(0.85, 0.83, 1.0),
 		"sun_energy": 0.95,
+		"trail": Color(0.28, 0.24, 0.30),
 	},
 }
 
@@ -181,7 +186,12 @@ const FOREST_PALETTE := {
 var grid: Array = []        # 2D array [x][z] of Tile
 var elevation: Array = []   # 2D array [x][z] of int (0 = ground, 1+ = elevated)
 var water: Array = []       # 2D bool array [x][z] — true where floor is a water channel
+var trail: Array = []       # 2D bool array [x][z] — true where floor is a worn dirt path
 var rooms: Array = []       # [{rect: Rect2i, kind: String, elev: int}]
+
+# When true, carving helpers flag the tiles they carve as trail (worn path).
+# Turned on around road/trail carving in the overworld and forest layouts.
+var _marking_trails: bool = false
 
 
 # Forest interactables, consumed by main.gd at setup.
@@ -431,7 +441,9 @@ func _generate_overworld_layout() -> void:
 	_carve_rect(exit_rect)
 	rooms.append({"rect": exit_rect, "kind": "exit", "elev": 0})
 
-	# Corridor from arena to exit room
+	# Corridor from arena to exit room. Corridors carved from here on are
+	# flagged as worn dirt roads (painted by _build_floor_visuals).
+	_marking_trails = true
 	_carve_corridor_h(GRID_W - 8, GRID_W - 5, mid_z)
 	_carve_corridor_h(GRID_W - 8, GRID_W - 5, mid_z + 1)
 
@@ -486,6 +498,15 @@ func _generate_overworld_layout() -> void:
 	# A second route into the arena keeps the endgame area from being a single chokepoint
 	if lat_rows > 1:
 		_connect_rooms(rooms[lattice[cols - 1][mid_row - 1]]["rect"], arena_rect)
+	_marking_trails = false
+
+	# Roads stop at the field edges: clear trail flags inside every room so the
+	# dirt reads as paths BETWEEN clearings, not carpets across them.
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		for x in range(maxi(0, rect.position.x), mini(rect.end.x, GRID_W)):
+			for z in range(maxi(0, rect.position.y), mini(rect.end.y, GRID_H)):
+				trail[x][z] = false
 
 func _connect_rooms(a: Rect2i, b: Rect2i) -> void:
 	## Carves a 2-wide L-shaped corridor between the centers of two rooms.
@@ -578,6 +599,7 @@ func _carve_tunnel(from: Vector2i, to: Vector2i) -> void:
 		for dx in range(2):
 			for dz in range(2):
 				grid[current.x + dx][current.y + dz] = Tile.FLOOR
+				_mark_trail(current.x + dx, current.y + dz)
 
 func _carve_circle(center: Vector2i, radius: int) -> void:
 	for x in range(maxi(1, center.x - radius), mini(GRID_W - 1, center.x + radius + 1)):
@@ -765,9 +787,26 @@ func _generate_forest_layout() -> void:
 	_smooth_cave_walls()      # round the treeline edges so the woods read organic
 	_enforce_border_walls()
 
+	# Trails fade out where they open into a clearing: clear the flags inside
+	# each clearing circle (leave one rim tile so the path visibly enters).
+	for room in rooms:
+		if not room.has("center"):
+			continue
+		var c: Vector2i = room["center"]
+		var r: int = maxi(0, int(room["radius"]) - 1)
+		for x in range(maxi(1, c.x - r), mini(GRID_W - 1, c.x + r + 1)):
+			for z in range(maxi(1, c.y - r), mini(GRID_H - 1, c.y + r + 1)):
+				var dx = x - c.x
+				var dz = z - c.y
+				if dx * dx + dz * dz <= r * r:
+					trail[x][z] = false
+
 func _carve_trail(from: Vector2i, to: Vector2i) -> void:
 	## A winding 2-wide dirt trail between two clearings (reuses the cave walk).
+	## The carved tiles are flagged so the floor pass paints them as packed dirt.
+	_marking_trails = true
 	_carve_tunnel(from, to)
+	_marking_trails = false
 
 # ============================================
 # BUILDING INTERIOR LAYOUT
@@ -838,11 +877,26 @@ func _generate_building_layout() -> void:
 
 func _init_grid_walls() -> void:
 	grid.clear()
+	trail.clear()
 	for x in range(GRID_W):
 		var col: Array = []
+		var tcol: Array = []
 		for z in range(GRID_H):
 			col.append(Tile.WALL)
+			tcol.append(false)
 		grid.append(col)
+		trail.append(tcol)
+
+func is_trail(grid_pos: Vector2i) -> bool:
+	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
+		return false
+	if trail.is_empty():
+		return false
+	return trail[grid_pos.x][grid_pos.y]
+
+func _mark_trail(x: int, z: int) -> void:
+	if _marking_trails and x >= 0 and x < GRID_W and z >= 0 and z < GRID_H:
+		trail[x][z] = true
 
 func _init_water() -> void:
 	water.clear()
@@ -870,6 +924,7 @@ func _carve_corridor_h(from_x: int, to_x: int, z: int) -> void:
 	for x in range(maxi(0, min_x), mini(max_x + 1, GRID_W)):
 		if z >= 0 and z < GRID_H:
 			grid[x][z] = Tile.FLOOR
+			_mark_trail(x, z)
 
 func _carve_corridor_v(x: int, from_z: int, to_z: int) -> void:
 	var min_z = mini(from_z, to_z)
@@ -877,6 +932,7 @@ func _carve_corridor_v(x: int, from_z: int, to_z: int) -> void:
 	for z in range(maxi(0, min_z), mini(max_z + 1, GRID_H)):
 		if x >= 0 and x < GRID_W:
 			grid[x][z] = Tile.FLOOR
+			_mark_trail(x, z)
 
 # ============================================
 # ELEVATION
@@ -1091,8 +1147,10 @@ func _build_floor_visuals() -> void:
 	## Sewer water channels render as a darker, glossy surface sunk below the brick.
 	var pal = get_palette()
 	var has_water = pal.has("water")
+	var trail_col: Color = pal.get("trail", Color(0.34, 0.28, 0.18))
 	var items: Array = []
 	var water_items: Array = []
+	var trail_items: Array = []
 	for x in range(GRID_W):
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.FLOOR or elevation[x][z] > 0:
@@ -1109,18 +1167,27 @@ func _build_floor_visuals() -> void:
 					"color": wcol,
 				})
 				continue
-			var col: Color = pal["floor_a"].lerp(pal["floor_b"], n)
 			var xform = Transform3D(
 				Basis.from_scale(Vector3(1.0, 0.1, 1.0)),
 				Vector3(x + 0.5, -0.05, z + 0.5)
 			)
+			if trail[x][z]:
+				# Worn dirt path: same slab, dirt sheet, earthen tint.
+				trail_items.append({"xform": xform, "color": trail_col.lerp(pal["floor_b"], n * 0.35)})
+				continue
+			var col: Color = pal["floor_a"].lerp(pal["floor_b"], n)
 			items.append({"xform": xform, "color": col})
 	_add_multimesh(BoxMesh.new(), items, true, 0.95, floor_texture_path())
+	if not trail_items.is_empty():
+		# Roads and trails read as packed dirt cutting through the grass —
+		# the classic 16-bit field path (Secret of Mana overworld look).
+		_add_multimesh(BoxMesh.new(), trail_items, true, 0.95, "res://assets/textures/tile_dirt.png")
 	if not water_items.is_empty():
 		# Flat painted 16-bit water: the ripples live in the tile art. No
 		# metallic/emission/gloss — modern PBR shine is a style violation.
 		_add_multimesh(BoxMesh.new(), water_items, true, 1.0, "res://assets/textures/tile_water.png")
-	print("[DUNGEON] Built %d floor tiles, %d water tiles" % [items.size(), water_items.size()])
+	print("[DUNGEON] Built %d floor tiles, %d trail tiles, %d water tiles" % [
+		items.size(), trail_items.size(), water_items.size()])
 
 var _chamfer_mesh_cache: Dictionary = {}
 
@@ -1337,15 +1404,17 @@ func _build_decorations() -> void:
 		_build_cave_decorations()
 		return
 	var pal = get_palette()
-	var rock_items: Array = []
-	var bush_items: Array = []
-	var cone_items: Array = []
 	var _deco_trees: Array = []
+	var _deco_stumps: Array = []
 	var _deco_rocks: Array = []
 	var _deco_bushes: Array = []
 	var _deco_ferns: Array = []
 	var _deco_flowers: Array = []
-	var _deco_spikes: Array = []
+	var _deco_tufts: Array = []
+	var _deco_shrooms: Array = []
+	var _deco_crates: Array = []
+	var _deco_barrels: Array = []
+	var butterfly_cells: Array = []
 
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1359,74 +1428,96 @@ func _build_decorations() -> void:
 			var n = _tile_noise(x, z, 53)
 			var jx = (_tile_noise(x, z, 61) - 0.5) * 0.5
 			var jz = (_tile_noise(x, z, 67) - 0.5) * 0.5
-			var rot = Basis(Vector3.UP, _tile_noise(x, z, 71) * TAU)
+			var p3 = Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz)
 
-			if interior_kind == "cave":
-				if near_wall and n < 0.14:
-					# Stalagmite (billboard sprite)
-					_deco_spikes.append({
-						"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
-						"scale": 0.5 + _tile_noise(x, z, 73) * 0.9,
-						"color": pal["wall_a"].lerp(pal["wall_b"], n * 3.0),
-					})
-				elif near_wall and n < 0.2:
-					_deco_rocks.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
-							"scale": 0.8 + _tile_noise(x, z, 75) * 0.5, "color": pal["wall_a"]})
-			elif interior_kind == "building":
-				if near_wall and n < 0.10:
-					# Crates and furniture
-					var s = 0.4 + _tile_noise(x, z, 79) * 0.2
-					rock_items.append({
-						"xform": Transform3D(rot * Basis.from_scale(Vector3(s, s, s)),
-							Vector3(x + 0.5 + jx * 0.5, y_base + s / 2.0, z + 0.5 + jz * 0.5)),
-						"color": pal["accent"].lerp(pal["floor_b"], n * 2.0),
-					})
-			else:
+			if interior_kind == "building":
+				# Stored goods pushed against the walls: crates and barrels.
 				if near_wall and n < 0.07:
-					# Treeline trees hugging the walls (billboard sprites)
-					_deco_trees.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
-							"scale": 0.85 + _tile_noise(x, z, 73) * 0.5,
+					_deco_crates.append({"pos": Vector3(x + 0.5 + jx * 0.5, y_base, z + 0.5 + jz * 0.5),
+							"scale": 0.85 + _tile_noise(x, z, 79) * 0.3, "color": Color.WHITE})
+				elif near_wall and n < 0.115:
+					_deco_barrels.append({"pos": Vector3(x + 0.5 + jx * 0.5, y_base, z + 0.5 + jz * 0.5),
+							"scale": 0.85 + _tile_noise(x, z, 81) * 0.3, "color": Color.WHITE})
+			else:
+				# Overworld field. The treeline hugs the walls densely enough to
+				# read as woods pressing in on the clearings (SoM field edges).
+				if near_wall and n < 0.13:
+					_deco_trees.append({"pos": p3,
+							"scale": 0.85 + _tile_noise(x, z, 73) * 0.55,
 							"color": pal.get("leaf", pal["floor_a"])})
-				elif near_wall and n < 0.11:
-					_deco_rocks.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+				elif near_wall and n < 0.16:
+					_deco_stumps.append({"pos": p3,
+							"scale": 0.75 + _tile_noise(x, z, 74) * 0.35,
+							"color": pal["wall_a"].lerp(pal["accent"], 0.25)})
+				elif near_wall and n < 0.20:
+					_deco_rocks.append({"pos": p3,
 							"scale": 0.7 + _tile_noise(x, z, 75) * 0.5, "color": pal["wall_a"]})
+				elif near_wall and n < 0.24:
+					_deco_shrooms.append({"pos": p3,
+							"scale": 0.8 + _tile_noise(x, z, 76) * 0.4, "color": Color.WHITE})
+				elif trail[x][z]:
+					pass  # keep the roads themselves clean of growth
 				elif n > 0.925:
-					_deco_bushes.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+					_deco_bushes.append({"pos": p3,
 							"scale": 0.8 + _tile_noise(x, z, 83) * 0.5,
 							"color": pal["accent"].lerp(pal["floor_a"], 0.5)})
 				elif n > 0.885:
-					_deco_ferns.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+					_deco_ferns.append({"pos": p3,
 							"scale": 0.8 + _tile_noise(x, z, 87) * 0.4,
 							"color": pal["floor_a"]})
 				elif n > 0.84:
 					# Flower clumps scattered through the open meadow
-					_deco_flowers.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+					_deco_flowers.append({"pos": p3,
 							"scale": 0.8 + _tile_noise(x, z, 89) * 0.4,
 							"color": Color.WHITE})
+					if n > 0.855:
+						butterfly_cells.append({"pos": pos})
+				elif n > 0.72:
+					# Tall grass tufts: the workhorse filler that makes open
+					# ground read as meadow instead of green carpet.
+					_deco_tufts.append({"pos": p3,
+							"scale": 0.75 + _tile_noise(x, z, 93) * 0.5,
+							"color": pal["floor_a"].lerp(pal["accent"], _tile_noise(x, z, 95) * 0.6)})
 
-	_add_multimesh(BoxMesh.new(), rock_items)
 	_add_sprite_decos(_deco_trees, "res://assets/textures/props/tree.png", 48, 64)
+	_add_sprite_decos(_deco_stumps, "res://assets/textures/props/stump.png", 24, 20)
 	_add_sprite_decos(_deco_rocks, "res://assets/textures/props/rock.png", 32, 24)
 	_add_sprite_decos(_deco_bushes, "res://assets/textures/props/bush.png", 32, 24)
 	_add_sprite_decos(_deco_ferns, "res://assets/textures/props/fern.png", 24, 24)
 	_add_sprite_decos(_deco_flowers, "res://assets/textures/props/flowers.png", 20, 14)
-	_add_sprite_decos(_deco_spikes, "res://assets/textures/props/stalagmite.png", 16, 24)
-	if not bush_items.is_empty():
-		var bush_mesh = SphereMesh.new()
-		bush_mesh.radial_segments = 12
-		bush_mesh.rings = 6
-		_add_multimesh(bush_mesh, bush_items)
-	if not cone_items.is_empty():
-		var cone = CylinderMesh.new()
-		cone.top_radius = 0.04
-		cone.bottom_radius = 0.5
-		cone.height = 1.0
-		cone.radial_segments = 10
-		_add_multimesh(cone, cone_items)
-	print("[DUNGEON] Placed %d mesh decos + %d trees, %d rocks, %d bushes, %d ferns, %d flowers" % [
-		rock_items.size() + bush_items.size() + cone_items.size(),
-		_deco_trees.size(), _deco_rocks.size(), _deco_bushes.size(),
-		_deco_ferns.size(), _deco_flowers.size()])
+	_add_sprite_decos(_deco_tufts, "res://assets/textures/props/grass_tuft.png", 14, 12)
+	_add_sprite_decos(_deco_shrooms, "res://assets/textures/props/mushroom.png", 16, 13)
+	_add_sprite_decos(_deco_crates, "res://assets/textures/props/crate.png", 22, 20)
+	_add_sprite_decos(_deco_barrels, "res://assets/textures/props/barrel.png", 18, 22)
+
+	if interior_kind == "":
+		_place_butterflies(butterfly_cells)
+		_add_cloud_shadows()
+
+	print("[DUNGEON] Placed %d trees, %d stumps, %d rocks, %d bushes, %d ferns, %d flowers, %d tufts, %d shrooms, %d crates/barrels" % [
+		_deco_trees.size(), _deco_stumps.size(), _deco_rocks.size(), _deco_bushes.size(),
+		_deco_ferns.size(), _deco_flowers.size(), _deco_tufts.size(), _deco_shrooms.size(),
+		_deco_crates.size() + _deco_barrels.size()])
+
+func _place_butterflies(cells: Array) -> void:
+	## A handful of butterflies flitting over the flower patches.
+	if cells.is_empty():
+		return
+	var want = clampi(cells.size() / 5, 3, 9)
+	var picks = _spaced_sample(cells, want, 8)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		var b = SewerCritter.new()
+		b.name = "Butterfly_%d" % i
+		_visuals_root.add_child(b)
+		b.setup(Vector3(pos.x + 0.5, 0.0, pos.y + 0.5), _layout_seed + i * 233, "butterfly")
+
+func _add_cloud_shadows() -> void:
+	## Slow cloud shadows drifting across open outdoor ground (SNES daylight cue).
+	var clouds = CloudShadows.new()
+	clouds.name = "CloudShadows"
+	_visuals_root.add_child(clouds)
+	clouds.setup(GRID_W, GRID_H, _layout_seed)
 
 func _make_rock(x: int, z: int, jx: float, jz: float, y_base: float, rot: Basis, pal: Dictionary) -> Dictionary:
 	var sx = 0.2 + _tile_noise(x, z, 91) * 0.25
@@ -1482,9 +1573,10 @@ func _build_sewer_decorations() -> void:
 	_place_sewer_doors(pal)
 	_place_sewer_manholes(pal)
 	_place_sewer_rubble(wall_edges, pal)
+	_place_sewer_reeds(water_tiles, pal)
 	_place_sewer_mice(floor_tiles)
 
-	print("[DUNGEON] Sewer dressing: %d torches, %d candidate walls, %d water tiles" % [
+	print("[DUNGEON] Sewer dressing: %d candidate walls, %d water tiles" % [
 		wall_edges.size(), water_tiles.size()])
 
 func _adjacent_floor_dir(x: int, z: int) -> Vector2i:
@@ -1871,6 +1963,30 @@ func _place_sewer_rubble(wall_edges: Array, pal: Dictionary) -> void:
 	_add_multimesh(BoxMesh.new(), rubble)
 	if not moss.is_empty():
 		_add_multimesh(BoxMesh.new(), moss)
+
+func _place_sewer_reeds(water_tiles: Array, pal: Dictionary) -> void:
+	## Marsh reeds rooted where the channel water meets dry brick — the one
+	## thing that grows down here besides the algae.
+	var candidates: Array = []
+	for pos in water_tiles:
+		# Water tile with at least one dry floor neighbor = channel edge.
+		for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var np: Vector2i = pos + dir
+			if is_floor(np) and not is_water(np) and not _reserved.has(np):
+				candidates.append({"pos": pos})
+				break
+	var want = clampi(candidates.size() / 9, 6, 20)
+	var items: Array = []
+	for entry in _spaced_sample(candidates, want, 4):
+		var pos: Vector2i = entry["pos"]
+		var jx = (_tile_noise(pos.x, pos.y, 61) - 0.5) * 0.4
+		var jz = (_tile_noise(pos.x, pos.y, 67) - 0.5) * 0.4
+		items.append({
+			"pos": Vector3(pos.x + 0.5 + jx, -0.1, pos.y + 0.5 + jz),
+			"scale": 0.7 + _tile_noise(pos.x, pos.y, 69) * 0.5,
+			"color": pal["accent"],
+		})
+	_add_sprite_decos(items, "res://assets/textures/props/reeds.png", 14, 22)
 
 func _place_sewer_mice(floor_tiles: Array) -> void:
 	## A handful of background sewer mice scuttling near the walls.
@@ -2367,9 +2483,15 @@ func _build_wall_dart_mesh(root: Node3D, wall: Vector2i, dir: Vector2i) -> void:
 func _build_forest_decorations() -> void:
 	var pal = get_palette()
 	var trunk_items: Array = []
-	var canopy_items: Array = []
+	var fern_items: Array = []
 	var stump_items: Array = []
 	var bush_items: Array = []
+	var tuft_items: Array = []
+	var shroom_items: Array = []
+	var flower_items: Array = []
+	var log_candidates: Array = []
+	var leaffall_candidates: Array = []
+	var butterfly_cells: Array = []
 	var floor_cells: Array = []
 
 	for x in range(1, GRID_W - 1):
@@ -2386,34 +2508,83 @@ func _build_forest_decorations() -> void:
 			var jx = (_tile_noise(x, z, 61) - 0.5) * 0.4
 			var jz = (_tile_noise(x, z, 67) - 0.5) * 0.4
 			var y_base = elevation[x][z] * ELEV_STEP
-			var rot = Basis(Vector3.UP, _tile_noise(x, z, 71) * TAU)
+			var p3 = Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz)
 			if near_wall and n < 0.30:
 				# Treeline tree (billboard sprite).
-				trunk_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+				trunk_items.append({"pos": p3,
 						"scale": 0.8 + _tile_noise(x, z, 73) * 0.7,
 						"color": pal["leaf"].lerp(pal["leaf_b"], _tile_noise(x, z, 79))})
-			elif near_wall and n < 0.40:
+				if n < 0.05:
+					leaffall_candidates.append({"pos": pos})
+			elif near_wall and n < 0.38:
 				# Mossy stump (billboard sprite).
-				stump_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+				stump_items.append({"pos": p3,
 						"scale": 0.7 + _tile_noise(x, z, 81) * 0.4,
 						"color": pal["bark"].lerp(pal["accent"], 0.3)})
+			elif near_wall and n < 0.46:
+				# Toadstool clumps in the treeline shade.
+				shroom_items.append({"pos": p3,
+						"scale": 0.8 + _tile_noise(x, z, 82) * 0.4, "color": Color.WHITE})
+			elif trail[x][z]:
+				pass  # trails stay clear underfoot
 			elif n > 0.93:
-				bush_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+				bush_items.append({"pos": p3,
 						"scale": 0.7 + _tile_noise(x, z, 83) * 0.6,
 						"color": pal["accent"].lerp(pal["leaf"], _tile_noise(x, z, 89))})
 			elif n > 0.88:
-				canopy_items.append({"pos": Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz),
+				fern_items.append({"pos": p3,
 						"scale": 0.75 + _tile_noise(x, z, 91) * 0.4,
 						"color": pal["leaf"]})
+			elif n > 0.845:
+				# Woodland flowers in the open clearings.
+				flower_items.append({"pos": p3,
+						"scale": 0.75 + _tile_noise(x, z, 92) * 0.4, "color": Color.WHITE})
+				if n > 0.86:
+					butterfly_cells.append({"pos": pos})
+			elif n > 0.70:
+				# Tall grass fills the clearings between the mown battle lanes.
+				tuft_items.append({"pos": p3,
+						"scale": 0.75 + _tile_noise(x, z, 93) * 0.5,
+						"color": pal["floor_a"].lerp(pal["accent"], _tile_noise(x, z, 95) * 0.6)})
+			elif not near_wall and n > 0.665:
+				log_candidates.append({"pos": pos, "p3": p3})
+
+	# Fallen logs: sparse and spaced so each one reads as a landmark.
+	var log_items: Array = []
+	for entry in _spaced_sample(log_candidates, clampi(log_candidates.size() / 12, 4, 9), 7):
+		log_items.append({"pos": entry["p3"],
+				"scale": 0.85 + _tile_noise(entry["pos"].x, entry["pos"].y, 96) * 0.35,
+				"color": Color.WHITE})
 
 	_add_sprite_decos(trunk_items, "res://assets/textures/props/tree.png", 48, 64)
-	_add_sprite_decos(canopy_items, "res://assets/textures/props/fern.png", 24, 24)
+	_add_sprite_decos(fern_items, "res://assets/textures/props/fern.png", 24, 24)
 	_add_sprite_decos(stump_items, "res://assets/textures/props/stump.png", 24, 20)
 	_add_sprite_decos(bush_items, "res://assets/textures/props/bush.png", 32, 24)
+	_add_sprite_decos(tuft_items, "res://assets/textures/props/grass_tuft.png", 14, 12)
+	_add_sprite_decos(shroom_items, "res://assets/textures/props/mushroom.png", 16, 13)
+	_add_sprite_decos(flower_items, "res://assets/textures/props/flowers.png", 20, 14)
+	_add_sprite_decos(log_items, "res://assets/textures/props/log.png", 36, 16)
 
 	_place_forest_squirrels(floor_cells)
-	print("[DUNGEON] Forest dressing: %d trees, %d stumps, %d bushes" % [
-		trunk_items.size(), stump_items.size(), bush_items.size()])
+	_place_butterflies(butterfly_cells)
+	_place_leaf_falls(leaffall_candidates)
+	_add_cloud_shadows()
+	print("[DUNGEON] Forest dressing: %d trees, %d stumps, %d bushes, %d tufts, %d shrooms, %d logs" % [
+		trunk_items.size(), stump_items.size(), bush_items.size(),
+		tuft_items.size(), shroom_items.size(), log_items.size()])
+
+func _place_leaf_falls(candidates: Array) -> void:
+	## Drifting leaves shed from the canopy near the treeline.
+	if candidates.is_empty():
+		return
+	var want = clampi(candidates.size() / 6, 4, 12)
+	var picks = _spaced_sample(candidates, want, 9)
+	for i in range(picks.size()):
+		var pos: Vector2i = picks[i]["pos"]
+		var lf = LeafFall.new()
+		lf.name = "LeafFall_%d" % i
+		_visuals_root.add_child(lf)
+		lf.setup(Vector3(pos.x + 0.5, 0.0, pos.y + 0.5), _layout_seed + i * 389)
 
 func _place_forest_squirrels(floor_cells: Array) -> void:
 	## Background squirrels darting about the clearings. Cosmetic only.
@@ -2466,6 +2637,7 @@ func _build_cave_decorations() -> void:
 	var stalactite_items: Array = []  # downward cones hanging into the tunnel
 	var divot_items: Array = []       # small dark floor depressions
 	var pebble_items: Array = []      # scattered rubble
+	var shroom_items: Array = []      # pale fungus clumps in the dark
 
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -2498,6 +2670,13 @@ func _build_cave_decorations() -> void:
 					"scale": hs,
 					"color": pal["wall_a"].lerp(pal["wall_b"], n * 2.0),
 				})
+			elif near_wall and n < 0.36:
+				# Pale cave fungus clustered where the drip water gathers.
+				shroom_items.append({
+					"pos": Vector3(x + 0.5 + jx, 0.0, z + 0.5 + jz),
+					"scale": 0.7 + _tile_noise(x, z, 78) * 0.5,
+					"color": Color.WHITE,
+				})
 			elif not is_wet and n > 0.93:
 				# A shallow divot pressed into the cave floor.
 				divot_items.append({
@@ -2510,6 +2689,7 @@ func _build_cave_decorations() -> void:
 
 	_add_sprite_decos(stalagmite_items, "res://assets/textures/props/stalagmite.png", 16, 24)
 	_add_sprite_decos(stalactite_items, "res://assets/textures/props/stalactite.png", 16, 24)
+	_add_sprite_decos(shroom_items, "res://assets/textures/props/mushroom_pale.png", 16, 13)
 
 	_add_multimesh(BoxMesh.new(), divot_items)
 	_add_multimesh(BoxMesh.new(), pebble_items)
