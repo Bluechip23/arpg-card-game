@@ -396,6 +396,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	if player_node and player_node.has_method("get_debuff_manager"):
 		debuff_mgr = player_node.get_debuff_manager()
 	
+	# Engrave: the card only works from inside an equipped item's card slot.
+	if card.requires_engraving and card.slotted_in_item == null:
+		print("[DECK] %s must be engraved into an item before it can be played" % card.card_name)
+		return { "played": false, "half_tempo": false }
+
 	if debuff_mgr:
 		if debuff_mgr.is_card_locked(index):
 			print("[DECK] Cannot play card - Locked!")

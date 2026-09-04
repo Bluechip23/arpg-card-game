@@ -64,6 +64,7 @@ const CARD_RARITIES := {
 	"poisoned_blood": Rarity.COMMON, "elixir": Rarity.COMMON, "reposition": Rarity.COMMON,
 	"premeditated": Rarity.COMMON, "mark": Rarity.COMMON, "rise": Rarity.COMMON,
 	"reload": Rarity.COMMON, "barricade": Rarity.COMMON, "sky_attack": Rarity.COMMON,
+	"fleet_etching": Rarity.COMMON, "regal_etching": Rarity.COMMON,
 	"mixed_bag": Rarity.COMMON, "trip": Rarity.COMMON, "choke": Rarity.COMMON,
 	"defensive_awareness": Rarity.COMMON, "sweeping_disarm": Rarity.COMMON, "consecutive_snap": Rarity.COMMON,
 	"swap": Rarity.COMMON, "meditate": Rarity.COMMON, "potion_of_continuance": Rarity.COMMON,
@@ -288,6 +289,10 @@ var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = s
 var source_item_type: int = -1  # ItemData.ItemType the card was first extracted from (-1 = no restriction yet)
 var is_molded: bool = false  # Card is locked into the item and cannot be extracted
 var slotted_in_item = null  # Reference to the ItemData this card is slotted in (null = not slotted)
+# Engrave: the card only works from inside an item — while it is NOT slotted
+# into an equipped item's card slot it cannot be played (it still shows in the
+# deck and the enchant panel so the player can engrave it).
+var requires_engraving: bool = false
 # The item that GRANTED this card to the deck (GRANT_CARDS / GRANT_BLINK_CARD).
 # Parallels slotted_in_item: both mark a card as "owned" by an item, so it is
 # pulled from every zone when the item is unequipped and returned when it is
@@ -753,6 +758,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"strengthen": "+X damage on next Y attacks",
 		"bolster": "+X armor next Y times you gain armor",
 		"haste": "+X tempo-free tiles on each of your next Y moves; one charge per move",
+		"engrave": "Must be slotted into an equipped item to be usable",
 		"cleanse": "Remove X negative effects (instant)",
 		"smith": "Gain X armor per cycle, decaying by 1 each cycle",
 		"steady": "Next action does not add tempo",
@@ -855,6 +861,8 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "burden")
 	if has_reach:
 		_add_keyword_match(found_keys, matches, all_keywords, "reach")
+	if requires_engraving:
+		_add_keyword_match(found_keys, matches, all_keywords, "engrave")
 
 	# Scan the description for keyword mentions
 	for keyword in all_keywords:
@@ -1280,6 +1288,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"discard":
 			_execute_discard(deck_manager)
 		"draw":
+			_execute_draw(deck_manager)
+		"fleet_etching":
+			if buff_mgr:
+				buff_mgr.apply_buff(Buff.create_haste(1, 2, card_name))
+		"regal_etching":
 			_execute_draw(deck_manager)
 		"potion_of_continuance":
 			_execute_potion_of_continuance(deck_manager)
@@ -2459,6 +2472,36 @@ static func create_discard() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_fleet_etching() -> Card:
+	## First-pass Engrave card for boot slots (Swift keyword).
+	var card = Card.new()
+	card.card_id = "fleet_etching"
+	card.card_name = "Fleet Etching"
+	card.description = "Engrave. Gain Haste: +1 tempo-free tile on your next 2 moves."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 2
+	card.card_keyword = CardKeyword.SWIFT
+	card.requires_engraving = true
+	card.target_types = ["self"]
+	return card
+
+static func create_regal_etching() -> Card:
+	## First-pass Engrave card for helm slots (Crown keyword).
+	var card = Card.new()
+	card.card_id = "regal_etching"
+	card.card_name = "Regal Etching"
+	card.description = "Engrave. Draw a card."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 5
+	card.tempo_cost = 2
+	card.card_keyword = CardKeyword.CROWN
+	card.requires_engraving = true
 	card.target_types = ["self"]
 	return card
 

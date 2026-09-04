@@ -63,6 +63,7 @@ func _build_legend() -> void:
 	_add_keyword("Strengthen", "+X damage on next Y attacks", Color(1.0, 0.5, 0.3))
 	_add_keyword("Bolster", "+X armor next Y times you gain armor", Color(0.5, 0.7, 1.0))
 	_add_keyword("Haste", "+X tempo-free tiles on each of your next Y moves; one charge per move", Color(0.5, 1.0, 1.0))
+	_add_keyword("Engrave", "Must be slotted into an equipped item to be usable", Color(0.75, 0.65, 0.4))
 	_add_keyword("Cleanse", "Remove X negative effects (instant)", Color(1.0, 1.0, 1.0))
 	_add_keyword("Smith", "Gain X armor per cycle, decaying by 1 each cycle", Color(0.7, 0.7, 0.7))
 	_add_keyword("Steady", "Next action does not add tempo", Color(0.6, 0.8, 0.6))

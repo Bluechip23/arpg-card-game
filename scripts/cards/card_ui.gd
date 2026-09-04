@@ -112,6 +112,9 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			display_mana += debuff_mgr.get_hexed_mana_increase(index)
 		is_locked = debuff_mgr.is_card_locked(index)
 
+	# Engrave: unusable until slotted into an equipped item — greyed like Locked.
+	var needs_engraving := card.requires_engraving and card.slotted_in_item == null
+
 	# Costs live in the corner badges (mana drop / sand timer); the old title-bar
 	# cost text only surfaces the maintain cost now.
 	if cost_label:
@@ -127,7 +130,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	_pending_tempo = str(display_tempo)
 	_pending_mana_col = Color.WHITE
 	_pending_tempo_col = Color.WHITE
-	if is_locked:
+	if is_locked or needs_engraving:
 		_pending_mana_col = Color(0.45, 0.45, 0.45)
 		_pending_tempo_col = Color(0.45, 0.45, 0.45)
 	else:
@@ -146,6 +149,8 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	var tint := Color.WHITE
 	if is_locked:
 		tint = Color(1.0, 0.85, 0.45)
+	elif needs_engraving:
+		tint = Color(0.65, 0.65, 0.68)
 	elif is_hexed:
 		tint = Color(0.82, 0.6, 1.0)
 	elif debuff_mgr and debuff_mgr.get_tempo_increase() > 0:
