@@ -1816,8 +1816,6 @@ func _build_item_effect_text(item: ItemData) -> String:
 	elif item.gauntlet_skill_type == ItemData.GauntletSkillType.PASSIVE:
 		lines.append("[Passive] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
 	match item.special_effect:
-		ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR:
-			lines.append("[Overflow] Heal %d, +%d Armor" % [item.special_effect_value, item.special_effect_value_2])
 		ItemData.SpecialEffect.CHANCE_BOOST:
 			lines.append("[Passive] +%d%% chance effects" % item.special_effect_value)
 		ItemData.SpecialEffect.GRANT_CARDS:

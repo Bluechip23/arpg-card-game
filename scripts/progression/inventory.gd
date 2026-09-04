@@ -947,12 +947,8 @@ func on_armor_gained(amount: int) -> void:
 			for item in slot:
 				if not item:
 					continue
-				# Bloodbound Plate uses OVERFLOW_HEAL_ARMOR with special_effect_value_2
-				if item.special_effect == ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR and item.special_effect_value_2 > 0:
-					player_stats.add_armor(item.special_effect_value_2)
-					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value_2])
 				# General armor-on-armor-gain items (helm, shield, gauntlets, etc.)
-				elif item.special_effect == ItemData.SpecialEffect.ARMOR_ON_ARMOR_GAIN:
+				if item.special_effect == ItemData.SpecialEffect.ARMOR_ON_ARMOR_GAIN:
 					player_stats.add_armor(item.special_effect_value)
 					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value])
 		_applying_armor_instance_bonus = false

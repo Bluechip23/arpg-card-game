@@ -1972,8 +1972,6 @@ func _build_modal_effects(item: ItemData) -> String:
 
 	# Special effects
 	match item.special_effect:
-		ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR:
-			lines.append("[Overflow] Heal %d, +%d Armor" % [item.special_effect_value, item.special_effect_value_2])
 		ItemData.SpecialEffect.CHANCE_BOOST:
 			lines.append("[Passive] +%d%% chance effects" % item.special_effect_value)
 		ItemData.SpecialEffect.GRANT_CARDS:

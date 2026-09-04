@@ -25,7 +25,7 @@ static func get_weapon_subtype_name(subtype: int) -> String:
 enum Rarity { COMMON, RARE, LEGENDARY, MYTHIC }
 enum SpecialEffect {
 	NONE,
-	OVERFLOW_HEAL_ARMOR,
+	OVERFLOW_HEAL_ARMOR, # retired (no item carries it); slot kept for enum-order compat
 	GRANT_BLINK_CARD,   # retired (use GRANT_CARDS + granted_card_ids); slot kept for enum-order compat
 	INCREASE_HAND_SIZE, # retired (use the hand_size_bonus field); slot kept for enum-order compat
 	CHANCE_BOOST,
@@ -111,7 +111,6 @@ enum GauntletSkillType {
 # Special effects
 @export var special_effect: SpecialEffect = SpecialEffect.NONE
 @export var special_effect_value: int = 0
-@export var special_effect_value_2: int = 0
 @export var granted_card_ids: Array[String] = []
 
 # Ring trigger system
