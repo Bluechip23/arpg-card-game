@@ -2027,6 +2027,25 @@ func _rush_item_cards_to_hand(item: ItemData) -> void:
 	if moved:
 		deck_manager.hand_updated.emit()
 
+func rack_store_item(item: ItemData) -> bool:
+	## Out-of-combat setup path (the character panel's War Rack view): strap an
+	## unequipped item onto the rack directly.
+	if not has_back_rack or rack_items.size() >= weapon_slots:
+		return false
+	rack_items.append(item)
+	rack_changed.emit()
+	print("[INVENTORY] Strapped %s to the war rack" % item.item_name)
+	return true
+
+func rack_take_item(index: int) -> ItemData:
+	## Remove an item from the rack (to storage/hands via normal flows).
+	if index < 0 or index >= rack_items.size():
+		return null
+	var item = rack_items[index]
+	rack_items.remove_at(index)
+	rack_changed.emit()
+	return item
+
 #endregion
 #region ITEM STORAGE (NON-EQUIPPED INVENTORY)
 # ============================================
