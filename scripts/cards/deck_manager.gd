@@ -161,8 +161,27 @@ func restore_deck_state(state: Dictionary) -> void:
 		# (Without this, every active Power became free after a zone change.)
 		if player_stats and card.maintain_cost > 0:
 			player_stats.reserve_mana(card.maintain_cost)
+	expel_unslotted_engraved()
 	hand_updated.emit()
 	print("[DECK] Restored deck state: hand=%d, draw=%d, discard=%d, jail=%d" % [hand.size(), draw_pile.size(), discard_pile.size(), jail_pile.size()])
+
+## Engrave: a card that is not slotted into an item may not sit in ANY deck
+## zone. Sweeps every pile and moves offenders into the card inventory (run
+## after deck builds and restores, so purchases and old saves migrate too).
+func expel_unslotted_engraved() -> void:
+	var expelled := 0
+	for pile in [draw_pile, hand, discard_pile, jail_pile, maintained_cards]:
+		for i in range(pile.size() - 1, -1, -1):
+			var c = pile[i]
+			if c and c.requires_engraving and c.slotted_in_item == null:
+				pile.remove_at(i)
+				expelled += 1
+				if inventory:
+					# Straight into stored_cards (past the cap if need be) —
+					# losing the card would be worse than an over-full stash.
+					inventory.stored_cards.append(c)
+	if expelled > 0:
+		print("[DECK] Engrave: moved %d unslotted engraved card(s) to the card inventory" % expelled)
 
 func initialize_deck(character: CharacterData) -> void:
 	draw_pile.clear()
@@ -176,6 +195,7 @@ func initialize_deck(character: CharacterData) -> void:
 	# Create default starter deck based on character
 	_create_default_deck(character)
 	
+	expel_unslotted_engraved()
 	shuffle_draw_pile()
 	
 	for i in range(min(get_hand_cap(), draw_pile.size())):

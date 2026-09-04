@@ -289,9 +289,10 @@ var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = s
 var source_item_type: int = -1  # ItemData.ItemType the card was first extracted from (-1 = no restriction yet)
 var is_molded: bool = false  # Card is locked into the item and cannot be extracted
 var slotted_in_item = null  # Reference to the ItemData this card is slotted in (null = not slotted)
-# Engrave: the card only works from inside an item — while it is NOT slotted
-# into an equipped item's card slot it cannot be played (it still shows in the
-# deck and the enchant panel so the player can engrave it).
+# Engrave: the card only exists inside an item — unslotted it may not sit in
+# ANY deck zone (DeckManager.expel_unslotted_engraved sweeps it into the card
+# inventory, where the enchant panel offers it for slotting). The play gate in
+# play_card is a second line of defense.
 var requires_engraving: bool = false
 # The item that GRANTED this card to the deck (GRANT_CARDS / GRANT_BLINK_CARD).
 # Parallels slotted_in_item: both mark a card as "owned" by an item, so it is
@@ -758,7 +759,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"strengthen": "+X damage on next Y attacks",
 		"bolster": "+X armor next Y times you gain armor",
 		"haste": "+X tempo-free tiles on each of your next Y moves; one charge per move",
-		"engrave": "Must be slotted into an equipped item to be usable",
+		"engrave": "Cannot join your deck at all unless slotted into an item",
 		"cleanse": "Remove X negative effects (instant)",
 		"smith": "Gain X armor per cycle, decaying by 1 each cycle",
 		"steady": "Next action does not add tempo",

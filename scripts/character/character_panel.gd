@@ -1855,6 +1855,12 @@ func _open_card_slot_panel(item: ItemData) -> void:
 		for card in deck_manager.discard_pile:
 			if item.can_slot_card(card) and not card.is_slotted():
 				available_cards.append(card)
+		# Engrave cards live in the card inventory until slotted — offer them too.
+		if inventory:
+			for card in inventory.stored_cards:
+				if card is Card and card.requires_engraving and not card.is_slotted() \
+						and item.can_slot_card(card):
+					available_cards.append(card)
 
 		if available_cards.size() == 0:
 			var none_label = Label.new()

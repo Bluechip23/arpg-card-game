@@ -52,5 +52,32 @@ func _initialize() -> void:
 	var played = deck.play_card(0, null)
 	_check(played["played"], "engraved card plays once slotted")
 
+	# --- Deck exclusion: unslotted engraved cards are swept into storage ---
+	var inv = Inventory.new()
+	inv.player_stats = stats
+	inv.deck_manager = deck
+	deck.connect_inventory(inv)
+	var stray = Card.create_regal_etching()
+	deck.draw_pile.append(stray)
+	deck.expel_unslotted_engraved()
+	_check(not deck.draw_pile.has(stray), "sweep pulls the unslotted etching from the draw pile")
+	_check(inv.stored_cards.has(stray), "the swept etching lands in the card inventory")
+
+	# --- Storage -> deck is refused while unslotted ---
+	var idx = inv.stored_cards.find(stray)
+	_check(not inv.add_card_to_deck(idx, deck), "Add to Deck refuses an unslotted engraved card")
+	_check(inv.stored_cards.has(stray), "the refused card stays in storage")
+
+	# --- Enchanting from storage puts it in the item AND the deck ---
+	helm.card_slots = 1
+	_check(inv.enchant_card(stray, helm), "etching enchants into the helm from storage")
+	_check(not inv.stored_cards.has(stray), "enchanted etching left storage")
+	_check(deck.draw_pile.has(stray), "enchanted etching joined the draw pile")
+
+	# --- Extracting sends it back out of the deck into storage ---
+	inv.extract_card(helm, 0)
+	_check(not deck.draw_pile.has(stray), "extracted etching left the deck")
+	_check(inv.stored_cards.has(stray), "extracted etching returned to the card inventory")
+
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

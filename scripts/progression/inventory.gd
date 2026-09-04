@@ -2235,6 +2235,9 @@ func add_card_to_deck(card_index: int, dm) -> bool:
 	## Moves a card from inventory to the player's discard pile, respecting the
 	## rarity copy limit (unlimited commons; e.g. one copy of a legendary).
 	var peek = get_stored_card(card_index)
+	if peek != null and peek.requires_engraving and peek.slotted_in_item == null:
+		print("[INVENTORY] '%s' is an Engrave card — it can only join the deck inside an item" % peek.card_name)
+		return false
 	if peek != null and dm and not dm.can_add_copy(peek.card_id):
 		print("[INVENTORY] Deck copy limit reached for '%s' (%d max) — card stays in inventory"
 			% [peek.card_name, Card.max_deck_copies(peek.card_id)])
@@ -2330,6 +2333,17 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 	# Slot the card into the item (card stays in the deck)
 	item.slot_card(card)
 
+	# Engrave flow: a card slotted from the card inventory leaves storage and —
+	# now that it sits in an item — joins the deck like any slotted card.
+	var si = stored_cards.find(card)
+	if si >= 0:
+		stored_cards.remove_at(si)
+		storage_changed.emit()
+	if deck_manager and not _card_in_any_zone(card):
+		deck_manager.draw_pile.append(card)
+		deck_manager.shuffle_draw_pile()
+		print("[INVENTORY] '%s' joined the deck with its item" % card.card_name)
+
 	equipment_changed.emit()
 	print("[INVENTORY] Enchanted '%s' into %s" % [card.card_name, item.item_name])
 	return true
@@ -2352,6 +2366,19 @@ func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) 
 		card.source_item_type = item.item_type
 	card.slotted_in_item = null
 	item.slotted_cards.remove_at(card_index)
+
+	# Engrave: outside an item the card may not stay in the deck — pull it from
+	# every zone into the card inventory.
+	if card.requires_engraving and deck_manager:
+		for pile in [deck_manager.draw_pile, deck_manager.hand, deck_manager.discard_pile,
+				deck_manager.jail_pile, deck_manager.maintained_cards]:
+			var pi = pile.find(card)
+			if pi >= 0:
+				pile.remove_at(pi)
+		stored_cards.append(card)
+		storage_changed.emit()
+		deck_manager.hand_updated.emit()
+		print("[INVENTORY] Engrave: '%s' left the deck for the card inventory" % card.card_name)
 
 	equipment_changed.emit()
 	print("[INVENTORY] Extracted '%s' from %s" % [card.card_name, item.item_name])
