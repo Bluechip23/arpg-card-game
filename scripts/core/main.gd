@@ -8454,11 +8454,17 @@ func _update_wolves(amount: int) -> void:
 ## Sack of Bone Arrows: a kill made with a card slotted in the quiver raises a
 ## skeleton at half the victim's max health, on or beside the corpse's cell.
 func _spawn_bone_skeleton(hp: int, near_pos: Vector3) -> void:
+	_spawn_summon(hp, near_pos, "skeleton")
+
+## Shared spawn for every summoned melee ally: bone-arrow skeletons and the
+## manifest summons (skeleton / spirit / golem). All share the 3-summon cap
+## and the _update_skeletons brain.
+func _spawn_summon(hp: int, near_pos: Vector3, kind := "skeleton") -> void:
 	if not grid_manager:
 		return
 	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
 	if _skeletons.size() >= 3:
-		add_battle_log("The bones will not answer — three skeletons already stand.", Color(0.8, 0.85, 0.75))
+		add_battle_log("The summons will not answer — three already stand.", Color(0.8, 0.85, 0.75))
 		return
 	var corpse_cell = grid_manager.world_to_grid(near_pos)
 	var spawn_cell = corpse_cell
@@ -8470,10 +8476,10 @@ func _spawn_bone_skeleton(hp: int, near_pos: Vector3) -> void:
 				break
 	var skel = SkeletonScript.new()
 	add_child(skel)
-	skel.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp)
+	skel.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp, kind)
 	skel.died.connect(func(s): _garmr_death_stack(s.position); _skeletons.erase(s))
 	_skeletons.append(skel)
-	add_battle_log("A skeleton claws out of the kill! (%d/3, %d HP)" % [_skeletons.size(), hp], Color(0.8, 0.85, 0.75))
+	add_battle_log("A %s answers the call! (%d/3, %d HP)" % [skel.display_name, _skeletons.size(), hp], Color(0.8, 0.85, 0.75))
 
 func _update_skeletons(amount: int) -> void:
 	if _skeletons.is_empty():
@@ -8498,7 +8504,7 @@ func _update_skeletons(amount: int) -> void:
 			if s.attack_accum >= s.ATTACK_INTERVAL:
 				s.attack_accum -= s.ATTACK_INTERVAL
 				target_enemy.take_damage(s.BASE_ATTACK, true)
-				add_battle_log("Skeleton rakes %s for %d!" % [target_enemy.enemy_name, s.BASE_ATTACK], Color(0.8, 0.85, 0.75))
+				add_battle_log("%s rakes %s for %d!" % [s.display_name, target_enemy.enemy_name, s.BASE_ATTACK], Color(0.8, 0.85, 0.75))
 				_belthronding_share(s.position, s.BASE_ATTACK)
 			continue
 		s.move_accum += amount
@@ -11862,11 +11868,15 @@ func _on_manifest_card_clicked(index: int) -> void:
 				add_battle_log("Cinquedea: 6 damage and 1 Weaken to %s" % cq_victim.enemy_name, Color(0.85, 0.85, 0.7))
 			else:
 				add_battle_log("Cinquedea: nothing within 4 squares", Color(0.7, 0.6, 0.5))
-		"summon_skeleton", "summon_spirit", "summon_golem":
-			# Summoned allies are not implemented yet — the old path only placed
-			# an inert marker cube. Design pending (see the not-implemented list).
-			add_battle_log("Summons are not implemented yet.", Color(0.7, 0.7, 0.7))
-			print("[MAIN] Manifest %s: summons not implemented" % result["manifest_id"])
+		"summon_skeleton":
+			for i in range(maxi(1, int(result["manifest_value"]))):
+				_spawn_summon(15, player.position, "skeleton")
+		"summon_spirit":
+			for i in range(maxi(1, int(result["manifest_value"]))):
+				_spawn_summon(8, player.position, "spirit")
+		"summon_golem":
+			for i in range(maxi(1, int(result["manifest_value"]))):
+				_spawn_summon(30, player.position, "golem")
 		"use_mushroom":
 			player.get_stats().heal(result["manifest_value"])
 			print("[MAIN] Used Mushroom: Healed %d" % result["manifest_value"])

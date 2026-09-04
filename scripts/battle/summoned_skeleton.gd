@@ -1,21 +1,25 @@
 extends Node3D
 
-## Skeleton raised by the Sack of Bone Arrows (on-self: a kill made with a
-## card slotted in the quiver).
+## Summoned melee ally: the Sack of Bone Arrows skeleton, plus the manifest
+## summons (skeleton / spirit / golem) that share its brain.
 ##
-## Stat block (per the item): max health = 50% of the enemy whose death raised
-## it, hits for 5, moves 4 spaces every tempo, attacks every 5 tempo. Lives
-## until killed (or the battle ends); at most 3 stand at once.
+## Base stat block (skeleton, per the item): hits for 5, moves 4 spaces every
+## tempo, attacks every 5 tempo. Spirits are fast and fragile; golems slow and
+## tanky (see setup). Lives until killed (or the battle ends); at most 3
+## summons stand at once.
 ##
 ## This node owns visuals/health/movement; main.gd drives per-tempo decisions
 ## (_update_skeletons) via the cadence accumulators.
 
 signal died(skeleton)
 
-const BASE_ATTACK := 5      # bone-arrow skeletons hit for 5
-const MOVE_INTERVAL := 1    # tempo between moves
-const MOVE_STEPS := 4       # tiles per move
-const ATTACK_INTERVAL := 5  # tempo between attacks
+# Per-kind cadence knobs — skeleton defaults; setup() retunes for the kind.
+var BASE_ATTACK := 5      # damage per hit
+var MOVE_INTERVAL := 1    # tempo between moves
+var MOVE_STEPS := 4       # tiles per move
+var ATTACK_INTERVAL := 5  # tempo between attacks
+var kind := "skeleton"
+var display_name := "Skeleton"
 
 var max_health: int = 10
 var health: int = 10
@@ -28,10 +32,26 @@ var _target_position: Vector3 = Vector3.ZERO
 var _is_moving: bool = false
 var _health_label: Label3D = null
 
-func setup(gm: GridManager, spawn_pos: Vector3, hp: int) -> void:
+func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleton") -> void:
 	grid_manager = gm
 	position = Vector3(spawn_pos.x, 0.0, spawn_pos.z)
 	_target_position = position
+	kind = summon_kind
+	match kind:
+		"spirit":
+			# Fast and fragile: weaker hits, quicker cadence, longer strides.
+			display_name = "Spirit"
+			BASE_ATTACK = 3
+			ATTACK_INTERVAL = 3
+			MOVE_STEPS = 5
+		"golem":
+			# Slow and tanky: heavy hits on a long wind-up, short strides.
+			display_name = "Golem"
+			BASE_ATTACK = 8
+			ATTACK_INTERVAL = 8
+			MOVE_STEPS = 2
+		_:
+			display_name = "Skeleton"
 	max_health = maxi(1, hp)
 	health = max_health
 	_build_visuals()
@@ -39,7 +59,14 @@ func setup(gm: GridManager, spawn_pos: Vector3, hp: int) -> void:
 
 func _build_visuals() -> void:
 	var bone := StandardMaterial3D.new()
-	bone.albedo_color = Color(0.88, 0.86, 0.76)  # dry bone
+	match kind:
+		"spirit":
+			bone.albedo_color = Color(0.55, 0.75, 1.0, 0.6)  # ghostly blue
+			bone.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		"golem":
+			bone.albedo_color = Color(0.5, 0.44, 0.38)       # weathered stone
+		_:
+			bone.albedo_color = Color(0.88, 0.86, 0.76)      # dry bone
 	bone.roughness = 1.0
 	var body := MeshInstance3D.new()
 	var body_mesh := CapsuleMesh.new()
@@ -80,7 +107,7 @@ func _build_visuals() -> void:
 
 func _update_health_label() -> void:
 	if _health_label:
-		_health_label.text = "Skeleton %d/%d" % [max(health, 0), max_health]
+		_health_label.text = "%s %d/%d" % [display_name, max(health, 0), max_health]
 
 func _process(delta: float) -> void:
 	if not _is_moving:
