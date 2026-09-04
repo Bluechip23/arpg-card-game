@@ -304,6 +304,37 @@ def leaf():
     save(img, "leaf")
 
 
+# --------------------------------------------------------------- climb tree
+def climb_tree():
+    # The climbable-tree variant: the stock tree with a painted near-horizontal
+    # low bough (the climbing handhold) and peg notches up the trunk, so the
+    # gameplay affordance is readable in the art itself instead of a smooth
+    # 3D-mesh branch.
+    src = Image.open(f"{OUT}/tree.png").convert("RGBA")
+    img = src.copy()
+    p = img.load()
+    trunk = LEATHER_9
+    trunk_dark = LEATHER_13
+    # Bough: juts right from the trunk around knee height, kinked slightly up.
+    by = 47
+    for i, x in enumerate(range(26, 36)):
+        y = by - (i // 4)
+        p[x, y] = trunk
+        p[x, y + 1] = trunk_dark
+    # Leaf tuft at the bough tip — the obvious foothold.
+    for (x, y) in [(34, 43), (35, 43), (36, 43), (33, 44), (34, 44), (35, 44),
+                   (36, 44), (37, 44), (34, 45), (35, 45), (36, 45)]:
+        p[x, y] = TEAL_3
+    for (x, y) in [(34, 43), (33, 44)]:
+        p[x, y] = FOLIAGE_1
+    p[36, 45] = TEAL_5
+    # Peg notches up the trunk.
+    for y in (52, 44):
+        p[21, y] = trunk_dark
+        p[22, y] = trunk_dark
+    save(img, "tree_climb")
+
+
 # ------------------------------------------------------------- cloud shadow
 def cloud_shadow():
     # A big soft-SHAPED but hard-EDGED blob: two alpha steps, checker-dithered
@@ -338,4 +369,5 @@ crate()
 barrel()
 butterfly()
 leaf()
+climb_tree()
 cloud_shadow()

@@ -136,6 +136,8 @@ const BUILDING_PALETTE := {
 	"ambient": Color(0.45, 0.41, 0.35),
 	"sun": Color(1.0, 0.93, 0.80),
 	"sun_energy": 0.8,
+	# In buildings the "trail" flag marks the hall runner carpet, not dirt.
+	"trail": Color(0.44, 0.16, 0.17),
 }
 
 # Damp, lightless brickwork. Greens of algae and stagnant water over cold grey
@@ -801,6 +803,26 @@ func _generate_forest_layout() -> void:
 				if dx * dx + dz * dz <= r * r:
 					trail[x][z] = false
 
+	# The drunkard walk doubles back over itself and smears fat dirt fields at
+	# the bends. Mottle those blobs: tiles buried deep inside a dirt mass (all
+	# 8 neighbors dirt) mostly revert to grass, so wide patches break into
+	# trampled dirt-and-grass mix while 2-wide trail lines stay untouched.
+	var interior: Array = []
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if not trail[x][z]:
+				continue
+			var buried = true
+			for dx in [-1, 0, 1]:
+				for dz in [-1, 0, 1]:
+					if not trail[x + dx][z + dz]:
+						buried = false
+			if buried:
+				interior.append(Vector2i(x, z))
+	for pos in interior:
+		if _tile_noise(pos.x, pos.y, 37) < 0.62:
+			trail[pos.x][pos.y] = false
+
 func _carve_trail(from: Vector2i, to: Vector2i) -> void:
 	## A winding 2-wide dirt trail between two clearings (reuses the cave walk).
 	## The carved tiles are flagged so the floor pass paints them as packed dirt.
@@ -870,6 +892,12 @@ func _generate_building_layout() -> void:
 
 	# Entry hall registered as the start room (no enemies at the door)
 	rooms.insert(0, {"rect": Rect2i(1, mid_z - 1, 6, 3), "kind": "start", "elev": 0})
+
+	# A worn runner carpet down the central hall (rendered via the trail pass).
+	for x in range(1, GRID_W - 1):
+		for dz in range(-1, 2):
+			if grid[x][mid_z + dz] == Tile.FLOOR:
+				trail[x][mid_z + dz] = true
 
 # ============================================
 # SHARED CARVING HELPERS
@@ -1172,16 +1200,29 @@ func _build_floor_visuals() -> void:
 				Vector3(x + 0.5, -0.05, z + 0.5)
 			)
 			if trail[x][z]:
-				# Worn dirt path: same slab, dirt sheet, earthen tint.
-				trail_items.append({"xform": xform, "color": trail_col.lerp(pal["floor_b"], n * 0.35)})
+				# Worn dirt path: same slab, dirt sheet, earthen tint. Building
+				# halls draw their runner carpet flat instead (below).
+				var tcol: Color = trail_col.lerp(pal["floor_b"], n * 0.35)
+				if interior_kind == "building":
+					# Darkened border rows = the carpet's woven trim.
+					var edge = not (is_trail(Vector2i(x, z - 1)) and is_trail(Vector2i(x, z + 1)))
+					if edge:
+						tcol = tcol.darkened(0.28)
+				trail_items.append({"xform": xform, "color": tcol})
 				continue
 			var col: Color = pal["floor_a"].lerp(pal["floor_b"], n)
 			items.append({"xform": xform, "color": col})
 	_add_multimesh(BoxMesh.new(), items, true, 0.95, floor_texture_path())
 	if not trail_items.is_empty():
-		# Roads and trails read as packed dirt cutting through the grass —
-		# the classic 16-bit field path (Secret of Mana overworld look).
-		_add_multimesh(BoxMesh.new(), trail_items, true, 0.95, "res://assets/textures/tile_dirt.png")
+		if interior_kind == "building":
+			# Runner carpet down the hall: flat woven cloth, so no stone/dirt
+			# texture — the full crimson tint survives (the textured path
+			# washes instance colors toward white).
+			_add_multimesh(BoxMesh.new(), trail_items, true, 1.0)
+		else:
+			# Roads and trails read as packed dirt cutting through the grass —
+			# the classic 16-bit field path (Secret of Mana overworld look).
+			_add_multimesh(BoxMesh.new(), trail_items, true, 0.95, "res://assets/textures/tile_dirt.png")
 	if not water_items.is_empty():
 		# Flat painted 16-bit water: the ripples live in the tile art. No
 		# metallic/emission/gloss — modern PBR shine is a style violation.
@@ -1431,11 +1472,14 @@ func _build_decorations() -> void:
 			var p3 = Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz)
 
 			if interior_kind == "building":
-				# Stored goods pushed against the walls: crates and barrels.
-				if near_wall and n < 0.07:
+				# Stored goods pushed against the walls: crates and barrels
+				# (never on the hall carpet — the trail flag marks it).
+				if trail[x][z]:
+					continue
+				if near_wall and n < 0.10:
 					_deco_crates.append({"pos": Vector3(x + 0.5 + jx * 0.5, y_base, z + 0.5 + jz * 0.5),
 							"scale": 0.85 + _tile_noise(x, z, 79) * 0.3, "color": Color.WHITE})
-				elif near_wall and n < 0.115:
+				elif near_wall and n < 0.16:
 					_deco_barrels.append({"pos": Vector3(x + 0.5 + jx * 0.5, y_base, z + 0.5 + jz * 0.5),
 							"scale": 0.85 + _tile_noise(x, z, 81) * 0.3, "color": Color.WHITE})
 			else:
@@ -2105,67 +2149,22 @@ func _place_climbable_trees(clearing_cells: Array) -> void:
 		})
 
 func _build_tree_mesh(root: Node3D, scale: float, climbable: bool) -> void:
-	## Shared tree visual: trunk + canopy, and (for climbable trees) a distinct
-	## low branch that signals it can be climbed.
-	var pal = get_palette()
-	var bark = StandardMaterial3D.new()
-	bark.albedo_color = pal.get("bark", Color(0.26, 0.18, 0.11))
-	bark.roughness = 1.0
-	var leaf = StandardMaterial3D.new()
-	leaf.albedo_color = pal.get("leaf", Color(0.20, 0.40, 0.16))
-	leaf.roughness = 1.0
-
-	var trunk = MeshInstance3D.new()
-	var tmesh = CylinderMesh.new()
-	tmesh.top_radius = 0.16 * scale
-	tmesh.bottom_radius = 0.24 * scale
-	tmesh.height = 2.6 * scale
-	tmesh.radial_segments = 8
-	trunk.mesh = tmesh
-	trunk.material_override = bark
-	trunk.position = Vector3(0, 1.3 * scale, 0)
-	root.add_child(trunk)
-
-	# Canopy: a couple of overlapping leaf clusters.
-	for off in [Vector3(0, 2.9, 0), Vector3(0.35, 2.6, 0.2), Vector3(-0.3, 2.7, -0.25)]:
-		var canopy = MeshInstance3D.new()
-		var cmesh = SphereMesh.new()
-		cmesh.radius = 0.7 * scale
-		cmesh.height = 1.3 * scale
-		cmesh.radial_segments = 8
-		cmesh.rings = 5
-		canopy.mesh = cmesh
-		canopy.material_override = leaf
-		canopy.position = off * scale
-		root.add_child(canopy)
-
-	if climbable:
-		# A distinct, near-horizontal low branch — the climbing handhold.
-		var branch = MeshInstance3D.new()
-		var bmesh = CylinderMesh.new()
-		bmesh.top_radius = 0.06
-		bmesh.bottom_radius = 0.10
-		bmesh.height = 0.9
-		bmesh.radial_segments = 6
-		branch.mesh = bmesh
-		branch.rotation_degrees = Vector3(0, 0, 68)  # juts out and slightly up
-		branch.material_override = bark
-		branch.position = Vector3(0.45, 1.05, 0)
-		root.add_child(branch)
-		# A small leaf tuft on the branch tip so it reads as the obvious foothold.
-		var tuft = MeshInstance3D.new()
-		var tmesh2 = SphereMesh.new()
-		tmesh2.radius = 0.22
-		tmesh2.height = 0.4
-		tmesh2.radial_segments = 6
-		tmesh2.rings = 4
-		tuft.mesh = tmesh2
-		var bright = StandardMaterial3D.new()
-		bright.albedo_color = pal.get("leaf_b", Color(0.28, 0.48, 0.20))
-		bright.roughness = 1.0
-		tuft.material_override = bright
-		tuft.position = Vector3(0.78, 1.2, 0)
-		root.add_child(tuft)
+	## Climbable/landmark tree visual: the same billboard pixel tree the rest
+	## of the forest uses (no smooth mesh spheres — style guide §7), scaled up
+	## into a canopy tree. The climbable sprite variant carries a painted low
+	## bough and trunk pegs as the climb cue.
+	var tex_path := "res://assets/textures/props/tree_climb.png" if climbable \
+			else "res://assets/textures/props/tree.png"
+	var sprite := Sprite3D.new()
+	sprite.texture = load(tex_path)
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = 0.034
+	var s := 1.75 * scale  # taller than the treeline so it reads as THE tree
+	sprite.scale = Vector3(s, s, s)
+	sprite.position = Vector3(0, 64.0 * 0.034 * 0.5 * s, 0)
+	root.add_child(sprite)
 
 func _place_bear_traps(cells: Array) -> void:
 	## Iron jaw traps on the ground — 7 damage to anything that steps on them
