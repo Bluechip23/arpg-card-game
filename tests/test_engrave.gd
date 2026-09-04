@@ -79,5 +79,22 @@ func _initialize() -> void:
 	_check(not deck.draw_pile.has(stray), "extracted etching left the deck")
 	_check(inv.stored_cards.has(stray), "extracted etching returned to the card inventory")
 
+	# --- Deck cap: 20 direct cards; item-owned cards ride past it free ---
+	_check(deck.get_max_deck_size() == 20, "max deck size is 20")
+	deck.draw_pile.clear()
+	deck.hand.clear()
+	deck.discard_pile.clear()
+	for i in range(20):
+		deck.draw_pile.append(Card.create_slash())
+	_check(deck.get_deck_size() == 20 and deck.is_deck_full(), "20 direct cards fill the deck")
+	inv.stored_cards.append(Card.create_block())
+	var block_idx = inv.stored_cards.size() - 1
+	_check(not inv.add_card_to_deck(block_idx, deck), "a 21st direct card is refused while full")
+	# The slotted etching joins the deck WITHOUT counting toward the cap.
+	_check(inv.enchant_card(stray, helm), "etching re-enchants into the helm at a full deck")
+	_check(deck.draw_pile.has(stray), "the item card still joins the full deck")
+	_check(deck.get_deck_size() == 20, "the slotted card does not count toward deck size")
+	_check(deck.get_item_card_count() == 1, "one item card rides along past the cap")
+
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

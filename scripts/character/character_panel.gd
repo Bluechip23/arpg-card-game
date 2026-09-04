@@ -867,13 +867,22 @@ func _on_sandbox_stat_adjust(key: String, delta: int) -> void:
 func _build_derived_stats_text() -> String:
 	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit) + player_stats.get_hand_size_crit_bonus()
 	var carry_flag = " OVER!" if player_stats.is_overburdened() else ""
+	# Deck size: item-owned cards ride past the cap, so the effective ceiling
+	# is the base max plus however many item cards are along for the ride.
+	var deck_lines := ""
+	if deck_manager:
+		deck_lines = "\nDeck Max     %d\nDeck Now     %d\nMax w/ Items %d" % [
+			deck_manager.get_max_deck_size(),
+			deck_manager.get_deck_size(),
+			deck_manager.get_max_deck_size() + deck_manager.get_item_card_count(),
+		]
 	return """HP   %d/%d
 Mana %.0f/%d
 Armor  %d
 Decay  -%d/t
 Crit   %d%%
 Carry  %d/%d%s
-Regen  %.1f/t""" % [
+Regen  %.1f/t%s""" % [
 		player_stats.current_health,
 		player_stats.max_health,
 		player_stats.current_mana,
@@ -884,7 +893,8 @@ Regen  %.1f/t""" % [
 		player_stats.current_carry_load,
 		player_stats.get_carry_capacity(),
 		carry_flag,
-		player_stats.get_effective_mana_regen()
+		player_stats.get_effective_mana_regen(),
+		deck_lines
 	]
 
 func _update_equipment_display() -> void:

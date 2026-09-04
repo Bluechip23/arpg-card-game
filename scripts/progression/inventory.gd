@@ -2238,6 +2238,10 @@ func add_card_to_deck(card_index: int, dm) -> bool:
 	if peek != null and peek.requires_engraving and peek.slotted_in_item == null:
 		print("[INVENTORY] '%s' is an Engrave card — it can only join the deck inside an item" % peek.card_name)
 		return false
+	if peek != null and dm and dm.is_deck_full():
+		print("[INVENTORY] Deck is full (%d/%d) — remove a card before adding '%s'"
+			% [dm.get_deck_size(), dm.get_max_deck_size(), peek.card_name])
+		return false
 	if peek != null and dm and not dm.can_add_copy(peek.card_id):
 		print("[INVENTORY] Deck copy limit reached for '%s' (%d max) — card stays in inventory"
 			% [peek.card_name, Card.max_deck_copies(peek.card_id)])

@@ -168,6 +168,36 @@ func restore_deck_state(state: Dictionary) -> void:
 ## Engrave: a card that is not slotted into an item may not sit in ANY deck
 ## zone. Sweeps every pile and moves offenders into the card inventory (run
 ## after deck builds and restores, so purchases and old saves migrate too).
+## Base deck cap. Cards slotted into (or granted by) items ride along with
+## their item and do NOT count toward it — they can push the deck past the cap
+## (20 deck cards + an engraved card in your boots = 21 in play, and that is
+## fine). Adding a 21st card DIRECTLY is what the cap refuses.
+const MAX_DECK_SIZE := 20
+
+func get_max_deck_size() -> int:
+	return MAX_DECK_SIZE
+
+## Cards counting toward the cap: everything in the deck piles no item owns.
+func get_deck_size() -> int:
+	var n := 0
+	for pile in [draw_pile, hand, discard_pile, jail_pile, maintained_cards]:
+		for c in pile:
+			if c and c.slotted_in_item == null and c.granted_by_item == null:
+				n += 1
+	return n
+
+## Item-owned cards currently riding in the deck (slotted + granted).
+func get_item_card_count() -> int:
+	var n := 0
+	for pile in [draw_pile, hand, discard_pile, jail_pile, maintained_cards]:
+		for c in pile:
+			if c and (c.slotted_in_item != null or c.granted_by_item != null):
+				n += 1
+	return n
+
+func is_deck_full() -> bool:
+	return get_deck_size() >= MAX_DECK_SIZE
+
 func expel_unslotted_engraved() -> void:
 	var expelled := 0
 	for pile in [draw_pile, hand, discard_pile, jail_pile, maintained_cards]:
