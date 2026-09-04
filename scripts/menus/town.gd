@@ -26,8 +26,6 @@ var return_world_level: int = 1  # World to return to when leaving town
 var nearby_vendor: StaticBody3D = null
 var vendor_open: bool = false
 var quest_manager: QuestManager = null
-var _quest_panel: PanelContainer = null
-var _quest_panel_open: bool = false
 var _town_waypoint_node: Node3D = null
 # Return Scroll: the twin of a portal opened out in the world. Stepping through
 # it returns the player to the exact spot where they set it.
@@ -1643,10 +1641,17 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 		btn_hbox.add_theme_constant_override("separation", 16)
 
 		var action_btn = Button.new()
-		action_btn.text = "Add to Deck"
+		var deck_count := _get_current_deck_card_ids().size()
+		if deck_count >= DeckManager.MAX_DECK_SIZE:
+			# Deck cap: item-slotted cards ride free, but a direct add is out.
+			action_btn.text = "Deck Full (%d/%d)" % [deck_count, DeckManager.MAX_DECK_SIZE]
+			action_btn.disabled = true
+			_style_action_button(action_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
+		else:
+			action_btn.text = "Add to Deck"
+			_style_action_button(action_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
 		action_btn.custom_minimum_size = Vector2(140, 36)
 		action_btn.add_theme_font_size_override("font_size", 14)
-		_style_action_button(action_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
 		action_btn.pressed.connect(_on_buy_card_confirmed)
 		btn_hbox.add_child(action_btn)
 
@@ -1667,6 +1672,10 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 
 func _on_buy_card_confirmed() -> void:
 	if not _detail_card or not starting_character:
+		_close_detail_modal()
+		return
+	if _get_current_deck_card_ids().size() >= DeckManager.MAX_DECK_SIZE:
+		print("[TOWN] Deck is full (%d) — remove a card first" % DeckManager.MAX_DECK_SIZE)
 		_close_detail_modal()
 		return
 
@@ -1965,10 +1974,6 @@ func _build_modal_stats(item: ItemData) -> String:
 func _build_modal_effects(item: ItemData) -> String:
 	var lines: Array[String] = []
 
-	# Ring triggers
-	if item.ring_trigger != ItemData.RingTrigger.NONE:
-		lines.append("[Ring] %s -> %s" % [item.get_ring_trigger_name(), item.get_ring_effect_name()])
-
 	# Gauntlet skills
 	if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 		lines.append("[Active Skill] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
@@ -1991,9 +1996,6 @@ func _build_modal_effects(item: ItemData) -> String:
 		ItemData.SpecialEffect.ARMOR_PER_TURN:
 			lines.append("[Passive] +%d Armor per turn" % item.special_effect_value)
 
-	# Weapon mastery breakpoint
-	if item.has_mastery():
-		lines.append("[%s]" % item.get_mastery_text())
 
 	# On-self bonuses
 	var on_self_parts: Array[String] = []

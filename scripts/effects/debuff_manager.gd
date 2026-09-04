@@ -6,20 +6,12 @@ extends Node
 signal debuff_applied(debuff: Debuff)
 signal debuff_removed(debuff: Debuff)
 signal debuff_expired(debuff: Debuff)  # NATURAL expiry only, never purges (mirrors the enemy-side signal)
-signal debuff_ticked(debuff: Debuff)
 signal debuffs_changed
-signal magnetize_pull(tiles: int, direction: Vector3)
 signal point_to_prove_triggered(debuff: Debuff)  # Emitted when stun/disarm hits with Point to Prove active
 
 var debuffs: Array[Debuff] = []
 var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
 var owner_node: Node3D
-
-# For Tethered - tracks starting position
-var tether_origin: Vector3 = Vector3.ZERO
-
-# For tracking linked ally damage sharing
-var linked_ally: Node3D = null
 
 # For Burn - damage doubles each cycle
 var burn_damage_next: int = 1
@@ -28,8 +20,6 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
 	debuffs.clear()
-	if owner_node:
-		tether_origin = owner_node.position
 
 func apply_debuff(debuff: Debuff) -> void:
 	# Stack-driven debuffs never expire by the clock — their stacks are burned
@@ -207,23 +197,7 @@ func process_turn_start() -> Dictionary:
 
 	return result
 
-func _calculate_magnetize_pull(tiles: int) -> Dictionary:
-	if not owner_node:
-		return {"direction": Vector3.ZERO, "tiles": 0}
-
-	# Find nearest enemy - this requires access to enemy list
-	# We'll emit a signal and let main.gd handle the actual movement
-	return {"direction": Vector3.ZERO, "tiles": tiles}
-
 func process_turn_end() -> void:
-	# Magnetized: pull toward nearest enemy at end of turn
-	var magnetized = get_debuff(Debuff.DebuffType.MAGNETIZED)
-	if magnetized:
-		var pull_info = _calculate_magnetize_pull(magnetized.value)
-		if pull_info["tiles"] > 0:
-			magnetize_pull.emit(pull_info["tiles"], pull_info["direction"])
-			print("[DEBUFF] Magnetized pulls %d tiles toward enemy" % magnetized.value)
-
 	# Brittle: consume 1 stack per cycle
 	var brittle = get_debuff(Debuff.DebuffType.BRITTLE)
 	if brittle:
@@ -243,7 +217,6 @@ func advance_time(amount: int) -> void:
 		return
 	var expired: Array[Debuff] = []
 	for debuff in debuffs:
-		debuff_ticked.emit(debuff)
 		if debuff.advance_time(amount):
 			expired.append(debuff)
 
@@ -292,13 +265,6 @@ func modify_incoming_damage(damage: int) -> int:
 	# Apply Vulnerable
 	return _apply_vulnerable_modifier(damage)
 
-func calculate_linked_damage(damage: int) -> int:
-	# Fixed 20% share while Linked lasts; the debuff drains by tempo, not hits.
-	var linked = get_debuff(Debuff.DebuffType.LINKED)
-	if linked:
-		return floori(damage * Debuff.LINKED_SHARE / 100.0)
-	return 0
-
 # ============================================
 # MOVEMENT QUERIES
 # ============================================
@@ -327,37 +293,9 @@ func consume_slowed_stack() -> void:
 	else:
 		debuffs_changed.emit()
 
-func get_random_movement_direction() -> bool:
-	return has_debuff(Debuff.DebuffType.INEBRIATE)
-
-func is_tethered() -> bool:
-	return has_debuff(Debuff.DebuffType.TETHERED)
-
-func get_tether_range() -> int:
-	# Fixed leash: the debuff's stacks are its remaining tempo, never the radius.
-	return Debuff.TETHER_RANGE if is_tethered() else 0
-
-func set_tether_origin(pos: Vector3) -> void:
-	tether_origin = pos
-
-func get_tether_origin() -> Vector3:
-	return tether_origin
-
-func is_within_tether_range(target_pos: Vector3, grid_size: float = 1.0) -> bool:
-	if not is_tethered():
-		return true
-
-	var diff = tether_origin - target_pos
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	var distance_tiles = floori(flat_dist / grid_size)
-	return distance_tiles <= get_tether_range()
-
 # ============================================
 # CARD QUERIES
 # ============================================
-
-func can_act() -> bool:
-	return not has_debuff(Debuff.DebuffType.STUN)
 
 func can_play_cards() -> bool:
 	if has_debuff(Debuff.DebuffType.STUN):
@@ -542,12 +480,3 @@ func on_attack() -> int:
 # ============================================
 # DISPLAY
 # ============================================
-
-func get_debuff_display_list() -> Array[String]:
-	var list: Array[String] = []
-	for debuff in debuffs:
-		if debuff.duration < 0:
-			list.append("%s (∞)" % debuff.get_short_display())
-		else:
-			list.append("%s (%d)" % [debuff.get_short_display(), debuff.duration])
-	return list

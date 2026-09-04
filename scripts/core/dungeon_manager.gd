@@ -10,8 +10,6 @@ extends Node
 ## id) so the world stays consistent across visits — this is a persistent RPG
 ## world, not a procedurally re-rolled roguelike.
 
-signal chest_interacted(chest_data: Dictionary)
-signal player_entered_zone(zone_index: int)
 
 var GRID_W: int = 70
 var GRID_H: int = 46
@@ -185,8 +183,6 @@ var elevation: Array = []   # 2D array [x][z] of int (0 = ground, 1+ = elevated)
 var water: Array = []       # 2D bool array [x][z] — true where floor is a water channel
 var rooms: Array = []       # [{rect: Rect2i, kind: String, elev: int}]
 
-# Tiles where flavour lights live (sewer torches), so ambience code can tune them
-var torch_positions: Array = []  # [Vector2i]
 
 # Forest interactables, consumed by main.gd at setup.
 var tree_nodes: Array = []   # climbable trees: [{node, grid_pos, label_node, climbed}]
@@ -636,7 +632,6 @@ func _enforce_border_walls() -> void:
 func _generate_sewer_layout() -> void:
 	_init_grid_walls()
 	rooms.clear()
-	torch_positions.clear()
 	var mid_z = GRID_H / 2
 
 	# --- Main trunk: a 3-wide tunnel the length of the sewer. The centre row is
@@ -1006,10 +1001,6 @@ func get_elevation(grid_pos: Vector2i) -> int:
 func get_elevation_world_y(grid_pos: Vector2i) -> float:
 	## Returns the world Y position for the given grid tile based on elevation.
 	return get_elevation(grid_pos) * ELEV_STEP
-
-func is_higher_elevation(from_pos: Vector2i, to_pos: Vector2i) -> bool:
-	## Returns true if to_pos is at a higher elevation than from_pos.
-	return get_elevation(to_pos) > get_elevation(from_pos)
 
 # ============================================
 # TERRAIN VISUALS (MultiMesh — thousands of tiles stay cheap to render)
@@ -1494,7 +1485,7 @@ func _build_sewer_decorations() -> void:
 	_place_sewer_mice(floor_tiles)
 
 	print("[DUNGEON] Sewer dressing: %d torches, %d candidate walls, %d water tiles" % [
-		torch_positions.size(), wall_edges.size(), water_tiles.size()])
+		wall_edges.size(), water_tiles.size()])
 
 func _adjacent_floor_dir(x: int, z: int) -> Vector2i:
 	## For a wall tile, the cardinal direction toward an adjacent floor (or ZERO).
@@ -1537,7 +1528,6 @@ func _place_sewer_torches(wall_edges: Array, pal: Dictionary) -> void:
 	for entry in picks:
 		var pos: Vector2i = entry["pos"]
 		var dir: Vector2i = entry["dir"]
-		torch_positions.append(pos)
 		var root = Node3D.new()
 		root.name = "Torch"
 		var base = Vector3(pos.x + 0.5, 0, pos.y + 0.5)
@@ -2425,14 +2415,6 @@ func _build_forest_decorations() -> void:
 	print("[DUNGEON] Forest dressing: %d trees, %d stumps, %d bushes" % [
 		trunk_items.size(), stump_items.size(), bush_items.size()])
 
-func _cylinder_mesh(top_r: float, bot_r: float, h: float) -> CylinderMesh:
-	var m = CylinderMesh.new()
-	m.top_radius = top_r
-	m.bottom_radius = bot_r
-	m.height = h
-	m.radial_segments = 8
-	return m
-
 func _place_forest_squirrels(floor_cells: Array) -> void:
 	## Background squirrels darting about the clearings. Cosmetic only.
 	if floor_cells.size() < 10:
@@ -2471,15 +2453,6 @@ func update_tree_prompts(player_grid: Vector2i) -> void:
 		if lbl:
 			var dist = absi(player_grid.x - tp.x) + absi(player_grid.y - tp.y)
 			lbl.visible = revealed and dist <= 2 and not tree["climbed"]
-
-func get_obstacle_tiles() -> Array[Vector2i]:
-	## Tree trunks and pits block movement (queried by main.gd for pathfinding).
-	var tiles: Array[Vector2i] = []
-	for tree in tree_nodes:
-		tiles.append(tree["grid_pos"])
-	for p in pit_tiles.keys():
-		tiles.append(p)
-	return tiles
 
 # ============================================
 # CAVE DRESSING — stalagmites (floor), stalactites (ceiling), divots and pebbles.
@@ -3663,11 +3636,6 @@ func get_nearby_waypoint(player_grid: Vector2i) -> int:
 			return i
 	return -1
 
-func get_waypoint_target(index: int) -> String:
-	if index >= 0 and index < waypoint_nodes.size():
-		return waypoint_nodes[index]["target"]
-	return ""
-
 func discover_waypoint(index: int) -> bool:
 	## Marks a waypoint as discovered. Returns true if newly discovered.
 	if index < 0 or index >= waypoint_nodes.size():
@@ -3728,7 +3696,6 @@ func check_player_position(player_grid: Vector2i) -> Array:
 		if rect.has_point(player_grid):
 			spawn_zones[i]["spawned"] = true
 			triggered.append(i)
-			player_entered_zone.emit(i)
 	return triggered
 
 func get_spawn_zone(index: int) -> Dictionary:
@@ -3900,4 +3867,3 @@ func clear() -> void:
 	tree_nodes.clear()
 	trap_defs.clear()
 	pit_tiles.clear()
-	torch_positions.clear()

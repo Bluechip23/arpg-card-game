@@ -8,7 +8,6 @@ signal spawn_elite_requested
 signal spawn_fire_goblins_requested
 signal give_item_requested(item_name: String)
 signal give_card_requested(card_name: String)
-signal apply_debuff_requested(debuff_name: String)
 signal apply_buff_requested(buff_name: String)
 signal apply_overflow_requested(overflow_name: String)
 
@@ -43,8 +42,6 @@ func _setup_buttons() -> void:
 		give_card_button.pressed.connect(_on_give_card_pressed)
 	if toggle_button:
 		toggle_button.pressed.connect(_on_toggle_pressed)
-	if has_node("Panel/VBox/ApplyDebuffButton"):
-		$Panel/VBox/ApplyDebuffButton.pressed.connect(_on_apply_debuff_pressed)
 	if has_node("Panel/VBox/ApplyOverflowButton"):
 		$Panel/VBox/ApplyOverflowButton.pressed.connect(_on_apply_overflow_pressed)
 	if has_node("Panel/VBox/ApplyBuffButton"):
@@ -60,46 +57,11 @@ func _setup_buttons() -> void:
 func _on_fire_goblins_pressed() -> void:
 	spawn_fire_goblins_requested.emit()
 
-func _on_apply_debuff_pressed() -> void:
-	if has_node("Panel/VBox/DebuffDropdown"):
-		var dropdown = $Panel/VBox/DebuffDropdown as OptionButton
-		var debuff_name = dropdown.get_item_text(dropdown.selected)
-		apply_debuff_requested.emit(debuff_name)	
 func _setup_dropdowns() -> void:
 	if item_dropdown:
 		item_dropdown.clear()
 		item_dropdown.add_item("Wooden Sword")
 		item_dropdown.add_item("Bladed Doughnut")
-	if has_node("Panel/VBox/DebuffDropdown"):
-		var debuff_dropdown = $Panel/VBox/DebuffDropdown as OptionButton
-		debuff_dropdown.clear()
-		# Original debuffs
-		debuff_dropdown.add_item("Bleed (3)")
-		debuff_dropdown.add_item("Stun")
-		debuff_dropdown.add_item("Disarm")
-		debuff_dropdown.add_item("Silence")
-		debuff_dropdown.add_item("Burn (2)")
-		debuff_dropdown.add_item("Poison (2)")
-		debuff_dropdown.add_item("Inebriate")
-		debuff_dropdown.add_item("Cursed (2)")
-		debuff_dropdown.add_item("Frozen")
-		debuff_dropdown.add_item("Cuffed")
-		debuff_dropdown.add_item("Shocked (3)")
-		debuff_dropdown.add_item("Slowed (2)")
-		debuff_dropdown.add_item("Staggered (3)")
-		debuff_dropdown.add_item("Drain (10x2)")
-		debuff_dropdown.add_item("Weighted (1)")
-		# New debuffs
-		debuff_dropdown.add_item("Hexed (20)")
-		debuff_dropdown.add_item("Locked")
-		debuff_dropdown.add_item("Rooted")
-		debuff_dropdown.add_item("Tethered (3)")
-		debuff_dropdown.add_item("Magnetized (1)")
-		debuff_dropdown.add_item("Linked (20)")
-		debuff_dropdown.add_item("Clumsy (30)")
-		debuff_dropdown.add_item("Vulnerable (25)")
-		debuff_dropdown.add_item("Brittle (2)")
-		debuff_dropdown.add_item("Weakened (2)")
 	if has_node("Panel/VBox/OverflowDropdown"):
 		var overflow_dropdown = $Panel/VBox/OverflowDropdown as OptionButton
 		overflow_dropdown.clear()
@@ -143,8 +105,6 @@ func _setup_dropdowns() -> void:
 		buff_dropdown.add_item("Cleanse (1)")
 		buff_dropdown.add_item("Smith (2)")
 		buff_dropdown.add_item("Steady")
-		buff_dropdown.add_item("Brace (5)")
-		buff_dropdown.add_item("Resilient (25%, 3)")
 	
 
 func update_enemy_count(count: int) -> void:

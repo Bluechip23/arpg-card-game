@@ -61,15 +61,6 @@ text = "Give Card:"
 [node name="HSeparator4" type="HSeparator" parent="Panel/VBox" unique_id=730151848]
 layout_mode = 2
 
-[node name="DebuffLabel" type="Label" parent="Panel/VBox" unique_id=1772580697]
-layout_mode = 2
-
-[node name="DebuffDropdown" type="OptionButton" parent="Panel/VBox" unique_id=971541258]
-layout_mode = 2
-
-[node name="ApplyDebuffButton" type="Button" parent="Panel/VBox" unique_id=1165579996]
-layout_mode = 2
-
 [node name="OverflowLabel" type="Label" parent="Panel/VBox" unique_id=1749151173]
 layout_mode = 2
 

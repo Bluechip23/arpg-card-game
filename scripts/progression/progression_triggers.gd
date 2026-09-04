@@ -497,21 +497,6 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 # SKILL TREE → CHARACTER SYNC
 # ============================================
 
-func _on_skill_tree_option_chosen(level: int, option_index: int) -> void:
-	## Called when the player chooses one of the 4 options in a skill tree row.
-	var tree = main.skill_tree_ui.skill_tree
-	if not tree:
-		return
-	var row = tree.get_row_for_level(level)
-	if not row:
-		return
-	var option = row.get_chosen_option()
-	if not option:
-		return
-
-	print("[MAIN] Skill tree choice at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
-	_apply_skill_tree_option(option)
-
 func _on_skill_tree_stats_allocated(allocations: Dictionary) -> void:
 	## Spend banked level-up stat points on the player's base stats.
 	var stats = main.player.get_stats()
@@ -524,18 +509,6 @@ func _on_skill_tree_stats_allocated(allocations: Dictionary) -> void:
 		if allocations[stat_name] > 0:
 			parts.append("+%d %s" % [allocations[stat_name], stat_name.substr(0, 3).to_upper()])
 	main.add_battle_log("Stats allocated: %s" % ", ".join(parts), Color(0.4, 1.0, 0.5))
-
-func _on_skill_tree_retrospective_chosen(level: int, option_index: int) -> void:
-	## Called when the player uses a retrospective token to reclaim a skipped option.
-	var tree = main.skill_tree_ui.skill_tree
-	if not tree:
-		return
-	var row = tree.get_row_for_level(level)
-	if not row or option_index < 0 or option_index >= row.options.size():
-		return
-	var option = row.options[option_index]
-	print("[MAIN] Retrospective pick at level %d: %s (%s)" % [level, option.name, option.get_type_label()])
-	_apply_skill_tree_option(option)
 
 func _apply_skill_tree_option(option) -> void:
 	## Applies a chosen skill tree option's effect to the main.player.
@@ -887,17 +860,6 @@ func _trigger_skill_tree_on_cycle() -> void:
 				if nearest:
 					nearest.take_damage(ld_amount, true)
 					main.add_battle_log("Let's Dance: %d damage to %s!" % [ld_amount, nearest.enemy_name], Color(0.3, 0.7, 1.0))
-
-func _trigger_skill_tree_on_heal_ally(ally_name: String) -> void:
-	var stats = main.player.get_stats()
-	if not stats:
-		return
-
-	# Brad: Redemption — heal ally → +10% crit on next attack
-	_trigger_skill_tree_brad_on_heal_ally(ally_name)
-
-	# Jeremy: Whispers of the Flock — mark healed ally
-	_trigger_skill_tree_jeremy_on_heal_ally()
 
 func _trigger_skill_tree_on_displacement() -> void:
 	var stats = main.player.get_stats()

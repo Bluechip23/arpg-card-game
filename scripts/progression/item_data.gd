@@ -40,31 +40,7 @@ enum SpecialEffect {
 }
 
 # Ring trigger conditions
-enum RingTrigger {
-	NONE,
-	ON_ENEMY_KILL,
-	ON_GAIN_ARMOR_THRESHOLD,
-	ON_TAKE_DAMAGE,
-	ON_HEAL,
-	ON_PLAY_ATTACK_CARD,
-	ON_PLAY_UTILITY_CARD,
-	ON_DRAW_CARD,
-	ON_DISCARD_CARD,
-	ON_LOW_HEALTH,
-	ON_FULL_MANA
-}
 
-# Ring trigger effects
-enum RingEffect {
-	NONE,
-	HEAL_TO_FULL,
-	GAIN_ARMOR,
-	GAIN_MANA,
-	DRAW_CARD,
-	DEAL_DAMAGE_ALL_ENEMIES,
-	REDUCE_COOLDOWNS,
-	GAIN_TEMP_STRENGTH
-}
 
 # Gauntlet skill types
 enum GauntletSkillType {
@@ -80,6 +56,7 @@ enum GauntletSkillType {
 # inventory instead of equipped. Anything with a special_id refuses to equip.
 @export var special_id: String = ""
 
+#region RARITY & FORGE LEVELS
 # ============================================
 # RARITY & FORGE LEVELS
 # ============================================
@@ -138,10 +115,6 @@ enum GauntletSkillType {
 @export var granted_card_ids: Array[String] = []
 
 # Ring trigger system
-@export var ring_trigger: RingTrigger = RingTrigger.NONE
-@export var ring_trigger_threshold: int = 0  # For threshold-based triggers (e.g., gain 10 armor)
-@export var ring_effect: RingEffect = RingEffect.NONE
-@export var ring_effect_value: int = 0  # Value for the effect (armor amount, mana amount, etc.)
 
 # Gauntlet skill system
 @export var gauntlet_skill_type: GauntletSkillType = GauntletSkillType.NONE
@@ -213,47 +186,8 @@ func get_slot_effect(card) -> Dictionary:
 var granted_card_instances: Array = []
 var granted_cards_built: bool = false
 
-# ============================================
-# WEAPON MASTERY BREAKPOINT (per-item, optional)
-# ============================================
-# Some weapons carry a stat breakpoint: reach the threshold with your BASE
-# stat and this particular weapon reveals its mastery — extra cards granted
-# while it is equipped (riding the same owned-cards plumbing as granted
-# cards). A breakpoint is a REWARD, never a requirement: the weapon works
-# fully for anyone; a high-stat wielder just gets more out of this one.
-# Base stat means allocation/sphere-grid growth — Determination's combat
-# swings never flicker mastery on or off mid-fight.
-@export var mastery_stat: String = ""        # "strength", "dexterity", ... ("" = no breakpoint)
-@export var mastery_threshold: int = 0
-@export var mastery_card_ids: Array[String] = []
-@export var mastery_description: String = "" # short flavor for tooltips
-var mastery_card_instances: Array = []       # built once, reused (like granted cards)
-
-func has_mastery() -> bool:
-	return mastery_stat != "" and mastery_threshold > 0
-
-func is_mastered_by(stats) -> bool:
-	## True when the wielder's BASE stat meets this weapon's breakpoint.
-	if not has_mastery() or stats == null:
-		return false
-	return int(stats.get_base_stat(mastery_stat)) >= mastery_threshold
-
-func get_mastery_stat_label() -> String:
-	return "%s %d" % [mastery_stat.substr(0, 3).to_upper(), mastery_threshold]
-
-func get_mastery_text(stats = null) -> String:
-	## Tooltip line, e.g. "Mastery (DEX 15): Sweeping strikes — UNLOCKED".
-	if not has_mastery():
-		return ""
-	var line := "Mastery (%s)" % get_mastery_stat_label()
-	if mastery_description != "":
-		line += ": %s" % mastery_description
-	elif not mastery_card_ids.is_empty():
-		line += ": grants %s" % ", ".join(mastery_card_ids)
-	if stats != null:
-		line += " — UNLOCKED" if is_mastered_by(stats) else " — locked"
-	return line
-
+#endregion
+#region ON-SELF SLOTTED-CARD BONUSES
 # On-self bonuses (extra bonuses applied to cards slotted in this item)
 @export var on_self_damage: int = 0
 @export var on_self_block: int = 0
@@ -326,6 +260,8 @@ func get_mastery_text(stats = null) -> String:
 @export var pierce_targets: int = 0               # attacks strike X squares in a line through the target (Poseidons Trident 2, Lv3 3)
 @export var armor_gain_melee_damage: int = 0      # gaining armor deals X damage to an enemy in melee range (Umbral Eclipse 5, Lv3 8)
 @export var insight_flash_restore: int = 0        # Insight (brain-point) draws restore X flash points (Umbral Eclipse 2, Lv3 3)
+#endregion
+#region SHIELD RIDERS (shields pass 1)
 # ============================================
 # SHIELD RIDERS (shields pass 1)
 # ============================================
@@ -476,6 +412,8 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var ally_damage_share_percent: float = 0.0  # you take X% of damage allies/summons deal within the radius (Belthronding 10)
 @export var ally_damage_share_radius: int = 0       # radius in squares for the share above (Belthronding 3)
 
+#endregion
+#region SPELL WEAPON RIDERS (spell weapons pass 1)
 # ============================================
 # SPELL WEAPON RIDERS (spell weapons pass 1)
 # ============================================
@@ -576,6 +514,8 @@ var ring_counters: Dictionary = {}
 # Description
 @export var description: String = ""
 
+#endregion
+#region APPEARANCE (mythics)
 # ============================================
 # APPEARANCE (mythics)
 # ============================================
@@ -604,6 +544,8 @@ func get_appearance_texture() -> Texture2D:
 		return null
 	return load(appearance_icon) as Texture2D
 
+#endregion
+#region RARITY & FORGE LEVEL HELPERS
 # ============================================
 # RARITY & FORGE LEVEL HELPERS
 # ============================================
@@ -679,7 +621,7 @@ func _apply_level_2_boost() -> void:
 
 ## Rewrite properties from an overrides dict — the machinery behind both the
 ## Lv.2 bespoke boost and the Lv.3 transformation. Typed arrays are assigned
-## in place, and overriding the granted/mastery card lists resets their built
+## in place, and overriding the granted card list resets its built
 ## instances so the new cards are constructed on the next equip (forged items
 ## are always unequipped, so no live deck references exist).
 func _apply_overrides(overrides: Dictionary, new_description: String) -> void:
@@ -691,11 +633,10 @@ func _apply_overrides(overrides: Dictionary, new_description: String) -> void:
 			current.assign(value)
 		else:
 			set(prop, value)
-		if prop == "granted_card_ids" or prop == "mastery_card_ids":
+		if prop == "granted_card_ids":
 			cards_changed = true
 	if cards_changed:
 		granted_card_instances.clear()
-		mastery_card_instances.clear()
 		granted_cards_built = false
 	if new_description != "":
 		description = new_description
@@ -712,31 +653,6 @@ func get_type_name() -> String:
 		ItemType.QUIVER: return "Quiver"
 		ItemType.SCROLL: return "Scroll"
 	return "Unknown"
-
-func get_ring_trigger_name() -> String:
-	match ring_trigger:
-		RingTrigger.ON_ENEMY_KILL: return "On Enemy Kill"
-		RingTrigger.ON_GAIN_ARMOR_THRESHOLD: return "On Gain %d+ Armor" % ring_trigger_threshold
-		RingTrigger.ON_TAKE_DAMAGE: return "On Take Damage"
-		RingTrigger.ON_HEAL: return "On Heal"
-		RingTrigger.ON_PLAY_ATTACK_CARD: return "On Play Attack"
-		RingTrigger.ON_PLAY_UTILITY_CARD: return "On Play Utility"
-		RingTrigger.ON_DRAW_CARD: return "On Draw Card"
-		RingTrigger.ON_DISCARD_CARD: return "On Discard"
-		RingTrigger.ON_LOW_HEALTH: return "On Low Health"
-		RingTrigger.ON_FULL_MANA: return "On Full Mana"
-	return ""
-
-func get_ring_effect_name() -> String:
-	match ring_effect:
-		RingEffect.HEAL_TO_FULL: return "Heal to Full"
-		RingEffect.GAIN_ARMOR: return "Gain %d Armor" % ring_effect_value
-		RingEffect.GAIN_MANA: return "Gain %d Mana" % ring_effect_value
-		RingEffect.DRAW_CARD: return "Draw %d Card(s)" % ring_effect_value
-		RingEffect.DEAL_DAMAGE_ALL_ENEMIES: return "Deal %d to All" % ring_effect_value
-		RingEffect.REDUCE_COOLDOWNS: return "Reduce Cooldowns by %d" % ring_effect_value
-		RingEffect.GAIN_TEMP_STRENGTH: return "+%d STR this turn" % ring_effect_value
-	return ""
 
 func is_on_cooldown() -> bool:
 	return current_cooldown > 0
@@ -776,6 +692,8 @@ func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Diction
 		"weapon_damage": floori(weapon_damage * modifier)
 	}
 
+#endregion
+#region CARD SLOT SYSTEM
 # ============================================
 # CARD SLOT SYSTEM
 # ============================================
@@ -1009,6 +927,8 @@ func get_card_slot_summary() -> String:
 			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(parts)
 
+#endregion
+#region WEAPONS
 # ============================================
 # WEAPONS
 # ============================================
@@ -1027,6 +947,8 @@ static func create_return_scroll() -> ItemData:
 	item.description = "Right-click to open a portal back to town. Walk in with [Shift]. Its twin waits in town to bring you back."
 	return item
 
+#endregion
+#region TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
 # ============================================
 # TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
 # ============================================
@@ -1048,6 +970,8 @@ static func create_wooden_sword() -> ItemData:
 	item.description = "No stats. 1 card slot, On-Self: attacks deal +1 damage. Grants Splinter while equipped."
 	return item
 
+#endregion
+#region MYTHIC ITEMS (max level 3)
 # ============================================
 # MYTHIC ITEMS (max level 3)
 # ============================================
@@ -1073,6 +997,8 @@ static func create_bladed_doughnut() -> ItemData:
 	item.level_3_description = "+16 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
 	return item
 
+#endregion
+#region HELMS (first item pass
 # ============================================
 # HELMS (first item pass — head slot)
 # ============================================
@@ -1296,6 +1222,8 @@ static func create_theif_hat() -> ItemData:
 	item.description = "+2 AGI, +1 DEX."
 	return item
 
+#endregion
+#region BOOTS (first boots pass
 # ============================================
 # BOOTS (first boots pass — feet slot)
 # ============================================
@@ -1313,6 +1241,16 @@ static func create_leather_boots() -> ItemData:
 	item.agility_bonus = 1
 	item.health_bonus = 5
 	item.description = "+1 AGI, +5 life."
+	return item
+
+static func create_blink_boots() -> ItemData:
+	## Carrier for GRANT_BLINK_CARD: the boots travel with two Blink cards —
+	## first-pass numbers.
+	var item = _new_boot("Blink Boots", Rarity.RARE, 8)
+	item.agility_bonus = 3
+	item.special_effect = SpecialEffect.GRANT_BLINK_CARD
+	item.special_effect_value = 2
+	item.description = "+3 AGI. Grants 2 Blink cards while equipped."
 	return item
 
 static func create_cloth_slippers() -> ItemData:
@@ -1518,6 +1456,8 @@ static func create_caster_boots() -> ItemData:
 	item.description = "+6 INT, +2 AGI, +2 WIS. On-self: deal an additional 10% damage based on your INT."
 	return item
 
+#endregion
+#region GAUNTLETS (first gauntlets pass
 # ============================================
 # GAUNTLETS (first gauntlets pass — hands slot)
 # ============================================
@@ -1532,12 +1472,13 @@ static func _new_gauntlet(nm: String, r: Rarity, wt: int) -> ItemData:
 	item.weight = wt
 	return item
 
-static func _set_skill(item: ItemData, nm: String, desc: String, effect_id: String, cd_cycles: int) -> void:
+static func _set_skill(item: ItemData, nm: String, desc: String, effect_id: String, cd_cycles: int, mana := 0) -> void:
 	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
 	item.gauntlet_skill_name = nm
 	item.gauntlet_skill_description = desc
 	item.gauntlet_skill_effect_id = effect_id
 	item.gauntlet_skill_cooldown = cd_cycles
+	item.gauntlet_skill_mana_cost = mana
 
 static func create_chain_gloves() -> ItemData:
 	var item = _new_gauntlet("Chain Gloves", Rarity.COMMON, 15)
@@ -1545,7 +1486,7 @@ static func create_chain_gloves() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 1
 	item.armor_per_tempo_interval = 15
-	_set_skill(item, "Guard", "Gain 2 armor.", "chain_guard", 4)
+	_set_skill(item, "Guard", "Gain 2 armor.", "chain_guard", 4, 5)
 	item.description = "+2 STR. Gain 1 armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."
 	return item
 
@@ -1569,7 +1510,7 @@ static func create_cloth_bracer() -> ItemData:
 	var item = _new_gauntlet("Cloth bracer", Rarity.COMMON, 5)
 	item.hand_size_bonus = 1
 	item.dexterity_bonus = 2
-	_set_skill(item, "Band aid", "Heal 5 HP.", "band_aid", 4)
+	_set_skill(item, "Band aid", "Heal 5 HP.", "band_aid", 4, 10)
 	item.description = "+1 hand size, +2 DEX. Skill — Band aid: heal 5 HP (20 tempo CD)."
 	return item
 
@@ -1594,7 +1535,7 @@ static func create_techno_wraps() -> ItemData:
 	var item = _new_gauntlet("Techno Wraps", Rarity.LEGENDARY, 10)
 	item.wisdom_bonus = 3
 	item.intelligence_bonus = 3
-	_set_skill(item, "Future is bright", "Shuffle your discard pile into your draw pile.", "future_is_bright", 3)
+	_set_skill(item, "Future is bright", "Shuffle your discard pile into your draw pile.", "future_is_bright", 3, 15)
 	item.description = "+3 WIS, +3 INT. Skill — Future is bright: shuffle your discard pile into your draw pile (15 tempo CD)."
 	return item
 
@@ -1605,7 +1546,7 @@ static func create_spidey_web_shooters() -> ItemData:
 	item.agility_bonus = 3
 	item.hand_size_bonus = 1
 	item.on_self_disarm_offensive = 1  # the target skips its next 1 attack
-	_set_skill(item, "Coming in!", "Pull yourself to the target from up to 5 squares away.", "coming_in", 2)
+	_set_skill(item, "Coming in!", "Pull yourself to the target from up to 5 squares away.", "coming_in", 2, 10)
 	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards disarm the target for 1 attack. Skill — Coming in!: pull yourself to the target from 5 squares (10 tempo CD)."
 	return item
 
@@ -1616,7 +1557,7 @@ static func create_gravity_gauntlets() -> ItemData:
 	item.wisdom_bonus = 3
 	item.agility_bonus = 2
 	item.on_self_root_offensive = 1  # hold for 1 cycle (5 tempo)
-	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2)
+	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2, 15)
 	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 tempo CD)."
 	return item
 
@@ -1629,7 +1570,7 @@ static func create_spiked_mitts() -> ItemData:
 	item.on_self_armor_any = 5  # ANY slotted card grants +5 armor
 	item.armor_gain_thorns_threshold = 25
 	item.armor_gain_thorns_amount = 5
-	_set_skill(item, "Well placed guard", "Gain 5 thorns.", "well_placed_guard", 3)
+	_set_skill(item, "Well placed guard", "Gain 5 thorns.", "well_placed_guard", 3, 10)
 	item.description = "+10 health, +5 STR, -2 DEX. On-self: ANY card provides +5 armor. Every 25 armor gained, gain 5 thorns. Skill — Well placed guard: gain 5 thorns (15 tempo CD)."
 	return item
 
@@ -1641,7 +1582,7 @@ static func create_momentum_mits() -> ItemData:
 	item.wisdom_bonus = -3
 	item.agility_bonus = -3
 	item.on_self_draw_card = 1  # slotted card play draws a card
-	_set_skill(item, "Continue to move", "Draw a card.", "continue_to_move", 5)
+	_set_skill(item, "Continue to move", "Draw a card.", "continue_to_move", 5, 10)
 	item.description = "+5 STR, +5 INT, -3 WIS, -3 AGI. On-self: draw a card. Skill — Continue to move: draw a card (25 tempo CD)."
 	return item
 
@@ -1655,7 +1596,7 @@ static func create_sleeved_katar() -> ItemData:
 	item.crit_chance_percent = 5.0
 	var katar_cards: Array[String] = ["return_cut"]
 	item.granted_card_ids = katar_cards
-	_set_skill(item, "Defense one with offense", "Gain 5 armor; your next melee offensive card deals +5 damage.", "defense_one", 5)
+	_set_skill(item, "Defense one with offense", "Gain 5 armor; your next melee offensive card deals +5 damage.", "defense_one", 5, 15)
 	item.description = "+3 AGI, +5 STR, +3 DEX, +25% crit damage, +5% crit chance. Grants Return Cut (Instant): when an attack fails to break your armor, counter with a melee strike (+5% crit). Skill — Defense one with offense: gain 5 armor and your next melee offensive card gets +5 damage (25 tempo CD)."
 	return item
 
@@ -1666,7 +1607,7 @@ static func create_gauntlets_of_dungeon_mastering() -> ItemData:
 	item.intelligence_bonus = 4
 	item.strength_bonus = 3
 	item.on_self_summon_wolf = 1
-	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4)
+	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4, 15)
 	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
 	item.level_3_description = "+4 WIS, +5 INT, +4 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
 	_set_appearance(item, "gauntlets_of_dungeon_mastering",
@@ -1680,7 +1621,7 @@ static func create_hallowed_trunk() -> ItemData:
 	item.health_bonus = 15
 	item.dexterity_bonus = -3
 	item.armor_loss_regen_threshold = 10
-	_set_skill(item, "imbue tree", "Gain 5 regen and 10 thorns.", "imbue_tree", 2)
+	_set_skill(item, "imbue tree", "Gain 5 regen and 10 thorns.", "imbue_tree", 2, 20)
 	item.level_3_overrides = {"health_bonus": 30, "regen_include_health": true}
 	item.level_3_description = "+11 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
 	_set_appearance(item, "hallowed_trunk",
@@ -1693,7 +1634,7 @@ static func create_cuffs_of_current() -> ItemData:
 	item.intelligence_bonus = 6
 	item.hand_size_bonus = 2
 	item.draw_every_cycles = 3
-	_set_skill(item, "Zeet", "Deal damage equal to your INT / 2.", "zeet", 3)
+	_set_skill(item, "Zeet", "Deal damage equal to your INT / 2.", "zeet", 3, 15)
 	item.level_3_overrides = {"intelligence_bonus": 8}
 	item.level_3_description = "+8 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal INT/2 damage; bounces once, dealing 1/4 damage to an enemy near the target (15 tempo CD)."
 	_set_appearance(item, "cuffs_of_current",
@@ -1708,7 +1649,7 @@ static func create_concealed_carry() -> ItemData:
 	item.hand_size_bonus = 1
 	var cc_cards: Array[String] = ["smoke_bomb"]
 	item.granted_card_ids = cc_cards
-	_set_skill(item, "Lethal Poke", "A 0-base-damage melee attack. Crits deal x1.5 on top of the crit.", "lethal_poke", 3)
+	_set_skill(item, "Lethal Poke", "A 0-base-damage melee attack. Crits deal x1.5 on top of the crit.", "lethal_poke", 3, 10)
 	item.level_3_overrides = {"dexterity_bonus": 5, "agility_bonus": 5, "hand_size_bonus": 1,
 		"gauntlet_skill_cooldown": 2}
 	item.level_3_description = "+5 DEX, +5 AGI, +1 hand size. Grants smoke bomb. Skill — Lethal Poke (10 tempo CD)."
@@ -1722,7 +1663,7 @@ static func create_medic_wraps() -> ItemData:
 	item.strength_bonus = 3
 	item.dexterity_bonus = -2
 	item.health_bonus = 5
-	_set_skill(item, "Slurp and pad", "Heal an ally for 5 HP and gain 3 armor.", "slurp_and_pad", 3)
+	_set_skill(item, "Slurp and pad", "Heal an ally for 5 HP and gain 3 armor.", "slurp_and_pad", 3, 10)
 	item.description = "+3 STR, -2 DEX, +5 life. Skill — Slurp and pad: heal an ally 5 HP and gain 3 armor (15 tempo CD)."
 	return item
 
@@ -1733,7 +1674,7 @@ static func create_roman_bracers() -> ItemData:
 	item.health_bonus = 15
 	item.strength_bonus = 5
 	item.on_self_melee_damage = 5  # slotted melee offensive cards +5 damage
-	_set_skill(item, "Slice", "Perform a basic melee attack for 2 tempo.", "slice", 2)
+	_set_skill(item, "Slice", "Perform a basic melee attack for 2 tempo.", "slice", 2, 5)
 	item.description = "+15 life, +5 STR, +1 hand size. On-self: +5 damage on melee cards. Skill — Slice: a basic melee attack costing 2 tempo (10 tempo CD)."
 	return item
 
@@ -1743,7 +1684,7 @@ static func create_copper_bracers() -> ItemData:
 	item.strength_bonus = 2
 	item.agility_bonus = 1
 	item.wisdom_bonus = 3
-	_set_skill(item, "Clang", "Gain 8 armor.", "clang", 3)
+	_set_skill(item, "Clang", "Gain 8 armor.", "clang", 3, 15)
 	item.description = "+10 life, +2 STR, +1 AGI, +3 WIS. Skill — Clang: gain 8 armor (15 tempo CD)."
 	return item
 
@@ -1751,10 +1692,12 @@ static func create_fanned_bracers() -> ItemData:
 	var item = _new_gauntlet("Fanned Bracers", Rarity.RARE, 15)
 	item.health_bonus = 20
 	item.hand_size_bonus = 1
-	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 2)
+	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 2, 10)
 	item.description = "+20 life, +1 hand size. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (10 tempo CD)."
 	return item
 
+#endregion
+#region BELTS (first belts pass
 # ============================================
 # BELTS (first belts pass — waist slot)
 # ============================================
@@ -1989,6 +1932,8 @@ static func create_girdle_of_aphrodite() -> ItemData:
 	item.description = "+10 health, +2 DET, +2 AGI, +2 DEX, +2 WIS. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 15."
 	return item
 
+#endregion
+#region WEAPONS (first weapons pass
 # ============================================
 # WEAPONS (first weapons pass — both hands)
 # ============================================
@@ -2019,6 +1964,14 @@ static func create_rusty_dagger() -> ItemData:
 	item.dexterity_bonus = 1
 	item.on_self_crit_percent = 15.0
 	item.description = "+3 AGI, +1 DEX. On-self: +15% crit chance."
+	return item
+
+static func create_pocket_knife() -> ItemData:
+	## Carrier for POCKET_KNIFE_PROC: sharpens the DEX proc — first-pass numbers.
+	var item = _new_weapon("Pocket Knife", Rarity.COMMON, WeaponSubtype.DAGGER, 5)
+	item.dexterity_bonus = 2
+	item.special_effect = SpecialEffect.POCKET_KNIFE_PROC
+	item.description = "+2 DEX. While your DEX proc is armed, attacks cost 2 less tempo and resolve on the first tick."
 	return item
 
 static func create_construction_hammer() -> ItemData:
@@ -2241,6 +2194,8 @@ static func create_umbral_eclipse() -> ItemData:
 	item.description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 5 damage to an enemy in melee range. Insight draws restore 2 flash points. Grants Monk of the Night (Maintain): attack cards grant 10% of their damage as block (50 mana, 4 tempo)."
 	return item
 
+#endregion
+#region CHESTS (first chests pass
 # ============================================
 # CHESTS (first chests pass — torso slot)
 # ============================================
@@ -2251,6 +2206,17 @@ static func _new_chest(nm: String, r: Rarity, wt: int) -> ItemData:
 	item.item_type_name = "Chest"
 	item.rarity = r
 	item.weight = wt
+	return item
+
+static func create_bloodbound_plate() -> ItemData:
+	## Carrier for OVERFLOW_HEAL_ARMOR's armor half (value_2): every armor
+	## instance grants bonus armor — first-pass numbers.
+	var item = _new_chest("Bloodbound Plate", Rarity.RARE, 60)
+	item.health_bonus = 20
+	item.armor_bonus = 3
+	item.special_effect = SpecialEffect.OVERFLOW_HEAL_ARMOR
+	item.special_effect_value_2 = 2
+	item.description = "+20 health, +3 armor. Whenever you gain armor, gain +2 more."
 	return item
 
 static func create_wooden_plank() -> ItemData:
@@ -2480,6 +2446,8 @@ static func create_hide_of_garmr() -> ItemData:
 	item.description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
 	return item
 
+#endregion
+#region RANGED (first ranged pass
 # ============================================
 # RANGED (first ranged pass — bows & quivers)
 # ============================================
@@ -2709,6 +2677,8 @@ static func create_bow_of_budding_blasts() -> ItemData:
 	item.description = "+3 INT, +4 WIS, +25 mana. 2 card slots. On-self: a crit buds a bow turret — 6 damage, attacks every 5 tempo, dies to any damage or after 2 attacks; up to 4 at once. This bow and its bow summons gain +2 damage and +5% crit chance per living bow summon. Grants Spirit Bow (Maintain): a spirit bow that stalks your enemies, 1 square per tempo, loosing a 10-damage shot every 4 tempo (65 mana, 3 tempo)."
 	return item
 
+#endregion
+#region SHIELDS (first shields pass
 # ============================================
 # SHIELDS (first shields pass — the off hand that fights back)
 # ============================================
@@ -2935,6 +2905,8 @@ static func create_crooked_dueling_shield() -> ItemData:
 	item.description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
 	return item
 
+#endregion
+#region SPELL WEAPONS (spell weapons pass 1)
 # ============================================
 # SPELL WEAPONS (spell weapons pass 1)
 # ============================================
@@ -3162,6 +3134,8 @@ static func create_feral_evocation() -> ItemData:
 	item.description = "+5 WIS, +10 INT. Two-handed. Four elemental slots — red (Burn), blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 4 damage to a random enemy within 4 squares."
 	return item
 
+#endregion
+#region RINGS (first rings pass)
 # ============================================
 # RINGS (first rings pass)
 # ============================================
@@ -3325,6 +3299,8 @@ static func create_ring_of_thomas_the_train_tracks() -> ItemData:
 	item.description = "+150 mana. +5 DET, +10 health. Shuffling your deck grants 7 Regen; every 3rd shuffle also heals 25."
 	return item
 
+#endregion
+#region ITEM FACTORY DISCOVERY
 # ============================================
 # ITEM FACTORY DISCOVERY
 # ============================================
@@ -3372,3 +3348,4 @@ static func create_by_name(item_name_to_find: String) -> ItemData:
 		if item.item_name == item_name_to_find:
 			return item
 	return null
+#endregion

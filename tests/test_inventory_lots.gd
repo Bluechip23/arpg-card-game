@@ -69,18 +69,19 @@ func _initialize() -> void:
 	var ring := Fixtures.trigger_ring()
 	_check(inv.equip_item(ring, 0), "trigger ring equips in ring slot 0")
 
+	# Jeremy's double-trigger cadence now lives solely on the bespoke ring path.
 	var fires := [0]
-	inv.ring_triggered.connect(func(_item, _effect): fires[0] += 1)
+	inv.custom_ring_fired.connect(func(_item, _kind, _value): fires[0] += 1)
 
 	for cycle in range(1, 7):
 		inv.process_turn()
 		fires[0] = 0
-		inv.trigger_rings(ring.ring_trigger)
+		inv._fire_custom_ring(ring, "test")
 		var want := 2 if cycle % Inventory.RING_DOUBLE_TRIGGER_CYCLES == 0 else 1
 		_check(fires[0] == want, "cycle %d: first ring trigger fires %d time(s)" % [cycle, want])
 		# Later triggers in the same cycle never double.
 		fires[0] = 0
-		inv.trigger_rings(ring.ring_trigger)
+		inv._fire_custom_ring(ring, "test")
 		_check(fires[0] == 1, "cycle %d: second ring trigger fires once" % cycle)
 
 	# --- Passive badges appear on the right slot cells per character ---

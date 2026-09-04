@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Chests pass 1: the 19 chest pieces — factories, granted cards, and the new
+## Chests pass 1: the 20 chest pieces — factories, granted cards, and the new
 ## combat channels (Exposed armor reactions, banked damage, thorns-by-damage,
 ## Keen/Might buffs, jail release, health costs, resist scaling).
 ## Run: godot --headless --path . --script tests/test_chest_pass.gd
@@ -54,13 +54,13 @@ func _test_roster() -> void:
 	for item in ItemData.get_all_items():
 		if item.item_type == ItemData.ItemType.CHEST:
 			chests.append(item)
-	_check(chests.size() == 19, "19 chest pieces exist (found %d)" % chests.size())
+	_check(chests.size() == 20, "20 chest pieces exist (found %d)" % chests.size())
 	var by_rarity := {ItemData.Rarity.COMMON: 0, ItemData.Rarity.RARE: 0,
 		ItemData.Rarity.LEGENDARY: 0, ItemData.Rarity.MYTHIC: 0}
 	for chest in chests:
 		by_rarity[chest.rarity] += 1
 	_check(by_rarity[ItemData.Rarity.COMMON] == 4, "4 common chests")
-	_check(by_rarity[ItemData.Rarity.RARE] == 4, "4 rare chests")
+	_check(by_rarity[ItemData.Rarity.RARE] == 5, "5 rare chests (Bloodbound Plate joined the pass)")
 	_check(by_rarity[ItemData.Rarity.LEGENDARY] == 7, "7 legendary chests")
 	_check(by_rarity[ItemData.Rarity.MYTHIC] == 4, "4 mythic chests")
 	for chest in chests:

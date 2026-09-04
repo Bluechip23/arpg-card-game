@@ -218,11 +218,6 @@ func _world_to_screen(world_pos: Vector2) -> Vector2:
 	var grid_center = Vector2(640, 360)
 	return canvas_center + (world_pos - grid_center + _camera_offset) * _zoom
 
-func _screen_to_world(screen_pos: Vector2) -> Vector2:
-	var canvas_center = _get_canvas_size() / 2.0
-	var grid_center = Vector2(640, 360)
-	return (screen_pos - canvas_center) / _zoom - _camera_offset + grid_center
-
 func _get_node_at_screen(screen_pos: Vector2) -> int:
 	if not sphere_grid:
 		return -1

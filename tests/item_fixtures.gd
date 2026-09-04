@@ -2,7 +2,7 @@ extends RefCounted
 
 ## Test-only ItemData fixtures.
 ## The game's real item list (ItemData.create_*) is intentionally tiny, but the
-## mechanics the old items exercised — shields, bows, dual wielding, mastery
+## mechanics the old items exercised — shields, bows, dual wielding
 ## breakpoints, ring triggers, quiver slots — are all still live systems.
 ## These builders hand the tests stand-in gear without reintroducing game
 ## content. Usage: const Fixtures = preload("res://tests/item_fixtures.gd")
@@ -72,27 +72,23 @@ static func staff(weight := 20) -> ItemData:
 	item.weapon_damage = 5
 	return item
 
-## Hammer with a STR 15 mastery breakpoint that grants Heavy Swing.
+## Heavy test hammer.
 static func mastery_sledge() -> ItemData:
+	# Grants Heavy Swing via the live granted-cards system (the old mastery
+	# breakpoint rider was removed with that system) — the war-rack test uses
+	# the card to verify owned cards rush to hand on swaps.
 	var item = _base("Test Sledge", ItemData.ItemType.WEAPON)
 	item.weapon_subtype = ItemData.WeaponSubtype.HAMMER
 	item.item_type_name = "Weapon"
 	item.weight = 90
 	item.weapon_damage = 12
-	item.mastery_stat = "strength"
-	item.mastery_threshold = 15
-	item.mastery_card_ids.assign(["heavy_swing"])
-	item.mastery_description = "grants Heavy Swing while wielded"
+	item.granted_card_ids.assign(["heavy_swing"])
 	return item
 
-## Polearm with a DEX 15 mastery breakpoint that grants Sweeping Disarm.
+## Test polearm.
 static func mastery_fang() -> ItemData:
 	var item = polearm(40)
 	item.item_name = "Test Fang"
-	item.mastery_stat = "dexterity"
-	item.mastery_threshold = 15
-	item.mastery_card_ids.assign(["sweeping_disarm"])
-	item.mastery_description = "grants Sweeping Disarm while wielded"
 	return item
 
 static func helm() -> ItemData:
@@ -125,9 +121,6 @@ static func ring(item_name := "Test Ring") -> ItemData:
 ## Ring with a live trigger (fires on utility-card plays).
 static func trigger_ring() -> ItemData:
 	var item = ring("Test Trigger Ring")
-	item.ring_trigger = ItemData.RingTrigger.ON_PLAY_UTILITY_CARD
-	item.ring_effect = ItemData.RingEffect.GAIN_MANA
-	item.ring_effect_value = 1
 	return item
 
 ## Ring carrying a chance boost (persistence tests).
@@ -146,12 +139,12 @@ static func quiver() -> ItemData:
 	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
 	return item
 
-## Gauntlets that raise hand size (persistence tests).
+## Gauntlets that raise hand size via the INCREASE_HAND_SIZE special effect
+## (persistence tests double as the effect's guardian test).
 static func hand_size_gauntlets() -> ItemData:
 	var item = _base("Test Hand-Size Gauntlets", ItemData.ItemType.GAUNTLETS)
 	item.item_type_name = "Gauntlets"
 	item.weight = 3
-	item.hand_size_bonus = 2
 	item.special_effect = ItemData.SpecialEffect.INCREASE_HAND_SIZE
 	item.special_effect_value = 2
 	return item

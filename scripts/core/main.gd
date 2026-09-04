@@ -4,7 +4,7 @@ extends Node3D
 
 @onready var deck_manager: DeckManager = $DeckManager
 @onready var buff_bar: BuffBarUI = $UI/BuffBar
-@onready var turn_manager: TurnManager = $TurnManager
+@onready var draw_timer: DrawTimer = $DrawTimer
 @onready var grid_manager: GridManager = $GridManager
 @onready var move_dialog: MoveConfirmDialog = $MoveConfirmDialog
 @onready var point_to_prove_dialog: PointToProveDialog = $PointToProveDialog
@@ -12,27 +12,19 @@ extends Node3D
 @onready var enemy_spawner: EnemySpawner = $EnemySpawner
 @onready var test_ui: TestUI = $TestUi
 @onready var gauntlet_skills_container: HBoxContainer = $UI/GauntletSkillsContainer
-@onready var item_tooltip: ItemTooltip = $UI/ItemTooltip
 @onready var aoe_indicator: AOEIndicator = $AOEIndicator
 @onready var debuff_bar: DebuffBarUI = $UI/DebuffBar
 @onready var hand_container: Control = $UI/HandArea/HandContainer
-@onready var draw_label = $UI/DeckInfo/DrawPileLabel
-@onready var discard_label = $UI/DeckInfo/DiscardPileLabel
+var draw_label: Label = null     # re-pointed at the pile buttons in _setup_deck_info_vertical
+var discard_label: Label = null
 var _draw_pile_btn: Button = null       # left draw pile button (for its tooltip)
 var _hand_info_btn: Button = null       # small ⓘ button beside the hand icon
 var _hand_info_popup: PanelContainer = null  # hand size / overflow info popup
 var _hand_info_vbox: VBoxContainer = null    # popup content (rebuilt on refresh)
 var _discard_pile_btn: Button = null    # right discard pile button (for its tooltip)
-@onready var jail_label = $UI/DeckInfo/JailPileLabel
-@onready var selected_label: Label = $UI/SelectedLabel
 @onready var peaked_label: Label = $UI/PeakedLabel
 @onready var tempo_label: Label = $UI/TempoContainer/TempoLabel
 @onready var tempo_bar: ProgressBar = $UI/TempoContainer/TempoBar
-@onready var player_health_label: Label = $UI/PlayerHealthLabel
-@onready var player_mana_label: Label = $UI/PlayerManaLabel
-@onready var player_armor_label: Label = $UI/PlayerArmorLabel
-@onready var player_xp_label: Label = $UI/PlayerXPLabel
-@onready var turn_label: Label = $UI/TurnLabel
 @onready var player: Player = $Player
 @onready var tempo_manager: TempoManager = $TempoManager
 @onready var overflow_manager: OverflowManager = $OverflowManager
@@ -140,7 +132,6 @@ var _tab_card_inv_container: VBoxContainer = null
 
 # Card animation tracking
 var _prev_hand_card_ids: Array[String] = []  # Card IDs from last hand update
-var _card_play_animating: bool = false        # Block input during card play animation
 
 # Enemy loot drops lying on the ground, waiting to be picked up.
 # Each entry: {"node": Node3D, "cell": Vector2i, "loot": Dictionary}
@@ -152,7 +143,6 @@ var _loot_tooltip_label: Label = null
 var _chest_modal: PanelContainer = null
 var _chest_modal_open: bool = false
 var _chest_modal_contents: Dictionary = {}
-var _chest_interact_prompt: Label3D = null
 
 
 var battle_log_label: RichTextLabel = null
@@ -303,9 +293,6 @@ const TICK_SPEED_TIERS := [
 	{"label": "▶▶▶", "mult": 4.0, "secs": 0.375},
 ]
 var _tick_bar_card_name_label: Label = null   # Label showing current card name
-var _tick_bar_total_ticks: int = 0            # Total ticks for current card
-var _tick_bar_resolve_tick: int = 0           # Which tick resolves the card
-var _tick_bar_current_tick: int = 0           # How many ticks have elapsed
 
 # Action queue dropdown (▾ beside the tick bar label): lists queued actions;
 # entries whose ticks haven't started carry a red ✕ to cancel them.
@@ -353,12 +340,9 @@ var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack
 # Stat bar UI references
 var _hp_bar: ProgressBar = null
 var _mana_bar: ProgressBar = null
-var _armor_bar: ProgressBar = null
 var _xp_bar: ProgressBar = null
 var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
-var _armor_bar_label: Label = null
-var _xp_bar_label: Label = null
 var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
@@ -392,6 +376,7 @@ const CAMERA_ZOOM_MAX: float = 35.0
 const CAMERA_ZOOM_STEP: float = 2.0
 const CAMERA_ORBIT_SENSITIVITY: float = 0.005
 
+#region LOW-RES WORLD RENDER
 # ============================================
 # LOW-RES WORLD RENDER (Secret-of-Mana pixel look)
 # The 3D battle renders at WORLD_RES inside a SubViewport and is
@@ -405,6 +390,8 @@ var _world_container: SubViewportContainer = null
 var _world_camera: Camera3D = null
 
 
+#endregion
+#region WORLD RENDER VIEWPORT
 func _setup_world_viewport() -> void:
 	var cam := $Camera3D as Camera3D
 	var layer := CanvasLayer.new()
@@ -484,6 +471,8 @@ func world_to_screen(world_pos: Vector3) -> Vector2:
 	return p / ratio
 
 
+#endregion
+#region READY & CORE WIRING
 func _ready() -> void:
 	_setup_world_viewport()
 	_unify_lighting()
@@ -530,7 +519,7 @@ func _ready() -> void:
 	tempo_manager.tempo_advanced.connect(_on_tempo_advanced)
 	tempo_manager.card_resolved.connect(_on_card_tick_resolved)
 	tempo_manager.ticking_finished.connect(_on_ticking_finished)
-	turn_manager.turn_ended.connect(_on_turn_ended)
+	draw_timer.turn_ended.connect(_on_turn_ended)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
@@ -563,7 +552,6 @@ func _ready() -> void:
 	test_ui.give_card_requested.connect(_on_give_card)
 	test_ui.apply_buff_requested.connect(_on_apply_buff)
 	
-	help_panel.closed.connect(_on_help_closed)
 	help_panel.tick_speed_changed.connect(_on_tick_speed_changed)
 
 	# Sphere inventory + grid connection
@@ -694,6 +682,8 @@ func _apply_portal_return() -> void:
 
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
+#endregion
+#region FRAME LOOP, CAMERA & HOVER
 func get_mouse_world_position() -> Vector3:
 	var camera = get_world_camera()
 	if not camera:
@@ -707,9 +697,6 @@ func get_mouse_world_position() -> Vector3:
 	if t < 0:
 		return Vector3.ZERO
 	return from + dir * t
-
-func _on_help_closed() -> void:
-	pass  # Resume game if needed
 
 func _on_tick_speed_changed(speed: float) -> void:
 	tempo_manager.tick_speed = speed
@@ -929,6 +916,8 @@ func _update_self_target_hover() -> void:
 		if player and player.has_method("set_hover_highlight"):
 			player.set_hover_highlight(want)
 
+#endregion
+#region HAND AREA & ACTION BUTTONS
 func _setup_hand_area_background() -> void:
 	var hand_area = $UI/HandArea as PanelContainer
 	var style = StyleBoxFlat.new()
@@ -1178,6 +1167,8 @@ func _setup_action_buttons() -> void:
 	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
 	bottom_row.add_child(_pause_button)
 
+#endregion
+#region TICK BAR & ACTION QUEUE
 func _setup_tick_bar() -> void:
 	## Build the 20-tick global tempo bar centered at the top of the screen,
 	## framed like a little bookshelf (dark walnut box, gold trim, and a shelf
@@ -1319,9 +1310,6 @@ func _setup_tick_bar() -> void:
 func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, card_name: String = "") -> void:
 	## Update the 20-tick global tempo bar. This is a rolling counter that fills
 	## on ALL tempo sources (cards, movement, attack, wait, block) and resets at 20.
-	_tick_bar_current_tick = ticks_elapsed
-	_tick_bar_total_ticks = total_ticks
-	_tick_bar_resolve_tick = resolve_tick
 
 	if _tick_bar_card_name_label:
 		_tick_bar_card_name_label.text = card_name
@@ -1484,27 +1472,18 @@ func _refund_cancelled_action_cost(p, data: Dictionary) -> void:
 
 func _reset_tick_bar() -> void:
 	## Reset the tick bar to idle state but still show global tempo progress.
-	_tick_bar_current_tick = 0
-	_tick_bar_total_ticks = 0
-	_tick_bar_resolve_tick = 0
 	if _tick_bar_card_name_label:
 		_tick_bar_card_name_label.text = ""
 	# Show the global counter even when no card is active
 	_update_tick_bar(0, 0, 0, "")
 
+#endregion
+#region STAT BARS & HUD GAUGES
 func _setup_stat_bars() -> void:
 	## Create stacked HP / Mana / Armor / XP progress bars on the left side of the screen.
 	var ui = $UI as CanvasLayer
 
 	# Hide old label nodes
-	if player_health_label:
-		player_health_label.visible = false
-	if player_mana_label:
-		player_mana_label.visible = false
-	if player_armor_label:
-		player_armor_label.visible = false
-	if player_xp_label:
-		player_xp_label.visible = false
 
 	var stat_container = VBoxContainer.new()
 	stat_container.name = "StatBarsContainer"
@@ -1560,10 +1539,7 @@ func _setup_stat_bars() -> void:
 	# Buffs and debuffs sit directly under the (thin) XP bar rather than off to
 	# the right of the health bar.
 	_reposition_status_bars()
-	_xp_bar_label = null
 	# (Armour no longer has its own bar — the shield badge shows it.)
-	_armor_bar = null
-	_armor_bar_label = null
 
 func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_color: Color, bg_color: Color, height: int = 22) -> Array:
 	## Creates a progress bar with an overlaid centered label. Returns [bar, label].
@@ -1709,14 +1685,12 @@ func _reposition_status_bars() -> void:
 		buff_bar.offset_right = right
 		buff_bar.offset_bottom = 131.0
 
+#endregion
+#region PILE BUTTONS & DECK INFO
 func _setup_deck_info_vertical() -> void:
 	## Draw and Discard piles become card-stack buttons on opposite edges:
 	## Draw on the left (green up-arrow + turns-until-draw), Discard on the
 	## right (yellow down-arrow + count). The Deck box lives in the top HUD bar.
-	var deck_info = $UI/DeckInfo as HBoxContainer
-	if deck_info:
-		deck_info.visible = false  # retire the old horizontal readout
-
 	var ui = $UI as CanvasLayer
 
 	# Draw pile — sits at the TOP of the left-side action column (above Attack),
@@ -1784,7 +1758,6 @@ func _setup_deck_info_vertical() -> void:
 	_discard_pile_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
 	disc_wrap.add_child(_discard_pile_btn)
 
-	jail_label = null
 
 func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -> Array:
 	## A compact pile button: just the card-stack icon (up-arrow for Draw,
@@ -1856,6 +1829,8 @@ func _on_pause_pressed() -> void:
 		_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
 		print("[MAIN] Game resumed")
 
+#endregion
+#region BATTLE LOG
 func _setup_battle_log() -> void:
 	var ui = $UI as CanvasLayer
 
@@ -1951,6 +1926,8 @@ func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
 			for i in range(lines.size() - BATTLE_LOG_MAX_LINES, lines.size()):
 				battle_log_label.append_text(lines[i] + "\n")
 
+#endregion
+#region BASIC ATTACK
 func _on_attack_pressed() -> void:
 	## The button works like selecting a card: it arms the attack, and the
 	## player then clicks the enemy they want to hit (see _unhandled_input).
@@ -1982,7 +1959,6 @@ func _on_attack_pressed() -> void:
 			range_indicator.hide_range()
 		if aoe_indicator:
 			aoe_indicator.hide_indicator()
-		update_selected_display()
 		update_card_highlights()
 	_set_basic_attack_pending(true)
 	add_battle_log("Basic Attack armed — click an enemy in melee range.", Color(1.0, 0.85, 0.4))
@@ -2133,6 +2109,8 @@ func _execute_basic_attack(target: Enemy) -> void:
 		add_battle_log("Winding up Basic Attack on %s (resolves tick %d/%d)" % [target.enemy_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
 		print("[MAIN] Basic Attack queued: %d damage to %s (%d tempo, resolve tick %d)" % [damage, target.enemy_name, tempo_cost, resolve_tick])
 
+#endregion
+#region BLOCK, WAIT & WAR RACK
 func _on_block_pressed() -> void:
 	var stats = player.get_stats()
 	if not stats:
@@ -2246,6 +2224,8 @@ func _update_block_button_visibility() -> void:
 	else:
 		_block_button.visible = false
 
+#endregion
+#region DECK LIST PANEL
 func _setup_deck_list_panel() -> void:
 	var ui = $UI as CanvasLayer
 	# Main panel
@@ -2386,6 +2366,8 @@ func _populate_deck_list() -> void:
 		entry.mouse_exited.connect(_on_deck_list_entry_unhovered)
 		deck_list_container.add_child(entry)
 
+#endregion
+#region MANAGE DECK (cull / add cards mid-run)
 # ============================================
 # MANAGE DECK (cull / add cards mid-run)
 # ============================================
@@ -2702,6 +2684,8 @@ func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
 func _on_deck_list_entry_unhovered() -> void:
 	deck_list_card_preview.visible = false
 
+#endregion
+#region MAINTAINED CARDS LIST (expandable button)
 # ============================================
 # MAINTAINED CARDS LIST (expandable button)
 # ============================================
@@ -2939,6 +2923,8 @@ func _on_maintained_list_entry_hovered(card: Card, entry: Button) -> void:
 func _on_maintained_list_entry_unhovered() -> void:
 	maintained_list_card_preview.visible = false
 
+#endregion
+#region PILE CONTENTS POPUP (Draw / Discard / Jail buttons)
 # ============================================
 # PILE CONTENTS POPUP (Draw / Discard / Jail buttons)
 # ============================================
@@ -3205,6 +3191,8 @@ func _refresh_pile_popup_if_open() -> void:
 	if pile_popup_visible:
 		_populate_pile_popup()
 
+#endregion
+#region HAND CARD PREVIEW
 func _setup_hand_card_preview() -> void:
 	var ui = $UI
 	hand_card_preview = PanelContainer.new()
@@ -3455,6 +3443,8 @@ func _on_hand_card_unhovered() -> void:
 	_hand_hover_id += 1
 	hand_card_preview.visible = false
 
+#endregion
+#region GAUNTLET SKILLS UI
 func _setup_gauntlet_skills_ui() -> void:
 	# Clear existing
 	for child in gauntlet_skills_container.get_children():
@@ -3563,25 +3553,31 @@ func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
 	_update_block_button_visibility()
 
+#endregion
+#region PASSIVE TRAY
 func _setup_passive_display_ui() -> void:
-	## Right-side passive tray: one gold-trimmed PassiveBoxUI per active
-	## skill-tree passive, stacked 4 per row (up to 3 rows for a full set of
-	## 12). Cooldown passives fade and show recharge progress like the
-	## gauntlet skill circles; always-on passives stay solid.
+	## Compact passive tray: one small gold-trimmed PassiveBoxUI per active
+	## skill-tree passive, 4 per row, tucked in beside the discard pile icon
+	## at the bottom-right. Cooldown passives fade while recharging like the
+	## gauntlet skill circles; always-on passives stay solid. Level and
+	## recharge numbers live in each box's tooltip.
 	var ui = $UI as CanvasLayer
 	passive_display_container = GridContainer.new()
 	passive_display_container.name = "PassiveDisplay"
 	passive_display_container.columns = 4
 	ui.add_child(passive_display_container)
-	# Sits just below the battle log's usual footprint, above the hand area.
-	passive_display_container.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	passive_display_container.offset_left = -210.0
-	passive_display_container.offset_right = -10.0
-	passive_display_container.offset_top = -50.0
-	passive_display_container.offset_bottom = 130.0
+	# Bottom-right corner pinned just left of the discard icon (which spans
+	# x -62..-8, y -190..-132 from the corner); the tray grows up and left
+	# from there as passives are allocated.
+	passive_display_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	passive_display_container.offset_left = -68.0
+	passive_display_container.offset_right = -68.0
+	passive_display_container.offset_top = -132.0
+	passive_display_container.offset_bottom = -132.0
 	passive_display_container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	passive_display_container.add_theme_constant_override("h_separation", 8)
-	passive_display_container.add_theme_constant_override("v_separation", 8)
+	passive_display_container.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	passive_display_container.add_theme_constant_override("h_separation", 3)
+	passive_display_container.add_theme_constant_override("v_separation", 3)
 	# Allocating a passive point happens inside the skill tree panel, so the
 	# tray re-checks whenever that panel opens or closes.
 	skill_tree_ui.visibility_changed.connect(_update_passive_display_ui)
@@ -3635,6 +3631,8 @@ func _get_passive_info(passive_id: String) -> Dictionary:
 						"name": opt.name, "archetype": opt.archetype, "description": desc}
 	return _passive_info.get(passive_id, {})
 
+#endregion
+#region HUD ICON BAR & NOTIFICATIONS
 func _setup_hud_icon_bar() -> void:
 	## Top-right icon bar replacing the old I/L/H text hints. Buttons open the
 	## same windows the keyboard shortcuts do; the EXP and Quest icons carry a
@@ -3701,6 +3699,8 @@ func _on_leveled_up_notify(_new_level: int) -> void:
 		skill_tree_ui.set_player_level(_new_level)
 	_refresh_hud_notifications()
 
+#endregion
+#region UNIT TRACKER
 func _setup_unit_tracker() -> void:
 	var ui = $UI as CanvasLayer
 	unit_tracker = UnitTrackerUI.new()
@@ -3779,6 +3779,8 @@ func _refresh_hand_card_values() -> void:
 		if child is CardUI:
 			child.update_chance_display()
 
+#endregion
+#region CHARACTER SELECT & SIGNAL WIRING
 func select_character(character: CharacterData) -> void:
 	current_character = character
 	
@@ -3796,7 +3798,7 @@ func select_character(character: CharacterData) -> void:
 	tempo_manager.initialize(player.get_stats())
 	tempo_manager.debuff_manager = player.get_debuff_manager()
 	update_tempo_display()
-	turn_manager.initialize(player.get_stats(), deck_manager)
+	draw_timer.initialize(player.get_stats(), deck_manager)
 	overflow_manager.initialize(player.get_stats())
 	deck_manager.connect_overflow_manager(overflow_manager)
 	buff_bar.connect_manager(player.get_buff_manager())
@@ -3829,8 +3831,6 @@ func select_character(character: CharacterData) -> void:
 	skill_tree_ui.player_stats = player.get_stats()
 	# The sphere grid checks stat-gated node requirements against the player.
 	sphere_grid_ui.player_stats = player.get_stats()
-	# Magnetized debuff: wire the pull (emitted each cycle-end) to the handler.
-	player.get_debuff_manager().magnetize_pull.connect(func(tiles, _dir): _apply_magnetize_pull(tiles))
 	player.get_stats().damage_taken.connect(_on_player_damage_taken)
 	player.get_stats().maintained_cards_broken.connect(_on_maintained_cards_broken)
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
@@ -3876,9 +3876,7 @@ func select_character(character: CharacterData) -> void:
 		inventory.equipment_changed.connect(_on_equipment_changed)
 	_on_hand_updated()
 	update_deck_info()
-	update_selected_display()
 	update_peaked_display()
-	update_turn_display()
 	_on_player_health_changed(player.get_stats().current_health, player.get_stats().max_health)
 	_on_player_mana_changed(player.get_stats().current_mana, player.get_stats().max_mana)
 	_on_player_armor_changed(player.get_stats().current_armor)
@@ -3926,6 +3924,8 @@ func select_character(character: CharacterData) -> void:
 
 	print("[MAIN] Selected character: %s" % character.character_name)
 
+#endregion
+#region PLAYER 2 MULTIPLAYER SUPPORT
 # ============================================
 # PLAYER 2 MULTIPLAYER SUPPORT
 # ============================================
@@ -3934,17 +3934,9 @@ func select_character(character: CharacterData) -> void:
 # Player 2 co-op UI moved to
 # scripts/ui/player2_ui.gd
 
-
-func trigger_turn() -> void:
-	# Simulate one full tempo cycle (5 global tempo) for testing
-	tempo_manager.add_tempo(5)
-
-func trigger_multiple_turns(count: int) -> void:
-	# Each "turn" = 5 global tempo (one cycle)
-	tempo_manager.add_tempo(5 * count)
-
+#endregion
+#region PLAYER MOVEMENT PIPELINE
 var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
-
 func _on_player_tile_reached() -> void:
 	# Scoop up any loot pile on the tile just reached (checked for BOTH players,
 	# and before the batch-move early-out so batch movers loot too). Looting is
@@ -4030,14 +4022,6 @@ func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	if _movement_locked():
 		_notify_movement_locked()
 		return
-	var debuff_mgr = player.get_debuff_manager()
-
-	# Check Tethered range
-	if debuff_mgr and debuff_mgr.is_tethered():
-		if not debuff_mgr.is_within_tether_range(target_pos, grid_manager.grid_size):
-			print("[MAIN] Cannot move - Tethered! Out of range.")
-			return
-
 	player.move_to_grid(target_pos, spaces)
 
 func _on_move_cancelled() -> void:
@@ -4045,6 +4029,8 @@ func _on_move_cancelled() -> void:
 
 # ---- Co-op locked-in (batched) movement ----
 
+#endregion
+#region CO-OP: LOCKED MOVEMENT
 func _on_move_lock_in(target_pos: Vector3, spaces: int) -> void:
 	## Queue the active character's move without spending tempo or moving yet, so
 	## the player can TAB to the partner and queue theirs too. The "Move Players"
@@ -4052,12 +4038,6 @@ func _on_move_lock_in(target_pos: Vector3, spaces: int) -> void:
 	if _movement_locked():
 		_notify_movement_locked()
 		return
-	var debuff_mgr = player.get_debuff_manager()
-	if debuff_mgr and debuff_mgr.is_tethered():
-		if not debuff_mgr.is_within_tether_range(target_pos, grid_manager.grid_size):
-			print("[MAIN] Cannot lock in move - Tethered! Out of range.")
-			return
-
 	_locked_moves[_active_index] = {"pos": target_pos, "spaces": spaces}
 	_show_locked_marker(_active_index, target_pos)
 	_ensure_move_players_button()
@@ -4124,6 +4104,8 @@ func _on_batch_mover_done() -> void:
 		_batch_pending = 0
 		print("[MAIN] Batch move complete.")
 
+#endregion
+#region SANDBOX MODE
 # ============================================
 # SANDBOX MODE
 # ============================================
@@ -4294,6 +4276,8 @@ func _on_sandbox_clear_enemies() -> void:
 
 # ---- Co-op locked-in (batched) card play ----
 
+#endregion
+#region CO-OP: LOCKED CARD PLAY
 func _ensure_card_confirm_dialog() -> void:
 	if _card_confirm_panel and is_instance_valid(_card_confirm_panel):
 		return
@@ -4384,7 +4368,6 @@ func _on_card_lock_in() -> void:
 	selected_card_index = -1
 	if range_indicator:
 		range_indicator.hide_range()
-	update_selected_display()
 	update_card_highlights()
 	_ensure_play_cards_button()
 	_play_cards_button.text = "▶ Play Cards (%d)" % _locked_cards.size()
@@ -4458,6 +4441,8 @@ func _on_play_cards_pressed() -> void:
 
 # ---- Ally interaction (right-click menu + trade) ----
 
+#endregion
+#region ALLY MENU & PARTY HELPERS
 func _show_ally_menu(ally: Player, screen_pos: Vector2) -> void:
 	## Small context menu shown when right-clicking the co-op partner.
 	if _ally_menu == null:
@@ -4500,12 +4485,9 @@ func _all_players() -> Array:
 
 # ---- Co-op downed / revive / defeat ----
 
+#endregion
+#region CO-OP: DOWNED & DEFEAT
 func _setup_co_op_defeat() -> void:
-	# Linked debuff: each partner is the other's "nearest ally" for damage sharing.
-	if _p1_player.get_debuff_manager():
-		_p1_player.get_debuff_manager().linked_ally = _p2_player
-	if _p2_player.get_debuff_manager():
-		_p2_player.get_debuff_manager().linked_ally = _p1_player
 	var s1 = _p1_player.get_stats()
 	var s2 = _p2_player.get_stats()
 	if s1:
@@ -4573,6 +4555,8 @@ func _on_co_op_defeat() -> void:
 	print("[MAIN] CO-OP DEFEAT — both players down.")
 	_show_defeat_overlay()
 
+#endregion
+#region OVERLAY PICKERS & DEFENSIVE SACRIFICE
 func _show_release_tension_picker(card: Card, enemy) -> void:
 	## Let the player choose which damage-over-time debuff to drain from the enemy.
 	## Auto-resolves when there are 0 or 1 choices.
@@ -4957,6 +4941,8 @@ func _clear_locked_markers() -> void:
 	_locked_move_markers.clear()
 
 ## Fires on every global tempo addition - routes to per-system handlers.
+#endregion
+#region TEMPO TICK DISPATCHER
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Timed statuses (stun, frozen, blind...) tick on RAW tempo so durations
 	# like "3 tempo" work; per-cycle effects still run on the 5-tempo turn.
@@ -5032,8 +5018,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	if stats:
 		stats.process_tempo(amount)
 
-	# Card draw is tracked by turn_manager against its own tempo interval
-	turn_manager.process_tempo(amount)
+	# Card draw is tracked by draw_timer against its own tempo interval
+	draw_timer.process_tempo(amount)
 
 	# Process pillar durations
 	_process_pillars(amount)
@@ -5065,9 +5051,10 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	else:
 		_update_tick_bar(0, 0, 0, "")
 
-	update_turn_display()
 	_refresh_unit_tracker()
 
+#endregion
+#region ENEMY SIGNAL HANDLERS
 func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	## Connect debuff signals for skill tree passives (Pop Rocks, etc.).
 	enemy.debuff_applied.connect(_on_enemy_debuff_applied)
@@ -5076,6 +5063,7 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.attacked_player.connect(_on_enemy_attacked_player)
 	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
 	enemy.movement_completed.connect(_on_enemy_movement_completed)
+	enemy.barricade_attacked.connect(_on_enemy_barricade_attacked)
 	# Give enemy a reference to dungeon_manager for elevation lookups
 	if dungeon_manager:
 		enemy.dungeon_manager = dungeon_manager
@@ -5346,6 +5334,8 @@ func _announce_calamity() -> void:
 			true  # the flute sounds for every calamity, not just the first
 		)
 
+#endregion
+#region FIRE WALLS (Fire Goblin Shaman)
 # ============================================
 # FIRE WALLS (Fire Goblin Shaman)
 # ============================================
@@ -5450,6 +5440,8 @@ func _burn_player_from_fire(damage: int, burn: int) -> void:
 			dm.apply_debuff(Debuff.new(Debuff.DebuffType.BURN, 1))
 	add_battle_log("Fire wall burns you for %d (+%d burn)!" % [damage, burn], Color(1.0, 0.4, 0.1))
 
+#endregion
+#region FOREST HAZARDS
 # ============================================
 # FOREST HAZARDS — bear traps & hunters' tripwire darts
 # ============================================
@@ -5535,6 +5527,8 @@ func _animate_trap_sprung(trap: Dictionary) -> void:
 		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
 			(child.material_override as StandardMaterial3D).albedo_color = tint
 
+#endregion
+#region CLIMBABLE TREES
 # ============================================
 # CLIMBABLE TREES — climb a low branch for high ground (forest)
 # ============================================
@@ -5605,6 +5599,8 @@ func _is_climbed_tree(world_pos: Vector3) -> bool:
 		return false
 	return grid_manager.world_to_grid(world_pos) == _climbed_tree_tile
 
+#endregion
+#region XP & LEVEL-UP
 func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
 	# Swirling mist flourish on the character
@@ -5637,6 +5633,8 @@ func _on_ally_leveled_up(new_level: int) -> void:
 	add_battle_log("%s reached level %d!" % [ally_name, new_level], Color(1.0, 0.85, 0.4))
 	print("[MAIN] Ally leveled up to %d" % new_level)
 
+#endregion
+#region SPHERE GRID → CHARACTER SYNC
 # ============================================
 # SPHERE GRID → CHARACTER SYNC
 # ============================================
@@ -5652,8 +5650,6 @@ func _on_turn_ended(turn_number: int) -> void:
 	update_deck_info()
 
 func _on_player_health_changed(current: int, max_hp: int) -> void:
-	if player_health_label:
-		player_health_label.visible = false
 	if _hp_bar:
 		_hp_bar.max_value = max_hp
 		_hp_bar.value = current
@@ -5664,26 +5660,6 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 	# Trigger instant reaction cards when HP drops below 50%
 	var stats = player.get_stats()
 	if stats and current > 0 and current < max_hp * 0.5:
-		# Phoenix Grace (stack-oriented buff): each rescue burns one charge.
-		var pg_bm = player.get_buff_manager()
-		var pg = pg_bm.get_buff(Buff.BuffType.PHOENIX_GRACE) if pg_bm else null
-		if pg:
-			var pg_heal = int(max_hp * 0.8) - current
-			if pg_heal > 0:
-				stats.heal(pg_heal)
-			var pg_nearest: Enemy = null
-			var pg_dist = INF
-			for pe in enemy_spawner.get_living_enemies():
-				var pd = (pe.position - player.position).length()
-				if pd < pg_dist:
-					pg_dist = pd
-					pg_nearest = pe
-			if pg_nearest:
-				pg_nearest.apply_debuff("burn", 5)
-			if pg.use_charge():
-				pg_bm.remove_buff(Buff.BuffType.PHOENIX_GRACE)
-			add_battle_log("Phoenix Grace! Healed to 80%% HP!", Color(1.0, 0.5, 0.2))
-			return
 		var triggered = deck_manager.trigger_reactions("on_hp_below_50")
 		for card in triggered:
 			if card.card_id == "gift_from_the_phoenix":
@@ -5706,8 +5682,6 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 				print("[MAIN] Gift of the Phoenix triggered! Healed %d HP to %d/%d" % [heal_amount, heal_target, max_hp])
 
 func _on_player_mana_changed(current: float, max_mana: int) -> void:
-	if player_mana_label:
-		player_mana_label.visible = false
 	if _mana_bar:
 		_mana_bar.max_value = max_mana
 		_mana_bar.value = int(current)
@@ -5721,24 +5695,20 @@ func _on_player_armor_gained(_amount: int) -> void:
 		player.show_armor_gained()
 
 func _on_player_armor_changed(current: int) -> void:
-	if player_armor_label:
-		player_armor_label.visible = false
 	if _armor_shield_label:
 		_armor_shield_label.text = "%d" % current
 
 func _update_xp_display() -> void:
-	if player_xp_label:
-		player_xp_label.visible = false
 	var stats = player.get_stats()
 	if stats and _xp_bar:
 		var xp_to_next = stats.get_xp_to_next_level()
 		_xp_bar.max_value = xp_to_next
 		_xp_bar.value = stats.current_xp
-	if stats and _xp_bar_label:
-		_xp_bar_label.text = "(%d) %d/%d" % [stats.current_level, stats.current_xp, stats.get_xp_to_next_level()]
 	if stats and _level_badge_label:
 		_level_badge_label.text = "Lvl: %d" % stats.current_level
 
+#endregion
+#region FLASH & BRAIN POINT BUTTONS
 func _on_flash_points_changed(_current: int, _max_points: int) -> void:
 	_update_flash_button()
 
@@ -6003,15 +5973,8 @@ func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
 	# Cory: Energy Barrier — track non-regen mana gains
 	progression_triggers._trigger_skill_tree_cory_on_mana_gain(amount, is_regen)
 
-func update_turn_display() -> void:
-	# Turn label no longer needed — global tempo is shown on tick bar, atk sp proc on attack button
-	if turn_label:
-		turn_label.visible = false
-	# Update attack button with proc count
-	_update_attack_button_text()
-	# Update draw label with tempo until draw
-	_update_draw_label()
-
+#endregion
+#region HAND RENDERING & SLOTS
 func _on_hand_updated() -> void:
 	if hand_card_preview:
 		hand_card_preview.visible = false
@@ -6024,7 +5987,7 @@ func _on_hand_updated() -> void:
 		progression_triggers._trigger_skill_tree_cory_on_hand_empty()
 
 	# Quick Study (WIS keystone): auto-draw 1 when the hand empties. draw_card()
-	# does NOT touch turn_manager.tempo_until_draw, so the timed draw is untouched.
+	# does NOT touch draw_timer.tempo_until_draw, so the timed draw is untouched.
 	# A failed draw (empty deck) emits no hand_updated, so this can't loop.
 	var _qs_stats = player.get_stats() if player else null
 	if _qs_stats and _qs_stats.keystone_wis_empty_draw and deck_manager.hand.is_empty():
@@ -6080,7 +6043,6 @@ func _on_hand_updated() -> void:
 		if selected_card_index >= 0:
 			selected_card_index = -1
 		update_deck_info()
-		update_selected_display()
 		update_card_highlights()
 		return
 
@@ -6180,7 +6142,6 @@ func _on_hand_updated() -> void:
 		selected_card_index = -1
 
 	update_deck_info()
-	update_selected_display()
 	update_card_highlights()
 
 # ---- Persistent hand-slot / stacking layer ----
@@ -6249,6 +6210,8 @@ func _wasd_step(dir: Vector2) -> void:
 
 # ---- Card exit animations (visual-only; safe to fire for either deck) ----
 
+#endregion
+#region CARD EXIT ANIMATIONS
 func _hand_ui_for_card(card: Card) -> CardUI:
 	## The on-screen CardUI currently showing `card`, or null (e.g. the card
 	## belongs to the deck that isn't displayed right now).
@@ -6297,6 +6260,8 @@ func _on_non_play_discard(_card: Card) -> void:
 				stats.add_armor(ac_w.discard_gain_block)
 				add_battle_log("Abjurers Cane: +%d block" % ac_w.discard_gain_block, Color(0.6, 0.75, 0.95))
 
+#endregion
+#region DISCARD & DRAW HANDLERS
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
 	progression_triggers._trigger_sphere_passives("on_discard", {"card": card})
@@ -6368,43 +6333,8 @@ func _on_overflow_triggered(mode: String, card: Card) -> void:
 	update_deck_info()
 	update_peaked_display()
 
-func _on_apply_debuff(debuff_name: String) -> void:
-	var debuff_mgr = player.get_debuff_manager()
-	var debuff: Debuff = null
-	
-	match debuff_name:
-		# Original debuffs
-		"Bleed (3)": debuff = Debuff.create(Debuff.DebuffType.BLEED, 3, 3)
-		"Stun": debuff = Debuff.create(Debuff.DebuffType.STUN, 0, 1)
-		"Disarm": debuff = Debuff.create(Debuff.DebuffType.DISARM, 0, 3)
-		"Silence": debuff = Debuff.create(Debuff.DebuffType.SILENCE, 0, 3)
-		"Burn (2)": debuff = Debuff.create(Debuff.DebuffType.BURN, 2, 3)
-		"Poison (2)": debuff = Debuff.create(Debuff.DebuffType.POISON, 2, 3)
-		"Inebriate": debuff = Debuff.create(Debuff.DebuffType.INEBRIATE, 0, 3)
-		"Cursed (2)": debuff = Debuff.create(Debuff.DebuffType.CURSED, 2, 3)
-		"Frozen": debuff = Debuff.create(Debuff.DebuffType.FROZEN, 0, 2)
-		"Cuffed": debuff = Debuff.create(Debuff.DebuffType.CUFFED, 0, 3)
-		"Shocked (3)": debuff = Debuff.create(Debuff.DebuffType.SHOCKED, 3, 3)
-		"Slowed (2)": debuff = Debuff.create(Debuff.DebuffType.SLOWED, 2, 3)
-		"Staggered (3)": debuff = Debuff.create(Debuff.DebuffType.STAGGERED, 3, -1)
-		"Drain (10x2)": debuff = Debuff.create(Debuff.DebuffType.DRAIN, 2, 3)
-		"Weighted (1)": debuff = Debuff.create(Debuff.DebuffType.WEIGHTED, 3, -1)
-		"Hexed (20)": debuff = Debuff.create(Debuff.DebuffType.HEXED, 20, 3)
-		"Locked": debuff = Debuff.create(Debuff.DebuffType.LOCKED, 0, 2)
-		"Rooted": debuff = Debuff.create(Debuff.DebuffType.ROOTED, 0, 2)
-		"Tethered (3)":
-			debuff = Debuff.create(Debuff.DebuffType.TETHERED, 0, 15)
-			debuff_mgr.set_tether_origin(player.position)
-		"Magnetized (1)": debuff = Debuff.create(Debuff.DebuffType.MAGNETIZED, 1, 3)
-		"Linked (20)": debuff = Debuff.create(Debuff.DebuffType.LINKED, 0, 15)
-		"Clumsy (30)": debuff = Debuff.create(Debuff.DebuffType.CLUMSY, 3, -1)
-		"Vulnerable (25)": debuff = Debuff.create(Debuff.DebuffType.VULNERABLE, 25, 3)
-		"Brittle (2)": debuff = Debuff.create(Debuff.DebuffType.BRITTLE, 2, 3)
-		"Weakened (2)": debuff = Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1)
-	if debuff and debuff_mgr:
-		debuff_mgr.apply_debuff(debuff)
-		_on_hand_updated()  # Refresh cards for Hexed/Locked
-		print("[MAIN] Applied debuff: %s" % debuff_name)		
+#endregion
+#region DEBUG: TEST-UI STATUS HANDLERS
 
 func _on_apply_buff(buff_name: String) -> void:
 	var buff_mgr = player.get_buff_manager()
@@ -6435,10 +6365,6 @@ func _on_apply_buff(buff_name: String) -> void:
 			buff = Buff.create_smith(2, 15, "Test")
 		"Steady":
 			buff = Buff.create_steady("Test")
-		"Brace (30%, 1)":
-			buff = Buff.create_brace(30, 1, "Test")
-		"Resilient (15%, 3)":
-			buff = Buff.create_resilient(15, 15, "Test")
 	
 	if buff and buff_mgr:
 		buff_mgr.apply_buff(buff)
@@ -6448,6 +6374,8 @@ func _on_apply_buff(buff_name: String) -> void:
 ## Fires every 5 global tempo (one tempo cycle).
 ## Handles buff/debuff effects, armor decay, deck upkeep, sky falls, etc.
 ## Enemy actions and mana regen are handled in _on_tempo_advanced instead.
+#endregion
+#region CYCLE DISPATCHER & CARD HOUSEKEEPING
 func _on_tempo_threshold_reached(times: int) -> void:
 	print("[MAIN] === TEMPO CYCLE × %d ===" % times)
 
@@ -6503,7 +6431,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		stats.process_turn(debuff_mgr, buff_mgr)
 
 		# Advance cycle counter and process inventory
-		turn_manager.take_turn()
+		draw_timer.take_turn()
 
 		# Buff/debuff cycle-end effects (MAGNETIZE pull, BRITTLE decay, duration ticks)
 		if debuff_mgr:
@@ -6540,7 +6468,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	_process_enchantment_cycles()
 	_process_healthy_bliss_cards()
 	_update_gauntlet_skills_ui()
-	update_turn_display()
 	_update_enemy_count()
 	_reroll_card_rng()
 	_on_hand_updated()
@@ -6740,6 +6667,8 @@ func _process_pending_sky_falls() -> void:
 ## Run `callback` after `tempo_delay` global tempo elapses. The caller captures
 ## any needed references (player, deck) so the effect resolves on the right
 ## target even if control has switched in the meantime.
+#endregion
+#region DELAYED EFFECT SCHEDULER
 func schedule_delayed_effect(tempo_delay: int, callback: Callable, label: String = "") -> void:
 	_delayed_effects.append({"remaining": tempo_delay, "callback": callback, "label": label})
 
@@ -6925,35 +6854,8 @@ func _process_glut_countdown() -> void:
 			print("[MAIN] Glut expired!")
 		else:
 			print("[MAIN] Glut: %d tempo remaining" % glut_tempo_remaining)
-
-func _apply_magnetize_pull(tiles: int) -> void:
-	var enemies = enemy_spawner.get_living_enemies()
-	if enemies.size() == 0:
-		return
-	
-	# Find nearest enemy
-	var nearest_enemy = enemies[0]
-	var diff = player.position - nearest_enemy.position
-	var nearest_dist = Vector3(diff.x, 0, diff.z).length()
-
-	for enemy in enemies:
-		var e_diff = player.position - enemy.position
-		var dist = Vector3(e_diff.x, 0, e_diff.z).length()
-		if dist < nearest_dist:
-			nearest_dist = dist
-			nearest_enemy = enemy
-
-	# Calculate pull direction
-	var pull_diff = nearest_enemy.position - player.position
-	var direction = Vector3(pull_diff.x, 0, pull_diff.z).normalized()
-	var pull_distance = tiles * grid_manager.grid_size
-	var new_pos = player.position + direction * pull_distance
-	new_pos = grid_manager.snap_to_grid(new_pos)
-	
-	# Move player
-	player.position = new_pos
-	player.target_position = new_pos
-	print("[MAIN] Magnetized pulled player %d tiles toward %s" % [tiles, nearest_enemy.enemy_name])
+#endregion
+#region TEMPO & DECK DISPLAYS
 func _reroll_card_rng() -> void:
 	var enemies = enemy_spawner.get_living_enemies()
 	var chance_boost = player.get_stats().get_chance_boost()
@@ -6978,7 +6880,6 @@ func _reroll_card_rng() -> void:
 			child.update_chance_display()
 	
 func _on_tempo_changed(current: int, threshold: int) -> void:
-	update_turn_display()
 	update_tempo_display()
 	_update_mana_regen_indicator()
 	# Keep the "refills in N tempo" tooltips on the point pools current.
@@ -7003,7 +6904,7 @@ func update_deck_info() -> void:
 	_refresh_pile_popup_if_open()
 
 func _update_draw_label() -> void:
-	var tempo_until = turn_manager.get_tempo_until_draw()
+	var tempo_until = draw_timer.get_tempo_until_draw()
 	if draw_label:
 		# The small number is how many tempo until the next draw.
 		draw_label.text = "%d" % int(tempo_until)
@@ -7012,6 +6913,8 @@ func _update_draw_label() -> void:
 	if _hand_info_popup and _hand_info_popup.visible:
 		_refresh_hand_info_popup()
 
+#endregion
+#region HAND INFO POPUP
 func _toggle_hand_info_popup() -> void:
 	if not _hand_info_popup:
 		return
@@ -7139,23 +7042,13 @@ func _update_attack_button_text() -> void:
 			if _attack_tempo_label:
 				_attack_tempo_label.remove_theme_color_override("font_color")
 
-func update_selected_display() -> void:
-	# Selection is now shown via golden border on the card — hide the text label
-	if selected_label:
-		selected_label.visible = false
-
 func update_peaked_display() -> void:
 	if not peaked_label:
 		return
-	# Brain-point peeks reveal the top N draw-pile cards; the overflow PEAK
-	# mode reveals just the next one. Brain knowledge supersedes it when present.
+	# Brain-point peeks reveal the top N draw-pile cards.
 	var names: Array[String] = []
 	for c in deck_manager.get_brain_peeked_cards():
 		names.append(c.card_name)
-	if names.is_empty():
-		var peaked = deck_manager.get_peaked_card()
-		if peaked and deck_manager.current_overflow_mode == DeckManager.OverflowMode.PEAK:
-			names.append(peaked.card_name)
 	if names.is_empty():
 		peaked_label.visible = false
 	else:
@@ -7172,6 +7065,8 @@ func update_card_highlights() -> void:
 		if card_ui and is_instance_valid(card_ui):
 			card_ui.set_selected(sel_card != null and sel_card in g["cards"])
 
+#endregion
+#region CARD SELECTION & TARGETING
 func select_card(index: int) -> void:
 	# Selecting a card disarms a pending basic attack or armed gauntlet skill —
 	# one targeting mode at a time.
@@ -7183,12 +7078,10 @@ func select_card(index: int) -> void:
 			aoe_indicator.hide_indicator()
 		if range_indicator:
 			range_indicator.hide_range()
-		update_selected_display()
 		update_card_highlights()
 		return
 
 	selected_card_index = index
-	update_selected_display()
 	update_card_highlights()
 
 	# Show AOE indicator if applicable
@@ -7241,6 +7134,8 @@ func select_card(index: int) -> void:
 	elif range_indicator:
 		range_indicator.hide_range()
 
+#endregion
+#region DAMAGE PREVIEW PIPELINE
 func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
 	## Calculate the estimated damage a card would deal to a target enemy.
 	## This mirrors the damage pipeline without side effects (no consuming buffs).
@@ -7421,6 +7316,8 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 
 	return out
 
+#endregion
+#region CARD PLAY & TICKED RESOLUTION
 func play_selected_card(target) -> void:
 	if selected_card_index < 0:
 		add_battle_log("No card selected!", Color(1.0, 0.6, 0.3))
@@ -7688,7 +7585,6 @@ func _switch_active_player() -> void:
 
 	_on_hand_updated()
 	update_deck_info()
-	update_selected_display()
 	if player2_ui:
 		player2_ui.update_control_indicator()
 	var who := player2_character.character_name if _active_index == 1 else starting_character.character_name
@@ -7980,6 +7876,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	_refresh_unit_tracker()
 	print("[MAIN] Card '%s' fully resolved" % card.card_name)
 
+#endregion
+#region TARGETING & EQUIPMENT RIDERS
 func _get_distance_to_target(target) -> int:
 	if not target or not target is Node3D:
 		return 0
@@ -8150,6 +8048,8 @@ func _update_fire_spots(amount: int) -> void:
 			survivors.append(spot)
 	_fire_spots = survivors
 
+#endregion
+#region BULLET CASINGS (Chewbaccas Bandolier)
 # ============================================
 # BULLET CASINGS (Chewbaccas Bandolier)
 # ============================================
@@ -8247,6 +8147,8 @@ func _clear_bullet_casings() -> void:
 			casing["node"].queue_free()
 	_bullet_casings.clear()
 
+#endregion
+#region SANGUINE THE PENGUIN (Nine Ruins of Sanguine)
 # ============================================
 # SANGUINE THE PENGUIN (Nine Ruins of Sanguine)
 # ============================================
@@ -8306,6 +8208,8 @@ func _clear_penguin() -> void:
 		_penguin.queue_free()
 	_penguin = null
 
+#endregion
+#region WEAPON CARD RIDERS (weapons pass 1)
 # ============================================
 # WEAPON CARD RIDERS (weapons pass 1) — generic post-resolution effects
 # ============================================
@@ -8423,6 +8327,8 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 							print("[MAIN] %s: Vitality %d/9" % [vw.item_name, vw.vitality_stacks])
 					break
 
+#endregion
+#region DEATH STACKS (Hide of Garmr Lv.3)
 # ============================================
 # DEATH STACKS (Hide of Garmr Lv.3)
 # ============================================
@@ -8454,6 +8360,8 @@ func _garmr_death_stack(death_pos: Vector3) -> void:
 			add_battle_log("%s: %d death stack(s), +%d%% crit damage" % [chest.item_name,
 				chest.death_crit_stacks, int(chest.death_crit_stacks * chest.death_crit_damage_per_stack)], Color(0.8, 0.5, 0.5))
 
+#endregion
+#region WOLVES (Gauntlets of Dungeon Mastering)
 # ============================================
 # WOLVES (Gauntlets of Dungeon Mastering)
 # ============================================
@@ -8538,6 +8446,8 @@ func _update_wolves(amount: int) -> void:
 				w.move_to_cell(cur)
 	_wolves = _wolves.filter(func(w): return is_instance_valid(w) and not w.is_dead)
 
+#endregion
+#region RANGED PASS: SKELETONS, SPIRIT BOWS, MARK ZONES
 # ============================================
 # RANGED PASS: SKELETONS, SPIRIT BOWS, MARK ZONES
 # ============================================
@@ -8545,11 +8455,17 @@ func _update_wolves(amount: int) -> void:
 ## Sack of Bone Arrows: a kill made with a card slotted in the quiver raises a
 ## skeleton at half the victim's max health, on or beside the corpse's cell.
 func _spawn_bone_skeleton(hp: int, near_pos: Vector3) -> void:
+	_spawn_summon(hp, near_pos, "skeleton")
+
+## Shared spawn for every summoned melee ally: bone-arrow skeletons and the
+## manifest summons (skeleton / spirit / golem). All share the 3-summon cap
+## and the _update_skeletons brain.
+func _spawn_summon(hp: int, near_pos: Vector3, kind := "skeleton") -> void:
 	if not grid_manager:
 		return
 	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
 	if _skeletons.size() >= 3:
-		add_battle_log("The bones will not answer — three skeletons already stand.", Color(0.8, 0.85, 0.75))
+		add_battle_log("The summons will not answer — three already stand.", Color(0.8, 0.85, 0.75))
 		return
 	var corpse_cell = grid_manager.world_to_grid(near_pos)
 	var spawn_cell = corpse_cell
@@ -8561,19 +8477,11 @@ func _spawn_bone_skeleton(hp: int, near_pos: Vector3) -> void:
 				break
 	var skel = SkeletonScript.new()
 	add_child(skel)
-	skel.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp)
+	skel.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp, kind)
 	skel.died.connect(func(s): _garmr_death_stack(s.position); _skeletons.erase(s))
 	_skeletons.append(skel)
-	add_battle_log("A skeleton claws out of the kill! (%d/3, %d HP)" % [_skeletons.size(), hp], Color(0.8, 0.85, 0.75))
+	add_battle_log("A %s answers the call! (%d/3, %d HP)" % [skel.display_name, _skeletons.size(), hp], Color(0.8, 0.85, 0.75))
 
-func _clear_skeletons() -> void:
-	for s in _skeletons:
-		if is_instance_valid(s):
-			s.queue_free()
-	_skeletons.clear()
-
-## Per-tempo skeleton AI: sprints 4 tiles per tempo at the nearest enemy,
-## swings for 5 every 5 tempo when adjacent.
 func _update_skeletons(amount: int) -> void:
 	if _skeletons.is_empty():
 		return
@@ -8597,7 +8505,7 @@ func _update_skeletons(amount: int) -> void:
 			if s.attack_accum >= s.ATTACK_INTERVAL:
 				s.attack_accum -= s.ATTACK_INTERVAL
 				target_enemy.take_damage(s.BASE_ATTACK, true)
-				add_battle_log("Skeleton rakes %s for %d!" % [target_enemy.enemy_name, s.BASE_ATTACK], Color(0.8, 0.85, 0.75))
+				add_battle_log("%s rakes %s for %d!" % [s.display_name, target_enemy.enemy_name, s.BASE_ATTACK], Color(0.8, 0.85, 0.75))
 				_belthronding_share(s.position, s.BASE_ATTACK)
 			continue
 		s.move_accum += amount
@@ -9085,6 +8993,8 @@ func _ranged_on_self_world_effects(card: Card, target) -> void:
 			and target != null and is_instance_valid(target) and "is_dead" in target and target.is_dead:
 		_spawn_bone_skeleton(maxi(1, floori(target.max_health / 2.0)), target.position)
 
+#endregion
+#region RING PASS: BESPOKE PROCS, SHADOW FORM, WRAITHS, CLONES
 # ============================================
 # RING PASS: BESPOKE PROCS, SHADOW FORM, WRAITHS, CLONES
 # ============================================
@@ -9348,6 +9258,8 @@ func _ring_note_big_hit(damage: int) -> void:
 		return
 	player.get_inventory().on_player_big_hit()
 
+#endregion
+#region SMOKE ZONES (smoke bomb) & GAUNTLET TRIGGERS
 # ============================================
 # SMOKE ZONES (smoke bomb) & GAUNTLET TRIGGERS
 # ============================================
@@ -9599,6 +9511,8 @@ func _shield_on_cycle_passives() -> void:
 			buff_mgr.apply_buff(Buff.create_thorns(shield.thorns_per_cycle, 15, shield.item_name))
 
 ## A draw overflowed a full hand. Every equipped Overdraw rider collects.
+#endregion
+#region OVERDRAW & CYCLE PASSIVES
 func _on_overdraw_processed(_card: Card) -> void:
 	if not player or not player.get_inventory():
 		return
@@ -10043,6 +9957,8 @@ func _animate_shuffle() -> void:
 	color_tween.tween_property(draw_label, "modulate", Color(1.0, 0.9, 0.4), 0.1)
 	color_tween.tween_property(draw_label, "modulate", Color(1, 1, 1), 0.2)
 
+#endregion
+#region CARD WORLD EFFECTS (PER-CARD MATCH)
 func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_mouse_world_position()
 
@@ -11124,6 +11040,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	# drop the element remap so nothing later inherits it.
 	Card.active_element_remap = ""
 
+#endregion
+#region INPUT ROUTING & UI GATES
 func _is_ui_window_open() -> bool:
 	## True when any scrollable HUD window is open. Mouse-wheel/drag over the
 	## battlefield should not zoom/orbit the camera while the player is reading
@@ -11282,7 +11200,6 @@ func _input(event: InputEvent) -> void:
 				range_indicator.hide_range()
 			if aoe_indicator:
 				aoe_indicator.hide_indicator()
-			update_selected_display()
 			update_card_highlights()
 			move_dialog.hide_dialog()
 			_hide_card_confirm_dialog()
@@ -11468,6 +11385,8 @@ func _input(event: InputEvent) -> void:
 		_camera_pitch = clamp(_camera_pitch - delta.y * CAMERA_ORBIT_SENSITIVITY, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX)
 		_update_camera()
 
+#endregion
+#region DUNGEON SYSTEM
 # ============================================
 # DUNGEON SYSTEM
 # ============================================
@@ -11655,6 +11574,8 @@ func _update_fog_of_war() -> void:
 		enemy_spawner.get_living_enemies(), grid_manager
 	)
 
+#endregion
+#region ENTERABLE SITES (CAVES & BUILDINGS)
 # ============================================
 # ENTERABLE SITES (CAVES & BUILDINGS)
 # ============================================
@@ -11802,6 +11723,8 @@ func _ensure_player_torch(enable: bool) -> void:
 			existing.queue_free()
 
 
+#endregion
+#region CHEST LOOT MODAL
 # ============================================
 # CHEST LOOT MODAL
 # ============================================
@@ -11810,6 +11733,8 @@ func _ensure_player_torch(enable: bool) -> void:
 # Chest interaction and loot modal moved to
 # scripts/ui/chest_loot_ui.gd
 
+#endregion
+#region TEST UI HANDLERS
 # ============================================
 # TEST UI HANDLERS
 # ============================================
@@ -11945,11 +11870,14 @@ func _on_manifest_card_clicked(index: int) -> void:
 			else:
 				add_battle_log("Cinquedea: nothing within 4 squares", Color(0.7, 0.6, 0.5))
 		"summon_skeleton":
-			_spawn_summoned_creature("skeleton", result["manifest_value"])
+			for i in range(maxi(1, int(result["manifest_value"]))):
+				_spawn_summon(15, player.position, "skeleton")
 		"summon_spirit":
-			_spawn_summoned_creature("spirit", result["manifest_value"])
+			for i in range(maxi(1, int(result["manifest_value"]))):
+				_spawn_summon(8, player.position, "spirit")
 		"summon_golem":
-			_spawn_summoned_creature("golem", result["manifest_value"])
+			for i in range(maxi(1, int(result["manifest_value"]))):
+				_spawn_summon(30, player.position, "golem")
 		"use_mushroom":
 			player.get_stats().heal(result["manifest_value"])
 			print("[MAIN] Used Mushroom: Healed %d" % result["manifest_value"])
@@ -11992,6 +11920,8 @@ func _on_quiver_card_targeting_selected(card: Card, index: int, target_type: Str
 		_pending_quiver_target_type = target_type
 		print("[MAIN] Quiver: waiting for %s target click for %s" % [target_type, card.card_name])
 
+#endregion
+#region QUIVER & OVERCHARGE HANDLERS
 func play_quiver_card(card: Card, index: int, target) -> void:
 	var stats = player.get_stats()
 	if not stats:
@@ -12086,44 +12016,8 @@ func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 				enemy.take_damage(value, true)
 			print("[MAIN] Overcharge: Dealt %d damage to %d enemies" % [value, enemies.size()])
 
-func _spawn_summoned_creature(creature_type: String, count: int) -> void:
-	for i in range(count):
-		var offset = Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
-		var spawn_pos = player.position + offset
-
-		if grid_manager:
-			spawn_pos = grid_manager.snap_to_grid(spawn_pos)
-
-		match creature_type:
-			"skeleton":
-				_create_ally_marker("Skeleton", spawn_pos, Color(0.9, 0.9, 0.8))
-			"spirit":
-				_create_ally_marker("Spirit", spawn_pos, Color(0.6, 0.8, 1.0))
-			"golem":
-				_create_ally_marker("Golem", spawn_pos, Color(0.6, 0.5, 0.4))
-
-		print("[MAIN] Summoned %s at %s" % [creature_type, spawn_pos])
-
-func _create_ally_marker(ally_name: String, pos: Vector3, color: Color) -> void:
-	var marker = MeshInstance3D.new()
-	var mesh = BoxMesh.new()
-	mesh.size = Vector3(0.5, 0.5, 0.5)
-	marker.mesh = mesh
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color.a = 0.8
-	marker.material_override = mat
-	marker.position = Vector3(pos.x, 0.25, pos.z)
-	add_child(marker)
-
-	var label = Label3D.new()
-	label.text = ally_name
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.position = Vector3(0, 0.5, 0)
-	WorldText.crisp(label)
-	marker.add_child(label)
-
+#endregion
+#region ALASKAN BULL WORMS (Worm's Armageddon summon)
 # ============================================
 # ALASKAN BULL WORMS (Worm's Armageddon summon)
 # ============================================
@@ -12226,6 +12120,8 @@ func _living_enemy_cells() -> Array:
 		cells.append(grid_manager.world_to_grid(e.position))
 	return cells
 
+#endregion
+#region FRANKENSTEINS MONSTER (ITS ALIVE!!!!! summon)
 # ============================================
 # FRANKENSTEINS MONSTER (ITS ALIVE!!!!! summon)
 # ============================================
@@ -12371,6 +12267,8 @@ func _rat_step_toward(cell: Vector2i, target: Vector2i, blocked: Array, enemy_ce
 func _manhattan(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
 
+#endregion
+#region COMMUNAL DONATION UI
 # ============================================
 # COMMUNAL DONATION UI
 # ============================================
@@ -12488,12 +12386,6 @@ func _get_ally_names() -> Array:
 	# Player 2 in multiplayer
 	if is_multiplayer and player2_character:
 		allies.append(player2_character.character_name)
-	# Summoned creatures (ally markers)
-	for child in get_children():
-		if child is MeshInstance3D and child.has_node("Label3D"):
-			var label_node = child.get_node("Label3D") as Label3D
-			if label_node:
-				allies.append(label_node.text)
 	# If no allies exist, allow self-heal as fallback
 	if allies.size() == 0:
 		allies.append("Self")
@@ -12618,6 +12510,8 @@ func _on_donation_cancelled() -> void:
 	_donation_active = false
 	add_battle_log("Communal Donation cancelled.", Color(0.7, 0.7, 0.7))
 
+#endregion
+#region INVISIBILITY
 # ============================================
 # INVISIBILITY
 # ============================================
@@ -12629,6 +12523,8 @@ func _set_player_invisible(invisible: bool) -> void:
 		player.set_translucent(invisible)
 		print("[MAIN] Player invisibility %s" % ("on (translucent)" if invisible else "off"))
 
+#endregion
+#region BARRICADE OBSTACLES
 # ============================================
 # BARRICADE OBSTACLES
 # ============================================
@@ -12679,32 +12575,22 @@ func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
 
 	return {"node": marker, "health": health, "position": pos, "label": label}
 
-func damage_barricade_at(world_pos: Vector3, damage: int) -> bool:
-	## Called when an enemy attacks a barricade obstacle. Returns true if blocked.
+func _on_enemy_barricade_attacked(enemy, cell: Vector2i) -> void:
+	## Enemies smash barricades: two swings fell one. Walls, pits and trees are
+	## also in blocked_tiles but hold no obstacle entry, so they shrug it off.
 	for i in range(barricade_obstacles.size() - 1, -1, -1):
 		var obs = barricade_obstacles[i]
-		var obs_grid = grid_manager.world_to_grid(obs["position"])
-		var target_grid = grid_manager.world_to_grid(world_pos)
-		if obs_grid == target_grid:
-			obs["health"] -= damage
-			if obs["health"] <= 0:
-				obs["node"].queue_free()
-				barricade_obstacles.remove_at(i)
-				_sync_blocked_tiles()
-				print("[MAIN] Barricade block destroyed!")
-			else:
-				obs["label"].text = "HP: %d" % obs["health"]
-				print("[MAIN] Barricade block hit! HP: %d" % obs["health"])
-			return true
-	return false
-
-func is_barricade_at(world_pos: Vector3) -> bool:
-	for obs in barricade_obstacles:
-		var obs_grid = grid_manager.world_to_grid(obs["position"])
-		var target_grid = grid_manager.world_to_grid(world_pos)
-		if obs_grid == target_grid:
-			return true
-	return false
+		if grid_manager.world_to_grid(obs["position"]) != cell:
+			continue
+		obs["enemy_hits"] = int(obs.get("enemy_hits", 0)) + 1
+		if obs["enemy_hits"] >= 2:
+			add_battle_log("%s smashes through the barricade!" % enemy.enemy_name, Color(0.9, 0.6, 0.3))
+			obs["node"].queue_free()
+			barricade_obstacles.remove_at(i)
+			_sync_blocked_tiles()
+		else:
+			add_battle_log("%s slams the barricade — it splinters!" % enemy.enemy_name, Color(0.9, 0.7, 0.4))
+		return
 
 func _sync_blocked_tiles() -> void:
 	## Syncs blockers to the player and all enemies for pathfinding. Defers to
@@ -12734,6 +12620,8 @@ func _sync_occupied_tiles() -> void:
 				other_cells.append(all_cells[j])
 		living[i].occupied_tiles = other_cells
 
+#endregion
+#region TOWN PORTAL (Return Scroll)
 # ============================================
 # TOWN PORTAL (Return Scroll)
 # ============================================
@@ -12830,6 +12718,8 @@ func _try_interact_town_portal() -> bool:
 
 var _pending_portal_return: Dictionary = {}
 
+#endregion
+#region RISE PILLAR
 # ============================================
 # RISE PILLAR
 # ============================================
@@ -12967,6 +12857,8 @@ func _has_high_ground(attacker_pos: Vector3, target) -> bool:
 		return dungeon_manager.get_elevation(attacker_grid) > dungeon_manager.get_elevation(target_grid)
 	return false
 
+#endregion
+#region DEBUG: OVERFLOW & REACTION HANDLERS
 func _on_apply_overflow(overflow_name: String) -> void:
 	var effect: OverflowEffect = null
 	
@@ -13100,11 +12992,6 @@ func _on_ally_damage_taken(_amount: int, victim) -> void:
 		add_battle_log("Cover! Ally's damage mitigated.", Color(0.5, 0.85, 1.0))
 		_refresh_unit_tracker()
 
-	var stats = player.get_stats()
-	var non_fatal: bool = stats != null and stats.current_health > 0
-	if not non_fatal:
-		return
-
 
 func _on_card_on_draw_triggered(card: Card) -> void:
 	match card.on_draw_effect:
@@ -13151,6 +13038,8 @@ func _on_shepherds_mark_triggered() -> void:
 	add_battle_log("Shepherd's Mark: Lethal damage prevented! Survived at 1 HP with bonus armor!", Color(0.3, 0.7, 1.0))
 	add_battle_log("Shepherd's Mark: the caster pays 8 HP.", Color(0.9, 0.3, 0.3))
 
+#endregion
+#region LOOT DROP SYSTEM
 # ============================================
 # LOOT DROP SYSTEM
 # ============================================
@@ -13328,14 +13217,6 @@ func _pop_loot_drop(node: Node3D) -> void:
 	tw.parallel().tween_property(node, "scale", Vector3.ZERO, 0.18).set_ease(Tween.EASE_IN)
 	tw.tween_callback(node.queue_free)
 
-func _clear_loot_drops() -> void:
-	for entry in _loot_drops:
-		if is_instance_valid(entry["node"]):
-			entry["node"].queue_free()
-	_loot_drops.clear()
-	if _loot_tooltip:
-		_loot_tooltip.visible = false
-
 func _loot_summary(loot: Dictionary) -> String:
 	var parts: Array[String] = []
 	var gold = int(loot.get("gold", 0))
@@ -13494,6 +13375,8 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 		add_battle_log(loot_text, Color(1.0, 0.85, 0.2))
 		print("[MAIN] %s" % loot_text)
 
+#endregion
+#region FIRST-ROOM TUTORIAL: OLORIN TAKES THE DOUGHNUT
 # ============================================
 # FIRST-ROOM TUTORIAL: OLORIN TAKES THE DOUGHNUT
 # ============================================
@@ -13542,6 +13425,8 @@ func _trade_doughnut_for_wooden_sword() -> void:
 	_doughnut_item = null
 	_doughnut_looter = null
 
+#endregion
+#region WAYPOINT TRAVEL
 # ============================================
 # WAYPOINT TRAVEL
 # ============================================
@@ -13733,6 +13618,8 @@ func _build_ground_plane() -> void:
 	ground.position = Vector3(dungeon_manager.GRID_W / 2.0, -0.12, dungeon_manager.GRID_H / 2.0)
 	add_child(ground)
 
+#endregion
+#region MINIMAP
 # ============================================
 # MINIMAP
 # ============================================
@@ -13740,3 +13627,4 @@ func _build_ground_plane() -> void:
 
 # Minimap, tab menu, quest log, and expanded map moved to
 # scripts/ui/minimap_tab_ui.gd
+#endregion

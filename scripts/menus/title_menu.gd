@@ -9,7 +9,6 @@ extends Control
 
 const CharacterSelectScene = preload("res://scenes/character/character_select.tscn")
 const LoadOrNewScene = preload("res://scenes/character/load_or_new.tscn")
-const QuestionnaireScene = preload("res://scenes/character/character_questionnaire.tscn")
 const TitleCutsceneScript = preload("res://scripts/menus/title_cutscene.gd")
 
 @onready var title_label: Label = $VBox/TitleLabel
@@ -171,11 +170,6 @@ func _on_button_unhover(index: int) -> void:
 func _on_single_player() -> void:
 	var load_or_new = LoadOrNewScene.instantiate()
 	get_tree().root.add_child(load_or_new)
-	queue_free()
-
-func _on_character_quiz() -> void:
-	var quiz_scene = QuestionnaireScene.instantiate()
-	get_tree().root.add_child(quiz_scene)
 	queue_free()
 
 func _on_multiplayer() -> void:

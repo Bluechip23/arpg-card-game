@@ -25,9 +25,6 @@ var _back_button: Button
 var _result_panel: VBoxContainer = null
 var _result_title_label: Label = null
 var _result_flavor_label: Label = null
-var _stats_container: HBoxContainer = null
-var _archetype_container: VBoxContainer = null
-var _details_container: VBoxContainer = null
 
 func _ready() -> void:
 	_questions = QuestionnaireData.get_questions()

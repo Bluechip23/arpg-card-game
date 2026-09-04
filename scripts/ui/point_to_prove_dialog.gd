@@ -36,9 +36,6 @@ func show_dialog(debuff_name: String, debuff_type: int, cost: int = 5) -> void:
 func hide_dialog() -> void:
 	panel.visible = false
 
-func is_showing() -> bool:
-	return panel.visible
-
 func _on_yes_pressed() -> void:
 	hide_dialog()
 	confirmed.emit(pending_debuff_type)

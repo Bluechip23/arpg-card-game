@@ -1,4 +1,4 @@
-class_name TurnManager
+class_name DrawTimer
 extends Node
 
 ## Manages tempo-driven game cycles: card draws and turn counting.

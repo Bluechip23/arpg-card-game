@@ -4,11 +4,7 @@ extends Node
 ## Manages buffs on a character (player or enemy)
 
 signal buff_applied(buff: Buff)
-signal buff_removed(buff: Buff)
-signal buff_ticked(buff: Buff)
 signal buffs_changed
-signal thorns_triggered(damage: int)
-signal cleanse_triggered(count: int)
 
 var buffs: Array[Buff] = []
 var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
@@ -134,7 +130,6 @@ func remove_buff(type: Buff.BuffType) -> void:
 			var removed = buffs[i]
 			buffs.remove_at(i)
 			_recompute_might()
-			buff_removed.emit(removed)
 			buffs_changed.emit()
 			print("[BUFF] Removed: %s" % removed.buff_name)
 			return
@@ -147,12 +142,6 @@ func get_buff(type: Buff.BuffType) -> Buff:
 
 func has_buff(type: Buff.BuffType) -> bool:
 	return get_buff(type) != null
-
-func clear_all_buffs() -> void:
-	buffs.clear()
-	_recompute_might()
-	buffs_changed.emit()
-	print("[BUFF] All buffs cleared")
 
 # ============================================
 # TURN PROCESSING
@@ -232,7 +221,6 @@ func advance_time(amount: int) -> void:
 			# lifecycle driven by sync_flag_buffs(), not the duration tick.
 			if buff.buff_type == Buff.BuffType.ELIXIR or buff.buff_type == Buff.BuffType.GENERIC:
 				continue
-			buff_ticked.emit(buff)
 			if buff.advance_time(amount):
 				expired.append(buff)
 
@@ -250,7 +238,6 @@ func advance_time(amount: int) -> void:
 			print("[BUFF] Shield Ready! +%d armor lands" % buff.value)
 
 		buffs.erase(buff)
-		buff_removed.emit(buff)
 		print("[BUFF] Expired: %s" % buff.buff_name)
 
 	if expired.size() > 0:
@@ -350,7 +337,6 @@ func _sync_generic(key: String, present: bool, display_name: String, desc: Strin
 			buffs_changed.emit()
 	elif existing:
 		buffs.erase(existing)
-		buff_removed.emit(existing)
 		buffs_changed.emit()
 
 # ============================================
@@ -368,14 +354,12 @@ func on_attacked(attacker) -> void:
 		sphere_thorns = owner_stats.sphere_bonus_thorns
 	if sphere_thorns > 0 and attacker and attacker.has_method("take_damage"):
 		attacker.take_damage(sphere_thorns)
-		thorns_triggered.emit(sphere_thorns)
 		print("[BUFF] Sphere Grid thorns deals %d damage to attacker!" % sphere_thorns)
 
 	# Buff-based thorns (temporary, decays per hit)
 	var thorns = get_buff(Buff.BuffType.THORNS)
 	if thorns and thorns.value > 0 and attacker and attacker.has_method("take_damage"):
 		attacker.take_damage(thorns.value)
-		thorns_triggered.emit(thorns.value)
 		print("[BUFF] Thorns deals %d damage to attacker!" % thorns.value)
 		# Lose 1 thorn after each hit. Vined Encasing thorns skip this — they
 		# shed via decay_thorns_by_damage instead.
@@ -554,9 +538,6 @@ func get_haste_bonus() -> int:
 	var haste = get_buff(Buff.BuffType.HASTE)
 	return haste.value if haste else 0
 
-func get_extra_movement_per_tempo() -> int:
-	return get_haste_bonus()
-
 func consume_haste() -> void:
 	# One charge per (non-flash) move action.
 	var haste = get_buff(Buff.BuffType.HASTE)
@@ -595,10 +576,6 @@ func should_ignore_armor_decay() -> bool:
 # DRAW QUERIES
 # ============================================
 
-func get_extra_draws() -> int:
-	var blessed = get_buff(Buff.BuffType.BLESSED)
-	return blessed.value if blessed else 0
-
 # ============================================
 # CLEANSE
 # ============================================
@@ -617,26 +594,15 @@ func _execute_cleanse(count: int) -> void:
 		debuff_manager.remove_debuff(debuff.debuff_type)
 		removed += 1
 	
-	cleanse_triggered.emit(removed)
 	print("[BUFF] Cleanse removed %d debuff(s)" % removed)
 
 # ============================================
 # DISPLAY
 # ============================================
 
-func get_buff_display_list() -> Array[String]:
-	var list: Array[String] = []
-	for buff in buffs:
-		list.append("%s (%s)" % [buff.get_short_display(), buff.get_duration_display()])
-	return list
-	
 # ============================================
 # DAMAGE REDUCTION QUERIES (Brace, Resilient)
 # ============================================
-
-func get_brace_reduction() -> int:
-	var brace = get_buff(Buff.BuffType.BRACE)
-	return brace.value if brace else 0
 
 func consume_brace() -> int:
 	# Returns percent damage reduction and uses charge
@@ -656,16 +622,6 @@ func get_resilient_percent(damage_type: int = -1) -> int:
 	if resilient.damage_type != -1 and damage_type != -1 and resilient.damage_type != damage_type:
 		return 0
 	return resilient.value
-
-func consume_resilient() -> int:
-	# Returns percent reduction and uses charge
-	var resilient = get_buff(Buff.BuffType.RESILIENT)
-	if resilient:
-		var percent = resilient.value
-		if resilient.use_charge():
-			remove_buff(Buff.BuffType.RESILIENT)
-		return percent
-	return 0
 
 func calculate_damage_reduction(incoming_damage: int, damage_type: int = -1) -> int:
 	# Calculate total damage after Resilient and Brace
@@ -690,9 +646,6 @@ func calculate_damage_reduction(incoming_damage: int, damage_type: int = -1) -> 
 # ============================================
 # TEMPO QUERIES (Steady)
 # ============================================
-
-func should_skip_tempo() -> bool:
-	return has_buff(Buff.BuffType.STEADY)
 
 func consume_steady() -> bool:
 	# Returns true if Steady was active and consumed

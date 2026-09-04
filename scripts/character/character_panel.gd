@@ -25,8 +25,6 @@ const StorageItemCellScript = preload("res://scripts/character/storage_item_cell
 var player_stats: PlayerStats
 var inventory: Inventory
 var deck_manager = null  # DeckManager - untyped to avoid circular dependency
-var item_tooltip: ItemTooltip
-var _original_tooltip_parent: Node = null
 
 # Detail side panel state
 var _detail_panel: PanelContainer = null
@@ -106,6 +104,8 @@ const BUILD_NUMERALS := ["I", "II", "III"]
 var _build_buttons: Array = []
 var _rack_row: HBoxContainer = null      # War Rack row (Brad only)
 var _rack_label: Label = null
+var _war_rack_btn: Button = null         # header button opening the War Rack view (Brad only)
+var _war_rack_panel: PanelContainer = null
 var _rack_exchange_btn: Button = null
 var _inv_message_label: Label = null  # transient feedback under the header
 
@@ -161,6 +161,17 @@ func _split_windows() -> void:
 		bbtn.pressed.connect(_on_build_pressed.bind(i))
 		inv_header.add_child(bbtn)
 		_build_buttons.append(bbtn)
+
+	# War Rack view (Brad only): top-right button opening the rack's item slot.
+	_war_rack_btn = Button.new()
+	_war_rack_btn.text = "War Rack"
+	_war_rack_btn.custom_minimum_size = Vector2(80, 26)
+	_war_rack_btn.focus_mode = Control.FOCUS_NONE
+	_war_rack_btn.add_theme_font_size_override("font_size", 13)
+	_war_rack_btn.tooltip_text = "Open the War Rack: the slot on Brad's back for the\ntwo-handed weapon he swaps to and away from."
+	_war_rack_btn.visible = false
+	_war_rack_btn.pressed.connect(_open_war_rack_panel)
+	inv_header.add_child(_war_rack_btn)
 
 	# Transient feedback line ("Too heavy", "Missing: ...", ...).
 	_inv_message_label = Label.new()
@@ -328,7 +339,6 @@ func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm
 	if inventory:
 		inventory.equipment_changed.connect(_on_equipment_changed)
 		inventory.storage_changed.connect(_on_storage_changed)
-	item_tooltip = get_node_or_null("/root/Main/UI/ItemTooltip")
 
 func _disconnect_stats() -> void:
 	## Drop every change-signal connection to the currently bound character so
@@ -411,6 +421,7 @@ func show_panel() -> void:
 func hide_panel() -> void:
 	_close_detail_panel()
 	_close_card_slot_panel()
+	_close_war_rack_panel()
 	panel.visible = false
 	if _inv_panel:
 		_inv_panel.visible = false
@@ -856,13 +867,22 @@ func _on_sandbox_stat_adjust(key: String, delta: int) -> void:
 func _build_derived_stats_text() -> String:
 	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit) + player_stats.get_hand_size_crit_bonus()
 	var carry_flag = " OVER!" if player_stats.is_overburdened() else ""
+	# Deck size: item-owned cards ride past the cap, so the effective ceiling
+	# is the base max plus however many item cards are along for the ride.
+	var deck_lines := ""
+	if deck_manager:
+		deck_lines = "\nDeck Max     %d\nDeck Now     %d\nMax w/ Items %d" % [
+			deck_manager.get_max_deck_size(),
+			deck_manager.get_deck_size(),
+			deck_manager.get_max_deck_size() + deck_manager.get_item_card_count(),
+		]
 	return """HP   %d/%d
 Mana %.0f/%d
 Armor  %d
 Decay  -%d/t
 Crit   %d%%
 Carry  %d/%d%s
-Regen  %.1f/t""" % [
+Regen  %.1f/t%s""" % [
 		player_stats.current_health,
 		player_stats.max_health,
 		player_stats.current_mana,
@@ -873,7 +893,8 @@ Regen  %.1f/t""" % [
 		player_stats.current_carry_load,
 		player_stats.get_carry_capacity(),
 		carry_flag,
-		player_stats.get_effective_mana_regen()
+		player_stats.get_effective_mana_regen(),
+		deck_lines
 	]
 
 func _update_equipment_display() -> void:
@@ -1095,6 +1116,8 @@ func _refresh_build_buttons() -> void:
 			Color(1.0, 0.85, 0.4) if active else Color(0.55, 0.55, 0.7))
 
 func _refresh_rack_row() -> void:
+	if _war_rack_btn and is_instance_valid(_war_rack_btn):
+		_war_rack_btn.visible = inventory != null and inventory.has_back_rack
 	if not _rack_row or not is_instance_valid(_rack_row):
 		return
 	if not inventory or not inventory.has_back_rack:
@@ -1522,6 +1545,163 @@ func _close_detail_panel() -> void:
 # CARD SLOT MANAGEMENT PANEL
 # ============================================
 
+func _open_war_rack_panel() -> void:
+	## The War Rack view (Brad only): one item slot on his back for the
+	## two-handed weapon he swaps to and away from. Strapping and taking down
+	## are out-of-combat setup; the Exchange button does the actual hand swap.
+	_close_war_rack_panel()
+	_close_card_slot_panel()
+	_close_detail_panel()
+	if not inventory or not inventory.has_back_rack:
+		return
+
+	_war_rack_panel = PanelContainer.new()
+	_war_rack_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.08, 0.06, 1.0)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.75, 0.6, 0.3)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 10.0
+	style.content_margin_bottom = 10.0
+	_war_rack_panel.add_theme_stylebox_override("panel", style)
+
+	var scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(300, 0)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_war_rack_panel.add_child(scroll)
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "WAR RACK"
+	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_color_override("font_color", Color(0.95, 0.8, 0.5))
+	vbox.add_child(title)
+	var blurb = Label.new()
+	blurb.text = "The slot on Brad's back for the two-handed\nweapon he swaps to and away from."
+	blurb.add_theme_font_size_override("font_size", 11)
+	blurb.add_theme_color_override("font_color", Color(0.6, 0.55, 0.45))
+	vbox.add_child(blurb)
+	vbox.add_child(_make_separator())
+
+	if inventory.rack_items.size() > 0:
+		# The slot is filled: show what hangs there, with take-down + exchange.
+		for i in range(inventory.rack_items.size()):
+			var it: ItemData = inventory.rack_items[i]
+			var row = HBoxContainer.new()
+			row.add_theme_constant_override("separation", 6)
+			var lbl = Label.new()
+			lbl.text = "%s  (%s, wt %d)" % [it.item_name, it.item_type_name, it.weight]
+			lbl.add_theme_font_size_override("font_size", 12)
+			lbl.add_theme_color_override("font_color", Color(0.85, 0.8, 0.65))
+			lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(lbl)
+			var take_btn = Button.new()
+			take_btn.text = "Take Down"
+			take_btn.add_theme_font_size_override("font_size", 11)
+			take_btn.custom_minimum_size = Vector2(80, 24)
+			take_btn.pressed.connect(_on_war_rack_take.bind(i))
+			row.add_child(take_btn)
+			vbox.add_child(row)
+		vbox.add_child(_make_separator())
+		var swap_btn = _make_action_button("Exchange With Hands", Color(0.2, 0.15, 0.1), Color(0.75, 0.6, 0.3))
+		swap_btn.pressed.connect(func():
+			_on_rack_exchange_pressed()
+			_open_war_rack_panel())
+		vbox.add_child(swap_btn)
+	else:
+		var empty_lbl = Label.new()
+		empty_lbl.text = "(empty slot)"
+		empty_lbl.add_theme_font_size_override("font_size", 12)
+		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.48, 0.42))
+		vbox.add_child(empty_lbl)
+		var avail = Label.new()
+		avail.text = "WEAPONS IN STORAGE"
+		avail.add_theme_font_size_override("font_size", 11)
+		avail.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
+		vbox.add_child(avail)
+		var any := false
+		for i in range(inventory.stored_items.size()):
+			var it: ItemData = inventory.stored_items[i]
+			if it == null or it.item_type != ItemData.ItemType.WEAPON:
+				continue
+			any = true
+			var row = HBoxContainer.new()
+			row.add_theme_constant_override("separation", 6)
+			var lbl = Label.new()
+			lbl.text = "%s  (wt %d)" % [it.item_name, it.weight]
+			lbl.add_theme_font_size_override("font_size", 12)
+			lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))
+			lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(lbl)
+			var strap_btn = Button.new()
+			strap_btn.text = "Strap On"
+			strap_btn.add_theme_font_size_override("font_size", 11)
+			strap_btn.custom_minimum_size = Vector2(70, 24)
+			strap_btn.pressed.connect(_on_war_rack_strap.bind(i))
+			row.add_child(strap_btn)
+			vbox.add_child(row)
+		if not any:
+			var none_lbl = Label.new()
+			none_lbl.text = "  (no weapons in storage)"
+			none_lbl.add_theme_font_size_override("font_size", 12)
+			none_lbl.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
+			vbox.add_child(none_lbl)
+
+	vbox.add_child(_make_separator())
+	var close_btn = _make_action_button("Close", Color(0.15, 0.15, 0.2), Color(0.35, 0.35, 0.5))
+	close_btn.pressed.connect(_close_war_rack_panel)
+	vbox.add_child(close_btn)
+
+	panel.add_sibling(_war_rack_panel)
+	_war_rack_panel.anchors_preset = Control.PRESET_TOP_RIGHT
+	_war_rack_panel.anchor_left = 1.0
+	_war_rack_panel.anchor_right = 1.0
+	_war_rack_panel.anchor_top = 0.0
+	_war_rack_panel.anchor_bottom = 1.0
+	_war_rack_panel.offset_left = -950.0
+	_war_rack_panel.offset_right = -632.0
+	_war_rack_panel.offset_top = 20.0
+	_war_rack_panel.offset_bottom = -20.0
+
+func _close_war_rack_panel() -> void:
+	if _war_rack_panel and is_instance_valid(_war_rack_panel):
+		_war_rack_panel.queue_free()
+	_war_rack_panel = null
+
+func _on_war_rack_strap(storage_index: int) -> void:
+	if not inventory:
+		return
+	if storage_index < 0 or storage_index >= inventory.stored_items.size():
+		return
+	var it: ItemData = inventory.stored_items[storage_index]
+	if it and inventory.rack_store_item(it):
+		inventory.stored_items.remove_at(storage_index)
+	_refresh_rack_row()
+	update_display()
+	_open_war_rack_panel()
+
+func _on_war_rack_take(rack_index: int) -> void:
+	if not inventory:
+		return
+	var it = inventory.rack_take_item(rack_index)
+	if it and not inventory.store_item(it):
+		inventory.rack_items.insert(rack_index, it)  # storage full — stays on the rack
+	_refresh_rack_row()
+	update_display()
+	_open_war_rack_panel()
+
 func _open_card_slot_panel(item: ItemData) -> void:
 	_close_card_slot_panel()
 	_close_detail_panel()
@@ -1685,6 +1865,12 @@ func _open_card_slot_panel(item: ItemData) -> void:
 		for card in deck_manager.discard_pile:
 			if item.can_slot_card(card) and not card.is_slotted():
 				available_cards.append(card)
+		# Engrave cards live in the card inventory until slotted — offer them too.
+		if inventory:
+			for card in inventory.stored_cards:
+				if card is Card and card.requires_engraving and not card.is_slotted() \
+						and item.can_slot_card(card):
+					available_cards.append(card)
 
 		if available_cards.size() == 0:
 			var none_label = Label.new()
@@ -1813,8 +1999,6 @@ func _build_item_stats_text(item: ItemData) -> String:
 
 func _build_item_effect_text(item: ItemData) -> String:
 	var lines: Array[String] = []
-	if item.ring_trigger != ItemData.RingTrigger.NONE:
-		lines.append("[Ring] %s → %s" % [item.get_ring_trigger_name(), item.get_ring_effect_name()])
 	if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 		lines.append("[Active] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
 		lines.append("  Cost: %d Mana | CD: %d turns" % [item.gauntlet_skill_mana_cost, item.gauntlet_skill_cooldown])
@@ -1837,8 +2021,6 @@ func _build_item_effect_text(item: ItemData) -> String:
 	if item.overdraw_card_max > 0:
 		lines.append("[Overdraw] %d/%d %s waiting" % [item.conjured_in_manifest,
 			item.overdraw_card_max, item.overdraw_card_id.capitalize()])
-	if item.has_mastery():
-		lines.append("[%s]" % item.get_mastery_text(player_stats))
 	if item.has_card_slots():
 		lines.append("[Card Slots] %d/%d" % [item.slotted_cards.size(), item.card_slots])
 		for card in item.slotted_cards:
@@ -1853,12 +2035,6 @@ func _build_item_effect_text(item: ItemData) -> String:
 # ============================================
 # OLD TOOLTIP COMPAT (no longer follows mouse)
 # ============================================
-
-func _on_item_hover(_item: ItemData) -> void:
-	pass
-
-func _on_item_hover_end() -> void:
-	pass
 
 func _on_close_pressed() -> void:
 	hide_panel()

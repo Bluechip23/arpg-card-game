@@ -84,7 +84,7 @@ func _test_empty_draw_countdown() -> void:
 	var s = _setup()
 	var stats: PlayerStats = s[0]
 	var dm: DeckManager = s[2]
-	var tm = TurnManager.new()
+	var tm = DrawTimer.new()
 	get_root().add_child(tm)
 	tm.initialize(stats, dm)
 	# Give the deck something to draw.

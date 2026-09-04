@@ -3,8 +3,6 @@ extends PanelContainer
 
 ## Visual representation of a card in hand with tween animations
 
-signal card_hovered(card: Card, card_ui: CardUI)
-signal card_unhovered()
 
 @onready var name_label: Label = $Panel/VBox/TitleBar/TitleHBox/NameLabel
 @onready var type_label: Label = $Panel/VBox/TypeBar/TypeHBox/TypeLabel
@@ -114,6 +112,9 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			display_mana += debuff_mgr.get_hexed_mana_increase(index)
 		is_locked = debuff_mgr.is_card_locked(index)
 
+	# Engrave: unusable until slotted into an equipped item — greyed like Locked.
+	var needs_engraving := card.requires_engraving and card.slotted_in_item == null
+
 	# Costs live in the corner badges (mana drop / sand timer); the old title-bar
 	# cost text only surfaces the maintain cost now.
 	if cost_label:
@@ -129,7 +130,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	_pending_tempo = str(display_tempo)
 	_pending_mana_col = Color.WHITE
 	_pending_tempo_col = Color.WHITE
-	if is_locked:
+	if is_locked or needs_engraving:
 		_pending_mana_col = Color(0.45, 0.45, 0.45)
 		_pending_tempo_col = Color(0.45, 0.45, 0.45)
 	else:
@@ -148,6 +149,8 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	var tint := Color.WHITE
 	if is_locked:
 		tint = Color(1.0, 0.85, 0.45)
+	elif needs_engraving:
+		tint = Color(0.65, 0.65, 0.68)
 	elif is_hexed:
 		tint = Color(0.82, 0.6, 1.0)
 	elif debuff_mgr and debuff_mgr.get_tempo_increase() > 0:
@@ -457,13 +460,10 @@ func set_fan_rotation(angle_deg: float) -> void:
 func _on_mouse_entered() -> void:
 	_is_hovered = true
 	_update_visual()
-	if _card:
-		card_hovered.emit(_card, self)
 
 func _on_mouse_exited() -> void:
 	_is_hovered = false
 	_update_visual()
-	card_unhovered.emit()
 
 func _update_description() -> void:
 	if not desc_label or not _card:
@@ -592,13 +592,6 @@ func animate_draw_in(from_pos: Vector2, final_pos: Vector2, delay: float = 0.0) 
 	tween.tween_property(self, "rotation_degrees", _base_rotation, 0.12)
 	tween.chain()
 	tween.tween_callback(func(): z_index = final_z)
-
-func animate_slide_to(target_pos: Vector2, duration: float = 0.2) -> void:
-	## Smoothly slide card to a new hand position (rearrange).
-	_base_x = target_pos.x
-	_base_y = target_pos.y
-	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_property(self, "position", target_pos, duration)
 
 func get_card() -> Card:
 	return _card
@@ -755,10 +748,6 @@ func animate_play(target_screen_pos: Vector2, on_complete: Callable = Callable()
 			on_complete.call()
 		queue_free()
 	)
-
-func animate_discard(discard_pos: Vector2, on_complete: Callable = Callable()) -> void:
-	## Every discard shares the pop-pause-and-tube-suck.
-	animate_played_to_discard(discard_pos, on_complete)
 
 func _apply_gold_trim() -> void:
 	var style = StyleBoxFlat.new()

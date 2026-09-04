@@ -4,16 +4,11 @@ extends Node
 ## Manages character equipment slots and inventory
 
 signal equipment_changed
-signal item_equipped(item: ItemData, slot_type: String, slot_index: int)
-signal item_unequipped(item: ItemData, slot_type: String, slot_index: int)
-signal overflow_heal_armor_triggered(heal: int, armor: int)
 signal ring_triggered(item: ItemData, effect: String)
 signal custom_ring_fired(ring: ItemData, kind: String, value: int)  # ring pass 1 bespoke procs; main executes the world side
 signal gauntlet_skill_ready(item: ItemData)
 signal gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target)
 signal storage_changed
-signal card_enchanted(card: Card, item: ItemData)
-signal card_extracted(card: Card, item: ItemData, destroyed_item: bool)
 signal rack_changed
 
 # Slot configuration
@@ -41,6 +36,7 @@ const RING_DOUBLE_TRIGGER_CYCLES: int = 3
 # Default off-hand penalty
 const DEFAULT_OFF_HAND_PENALTY: float = 0.9  # -10%
 
+#region TWO-HANDED & DUAL WIELDING
 # ============================================
 # TWO-HANDED & DUAL WIELDING
 # ============================================
@@ -65,6 +61,8 @@ const DUAL_WIELD_WEIGHT_MULT: float = 1.15
 var two_handed_slot: int = -1       # weapon slot currently held with both hands
 var two_handed_lock_slot: int = -1  # the empty hand slot two-handing occupies
 
+#endregion
+#region WAR RACK (Brad's slot identity)
 # ============================================
 # WAR RACK (Brad's slot identity)
 # ============================================
@@ -79,6 +77,8 @@ var rack_items: Array = []           # items on the back (up to weapon_slots)
 var rack_cooldown_tempo: int = 0     # tempo until the next FREE exchange
 const RACK_FREE_SWAP_COOLDOWN: int = 25
 
+#endregion
+#region EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
 # EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
@@ -208,22 +208,9 @@ func _init_slot_arrays() -> void:
 func connect_player_stats(stats) -> void:
 	player_stats = stats
 	stats.inventory = self
-	# Weapon mastery breakpoints check base stats — re-test them whenever stats
-	# change so a fresh allocation immediately releases newly-mastered cards.
-	if not stats.stats_updated.is_connected(refresh_mastery_cards):
-		stats.stats_updated.connect(refresh_mastery_cards)
 
 func connect_deck_manager(deck) -> void:
 	deck_manager = deck
-
-func refresh_mastery_cards() -> void:
-	## Base stats only ever grow, so this only ever RELEASES held-back mastery
-	## cards (via the normal add path, which skips cards already in a zone).
-	if not deck_manager or not player_stats:
-		return
-	for item in equipped_weapons:
-		if item and item.has_mastery() and item.is_mastered_by(player_stats):
-			_add_item_cards_to_deck(item)
 
 func get_off_hand_modifier() -> float:
 	# Stephen gets bonus, others get penalty
@@ -234,7 +221,6 @@ func get_off_hand_modifier() -> float:
 # player maxes at 4 equipped mythics. Sandbox turns this off — that's
 # where testing happens (see main._setup_sandbox).
 var enforce_mythic_limit: bool = true
-signal equip_blocked(item: ItemData, reason: String)
 
 func get_mythic_capacity() -> int:
 	if not player_stats:
@@ -275,7 +261,6 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 		var reason = "Mythic limit: level %d allows %d mythic(s) equipped" % [
 			player_stats.current_level if player_stats else 0, get_mythic_capacity()]
 		print("[INVENTORY] %s — cannot equip %s" % [reason, item.item_name])
-		equip_blocked.emit(item, reason)
 		return false
 
 	# Duplicate rule: at most ONE equipped copy of the same legendary or
@@ -285,7 +270,6 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 		var dupe_reason = "Only %d cop%s of %s may be worn at once" % [
 			dupe_cap, "y" if dupe_cap == 1 else "ies", item.item_name]
 		print("[INVENTORY] %s" % dupe_reason)
-		equip_blocked.emit(item, dupe_reason)
 		return false
 	
 	if slot_array[slot_index] != null:
@@ -330,7 +314,6 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	# or to jail if a card was jailed when the item was last removed.
 	_add_item_cards_to_deck(item)
 
-	item_equipped.emit(item, item.get_type_name(), slot_index)
 	equipment_changed.emit()
 
 	print("[INVENTORY] Equipped %s in slot %d" % [item.item_name, slot_index])
@@ -362,7 +345,6 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	# to the item (preserving jail time, enhancement, etc.) for when it returns.
 	_remove_item_cards_from_deck(item)
 
-	item_unequipped.emit(item, item.get_type_name(), slot_index)
 	equipment_changed.emit()
 	
 	print("[INVENTORY] Unequipped %s from slot %d" % [item.item_name, slot_index])
@@ -493,6 +475,8 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	
 	# Hand size from item (survives recalculation via the tracked bonus)
 	player_stats.equipment_hand_bonus += item.hand_size_bonus * multiplier
+	if item.special_effect == ItemData.SpecialEffect.INCREASE_HAND_SIZE:
+		player_stats.equipment_hand_bonus += item.special_effect_value * multiplier
 
 	# Ranged damage bonus (from quivers)
 	if item.ranged_damage_bonus > 0:
@@ -662,8 +646,6 @@ func apply_equipped_item_card_effects() -> void:
 			for card in _get_item_owned_cards(item):
 				if _card_in_any_zone(card):
 					continue
-				if _is_locked_mastery_card(item, card):
-					continue
 				deck_manager.draw_pile.append(card)
 				print("[INVENTORY] Equipped item added %s to deck" % card.card_name)
 				cards_added = true
@@ -672,6 +654,8 @@ func apply_equipped_item_card_effects() -> void:
 		deck_manager.shuffle_draw_pile()
 		print("[INVENTORY] Shuffled deck after adding equipped item cards")
 
+#endregion
+#region ITEM-OWNED CARDS (swap in / swap out)
 # ============================================
 # ITEM-OWNED CARDS (swap in / swap out)
 # ============================================
@@ -686,27 +670,16 @@ func apply_equipped_item_card_effects() -> void:
 # they have detached from the item.
 
 func _get_item_owned_cards(item: ItemData) -> Array:
-	## Every card instance that belongs to this item (granted + slotted +
-	## mastery), no dupes. Mastery cards are OWNED regardless of the wielder's
+	## Every card instance that belongs to this item (granted + slotted), no dupes.
 	## stats — the remove path must always be able to clean them up — but the
-	## add paths skip them until the breakpoint is met (_is_locked_mastery_card).
 	var cards: Array = []
 	for card in item.granted_card_instances:
-		if card and not cards.has(card):
-			cards.append(card)
-	for card in item.mastery_card_instances:
 		if card and not cards.has(card):
 			cards.append(card)
 	for card in item.slotted_cards:
 		if card and not cards.has(card):
 			cards.append(card)
 	return cards
-
-func _is_locked_mastery_card(item: ItemData, card) -> bool:
-	## True for a mastery card whose breakpoint the wielder hasn't reached yet.
-	if not item.mastery_card_instances.has(card):
-		return false
-	return not item.is_mastered_by(player_stats)
 
 func _ensure_granted_card_instances(item: ItemData) -> void:
 	## Build the item's granted-card instances exactly once, then reuse forever.
@@ -729,13 +702,6 @@ func _ensure_granted_card_instances(item: ItemData) -> void:
 			blink_card.granted_by_item = item
 			item.granted_card_instances.append(blink_card)
 
-	# Mastery cards get instances up front too (same lifetime rules as granted
-	# cards) — the add paths simply hold them back until the breakpoint is met.
-	for card_id in item.mastery_card_ids:
-		var card = _create_granted_card(card_id)
-		if card:
-			card.granted_by_item = item
-			item.mastery_card_instances.append(card)
 
 func _create_granted_card(card_id: String) -> Card:
 	## Prefer the deck manager's comprehensive factory; fall back to the local map.
@@ -759,8 +725,6 @@ func _add_item_cards_to_deck(item: ItemData) -> void:
 	for card in owned:
 		if _card_in_any_zone(card):
 			continue  # already live — don't duplicate it into another pile
-		if _is_locked_mastery_card(item, card):
-			continue  # breakpoint not met yet — the card waits on the item
 		if card.is_jailed():
 			deck_manager.jail_pile.append(card)
 			print("[INVENTORY] %s: returned jailed card '%s' (%d tempo left)" % [item.item_name, card.card_name, card.jail_time_remaining])
@@ -830,10 +794,8 @@ func _remove_card_from_all_zones(card: Card) -> bool:
 			om.quiver_changed.emit()
 	return hand_changed
 
-func _recalculate_total_weapon_weight() -> void:
-	# This now just triggers carry load recalculation
-	_recalculate_carry_load()
-
+#endregion
+#region TURN PROCESSING
 # ============================================
 # TURN PROCESSING
 # ============================================
@@ -954,26 +916,11 @@ func on_player_exposed() -> void:
 		chest.exposed_armor_cd_left = maxi(0, chest.exposed_armor_cooldown_cycles)
 		print("[INVENTORY] %s: +%d armor (Exposed reaction)" % [chest.item_name, chest.exposed_armor_gain])
 
+#endregion
+#region RING TRIGGER SYSTEM
 # ============================================
 # RING TRIGGER SYSTEM
 # ============================================
-
-func trigger_rings(trigger_type: ItemData.RingTrigger, value: int = 0) -> void:
-	for ring in equipped_rings:
-		if ring and ring.ring_trigger == trigger_type:
-			# Check threshold if applicable
-			if trigger_type == ItemData.RingTrigger.ON_GAIN_ARMOR_THRESHOLD:
-				if value < ring.ring_trigger_threshold:
-					continue
-			
-			_execute_ring_effect(ring)
-
-			# Jeremy's passive: every 3rd cycle, the first ring trigger happens twice
-			if is_ring_double_trigger_armed() and not ring_triggered_this_turn:
-				print("[INVENTORY] Jeremy passive: Double trigger!")
-				_execute_ring_effect(ring)
-
-			ring_triggered_this_turn = true
 
 func is_ring_double_trigger_armed() -> bool:
 	## Jeremy's passive only doubles the first ring trigger on every
@@ -981,41 +928,8 @@ func is_ring_double_trigger_armed() -> bool:
 	return ring_double_trigger and ring_cycle_count > 0 \
 			and ring_cycle_count % RING_DOUBLE_TRIGGER_CYCLES == 0
 
-func _execute_ring_effect(ring: ItemData) -> void:
-	if not player_stats:
-		return
-	
-	match ring.ring_effect:
-		ItemData.RingEffect.HEAL_TO_FULL:
-			player_stats.current_health = player_stats.max_health
-			player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
-			print("[INVENTORY] Ring effect: Healed to full!")
-		
-		ItemData.RingEffect.GAIN_ARMOR:
-			player_stats.add_armor(ring.ring_effect_value)
-			print("[INVENTORY] Ring effect: Gained %d armor" % ring.ring_effect_value)
-		
-		ItemData.RingEffect.GAIN_MANA:
-			player_stats.gain_mana(ring.ring_effect_value)
-			print("[INVENTORY] Ring effect: Gained %d mana" % ring.ring_effect_value)
-		
-		ItemData.RingEffect.DRAW_CARD:
-			if deck_manager:
-				for i in range(ring.ring_effect_value):
-					deck_manager.draw_card()
-			print("[INVENTORY] Ring effect: Drew %d card(s)" % ring.ring_effect_value)
-		
-		ItemData.RingEffect.REDUCE_COOLDOWNS:
-			for gauntlet in equipped_gauntlets:
-				if gauntlet and gauntlet.current_cooldown > 0:
-					gauntlet.current_cooldown = max(0, gauntlet.current_cooldown - ring.ring_effect_value)
-			print("[INVENTORY] Ring effect: Reduced cooldowns by %d" % ring.ring_effect_value)
-	
-	ring_triggered.emit(ring, ring.get_ring_effect_name())
-
 func on_armor_gained(amount: int) -> void:
 	armor_gained_this_turn += amount
-	trigger_rings(ItemData.RingTrigger.ON_GAIN_ARMOR_THRESHOLD, armor_gained_this_turn)
 
 	# Ring pass: cumulative armor-gained counters (never reset — one journey).
 	for r in equipped_rings:
@@ -1052,7 +966,6 @@ func on_armor_gained(amount: int) -> void:
 		_applying_armor_instance_bonus = false
 
 func on_enemy_killed() -> void:
-	trigger_rings(ItemData.RingTrigger.ON_ENEMY_KILL)
 	_conjure_on_kill_cards()
 	# Axe's Axe: kills bank flash points — deliberately allowed past the cap.
 	if player_stats:
@@ -1086,17 +999,13 @@ func _conjure_on_kill_cards() -> void:
 	if conjured:
 		deck_manager.hand_updated.emit()
 
-func on_card_played(card: Card) -> void:
-	if card.card_type == Card.CardType.ATTACK:
-		trigger_rings(ItemData.RingTrigger.ON_PLAY_ATTACK_CARD)
-	elif card.card_type == Card.CardType.UTILITY:
-		trigger_rings(ItemData.RingTrigger.ON_PLAY_UTILITY_CARD)
+func on_card_played(_card: Card) -> void:
+	pass  # Card-play hook point (the enum-ring reactions that lived here were removed; bespoke rings use their own hooks)
 
 func on_card_drawn() -> void:
-	trigger_rings(ItemData.RingTrigger.ON_DRAW_CARD)
+	pass  # Card-draw hook point (same story)
 
 func on_damage_taken() -> void:
-	trigger_rings(ItemData.RingTrigger.ON_TAKE_DAMAGE)
 	# Shields pass: Steve Rodgers' bastion turns every blow into mana.
 	if player_stats:
 		for shield in get_equipped_shields():
@@ -1154,7 +1063,6 @@ func on_attacked_by(attacker, in_melee: bool) -> void:
 				rr_w.melee_retaliate_shock])
 
 func on_healed(amount: int = 0) -> void:
-	trigger_rings(ItemData.RingTrigger.ON_HEAL)
 	if amount <= 0:
 		return
 	for r in equipped_rings:
@@ -1261,6 +1169,8 @@ func _fire_custom_ring(ring: ItemData, kind: String, value: int = 0) -> void:
 		custom_ring_fired.emit(ring, kind, value)
 		print("[INVENTORY] Jeremy: %s fires twice!" % ring.item_name)
 
+#endregion
+#region GAUNTLET SKILL SYSTEM
 # ============================================
 # GAUNTLET SKILL SYSTEM
 # ============================================
@@ -1392,20 +1302,14 @@ func get_passive_effects() -> Array[String]:
 func has_passive_effect(effect_id: String) -> bool:
 	return effect_id in get_passive_effects()
 
+#endregion
+#region OVERFLOW EFFECTS
 # ============================================
 # OVERFLOW EFFECTS
 # ============================================
 
-func check_overflow_effects() -> void:
-	for item in equipped_chests:
-		if item and item.special_effect == ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR:
-			var heal_amount = item.special_effect_value
-
-			if player_stats:
-				player_stats.heal(heal_amount)
-				overflow_heal_armor_triggered.emit(heal_amount, 0)
-				print("[INVENTORY] Overflow effect: Healed %d" % heal_amount)
-
+#endregion
+#region UTILITY
 # ============================================
 # UTILITY
 # ============================================
@@ -1435,16 +1339,6 @@ func has_pocket_knife_equipped() -> bool:
 		if weapon and weapon.special_effect == ItemData.SpecialEffect.POCKET_KNIFE_PROC:
 			return true
 	return false
-
-func has_only_swords_equipped() -> bool:
-	## Returns true if all equipped weapons are swords (or no weapons equipped).
-	var has_weapon = false
-	for weapon in equipped_weapons:
-		if weapon:
-			has_weapon = true
-			if "Sword" not in weapon.item_name and "sword" not in weapon.item_name:
-				return false
-	return has_weapon
 
 func get_total_weight() -> int:
 	# Every slot routes through _effective_item_weight so chest reduction, the
@@ -1555,18 +1449,6 @@ func get_single_hand_weight_damage_bonus() -> int:
 		total += floori(w.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
 	return total
 
-func get_total_weapon_damage() -> int:
-	var total = 0
-	for i in range(equipped_weapons.size()):
-		var weapon = equipped_weapons[i]
-		if weapon:
-			var is_off_hand = (i > 0 and i != two_handed_slot)
-			if is_off_hand:
-				total += floori(weapon.weapon_damage * get_off_hand_modifier())
-			else:
-				total += weapon.weapon_damage
-	return total
-
 func get_slot_info() -> Dictionary:
 	return {
 		"helm": {"max": helm_slots, "equipped": equipped_helms},
@@ -1578,12 +1460,11 @@ func get_slot_info() -> Dictionary:
 		"weapon": {"max": weapon_slots, "equipped": equipped_weapons}
 	}
 
+#endregion
+#region TWO-HANDED WIELDING
 # ============================================
 # TWO-HANDED WIELDING
 # ============================================
-
-func is_two_handing() -> bool:
-	return two_handed_slot >= 0
 
 func get_two_handed_item() -> ItemData:
 	if two_handed_slot < 0 or two_handed_slot >= equipped_weapons.size():
@@ -1715,6 +1596,8 @@ func _carry_change_allowed(load_delta: int, two_handing_after: bool) -> bool:
 		return true
 	return (load_after - cap_after) <= maxi(0, load_now - cap_now)
 
+#endregion
+#region EQUIPMENT SWAP TEMPO COSTS
 # ============================================
 # EQUIPMENT SWAP TEMPO COSTS
 # ============================================
@@ -1736,6 +1619,8 @@ func get_swap_tempo_cost(item_type: ItemData.ItemType, unequip_only: bool = fals
 			cost = 8
 	return floori(cost / 2.0) if unequip_only else cost
 
+#endregion
+#region EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
 # EQUIPMENT BUILDS (loadouts I / II / III)
 # ============================================
@@ -1935,6 +1820,8 @@ func switch_build(target: int) -> Dictionary:
 	print("[INVENTORY] Switched to build %d (%d tempo worth of swaps)" % [target + 1, cost])
 	return result
 
+#endregion
+#region WAR RACK EXCHANGE
 # ============================================
 # WAR RACK EXCHANGE
 # ============================================
@@ -2126,8 +2013,6 @@ func _rush_item_cards_to_hand(item: ItemData) -> void:
 		return
 	var moved = false
 	for card in _get_item_owned_cards(item):
-		if _is_locked_mastery_card(item, card):
-			continue
 		var di = deck_manager.discard_pile.find(card)
 		if di < 0:
 			continue
@@ -2143,7 +2028,8 @@ func _rush_item_cards_to_hand(item: ItemData) -> void:
 		deck_manager.hand_updated.emit()
 
 func rack_store_item(item: ItemData) -> bool:
-	## Out-of-combat setup path: strap an unequipped item onto the rack directly.
+	## Out-of-combat setup path (the character panel's War Rack view): strap an
+	## unequipped item onto the rack directly.
 	if not has_back_rack or rack_items.size() >= weapon_slots:
 		return false
 	rack_items.append(item)
@@ -2160,6 +2046,8 @@ func rack_take_item(index: int) -> ItemData:
 	rack_changed.emit()
 	return item
 
+#endregion
+#region ITEM STORAGE (NON-EQUIPPED INVENTORY)
 # ============================================
 # ITEM STORAGE (NON-EQUIPPED INVENTORY)
 # ============================================
@@ -2197,6 +2085,8 @@ func used_storage_slots() -> int:
 func is_storage_full() -> bool:
 	return used_storage_slots() >= max_storage_slots
 
+#endregion
+#region STASH STORAGE
 # ============================================
 # STASH STORAGE
 # ============================================
@@ -2218,14 +2108,6 @@ func remove_stash_item(index: int) -> ItemData:
 	storage_changed.emit()
 	print("[INVENTORY] Removed %s from stash (%d/%d)" % [item.item_name, stash_items.size(), max_stash_slots])
 	return item
-
-func get_stash_item(index: int) -> ItemData:
-	if index < 0 or index >= stash_items.size():
-		return null
-	return stash_items[index]
-
-func get_stash_item_count() -> int:
-	return stash_items.size()
 
 func is_stash_full() -> bool:
 	return stash_items.size() >= max_stash_slots
@@ -2317,6 +2199,8 @@ func unequip_to_storage(item_type: ItemData.ItemType, slot_index: int) -> bool:
 	store_item(item)
 	return true
 
+#endregion
+#region STORED CARDS (share the inventory slot pool)
 # ============================================
 # STORED CARDS (share the inventory slot pool)
 # ============================================
@@ -2351,6 +2235,13 @@ func add_card_to_deck(card_index: int, dm) -> bool:
 	## Moves a card from inventory to the player's discard pile, respecting the
 	## rarity copy limit (unlimited commons; e.g. one copy of a legendary).
 	var peek = get_stored_card(card_index)
+	if peek != null and peek.requires_engraving and peek.slotted_in_item == null:
+		print("[INVENTORY] '%s' is an Engrave card — it can only join the deck inside an item" % peek.card_name)
+		return false
+	if peek != null and dm and dm.is_deck_full():
+		print("[INVENTORY] Deck is full (%d/%d) — remove a card before adding '%s'"
+			% [dm.get_deck_size(), dm.get_max_deck_size(), peek.card_name])
+		return false
 	if peek != null and dm and not dm.can_add_copy(peek.card_id):
 		print("[INVENTORY] Deck copy limit reached for '%s' (%d max) — card stays in inventory"
 			% [peek.card_name, Card.max_deck_copies(peek.card_id)])
@@ -2366,6 +2257,8 @@ func add_card_to_deck(card_index: int, dm) -> bool:
 	stored_cards.insert(card_index, card)
 	return false
 
+#endregion
+#region CULLING STONES (CONSUMABLE)
 # ============================================
 # CULLING STONES (CONSUMABLE)
 # ============================================
@@ -2381,27 +2274,14 @@ func use_culling_stone() -> bool:
 	print("[INVENTORY] Used culling stone (%d remaining)" % culling_stones)
 	return true
 
+#endregion
+#region PAPER FEATHERS & ORIGAMI SWANS
 # ============================================
 # PAPER FEATHERS & ORIGAMI SWANS
 # ============================================
 
 func get_paper_feather_count() -> int:
 	return paper_feathers
-
-func use_paper_feather() -> bool:
-	if paper_feathers <= 0:
-		print("[INVENTORY] No Paper Feathers remaining!")
-		return false
-	paper_feathers -= 1
-	print("[INVENTORY] Used Paper Feather (%d remaining)" % paper_feathers)
-	return true
-
-func add_paper_feather(amount: int = 1) -> void:
-	paper_feathers += amount
-	print("[INVENTORY] Gained %d Paper Feather(s) (%d total)" % [amount, paper_feathers])
-
-func get_origami_swan_count() -> int:
-	return origami_swans
 
 func add_origami_swans(amount: int) -> void:
 	origami_swans += amount
@@ -2412,6 +2292,8 @@ func add_origami_swans(amount: int) -> void:
 		paper_feathers += 1
 		print("[INVENTORY] Converted 20 Origami Swans into 1 Paper Feather! (%d feathers, %d swans remaining)" % [paper_feathers, origami_swans])
 
+#endregion
+#region MYTHIC MOLDS
 # ============================================
 # MYTHIC MOLDS
 # ============================================
@@ -2431,14 +2313,8 @@ func use_mythic_mold() -> bool:
 	print("[INVENTORY] Used Mythic Mold (%d remaining)" % mythic_molds)
 	return true
 
-func destroy_cards_for_swans(card_count: int) -> int:
-	## Destroys cards and returns the number of origami swans created (1 per card).
-	## The actual card removal is handled by the caller.
-	var swans_created = card_count
-	add_origami_swans(swans_created)
-	print("[INVENTORY] Destroyed %d cards → %d Origami Swans" % [card_count, swans_created])
-	return swans_created
-
+#endregion
+#region CARD ENCHANT / EXTRACT SYSTEM
 # ============================================
 # CARD ENCHANT / EXTRACT SYSTEM
 # ============================================
@@ -2461,7 +2337,17 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 	# Slot the card into the item (card stays in the deck)
 	item.slot_card(card)
 
-	card_enchanted.emit(card, item)
+	# Engrave flow: a card slotted from the card inventory leaves storage and —
+	# now that it sits in an item — joins the deck like any slotted card.
+	var si = stored_cards.find(card)
+	if si >= 0:
+		stored_cards.remove_at(si)
+		storage_changed.emit()
+	if deck_manager and not _card_in_any_zone(card):
+		deck_manager.draw_pile.append(card)
+		deck_manager.shuffle_draw_pile()
+		print("[INVENTORY] '%s' joined the deck with its item" % card.card_name)
+
 	equipment_changed.emit()
 	print("[INVENTORY] Enchanted '%s' into %s" % [card.card_name, item.item_name])
 	return true
@@ -2485,7 +2371,19 @@ func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) 
 	card.slotted_in_item = null
 	item.slotted_cards.remove_at(card_index)
 
-	card_extracted.emit(card, item, false)
+	# Engrave: outside an item the card may not stay in the deck — pull it from
+	# every zone into the card inventory.
+	if card.requires_engraving and deck_manager:
+		for pile in [deck_manager.draw_pile, deck_manager.hand, deck_manager.discard_pile,
+				deck_manager.jail_pile, deck_manager.maintained_cards]:
+			var pi = pile.find(card)
+			if pi >= 0:
+				pile.remove_at(pi)
+		stored_cards.append(card)
+		storage_changed.emit()
+		deck_manager.hand_updated.emit()
+		print("[INVENTORY] Engrave: '%s' left the deck for the card inventory" % card.card_name)
+
 	equipment_changed.emit()
 	print("[INVENTORY] Extracted '%s' from %s" % [card.card_name, item.item_name])
 	return card
@@ -2538,3 +2436,4 @@ func get_all_slotted_cards() -> Array:
 				for card in item.slotted_cards:
 					result.append(card)
 	return result
+#endregion

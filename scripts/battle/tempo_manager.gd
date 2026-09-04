@@ -23,7 +23,6 @@ signal turn_triggered  # Alias for tempo_threshold_reached, kept for compat
 signal tempo_advanced(global_total: int, amount: int)  # Fires on every tempo addition
 
 # Tick system signals
-signal tick_started(tick_number: int, total_ticks: int)  # Each tick as it processes
 signal card_resolved(card: Card)  # Fired when a card's resolve_tick is reached
 signal ticking_finished()  # All pending ticks have been processed
 
@@ -37,8 +36,8 @@ var current_tempo: int = 0   # Accumulator for the UI bar (resets at each cycle)
 var global_tempo: int = 0    # Ever-increasing universal tempo clock
 var _cycles_since_flash_refresh: int = 0  # Counts cycles toward the flash-point refresh
 var _cycles_since_brain_refresh: int = 0  # Counts cycles toward the brain-point refresh
-var spaces_moved_this_cycle: int = 0  # Total tiles moved since last cycle (for passives like Let's Dance)
 var last_tempo_source: String = ""  # Tracks what caused the last tempo addition ("movement", "card", etc.)
+var spaces_moved_this_cycle: int = 0  # Tiles moved since the cycle started (read by the Let's Dance passive)
 
 var player_stats: PlayerStats
 var debuff_manager = null  # DebuffManager — Slowed prices movement tempo here
@@ -148,7 +147,6 @@ func _process_one_tick() -> void:
 
 	# Emit standard signals so all existing systems (enemies, mana, draw) work per-tick
 	tempo_advanced.emit(global_tempo, 1)
-	tick_started.emit(global_tempo, _pending_ticks)
 
 	tempo_changed.emit(current_tempo, tempo_threshold)
 	_check_threshold()
@@ -232,10 +230,6 @@ func get_active_card_progress(owner_id: int = 0) -> Dictionary:
 				"resolved": entry["resolved"],
 			}
 	return {}
-
-## Get the total number of pending ticks in the queue (for UI display).
-func get_total_pending_ticks() -> int:
-	return _pending_ticks
 
 func _check_threshold() -> void:
 	var times_triggered = 0
@@ -335,9 +329,6 @@ func get_global_tempo() -> int:
 
 func get_threshold() -> int:
 	return tempo_threshold
-
-func get_tempo_percent() -> float:
-	return float(current_tempo) / float(tempo_threshold)
 
 func get_tempo_until_flash_refresh() -> int:
 	## Whole tempo remaining before the next flash-point refill.

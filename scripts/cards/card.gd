@@ -19,6 +19,7 @@ enum CardSchool { PHYSICAL, SPELL, TRAP }
 # all merge into a single un-lettered hand stack.
 const INSTANT_STACK_SIG_PREFIX := "INSTANT|"
 
+#region CARD RARITY TIERS
 # ============================================
 # CARD RARITY TIERS
 # ============================================
@@ -63,6 +64,7 @@ const CARD_RARITIES := {
 	"poisoned_blood": Rarity.COMMON, "elixir": Rarity.COMMON, "reposition": Rarity.COMMON,
 	"premeditated": Rarity.COMMON, "mark": Rarity.COMMON, "rise": Rarity.COMMON,
 	"reload": Rarity.COMMON, "barricade": Rarity.COMMON, "sky_attack": Rarity.COMMON,
+	"fleet_etching": Rarity.COMMON, "regal_etching": Rarity.COMMON,
 	"mixed_bag": Rarity.COMMON, "trip": Rarity.COMMON, "choke": Rarity.COMMON,
 	"defensive_awareness": Rarity.COMMON, "sweeping_disarm": Rarity.COMMON, "consecutive_snap": Rarity.COMMON,
 	"swap": Rarity.COMMON, "meditate": Rarity.COMMON, "potion_of_continuance": Rarity.COMMON,
@@ -81,7 +83,7 @@ const CARD_RARITIES := {
 	"volatile_mixture": Rarity.RARE, "understanding": Rarity.RARE, "shuriken_pouch": Rarity.RARE,
 	"enchanted_quiver": Rarity.RARE, "tighten_string": Rarity.RARE, "down_town": Rarity.RARE,
 	"sky_fall": Rarity.RARE, "lead_arrow": Rarity.RARE, "last_breath": Rarity.RARE,
-	"bottomless_quiver": Rarity.RARE, "round_em_up": Rarity.RARE, "hydra_bite": Rarity.RARE,
+	"bottomless_quiver": Rarity.RARE, "round_em_up": Rarity.RARE,
 	"halo": Rarity.RARE, "armored_discipline": Rarity.RARE,
 	"reckless_strike": Rarity.RARE, "blade_barrage": Rarity.RARE, "cultish_wounds": Rarity.RARE,
 	"fountain_of_life": Rarity.RARE, "absorb_essence": Rarity.RARE, "communal_donation": Rarity.RARE,
@@ -169,8 +171,9 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"sprinkle": true, "sprinkle_bomb": true, "splinter": true,
 	"shuriken": true, "savage_strike_copy": true,
 	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true,
+	"biscuit": true, "energy_ball": true, "quick_arrow": true, "prepare": true,
+	"energy_barrier": true, "mana_surge": true, "magic_barrier": true, "shepherds_mark": true,
 	"paralysis": true, "release_soul": true,
-	"hydra_bite": true,
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
 	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
@@ -239,10 +242,8 @@ var cycles_in_hand: int = 0  # How many tempo cycles card has been in hand
 var rng_outcomes_data: Array = []
 var rng_selected_index: int = -1  # -1=not rolled, >=0=which outcome won, -2=binary fail
 var sticky: int = 0  # Uses before card auto-discards (0 = normal)
-var duration: int = 0  # Effect duration in tempo
 var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
 var range_modifier: int = 0  # Modifies base range: +2 = 7 range, -2 = 3 range
-var card_range: float = 0.0  # Legacy range for specific overrides
 var target_types: Array = ["enemy"]  # "enemy", "ally", "self", "point", "all_nearby"
 var consecutive_uses: int = 0  # Track how many times card played in sequence
 var snap_uses_at_play: int = 0  # uses BEFORE the current play (set by play_card; timing-safe for deferred execution)
@@ -254,7 +255,6 @@ var discard_on_draw: bool = false  # If true, card is discarded immediately afte
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
-var in_hand_heal_tempo: int = 0  # (legacy field — Healthy Bliss now runs on cycles_in_hand in main)
 var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
 var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card picker (e.g. Reposition)
 var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
@@ -268,7 +268,6 @@ var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g.,
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
 var element: String = ""  # Elemental identity for Feral Evocation's colored slots: "red" (Burn), "blue" (Cold), "yellow" (Shock), "green" (Poison). "" = not elemental.
-var is_chisel: bool = false  # If true, card can only be played when slotted in an item (Chisel keyword)
 var has_reach: bool = false  # Reach: adds 1 square to melee attack range
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
 var delay_tempo: int = 0  # Tempo until the card's effect takes place
@@ -290,12 +289,35 @@ var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = s
 var source_item_type: int = -1  # ItemData.ItemType the card was first extracted from (-1 = no restriction yet)
 var is_molded: bool = false  # Card is locked into the item and cannot be extracted
 var slotted_in_item = null  # Reference to the ItemData this card is slotted in (null = not slotted)
+# Engrave: the card only exists inside an item — unslotted it may not sit in
+# ANY deck zone (DeckManager.expel_unslotted_engraved sweeps it into the card
+# inventory, where the enchant panel offers it for slotting). The play gate in
+# play_card is a second line of defense.
+var requires_engraving: bool = false
 # The item that GRANTED this card to the deck (GRANT_CARDS / GRANT_BLINK_CARD).
 # Parallels slotted_in_item: both mark a card as "owned" by an item, so it is
 # pulled from every zone when the item is unequipped and returned when it is
 # re-equipped. Cards merely PRODUCED during play (e.g. a goblet's heal orb) set
 # neither reference and therefore detach — they stay in the deck on a swap.
 var granted_by_item = null  # Reference to the ItemData that granted this card (null = not granted)
+# Boots of Speed: tempo shaved off while this card sits in hand. It lasts until
+# the card is played or discarded (cleared when the card leaves the hand and
+# again defensively on redraw), never a permanent change to the card.
+var temp_hand_tempo_reduction: int = 0
+
+# --- Shared statics (moved up from the factory tail so all class state lives together) ---
+static var _factory_map: Dictionary = {}  # card_id -> factory method name
+
+# Feral Evocation: while a converted card's play resolves, any Burn/Cold/
+# Shock/Poison it lands on an enemy is swapped to this element's debuff
+# ("" = off). Main sets it around the play; Enemy.apply_debuff reads it.
+static var active_element_remap: String = ""
+# Element Pollination (Elemental Weaver maintain): recomputed by main every
+# tempo tick off the maintained pile; enemies read it during debuff ticking.
+static var element_pollination_active: bool = false
+
+# The colored-slot element table shared by Feral Evocation's engine.
+const ELEMENT_DEBUFFS := {"red": "burn", "blue": "cold", "yellow": "shock", "green": "poison"}
 
 func is_slotted() -> bool:
 	return slotted_in_item != null
@@ -737,6 +759,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"strengthen": "+X damage on next Y attacks",
 		"bolster": "+X armor next Y times you gain armor",
 		"haste": "+X tempo-free tiles on each of your next Y moves; one charge per move",
+		"engrave": "Cannot join your deck at all unless slotted into an item",
 		"cleanse": "Remove X negative effects (instant)",
 		"smith": "Gain X armor per cycle, decaying by 1 each cycle",
 		"steady": "Next action does not add tempo",
@@ -753,7 +776,6 @@ static func get_keyword_definitions() -> Dictionary:
 		"silence": "Cannot play spell cards",
 		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage",
 		"poison": "Take X damage per cycle, lose 1 poison each cycle",
-		"inebriate": "Movement direction is randomized",
 		"cursed": "Deal 20% less damage and deal 20% damage to self",
 		"frozen": "Cannot play cards (a frozen enemy cannot act at all)",
 		"cuffed": "Cannot draw cards",
@@ -766,9 +788,6 @@ static func get_keyword_definitions() -> Dictionary:
 		"locked": "One random card cannot be played",
 		"weakened": "Deal 30% less damage; each attack burns a stack",
 		"rooted": "Cannot move",
-		"tethered": "Cannot move more than X tiles from origin",
-		"magnetized": "Pulled X tiles toward nearest enemy each cycle",
-		"linked": "20% of damage you take is also dealt to your partner",
 		"clumsy": "30% chance to discard a random card when playing; each card played burns a stack",
 		"vulnerable": "Take 30% more damage on next X attack(s)",
 		"exposed": "Your armor was broken through — a hit got past it",
@@ -796,10 +815,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"arrow": "Requires a bow/quiver to slot. Ranged bow attack card",
 		"pocket": "Small items like daggers and potions. Slots into belts",
 		"gem": "Gem cards for rings",
-		"chisel": "Card must be slotted in an item to be played. Cannot be played from hand alone",
-		"swift": "Agility and movement cards. Slots into boots",
 		"buckler": "Defensive technique cards. Slots into shields",
-		"crown": "Mental and aura cards. Slots into helmets",
 		"fist": "Unarmed combat cards. Slots into gauntlets",
 	}
 
@@ -844,10 +860,10 @@ func get_matching_keywords() -> Array:
 		_add_keyword_match(found_keys, matches, all_keywords, "delay")
 	if has_burden:
 		_add_keyword_match(found_keys, matches, all_keywords, "burden")
-	if is_chisel:
-		_add_keyword_match(found_keys, matches, all_keywords, "chisel")
 	if has_reach:
 		_add_keyword_match(found_keys, matches, all_keywords, "reach")
+	if requires_engraving:
+		_add_keyword_match(found_keys, matches, all_keywords, "engrave")
 
 	# Scan the description for keyword mentions
 	for keyword in all_keywords:
@@ -878,16 +894,6 @@ static func _is_letter(c: String) -> bool:
 	var code = c.unicode_at(0)
 	return (code >= 65 and code <= 90) or (code >= 97 and code <= 122)
 
-func increment_cycles_in_hand() -> void:
-	cycles_in_hand += 1
-
-func reset_hand_tracking() -> void:
-	cycles_in_hand = 0
-	rng_outcomes.clear()
-## How many cards this card's effect draws when it resolves. The deck manager
-## reserves hand slots for queued cards using this, so a tempo draw can't
-## steal the slot a played Draw freed (which made its effect resolve into a
-## full hand and silently do nothing).
 func get_effect_draw_count() -> int:
 	match card_id:
 		"draw", "quick_shot", "bob_and_weave", "deep_pockets", "the_lights_favor", "reposition":
@@ -1284,6 +1290,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_discard(deck_manager)
 		"draw":
 			_execute_draw(deck_manager)
+		"fleet_etching":
+			if buff_mgr:
+				buff_mgr.apply_buff(Buff.create_haste(1, 2, card_name))
+		"regal_etching":
+			_execute_draw(deck_manager)
 		"potion_of_continuance":
 			_execute_potion_of_continuance(deck_manager)
 		"empower":
@@ -1337,7 +1348,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 				player_stats.temp_health_tempo_remaining = 0
 				player_stats.current_mana = floori(player_stats.max_mana / 2.0)
 				player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
-				player_stats.temp_health_changed.emit(0)
 				player_stats.mana_changed.emit(player_stats.current_mana, player_stats.max_mana)
 				print("[CARD] Serene Center: health %d, mana %d" % [player_stats.current_health, player_stats.current_mana])
 		"stone_encase":
@@ -1707,8 +1717,6 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_thrown_stone(target, player_stats, buff_mgr)
 		"gulped_potion":
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
-		"lightly_dazed":
-			pass  # Unplayable card - no execute logic
 		"djinn_wish":
 			pass  # Paying the 60 mana IS the effect — erase_on_play removes it
 		"paralysis":
@@ -1789,7 +1797,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"shepherds_mark":
 			_execute_shepherds_mark(player_stats, deck_manager)
 		# === Previously unimplemented effects ===
-		"heavy_swing", "specific_strike", "hydra_bite", "spark", "sprinkle":
+		"heavy_swing", "specific_strike", "spark", "sprinkle":
 			# Straight single-target damage (base_damage carries the value;
 			# hand/tempo riders and play-time cost/gate handled elsewhere).
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -2328,24 +2336,6 @@ func _execute_heal_with_poison_check(target, player_stats: PlayerStats, buff_mgr
 			player_stats.heal(heal_amount)
 			print("[CARD] %s restored health!" % card_name)
 
-func enhance(amount: int) -> bool:
-	# Only enhance attack cards, and only once
-	if card_type != CardType.ATTACK:
-		print("[CARD] %s is not an attack card, cannot enhance" % card_name)
-		return false
-	
-	if is_enhanced:
-		print("[CARD] %s already enhanced, skipping" % card_name)
-		return false
-	
-	bonus_damage += amount
-	is_enhanced = true
-	print("[CARD] %s enhanced! Bonus damage now: %d" % [card_name, bonus_damage])
-	return true
-
-func get_total_damage() -> int:
-	return base_damage + bonus_damage
-
 func is_jailed() -> bool:
 	return jail_time_remaining > 0
 
@@ -2362,11 +2352,6 @@ func get_burden_mana_cost() -> int:
 ## not just CardType.ATTACK — a damaging utility/spell counts too.
 func is_offensive() -> bool:
 	return card_type == CardType.ATTACK or damage > 0 or base_damage > 0
-
-# Boots of Speed: tempo shaved off while this card sits in hand. It lasts until
-# the card is played or discarded (cleared when the card leaves the hand and
-# again defensively on redraw), never a permanent change to the card.
-var temp_hand_tempo_reduction: int = 0
 
 func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost
@@ -2414,6 +2399,8 @@ func jail_burden() -> void:
 		jail_time_remaining = burden_jail_duration
 		print("[CARD] %s burden reset! Jailed for %d tempo" % [card_name, burden_jail_duration])
 
+#endregion
+#region CARD UPGRADE SYSTEM (Paper Feather)
 # ============================================
 # CARD UPGRADE SYSTEM (Paper Feather)
 # ============================================
@@ -2486,6 +2473,36 @@ static func create_discard() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
+	card.target_types = ["self"]
+	return card
+
+static func create_fleet_etching() -> Card:
+	## First-pass Engrave card for boot slots (Swift keyword).
+	var card = Card.new()
+	card.card_id = "fleet_etching"
+	card.card_name = "Fleet Etching"
+	card.description = "Engrave. Gain Haste: +1 tempo-free tile on your next 2 moves."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 0
+	card.tempo_cost = 2
+	card.card_keyword = CardKeyword.SWIFT
+	card.requires_engraving = true
+	card.target_types = ["self"]
+	return card
+
+static func create_regal_etching() -> Card:
+	## First-pass Engrave card for helm slots (Crown keyword).
+	var card = Card.new()
+	card.card_id = "regal_etching"
+	card.card_name = "Regal Etching"
+	card.description = "Engrave. Draw a card."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 5
+	card.tempo_cost = 2
+	card.card_keyword = CardKeyword.CROWN
+	card.requires_engraving = true
 	card.target_types = ["self"]
 	return card
 
@@ -2614,6 +2631,8 @@ static func create_dagger_throw() -> Card:
 	card.card_keyword = CardKeyword.POCKET
 	return card
 
+#endregion
+#region BRAD CARD EXECUTE FUNCTIONS
 # ============================================
 # BRAD CARD EXECUTE FUNCTIONS
 # ============================================
@@ -2737,6 +2756,8 @@ func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) 
 		buff_mgr.approach_tempo_remaining = 10
 	print("[CARD] Approach! Slowed 2, gain 5 armor per movement for 10 tempo")
 
+#endregion
+#region JEREMY CARD EXECUTE FUNCTIONS
 # ============================================
 # JEREMY CARD EXECUTE FUNCTIONS
 # ============================================
@@ -2904,6 +2925,8 @@ func _execute_snowballs_chance(target, player_stats: PlayerStats, buff_mgr: Buff
 	last_damage_dealt = total_damage
 	print("[CARD] A Snowball's Chance prepared! %d damage (AOE in main)" % total_damage)
 
+#endregion
+#region RYAN CARD EXECUTE FUNCTIONS
 # ============================================
 # RYAN CARD EXECUTE FUNCTIONS
 # ============================================
@@ -2914,9 +2937,6 @@ func _execute_raged_circulation(target, player_stats: PlayerStats) -> void:
 		player_stats.healing_boost_percent = 0.3
 		player_stats.healing_boost_tempo = 15
 	print("[CARD] Raged Circulation! Healing +30% for 15 tempo")
-
-func buff_mgr_exists(target) -> bool:
-	return target and target.has_method("get_buff_manager") and target.get_buff_manager() != null
 
 func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Stack-oriented: the next 3 heal cards deal damage instead of healing.
@@ -2972,6 +2992,8 @@ func _execute_reposition(deck_manager) -> void:
 	deck_manager.hand.remove_at(discard_idx)
 	deck_manager.discard_pile.append(discarded)
 	deck_manager.discards_this_cycle += 1
+	deck_manager.card_discarded.emit(discarded)
+	deck_manager.non_play_discard.emit(discarded)
 	deck_manager.draw_card()
 	deck_manager.hand_updated.emit()
 	picked_card = null
@@ -3037,6 +3059,8 @@ func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats
 			player_stats.take_damage(self_dmg)
 			print("[CARD] Cursed: took %d self-damage!" % self_dmg)
 
+#endregion
+#region STEPHEN CARD EXECUTE FUNCTIONS
 # ============================================
 # STEPHEN CARD EXECUTE FUNCTIONS
 # ============================================
@@ -3180,6 +3204,8 @@ func _execute_bottomless_quiver(_player_stats: PlayerStats) -> void:
 	# Signal handled in main.gd: adds QUIVER overflow effect (5 charges)
 	print("[CARD] Bottomless Quiver! Next 5 overflow attack cards go to the quiver")
 
+#endregion
+#region CORY CARD EXECUTE FUNCTIONS
 # ============================================
 # CORY CARD EXECUTE FUNCTIONS
 # ============================================
@@ -3263,6 +3289,8 @@ func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
 			var card = deck_manager.hand.pop_back()
 			deck_manager.discard_pile.append(card)
 			deck_manager.discards_this_cycle += 1
+			deck_manager.card_discarded.emit(card)
+			deck_manager.non_play_discard.emit(card)
 		var draw_count = max(0, deck_manager.get_hand_cap() - 2)
 		for i in range(draw_count):
 			deck_manager.draw_card()
@@ -3277,6 +3305,8 @@ func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
 		deck_manager.skip_next_tempo_draw = true
 	print("[CARD] Meditate! Hand refreshed, healed to 80%, skipping next turn's draw")
 
+#endregion
+#region BRAD CARD FACTORY METHODS
 # ============================================
 # BRAD CARD FACTORY METHODS
 # ============================================
@@ -3302,7 +3332,6 @@ static func create_wear_down() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 0
 	card.tempo_cost = 1
-	card.duration = 15
 	card.target_types = ["self"]
 	return card
 
@@ -3431,7 +3460,6 @@ static func create_turtle_up() -> Card:
 	card.card_type_name = "Defense"
 	card.mana_cost = 30
 	card.tempo_cost = 0
-	card.duration = 20
 	card.target_types = ["self"]
 	return card
 
@@ -3477,6 +3505,8 @@ static func create_hold_the_line() -> Card:
 	card.target_types = ["self"]
 	return card
 
+#endregion
+#region JEREMY CARD FACTORY METHODS
 # ============================================
 # JEREMY CARD FACTORY METHODS
 # ============================================
@@ -3540,7 +3570,6 @@ static func create_biscuit() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 20
 	card.tempo_cost = 0
-	card.duration = 15
 	card.target_types = ["self"]
 	return card
 
@@ -3609,7 +3638,6 @@ static func create_hope_this_works() -> Card:
 	card.mana_cost = 20
 	card.tempo_cost = 3
 	card.rng_outcomes_data = [{percent = 50.0}]
-	card.duration = 15
 	card.target_types = ["ally"]
 	return card
 
@@ -3623,7 +3651,6 @@ static func create_lady_luck() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 40
 	card.tempo_cost = 1
-	card.duration = 10
 	card.target_types = ["ally"]
 	return card
 
@@ -3637,7 +3664,6 @@ static func create_try_this() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.rng_outcomes_data = [{percent = 10.0}]
-	card.duration = 10
 	card.target_types = ["ally"]
 	return card
 
@@ -3680,6 +3706,8 @@ static func create_snowballs_chance() -> Card:
 	card.target_types = ["point"]
 	return card
 
+#endregion
+#region RYAN CARD FACTORY METHODS
 # ============================================
 # RYAN CARD FACTORY METHODS
 # ============================================
@@ -3730,7 +3758,6 @@ static func create_shadows() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
 	card.tempo_cost = 4
-	card.duration = 10
 	card.target_types = ["self"]
 	return card
 
@@ -3796,7 +3823,6 @@ static func create_understanding() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 50
 	card.tempo_cost = 1
-	card.duration = 10
 	card.target_types = ["self"]
 	return card
 
@@ -3842,6 +3868,8 @@ static func create_premeditated() -> Card:
 	card.target_types = ["enemy"]
 	return card
 
+#endregion
+#region STEPHEN CARD FACTORY METHODS
 # ============================================
 # STEPHEN CARD FACTORY METHODS
 # ============================================
@@ -3910,7 +3938,6 @@ static func create_enchanted_quiver() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 40
 	card.tempo_cost = 5
-	card.duration = 3
 	card.target_types = ["self"]
 	return card
 
@@ -3923,7 +3950,6 @@ static func create_tighten_string() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 30
 	card.tempo_cost = 3
-	card.duration = 3
 	card.target_types = ["self"]
 	return card
 
@@ -3968,7 +3994,6 @@ static func create_sky_fall() -> Card:
 	card.tempo_cost = 5
 	card.damage = 18
 	card.base_damage = 18
-	card.duration = 10
 	card.is_ranged = true
 	card.range_modifier = 4
 	card.target_types = ["point"]
@@ -4071,6 +4096,8 @@ static func create_bottomless_quiver() -> Card:
 	card.target_types = ["self"]
 	return card
 
+#endregion
+#region CORY CARD FACTORY METHODS
 # ============================================
 # CORY CARD FACTORY METHODS
 # ============================================
@@ -4119,7 +4146,6 @@ static func create_choke() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.sticky = 3
-	card.duration = 3
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
@@ -4337,26 +4363,6 @@ static func create_release_soul() -> Card:
 	card.target_types = ["self"]
 	return card
 
-static func create_hydra_bite() -> Card:
-	var card = Card.new()
-	card.card_id = "hydra_bite"
-	card.card_name = "Hydra Bite"
-	card.description = "Deal 7 damage. Erased from your deck after being played."
-	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
-	card.mana_cost = 10
-	card.tempo_cost = 0
-	card.resolve_tick = 0
-	card.damage = 7
-	card.base_damage = 7
-	card.block = 0
-	card.base_block = 0
-	card.heal_amount = 0
-	card.erase_on_play = true
-	card.linger = true  # Generated into hand; may exceed hand cap
-	card.target_types = ["enemy"]
-	return card
-
 static func create_thrown_stone() -> Card:
 	var card = Card.new()
 	card.card_id = "thrown_stone"
@@ -4414,6 +4420,8 @@ func _execute_thrown_stone(target, player_stats: PlayerStats, buff_mgr: BuffMana
 		last_damage_dealt = total_damage
 		print("[CARD] Thrown Stone dealt %d damage!" % total_damage)
 
+#endregion
+#region POWER CARDS (Maintain keyword)
 # ============================================
 # POWER CARDS (Maintain keyword)
 # ============================================
@@ -4470,6 +4478,8 @@ func _execute_armored_discipline(player_stats: PlayerStats, buff_mgr: BuffManage
 	if player_stats:
 		print("[CARD] Armored Discipline activated! Reserving %d mana. Gain armor when taking HP damage." % maintain_cost)
 
+#endregion
+#region RECKLESS STRIKE
 # ============================================
 # RECKLESS STRIKE
 # ============================================
@@ -4510,6 +4520,8 @@ func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerSt
 	print("[CARD] Reckless Strike! Dealt %d damage" % total_damage)
 
 # NEW CARDS
+#endregion
+#region static func create_blade_barrage() -> Card: var card = Card.new(
 # ============================================
 
 static func create_blade_barrage() -> Card:
@@ -4532,6 +4544,8 @@ static func create_blade_barrage() -> Card:
 
 # ============================================
 # MINOR WOUNDS (Status card with Erase)
+#endregion
+#region static func create_minor_wounds() -> Card: var card = Card.new()
 # ============================================
 
 static func create_minor_wounds() -> Card:
@@ -4577,6 +4591,8 @@ static func create_energy_barrier(armor: int = 5) -> Card:
 
 # ============================================
 # COLLECT ARROWS
+#endregion
+#region static func create_collect_arrows() -> Card: var card = Card.new
 # ============================================
 
 static func create_collect_arrows() -> Card:
@@ -4655,6 +4671,8 @@ static func create_self_infliction() -> Card:
 
 # ============================================
 # FOUNTAIN OF LIFE (Power card with Maintain)
+#endregion
+#region static func create_fountain_of_life() -> Card: var card = Card.n
 # ============================================
 
 static func create_fountain_of_life() -> Card:
@@ -4870,6 +4888,8 @@ func _execute_communal_donation(player_stats: PlayerStats, buff_mgr: BuffManager
 
 # ============================================
 # SHIELD READY
+#endregion
+#region static func create_shield_ready() -> Card: var card = Card.new()
 # ============================================
 static func create_shield_ready() -> Card:
 	var card = Card.new()
@@ -4897,6 +4917,8 @@ func _execute_shield_ready(player_stats: PlayerStats, buff_mgr: BuffManager = nu
 
 # ============================================
 # REPELLED BLOCK
+#endregion
+#region static func create_repelled_block() -> Card: var card = Card.new
 # ============================================
 static func create_repelled_block() -> Card:
 	var card = Card.new()
@@ -4922,6 +4944,8 @@ func _execute_repelled_block(player_stats: PlayerStats, buff_mgr: BuffManager = 
 
 # ============================================
 # SHIELD OF GROWTH
+#endregion
+#region static func create_shield_of_growth() -> Card: var card = Card.n
 # ============================================
 static func create_shield_of_growth() -> Card:
 	var card = Card.new()
@@ -4932,7 +4956,6 @@ static func create_shield_of_growth() -> Card:
 	card.card_type_name = "Defense"
 	card.mana_cost = 40
 	card.tempo_cost = 5
-	card.duration = 10
 	card.target_types = ["self"]
 	return card
 
@@ -4947,6 +4970,8 @@ func _execute_shield_of_growth(player_stats: PlayerStats, buff_mgr: BuffManager 
 
 # ============================================
 # GIFT FROM THE PHOENIX
+#endregion
+#region static func create_gift_from_the_phoenix() -> Card: var card = C
 # ============================================
 static func create_gift_from_the_phoenix() -> Card:
 	var card = Card.new()
@@ -4969,6 +4994,8 @@ func _execute_gift_from_the_phoenix(_player_stats: PlayerStats, _buff_mgr: BuffM
 
 # ============================================
 # NEW UTILITY / DEFENSE CARD EXECUTE FUNCTIONS
+#endregion
+#region func _execute_bloodlust(player_stats: PlayerStats, buff_mgr: Buf
 # ============================================
 
 func _execute_bloodlust(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -5022,6 +5049,8 @@ func _execute_down_but_not_out(player_stats: PlayerStats, buff_mgr: BuffManager 
 
 # ============================================
 # NEW CARD EXECUTE FUNCTIONS (Weapon Items Update)
+#endregion
+#region func _execute_anticipation(player_stats: PlayerStats, deck_manag
 # ============================================
 
 func _execute_anticipation(player_stats: PlayerStats, deck_manager = null) -> void:
@@ -5121,6 +5150,8 @@ func _execute_vengeful_shield(player_stats: PlayerStats, buff_mgr: BuffManager =
 
 # ============================================
 # JEREMY GENERATED CARDS
+#endregion
+#region func _execute_mana_surge(target, player_stats: PlayerStats, buff
 # ============================================
 
 func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0) -> void:
@@ -5159,6 +5190,8 @@ func _execute_shepherds_mark(player_stats: PlayerStats, deck_manager = null) -> 
 
 # ============================================
 # PREVIOUSLY-UNIMPLEMENTED CARD EFFECTS (Tier 1)
+#endregion
+#region func _execute_savage_strike(target, is_empowered: bool, player_s
 # ============================================
 
 func _execute_savage_strike(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float, self_damage_percent: float, buff_mgr: BuffManager, deck_manager, add_copy: bool) -> void:
@@ -5378,6 +5411,8 @@ static func create_magic_barrier(armor: int = 8) -> Card:
 
 # ============================================
 # SHEPHERD'S MARK (Whispers of the Flock)
+#endregion
+#region static func create_shepherds_mark(armor: int = 10) -> Card: # ar
 # ============================================
 
 static func create_shepherds_mark(armor: int = 10) -> Card:
@@ -5403,6 +5438,8 @@ static func create_shepherds_mark(armor: int = 10) -> Card:
 
 # ============================================
 # PETEY THE PET ROCK
+#endregion
+#region static func create_petey_the_pet_rock() -> Card: var card = Card
 # ============================================
 
 static func create_petey_the_pet_rock() -> Card:
@@ -5429,6 +5466,8 @@ static func create_petey_the_pet_rock() -> Card:
 
 # ============================================
 # ARMOR PATCH
+#endregion
+#region static func create_armor_patch() -> Card: var card = Card.new()
 # ============================================
 
 static func create_armor_patch() -> Card:
@@ -5453,6 +5492,8 @@ static func create_armor_patch() -> Card:
 
 # ============================================
 # NEW UTILITY / DEFENSE CARDS
+#endregion
+#region static func create_bloodlust() -> Card: var card = Card.new() ca
 # ============================================
 
 static func create_bloodlust() -> Card:
@@ -5542,6 +5583,8 @@ static func create_down_but_not_out() -> Card:
 
 # ============================================
 # ENCHANTMENT CARDS
+#endregion
+#region static func create_enchantment_defense() -> Card: var card = Car
 # ============================================
 
 static func create_enchantment_defense() -> Card:
@@ -5635,6 +5678,8 @@ static func create_healthy_habit() -> Card:
 
 # ============================================
 # NEW UTILITY / DEFENSE / REACTION CARDS
+#endregion
+#region static func create_anticipation() -> Card: var card = Card.new()
 # ============================================
 
 static func create_anticipation() -> Card:
@@ -5741,7 +5786,6 @@ static func create_harness_lightning() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.duration = 30
 	card.target_types = ["self"]
 	return card
 
@@ -5799,6 +5843,8 @@ static func create_vengeful_shield() -> Card:
 
 # ============================================
 # CORY NEW CARDS
+#endregion
+#region static func create_misery_loves_company() -> Card: var card = Ca
 # ============================================
 
 static func create_misery_loves_company() -> Card:
@@ -5850,7 +5896,6 @@ static func create_vines() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.duration = 15  # 3 turns ~ 15 tempo
 	card.target_types = ["enemy"]
 	return card
 
@@ -5873,6 +5918,8 @@ static func create_exposed_artery() -> Card:
 
 # ============================================
 # BRAD NEW CARDS
+#endregion
+#region static func create_internal_combustion() -> Card: var card = Car
 # ============================================
 
 static func create_internal_combustion() -> Card:
@@ -6067,7 +6114,6 @@ static func create_hunker_down() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.duration = 30
 	card.target_types = ["self"]
 	return card
 
@@ -6102,7 +6148,6 @@ static func create_harden() -> Card:
 	card.block = 10
 	card.base_block = 10
 	card.heal_amount = 0
-	card.duration = 15
 	card.target_types = ["self"]
 	return card
 
@@ -6125,6 +6170,8 @@ static func create_roll() -> Card:
 
 # ============================================
 # JEREMY NEW CARDS
+#endregion
+#region static func create_cryonics() -> Card: var card = Card.new() car
 # ============================================
 
 static func create_cryonics() -> Card:
@@ -6142,7 +6189,6 @@ static func create_cryonics() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 3
-	card.duration = 15
 	card.is_ranged = true
 	card.target_types = ["ally"]
 	return card
@@ -6254,6 +6300,8 @@ static func create_god_of_thunder() -> Card:
 
 # ============================================
 # HELM-GRANTED CARDS (item pass 1)
+#endregion
+#region static func create_neither_man_nor_beast() -> Card: var card = C
 # ============================================
 
 static func create_neither_man_nor_beast() -> Card:
@@ -6746,11 +6794,12 @@ static func create_healthy_bliss() -> Card:
 	card.base_block = 0
 	card.heal_amount = 10
 	card.target_types = ["ally"]
-	card.in_hand_heal_tempo = 20  # Heals all allies once it has spent this long in hand
 	return card
 
 # ============================================
 # WEAPON-GRANTED CARDS (weapons pass 1)
+#endregion
+#region static func create_hard_helmet() -> Card: var card = Card.new()
 # ============================================
 
 static func create_hard_helmet() -> Card:
@@ -6912,6 +6961,8 @@ static func create_monk_of_the_night() -> Card:
 
 # ============================================
 # CHEST-GRANTED CARDS (chests pass 1)
+#endregion
+#region static func create_clang_up() -> Card: var card = Card.new() car
 # ============================================
 
 static func create_clang_up() -> Card:
@@ -7057,6 +7108,8 @@ static func create_ragnarok() -> Card:
 
 # ============================================
 # RYAN NEW CARDS
+#endregion
+#region static func create_adrenaline_shot() -> Card: var card = Card.ne
 # ============================================
 
 static func create_adrenaline_shot() -> Card:
@@ -7115,6 +7168,8 @@ static func create_gargle_and_spit() -> Card:
 
 # ============================================
 # STEPHEN NEW CARDS
+#endregion
+#region static func create_exhausted_assault() -> Card: var card = Card.
 # ============================================
 
 static func create_exhausted_assault() -> Card:
@@ -7195,6 +7250,8 @@ static func create_spirit_arrow() -> Card:
 
 # ============================================
 # ITEM-GENERATED CARDS (Bladed Doughnut)
+#endregion
+#region Sprinkles are conjured into the hand by the Bladed Doughnut's on
 # ============================================
 # Sprinkles are conjured into the hand by the Bladed Doughnut's on-kill skill
 # — they never drop, never sit in the deck, and are erased the moment they're
@@ -7241,6 +7298,8 @@ static func create_sprinkle_bomb() -> Card:
 
 # ============================================
 # ITEM-GRANTED CARDS (Wooden Sword)
+#endregion
+#region static func create_splinter() -> Card: ## Granted by the Wooden
 # ============================================
 
 static func create_splinter() -> Card:
@@ -7263,6 +7322,8 @@ static func create_splinter() -> Card:
 
 # ============================================
 # ITEM-GRANTED CARDS (ranged pass 1)
+#endregion
+#region static func create_improvised_ammo() -> Card: ## Granted by the
 # ============================================
 
 static func create_improvised_ammo() -> Card:
@@ -7407,6 +7468,8 @@ static func create_spirit_bow() -> Card:
 
 # ============================================
 # ITEM-GRANTED CARDS (rings pass 1)
+#endregion
+#region static func create_tricks_of_alberich() -> Card: ## Ring of Nibe
 # ============================================
 
 static func create_tricks_of_alberich() -> Card:
@@ -7448,6 +7511,8 @@ static func create_the_nibelung_curse() -> Card:
 
 # ============================================
 # ITEM-GRANTED CARDS (shields pass 1)
+#endregion
+#region Every one of these arrives with its shield and leaves with it. T
 # ============================================
 # Every one of these arrives with its shield and leaves with it. The world-side
 # payloads (Huck's armor conversion, the arrow rain, the bouncing shield) live
@@ -7638,6 +7703,8 @@ static func create_mind_over_matter() -> Card:
 
 # ============================================
 # SPELL-WEAPON-GRANTED CARDS (spell weapons pass 1)
+#endregion
+#region static func create_element_pollination() -> Card: ## Elemental W
 # ============================================
 
 static func create_element_pollination() -> Card:
@@ -7793,19 +7860,6 @@ static func create_reapers_taking() -> Card:
 # RARITY HELPERS
 # ============================================
 
-static var _factory_map: Dictionary = {}  # card_id -> factory method name
-
-# Feral Evocation: while a converted card's play resolves, any Burn/Cold/
-# Shock/Poison it lands on an enemy is swapped to this element's debuff
-# ("" = off). Main sets it around the play; Enemy.apply_debuff reads it.
-static var active_element_remap: String = ""
-# Element Pollination (Elemental Weaver maintain): recomputed by main every
-# tempo tick off the maintained pile; enemies read it during debuff ticking.
-static var element_pollination_active: bool = false
-
-# The colored-slot element table shared by Feral Evocation's engine.
-const ELEMENT_DEBUFFS := {"red": "burn", "blue": "cold", "yellow": "shock", "green": "poison"}
-
 func get_rarity() -> Rarity:
 	return CARD_RARITIES.get(card_id, Rarity.COMMON)
 
@@ -7842,3 +7896,4 @@ static func create_by_id(cid: String) -> Card:
 	if cid in _factory_map:
 		return (Card as Script).call(_factory_map[cid])
 	return null
+#endregion

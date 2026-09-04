@@ -13,6 +13,7 @@ signal debuff_applied(enemy: Enemy, debuff_name: String, value: int)
 signal debuff_expired(enemy: Enemy, debuff_name: String)
 signal exposed(enemy: Enemy)
 signal attacked_player(enemy: Enemy)
+signal barricade_attacked(enemy, cell: Vector2i)  # blocked: swings at a barricade toward its target
 signal movement_completed(enemy: Enemy)
 
 enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_RAT, HYDRA, FIRE_GOBLIN_SOLDIER, FIRE_GOBLIN_MAGE, FIRE_GOBLIN_SHAMAN,
@@ -129,7 +130,6 @@ var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
 # many tiles the action covers — unlike the player, who pays per tile.
 # Stacks accumulate freely (Sword of Theseus ramps them) — no timed expiry.
 var slow_stacks: int = 0
-var inebriated_tempo: int = 0  # Inebriate (matches the player's): movement direction randomized
 # Cursed (matches the player's): deals 20% less damage and takes 20% of the
 # damage it deals as self-damage — both boosted by the player's Curse Amp /
 # Curse Pain sphere nodes. Counts in raw tempo.
@@ -233,6 +233,7 @@ var _wake_prev_cell: Vector2i = Vector2i(-9999, -9999)  # Inflamed Minotaur: fir
 var _wererabbit_tempo: int = 0            # Wererabbit: flees 3 cycles (15 tempo), then vanishes
 var _crawler_attack_streak: int = 0       # Crypt Crawler: webs after 3 consecutive bites
 
+#region TEMPO ACTION SYSTEM
 # ============================================
 # TEMPO ACTION SYSTEM
 # ============================================
@@ -277,6 +278,8 @@ const MOVEMENT_ACTIONS := {
 ## Armored Troll passive: accumulator for regeneration (heals 3 HP every 6 global tempo).
 var regen_accumulator: int = 0
 
+#endregion
+#region TEMPO BAR VISUALS
 # ============================================
 # TEMPO BAR VISUALS
 # ============================================
@@ -1249,6 +1252,8 @@ func _setup_actions() -> void:
 				{"name": "move",            "tempo_cost": 3},
 			]
 
+#endregion
+#region COMPENDIUM DATA
 # ============================================
 # COMPENDIUM DATA
 # ============================================
@@ -1531,6 +1536,8 @@ static func get_all_enemy_data() -> Array:
 		})
 	return result
 
+#endregion
+#region TEMPO BAR SETUP
 # ============================================
 # TEMPO BAR SETUP
 # ============================================
@@ -1663,6 +1670,8 @@ func _refresh_armor_bar_image() -> void:
 
 	_armor_bar_sprite.texture = ImageTexture.create_from_image(img)
 
+#endregion
+#region TEMPO-DRIVEN ACTION HANDLING
 # ============================================
 # TEMPO-DRIVEN ACTION HANDLING
 # ============================================
@@ -1747,7 +1756,7 @@ func _tick_timed_statuses(amount: int) -> void:
 		return
 	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
-		or frozen_tempo > 0 or stun_tempo > 0 or inebriated_tempo > 0 \
+		or frozen_tempo > 0 or stun_tempo > 0 \
 		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0
 	if not any:
 		return
@@ -1817,13 +1826,6 @@ func _tick_timed_statuses(amount: int) -> void:
 			is_stunned = false
 			print("[%s] Stun expired, can act again" % enemy_name)
 			debuff_expired.emit(self, "stun")
-
-	if inebriated_tempo > 0:
-		inebriated_tempo -= amount
-		if inebriated_tempo <= 0:
-			inebriated_tempo = 0
-			print("[%s] Sobered up — movement restored" % enemy_name)
-			debuff_expired.emit(self, "inebriate")
 
 	if cursed_tempo > 0:
 		cursed_tempo -= amount
@@ -1907,7 +1909,7 @@ func _tick_status_durations() -> void:
 
 	# Bleed no longer clots by time — stacks fall as the wound bleeds (1 damage
 	# per tile moved, 1 stack per damage; see the tile-step in _physics_process).
-	# Timed statuses (stun, frozen, root, inebriate...) tick per raw tempo in
+	# Timed statuses (stun, frozen, root, curse...) tick per raw tempo in
 	# _tick_timed_statuses, not here.
 
 	# Cold: thaws 1 stack per cycle so it's a combo window, not a permanent
@@ -1997,6 +1999,8 @@ func _check_and_fire_actions(player_node: Node3D) -> void:
 		# Immediately choose next action so the bar shows what's coming
 		_choose_action(player_node)
 
+#endregion
+#region AI - ACTION SELECTION
 # ============================================
 # AI - ACTION SELECTION
 # ============================================
@@ -2379,6 +2383,8 @@ func _get_action(action_name: String) -> Dictionary:
 			return action
 	return actions[0] if actions.size() > 0 else {}
 
+#endregion
+#region ACTION EXECUTION
 # ============================================
 # ACTION EXECUTION
 # ============================================
@@ -2386,23 +2392,6 @@ func _get_action(action_name: String) -> Dictionary:
 func _execute_action(action_name: String, move_target: Node3D) -> bool:
 	# Play animation for this action
 	_play_enemy_animation(action_name)
-
-	# Inebriated (matches the player's): movement staggers off in a random
-	# direction instead of going where the AI wanted.
-	if inebriated_tempo > 0 and MOVEMENT_ACTIONS.has(action_name):
-		var drunk_dir := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
-		if drunk_dir.length() < 0.1:
-			drunk_dir = Vector3(1, 0, 0)
-		drunk_dir = drunk_dir.normalized()
-		var stagger_tiles := 2
-		if grid_manager:
-			var drunk_cell = grid_manager.world_to_grid(position + drunk_dir * float(stagger_tiles))
-			_start_path(_build_greedy_path(position, drunk_cell, stagger_tiles))
-		else:
-			target_position = position + drunk_dir * float(stagger_tiles)
-			is_moving = true
-		print("[%s] Inebriated! Staggers off in a random direction" % enemy_name)
-		return true
 
 	match action_name:
 		"attack":
@@ -2648,6 +2637,8 @@ func _apply_burn_to_player(player_node: Node3D, stacks: int) -> void:
 	for i in range(stacks):
 		dm.apply_debuff(Debuff.new(Debuff.DebuffType.BURN, 1))
 
+#endregion
+#region FOREST ACT
 # ============================================
 # FOREST ACT — ACTIONS & HELPERS
 # ============================================
@@ -2797,6 +2788,8 @@ func _try_pipe_claw(target_node: Node3D) -> bool:
 	turn_completed.emit()
 	return true
 
+#endregion
+#region ELITE FIRST PASS
 # ============================================
 # ELITE FIRST PASS — ACTIONS & HELPERS
 # ============================================
@@ -3627,6 +3620,20 @@ func _finish_player_hit(player_node: Node3D) -> void:
 		player_node.on_attacked_by(self)
 	attacked_player.emit(self)
 
+## A barricade wall in the way: when no step toward the target is possible,
+## swing at an adjacent blocked tile that lies toward it. Main decides whether
+## that tile is a breakable barricade (two hits fell one) or true terrain.
+func _try_smash_barricade(goal_cell: Vector2i) -> void:
+	if not grid_manager or is_dead:
+		return
+	var cur := grid_manager.world_to_grid(position)
+	var cur_dist := _manhattan_dist(cur, goal_cell)
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var candidate: Vector2i = cur + d
+		if candidate in blocked_tiles and _manhattan_dist(candidate, goal_cell) < cur_dist:
+			barricade_attacked.emit(self, candidate)
+			return
+
 ## Dash multiple tiles toward a position in one action.
 ## Stops at any barricade tile encountered along the path.
 func _dash_towards_target(pos: Vector3, tiles: int) -> void:
@@ -3644,6 +3651,7 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 	if grid_manager:
 		var player_cell = grid_manager.world_to_grid(pos)
 		if not _start_path(_build_greedy_path(position, player_cell, tiles)):
+			_try_smash_barricade(player_cell)
 			return  # Can't move at all
 	else:
 		var diff = pos - position
@@ -3682,6 +3690,8 @@ func _regenerate(amount: int) -> void:
 			tween.tween_property(mat, "albedo_color", Color.GREEN, 0.15)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.15)
 
+#endregion
+#region TEMPO BAR VISUAL UPDATE
 # ============================================
 # TEMPO BAR VISUAL UPDATE
 # ============================================
@@ -3722,6 +3732,8 @@ func _update_tempo_bar() -> void:
 	if _action_label:
 		_action_label.text = chosen_action.get("name", "").capitalize()
 
+#endregion
+#region PHYSICS
 # ============================================
 # PHYSICS
 # ============================================
@@ -3793,6 +3805,8 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
+#endregion
+#region MOVEMENT & COMBAT
 # ============================================
 # MOVEMENT & COMBAT
 # ============================================
@@ -3896,6 +3910,8 @@ func _manhattan_dist(a: Vector2i, b: Vector2i) -> int:
 func attack_player(player_node: Node3D) -> void:
 	_deal_damage_to_player(player_node, attack_damage, "Attack")
 
+#endregion
+#region TAKING DAMAGE
 # ============================================
 # TAKING DAMAGE
 # ============================================
@@ -4141,6 +4157,8 @@ func _alert_mini_bear_pack() -> void:
 				e.pack_attack_bonus += 2
 				print("[%s] Packmate hurt — attack now +%d" % [e.enemy_name, e.pack_attack_bonus])
 
+#endregion
+#region FLOATING DAMAGE NUMBERS
 # ============================================
 # FLOATING DAMAGE NUMBERS
 # ============================================
@@ -4187,6 +4205,8 @@ func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
 	tween.chain()
 	tween.tween_callback(label.queue_free)
 
+#endregion
+#region DAMAGE PREVIEW
 # ============================================
 # DAMAGE PREVIEW
 # ============================================
@@ -4216,6 +4236,8 @@ func hide_damage_preview() -> void:
 	if _damage_preview_label and is_instance_valid(_damage_preview_label):
 		_damage_preview_label.visible = false
 
+#endregion
+#region STATUS EFFECTS
 # ============================================
 # STATUS EFFECTS
 # ============================================
@@ -4308,7 +4330,6 @@ func apply_wear_down(tempo: int) -> void:
 ## Keys mirror the match arms in apply_debuff.
 func has_debuff_type(debuff_name: String) -> bool:
 	match debuff_name:
-		"inebriate": return inebriated_tempo > 0
 		"stun": return is_stunned and stun_tempo > 0
 		"slow": return slow_stacks > 0
 		"disarmed": return is_disarmed and disarmed_tempo > 0
@@ -4342,10 +4363,6 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		debuff_name = Card.active_element_remap
 	last_debuff_was_new = not has_debuff_type(debuff_name)
 	match debuff_name:
-		"inebriate":
-			# Matches the player's Inebriate: movement direction is randomized.
-			inebriated_tempo = max(inebriated_tempo, value)
-			print("[%s] Inebriated for %d tempo — movement randomized!" % [enemy_name, inebriated_tempo])
 		"stun":
 			is_stunned = true
 			stun_tempo = max(stun_tempo, value + int(_player_sphere_amp("sphere_stun_amp")))
@@ -4475,6 +4492,8 @@ func knockback(away_from: Vector3, spaces: int = 1) -> void:
 	target_position = new_pos
 	print("[%s] Knocked back %d space(s)" % [enemy_name, spaces])
 
+#endregion
+#region HEALTH & DISPLAY
 # ============================================
 # HEALTH & DISPLAY
 # ============================================
@@ -4599,6 +4618,8 @@ func _die_visuals() -> void:
 func is_alive() -> bool:
 	return not is_dead
 
+#endregion
+#region STATUS EFFECT DATA & VISUAL INDICATORS
 # ============================================
 # STATUS EFFECT DATA & VISUAL INDICATORS
 # ============================================
@@ -4628,8 +4649,6 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
 	if slow_stacks > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
-	if inebriated_tempo > 0:
-		effects.append({"name": "Inebriate", "color": Color(0.8, 0.4, 0.8), "stacks": inebriated_tempo})
 	if cursed_tempo > 0:
 		effects.append({"name": "Cursed", "color": Color(0.3, 0.0, 0.3), "stacks": cursed_tempo})
 	if is_disarmed and disarmed_tempo > 0:
@@ -4778,3 +4797,4 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 		root.add_child(label)
 
 	return root
+#endregion

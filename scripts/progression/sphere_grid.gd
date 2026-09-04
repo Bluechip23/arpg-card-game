@@ -696,14 +696,6 @@ func check_constellation_completion() -> Array[String]:
 			print("[SPHERE GRID] Constellation completed: %s — %s" % [c.name, c.bonus_description])
 	return newly_completed
 
-func get_constellations_for_node(node_id: int) -> Array[Constellation]:
-	## Returns all constellations that include this node.
-	var result: Array[Constellation] = []
-	for c in constellations:
-		if node_id in c.node_ids:
-			result.append(c)
-	return result
-
 func get_constellation_progress(id: String) -> Dictionary:
 	## Returns { "unlocked": int, "total": int, "node_ids": Array, "unlocked_ids": Array }
 	var c = get_constellation(id)
