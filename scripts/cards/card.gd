@@ -4,9 +4,6 @@ extends Resource
 ## Card resource that holds card data
 
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
-# CHISEL / SWIFT / CROWN are retired (no card carries them; boots and helms
-# accept any card) — slots kept for enum-order compat. BUCKLER kept by design:
-# shields accept any card until Buckler cards exist.
 enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL, SWIFT, BUCKLER, CROWN, FIST }
 
 # The card's SCHOOL — how the card is delivered — orthogonal to CardType (its
@@ -291,7 +288,7 @@ var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = s
 var source_item_type: int = -1  # ItemData.ItemType the card was first extracted from (-1 = no restriction yet)
 var is_molded: bool = false  # Card is locked into the item and cannot be extracted
 var slotted_in_item = null  # Reference to the ItemData this card is slotted in (null = not slotted)
-# The item that GRANTED this card to the deck (GRANT_CARDS).
+# The item that GRANTED this card to the deck (GRANT_CARDS / GRANT_BLINK_CARD).
 # Parallels slotted_in_item: both mark a card as "owned" by an item, so it is
 # pulled from every zone when the item is unequipped and returned when it is
 # re-equipped. Cards merely PRODUCED during play (e.g. a goblet's heal orb) set
@@ -772,6 +769,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"silence": "Cannot play spell cards",
 		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage",
 		"poison": "Take X damage per cycle, lose 1 poison each cycle",
+		"cursed": "Deal 20% less damage and deal 20% damage to self",
 		"frozen": "Cannot play cards (a frozen enemy cannot act at all)",
 		"cuffed": "Cannot draw cards",
 		"shocked": "Arc X damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle",

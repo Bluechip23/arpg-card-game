@@ -415,12 +415,22 @@ func roll_clumsy() -> bool:
 
 func get_damage_reduction_percent() -> float:
 	var reduction := 0.0
+	# Cursed: always 20% less damage dealt
+	if has_debuff(Debuff.DebuffType.CURSED):
+		reduction += 0.2
 	# Weakened (mirrors the enemy-side Weaken): -30% damage dealt while any
 	# stacks remain; one stack burns per attack (see on_attack).
 	var weakened = get_debuff(Debuff.DebuffType.WEAKENED)
 	if weakened and weakened.value > 0:
 		reduction += Debuff.WEAKENED_REDUCTION / 100.0
 	return minf(reduction, 0.9)
+
+func get_self_damage_percent() -> float:
+	# Cursed: always 20% damage to self
+	var cursed = get_debuff(Debuff.DebuffType.CURSED)
+	if cursed:
+		return 0.2
+	return 0.0
 
 # ============================================
 # MOVEMENT EFFECTS

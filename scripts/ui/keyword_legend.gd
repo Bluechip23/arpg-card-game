@@ -34,6 +34,7 @@ func _build_legend() -> void:
 	_add_keyword("Silence", "Cannot play spell cards", Color(0.5, 0.0, 0.8))
 	_add_keyword("Burn", "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage", Color(1.0, 0.5, 0.0))
 	_add_keyword("Poison", "Take X damage per cycle, lose 1 poison each cycle", Color(0.2, 0.8, 0.2))
+	_add_keyword("Cursed", "Deal 20% less damage and deal 20% damage to self", Color(0.3, 0.0, 0.3))
 	_add_keyword("Frozen", "Cannot play cards (a frozen enemy cannot act at all)", Color(0.5, 0.8, 1.0))
 	_add_keyword("Cuffed", "Cannot draw cards", Color(0.5, 0.5, 0.5))
 	_add_keyword("Shocked", "Arc X damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle", Color(1.0, 1.0, 0.3))

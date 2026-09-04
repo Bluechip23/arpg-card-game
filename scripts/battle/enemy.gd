@@ -129,6 +129,10 @@ var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
 # many tiles the action covers — unlike the player, who pays per tile.
 # Stacks accumulate freely (Sword of Theseus ramps them) — no timed expiry.
 var slow_stacks: int = 0
+# Cursed (matches the player's): deals 20% less damage and takes 20% of the
+# damage it deals as self-damage — both boosted by the player's Curse Amp /
+# Curse Pain sphere nodes. Counts in raw tempo.
+var cursed_tempo: int = 0
 var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
@@ -1752,7 +1756,7 @@ func _tick_timed_statuses(amount: int) -> void:
 	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
 		or frozen_tempo > 0 or stun_tempo > 0 \
-		or rooted_tempo > 0 or narashimha_tempo > 0
+		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0
 	if not any:
 		return
 
@@ -1821,6 +1825,13 @@ func _tick_timed_statuses(amount: int) -> void:
 			is_stunned = false
 			print("[%s] Stun expired, can act again" % enemy_name)
 			debuff_expired.emit(self, "stun")
+
+	if cursed_tempo > 0:
+		cursed_tempo -= amount
+		if cursed_tempo <= 0:
+			cursed_tempo = 0
+			print("[%s] Curse lifted" % enemy_name)
+			debuff_expired.emit(self, "cursed")
 
 	if rooted_tempo > 0:
 		rooted_tempo -= amount
@@ -1897,7 +1908,7 @@ func _tick_status_durations() -> void:
 
 	# Bleed no longer clots by time — stacks fall as the wound bleeds (1 damage
 	# per tile moved, 1 stack per damage; see the tile-step in _physics_process).
-	# Timed statuses (stun, frozen, root, inebriate...) tick per raw tempo in
+	# Timed statuses (stun, frozen, root, curse...) tick per raw tempo in
 	# _tick_timed_statuses, not here.
 
 	# Cold: thaws 1 stack per cycle so it's a combo window, not a permanent
@@ -3514,6 +3525,17 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		# zone — no stack to consume, it lifts the moment the enemy leaves.
 		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - weaken_percent / 100.0))
 		print("[%s] Weakened by the Territorial Mark! -%d%% damage" % [enemy_name, int(weaken_percent)])
+	# Cursed (player-applied): deals (20 + Curse Amp)% less damage, and takes
+	# (20 + Curse Pain)% of the damage it deals back as self-damage.
+	if cursed_tempo > 0:
+		var curse_reduce: float = 20.0 + _player_sphere_amp("sphere_curse_amp")
+		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - curse_reduce / 100.0))
+		print("[%s] Cursed! -%d%% damage dealt" % [enemy_name, int(curse_reduce)])
+		var curse_pain: float = 20.0 + _player_sphere_amp("sphere_curse_pain_amp")
+		var self_dmg: int = floori(effective_damage * curse_pain / 100.0)
+		if self_dmg > 0 and not is_dead:
+			take_damage(self_dmg, false)
+			print("[%s] Cursed! Takes %d self-damage (%d%% of the blow)" % [enemy_name, self_dmg, int(curse_pain)])
 	print("[%s] %s for %d damage! (base %d, reduction %d)" % [enemy_name, attack_name, effective_damage, base_damage, attack_reduction])
 
 	# Summon targets (Frankensteins Monster, surfaced Bull Worms) have no player
@@ -4306,6 +4328,7 @@ func has_debuff_type(debuff_name: String) -> bool:
 		"vulnerable": return vulnerable_stacks > 0
 		"weaken": return weaken_stacks > 0
 		"root": return rooted_tempo > 0
+		"cursed": return cursed_tempo > 0
 		"disarm_attacks": return disarmed_attacks > 0
 		"narashimha": return narashimha_tempo > 0
 		"polymorph": return polymorph_tempo > 0
@@ -4395,6 +4418,11 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			# value is the hold in raw tempo; can attack and cast, cannot move
 			rooted_tempo = max(rooted_tempo, value + int(_player_sphere_amp("sphere_root_amp")))
 			print("[%s] Rooted for %d tempo!" % [enemy_name, rooted_tempo])
+		"cursed":
+			# Matches the player's Cursed: deals less damage AND hurts itself on
+			# every attack (base 20%/20%, boosted by Curse Amp / Curse Pain).
+			cursed_tempo = max(cursed_tempo, value)
+			print("[%s] Cursed for %d tempo!" % [enemy_name, cursed_tempo])
 		"disarm_attacks":
 			disarmed_attacks += value
 			print("[%s] Disarmed for %d attack(s)!" % [enemy_name, disarmed_attacks])
@@ -4605,6 +4633,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
 	if slow_stacks > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
+	if cursed_tempo > 0:
+		effects.append({"name": "Cursed", "color": Color(0.3, 0.0, 0.3), "stacks": cursed_tempo})
 	if is_disarmed and disarmed_tempo > 0:
 		effects.append({"name": "Disarm", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_tempo})
 	if is_marked and marked_tempo > 0:

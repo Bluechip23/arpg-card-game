@@ -604,7 +604,7 @@ func _apply_special_effect(item: ItemData, equipping: bool) -> void:
 	if not player_stats:
 		return
 	
-	# NOTE: GRANT_CARDS no longer add/remove cards here. Item
+	# NOTE: GRANT_BLINK_CARD / GRANT_CARDS no longer add/remove cards here. Item
 	# card ownership (both granted and slotted cards) is handled uniformly by
 	# _add_item_cards_to_deck / _remove_item_cards_from_deck, called from
 	# equip_item / unequip_item, so cards travel with the item on every swap.
@@ -658,7 +658,7 @@ func apply_equipped_item_card_effects() -> void:
 # ITEM-OWNED CARDS (swap in / swap out)
 # ============================================
 # An equipped item "owns" two kinds of cards:
-#   * granted cards  — added to the deck by GRANT_CARDS
+#   * granted cards  — added to the deck by GRANT_CARDS / GRANT_BLINK_CARD
 #   * slotted cards  — enchanted into the item's card slots
 # Both travel WITH the item: they enter the deck when it is equipped and are
 # pulled from every zone when it is unequipped. The card INSTANCES persist on
@@ -693,6 +693,12 @@ func _ensure_granted_card_instances(item: ItemData) -> void:
 				print("[INVENTORY] %s mana cost reduced to %d (belt bonus)" % [card.card_name, card.mana_cost])
 			card.granted_by_item = item
 			item.granted_card_instances.append(card)
+
+	if item.special_effect == ItemData.SpecialEffect.GRANT_BLINK_CARD:
+		for i in range(item.special_effect_value):
+			var blink_card = Card.create_blink()
+			blink_card.granted_by_item = item
+			item.granted_card_instances.append(blink_card)
 
 
 func _create_granted_card(card_id: String) -> Card:
@@ -947,8 +953,12 @@ func on_armor_gained(amount: int) -> void:
 			for item in slot:
 				if not item:
 					continue
+				# Bloodbound Plate uses OVERFLOW_HEAL_ARMOR with special_effect_value_2
+				if item.special_effect == ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR and item.special_effect_value_2 > 0:
+					player_stats.add_armor(item.special_effect_value_2)
+					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value_2])
 				# General armor-on-armor-gain items (helm, shield, gauntlets, etc.)
-				if item.special_effect == ItemData.SpecialEffect.ARMOR_ON_ARMOR_GAIN:
+				elif item.special_effect == ItemData.SpecialEffect.ARMOR_ON_ARMOR_GAIN:
 					player_stats.add_armor(item.special_effect_value)
 					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value])
 		_applying_armor_instance_bonus = false
@@ -1175,11 +1185,17 @@ func can_use_gauntlet_skill(gauntlet: ItemData) -> bool:
 		return false
 	if gauntlet.is_on_cooldown():
 		return false
+	if player_stats and not player_stats.has_mana(gauntlet.gauntlet_skill_mana_cost):
+		return false
 	return true
 
 func use_gauntlet_skill(gauntlet: ItemData, target = null) -> bool:
 	if not can_use_gauntlet_skill(gauntlet):
 		return false
+	
+	# Spend mana
+	if player_stats:
+		player_stats.spend_mana(gauntlet.gauntlet_skill_mana_cost)
 	
 	# Execute skill effect
 	_execute_gauntlet_skill(gauntlet, target)
@@ -1315,6 +1331,12 @@ func get_equipped_shields() -> Array[ItemData]:
 
 func has_shield_equipped() -> bool:
 	return get_equipped_shield() != null
+
+func has_pocket_knife_equipped() -> bool:
+	for weapon in equipped_weapons:
+		if weapon and weapon.special_effect == ItemData.SpecialEffect.POCKET_KNIFE_PROC:
+			return true
+	return false
 
 func get_total_weight() -> int:
 	# Every slot routes through _effective_item_weight so chest reduction, the

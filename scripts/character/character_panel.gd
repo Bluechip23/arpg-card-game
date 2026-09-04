@@ -1812,10 +1812,14 @@ func _build_item_effect_text(item: ItemData) -> String:
 	var lines: Array[String] = []
 	if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 		lines.append("[Active] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
-		lines.append("  CD: %d turns" % item.gauntlet_skill_cooldown)
+		lines.append("  Cost: %d Mana | CD: %d turns" % [item.gauntlet_skill_mana_cost, item.gauntlet_skill_cooldown])
 	elif item.gauntlet_skill_type == ItemData.GauntletSkillType.PASSIVE:
 		lines.append("[Passive] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
 	match item.special_effect:
+		ItemData.SpecialEffect.OVERFLOW_HEAL_ARMOR:
+			lines.append("[Overflow] Heal %d, +%d Armor" % [item.special_effect_value, item.special_effect_value_2])
+		ItemData.SpecialEffect.GRANT_BLINK_CARD:
+			lines.append("[Equip] Grants %d Blink card(s)" % item.special_effect_value)
 		ItemData.SpecialEffect.CHANCE_BOOST:
 			lines.append("[Passive] +%d%% chance effects" % item.special_effect_value)
 		ItemData.SpecialEffect.GRANT_CARDS:

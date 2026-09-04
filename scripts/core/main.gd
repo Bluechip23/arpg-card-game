@@ -2040,6 +2040,11 @@ func _execute_basic_attack(target: Enemy) -> void:
 		if stats.keystone_dex_twin_strike:
 			damage *= 2
 			print("[MAIN] Flurry Form: basic attack strikes twice!")
+		# Pocket Knife: -2 additional tempo
+		var ba_inv = player.get_inventory()
+		if ba_inv and ba_inv.has_pocket_knife_equipped():
+			tempo_cost = maxi(0, tempo_cost - 2)
+			print("[MAIN] Pocket Knife! Basic attack tempo reduced to %d" % tempo_cost)
 		print("[MAIN] Dex proc on basic attack! Tempo halved to %d" % tempo_cost)
 		_on_hand_updated()
 		_update_attack_button_text()
@@ -3241,6 +3246,10 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	if preview_proc:
 		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
 		preview_tempo = preview_tempo / 2
+		# Pocket Knife: additional -2 tempo
+		var tip_inv = player.get_inventory()
+		if tip_inv and tip_inv.has_pocket_knife_equipped():
+			preview_tempo = maxi(0, preview_tempo - 2)
 
 	var info_row = HBoxContainer.new()
 	info_row.add_theme_constant_override("separation", 8)
@@ -6078,6 +6087,10 @@ func _on_hand_updated() -> void:
 	var draw_origin = _get_draw_pile_pos()
 
 	var dex_proc_active = deck_manager.next_attack_half_tempo or deck_manager.next_attack_mana_discount > 0
+	var pocket_knife = false
+	if dex_proc_active:
+		var hand_inv = player.get_inventory()
+		pocket_knife = hand_inv and hand_inv.has_pocket_knife_equipped()
 
 	var anim_ordinal := 0
 	for g in range(group_count):
@@ -6089,7 +6102,7 @@ func _on_hand_updated() -> void:
 		var card_ui = CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
 		# Debuff hexed/locked display keys off the card's real hand index.
-		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active)
+		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active, pocket_knife)
 		card_ui.set_stack_depth(count)
 		# The instant stack has no play key — its badge reads AUTO instead.
 		var badge_letter: String = "" if group["slot"] == HandSlotsScript.INSTANT_SLOT else _slot_letter(group["slot"])
@@ -6840,7 +6853,6 @@ func _process_glut_countdown() -> void:
 			print("[MAIN] Glut expired!")
 		else:
 			print("[MAIN] Glut: %d tempo remaining" % glut_tempo_remaining)
-
 #endregion
 #region TEMPO & DECK DISPLAYS
 func _reroll_card_rng() -> void:
@@ -6987,6 +6999,9 @@ func _update_attack_button_text() -> void:
 			_attack_damage_label.text = str(_get_basic_attack_display_damage())
 		if proc_active:
 			var proc_tempo = 5 / 2  # Halved
+			var btn_inv = player.get_inventory()
+			if btn_inv and btn_inv.has_pocket_knife_equipped():
+				proc_tempo = maxi(0, proc_tempo - 2)
 			_attack_tempo_label.text = "%dT (PROC)" % proc_tempo
 		else:
 			_attack_tempo_label.text = "5T (%d)" % proc_count
@@ -7449,6 +7464,13 @@ func play_selected_card(target) -> void:
 			tempo_cost = tempo_cost / 2
 			resolve_tick = resolve_tick / 2
 			resolve_tick = maxi(resolve_tick, mini(1, tempo_cost))  # At least tick 1 if there's any tempo
+			# Pocket Knife: resolve on first tick and -2 additional tempo
+			var inv = player.get_inventory()
+			if inv and inv.has_pocket_knife_equipped():
+				tempo_cost = maxi(0, tempo_cost - 2)
+				if tempo_cost > 0:
+					resolve_tick = 1
+				print("[MAIN] Pocket Knife! Tempo reduced to %d, resolve tick %d" % [tempo_cost, resolve_tick])
 			print("[MAIN] Dex proc! Tempo %d, resolve tick %d" % [tempo_cost, resolve_tick])
 
 		# Start ticked tempo — card ticks are appended sequentially
@@ -7830,6 +7852,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		var self_damage = 0.0
 		if debuff_mgr:
 			damage_reduction = debuff_mgr.get_damage_reduction_percent()
+			self_damage = debuff_mgr.get_self_damage_percent()
 		for i in range(2):
 			progression_triggers.arm_pre_attack_passives(replay_card, replay_target)
 			replay_card.execute(replay_target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
@@ -11931,7 +11954,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	# Execute the card
 	var damage_reduction = debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
-	var self_damage = 0.0
+	var self_damage = debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
 	progression_triggers.arm_pre_attack_passives(card, target)
 	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
 	progression_triggers.clear_pre_attack_passives()

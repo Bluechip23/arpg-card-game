@@ -11,7 +11,7 @@ enum DebuffType {
 	BURN,
 	POISON,
 	INEBRIATE,  # retired (nothing applies it); slot kept for enum-order compat
-	CURSED,  # retired (nothing applies it); slot kept for enum-order compat
+	CURSED,
 	FROZEN,
 	CUFFED,
 	SHOCKED,
@@ -93,6 +93,9 @@ func _set_name_and_description() -> void:
 		DebuffType.POISON:
 			debuff_name = "Poison"
 			description = "Take %d damage per cycle, lose 1 poison each cycle" % value
+		DebuffType.CURSED:
+			debuff_name = "Cursed"
+			description = "Deal 20% less damage and deal 20% damage to self"
 		DebuffType.FROZEN:
 			debuff_name = "Frozen"
 			description = "Cannot play cards"
@@ -159,6 +162,7 @@ func get_icon_color() -> Color:
 		DebuffType.SILENCE: return Color(0.5, 0.0, 0.8)
 		DebuffType.BURN: return Color(1.0, 0.5, 0.0)
 		DebuffType.POISON: return Color(0.2, 0.8, 0.2)
+		DebuffType.CURSED: return Color(0.3, 0.0, 0.3)
 		DebuffType.FROZEN: return Color(0.5, 0.8, 1.0)
 		DebuffType.CUFFED: return Color(0.5, 0.5, 0.5)
 		DebuffType.SHOCKED: return Color(1.0, 1.0, 0.3)

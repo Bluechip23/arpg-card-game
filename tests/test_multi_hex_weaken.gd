@@ -5,7 +5,7 @@ extends SceneTree
 ## land on two different cards; surcharge reads per card; playing a hexed card
 ## clears only the hexes riding it; indices shift when an earlier card leaves
 ## the hand; more hexes than cards stack onto shared cards.
-## Weakened — -30% damage dealt while stacks remain (stacking,
+## Weakened — -30% damage dealt while stacks remain (stacking with Cursed,
 ## capped), one stack burned per attack, expiring at zero.
 ## Run: godot --headless --path . --script tests/test_multi_hex_weaken.gd
 
@@ -90,6 +90,11 @@ func _initialize() -> void:
 	dm.on_attack()
 	_check(not dm.has_debuff(Debuff.DebuffType.WEAKENED), "Weakened gone after its 2 attacks")
 	_check(is_equal_approx(dm.get_damage_reduction_percent(), 0.0), "no reduction once worn off")
+
+	# --- Weakened + Cursed stack ---
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.WEAKENED, 1, -1))
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.CURSED, 0, 15))
+	_check(is_equal_approx(dm.get_damage_reduction_percent(), 0.5), "Weakened (30%) + Cursed (20%) = 50%")
 
 	deck.free()
 	dm.free()

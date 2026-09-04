@@ -37,9 +37,10 @@ func setup(item: ItemData) -> void:
 			_total_recharge_tempo(),
 		]
 	else:
-		tooltip_text = "%s\n%s\nRecharge: %d tempo" % [
+		tooltip_text = "%s\n%s\nCost: %d Mana | Recharge: %d tempo" % [
 			item.gauntlet_skill_name,
 			item.gauntlet_skill_description,
+			item.gauntlet_skill_mana_cost,
 			_total_recharge_tempo(),
 		]
 	update_display()

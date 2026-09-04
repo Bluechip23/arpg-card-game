@@ -348,6 +348,15 @@ static func _draw(img: Image, key: String) -> bool:
 			var yellow := Color(1.0, 0.95, 0.3)
 			_tri(img, Vector2(14, 2), Vector2(8, 13), Vector2(13, 13), yellow)
 			_tri(img, Vector2(13, 13), Vector2(15, 10), Vector2(9, 22), yellow)
+		"cursed":
+			# A voodoo doll with pins.
+			var burlap := Color(0.6, 0.45, 0.3)
+			_disc(img, 12, 6, 3, burlap)
+			_rect(img, 9, 9, 7, 8, burlap)
+			_rect(img, 5, 10, 4, 2, burlap); _rect(img, 16, 10, 4, 2, burlap)
+			_rect(img, 9, 17, 2, 4, burlap); _rect(img, 14, 17, 2, 4, burlap)
+			_line(img, 7, 4, 12, 11, steel); _disc(img, 7, 4, 1.2, Color(0.9, 0.2, 0.2))
+			_line(img, 19, 7, 13, 13, steel); _disc(img, 19, 7, 1.2, Color(0.9, 0.2, 0.2))
 		"drain":
 			# A green swirl.
 			var g := Color(0.35, 0.8, 0.4)
