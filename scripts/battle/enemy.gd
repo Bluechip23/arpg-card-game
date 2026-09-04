@@ -13,6 +13,7 @@ signal debuff_applied(enemy: Enemy, debuff_name: String, value: int)
 signal debuff_expired(enemy: Enemy, debuff_name: String)
 signal exposed(enemy: Enemy)
 signal attacked_player(enemy: Enemy)
+signal barricade_attacked(enemy, cell: Vector2i)  # blocked: swings at a barricade toward its target
 signal movement_completed(enemy: Enemy)
 
 enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_RAT, HYDRA, FIRE_GOBLIN_SOLDIER, FIRE_GOBLIN_MAGE, FIRE_GOBLIN_SHAMAN,
@@ -3619,6 +3620,20 @@ func _finish_player_hit(player_node: Node3D) -> void:
 		player_node.on_attacked_by(self)
 	attacked_player.emit(self)
 
+## A barricade wall in the way: when no step toward the target is possible,
+## swing at an adjacent blocked tile that lies toward it. Main decides whether
+## that tile is a breakable barricade (two hits fell one) or true terrain.
+func _try_smash_barricade(goal_cell: Vector2i) -> void:
+	if not grid_manager or is_dead:
+		return
+	var cur := grid_manager.world_to_grid(position)
+	var cur_dist := _manhattan_dist(cur, goal_cell)
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var candidate: Vector2i = cur + d
+		if candidate in blocked_tiles and _manhattan_dist(candidate, goal_cell) < cur_dist:
+			barricade_attacked.emit(self, candidate)
+			return
+
 ## Dash multiple tiles toward a position in one action.
 ## Stops at any barricade tile encountered along the path.
 func _dash_towards_target(pos: Vector3, tiles: int) -> void:
@@ -3636,6 +3651,7 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 	if grid_manager:
 		var player_cell = grid_manager.world_to_grid(pos)
 		if not _start_path(_build_greedy_path(position, player_cell, tiles)):
+			_try_smash_barricade(player_cell)
 			return  # Can't move at all
 	else:
 		var diff = pos - position

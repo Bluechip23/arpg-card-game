@@ -5063,6 +5063,7 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.attacked_player.connect(_on_enemy_attacked_player)
 	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
 	enemy.movement_completed.connect(_on_enemy_movement_completed)
+	enemy.barricade_attacked.connect(_on_enemy_barricade_attacked)
 	# Give enemy a reference to dungeon_manager for elevation lookups
 	if dungeon_manager:
 		enemy.dungeon_manager = dungeon_manager
@@ -12573,6 +12574,23 @@ func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
 	marker.add_child(label)
 
 	return {"node": marker, "health": health, "position": pos, "label": label}
+
+func _on_enemy_barricade_attacked(enemy, cell: Vector2i) -> void:
+	## Enemies smash barricades: two swings fell one. Walls, pits and trees are
+	## also in blocked_tiles but hold no obstacle entry, so they shrug it off.
+	for i in range(barricade_obstacles.size() - 1, -1, -1):
+		var obs = barricade_obstacles[i]
+		if grid_manager.world_to_grid(obs["position"]) != cell:
+			continue
+		obs["enemy_hits"] = int(obs.get("enemy_hits", 0)) + 1
+		if obs["enemy_hits"] >= 2:
+			add_battle_log("%s smashes through the barricade!" % enemy.enemy_name, Color(0.9, 0.6, 0.3))
+			obs["node"].queue_free()
+			barricade_obstacles.remove_at(i)
+			_sync_blocked_tiles()
+		else:
+			add_battle_log("%s slams the barricade — it splinters!" % enemy.enemy_name, Color(0.9, 0.7, 0.4))
+		return
 
 func _sync_blocked_tiles() -> void:
 	## Syncs blockers to the player and all enemies for pathfinding. Defers to
