@@ -139,12 +139,12 @@ static func quiver() -> ItemData:
 	item.allowed_card_keywords = [Card.CardKeyword.ARROW]
 	return item
 
-## Gauntlets that raise hand size (persistence tests).
+## Gauntlets that raise hand size via the INCREASE_HAND_SIZE special effect
+## (persistence tests double as the effect's guardian test).
 static func hand_size_gauntlets() -> ItemData:
 	var item = _base("Test Hand-Size Gauntlets", ItemData.ItemType.GAUNTLETS)
 	item.item_type_name = "Gauntlets"
 	item.weight = 3
-	item.hand_size_bonus = 2
 	item.special_effect = ItemData.SpecialEffect.INCREASE_HAND_SIZE
 	item.special_effect_value = 2
 	return item

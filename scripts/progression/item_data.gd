@@ -1243,6 +1243,16 @@ static func create_leather_boots() -> ItemData:
 	item.description = "+1 AGI, +5 life."
 	return item
 
+static func create_blink_boots() -> ItemData:
+	## Carrier for GRANT_BLINK_CARD: the boots travel with two Blink cards —
+	## first-pass numbers.
+	var item = _new_boot("Blink Boots", Rarity.RARE, 8)
+	item.agility_bonus = 3
+	item.special_effect = SpecialEffect.GRANT_BLINK_CARD
+	item.special_effect_value = 2
+	item.description = "+3 AGI. Grants 2 Blink cards while equipped."
+	return item
+
 static func create_cloth_slippers() -> ItemData:
 	var item = _new_boot("Cloth Slippers", Rarity.COMMON, 5)
 	item.dexterity_bonus = 2
@@ -1462,12 +1472,13 @@ static func _new_gauntlet(nm: String, r: Rarity, wt: int) -> ItemData:
 	item.weight = wt
 	return item
 
-static func _set_skill(item: ItemData, nm: String, desc: String, effect_id: String, cd_cycles: int) -> void:
+static func _set_skill(item: ItemData, nm: String, desc: String, effect_id: String, cd_cycles: int, mana := 0) -> void:
 	item.gauntlet_skill_type = GauntletSkillType.ACTIVE
 	item.gauntlet_skill_name = nm
 	item.gauntlet_skill_description = desc
 	item.gauntlet_skill_effect_id = effect_id
 	item.gauntlet_skill_cooldown = cd_cycles
+	item.gauntlet_skill_mana_cost = mana
 
 static func create_chain_gloves() -> ItemData:
 	var item = _new_gauntlet("Chain Gloves", Rarity.COMMON, 15)
@@ -1475,7 +1486,7 @@ static func create_chain_gloves() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 1
 	item.armor_per_tempo_interval = 15
-	_set_skill(item, "Guard", "Gain 2 armor.", "chain_guard", 4)
+	_set_skill(item, "Guard", "Gain 2 armor.", "chain_guard", 4, 5)
 	item.description = "+2 STR. Gain 1 armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."
 	return item
 
@@ -1499,7 +1510,7 @@ static func create_cloth_bracer() -> ItemData:
 	var item = _new_gauntlet("Cloth bracer", Rarity.COMMON, 5)
 	item.hand_size_bonus = 1
 	item.dexterity_bonus = 2
-	_set_skill(item, "Band aid", "Heal 5 HP.", "band_aid", 4)
+	_set_skill(item, "Band aid", "Heal 5 HP.", "band_aid", 4, 10)
 	item.description = "+1 hand size, +2 DEX. Skill — Band aid: heal 5 HP (20 tempo CD)."
 	return item
 
@@ -1524,7 +1535,7 @@ static func create_techno_wraps() -> ItemData:
 	var item = _new_gauntlet("Techno Wraps", Rarity.LEGENDARY, 10)
 	item.wisdom_bonus = 3
 	item.intelligence_bonus = 3
-	_set_skill(item, "Future is bright", "Shuffle your discard pile into your draw pile.", "future_is_bright", 3)
+	_set_skill(item, "Future is bright", "Shuffle your discard pile into your draw pile.", "future_is_bright", 3, 15)
 	item.description = "+3 WIS, +3 INT. Skill — Future is bright: shuffle your discard pile into your draw pile (15 tempo CD)."
 	return item
 
@@ -1535,7 +1546,7 @@ static func create_spidey_web_shooters() -> ItemData:
 	item.agility_bonus = 3
 	item.hand_size_bonus = 1
 	item.on_self_disarm_offensive = 1  # the target skips its next 1 attack
-	_set_skill(item, "Coming in!", "Pull yourself to the target from up to 5 squares away.", "coming_in", 2)
+	_set_skill(item, "Coming in!", "Pull yourself to the target from up to 5 squares away.", "coming_in", 2, 10)
 	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards disarm the target for 1 attack. Skill — Coming in!: pull yourself to the target from 5 squares (10 tempo CD)."
 	return item
 
@@ -1546,7 +1557,7 @@ static func create_gravity_gauntlets() -> ItemData:
 	item.wisdom_bonus = 3
 	item.agility_bonus = 2
 	item.on_self_root_offensive = 1  # hold for 1 cycle (5 tempo)
-	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2)
+	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2, 15)
 	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 tempo CD)."
 	return item
 
@@ -1559,7 +1570,7 @@ static func create_spiked_mitts() -> ItemData:
 	item.on_self_armor_any = 5  # ANY slotted card grants +5 armor
 	item.armor_gain_thorns_threshold = 25
 	item.armor_gain_thorns_amount = 5
-	_set_skill(item, "Well placed guard", "Gain 5 thorns.", "well_placed_guard", 3)
+	_set_skill(item, "Well placed guard", "Gain 5 thorns.", "well_placed_guard", 3, 10)
 	item.description = "+10 health, +5 STR, -2 DEX. On-self: ANY card provides +5 armor. Every 25 armor gained, gain 5 thorns. Skill — Well placed guard: gain 5 thorns (15 tempo CD)."
 	return item
 
@@ -1571,7 +1582,7 @@ static func create_momentum_mits() -> ItemData:
 	item.wisdom_bonus = -3
 	item.agility_bonus = -3
 	item.on_self_draw_card = 1  # slotted card play draws a card
-	_set_skill(item, "Continue to move", "Draw a card.", "continue_to_move", 5)
+	_set_skill(item, "Continue to move", "Draw a card.", "continue_to_move", 5, 10)
 	item.description = "+5 STR, +5 INT, -3 WIS, -3 AGI. On-self: draw a card. Skill — Continue to move: draw a card (25 tempo CD)."
 	return item
 
@@ -1585,7 +1596,7 @@ static func create_sleeved_katar() -> ItemData:
 	item.crit_chance_percent = 5.0
 	var katar_cards: Array[String] = ["return_cut"]
 	item.granted_card_ids = katar_cards
-	_set_skill(item, "Defense one with offense", "Gain 5 armor; your next melee offensive card deals +5 damage.", "defense_one", 5)
+	_set_skill(item, "Defense one with offense", "Gain 5 armor; your next melee offensive card deals +5 damage.", "defense_one", 5, 15)
 	item.description = "+3 AGI, +5 STR, +3 DEX, +25% crit damage, +5% crit chance. Grants Return Cut (Instant): when an attack fails to break your armor, counter with a melee strike (+5% crit). Skill — Defense one with offense: gain 5 armor and your next melee offensive card gets +5 damage (25 tempo CD)."
 	return item
 
@@ -1596,7 +1607,7 @@ static func create_gauntlets_of_dungeon_mastering() -> ItemData:
 	item.intelligence_bonus = 4
 	item.strength_bonus = 3
 	item.on_self_summon_wolf = 1
-	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4)
+	_set_skill(item, "House Rule", "Pick a card from your discard pile and put it in your hand.", "house_rule", 4, 15)
 	item.level_3_overrides = {"card_slots": 2, "gauntlet_skill_cooldown": 3}
 	item.level_3_description = "+4 WIS, +5 INT, +4 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
 	_set_appearance(item, "gauntlets_of_dungeon_mastering",
@@ -1610,7 +1621,7 @@ static func create_hallowed_trunk() -> ItemData:
 	item.health_bonus = 15
 	item.dexterity_bonus = -3
 	item.armor_loss_regen_threshold = 10
-	_set_skill(item, "imbue tree", "Gain 5 regen and 10 thorns.", "imbue_tree", 2)
+	_set_skill(item, "imbue tree", "Gain 5 regen and 10 thorns.", "imbue_tree", 2, 20)
 	item.level_3_overrides = {"health_bonus": 30, "regen_include_health": true}
 	item.level_3_description = "+11 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
 	_set_appearance(item, "hallowed_trunk",
@@ -1623,7 +1634,7 @@ static func create_cuffs_of_current() -> ItemData:
 	item.intelligence_bonus = 6
 	item.hand_size_bonus = 2
 	item.draw_every_cycles = 3
-	_set_skill(item, "Zeet", "Deal damage equal to your INT / 2.", "zeet", 3)
+	_set_skill(item, "Zeet", "Deal damage equal to your INT / 2.", "zeet", 3, 15)
 	item.level_3_overrides = {"intelligence_bonus": 8}
 	item.level_3_description = "+8 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal INT/2 damage; bounces once, dealing 1/4 damage to an enemy near the target (15 tempo CD)."
 	_set_appearance(item, "cuffs_of_current",
@@ -1638,7 +1649,7 @@ static func create_concealed_carry() -> ItemData:
 	item.hand_size_bonus = 1
 	var cc_cards: Array[String] = ["smoke_bomb"]
 	item.granted_card_ids = cc_cards
-	_set_skill(item, "Lethal Poke", "A 0-base-damage melee attack. Crits deal x1.5 on top of the crit.", "lethal_poke", 3)
+	_set_skill(item, "Lethal Poke", "A 0-base-damage melee attack. Crits deal x1.5 on top of the crit.", "lethal_poke", 3, 10)
 	item.level_3_overrides = {"dexterity_bonus": 5, "agility_bonus": 5, "hand_size_bonus": 1,
 		"gauntlet_skill_cooldown": 2}
 	item.level_3_description = "+5 DEX, +5 AGI, +1 hand size. Grants smoke bomb. Skill — Lethal Poke (10 tempo CD)."
@@ -1652,7 +1663,7 @@ static func create_medic_wraps() -> ItemData:
 	item.strength_bonus = 3
 	item.dexterity_bonus = -2
 	item.health_bonus = 5
-	_set_skill(item, "Slurp and pad", "Heal an ally for 5 HP and gain 3 armor.", "slurp_and_pad", 3)
+	_set_skill(item, "Slurp and pad", "Heal an ally for 5 HP and gain 3 armor.", "slurp_and_pad", 3, 10)
 	item.description = "+3 STR, -2 DEX, +5 life. Skill — Slurp and pad: heal an ally 5 HP and gain 3 armor (15 tempo CD)."
 	return item
 
@@ -1663,7 +1674,7 @@ static func create_roman_bracers() -> ItemData:
 	item.health_bonus = 15
 	item.strength_bonus = 5
 	item.on_self_melee_damage = 5  # slotted melee offensive cards +5 damage
-	_set_skill(item, "Slice", "Perform a basic melee attack for 2 tempo.", "slice", 2)
+	_set_skill(item, "Slice", "Perform a basic melee attack for 2 tempo.", "slice", 2, 5)
 	item.description = "+15 life, +5 STR, +1 hand size. On-self: +5 damage on melee cards. Skill — Slice: a basic melee attack costing 2 tempo (10 tempo CD)."
 	return item
 
@@ -1673,7 +1684,7 @@ static func create_copper_bracers() -> ItemData:
 	item.strength_bonus = 2
 	item.agility_bonus = 1
 	item.wisdom_bonus = 3
-	_set_skill(item, "Clang", "Gain 8 armor.", "clang", 3)
+	_set_skill(item, "Clang", "Gain 8 armor.", "clang", 3, 15)
 	item.description = "+10 life, +2 STR, +1 AGI, +3 WIS. Skill — Clang: gain 8 armor (15 tempo CD)."
 	return item
 
@@ -1681,7 +1692,7 @@ static func create_fanned_bracers() -> ItemData:
 	var item = _new_gauntlet("Fanned Bracers", Rarity.RARE, 15)
 	item.health_bonus = 20
 	item.hand_size_bonus = 1
-	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 2)
+	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 2, 10)
 	item.description = "+20 life, +1 hand size. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (10 tempo CD)."
 	return item
 
@@ -1955,6 +1966,14 @@ static func create_rusty_dagger() -> ItemData:
 	item.description = "+3 AGI, +1 DEX. On-self: +15% crit chance."
 	return item
 
+static func create_pocket_knife() -> ItemData:
+	## Carrier for POCKET_KNIFE_PROC: sharpens the DEX proc — first-pass numbers.
+	var item = _new_weapon("Pocket Knife", Rarity.COMMON, WeaponSubtype.DAGGER, 5)
+	item.dexterity_bonus = 2
+	item.special_effect = SpecialEffect.POCKET_KNIFE_PROC
+	item.description = "+2 DEX. While your DEX proc is armed, attacks cost 2 less tempo and resolve on the first tick."
+	return item
+
 static func create_construction_hammer() -> ItemData:
 	var item = _new_weapon("Construction Hammer", Rarity.COMMON, WeaponSubtype.HAMMER, 15)
 	item.agility_bonus = 2
@@ -2187,6 +2206,17 @@ static func _new_chest(nm: String, r: Rarity, wt: int) -> ItemData:
 	item.item_type_name = "Chest"
 	item.rarity = r
 	item.weight = wt
+	return item
+
+static func create_bloodbound_plate() -> ItemData:
+	## Carrier for OVERFLOW_HEAL_ARMOR's armor half (value_2): every armor
+	## instance grants bonus armor — first-pass numbers.
+	var item = _new_chest("Bloodbound Plate", Rarity.RARE, 60)
+	item.health_bonus = 20
+	item.armor_bonus = 3
+	item.special_effect = SpecialEffect.OVERFLOW_HEAL_ARMOR
+	item.special_effect_value_2 = 2
+	item.description = "+20 health, +3 armor. Whenever you gain armor, gain +2 more."
 	return item
 
 static func create_wooden_plank() -> ItemData:

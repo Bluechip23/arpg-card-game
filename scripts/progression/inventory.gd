@@ -475,6 +475,8 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	
 	# Hand size from item (survives recalculation via the tracked bonus)
 	player_stats.equipment_hand_bonus += item.hand_size_bonus * multiplier
+	if item.special_effect == ItemData.SpecialEffect.INCREASE_HAND_SIZE:
+		player_stats.equipment_hand_bonus += item.special_effect_value * multiplier
 
 	# Ranged damage bonus (from quivers)
 	if item.ranged_damage_bonus > 0:
