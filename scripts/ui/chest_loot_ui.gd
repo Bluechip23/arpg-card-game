@@ -194,6 +194,15 @@ func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) ->
 
 	ui.add_child(main._chest_modal)
 
+	# A card's keywords get their own little window beside the chest so the
+	# player can read what Burden / Sticky / Glut mean before taking it. It
+	# lives on the dim overlay, so closing the chest takes it down too.
+	if card:
+		var kw_win := KeywordWindow.for_card(card)
+		if kw_win:
+			overlay.add_child(kw_win)
+			kw_win.place_beside(main._chest_modal)
+
 func _build_chest_item_display(item: ItemData) -> VBoxContainer:
 	var container = VBoxContainer.new()
 	container.add_theme_constant_override("separation", 4)
