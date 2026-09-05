@@ -87,16 +87,37 @@ var rows: Array[SkillRow] = []
 # ============================================
 # Passives are no longer one-cost picks: each is LEVELED with passive points
 # (up to PASSIVE_MAX_LEVEL). The UI shows one horizontal lane per archetype;
-# a lane's later stages unlock as points are invested in that lane.
+# the lanes' stages line up in columns, and a whole column (every
+# archetype's stage-N passive) unlocks together once STAGE_GATE_POINTS sit in
+# the previous column — spread across any archetypes.
 
 const PASSIVE_MAX_LEVEL: int = 15
+const STAGE_GATE_POINTS: int = 5
 
-## Points invested in a lane required to unlock its stage at `index`
-## (0-based): stage 0 is free, then 5, 15, 25, 35...
+## Points that must be invested across the ENTIRE previous stage (all
+## archetypes together) before the stage at `stage` (0-based) opens: stage 0
+## is free, every later stage needs STAGE_GATE_POINTS in the one before it.
 static func stage_unlock_cost(stage: int) -> int:
 	if stage <= 0:
 		return 0
-	return 5 + 10 * (stage - 1)
+	return STAGE_GATE_POINTS
+
+## Points invested in every lane's passive at `stage`, summed over `lanes`
+## (as returned by get_archetype_lanes()).
+static func stage_points(lanes: Array, stage: int, stats) -> int:
+	if stats == null or stage < 0:
+		return 0
+	var total := 0
+	for lane in lanes:
+		var passives: Array = lane["passives"]
+		if stage < passives.size():
+			total += int(stats.get_passive_level(passives[stage].passive_id))
+	return total
+
+static func is_stage_unlocked(lanes: Array, stage: int, stats) -> bool:
+	if stage <= 0:
+		return true
+	return stage_points(lanes, stage - 1, stats) >= stage_unlock_cost(stage)
 
 ## Lanes for the passive-allocation UI: one entry per archetype, its passives
 ## in row order (left to right = the lane's stages).
