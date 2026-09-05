@@ -175,7 +175,15 @@ func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
 	s.pixel_size = PIXEL_SIZE
 	s.region_enabled = true
 	s.region_rect = Rect2(0, 0, cell, cell)
-	s.position = Vector3(0, y, 0)
+	# Feet pivot: the cell is drawn exactly where a centred sprite at height
+	# `y` would sit, but the quad's origin (the point the billboard rotates
+	# about) is the feet anchor on the ground. Under the pitched camera a
+	# centre pivot swings the feet below the tile; this keeps them planted.
+	# (An uncentered Sprite3D grows UP from its origin, so offset.y is the
+	# bottom edge's height: where the centred cell's bottom used to sit.)
+	s.centered = false
+	s.offset = Vector2(-cell * 0.5, y / PIXEL_SIZE - cell * 0.5)
+	s.position = Vector3.ZERO
 	s.sorting_offset = sort
 	s.shaded = false
 	_rig.add_child(s)
