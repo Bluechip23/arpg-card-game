@@ -41,6 +41,7 @@ var _card_slot_item: ItemData = null
 var _pending_card: Card = null
 var _pending_card_index: int = -1
 var _card_confirm_popup: PanelContainer = null
+var _card_keyword_window: PanelContainer = null  # KeywordWindow beside the card popup
 
 # Live 3D portrait + combat stats section (built on first open)
 # SpriteFigure (Mana Seed sprites) or CharacterFigure (procedural 3D) —
@@ -2391,6 +2392,13 @@ func _show_card_confirm_modal(card: Card) -> void:
 
 	panel.add_child(_card_confirm_popup)
 
+	# Keyword rules text in a second small window beside the card, so the
+	# words listed above ("Burden", "Sticky 2"...) are explained right here.
+	_card_keyword_window = KeywordWindow.for_card(card)
+	if _card_keyword_window:
+		panel.add_child(_card_keyword_window)
+		_card_keyword_window.place_beside(_card_confirm_popup)
+
 	# Center on panel
 	await get_tree().process_frame
 	if is_instance_valid(_card_confirm_popup) and is_instance_valid(panel):
@@ -2433,6 +2441,9 @@ func _dismiss_card_confirm_modal() -> void:
 	if is_instance_valid(_card_confirm_popup):
 		_card_confirm_popup.queue_free()
 	_card_confirm_popup = null
+	if is_instance_valid(_card_keyword_window):
+		_card_keyword_window.queue_free()
+	_card_keyword_window = null
 
 func _get_item_type_color(item_type: ItemData.ItemType) -> Color:
 	match item_type:

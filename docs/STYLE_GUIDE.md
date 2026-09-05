@@ -72,6 +72,14 @@ icons) conforms to them.
   `assets/textures/blob_shadow.png` (generated, 2-step).
 - Anchored at the feet anchor, y ≈ 0.01 above ground; does not rotate or flip
   with facing; scales down ~20% when the body is airborne (hop/knockback).
+- **Billboards pivot at the feet, never the centre.** A centred `Sprite3D` /
+  billboard quad rotates about the middle of the art, so under the pitched
+  battle camera its bottom edge swings below the ground anchor and the
+  figure reads as sunk into the tile (or hovering, from the far side). Party
+  and enemy sprites set `centered = false` with an `offset` that puts the
+  art's ground row at the node origin; prop `QuadMesh`es use a
+  `center_offset` of half their height; critters do the same. The ground
+  row then stays glued to the tile (and the blob shadow) from any angle.
 - MonsterKit flyer cells (bee, hawk, bat, carpet, sword) have painted shadows
   in-art — those kinds skip the shadow node (no doubles).
 

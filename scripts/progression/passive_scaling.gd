@@ -235,3 +235,86 @@ static func value(passive_id: String, key: String, level: int) -> Variant:
 		return 0
 	var idx := clampi(level, 1, ranks.size()) - 1
 	return ranks[idx]
+
+
+# ============================================
+# RANK-SPECIFIC DESCRIPTION TEXT
+# ============================================
+
+## Tree descriptions write scaling values as "A→B" ranges ("10%→25% HP",
+## "25→10 tempo", "9th→2nd"). The tree UI wants the value at ONE rank instead,
+## so the player reads what the passive does right now and what the next
+## point changes. Each range is resolved against this passive's table (the
+## key whose first/last entries match A and B — percentages may be stored as
+## fractions, mana discounts as positive numbers of a negative range); ranges
+## with no matching table interpolate linearly across the 15 ranks.
+static var _range_regex: RegEx = null
+
+static func _get_range_regex() -> RegEx:
+	if _range_regex == null:
+		_range_regex = RegEx.new()
+		_range_regex.compile("(-?\\d+(?:\\.\\d+)?)(%|m|st|nd|rd|th)?→(-?\\d+(?:\\.\\d+)?)(%|m|st|nd|rd|th)?")
+	return _range_regex
+
+## The number a "A→B" range takes at `rank` (1-based; clamped to the table).
+static func range_value_at_rank(passive_id: String, a: float, b: float, rank: int) -> float:
+	var max_rank := 15
+	var table: Dictionary = TABLES.get(passive_id, {})
+	for key in table:
+		var ranks: Array = table[key]
+		if ranks.is_empty():
+			continue
+		max_rank = ranks.size()
+		var first := float(ranks[0])
+		var last := float(ranks[ranks.size() - 1])
+		for factor in [1.0, 100.0]:
+			for sign in [1.0, -1.0]:
+				if is_equal_approx(first * factor * sign, a) and is_equal_approx(last * factor * sign, b):
+					var idx := clampi(rank, 1, ranks.size()) - 1
+					return float(ranks[idx]) * factor * sign
+	# No table (or the description's numbers drifted from it): spread the
+	# range evenly over the ranks so the text still moves with each point.
+	var t := float(clampi(rank, 1, max_rank) - 1) / float(maxi(1, max_rank - 1))
+	return a + (b - a) * t
+
+static func _format_value(v: float, like: String, suffix: String) -> String:
+	var text := ""
+	if "." in like and not is_equal_approx(v, roundf(v)):
+		text = ("%.2f" % v).rstrip("0").rstrip(".")
+	elif is_equal_approx(v, roundf(v)):
+		text = "%d" % int(roundf(v))
+	else:
+		text = ("%.2f" % v).rstrip("0").rstrip(".")
+	if suffix in ["st", "nd", "rd", "th"]:
+		return text + _ordinal_suffix(int(roundf(v)))
+	return text + suffix
+
+static func _ordinal_suffix(n: int) -> String:
+	var abs_n := absi(n)
+	if abs_n % 100 >= 11 and abs_n % 100 <= 13:
+		return "th"
+	match abs_n % 10:
+		1: return "st"
+		2: return "nd"
+		3: return "rd"
+	return "th"
+
+## `description` with every "A→B" range replaced by its value at `rank`, and
+## the "(scales with rank)" reminders dropped. Non-numeric arrows (card type
+## conversions like "Attack→Heal") are left alone.
+static func describe_at_rank(passive_id: String, description: String, rank: int) -> String:
+	var out := description
+	var matches := _get_range_regex().search_all(out)
+	# Splice from the back so earlier match offsets stay valid.
+	for i in range(matches.size() - 1, -1, -1):
+		var m: RegExMatch = matches[i]
+		var a_text := m.get_string(1)
+		var b_text := m.get_string(3)
+		var suffix := m.get_string(2)
+		if suffix == "":
+			suffix = m.get_string(4)
+		var v := range_value_at_rank(passive_id, float(a_text), float(b_text), rank)
+		var rendered := _format_value(v, a_text, suffix)
+		out = out.substr(0, m.get_start()) + rendered + out.substr(m.get_end())
+	out = out.replace(" (scales with rank)", "").replace("(scales with rank)", "")
+	return out.strip_edges()

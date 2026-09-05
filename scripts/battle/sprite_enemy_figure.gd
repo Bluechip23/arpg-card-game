@@ -150,9 +150,20 @@ func setup(kind: String) -> void:
 		_sprite.pixel_size = PIXEL_SIZE
 		var cell: Vector2i = cfg["cell"]
 		_sprite.region_rect = Rect2(cell.x * 64, cell.y * 64, 64, 64)
-	# Ground precisely: lift the centred sprite so its art's lowest opaque
-	# pixel row (feet / painted shadow line) sits on the ground plane.
-	_base_y = _measure_ground_lift()
+	# Ground precisely: pivot the sprite at its FEET. A centred billboard
+	# rotates about the middle of the art, so under the pitched battle camera
+	# its bottom edge swings below the ground anchor and the creature reads as
+	# sunk into the tile (or floating, from the other side). Anchoring the
+	# quad at the art's lowest opaque row (feet / painted shadow line) keeps
+	# that row glued to the tile whatever the camera angle — the enemy sits
+	# on the ground and its blob shadow.
+	# (An uncentered Sprite3D grows UP from its origin: offset.y is the height
+	# of the art's bottom edge above the pivot, so the rows below the ground
+	# line — the padding under the feet / painted shadow — hang below it.)
+	_sprite.centered = false
+	_sprite.offset = Vector2(-_sprite.region_rect.size.x * 0.5,
+			-(_sprite.region_rect.size.y - _measure_ground_rows()))
+	_base_y = 0.0
 	_sprite.position = Vector3(0, _base_y, 0)
 	var s: float = cfg.get("scale", 1.0)
 	_rig.scale = Vector3(s, s, s)
@@ -165,16 +176,18 @@ func setup(kind: String) -> void:
 		BlobShadow.attach(_rig, body_w * 0.7)
 
 
-# Per-(sheet, cell) cache of measured ground lifts.
+# Per-(sheet, cell) cache of measured ground rows.
 static var _ground_cache := {}
 
 
-## Distance from sprite centre to the art's lowest opaque row, in world units.
-func _measure_ground_lift() -> float:
+## Rows from the top of the cell down through the art's lowest opaque row —
+## the pixel height of the sprite that stands above the ground line. Used as
+## the feet pivot: the quad hangs this many texels above the sprite origin.
+func _measure_ground_rows() -> float:
 	var key := "%s|%s" % [_sprite.texture.resource_path, _sprite.region_rect]
 	if _ground_cache.has(key):
 		return _ground_cache[key]
-	var lift := (_sprite.region_rect.size.y * 0.5 - 6.0) * _sprite.pixel_size  # fallback
+	var rows := _sprite.region_rect.size.y - 6.0  # fallback
 	var img: Image = _sprite.texture.get_image()
 	if img:
 		if img.is_compressed():
@@ -189,9 +202,9 @@ func _measure_ground_lift() -> float:
 			if bottom >= 0:
 				break
 		if bottom >= 0:
-			lift = (float(bottom + 1) - r.size.y * 0.5) * _sprite.pixel_size
-	_ground_cache[key] = lift
-	return lift
+			rows = float(bottom + 1)
+	_ground_cache[key] = rows
+	return rows
 
 
 # =============================================================

@@ -110,6 +110,18 @@ var target_position: Vector3
 var _move_path: Array[Vector3] = []  # Remaining tile-center waypoints for the current move
 var is_dead: bool = false
 
+# Ambient idling. An enemy with nobody in aggro range doesn't stand frozen at
+# its spawn point: every few seconds it shuffles one tile within a short
+# leash of home (a camp reads as alive from across the map). Once someone
+# IS in range it stops pacing and turns to face them while it waits for its
+# tempo action. Wander steps are cosmetic — no tempo, no turn bookkeeping —
+# but they walk the real grid (walls, other enemies, pits all respected).
+const WANDER_LEASH: int = 2               # max tiles from home, per axis
+var _wandering: bool = false              # current glide is an idle shuffle
+var _wander_timer: float = 2.0            # seconds until the next shuffle
+var _home_cell: Vector2i = Vector2i(-9999, -9999)
+var _last_seen_target: Node3D = null      # whoever the spawner last pointed us at
+
 var grid_manager: GridManager
 var dungeon_manager = null  # Set by main.gd for elevation lookups
 var ground_y_provider: Callable = Callable()  # Set by main.gd: world_pos -> desired ground Y
@@ -1680,6 +1692,7 @@ func _refresh_armor_bar_image() -> void:
 func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	if is_dead:
 		return
+	_last_seen_target = player_node
 
 	action_tempo_counter += amount
 	_cycle_accumulator += amount
@@ -3785,6 +3798,15 @@ func _physics_process(delta: float) -> void:
 			# follow the path around corners instead of stopping short.
 			if not _move_path.is_empty():
 				target_position = _move_path.pop_front()
+			elif _wandering:
+				# Idle shuffle done: settle without the action bookkeeping a
+				# real move carries (no turn_completed — no tempo was spent).
+				# movement_completed still fires so terrain traps can bite.
+				_wandering = false
+				is_moving = false
+				velocity = Vector3.ZERO
+				_play_enemy_animation("idle")
+				movement_completed.emit(self)
 			else:
 				is_moving = false
 				velocity = Vector3.ZERO
@@ -3802,8 +3824,77 @@ func _physics_process(delta: float) -> void:
 					_play_enemy_animation("walk")
 	else:
 		velocity = Vector3.ZERO
+		_idle_ambient(delta)
 
 	move_and_slide()
+
+## Standing still: face whoever we're sizing up if they're in aggro range,
+## otherwise pace a tile now and then.
+func _idle_ambient(delta: float) -> void:
+	if _wander_timer > 0.0:
+		_wander_timer -= delta
+	var tgt := _ambient_target()
+	if tgt != null:
+		var to_target := Vector3(tgt.position.x - position.x, 0.0, tgt.position.z - position.z)
+		if to_target.length() <= aggro_range:
+			# Someone's close: no pacing, just square up to them.
+			if _enemy_figure and _enemy_figure.has_method("set_facing_from_velocity"):
+				_enemy_figure.set_facing_from_velocity(to_target)
+			_wander_timer = maxf(_wander_timer, 1.0)
+			return
+	if _wander_timer > 0.0:
+		return
+	_wander_timer = randf_range(3.0, 8.0)
+	_try_wander()
+
+## Whoever this enemy should be watching: the spawner's last pick, else an
+## explicit target, else the scene's player (before the first tempo tick the
+## spawner hasn't pointed us at anyone yet, and a freshly spawned pack must
+## not pace around a player standing right beside it).
+func _ambient_target() -> Node3D:
+	if _last_seen_target != null and is_instance_valid(_last_seen_target):
+		return _last_seen_target
+	if target != null and is_instance_valid(target):
+		return target
+	var main = get_parent()
+	if main and "player" in main and main.player and is_instance_valid(main.player):
+		return main.player
+	return null
+
+func _try_wander() -> void:
+	## One idle step to a free neighbouring tile inside the home leash.
+	if is_stunned or is_frozen or rooted_tempo > 0 or tree_tempo > 0 or is_moving:
+		return
+	if grid_manager == null:
+		return
+	var cur := grid_manager.world_to_grid(position)
+	if cur in pillar_tiles:
+		return
+	if _home_cell.x < -9000:
+		_home_cell = cur
+	var dirs: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	dirs.shuffle()
+	for d in dirs:
+		var c: Vector2i = cur + d
+		if absi(c.x - _home_cell.x) > WANDER_LEASH or absi(c.y - _home_cell.y) > WANDER_LEASH:
+			continue
+		if c in blocked_tiles or c in occupied_tiles or c in pillar_tiles:
+			continue
+		if dungeon_manager != null:
+			if not dungeon_manager.is_floor(c):
+				continue
+		elif c.x < 0 or c.y < 0 or c.x >= grid_manager.grid_width or c.y >= grid_manager.grid_height:
+			continue
+		# Never shuffle onto a unit's tile.
+		var unit := _ambient_target()
+		if unit != null and grid_manager.world_to_grid(unit.position) == c:
+			continue
+		var wp := grid_manager.grid_to_world(c)
+		if dungeon_manager != null:
+			wp.y = dungeon_manager.get_elevation_world_y(c)
+		_wandering = true
+		_start_path([wp])
+		return
 
 #endregion
 #region MOVEMENT & COMBAT

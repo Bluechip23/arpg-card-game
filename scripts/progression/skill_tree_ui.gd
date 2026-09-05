@@ -266,9 +266,10 @@ const COLOR_MAXED := Color(1.0, 0.85, 0.3)      # gold ring on a maxed passive
 func _rebuild_table() -> void:
 	## LANE VIEW: one horizontal chain of circular nodes per archetype.
 	## Each passive is LEVELED with banked passive points ("x / 15" under its
-	## circle); a lane's later stages unlock at 5 / 15 / 25... points invested
-	## in that lane. Effects are unchanged for now — level 1 turns a passive
-	## on, deeper levels are the hook for the upcoming scaling pass.
+	## circle). The lanes' stages line up in columns; a whole column unlocks
+	## together once STAGE_GATE_POINTS are invested anywhere in the previous
+	## column, so the gate is shown once per column (header) rather than on
+	## every node.
 	_refresh_stat_alloc_button()
 	if not skill_tree:
 		return
@@ -293,20 +294,26 @@ func _rebuild_table() -> void:
 	table_container.add_child(pts_label)
 
 	var hint = Label.new()
-	hint.text = "Click a circle to invest a point (max %d per passive). Later stages unlock at %d / %d / %d points in that archetype." % [
-		SkillTreeData.PASSIVE_MAX_LEVEL, SkillTreeData.stage_unlock_cost(1),
-		SkillTreeData.stage_unlock_cost(2), SkillTreeData.stage_unlock_cost(3)]
+	hint.text = "Click a circle to invest a point (max %d per passive). Hover a circle to see what it does now and what the next point adds. Each stage's whole column opens once %d points sit in the previous stage — from any archetypes." % [
+		SkillTreeData.PASSIVE_MAX_LEVEL, SkillTreeData.STAGE_GATE_POINTS]
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", COLOR_DIM)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	table_container.add_child(hint)
 
 	table_container.add_child(HSeparator.new())
 
-	for lane in skill_tree.get_archetype_lanes():
-		table_container.add_child(_build_lane_row(lane))
+	var lanes: Array = skill_tree.get_archetype_lanes()
+	var stage_count := 0
+	for lane in lanes:
+		stage_count = maxi(stage_count, lane["passives"].size())
+	if stage_count > 0:
+		table_container.add_child(_build_stage_header(lanes, stage_count))
+	for lane in lanes:
+		table_container.add_child(_build_lane_row(lane, lanes))
 
-## Total points invested in a lane (drives its stage gates).
+## Total points invested in a lane (shown on its name plate).
 func _lane_points(lane: Dictionary) -> int:
 	var total := 0
 	if player_stats:
@@ -314,7 +321,46 @@ func _lane_points(lane: Dictionary) -> int:
 			total += player_stats.get_passive_level(opt.passive_id)
 	return total
 
-func _build_lane_row(lane: Dictionary) -> Control:
+func _build_stage_header(lanes: Array, stage_count: int) -> Control:
+	## One label per stage column, centred over that column's circles: the
+	## stage number and, past the first, its gate — "needs 5 in Stage 1
+	## (3/5)" — which counts every archetype's points in that earlier stage.
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 0)
+	# Column pitch is one node plus one connector; the first circle's centre
+	# sits NODE_SIZE/2 past the name plate.
+	var pitch := NODE_SIZE + CONNECTOR_W
+	var lead = Control.new()
+	lead.custom_minimum_size = Vector2(LANE_NAME_W + NODE_SIZE / 2.0 - pitch / 2.0, 0)
+	row.add_child(lead)
+	for stage in range(stage_count):
+		var cell = VBoxContainer.new()
+		cell.custom_minimum_size = Vector2(pitch, 0)
+		cell.alignment = BoxContainer.ALIGNMENT_END
+		var unlocked := SkillTreeData.is_stage_unlocked(lanes, stage, player_stats)
+		var title = Label.new()
+		title.text = "Stage %d" % (stage + 1)
+		title.add_theme_font_size_override("font_size", 13)
+		title.add_theme_color_override("font_color", COLOR_TITLE if unlocked else COLOR_DIM)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cell.add_child(title)
+		var gate = Label.new()
+		if stage == 0:
+			gate.text = "open"
+		else:
+			var have := SkillTreeData.stage_points(lanes, stage - 1, player_stats)
+			var need := SkillTreeData.stage_unlock_cost(stage)
+			gate.text = ("%d in Stage %d ✓" % [need, stage]) if unlocked else ("needs %d in Stage %d (%d/%d)" % [need, stage, have, need])
+		gate.add_theme_font_size_override("font_size", 10)
+		gate.add_theme_color_override("font_color", COLOR_COUNT if unlocked else COLOR_COUNT_DIM)
+		gate.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		gate.custom_minimum_size = Vector2(pitch, 0)
+		cell.add_child(gate)
+		row.add_child(cell)
+	return row
+
+func _build_lane_row(lane: Dictionary, lanes: Array) -> Control:
 	var row = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 0)
 	row.alignment = BoxContainer.ALIGNMENT_BEGIN
@@ -340,10 +386,10 @@ func _build_lane_row(lane: Dictionary) -> Control:
 
 	var passives: Array = lane["passives"]
 	for stage in range(passives.size()):
-		var stage_unlocked: bool = lane_pts >= SkillTreeData.stage_unlock_cost(stage)
+		var stage_unlocked := SkillTreeData.is_stage_unlocked(lanes, stage, player_stats)
 		if stage > 0:
 			row.add_child(_build_connector(stage_unlocked, lane_color))
-		row.add_child(_build_passive_node(lane, stage, lane_pts))
+		row.add_child(_build_passive_node(lane, stage, lanes))
 	return row
 
 func _build_connector(active: bool, lane_color: Color) -> Control:
@@ -356,12 +402,54 @@ func _build_connector(active: bool, lane_color: Color) -> Control:
 	holder.add_child(line)
 	return holder
 
-func _build_passive_node(lane: Dictionary, stage: int, lane_pts: int) -> Control:
+## The passive's rules text without the "Name (Archetype): " prefix the tree
+## data prepends — the tooltip carries the name on its own line.
+func _passive_body(opt: SkillTreeData.SkillOption) -> String:
+	var body: String = opt.description
+	var prefix := "%s (%s): " % [opt.name, opt.archetype]
+	if body.begins_with(prefix):
+		body = body.substr(prefix.length())
+	return body
+
+## Tooltip: what the passive does at its CURRENT rank, then what the next
+## point changes — rendered from the scaling tables, so "10%→25%" becomes
+## "12%" now and "13%" next instead of a range the player has to guess at.
+func _passive_tooltip(opt: SkillTreeData.SkillOption, lane: Dictionary, stage: int, lanes: Array) -> String:
+	var level: int = player_stats.get_passive_level(opt.passive_id) if player_stats else 0
+	var max_lvl: int = SkillTreeData.PASSIVE_MAX_LEVEL
+	var body := _passive_body(opt)
+	var lines: Array[String] = []
+	if not SkillTreeData.is_stage_unlocked(lanes, stage, player_stats):
+		var have := SkillTreeData.stage_points(lanes, stage - 1, player_stats)
+		var need := SkillTreeData.stage_unlock_cost(stage)
+		lines.append("%s — %s (LOCKED)" % [opt.name, lane["name"]])
+		lines.append("Opens with Stage %d once %d points sit in Stage %d, any archetype (%d/%d)." % [
+			stage + 1, need, stage, have, need])
+		lines.append("")
+		lines.append("First point: %s" % PassiveScaling.describe_at_rank(opt.passive_id, body, 1))
+		return "\n".join(lines)
+	if level <= 0:
+		lines.append("%s — %s (not learned)" % [opt.name, lane["name"]])
+		lines.append("First point: %s" % PassiveScaling.describe_at_rank(opt.passive_id, body, 1))
+		lines.append("")
+		lines.append("Click to invest 1 passive point.")
+		return "\n".join(lines)
+	if level >= max_lvl:
+		lines.append("%s — %s (Rank %d / %d, MAX)" % [opt.name, lane["name"], level, max_lvl])
+		lines.append("Now: %s" % PassiveScaling.describe_at_rank(opt.passive_id, body, level))
+		return "\n".join(lines)
+	lines.append("%s — %s (Rank %d / %d)" % [opt.name, lane["name"], level, max_lvl])
+	lines.append("Now: %s" % PassiveScaling.describe_at_rank(opt.passive_id, body, level))
+	lines.append("Next point (Rank %d): %s" % [level + 1, PassiveScaling.describe_at_rank(opt.passive_id, body, level + 1)])
+	lines.append("")
+	lines.append("Click to invest 1 passive point.")
+	return "\n".join(lines)
+
+func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
 	var opt: SkillTreeData.SkillOption = lane["passives"][stage]
 	var level: int = player_stats.get_passive_level(opt.passive_id) if player_stats else 0
 	var maxed: bool = level >= SkillTreeData.PASSIVE_MAX_LEVEL
-	var unlock_cost: int = SkillTreeData.stage_unlock_cost(stage)
-	var stage_unlocked: bool = lane_pts >= unlock_cost
+	var stage_unlocked := SkillTreeData.is_stage_unlocked(lanes, stage, player_stats)
 	var lane_color: Color = lane["color"]
 
 	var box = VBoxContainer.new()
@@ -402,20 +490,14 @@ func _build_passive_node(lane: Dictionary, stage: int, lane_pts: int) -> Control
 	btn.text = initials if stage_unlocked else "🔒"
 	btn.add_theme_font_size_override("font_size", 16)
 	btn.add_theme_color_override("font_color", lane_color if stage_unlocked else COLOR_DIM)
+	btn.tooltip_text = _passive_tooltip(opt, lane, stage, lanes)
 
-	if stage_unlocked:
-		btn.tooltip_text = "%s (Level %d / %d)\n%s%s" % [
-			opt.name, level, SkillTreeData.PASSIVE_MAX_LEVEL, opt.description,
-			"" if maxed else "\n\nClick to invest 1 passive point."]
-	else:
-		btn.tooltip_text = "%s — LOCKED\nRequires %d points invested in %s (you have %d).\n\n%s" % [
-			opt.name, unlock_cost, lane["name"], lane_pts, opt.description]
-
-	btn.pressed.connect(_on_passive_node_pressed.bind(opt.passive_id, lane, stage))
+	btn.pressed.connect(_on_passive_node_pressed.bind(opt.passive_id, stage))
 	box.add_child(btn)
 
 	var count = Label.new()
-	count.text = ("%d / %d" % [level, SkillTreeData.PASSIVE_MAX_LEVEL]) if stage_unlocked else ("needs %d" % unlock_cost)
+	# The gate lives in the stage header; a locked circle just says so.
+	count.text = ("%d / %d" % [level, SkillTreeData.PASSIVE_MAX_LEVEL]) if stage_unlocked else "locked"
 	count.add_theme_font_size_override("font_size", 12)
 	count.add_theme_color_override("font_color", (COLOR_MAXED if maxed else COLOR_COUNT) if stage_unlocked else COLOR_COUNT_DIM)
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -423,11 +505,11 @@ func _build_passive_node(lane: Dictionary, stage: int, lane_pts: int) -> Control
 	box.add_child(count)
 	return box
 
-func _on_passive_node_pressed(passive_id: String, lane: Dictionary, stage: int) -> void:
-	if player_stats == null:
+func _on_passive_node_pressed(passive_id: String, stage: int) -> void:
+	if player_stats == null or skill_tree == null:
 		return
 	# Stage gate re-checked at click time (the pool/levels may have changed).
-	if _lane_points(lane) < SkillTreeData.stage_unlock_cost(stage):
+	if not SkillTreeData.is_stage_unlocked(skill_tree.get_archetype_lanes(), stage, player_stats):
 		return
 	if player_stats.allocate_passive_point(passive_id):
 		_rebuild_table()

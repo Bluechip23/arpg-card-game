@@ -34,12 +34,51 @@ func _initialize() -> void:
 				if opt.archetype != lane["name"]:
 					_check(false, "%s lane '%s' holds a foreign passive" % [cname, lane["name"]])
 
-	# --- Stage unlock costs: 0 / 5 / 15 / 25 / 35 ---
+	# --- Stage gates: the first stage is free; every later stage opens once
+	# 5 points sit in the WHOLE previous stage (any archetype) ---
 	_check(SkillTreeData.stage_unlock_cost(0) == 0, "stage 1 is free")
-	_check(SkillTreeData.stage_unlock_cost(1) == 5, "stage 2 needs 5 lane points")
-	_check(SkillTreeData.stage_unlock_cost(2) == 15, "stage 3 needs 15 lane points")
-	_check(SkillTreeData.stage_unlock_cost(3) == 25, "stage 4 needs 25 lane points")
-	_check(SkillTreeData.stage_unlock_cost(4) == 35, "stage 5 needs 35 lane points")
+	for st in range(1, 5):
+		_check(SkillTreeData.stage_unlock_cost(st) == SkillTreeData.STAGE_GATE_POINTS,
+			"stage %d needs %d points across the previous stage" % [st + 1, SkillTreeData.STAGE_GATE_POINTS])
+	var brad_lanes: Array = trees["Brad"].get_archetype_lanes()
+	var gate_stats = load("res://scripts/character/player_stats.gd").new()
+	gate_stats.initialize(CharacterData.create_brad())
+	_check(SkillTreeData.stage_points(brad_lanes, 0, gate_stats) == 0, "fresh tree: stage 1 holds 0 points")
+	_check(not SkillTreeData.is_stage_unlocked(brad_lanes, 1, gate_stats), "stage 2 locked with 0 points in stage 1")
+	gate_stats.unspent_passive_points = 10
+	# Spread 5 points over DIFFERENT archetypes' first-stage passives: the gate
+	# counts the whole stage, not one lane.
+	var spread := 0
+	for lane in brad_lanes:
+		if spread >= SkillTreeData.STAGE_GATE_POINTS:
+			break
+		gate_stats.allocate_passive_point(lane["passives"][0].passive_id)
+		spread += 1
+	while spread < SkillTreeData.STAGE_GATE_POINTS:
+		gate_stats.allocate_passive_point(brad_lanes[0]["passives"][0].passive_id)
+		spread += 1
+	_check(SkillTreeData.stage_points(brad_lanes, 0, gate_stats) == SkillTreeData.STAGE_GATE_POINTS,
+		"5 points spread across archetypes all count toward stage 1")
+	_check(SkillTreeData.is_stage_unlocked(brad_lanes, 1, gate_stats), "stage 2 unlocks off the whole previous stage")
+	_check(not SkillTreeData.is_stage_unlocked(brad_lanes, 2, gate_stats), "stage 3 still locked (0 points in stage 2)")
+	gate_stats.free()
+
+	# --- Rank-specific description text (what the tree tooltip shows) ---
+	var ew_desc := "When you drop below 10%→25% HP (scales with rank), swing. Cooldown: 25→10 tempo"
+	_check(PassiveScaling.describe_at_rank("enraged_will", ew_desc, 1) == "When you drop below 10% HP, swing. Cooldown: 25 tempo",
+		"rank 1 text reads the table's first entries")
+	_check(PassiveScaling.describe_at_rank("enraged_will", ew_desc, 3) == "When you drop below 12% HP, swing. Cooldown: 23 tempo",
+		"rank 3 text: fraction table shown as a percent, cooldown counts down")
+	_check(PassiveScaling.describe_at_rank("enraged_will", ew_desc, 15) == "When you drop below 25% HP, swing. Cooldown: 10 tempo",
+		"rank 15 text reads the table's last entries")
+	_check(PassiveScaling.describe_at_rank("the_way_of_the_plate", "Every 9th→2nd Defense card", 5) == "Every 7th Defense card",
+		"ordinal ranges re-suffix the rank value")
+	_check(PassiveScaling.describe_at_rank("self_reliance", "cost -10m→-80m", 15) == "cost -80m",
+		"negative mana ranges match the positive table")
+	_check(PassiveScaling.describe_at_rank("nothing_here", "gain 0→14 armor", 8) == "gain 7 armor",
+		"unknown passive interpolates the range linearly")
+	_check(PassiveScaling.describe_at_rank("x", "Attack→Heal: convert", 3) == "Attack→Heal: convert",
+		"non-numeric arrows are untouched")
 
 	# --- Allocation rules ---
 	var stats = load("res://scripts/character/player_stats.gd").new()
