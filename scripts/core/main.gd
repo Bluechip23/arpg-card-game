@@ -1121,8 +1121,9 @@ func _setup_action_buttons() -> void:
 	_rack_button.visible = false
 	vbox.add_child(_rack_button)
 
-	# Bottom row: Wait beside a (shrunk) Pause, stretched to the column (= attack)
-	# width so the two plus the gap match the Attack button.
+	# Bottom row: Wait, stretched to the column (= attack) width. (Pause used to
+	# sit beside it; it now lives on the tempo ticker next to the ▶ speed
+	# button, where the clock it stops is.)
 	var bottom_row = HBoxContainer.new()
 	bottom_row.name = "WaitPauseRow"
 	bottom_row.custom_minimum_size = Vector2(0, 36)
@@ -1130,7 +1131,7 @@ func _setup_action_buttons() -> void:
 	bottom_row.add_theme_constant_override("separation", 4)
 	vbox.add_child(bottom_row)
 
-	# Wait: raised hand + the 1 tempo it advances (takes the remaining width).
+	# Wait: raised hand + the 1 tempo it advances (takes the full width).
 	var wait_btn = Button.new()
 	wait_btn.name = "WaitButton"
 	wait_btn.icon = UIGlyphs.get_glyph("wait_hand")
@@ -1140,32 +1141,6 @@ func _setup_action_buttons() -> void:
 	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
 	bottom_row.add_child(wait_btn)
-
-	# Pause: narrow red stop sign, no text; shows a green play triangle while paused.
-	_pause_button = Button.new()
-	_pause_button.name = "PauseButton"
-	_pause_button.icon = UIGlyphs.get_glyph("stop_sign")
-	_pause_button.custom_minimum_size = Vector2(38, 36)
-	_pause_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_pause_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
-	_pause_button.pressed.connect(_on_pause_pressed)
-	var pause_normal = StyleBoxFlat.new()
-	pause_normal.bg_color = Color(0.35, 0.25, 0.1)
-	pause_normal.corner_radius_top_left = 4
-	pause_normal.corner_radius_top_right = 4
-	pause_normal.corner_radius_bottom_left = 4
-	pause_normal.corner_radius_bottom_right = 4
-	_pause_button.add_theme_stylebox_override("normal", pause_normal)
-	var pause_hover = StyleBoxFlat.new()
-	pause_hover.bg_color = Color(0.45, 0.35, 0.15)
-	pause_hover.corner_radius_top_left = 4
-	pause_hover.corner_radius_top_right = 4
-	pause_hover.corner_radius_bottom_left = 4
-	pause_hover.corner_radius_bottom_right = 4
-	_pause_button.add_theme_stylebox_override("hover", pause_hover)
-	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
-	bottom_row.add_child(_pause_button)
 
 #endregion
 #region TICK BAR & ACTION QUEUE
@@ -1285,6 +1260,10 @@ func _setup_tick_bar() -> void:
 		sbtn.pressed.connect(_on_tick_speed_changed.bind(float(tier["secs"])))
 		label_row.add_child(sbtn)
 		_tick_speed_buttons.append(sbtn)
+		if is_equal_approx(float(tier["mult"]), 1.0):
+			# Pause sits right beside the normal-speed ▶ on the counter: a
+			# red stop sign that becomes a green play triangle while paused.
+			label_row.add_child(_build_pause_button())
 	_update_tick_speed_buttons()
 
 	# The dropdown itself: hangs below the tick bar, hidden until opened.
@@ -1306,6 +1285,33 @@ func _setup_tick_bar() -> void:
 	_queue_list = VBoxContainer.new()
 	_queue_list.add_theme_constant_override("separation", 2)
 	_queue_panel.add_child(_queue_list)
+
+func _build_pause_button() -> Button:
+	## The pause toggle on the tempo ticker. Sized to the speed-tier arrows
+	## (the glyph scales down to the row height) so the counter row reads as
+	## one transport strip: ◀◀ ◀ ▶ ⏸ ▶▶ ▶▶▶.
+	_pause_button = Button.new()
+	_pause_button.name = "PauseButton"
+	_pause_button.icon = UIGlyphs.get_glyph("stop_sign")
+	_pause_button.expand_icon = true
+	_pause_button.custom_minimum_size = Vector2(22, 16)
+	_pause_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
+	_pause_button.pressed.connect(_on_pause_pressed)
+	var pause_normal = StyleBoxFlat.new()
+	pause_normal.bg_color = Color(0.35, 0.25, 0.1)
+	pause_normal.set_corner_radius_all(3)
+	pause_normal.content_margin_left = 3
+	pause_normal.content_margin_right = 3
+	pause_normal.content_margin_top = 1
+	pause_normal.content_margin_bottom = 1
+	_pause_button.add_theme_stylebox_override("normal", pause_normal)
+	var pause_hover = pause_normal.duplicate() as StyleBoxFlat
+	pause_hover.bg_color = Color(0.45, 0.35, 0.15)
+	_pause_button.add_theme_stylebox_override("hover", pause_hover)
+	_pause_button.add_theme_stylebox_override("pressed", pause_hover)
+	_pause_button.process_mode = Node.PROCESS_MODE_ALWAYS  # Works while tree is paused
+	return _pause_button
 
 func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, card_name: String = "") -> void:
 	## Update the 20-tick global tempo bar. This is a rolling counter that fills
