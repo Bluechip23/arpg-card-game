@@ -206,6 +206,9 @@ func _physics_process(delta: float) -> void:
 			# Emit per-tile signal so tempo updates in real time
 			tile_reached.emit()
 
+			# A unit that stepped onto the route's end since we set out cuts
+			# the route short — never finish a move on top of someone.
+			_trim_path_tail()
 			if move_path.size() > 0:
 				target_position = move_path.pop_front()
 			else:
@@ -344,6 +347,10 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 	if move_path.size() > spaces:
 		move_path.resize(spaces)
 
+	# Enemy tiles may be crossed but never ended on: a route that runs out of
+	# movement on top of a unit (or was aimed at one) stops one tile short.
+	_trim_path_tail()
+
 	if move_path.size() > 0:
 		spaces_to_move = move_path.size()
 		spaces_moved = 0
@@ -369,6 +376,53 @@ func _consume_haste_for_move(haste_bonus: int) -> void:
 	if pstats:
 		pstats.free_move_tiles += haste_bonus
 	buff_manager.consume_haste()
+
+func intended_cell() -> Vector2i:
+	## The tile this character will end on: the final queued waypoint while
+	## moving, otherwise the current tile. Enemies reserve it so nobody plans
+	## a route onto a player who is still walking there.
+	if not grid_manager:
+		return Vector2i.ZERO
+	if is_moving:
+		if move_path.size() > 0:
+			return grid_manager.world_to_grid(move_path[move_path.size() - 1])
+		return grid_manager.world_to_grid(target_position)
+	return grid_manager.world_to_grid(position)
+
+func _taken_cells() -> Array:
+	## Tiles no move may end on: every living enemy (current tile and where its
+	## move ends), the co-op partner, and player summons.
+	var cells: Array = []
+	if not grid_manager or enemy_spawner == null or not is_instance_valid(enemy_spawner):
+		return cells
+	for e in enemy_spawner.get_living_enemies():
+		cells.append(grid_manager.world_to_grid(e.position))
+		if e.has_method("intended_cell"):
+			cells.append(e.intended_cell())
+	for p in enemy_spawner.players:
+		if p == self or not is_instance_valid(p):
+			continue
+		cells.append(grid_manager.world_to_grid(p.position))
+		if p.has_method("intended_cell"):
+			cells.append(p.intended_cell())
+	if enemy_spawner.has_method("_living_summons"):
+		for s in enemy_spawner._living_summons():
+			cells.append(grid_manager.world_to_grid(s.position))
+	return cells
+
+func _trim_path_tail() -> void:
+	## Pop trailing waypoints that sit on a taken tile (see _taken_cells).
+	if move_path.is_empty() or not grid_manager:
+		return
+	var taken: Array = _taken_cells()
+	if taken.is_empty():
+		return
+	while not move_path.is_empty():
+		var last_cell := grid_manager.world_to_grid(move_path[move_path.size() - 1])
+		if last_cell in taken:
+			move_path.pop_back()
+		else:
+			break
 
 func cancel_movement() -> void:
 	## Stop a move that is already underway: the step in progress finishes (so

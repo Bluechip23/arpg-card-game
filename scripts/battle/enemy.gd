@@ -128,6 +128,10 @@ var ground_y_provider: Callable = Callable()  # Set by main.gd: world_pos -> des
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
 var pillar_tiles: Array[Vector2i] = []   # Set by main.gd for rise pillars (traps enemy on top)
 var occupied_tiles: Array[Vector2i] = [] # Set by main.gd: tiles occupied by other enemies
+# Set by main.gd: () -> Array of Vector2i tiles held by players/summons right
+# now (current tile + where their move ends). Queried live, so a route never
+# finishes on a unit that stepped in after the route was planned.
+var unit_cells_provider: Callable = Callable()
 
 # Armor Break: set by card.execute() before attack, cleared after
 var armor_break_incoming: bool = false
@@ -2840,7 +2844,28 @@ func _cells_between(a: Node3D, b: Node3D) -> int:
 	return int(Vector3(diff.x, 0, diff.z).length())
 
 func _cell_is_free(cell: Vector2i) -> bool:
-	return not (cell in blocked_tiles) and not (cell in occupied_tiles)
+	return not (cell in blocked_tiles) and not (cell in occupied_tiles) and not (cell in _unit_cells())
+
+func _unit_cells() -> Array:
+	## Live tiles held by the player side (see unit_cells_provider).
+	if unit_cells_provider.is_valid():
+		return unit_cells_provider.call()
+	return []
+
+func _trim_path_tail() -> void:
+	## Drop trailing waypoints that now sit on a unit's tile, so the move ends
+	## one tile short instead of on top of a player, summon, or other enemy.
+	if _move_path.is_empty() or not grid_manager:
+		return
+	var taken: Array = _unit_cells()
+	for c in occupied_tiles:
+		taken.append(c)
+	while not _move_path.is_empty():
+		var last_cell := grid_manager.world_to_grid(_move_path[_move_path.size() - 1])
+		if last_cell in taken:
+			_move_path.pop_back()
+		else:
+			break
 
 ## A free world position on/near the given spot (for summon placement).
 func _free_cell_near(world_pos: Vector3, radius: int) -> Vector3:
@@ -3795,7 +3820,9 @@ func _physics_process(delta: float) -> void:
 						wake_main.register_fire_wall([_wake_prev_cell], 10, 2, 99, 15, self, 10)
 				_wake_prev_cell = wake_cur
 			# Advance to the next waypoint if the route has more tiles, so we
-			# follow the path around corners instead of stopping short.
+			# follow the path around corners instead of stopping short. A unit
+			# that has since stepped onto the route's end cuts the route short.
+			_trim_path_tail()
 			if not _move_path.is_empty():
 				target_position = _move_path.pop_front()
 			elif _wandering:
@@ -3889,6 +3916,8 @@ func _try_wander() -> void:
 		var unit := _ambient_target()
 		if unit != null and grid_manager.world_to_grid(unit.position) == c:
 			continue
+		if c in _unit_cells():
+			continue
 		var wp := grid_manager.grid_to_world(c)
 		if dungeon_manager != null:
 			wp.y = dungeon_manager.get_elevation_world_y(c)
@@ -3915,6 +3944,7 @@ func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, awa
 		return path
 	var last_cell := grid_manager.world_to_grid(start_pos)
 	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var unit_cells: Array = _unit_cells()
 	for _step in range(tiles):
 		var best_cell := last_cell
 		var best_dist := _manhattan_dist(last_cell, goal_cell)
@@ -3926,6 +3956,8 @@ func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, awa
 				continue  # Walls / structures
 			if candidate in occupied_tiles:
 				continue  # Other enemies
+			if candidate in unit_cells:
+				continue  # Players (current + destination tiles) and summons
 			var dist := _manhattan_dist(candidate, goal_cell)
 			var better := dist > best_dist if away else dist < best_dist
 			if better:
@@ -3945,6 +3977,9 @@ func _start_path(path: Array[Vector3]) -> bool:
 	if path.is_empty():
 		return false
 	_move_path = path
+	_trim_path_tail()
+	if _move_path.is_empty():
+		return false
 	target_position = _move_path.pop_front()
 	is_moving = true
 	return true
@@ -4570,12 +4605,13 @@ func knockback(away_from: Vector3, spaces: int = 1) -> void:
 		dir_z = 1 if diff.z > 0 else -1
 	if dir_x == 0 and dir_z == 0:
 		return
-	# Step tile-by-tile, stopping at blocked tiles
+	# Step tile-by-tile, stopping at blocked or occupied tiles
 	var current_cell = grid_manager.world_to_grid(position)
 	var last_valid_cell = current_cell
+	var taken: Array = _unit_cells()
 	for i in range(spaces):
 		var next_cell = Vector2i(current_cell.x + dir_x * (i + 1), current_cell.y + dir_z * (i + 1))
-		if next_cell in blocked_tiles:
+		if next_cell in blocked_tiles or next_cell in occupied_tiles or next_cell in taken:
 			break
 		last_valid_cell = next_cell
 	var new_pos = grid_manager.grid_to_world(last_valid_cell)

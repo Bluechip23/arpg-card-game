@@ -12,9 +12,15 @@ extends Node3D
 @onready var vendor_item_list: VBoxContainer = $UI/VendorPanel/MarginContainer/VBox/ScrollContainer/ItemList
 @onready var town_label: Label = $UI/TownLabel
 @onready var fight_button: Button = $UI/FightButton
-@onready var back_button: Button = $UI/BackButton
 
 const INTERACT_DISTANCE: float = 2.5  # Max tiles from vendor to interact
+# Olorin's first errand. The world stays shut until the player has spoken with
+# him and taken it — the Transport Portal is how they leave town.
+const FIRST_QUEST_ID: String = "olorin_kill_wererats"
+# Quest marker looks: gold "!" = quest on offer, gray "?" = in progress,
+# gold "?" = ready to turn in.
+const MARKER_GOLD := Color(1.0, 0.85, 0.0)
+const MARKER_GRAY := Color(0.62, 0.62, 0.66)
 
 var starting_character: CharacterData = null
 var player2_character: CharacterData = null  # Persistent co-op partner (recruited at the Sellsword)
@@ -120,6 +126,11 @@ var vendor_info: Dictionary = {
 func _ready() -> void:
 	_unify_town_style()
 	player.set_grid_manager(grid_manager)
+	# Stand on tile centres like everywhere else, and ride up onto the
+	# Transport Portal's mound instead of sinking into it.
+	player.position = grid_manager.snap_to_grid(player.position)
+	player.target_position = player.position
+	player.ground_y_provider = Callable(self, "_town_ground_y")
 
 	# The Return Scroll's twin portal shimmers beside the arrival spot.
 	if not portal_return.is_empty():
@@ -159,8 +170,7 @@ func _ready() -> void:
 	_apply_styles()
 
 	vendor_close_button.pressed.connect(_close_vendor)
-	fight_button.pressed.connect(_go_to_battle)
-	back_button.pressed.connect(_on_back_pressed)
+	fight_button.pressed.connect(_on_fight_button_pressed)
 	_setup_save_button()
 
 	interact_prompt.text = ""
@@ -188,6 +198,10 @@ func _ready() -> void:
 
 	# Dress the plaza: market stalls over the vendor markers, lamps, props
 	_dress_town()
+
+	# Quest markers over the NPCs reflect the restored quest state.
+	_refresh_quest_indicators()
+	_refresh_leave_gate()
 
 	# Initialize camera
 	_camera_focus = player.position + Vector3(3, 0, 0)
@@ -317,7 +331,10 @@ func _process(_delta: float) -> void:
 	if _near_return_portal:
 		interact_prompt.text = "Press [Shift] to step back through your portal"
 	elif _near_town_waypoint:
-		interact_prompt.text = "Press [Shift] to use Transport Portal"
+		if _can_leave_town():
+			interact_prompt.text = "Press [Shift] to use Transport Portal"
+		else:
+			interact_prompt.text = "The portal is dormant — speak with Olorin (!) first"
 	elif nearby_vendor:
 		var info = vendor_info.get(nearby_vendor.name, null)
 		var display_name = info["name"] if info else nearby_vendor.name
@@ -335,7 +352,12 @@ func _input(event: InputEvent) -> void:
 					_go_to_battle(true)
 					return
 				if _near_town_waypoint:
-					_go_to_battle()
+					if _can_leave_town():
+						_go_to_battle()
+					else:
+						_show_town_notice("The Transport Portal", [
+							"The runes lie dark. Olorin waits by the plaza with a task for you — speak with him before you set out.",
+						])
 					return
 				if nearby_vendor:
 					_open_vendor(nearby_vendor)
@@ -2427,7 +2449,7 @@ func _create_town_waypoint() -> void:
 	var mound_mesh = CylinderMesh.new()
 	mound_mesh.top_radius = 0.68
 	mound_mesh.bottom_radius = 0.95
-	mound_mesh.height = 0.22
+	mound_mesh.height = DungeonManager.WAYPOINT_MOUND_HEIGHT
 	mound_mesh.radial_segments = 12
 	mound.mesh = mound_mesh
 	var mound_mat = StandardMaterial3D.new()
@@ -2438,11 +2460,12 @@ func _create_town_waypoint() -> void:
 	mound_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	mound_mat.roughness = 1.0
 	mound.material_override = mound_mat
-	mound.position = Vector3(0, 0.11, 0)
+	mound.position = Vector3(0, DungeonManager.WAYPOINT_MOUND_HEIGHT * 0.5, 0)
 	_town_waypoint_node.add_child(mound)
 
 	# Pixel rune-ring on the mound's top, matching the dungeon waypoints.
 	var pillar = Sprite3D.new()
+	pillar.name = "Runes"
 	pillar.texture = load("res://assets/textures/props/waypoint_ring.png")
 	pillar.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	pillar.shaded = false
@@ -2474,8 +2497,9 @@ func _create_town_waypoint() -> void:
 	WorldText.crisp(interact_label)
 	_town_waypoint_node.add_child(interact_label)
 
-	# Position near the town entrance area
-	_town_waypoint_node.position = Vector3(4, 0, 10)
+	# Position near the town entrance area, centred on its tile so the
+	# player stands squarely on the mound when they walk onto it.
+	_town_waypoint_node.position = grid_manager.grid_to_world(Vector2i(4, 10))
 	add_child(_town_waypoint_node)
 	print("[TOWN] Created transport portal")
 
@@ -2570,6 +2594,8 @@ func _on_accept_quest(quest_id: String) -> void:
 		print("[TOWN] Quest accepted: %s" % quest_id)
 		# Refresh the dialog to show "Accepted" state instead of closing
 		_refresh_quest_dialog_after_accept(quest_id)
+		_refresh_quest_indicators()
+		_refresh_leave_gate()
 
 func _refresh_quest_dialog_after_accept(_quest_id: String) -> void:
 	## Replace the accept button with a green "Accepted" label in the current dialog.
@@ -2599,6 +2625,70 @@ func _on_turn_in_quest(quest_id: String) -> void:
 
 	print("[TOWN] Quest turned in! Rewards: %s" % rewards)
 	_close_vendor()
+	_refresh_quest_indicators()
+	_refresh_leave_gate()
+
+# ── Quest markers & leaving town ──
+
+func _refresh_quest_indicators() -> void:
+	## Every NPC with a QuestIndicator label shows its giver's quest state:
+	## gold "!" when a quest is on offer, gray "?" while one is in progress,
+	## gold "?" once its objectives are done and it can be turned in.
+	if quest_manager == null:
+		return
+	for npc in $Vendors.get_children():
+		var marker = npc.get_node_or_null("QuestIndicator")
+		if marker == null:
+			continue
+		var info = vendor_info.get(npc.name, null)
+		var giver: String = info["name"] if info else npc.name
+		_apply_quest_marker(marker, quest_manager.marker_state_for(giver))
+
+static func _apply_quest_marker(marker: Label3D, state: String) -> void:
+	match state:
+		"available":
+			marker.text = "!"
+			marker.modulate = MARKER_GOLD
+			marker.visible = true
+		"active":
+			marker.text = "?"
+			marker.modulate = MARKER_GRAY
+			marker.visible = true
+		"complete":
+			marker.text = "?"
+			marker.modulate = MARKER_GOLD
+			marker.visible = true
+		_:
+			marker.visible = false
+
+func _can_leave_town() -> bool:
+	## The world opens once Olorin's first errand has been taken.
+	return quest_manager != null and quest_manager.is_quest_started(FIRST_QUEST_ID)
+
+func _refresh_leave_gate() -> void:
+	var open := _can_leave_town()
+	fight_button.disabled = not open
+	fight_button.tooltip_text = "" if open else "Speak with Olorin first."
+	if _town_waypoint_node:
+		var runes = _town_waypoint_node.get_node_or_null("Runes")
+		if runes:
+			runes.modulate = Color8(0x62, 0xa3, 0xb0) if open else Color(0.35, 0.4, 0.42)
+
+func _on_fight_button_pressed() -> void:
+	if not _can_leave_town():
+		_show_town_notice("The Transport Portal", [
+			"The runes lie dark. Olorin waits by the plaza with a task for you — speak with him before you set out.",
+		])
+		return
+	_go_to_battle()
+
+func _town_ground_y(world_pos: Vector3) -> float:
+	## Ground height under a unit in town: the Transport Portal's mound top
+	## when standing on its tile, flat plaza everywhere else.
+	if _town_waypoint_node and grid_manager:
+		if grid_manager.world_to_grid(world_pos) == grid_manager.world_to_grid(_town_waypoint_node.position):
+			return DungeonManager.WAYPOINT_MOUND_HEIGHT
+	return 0.0
 
 # ── Save game ──
 
@@ -2731,13 +2821,6 @@ func _do_save(slot: int, slot_buttons: Array[Button], status: Label) -> void:
 		status.text = "Save failed (see log)."
 	_refresh_slot_buttons(slot_buttons)
 
-func _on_back_pressed() -> void:
-	if vendor_open:
-		_close_vendor()
-	var title_scene = load("res://scenes/menus/title_menu.tscn").instantiate()
-	get_tree().root.add_child(title_scene)
-	queue_free()
-
 func _close_vendor() -> void:
 	vendor_open = false
 	vendor_panel.visible = false
@@ -2797,7 +2880,7 @@ func _spawn_return_portal() -> void:
 	## The twin of the Return Scroll portal, matching the battle-side visual.
 	var portal_root = Node3D.new()
 	portal_root.name = "ReturnPortal"
-	portal_root.position = player.position + Vector3(2.0, 0, 1.0)
+	portal_root.position = grid_manager.snap_to_grid(player.position + Vector3(2.0, 0, 1.0))
 
 	var ring = MeshInstance3D.new()
 	var torus = TorusMesh.new()
