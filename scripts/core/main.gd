@@ -5079,6 +5079,8 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 		enemy.blocked_tiles = _enemy_blocked_tiles()
 	# Smooth terrain-following Y (elevation, pillars)
 	enemy.ground_y_provider = Callable(self, "_desired_ground_y")
+	# Live player/summon tiles: a route that would end on one is cut short.
+	enemy.unit_cells_provider = Callable(self, "_ally_unit_cells")
 	# Snap initial Y position to terrain elevation
 	if dungeon_manager and grid_manager:
 		var enemy_cell = grid_manager.world_to_grid(enemy.position)
@@ -5583,7 +5585,8 @@ func _climb_down() -> void:
 		occupied.append(grid_manager.world_to_grid(e.position))
 	for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 		var t = base + dir
-		if dungeon_manager.is_floor(t) and not dungeon_manager.pit_tiles.has(t) and t not in occupied:
+		if dungeon_manager.is_floor(t) and not dungeon_manager.pit_tiles.has(t) \
+				and not dungeon_manager.is_obstacle(t) and t not in occupied:
 			var wpos = grid_manager.grid_to_world(t)
 			wpos.y = dungeon_manager.get_elevation_world_y(t)
 			player.position = wpos
@@ -11471,28 +11474,26 @@ func _setup_dungeon() -> void:
 	print("[MAIN] Dungeon initialized (%s), player at %s" % [get_location_label(), start_pos])
 
 func _player_blocked_tiles() -> Array[Vector2i]:
-	## Walls + pits + barricades — impassable for the player.
+	## Walls + pits + barricades + tree trunks — impassable for the player.
+	## Climbable trees are blocked too: the player scrambles up from an
+	## ADJACENT tile with [Shift], never by walking into the trunk.
 	var tiles: Array[Vector2i] = []
 	if dungeon_manager:
 		tiles.append_array(dungeon_manager.get_wall_tiles())
 		for p in dungeon_manager.pit_tiles.keys():
 			tiles.append(p)
+		tiles.append_array(dungeon_manager.get_obstacle_tiles())
 	for obs in barricade_obstacles:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
 	return tiles
 
 func _enemy_blocked_tiles() -> Array[Vector2i]:
-	## Everything the player is blocked by, plus forest tree trunks (the player
-	## may climb those; enemies cannot).
-	var enemy_tiles: Array[Vector2i] = _player_blocked_tiles()
-	if dungeon_manager:
-		for tree in dungeon_manager.tree_nodes:
-			enemy_tiles.append(tree["grid_pos"])
-	return enemy_tiles
+	## Everything the player is blocked by — trees included (obstacle tiles
+	## cover every trunk, climbable or not).
+	return _player_blocked_tiles()
 
 func _sync_dungeon_blocked_tiles() -> void:
-	## Combines dungeon walls + barricades + pits for pathfinding. Forest tree
-	## trunks additionally block enemies (the player may climb them).
+	## Combines dungeon walls + barricades + pits + tree trunks for pathfinding.
 	var tiles := _player_blocked_tiles()
 	player.blocked_tiles = tiles
 	var enemy_tiles := _enemy_blocked_tiles()
@@ -11651,7 +11652,12 @@ func _desired_ground_y(world_pos: Vector3) -> float:
 	if _is_climbed_tree(world_pos):
 		return TREE_CANOPY_Y
 	if dungeon_manager and grid_manager:
-		return dungeon_manager.get_elevation_world_y(grid_manager.world_to_grid(world_pos))
+		var cell := grid_manager.world_to_grid(world_pos)
+		var y := dungeon_manager.get_elevation_world_y(cell)
+		# Waypoints sit on a raised dirt mound: stand on top of it, not in it.
+		if dungeon_manager.get_waypoint_on_tile(cell) >= 0:
+			y += DungeonManager.WAYPOINT_MOUND_HEIGHT
+		return y
 	return 0.0
 
 func _apply_world_ambience() -> void:
@@ -12124,6 +12130,31 @@ func _living_enemy_cells() -> Array:
 		return cells
 	for e in enemy_spawner.get_living_enemies():
 		cells.append(grid_manager.world_to_grid(e.position))
+	return cells
+
+func _ally_unit_cells() -> Array:
+	## Tiles held by the player side right now: every player (current tile AND
+	## the tile their move will end on) plus living summons. Enemies use this so
+	## no route ever finishes on top of a unit.
+	var cells: Array = []
+	if not grid_manager:
+		return cells
+	var units: Array = []
+	if _p1_player and is_instance_valid(_p1_player):
+		units.append(_p1_player)
+	if _p2_player and is_instance_valid(_p2_player):
+		units.append(_p2_player)
+	if player and is_instance_valid(player) and not (player in units):
+		units.append(player)
+	for u in units:
+		cells.append(grid_manager.world_to_grid(u.position))
+		if u.has_method("intended_cell"):
+			var ic: Vector2i = u.intended_cell()
+			if not (ic in cells):
+				cells.append(ic)
+	if enemy_spawner:
+		for s in enemy_spawner._living_summons():
+			cells.append(grid_manager.world_to_grid(s.position))
 	return cells
 
 #endregion

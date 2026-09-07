@@ -120,6 +120,30 @@ func has_active_quest_from(giver_name: String) -> bool:
 			return true
 	return false
 
+func is_quest_started(quest_id: String) -> bool:
+	## True once the quest has been accepted (in progress or already turned in).
+	for quest in active_quests:
+		if quest.id == quest_id:
+			return true
+	for quest in completed_quests:
+		if quest.id == quest_id:
+			return true
+	return false
+
+func marker_state_for(giver_name: String) -> String:
+	## What the marker above a quest giver's head should show:
+	##   "complete"  — a quest is finished and waiting to be turned in (gold ?)
+	##   "active"    — a quest was accepted and is still in progress (gray ?)
+	##   "available" — a quest is on offer, not yet accepted (gold !)
+	##   ""          — nothing to show
+	if has_complete_quest_for(giver_name):
+		return "complete"
+	if has_active_quest_from(giver_name):
+		return "active"
+	if not get_available_quests_from(giver_name).is_empty():
+		return "available"
+	return ""
+
 func save_state() -> Dictionary:
 	## Serialize quest state for passing between scenes.
 	var state: Dictionary = {"accepted_ids": [], "completed_ids": [], "kill_counts": {}}
@@ -139,8 +163,10 @@ func load_state(state: Dictionary) -> void:
 	var completed_ids: Array = state.get("completed_ids", [])
 	var kill_counts: Dictionary = state.get("kill_counts", {})
 
-	# Accept quests that were previously accepted
-	for quest_id in accepted_ids:
+	# Accept quests that were previously accepted. Turned-in quests are only
+	# listed under completed_ids, so pull those out of the offer pool too or
+	# they would come back as a fresh "!" on the giver.
+	for quest_id in accepted_ids + completed_ids:
 		if quest_id in available_quests:
 			accept_quest(quest_id)
 

@@ -233,84 +233,10 @@ func _on_load_slot(save: SaveData) -> void:
 		return
 
 	print("[LOAD] Loading character: %s" % save.character_name)
-	_show_mode_select(save)
+	_go_to_town(save)
 
-func _show_mode_select(save: SaveData) -> void:
-	var character: CharacterData = save.character_data
-	# Same mode select as character_select: Town vs Fight
-	var overlay = ColorRect.new()
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.color = Color(0.0, 0.0, 0.0, 0.7)
-
-	var panel = PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.offset_left = -200.0
-	panel.offset_top = -120.0
-	panel.offset_right = 200.0
-	panel.offset_bottom = 120.0
-
-	var p_style = StyleBoxFlat.new()
-	p_style.bg_color = Color(0.1, 0.1, 0.15, 1.0)
-	p_style.border_width_left = 2
-	p_style.border_width_right = 2
-	p_style.border_width_top = 2
-	p_style.border_width_bottom = 2
-	p_style.border_color = Color(0.4, 0.4, 0.6)
-	p_style.corner_radius_top_left = 8
-	p_style.corner_radius_top_right = 8
-	p_style.corner_radius_bottom_left = 8
-	p_style.corner_radius_bottom_right = 8
-	p_style.content_margin_left = 30.0
-	p_style.content_margin_right = 30.0
-	p_style.content_margin_top = 25.0
-	p_style.content_margin_bottom = 25.0
-	panel.add_theme_stylebox_override("panel", p_style)
-	overlay.add_child(panel)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 20)
-	panel.add_child(vbox)
-
-	var mtitle = Label.new()
-	mtitle.text = "Where to?"
-	mtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mtitle.add_theme_font_size_override("font_size", 28)
-	mtitle.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-	vbox.add_child(mtitle)
-
-	var msub = Label.new()
-	msub.text = "Playing as %s" % character.character_name
-	msub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	msub.add_theme_font_size_override("font_size", 14)
-	msub.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-	vbox.add_child(msub)
-
-	var btn_hbox = HBoxContainer.new()
-	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	btn_hbox.add_theme_constant_override("separation", 40)
-	vbox.add_child(btn_hbox)
-
-	var town_btn = Button.new()
-	town_btn.text = "To Town"
-	town_btn.custom_minimum_size = Vector2(150, 50)
-	town_btn.add_theme_font_size_override("font_size", 18)
-	_style_button(town_btn, Color(0.15, 0.3, 0.15), Color(0.2, 0.4, 0.2), Color(0.3, 0.6, 0.3), Color(0.4, 0.8, 0.4))
-	town_btn.pressed.connect(_on_mode_town.bind(save, overlay))
-	btn_hbox.add_child(town_btn)
-
-	var fight_btn = Button.new()
-	fight_btn.text = "Fight"
-	fight_btn.custom_minimum_size = Vector2(150, 50)
-	fight_btn.add_theme_font_size_override("font_size", 18)
-	_style_button(fight_btn, Color(0.4, 0.12, 0.12), Color(0.55, 0.18, 0.18), Color(0.7, 0.25, 0.25), Color(1.0, 0.35, 0.35))
-	fight_btn.pressed.connect(_on_mode_fight.bind(save, overlay))
-	btn_hbox.add_child(fight_btn)
-
-	add_child(overlay)
-
-func _on_mode_town(save: SaveData, _overlay: ColorRect) -> void:
+func _go_to_town(save: SaveData) -> void:
+	## A loaded character always wakes up at home, in town.
 	print("[LOAD] Going to town with %s" % save.character_name)
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
 	town_scene.starting_character = save.character_data
@@ -324,24 +250,6 @@ func _on_mode_town(save: SaveData, _overlay: ColorRect) -> void:
 	town_scene.opened_chests = save.progression.get("opened_chests", {})
 	get_tree().root.add_child(town_scene)
 	queue_free()
-
-func _on_mode_fight(save: SaveData, _overlay: ColorRect) -> void:
-	print("[LOAD] Going to fight with %s" % save.character_name)
-	var main_scene = load("res://scenes/core/main.tscn").instantiate()
-	main_scene.starting_character = save.character_data
-	main_scene.player2_character = save.player2_character
-	main_scene.is_multiplayer = save.player2_character != null
-	main_scene.player_progression = ProgressionIO.to_live(save.progression)
-	if not save.city.is_empty():
-		main_scene.player_progression["city"] = save.city
-	main_scene.current_world_level = save.world_level
-	main_scene.quest_state = save.progression.get("quest_state", {})
-	main_scene.discovered_waypoints = save.progression.get("discovered_waypoints", [])
-	main_scene.opened_chests = save.progression.get("opened_chests", {})
-	get_tree().root.add_child(main_scene)
-	queue_free()
-
-# ── Popup: Inventory ──
 
 func _show_inventory_popup(save: SaveData) -> void:
 	_clear_popup_content()

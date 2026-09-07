@@ -15,6 +15,7 @@ var GRID_W: int = 70
 var GRID_H: int = 46
 const FOG_REVEAL_RADIUS: int = 6   # Tiles revealed around the player
 const ELEV_STEP: float = 0.5       # World units of height per elevation level
+const WAYPOINT_MOUND_HEIGHT: float = 0.22  # Raised dirt mound under every waypoint ring
 # Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
 # walls stay hidden: max wall = 1.5 + 0.9 noise + 2 elevation * ELEV_STEP = 3.4,
 # and the fog box top sits at FOG_HEIGHT - 0.5 (see _fog_shown_xform).
@@ -199,6 +200,10 @@ var _marking_trails: bool = false
 
 # Forest interactables, consumed by main.gd at setup.
 var tree_nodes: Array = []   # climbable trees: [{node, grid_pos, label_node, climbed}]
+# Scenery that blocks movement for EVERY unit (tree trunks: the treeline,
+# the overworld woods, and the climbable trees). Keyed Vector2i -> true.
+# Placement runs a local cut-vertex test so no obstacle ever severs a path.
+var obstacle_tiles: Dictionary = {}
 var trap_defs: Array = []    # hazards: [{kind:"bear"/"dart", tiles:[Vector2i], grid_pos, node, sprung}]
 var pit_tiles: Dictionary = {}  # Vector2i -> true: impassable pit hazards
 
@@ -300,6 +305,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 
 	# Interactables (placed before visuals so decorations avoid their tiles)
 	_reserved.clear()
+	obstacle_tiles.clear()
 	_reserve_area(player_start, 1)
 	trap_defs.clear()  # every interior lays its own hazards (forest re-clears, harmlessly)
 	if interior_kind == "forest":
@@ -742,6 +748,7 @@ func _generate_forest_layout() -> void:
 	_init_grid_walls()
 	rooms.clear()
 	tree_nodes.clear()
+	obstacle_tiles.clear()
 	trap_defs.clear()
 	pit_tiles.clear()
 	var mid_z = GRID_H / 2
@@ -1501,7 +1508,7 @@ func _build_decorations() -> void:
 			else:
 				# Overworld field. The treeline hugs the walls densely enough to
 				# read as woods pressing in on the clearings (SoM field edges).
-				if near_wall and n < 0.13:
+				if near_wall and n < 0.13 and _claim_obstacle(pos):
 					_deco_trees.append({"pos": p3,
 							"scale": 0.85 + _tile_noise(x, z, 73) * 0.55,
 							"color": pal.get("leaf", pal["floor_a"])})
@@ -2212,6 +2219,9 @@ func _place_forest_pits(clearing_cells: Array) -> void:
 		var pos: Vector2i = entry["pos"]
 		if pos == player_start:
 			continue
+		# A pit is impassable: never let it be the only way into a tile.
+		if not _can_block_tile(pos):
+			continue
 		pit_tiles[pos] = true
 		_reserved[pos] = true
 		# Recessed dark hole with a raised earthen rim.
@@ -2233,10 +2243,18 @@ func _place_climbable_trees(clearing_cells: Array) -> void:
 	if clearing_cells.is_empty():
 		return
 	var want = clampi(clearing_cells.size() / 55, 2, 6)
-	var picks = _spaced_sample(clearing_cells, want, 7)
+	# Over-sample so spots rejected below (nook entrances) are replaced by the
+	# next picks in the same deterministic order.
+	var picks = _spaced_sample(clearing_cells, want * 3, 7)
+	var placed := 0
 	for i in range(picks.size()):
+		if placed >= want:
+			break
 		var pos: Vector2i = picks[i]["pos"]
 		if pos == player_start or _reserved.has(pos):
+			continue
+		# The trunk blocks movement: skip spots where that would seal off a tile.
+		if not _claim_obstacle(pos):
 			continue
 		_reserved[pos] = true
 		var root = Node3D.new()
@@ -2262,6 +2280,7 @@ func _place_climbable_trees(clearing_cells: Array) -> void:
 			"label_node": label,
 			"climbed": false,
 		})
+		placed += 1
 
 func _build_tree_mesh(root: Node3D, scale: float, climbable: bool) -> void:
 	## Climbable/landmark tree visual: the same billboard pixel tree the rest
@@ -2626,8 +2645,8 @@ func _build_forest_decorations() -> void:
 			var jz = (_tile_noise(x, z, 67) - 0.5) * 0.4
 			var y_base = elevation[x][z] * ELEV_STEP
 			var p3 = Vector3(x + 0.5 + jx, y_base, z + 0.5 + jz)
-			if near_wall and n < 0.30:
-				# Treeline tree (billboard sprite).
+			if near_wall and n < 0.30 and _claim_obstacle(pos):
+				# Treeline tree (billboard sprite). Trunks block movement.
 				trunk_items.append({"pos": p3,
 						"scale": 0.8 + _tile_noise(x, z, 73) * 0.7,
 						"color": pal["leaf"].lerp(pal["leaf_b"], _tile_noise(x, z, 79))})
@@ -2735,6 +2754,93 @@ func _place_forest_squirrels(floor_cells: Array) -> void:
 		sq.name = "Squirrel_%d" % i
 		_visuals_root.add_child(sq)
 		sq.setup(Vector3(pos.x + 0.5, 0.0, pos.y + 0.5), _layout_seed + i * 197, "squirrel")
+
+# ============================================
+# MOVEMENT-BLOCKING SCENERY
+# ============================================
+
+func _is_walkable_for_obstacle_test(pos: Vector2i) -> bool:
+	## Floor that a unit can actually stand on: not wall, pit, or an obstacle
+	## already claimed. Reserved tiles (chests, waypoints, traps) stay walkable
+	## here — treating them as blocked would let a tree wall them off.
+	if not is_floor(pos):
+		return false
+	if pit_tiles.has(pos):
+		return false
+	if obstacle_tiles.has(pos):
+		return false
+	return true
+
+func _can_block_tile(pos: Vector2i) -> bool:
+	## True if turning `pos` into an obstacle cannot disconnect the map: every
+	## walkable orthogonal neighbour stays linked through the ring of eight
+	## cells around it. Conservative (a longer detour elsewhere is ignored),
+	## which is exactly what keeps corridors and doorways tree-free.
+	if not _is_walkable_for_obstacle_test(pos):
+		return false
+	if pos == player_start:
+		return false
+	# Enemy spawn points must stay open.
+	for zone in spawn_zones:
+		if pos in zone.get("spawn_points", []):
+			return false
+	# Ring around pos, clockwise from north. Consecutive ring cells are
+	# orthogonally adjacent, so a run of walkable ring cells is connected.
+	var ring := [
+		Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(1, 1),
+		Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0), Vector2i(-1, -1),
+	]
+	var walk: Array[bool] = []
+	for d in ring:
+		walk.append(_is_walkable_for_obstacle_test(pos + d))
+	var ortho_count := 0
+	for i in [0, 2, 4, 6]:
+		if walk[i]:
+			ortho_count += 1
+	if ortho_count <= 1:
+		return true  # dead end or isolated: nothing to sever
+	# Count runs of walkable ring cells that contain an orthogonal neighbour.
+	# All orthogonal neighbours are still connected iff there is exactly one.
+	var start := -1
+	for i in range(8):
+		if not walk[i]:
+			start = i
+			break
+	if start < 0:
+		return true  # full ring: always connected
+	var runs := 0
+	var in_run := false
+	var run_has_ortho := false
+	for k in range(1, 9):
+		var i := (start + k) % 8
+		if walk[i]:
+			in_run = true
+			if i % 2 == 0:
+				run_has_ortho = true
+		elif in_run:
+			if run_has_ortho:
+				runs += 1
+			in_run = false
+			run_has_ortho = false
+	return runs == 1
+
+func _claim_obstacle(pos: Vector2i) -> bool:
+	## Reserve `pos` as movement-blocking scenery if that is safe (see
+	## _can_block_tile). Returns whether it was claimed.
+	if not _can_block_tile(pos):
+		return false
+	obstacle_tiles[pos] = true
+	return true
+
+func get_obstacle_tiles() -> Array[Vector2i]:
+	## Every scenery tile no unit may enter (for pathfinding blocked lists).
+	var out: Array[Vector2i] = []
+	for pos in obstacle_tiles.keys():
+		out.append(pos)
+	return out
+
+func is_obstacle(grid_pos: Vector2i) -> bool:
+	return obstacle_tiles.has(grid_pos)
 
 # ============================================
 # FOREST QUERIES (for main.gd: climbing, traps, blocked tiles)
@@ -3916,11 +4022,11 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	var mound_mesh = CylinderMesh.new()
 	mound_mesh.top_radius = 0.68
 	mound_mesh.bottom_radius = 0.95
-	mound_mesh.height = 0.22
+	mound_mesh.height = WAYPOINT_MOUND_HEIGHT
 	mound_mesh.radial_segments = 12
 	mound.mesh = mound_mesh
 	mound.material_override = _pixel_mat("res://assets/textures/tile_dirt.png", Color(0.62, 0.5, 0.36))
-	mound.position = Vector3(0, 0.11, 0)
+	mound.position = Vector3(0, WAYPOINT_MOUND_HEIGHT * 0.5, 0)
 	wp_root.add_child(mound)
 
 	# Waypoint visual: chunky pixel rune-ring laid flat on the mound's top,
@@ -4224,5 +4330,6 @@ func clear() -> void:
 	elevation.clear()
 	water.clear()
 	tree_nodes.clear()
+	obstacle_tiles.clear()
 	trap_defs.clear()
 	pit_tiles.clear()

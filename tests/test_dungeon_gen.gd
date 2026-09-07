@@ -92,6 +92,36 @@ func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
 	if reached != total:
 		_fail(cfg, "connectivity broken: %d/%d floor tiles reachable" % [reached, total])
 
+	# Movement-blocking scenery (tree trunks) must never cut a tile off: with
+	# obstacles and pits treated as walls, everything that was reachable
+	# before still is (minus the blocked tiles themselves).
+	var obstacles = dm.get_obstacle_tiles()
+	var blocked_count = 0
+	for o in obstacles:
+		if not dm.is_floor(o):
+			_fail(cfg, "obstacle off-floor at %s" % o)
+		if o == dm.player_start:
+			_fail(cfg, "obstacle sits on player_start")
+		for zn in dm.spawn_zones:
+			if o in zn["spawn_points"]:
+				_fail(cfg, "obstacle sits on spawn point %s" % o)
+		for wp in dm.waypoint_nodes:
+			if o == wp["grid_pos"]:
+				_fail(cfg, "obstacle sits on waypoint %s" % o)
+		for c in dm.chest_nodes:
+			if o == c["grid_pos"]:
+				_fail(cfg, "obstacle sits on chest %s" % o)
+		blocked_count += 1
+	for p in dm.pit_tiles.keys():
+		if not dm.obstacle_tiles.has(p):
+			blocked_count += 1
+	var reached_walkable = _reachable_count(dm, true)
+	if reached_walkable != total - blocked_count:
+		_fail(cfg, "obstacles sever the map: %d/%d walkable tiles reachable" % [reached_walkable, total - blocked_count])
+	for t in dm.tree_nodes:
+		if not dm.obstacle_tiles.has(t["grid_pos"]):
+			_fail(cfg, "climbable tree at %s is not an obstacle" % t["grid_pos"])
+
 	for c in dm.chest_nodes:
 		if not dm.is_floor(c["grid_pos"]):
 			_fail(cfg, "chest off-floor at %s" % c["grid_pos"])
@@ -235,7 +265,7 @@ func _validate_forest(dm: DungeonManager, cfg: Dictionary) -> void:
 		cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rooms.size(),
 		dm.tree_nodes.size(), bear, dart, dm.pit_tiles.size(), hills])
 
-func _reachable_count(dm: DungeonManager) -> int:
+func _reachable_count(dm: DungeonManager, respect_obstacles: bool = false) -> int:
 	var visited: Dictionary = {}
 	var frontier: Array = [dm.player_start]
 	visited[dm.player_start] = true
@@ -248,6 +278,8 @@ func _reachable_count(dm: DungeonManager) -> int:
 			if visited.has(next):
 				continue
 			if not dm.is_floor(next):
+				continue
+			if respect_obstacles and (dm.obstacle_tiles.has(next) or dm.pit_tiles.has(next)):
 				continue
 			visited[next] = true
 			frontier.append(next)

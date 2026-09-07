@@ -526,8 +526,8 @@ func _handle_singleplayer_proceed() -> void:
 	if game_mode == "sandbox":
 		_launch_sandbox(_selected_character)
 		return
-	# Show the mode select (Town vs Fight) as a second confirmation
-	_show_mode_select()
+	# Every journey starts at home: straight to town, where Olorin waits.
+	_go_to_town()
 
 func _launch_sandbox(character: CharacterData) -> void:
 	print("[SELECT] Starting sandbox as %s" % character.character_name)
@@ -547,8 +547,7 @@ func _handle_multiplayer_proceed() -> void:
 	else:
 		_player2_character = _selected_character
 		print("[SELECT] Player 2 chose %s" % _player2_character.character_name)
-		# Show mode select for multiplayer too
-		_show_mode_select()
+		_go_to_town()
 
 func _on_cancel_pressed() -> void:
 	_selected_character = null
@@ -572,115 +571,9 @@ func _on_back_pressed() -> void:
 		get_tree().root.add_child(title_scene)
 	queue_free()
 
-# ---- Mode select (Town vs Fight) ----
+# ---- Into town ----
 
-var _mode_overlay: ColorRect = null
-
-func _show_mode_select() -> void:
-	_mode_overlay = ColorRect.new()
-	_mode_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_mode_overlay.color = Color(0.0, 0.0, 0.0, 0.7)
-
-	var panel = PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.offset_left = -200.0
-	panel.offset_top = -120.0
-	panel.offset_right = 200.0
-	panel.offset_bottom = 120.0
-
-	var p_style = StyleBoxFlat.new()
-	p_style.bg_color = Color(0.1, 0.1, 0.15, 1.0)
-	p_style.border_width_left = 2
-	p_style.border_width_right = 2
-	p_style.border_width_top = 2
-	p_style.border_width_bottom = 2
-	p_style.border_color = Color(0.4, 0.4, 0.6)
-	p_style.corner_radius_top_left = 8
-	p_style.corner_radius_top_right = 8
-	p_style.corner_radius_bottom_left = 8
-	p_style.corner_radius_bottom_right = 8
-	p_style.content_margin_left = 30.0
-	p_style.content_margin_right = 30.0
-	p_style.content_margin_top = 25.0
-	p_style.content_margin_bottom = 25.0
-	panel.add_theme_stylebox_override("panel", p_style)
-	_mode_overlay.add_child(panel)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 20)
-	panel.add_child(vbox)
-
-	var mtitle = Label.new()
-	mtitle.text = "Where to?"
-	mtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mtitle.add_theme_font_size_override("font_size", 28)
-	mtitle.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-	vbox.add_child(mtitle)
-
-	var char_name = ""
-	if game_mode == "multiplayer":
-		char_name = "%s & %s" % [_player1_character.character_name, _player2_character.character_name]
-	else:
-		char_name = _selected_character.character_name
-	var msub = Label.new()
-	msub.text = "Playing as %s" % char_name
-	msub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	msub.add_theme_font_size_override("font_size", 14)
-	msub.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-	vbox.add_child(msub)
-
-	var btn_hbox = HBoxContainer.new()
-	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	btn_hbox.add_theme_constant_override("separation", 40)
-	vbox.add_child(btn_hbox)
-
-	var town_btn = Button.new()
-	town_btn.text = "To Town"
-	town_btn.custom_minimum_size = Vector2(150, 50)
-	town_btn.add_theme_font_size_override("font_size", 18)
-	_style_mode_button(town_btn, Color(0.15, 0.3, 0.15), Color(0.2, 0.4, 0.2), Color(0.3, 0.6, 0.3), Color(0.4, 0.8, 0.4))
-	town_btn.pressed.connect(_on_mode_town)
-	btn_hbox.add_child(town_btn)
-
-	var fight_btn = Button.new()
-	fight_btn.text = "Fight"
-	fight_btn.custom_minimum_size = Vector2(150, 50)
-	fight_btn.add_theme_font_size_override("font_size", 18)
-	_style_mode_button(fight_btn, Color(0.4, 0.12, 0.12), Color(0.55, 0.18, 0.18), Color(0.7, 0.25, 0.25), Color(1.0, 0.35, 0.35))
-	fight_btn.pressed.connect(_on_mode_fight)
-	btn_hbox.add_child(fight_btn)
-
-	add_child(_mode_overlay)
-
-func _style_mode_button(btn: Button, normal_bg: Color, hover_bg: Color, normal_border: Color, hover_border: Color) -> void:
-	var ns = StyleBoxFlat.new()
-	ns.bg_color = normal_bg
-	ns.border_width_left = 2
-	ns.border_width_right = 2
-	ns.border_width_top = 2
-	ns.border_width_bottom = 2
-	ns.border_color = normal_border
-	ns.corner_radius_top_left = 6
-	ns.corner_radius_top_right = 6
-	ns.corner_radius_bottom_left = 6
-	ns.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("normal", ns)
-	var hs = StyleBoxFlat.new()
-	hs.bg_color = hover_bg
-	hs.border_width_left = 2
-	hs.border_width_right = 2
-	hs.border_width_top = 2
-	hs.border_width_bottom = 2
-	hs.border_color = hover_border
-	hs.corner_radius_top_left = 6
-	hs.corner_radius_top_right = 6
-	hs.corner_radius_bottom_left = 6
-	hs.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("hover", hs)
-
-func _on_mode_town() -> void:
+func _go_to_town() -> void:
 	var character = _player1_character if game_mode == "multiplayer" else _selected_character
 	if not character:
 		return
@@ -688,21 +581,9 @@ func _on_mode_town() -> void:
 	print("[SELECT] Going to town with %s" % character.character_name)
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
 	town_scene.starting_character = character
-	get_tree().root.add_child(town_scene)
-	queue_free()
-
-func _on_mode_fight() -> void:
-	var character = _player1_character if game_mode == "multiplayer" else _selected_character
-	if not character:
-		return
-
-	print("[SELECT] Going to fight with %s" % character.character_name)
-	var main_scene = load("res://scenes/core/main.tscn").instantiate()
-	main_scene.starting_character = character
 	if game_mode == "multiplayer" and _player2_character:
-		main_scene.player2_character = _player2_character
-		main_scene.is_multiplayer = true
-	get_tree().root.add_child(main_scene)
+		town_scene.player2_character = _player2_character
+	get_tree().root.add_child(town_scene)
 	queue_free()
 
 # ---- Skill Tree Popup ----
