@@ -204,6 +204,20 @@ func _refresh() -> void:
 	for m in mods:
 		_add_sub_row(m)
 
+	# Actions: every move with its tempo and keywords (Async / Channel /
+	# Disruptable / Trigger — Sync, Immediate, Non-interruptible are implied),
+	# and what the enemy is doing right now.
+	var shown: Dictionary = _enemy.get_display_action()
+	if shown.is_empty():
+		_add_row("Actions", "idle", Color(0.85, 0.8, 0.6))
+	elif str(shown["kind"]) == "channel":
+		_add_row("Actions", "Channeling %s (%d/%d)" % [shown["label"], shown["counter"], shown["cost"]], Enemy.ACTION_COLOR_CHANNEL)
+	else:
+		var kind_txt: String = "Async" if str(shown["kind"]) == "async" else "next"
+		_add_row("Actions", "%s %d/%d (%s)" % [shown["label"], shown["counter"], shown["cost"], kind_txt], Enemy.action_kind_color(str(shown["kind"])))
+	for line in _enemy.get_action_lines():
+		_add_sub_row(line)
+
 	# Resistance changes (per-type resistances aren't in the game yet; the row
 	# reports the states that change how much damage the enemy takes).
 	var resists: Array[String] = []

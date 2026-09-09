@@ -153,6 +153,11 @@ func _living_players() -> Array:
 func _on_enemy_died(enemy: Enemy) -> void:
 	enemy_killed.emit(enemy)
 
+	# Trigger keyword: the fallen one's packmates react.
+	for other in get_living_enemies():
+		if other != enemy:
+			other.fire_trigger("ally_died")
+
 	# Generate and emit loot
 	var loot = _generate_loot(enemy)
 	if not loot.is_empty():

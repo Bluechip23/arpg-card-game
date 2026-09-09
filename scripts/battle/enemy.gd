@@ -264,8 +264,35 @@ var _cycle_accumulator: int = 0
 ## Each entry: { "name": String, "tempo_cost": int }
 var actions: Array[Dictionary] = []
 
-## Currently chosen action. The enemy commits to this action and waits for tempo.
+## Currently chosen action on the SYNC clock. The enemy commits to it and
+## waits for tempo (see the keyword notes below).
 var chosen_action: Dictionary = {}
+
+## ---- Action keywords (full write-up: docs/ENEMY_ACTION_KEYWORDS.md) ----
+## Optional keys on an action entry:
+##   "async": true      Async — the action runs on its own clock. Firing it
+##                      never resets any other clock. Sync (the default) is
+##                      one shared clock, one action at a time; a Sync action
+##                      may only START ticking on a tempo where no Async clock
+##                      is mid-count (right after every Async action fired).
+##   "channel": N       Channel — the last N tempo of the action are spent
+##                      channeling: the enemy cannot move or act, and every
+##                      other clock pauses. N >= tempo_cost is a stand-alone
+##                      channel with no wind-up. Default: Immediate.
+##   "disrupt": N       Disruptable — taking N damage while the action counts
+##                      (or channels) restarts its clock from 0. Default:
+##                      Non-interruptible.
+##   "trigger": "evt"   Trigger — fires on the event instead of a clock. Events:
+##                      "damaged", "exposed", "ally_died", "half_health".
+##   "label": "Name"    Display name (defaults to name.capitalize()).
+const TRIGGER_EVENTS := ["damaged", "exposed", "ally_died", "half_health"]
+signal action_fired(enemy: Enemy, action_name: String)
+var _async_counters: Dictionary = {}     # action name -> tempo counted on its own clock
+var _async_gap: bool = true              # true when no Async clock was mid-count at the end of the last tempo
+var _channel_action: Dictionary = {}     # the action being channeled ({} = none)
+var _channel_remaining: int = 0          # channel tempo left before it resolves
+var _channel_kind: String = ""           # "sync" / "async" / "trigger": whose clock the channel came from
+var _action_damage: Dictionary = {}      # action name -> damage taken since its clock started (Disruptable)
 
 ## Sword Breaker: tempo added to this enemy's NEXT melee attack, spent when that
 ## attack finally lands. Everything an enemy does from arm's length counts as a
@@ -990,8 +1017,13 @@ func _play_enemy_animation(action: String) -> void:
 		_enemy_animator.play(anim_name, CharacterAnimator.Direction.SOUTH, true)
 
 func _setup_actions() -> void:
-	## Define available actions per enemy species.
-	match enemy_type:
+	actions = actions_for_type(enemy_type)
+	_reset_action_clocks()
+
+static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
+	## The action table per enemy species (also read by the compendium).
+	var actions: Array[Dictionary] = []
+	match type:
 		EnemyType.MINION:
 			actions = [
 				{"name": "attack", "tempo_cost": 3},
@@ -1267,6 +1299,71 @@ func _setup_actions() -> void:
 				{"name": "chain_lightning", "tempo_cost": 5},
 				{"name": "move",            "tempo_cost": 3},
 			]
+	return actions
+
+#endregion
+#region ACTION KEYWORDS
+# ============================================
+# ACTION KEYWORDS — helpers shared by the AI, the overhead bar, the unit
+# tracker, the inspect panel and the compendium.
+# ============================================
+
+static func is_async_action(action: Dictionary) -> bool:
+	return bool(action.get("async", false))
+
+static func is_trigger_action(action: Dictionary) -> bool:
+	return str(action.get("trigger", "")) != ""
+
+static func channel_of(action: Dictionary) -> int:
+	return maxi(0, int(action.get("channel", 0)))
+
+static func disrupt_threshold(action: Dictionary) -> int:
+	return maxi(0, int(action.get("disrupt", 0)))
+
+static func windup_of(action: Dictionary) -> int:
+	## Tempo counted on the clock before the action resolves (or before its
+	## channel begins). A stand-alone channel has no wind-up at all.
+	return maxi(0, int(action.get("tempo_cost", 0)) - channel_of(action))
+
+static func action_label(action: Dictionary) -> String:
+	var lbl := str(action.get("label", ""))
+	if lbl != "":
+		return lbl
+	return str(action.get("name", "")).capitalize()
+
+static func action_keywords(action: Dictionary) -> Array[String]:
+	## The NON-default keywords an action carries, in display order. Sync,
+	## Immediate and Non-interruptible are the defaults and stay implicit.
+	var out: Array[String] = []
+	if is_trigger_action(action):
+		out.append("Trigger: %s" % str(action["trigger"]).capitalize())
+		return out
+	if is_async_action(action):
+		out.append("Async")
+	if channel_of(action) > 0:
+		out.append("Channel %d" % channel_of(action))
+	if disrupt_threshold(action) > 0:
+		out.append("Disruptable %d" % disrupt_threshold(action))
+	return out
+
+static func describe_action(action: Dictionary) -> String:
+	## "Kick · 5 tempo · Async · Disruptable 10" — one line per action for
+	## the inspect panel and compendium.
+	var parts: Array[String] = [action_label(action)]
+	if is_trigger_action(action):
+		parts.append("Trigger: %s" % str(action["trigger"]).capitalize())
+		return " · ".join(parts)
+	parts.append("%d tempo" % int(action.get("tempo_cost", 0)))
+	for kw in action_keywords(action):
+		parts.append(kw)
+	return " · ".join(parts)
+
+func get_action_lines() -> Array[String]:
+	## Every action this enemy has, described (inspect panel).
+	var lines: Array[String] = []
+	for a in actions:
+		lines.append(describe_action(a))
+	return lines
 
 #endregion
 #region COMPENDIUM DATA
@@ -1540,6 +1637,19 @@ static func get_all_enemy_data() -> Array:
 			# instead of hand-editing every blurb.
 			if not is_equal_approx(pps["hp"], 1.0) or not is_equal_approx(pps["dmg"], 1.0):
 				special_text += "\n(Level-band rebalance: action numbers above are base — actual HP x%.2f, damage x%.2f.)" % [pps["hp"], pps["dmg"]]
+		# Keywords come from the live action table; the display list above
+		# only carries friendlier names in the same order.
+		var shown: Array = []
+		var real: Array = actions_for_type(enemy_type)
+		var idx := 0
+		for a in _actions[enemy_type]:
+			var entry: Dictionary = a.duplicate()
+			var kws: Array[String] = []
+			if real.size() == _actions[enemy_type].size() and idx < real.size():
+				kws = action_keywords(real[idx])
+			entry["keywords"] = kws
+			shown.append(entry)
+			idx += 1
 		result.append({
 			"name": s["name"],
 			"type": _type_display[enemy_type],
@@ -1547,7 +1657,7 @@ static func get_all_enemy_data() -> Array:
 			"armor": armor,
 			"damage": dmg,
 			"xp": s["xp"],
-			"actions": _actions[enemy_type],
+			"actions": shown,
 			"special": special_text,
 		})
 	return result
@@ -1698,7 +1808,6 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		return
 	_last_seen_target = player_node
 
-	action_tempo_counter += amount
 	_cycle_accumulator += amount
 
 	# Tree form (Cupids Bow): counted in raw tempo, not cycles. The tree keeps
@@ -1763,7 +1872,7 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		_cycle_accumulator -= 5
 		_tick_status_durations()
 
-	_check_and_fire_actions(player_node)
+	_advance_action_clocks(amount, player_node)
 	_update_tempo_bar()
 
 ## Timed statuses count in RAW TEMPO (any granularity), decremented by every
@@ -1955,66 +2064,273 @@ func _tick_status_durations() -> void:
 
 	_update_status_indicators()
 
-func _check_and_fire_actions(player_node: Node3D) -> void:
+func _can_act_now(player_node: Node3D) -> bool:
+	## Whether this enemy may fire actions right now (stun, freeze, tree
+	## form, an unseen target). Clocks keep counting regardless — a stun
+	## reset them when it landed, so the delay is already paid.
 	if not player_node:
-		return
-
-	# Skip actions if stunned or frozen
-	if is_stunned:
-		print("[%s] Stunned - cannot act!" % enemy_name)
-		return
-	if is_frozen:
-		print("[%s] Frozen - cannot act!" % enemy_name)
-		return
-	if tree_tempo > 0:
-		return  # A tree does not act.
-
+		return false
+	if is_stunned or is_frozen or tree_tempo > 0:
+		return false
 	# Skip actions if player is invisible (ring wraiths see through everything)
 	if not ignores_invisibility and player_node.has_method("get_buff_manager"):
 		var p_buff_mgr = player_node.get_buff_manager()
 		if p_buff_mgr and p_buff_mgr.is_invisible():
-			return
-
+			return false
 	# Skip actions if this enemy is blind to this player (Serial Killer)
 	if player_node in invisible_to_players:
+		return false
+	return true
+
+func _advance_action_clocks(amount: int, player_node: Node3D) -> void:
+	## Tempo arrives in lumps; the keyword rules are defined per single tempo,
+	## so each unit is processed on its own.
+	for _t in range(maxi(0, amount)):
+		if is_dead:
+			return
+		_tick_action_clocks(player_node)
+
+func _async_actions() -> Array:
+	var out: Array = []
+	for a in actions:
+		if is_async_action(a) and not is_trigger_action(a):
+			out.append(a)
+	return out
+
+func _all_async_idle() -> bool:
+	for a in _async_actions():
+		if int(_async_counters.get(str(a["name"]), 0)) > 0:
+			return false
+	return true
+
+func is_channeling() -> bool:
+	return not _channel_action.is_empty()
+
+func _reset_action_clocks() -> void:
+	## Every clock back to zero: the sync action is dropped, Async counters
+	## restart, a channel breaks. Used by stun/freeze, death, and setup.
+	action_tempo_counter = 0
+	chosen_action = {}
+	_async_counters.clear()
+	_action_damage.clear()
+	_channel_action = {}
+	_channel_remaining = 0
+	_channel_kind = ""
+	# Async clocks always go first: a Sync clock waits for their first gap.
+	_async_gap = _async_actions().is_empty()
+
+func _tick_action_clocks(player_node: Node3D) -> void:
+	## One tempo of the action clocks, keyword by keyword:
+	##  Channel  — nothing else moves; the channel runs down and resolves.
+	##  Async    — every Async clock counts, and fires on its own.
+	##  Sync     — the chosen action counts only once it has started, and it
+	##             may start only when no Async clock is mid-count.
+	var can_act := _can_act_now(player_node)
+
+	if is_channeling():
+		if can_act:
+			_channel_remaining -= 1
+			if _channel_remaining <= 0:
+				_resolve_channel(player_node)
 		return
 
-	# Choose action if we don't have one yet
-	if chosen_action.is_empty():
+	var gap := _async_gap
+
+	for a in _async_actions():
+		var nm := str(a["name"])
+		_async_counters[nm] = int(_async_counters.get(nm, 0)) + 1
+
+	if chosen_action.is_empty() and can_act:
 		_choose_action(player_node)
+	if not chosen_action.is_empty() and (action_tempo_counter > 0 or gap):
+		action_tempo_counter += 1
 
+	if can_act:
+		_fire_ready_async(player_node)
+		if not is_channeling():
+			_fire_ready_sync(player_node)
+
+	_async_gap = _all_async_idle()
+
+func _move_target_for(player_node: Node3D) -> Node3D:
+	if taunt_target and is_instance_valid(taunt_target):
+		return taunt_target
+	return player_node
+
+func _effective_cost(action: Dictionary) -> int:
+	## Wind-up tempo for an action, plus the debuff taxes that delay it: Sword
+	## Breaker on the next melee swing, Slowed on a movement action.
+	var cost: int = windup_of(action)
+	if next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(str(action["name"])):
+		cost += next_melee_tempo_tax
+	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
+		cost += Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1
+	return cost
+
+func _consume_fire_taxes(action: Dictionary) -> void:
+	## The taxes above are paid when the action actually fires.
+	if next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(str(action["name"])):
+		print("[%s] Sword Breaker: swing delayed %d tempo" % [enemy_name, next_melee_tempo_tax])
+		next_melee_tempo_tax = 0
+	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
+		print("[%s] Slowed: move delayed %d extra tempo" % [enemy_name,
+			Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1])
+		_consume_slow_stack()
+
+func _fire_ready_sync(player_node: Node3D) -> void:
 	if chosen_action.is_empty():
 		return
+	if action_tempo_counter < _effective_cost(chosen_action):
+		return
+	_consume_fire_taxes(chosen_action)
+	var action: Dictionary = chosen_action
+	if channel_of(action) > 0:
+		_begin_channel(action, "sync")
+		return
+	_execute_now(action, player_node)
+	action_tempo_counter = 0
+	_action_damage.erase(str(action["name"]))
+	chosen_action = {}
+	# Immediately choose next action so the bar shows what's coming
+	_choose_action(player_node)
 
-	# Fire when enough tempo has accumulated for the chosen action. Sword
-	# Breaker's tax makes exactly one melee swing arrive late.
-	var action_cost: int = chosen_action["tempo_cost"]
-	var taxed: bool = next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(chosen_action["name"])
-	if taxed:
-		action_cost += next_melee_tempo_tax
-	# Slowed (enemy version — per movement action, not per tile): the move
-	# takes extra tempo (Slow Amp sphere node makes it even heavier); the
-	# stack burns when the move actually fires.
-	var slowed_move: bool = slow_stacks > 0 and MOVEMENT_ACTIONS.has(chosen_action["name"])
-	if slowed_move:
-		action_cost += Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1
-	if action_tempo_counter >= action_cost:
-		if taxed:
-			print("[%s] Sword Breaker: swing delayed %d tempo" % [enemy_name, next_melee_tempo_tax])
-			next_melee_tempo_tax = 0
-		if slowed_move:
-			print("[%s] Slowed: move delayed %d extra tempo" % [enemy_name,
-				Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1])
-			_consume_slow_stack()
-		var move_target = player_node
-		if taunt_target and is_instance_valid(taunt_target):
-			move_target = taunt_target
+func _fire_ready_async(player_node: Node3D) -> void:
+	for a in _async_actions():
+		var nm := str(a["name"])
+		if int(_async_counters.get(nm, 0)) < _effective_cost(a):
+			continue
+		_consume_fire_taxes(a)
+		# The clock restarts whether or not the swing lands: an Async action
+		# that cannot reach its target when its tempo comes up is spent.
+		_async_counters[nm] = 0
+		_action_damage.erase(nm)
+		if channel_of(a) > 0:
+			_begin_channel(a, "async")
+			return  # the channel freezes every other clock this tempo
+		_execute_now(a, player_node)
 
-		_execute_action(chosen_action["name"], move_target)
+func _execute_now(action: Dictionary, player_node: Node3D) -> bool:
+	var nm := str(action["name"])
+	action_fired.emit(self, nm)
+	return _execute_action(nm, _move_target_for(player_node))
+
+func _begin_channel(action: Dictionary, kind: String) -> void:
+	_channel_action = action
+	_channel_kind = kind
+	_channel_remaining = channel_of(action)
+	if is_moving and not _wandering:
+		# Planted: a channel roots the enemy where it stands.
+		_move_path.clear()
+	print("[%s] Channeling %s (%d tempo)" % [enemy_name, action_label(action), _channel_remaining])
+	if windup_of(action) == 0:
+		# A stand-alone channel starts counting on the tempo it is chosen.
+		_channel_remaining -= 1
+		if _channel_remaining <= 0:
+			_resolve_channel(_last_seen_target)
+
+func _resolve_channel(player_node: Node3D) -> void:
+	var action: Dictionary = _channel_action
+	var kind := _channel_kind
+	_channel_action = {}
+	_channel_remaining = 0
+	_channel_kind = ""
+	_action_damage.erase(str(action["name"]))
+	_execute_now(action, player_node)
+	if kind == "sync":
 		action_tempo_counter = 0
 		chosen_action = {}
-		# Immediately choose next action so the bar shows what's coming
 		_choose_action(player_node)
+	elif kind == "async":
+		_async_counters[str(action["name"])] = 0
+
+func _break_channel(reason: String) -> void:
+	## Disrupted: the channel collapses and its clock restarts from 0.
+	if not is_channeling():
+		return
+	var action: Dictionary = _channel_action
+	var kind := _channel_kind
+	_channel_action = {}
+	_channel_remaining = 0
+	_channel_kind = ""
+	_action_damage.erase(str(action["name"]))
+	if kind == "sync":
+		action_tempo_counter = 0
+	elif kind == "async":
+		_async_counters[str(action["name"])] = 0
+	print("[%s] %s disrupted (%s) — clock restarts" % [enemy_name, action_label(action), reason])
+
+func _on_damage_for_disrupt(hit: int) -> void:
+	## Disruptable: damage taken while an action counts (or channels) piles up
+	## against its threshold; reaching it restarts that action's clock.
+	if hit <= 0:
+		return
+	if is_channeling():
+		var ch := _channel_action
+		if disrupt_threshold(ch) > 0:
+			var nm := str(ch["name"])
+			_action_damage[nm] = int(_action_damage.get(nm, 0)) + hit
+			if int(_action_damage[nm]) >= disrupt_threshold(ch):
+				_break_channel("%d damage" % int(_action_damage[nm]))
+		return
+	if not chosen_action.is_empty() and disrupt_threshold(chosen_action) > 0 and action_tempo_counter > 0:
+		var snm := str(chosen_action["name"])
+		_action_damage[snm] = int(_action_damage.get(snm, 0)) + hit
+		if int(_action_damage[snm]) >= disrupt_threshold(chosen_action):
+			print("[%s] %s disrupted (%d damage) — clock restarts" % [enemy_name, action_label(chosen_action), int(_action_damage[snm])])
+			action_tempo_counter = 0
+			_action_damage.erase(snm)
+	for a in _async_actions():
+		if disrupt_threshold(a) <= 0:
+			continue
+		var anm := str(a["name"])
+		if int(_async_counters.get(anm, 0)) <= 0:
+			continue
+		_action_damage[anm] = int(_action_damage.get(anm, 0)) + hit
+		if int(_action_damage[anm]) >= disrupt_threshold(a):
+			print("[%s] %s disrupted (%d damage) — clock restarts" % [enemy_name, action_label(a), int(_action_damage[anm])])
+			_async_counters[anm] = 0
+			_action_damage.erase(anm)
+
+func fire_trigger(event: String) -> void:
+	## Trigger: every action keyed to `event` fires now, clock or no clock.
+	## A channeling enemy is busy; a stunned/frozen one cannot react.
+	if is_dead or actions.is_empty():
+		return
+	var target: Node3D = _last_seen_target
+	if target == null or not is_instance_valid(target):
+		return
+	if not _can_act_now(target) or is_channeling():
+		return
+	for a in actions:
+		if str(a.get("trigger", "")) != event:
+			continue
+		if channel_of(a) > 0:
+			_begin_channel(a, "trigger")
+			return
+		_execute_now(a, target)
+
+func get_display_action() -> Dictionary:
+	## What the bar above the head (and the tracker) should show: the channel
+	## if one is running, else whichever clock fires soonest. Keys: name,
+	## label, counter, cost, kind ("channel" / "async" / "sync"), or {} if idle.
+	if is_channeling():
+		var total := channel_of(_channel_action)
+		return {"name": _channel_action["name"], "label": action_label(_channel_action),
+			"counter": total - _channel_remaining, "cost": total, "kind": "channel"}
+	var best: Dictionary = {}
+	var best_left := 1 << 30
+	if not chosen_action.is_empty():
+		var cost := maxi(1, _effective_cost(chosen_action))
+		best = {"name": chosen_action["name"], "label": action_label(chosen_action),
+			"counter": action_tempo_counter, "cost": cost, "kind": "sync"}
+		best_left = cost - action_tempo_counter
+	for a in _async_actions():
+		var acost := maxi(1, _effective_cost(a))
+		var acount := int(_async_counters.get(str(a["name"]), 0))
+		if acost - acount < best_left:
+			best_left = acost - acount
+			best = {"name": a["name"], "label": action_label(a), "counter": acount, "cost": acost, "kind": "async"}
+	return best
 
 #endregion
 #region AI - ACTION SELECTION
@@ -2149,6 +2465,31 @@ func _choose_action(player_node: Node3D) -> void:
 
 	if not chosen_action.is_empty():
 		print("[%s] Chose action: %s (cost: %d tempo)" % [enemy_name, chosen_action["name"], chosen_action["tempo_cost"]])
+	_ensure_sync_choice(distance)
+
+func _ensure_sync_choice(distance: int) -> void:
+	## The per-species choosers pick by name; an action tagged Async or
+	## Trigger runs off its own clock (or event), so the sync clock falls
+	## back to the species' movement when out of reach, else its first Sync
+	## action — or idles if there is none.
+	if chosen_action.is_empty():
+		return
+	if not (is_async_action(chosen_action) or is_trigger_action(chosen_action)):
+		return
+	var fallback: Dictionary = {}
+	for a in actions:
+		if is_async_action(a) or is_trigger_action(a):
+			continue
+		var is_move := MOVEMENT_ACTIONS.has(str(a["name"]))
+		if distance > attack_range and is_move:
+			fallback = a
+			break
+		if distance <= attack_range and not is_move:
+			fallback = a
+			break
+		if fallback.is_empty():
+			fallback = a
+	chosen_action = fallback
 
 func _get_cell_distance(target_node: Node3D) -> int:
 	if grid_manager:
@@ -3675,6 +4016,9 @@ func _try_smash_barricade(goal_cell: Vector2i) -> void:
 ## Dash multiple tiles toward a position in one action.
 ## Stops at any barricade tile encountered along the path.
 func _dash_towards_target(pos: Vector3, tiles: int) -> void:
+	if is_channeling():
+		print("[%s] Channeling - cannot dash!" % enemy_name)
+		return
 	# Rooted (Gravity Gauntlets): held in place — attacks/casts fine, no movement.
 	if rooted_tempo > 0:
 		print("[%s] Rooted - cannot dash!" % enemy_name)
@@ -3735,18 +4079,33 @@ func _regenerate(amount: int) -> void:
 # ============================================
 
 func get_action_progress() -> float:
-	## 0..1 fill toward this enemy's next action (-1 when no action is chosen).
+	## 0..1 fill toward this enemy's next action (-1 when nothing is ticking).
 	## Mirrors the overhead tempo bar; the unit tracker draws the same value.
-	if chosen_action.is_empty():
+	var shown := get_display_action()
+	if shown.is_empty():
 		return -1.0
-	var cost = chosen_action.get("tempo_cost", 1)
-	return clampf(float(action_tempo_counter) / float(cost), 0.0, 1.0)
+	return clampf(float(shown["counter"]) / float(maxi(1, int(shown["cost"]))), 0.0, 1.0)
+
+## Overhead label / bar colours per clock kind: yellow for the shared Sync
+## clock, sky blue for an Async clock, orange while channeling.
+const ACTION_COLOR_SYNC := Color(1.0, 0.85, 0.0)
+const ACTION_COLOR_ASYNC := Color(0.55, 0.8, 1.0)
+const ACTION_COLOR_CHANNEL := Color(1.0, 0.55, 0.2)
+
+static func action_kind_color(kind: String) -> Color:
+	match kind:
+		"async":
+			return ACTION_COLOR_ASYNC
+		"channel":
+			return ACTION_COLOR_CHANNEL
+	return ACTION_COLOR_SYNC
 
 func _update_tempo_bar() -> void:
 	if not _tempo_bar_bg or not _tempo_bar_fg:
 		return
 
-	if chosen_action.is_empty():
+	var shown := get_display_action()
+	if shown.is_empty():
 		_tempo_bar_bg.visible = false
 		_tempo_bar_fg.visible = false
 		if _action_label:
@@ -3756,9 +4115,13 @@ func _update_tempo_bar() -> void:
 	_tempo_bar_bg.visible = true
 	_tempo_bar_fg.visible = true
 
-	var cost = chosen_action.get("tempo_cost", 1)
-	var progress = clampf(float(action_tempo_counter) / float(cost), 0.0, 1.0)
+	var cost: int = maxi(1, int(shown["cost"]))
+	var progress = clampf(float(shown["counter"]) / float(cost), 0.0, 1.0)
 	var current_width = _tempo_bar_width * progress
+	var kind_color := action_kind_color(str(shown["kind"]))
+	var fg_mat := _tempo_bar_fg.material_override as StandardMaterial3D
+	if fg_mat:
+		fg_mat.albedo_color = Color(kind_color, 0.9)
 
 	var fg_mesh = _tempo_bar_fg.mesh as QuadMesh
 	if fg_mesh:
@@ -3768,7 +4131,11 @@ func _update_tempo_bar() -> void:
 	_tempo_bar_fg.position.x = -(_tempo_bar_width - current_width) / 2.0
 
 	if _action_label:
-		_action_label.text = chosen_action.get("name", "").capitalize()
+		if str(shown["kind"]) == "channel":
+			_action_label.text = "Channeling %s" % str(shown["label"])
+		else:
+			_action_label.text = str(shown["label"])
+		_action_label.modulate = kind_color
 
 #endregion
 #region PHYSICS
@@ -3890,7 +4257,7 @@ func _ambient_target() -> Node3D:
 
 func _try_wander() -> void:
 	## One idle step to a free neighbouring tile inside the home leash.
-	if is_stunned or is_frozen or rooted_tempo > 0 or tree_tempo > 0 or is_moving:
+	if is_stunned or is_frozen or rooted_tempo > 0 or tree_tempo > 0 or is_moving or is_channeling():
 		return
 	if grid_manager == null:
 		return
@@ -3997,6 +4364,10 @@ func intended_cell() -> Vector2i:
 	return grid_manager.world_to_grid(position)
 
 func move_towards_target(pos: Vector3) -> void:
+	# Channeling: planted until the channel resolves or breaks.
+	if is_channeling():
+		print("[%s] Channeling - cannot move!" % enemy_name)
+		return
 	# Rooted (Gravity Gauntlets): held in place — attacks/casts fine, no movement.
 	if rooted_tempo > 0:
 		print("[%s] Rooted - cannot move!" % enemy_name)
@@ -4074,6 +4445,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# Raw post-resist size of this hit, for the elite threshold reactions
 	# (Ifrit backflip, Minotaur leap, Djinn wishes, bear strengthen).
 	var incoming_hit: int = amount
+	var _health_before_hit: int = current_health
 
 	# Remember the raw incoming damage of this hit (before armor math) so
 	# on-expose passives like Easy Target can repeat "your damage".
@@ -4269,6 +4641,16 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 
 	if just_exposed:
 		exposed.emit(self)
+
+	# Action keywords: Disruptable clocks count this hit; Trigger actions
+	# keyed to being hit, losing armor, or dropping under half health fire.
+	if incoming_hit > 0 and not is_dead:
+		_on_damage_for_disrupt(incoming_hit)
+		fire_trigger("damaged")
+		if just_exposed:
+			fire_trigger("exposed")
+		if _health_before_hit * 2 > max_health and current_health * 2 <= max_health and current_health > 0:
+			fire_trigger("half_health")
 
 	if current_health <= 0:
 		die()
@@ -4492,9 +4874,8 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"stun":
 			is_stunned = true
 			stun_tempo = max(stun_tempo, value + int(_player_sphere_amp("sphere_stun_amp")))
-			# Reset action tempo counter so stun delays their next action
-			action_tempo_counter = 0
-			chosen_action = {}
+			# Reset every action clock so stun delays their next action
+			_reset_action_clocks()
 			print("[%s] Stunned for %d tempo!" % [enemy_name, stun_tempo])
 		"slow":
 			# Slowed stacks freely: every movement is delayed (+2 tempo) and eats a stack.
@@ -4528,9 +4909,8 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 				cold_damage_next = 1  # Element Pollination's doubling tick restarts with the freeze
 				is_frozen = true
 				frozen_tempo = max(frozen_tempo, 5)  # Frozen for 5 tempo (one cycle)
-				# Reset action tempo counter so frozen delays their next action
-				action_tempo_counter = 0
-				chosen_action = {}
+				# Reset every action clock so frozen delays their next action
+				_reset_action_clocks()
 				print("[%s] FROZEN! Cold reached 5 stacks!" % enemy_name)
 		"poison":
 			poison_stacks += value
@@ -4544,8 +4924,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 				shock_stacks = 0
 				is_stunned = true
 				stun_tempo = max(stun_tempo, 1)  # Stunned for 1 tempo cycle
-				action_tempo_counter = 0
-				chosen_action = {}
+				_reset_action_clocks()
 				print("[%s] STUNNED! Shock reached 5 stacks (Element Pollination)!" % enemy_name)
 		"bleed":
 			bleed_stacks += value
@@ -4691,7 +5070,7 @@ const CONSUMED_EXPLOSION_RANGE: float = 1.9   # adjacent tiles (incl. diagonals)
 
 func die() -> void:
 	is_dead = true
-	chosen_action = {}
+	_reset_action_clocks()
 	print("[%s] Defeated!" % enemy_name)
 	if enemy_type == EnemyType.CONSUMED:
 		_consumed_explode()
