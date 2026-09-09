@@ -143,6 +143,16 @@ func _build_legend() -> void:
 	_add_keyword("Instant", "Card triggers automatically from hand when its condition is met. Costs 0 mana", Color(1.0, 1.0, 0.5))
 	_add_keyword("Linger", "Enemy status card can exceed hand size limit. While lingering, normal draws trigger overflow. Counts toward hand size for overflow, manifest, etc.", Color(0.7, 0.3, 0.3))
 
+	# Enemy action keywords — how a creature's tempo clocks behave.
+	_add_section_header("ENEMY ACTIONS")
+	_add_keyword("Sync", "Default. The enemy runs ONE shared clock and commits to one action at a time: Punch (3) fires at tempo 3, then Kick (5) fires 5 tempo later at 8, then Punch at 11. A Sync action can only START ticking when no Async action is mid-count.", Color(1.0, 0.85, 0.0))
+	_add_keyword("Async", "The action keeps its own clock. It fires every N tempo no matter what else the enemy is doing, and firing it never resets the other clocks. Shown in blue on the tempo bar.", Color(0.55, 0.8, 1.0))
+	_add_keyword("Channel", "The last N tempo of the action are spent channeling: the enemy cannot move or act and every other clock pauses. \"8 tempo, Channel 5\" winds up for 3, then channels for 5. Shown in orange.", Color(1.0, 0.55, 0.2))
+	_add_keyword("Disruptable", "Deal X damage while the action is counting (or channeling) and its clock restarts from 0. Timed damage is how you stop it.", Color(0.9, 0.4, 0.4))
+	_add_keyword("Non-interruptible", "Default. The clock or channel runs on no matter how hard the enemy is hit.", Color(0.6, 0.6, 0.65))
+	_add_keyword("Immediate", "Default. No channel — the action resolves the moment its tempo comes up.", Color(0.6, 0.6, 0.65))
+	_add_keyword("Trigger", "No clock at all: the action fires in response to an event — being hit, losing its armor, an ally dying, dropping under half health.", Color(0.8, 0.6, 1.0))
+
 func _add_section_header(title: String) -> void:
 	var header = Label.new()
 	header.text = "\n" + title

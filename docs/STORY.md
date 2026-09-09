@@ -172,6 +172,12 @@ Grounded in `scripts/battle/enemy.gd`:
   has a **tempo cost**, and it fires when the enemy's personal tempo counter
   reaches that cost. **Lower tempo cost = acts more often.** A creature's
   rhythm is its action list (e.g. Wererat: Move 2 / Bite 2 / Scurry 4).
+- **Action keywords** (full rules and worked tick tables in
+  [`ENEMY_ACTION_KEYWORDS.md`](ENEMY_ACTION_KEYWORDS.md)): **Sync** (default,
+  one shared clock) · **Async** (the action keeps its own clock) · **Channel N**
+  (the last N tempo are a channel — planted, other clocks pause) ·
+  **Disruptable X** (X damage restarts its clock) · **Trigger** (fires on an
+  event, no clock). **Immediate** and **Non-interruptible** are the defaults.
 - **Range-based AI roles:** behavior keys off distance to the player —
   *melee rusher*, *ranged kiter*, *support*, *evasive skirmisher*, *scaling
   threat*, etc.

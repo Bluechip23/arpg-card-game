@@ -231,6 +231,11 @@ func update_tempo_bars() -> void:
 		var h: float = entry["height"] * progress
 		fg.size.y = h
 		fg.position.y = entry["height"] - h
+		# Same colour language as the overhead bar: Sync yellow, Async blue,
+		# channel orange.
+		var shown: Dictionary = enemy.get_display_action()
+		var kind: String = str(shown.get("kind", "sync"))
+		fg.color = Color(Enemy.action_kind_color(kind), 0.95)
 
 # ============================================
 # GROUP SQUARE (for multiple of same type)
@@ -373,14 +378,19 @@ func _create_info_column(enemy: Enemy, font_sz: int) -> VBoxContainer:
 
 	# Tempo / action
 	var tempo = Label.new()
-	var action_name = enemy.chosen_action.get("name", "idle").capitalize()
-	var tempo_cost = enemy.chosen_action.get("tempo_cost", 0)
-	if tempo_cost > 0:
-		tempo.text = "%s %d/%d" % [action_name, enemy.action_tempo_counter, tempo_cost]
-	else:
+	var shown: Dictionary = enemy.get_display_action()
+	var tempo_color := Color(0.7, 0.7, 0.9)
+	if shown.is_empty():
 		tempo.text = "Idle"
+	elif str(shown["kind"]) == "channel":
+		tempo.text = "Channeling %s %d/%d" % [shown["label"], shown["counter"], shown["cost"]]
+		tempo_color = Enemy.ACTION_COLOR_CHANNEL
+	else:
+		tempo.text = "%s %d/%d" % [shown["label"], shown["counter"], shown["cost"]]
+		if str(shown["kind"]) == "async":
+			tempo_color = Enemy.ACTION_COLOR_ASYNC
 	tempo.add_theme_font_size_override("font_size", font_sz - 1)
-	tempo.add_theme_color_override("font_color", Color(0.7, 0.7, 0.9))
+	tempo.add_theme_color_override("font_color", tempo_color)
 	tempo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(tempo)
 

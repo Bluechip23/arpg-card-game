@@ -813,7 +813,11 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 	vbox.add_child(actions_header)
 
 	for action in enemy_data["actions"]:
-		_add_detail_line(vbox, "  %s (Tempo: %d)" % [action["name"], action["tempo"]], Color(0.75, 0.75, 0.8))
+		var line: String = "  %s (Tempo: %d)" % [action["name"], action["tempo"]]
+		var kws: Array = action.get("keywords", [])
+		if not kws.is_empty():
+			line += "  ·  " + " · ".join(PackedStringArray(kws))
+		_add_detail_line(vbox, line, Color(0.75, 0.75, 0.8))
 
 	var sep2 = HSeparator.new()
 	vbox.add_child(sep2)
