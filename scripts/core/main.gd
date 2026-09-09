@@ -1071,8 +1071,22 @@ func _setup_action_buttons() -> void:
 	_attack_button.name = "AttackButton"
 	_attack_button.custom_minimum_size = Vector2(0, 36)
 	_attack_button.size_flags_horizontal = Control.SIZE_FILL
-	_attack_button.tooltip_text = "Basic melee attack: %d base + STR modifier damage. Costs 5 tempo." % PlayerStats.BASIC_ATTACK_BASE_DAMAGE
+	_attack_button.tooltip_text = "Auto attack [~]: %d base + STR modifier damage. Costs 5 tempo. Press ~ or click, then click an enemy in melee range." % PlayerStats.BASIC_ATTACK_BASE_DAMAGE
 	_attack_button.pressed.connect(_on_attack_pressed)
+	# Hotkey badge in the top-left corner, matching the draw button's cost badge.
+	var atk_key_label := Label.new()
+	atk_key_label.text = "~"
+	atk_key_label.add_theme_font_size_override("font_size", 10)
+	atk_key_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	atk_key_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	atk_key_label.add_theme_constant_override("outline_size", 4)
+	atk_key_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	atk_key_label.offset_left = 3.0
+	atk_key_label.offset_right = 16.0
+	atk_key_label.offset_top = 0.0
+	atk_key_label.offset_bottom = 12.0
+	atk_key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_attack_button.add_child(atk_key_label)
 	var atk_row := HBoxContainer.new()
 	atk_row.set_anchors_preset(Control.PRESET_FULL_RECT)
 	atk_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -3558,6 +3572,7 @@ func _on_ring_triggered_visual(_ring: ItemData, _effect: String, owner_player: P
 func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
 	_update_block_button_visibility()
+	_update_attack_button_text()
 
 #endregion
 #region PASSIVE TRAY
@@ -3833,6 +3848,7 @@ func select_character(character: CharacterData) -> void:
 		player.get_inventory().gauntlet_world_skill.connect(_on_gauntlet_world_skill)
 	_update_flash_button()
 	_update_brain_button()
+	_update_attack_button_text()
 	# The skill tree screen spends the banked level-up stat points.
 	skill_tree_ui.player_stats = player.get_stats()
 	# The sphere grid checks stat-gated node requirements against the player.
@@ -4966,9 +4982,11 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 			tick_stats.advance_status_tempo(amount)
 	# Gauntlet skill circles and passive boxes show tempo-granular recharge
 	# progress, so they refresh on every tempo step, not just at cycle
-	# boundaries.
+	# boundaries. The auto attack's damage readout rides along so stat
+	# swings (Determination, spent points, gear) show up immediately.
 	_update_gauntlet_skills_ui()
 	_update_passive_display_ui()
+	_update_attack_button_text()
 
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()
@@ -5614,6 +5632,7 @@ func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
 	# Swirling mist flourish on the character
 	player.show_level_up()
+	_update_attack_button_text()
 	# Grant sphere rewards for this level
 	var rewards = SphereInventory.get_level_rewards(new_level)
 	for reward in rewards:
@@ -7001,7 +7020,10 @@ func _get_basic_attack_display_damage() -> int:
 	return damage
 
 func _update_attack_button_text() -> void:
-	if _attack_button:
+	## Refreshes the auto attack button: the red damage number beside the
+	## sword, the tempo cost / attacks-until-proc readout, and the proc glow.
+	## Called on setup, gear changes, level-ups, procs, and every tempo step.
+	if _attack_button and player and is_instance_valid(player) and player.get_stats() and deck_manager:
 		var proc_count = player.get_stats().get_attacks_until_proc()
 		var proc_active = deck_manager.next_attack_half_tempo
 
@@ -11188,6 +11210,11 @@ func _input(event: InputEvent) -> void:
 			KEY_D:
 				_wasd_step(Vector2(1, 0))
 				return
+
+		# ~ (the key left of 1): arm the auto attack, same as clicking its button.
+		if event.keycode == KEY_QUOTELEFT or event.keycode == KEY_ASCIITILDE:
+			_on_attack_pressed()
+			return
 
 		# Card selection — keys map to persistent number-row slots, not hand order.
 		for i in range(CARD_KEYS.size()):
