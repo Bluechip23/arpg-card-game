@@ -7180,7 +7180,11 @@ func select_card(index: int) -> void:
 		aoe_indicator.hide_indicator()
 
 	# Show range indicator for ranged / spell cards (not melee)
-	if card.is_ranged and range_indicator:
+	if card.is_ranged and range_indicator and card.range_modifier >= Card.INFINITE_RANGE:
+		# Reaches the whole field — a ring would just tint the map.
+		range_indicator.hide_range()
+		add_battle_log("%s selected — Range: anywhere" % card.card_name, Color(0.6, 0.85, 1.0))
+	elif card.is_ranged and range_indicator:
 		var effective_range = float(card.get_effective_range())
 		# Include Tighten String bonus if active
 		var buff_mgr = player.get_buff_manager() if player else null
@@ -10858,7 +10862,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"charge":
 			# Move player forward 5 spaces, damaging enemies and interacting with obstacles
-			var charge_dest = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			# Aimed at an enemy: charge at them. Point-click on open ground
+			# (the click handler passes the player as the target): charge
+			# toward the clicked tile.
+			var charge_dest = target.position if (target and target != player) else grid_manager.snap_to_grid(mouse_pos)
 			var start_pos = player.position
 			var charge_diff = charge_dest - start_pos
 			var charge_dir = Vector3(charge_diff.x, 0, charge_diff.z).normalized()

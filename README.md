@@ -156,6 +156,8 @@ Your deck is your moveset. Cards move between several zones during combat:
 | **Enchantment** | Cannot be played. Provides a passive buff *while in your hand*, then auto-discards after 2 cycles. |
 | **Unplayable** | Dead weight and takes up a hand slot. Usually inflicted by enemies. |
 
+Every card also carries its design **tags** from the card sheet's Type column (`Card.keywords`, e.g. `Attack, melee`, `Utility, ally, ranged 5`, `Reaction, defense`): its type (a second type marks a dual role, like Parry's defense-that-attacks), its delivery (**spell**, **offensive**, **melee** / **ranged N**, **aoe**), and its targeting (**self**, **ally** / **allies**, **enemy**, **point click**, **no target**). Items, passives, and UI can key off them with `has_keyword()`. The tags describe the card's wiring rather than replace it, and `tests/test_card_keywords.gd` fails if a card's tags and its actual type, school, range, or targets ever disagree.
+
 ### Drawing and overflow
 
 If a draw would exceed your hand size, it **overflows**. **By default, nothing happens**. You simply don't draw the extra card and it stays on top of your draw pile. Cards and items can set an active *overflow mode* that instead does something with the overflowing card.:
