@@ -7,7 +7,7 @@ extends SceneTree
 ## Run: godot --headless --path . --script tests/test_card_keywords.gd
 
 const VOCABULARY := ["attack", "defense", "utility", "power", "reaction", "enchantment", "unplayable",
-	"spell", "offensive", "melee", "ranged", "aoe", "self", "ally", "allies", "enemy", "point", "no_target"]
+	"spell", "offensive", "melee", "ranged", "conditional", "aoe", "self", "ally", "allies", "enemy", "point", "no_target"]
 const TYPE_NAMES := ["attack", "defense", "utility", "reaction", "unplayable", "power", "enchantment"]
 
 var failures := 0
@@ -74,6 +74,12 @@ func _check_card(card: Card) -> void:
 		_fail("%s: 'spell' keyword (%s) disagrees with school (%d)" % [id, "spell" in kw, card.school])
 	if "melee" in kw and "ranged" in kw:
 		_fail("%s: both melee and ranged" % id)
+	if "attack" in kw and "offensive" not in kw:
+		_fail("%s: every attack card is also offensive" % id)
+	if ("conditional" in kw) != card.conditional_range:
+		_fail("%s: 'conditional' keyword disagrees with conditional_range" % id)
+	if "conditional" in kw and ("melee" in kw or "ranged" in kw):
+		_fail("%s: conditional replaces melee/ranged" % id)
 	if "melee" in kw and card.is_ranged:
 		_fail("%s: keyword melee but is_ranged" % id)
 	if "ranged" in kw and not card.is_ranged:

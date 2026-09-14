@@ -53,6 +53,26 @@ func connect_player_stats(stats) -> void:
 
 func connect_inventory(inv) -> void:
 	inventory = inv
+	# Conditional cards re-read the held weapon whenever equipment changes.
+	if inv and inv.has_signal("equipment_changed") \
+			and not inv.equipment_changed.is_connected(refresh_conditional_ranges):
+		inv.equipment_changed.connect(refresh_conditional_ranges)
+
+func _apply_conditional_range(card: Card) -> void:
+	## Resolve a Conditional card's melee/ranged state from the held weapon.
+	if card and card.conditional_range:
+		card.apply_conditional_range(inventory != null and inventory.holds_ranged_weapon())
+
+func refresh_conditional_ranges() -> void:
+	## Re-resolve every Conditional card in hand (weapon swapped).
+	var changed := false
+	for card in hand:
+		if card.conditional_range:
+			var was: bool = card.is_ranged
+			_apply_conditional_range(card)
+			changed = changed or was != card.is_ranged
+	if changed:
+		hand_updated.emit()
 
 func connect_overflow_manager(om) -> void:
 	overflow_manager = om
@@ -348,6 +368,7 @@ func draw_card() -> Card:
 			card.mana_cost = 30  # factory cost (post mana rescale)
 			card.tempo_cost = 3
 
+	_apply_conditional_range(card)
 	hand.append(card)
 	peaked_card = null
 	# The drawn card was the top of the pile — one revealed card is consumed.
@@ -1033,6 +1054,7 @@ func add_card_to_hand(card: Card) -> void:
 	if not card.linger and hand.size() >= get_hand_cap():
 		print("[DECK] Hand full, cannot add %s (no Linger)" % card.card_name)
 		return
+	_apply_conditional_range(card)
 	hand.append(card)
 	hand_updated.emit()
 	print("[DECK] Card added to hand: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])

@@ -275,8 +275,17 @@ var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool)
 ## range_modifier, target_types, is_aoe) remain the source of truth;
 ## tests/test_card_keywords.gd fails if a card's keywords and fields drift.
 ## Vocabulary: attack defense utility power reaction enchantment unplayable
-## spell offensive melee ranged aoe self ally allies enemy point no_target
+## spell offensive melee ranged conditional aoe self ally allies enemy point
+## no_target. Every attack card is also offensive.
 var keywords: Array = []  # of String
+
+## Conditional keyword: the card is melee or ranged depending on the weapon
+## in hand — a bow makes it ranged, anything else melee — instead of a fixed
+## is_ranged. DeckManager resolves it as the card enters the hand and again
+## whenever equipment changes (apply_conditional_range). Playing it ranged
+## costs CONDITIONAL_RANGED_TEMPO_PENALTY extra tempo.
+var conditional_range: bool = false
+const CONDITIONAL_RANGED_TEMPO_PENALTY := 1
 
 ## range_modifier for cards that reach anywhere on the field (Communal
 ## Donation). Range checks pass at any distance and no range ring is drawn.
@@ -573,6 +582,20 @@ func _find_standalone_percent(text: String, percent_str: String, from: int) -> i
 func has_keyword(keyword: String) -> bool:
 	return keyword in keywords
 
+func apply_conditional_range(weapon_is_ranged: bool) -> void:
+	## Resolve a Conditional card's reach from the held weapon. No-op for
+	## cards with a fixed melee/ranged keyword.
+	if not conditional_range:
+		return
+	is_ranged = weapon_is_ranged
+	range_modifier = 0
+
+func get_conditional_tempo_penalty() -> int:
+	## The extra tempo a Conditional card costs while it resolves as ranged.
+	if conditional_range and is_ranged:
+		return CONDITIONAL_RANGED_TEMPO_PENALTY
+	return 0
+
 func get_effective_range() -> int:
 	# Melee cards have 0 range. Ranged cards have base 5 + modifier.
 	if not is_ranged:
@@ -581,6 +604,8 @@ func get_effective_range() -> int:
 
 func get_range_display() -> String:
 	# Returns display string for card range keyword
+	if conditional_range:
+		return "Conditional (%s)" % ("Ranged" if is_ranged else "Melee")
 	if not is_ranged:
 		return "Melee"
 	var effective = get_effective_range()
@@ -759,6 +784,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"in-hand": "Card applies a persistent effect while it remains in your hand",
 		"sticky": "Card stays in hand for X uses before being discarded",
 		"high ground": "Ranged attacks from elevated positions deal +4 damage and gain +2 range",
+		"conditional": "Melee or ranged depending on your held weapon: a bow makes it ranged (+1 tempo to play), anything else makes it melee",
 		"cycle": "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks all happen per cycle",
 		"glut": "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo",
 		"delay": "Tempo until the effect takes place",
@@ -1842,7 +1868,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"energy_barrier":
 			_execute_energy_barrier(player_stats)
 		"the_lights_favor":
-			_execute_the_lights_favor(player_stats, deck_manager)
+			_execute_the_lights_favor(player_stats, deck_manager, target)
 		"healthy_habit":
 			_execute_healthy_habit(player_stats, deck_manager)
 		"gargle_and_spit":
@@ -2377,6 +2403,8 @@ func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost
 	if has_burden:
 		cost += burden_plays
+	# Conditional cards pay a tempo surcharge when a bow makes them ranged.
+	cost += get_conditional_tempo_penalty()
 	# Boot Holsters: slotted attack cards cost less tempo.
 	if card_type == CardType.ATTACK and slotted_in_item:
 		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
@@ -2443,7 +2471,7 @@ static func create_basic_attack(damage_amount: int) -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
-	card.keywords = ["attack"]
+	card.keywords = ["attack", "offensive"]
 	return card
 
 static func create_slash() -> Card:
@@ -2461,7 +2489,7 @@ static func create_slash() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_block() -> Card:
@@ -2661,7 +2689,7 @@ static func create_dagger_throw() -> Card:
 	card.heal_amount = 0
 	card.card_keyword = CardKeyword.POCKET
 	card.range_modifier = -1
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 #endregion
@@ -3426,7 +3454,7 @@ static func create_poke() -> Card:
 	card.base_damage = 2
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_armor_break() -> Card:
@@ -3441,7 +3469,7 @@ static func create_armor_break() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_charge() -> Card:
@@ -3459,7 +3487,7 @@ static func create_charge() -> Card:
 	card.is_aoe = true
 	card.aoe_shape = "line"
 	card.resolve_tick = 3  # Wind up then charge forward
-	card.keywords = ["attack", "point"]
+	card.keywords = ["attack", "offensive", "point"]
 	return card
 
 static func create_heroic_leap() -> Card:
@@ -3478,7 +3506,7 @@ static func create_heroic_leap() -> Card:
 	card.aoe_shape = "circle"
 	card.aoe_range = 1.5
 	card.resolve_tick = 4  # Big windup before landing
-	card.keywords = ["attack", "point"]
+	card.keywords = ["attack", "offensive", "point"]
 	return card
 
 static func create_morphine() -> Card:
@@ -3521,7 +3549,7 @@ static func create_parry() -> Card:
 	card.block = 5
 	card.base_block = 5
 	card.target_types = ["enemy"]
-	card.keywords = ["defense", "attack", "melee"]
+	card.keywords = ["defense", "attack", "offensive", "melee"]
 	return card
 
 static func create_approach() -> Card:
@@ -3572,7 +3600,7 @@ static func create_trick_shot() -> Card:
 	card.rng_outcomes_data = [{percent = 80.0}]
 	card.is_ranged = true
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_surrounding_ice() -> Card:
@@ -3653,7 +3681,7 @@ static func create_worst_that_could_happen() -> Card:
 	card.base_damage = 5
 	card.rng_outcomes_data = [{percent = 50.0}, {percent = 50.0}]
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_oops() -> Card:
@@ -3669,7 +3697,7 @@ static func create_oops() -> Card:
 	card.base_damage = 4
 	card.rng_outcomes_data = [{percent = 30.0}, {percent = 40.0}, {percent = 30.0}]
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_house_money() -> Card:
@@ -3856,7 +3884,8 @@ static func create_exacerbate_wounds() -> Card:
 	card.mana_cost = 0
 	card.tempo_cost = 7
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.conditional_range = true  # Melee with a blade, ranged (+1 tempo) with a bow
+	card.keywords = ["attack", "offensive", "conditional"]
 	return card
 
 static func create_reposition() -> Card:
@@ -3930,7 +3959,7 @@ static func create_shuriken() -> Card:
 	# Hits a RANDOM enemy (no aiming) — plays immediately, resolved in main.gd.
 	card.target_types = ["self"]
 	card.range_modifier = -2
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_premeditated() -> Card:
@@ -3945,7 +3974,7 @@ static func create_premeditated() -> Card:
 	card.damage = 8
 	card.base_damage = 8
 	card.target_types = ["enemy"]
-	card.keywords = ["attack"]
+	card.keywords = ["attack", "offensive"]
 	return card
 
 #endregion
@@ -3999,7 +4028,7 @@ static func create_quick_shot() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_reload() -> Card:
@@ -4056,7 +4085,7 @@ static func create_down_town() -> Card:
 	card.range_modifier = 7
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
-	card.keywords = ["attack"]
+	card.keywords = ["attack", "offensive"]
 	return card
 
 static func create_barricade() -> Card:
@@ -4090,7 +4119,7 @@ static func create_sky_fall() -> Card:
 	card.range_modifier = 7
 	card.target_types = ["point"]
 	card.card_keyword = CardKeyword.ARROW
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_sky_attack() -> Card:
@@ -4108,7 +4137,7 @@ static func create_sky_attack() -> Card:
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
 	card.range_modifier = -3
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_lead_arrow() -> Card:
@@ -4127,7 +4156,7 @@ static func create_lead_arrow() -> Card:
 	card.requires_high_ground = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_last_breath() -> Card:
@@ -4145,7 +4174,7 @@ static func create_last_breath() -> Card:
 	card.range_modifier = 0
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_mixed_bag() -> Card:
@@ -4179,7 +4208,7 @@ static func create_quick_arrow() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_bottomless_quiver() -> Card:
@@ -4232,7 +4261,7 @@ static func create_trip() -> Card:
 	card.base_damage = 5
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_choke() -> Card:
@@ -4298,7 +4327,7 @@ static func create_sweeping_disarm() -> Card:
 	card.aoe_shape = "circle"
 	card.target_types = ["all_nearby"]
 	card.card_keyword = CardKeyword.FIST
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_consecutive_snap() -> Card:
@@ -4317,7 +4346,7 @@ static func create_consecutive_snap() -> Card:
 	card.range_modifier = -2
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_swap() -> Card:
@@ -4496,7 +4525,7 @@ static func create_thrown_stone() -> Card:
 	card.has_on_draw = true
 	card.on_draw_effect = "deal_4_random_enemy"
 	card.is_ranged = true
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_gulped_potion() -> Card:
@@ -4619,7 +4648,7 @@ static func create_reckless_strike() -> Card:
 	card.damage = 15
 	card.base_damage = 15
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float, self_damage_percent: float, buff_mgr: BuffManager = null) -> void:
@@ -4664,7 +4693,7 @@ static func create_blade_barrage() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 # ============================================
@@ -5399,8 +5428,12 @@ func _execute_energy_barrier(player_stats: PlayerStats) -> void:
 		player_stats.add_armor(block)
 	print("[CARD] Energy Barrier! +%d armor" % block)
 
-func _execute_the_lights_favor(player_stats: PlayerStats, deck_manager) -> void:
-	## Heal and draw a card.
+func _execute_the_lights_favor(player_stats: PlayerStats, deck_manager, target = null) -> void:
+	## Heal and draw a card. Aimed at an ally, the ALLY is healed and draws
+	## from their own deck into their own hand — the caster draws nothing.
+	if target is Player and target.deck_manager_ref:
+		player_stats = target.get_stats()
+		deck_manager = target.deck_manager_ref
 	if player_stats:
 		player_stats.heal(heal_amount)
 	if deck_manager:
@@ -6091,7 +6124,7 @@ static func create_exposed_artery() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 # ============================================
@@ -6137,7 +6170,7 @@ static func create_savage_strike() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_savage_strike_copy() -> Card:
@@ -6175,7 +6208,7 @@ static func create_heavy_swing() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
 	card.resolve_tick = 2  # Short windup for heavy hit
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_shed_weight() -> Card:
@@ -6230,7 +6263,7 @@ static func create_shield_slam() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
 	card.resolve_tick = 7  # Heavy windup with shield
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_tower_shield() -> Card:
@@ -7402,7 +7435,7 @@ static func create_exhausted_assault() -> Card:
 	card.glut_tempo = 10
 	card.target_types = ["enemy"]
 	card.is_ranged = true
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_multishot() -> Card:
@@ -7423,7 +7456,7 @@ static func create_multishot() -> Card:
 	card.glut_tempo = 5
 	card.target_types = ["enemy"]
 	card.range_modifier = 1
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_specific_strike() -> Card:
@@ -7441,7 +7474,7 @@ static func create_specific_strike() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "melee"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_spirit_arrow() -> Card:
@@ -7464,7 +7497,7 @@ static func create_spirit_arrow() -> Card:
 	card.aoe_range = 100.0  # pierces the full line, not just 1.5 tiles
 	card.card_keyword = CardKeyword.ARROW
 	card.target_types = ["point"]
-	card.keywords = ["attack", "ranged"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 # ============================================
