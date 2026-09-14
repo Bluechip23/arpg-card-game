@@ -316,11 +316,9 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 
 	# Paralysis (Crypt Crawler web): cannot move while the card sits in hand —
 	# every other action is fine; playing it tears the webbing free.
-	if deck_manager_ref:
-		for held in deck_manager_ref.hand:
-			if held.card_id == "paralysis":
-				print("[PLAYER] Webbed! Cannot move until Paralysis is played.")
-				return false
+	if _is_webbed():
+		print("[PLAYER] Webbed! Cannot move until Paralysis is played.")
+		return false
 
 	# Slowed no longer trims spaces — it taxes tempo per tile instead (see
 	# TempoManager.add_movement_tempo), burning a stack per tile.
@@ -363,6 +361,35 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		return true
 
 	return false
+
+func _is_webbed() -> bool:
+	## Paralysis card in hand: movement is refused until it is played.
+	if deck_manager_ref:
+		for held in deck_manager_ref.hand:
+			if held.card_id == "paralysis":
+				return true
+	return false
+
+func preview_path_cells(target_pos: Vector3, spaces: int) -> Array[Vector2i]:
+	## The tiles a move_to_grid(target_pos, spaces) order would walk, in
+	## walking order (start tile excluded), without starting it: the same BFS
+	## route, cut to the movement budget (haste included) and trimmed off any
+	## taken tile at its end. Empty when the order would do nothing — the
+	## tile is unreachable, the character is rooted/stunned/webbed, or the
+	## cursor sits on the tile they already stand on.
+	if not grid_manager:
+		return []
+	if not debuff_manager.can_move() or _is_webbed():
+		return []
+	var path := calculate_path_to(grid_manager.snap_to_grid(target_pos))
+	var budget: int = spaces + buff_manager.get_haste_bonus()
+	if path.size() > budget:
+		path.resize(maxi(budget, 0))
+	_trim_taken_tail(path)
+	var cells: Array[Vector2i] = []
+	for waypoint in path:
+		cells.append(grid_manager.world_to_grid(waypoint))
+	return cells
 
 ## Haste bookkeeping when a move actually starts: the bonus tiles ride free
 ## (via the free-move-tiles pool the tempo charger already honors) and one
@@ -411,16 +438,21 @@ func _taken_cells() -> Array:
 	return cells
 
 func _trim_path_tail() -> void:
-	## Pop trailing waypoints that sit on a taken tile (see _taken_cells).
-	if move_path.is_empty() or not grid_manager:
+	## Pop trailing waypoints of the live route that sit on a taken tile.
+	_trim_taken_tail(move_path)
+
+func _trim_taken_tail(path: Array[Vector3]) -> void:
+	## Pop trailing waypoints of `path` that sit on a taken tile (see
+	## _taken_cells). Mutates the array in place.
+	if path.is_empty() or not grid_manager:
 		return
 	var taken: Array = _taken_cells()
 	if taken.is_empty():
 		return
-	while not move_path.is_empty():
-		var last_cell := grid_manager.world_to_grid(move_path[move_path.size() - 1])
+	while not path.is_empty():
+		var last_cell := grid_manager.world_to_grid(path[path.size() - 1])
 		if last_cell in taken:
-			move_path.pop_back()
+			path.pop_back()
 		else:
 			break
 
