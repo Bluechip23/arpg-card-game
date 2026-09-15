@@ -49,6 +49,10 @@ func _dump_cards() -> Array:
 			"erase_tempo": card.erase_tempo,
 			"in_hand_buff": card.in_hand_buff,
 			"requires_high_ground": card.requires_high_ground,
+			"keywords": card.keywords,
+			"school": ["physical", "spell", "trap"][card.school as int],
+			"range": card.get_effective_range(),
+			"infinite_range": card.is_ranged and card.range_modifier >= Card.INFINITE_RANGE,
 		})
 	return cards
 

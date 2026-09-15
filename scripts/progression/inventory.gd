@@ -350,6 +350,15 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	print("[INVENTORY] Unequipped %s from slot %d" % [item.item_name, slot_index])
 	return item
 
+## True while a bow is in hand — the weapon that turns Conditional cards
+## ranged. Wands, staves, and thrown weapons are not ranged weapons here.
+func holds_ranged_weapon() -> bool:
+	for w in equipped_weapons:
+		if w != null and w.item_type == ItemData.ItemType.WEAPON \
+				and w.weapon_subtype == ItemData.WeaponSubtype.BOW:
+			return true
+	return false
+
 ## Bows and magic staffs are two-hand-only: never sharable with another hand
 ## item. (A quiver may ride along with a bow; a staff shares with nothing.)
 static func is_two_hand_only(item: ItemData) -> bool:

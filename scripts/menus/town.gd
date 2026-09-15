@@ -46,6 +46,7 @@ var _camera_yaw: float = 0.0
 var _camera_pitch: float = -0.785
 var _camera_distance: float = 17.0
 var _camera_orbiting: bool = false
+var _move_path_cursor: MovePathCursor = null  # Hover cursor + route dots for right-click walks
 var _camera_drag_start: Vector2 = Vector2.ZERO
 const CAMERA_PITCH_MIN: float = -1.4
 const CAMERA_PITCH_MAX: float = -0.15
@@ -131,6 +132,12 @@ func _ready() -> void:
 	player.position = grid_manager.snap_to_grid(player.position)
 	player.target_position = player.position
 	player.ground_y_provider = Callable(self, "_town_ground_y")
+
+	_move_path_cursor = MovePathCursor.new()
+	_move_path_cursor.name = "MovePathCursor"
+	_move_path_cursor.grid_manager = grid_manager
+	_move_path_cursor.ground_y_provider = Callable(self, "_town_ground_y")
+	add_child(_move_path_cursor)
 
 	# The Return Scroll's twin portal shimmers beside the arrival spot.
 	if not portal_return.is_empty():
@@ -296,6 +303,8 @@ func _process(_delta: float) -> void:
 		if _stash_message_timer <= 0 and _stash_message_label and is_instance_valid(_stash_message_label):
 			_stash_message_label.text = ""
 
+	_update_move_path_cursor()
+
 	if vendor_open:
 		return
 
@@ -441,6 +450,29 @@ func _wasd_step(dir: Vector2) -> void:
 
 	var target_cell := grid_manager.world_to_grid(player.position) + cell_delta
 	player.move_to_grid(grid_manager.grid_to_world(target_cell), 1)
+
+func _update_move_path_cursor() -> void:
+	## Hover feedback for right-click walks around town: bracket the plaza cell
+	## under the mouse and dot the route there. Hidden while a menu is open,
+	## the camera is being dragged, or the character is already walking.
+	if _move_path_cursor == null or grid_manager == null \
+			or player == null or not is_instance_valid(player):
+		return
+	if vendor_open or _stash_open or _modal_open or _camera_orbiting or player.is_moving:
+		_move_path_cursor.hide_cursor()
+		return
+	var mouse_pos := _get_mouse_world_position()
+	if mouse_pos == Vector3.ZERO:
+		_move_path_cursor.hide_cursor()
+		return
+	var target_cell := grid_manager.world_to_grid(mouse_pos)
+	if target_cell.x < 0 or target_cell.x >= grid_manager.grid_width \
+			or target_cell.y < 0 or target_cell.y >= grid_manager.grid_height \
+			or target_cell == grid_manager.world_to_grid(player.position):
+		_move_path_cursor.hide_cursor()
+		return
+	var distance := _get_grid_distance(player.position, mouse_pos)
+	_move_path_cursor.show_path(target_cell, player.preview_path_cells(mouse_pos, max(1, distance)))
 
 func _get_grid_distance(from: Vector3, to: Vector3) -> int:
 	var from_grid = grid_manager.world_to_grid(from)

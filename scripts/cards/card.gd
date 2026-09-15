@@ -267,6 +267,29 @@ var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo a
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
 var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
+
+## Design keywords from the card sheet ("Attack, melee", "Utility, ally, ranged",
+## "Reaction, defense" …): lowercase, one token each, in the sheet's order.
+## Descriptive tags for items, passives, and UI to key off via has_keyword().
+## The gameplay fields they describe (card_type, school, is_ranged +
+## range_modifier, target_types, is_aoe) remain the source of truth;
+## tests/test_card_keywords.gd fails if a card's keywords and fields drift.
+## Vocabulary: attack defense utility power reaction enchantment unplayable
+## spell offensive melee ranged conditional aoe self ally allies enemy point
+## no_target. Every attack card is also offensive.
+var keywords: Array = []  # of String
+
+## Conditional keyword: the card is melee or ranged depending on the weapon
+## in hand — a bow makes it ranged, anything else melee — instead of a fixed
+## is_ranged. DeckManager resolves it as the card enters the hand and again
+## whenever equipment changes (apply_conditional_range). Playing it ranged
+## costs CONDITIONAL_RANGED_TEMPO_PENALTY extra tempo.
+var conditional_range: bool = false
+const CONDITIONAL_RANGED_TEMPO_PENALTY := 1
+
+## range_modifier for cards that reach anywhere on the field (Communal
+## Donation). Range checks pass at any distance and no range ring is drawn.
+const INFINITE_RANGE := 99
 var element: String = ""  # Elemental identity for Feral Evocation's colored slots: "red" (Burn), "blue" (Cold), "yellow" (Shock), "green" (Poison). "" = not elemental.
 var has_reach: bool = false  # Reach: adds 1 square to melee attack range
 var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
@@ -556,6 +579,23 @@ func _find_standalone_percent(text: String, percent_str: String, from: int) -> i
 		return pos
 	return -1
 
+func has_keyword(keyword: String) -> bool:
+	return keyword in keywords
+
+func apply_conditional_range(weapon_is_ranged: bool) -> void:
+	## Resolve a Conditional card's reach from the held weapon. No-op for
+	## cards with a fixed melee/ranged keyword.
+	if not conditional_range:
+		return
+	is_ranged = weapon_is_ranged
+	range_modifier = 0
+
+func get_conditional_tempo_penalty() -> int:
+	## The extra tempo a Conditional card costs while it resolves as ranged.
+	if conditional_range and is_ranged:
+		return CONDITIONAL_RANGED_TEMPO_PENALTY
+	return 0
+
 func get_effective_range() -> int:
 	# Melee cards have 0 range. Ranged cards have base 5 + modifier.
 	if not is_ranged:
@@ -564,6 +604,8 @@ func get_effective_range() -> int:
 
 func get_range_display() -> String:
 	# Returns display string for card range keyword
+	if conditional_range:
+		return "Conditional (%s)" % ("Ranged" if is_ranged else "Melee")
 	if not is_ranged:
 		return "Melee"
 	var effective = get_effective_range()
@@ -742,6 +784,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"in-hand": "Card applies a persistent effect while it remains in your hand",
 		"sticky": "Card stays in hand for X uses before being discarded",
 		"high ground": "Ranged attacks from elevated positions deal +4 damage and gain +2 range",
+		"conditional": "Melee or ranged depending on your held weapon: a bow makes it ranged (+1 tempo to play), anything else makes it melee",
 		"cycle": "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks all happen per cycle",
 		"glut": "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo",
 		"delay": "Tempo until the effect takes place",
@@ -1296,7 +1339,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"regal_etching":
 			_execute_draw(deck_manager)
 		"potion_of_continuance":
-			_execute_potion_of_continuance(deck_manager)
+			_execute_potion_of_continuance(deck_manager, target)
 		"empower":
 			_execute_empower(player_stats)
 		"blink":
@@ -1825,7 +1868,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"energy_barrier":
 			_execute_energy_barrier(player_stats)
 		"the_lights_favor":
-			_execute_the_lights_favor(player_stats, deck_manager)
+			_execute_the_lights_favor(player_stats, deck_manager, target)
 		"healthy_habit":
 			_execute_healthy_habit(player_stats, deck_manager)
 		"gargle_and_spit":
@@ -2307,7 +2350,10 @@ func _execute_draw(deck_manager) -> void:
 		deck_manager.draw_card()
 		print("[CARD] Drew a card!")
 
-func _execute_potion_of_continuance(deck_manager) -> void:
+func _execute_potion_of_continuance(deck_manager, target = null) -> void:
+	# Ally-targetable: a partner drinks from their own deck; otherwise the caster's.
+	if target is Player and target.deck_manager_ref:
+		deck_manager = target.deck_manager_ref
 	if deck_manager:
 		deck_manager.draw_card()
 		deck_manager.draw_card()
@@ -2357,6 +2403,8 @@ func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost
 	if has_burden:
 		cost += burden_plays
+	# Conditional cards pay a tempo surcharge when a bow makes them ranged.
+	cost += get_conditional_tempo_penalty()
 	# Boot Holsters: slotted attack cards cost less tempo.
 	if card_type == CardType.ATTACK and slotted_in_item:
 		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
@@ -2423,6 +2471,7 @@ static func create_basic_attack(damage_amount: int) -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive"]
 	return card
 
 static func create_slash() -> Card:
@@ -2440,6 +2489,7 @@ static func create_slash() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_block() -> Card:
@@ -2457,6 +2507,7 @@ static func create_block() -> Card:
 	card.base_block = 5
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 static func create_discard() -> Card:
@@ -2474,6 +2525,7 @@ static func create_discard() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
 	return card
 
 static func create_fleet_etching() -> Card:
@@ -2521,6 +2573,7 @@ static func create_draw() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
 	return card
 
 static func create_empower() -> Card:
@@ -2538,6 +2591,7 @@ static func create_empower() -> Card:
 	card.base_block = 0
 	card.target_types = ["self"]
 	card.heal_amount = 0
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_blink() -> Card:
@@ -2555,9 +2609,10 @@ static func create_blink() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.is_ranged = true
-	card.range_modifier = 3
+	card.range_modifier = 2
 	card.target_types = ["point"]
 	card.heal_amount = 0
+	card.keywords = ["utility", "ranged", "spell"]
 	return card
 
 static func create_heal() -> Card:
@@ -2575,6 +2630,8 @@ static func create_heal() -> Card:
 	card.base_block = 0
 	card.target_types = ["self", "ally"]
 	card.heal_amount = 4
+	card.is_ranged = true
+	card.keywords = ["utility", "ally", "ranged"]
 	return card
 
 static func create_gain_mana() -> Card:
@@ -2592,6 +2649,7 @@ static func create_gain_mana() -> Card:
 	card.base_block = 0
 	card.target_types = ["self"]
 	card.heal_amount = 0
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_healing_potion() -> Card:
@@ -2610,6 +2668,7 @@ static func create_healing_potion() -> Card:
 	card.heal_amount = 5
 	card.target_types = ["self"]
 	card.card_keyword = CardKeyword.POCKET
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_dagger_throw() -> Card:
@@ -2629,6 +2688,8 @@ static func create_dagger_throw() -> Card:
 	card.target_types = ["enemy"]
 	card.heal_amount = 0
 	card.card_keyword = CardKeyword.POCKET
+	card.range_modifier = -1
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 #endregion
@@ -3321,6 +3382,7 @@ static func create_life_swap() -> Card:
 	card.mana_cost = 40
 	card.tempo_cost = 4
 	card.target_types = ["enemy"]
+	card.keywords = ["utility", "enemy"]
 	return card
 
 static func create_wear_down() -> Card:
@@ -3333,6 +3395,7 @@ static func create_wear_down() -> Card:
 	card.mana_cost = 0
 	card.tempo_cost = 1
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_taunt() -> Card:
@@ -3347,6 +3410,7 @@ static func create_taunt() -> Card:
 	card.target_types = ["all_nearby"]
 	card.is_aoe = true
 	card.aoe_shape = "circle"
+	card.keywords = ["defense"]
 	return card
 
 static func create_life_steal() -> Card:
@@ -3359,6 +3423,7 @@ static func create_life_steal() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 2
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_roar() -> Card:
@@ -3373,6 +3438,7 @@ static func create_roar() -> Card:
 	card.target_types = ["all_nearby"]
 	card.is_aoe = true
 	card.aoe_shape = "circle"
+	card.keywords = ["defense", "no_target"]
 	return card
 
 static func create_poke() -> Card:
@@ -3388,6 +3454,7 @@ static func create_poke() -> Card:
 	card.base_damage = 2
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_armor_break() -> Card:
@@ -3402,6 +3469,7 @@ static func create_armor_break() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_charge() -> Card:
@@ -3415,10 +3483,11 @@ static func create_charge() -> Card:
 	card.tempo_cost = 4
 	card.damage = 8
 	card.base_damage = 8
-	card.target_types = ["enemy"]
+	card.target_types = ["enemy", "point"]
 	card.is_aoe = true
 	card.aoe_shape = "line"
 	card.resolve_tick = 3  # Wind up then charge forward
+	card.keywords = ["attack", "offensive", "point"]
 	return card
 
 static func create_heroic_leap() -> Card:
@@ -3437,6 +3506,7 @@ static func create_heroic_leap() -> Card:
 	card.aoe_shape = "circle"
 	card.aoe_range = 1.5
 	card.resolve_tick = 4  # Big windup before landing
+	card.keywords = ["attack", "offensive", "point"]
 	return card
 
 static func create_morphine() -> Card:
@@ -3449,6 +3519,7 @@ static func create_morphine() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_turtle_up() -> Card:
@@ -3461,6 +3532,7 @@ static func create_turtle_up() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 static func create_parry() -> Card:
@@ -3477,6 +3549,7 @@ static func create_parry() -> Card:
 	card.block = 5
 	card.base_block = 5
 	card.target_types = ["enemy"]
+	card.keywords = ["defense", "attack", "offensive", "melee"]
 	return card
 
 static func create_approach() -> Card:
@@ -3489,6 +3562,7 @@ static func create_approach() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 3
 	card.target_types = ["self"]
+	card.keywords = ["defense"]
 	return card
 
 static func create_hold_the_line() -> Card:
@@ -3503,6 +3577,7 @@ static func create_hold_the_line() -> Card:
 	card.block = 5
 	card.base_block = 5
 	card.target_types = ["self"]
+	card.keywords = ["defense", "no_target"]
 	return card
 
 #endregion
@@ -3525,6 +3600,7 @@ static func create_trick_shot() -> Card:
 	card.rng_outcomes_data = [{percent = 80.0}]
 	card.is_ranged = true
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_surrounding_ice() -> Card:
@@ -3546,6 +3622,7 @@ static func create_surrounding_ice() -> Card:
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_types = ["all_nearby"]
+	card.keywords = ["spell", "melee", "aoe", "offensive"]
 	return card
 
 static func create_risk_it() -> Card:
@@ -3559,11 +3636,13 @@ static func create_risk_it() -> Card:
 	card.tempo_cost = 0
 	card.rng_outcomes_data = [{percent = 30.0}]
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_biscuit() -> Card:
 	var card = Card.new()
 	card.card_id = "biscuit"
+	card.school = CardSchool.SPELL
 	card.card_name = "Biscuit"
 	card.description = "Fully heal yourself and gain +3 damage for 3 attacks."
 	card.card_type = CardType.UTILITY
@@ -3571,11 +3650,13 @@ static func create_biscuit() -> Card:
 	card.mana_cost = 20
 	card.tempo_cost = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self", "spell"]
 	return card
 
 static func create_loaded_die() -> Card:
 	var card = Card.new()
 	card.card_id = "loaded_die"
+	card.school = CardSchool.SPELL
 	card.card_name = "Loaded Die"
 	card.description = "Next card with a probability has +10% higher chance."
 	card.card_type = CardType.UTILITY
@@ -3584,6 +3665,7 @@ static func create_loaded_die() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 1
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self", "spell"]
 	return card
 
 static func create_worst_that_could_happen() -> Card:
@@ -3599,6 +3681,7 @@ static func create_worst_that_could_happen() -> Card:
 	card.base_damage = 5
 	card.rng_outcomes_data = [{percent = 50.0}, {percent = 50.0}]
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_oops() -> Card:
@@ -3614,11 +3697,13 @@ static func create_oops() -> Card:
 	card.base_damage = 4
 	card.rng_outcomes_data = [{percent = 30.0}, {percent = 40.0}, {percent = 30.0}]
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_house_money() -> Card:
 	var card = Card.new()
 	card.card_id = "house_money"
+	card.school = CardSchool.SPELL
 	card.card_name = "House Money"
 	card.description = "Your next odds will automatically trigger."
 	card.card_type = CardType.UTILITY
@@ -3626,11 +3711,13 @@ static func create_house_money() -> Card:
 	card.mana_cost = 40
 	card.tempo_cost = 5
 	card.target_types = ["self"]
+	card.keywords = ["utility", "spell"]
 	return card
 
 static func create_hope_this_works() -> Card:
 	var card = Card.new()
 	card.card_id = "hope_this_works"
+	card.school = CardSchool.SPELL
 	card.card_name = "Hope This Works"
 	card.description = "50% to heal ally and provide STR for 3 attacks."
 	card.card_type = CardType.UTILITY
@@ -3639,6 +3726,7 @@ static func create_hope_this_works() -> Card:
 	card.tempo_cost = 3
 	card.rng_outcomes_data = [{percent = 50.0}]
 	card.target_types = ["ally"]
+	card.keywords = ["utility", "ally", "spell"]
 	return card
 
 static func create_lady_luck() -> Card:
@@ -3652,6 +3740,7 @@ static func create_lady_luck() -> Card:
 	card.mana_cost = 40
 	card.tempo_cost = 1
 	card.target_types = ["ally"]
+	card.keywords = ["utility", "ally", "spell"]
 	return card
 
 static func create_try_this() -> Card:
@@ -3665,6 +3754,9 @@ static func create_try_this() -> Card:
 	card.tempo_cost = 4
 	card.rng_outcomes_data = [{percent = 10.0}]
 	card.target_types = ["ally"]
+	card.is_ranged = true
+	card.range_modifier = 3
+	card.keywords = ["utility", "ally", "ranged"]
 	return card
 
 static func create_if_pigs_could_fly() -> Card:
@@ -3682,6 +3774,7 @@ static func create_if_pigs_could_fly() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 2
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "spell", "offensive"]
 	return card
 
 static func create_snowballs_chance() -> Card:
@@ -3704,6 +3797,7 @@ static func create_snowballs_chance() -> Card:
 	card.aoe_shape = "line"
 	card.aoe_range = 3.0  # 3 grid spaces
 	card.target_types = ["point"]
+	card.keywords = ["spell", "point", "melee", "offensive"]
 	return card
 
 #endregion
@@ -3723,6 +3817,7 @@ static func create_raged_circulation() -> Card:
 	card.tempo_cost = 2
 	card.is_ranged = true
 	card.target_types = ["ally"]
+	card.keywords = ["utility", "ally", "ranged"]
 	return card
 
 static func create_poisoned_blood() -> Card:
@@ -3735,6 +3830,7 @@ static func create_poisoned_blood() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 2
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_elixir() -> Card:
@@ -3747,6 +3843,7 @@ static func create_elixir() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 2
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
 	return card
 
 static func create_shadows() -> Card:
@@ -3759,6 +3856,7 @@ static func create_shadows() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 4
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_preparation() -> Card:
@@ -3771,6 +3869,7 @@ static func create_preparation() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 3
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_exacerbate_wounds() -> Card:
@@ -3785,6 +3884,8 @@ static func create_exacerbate_wounds() -> Card:
 	card.mana_cost = 0
 	card.tempo_cost = 7
 	card.target_types = ["enemy"]
+	card.conditional_range = true  # Melee with a blade, ranged (+1 tempo) with a bow
+	card.keywords = ["attack", "offensive", "conditional"]
 	return card
 
 static func create_reposition() -> Card:
@@ -3797,6 +3898,7 @@ static func create_reposition() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 2
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_volatile_mixture() -> Card:
@@ -3812,6 +3914,8 @@ static func create_volatile_mixture() -> Card:
 	card.damage = 8
 	card.base_damage = 8
 	card.target_types = ["self"]
+	card.is_ranged = true
+	card.keywords = ["utility", "ranged", "spell"]
 	return card
 
 static func create_understanding() -> Card:
@@ -3824,6 +3928,7 @@ static func create_understanding() -> Card:
 	card.mana_cost = 50
 	card.tempo_cost = 1
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_shuriken_pouch() -> Card:
@@ -3836,6 +3941,7 @@ static func create_shuriken_pouch() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 2
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_shuriken() -> Card:
@@ -3852,6 +3958,8 @@ static func create_shuriken() -> Card:
 	card.is_ranged = true
 	# Hits a RANDOM enemy (no aiming) — plays immediately, resolved in main.gd.
 	card.target_types = ["self"]
+	card.range_modifier = -2
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_premeditated() -> Card:
@@ -3866,6 +3974,7 @@ static func create_premeditated() -> Card:
 	card.damage = 8
 	card.base_damage = 8
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive"]
 	return card
 
 #endregion
@@ -3884,8 +3993,9 @@ static func create_mark() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 0
 	card.is_ranged = true
-	card.range_modifier = 7
+	card.range_modifier = 3
 	card.target_types = ["enemy"]
+	card.keywords = ["utility", "ranged"]
 	return card
 
 static func create_rise() -> Card:
@@ -3899,6 +4009,9 @@ static func create_rise() -> Card:
 	card.mana_cost = 10
 	card.tempo_cost = 4
 	card.target_types = ["point"]
+	card.is_ranged = true
+	card.range_modifier = 3
+	card.keywords = ["utility", "point", "ranged", "spell"]
 	return card
 
 static func create_quick_shot() -> Card:
@@ -3915,6 +4028,7 @@ static func create_quick_shot() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_reload() -> Card:
@@ -3927,6 +4041,7 @@ static func create_reload() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 3
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_enchanted_quiver() -> Card:
@@ -3939,6 +4054,7 @@ static func create_enchanted_quiver() -> Card:
 	card.mana_cost = 40
 	card.tempo_cost = 5
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
 	return card
 
 static func create_tighten_string() -> Card:
@@ -3951,6 +4067,7 @@ static func create_tighten_string() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 3
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_down_town() -> Card:
@@ -3968,6 +4085,7 @@ static func create_down_town() -> Card:
 	card.range_modifier = 7
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
+	card.keywords = ["attack", "offensive"]
 	return card
 
 static func create_barricade() -> Card:
@@ -3980,7 +4098,10 @@ static func create_barricade() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 30
 	card.tempo_cost = 2
-	card.target_types = ["self"]
+	card.target_types = ["point"]
+	card.is_ranged = true
+	card.range_modifier = -4
+	card.keywords = ["utility", "point", "ranged", "spell"]
 	return card
 
 static func create_sky_fall() -> Card:
@@ -3995,9 +4116,10 @@ static func create_sky_fall() -> Card:
 	card.damage = 18
 	card.base_damage = 18
 	card.is_ranged = true
-	card.range_modifier = 4
+	card.range_modifier = 7
 	card.target_types = ["point"]
 	card.card_keyword = CardKeyword.ARROW
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_sky_attack() -> Card:
@@ -4014,6 +4136,8 @@ static func create_sky_attack() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
+	card.range_modifier = -3
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_lead_arrow() -> Card:
@@ -4032,6 +4156,7 @@ static func create_lead_arrow() -> Card:
 	card.requires_high_ground = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_last_breath() -> Card:
@@ -4046,9 +4171,10 @@ static func create_last_breath() -> Card:
 	card.mana_cost = 0
 	card.tempo_cost = 5
 	card.is_ranged = true
-	card.range_modifier = 5
+	card.range_modifier = 0
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_mixed_bag() -> Card:
@@ -4082,6 +4208,7 @@ static func create_quick_arrow() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.ARROW
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_bottomless_quiver() -> Card:
@@ -4094,6 +4221,7 @@ static func create_bottomless_quiver() -> Card:
 	card.mana_cost = 40
 	card.tempo_cost = 4
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
 	return card
 
 #endregion
@@ -4113,10 +4241,11 @@ static func create_round_em_up() -> Card:
 	card.tempo_cost = 3
 	card.target_types = ["point"]
 	card.is_ranged = true
-	card.range_modifier = 3
+	card.range_modifier = 0
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.aoe_range = 2.0  # matches the real 2-square pull radius
+	card.keywords = ["utility", "point", "ranged"]
 	return card
 
 static func create_trip() -> Card:
@@ -4132,11 +4261,13 @@ static func create_trip() -> Card:
 	card.base_damage = 5
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_choke() -> Card:
 	var card = Card.new()
 	card.card_id = "choke"
+	card.school = CardSchool.SPELL
 	card.card_name = "Choke"
 	card.description = "Silence enemy. Deals half your auto attack damage every round."
 	card.damage = 0
@@ -4149,6 +4280,7 @@ static func create_choke() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
+	card.keywords = ["spell", "offensive"]
 	return card
 
 static func create_push() -> Card:
@@ -4160,10 +4292,11 @@ static func create_push() -> Card:
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
 	card.tempo_cost = 1
-	card.is_ranged = true
-	card.range_modifier = 1
+	card.is_ranged = false
+	card.range_modifier = 0
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
+	card.keywords = ["utility", "melee"]
 	return card
 
 static func create_defensive_awareness() -> Card:
@@ -4176,6 +4309,7 @@ static func create_defensive_awareness() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 2
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 static func create_sweeping_disarm() -> Card:
@@ -4193,6 +4327,7 @@ static func create_sweeping_disarm() -> Card:
 	card.aoe_shape = "circle"
 	card.target_types = ["all_nearby"]
 	card.card_keyword = CardKeyword.FIST
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_consecutive_snap() -> Card:
@@ -4211,6 +4346,7 @@ static func create_consecutive_snap() -> Card:
 	card.range_modifier = -2
 	card.target_types = ["enemy"]
 	card.card_keyword = CardKeyword.FIST
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_swap() -> Card:
@@ -4223,13 +4359,15 @@ static func create_swap() -> Card:
 	card.mana_cost = 20
 	card.tempo_cost = 3
 	card.is_ranged = true
-	card.range_modifier = 4
+	card.range_modifier = 2
 	card.target_types = ["enemy", "ally"]
+	card.keywords = ["utility", "enemy", "ally", "ranged"]
 	return card
 
 static func create_meditate() -> Card:
 	var card = Card.new()
 	card.card_id = "meditate"
+	card.school = CardSchool.SPELL
 	card.card_name = "Meditate"
 	card.description = "Discard hand, draw to full -2, heal to 80%. Skip next turn."
 	card.card_type = CardType.UTILITY
@@ -4237,6 +4375,7 @@ static func create_meditate() -> Card:
 	card.mana_cost = 0
 	card.tempo_cost = 6
 	card.target_types = ["self"]
+	card.keywords = ["utility", "spell", "self"]
 	return card
 
 static func create_potion_of_continuance() -> Card:
@@ -4253,7 +4392,10 @@ static func create_potion_of_continuance() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.target_types = ["self"]
+	card.target_types = ["self", "ally"]
+	card.is_ranged = true
+	card.range_modifier = -3
+	card.keywords = ["utility", "ally", "ranged"]
 	return card
 
 # === Reaction / Unplayable / On Draw Cards ===
@@ -4274,6 +4416,7 @@ static func create_spider_senses() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["self"]
 	card.reaction_trigger = "on_damage_taken"
+	card.keywords = ["reaction"]
 	return card
 
 static func create_lightly_dazed() -> Card:
@@ -4294,6 +4437,7 @@ static func create_lightly_dazed() -> Card:
 	card.erase_tempo_remaining = 40
 	card.linger = true
 	card.target_types = ["self"]
+	card.keywords = ["unplayable"]
 	return card
 
 static func create_djinn_wish(sear_per_cycle: int = 3) -> Card:
@@ -4380,6 +4524,8 @@ static func create_thrown_stone() -> Card:
 	card.target_types = ["enemy"]
 	card.has_on_draw = true
 	card.on_draw_effect = "deal_4_random_enemy"
+	card.is_ranged = true
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_gulped_potion() -> Card:
@@ -4399,6 +4545,9 @@ static func create_gulped_potion() -> Card:
 	card.sticky = 3
 	card.target_types = ["self", "ally"]
 	card.card_keyword = CardKeyword.POCKET
+	card.is_ranged = true
+	card.range_modifier = -2
+	card.keywords = ["utility", "ally", "ranged"]
 	return card
 
 func _execute_spider_senses(player_stats: PlayerStats) -> void:
@@ -4446,6 +4595,8 @@ static func create_halo() -> Card:
 	card.aoe_shape = "circle"
 	card.aoe_range = 3.0
 	card.target_types = ["self"]
+	card.is_ranged = true
+	card.keywords = ["power", "spell", "ranged"]
 	return card
 
 func _execute_halo(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4470,6 +4621,7 @@ static func create_armored_discipline() -> Card:
 	card.heal_amount = 0
 	card.maintain_cost = 30  # Maintain reserve always equals the card's mana cost
 	card.target_types = ["self"]
+	card.keywords = ["power", "self"]
 	return card
 
 func _execute_armored_discipline(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4496,6 +4648,7 @@ static func create_reckless_strike() -> Card:
 	card.damage = 15
 	card.base_damage = 15
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float, self_damage_percent: float, buff_mgr: BuffManager = null) -> void:
@@ -4540,6 +4693,7 @@ static func create_blade_barrage() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 # ============================================
@@ -4567,6 +4721,7 @@ static func create_minor_wounds() -> Card:
 	card.erase_tempo = 40
 	card.erase_tempo_remaining = 40
 	card.target_types = []
+	card.keywords = ["unplayable"]
 	return card
 
 static func create_energy_barrier(armor: int = 5) -> Card:
@@ -4587,6 +4742,7 @@ static func create_energy_barrier(armor: int = 5) -> Card:
 	card.erase_tempo = 1
 	card.erase_tempo_remaining = 1
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 # ============================================
@@ -4605,6 +4761,7 @@ static func create_collect_arrows() -> Card:
 	card.mana_cost = 30
 	card.glut_tempo = 15
 	card.target_types = ["self"]  # a self utility — no enemy click required
+	card.keywords = ["utility"]
 	return card
 
 func _execute_blade_barrage(target, player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:
@@ -4643,6 +4800,7 @@ static func create_cultish_wounds() -> Card:
 	card.heal_amount = 0
 	card.maintain_cost = 20
 	card.target_types = ["self"]
+	card.keywords = ["power"]
 	return card
 
 func _execute_cultish_wounds(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4667,6 +4825,7 @@ static func create_self_infliction() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 # ============================================
@@ -4692,6 +4851,7 @@ static func create_fountain_of_life() -> Card:
 	card.heal_amount = 0
 	card.maintain_cost = 30
 	card.target_types = ["self"]
+	card.keywords = ["power", "self", "spell"]
 	return card
 
 func _execute_fountain_of_life(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4725,6 +4885,7 @@ static func create_bob_and_weave() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["self"]
 	card.card_keyword = CardKeyword.FIST
+	card.keywords = ["defense", "self"]
 	return card
 
 func _execute_bob_and_weave(player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:
@@ -4755,6 +4916,7 @@ static func create_absorb_essence() -> Card:
 	card.aoe_shape = "circle"
 	card.aoe_range = 100.0
 	card.delay_tempo = 10
+	card.keywords = ["spell", "offensive"]
 	return card
 
 func _execute_absorb_essence(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4778,9 +4940,10 @@ static func create_energy_ball() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.is_ranged = true
-	card.range_modifier = 5
+	card.range_modifier = 1
 	card.target_types = ["enemy"]
 	card.erase_on_play = true  # "Erased after use" — never recycles from discard
+	card.keywords = ["spell", "ranged", "offensive"]
 	return card
 
 func _execute_energy_ball(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4814,6 +4977,7 @@ static func create_cover() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["ally"]
 	card.reaction_trigger = "on_ally_damage_taken"
+	card.keywords = ["reaction"]
 	return card
 
 func _execute_cover(player_stats: PlayerStats, deck_manager = null) -> void:
@@ -4841,8 +5005,9 @@ static func create_fortify_alliance() -> Card:
 	card.base_block = 5
 	card.heal_amount = 5
 	card.is_ranged = true
-	card.range_modifier = 2
+	card.range_modifier = 0
 	card.target_types = ["ally"]
+	card.keywords = ["defense", "ally", "ranged"]
 	return card
 
 func _execute_fortify_alliance(target, player_stats: PlayerStats, buff_mgr: BuffManager = null, deck_manager = null) -> void:
@@ -4879,6 +5044,9 @@ static func create_communal_donation() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.is_ranged = true
+	card.range_modifier = Card.INFINITE_RANGE
+	card.keywords = ["utility", "spell", "ranged"]
 	return card
 
 func _execute_communal_donation(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4904,6 +5072,7 @@ static func create_shield_ready() -> Card:
 	card.base_block = 5
 	card.delay_tempo = 5
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 func _execute_shield_ready(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4932,6 +5101,7 @@ static func create_repelled_block() -> Card:
 	card.block = 5
 	card.base_block = 5
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 func _execute_repelled_block(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4957,6 +5127,7 @@ static func create_shield_of_growth() -> Card:
 	card.mana_cost = 40
 	card.tempo_cost = 5
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 func _execute_shield_of_growth(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4985,6 +5156,7 @@ static func create_gift_from_the_phoenix() -> Card:
 	card.tempo_cost = 0
 	card.reaction_trigger = "on_hp_below_50"
 	card.target_types = ["self"]
+	card.keywords = ["reaction", "spell", "self"]
 	return card
 
 func _execute_gift_from_the_phoenix(_player_stats: PlayerStats, _buff_mgr: BuffManager = null) -> void:
@@ -5256,8 +5428,12 @@ func _execute_energy_barrier(player_stats: PlayerStats) -> void:
 		player_stats.add_armor(block)
 	print("[CARD] Energy Barrier! +%d armor" % block)
 
-func _execute_the_lights_favor(player_stats: PlayerStats, deck_manager) -> void:
-	## Heal and draw a card.
+func _execute_the_lights_favor(player_stats: PlayerStats, deck_manager, target = null) -> void:
+	## Heal and draw a card. Aimed at an ally, the ALLY is healed and draws
+	## from their own deck into their own hand — the caster draws nothing.
+	if target is Player and target.deck_manager_ref:
+		player_stats = target.get_stats()
+		deck_manager = target.deck_manager_ref
 	if player_stats:
 		player_stats.heal(heal_amount)
 	if deck_manager:
@@ -5386,6 +5562,9 @@ static func create_mana_surge(damage_amount: int = 5) -> Card:
 	card.heal_amount = 0
 	card.erase_on_play = true  # one-shot: erased after play, not while in hand
 	card.target_types = ["enemy"]
+	card.is_ranged = true
+	card.range_modifier = 5
+	card.keywords = ["offensive", "spell", "ranged"]
 	return card
 
 static func create_magic_barrier(armor: int = 8) -> Card:
@@ -5407,6 +5586,7 @@ static func create_magic_barrier(armor: int = 8) -> Card:
 	card.erase_on_play = true  # consumed when it triggers, not while waiting
 	card.reaction_trigger = "on_damage_taken"
 	card.target_types = ["self"]
+	card.keywords = ["reaction", "spell"]
 	return card
 
 # ============================================
@@ -5434,6 +5614,9 @@ static func create_shepherds_mark(armor: int = 10) -> Card:
 	card.erase_tempo = 10
 	card.erase_tempo_remaining = 10
 	card.target_types = ["self", "ally"]
+	card.is_ranged = true
+	card.range_modifier = 2
+	card.keywords = ["utility", "spell", "ranged"]
 	return card
 
 # ============================================
@@ -5462,6 +5645,7 @@ static func create_petey_the_pet_rock() -> Card:
 	card.on_discard_effect = "discard_2_cards"
 	card.in_hand_debuff = "slowed_2"
 	card.target_types = []
+	card.keywords = ["unplayable"]
 	return card
 
 # ============================================
@@ -5488,6 +5672,7 @@ static func create_armor_patch() -> Card:
 	card.on_draw_effect = "gain_3_armor_cleanse_1"
 	card.discard_on_draw = true
 	card.target_types = []
+	card.keywords = ["defense"]
 	return card
 
 # ============================================
@@ -5511,6 +5696,7 @@ static func create_bloodlust() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_lethal_recall() -> Card:
@@ -5528,11 +5714,13 @@ static func create_lethal_recall() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_demonic_rage() -> Card:
 	var card = Card.new()
 	card.card_id = "demonic_rage"
+	card.school = CardSchool.SPELL
 	card.card_name = "Demonic Rage"
 	card.description = "Your next 5 uses of mana use health instead."
 	card.card_type = CardType.UTILITY
@@ -5545,6 +5733,7 @@ static func create_demonic_rage() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self", "spell"]
 	return card
 
 static func create_smith_thy_soul() -> Card:
@@ -5562,6 +5751,7 @@ static func create_smith_thy_soul() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 static func create_down_but_not_out() -> Card:
@@ -5579,6 +5769,7 @@ static func create_down_but_not_out() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 # ============================================
@@ -5603,6 +5794,7 @@ static func create_enchantment_defense() -> Card:
 	card.heal_amount = 0
 	card.in_hand_buff = "block_3"
 	card.target_types = []
+	card.keywords = ["enchantment"]
 	return card
 
 static func create_enchantment_attack() -> Card:
@@ -5621,6 +5813,7 @@ static func create_enchantment_attack() -> Card:
 	card.heal_amount = 0
 	card.in_hand_buff = "damage_3"
 	card.target_types = []
+	card.keywords = ["enchantment"]
 	return card
 
 static func create_enchantment_movement() -> Card:
@@ -5639,6 +5832,7 @@ static func create_enchantment_movement() -> Card:
 	card.heal_amount = 0
 	card.in_hand_buff = "movement_1"
 	card.target_types = []
+	card.keywords = ["enchantment"]
 	return card
 
 static func create_enchantment_mana_regen() -> Card:
@@ -5657,6 +5851,7 @@ static func create_enchantment_mana_regen() -> Card:
 	card.heal_amount = 0
 	card.in_hand_buff = "mana_regen_1"
 	card.target_types = []
+	card.keywords = ["enchantment"]
 	return card
 
 static func create_healthy_habit() -> Card:
@@ -5674,6 +5869,7 @@ static func create_healthy_habit() -> Card:
 	card.base_block = 0
 	card.has_burden = true
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 # ============================================
@@ -5697,6 +5893,7 @@ static func create_anticipation() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_prepare() -> Card:
@@ -5716,6 +5913,7 @@ static func create_prepare() -> Card:
 	card.erase_tempo = 1
 	card.erase_tempo_remaining = 1
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_meister_of_faustmesser() -> Card:
@@ -5734,6 +5932,7 @@ static func create_meister_of_faustmesser() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_item_mastery() -> Card:
@@ -5751,6 +5950,7 @@ static func create_item_mastery() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_mirror_mirror() -> Card:
@@ -5769,6 +5969,7 @@ static func create_mirror_mirror() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "spell", "self"]
 	return card
 
 static func create_harness_lightning() -> Card:
@@ -5787,6 +5988,7 @@ static func create_harness_lightning() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["offensive", "spell", "self"]
 	return card
 
 static func create_deep_pockets() -> Card:
@@ -5804,6 +6006,7 @@ static func create_deep_pockets() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_best_offense() -> Card:
@@ -5821,6 +6024,7 @@ static func create_best_offense() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 static func create_vengeful_shield() -> Card:
@@ -5839,6 +6043,7 @@ static func create_vengeful_shield() -> Card:
 	card.heal_amount = 0
 	card.reaction_trigger = "on_exposed"
 	card.target_types = ["self"]
+	card.keywords = ["reaction", "defense"]
 	return card
 
 # ============================================
@@ -5850,6 +6055,7 @@ static func create_vengeful_shield() -> Card:
 static func create_misery_loves_company() -> Card:
 	var card = Card.new()
 	card.card_id = "misery_loves_company"
+	card.school = CardSchool.SPELL
 	card.card_name = "Misery Loves Company"
 	card.description = "Your next AOE attack spreads the debuffs on yourself and all enemies hit, to all the enemies that are hit."
 	card.card_type = CardType.UTILITY
@@ -5862,6 +6068,7 @@ static func create_misery_loves_company() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "spell", "self"]
 	return card
 
 static func create_release_tension() -> Card:
@@ -5879,6 +6086,7 @@ static func create_release_tension() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.keywords = ["utility", "melee"]
 	return card
 
 static func create_vines() -> Card:
@@ -5897,6 +6105,8 @@ static func create_vines() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.is_ranged = true
+	card.keywords = ["offensive", "ranged", "spell"]
 	return card
 
 static func create_exposed_artery() -> Card:
@@ -5914,6 +6124,7 @@ static func create_exposed_artery() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 # ============================================
@@ -5925,6 +6136,7 @@ static func create_exposed_artery() -> Card:
 static func create_internal_combustion() -> Card:
 	var card = Card.new()
 	card.card_id = "internal_combustion"
+	card.school = CardSchool.SPELL
 	card.card_name = "Internal Combustion"
 	card.description = "Remove half your armor and deal damage around you based on the amount."
 	card.card_type = CardType.ATTACK
@@ -5940,6 +6152,7 @@ static func create_internal_combustion() -> Card:
 	card.aoe_shape = "circle"
 	card.aoe_range = 3.0  # matches the real 3-tile blast
 	card.target_types = ["self"]
+	card.keywords = ["spell", "no_target", "offensive"]
 	return card
 
 static func create_savage_strike() -> Card:
@@ -5957,6 +6170,7 @@ static func create_savage_strike() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_savage_strike_copy() -> Card:
@@ -5994,6 +6208,7 @@ static func create_heavy_swing() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
 	card.resolve_tick = 2  # Short windup for heavy hit
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_shed_weight() -> Card:
@@ -6011,6 +6226,7 @@ static func create_shed_weight() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_give_in() -> Card:
@@ -6028,6 +6244,7 @@ static func create_give_in() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_shield_slam() -> Card:
@@ -6046,6 +6263,7 @@ static func create_shield_slam() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
 	card.resolve_tick = 7  # Heavy windup with shield
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_tower_shield() -> Card:
@@ -6063,6 +6281,7 @@ static func create_tower_shield() -> Card:
 	card.base_block = 40
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 static func create_living_armor() -> Card:
@@ -6079,7 +6298,9 @@ static func create_living_armor() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.target_types = ["self"]
+	card.target_types = ["self", "ally"]
+	card.is_ranged = true
+	card.keywords = ["defense", "allies", "ranged"]
 	return card
 
 static func create_the_lights_favor() -> Card:
@@ -6097,7 +6318,10 @@ static func create_the_lights_favor() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 5
-	card.target_types = ["self"]
+	card.target_types = ["self", "ally"]
+	card.is_ranged = true
+	card.range_modifier = -1
+	card.keywords = ["utility", "allies", "ranged", "spell"]
 	return card
 
 static func create_hunker_down() -> Card:
@@ -6115,6 +6339,7 @@ static func create_hunker_down() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 static func create_succumb() -> Card:
@@ -6131,7 +6356,10 @@ static func create_succumb() -> Card:
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.target_types = ["self"]
+	card.target_types = ["self", "ally"]
+	card.is_ranged = true
+	card.range_modifier = -1
+	card.keywords = ["utility", "allies", "ranged"]
 	return card
 
 static func create_harden() -> Card:
@@ -6149,6 +6377,7 @@ static func create_harden() -> Card:
 	card.base_block = 10
 	card.heal_amount = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense", "self"]
 	return card
 
 static func create_roll() -> Card:
@@ -6166,6 +6395,7 @@ static func create_roll() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["point"]
+	card.keywords = ["utility", "point"]
 	return card
 
 # ============================================
@@ -6191,6 +6421,8 @@ static func create_cryonics() -> Card:
 	card.heal_amount = 3
 	card.is_ranged = true
 	card.target_types = ["ally"]
+	card.range_modifier = 2
+	card.keywords = ["utility", "spell", "ranged"]
 	return card
 
 static func create_friendship() -> Card:
@@ -6210,6 +6442,7 @@ static func create_friendship() -> Card:
 	card.heal_amount = 0
 	card.is_ranged = true
 	card.target_types = ["ally"]
+	card.keywords = ["utility", "spell", "ranged"]
 	return card
 
 static func create_provider() -> Card:
@@ -6230,6 +6463,8 @@ static func create_provider() -> Card:
 	card.has_burden = true
 	card.is_ranged = true
 	card.target_types = ["ally"]
+	card.range_modifier = 2
+	card.keywords = ["utility", "ally", "spell", "ranged"]
 	return card
 
 static func create_fireball() -> Card:
@@ -6256,6 +6491,7 @@ static func create_fireball() -> Card:
 	card.aoe_range = 2.0  # 4 squares diameter = 2 radius
 	card.target_types = ["point"]
 	card.resolve_tick = 6  # Channel the fireball
+	card.keywords = ["spell", "ranged", "offensive", "point"]
 	return card
 
 static func create_spark() -> Card:
@@ -6276,6 +6512,7 @@ static func create_spark() -> Card:
 	card.is_ranged = true
 	card.range_modifier = -2
 	card.target_types = ["enemy"]
+	card.keywords = ["offensive", "spell", "ranged"]
 	return card
 
 static func create_god_of_thunder() -> Card:
@@ -6294,8 +6531,10 @@ static func create_god_of_thunder() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.is_ranged = true
-	card.target_types = ["point"]
+	card.target_types = ["enemy"]
 	card.resolve_tick = 8  # Long channel for massive spell
+	card.range_modifier = 4
+	card.keywords = ["spell", "ranged", "enemy", "offensive"]
 	return card
 
 # ============================================
@@ -6775,7 +7014,9 @@ static func create_worms_armageddon() -> Card:
 	card.aoe_shape = "circle"
 	card.aoe_range = 100.0  # hits every enemy on the field, like Absorb Essence
 	card.rng_outcomes_data = [{"percent": 10.0}]
-	card.target_types = ["point"]
+	card.target_types = ["enemy"]
+	card.range_modifier = 3
+	card.keywords = ["spell", "ranged", "enemy", "offensive"]
 	return card
 
 static func create_healthy_bliss() -> Card:
@@ -6794,6 +7035,7 @@ static func create_healthy_bliss() -> Card:
 	card.base_block = 0
 	card.heal_amount = 10
 	card.target_types = ["ally"]
+	card.keywords = ["utility", "spell"]
 	return card
 
 # ============================================
@@ -7128,6 +7370,7 @@ static func create_adrenaline_shot() -> Card:
 	card.heal_amount = 0
 	card.is_ranged = true
 	card.target_types = ["ally"]
+	card.keywords = ["utility", "ally", "ranged"]
 	return card
 
 static func create_patience() -> Card:
@@ -7146,6 +7389,7 @@ static func create_patience() -> Card:
 	card.heal_amount = 0
 	card.delay_tempo = 15
 	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_gargle_and_spit() -> Card:
@@ -7163,7 +7407,9 @@ static func create_gargle_and_spit() -> Card:
 	card.base_block = 0
 	card.heal_amount = 3
 	card.sticky = 4
-	card.target_types = ["self"]
+	card.target_types = ["self", "ally"]
+	card.is_ranged = true
+	card.keywords = ["utility", "ally", "ranged"]
 	return card
 
 # ============================================
@@ -7188,6 +7434,8 @@ static func create_exhausted_assault() -> Card:
 	card.heal_amount = 0
 	card.glut_tempo = 10
 	card.target_types = ["enemy"]
+	card.is_ranged = true
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_multishot() -> Card:
@@ -7207,6 +7455,8 @@ static func create_multishot() -> Card:
 	card.is_ranged = true
 	card.glut_tempo = 5
 	card.target_types = ["enemy"]
+	card.range_modifier = 1
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 static func create_specific_strike() -> Card:
@@ -7224,6 +7474,7 @@ static func create_specific_strike() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
+	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
 static func create_spirit_arrow() -> Card:
@@ -7246,6 +7497,7 @@ static func create_spirit_arrow() -> Card:
 	card.aoe_range = 100.0  # pierces the full line, not just 1.5 tiles
 	card.card_keyword = CardKeyword.ARROW
 	card.target_types = ["point"]
+	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
 # ============================================

@@ -144,6 +144,23 @@ cards.append({
 })
 
 # ---------- 5. Assemble card rows ----------
+def type_label(c):
+    """The sheet's Type column: the card's keywords ("Attack, melee",
+    "Utility, ally, ranged 5"), falling back to the bare card type."""
+    kws = list(c.get("keywords") or [])
+    if not kws:
+        return c["type"]
+    out = []
+    for k in kws:
+        if k == "ranged":
+            k = "ranged infinite" if c.get("infinite_range") else f"ranged {c.get('range', 5)}"
+        elif k == "no_target":
+            k = "no target"
+        elif k == "point":
+            k = "point click"
+        out.append(k)
+    return ", ".join(out).capitalize()
+
 def wired_label(c):
     cid = c["card_id"]
     if c["type"] == "Unplayable":
@@ -189,7 +206,7 @@ for c in cards:
         src.append("Town card shop only")
 
     card_rows.append({
-        "name": c["card_name"], "id": cid, "owner": owner, "type": c["type"],
+        "name": c["card_name"], "id": cid, "owner": owner, "type": type_label(c),
         "desc": c["description"], "mana": c["mana_cost"], "tempo": c["tempo_cost"],
         "wired": wired_label(c), "tree": in_tree, "src": "; ".join(src),
     })

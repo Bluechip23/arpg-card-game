@@ -36,6 +36,7 @@ var _discard_pile_btn: Button = null    # right discard pile button (for its too
 @onready var skill_tree_ui: SkillTreeUI = $SkillTreeUI
 @onready var sphere_inventory: SphereInventory = $SphereInventory
 @onready var range_indicator: RangeIndicator = $RangeIndicator
+var move_path_cursor: MovePathCursor = null  # Hover cursor + route dots for right-click movement
 
 var dungeon_manager: DungeonManager = null
 var unit_tracker: UnitTrackerUI = null
@@ -533,6 +534,14 @@ func _ready() -> void:
 	player.enemy_spawner = enemy_spawner
 	player.ground_y_provider = Callable(self, "_desired_ground_y")
 
+	# Movement hover feedback: brackets on the cell under the mouse, dots
+	# along the route the player would walk to it.
+	move_path_cursor = MovePathCursor.new()
+	move_path_cursor.name = "MovePathCursor"
+	move_path_cursor.grid_manager = grid_manager
+	move_path_cursor.ground_y_provider = Callable(self, "_desired_ground_y")
+	add_child(move_path_cursor)
+
 	move_dialog.confirmed.connect(_on_move_confirmed)
 	move_dialog.cancelled.connect(_on_move_cancelled)
 	move_dialog.lock_in_requested.connect(_on_move_lock_in)
@@ -736,6 +745,7 @@ func _process(delta: float) -> void:
 	_update_self_target_hover()
 	_update_damage_preview()
 	_update_loot_hover()
+	_update_move_path_cursor()
 	_check_doughnut_farewell()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
@@ -761,6 +771,42 @@ func _process(delta: float) -> void:
 			var card = deck_manager.hand[selected_card_index]
 			if card.is_aoe and "point" in card.target_types and mouse_world != Vector3.ZERO:
 				aoe_indicator.position = grid_manager.snap_to_grid(mouse_world)
+
+func _update_move_path_cursor() -> void:
+	## Hover feedback for right-click movement: bracket the cell under the
+	## mouse and dot every tile of the route the active character would walk
+	## to reach it. Hidden whenever a right-click could not start a move — mid-
+	## move, a card or attack armed, a window open, the mouse over the hand,
+	## the camera being dragged, or the character committed to a ticking action.
+	if move_path_cursor == null or grid_manager == null or player == null:
+		return
+	if player.is_moving or _movement_locked() or _is_ui_window_open() \
+			or selected_card_index >= 0 or _pending_quiver_card != null \
+			or _basic_attack_pending or _pending_gauntlet_skill != null \
+			or _current_hand_hover_index != -1 or _camera_orbiting:
+		move_path_cursor.hide_cursor()
+		return
+
+	var target_world: Vector3
+	if move_dialog and move_dialog.panel and move_dialog.panel.visible:
+		# "Move N spaces?" is up: freeze the preview on the route being confirmed.
+		target_world = move_dialog.pending_position
+	else:
+		target_world = get_mouse_world_position()
+		if target_world == Vector3.ZERO:
+			move_path_cursor.hide_cursor()
+			return
+
+	var target_cell := grid_manager.world_to_grid(target_world)
+	if target_cell.x < 0 or target_cell.x >= grid_manager.grid_width \
+			or target_cell.y < 0 or target_cell.y >= grid_manager.grid_height \
+			or target_cell == grid_manager.world_to_grid(player.position):
+		move_path_cursor.hide_cursor()
+		return
+
+	# Same budget the right-click handler grants: Manhattan distance to the tile.
+	var spaces := grid_manager.get_distance_in_cells(player.position, target_world)
+	move_path_cursor.show_path(target_cell, player.preview_path_cells(target_world, spaces))
 
 func _update_hand_hover() -> void:
 	if _card_ui_instances.is_empty():
@@ -7134,7 +7180,11 @@ func select_card(index: int) -> void:
 		aoe_indicator.hide_indicator()
 
 	# Show range indicator for ranged / spell cards (not melee)
-	if card.is_ranged and range_indicator:
+	if card.is_ranged and range_indicator and card.range_modifier >= Card.INFINITE_RANGE:
+		# Reaches the whole field — a ring would just tint the map.
+		range_indicator.hide_range()
+		add_battle_log("%s selected — Range: anywhere" % card.card_name, Color(0.6, 0.85, 1.0))
+	elif card.is_ranged and range_indicator:
 		var effective_range = float(card.get_effective_range())
 		# Include Tighten String bonus if active
 		var buff_mgr = player.get_buff_manager() if player else null
@@ -10812,7 +10862,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"charge":
 			# Move player forward 5 spaces, damaging enemies and interacting with obstacles
-			var charge_dest = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			# Aimed at an enemy: charge at them. Point-click on open ground
+			# (the click handler passes the player as the target): charge
+			# toward the clicked tile.
+			var charge_dest = target.position if (target and target != player) else grid_manager.snap_to_grid(mouse_pos)
 			var start_pos = player.position
 			var charge_diff = charge_dest - start_pos
 			var charge_dir = Vector3(charge_diff.x, 0, charge_diff.z).normalized()
