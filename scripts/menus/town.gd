@@ -218,6 +218,10 @@ func _ready() -> void:
 	# flute hand-off. Shown as a notice overlay once the town is up.
 	_arrive_home()
 
+	# Every arrival home is a checkpoint: the autosave slot always holds the
+	# latest town state, so a quit mid-dungeon costs at most one outing.
+	call_deferred("_autosave")
+
 func _update_camera() -> void:
 	var camera = get_viewport().get_camera_3d()
 	if not camera:
@@ -2761,12 +2765,30 @@ func _build_save_data(slot: int) -> SaveData:
 	data.progression["discovered_waypoints"] = discovered_waypoints.duplicate(true)
 	data.progression["opened_chests"] = opened_chests.duplicate(true)
 
+	# Equipped items (display only, for the load screen's Inventory view).
+	var inv = player.get_inventory() if player and player.has_method("get_inventory") else null
+	var equipped: Array[String] = []
+	if inv:
+		for lst in [inv.equipped_weapons, inv.equipped_helms, inv.equipped_chests, inv.equipped_gauntlets,
+				inv.equipped_belts, inv.equipped_boots, inv.equipped_rings]:
+			for item in lst:
+				if item is ItemData:
+					equipped.append("%s (Lv %d)" % [item.item_name, item.item_level])
+	data.equipped_item_names = equipped
+
 	# Deck snapshot (display only) — same basic deck + purchased, minus culls.
 	var ids: Array[String] = []
 	for c in _get_current_deck_card_ids():
 		ids.append(str(c))
 	data.deck_card_ids = ids
 	return data
+
+func _autosave() -> void:
+	if starting_character == null or player == null or not is_instance_valid(player):
+		return
+	var data := _build_save_data(SaveManager.AUTOSAVE_SLOT)
+	if SaveManager.save_game(SaveManager.AUTOSAVE_SLOT, data):
+		print("[TOWN] Autosaved on arrival.")
 
 func _open_save_picker() -> void:
 	if vendor_open:

@@ -214,6 +214,7 @@ var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, sp
 var spawn_zones: Array = []     # [{trigger_rect, spawn_points, enemy_types, spawned}]
 var waypoint_nodes: Array = []  # [{node, grid_pos, target, display_name, label_node, discovered, pillar_mesh}]
 var site_nodes: Array = []      # [{node, grid_pos (entrance), id, kind, display_name, label_node, footprint}]
+var fountain_nodes: Array = []  # [{node, grid_pos, label_node, water_mesh, blessed, xp_used}] — see _place_fountains
 var player_start: Vector2i = Vector2i(2, 23)
 
 var grid_manager: GridManager
@@ -320,6 +321,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	else:
 		_place_exit_site()
 	_place_chests()
+	_place_fountains()
 	_define_spawn_zones()
 
 	# Terrain visuals
@@ -4140,6 +4142,169 @@ func update_waypoint_prompts(player_grid: Vector2i) -> void:
 				interact_lbl.visible = dist <= 3
 
 # ============================================
+# HEALING FOUNTAINS
+# ============================================
+# A stone basin of holy water. Standing beside one (Shift) offers two things:
+#   - Drink: restore to full health. Uses up the blessing; the basin runs dry
+#     until the player pours a vial of Holy Water (dropped by enemies) back in.
+#   - Bathe in the light: +20% of the XP to the next level. Once per fountain,
+#     ever — it never restores.
+# State persists per fountain in the world-object state dictionary shared
+# with chests (keys "world_N[_interior]_fountain_i"), so it survives leaving
+# and re-entering and rides along in the save file.
+
+const FOUNTAIN_ROOM_KINDS := ["field", "chamber", "room", "deep", "clearing"]
+
+func _place_fountains() -> void:
+	var want: int = 2 if interior_kind == "" else 1
+	var candidates: Array = []
+	for room in rooms:
+		if room["kind"] in FOUNTAIN_ROOM_KINDS:
+			candidates.append(room)
+	if candidates.size() < want:
+		for room in rooms:
+			if room["kind"] not in ["start", "site"] and room not in candidates:
+				candidates.append(room)
+	# Spread them out: farthest room from the start first, then the median one.
+	candidates.sort_custom(func(a, b):
+		return _room_start_distance(a) > _room_start_distance(b))
+	var picks: Array = []
+	if candidates.size() > 0:
+		picks.append(candidates[0])
+	if want > 1 and candidates.size() > 1:
+		picks.append(candidates[candidates.size() / 2])
+	var placed: Array[Vector2i] = []
+	for room in picks:
+		var cell = _pick_free_cell(room["rect"], placed)
+		if cell.x < 0:
+			continue
+		placed.append(cell)
+		_create_fountain(cell)
+	_restore_fountain_state()
+
+func _room_start_distance(room: Dictionary) -> int:
+	var c: Vector2i = room["rect"].get_center()
+	return absi(c.x - player_start.x) + absi(c.y - player_start.y)
+
+func _create_fountain(grid_pos: Vector2i) -> void:
+	var root = Node3D.new()
+	root.name = "Fountain_%d" % fountain_nodes.size()
+
+	# Stone basin (pixel rock texture, like the sewer rubble and cave props).
+	var basin = MeshInstance3D.new()
+	var basin_mesh = CylinderMesh.new()
+	basin_mesh.top_radius = 0.6
+	basin_mesh.bottom_radius = 0.72
+	basin_mesh.height = 0.45
+	basin_mesh.radial_segments = 10
+	basin.mesh = basin_mesh
+	basin.material_override = _pixel_mat("res://assets/textures/tile_rock.png", Color(0.78, 0.78, 0.84))
+	basin.position = Vector3(0, 0.225, 0)
+	root.add_child(basin)
+
+	# The water: glows while blessed, dull grey once drunk dry.
+	var water = MeshInstance3D.new()
+	var water_mesh = CylinderMesh.new()
+	water_mesh.top_radius = 0.48
+	water_mesh.bottom_radius = 0.48
+	water_mesh.height = 0.05
+	water_mesh.radial_segments = 10
+	water.mesh = water_mesh
+	water.position = Vector3(0, 0.46, 0)
+	var wmat = StandardMaterial3D.new()
+	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	water.material_override = wmat
+	root.add_child(water)
+
+	var label = Label3D.new()
+	label.name = "FountainLabel"
+	label.text = "Healing Fountain"
+	label.font_size = 20
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(0.8, 0.95, 1.0)
+	label.position = Vector3(0, 1.1, 0)
+	WorldText.crisp(label)
+	root.add_child(label)
+
+	var interact_label = Label3D.new()
+	interact_label.name = "InteractLabel"
+	interact_label.text = "[Shift] Fountain"
+	interact_label.font_size = 16
+	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	interact_label.modulate = Color(1.0, 0.9, 0.4)
+	interact_label.position = Vector3(0, 1.75, 0)
+	interact_label.visible = false
+	WorldText.crisp(interact_label)
+	root.add_child(interact_label)
+
+	var world_pos = grid_manager.grid_to_world(grid_pos)
+	world_pos.y = get_elevation_world_y(grid_pos)
+	root.position = world_pos
+	_visuals_root.add_child(root)
+	_reserve_area(grid_pos, 1)
+
+	fountain_nodes.append({
+		"node": root,
+		"grid_pos": grid_pos,
+		"label_node": interact_label,
+		"water_mesh": water,
+		"blessed": true,
+		"xp_used": false,
+	})
+	_apply_fountain_visual(fountain_nodes.size() - 1)
+
+func _fountain_key(index: int) -> String:
+	if interior_id == "":
+		return "world_%d_fountain_%d" % [world_level, index]
+	return "world_%d_%s_fountain_%d" % [world_level, interior_id, index]
+
+func _restore_fountain_state() -> void:
+	## Fountain state lives beside chest state in the shared world-object dict.
+	for i in range(fountain_nodes.size()):
+		var state = _opened_chests_ref.get(_fountain_key(i))
+		if state is Dictionary:
+			fountain_nodes[i]["blessed"] = bool(state.get("blessed", true))
+			fountain_nodes[i]["xp_used"] = bool(state.get("xp_used", false))
+			_apply_fountain_visual(i)
+
+func set_fountain_state(index: int, blessed: bool, xp_used: bool) -> void:
+	if index < 0 or index >= fountain_nodes.size():
+		return
+	fountain_nodes[index]["blessed"] = blessed
+	fountain_nodes[index]["xp_used"] = xp_used
+	_opened_chests_ref[_fountain_key(index)] = {"blessed": blessed, "xp_used": xp_used}
+	_apply_fountain_visual(index)
+
+func _apply_fountain_visual(index: int) -> void:
+	var water: MeshInstance3D = fountain_nodes[index]["water_mesh"]
+	var mat := water.material_override as StandardMaterial3D
+	if fountain_nodes[index]["blessed"]:
+		mat.albedo_color = Color(0.55, 0.85, 1.0)
+		mat.emission_enabled = true
+		mat.emission = Color(0.35, 0.65, 1.0)
+		mat.emission_energy_multiplier = 1.4
+	else:
+		mat.albedo_color = Color(0.32, 0.33, 0.36)
+		mat.emission_enabled = false
+
+func get_nearby_fountain(player_grid: Vector2i) -> int:
+	## Index of a fountain within 1 tile of the player, or -1.
+	for i in range(fountain_nodes.size()):
+		var pos: Vector2i = fountain_nodes[i]["grid_pos"]
+		if absi(player_grid.x - pos.x) + absi(player_grid.y - pos.y) <= 1:
+			return i
+	return -1
+
+func update_fountain_prompts(player_grid: Vector2i) -> void:
+	for i in range(fountain_nodes.size()):
+		var pos: Vector2i = fountain_nodes[i]["grid_pos"]
+		fountain_nodes[i]["node"].visible = is_revealed(pos)
+		var lbl: Label3D = fountain_nodes[i]["label_node"]
+		if lbl:
+			var dist = absi(player_grid.x - pos.x) + absi(player_grid.y - pos.y)
+			lbl.visible = dist <= 2
+
+# ============================================
 # MINIMAP DATA
 # ============================================
 
@@ -4320,6 +4485,7 @@ func clear() -> void:
 	chest_nodes.clear()
 	waypoint_nodes.clear()
 	site_nodes.clear()
+	fountain_nodes.clear()
 	spawn_zones.clear()
 	rooms.clear()
 	_reserved.clear()

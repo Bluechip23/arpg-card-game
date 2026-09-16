@@ -530,6 +530,10 @@ func _ready() -> void:
 			_refresh_hand_info_popup())
 	player.move_completed.connect(_on_player_move_completed)
 	player.tile_reached.connect(_on_player_tile_reached)
+	if not is_multiplayer and player.get_stats():
+		# Solo: falling sends the character back to the start of the level
+		# (co-op uses the downed/revive flow in _setup_co_op_defeat instead).
+		player.get_stats().died.connect(_on_solo_player_died)
 	player.set_grid_manager(grid_manager)
 	player.enemy_spawner = enemy_spawner
 	player.ground_y_provider = Callable(self, "_desired_ground_y")
@@ -754,6 +758,7 @@ func _process(delta: float) -> void:
 		dungeon_manager.update_waypoint_prompts(pg)
 		dungeon_manager.update_site_prompts(pg)
 		dungeon_manager.update_tree_prompts(pg)
+		dungeon_manager.update_fountain_prompts(pg)
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
@@ -4552,6 +4557,237 @@ func _all_players() -> Array:
 	return [player]
 
 # ---- Co-op downed / revive / defeat ----
+
+#endregion
+#region SOLO DEFEAT: BACK TO THE START OF THE LEVEL
+var _solo_fallen: bool = false
+
+func _on_solo_player_died() -> void:
+	## No permadeath, no run reset (CLAUDE.md): the character falls, and rises
+	## again at the start of the level they are in — same world, same
+	## interior, everything they carry intact. Enemies stay where they are.
+	if is_multiplayer or _solo_fallen:
+		return
+	_solo_fallen = true
+	player.cancel_movement()
+	add_battle_log("You have fallen.", Color(1.0, 0.3, 0.3))
+	print("[MAIN] Solo defeat — returning to the start of %s" % get_location_label())
+	_show_fallen_overlay()
+
+func _show_fallen_overlay() -> void:
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "FallenOverlay"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.0)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.add_theme_constant_override("separation", 18)
+	box.modulate.a = 0.0
+	overlay.add_child(box)
+
+	var title := Label.new()
+	title.text = "FALLEN"
+	title.add_theme_font_size_override("font_size", 56)
+	title.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var sub := Label.new()
+	sub.text = "You come to at the start of %s.\nEverything you carry is still yours." % get_location_label()
+	sub.add_theme_font_size_override("font_size", 20)
+	sub.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+
+	var rise_btn := Button.new()
+	rise_btn.text = "Rise"
+	rise_btn.custom_minimum_size = Vector2(220, 44)
+	rise_btn.pressed.connect(func():
+		_respawn_at_level_start()
+		overlay.queue_free())
+	box.add_child(rise_btn)
+
+	var tw := create_tween()
+	tw.tween_property(overlay, "color:a", 0.8, 0.6)
+	tw.parallel().tween_property(box, "modulate:a", 1.0, 0.6)
+
+func _respawn_at_level_start() -> void:
+	## Put the fallen character back on their feet at the level's start tile:
+	## full health, statuses cleared, nothing else touched.
+	var stats = player.get_stats()
+	if stats:
+		stats.current_health = stats.max_health
+		stats.health_changed.emit(stats.current_health, stats.max_health)
+	player.debuff_manager.clear_all_debuffs()
+	player.cancel_movement()
+	player.is_moving = false
+	player.move_path.clear()
+	if _climbed_tree_tile.x >= 0:
+		_clear_climbed_tree()
+	var start: Vector3 = dungeon_manager.get_player_start_world() if dungeon_manager else Vector3.ZERO
+	start.y = _desired_ground_y(start)
+	player.position = start
+	player.target_position = start
+	_player_last_grid_cell = grid_manager.world_to_grid(start)
+	if dungeon_manager:
+		_camera_focus = player.position + Vector3(2, 0, 0)
+		_update_camera()
+		_update_fog_of_war()
+	_solo_fallen = false
+	add_battle_log("You rise again at the start of %s." % get_location_label(), Color(0.5, 1.0, 0.6))
+	print("[MAIN] Respawned at %s" % str(grid_manager.world_to_grid(start)))
+
+#endregion
+#region HEALING FOUNTAINS
+const FOUNTAIN_XP_FRACTION := 0.2  # "Bathe in the light": this much of the XP to the next level, once per fountain
+var _fountain_menu: Control = null
+
+func _try_interact_fountain() -> bool:
+	## Shift beside a Healing Fountain opens its menu (or closes an open one).
+	if _fountain_menu and is_instance_valid(_fountain_menu):
+		_close_fountain_menu()
+		return true
+	if not dungeon_manager:
+		return false
+	var idx = dungeon_manager.get_nearby_fountain(grid_manager.world_to_grid(player.position))
+	if idx < 0:
+		return false
+	_show_fountain_menu(idx)
+	return true
+
+func _fountain_drink(idx: int) -> bool:
+	## Restore the active character to full health. Spends the blessing.
+	var f = dungeon_manager.fountain_nodes[idx]
+	if not f["blessed"]:
+		add_battle_log("The basin has run dry. Pour in Holy Water to bless it again.", Color(1.0, 0.6, 0.3))
+		return false
+	var stats = player.get_stats()
+	if stats:
+		var missing: int = stats.max_health - stats.current_health
+		if missing > 0:
+			stats.heal(missing)
+	dungeon_manager.set_fountain_state(idx, false, f["xp_used"])
+	add_battle_log("You drink from the fountain and feel whole again.", Color(0.5, 0.9, 1.0))
+	return true
+
+func _fountain_pour(idx: int) -> bool:
+	## Pour one vial of Holy Water in to bless a dry fountain.
+	var f = dungeon_manager.fountain_nodes[idx]
+	if f["blessed"]:
+		return false
+	var stats = player.get_stats()
+	if not stats or not stats.spend_holy_water(1):
+		add_battle_log("You have no Holy Water to pour.", Color(1.0, 0.6, 0.3))
+		return false
+	dungeon_manager.set_fountain_state(idx, true, f["xp_used"])
+	add_battle_log("The water glows again with holy light.", Color(0.5, 0.9, 1.0))
+	return true
+
+func _fountain_bathe(idx: int) -> bool:
+	## Once per fountain: +20% of the XP needed for the next level.
+	var f = dungeon_manager.fountain_nodes[idx]
+	if f["xp_used"]:
+		add_battle_log("This fountain's light has already touched you.", Color(1.0, 0.6, 0.3))
+		return false
+	var stats = player.get_stats()
+	if not stats:
+		return false
+	var xp: int = maxi(1, int(ceil(stats.get_xp_to_next_level() * FOUNTAIN_XP_FRACTION)))
+	stats.gain_xp(xp)
+	dungeon_manager.set_fountain_state(idx, f["blessed"], true)
+	add_battle_log("You bathe in the light: +%d XP." % xp, Color(0.85, 0.8, 1.0))
+	return true
+
+func _show_fountain_menu(idx: int) -> void:
+	_close_fountain_menu()
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "FountainMenu"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+	_fountain_menu = overlay
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.1, 0.14, 0.97)
+	style.border_color = Color(0.5, 0.75, 0.95)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(18.0)
+	panel.add_theme_stylebox_override("panel", style)
+	overlay.add_child(panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+
+	var f = dungeon_manager.fountain_nodes[idx]
+	var stats = player.get_stats()
+
+	var title := Label.new()
+	title.text = "Healing Fountain"
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.75, 0.92, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var status := Label.new()
+	status.text = ("The water glows with holy light." if f["blessed"] else "The basin has run dry.") \
+		+ "\nHoly Water in your pack: %d" % (stats.holy_water if stats else 0)
+	status.add_theme_font_size_override("font_size", 14)
+	status.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(status)
+
+	var drink := Button.new()
+	drink.text = "Drink — restore to full health"
+	drink.disabled = not f["blessed"]
+	drink.custom_minimum_size = Vector2(300, 38)
+	drink.pressed.connect(func():
+		_fountain_drink(idx)
+		_show_fountain_menu(idx))
+	box.add_child(drink)
+
+	var pour := Button.new()
+	pour.text = "Pour Holy Water — bless the fountain (1 vial)"
+	pour.disabled = f["blessed"] or stats == null or stats.holy_water <= 0
+	pour.custom_minimum_size = Vector2(300, 38)
+	pour.pressed.connect(func():
+		_fountain_pour(idx)
+		_show_fountain_menu(idx))
+	box.add_child(pour)
+
+	var bathe := Button.new()
+	var bathe_xp: int = maxi(1, int(ceil(stats.get_xp_to_next_level() * FOUNTAIN_XP_FRACTION))) if stats else 0
+	bathe.text = ("Bathe in the light — +%d XP (once)" % bathe_xp) if not f["xp_used"] else "Bathe in the light — already taken"
+	bathe.disabled = f["xp_used"]
+	bathe.custom_minimum_size = Vector2(300, 38)
+	bathe.pressed.connect(func():
+		_fountain_bathe(idx)
+		_show_fountain_menu(idx))
+	box.add_child(bathe)
+
+	var close := Button.new()
+	close.text = "Leave"
+	close.custom_minimum_size = Vector2(300, 34)
+	close.pressed.connect(_close_fountain_menu)
+	box.add_child(close)
+
+func _close_fountain_menu() -> void:
+	if _fountain_menu and is_instance_valid(_fountain_menu):
+		_fountain_menu.queue_free()
+	_fountain_menu = null
 
 #endregion
 #region CO-OP: DOWNED & DEFEAT
@@ -11192,6 +11428,8 @@ func _input(event: InputEvent) -> void:
 				return
 			if waypoint_mgr._try_interact_waypoint():
 				return
+			if _try_interact_fountain():
+				return
 			chest_loot_ui._try_interact_chest()
 			return
 
@@ -13181,7 +13419,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 	_spawn_loot_drop(loot, pos)
 
 func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
-	var has_any: bool = int(loot.get("gold", 0)) > 0 \
+	var has_any: bool = int(loot.get("gold", 0)) > 0 or int(loot.get("holy_water", 0)) > 0 \
 		or loot.get("item") != null or loot.get("card") != null \
 		or loot.get("card_pack") != null \
 		or int(loot.get("culling_stones", 0)) > 0
@@ -13342,6 +13580,9 @@ func _loot_summary(loot: Dictionary) -> String:
 	var stones = int(loot.get("culling_stones", 0))
 	if stones > 0:
 		parts.append("+%d Culling Stone%s" % [stones, "s" if stones > 1 else ""])
+	var vials = int(loot.get("holy_water", 0))
+	if vials > 0:
+		parts.append("+%d Holy Water" % vials)
 	var item: ItemData = loot.get("item")
 	if item:
 		parts.append("Item: %s" % item.item_name)
@@ -13431,6 +13672,12 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 		if inventory:
 			inventory.culling_stones += culling_stones
 			messages.append("+%d Culling Stone" % culling_stones)
+
+	# Holy Water vials — poured into a Healing Fountain to bless it again.
+	var vials = int(loot.get("holy_water", 0))
+	if vials > 0:
+		looter.get_stats().gain_holy_water(vials)
+		messages.append("+%d Holy Water" % vials)
 
 	# Item drop
 	var item: ItemData = loot.get("item")
@@ -13564,6 +13811,12 @@ func _restore_player_progression(progression: Dictionary) -> void:
 	if progression.has("skill_tree") and progression["skill_tree"] != null:
 		skill_tree_ui.set_skill_tree(progression["skill_tree"])
 		skill_tree_ui.set_player_level(stats.current_level if stats else 1)
+	elif progression.has("skill_tree_choices") and skill_tree_ui.skill_tree:
+		# Disk load: the tree was rebuilt for the character in select_character;
+		# put the saved choices back onto it.
+		skill_tree_ui.skill_tree.apply_choices(progression["skill_tree_choices"])
+		skill_tree_ui.set_skill_tree(skill_tree_ui.skill_tree)
+		skill_tree_ui.set_player_level(stats.current_level if stats else 1)
 
 	# Restore sphere grid with all unlocked nodes intact
 	if progression.has("sphere_grid") and progression["sphere_grid"] != null:
@@ -13607,6 +13860,8 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			# re-grants what equipped items own.
 			inv.apply_equipped_item_card_effects()
 			inv.equipment_changed.emit()
+			# Disk load: items carry slotted card ids — point them at the rebuilt deck.
+			inv.relink_slotted_cards(deck_manager)
 
 	# Update UI displays
 	_on_player_health_changed(stats.current_health, stats.max_health)

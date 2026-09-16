@@ -2079,7 +2079,7 @@ func _update_storage_grid() -> void:
 	inv_header_hbox.add_child(spacer)
 
 	var gold_label = Label.new()
-	gold_label.text = "Gold: %d" % player_stats.gold
+	gold_label.text = "Gold: %d    Holy Water: %d" % [player_stats.gold, player_stats.holy_water]
 	gold_label.add_theme_font_size_override("font_size", 10)
 	gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	inv_header_hbox.add_child(gold_label)

@@ -4,7 +4,8 @@ extends RefCounted
 ## Handles saving and loading character data to disk
 
 const SAVE_DIR = "user://saves/"
-const MAX_SAVE_SLOTS = 6
+const MAX_SAVE_SLOTS = 6          # manual slots 0..5
+const AUTOSAVE_SLOT = 6           # written every time the character arrives in town
 
 static func ensure_save_dir() -> void:
 	if not DirAccess.dir_exists_absolute(SAVE_DIR):
@@ -37,9 +38,13 @@ static func load_game(slot: int) -> SaveData:
 	push_error("[SAVE] Invalid save data in slot %d" % slot)
 	return null
 
+static func is_autosave(slot: int) -> bool:
+	return slot == AUTOSAVE_SLOT
+
 static func get_all_saves() -> Array[SaveData]:
+	## Manual slots first, the autosave last (index AUTOSAVE_SLOT).
 	var saves: Array[SaveData] = []
-	for i in range(MAX_SAVE_SLOTS):
+	for i in range(MAX_SAVE_SLOTS + 1):
 		var save = load_game(i)
 		if save:
 			saves.append(save)

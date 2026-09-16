@@ -518,6 +518,7 @@ var unspent_stat_points: int = 0  # Banked from level-ups; spent via the skill t
 # GOLD
 # ============================================
 var gold: int = 0
+var holy_water: int = 0  # Vials dropped by enemies; poured into a Healing Fountain to bless it again
 
 #endregion
 #region EFFECTIVE STATS (with determination modifier)
@@ -674,6 +675,7 @@ func save_progression() -> Dictionary:
 		"unspent_passive_points": unspent_passive_points,
 		"passive_levels": passive_levels.duplicate(),
 		"gold": gold,
+		"holy_water": holy_water,
 		# Sphere grid keystones
 		"keystone_det_vitality": keystone_det_vitality,
 		"keystone_dex_ranged": keystone_dex_ranged,
@@ -780,6 +782,7 @@ func restore_progression(data: Dictionary) -> void:
 	unspent_passive_points = data.get("unspent_passive_points", unspent_passive_points)
 	passive_levels = data.get("passive_levels", passive_levels)
 	gold = data.get("gold", gold)
+	holy_water = int(data.get("holy_water", holy_water))
 	# Sphere grid keystones
 	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)
 	keystone_dex_ranged = data.get("keystone_dex_ranged", keystone_dex_ranged)
@@ -2344,6 +2347,16 @@ func get_sphere_grid_passives_for_trigger(trigger: String) -> Array[Dictionary]:
 func get_xp_to_next_level() -> int:
 	## XP needed for the NEXT level: 10 for level 1→2, 20 for 2→3, 30 for 3→4, etc.
 	return current_level * 10
+
+func gain_holy_water(amount: int) -> void:
+	holy_water += amount
+	print("[STATS] +%d Holy Water (now %d)" % [amount, holy_water])
+
+func spend_holy_water(amount: int = 1) -> bool:
+	if holy_water < amount:
+		return false
+	holy_water -= amount
+	return true
 
 func gain_gold(amount: int) -> void:
 	gold += amount

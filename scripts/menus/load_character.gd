@@ -168,7 +168,7 @@ func _create_save_slot_card(save: SaveData, slot: int) -> void:
 
 	# Character name
 	var name_label = Label.new()
-	name_label.text = save.character_name
+	name_label.text = save.character_name + ("  (Autosave)" if SaveManager.is_autosave(slot) else "")
 	name_label.add_theme_font_size_override("font_size", 20)
 	name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	info_vbox.add_child(name_label)
