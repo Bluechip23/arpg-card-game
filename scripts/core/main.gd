@@ -759,6 +759,8 @@ func _process(delta: float) -> void:
 		dungeon_manager.update_site_prompts(pg)
 		dungeon_manager.update_tree_prompts(pg)
 		dungeon_manager.update_fountain_prompts(pg)
+		dungeon_manager.update_shrine_prompt(pg)
+		_update_trap_prompt(pg)
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
@@ -4644,6 +4646,114 @@ func _respawn_at_level_start() -> void:
 	print("[MAIN] Respawned at %s" % str(grid_manager.world_to_grid(start)))
 
 #endregion
+#region QUEST WORLD OBJECTS: TRAP DISARM, DROWNED SHRINE, CHANNEL BREAKS
+var _trap_prompt: Label3D = null
+
+func _on_enemy_channel_broken(enemy: Enemy, action_name: String) -> void:
+	add_battle_log("%s's %s collapses — channel broken!" % [enemy.enemy_name, action_name.replace("_", " ")], Color(1.0, 0.7, 0.3))
+	if quest_manager:
+		quest_manager.on_event("channel_break", {"enemy_name": enemy.enemy_name,
+			"zone": dungeon_manager.interior_kind if dungeon_manager else ""})
+
+func _update_trap_prompt(pg: Vector2i) -> void:
+	## A floating "[Shift] Disarm" over an unsprung bear trap beside the player.
+	var idx := dungeon_manager.get_nearby_trap(pg, "bear") if dungeon_manager else -1
+	if idx < 0:
+		if _trap_prompt and is_instance_valid(_trap_prompt):
+			_trap_prompt.visible = false
+		return
+	var trap: Dictionary = dungeon_manager.trap_defs[idx]
+	var node = trap.get("node")
+	if node == null or not is_instance_valid(node):
+		return
+	if _trap_prompt == null or not is_instance_valid(_trap_prompt):
+		_trap_prompt = Label3D.new()
+		_trap_prompt.text = "[Shift] Disarm"
+		_trap_prompt.font_size = 16
+		_trap_prompt.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_trap_prompt.modulate = Color(1.0, 0.9, 0.4)
+		WorldText.crisp(_trap_prompt)
+		add_child(_trap_prompt)
+	_trap_prompt.global_position = node.global_position + Vector3(0, 1.1, 0)
+	_trap_prompt.visible = true
+
+func _try_disarm_trap() -> bool:
+	if not dungeon_manager:
+		return false
+	var pg = grid_manager.world_to_grid(player.position)
+	var idx := dungeon_manager.get_nearby_trap(pg, "bear")
+	if idx < 0:
+		return false
+	if dungeon_manager.disarm_trap(idx):
+		add_battle_log("You wedge the jaws open and pull the pin. Trap disarmed.", Color(0.6, 0.9, 0.5))
+		if quest_manager:
+			quest_manager.on_event("interact", {"object": "bear_trap", "zone": dungeon_manager.interior_kind})
+	return true
+
+func _try_interact_shrine() -> bool:
+	if not dungeon_manager or not dungeon_manager.is_near_shrine(grid_manager.world_to_grid(player.position)):
+		return false
+	if quest_manager and quest_manager.is_objective_active("the_faithless", 1):
+		_show_shrine_choice()
+	elif quest_manager and quest_manager.is_objective_active("the_faithless", 0):
+		add_battle_log("The shrine's keepers still breathe. Deal with the Faithless first.", Color(0.85, 0.7, 1.0))
+	elif quest_manager and quest_manager.get_quest("the_faithless") != null and quest_manager.get_quest("the_faithless").chosen != "":
+		add_battle_log("Only ash and silence remain here." if quest_manager.get_quest("the_faithless").chosen == "burn" else "The shrine hums softly. Its bargain holds.", Color(0.7, 0.7, 0.8))
+	else:
+		add_battle_log("A drowned shrine. Olorin might know what it is for.", Color(0.7, 0.7, 0.8))
+	return true
+
+func _show_shrine_choice() -> void:
+	var quest = quest_manager.get_quest("the_faithless")
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "ShrineChoice"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.6)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.07, 0.14, 0.97)
+	style.border_color = Color(0.6, 0.4, 0.85)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(18.0)
+	panel.add_theme_stylebox_override("panel", style)
+	overlay.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = "The Drowned Shrine"
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.85, 0.7, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var prompt := Label.new()
+	prompt.text = quest.choice.get("prompt", "")
+	prompt.add_theme_font_size_override("font_size", 14)
+	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(prompt)
+	for opt_id in quest.choice.get("options", {}):
+		var btn := Button.new()
+		btn.text = quest.choice["options"][opt_id]["label"]
+		btn.custom_minimum_size = Vector2(360, 38)
+		btn.pressed.connect(func():
+			if quest_manager.choose("the_faithless", opt_id):
+				add_battle_log("The choice is made. Return to Olorin." , Color(0.85, 0.7, 1.0))
+			overlay.queue_free())
+		box.add_child(btn)
+	var leave := Button.new()
+	leave.text = "Not yet"
+	leave.custom_minimum_size = Vector2(360, 34)
+	leave.pressed.connect(overlay.queue_free)
+	box.add_child(leave)
+
+#endregion
 #region HEALING FOUNTAINS
 # "Bathe in the light": +20% incoming XP for the next 20 kills (PlayerStats.FOUNTAIN_XP_BOOST_*), once per fountain
 var _fountain_menu: Control = null
@@ -5370,6 +5480,7 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
 	enemy.movement_completed.connect(_on_enemy_movement_completed)
 	enemy.barricade_attacked.connect(_on_enemy_barricade_attacked)
+	enemy.channel_broken.connect(_on_enemy_channel_broken)
 	# Give enemy a reference to dungeon_manager for elevation lookups
 	if dungeon_manager:
 		enemy.dungeon_manager = dungeon_manager
@@ -5563,9 +5674,12 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	progression_triggers._trigger_sphere_passives("on_kill", {"target": enemy})
 	# Cory: Eat — heal on kill
 	progression_triggers._trigger_skill_tree_cory_on_kill(enemy)
-	# Quest tracking
+	# Quest tracking: what died, where, and whether the active player held
+	# the high ground when it did (The High Road).
 	if quest_manager:
-		quest_manager.on_enemy_killed(enemy.enemy_name)
+		quest_manager.on_enemy_killed(enemy.enemy_name,
+			dungeon_manager.interior_kind if dungeon_manager else "",
+			_is_on_high_ground(player.position))
 
 	# City loop: every kill adds habitat resources to the satchel headed home,
 	# and ticks any brewing calamity's countdown (STORY.md §6).
@@ -11430,6 +11544,10 @@ func _input(event: InputEvent) -> void:
 				return
 			if _try_interact_fountain():
 				return
+			if _try_interact_shrine():
+				return
+			if _try_disarm_trap():
+				return
 			chest_loot_ui._try_interact_chest()
 			return
 
@@ -11768,14 +11886,17 @@ func _setup_dungeon() -> void:
 	if not quest_manager:
 		quest_manager = QuestManager.new()
 		quest_manager.name = "QuestManager"
+		quest_manager.world_level = current_world_level
 		add_child(quest_manager)
 		# Restore quest state from previous scene (persists kills across worlds)
 		if not quest_state.is_empty():
 			quest_manager.load_state(quest_state)
-		else:
-			# First time: auto-accept available quests so they appear in quest log
+		elif sandbox_mode:
+			# Sandbox boots straight into battle: take every offer so the
+			# quest log has something to show. Real play accepts via Olorin.
 			for quest_id in quest_manager.available_quests.keys():
 				quest_manager.accept_quest(quest_id)
+	quest_manager.world_level = current_world_level
 
 	# Setup minimap
 	minimap_tab_ui._setup_minimap()
@@ -13678,6 +13799,8 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 	if vials > 0:
 		looter.get_stats().gain_holy_water(vials)
 		messages.append("+%d Holy Water" % vials)
+		if quest_manager:
+			quest_manager.sync_held({"holy_water": looter.get_stats().holy_water})
 
 	# Item drop
 	var item: ItemData = loot.get("item")

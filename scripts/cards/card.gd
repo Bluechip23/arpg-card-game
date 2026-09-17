@@ -1916,7 +1916,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Replenish: attacks heal a % of damage dealt.
 	if card_type == CardType.ATTACK and player_stats:
 		# get_equipment_lifesteal folds in the Coffin Lid's below-half bonus.
-		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.get_equipment_lifesteal()
+		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.get_equipment_lifesteal() \
+			+ player_stats.quest_life_steal_bonus  # The Faithless' kept shrine
 		# Coffin Lid: cards slotted into it drink on their own.
 		ls_pct += float(get_on_self_bonus().get("lifesteal_percent", 0.0))
 		if player_stats.inventory and "equipped_weapons" in player_stats.inventory:

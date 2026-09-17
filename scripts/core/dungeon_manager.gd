@@ -215,6 +215,7 @@ var spawn_zones: Array = []     # [{trigger_rect, spawn_points, enemy_types, spa
 var waypoint_nodes: Array = []  # [{node, grid_pos, target, display_name, label_node, discovered, pillar_mesh}]
 var site_nodes: Array = []      # [{node, grid_pos (entrance), id, kind, display_name, label_node, footprint}]
 var fountain_nodes: Array = []  # [{node, grid_pos, label_node, water_mesh, blessed, xp_used}] — see _place_fountains
+var shrine_node: Dictionary = {}  # The Faithless' drowned shrine (sewer deep chamber): {node, grid_pos, label_node}
 var player_start: Vector2i = Vector2i(2, 23)
 
 var grid_manager: GridManager
@@ -322,6 +323,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		_place_exit_site()
 	_place_chests()
 	_place_fountains()
+	_place_shrine()
 	_define_spawn_zones()
 
 	# Terrain visuals
@@ -3762,6 +3764,15 @@ func _define_spawn_zones() -> void:
 	var mid_melee = Enemy.EnemyType.SKELETON if world_level <= 2 else Enemy.EnemyType.ARMORED_TROLL
 	var heavy = Enemy.EnemyType.ARMORED_TROLL if world_level <= 3 else Enemy.EnemyType.ELITE
 	var ranged = Enemy.EnemyType.ARCHER_RAT
+	# Caves belong to the Fire Goblin warband: soldiers up front, mages at
+	# range, a shaman (the teaching Channel) in every cave, trolls in the deep.
+	if interior_kind == "cave":
+		base_melee = Enemy.EnemyType.FIRE_GOBLIN_SOLDIER
+		mid_melee = Enemy.EnemyType.FIRE_GOBLIN_SOLDIER
+		ranged = Enemy.EnemyType.FIRE_GOBLIN_MAGE
+	var deep_lords := [Enemy.EnemyType.IFRIT, Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.DJINN]
+	var deep_lord_i := 0
+	var shaman_placed := false
 
 	for room in rooms:
 		var rect: Rect2i = room["rect"]
@@ -3799,6 +3810,15 @@ func _define_spawn_zones() -> void:
 		# Deep cave chambers are guarded by an elite-grade enemy
 		if kind == "deep" and types.size() > 0:
 			types[0] = heavy if world_level < 3 else Enemy.EnemyType.ELITE
+		# Act 2+ overworld deep rooms hold the lords of the deep — the
+		# Ferryman's Toll targets — one per room, cycling through the three.
+		if kind == "deep" and interior_kind == "" and world_level >= 2 and types.size() > 0:
+			types[0] = deep_lords[deep_lord_i % deep_lords.size()]
+			deep_lord_i += 1
+		# Every cave gets at least one Fire Goblin Shaman.
+		if interior_kind == "cave" and not shaman_placed and types.size() > 1:
+			types[types.size() - 1] = Enemy.EnemyType.FIRE_GOBLIN_SHAMAN
+			shaman_placed = true
 		if points.is_empty():
 			continue
 
@@ -4140,6 +4160,109 @@ func update_waypoint_prompts(player_grid: Vector2i) -> void:
 				# Undiscovered: show "Walk here to discover" hint
 				interact_lbl.text = "Walk here to discover"
 				interact_lbl.visible = dist <= 3
+
+# ============================================
+# THE DROWNED SHRINE (The Faithless) + TRAP DISARMING
+# ============================================
+func _place_shrine() -> void:
+	## The Faithless' shrine stands in the sewer's deepest chamber.
+	if interior_kind != "sewer":
+		return
+	for room in rooms:
+		if room["kind"] != "deep":
+			continue
+		var cell = _pick_free_cell(room["rect"], [])
+		if cell.x < 0:
+			return
+		var root = Node3D.new()
+		root.name = "DrownedShrine"
+		var plinth = MeshInstance3D.new()
+		var pm = BoxMesh.new()
+		pm.size = Vector3(0.9, 0.5, 0.9)
+		plinth.mesh = pm
+		plinth.material_override = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.55, 0.5, 0.6))
+		plinth.position = Vector3(0, 0.25, 0)
+		root.add_child(plinth)
+		var idol = MeshInstance3D.new()
+		var im = PrismMesh.new()
+		im.size = Vector3(0.5, 0.9, 0.5)
+		idol.mesh = im
+		var imat = StandardMaterial3D.new()
+		imat.albedo_color = Color(0.25, 0.2, 0.35)
+		imat.emission_enabled = true
+		imat.emission = Color(0.4, 0.2, 0.6)
+		imat.emission_energy_multiplier = 0.8
+		idol.material_override = imat
+		idol.position = Vector3(0, 0.95, 0)
+		root.add_child(idol)
+		var label = Label3D.new()
+		label.text = "Drowned Shrine"
+		label.font_size = 20
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.modulate = Color(0.85, 0.7, 1.0)
+		label.position = Vector3(0, 1.7, 0)
+		WorldText.crisp(label)
+		root.add_child(label)
+		var interact = Label3D.new()
+		interact.name = "InteractLabel"
+		interact.text = "[Shift] Shrine"
+		interact.font_size = 16
+		interact.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		interact.modulate = Color(1.0, 0.9, 0.4)
+		interact.position = Vector3(0, 2.3, 0)
+		interact.visible = false
+		WorldText.crisp(interact)
+		root.add_child(interact)
+		var world_pos = grid_manager.grid_to_world(cell)
+		world_pos.y = get_elevation_world_y(cell)
+		root.position = world_pos
+		_visuals_root.add_child(root)
+		_reserve_area(cell, 1)
+		shrine_node = {"node": root, "grid_pos": cell, "label_node": interact}
+		return
+
+func is_near_shrine(player_grid: Vector2i) -> bool:
+	if shrine_node.is_empty():
+		return false
+	var pos: Vector2i = shrine_node["grid_pos"]
+	return absi(player_grid.x - pos.x) + absi(player_grid.y - pos.y) <= 1
+
+func update_shrine_prompt(player_grid: Vector2i) -> void:
+	if shrine_node.is_empty():
+		return
+	var pos: Vector2i = shrine_node["grid_pos"]
+	shrine_node["node"].visible = is_revealed(pos)
+	var lbl: Label3D = shrine_node["label_node"]
+	if lbl:
+		lbl.visible = absi(player_grid.x - pos.x) + absi(player_grid.y - pos.y) <= 2
+
+func get_nearby_trap(player_grid: Vector2i, kind: String = "bear") -> int:
+	## Index into trap_defs of an unsprung trap of `kind` within 1 tile, or -1.
+	for i in range(trap_defs.size()):
+		var trap: Dictionary = trap_defs[i]
+		if trap.get("kind", "") != kind or trap.get("sprung", false):
+			continue
+		for t in trap.get("tiles", []):
+			if absi(player_grid.x - t.x) + absi(player_grid.y - t.y) <= 1:
+				return i
+	return -1
+
+func disarm_trap(index: int) -> bool:
+	## Spring a trap harmlessly: it never triggers again and its jaws close.
+	if index < 0 or index >= trap_defs.size():
+		return false
+	var trap: Dictionary = trap_defs[index]
+	if trap.get("sprung", false):
+		return false
+	trap["sprung"] = true
+	var node = trap.get("node")
+	if node and is_instance_valid(node):
+		node.scale = Vector3(1.0, 0.35, 1.0)
+		for child in node.get_children():
+			if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+				child.material_override = child.material_override.duplicate()
+				child.material_override.albedo_color = child.material_override.albedo_color.darkened(0.45)
+	return true
 
 # ============================================
 # HEALING FOUNTAINS
@@ -4486,6 +4609,7 @@ func clear() -> void:
 	waypoint_nodes.clear()
 	site_nodes.clear()
 	fountain_nodes.clear()
+	shrine_node = {}
 	spawn_zones.clear()
 	rooms.clear()
 	_reserved.clear()

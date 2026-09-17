@@ -527,6 +527,11 @@ const FOUNTAIN_XP_BOOST_KILLS := 20
 var xp_boost_percent: int = 0
 var xp_boost_kills_remaining: int = 0
 
+# Permanent bonuses granted by quest choices (The Faithless' shrine): crit
+# chance in percentage points, life steal as % of attack damage healed.
+var quest_crit_bonus: float = 0.0
+var quest_life_steal_bonus: float = 0.0
+
 #endregion
 #region EFFECTIVE STATS (with determination modifier)
 # ============================================
@@ -684,6 +689,8 @@ func save_progression() -> Dictionary:
 		"gold": gold,
 		"holy_water": holy_water,
 		"xp_boost_percent": xp_boost_percent,
+		"quest_crit_bonus": quest_crit_bonus,
+		"quest_life_steal_bonus": quest_life_steal_bonus,
 		"xp_boost_kills_remaining": xp_boost_kills_remaining,
 		# Sphere grid keystones
 		"keystone_det_vitality": keystone_det_vitality,
@@ -793,6 +800,8 @@ func restore_progression(data: Dictionary) -> void:
 	gold = data.get("gold", gold)
 	holy_water = int(data.get("holy_water", holy_water))
 	xp_boost_percent = int(data.get("xp_boost_percent", xp_boost_percent))
+	quest_crit_bonus = float(data.get("quest_crit_bonus", quest_crit_bonus))
+	quest_life_steal_bonus = float(data.get("quest_life_steal_bonus", quest_life_steal_bonus))
 	xp_boost_kills_remaining = int(data.get("xp_boost_kills_remaining", xp_boost_kills_remaining))
 	# Sphere grid keystones
 	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)

@@ -107,6 +107,11 @@ var vendor_info: Dictionary = {
 		"description": "Store items and cards for later use.",
 		"type": "stash"
 	},
+	"TownWell": {
+		"name": "Town Well",
+		"description": "The old well at the heart of town.",
+		"type": "well"
+	},
 	"Olorin": {
 		"name": "Olorin",
 		"description": "A wise old man with quests for brave adventurers.",
@@ -185,6 +190,7 @@ func _ready() -> void:
 
 	# Create quest manager
 	quest_manager = QuestManager.new()
+	quest_manager.world_level = return_world_level
 	quest_manager.name = "QuestManager"
 	add_child(quest_manager)
 	# Restore quest state from battle scene
@@ -193,6 +199,7 @@ func _ready() -> void:
 
 	# Create Olorin NPC
 	_create_olorin_npc()
+	_create_town_well()
 
 	# Create the Sellsword co-op recruiter NPC
 	_create_sellsword_npc()
@@ -534,11 +541,18 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 		_open_quest_dialog(vendor_node)
 		return
 
+	if info["type"] == "well":
+		_open_well_ui()
+		vendor_panel.visible = true
+		interact_prompt.text = ""
+		return
+
 	if info["type"] == "stash":
 		_open_stash_ui()
 		return
 
 	if info["type"] == "sellsword":
+		_render_quest_section("Sellsword")
 		_open_sellsword_ui()
 		vendor_panel.visible = true
 		interact_prompt.text = ""
@@ -2459,14 +2473,32 @@ func _add_sellsword_row(character: CharacterData) -> void:
 	var btn = Button.new()
 	btn.custom_minimum_size.y = 44
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.text = "  Hire %s   —   %s" % [character.character_name, character.passive_description]
+	var cost := _sellsword_hire_cost()
+	btn.text = "  Hire %s (%s)   —   %s" % [character.character_name, "free — the Sellsword's debt" if cost == 0 else "%d gold" % cost, character.passive_description]
 	btn.add_theme_font_size_override("font_size", 13)
 	btn.pressed.connect(_on_recruit_partner.bind(character))
 	vendor_item_list.add_child(btn)
 
+const SELLSWORD_HIRE_COST := 150  # gold; waived once by A Debt to the Sellsword
+
+func _sellsword_hire_cost() -> int:
+	if quest_manager and quest_manager.has_flag("sellsword_first_free") and not quest_manager.has_flag("sellsword_free_used"):
+		return 0
+	return SELLSWORD_HIRE_COST
+
 func _on_recruit_partner(character: CharacterData) -> void:
+	var stats = player.get_stats() if player and player.has_method("get_stats") else null
+	var cost := _sellsword_hire_cost()
+	if cost > 0 and (stats == null or stats.gold < cost):
+		print("[TOWN] Cannot afford to hire %s (%d gold)" % [character.character_name, cost])
+		_open_vendor(nearby_vendor)
+		return
+	if cost > 0 and stats:
+		stats.gold -= cost
+	elif quest_manager and quest_manager.has_flag("sellsword_first_free"):
+		quest_manager.flags["sellsword_free_used"] = true
 	player2_character = character
-	print("[TOWN] Recruited partner: %s" % character.character_name)
+	print("[TOWN] Recruited partner: %s (paid %d)" % [character.character_name, cost])
 	_open_vendor(nearby_vendor)  # Refresh the panel to reflect the new partner
 
 func _on_dismiss_partner() -> void:
@@ -2554,76 +2586,178 @@ func _open_quest_dialog(vendor_node: StaticBody3D) -> void:
 
 	vendor_inventory_label.text = info["description"]
 
-	# Check for turnable quests
-	if quest_manager.has_complete_quest_for("Olorin"):
-		var quest = quest_manager.get_turnable_quest_for("Olorin")
-		if quest:
-			_add_info_label("Quest Complete: %s" % quest.name, Color(0.5, 1.0, 0.5))
+	_render_quest_section("Olorin")
+
+	vendor_panel.visible = true
+	interact_prompt.text = ""
+	print("[TOWN] Opened quest dialog with Olorin")
+
+func _render_quest_section(giver: String) -> void:
+	## Quests for one giver, in the vendor list: finished ones to hand in,
+	## new offers to accept, and progress on the rest.
+	if quest_manager == null:
+		return
+	var stats = player.get_stats() if player and player.has_method("get_stats") else null
+	if stats:
+		quest_manager.sync_held({"holy_water": stats.holy_water})
+
+	for quest in quest_manager.get_turnable_quests_for(giver):
+		_add_info_label("Quest Complete: %s" % quest.name, Color(0.5, 1.0, 0.5))
+		if quest_manager.can_turn_in(quest, stats):
 			var turn_in_btn = Button.new()
-			turn_in_btn.text = "Turn In Quest"
+			turn_in_btn.text = "Turn In: %s" % quest.name
 			turn_in_btn.custom_minimum_size = Vector2(200, 40)
 			turn_in_btn.add_theme_font_size_override("font_size", 16)
 			turn_in_btn.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
 			turn_in_btn.pressed.connect(_on_turn_in_quest.bind(quest.id))
 			vendor_item_list.add_child(turn_in_btn)
+		else:
+			var need_lbl = Label.new()
+			need_lbl.text = "  You no longer carry what %s asked for." % giver
+			need_lbl.add_theme_font_size_override("font_size", 13)
+			need_lbl.add_theme_color_override("font_color", Color(1.0, 0.6, 0.4))
+			vendor_item_list.add_child(need_lbl)
 
-	# Check for available quests
-	elif not quest_manager.has_active_quest_from("Olorin"):
-		var available = quest_manager.get_available_quests_from("Olorin")
-		for quest in available:
-			_add_info_label(quest.name, Color(1.0, 0.85, 0.3))
-			var desc_lbl = Label.new()
-			desc_lbl.text = "  %s" % quest.description
-			desc_lbl.add_theme_font_size_override("font_size", 13)
-			desc_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-			desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			vendor_item_list.add_child(desc_lbl)
+	for quest in quest_manager.get_available_quests_from(giver):
+		_add_info_label(quest.name, Color(1.0, 0.85, 0.3))
+		var desc_lbl = Label.new()
+		desc_lbl.text = "  %s" % quest.description
+		desc_lbl.add_theme_font_size_override("font_size", 13)
+		desc_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vendor_item_list.add_child(desc_lbl)
+		var obj_lbl = Label.new()
+		obj_lbl.text = "  Objective: %s" % quest.get_objective_text().replace("\n", "\n  ")
+		obj_lbl.add_theme_font_size_override("font_size", 13)
+		obj_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
+		vendor_item_list.add_child(obj_lbl)
+		if quest.teaches != "":
+			var tip_lbl = Label.new()
+			tip_lbl.text = "  Tip: %s" % quest.teaches
+			tip_lbl.add_theme_font_size_override("font_size", 12)
+			tip_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+			tip_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			vendor_item_list.add_child(tip_lbl)
+		var reward_lbl = Label.new()
+		reward_lbl.text = "  Rewards: %s" % _reward_text(quest.rewards)
+		reward_lbl.add_theme_font_size_override("font_size", 13)
+		reward_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+		vendor_item_list.add_child(reward_lbl)
+		var accept_btn = Button.new()
+		accept_btn.text = "Accept: %s" % quest.name
+		accept_btn.custom_minimum_size = Vector2(200, 40)
+		accept_btn.add_theme_font_size_override("font_size", 16)
+		accept_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		accept_btn.pressed.connect(_on_accept_quest.bind(quest.id))
+		vendor_item_list.add_child(accept_btn)
 
-			var obj_lbl = Label.new()
-			obj_lbl.text = "  Objective: %s" % quest.get_objective_text()
-			obj_lbl.add_theme_font_size_override("font_size", 13)
-			obj_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
-			vendor_item_list.add_child(obj_lbl)
+	for quest in quest_manager.get_active_quests():
+		if quest.giver != giver or quest.is_complete:
+			continue
+		_add_info_label(quest.name, Color(0.5, 1.0, 0.5))
+		var progress_lbl = Label.new()
+		progress_lbl.text = "  %s" % quest.get_objective_text().replace("\n", "\n  ")
+		progress_lbl.add_theme_font_size_override("font_size", 14)
+		progress_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
+		vendor_item_list.add_child(progress_lbl)
 
-			var reward_text = "  Rewards:"
-			if quest.rewards.has("gold"):
-				reward_text += " %d Gold" % quest.rewards["gold"]
-			if quest.rewards.has("xp"):
-				reward_text += ", %d XP" % quest.rewards["xp"]
-			var reward_lbl = Label.new()
-			reward_lbl.text = reward_text
-			reward_lbl.add_theme_font_size_override("font_size", 13)
-			reward_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-			vendor_item_list.add_child(reward_lbl)
+func _reward_text(rewards: Dictionary) -> String:
+	var parts: Array[String] = []
+	if rewards.has("gold"):
+		parts.append("%d Gold" % int(rewards["gold"]))
+	if rewards.has("xp"):
+		parts.append("%d XP" % int(rewards["xp"]))
+	for f in rewards.get("flags", []):
+		match str(f):
+			"town_well_blessed": parts.append("the Town Well heals for free")
+			"sellsword_first_free": parts.append("first recruit free")
+			"woodcutter_rescued": parts.append("the Lumber Mill and a field depot")
+			"graveyard_found": parts.append("the graveyard opens")
+			"garrison_veteran": parts.append("the garrison's respect")
+			"ferryman_paid": parts.append("passage below")
+	return ", ".join(parts) if not parts.is_empty() else "Olorin's thanks"
 
-			var accept_btn = Button.new()
-			accept_btn.text = "Accept Quest"
-			accept_btn.custom_minimum_size = Vector2(200, 40)
-			accept_btn.add_theme_font_size_override("font_size", 16)
-			accept_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-			accept_btn.pressed.connect(_on_accept_quest.bind(quest.id))
-			vendor_item_list.add_child(accept_btn)
+func _open_well_ui() -> void:
+	## The Town Well: dry until Holy Water for the Well is turned in, then a
+	## free full heal whenever the character is home.
+	var stats = player.get_stats() if player and player.has_method("get_stats") else null
+	if quest_manager and quest_manager.has_flag("town_well_blessed"):
+		_add_info_label("The well brims with holy water. It never runs dry.", Color(0.6, 0.9, 1.0))
+		var drink = Button.new()
+		drink.text = "Drink — restore to full health"
+		drink.custom_minimum_size = Vector2(240, 40)
+		drink.add_theme_font_size_override("font_size", 16)
+		drink.disabled = stats == null or stats.current_health >= stats.max_health
+		drink.pressed.connect(func():
+			if stats and stats.current_health < stats.max_health:
+				stats.heal(stats.max_health - stats.current_health)
+			_open_vendor(nearby_vendor))
+		vendor_item_list.add_child(drink)
 	else:
-		# Quest is active but not complete — show progress
-		for quest in quest_manager.get_active_quests():
-			if quest.giver == "Olorin":
-				_add_info_label(quest.name, Color(0.5, 1.0, 0.5))
-				var progress_lbl = Label.new()
-				progress_lbl.text = "  %s" % quest.get_objective_text()
-				progress_lbl.add_theme_font_size_override("font_size", 14)
-				progress_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.3))
-				vendor_item_list.add_child(progress_lbl)
+		_add_info_label("The well has run dry of grace. Olorin says five vials of Holy Water could bless it for good.", Color(0.7, 0.7, 0.75))
+	if stats:
+		_add_info_label("Health: %d / %d" % [stats.current_health, stats.max_health], Color(0.9, 0.5, 0.5))
 
-				var accepted_lbl = Label.new()
-				accepted_lbl.text = "Accepted"
-				accepted_lbl.add_theme_font_size_override("font_size", 16)
-				accepted_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
-				vendor_item_list.add_child(accepted_lbl)
-				break
+func _create_town_well() -> void:
+	var well = StaticBody3D.new()
+	well.name = "TownWell"
+	well.position = Vector3(8, 0, 4)
+	var ring = MeshInstance3D.new()
+	var rm = CylinderMesh.new()
+	rm.top_radius = 0.55
+	rm.bottom_radius = 0.6
+	rm.height = 0.7
+	rm.radial_segments = 10
+	ring.mesh = rm
+	var rmat = StandardMaterial3D.new()
+	rmat.albedo_texture = load("res://assets/textures/tile_rock.png")
+	rmat.albedo_color = Color(0.8, 0.8, 0.85)
+	rmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	ring.material_override = rmat
+	ring.position = Vector3(0, 0.35, 0)
+	well.add_child(ring)
+	var water = MeshInstance3D.new()
+	var wm = CylinderMesh.new()
+	wm.top_radius = 0.42
+	wm.bottom_radius = 0.42
+	wm.height = 0.05
+	water.mesh = wm
+	water.name = "Water"
+	var wmat = StandardMaterial3D.new()
+	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	wmat.albedo_color = Color(0.3, 0.32, 0.36)
+	water.material_override = wmat
+	water.position = Vector3(0, 0.7, 0)
+	well.add_child(water)
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(1.3, 1.0, 1.3)
+	collision.shape = shape
+	collision.position = Vector3(0, 0.5, 0)
+	well.add_child(collision)
+	var label = Label3D.new()
+	label.text = "Town Well"
+	label.font_size = 20
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(0.8, 0.95, 1.0)
+	label.position = Vector3(0, 1.4, 0)
+	WorldText.crisp(label)
+	well.add_child(label)
+	$Vendors.add_child(well)
+	_refresh_well_visual()
 
-	vendor_panel.visible = true
-	interact_prompt.text = ""
-	print("[TOWN] Opened quest dialog with Olorin")
+func _refresh_well_visual() -> void:
+	var well = get_node_or_null("Vendors/TownWell")
+	if well == null:
+		return
+	var water = well.get_node_or_null("Water") as MeshInstance3D
+	if water and water.material_override is StandardMaterial3D:
+		var blessed: bool = quest_manager != null and quest_manager.has_flag("town_well_blessed")
+		var mat := water.material_override as StandardMaterial3D
+		mat.albedo_color = Color(0.55, 0.85, 1.0) if blessed else Color(0.3, 0.32, 0.36)
+		mat.emission_enabled = blessed
+		mat.emission = Color(0.35, 0.65, 1.0)
+		mat.emission_energy_multiplier = 1.4
 
 func _on_accept_quest(quest_id: String) -> void:
 	if quest_manager.accept_quest(quest_id):
@@ -2637,7 +2771,7 @@ func _refresh_quest_dialog_after_accept(_quest_id: String) -> void:
 	## Replace the accept button with a green "Accepted" label in the current dialog.
 	# Find and remove the accept button, replace with accepted label
 	for child in vendor_item_list.get_children():
-		if child is Button and child.text == "Accept Quest":
+		if child is Button and child.text.begins_with("Accept:"):
 			var accepted_lbl = Label.new()
 			accepted_lbl.text = "Accepted"
 			accepted_lbl.add_theme_font_size_override("font_size", 16)
@@ -2647,19 +2781,14 @@ func _refresh_quest_dialog_after_accept(_quest_id: String) -> void:
 			break
 
 func _on_turn_in_quest(quest_id: String) -> void:
-	var rewards = quest_manager.turn_in_quest(quest_id)
+	# turn_in_quest pays gold/xp, consumes what was asked for, records flags,
+	# and applies permanent stat bonuses (shrine choices) to the stats.
+	var stats = player.get_stats() if player.has_method("get_stats") else null
+	var rewards = quest_manager.turn_in_quest(quest_id, stats)
 	if rewards.is_empty():
 		return
-
-	# Apply rewards
-	var stats = player.get_stats() if player.has_method("get_stats") else null
-	if stats:
-		if rewards.has("gold"):
-			stats.gain_gold(rewards["gold"])
-		if rewards.has("xp"):
-			stats.gain_xp(rewards["xp"])
-
 	print("[TOWN] Quest turned in! Rewards: %s" % rewards)
+	_refresh_well_visual()
 	_close_vendor()
 	_refresh_quest_indicators()
 	_refresh_leave_gate()
@@ -3120,6 +3249,8 @@ func _arrive_home() -> void:
 		if not outcome.is_empty():
 			if outcome["hero_joined"]:
 				lines.append("You answered the flute in time — you stood with the garrison against the %s." % outcome["name"])
+				if quest_manager:
+					quest_manager.on_event("calamity_answered")
 			else:
 				lines.append("The flute called, but you tarried. The city faced the %s alone." % outcome["name"])
 			if outcome["held"]:
