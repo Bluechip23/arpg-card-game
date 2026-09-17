@@ -761,6 +761,7 @@ func _process(delta: float) -> void:
 		dungeon_manager.update_fountain_prompts(pg)
 		dungeon_manager.update_shrine_prompt(pg)
 		_update_trap_prompt(pg)
+		_update_rescue_npc_prompts(pg)
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
@@ -4042,6 +4043,9 @@ func _on_player_tile_reached() -> void:
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
 	var _vacated_cell := _player_last_grid_cell
 	_player_last_grid_cell = player_cell
+	# A rescued NPC follows one tile behind, onto the tile just vacated.
+	if _follower and is_instance_valid(_follower) and _vacated_cell.x >= 0 and _vacated_cell != player_cell:
+		_follower.step_to(_ground_pos(_vacated_cell), _vacated_cell)
 
 	# Elemental Trail Blazers: moving with flash points leaves fire on the vacated tile.
 	if _vacated_cell.x >= 0 and _vacated_cell != player_cell:
@@ -4637,6 +4641,11 @@ func _respawn_at_level_start() -> void:
 	player.position = start
 	player.target_position = start
 	_player_last_grid_cell = grid_manager.world_to_grid(start)
+	if _follower and is_instance_valid(_follower):
+		# The follower scrambles back too, one tile beside you.
+		var beside := dungeon_manager.pick_free_cell_near(_player_last_grid_cell, 2) if dungeon_manager else Vector2i(-1, -1)
+		if beside.x >= 0:
+			_follower.place_at(_ground_pos(beside), beside)
 	if dungeon_manager:
 		_camera_focus = player.position + Vector3(2, 0, 0)
 		_update_camera()
@@ -4644,6 +4653,131 @@ func _respawn_at_level_start() -> void:
 	_solo_fallen = false
 	add_battle_log("You rise again at the start of %s." % get_location_label(), Color(0.5, 1.0, 0.6))
 	print("[MAIN] Respawned at %s" % str(grid_manager.world_to_grid(start)))
+
+#endregion
+#region QUEST NPCS: RESCUES, FOLLOWERS, THE LUMBER DEPOT
+var _rescue_npcs: Array = []      # RescueNpc nodes placed for active quests
+var _follower: RescueNpc = null   # the one currently trailing the player
+
+const WOODCUTTER_SHEET := "res://assets/sprites/NPCpackage2/npc man B v02.png"
+const PARTNER_SHEET := "res://assets/sprites/NPCpackage2/npc girl v03.png"
+
+func _ground_pos(cell: Vector2i) -> Vector3:
+	var p := grid_manager.grid_to_world(cell)
+	p.y = _desired_ground_y(p)
+	return p
+
+func _place_quest_npcs() -> void:
+	## Rescue targets appear in their interior while their quest wants them
+	## found or walked out; the rescued foreman stands at the Greenwood
+	## trailhead on the surface as a lumber depot afterwards.
+	if quest_manager == null or dungeon_manager == null or sandbox_mode:
+		return
+	var kind: String = dungeon_manager.interior_kind
+	if kind == "forest" and (quest_manager.is_objective_active("missing_woodcutter", 0)
+			or quest_manager.is_objective_active("missing_woodcutter", 1)):
+		_spawn_rescue_npc("npc_woodcutter", "Aldric the Foreman", WOODCUTTER_SHEET, "deep")
+	if kind == "cave" and (quest_manager.is_objective_active("sellswords_debt", 0)
+			or quest_manager.is_objective_active("sellswords_debt", 1)):
+		_spawn_rescue_npc("npc_partner", "Maren", PARTNER_SHEET, "deep")
+	if kind == "" and quest_manager.has_flag("woodcutter_rescued"):
+		_place_woodcutter_depot()
+
+func _spawn_rescue_npc(id: String, display_name: String, sheet: String, room_kind: String) -> RescueNpc:
+	var cell: Vector2i = dungeon_manager.pick_room_cell(room_kind)
+	if cell.x < 0:
+		cell = dungeon_manager.pick_room_cell("clearing")
+	if cell.x < 0:
+		cell = dungeon_manager.pick_room_cell("chamber")
+	if cell.x < 0:
+		return null
+	var npc := RescueNpc.new()
+	npc.setup(id, display_name, sheet, "[Shift] Talk")
+	add_child(npc)
+	npc.place_at(_ground_pos(cell), cell)
+	npc.visible = false  # until fog reveals the tile
+	_rescue_npcs.append(npc)
+	print("[MAIN] Placed rescue NPC %s at %s" % [id, cell])
+	return npc
+
+func _place_woodcutter_depot() -> void:
+	for s in dungeon_manager.site_nodes:
+		if s["kind"] != "forest":
+			continue
+		var cell: Vector2i = dungeon_manager.pick_free_cell_near(s["grid_pos"], 3)
+		if cell.x < 0:
+			return
+		var npc := RescueNpc.new()
+		npc.depot = true
+		npc.setup("npc_woodcutter_depot", "Aldric — Lumber Depot", WOODCUTTER_SHEET, "[Shift] Send satchel home")
+		add_child(npc)
+		npc.place_at(_ground_pos(cell), cell)
+		npc.visible = false
+		_rescue_npcs.append(npc)
+		return
+
+func _update_rescue_npc_prompts(pg: Vector2i) -> void:
+	for npc in _rescue_npcs:
+		if not is_instance_valid(npc):
+			continue
+		npc.visible = npc.following or dungeon_manager.is_revealed(npc.grid_cell)
+		var dist: int = absi(pg.x - npc.grid_cell.x) + absi(pg.y - npc.grid_cell.y)
+		npc.set_prompt_visible(dist <= 2 and not npc.following)
+
+func _nearby_rescue_npc(pg: Vector2i) -> RescueNpc:
+	for npc in _rescue_npcs:
+		if not is_instance_valid(npc):
+			continue
+		if absi(pg.x - npc.grid_cell.x) + absi(pg.y - npc.grid_cell.y) <= 1:
+			return npc
+	return null
+
+func _try_interact_rescue_npc() -> bool:
+	var npc := _nearby_rescue_npc(grid_manager.world_to_grid(player.position))
+	if npc == null:
+		return false
+	if npc.depot:
+		_send_satchel_home_at_depot(npc)
+		return true
+	if npc.following:
+		add_battle_log("%s: \"Right behind you.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
+		return true
+	npc.following = true
+	_follower = npc
+	npc.set_prompt_visible(false)
+	if quest_manager:
+		quest_manager.on_event("reach", {"object": npc.npc_id})
+	add_battle_log("%s: \"Thank the light! Stay close — I'll follow you out.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
+	return true
+
+func _deliver_follower() -> void:
+	## Leaving the interior with a rescued NPC in tow completes the escort.
+	if _follower == null or not is_instance_valid(_follower):
+		return
+	if quest_manager:
+		quest_manager.on_event("escort", {"npc": _follower.npc_id})
+	add_battle_log("You lead %s out into the daylight." % _follower.display_name, Color(0.6, 1.0, 0.6))
+	_follower = null
+
+func _send_satchel_home_at_depot(npc: RescueNpc) -> void:
+	## The rescued foreman hauls the satchel to the city so town resources
+	## bank without a trip home (and never touch the stash).
+	if not CityBridge.city_started(player_progression):
+		add_battle_log("%s: \"No city to haul to yet. Found one at the Town Hall.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
+		return
+	var pouch: Dictionary = CityBridge.satchel(player_progression)
+	var empty := true
+	for res in pouch:
+		if int(pouch[res]) > 0:
+			empty = false
+	if empty:
+		add_battle_log("%s: \"Your satchel's empty, friend.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
+		return
+	var result := CityBridge.bank_satchel(player_progression, int(Time.get_unix_time_from_system()))
+	var msg := "%s hauls %s home to the city." % [npc.display_name, CityBridge.format_resources(result["banked"])]
+	if not result["lost"].is_empty():
+		msg += " The warehouses overflowed — %s went to waste." % CityBridge.format_resources(result["lost"])
+	add_battle_log(msg, Color(0.75, 0.7, 0.5))
 
 #endregion
 #region QUEST WORLD OBJECTS: TRAP DISARM, DROWNED SHRINE, CHANNEL BREAKS
@@ -11546,6 +11680,8 @@ func _input(event: InputEvent) -> void:
 				return
 			if _try_interact_shrine():
 				return
+			if _try_interact_rescue_npc():
+				return
 			if _try_disarm_trap():
 				return
 			chest_loot_ui._try_interact_chest()
@@ -11897,6 +12033,8 @@ func _setup_dungeon() -> void:
 			for quest_id in quest_manager.available_quests.keys():
 				quest_manager.accept_quest(quest_id)
 	quest_manager.world_level = current_world_level
+	# Quest NPCs live in the world only while their quest needs them.
+	_place_quest_npcs()
 
 	# Setup minimap
 	minimap_tab_ui._setup_minimap()
@@ -12060,6 +12198,7 @@ func _enter_interior(interior_id: String, display_name: String = "") -> void:
 
 func _exit_interior() -> void:
 	print("[MAIN] Leaving %s, returning to World %d" % [current_interior_id, current_world_level])
+	_deliver_follower()
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
@@ -14041,6 +14180,7 @@ func _save_player_progression() -> Dictionary:
 	return progression
 
 func _travel_to_town() -> void:
+	_deliver_follower()
 	print("[MAIN] Traveling to town!")
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()

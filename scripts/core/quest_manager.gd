@@ -235,7 +235,6 @@ func _define_quests() -> void:
 	q.objectives.append(Objective.new("reach", "npc_woodcutter", 1, "Find the foreman in the Greenwood", "forest"))
 	q.objectives.append(Objective.new("escort", "npc_woodcutter", 1, "Walk him to the forest exit", "forest"))
 	q.teaches = "Press Shift beside a rescued NPC and they follow you. Get them to the exit alive."
-	q.hidden = true  # until the escort NPCs are built
 	_add(q)
 
 	# --- A Debt to the Sellsword ---
@@ -245,7 +244,6 @@ func _define_quests() -> void:
 	q.prerequisites = ["olorin_kill_wererats"]
 	q.objectives.append(Objective.new("reach", "npc_partner", 1, "Find the Sellsword's partner in a cave", "cave"))
 	q.objectives.append(Objective.new("escort", "npc_partner", 1, "Walk her to the cave exit", "cave"))
-	q.hidden = true  # until the escort NPCs are built
 	_add(q)
 
 	# --- What the Crows Saw ---

@@ -4221,6 +4221,37 @@ func _place_shrine() -> void:
 		shrine_node = {"node": root, "grid_pos": cell, "label_node": interact}
 		return
 
+func pick_room_cell(kind: String) -> Vector2i:
+	## A free floor cell inside the first room of `kind` (reserved once
+	## picked so nothing else lands on it), or (-1,-1) if there is none.
+	for room in rooms:
+		if room["kind"] != kind:
+			continue
+		var cell = _pick_free_cell(room["rect"], [])
+		if cell.x >= 0:
+			_reserved[cell] = true
+			return cell
+	return Vector2i(-1, -1)
+
+func pick_free_cell_near(center: Vector2i, radius: int = 2) -> Vector2i:
+	## The nearest walkable, unreserved cell within `radius` of center.
+	var best := Vector2i(-1, -1)
+	var best_d := 999
+	for dx in range(-radius, radius + 1):
+		for dz in range(-radius, radius + 1):
+			var c := center + Vector2i(dx, dz)
+			if c.x < 0 or c.x >= GRID_W or c.y < 0 or c.y >= GRID_H:
+				continue
+			if not is_floor(c) or _reserved.has(c) or is_obstacle(c) or pit_tiles.has(c):
+				continue
+			var d := absi(dx) + absi(dz)
+			if d > 0 and d < best_d:
+				best_d = d
+				best = c
+	if best.x >= 0:
+		_reserved[best] = true
+	return best
+
 func is_near_shrine(player_grid: Vector2i) -> bool:
 	if shrine_node.is_empty():
 		return false

@@ -3203,6 +3203,10 @@ func _add_town_hall_building_row(city: CityState, id: String) -> void:
 	if lvl >= int(def["max_level"]):
 		action = "MAX"
 		btn.disabled = true
+	elif id == "lumber_mill" and not (quest_manager and quest_manager.has_flag("woodcutter_rescued")):
+		# The mill stands idle until its foreman is walked out of the Greenwood.
+		action = "Locked — the foreman is missing (Olorin: The Missing Woodcutter)"
+		btn.disabled = true
 	else:
 		var cost := city.get_upgrade_cost(id)
 		action = "Upgrade: %s" % _format_city_cost(cost)

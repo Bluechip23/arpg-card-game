@@ -40,7 +40,9 @@ func _initialize() -> void:
 		"turning it in unlocks the next errands (%s)" % [ids])
 	_check("calamity_warning" not in ids, "Calamity Warning waits on the well")
 	_check("ferryman_toll" not in ids, "Ferryman's Toll waits on Act 2 and The Faithless")
-	_check("missing_woodcutter" not in ids and "what_the_crows_saw" not in ids, "unbuilt quests stay hidden")
+	_check("missing_woodcutter" in ids, "The Missing Woodcutter is on offer")
+	_check("what_the_crows_saw" not in ids, "unbuilt quests stay hidden")
+	_check("sellswords_debt" not in ids and _ids(qm.get_available_quests_from("Sellsword")) == ["sellswords_debt"], "the Sellsword offers his own debt")
 
 	# --- Collect: progress mirrors what is carried; turn-in consumes it ---
 	qm.accept_quest("holy_water_well")
