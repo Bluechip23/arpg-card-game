@@ -82,6 +82,8 @@ static func zone_for_area(interior_kind: String, world_level: int) -> String:
 			return "Forest"
 		"cave":
 			return "Cave"
+		"graveyard":
+			return "Graveyard"
 	match world_level:
 		1:
 			return "Forest"

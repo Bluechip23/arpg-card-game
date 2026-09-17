@@ -264,6 +264,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "sewer"
 	elif interior_id.begins_with("forest"):
 		interior_kind = "forest"
+	elif interior_id.begins_with("graveyard"):
+		interior_kind = "graveyard"
 
 	# Fog scales with how lit the place is: tight, lightless sewers reveal least,
 	# the bright open forest reveals most, everything else uses the default.
@@ -293,7 +295,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	# Layout + elevation
 	_init_water()
 	match interior_kind:
-		"cave":
+		"cave", "graveyard":
 			_generate_cave_layout()
 		"building":
 			_generate_building_layout()
@@ -345,7 +347,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		spawn_zones.size(), site_nodes.size()])
 
 func _set_world_size() -> void:
-	if interior_kind == "cave":
+	if interior_kind == "cave" or interior_kind == "graveyard":
 		GRID_W = 36 + world_level * 2
 		GRID_H = 26 + world_level
 		player_start = Vector2i(3, GRID_H / 2)
@@ -390,9 +392,29 @@ func _set_world_size() -> void:
 			GRID_H = 46
 	player_start = Vector2i(2, GRID_H / 2)
 
+var _graveyard_palette: Dictionary = {}
+
+func _get_graveyard_palette() -> Dictionary:
+	## Cold, moonlit stone: the cave palette shifted grey-green.
+	if _graveyard_palette.is_empty():
+		_graveyard_palette = CAVE_PALETTE.duplicate(true)
+		_graveyard_palette["name"] = "Graveyard"
+		_graveyard_palette["floor_a"] = Color(0.16, 0.19, 0.16)
+		_graveyard_palette["floor_b"] = Color(0.11, 0.14, 0.12)
+		_graveyard_palette["wall_a"] = Color(0.24, 0.26, 0.25)
+		_graveyard_palette["wall_b"] = Color(0.14, 0.16, 0.16)
+		_graveyard_palette["cliff"] = Color(0.20, 0.22, 0.21)
+		_graveyard_palette["accent"] = Color(0.34, 0.38, 0.30)
+		_graveyard_palette["ambient"] = Color(0.16, 0.19, 0.21)
+		_graveyard_palette["sun"] = Color(0.62, 0.70, 0.78)
+		_graveyard_palette["sun_energy"] = 0.35
+	return _graveyard_palette
+
 func get_palette() -> Dictionary:
 	if interior_kind == "cave":
 		return CAVE_PALETTE
+	if interior_kind == "graveyard":
+		return _get_graveyard_palette()
 	if interior_kind == "building":
 		return BUILDING_PALETTE
 	if interior_kind == "sewer":
@@ -406,7 +428,7 @@ func floor_texture_path() -> String:
 	match interior_kind:
 		"sewer", "building":
 			return "res://assets/textures/tile_brick.png"
-		"cave":
+		"cave", "graveyard":
 			return "res://assets/textures/tile_dirt.png"
 	return "res://assets/textures/tile_grass.png"
 
@@ -427,6 +449,8 @@ func get_location_name() -> String:
 		return "Sewers"
 	if interior_kind == "forest":
 		return "Greenwood"
+	if interior_kind == "graveyard":
+		return "Old Graveyard"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -3164,7 +3188,60 @@ func _place_sites() -> void:
 
 		_create_site(kind, id, display_name, footprint, entrance, fx, fz, fp_w, fp_d)
 
+	_place_hidden_graveyard(candidates)
 	print("[DUNGEON] Placed %d enterable sites" % site_nodes.size())
+
+func _place_hidden_graveyard(candidates: Array) -> void:
+	## What the Crows Saw: World 1 hides an Old Graveyard in the field room
+	## farthest from the start. It is built like any site but stays off the
+	## minimap (site["hidden"]) until the player walks up to it.
+	if world_level != 1 or interior_kind != "" or candidates.is_empty():
+		return
+	var best_idx := -1
+	var best_d := -1
+	for room_idx in candidates:
+		var c: Vector2i = rooms[room_idx]["rect"].get_center()
+		var d := absi(c.x - player_start.x) + absi(c.y - player_start.y)
+		if d > best_d:
+			best_d = d
+			best_idx = room_idx
+	if best_idx < 0:
+		return
+	var rect: Rect2i = rooms[best_idx]["rect"]
+	var fp_w := 3
+	var fp_d := 3
+	var fx = clampi(rect.get_center().x - fp_w / 2, rect.position.x + 1, rect.end.x - fp_w - 1)
+	var fz = rect.position.y + 1
+	var footprint: Array = []
+	for x in range(fx, fx + fp_w):
+		for z in range(fz, fz + fp_d):
+			footprint.append(Vector2i(x, z))
+	var entrance = Vector2i(fx + fp_w / 2, fz + fp_d)
+	if not _try_block_footprint(footprint):
+		return
+	rooms[best_idx]["kind"] = "site"
+	_create_site("graveyard", "graveyard_0", "Old Graveyard", footprint, entrance, fx, fz, fp_w, fp_d)
+	var site: Dictionary = site_nodes[site_nodes.size() - 1]
+	site["hidden"] = not _opened_chests_ref.get(_site_found_key("graveyard_0"), false)
+
+func _site_found_key(site_id: String) -> String:
+	return "world_%d_site_%s_found" % [world_level, site_id]
+
+func get_hidden_site_near(player_grid: Vector2i, radius: int = 2) -> int:
+	for i in range(site_nodes.size()):
+		if not site_nodes[i].get("hidden", false):
+			continue
+		var sp: Vector2i = site_nodes[i]["grid_pos"]
+		if absi(player_grid.x - sp.x) + absi(player_grid.y - sp.y) <= radius:
+			return i
+	return -1
+
+func discover_site(index: int) -> void:
+	## A hidden site found on foot: onto the minimap, remembered in world state.
+	if index < 0 or index >= site_nodes.size():
+		return
+	site_nodes[index]["hidden"] = false
+	_opened_chests_ref[_site_found_key(site_nodes[index]["id"])] = true
 
 func _try_block_footprint(footprint: Array) -> bool:
 	## Marks footprint tiles as walls; reverts if that would split the map.
@@ -3215,6 +3292,8 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	site_root.position = center
 
 	match kind:
+		"graveyard":
+			_build_graveyard_gate(site_root, fp_w, fp_d)
 		"building":
 			_build_building_exterior(site_root, fp_w, fp_d)
 		"sewer":
@@ -3321,6 +3400,61 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 		window.material_override = win_mat
 		window.position = Vector3(side * w * 0.3, 1.1, d / 2.0 + 0.02)
 		root.add_child(window)
+
+func _build_graveyard_gate(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## Two weathered stone pillars, a lintel, and an iron gate standing open
+	## on the south face; the dark beyond is the way down.
+	var stone := _pixel_mat("res://assets/textures/tile_rock.png", Color(0.62, 0.66, 0.64))
+	for side in [-1.0, 1.0]:
+		var pillar = MeshInstance3D.new()
+		var pm = BoxMesh.new()
+		pm.size = Vector3(0.7, 2.4, 0.7)
+		pillar.mesh = pm
+		pillar.material_override = stone
+		pillar.position = Vector3(side * (fp_w * 0.5 - 0.4), 1.2, fp_d / 2.0 - 0.5)
+		root.add_child(pillar)
+	var lintel = MeshInstance3D.new()
+	var lm = BoxMesh.new()
+	lm.size = Vector3(fp_w - 0.2, 0.5, 0.8)
+	lintel.mesh = lm
+	lintel.material_override = stone
+	lintel.position = Vector3(0, 2.6, fp_d / 2.0 - 0.5)
+	root.add_child(lintel)
+	var iron = StandardMaterial3D.new()
+	iron.albedo_color = Color(0.12, 0.12, 0.14)
+	iron.roughness = 0.6
+	for i in range(4):
+		var bar = MeshInstance3D.new()
+		var bm = CylinderMesh.new()
+		bm.top_radius = 0.05
+		bm.bottom_radius = 0.05
+		bm.height = 2.0
+		bm.radial_segments = 6
+		bar.mesh = bm
+		bar.material_override = iron
+		bar.position = Vector3(-0.75 + i * 0.5, 1.0, fp_d / 2.0 - 0.5)
+		bar.rotation_degrees = Vector3(0, 0, 0)
+		root.add_child(bar)
+	var dark = MeshInstance3D.new()
+	var dm = BoxMesh.new()
+	dm.size = Vector3(fp_w - 0.6, 2.2, fp_d - 0.8)
+	dark.mesh = dm
+	var dmat = StandardMaterial3D.new()
+	dmat.albedo_color = Color(0.03, 0.04, 0.05)
+	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dark.material_override = dmat
+	dark.position = Vector3(0, 1.1, -0.3)
+	root.add_child(dark)
+	# A few leaning headstones around the gate
+	for k in range(3):
+		var stone_mi = MeshInstance3D.new()
+		var sm = BoxMesh.new()
+		sm.size = Vector3(0.35, 0.6, 0.12)
+		stone_mi.mesh = sm
+		stone_mi.material_override = stone
+		stone_mi.position = Vector3(-fp_w * 0.5 + 0.3 + k * (fp_w - 0.6) / 2.0, 0.3, -fp_d / 2.0 + 0.3)
+		stone_mi.rotation_degrees = Vector3(0, 0, -8.0 + k * 7.0)
+		root.add_child(stone_mi)
 
 func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## Rocky mound with a dark opening on the south face.
@@ -3759,6 +3893,10 @@ func _define_spawn_zones() -> void:
 		_define_forest_spawn_zones()
 		return
 
+	if interior_kind == "graveyard":
+		_define_graveyard_spawn_zones()
+		return
+
 	# Enemy tiers scale with world level
 	var base_melee = Enemy.EnemyType.WERERAT if world_level <= 2 else Enemy.EnemyType.SKELETON
 	var mid_melee = Enemy.EnemyType.SKELETON if world_level <= 2 else Enemy.EnemyType.ARMORED_TROLL
@@ -3848,6 +3986,44 @@ func _pick_enemy_type(depth: float, kind: String, base_melee, mid_melee, heavy, 
 	if roll < heavy_w + mid_w + ranged_w:
 		return ranged
 	return base_melee
+
+func _define_graveyard_spawn_zones() -> void:
+	## The dead of the Old Graveyard: shamblers near the gate, the hunters of
+	## the night deeper in, and a Necromancer holding the deepest crypt.
+	var shallow := [Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SKELETON, Enemy.EnemyType.SCREECHER]
+	var deep := [Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.ZOMBIE]
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		if kind != "deep" and _rng.randf() >= 0.85:
+			continue
+		var depth = float(rect.get_center().x) / float(GRID_W)
+		var count = clampi(2 + rect.get_area() / 36, 2, 5)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(count):
+			var cell = _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			var pool: Array = deep if depth > 0.55 else shallow
+			types.append(pool[_rng.randi_range(0, pool.size() - 1)])
+		if kind == "deep" and types.size() > 0:
+			types[0] = Enemy.EnemyType.NECROMANCER
+		if points.is_empty():
+			continue
+		spawn_zones.append({
+			"trigger_rect": rect.grow(1),
+			"spawn_points": points,
+			"enemy_types": types,
+			"spawned": false,
+		})
+	for zone in spawn_zones:
+		for p in zone["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d graveyard spawn zones" % spawn_zones.size())
 
 func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 	var c = rect.get_center()
@@ -4160,6 +4336,144 @@ func update_waypoint_prompts(player_grid: Vector2i) -> void:
 				# Undiscovered: show "Walk here to discover" hint
 				interact_lbl.text = "Walk here to discover"
 				interact_lbl.visible = dist <= 3
+
+# ============================================
+# THE FEATHER TRAIL (What the Crows Saw)
+# ============================================
+# Crow feathers dropped every few tiles along the walk from the start to a
+# hidden site, each laid flat with its tip pointing at the next one. Only
+# placed while the quest is active (Main asks for it); revealed with the fog.
+
+var feather_nodes: Array = []  # [{node, grid_pos}]
+const FEATHER_SPACING := 4
+static var _feather_tex: ImageTexture = null
+
+static func _feather_texture() -> ImageTexture:
+	## A 10x18 pixel crow feather: dark vane, pale quill, tip at the top.
+	if _feather_tex:
+		return _feather_tex
+	var img := Image.create(10, 18, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var vane := Color(0.13, 0.12, 0.16)
+	var edge := Color(0.24, 0.23, 0.30)
+	var quill := Color(0.72, 0.68, 0.60)
+	for y in range(18):
+		var half: int
+		if y < 3:
+			half = y            # tip
+		elif y < 13:
+			half = 3            # body
+		else:
+			half = 3 - (y - 12) # taper toward the quill
+		if half < 0:
+			half = 0
+		for x in range(5 - half, 5 + half):
+			img.set_pixel(x, y, edge if (x == 5 - half or x == 4 + half) else vane)
+	for y in range(6, 18):
+		img.set_pixel(4, y, quill)
+	for y in range(15, 18):
+		img.set_pixel(5, y, quill)
+	_feather_tex = ImageTexture.create_from_image(img)
+	return _feather_tex
+
+func place_feather_trail(target: Vector2i) -> void:
+	## Drop feathers along the shortest floor path from the start to `target`.
+	clear_feather_trail()
+	var path := _floor_path(player_start, target)
+	if path.size() < 2:
+		return
+	var samples: Array = []
+	var i := FEATHER_SPACING
+	while i < path.size() - 1:
+		samples.append(path[i])
+		i += FEATHER_SPACING
+	for k in range(samples.size()):
+		var cell: Vector2i = samples[k]
+		var next: Vector2i = samples[k + 1] if k + 1 < samples.size() else target
+		_create_feather(cell, next)
+	# Crows keep watch at the gate.
+	_place_crows_at(target, 2)
+	print("[DUNGEON] Feather trail: %d feathers toward %s" % [feather_nodes.size(), target])
+
+func clear_feather_trail() -> void:
+	for f in feather_nodes:
+		var n = f.get("node")
+		if n and is_instance_valid(n):
+			n.queue_free()
+	feather_nodes.clear()
+
+func _create_feather(cell: Vector2i, points_to: Vector2i) -> void:
+	var sprite := Sprite3D.new()
+	sprite.name = "Feather_%d" % feather_nodes.size()
+	sprite.texture = _feather_texture()
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = 0.045
+	# Lay it flat (tip toward -Z), then spin it about Y so the tip points at
+	# the next feather: rotating -Z by θ about Y gives (-sin θ, -cos θ).
+	var d := Vector2(points_to.x - cell.x, points_to.y - cell.y)
+	var theta := atan2(-d.x, -d.y) if d.length() > 0.01 else 0.0
+	sprite.rotation_degrees = Vector3(-90, rad_to_deg(theta), 0)
+	var pos := grid_manager.grid_to_world(cell)
+	pos.y = get_elevation_world_y(cell) + 0.03
+	# Off-centre so the feather sits beside the trail rather than under feet.
+	pos.x += 0.25
+	pos.z -= 0.2
+	sprite.position = pos
+	sprite.visible = false
+	_visuals_root.add_child(sprite)
+	feather_nodes.append({"node": sprite, "grid_pos": cell})
+
+func _place_crows_at(cell: Vector2i, count: int) -> void:
+	for i in range(count):
+		var c := pick_free_cell_near(cell, 3)
+		if c.x < 0:
+			return
+		var crow = SewerCritter.new()
+		crow.name = "TrailCrow_%d" % i
+		_visuals_root.add_child(crow)
+		crow.setup(Vector3(c.x + 0.5, 0.0, c.y + 0.5), _layout_seed + 977 + i * 131, "crow")
+
+func update_feather_visibility() -> void:
+	for f in feather_nodes:
+		var n = f.get("node")
+		if n and is_instance_valid(n):
+			n.visible = is_revealed(f["grid_pos"])
+
+func _floor_path(from: Vector2i, to: Vector2i) -> Array:
+	## BFS over floor tiles (4-way). Returns the cell list from `from` to the
+	## walkable cell nearest `to` (the target itself may be a blocked footprint).
+	var came_from: Dictionary = {from: from}
+	var frontier: Array = [from]
+	var head := 0
+	var best: Vector2i = from
+	var best_d := absi(from.x - to.x) + absi(from.y - to.y)
+	while head < frontier.size():
+		var cur: Vector2i = frontier[head]
+		head += 1
+		var d := absi(cur.x - to.x) + absi(cur.y - to.y)
+		if d < best_d:
+			best_d = d
+			best = cur
+			if d == 0:
+				break
+		for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nxt: Vector2i = cur + dir
+			if came_from.has(nxt):
+				continue
+			if nxt.x < 0 or nxt.x >= GRID_W or nxt.y < 0 or nxt.y >= GRID_H:
+				continue
+			if grid[nxt.x][nxt.y] != Tile.FLOOR:
+				continue
+			came_from[nxt] = cur
+			frontier.append(nxt)
+	var path: Array = []
+	var trace: Vector2i = best
+	while trace != from:
+		path.push_front(trace)
+		trace = came_from[trace]
+	path.push_front(from)
+	return path
 
 # ============================================
 # THE DROWNED SHRINE (The Faithless) + TRAP DISARMING

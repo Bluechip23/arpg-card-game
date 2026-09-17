@@ -531,6 +531,7 @@ the repo. Keep this table honest as the code changes.
 | **The City (end-game loop)** | `scripts/city/` (state, expeditions, raids, bridge, calamities); Town Hall panel in `town.gd`; kill hook in `main.gd`; saved in `SaveData.city` | Wired and tested (`tests/test_city_loop.gd`, `tests/test_city_wiring.gd`). See Section 6.5. |
 | **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; feeds the compendium and future intent-reveals. 11 enemy types today (Section 5.3). |
 | **Quests** | `scripts/core/quest_manager.gd` | Currently kill-quests only; Olorin is the sole giver. |
+| **Quests** | `scripts/core/quest_manager.gd` | Data-driven quest chain from Olorin and the Sellsword (Rat Infestation → Holy Water for the Well, Bear Traps, The Faithless, Fire Wall Breach, The High Road, The Missing Woodcutter, A Debt to the Sellsword, What the Crows Saw → Calamity Warning; Ferryman's Toll in Act 2). World objects they need: the Town Well, the Drowned Shrine (sewer), rescue NPCs, the feather trail and the hidden Old Graveyard. |
 | **Healing fountains** | `scripts/core/dungeon_manager.gd` (`_place_fountains`) | Holy-water basins in every zone: drink to heal (spends the blessing; a vial of Holy Water from enemies restores it) or bathe once for a +20% XP blessing. The pilgrim's rest between Olorin's trials. |
 | **Town hub** | `scripts/menus/town.gd` | Persistent vendors (Blacksmith, Armory, Card Dealer, Accessory Shop, Stash) + Olorin + waypoint/transport. The shell the city loop will be wired into. |
 

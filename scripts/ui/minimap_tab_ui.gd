@@ -100,9 +100,12 @@ func _update_minimap() -> void:
 				if ix < main._minimap_image.get_width() and iz < main._minimap_image.get_height():
 					main._minimap_image.set_pixel(ix, iz, wp_col)
 
-	# Draw cave/building entrances (amber)
+	# Draw cave/building entrances (amber). Hidden sites (the Old Graveyard)
+	# stay off the map until found on foot.
 	for site in main.dungeon_manager.site_nodes:
 		var sp: Vector2i = site["grid_pos"]
+		if site.get("hidden", false):
+			continue
 		if site["kind"] != "exit" and not main.dungeon_manager.is_revealed(sp):
 			continue
 		for px in range(s):
@@ -464,6 +467,8 @@ func _refresh_expanded_map() -> void:
 	# Draw cave/building entrances (amber, slightly larger)
 	for site in main.dungeon_manager.site_nodes:
 		var sp: Vector2i = site["grid_pos"]
+		if site.get("hidden", false):
+			continue
 		if site["kind"] != "exit" and not main.dungeon_manager.is_revealed(sp):
 			continue
 		for px in range(-1, scale + 1):

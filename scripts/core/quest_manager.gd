@@ -253,7 +253,6 @@ func _define_quests() -> void:
 	q.prerequisites = ["olorin_kill_wererats"]
 	q.objectives.append(Objective.new("reach", "site_graveyard", 1, "Follow the feather trail to the hidden graveyard", "overworld"))
 	q.teaches = "Secret passages are marked by trails. A feather's tip points where to go next."
-	q.hidden = true  # until the feather trail and graveyard are built
 	_add(q)
 
 func _add(q: Quest) -> void:

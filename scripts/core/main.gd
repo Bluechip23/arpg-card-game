@@ -762,6 +762,8 @@ func _process(delta: float) -> void:
 		dungeon_manager.update_shrine_prompt(pg)
 		_update_trap_prompt(pg)
 		_update_rescue_npc_prompts(pg)
+		dungeon_manager.update_feather_visibility()
+		_check_hidden_site_discovery(pg)
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
@@ -4682,6 +4684,11 @@ func _place_quest_npcs() -> void:
 		_spawn_rescue_npc("npc_partner", "Maren", PARTNER_SHEET, "deep")
 	if kind == "" and quest_manager.has_flag("woodcutter_rescued"):
 		_place_woodcutter_depot()
+	# What the Crows Saw: feathers lead from the start to the hidden graveyard.
+	if kind == "" and quest_manager.is_objective_active("what_the_crows_saw", 0):
+		for s in dungeon_manager.site_nodes:
+			if s["id"] == "graveyard_0":
+				dungeon_manager.place_feather_trail(s["grid_pos"])
 
 func _spawn_rescue_npc(id: String, display_name: String, sheet: String, room_kind: String) -> RescueNpc:
 	var cell: Vector2i = dungeon_manager.pick_room_cell(room_kind)
@@ -4715,6 +4722,22 @@ func _place_woodcutter_depot() -> void:
 		npc.visible = false
 		_rescue_npcs.append(npc)
 		return
+
+func _check_hidden_site_discovery(pg: Vector2i) -> void:
+	## Walking up to a site that is on no map puts it on the map.
+	if dungeon_manager == null:
+		return
+	var idx: int = dungeon_manager.get_hidden_site_near(pg, 2)
+	if idx < 0:
+		return
+	var site: Dictionary = dungeon_manager.site_nodes[idx]
+	dungeon_manager.discover_site(idx)
+	add_battle_log("You found the %s. The crows scatter." % site["display_name"], Color(0.8, 0.85, 1.0))
+	if quest_manager:
+		quest_manager.on_event("reach", {"object": "site_" + str(site["id"]).get_slice("_", 0)})
+	dungeon_manager.clear_feather_trail()
+	if minimap_tab_ui:
+		minimap_tab_ui._update_minimap()
 
 func _update_rescue_npc_prompts(pg: Vector2i) -> void:
 	for npc in _rescue_npcs:
