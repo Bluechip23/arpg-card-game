@@ -118,7 +118,7 @@ All characters share a base **5% critical hit chance** and **110% critical damag
 ### Health
 Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**. **There is no pure vitality stat to increase health**. Reaching 0 means dead sauce. Healing is boosted by Intelligence and equipment.
 
-**Healing Fountains.** Stone basins of holy water stand in every world and interior, two on the surface and one below. Stand beside one and press Shift. *Drink* restores you to full health but spends the fountain's blessing, and the basin runs dry until you pour in a vial of **Holy Water**, a currency enemies drop (rarely from trash, often from elites, always from bosses). *Bathe in the light* grants 20% of the XP to your next level, once per fountain, ever. Fountain state persists with the world, like chests.
+**Healing Fountains.** Stone basins of holy water stand in every world and interior, two on the surface and one below. Stand beside one and press Shift. *Drink* restores you to full health but spends the fountain's blessing, and the basin runs dry until you pour in a vial of **Holy Water**, a currency enemies drop (rarely from trash, often from elites, always from bosses). *Bathe in the light* blesses you with +20% incoming XP for your next 20 kills, once per fountain, ever (a second fountain refreshes the count; it never stacks). Fountain state persists with the world, like chests.
 
 **Falling in battle.** There is no permadeath. When your health hits 0 alone, you come to at the start of the level you are in, at full health, with everything you carry. In co-op the downed-and-revive flow applies instead. Every arrival in town also writes an autosave slot.
 

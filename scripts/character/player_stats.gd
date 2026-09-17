@@ -520,6 +520,13 @@ var unspent_stat_points: int = 0  # Banked from level-ups; spent via the skill t
 var gold: int = 0
 var holy_water: int = 0  # Vials dropped by enemies; poured into a Healing Fountain to bless it again
 
+# Fountain blessing: +X% to all incoming XP for the next N kills. Bathing in a
+# second fountain while it runs refreshes the kill count; it never stacks.
+const FOUNTAIN_XP_BOOST_PERCENT := 20
+const FOUNTAIN_XP_BOOST_KILLS := 20
+var xp_boost_percent: int = 0
+var xp_boost_kills_remaining: int = 0
+
 #endregion
 #region EFFECTIVE STATS (with determination modifier)
 # ============================================
@@ -676,6 +683,8 @@ func save_progression() -> Dictionary:
 		"passive_levels": passive_levels.duplicate(),
 		"gold": gold,
 		"holy_water": holy_water,
+		"xp_boost_percent": xp_boost_percent,
+		"xp_boost_kills_remaining": xp_boost_kills_remaining,
 		# Sphere grid keystones
 		"keystone_det_vitality": keystone_det_vitality,
 		"keystone_dex_ranged": keystone_dex_ranged,
@@ -783,6 +792,8 @@ func restore_progression(data: Dictionary) -> void:
 	passive_levels = data.get("passive_levels", passive_levels)
 	gold = data.get("gold", gold)
 	holy_water = int(data.get("holy_water", holy_water))
+	xp_boost_percent = int(data.get("xp_boost_percent", xp_boost_percent))
+	xp_boost_kills_remaining = int(data.get("xp_boost_kills_remaining", xp_boost_kills_remaining))
 	# Sphere grid keystones
 	keystone_det_vitality = data.get("keystone_det_vitality", keystone_det_vitality)
 	keystone_dex_ranged = data.get("keystone_dex_ranged", keystone_dex_ranged)
@@ -2388,6 +2399,14 @@ func get_xp_multiplier(source_level: int) -> float:
 		return 1.0
 	return maxf(0.0, 1.0 - XP_FALLOFF_PER_LEVEL * gap)
 
+func apply_xp_boost(percent: int = FOUNTAIN_XP_BOOST_PERCENT, kills: int = FOUNTAIN_XP_BOOST_KILLS) -> void:
+	## Fountain blessing: boost incoming XP for the next `kills` kills (refreshes, never stacks).
+	xp_boost_percent = maxi(xp_boost_percent, percent)
+	xp_boost_kills_remaining = maxi(xp_boost_kills_remaining, kills)
+
+func has_xp_boost() -> bool:
+	return xp_boost_kills_remaining > 0 and xp_boost_percent > 0
+
 func gain_xp(amount: int, source_level: int = 0) -> void:
 	var mult = get_xp_multiplier(source_level)
 	if mult < 1.0:
@@ -2395,6 +2414,15 @@ func gain_xp(amount: int, source_level: int = 0) -> void:
 		print("[STATS] XP reduced %d -> %d (level %d vs enemy level %d)" % [
 			amount, reduced, current_level, source_level])
 		amount = reduced
+	# Fountain blessing: +X% on whatever comes in; each kill burns one charge.
+	if has_xp_boost() and amount > 0:
+		amount = int(ceil(amount * (1.0 + xp_boost_percent / 100.0)))
+		if source_level > 0:
+			xp_boost_kills_remaining -= 1
+			if xp_boost_kills_remaining <= 0:
+				xp_boost_kills_remaining = 0
+				xp_boost_percent = 0
+				print("[STATS] The fountain's blessing fades.")
 	if amount <= 0:
 		return
 	current_xp += amount

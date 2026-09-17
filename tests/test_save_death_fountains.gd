@@ -117,12 +117,30 @@ func _test_in_battle() -> void:
 	var stats = main.player.get_stats()
 	_check(dm.fountain_nodes[0]["blessed"] and not dm.fountain_nodes[0]["xp_used"], "a fresh fountain is blessed and unbathed")
 
-	# Bathe: +20% of the XP to next level, once.
-	var before_xp: int = stats.current_xp
-	var expect: int = maxi(1, int(ceil(stats.get_xp_to_next_level() * main.FOUNTAIN_XP_FRACTION)))
-	_check(main._fountain_bathe(0), "bathing grants XP")
-	_check(stats.current_xp == before_xp + expect, "…20%% of the XP to next level (+%d)" % expect)
+	# Bathe: +20% incoming XP for the next 20 kills, once per fountain.
+	_check(main._fountain_bathe(0), "bathing blesses the character")
+	_check(stats.has_xp_boost() and stats.xp_boost_percent == 20 and stats.xp_boost_kills_remaining == 20,
+		"…+20%% XP for 20 kills (got +%d%% / %d)" % [stats.xp_boost_percent, stats.xp_boost_kills_remaining])
+	var before_xp: int = stats.total_xp
+	stats.gain_xp(10, 1)
+	_check(stats.total_xp == before_xp + 12, "a 10 XP kill pays 12 under the blessing")
+	_check(stats.xp_boost_kills_remaining == 19, "…and burns one kill charge")
+	before_xp = stats.total_xp
+	stats.gain_xp(10)
+	_check(stats.total_xp == before_xp + 12 and stats.xp_boost_kills_remaining == 19,
+		"non-kill XP (quests) is boosted without burning a charge")
+	stats.xp_boost_kills_remaining = 1
+	stats.gain_xp(10, 1)
+	_check(not stats.has_xp_boost(), "the blessing fades after its last kill")
+	before_xp = stats.total_xp
+	stats.gain_xp(10, 1)
+	_check(stats.total_xp == before_xp + 10, "…and XP is back to normal")
 	_check(not main._fountain_bathe(0), "bathing a second time is refused")
+	stats.apply_xp_boost()
+	var snap: Dictionary = stats.save_progression()
+	_check(snap.get("xp_boost_kills_remaining", 0) == 20, "the blessing is in the stats snapshot")
+	stats.xp_boost_kills_remaining = 0
+	stats.xp_boost_percent = 0
 	_check(main.opened_chests.get(dm._fountain_key(0), {}).get("xp_used", false), "the bathe is persisted in world state")
 
 	# Drink: full heal, then dry.

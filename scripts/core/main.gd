@@ -4645,7 +4645,7 @@ func _respawn_at_level_start() -> void:
 
 #endregion
 #region HEALING FOUNTAINS
-const FOUNTAIN_XP_FRACTION := 0.2  # "Bathe in the light": this much of the XP to the next level, once per fountain
+# "Bathe in the light": +20% incoming XP for the next 20 kills (PlayerStats.FOUNTAIN_XP_BOOST_*), once per fountain
 var _fountain_menu: Control = null
 
 func _try_interact_fountain() -> bool:
@@ -4698,10 +4698,9 @@ func _fountain_bathe(idx: int) -> bool:
 	var stats = player.get_stats()
 	if not stats:
 		return false
-	var xp: int = maxi(1, int(ceil(stats.get_xp_to_next_level() * FOUNTAIN_XP_FRACTION)))
-	stats.gain_xp(xp)
+	stats.apply_xp_boost()
 	dungeon_manager.set_fountain_state(idx, f["blessed"], true)
-	add_battle_log("You bathe in the light: +%d XP." % xp, Color(0.85, 0.8, 1.0))
+	add_battle_log("You bathe in the light: +%d%% XP for your next %d kills." % [stats.xp_boost_percent, stats.xp_boost_kills_remaining], Color(0.85, 0.8, 1.0))
 	return true
 
 func _show_fountain_menu(idx: int) -> void:
@@ -4745,6 +4744,8 @@ func _show_fountain_menu(idx: int) -> void:
 	var status := Label.new()
 	status.text = ("The water glows with holy light." if f["blessed"] else "The basin has run dry.") \
 		+ "\nHoly Water in your pack: %d" % (stats.holy_water if stats else 0)
+	if stats and stats.has_xp_boost():
+		status.text += "\nBlessing active: +%d%% XP for %d more kills" % [stats.xp_boost_percent, stats.xp_boost_kills_remaining]
 	status.add_theme_font_size_override("font_size", 14)
 	status.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
 	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -4769,8 +4770,7 @@ func _show_fountain_menu(idx: int) -> void:
 	box.add_child(pour)
 
 	var bathe := Button.new()
-	var bathe_xp: int = maxi(1, int(ceil(stats.get_xp_to_next_level() * FOUNTAIN_XP_FRACTION))) if stats else 0
-	bathe.text = ("Bathe in the light — +%d XP (once)" % bathe_xp) if not f["xp_used"] else "Bathe in the light — already taken"
+	bathe.text = ("Bathe in the light — +%d%% XP for your next %d kills (once)" % [PlayerStats.FOUNTAIN_XP_BOOST_PERCENT, PlayerStats.FOUNTAIN_XP_BOOST_KILLS]) if not f["xp_used"] else "Bathe in the light — already taken"
 	bathe.disabled = f["xp_used"]
 	bathe.custom_minimum_size = Vector2(300, 38)
 	bathe.pressed.connect(func():
