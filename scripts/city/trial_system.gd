@@ -1,15 +1,15 @@
-class_name CalamitySystem
+class_name TrialSystem
 extends RefCounted
 
-## Calamities: threats against the player's city — monster invasions and
+## Trials: threats against the player's city — monster invasions and
 ## natural disasters (docs/STORY.md §6.2). The player is never ambushed
 ## blind: Olorin's flute sounds a warning when one strikes.
 ##
-## Flow (all state lives in progression["city_calamity"]):
-##  1. schedule() arms a calamity once the city exists: a hidden countdown
+## Flow (all state lives in progression["city_trial"]):
+##  1. schedule() arms a trial once the city exists: a hidden countdown
 ##     measured in kills while adventuring (the world reacting to the city's
 ##     growing light).
-##  2. on_kill() ticks the countdown; when it reaches zero the calamity
+##  2. on_kill() ticks the countdown; when it reaches zero the trial
 ##     STRIKES — the flute cries out and the player should head home.
 ##  3. resolve() runs when the player next reaches town. Return promptly
 ##     (few kills after the strike) and the hero stands with the garrison;
@@ -44,13 +44,13 @@ const DISASTER_DAMAGE := 0.20
 const DISASTER_WALLS_RELIEF := 0.015
 
 static func pending(progression: Dictionary) -> Dictionary:
-	return progression.get("city_calamity", {})
+	return progression.get("city_trial", {})
 
 static func has_struck(progression: Dictionary) -> bool:
 	return pending(progression).get("struck", false)
 
 static func schedule(progression: Dictionary, rng: RandomNumberGenerator = null) -> Dictionary:
-	## Arm the next calamity. No-op (returns the existing one) if a calamity
+	## Arm the next trial. No-op (returns the existing one) if a trial
 	## is already brewing, or the city hasn't started.
 	if not CityBridge.city_started(progression):
 		return {}
@@ -60,52 +60,52 @@ static func schedule(progression: Dictionary, rng: RandomNumberGenerator = null)
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
 	var type_id: String = TYPES.keys()[rng.randi_range(0, TYPES.size() - 1)]
-	var calamity := {
+	var trial := {
 		"type": type_id,
 		"kills_left": rng.randi_range(KILLS_TO_STRIKE_MIN, KILLS_TO_STRIKE_MAX),
 		"struck": false,
 		"kills_since_strike": 0,
 	}
-	progression["city_calamity"] = calamity
-	return calamity
+	progression["city_trial"] = trial
+	return trial
 
 static func on_kill(progression: Dictionary) -> bool:
 	## Tick the countdown. Returns true exactly once — on the kill where the
-	## calamity strikes (time to sound the flute).
-	var calamity := pending(progression)
-	if calamity.is_empty():
+	## trial strikes (time to sound the flute).
+	var trial := pending(progression)
+	if trial.is_empty():
 		return false
-	if calamity["struck"]:
-		calamity["kills_since_strike"] = int(calamity["kills_since_strike"]) + 1
-		progression["city_calamity"] = calamity
+	if trial["struck"]:
+		trial["kills_since_strike"] = int(trial["kills_since_strike"]) + 1
+		progression["city_trial"] = trial
 		return false
-	calamity["kills_left"] = int(calamity["kills_left"]) - 1
-	if calamity["kills_left"] <= 0:
-		calamity["struck"] = true
-	progression["city_calamity"] = calamity
-	return calamity["struck"]
+	trial["kills_left"] = int(trial["kills_left"]) - 1
+	if trial["kills_left"] <= 0:
+		trial["struck"] = true
+	progression["city_trial"] = trial
+	return trial["struck"]
 
 static func warning_text(progression: Dictionary) -> String:
-	var calamity := pending(progression)
-	if calamity.is_empty():
+	var trial := pending(progression)
+	if trial.is_empty():
 		return ""
-	return TYPES[calamity["type"]]["warning"]
+	return TYPES[trial["type"]]["warning"]
 
 static func resolve(progression: Dictionary, hero_power: int, now: int, rng: RandomNumberGenerator = null) -> Dictionary:
-	## Resolve a STRUCK calamity against the city (called on reaching town).
-	## Returns {} when nothing has struck. Otherwise clears the calamity and
+	## Resolve a STRUCK trial against the city (called on reaching town).
+	## Returns {} when nothing has struck. Otherwise clears the trial and
 	## returns {name, kind, hero_joined, held, lost: {res: amt}} after logging
 	## the outcome to the city's defense log.
-	var calamity := pending(progression)
-	if calamity.is_empty() or not calamity["struck"]:
+	var trial := pending(progression)
+	if trial.is_empty() or not trial["struck"]:
 		return {}
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
 
 	var city := CityBridge.get_city(progression)
-	var info: Dictionary = TYPES[calamity["type"]]
-	var hero_joined: bool = int(calamity["kills_since_strike"]) <= PROMPT_RESPONSE_KILLS
+	var info: Dictionary = TYPES[trial["type"]]
+	var hero_joined: bool = int(trial["kills_since_strike"]) <= PROMPT_RESPONSE_KILLS
 	var held := false
 	var lost := {}
 
@@ -147,7 +147,7 @@ static func resolve(progression: Dictionary, hero_power: int, now: int, rng: Ran
 		"loot": lost.duplicate(),
 	})
 	CityBridge.store_city(progression, city)
-	progression.erase("city_calamity")
+	progression.erase("city_trial")
 	return {
 		"name": info["name"],
 		"kind": info["kind"],

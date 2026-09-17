@@ -130,6 +130,10 @@ static func to_live(disk: Dictionary) -> Dictionary:
 	var live := {}
 	if disk == null or disk.is_empty():
 		return live
+	# Trials were called calamities in older saves.
+	if disk.has("city_calamity") and not disk.has("city_trial"):
+		disk["city_trial"] = disk["city_calamity"]
+		disk.erase("city_calamity")
 	if disk.has("stats"):
 		live["stats"] = disk["stats"]
 	if disk.has("deck_state"):

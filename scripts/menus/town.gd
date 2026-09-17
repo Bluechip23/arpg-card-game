@@ -221,7 +221,7 @@ func _ready() -> void:
 	_camera_focus = player.position + Vector3(3, 0, 0)
 	_update_camera()
 
-	# Coming home: bank the satchel, weather any struck calamity, first-time
+	# Coming home: bank the satchel, weather any struck trial, first-time
 	# flute hand-off. Shown as a notice overlay once the town is up.
 	_arrive_home()
 
@@ -2888,7 +2888,7 @@ func _build_save_data(slot: int) -> SaveData:
 	var stats_snapshot := stats.save_progression() if stats else {}
 	data.progression = ProgressionIO.to_disk(player_progression, stats_snapshot)
 	# The city also lives in its dedicated SaveData field (the progression
-	# snapshot carries the satchel + calamity keys via ProgressionIO).
+	# snapshot carries the satchel + trial keys via ProgressionIO).
 	data.city = player_progression.get("city", {})
 	data.progression["quest_state"] = quest_manager.save_state() if quest_manager else {}
 	data.progression["discovered_waypoints"] = discovered_waypoints.duplicate(true)
@@ -3015,8 +3015,8 @@ func _go_to_battle(via_portal: bool = false) -> void:
 
 	print("[TOWN] Heading to battle!")
 	# Leaving home: if the city stands and nothing is brewing, fate arms the
-	# next calamity — its countdown ticks on kills out in the world.
-	CalamitySystem.schedule(player_progression)
+	# next trial — its countdown ticks on kills out in the world.
+	TrialSystem.schedule(player_progression)
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	# Save current player progression before transitioning
 	var stats = player.get_stats()
@@ -3165,10 +3165,10 @@ func _open_town_hall_ui() -> void:
 	_add_info_label("City power %d — defense %d, garrison attack %d, %d%% of stores protected" % [
 		city.get_power(), city.get_defense_power(), city.get_attack_power(),
 		int(city.get_protected_fraction() * 100)], Color(0.7, 0.85, 1.0))
-	var brewing := CalamitySystem.pending(player_progression)
+	var brewing := TrialSystem.pending(player_progression)
 	if not brewing.is_empty():
 		if brewing.get("struck", false):
-			_add_info_label("The city is under threat RIGHT NOW — %s" % CalamitySystem.warning_text(player_progression), Color(1.0, 0.4, 0.35))
+			_add_info_label("The city is under threat RIGHT NOW — %s" % TrialSystem.warning_text(player_progression), Color(1.0, 0.4, 0.35))
 		else:
 			_add_info_label("Olorin's flute is silent... for now.", Color(0.6, 0.6, 0.72))
 
@@ -3238,23 +3238,23 @@ func _format_city_cost(amounts: Dictionary) -> String:
 	return ", ".join(parts) if parts.size() > 0 else "nothing"
 
 # ============================================
-# COMING HOME (bank the satchel, weather calamities)
+# COMING HOME (bank the satchel, weather trials)
 # ============================================
 
 func _arrive_home() -> void:
 	var lines: Array[String] = []
 	var now := int(Time.get_unix_time_from_system())
 
-	# A struck calamity resolves the moment the hero reaches home. Whether
+	# A struck trial resolves the moment the hero reaches home. Whether
 	# they made it back promptly decides if they stood with the garrison.
-	if CalamitySystem.has_struck(player_progression):
+	if TrialSystem.has_struck(player_progression):
 		var power := ExpeditionSystem.hero_power(player.get_stats() if player else null)
-		var outcome := CalamitySystem.resolve(player_progression, power, now)
+		var outcome := TrialSystem.resolve(player_progression, power, now)
 		if not outcome.is_empty():
 			if outcome["hero_joined"]:
 				lines.append("You answered the flute in time — you stood with the garrison against the %s." % outcome["name"])
 				if quest_manager:
-					quest_manager.on_event("calamity_answered")
+					quest_manager.on_event("trial_answered")
 			else:
 				lines.append("The flute called, but you tarried. The city faced the %s alone." % outcome["name"])
 			if outcome["held"]:

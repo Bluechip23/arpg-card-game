@@ -38,7 +38,7 @@ func _initialize() -> void:
 		ids.append(q.id)
 	_check("holy_water_well" in ids and "bear_traps" in ids and "the_faithless" in ids and "fire_wall_breach" in ids and "high_road" in ids,
 		"turning it in unlocks the next errands (%s)" % [ids])
-	_check("calamity_warning" not in ids, "Calamity Warning waits on the well")
+	_check("trial_warning" not in ids, "Trial Warning waits on the well")
 	_check("ferryman_toll" not in ids, "Ferryman's Toll waits on Act 2 and The Faithless")
 	_check("missing_woodcutter" in ids, "The Missing Woodcutter is on offer")
 	_check("what_the_crows_saw" in ids, "What the Crows Saw is on offer")
@@ -63,7 +63,7 @@ func _initialize() -> void:
 	_check(stats.holy_water == 1, "turn-in consumes exactly 5 vials")
 	_check(stats.gold == gold_before + 40, "…and pays the gold")
 	_check(qm.has_flag("town_well_blessed"), "…and blesses the town well")
-	_check("calamity_warning" in _ids(qm.get_available_quests_from("Olorin")), "the well unlocks Calamity Warning")
+	_check("trial_warning" in _ids(qm.get_available_quests_from("Olorin")), "the well unlocks Trial Warning")
 
 	# --- Sequential objectives with zone filters ---
 	qm.accept_quest("bear_traps")
@@ -90,7 +90,7 @@ func _initialize() -> void:
 	_check(stats.quest_life_steal_bonus == 3.0 and stats.quest_crit_bonus == 0.0, "…applied permanently to the stats")
 	_check(stats.save_progression().get("quest_life_steal_bonus", 0.0) == 3.0, "…and saved with the stats")
 
-	# --- Channel breaks, high ground, calamity ---
+	# --- Channel breaks, high ground, trial ---
 	qm.accept_quest("fire_wall_breach")
 	qm.on_event("channel_break", {"enemy_name": "Fire Goblin Shaman", "zone": "cave"})
 	qm.on_event("channel_break", {"enemy_name": "Treant", "zone": "forest"})
@@ -99,9 +99,9 @@ func _initialize() -> void:
 	qm.on_enemy_killed("Wolf", "forest", false)
 	qm.on_enemy_killed("Wolf", "forest", true)
 	_check(qm.get_quest("high_road").objectives[0].current == 1, "only high-ground kills count for The High Road")
-	qm.accept_quest("calamity_warning")
-	qm.on_event("calamity_answered")
-	_check(qm.get_quest("calamity_warning").is_complete, "answering the flute completes Calamity Warning")
+	qm.accept_quest("trial_warning")
+	qm.on_event("trial_answered")
+	_check(qm.get_quest("trial_warning").is_complete, "answering the flute completes Trial Warning")
 
 	# --- Act 2 gate ---
 	qm.world_level = 1

@@ -13,7 +13,7 @@ extends Node
 ##   reach            {object}                          target = npc/site id, once
 ##   escort           {npc}                             target = npc id delivered, once
 ##   choice           (via choose())                    target = shrine id; the player picks an option
-##   calamity_answered {}                               once
+##   trial_answered {}                               once
 ## Objectives with a zone filter only count inside that interior kind
 ## ("sewer", "forest", "cave", "" = overworld); no filter = anywhere.
 ## Sequential quests advance one objective at a time; parallel ones track all.
@@ -46,7 +46,7 @@ class Objective:
 		return current >= count
 
 	func text() -> String:
-		if type in ["reach", "escort", "choice", "calamity_answered"]:
+		if type in ["reach", "escort", "choice", "trial_answered"]:
 			return label + (" ✓" if is_done() else "")
 		return "%s (%d/%d)" % [label, mini(current, count), count]
 
@@ -206,13 +206,13 @@ func _define_quests() -> void:
 	q.teaches = "Climb a sturdy tree or stand on a pillar: ranged attacks gain damage and reach from high ground."
 	_add(q)
 
-	# --- Calamity Warning ---
-	q = Quest.new("calamity_warning", "Calamity Warning",
-		"When the flute sounds, a calamity has struck the city. Get home before it is over and stand with the garrison.",
+	# --- Trial Warning ---
+	q = Quest.new("trial_warning", "Trial Warning",
+		"When the flute sounds, a trial has struck the city. Get home before it is over and stand with the garrison.",
 		"Olorin", {"gold": 100, "xp": 80, "flags": ["garrison_veteran"]})
 	q.prerequisites = ["holy_water_well"]
-	q.objectives.append(Objective.new("calamity_answered", "", 1, "Answer the flute in time and defend the city"))
-	q.teaches = "Kills tick the calamity countdown. When the flute sounds, head home within a few kills."
+	q.objectives.append(Objective.new("trial_answered", "", 1, "Answer the flute in time and defend the city"))
+	q.teaches = "Kills tick the trial countdown. When the flute sounds, head home within a few kills."
 	_add(q)
 
 	# --- Ferryman's Toll (Act 2) ---
@@ -431,8 +431,8 @@ func _objective_takes(o: Objective, kind: String, data: Dictionary) -> bool:
 			return kind == "reach" and str(data.get("object", "")) == o.target
 		"escort":
 			return kind == "escort" and str(data.get("npc", "")) == o.target
-		"calamity_answered":
-			return kind == "calamity_answered"
+		"trial_answered":
+			return kind == "trial_answered"
 	return false
 
 func _after_progress(quest: Quest, o: Objective) -> void:
@@ -522,12 +522,23 @@ func save_state() -> Dictionary:
 			state["chosen"][quest.id] = quest.chosen
 	return state
 
+const LEGACY_QUEST_IDS := {"calamity_warning": "trial_warning"}  # renamed quests in older saves
+
+static func _migrate_ids(ids: Array) -> Array:
+	var out: Array = []
+	for id in ids:
+		out.append(LEGACY_QUEST_IDS.get(str(id), str(id)))
+	return out
+
 func load_state(state: Dictionary) -> void:
 	if state.is_empty():
 		return
-	var accepted_ids: Array = state.get("accepted_ids", [])
-	var completed_ids: Array = state.get("completed_ids", [])
+	var accepted_ids: Array = _migrate_ids(state.get("accepted_ids", []))
+	var completed_ids: Array = _migrate_ids(state.get("completed_ids", []))
 	var progress: Dictionary = state.get("progress", {})
+	for old_id in LEGACY_QUEST_IDS:
+		if progress.has(old_id):
+			progress[LEGACY_QUEST_IDS[old_id]] = progress[old_id]
 	var chosen: Dictionary = state.get("chosen", {})
 	for f in state.get("flags", {}):
 		flags[str(f)] = bool(state["flags"][f])

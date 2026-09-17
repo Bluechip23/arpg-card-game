@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Tests the city loop's wiring into the game (STORY.md §6):
 ## kills fill the satchel → banked on reaching town → buildings raised at the
-## Town Hall → calamities strike on a kill countdown and resolve at home →
+## Town Hall → trials strike on a kill countdown and resolve at home →
 ## everything round-trips through ProgressionIO / SaveData.
 ## Run: godot --headless --path . --script tests/test_city_wiring.gd
 
@@ -22,7 +22,7 @@ func _initialize() -> void:
 	_test_zone_mapping()
 	_test_satchel_and_banking()
 	_test_progression_roundtrip()
-	_test_calamity_flow()
+	_test_trial_flow()
 	_test_disaster_resolution()
 
 	print("=== %d failure(s) ===" % failures)
@@ -93,23 +93,23 @@ func _test_progression_roundtrip() -> void:
 	CityBridge.add_kill_to_satchel(progression, "Cave", false)
 	CityBridge.bank_satchel(progression, 2_000_000)
 	CityBridge.add_kill_to_satchel(progression, "Cave", true)  # left in satchel
-	CalamitySystem.schedule(progression, _seeded_rng(7))
+	TrialSystem.schedule(progression, _seeded_rng(7))
 
 	var disk := ProgressionIO.to_disk(progression)
 	var live := ProgressionIO.to_live(disk)
 	_check(live.get("city", {}) == progression["city"], "city round-trips through ProgressionIO")
 	_check(live.get("city_satchel", {}) == progression["city_satchel"], "satchel round-trips")
-	_check(live.get("city_calamity", {}) == progression["city_calamity"], "calamity round-trips")
+	_check(live.get("city_trial", {}) == progression["city_trial"], "trial round-trips")
 
 	# SaveData carries the city in its dedicated field too.
 	var data := SaveData.new()
 	data.city = progression["city"]
 	_check(not data.city.is_empty(), "SaveData.city accepts the city dict")
 
-func _test_calamity_flow() -> void:
+func _test_trial_flow() -> void:
 	var progression := {}
-	_check(CalamitySystem.schedule(progression, _seeded_rng(1)).is_empty(),
-		"no calamity before the city exists")
+	_check(TrialSystem.schedule(progression, _seeded_rng(1)).is_empty(),
+		"no trial before the city exists")
 
 	CityBridge.add_kill_to_satchel(progression, "Forest", false)
 	CityBridge.bank_satchel(progression, 3_000_000)
@@ -118,37 +118,37 @@ func _test_calamity_flow() -> void:
 	city.add_resources({"gold": 400, "lumber": 400, "stone": 400, "essence": 100})
 	CityBridge.store_city(progression, city)
 
-	var calamity := CalamitySystem.schedule(progression, _seeded_rng(2))
-	_check(not calamity.is_empty(), "calamity arms once the city stands")
-	_check(CalamitySystem.schedule(progression, _seeded_rng(3)) == CalamitySystem.pending(progression),
-		"scheduling twice keeps the same calamity")
-	_check(int(calamity["kills_left"]) >= CalamitySystem.KILLS_TO_STRIKE_MIN,
+	var trial := TrialSystem.schedule(progression, _seeded_rng(2))
+	_check(not trial.is_empty(), "trial arms once the city stands")
+	_check(TrialSystem.schedule(progression, _seeded_rng(3)) == TrialSystem.pending(progression),
+		"scheduling twice keeps the same trial")
+	_check(int(trial["kills_left"]) >= TrialSystem.KILLS_TO_STRIKE_MIN,
 		"countdown starts inside the configured window")
 
 	# Kill until it strikes — exactly once.
 	var strikes := 0
-	for i in range(CalamitySystem.KILLS_TO_STRIKE_MAX + 5):
-		if CalamitySystem.on_kill(progression):
+	for i in range(TrialSystem.KILLS_TO_STRIKE_MAX + 5):
+		if TrialSystem.on_kill(progression):
 			strikes += 1
-	_check(strikes == 1, "the calamity strikes exactly once")
-	_check(CalamitySystem.has_struck(progression), "struck state persists")
-	_check(CalamitySystem.warning_text(progression) != "", "a struck calamity has warning text")
+	_check(strikes == 1, "the trial strikes exactly once")
+	_check(TrialSystem.has_struck(progression), "struck state persists")
+	_check(TrialSystem.warning_text(progression) != "", "a struck trial has warning text")
 
 	# The hero came back fast (few kills since strike) with heroic power.
-	var outcome := CalamitySystem.resolve(progression, 999, 3_000_100, _seeded_rng(4))
-	_check(not outcome.is_empty(), "a struck calamity resolves in town")
+	var outcome := TrialSystem.resolve(progression, 999, 3_000_100, _seeded_rng(4))
+	_check(not outcome.is_empty(), "a struck trial resolves in town")
 	_check(outcome["hero_joined"], "prompt return puts the hero on the walls")
-	_check(CalamitySystem.pending(progression).is_empty(), "resolution clears the calamity")
+	_check(TrialSystem.pending(progression).is_empty(), "resolution clears the trial")
 	city = CityBridge.get_city(progression)
-	_check(city.defense_log.size() > 0, "the defense log records the calamity")
-	_check(CalamitySystem.resolve(progression, 999, 3_000_200).is_empty(),
+	_check(city.defense_log.size() > 0, "the defense log records the trial")
+	_check(TrialSystem.resolve(progression, 999, 3_000_200).is_empty(),
 		"nothing further to resolve")
 
 	# Dawdling: strike, then many more kills before coming home.
-	CalamitySystem.schedule(progression, _seeded_rng(5))
-	for i in range(CalamitySystem.KILLS_TO_STRIKE_MAX + CalamitySystem.PROMPT_RESPONSE_KILLS + 10):
-		CalamitySystem.on_kill(progression)
-	var late := CalamitySystem.resolve(progression, 999, 3_000_300, _seeded_rng(6))
+	TrialSystem.schedule(progression, _seeded_rng(5))
+	for i in range(TrialSystem.KILLS_TO_STRIKE_MAX + TrialSystem.PROMPT_RESPONSE_KILLS + 10):
+		TrialSystem.on_kill(progression)
+	var late := TrialSystem.resolve(progression, 999, 3_000_300, _seeded_rng(6))
 	_check(not late.is_empty() and not late["hero_joined"], "a slow return leaves the city alone")
 
 func _test_disaster_resolution() -> void:
@@ -161,10 +161,10 @@ func _test_disaster_resolution() -> void:
 	CityBridge.store_city(progression, city)
 	var before_gold := int(CityBridge.get_city(progression).resources["gold"])
 
-	progression["city_calamity"] = {
+	progression["city_trial"] = {
 		"type": "great_storm", "kills_left": 0, "struck": true, "kills_since_strike": 99,
 	}
-	var outcome := CalamitySystem.resolve(progression, 0, 4_000_100, _seeded_rng(8))
+	var outcome := TrialSystem.resolve(progression, 0, 4_000_100, _seeded_rng(8))
 	_check(outcome["kind"] == "disaster", "storm resolves as a disaster")
 	var after_gold := int(CityBridge.get_city(progression).resources["gold"])
 	_check(after_gold < before_gold, "an unattended storm destroys resources")
