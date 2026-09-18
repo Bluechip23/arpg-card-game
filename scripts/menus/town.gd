@@ -678,15 +678,8 @@ func _get_current_deck_card_ids() -> Array:
 
 	var all_ids: Array = []
 
-	# Base cards — the same basic deck every character starts with (must match
-	# DeckManager._create_default_deck).
-	for i in range(4):
-		all_ids.append("slash")
-	for i in range(4):
-		all_ids.append("block")
-	all_ids.append("draw")
-	all_ids.append("gain_mana")
-	all_ids.append("heal")
+	# Base cards — the same basic deck every character starts with.
+	all_ids.append_array(DeckManager.BASIC_DECK_IDS)
 
 	# Character-specific starting cards are no longer part of the deck.
 
