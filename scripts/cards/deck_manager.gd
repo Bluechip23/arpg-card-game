@@ -190,9 +190,12 @@ func restore_deck_state(state: Dictionary) -> void:
 ## after deck builds and restores, so purchases and old saves migrate too).
 ## Base deck cap. Cards slotted into (or granted by) items ride along with
 ## their item and do NOT count toward it — they can push the deck past the cap
-## (20 deck cards + an engraved card in your boots = 21 in play, and that is
-## fine). Adding a 21st card DIRECTLY is what the cap refuses.
-const MAX_DECK_SIZE := 20
+## (12 deck cards + an engraved card in your boots = 13 in play, and that is
+## fine). Adding a 13th card DIRECTLY is what the cap refuses. The base deck
+## is deliberately small: item card slots are where a build's extra cards
+## live, so gear shapes the deck (a belt-heavy character carries more
+## daggers and potions than the 12 alone would allow).
+const MAX_DECK_SIZE := 12
 
 func get_max_deck_size() -> int:
 	return MAX_DECK_SIZE

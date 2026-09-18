@@ -145,6 +145,7 @@ Your deck is your moveset. Cards move between several zones during combat:
 
 - **Draw pile** — face-down deck. When empty, the discard pile shuffles back in.
 - **Hand** — cards you can play. Hand size = 4 + Wisdom bonus + equipment bonuses.
+- **Deck cap** — 12 cards of your own. Cards slotted into or granted by items ride along on top of that, so your gear is where a build's extra cards live.
 - **Discard pile** — where played and discarded cards go, awaiting reshuffle.
 - **Jail** — cards locked away for a set amount of tempo. Jailed cards can't be played; when their time expires they're released to the discard pile.
 - **Maintained** — active Power cards sit here, reserving mana.
