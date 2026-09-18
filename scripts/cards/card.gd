@@ -4,7 +4,23 @@ extends Resource
 ## Card resource that holds card data
 
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
-enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL, SWIFT, BUCKLER, CROWN, FIST }
+## Slot-compatibility label: which item slots a card may be enchanted into
+## (belt→Pocket, ring→Gem, boots→Swift, shield→Buckler, helm→Crown,
+## gauntlets→Fist, bow/quiver→Arrow). NONE fits weapon and chest slots only.
+## Any card may sit in the bare deck regardless of its label; a card that may
+## ONLY exist inside a slot is flagged requires_engraving (the Engrave keyword).
+enum CardKeyword { NONE, ARROW, POCKET, GEM, SWIFT, BUCKLER, CROWN, FIST }
+
+static func keyword_name(kw: int) -> String:
+	match kw:
+		CardKeyword.ARROW: return "Arrow"
+		CardKeyword.POCKET: return "Pocket"
+		CardKeyword.GEM: return "Gem"
+		CardKeyword.SWIFT: return "Swift"
+		CardKeyword.BUCKLER: return "Buckler"
+		CardKeyword.CROWN: return "Crown"
+		CardKeyword.FIST: return "Fist"
+	return ""
 
 # The card's SCHOOL — how the card is delivered — orthogonal to CardType (its
 # role: offense/defense/utility). A spell can be offensive (Fireball) or
@@ -265,7 +281,7 @@ var erase_on_play: bool = false  # If true, card is erased from the deck entirel
 var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
 var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
-var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
+var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Swift, Buckler, Crown, Fist — which item slots can take this card
 var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
 
 ## Design keywords from the card sheet ("Attack, melee", "Utility, ally, ranged",

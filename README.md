@@ -199,7 +199,7 @@ Mechanics that appear on cards:
 | **Reach** | Adds 1 tile to melee attack range. |
 | **Conditional** | Melee or ranged depending on the weapon in hand: a bow makes the card ranged (and costs +1 tempo to play), anything else makes it melee. Replaces a fixed melee/ranged tag (Exacerbate Wounds). |
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
-| **Chisel** | Card can only be played while slotted into an item — never from hand alone. |
+| **Engrave** | The card exists only inside an item's card slot: it cannot join the bare deck, and leaves it the moment it is extracted. |
 
 Some cards carry **RNG outcomes**. When the **card is drawn** the player is told if the card will be successful or a failure. **Holding the card for a certain amount of tempo will re roll this outcome**. The player will see the new outcome as well. Chance-boosting effects tilt these rolls in your favor.
 
@@ -405,7 +405,7 @@ Slotting is governed by compatibility keywords:
 | **Buckler** | Slots into shields. |
 | **Crown** | Slots into helms. |
 | **Fist** | Slots into gauntlets. |
-| **Chisel** | Card is *only* playable while slotted in an item. |
+| **Engrave** | Card lives *only* in an item's slot — never in the bare deck. |
 
 ---
 

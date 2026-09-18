@@ -742,12 +742,12 @@ func can_slot_card(card) -> bool:
 ## Returns the default required card keyword for this item type (-1 = any card allowed).
 func _get_default_keyword_for_item_type() -> int:
 	match item_type:
-		ItemType.BELT: return 2      # POCKET
-		ItemType.BOOTS: return 5     # SWIFT
-		ItemType.RING: return 3      # GEM
-		ItemType.HELM: return 7      # CROWN
-		ItemType.GAUNTLETS: return 8 # FIST
-		ItemType.QUIVER: return 1    # ARROW
+		ItemType.BELT: return Card.CardKeyword.POCKET
+		ItemType.BOOTS: return Card.CardKeyword.SWIFT
+		ItemType.RING: return Card.CardKeyword.GEM
+		ItemType.HELM: return Card.CardKeyword.CROWN
+		ItemType.GAUNTLETS: return Card.CardKeyword.FIST
+		ItemType.QUIVER: return Card.CardKeyword.ARROW
 		ItemType.WEAPON:
 			match weapon_subtype:
 				# Shields take any card. The Buckler keyword exists but no card
@@ -914,15 +914,9 @@ func get_card_slot_summary() -> String:
 	if allowed_card_keywords.size() > 0:
 		var kw_names: Array[String] = []
 		for kw in allowed_card_keywords:
-			match kw:
-				1: kw_names.append("Arrow")
-				2: kw_names.append("Pocket")
-				3: kw_names.append("Gem")
-				4: kw_names.append("Chisel")
-				5: kw_names.append("Swift")
-				6: kw_names.append("Buckler")
-				7: kw_names.append("Crown")
-				8: kw_names.append("Fist")
+			var kn := Card.keyword_name(kw)
+			if kn != "":
+				kw_names.append(kn)
 		if kw_names.size() > 0:
 			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(parts)
