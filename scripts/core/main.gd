@@ -371,6 +371,7 @@ var _camera_distance: float = 17.0 # Distance from focus point
 var _camera_orbiting: bool = false  # True while left-dragging to orbit
 var _camera_drag_start: Vector2 = Vector2.ZERO
 const CAMERA_PITCH_MIN: float = -1.4   # ~-80° (nearly top-down)
+const TOPDOWN_PITCH: float = -1.13     # ~-65°: the fixed 3/4 angle of the top-down prototype (DungeonManager.TOPDOWN_PROTOTYPE)
 const CAMERA_PITCH_MAX: float = -0.15  # ~-9° (nearly level)
 const CAMERA_ZOOM_MIN: float = 6.0
 const CAMERA_ZOOM_MAX: float = 35.0
@@ -727,19 +728,30 @@ func _update_camera() -> void:
 	var camera = get_world_camera()
 	if not camera:
 		return
+	if DungeonManager.TOPDOWN_PROTOTYPE:
+		# One fixed 3/4 angle, north up: every cell reads the same shape.
+		_camera_pitch = TOPDOWN_PITCH
+		_camera_yaw = 0.0
 	# Compute camera position on a sphere around the focus point
 	var offset = Vector3(
 		sin(_camera_yaw) * cos(_camera_pitch) * _camera_distance,
 		-sin(_camera_pitch) * _camera_distance,
 		cos(_camera_yaw) * cos(_camera_pitch) * _camera_distance
 	)
-	camera.position = _camera_focus + offset
-	camera.look_at(_camera_focus, Vector3.UP)
 	# Orthographic projection: SNES perspective has no foreshortening — this
 	# is the single biggest "reads 16-bit vs reads 3D" lever. Size is frame-
 	# matched to the old perspective view so zoom levels feel unchanged.
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = 2.0 * _camera_distance * tan(deg_to_rad(75.0) * 0.5) * 0.62
+	var focus := _camera_focus
+	if DungeonManager.TOPDOWN_PROTOTYPE and _world_viewport and _world_viewport.size.y > 0:
+		# Snap the view to whole world-viewport pixels so sprites and tiles
+		# never straddle a pixel boundary (no shimmer as the camera follows).
+		var upp: float = camera.size / float(_world_viewport.size.y)  # world units per screen pixel (vertical)
+		focus.x = snappedf(focus.x, upp)
+		focus.z = snappedf(focus.z, upp / maxf(0.2, -sin(_camera_pitch)))
+	camera.position = focus + offset
+	camera.look_at(focus, Vector3.UP)
 
 var _minimap_refresh_accum: float = 0.0
 
@@ -11974,7 +11986,8 @@ func _input(event: InputEvent) -> void:
 			# Only start orbiting if no card action is pending and no UI window
 			# is capturing the drag (otherwise dragging a scrollbar spins the map).
 			if selected_card_index < 0 and _pending_quiver_card == null and not _basic_attack_pending \
-					and _pending_gauntlet_skill == null and not _is_ui_window_open():
+					and _pending_gauntlet_skill == null and not _is_ui_window_open() \
+					and not DungeonManager.TOPDOWN_PROTOTYPE:  # fixed angle: no drag orbit
 				_camera_orbiting = true
 				_camera_drag_start = event.position
 		else:
