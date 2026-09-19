@@ -3,9 +3,9 @@ extends RefCounted
 
 ## Character questionnaire - 11 personality questions that build a unique custom character.
 ## Each answer contributes +1 stat bonus (10 total across 11 questions) and archetype affinity.
-## The final character gets custom stats, a deck of 20 cards (7 slash, 6 block, 2 heal,
-## 1 draw, 1 discard, 1 energy from base + 2 quiz cards), and an existing starting
-## item/passive/slot specialty from one of the 5 characters.
+## The final character gets custom stats, the same 10-card basic deck as every
+## preset (3 slash, 3 block, 2 draw, energy, heal — the deck cap is 12), and an
+## existing starting item/passive/slot specialty from one of the 5 characters.
 ## Nothing is invented - all cards, items, passives, and slots come from existing characters.
 
 ## Archetypes map directly to existing characters:

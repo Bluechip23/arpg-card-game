@@ -350,6 +350,38 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	print("[INVENTORY] Unequipped %s from slot %d" % [item.item_name, slot_index])
 	return item
 
+## After a disk load, items remember which card ids were slotted into them
+## (see ProgressionIO). Point those slots at the rebuilt deck's cards so the
+## item↔card link works again; a card that no longer exists is dropped.
+func relink_slotted_cards(deck_manager) -> void:
+	var pool: Array = []
+	if deck_manager:
+		for zone in [deck_manager.hand, deck_manager.draw_pile, deck_manager.discard_pile]:
+			for c in zone:
+				pool.append(c)
+	var all_items: Array = []
+	for lst in [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots,
+			equipped_gauntlets, equipped_weapons, stored_items, stash_items, rack_items]:
+		for item in lst:
+			if item is ItemData:
+				all_items.append(item)
+	for item in all_items:
+		if not item.has_meta("pending_slotted_ids"):
+			continue
+		var ids: Array = item.get_meta("pending_slotted_ids")
+		item.remove_meta("pending_slotted_ids")
+		item.slotted_cards.clear()
+		for cid in ids:
+			var found: Card = null
+			for c in pool:
+				if c.card_id == str(cid) and c.slotted_in_item == null:
+					found = c
+					break
+			if found:
+				found.slotted_in_item = item
+				item.slotted_cards.append(found)
+	equipment_changed.emit()
+
 ## True while a bow is in hand — the weapon that turns Conditional cards
 ## ranged. Wands, staves, and thrown weapons are not ranged weapons here.
 func holds_ranged_weapon() -> bool:

@@ -421,22 +421,22 @@ of** the story systems the player has used all along.
   against whatever comes. (The Sellsword co-op partner is the first of these;
   the pattern generalizes.)
 
-### 6.2 Calamities — defending the base
+### 6.2 Trials — defending the base
 
-The city periodically faces **calamities**: monster invasions and natural
+The city periodically faces **trials**: monster invasions and natural
 disasters. The player gets **a heads-up before they land**, not an ambush:
 
 - **Olorin's summons** — early in the game Olorin gives the player a signal
   item (working idea: a **flute**, its note heard wherever the player is) so
   he can call them back when the base — or something elsewhere — needs them.
 - **Card stash matters** — this is where a deep **card collection** (stash,
-  not deck size) pays off. Certain calamities/invasions are easier with
+  not deck size) pays off. Certain trials/invasions are easier with
   certain cards in the deck; a player keeps their core build but may make a
   few smart swaps for the scenario ahead. Adjusting is helpful, not required.
 
 ### 6.3 After the story
 
-- **Defend & build** — waves of calamities keep coming; the city and the
+- **Defend & build** — waves of trials keep coming; the city and the
   character(s) keep growing to meet them.
 - **Farm zones** — continuous missions/"zones" (drawn from the bestiary
   habitats: Forest, Sewer, Graveyard, Cave, Mountains, Underworld, Heavens)
@@ -468,17 +468,17 @@ disasters. The player gets **a heads-up before they land**, not an ambush:
 - `scripts/city/expedition_system.gd` — habitat yields; kills → resources.
 - `scripts/city/raid_system.gd` — rival generation, raid resolution, defense log.
 - `scripts/city/city_bridge.gd` — carries city state (city + satchel +
-  pending calamity) inside the `player_progression` dict that already rides
+  pending trial) inside the `player_progression` dict that already rides
   between scenes and into saves (`SaveData.city` + `ProgressionIO`).
-- `scripts/city/calamity_system.gd` — schedules a calamity when leaving town,
+- `scripts/city/trial_system.gd` — schedules a trial when leaving town,
   ticks its countdown on kills, strikes (Olorin's flute sounds, `main.gd
-  _announce_calamity`), resolves on reaching town (prompt return = the hero
+  _announce_trial`), resolves on reaching town (prompt return = the hero
   joins the defense).
 - `main.gd _on_enemy_killed` — every kill adds habitat resources to the
-  satchel (elites/bosses triple) and ticks the calamity countdown.
+  satchel (elites/bosses triple) and ticks the trial countdown.
 - `town.gd` — the **Town Hall** building on the plaza opens the city panel
   (stores, production, power, building upgrades, chronicle of attacks);
-  `_arrive_home()` banks the satchel, resolves struck calamities, and hands
+  `_arrive_home()` banks the satchel, resolves struck trials, and hands
   over the flute on the founding shipment.
 - Tested end-to-end: `tests/test_city_loop.gd` (data loop) and
   `tests/test_city_wiring.gd` (game wiring).
@@ -528,9 +528,11 @@ the repo. Keep this table honest as the code changes.
 | **The Sewers (Act 1, Part 1)** | `dungeon_manager.gd` (`interior_kind == "sewer"`: `_generate_sewer_layout`, `_build_sewer_decorations`, `_define_sewer_spawn_zones`), `main.gd` (`_apply_world_ambience` sewer branch + `_ensure_player_torch`), `torch_flicker.gd`, `sewer_critter.gd` | **Built.** The opening dungeon: trunk + water channels, Rat King arena, west→east rat/ooze → boss → croc/swarm/crawler progression, dim torchlit atmosphere, reduced fog. Reached via a sewer grate site in World 1. See Section 5.4. |
 | **The Greenwood (Act 1, Forest)** | `dungeon_manager.gd` (`interior_kind == "forest"`: `_generate_forest_layout`, `_place_forest_features`, `_build_forest_decorations`, `_define_forest_spawn_zones`), `main.gd` (forest ambience, terrain-trap + tree-climb systems, tutorial), `sewer_critter.gd` (squirrels) | **Built.** Open clearings/trails/hills; climbable trees → high ground (+ one-time tutorial); bear traps (7 dmg / 10 to bears) and hunter dart tripwires (5 dmg) that hit players *and* enemies; pits; squirrels; bright fog. Reached via a forest trailhead site in World 1. See Section 5.4. |
 | **Caves (Act 1, Cave)** | `dungeon_manager.gd` (`interior_kind == "cave"`: `_generate_cave_layout` + `_place_cave_puddles`, `_build_cave_decorations`, darkened `CAVE_PALETTE`), `main.gd` (cave ambience + player torch) | **Built/enhanced.** Dark stone tunnels darker than the sewers; stalagmites, stalactites (dripping), puddles, divots, player torch. Reached via cave-mouth sites. See Section 5.4. |
-| **The City (end-game loop)** | `scripts/city/` (state, expeditions, raids, bridge, calamities); Town Hall panel in `town.gd`; kill hook in `main.gd`; saved in `SaveData.city` | Wired and tested (`tests/test_city_loop.gd`, `tests/test_city_wiring.gd`). See Section 6.5. |
+| **The City (end-game loop)** | `scripts/city/` (state, expeditions, raids, bridge, trials); Town Hall panel in `town.gd`; kill hook in `main.gd`; saved in `SaveData.city` | Wired and tested (`tests/test_city_loop.gd`, `tests/test_city_wiring.gd`). See Section 6.5. |
 | **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; feeds the compendium and future intent-reveals. 11 enemy types today (Section 5.3). |
 | **Quests** | `scripts/core/quest_manager.gd` | Currently kill-quests only; Olorin is the sole giver. |
+| **Quests** | `scripts/core/quest_manager.gd` | Data-driven quest chain from Olorin and the Sellsword (Rat Infestation → Holy Water for the Well, Bear Traps, The Faithless, Fire Wall Breach, The High Road, The Missing Woodcutter, A Debt to the Sellsword, What the Crows Saw → Trial Warning; Ferryman's Toll in Act 2). World objects they need: the Town Well, the Drowned Shrine (sewer), rescue NPCs, the feather trail and the hidden Old Graveyard. |
+| **Healing fountains** | `scripts/core/dungeon_manager.gd` (`_place_fountains`) | Holy-water basins in every zone: drink to heal (spends the blessing; a vial of Holy Water from enemies restores it) or bathe once for a +20% XP blessing. The pilgrim's rest between Olorin's trials. |
 | **Town hub** | `scripts/menus/town.gd` | Persistent vendors (Blacksmith, Armory, Card Dealer, Accessory Shop, Stash) + Olorin + waypoint/transport. The shell the city loop will be wired into. |
 
 ### Code naming follow-up `[TODO]`
@@ -548,7 +550,7 @@ toward **habitats** rather than acts.
 Decided:
 - ✅ **The game is a base builder at heart.** The end-game is the **City**
   (Section 6): send resources home during the story, recruit NPCs, defend
-  against calamities, farm zones, eventually field multiple heroes together.
+  against trials, farm zones, eventually field multiple heroes together.
   The roguelike end-game is **removed** (may return someday as a separate
   mode).
 - ✅ **Terminology:** four **Acts** across one world; each Act is a plane.
@@ -564,7 +566,7 @@ Decided:
 Still open:
 0. **Grow the city loop** (the wiring is in — Section 6.5): building
    placement/visuals, NPC unlock/recruitment beats beyond the Sellsword,
-   raids in the UI, calamity defense as a playable battle, the multi-hero
+   raids in the UI, trial defense as a playable battle, the multi-hero
    end-game. Also decide **who designs the town** (player authority vs.
    premeditated unlocks — Section 6.4).
 1. **Solidify creature themes:** go habitat by habitat and define each

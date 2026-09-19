@@ -187,6 +187,51 @@ static func create_auto_grant_for_level(level: int) -> AutoGrant:
 # These create empty/placeholder skill trees with proper structure.
 # The actual options will be filled in later.
 
+## The tree for a preset identity (see CharacterData.get_base_character);
+## anything else gets the placeholder tree. Used to rebuild a saved tree.
+static func create_tree_for(base_name: String, max_level: int = 20, archetypes: Array = []) -> SkillTreeData:
+	match base_name:
+		"Brad": return create_brad_tree(max_level)
+		"Stephen": return create_stephen_tree(max_level)
+		"Ryan": return create_ryan_tree(max_level)
+		"Cory": return create_cory_tree(max_level)
+		"Jeremy": return create_jeremy_tree(max_level)
+	return create_placeholder_tree(base_name, max_level, archetypes)
+
+## Plain-data snapshot of every choice made on this tree (disk-safe): which
+## option each level took, plus the retrospective picks. The tree's
+## structure itself is rebuilt from the character on load (create_tree_for).
+func collect_choices() -> Dictionary:
+	var chosen := {}
+	for row in rows:
+		if row.chosen_index != -1:
+			chosen[row.level] = row.chosen_index
+	return {
+		"character_name": character_name,
+		"chosen": chosen,
+		"retrospective_picks": retrospective_picks.duplicate(true),
+		"retro_level_choices": retro_level_choices.duplicate(true),
+	}
+
+## Re-apply a collect_choices() snapshot onto this (freshly built) tree.
+func apply_choices(state: Dictionary) -> void:
+	var chosen: Dictionary = state.get("chosen", {})
+	for row in rows:
+		if chosen.has(row.level):
+			row.chosen_index = int(chosen[row.level])
+		elif chosen.has(str(row.level)):
+			row.chosen_index = int(chosen[str(row.level)])
+	retrospective_picks = {}
+	for k in state.get("retrospective_picks", {}):
+		var picks: Array[int] = []
+		for v in state["retrospective_picks"][k]:
+			picks.append(int(v))
+		retrospective_picks[int(k)] = picks
+	retro_level_choices = {}
+	for k in state.get("retro_level_choices", {}):
+		var entry: Dictionary = state["retro_level_choices"][k]
+		retro_level_choices[int(k)] = {"source_level": int(entry.get("source_level", 0)), "option_index": int(entry.get("option_index", -1))}
+
 static func create_placeholder_tree(char_name: String, max_level: int = 20, archetypes: Array = []) -> SkillTreeData:
 	var tree = SkillTreeData.new()
 	tree.character_name = char_name

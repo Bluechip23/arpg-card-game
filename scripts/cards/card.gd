@@ -4,7 +4,33 @@ extends Resource
 ## Card resource that holds card data
 
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
-enum CardKeyword { NONE, ARROW, POCKET, GEM, CHISEL, SWIFT, BUCKLER, CROWN, FIST }
+## Slot-compatibility label: which item slots a card may be enchanted into
+## (belt→Pocket, ring→Gem, boots→Swift, shield→Buckler, helm→Crown,
+## gauntlets→Fist, bow/quiver→Arrow, chest→Bulwark, and every weapon type
+## its own: Sword, Axe, Dagger, Hammer, Spear, Wand, Tome, Staff). Any card may sit in the bare
+## deck; an unlabeled card can ONLY sit there. A card that may only exist
+## inside a slot is flagged requires_engraving (the Engrave keyword).
+enum CardKeyword { NONE, ARROW, POCKET, GEM, SWIFT, BUCKLER, CROWN, FIST, SWORD, AXE, DAGGER, HAMMER, SPEAR, BULWARK, WAND, TOME, STAFF }
+
+static func keyword_name(kw: int) -> String:
+	match kw:
+		CardKeyword.ARROW: return "Arrow"
+		CardKeyword.POCKET: return "Pocket"
+		CardKeyword.GEM: return "Gem"
+		CardKeyword.SWIFT: return "Swift"
+		CardKeyword.BUCKLER: return "Buckler"
+		CardKeyword.CROWN: return "Crown"
+		CardKeyword.FIST: return "Fist"
+		CardKeyword.SWORD: return "Sword"
+		CardKeyword.AXE: return "Axe"
+		CardKeyword.DAGGER: return "Dagger"
+		CardKeyword.HAMMER: return "Hammer"
+		CardKeyword.SPEAR: return "Spear"
+		CardKeyword.BULWARK: return "Bulwark"
+		CardKeyword.WAND: return "Wand"
+		CardKeyword.TOME: return "Tome"
+		CardKeyword.STAFF: return "Staff"
+	return ""
 
 # The card's SCHOOL — how the card is delivered — orthogonal to CardType (its
 # role: offense/defense/utility). A spell can be offensive (Fireball) or
@@ -265,7 +291,37 @@ var erase_on_play: bool = false  # If true, card is erased from the deck entirel
 var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
 var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
-var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Chisel - determines which items can slot this card
+## Slot labels: every item slot a card may be enchanted into (Pocket, Crown,
+## Gem, …). A card may carry several. Any card can sit in the bare deck; an
+## UNLABELED card can only sit there — it is never slottable. Engrave cards
+## must carry at least one label, since a slot is the only place they exist.
+var slot_labels: Array = []  # of CardKeyword
+
+## Single-label view for older code and factories: reads the first label,
+## writes replace the whole list.
+var card_keyword: CardKeyword:
+	get:
+		return slot_labels[0] if not slot_labels.is_empty() else CardKeyword.NONE
+	set(v):
+		slot_labels = [] if v == CardKeyword.NONE else [v]
+
+func has_slot_label(kw: int) -> bool:
+	return kw in slot_labels
+
+func is_slottable() -> bool:
+	return not slot_labels.is_empty()
+
+func add_slot_labels(labels: Array) -> void:
+	for kw in labels:
+		if kw != CardKeyword.NONE and kw not in slot_labels:
+			slot_labels.append(kw)
+
+func slot_label_names() -> String:
+	## "Crown / Gem / Pocket" for card faces and shop text; "" when unlabeled.
+	var names: Array[String] = []
+	for kw in slot_labels:
+		names.append(keyword_name(kw))
+	return " / ".join(names)
 var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
 
 ## Design keywords from the card sheet ("Attack, melee", "Utility, ally, ranged",
@@ -1916,7 +1972,8 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Replenish: attacks heal a % of damage dealt.
 	if card_type == CardType.ATTACK and player_stats:
 		# get_equipment_lifesteal folds in the Coffin Lid's below-half bonus.
-		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.get_equipment_lifesteal()
+		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.get_equipment_lifesteal() \
+			+ player_stats.quest_life_steal_bonus  # The Faithless' kept shrine
 		# Coffin Lid: cards slotted into it drink on their own.
 		ls_pct += float(get_on_self_bonus().get("lifesteal_percent", 0.0))
 		if player_stats.inventory and "equipped_weapons" in player_stats.inventory:

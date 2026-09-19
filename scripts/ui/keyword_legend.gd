@@ -102,7 +102,6 @@ func _build_legend() -> void:
 	_add_keyword("Enchant", "Places a card into an item's card slot. Card is removed from the deck. Card keyword must match item type", Color(0.8, 0.6, 1.0))
 	_add_keyword("Extract", "Removes a card from an item's card slot and returns it to the discard pile", Color(1.0, 0.4, 0.4))
 	_add_keyword("Molded", "Card is locked into the item and cannot be removed (extracted)", Color(0.6, 0.6, 0.6))
-	_add_keyword("Chisel", "Card must be slotted in an item to be played. Cannot be played from hand alone", Color(0.9, 0.7, 0.3))
 	_add_keyword("On-Self", "Bonus effects that apply to cards slotted in that specific item, on top of the item's base bonuses", Color(0.6, 0.9, 0.6))
 
 	# Movement Section

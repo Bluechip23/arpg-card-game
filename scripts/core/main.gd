@@ -527,6 +527,10 @@ func _ready() -> void:
 			_refresh_hand_info_popup())
 	player.move_completed.connect(_on_player_move_completed)
 	player.tile_reached.connect(_on_player_tile_reached)
+	if not is_multiplayer and player.get_stats():
+		# Solo: falling sends the character back to the start of the level
+		# (co-op uses the downed/revive flow in _setup_co_op_defeat instead).
+		player.get_stats().died.connect(_on_solo_player_died)
 	player.set_grid_manager(grid_manager)
 	player.enemy_spawner = enemy_spawner
 	player.ground_y_provider = Callable(self, "_desired_ground_y")
@@ -720,13 +724,30 @@ func _update_camera() -> void:
 	var camera = get_world_camera()
 	if not camera:
 		return
-	# The angle is not negotiable: anything that poked the yaw/pitch (old
-	# harnesses, scripted moments) snaps back to the fixed view. Orthographic
-	# projection: SNES perspective has no foreshortening — this is the single
-	# biggest "reads 16-bit vs reads 3D" lever.
-	_camera_yaw = CameraView.YAW
-	_camera_pitch = CameraView.PITCH
-	CameraView.apply(camera, _camera_focus, _camera_distance)
+	if DungeonManager.TOPDOWN_PROTOTYPE:
+		# One fixed 3/4 angle, north up: every cell reads the same shape.
+		_camera_pitch = TOPDOWN_PITCH
+		_camera_yaw = 0.0
+	# Compute camera position on a sphere around the focus point
+	var offset = Vector3(
+		sin(_camera_yaw) * cos(_camera_pitch) * _camera_distance,
+		-sin(_camera_pitch) * _camera_distance,
+		cos(_camera_yaw) * cos(_camera_pitch) * _camera_distance
+	)
+	# Orthographic projection: SNES perspective has no foreshortening — this
+	# is the single biggest "reads 16-bit vs reads 3D" lever. Size is frame-
+	# matched to the old perspective view so zoom levels feel unchanged.
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 2.0 * _camera_distance * tan(deg_to_rad(75.0) * 0.5) * 0.62
+	var focus := _camera_focus
+	if DungeonManager.TOPDOWN_PROTOTYPE and _world_viewport and _world_viewport.size.y > 0:
+		# Snap the view to whole world-viewport pixels so sprites and tiles
+		# never straddle a pixel boundary (no shimmer as the camera follows).
+		var upp: float = camera.size / float(_world_viewport.size.y)  # world units per screen pixel (vertical)
+		focus.x = snappedf(focus.x, upp)
+		focus.z = snappedf(focus.z, upp / maxf(0.2, -sin(_camera_pitch)))
+	camera.position = focus + offset
+	camera.look_at(focus, Vector3.UP)
 
 var _minimap_refresh_accum: float = 0.0
 
@@ -745,6 +766,12 @@ func _process(delta: float) -> void:
 		dungeon_manager.update_waypoint_prompts(pg)
 		dungeon_manager.update_site_prompts(pg)
 		dungeon_manager.update_tree_prompts(pg)
+		dungeon_manager.update_fountain_prompts(pg)
+		dungeon_manager.update_shrine_prompt(pg)
+		_update_trap_prompt(pg)
+		_update_rescue_npc_prompts(pg)
+		dungeon_manager.update_feather_visibility()
+		_check_hidden_site_discovery(pg)
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
@@ -4026,6 +4053,9 @@ func _on_player_tile_reached() -> void:
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
 	var _vacated_cell := _player_last_grid_cell
 	_player_last_grid_cell = player_cell
+	# A rescued NPC follows one tile behind, onto the tile just vacated.
+	if _follower and is_instance_valid(_follower) and _vacated_cell.x >= 0 and _vacated_cell != player_cell:
+		_follower.step_to(_ground_pos(_vacated_cell), _vacated_cell)
 
 	# Elemental Trail Blazers: moving with flash points leaves fire on the vacated tile.
 	if _vacated_cell.x >= 0 and _vacated_cell != player_cell:
@@ -4543,6 +4573,496 @@ func _all_players() -> Array:
 	return [player]
 
 # ---- Co-op downed / revive / defeat ----
+
+#endregion
+#region SOLO DEFEAT: BACK TO THE START OF THE LEVEL
+var _solo_fallen: bool = false
+
+func _on_solo_player_died() -> void:
+	## No permadeath, no run reset (CLAUDE.md): the character falls, and rises
+	## again at the start of the level they are in — same world, same
+	## interior, everything they carry intact. Enemies stay where they are.
+	if is_multiplayer or _solo_fallen:
+		return
+	_solo_fallen = true
+	player.cancel_movement()
+	add_battle_log("You have fallen.", Color(1.0, 0.3, 0.3))
+	print("[MAIN] Solo defeat — returning to the start of %s" % get_location_label())
+	_show_fallen_overlay()
+
+func _show_fallen_overlay() -> void:
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "FallenOverlay"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.0)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.add_theme_constant_override("separation", 18)
+	box.modulate.a = 0.0
+	overlay.add_child(box)
+
+	var title := Label.new()
+	title.text = "FALLEN"
+	title.add_theme_font_size_override("font_size", 56)
+	title.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var sub := Label.new()
+	sub.text = "You come to at the start of %s.\nEverything you carry is still yours." % get_location_label()
+	sub.add_theme_font_size_override("font_size", 20)
+	sub.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+
+	var rise_btn := Button.new()
+	rise_btn.text = "Rise"
+	rise_btn.custom_minimum_size = Vector2(220, 44)
+	rise_btn.pressed.connect(func():
+		_respawn_at_level_start()
+		overlay.queue_free())
+	box.add_child(rise_btn)
+
+	var tw := create_tween()
+	tw.tween_property(overlay, "color:a", 0.8, 0.6)
+	tw.parallel().tween_property(box, "modulate:a", 1.0, 0.6)
+
+func _respawn_at_level_start() -> void:
+	## Put the fallen character back on their feet at the level's start tile:
+	## full health, statuses cleared, nothing else touched.
+	var stats = player.get_stats()
+	if stats:
+		stats.current_health = stats.max_health
+		stats.health_changed.emit(stats.current_health, stats.max_health)
+	player.debuff_manager.clear_all_debuffs()
+	player.cancel_movement()
+	player.is_moving = false
+	player.move_path.clear()
+	if _climbed_tree_tile.x >= 0:
+		_clear_climbed_tree()
+	var start: Vector3 = dungeon_manager.get_player_start_world() if dungeon_manager else Vector3.ZERO
+	start.y = _desired_ground_y(start)
+	player.position = start
+	player.target_position = start
+	_player_last_grid_cell = grid_manager.world_to_grid(start)
+	if _follower and is_instance_valid(_follower):
+		# The follower scrambles back too, one tile beside you.
+		var beside := dungeon_manager.pick_free_cell_near(_player_last_grid_cell, 2) if dungeon_manager else Vector2i(-1, -1)
+		if beside.x >= 0:
+			_follower.place_at(_ground_pos(beside), beside)
+	if dungeon_manager:
+		_camera_focus = player.position + Vector3(2, 0, 0)
+		_update_camera()
+		_update_fog_of_war()
+	_solo_fallen = false
+	add_battle_log("You rise again at the start of %s." % get_location_label(), Color(0.5, 1.0, 0.6))
+	print("[MAIN] Respawned at %s" % str(grid_manager.world_to_grid(start)))
+
+#endregion
+#region QUEST NPCS: RESCUES, FOLLOWERS, THE LUMBER DEPOT
+var _rescue_npcs: Array = []      # RescueNpc nodes placed for active quests
+var _follower: RescueNpc = null   # the one currently trailing the player
+
+const WOODCUTTER_SHEET := "res://assets/sprites/NPCpackage2/npc man B v02.png"
+const PARTNER_SHEET := "res://assets/sprites/NPCpackage2/npc girl v03.png"
+
+func _ground_pos(cell: Vector2i) -> Vector3:
+	var p := grid_manager.grid_to_world(cell)
+	p.y = _desired_ground_y(p)
+	return p
+
+func _place_quest_npcs() -> void:
+	## Rescue targets appear in their interior while their quest wants them
+	## found or walked out; the rescued foreman stands at the Greenwood
+	## trailhead on the surface as a lumber depot afterwards.
+	if quest_manager == null or dungeon_manager == null or sandbox_mode:
+		return
+	var kind: String = dungeon_manager.interior_kind
+	if kind == "forest" and (quest_manager.is_objective_active("missing_woodcutter", 0)
+			or quest_manager.is_objective_active("missing_woodcutter", 1)):
+		_spawn_rescue_npc("npc_woodcutter", "Aldric the Foreman", WOODCUTTER_SHEET, "deep")
+	if kind == "cave" and (quest_manager.is_objective_active("sellswords_debt", 0)
+			or quest_manager.is_objective_active("sellswords_debt", 1)):
+		_spawn_rescue_npc("npc_partner", "Maren", PARTNER_SHEET, "deep")
+	if kind == "" and quest_manager.has_flag("woodcutter_rescued"):
+		_place_woodcutter_depot()
+	# What the Crows Saw: feathers lead from the start to the hidden graveyard.
+	if kind == "" and quest_manager.is_objective_active("what_the_crows_saw", 0):
+		for s in dungeon_manager.site_nodes:
+			if s["id"] == "graveyard_0":
+				dungeon_manager.place_feather_trail(s["grid_pos"])
+
+func _spawn_rescue_npc(id: String, display_name: String, sheet: String, room_kind: String) -> RescueNpc:
+	var cell: Vector2i = dungeon_manager.pick_room_cell(room_kind)
+	if cell.x < 0:
+		cell = dungeon_manager.pick_room_cell("clearing")
+	if cell.x < 0:
+		cell = dungeon_manager.pick_room_cell("chamber")
+	if cell.x < 0:
+		return null
+	var npc := RescueNpc.new()
+	npc.setup(id, display_name, sheet, "[Shift] Talk")
+	add_child(npc)
+	npc.place_at(_ground_pos(cell), cell)
+	npc.visible = false  # until fog reveals the tile
+	_rescue_npcs.append(npc)
+	print("[MAIN] Placed rescue NPC %s at %s" % [id, cell])
+	return npc
+
+func _place_woodcutter_depot() -> void:
+	for s in dungeon_manager.site_nodes:
+		if s["kind"] != "forest":
+			continue
+		var cell: Vector2i = dungeon_manager.pick_free_cell_near(s["grid_pos"], 3)
+		if cell.x < 0:
+			return
+		var npc := RescueNpc.new()
+		npc.depot = true
+		npc.setup("npc_woodcutter_depot", "Aldric — Lumber Depot", WOODCUTTER_SHEET, "[Shift] Send satchel home")
+		add_child(npc)
+		npc.place_at(_ground_pos(cell), cell)
+		npc.visible = false
+		_rescue_npcs.append(npc)
+		return
+
+func _check_hidden_site_discovery(pg: Vector2i) -> void:
+	## Walking up to a site that is on no map puts it on the map.
+	if dungeon_manager == null:
+		return
+	var idx: int = dungeon_manager.get_hidden_site_near(pg, 2)
+	if idx < 0:
+		return
+	var site: Dictionary = dungeon_manager.site_nodes[idx]
+	dungeon_manager.discover_site(idx)
+	add_battle_log("You found the %s. The crows scatter." % site["display_name"], Color(0.8, 0.85, 1.0))
+	if quest_manager:
+		quest_manager.on_event("reach", {"object": "site_" + str(site["id"]).get_slice("_", 0)})
+	dungeon_manager.clear_feather_trail()
+	if minimap_tab_ui:
+		minimap_tab_ui._update_minimap()
+
+func _update_rescue_npc_prompts(pg: Vector2i) -> void:
+	for npc in _rescue_npcs:
+		if not is_instance_valid(npc):
+			continue
+		npc.visible = npc.following or dungeon_manager.is_revealed(npc.grid_cell)
+		var dist: int = absi(pg.x - npc.grid_cell.x) + absi(pg.y - npc.grid_cell.y)
+		npc.set_prompt_visible(dist <= 2 and not npc.following)
+
+func _nearby_rescue_npc(pg: Vector2i) -> RescueNpc:
+	for npc in _rescue_npcs:
+		if not is_instance_valid(npc):
+			continue
+		if absi(pg.x - npc.grid_cell.x) + absi(pg.y - npc.grid_cell.y) <= 1:
+			return npc
+	return null
+
+func _try_interact_rescue_npc() -> bool:
+	var npc := _nearby_rescue_npc(grid_manager.world_to_grid(player.position))
+	if npc == null:
+		return false
+	if npc.depot:
+		_send_satchel_home_at_depot(npc)
+		return true
+	if npc.following:
+		add_battle_log("%s: \"Right behind you.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
+		return true
+	npc.following = true
+	_follower = npc
+	npc.set_prompt_visible(false)
+	if quest_manager:
+		quest_manager.on_event("reach", {"object": npc.npc_id})
+	add_battle_log("%s: \"Thank the light! Stay close — I'll follow you out.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
+	return true
+
+func _deliver_follower() -> void:
+	## Leaving the interior with a rescued NPC in tow completes the escort.
+	if _follower == null or not is_instance_valid(_follower):
+		return
+	if quest_manager:
+		quest_manager.on_event("escort", {"npc": _follower.npc_id})
+	add_battle_log("You lead %s out into the daylight." % _follower.display_name, Color(0.6, 1.0, 0.6))
+	_follower = null
+
+func _send_satchel_home_at_depot(npc: RescueNpc) -> void:
+	## The rescued foreman hauls the satchel to the city so town resources
+	## bank without a trip home (and never touch the stash).
+	if not CityBridge.city_started(player_progression):
+		add_battle_log("%s: \"No city to haul to yet. Found one at the Town Hall.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
+		return
+	var pouch: Dictionary = CityBridge.satchel(player_progression)
+	var empty := true
+	for res in pouch:
+		if int(pouch[res]) > 0:
+			empty = false
+	if empty:
+		add_battle_log("%s: \"Your satchel's empty, friend.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
+		return
+	var result := CityBridge.bank_satchel(player_progression, int(Time.get_unix_time_from_system()))
+	var msg := "%s hauls %s home to the city." % [npc.display_name, CityBridge.format_resources(result["banked"])]
+	if not result["lost"].is_empty():
+		msg += " The warehouses overflowed — %s went to waste." % CityBridge.format_resources(result["lost"])
+	add_battle_log(msg, Color(0.75, 0.7, 0.5))
+
+#endregion
+#region QUEST WORLD OBJECTS: TRAP DISARM, DROWNED SHRINE, CHANNEL BREAKS
+var _trap_prompt: Label3D = null
+
+func _on_enemy_channel_broken(enemy: Enemy, action_name: String) -> void:
+	add_battle_log("%s's %s collapses — channel broken!" % [enemy.enemy_name, action_name.replace("_", " ")], Color(1.0, 0.7, 0.3))
+	if quest_manager:
+		quest_manager.on_event("channel_break", {"enemy_name": enemy.enemy_name,
+			"zone": dungeon_manager.interior_kind if dungeon_manager else ""})
+
+func _update_trap_prompt(pg: Vector2i) -> void:
+	## A floating "[Shift] Disarm" over an unsprung bear trap beside the player.
+	var idx := dungeon_manager.get_nearby_trap(pg, "bear") if dungeon_manager else -1
+	if idx < 0:
+		if _trap_prompt and is_instance_valid(_trap_prompt):
+			_trap_prompt.visible = false
+		return
+	var trap: Dictionary = dungeon_manager.trap_defs[idx]
+	var node = trap.get("node")
+	if node == null or not is_instance_valid(node):
+		return
+	if _trap_prompt == null or not is_instance_valid(_trap_prompt):
+		_trap_prompt = Label3D.new()
+		_trap_prompt.text = "[Shift] Disarm"
+		_trap_prompt.font_size = 16
+		_trap_prompt.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_trap_prompt.modulate = Color(1.0, 0.9, 0.4)
+		WorldText.crisp(_trap_prompt)
+		add_child(_trap_prompt)
+	_trap_prompt.global_position = node.global_position + Vector3(0, 1.1, 0)
+	_trap_prompt.visible = true
+
+func _try_disarm_trap() -> bool:
+	if not dungeon_manager:
+		return false
+	var pg = grid_manager.world_to_grid(player.position)
+	var idx := dungeon_manager.get_nearby_trap(pg, "bear")
+	if idx < 0:
+		return false
+	if dungeon_manager.disarm_trap(idx):
+		add_battle_log("You wedge the jaws open and pull the pin. Trap disarmed.", Color(0.6, 0.9, 0.5))
+		if quest_manager:
+			quest_manager.on_event("interact", {"object": "bear_trap", "zone": dungeon_manager.interior_kind})
+	return true
+
+func _try_interact_shrine() -> bool:
+	if not dungeon_manager or not dungeon_manager.is_near_shrine(grid_manager.world_to_grid(player.position)):
+		return false
+	if quest_manager and quest_manager.is_objective_active("the_faithless", 1):
+		_show_shrine_choice()
+	elif quest_manager and quest_manager.is_objective_active("the_faithless", 0):
+		add_battle_log("The shrine's keepers still breathe. Deal with the Faithless first.", Color(0.85, 0.7, 1.0))
+	elif quest_manager and quest_manager.get_quest("the_faithless") != null and quest_manager.get_quest("the_faithless").chosen != "":
+		add_battle_log("Only ash and silence remain here." if quest_manager.get_quest("the_faithless").chosen == "burn" else "The shrine hums softly. Its bargain holds.", Color(0.7, 0.7, 0.8))
+	else:
+		add_battle_log("A drowned shrine. Olorin might know what it is for.", Color(0.7, 0.7, 0.8))
+	return true
+
+func _show_shrine_choice() -> void:
+	var quest = quest_manager.get_quest("the_faithless")
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "ShrineChoice"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.6)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.07, 0.14, 0.97)
+	style.border_color = Color(0.6, 0.4, 0.85)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(18.0)
+	panel.add_theme_stylebox_override("panel", style)
+	overlay.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = "The Drowned Shrine"
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.85, 0.7, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var prompt := Label.new()
+	prompt.text = quest.choice.get("prompt", "")
+	prompt.add_theme_font_size_override("font_size", 14)
+	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(prompt)
+	for opt_id in quest.choice.get("options", {}):
+		var btn := Button.new()
+		btn.text = quest.choice["options"][opt_id]["label"]
+		btn.custom_minimum_size = Vector2(360, 38)
+		btn.pressed.connect(func():
+			if quest_manager.choose("the_faithless", opt_id):
+				add_battle_log("The choice is made. Return to Olorin." , Color(0.85, 0.7, 1.0))
+			overlay.queue_free())
+		box.add_child(btn)
+	var leave := Button.new()
+	leave.text = "Not yet"
+	leave.custom_minimum_size = Vector2(360, 34)
+	leave.pressed.connect(overlay.queue_free)
+	box.add_child(leave)
+
+#endregion
+#region HEALING FOUNTAINS
+# "Bathe in the light": +20% incoming XP for the next 20 kills (PlayerStats.FOUNTAIN_XP_BOOST_*), once per fountain
+var _fountain_menu: Control = null
+
+func _try_interact_fountain() -> bool:
+	## Shift beside a Healing Fountain opens its menu (or closes an open one).
+	if _fountain_menu and is_instance_valid(_fountain_menu):
+		_close_fountain_menu()
+		return true
+	if not dungeon_manager:
+		return false
+	var idx = dungeon_manager.get_nearby_fountain(grid_manager.world_to_grid(player.position))
+	if idx < 0:
+		return false
+	_show_fountain_menu(idx)
+	return true
+
+func _fountain_drink(idx: int) -> bool:
+	## Restore the active character to full health. Spends the blessing.
+	var f = dungeon_manager.fountain_nodes[idx]
+	if not f["blessed"]:
+		add_battle_log("The basin has run dry. Pour in Holy Water to bless it again.", Color(1.0, 0.6, 0.3))
+		return false
+	var stats = player.get_stats()
+	if stats:
+		var missing: int = stats.max_health - stats.current_health
+		if missing > 0:
+			stats.heal(missing)
+	dungeon_manager.set_fountain_state(idx, false, f["xp_used"])
+	add_battle_log("You drink from the fountain and feel whole again.", Color(0.5, 0.9, 1.0))
+	return true
+
+func _fountain_pour(idx: int) -> bool:
+	## Pour one vial of Holy Water in to bless a dry fountain.
+	var f = dungeon_manager.fountain_nodes[idx]
+	if f["blessed"]:
+		return false
+	var stats = player.get_stats()
+	if not stats or not stats.spend_holy_water(1):
+		add_battle_log("You have no Holy Water to pour.", Color(1.0, 0.6, 0.3))
+		return false
+	dungeon_manager.set_fountain_state(idx, true, f["xp_used"])
+	add_battle_log("The water glows again with holy light.", Color(0.5, 0.9, 1.0))
+	return true
+
+func _fountain_bathe(idx: int) -> bool:
+	## Once per fountain: +20% of the XP needed for the next level.
+	var f = dungeon_manager.fountain_nodes[idx]
+	if f["xp_used"]:
+		add_battle_log("This fountain's light has already touched you.", Color(1.0, 0.6, 0.3))
+		return false
+	var stats = player.get_stats()
+	if not stats:
+		return false
+	stats.apply_xp_boost()
+	dungeon_manager.set_fountain_state(idx, f["blessed"], true)
+	add_battle_log("You bathe in the light: +%d%% XP for your next %d kills." % [stats.xp_boost_percent, stats.xp_boost_kills_remaining], Color(0.85, 0.8, 1.0))
+	return true
+
+func _show_fountain_menu(idx: int) -> void:
+	_close_fountain_menu()
+	var ui = $UI as CanvasLayer
+	var overlay := ColorRect.new()
+	overlay.name = "FountainMenu"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui.add_child(overlay)
+	_fountain_menu = overlay
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.1, 0.14, 0.97)
+	style.border_color = Color(0.5, 0.75, 0.95)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(18.0)
+	panel.add_theme_stylebox_override("panel", style)
+	overlay.add_child(panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+
+	var f = dungeon_manager.fountain_nodes[idx]
+	var stats = player.get_stats()
+
+	var title := Label.new()
+	title.text = "Healing Fountain"
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.75, 0.92, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var status := Label.new()
+	status.text = ("The water glows with holy light." if f["blessed"] else "The basin has run dry.") \
+		+ "\nHoly Water in your pack: %d" % (stats.holy_water if stats else 0)
+	if stats and stats.has_xp_boost():
+		status.text += "\nBlessing active: +%d%% XP for %d more kills" % [stats.xp_boost_percent, stats.xp_boost_kills_remaining]
+	status.add_theme_font_size_override("font_size", 14)
+	status.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(status)
+
+	var drink := Button.new()
+	drink.text = "Drink — restore to full health"
+	drink.disabled = not f["blessed"]
+	drink.custom_minimum_size = Vector2(300, 38)
+	drink.pressed.connect(func():
+		_fountain_drink(idx)
+		_show_fountain_menu(idx))
+	box.add_child(drink)
+
+	var pour := Button.new()
+	pour.text = "Pour Holy Water — bless the fountain (1 vial)"
+	pour.disabled = f["blessed"] or stats == null or stats.holy_water <= 0
+	pour.custom_minimum_size = Vector2(300, 38)
+	pour.pressed.connect(func():
+		_fountain_pour(idx)
+		_show_fountain_menu(idx))
+	box.add_child(pour)
+
+	var bathe := Button.new()
+	bathe.text = ("Bathe in the light — +%d%% XP for your next %d kills (once)" % [PlayerStats.FOUNTAIN_XP_BOOST_PERCENT, PlayerStats.FOUNTAIN_XP_BOOST_KILLS]) if not f["xp_used"] else "Bathe in the light — already taken"
+	bathe.disabled = f["xp_used"]
+	bathe.custom_minimum_size = Vector2(300, 38)
+	bathe.pressed.connect(func():
+		_fountain_bathe(idx)
+		_show_fountain_menu(idx))
+	box.add_child(bathe)
+
+	var close := Button.new()
+	close.text = "Leave"
+	close.custom_minimum_size = Vector2(300, 34)
+	close.pressed.connect(_close_fountain_menu)
+	box.add_child(close)
+
+func _close_fountain_menu() -> void:
+	if _fountain_menu and is_instance_valid(_fountain_menu):
+		_fountain_menu.queue_free()
+	_fountain_menu = null
 
 #endregion
 #region CO-OP: DOWNED & DEFEAT
@@ -5125,6 +5645,7 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
 	enemy.movement_completed.connect(_on_enemy_movement_completed)
 	enemy.barricade_attacked.connect(_on_enemy_barricade_attacked)
+	enemy.channel_broken.connect(_on_enemy_channel_broken)
 	# Give enemy a reference to dungeon_manager for elevation lookups
 	if dungeon_manager:
 		enemy.dungeon_manager = dungeon_manager
@@ -5318,12 +5839,15 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	progression_triggers._trigger_sphere_passives("on_kill", {"target": enemy})
 	# Cory: Eat — heal on kill
 	progression_triggers._trigger_skill_tree_cory_on_kill(enemy)
-	# Quest tracking
+	# Quest tracking: what died, where, and whether the active player held
+	# the high ground when it did (The High Road).
 	if quest_manager:
-		quest_manager.on_enemy_killed(enemy.enemy_name)
+		quest_manager.on_enemy_killed(enemy.enemy_name,
+			dungeon_manager.interior_kind if dungeon_manager else "",
+			_is_on_high_ground(player.position))
 
 	# City loop: every kill adds habitat resources to the satchel headed home,
-	# and ticks any brewing calamity's countdown (STORY.md §6).
+	# and ticks any brewing trial's countdown (STORY.md §6).
 	if not sandbox_mode and current_character:
 		var zone := CityBridge.zone_for_area(
 			dungeon_manager.interior_kind if dungeon_manager else "", current_world_level)
@@ -5332,8 +5856,8 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 		var gained := CityBridge.add_kill_to_satchel(player_progression, zone, elite)
 		if not gained.is_empty():
 			add_battle_log("Satchel: %s" % CityBridge.format_resources(gained), Color(0.75, 0.7, 0.5))
-		if CalamitySystem.on_kill(player_progression):
-			_announce_calamity()
+		if TrialSystem.on_kill(player_progression):
+			_announce_trial()
 
 	# First-room tutorial: the very first rat felled in the story carries the
 	# Bladed Doughnut (injected into its loot in _on_loot_dropped, which fires
@@ -5379,22 +5903,22 @@ func _on_all_enemies_defeated() -> void:
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
-func _announce_calamity() -> void:
-	## A calamity just struck the city — Olorin's flute sounds the alarm
+func _announce_trial() -> void:
+	## A trial just struck the city — Olorin's flute sounds the alarm
 	## (the signal item he gave the player when the city was founded).
-	var warning := CalamitySystem.warning_text(player_progression)
+	var warning := TrialSystem.warning_text(player_progression)
 	add_battle_log("A shrill flute-note pierces the air! %s" % warning, Color(1.0, 0.4, 0.35))
-	print("[MAIN] Calamity struck: %s" % warning)
+	print("[MAIN] Trial struck: %s" % warning)
 	if olorin:
 		olorin.show_tutorial(
-			"calamity_strike",
+			"trial_strike",
 			"The Flute Cries Out",
 			[
 				"A single piercing note cuts through the din of battle — Olorin's flute, and it does not sing for nothing.",
 				"\"%s\"" % warning,
 				"Return to town swiftly and the garrison will not stand alone. Linger, and the city must weather it without you.",
 			],
-			true  # the flute sounds for every calamity, not just the first
+			true  # the flute sounds for every trial, not just the first
 		)
 
 #endregion
@@ -11183,6 +11707,14 @@ func _input(event: InputEvent) -> void:
 				return
 			if waypoint_mgr._try_interact_waypoint():
 				return
+			if _try_interact_fountain():
+				return
+			if _try_interact_shrine():
+				return
+			if _try_interact_rescue_npc():
+				return
+			if _try_disarm_trap():
+				return
 			chest_loot_ui._try_interact_chest()
 			return
 
@@ -11502,14 +12034,19 @@ func _setup_dungeon() -> void:
 	if not quest_manager:
 		quest_manager = QuestManager.new()
 		quest_manager.name = "QuestManager"
+		quest_manager.world_level = current_world_level
 		add_child(quest_manager)
 		# Restore quest state from previous scene (persists kills across worlds)
 		if not quest_state.is_empty():
 			quest_manager.load_state(quest_state)
-		else:
-			# First time: auto-accept available quests so they appear in quest log
+		elif sandbox_mode:
+			# Sandbox boots straight into battle: take every offer so the
+			# quest log has something to show. Real play accepts via Olorin.
 			for quest_id in quest_manager.available_quests.keys():
 				quest_manager.accept_quest(quest_id)
+	quest_manager.world_level = current_world_level
+	# Quest NPCs live in the world only while their quest needs them.
+	_place_quest_npcs()
 
 	# Setup minimap
 	minimap_tab_ui._setup_minimap()
@@ -11673,6 +12210,7 @@ func _enter_interior(interior_id: String, display_name: String = "") -> void:
 
 func _exit_interior() -> void:
 	print("[MAIN] Leaving %s, returning to World %d" % [current_interior_id, current_world_level])
+	_deliver_follower()
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
@@ -13153,7 +13691,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 	_spawn_loot_drop(loot, pos)
 
 func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
-	var has_any: bool = int(loot.get("gold", 0)) > 0 \
+	var has_any: bool = int(loot.get("gold", 0)) > 0 or int(loot.get("holy_water", 0)) > 0 \
 		or loot.get("item") != null or loot.get("card") != null \
 		or loot.get("card_pack") != null \
 		or int(loot.get("culling_stones", 0)) > 0
@@ -13314,6 +13852,9 @@ func _loot_summary(loot: Dictionary) -> String:
 	var stones = int(loot.get("culling_stones", 0))
 	if stones > 0:
 		parts.append("+%d Culling Stone%s" % [stones, "s" if stones > 1 else ""])
+	var vials = int(loot.get("holy_water", 0))
+	if vials > 0:
+		parts.append("+%d Holy Water" % vials)
 	var item: ItemData = loot.get("item")
 	if item:
 		parts.append("Item: %s" % item.item_name)
@@ -13403,6 +13944,14 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 		if inventory:
 			inventory.culling_stones += culling_stones
 			messages.append("+%d Culling Stone" % culling_stones)
+
+	# Holy Water vials — poured into a Healing Fountain to bless it again.
+	var vials = int(loot.get("holy_water", 0))
+	if vials > 0:
+		looter.get_stats().gain_holy_water(vials)
+		messages.append("+%d Holy Water" % vials)
+		if quest_manager:
+			quest_manager.sync_held({"holy_water": looter.get_stats().holy_water})
 
 	# Item drop
 	var item: ItemData = loot.get("item")
@@ -13536,6 +14085,12 @@ func _restore_player_progression(progression: Dictionary) -> void:
 	if progression.has("skill_tree") and progression["skill_tree"] != null:
 		skill_tree_ui.set_skill_tree(progression["skill_tree"])
 		skill_tree_ui.set_player_level(stats.current_level if stats else 1)
+	elif progression.has("skill_tree_choices") and skill_tree_ui.skill_tree:
+		# Disk load: the tree was rebuilt for the character in select_character;
+		# put the saved choices back onto it.
+		skill_tree_ui.skill_tree.apply_choices(progression["skill_tree_choices"])
+		skill_tree_ui.set_skill_tree(skill_tree_ui.skill_tree)
+		skill_tree_ui.set_player_level(stats.current_level if stats else 1)
 
 	# Restore sphere grid with all unlocked nodes intact
 	if progression.has("sphere_grid") and progression["sphere_grid"] != null:
@@ -13579,6 +14134,8 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			# re-grants what equipped items own.
 			inv.apply_equipped_item_card_effects()
 			inv.equipment_changed.emit()
+			# Disk load: items carry slotted card ids — point them at the rebuilt deck.
+			inv.relink_slotted_cards(deck_manager)
 
 	# Update UI displays
 	_on_player_health_changed(stats.current_health, stats.max_health)
@@ -13604,7 +14161,7 @@ func _save_player_progression() -> Dictionary:
 	}
 	# Deck state (each pile saved separately to preserve hand exactly)
 	progression["deck_state"] = deck_manager.save_deck_state()
-	# City-loop state (satchel, city, pending calamity) rides along untouched.
+	# City-loop state (satchel, city, pending trial) rides along untouched.
 	CityBridge.carry_keys(player_progression, progression)
 	# Equipped items and stored items (Resource objects survive scene change)
 	var inv = player.get_inventory()
@@ -13635,6 +14192,7 @@ func _save_player_progression() -> Dictionary:
 	return progression
 
 func _travel_to_town() -> void:
+	_deliver_follower()
 	print("[MAIN] Traveling to town!")
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()

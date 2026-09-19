@@ -185,7 +185,7 @@ func _on_enemy_turn_completed() -> void:
 # ============================================
 
 func _generate_loot(enemy: Enemy) -> Dictionary:
-	var loot: Dictionary = {"gold": 0, "item": null, "card": null, "card_pack": null, "culling_stones": 0}
+	var loot: Dictionary = {"gold": 0, "item": null, "card": null, "card_pack": null, "culling_stones": 0, "holy_water": 0}
 
 	# Ring Wraiths resummon and grant no XP — no loot either, so the shadow
 	# can never be farmed.
@@ -218,6 +218,11 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 	var culling_chance = _get_culling_stone_drop_chance(enemy.enemy_type)
 	if randf() < culling_chance:
 		loot["culling_stones"] = 1
+
+	# Holy Water vial: the fountain currency. Rarer than gold on trash,
+	# common on elites, and every boss carries one.
+	if randf() < _holy_water_drop_chance(enemy.enemy_type):
+		loot["holy_water"] = 1
 
 	# Item drop chance (varies by enemy type)
 	var item_chance = _get_item_drop_chance(enemy.enemy_type)
@@ -275,6 +280,13 @@ func _get_culling_stone_drop_chance(type: Enemy.EnemyType) -> float:
 
 ## Loot tier for an enemy type (see DropRates): trash never rolls high-end
 ## loot on its own, bosses roll the richest table. Unlisted types are "mid".
+func _holy_water_drop_chance(type: Enemy.EnemyType) -> float:
+	match get_loot_tier(type):
+		DropRates.TIER_TRASH: return 0.08
+		DropRates.TIER_ELITE: return 0.40
+		DropRates.TIER_BOSS: return 1.0
+	return 0.15
+
 func get_loot_tier(type: Enemy.EnemyType) -> String:
 	match type:
 		Enemy.EnemyType.MINION, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, \

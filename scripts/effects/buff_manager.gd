@@ -472,6 +472,9 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 		sphere_crit = owner_stats.sphere_bonus_crit
 	if owner_stats and "equipment_crit_bonus" in owner_stats:
 		sphere_crit += owner_stats.equipment_crit_bonus
+	# Quest choices (the burned shrine) add permanent crit.
+	if owner_stats and "quest_crit_bonus" in owner_stats:
+		sphere_crit += owner_stats.quest_crit_bonus
 	# One-shot on-self crit (Monocle: offensive ranged slotted card)
 	if owner_stats and "temp_on_self_crit_bonus" in owner_stats:
 		sphere_crit += owner_stats.temp_on_self_crit_bonus

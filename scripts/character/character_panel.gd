@@ -676,7 +676,7 @@ func _rebuild_combat_rows() -> void:
 		_make_stat_row("armor", "Armor Gain")
 		_make_stat_row("damage_taken", "Dmg Taken")
 	_set_stat("attack", "%d" % player_stats.get_effective_physical_damage(0))
-	_set_stat("crit", "%d%%" % (player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit) + player_stats.get_hand_size_crit_bonus()))
+	_set_stat("crit", "%d%%" % (player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit) + int(player_stats.quest_crit_bonus) + player_stats.get_hand_size_crit_bonus()))
 	_set_stat("crit_dmg", "%d%%" % roundi(player_stats.get_crit_damage_multiplier() * 100))
 	_set_stat("movement", "%d / %d" % [player_stats.current_flash_points, player_stats.get_max_flash_points()])
 	_set_stat("draw", "every %.0f tempo" % player_stats.get_effective_draw_timer())
@@ -1750,15 +1750,9 @@ func _open_card_slot_panel(item: ItemData) -> void:
 		var restrict_label = Label.new()
 		var keyword_names: Array[String] = []
 		for kw in item.allowed_card_keywords:
-			match kw:
-				1: keyword_names.append("Arrow")
-				2: keyword_names.append("Pocket")
-				3: keyword_names.append("Gem")
-				4: keyword_names.append("Chisel")
-				5: keyword_names.append("Swift")
-				6: keyword_names.append("Buckler")
-				7: keyword_names.append("Crown")
-				8: keyword_names.append("Fist")
+			var kn := Card.keyword_name(kw)
+			if kn != "":
+				keyword_names.append(kn)
 		restrict_label.text = "Accepts: %s cards only" % ", ".join(keyword_names)
 		restrict_label.add_theme_font_size_override("font_size", 11)
 		restrict_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
@@ -1886,18 +1880,8 @@ func _open_card_slot_panel(item: ItemData) -> void:
 
 				var card_label = Label.new()
 				var info = card.card_name
-				if card.card_keyword != 0:  # Not NONE
-					var kw_name = ""
-					match card.card_keyword:
-						1: kw_name = "Arrow"
-						2: kw_name = "Pocket"
-						3: kw_name = "Gem"
-						4: kw_name = "Chisel"
-						5: kw_name = "Swift"
-						6: kw_name = "Buckler"
-						7: kw_name = "Crown"
-						8: kw_name = "Fist"
-					info += " [%s]" % kw_name
+				if card.is_slottable():
+					info += " [%s]" % card.slot_label_names()
 				card_label.text = info
 				card_label.add_theme_font_size_override("font_size", 12)
 				card_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))
@@ -2079,7 +2063,7 @@ func _update_storage_grid() -> void:
 	inv_header_hbox.add_child(spacer)
 
 	var gold_label = Label.new()
-	gold_label.text = "Gold: %d" % player_stats.gold
+	gold_label.text = "Gold: %d    Holy Water: %d" % [player_stats.gold, player_stats.holy_water]
 	gold_label.add_theme_font_size_override("font_size", 10)
 	gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	inv_header_hbox.add_child(gold_label)

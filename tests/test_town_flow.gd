@@ -86,14 +86,15 @@ func _test_quest_markers() -> void:
 
 	var rewards = qm2.turn_in_quest("olorin_kill_wererats")
 	_check(rewards.get("gold", 0) == 50, "turn-in pays out")
-	_check(qm2.marker_state_for("Olorin") == "", "turned in: marker goes away")
+	_check(qm2.marker_state_for("Olorin") == "available", "turned in: Olorin's next errands are on offer")
+	_check("olorin_kill_wererats" not in qm2.available_quests, "…but the rat quest itself is done for good")
 
 	# A turned-in quest must not resurface as a fresh offer on the next load.
 	var saved2 = qm2.save_state()
 	var qm3 = QuestManager.new()
 	qm3._ready()
 	qm3.load_state(saved2)
-	_check(qm3.marker_state_for("Olorin") == "", "reload after turn-in: no phantom ! on Olorin")
+	_check("olorin_kill_wererats" not in qm3.available_quests and qm3.is_quest_turned_in("olorin_kill_wererats"), "reload after turn-in: no phantom re-offer of the rat quest")
 	_check(qm3.is_quest_started("olorin_kill_wererats"), "reload after turn-in: portal still open")
 
 	# The town's marker painter.

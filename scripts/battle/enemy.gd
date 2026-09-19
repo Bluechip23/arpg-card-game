@@ -287,6 +287,7 @@ var chosen_action: Dictionary = {}
 ##   "label": "Name"    Display name (defaults to name.capitalize()).
 const TRIGGER_EVENTS := ["damaged", "exposed", "ally_died", "half_health"]
 signal action_fired(enemy: Enemy, action_name: String)
+signal channel_broken(enemy: Enemy, action_name: String)  # a Channel collapsed (disrupted)
 var _async_counters: Dictionary = {}     # action name -> tempo counted on its own clock
 var _async_gap: bool = true              # true when no Async clock was mid-count at the end of the last tempo
 var _channel_action: Dictionary = {}     # the action being channeled ({} = none)
@@ -1085,7 +1086,9 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			]
 		EnemyType.FIRE_GOBLIN_SHAMAN:
 			actions = [
-				{"name": "fire_wall",   "tempo_cost": 8},
+				# Fire Wall is the game's teaching Channel: the last 4 of its 8
+				# tempo are spent channeling, and 8 damage in that window breaks it.
+				{"name": "fire_wall",   "tempo_cost": 8, "channel": 4, "disrupt": 8},
 				{"name": "sear_wounds", "tempo_cost": 6},
 				{"name": "goblin_move", "tempo_cost": 3},
 			]
@@ -2258,6 +2261,7 @@ func _break_channel(reason: String) -> void:
 	elif kind == "async":
 		_async_counters[str(action["name"])] = 0
 	print("[%s] %s disrupted (%s) — clock restarts" % [enemy_name, action_label(action), reason])
+	channel_broken.emit(self, str(action["name"]))
 
 func _on_damage_for_disrupt(hit: int) -> void:
 	## Disruptable: damage taken while an action counts (or channels) piles up
