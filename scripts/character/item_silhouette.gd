@@ -12,11 +12,11 @@ var _faint := true
 
 ## Slot icons cut from the purchased icon packs (tools/build_craftpix_props.py,
 ## assets/textures/craftpix/ui/). Keys: ItemType index, or "w<subtype>" for
-## an equipped weapon's ItemData.WeaponSubtype. Types without a pack icon
-## (belt, quiver, wand, the any-weapon composite) keep the drawn shape.
+## an equipped weapon's ItemData.WeaponSubtype. Only the any-weapon
+## composite (an empty hand slot) keeps the drawn shape.
 const ICON_DIR := "res://assets/textures/craftpix/ui/"
 const ICONS := {
-	0: "slot_helm", 1: "slot_chest", 2: "slot_ring", 4: "slot_boots", 5: "slot_gauntlets",
+	0: "slot_helm", 1: "slot_chest", 2: "slot_ring", 3: "slot_belt", 4: "slot_boots", 5: "slot_gauntlets", 7: "slot_quiver",
 	"w0": "slot_sword", "w1": "slot_bow", "w2": "slot_shield", "w4": "slot_polearm", "w5": "slot_dagger",
 	"w6": "slot_axe", "w7": "slot_hammer", "w8": "slot_wand", "w9": "slot_tome", "w10": "slot_staff",
 }

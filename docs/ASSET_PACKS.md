@@ -60,6 +60,9 @@ Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 | Hurt | 256 | 256 | 320 | 256 | 256 | 256 | 320 | 320 | 512 | 512 |
 | Death | 512 | 640 | 448 | 576 | 384 | 576 | 448 | 640 | 1664 | 1024 |
 
+| `skeletons/Skeleton1..3` | 64×64 cells. Sword skeletons: plain (1), blue-plumed armoured (2), red-gold captain (3) | Idle 4 · Walk 6 · Run 8 · Attack 9 · Hurt 4 · Death 6 | `Shadow.png` | Graveyard / Sewers undead | **in game**: `skeleton` = Skeleton1 ×1.15; Skeleton2/3 free for elite and captain kinds |
+| `goblins/Goblin1..3` | 64×64 cells. Green dagger goblin (1), orange armoured swordsman (2), plumed feather-dancer (3). Sheets are named without the variant prefix (`Idle0_…`, `Idle_…`, `Run_attack_…`); the rig tolerates that | Idle 4 · Walk 6 · Run 8 · Attack 5 · Walk_Attack 6 · Run_Attack 8 · Hurt 4 · Death 6 | `Shadow_single`, `Shadow_death` | The fire goblin warband (ART_TODO #2) | **in game**: `fire_goblin_soldier` = Goblin2, `fire_goblin_mage` = Goblin1, `fire_goblin_shaman` = Goblin3, all with a warm tint |
+
 ## Craftpix object / icon packs
 
 | Folder | Sheet | Grid | Contents | Candidate use | Status |
@@ -72,6 +75,9 @@ Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 | | `Armor.png` 896×160 | 32×32, 28 × 5 | Same armour pieces shown worn on a mannequin bust, front / side / back (paper-doll preview strips) | Equipment preview panel; reference for combat paper-doll outfits (ART_TODO #4) | staged |
 | | `Weapons.png` 384×96 | 32×32, 12 × 3 | Weapons drawn at rest angle (blades, polearms, bows, shields) | Weapon-slot icons; drop sprites on the ground | staged |
 | | `Furniture.png` 96×320 | 32×32 grid, pieces up to 96×64 | Armour stands, weapon racks, display tables | Blacksmith / armoury interior dressing in Town and the City | staged |
+
+| `knight_armor_icons/` | 100 single 32×32 PNGs | Gauntlets, helms, chest plates, belts, capes, leg armour, boots — 20 of each, plain to gilded | Equipment icons per item tier; **in game**: `slot_belt` (icon_25_2_01) fills the belt slot silhouette |
+| `weapon_icons/` | 100 single 32×32 PNGs | Swords, bows, arrows, hammers, maces, shields, spears, staves, axes, scythes — plain to elemental | Weapon icons per item tier; **in game**: `slot_quiver` (icon_47, an arrow) fills the quiver slot silhouette |
 
 ## Craftpix top-down tilesets (`assets/sprites/craftpix/tileset_*/`)
 
@@ -98,6 +104,8 @@ billboard.
 | `tileset_cursed_land/` | `Ground` 720×560 · `Objects` 784×704 · `Water_coasts` 416×960 · `bridges` 672×304 · `details` · `spots` · 138 separate props | Flesh-and-vein hellscape: eye-plants, jaw plants, meat flowers, pustules, tentacle plants, fetus pods, bone piles, veins, cursed rocks, ruins, flesh bridges | **Act 2 — Hell** ground & set dressing (hell basalt tile variant, ART_TODO #7); calamity "corruption" spreading toward the City | **in game**: World 4 Emberfall floor (`floor_cursed`) |
 | `tileset_undead_land/` | `Ground_rocks` 496×592 · `Objects` 768×704 · `Water_coasts` 1056×256 · `Details` 576×176 · `Animation1..6` · 240 separate props | Graveyard / barrow land: crowned giant skeleton half-buried (3 poses), iron fences & gates, dead trees (**Animation1 = 6-frame swaying dead tree**, others: candles, ghostfire, bones), skull piles, ribcages, rocks, candles, grave markers | **Graveyard / Cemetery** (Act 1 Part 2 `[TBD]` in STORY.md) — graveyard soil + headstones (ART_TODO #7); Lich / Zombie / Ghost habitat | **in game**: World 5 Umbral Expanse floor (`floor_undead`) |
 | `tileset_forest/` | `Ground_grass` 304×368 · `Objects` 816×272 · `Water_coasts` 238×768 · `Water_lilis` 240×192 · `spots_lianas` 336×544 · 89 separate props | Temperate forest: 14 tree types incl. climbable-looking canopies, bushes, stones (beige / brown / light), ruins (grass / orange), broken trees, mushrooms, reeds, lily pads, lianas | **The Greenwood** (Act 1 Part 3, built) — replaces generated billboard trees / shrubs / mushrooms / logs / reeds, climbable tree variant; forest ruins for quest sites | **in game**: Greenwood floor + trails (`floor_grass_forest`, `floor_dirt_forest`) |
+| `tileset_desert/` | `Ground_grass` 480×176 · `Objects` 768×368 · `Objects_trees` 800×528 · `Objects_animated` 672×512 · `Water_coasts` 224×768 · `sand` (dune strokes overlay) · `details` · 268 separate props | Sand and dry scrub with sandstone cliffs; palms, round trees, dead curved trees, cacti, sandstone mesas and rocks, bones and skulls, sand ruins, pyramids and gates, oasis trees with waterfalls (animated) | **in game**: World 2 Amber Wastes — scrub floor, sand trails, sandstone walls, oasis water, all props (`desert_*` roles) |
+| `tileset_winter/` | `Snow` 224×384 (drift + sparkle overlays, no solid tile) · `Ice` 384×448 (semi-transparent crack overlay) · `Objects` 576×1008 · `details` · `spots` · 122 separate props in 16/32/64/128/512 folders | Snow-laden pines and firs, ice trees, ice and crystal flowers, crystal clusters, frost mushrooms, snowmen, stones, frozen ruins, idols | **in game**: World 3 Frostreach — snow floor and frozen water are composed from the overlays over a flat colour; slush trails and grey stone walls borrow the barrow pack; all props (`winter_*` roles) |
 | `tileset_grassland/` | `ground_grasss` 336×256 · `Trees_rocks` 256×544 · `Water_coasts` 272×576 · `Details` 192×224 · 76 separate props | Open glades: 5 trees (incl. fruit tree), 19 bushes, 11 flowers, rock outcrops, and **overgrown stone ruins / walls / arches** | World 1 overworld around Town; the ruin walls are a strong fit for **City walls & expansion plots** (base builder) | **in game**: World 1 floor + trails (`floor_grass_field`, `floor_dirt_field`) |
 
 ## Integration notes
@@ -139,6 +147,8 @@ billboard.
 |---|---|
 | 1 | giant_rat, lich, swordsman_lvl4_6, treasure_32x32 |
 | 2 | demons, ghost, gnolls, zombie, lizardmen, slime, golem, tileset_cave, tileset_glowing_cave, tileset_cursed_land, tileset_undead_land, tileset_forest, tileset_grassland, armor_weapons_icons |
+| 3 | skeletons, goblins, tileset_desert, knight_armor_icons, weapon_icons |
+| 4 | tileset_winter |
 
 ## Not yet staged
 
