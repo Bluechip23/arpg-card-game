@@ -628,13 +628,13 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 
 	# Stimulant: healing with a Pocket card → healed target draws a card
 	# (rank-scaled cooldown 19..5 tempo)
-	if stats.has_skill_tree_passive("stimulant") and card.card_keyword == Card.CardKeyword.POCKET and card.heal_amount > 0 and stats.st_stimulant_cooldown <= 0:
+	if stats.has_skill_tree_passive("stimulant") and card.has_slot_label(Card.CardKeyword.POCKET) and card.heal_amount > 0 and stats.st_stimulant_cooldown <= 0:
 		stats.st_stimulant_cooldown = PassiveScaling.value("stimulant", "cooldown", stats.get_passive_level("stimulant"))
 		main.deck_manager.attempt_draw()
 		main.add_battle_log("Stimulant: healed target drew a card!", Color(0.4, 0.9, 0.4))
 
 	# Mad Scientist: last card played changes outcome of potion (POCKET) cards
-	if stats.has_skill_tree_passive("mad_scientist") and card.card_keyword == Card.CardKeyword.POCKET and main._last_played_card:
+	if stats.has_skill_tree_passive("mad_scientist") and card.has_slot_label(Card.CardKeyword.POCKET) and main._last_played_card:
 		var last_type = main._last_played_card.card_type
 		var buff_mgr = main.player.get_buff_manager()
 		var is_heal_outcome = card.heal_amount > 0

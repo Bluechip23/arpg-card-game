@@ -727,34 +727,51 @@ func can_slot_card(card) -> bool:
 		if feral_idx >= 0 and feral_idx < slot_colors.size():
 			if card.element != str(slot_colors[feral_idx]):
 				return false
-	# Check card keyword compatibility
-	# If item has explicit allowed_card_keywords, use those
+	# Slot labels: an unlabeled card lives in the deck only and can never be
+	# slotted; a labeled card may go into any slot one of its labels names.
+	if not card.is_slottable():
+		return false
 	if allowed_card_keywords.size() > 0:
-		if card.card_keyword not in allowed_card_keywords:
+		# Explicit allow-list on the item: any shared label will do.
+		var ok := false
+		for kw in card.slot_labels:
+			if kw in allowed_card_keywords:
+				ok = true
+				break
+		if not ok:
 			return false
 	else:
 		# Default restrictions based on item type
 		var required = _get_default_keyword_for_item_type()
-		if required >= 0 and card.card_keyword != required:
+		if required >= 0 and not card.has_slot_label(required):
 			return false
 	return true
 
-## Returns the default required card keyword for this item type (-1 = any card allowed).
+## Returns the default required card label for this item type (-1 = any
+## LABELED card; unlabeled cards are refused by can_slot_card regardless).
 func _get_default_keyword_for_item_type() -> int:
 	match item_type:
-		ItemType.BELT: return 2      # POCKET
-		ItemType.BOOTS: return 5     # SWIFT
-		ItemType.RING: return 3      # GEM
-		ItemType.HELM: return 7      # CROWN
-		ItemType.GAUNTLETS: return 8 # FIST
-		ItemType.QUIVER: return 1    # ARROW
+		ItemType.BELT: return Card.CardKeyword.POCKET
+		ItemType.BOOTS: return Card.CardKeyword.SWIFT
+		ItemType.RING: return Card.CardKeyword.GEM
+		ItemType.HELM: return Card.CardKeyword.CROWN
+		ItemType.GAUNTLETS: return Card.CardKeyword.FIST
+		ItemType.QUIVER: return Card.CardKeyword.ARROW
+		ItemType.CHEST: return Card.CardKeyword.BULWARK
 		ItemType.WEAPON:
 			match weapon_subtype:
-				# Shields take any card. The Buckler keyword exists but no card
-				# carries it yet, and a shield's slots must not sit dead.
-				WeaponSubtype.BOW: return -1     # ARROW + standard attacks (handled by allowed_card_keywords)
-				_: return -1  # Shields, swords and other weapons accept any card
-	return -1  # CHEST and others accept any card
+				WeaponSubtype.BOW: return Card.CardKeyword.ARROW
+				WeaponSubtype.SHIELD: return Card.CardKeyword.BUCKLER
+				WeaponSubtype.SWORD: return Card.CardKeyword.SWORD
+				WeaponSubtype.AXE: return Card.CardKeyword.AXE
+				WeaponSubtype.DAGGER: return Card.CardKeyword.DAGGER
+				WeaponSubtype.HAMMER: return Card.CardKeyword.HAMMER
+				WeaponSubtype.POLEARM: return Card.CardKeyword.SPEAR
+				WeaponSubtype.WAND: return Card.CardKeyword.WAND
+				WeaponSubtype.TOME: return Card.CardKeyword.TOME
+				WeaponSubtype.STAFF: return Card.CardKeyword.STAFF
+				_: return -1  # "Other" weapons take any labeled card
+	return -1
 
 func slot_card(card) -> bool:
 	if not can_slot_card(card):
@@ -914,15 +931,9 @@ func get_card_slot_summary() -> String:
 	if allowed_card_keywords.size() > 0:
 		var kw_names: Array[String] = []
 		for kw in allowed_card_keywords:
-			match kw:
-				1: kw_names.append("Arrow")
-				2: kw_names.append("Pocket")
-				3: kw_names.append("Gem")
-				4: kw_names.append("Chisel")
-				5: kw_names.append("Swift")
-				6: kw_names.append("Buckler")
-				7: kw_names.append("Crown")
-				8: kw_names.append("Fist")
+			var kn := Card.keyword_name(kw)
+			if kn != "":
+				kw_names.append(kn)
 		if kw_names.size() > 0:
 			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
 	return "\n".join(parts)

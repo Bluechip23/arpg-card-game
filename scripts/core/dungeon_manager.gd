@@ -15,6 +15,13 @@ var GRID_W: int = 70
 var GRID_H: int = 46
 const FOG_REVEAL_RADIUS: int = 6   # Tiles revealed around the player
 const ELEV_STEP: float = 0.5       # World units of height per elevation level
+
+## TOP-DOWN PROTOTYPE. True = the ground is drawn as an autotiled 16px tile
+## layer (grass/dirt/water/cliff-top with edge transitions, placeholder art
+## generated from each palette at runtime) and Main locks the camera to one
+## fixed 3/4 angle with pixel snapping. False = the original tinted-slab
+## terrain and free orbit. Flip to compare the two looks in the same scene.
+const TOPDOWN_PROTOTYPE := true
 const WAYPOINT_MOUND_HEIGHT: float = 0.22  # Raised dirt mound under every waypoint ring
 # Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
 # walls stay hidden: max wall = 1.5 + 0.9 noise + 2 elevation * ELEV_STEP = 3.4,
@@ -214,6 +221,8 @@ var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, sp
 var spawn_zones: Array = []     # [{trigger_rect, spawn_points, enemy_types, spawned}]
 var waypoint_nodes: Array = []  # [{node, grid_pos, target, display_name, label_node, discovered, pillar_mesh}]
 var site_nodes: Array = []      # [{node, grid_pos (entrance), id, kind, display_name, label_node, footprint}]
+var fountain_nodes: Array = []  # [{node, grid_pos, label_node, water_mesh, blessed, xp_used}] — see _place_fountains
+var shrine_node: Dictionary = {}  # The Faithless' drowned shrine (sewer deep chamber): {node, grid_pos, label_node}
 var player_start: Vector2i = Vector2i(2, 23)
 
 var grid_manager: GridManager
@@ -262,6 +271,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "sewer"
 	elif interior_id.begins_with("forest"):
 		interior_kind = "forest"
+	elif interior_id.begins_with("graveyard"):
+		interior_kind = "graveyard"
 
 	# Fog scales with how lit the place is: tight, lightless sewers reveal least,
 	# the bright open forest reveals most, everything else uses the default.
@@ -291,7 +302,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	# Layout + elevation
 	_init_water()
 	match interior_kind:
-		"cave":
+		"cave", "graveyard":
 			_generate_cave_layout()
 		"building":
 			_generate_building_layout()
@@ -320,10 +331,15 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	else:
 		_place_exit_site()
 	_place_chests()
+	_place_fountains()
+	_place_shrine()
 	_define_spawn_zones()
 
 	# Terrain visuals
-	_build_floor_visuals()
+	if TOPDOWN_PROTOTYPE:
+		_build_autotile_ground()
+	else:
+		_build_floor_visuals()
 	_build_walls()
 	_build_elevation_visuals()
 	_build_decorations()
@@ -341,7 +357,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		spawn_zones.size(), site_nodes.size()])
 
 func _set_world_size() -> void:
-	if interior_kind == "cave":
+	if interior_kind == "cave" or interior_kind == "graveyard":
 		GRID_W = 36 + world_level * 2
 		GRID_H = 26 + world_level
 		player_start = Vector2i(3, GRID_H / 2)
@@ -386,9 +402,29 @@ func _set_world_size() -> void:
 			GRID_H = 46
 	player_start = Vector2i(2, GRID_H / 2)
 
+var _graveyard_palette: Dictionary = {}
+
+func _get_graveyard_palette() -> Dictionary:
+	## Cold, moonlit stone: the cave palette shifted grey-green.
+	if _graveyard_palette.is_empty():
+		_graveyard_palette = CAVE_PALETTE.duplicate(true)
+		_graveyard_palette["name"] = "Graveyard"
+		_graveyard_palette["floor_a"] = Color(0.16, 0.19, 0.16)
+		_graveyard_palette["floor_b"] = Color(0.11, 0.14, 0.12)
+		_graveyard_palette["wall_a"] = Color(0.24, 0.26, 0.25)
+		_graveyard_palette["wall_b"] = Color(0.14, 0.16, 0.16)
+		_graveyard_palette["cliff"] = Color(0.20, 0.22, 0.21)
+		_graveyard_palette["accent"] = Color(0.34, 0.38, 0.30)
+		_graveyard_palette["ambient"] = Color(0.16, 0.19, 0.21)
+		_graveyard_palette["sun"] = Color(0.62, 0.70, 0.78)
+		_graveyard_palette["sun_energy"] = 0.35
+	return _graveyard_palette
+
 func get_palette() -> Dictionary:
 	if interior_kind == "cave":
 		return CAVE_PALETTE
+	if interior_kind == "graveyard":
+		return _get_graveyard_palette()
 	if interior_kind == "building":
 		return BUILDING_PALETTE
 	if interior_kind == "sewer":
@@ -402,7 +438,7 @@ func floor_texture_path() -> String:
 	match interior_kind:
 		"sewer", "building":
 			return "res://assets/textures/tile_brick.png"
-		"cave":
+		"cave", "graveyard":
 			return "res://assets/textures/tile_dirt.png"
 	return "res://assets/textures/tile_grass.png"
 
@@ -423,6 +459,8 @@ func get_location_name() -> String:
 		return "Sewers"
 	if interior_kind == "forest":
 		return "Greenwood"
+	if interior_kind == "graveyard":
+		return "Old Graveyard"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -1246,6 +1284,146 @@ func _build_floor_visuals() -> void:
 
 var _chamfer_mesh_cache: Dictionary = {}
 
+# ============================================
+# AUTOTILED GROUND (top-down prototype)
+# ============================================
+# Every walkable cell is one 16px tile from an atlas: 5 terrains × 16 edge
+# variants. A cell's variant is the 4-bit mask of which of its N/E/S/W
+# neighbours are a *different* terrain, so grass meets dirt with a shadowed
+# lip, dirt fades into grass with a dust edge, water carries a foam rim
+# against land, and raised ground draws a sun-lit lip over its drop.
+# The atlas is placeholder art built from the location palette at runtime;
+# a real tileset drops in by replacing _make_placeholder_atlas with a load.
+
+enum Terrain { GRASS, DIRT, WATER, PIT, HIGH }
+const ATLAS_TILE := 16
+const ATLAS_MASKS := 16
+var _atlas_cache: Dictionary = {}  # palette name -> ImageTexture
+
+func _terrain_of(x: int, z: int) -> int:
+	if is_water(Vector2i(x, z)):
+		return Terrain.WATER
+	if pit_tiles.has(Vector2i(x, z)):
+		return Terrain.PIT
+	if elevation[x][z] > 0:
+		return Terrain.HIGH
+	if trail[x][z]:
+		return Terrain.DIRT
+	return Terrain.GRASS
+
+func _neighbor_differs(x: int, z: int, nx: int, nz: int, t: int) -> bool:
+	## Walls never draw an edge on the floor beside them (the wall's own
+	## skirt does that); everything else edges where the terrain changes,
+	## and raised ground edges only against lower floor.
+	if nx < 0 or nx >= GRID_W or nz < 0 or nz >= GRID_H:
+		return false
+	if grid[nx][nz] != Tile.FLOOR:
+		return false
+	if t == Terrain.HIGH:
+		return elevation[nx][nz] < elevation[x][z]
+	return _terrain_of(nx, nz) != t
+
+func _build_autotile_ground() -> void:
+	var pal = get_palette()
+	var atlas := _make_placeholder_atlas(pal)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var tw := 1.0 / ATLAS_MASKS
+	var th := 1.0 / Terrain.size()
+	var count := 0
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.FLOOR:
+				continue
+			var t := _terrain_of(x, z)
+			var mask := 0
+			if _neighbor_differs(x, z, x, z - 1, t): mask |= 1   # N
+			if _neighbor_differs(x, z, x + 1, z, t): mask |= 2   # E
+			if _neighbor_differs(x, z, x, z + 1, t): mask |= 4   # S
+			if _neighbor_differs(x, z, x - 1, z, t): mask |= 8   # W
+			var y: float = elevation[x][z] * ELEV_STEP + 0.004
+			if t == Terrain.WATER:
+				y = -0.02
+			var u0 := mask * tw
+			var v0 := t * th
+			var u1 := u0 + tw
+			var v1 := v0 + th
+			var a := Vector3(x, y, z)
+			var b := Vector3(x + 1, y, z)
+			var c := Vector3(x + 1, y, z + 1)
+			var d := Vector3(x, y, z + 1)
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(u0, v0)); st.add_vertex(a)
+			st.set_uv(Vector2(u1, v0)); st.add_vertex(b)
+			st.set_uv(Vector2(u1, v1)); st.add_vertex(c)
+			st.set_uv(Vector2(u0, v0)); st.add_vertex(a)
+			st.set_uv(Vector2(u1, v1)); st.add_vertex(c)
+			st.set_uv(Vector2(u0, v1)); st.add_vertex(d)
+			count += 1
+	var mesh := st.commit()
+	var mi := MeshInstance3D.new()
+	mi.name = "AutotileGround"
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = atlas
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.roughness = 1.0
+	mi.material_override = mat
+	_visuals_root.add_child(mi)
+	print("[DUNGEON] Autotiled %d ground tiles (%s)" % [count, pal.get("name", "")])
+
+static func _px_hash(x: int, y: int, salt: int) -> float:
+	var h := int((x * 73856093) ^ (y * 19349663) ^ (salt * 83492791)) & 0x7fffffff
+	return float(h % 1000) / 1000.0
+
+func _make_placeholder_atlas(pal: Dictionary) -> ImageTexture:
+	## Placeholder tileset in the location's palette: speckled bases with a
+	## 2px edge band on every side the mask marks as "different terrain".
+	var key: String = str(pal.get("name", "")) + "|" + interior_kind
+	if _atlas_cache.has(key):
+		return _atlas_cache[key]
+	var img := Image.create(ATLAS_TILE * ATLAS_MASKS, ATLAS_TILE * Terrain.size(), false, Image.FORMAT_RGBA8)
+	var ground: Color = pal.get("ground", Color(0.1, 0.1, 0.1))
+	var floor_a: Color = pal.get("floor_a", Color(0.3, 0.5, 0.25))
+	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
+	var trail_c: Color = pal.get("trail", Color(0.34, 0.28, 0.18))
+	var water_c: Color = pal.get("water", Color(0.16, 0.3, 0.5))
+	var water_e: Color = pal.get("water_edge", water_c.lightened(0.25))
+	# [base_a, base_b, edge] per terrain
+	var styles := {
+		Terrain.GRASS: [floor_a, floor_b, floor_b.darkened(0.35)],
+		Terrain.DIRT: [trail_c, trail_c.lerp(floor_b, 0.25), trail_c.lightened(0.28)],
+		Terrain.WATER: [water_c, water_e, Color(0.85, 0.92, 1.0).lerp(water_e, 0.3)],
+		Terrain.PIT: [ground.darkened(0.5), ground.darkened(0.3), ground],
+		Terrain.HIGH: [floor_a.lightened(0.14), floor_b.lightened(0.14), Color(1.0, 0.98, 0.85).lerp(floor_a, 0.45)],
+	}
+	for t in range(Terrain.size()):
+		var base_a: Color = styles[t][0]
+		var base_b: Color = styles[t][1]
+		var edge: Color = styles[t][2]
+		for mask in range(ATLAS_MASKS):
+			var ox := mask * ATLAS_TILE
+			var oy := t * ATLAS_TILE
+			for py in range(ATLAS_TILE):
+				for px in range(ATLAS_TILE):
+					var n := _px_hash(px, py, t * 7 + 1)
+					var col: Color = base_a.lerp(base_b, 1.0 if n > 0.72 else 0.0)
+					if t == Terrain.WATER and n > 0.93:
+						col = base_b.lightened(0.2)  # ripple glints
+					# Edge bands: 2px on marked sides, 1px inner darker line for grass/high
+					var on_edge := (mask & 1 and py < 2) or (mask & 2 and px >= ATLAS_TILE - 2) 						or (mask & 4 and py >= ATLAS_TILE - 2) or (mask & 8 and px < 2)
+					if on_edge:
+						col = edge
+						if t == Terrain.WATER and n > 0.6:
+							col = edge.lightened(0.15)  # foam sparkle
+					# Drop shadow under raised ground: the south edge reads as a lip
+					if t == Terrain.HIGH and (mask & 4) and py == ATLAS_TILE - 3:
+						col = floor_b.darkened(0.45)
+					img.set_pixel(ox + px, oy + py, col)
+	var tex := ImageTexture.create_from_image(img)
+	_atlas_cache[key] = tex
+	return tex
+
 func _chamfered_unit_box(bh: float, ys: float) -> ArrayMesh:
 	## Unit box (drop-in for BoxMesh transforms) whose top rim is chamfered so
 	## wall and cliff silhouettes read as rounded SNES ledges, not razor edges.
@@ -1399,6 +1577,9 @@ func _build_elevation_visuals() -> void:
 					"color": pal["ground"],
 				})
 			# Top surface: matches the floor palette but reads slightly sun-lit
+			# (the autotile layer draws elevated tops itself in the prototype).
+			if TOPDOWN_PROTOTYPE:
+				continue
 			var top_col: Color = pal["floor_a"].lerp(pal["floor_b"], _tile_noise(x, z, 11)).lightened(0.12)
 			top_items.append({
 				"xform": Transform3D(
@@ -3160,7 +3341,60 @@ func _place_sites() -> void:
 
 		_create_site(kind, id, display_name, footprint, entrance, fx, fz, fp_w, fp_d)
 
+	_place_hidden_graveyard(candidates)
 	print("[DUNGEON] Placed %d enterable sites" % site_nodes.size())
+
+func _place_hidden_graveyard(candidates: Array) -> void:
+	## What the Crows Saw: World 1 hides an Old Graveyard in the field room
+	## farthest from the start. It is built like any site but stays off the
+	## minimap (site["hidden"]) until the player walks up to it.
+	if world_level != 1 or interior_kind != "" or candidates.is_empty():
+		return
+	var best_idx := -1
+	var best_d := -1
+	for room_idx in candidates:
+		var c: Vector2i = rooms[room_idx]["rect"].get_center()
+		var d := absi(c.x - player_start.x) + absi(c.y - player_start.y)
+		if d > best_d:
+			best_d = d
+			best_idx = room_idx
+	if best_idx < 0:
+		return
+	var rect: Rect2i = rooms[best_idx]["rect"]
+	var fp_w := 3
+	var fp_d := 3
+	var fx = clampi(rect.get_center().x - fp_w / 2, rect.position.x + 1, rect.end.x - fp_w - 1)
+	var fz = rect.position.y + 1
+	var footprint: Array = []
+	for x in range(fx, fx + fp_w):
+		for z in range(fz, fz + fp_d):
+			footprint.append(Vector2i(x, z))
+	var entrance = Vector2i(fx + fp_w / 2, fz + fp_d)
+	if not _try_block_footprint(footprint):
+		return
+	rooms[best_idx]["kind"] = "site"
+	_create_site("graveyard", "graveyard_0", "Old Graveyard", footprint, entrance, fx, fz, fp_w, fp_d)
+	var site: Dictionary = site_nodes[site_nodes.size() - 1]
+	site["hidden"] = not _opened_chests_ref.get(_site_found_key("graveyard_0"), false)
+
+func _site_found_key(site_id: String) -> String:
+	return "world_%d_site_%s_found" % [world_level, site_id]
+
+func get_hidden_site_near(player_grid: Vector2i, radius: int = 2) -> int:
+	for i in range(site_nodes.size()):
+		if not site_nodes[i].get("hidden", false):
+			continue
+		var sp: Vector2i = site_nodes[i]["grid_pos"]
+		if absi(player_grid.x - sp.x) + absi(player_grid.y - sp.y) <= radius:
+			return i
+	return -1
+
+func discover_site(index: int) -> void:
+	## A hidden site found on foot: onto the minimap, remembered in world state.
+	if index < 0 or index >= site_nodes.size():
+		return
+	site_nodes[index]["hidden"] = false
+	_opened_chests_ref[_site_found_key(site_nodes[index]["id"])] = true
 
 func _try_block_footprint(footprint: Array) -> bool:
 	## Marks footprint tiles as walls; reverts if that would split the map.
@@ -3211,6 +3445,8 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	site_root.position = center
 
 	match kind:
+		"graveyard":
+			_build_graveyard_gate(site_root, fp_w, fp_d)
 		"building":
 			_build_building_exterior(site_root, fp_w, fp_d)
 		"sewer":
@@ -3317,6 +3553,61 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 		window.material_override = win_mat
 		window.position = Vector3(side * w * 0.3, 1.1, d / 2.0 + 0.02)
 		root.add_child(window)
+
+func _build_graveyard_gate(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## Two weathered stone pillars, a lintel, and an iron gate standing open
+	## on the south face; the dark beyond is the way down.
+	var stone := _pixel_mat("res://assets/textures/tile_rock.png", Color(0.62, 0.66, 0.64))
+	for side in [-1.0, 1.0]:
+		var pillar = MeshInstance3D.new()
+		var pm = BoxMesh.new()
+		pm.size = Vector3(0.7, 2.4, 0.7)
+		pillar.mesh = pm
+		pillar.material_override = stone
+		pillar.position = Vector3(side * (fp_w * 0.5 - 0.4), 1.2, fp_d / 2.0 - 0.5)
+		root.add_child(pillar)
+	var lintel = MeshInstance3D.new()
+	var lm = BoxMesh.new()
+	lm.size = Vector3(fp_w - 0.2, 0.5, 0.8)
+	lintel.mesh = lm
+	lintel.material_override = stone
+	lintel.position = Vector3(0, 2.6, fp_d / 2.0 - 0.5)
+	root.add_child(lintel)
+	var iron = StandardMaterial3D.new()
+	iron.albedo_color = Color(0.12, 0.12, 0.14)
+	iron.roughness = 0.6
+	for i in range(4):
+		var bar = MeshInstance3D.new()
+		var bm = CylinderMesh.new()
+		bm.top_radius = 0.05
+		bm.bottom_radius = 0.05
+		bm.height = 2.0
+		bm.radial_segments = 6
+		bar.mesh = bm
+		bar.material_override = iron
+		bar.position = Vector3(-0.75 + i * 0.5, 1.0, fp_d / 2.0 - 0.5)
+		bar.rotation_degrees = Vector3(0, 0, 0)
+		root.add_child(bar)
+	var dark = MeshInstance3D.new()
+	var dm = BoxMesh.new()
+	dm.size = Vector3(fp_w - 0.6, 2.2, fp_d - 0.8)
+	dark.mesh = dm
+	var dmat = StandardMaterial3D.new()
+	dmat.albedo_color = Color(0.03, 0.04, 0.05)
+	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dark.material_override = dmat
+	dark.position = Vector3(0, 1.1, -0.3)
+	root.add_child(dark)
+	# A few leaning headstones around the gate
+	for k in range(3):
+		var stone_mi = MeshInstance3D.new()
+		var sm = BoxMesh.new()
+		sm.size = Vector3(0.35, 0.6, 0.12)
+		stone_mi.mesh = sm
+		stone_mi.material_override = stone
+		stone_mi.position = Vector3(-fp_w * 0.5 + 0.3 + k * (fp_w - 0.6) / 2.0, 0.3, -fp_d / 2.0 + 0.3)
+		stone_mi.rotation_degrees = Vector3(0, 0, -8.0 + k * 7.0)
+		root.add_child(stone_mi)
 
 func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## Rocky mound with a dark opening on the south face.
@@ -3755,11 +4046,24 @@ func _define_spawn_zones() -> void:
 		_define_forest_spawn_zones()
 		return
 
+	if interior_kind == "graveyard":
+		_define_graveyard_spawn_zones()
+		return
+
 	# Enemy tiers scale with world level
 	var base_melee = Enemy.EnemyType.WERERAT if world_level <= 2 else Enemy.EnemyType.SKELETON
 	var mid_melee = Enemy.EnemyType.SKELETON if world_level <= 2 else Enemy.EnemyType.ARMORED_TROLL
 	var heavy = Enemy.EnemyType.ARMORED_TROLL if world_level <= 3 else Enemy.EnemyType.ELITE
 	var ranged = Enemy.EnemyType.ARCHER_RAT
+	# Caves belong to the Fire Goblin warband: soldiers up front, mages at
+	# range, a shaman (the teaching Channel) in every cave, trolls in the deep.
+	if interior_kind == "cave":
+		base_melee = Enemy.EnemyType.FIRE_GOBLIN_SOLDIER
+		mid_melee = Enemy.EnemyType.FIRE_GOBLIN_SOLDIER
+		ranged = Enemy.EnemyType.FIRE_GOBLIN_MAGE
+	var deep_lords := [Enemy.EnemyType.IFRIT, Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.DJINN]
+	var deep_lord_i := 0
+	var shaman_placed := false
 
 	for room in rooms:
 		var rect: Rect2i = room["rect"]
@@ -3797,6 +4101,15 @@ func _define_spawn_zones() -> void:
 		# Deep cave chambers are guarded by an elite-grade enemy
 		if kind == "deep" and types.size() > 0:
 			types[0] = heavy if world_level < 3 else Enemy.EnemyType.ELITE
+		# Act 2+ overworld deep rooms hold the lords of the deep — the
+		# Ferryman's Toll targets — one per room, cycling through the three.
+		if kind == "deep" and interior_kind == "" and world_level >= 2 and types.size() > 0:
+			types[0] = deep_lords[deep_lord_i % deep_lords.size()]
+			deep_lord_i += 1
+		# Every cave gets at least one Fire Goblin Shaman.
+		if interior_kind == "cave" and not shaman_placed and types.size() > 1:
+			types[types.size() - 1] = Enemy.EnemyType.FIRE_GOBLIN_SHAMAN
+			shaman_placed = true
 		if points.is_empty():
 			continue
 
@@ -3826,6 +4139,44 @@ func _pick_enemy_type(depth: float, kind: String, base_melee, mid_melee, heavy, 
 	if roll < heavy_w + mid_w + ranged_w:
 		return ranged
 	return base_melee
+
+func _define_graveyard_spawn_zones() -> void:
+	## The dead of the Old Graveyard: shamblers near the gate, the hunters of
+	## the night deeper in, and a Necromancer holding the deepest crypt.
+	var shallow := [Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SKELETON, Enemy.EnemyType.SCREECHER]
+	var deep := [Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.ZOMBIE]
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		if kind != "deep" and _rng.randf() >= 0.85:
+			continue
+		var depth = float(rect.get_center().x) / float(GRID_W)
+		var count = clampi(2 + rect.get_area() / 36, 2, 5)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(count):
+			var cell = _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			var pool: Array = deep if depth > 0.55 else shallow
+			types.append(pool[_rng.randi_range(0, pool.size() - 1)])
+		if kind == "deep" and types.size() > 0:
+			types[0] = Enemy.EnemyType.NECROMANCER
+		if points.is_empty():
+			continue
+		spawn_zones.append({
+			"trigger_rect": rect.grow(1),
+			"spawn_points": points,
+			"enemy_types": types,
+			"spawned": false,
+		})
+	for zone in spawn_zones:
+		for p in zone["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d graveyard spawn zones" % spawn_zones.size())
 
 func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 	var c = rect.get_center()
@@ -4140,6 +4491,441 @@ func update_waypoint_prompts(player_grid: Vector2i) -> void:
 				interact_lbl.visible = dist <= 3
 
 # ============================================
+# THE FEATHER TRAIL (What the Crows Saw)
+# ============================================
+# Crow feathers dropped every few tiles along the walk from the start to a
+# hidden site, each laid flat with its tip pointing at the next one. Only
+# placed while the quest is active (Main asks for it); revealed with the fog.
+
+var feather_nodes: Array = []  # [{node, grid_pos}]
+const FEATHER_SPACING := 4
+static var _feather_tex: ImageTexture = null
+
+static func _feather_texture() -> ImageTexture:
+	## A 10x18 pixel crow feather: dark vane, pale quill, tip at the top.
+	if _feather_tex:
+		return _feather_tex
+	var img := Image.create(10, 18, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var vane := Color(0.13, 0.12, 0.16)
+	var edge := Color(0.24, 0.23, 0.30)
+	var quill := Color(0.72, 0.68, 0.60)
+	for y in range(18):
+		var half: int
+		if y < 3:
+			half = y            # tip
+		elif y < 13:
+			half = 3            # body
+		else:
+			half = 3 - (y - 12) # taper toward the quill
+		if half < 0:
+			half = 0
+		for x in range(5 - half, 5 + half):
+			img.set_pixel(x, y, edge if (x == 5 - half or x == 4 + half) else vane)
+	for y in range(6, 18):
+		img.set_pixel(4, y, quill)
+	for y in range(15, 18):
+		img.set_pixel(5, y, quill)
+	_feather_tex = ImageTexture.create_from_image(img)
+	return _feather_tex
+
+func place_feather_trail(target: Vector2i) -> void:
+	## Drop feathers along the shortest floor path from the start to `target`.
+	clear_feather_trail()
+	var path := _floor_path(player_start, target)
+	if path.size() < 2:
+		return
+	var samples: Array = []
+	var i := FEATHER_SPACING
+	while i < path.size() - 1:
+		samples.append(path[i])
+		i += FEATHER_SPACING
+	for k in range(samples.size()):
+		var cell: Vector2i = samples[k]
+		var next: Vector2i = samples[k + 1] if k + 1 < samples.size() else target
+		_create_feather(cell, next)
+	# Crows keep watch at the gate.
+	_place_crows_at(target, 2)
+	print("[DUNGEON] Feather trail: %d feathers toward %s" % [feather_nodes.size(), target])
+
+func clear_feather_trail() -> void:
+	for f in feather_nodes:
+		var n = f.get("node")
+		if n and is_instance_valid(n):
+			n.queue_free()
+	feather_nodes.clear()
+
+func _create_feather(cell: Vector2i, points_to: Vector2i) -> void:
+	var sprite := Sprite3D.new()
+	sprite.name = "Feather_%d" % feather_nodes.size()
+	sprite.texture = _feather_texture()
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = 0.045
+	# Lay it flat (tip toward -Z), then spin it about Y so the tip points at
+	# the next feather: rotating -Z by θ about Y gives (-sin θ, -cos θ).
+	var d := Vector2(points_to.x - cell.x, points_to.y - cell.y)
+	var theta := atan2(-d.x, -d.y) if d.length() > 0.01 else 0.0
+	sprite.rotation_degrees = Vector3(-90, rad_to_deg(theta), 0)
+	var pos := grid_manager.grid_to_world(cell)
+	pos.y = get_elevation_world_y(cell) + 0.03
+	# Off-centre so the feather sits beside the trail rather than under feet.
+	pos.x += 0.25
+	pos.z -= 0.2
+	sprite.position = pos
+	sprite.visible = false
+	_visuals_root.add_child(sprite)
+	feather_nodes.append({"node": sprite, "grid_pos": cell})
+
+func _place_crows_at(cell: Vector2i, count: int) -> void:
+	for i in range(count):
+		var c := pick_free_cell_near(cell, 3)
+		if c.x < 0:
+			return
+		var crow = SewerCritter.new()
+		crow.name = "TrailCrow_%d" % i
+		_visuals_root.add_child(crow)
+		crow.setup(Vector3(c.x + 0.5, 0.0, c.y + 0.5), _layout_seed + 977 + i * 131, "crow")
+
+func update_feather_visibility() -> void:
+	for f in feather_nodes:
+		var n = f.get("node")
+		if n and is_instance_valid(n):
+			n.visible = is_revealed(f["grid_pos"])
+
+func _floor_path(from: Vector2i, to: Vector2i) -> Array:
+	## BFS over floor tiles (4-way). Returns the cell list from `from` to the
+	## walkable cell nearest `to` (the target itself may be a blocked footprint).
+	var came_from: Dictionary = {from: from}
+	var frontier: Array = [from]
+	var head := 0
+	var best: Vector2i = from
+	var best_d := absi(from.x - to.x) + absi(from.y - to.y)
+	while head < frontier.size():
+		var cur: Vector2i = frontier[head]
+		head += 1
+		var d := absi(cur.x - to.x) + absi(cur.y - to.y)
+		if d < best_d:
+			best_d = d
+			best = cur
+			if d == 0:
+				break
+		for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nxt: Vector2i = cur + dir
+			if came_from.has(nxt):
+				continue
+			if nxt.x < 0 or nxt.x >= GRID_W or nxt.y < 0 or nxt.y >= GRID_H:
+				continue
+			if grid[nxt.x][nxt.y] != Tile.FLOOR:
+				continue
+			came_from[nxt] = cur
+			frontier.append(nxt)
+	var path: Array = []
+	var trace: Vector2i = best
+	while trace != from:
+		path.push_front(trace)
+		trace = came_from[trace]
+	path.push_front(from)
+	return path
+
+# ============================================
+# THE DROWNED SHRINE (The Faithless) + TRAP DISARMING
+# ============================================
+func _place_shrine() -> void:
+	## The Faithless' shrine stands in the sewer's deepest chamber.
+	if interior_kind != "sewer":
+		return
+	for room in rooms:
+		if room["kind"] != "deep":
+			continue
+		var cell = _pick_free_cell(room["rect"], [])
+		if cell.x < 0:
+			return
+		var root = Node3D.new()
+		root.name = "DrownedShrine"
+		var plinth = MeshInstance3D.new()
+		var pm = BoxMesh.new()
+		pm.size = Vector3(0.9, 0.5, 0.9)
+		plinth.mesh = pm
+		plinth.material_override = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.55, 0.5, 0.6))
+		plinth.position = Vector3(0, 0.25, 0)
+		root.add_child(plinth)
+		var idol = MeshInstance3D.new()
+		var im = PrismMesh.new()
+		im.size = Vector3(0.5, 0.9, 0.5)
+		idol.mesh = im
+		var imat = StandardMaterial3D.new()
+		imat.albedo_color = Color(0.25, 0.2, 0.35)
+		imat.emission_enabled = true
+		imat.emission = Color(0.4, 0.2, 0.6)
+		imat.emission_energy_multiplier = 0.8
+		idol.material_override = imat
+		idol.position = Vector3(0, 0.95, 0)
+		root.add_child(idol)
+		var label = Label3D.new()
+		label.text = "Drowned Shrine"
+		label.font_size = 20
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.modulate = Color(0.85, 0.7, 1.0)
+		label.position = Vector3(0, 1.7, 0)
+		WorldText.crisp(label)
+		root.add_child(label)
+		var interact = Label3D.new()
+		interact.name = "InteractLabel"
+		interact.text = "[Shift] Shrine"
+		interact.font_size = 16
+		interact.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		interact.modulate = Color(1.0, 0.9, 0.4)
+		interact.position = Vector3(0, 2.3, 0)
+		interact.visible = false
+		WorldText.crisp(interact)
+		root.add_child(interact)
+		var world_pos = grid_manager.grid_to_world(cell)
+		world_pos.y = get_elevation_world_y(cell)
+		root.position = world_pos
+		_visuals_root.add_child(root)
+		_reserve_area(cell, 1)
+		shrine_node = {"node": root, "grid_pos": cell, "label_node": interact}
+		return
+
+func pick_room_cell(kind: String) -> Vector2i:
+	## A free floor cell inside the first room of `kind` (reserved once
+	## picked so nothing else lands on it), or (-1,-1) if there is none.
+	for room in rooms:
+		if room["kind"] != kind:
+			continue
+		var cell = _pick_free_cell(room["rect"], [])
+		if cell.x >= 0:
+			_reserved[cell] = true
+			return cell
+	return Vector2i(-1, -1)
+
+func pick_free_cell_near(center: Vector2i, radius: int = 2) -> Vector2i:
+	## The nearest walkable, unreserved cell within `radius` of center.
+	var best := Vector2i(-1, -1)
+	var best_d := 999
+	for dx in range(-radius, radius + 1):
+		for dz in range(-radius, radius + 1):
+			var c := center + Vector2i(dx, dz)
+			if c.x < 0 or c.x >= GRID_W or c.y < 0 or c.y >= GRID_H:
+				continue
+			if not is_floor(c) or _reserved.has(c) or is_obstacle(c) or pit_tiles.has(c):
+				continue
+			var d := absi(dx) + absi(dz)
+			if d > 0 and d < best_d:
+				best_d = d
+				best = c
+	if best.x >= 0:
+		_reserved[best] = true
+	return best
+
+func is_near_shrine(player_grid: Vector2i) -> bool:
+	if shrine_node.is_empty():
+		return false
+	var pos: Vector2i = shrine_node["grid_pos"]
+	return absi(player_grid.x - pos.x) + absi(player_grid.y - pos.y) <= 1
+
+func update_shrine_prompt(player_grid: Vector2i) -> void:
+	if shrine_node.is_empty():
+		return
+	var pos: Vector2i = shrine_node["grid_pos"]
+	shrine_node["node"].visible = is_revealed(pos)
+	var lbl: Label3D = shrine_node["label_node"]
+	if lbl:
+		lbl.visible = absi(player_grid.x - pos.x) + absi(player_grid.y - pos.y) <= 2
+
+func get_nearby_trap(player_grid: Vector2i, kind: String = "bear") -> int:
+	## Index into trap_defs of an unsprung trap of `kind` within 1 tile, or -1.
+	for i in range(trap_defs.size()):
+		var trap: Dictionary = trap_defs[i]
+		if trap.get("kind", "") != kind or trap.get("sprung", false):
+			continue
+		for t in trap.get("tiles", []):
+			if absi(player_grid.x - t.x) + absi(player_grid.y - t.y) <= 1:
+				return i
+	return -1
+
+func disarm_trap(index: int) -> bool:
+	## Spring a trap harmlessly: it never triggers again and its jaws close.
+	if index < 0 or index >= trap_defs.size():
+		return false
+	var trap: Dictionary = trap_defs[index]
+	if trap.get("sprung", false):
+		return false
+	trap["sprung"] = true
+	var node = trap.get("node")
+	if node and is_instance_valid(node):
+		node.scale = Vector3(1.0, 0.35, 1.0)
+		for child in node.get_children():
+			if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+				child.material_override = child.material_override.duplicate()
+				child.material_override.albedo_color = child.material_override.albedo_color.darkened(0.45)
+	return true
+
+# ============================================
+# HEALING FOUNTAINS
+# ============================================
+# A stone basin of holy water. Standing beside one (Shift) offers two things:
+#   - Drink: restore to full health. Uses up the blessing; the basin runs dry
+#     until the player pours a vial of Holy Water (dropped by enemies) back in.
+#   - Bathe in the light: +20% of the XP to the next level. Once per fountain,
+#     ever — it never restores.
+# State persists per fountain in the world-object state dictionary shared
+# with chests (keys "world_N[_interior]_fountain_i"), so it survives leaving
+# and re-entering and rides along in the save file.
+
+const FOUNTAIN_ROOM_KINDS := ["field", "chamber", "room", "deep", "clearing"]
+
+func _place_fountains() -> void:
+	var want: int = 2 if interior_kind == "" else 1
+	var candidates: Array = []
+	for room in rooms:
+		if room["kind"] in FOUNTAIN_ROOM_KINDS:
+			candidates.append(room)
+	if candidates.size() < want:
+		for room in rooms:
+			if room["kind"] not in ["start", "site"] and room not in candidates:
+				candidates.append(room)
+	# Spread them out: farthest room from the start first, then the median one.
+	candidates.sort_custom(func(a, b):
+		return _room_start_distance(a) > _room_start_distance(b))
+	var picks: Array = []
+	if candidates.size() > 0:
+		picks.append(candidates[0])
+	if want > 1 and candidates.size() > 1:
+		picks.append(candidates[candidates.size() / 2])
+	var placed: Array[Vector2i] = []
+	for room in picks:
+		var cell = _pick_free_cell(room["rect"], placed)
+		if cell.x < 0:
+			continue
+		placed.append(cell)
+		_create_fountain(cell)
+	_restore_fountain_state()
+
+func _room_start_distance(room: Dictionary) -> int:
+	var c: Vector2i = room["rect"].get_center()
+	return absi(c.x - player_start.x) + absi(c.y - player_start.y)
+
+func _create_fountain(grid_pos: Vector2i) -> void:
+	var root = Node3D.new()
+	root.name = "Fountain_%d" % fountain_nodes.size()
+
+	# Stone basin (pixel rock texture, like the sewer rubble and cave props).
+	var basin = MeshInstance3D.new()
+	var basin_mesh = CylinderMesh.new()
+	basin_mesh.top_radius = 0.6
+	basin_mesh.bottom_radius = 0.72
+	basin_mesh.height = 0.45
+	basin_mesh.radial_segments = 10
+	basin.mesh = basin_mesh
+	basin.material_override = _pixel_mat("res://assets/textures/tile_rock.png", Color(0.78, 0.78, 0.84))
+	basin.position = Vector3(0, 0.225, 0)
+	root.add_child(basin)
+
+	# The water: glows while blessed, dull grey once drunk dry.
+	var water = MeshInstance3D.new()
+	var water_mesh = CylinderMesh.new()
+	water_mesh.top_radius = 0.48
+	water_mesh.bottom_radius = 0.48
+	water_mesh.height = 0.05
+	water_mesh.radial_segments = 10
+	water.mesh = water_mesh
+	water.position = Vector3(0, 0.46, 0)
+	var wmat = StandardMaterial3D.new()
+	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	water.material_override = wmat
+	root.add_child(water)
+
+	var label = Label3D.new()
+	label.name = "FountainLabel"
+	label.text = "Healing Fountain"
+	label.font_size = 20
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(0.8, 0.95, 1.0)
+	label.position = Vector3(0, 1.1, 0)
+	WorldText.crisp(label)
+	root.add_child(label)
+
+	var interact_label = Label3D.new()
+	interact_label.name = "InteractLabel"
+	interact_label.text = "[Shift] Fountain"
+	interact_label.font_size = 16
+	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	interact_label.modulate = Color(1.0, 0.9, 0.4)
+	interact_label.position = Vector3(0, 1.75, 0)
+	interact_label.visible = false
+	WorldText.crisp(interact_label)
+	root.add_child(interact_label)
+
+	var world_pos = grid_manager.grid_to_world(grid_pos)
+	world_pos.y = get_elevation_world_y(grid_pos)
+	root.position = world_pos
+	_visuals_root.add_child(root)
+	_reserve_area(grid_pos, 1)
+
+	fountain_nodes.append({
+		"node": root,
+		"grid_pos": grid_pos,
+		"label_node": interact_label,
+		"water_mesh": water,
+		"blessed": true,
+		"xp_used": false,
+	})
+	_apply_fountain_visual(fountain_nodes.size() - 1)
+
+func _fountain_key(index: int) -> String:
+	if interior_id == "":
+		return "world_%d_fountain_%d" % [world_level, index]
+	return "world_%d_%s_fountain_%d" % [world_level, interior_id, index]
+
+func _restore_fountain_state() -> void:
+	## Fountain state lives beside chest state in the shared world-object dict.
+	for i in range(fountain_nodes.size()):
+		var state = _opened_chests_ref.get(_fountain_key(i))
+		if state is Dictionary:
+			fountain_nodes[i]["blessed"] = bool(state.get("blessed", true))
+			fountain_nodes[i]["xp_used"] = bool(state.get("xp_used", false))
+			_apply_fountain_visual(i)
+
+func set_fountain_state(index: int, blessed: bool, xp_used: bool) -> void:
+	if index < 0 or index >= fountain_nodes.size():
+		return
+	fountain_nodes[index]["blessed"] = blessed
+	fountain_nodes[index]["xp_used"] = xp_used
+	_opened_chests_ref[_fountain_key(index)] = {"blessed": blessed, "xp_used": xp_used}
+	_apply_fountain_visual(index)
+
+func _apply_fountain_visual(index: int) -> void:
+	var water: MeshInstance3D = fountain_nodes[index]["water_mesh"]
+	var mat := water.material_override as StandardMaterial3D
+	if fountain_nodes[index]["blessed"]:
+		mat.albedo_color = Color(0.55, 0.85, 1.0)
+		mat.emission_enabled = true
+		mat.emission = Color(0.35, 0.65, 1.0)
+		mat.emission_energy_multiplier = 1.4
+	else:
+		mat.albedo_color = Color(0.32, 0.33, 0.36)
+		mat.emission_enabled = false
+
+func get_nearby_fountain(player_grid: Vector2i) -> int:
+	## Index of a fountain within 1 tile of the player, or -1.
+	for i in range(fountain_nodes.size()):
+		var pos: Vector2i = fountain_nodes[i]["grid_pos"]
+		if absi(player_grid.x - pos.x) + absi(player_grid.y - pos.y) <= 1:
+			return i
+	return -1
+
+func update_fountain_prompts(player_grid: Vector2i) -> void:
+	for i in range(fountain_nodes.size()):
+		var pos: Vector2i = fountain_nodes[i]["grid_pos"]
+		fountain_nodes[i]["node"].visible = is_revealed(pos)
+		var lbl: Label3D = fountain_nodes[i]["label_node"]
+		if lbl:
+			var dist = absi(player_grid.x - pos.x) + absi(player_grid.y - pos.y)
+			lbl.visible = dist <= 2
+
+# ============================================
 # MINIMAP DATA
 # ============================================
 
@@ -4320,6 +5106,8 @@ func clear() -> void:
 	chest_nodes.clear()
 	waypoint_nodes.clear()
 	site_nodes.clear()
+	fountain_nodes.clear()
+	shrine_node = {}
 	spawn_zones.clear()
 	rooms.clear()
 	_reserved.clear()

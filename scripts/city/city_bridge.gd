@@ -1,18 +1,18 @@
 class_name CityBridge
 extends RefCounted
 
-## Bridges the city loop (CityState / ExpeditionSystem / CalamitySystem) into
+## Bridges the city loop (CityState / ExpeditionSystem / TrialSystem) into
 ## the running game. All city state rides inside the player_progression
 ## dictionary that main.gd and town.gd already hand between scenes and that
 ## ProgressionIO embeds in saves:
 ##   "city"          — CityState.to_dict(): banked resources, buildings, log
 ##   "city_satchel"  — resources gathered on the adventure, not yet sent home
-##   "city_calamity" — the brewing calamity, if any (see CalamitySystem)
+##   "city_trial" — the brewing trial, if any (see TrialSystem)
 ##
 ## The satchel is the "send resources home" half of the design: kills fill it
 ## out in the world, and arriving in town banks it into the city.
 
-const CITY_KEYS := ["city", "city_satchel", "city_calamity"]
+const CITY_KEYS := ["city", "city_satchel", "city_trial"]
 
 # ============================================
 # CITY ACCESS
@@ -82,6 +82,8 @@ static func zone_for_area(interior_kind: String, world_level: int) -> String:
 			return "Forest"
 		"cave":
 			return "Cave"
+		"graveyard":
+			return "Graveyard"
 	match world_level:
 		1:
 			return "Forest"

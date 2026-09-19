@@ -118,6 +118,12 @@ All characters share a base **5% critical hit chance** and **110% critical damag
 ### Health
 Your life total. Every character starts the story with **10 health** and gains **+2 max health every level**. **There is no pure vitality stat to increase health**. Reaching 0 means dead sauce. Healing is boosted by Intelligence and equipment.
 
+**Healing Fountains.** Stone basins of holy water stand in every world and interior, two on the surface and one below. Stand beside one and press Shift. *Drink* restores you to full health but spends the fountain's blessing, and the basin runs dry until you pour in a vial of **Holy Water**, a currency enemies drop (rarely from trash, often from elites, always from bosses). *Bathe in the light* blesses you with +20% incoming XP for your next 20 kills, once per fountain, ever (a second fountain refreshes the count; it never stacks). Fountain state persists with the world, like chests.
+
+**Quests.** Olorin (and the Sellsword) hand out quests with several objectives each: kills by type and zone, kills from high ground, carrying a currency to hand in, disarming traps, breaking an enemy's channel, finding and escorting someone, a shrine choice, or answering a trial. Quests unlock in chains and by act, several teach a mechanic (the log shows a Tip), and turn-ins can grant gold, XP, story flags (the Town Well, the Lumber Mill, a free recruit, the hidden graveyard) and permanent stat bonuses. The Quest Log lives under Tab.
+
+**Falling in battle.** There is no permadeath. When your health hits 0 alone, you come to at the start of the level you are in, at full health, with everything you carry. In co-op the downed-and-revive flow applies instead. Every arrival in town also writes an autosave slot.
+
 ### Mana
 The cost of playing most cards.
 
@@ -139,6 +145,8 @@ Your deck is your moveset. Cards move between several zones during combat:
 
 - **Draw pile** — face-down deck. When empty, the discard pile shuffles back in.
 - **Hand** — cards you can play. Hand size = 4 + Wisdom bonus + equipment bonuses.
+- **Starting deck** — every character begins with the same 10 cards: 3 Slash, 3 Block, 2 Draw, 1 Energy, 1 Heal.
+- **Deck cap** — 12 cards of your own. Cards slotted into or granted by items ride along on top of that, so your gear is where a build's extra cards live.
 - **Discard pile** — where played and discarded cards go, awaiting reshuffle.
 - **Jail** — cards locked away for a set amount of tempo. Jailed cards can't be played; when their time expires they're released to the discard pile.
 - **Maintained** — active Power cards sit here, reserving mana.
@@ -191,7 +199,7 @@ Mechanics that appear on cards:
 | **Reach** | Adds 1 tile to melee attack range. |
 | **Conditional** | Melee or ranged depending on the weapon in hand: a bow makes the card ranged (and costs +1 tempo to play), anything else makes it melee. Replaces a fixed melee/ranged tag (Exacerbate Wounds). |
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
-| **Chisel** | Card can only be played while slotted into an item — never from hand alone. |
+| **Engrave** | The card exists only inside an item's card slot: it cannot join the bare deck, and leaves it the moment it is extracted. |
 
 Some cards carry **RNG outcomes**. When the **card is drawn** the player is told if the card will be successful or a failure. **Holding the card for a certain amount of tempo will re roll this outcome**. The player will see the new outcome as well. Chance-boosting effects tilt these rolls in your favor.
 
@@ -383,12 +391,14 @@ Items and cards are deeply linked: some items **grant cards** to your deck while
 
 Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** when played.
 
-Slotting is governed by compatibility keywords:
+**Slot labels decide where a card may go.** Every card can sit in your 12-card deck. A card with one or more slot labels (**Pocket**, **Crown**, **Gem**, **Swift**, **Buckler**, **Fist**, **Arrow**) can *also* be enchanted into a matching slot: belts take Pocket, helms Crown, rings Gem, boots Swift, shields Buckler, gauntlets Fist, bows and quivers Arrow, chest armor Bulwark, and every weapon its own — Sword, Axe, Dagger, Hammer, Spear, Wand, Tome, Staff. A card can carry several labels (Crown / Gem / Pocket fits helms, rings and belts). A card with **no label is deck-only** and can never be slotted. **Engrave** is the wrinkle on top: an Engrave card exists *only* in a slot, never in the bare deck.
+
+Once slotted, these keywords govern moving a card between items:
 
 | Keyword | Meaning |
 |---|---|
-| **Pliable** | Card can be slotted into any item type. (Default) |
-| **Picky** | Once extracted from an item, the card can only be re-slotted into the *same item type*. |
+| **Pliable** | After extraction the card may be re-slotted into any item type its labels allow. |
+| **Picky** | Once extracted from an item, the card can only be re-slotted into the *same item type*. (Default) |
 | **Molded** | Card is permanently locked into the item and cannot be extracted. |
 | **Arrow** | Bow/quiver cards. |
 | **Pocket** | Slots into belts. Generally daggers, potions, or other small items. |
@@ -397,7 +407,7 @@ Slotting is governed by compatibility keywords:
 | **Buckler** | Slots into shields. |
 | **Crown** | Slots into helms. |
 | **Fist** | Slots into gauntlets. |
-| **Chisel** | Card is *only* playable while slotted in an item. |
+| **Engrave** | Card lives *only* in an item's slot — never in the bare deck. |
 
 ---
 

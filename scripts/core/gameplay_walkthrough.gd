@@ -217,7 +217,7 @@ Rings have passive effects that trigger on events:
 	- Gem - can only be placed in gem slots
 	- Pocket - can only be used in belts
 - Extracting removes a card from an item and returns it to the discard pile
-- Chisel cards can only be played when slotted in an item
+- Engrave cards exist only inside an item's slot — never in the bare deck
 
 [font_size=18][color=cyan]━━━ CHARACTER PASSIVES ━━━[/color][/font_size]
 

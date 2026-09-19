@@ -190,12 +190,20 @@ func restore_deck_state(state: Dictionary) -> void:
 ## after deck builds and restores, so purchases and old saves migrate too).
 ## Base deck cap. Cards slotted into (or granted by) items ride along with
 ## their item and do NOT count toward it — they can push the deck past the cap
-## (20 deck cards + an engraved card in your boots = 21 in play, and that is
-## fine). Adding a 21st card DIRECTLY is what the cap refuses.
-const MAX_DECK_SIZE := 20
+## (12 deck cards + an engraved card in your boots = 13 in play, and that is
+## fine). Adding a 13th card DIRECTLY is what the cap refuses. The base deck
+## is deliberately small: item card slots are where a build's extra cards
+## live, so gear shapes the deck (a belt-heavy character carries more
+## daggers and potions than the 12 alone would allow).
+const MAX_DECK_SIZE := 12
 
 func get_max_deck_size() -> int:
 	return MAX_DECK_SIZE
+
+## The basic deck every character starts with: 3 attacks, 3 blocks, 2 draws,
+## 1 energy, 1 heal — 10 cards, two under the cap. Single source of truth for
+## the deck builder and the town's card dealer.
+const BASIC_DECK_IDS := ["slash", "slash", "slash", "block", "block", "block", "draw", "draw", "gain_mana", "heal"]
 
 ## Cards counting toward the cap: everything in the deck piles no item owns.
 func get_deck_size() -> int:
@@ -257,14 +265,8 @@ func _create_default_deck(character: CharacterData) -> void:
 	# Build full card id list: base + starting + purchased
 	var all_card_ids: Array = []
 
-	# Every character starts with the same basic deck.
-	for i in range(4):
-		all_card_ids.append("slash")
-	for i in range(4):
-		all_card_ids.append("block")
-	all_card_ids.append("draw")
-	all_card_ids.append("gain_mana")  # "energy"
-	all_card_ids.append("heal")
+	# Every character starts with the same basic deck (BASIC_DECK_IDS).
+	all_card_ids.append_array(BASIC_DECK_IDS)
 
 	# Character-specific starting cards are intentionally NOT added — every
 	# character shares the identical basic deck above.

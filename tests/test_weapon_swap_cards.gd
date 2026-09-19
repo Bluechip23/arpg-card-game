@@ -73,7 +73,8 @@ func _initialize() -> void:
 	# --- 3) A jailed slotted card survives a swap round trip ---
 	var sword := _make_weapon("Test Sword", 1)
 	var jailed_card := Card.create_slash()
-	_check(sword.slot_card(jailed_card), "slash slots into the sword")
+	jailed_card.card_keyword = Card.CardKeyword.SWORD  # swords take Sword-labeled cards
+	_check(sword.slot_card(jailed_card), "a labeled slash slots into the sword")
 	_check(inv.equip_item(sword, 1), "sword equips in slot 1")
 	_check(deck.discard_pile.has(jailed_card), "slotted card entered discard on equip")
 
