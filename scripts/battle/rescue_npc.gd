@@ -32,6 +32,7 @@ func setup(id: String, p_name: String, sheet_path: String, prompt_text: String =
 	_sprite.region_enabled = true
 	_sprite.region_rect = SHEET_FRAME
 	_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_sprite.shaded = false
 	_sprite.pixel_size = 0.034

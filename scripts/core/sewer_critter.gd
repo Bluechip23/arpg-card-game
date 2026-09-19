@@ -56,6 +56,7 @@ func _build() -> void:
 	if _kind == "butterfly" or _kind == "crow":
 		_body.hframes = 2
 	_body.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_body.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	_body.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_body.shaded = false
 	_body.pixel_size = 0.034
