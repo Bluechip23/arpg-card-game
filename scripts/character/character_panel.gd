@@ -1880,9 +1880,8 @@ func _open_card_slot_panel(item: ItemData) -> void:
 
 				var card_label = Label.new()
 				var info = card.card_name
-				if card.card_keyword != 0:  # Not NONE
-					var kw_name := Card.keyword_name(card.card_keyword)
-					info += " [%s]" % kw_name
+				if card.is_slottable():
+					info += " [%s]" % card.slot_label_names()
 				card_label.text = info
 				card_label.add_theme_font_size_override("font_size", 12)
 				card_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))

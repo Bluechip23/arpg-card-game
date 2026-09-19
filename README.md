@@ -391,12 +391,14 @@ Items and cards are deeply linked: some items **grant cards** to your deck while
 
 Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** when played.
 
-Slotting is governed by compatibility keywords:
+**Slot labels decide where a card may go.** Every card can sit in your 12-card deck. A card with one or more slot labels (**Pocket**, **Crown**, **Gem**, **Swift**, **Buckler**, **Fist**, **Arrow**) can *also* be enchanted into a matching slot: belts take Pocket, helms Crown, rings Gem, boots Swift, shields Buckler, gauntlets Fist, bows and quivers Arrow, while swords, staves and chest armor take any labeled card. A card can carry several labels (Crown / Gem / Pocket fits helms, rings and belts). A card with **no label is deck-only** and can never be slotted. **Engrave** is the wrinkle on top: an Engrave card exists *only* in a slot, never in the bare deck.
+
+Once slotted, these keywords govern moving a card between items:
 
 | Keyword | Meaning |
 |---|---|
-| **Pliable** | Card can be slotted into any item type. (Default) |
-| **Picky** | Once extracted from an item, the card can only be re-slotted into the *same item type*. |
+| **Pliable** | After extraction the card may be re-slotted into any item type its labels allow. |
+| **Picky** | Once extracted from an item, the card can only be re-slotted into the *same item type*. (Default) |
 | **Molded** | Card is permanently locked into the item and cannot be extracted. |
 | **Arrow** | Bow/quiver cards. |
 | **Pocket** | Slots into belts. Generally daggers, potions, or other small items. |

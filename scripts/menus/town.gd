@@ -1658,9 +1658,10 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 		extras.append("Sticky (%d uses)" % card.sticky)
 	if card.maintain_cost > 0:
 		extras.append("Maintain: %d mana" % card.maintain_cost)
-	if card.card_keyword != Card.CardKeyword.NONE:
-		var kw_names = {1: "Arrow", 2: "Pocket", 3: "Gem"}
-		extras.append("Keyword: %s" % kw_names.get(card.card_keyword, "Unknown"))
+	if card.is_slottable():
+		extras.append("Slots into: %s" % card.slot_label_names())
+	else:
+		extras.append("Deck only (no slot label)")
 	if extras.size() > 0:
 		var extra_lbl = Label.new()
 		extra_lbl.text = "\n".join(extras)

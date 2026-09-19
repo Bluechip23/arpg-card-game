@@ -281,7 +281,37 @@ var erase_on_play: bool = false  # If true, card is erased from the deck entirel
 var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
 var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
-var card_keyword: CardKeyword = CardKeyword.NONE  # Arrow, Pocket, Gem, Swift, Buckler, Crown, Fist — which item slots can take this card
+## Slot labels: every item slot a card may be enchanted into (Pocket, Crown,
+## Gem, …). A card may carry several. Any card can sit in the bare deck; an
+## UNLABELED card can only sit there — it is never slottable. Engrave cards
+## must carry at least one label, since a slot is the only place they exist.
+var slot_labels: Array = []  # of CardKeyword
+
+## Single-label view for older code and factories: reads the first label,
+## writes replace the whole list.
+var card_keyword: CardKeyword:
+	get:
+		return slot_labels[0] if not slot_labels.is_empty() else CardKeyword.NONE
+	set(v):
+		slot_labels = [] if v == CardKeyword.NONE else [v]
+
+func has_slot_label(kw: int) -> bool:
+	return kw in slot_labels
+
+func is_slottable() -> bool:
+	return not slot_labels.is_empty()
+
+func add_slot_labels(labels: Array) -> void:
+	for kw in labels:
+		if kw != CardKeyword.NONE and kw not in slot_labels:
+			slot_labels.append(kw)
+
+func slot_label_names() -> String:
+	## "Crown / Gem / Pocket" for card faces and shop text; "" when unlabeled.
+	var names: Array[String] = []
+	for kw in slot_labels:
+		names.append(keyword_name(kw))
+	return " / ".join(names)
 var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
 
 ## Design keywords from the card sheet ("Attack, melee", "Utility, ally, ranged",

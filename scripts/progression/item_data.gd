@@ -727,19 +727,28 @@ func can_slot_card(card) -> bool:
 		if feral_idx >= 0 and feral_idx < slot_colors.size():
 			if card.element != str(slot_colors[feral_idx]):
 				return false
-	# Check card keyword compatibility
-	# If item has explicit allowed_card_keywords, use those
+	# Slot labels: an unlabeled card lives in the deck only and can never be
+	# slotted; a labeled card may go into any slot one of its labels names.
+	if not card.is_slottable():
+		return false
 	if allowed_card_keywords.size() > 0:
-		if card.card_keyword not in allowed_card_keywords:
+		# Explicit allow-list on the item: any shared label will do.
+		var ok := false
+		for kw in card.slot_labels:
+			if kw in allowed_card_keywords:
+				ok = true
+				break
+		if not ok:
 			return false
 	else:
 		# Default restrictions based on item type
 		var required = _get_default_keyword_for_item_type()
-		if required >= 0 and card.card_keyword != required:
+		if required >= 0 and not card.has_slot_label(required):
 			return false
 	return true
 
-## Returns the default required card keyword for this item type (-1 = any card allowed).
+## Returns the default required card label for this item type (-1 = any
+## LABELED card; unlabeled cards are refused by can_slot_card regardless).
 func _get_default_keyword_for_item_type() -> int:
 	match item_type:
 		ItemType.BELT: return Card.CardKeyword.POCKET
@@ -750,11 +759,10 @@ func _get_default_keyword_for_item_type() -> int:
 		ItemType.QUIVER: return Card.CardKeyword.ARROW
 		ItemType.WEAPON:
 			match weapon_subtype:
-				# Shields take any card. The Buckler keyword exists but no card
-				# carries it yet, and a shield's slots must not sit dead.
-				WeaponSubtype.BOW: return -1     # ARROW + standard attacks (handled by allowed_card_keywords)
-				_: return -1  # Shields, swords and other weapons accept any card
-	return -1  # CHEST and others accept any card
+				WeaponSubtype.BOW: return Card.CardKeyword.ARROW
+				WeaponSubtype.SHIELD: return Card.CardKeyword.BUCKLER
+				_: return -1  # Swords, staves and the rest take any labeled card
+	return -1  # CHEST and others take any labeled card
 
 func slot_card(card) -> bool:
 	if not can_slot_card(card):
