@@ -11,6 +11,7 @@ const CONFIGS := [
 	{"level": 1, "interior": "forest_0", "name": "forest"},
 	{"level": 1, "interior": "cave_0", "name": "cave"},
 	{"level": 2, "interior": "", "name": "world2_desert"},
+	{"level": 3, "interior": "", "name": "world3_winter"},
 	{"level": 4, "interior": "", "name": "world4_cursed"},
 	{"level": 5, "interior": "", "name": "world5_undead"},
 	{"level": 1, "interior": "building_0", "name": "building"},

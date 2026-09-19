@@ -30,6 +30,7 @@ C = "tileset_cave/Objects_separately"
 U = "tileset_undead_land/Objects_separately"
 X = "tileset_cursed_land/Objects_separetely"
 D = "tileset_desert/Objects_separately"
+W = "tileset_winter/Objects_separately"  # sub-folders by cell size
 T = "treasure_32x32"
 A = "armor_weapons_icons"
 
@@ -101,6 +102,18 @@ ROLES = {
     "desert_bones": {"scale": 1.0, "src": [f"{D}/Bones_grass_shadow*.png", f"{D}/Bone_element_grass*.png", f"{D}/Scull_grass_shadow*.png", f"{D}/Sculls_grass_shadow*.png"]},
     "desert_pebble": {"scale": 1.0, "src": [f"{D}/Sand_element*.png"]},
     "desert_ruin": {"scale": 0.8, "src": [f"{D}/Ruins*.png", f"{D}/pyramid_grass_shadow*.png", f"{D}/Gates*.png", f"{D}/small_gate*.png"]},
+    # --- World 3 Frostreach (winter pack; snow-shadow variants) ---
+    "winter_tree": {"scale": 1.0, "src": [f"{W}/64/Trees1_snow_shadow2.png", f"{W}/64/Trees2_snow_shadow3.png", f"{W}/64/Trees3_snow_shadow3.png", f"{W}/64/Trees4_snow_shadow4.png", f"{W}/32/Trees1_snow_shadow3.png"]},
+    "winter_tree_big": {"scale": 0.7, "src": [f"{W}/128/Trees1_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow2.png", f"{W}/128/Trees3_snow_shadow1.png", f"{W}/128/Trees3_snow_shadow2.png", f"{W}/128/Trees4_snow_shadow1.png", f"{W}/128/Trees4_snow_shadow2.png"]},
+    "winter_ice_tree": {"scale": 0.7, "src": [f"{W}/64/Ice_trees_snow_shadow4.png", f"{W}/128/Ice_trees_snow_shadow2.png", f"{W}/128/Ice_trees_snow_shadow3.png"]},
+    "winter_rock": {"scale": 1.0, "src": [f"{W}/64/Stones_snow_shadow1.png", f"{W}/64/Stones_snow_shadow2.png", f"{W}/32/Stones_snow_shadow3.png", f"{W}/32/Stones_snow_shadow4.png"]},
+    "winter_pebble": {"scale": 1.0, "src": [f"{W}/16/Stones_snow_shadow5.png", f"{W}/32/Stones_snow_shadow4.png"]},
+    "winter_crystal": {"scale": 1.0, "src": [f"{W}/64/Crystal_sharp_snow_shadow2.png", f"{W}/64/Crystal_sharp_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow4.png", f"{W}/32/Crystal_square_snow_shadow1.png", f"{W}/32/Crystal_square_snow_shadow2.png"]},
+    "winter_flower": {"scale": 1.0, "src": [f"{W}/64/Ice_flowers_snow_shadow1.png", f"{W}/64/Ice_flowers_snow_shadow2.png", f"{W}/32/Ice_flowers_snow_shadow3.png", f"{W}/64/Crystal_flower_snow_shadow2.png", f"{W}/64/Crystal_flower_snow_shadow3.png"]},
+    "winter_shroom": {"scale": 1.0, "src": [f"{W}/64/Mushroom1_snow_shadow2.png", f"{W}/64/Mushroom1_snow_shadow3.png", f"{W}/64/Mushroom2_snow_shadow1.png", f"{W}/64/Mushroom2_snow_shadow2.png", f"{W}/64/Mushroom2_snow_shadow3.png"]},
+    "winter_snowman": {"scale": 1.0, "src": [f"{W}/64/Snowmen_snow_shadow1.png", f"{W}/64/Snowmen_snow_shadow2.png", f"{W}/64/Snowmen_snow_shadow3.png", f"{W}/64/Snowmen_snow_shadow4.png", f"{W}/32/Snowmen_snow_shadow5.png", f"{W}/32/Snowmen_snow_shadow6.png"]},
+    "winter_ruin": {"scale": 0.8, "src": [f"{W}/64/Ruins1_snow_shadow3.png", f"{W}/64/Ruins1_snow_shadow4.png", f"{W}/64/Ruins2_snow_shadow3.png", f"{W}/32/Ruins1_snow_shadow5.png", f"{W}/32/Ruins2_snow_shadow4.png", f"{W}/128/Ruins1_snow_shadow1.png", f"{W}/128/Ruins2_snow_shadow1.png"]},
+    "winter_idol": {"scale": 0.8, "src": [f"{W}/64/Idols_snow_shadow2.png", f"{W}/128/Idols_snow_shadow1.png"]},
 }
 
 # Atlas cells (sheet, x, y, w, h) cropped straight out of a packed sheet.

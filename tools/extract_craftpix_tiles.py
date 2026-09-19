@@ -167,6 +167,55 @@ def water_colour(foam_sheet):
     return tuple(int(c / n * 0.5) for c in acc)
 
 
+# Overlay-only grounds: the winter pack draws no solid snow tile — Snow.png
+# is drifts and sparkle to scatter over a flat snow colour, Ice.png a
+# semi-transparent crack overlay for frozen water. Composed the same way as
+# the water sheets: a flat base colour with overlay crops on top.
+# name -> (overlay sheet, base colour, crop coverage window, overlay alpha,
+#          max fraction of dark texels — the ice sheet's big dark crack-stars
+#          get sliced by a 32px window, so windows are kept to the fine
+#          crack lattice with at most a sliver of a star)
+OVERLAY_GROUNDS = {
+    "floor_winter": ("tileset_winter/Snow.png", (232, 238, 242), (0.0, 0.25), 1.0, 1.0),
+    "water_winter": ("tileset_winter/Ice.png", (150, 196, 214), (0.3, 1.01), 1.0, 0.06),
+}
+
+
+def build_overlay_ground(name, overlay_sheet, base, coverage, alpha, max_dark):
+    overlay = Image.open(os.path.join(SRC, overlay_sheet)).convert("RGBA")
+    rng = random.Random(name)
+    out = Image.new("RGBA", (N * GRID, N * GRID), base + (255,))
+    px = overlay.load()
+    windows = []
+    for y in range(0, overlay.height - N + 1, 8):
+        for x in range(0, overlay.width - N + 1, 8):
+            cov = sum(1 for j in range(0, N, 4) for i in range(0, N, 4) if px[x + i, y + j][3] > 0) / 64.0
+            if not (coverage[0] <= cov < coverage[1]):
+                continue
+            if max_dark < 1.0:
+                dark = 0
+                for j in range(0, N, 2):
+                    for i in range(0, N, 2):
+                        r, g, b, a = px[x + i, y + j]
+                        if a > 0 and (r + g + b) / 3 < 165:
+                            dark += 1
+                if dark / 256.0 > max_dark:
+                    continue
+            windows.append((x, y))
+    rng.shuffle(windows)
+    for v in range(GRID * GRID):
+        if not windows:
+            break
+        x, y = windows[v % len(windows)]
+        crop = overlay.crop((x, y, x + N, y + N))
+        if alpha < 1.0:
+            r, g, b, a = crop.split()
+            crop = Image.merge("RGBA", (r, g, b, a.point(lambda q: int(q * alpha))))
+        out.alpha_composite(crop, ((v % GRID) * N, (v // GRID) * N))
+    out.save(os.path.join(OUT, name + ".png"))
+    print(f"{name:22s} <- {overlay_sheet:44s} base {base}, {len(windows)} overlay windows")
+
+
 def build_water(name, coast_sheet, foam_sheet):
     base = water_colour(foam_sheet)
     foam = Image.open(os.path.join(SRC, foam_sheet)).convert("RGBA")
@@ -202,3 +251,5 @@ if __name__ == "__main__":
         build(name, *cfg)
     for name, cfg in WATER.items():
         build_water(name, *cfg)
+    for name, cfg in OVERLAY_GROUNDS.items():
+        build_overlay_ground(name, *cfg)

@@ -12,8 +12,7 @@ shopping brief. Anything not listed here is now pack art.
 | Brick / masonry walls & floors | Sewers, building interiors, building exteriors, the waypoint plinth | generated `tile_brick.png` | A dungeon/sewer or castle-interior top-down tileset (stone brick floor, wall faces, arches, doors) |
 | Building exteriors (walls, roof, door, windows) | Overworld enterable buildings | box meshes + brick/dirt fills | A village/house top-down set with roofs and doors |
 | Sewer fixtures: torches / sconces, pipes, grates, manholes, doors, water channels & steam | Sewers, building sconces | procedural meshes + generated strips | Sewer / dungeon props set (wall torch with flame frames, pipes, grates, iron doors) |
-| World 3 ground and cliffs (Frostreach) | Overworld level 3 | generated grass/dirt/rock tinted by palette | A snow/ice tileset (World 2 is now the desert pack) |
-| Water for World 3 | as above | generated `tile_water.png` | comes with that tileset |
+| Frostreach cliffs and trails | Overworld level 3 | grey barrow-stone walls and slush trails borrowed from the undead pack (the winter pack has no cliff or path tiles) | a snow cliff / frozen rock face and a packed-snow path, if the borrow bothers you |
 | Autotile edges from the packs | every biome | edge bands painted from the palette over pack fills | none to buy — engineering (map the packs' edge pieces into the 16 mask columns) |
 | Elevation cliff sides & stone steps | Overworld high ground | cliff = pack cobble fill on a box; steps = trail fill | fine as is; a dedicated stair/ledge piece would be nicer |
 | Fog of war tile | everywhere | generated dither | none needed |
