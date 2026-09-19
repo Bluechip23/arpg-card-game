@@ -21,30 +21,30 @@ Conventions for every pack staged here:
 ## Craftpix character packs (`assets/sprites/craftpix/`)
 
 All Craftpix character packs share one format: **square cells (64×64, or
-128×128 for the large creatures), 4 direction rows, one sheet per
-animation**, three colour/gear variants per pack. Frame count = sheet width ÷
-cell size. `Parts/` holds the same sheets split into layers (body, head,
+128×128 for the rats, demons and golems — cell = sheet height ÷ 4), 4
+direction rows, one sheet per animation**, three colour/gear variants per
+pack. Frame count = sheet width ÷ cell size. `Parts/` holds the same sheets split into layers (body, head,
 weapon, shadow, "red" = hit/blood overlay, spell FX, etc.) for recolouring
 or paper-doll work.
 
-**Direction row order is NOT consistent between packs.** Observed: rat and
-lich sheets are *back (up), front (down), left, right*; demon, golem, zombie,
-ghost and gnoll sheets are *front (down), back (up), left, right*. Confirm
-per pack before hard-coding a rig — best done once, as a per-pack row map in
-whatever sprite-rig resource the integration pass introduces.
+**Direction row order** (checked on idle frame 0 of every row, all nine
+character packs): *front (faces the camera), back, left, right* — the same
+in every pack. An earlier eyeball pass had the rats and liches reversed; it
+was wrong. The rig keeps a per-pack map anyway (`SpriteEnemyFigure.CP_ROWS`)
+so a future pack that differs is a one-line fix.
 
 | Folder | Contents | Animations (frames) | Extras | Candidate use | Status |
 |---|---|---|---|---|---|
-| `giant_rat/Rat1..3` | 3 rat colour/size variants, top-down 4-dir | Idle 6 · Walk 6 · Run 6 · Attack 4 · Hurt 4 · Death 8 | `Parts/` incl. `*_Attack_swing` overlay; `shadow_single`, `shadow_death` masks | **Sewers, Act 1** — Wererat / Archer Rat / Swarm bodies; Rat King base body (crown + scale as boss variant, ART_TODO #3) | staged |
-| `lich/Lich1..3` | 3 robed skeletal casters with staff, cyan magic | Idle 4 · Walk 6 · Run 6 · Attack 8 · Hurt 4 · Death 10 | `Fire.png` = 48×48 × 9 frames × 4 dirs cyan spell projectile/burst; `Parts/*_Attack_fire` | **Graveyard / Act 2 (Hell)** undead casters; necromancer elites; the `Fire.png` burst as a standalone spell VFX sheet | staged |
+| `giant_rat/Rat1..3` | **128×128 cells** (small bodies, ~30 px). 3 rat colour/size variants, top-down 4-dir | Idle 6 · Walk 6 · Run 6 · Attack 8 · Hurt 4 · Death 5 | `Parts/` incl. `*_Attack_swing` overlay; `Shadow_single`, `Shadow__attack` masks | **Sewers, Act 1** — Wererat / Archer Rat / Swarm bodies; Rat King base body (crown + scale as boss variant, ART_TODO #3) | **in game**: `rat` = Rat1, `archer_rat` = Rat1 (dark tint), `rat_king` = Rat3 ×1.7 (`SpriteEnemyFigure`); Rat2 (the winged black rat) is unused so far |
+| `lich/Lich1..3` | 3 robed skeletal casters with staff, cyan magic | Idle 4 · Walk 6 · Run 6 · Attack 8 · Hurt 4 · Death 10 | `Fire.png` = 48×48 × 9 frames × 4 dirs cyan spell projectile/burst; `Parts/*_Attack_fire` | **Graveyard / Act 2 (Hell)** undead casters; necromancer elites; the `Fire.png` burst as a standalone spell VFX sheet | **in game**: `necromancer` = Lich2 (crowned), `spirit_collector` = Lich1 (cold tint); Lich3 (gilded) is free for a boss |
 | `swordsman_lvl4_6/Swordsman_lvl4..6` | Armoured human swordsman, 3 gear tiers (lvl4 → lvl6 increasingly heavy) | Idle 12 · Walk 6 · Run 8 · Attack 7 · Walk_Attack 6 · Run_Attack 8 · Hurt 5 · Death 7 | Each attack has a `_nornal` (sic) variant without the yellow slash arc; `Parts/` splits body / head / sword / sword_back / red / shadow | Town guards & City defenders (`docs/STORY.md` §7, Sellsword raids); human bandit/knight enemies; possibly a paper-doll reference for Brad/Stephen combat outfits (ART_TODO #4). The slash-arc-free `_nornal` sheets + the arc-only difference are a route to the standalone slash VFX in ART_TODO #9 | staged |
-| `demons/Demon1..3` | **128×128 cells.** Horned purple imps with pitchforks / spears, 3 variants | Idle 4 · Walk 6 · Run 8 · Attack 10 · Hurt 4 · Death 13 | `Parts/*_Attack_fire` spell overlay, `*_Death_Death_effects`; `Shadow.png` | **Act 2 (Hell)** — Demon / Pit Fiend / Ifrit placeholders in ART_TODO #1; twice the cell size of the 64-px packs, so a natural "big enemy" tier | staged |
-| `golem/Golem1..3` | **128×128 cells.** Hulking rock / clay / crystal golems, 3 variants | Idle 4 · Walk 8 · Run 8 · Attack 9 · Hurt 4 · Death 8 | `shadow.png` 64×48 | Caves; Granite Colossus boss body (ART_TODO #3) and grave-titan / troll stand-ins (ART_TODO #1) | staged |
-| `ghost/Ghost1..3` | Floating blue spirits, 3 variants. Attack is a two-phase dive: shrouds into a black shade, then bursts | Idle 4 · Walk 6 · Run 6 · Attack 12 · Hurt 4 · Death 9 | `Shadow_single`, `Shadow_death` | Wraith / harpy-type flyers (ART_TODO #1); Graveyard & Cemetery haunts; Act 3 (Heaven) lost souls | staged |
-| `gnolls/Gnoll1..3` | Hyena-men brawlers, 3 fur variants. **Gnoll1's Death sheet is misnamed `Gnoll_Death_*`** (no variant number) | Idle 4 · Walk 6 · Run 8 · Attack 10 · Hurt 4 · Death 6 | `Shadow_single`, `Shadow_death` | Greenwood / wilds beast-men; weregoat stand-in (ART_TODO #1); raid attackers on the City | staged |
-| `zombie/Zombie1..3` | Shambling undead, 3 variants | Idle 4 · Walk 6 · Run 8 · Attack 10 · Hurt 4 · Death 9 | `Shadow.png` | Graveyard (Act 1 Part 2) fodder alongside the existing Skeleton; Hell footsoldiers | staged |
+| `demons/Demon1..3` | **128×128 cells.** Horned purple imps with pitchforks / spears, 3 variants | Idle 4 · Walk 6 · Run 8 · Attack 10 · Hurt 4 · Death 13 | `Parts/*_Attack_fire` spell overlay, `*_Death_Death_effects`; `Shadow.png` | **Act 2 (Hell)** — Demon / Pit Fiend / Ifrit placeholders in ART_TODO #1; twice the cell size of the 64-px packs, so a natural "big enemy" tier | **in game**: `demon` = Demon1, `ifrit` = Demon2 (fire tint), `pit_fiend` = Demon3 |
+| `golem/Golem1..3` | **128×128 cells.** Hulking rock / clay / crystal golems, 3 variants | Idle 4 · Walk 8 · Run 8 · Attack 9 · Hurt 4 · Death 8 | `shadow.png` 64×48 | Caves; Granite Colossus boss body (ART_TODO #3) and grave-titan / troll stand-ins (ART_TODO #1) | **in game**: `granite_colossus` = Golem1 (brown rock) ×1.6, `grave_titan` = Golem2 (bone-white crystal) ×1.35; Golem3 (blue armoured, fire core) is free |
+| `ghost/Ghost1..3` | Floating blue spirits, 3 variants. Attack is a two-phase dive: shrouds into a black shade, then bursts | Idle 4 · Walk 6 · Run 6 · Attack 12 · Hurt 4 · Death 9 | `Shadow_single`, `Shadow_death` | Wraith / harpy-type flyers (ART_TODO #1); Graveyard & Cemetery haunts; Act 3 (Heaven) lost souls | **in game**: `specter` = Ghost1, `snow_wraith` = Ghost2 (ice tint) |
+| `gnolls/Gnoll1..3` | Hyena-men brawlers, 3 fur variants. **Gnoll1's Death sheet is misnamed `Gnoll_Death_*`** (no variant number) | Idle 4 · Walk 6 · Run 8 · Attack 10 · Hurt 4 · Death 6 | `Shadow_single`, `Shadow_death` | Greenwood / wilds beast-men; weregoat stand-in (ART_TODO #1); raid attackers on the City | **in game**: `bugbear` = Gnoll2 (dark, armoured), `weregoat` = Gnoll3 (white-furred) |
+| `zombie/Zombie1..3` | Shambling undead, 3 variants | Idle 4 · Walk 6 · Run 8 · Attack 10 · Hurt 4 · Death 9 | `Shadow.png` | Graveyard (Act 1 Part 2) fodder alongside the existing Skeleton; Hell footsoldiers | **in game**: `zombie` = Zombie1, `infected_hunter` = Zombie3 |
 | `lizardmen/Lizardman1..3` | Sword-armed lizardfolk, 3 scale colours | Idle 4 · Walk 6 · Run 8 · Attack 7 · Hurt 5 · Death 7 | `Shadow_single`, `Shadow_death` | Sewer / cave depths (the "croc" tier after the Rat King); swamp encounters | staged |
-| `slime/Slime1..3` | Blob slimes with an ice-shard spit attack, 3 colours | Idle 6 · Walk 8 · Run 8 · Attack 10 · Hurt 5 · Death 10 | — (no separate shadow masks) | **Sludge Being** (Sewer ranged ooze) body; cave slimes | staged |
+| `slime/Slime1..3` | Blob slimes with an ice-shard spit attack, 3 colours | Idle 6 · Walk 8 · Run 8 · Attack 10 · Hurt 5 · Death 10 | — (no separate shadow masks) | **Sludge Being** (Sewer ranged ooze) body; cave slimes | Variants are ice (1), lightning (2) and fire (3) slimes. **in game**: `sludge` = Slime1 ×1.6 tinted to a green ooze |
 
 Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 256 tall, the two 128-px packs are 512 tall):
@@ -93,12 +93,30 @@ billboard.
 
 | Folder | Key sheets | Contents | Candidate use | Status |
 |---|---|---|---|---|
-| `tileset_cave/` | `ground_source` 1088×128 · `Objects_source` 976×416 · `Objects_animated*_source` · `water_n_lava_coasts_source` 384×768 · `lava_detilazation_source` · `bubbles_source` · `spots_source` · 259 separate props | Dark cave floor & wall pieces, stalagmites (grey / black), coloured crystal clusters (blue, green, red, orange, yellow), glowing mushrooms, giant spider & webs, **animated volcano vents / lava, water rocks**, iron gates, and a 6-frame animated **demon head / hands / tail** emerging from the ground | **The Caves** (Act 1 Part 3, already built as mesh stand-ins) — cave crystal tile variant (ART_TODO #7), decoration sprites (ART_TODO #6); lava + demon fixtures for the **Act 2 Hell** threshold | staged |
+| `tileset_cave/` | `ground_source` 1088×128 · `Objects_source` 976×416 · `Objects_animated*_source` · `water_n_lava_coasts_source` 384×768 · `lava_detilazation_source` · `bubbles_source` · `spots_source` · 259 separate props | Dark cave floor & wall pieces, stalagmites (grey / black), coloured crystal clusters (blue, green, red, orange, yellow), glowing mushrooms, giant spider & webs, **animated volcano vents / lava, water rocks**, iron gates, and a 6-frame animated **demon head / hands / tail** emerging from the ground | **The Caves** (Act 1 Part 3, already built as mesh stand-ins) — cave crystal tile variant (ART_TODO #7), decoration sprites (ART_TODO #6); lava + demon fixtures for the **Act 2 Hell** threshold | **in game**: cave floor + cave walls (`floor_cave`, `wall_cave`) |
 | `tileset_glowing_cave/` | `Ground` 304×384 · `Objects` 560×288 · `Details` 160×592 · `Water_coasts` 288×480 · `Shinies_animation` 480×192 · `Totem_animation` 576×176 · `Wisp1..3` · 60 separate props | Bioluminescent cave: teal / violet fungi, glowing eggs & pods, coiled crystal serpent, lizard, hanging vines, **animated wisps and glowing totem**, sparkle overlay | Deeper cave biome / Heaven-adjacent luminous zones; the wisps double as ambient critters (`sewer_critter.gd` pattern) | staged |
-| `tileset_cursed_land/` | `Ground` 720×560 · `Objects` 784×704 · `Water_coasts` 416×960 · `bridges` 672×304 · `details` · `spots` · 138 separate props | Flesh-and-vein hellscape: eye-plants, jaw plants, meat flowers, pustules, tentacle plants, fetus pods, bone piles, veins, cursed rocks, ruins, flesh bridges | **Act 2 — Hell** ground & set dressing (hell basalt tile variant, ART_TODO #7); calamity "corruption" spreading toward the City | staged |
-| `tileset_undead_land/` | `Ground_rocks` 496×592 · `Objects` 768×704 · `Water_coasts` 1056×256 · `Details` 576×176 · `Animation1..6` · 240 separate props | Graveyard / barrow land: crowned giant skeleton half-buried (3 poses), iron fences & gates, dead trees (**Animation1 = 6-frame swaying dead tree**, others: candles, ghostfire, bones), skull piles, ribcages, rocks, candles, grave markers | **Graveyard / Cemetery** (Act 1 Part 2 `[TBD]` in STORY.md) — graveyard soil + headstones (ART_TODO #7); Lich / Zombie / Ghost habitat | staged |
-| `tileset_forest/` | `Ground_grass` 304×368 · `Objects` 816×272 · `Water_coasts` 238×768 · `Water_lilis` 240×192 · `spots_lianas` 336×544 · 89 separate props | Temperate forest: 14 tree types incl. climbable-looking canopies, bushes, stones (beige / brown / light), ruins (grass / orange), broken trees, mushrooms, reeds, lily pads, lianas | **The Greenwood** (Act 1 Part 3, built) — replaces generated billboard trees / shrubs / mushrooms / logs / reeds, climbable tree variant; forest ruins for quest sites | staged |
-| `tileset_grassland/` | `ground_grasss` 336×256 · `Trees_rocks` 256×544 · `Water_coasts` 272×576 · `Details` 192×224 · 76 separate props | Open glades: 5 trees (incl. fruit tree), 19 bushes, 11 flowers, rock outcrops, and **overgrown stone ruins / walls / arches** | World 1 overworld around Town; the ruin walls are a strong fit for **City walls & expansion plots** (base builder) | staged |
+| `tileset_cursed_land/` | `Ground` 720×560 · `Objects` 784×704 · `Water_coasts` 416×960 · `bridges` 672×304 · `details` · `spots` · 138 separate props | Flesh-and-vein hellscape: eye-plants, jaw plants, meat flowers, pustules, tentacle plants, fetus pods, bone piles, veins, cursed rocks, ruins, flesh bridges | **Act 2 — Hell** ground & set dressing (hell basalt tile variant, ART_TODO #7); calamity "corruption" spreading toward the City | **in game**: World 4 Emberfall floor (`floor_cursed`) |
+| `tileset_undead_land/` | `Ground_rocks` 496×592 · `Objects` 768×704 · `Water_coasts` 1056×256 · `Details` 576×176 · `Animation1..6` · 240 separate props | Graveyard / barrow land: crowned giant skeleton half-buried (3 poses), iron fences & gates, dead trees (**Animation1 = 6-frame swaying dead tree**, others: candles, ghostfire, bones), skull piles, ribcages, rocks, candles, grave markers | **Graveyard / Cemetery** (Act 1 Part 2 `[TBD]` in STORY.md) — graveyard soil + headstones (ART_TODO #7); Lich / Zombie / Ghost habitat | **in game**: World 5 Umbral Expanse floor (`floor_undead`) |
+| `tileset_forest/` | `Ground_grass` 304×368 · `Objects` 816×272 · `Water_coasts` 238×768 · `Water_lilis` 240×192 · `spots_lianas` 336×544 · 89 separate props | Temperate forest: 14 tree types incl. climbable-looking canopies, bushes, stones (beige / brown / light), ruins (grass / orange), broken trees, mushrooms, reeds, lily pads, lianas | **The Greenwood** (Act 1 Part 3, built) — replaces generated billboard trees / shrubs / mushrooms / logs / reeds, climbable tree variant; forest ruins for quest sites | **in game**: Greenwood floor + trails (`floor_grass_forest`, `floor_dirt_forest`) |
+| `tileset_grassland/` | `ground_grasss` 336×256 · `Trees_rocks` 256×544 · `Water_coasts` 272×576 · `Details` 192×224 · 76 separate props | Open glades: 5 trees (incl. fruit tree), 19 bushes, 11 flowers, rock outcrops, and **overgrown stone ruins / walls / arches** | World 1 overworld around Town; the ruin walls are a strong fit for **City walls & expansion plots** (base builder) | **in game**: World 1 floor + trails (`floor_grass_field`, `floor_dirt_field`) |
+
+## Integration notes
+
+- **Terrain fills.** `tools/extract_craftpix_tiles.py` cuts each tileset's
+  interior 16-px fill tiles and composes them into the 4×4 × 32-px variant
+  sheets the terrain MultiMesh samples (`assets/textures/craftpix/`). Only
+  fills are used so far; the autotile edge pieces, coasts and prop atlases
+  wait on a per-tile UV renderer (the current triplanar material cannot
+  pick a cell per tile). Grass fills are two flat tiles per pack — the
+  packs put grass detail in `Details.png` overlays, which is the next step.
+- **Enemy rigs.** `SpriteEnemyFigure` plays the Craftpix sheets with real
+  frames (idle / walk / run / attack / hurt / death). The direction row map
+  is `SpriteEnemyFigure.CP_ROWS`. The `Without_shadow` sheets are used with
+  the project's blob shadow (style guide §4). Variant picks and scales are
+  in the `KINDS` table; `tests/_capture_sprite_bestiary.gd` renders them
+  for review.
+- **Camera.** The fixed top-down three-quarter view (`CameraView`) is what
+  all of this is drawn for; see the style guide §0.
 
 ## Staging log
 

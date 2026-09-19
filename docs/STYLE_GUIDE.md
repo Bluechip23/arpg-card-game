@@ -1,13 +1,33 @@
 # Trials of Olorin — Visual Style Guide
 
 Target: Secret of Mana (SNES, 1993), executed through this project's actual
-architecture: a **3D battle scene with billboard pixel sprites**, rendered
-**low-resolution inside a SubViewport**, with full-resolution UI composited on
-top. The purchased packs (Mana Seed character base, Seliel NPC packs,
-MonsterKit battlers) are the *reference art*: they define the palette, the
-lighting convention, and the level of finish everything else must match. They
-are never modified. Everything we generate (tile textures, recolors, VFX,
-icons) conforms to them.
+architecture: a **3D battle scene with billboard pixel sprites** seen from a
+**fixed top-down three-quarter camera**, rendered **low-resolution inside a
+SubViewport**, with full-resolution UI composited on top. The purchased packs
+(Mana Seed character base, Seliel NPC packs, MonsterKit battlers, and the
+Craftpix top-down character packs and tilesets catalogued in
+`docs/ASSET_PACKS.md`) are the *reference art*: they define the palette, the
+lighting convention, the viewpoint, and the level of finish everything else
+must match. They are never modified (the Craftpix fills are cropped, not
+repainted). Everything we generate (tile textures, recolors, VFX, icons)
+conforms to them.
+
+## 0. Camera
+
+- **One fixed view**, shared by battle and town: north up, pitched **-65°**,
+  orthographic. Constants live in `scripts/core/camera_view.gd`
+  (`CameraView`); nothing else hard-codes an angle. Zoom is free (mouse
+  wheel, `<` / `>`); the angle is not — the top-down packs are drawn for a
+  single viewpoint, and a free orbit made their fronts, painted shadows and
+  wall faces lie.
+- Why -65° and not a plan view: at -90° upright billboards are edge-on. At
+  -65° the ground sits within ~10% of 1:1 texel mapping (sin 65° ≈ 0.906)
+  while sprites still show their painted fronts, which is how the pack art
+  is drawn. Everything that depends on the pitch derives it from
+  `CameraView.ground_foreshortening()` (the shadow ellipse stretch, for one)
+  so the number can move without a retune.
+- Screen-up is grid north (-Z); `CharacterAnimator.Direction.SOUTH` faces
+  the camera. WASD still projects through the (fixed) yaw.
 
 ## 1. Resolution & scale
 
@@ -69,7 +89,10 @@ icons) conforms to them.
   `scripts/battle/blob_shadow.gd`.
 - Ellipse ≈ 70% of the sprite's drawn width; hard two-step edge (core at 38%
   black, rim at 20%); **no gradient falloff**. Texture:
-  `assets/textures/blob_shadow.png` (generated, 2-step).
+  `assets/textures/blob_shadow.png` (generated, 2-step, 32×16). The flat quad
+  is stretched along the ground by `1 / CameraView.ground_foreshortening()`
+  so the ellipse reads **2:1 on screen** — the proportion the Craftpix packs
+  paint under their own figures — whatever the fixed pitch is set to.
 - Anchored at the feet anchor, y ≈ 0.01 above ground; does not rotate or flip
   with facing; scales down ~20% when the body is airborne (hop/knockback).
 - **Billboards pivot at the feet, never the centre.** A centred `Sprite3D` /
@@ -79,14 +102,22 @@ icons) conforms to them.
   and enemy sprites set `centered = false` with an `offset` that puts the
   art's ground row at the node origin; prop `QuadMesh`es use a
   `center_offset` of half their height; critters do the same. The ground
-  row then stays glued to the tile (and the blob shadow) from any angle.
+  row then stays glued to the tile (and the blob shadow) at the fixed pitch.
 - MonsterKit flyer cells (bee, hawk, bat, carpet, sword) have painted shadows
-  in-art — those kinds skip the shadow node (no doubles).
+  in-art — those kinds skip the shadow node (no doubles). Craftpix packs ship
+  every sheet twice; always use `Without_shadow/` and let the blob do it.
 
 ## 5. Sprites & animation
 
 - Party frames 64×64 (base) / 32×32 (NPC models); feet on the ground line
-  (base: row 44 of the cell; NPC: cell bottom). Battlers 64×64.
+  (base: row 44 of the cell; NPC: cell bottom). Battlers 64×64. Craftpix
+  enemies: square cells (64 or 128, cell = sheet height ÷ 4), one sheet per
+  animation, four direction rows (front, back, left, right in every pack so
+  far) — the row map is `SpriteEnemyFigure.CP_ROWS`, never re-derived at a
+  call site.
+- Craftpix frame rates (`SpriteEnemyFigure.CP_FPS`): idle 5, walk 8, run 10,
+  attack / hurt 12, death 10. Attack, hurt and death are one-shots; death
+  holds its last frame while the corpse shrinks away.
 - Cycles: walk 4–6 frames at 5.5–7.5 fps; attacks use the pack's canonical
   160/65/65/200 ms timing. Nothing animates above 12 fps sustained.
 - No rotation of pixel art off-axis; no scale tweens on sprite frames.

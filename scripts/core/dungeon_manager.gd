@@ -397,20 +397,60 @@ func get_palette() -> Dictionary:
 		return FOREST_PALETTE
 	return WORLD_PALETTES.get(world_level, WORLD_PALETTES[1])
 
-## Pixel tile textures per location flavour (grayscale, tinted by the palette).
+## Ground sheets per location flavour. Craftpix top-down tileset fills
+## (assets/textures/craftpix/, cut by tools/extract_craftpix_tiles.py) where a
+## pack matches the place; the generated master-palette sheets elsewhere.
+## Every sheet is a 4x4 grid of 32px variants sampled triplanar (see
+## _add_multimesh). Colour-authored sheets get only a light palette cast.
+const CP_TEX := "res://assets/textures/craftpix"
+
 func floor_texture_path() -> String:
 	match interior_kind:
 		"sewer", "building":
 			return "res://assets/textures/tile_brick.png"
 		"cave":
+			return CP_TEX + "/floor_cave.png"
+		"forest":
+			return CP_TEX + "/floor_grass_forest.png"
+	match world_level:
+		4:  # Emberfall — the flesh-and-vein hellscape (cursed land pack)
+			return CP_TEX + "/floor_cursed.png"
+		5:  # Umbral Expanse — barrow-land cracked stone (undead land pack)
+			return CP_TEX + "/floor_undead.png"
+		2, 3:  # Amber Wastes / Frostreach: no matching pack yet, palette-tinted
+			return "res://assets/textures/tile_grass.png"
+	return CP_TEX + "/floor_grass_field.png"
+
+
+## The accent-free variant of the floor sheet for the backdrop plane beyond
+## the walls: under its dark tint, flowers and tufts read as specks. (The
+## Craftpix fills are plain — their detail lives in overlay sheets — so they
+## serve as their own far variant.)
+func far_floor_texture_path() -> String:
+	var p := floor_texture_path()
+	if p.ends_with("tile_grass.png"):
+		return "res://assets/textures/tile_grass_far.png"
+	return p
+
+
+## Worn dirt trails / roads through the floor sheet above.
+func trail_texture_path() -> String:
+	match interior_kind:
+		"forest":
+			return CP_TEX + "/floor_dirt_forest.png"
+		"cave", "sewer", "building":
 			return "res://assets/textures/tile_dirt.png"
-	return "res://assets/textures/tile_grass.png"
+	if world_level == 1:
+		return CP_TEX + "/floor_dirt_field.png"
+	return "res://assets/textures/tile_dirt.png"
 
 
 func wall_texture_path() -> String:
 	match interior_kind:
 		"sewer", "building":
 			return "res://assets/textures/tile_brick.png"
+		"cave":
+			return CP_TEX + "/wall_cave.png"
 	return "res://assets/textures/tile_rock.png"
 
 
@@ -1120,8 +1160,10 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 		if texture_path != "":
 			# Tile textures are authored in full master-palette color now; the
 			# instance tint becomes a gentle theme cast instead of the color
-			# source, so painted hues survive on screen (16-bit pass).
-			inst_color = Color(1, 1, 1).lerp(inst_color, 0.5)
+			# source, so painted hues survive on screen (16-bit pass). The
+			# purchased Craftpix fills carry their own finished colour, so they
+			# take an even lighter cast than our generated sheets.
+			inst_color = Color(1, 1, 1).lerp(inst_color, _tint_weight(texture_path))
 		mm.set_instance_color(i, inst_color)
 	var mmi = MultiMeshInstance3D.new()
 	mmi.multimesh = mm
@@ -1142,6 +1184,14 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 		mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	mmi.material_override = mat
 	_visuals_root.add_child(mmi)
+
+
+## How much of the palette tint a textured tile keeps: 0.5 on our generated
+## grayscale-derived sheets, 0.35 on purchased colour-authored fills (enough
+## theme cast to sit the bright pack grass into the world's light, not enough
+## to repaint it).
+static func _tint_weight(texture_path: String) -> float:
+	return 0.35 if texture_path.begins_with(CP_TEX) else 0.5
 
 
 ## Billboard sprite props (trees, bushes, rocks, stumps, ferns): a QuadMesh
@@ -1236,7 +1286,7 @@ func _build_floor_visuals() -> void:
 		else:
 			# Roads and trails read as packed dirt cutting through the grass —
 			# the classic 16-bit field path (Secret of Mana overworld look).
-			_add_multimesh(BoxMesh.new(), trail_items, true, 0.95, "res://assets/textures/tile_dirt.png")
+			_add_multimesh(BoxMesh.new(), trail_items, true, 0.95, trail_texture_path())
 	if not water_items.is_empty():
 		# Flat painted 16-bit water: the ripples live in the tile art. No
 		# metallic/emission/gloss — modern PBR shine is a style violation.
@@ -1440,7 +1490,7 @@ func _build_elevation_visuals() -> void:
 	# the rounded rim slightly, the classic SNES plateau lip.
 	_add_multimesh(_chamfered_unit_box(0.08, 0.30), cliff_items, true, 0.95, "res://assets/textures/tile_rock.png")
 	_add_multimesh(BoxMesh.new(), top_items, true, 0.95, floor_texture_path())
-	_add_multimesh(BoxMesh.new(), step_items, true, 0.85, "res://assets/textures/tile_dirt.png")
+	_add_multimesh(BoxMesh.new(), step_items, true, 0.85, trail_texture_path())
 	if not skirt_items.is_empty():
 		_add_multimesh(BoxMesh.new(), skirt_items, false)
 	print("[DUNGEON] Built %d cliff tiles, %d stone steps" % [cliff_items.size(), step_items.size() / 3])

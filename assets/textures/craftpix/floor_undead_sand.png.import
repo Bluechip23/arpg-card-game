@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://crvalb6itfccb"
-path="res://.godot/imported/view_rotated.png-394a5bfdadbf868406a4c4ab61084931.ctex"
+uid="uid://bgbrwf8cendpa"
+path="res://.godot/imported/floor_undead_sand.png-58e42bb7f9199f16ffb967431182b240.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/screenshots/view_rotated.png"
-dest_files=["res://.godot/imported/view_rotated.png-394a5bfdadbf868406a4c4ab61084931.ctex"]
+source_file="res://assets/textures/craftpix/floor_undead_sand.png"
+dest_files=["res://.godot/imported/floor_undead_sand.png-58e42bb7f9199f16ffb967431182b240.ctex"]
 
 [params]
 

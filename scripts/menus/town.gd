@@ -40,20 +40,16 @@ var _return_portal_node: Node3D = null
 var _near_return_portal: bool = false
 var _near_town_waypoint: bool = false
 
-# Camera orbit state (same as main scene)
+# Camera state (same fixed top-down three-quarter view as the battle scene —
+# see CameraView; no orbit, zoom only).
 var _camera_focus: Vector3 = Vector3(10, 0, 6)
-var _camera_yaw: float = 0.0
-var _camera_pitch: float = -0.785
+var _camera_yaw: float = CameraView.YAW
+var _camera_pitch: float = CameraView.PITCH
 var _camera_distance: float = 17.0
-var _camera_orbiting: bool = false
 var _move_path_cursor: MovePathCursor = null  # Hover cursor + route dots for right-click walks
-var _camera_drag_start: Vector2 = Vector2.ZERO
-const CAMERA_PITCH_MIN: float = -1.4
-const CAMERA_PITCH_MAX: float = -0.15
 const CAMERA_ZOOM_MIN: float = 6.0
 const CAMERA_ZOOM_MAX: float = 35.0
 const CAMERA_ZOOM_STEP: float = 2.0
-const CAMERA_ORBIT_SENSITIVITY: float = 0.005
 
 # Item detail modal (built dynamically)
 var _detail_modal: PanelContainer = null
@@ -222,17 +218,11 @@ func _update_camera() -> void:
 	var camera = get_viewport().get_camera_3d()
 	if not camera:
 		return
-	var offset = Vector3(
-		sin(_camera_yaw) * cos(_camera_pitch) * _camera_distance,
-		-sin(_camera_pitch) * _camera_distance,
-		cos(_camera_yaw) * cos(_camera_pitch) * _camera_distance
-	)
-	camera.position = _camera_focus + offset
-	camera.look_at(_camera_focus, Vector3.UP)
-	# Orthographic, frame-matched to the zoom distance (16-bit pass, same
+	# Fixed angle, orthographic, frame-matched to the zoom distance (same
 	# treatment as the world camera in main).
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 2.0 * _camera_distance * tan(deg_to_rad(75.0) * 0.5) * 0.62
+	_camera_yaw = CameraView.YAW
+	_camera_pitch = CameraView.PITCH
+	CameraView.apply(camera, _camera_focus, _camera_distance)
 
 func _apply_styles() -> void:
 	# Town label
@@ -401,20 +391,7 @@ func _input(event: InputEvent) -> void:
 			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
 			_update_camera()
 
-	# Camera orbit - left click drag
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			if not vendor_open and not _modal_open:
-				_camera_orbiting = true
-				_camera_drag_start = event.position
-		else:
-			_camera_orbiting = false
-
-	if event is InputEventMouseMotion and _camera_orbiting:
-		var delta = event.relative
-		_camera_yaw -= delta.x * CAMERA_ORBIT_SENSITIVITY
-		_camera_pitch = clamp(_camera_pitch - delta.y * CAMERA_ORBIT_SENSITIVITY, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX)
-		_update_camera()
+	# (No camera orbit: the view angle is fixed — see CameraView.)
 
 	# Right-click movement (simplified town movement)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -458,7 +435,7 @@ func _update_move_path_cursor() -> void:
 	if _move_path_cursor == null or grid_manager == null \
 			or player == null or not is_instance_valid(player):
 		return
-	if vendor_open or _stash_open or _modal_open or _camera_orbiting or player.is_moving:
+	if vendor_open or _stash_open or _modal_open or player.is_moving:
 		_move_path_cursor.hide_cursor()
 		return
 	var mouse_pos := _get_mouse_world_position()

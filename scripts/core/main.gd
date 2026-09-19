@@ -363,19 +363,16 @@ var _donation_ally_sliders: Array = []  # [{slider: HSlider, label: Label, name:
 var _last_played_card: Card = null
 var _last_played_target = null
 
-# Camera orbit state
+# Camera state. The view angle is FIXED (CameraView: top-down three-quarter,
+# north up) — the old left-drag orbit is gone because the top-down pack art
+# is drawn for one viewpoint. Only the focus and the zoom distance move.
 var _camera_focus: Vector3 = Vector3(10, 0, 6)  # Center of the 20x12 grid
-var _camera_yaw: float = 0.0       # Horizontal rotation (radians)
-var _camera_pitch: float = -0.785  # Vertical angle (radians), -45° default
+var _camera_yaw: float = CameraView.YAW      # Locked; kept for the WASD basis
+var _camera_pitch: float = CameraView.PITCH  # Locked
 var _camera_distance: float = 17.0 # Distance from focus point
-var _camera_orbiting: bool = false  # True while left-dragging to orbit
-var _camera_drag_start: Vector2 = Vector2.ZERO
-const CAMERA_PITCH_MIN: float = -1.4   # ~-80° (nearly top-down)
-const CAMERA_PITCH_MAX: float = -0.15  # ~-9° (nearly level)
 const CAMERA_ZOOM_MIN: float = 6.0
 const CAMERA_ZOOM_MAX: float = 35.0
 const CAMERA_ZOOM_STEP: float = 2.0
-const CAMERA_ORBIT_SENSITIVITY: float = 0.005
 
 #region LOW-RES WORLD RENDER
 # ============================================
@@ -723,19 +720,13 @@ func _update_camera() -> void:
 	var camera = get_world_camera()
 	if not camera:
 		return
-	# Compute camera position on a sphere around the focus point
-	var offset = Vector3(
-		sin(_camera_yaw) * cos(_camera_pitch) * _camera_distance,
-		-sin(_camera_pitch) * _camera_distance,
-		cos(_camera_yaw) * cos(_camera_pitch) * _camera_distance
-	)
-	camera.position = _camera_focus + offset
-	camera.look_at(_camera_focus, Vector3.UP)
-	# Orthographic projection: SNES perspective has no foreshortening — this
-	# is the single biggest "reads 16-bit vs reads 3D" lever. Size is frame-
-	# matched to the old perspective view so zoom levels feel unchanged.
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 2.0 * _camera_distance * tan(deg_to_rad(75.0) * 0.5) * 0.62
+	# The angle is not negotiable: anything that poked the yaw/pitch (old
+	# harnesses, scripted moments) snaps back to the fixed view. Orthographic
+	# projection: SNES perspective has no foreshortening — this is the single
+	# biggest "reads 16-bit vs reads 3D" lever.
+	_camera_yaw = CameraView.YAW
+	_camera_pitch = CameraView.PITCH
+	CameraView.apply(camera, _camera_focus, _camera_distance)
 
 var _minimap_refresh_accum: float = 0.0
 
@@ -777,13 +768,13 @@ func _update_move_path_cursor() -> void:
 	## mouse and dot every tile of the route the active character would walk
 	## to reach it. Hidden whenever a right-click could not start a move — mid-
 	## move, a card or attack armed, a window open, the mouse over the hand,
-	## the camera being dragged, or the character committed to a ticking action.
+	## or the character committed to a ticking action.
 	if move_path_cursor == null or grid_manager == null or player == null:
 		return
 	if player.is_moving or _movement_locked() or _is_ui_window_open() \
 			or selected_card_index >= 0 or _pending_quiver_card != null \
 			or _basic_attack_pending or _pending_gauntlet_skill != null \
-			or _current_hand_hover_index != -1 or _camera_orbiting:
+			or _current_hand_hover_index != -1:
 		move_path_cursor.hide_cursor()
 		return
 
@@ -6261,9 +6252,9 @@ func _wasd_step(dir: Vector2) -> void:
 
 	# Camera ground basis: forward is where the camera looks (−offset on XZ),
 	# right is forward rotated so +X is screen-right at yaw 0. The yaw is
-	# quantized to the nearest 90° first (the camera itself settles there, but
-	# mid-drag or scripted angles must not scramble the key→direction map),
-	# then a tiny bias breaks exact-diagonal ties deterministically.
+	# fixed north-up (CameraView) but is still quantized to the nearest 90°
+	# so a scripted angle can never scramble the key→direction map; a tiny
+	# bias breaks exact-diagonal ties deterministically.
 	var quantized_yaw := snappedf(_camera_yaw, PI / 2.0) + 0.0001
 	var forward := Vector2(-sin(quantized_yaw), -cos(quantized_yaw))  # (x, z)
 	var right := Vector2(-forward.y, forward.x)
@@ -11453,26 +11444,7 @@ func _input(event: InputEvent) -> void:
 			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
 			_update_camera()
 
-	# Camera orbit - left click drag when no card is selected
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			# Only start orbiting if no card action is pending and no UI window
-			# is capturing the drag (otherwise dragging a scrollbar spins the map).
-			if selected_card_index < 0 and _pending_quiver_card == null and not _basic_attack_pending \
-					and _pending_gauntlet_skill == null and not _is_ui_window_open():
-				_camera_orbiting = true
-				_camera_drag_start = event.position
-		else:
-			# The camera stays exactly where the player leaves it — no snap.
-			# WASD stays safe at any yaw because _wasd_step quantizes the
-			# camera angle itself when projecting keys onto the grid.
-			_camera_orbiting = false
-
-	if event is InputEventMouseMotion and _camera_orbiting:
-		var delta = event.relative
-		_camera_yaw -= delta.x * CAMERA_ORBIT_SENSITIVITY
-		_camera_pitch = clamp(_camera_pitch - delta.y * CAMERA_ORBIT_SENSITIVITY, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX)
-		_update_camera()
+	# (No camera orbit: the view angle is fixed — see CameraView.)
 
 #endregion
 #region DUNGEON SYSTEM
@@ -13717,16 +13689,20 @@ func _build_ground_plane() -> void:
 	# Full-color tiles: keep only a dim theme cast so out-of-bounds terrain
 	# reads as darker painted ground rather than a solid tint.
 	var ground_cast: Color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1))
-	mat.albedo_color = Color(0.55, 0.55, 0.55).lerp(ground_cast, 0.35)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	mat.roughness = 1.0
 	# Same pixel tile style as the arena floor (tinted darker by the ground
 	# colour) so the world beyond the walls matches the sprite art style.
 	# Grass swaps to the accent-free far variant: flowers/tufts under the dark
 	# tint would read as scattered noise specks across the whole backdrop.
-	var tex_path: String = dungeon_manager.floor_texture_path()
-	if tex_path.ends_with("tile_grass.png"):
-		tex_path = "res://assets/textures/tile_grass_far.png"
+	var tex_path: String = dungeon_manager.far_floor_texture_path()
+	# The purchased fills are bright finished colour, so they need a much
+	# heavier cast than our darker generated sheets to sink into the void
+	# (the backdrop must sit close to the fog of war, never outshine the arena).
+	var far_dim := Color(0.55, 0.55, 0.55)
+	if tex_path.begins_with(dungeon_manager.CP_TEX):
+		far_dim = Color(0.3, 0.3, 0.3)
+	mat.albedo_color = far_dim.lerp(ground_cast, 0.35)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mat.roughness = 1.0
 	mat.albedo_texture = load(tex_path)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
