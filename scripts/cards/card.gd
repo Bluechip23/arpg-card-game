@@ -6,11 +6,11 @@ extends Resource
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
 ## Slot-compatibility label: which item slots a card may be enchanted into
 ## (belt→Pocket, ring→Gem, boots→Swift, shield→Buckler, helm→Crown,
-## gauntlets→Fist, bow/quiver→Arrow, chest→Bulwark, and each melee weapon
-## its own: Sword, Axe, Dagger, Hammer, Spear). Any card may sit in the bare
+## gauntlets→Fist, bow/quiver→Arrow, chest→Bulwark, and every weapon type
+## its own: Sword, Axe, Dagger, Hammer, Spear, Wand, Tome, Staff). Any card may sit in the bare
 ## deck; an unlabeled card can ONLY sit there. A card that may only exist
 ## inside a slot is flagged requires_engraving (the Engrave keyword).
-enum CardKeyword { NONE, ARROW, POCKET, GEM, SWIFT, BUCKLER, CROWN, FIST, SWORD, AXE, DAGGER, HAMMER, SPEAR, BULWARK }
+enum CardKeyword { NONE, ARROW, POCKET, GEM, SWIFT, BUCKLER, CROWN, FIST, SWORD, AXE, DAGGER, HAMMER, SPEAR, BULWARK, WAND, TOME, STAFF }
 
 static func keyword_name(kw: int) -> String:
 	match kw:
@@ -27,6 +27,9 @@ static func keyword_name(kw: int) -> String:
 		CardKeyword.HAMMER: return "Hammer"
 		CardKeyword.SPEAR: return "Spear"
 		CardKeyword.BULWARK: return "Bulwark"
+		CardKeyword.WAND: return "Wand"
+		CardKeyword.TOME: return "Tome"
+		CardKeyword.STAFF: return "Staff"
 	return ""
 
 # The card's SCHOOL — how the card is delivered — orthogonal to CardType (its

@@ -53,7 +53,10 @@ func _initialize() -> void:
 	_check(chest.can_slot_card(bulwark), "a Bulwark card slots into chest armor")
 	var staff := F.staff()
 	staff.card_slots = 1
-	_check(staff.can_slot_card(pocket), "staves take any labeled card")
+	_check(not staff.can_slot_card(pocket), "a staff refuses a Pocket card")
+	var staff_card := Card.create_heal()
+	staff_card.card_keyword = Card.CardKeyword.STAFF
+	_check(staff.can_slot_card(staff_card), "a Staff card slots into a staff")
 
 	# Several labels: any of them opens its slot.
 	var multi := Card.create_heal()

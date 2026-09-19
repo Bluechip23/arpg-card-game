@@ -767,7 +767,10 @@ func _get_default_keyword_for_item_type() -> int:
 				WeaponSubtype.DAGGER: return Card.CardKeyword.DAGGER
 				WeaponSubtype.HAMMER: return Card.CardKeyword.HAMMER
 				WeaponSubtype.POLEARM: return Card.CardKeyword.SPEAR
-				_: return -1  # Wands, tomes, staves and "other" take any labeled card
+				WeaponSubtype.WAND: return Card.CardKeyword.WAND
+				WeaponSubtype.TOME: return Card.CardKeyword.TOME
+				WeaponSubtype.STAFF: return Card.CardKeyword.STAFF
+				_: return -1  # "Other" weapons take any labeled card
 	return -1
 
 func slot_card(card) -> bool:
