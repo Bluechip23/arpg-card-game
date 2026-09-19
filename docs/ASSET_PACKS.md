@@ -104,13 +104,26 @@ billboard.
 
 - **Terrain fills.** `tools/extract_craftpix_tiles.py` cuts each tileset's
   interior 16-px fill tiles and composes them into 4×4 × 32-px variant
-  sheets (`assets/textures/craftpix/`). The autotiled ground
-  (`DungeonManager._build_autotile_ground`) assembles its runtime atlas from
-  those sheets — 16 plain variants per terrain for open ground, plus 16
-  edge-mask tiles whose transition bands are still painted from the
-  palette. Cutting the packs' own edge pieces, coasts and prop atlases into
-  those mask columns is the next step, as is scattering the `Details.png`
-  grass overlays (the pack grass fills are two flat tiles).
+  sheets (`assets/textures/craftpix/`): grass, smooth dirt (trails), the
+  cobbled cliff face (walls, cliffs, boulders) and a composed water sheet
+  (pack water colour under its foam overlay) per biome. The autotiled
+  ground (`DungeonManager._build_autotile_ground`) assembles its runtime
+  atlas from those sheets — 16 plain variants per terrain for open ground,
+  plus 16 edge-mask tiles whose transition bands are still painted from
+  the palette. Cutting the packs' own edge pieces into those mask columns
+  is the next step, as is scattering the `Details.png` grass overlays.
+- **Props.** `tools/build_craftpix_props.py` crops the packs' separate prop
+  PNGs (light-shadow variants) to tight sprites under
+  `assets/textures/craftpix/props/` and writes the `CraftpixProps`
+  manifest. `DungeonManager.PROP_ROLES` maps each biome's prop families
+  (tree, rock, bush, shroom, bones…) to roles; `_add_prop_decos` spreads
+  the variants across a scatter by cell hash. Chests use the treasure
+  pack (wood / red-gold / ornate by loot rarity). Anything with no role
+  keeps its legacy sprite — those are listed in `docs/ART_GAPS.md`.
+- **UI.** Equipment-slot icons (`assets/textures/craftpix/ui/`, cut from
+  the armour/weapon and treasure icon sheets by the same tool) replace
+  the drawn silhouettes in `ItemSilhouette`; belt and quiver keep the
+  drawn shape.
 - **Enemy rigs.** `SpriteEnemyFigure` plays the Craftpix sheets with real
   frames (idle / walk / run / attack / hurt / death). The direction row map
   is `SpriteEnemyFigure.CP_ROWS`. The `Without_shadow` sheets are used with

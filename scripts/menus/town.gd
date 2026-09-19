@@ -46,10 +46,14 @@ var _camera_focus: Vector3 = Vector3(10, 0, 6)
 var _camera_yaw: float = CameraView.YAW
 var _camera_pitch: float = CameraView.PITCH
 var _camera_distance: float = 17.0
+var _camera_pan: Vector3 = Vector3.ZERO  # manual scroll off the follow focus
+var _camera_panning: bool = false
 var _move_path_cursor: MovePathCursor = null  # Hover cursor + route dots for right-click walks
 const CAMERA_ZOOM_MIN: float = 6.0
 const CAMERA_ZOOM_MAX: float = 35.0
 const CAMERA_ZOOM_STEP: float = 2.0
+const CAMERA_PAN_KEY_STEP: float = 2.0
+const CAMERA_PAN_LIMIT: float = 14.0
 
 # Item detail modal (built dynamically)
 var _detail_modal: PanelContainer = null
@@ -215,6 +219,7 @@ func _ready() -> void:
 
 	# Initialize camera
 	_camera_focus = player.position + Vector3(3, 0, 0)
+	_camera_pan = Vector3.ZERO
 	_update_camera()
 
 	# Coming home: bank the satchel, weather any struck trial, first-time
@@ -233,7 +238,14 @@ func _update_camera() -> void:
 	# treatment as the world camera in main).
 	_camera_yaw = CameraView.YAW
 	_camera_pitch = CameraView.PITCH
-	CameraView.apply(camera, _camera_focus, _camera_distance)
+	CameraView.apply(camera, _camera_focus + _camera_pan, _camera_distance)
+
+
+func _pan_camera(delta: Vector3) -> void:
+	_camera_pan += Vector3(delta.x, 0, delta.z)
+	_camera_pan.x = clampf(_camera_pan.x, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
+	_camera_pan.z = clampf(_camera_pan.z, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
+	_update_camera()
 
 func _apply_styles() -> void:
 	# Town label
@@ -402,7 +414,26 @@ func _input(event: InputEvent) -> void:
 			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
 			_update_camera()
 
-	# (No camera orbit: the view angle is fixed — see CameraView.)
+	# Camera scroll: left-drag pans (fixed angle, see CameraView); arrows nudge; Home re-centres.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if not vendor_open and not _modal_open and not _stash_open:
+				_camera_panning = true
+		else:
+			_camera_panning = false
+	if event is InputEventMouseMotion and _camera_panning:
+		var cam := get_viewport().get_camera_3d()
+		var upp: float = (cam.size / maxf(1.0, get_viewport().get_visible_rect().size.y)) if cam else 0.02
+		_pan_camera(Vector3(-event.relative.x * upp, 0, -event.relative.y * upp / CameraView.ground_foreshortening()))
+	if event is InputEventKey and event.pressed and not event.echo and not _modal_open and not vendor_open and not _stash_open:
+		match event.keycode:
+			KEY_LEFT: _pan_camera(Vector3(-CAMERA_PAN_KEY_STEP, 0, 0))
+			KEY_RIGHT: _pan_camera(Vector3(CAMERA_PAN_KEY_STEP, 0, 0))
+			KEY_UP: _pan_camera(Vector3(0, 0, -CAMERA_PAN_KEY_STEP))
+			KEY_DOWN: _pan_camera(Vector3(0, 0, CAMERA_PAN_KEY_STEP))
+			KEY_HOME:
+				_camera_pan = Vector3.ZERO
+				_update_camera()
 
 	# Right-click movement (simplified town movement)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -2100,7 +2131,7 @@ func _unify_town_style() -> void:
 	if ground:
 		var gmat := StandardMaterial3D.new()
 		gmat.albedo_color = Color(0.85, 0.78, 0.68)  # warm packed-earth cast
-		gmat.albedo_texture = load("res://assets/textures/tile_dirt.png")
+		gmat.albedo_texture = load("res://assets/textures/craftpix/floor_dirt_field.png")  # packed earth from the field pack
 		gmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		gmat.uv1_triplanar = true
 		gmat.uv1_scale = Vector3(0.25, 0.25, 0.25)
@@ -2270,7 +2301,7 @@ func _build_stash_chest(stash: Node3D) -> void:
 	# Same 16-bit chest billboard the dungeons use, scaled up for the stash.
 	var chest := Sprite3D.new()
 	chest.name = "Chest"
-	chest.texture = load("res://assets/textures/props/chest_closed.png")
+	chest.texture = load(CraftpixProps.PROPS["chest_wood_closed"]["variants"][0]["path"])
 	chest.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	chest.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	chest.shaded = false
@@ -2492,7 +2523,7 @@ func _create_town_waypoint() -> void:
 	mound_mesh.radial_segments = 12
 	mound.mesh = mound_mesh
 	var mound_mat = StandardMaterial3D.new()
-	mound_mat.albedo_texture = load("res://assets/textures/tile_dirt.png")
+	mound_mat.albedo_texture = load("res://assets/textures/craftpix/floor_dirt_field.png")
 	mound_mat.albedo_color = Color(1, 1, 1).lerp(Color(0.62, 0.5, 0.36), 0.5)
 	mound_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mound_mat.uv1_triplanar = true
@@ -2681,7 +2712,7 @@ func _create_town_well() -> void:
 	rm.radial_segments = 10
 	ring.mesh = rm
 	var rmat = StandardMaterial3D.new()
-	rmat.albedo_texture = load("res://assets/textures/tile_rock.png")
+	rmat.albedo_texture = load("res://assets/textures/craftpix/wall_field.png")
 	rmat.albedo_color = Color(0.8, 0.8, 0.85)
 	rmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	ring.material_override = rmat
