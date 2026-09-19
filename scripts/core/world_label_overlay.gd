@@ -56,12 +56,14 @@ func _track(l: Label3D) -> void:
 
 
 ## On-screen pixel height for a Label3D. Labels sized through WorldText
-## (`fixed_size`) were supersampled 2x; anything else is converted at the
-## measured screen factor.
+## (`fixed_size`) were supersampled 2x. Anything else (damage numbers,
+## status stacks, the odd prompt) was sized in world texels for the old
+## camera; half its font size is the on-screen height that reads right,
+## and nothing in the world gets bigger than the enemy names.
 static func _px(l: Label3D) -> int:
 	if l.fixed_size:
 		return maxi(8, roundi(l.font_size / WorldText.SUPERSAMPLE))
-	return clampi(roundi(l.font_size * l.pixel_size * WorldText.PX_FACTOR), 9, 28)
+	return clampi(roundi(l.font_size * 0.5), 9, 16)
 
 
 func _process(_delta: float) -> void:

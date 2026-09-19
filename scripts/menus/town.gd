@@ -11,7 +11,6 @@ extends Node3D
 @onready var vendor_inventory_label: Label = $UI/VendorPanel/MarginContainer/VBox/InventoryLabel
 @onready var vendor_item_list: VBoxContainer = $UI/VendorPanel/MarginContainer/VBox/ScrollContainer/ItemList
 @onready var town_label: Label = $UI/TownLabel
-@onready var fight_button: Button = $UI/FightButton
 
 const INTERACT_DISTANCE: float = 2.5  # Max tiles from vendor to interact
 # Olorin's first errand. The world stays shut until the player has spoken with
@@ -182,7 +181,6 @@ func _ready() -> void:
 	_apply_styles()
 
 	vendor_close_button.pressed.connect(_close_vendor)
-	fight_button.pressed.connect(_on_fight_button_pressed)
 	_setup_save_button()
 
 	interact_prompt.text = ""
@@ -289,34 +287,6 @@ func _apply_styles() -> void:
 
 	# Close button
 	vendor_close_button.add_theme_font_size_override("font_size", 16)
-
-	# Fight button
-	fight_button.add_theme_font_size_override("font_size", 16)
-	var btn_style = StyleBoxFlat.new()
-	btn_style.bg_color = Color(0.5, 0.15, 0.15)
-	btn_style.border_width_left = 2
-	btn_style.border_width_right = 2
-	btn_style.border_width_top = 2
-	btn_style.border_width_bottom = 2
-	btn_style.border_color = Color(0.8, 0.3, 0.3)
-	btn_style.corner_radius_top_left = 4
-	btn_style.corner_radius_top_right = 4
-	btn_style.corner_radius_bottom_left = 4
-	btn_style.corner_radius_bottom_right = 4
-	fight_button.add_theme_stylebox_override("normal", btn_style)
-
-	var btn_hover = StyleBoxFlat.new()
-	btn_hover.bg_color = Color(0.65, 0.2, 0.2)
-	btn_hover.border_width_left = 2
-	btn_hover.border_width_right = 2
-	btn_hover.border_width_top = 2
-	btn_hover.border_width_bottom = 2
-	btn_hover.border_color = Color(1.0, 0.4, 0.4)
-	btn_hover.corner_radius_top_left = 4
-	btn_hover.corner_radius_top_right = 4
-	btn_hover.corner_radius_bottom_left = 4
-	btn_hover.corner_radius_bottom_right = 4
-	fight_button.add_theme_stylebox_override("hover", btn_hover)
 
 func _process(_delta: float) -> void:
 	# Fade out stash message
@@ -2846,20 +2816,11 @@ func _can_leave_town() -> bool:
 
 func _refresh_leave_gate() -> void:
 	var open := _can_leave_town()
-	fight_button.disabled = not open
-	fight_button.tooltip_text = "" if open else "Speak with Olorin first."
 	if _town_waypoint_node:
 		var runes = _town_waypoint_node.get_node_or_null("Runes")
 		if runes:
 			runes.modulate = Color8(0x62, 0xa3, 0xb0) if open else Color(0.35, 0.4, 0.42)
 
-func _on_fight_button_pressed() -> void:
-	if not _can_leave_town():
-		_show_town_notice("The Transport Portal", [
-			"The runes lie dark. Olorin waits by the plaza with a task for you — speak with him before you set out.",
-		])
-		return
-	_go_to_battle()
 
 func _town_ground_y(world_pos: Vector3) -> float:
 	## Ground height under a unit in town: the Transport Portal's mound top
