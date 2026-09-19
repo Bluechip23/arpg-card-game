@@ -370,9 +370,15 @@ var _camera_focus: Vector3 = Vector3(10, 0, 6)  # Center of the 20x12 grid
 var _camera_yaw: float = CameraView.YAW      # Locked; kept for the WASD basis
 var _camera_pitch: float = CameraView.PITCH  # Locked
 var _camera_distance: float = 17.0 # Distance from focus point
+## Player-driven scroll away from the follow focus (left-drag or arrow
+## keys). Cleared whenever the camera re-centres on a moving character.
+var _camera_pan: Vector3 = Vector3.ZERO
+var _camera_panning: bool = false
 const CAMERA_ZOOM_MIN: float = 6.0
 const CAMERA_ZOOM_MAX: float = 35.0
 const CAMERA_ZOOM_STEP: float = 2.0
+const CAMERA_PAN_KEY_STEP: float = 2.0  # world units per arrow-key tap
+const CAMERA_PAN_LIMIT: float = 14.0    # how far the view may scroll from the character
 
 #region LOW-RES WORLD RENDER
 # ============================================
@@ -730,7 +736,7 @@ func _update_camera() -> void:
 	# used). Orthographic projection: SNES perspective has no foreshortening.
 	_camera_yaw = CameraView.YAW
 	_camera_pitch = CameraView.PITCH
-	var focus := _camera_focus
+	var focus := _camera_focus + _camera_pan
 	if _world_viewport and _world_viewport.size.y > 0:
 		# Snap the view to whole world-viewport pixels so sprites and tiles
 		# never straddle a pixel boundary (no shimmer as the camera follows).
@@ -4076,6 +4082,7 @@ func _on_player_tile_reached() -> void:
 	# Update camera focus to follow player
 	if dungeon_manager:
 		_camera_focus = player.position + Vector3(2, 0, 0)
+		_camera_pan = Vector3.ZERO  # following again: drop any manual scroll
 		_update_camera()
 
 func _on_player_move_completed() -> void:
@@ -4648,6 +4655,7 @@ func _respawn_at_level_start() -> void:
 			_follower.place_at(_ground_pos(beside), beside)
 	if dungeon_manager:
 		_camera_focus = player.position + Vector3(2, 0, 0)
+		_camera_pan = Vector3.ZERO  # following again: drop any manual scroll
 		_update_camera()
 		_update_fog_of_war()
 	_solo_fallen = false
@@ -6747,6 +6755,15 @@ func _select_slot(slot: int) -> void:
 			select_card(deck_manager.hand.find(g["rep"]))
 			return
 	# No card bound to that key — leave the current selection untouched.
+
+## Scroll the view by a world-space delta, clamped so the character can
+## never be scrolled out of reach.
+func _pan_camera(delta: Vector3) -> void:
+	_camera_pan += Vector3(delta.x, 0, delta.z)
+	_camera_pan.x = clampf(_camera_pan.x, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
+	_camera_pan.z = clampf(_camera_pan.z, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
+	_update_camera()
+
 
 func _wasd_step(dir: Vector2) -> void:
 	## Move the active player one grid cell in a camera-relative direction.
@@ -11751,6 +11768,25 @@ func _input(event: InputEvent) -> void:
 				help_panel.show_panel(0)
 			return
 
+		# Camera scroll: arrow keys nudge the view; Home re-centres on the character.
+		match event.keycode:
+			KEY_LEFT:
+				_pan_camera(Vector3(-CAMERA_PAN_KEY_STEP, 0, 0))
+				return
+			KEY_RIGHT:
+				_pan_camera(Vector3(CAMERA_PAN_KEY_STEP, 0, 0))
+				return
+			KEY_UP:
+				_pan_camera(Vector3(0, 0, -CAMERA_PAN_KEY_STEP))
+				return
+			KEY_DOWN:
+				_pan_camera(Vector3(0, 0, CAMERA_PAN_KEY_STEP))
+				return
+			KEY_HOME:
+				_camera_pan = Vector3.ZERO
+				_update_camera()
+				return
+
 		# Camera zoom: < (comma) = zoom in, > (period) = zoom out
 		if event.keycode == KEY_COMMA:
 			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
@@ -11966,7 +12002,23 @@ func _input(event: InputEvent) -> void:
 			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
 			_update_camera()
 
-	# (No camera orbit: the view angle is fixed — see CameraView.)
+	# Camera scroll: left-drag pans the view (the angle is fixed — see
+	# CameraView — so the old orbit drag became a scroll). Same gating as the
+	# orbit had: no card/attack armed, no UI window capturing the drag.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if selected_card_index < 0 and _pending_quiver_card == null and not _basic_attack_pending \
+					and _pending_gauntlet_skill == null and not _is_ui_window_open():
+				_camera_panning = true
+		else:
+			_camera_panning = false
+	if event is InputEventMouseMotion and _camera_panning:
+		# Screen pixels -> world units at the current zoom, north-up: drag
+		# right scrolls the world right (the view moves with the hand).
+		var ratio := _world_scale_ratio()
+		var upp: float = CameraView.ortho_size(_camera_distance) / maxf(1.0, float(_world_viewport.size.y) / ratio.y) if _world_viewport else 0.02
+		var d: Vector2 = event.relative
+		_pan_camera(Vector3(-d.x * upp, 0, -d.y * upp / CameraView.ground_foreshortening()))
 
 #endregion
 #region DUNGEON SYSTEM
@@ -12002,6 +12054,7 @@ func _setup_dungeon() -> void:
 
 	# Center camera on player start
 	_camera_focus = start_pos + Vector3(3, 0, 0)
+	_camera_pan = Vector3.ZERO
 	_update_camera()
 
 	# Ensure town waypoint is always in discovered list
@@ -13358,7 +13411,7 @@ func _spawn_pillar(pos: Vector3) -> void:
 	pillar_mesh.mesh = cylinder
 	var mat = StandardMaterial3D.new()
 	mat.albedo_color = Color(0.78, 0.62, 0.45)  # warm cast over the rock tiles
-	mat.albedo_texture = load("res://assets/textures/tile_rock.png")
+	mat.albedo_texture = load(dungeon_manager.wall_texture_path() if dungeon_manager else "res://assets/textures/tile_rock.png")
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)

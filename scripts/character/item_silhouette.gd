@@ -8,18 +8,79 @@ extends Control
 var item_type: int = 0
 var weapon_subtype: int = -1  # ItemData.WeaponSubtype when a weapon is equipped; -1 = none/empty slot
 var tint: Color = Color(0.34, 0.34, 0.44, 0.55)
+var _faint := true
+
+## Slot icons cut from the purchased icon packs (tools/build_craftpix_props.py,
+## assets/textures/craftpix/ui/). Keys: ItemType index, or "w<subtype>" for
+## an equipped weapon's ItemData.WeaponSubtype. Types without a pack icon
+## (belt, quiver, wand, the any-weapon composite) keep the drawn shape.
+const ICON_DIR := "res://assets/textures/craftpix/ui/"
+const ICONS := {
+	0: "slot_helm", 1: "slot_chest", 2: "slot_ring", 4: "slot_boots", 5: "slot_gauntlets",
+	"w0": "slot_sword", "w1": "slot_bow", "w2": "slot_shield", "w4": "slot_polearm", "w5": "slot_dagger",
+	"w6": "slot_axe", "w7": "slot_hammer", "w8": "slot_wand", "w9": "slot_tome", "w10": "slot_staff",
+}
 
 func setup(t: int, faint: bool = true, w_subtype: int = -1) -> void:
 	item_type = t
 	weapon_subtype = w_subtype
 	tint = Color(0.34, 0.34, 0.44, 0.55) if faint else Color(0.55, 0.55, 0.68, 0.8)
+	_faint = faint
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rebuild_icon()
 	queue_redraw()
+
+
+## Pack icon as a nearest-filtered TextureRect child, scaled by whole texels
+## (a texture first loaded inside _draw renders blank until the next redraw,
+## so the icon is a node, not a draw command). Ghosted for an empty slot.
+var _icon_rect: TextureRect = null
+
+func _rebuild_icon() -> void:
+	if _icon_rect:
+		_icon_rect.queue_free()
+		_icon_rect = null
+	var icon := _icon()
+	if icon == null:
+		return
+	_icon_rect = TextureRect.new()
+	_icon_rect.texture = icon
+	_icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_icon_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon_rect.modulate = Color(1, 1, 1, 0.42) if _faint else Color.WHITE
+	add_child(_icon_rect)
+	if not resized.is_connected(_layout_icon):
+		resized.connect(_layout_icon)
+	_layout_icon()
+
+## Centre the icon at a whole multiple of its 32 texels that fits the slot.
+func _layout_icon() -> void:
+	if _icon_rect == null:
+		return
+	var s: float = min(size.x, size.y)
+	var px: float = maxf(32.0, floorf(s / 32.0) * 32.0)
+	_icon_rect.size = Vector2(px, px)
+	_icon_rect.position = (size - Vector2(px, px)) * 0.5
+
+
+## The pack icon for this slot, or null when only a drawn shape exists.
+func _icon() -> Texture2D:
+	var key = item_type
+	if item_type == 6 and weapon_subtype >= 0:
+		key = "w%d" % weapon_subtype
+	if not ICONS.has(key):
+		return null
+	var path: String = ICON_DIR + ICONS[key] + ".png"
+	return load(path) if ResourceLoader.exists(path) else null
 
 func _draw() -> void:
 	var s: float = min(size.x, size.y)
 	var c: Vector2 = size * 0.5
 	var u: float = s * 0.52  # half-extent of the silhouette box
+	if _icon_rect:
+		return  # the pack icon child draws this slot
 	match item_type:
 		0: _draw_helm(c, u)
 		1: _draw_chest(c, u)

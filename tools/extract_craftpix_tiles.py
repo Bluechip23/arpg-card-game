@@ -31,17 +31,40 @@ QUAD_TOL = 12.0  # max quadrant-vs-tile mean deviation for an "interior" tile
 # Fill colours are the cluster means reported by the survey in this file's
 # history; a tile joins the pool when its mean is within `tol` of them.
 THEMES = {
+    # Field (World 1, grassland pack): plain grass, smooth dirt for trails,
+    # the cobbled cliff face for walls / cliffs.
     "floor_grass_field":     ("tileset_grassland/ground_grasss.png", [(160, 179, 90), (131, 159, 83)], 18),
-    "floor_dirt_field":      ("tileset_grassland/ground_grasss.png", [(141, 84, 60), (153, 99, 63)], 16),
+    "floor_dirt_field":      ("tileset_grassland/ground_grasss.png", [(180, 124, 67), (153, 99, 63)], 14),
+    "wall_field":            ("tileset_grassland/ground_grasss.png", [(141, 84, 60), (136, 81, 58)], 12),
+    # Greenwood (forest pack): same split.
     "floor_grass_forest":    ("tileset_forest/Ground_grass.png", [(122, 173, 85), (100, 155, 81)], 18),
-    "floor_dirt_forest":     ("tileset_forest/Ground_grass.png", [(85, 73, 61), (92, 84, 65)], 14),
+    "floor_dirt_forest":     ("tileset_forest/Ground_grass.png", [(150, 126, 93), (131, 110, 85)], 16),
+    "wall_forest":           ("tileset_forest/Ground_grass.png", [(85, 73, 61), (78, 65, 57), (92, 84, 65)], 12),
+    # Caves.
     "floor_cave":            ("tileset_cave/ground_source.png", [(22, 16, 18)], 12),
     "wall_cave":             ("tileset_cave/ground_source.png", [(73, 52, 50)], 16),
     "floor_glowing_cave":    ("tileset_glowing_cave/Ground.png", [(19, 15, 21)], 10),
+    "wall_glowing_cave":     ("tileset_glowing_cave/Ground.png", [(56, 54, 75)], 14),
+    # Barrow land (World 5, undead pack).
     "floor_undead":          ("tileset_undead_land/Ground_rocks.png", [(109, 113, 105)], 14),
     "floor_undead_sand":     ("tileset_undead_land/Ground_rocks.png", [(152, 147, 126)], 16),
+    "wall_undead":           ("tileset_undead_land/Ground_rocks.png", [(34, 41, 49)], 16),
+    # Hell (World 4, cursed land pack).
     "floor_cursed":          ("tileset_cursed_land/Ground.png", [(156, 96, 87)], 14),
     "floor_cursed_dark":     ("tileset_cursed_land/Ground.png", [(116, 49, 46)], 14),
+    "wall_cursed":           ("tileset_cursed_land/Ground.png", [(132, 62, 55), (116, 49, 46)], 14),
+}
+
+# Water: the packs draw water as a flat colour under a semi-transparent foam
+# overlay (`water_detilazation.png`), so a water sheet is composed: the
+# pack's water colour, sampled from its coast tiles, with foam crops on top.
+# name -> (coast sheet, foam sheet)
+WATER = {
+    "water_field":   ("tileset_grassland/Water_coasts.png", "tileset_grassland/water_detilazation.png"),
+    "water_forest":  ("tileset_forest/Water_coasts.png", "tileset_forest/water_detilazation.png"),
+    "water_cave":    ("tileset_cave/water_n_lava_coasts_source.png", "tileset_cave/water_detilazation_source.png"),
+    "water_undead":  ("tileset_undead_land/Water_coasts.png", "tileset_undead_land/water_detilazation.png"),
+    "water_cursed":  ("tileset_cursed_land/Water_coasts.png", "tileset_cursed_land/water_detilazation.png"),
 }
 
 
@@ -120,7 +143,56 @@ def build(name, sheet, fills, tol):
     print(f"{name:22s} <- {sheet:44s} {len(pool):2d} distinct interior tiles")
 
 
+def water_colour(foam_sheet):
+    """The water body under a pack's foam overlay: the foam is a lighter tint
+    of it, so the mean foam colour darkened reads as the still water."""
+    img = Image.open(os.path.join(SRC, foam_sheet)).convert("RGBA")
+    px = img.load()
+    acc = [0, 0, 0]
+    n = 0
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            if a > 0:
+                acc[0] += r; acc[1] += g; acc[2] += b
+                n += 1
+    if n == 0:
+        return (40, 70, 110)
+    return tuple(int(c / n * 0.5) for c in acc)
+
+
+def build_water(name, coast_sheet, foam_sheet):
+    base = water_colour(foam_sheet)
+    foam = Image.open(os.path.join(SRC, foam_sheet)).convert("RGBA")
+    rng = random.Random(name)
+    out = Image.new("RGBA", (N * GRID, N * GRID), base + (255,))
+    # Foam crops: 32px windows with some but not too much foam, tinted toward
+    # the water so they read as ripples rather than white streaks.
+    windows = []
+    px = foam.load()
+    for y in range(0, foam.height - N + 1, 8):
+        for x in range(0, foam.width - N + 1, 8):
+            cov = sum(1 for j in range(0, N, 4) for i in range(0, N, 4) if px[x + i, y + j][3] > 0) / 64.0
+            if 0.04 < cov < 0.35:
+                windows.append((x, y))
+    rng.shuffle(windows)
+    for v in range(GRID * GRID):
+        if not windows:
+            break
+        x, y = windows[v % len(windows)]
+        crop = foam.crop((x, y, x + N, y + N))
+        # Soften: half-alpha foam over the water colour.
+        r, g, b, a = crop.split()
+        a = a.point(lambda v: int(v * 0.55))
+        crop = Image.merge("RGBA", (r, g, b, a))
+        out.alpha_composite(crop, ((v % GRID) * N, (v // GRID) * N))
+    out.save(os.path.join(OUT, name + ".png"))
+    print(f"{name:22s} <- {coast_sheet:44s} water {base}, {len(windows)} foam windows")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, cfg in THEMES.items():
         build(name, *cfg)
+    for name, cfg in WATER.items():
+        build_water(name, *cfg)

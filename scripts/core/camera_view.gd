@@ -49,7 +49,8 @@ static func ortho_size(distance: float) -> float:
 
 ## Place `camera` on the fixed view looking at `focus` from `distance`.
 static func apply(camera: Camera3D, focus: Vector3, distance: float) -> void:
-	camera.position = focus + offset(distance)
-	camera.look_at(focus, Vector3.UP)
+	# look_at_from_position works on a camera that is not in the tree yet
+	# (capture harnesses build the scene and frame it in the same call).
+	camera.look_at_from_position(focus + offset(distance), focus, Vector3.UP)
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = ortho_size(distance)

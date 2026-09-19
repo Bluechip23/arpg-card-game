@@ -485,13 +485,123 @@ func trail_texture_path() -> String:
 	return "res://assets/textures/tile_dirt.png"
 
 
+## Cliff faces / rock walls: the matching pack's cobbled cliff fill.
 func wall_texture_path() -> String:
 	match interior_kind:
 		"sewer", "building":
-			return "res://assets/textures/tile_brick.png"
+			return "res://assets/textures/tile_brick.png"  # no masonry pack yet
 		"cave":
 			return CP_TEX + "/wall_cave.png"
-	return "res://assets/textures/tile_rock.png"
+		"forest":
+			return CP_TEX + "/wall_forest.png"
+	match world_level:
+		4:
+			return CP_TEX + "/wall_cursed.png"
+		5:
+			return CP_TEX + "/wall_undead.png"
+		2, 3:
+			return "res://assets/textures/tile_rock.png"
+	return CP_TEX + "/wall_field.png"
+
+
+## Still water: the pack's water colour under its foam overlay.
+func water_texture_path() -> String:
+	match interior_kind:
+		"cave", "sewer":
+			return CP_TEX + "/water_cave.png"
+		"forest":
+			return CP_TEX + "/water_forest.png"
+	match world_level:
+		4:
+			return CP_TEX + "/water_cursed.png"
+		5:
+			return CP_TEX + "/water_undead.png"
+		2, 3:
+			return "res://assets/textures/tile_water.png"
+	return CP_TEX + "/water_field.png"
+
+
+## Prop sprites for this location: the pack biome's role when the cut
+## props (CraftpixProps, tools/build_craftpix_props.py) have one, else
+## the given legacy generated sprite. `base` is the prop family (tree,
+## rock, bush ...); biome prefixes: field (World 1), forest, cave, undead
+## (World 5), cursed (World 4), goods (buildings).
+func _prop_biome() -> String:
+	match interior_kind:
+		"forest":
+			return "forest"
+		"cave":
+			return "cave"
+		"building":
+			return "goods"
+		"sewer":
+			return "sewer"
+	match world_level:
+		4:
+			return "cursed"
+		5:
+			return "undead"
+	return "field"
+
+
+## Roles tried in order for a prop family in a biome. Biomes without a
+## family borrow a neighbour's (sewer bones are barrow bones, sewer reeds are
+## forest reeds); anything unlisted falls back to the legacy sprite.
+const PROP_ROLES := {
+	"field": {"tree": ["field_tree", "field_tree_small", "field_tree_fruit"], "stump": ["field_stump"], "rock": ["field_rock"],
+		"bush": ["field_bush"], "berry": ["field_berry"], "fern": ["field_fern"], "flower": ["field_flower"],
+		"tuft": ["field_tuft"], "shroom": ["field_shroom"], "pebble": ["field_pebble"], "log": ["forest_log"],
+		"bones": ["undead_bones"], "reeds": ["forest_reeds"]},
+	"forest": {"tree": ["forest_tree"], "tree_big": ["forest_tree_big"], "stump": ["forest_stump"], "log": ["forest_log"],
+		"rock": ["forest_rock"], "bush": ["forest_bush"], "berry": ["field_berry"], "fern": ["forest_fern"],
+		"flower": ["field_flower"], "tuft": ["field_tuft"], "shroom": ["forest_shroom"], "pebble": ["forest_pebble"],
+		"reeds": ["forest_reeds"], "bones": ["undead_bones"]},
+	"cave": {"stalagmite": ["cave_stalagmite"], "stalactite": ["cave_rock"], "rock": ["cave_rock"], "shroom": ["cave_shroom"],
+		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"]},
+	"undead": {"tree": ["undead_tree"], "stump": ["undead_stump"], "rock": ["undead_rock"], "bush": ["undead_bush"],
+		"berry": ["undead_bush"], "fern": ["undead_bush"], "flower": ["undead_crystal"], "tuft": ["undead_bones"],
+		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"]},
+	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock"], "bush": ["cursed_plant"],
+		"berry": ["cursed_plant"], "fern": ["cursed_plant"], "flower": ["cursed_plant"], "tuft": ["cursed_bones"],
+		"shroom": ["cursed_plant"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"]},
+	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
+	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"]},
+}
+
+
+func _prop_variants(base: String) -> Array:
+	var roles: Array = PROP_ROLES.get(_prop_biome(), {}).get(base, [])
+	var out: Array = []
+	for role in roles:
+		if CraftpixProps.has(role):
+			var cfg: Dictionary = CraftpixProps.PROPS[role]
+			for v in cfg["variants"]:
+				out.append({"path": v["path"], "w": v["w"], "h": v["h"], "scale": cfg["scale"]})
+	return out
+
+
+## Scatter a prop family: pack variants spread across the items by cell
+## hash (one MultiMesh per variant), or the legacy sprite when the biome
+## has no pack art for it.
+func _add_prop_decos(items: Array, base: String, legacy_path: String, px_w: float, px_h: float) -> void:
+	if items.is_empty():
+		return
+	var variants := _prop_variants(base)
+	if variants.is_empty():
+		_add_sprite_decos(items, legacy_path, px_w, px_h)
+		return
+	var buckets: Array = []
+	for _v in variants:
+		buckets.append([])
+	for it in items:
+		var pos: Vector3 = it["pos"]
+		var k := int(_tile_noise(int(floor(pos.x)), int(floor(pos.z)), 131) * variants.size()) % variants.size()
+		var copy: Dictionary = it.duplicate()
+		copy["scale"] = float(it.get("scale", 1.0)) * float(variants[k]["scale"])
+		buckets[k].append(copy)
+	for k in range(variants.size()):
+		if not buckets[k].is_empty():
+			_add_sprite_decos(buckets[k], variants[k]["path"], variants[k]["w"], variants[k]["h"])
 
 
 func get_location_name() -> String:
@@ -1332,7 +1442,7 @@ func _build_floor_visuals() -> void:
 	if not water_items.is_empty():
 		# Flat painted 16-bit water: the ripples live in the tile art. No
 		# metallic/emission/gloss — modern PBR shine is a style violation.
-		_add_multimesh(BoxMesh.new(), water_items, true, 1.0, "res://assets/textures/tile_water.png")
+		_add_multimesh(BoxMesh.new(), water_items, true, 1.0, water_texture_path())
 	print("[DUNGEON] Built %d floor tiles, %d trail tiles, %d water tiles" % [
 		items.size(), trail_items.size(), water_items.size()])
 
@@ -1465,7 +1575,7 @@ func _make_ground_atlas(pal: Dictionary) -> ImageTexture:
 	var water_e: Color = pal.get("water_edge", water_c.lightened(0.25))
 	var floor_sheet := _sheet_image(floor_texture_path())
 	var trail_sheet := _sheet_image(trail_texture_path())
-	var water_sheet := _sheet_image("res://assets/textures/tile_water.png")
+	var water_sheet := _sheet_image(water_texture_path())
 	var pit_sheet := floor_sheet.duplicate()
 	pit_sheet.adjust_bcs(0.45, 1.0, 0.8)
 	var high_sheet := floor_sheet.duplicate()
@@ -1727,7 +1837,7 @@ func _build_elevation_visuals() -> void:
 
 	# Chamfered rock shoulders under full-width turf caps: the caps overhang
 	# the rounded rim slightly, the classic SNES plateau lip.
-	_add_multimesh(_chamfered_unit_box(0.08, 0.30), cliff_items, true, 0.95, "res://assets/textures/tile_rock.png")
+	_add_multimesh(_chamfered_unit_box(0.08, 0.30), cliff_items, true, 0.95, wall_texture_path())
 	_add_multimesh(BoxMesh.new(), top_items, true, 0.95, floor_texture_path())
 	_add_multimesh(BoxMesh.new(), step_items, true, 0.85, trail_texture_path())
 	if not skirt_items.is_empty():
@@ -1848,18 +1958,18 @@ func _build_decorations() -> void:
 				elif not near_wall:
 					meadow_cells.append({"pos": pos})
 
-	_add_sprite_decos(_deco_trees, "res://assets/textures/props/tree.png", 48, 64)
-	_add_sprite_decos(_deco_stumps, "res://assets/textures/props/stump.png", 24, 20)
-	_add_sprite_decos(_deco_rocks, "res://assets/textures/props/rock.png", 32, 24)
-	_add_sprite_decos(_deco_bushes, "res://assets/textures/props/bush.png", 32, 24)
-	_add_sprite_decos(_deco_ferns, "res://assets/textures/props/fern.png", 24, 24)
-	_add_sprite_decos(_deco_flowers, "res://assets/textures/props/flowers.png", 20, 14)
-	_add_sprite_decos(_deco_tufts, "res://assets/textures/props/grass_tuft.png", 14, 12)
-	_add_sprite_decos(_deco_shrooms, "res://assets/textures/props/mushroom.png", 16, 13)
-	_add_sprite_decos(_deco_crates, "res://assets/textures/props/crate.png", 22, 20)
-	_add_sprite_decos(_deco_barrels, "res://assets/textures/props/barrel.png", 18, 22)
-	_add_sprite_decos(_deco_berries, "res://assets/textures/props/bush_berry.png", 32, 24)
-	_add_sprite_decos(_deco_pebbles, "res://assets/textures/props/pebbles.png", 14, 8)
+	_add_prop_decos(_deco_trees, "tree", "res://assets/textures/props/tree.png", 48, 64)
+	_add_prop_decos(_deco_stumps, "stump", "res://assets/textures/props/stump.png", 24, 20)
+	_add_prop_decos(_deco_rocks, "rock", "res://assets/textures/props/rock.png", 32, 24)
+	_add_prop_decos(_deco_bushes, "bush", "res://assets/textures/props/bush.png", 32, 24)
+	_add_prop_decos(_deco_ferns, "fern", "res://assets/textures/props/fern.png", 24, 24)
+	_add_prop_decos(_deco_flowers, "flower", "res://assets/textures/props/flowers.png", 20, 14)
+	_add_prop_decos(_deco_tufts, "tuft", "res://assets/textures/props/grass_tuft.png", 14, 12)
+	_add_prop_decos(_deco_shrooms, "shroom", "res://assets/textures/props/mushroom.png", 16, 13)
+	_add_prop_decos(_deco_crates, "crate", "res://assets/textures/props/crate.png", 22, 20)
+	_add_prop_decos(_deco_barrels, "barrel", "res://assets/textures/props/barrel.png", 18, 22)
+	_add_prop_decos(_deco_berries, "berry", "res://assets/textures/props/bush_berry.png", 32, 24)
+	_add_prop_decos(_deco_pebbles, "pebble", "res://assets/textures/props/pebbles.png", 14, 8)
 
 	if interior_kind == "":
 		_place_signposts(pal)
@@ -2417,7 +2527,7 @@ func _place_bones(floor_cells: Array, pal: Dictionary, per_cells: int, lo: int, 
 		items.append({"pos": Vector3(c.x + 0.5 + jx, 0.0, c.y + 0.5 + jz),
 				"scale": 0.85 + _tile_noise(c.x, c.y, 111) * 0.3,
 				"color": pal["floor_a"].lerp(Color.WHITE, 0.6)})
-	_add_sprite_decos(items, "res://assets/textures/props/bones.png", 18, 10)
+	_add_prop_decos(items, "bones", "res://assets/textures/props/bones.png", 18, 10)
 
 func _place_sewer_reeds(water_tiles: Array, pal: Dictionary) -> void:
 	## Marsh reeds rooted where the channel water meets dry brick — the one
@@ -2441,7 +2551,7 @@ func _place_sewer_reeds(water_tiles: Array, pal: Dictionary) -> void:
 			"scale": 0.7 + _tile_noise(pos.x, pos.y, 69) * 0.5,
 			"color": pal["accent"],
 		})
-	_add_sprite_decos(items, "res://assets/textures/props/reeds.png", 14, 22)
+	_add_prop_decos(items, "reeds", "res://assets/textures/props/reeds.png", 14, 22)
 
 func _place_sewer_mice(floor_tiles: Array) -> void:
 	## A handful of background sewer mice scuttling near the walls.
@@ -2576,18 +2686,29 @@ func _build_tree_mesh(root: Node3D, scale: float, climbable: bool) -> void:
 	## of the forest uses (no smooth mesh spheres — style guide §7), scaled up
 	## into a canopy tree. The climbable sprite variant carries a painted low
 	## bough and trunk pegs as the climb cue.
-	var tex_path := "res://assets/textures/props/tree_climb.png" if climbable \
-			else "res://assets/textures/props/tree.png"
+	# The Greenwood's big canopy trees (Craftpix forest pack); the climbable
+	# one is the variant with the open trunk and low bough.
+	var v := _first_prop_variant("forest_tree_climb" if climbable else "forest_tree_big",
+			"res://assets/textures/props/tree_climb.png" if climbable else "res://assets/textures/props/tree.png", 48, 64)
 	var sprite := Sprite3D.new()
-	sprite.texture = load(tex_path)
+	sprite.texture = load(v["path"])
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
 	sprite.pixel_size = 0.034
-	var s := 1.75 * scale  # taller than the treeline so it reads as THE tree
+	var s: float = 1.75 * scale * float(v["scale"])  # taller than the treeline so it reads as THE tree
 	sprite.scale = Vector3(s, s, s)
-	sprite.position = Vector3(0, 64.0 * 0.034 * 0.5 * s, 0)
+	sprite.position = Vector3(0, float(v["h"]) * 0.034 * 0.5 * s, 0)
 	root.add_child(sprite)
+
+
+## One pack sprite for a role (its first variant), or the legacy sprite.
+func _first_prop_variant(role: String, legacy_path: String, px_w: float, px_h: float) -> Dictionary:
+	if CraftpixProps.has(role):
+		var cfg: Dictionary = CraftpixProps.PROPS[role]
+		var v: Dictionary = cfg["variants"][0]
+		return {"path": v["path"], "w": v["w"], "h": v["h"], "scale": cfg["scale"]}
+	return {"path": legacy_path, "w": px_w, "h": px_h, "scale": 1.0}
 
 func _place_bear_traps(cells: Array) -> void:
 	## Iron jaw traps on the ground — 7 damage to anything that steps on them
@@ -2994,16 +3115,16 @@ func _build_forest_decorations() -> void:
 				"scale": 0.85 + _tile_noise(entry["pos"].x, entry["pos"].y, 96) * 0.35,
 				"color": Color.WHITE})
 
-	_add_sprite_decos(trunk_items, "res://assets/textures/props/tree.png", 48, 64)
-	_add_sprite_decos(fern_items, "res://assets/textures/props/fern.png", 24, 24)
-	_add_sprite_decos(stump_items, "res://assets/textures/props/stump.png", 24, 20)
-	_add_sprite_decos(bush_items, "res://assets/textures/props/bush.png", 32, 24)
-	_add_sprite_decos(tuft_items, "res://assets/textures/props/grass_tuft.png", 14, 12)
-	_add_sprite_decos(shroom_items, "res://assets/textures/props/mushroom.png", 16, 13)
-	_add_sprite_decos(flower_items, "res://assets/textures/props/flowers.png", 20, 14)
-	_add_sprite_decos(log_items, "res://assets/textures/props/log.png", 36, 16)
-	_add_sprite_decos(berry_items, "res://assets/textures/props/bush_berry.png", 32, 24)
-	_add_sprite_decos(pebble_items, "res://assets/textures/props/pebbles.png", 14, 8)
+	_add_prop_decos(trunk_items, "tree", "res://assets/textures/props/tree.png", 48, 64)
+	_add_prop_decos(fern_items, "fern", "res://assets/textures/props/fern.png", 24, 24)
+	_add_prop_decos(stump_items, "stump", "res://assets/textures/props/stump.png", 24, 20)
+	_add_prop_decos(bush_items, "bush", "res://assets/textures/props/bush.png", 32, 24)
+	_add_prop_decos(tuft_items, "tuft", "res://assets/textures/props/grass_tuft.png", 14, 12)
+	_add_prop_decos(shroom_items, "shroom", "res://assets/textures/props/mushroom.png", 16, 13)
+	_add_prop_decos(flower_items, "flower", "res://assets/textures/props/flowers.png", 20, 14)
+	_add_prop_decos(log_items, "log", "res://assets/textures/props/log.png", 36, 16)
+	_add_prop_decos(berry_items, "berry", "res://assets/textures/props/bush_berry.png", 32, 24)
+	_add_prop_decos(pebble_items, "pebble", "res://assets/textures/props/pebbles.png", 14, 8)
 
 	_place_signposts(pal)
 	_place_forest_squirrels(floor_cells)
@@ -3235,11 +3356,11 @@ func _build_cave_decorations() -> void:
 			elif near_wall and n > 0.78:
 				pebble_items.append(_make_rock(x, z, jx, jz, 0.0, rot, pal))
 
-	_add_sprite_decos(stalagmite_items, "res://assets/textures/props/stalagmite.png", 16, 24)
-	_add_sprite_decos(stalactite_items, "res://assets/textures/props/stalactite.png", 16, 24)
-	_add_sprite_decos(shroom_items, "res://assets/textures/props/mushroom_pale.png", 16, 13)
-	_add_sprite_decos(crystal_items, "res://assets/textures/props/crystal.png", 16, 22)
-	_add_sprite_decos(stone_items, "res://assets/textures/props/pebbles.png", 14, 8)
+	_add_prop_decos(stalagmite_items, "stalagmite", "res://assets/textures/props/stalagmite.png", 16, 24)
+	_add_prop_decos(stalactite_items, "stalactite", "res://assets/textures/props/stalactite.png", 16, 24)
+	_add_prop_decos(shroom_items, "shroom", "res://assets/textures/props/mushroom_pale.png", 16, 13)
+	_add_prop_decos(crystal_items, "crystal", "res://assets/textures/props/crystal.png", 16, 22)
+	_add_prop_decos(stone_items, "pebble", "res://assets/textures/props/pebbles.png", 14, 8)
 	_place_bones(dry_cells, pal, 4, 2, 8)
 
 	_add_multimesh(BoxMesh.new(), divot_items)
@@ -3665,7 +3786,7 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 func _build_graveyard_gate(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## Two weathered stone pillars, a lintel, and an iron gate standing open
 	## on the south face; the dark beyond is the way down.
-	var stone := _pixel_mat("res://assets/textures/tile_rock.png", Color(0.62, 0.66, 0.64))
+	var stone := _pixel_mat(wall_texture_path(), Color(0.62, 0.66, 0.64))
 	for side in [-1.0, 1.0]:
 		var pillar = MeshInstance3D.new()
 		var pm = BoxMesh.new()
@@ -3727,7 +3848,7 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	cone.height = 2.2
 	cone.radial_segments = 12
 	mound.mesh = cone
-	mound.material_override = _pixel_mat("res://assets/textures/tile_rock.png", pal["cliff"])
+	mound.material_override = _pixel_mat(wall_texture_path(), pal["cliff"])
 	mound.position = Vector3(0, 1.1, -0.2)
 	root.add_child(mound)
 
@@ -3740,7 +3861,7 @@ func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		sphere.radial_segments = 10
 		sphere.rings = 6
 		boulder.mesh = sphere
-		boulder.material_override = _pixel_mat("res://assets/textures/tile_rock.png", pal["wall_b"])
+		boulder.material_override = _pixel_mat(wall_texture_path(), pal["wall_b"])
 		boulder.position = Vector3(side * fp_w * 0.45, 0.3, fp_d / 2.0 - 0.4)
 		root.add_child(boulder)
 
@@ -3829,7 +3950,7 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	# scaled up into gateposts (no smooth mesh spheres).
 	for side in [-1.0, 1.0]:
 		var tree = Sprite3D.new()
-		tree.texture = load("res://assets/textures/props/tree.png")
+		tree.texture = load(_first_prop_variant("field_tree", "res://assets/textures/props/tree.png", 48, 64)["path"])
 		tree.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		tree.shaded = false
@@ -4035,7 +4156,22 @@ func _restore_opened_chests() -> void:
 func _set_chest_open_visual(index: int) -> void:
 	var sprite: Sprite3D = chest_nodes[index].get("sprite")
 	if sprite:
-		sprite.texture = load("res://assets/textures/props/chest_open.png")
+		var design: String = chest_nodes[index].get("design", "wood")
+		sprite.texture = load(_first_prop_variant("chest_%s_open" % design, "res://assets/textures/props/chest_open.png", 26, 26)["path"])
+
+
+## Chest design from its loot: mythic gear gets the ornate blue chest, rare
+## or legendary gear the red-gold one, everything else plain wood.
+func _chest_design(contents: Dictionary) -> String:
+	var item = contents.get("item")
+	if item is ItemData:
+		if int(item.rarity) >= ItemData.Rarity.MYTHIC:
+			return "mythic"
+		if int(item.rarity) >= ItemData.Rarity.RARE:
+			return "rare"
+	if contents.get("card_pack") != null:
+		return "rare"
+	return "wood"
 
 func _create_chest(grid_pos: Vector2i) -> void:
 	var chest_root = Node3D.new()
@@ -4043,15 +4179,21 @@ func _create_chest(grid_pos: Vector2i) -> void:
 
 	# 16-bit billboard chest (closed sprite; swapped to the open sprite on open).
 	# Contact shadow is painted into the sprite, same as the other ground props.
+	# Generate chest contents first (deterministic seed, so the same chest
+	# always holds the same loot) — the chest's design is chosen by them.
+	var chest_index = chest_nodes.size()
+	var contents = _generate_chest_contents(chest_index)
+	var design := _chest_design(contents)
+	var closed := _first_prop_variant("chest_%s_closed" % design, "res://assets/textures/props/chest_closed.png", 26, 26)
 	var sprite = Sprite3D.new()
 	sprite.name = "ChestSprite"
-	sprite.texture = load("res://assets/textures/props/chest_closed.png")
+	sprite.texture = load(closed["path"])
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
 	sprite.pixel_size = 0.034  # style guide texel density
 	# Bottom edge of the sprite rests on the ground, matching _add_sprite_decos.
-	sprite.position = Vector3(0, 26.0 * 0.5 * sprite.pixel_size, 0)
+	sprite.position = Vector3(0, float(closed["h"]) * 0.5 * sprite.pixel_size, 0)
 	chest_root.add_child(sprite)
 
 	# Interact label (floating above chest)
@@ -4073,13 +4215,9 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	_visuals_root.add_child(chest_root)
 	_reserve_area(grid_pos, 0)
 
-	# Generate chest contents using a deterministic seed so the same chest
-	# always produces the same loot (important for persistence across transitions)
-	var chest_index = chest_nodes.size()
-	var contents = _generate_chest_contents(chest_index)
-
 	chest_nodes.append({
 		"node": chest_root,
+		"design": design,
 		"grid_pos": grid_pos,
 		"opened": false,
 		"looted": false,
@@ -4484,7 +4622,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	mound_mesh.height = WAYPOINT_MOUND_HEIGHT
 	mound_mesh.radial_segments = 12
 	mound.mesh = mound_mesh
-	mound.material_override = _pixel_mat("res://assets/textures/tile_dirt.png", Color(0.62, 0.5, 0.36))
+	mound.material_override = _pixel_mat(trail_texture_path(), Color(0.62, 0.5, 0.36))
 	mound.position = Vector3(0, WAYPOINT_MOUND_HEIGHT * 0.5, 0)
 	wp_root.add_child(mound)
 
@@ -4927,7 +5065,7 @@ func _create_fountain(grid_pos: Vector2i) -> void:
 	basin_mesh.height = 0.45
 	basin_mesh.radial_segments = 10
 	basin.mesh = basin_mesh
-	basin.material_override = _pixel_mat("res://assets/textures/tile_rock.png", Color(0.78, 0.78, 0.84))
+	basin.material_override = _pixel_mat(wall_texture_path(), Color(0.78, 0.78, 0.84))
 	basin.position = Vector3(0, 0.225, 0)
 	root.add_child(basin)
 

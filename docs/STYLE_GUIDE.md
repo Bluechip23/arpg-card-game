@@ -20,6 +20,8 @@ conforms to them.
   wheel, `<` / `>`); the angle is not — the top-down packs are drawn for a
   single viewpoint, and a free orbit made their fronts, painted shadows and
   wall faces lie.
+- The view scrolls but never turns: left-drag, the arrow keys and Home
+  (re-centre) move a pan offset over the follow focus; walking re-centres.
 - Why -65° and not a plan view: at -90° upright billboards are edge-on. At
   -65° the ground sits within ~10% of 1:1 texel mapping (sin 65° ≈ 0.906)
   while sprites still show their painted fronts, which is how the pack art
@@ -104,8 +106,10 @@ conforms to them.
   `center_offset` of half their height; critters do the same. The ground
   row then stays glued to the tile (and the blob shadow) at the fixed pitch.
 - MonsterKit flyer cells (bee, hawk, bat, carpet, sword) have painted shadows
-  in-art — those kinds skip the shadow node (no doubles). Craftpix packs ship
-  every sheet twice; always use `Without_shadow/` and let the blob do it.
+  in-art — those kinds skip the shadow node (no doubles). Craftpix character
+  packs ship every sheet twice; always use `Without_shadow/` and let the blob
+  do it. Craftpix *props* are the exception: their painted light shadow is
+  kept (it is the prop's contact shadow, drawn for this very view).
 
 ## 5. Sprites & animation
 
