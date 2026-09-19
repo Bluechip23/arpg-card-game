@@ -457,7 +457,9 @@ func floor_texture_path() -> String:
 			return CP_TEX + "/floor_cursed.png"
 		5:  # Umbral Expanse — barrow-land cracked stone (undead land pack)
 			return CP_TEX + "/floor_undead.png"
-		2, 3:  # Amber Wastes / Frostreach: no matching pack yet, palette-tinted
+		2:  # Amber Wastes — dry scrub (desert pack)
+			return CP_TEX + "/floor_desert.png"
+		3:  # Frostreach: no matching pack yet, palette-tinted
 			return "res://assets/textures/tile_grass.png"
 	return CP_TEX + "/floor_grass_field.png"
 
@@ -482,6 +484,8 @@ func trail_texture_path() -> String:
 			return "res://assets/textures/tile_dirt.png"
 	if world_level == 1:
 		return CP_TEX + "/floor_dirt_field.png"
+	if world_level == 2:
+		return CP_TEX + "/floor_desert_sand.png"  # sand tracks through the scrub
 	return "res://assets/textures/tile_dirt.png"
 
 
@@ -499,7 +503,9 @@ func wall_texture_path() -> String:
 			return CP_TEX + "/wall_cursed.png"
 		5:
 			return CP_TEX + "/wall_undead.png"
-		2, 3:
+		2:
+			return CP_TEX + "/wall_desert.png"
+		3:
 			return "res://assets/textures/tile_rock.png"
 	return CP_TEX + "/wall_field.png"
 
@@ -516,7 +522,9 @@ func water_texture_path() -> String:
 			return CP_TEX + "/water_cursed.png"
 		5:
 			return CP_TEX + "/water_undead.png"
-		2, 3:
+		2:
+			return CP_TEX + "/water_desert.png"
+		3:
 			return "res://assets/textures/tile_water.png"
 	return CP_TEX + "/water_field.png"
 
@@ -537,6 +545,8 @@ func _prop_biome() -> String:
 		"sewer":
 			return "sewer"
 	match world_level:
+		2:
+			return "desert"
 		4:
 			return "cursed"
 		5:
@@ -564,6 +574,9 @@ const PROP_ROLES := {
 	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock"], "bush": ["cursed_plant"],
 		"berry": ["cursed_plant"], "fern": ["cursed_plant"], "flower": ["cursed_plant"], "tuft": ["cursed_bones"],
 		"shroom": ["cursed_plant"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"]},
+	"desert": {"tree": ["desert_tree"], "stump": ["desert_tree_dead"], "rock": ["desert_rock", "desert_mesa"], "bush": ["desert_bush"],
+		"berry": ["desert_cactus"], "fern": ["desert_bush"], "flower": ["desert_flower"], "tuft": ["desert_tuft"],
+		"shroom": ["desert_cactus"], "pebble": ["desert_pebble"], "bones": ["desert_bones"], "reeds": ["desert_tuft"]},
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
 	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"]},
 }

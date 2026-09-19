@@ -44,6 +44,8 @@ const CP_ROWS := {
 	"lizardmen": "FBLR",
 	"slime": "FBLR",
 	"swordsman_lvl4_6": "FBLR",
+	"skeletons": "FBLR",
+	"goblins": "FBLR",
 }
 ## Frames per second per Craftpix animation. One-shots (Attack, Hurt, Death)
 ## return to Idle/Walk when they finish; Death holds its last frame.
@@ -75,7 +77,7 @@ const KINDS := {
 	"djinn": {"cell": Vector2i(4, 1)},
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"wererabbit": {"cell": Vector2i(7, 1)},
-	"skeleton": {"cell": Vector2i(1, 2)},
+	"skeleton": {"cp": "skeletons/Skeleton1", "scale": 1.15},
 	"treant": {"cell": Vector2i(5, 2), "scale": 1.25},
 	"consumed": {"cell": Vector2i(6, 2)},
 	"sewer_croc": {"cell": Vector2i(7, 2)},
@@ -83,9 +85,9 @@ const KINDS := {
 	"rat": {"cp": "giant_rat/Rat1"},
 	"archer_rat": {"cp": "giant_rat/Rat1", "tint": Color(0.85, 0.78, 0.7)},
 	"rat_king": {"cp": "giant_rat/Rat3", "scale": 1.7, "tint": Color(1.05, 0.95, 0.85)},
-	"fire_goblin_soldier": {"npc": GEN + "/goblin_soldier.png"},
-	"fire_goblin_mage": {"npc": GEN + "/goblin_mage.png"},
-	"fire_goblin_shaman": {"npc": GEN + "/goblin_shaman.png", "scale": 1.15},
+	"fire_goblin_soldier": {"cp": "goblins/Goblin2", "scale": 1.1, "tint": Color(1.1, 0.9, 0.8)},
+	"fire_goblin_mage": {"cp": "goblins/Goblin1", "scale": 1.1, "tint": Color(1.15, 0.85, 0.7)},
+	"fire_goblin_shaman": {"cp": "goblins/Goblin3", "scale": 1.2, "tint": Color(1.1, 0.9, 0.8)},
 	"armored_troll": {"tex": "armored_troll", "scale": 1.2},
 	"ice_troll": {"tex": "ice_troll", "scale": 1.2},
 	"granite_colossus": {"cp": "golem/Golem1", "scale": 1.6},
@@ -243,10 +245,13 @@ func _setup_craftpix(spec: String) -> void:
 
 
 ## Sheet file for an animation, tolerating the packs' naming slips: the
-## swordsman's lowercase `attack`, and a variant-less `Gnoll_Death`.
+## swordsman's lowercase `attack`, a variant-less `Gnoll_Death`, and the
+## goblins' prefix-less `Idle0` / `Idle` / `Run_attack` names.
 static func _cp_load_sheet(folder: String, variant: String, anim: String) -> Texture2D:
 	var stem := variant.rstrip("0123456789")
-	for name in ["%s_%s" % [variant, anim], "%s_%s" % [variant, anim.to_lower()], "%s_%s" % [stem, anim]]:
+	var lower := anim.to_lower()
+	for name in ["%s_%s" % [variant, anim], "%s_%s" % [variant, lower], "%s_%s" % [stem, anim],
+			anim, anim + "0", lower, lower + "0", anim.capitalize().replace(" ", "_")]:
 		var path := "%s/%s_without_shadow.png" % [folder, name]
 		if ResourceLoader.exists(path):
 			return load(path)

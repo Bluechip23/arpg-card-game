@@ -12,8 +12,8 @@ shopping brief. Anything not listed here is now pack art.
 | Brick / masonry walls & floors | Sewers, building interiors, building exteriors, the waypoint plinth | generated `tile_brick.png` | A dungeon/sewer or castle-interior top-down tileset (stone brick floor, wall faces, arches, doors) |
 | Building exteriors (walls, roof, door, windows) | Overworld enterable buildings | box meshes + brick/dirt fills | A village/house top-down set with roofs and doors |
 | Sewer fixtures: torches / sconces, pipes, grates, manholes, doors, water channels & steam | Sewers, building sconces | procedural meshes + generated strips | Sewer / dungeon props set (wall torch with flame frames, pipes, grates, iron doors) |
-| Worlds 2 & 3 ground and cliffs (Amber Wastes, Frostreach) | Overworld levels 2–3 | generated grass/dirt/rock tinted by palette | A desert/wasteland tileset and a snow/ice tileset |
-| Water for Worlds 2 & 3 | as above | generated `tile_water.png` | comes with those tilesets |
+| World 3 ground and cliffs (Frostreach) | Overworld level 3 | generated grass/dirt/rock tinted by palette | A snow/ice tileset (World 2 is now the desert pack) |
+| Water for World 3 | as above | generated `tile_water.png` | comes with that tileset |
 | Autotile edges from the packs | every biome | edge bands painted from the palette over pack fills | none to buy — engineering (map the packs' edge pieces into the 16 mask columns) |
 | Elevation cliff sides & stone steps | Overworld high ground | cliff = pack cobble fill on a box; steps = trail fill | fine as is; a dedicated stair/ledge piece would be nicer |
 | Fog of war tile | everywhere | generated dither | none needed |
@@ -40,7 +40,7 @@ shopping brief. Anything not listed here is now pack art.
 |---|---|---|---|
 | Player characters (Brad, Cory, Stephen, Jeremy, Ryan) | everywhere | Mana Seed base + Seliel NPC sheets (4-dir, fine under the fixed camera) | none unless you want the whole cast in the Craftpix style; the swordsman pack covers a human fighter with attack frames |
 | Town NPCs (Olorin, Sellsword, vendors) | Town | Seliel NPC sheets | as above |
-| Enemies without a pack: wolf, coyote, bears, beaver, wererabbit, skeleton, treant, consumed, sewer croc, crawlers, swarm, hawk/roc, screecher, djinn, trolls, minotaur, hydra, manticore, wyvern, bone dragon, cerberus, werewolf, sabertooth, harpy, magma spider, fire goblins, mages, vampire, succubus, cherub, archangel, spirit collector's kin | battle | MonsterKit battlers / generated / NPC-sheet recolours | animal packs (wolf, bear, boar), skeleton & undead knight, spider, dragon/wyvern, troll/ogre, goblin, humanoid casters — 4-dir animated to match the Craftpix rigs |
+| Enemies without a pack: wolf, coyote, bears, beaver, wererabbit, treant, consumed, sewer croc, crawlers, swarm, hawk/roc, screecher, djinn, trolls, minotaur, hydra, manticore, wyvern, bone dragon, cerberus, werewolf, sabertooth, harpy, magma spider, mages, vampire, succubus, cherub, archangel | battle | MonsterKit battlers / generated / NPC-sheet recolours | animal packs (wolf, bear, boar), spider, dragon/wyvern, troll/ogre, humanoid casters, angels — 4-dir animated to match the Craftpix rigs (skeletons and goblins are done) |
 | Rat King crown | Sewers boss | plague-rat variant scaled ×1.7 | a crown overlay or a bespoke king rat |
 | Boss silhouettes: Corrupted Archangel, Granite Colossus (now rock golem), Rat King | bosses | see above | bespoke boss sheets |
 
@@ -48,10 +48,9 @@ shopping brief. Anything not listed here is now pack art.
 
 | Asset | Where | Today | Wanted |
 |---|---|---|---|
-| Belt slot icon | inventory | drawn silhouette | a belt / sash icon |
-| Quiver slot icon | inventory | drawn silhouette | a quiver icon |
+| Quiver slot icon | inventory | an arrow from the weapon pack stands in | a proper quiver icon (the belt is covered by the knight armour pack) |
 | Any-weapon composite (empty main/off hand) | inventory | drawn sword/bow/shield/book composite | an "any weapon" glyph, or leave as is |
-| Mythic item art (40 icons) | inventory, chests | hand-made 32×32 | keep — bespoke by design; the armour/weapon pack can stand in for commons/rares if you want per-item icons there |
+| Mythic item art (40 icons) | inventory, chests | hand-made 32×32 | keep — bespoke by design; the knight armour (100) and weapon (100) icon packs now cover per-item icons for commons/rares/legendaries, tiered plain → gilded → elemental, if you want that wired |
 | Gauntlet skill icons (17) | gauntlet UI | hand-made | keep, or a skill-icon pack |
 | Card cost badges (mana drop, sand timer) | cards | hand-made | a UI icon pack (mana, time, gold) |
 | Procedural UI glyphs (`ui_glyphs.gd`: hand, stop, play, cage, feather, bolt, brain, eye, card…) | HUD buttons | drawn at runtime | a pixel UI/HUD icon pack |

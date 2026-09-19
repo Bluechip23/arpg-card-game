@@ -49,6 +49,11 @@ THEMES = {
     "floor_undead":          ("tileset_undead_land/Ground_rocks.png", [(109, 113, 105)], 14),
     "floor_undead_sand":     ("tileset_undead_land/Ground_rocks.png", [(152, 147, 126)], 16),
     "wall_undead":           ("tileset_undead_land/Ground_rocks.png", [(34, 41, 49)], 16),
+    # Amber Wastes (World 2, desert pack): dry scrub floor, sand trails, the
+    # dark sandstone cliff for walls.
+    "floor_desert":          ("tileset_desert/Ground_grass.png", [(175, 160, 70), (152, 145, 62)], 16),
+    "floor_desert_sand":     ("tileset_desert/Ground_grass.png", [(210, 178, 104), (189, 155, 96)], 18),
+    "wall_desert":           ("tileset_desert/Ground_grass.png", [(103, 55, 35), (107, 70, 38)], 14),
     # Hell (World 4, cursed land pack).
     "floor_cursed":          ("tileset_cursed_land/Ground.png", [(156, 96, 87)], 14),
     "floor_cursed_dark":     ("tileset_cursed_land/Ground.png", [(116, 49, 46)], 14),
@@ -65,6 +70,7 @@ WATER = {
     "water_cave":    ("tileset_cave/water_n_lava_coasts_source.png", "tileset_cave/water_detilazation_source.png"),
     "water_undead":  ("tileset_undead_land/Water_coasts.png", "tileset_undead_land/water_detilazation.png"),
     "water_cursed":  ("tileset_cursed_land/Water_coasts.png", "tileset_cursed_land/water_detilazation.png"),
+    "water_desert":  ("tileset_desert/Water_coasts.png", "tileset_desert/water_detilazation.png"),
 }
 
 
