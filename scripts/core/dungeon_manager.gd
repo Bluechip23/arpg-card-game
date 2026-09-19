@@ -16,11 +16,15 @@ var GRID_H: int = 46
 const FOG_REVEAL_RADIUS: int = 6   # Tiles revealed around the player
 const ELEV_STEP: float = 0.5       # World units of height per elevation level
 
-## TOP-DOWN PROTOTYPE. True = the ground is drawn as an autotiled 16px tile
-## layer (grass/dirt/water/cliff-top with edge transitions, placeholder art
-## generated from each palette at runtime) and Main locks the camera to one
-## fixed 3/4 angle with pixel snapping. False = the original tinted-slab
-## terrain and free orbit. Flip to compare the two looks in the same scene.
+## TOP-DOWN GROUND. True = the ground is drawn as one autotiled mesh: each
+## cell picks a 32px atlas tile by terrain (grass/dirt/water/pit/high) and by
+## which neighbours differ, so trails, water and cliff tops get edge
+## transitions. The atlas is assembled at runtime from the location's ground
+## sheets — the Craftpix fills cut by tools/extract_craftpix_tiles.py where a
+## pack matches, the generated master-palette sheets elsewhere — with the
+## edge bands painted in the palette. False = the older per-tile tinted-slab
+## MultiMesh terrain (same sheets, no edges). The camera is fixed either way
+## (CameraView).
 const TOPDOWN_PROTOTYPE := true
 const WAYPOINT_MOUND_HEIGHT: float = 0.22  # Raised dirt mound under every waypoint ring
 # Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
@@ -1335,20 +1339,30 @@ func _build_floor_visuals() -> void:
 var _chamfer_mesh_cache: Dictionary = {}
 
 # ============================================
-# AUTOTILED GROUND (top-down prototype)
+# AUTOTILED GROUND
 # ============================================
-# Every walkable cell is one 16px tile from an atlas: 5 terrains × 16 edge
-# variants. A cell's variant is the 4-bit mask of which of its N/E/S/W
+# Every walkable cell is one 32px tile from an atlas: 5 terrains × (16 edge
+# masks + 16 plain variants). A cell's mask is which of its N/E/S/W
 # neighbours are a *different* terrain, so grass meets dirt with a shadowed
 # lip, dirt fades into grass with a dust edge, water carries a foam rim
 # against land, and raised ground draws a sun-lit lip over its drop.
-# The atlas is placeholder art built from the location palette at runtime;
-# a real tileset drops in by replacing _make_placeholder_atlas with a load.
+# The atlas is assembled at runtime (_make_ground_atlas) from the location's
+# ground sheets — Craftpix fills where a pack matches, generated palette
+# sheets elsewhere — with the edge bands painted in the palette. Cutting the
+# packs' own edge pieces into the mask columns is the next step.
 
 enum Terrain { GRASS, DIRT, WATER, PIT, HIGH }
-const ATLAS_TILE := 16
+## One atlas tile per world unit, at the game's texel density (style guide §1:
+## 1 grid tile = 32 texels) — the same 32px variants the ground sheets hold.
+const ATLAS_TILE := 32
+## Columns 0..15: the 4-bit N/E/S/W edge mask on the sheet's first variant.
+## Columns 16..31: the sheet's 16 plain variants, used for interior (mask 0)
+## cells so open ground does not repeat one tile.
 const ATLAS_MASKS := 16
-var _atlas_cache: Dictionary = {}  # palette name -> ImageTexture
+const ATLAS_VARIANTS := 16
+const ATLAS_COLS := ATLAS_MASKS + ATLAS_VARIANTS
+const EDGE_BAND := 4   # px of painted edge on a marked side (2 pack texels)
+var _atlas_cache: Dictionary = {}  # palette name|interior -> ImageTexture
 
 func _terrain_of(x: int, z: int) -> int:
 	if is_water(Vector2i(x, z)):
@@ -1375,10 +1389,10 @@ func _neighbor_differs(x: int, z: int, nx: int, nz: int, t: int) -> bool:
 
 func _build_autotile_ground() -> void:
 	var pal = get_palette()
-	var atlas := _make_placeholder_atlas(pal)
+	var atlas := _make_ground_atlas(pal)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var tw := 1.0 / ATLAS_MASKS
+	var tw := 1.0 / ATLAS_COLS
 	var th := 1.0 / Terrain.size()
 	var count := 0
 	for x in range(GRID_W):
@@ -1394,7 +1408,11 @@ func _build_autotile_ground() -> void:
 			var y: float = elevation[x][z] * ELEV_STEP + 0.004
 			if t == Terrain.WATER:
 				y = -0.02
-			var u0 := mask * tw
+			var col := mask
+			if mask == 0:
+				# Open ground: one of the sheet's 16 variants, by cell hash.
+				col = ATLAS_MASKS + int(_tile_noise(x, z, 11) * ATLAS_VARIANTS) % ATLAS_VARIANTS
+			var u0 := col * tw
 			var v0 := t * th
 			var u1 := u0 + tw
 			var v1 := v0 + th
@@ -1418,6 +1436,9 @@ func _build_autotile_ground() -> void:
 	mat.albedo_texture = atlas
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.roughness = 1.0
+	# Theme cast, same weights as the slab terrain: colour-authored pack
+	# fills keep more of their own colour than the generated sheets.
+	mat.albedo_color = Color(1, 1, 1).lerp(pal["floor_a"], _tint_weight(floor_texture_path()))
 	mi.material_override = mat
 	_visuals_root.add_child(mi)
 	print("[DUNGEON] Autotiled %d ground tiles (%s)" % [count, pal.get("name", "")])
@@ -1426,53 +1447,90 @@ static func _px_hash(x: int, y: int, salt: int) -> float:
 	var h := int((x * 73856093) ^ (y * 19349663) ^ (salt * 83492791)) & 0x7fffffff
 	return float(h % 1000) / 1000.0
 
-func _make_placeholder_atlas(pal: Dictionary) -> ImageTexture:
-	## Placeholder tileset in the location's palette: speckled bases with a
-	## 2px edge band on every side the mask marks as "different terrain".
+func _make_ground_atlas(pal: Dictionary) -> ImageTexture:
+	## Ground atlas for this location: every terrain row takes its 32px
+	## variants from a ground sheet (grass = floor sheet, dirt = trail sheet,
+	## water = water sheet, pit = floor darkened, high = floor lightened), and
+	## the 16 mask columns get palette-coloured edge bands on the sides where
+	## the neighbouring terrain differs (plus a lip shadow under raised
+	## ground). Cached per palette + interior.
 	var key: String = str(pal.get("name", "")) + "|" + interior_kind
 	if _atlas_cache.has(key):
 		return _atlas_cache[key]
-	var img := Image.create(ATLAS_TILE * ATLAS_MASKS, ATLAS_TILE * Terrain.size(), false, Image.FORMAT_RGBA8)
+	var img := Image.create(ATLAS_TILE * ATLAS_COLS, ATLAS_TILE * Terrain.size(), false, Image.FORMAT_RGBA8)
 	var ground: Color = pal.get("ground", Color(0.1, 0.1, 0.1))
-	var floor_a: Color = pal.get("floor_a", Color(0.3, 0.5, 0.25))
 	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
 	var trail_c: Color = pal.get("trail", Color(0.34, 0.28, 0.18))
 	var water_c: Color = pal.get("water", Color(0.16, 0.3, 0.5))
 	var water_e: Color = pal.get("water_edge", water_c.lightened(0.25))
-	# [base_a, base_b, edge] per terrain
+	var floor_sheet := _sheet_image(floor_texture_path())
+	var trail_sheet := _sheet_image(trail_texture_path())
+	var water_sheet := _sheet_image("res://assets/textures/tile_water.png")
+	var pit_sheet := floor_sheet.duplicate()
+	pit_sheet.adjust_bcs(0.45, 1.0, 0.8)
+	var high_sheet := floor_sheet.duplicate()
+	high_sheet.adjust_bcs(1.14, 1.0, 1.0)
+	# [sheet, edge colour] per terrain
 	var styles := {
-		Terrain.GRASS: [floor_a, floor_b, floor_b.darkened(0.35)],
-		Terrain.DIRT: [trail_c, trail_c.lerp(floor_b, 0.25), trail_c.lightened(0.28)],
-		Terrain.WATER: [water_c, water_e, Color(0.85, 0.92, 1.0).lerp(water_e, 0.3)],
-		Terrain.PIT: [ground.darkened(0.5), ground.darkened(0.3), ground],
-		Terrain.HIGH: [floor_a.lightened(0.14), floor_b.lightened(0.14), Color(1.0, 0.98, 0.85).lerp(floor_a, 0.45)],
+		Terrain.GRASS: [floor_sheet, floor_b.darkened(0.35)],
+		Terrain.DIRT: [trail_sheet, trail_c.lightened(0.28)],
+		Terrain.WATER: [water_sheet, Color(0.85, 0.92, 1.0).lerp(water_e, 0.3)],
+		Terrain.PIT: [pit_sheet, ground],
+		Terrain.HIGH: [high_sheet, Color(1.0, 0.98, 0.85).lerp(pal.get("floor_a", floor_b), 0.45)],
 	}
+	var n := ATLAS_TILE
 	for t in range(Terrain.size()):
-		var base_a: Color = styles[t][0]
-		var base_b: Color = styles[t][1]
-		var edge: Color = styles[t][2]
+		var sheet: Image = styles[t][0]
+		var edge: Color = styles[t][1]
+		var oy := t * n
+		# Interior variants: the sheet's 4x4 grid, straight copy.
+		for v in range(ATLAS_VARIANTS):
+			var src := Rect2i((v % 4) * n, (v / 4) * n, n, n)
+			img.blit_rect(sheet, src, Vector2i((ATLAS_MASKS + v) * n, oy))
+		# Mask tiles: first variant plus edge bands.
 		for mask in range(ATLAS_MASKS):
-			var ox := mask * ATLAS_TILE
-			var oy := t * ATLAS_TILE
-			for py in range(ATLAS_TILE):
-				for px in range(ATLAS_TILE):
-					var n := _px_hash(px, py, t * 7 + 1)
-					var col: Color = base_a.lerp(base_b, 1.0 if n > 0.72 else 0.0)
-					if t == Terrain.WATER and n > 0.93:
-						col = base_b.lightened(0.2)  # ripple glints
-					# Edge bands: 2px on marked sides, 1px inner darker line for grass/high
-					var on_edge := (mask & 1 and py < 2) or (mask & 2 and px >= ATLAS_TILE - 2) 						or (mask & 4 and py >= ATLAS_TILE - 2) or (mask & 8 and px < 2)
+			var ox := mask * n
+			img.blit_rect(sheet, Rect2i(0, 0, n, n), Vector2i(ox, oy))
+			if mask == 0:
+				continue
+			for py in range(n):
+				for px in range(n):
+					var on_edge := (mask & 1 and py < EDGE_BAND) or (mask & 2 and px >= n - EDGE_BAND) \
+							or (mask & 4 and py >= n - EDGE_BAND) or (mask & 8 and px < EDGE_BAND)
+					var col: Color
 					if on_edge:
 						col = edge
-						if t == Terrain.WATER and n > 0.6:
+						# Outer texel row a shade darker: the pack art's outline.
+						var outer := (mask & 1 and py < 2) or (mask & 2 and px >= n - 2) \
+								or (mask & 4 and py >= n - 2) or (mask & 8 and px < 2)
+						if outer and t != Terrain.WATER:
+							col = edge.darkened(0.3)
+						if t == Terrain.WATER and _px_hash(px, py, 3) > 0.6:
 							col = edge.lightened(0.15)  # foam sparkle
-					# Drop shadow under raised ground: the south edge reads as a lip
-					if t == Terrain.HIGH and (mask & 4) and py == ATLAS_TILE - 3:
-						col = floor_b.darkened(0.45)
+					elif t == Terrain.HIGH and (mask & 4) and py >= n - EDGE_BAND - 2:
+						col = floor_b.darkened(0.45)  # lip shadow under raised ground
+					else:
+						continue
 					img.set_pixel(ox + px, oy + py, col)
 	var tex := ImageTexture.create_from_image(img)
 	_atlas_cache[key] = tex
 	return tex
+
+
+## A ground sheet as a decompressed RGBA8 image, or a flat palette fill if
+## the file is missing (so a bad path can never leave holes in the ground).
+func _sheet_image(path: String) -> Image:
+	var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
+	var img: Image = tex.get_image() if tex else null
+	if img == null:
+		img = Image.create(ATLAS_TILE * 4, ATLAS_TILE * 4, false, Image.FORMAT_RGBA8)
+		img.fill(get_palette().get("floor_a", Color(0.3, 0.5, 0.25)))
+		return img
+	if img.is_compressed():
+		img.decompress()
+	if img.get_format() != Image.FORMAT_RGBA8:
+		img.convert(Image.FORMAT_RGBA8)
+	return img
 
 func _chamfered_unit_box(bh: float, ys: float) -> ArrayMesh:
 	## Unit box (drop-in for BoxMesh transforms) whose top rim is chamfered so

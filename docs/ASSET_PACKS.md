@@ -103,12 +103,14 @@ billboard.
 ## Integration notes
 
 - **Terrain fills.** `tools/extract_craftpix_tiles.py` cuts each tileset's
-  interior 16-px fill tiles and composes them into the 4×4 × 32-px variant
-  sheets the terrain MultiMesh samples (`assets/textures/craftpix/`). Only
-  fills are used so far; the autotile edge pieces, coasts and prop atlases
-  wait on a per-tile UV renderer (the current triplanar material cannot
-  pick a cell per tile). Grass fills are two flat tiles per pack — the
-  packs put grass detail in `Details.png` overlays, which is the next step.
+  interior 16-px fill tiles and composes them into 4×4 × 32-px variant
+  sheets (`assets/textures/craftpix/`). The autotiled ground
+  (`DungeonManager._build_autotile_ground`) assembles its runtime atlas from
+  those sheets — 16 plain variants per terrain for open ground, plus 16
+  edge-mask tiles whose transition bands are still painted from the
+  palette. Cutting the packs' own edge pieces, coasts and prop atlases into
+  those mask columns is the next step, as is scattering the `Details.png`
+  grass overlays (the pack grass fills are two flat tiles).
 - **Enemy rigs.** `SpriteEnemyFigure` plays the Craftpix sheets with real
   frames (idle / walk / run / attack / hurt / death). The direction row map
   is `SpriteEnemyFigure.CP_ROWS`. The `Without_shadow` sheets are used with

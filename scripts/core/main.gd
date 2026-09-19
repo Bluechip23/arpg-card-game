@@ -724,30 +724,20 @@ func _update_camera() -> void:
 	var camera = get_world_camera()
 	if not camera:
 		return
-	if DungeonManager.TOPDOWN_PROTOTYPE:
-		# One fixed 3/4 angle, north up: every cell reads the same shape.
-		_camera_pitch = TOPDOWN_PITCH
-		_camera_yaw = 0.0
-	# Compute camera position on a sphere around the focus point
-	var offset = Vector3(
-		sin(_camera_yaw) * cos(_camera_pitch) * _camera_distance,
-		-sin(_camera_pitch) * _camera_distance,
-		cos(_camera_yaw) * cos(_camera_pitch) * _camera_distance
-	)
-	# Orthographic projection: SNES perspective has no foreshortening — this
-	# is the single biggest "reads 16-bit vs reads 3D" lever. Size is frame-
-	# matched to the old perspective view so zoom levels feel unchanged.
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 2.0 * _camera_distance * tan(deg_to_rad(75.0) * 0.5) * 0.62
+	# The angle is not negotiable: anything that poked the yaw/pitch (old
+	# harnesses, scripted moments) snaps back to the fixed top-down
+	# three-quarter view (CameraView — the same -65° the top-down prototype
+	# used). Orthographic projection: SNES perspective has no foreshortening.
+	_camera_yaw = CameraView.YAW
+	_camera_pitch = CameraView.PITCH
 	var focus := _camera_focus
-	if DungeonManager.TOPDOWN_PROTOTYPE and _world_viewport and _world_viewport.size.y > 0:
+	if _world_viewport and _world_viewport.size.y > 0:
 		# Snap the view to whole world-viewport pixels so sprites and tiles
 		# never straddle a pixel boundary (no shimmer as the camera follows).
-		var upp: float = camera.size / float(_world_viewport.size.y)  # world units per screen pixel (vertical)
+		var upp: float = CameraView.ortho_size(_camera_distance) / float(_world_viewport.size.y)
 		focus.x = snappedf(focus.x, upp)
-		focus.z = snappedf(focus.z, upp / maxf(0.2, -sin(_camera_pitch)))
-	camera.position = focus + offset
-	camera.look_at(focus, Vector3.UP)
+		focus.z = snappedf(focus.z, upp / maxf(0.2, CameraView.ground_foreshortening()))
+	CameraView.apply(camera, focus, _camera_distance)
 
 var _minimap_refresh_accum: float = 0.0
 
