@@ -41,7 +41,19 @@ func _initialize() -> void:
 	_check(pocket.slot_labels == [Card.CardKeyword.POCKET], "the single-label setter fills the label list")
 	_check(belt.can_slot_card(pocket), "a Pocket card slots into a belt")
 	_check(not helm.can_slot_card(pocket) and not ring.can_slot_card(pocket), "…but not a helm or ring")
-	_check(sword.can_slot_card(pocket), "swords take any labeled card")
+	_check(not sword.can_slot_card(pocket), "a sword refuses a Pocket card")
+	var sword_card := Card.create_slash()
+	sword_card.card_keyword = Card.CardKeyword.SWORD
+	_check(sword.can_slot_card(sword_card), "a Sword card slots into a sword")
+	var chest := F._base("Test Plate", ItemData.ItemType.CHEST)
+	chest.card_slots = 1
+	_check(not chest.can_slot_card(sword_card), "chest armor refuses a Sword card")
+	var bulwark := Card.create_block()
+	bulwark.card_keyword = Card.CardKeyword.BULWARK
+	_check(chest.can_slot_card(bulwark), "a Bulwark card slots into chest armor")
+	var staff := F.staff()
+	staff.card_slots = 1
+	_check(staff.can_slot_card(pocket), "staves take any labeled card")
 
 	# Several labels: any of them opens its slot.
 	var multi := Card.create_heal()

@@ -6,10 +6,11 @@ extends Resource
 enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTMENT }
 ## Slot-compatibility label: which item slots a card may be enchanted into
 ## (belt→Pocket, ring→Gem, boots→Swift, shield→Buckler, helm→Crown,
-## gauntlets→Fist, bow/quiver→Arrow). NONE fits weapon and chest slots only.
-## Any card may sit in the bare deck regardless of its label; a card that may
-## ONLY exist inside a slot is flagged requires_engraving (the Engrave keyword).
-enum CardKeyword { NONE, ARROW, POCKET, GEM, SWIFT, BUCKLER, CROWN, FIST }
+## gauntlets→Fist, bow/quiver→Arrow, chest→Bulwark, and each melee weapon
+## its own: Sword, Axe, Dagger, Hammer, Spear). Any card may sit in the bare
+## deck; an unlabeled card can ONLY sit there. A card that may only exist
+## inside a slot is flagged requires_engraving (the Engrave keyword).
+enum CardKeyword { NONE, ARROW, POCKET, GEM, SWIFT, BUCKLER, CROWN, FIST, SWORD, AXE, DAGGER, HAMMER, SPEAR, BULWARK }
 
 static func keyword_name(kw: int) -> String:
 	match kw:
@@ -20,6 +21,12 @@ static func keyword_name(kw: int) -> String:
 		CardKeyword.BUCKLER: return "Buckler"
 		CardKeyword.CROWN: return "Crown"
 		CardKeyword.FIST: return "Fist"
+		CardKeyword.SWORD: return "Sword"
+		CardKeyword.AXE: return "Axe"
+		CardKeyword.DAGGER: return "Dagger"
+		CardKeyword.HAMMER: return "Hammer"
+		CardKeyword.SPEAR: return "Spear"
+		CardKeyword.BULWARK: return "Bulwark"
 	return ""
 
 # The card's SCHOOL — how the card is delivered — orthogonal to CardType (its

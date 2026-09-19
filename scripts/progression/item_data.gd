@@ -757,12 +757,18 @@ func _get_default_keyword_for_item_type() -> int:
 		ItemType.HELM: return Card.CardKeyword.CROWN
 		ItemType.GAUNTLETS: return Card.CardKeyword.FIST
 		ItemType.QUIVER: return Card.CardKeyword.ARROW
+		ItemType.CHEST: return Card.CardKeyword.BULWARK
 		ItemType.WEAPON:
 			match weapon_subtype:
 				WeaponSubtype.BOW: return Card.CardKeyword.ARROW
 				WeaponSubtype.SHIELD: return Card.CardKeyword.BUCKLER
-				_: return -1  # Swords, staves and the rest take any labeled card
-	return -1  # CHEST and others take any labeled card
+				WeaponSubtype.SWORD: return Card.CardKeyword.SWORD
+				WeaponSubtype.AXE: return Card.CardKeyword.AXE
+				WeaponSubtype.DAGGER: return Card.CardKeyword.DAGGER
+				WeaponSubtype.HAMMER: return Card.CardKeyword.HAMMER
+				WeaponSubtype.POLEARM: return Card.CardKeyword.SPEAR
+				_: return -1  # Wands, tomes, staves and "other" take any labeled card
+	return -1
 
 func slot_card(card) -> bool:
 	if not can_slot_card(card):
