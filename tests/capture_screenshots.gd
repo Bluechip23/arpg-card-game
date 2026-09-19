@@ -23,9 +23,8 @@ func _shoot(name: String) -> void:
 	img.save_png(OUT + name)
 	print("SHOT ", name)
 
-func _cam(yaw: float, pitch: float, dist: float) -> void:
-	main._camera_yaw = yaw
-	main._camera_pitch = pitch
+func _cam(dist: float) -> void:
+	# The view angle is fixed (CameraView); only the zoom distance varies.
 	main._camera_distance = dist
 	main._update_camera()
 
@@ -49,21 +48,21 @@ func _initialize() -> void:
 	await create_timer(1.5).timeout
 	await _dismiss()
 
-	# --- Camera views ---
-	_cam(0.0, -0.785, 17.0)
+	# --- Camera views (fixed top-down three-quarter; zoom levels only) ---
+	_cam(17.0)
 	await _shoot("view_default.png")
 
-	_cam(1.9, -0.6, 17.0)
-	await _shoot("view_rotated.png")
+	_cam(12.0)
+	await _shoot("view_mid.png")
 
-	_cam(0.6, -0.5, 8.0)
+	_cam(8.0)
 	await _shoot("view_zoom_in.png")
 
-	_cam(0.3, -0.9, 32.0)
+	_cam(32.0)
 	await _shoot("view_zoom_out.png")
 
 	# --- Attack animation (facing the nearest enemy) ---
-	_cam(0.5, -0.55, 10.0)
+	_cam(10.0)
 	var enemies = main.enemy_spawner.get_living_enemies()
 	if enemies.size() > 0:
 		main.player.face_toward(enemies[0].position)

@@ -5121,7 +5121,14 @@ func _die_visuals() -> void:
 	var death_col := get_node_or_null("CollisionShape3D")
 	if death_col is CollisionShape3D:
 		death_col.set_deferred("disabled", true)
+	# Figures with real death frames (Craftpix packs) play them out first;
+	# the shrink-away then removes the corpse.
+	var hold := 0.0
+	if _enemy_figure and _enemy_figure.has_method("play_death"):
+		hold = _enemy_figure.play_death()
 	var tween = create_tween()
+	if hold > 0.0:
+		tween.tween_interval(hold + 0.25)
 	tween.tween_property(self, "scale", Vector3.ONE * 0.01, 0.5)
 	tween.tween_callback(queue_free)
 
