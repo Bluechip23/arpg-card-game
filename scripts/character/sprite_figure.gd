@@ -172,6 +172,9 @@ func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
 	var s := Sprite3D.new()
 	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	# Hard alpha cut: the sprite writes depth, so props, walls and other
+	# figures sort against it per pixel instead of by node origin.
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	s.pixel_size = PIXEL_SIZE
 	s.region_enabled = true
 	s.region_rect = Rect2(0, 0, cell, cell)

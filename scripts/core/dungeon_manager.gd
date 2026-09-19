@@ -1377,7 +1377,13 @@ func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: fl
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = load(texture_path)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	# Alpha scissor, not blending: pixel art has hard edges (the pack props
+	# carry no semi-transparent texels), so the props render in the opaque
+	# pass and WRITE DEPTH. A blended MultiMesh sorts as one object against
+	# the character sprites — every stone in the batch either covered the
+	# player or sat under them — while depth resolves it per pixel.
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	mat.alpha_scissor_threshold = 0.5
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.billboard_keep_scale = true
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1703,10 +1709,13 @@ func _build_walls() -> void:
 				continue  # Site structures draw their own exteriors
 			var n = _tile_noise(x, z, 23)
 			var height: float
+			# One tile of wall face (the pack art's proportion): tall enough to
+			# read as a wall under the -65° camera, low enough that a character
+			# standing just north of it still shows from the shoulders up.
 			if is_building:
-				height = 2.3 + n * 0.15  # Interior walls are uniform and man-made
+				height = 1.25 + n * 0.1  # Interior walls are uniform and man-made
 			else:
-				height = 1.5 + n * 0.9 + _max_adjacent_floor_elevation(x, z) * ELEV_STEP
+				height = 0.9 + n * 0.35 + _max_adjacent_floor_elevation(x, z) * ELEV_STEP
 			var col: Color = pal["wall_a"].lerp(pal["wall_b"], _tile_noise(x, z, 31))
 			var xform = Transform3D(
 				Basis.from_scale(Vector3(1.0, height, 1.0)),
@@ -2693,6 +2702,7 @@ func _build_tree_mesh(root: Node3D, scale: float, climbable: bool) -> void:
 	var sprite := Sprite3D.new()
 	sprite.texture = load(v["path"])
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
 	sprite.pixel_size = 0.034
@@ -3952,6 +3962,7 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		var tree = Sprite3D.new()
 		tree.texture = load(_first_prop_variant("field_tree", "res://assets/textures/props/tree.png", 48, 64)["path"])
 		tree.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		tree.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 		tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		tree.shaded = false
 		tree.pixel_size = 0.034
@@ -4189,6 +4200,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	sprite.name = "ChestSprite"
 	sprite.texture = load(closed["path"])
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
 	sprite.pixel_size = 0.034  # style guide texel density

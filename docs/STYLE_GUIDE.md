@@ -39,6 +39,12 @@ conforms to them.
   texels at every zoom while staying legible. (Flagged in OPEN_QUESTIONS.md —
   one constant to change.)
 - UI renders outside the viewport at window resolution (1280×720 base).
+  So does **world text**: every `Label3D` is mirrored by a full-resolution
+  `Label` in `WorldLabelOverlay` that follows its screen position each
+  frame (the Label3D itself is hidden from the cameras with `layers = 0`
+  but stays the source of truth for text, colour and visibility). Text
+  rendered inside the half-res world was smeared 2× — never put text in
+  the world viewport.
 - Sprite texel density: **`PIXEL_SIZE = 0.034`** world units per texel for
   every billboard (party, enemies, overlays). No per-entity scale factors —
   bigger creatures get bigger *art* or an integer-ish rig scale, never a
@@ -105,6 +111,18 @@ conforms to them.
   art's ground row at the node origin; prop `QuadMesh`es use a
   `center_offset` of half their height; critters do the same. The ground
   row then stays glued to the tile (and the blob shadow) at the fixed pitch.
+- **Depth, not draw order.** Every billboard — party, enemies, props,
+  chests, critters — uses a hard alpha cut (`ALPHA_CUT_DISCARD` on
+  `Sprite3D`, `TRANSPARENCY_ALPHA_SCISSOR` on prop MultiMesh materials) so it
+  writes depth and sorts per pixel against walls and each other. Pixel art
+  has no soft edges to lose, and blended sprites sort by node origin (a
+  whole MultiMesh of stones as one object), which is what buried the player
+  under the scenery. Only true translucency (blob shadows, fog, portals,
+  water film) stays alpha-blended.
+- Walls are ~one tile of face (natural 0.9–1.25, buildings 1.25 units, plus
+  elevation): tall enough to read as a wall at -65°, low enough that a
+  character just north of one still shows from the shoulders up — the
+  proportion the 16px pack wall faces are drawn at.
 - MonsterKit flyer cells (bee, hawk, bat, carpet, sword) have painted shadows
   in-art — those kinds skip the shadow node (no doubles). Craftpix character
   packs ship every sheet twice; always use `Without_shadow/` and let the blob

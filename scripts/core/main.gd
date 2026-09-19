@@ -427,6 +427,12 @@ func _setup_world_viewport() -> void:
 	sv.add_child(cam)
 	cam.current = true
 	_world_camera = cam
+	# World text is mirrored at full resolution (WorldLabelOverlay): the
+	# half-res world render would smear every Label3D.
+	var labels := WorldLabelOverlay.new()
+	labels.name = "WorldLabelOverlay"
+	labels.setup(self, world_to_screen)
+	add_child(labels)
 
 
 ## Style guide §3: one global light, upper-left 45°, no engine-cast shadows
@@ -1245,21 +1251,22 @@ func _setup_tick_bar() -> void:
 	frame_style.set_corner_radius_all(5)
 	frame_style.content_margin_left = 6
 	frame_style.content_margin_right = 6
-	frame_style.content_margin_top = 4
-	frame_style.content_margin_bottom = 4
+	frame_style.content_margin_top = 2
+	frame_style.content_margin_bottom = 2
 	frame_style.shadow_color = Color(0, 0, 0, 0.45)
 	frame_style.shadow_size = 4
 	frame.add_theme_stylebox_override("panel", frame_style)
 
 	var tick_container = VBoxContainer.new()
 	tick_container.name = "TickBarContainer"
-	tick_container.add_theme_constant_override("separation", 2)
+	tick_container.add_theme_constant_override("separation", 1)
 	frame.add_child(tick_container)
 
 	# Card name label
 	_tick_bar_card_name_label = Label.new()
 	_tick_bar_card_name_label.name = "TickBarCardName"
 	_tick_bar_card_name_label.text = ""
+	_tick_bar_card_name_label.visible = false  # only takes a line while a card is queued
 	_tick_bar_card_name_label.add_theme_font_size_override("font_size", 11)
 	_tick_bar_card_name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	_tick_bar_card_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1275,7 +1282,7 @@ func _setup_tick_bar() -> void:
 	_tick_bar_rects.clear()
 	for i in range(20):
 		var bar = ColorRect.new()
-		bar.custom_minimum_size = Vector2(13, 29)  # wider tick "books"
+		bar.custom_minimum_size = Vector2(13, 18)  # wide, short tick "books"
 		bar.color = Color(0.15, 0.15, 0.2)  # Dim/inactive
 		bar_hbox.add_child(bar)
 		_tick_bar_rects.append(bar)
@@ -1283,7 +1290,7 @@ func _setup_tick_bar() -> void:
 	# Shelf plank the tick books rest on: a wood strip capped with a gold edge.
 	var shelf = Panel.new()
 	shelf.name = "TickBarShelf"
-	shelf.custom_minimum_size = Vector2(0, 5)
+	shelf.custom_minimum_size = Vector2(0, 4)
 	shelf.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var shelf_style := StyleBoxFlat.new()
 	shelf_style.bg_color = Color(0.28, 0.19, 0.11)          # lighter plank wood
@@ -1393,6 +1400,7 @@ func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, c
 
 	if _tick_bar_card_name_label:
 		_tick_bar_card_name_label.text = card_name
+		_tick_bar_card_name_label.visible = card_name != ""
 
 	var filled = tempo_manager.get_global_tempo() % 20
 	var dim_color = Color(0.15, 0.15, 0.2)        # Empty / unfilled
@@ -1554,6 +1562,7 @@ func _reset_tick_bar() -> void:
 	## Reset the tick bar to idle state but still show global tempo progress.
 	if _tick_bar_card_name_label:
 		_tick_bar_card_name_label.text = ""
+		_tick_bar_card_name_label.visible = false
 	# Show the global counter even when no card is active
 	_update_tick_bar(0, 0, 0, "")
 

@@ -217,6 +217,15 @@ func _ready() -> void:
 	_refresh_quest_indicators()
 	_refresh_leave_gate()
 
+	# Crisp world text (same mirror the battle scene uses; the town renders
+	# through the root viewport, so the projection is the camera's own).
+	var labels := WorldLabelOverlay.new()
+	labels.name = "WorldLabelOverlay"
+	labels.setup(self, func(p: Vector3) -> Vector2:
+		var cam := get_viewport().get_camera_3d()
+		return cam.unproject_position(p) if cam else Vector2.ZERO)
+	add_child(labels)
+
 	# Initialize camera
 	_camera_focus = player.position + Vector3(3, 0, 0)
 	_camera_pan = Vector3.ZERO
@@ -2303,6 +2312,7 @@ func _build_stash_chest(stash: Node3D) -> void:
 	chest.name = "Chest"
 	chest.texture = load(CraftpixProps.PROPS["chest_wood_closed"]["variants"][0]["path"])
 	chest.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	chest.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	chest.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	chest.shaded = false
 	chest.pixel_size = 0.034
@@ -2362,6 +2372,7 @@ func _create_olorin_npc() -> void:
 	fig.region_enabled = true
 	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
 	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	fig.shaded = false
 	fig.pixel_size = 0.034
@@ -2418,6 +2429,7 @@ func _create_sellsword_npc() -> void:
 	fig.region_enabled = true
 	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
 	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	fig.shaded = false
 	fig.pixel_size = 0.034

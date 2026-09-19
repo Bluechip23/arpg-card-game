@@ -174,6 +174,7 @@ func setup(kind: String) -> void:
 	_sprite = Sprite3D.new()
 	_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting vs props/characters
 	_sprite.region_enabled = true
 	_sprite.shaded = false
 	if cfg.has("cp"):
