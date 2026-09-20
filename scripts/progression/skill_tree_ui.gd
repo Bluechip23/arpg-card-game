@@ -481,13 +481,24 @@ func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
 	btn.add_theme_stylebox_override("hover", hover)
 	btn.add_theme_stylebox_override("pressed", hover)
 
-	# Short glyph inside the circle: the passive's initials.
-	var initials := ""
-	for word in opt.name.split(" ", false):
-		initials += word.substr(0, 1)
-		if initials.length() >= 2:
-			break
-	btn.text = initials if stage_unlocked else "🔒"
+	# Pack icon inside the circle (initials only when no art resolves);
+	# locked stages keep the padlock.
+	var art: Texture2D = SkillIconArt.passive(opt.passive_id, opt.archetype) if stage_unlocked else null
+	if art != null:
+		btn.icon = art
+		btn.expand_icon = true
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.add_theme_constant_override("icon_max_width", NODE_SIZE - 14)
+		btn.text = ""
+		if level <= 0:
+			btn.self_modulate = Color(0.72, 0.72, 0.78)
+	else:
+		var initials := ""
+		for word in opt.name.split(" ", false):
+			initials += word.substr(0, 1)
+			if initials.length() >= 2:
+				break
+		btn.text = initials if stage_unlocked else "🔒"
 	btn.add_theme_font_size_override("font_size", 16)
 	btn.add_theme_color_override("font_color", lane_color if stage_unlocked else COLOR_DIM)
 	btn.tooltip_text = _passive_tooltip(opt, lane, stage, lanes)

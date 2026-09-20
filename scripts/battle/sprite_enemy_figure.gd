@@ -58,6 +58,9 @@ const NPC_WALK_TIME := 0.18
 
 ## kind -> config.
 ## Craftpix animated:  {cp: "<pack>/<Variant>", tint?: Color, scale?: float}
+## Craftpix frames:    {fr: "<pack>/<Monster>", prefix?: String, tint?, scale?}
+##                     (side-view packs shipped as one PNG per frame; one
+##                     facing, flipped for west — like the MonsterKit battlers)
 ## MonsterKit battler: {cell: Vector2i(col,row), tint?: Color, scale?: float}
 ## Generated battler:  {tex: "<name>", tint?: Color, scale?: float}
 ## NPC humanoid:       {npc: "<path>", tint?: Color, scale?: float}
@@ -68,10 +71,10 @@ const KINDS := {
 	"pipe_crawler": {"cell": Vector2i(2, 0)},
 	"crypt_crawler": {"cell": Vector2i(3, 0)},
 	"swarm": {"cell": Vector2i(4, 0)},
-	"giant_hawk": {"cell": Vector2i(6, 0)},
-	"screecher": {"cell": Vector2i(7, 0)},
+	"giant_hawk": {"fr": "mountain_monsters/Bird", "scale": 0.55},
+	"screecher": {"fr": "mountain_monsters/Bird", "scale": 0.5, "tint": Color(0.7, 0.6, 0.85)},  # Stone_* frames are the bird carrying a rock, kept for a future drop attack
 	"giant_beaver": {"cell": Vector2i(0, 1), "tint": Color(0.95, 0.85, 0.75)},
-	"mini_bear": {"cell": Vector2i(1, 1)},
+	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
 	"wolf": {"cell": Vector2i(3, 1)},
 	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},
 	"djinn": {"cell": Vector2i(4, 1)},
@@ -80,7 +83,7 @@ const KINDS := {
 	"skeleton": {"cp": "skeletons/Skeleton1", "scale": 1.15},
 	"treant": {"cell": Vector2i(5, 2), "scale": 1.25},
 	"consumed": {"cell": Vector2i(6, 2)},
-	"sewer_croc": {"cell": Vector2i(7, 2)},
+	"sewer_croc": {"fr": "mountain_monsters/Snake", "scale": 0.6, "tint": Color(0.8, 0.9, 0.75)},  # a great sewer serpent stands in for the croc
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"cp": "giant_rat/Rat1"},
 	"archer_rat": {"cp": "giant_rat/Rat1", "tint": Color(0.85, 0.78, 0.7)},
@@ -88,8 +91,8 @@ const KINDS := {
 	"fire_goblin_soldier": {"cp": "goblins/Goblin2", "scale": 1.1, "tint": Color(1.1, 0.9, 0.8)},
 	"fire_goblin_mage": {"cp": "goblins/Goblin1", "scale": 1.1, "tint": Color(1.15, 0.85, 0.7)},
 	"fire_goblin_shaman": {"cp": "goblins/Goblin3", "scale": 1.2, "tint": Color(1.1, 0.9, 0.8)},
-	"armored_troll": {"tex": "armored_troll", "scale": 1.2},
-	"ice_troll": {"tex": "ice_troll", "scale": 1.2},
+	"armored_troll": {"fr": "mountain_monsters/Orc", "scale": 0.55},
+	"ice_troll": {"fr": "mountain_monsters/Yeti", "scale": 1.05},
 	"granite_colossus": {"cp": "golem/Golem1", "scale": 1.6},
 	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
 	"inflamed_minotaur": {"tex": "inflamed_minotaur", "scale": 1.25},
@@ -101,15 +104,15 @@ const KINDS := {
 	"hydra": {"tex": "hydra", "scale": 1.4},
 	"white_manticore": {"tex": "white_manticore", "scale": 1.3},
 	# --- battler variations where the species genuinely matches ---
-	"large_bear": {"tex": "large_bear", "scale": 1.45},
+	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
 	"cerberus": {"cell": Vector2i(3, 1), "tint": Color(0.85, 0.5, 0.45), "scale": 1.5},
 	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
 	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
 	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
-	"roc": {"cell": Vector2i(6, 0), "scale": 1.6},
-	"ash_harpy": {"cell": Vector2i(6, 0), "tint": Color(0.65, 0.6, 0.65)},
+	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
+	"ash_harpy": {"fr": "mountain_monsters/Bird", "scale": 0.6, "tint": Color(0.75, 0.65, 0.7)},
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
@@ -161,6 +164,7 @@ var _cp_frame := 0
 var _cp_clock := 0.0
 var _cp_dir: int = CharacterAnimator.Direction.SOUTH
 var _cp_dead := false
+var _fr_mode := false          # frame-per-file pack (side view, one facing)
 
 
 static func supports(kind: String) -> bool:
@@ -182,6 +186,8 @@ func setup(kind: String) -> void:
 	_sprite.shaded = false
 	if cfg.has("cp"):
 		_setup_craftpix(cfg["cp"])
+	elif cfg.has("fr"):
+		_setup_frames(cfg["fr"], cfg.get("prefix", ""))
 	elif cfg.has("npc"):
 		_npc_mode = true
 		_sprite.texture = load(cfg["npc"])
@@ -208,8 +214,11 @@ func setup(kind: String) -> void:
 	# of the art's bottom edge above the pivot, so the rows below the ground
 	# line — the padding under the feet / painted shadow — hang below it.)
 	_sprite.centered = false
-	_sprite.offset = Vector2(-_sprite.region_rect.size.x * 0.5,
-			-(_sprite.region_rect.size.y - _measure_ground_rows()))
+	if _fr_mode:
+		_fr_apply_offset()
+	else:
+		_sprite.offset = Vector2(-_sprite.region_rect.size.x * 0.5,
+				-(_sprite.region_rect.size.y - _measure_ground_rows()))
 	_base_y = 0.0
 	_sprite.position = Vector3(0, _base_y, 0)
 	var s: float = cfg.get("scale", 1.0)
@@ -220,7 +229,7 @@ func setup(kind: String) -> void:
 	# creature and follows attack lunges; the rig never moves vertically.
 	if not kind in PAINTED_SHADOW_KINDS:
 		var body_w := 40.0 * _sprite.pixel_size  # typical drawn battler width
-		if _cp_mode:
+		if _cp_mode or _fr_mode:
 			body_w = _measure_body_width() * _sprite.pixel_size
 		BlobShadow.attach(_rig, body_w * 0.7)
 
@@ -243,6 +252,73 @@ func _setup_craftpix(spec: String) -> void:
 	_sprite.texture = idle
 	_sprite.pixel_size = PIXEL_SIZE
 	_sprite.region_rect = Rect2(0, _cp_row(_cp_dir) * _cp_cell, _cp_cell, _cp_cell)
+
+
+## Load a frame-per-file pack (mountain monsters): every PNG in the folder,
+## grouped by animation name (digits stripped; the pack's own slips —
+## `tack3` for Attack3 — folded in). Birds have Flight instead of Idle/Walk.
+## Runs on the same animation clock as the sheet packs: `_cp_sheets` holds
+## an Array of textures per animation instead of one sheet.
+func _setup_frames(spec: String, prefix: String) -> void:
+	_fr_mode = true
+	_cp_mode = true
+	var folder := "%s/%s" % [CP, spec]
+	var groups := {}
+	var d := DirAccess.open(folder)
+	if d:
+		d.list_dir_begin()
+		var f := d.get_next()
+		while f != "":
+			if f.ends_with(".png"):
+				var stem := f.get_basename()
+				if prefix != "" and not stem.begins_with(prefix):
+					f = d.get_next()
+					continue
+				if prefix == "" and stem.begins_with("Stone_"):
+					f = d.get_next()
+					continue
+				var name := stem.trim_prefix(prefix).rstrip("0123456789")
+				if name == "tack":
+					name = "Attack"
+				if name == "Flight":
+					name = "Walk"
+				groups.get_or_add(name, []).append(folder + "/" + f)
+			f = d.get_next()
+		d.list_dir_end()
+	for name in groups.keys():
+		var paths: Array = groups[name]
+		paths.sort_custom(func(a: String, b: String) -> bool:
+			return _frame_index(a) < _frame_index(b))
+		var texs: Array = []
+		for pth in paths:
+			texs.append(load(pth))
+		_cp_sheets[name] = texs
+	if not _cp_sheets.has("Idle") and _cp_sheets.has("Walk"):
+		_cp_sheets["Idle"] = _cp_sheets["Walk"]  # flyers hover on their flight cycle
+	assert(_cp_sheets.has("Idle"), "frame pack %s has no Idle/Walk frames" % spec)
+	_sprite.texture = _cp_sheets["Idle"][0]
+	_sprite.pixel_size = PIXEL_SIZE
+	_sprite.region_enabled = false
+	_cp_cell = 0
+
+
+static func _frame_index(path: String) -> int:
+	var digits := ""
+	for ch in path.get_file().get_basename():
+		if ch >= "0" and ch <= "9":
+			digits += ch
+	return int(digits) if digits != "" else 0
+
+
+## Feet pivot for the current frame texture (frames differ in size).
+func _fr_apply_offset() -> void:
+	var tex: Texture2D = _sprite.texture
+	if tex == null:
+		return
+	_sprite.region_rect = Rect2(0, 0, tex.get_width(), tex.get_height())
+	var rows := _measure_ground_rows()
+	_sprite.offset = Vector2(-tex.get_width() * 0.5, -(tex.get_height() - rows))
+	_sprite.region_enabled = false
 
 
 ## Sheet file for an animation, tolerating the packs' naming slips: the
@@ -269,10 +345,12 @@ func _cp_row(direction: int) -> int:
 
 
 func _cp_frame_count(anim: String) -> int:
-	var tex: Texture2D = _cp_sheets.get(anim)
-	if tex == null:
+	var sheet = _cp_sheets.get(anim)
+	if sheet == null:
 		return 1
-	return maxi(1, int(tex.get_width() / _cp_cell))
+	if sheet is Array:
+		return maxi(1, sheet.size())
+	return maxi(1, int(sheet.get_width() / _cp_cell))
 
 
 ## Switch animation (no-op if already playing a looping one of that name).
@@ -287,11 +365,18 @@ func _cp_play(anim: String, restart: bool = false) -> void:
 	_cp_anim = anim
 	_cp_frame = 0
 	_cp_clock = 0.0
-	_sprite.texture = _cp_sheets[anim]
+	if not _fr_mode:
+		_sprite.texture = _cp_sheets[anim]
 	_cp_apply_frame()
 
 
 func _cp_apply_frame() -> void:
+	if _fr_mode:
+		var frames: Array = _cp_sheets[_cp_anim]
+		_sprite.texture = frames[clampi(_cp_frame, 0, frames.size() - 1)]
+		_fr_apply_offset()
+		_update_flip()
+		return
 	_sprite.region_rect = Rect2(_cp_frame * _cp_cell, _cp_row(_cp_dir) * _cp_cell, _cp_cell, _cp_cell)
 
 
@@ -392,6 +477,13 @@ func set_walking(on: bool) -> void:
 
 
 func set_facing(direction: int) -> void:
+	if _fr_mode:
+		if direction == CharacterAnimator.Direction.EAST:
+			_facing_x = 1.0
+		elif direction == CharacterAnimator.Direction.WEST:
+			_facing_x = -1.0
+		_update_flip()
+		return
 	if _cp_mode:
 		_cp_dir = direction
 		_cp_apply_frame()
@@ -408,6 +500,11 @@ func set_facing(direction: int) -> void:
 
 
 func set_facing_from_velocity(vel: Vector3) -> void:
+	if _fr_mode:
+		if absf(vel.x) > 0.05:
+			_facing_x = 1.0 if vel.x > 0.0 else -1.0
+			_update_flip()
+		return
 	if _cp_mode:
 		if vel.length_squared() < 0.01:
 			return
@@ -440,7 +537,8 @@ func _apply_npc_frame(col: int) -> void:
 
 func _update_flip() -> void:
 	if _sprite:
-		_sprite.flip_h = _facing_x > 0.0
+		# Battlers are drawn facing left; the mountain frame packs face right.
+		_sprite.flip_h = (_facing_x < 0.0) if _fr_mode else (_facing_x > 0.0)
 
 
 func set_quadruped(_on: bool) -> void:
@@ -456,7 +554,7 @@ func play_attack() -> void:
 	if _cp_mode:
 		# Real swing frames; the lunge is a smaller step along the true facing.
 		_cp_play("Attack", true)
-		dir = _cp_forward() * 0.16
+		dir = Vector3(_facing_x * 0.16, 0, 0) if _fr_mode else _cp_forward() * 0.16
 	_fx_tween = create_tween()
 	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12)
 	_fx_tween.tween_property(_rig, "position", dir, 0.08).set_ease(Tween.EASE_OUT)

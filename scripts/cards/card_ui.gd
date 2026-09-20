@@ -14,6 +14,8 @@ extends PanelContainer
 @onready var art_box: PanelContainer = $Panel/VBox/ArtBox
 @onready var desc_panel: PanelContainer = $Panel/VBox/DescPanel
 
+var _art_rect: TextureRect = null
+
 var _card: Card
 var _index: int
 var _selected: bool = false
@@ -824,11 +826,39 @@ func _style_frame() -> void:
 		art.content_margin_top = 0
 		art.content_margin_bottom = 0
 		art_box.add_theme_stylebox_override("panel", art)
+		_set_card_art()
 	if desc_panel:
 		var box = _bar_style(Color(0.17, 0.16, 0.14), 3)
 		box.content_margin_top = 4
 		box.content_margin_bottom = 4
 		desc_panel.add_theme_stylebox_override("panel", box)
+
+func _set_card_art() -> void:
+	## Craftpix skill icon in the art window (SkillIconArt picks per card_id,
+	## themed pool otherwise). The "~ artwork ~" placeholder hides once art
+	## resolves.
+	if art_box == null:
+		return
+	var tex: Texture2D = SkillIconArt.card(_card) if _card else null
+	var label := art_box.get_node_or_null("ArtLabel")
+	if tex == null:
+		if _art_rect:
+			_art_rect.visible = false
+		if label:
+			label.visible = true
+		return
+	if _art_rect == null:
+		_art_rect = TextureRect.new()
+		_art_rect.name = "ArtRect"
+		_art_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_art_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_art_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		_art_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art_box.add_child(_art_rect)
+	_art_rect.texture = tex
+	_art_rect.visible = true
+	if label:
+		label.visible = false
 
 func _clear_gold_trim() -> void:
 	_apply_default_style()

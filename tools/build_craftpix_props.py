@@ -189,6 +189,28 @@ def build_ui_icons():
     print(f"{len(UI_ICONS)} UI icons -> {UI_OUT}")
 
 
+# Skill icon packs (three sets of 100 painted 256px icons): exported at 48px
+# for status badges, passive nodes and card art (SkillIconArt maps keys to
+# "<pack>_<n>"). Painted art, so a smooth downscale, not nearest.
+ICON_OUT = "assets/textures/craftpix/icons"
+ICON_PACKS = {"rpg": "skill_icons_rpg", "game": "skill_icons_game", "pack": "skill_icons_pack"}
+ICON_PX = 48
+
+
+def build_skill_icons():
+    os.makedirs(ICON_OUT, exist_ok=True)
+    n = 0
+    for key, folder in ICON_PACKS.items():
+        for path in glob.glob(os.path.join(SRC, folder, "*.png")):
+            digits = "".join(ch for ch in os.path.basename(path) if ch.isdigit())
+            if not digits:
+                continue
+            img = Image.open(path).convert("RGBA").resize((ICON_PX, ICON_PX), Image.LANCZOS)
+            img.save(os.path.join(ICON_OUT, f"{key}_{int(digits)}.png"))
+            n += 1
+    print(f"{n} skill icons -> {ICON_OUT}")
+
+
 def crop_bbox(img):
     bb = img.getbbox()
     return img.crop(bb) if bb else img
@@ -256,3 +278,4 @@ def main():
 if __name__ == "__main__":
     main()
     build_ui_icons()
+    build_skill_icons()
