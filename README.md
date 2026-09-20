@@ -6,7 +6,7 @@
 
 ## A look at the game
 
-The battlefield is a fully 3D, elevation-aware grid rendered in pixel art from a fixed top-down three-quarter view — north is always up, and the camera zooms from close-up character work to a full tactical overview. Along the bottom: your hand of cards; top-center: the tempo bar that drives everything; left rail: the live enemy tracker.
+The battlefield is an elevation-aware grid rendered in pixel art from a fixed top-down view — north is always up, every texel lands on whole screen pixels, and the camera zooms by texel scale from close-up character work to a full tactical overview. Along the bottom: your hand of cards; top-center: the tempo bar that drives everything; left rail: the live enemy tracker.
 
 | Default battle view | Closer |
 |---|---|

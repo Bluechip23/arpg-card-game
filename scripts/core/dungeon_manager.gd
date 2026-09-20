@@ -14,7 +14,11 @@ extends Node
 var GRID_W: int = 70
 var GRID_H: int = 46
 const FOG_REVEAL_RADIUS: int = 6   # Tiles revealed around the player
-const ELEV_STEP: float = 0.5       # World units of height per elevation level
+## World units of height per elevation level. Kept shallow on purpose: the
+## plan camera sorts by height, so a tall plateau north of a character would
+## draw over them; the autotile lip marks the step visually instead.
+const ELEV_STEP: float = 0.06
+const WALL_HEIGHT: float = 0.06    # wall slab thickness (see _build_walls)
 
 ## TOP-DOWN GROUND. True = the ground is drawn as one autotiled mesh: each
 ## cell picks a 32px atlas tile by terrain (grass/dirt/water/pit/high) and by
@@ -1372,7 +1376,7 @@ static func _tint_weight(texture_path: String) -> float:
 func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: float) -> void:
 	if items.is_empty():
 		return
-	var ps := 0.034  # world units per texel (style guide texel density)
+	var ps := 0.03125  # world units per texel (style guide texel density)
 	var quad := QuadMesh.new()
 	quad.size = Vector2(px_w * ps, px_h * ps)
 	# Pivot at the bottom edge: the billboard turns about the instance origin,
@@ -1389,7 +1393,7 @@ func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: fl
 	for i in range(items.size()):
 		var it: Dictionary = items[i]
 		var s: float = it.get("scale", 1.0)
-		var pos: Vector3 = it["pos"]
+		var pos: Vector3 = it["pos"] + Vector3(0, CameraView.SPRITE_LIFT, 0)
 		mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(s, s, s)), pos))
 		mm.set_instance_color(i, Color(1, 1, 1).lerp(it.get("color", Color.WHITE), 0.25))
 	var mmi := MultiMeshInstance3D.new()
@@ -1729,13 +1733,11 @@ func _build_walls() -> void:
 				continue  # Site structures draw their own exteriors
 			var n = _tile_noise(x, z, 23)
 			var height: float
-			# One tile of wall face (the pack art's proportion): tall enough to
-			# read as a wall under the -65° camera, low enough that a character
-			# standing just north of it still shows from the shoulders up.
-			if is_building:
-				height = 1.25 + n * 0.1  # Interior walls are uniform and man-made
-			else:
-				height = 0.9 + n * 0.35 + _max_adjacent_floor_elevation(x, z) * ELEV_STEP
+			# Walls are a slab, not a box: under the plan camera (CameraView)
+			# only the top is seen, and it carries the pack's cliff-face fill.
+			# Anything tall would sit nearer the camera than a character
+			# standing beside it and draw over their head.
+			height = WALL_HEIGHT + _max_adjacent_floor_elevation(x, z) * ELEV_STEP
 			var col: Color = pal["wall_a"].lerp(pal["wall_b"], _tile_noise(x, z, 31))
 			var xform = Transform3D(
 				Basis.from_scale(Vector3(1.0, height, 1.0)),
@@ -2343,7 +2345,7 @@ func _make_pixel_anim(strip_path: String, frame_w: int, frame_h: int, fps: float
 	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	spr.shaded = false
-	spr.pixel_size = 0.034
+	spr.pixel_size = 0.03125
 	spr.play("default")
 	return spr
 
@@ -2725,10 +2727,10 @@ func _build_tree_mesh(root: Node3D, scale: float, climbable: bool) -> void:
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
-	sprite.pixel_size = 0.034
+	sprite.pixel_size = 0.03125
 	var s: float = 1.75 * scale * float(v["scale"])  # taller than the treeline so it reads as THE tree
 	sprite.scale = Vector3(s, s, s)
-	sprite.position = Vector3(0, float(v["h"]) * 0.034 * 0.5 * s, 0)
+	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
 	root.add_child(sprite)
 
 
@@ -3349,7 +3351,7 @@ func _build_cave_decorations() -> void:
 				# drawn tip-down; anchored so its root touches the dark above).
 				var hs = 0.5 + _tile_noise(x, z, 77) * 0.7
 				stalactite_items.append({
-					"pos": Vector3(x + 0.5 + jx, 2.9 - 24.0 * 0.034 * hs, z + 0.5 + jz),
+					"pos": Vector3(x + 0.5 + jx, 2.9 - 24.0 * 0.03125 * hs, z + 0.5 + jz),
 					"scale": hs,
 					"color": pal["wall_a"].lerp(pal["wall_b"], n * 2.0),
 				})
@@ -3985,10 +3987,10 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		tree.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 		tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		tree.shaded = false
-		tree.pixel_size = 0.034
+		tree.pixel_size = 0.03125
 		var tree_scale := 1.6
 		tree.scale = Vector3(tree_scale, tree_scale, tree_scale)
-		tree.position = Vector3(side * fp_w * 0.42, 64.0 * 0.034 * 0.5 * tree_scale, -0.1)
+		tree.position = Vector3(side * fp_w * 0.42, 64.0 * 0.03125 * 0.5 * tree_scale, -0.1)
 		root.add_child(tree)
 
 	# A simple wooden lintel spanning the two trees.
@@ -4223,9 +4225,9 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
-	sprite.pixel_size = 0.034  # style guide texel density
+	sprite.pixel_size = 0.03125  # style guide texel density
 	# Bottom edge of the sprite rests on the ground, matching _add_sprite_decos.
-	sprite.position = Vector3(0, float(closed["h"]) * 0.5 * sprite.pixel_size, 0)
+	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
 	chest_root.add_child(sprite)
 
 	# Interact label (floating above chest)

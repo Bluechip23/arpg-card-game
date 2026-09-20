@@ -130,7 +130,7 @@ const KINDS := {
 }
 
 # Uniform texel density across every billboard in the game (style guide §1).
-const PIXEL_SIZE := 0.034
+const PIXEL_SIZE := 0.03125
 
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
@@ -170,6 +170,7 @@ static func supports(kind: String) -> bool:
 func setup(kind: String) -> void:
 	var cfg: Dictionary = KINDS.get(kind, KINDS["wolf"])
 	_tint = cfg.get("tint", Color.WHITE)
+	position.y = CameraView.SPRITE_LIFT  # nearer the camera than any wall slab (plan view depth)
 	_rig = Node3D.new()
 	_rig.name = "Rig"
 	add_child(_rig)

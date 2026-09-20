@@ -332,6 +332,12 @@ var _tempo_bar_bg: MeshInstance3D
 var _tempo_bar_fg: MeshInstance3D
 var _action_label: Label3D
 var _tempo_bar_width: float = 0.85
+## Where the head-up bits sit under the plan camera (CameraView): "above
+## the head" is north of the feet on screen, and 0.5 of height puts them
+## nearer the camera than the body sprite so they draw over it.
+const HOVER_TEMPO := Vector3(0, 0.5, -1.15 * CameraView.HEIGHT_ON_SCREEN)
+const HOVER_ARMOR := Vector3(0, 0.5, -0.75 * CameraView.HEIGHT_ON_SCREEN)
+const HOVER_STATUS := Vector3(0, 0.5, -1.9 * CameraView.HEIGHT_ON_SCREEN)
 
 # Armor bar visuals (gray bar below health, only for armored enemies)
 var _armor_bar_sprite: Sprite3D
@@ -1684,7 +1690,7 @@ func _setup_tempo_bar() -> void:
 	bg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	bg_mat.no_depth_test = true
 	_tempo_bar_bg.material_override = bg_mat
-	_tempo_bar_bg.position = Vector3(0, 1.15, 0)
+	_tempo_bar_bg.position = HOVER_TEMPO  # above the head: north of the feet, lifted to sort in front
 	_tempo_bar_bg.visible = false
 	add_child(_tempo_bar_bg)
 
@@ -1700,7 +1706,7 @@ func _setup_tempo_bar() -> void:
 	fg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	fg_mat.no_depth_test = true
 	_tempo_bar_fg.material_override = fg_mat
-	_tempo_bar_fg.position = Vector3(0, 1.15, 0.001)  # Slightly in front
+	_tempo_bar_fg.position = HOVER_TEMPO + Vector3(0, 0.01, 0)  # Slightly in front
 	_tempo_bar_fg.visible = false
 	add_child(_tempo_bar_fg)
 
@@ -1709,8 +1715,8 @@ func _setup_tempo_bar() -> void:
 	_action_label = Label3D.new()
 	_action_label.position = Vector3(0, 1.29, 0)
 	_action_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_action_label.font_size = 18  # 2x supersampled -> 9px on screen
-	_action_label.outline_size = 5
+	_action_label.font_size = 26  # 2x supersampled -> 13px on screen
+	_action_label.outline_size = 6
 	_action_label.outline_modulate = Color(0, 0, 0, 1.0)
 	_action_label.pixel_size = 0.00107
 	_action_label.fixed_size = true  # constant screen size — readable at any zoom
@@ -1742,18 +1748,14 @@ func _setup_armor_bar() -> void:
 	_armor_bar_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 	_armor_bar_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_armor_bar_sprite.pixel_size = _armor_bar_width / float(_ARMOR_BAR_PIXEL_WIDTH)
-	_armor_bar_sprite.position = Vector3(0, 0.75, 0)
+	_armor_bar_sprite.position = HOVER_ARMOR
 	add_child(_armor_bar_sprite)
 
 	# Armor value label rendered on top of the sprite
 	_armor_label = Label3D.new()
 	_armor_label.position = Vector3(0, 0.75, 0.001)
 	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_armor_label.font_size = 18  # 2x supersampled -> 9px on screen
-	_armor_label.pixel_size = 0.00107
-	_armor_label.fixed_size = true
-	_armor_label.outline_size = 4
-	_armor_label.outline_modulate = Color(0, 0, 0, 1)
+	_armor_label.font_size = 14
 	_armor_label.modulate = Color(0.95, 0.95, 0.95)
 	_armor_label.no_depth_test = true
 	_armor_label.render_priority = 20
@@ -5229,7 +5231,7 @@ func _update_status_indicators() -> void:
 	# Create the container on first use
 	if not _status_container:
 		_status_container = Node3D.new()
-		_status_container.position = Vector3(0, 1.9, 0)
+		_status_container.position = HOVER_STATUS
 		add_child(_status_container)
 
 	# Remove old nodes

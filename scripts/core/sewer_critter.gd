@@ -59,7 +59,7 @@ func _build() -> void:
 	_body.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	_body.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_body.shaded = false
-	_body.pixel_size = 0.034
+	_body.pixel_size = 0.03125
 	# Feet pivot (billboards rotate about their origin — keep it on the
 	# ground line so the critter never sinks under the pitched camera).
 	_body.centered = false
@@ -71,7 +71,7 @@ func _build() -> void:
 func _rest_y() -> float:
 	if _kind == "butterfly":
 		return 0.55  # flower height, not the ground
-	return 0.0
+	return CameraView.SPRITE_LIFT  # above wall slabs (plan view depth)
 
 func _pick_target() -> void:
 	var a = _rng.randf() * TAU
@@ -113,7 +113,7 @@ func _process(delta: float) -> void:
 		elif _kind == "crow":
 			# Hop: a whole-pixel bounce, never below the ground line.
 			_bob_t += delta * 11.0
-			_body.position.y = _rest_y() + floorf(absf(sin(_bob_t)) * 2.0) * 0.034
+			_body.position.y = _rest_y() + floorf(absf(sin(_bob_t)) * 2.0) * 0.03125
 		else:
 			# Subtle scurry bob (only advances while moving).
 			_bob_t += delta * 18.0

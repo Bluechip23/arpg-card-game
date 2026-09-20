@@ -56,14 +56,19 @@ func _track(l: Label3D) -> void:
 
 
 ## On-screen pixel height for a Label3D. Labels sized through WorldText
-## (`fixed_size`) were supersampled 2x. Anything else (damage numbers,
-## status stacks, the odd prompt) was sized in world texels for the old
-## camera; half its font size is the on-screen height that reads right,
-## and nothing in the world gets bigger than the enemy names.
+## (`fixed_size`) were supersampled 2x; anything else is converted at the
+## measured screen factor.
 static func _px(l: Label3D) -> int:
 	if l.fixed_size:
 		return maxi(8, roundi(l.font_size / WorldText.SUPERSAMPLE))
-	return clampi(roundi(l.font_size * 0.5), 9, 16)
+	return clampi(roundi(l.font_size * l.pixel_size * WorldText.PX_FACTOR), 9, 28)
+
+
+## Screen pixels per world unit, from the two projected ends of a unit.
+func _pixels_per_unit() -> float:
+	var a: Vector2 = _project.call(Vector3.ZERO)
+	var b: Vector2 = _project.call(Vector3(1, 0, 0))
+	return maxf(1.0, a.distance_to(b))
 
 
 func _process(_delta: float) -> void:
@@ -90,7 +95,12 @@ func _process(_delta: float) -> void:
 		var oc: Color = l.outline_modulate
 		oc.a *= l.modulate.a
 		ui.add_theme_color_override("font_outline_color", oc)
-		var p: Vector2 = _project.call(l.global_position)
+		# Under the plan camera, height above the ground does not move a
+		# point on screen; a label's world height is meant as "above the
+		# head", so it becomes a screen-up shift at the current texel scale.
+		var gp: Vector3 = l.global_position
+		var p: Vector2 = _project.call(Vector3(gp.x, 0.0, gp.z))
+		p.y -= gp.y * CameraView.HEIGHT_ON_SCREEN * _pixels_per_unit()
 		var sz: Vector2 = ui.get_minimum_size()
 		ui.size = sz
 		# Label3D.offset is in its own texels (y up); mirror it as screen pixels.

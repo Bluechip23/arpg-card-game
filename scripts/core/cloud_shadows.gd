@@ -8,7 +8,7 @@ extends Node3D
 ## the map bounds so a fixed handful covers any world size.
 
 const TEX_PATH := "res://assets/textures/props/cloud_shadow.png"
-const PIXEL_SIZE := 0.034
+const PIXEL_SIZE := 0.03125
 const DRIFT_SPEED := 0.55  # world units / second — slow, stately drift
 
 var _bounds_w: float = 70.0

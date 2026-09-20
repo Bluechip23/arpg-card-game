@@ -44,13 +44,13 @@ var _near_town_waypoint: bool = false
 var _camera_focus: Vector3 = Vector3(10, 0, 6)
 var _camera_yaw: float = CameraView.YAW
 var _camera_pitch: float = CameraView.PITCH
-var _camera_distance: float = 17.0
+var _camera_distance: float = CameraView.ZOOM_DEFAULT  # screen pixels per texel
 var _camera_pan: Vector3 = Vector3.ZERO  # manual scroll off the follow focus
 var _camera_panning: bool = false
 var _move_path_cursor: MovePathCursor = null  # Hover cursor + route dots for right-click walks
-const CAMERA_ZOOM_MIN: float = 6.0
-const CAMERA_ZOOM_MAX: float = 35.0
-const CAMERA_ZOOM_STEP: float = 2.0
+const CAMERA_ZOOM_MIN: float = CameraView.ZOOM_MIN
+const CAMERA_ZOOM_MAX: float = CameraView.ZOOM_MAX
+const CAMERA_ZOOM_STEP: float = 1.0
 const CAMERA_PAN_KEY_STEP: float = 2.0
 const CAMERA_PAN_LIMIT: float = 14.0
 
@@ -245,7 +245,11 @@ func _update_camera() -> void:
 	# treatment as the world camera in main).
 	_camera_yaw = CameraView.YAW
 	_camera_pitch = CameraView.PITCH
-	CameraView.apply(camera, _camera_focus + _camera_pan, _camera_distance)
+	var upp := CameraView.units_per_pixel(_camera_distance)
+	var focus := _camera_focus + _camera_pan
+	focus.x = snappedf(focus.x, upp)
+	focus.z = snappedf(focus.z, upp)
+	CameraView.apply(camera, focus, _camera_distance, get_viewport().get_visible_rect().size.y)
 
 
 func _pan_camera(delta: Vector3) -> void:
@@ -370,10 +374,10 @@ func _input(event: InputEvent) -> void:
 				elif vendor_open:
 					_close_vendor()
 			KEY_COMMA:
-				_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
+				_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)  # closer
 				_update_camera()
 			KEY_PERIOD:
-				_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
+				_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)  # farther
 				_update_camera()
 			KEY_W:
 				_wasd_step(Vector2(0, 1))
@@ -387,10 +391,10 @@ func _input(event: InputEvent) -> void:
 	# Mouse wheel zoom
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
+			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)  # closer
 			_update_camera()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
+			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)  # farther
 			_update_camera()
 
 	# Camera scroll: left-drag pans (fixed angle, see CameraView); arrows nudge; Home re-centres.
@@ -401,9 +405,8 @@ func _input(event: InputEvent) -> void:
 		else:
 			_camera_panning = false
 	if event is InputEventMouseMotion and _camera_panning:
-		var cam := get_viewport().get_camera_3d()
-		var upp: float = (cam.size / maxf(1.0, get_viewport().get_visible_rect().size.y)) if cam else 0.02
-		_pan_camera(Vector3(-event.relative.x * upp, 0, -event.relative.y * upp / CameraView.ground_foreshortening()))
+		var upp := CameraView.units_per_pixel(_camera_distance)
+		_pan_camera(Vector3(-event.relative.x * upp, 0, -event.relative.y * upp))
 	if event is InputEventKey and event.pressed and not event.echo and not _modal_open and not vendor_open and not _stash_open:
 		match event.keycode:
 			KEY_LEFT: _pan_camera(Vector3(-CAMERA_PAN_KEY_STEP, 0, 0))
@@ -2285,10 +2288,10 @@ func _build_stash_chest(stash: Node3D) -> void:
 	chest.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	chest.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	chest.shaded = false
-	chest.pixel_size = 0.034
+	chest.pixel_size = 0.03125
 	var s := 1.4
 	chest.scale = Vector3(s, s, s)
-	chest.position = Vector3(0, 26.0 * 0.034 * 0.5 * s, 0)
+	chest.position = Vector3(0, 26.0 * 0.03125 * 0.5 * s, 0)
 	stash.add_child(chest)
 
 
@@ -2345,10 +2348,10 @@ func _create_olorin_npc() -> void:
 	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	fig.shaded = false
-	fig.pixel_size = 0.034
+	fig.pixel_size = 0.03125
 	var olorin_scale := 1.25  # a touch taller than the party — presence
 	fig.scale = Vector3(olorin_scale, olorin_scale, olorin_scale)
-	fig.position = Vector3(0, 32.0 * 0.034 * 0.5 * olorin_scale, 0)
+	fig.position = Vector3(0, 32.0 * 0.03125 * 0.5 * olorin_scale, 0)
 	olorin.add_child(fig)
 	BlobShadow.attach(olorin, 0.6)
 
@@ -2402,10 +2405,10 @@ func _create_sellsword_npc() -> void:
 	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	fig.shaded = false
-	fig.pixel_size = 0.034
+	fig.pixel_size = 0.03125
 	var sellsword_scale := 1.15
 	fig.scale = Vector3(sellsword_scale, sellsword_scale, sellsword_scale)
-	fig.position = Vector3(0, 32.0 * 0.034 * 0.5 * sellsword_scale, 0)
+	fig.position = Vector3(0, 32.0 * 0.03125 * 0.5 * sellsword_scale, 0)
 	sellsword.add_child(fig)
 	BlobShadow.attach(sellsword, 0.55)
 
