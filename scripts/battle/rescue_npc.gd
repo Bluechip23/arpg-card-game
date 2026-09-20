@@ -35,11 +35,11 @@ func setup(id: String, p_name: String, sheet_path: String, prompt_text: String =
 	_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_sprite.shaded = false
-	_sprite.pixel_size = 0.034
+	_sprite.pixel_size = 0.03125
 	_sprite.modulate = tint
 	var s := 1.1
 	_sprite.scale = Vector3(s, s, s)
-	_sprite.position = Vector3(0, 32.0 * 0.034 * 0.5 * s, 0)
+	_sprite.position = Vector3(0, 32.0 * 0.03125 * 0.5 * s, 0)
 	add_child(_sprite)
 	BlobShadow.attach(self, 0.5)
 

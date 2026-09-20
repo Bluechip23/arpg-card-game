@@ -14,30 +14,37 @@ conforms to them.
 
 ## 0. Camera
 
-- **One fixed view**, shared by battle and town: north up, pitched **-65°**,
-  orthographic. Constants live in `scripts/core/camera_view.gd`
-  (`CameraView`); nothing else hard-codes an angle. Zoom is free (mouse
-  wheel, `<` / `>`); the angle is not — the top-down packs are drawn for a
-  single viewpoint, and a free orbit made their fronts, painted shadows and
-  wall faces lie.
+- **One fixed plan view**, shared by battle and town: north up, looking
+  straight down (pitched **-89°**, a degree off vertical), orthographic.
+  Constants live in `scripts/core/camera_view.gd` (`CameraView`); nothing
+  else hard-codes an angle. The top-down packs are 2D art: a tile is 32
+  texels, a figure stands on its tile and extends north. This camera shows
+  them exactly as drawn.
+- **Whole-pixel texel scale.** Zoom is a texel scale of 1–4 screen pixels
+  per texel (mouse wheel, `<` / `>`), never a distance; the orthographic
+  size is derived from the viewport height so a texel always covers an
+  integer number of pixels. The world viewport renders at full resolution.
+  The window stretch is integer-scaled with an expanding aspect, so a big
+  window shows more world rather than a fractionally scaled one.
+- **Depth is sorting.** The one degree of tilt puts anything further south
+  0.017 units nearer the camera, so billboards y-sort by row for free. Every
+  billboard sprite is lifted `CameraView.SPRITE_LIFT` (0.3) off the ground,
+  above any wall slab or plateau (walls are 0.06 slabs; `ELEV_STEP` is
+  0.06), so terrain can never draw over a figure. Height barely moves a
+  point on screen; head-up labels and bars therefore sit *north* of the
+  feet, and world heights map to screen-up at `HEIGHT_ON_SCREEN` (cos 65°,
+  the factor the old three-quarter view had) so nothing moved.
 - The view scrolls but never turns: left-drag, the arrow keys and Home
   (re-centre) move a pan offset over the follow focus; walking re-centres.
-- Why -65° and not a plan view: at -90° upright billboards are edge-on. At
-  -65° the ground sits within ~10% of 1:1 texel mapping (sin 65° ≈ 0.906)
-  while sprites still show their painted fronts, which is how the pack art
-  is drawn. Everything that depends on the pitch derives it from
-  `CameraView.ground_foreshortening()` (the shadow ellipse stretch, for one)
-  so the number can move without a retune.
 - Screen-up is grid north (-Z); `CharacterAnimator.Direction.SOUTH` faces
-  the camera. WASD still projects through the (fixed) yaw.
+  the camera. WASD projects through the (fixed) yaw.
 
 ## 1. Resolution & scale
 
-- World render: **640×360** inside `WorldViewport` (SubViewport), nearest
-  upscaled to the window. Rationale over 320×180: enemy name/health `Label3D`s
-  and the tactical zoom range become unreadable at 180p; 360p keeps chunky
-  texels at every zoom while staying legible. (Flagged in OPEN_QUESTIONS.md —
-  one constant to change.)
+- World render: **full resolution** inside `WorldViewport` (SubViewport).
+  Pixel art is scaled by the camera's whole-number texel scale (§0), never
+  by a viewport downscale — the old 640×360 world put every texel on 1.4
+  screen pixels and the pack art read as mush.
 - UI renders outside the viewport at window resolution (1280×720 base).
   So does **world text**: every `Label3D` is mirrored by a full-resolution
   `Label` in `WorldLabelOverlay` that follows its screen position each
@@ -45,9 +52,11 @@ conforms to them.
   but stays the source of truth for text, colour and visibility). Text
   rendered inside the half-res world was smeared 2× — never put text in
   the world viewport.
-- Sprite texel density: **`PIXEL_SIZE = 0.034`** world units per texel for
-  every billboard (party, enemies, overlays). No per-entity scale factors —
-  bigger creatures get bigger *art* or an integer-ish rig scale, never a
+- Sprite texel density: **`PIXEL_SIZE = 1/32`** world units per texel
+  (`CameraView.PIXEL_SIZE`) for every billboard (party, enemies, props,
+  overlays) — the same 32 texels per unit as the ground, so sprites and
+  tiles land on the same pixel grid. No per-entity scale factors — bigger
+  creatures get bigger *art* or an integer-ish rig scale, never a
   texel-density change.
 - 2D pixel art is never scaled fractionally; `Sprite2D` scale stays `(1,1)`.
 - Terrain: 1 world unit = 1 grid tile = one 32×32-texel texture repeat.
@@ -119,10 +128,9 @@ conforms to them.
   whole MultiMesh of stones as one object), which is what buried the player
   under the scenery. Only true translucency (blob shadows, fog, portals,
   water film) stays alpha-blended.
-- Walls are ~one tile of face (natural 0.9–1.25, buildings 1.25 units, plus
-  elevation): tall enough to read as a wall at -65°, low enough that a
-  character just north of one still shows from the shoulders up — the
-  proportion the 16px pack wall faces are drawn at.
+- Walls are flat slabs (0.06) carrying the pack's cliff-face fill on top;
+  under the plan camera that is all that is seen, and a slab can never draw
+  over a figure standing beside it (§0).
 - MonsterKit flyer cells (bee, hawk, bat, carpet, sword) have painted shadows
   in-art — those kinds skip the shadow node (no doubles). Craftpix character
   packs ship every sheet twice; always use `Without_shadow/` and let the blob

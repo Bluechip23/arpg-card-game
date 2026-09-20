@@ -7,7 +7,7 @@ extends Node3D
 ## frame flips at SNES cadence — no particles, no alpha fades.
 
 const TEX_PATH := "res://assets/textures/props/leaf.png"
-const PIXEL_SIZE := 0.034
+const PIXEL_SIZE := 0.03125
 const CANOPY_Y := 2.1
 const FALL_SPEED := 0.45
 const FLUTTER_FPS := 5.0

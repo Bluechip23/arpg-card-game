@@ -49,20 +49,20 @@ func _initialize() -> void:
 	await _dismiss()
 
 	# --- Camera views (fixed top-down three-quarter; zoom levels only) ---
-	_cam(17.0)
+	_cam(2.0)
 	await _shoot("view_default.png")
 
-	_cam(12.0)
+	_cam(3.0)
 	await _shoot("view_mid.png")
 
-	_cam(8.0)
+	_cam(4.0)
 	await _shoot("view_zoom_in.png")
 
-	_cam(32.0)
+	_cam(1.0)
 	await _shoot("view_zoom_out.png")
 
 	# --- Attack animation (facing the nearest enemy) ---
-	_cam(10.0)
+	_cam(3.0)
 	var enemies = main.enemy_spawner.get_living_enemies()
 	if enemies.size() > 0:
 		main.player.face_toward(enemies[0].position)

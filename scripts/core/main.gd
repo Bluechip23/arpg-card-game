@@ -369,14 +369,14 @@ var _last_played_target = null
 var _camera_focus: Vector3 = Vector3(10, 0, 6)  # Center of the 20x12 grid
 var _camera_yaw: float = CameraView.YAW      # Locked; kept for the WASD basis
 var _camera_pitch: float = CameraView.PITCH  # Locked
-var _camera_distance: float = 17.0 # Distance from focus point
+var _camera_distance: float = CameraView.ZOOM_DEFAULT  # Zoom: screen pixels per texel (1..4)
 ## Player-driven scroll away from the follow focus (left-drag or arrow
 ## keys). Cleared whenever the camera re-centres on a moving character.
 var _camera_pan: Vector3 = Vector3.ZERO
 var _camera_panning: bool = false
-const CAMERA_ZOOM_MIN: float = 6.0
-const CAMERA_ZOOM_MAX: float = 35.0
-const CAMERA_ZOOM_STEP: float = 2.0
+const CAMERA_ZOOM_MIN: float = CameraView.ZOOM_MIN
+const CAMERA_ZOOM_MAX: float = CameraView.ZOOM_MAX
+const CAMERA_ZOOM_STEP: float = 1.0
 const CAMERA_PAN_KEY_STEP: float = 2.0  # world units per arrow-key tap
 const CAMERA_PAN_LIMIT: float = 14.0    # how far the view may scroll from the character
 
@@ -387,8 +387,10 @@ const CAMERA_PAN_LIMIT: float = 14.0    # how far the view may scroll from the c
 # nearest-upscaled to the window; UI CanvasLayers stay full resolution.
 # ============================================
 
-# Integer downscale factor for the world render: 1280x720 / 2 = 640x360.
-const WORLD_SHRINK := 2
+# The world renders at full resolution: the pack art is scaled by whole
+# pixels through the camera's texel scale (CameraView), never by a viewport
+# downscale — a half-res world put every texel on 1.4 screen pixels.
+const WORLD_SHRINK := 1
 var _world_viewport: SubViewport = null
 var _world_container: SubViewportContainer = null
 var _world_camera: Camera3D = null
@@ -743,13 +745,13 @@ func _update_camera() -> void:
 	_camera_yaw = CameraView.YAW
 	_camera_pitch = CameraView.PITCH
 	var focus := _camera_focus + _camera_pan
-	if _world_viewport and _world_viewport.size.y > 0:
-		# Snap the view to whole world-viewport pixels so sprites and tiles
-		# never straddle a pixel boundary (no shimmer as the camera follows).
-		var upp: float = CameraView.ortho_size(_camera_distance) / float(_world_viewport.size.y)
-		focus.x = snappedf(focus.x, upp)
-		focus.z = snappedf(focus.z, upp / maxf(0.2, CameraView.ground_foreshortening()))
-	CameraView.apply(camera, focus, _camera_distance)
+	# Snap the view to whole screen pixels so sprites and tiles never
+	# straddle a pixel boundary (no shimmer as the camera follows).
+	var upp := CameraView.units_per_pixel(_camera_distance)
+	focus.x = snappedf(focus.x, upp)
+	focus.z = snappedf(focus.z, upp)
+	var vh: float = float(_world_viewport.size.y) if _world_viewport and _world_viewport.size.y > 0 else 720.0
+	CameraView.apply(camera, focus, _camera_distance, vh)
 
 var _minimap_refresh_accum: float = 0.0
 
@@ -11798,11 +11800,11 @@ func _input(event: InputEvent) -> void:
 
 		# Camera zoom: < (comma) = zoom in, > (period) = zoom out
 		if event.keycode == KEY_COMMA:
-			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
+			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
 			_update_camera()
 			return
 		if event.keycode == KEY_PERIOD:
-			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
+			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
 			_update_camera()
 			return
 
@@ -12005,10 +12007,10 @@ func _input(event: InputEvent) -> void:
 	# contents doesn't also zoom/move the battlefield behind it.
 	if event is InputEventMouseButton and event.pressed and not _is_ui_window_open():
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
+			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
 			_update_camera()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)
+			_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)
 			_update_camera()
 
 	# Camera scroll: left-drag pans the view (the angle is fixed — see
@@ -12025,9 +12027,9 @@ func _input(event: InputEvent) -> void:
 		# Screen pixels -> world units at the current zoom, north-up: drag
 		# right scrolls the world right (the view moves with the hand).
 		var ratio := _world_scale_ratio()
-		var upp: float = CameraView.ortho_size(_camera_distance) / maxf(1.0, float(_world_viewport.size.y) / ratio.y) if _world_viewport else 0.02
+		var upp: float = CameraView.units_per_pixel(_camera_distance) * ratio.y
 		var d: Vector2 = event.relative
-		_pan_camera(Vector3(-d.x * upp, 0, -d.y * upp / CameraView.ground_foreshortening()))
+		_pan_camera(Vector3(-d.x * upp, 0, -d.y * upp))
 
 #endregion
 #region DUNGEON SYSTEM

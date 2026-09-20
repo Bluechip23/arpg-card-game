@@ -206,7 +206,7 @@ func _make_eye(node_name: String, pos: Vector3) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = node_name
 	var s := SphereMesh.new()
-	s.radius = 0.034
+	s.radius = 0.03125
 	s.height = 0.068
 	mi.mesh = s
 	mi.position = pos

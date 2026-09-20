@@ -46,7 +46,7 @@ const NPC_ROW := [0, 2, 1, 3]    # NPC packs run S,E,N,W
 const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]
 const WALK_TIME := 0.135
 const NPC_WALK_TIME := 0.18
-const PIXEL_SIZE := 0.034
+const PIXEL_SIZE := 0.03125
 
 # pONE3 cells (row, col) where the weapon draws in front of the body,
 # from the pack's layer-order guide.
@@ -106,6 +106,7 @@ func setup(character_name: String, _sprite_path: String = "") -> void:
 		_setup_doll(cfg["outfit"], cfg["hair"], cfg.get("hat", ""))
 	# Contact shadow lives OUTSIDE the rig: hops/knockback move the rig, the
 	# shadow stays on the ground and shrinks with height (see _process).
+	position.y = CameraView.SPRITE_LIFT  # nearer the camera than any wall slab (plan view depth)
 	var old_shadow := get_node_or_null("Shadow")
 	if old_shadow:
 		old_shadow.queue_free()

@@ -73,7 +73,7 @@ func _next() -> void:
 	# Look a little way into the map from the start so walls, trails and
 	# props all land in frame.
 	var focus := Vector3(start.x + 6.0, 0, start.y)
-	CameraView.apply(_cam, focus, 11.0)
+	CameraView.apply(_cam, focus, 2.0, 720.0)
 	_cam.current = true
 	_frames = 0
 
