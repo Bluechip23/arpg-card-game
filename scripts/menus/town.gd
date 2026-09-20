@@ -2335,7 +2335,7 @@ func _build_barrel(parent: Node3D, pos: Vector3) -> void:
 func _create_olorin_npc() -> void:
 	var olorin = StaticBody3D.new()
 	olorin.name = "Olorin"
-	olorin.position = Vector3(14, 0, 8)
+	olorin.position = grid_manager.grid_to_world(Vector2i(14, 8))  # on a tile centre
 
 	# The wise old wanderer himself — the old-man sheet from the NPC pack
 	# (grey beard, walking stick), matching the 16-bit party/NPC pipeline.
@@ -2392,7 +2392,7 @@ func _create_sellsword_npc() -> void:
 	## player did not choose for Player 1.
 	var sellsword = StaticBody3D.new()
 	sellsword.name = "Sellsword"
-	sellsword.position = Vector3(18, 0, 3)
+	sellsword.position = grid_manager.grid_to_world(Vector2i(18, 3))
 
 	# A mercenary at ease — the knight sheet from the NPC pack, in a darker
 	# coat than Brad's, matching the 16-bit NPC pipeline.
@@ -2688,7 +2688,7 @@ func _open_well_ui() -> void:
 func _create_town_well() -> void:
 	var well = StaticBody3D.new()
 	well.name = "TownWell"
-	well.position = Vector3(8, 0, 4)
+	well.position = grid_manager.grid_to_world(Vector2i(8, 4))
 	var ring = MeshInstance3D.new()
 	var rm = CylinderMesh.new()
 	rm.top_radius = 0.55
@@ -3095,7 +3095,7 @@ func _create_town_hall_npc() -> void:
 	## edge. Interacting opens the city panel (resources, buildings, defenses).
 	var hall = StaticBody3D.new()
 	hall.name = "TownHall"
-	hall.position = Vector3(10, 0, 12)
+	hall.position = grid_manager.grid_to_world(Vector2i(10, 12))
 
 	# A squat stone hall with a timber roof and banner — chunky primitives,
 	# same language as the market stalls.

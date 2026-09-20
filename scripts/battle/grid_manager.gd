@@ -5,10 +5,15 @@ extends Node3D
 ## Each grid cell is 1x1 world unit. The grid lies on the XZ plane at Y=0.
 
 @export var grid_size: float = 1.0  # Size of each grid cell in world units
-@export var grid_color: Color = Color(0.05, 0.08, 0.04, 0.16)  # subtle dark furrow lines
+@export var grid_color: Color = Color(0.03, 0.03, 0.02, 0.36)  # dark edge of each cell line
+@export var grid_light: Color = Color(1.0, 1.0, 0.92, 0.26)  # light edge, so lines read on dark cobbles too
 
 var grid_width: int = 20   # Number of cells wide (X axis)
 var grid_height: int = 12  # Number of cells deep (Z axis)
+
+## Optional: Callable(Vector2i) -> float giving each cell's floor height, so
+## the lines ride up onto elevated terrain instead of hiding under it.
+var cell_height: Callable = Callable()
 
 var _mesh_instance: MeshInstance3D
 
@@ -30,24 +35,54 @@ func _draw_grid() -> void:
 	_mesh_instance.mesh = mesh
 
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = grid_color
+	mat.vertex_color_use_as_albedo = true
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_mesh_instance.material_override = mat
 
 	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
-	# Short cross-ticks at cell corners instead of continuous ruled lines —
-	# reads as subtle field marks, not a modern vector grid.
-	var t := grid_size * 0.12
-	for x in range(grid_width + 1):
-		for z in range(grid_height + 1):
+	# Continuous cell lines so the player can read exactly which square a
+	# chest, doorway or enemy sits on. Each line is a light stroke with a
+	# dark stroke one texel beside it, so it reads on grass, sand and dark
+	# cobbles alike. Drawn a hair above the floor; walls and cliffs (0.06+
+	# slabs) cover the lines under them.
+	const LIFT := 0.02  # above floor overlays (+0.004 tiles), under wall slabs (0.06)
+	if cell_height.is_valid():
+		# Per-cell edges at that cell's own height (north + west edge each,
+		# plus the closing south/east edges on the last row/column).
+		for x in range(grid_width):
+			for z in range(grid_height):
+				var y: float = float(cell_height.call(Vector2i(x, z))) + LIFT
+				var x0 := x * grid_size
+				var z0 := z * grid_size
+				_line(mesh, Vector3(x0, y, z0), Vector3(x0 + grid_size, y, z0))
+				_line(mesh, Vector3(x0, y, z0), Vector3(x0, y, z0 + grid_size))
+				if x == grid_width - 1:
+					_line(mesh, Vector3(x0 + grid_size, y, z0), Vector3(x0 + grid_size, y, z0 + grid_size))
+				if z == grid_height - 1:
+					_line(mesh, Vector3(x0, y, z0 + grid_size), Vector3(x0 + grid_size, y, z0 + grid_size))
+	else:
+		var w := grid_width * grid_size
+		var d := grid_height * grid_size
+		for x in range(grid_width + 1):
 			var cx := x * grid_size
+			_line(mesh, Vector3(cx, LIFT, 0), Vector3(cx, LIFT, d))
+		for z in range(grid_height + 1):
 			var cz := z * grid_size
-			mesh.surface_add_vertex(Vector3(cx - t, 0.01, cz))
-			mesh.surface_add_vertex(Vector3(cx + t, 0.01, cz))
-			mesh.surface_add_vertex(Vector3(cx, 0.01, cz - t))
-			mesh.surface_add_vertex(Vector3(cx, 0.01, cz + t))
+			_line(mesh, Vector3(0, LIFT, cz), Vector3(w, LIFT, cz))
 	mesh.surface_end()
+
+func _line(mesh: ImmediateMesh, a: Vector3, b: Vector3) -> void:
+	## One grid edge: light stroke on the edge, dark stroke one texel to the
+	## south / east of it.
+	const TEXEL := 1.0 / 32.0
+	var off := Vector3(TEXEL, 0, 0) if is_equal_approx(a.x, b.x) else Vector3(0, 0, TEXEL)
+	mesh.surface_set_color(grid_light)
+	mesh.surface_add_vertex(a)
+	mesh.surface_add_vertex(b)
+	mesh.surface_set_color(grid_color)
+	mesh.surface_add_vertex(a + off)
+	mesh.surface_add_vertex(b + off)
 
 func world_to_grid(world_pos: Vector3) -> Vector2i:
 	return Vector2i(

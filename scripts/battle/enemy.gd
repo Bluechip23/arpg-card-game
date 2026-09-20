@@ -1755,10 +1755,15 @@ func _setup_armor_bar() -> void:
 	_armor_label = Label3D.new()
 	_armor_label.position = Vector3(0, 0.75, 0.001)
 	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_armor_label.font_size = 14
+	_armor_label.font_size = 18
+	_armor_label.outline_size = 4
+	_armor_label.outline_modulate = Color(0, 0, 0, 1)
+	_armor_label.pixel_size = 0.00107
+	_armor_label.fixed_size = true
 	_armor_label.modulate = Color(0.95, 0.95, 0.95)
 	_armor_label.no_depth_test = true
 	_armor_label.render_priority = 20
+	_armor_label.visible = false  # exact number only while hovered (bar stays)
 	add_child(_armor_label)
 
 	_update_armor_bar()
@@ -5047,6 +5052,7 @@ func set_hover_highlight(enabled: bool) -> void:
 	## Toggle the mouse-hover highlight. Enemies that have a procedural figure
 	## glow the model directly so the placeholder box outline never appears
 	## around them; box-mesh enemies fall back to the bright outline box.
+	_set_hover_text_visible(enabled)
 	if _enemy_figure:
 		_enemy_figure.set_highlight(enabled)
 		if outline:
@@ -5061,6 +5067,17 @@ func set_hover_highlight(enabled: bool) -> void:
 			mat.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
 	else:
 		update_outline()
+
+func _set_hover_text_visible(shown: bool) -> void:
+	## The name and the exact health / armor numbers only appear while the
+	## enemy is hovered (battlefield or unit tracker); the bars themselves
+	## stay up all the time.
+	if name_label:
+		name_label.visible = shown
+	if health_label:
+		health_label.visible = shown
+	if _armor_label:
+		_armor_label.visible = shown
 
 func update_name_display() -> void:
 	if name_label:

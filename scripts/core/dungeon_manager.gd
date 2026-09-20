@@ -360,6 +360,12 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		reveal_around(Vector2i(start_rect.position.x, start_rect.position.y))
 		reveal_around(Vector2i(start_rect.end.x - 1, start_rect.end.y - 1))
 
+	# Redraw the cell lines now that elevation exists, so they ride up onto
+	# plateaus instead of hiding under them.
+	if grid_manager and grid_manager.has_method("redraw_grid"):
+		grid_manager.cell_height = Callable(self, "get_elevation_world_y")
+		grid_manager.redraw_grid()
+
 	print("[DUNGEON] Generated %s (%dx%d): %d rooms, %d chests, %d zones, %d sites" % [
 		get_location_name(), GRID_W, GRID_H, rooms.size(), chest_nodes.size(),
 		spawn_zones.size(), site_nodes.size()])
@@ -1303,6 +1309,9 @@ func remove_high_ground(handle: Dictionary) -> void:
 
 func get_elevation(grid_pos: Vector2i) -> int:
 	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
+		return 0
+	# The grid redraws before a fresh layout has allocated its elevation map.
+	if grid_pos.x >= elevation.size() or grid_pos.y >= elevation[grid_pos.x].size():
 		return 0
 	return elevation[grid_pos.x][grid_pos.y]
 
@@ -3788,7 +3797,10 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	roof.position = Vector3(0, wall_h + 0.45, 0)
 	root.add_child(roof)
 
-	# Door on the south face (toward the entrance tile)
+	# Door on the south face, centred on the entrance tile: a 4-wide
+	# footprint has its centre on a tile edge, so the door (and the windows
+	# around it) shift half a tile to line up with where the player stands.
+	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
 	var door = MeshInstance3D.new()
 	var door_mesh = BoxMesh.new()
 	door_mesh.size = Vector3(0.7, 1.15, 0.08)
@@ -3797,7 +3809,7 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	door_mat.albedo_color = Color(0.25, 0.16, 0.10)
 	door_mat.roughness = 0.7
 	door.material_override = door_mat
-	door.position = Vector3(0, 0.58, d / 2.0 + 0.02)
+	door.position = Vector3(door_x, 0.58, d / 2.0 + 0.02)
 	root.add_child(door)
 
 	# Two warm-lit windows flanking the door
@@ -3812,7 +3824,7 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 		win_mat.emission = Color(1.0, 0.75, 0.35)
 		win_mat.emission_energy_multiplier = 0.8
 		window.material_override = win_mat
-		window.position = Vector3(side * w * 0.3, 1.1, d / 2.0 + 0.02)
+		window.position = Vector3(door_x + side * w * 0.3, 1.1, d / 2.0 + 0.02)
 		root.add_child(window)
 
 func _build_graveyard_gate(root: Node3D, fp_w: int, fp_d: int) -> void:
