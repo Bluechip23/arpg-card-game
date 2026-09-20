@@ -3543,6 +3543,7 @@ static func create_charge() -> Card:
 	card.target_types = ["enemy", "point"]
 	card.is_aoe = true
 	card.aoe_shape = "line"
+	card.aoe_range = 5.0  # the charge distance, so the preview shows the path
 	card.resolve_tick = 3  # Wind up then charge forward
 	card.keywords = ["attack", "offensive", "point"]
 	return card

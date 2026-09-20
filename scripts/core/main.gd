@@ -788,11 +788,17 @@ func _process(delta: float) -> void:
 	if aoe_indicator and aoe_indicator.visible:
 		var mouse_world = get_mouse_world_position()
 		aoe_indicator.set_mouse_world_position(mouse_world)
-		# Point-targeting AOE: move the indicator to follow the cursor
+		# Point-placed circles follow the cursor; everything else (lines,
+		# cones, self-centred bursts) stays anchored on the player, who may
+		# be walking.
 		if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size():
 			var card = deck_manager.hand[selected_card_index]
-			if card.is_aoe and "point" in card.target_types and mouse_world != Vector3.ZERO:
-				aoe_indicator.position = grid_manager.snap_to_grid(mouse_world)
+			if card.is_aoe:
+				if _aoe_follows_cursor(card):
+					if mouse_world != Vector3.ZERO:
+						aoe_indicator.position = grid_manager.snap_to_grid(mouse_world)
+				else:
+					aoe_indicator.position = player.position
 
 func _update_move_path_cursor() -> void:
 	## Hover feedback for right-click movement: bracket the cell under the
@@ -7677,6 +7683,13 @@ func update_card_highlights() -> void:
 
 #endregion
 #region CARD SELECTION & TARGETING
+func _aoe_follows_cursor(card: Card) -> bool:
+	## True for AOE cards whose area is placed at the clicked tile (a circle
+	## with point targeting: Fireball, Poison Bomb, Heroic Leap's landing…).
+	## Player-origin shapes — lines, cones, and self / all-nearby bursts —
+	## return false so their indicator stays on the player.
+	return card.is_aoe and card.aoe_shape == "circle" and "point" in card.target_types
+
 func select_card(index: int) -> void:
 	# Selecting a card disarms a pending basic attack or armed gauntlet skill —
 	# one targeting mode at a time.
@@ -7698,8 +7711,10 @@ func select_card(index: int) -> void:
 	var card = deck_manager.hand[selected_card_index]
 	if card.is_aoe and aoe_indicator:
 		aoe_indicator.update_indicator(card.aoe_shape, card.aoe_range)
-		# Point-targeting AOE cards: position indicator at cursor instead of player
-		if "point" in card.target_types:
+		# Only a circle that lands where you click sits at the cursor. Lines
+		# and cones (Charge, Snowball's Chance, the piercing arrows) always
+		# start from the player and merely aim at the cursor.
+		if _aoe_follows_cursor(card):
 			var mouse_pos = get_mouse_world_position()
 			aoe_indicator.position = grid_manager.snap_to_grid(mouse_pos) if mouse_pos != Vector3.ZERO else player.position
 		else:
@@ -7740,7 +7755,9 @@ func select_card(index: int) -> void:
 		range_indicator.position = player.position
 		range_indicator.show_range(effective_range)
 		add_battle_log("%s selected — Range: %d tiles" % [card.card_name, int(effective_range)], Color(0.6, 0.85, 1.0))
-	elif card.is_aoe and not card.is_ranged and range_indicator:
+	elif card.is_aoe and card.aoe_shape == "circle" and not card.is_ranged and range_indicator:
+		# A radius ring only makes sense for a circular burst; lines and cones
+		# already draw their own reach from the player.
 		# AOE spells centered on player — show the AOE range
 		range_indicator.position = player.position
 		range_indicator.show_range(card.aoe_range)

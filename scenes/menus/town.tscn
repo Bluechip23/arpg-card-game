@@ -78,7 +78,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 9)
 [node name="Vendors" type="Node3D" parent="."]
 
 [node name="Blacksmith" type="StaticBody3D" parent="Vendors"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0, 3.5)
 
 [node name="Mesh" type="MeshInstance3D" parent="Vendors/Blacksmith"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -104,7 +104,7 @@ texture_filter = 1
 render_priority = 10
 
 [node name="Armory" type="StaticBody3D" parent="Vendors"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 0, 3.5)
 
 [node name="Mesh" type="MeshInstance3D" parent="Vendors/Armory"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -130,7 +130,7 @@ texture_filter = 1
 render_priority = 10
 
 [node name="CardDealer" type="StaticBody3D" parent="Vendors"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.5, 0, 3.5)
 
 [node name="Mesh" type="MeshInstance3D" parent="Vendors/CardDealer"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -156,7 +156,7 @@ texture_filter = 1
 render_priority = 10
 
 [node name="AccessoryShop" type="StaticBody3D" parent="Vendors"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.5, 0, 3.5)
 
 [node name="Mesh" type="MeshInstance3D" parent="Vendors/AccessoryShop"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -182,7 +182,7 @@ texture_filter = 1
 render_priority = 10
 
 [node name="Stash" type="StaticBody3D" parent="Vendors"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 0, 6.5)
 
 [node name="Mesh" type="MeshInstance3D" parent="Vendors/Stash"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

@@ -35,6 +35,10 @@ func _rebuild_mesh() -> void:
 			_build_circle_mesh()
 		"line":
 			_build_line_mesh()
+		_:
+			# No shape (an AOE card resolved by its own rules): never leave
+			# the previous card's mesh on the ground.
+			_mesh_instance.mesh = null
 
 func _build_cone_mesh() -> void:
 	var mesh = ImmediateMesh.new()
