@@ -1872,7 +1872,7 @@ func _build_pipe_crawler() -> void:
 	_atk_pivot = root; _atk_rest = Vector3.ZERO
 
 
-## Sewer Crocodile: a long armoured reptile with a snapping jaw.
+## Sewer Cobra: a long armoured reptile with a snapping jaw.
 func _build_sewer_croc() -> void:
 	_shadow(0.4)
 	var green := Color.html("46603a")
@@ -3386,7 +3386,7 @@ func _pipe_attack() -> void:
 	_action_tween.tween_callback(func(): _busy = false)
 
 
-## Sewer Crocodile: lunge forward, gaping the jaw, then snap it shut.
+## Sewer Cobra: lunge forward, gaping the jaw, then snap it shut.
 func _croc_bite() -> void:
 	if _atk_pivot == null or _bob_node == null:
 		_lurch()

@@ -755,7 +755,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			_set_mesh_color(Color(0.48, 0.54, 0.43))
 
 		EnemyType.SEWER_CROC:
-			enemy_name = "Sewer Crocodile"
+			enemy_name = "Sewer Cobra"
 			max_health = 40
 			max_armor = 20
 			attack_damage = 12
@@ -1474,7 +1474,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CONSUMED: {"name": "The Consumed", "health": 35, "armor": 0, "damage": 8, "xp": 14},
 		EnemyType.SLUDGE: {"name": "Sludge Being", "health": 10, "armor": 0, "damage": 3, "xp": 4},
 		EnemyType.PIPE_CRAWLER: {"name": "Pipe Crawler", "health": 20, "armor": 0, "damage": 5, "xp": 8},
-		EnemyType.SEWER_CROC: {"name": "Sewer Crocodile", "health": 40, "armor": 20, "damage": 12, "xp": 25},
+		EnemyType.SEWER_CROC: {"name": "Sewer Cobra", "health": 40, "armor": 20, "damage": 12, "xp": 25},
 		EnemyType.RAT_KING: {"name": "Rat King", "health": 90, "armor": 10, "damage": 6, "xp": 60},
 		EnemyType.SWARM: {"name": "Swarm", "health": 10, "armor": 0, "damage": 3, "xp": 4},
 		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 0, "armor": 0, "damage": 0, "xp": 0},

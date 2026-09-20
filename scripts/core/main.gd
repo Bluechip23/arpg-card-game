@@ -12339,7 +12339,7 @@ func _apply_world_ambience() -> void:
 		if in_cave:
 			env.ambient_light_energy = 0.14  # darker even than the sewers
 		elif in_sewer:
-			env.ambient_light_energy = 0.20  # near-lightless; torches do the work
+			env.ambient_light_energy = 0.32  # dim; torches do most of the work
 		elif in_forest:
 			env.ambient_light_energy = 0.90  # bright, sun-dappled woodland
 		else:

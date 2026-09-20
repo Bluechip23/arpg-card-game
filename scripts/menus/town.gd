@@ -2519,15 +2519,9 @@ func _create_town_waypoint() -> void:
 	_town_waypoint_node.add_child(mound)
 
 	# Pixel rune-ring on the mound's top, matching the dungeon waypoints.
-	var pillar = Sprite3D.new()
+	# The glowing-cave totem, same as the dungeon waypoints (teal = transport).
+	var pillar := DungeonManager.make_waypoint_totem(Color(1, 1, 1).lerp(Color8(0x62, 0xa3, 0xb0), 0.55))
 	pillar.name = "Runes"
-	pillar.texture = load("res://assets/textures/props/waypoint_ring.png")
-	pillar.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	pillar.shaded = false
-	pillar.pixel_size = 0.045
-	pillar.rotation_degrees = Vector3(-90, 0, 0)
-	pillar.modulate = Color8(0x62, 0xa3, 0xb0)  # TEAL_1 (transport)
-	pillar.position = Vector3(0, 0.25, 0)
 	_town_waypoint_node.add_child(pillar)
 
 	# Name label

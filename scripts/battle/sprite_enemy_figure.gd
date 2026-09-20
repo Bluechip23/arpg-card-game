@@ -429,6 +429,22 @@ func _measure_ground_rows() -> float:
 	return rows
 
 
+## Drawn size of the current frame in world units (width, height): the
+## opaque bounds of the region, through the rig scale. For portrait cameras.
+func portrait_extent() -> Vector2:
+	if _sprite == null or _sprite.texture == null:
+		return Vector2(1.0, 1.5)
+	var img: Image = _sprite.texture.get_image()
+	var r := _sprite.region_rect
+	var used := Rect2i(Vector2i.ZERO, Vector2i(int(r.size.x), int(r.size.y)))
+	if img:
+		if img.is_compressed():
+			img.decompress()
+		used = img.get_region(Rect2i(int(r.position.x), int(r.position.y), int(r.size.x), int(r.size.y))).get_used_rect()
+	var s := _rig.scale.y
+	return Vector2(used.size.x, used.size.y) * _sprite.pixel_size * s
+
+
 # =============================================================
 # FACADE VERBS (called by Enemy)
 # =============================================================

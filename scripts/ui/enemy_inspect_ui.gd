@@ -144,14 +144,29 @@ func _build_portrait() -> void:
 	fill.light_energy = 0.5
 	_viewport.add_child(fill)
 
-	_fig = EnemyFigure.new()
-	_viewport.add_child(_fig)
-	_fig.setup(_enemy.figure_kind)
-
 	var cam = Camera3D.new()
-	_viewport.add_child(cam)
-	cam.position = Vector3(0.3, 1.1, 2.9)
-	cam.look_at_from_position(cam.position, Vector3(0, 0.75, 0), Vector3.UP)
+	if SpriteEnemyFigure.supports(_enemy.figure_kind):
+		# The same Craftpix sprite rig the battlefield uses, idling toward
+		# the viewer under a flat orthographic camera.
+		var sf := SpriteEnemyFigure.new()
+		_viewport.add_child(sf)
+		sf.setup(_enemy.figure_kind)
+		_fig = sf
+		_viewport.add_child(cam)
+		cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+		# Frame the drawn body: the sprite's feet sit at its lift height.
+		var ext: Vector2 = sf.portrait_extent()
+		var h: float = maxf(ext.y, 0.6)
+		var mid: float = CameraView.SPRITE_LIFT + h * 0.5
+		cam.size = maxf(h * 1.25, ext.x * 1.25 * 150.0 / 180.0)
+		cam.look_at_from_position(Vector3(0, mid, 6), Vector3(0, mid, 0), Vector3.UP)
+	else:
+		_fig = EnemyFigure.new()
+		_viewport.add_child(_fig)
+		_fig.setup(_enemy.figure_kind)
+		_viewport.add_child(cam)
+		cam.position = Vector3(0.3, 1.1, 2.9)
+		cam.look_at_from_position(cam.position, Vector3(0, 0.75, 0), Vector3.UP)
 
 # ============================================
 # STATS / EFFECTS REFRESH

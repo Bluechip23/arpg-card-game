@@ -17,6 +17,26 @@ func setup(b: Buff) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_entered.connect(_on_hover_in)
+	mouse_exited.connect(_on_hover_out)
+
+func _exit_tree() -> void:
+	StatusHoverPopup.hide_for(self)
+
+func _on_hover_in() -> void:
+	## The hover window: what the buff does and how long is left (live).
+	if buff == null:
+		return
+	var b := buff
+	StatusHoverPopup.show_for(self, b.buff_name, b.get_icon_color(), b.description,
+		func() -> String:
+			if not is_instance_valid(b):
+				return ""
+			return "Remaining: %s" % b.get_duration_display(),
+		("Source: %s" % b.source_name) if b.source_name != "" else "")
+
+func _on_hover_out() -> void:
+	StatusHoverPopup.hide_for(self)
 
 func _gui_input(event: InputEvent) -> void:
 	## The Precious: while in shadow form, clicking the Invisible badge steps
@@ -115,7 +135,7 @@ func update_display() -> void:
 	var n := _badge_count()
 	_count_label.text = ("x%d" % n) if n > 0 else ""
 
-	tooltip_text = buff.buff_name
+	tooltip_text = ""  # the StatusHoverPopup window replaces the engine tooltip
 
 func _make_custom_tooltip(for_text: String) -> Control:
 	if not buff:
