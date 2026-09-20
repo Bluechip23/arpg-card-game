@@ -16,6 +16,33 @@ func setup(d: Debuff) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_entered.connect(_on_hover_in)
+	mouse_exited.connect(_on_hover_out)
+
+func _exit_tree() -> void:
+	StatusHoverPopup.hide_for(self)
+
+func _on_hover_in() -> void:
+	## The hover window: what the debuff does and how long is left (live).
+	if debuff == null:
+		return
+	var d := debuff
+	var extra := ""
+	if d.stacks > 1:
+		extra = "Stacks: %d" % d.stacks
+	if d.source_name != "":
+		extra += ("\n" if extra != "" else "") + "Source: %s" % d.source_name
+	StatusHoverPopup.show_for(self, d.debuff_name, d.get_icon_color(), d.description,
+		func() -> String:
+			if not is_instance_valid(d):
+				return ""
+			if d.duration < 0:
+				return "Remaining: until cleansed"
+			return "Remaining: %d tempo" % d.duration,
+		extra)
+
+func _on_hover_out() -> void:
+	StatusHoverPopup.hide_for(self)
 
 func _build_badge() -> void:
 	## A compact round badge: type-coloured circle, glyph, and an xN count.
@@ -90,7 +117,7 @@ func update_display() -> void:
 	var n := _badge_count()
 	_count_label.text = ("x%d" % n) if n > 0 else ""
 
-	tooltip_text = debuff.debuff_name
+	tooltip_text = ""  # the StatusHoverPopup window replaces the engine tooltip
 
 func _make_custom_tooltip(for_text: String) -> Control:
 	if not debuff:
@@ -136,7 +163,7 @@ func _make_custom_tooltip(for_text: String) -> Control:
 	if debuff.duration < 0:
 		dur.text = "Duration: Permanent"
 	else:
-		dur.text = "Duration: %d turn(s)" % debuff.duration
+		dur.text = "Remaining: %d tempo" % debuff.duration
 	dur.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 	dur.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(dur)

@@ -162,8 +162,8 @@ const BUILDING_PALETTE := {
 const SEWER_PALETTE := {
 	"name": "Sewers",
 	"ground": Color(0.04, 0.05, 0.05),
-	"floor_a": Color(0.18, 0.20, 0.18),   # wet, mossy brick
-	"floor_b": Color(0.12, 0.14, 0.13),
+	"floor_a": Color(0.42, 0.46, 0.42),   # wet, mossy stone (a cast over the pack floor)
+	"floor_b": Color(0.30, 0.34, 0.32),
 	"wall_a": Color(0.20, 0.22, 0.21),    # slick stone block
 	"wall_b": Color(0.12, 0.13, 0.13),
 	"cliff": Color(0.15, 0.17, 0.16),
@@ -456,8 +456,10 @@ const CP_TEX := "res://assets/textures/craftpix"
 
 func floor_texture_path() -> String:
 	match interior_kind:
-		"sewer", "building":
-			return "res://assets/textures/tile_brick.png"
+		"sewer":
+			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
+		"building":
+			return CP_TEX + "/floor_undead.png"  # grey flagstones (undead pack's cracked stone)
 		"cave":
 			return CP_TEX + "/floor_cave.png"
 		"forest":
@@ -491,21 +493,23 @@ func trail_texture_path() -> String:
 		"forest":
 			return CP_TEX + "/floor_dirt_forest.png"
 		"cave", "sewer", "building":
-			return "res://assets/textures/tile_dirt.png"
+			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
 	if world_level == 1:
 		return CP_TEX + "/floor_dirt_field.png"
 	if world_level == 2:
 		return CP_TEX + "/floor_desert_sand.png"  # sand tracks through the scrub
 	if world_level == 3:
 		return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush through the snow
-	return "res://assets/textures/tile_dirt.png"
+	return CP_TEX + "/floor_dirt_field.png"
 
 
 ## Cliff faces / rock walls: the matching pack's cobbled cliff fill.
 func wall_texture_path() -> String:
 	match interior_kind:
-		"sewer", "building":
-			return "res://assets/textures/tile_brick.png"  # no masonry pack yet
+		"sewer":
+			return CP_TEX + "/wall_cave.png"  # dark cave rock
+		"building":
+			return CP_TEX + "/wall_undead.png"  # grey barrow stone
 		"cave":
 			return CP_TEX + "/wall_cave.png"
 		"forest":
@@ -597,6 +601,49 @@ const PROP_ROLES := {
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
 	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"]},
 }
+
+
+## A billboard Sprite3D of one pack prop (role variant `k`), or null when
+## the cut props have no such role. Pivot at the feet; lifted like every
+## other billboard so the plan camera sorts it per pixel.
+func _make_prop_sprite(role: String, scale: float = 1.0, k: int = 0, lift: float = CameraView.SPRITE_LIFT) -> Sprite3D:
+	if not CraftpixProps.has(role):
+		return null
+	var cfg: Dictionary = CraftpixProps.PROPS[role]
+	var v: Dictionary = cfg["variants"][k % cfg["variants"].size()]
+	var sprite := Sprite3D.new()
+	sprite.texture = load(v["path"])
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = 0.03125
+	sprite.centered = false
+	sprite.offset = Vector2(-float(v["w"]) * 0.5, 0)  # feet on the origin
+	var sc: float = scale * float(cfg["scale"])
+	sprite.scale = Vector3(sc, sc, sc)
+	sprite.position = Vector3(0, lift, 0)
+	return sprite
+
+
+## The animated glowing-cave totem that marks every waypoint / portal.
+static func make_waypoint_totem(tint: Color, scale: float = 0.5) -> Sprite3D:
+	var totem := SheetAnimSprite.new()
+	totem.texture = load("res://assets/sprites/craftpix/tileset_glowing_cave/Totem_animation.png")
+	totem.hframes = 6
+	totem.vframes = 2
+	totem.fps = 8.0
+	totem.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	totem.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	totem.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	totem.shaded = false
+	totem.pixel_size = 0.03125
+	totem.centered = false
+	totem.offset = Vector2(-48, 0)  # 96px frames, feet on the origin
+	totem.modulate = tint
+	totem.scale = Vector3(scale, scale, scale)
+	totem.position = Vector3(0, WAYPOINT_MOUND_HEIGHT + CameraView.SPRITE_LIFT, 0)
+	return totem
 
 
 func _prop_variants(base: String) -> Array:
@@ -1399,10 +1446,12 @@ func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: fl
 	mm.use_colors = true
 	mm.mesh = quad
 	mm.instance_count = items.size()
+	# Low props are ground cover the player walks over; tall ones can hide them.
+	var lift: float = CameraView.SPRITE_LIFT if px_h > CameraView.GROUND_COVER_MAX_PX else CameraView.GROUND_COVER_LIFT
 	for i in range(items.size()):
 		var it: Dictionary = items[i]
 		var s: float = it.get("scale", 1.0)
-		var pos: Vector3 = it["pos"] + Vector3(0, CameraView.SPRITE_LIFT, 0)
+		var pos: Vector3 = it["pos"] + Vector3(0, lift, 0)
 		mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(s, s, s)), pos))
 		mm.set_instance_color(i, Color(1, 1, 1).lerp(it.get("color", Color.WHITE), 0.25))
 	var mmi := MultiMeshInstance3D.new()
@@ -2434,44 +2483,28 @@ func _place_sewer_doors(pal: Dictionary) -> void:
 		var into = Vector3(dir.x, 0, dir.y)
 		var root = Node3D.new()
 		root.name = "SlidingDoor"
-		root.position = Vector3(pos.x + 0.5, 0.85, pos.y + 0.5) + into * 0.1
+		root.position = Vector3(pos.x + 0.5, 0, pos.y + 0.5) + into * 0.35
 		_visuals_root.add_child(root)
-
-		var disc = MeshInstance3D.new()
-		var dmesh = CylinderMesh.new()
-		dmesh.top_radius = 0.85
-		dmesh.bottom_radius = 0.85
-		dmesh.height = 0.22
-		dmesh.radial_segments = 20
-		disc.mesh = dmesh
-		# Stand the disc upright, facing into the room.
-		if dir.x != 0:
-			disc.rotation_degrees = Vector3(0, 0, 90)
+		# A dark stone archway (the pack's) reads as the sealed passage.
+		var arch := _make_prop_sprite("gate_small", 1.25)
+		if arch:
+			arch.modulate = Color(1, 1, 1).lerp(pal["wall_a"], 0.25)
+			root.add_child(arch)
 		else:
-			disc.rotation_degrees = Vector3(90, 0, 0)
-		var stone = StandardMaterial3D.new()
-		stone.albedo_color = pal["wall_a"].lightened(0.05)
-		stone.roughness = 0.95
-		disc.material_override = stone
-		root.add_child(disc)
-
-		# Concentric hub ring so it reads as a valve/door, not a plain cylinder.
-		var hub = MeshInstance3D.new()
-		var hmesh = TorusMesh.new()
-		hmesh.inner_radius = 0.28
-		hmesh.outer_radius = 0.42
-		hub.mesh = hmesh
-		if dir.x != 0:
-			hub.rotation_degrees = Vector3(0, 0, 90)
-		else:
-			hub.rotation_degrees = Vector3(90, 0, 0)
-		var iron = StandardMaterial3D.new()
-		iron.albedo_color = Color(0.16, 0.16, 0.17)
-		iron.metallic = 0.0  # no modern specular pop
-		iron.roughness = 0.7
-		hub.material_override = iron
-		hub.position = into * 0.13
-		root.add_child(hub)
+			var disc = MeshInstance3D.new()
+			var dmesh = CylinderMesh.new()
+			dmesh.top_radius = 0.85
+			dmesh.bottom_radius = 0.85
+			dmesh.height = 0.22
+			dmesh.radial_segments = 20
+			disc.mesh = dmesh
+			disc.rotation_degrees = Vector3(0, 0, 90) if dir.x != 0 else Vector3(90, 0, 0)
+			var stone = StandardMaterial3D.new()
+			stone.albedo_color = pal["wall_a"].lightened(0.05)
+			stone.roughness = 0.95
+			disc.material_override = stone
+			disc.position = Vector3(0, 0.85, 0)
+			root.add_child(disc)
 		placed += 1
 
 func _find_perimeter_wall(rect: Rect2i) -> Dictionary:
@@ -3714,6 +3747,16 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	var center = Vector3(fx + fp_w / 2.0, 0, fz + fp_d / 2.0)
 	site_root.position = center
 
+	# The footprint's own ground: its tiles are walls for pathing, so the
+	# autotile floor skips them and the backdrop showed through the structure.
+	var ground = MeshInstance3D.new()
+	var gmesh = PlaneMesh.new()
+	gmesh.size = Vector2(fp_w, fp_d)
+	ground.mesh = gmesh
+	ground.material_override = _pixel_mat(floor_texture_path(), get_palette().get("floor_a", Color(0.5, 0.5, 0.45)))
+	ground.position = Vector3(0, 0.006, 0)
+	site_root.add_child(ground)
+
 	match kind:
 		"graveyard":
 			_build_graveyard_gate(site_root, fp_w, fp_d)
@@ -3783,16 +3826,16 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	var body_mesh = BoxMesh.new()
 	body_mesh.size = Vector3(w, wall_h, d)
 	body.mesh = body_mesh
-	body.material_override = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.55, 0.50, 0.44))
+	body.material_override = _pixel_mat(CP_TEX + "/wall_undead.png", Color(0.62, 0.58, 0.52))  # grey stone (undead pack)
 	body.position = Vector3(0, wall_h / 2.0, 0)
 	root.add_child(body)
 
 	var roof = MeshInstance3D.new()
 	var roof_mesh = PrismMesh.new()
-	roof_mesh.size = Vector3(d + 0.5, 0.9, w + 0.5)
+	roof_mesh.size = Vector3(d + 0.2, 0.9, w + 0.2)
 	roof_mesh.left_to_right = 0.5
 	roof.mesh = roof_mesh
-	roof.material_override = _pixel_mat("res://assets/textures/tile_dirt.png", Color(0.42, 0.22, 0.16))
+	roof.material_override = _pixel_mat(CP_TEX + "/wall_undead.png", Color(0.46, 0.50, 0.60))  # slate: the grey stone fill under a blue cast
 	roof.rotation_degrees.y = 90.0  # Ridge runs along the building's long axis
 	roof.position = Vector3(0, wall_h + 0.45, 0)
 	root.add_child(roof)
@@ -3801,16 +3844,21 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	# footprint has its centre on a tile edge, so the door (and the windows
 	# around it) shift half a tile to line up with where the player stands.
 	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
-	var door = MeshInstance3D.new()
-	var door_mesh = BoxMesh.new()
-	door_mesh.size = Vector3(0.7, 1.15, 0.08)
-	door.mesh = door_mesh
-	var door_mat = StandardMaterial3D.new()
-	door_mat.albedo_color = Color(0.25, 0.16, 0.10)
-	door_mat.roughness = 0.7
-	door.material_override = door_mat
-	door.position = Vector3(door_x, 0.58, d / 2.0 + 0.02)
-	root.add_child(door)
+	var door := _make_prop_sprite("gate_small", 1.15)  # the pack's dark stone archway
+	if door:
+		door.position = Vector3(door_x, CameraView.SPRITE_LIFT, d / 2.0 + 0.42)  # clear of the roof's overhang from above
+		root.add_child(door)
+	else:
+		var door_mi = MeshInstance3D.new()
+		var door_mesh = BoxMesh.new()
+		door_mesh.size = Vector3(0.7, 1.15, 0.08)
+		door_mi.mesh = door_mesh
+		var door_mat = StandardMaterial3D.new()
+		door_mat.albedo_color = Color(0.25, 0.16, 0.10)
+		door_mat.roughness = 0.7
+		door_mi.material_override = door_mat
+		door_mi.position = Vector3(door_x, 0.58, d / 2.0 + 0.02)
+		root.add_child(door_mi)
 
 	# Two warm-lit windows flanking the door
 	for side in [-1.0, 1.0]:
@@ -3861,70 +3909,89 @@ func _build_graveyard_gate(root: Node3D, fp_w: int, fp_d: int) -> void:
 		bar.position = Vector3(-0.75 + i * 0.5, 1.0, fp_d / 2.0 - 0.5)
 		bar.rotation_degrees = Vector3(0, 0, 0)
 		root.add_child(bar)
-	var dark = MeshInstance3D.new()
-	var dm = BoxMesh.new()
-	dm.size = Vector3(fp_w - 0.6, 2.2, fp_d - 0.8)
-	dark.mesh = dm
-	var dmat = StandardMaterial3D.new()
-	dmat.albedo_color = Color(0.03, 0.04, 0.05)
-	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	dark.material_override = dmat
-	dark.position = Vector3(0, 1.1, -0.3)
-	root.add_child(dark)
-	# A few leaning headstones around the gate
+	# The way down: the undead pack's skull-mouth doorway behind the bars.
+	var door := _make_prop_sprite("undead_skull_door", 1.5)
+	if door:
+		door.position = Vector3(0, CameraView.SPRITE_LIFT, -0.3)
+		root.add_child(door)
+	else:
+		var dark = MeshInstance3D.new()
+		var dm = BoxMesh.new()
+		dm.size = Vector3(fp_w - 0.6, 2.2, fp_d - 0.8)
+		dark.mesh = dm
+		var dmat = StandardMaterial3D.new()
+		dmat.albedo_color = Color(0.03, 0.04, 0.05)
+		dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		dark.material_override = dmat
+		dark.position = Vector3(0, 1.1, -0.3)
+		root.add_child(dark)
+	# A few leaning headstones around the gate (pack graves)
 	for k in range(3):
+		var grave := _make_prop_sprite("undead_grave", 1.0, k * 3)
+		var gx := -fp_w * 0.5 + 0.3 + k * (fp_w - 0.6) / 2.0
+		if grave:
+			grave.position = Vector3(gx, CameraView.SPRITE_LIFT, -fp_d / 2.0 + 0.3)
+			root.add_child(grave)
+			continue
 		var stone_mi = MeshInstance3D.new()
 		var sm = BoxMesh.new()
 		sm.size = Vector3(0.35, 0.6, 0.12)
 		stone_mi.mesh = sm
 		stone_mi.material_override = stone
-		stone_mi.position = Vector3(-fp_w * 0.5 + 0.3 + k * (fp_w - 0.6) / 2.0, 0.3, -fp_d / 2.0 + 0.3)
+		stone_mi.position = Vector3(gx, 0.3, -fp_d / 2.0 + 0.3)
 		stone_mi.rotation_degrees = Vector3(0, 0, -8.0 + k * 7.0)
 		root.add_child(stone_mi)
 
 func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
-	## Rocky mound with a dark opening on the south face.
+	## A cave mouth built from the cave pack: big rock clusters piled into a
+	## mound, a dark stone archway opening on the south face.
 	var pal = get_palette()
-	var mound = MeshInstance3D.new()
-	var cone = CylinderMesh.new()
-	cone.top_radius = 0.5
-	cone.bottom_radius = fp_w * 0.72
-	cone.height = 2.2
-	cone.radial_segments = 12
-	mound.mesh = cone
-	mound.material_override = _pixel_mat(wall_texture_path(), pal["cliff"])
-	mound.position = Vector3(0, 1.1, -0.2)
-	root.add_child(mound)
+	var back_z := -fp_d / 2.0 + 0.55
+	var placed := 0
+	# Three clusters across the back, two more flanking the mouth.
+	for spec in [[-fp_w * 0.32, back_z, 1.35, 0], [0.0, back_z - 0.15, 1.55, 1], [fp_w * 0.32, back_z, 1.35, 2],
+			[-fp_w * 0.42, fp_d / 2.0 - 0.55, 1.1, 3], [fp_w * 0.42, fp_d / 2.0 - 0.55, 1.1, 0]]:
+		var rock := _make_prop_sprite("cave_boulder", spec[2], spec[3])
+		if rock == null:
+			break
+		rock.position = Vector3(spec[0], CameraView.SPRITE_LIFT, spec[1])
+		rock.modulate = Color(1, 1, 1).lerp(pal["cliff"], 0.2)
+		root.add_child(rock)
+		placed += 1
+	if placed == 0:
+		# No pack art: the old textured mound.
+		var mound = MeshInstance3D.new()
+		var cone = CylinderMesh.new()
+		cone.top_radius = 0.5
+		cone.bottom_radius = fp_w * 0.72
+		cone.height = 2.2
+		cone.radial_segments = 12
+		mound.mesh = cone
+		mound.material_override = _pixel_mat(wall_texture_path(), pal["cliff"])
+		mound.position = Vector3(0, 1.1, -0.2)
+		root.add_child(mound)
 
-	# Flanking boulders
-	for side in [-1.0, 1.0]:
-		var boulder = MeshInstance3D.new()
-		var sphere = SphereMesh.new()
-		sphere.radius = 0.45
-		sphere.height = 0.8
-		sphere.radial_segments = 10
-		sphere.rings = 6
-		boulder.mesh = sphere
-		boulder.material_override = _pixel_mat(wall_texture_path(), pal["wall_b"])
-		boulder.position = Vector3(side * fp_w * 0.45, 0.3, fp_d / 2.0 - 0.4)
-		root.add_child(boulder)
-
-	# The dark opening itself
-	var opening = MeshInstance3D.new()
-	var open_mesh = BoxMesh.new()
-	open_mesh.size = Vector3(0.95, 1.1, 0.5)
-	opening.mesh = open_mesh
-	var open_mat = StandardMaterial3D.new()
-	open_mat.albedo_color = Color(0.01, 0.01, 0.015)
-	open_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	opening.material_override = open_mat
-	opening.position = Vector3(0, 0.55, fp_d / 2.0 - 0.15)
-	root.add_child(opening)
+	# The dark opening itself: the pack archway on the entrance side.
+	var gate := _make_prop_sprite("gate_small", 1.3)
+	if gate:
+		gate.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.2)
+		root.add_child(gate)
+	else:
+		var opening = MeshInstance3D.new()
+		var open_mesh = BoxMesh.new()
+		open_mesh.size = Vector3(0.95, 1.1, 0.5)
+		opening.mesh = open_mesh
+		var open_mat = StandardMaterial3D.new()
+		open_mat.albedo_color = Color(0.01, 0.01, 0.015)
+		open_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		opening.material_override = open_mat
+		opening.position = Vector3(0, 0.55, fp_d / 2.0 - 0.15)
+		root.add_child(opening)
 
 func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## A low brick headworks with an arched, barred opening descending into the
 	## dark — the manhole/grate the player climbs down to reach the sewers.
-	var brick = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.30, 0.31, 0.29))
+	var brick = _pixel_mat(CP_TEX + "/wall_cave.png", Color(0.36, 0.38, 0.36))  # dark cave stone
 
 	# Squat stone surround.
 	var block = MeshInstance3D.new()
@@ -3935,30 +4002,22 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	block.position = Vector3(0, 0.65, -0.2)
 	root.add_child(block)
 
-	# Arched headstone over the mouth.
-	var arch = MeshInstance3D.new()
-	var amesh = CylinderMesh.new()
-	amesh.top_radius = 0.55
-	amesh.bottom_radius = 0.55
-	amesh.height = fp_w - 0.5
-	amesh.radial_segments = 12
-	arch.mesh = amesh
-	arch.rotation_degrees = Vector3(0, 0, 90)
-	arch.material_override = brick
-	arch.position = Vector3(0, 1.3, -0.2)
-	root.add_child(arch)
-
-	# The dark descending mouth.
-	var mouth = MeshInstance3D.new()
-	var mmesh = BoxMesh.new()
-	mmesh.size = Vector3(1.0, 1.15, 0.5)
-	mouth.mesh = mmesh
-	var mmat = StandardMaterial3D.new()
-	mmat.albedo_color = Color(0.01, 0.02, 0.02)
-	mmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mouth.material_override = mmat
-	mouth.position = Vector3(0, 0.6, fp_d / 2.0 - 0.15)
-	root.add_child(mouth)
+	# The dark descending mouth: the pack's stone archway.
+	var mouth := _make_prop_sprite("gate_small", 1.2)
+	if mouth:
+		mouth.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 + 0.25)  # in front of the block, seen from above
+		root.add_child(mouth)
+	else:
+		var mouth_mi = MeshInstance3D.new()
+		var mmesh = BoxMesh.new()
+		mmesh.size = Vector3(1.0, 1.15, 0.5)
+		mouth_mi.mesh = mmesh
+		var mmat = StandardMaterial3D.new()
+		mmat.albedo_color = Color(0.01, 0.02, 0.02)
+		mmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mouth_mi.material_override = mmat
+		mouth_mi.position = Vector3(0, 0.6, fp_d / 2.0 - 0.15)
+		root.add_child(mouth_mi)
 
 	# Iron bars across the mouth (a raised grate).
 	var bar_mat = StandardMaterial3D.new()
@@ -3971,7 +4030,7 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		barmesh.size = Vector3(0.06, 1.0, 0.06)
 		bar.mesh = barmesh
 		bar.material_override = bar_mat
-		bar.position = Vector3(-0.3 + i * 0.3, 0.6, fp_d / 2.0 + 0.02)
+		bar.position = Vector3(-0.3 + i * 0.3, 0.6, fp_d / 2.0 + 0.5)
 		root.add_child(bar)
 
 	# A weak green glow leaking up from below.
@@ -4034,17 +4093,28 @@ func _place_exit_site() -> void:
 	world_pos.x -= 1.0  # Sit just behind the entry tile so the player isn't on it
 	site_root.position = world_pos
 
-	var portal = MeshInstance3D.new()
-	var portal_mesh = BoxMesh.new()
-	portal_mesh.size = Vector3(0.2, 1.6, 1.0)
-	portal.mesh = portal_mesh
-	var portal_mat = StandardMaterial3D.new()
-	portal_mat.albedo_color = Color(0.55, 0.75, 1.0, 0.7)
-	portal_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	portal_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	portal.material_override = portal_mat
-	portal.position = Vector3(0, 0.8, 0)
-	site_root.add_child(portal)
+	var portal := _make_prop_sprite("gate_small", 1.3)  # the pack archway, lit from below
+	if portal:
+		portal.modulate = Color(0.8, 0.9, 1.0)
+		site_root.add_child(portal)
+		var glow = OmniLight3D.new()
+		glow.light_color = Color(0.55, 0.75, 1.0)
+		glow.light_energy = 0.9
+		glow.omni_range = 3.0
+		glow.position = Vector3(0, 0.6, 0.4)
+		site_root.add_child(glow)
+	else:
+		var portal_mi = MeshInstance3D.new()
+		var portal_mesh = BoxMesh.new()
+		portal_mesh.size = Vector3(0.2, 1.6, 1.0)
+		portal_mi.mesh = portal_mesh
+		var portal_mat = StandardMaterial3D.new()
+		portal_mat.albedo_color = Color(0.55, 0.75, 1.0, 0.7)
+		portal_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		portal_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		portal_mi.material_override = portal_mat
+		portal_mi.position = Vector3(0, 0.8, 0)
+		site_root.add_child(portal_mi)
 
 	var label = Label3D.new()
 	label.text = "Exit"
@@ -4540,7 +4610,7 @@ func _define_sewer_spawn_zones() -> void:
 				continue
 			points.append(cell)
 			types.append(roster[_rng.randi_range(0, roster.size() - 1)])
-		# The deepest chamber is guarded by a Sewer Crocodile.
+		# The deepest chamber is guarded by a Sewer Cobra.
 		if kind == "deep" and types.size() > 0:
 			types[0] = Enemy.EnemyType.SEWER_CROC
 		if points.is_empty():
@@ -4674,12 +4744,6 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 
 	# Waypoint visual: chunky pixel rune-ring laid flat on the mound's top,
 	# tinted per destination (master-palette tints, style guide §2).
-	var pillar = Sprite3D.new()
-	pillar.texture = load("res://assets/textures/props/waypoint_ring.png")
-	pillar.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	pillar.shaded = false
-	pillar.pixel_size = 0.045  # ring spans ~1.2 tiles
-	pillar.rotation_degrees = Vector3(-90, 0, 0)
 	var tint: Color
 	match target:
 		"transport":
@@ -4692,8 +4756,9 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 			tint = Color8(0xd8, 0xd3, 0x96)  # GOLD_2
 		_:
 			tint = Color8(0xb6, 0xc5, 0xc5)  # STEEL_6
-	pillar.modulate = Color(tint, 0.75)  # dimmed until discovered
-	pillar.position = Vector3(0, 0.25, 0)  # resting on the mound's top
+	# The glowing-cave totem stands on the mound, tinted per destination and
+	# dimmed until discovered.
+	var pillar := make_waypoint_totem(Color(1, 1, 1).lerp(tint, 0.55) * Color(1, 1, 1, 0.85))
 	wp_root.add_child(pillar)
 
 	# Label
@@ -4939,21 +5004,27 @@ func _place_shrine() -> void:
 		var pm = BoxMesh.new()
 		pm.size = Vector3(0.9, 0.5, 0.9)
 		plinth.mesh = pm
-		plinth.material_override = _pixel_mat("res://assets/textures/tile_brick.png", Color(0.55, 0.5, 0.6))
+		plinth.material_override = _pixel_mat(wall_texture_path(), Color(0.55, 0.5, 0.6))
 		plinth.position = Vector3(0, 0.25, 0)
 		root.add_child(plinth)
-		var idol = MeshInstance3D.new()
-		var im = PrismMesh.new()
-		im.size = Vector3(0.5, 0.9, 0.5)
-		idol.mesh = im
-		var imat = StandardMaterial3D.new()
-		imat.albedo_color = Color(0.25, 0.2, 0.35)
-		imat.emission_enabled = true
-		imat.emission = Color(0.4, 0.2, 0.6)
-		imat.emission_energy_multiplier = 0.8
-		idol.material_override = imat
-		idol.position = Vector3(0, 0.95, 0)
-		root.add_child(idol)
+		var idol := _make_prop_sprite("winter_idol", 0.9, 0)  # the pack's carved idol
+		if idol:
+			idol.modulate = Color(0.8, 0.7, 1.0)
+			idol.position = Vector3(0, 0.5 + CameraView.SPRITE_LIFT, 0)
+			root.add_child(idol)
+		else:
+			var idol_mi = MeshInstance3D.new()
+			var im = PrismMesh.new()
+			im.size = Vector3(0.5, 0.9, 0.5)
+			idol_mi.mesh = im
+			var imat = StandardMaterial3D.new()
+			imat.albedo_color = Color(0.25, 0.2, 0.35)
+			imat.emission_enabled = true
+			imat.emission = Color(0.4, 0.2, 0.6)
+			imat.emission_energy_multiplier = 0.8
+			idol_mi.material_override = imat
+			idol_mi.position = Vector3(0, 0.95, 0)
+			root.add_child(idol_mi)
 		var label = Label3D.new()
 		label.text = "Drowned Shrine"
 		label.font_size = 20

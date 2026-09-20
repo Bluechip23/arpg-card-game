@@ -40,6 +40,9 @@ const PROPS := {
 	"cave_pebble": {"scale": 1.00, "variants": [{"path": DIR + "cave_pebble_0.png", "w": 22, "h": 28}, {"path": DIR + "cave_pebble_1.png", "w": 13, "h": 15}, {"path": DIR + "cave_pebble_2.png", "w": 15, "h": 14}, {"path": DIR + "cave_pebble_3.png", "w": 14, "h": 13}, {"path": DIR + "cave_pebble_4.png", "w": 16, "h": 18}]},
 	"cave_web": {"scale": 1.00, "variants": [{"path": DIR + "cave_web_0.png", "w": 49, "h": 35}, {"path": DIR + "cave_web_1.png", "w": 71, "h": 63}]},
 	"cave_gate": {"scale": 0.80, "variants": [{"path": DIR + "cave_gate_0.png", "w": 61, "h": 70}]},
+	"cave_boulder": {"scale": 1.00, "variants": [{"path": DIR + "cave_boulder_0.png", "w": 26, "h": 45}, {"path": DIR + "cave_boulder_1.png", "w": 26, "h": 45}, {"path": DIR + "cave_boulder_2.png", "w": 25, "h": 37}, {"path": DIR + "cave_boulder_3.png", "w": 25, "h": 37}]},
+	"gate_small": {"scale": 1.00, "variants": [{"path": DIR + "gate_small_0.png", "w": 25, "h": 31}]},
+	"undead_skull_door": {"scale": 1.00, "variants": [{"path": DIR + "undead_skull_door_0.png", "w": 31, "h": 47}, {"path": DIR + "undead_skull_door_1.png", "w": 31, "h": 47}, {"path": DIR + "undead_skull_door_2.png", "w": 31, "h": 47}]},
 	"undead_tree": {"scale": 0.80, "variants": [{"path": DIR + "undead_tree_0.png", "w": 63, "h": 89}, {"path": DIR + "undead_tree_1.png", "w": 59, "h": 69}, {"path": DIR + "undead_tree_2.png", "w": 46, "h": 45}, {"path": DIR + "undead_tree_3.png", "w": 59, "h": 74}, {"path": DIR + "undead_tree_4.png", "w": 49, "h": 63}]},
 	"undead_stump": {"scale": 1.00, "variants": [{"path": DIR + "undead_stump_0.png", "w": 23, "h": 32}, {"path": DIR + "undead_stump_1.png", "w": 30, "h": 29}, {"path": DIR + "undead_stump_2.png", "w": 41, "h": 31}, {"path": DIR + "undead_stump_3.png", "w": 42, "h": 26}]},
 	"undead_rock": {"scale": 1.00, "variants": [{"path": DIR + "undead_rock_0.png", "w": 57, "h": 56}, {"path": DIR + "undead_rock_1.png", "w": 45, "h": 44}, {"path": DIR + "undead_rock_2.png", "w": 34, "h": 33}, {"path": DIR + "undead_rock_3.png", "w": 26, "h": 27}, {"path": DIR + "undead_rock_4.png", "w": 15, "h": 16}]},
@@ -89,6 +92,7 @@ const PROPS := {
 	"chest_rare_open": {"scale": 1.00, "variants": [{"path": DIR + "chest_rare_open_0.png", "w": 29, "h": 27}]},
 	"chest_mythic_closed": {"scale": 1.00, "variants": [{"path": DIR + "chest_mythic_closed_0.png", "w": 23, "h": 25}]},
 	"chest_mythic_open": {"scale": 1.00, "variants": [{"path": DIR + "chest_mythic_open_0.png", "w": 23, "h": 27}]},
+	"waypoint_totem": {"scale": 1.00, "variants": [{"path": DIR + "waypoint_totem_0.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_1.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_2.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_3.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_4.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_5.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_6.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_7.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_8.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_9.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_10.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_11.png", "w": 96, "h": 88}]},
 }
 
 

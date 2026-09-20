@@ -37,6 +37,13 @@ const PIXEL_SIZE := 1.0 / TEXELS_PER_UNIT
 ## nearer the camera than any wall slab or plateau (WALL_HEIGHT + 2 ×
 ## ELEV_STEP ≈ 0.18) so a wall north of it can never draw over its head.
 const SPRITE_LIFT := 0.3
+## Ground cover (mushrooms, shrubs, tufts, pebbles, small rocks — anything up
+## to GROUND_COVER_MAX_PX tall) sits a little lower: under the near-vertical
+## camera a height difference outweighs a tile of depth, so characters always
+## draw over it and walk on top of it. Trees and other tall props keep the
+## full lift and still hide a character standing behind them.
+const GROUND_COVER_LIFT := 0.18
+const GROUND_COVER_MAX_PX := 36
 ## How much of a world-height offset shows as screen-up. Head-up labels and
 ## bars were placed for the old 65° view, where height projected at cos 65°;
 ## keeping that factor keeps them where they were on screen.

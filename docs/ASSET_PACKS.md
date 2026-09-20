@@ -153,6 +153,19 @@ billboard.
 | 4 | tileset_winter |
 | 5 | mountain_monsters, skill_icons_rpg, skill_icons_game, skill_icons_pack |
 
+### Structures built from the packs
+
+| Structure | Pack pieces (`CraftpixProps` roles) |
+|---|---|
+| Cave mouth | `cave_boulder` (cave `Walls_elements12-15`) piled round `gate_small` (desert `small_gate`, the dark stone archway) |
+| Sewer grate | stone block in the cave rock fill, `gate_small` mouth, iron bars |
+| Building | grey stone (`wall_undead`) walls, slate-tinted roof, `gate_small` door |
+| Old Graveyard | pack-stone pillars and lintel, `undead_skull_door` (undead `Scull_door`), `undead_grave` headstones |
+| Interior exits, sealed sewer passages | `gate_small` |
+| Waypoints / Transport Portal | `waypoint_totem` — the glowing-cave `Totem_animation` (12 frames, `SheetAnimSprite`) on a pack-dirt mound |
+| Drowned Shrine | `winter_idol` on a pack-stone plinth |
+| Interiors | sewers: `floor_glowing_cave` + `wall_cave` + `water_cave`; buildings: `floor_undead` + `wall_undead`; trails: `floor_dirt_forest` |
+
 ## Not yet staged
 
 Packs the user has still to upload go here as they arrive. When the set is

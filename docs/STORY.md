@@ -333,7 +333,7 @@ built level. The roster is themed and in code:*
 - **Rats** — *in code as Wererat / Archer Rat*. The player's first kills; the Wererat scurries and bites, the Archer Rat kites.
 - **Sludge Being** — *in code*. Minion. **Ranged ooze** (10 HP): wades close or spits acid from range 6. The "oozes" the player fights alongside the rats at the entrance.
 - **Pipe Crawler** — *in code*. Minion. **Fast skirmisher** (20 HP): creeps out of the wall pipes, moves on a cheap 2-tempo so it closes quickly; its claw can disarm you.
-- **Sewer Crocodile** — *in code*. Elite. **Armored ambusher** (40 HP, 20 armor, 12 dmg): lurks in the channels; break its armor to expose it, or its bite hurts. Guards the deepest chamber.
+- **Sewer Cobra** — *in code*. Elite. **Armored ambusher** (40 HP, 20 armor, 12 dmg): lurks in the channels; break its armor to expose it, or its bite hurts. Guards the deepest chamber.
 - **Rat King** — *in code*. Elite, **first mini-boss** (90 HP, 10 armor). A crowned rat that fights flanked by a summoned-in army of Wererats, Archer Rats and Swarms in the central cistern arena. Bites and repositions relentlessly.
 - **Swarm** — *in code*. Minion. **Fast swarm** (10 HP): one creature rendered as a boil of vermin/insects; blitzes 8 tiles at a time. *one creature, but a bunch of bugs representing one*
 - **Faithless cultist** — `[TBD]`.
@@ -349,11 +349,11 @@ built level. The roster is themed and in code:*
 >   **water channel down its spine**; brick **cistern chambers** bud off it above
 >   and below, joined by short access shafts. The far-west chamber is the entry;
 >   the **central cistern is the Rat King's arena**; the far-east chamber is the
->   deepest, guarded by a Sewer Crocodile.
+>   deepest, guarded by a Sewer Cobra.
 > - **Progression (west → east):** the player opens by **killing rats and fighting
 >   oozes** (Wererats, Archer Rats, Sludge Beings), reaches the **Rat King**
 >   mini-boss and his rat army in the central arena, then descends into deadlier
->   water — **Sewer Crocodiles, Swarms and Pipe Crawlers** (plus more sludge).
+>   water — **Sewer Cobras, Swarms and Pipe Crawlers** (plus more sludge).
 > - **Atmosphere:** deliberately **dim and claustrophobic**. Near-lightless ambient
 >   with a thick dank haze; **each player carries their own pool of torchlight**;
 >   **wall torches** throw flickering light over wet brick; **fog of war reveals

@@ -73,6 +73,14 @@ ROLES = {
     "cave_pebble": {"scale": 1.0, "src": [f"{C}/Black_stone_light_shadow3.png", f"{C}/Black_stone_light_shadow4.png", f"{C}/Blue_stone_light_shadow4.png", f"{C}/Green_stone_light_shadow4.png", f"{C}/Walls_elements19.png"]},
     "cave_web": {"scale": 1.0, "src": [f"{C}/web1.png", f"{C}/web2.png"]},
     "cave_gate": {"scale": 0.8, "src": [f"{C}/gates1.png"]},
+    # Big cave-wall rock clusters: the flanks of a cave mouth.
+    "cave_boulder": {"scale": 1.0, "src": [f"{C}/Walls_elements12.png", f"{C}/Walls_elements13.png", f"{C}/Walls_elements14.png", f"{C}/Walls_elements15.png"]},
+    # --- Structures shared across biomes ---
+    # Dark stone archway (desert pack): cave mouths, sewer grates, building
+    # doors and the way back out of every interior.
+    "gate_small": {"scale": 1.0, "src": [f"{D}/small_gate.png"]},
+    # Skull-mouth doorway (undead pack): the graveyard's way down.
+    "undead_skull_door": {"scale": 1.0, "src": [f"{U}/Scull_door_shadow1.png", f"{U}/Scull_door_shadow2.png", f"{U}/Scull_door_shadow3.png"]},
     # --- World 5 barrow land (undead pack) ---
     "undead_tree": {"scale": 0.8, "src": [f"{U}/Dead_tree_shadow1_1.png", f"{U}/Dead_tree_shadow1_2.png", f"{U}/Dead_tree_shadow1_3.png", f"{U}/Tree_shadow1_1.png", f"{U}/Tree_shadow1_2.png"]},
     "undead_stump": {"scale": 1.0, "src": [f"{U}/Broken_tree_shadow1_2.png", f"{U}/Broken_tree_shadow1_3.png", f"{U}/Broken_tree_shadow1_4.png", f"{U}/Broken_tree_shadow1_5.png"]},
@@ -133,6 +141,9 @@ CELLS = {
     "chest_rare_open": {"scale": 1.0, "cells": [(f"{T}/chests.png", 96, 64, 32, 32)]},
     "chest_mythic_closed": {"scale": 1.0, "cells": [(f"{T}/chests.png", 224, 0, 32, 32)]},
     "chest_mythic_open": {"scale": 1.0, "cells": [(f"{T}/chests.png", 224, 64, 32, 32)]},
+    # Glowing-cave totem, 12 animation frames (uncropped so they line up):
+    # the waypoint / transport-portal marker.
+    "waypoint_totem": {"scale": 1.0, "crop": False, "cells": [("tileset_glowing_cave/Totem_animation.png", c * 96, r * 88, 96, 88) for r in range(2) for c in range(6)]},
 }
 
 
@@ -246,7 +257,9 @@ def main():
         variants = []
         for i, (rel, x, y, w, h) in enumerate(cfg["cells"]):
             sheet = Image.open(os.path.join(SRC, rel)).convert("RGBA")
-            img = crop_bbox(sheet.crop((x, y, x + w, y + h)))
+            img = sheet.crop((x, y, x + w, y + h))
+            if cfg.get("crop", True):
+                img = crop_bbox(img)
             name = f"{role}_{i}.png"
             img.save(os.path.join(OUT, name))
             variants.append((name, img.width, img.height))
