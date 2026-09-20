@@ -66,7 +66,3 @@ no_depth_test = true
 texture_filter = 1
 render_priority = 10
 
-[node name="HealthBarBG" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
-
-[node name="HealthBarFG" type="MeshInstance3D" parent="HealthBarBG"]
