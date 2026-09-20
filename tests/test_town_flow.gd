@@ -121,7 +121,7 @@ func _test_live_town() -> void:
 	await process_frame
 
 	_check(town.get_node_or_null("UI/BackButton") == null, "live town: no Back button")
-	_check(town.fight_button.disabled, "live town: TO BATTLE is disabled until Olorin is spoken to")
+	_check(not town._can_leave_town(), "live town: the portal is gated until Olorin is spoken to")
 	_check(not town._can_leave_town(), "live town: portal shut on a fresh character")
 	var olorin = town.get_node_or_null("Vendors/Olorin")
 	var marker: Label3D = olorin.get_node("QuestIndicator") if olorin else null
@@ -141,7 +141,7 @@ func _test_live_town() -> void:
 	town._refresh_quest_indicators()
 	town._refresh_leave_gate()
 	_check(marker.text == "?" and marker.modulate == town.MARKER_GRAY, "live town: accepted quest turns the ! into a gray ?")
-	_check(not town.fight_button.disabled and town._can_leave_town(), "live town: gate opens once the quest is taken")
+	_check(town._can_leave_town(), "live town: gate opens once the quest is taken")
 
 	town.queue_free()
 	await process_frame

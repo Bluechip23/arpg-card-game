@@ -269,9 +269,3 @@ offset_right = 300.0
 offset_bottom = 50.0
 text = "TOWN"
 
-[node name="FightButton" type="Button" parent="UI"]
-offset_left = 1100.0
-offset_top = 20.0
-offset_right = 1260.0
-offset_bottom = 55.0
-text = "TO BATTLE"

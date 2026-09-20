@@ -1709,8 +1709,8 @@ func _setup_tempo_bar() -> void:
 	_action_label = Label3D.new()
 	_action_label.position = Vector3(0, 1.29, 0)
 	_action_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_action_label.font_size = 26  # 2x supersampled -> 13px on screen
-	_action_label.outline_size = 6
+	_action_label.font_size = 18  # 2x supersampled -> 9px on screen
+	_action_label.outline_size = 5
 	_action_label.outline_modulate = Color(0, 0, 0, 1.0)
 	_action_label.pixel_size = 0.00107
 	_action_label.fixed_size = true  # constant screen size — readable at any zoom
@@ -1749,7 +1749,11 @@ func _setup_armor_bar() -> void:
 	_armor_label = Label3D.new()
 	_armor_label.position = Vector3(0, 0.75, 0.001)
 	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_armor_label.font_size = 14
+	_armor_label.font_size = 18  # 2x supersampled -> 9px on screen
+	_armor_label.pixel_size = 0.00107
+	_armor_label.fixed_size = true
+	_armor_label.outline_size = 4
+	_armor_label.outline_modulate = Color(0, 0, 0, 1)
 	_armor_label.modulate = Color(0.95, 0.95, 0.95)
 	_armor_label.no_depth_test = true
 	_armor_label.render_priority = 20
