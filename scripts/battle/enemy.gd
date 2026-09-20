@@ -332,12 +332,21 @@ var _tempo_bar_bg: MeshInstance3D
 var _tempo_bar_fg: MeshInstance3D
 var _action_label: Label3D
 var _tempo_bar_width: float = 0.85
+var _health_bar_bg: MeshInstance3D
+var _health_bar_fg: MeshInstance3D
+var _health_bar_width: float = 0.85
+var _status_z: float = HOVER_STATUS.z  # where the status badge row sits (set by _layout_head_up)
 ## Where the head-up bits sit under the plan camera (CameraView): "above
 ## the head" is north of the feet on screen, and 0.5 of height puts them
 ## nearer the camera than the body sprite so they draw over it.
-const HOVER_TEMPO := Vector3(0, 0.5, -1.15 * CameraView.HEIGHT_ON_SCREEN)
+# Head-up stack, bottom to top on screen: armor bar, health bar, tempo bar,
+# then (hover only) the action word and the name; status badges on top.
 const HOVER_ARMOR := Vector3(0, 0.5, -0.75 * CameraView.HEIGHT_ON_SCREEN)
-const HOVER_STATUS := Vector3(0, 0.5, -1.9 * CameraView.HEIGHT_ON_SCREEN)
+const HOVER_HEALTH := Vector3(0, 0.5, -1.05 * CameraView.HEIGHT_ON_SCREEN)
+const HOVER_TEMPO := Vector3(0, 0.5, -1.4 * CameraView.HEIGHT_ON_SCREEN)
+const HOVER_ACTION := Vector3(0, 0.5, -1.75 * CameraView.HEIGHT_ON_SCREEN)
+const HOVER_NAME := Vector3(0, 0.5, -2.05 * CameraView.HEIGHT_ON_SCREEN)
+const HOVER_STATUS := Vector3(0, 0.5, -2.45 * CameraView.HEIGHT_ON_SCREEN)
 
 # Armor bar visuals (gray bar below health, only for armored enemies)
 var _armor_bar_sprite: Sprite3D
@@ -886,8 +895,10 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 	update_outline()
 	_setup_actions()
 	_setup_tempo_bar()
+	_setup_health_bar()
 	_setup_armor_bar()
 	_setup_sprite()
+	_layout_head_up()
 
 	# Custom/generic-tier enemies keep the coloured box, which never had a
 	# contact shadow — the strongest grounding cue — so they read as floating.
@@ -1713,7 +1724,8 @@ func _setup_tempo_bar() -> void:
 	# Action label (above tempo bar) — sized and outlined to stay readable
 	# from a zoomed-out camera, like the name label.
 	_action_label = Label3D.new()
-	_action_label.position = Vector3(0, 1.29, 0)
+	_action_label.position = HOVER_ACTION
+	_action_label.visible = false  # the action word only shows while hovered (the bar stays)
 	_action_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_action_label.font_size = 26  # 2x supersampled -> 13px on screen
 	_action_label.outline_size = 6
@@ -1727,12 +1739,105 @@ func _setup_tempo_bar() -> void:
 	_action_label.text = ""
 	add_child(_action_label)
 
-	# Move name label up to make room for the tempo bar + larger action text
+	# Name on top of the stack; the exact numbers sit on their bars.
 	if name_label:
-		name_label.position.y = 1.5
+		name_label.position = HOVER_NAME
+	if health_label:
+		health_label.position = HOVER_HEALTH + Vector3(0, 0.03, 0)
 
 const _ARMOR_BAR_PIXEL_WIDTH: int = 200
 const _ARMOR_BAR_PIXEL_HEIGHT: int = 24
+
+func _head_offset() -> float:
+	## Screen distance (tiles) from the feet to just above the drawn head:
+	## the sprite rig measures its frame; procedural figures use a default.
+	var h := 1.2
+	if _enemy_figure and _enemy_figure.has_method("portrait_extent"):
+		h = maxf(0.5, float(_enemy_figure.portrait_extent().y))
+	return h + 0.12
+
+func _layout_head_up() -> void:
+	## Stack the head-up elements upward from the top of the sprite: health
+	## bar, armor bar (only for armored kinds), tempo bar, then the hover-only
+	## action word and name, then the status badges. Billboards sit at the
+	## sprite lift; an offset north of the feet reads as "above" on screen.
+	const Y := 0.5
+	var z := -_head_offset()
+	if _health_bar_bg:
+		_health_bar_bg.position = Vector3(0, Y, z)
+	if _health_bar_fg:
+		_health_bar_fg.position = Vector3(_health_bar_fg.position.x, Y + 0.01, z)
+	if health_label:
+		health_label.position = Vector3(0, Y + 0.03, z)
+	if max_armor > 0:
+		z -= 0.2
+		if _armor_bar_sprite:
+			_armor_bar_sprite.position = Vector3(0, Y, z)
+		if _armor_label:
+			_armor_label.position = Vector3(0, Y + 0.03, z)
+	z -= 0.2
+	if _tempo_bar_bg:
+		_tempo_bar_bg.position = Vector3(0, Y, z)
+	if _tempo_bar_fg:
+		_tempo_bar_fg.position = Vector3(_tempo_bar_fg.position.x, Y + 0.01, z)
+	z -= 0.3
+	if _action_label:
+		_action_label.position = Vector3(0, Y, z)
+	z -= 0.3
+	if name_label:
+		name_label.position = Vector3(0, Y, z)
+	z -= 0.4
+	_status_z = z
+	if _status_container:
+		_status_container.position = Vector3(0, Y, z)
+
+func _setup_health_bar() -> void:
+	## Always-on health bar (dark red track, green fill); the exact numbers
+	## only appear on hover, on top of it.
+	_health_bar_bg = MeshInstance3D.new()
+	var bg_quad = QuadMesh.new()
+	bg_quad.size = Vector2(_health_bar_width, 0.09)
+	_health_bar_bg.mesh = bg_quad
+	var bg_mat = StandardMaterial3D.new()
+	bg_mat.albedo_color = Color(0.22, 0.06, 0.06, 0.85)
+	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	bg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bg_mat.no_depth_test = true
+	_health_bar_bg.material_override = bg_mat
+	_health_bar_bg.position = HOVER_HEALTH
+	add_child(_health_bar_bg)
+
+	_health_bar_fg = MeshInstance3D.new()
+	var fg_quad = QuadMesh.new()
+	fg_quad.size = Vector2(_health_bar_width, 0.09)
+	_health_bar_fg.mesh = fg_quad
+	var fg_mat = StandardMaterial3D.new()
+	fg_mat.albedo_color = Color(0.35, 0.85, 0.3, 0.95)
+	fg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fg_mat.no_depth_test = true
+	_health_bar_fg.material_override = fg_mat
+	_health_bar_fg.position = HOVER_HEALTH + Vector3(0, 0.01, 0)
+	add_child(_health_bar_fg)
+	_update_health_bar()
+
+func _update_health_bar() -> void:
+	if not _health_bar_bg or not _health_bar_fg:
+		return
+	var ratio := clampf(float(current_health) / float(maxi(1, max_health)), 0.0, 1.0)
+	var w := _health_bar_width * ratio
+	var fg_mesh = _health_bar_fg.mesh as QuadMesh
+	if fg_mesh:
+		fg_mesh.size.x = maxf(0.001, w)
+	_health_bar_fg.visible = w > 0.001
+	_health_bar_fg.position.x = -(_health_bar_width - w) / 2.0  # fills from the left
+	var fg_mat := _health_bar_fg.material_override as StandardMaterial3D
+	if fg_mat:
+		# Green while healthy, amber below half, red when nearly dead.
+		fg_mat.albedo_color = Color(0.35, 0.85, 0.3, 0.95) if ratio > 0.5 \
+				else (Color(0.9, 0.7, 0.2, 0.95) if ratio > 0.25 else Color(0.9, 0.25, 0.2, 0.95))
 
 func _setup_armor_bar() -> void:
 	if max_armor <= 0:
@@ -1753,7 +1858,7 @@ func _setup_armor_bar() -> void:
 
 	# Armor value label rendered on top of the sprite
 	_armor_label = Label3D.new()
-	_armor_label.position = Vector3(0, 0.75, 0.001)
+	_armor_label.position = HOVER_ARMOR + Vector3(0, 0.03, 0)
 	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_armor_label.font_size = 18
 	_armor_label.outline_size = 4
@@ -5022,6 +5127,7 @@ func knockback(away_from: Vector3, spaces: int = 1) -> void:
 func update_health_display() -> void:
 	if health_label:
 		health_label.text = "%d / %d" % [current_health, max_health]
+	_update_health_bar()
 
 func reduce_armor(amount: int) -> void:
 	if current_armor > 0:
@@ -5078,6 +5184,8 @@ func _set_hover_text_visible(shown: bool) -> void:
 		health_label.visible = shown
 	if _armor_label:
 		_armor_label.visible = shown
+	if _action_label:
+		_action_label.visible = shown
 
 func update_name_display() -> void:
 	if name_label:
@@ -5125,6 +5233,10 @@ func _consumed_explode() -> void:
 func _die_visuals() -> void:
 	if _tempo_bar_fg:
 		_tempo_bar_fg.visible = false
+	if _health_bar_bg:
+		_health_bar_bg.visible = false
+	if _health_bar_fg:
+		_health_bar_fg.visible = false
 	if _action_label:
 		_action_label.text = ""
 	# Hide armor bar on death
@@ -5248,7 +5360,7 @@ func _update_status_indicators() -> void:
 	# Create the container on first use
 	if not _status_container:
 		_status_container = Node3D.new()
-		_status_container.position = HOVER_STATUS
+		_status_container.position = Vector3(0, 0.5, _status_z)
 		add_child(_status_container)
 
 	# Remove old nodes
