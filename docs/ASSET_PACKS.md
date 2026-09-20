@@ -62,6 +62,7 @@ Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 
 | `skeletons/Skeleton1..3` | 64×64 cells. Sword skeletons: plain (1), blue-plumed armoured (2), red-gold captain (3) | Idle 4 · Walk 6 · Run 8 · Attack 9 · Hurt 4 · Death 6 | `Shadow.png` | Graveyard / Sewers undead | **in game**: `skeleton` = Skeleton1 ×1.15; Skeleton2/3 free for elite and captain kinds |
 | `goblins/Goblin1..3` | 64×64 cells. Green dagger goblin (1), orange armoured swordsman (2), plumed feather-dancer (3). Sheets are named without the variant prefix (`Idle0_…`, `Idle_…`, `Run_attack_…`); the rig tolerates that | Idle 4 · Walk 6 · Run 8 · Attack 5 · Walk_Attack 6 · Run_Attack 8 · Hurt 4 · Death 6 | `Shadow_single`, `Shadow_death` | The fire goblin warband (ART_TODO #2) | **in game**: `fire_goblin_soldier` = Goblin2, `fire_goblin_mage` = Goblin1, `fire_goblin_shaman` = Goblin3, all with a warm tint |
+| `mountain_monsters/{Bear,Bird,Dworf,Orc,Snake,Yeti}` | **Frame-per-file side-view** packs (not 4-dir sheets): one 128×128 PNG per frame (Orc and Snake 256×256), named `Idle1..`, `Walk1..`, `Attack1..`, `Hurt1..`, `Death1..`; the Bird uses `Flight` instead of Idle/Walk and has a second `Stone_*` set carrying a rock; the Dworf has a stray `tack1..3` (Attack) set | Bear Idle 3 · Walk 5 · Attack 5 · Hurt 2 · Death 4; Bird Flight 6 · Attack 3 · Hurt 3 · Death 4; Orc / Yeti Idle 3 · Walk 6 · Attack 4–5 · Hurt 2 · Death 5–6; Snake 4 each; Dworf Idle 3 · Walk 6 · Attack 2(+3) · Hurt 2 · Death 5 | none (blob shadow) | Mountain / winter / sewer beasts | **in game** via the rig's `fr` frame mode (faces by horizontal flip): `mini_bear` = Bear ×0.45, `large_bear` = Bear ×0.65, `giant_hawk` / `roc` / `ash_harpy` / `screecher` = Bird (tinted, ×0.5–1.0), `armored_troll` = Orc ×0.55, `ice_troll` = Yeti ×1.05, `sewer_croc` = Snake ×0.6. The Dworf is unused (no dwarf in the bestiary) |
 
 ## Craftpix object / icon packs
 
@@ -78,6 +79,7 @@ Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 
 | `knight_armor_icons/` | 100 single 32×32 PNGs | Gauntlets, helms, chest plates, belts, capes, leg armour, boots — 20 of each, plain to gilded | Equipment icons per item tier; **in game**: `slot_belt` (icon_25_2_01) fills the belt slot silhouette |
 | `weapon_icons/` | 100 single 32×32 PNGs | Swords, bows, arrows, hammers, maces, shields, spears, staves, axes, scythes — plain to elemental | Weapon icons per item tier; **in game**: `slot_quiver` (icon_47, an arrow) fills the quiver slot silhouette |
+| `skill_icons_rpg/`, `skill_icons_game/`, `skill_icons_pack/` | 3 × 100 single 32×32 PNGs (`skill N.png` / `skill icon N.png`) | Painted spell / buff / debuff / passive icons: fire, ice, lightning, shields, potions, curses, beasts, blades, arrows, auras | Status-effect badges, skill-tree passives, card art | **in game**: exported at 48px as `assets/textures/craftpix/icons/{rpg,game,pack}_N.png` (`build_skill_icons`) and mapped in `scripts/ui/skill_icon_art.gd` — `StatusIcons` prefers a pack icon over its procedural glyph, skill-tree circles and the HUD passive tray show the passive's icon, and every card's art window shows its icon (explicit pick per card id, themed pool by type/school otherwise). Picks are provisional pending the art pass |
 
 ## Craftpix top-down tilesets (`assets/sprites/craftpix/tileset_*/`)
 
@@ -149,6 +151,7 @@ billboard.
 | 2 | demons, ghost, gnolls, zombie, lizardmen, slime, golem, tileset_cave, tileset_glowing_cave, tileset_cursed_land, tileset_undead_land, tileset_forest, tileset_grassland, armor_weapons_icons |
 | 3 | skeletons, goblins, tileset_desert, knight_armor_icons, weapon_icons |
 | 4 | tileset_winter |
+| 5 | mountain_monsters, skill_icons_rpg, skill_icons_game, skill_icons_pack |
 
 ## Not yet staged
 

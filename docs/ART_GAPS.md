@@ -39,7 +39,9 @@ shopping brief. Anything not listed here is now pack art.
 |---|---|---|---|
 | Player characters (Brad, Cory, Stephen, Jeremy, Ryan) | everywhere | Mana Seed base + Seliel NPC sheets (4-dir, fine under the fixed camera) | none unless you want the whole cast in the Craftpix style; the swordsman pack covers a human fighter with attack frames |
 | Town NPCs (Olorin, Sellsword, vendors) | Town | Seliel NPC sheets | as above |
-| Enemies without a pack: wolf, coyote, bears, beaver, wererabbit, treant, consumed, sewer croc, crawlers, swarm, hawk/roc, screecher, djinn, trolls, minotaur, hydra, manticore, wyvern, bone dragon, cerberus, werewolf, sabertooth, harpy, magma spider, mages, vampire, succubus, cherub, archangel | battle | MonsterKit battlers / generated / NPC-sheet recolours | animal packs (wolf, bear, boar), spider, dragon/wyvern, troll/ogre, humanoid casters, angels — 4-dir animated to match the Craftpix rigs (skeletons and goblins are done) |
+| Enemies without a pack: wolf, coyote, beaver, wererabbit, treant, consumed, crawlers, swarm, djinn, minotaur, hydra, manticore, wyvern, bone dragon, cerberus, werewolf, sabertooth, magma spider, mages, vampire, succubus, cherub, archangel | battle | MonsterKit battlers / generated / NPC-sheet recolours | animal packs (wolf, boar), spider, dragon/wyvern, humanoid casters, angels — 4-dir animated to match the Craftpix rigs (skeletons and goblins are done; the mountain-monster pack now covers bears, hawk/roc/harpy/screecher, both trolls and the sewer croc, side-view only) |
+| Mountain-monster stand-ins: trolls are an orc and a yeti, the sewer croc is a serpent, all four birds share one crow | battle | mountain_monsters pack, tinted and scaled | a proper troll pair, a crocodile, a second bird (hawk vs. harpy) — side-view frame packs like this one drop straight in |
+| Dwarf (`mountain_monsters/Dworf`) | — | unused | nothing to fill; spare if a dwarf NPC or enemy is ever added |
 | Rat King crown | Sewers boss | plague-rat variant scaled ×1.7 | a crown overlay or a bespoke king rat |
 | Boss silhouettes: Corrupted Archangel, Granite Colossus (now rock golem), Rat King | bosses | see above | bespoke boss sheets |
 
@@ -50,9 +52,10 @@ shopping brief. Anything not listed here is now pack art.
 | Quiver slot icon | inventory | an arrow from the weapon pack stands in | a proper quiver icon (the belt is covered by the knight armour pack) |
 | Any-weapon composite (empty main/off hand) | inventory | drawn sword/bow/shield/book composite | an "any weapon" glyph, or leave as is |
 | Mythic item art (40 icons) | inventory, chests | hand-made 32×32 | keep — bespoke by design; the knight armour (100) and weapon (100) icon packs now cover per-item icons for commons/rares/legendaries, tiered plain → gilded → elemental, if you want that wired |
-| Gauntlet skill icons (17) | gauntlet UI | hand-made | keep, or a skill-icon pack |
+| Gauntlet skill icons (17) | gauntlet UI | hand-made | keep, or pick from the three skill-icon packs (now wired for statuses, passives and cards via `skill_icon_art.gd`) |
+| Status, passive and card icon picks | buff/debuff bars, skill tree, HUD tray, card art window | skill-icon packs, provisional mapping in `scripts/ui/skill_icon_art.gd` (unmapped ids draw from a themed pool) | your final pass over the tables in that file; more packs if a status has no fitting icon |
 | Card cost badges (mana drop, sand timer) | cards | hand-made | a UI icon pack (mana, time, gold) |
 | Procedural UI glyphs (`ui_glyphs.gd`: hand, stop, play, cage, feather, bolt, brain, eye, card…) | HUD buttons | drawn at runtime | a pixel UI/HUD icon pack |
-| Card frames and card artwork | hand | themed panels, `~ artwork ~` placeholder | card frame set + per-card art (big item) |
+| Card frames | hand | themed panels; the art window now shows a skill-pack icon per card | a card frame set (borders, cost seals) if wanted |
 | Bitmap font, 9-slice panels | all UI | engine font, flat panels | pixel UI kit (deferred milestone, style guide §8) |
 | Portraits | character panel | in-game sprite | portrait set if wanted |

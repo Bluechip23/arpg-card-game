@@ -2,7 +2,7 @@ class_name PassiveBoxUI
 extends Control
 
 ## Compact square HUD box for one active skill-tree passive: the passive's
-## first letter (icon placeholder) inside a gold-trimmed box. At this size
+## Craftpix skill icon (first letter when no art resolves) inside a gold-trimmed box. At this size
 ## the level and recharge counter live in the tooltip; passives with a
 ## cooldown fade out while recharging (like the gauntlet skill circles) and
 ## solidify when ready. Cooldown-less passives stay solid.
@@ -20,6 +20,7 @@ var stats: PlayerStats = null
 var tempo_manager: TempoManager = null
 
 var _wrapped_desc: String = ""
+var _icon: Texture2D = null  # Craftpix skill icon (letter fallback when null)
 var _on_cooldown := false
 var _elapsed := 0
 var _total := 0
@@ -33,6 +34,7 @@ func setup(id: String, p_name: String, description: String, p_stats: PlayerStats
 	_wrapped_desc = UiThemeScript.wrap_text(description) if description != "" else ""
 	stats = p_stats
 	tempo_manager = p_tempo
+	_icon = SkillIconArt.passive(passive_id)
 	update_display()
 
 func update_display() -> void:
@@ -61,6 +63,10 @@ func _draw() -> void:
 	# Box body + gold trim (squares read as passives; circles are actives).
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.16, 0.14, 0.2, 0.95), true)
 	draw_rect(Rect2(Vector2(0.5, 0.5), size - Vector2(1, 1)), TRIM, false, 1.0)
+	if _icon != null:
+		# Pack icon fills the box inside the trim.
+		draw_texture_rect(_icon, Rect2(Vector2(1.5, 1.5), size - Vector2(3, 3)), false)
+		return
 	var font := get_theme_default_font()
 
 	# First letter stands in for the icon. Level and recharge progress moved

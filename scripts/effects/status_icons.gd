@@ -25,6 +25,12 @@ static func get_icon(effect_name: String) -> Texture2D:
 		"weaken": key = "weakened"
 	if _cache.has(key):
 		return _cache[key]
+	# Craftpix skill-icon packs take precedence; the procedural glyph below
+	# only draws for effects with no pack pick yet.
+	var pack_tex := SkillIconArt.status(key)
+	if pack_tex != null:
+		_cache[key] = pack_tex
+		return pack_tex
 	var img := Image.create(SZ, SZ, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	if not _draw(img, key):
