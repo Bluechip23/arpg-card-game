@@ -2538,8 +2538,8 @@ static func create_slash() -> Card:
 	card.description = "10 damage"
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
-	card.mana_cost = 10
-	card.tempo_cost = 4  # Standard attack
+	card.mana_cost = 20
+	card.tempo_cost = 3  # Standard attack
 	card.damage = 10
 	card.base_damage = 10
 	card.block = 0
@@ -2556,7 +2556,7 @@ static func create_block() -> Card:
 	card.description = "5 armor"
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
-	card.mana_cost = 10
+	card.mana_cost = 20
 	card.tempo_cost = 2  # Standard defense
 	card.damage = 0
 	card.base_damage = 0
