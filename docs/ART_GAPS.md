@@ -58,4 +58,4 @@ shopping brief. Anything not listed here is now pack art.
 | Procedural UI glyphs (`ui_glyphs.gd`: hand, stop, play, cage, feather, bolt, brain, eye, card…) | HUD buttons | drawn at runtime | a pixel UI/HUD icon pack |
 | Card frames | hand | themed panels; the art window now shows a skill-pack icon per card | a card frame set (borders, cost seals) if wanted |
 | Bitmap font, 9-slice panels | all UI | engine font, flat panels | pixel UI kit (deferred milestone, style guide §8) |
-| Portraits | status frame, character panel | the character's south idle frame (Jeremy and Ryan, who are paper-doll builds, get the bar pack's stock face) | a portrait set, or one face per character in the bar pack's style |
+| Portraits | character panel | in-game sprite | portrait set if wanted |

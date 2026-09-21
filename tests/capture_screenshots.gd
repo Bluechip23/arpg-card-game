@@ -39,8 +39,6 @@ func _initialize() -> void:
 	await process_frame
 
 	# Clean shots: hide the dev/test panel if visible
-	if main.test_ui:
-		main.test_ui.visible = false
 
 	# Stage a battle
 	main._on_spawn_wave()

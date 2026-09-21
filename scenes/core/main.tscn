@@ -8,8 +8,6 @@
 [ext_resource type="PackedScene" uid="uid://cpkn0agpgdjlg" path="res://scenes/battle/move_confirm_dialog.tscn" id="5_272bh"]
 [ext_resource type="PackedScene" uid="uid://dqvt7fntcoc3k" path="res://scenes/character/character_panel.tscn" id="8_5vw27"]
 [ext_resource type="Script" uid="uid://g2i38ksx61on" path="res://scripts/battle/enemy_spawner.gd" id="8_kek77"]
-[ext_resource type="Script" uid="uid://b3k0locfmu1j4" path="res://scripts/ui/test_ui.gd" id="9_4c57u"]
-[ext_resource type="PackedScene" uid="uid://di2l17wxml8wg" path="res://scenes/ui/test_ui.tscn" id="9_kek77"]
 [ext_resource type="Script" uid="uid://ci5m6b33aj6gj" path="res://scripts/battle/tempo_manager.gd" id="11_efxa6"]
 [ext_resource type="Script" uid="uid://6ty571lmt7o4" path="res://scripts/effects/debuff_bar_ui.gd" id="11_ycdy4"]
 [ext_resource type="Script" uid="uid://gux66qga1qrl" path="res://scripts/effects/overflow_manager.gd" id="12_w48qg"]
@@ -89,9 +87,6 @@ script = ExtResource("8_kek77")
 [node name="PointToProveDialog" parent="." unique_id=673783304 instance=ExtResource("28_ptp")]
 
 [node name="CharacterPanel" parent="." unique_id=8242285 instance=ExtResource("8_5vw27")]
-
-[node name="TestUi" parent="." unique_id=1353033193 instance=ExtResource("9_kek77")]
-script = ExtResource("9_4c57u")
 
 [node name="OverflowManager" type="Node" parent="." unique_id=1610084088]
 script = ExtResource("12_w48qg")

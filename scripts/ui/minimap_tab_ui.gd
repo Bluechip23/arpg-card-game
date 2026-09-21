@@ -22,11 +22,10 @@ func _setup_minimap() -> void:
 
 	# Position in upper-left corner
 	main._minimap_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	# Under the status frame and its buff / debuff rows.
 	main._minimap_panel.offset_left = 8.0
-	main._minimap_panel.offset_top = 184.0
+	main._minimap_panel.offset_top = 8.0
 	main._minimap_panel.offset_right = 8.0 + main.MINIMAP_SIZE + 8
-	main._minimap_panel.offset_bottom = 184.0 + main.MINIMAP_SIZE + 8
+	main._minimap_panel.offset_bottom = 8.0 + main.MINIMAP_SIZE + 8
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.05, 0.08, 0.85)
