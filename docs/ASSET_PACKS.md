@@ -80,6 +80,7 @@ Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 | `knight_armor_icons/` | 100 single 32×32 PNGs | Gauntlets, helms, chest plates, belts, capes, leg armour, boots — 20 of each, plain to gilded | Equipment icons per item tier; **in game**: `slot_belt` (icon_25_2_01) fills the belt slot silhouette |
 | `weapon_icons/` | 100 single 32×32 PNGs | Swords, bows, arrows, hammers, maces, shields, spears, staves, axes, scythes — plain to elemental | Weapon icons per item tier; **in game**: `slot_quiver` (icon_47, an arrow) fills the quiver slot silhouette |
 | `skill_icons_rpg/`, `skill_icons_game/`, `skill_icons_pack/` | 3 × 100 single 32×32 PNGs (`skill N.png` / `skill icon N.png`) | Painted spell / buff / debuff / passive icons: fire, ice, lightning, shields, potions, curses, beasts, blades, arrows, auras | Status-effect badges, skill-tree passives, card art | **in game**: exported at 48px as `assets/textures/craftpix/icons/{rpg,game,pack}_N.png` (`build_skill_icons`) and mapped in `scripts/ui/skill_icon_art.gd` — `StatusIcons` prefers a pack icon over its procedural glyph, skill-tree circles and the HUD passive tray show the passive's icon, and every card's art window shows its icon (explicit pick per card id, themed pool by type/school otherwise). Picks are provisional pending the art pass |
+| `hud_bars/` | `Bars.png` 368×976 (a dozen HP/mana/stamina frame sets with matching fills, hearts/diamonds pips, vertical gauges), `Icons.png` 416×96 (portrait faces in several frames), `Text.png` (HP/MP/SP lettering) | Status-bar frames for the player HUD | **in game**: the black-dragon frame (row at y 547) is the player's status frame — cut by hand into `assets/textures/craftpix/ui/hud_frame.png` (loose fills erased), `hud_fill_hp.png` (wavy red), `hud_fill_mana.png` (straight fill recoloured blue), `hud_fill_xp.png` (thin fill recoloured yellow), `hud_star.png`, `hud_coin.png`; drawn at 2× by `scripts/ui/player_hud_ui.gd` with the character's NPC-sheet face in the circle (the pack's own face for characters without a sheet). The other frame sets are spare |
 
 ## Craftpix top-down tilesets (`assets/sprites/craftpix/tileset_*/`)
 
@@ -152,6 +153,7 @@ billboard.
 | 3 | skeletons, goblins, tileset_desert, knight_armor_icons, weapon_icons |
 | 4 | tileset_winter |
 | 5 | mountain_monsters, skill_icons_rpg, skill_icons_game, skill_icons_pack |
+| 6 | hud_bars (HP / mana / stamina / scroll bar pack) |
 
 ### Structures built from the packs
 
