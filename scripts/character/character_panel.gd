@@ -1232,11 +1232,38 @@ func _make_section_header(text: String) -> Label:
 func _on_equipped_item_clicked(item: ItemData, item_type: ItemData.ItemType, slot_index: int) -> void:
 	_show_detail_panel(item, item_type, slot_index, -1)
 
+func _main_node() -> Node:
+	## The live Main scene. Not "/root/Main": after entering an interior the
+	## old Main is still in the tree (queued for deletion) under that name and
+	## the new one is auto-renamed, so the path found a dead node and the
+	## Return Scroll silently did nothing.
+	var n: Node = get_parent()
+	while n:
+		if n.has_method("spawn_town_portal"):
+			return n
+		n = n.get_parent()
+	var best: Node = null
+	for c in get_tree().root.get_children():
+		if c.has_method("spawn_town_portal") and not c.is_queued_for_deletion():
+			best = c
+	return best
+
+func _on_stored_item_hovered(item: ItemData, storage_index: int) -> void:
+	## Hover shows the item's description; clicking still works too.
+	if _detail_item == item and _detail_panel and is_instance_valid(_detail_panel):
+		return
+	_show_detail_panel(item, item.item_type, -1, storage_index)
+
+func _on_equipped_item_hovered(item: ItemData, item_type: ItemData.ItemType, slot_index: int) -> void:
+	if _detail_item == item and _detail_panel and is_instance_valid(_detail_panel):
+		return
+	_show_detail_panel(item, item_type, slot_index, -1)
+
 func _on_stored_item_right_clicked(item: ItemData, _storage_index: int) -> void:
 	## Right-click uses utility items. The Return Scroll opens a town portal
 	## beside the player (interact with [Shift] to travel home).
 	if item.special_id == "return_scroll":
-		var main_node = get_node_or_null("/root/Main")
+		var main_node = _main_node()
 		if main_node and main_node.has_method("spawn_town_portal"):
 			main_node.spawn_town_portal()
 			toggle_panel()  # close the inventory so the portal is visible
@@ -1366,10 +1393,22 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 
 	# Action buttons
 	if storage_index >= 0:
-		# Stored item - show Equip button
-		var equip_btn = _make_action_button("Equip", Color(0.15, 0.35, 0.2), Color(0.3, 0.7, 0.4))
-		equip_btn.pressed.connect(_on_equip_stored_item)
-		vbox.add_child(equip_btn)
+		if item.special_id == "return_scroll":
+			# A utility item: no Equip. Right-click uses it.
+			var use_hint = Label.new()
+			use_hint.text = "Right-click the scroll to open a portal home."
+			use_hint.add_theme_font_size_override("font_size", 12)
+			use_hint.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
+			use_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			vbox.add_child(use_hint)
+			var use_btn = _make_action_button("Open Portal Home", Color(0.25, 0.15, 0.35), Color(0.7, 0.45, 0.9))
+			use_btn.pressed.connect(func(): _on_stored_item_right_clicked(item, storage_index))
+			vbox.add_child(use_btn)
+		elif item.special_id == "":
+			# Stored item - show Equip button
+			var equip_btn = _make_action_button("Equip", Color(0.15, 0.35, 0.2), Color(0.3, 0.7, 0.4))
+			equip_btn.pressed.connect(_on_equip_stored_item)
+			vbox.add_child(equip_btn)
 		# Destroy (drop) — permanent, so the button itself asks twice.
 		if item.special_id == "":
 			var destroy_btn = _make_action_button("Destroy", Color(0.3, 0.1, 0.1), Color(0.85, 0.3, 0.3))
@@ -1528,7 +1567,7 @@ func _on_destroy_stored_item(btn: Button) -> void:
 		return
 	var doomed = _detail_item.item_name if _detail_item else "item"
 	if inventory.destroy_stored_item(_detail_storage_index):
-		var main_node = get_node_or_null("/root/Main")
+		var main_node = _main_node()
 		if main_node and main_node.has_method("add_battle_log"):
 			main_node.add_battle_log("Destroyed %s." % doomed, Color(1.0, 0.5, 0.4))
 	_close_detail_panel()
@@ -2398,7 +2437,7 @@ func _on_card_destroy_pressed(btn: Button) -> void:
 	if _pending_card and _pending_card_index >= 0 and inventory:
 		var card_name = _pending_card.card_name
 		if inventory.remove_stored_card(_pending_card_index) != null:
-			var main_node = get_node_or_null("/root/Main")
+			var main_node = _main_node()
 			if main_node and main_node.has_method("add_battle_log"):
 				main_node.add_battle_log("Destroyed card: %s" % card_name, Color(1.0, 0.5, 0.4))
 	_pending_card = null
@@ -2409,7 +2448,7 @@ func _on_card_destroy_pressed(btn: Button) -> void:
 func _on_card_confirm_yes() -> void:
 	if _pending_card and _pending_card_index >= 0 and inventory and deck_manager:
 		var card_name = _pending_card.card_name
-		var main_node = get_node_or_null("/root/Main")
+		var main_node = _main_node()
 		if inventory.add_card_to_deck(_pending_card_index, deck_manager):
 			if main_node and main_node.has_method("add_battle_log"):
 				main_node.add_battle_log("Added %s to deck!" % card_name, Color(0.4, 1.0, 0.5))

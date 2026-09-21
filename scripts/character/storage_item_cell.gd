@@ -14,6 +14,13 @@ func setup(char_panel, i: int, itm: ItemData) -> void:
 	index = i
 	item = itm
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	if not mouse_entered.is_connected(_on_hover):
+		mouse_entered.connect(_on_hover)
+
+func _on_hover() -> void:
+	## Hovering a stored item opens its description (no click needed).
+	if item and _panel:
+		_panel._on_stored_item_hovered(item, index)
 
 func _get_drag_data(_at_position: Vector2) -> Variant:
 	if not item:

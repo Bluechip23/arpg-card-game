@@ -58,9 +58,12 @@ func _track(l: Label3D) -> void:
 ## On-screen pixel height for a Label3D. Labels sized through WorldText
 ## (`fixed_size`) were supersampled 2x; anything else is converted at the
 ## measured screen factor.
-static func _px(l: Label3D) -> int:
+static func _px(l: Label3D, ppu: float) -> int:
 	if l.fixed_size:
 		return maxi(8, roundi(l.font_size / WorldText.SUPERSAMPLE))
+	if l.has_meta("world_scaled"):
+		# Sized in world units: keeps its ratio to the sprites at every zoom.
+		return maxi(6, roundi(l.font_size * l.pixel_size * ppu))
 	return clampi(roundi(l.font_size * l.pixel_size * WorldText.PX_FACTOR), 9, 28)
 
 
@@ -75,6 +78,7 @@ func _process(_delta: float) -> void:
 	if not _project.is_valid():
 		return
 	var dead: Array = []
+	var ppu := _pixels_per_unit()
 	for l in _entries.keys():
 		var ui: Label = _entries[l]
 		if not is_instance_valid(l) or not l.is_inside_tree():
@@ -86,7 +90,7 @@ func _process(_delta: float) -> void:
 		ui.visible = shown
 		if not shown:
 			continue
-		var px := _px(l)
+		var px := _px(l, ppu)
 		ui.text = l.text
 		ui.add_theme_font_size_override("font_size", px)
 		ui.add_theme_color_override("font_color", l.modulate)
@@ -100,11 +104,13 @@ func _process(_delta: float) -> void:
 		# head", so it becomes a screen-up shift at the current texel scale.
 		var gp: Vector3 = l.global_position
 		var p: Vector2 = _project.call(Vector3(gp.x, 0.0, gp.z))
-		p.y -= gp.y * CameraView.HEIGHT_ON_SCREEN * _pixels_per_unit()
+		p.y -= gp.y * CameraView.HEIGHT_ON_SCREEN * ppu
 		var sz: Vector2 = ui.get_minimum_size()
 		ui.size = sz
 		# Label3D.offset is in its own texels (y up); mirror it as screen pixels.
 		var off: Vector2 = Vector2(l.offset.x, -l.offset.y) * l.pixel_size * WorldText.PX_FACTOR
+		if l.has_meta("world_scaled"):
+			off = Vector2(l.offset.x, -l.offset.y) * l.pixel_size * ppu
 		if l.fixed_size:
 			off = Vector2(l.offset.x, -l.offset.y) / WorldText.SUPERSAMPLE
 		ui.position = (p - sz * 0.5 + off).round()

@@ -1727,11 +1727,9 @@ func _setup_tempo_bar() -> void:
 	_action_label.position = HOVER_ACTION
 	_action_label.visible = false  # the action word only shows while hovered (the bar stays)
 	_action_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_action_label.font_size = 26  # 2x supersampled -> 13px on screen
 	_action_label.outline_size = 6
 	_action_label.outline_modulate = Color(0, 0, 0, 1.0)
-	_action_label.pixel_size = 0.00107
-	_action_label.fixed_size = true  # constant screen size — readable at any zoom
+	_world_text(_action_label, 0.26)
 	_action_label.no_depth_test = true
 	_action_label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR  # no mip smear
 	_action_label.render_priority = 20
@@ -1739,14 +1737,25 @@ func _setup_tempo_bar() -> void:
 	_action_label.text = ""
 	add_child(_action_label)
 
-	# Name on top of the stack; the exact numbers sit on their bars.
+	# Name on top of the stack; the exact numbers sit on their bars. All of
+	# it is sized in world units so it zooms with the sprite.
 	if name_label:
 		name_label.position = HOVER_NAME
+		_world_text(name_label, 0.30)
 	if health_label:
 		health_label.position = HOVER_HEALTH + Vector3(0, 0.03, 0)
+		_world_text(health_label, 0.22)
 
 const _ARMOR_BAR_PIXEL_WIDTH: int = 200
 const _ARMOR_BAR_PIXEL_HEIGHT: int = 24
+
+func _world_text(l: Label3D, height_units: float) -> void:
+	## Size a head-up label in world units (tiles) so it keeps its ratio to
+	## the sprite at every zoom; WorldLabelOverlay mirrors it at that scale.
+	l.fixed_size = false
+	l.font_size = 20
+	l.pixel_size = height_units / 20.0
+	l.set_meta("world_scaled", true)
 
 func _head_offset() -> float:
 	## Screen distance (tiles) from the feet to just above the drawn head:
@@ -1757,36 +1766,38 @@ func _head_offset() -> float:
 	return h + 0.12
 
 func _layout_head_up() -> void:
-	## Stack the head-up elements upward from the top of the sprite: health
-	## bar, armor bar (only for armored kinds), tempo bar, then the hover-only
-	## action word and name, then the status badges. Billboards sit at the
-	## sprite lift; an offset north of the feet reads as "above" on screen.
+	## Stack the head-up elements upward from the top of the sprite: tempo
+	## bar nearest the head, armor bar above it (armored kinds only), health
+	## bar on top; then the hover-only action word (only while there is one)
+	## and name, then the status badges. Billboards sit at the sprite lift;
+	## an offset north of the feet reads as "above" on screen. Gaps are in
+	## tiles, so the whole stack zooms with the sprite.
 	const Y := 0.5
 	var z := -_head_offset()
+	if _tempo_bar_bg:
+		_tempo_bar_bg.position = Vector3(0, Y, z)
+	if _tempo_bar_fg:
+		_tempo_bar_fg.position = Vector3(_tempo_bar_fg.position.x, Y + 0.01, z)
+	if max_armor > 0:
+		z -= 0.13
+		if _armor_bar_sprite:
+			_armor_bar_sprite.position = Vector3(0, Y, z)
+		if _armor_label:
+			_armor_label.position = Vector3(0, Y + 0.03, z)
+	z -= 0.13
 	if _health_bar_bg:
 		_health_bar_bg.position = Vector3(0, Y, z)
 	if _health_bar_fg:
 		_health_bar_fg.position = Vector3(_health_bar_fg.position.x, Y + 0.01, z)
 	if health_label:
 		health_label.position = Vector3(0, Y + 0.03, z)
-	if max_armor > 0:
-		z -= 0.2
-		if _armor_bar_sprite:
-			_armor_bar_sprite.position = Vector3(0, Y, z)
-		if _armor_label:
-			_armor_label.position = Vector3(0, Y + 0.03, z)
-	z -= 0.2
-	if _tempo_bar_bg:
-		_tempo_bar_bg.position = Vector3(0, Y, z)
-	if _tempo_bar_fg:
-		_tempo_bar_fg.position = Vector3(_tempo_bar_fg.position.x, Y + 0.01, z)
-	z -= 0.3
-	if _action_label:
+	if _action_label and _action_label.text != "":
+		z -= 0.22
 		_action_label.position = Vector3(0, Y, z)
-	z -= 0.3
+	z -= 0.24
 	if name_label:
 		name_label.position = Vector3(0, Y, z)
-	z -= 0.4
+	z -= 0.28
 	_status_z = z
 	if _status_container:
 		_status_container.position = Vector3(0, Y, z)
@@ -1799,7 +1810,7 @@ func _setup_health_bar() -> void:
 	bg_quad.size = Vector2(_health_bar_width, 0.09)
 	_health_bar_bg.mesh = bg_quad
 	var bg_mat = StandardMaterial3D.new()
-	bg_mat.albedo_color = Color(0.22, 0.06, 0.06, 0.85)
+	bg_mat.albedo_color = Color(0.16, 0.05, 0.05, 0.9)
 	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	bg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -1813,7 +1824,7 @@ func _setup_health_bar() -> void:
 	fg_quad.size = Vector2(_health_bar_width, 0.09)
 	_health_bar_fg.mesh = fg_quad
 	var fg_mat = StandardMaterial3D.new()
-	fg_mat.albedo_color = Color(0.35, 0.85, 0.3, 0.95)
+	fg_mat.albedo_color = Color(0.88, 0.18, 0.16, 0.95)  # red
 	fg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	fg_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -1833,11 +1844,6 @@ func _update_health_bar() -> void:
 		fg_mesh.size.x = maxf(0.001, w)
 	_health_bar_fg.visible = w > 0.001
 	_health_bar_fg.position.x = -(_health_bar_width - w) / 2.0  # fills from the left
-	var fg_mat := _health_bar_fg.material_override as StandardMaterial3D
-	if fg_mat:
-		# Green while healthy, amber below half, red when nearly dead.
-		fg_mat.albedo_color = Color(0.35, 0.85, 0.3, 0.95) if ratio > 0.5 \
-				else (Color(0.9, 0.7, 0.2, 0.95) if ratio > 0.25 else Color(0.9, 0.25, 0.2, 0.95))
 
 func _setup_armor_bar() -> void:
 	if max_armor <= 0:
@@ -1860,11 +1866,9 @@ func _setup_armor_bar() -> void:
 	_armor_label = Label3D.new()
 	_armor_label.position = HOVER_ARMOR + Vector3(0, 0.03, 0)
 	_armor_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_armor_label.font_size = 18
 	_armor_label.outline_size = 4
 	_armor_label.outline_modulate = Color(0, 0, 0, 1)
-	_armor_label.pixel_size = 0.00107
-	_armor_label.fixed_size = true
+	_world_text(_armor_label, 0.22)
 	_armor_label.modulate = Color(0.95, 0.95, 0.95)
 	_armor_label.no_depth_test = true
 	_armor_label.render_priority = 20
@@ -4256,6 +4260,8 @@ func _update_tempo_bar() -> void:
 		else:
 			_action_label.text = str(shown["label"])
 		_action_label.modulate = kind_color
+	# The action word appears/disappears: restack so the name hugs the bars.
+	_layout_head_up()
 
 #endregion
 #region PHYSICS

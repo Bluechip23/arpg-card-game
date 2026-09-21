@@ -339,9 +339,7 @@ var _brain_draw_cost_label: Label = null  # small price badge on the draw button
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
 
 # Stat bar UI references
-var _hp_bar: ProgressBar = null
-var _mana_bar: ProgressBar = null
-var _xp_bar: ProgressBar = null
+var _player_hud: PlayerHudUI = null
 var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
 var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
@@ -1577,147 +1575,30 @@ func _reset_tick_bar() -> void:
 #endregion
 #region STAT BARS & HUD GAUGES
 func _setup_stat_bars() -> void:
-	## Create stacked HP / Mana / Armor / XP progress bars on the left side of the screen.
+	## The player's status frame (PlayerHudUI: the bar pack's dragon frame —
+	## face, level badge, health / temp health, mana, experience, then armor,
+	## gold and the mana-regen countdown). It polls the stats every frame.
 	var ui = $UI as CanvasLayer
-
-	# Hide old label nodes
-
-	var stat_container = VBoxContainer.new()
-	stat_container.name = "StatBarsContainer"
-	ui.add_child(stat_container)
-	stat_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	# Tucked in right beside the minimap (which ends at x = 116).
-	stat_container.offset_left = 122.0
-	stat_container.offset_top = 8.0
-	stat_container.offset_right = 332.0
-	stat_container.offset_bottom = 130.0
-	stat_container.add_theme_constant_override("separation", 4)
-
-	# --- HP Bar (red) — armour shown as a shield badge to its right ---
-	var hp_pair = _create_stat_bar_with_label(stat_container, "HPBar", Color(0.7, 0.15, 0.15), Color(0.3, 0.08, 0.08))
-	_hp_bar = hp_pair[0]
-	_hp_bar_label = hp_pair[1]
-	_setup_armor_shield()
-
-	# --- Mana Bar (blue) ---
-	var mana_pair = _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
-	_mana_bar = mana_pair[0]
-	_mana_bar_label = mana_pair[1]
+	_player_hud = PlayerHudUI.new()
+	_player_hud.name = "PlayerHud"
+	ui.add_child(_player_hud)
+	_player_hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_player_hud.position = Vector2(8, 8)
+	_player_hud.stats_provider = func():
+		return player.get_stats() if player and is_instance_valid(player) else null
+	_player_hud.set_portrait(SpriteFigure.ROSTER.get(
+		starting_character.character_name if starting_character else "Brad", {}).get("npc", ""))
+	# Main keeps talking to these labels; the HUD owns and refreshes them.
+	_hp_bar_label = _player_hud.hp_label
+	_mana_bar_label = _player_hud.mana_label
+	_level_badge_label = _player_hud.level_label
+	_armor_shield_label = _player_hud.armor_label
+	_mana_regen_drop_label = _player_hud.regen_label
 	# Hovering the mana bar lists how much mana each maintained card reserves.
 	_mana_reserve_tip = ManaReserveTooltip.new()
 	_mana_reserve_tip.name = "ManaReserveTooltip"
-	_mana_bar.get_parent().add_child(_mana_reserve_tip)
-	_setup_mana_regen_drop()
-
-	# --- XP Bar (gold) — right under mana, a quarter of the normal height ---
-	var xp_pair = _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05), 6)
-	_xp_bar = xp_pair[0]
-	# The bar is too thin for an overlaid number; the level/XP text lives in the
-	# character panel instead.
-	if xp_pair[1]:
-		xp_pair[1].visible = false
-
-	# Current level, just right of the XP bar (below the mana drop).
-	_level_badge_label = Label.new()
-	_level_badge_label.name = "LevelBadge"
-	_level_badge_label.text = "Lvl: 1"
-	_level_badge_label.tooltip_text = "Character level"
-	_level_badge_label.mouse_filter = Control.MOUSE_FILTER_STOP
-	_level_badge_label.add_theme_font_size_override("font_size", 13)
-	_level_badge_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.2))
-	_level_badge_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	_level_badge_label.add_theme_constant_override("outline_size", 4)
-	_level_badge_label.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	_level_badge_label.offset_left = 6.0
-	_level_badge_label.offset_top = -9.0
-	_level_badge_label.offset_bottom = 9.0
-	_xp_bar.get_parent().add_child(_level_badge_label)
-
-	# Buffs and debuffs sit directly under the (thin) XP bar rather than off to
-	# the right of the health bar.
+	_player_hud.mana_area.add_child(_mana_reserve_tip)
 	_reposition_status_bars()
-	# (Armour no longer has its own bar — the shield badge shows it.)
-
-func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_color: Color, bg_color: Color, height: int = 22) -> Array:
-	## Creates a progress bar with an overlaid centered label. Returns [bar, label].
-	var wrapper = Control.new()
-	wrapper.name = bar_name + "Wrapper"
-	wrapper.custom_minimum_size = Vector2(200, height)
-	parent.add_child(wrapper)
-
-	var bar = ProgressBar.new()
-	bar.name = bar_name
-	bar.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bar.max_value = 100
-	bar.value = 0
-	bar.show_percentage = false
-	# Style the fill
-	var fill_style = StyleBoxFlat.new()
-	fill_style.bg_color = fill_color
-	fill_style.corner_radius_top_left = 3
-	fill_style.corner_radius_top_right = 3
-	fill_style.corner_radius_bottom_left = 3
-	fill_style.corner_radius_bottom_right = 3
-	bar.add_theme_stylebox_override("fill", fill_style)
-	# Style the background
-	var bg_style = StyleBoxFlat.new()
-	bg_style.bg_color = bg_color
-	bg_style.corner_radius_top_left = 3
-	bg_style.corner_radius_top_right = 3
-	bg_style.corner_radius_bottom_left = 3
-	bg_style.corner_radius_bottom_right = 3
-	bar.add_theme_stylebox_override("background", bg_style)
-	wrapper.add_child(bar)
-
-	var lbl = Label.new()
-	lbl.name = bar_name + "Label"
-	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	lbl.add_theme_font_size_override("font_size", 12)
-	lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrapper.add_child(lbl)
-
-	return [bar, lbl]
-
-func _setup_mana_regen_drop() -> void:
-	## A blue raindrop just right of the mana bar. The number in it is the tempo
-	## remaining until the next mana-regen tick.
-	if not _mana_bar:
-		return
-	var wrapper = _mana_bar.get_parent()
-	var drop = Control.new()
-	drop.name = "ManaRegenDrop"
-	drop.mouse_filter = Control.MOUSE_FILTER_STOP
-	drop.tooltip_text = "Tempo until your next mana regen"
-	drop.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	drop.offset_left = 6.0
-	drop.offset_right = 32.0
-	drop.offset_top = -14.0
-	drop.offset_bottom = 14.0
-	wrapper.add_child(drop)
-
-	var tex := TextureRect.new()
-	tex.texture = UIGlyphs.get_glyph("raindrop")
-	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
-	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	drop.add_child(tex)
-
-	_mana_regen_drop_label = Label.new()
-	_mana_regen_drop_label.add_theme_font_size_override("font_size", 12)
-	_mana_regen_drop_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	_mana_regen_drop_label.add_theme_color_override("font_outline_color", Color(0.05, 0.15, 0.35))
-	_mana_regen_drop_label.add_theme_constant_override("outline_size", 4)
-	_mana_regen_drop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_mana_regen_drop_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	# Centred over the round (lower) part of the drop.
-	_mana_regen_drop_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_mana_regen_drop_label.offset_top = 4.0
-	_mana_regen_drop_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	drop.add_child(_mana_regen_drop_label)
 
 func _update_mana_regen_indicator() -> void:
 	if not _mana_regen_drop_label or not player:
@@ -1726,61 +1607,24 @@ func _update_mana_regen_indicator() -> void:
 	if stats:
 		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
 
-func _setup_armor_shield() -> void:
-	## A shield badge just right of the HP bar showing current armour (replaces
-	## the old armour bar). Same footprint as the mana raindrop.
-	if not _hp_bar:
-		return
-	var wrapper = _hp_bar.get_parent()
-	var badge = Control.new()
-	badge.name = "ArmorShield"
-	badge.mouse_filter = Control.MOUSE_FILTER_STOP
-	badge.tooltip_text = "Current armor"
-	badge.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	badge.offset_left = 6.0
-	badge.offset_right = 32.0
-	badge.offset_top = -14.0
-	badge.offset_bottom = 14.0
-	wrapper.add_child(badge)
-
-	var tex := TextureRect.new()
-	tex.texture = UIGlyphs.get_glyph("shield")
-	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
-	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.add_child(tex)
-
-	_armor_shield_label = Label.new()
-	_armor_shield_label.add_theme_font_size_override("font_size", 12)
-	_armor_shield_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	_armor_shield_label.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.12))
-	_armor_shield_label.add_theme_constant_override("outline_size", 5)
-	_armor_shield_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_armor_shield_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_armor_shield_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_armor_shield_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.add_child(_armor_shield_label)
-
 func _reposition_status_bars() -> void:
-	## Stack the debuff and buff rows directly beneath the (thin) XP bar, close
-	## to it, instead of floating out to the right of the health bar.
-	# HP(22) + 4 + Mana(22) + 4 + XP(6) starting at y=8 -> bottom of XP at y=66.
-	var left := 122.0
-	var right := 122.0 + 360.0
+	## The debuff and buff rows sit directly under the status frame (frame 82
+	## px + badge row), spanning its width; the minimap moves below them.
+	var left := 8.0
+	var right := 8.0 + 404.0
+	var top := 8.0 + 82.0 + 26.0
 	if debuff_bar:
 		debuff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		debuff_bar.offset_left = left
-		debuff_bar.offset_top = 69.0
+		debuff_bar.offset_top = top
 		debuff_bar.offset_right = right
-		debuff_bar.offset_bottom = 99.0
+		debuff_bar.offset_bottom = top + 30.0
 	if buff_bar:
 		buff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		buff_bar.offset_left = left
-		buff_bar.offset_top = 101.0
+		buff_bar.offset_top = top + 32.0
 		buff_bar.offset_right = right
-		buff_bar.offset_bottom = 131.0
+		buff_bar.offset_bottom = top + 62.0
 
 #endregion
 #region PILE BUTTONS & DECK INFO
@@ -6254,12 +6098,7 @@ func _on_turn_ended(turn_number: int) -> void:
 	update_deck_info()
 
 func _on_player_health_changed(current: int, max_hp: int) -> void:
-	if _hp_bar:
-		_hp_bar.max_value = max_hp
-		_hp_bar.value = current
-	if _hp_bar_label:
-		var pct = int(float(current) / float(max_hp) * 100.0) if max_hp > 0 else 0
-		_hp_bar_label.text = "%d/%d (%d%%)" % [current, max_hp, pct]
+	# (The status frame polls health, temp health and the label text itself.)
 
 	# Trigger instant reaction cards when HP drops below 50%
 	var stats = player.get_stats()
@@ -6286,11 +6125,6 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 				print("[MAIN] Gift of the Phoenix triggered! Healed %d HP to %d/%d" % [heal_amount, heal_target, max_hp])
 
 func _on_player_mana_changed(current: float, max_mana: int) -> void:
-	if _mana_bar:
-		_mana_bar.max_value = max_mana
-		_mana_bar.value = int(current)
-	if _mana_bar_label:
-		_mana_bar_label.text = "%d/%d" % [int(current), max_mana]
 	_update_mana_regen_indicator()
 
 func _on_player_armor_gained(_amount: int) -> void:
@@ -6304,12 +6138,8 @@ func _on_player_armor_changed(current: int) -> void:
 
 func _update_xp_display() -> void:
 	var stats = player.get_stats()
-	if stats and _xp_bar:
-		var xp_to_next = stats.get_xp_to_next_level()
-		_xp_bar.max_value = xp_to_next
-		_xp_bar.value = stats.current_xp
 	if stats and _level_badge_label:
-		_level_badge_label.text = "Lvl: %d" % stats.current_level
+		_level_badge_label.text = str(stats.current_level)
 
 #endregion
 #region FLASH & BRAIN POINT BUTTONS
