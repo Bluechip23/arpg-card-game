@@ -4208,7 +4208,10 @@ func _place_chests() -> void:
 		if cell.x < 0:
 			continue
 		placed.append(cell)
-		_create_chest(cell)
+		# The overworld starter chest of act 1 is the player's first loot:
+		# it always holds a card and a common item so deck-building and
+		# gearing start before the first fight.
+		_create_chest(cell, kind == "start" and world_level == 1)
 
 	# Restore previously opened chests from prior visits
 	_restore_opened_chests()
@@ -4288,7 +4291,7 @@ func _chest_design(contents: Dictionary) -> String:
 		return "rare"
 	return "wood"
 
-func _create_chest(grid_pos: Vector2i) -> void:
+func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 	var chest_root = Node3D.new()
 	chest_root.name = "TreasureChest_%d" % chest_nodes.size()
 
@@ -4297,7 +4300,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	# Generate chest contents first (deterministic seed, so the same chest
 	# always holds the same loot) — the chest's design is chosen by them.
 	var chest_index = chest_nodes.size()
-	var contents = _generate_chest_contents(chest_index)
+	var contents = _generate_chest_contents(chest_index, starter)
 	var design := _chest_design(contents)
 	var closed := _first_prop_variant("chest_%s_closed" % design, "res://assets/textures/props/chest_closed.png", 26, 26)
 	var sprite = Sprite3D.new()
@@ -4341,19 +4344,32 @@ func _create_chest(grid_pos: Vector2i) -> void:
 		"sprite": sprite
 	})
 
-func _generate_chest_contents(chest_index: int) -> Dictionary:
-	# Use a deterministic RNG seeded by world + chest index so the same chest
-	# always generates the same loot, even if the dungeon is recreated
+# Per-character salt for chest rolls (CharacterData.get_loot_seed()), set by
+# main before initialize(). Without it every character would open identical
+# chests; with it a chest still holds the same loot for the character who
+# found it, across saves and world transitions.
+var loot_salt: int = 0
+
+func _generate_chest_contents(chest_index: int, starter: bool = false) -> Dictionary:
+	# Deterministic RNG seeded by world + chest index + the character's loot
+	# salt, so the same chest always generates the same loot for this
+	# character even if the dungeon is recreated.
 	var rng = RandomNumberGenerator.new()
 	if interior_id == "":
-		rng.seed = hash("chest_w%d_c%d" % [world_level, chest_index])
+		rng.seed = hash("chest_w%d_c%d_s%d" % [world_level, chest_index, loot_salt])
 	else:
-		rng.seed = hash("chest_w%d_%s_c%d" % [world_level, interior_id, chest_index])
+		rng.seed = hash("chest_w%d_%s_c%d_s%d" % [world_level, interior_id, chest_index, loot_salt])
 
 	var gold = rng.randi_range(15, 50) + (world_level - 1) * 10
 	var contents: Dictionary = {"gold": gold, "item": null, "card": null, "card_pack": null}
 
-	if rng.randf() < 0.5:
+	if starter:
+		# Act-1 starter chest: a card AND a common item, guaranteed.
+		var commons = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
+		if not commons.is_empty():
+			contents["item"] = commons[rng.randi() % commons.size()]
+		contents["card"] = _get_random_card(rng)
+	elif rng.randf() < 0.5:
 		contents["item"] = _get_random_item(rng)
 	elif rng.randf() < DropRates.PACK_CHANCE_OF_CARD_DROP:
 		# A sealed card pack: the TIER is seeded (same chest, same pack), the
@@ -4369,12 +4385,12 @@ func _generate_chest_contents(chest_index: int) -> Dictionary:
 var block_act1_mythics: bool = false
 
 func _get_random_item(rng: RandomNumberGenerator) -> ItemData:
-	# Chests roll the flat baseline rarity table (see DropRates) — mythic and
-	# legendary stay at baseline in every act; the near-guaranteed act mythic
-	# comes from the per-kill layer in main, never from chests. Only level-1
-	# items ever drop — higher item levels exist solely through the forge.
+	# Chests roll the common/rare chest table (see DropRates); legendaries
+	# and mythics never come from chests — the near-guaranteed act mythic
+	# comes from the per-kill layer in main. Only level-1 items ever drop —
+	# higher item levels exist solely through the forge.
 	var weights: Dictionary = DropRates.CHEST_ITEM_WEIGHTS
-	if block_act1_mythics and world_level == 1:
+	if block_act1_mythics and world_level == 1 and weights.has(ItemData.Rarity.MYTHIC):
 		weights = weights.duplicate()
 		weights.erase(ItemData.Rarity.MYTHIC)
 	var rarity = DropRates.roll_weighted(weights, rng)

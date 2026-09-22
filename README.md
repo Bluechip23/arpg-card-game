@@ -318,9 +318,13 @@ What drops depends on the source. Tougher enemies skew toward better loot (weigh
 | Mid-tier enemies | 45 | 33 | 18 | 4 |
 | Elites | 20 | 35 | 35 | 10 |
 | Bosses | — | 20 | 55 | 25 |
-| Chests | 54 | 30 | 12 | 3 (+1 mythic) |
+| Chests | — | 85 | 15 | — |
 
-**Mythics play by their own rules.** Outside of the rare chest roll, mythics never come from the regular loot table — they come from the per-act **pity system** ("mythic creep"): each act all-but-guarantees one mythic per character. Until it drops, every story kill raises the chance (starting at 0.2%, +0.05% per kill — it typically lands around kill 60 and is near-certain by 150). Once the act's mythic has dropped, mythic chances return to a small per-kill baseline (mid 0.2%, elite 1%, boss 5% — trash enemies never roll one). **Act 1 is the exception:** after its one guaranteed mythic, act 1 never drops another for that character, chests included.
+**Mythics play by their own rules.** Chests hold only commons and rares, and mythics never come from the regular loot table — they come from the per-act **pity system** ("mythic creep"): each act all-but-guarantees one mythic per character. Until it drops, every story kill raises the chance (starting at 0.2%, +0.05% per kill — it typically lands around kill 60 and is near-certain by 150). Once the act's mythic has dropped, mythic chances return to a small per-kill baseline (mid 0.2%, elite 1%, boss 5% — trash enemies never roll one). **Act 1 is the exception:** after its one guaranteed mythic, act 1 never drops another for that character, chests included.
+
+**Chests are salted per character.** Every chest rolls its contents from the world, its index, and a loot seed rolled once per character, so two characters never open identical chests while one character revisiting a chest always finds what they left in it. The act-1 starter chest always holds a card and a common item.
+
+**Early-game pity.** A fresh character's first kills lean generous: until three cards and three items have dropped from kills, any kill that rolled neither gets a second 35% roll for a card or a common item, so the deck and kit start growing within the first few fights.
 
 The tuning target: a full story playthrough yields on the order of **1,000 item drops** and around **10 mythics** — enough to forge one mythic to Lv.3 while keeping spares for the build.
 

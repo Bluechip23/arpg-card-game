@@ -243,28 +243,30 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 func _get_item_drop_chance(type: Enemy.EnemyType) -> float:
 	# Hand-tuned entries first; everything else rolls by its loot tier, so an
 	# elite's drop ODDS match the elite table it rolls on.
+	# Trash drops small commons often enough that a new character starts
+	# gearing up within the first few fights (trash tables are 92% common).
 	match type:
-		Enemy.EnemyType.WERERAT: return 0.08
-		Enemy.EnemyType.ARCHER_RAT: return 0.06
-		Enemy.EnemyType.SKELETON: return 0.12
-		Enemy.EnemyType.ARMORED_TROLL: return 0.20
+		Enemy.EnemyType.WERERAT: return 0.15
+		Enemy.EnemyType.ARCHER_RAT: return 0.12
+		Enemy.EnemyType.SKELETON: return 0.18
+		Enemy.EnemyType.ARMORED_TROLL: return 0.25
 	match get_loot_tier(type):
-		DropRates.TIER_TRASH: return 0.05
+		DropRates.TIER_TRASH: return 0.12
 		DropRates.TIER_ELITE: return 0.30
 		DropRates.TIER_BOSS: return 0.80
-	return 0.10
+	return 0.15
 
 func _get_card_drop_chance(type: Enemy.EnemyType) -> float:
 	match type:
-		Enemy.EnemyType.WERERAT: return 0.05
-		Enemy.EnemyType.ARCHER_RAT: return 0.04
-		Enemy.EnemyType.SKELETON: return 0.08
-		Enemy.EnemyType.ARMORED_TROLL: return 0.12
+		Enemy.EnemyType.WERERAT: return 0.08
+		Enemy.EnemyType.ARCHER_RAT: return 0.06
+		Enemy.EnemyType.SKELETON: return 0.10
+		Enemy.EnemyType.ARMORED_TROLL: return 0.15
 	match get_loot_tier(type):
-		DropRates.TIER_TRASH: return 0.03
+		DropRates.TIER_TRASH: return 0.06
 		DropRates.TIER_ELITE: return 0.20
 		DropRates.TIER_BOSS: return 0.60
-	return 0.06
+	return 0.08
 
 func _get_culling_stone_drop_chance(type: Enemy.EnemyType) -> float:
 	match type:

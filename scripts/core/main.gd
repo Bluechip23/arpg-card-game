@@ -12054,6 +12054,9 @@ func _setup_dungeon() -> void:
 	# Act-1 mythic cap: once this character's act-1 mythic dropped, act-1
 	# chests stop offering mythics too.
 	dungeon_manager.block_act1_mythics = DropRates.act1_mythic_locked(current_character)
+	# Chest rolls are salted per character so no two characters open the
+	# same chests (sandbox has no character — fresh rolls every time).
+	dungeon_manager.loot_salt = current_character.get_loot_seed() if current_character else randi()
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
 
@@ -13752,6 +13755,10 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 		loot["item"] = _pending_mythic_item
 		_pending_mythic_item = null
 		add_battle_log("A MYTHIC drops: %s!" % loot["item"].item_name, Color(0.9, 0.35, 0.9))
+	# Early-game pity: a new character's first few kills lean generous so the
+	# deck and kit start growing right away (see DropRates.apply_early_pity).
+	if current_character and not sandbox_mode:
+		DropRates.apply_early_pity(current_character, loot)
 	_spawn_loot_drop(loot, pos)
 
 func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
