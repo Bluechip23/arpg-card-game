@@ -344,7 +344,7 @@ What a level does:
 
 Forge rules: the upgrade target and all copies must be **unequipped** (inventory or stash), and copies must be level 1. A copy currently holding a card **you slotted into it** can't be used to forge until you extract the card at the Blacksmith. Empty card slots are fine, and cards an item **grants on its own** never block forging.
 
-**Mythic Molds**: mold **two spare level-1 mythics** down into one **Mythic Mold**. Redeemable at the Blacksmith for a fresh copy of **any mythic you have owned before** (never an unfound one). Seven mythic drops therefore guarantee a Lv.3 mythic of your choice.
+**Mythic Pieces and Molds**: the Blacksmith melds **one spare level-1 mythic** down into a **Mythic Piece**; **two pieces pour into a Mythic Mold**. A mold is redeemable at the Blacksmith for a fresh copy of **any mythic you have owned before** (never an unfound one). Seven mythic drops therefore guarantee a Lv.3 mythic of your choice. The first mythic of the story, the Bladed Doughnut, is the tutorial for all of this: the quest **A Mythic Find** walks it from the first rat to Olorin's lesson to the smith's meld.
 
 ### Weight & carry capacity
 

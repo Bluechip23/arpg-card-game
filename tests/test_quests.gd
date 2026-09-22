@@ -42,6 +42,32 @@ func _initialize() -> void:
 	_check("ferryman_toll" not in ids, "Ferryman's Toll waits on Act 2 and The Faithless")
 	_check("missing_woodcutter" in ids, "The Missing Woodcutter is on offer")
 	_check("what_the_crows_saw" in ids, "What the Crows Saw is on offer")
+	_check("mythic_find" not in ids, "A Mythic Find is never offered — the doughnut opens it")
+
+	# --- A Mythic Find: hidden until the doughnut is claimed; show, meld, turn in ---
+	var qm_mf := _fresh()
+	_check(qm_mf.get_available_quests_from("Olorin").size() == 1, "hidden quest stays off the fresh offer list")
+	_check(qm_mf.accept_quest("mythic_find"), "the world can open the hidden quest directly")
+	_check(qm_mf.is_objective_active("mythic_find", 0) and not qm_mf.is_objective_active("mythic_find", 1),
+		"showing the doughnut comes before melding it")
+	qm_mf.on_event("meld", {"item": "Bladed Doughnut"})
+	_check(qm_mf.get_quest("mythic_find").objectives[1].current == 0, "melding early does not skip the visit to Olorin")
+	qm_mf.on_event("reach", {"object": "npc_olorin"})
+	_check(qm_mf.is_objective_active("mythic_find", 1), "after showing Olorin, the meld step is live")
+	qm_mf.on_event("meld", {"item": "Some Other Mythic"})
+	_check(qm_mf.get_quest("mythic_find").objectives[1].current == 0, "melding a different mythic does not count")
+	qm_mf.on_event("meld", {"item": "Bladed Doughnut"})
+	var mf := qm_mf.get_quest("mythic_find")
+	_check(mf.is_complete and qm_mf.can_turn_in(mf, stats), "melding the doughnut completes A Mythic Find")
+	_check(mf.get_objective_text().count("✓") == 2, "both steps read as ticked")
+	var mf_rewards := qm_mf.turn_in_quest("mythic_find", stats)
+	_check(mf_rewards.get("items", []) == ["Wooden Sword"], "turn-in hands over the Wooden Sword")
+	_check(qm_mf.has_flag("mythic_lesson"), "the lesson is recorded as a flag")
+	var mf_state := qm_mf.save_state()
+	var qm_mf2 := _fresh()
+	qm_mf2.load_state(mf_state)
+	_check(qm_mf2.is_quest_turned_in("mythic_find") and qm_mf2.get_available_quests_from("Olorin").size() == 1,
+		"a turned-in hidden quest reloads finished and never resurfaces")
 	_check("sellswords_debt" not in ids and _ids(qm.get_available_quests_from("Sellsword")) == ["sellswords_debt"], "the Sellsword offers his own debt")
 
 	# --- Collect: progress mirrors what is carried; turn-in consumes it ---

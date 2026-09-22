@@ -73,6 +73,16 @@ that interprets the world's "tides" and points the player toward what is wrong.
 
 > **Already in-game (do not duplicate):** Olorin exists today as a town NPC.
 > See *Section 8 — Story ↔ Systems Map*.
+>
+> **The first-room tutorial, "A Mythic Find":** the first rat the player fells
+> in the story carries a mythic, the Bladed Doughnut. Olorin names it from
+> afar; on claiming it the player thinks better of wielding it ("I do not
+> think I can wield this... I'll keep it and show Olorin") and the quest opens.
+> Shown the doughnut in town, Olorin teaches rarities, the forge, mythic
+> levels and skills, then admits the player cannot wear a mythic for a long
+> while (level 15) and sends it to the Blacksmith to be melded into a Mythic
+> Piece (two pieces pour into a Mythic Mold). He pays for the lesson with the
+> Wooden Sword, his prop for card slots and item-granted cards.
 
 ---
 
@@ -522,7 +532,7 @@ the repo. Keep this table honest as the code changes.
 
 | Story element | Where it lives today | Notes |
 |---------------|----------------------|-------|
-| **Olorin (guide / quest-giver)** | `scripts/menus/town.gd` (`_create_olorin_npc`, `vendor_info["Olorin"]`), `scripts/core/quest_manager.gd` | Already an in-town NPC: *"A wise old man with quests for brave adventurers."* First quest: **Rat Infestation** (clear 5 wererats from the sewers). Also crafts Origami Swans → Paper Feathers. |
+| **Olorin (guide / quest-giver)** | `scripts/menus/town.gd` (`_create_olorin_npc`, `vendor_info["Olorin"]`), `scripts/core/quest_manager.gd`, `scripts/ui/olorin.gd` (spoken lessons) | Already an in-town NPC: *"A wise old man with quests for brave adventurers."* First quest: **Rat Infestation** (clear 5 wererats from the sewers). The hidden tutorial quest **A Mythic Find** (the Bladed Doughnut → Olorin's mythic lesson → the Blacksmith's meld → the Wooden Sword) opens itself on the first story kill. Also crafts Origami Swans → Paper Feathers. |
 | **Acts / planes** | `scripts/core/dungeon_manager.gd` → `WORLD_PALETTES` (1–5) | Themes are explicitly **placeholder** ("final per-world themes TBD"). Current names: Verdant Frontier, Amber Wastes, Frostreach, Emberfall, Umbral Expanse. The lore here is what those palettes should *become*. |
 | **Habitats / biomes** | `dungeon_manager.gd` palettes + `CAVE_PALETTE`, `BUILDING_PALETTE`, `SEWER_PALETTE`; site generation (caves, buildings, sewers) | The generator distinguishes overworld vs. cave vs. building vs. **sewer** interiors — a natural hook for habitat-specific enemy spawn tables (Section 5). |
 | **The Sewers (Act 1, Part 1)** | `dungeon_manager.gd` (`interior_kind == "sewer"`: `_generate_sewer_layout`, `_build_sewer_decorations`, `_define_sewer_spawn_zones`), `main.gd` (`_apply_world_ambience` sewer branch + `_ensure_player_torch`), `torch_flicker.gd`, `sewer_critter.gd` | **Built.** The opening dungeon: trunk + water channels, Rat King arena, west→east rat/ooze → boss → croc/swarm/crawler progression, dim torchlit atmosphere, reduced fog. Reached via a sewer grate site in World 1. See Section 5.4. |

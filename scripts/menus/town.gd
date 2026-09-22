@@ -67,7 +67,8 @@ var _current_vendor_node: StaticBody3D = null
 
 # Blacksmith forge state: the first mythic clicked for molding (a second
 # click on another mythic completes the mold).
-var _mold_selection: ItemData = null
+var _mold_selection: ItemData = null  # Blacksmith: mythic awaiting its confirming second click
+var _olorin_tutorial: OlorinTutorial = null  # Olorin's in-town lessons (A Mythic Find)
 
 # Stash UI state
 var _stash_panel: PanelContainer = null
@@ -175,6 +176,7 @@ func _ready() -> void:
 				inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 				inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 				inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
+				inv.mythic_pieces = inv_data.get("mythic_pieces", inv.mythic_pieces)
 				inv.equipment_changed.emit()
 				print("[TOWN] Restored inventory: %d stored items, %d stash items" % [inv.stored_items.size(), inv.stash_items.size()])
 
@@ -194,6 +196,12 @@ func _ready() -> void:
 	# Restore quest state from battle scene
 	if not quest_state.is_empty():
 		quest_manager.load_state(quest_state)
+
+	# Olorin's spoken lessons (the same dialog he uses in the dungeon).
+	_olorin_tutorial = OlorinTutorial.new()
+	_olorin_tutorial.name = "OlorinTutorial"
+	_olorin_tutorial.init(self)
+	add_child(_olorin_tutorial)
 
 	# Create Olorin NPC
 	_create_olorin_npc()
@@ -879,7 +887,8 @@ func _populate_blacksmith_forge() -> void:
 	if not inventory:
 		return
 
-	_add_info_label("Mythic Molds: %d" % inventory.get_mythic_mold_count(), Color(0.9, 0.35, 0.9))
+	_add_info_label("Mythic Molds: %d    Mythic Pieces: %d / 2" % [
+		inventory.get_mythic_mold_count(), inventory.get_mythic_piece_count()], Color(0.9, 0.35, 0.9))
 
 	# Sync ownership history up front, so mythics the player is about to meld
 	# down are remembered as owned (and stay redeemable) first.
@@ -894,11 +903,11 @@ func _populate_blacksmith_forge() -> void:
 	for entry in candidates:
 		_add_forge_row(entry["item"], entry["copies_have"], entry["copies_needed"])
 
-	# --- Mythic molding ---
+	# --- Mythic melding ---
 	var moldable = ItemForge.get_moldable_mythics(inventory)
 	if moldable.size() > 0:
-		_add_section_separator("Mythic Molding — melt 2 mythics into a Mythic Mold")
-		_add_info_label("Click two mythics to mold them down.", Color(0.6, 0.6, 0.7))
+		_add_section_separator("Mythic Melding — meld a mythic down into a Mythic Piece")
+		_add_info_label("Two Mythic Pieces pour into a Mythic Mold. Click a mythic, then click it again to meld it.", Color(0.6, 0.6, 0.7))
 		for item in moldable:
 			_add_mold_row(item)
 
@@ -935,7 +944,7 @@ func _add_mold_row(item: ItemData) -> void:
 	var selected = item == _mold_selection
 	btn.text = "  %s   [Mythic %s]%s" % [
 		item.get_display_name(), item.get_type_name(),
-		"   [SELECTED — click another mythic]" if selected else ""]
+		"   [click again to MELD]" if selected else ""]
 	btn.add_theme_font_size_override("font_size", 13)
 	_style_forge_button(btn, Color(0.9, 0.35, 0.9))
 	btn.pressed.connect(_on_mold_mythic_clicked.bind(item))
@@ -1005,13 +1014,15 @@ func _on_mold_mythic_clicked(item: ItemData) -> void:
 	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
 	if not inventory:
 		return
-	if _mold_selection == null:
-		_mold_selection = item
-	elif _mold_selection == item:
-		_mold_selection = null  # clicked again — deselect
+	if _mold_selection != item:
+		_mold_selection = item  # first click arms; the second confirms
 	else:
-		ItemForge.mold_mythics(inventory, _mold_selection, item)
 		_mold_selection = null
+		if ItemForge.meld_mythic(inventory, item):
+			print("[TOWN] Melded %s into a Mythic Piece" % item.item_name)
+			if quest_manager:
+				quest_manager.on_event("meld", {"item": item.item_name})
+				_refresh_quest_indicators()
 	_refresh_blacksmith()
 
 func _on_redeem_mold_clicked(mythic_name: String) -> void:
@@ -2567,11 +2578,37 @@ func _open_quest_dialog(vendor_node: StaticBody3D) -> void:
 
 	vendor_inventory_label.text = info["description"]
 
+	# A Mythic Find: the doughnut in hand counts as showing it to Olorin, and
+	# he gives his lesson on mythics before the quest list renders.
+	if quest_manager and quest_manager.is_objective_active("mythic_find", 0) \
+			and _player_holds_item("Bladed Doughnut"):
+		quest_manager.on_event("reach", {"object": "npc_olorin"})
+		_refresh_quest_indicators()
+		if _olorin_tutorial:
+			_olorin_tutorial.show_mythic_lesson()
+
 	_render_quest_section("Olorin")
 
 	vendor_panel.visible = true
 	interact_prompt.text = ""
 	print("[TOWN] Opened quest dialog with Olorin")
+
+## True when the item is anywhere on the character: bag, stash, or worn.
+func _player_holds_item(item_name: String) -> bool:
+	var inventory = player.get_inventory() if player and player.has_method("get_inventory") else null
+	if inventory == null:
+		return false
+	var all_lists = [
+		inventory.stored_items, inventory.stash_items,
+		inventory.equipped_helms, inventory.equipped_chests, inventory.equipped_rings,
+		inventory.equipped_belts, inventory.equipped_boots, inventory.equipped_gauntlets,
+		inventory.equipped_weapons,
+	]
+	for list in all_lists:
+		for item in list:
+			if item and item.item_name == item_name:
+				return true
+	return false
 
 func _render_quest_section(giver: String) -> void:
 	## Quests for one giver, in the vendor list: finished ones to hand in,
@@ -2648,6 +2685,8 @@ func _reward_text(rewards: Dictionary) -> String:
 		parts.append("%d Gold" % int(rewards["gold"]))
 	if rewards.has("xp"):
 		parts.append("%d XP" % int(rewards["xp"]))
+	for item_name in rewards.get("items", []):
+		parts.append("the %s" % str(item_name))
 	for f in rewards.get("flags", []):
 		match str(f):
 			"town_well_blessed": parts.append("the Town Well heals for free")
@@ -2769,10 +2808,21 @@ func _on_turn_in_quest(quest_id: String) -> void:
 	if rewards.is_empty():
 		return
 	print("[TOWN] Quest turned in! Rewards: %s" % rewards)
+	# Item rewards land in the bag (or the stash when the bag is full).
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	for item_name in rewards.get("items", []):
+		var item = ItemData.create_by_name(str(item_name))
+		if item == null or inventory == null:
+			continue
+		if not inventory.store_item(item) and not inventory.stash_item(item):
+			print("[TOWN] No room for %s — reward lost" % item.item_name)
 	_refresh_well_visual()
 	_close_vendor()
 	_refresh_quest_indicators()
 	_refresh_leave_gate()
+	# A Mythic Find: Olorin pays for his lesson with the Wooden Sword.
+	if quest_id == "mythic_find" and _olorin_tutorial:
+		_olorin_tutorial.show_mythic_find_farewell()
 
 # ── Quest markers & leaving town ──
 
@@ -3013,6 +3063,7 @@ func _go_to_battle(via_portal: bool = false) -> void:
 			"stash_items": live_inv.stash_items.duplicate(),
 			"culling_stones": live_inv.culling_stones,
 			"mythic_molds": live_inv.mythic_molds,
+			"mythic_pieces": live_inv.mythic_pieces,
 		}
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character

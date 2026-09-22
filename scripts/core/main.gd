@@ -45,17 +45,13 @@ var progression_triggers: ProgressionTriggers = null
 var chest_loot_ui: ChestLootUI = null
 var olorin: OlorinTutorial = null
 var waypoint_mgr: WaypointManager = null
-# First-room tutorial: the first rat of the story drops the Bladed Doughnut,
-# Olorin explains item levels, and once the player walks off with it he gets
-# hungry and takes it back.
+# First-room tutorial: the first rat of the story drops the Bladed Doughnut.
+# Olorin points it out; claiming it opens the quest "A Mythic Find" (show it
+# to Olorin in town, then have the Blacksmith meld it down).
 var _pending_doughnut_drop: bool = false
-var _doughnut_farewell_armed: bool = false
 # Act-mythic pity layer: a mythic rolled on this kill (DropRates), waiting to
 # be injected into the enemy's loot pile.
 var _pending_mythic_item: ItemData = null
-var _doughnut_item: ItemData = null
-var _doughnut_looter: Player = null
-var _doughnut_pickup_cell: Vector2i = Vector2i(-999, -999)
 var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
 const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
 var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
@@ -754,7 +750,6 @@ func _process(delta: float) -> void:
 	_update_damage_preview()
 	_update_loot_hover()
 	_update_move_path_cursor()
-	_check_doughnut_farewell()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
@@ -13890,8 +13885,21 @@ func _finish_mythic_reveal(item: ItemData, looter: Player) -> void:
 		# character has actually held.
 		if current_character and not current_character.owned_mythic_names.has(item.item_name):
 			current_character.owned_mythic_names.append(item.item_name)
+		_maybe_open_mythic_find(item)
 	else:
 		add_battle_log("Inventory AND stash full! %s slipped away..." % item.item_name, Color(1.0, 0.4, 0.4))
+
+## First-room tutorial: claiming the Bladed Doughnut opens "A Mythic Find" —
+## the player decides they cannot wield it yet and resolves to show Olorin.
+func _maybe_open_mythic_find(item: ItemData) -> void:
+	if sandbox_mode or item.item_name != "Bladed Doughnut" or quest_manager == null:
+		return
+	if not quest_manager.available_quests.has("mythic_find"):
+		return  # already opened (or finished) for this character
+	quest_manager.accept_quest("mythic_find")
+	add_battle_log("New quest: A Mythic Find", Color(1.0, 0.85, 0.3))
+	if olorin:
+		olorin.show_doughnut_keep_thought(current_character.character_name if current_character else "")
 
 func _try_click_mythic_reveal() -> bool:
 	if _mythic_reveals.is_empty():
@@ -14042,16 +14050,6 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 				if item.rarity == ItemData.Rarity.MYTHIC and current_character \
 						and not current_character.owned_mythic_names.has(item.item_name):
 					current_character.owned_mythic_names.append(item.item_name)
-				# First-room tutorial: picking up the Bladed Doughnut prompts
-				# Olorin's skill lesson; once the player moves again, he gets
-				# hungry (see _check_doughnut_farewell).
-				if item.item_name == "Bladed Doughnut" and olorin \
-						and not olorin.has_seen("bladed_doughnut_farewell"):
-					olorin.show_bladed_doughnut_skill()
-					_doughnut_farewell_armed = true
-					_doughnut_item = item
-					_doughnut_looter = looter
-					_doughnut_pickup_cell = grid_manager.world_to_grid(looter.position)
 			else:
 				messages.append("Item dropped (inventory full): %s" % item.item_name)
 
@@ -14083,56 +14081,6 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 		var loot_text = "Looted: " + ", ".join(messages)
 		add_battle_log(loot_text, Color(1.0, 0.85, 0.2))
 		print("[MAIN] %s" % loot_text)
-
-#endregion
-#region FIRST-ROOM TUTORIAL: OLORIN TAKES THE DOUGHNUT
-# ============================================
-# FIRST-ROOM TUTORIAL: OLORIN TAKES THE DOUGHNUT
-# ============================================
-
-## Armed when the player scoops up the Bladed Doughnut. The moment they move
-## off the pickup tile (dialogs closed), Olorin reappears, conjures the
-## doughnut overhead, and takes it with him.
-func _check_doughnut_farewell() -> void:
-	if not _doughnut_farewell_armed or olorin == null or olorin.is_busy():
-		return
-	if not is_instance_valid(_doughnut_looter):
-		_doughnut_farewell_armed = false
-		_doughnut_item = null
-		return
-	var cell: Vector2i = grid_manager.world_to_grid(_doughnut_looter.position)
-	if cell == _doughnut_pickup_cell:
-		return
-	_doughnut_farewell_armed = false
-	_trade_doughnut_for_wooden_sword()
-	olorin.show_doughnut_farewell()
-
-## Olorin takes the Bladed Doughnut and leaves the Wooden Sword in exchange —
-## his teaching prop for card slots, on-self bonuses, and item-granted cards.
-func _trade_doughnut_for_wooden_sword() -> void:
-	if _doughnut_item == null:
-		return
-	var inv = _doughnut_looter.get_inventory() if is_instance_valid(_doughnut_looter) else null
-	if inv:
-		if inv.stored_items.has(_doughnut_item):
-			inv.stored_items.erase(_doughnut_item)
-			inv.storage_changed.emit()
-		elif inv.stash_items.has(_doughnut_item):
-			inv.stash_items.erase(_doughnut_item)
-			inv.storage_changed.emit()
-		else:
-			# Equipped in the brief window between pickup and moving — unequip
-			# (reversing its bonuses) and remove.
-			inv._destroy_equipped_item(_doughnut_item)
-		add_battle_log("Olorin took the Bladed Doughnut!", Color(0.9, 0.35, 0.9))
-		var sword = ItemData.create_wooden_sword()
-		if not inv.store_item(sword) and not inv.stash_item(sword):
-			# Both full (the doughnut's slot was just freed, so this is unlikely)
-			print("[MAIN] No room for the Wooden Sword — gift lost")
-		else:
-			add_battle_log("Received: Wooden Sword", Color(0.85, 0.7, 0.45))
-	_doughnut_item = null
-	_doughnut_looter = null
 
 #endregion
 #region WAYPOINT TRAVEL
@@ -14198,6 +14146,7 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 			inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
+			inv.mythic_pieces = inv_data.get("mythic_pieces", inv.mythic_pieces)
 			inv.ensure_return_scroll()  # older saves predate the scroll
 			# Bring item-owned cards back into the deck. On an in-memory
 			# transition the restored piles hold the items' own instances, so
@@ -14250,6 +14199,7 @@ func _save_player_progression() -> Dictionary:
 			"stash_items": inv.stash_items.duplicate(),
 			"culling_stones": inv.culling_stones,
 			"mythic_molds": inv.mythic_molds,
+			"mythic_pieces": inv.mythic_pieces,
 			"rack_items": inv.rack_items.duplicate(),
 			"rack_cooldown_tempo": inv.rack_cooldown_tempo,
 		}

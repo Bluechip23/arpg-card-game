@@ -238,6 +238,21 @@ func _test_mythic_molding() -> void:
 	_check(inv.get_mythic_mold_count() == 0, "mold consumed")
 	_check(inv.stored_items.has(crafted), "crafted mythic lands in inventory")
 	_check(ItemForge.redeem_mold(inv, "Bladed Doughnut") == null, "no mold -> no redeem")
+
+	# Melding one mythic at a time: a Mythic Piece first, a Mold on the second.
+	var e = ItemData.create_bladed_doughnut()
+	var f = Fixtures.mythic_gauntlets()
+	inv.store_item(e)
+	inv.store_item(f)
+	_check(not ItemForge.can_meld(inv, Fixtures.sword()), "a common cannot be melded")
+	_check(ItemForge.meld_mythic(inv, e), "a single mythic melds down")
+	_check(inv.get_mythic_piece_count() == 1 and inv.get_mythic_mold_count() == 0,
+		"one meld = one Mythic Piece, no mold yet")
+	_check(not inv.stored_items.has(e), "the melded mythic is consumed")
+	_check(not ItemForge.meld_mythic(inv, e), "an item already melded cannot be melded again")
+	_check(ItemForge.meld_mythic(inv, f), "a second mythic melds down")
+	_check(inv.get_mythic_piece_count() == 0 and inv.get_mythic_mold_count() == 1,
+		"two pieces pour into one Mythic Mold")
 	inv.free()
 
 func _test_loot_pools() -> void:

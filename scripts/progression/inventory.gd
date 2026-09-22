@@ -117,7 +117,8 @@ var stored_cards: Array = []  # Array of Card objects
 var culling_stones: int = 99  # Used to permanently remove cards from deck
 var paper_feathers: int = 3  # Card-crafting consumable (role being redesigned)
 var origami_swans: int = 0  # 20 origami swans = 1 Paper Feather (crafted by Olorin)
-var mythic_molds: int = 0  # 2 molded-down mythics = 1 Mold; redeem for any mythic at the Blacksmith
+var mythic_molds: int = 0  # 2 Mythic Pieces = 1 Mold; redeem for any mythic at the Blacksmith
+var mythic_pieces: int = 0  # a mythic melded down at the Blacksmith; two pour into one Mold
 
 # Ring trigger tracking
 var ring_triggered_this_turn: bool = false
@@ -2345,6 +2346,18 @@ func get_mythic_mold_count() -> int:
 func add_mythic_mold(amount: int = 1) -> void:
 	mythic_molds += amount
 	print("[INVENTORY] Gained %d Mythic Mold(s) (%d total)" % [amount, mythic_molds])
+
+func get_mythic_piece_count() -> int:
+	return mythic_pieces
+
+## A melded-down mythic. Every second piece pours into a Mythic Mold, so the
+## piece count only ever reads 0 or 1.
+func add_mythic_piece(amount: int = 1) -> void:
+	mythic_pieces += amount
+	print("[INVENTORY] Gained %d Mythic Piece(s) (%d held)" % [amount, mythic_pieces])
+	while mythic_pieces >= 2:
+		mythic_pieces -= 2
+		add_mythic_mold()
 
 func use_mythic_mold() -> bool:
 	if mythic_molds <= 0:

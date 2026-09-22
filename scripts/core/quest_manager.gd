@@ -12,6 +12,7 @@ extends Node
 ##   channel_break    {enemy_name}                      target = enemy name or "*"
 ##   reach            {object}                          target = npc/site id, once
 ##   escort           {npc}                             target = npc id delivered, once
+##   meld             {item}                            target = item name melded at the Blacksmith, or "*"
 ##   choice           (via choose())                    target = shrine id; the player picks an option
 ##   trial_answered {}                               once
 ## Objectives with a zone filter only count inside that interior kind
@@ -20,8 +21,11 @@ extends Node
 ##
 ## Rewards on turn-in: gold, xp, consume {currency: n}, flags [..] (stored
 ## here, saved, queried by the town/world), stats {quest_crit_bonus: 3.0, …}
-## applied to PlayerStats by apply_rewards. A choice quest's option carries
+## applied to PlayerStats by apply_rewards, items [item names] handed over by
+## the scene that owns the inventory (town). A choice quest's option carries
 ## its own rewards, merged in when chosen.
+## A `hidden` quest is never offered by its giver: the world opens it
+## (accept_quest) when its trigger fires — A Mythic Find on the doughnut.
 
 signal quest_accepted(quest_id: String)
 signal quest_updated(quest_id: String, current: int, required: int)
@@ -46,7 +50,7 @@ class Objective:
 		return current >= count
 
 	func text() -> String:
-		if type in ["reach", "escort", "choice", "trial_answered"]:
+		if type in ["reach", "escort", "choice", "trial_answered", "meld"]:
 			return label + (" ✓" if is_done() else "")
 		return "%s (%d/%d)" % [label, mini(current, count), count]
 
@@ -151,6 +155,17 @@ func _define_quests() -> void:
 		"Olorin says the sewers below are crawling with wererats. Clear out 5 of them.",
 		"Olorin", {"gold": 50, "xp": 25})
 	q.objectives.append(Objective.new("kill", "Wererat", 5, "Kill 5 Wererats"))
+	_add(q)
+
+	# --- A Mythic Find (the first-room tutorial's second half) ---
+	# Never offered: main accepts it the moment the Bladed Doughnut is claimed.
+	q = Quest.new("mythic_find", "A Mythic Find",
+		"The first rat you felled carried a mythic — the Bladed Doughnut. You cannot wield such a thing yet. Show it to Olorin, then do with it as he says.",
+		"Olorin", {"xp": 40, "items": ["Wooden Sword"], "flags": ["mythic_lesson"]})
+	q.hidden = true
+	q.objectives.append(Objective.new("reach", "npc_olorin", 1, "Show the Bladed Doughnut to Olorin in town"))
+	q.objectives.append(Objective.new("meld", "Bladed Doughnut", 1, "Have the Blacksmith meld the Bladed Doughnut down"))
+	q.teaches = "Mythics answer only to level 15 and up. The Blacksmith melds a spare mythic into a Mythic Piece; two pieces make a Mythic Mold that recreates any mythic you have owned."
 	_add(q)
 
 	# --- Holy Water for the Well ---
@@ -431,6 +446,10 @@ func _objective_takes(o: Objective, kind: String, data: Dictionary) -> bool:
 			return kind == "reach" and str(data.get("object", "")) == o.target
 		"escort":
 			return kind == "escort" and str(data.get("npc", "")) == o.target
+		"meld":
+			if kind != "meld":
+				return false
+			return o.target == "*" or o.target == str(data.get("item", ""))
 		"trial_answered":
 			return kind == "trial_answered"
 	return false

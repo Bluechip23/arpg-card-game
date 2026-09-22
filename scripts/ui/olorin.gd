@@ -7,9 +7,10 @@ extends Node
 ## etc.), pauses the action, and offers a
 ## short explanation or hint. Each tutorial beat is shown once per character;
 ## the ids the player has already seen are stored on CharacterData so Olorin
-## never repeats himself.
+## never repeats himself. The same dialog also carries the player's own
+## thoughts when a beat is theirs to voice (see show_doughnut_keep_thought).
 
-var main  # Reference to the Main scene node
+var main  # The owning scene (Main in the dungeon, Town in town)
 var _active: bool = false
 var _layer: CanvasLayer = null
 var _resume_on_close: bool = false
@@ -19,24 +20,37 @@ func init(main_ref) -> void:
 	# Olorin must keep running while the tree is paused so his Continue button works.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
+## The character whose seen-tutorial list gates each beat. Main exposes it as
+## current_character; the town scene as starting_character.
+func _character():
+	if main == null:
+		return null
+	if "current_character" in main and main.current_character:
+		return main.current_character
+	if "starting_character" in main and main.starting_character:
+		return main.starting_character
+	return null
+
 func has_seen(tutorial_id: String) -> bool:
-	if main and main.current_character:
-		return main.current_character.seen_tutorial_ids.has(tutorial_id)
-	return false
+	var c = _character()
+	return c != null and c.seen_tutorial_ids.has(tutorial_id)
 
 func _mark_seen(tutorial_id: String) -> void:
-	if main and main.current_character and not main.current_character.seen_tutorial_ids.has(tutorial_id):
-		main.current_character.seen_tutorial_ids.append(tutorial_id)
+	var c = _character()
+	if c and not c.seen_tutorial_ids.has(tutorial_id):
+		c.seen_tutorial_ids.append(tutorial_id)
 
 ## Show a tutorial beat once. Returns true if it was shown.
-## If `force` is true it ignores the "already seen" check.
-func show_tutorial(tutorial_id: String, title: String, paragraphs: Array, force: bool = false) -> bool:
+## If `force` is true it ignores the "already seen" check. `speaker` swaps
+## Olorin's name line for another voice (the player's own thoughts).
+func show_tutorial(tutorial_id: String, title: String, paragraphs: Array, force: bool = false,
+		speaker: String = OLORIN_SPEAKER) -> bool:
 	if _active:
 		return false
 	if not force and has_seen(tutorial_id):
 		return false
 	_mark_seen(tutorial_id)
-	_build_dialog(title, paragraphs)
+	_build_dialog(title, paragraphs, null, -1, speaker)
 	return true
 
 # ----- Specific tutorial beats -------------------------------------------------
@@ -51,54 +65,76 @@ func show_combat_intro() -> void:
 		]
 	)
 
-# ----- First-room item tutorial (the Bladed Doughnut) --------------------------
+# ----- First-room tutorial (the Bladed Doughnut) --------------------------------
+#
+# The chain: the first rat drops a mythic (beat 1, in the dungeon) → the
+# player picks it up and decides to show Olorin (beat 2, the quest "A Mythic
+# Find" opens) → Olorin's lesson in town on rarities, forging, mythic levels
+# and melding (beat 3) → the Blacksmith melds it into a Mythic Piece → Olorin
+# pays for the lesson with the Wooden Sword and explains card slots (beat 4).
 
-## Beat 1 — the first rat drops a mythic; Olorin breaks down the rarity
-## tiers, the forge levels and copy costs of each, and mythic molding.
+## Beat 1 — the first rat drops a mythic; Olorin points it out and asks the
+## player to bring it to him.
 func show_item_levels_intro() -> void:
 	show_tutorial(
 		"item_levels_intro",
 		"A Rare Find",
 		[
-			"\"Hold a moment — do you see what that rat was carrying? A MYTHIC. Before you touch it, let me explain how items grow.\"",
-			"\"Items come in five rarities: Basic, Common, Rare, Legendary, and — rarest of all — Mythic. Every item drops at level 1. Find more copies of the SAME item, and the Blacksmith in town will forge them together to raise its level.\"",
-			"\"Basic, Common, and Rare items climb only in STATS, and cap at level 2. The forge asks three spare copies — four found in all — and every stat the item offers grows.\"",
-			"\"Legendary and Mythic items reach level 3, and many carry a SKILL baked into them. One spare copy forges level 2 — the same pure stat boost. Two more copies — four found in all — forge level 3, where the item's skill transforms into its true, build-defining form.\"",
-			"\"And spare mythics are NEVER wasted. The Blacksmith can meld any TWO of them down into a Mythic Mold — trade the mold in, and he will craft a fresh copy of any mythic you have already owned. Duplicates are currency, in the right hands.\"",
+			"\"Hold a moment — do you see what that rat was carrying? That glow... a MYTHIC. Rarest of all that falls, and I have never known one to fall so early.\"",
+			"\"Take it up, and mind it well. We will speak of it when you are next in town.\"",
 		]
 	)
 
-## Beat 2 — the player picks the doughnut up; Olorin explains baked-in skills.
-func show_bladed_doughnut_skill() -> void:
+## Beat 2 — the player claims the doughnut and thinks better of wielding it.
+## Spoken in the character's own voice; main opens the quest alongside it.
+func show_doughnut_keep_thought(character_name: String) -> void:
 	show_tutorial(
-		"bladed_doughnut_skill",
+		"doughnut_keep",
+		"A Rare Find",
+		[
+			"\"I do not think I can wield this...\"",
+			"\"I'll keep it, and show Olorin what I have found.\"",
+			"New quest: A Mythic Find — show the Bladed Doughnut to Olorin in town.",
+		],
+		false,
+		character_name if character_name != "" else "You"
+	)
+
+## Beat 3 — in town, the doughnut in hand: Olorin's lesson on rarities, the
+## forge, mythic levels and skills, and why it must go to the Blacksmith.
+func show_mythic_lesson() -> void:
+	if _active or has_seen("mythic_lesson"):
+		return
+	_mark_seen("mythic_lesson")
+	_build_dialog(
 		"The Bladed Doughnut",
 		[
-			"\"All mythics and most legendaries will have a skill associated with them. This skill gets upgraded on level 3.\"",
-			"\"For instance, this delicious bladed doughnut gives you a Sprinkle. When it is upgraded to level 3, the Sprinkle turns into an AOE bomb vs a single target shot.\"",
-			"\"This is a pretty impressive find so early in the game! Should make things easy for you moving forward.\"",
-		]
-	)
-
-## Beat 3 — the player takes a step; Olorin gets hungry, takes the doughnut,
-## and trades the Wooden Sword for it (his lesson on card slots, on-self
-## bonuses, and item-granted cards).
-func show_doughnut_farewell() -> void:
-	if _active or has_seen("bladed_doughnut_farewell"):
-		return
-	_mark_seen("bladed_doughnut_farewell")
-	_build_dialog(
-		"Olorin Reappears",
-		[
-			"\"I am actually pretty hungry..... I will take that doughnut, actually.\"",
-			"Olorin puts his hands above his head — the doughnut appears.",
-			"\"But a mentor is no thief — a trade! Take this Wooden Sword. No stats to speak of; its worth is in the teaching.\"",
-			"\"See the CARD SLOT carved into it? Items can hold cards — the Blacksmith in town will enchant one in for you. A slotted card gains the item's ON-SELF bonus. This sword's reads 'attacks deal +1 damage', so any attack card slotted into it strikes 1 harder.\"",
-			"\"Some items also PROVIDE cards outright. While the sword is equipped, its card Splinter joins your deck — 2 mana, 2 tempo, range 3, and it leaves a Bleed that wounds the enemy for every tile it moves. Unequip the sword, and Splinter leaves with it.\"",
-			"\"Good luck with your adventures, sir.\"",
+			"\"So it is true — a MYTHIC, from the first rat you ever felled. Let me see it... a Bladed Doughnut. Sit; there is much to know about such things.\"",
+			"\"Items come in five rarities: Basic, Common, Rare, Legendary, and — rarest of all — Mythic. Every item drops at level 1. Find more copies of the SAME item, and the Blacksmith in town will forge them together to raise its level.\"",
+			"\"Basic, Common, and Rare items climb only in STATS, and cap at level 2. The forge asks three spare copies — four found in all — and every stat the item offers grows.\"",
+			"\"Legendary and Mythic items reach level 3, and most carry a SKILL baked into them. One spare copy forges level 2 — a pure stat boost. Two more — four found in all — forge level 3, where the skill transforms into its true, build-defining form. This doughnut conjures a Sprinkle on every kill; at level 3 the Sprinkle becomes a bomb.\"",
+			"\"But hear me: you will not be able to equip this for quite some time. A mythic answers only to a seasoned hand — level fifteen at the least, and every fifteen levels after lets you bear one more.\"",
+			"\"So take it to the Blacksmith. He can meld it down for you into a Mythic Piece. Two such pieces make a Mythic Mold, and a mold recreates any mythic you have ever owned — on the day you are ready to wield it. Nothing mythic is ever wasted, in the right hands.\"",
 		],
 		DoughnutIcon.new(),
-		2  # the doughnut materializes right after the stage direction
+		1  # the doughnut, held up to the light
+	)
+
+## Beat 4 — the quest is turned in: Olorin pays for the lesson with the
+## Wooden Sword (card slots, on-self bonuses, and item-granted cards).
+func show_mythic_find_farewell() -> void:
+	if _active or has_seen("mythic_find_farewell"):
+		return
+	_mark_seen("mythic_find_farewell")
+	_build_dialog(
+		"A Mentor's Gift",
+		[
+			"\"Melded down, and the piece kept safe? Good. When a second joins it, the Blacksmith will pour you a mold — and that doughnut can come back to you the day you can wield it.\"",
+			"\"A lesson deserves a fee, and a mentor is no thief — so take this Wooden Sword. No stats to speak of; its worth is in the teaching.\"",
+			"\"See the CARD SLOT carved into it? Items can hold cards — the Blacksmith will enchant one in for you. A slotted card gains the item's ON-SELF bonus. This sword's reads 'attacks deal +1 damage', so any attack card slotted into it strikes 1 harder.\"",
+			"\"Some items also PROVIDE cards outright. While the sword is equipped, its card Splinter joins your deck — 20 mana, 2 tempo, range 3, and it leaves a Bleed that wounds the enemy for every tile it moves. Unequip the sword, and Splinter leaves with it.\"",
+			"\"Good luck with your adventures, sir.\"",
+		]
 	)
 
 func is_busy() -> bool:
@@ -141,7 +177,10 @@ class DoughnutIcon extends Control:
 
 # ----- UI ---------------------------------------------------------------------
 
-func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_after_paragraph: int = -1) -> void:
+const OLORIN_SPEAKER := "Olorin, the Wandering Mentor"
+
+func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_after_paragraph: int = -1,
+		speaker_name: String = OLORIN_SPEAKER) -> void:
 	_active = true
 
 	# Pause the action while Olorin speaks (unless the player already paused).
@@ -184,7 +223,7 @@ func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_
 	margin.add_child(vbox)
 
 	var speaker = Label.new()
-	speaker.text = "Olorin, the Wandering Mentor"
+	speaker.text = speaker_name
 	speaker.add_theme_font_size_override("font_size", 20)
 	speaker.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
 	speaker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
