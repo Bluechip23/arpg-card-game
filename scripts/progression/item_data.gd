@@ -988,8 +988,10 @@ static func create_wooden_sword() -> ItemData:
 # ============================================
 
 static func create_bladed_doughnut() -> ItemData:
-	## Tutorial mythic: the first rat of the story drops it, and Olorin eats it.
-	## It remains a real mythic — redeemable later via a Mythic Mold.
+	## Tutorial mythic: the first rat of the story drops it; the player cannot
+	## wear a mythic yet, so Olorin sends it to the Blacksmith to be melded
+	## into a Mythic Piece. It remains a real mythic — redeemable later via a
+	## Mythic Mold.
 	var item = ItemData.new()
 	item.item_name = "Bladed Doughnut"
 	item.item_type = ItemType.WEAPON

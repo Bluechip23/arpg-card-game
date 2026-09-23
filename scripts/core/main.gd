@@ -45,17 +45,23 @@ var progression_triggers: ProgressionTriggers = null
 var chest_loot_ui: ChestLootUI = null
 var olorin: OlorinTutorial = null
 var waypoint_mgr: WaypointManager = null
-# First-room tutorial: the first rat of the story drops the Bladed Doughnut,
-# Olorin explains item levels, and once the player walks off with it he gets
-# hungry and takes it back.
+# First-room tutorial: the first rat of the story drops the Bladed Doughnut.
+# Olorin points it out; claiming it opens the quest "A Mythic Find" (show it
+# to Olorin in town, then have the Blacksmith meld it down).
 var _pending_doughnut_drop: bool = false
-var _doughnut_farewell_armed: bool = false
 # Act-mythic pity layer: a mythic rolled on this kill (DropRates), waiting to
 # be injected into the enemy's loot pile.
 var _pending_mythic_item: ItemData = null
-var _doughnut_item: ItemData = null
-var _doughnut_looter: Player = null
-var _doughnut_pickup_cell: Vector2i = Vector2i(-999, -999)
+# The Dojo (town's training hall, interior id "dojo"): four dummies to hit
+# and heal, a reset button, draggable HP/mana. Nothing done here persists —
+# the progression and quest state the player walked in with are handed
+# straight back to town on exit (see _setup_dojo / _travel_to_town).
+var dojo_mode: bool = false
+var _dojo_entry_progression: Dictionary = {}
+var _dojo_entry_quest_state: Dictionary = {}
+var _dojo_entry_deck_state: Dictionary = {}
+var _dojo_allies: Array = []   # ally dummies (Player instances wearing the dog sheet)
+var _dojo_bar_drag: String = ""  # "hp" / "mana" while the mouse drags a stat bar
 var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
 const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
 var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
@@ -522,6 +528,7 @@ func _ready() -> void:
 	deck_manager.card_discarded.connect(_animate_card_discard)
 	deck_manager.reaction_triggered.connect(_animate_card_instant)
 	deck_manager.reaction_triggered.connect(_arm_lethal_recall)
+	deck_manager.reaction_triggered.connect(func(c): progression_triggers._trigger_skill_tree_on_instant(c))
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
 	tempo_manager.tempo_threshold_reached.connect(_on_tempo_threshold_reached)
@@ -596,6 +603,13 @@ func _ready() -> void:
 	else:
 		select_character(CharacterData.create_ryan())
 
+	# The dojo hands back exactly what the player walked in with: snapshot
+	# before anything below restores (and thereby aliases) it.
+	if current_interior_id == "dojo":
+		dojo_mode = true
+		_dojo_entry_progression = dojo_snapshot(player_progression)
+		_dojo_entry_quest_state = quest_state.duplicate(true)
+
 	# Restore player progression from a world transition (level, stats, passives, sphere grid, etc.)
 	if not player_progression.is_empty():
 		_restore_player_progression(player_progression)
@@ -654,6 +668,8 @@ func _ready() -> void:
 	_setup_dungeon()
 	_update_enemy_count()
 	_refresh_unit_tracker()
+	if dojo_mode:
+		_setup_dojo()
 
 	# Co-op: now that the dungeon has placed Player 1, seat Player 2 beside them.
 	if is_multiplayer and _p2_player:
@@ -754,7 +770,6 @@ func _process(delta: float) -> void:
 	_update_damage_preview()
 	_update_loot_hover()
 	_update_move_path_cursor()
-	_check_doughnut_farewell()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
@@ -3739,7 +3754,11 @@ func _setup_hud_icon_bar() -> void:
 	hud_icon_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	hud_icon_bar.alignment = BoxContainer.ALIGNMENT_END
 	hud_icon_bar.character_pressed.connect(func(): character_panel.toggle_panel())
-	hud_icon_bar.level_pressed.connect(func(): skill_tree_ui.toggle_panel(); _refresh_hud_notifications())
+	hud_icon_bar.level_pressed.connect(func():
+		if _dojo_blocks_progression():
+			return
+		skill_tree_ui.toggle_panel()
+		_refresh_hud_notifications())
 	hud_icon_bar.quest_pressed.connect(_on_hud_quest_pressed)
 	hud_icon_bar.help_pressed.connect(_on_hud_help_pressed)
 	hud_icon_bar.deck_pressed.connect(_on_deck_list_button_pressed)
@@ -4564,7 +4583,7 @@ func _open_trade_ui(a: Player, b: Player) -> void:
 func _player_at_position(world_pos: Vector3) -> Player:
 	var best: Player = null
 	var best_d := 1.2  # within ~1 tile of the click
-	for p in _all_players():
+	for p in _all_players() + _dojo_allies:
 		if not is_instance_valid(p):
 			continue
 		var d := Vector2(p.position.x - world_pos.x, p.position.z - world_pos.z).length()
@@ -5532,6 +5551,9 @@ func _clear_locked_markers() -> void:
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Timed statuses (stun, frozen, blind...) tick on RAW tempo so durations
 	# like "3 tempo" work; per-cycle effects still run on the 5-tempo turn.
+	# Skill-tree cooldowns and intervals with exact tempo values tick here too.
+	if progression_triggers:
+		progression_triggers._trigger_skill_tree_on_tempo(amount)
 	for tick_p in _all_players():
 		if not is_instance_valid(tick_p):
 			continue
@@ -6563,8 +6585,8 @@ func _on_player_healed(amount: int) -> void:
 	# Skill tree passive triggers on heal
 	progression_triggers._trigger_skill_tree_brad_on_heal()
 	progression_triggers._trigger_skill_tree_cory_on_heal()
-	# Whispers of the Flock: healing (self/ally) adds a Shepherd's Mark to hand.
-	progression_triggers._trigger_skill_tree_jeremy_on_heal_ally()
+	# (Whispers of the Flock wants an ALLY healed — it listens in
+	# _trigger_skill_tree_on_card_play, not on the player's own heals.)
 
 func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
 	# Cory: Energy Barrier — track non-regen mana gains
@@ -6859,6 +6881,8 @@ func _on_non_play_discard(_card: Card) -> void:
 	var stats = player.get_stats() if player else null
 	if stats and stats.has_skill_tree_passive("ladder_work"):
 		stats.st_ladder_discard_count += 1
+	# Keep Them Guessing counts true discards, never plays.
+	progression_triggers._trigger_skill_tree_on_discard(_card)
 	# Abjurers Cane: every true discard raises the guard.
 	if stats and player.get_inventory():
 		for ac_w in player.get_inventory().equipped_weapons:
@@ -6871,8 +6895,7 @@ func _on_non_play_discard(_card: Card) -> void:
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
 	progression_triggers._trigger_sphere_passives("on_discard", {"card": card})
-	# Skill tree passive triggers for discard
-	progression_triggers._trigger_skill_tree_on_discard(card)
+	# (Skill-tree discard passives listen to non_play_discard — see _on_non_play_discard.)
 	# Volatile Mixture: deal damage to a random nearby enemy when discarded
 	if card.card_id == "volatile_mixture":
 		var stats = player.get_stats()
@@ -11761,7 +11784,8 @@ func _input(event: InputEvent) -> void:
 
 		# Level progress panel toggle (skill tree + sphere grid tabs)
 		if event.keycode == KEY_L:
-			skill_tree_ui.toggle_panel()
+			if not _dojo_blocks_progression():
+				skill_tree_ui.toggle_panel()
 			return
 
 		# Burden relief: J jails the selected Burden card from hand (1m + 1t),
@@ -12054,6 +12078,9 @@ func _setup_dungeon() -> void:
 	# Act-1 mythic cap: once this character's act-1 mythic dropped, act-1
 	# chests stop offering mythics too.
 	dungeon_manager.block_act1_mythics = DropRates.act1_mythic_locked(current_character)
+	# Chest rolls are salted per character so no two characters open the
+	# same chests (sandbox has no character — fresh rolls every time).
+	dungeon_manager.loot_salt = current_character.get_loot_seed() if current_character else randi()
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
 
@@ -12250,7 +12277,10 @@ func _try_interact_site() -> bool:
 		return false
 	var site = dungeon_manager.site_nodes[site_idx]
 	if site["kind"] == "exit":
-		_exit_interior()
+		if dojo_mode:
+			_travel_to_town()  # the dojo's door opens onto the town plaza
+		else:
+			_exit_interior()
 	else:
 		_enter_interior(site["id"], site["display_name"])
 	return true
@@ -13752,6 +13782,10 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 		loot["item"] = _pending_mythic_item
 		_pending_mythic_item = null
 		add_battle_log("A MYTHIC drops: %s!" % loot["item"].item_name, Color(0.9, 0.35, 0.9))
+	# Early-game pity: a new character's first few kills lean generous so the
+	# deck and kit start growing right away (see DropRates.apply_early_pity).
+	if current_character and not sandbox_mode:
+		DropRates.apply_early_pity(current_character, loot)
 	_spawn_loot_drop(loot, pos)
 
 func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
@@ -13883,8 +13917,21 @@ func _finish_mythic_reveal(item: ItemData, looter: Player) -> void:
 		# character has actually held.
 		if current_character and not current_character.owned_mythic_names.has(item.item_name):
 			current_character.owned_mythic_names.append(item.item_name)
+		_maybe_open_mythic_find(item)
 	else:
 		add_battle_log("Inventory AND stash full! %s slipped away..." % item.item_name, Color(1.0, 0.4, 0.4))
+
+## First-room tutorial: claiming the Bladed Doughnut opens "A Mythic Find" —
+## the player decides they cannot wield it yet and resolves to show Olorin.
+func _maybe_open_mythic_find(item: ItemData) -> void:
+	if sandbox_mode or item.item_name != "Bladed Doughnut" or quest_manager == null:
+		return
+	if not quest_manager.available_quests.has("mythic_find"):
+		return  # already opened (or finished) for this character
+	quest_manager.accept_quest("mythic_find")
+	add_battle_log("New quest: A Mythic Find", Color(1.0, 0.85, 0.3))
+	if olorin:
+		olorin.show_doughnut_keep_thought(current_character.character_name if current_character else "")
 
 func _try_click_mythic_reveal() -> bool:
 	if _mythic_reveals.is_empty():
@@ -14035,16 +14082,6 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 				if item.rarity == ItemData.Rarity.MYTHIC and current_character \
 						and not current_character.owned_mythic_names.has(item.item_name):
 					current_character.owned_mythic_names.append(item.item_name)
-				# First-room tutorial: picking up the Bladed Doughnut prompts
-				# Olorin's skill lesson; once the player moves again, he gets
-				# hungry (see _check_doughnut_farewell).
-				if item.item_name == "Bladed Doughnut" and olorin \
-						and not olorin.has_seen("bladed_doughnut_farewell"):
-					olorin.show_bladed_doughnut_skill()
-					_doughnut_farewell_armed = true
-					_doughnut_item = item
-					_doughnut_looter = looter
-					_doughnut_pickup_cell = grid_manager.world_to_grid(looter.position)
 			else:
 				messages.append("Item dropped (inventory full): %s" % item.item_name)
 
@@ -14076,56 +14113,6 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 		var loot_text = "Looted: " + ", ".join(messages)
 		add_battle_log(loot_text, Color(1.0, 0.85, 0.2))
 		print("[MAIN] %s" % loot_text)
-
-#endregion
-#region FIRST-ROOM TUTORIAL: OLORIN TAKES THE DOUGHNUT
-# ============================================
-# FIRST-ROOM TUTORIAL: OLORIN TAKES THE DOUGHNUT
-# ============================================
-
-## Armed when the player scoops up the Bladed Doughnut. The moment they move
-## off the pickup tile (dialogs closed), Olorin reappears, conjures the
-## doughnut overhead, and takes it with him.
-func _check_doughnut_farewell() -> void:
-	if not _doughnut_farewell_armed or olorin == null or olorin.is_busy():
-		return
-	if not is_instance_valid(_doughnut_looter):
-		_doughnut_farewell_armed = false
-		_doughnut_item = null
-		return
-	var cell: Vector2i = grid_manager.world_to_grid(_doughnut_looter.position)
-	if cell == _doughnut_pickup_cell:
-		return
-	_doughnut_farewell_armed = false
-	_trade_doughnut_for_wooden_sword()
-	olorin.show_doughnut_farewell()
-
-## Olorin takes the Bladed Doughnut and leaves the Wooden Sword in exchange —
-## his teaching prop for card slots, on-self bonuses, and item-granted cards.
-func _trade_doughnut_for_wooden_sword() -> void:
-	if _doughnut_item == null:
-		return
-	var inv = _doughnut_looter.get_inventory() if is_instance_valid(_doughnut_looter) else null
-	if inv:
-		if inv.stored_items.has(_doughnut_item):
-			inv.stored_items.erase(_doughnut_item)
-			inv.storage_changed.emit()
-		elif inv.stash_items.has(_doughnut_item):
-			inv.stash_items.erase(_doughnut_item)
-			inv.storage_changed.emit()
-		else:
-			# Equipped in the brief window between pickup and moving — unequip
-			# (reversing its bonuses) and remove.
-			inv._destroy_equipped_item(_doughnut_item)
-		add_battle_log("Olorin took the Bladed Doughnut!", Color(0.9, 0.35, 0.9))
-		var sword = ItemData.create_wooden_sword()
-		if not inv.store_item(sword) and not inv.stash_item(sword):
-			# Both full (the doughnut's slot was just freed, so this is unlikely)
-			print("[MAIN] No room for the Wooden Sword — gift lost")
-		else:
-			add_battle_log("Received: Wooden Sword", Color(0.85, 0.7, 0.45))
-	_doughnut_item = null
-	_doughnut_looter = null
 
 #endregion
 #region WAYPOINT TRAVEL
@@ -14191,6 +14178,7 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 			inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
+			inv.mythic_pieces = inv_data.get("mythic_pieces", inv.mythic_pieces)
 			inv.ensure_return_scroll()  # older saves predate the scroll
 			# Bring item-owned cards back into the deck. On an in-memory
 			# transition the restored piles hold the items' own instances, so
@@ -14243,6 +14231,7 @@ func _save_player_progression() -> Dictionary:
 			"stash_items": inv.stash_items.duplicate(),
 			"culling_stones": inv.culling_stones,
 			"mythic_molds": inv.mythic_molds,
+			"mythic_pieces": inv.mythic_pieces,
 			"rack_items": inv.rack_items.duplicate(),
 			"rack_cooldown_tempo": inv.rack_cooldown_tempo,
 		}
@@ -14260,6 +14249,11 @@ func _travel_to_town() -> void:
 	print("[MAIN] Traveling to town!")
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()
+	if dojo_mode:
+		# Training changes nothing: town gets the entry snapshot back, so a
+		# stacked hand, dragged bars or a spent card never leave the hall.
+		saved_quest_state = _dojo_entry_quest_state
+		saved_progression = _dojo_entry_progression
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
 	if "player2_character" in town_scene:
@@ -14342,4 +14336,235 @@ func _build_ground_plane() -> void:
 
 # Minimap, tab menu, quest log, and expanded map moved to
 # scripts/ui/minimap_tab_ui.gd
+#endregion
+
+#region THE DOJO
+# ============================================
+# THE DOJO — town's training hall
+# ============================================
+
+## A copy of a progression bundle safe to hand back untouched after the dojo:
+## deep-copied so nothing main aliases in the meantime (inventory piles, the
+## deck's live card lists) leaks in, and with the deck's "live" card objects
+## dropped so the deck is rebuilt from ids exactly as a disk load would.
+static func dojo_snapshot(progression: Dictionary) -> Dictionary:
+	var snap: Dictionary = progression.duplicate(true)
+	if snap.has("deck_state") and snap["deck_state"] is Dictionary:
+		snap["deck_state"].erase("live")
+	return snap
+
+func _setup_dojo() -> void:
+	# The hand the player walked in with is the reset baseline.
+	_dojo_entry_deck_state = deck_manager.save_deck_state()
+	_dojo_entry_deck_state.erase("live")
+
+	var cells: Dictionary = dungeon_manager.DOJO_DUMMY_CELLS
+	for cell in cells["enemy"]:
+		_spawn_dojo_dummy(cell)
+	for cell in cells["ally"]:
+		_spawn_dojo_ally(cell)
+	_build_dojo_side_marker(cells["enemy"], "ENEMY DUMMIES", Color(0.85, 0.3, 0.3))
+	_build_dojo_side_marker(cells["ally"], "ALLY DUMMIES", Color(0.3, 0.6, 0.95))
+	_sync_dungeon_blocked_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+
+	_setup_dojo_reset_button()
+	_setup_dojo_bar_dragging()
+	add_battle_log("The Dojo: hit the chickens, heal the dogs. Nothing here follows you out.", Color(0.8, 0.8, 0.95))
+	add_battle_log("Drag the HP / mana bars to set them; Reset restores everything.", Color(0.6, 0.6, 0.75))
+
+func _spawn_dojo_dummy(cell: Vector2i) -> void:
+	var world = grid_manager.grid_to_world(cell)
+	world.y = dungeon_manager.get_elevation_world_y(cell)
+	enemy_spawner.spawn_enemy(Enemy.EnemyType.DUMMY, world)
+
+func _spawn_dojo_ally(cell: Vector2i) -> void:
+	## An ally dummy is a real Player (so every self/ally card, heal, buff and
+	## armor path treats it as one) wearing the NPC dog sheet, parked on its
+	## tile. It never moves, never acts, and refills when it drops to 0.
+	var ally = load("res://scenes/character/player.tscn").instantiate()
+	ally.name = "DojoAlly%d" % _dojo_allies.size()
+	add_child(ally)
+	ally.set_grid_manager(grid_manager)
+	ally.ground_y_provider = Callable(self, "_desired_ground_y")
+	var data := CharacterData.new()
+	data.character_name = "Ally Dummy"
+	data.base_character = "Dog"
+	data.base_health = 500
+	data.base_mana = 100
+	ally.initialize_character(data)
+	var world = grid_manager.grid_to_world(cell)
+	world.y = dungeon_manager.get_elevation_world_y(cell)
+	ally.position = world
+	ally.target_position = world
+	_dojo_allies.append(ally)
+
+	# Numbers float over the dog exactly as they do over the player.
+	var stats = ally.get_stats()
+	stats.health_damage_taken.connect(ally.spawn_damage_number)
+	stats.healed.connect(ally.spawn_heal_number)
+
+	# Health / armor readout over its head; a lethal hit refills it.
+	var readout := Label3D.new()
+	readout.name = "DummyReadout"
+	readout.font_size = 14
+	readout.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	readout.no_depth_test = true
+	readout.modulate = Color(0.75, 0.85, 1.0)
+	readout.outline_size = 6
+	readout.position = Vector3(0, 1.6, 0)
+	WorldText.crisp(readout)
+	ally.add_child(readout)
+	var refresh := func():
+		if stats.current_health <= 0:
+			stats.current_health = stats.max_health
+			stats.health_changed.emit(stats.current_health, stats.max_health)
+		readout.text = "Ally Dummy\nHP %d/%d   ARM %d" % [stats.current_health, stats.max_health, stats.current_armor]
+	stats.health_changed.connect(func(_c, _m): refresh.call())
+	stats.armor_changed.connect(func(_a): refresh.call())
+	refresh.call()
+
+func _build_dojo_side_marker(cells: Array, text: String, color: Color) -> void:
+	## A tinted floor plate under each side's dummies and a title above them.
+	var root := Node3D.new()
+	root.name = "DojoSide_" + text.replace(" ", "_")
+	add_child(root)
+	var sum := Vector3.ZERO
+	for cell in cells:
+		var p = grid_manager.grid_to_world(cell)
+		sum += p
+		var plate := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(1.6, 0.02, 1.6)
+		plate.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(color.r, color.g, color.b, 0.35)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		plate.material_override = mat
+		plate.position = Vector3(p.x, 0.02, p.z)
+		root.add_child(plate)
+	var center = sum / float(maxi(1, cells.size()))
+	var title := Label3D.new()
+	title.text = text
+	title.font_size = 30
+	title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	title.modulate = color
+	title.outline_size = 10
+	title.position = Vector3(center.x, 2.6, center.z)
+	WorldText.crisp(title)
+	root.add_child(title)
+
+func _setup_dojo_reset_button() -> void:
+	## Reset sits beside Wait in the action column.
+	var row = _action_vbox.get_node_or_null("WaitPauseRow") if _action_vbox else null
+	if row == null:
+		return
+	var btn := Button.new()
+	btn.name = "DojoResetButton"
+	btn.text = "Reset"
+	btn.custom_minimum_size = Vector2(0, 36)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.tooltip_text = "Dojo: full health, mana and armor, buffs and debuffs cleared, tempo back to 0, the hand you walked in with, dummies restored"
+	btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	btn.pressed.connect(_dojo_reset)
+	row.add_child(btn)
+
+func _dojo_reset() -> void:
+	if not dojo_mode:
+		return
+	var stats = player.get_stats()
+	# Cards first: maintained cards give their reserved mana back.
+	deck_manager.break_all_maintained_cards()
+	deck_manager.restore_deck_state(_dojo_entry_deck_state.duplicate(true))
+	var inv = player.get_inventory()
+	if inv:
+		inv.apply_equipped_item_card_effects()
+		inv.relink_slotted_cards(deck_manager)
+	_on_hand_updated()
+	update_deck_info()
+	_update_maintained_button()
+	# The character: clean slate.
+	_dojo_reset_unit(player)
+	stats.current_attack_counter = 0
+	# The clock.
+	tempo_manager.initialize(stats)
+	draw_timer.reset()
+	_update_tick_bar(0, 0, 0, "")
+	update_tempo_display()
+	# The dummies: fresh chickens, refilled dogs.
+	enemy_spawner.clear_enemies()
+	for cell in dungeon_manager.DOJO_DUMMY_CELLS["enemy"]:
+		_spawn_dojo_dummy(cell)
+	for ally in _dojo_allies:
+		if is_instance_valid(ally):
+			_dojo_reset_unit(ally)
+	_sync_dungeon_blocked_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("Dojo reset.", Color(1.0, 0.85, 0.3))
+
+func _dojo_reset_unit(unit: Player) -> void:
+	var stats = unit.get_stats()
+	var bm = unit.get_buff_manager()
+	if bm:
+		for buff in bm.buffs.duplicate():
+			bm.remove_buff(buff.buff_type)
+	var dm = unit.get_debuff_manager()
+	if dm:
+		dm.clear_all_debuffs()
+	stats.current_armor = 0
+	stats.current_health = stats.max_health
+	stats.current_mana = float(stats.get_available_max_mana())
+	stats.health_changed.emit(stats.current_health, stats.max_health)
+	stats.mana_changed.emit(stats.current_mana, stats.max_mana)
+	stats.armor_changed.emit(stats.current_armor)
+
+func _setup_dojo_bar_dragging() -> void:
+	## Click or drag along the HP / mana bar to set the value — for testing
+	## Determination thresholds, low-HP reactions, mana-gated effects.
+	for pair in [[_hp_bar, "hp"], [_mana_bar, "mana"]]:
+		var bar: ProgressBar = pair[0]
+		if bar == null:
+			continue
+		bar.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+		bar.tooltip_text = "Dojo: click or drag to set"
+		bar.gui_input.connect(_on_dojo_bar_input.bind(bar, pair[1]))
+
+func _on_dojo_bar_input(event: InputEvent, bar: ProgressBar, which: String) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_dojo_bar_drag = which
+			_dojo_apply_bar_drag(bar, which, event.position)
+		else:
+			_dojo_bar_drag = ""
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _dojo_bar_drag == which:
+		_dojo_apply_bar_drag(bar, which, event.position)
+		get_viewport().set_input_as_handled()
+
+func _dojo_apply_bar_drag(bar: ProgressBar, which: String, local_pos: Vector2) -> void:
+	var ratio: float = clampf(local_pos.x / maxf(1.0, bar.size.x), 0.0, 1.0)
+	var stats = player.get_stats()
+	match which:
+		"hp":
+			# Never to 0: that is a death, not a test.
+			stats.current_health = clampi(roundi(ratio * stats.max_health), 1, stats.max_health)
+			stats.health_changed.emit(stats.current_health, stats.max_health)
+		"mana":
+			stats.current_mana = clampf(ratio * stats.max_mana, 0.0, float(stats.get_available_max_mana()))
+			stats.mana_changed.emit(stats.current_mana, stats.max_mana)
+	# Determination reads the live resource percent; card faces print
+	# stat-adjusted numbers, so re-render them for the new state.
+	_refresh_hand_card_values()
+
+func _dojo_blocks_progression() -> bool:
+	## The skill tree and sphere grid are read-only in the dojo: spending here
+	## would be undone on exit and desync the panel from the character.
+	if not dojo_mode:
+		return false
+	add_battle_log("The skill tree and sphere grid are locked in the dojo — spend points out in the world or in town.", Color(0.8, 0.6, 0.6))
+	return true
+
 #endregion

@@ -67,7 +67,8 @@ var _current_vendor_node: StaticBody3D = null
 
 # Blacksmith forge state: the first mythic clicked for molding (a second
 # click on another mythic completes the mold).
-var _mold_selection: ItemData = null
+var _mold_selection: ItemData = null  # Blacksmith: mythic awaiting its confirming second click
+var _olorin_tutorial: OlorinTutorial = null  # Olorin's in-town lessons (A Mythic Find)
 
 # Stash UI state
 var _stash_panel: PanelContainer = null
@@ -125,6 +126,11 @@ var vendor_info: Dictionary = {
 		"name": "Town Hall",
 		"description": "The heart of the city. Raise buildings with the resources you send home.",
 		"type": "town_hall"
+	},
+	"Dojo": {
+		"name": "Dojo",
+		"description": "The training hall: four dummies, no stakes.",
+		"type": "dojo"
 	}
 }
 
@@ -175,6 +181,7 @@ func _ready() -> void:
 				inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 				inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 				inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
+				inv.mythic_pieces = inv_data.get("mythic_pieces", inv.mythic_pieces)
 				inv.equipment_changed.emit()
 				print("[TOWN] Restored inventory: %d stored items, %d stash items" % [inv.stored_items.size(), inv.stash_items.size()])
 
@@ -195,8 +202,15 @@ func _ready() -> void:
 	if not quest_state.is_empty():
 		quest_manager.load_state(quest_state)
 
+	# Olorin's spoken lessons (the same dialog he uses in the dungeon).
+	_olorin_tutorial = OlorinTutorial.new()
+	_olorin_tutorial.name = "OlorinTutorial"
+	_olorin_tutorial.init(self)
+	add_child(_olorin_tutorial)
+
 	# Create Olorin NPC
 	_create_olorin_npc()
+	_create_dojo()
 	_create_town_well()
 
 	# Create the Sellsword co-op recruiter NPC
@@ -529,6 +543,11 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 
 	if info["type"] == "quest_giver":
 		_open_quest_dialog(vendor_node)
+		return
+
+	if info["type"] == "dojo":
+		vendor_open = false
+		_go_to_dojo()
 		return
 
 	if info["type"] == "well":
@@ -879,7 +898,8 @@ func _populate_blacksmith_forge() -> void:
 	if not inventory:
 		return
 
-	_add_info_label("Mythic Molds: %d" % inventory.get_mythic_mold_count(), Color(0.9, 0.35, 0.9))
+	_add_info_label("Mythic Molds: %d    Mythic Pieces: %d / 2" % [
+		inventory.get_mythic_mold_count(), inventory.get_mythic_piece_count()], Color(0.9, 0.35, 0.9))
 
 	# Sync ownership history up front, so mythics the player is about to meld
 	# down are remembered as owned (and stay redeemable) first.
@@ -894,11 +914,11 @@ func _populate_blacksmith_forge() -> void:
 	for entry in candidates:
 		_add_forge_row(entry["item"], entry["copies_have"], entry["copies_needed"])
 
-	# --- Mythic molding ---
+	# --- Mythic melding ---
 	var moldable = ItemForge.get_moldable_mythics(inventory)
 	if moldable.size() > 0:
-		_add_section_separator("Mythic Molding — melt 2 mythics into a Mythic Mold")
-		_add_info_label("Click two mythics to mold them down.", Color(0.6, 0.6, 0.7))
+		_add_section_separator("Mythic Melding — meld a mythic down into a Mythic Piece")
+		_add_info_label("Two Mythic Pieces pour into a Mythic Mold. Click a mythic, then click it again to meld it.", Color(0.6, 0.6, 0.7))
 		for item in moldable:
 			_add_mold_row(item)
 
@@ -935,7 +955,7 @@ func _add_mold_row(item: ItemData) -> void:
 	var selected = item == _mold_selection
 	btn.text = "  %s   [Mythic %s]%s" % [
 		item.get_display_name(), item.get_type_name(),
-		"   [SELECTED — click another mythic]" if selected else ""]
+		"   [click again to MELD]" if selected else ""]
 	btn.add_theme_font_size_override("font_size", 13)
 	_style_forge_button(btn, Color(0.9, 0.35, 0.9))
 	btn.pressed.connect(_on_mold_mythic_clicked.bind(item))
@@ -1005,13 +1025,15 @@ func _on_mold_mythic_clicked(item: ItemData) -> void:
 	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
 	if not inventory:
 		return
-	if _mold_selection == null:
-		_mold_selection = item
-	elif _mold_selection == item:
-		_mold_selection = null  # clicked again — deselect
+	if _mold_selection != item:
+		_mold_selection = item  # first click arms; the second confirms
 	else:
-		ItemForge.mold_mythics(inventory, _mold_selection, item)
 		_mold_selection = null
+		if ItemForge.meld_mythic(inventory, item):
+			print("[TOWN] Melded %s into a Mythic Piece" % item.item_name)
+			if quest_manager:
+				quest_manager.on_event("meld", {"item": item.item_name})
+				_refresh_quest_indicators()
 	_refresh_blacksmith()
 
 func _on_redeem_mold_clicked(mythic_name: String) -> void:
@@ -2567,11 +2589,37 @@ func _open_quest_dialog(vendor_node: StaticBody3D) -> void:
 
 	vendor_inventory_label.text = info["description"]
 
+	# A Mythic Find: the doughnut in hand counts as showing it to Olorin, and
+	# he gives his lesson on mythics before the quest list renders.
+	if quest_manager and quest_manager.is_objective_active("mythic_find", 0) \
+			and _player_holds_item("Bladed Doughnut"):
+		quest_manager.on_event("reach", {"object": "npc_olorin"})
+		_refresh_quest_indicators()
+		if _olorin_tutorial:
+			_olorin_tutorial.show_mythic_lesson()
+
 	_render_quest_section("Olorin")
 
 	vendor_panel.visible = true
 	interact_prompt.text = ""
 	print("[TOWN] Opened quest dialog with Olorin")
+
+## True when the item is anywhere on the character: bag, stash, or worn.
+func _player_holds_item(item_name: String) -> bool:
+	var inventory = player.get_inventory() if player and player.has_method("get_inventory") else null
+	if inventory == null:
+		return false
+	var all_lists = [
+		inventory.stored_items, inventory.stash_items,
+		inventory.equipped_helms, inventory.equipped_chests, inventory.equipped_rings,
+		inventory.equipped_belts, inventory.equipped_boots, inventory.equipped_gauntlets,
+		inventory.equipped_weapons,
+	]
+	for list in all_lists:
+		for item in list:
+			if item and item.item_name == item_name:
+				return true
+	return false
 
 func _render_quest_section(giver: String) -> void:
 	## Quests for one giver, in the vendor list: finished ones to hand in,
@@ -2648,6 +2696,8 @@ func _reward_text(rewards: Dictionary) -> String:
 		parts.append("%d Gold" % int(rewards["gold"]))
 	if rewards.has("xp"):
 		parts.append("%d XP" % int(rewards["xp"]))
+	for item_name in rewards.get("items", []):
+		parts.append("the %s" % str(item_name))
 	for f in rewards.get("flags", []):
 		match str(f):
 			"town_well_blessed": parts.append("the Town Well heals for free")
@@ -2769,10 +2819,21 @@ func _on_turn_in_quest(quest_id: String) -> void:
 	if rewards.is_empty():
 		return
 	print("[TOWN] Quest turned in! Rewards: %s" % rewards)
+	# Item rewards land in the bag (or the stash when the bag is full).
+	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
+	for item_name in rewards.get("items", []):
+		var item = ItemData.create_by_name(str(item_name))
+		if item == null or inventory == null:
+			continue
+		if not inventory.store_item(item) and not inventory.stash_item(item):
+			print("[TOWN] No room for %s — reward lost" % item.item_name)
 	_refresh_well_visual()
 	_close_vendor()
 	_refresh_quest_indicators()
 	_refresh_leave_gate()
+	# A Mythic Find: Olorin pays for his lesson with the Wooden Sword.
+	if quest_id == "mythic_find" and _olorin_tutorial:
+		_olorin_tutorial.show_mythic_find_farewell()
 
 # ── Quest markers & leaving town ──
 
@@ -2990,7 +3051,27 @@ func _go_to_battle(via_portal: bool = false) -> void:
 	# next trial — its countdown ticks on kills out in the world.
 	TrialSystem.schedule(player_progression)
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
-	# Save current player progression before transitioning
+	var saved_progression = _departure_progression()
+	var main_scene = load("res://scenes/core/main.tscn").instantiate()
+	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = player2_character != null
+	main_scene.current_world_level = return_world_level
+	main_scene.discovered_waypoints = discovered_waypoints
+	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = saved_progression
+	main_scene.opened_chests = opened_chests
+	# Return Scroll: stepping through the twin drops the player back at the
+	# exact spot where they opened the portal (same world, same tile).
+	if via_portal and not portal_return.is_empty():
+		main_scene.current_world_level = portal_return.get("world_level", return_world_level)
+		main_scene.portal_return_position = portal_return.get("position")
+	get_tree().root.add_child(main_scene)
+	queue_free()
+
+## The progression bundle a scene leaving town carries: the live stats and
+## inventory re-snapshotted on top of what town was handed.
+func _departure_progression() -> Dictionary:
 	var stats = player.get_stats()
 	var saved_progression = player_progression.duplicate(true)
 	if stats:
@@ -3013,23 +3094,9 @@ func _go_to_battle(via_portal: bool = false) -> void:
 			"stash_items": live_inv.stash_items.duplicate(),
 			"culling_stones": live_inv.culling_stones,
 			"mythic_molds": live_inv.mythic_molds,
+			"mythic_pieces": live_inv.mythic_pieces,
 		}
-	var main_scene = load("res://scenes/core/main.tscn").instantiate()
-	main_scene.starting_character = starting_character
-	main_scene.player2_character = player2_character
-	main_scene.is_multiplayer = player2_character != null
-	main_scene.current_world_level = return_world_level
-	main_scene.discovered_waypoints = discovered_waypoints
-	main_scene.quest_state = saved_quest_state
-	main_scene.player_progression = saved_progression
-	main_scene.opened_chests = opened_chests
-	# Return Scroll: stepping through the twin drops the player back at the
-	# exact spot where they opened the portal (same world, same tile).
-	if via_portal and not portal_return.is_empty():
-		main_scene.current_world_level = portal_return.get("world_level", return_world_level)
-		main_scene.portal_return_position = portal_return.get("position")
-	get_tree().root.add_child(main_scene)
-	queue_free()
+	return saved_progression
 
 func _spawn_return_portal() -> void:
 	## The twin of the Return Scroll portal, matching the battle-side visual.
@@ -3117,6 +3184,61 @@ func _create_town_hall_npc() -> void:
 
 	$Vendors.add_child(hall)
 	print("[TOWN] Created Town Hall at position %s" % hall.position)
+
+func _create_dojo() -> void:
+	## The Dojo: a low timber hall on the plaza's east side. Interacting steps
+	## straight into the training interior (main.tscn, interior "dojo").
+	var dojo = StaticBody3D.new()
+	dojo.name = "Dojo"
+	dojo.position = grid_manager.grid_to_world(Vector2i(18, 9))
+
+	_npc_box(dojo, "Base", Vector3(0, 0.7, 0), Vector3(3.0, 1.4, 2.4), Color(0.62, 0.5, 0.36))
+	_npc_box(dojo, "Roof", Vector3(0, 1.65, 0), Vector3(3.5, 0.45, 2.9), Color(0.3, 0.2, 0.16))
+	_npc_box(dojo, "Ridge", Vector3(0, 1.95, 0), Vector3(3.7, 0.12, 0.5), Color(0.22, 0.15, 0.12))
+	_npc_box(dojo, "Door", Vector3(0, 0.5, 1.22), Vector3(0.9, 1.0, 0.08), Color(0.25, 0.17, 0.1))
+	_npc_box(dojo, "Lantern", Vector3(-1.1, 1.25, 1.24), Vector3(0.22, 0.32, 0.06), Color(0.9, 0.55, 0.2))
+	_npc_box(dojo, "Lantern2", Vector3(1.1, 1.25, 1.24), Vector3(0.22, 0.32, 0.06), Color(0.9, 0.55, 0.2))
+
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(3.2, 2.0, 2.6)
+	collision.shape = shape
+	collision.position = Vector3(0, 1.0, 0)
+	dojo.add_child(collision)
+
+	var label = Label3D.new()
+	label.text = "DOJO"
+	label.font_size = 26
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(0.95, 0.75, 0.55)
+	label.outline_size = 8
+	label.position = Vector3(0, 2.5, 0)
+	WorldText.crisp(label)
+	dojo.add_child(label)
+
+	$Vendors.add_child(dojo)
+	print("[TOWN] Created Dojo at position %s" % dojo.position)
+
+func _go_to_dojo() -> void:
+	## Into the training hall. Same hand-off as heading to battle, minus the
+	## trial clock: nothing in the dojo counts, and it hands the very same
+	## progression back on the way out.
+	if vendor_open:
+		_close_vendor()
+	print("[TOWN] Heading to the dojo")
+	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	var main_scene = load("res://scenes/core/main.tscn").instantiate()
+	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = player2_character != null
+	main_scene.current_world_level = return_world_level
+	main_scene.current_interior_id = "dojo"
+	main_scene.discovered_waypoints = discovered_waypoints
+	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = _departure_progression()
+	main_scene.opened_chests = opened_chests
+	get_tree().root.add_child(main_scene)
+	queue_free()
 
 func _open_town_hall_ui() -> void:
 	if not CityBridge.city_started(player_progression):

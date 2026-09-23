@@ -53,6 +53,22 @@ func get_base_character() -> String:
 @export var act_mythic_found: Array = []      # act numbers (int)
 @export var act_mythic_kills: Dictionary = {} # act (int) -> kills so far
 
+# Per-character loot seed: mixed into every chest's deterministic roll so two
+# characters never open identical chests, while one character revisiting a
+# chest always finds what they left in it. Rolled lazily on first use (0 =
+# unrolled) so characters saved before it existed pick one up on load.
+@export var loot_seed: int = 0
+
+# Early-game pity counters (see DropRates.apply_early_pity): how many cards
+# and items this character has pulled from kills while the pity was active.
+@export var early_card_drops: int = 0
+@export var early_item_drops: int = 0
+
+func get_loot_seed() -> int:
+	if loot_seed == 0:
+		loot_seed = randi_range(1, 0x7FFFFFFF)
+	return loot_seed
+
 # Every mythic item this character has EVER owned (by item_name). Mythic Molds
 # can only be redeemed for mythics on this list — melding duplicates forges
 # copies of what you've found, never unlocks what you haven't.

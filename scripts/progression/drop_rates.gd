@@ -45,13 +45,12 @@ const MYTHIC_BASELINE_BY_TIER := {
 }
 
 # ---- Item rarity weights ----------------------------------------------------
-# Chests: flat baseline. Mythic/legendary stay at baseline in every act
-# (act 1 additionally locks chest mythics once its mythic is found).
+# Chests: commons and rares only. Legendaries come from enemies, and mythics
+# exclusively from the per-kill pity layer — a chest is a steady trickle of
+# gear, never a jackpot.
 const CHEST_ITEM_WEIGHTS := {
-	ItemData.Rarity.COMMON: 84,
-	ItemData.Rarity.RARE: 12,
-	ItemData.Rarity.LEGENDARY: 3,
-	ItemData.Rarity.MYTHIC: 1,
+	ItemData.Rarity.COMMON: 85,
+	ItemData.Rarity.RARE: 15,
 }
 
 # Enemy item drops per tier. NO mythic key — mythics come exclusively from
@@ -140,6 +139,16 @@ const PACK_CARD_WEIGHTS := {
 	},
 }
 
+# ---- Early-game pity ----------------------------------------------------------
+# A fresh character should start growing their deck and kit right away. Until
+# a character has pulled EARLY_PITY_DROPS cards (and, separately, items) from
+# kills, every story kill that rolled nothing of that kind gets a second,
+# generous roll: a card from the normal card table, or a COMMON item. Once
+# either counter fills, that side of the pity switches off for good.
+const EARLY_PITY_DROPS := 3
+const EARLY_PITY_CARD_CHANCE: float = 0.35
+const EARLY_PITY_ITEM_CHANCE: float = 0.35
+
 # ---- Helpers ----------------------------------------------------------------
 
 ## Weighted pick over a {key: weight} table. Pass an RNG for deterministic
@@ -198,3 +207,43 @@ static func roll_act_mythic_kill(character, act: int, tier: String,
 ## True when act-1 chests must stop offering mythics for this character.
 static func act1_mythic_locked(character) -> bool:
 	return character != null and character.act_mythic_found.has(1)
+
+## Early-game pity for a story kill's loot (mutates `loot` in place). Counts
+## any card/pack or item already in the pile toward the character's early
+## counters, and while a counter is still short, gives an empty slot one
+## extra roll. Pity items are always commons.
+static func apply_early_pity(character, loot: Dictionary,
+		rng: RandomNumberGenerator = null) -> void:
+	if character == null or loot.is_empty():
+		return
+	var has_card: bool = loot.get("card") != null or loot.get("card_pack") != null
+	if character.early_card_drops < EARLY_PITY_DROPS:
+		if not has_card:
+			var roll: float = rng.randf() if rng else randf()
+			if roll < EARLY_PITY_CARD_CHANCE:
+				loot["card"] = _roll_card(rng)
+				has_card = true
+		if has_card:
+			character.early_card_drops += 1
+	var has_item: bool = loot.get("item") != null
+	if character.early_item_drops < EARLY_PITY_DROPS:
+		if not has_item:
+			var roll: float = rng.randf() if rng else randf()
+			if roll < EARLY_PITY_ITEM_CHANCE:
+				var pool = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
+				if not pool.is_empty():
+					var idx: int = rng.randi() % pool.size() if rng else randi() % pool.size()
+					loot["item"] = pool[idx]
+					has_item = true
+		if has_item:
+			character.early_item_drops += 1
+
+## One card off the shared card-rarity table.
+static func _roll_card(rng: RandomNumberGenerator = null) -> Card:
+	var rarity = roll_weighted(CARD_WEIGHTS, rng)
+	var ids = Card.get_droppable_ids_of_rarity(rarity)
+	if ids.is_empty():
+		ids = Card.get_droppable_ids_of_rarity(Card.Rarity.BASIC)
+	ids.sort()
+	var idx: int = rng.randi() % ids.size() if rng else randi() % ids.size()
+	return Card.create_by_id(ids[idx])

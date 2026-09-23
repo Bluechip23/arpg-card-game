@@ -22,6 +22,7 @@ func _initialize() -> void:
 	_test_pity_rolls()
 	_test_weights()
 	_test_card_rarities()
+	_test_early_pity()
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -99,15 +100,18 @@ func _test_pity_rolls() -> void:
 
 func _test_weights() -> void:
 	print("-- Rarity weight tables --")
-	# Chests: mythic/legendary sit at the 1%/3% baseline.
+	# Chests: commons and rares only.
 	var total := 0
 	for r in DropRates.CHEST_ITEM_WEIGHTS:
 		total += int(DropRates.CHEST_ITEM_WEIGHTS[r])
 	_check(total == 100, "chest weights sum to 100 (read as percentages)")
-	_check(int(DropRates.CHEST_ITEM_WEIGHTS[ItemData.Rarity.MYTHIC]) == 1,
-		"chest mythic chance is the 1%% baseline")
-	_check(int(DropRates.CHEST_ITEM_WEIGHTS[ItemData.Rarity.LEGENDARY]) == 3,
-		"chest legendary chance is the 3%% baseline")
+	_check(not DropRates.CHEST_ITEM_WEIGHTS.has(ItemData.Rarity.MYTHIC),
+		"chests never hold mythics")
+	_check(not DropRates.CHEST_ITEM_WEIGHTS.has(ItemData.Rarity.LEGENDARY),
+		"chests never hold legendaries")
+	_check(int(DropRates.CHEST_ITEM_WEIGHTS[ItemData.Rarity.COMMON]) >
+		int(DropRates.CHEST_ITEM_WEIGHTS[ItemData.Rarity.RARE]),
+		"chest commons outweigh rares")
 
 	# Enemy tables never contain mythics (the pity layer owns those).
 	for tier in DropRates.ENEMY_ITEM_WEIGHTS:
@@ -119,12 +123,60 @@ func _test_weights() -> void:
 	# Weighted roll respects the table and rough proportions.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 777
-	var mythics := 0
+	var rares := 0
 	for i in range(20000):
-		if DropRates.roll_weighted(DropRates.CHEST_ITEM_WEIGHTS, rng) == ItemData.Rarity.MYTHIC:
-			mythics += 1
-	_check(mythics > 100 and mythics < 320,
-		"20k chest rolls yield ~1%% mythics (%d)" % mythics)
+		if DropRates.roll_weighted(DropRates.CHEST_ITEM_WEIGHTS, rng) == ItemData.Rarity.RARE:
+			rares += 1
+	_check(rares > 2600 and rares < 3400,
+		"20k chest rolls yield ~15%% rares (%d)" % rares)
+
+func _test_early_pity() -> void:
+	print("-- Early-game pity --")
+	var c := CharacterData.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var cards := 0
+	var items := 0
+	var kills := 0
+	# Empty piles (gold only) until both counters fill.
+	while (c.early_card_drops < DropRates.EARLY_PITY_DROPS \
+			or c.early_item_drops < DropRates.EARLY_PITY_DROPS) and kills < 500:
+		kills += 1
+		var loot := {"gold": 5, "item": null, "card": null, "card_pack": null}
+		DropRates.apply_early_pity(c, loot, rng)
+		if loot["card"] != null:
+			cards += 1
+		if loot["item"] != null:
+			items += 1
+			_check(loot["item"].rarity == ItemData.Rarity.COMMON, "pity items are commons")
+	_check(cards == DropRates.EARLY_PITY_DROPS and items == DropRates.EARLY_PITY_DROPS,
+		"pity hands out exactly %d cards and %d items (%d kills)" % [
+			DropRates.EARLY_PITY_DROPS, DropRates.EARLY_PITY_DROPS, kills])
+	_check(kills < 60, "the pity fills within a reasonable early stretch (%d kills)" % kills)
+	# Once filled, the pity never adds anything again.
+	var quiet := true
+	for i in range(200):
+		var loot := {"gold": 5, "item": null, "card": null, "card_pack": null}
+		DropRates.apply_early_pity(c, loot, rng)
+		if loot["card"] != null or loot["item"] != null:
+			quiet = false
+	_check(quiet, "a filled pity stays silent")
+	# Natural drops count toward the pity without being replaced.
+	var d := CharacterData.new()
+	var slash := Card.create_slash()
+	var natural := {"gold": 5, "item": null, "card": slash, "card_pack": null}
+	DropRates.apply_early_pity(d, natural, rng)
+	_check(natural["card"] == slash and d.early_card_drops == 1,
+		"a natural card drop is kept and counted")
+	# Sandbox / no character: untouched.
+	var loose := {"gold": 5, "item": null, "card": null, "card_pack": null}
+	DropRates.apply_early_pity(null, loose, rng)
+	_check(loose["card"] == null and loose["item"] == null, "no character, no pity")
+	# The loot seed is rolled once and then sticks.
+	var e := CharacterData.new()
+	_check(e.loot_seed == 0, "a fresh character has no loot seed yet")
+	var first := e.get_loot_seed()
+	_check(first != 0 and e.get_loot_seed() == first, "the loot seed rolls once and persists")
 
 func _test_card_rarities() -> void:
 	print("-- Card rarity tiers --")

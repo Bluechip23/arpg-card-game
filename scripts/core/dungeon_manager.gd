@@ -281,6 +281,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "forest"
 	elif interior_id.begins_with("graveyard"):
 		interior_kind = "graveyard"
+	elif interior_id.begins_with("dojo"):
+		interior_kind = "dojo"
 
 	# Fog scales with how lit the place is: tight, lightless sewers reveal least,
 	# the bright open forest reveals most, everything else uses the default.
@@ -289,6 +291,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			fog_reveal_radius = 4
 		"forest":
 			fog_reveal_radius = 9
+		"dojo":
+			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
 
@@ -318,6 +322,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_sewer_layout()
 		"forest":
 			_generate_forest_layout()
+		"dojo":
+			_generate_dojo_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -371,6 +377,12 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		spawn_zones.size(), site_nodes.size()])
 
 func _set_world_size() -> void:
+	if interior_kind == "dojo":
+		# One training hall: four dummies in a square, the door at the south.
+		GRID_W = DOJO_W
+		GRID_H = DOJO_H
+		player_start = Vector2i(DOJO_W / 2, DOJO_H - 3)
+		return
 	if interior_kind == "cave" or interior_kind == "graveyard":
 		GRID_W = 36 + world_level * 2
 		GRID_H = 26 + world_level
@@ -439,7 +451,7 @@ func get_palette() -> Dictionary:
 		return CAVE_PALETTE
 	if interior_kind == "graveyard":
 		return _get_graveyard_palette()
-	if interior_kind == "building":
+	if interior_kind == "building" or interior_kind == "dojo":
 		return BUILDING_PALETTE
 	if interior_kind == "sewer":
 		return SEWER_PALETTE
@@ -458,7 +470,7 @@ func floor_texture_path() -> String:
 	match interior_kind:
 		"sewer":
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
-		"building":
+		"building", "dojo":
 			return CP_TEX + "/floor_undead.png"  # grey flagstones (undead pack's cracked stone)
 		"cave":
 			return CP_TEX + "/floor_cave.png"
@@ -692,8 +704,33 @@ func get_location_name() -> String:
 		return "Greenwood"
 	if interior_kind == "graveyard":
 		return "Old Graveyard"
+	if interior_kind == "dojo":
+		return "Dojo"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
+
+# ============================================
+# DOJO LAYOUT
+# The town's training hall: one open room, flat, fully lit, no loot, no
+# spawns. Main places the four dummies (see Main._setup_dojo) on
+# DOJO_DUMMY_CELLS — a square, enemy side west, ally side east — and the
+# player enters through the south door (player_start).
+# ============================================
+const DOJO_W := 18
+const DOJO_H := 14
+const DOJO_DUMMY_CELLS := {
+	"enemy": [Vector2i(5, 4), Vector2i(5, 8)],
+	"ally": [Vector2i(12, 4), Vector2i(12, 8)],
+}
+
+func _generate_dojo_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	var hall := Rect2i(1, 1, GRID_W - 2, GRID_H - 2)
+	_carve_rect(hall)
+	# "start" keeps the chest placer away (it only chests a start room on the
+	# overworld) and the fountain placer skips the dojo entirely.
+	rooms.append({"rect": hall, "kind": "start", "elev": 0})
 
 # ============================================
 # OVERWORLD LAYOUT
@@ -1253,8 +1290,8 @@ func _generate_elevation() -> void:
 			col.append(0)
 		elevation.append(col)
 
-	if interior_kind == "building":
-		return  # Buildings are flat inside
+	if interior_kind == "building" or interior_kind == "dojo":
+		return  # Buildings and the dojo are flat inside
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
 	if interior_kind == "forest":
@@ -1946,6 +1983,8 @@ func _build_decorations() -> void:
 	if interior_kind == "cave":
 		_build_cave_decorations()
 		return
+	if interior_kind == "dojo":
+		return  # bare boards: the dummies are the furniture
 	var pal = get_palette()
 	var _deco_trees: Array = []
 	var _deco_stumps: Array = []
@@ -4208,7 +4247,10 @@ func _place_chests() -> void:
 		if cell.x < 0:
 			continue
 		placed.append(cell)
-		_create_chest(cell)
+		# The overworld starter chest of act 1 is the player's first loot:
+		# it always holds a card and a common item so deck-building and
+		# gearing start before the first fight.
+		_create_chest(cell, kind == "start" and world_level == 1)
 
 	# Restore previously opened chests from prior visits
 	_restore_opened_chests()
@@ -4288,7 +4330,7 @@ func _chest_design(contents: Dictionary) -> String:
 		return "rare"
 	return "wood"
 
-func _create_chest(grid_pos: Vector2i) -> void:
+func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 	var chest_root = Node3D.new()
 	chest_root.name = "TreasureChest_%d" % chest_nodes.size()
 
@@ -4297,7 +4339,7 @@ func _create_chest(grid_pos: Vector2i) -> void:
 	# Generate chest contents first (deterministic seed, so the same chest
 	# always holds the same loot) — the chest's design is chosen by them.
 	var chest_index = chest_nodes.size()
-	var contents = _generate_chest_contents(chest_index)
+	var contents = _generate_chest_contents(chest_index, starter)
 	var design := _chest_design(contents)
 	var closed := _first_prop_variant("chest_%s_closed" % design, "res://assets/textures/props/chest_closed.png", 26, 26)
 	var sprite = Sprite3D.new()
@@ -4341,19 +4383,32 @@ func _create_chest(grid_pos: Vector2i) -> void:
 		"sprite": sprite
 	})
 
-func _generate_chest_contents(chest_index: int) -> Dictionary:
-	# Use a deterministic RNG seeded by world + chest index so the same chest
-	# always generates the same loot, even if the dungeon is recreated
+# Per-character salt for chest rolls (CharacterData.get_loot_seed()), set by
+# main before initialize(). Without it every character would open identical
+# chests; with it a chest still holds the same loot for the character who
+# found it, across saves and world transitions.
+var loot_salt: int = 0
+
+func _generate_chest_contents(chest_index: int, starter: bool = false) -> Dictionary:
+	# Deterministic RNG seeded by world + chest index + the character's loot
+	# salt, so the same chest always generates the same loot for this
+	# character even if the dungeon is recreated.
 	var rng = RandomNumberGenerator.new()
 	if interior_id == "":
-		rng.seed = hash("chest_w%d_c%d" % [world_level, chest_index])
+		rng.seed = hash("chest_w%d_c%d_s%d" % [world_level, chest_index, loot_salt])
 	else:
-		rng.seed = hash("chest_w%d_%s_c%d" % [world_level, interior_id, chest_index])
+		rng.seed = hash("chest_w%d_%s_c%d_s%d" % [world_level, interior_id, chest_index, loot_salt])
 
 	var gold = rng.randi_range(15, 50) + (world_level - 1) * 10
 	var contents: Dictionary = {"gold": gold, "item": null, "card": null, "card_pack": null}
 
-	if rng.randf() < 0.5:
+	if starter:
+		# Act-1 starter chest: a card AND a common item, guaranteed.
+		var commons = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
+		if not commons.is_empty():
+			contents["item"] = commons[rng.randi() % commons.size()]
+		contents["card"] = _get_random_card(rng)
+	elif rng.randf() < 0.5:
 		contents["item"] = _get_random_item(rng)
 	elif rng.randf() < DropRates.PACK_CHANCE_OF_CARD_DROP:
 		# A sealed card pack: the TIER is seeded (same chest, same pack), the
@@ -4369,12 +4424,12 @@ func _generate_chest_contents(chest_index: int) -> Dictionary:
 var block_act1_mythics: bool = false
 
 func _get_random_item(rng: RandomNumberGenerator) -> ItemData:
-	# Chests roll the flat baseline rarity table (see DropRates) — mythic and
-	# legendary stay at baseline in every act; the near-guaranteed act mythic
-	# comes from the per-kill layer in main, never from chests. Only level-1
-	# items ever drop — higher item levels exist solely through the forge.
+	# Chests roll the common/rare chest table (see DropRates); legendaries
+	# and mythics never come from chests — the near-guaranteed act mythic
+	# comes from the per-kill layer in main. Only level-1 items ever drop —
+	# higher item levels exist solely through the forge.
 	var weights: Dictionary = DropRates.CHEST_ITEM_WEIGHTS
-	if block_act1_mythics and world_level == 1:
+	if block_act1_mythics and world_level == 1 and weights.has(ItemData.Rarity.MYTHIC):
 		weights = weights.duplicate()
 		weights.erase(ItemData.Rarity.MYTHIC)
 	var rarity = DropRates.roll_weighted(weights, rng)
@@ -4399,6 +4454,9 @@ func _get_random_card(rng: RandomNumberGenerator) -> Card:
 
 func _define_spawn_zones() -> void:
 	spawn_zones.clear()
+
+	if interior_kind == "dojo":
+		return  # nothing lives here but the dummies main places
 
 	if interior_kind == "sewer":
 		_define_sewer_spawn_zones()
@@ -5140,6 +5198,8 @@ func disarm_trap(index: int) -> bool:
 const FOUNTAIN_ROOM_KINDS := ["field", "chamber", "room", "deep", "clearing"]
 
 func _place_fountains() -> void:
+	if interior_kind == "dojo":
+		return  # the dojo is a room, not a pilgrimage
 	var want: int = 2 if interior_kind == "" else 1
 	var candidates: Array = []
 	for room in rooms:

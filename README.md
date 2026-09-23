@@ -122,6 +122,8 @@ Your life total. Every character starts the story with **10 health** and gains *
 
 **Quests.** Olorin (and the Sellsword) hand out quests with several objectives each: kills by type and zone, kills from high ground, carrying a currency to hand in, disarming traps, breaking an enemy's channel, finding and escorting someone, a shrine choice, or answering a trial. Quests unlock in chains and by act, several teach a mechanic (the log shows a Tip), and turn-ins can grant gold, XP, story flags (the Town Well, the Lumber Mill, a free recruit, the hidden graveyard) and permanent stat bonuses. The Quest Log lives under Tab.
 
+**The Dojo.** A training hall on the town plaza's east side. Inside stand four dummies in a square: two chickens on the **enemy side** (hit them, poison them, burn them; a killing blow only refills them) and two dogs on the **ally side** (heal them, armor them, buff them). Damage and heal numbers float exactly as they do in a real fight, the tempo ticker runs, and mana regenerates on its cycle. A **Reset** button beside Wait restores full health, mana and armor, clears buffs and debuffs, zeroes the clock, refreshes the dummies and deals back the hand you walked in with. Click or drag along the HP or mana bar to set either wherever you like (for Determination thresholds and low-health effects). Nothing done in the dojo leaves it: on the way out the game hands town the exact deck, hand, stats and inventory you walked in with, and the skill tree and sphere grid are locked while you train.
+
 **Falling in battle.** There is no permadeath. When your health hits 0 alone, you come to at the start of the level you are in, at full health, with everything you carry. In co-op the downed-and-revive flow applies instead. Every arrival in town also writes an autosave slot.
 
 ### Mana
@@ -318,9 +320,13 @@ What drops depends on the source. Tougher enemies skew toward better loot (weigh
 | Mid-tier enemies | 45 | 33 | 18 | 4 |
 | Elites | 20 | 35 | 35 | 10 |
 | Bosses | — | 20 | 55 | 25 |
-| Chests | 54 | 30 | 12 | 3 (+1 mythic) |
+| Chests | — | 85 | 15 | — |
 
-**Mythics play by their own rules.** Outside of the rare chest roll, mythics never come from the regular loot table — they come from the per-act **pity system** ("mythic creep"): each act all-but-guarantees one mythic per character. Until it drops, every story kill raises the chance (starting at 0.2%, +0.05% per kill — it typically lands around kill 60 and is near-certain by 150). Once the act's mythic has dropped, mythic chances return to a small per-kill baseline (mid 0.2%, elite 1%, boss 5% — trash enemies never roll one). **Act 1 is the exception:** after its one guaranteed mythic, act 1 never drops another for that character, chests included.
+**Mythics play by their own rules.** Chests hold only commons and rares, and mythics never come from the regular loot table — they come from the per-act **pity system** ("mythic creep"): each act all-but-guarantees one mythic per character. Until it drops, every story kill raises the chance (starting at 0.2%, +0.05% per kill — it typically lands around kill 60 and is near-certain by 150). Once the act's mythic has dropped, mythic chances return to a small per-kill baseline (mid 0.2%, elite 1%, boss 5% — trash enemies never roll one). **Act 1 is the exception:** after its one guaranteed mythic, act 1 never drops another for that character, chests included.
+
+**Chests are salted per character.** Every chest rolls its contents from the world, its index, and a loot seed rolled once per character, so two characters never open identical chests while one character revisiting a chest always finds what they left in it. The act-1 starter chest always holds a card and a common item.
+
+**Early-game pity.** A fresh character's first kills lean generous: until three cards and three items have dropped from kills, any kill that rolled neither gets a second 35% roll for a card or a common item, so the deck and kit start growing within the first few fights.
 
 The tuning target: a full story playthrough yields on the order of **1,000 item drops** and around **10 mythics** — enough to forge one mythic to Lv.3 while keeping spares for the build.
 
@@ -340,7 +346,7 @@ What a level does:
 
 Forge rules: the upgrade target and all copies must be **unequipped** (inventory or stash), and copies must be level 1. A copy currently holding a card **you slotted into it** can't be used to forge until you extract the card at the Blacksmith. Empty card slots are fine, and cards an item **grants on its own** never block forging.
 
-**Mythic Molds**: mold **two spare level-1 mythics** down into one **Mythic Mold**. Redeemable at the Blacksmith for a fresh copy of **any mythic you have owned before** (never an unfound one). Seven mythic drops therefore guarantee a Lv.3 mythic of your choice.
+**Mythic Pieces and Molds**: the Blacksmith melds **one spare level-1 mythic** down into a **Mythic Piece**; **two pieces pour into a Mythic Mold**. A mold is redeemable at the Blacksmith for a fresh copy of **any mythic you have owned before** (never an unfound one). Seven mythic drops therefore guarantee a Lv.3 mythic of your choice. The first mythic of the story, the Bladed Doughnut, is the tutorial for all of this: the quest **A Mythic Find** walks it from the first rat to Olorin's lesson to the smith's meld.
 
 ### Weight & carry capacity
 

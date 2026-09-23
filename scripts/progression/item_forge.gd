@@ -2,7 +2,8 @@ class_name ItemForge
 extends RefCounted
 
 ## Blacksmith forging: upgrade an item by consuming extra copies of it, and
-## mold spare mythics into Mythic Molds redeemable for any mythic item.
+## meld spare mythics down into Mythic Pieces — two pieces pour into a Mythic
+## Mold redeemable for any mythic item the character has owned.
 ##
 ## Rules (see ItemData's rarity section for the copy math):
 ##   * Only level-1 items drop; higher levels exist only through the forge.
@@ -54,28 +55,40 @@ static func forge(inv: Inventory, target: ItemData) -> bool:
 	print("[FORGE] %s forged to Lv.%d (%d copies consumed)" % [target.item_name, target.item_level, needed])
 	return true
 
-## Mold two spare mythic items down into one Mythic Mold. Both must be
-## unequipped level-1 mythics with no cards slotted into them.
+## A spare mythic can be melded down: unequipped, level 1, no cards slotted.
+static func can_meld(inv: Inventory, item: ItemData) -> bool:
+	if item == null:
+		return false
+	if item.rarity != ItemData.Rarity.MYTHIC or item.item_level != 1:
+		return false
+	if not is_unequipped(inv, item):
+		return false
+	return item.slotted_cards.is_empty()
+
+## Meld one spare mythic down into a Mythic Piece (the inventory pours every
+## second piece into a Mythic Mold).
+static func meld_mythic(inv: Inventory, item: ItemData) -> bool:
+	if not can_meld(inv, item):
+		return false
+	_remove_item(inv, item)
+	inv.add_mythic_piece()
+	inv.storage_changed.emit()
+	print("[FORGE] Melded %s into a Mythic Piece (%d piece(s), %d mold(s))" % [
+		item.item_name, inv.mythic_pieces, inv.mythic_molds])
+	return true
+
+## Two spare mythics at once: both are melded, which pours a Mythic Mold when
+## no piece was waiting. Both must pass can_meld.
 static func can_mold(inv: Inventory, a: ItemData, b: ItemData) -> bool:
 	if a == null or b == null or a == b:
 		return false
-	for item in [a, b]:
-		if item.rarity != ItemData.Rarity.MYTHIC or item.item_level != 1:
-			return false
-		if not is_unequipped(inv, item):
-			return false
-		if not item.slotted_cards.is_empty():
-			return false
-	return true
+	return can_meld(inv, a) and can_meld(inv, b)
 
 static func mold_mythics(inv: Inventory, a: ItemData, b: ItemData) -> bool:
 	if not can_mold(inv, a, b):
 		return false
-	_remove_item(inv, a)
-	_remove_item(inv, b)
-	inv.add_mythic_mold()
-	inv.storage_changed.emit()
-	print("[FORGE] Molded %s + %s into a Mythic Mold" % [a.item_name, b.item_name])
+	meld_mythic(inv, a)
+	meld_mythic(inv, b)
 	return true
 
 ## Redeem one Mythic Mold for a fresh level-1 copy of the chosen mythic.
