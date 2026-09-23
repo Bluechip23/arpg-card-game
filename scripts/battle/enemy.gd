@@ -2251,6 +2251,24 @@ func _all_async_idle() -> bool:
 func is_channeling() -> bool:
 	return not _channel_action.is_empty()
 
+## Push the next action back by `tempo` on the action clock (Haunted Rebuke).
+## The counter climbs 1 per tempo toward the action's cost, so debiting it
+## delays whatever fires next — attacks included, unlike the Slow debuff.
+func delay_next_action(tempo: int) -> void:
+	action_tempo_counter -= maxi(0, tempo)
+
+## The apply_debuff key behind a get_active_effects() name ("" when the
+## effect has no re-applicable key: Taunt, Fear, Exposed, Tree…).
+static func debuff_key_for_effect(effect_name: String) -> String:
+	const KEYS := {
+		"Slow": "slow", "Cursed": "cursed", "Disarm": "disarmed", "Marked": "marked",
+		"Silenced": "silenced", "Choke": "choke_dot", "Stun": "stun", "Polymorph": "polymorph",
+		"Frozen": "cold", "Burn": "burn", "Cold": "cold", "Poison": "poison", "Shock": "shock",
+		"Bleed": "bleed", "Vulnerable": "vulnerable", "Weaken": "weaken", "Rooted": "root",
+		"Disarmed": "disarm_attacks", "Narashimha": "narashimha",
+	}
+	return str(KEYS.get(effect_name, ""))
+
 func _reset_action_clocks() -> void:
 	## Every clock back to zero: the sync action is dropped, Async counters
 	## restart, a channel breaks. Used by stun/freeze, death, and setup.

@@ -528,6 +528,7 @@ func _ready() -> void:
 	deck_manager.card_discarded.connect(_animate_card_discard)
 	deck_manager.reaction_triggered.connect(_animate_card_instant)
 	deck_manager.reaction_triggered.connect(_arm_lethal_recall)
+	deck_manager.reaction_triggered.connect(func(c): progression_triggers._trigger_skill_tree_on_instant(c))
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
 	tempo_manager.tempo_threshold_reached.connect(_on_tempo_threshold_reached)
@@ -5550,6 +5551,9 @@ func _clear_locked_markers() -> void:
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Timed statuses (stun, frozen, blind...) tick on RAW tempo so durations
 	# like "3 tempo" work; per-cycle effects still run on the 5-tempo turn.
+	# Skill-tree cooldowns and intervals with exact tempo values tick here too.
+	if progression_triggers:
+		progression_triggers._trigger_skill_tree_on_tempo(amount)
 	for tick_p in _all_players():
 		if not is_instance_valid(tick_p):
 			continue
@@ -6581,8 +6585,8 @@ func _on_player_healed(amount: int) -> void:
 	# Skill tree passive triggers on heal
 	progression_triggers._trigger_skill_tree_brad_on_heal()
 	progression_triggers._trigger_skill_tree_cory_on_heal()
-	# Whispers of the Flock: healing (self/ally) adds a Shepherd's Mark to hand.
-	progression_triggers._trigger_skill_tree_jeremy_on_heal_ally()
+	# (Whispers of the Flock wants an ALLY healed — it listens in
+	# _trigger_skill_tree_on_card_play, not on the player's own heals.)
 
 func _on_player_mana_gained(amount: int, is_regen: bool) -> void:
 	# Cory: Energy Barrier — track non-regen mana gains
@@ -6877,6 +6881,8 @@ func _on_non_play_discard(_card: Card) -> void:
 	var stats = player.get_stats() if player else null
 	if stats and stats.has_skill_tree_passive("ladder_work"):
 		stats.st_ladder_discard_count += 1
+	# Keep Them Guessing counts true discards, never plays.
+	progression_triggers._trigger_skill_tree_on_discard(_card)
 	# Abjurers Cane: every true discard raises the guard.
 	if stats and player.get_inventory():
 		for ac_w in player.get_inventory().equipped_weapons:
@@ -6889,8 +6895,7 @@ func _on_non_play_discard(_card: Card) -> void:
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
 	progression_triggers._trigger_sphere_passives("on_discard", {"card": card})
-	# Skill tree passive triggers for discard
-	progression_triggers._trigger_skill_tree_on_discard(card)
+	# (Skill-tree discard passives listen to non_play_discard — see _on_non_play_discard.)
 	# Volatile Mixture: deal damage to a random nearby enemy when discarded
 	if card.card_id == "volatile_mixture":
 		var stats = player.get_stats()

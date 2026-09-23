@@ -474,7 +474,7 @@ static func create_ryan_tree(max_level: int = 20) -> SkillTreeData:
 			description = "At the end of every cycle, gain armor and deal damage to the nearest enemy within 3 range, both equal to spaces moved ÷ 8→1 (scales with rank), rounded down",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 16, slot = 1, archetype = "Apothecary", name = "Mad Scientist",
-			description = "The last card you played changes the outcome of your potion cards (scales with rank). Utility→Heal: +2→8 regen. Attack→Heal: +2→8 strengthen. Utility→Poison: +2→9 poison stacks. Defense→Poison: -1%→15% enemy physical defense.",
+			description = "The last card you played changes the outcome of your potion cards (scales with rank). Utility→Heal: +2→8 regen. Attack→Heal: +2→8 strengthen. Utility→Poison: +2→9 poison stacks. Defense→Poison: -1%→-15% enemy physical defense.",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 18, slot = 3, archetype = "Shadow Blade", name = "Eye Scrape",
 			description = "Every 15th→1st critical strike (scales with rank) provides invisibility. Cooldown 10 tempo",

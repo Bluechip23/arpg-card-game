@@ -54,6 +54,11 @@ func apply_buff(buff: Buff) -> void:
 			existing.stacks += 1
 			existing.value += buff.value
 			existing._set_name_and_description()
+		elif buff.buff_type == Buff.BuffType.ENLIGHTENED and buff.value > existing.value:
+			# A surer crit replaces a weaker one (Scouted's and Serial Killer's
+			# guaranteed crit must not be capped by a lingering Redemption).
+			existing.value = buff.value
+			existing._set_name_and_description()
 		
 		print("[BUFF] %s refreshed/stacked (value: %d)" % [buff.buff_name, existing.value])
 	else:
