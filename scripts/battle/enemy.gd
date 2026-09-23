@@ -31,7 +31,10 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	CHERUB, DJINN, CORRUPTED_ARCHANGEL,
 	# The Precious (ring pass 1): hostile hunters that appear in shadow form.
 	# Appended at the tail — enum order is save-compat-sensitive.
-	RING_WRAITH }
+	RING_WRAITH,
+	# The dojo's training dummy: never acts, never wanders, never dies (a
+	# lethal hit refills it). Appended at the tail for the same reason.
+	DUMMY }
 
 ## Intended player level per enemy type — the anchor for the level-gap XP
 ## falloff (PlayerStats.get_xp_multiplier): kills more than a few levels below
@@ -869,6 +872,19 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			_set_first_pass_resists(15, 15, 15)
 			_set_mesh_color(Color(0.25, 0.45, 0.85))
 
+		EnemyType.DUMMY:
+			# Dojo training dummy: a fat health pool so big hits read as
+			# numbers instead of kills; a lethal blow refills it (take_damage).
+			enemy_name = "Training Dummy"
+			max_health = 500
+			attack_damage = 0
+			attack_range = 0.0
+			move_distance = 0.0
+			aggro_range = 0.0
+			xp_reward = 0
+			is_training_dummy = true
+			_set_mesh_color(Color(0.9, 0.9, 0.85))
+
 		_:
 			# Design mock-ups (stats & moves TBD) have no arm yet. Name them so
 			# a stray spawn is identifiable instead of an anonymous default box;
@@ -929,6 +945,7 @@ func _set_mesh_color(color: Color) -> void:
 			mat.albedo_color = color
 
 var figure_kind: String = ""  # EnemyFigure kind this enemy renders as ("" = coloured box)
+var is_training_dummy: bool = false  # dojo dummy: absorbs hits and statuses, never acts or dies
 
 func _setup_sprite() -> void:
 	## Builds a procedural 3D model (EnemyFigure) for enemy types that have one,
@@ -1000,6 +1017,7 @@ func _setup_sprite() -> void:
 		EnemyType.MINION: kind = "brute_minion"
 		EnemyType.ELITE: kind = "brute_elite"
 		EnemyType.BOSS: kind = "brute_boss"
+		EnemyType.DUMMY: kind = "chicken"
 		_:
 			return  # Unknown types keep their coloured box
 
@@ -1445,6 +1463,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.INFLAMED_MINOTAUR: "Elite",
 		EnemyType.CHERUB: "Minion", EnemyType.DJINN: "Elite", EnemyType.CORRUPTED_ARCHANGEL: "Boss",
 		EnemyType.RING_WRAITH: "Elite",
+		EnemyType.DUMMY: "Minion",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -1510,6 +1529,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.DJINN: {"name": "Djinn", "health": 180, "armor": 0, "damage": 35, "xp": 80},
 		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
+		EnemyType.DUMMY: {"name": "Training Dummy", "health": 500, "armor": 0, "damage": 0, "xp": 0},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -1568,6 +1588,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.DJINN: [{"name": "Chain Lightning", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.CORRUPTED_ARCHANGEL: [],
 		EnemyType.RING_WRAITH: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 4}],
+		EnemyType.DUMMY: [],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -1636,6 +1657,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor).\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.",
 		EnemyType.SWARM: "A single unit made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 		EnemyType.RING_WRAITH: "The Precious: hunts the ring-bearer through the shadow world. Shadow form does not hide you from these.\nAttack (2 tempo): 15 damage.\nMove (4 tempo): 5 spaces.\nResummons on death — grants no XP.",
+		EnemyType.DUMMY: "The Dojo's training dummy (a chicken, for morale). Stands still, never strikes, and a killing blow only refills it — grants no XP, drops nothing.",
 	}
 
 	var result: Array = []
@@ -4351,6 +4373,8 @@ func _physics_process(delta: float) -> void:
 ## Standing still: face whoever we're sizing up if they're in aggro range,
 ## otherwise pace a tile now and then.
 func _idle_ambient(delta: float) -> void:
+	if is_training_dummy:
+		return  # dummies hold their tile
 	if _wander_timer > 0.0:
 		_wander_timer -= delta
 	var tgt := _ambient_target()
@@ -4779,7 +4803,14 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 			fire_trigger("half_health")
 
 	if current_health <= 0:
-		die()
+		if is_training_dummy:
+			# A dojo dummy shrugs a killing blow off: back to full, no death,
+			# no loot, no XP — the numbers were the point.
+			current_health = max_health
+			update_health_display()
+			print("[%s] Refilled to %d" % [enemy_name, max_health])
+		else:
+			die()
 
 	return just_exposed
 

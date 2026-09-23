@@ -52,6 +52,16 @@ var _pending_doughnut_drop: bool = false
 # Act-mythic pity layer: a mythic rolled on this kill (DropRates), waiting to
 # be injected into the enemy's loot pile.
 var _pending_mythic_item: ItemData = null
+# The Dojo (town's training hall, interior id "dojo"): four dummies to hit
+# and heal, a reset button, draggable HP/mana. Nothing done here persists —
+# the progression and quest state the player walked in with are handed
+# straight back to town on exit (see _setup_dojo / _travel_to_town).
+var dojo_mode: bool = false
+var _dojo_entry_progression: Dictionary = {}
+var _dojo_entry_quest_state: Dictionary = {}
+var _dojo_entry_deck_state: Dictionary = {}
+var _dojo_allies: Array = []   # ally dummies (Player instances wearing the dog sheet)
+var _dojo_bar_drag: String = ""  # "hp" / "mana" while the mouse drags a stat bar
 var _summoned_worms: Array = []  # Worm's Armageddon: Alaskan Bull Worm allies
 const SummonedWormScript = preload("res://scripts/battle/summoned_worm.gd")
 var _frankensteins: Array = []   # ITS ALIVE!!!!!: Frankensteins Monster allies
@@ -592,6 +602,13 @@ func _ready() -> void:
 	else:
 		select_character(CharacterData.create_ryan())
 
+	# The dojo hands back exactly what the player walked in with: snapshot
+	# before anything below restores (and thereby aliases) it.
+	if current_interior_id == "dojo":
+		dojo_mode = true
+		_dojo_entry_progression = dojo_snapshot(player_progression)
+		_dojo_entry_quest_state = quest_state.duplicate(true)
+
 	# Restore player progression from a world transition (level, stats, passives, sphere grid, etc.)
 	if not player_progression.is_empty():
 		_restore_player_progression(player_progression)
@@ -650,6 +667,8 @@ func _ready() -> void:
 	_setup_dungeon()
 	_update_enemy_count()
 	_refresh_unit_tracker()
+	if dojo_mode:
+		_setup_dojo()
 
 	# Co-op: now that the dungeon has placed Player 1, seat Player 2 beside them.
 	if is_multiplayer and _p2_player:
@@ -3734,7 +3753,11 @@ func _setup_hud_icon_bar() -> void:
 	hud_icon_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	hud_icon_bar.alignment = BoxContainer.ALIGNMENT_END
 	hud_icon_bar.character_pressed.connect(func(): character_panel.toggle_panel())
-	hud_icon_bar.level_pressed.connect(func(): skill_tree_ui.toggle_panel(); _refresh_hud_notifications())
+	hud_icon_bar.level_pressed.connect(func():
+		if _dojo_blocks_progression():
+			return
+		skill_tree_ui.toggle_panel()
+		_refresh_hud_notifications())
 	hud_icon_bar.quest_pressed.connect(_on_hud_quest_pressed)
 	hud_icon_bar.help_pressed.connect(_on_hud_help_pressed)
 	hud_icon_bar.deck_pressed.connect(_on_deck_list_button_pressed)
@@ -4559,7 +4582,7 @@ func _open_trade_ui(a: Player, b: Player) -> void:
 func _player_at_position(world_pos: Vector3) -> Player:
 	var best: Player = null
 	var best_d := 1.2  # within ~1 tile of the click
-	for p in _all_players():
+	for p in _all_players() + _dojo_allies:
 		if not is_instance_valid(p):
 			continue
 		var d := Vector2(p.position.x - world_pos.x, p.position.z - world_pos.z).length()
@@ -11756,7 +11779,8 @@ func _input(event: InputEvent) -> void:
 
 		# Level progress panel toggle (skill tree + sphere grid tabs)
 		if event.keycode == KEY_L:
-			skill_tree_ui.toggle_panel()
+			if not _dojo_blocks_progression():
+				skill_tree_ui.toggle_panel()
 			return
 
 		# Burden relief: J jails the selected Burden card from hand (1m + 1t),
@@ -12248,7 +12272,10 @@ func _try_interact_site() -> bool:
 		return false
 	var site = dungeon_manager.site_nodes[site_idx]
 	if site["kind"] == "exit":
-		_exit_interior()
+		if dojo_mode:
+			_travel_to_town()  # the dojo's door opens onto the town plaza
+		else:
+			_exit_interior()
 	else:
 		_enter_interior(site["id"], site["display_name"])
 	return true
@@ -14217,6 +14244,11 @@ func _travel_to_town() -> void:
 	print("[MAIN] Traveling to town!")
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()
+	if dojo_mode:
+		# Training changes nothing: town gets the entry snapshot back, so a
+		# stacked hand, dragged bars or a spent card never leave the hall.
+		saved_quest_state = _dojo_entry_quest_state
+		saved_progression = _dojo_entry_progression
 	var town_scene = load("res://scenes/menus/town.tscn").instantiate()
 	town_scene.starting_character = starting_character
 	if "player2_character" in town_scene:
@@ -14299,4 +14331,235 @@ func _build_ground_plane() -> void:
 
 # Minimap, tab menu, quest log, and expanded map moved to
 # scripts/ui/minimap_tab_ui.gd
+#endregion
+
+#region THE DOJO
+# ============================================
+# THE DOJO — town's training hall
+# ============================================
+
+## A copy of a progression bundle safe to hand back untouched after the dojo:
+## deep-copied so nothing main aliases in the meantime (inventory piles, the
+## deck's live card lists) leaks in, and with the deck's "live" card objects
+## dropped so the deck is rebuilt from ids exactly as a disk load would.
+static func dojo_snapshot(progression: Dictionary) -> Dictionary:
+	var snap: Dictionary = progression.duplicate(true)
+	if snap.has("deck_state") and snap["deck_state"] is Dictionary:
+		snap["deck_state"].erase("live")
+	return snap
+
+func _setup_dojo() -> void:
+	# The hand the player walked in with is the reset baseline.
+	_dojo_entry_deck_state = deck_manager.save_deck_state()
+	_dojo_entry_deck_state.erase("live")
+
+	var cells: Dictionary = dungeon_manager.DOJO_DUMMY_CELLS
+	for cell in cells["enemy"]:
+		_spawn_dojo_dummy(cell)
+	for cell in cells["ally"]:
+		_spawn_dojo_ally(cell)
+	_build_dojo_side_marker(cells["enemy"], "ENEMY DUMMIES", Color(0.85, 0.3, 0.3))
+	_build_dojo_side_marker(cells["ally"], "ALLY DUMMIES", Color(0.3, 0.6, 0.95))
+	_sync_dungeon_blocked_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+
+	_setup_dojo_reset_button()
+	_setup_dojo_bar_dragging()
+	add_battle_log("The Dojo: hit the chickens, heal the dogs. Nothing here follows you out.", Color(0.8, 0.8, 0.95))
+	add_battle_log("Drag the HP / mana bars to set them; Reset restores everything.", Color(0.6, 0.6, 0.75))
+
+func _spawn_dojo_dummy(cell: Vector2i) -> void:
+	var world = grid_manager.grid_to_world(cell)
+	world.y = dungeon_manager.get_elevation_world_y(cell)
+	enemy_spawner.spawn_enemy(Enemy.EnemyType.DUMMY, world)
+
+func _spawn_dojo_ally(cell: Vector2i) -> void:
+	## An ally dummy is a real Player (so every self/ally card, heal, buff and
+	## armor path treats it as one) wearing the NPC dog sheet, parked on its
+	## tile. It never moves, never acts, and refills when it drops to 0.
+	var ally = load("res://scenes/character/player.tscn").instantiate()
+	ally.name = "DojoAlly%d" % _dojo_allies.size()
+	add_child(ally)
+	ally.set_grid_manager(grid_manager)
+	ally.ground_y_provider = Callable(self, "_desired_ground_y")
+	var data := CharacterData.new()
+	data.character_name = "Ally Dummy"
+	data.base_character = "Dog"
+	data.base_health = 500
+	data.base_mana = 100
+	ally.initialize_character(data)
+	var world = grid_manager.grid_to_world(cell)
+	world.y = dungeon_manager.get_elevation_world_y(cell)
+	ally.position = world
+	ally.target_position = world
+	_dojo_allies.append(ally)
+
+	# Numbers float over the dog exactly as they do over the player.
+	var stats = ally.get_stats()
+	stats.health_damage_taken.connect(ally.spawn_damage_number)
+	stats.healed.connect(ally.spawn_heal_number)
+
+	# Health / armor readout over its head; a lethal hit refills it.
+	var readout := Label3D.new()
+	readout.name = "DummyReadout"
+	readout.font_size = 14
+	readout.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	readout.no_depth_test = true
+	readout.modulate = Color(0.75, 0.85, 1.0)
+	readout.outline_size = 6
+	readout.position = Vector3(0, 1.6, 0)
+	WorldText.crisp(readout)
+	ally.add_child(readout)
+	var refresh := func():
+		if stats.current_health <= 0:
+			stats.current_health = stats.max_health
+			stats.health_changed.emit(stats.current_health, stats.max_health)
+		readout.text = "Ally Dummy\nHP %d/%d   ARM %d" % [stats.current_health, stats.max_health, stats.current_armor]
+	stats.health_changed.connect(func(_c, _m): refresh.call())
+	stats.armor_changed.connect(func(_a): refresh.call())
+	refresh.call()
+
+func _build_dojo_side_marker(cells: Array, text: String, color: Color) -> void:
+	## A tinted floor plate under each side's dummies and a title above them.
+	var root := Node3D.new()
+	root.name = "DojoSide_" + text.replace(" ", "_")
+	add_child(root)
+	var sum := Vector3.ZERO
+	for cell in cells:
+		var p = grid_manager.grid_to_world(cell)
+		sum += p
+		var plate := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(1.6, 0.02, 1.6)
+		plate.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(color.r, color.g, color.b, 0.35)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		plate.material_override = mat
+		plate.position = Vector3(p.x, 0.02, p.z)
+		root.add_child(plate)
+	var center = sum / float(maxi(1, cells.size()))
+	var title := Label3D.new()
+	title.text = text
+	title.font_size = 30
+	title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	title.modulate = color
+	title.outline_size = 10
+	title.position = Vector3(center.x, 2.6, center.z)
+	WorldText.crisp(title)
+	root.add_child(title)
+
+func _setup_dojo_reset_button() -> void:
+	## Reset sits beside Wait in the action column.
+	var row = _action_vbox.get_node_or_null("WaitPauseRow") if _action_vbox else null
+	if row == null:
+		return
+	var btn := Button.new()
+	btn.name = "DojoResetButton"
+	btn.text = "Reset"
+	btn.custom_minimum_size = Vector2(0, 36)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.tooltip_text = "Dojo: full health, mana and armor, buffs and debuffs cleared, tempo back to 0, the hand you walked in with, dummies restored"
+	btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	btn.pressed.connect(_dojo_reset)
+	row.add_child(btn)
+
+func _dojo_reset() -> void:
+	if not dojo_mode:
+		return
+	var stats = player.get_stats()
+	# Cards first: maintained cards give their reserved mana back.
+	deck_manager.break_all_maintained_cards()
+	deck_manager.restore_deck_state(_dojo_entry_deck_state.duplicate(true))
+	var inv = player.get_inventory()
+	if inv:
+		inv.apply_equipped_item_card_effects()
+		inv.relink_slotted_cards(deck_manager)
+	_on_hand_updated()
+	update_deck_info()
+	_update_maintained_button()
+	# The character: clean slate.
+	_dojo_reset_unit(player)
+	stats.current_attack_counter = 0
+	# The clock.
+	tempo_manager.initialize(stats)
+	draw_timer.reset()
+	_update_tick_bar(0, 0, 0, "")
+	update_tempo_display()
+	# The dummies: fresh chickens, refilled dogs.
+	enemy_spawner.clear_enemies()
+	for cell in dungeon_manager.DOJO_DUMMY_CELLS["enemy"]:
+		_spawn_dojo_dummy(cell)
+	for ally in _dojo_allies:
+		if is_instance_valid(ally):
+			_dojo_reset_unit(ally)
+	_sync_dungeon_blocked_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("Dojo reset.", Color(1.0, 0.85, 0.3))
+
+func _dojo_reset_unit(unit: Player) -> void:
+	var stats = unit.get_stats()
+	var bm = unit.get_buff_manager()
+	if bm:
+		for buff in bm.buffs.duplicate():
+			bm.remove_buff(buff.buff_type)
+	var dm = unit.get_debuff_manager()
+	if dm:
+		dm.clear_all_debuffs()
+	stats.current_armor = 0
+	stats.current_health = stats.max_health
+	stats.current_mana = float(stats.get_available_max_mana())
+	stats.health_changed.emit(stats.current_health, stats.max_health)
+	stats.mana_changed.emit(stats.current_mana, stats.max_mana)
+	stats.armor_changed.emit(stats.current_armor)
+
+func _setup_dojo_bar_dragging() -> void:
+	## Click or drag along the HP / mana bar to set the value — for testing
+	## Determination thresholds, low-HP reactions, mana-gated effects.
+	for pair in [[_hp_bar, "hp"], [_mana_bar, "mana"]]:
+		var bar: ProgressBar = pair[0]
+		if bar == null:
+			continue
+		bar.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+		bar.tooltip_text = "Dojo: click or drag to set"
+		bar.gui_input.connect(_on_dojo_bar_input.bind(bar, pair[1]))
+
+func _on_dojo_bar_input(event: InputEvent, bar: ProgressBar, which: String) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_dojo_bar_drag = which
+			_dojo_apply_bar_drag(bar, which, event.position)
+		else:
+			_dojo_bar_drag = ""
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _dojo_bar_drag == which:
+		_dojo_apply_bar_drag(bar, which, event.position)
+		get_viewport().set_input_as_handled()
+
+func _dojo_apply_bar_drag(bar: ProgressBar, which: String, local_pos: Vector2) -> void:
+	var ratio: float = clampf(local_pos.x / maxf(1.0, bar.size.x), 0.0, 1.0)
+	var stats = player.get_stats()
+	match which:
+		"hp":
+			# Never to 0: that is a death, not a test.
+			stats.current_health = clampi(roundi(ratio * stats.max_health), 1, stats.max_health)
+			stats.health_changed.emit(stats.current_health, stats.max_health)
+		"mana":
+			stats.current_mana = clampf(ratio * stats.max_mana, 0.0, float(stats.get_available_max_mana()))
+			stats.mana_changed.emit(stats.current_mana, stats.max_mana)
+	# Determination reads the live resource percent; card faces print
+	# stat-adjusted numbers, so re-render them for the new state.
+	_refresh_hand_card_values()
+
+func _dojo_blocks_progression() -> bool:
+	## The skill tree and sphere grid are read-only in the dojo: spending here
+	## would be undone on exit and desync the panel from the character.
+	if not dojo_mode:
+		return false
+	add_battle_log("The skill tree and sphere grid are locked in the dojo — spend points out in the world or in town.", Color(0.8, 0.6, 0.6))
+	return true
+
 #endregion

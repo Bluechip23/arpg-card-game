@@ -130,6 +130,8 @@ const KINDS := {
 	"succubus": {"npc": NPC1 + "/npc dancer A v01.png", "tint": Color(1.15, 0.7, 0.9)},
 	"cherub": {"npc": NPC1 + "/npc baby A v01.png", "tint": Color(1.15, 1.1, 0.9)},
 	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
+	# --- the dojo's enemy training dummies ---
+	"chicken": {"tex": "chicken"},
 }
 
 # Uniform texel density across every billboard in the game (style guide §1).

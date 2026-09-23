@@ -27,6 +27,9 @@ const ROSTER := {
 	"Stephen": {"npc": "res://assets/sprites/NPCpackage2/npc guard v01.png"},
 	"Jeremy": {"outfit": "gen:fstr_jeremy", "hair": "bob1_v11"},  # barefoot wanderer
 	"Ryan": {"outfit": "gen:fstr_ryan", "hair": "dap1_v13", "hat": "gen:pfht_ryan"},  # black leathers + hood
+	# The dojo's ally training dummies wear the NPC-pack dog sheet (same
+	# 32px cell and S,E,N,W row order as the humanoid NPC sheets).
+	"Dog": {"npc": "res://assets/sprites/NPCpackage2/npc dog v01.png"},
 }
 
 const GENERATED := "res://assets/sprites/generated"

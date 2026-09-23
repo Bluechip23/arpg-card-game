@@ -281,6 +281,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "forest"
 	elif interior_id.begins_with("graveyard"):
 		interior_kind = "graveyard"
+	elif interior_id.begins_with("dojo"):
+		interior_kind = "dojo"
 
 	# Fog scales with how lit the place is: tight, lightless sewers reveal least,
 	# the bright open forest reveals most, everything else uses the default.
@@ -289,6 +291,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			fog_reveal_radius = 4
 		"forest":
 			fog_reveal_radius = 9
+		"dojo":
+			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
 
@@ -318,6 +322,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_sewer_layout()
 		"forest":
 			_generate_forest_layout()
+		"dojo":
+			_generate_dojo_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -371,6 +377,12 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		spawn_zones.size(), site_nodes.size()])
 
 func _set_world_size() -> void:
+	if interior_kind == "dojo":
+		# One training hall: four dummies in a square, the door at the south.
+		GRID_W = DOJO_W
+		GRID_H = DOJO_H
+		player_start = Vector2i(DOJO_W / 2, DOJO_H - 3)
+		return
 	if interior_kind == "cave" or interior_kind == "graveyard":
 		GRID_W = 36 + world_level * 2
 		GRID_H = 26 + world_level
@@ -439,7 +451,7 @@ func get_palette() -> Dictionary:
 		return CAVE_PALETTE
 	if interior_kind == "graveyard":
 		return _get_graveyard_palette()
-	if interior_kind == "building":
+	if interior_kind == "building" or interior_kind == "dojo":
 		return BUILDING_PALETTE
 	if interior_kind == "sewer":
 		return SEWER_PALETTE
@@ -458,7 +470,7 @@ func floor_texture_path() -> String:
 	match interior_kind:
 		"sewer":
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
-		"building":
+		"building", "dojo":
 			return CP_TEX + "/floor_undead.png"  # grey flagstones (undead pack's cracked stone)
 		"cave":
 			return CP_TEX + "/floor_cave.png"
@@ -692,8 +704,33 @@ func get_location_name() -> String:
 		return "Greenwood"
 	if interior_kind == "graveyard":
 		return "Old Graveyard"
+	if interior_kind == "dojo":
+		return "Dojo"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
+
+# ============================================
+# DOJO LAYOUT
+# The town's training hall: one open room, flat, fully lit, no loot, no
+# spawns. Main places the four dummies (see Main._setup_dojo) on
+# DOJO_DUMMY_CELLS — a square, enemy side west, ally side east — and the
+# player enters through the south door (player_start).
+# ============================================
+const DOJO_W := 18
+const DOJO_H := 14
+const DOJO_DUMMY_CELLS := {
+	"enemy": [Vector2i(5, 4), Vector2i(5, 8)],
+	"ally": [Vector2i(12, 4), Vector2i(12, 8)],
+}
+
+func _generate_dojo_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	var hall := Rect2i(1, 1, GRID_W - 2, GRID_H - 2)
+	_carve_rect(hall)
+	# "start" keeps the chest placer away (it only chests a start room on the
+	# overworld) and the fountain placer skips the dojo entirely.
+	rooms.append({"rect": hall, "kind": "start", "elev": 0})
 
 # ============================================
 # OVERWORLD LAYOUT
@@ -1253,8 +1290,8 @@ func _generate_elevation() -> void:
 			col.append(0)
 		elevation.append(col)
 
-	if interior_kind == "building":
-		return  # Buildings are flat inside
+	if interior_kind == "building" or interior_kind == "dojo":
+		return  # Buildings and the dojo are flat inside
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
 	if interior_kind == "forest":
@@ -1946,6 +1983,8 @@ func _build_decorations() -> void:
 	if interior_kind == "cave":
 		_build_cave_decorations()
 		return
+	if interior_kind == "dojo":
+		return  # bare boards: the dummies are the furniture
 	var pal = get_palette()
 	var _deco_trees: Array = []
 	var _deco_stumps: Array = []
@@ -4416,6 +4455,9 @@ func _get_random_card(rng: RandomNumberGenerator) -> Card:
 func _define_spawn_zones() -> void:
 	spawn_zones.clear()
 
+	if interior_kind == "dojo":
+		return  # nothing lives here but the dummies main places
+
 	if interior_kind == "sewer":
 		_define_sewer_spawn_zones()
 		return
@@ -5156,6 +5198,8 @@ func disarm_trap(index: int) -> bool:
 const FOUNTAIN_ROOM_KINDS := ["field", "chamber", "room", "deep", "clearing"]
 
 func _place_fountains() -> void:
+	if interior_kind == "dojo":
+		return  # the dojo is a room, not a pilgrimage
 	var want: int = 2 if interior_kind == "" else 1
 	var candidates: Array = []
 	for room in rooms:

@@ -126,6 +126,11 @@ var vendor_info: Dictionary = {
 		"name": "Town Hall",
 		"description": "The heart of the city. Raise buildings with the resources you send home.",
 		"type": "town_hall"
+	},
+	"Dojo": {
+		"name": "Dojo",
+		"description": "The training hall: four dummies, no stakes.",
+		"type": "dojo"
 	}
 }
 
@@ -205,6 +210,7 @@ func _ready() -> void:
 
 	# Create Olorin NPC
 	_create_olorin_npc()
+	_create_dojo()
 	_create_town_well()
 
 	# Create the Sellsword co-op recruiter NPC
@@ -537,6 +543,11 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 
 	if info["type"] == "quest_giver":
 		_open_quest_dialog(vendor_node)
+		return
+
+	if info["type"] == "dojo":
+		vendor_open = false
+		_go_to_dojo()
 		return
 
 	if info["type"] == "well":
@@ -3040,7 +3051,27 @@ func _go_to_battle(via_portal: bool = false) -> void:
 	# next trial — its countdown ticks on kills out in the world.
 	TrialSystem.schedule(player_progression)
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
-	# Save current player progression before transitioning
+	var saved_progression = _departure_progression()
+	var main_scene = load("res://scenes/core/main.tscn").instantiate()
+	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = player2_character != null
+	main_scene.current_world_level = return_world_level
+	main_scene.discovered_waypoints = discovered_waypoints
+	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = saved_progression
+	main_scene.opened_chests = opened_chests
+	# Return Scroll: stepping through the twin drops the player back at the
+	# exact spot where they opened the portal (same world, same tile).
+	if via_portal and not portal_return.is_empty():
+		main_scene.current_world_level = portal_return.get("world_level", return_world_level)
+		main_scene.portal_return_position = portal_return.get("position")
+	get_tree().root.add_child(main_scene)
+	queue_free()
+
+## The progression bundle a scene leaving town carries: the live stats and
+## inventory re-snapshotted on top of what town was handed.
+func _departure_progression() -> Dictionary:
 	var stats = player.get_stats()
 	var saved_progression = player_progression.duplicate(true)
 	if stats:
@@ -3065,22 +3096,7 @@ func _go_to_battle(via_portal: bool = false) -> void:
 			"mythic_molds": live_inv.mythic_molds,
 			"mythic_pieces": live_inv.mythic_pieces,
 		}
-	var main_scene = load("res://scenes/core/main.tscn").instantiate()
-	main_scene.starting_character = starting_character
-	main_scene.player2_character = player2_character
-	main_scene.is_multiplayer = player2_character != null
-	main_scene.current_world_level = return_world_level
-	main_scene.discovered_waypoints = discovered_waypoints
-	main_scene.quest_state = saved_quest_state
-	main_scene.player_progression = saved_progression
-	main_scene.opened_chests = opened_chests
-	# Return Scroll: stepping through the twin drops the player back at the
-	# exact spot where they opened the portal (same world, same tile).
-	if via_portal and not portal_return.is_empty():
-		main_scene.current_world_level = portal_return.get("world_level", return_world_level)
-		main_scene.portal_return_position = portal_return.get("position")
-	get_tree().root.add_child(main_scene)
-	queue_free()
+	return saved_progression
 
 func _spawn_return_portal() -> void:
 	## The twin of the Return Scroll portal, matching the battle-side visual.
@@ -3168,6 +3184,61 @@ func _create_town_hall_npc() -> void:
 
 	$Vendors.add_child(hall)
 	print("[TOWN] Created Town Hall at position %s" % hall.position)
+
+func _create_dojo() -> void:
+	## The Dojo: a low timber hall on the plaza's east side. Interacting steps
+	## straight into the training interior (main.tscn, interior "dojo").
+	var dojo = StaticBody3D.new()
+	dojo.name = "Dojo"
+	dojo.position = grid_manager.grid_to_world(Vector2i(18, 9))
+
+	_npc_box(dojo, "Base", Vector3(0, 0.7, 0), Vector3(3.0, 1.4, 2.4), Color(0.62, 0.5, 0.36))
+	_npc_box(dojo, "Roof", Vector3(0, 1.65, 0), Vector3(3.5, 0.45, 2.9), Color(0.3, 0.2, 0.16))
+	_npc_box(dojo, "Ridge", Vector3(0, 1.95, 0), Vector3(3.7, 0.12, 0.5), Color(0.22, 0.15, 0.12))
+	_npc_box(dojo, "Door", Vector3(0, 0.5, 1.22), Vector3(0.9, 1.0, 0.08), Color(0.25, 0.17, 0.1))
+	_npc_box(dojo, "Lantern", Vector3(-1.1, 1.25, 1.24), Vector3(0.22, 0.32, 0.06), Color(0.9, 0.55, 0.2))
+	_npc_box(dojo, "Lantern2", Vector3(1.1, 1.25, 1.24), Vector3(0.22, 0.32, 0.06), Color(0.9, 0.55, 0.2))
+
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(3.2, 2.0, 2.6)
+	collision.shape = shape
+	collision.position = Vector3(0, 1.0, 0)
+	dojo.add_child(collision)
+
+	var label = Label3D.new()
+	label.text = "DOJO"
+	label.font_size = 26
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color(0.95, 0.75, 0.55)
+	label.outline_size = 8
+	label.position = Vector3(0, 2.5, 0)
+	WorldText.crisp(label)
+	dojo.add_child(label)
+
+	$Vendors.add_child(dojo)
+	print("[TOWN] Created Dojo at position %s" % dojo.position)
+
+func _go_to_dojo() -> void:
+	## Into the training hall. Same hand-off as heading to battle, minus the
+	## trial clock: nothing in the dojo counts, and it hands the very same
+	## progression back on the way out.
+	if vendor_open:
+		_close_vendor()
+	print("[TOWN] Heading to the dojo")
+	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
+	var main_scene = load("res://scenes/core/main.tscn").instantiate()
+	main_scene.starting_character = starting_character
+	main_scene.player2_character = player2_character
+	main_scene.is_multiplayer = player2_character != null
+	main_scene.current_world_level = return_world_level
+	main_scene.current_interior_id = "dojo"
+	main_scene.discovered_waypoints = discovered_waypoints
+	main_scene.quest_state = saved_quest_state
+	main_scene.player_progression = _departure_progression()
+	main_scene.opened_chests = opened_chests
+	get_tree().root.add_child(main_scene)
+	queue_free()
 
 func _open_town_hall_ui() -> void:
 	if not CityBridge.city_started(player_progression):
