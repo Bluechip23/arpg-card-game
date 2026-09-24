@@ -327,6 +327,14 @@ func shuffle_draw_pile() -> void:
 	brain_peek_depth = 0  # Shuffling scrambles everything the player had scried
 	deck_shuffled.emit()
 
+## Slips one card into a random spot of the draw pile. This is NOT a full
+## shuffle: the player's scried order stays and deck_shuffled does not fire, so
+## "add a card to your deck" effects never feed shuffle-triggered passives.
+func shuffle_card_into_draw_pile(card: Card) -> void:
+	if card == null:
+		return
+	draw_pile.insert(randi() % (draw_pile.size() + 1), card)
+
 func shuffle_discard_into_draw() -> void:
 	if discard_pile.size() == 0:
 		return
@@ -1019,16 +1027,20 @@ func can_add_copy(card_id: String) -> bool:
 	var cap := Card.max_deck_copies(card_id)
 	return cap < 0 or count_copies_in_deck(card_id) < cap
 
-func add_card_to_deck_from_id(card_id: String) -> bool:
-	## Creates a card from its ID and adds it to the discard pile (available next shuffle).
-	## Used by the sphere grid when unlocking card nodes.
+func add_card_to_deck_from_id(card_id: String, to_draw_pile: bool = true) -> bool:
+	## Creates a card from its ID and shuffles it into the DRAW pile — "shuffle
+	## into your deck" always means the draw pile unless a card says "discard
+	## pile" (pass to_draw_pile = false for those).
 	if not can_add_copy(card_id):
 		print("[DECK] Copy limit reached for %s (%d max) — not added" % [card_id, Card.max_deck_copies(card_id)])
 		return false
 	var card = _create_card_from_id(card_id)
 	if card:
-		discard_pile.append(card)
-		print("[DECK] Sphere grid unlocked card: %s (added to discard pile)" % card.card_name)
+		if to_draw_pile:
+			shuffle_card_into_draw_pile(card)
+		else:
+			discard_pile.append(card)
+		print("[DECK] Added card: %s (to %s)" % [card.card_name, "draw pile" if to_draw_pile else "discard pile"])
 		return true
 	print("[DECK] WARNING: Sphere grid tried to unlock unknown card: %s" % card_id)
 	return false

@@ -8508,9 +8508,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	if card.card_id == "reckless_strike":
 		for i in range(2):
 			var wound = Card.create_minor_wounds()
-			deck_manager.discard_pile.append(wound)
-		add_battle_log("Reckless Strike: 2 Minor Wounds added to deck!", Color(1.0, 0.5, 0.3))
-		print("[MAIN] Reckless Strike: added 2 Minor Wounds to discard pile")
+			deck_manager.shuffle_card_into_draw_pile(wound)
+		add_battle_log("Reckless Strike: 2 Minor Wounds shuffled into your deck!", Color(1.0, 0.5, 0.3))
+		print("[MAIN] Reckless Strike: shuffled 2 Minor Wounds into the draw pile")
 
 	if card.card_id == "collect_arrows":
 		var collected = 0
@@ -10456,6 +10456,7 @@ func _helm_on_cycle_passives() -> void:
 	var jordan_rate := 0.0
 	var jordan_threshold := 0
 	var greaves_regen := 0
+	var greaves_mana := 0
 	var greaves_radius := 0
 	var greaves_resist := 0.0
 	for boot in inv.equipped_boots:
@@ -10464,6 +10465,7 @@ func _helm_on_cycle_passives() -> void:
 			jordan_threshold = boot.missing_life_threshold
 		if boot and boot.ally_regen_per_cycle > 0 and greaves_regen == 0:
 			greaves_regen = boot.ally_regen_per_cycle
+			greaves_mana = boot.ally_mana_per_cycle
 			greaves_radius = boot.ally_regen_radius
 			greaves_resist = boot.ally_physical_resist
 
@@ -10483,7 +10485,7 @@ func _helm_on_cycle_passives() -> void:
 				a_st._passive_heal = true
 				a_st.heal(greaves_regen)
 				a_st._passive_heal = false
-				a_st.gain_mana(greaves_regen * 10)  # "6 mana" on the design scale = 60 in code
+				a_st.gain_mana(greaves_mana)
 				a_st.aura_physical_resist = greaves_resist
 		for m in _frankensteins:
 			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
@@ -13693,7 +13695,7 @@ func _on_apply_overflow(overflow_name: String) -> void:
 		"Overcharge: +2 Health (∞)":
 			effect = OverflowEffect.create_overcharge_health(2, -1, "Test")
 		"Overcharge: +2 Mana (∞)":
-			effect = OverflowEffect.create_overcharge_mana(2, -1, "Test")
+			effect = OverflowEffect.create_overcharge_mana(20, -1, "Test")
 		"Overcharge: +2 Armor (3)":
 			effect = OverflowEffect.create_overcharge_armor(2, 3, "Test")
 		"Overcharge: 3 Dmg All (3)":

@@ -376,7 +376,8 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var consecutive_attack_draw: int = 0        # draw a card after X consecutive attacks (Cyde Livingstons Sneakers 5)
 @export var fire_trail_damage: int = 0              # >0 enables the fire trail; spots deal INT/5 damage (Elemental Trail Blazers)
 @export var fire_trail_tempo: int = 0               # how long a fire spot persists (Elemental Trail Blazers 3)
-@export var ally_regen_per_cycle: int = 0           # heal+mana per cycle to allies in radius (Guardian Greaves 10)
+@export var ally_regen_per_cycle: int = 0           # health per cycle to allies in radius (Guardian Greaves 6)
+@export var ally_mana_per_cycle: int = 0            # mana per cycle to allies in radius (Guardian Greaves 60)
 @export var ally_regen_radius: int = 0              # aura radius in tiles (Guardian Greaves 4)
 @export var ally_physical_resist: float = 0.0       # % physical resist to allies in radius (Guardian Greaves 5)
 
@@ -1420,14 +1421,15 @@ static func create_guardian_greaves() -> ItemData:
 	item.wisdom_bonus = 4
 	item.strength_bonus = 5
 	item.ally_regen_per_cycle = 6
+	item.ally_mana_per_cycle = 60
 	item.ally_regen_radius = 4
 	item.ally_physical_resist = 5.0
 	var guardian_cards: Array[String] = ["mend"]
 	item.granted_card_ids = guardian_cards
 	# Mend restoring 40%/40% at Lv.3 is read live off item_level (see the mend
 	# world effect in main.gd); no field changes at Lv.3.
-	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, restore 6 health and 6 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
-	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, restore 6 health and 6 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, restore 6 health and 60 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, restore 6 health and 60 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
 	# Modelled on DOTA 2's Guardian Greaves.
 	_set_appearance(item, "guardian_greaves",
 		"Holy plate warboots, steel banded in gold and winged at the ankle, with a healing light spilling out of the seams.")

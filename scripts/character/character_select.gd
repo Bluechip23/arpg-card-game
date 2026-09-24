@@ -254,7 +254,7 @@ func _setup_characters() -> void:
 	quiz_data.agility = 5
 	quiz_data.base_health = 10
 	quiz_data.base_mana = 5
-	quiz_data.base_mana_regen = 1.0
+	quiz_data.base_mana_regen = 10.0
 	quiz_data.base_draw_timer = 5
 	quiz_data.passive_description = "Determined by your answers"
 	quiz_data.slot_specialty = "Determined by quiz"

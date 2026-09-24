@@ -180,7 +180,7 @@ out of that invisibility landing as a guaranteed crit (and revealing him). *Expe
 rounds out the attrition loop: dropping below 35%→63% health bounces a debuff off him onto an
 enemy (2 charges on a 10-tempo refresh, one per hit).
 
-**Pick Cory if you want:** to dictate where every unit on the grid stands, to win long fights
+**Pick Cory if you want:** to dictate where every enemy and ally on the grid stands, to win long fights
 through debuff attrition that heals you while it kills them, and a machine-gun card cadence
 where hand, deck, and gauntlets all cycle continuously.
 

@@ -475,12 +475,12 @@ func _shelved_passive_procs() -> Array:
 		{ "trigger": "on_cycle", "desc": "On cycle: 20% gain empower" },
 		{ "trigger": "on_heal", "desc": "On heal: overheal becomes armor" },
 		{ "trigger": "on_crit", "desc": "On crit: heal 3 HP" },
-		{ "trigger": "on_move", "desc": "On move: next card costs 1 less" },
+		{ "trigger": "on_move", "desc": "On move: next card costs 10 less" },
 		{ "trigger": "on_tempo_cycle", "desc": "On tempo cycle: draw 1 card" },
-		{ "trigger": "on_kill", "desc": "On kill: draw 2 cards and gain 2 mana" },
+		{ "trigger": "on_kill", "desc": "On kill: draw 2 cards and gain 20 mana" },
 		{ "trigger": "on_spell_cast", "desc": "On spell cast: 10% refund full mana cost" },
 		{ "trigger": "on_block", "desc": "On block: heal 3 HP" },
-		{ "trigger": "on_move", "desc": "On move: gain 2 armor and 1 mana" },
+		{ "trigger": "on_move", "desc": "On move: gain 2 armor and 10 mana" },
 		{ "trigger": "on_tempo_cycle", "desc": "On tempo cycle: all enemies take 2 damage" },
 	]
 
@@ -577,26 +577,26 @@ func _build_constellations() -> void:
 		"mind_weaver", "Mind Weaver",
 		[3, 10, 11, 23, 24] as Array[int],
 		"Mind Weaver",
-		"On spell cast: 20% chance to draw a card. +3 max mana",
+		"On spell cast: 20% chance to draw a card. +30 max mana",
 		Color(0.7, 0.5, 0.95)  # lavender
 	))
 
 	# --- PAIR 3: AGI Sector — Windwalker vs Storm Runner ---
-	# Shared nodes: 5 (AGI+1), 16 (Mana+3), 32 (placeholder null node for now)
+	# Shared nodes: 5 (AGI+1), 16 (Mana+10), 32 (placeholder null node for now)
 	# Windwalker goes toward card draw/prep; Storm Runner toward mana sustain
 	# Storm Runner also shares node 17 with Unyielding — creating a 3-way conflict
 	_add_constellation(Constellation.new(
 		"windwalker", "Windwalker",
 		[5, 15, 16, 31, 32] as Array[int],
 		"Windwalker",
-		"+1 movement per cycle. First card played after moving costs 1 less",
+		"+1 movement per cycle. First card played after moving costs 10 less",
 		Color(0.3, 0.85, 0.4)  # light green
 	))
 	_add_constellation(Constellation.new(
 		"storm_runner", "Storm Runner",
 		[5, 16, 17, 32, 33] as Array[int],
 		"Storm Runner",
-		"+1 movement per cycle. Gain 2 mana on each move",
+		"+1 movement per cycle. Gain 20 mana on each move",
 		Color(0.2, 0.55, 0.95)  # electric blue
 	))
 

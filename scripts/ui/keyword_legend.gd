@@ -106,7 +106,7 @@ func _build_legend() -> void:
 
 	# Movement Section
 	_add_section_header("MOVEMENT")
-	_add_keyword("Pass-Through", "Moving through a tile occupied by another unit always costs 2 tempo, regardless of Flash points", Color(1.0, 0.5, 0.5))
+	_add_keyword("Pass-Through", "Moving through a tile occupied by anyone else (ally or enemy) always costs 2 tempo, regardless of Flash points", Color(1.0, 0.5, 0.5))
 
 	# Card Types Section
 	_add_section_header("CARD TYPES")

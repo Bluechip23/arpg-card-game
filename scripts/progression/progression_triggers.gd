@@ -366,8 +366,8 @@ func _on_constellation_replaced(old_id: String, _new_id: String) -> void:
 	# Reverse stat bonuses for constellations that granted direct stats
 	match old_id:
 		"mind_weaver":
-			stats.sphere_bonus_mana -= 3
-			stats.max_mana -= 3
+			stats.sphere_bonus_mana -= 30
+			stats.max_mana -= 30
 			stats.current_mana = min(stats.current_mana, stats.get_available_max_mana())
 			stats.mana_changed.emit(stats.current_mana, stats.max_mana)
 		"windwalker":
@@ -424,8 +424,8 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"description": "Arcane Current: Spell cards deal +5 bonus damage"
 			})
 		"mind_weaver":
-			# On spell cast: 20% draw a card. +3 max mana
-			stats.apply_sphere_grid_mana(3)
+			# On spell cast: 20% draw a card. +30 max mana
+			stats.apply_sphere_grid_mana(30)
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_spell_cast", "effect": "draw_card",
 				"value": 1, "chance": 0.20,
@@ -435,17 +435,17 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 			# +1 movement, first card after moving costs 1 less
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_move", "effect": "reduce_cost",
-				"value": 1, "chance": 1.0,
-				"description": "Windwalker: First card after moving costs 1 less"
+				"value": 10, "chance": 1.0,
+				"description": "Windwalker: First card after moving costs 10 less"
 			})
 			# +1 movement via agility
 			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
 		"storm_runner":
-			# +1 movement, gain 2 mana on move
+			# +1 movement, gain 20 mana on move
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_move", "effect": "gain_mana",
-				"value": 2, "chance": 1.0,
-				"description": "Storm Runner: Gain 2 mana on each move"
+				"value": 20, "chance": 1.0,
+				"description": "Storm Runner: Gain 20 mana on each move"
 			})
 			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
 		"sages_insight":

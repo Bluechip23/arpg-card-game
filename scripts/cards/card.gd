@@ -4792,7 +4792,7 @@ static func create_reckless_strike() -> Card:
 	var card = Card.new()
 	card.card_id = "reckless_strike"
 	card.card_name = "Reckless Strike"
-	card.description = "Deal 15 damage. Add 2 Minor Wounds to your deck."
+	card.description = "Deal 15 damage. Shuffle 2 Minor Wounds into your deck."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 10
@@ -5378,13 +5378,13 @@ func _execute_down_but_not_out(player_stats: PlayerStats, buff_mgr: BuffManager 
 # ============================================
 
 func _execute_anticipation(player_stats: PlayerStats, deck_manager = null) -> void:
-	# Gain 10 mana, shuffle a Prepare into the deck
+	# Gain 10 mana, shuffle a Prepare into the DRAW pile
 	if player_stats:
 		player_stats.gain_mana(10)
 		print("[CARD] Anticipation: Gained 10 mana")
 	if deck_manager:
 		deck_manager.add_card_to_deck_from_id("prepare")
-		print("[CARD] Anticipation: Shuffled Prepare into deck")
+		print("[CARD] Anticipation: Shuffled Prepare into the draw pile")
 
 func _execute_prepare(deck_manager = null) -> void:
 	# Draw 3 cards
@@ -5523,7 +5523,7 @@ func _execute_savage_strike(target, is_empowered: bool, player_stats: PlayerStat
 	## discard pile. The copy already carries Erase 20 from its create function.
 	_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 	if add_copy and deck_manager:
-		deck_manager.add_card_to_deck_from_id("savage_strike_copy")
+		deck_manager.add_card_to_deck_from_id("savage_strike_copy", false)
 		print("[CARD] Savage Strike! Added a fragile copy (Erase 20) to discard")
 
 func _execute_shield_slam(target, player_stats: PlayerStats) -> void:
@@ -6041,7 +6041,7 @@ static func create_anticipation() -> Card:
 	var card = Card.new()
 	card.card_id = "anticipation"
 	card.card_name = "Anticipation"
-	card.description = "Gain 10 mana. Add a Prepare to your discard pile."
+	card.description = "Gain 10 mana. Shuffle a Prepare into your deck."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 0

@@ -150,7 +150,7 @@ static func create_overcharge(effect_name: String, effect_id: String, value: int
 static func create_overcharge_health(value: int = 2, charges: int = -1, source: String = "") -> OverflowEffect:
 	return create_overcharge("+%d Health" % value, "gain_health", value, charges, source)
 
-static func create_overcharge_mana(value: int = 2, charges: int = -1, source: String = "") -> OverflowEffect:
+static func create_overcharge_mana(value: int = 20, charges: int = -1, source: String = "") -> OverflowEffect:
 	return create_overcharge("+%d Mana" % value, "gain_mana", value, charges, source)
 
 static func create_overcharge_armor(value: int = 2, charges: int = -1, source: String = "") -> OverflowEffect:

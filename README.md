@@ -381,7 +381,7 @@ The switch validates the end state as a whole (weight, storage space) before any
 
 ### Storage & stash
 
-Unequipped gear lives in your backpack (limited slots). Towns provide a larger persistent **stash**. Loose cards you pick up as loot also are added to your inventory. When adding them to your deck, via directly or an item slot, the card is put into your discard pile.
+Unequipped gear lives in your backpack (limited slots). Towns provide a larger persistent **stash**. Loose cards you pick up as loot also are added to your inventory. When adding them to your deck directly, the card is shuffled into your draw pile; cards slotted into an item join the draw pile when the item is equipped.
 ---
 
 ## Weapon & Equipment Swapping
