@@ -39,6 +39,13 @@ func apply_buff(buff: Buff) -> void:
 		_execute_cleanse(buff.value)
 		return
 
+	# Fortify's number is the Regen you had when it began (Living Armor tops
+	# Regen back up to it).
+	if buff.buff_type == Buff.BuffType.FORTIFY and buff.value <= 0:
+		var fort_regen = get_buff(Buff.BuffType.REGEN)
+		buff.value = fort_regen.value if fort_regen else 0
+		buff._set_name_and_description()
+
 	# Check if buff already exists (refresh or stack)
 	var existing = get_buff(buff.buff_type)
 	

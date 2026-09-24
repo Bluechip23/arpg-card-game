@@ -74,7 +74,7 @@ func _set_name_and_description() -> void:
 			description = "Draw %d additional card(s) per cycle for %d more cycle(s)" % [value, charges]
 		BuffType.FORTIFY:
 			buff_name = "Fortify"
-			description = "Armor does not decay"
+			description = "Armor does not decay (Regen mark %d)" % value
 		BuffType.ENLIGHTENED:
 			buff_name = "Enlightened"
 			description = "%d%% crit chance for the next %d attacks (re-applying refreshes to the higher count, never adds)" % [value, charges]

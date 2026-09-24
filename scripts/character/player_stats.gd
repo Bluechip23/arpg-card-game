@@ -158,7 +158,7 @@ var empowered_cards_remaining: int = 0
 var empower_damage_bonus: int = 3
 var empower_block_reduction: int = 3
 var chance_boost: float = 0.0
-var next_odds_boost: float = 0.0  # One-shot boost (Loaded Die / House Money), consumed on next roll
+var next_odds_boost: float = 0.0  # Loaded Die / House Money: rides every chance card until one is played
 
 ## Total % chance boost for card rolls: equipment/buff sources (chance_boost)
 ## plus Jeremy's Tricks of Death, read live from its rank (+5%..12%).
@@ -339,6 +339,7 @@ var equipment_shield_melee_damage: int = 0        # +melee damage while a shield
 var equipment_melee_reach: int = 0                # +melee reach while a shield is up (Spartan Spear)
 var equipment_attack_speed_penalty: int = 0       # attack-speed proc threshold penalty (Bessy)
 var pending_wrath_percent: int = 0                # Purge Wrath: next attack's % bonus, then cleared
+var pending_wrath_flat: int = 0  # Purge Wrath: the flat Wrath bonus banked for the next attack
 # Shields pass: the off hand that fights back.
 var equipment_flat_damage_reduction: int = 0      # every incoming hit is cut by this, flat (Buckler / Vanguard 3)
 var equipment_low_health_lifesteal: float = 0.0   # +% lifesteal while below half health (Coffin Lid 8)
