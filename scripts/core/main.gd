@@ -352,6 +352,9 @@ var _mana_bar_label: Label = null
 var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
+var _unerring_bar: ProgressBar = null      # the grey half-height bar under HP: unerring armor / cap
+var _last_hp_ratio: float = 1.0             # previous health fraction (below-50% reactions fire on the crossing)
+var _unerring_bar_label: Label = null
 var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
@@ -1606,6 +1609,13 @@ func _setup_stat_bars() -> void:
 	_hp_bar_label = hp_pair[1]
 	_setup_armor_shield()
 
+	# --- Unerring armor (grey, half the HP bar's height) ---
+	var un_pair = _create_stat_bar_with_label(stat_container, "UnerringBar", Color(0.62, 0.64, 0.68), Color(0.2, 0.21, 0.24), UNERRING_BAR_HEIGHT)
+	_unerring_bar = un_pair[0]
+	_unerring_bar_label = un_pair[1]
+	_unerring_bar.tooltip_text = "Unerring armor: the capped shell your periodic-armor items and Arm/Cyc nodes regrow. Hits and decay eat it first."
+	_unerring_bar_label.add_theme_font_size_override("font_size", 9)
+
 	# --- Mana Bar (blue) ---
 	var mana_pair = _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
 	_mana_bar = mana_pair[0]
@@ -1733,26 +1743,35 @@ func _update_mana_regen_indicator() -> void:
 	if stats:
 		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
 
+const UNERRING_BAR_HEIGHT := 11  # half the 22px HP bar
+const STAT_BAR_GAP := 4          # the StatBarsContainer's separation
+
 func _setup_armor_shield() -> void:
-	## A shield badge just right of the HP bar showing current armour (replaces
-	## the old armour bar). Same footprint as the mana raindrop.
+	## A shield badge just right of the HP bar showing total armour (regular +
+	## unerring). Tall enough to span the HP bar AND the unerring bar beneath
+	## it; its width follows the height at the glyph's original 26:28 ratio.
 	if not _hp_bar:
 		return
 	var wrapper = _hp_bar.get_parent()
 	var badge = Control.new()
 	badge.name = "ArmorShield"
 	badge.mouse_filter = Control.MOUSE_FILTER_STOP
-	badge.tooltip_text = "Current armor"
+	badge.tooltip_text = "Armor: regular + unerring. Hits and decay eat the unerring shell first."
 	badge.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	# Span the HP bar (22) plus the gap and the unerring bar beneath it, with
+	# a 2px overhang top and bottom; the width follows the height at the tall
+	# shield glyph's 22:24 silhouette ratio.
+	var badge_h: float = 22.0 + STAT_BAR_GAP + UNERRING_BAR_HEIGHT + 4.0
+	var badge_w: float = badge_h * 22.0 / 24.0
 	badge.offset_left = 6.0
-	badge.offset_right = 32.0
-	badge.offset_top = -14.0
-	badge.offset_bottom = 14.0
+	badge.offset_right = 6.0 + badge_w
+	badge.offset_top = -13.0
+	badge.offset_bottom = -13.0 + badge_h
 	wrapper.add_child(badge)
 
 	var tex := TextureRect.new()
-	tex.texture = UIGlyphs.get_glyph("shield")
-	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex.texture = UIGlyphs.get_glyph("shield_tall")
+	tex.stretch_mode = TextureRect.STRETCH_SCALE
 	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1760,7 +1779,7 @@ func _setup_armor_shield() -> void:
 	badge.add_child(tex)
 
 	_armor_shield_label = Label.new()
-	_armor_shield_label.add_theme_font_size_override("font_size", 12)
+	_armor_shield_label.add_theme_font_size_override("font_size", 14)
 	_armor_shield_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	_armor_shield_label.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.12))
 	_armor_shield_label.add_theme_constant_override("outline_size", 5)
@@ -1773,21 +1792,23 @@ func _setup_armor_shield() -> void:
 func _reposition_status_bars() -> void:
 	## Stack the debuff and buff rows directly beneath the (thin) XP bar, close
 	## to it, instead of floating out to the right of the health bar.
-	# HP(22) + 4 + Mana(22) + 4 + XP(6) starting at y=8 -> bottom of XP at y=66.
+	# HP(22) + 4 + Unerring(11) + 4 + Mana(22) + 4 + XP(6) starting at y=8
+	# -> bottom of XP at y=81.
 	var left := 122.0
 	var right := 122.0 + 360.0
+	var top := 69.0 + UNERRING_BAR_HEIGHT + STAT_BAR_GAP
 	if debuff_bar:
 		debuff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		debuff_bar.offset_left = left
-		debuff_bar.offset_top = 69.0
+		debuff_bar.offset_top = top
 		debuff_bar.offset_right = right
-		debuff_bar.offset_bottom = 99.0
+		debuff_bar.offset_bottom = top + 30.0
 	if buff_bar:
 		buff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		buff_bar.offset_left = left
-		buff_bar.offset_top = 101.0
+		buff_bar.offset_top = top + 32.0
 		buff_bar.offset_right = right
-		buff_bar.offset_bottom = 131.0
+		buff_bar.offset_bottom = top + 62.0
 
 #endregion
 #region PILE BUTTONS & DECK INFO
@@ -3920,6 +3941,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().health_changed.connect(_on_player_health_changed)
 	player.get_stats().mana_changed.connect(_on_player_mana_changed)
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
+	player.get_stats().unerring_changed.connect(_on_player_unerring_changed)
 	player.get_stats().armor_gained.connect(_on_player_armor_gained)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
@@ -4114,6 +4136,10 @@ func _on_player_tile_reached() -> void:
 		_update_camera()
 
 func _on_player_move_completed() -> void:
+	# High-ground riders (Mountain Boots) read a cached flag: refresh it the
+	# moment the move ends, not only at the next cycle tick.
+	if player and player.get_stats():
+		player.get_stats().on_high_ground = _is_on_high_ground(player.position)
 	# Catch any pickup missed by per-tile checks (e.g. teleports/blinks).
 	_check_loot_pickup()
 	# Final zone check at destination
@@ -6276,9 +6302,13 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 		var pct = int(float(current) / float(max_hp) * 100.0) if max_hp > 0 else 0
 		_hp_bar_label.text = "%d/%d (%d%%)" % [current, max_hp, pct]
 
-	# Trigger instant reaction cards when HP drops below 50%
+	# Trigger instant reaction cards when HP DROPS below 50% — the crossing,
+	# not every change while already low.
 	var stats = player.get_stats()
-	if stats and current > 0 and current < max_hp * 0.5:
+	var hp_ratio: float = float(current) / float(max_hp) if max_hp > 0 else 1.0
+	var crossed_half: bool = hp_ratio < 0.5 and _last_hp_ratio >= 0.5
+	_last_hp_ratio = hp_ratio
+	if stats and current > 0 and crossed_half:
 		var triggered = deck_manager.trigger_reactions("on_hp_below_50")
 		for card in triggered:
 			if card.card_id == "gift_from_the_phoenix":
@@ -6313,9 +6343,26 @@ func _on_player_armor_gained(_amount: int) -> void:
 	if player and player.has_method("show_armor_gained"):
 		player.show_armor_gained()
 
-func _on_player_armor_changed(current: int) -> void:
-	if _armor_shield_label:
-		_armor_shield_label.text = "%d" % current
+func _on_player_armor_changed(_current: int) -> void:
+	## The shield reads TOTAL armor (regular + unerring), whatever pool moved.
+	var stats = player.get_stats() if player else null
+	if _armor_shield_label and stats:
+		_armor_shield_label.text = "%d" % stats.get_total_armor()
+	_update_unerring_bar()
+
+func _on_player_unerring_changed(_current: int, _cap: int) -> void:
+	_on_player_armor_changed(0)
+
+func _update_unerring_bar() -> void:
+	var stats = player.get_stats() if player else null
+	if stats == null:
+		return
+	var cap: int = stats.get_unerring_cap()
+	if _unerring_bar:
+		_unerring_bar.max_value = maxi(1, cap)
+		_unerring_bar.value = stats.unerring_armor
+	if _unerring_bar_label:
+		_unerring_bar_label.text = "%d/%d" % [stats.unerring_armor, cap]
 
 func _update_xp_display() -> void:
 	var stats = player.get_stats()
@@ -6883,6 +6930,8 @@ func _on_non_play_discard(_card: Card) -> void:
 		stats.st_ladder_discard_count += 1
 	# Keep Them Guessing counts true discards, never plays.
 	progression_triggers._trigger_skill_tree_on_discard(_card)
+	# Volatile Mixture / Improvised Ammo: "if discarded" means discarded.
+	_on_true_discard_effects(_card)
 	# Abjurers Cane: every true discard raises the guard.
 	if stats and player.get_inventory():
 		for ac_w in player.get_inventory().equipped_weapons:
@@ -6895,7 +6944,11 @@ func _on_non_play_discard(_card: Card) -> void:
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
 	progression_triggers._trigger_sphere_passives("on_discard", {"card": card})
-	# (Skill-tree discard passives listen to non_play_discard — see _on_non_play_discard.)
+	# (Skill-tree discard passives and the "if discarded" card effects listen
+	# to non_play_discard — see _on_non_play_discard — because a PLAYED card
+	# also passes through the discard pile.)
+
+func _on_true_discard_effects(card: Card) -> void:
 	# Volatile Mixture: deal damage to a random nearby enemy when discarded
 	if card.card_id == "volatile_mixture":
 		var stats = player.get_stats()
@@ -7025,11 +7078,10 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		if regen_stats and regen_stats.sphere_bonus_regen > 0:
 			regen_stats.heal(regen_stats.sphere_bonus_regen)
 
-		# Sphere-grid "Arm/Cyc" nodes: raw armor each cycle (no block-card bonuses).
+		# Sphere-grid "Arm/Cyc" nodes: raw armor each cycle (no block-card
+		# bonuses) — into the capped unerring pool, like every armor clock.
 		if regen_stats and regen_stats.sphere_bonus_armor_per_cycle > 0:
-			regen_stats.current_armor += regen_stats.sphere_bonus_armor_per_cycle
-			regen_stats.armor_changed.emit(regen_stats.current_armor)
-			regen_stats.armor_gained.emit(regen_stats.sphere_bonus_armor_per_cycle)
+			regen_stats.add_unerring_armor(regen_stats.sphere_bonus_armor_per_cycle)
 
 		# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
 		if buff_mgr:
@@ -7218,7 +7270,9 @@ func _apply_in_hand_debuffs() -> void:
 		if card.in_hand_debuff != "":
 			match card.in_hand_debuff:
 				"slowed_2":
-					debuff_mgr.apply_debuff(Debuff.create_slowed(2, card.card_name))
+					# "While in hand: Slowed 2" — hold it at 2, never stack it.
+					if not debuff_mgr.has_debuff(Debuff.DebuffType.SLOWED):
+						debuff_mgr.apply_debuff(Debuff.create_slowed(2, card.card_name))
 
 func _process_enchantment_cycles() -> void:
 	var hand_changed = false
@@ -7326,7 +7380,9 @@ func _adjust_random_hand_tempo(deck, count: int, delta: int) -> void:
 	var cards: Array = deck.hand.duplicate()
 	cards.shuffle()
 	for i in range(min(count, cards.size())):
-		cards[i].tempo_cost = max(0, cards[i].tempo_cost + delta)
+		# An in-hand delta (ends when the card is played or discarded), never a
+		# permanent rewrite of the deck's costs.
+		cards[i].temp_hand_tempo_reduction -= delta
 	deck.hand_updated.emit()
 
 # --- Delayed card-effect handlers (scheduled via schedule_delayed_effect) ---
@@ -8538,9 +8594,17 @@ func _get_distance_to_target(target) -> int:
 ##     any offensive card; Monocle +5 to offensive ranged cards).
 ##   - 20/20 (Monocle's granted Maintain): +3 range on ranged offensive cards.
 func _helm_range_bonus(card) -> int:
-	if card == null or not card.is_offensive():
+	if card == null:
 		return 0
 	var bonus := 0
+	# Wand of Deliverance: +range on ALL cards while it is in a hand
+	# (10% weaker — floored — from the off hand, like everything else).
+	if player and player.get_inventory():
+		for wr_w in player.get_inventory().equipped_weapons:
+			if wr_w != null and wr_w.range_bonus_all_cards > 0:
+				bonus += floori(wr_w.range_bonus_all_cards * wr_w.rider_scale())
+	if not card.is_offensive():
+		return bonus
 	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
 		var osb = card.slotted_in_item.get_on_self_bonus()
 		var r := int(osb.get("range_offensive", 0))
@@ -8554,12 +8618,6 @@ func _helm_range_bonus(card) -> int:
 	# Tigers Sunday Red: +range on ALL ranged offensive cards while equipped.
 	if card.is_ranged and player and player.get_stats():
 		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
-	# Wand of Deliverance: +range on ALL cards while it is in a hand
-	# (10% weaker — floored — from the off hand, like everything else).
-	if player and player.get_inventory():
-		for wr_w in player.get_inventory().equipped_weapons:
-			if wr_w != null and wr_w.range_bonus_all_cards > 0:
-				bonus += floori(wr_w.range_bonus_all_cards * wr_w.rider_scale())
 	return bonus
 
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
@@ -9394,7 +9452,7 @@ func _update_spirit_bows(amount: int) -> void:
 		if _manhattan(b.get_cell(), tcell) <= b.ATTACK_RANGE:
 			if b.attack_accum >= b.attack_interval():
 				b.attack_accum -= b.attack_interval()
-				var dmg: int = b.base_attack() + 2 * instance_count
+				var dmg: int = b.base_attack() + 2 * (instance_count - 1)  # +2 per OTHER bow
 				if randf() * 100.0 < 5.0 * instance_count:
 					dmg = floori(dmg * 1.5)
 					add_battle_log("The bow's shot crits!", Color(0.5, 0.85, 0.8))
@@ -10297,6 +10355,8 @@ func _on_action_points_spent(pool: String, amount: int) -> void:
 			break
 	if threshold <= 0:
 		return
+	if stats.flash_crit_armed:
+		return  # "resets to 0 on use": nothing banks while the crit waits
 	stats.flash_crit_accum += amount
 	if stats.flash_crit_accum >= threshold and not stats.flash_crit_armed:
 		stats.flash_crit_accum = 0  # "resets to 0 on use" — no overflow carry
@@ -10420,7 +10480,7 @@ func _helm_on_cycle_passives() -> void:
 				a_st._passive_heal = true
 				a_st.heal(greaves_regen)
 				a_st._passive_heal = false
-				a_st.gain_mana(greaves_regen)
+				a_st.gain_mana(greaves_regen * 10)  # "6 mana" on the design scale = 60 in code
 				a_st.aura_physical_resist = greaves_resist
 		for m in _frankensteins:
 			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
@@ -10888,7 +10948,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Patience: will draw 3 cards in 15 tempo")
 
 		"succumb":
-			var caster = player  # owner-bound during resolution
+			var caster = target if target is Player else player  # self or the targeted ally
 			var bm = caster.get_buff_manager()
 			if bm:
 				bm.apply_buff(Buff.create_fortify(20, "Succumb"))
@@ -11182,7 +11242,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"vines":
 			# Hold the target for 3 cycles, dealing base damage at the end of each.
 			if target and target.has_method("apply_debuff"):
-				target.apply_debuff("stun", 15)
+				target.apply_debuff("root", 15)  # held in place — it can still swing
 				# Deal what the card face shows — the full stat-scaled number.
 				var vine_dmg := _card_player_damage(card)
 				for cyc in range(1, 4):
@@ -11601,10 +11661,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var a_st = ally.get_stats() if is_instance_valid(ally) else null
 				if a_st:
 					a_st.add_armor(5)
-					a_st.determination += 2
-					a_st.base_strength += 2
-					a_st.recalculate_derived_stats()
-			add_battle_log("Hold the Line! All allies +5 armor, +2 DET, +2 STR", Color(0.3, 0.7, 1.0))
+					# A rally, not a permanent stat: +2 DET and +2 STR (Might) for 20 tempo.
+					a_st.add_temp_determination(2, 20)
+					var htl_bm = ally.get_buff_manager() if ally.has_method("get_buff_manager") else null
+					if htl_bm:
+						htl_bm.apply_buff(Buff.create_might(2, 20, "Hold the Line"))
+			add_battle_log("Hold the Line! All allies +5 armor, +2 DET, +2 STR for 20 tempo", Color(0.3, 0.7, 1.0))
 
 		"swap":
 			# Swap positions between player and target
@@ -11959,7 +12021,9 @@ func _input(event: InputEvent) -> void:
 				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
 				if enemy:
 					_card_played = true
-					if _is_target_in_card_range(card, enemy):
+					if card.requires_high_ground and not _has_high_ground(player.position, enemy):
+						add_battle_log("%s needs high ground over the target." % card.card_name, Color(1.0, 0.4, 0.4))
+					elif _is_target_in_card_range(card, enemy):
 						if card.card_id == "release_tension":
 							_show_release_tension_picker(card, enemy)
 						else:
@@ -11981,7 +12045,9 @@ func _input(event: InputEvent) -> void:
 					# clicking yourself or empty ground defaults to self.
 					var tgt_player := _player_at_position(mouse_pos)
 					var tgt = tgt_player if tgt_player else player
-					if card.card_id == "reposition":
+					if tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
+						add_battle_log("Out of range! %s is too far (max range: %d)" % [tgt.name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
+					elif card.card_id == "reposition":
 						# Let the player choose which card to discard, then play.
 						show_hand_card_picker("Reposition — discard which card?",
 							func(chosen):
@@ -14420,7 +14486,7 @@ func _spawn_dojo_ally(cell: Vector2i) -> void:
 		if stats.current_health <= 0:
 			stats.current_health = stats.max_health
 			stats.health_changed.emit(stats.current_health, stats.max_health)
-		readout.text = "Ally Dummy\nHP %d/%d   ARM %d" % [stats.current_health, stats.max_health, stats.current_armor]
+		readout.text = "Ally Dummy\nHP %d/%d   ARM %d" % [stats.current_health, stats.max_health, stats.get_total_armor()]
 	stats.health_changed.connect(func(_c, _m): refresh.call())
 	stats.armor_changed.connect(func(_a): refresh.call())
 	refresh.call()
@@ -14515,10 +14581,12 @@ func _dojo_reset_unit(unit: Player) -> void:
 	if dm:
 		dm.clear_all_debuffs()
 	stats.current_armor = 0
+	stats.unerring_armor = 0
 	stats.current_health = stats.max_health
 	stats.current_mana = float(stats.get_available_max_mana())
 	stats.health_changed.emit(stats.current_health, stats.max_health)
 	stats.mana_changed.emit(stats.current_mana, stats.max_mana)
+	stats.unerring_changed.emit(0, stats.get_unerring_cap())
 	stats.armor_changed.emit(stats.current_armor)
 
 func _setup_dojo_bar_dragging() -> void:

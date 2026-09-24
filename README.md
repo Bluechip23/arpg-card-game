@@ -139,6 +139,8 @@ Damage absorption that sits in front of your health.
 - Incoming damage is absorbed in order: **armor → temporary HP → health**. Armor is always the first line of defense; items, nodes, enemy attacks, or cards may manipulate this order.
 - Armor **decays 2 per cycle** by default. Some effects (Fortify) pause decay; others (Brittle) accelerate it.
 
+**Unerring armor.** Armor that arrives on a clock — periodic-armor items like the Kettle Hat and Strap of Stone, and the sphere grid's Arm/Cyc nodes — goes into a separate, capped pool called *unerring*. The cap starts at **6** and grows through Unerring sphere nodes, item stats and other sources. The clock keeps topping the pool up but can never push it past the cap, so waiting never makes you invincible. Hits and decay eat the unerring shell **before** regular armor: it is the part that grows back, so it is the part that takes the beating. The HUD shows it as the thin grey bar under your health, and the shield badge beside the bars reads your total armor, regular plus unerring.
+
 ---
 
 ## Cards

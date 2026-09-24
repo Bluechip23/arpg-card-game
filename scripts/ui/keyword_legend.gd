@@ -129,7 +129,7 @@ func _build_legend() -> void:
 
 	# Card Mechanics Section
 	_add_section_header("CARD MECHANICS")
-	_add_keyword("Erase", "After X tempo, this card is permanently deleted from the deck", Color(0.9, 0.2, 0.2))
+	_add_keyword("Erase", "After X tempo in your hand, this card is permanently deleted from the deck (the fuse pauses in the draw and discard piles)", Color(0.9, 0.2, 0.2))
 	_add_keyword("On-Draw", "Card triggers an effect when drawn into hand (e.g., deal damage to a random enemy)", Color(0.5, 0.9, 0.5))
 	_add_keyword("On-Discard", "Card triggers an effect when discarded from hand", Color(1.0, 0.5, 0.3))
 	_add_keyword("In-Hand", "Card applies a persistent effect while it remains in your hand", Color(0.7, 0.5, 0.9))

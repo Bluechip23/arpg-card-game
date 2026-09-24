@@ -54,9 +54,9 @@ func apply_buff(buff: Buff) -> void:
 			existing.stacks += 1
 			existing.value += buff.value
 			existing._set_name_and_description()
-		elif buff.buff_type == Buff.BuffType.ENLIGHTENED and buff.value > existing.value:
-			# A surer crit replaces a weaker one (Scouted's and Serial Killer's
-			# guaranteed crit must not be capped by a lingering Redemption).
+		elif buff.buff_type in [Buff.BuffType.ENLIGHTENED, Buff.BuffType.RESILIENT] and buff.value > existing.value:
+			# A surer crit / a stronger resistance replaces a weaker one (a
+			# 2% Smithed Excellence must not cap Stone Hide's 10%).
 			existing.value = buff.value
 			existing._set_name_and_description()
 		
@@ -311,7 +311,7 @@ func sync_flag_buffs() -> void:
 
 	# Tighten String — next N ranged attacks buffed (charge-based).
 	_sync_generic("tighten_string", tighten_string_charges > 0, "Tighten String",
-		"Next %d ranged attacks: +6 dmg, +6 range, +20%% crit" % tighten_string_charges,
+		"Next %d ranged attacks: +3 tempo, +6 dmg, +6 range, +10%% crit" % tighten_string_charges,
 		Color(0.95, 0.77, 0.09), -1, tighten_string_charges)
 
 	# Loaded Die / House Money — next RNG roll boosted (owner_stats).

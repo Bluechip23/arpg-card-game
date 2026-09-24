@@ -601,6 +601,8 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 		_add_detail_line(vbox, "+%d Mana" % item.mana_bonus, Color(0.3, 0.5, 1.0))
 	if item.armor_bonus != 0:
 		_add_detail_line(vbox, "+%d Armor" % item.armor_bonus, Color(0.7, 0.7, 0.7))
+	if item.unerring_cap_bonus != 0:
+		_add_detail_line(vbox, "%+d Unerring cap" % item.unerring_cap_bonus, Color(0.7, 0.7, 0.7))
 	if item.hand_size_bonus != 0:
 		_add_detail_line(vbox, "+%d Hand Size" % item.hand_size_bonus, Color(0.8, 0.7, 0.4))
 

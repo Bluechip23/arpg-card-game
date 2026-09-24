@@ -2037,6 +2037,8 @@ func _build_modal_stats(item: ItemData) -> String:
 		lines.append("+%d Mana" % item.mana_bonus if item.mana_bonus > 0 else "%d Mana" % item.mana_bonus)
 	if item.armor_bonus != 0:
 		lines.append("+%d Armor" % item.armor_bonus if item.armor_bonus > 0 else "%d Armor" % item.armor_bonus)
+	if item.unerring_cap_bonus != 0:
+		lines.append("%+d Unerring cap" % item.unerring_cap_bonus)
 	if item.hand_size_bonus != 0:
 		lines.append("+%d Hand Size" % item.hand_size_bonus)
 	if item.weapon_damage > 0:

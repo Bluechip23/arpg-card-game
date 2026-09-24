@@ -96,6 +96,56 @@ var _tempo_until_mana_regen: float = 0.0
 var current_armor: int = 0
 const armor_decay_per_cycle: int = 2
 
+# ---- Unerring armor ----------------------------------------------------------
+# Armor that regenerates on a clock (periodic-armor items, the sphere grid's
+# Arm/Cyc nodes) is a separate, capped pool: it can never stack past its cap,
+# so waiting a thousand tempo never makes anyone invincible. Damage and decay
+# eat it FIRST — it is the shell that grows back, so it is the shell that
+# takes the hits. The cap starts at BASE_UNERRING_CAP and grows through
+# sphere nodes ("Unerring +1"), item stats (unerring_cap_bonus) and whatever
+# else raises equipment_unerring_cap / sphere_bonus_unerring_cap.
+signal unerring_changed(current: int, cap: int)
+const BASE_UNERRING_CAP: int = 6
+var unerring_armor: int = 0
+var sphere_bonus_unerring_cap: int = 0
+var equipment_unerring_cap: int = 0
+
+func get_unerring_cap() -> int:
+	return maxi(0, BASE_UNERRING_CAP + sphere_bonus_unerring_cap + equipment_unerring_cap)
+
+## Everything standing between a hit and your health: regular armor plus the
+## unerring shell. HUD, enemies and cards that ask "how much armor" read this.
+func get_total_armor() -> int:
+	return current_armor + unerring_armor
+
+## Grant unerring armor, clamped to the cap. Returns what was actually gained.
+## Raw: no block-card bonuses ride along. Living Bulwark converts it like any
+## other armor gain.
+func add_unerring_armor(amount: int) -> int:
+	var gained: int = clampi(amount, 0, get_unerring_cap() - unerring_armor)
+	if gained <= 0:
+		return 0
+	if keystone_armor_temp_hp:
+		add_temp_health(gained, CONVERSION_TEMP_HP_TEMPO)
+		print("[STATS] Living Bulwark: %d unerring armor became temp HP" % gained)
+		return gained
+	unerring_armor += gained
+	unerring_changed.emit(unerring_armor, get_unerring_cap())
+	armor_changed.emit(current_armor)
+	armor_gained.emit(gained)
+	print("[STATS] Gained %d unerring armor (%d/%d)" % [gained, unerring_armor, get_unerring_cap()])
+	if inventory:
+		inventory.on_armor_gained(gained)
+	return gained
+
+## Take up to `amount` out of the unerring pool. Returns what it absorbed.
+func _spend_unerring(amount: int) -> int:
+	var used: int = clampi(amount, 0, unerring_armor)
+	if used > 0:
+		unerring_armor -= used
+		unerring_changed.emit(unerring_armor, get_unerring_cap())
+	return used
+
 var current_temp_health: int = 0
 var temp_health_tempo_remaining: int = 0
 
@@ -203,6 +253,7 @@ var equipment_crit_bonus: float = 0.0        # +% crit chance from gear (Monocle
 var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear (Hannibals Mask)
 var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gear (Thick Steel Helm)
 var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
+var defense_card_bonus_pending: bool = false  # armed by Card.execute for a DEFENSE card; spent by its first armor gain
 var equipment_armorless_defense_block: int = 0  # armor granted by DEFENSE cards that grant none themselves (Burgonet)
 var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
 var temp_crit_damage_bonus: float = 0.0      # one-shot +crit-damage multiplier for the resolving card (Feathered Hat 0.10)
@@ -256,6 +307,30 @@ var equipment_hp_diff_divisor: int = 0            # health-gap bonus damage divi
 var equipment_ranged_range_bonus: int = 0         # +range on ranged offensive cards (Tigers Sunday Red)
 var movement_tempo_surcharge: int = 0             # each tile moved on tempo costs this much extra (Adimantium)
 var temp_strength_bonus: int = 0                  # summed MIGHT buffs (Ragnarok); damage only, never carry
+# Timed Determination (Hold the Line): [{"amount", "tempo"}] — summed into the
+# DET the modifier reads, and shed on raw tempo.
+var _temp_det_buffs: Array = []
+
+func add_temp_determination(amount: int, tempo: int) -> void:
+	if amount == 0 or tempo <= 0:
+		return
+	_temp_det_buffs.append({"amount": amount, "tempo": tempo})
+	stats_updated.emit()
+
+func get_temp_determination_bonus() -> int:
+	var total := 0
+	for b in _temp_det_buffs:
+		total += int(b["amount"])
+	return total
+
+func _tick_temp_determination(amount: int) -> void:
+	if _temp_det_buffs.is_empty():
+		return
+	for i in range(_temp_det_buffs.size() - 1, -1, -1):
+		_temp_det_buffs[i]["tempo"] -= amount
+		if _temp_det_buffs[i]["tempo"] <= 0:
+			_temp_det_buffs.remove_at(i)
+	stats_updated.emit()
 var death_stack_crit_damage: float = 0.0          # Hide of Garmr Lv3: +crit-damage multiplier from death stacks
 var free_move_tiles: int = 0                      # Shadow Cowl shift: tiles that cost no tempo and no flash
 # Weapons pass
@@ -622,6 +697,7 @@ func initialize(data: CharacterData) -> void:
 	
 	# Reset runtime values
 	current_armor = 0
+	unerring_armor = 0
 	current_temp_health = 0
 	temp_health_tempo_remaining = 0
 	current_carry_load = 0
@@ -725,6 +801,8 @@ func save_progression() -> Dictionary:
 		"max_mana": max_mana,
 		"current_mana": current_mana,
 		"current_armor": current_armor,
+		"unerring_armor": unerring_armor,
+		"sphere_bonus_unerring_cap": sphere_bonus_unerring_cap,
 		"base_mana_regen": base_mana_regen,
 		"base_draw_timer": base_draw_timer,
 		# Sphere grid bonuses
@@ -836,6 +914,8 @@ func restore_progression(data: Dictionary) -> void:
 	max_mana = data.get("max_mana", max_mana)
 	current_mana = data.get("current_mana", max_mana)
 	current_armor = data.get("current_armor", 0)
+	unerring_armor = data.get("unerring_armor", 0)
+	sphere_bonus_unerring_cap = data.get("sphere_bonus_unerring_cap", sphere_bonus_unerring_cap)
 	base_mana_regen = data.get("base_mana_regen", base_mana_regen)
 	base_draw_timer = data.get("base_draw_timer", base_draw_timer)
 	# Sphere grid bonuses
@@ -904,6 +984,7 @@ func restore_progression(data: Dictionary) -> void:
 	health_changed.emit(current_health, max_health)
 	mana_changed.emit(current_mana, max_mana)
 	armor_changed.emit(current_armor)
+	unerring_changed.emit(unerring_armor, get_unerring_cap())
 	print("[STATS] Progression restored: Level %d, XP %d, %d passives" % [current_level, current_xp, skill_tree_passives.size()])
 
 func recalculate_derived_stats() -> void:
@@ -982,7 +1063,7 @@ func get_determination_modifier() -> float:
 	# Above it: bonuses as the resource drains
 
 	var health_pct = get_determination_resource_percent()
-	var det_diff = determination - DET_NEUTRAL
+	var det_diff = determination + get_temp_determination_bonus() - DET_NEUTRAL
 
 	# Determine which threshold and effect percentage
 	var effect_per_point = 0.0
@@ -1471,6 +1552,7 @@ func get_effective_heal_amount(base_heal: int) -> int:
 
 ## Called every global tempo advance. Handles mana regen on its own interval.
 func process_tempo(amount: int) -> void:
+	_tick_temp_determination(amount)
 	# Ring pass timers run on raw tempo.
 	if invulnerable_tempo > 0:
 		invulnerable_tempo = max(0, invulnerable_tempo - amount)
@@ -1511,8 +1593,9 @@ func process_tempo(amount: int) -> void:
 
 ## Called once per tempo cycle (every 5 global tempo). Handles armor decay and misc upkeep.
 func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
-	# Armor decay (check Fortify)
-	if current_armor > 0:
+	# Armor decay (check Fortify). The unerring shell decays first — it is
+	# the part that grows back — then regular armor takes the remainder.
+	if get_total_armor() > 0:
 		var should_decay = true
 		if buff_mgr and buff_mgr.should_ignore_armor_decay():
 			should_decay = false
@@ -1525,6 +1608,7 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 				print("[STATS] Stalwart reduces armor decay by 1")
 			if debuff_mgr:
 				decay = debuff_mgr.process_armor_decay(decay)
+			decay -= _spend_unerring(decay)
 			current_armor = max(0, current_armor - decay)
 			armor_changed.emit(current_armor)
 
@@ -1686,10 +1770,16 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Default absorption order: Armor -> temp HP -> HP. Armor is always the
 	# first line of defense; items, nodes, enemies, or cards may manipulate
 	# this later, but this is the baseline.
-	if current_armor > 0 and remaining > 0:
-		var armor_before := current_armor
+	# The unerring shell takes the hit first, then regular armor.
+	if get_total_armor() > 0 and remaining > 0:
+		var armor_before := get_total_armor()
 		var armor_broke := false
-		if current_armor >= remaining:
+		remaining -= _spend_unerring(remaining)
+		if remaining <= 0:
+			print("[STATS] Unerring armor absorbed the hit. Armor: %d (+%d unerring)" % [current_armor, unerring_armor])
+			# Return Cut: the whole hit was eaten by armor.
+			attack_fully_blocked.emit()
+		elif current_armor >= remaining:
 			current_armor -= remaining
 			remaining = 0
 			print("[STATS] Armor absorbed damage. Armor: %d" % current_armor)
@@ -1707,7 +1797,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		# armor_broken reaction below, whose fresh armor (Briarhide/Adimantium)
 		# would otherwise corrupt the delta.
 		if equipment_armor_loss_regen_threshold > 0 and buff_mgr:
-			_armor_loss_accum += armor_before - current_armor
+			_armor_loss_accum += armor_before - get_total_armor()
 			while _armor_loss_accum >= equipment_armor_loss_regen_threshold:
 				_armor_loss_accum -= equipment_armor_loss_regen_threshold
 				buff_mgr.apply_buff(Buff.create_regen(1, 15, "Hallowed Trunk"))
@@ -2016,6 +2106,11 @@ func apply_life_steal(amount: int) -> void:
 
 func add_armor(amount: int) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
+	# Burgonet / Thick Steel: the resolving DEFENSE card's first armor grant
+	# carries the equipment bonus, whichever executor granted it.
+	if defense_card_bonus_pending and amount > 0:
+		defense_card_bonus_pending = false
+		total = maxi(0, total + equipment_defense_card_block)
 	# Living Bulwark: the full armor gain (bonuses included) becomes temp HP.
 	# Armor-gain hooks (overhead icon, on_armor_gained item procs) don't fire —
 	# no armor was actually gained.
@@ -2284,6 +2379,9 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			sphere_bonus_regen += value
 		"arm/cyc":
 			sphere_bonus_armor_per_cycle += value
+		"unerring":
+			sphere_bonus_unerring_cap += value
+			unerring_changed.emit(unerring_armor, get_unerring_cap())
 		"life steal":
 			sphere_bonus_life_steal += float(value)
 		"resist":

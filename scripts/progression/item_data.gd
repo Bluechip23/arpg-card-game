@@ -94,6 +94,7 @@ enum GauntletSkillType {
 @export var health_bonus: int = 0
 @export var mana_bonus: int = 0
 @export var armor_bonus: int = 0
+@export var unerring_cap_bonus: int = 0  # +X to the unerring armor cap while worn (PlayerStats.get_unerring_cap)
 @export var hand_size_bonus: int = 0
 
 # Percentage bonuses (for off-hand, etc.)
@@ -614,10 +615,15 @@ func _apply_level_2_boost() -> void:
 			"wisdom_bonus", "determination_bonus", "agility_bonus",
 			"health_bonus", "mana_bonus", "armor_bonus", "weapon_damage",
 			"ranged_damage_bonus", "healing_bonus",
-			"block_bonus_to_defense_cards", "damage_bonus_to_attack_cards"]:
+			"block_bonus_to_defense_cards", "damage_bonus_to_attack_cards",
+			"damage_bonus_to_melee_cards"]:
 		var value: int = get(prop)
 		if value > 0:
 			set(prop, value + 1)
+	# Periodic-armor pieces (Kettle Hat, Mail Coif, Chain Crocs, Brass
+	# Knuckles…) carry their number in special_effect_value: +1 per grant.
+	if special_effect == SpecialEffect.ARMOR_PER_TURN and special_effect_value > 0:
+		special_effect_value += 1
 
 ## Rewrite properties from an overrides dict — the machinery behind both the
 ## Lv.2 bespoke boost and the Lv.3 transformation. Typed arrays are assigned
@@ -1044,7 +1050,7 @@ static func create_kettle_hat() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 2
 	item.armor_per_tempo_interval = 15
-	item.description = "Gain 2 armor every 15 tempo while equipped (counter resets when unequipped)."
+	item.description = "Gain 2 unerring armor every 15 tempo while equipped (counter resets when unequipped)."
 	return item
 
 static func create_mail_coif() -> ItemData:
@@ -1052,7 +1058,7 @@ static func create_mail_coif() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 5
 	item.armor_per_tempo_interval = 15
-	item.description = "Gain 5 armor every 15 tempo while equipped (counter resets when unequipped)."
+	item.description = "Gain 5 unerring armor every 15 tempo while equipped (counter resets when unequipped)."
 	return item
 
 static func create_dragon_skull() -> ItemData:
@@ -1153,10 +1159,10 @@ static func create_mane_of_narashimha() -> ItemData:
 	item.void_resistance_radius = 2
 	item.level_3_overrides = {"strength_bonus": 12, "intelligence_bonus": 7,
 		"determination_bonus": 7, "void_resistance_percent": 8.0}
-	item.level_3_description = "+12 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void resistance aura: lower all nearby enemies' resistances by 8% (2-square radius)."
+	item.level_3_description = "+12 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void aura: enemies within 2 squares take 8% more damage from you."
 	_set_appearance(item, "mane_of_narashimha",
 		"An enormous lion's mane. It hoods the top of the head and falls all the way down the back to mid-spine.")
-	item.description = "+10 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void resistance aura: lower all nearby enemies' resistances by 5% (2-square radius)."
+	item.description = "+10 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void aura: enemies within 2 squares take 5% more damage from you."
 	return item
 
 static func create_shamans_mask() -> ItemData:
@@ -1192,10 +1198,9 @@ static func create_burgonet() -> ItemData:
 	item.armor_per_tempo_interval = 5
 	item.block_bonus_to_defense_cards = 2      # armor-granting defense cards: +2 on top
 	item.block_to_armorless_defense_cards = 2  # armorless defense cards: grant 2
-	# NOTE (rider nuance): "additional two if it already grants armor" — the base
-	# +2 to armor-granting defense cards is wired; the extra-to-zero-armor-defense
-	# branch is flagged in the audit for your confirmation.
-	item.description = "Gain 2 armor every 5 tempo while equipped (resets if unequipped). All defensive cards grant 2 armor (additional 2 if they already grant armor)."
+	# Both riders are wired: armorless defense cards grant the flat amount in
+	# Card.execute; armor-granting ones get +2 via PlayerStats.add_armor.
+	item.description = "Gain 2 unerring armor every 5 tempo while equipped (resets if unequipped). All defensive cards grant 2 armor (additional 2 if they already grant armor)."
 	return item
 
 static func create_summoners_cap() -> ItemData:
@@ -1286,7 +1291,7 @@ static func create_steel_boots() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 1
 	item.armor_per_tempo_interval = 15
-	item.description = "+3 STR, +10 health. Gain 1 armor every 15 tempo while equipped."
+	item.description = "+3 STR, +10 health. Gain 1 unerring armor every 15 tempo while equipped."
 	return item
 
 static func create_titanium_toe_tuckers() -> ItemData:
@@ -1387,8 +1392,8 @@ static func create_hermes_boots() -> ItemData:
 	item.on_self_flash_regen = 1  # slotted card restores 1 flash point
 	item.trap_damage_percent = 25.0  # stored; applies once the trap system exists
 	item.level_3_overrides = {"agility_bonus": 6, "trap_damage_percent": 50.0}
-	item.level_3_description = "+6 AGI. On-self: restore 1 flash point. Your traps deal 50% more damage."
-	item.description = "+4 AGI. On-self: restore 1 flash point. Your traps deal 25% more damage. Upgraded: +6 AGI; traps deal 50% more."
+	item.level_3_description = "+6 AGI. On-self: restore 1 flash point. Traps deal 50% more damage to enemies."
+	item.description = "+4 AGI. On-self: restore 1 flash point. Traps deal 25% more damage to enemies. Upgraded: +6 AGI; traps deal 50% more."
 	_set_appearance(item, "hermes_boots",
 		"Hermes' famous slippers, with a feathered wing sweeping off each side.")
 	return item
@@ -1421,8 +1426,8 @@ static func create_guardian_greaves() -> ItemData:
 	item.granted_card_ids = guardian_cards
 	# Mend restoring 40%/40% at Lv.3 is read live off item_level (see the mend
 	# world effect in main.gd); no field changes at Lv.3.
-	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, give 6 health and mana regen to all allies (you included) within 4 squares, plus 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
-	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, give 6 health and mana regen to all allies (you included) within 4 squares, plus 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, restore 6 health and 6 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, restore 6 health and 6 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
 	# Modelled on DOTA 2's Guardian Greaves.
 	_set_appearance(item, "guardian_greaves",
 		"Holy plate warboots, steel banded in gold and winged at the ankle, with a healing light spilling out of the seams.")
@@ -1437,7 +1442,7 @@ static func create_chain_crocs() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 5
 	item.armor_per_tempo_interval = 15
-	item.description = "-2 AGI, -2 WIS. On-self: mana cost reduced 20%. Gain 5 armor every 15 tempo while equipped (counter resets when unequipped)."
+	item.description = "-2 AGI, -2 WIS. On-self: mana cost reduced 20%. Gain 5 unerring armor every 15 tempo while equipped (counter resets when unequipped)."
 	return item
 
 static func create_knife_toed_boots() -> ItemData:
@@ -1500,7 +1505,7 @@ static func create_chain_gloves() -> ItemData:
 	item.special_effect_value = 1
 	item.armor_per_tempo_interval = 15
 	_set_skill(item, "Guard", "Gain 2 armor.", "chain_guard", 4, 5)
-	item.description = "+2 STR. Gain 1 armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."
+	item.description = "+2 STR. Gain 1 unerring armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."
 	return item
 
 static func create_leather_gauntlets() -> ItemData:
@@ -1516,7 +1521,7 @@ static func create_brass_knuckles() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 1
 	item.armor_per_tempo_interval = 20
-	item.description = "+2 damage on melee offensive cards. Gain 1 armor every 20 tempo."
+	item.description = "+2 damage on melee offensive cards. Gain 1 unerring armor every 20 tempo."
 	return item
 
 static func create_cloth_bracer() -> ItemData:
@@ -1833,7 +1838,7 @@ static func create_strap_of_stone() -> ItemData:
 	item.armor_per_tempo_interval = 20
 	var ss_cards: Array[String] = ["stone_encase"]
 	item.granted_card_ids = ss_cards
-	item.description = "+20 life, +3 STR. Gain 10 armor every 20 tempo. On-self: gain 10% physical resistance for 10 tempo. Grants Stone Encase: gain 50 armor and become stunned for 5 tempo (45 mana, 5 tempo)."
+	item.description = "+20 life, +3 STR. Gain 10 unerring armor every 20 tempo (up to your unerring cap). On-self: gain 10% physical resistance for 10 tempo. Grants Stone Encase: gain 50 armor and become stunned for 5 tempo (45 mana, 5 tempo)."
 	return item
 
 static func create_belt_of_wumbology() -> ItemData:
@@ -1924,7 +1929,7 @@ static func create_orions_belt() -> ItemData:
 		"A midnight-blue band with three star-bright studs in a perfect row — Alnitak, Alnilam, and Mintaka.")
 	item.description = "+5 STR, +3 DEX. Grants Protection From Alnitak (10 armor + Brace equal to your empty hand slots for 5 attacks), Balance of Alnilam (if this is your only card, draw 6), and Crack of Mintaka (discard any number of cards; melee strike with range and crit damage per card discarded)."
 	# Balance of Alnilam reads the belt's level live: it draws 10 at Lv3.
-	item.level_3_description = "+5 STR, +3 DEX. Balance of Alnilam now draws 10 when it is your only card; Protection From Alnitak and Crack of Mintaka are unchanged."
+	item.level_3_description = "+6 STR, +4 DEX. Balance of Alnilam now draws 10 when it is your only card, and Crack of Mintaka gains +5% crit damage per card discarded; Protection From Alnitak is unchanged."
 	return item
 
 static func create_girdle_of_aphrodite() -> ItemData:
@@ -1939,9 +1944,9 @@ static func create_girdle_of_aphrodite() -> ItemData:
 	item.on_self_support_heal = 15
 	_set_appearance(item, "girdle_of_aphrodite",
 		"A slender golden girdle woven like braided hair, clasped at the front with a scallop shell.")
-	item.level_3_overrides = {"card_slots": 3, "health_bonus": 20, "determination_bonus": 2,
+	item.level_3_overrides = {"card_slots": 3, "health_bonus": 20, "determination_bonus": 3,
 		"agility_bonus": 3, "dexterity_bonus": 3, "wisdom_bonus": 4, "on_self_support_heal": 35}
-	item.level_3_description = "+20 health, +2 DET, +3 AGI, +3 DEX, +4 WIS. 3 card slots. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 35."
+	item.level_3_description = "+20 health, +3 DET, +3 AGI, +3 DEX, +4 WIS. 3 card slots. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 35."
 	item.description = "+10 health, +2 DET, +2 AGI, +2 DEX, +2 WIS. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 15."
 	return item
 
@@ -2113,7 +2118,7 @@ static func create_mauls_sabre() -> ItemData:
 		{"block": 8, "damage": 5, "weaken": 1, "combo_after": "red", "combo_vulnerable": 1},
 		{"discard": 2, "damage": 15, "combo_after": "blue", "combo_tempo": 1},
 	]
-	item.description = "+8 AGI, +3 STR, +4 DEX, +1 hand size. Two colored slots. Blue slot: its card gains +8 block, +5 damage, and applies 1 Weaken. Red slot: playing its card discards 2 random cards and deals +15 damage. Combo — blue played immediately after red also applies 1 Vulnerable; red played immediately after blue costs 1 less tempo."
+	item.description = "+8 AGI, +3 STR, +4 DEX, +1 hand size. Two colored slots. Two-handed. Blue slot: its card gains +8 block, +5 damage, and applies 1 Weaken on hit. Red slot: playing its card discards 2 cards of your choice and deals +15 damage. Combo — blue played immediately after red also applies 1 Vulnerable; red played immediately after blue costs 1 less tempo."
 	return item
 
 static func create_fallens_wrath() -> ItemData:
@@ -2255,7 +2260,7 @@ static func create_steel_plate() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 8
 	item.armor_per_tempo_interval = 20
-	item.description = "+3 STR, +10 health. Gain 8 block every 20 tempo."
+	item.description = "+3 STR, +10 health. Gain 8 unerring armor every 20 tempo (up to your unerring cap)."
 	return item
 
 static func create_tattered_cloth() -> ItemData:
@@ -2291,7 +2296,7 @@ static func create_chain_mail() -> ItemData:
 	item.armor_per_tempo_interval = 15
 	var cm_cards: Array[String] = ["clang_up"]
 	item.granted_card_ids = cm_cards
-	item.description = "+15 health. Gain 8 armor every 15 tempo. Grants Clang Up: gain 10 block (20 mana, 5 tempo)."
+	item.description = "+15 health. Gain 8 unerring armor every 15 tempo (up to your unerring cap). Grants Clang Up: gain 10 block (20 mana, 5 tempo)."
 	return item
 
 static func create_suit_and_tie() -> ItemData:
@@ -2325,7 +2330,7 @@ static func create_shadow_cowl() -> ItemData:
 	item.dexterity_bonus = 7
 	item.on_self_offensive_damage = 2
 	item.on_self_offensive_shift = 2
-	item.description = "-10 health, +5 AGI, +7 DEX. On-self: offensive cards deal +2 damage and shift you 2 spaces."
+	item.description = "-10 health, +5 AGI, +7 DEX. On-self: offensive cards deal +2 damage and make your next 2 tiles of movement free."
 	return item
 
 static func create_chewbaccas_bandolier() -> ItemData:
@@ -2404,10 +2409,10 @@ static func create_adimantium() -> ItemData:
 	# Adimantium Wall granting 55 block at Lv.3 is read live off item_level
 	# (see Card.execute's adimantium_wall case).
 	item.level_3_overrides = {"exposed_armor_gain": 15, "exposed_armor_cooldown_cycles": 10}
-	item.level_3_description = "+9 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move costs 1 extra tempo. When your armor is broken through, gain 15 armor (10-cycle cooldown). Grants Adimantium Wall: gain 55 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
+	item.level_3_description = "+9 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move on tempo costs 1 extra tempo. When your armor is broken through, gain 15 armor (10-cycle cooldown). Grants Adimantium Wall: gain 55 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
 	_set_appearance(item, "adimantium",
 		"Teal chest piece with a gold jewel on the chest.")
-	item.description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move costs 1 extra tempo. When your armor is broken through, gain 10 armor (15-cycle cooldown). Grants Adimantium Wall: gain 40 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
+	item.description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move on tempo costs 1 extra tempo. When your armor is broken through, gain 10 armor (15-cycle cooldown). Grants Adimantium Wall: gain 40 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
 	return item
 
 static func create_tigers_sunday_red() -> ItemData:
@@ -2420,10 +2425,10 @@ static func create_tigers_sunday_red() -> ItemData:
 	item.ranged_range_bonus = 1
 	item.hp_diff_damage_divisor = 4
 	item.level_3_overrides = {"on_self_offensive_heal_percent": 6.0, "hp_diff_damage_divisor": 3}
-	item.level_3_description = "+16 health, +6 AGI, +6 DEX. On-self: offensive cards heal you 6% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 3 (never below 0)."
+	item.level_3_description = "+16 health, +6 AGI, +6 DEX. On-self: offensive cards heal you 6% of your max health. +1 range on ranged offensive cards. Bonus damage of X%, where X is the difference between your health % and the enemy's, divided by 3 (never below 0)."
 	_set_appearance(item, "tigers_sunday_red",
 		"Red Polo.")
-	item.description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 3% of your max health. +1 range on ranged offensive cards. Bonus damage equal to the difference between your health % and the enemy's, divided by 4 (never below 0)."
+	item.description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 3% of your max health. +1 range on ranged offensive cards. Bonus damage of X%, where X is the difference between your health % and the enemy's, divided by 4 (never below 0)."
 	return item
 
 static func create_divine_resistance() -> ItemData:
@@ -2652,10 +2657,10 @@ static func create_bow_of_arash() -> ItemData:
 	var ba_cards: Array[String] = ["territorial_mark"]
 	item.granted_card_ids = ba_cards
 	item.level_3_overrides = {"ranged_range_bonus": 3, "agility_bonus": 6}
-	item.level_3_description = "+3 range on ranged cards, +6 AGI, +3 DEX, +5 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
+	item.level_3_description = "+3 range on ranged offensive cards, +6 AGI, +3 DEX, +5 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
 	_set_appearance(item, "bow_of_arash",
 		"A longbow of divine origin: golden limbs, a bright string, and the blue glisten of its territorial mark drifting off the wood.")
-	item.description = "+2 range on ranged cards, +5 AGI, +2 DEX, +4 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
+	item.description = "+2 range on ranged offensive cards, +5 AGI, +2 DEX, +4 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
 	return item
 
 static func create_belthronding() -> ItemData:
@@ -2793,7 +2798,7 @@ static func create_coffin_lid() -> ItemData:
 	item.low_health_lifesteal_bonus = 8.0
 	var cl_cards: Array[String] = ["curse_of_the_living"]
 	item.granted_card_ids = cl_cards
-	item.description = "+7 INT, +2 STR, +2 WIS, +3 DET. 2 card slots. On-self: 10% lifesteal. Below half health all your lifesteal is 8% stronger. Grants Curse of the Living (Maintain): every heal you take is halved, and each ally is healed for half of what remains (65 mana, 7 tempo)."
+	item.description = "+7 INT, +2 STR, +2 WIS, +3 DET. 2 card slots. On-self: attack cards gain 10% lifesteal. Below half health, +8% lifesteal on attack cards. Grants Curse of the Living (Maintain): every heal you take is halved, and each ally is healed for half of what remains (65 mana, 7 tempo)."
 	return item
 
 static func create_treebeards_branch() -> ItemData:
@@ -2912,10 +2917,10 @@ static func create_crooked_dueling_shield() -> ItemData:
 			{"weaken": 1, "combo_after": "red", "combo_armor": 20},
 			{"vulnerable": 1, "combo_after": "blue", "combo_armor": 20},
 		]}
-	item.level_2_description = "+10 DEX, +10 AGI, +5 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 20 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
+	item.level_2_description = "+10 DEX, +10 AGI, +5 STR. Two colored slots. Blue slot: its card applies 1 Weaken on hit. Red slot: its card applies 1 Vulnerable on hit. Play them back to back in either order and gain 20 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
 	_set_appearance(item, "crooked_dueling_shield",
 		"A steel shield shaped like an S, swelling slightly fatter through the center.")
-	item.description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken. Red slot: its card applies 1 Vulnerable. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
+	item.description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken on hit. Red slot: its card applies 1 Vulnerable on hit. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
 	return item
 
 #endregion
@@ -3180,7 +3185,7 @@ static func _new_ring(nm: String, r: Rarity, wt: int = 5) -> ItemData:
 
 static func create_heal_stone() -> ItemData:
 	var item = _new_ring("Heal Stone", Rarity.COMMON)
-	item.description = "+50 mana. Every 5 healing done, deal 2 damage to a random enemy within 5 squares."
+	item.description = "+50 mana. Every 5 healing you receive (regen and lifesteal excluded), deal 2 damage to a random enemy within 5 squares."
 	return item
 
 static func create_gold_band() -> ItemData:
@@ -3221,7 +3226,7 @@ static func create_diamond_ring() -> ItemData:
 
 static func create_captain_planets_circlet() -> ItemData:
 	var item = _new_ring("Captain Planets Circlet", Rarity.LEGENDARY)
-	item.description = "+125 mana. Each time you have applied at least 1 Burn, 1 Cold, 1 Silence, 1 Strengthen, and 1 Regen (any targets), the powers combine: heal 15, draw 3 cards, and add a Fireball and a Rise to your hand."
+	item.description = "+125 mana. Each time you have applied 1 Burn, 1 Cold and 1 Silence to enemies and gained 1 Strengthen and 1 Regen, the powers combine: heal 15, draw 3 cards, and add a Fireball and a Rise to your hand (Erase 10)."
 	return item
 
 static func create_cyclops_ring() -> ItemData:
@@ -3256,7 +3261,7 @@ static func create_harnessed_sun() -> ItemData:
 	var item = _new_ring("Harnessed Sun", Rarity.LEGENDARY)
 	item.intelligence_bonus = 2
 	item.wisdom_bonus = 2
-	item.description = "+125 mana. +2 INT, +2 WIS, +2 Burn on burn-applying effects. Every 25 Burn applied, cleanse 1 stack of a debuff on you."
+	item.description = "+125 mana. +2 INT, +2 WIS, +2 Burn on burn-applying effects. Every 25 Burn applied, cleanse 1 debuff on you."
 	return item
 
 static func create_marvolo_gaunt() -> ItemData:
