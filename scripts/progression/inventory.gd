@@ -510,6 +510,12 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	
 	# Direct resource modifications (not affected by determination)
 	player_stats.max_health += stats["health_bonus"] * multiplier
+	if item.unerring_cap_bonus != 0:
+		player_stats.equipment_unerring_cap += item.unerring_cap_bonus * multiplier
+		# A shrinking cap sheds what no longer fits.
+		if player_stats.unerring_armor > player_stats.get_unerring_cap():
+			player_stats.unerring_armor = player_stats.get_unerring_cap()
+		player_stats.unerring_changed.emit(player_stats.unerring_armor, player_stats.get_unerring_cap())
 	player_stats.current_health = min(player_stats.current_health, player_stats.max_health)
 	
 	player_stats.max_mana += stats["mana_bonus"] * multiplier
@@ -874,6 +880,8 @@ func process_turn() -> void:
 	# process_turn() fires once per 5-tempo cycle; each item banks 5 tempo and
 	# grants its armor once its own interval (default 5, e.g. 15 for Mail Coif,
 	# 20 for Strap of Stone) is reached. The accumulator resets on equip/unequip.
+	# It lands as UNERRING armor: a capped pool (PlayerStats.get_unerring_cap)
+	# that the clock can top up but never stack past.
 	if player_stats:
 		for item in equipped_chests + equipped_helms + equipped_boots + equipped_gauntlets + equipped_belts:
 			if item and item.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN:
@@ -881,8 +889,11 @@ func process_turn() -> void:
 				var interval: int = maxi(5, item.armor_per_tempo_interval)
 				while item.armor_per_tempo_accum >= interval:
 					item.armor_per_tempo_accum -= interval
-					player_stats.add_armor(item.special_effect_value)
-					print("[INVENTORY] %s: +%d armor (every %d tempo)" % [item.item_name, item.special_effect_value, interval])
+					var gained: int = player_stats.add_unerring_armor(item.special_effect_value)
+					if gained > 0:
+						print("[INVENTORY] %s: +%d unerring armor (every %d tempo)" % [item.item_name, gained, interval])
+					else:
+						print("[INVENTORY] %s: unerring armor already at its cap" % item.item_name)
 
 	# Chests pass: the Exposed-armor proc cooldown (Adimantium) ticks per cycle.
 	for chest in equipped_chests:

@@ -352,6 +352,8 @@ var _mana_bar_label: Label = null
 var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
+var _unerring_bar: ProgressBar = null      # the grey half-height bar under HP: unerring armor / cap
+var _unerring_bar_label: Label = null
 var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
 var _pending_quiver_target_type: String = ""
@@ -1606,6 +1608,13 @@ func _setup_stat_bars() -> void:
 	_hp_bar_label = hp_pair[1]
 	_setup_armor_shield()
 
+	# --- Unerring armor (grey, half the HP bar's height) ---
+	var un_pair = _create_stat_bar_with_label(stat_container, "UnerringBar", Color(0.62, 0.64, 0.68), Color(0.2, 0.21, 0.24), UNERRING_BAR_HEIGHT)
+	_unerring_bar = un_pair[0]
+	_unerring_bar_label = un_pair[1]
+	_unerring_bar.tooltip_text = "Unerring armor: the capped shell your periodic-armor items and Arm/Cyc nodes regrow. Hits and decay eat it first."
+	_unerring_bar_label.add_theme_font_size_override("font_size", 9)
+
 	# --- Mana Bar (blue) ---
 	var mana_pair = _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
 	_mana_bar = mana_pair[0]
@@ -1733,21 +1742,29 @@ func _update_mana_regen_indicator() -> void:
 	if stats:
 		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
 
+const UNERRING_BAR_HEIGHT := 11  # half the 22px HP bar
+const STAT_BAR_GAP := 4          # the StatBarsContainer's separation
+
 func _setup_armor_shield() -> void:
-	## A shield badge just right of the HP bar showing current armour (replaces
-	## the old armour bar). Same footprint as the mana raindrop.
+	## A shield badge just right of the HP bar showing total armour (regular +
+	## unerring). Tall enough to span the HP bar AND the unerring bar beneath
+	## it; its width follows the height at the glyph's original 26:28 ratio.
 	if not _hp_bar:
 		return
 	var wrapper = _hp_bar.get_parent()
 	var badge = Control.new()
 	badge.name = "ArmorShield"
 	badge.mouse_filter = Control.MOUSE_FILTER_STOP
-	badge.tooltip_text = "Current armor"
+	badge.tooltip_text = "Armor: regular + unerring. Hits and decay eat the unerring shell first."
 	badge.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	# The old badge overhung the 22px HP bar by 3px top and bottom (28 tall).
+	# Keep the top edge, extend the bottom past the gap and the unerring bar.
+	var badge_h: float = 28.0 + STAT_BAR_GAP + UNERRING_BAR_HEIGHT
+	var badge_w: float = 26.0 * badge_h / 28.0
 	badge.offset_left = 6.0
-	badge.offset_right = 32.0
+	badge.offset_right = 6.0 + badge_w
 	badge.offset_top = -14.0
-	badge.offset_bottom = 14.0
+	badge.offset_bottom = -14.0 + badge_h
 	wrapper.add_child(badge)
 
 	var tex := TextureRect.new()
@@ -1760,7 +1777,7 @@ func _setup_armor_shield() -> void:
 	badge.add_child(tex)
 
 	_armor_shield_label = Label.new()
-	_armor_shield_label.add_theme_font_size_override("font_size", 12)
+	_armor_shield_label.add_theme_font_size_override("font_size", 14)
 	_armor_shield_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	_armor_shield_label.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.12))
 	_armor_shield_label.add_theme_constant_override("outline_size", 5)
@@ -1773,21 +1790,23 @@ func _setup_armor_shield() -> void:
 func _reposition_status_bars() -> void:
 	## Stack the debuff and buff rows directly beneath the (thin) XP bar, close
 	## to it, instead of floating out to the right of the health bar.
-	# HP(22) + 4 + Mana(22) + 4 + XP(6) starting at y=8 -> bottom of XP at y=66.
+	# HP(22) + 4 + Unerring(11) + 4 + Mana(22) + 4 + XP(6) starting at y=8
+	# -> bottom of XP at y=81.
 	var left := 122.0
 	var right := 122.0 + 360.0
+	var top := 69.0 + UNERRING_BAR_HEIGHT + STAT_BAR_GAP
 	if debuff_bar:
 		debuff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		debuff_bar.offset_left = left
-		debuff_bar.offset_top = 69.0
+		debuff_bar.offset_top = top
 		debuff_bar.offset_right = right
-		debuff_bar.offset_bottom = 99.0
+		debuff_bar.offset_bottom = top + 30.0
 	if buff_bar:
 		buff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		buff_bar.offset_left = left
-		buff_bar.offset_top = 101.0
+		buff_bar.offset_top = top + 32.0
 		buff_bar.offset_right = right
-		buff_bar.offset_bottom = 131.0
+		buff_bar.offset_bottom = top + 62.0
 
 #endregion
 #region PILE BUTTONS & DECK INFO
@@ -3920,6 +3939,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().health_changed.connect(_on_player_health_changed)
 	player.get_stats().mana_changed.connect(_on_player_mana_changed)
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
+	player.get_stats().unerring_changed.connect(_on_player_unerring_changed)
 	player.get_stats().armor_gained.connect(_on_player_armor_gained)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
@@ -6313,9 +6333,26 @@ func _on_player_armor_gained(_amount: int) -> void:
 	if player and player.has_method("show_armor_gained"):
 		player.show_armor_gained()
 
-func _on_player_armor_changed(current: int) -> void:
-	if _armor_shield_label:
-		_armor_shield_label.text = "%d" % current
+func _on_player_armor_changed(_current: int) -> void:
+	## The shield reads TOTAL armor (regular + unerring), whatever pool moved.
+	var stats = player.get_stats() if player else null
+	if _armor_shield_label and stats:
+		_armor_shield_label.text = "%d" % stats.get_total_armor()
+	_update_unerring_bar()
+
+func _on_player_unerring_changed(_current: int, _cap: int) -> void:
+	_on_player_armor_changed(0)
+
+func _update_unerring_bar() -> void:
+	var stats = player.get_stats() if player else null
+	if stats == null:
+		return
+	var cap: int = stats.get_unerring_cap()
+	if _unerring_bar:
+		_unerring_bar.max_value = maxi(1, cap)
+		_unerring_bar.value = stats.unerring_armor
+	if _unerring_bar_label:
+		_unerring_bar_label.text = "%d/%d" % [stats.unerring_armor, cap]
 
 func _update_xp_display() -> void:
 	var stats = player.get_stats()
@@ -7025,11 +7062,10 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		if regen_stats and regen_stats.sphere_bonus_regen > 0:
 			regen_stats.heal(regen_stats.sphere_bonus_regen)
 
-		# Sphere-grid "Arm/Cyc" nodes: raw armor each cycle (no block-card bonuses).
+		# Sphere-grid "Arm/Cyc" nodes: raw armor each cycle (no block-card
+		# bonuses) — into the capped unerring pool, like every armor clock.
 		if regen_stats and regen_stats.sphere_bonus_armor_per_cycle > 0:
-			regen_stats.current_armor += regen_stats.sphere_bonus_armor_per_cycle
-			regen_stats.armor_changed.emit(regen_stats.current_armor)
-			regen_stats.armor_gained.emit(regen_stats.sphere_bonus_armor_per_cycle)
+			regen_stats.add_unerring_armor(regen_stats.sphere_bonus_armor_per_cycle)
 
 		# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
 		if buff_mgr:
@@ -14420,7 +14456,7 @@ func _spawn_dojo_ally(cell: Vector2i) -> void:
 		if stats.current_health <= 0:
 			stats.current_health = stats.max_health
 			stats.health_changed.emit(stats.current_health, stats.max_health)
-		readout.text = "Ally Dummy\nHP %d/%d   ARM %d" % [stats.current_health, stats.max_health, stats.current_armor]
+		readout.text = "Ally Dummy\nHP %d/%d   ARM %d" % [stats.current_health, stats.max_health, stats.get_total_armor()]
 	stats.health_changed.connect(func(_c, _m): refresh.call())
 	stats.armor_changed.connect(func(_a): refresh.call())
 	refresh.call()
@@ -14515,10 +14551,12 @@ func _dojo_reset_unit(unit: Player) -> void:
 	if dm:
 		dm.clear_all_debuffs()
 	stats.current_armor = 0
+	stats.unerring_armor = 0
 	stats.current_health = stats.max_health
 	stats.current_mana = float(stats.get_available_max_mana())
 	stats.health_changed.emit(stats.current_health, stats.max_health)
 	stats.mana_changed.emit(stats.current_mana, stats.max_mana)
+	stats.unerring_changed.emit(0, stats.get_unerring_cap())
 	stats.armor_changed.emit(stats.current_armor)
 
 func _setup_dojo_bar_dragging() -> void:

@@ -252,6 +252,8 @@ func _build_chest_item_stats(item: ItemData) -> String:
 		lines.append("%d Weapon Damage" % item.weapon_damage)
 	if item.armor_bonus > 0:
 		lines.append("+%d Armor" % item.armor_bonus)
+	if item.unerring_cap_bonus != 0:
+		lines.append("%+d Unerring cap" % item.unerring_cap_bonus)
 	if item.health_bonus > 0:
 		lines.append("+%d Health" % item.health_bonus)
 	if item.mana_bonus > 0:

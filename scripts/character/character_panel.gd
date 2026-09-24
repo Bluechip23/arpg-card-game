@@ -879,7 +879,7 @@ func _build_derived_stats_text() -> String:
 		]
 	return """HP   %d/%d
 Mana %.0f/%d
-Armor  %d
+Armor  %d (%d/%d unerring)
 Decay  -%d/t
 Crit   %d%%
 Carry  %d/%d%s
@@ -888,7 +888,9 @@ Regen  %.1f/t%s""" % [
 		player_stats.max_health,
 		player_stats.current_mana,
 		player_stats.max_mana,
-		player_stats.current_armor,
+		player_stats.get_total_armor(),
+		player_stats.unerring_armor,
+		player_stats.get_unerring_cap(),
 		player_stats.armor_decay_per_cycle,
 		total_crit,
 		player_stats.current_carry_load,
@@ -2013,6 +2015,8 @@ func _build_item_stats_text(item: ItemData) -> String:
 		lines.append("+%d Mana" % item.mana_bonus if item.mana_bonus > 0 else "%d Mana" % item.mana_bonus)
 	if item.armor_bonus != 0:
 		lines.append("+%d Armor" % item.armor_bonus if item.armor_bonus > 0 else "%d Armor" % item.armor_bonus)
+	if item.unerring_cap_bonus != 0:
+		lines.append("%+d Unerring cap" % item.unerring_cap_bonus)
 	if item.hand_size_bonus != 0:
 		lines.append("+%d Hand Size" % item.hand_size_bonus)
 	if item.weapon_damage > 0:

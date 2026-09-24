@@ -94,6 +94,7 @@ enum GauntletSkillType {
 @export var health_bonus: int = 0
 @export var mana_bonus: int = 0
 @export var armor_bonus: int = 0
+@export var unerring_cap_bonus: int = 0  # +X to the unerring armor cap while worn (PlayerStats.get_unerring_cap)
 @export var hand_size_bonus: int = 0
 
 # Percentage bonuses (for off-hand, etc.)

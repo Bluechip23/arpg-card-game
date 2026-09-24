@@ -3540,7 +3540,7 @@ func _try_werewolf_claw(target_node: Node3D) -> bool:
 	# +3 vs armor: armour-piercing claws.
 	var dmg: int = attack_damage
 	var p_stats = target_node.get_stats() if target_node.has_method("get_stats") else null
-	if p_stats and p_stats.current_armor > 0:
+	if p_stats and p_stats.get_total_armor() > 0:
 		dmg += 3
 	_deal_damage_to_player(target_node, dmg, "Claw")
 	# A debuffed target gets raked a second time for half damage.
@@ -4104,7 +4104,7 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 
 			# Check Repelled Block: if armor fully blocks the attack, negate damage and push
 			if buff_mgr and buff_mgr.has_buff(Buff.BuffType.REPELLED_BLOCK):
-				if player_stats_ref.current_armor >= effective_damage:
+				if player_stats_ref.get_total_armor() >= effective_damage:
 					# Fully blocked - consume the buff, negate damage, push enemy back 4 and player back 2
 					var rb = buff_mgr.get_buff(Buff.BuffType.REPELLED_BLOCK)
 					rb.use_charge()
