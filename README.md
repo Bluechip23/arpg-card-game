@@ -466,6 +466,6 @@ Path passives are not one-time picks — they are **leveled**, point by point, o
   - Jeremy's *Harnessed Power* grows from +18% to +32% card effectiveness.
   - Ryan's *Quick Step* armor grows from 2 to 16 per instant played.
 - **Stage gates.** A lane's later passives unlock by total investment in that lane: the first passive is open immediately, the second needs **5 points** invested in that archetype, the third needs **15**. Depth in one path is what opens its strongest passive — but nothing stops you from splashing the first passive of all four paths.
-- **Where the numbers live.** The full rank 1→15 tables for every passive are in `scripts/progression/passive_scaling.gd` (one table per passive, one entry per rank); human-readable summaries are in `docs/character_passives.csv` and the in-game tooltips show each passive's rank-1→15 range.
+- **Where the numbers live.** The full rank 1→15 tables for every passive are in `scripts/progression/passive_scaling.gd` (one table per passive, one entry per rank); the passive names, archetypes and descriptions live in `scripts/progression/skill_tree_data.gd` (the single source of truth — there is no separate design sheet), and the in-game tooltips show each passive's rank-1→15 range.
 
 The character's **innate passive** (the item-specialty one, like Brad's lighter chest pieces or Jeremy's ring-trigger double) is separate — it is always on and does not take points.

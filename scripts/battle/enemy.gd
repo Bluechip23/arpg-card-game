@@ -142,6 +142,10 @@ var armor_break_incoming: bool = false
 # Status effects applied by player cards (duration in tempo cycles, 1 cycle = 5 global tempo)
 var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
+# Mad Scientist (Defense→Poison): physical defense lowered by this % for a
+# few tempo — physical hits land that much harder while it lasts.
+var phys_defense_debuff_percent: float = 0.0
+var phys_defense_debuff_tempo: int = 0
 var attack_reduction: int = 0
 var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
 # Slowed (enemy version): each MOVEMENT ACTION costs extra tempo
@@ -2028,9 +2032,17 @@ func _tick_timed_statuses(amount: int) -> void:
 	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
 		or frozen_tempo > 0 or stun_tempo > 0 \
-		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0
+		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0 \
+		or phys_defense_debuff_tempo > 0
 	if not any:
 		return
+
+	if phys_defense_debuff_tempo > 0:
+		phys_defense_debuff_tempo -= amount
+		if phys_defense_debuff_tempo <= 0:
+			phys_defense_debuff_tempo = 0
+			phys_defense_debuff_percent = 0.0
+			print("[%s] Lowered physical defense expired" % enemy_name)
 
 	if taunt_tempo > 0:
 		taunt_tempo -= amount
@@ -4616,9 +4628,12 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# ignore_armor hits bypass resistances too (Neither Man nor Beast).
 	if not ignore_armor:
 		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
+		if damage_type == DamageTypes.Type.PHYSICAL and phys_defense_debuff_tempo > 0:
+			type_resist -= phys_defense_debuff_percent  # lowered defense: below 0 is a vulnerability
 		if type_resist != 0.0:
 			# Negative resist = vulnerability: the hit lands harder (Treant vs fire).
-			amount = floori(amount * (1.0 - minf(type_resist, 90.0) / 100.0))
+			# Percent math before the divide keeps 100 * 115% at exactly 115.
+			amount = floori(amount * (100.0 - minf(type_resist, 90.0)) / 100.0)
 
 	# Raw post-resist size of this hit, for the elite threshold reactions
 	# (Ifrit backflip, Minotaur leap, Djinn wishes, bear strengthen).
@@ -4934,6 +4949,13 @@ func hide_damage_preview() -> void:
 # ============================================
 # STATUS EFFECTS
 # ============================================
+
+## Lower physical defense by `percent` for `tempo` (a stronger application
+## replaces a weaker one; the timer refreshes either way).
+func apply_phys_defense_debuff(percent: float, tempo: int) -> void:
+	phys_defense_debuff_percent = maxf(phys_defense_debuff_percent, percent)
+	phys_defense_debuff_tempo = maxi(phys_defense_debuff_tempo, tempo)
+	print("[%s] Physical defense -%.0f%% for %d tempo" % [enemy_name, phys_defense_debuff_percent, phys_defense_debuff_tempo])
 
 func apply_taunt(taunter: Node3D, tempo: int) -> void:
 	taunt_target = taunter

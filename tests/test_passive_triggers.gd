@@ -133,6 +133,21 @@ func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	var potion := Card.create_healing_potion()
 	pt._trigger_skill_tree_on_card_play(potion, main.player)
 	_check(bm.get_buff(Buff.BuffType.REGEN) != null, "Utility then a potion: Mad Scientist adds regen")
+	# Defense → Poison: a timed physical-defense drop, not an armor strip.
+	var ms_dummy: Enemy = dummy
+	ms_dummy.current_armor = 10
+	pt._trigger_skill_tree_on_card_play(Card.create_block(), ms_dummy)
+	var ms_poison := Card.create_poison_bomb()
+	if ms_poison:
+		pt._trigger_skill_tree_on_card_play(ms_poison, ms_dummy)
+		_check(ms_dummy.phys_defense_debuff_percent == 15.0 and ms_dummy.phys_defense_debuff_tempo == 5 and ms_dummy.current_armor == 10,
+			"Defense then a poison potion: -15%% physical defense for 5 tempo, armor untouched (got %.0f%% / %dt / %d armor)" % [ms_dummy.phys_defense_debuff_percent, ms_dummy.phys_defense_debuff_tempo, ms_dummy.current_armor])
+		var ms_hp: int = ms_dummy.current_health
+		ms_dummy.current_armor = 0
+		ms_dummy.take_damage(100, true)
+		_check(ms_hp - ms_dummy.current_health == 115, "a 100 physical hit lands for 115 while defense is lowered (got %d)" % (ms_hp - ms_dummy.current_health))
+		ms_dummy._tick_timed_statuses(5)
+		_check(ms_dummy.phys_defense_debuff_tempo == 0 and ms_dummy.phys_defense_debuff_percent == 0.0, "the lowered defense expires after 5 tempo")
 
 func _test_self_reliance(stats, pt) -> void:
 	print("-- Self Reliance --")

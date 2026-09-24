@@ -666,7 +666,9 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		var last_type = _last_played_card.card_type
 		var buff_mgr = target.get_buff_manager() if target is Player else main.player.get_buff_manager()
 		var is_heal_outcome = card.heal_amount > 0
-		var is_poison_outcome = false
+		# A poison potion (Poison Bomb) is a poison outcome on its own; before,
+		# only a Poisoned-Blood-flipped heal ever reached the poison branch.
+		var is_poison_outcome = "poison" in card.card_id
 
 		# Poisoned Blood flips heal → poison outcome (regen = poison)
 		if buff_mgr and buff_mgr.has_poisoned_blood() and card.heal_amount > 0:
@@ -696,12 +698,12 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 					target.apply_debuff("poison", ms_poison)
 					main.add_battle_log("Mad Scientist: +%d poison stacks!" % ms_poison, Color(0.4, 0.9, 0.4))
 			elif last_type == Card.CardType.DEFENSE:
-				# Defense → Poison: lower enemy physical defense by a rank-scaled % (1..15)
-				if target and target is Enemy and target.current_armor > 0:
+				# Defense → Poison: lower enemy physical defense by a rank-scaled %
+				# (1..15) for 5 tempo (no timer was designed; 5 for now).
+				if target and target is Enemy:
 					var ms_def: int = PassiveScaling.value("mad_scientist", "phys_defense", ms_lvl)
-					var armor_loss = max(1, floori(target.current_armor * ms_def / 100.0))
-					target.reduce_armor(armor_loss)
-					main.add_battle_log("Mad Scientist: -%d armor! (-%d%%)" % [armor_loss, ms_def], Color(0.4, 0.9, 0.4))
+					target.apply_phys_defense_debuff(float(ms_def), 5)
+					main.add_battle_log("Mad Scientist: -%d%% physical defense for 5 tempo!" % ms_def, Color(0.4, 0.9, 0.4))
 
 	_last_played_card = card
 
