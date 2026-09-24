@@ -4609,9 +4609,7 @@ func _open_trade_ui(a: Player, b: Player) -> void:
 func _player_at_position(world_pos: Vector3) -> Player:
 	var best: Player = null
 	var best_d := 1.2  # within ~1 tile of the click
-	for p in _all_players() + _dojo_allies:
-		if not is_instance_valid(p):
-			continue
+	for p in _all_allies():
 		var d := Vector2(p.position.x - world_pos.x, p.position.z - world_pos.z).length()
 		if d < best_d:
 			best_d = d
@@ -4622,6 +4620,17 @@ func _all_players() -> Array:
 	if is_multiplayer and _p2_player:
 		return [_p1_player, _p2_player]
 	return [player]
+
+## "Ally" means every friendly character on the board, the player included:
+## the party plus the dojo's practice allies. Every ally-targeted effect
+## (heals, auras, Hold the Line, Psionic Flow...) enumerates through here.
+## Frankenstein's Monsters are not Player nodes and keep their own hooks.
+func _all_allies() -> Array:
+	var out: Array = []
+	for p in _all_players() + _dojo_allies:
+		if is_instance_valid(p):
+			out.append(p)
+	return out
 
 # ---- Co-op downed / revive / defeat ----
 
@@ -7083,7 +7092,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 			# Shocked: arc the accumulated damage to nearby allies (within 2 tiles).
 			var ally_dmg: int = debuff_result.get("ally_damage", 0)
 			if ally_dmg > 0:
-				for ally in _all_players():
+				for ally in _all_allies():
 					if ally == player or not is_instance_valid(ally):
 						continue
 					var shock_diff = player.position - ally.position
@@ -7154,7 +7163,7 @@ func _process_maintained_card_effects() -> void:
 		var halo_heal: int = maintained_result["total_heal"]
 		if stats:
 			halo_heal = stats.boost_performed_heal(halo_heal)
-		for ally in _all_players():
+		for ally in _all_allies():
 			if not is_instance_valid(ally) or not ally.get_stats():
 				continue
 			var halo_diff = ally.position - player.position
@@ -7304,7 +7313,7 @@ func _process_healthy_bliss_cards() -> void:
 					# Blood Libation boosts the caster's performed heal ONCE for the sweep
 					heal_amt = stats.boost_performed_heal(heal_amt)
 					add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
-				for ally in _all_players():
+				for ally in _all_allies():
 					if not is_instance_valid(ally):
 						continue
 					var ally_stats = ally.get_stats()
@@ -9338,7 +9347,7 @@ func _check_berry_bushels() -> void:
 	## 20 mana — and "ally" includes the player. One bushel, one meal.
 	if _berry_bushels.is_empty() or not grid_manager:
 		return
-	for bb_p in _all_players():
+	for bb_p in _all_allies():
 		if not is_instance_valid(bb_p) or not bb_p.has_method("get_stats"):
 			continue
 		var bb_stats = bb_p.get_stats()
@@ -9409,7 +9418,7 @@ func _update_grounding_discount() -> void:
 			if gd_e and is_instance_valid(gd_e) and gd_e.shock_stacks > 0 \
 					and grid_manager.get_distance_in_cells(player.position, gd_e.position) <= 10:
 				gd_shock += gd_e.shock_stacks
-		for gd_ally in _all_players():
+		for gd_ally in _all_allies():
 			if is_instance_valid(gd_ally) and gd_ally.has_method("get_debuff_manager") \
 					and grid_manager.get_distance_in_cells(player.position, gd_ally.position) <= 10:
 				var gd_adm = gd_ally.get_debuff_manager()
@@ -9975,7 +9984,7 @@ func _ring_note_big_hit(damage: int) -> void:
 ## Allies inside a cloud (2-square radius) stay invisible and hold +10% crit.
 func _update_smoke_zones(amount: int) -> void:
 	# Reset the smoke crit; re-applied below for anyone still inside a cloud.
-	for p in _all_players():
+	for p in _all_allies():
 		if is_instance_valid(p) and p.get_stats():
 			p.get_stats().aura_crit_bonus = 0.0
 	if _smoke_zones.is_empty():
@@ -9983,7 +9992,7 @@ func _update_smoke_zones(amount: int) -> void:
 	var survivors: Array = []
 	for zone in _smoke_zones:
 		zone["tempo"] -= amount
-		for p in _all_players():
+		for p in _all_allies():
 			if not is_instance_valid(p) or not p.get_stats():
 				continue
 			if grid_manager.get_distance_in_cells(zone["position"], p.position) <= 2:
@@ -10197,7 +10206,7 @@ func _on_curse_of_the_living_shared(amount: int) -> void:
 	if amount <= 0:
 		return
 	var healed_any := 0
-	for ally in _all_players():
+	for ally in _all_allies():
 		if ally == player or not is_instance_valid(ally) or not ally.get_stats():
 			continue
 		ally.get_stats().heal(amount, true)
@@ -10472,11 +10481,11 @@ func _helm_on_cycle_passives() -> void:
 	# Guardian Greaves aura: allies (players and summons) within the radius are
 	# healed and given mana each cycle; players also hold 5% physical resist
 	# while inside. Resist is presence-based — reset first, then re-applied.
-	for ally in _all_players():
+	for ally in _all_allies():
 		if is_instance_valid(ally) and ally.get_stats():
 			ally.get_stats().aura_physical_resist = 0.0
 	if greaves_regen > 0 and grid_manager:
-		for ally in _all_players():
+		for ally in _all_allies():
 			if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > greaves_radius:
 				continue
 			var a_st = ally.get_stats()
@@ -10921,7 +10930,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# restored. At item Lv.3 the restore doubles to 40%/40%.
 			var mend_pct := 0.4 if (card.granted_by_item and card.granted_by_item.item_level >= 3) else 0.2
 			var mend_healed := 0
-			for ally in _all_players():
+			for ally in _all_allies():
 				if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > 4:
 					continue
 				var a_st = ally.get_stats()
@@ -11042,7 +11051,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						gr_e.shock_stacks = 0
 						if gr_e.has_method("_update_status_indicators"):
 							gr_e._update_status_indicators()
-			for gr_ally in _all_players():
+			for gr_ally in _all_allies():
 				if not is_instance_valid(gr_ally) or not gr_ally.has_method("get_debuff_manager"):
 					continue
 				if grid_manager.get_distance_in_cells(player.position, gr_ally.position) > 10:
@@ -11682,7 +11691,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"hold_the_line":
 			# All allies gain 5 armor, +2 determination, +2 strength.
-			for ally in _all_players():
+			for ally in _all_allies():
 				var a_st = ally.get_stats() if is_instance_valid(ally) else null
 				if a_st:
 					a_st.add_armor(5)
@@ -13770,21 +13779,28 @@ func _on_player_damage_taken(_amount: int) -> void:
 		_refresh_unit_tracker()
 
 func _on_ally_damage_taken(_amount: int, victim) -> void:
-	## Co-op: the PARTNER took damage. If the other player holds Cover and is
-	## within 2 tiles, their reaction mitigates it — the ally is restored by the
-	## defender's hand size (post-damage approximation of "reduce it").
+	## An ALLY took damage: the co-op partner, or a dojo practice ally. If the
+	## defender holds Cover and is within 2 tiles, their reaction mitigates it —
+	## the ally is restored by the defender's hand size (post-damage
+	## approximation of "reduce it").
 	if not is_instance_valid(victim):
 		return
-	var defender = _p1_player if victim == _p2_player else _p2_player
-	if defender == null or not is_instance_valid(defender):
+	var defender = null
+	var defender_deck = null
+	if victim in _dojo_allies:
+		defender = player
+		defender_deck = deck_manager
+	else:
+		defender = _p1_player if victim == _p2_player else _p2_player
+		defender_deck = _p1_deck_manager if defender == _p1_player else _p2_deck_manager
+	if defender == null or not is_instance_valid(defender) or defender_deck == null:
 		return
 	var diff = defender.position - victim.position
-	if Vector3(diff.x, 0, diff.z).length() > 2.0:
+	if Vector3(diff.x, 0, diff.z).length() > 3.0:
 		return
-	var defender_deck = _p1_deck_manager if defender == _p1_player else _p2_deck_manager
-	if defender_deck == null:
-		return
-	var cover_reactions = defender_deck.trigger_reactions("on_ally_damage_taken")
+	var cover_reactions: Array = []
+	if Vector3(diff.x, 0, diff.z).length() <= 2.0:
+		cover_reactions = defender_deck.trigger_reactions("on_ally_damage_taken")
 	for card in cover_reactions:
 		# player_stats = the VICTIM (who gets the mitigation); deck = defender's
 		# (whose hand size sets the amount).
@@ -14584,6 +14600,8 @@ func _spawn_dojo_ally(cell: Vector2i) -> void:
 	var stats = ally.get_stats()
 	stats.health_damage_taken.connect(ally.spawn_damage_number)
 	stats.healed.connect(ally.spawn_heal_number)
+	# The dog is an ally: Cover and Psionic Flow (guard) answer its wounds.
+	stats.damage_taken.connect(_on_ally_damage_taken.bind(ally))
 
 	# Health / armor readout over its head; a lethal hit refills it.
 	var readout := Label3D.new()
