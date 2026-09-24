@@ -253,6 +253,7 @@ var equipment_crit_bonus: float = 0.0        # +% crit chance from gear (Monocle
 var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear (Hannibals Mask)
 var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gear (Thick Steel Helm)
 var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
+var defense_card_bonus_pending: bool = false  # armed by Card.execute for a DEFENSE card; spent by its first armor gain
 var equipment_armorless_defense_block: int = 0  # armor granted by DEFENSE cards that grant none themselves (Burgonet)
 var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
 var temp_crit_damage_bonus: float = 0.0      # one-shot +crit-damage multiplier for the resolving card (Feathered Hat 0.10)
@@ -306,6 +307,30 @@ var equipment_hp_diff_divisor: int = 0            # health-gap bonus damage divi
 var equipment_ranged_range_bonus: int = 0         # +range on ranged offensive cards (Tigers Sunday Red)
 var movement_tempo_surcharge: int = 0             # each tile moved on tempo costs this much extra (Adimantium)
 var temp_strength_bonus: int = 0                  # summed MIGHT buffs (Ragnarok); damage only, never carry
+# Timed Determination (Hold the Line): [{"amount", "tempo"}] — summed into the
+# DET the modifier reads, and shed on raw tempo.
+var _temp_det_buffs: Array = []
+
+func add_temp_determination(amount: int, tempo: int) -> void:
+	if amount == 0 or tempo <= 0:
+		return
+	_temp_det_buffs.append({"amount": amount, "tempo": tempo})
+	stats_updated.emit()
+
+func get_temp_determination_bonus() -> int:
+	var total := 0
+	for b in _temp_det_buffs:
+		total += int(b["amount"])
+	return total
+
+func _tick_temp_determination(amount: int) -> void:
+	if _temp_det_buffs.is_empty():
+		return
+	for i in range(_temp_det_buffs.size() - 1, -1, -1):
+		_temp_det_buffs[i]["tempo"] -= amount
+		if _temp_det_buffs[i]["tempo"] <= 0:
+			_temp_det_buffs.remove_at(i)
+	stats_updated.emit()
 var death_stack_crit_damage: float = 0.0          # Hide of Garmr Lv3: +crit-damage multiplier from death stacks
 var free_move_tiles: int = 0                      # Shadow Cowl shift: tiles that cost no tempo and no flash
 # Weapons pass
@@ -1038,7 +1063,7 @@ func get_determination_modifier() -> float:
 	# Above it: bonuses as the resource drains
 
 	var health_pct = get_determination_resource_percent()
-	var det_diff = determination - DET_NEUTRAL
+	var det_diff = determination + get_temp_determination_bonus() - DET_NEUTRAL
 
 	# Determine which threshold and effect percentage
 	var effect_per_point = 0.0
@@ -1527,6 +1552,7 @@ func get_effective_heal_amount(base_heal: int) -> int:
 
 ## Called every global tempo advance. Handles mana regen on its own interval.
 func process_tempo(amount: int) -> void:
+	_tick_temp_determination(amount)
 	# Ring pass timers run on raw tempo.
 	if invulnerable_tempo > 0:
 		invulnerable_tempo = max(0, invulnerable_tempo - amount)
@@ -2080,6 +2106,11 @@ func apply_life_steal(amount: int) -> void:
 
 func add_armor(amount: int) -> void:
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
+	# Burgonet / Thick Steel: the resolving DEFENSE card's first armor grant
+	# carries the equipment bonus, whichever executor granted it.
+	if defense_card_bonus_pending and amount > 0:
+		defense_card_bonus_pending = false
+		total = maxi(0, total + equipment_defense_card_block)
 	# Living Bulwark: the full armor gain (bonuses included) becomes temp HP.
 	# Armor-gain hooks (overhead icon, on_armor_gained item procs) don't fire —
 	# no armor was actually gained.

@@ -35,7 +35,8 @@ var next_attack_half_tempo: bool = false
 var next_attack_mana_discount: int = 0
 var prep_utility_discount: int = 0  # Preparation: reduces next utility card cost
 var prep_utility_charges: int = 0   # How many more utility cards get the discount
-var discards_this_cycle: int = 0  # Cards discarded since last tempo cycle
+var discards_this_cycle: int = 0  # Cards that reached the discard pile since the last cycle (plays included)
+var true_discards_this_cycle: int = 0  # Cards DISCARDED (never played) since the last cycle — Exacerbate Wounds
 var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
 # Brain-point peeks (Wisdom): how many cards from the top of the draw pile are
 # currently revealed. Drawing consumes one revealed card; shuffling the pile
@@ -394,6 +395,7 @@ func draw_card() -> Card:
 				discard_pile.append(card)
 				discards_this_cycle += 1
 				card_discarded.emit(card)
+				true_discards_this_cycle += 1
 				non_play_discard.emit(card)
 				hand_updated.emit()
 				print("[DECK] %s discarded after on-draw effect" % card.card_name)
@@ -805,6 +807,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		hand.remove_at(random_index)
 		discard_pile.append(discarded_card)
 		discards_this_cycle += 1
+		true_discards_this_cycle += 1
 		non_play_discard.emit(discarded_card)
 		print("[DECK] Clumsy discarded: %s" % discarded_card.card_name)
 		
@@ -920,6 +923,7 @@ func apply_dex_proc_bonus() -> void:
 
 func process_turn() -> void:
 	discards_this_cycle = 0
+	true_discards_this_cycle = 0
 	fire_spells_this_turn = 0
 	for i in range(jail_pile.size() - 1, -1, -1):
 		var card = jail_pile[i]
@@ -927,6 +931,7 @@ func process_turn() -> void:
 		if card.jail_time_remaining <= 0:
 			jail_pile.remove_at(i)
 			discard_pile.append(card)
+			true_discards_this_cycle += 1
 			non_play_discard.emit(card)
 			print("[DECK] Released from jail: %s" % card.card_name)
 
@@ -960,7 +965,8 @@ func jail_burden_card(index: int) -> bool:
 func _process_erase_timers() -> void:
 	## Tick down erase_tempo_remaining on cards with erase_tempo > 0.
 	## Erase timers only tick while the card sits in the player's HAND —
-	## a token resting in the draw/discard piles keeps its fuse intact.
+	## a token resting in the draw/discard piles keeps its fuse intact
+	## (a deliberate rule: the keyword legend and card texts say so).
 	## When a card's timer hits 0, permanently remove it from the deck.
 	var piles = [
 		{"pile": hand, "name": "hand"},
@@ -1045,6 +1051,7 @@ func release_jailed_to_hand(exclude: Card = null) -> int:
 			print("[DECK] Ragnarok releases %s to hand" % card.card_name)
 		else:
 			discard_pile.append(card)
+			true_discards_this_cycle += 1
 			non_play_discard.emit(card)
 			print("[DECK] Ragnarok releases %s — hand full, discarded" % card.card_name)
 	if released > 0:
@@ -1071,6 +1078,7 @@ func discard_card_from_hand(card: Card) -> bool:
 	discard_pile.append(card)
 	discards_this_cycle += 1
 	card_discarded.emit(card)
+	true_discards_this_cycle += 1
 	non_play_discard.emit(card)
 	hand_updated.emit()
 	return true
@@ -1091,6 +1099,7 @@ func trigger_reactions(trigger_type: String) -> Array[Card]:
 			triggered.append(card)
 			discard_pile.append(card)
 			reaction_triggered.emit(card)
+			true_discards_this_cycle += 1
 			non_play_discard.emit(card)
 			print("[DECK] Reaction triggered: %s" % card.card_name)
 	if triggered.size() > 0:

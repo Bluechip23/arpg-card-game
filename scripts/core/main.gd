@@ -353,6 +353,7 @@ var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
 var _unerring_bar: ProgressBar = null      # the grey half-height bar under HP: unerring armor / cap
+var _last_hp_ratio: float = 1.0             # previous health fraction (below-50% reactions fire on the crossing)
 var _unerring_bar_label: Label = null
 var _pending_quiver_card: Card = null
 var _pending_quiver_index: int = -1
@@ -4135,6 +4136,10 @@ func _on_player_tile_reached() -> void:
 		_update_camera()
 
 func _on_player_move_completed() -> void:
+	# High-ground riders (Mountain Boots) read a cached flag: refresh it the
+	# moment the move ends, not only at the next cycle tick.
+	if player and player.get_stats():
+		player.get_stats().on_high_ground = _is_on_high_ground(player.position)
 	# Catch any pickup missed by per-tile checks (e.g. teleports/blinks).
 	_check_loot_pickup()
 	# Final zone check at destination
@@ -6297,9 +6302,13 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 		var pct = int(float(current) / float(max_hp) * 100.0) if max_hp > 0 else 0
 		_hp_bar_label.text = "%d/%d (%d%%)" % [current, max_hp, pct]
 
-	# Trigger instant reaction cards when HP drops below 50%
+	# Trigger instant reaction cards when HP DROPS below 50% — the crossing,
+	# not every change while already low.
 	var stats = player.get_stats()
-	if stats and current > 0 and current < max_hp * 0.5:
+	var hp_ratio: float = float(current) / float(max_hp) if max_hp > 0 else 1.0
+	var crossed_half: bool = hp_ratio < 0.5 and _last_hp_ratio >= 0.5
+	_last_hp_ratio = hp_ratio
+	if stats and current > 0 and crossed_half:
 		var triggered = deck_manager.trigger_reactions("on_hp_below_50")
 		for card in triggered:
 			if card.card_id == "gift_from_the_phoenix":
@@ -6921,6 +6930,8 @@ func _on_non_play_discard(_card: Card) -> void:
 		stats.st_ladder_discard_count += 1
 	# Keep Them Guessing counts true discards, never plays.
 	progression_triggers._trigger_skill_tree_on_discard(_card)
+	# Volatile Mixture / Improvised Ammo: "if discarded" means discarded.
+	_on_true_discard_effects(_card)
 	# Abjurers Cane: every true discard raises the guard.
 	if stats and player.get_inventory():
 		for ac_w in player.get_inventory().equipped_weapons:
@@ -6933,7 +6944,11 @@ func _on_non_play_discard(_card: Card) -> void:
 func _on_card_discarded(card: Card) -> void:
 	# Sphere grid passive triggers for discard
 	progression_triggers._trigger_sphere_passives("on_discard", {"card": card})
-	# (Skill-tree discard passives listen to non_play_discard — see _on_non_play_discard.)
+	# (Skill-tree discard passives and the "if discarded" card effects listen
+	# to non_play_discard — see _on_non_play_discard — because a PLAYED card
+	# also passes through the discard pile.)
+
+func _on_true_discard_effects(card: Card) -> void:
 	# Volatile Mixture: deal damage to a random nearby enemy when discarded
 	if card.card_id == "volatile_mixture":
 		var stats = player.get_stats()
@@ -7255,7 +7270,9 @@ func _apply_in_hand_debuffs() -> void:
 		if card.in_hand_debuff != "":
 			match card.in_hand_debuff:
 				"slowed_2":
-					debuff_mgr.apply_debuff(Debuff.create_slowed(2, card.card_name))
+					# "While in hand: Slowed 2" — hold it at 2, never stack it.
+					if not debuff_mgr.has_debuff(Debuff.DebuffType.SLOWED):
+						debuff_mgr.apply_debuff(Debuff.create_slowed(2, card.card_name))
 
 func _process_enchantment_cycles() -> void:
 	var hand_changed = false
@@ -7363,7 +7380,9 @@ func _adjust_random_hand_tempo(deck, count: int, delta: int) -> void:
 	var cards: Array = deck.hand.duplicate()
 	cards.shuffle()
 	for i in range(min(count, cards.size())):
-		cards[i].tempo_cost = max(0, cards[i].tempo_cost + delta)
+		# An in-hand delta (ends when the card is played or discarded), never a
+		# permanent rewrite of the deck's costs.
+		cards[i].temp_hand_tempo_reduction -= delta
 	deck.hand_updated.emit()
 
 # --- Delayed card-effect handlers (scheduled via schedule_delayed_effect) ---
@@ -8575,9 +8594,17 @@ func _get_distance_to_target(target) -> int:
 ##     any offensive card; Monocle +5 to offensive ranged cards).
 ##   - 20/20 (Monocle's granted Maintain): +3 range on ranged offensive cards.
 func _helm_range_bonus(card) -> int:
-	if card == null or not card.is_offensive():
+	if card == null:
 		return 0
 	var bonus := 0
+	# Wand of Deliverance: +range on ALL cards while it is in a hand
+	# (10% weaker — floored — from the off hand, like everything else).
+	if player and player.get_inventory():
+		for wr_w in player.get_inventory().equipped_weapons:
+			if wr_w != null and wr_w.range_bonus_all_cards > 0:
+				bonus += floori(wr_w.range_bonus_all_cards * wr_w.rider_scale())
+	if not card.is_offensive():
+		return bonus
 	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
 		var osb = card.slotted_in_item.get_on_self_bonus()
 		var r := int(osb.get("range_offensive", 0))
@@ -8591,12 +8618,6 @@ func _helm_range_bonus(card) -> int:
 	# Tigers Sunday Red: +range on ALL ranged offensive cards while equipped.
 	if card.is_ranged and player and player.get_stats():
 		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
-	# Wand of Deliverance: +range on ALL cards while it is in a hand
-	# (10% weaker — floored — from the off hand, like everything else).
-	if player and player.get_inventory():
-		for wr_w in player.get_inventory().equipped_weapons:
-			if wr_w != null and wr_w.range_bonus_all_cards > 0:
-				bonus += floori(wr_w.range_bonus_all_cards * wr_w.rider_scale())
 	return bonus
 
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
@@ -9431,7 +9452,7 @@ func _update_spirit_bows(amount: int) -> void:
 		if _manhattan(b.get_cell(), tcell) <= b.ATTACK_RANGE:
 			if b.attack_accum >= b.attack_interval():
 				b.attack_accum -= b.attack_interval()
-				var dmg: int = b.base_attack() + 2 * instance_count
+				var dmg: int = b.base_attack() + 2 * (instance_count - 1)  # +2 per OTHER bow
 				if randf() * 100.0 < 5.0 * instance_count:
 					dmg = floori(dmg * 1.5)
 					add_battle_log("The bow's shot crits!", Color(0.5, 0.85, 0.8))
@@ -10334,6 +10355,8 @@ func _on_action_points_spent(pool: String, amount: int) -> void:
 			break
 	if threshold <= 0:
 		return
+	if stats.flash_crit_armed:
+		return  # "resets to 0 on use": nothing banks while the crit waits
 	stats.flash_crit_accum += amount
 	if stats.flash_crit_accum >= threshold and not stats.flash_crit_armed:
 		stats.flash_crit_accum = 0  # "resets to 0 on use" — no overflow carry
@@ -10457,7 +10480,7 @@ func _helm_on_cycle_passives() -> void:
 				a_st._passive_heal = true
 				a_st.heal(greaves_regen)
 				a_st._passive_heal = false
-				a_st.gain_mana(greaves_regen)
+				a_st.gain_mana(greaves_regen * 10)  # "6 mana" on the design scale = 60 in code
 				a_st.aura_physical_resist = greaves_resist
 		for m in _frankensteins:
 			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
@@ -10925,7 +10948,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Patience: will draw 3 cards in 15 tempo")
 
 		"succumb":
-			var caster = player  # owner-bound during resolution
+			var caster = target if target is Player else player  # self or the targeted ally
 			var bm = caster.get_buff_manager()
 			if bm:
 				bm.apply_buff(Buff.create_fortify(20, "Succumb"))
@@ -11219,7 +11242,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"vines":
 			# Hold the target for 3 cycles, dealing base damage at the end of each.
 			if target and target.has_method("apply_debuff"):
-				target.apply_debuff("stun", 15)
+				target.apply_debuff("root", 15)  # held in place — it can still swing
 				# Deal what the card face shows — the full stat-scaled number.
 				var vine_dmg := _card_player_damage(card)
 				for cyc in range(1, 4):
@@ -11638,10 +11661,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var a_st = ally.get_stats() if is_instance_valid(ally) else null
 				if a_st:
 					a_st.add_armor(5)
-					a_st.determination += 2
-					a_st.base_strength += 2
-					a_st.recalculate_derived_stats()
-			add_battle_log("Hold the Line! All allies +5 armor, +2 DET, +2 STR", Color(0.3, 0.7, 1.0))
+					# A rally, not a permanent stat: +2 DET and +2 STR (Might) for 20 tempo.
+					a_st.add_temp_determination(2, 20)
+					var htl_bm = ally.get_buff_manager() if ally.has_method("get_buff_manager") else null
+					if htl_bm:
+						htl_bm.apply_buff(Buff.create_might(2, 20, "Hold the Line"))
+			add_battle_log("Hold the Line! All allies +5 armor, +2 DET, +2 STR for 20 tempo", Color(0.3, 0.7, 1.0))
 
 		"swap":
 			# Swap positions between player and target
@@ -11996,7 +12021,9 @@ func _input(event: InputEvent) -> void:
 				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
 				if enemy:
 					_card_played = true
-					if _is_target_in_card_range(card, enemy):
+					if card.requires_high_ground and not _has_high_ground(player.position, enemy):
+						add_battle_log("%s needs high ground over the target." % card.card_name, Color(1.0, 0.4, 0.4))
+					elif _is_target_in_card_range(card, enemy):
 						if card.card_id == "release_tension":
 							_show_release_tension_picker(card, enemy)
 						else:
@@ -12018,7 +12045,9 @@ func _input(event: InputEvent) -> void:
 					# clicking yourself or empty ground defaults to self.
 					var tgt_player := _player_at_position(mouse_pos)
 					var tgt = tgt_player if tgt_player else player
-					if card.card_id == "reposition":
+					if tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
+						add_battle_log("Out of range! %s is too far (max range: %d)" % [tgt.name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
+					elif card.card_id == "reposition":
 						# Let the player choose which card to discard, then play.
 						show_hand_card_picker("Reposition — discard which card?",
 							func(chosen):

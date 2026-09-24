@@ -4102,8 +4102,18 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 			if player_node.has_method("get_buff_manager"):
 				buff_mgr = player_node.get_buff_manager()
 
-			# Check Repelled Block: if armor fully blocks the attack, negate damage and push
-			if buff_mgr and buff_mgr.has_buff(Buff.BuffType.REPELLED_BLOCK):
+			# Repelled Block: "the enemy's NEXT MELEE attack": ranged hits pass
+			# under it; a melee hit spends it whether or not armor held, and a
+			# fully blocked one is negated and pushes both apart.
+			var rb_melee: bool = Vector2(player_node.position.x - position.x, player_node.position.z - position.z).length() <= 1.6
+			if buff_mgr and buff_mgr.has_buff(Buff.BuffType.REPELLED_BLOCK) and rb_melee \
+					and player_stats_ref.get_total_armor() < effective_damage:
+				var rb_spent = buff_mgr.get_buff(Buff.BuffType.REPELLED_BLOCK)
+				rb_spent.use_charge()
+				if rb_spent.is_expired():
+					buff_mgr.remove_buff(Buff.BuffType.REPELLED_BLOCK)
+				print("[%s] Repelled Block: the blow got through — the stance is spent" % enemy_name)
+			if buff_mgr and buff_mgr.has_buff(Buff.BuffType.REPELLED_BLOCK) and rb_melee:
 				if player_stats_ref.get_total_armor() >= effective_damage:
 					# Fully blocked - consume the buff, negate damage, push enemy back 4 and player back 2
 					var rb = buff_mgr.get_buff(Buff.BuffType.REPELLED_BLOCK)
@@ -5098,7 +5108,7 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			if Card.element_pollination_active and shock_stacks >= 5:
 				shock_stacks = 0
 				is_stunned = true
-				stun_tempo = max(stun_tempo, 1)  # Stunned for 1 tempo cycle
+				stun_tempo = max(stun_tempo, 5)  # "freezes like Cold": a 5-tempo stun
 				_reset_action_clocks()
 				print("[%s] STUNNED! Shock reached 5 stacks (Element Pollination)!" % enemy_name)
 		"bleed":
