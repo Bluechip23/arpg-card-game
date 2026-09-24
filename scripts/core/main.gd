@@ -5805,9 +5805,8 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 		if pm_card:
 			_polymorph_firing = true
 			pm_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
-			enemy.apply_debuff("polymorph", 5)
+			_fire_instant_site_effect(pm_card, {"target": enemy})
 			_polymorph_firing = false
-			add_battle_log("Polymorph! %s is a pig for 5 tempo!" % enemy.enemy_name, Color(1.0, 0.6, 0.8))
 
 func _on_enemy_debuff_expired(enemy: Enemy, debuff_name: String) -> void:
 	progression_triggers._trigger_skill_tree_on_debuff_expired(enemy)
@@ -5854,17 +5853,7 @@ func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 	for rt_card in rt_cards:
 		_reapers_taking_firing = true
 		rt_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
-		# Step through the veil to the victim's side: nearest free adjacent tile.
-		var rt_cell: Vector2i = grid_manager.world_to_grid(enemy.position)
-		for rt_off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			var rt_c: Vector2i = rt_cell + rt_off
-			if not (rt_c in player.blocked_tiles):
-				if player.has_method("blink_to"):
-					player.blink_to(grid_manager.grid_to_world(rt_c))
-				break
-		var rt_dmg: int = 35 if (rt_card.granted_by_item and rt_card.granted_by_item.item_level >= 3) else 20
-		enemy.take_damage(rt_dmg, true)
-		add_battle_log("Reaper's Taking! The scythe crosses the field — %d damage to %s!" % [rt_dmg, enemy.enemy_name], Color(0.4, 0.7, 1.0))
+		_fire_instant_site_effect(rt_card, {"target": enemy})
 		_reapers_taking_firing = false
 
 func _on_enemy_attacked_player(enemy: Enemy) -> void:
@@ -6604,8 +6593,7 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 	var exposed_reactions = deck_manager.trigger_reactions("on_exposed")
 	for rcard in exposed_reactions:
 		rcard.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
-		if rcard.card_id == "vengeful_shield":
-			_stun_nearest_enemy(1.5)  # melee range, per the card text
+		_fire_instant_site_effect(rcard, {"target": stats.last_attacker})
 	if exposed_reactions.size() > 0:
 		_refresh_unit_tracker()
 	for card in deck_manager.get_maintained_cards():
@@ -6688,9 +6676,9 @@ func _on_hand_updated() -> void:
 	# Recalculate enchantment bonuses based on current hand contents
 	_recalculate_enchantment_bonuses()
 
-	# Roll RNG for cards that haven't been rolled yet. The one-shot next_odds_boost
-	# (Loaded Die / House Money) is added on top of the permanent chance_boost and
-	# consumed once a card is actually rolled.
+	# Roll RNG for cards that haven't been rolled yet. next_odds_boost (Loaded
+	# Die / House Money) rides every chance card until one is PLAYED — it is
+	# cleared in the play path, never here.
 	var enemies = enemy_spawner.get_living_enemies()
 	var _rng_stats = player.get_stats()
 	var chance_boost = _rng_stats.get_chance_boost() + _rng_stats.next_odds_boost
@@ -6698,7 +6686,6 @@ func _on_hand_updated() -> void:
 		if card.has_chance_effect() and not card.has_been_rolled():
 			card.roll_rng(enemies, chance_boost)
 			card.rng_roll_tempo = tempo_manager.global_tempo
-			_rng_stats.next_odds_boost = 0.0  # consumed on the next rolled card
 
 	# Identical cards collapse into one lettered stack; assign/keep slot letters
 	# so playing a card never re-letters the rest, and build the render groups.
@@ -7543,7 +7530,8 @@ func _process_glut_countdown() -> void:
 #region TEMPO & DECK DISPLAYS
 func _reroll_card_rng() -> void:
 	var enemies = enemy_spawner.get_living_enemies()
-	var chance_boost = player.get_stats().get_chance_boost()
+	# The armed Loaded Die / House Money boost survives the 15-tempo reroll.
+	var chance_boost = player.get_stats().get_chance_boost() + player.get_stats().next_odds_boost
 	var any_outcome_changed = false
 
 	for card in deck_manager.hand:
@@ -8547,6 +8535,20 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		_last_played_card = card
 		_last_played_target = target
 
+	# Loaded Die / House Money: the boost applies to every chance card in hand
+	# (re-rolled now so the faces show it) and to every draw, until one chance
+	# card is played — that play spends it.
+	var odds_stats = player.get_stats()
+	if card.card_id in ["loaded_die", "house_money"]:
+		for oc in deck_manager.hand:
+			if oc != card and oc.has_chance_effect():
+				oc.rng_selected_index = -1
+				oc.rng_outcomes.clear()
+		_on_hand_updated()
+	elif card.has_chance_effect() and odds_stats and odds_stats.next_odds_boost > 0.0:
+		odds_stats.next_odds_boost = 0.0
+		add_battle_log("The boosted odds are spent.", Color(0.7, 0.7, 0.8))
+
 	# Lethal Recall: replay last card's effect 2 times
 	if card.card_id == "lethal_recall" and _last_played_card:
 		var replay_card = _last_played_card
@@ -8562,6 +8564,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			replay_card.execute(replay_target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
 			progression_triggers.clear_pre_attack_passives()
 			_apply_card_world_effects(replay_card, replay_target)
+			# Most instants do their real work at the trigger site (Vengeful
+			# Shield's stun, Reaper's Taking's teleport, Death Vortex's blast…);
+			# replay that part as well, aimed at the original target.
+			_fire_instant_site_effect(replay_card, {"target": replay_target, "replay": true})
 			print("[MAIN] Lethal Recall: replayed %s (repeat %d/2)" % [replay_card.card_name, i + 1])
 		add_battle_log("Lethal Recall: %s triggered 2 times!" % replay_card.card_name, Color(0.8, 0.4, 1.0))
 
@@ -8976,19 +8982,13 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 		var hh = deck_manager.trigger_reactions("on_utility_played")
 		for hh_card in hh:
 			hh_card.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
-			var hh_victim = _get_nearest_enemy()
-			if hh_victim:
-				hh_victim.take_damage(2, true)
-				add_battle_log("Hard Helmet clonks %s for 2!" % hh_victim.enemy_name, Color(0.8, 0.7, 0.4))
+			_fire_instant_site_effect(hh_card, {"target": target})
 
 	# Psionic Flow, attack mode: the strike hits harder and shoves.
 	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy:
 		var pf = deck_manager.trigger_reactions("psionic_flow")
-		for _pf_card in pf:
-			target.take_damage(8, true)
-			if target.has_method("knockback"):
-				target.knockback(player.position, 1)
-			add_battle_log("Psionic Flow: +8 damage, target shoved back!", Color(0.6, 0.7, 1.0))
+		for pf_card in pf:
+			_fire_instant_site_effect(pf_card, {"target": target, "mode": "attack"})
 
 	# Poseidons Trident: the thrust continues through the target in a line.
 	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy \
@@ -9027,7 +9027,10 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 							var vt = deck_manager.trigger_reactions("on_vitality_9")
 							for vt_card in vt:
 								vt_card.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
-							_summon_penguin()
+							if vt.size() > 0:
+								_summon_penguin()  # only when Sanguine's card was in hand to fire
+							else:
+								add_battle_log("Vitality peaks — but Sanguine's card is not in hand.", Color(0.6, 0.6, 0.7))
 						else:
 							print("[MAIN] %s: Vitality %d/9" % [vw.item_name, vw.vitality_stacks])
 					break
@@ -10722,7 +10725,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 	match card.card_id:
 		"its_alive":
-			_resurrect_frankenstein()
+			_resurrect_frankenstein(mouse_pos)
 
 		"stone_encase":
 			# Strap of Stone: the armor landed in execute; the self-stun is ours.
@@ -11281,12 +11284,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var roll_start = player.position
 			var roll_diff = Vector3(roll_aim.x - roll_start.x, 0, roll_aim.z - roll_start.z)
 			var roll_dir = roll_diff.normalized() if roll_diff.length() > 0.01 else Vector3.ZERO
-			var roll_max = min(card.tempo_cost, 5)
+			var roll_max = min(card.get_burden_tempo_cost(), 5)  # the tempo actually paid
 			var roll_final = roll_start
 			for step in range(1, roll_max + 1):
 				if roll_dir == Vector3.ZERO:
 					break
 				var np = grid_manager.snap_to_grid(roll_start + roll_dir * (step * grid_manager.grid_size))
+				if grid_manager.world_to_grid(np) in player.blocked_tiles:
+					break  # a wall or obstacle ends the roll
 				var hit_enemy = enemy_spawner.get_enemy_at_position(np)
 				if hit_enemy:
 					hit_enemy.take_damage(10, true)
@@ -11432,17 +11437,35 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				add_battle_log("Shuriken thrown, but no enemies present.", Color(0.7, 0.7, 0.7))
 
 		"item_mastery":
-			# Place a copy of every card slotted in your items into your hand.
+			# Move every item card — the ones items GRANT and the ones slotted
+			# INTO items — from the draw and discard piles into your hand. The
+			# real cards move; nothing is duplicated.
 			var inv = player.get_inventory()
-			var added = 0
-			if inv and inv.has_method("get_all_slotted_cards"):
-				for sc in inv.get_all_slotted_cards():
-					var copy = deck_manager._create_card_from_id(sc.card_id)
-					if copy:
-						deck_manager.add_card_to_hand(copy)
-						added += 1
-			add_battle_log("Item Mastery! Pulled %d item card(s) into hand." % added, Color(0.8, 0.7, 0.4))
-			print("[MAIN] Item Mastery added %d cards to hand." % added)
+			var moved = 0
+			var im_cards: Array = []
+			if inv:
+				if inv.has_method("get_all_slotted_cards"):
+					im_cards += inv.get_all_slotted_cards()
+				for im_list in [inv.equipped_helms, inv.equipped_chests, inv.equipped_rings, inv.equipped_belts,
+						inv.equipped_boots, inv.equipped_gauntlets, inv.equipped_weapons]:
+					for im_item in im_list:
+						if im_item:
+							im_cards += im_item.granted_card_instances
+			for im_card in im_cards:
+				if im_card == null or deck_manager.hand.has(im_card):
+					continue
+				if deck_manager.draw_pile.has(im_card):
+					deck_manager.draw_pile.erase(im_card)
+				elif deck_manager.discard_pile.has(im_card):
+					deck_manager.discard_pile.erase(im_card)
+				else:
+					continue  # jailed, maintained or elsewhere: leave it
+				deck_manager.hand.append(im_card)
+				moved += 1
+			if moved > 0:
+				deck_manager.hand_updated.emit()
+			add_battle_log("Item Mastery! Pulled %d item card(s) into hand." % moved, Color(0.8, 0.7, 0.4))
+			print("[MAIN] Item Mastery moved %d cards to hand." % moved)
 
 		"cryonics":
 			# Encase an ally in ice: untargetable + cannot act for 15 tempo, healing
@@ -12913,24 +12936,27 @@ func _ally_unit_cells() -> Array:
 # FRANKENSTEINS MONSTER (ITS ALIVE!!!!! summon)
 # ============================================
 
-## Raise the nearest corpse into a Frankensteins Monster. Called by the
-## its_alive card's world effect. No corpse in reach → the card fizzles.
-func _resurrect_frankenstein() -> void:
+## Raise the corpse nearest the AIMED point (within ITS_ALIVE_REACH tiles of
+## it) into a Frankensteins Monster. Called by the its_alive card's world
+## effect. No corpse in reach → the card fizzles.
+const ITS_ALIVE_REACH := 3
+
+func _resurrect_frankenstein(aim: Vector3) -> void:
 	if not grid_manager or not player:
 		return
 	# Drop any corpses whose tile is now occupied by a living enemy or the player.
 	var player_cell = grid_manager.world_to_grid(player.position)
 	var enemy_cells = _living_enemy_cells()
-	# Pick the corpse closest to the player.
+	# Pick the corpse closest to the aimed point, within reach of it.
 	var best_idx := -1
 	var best_dist := INF
 	for i in range(_corpses.size()):
-		var d = player.position.distance_to(_corpses[i]["position"])
-		if d < best_dist:
+		var d = grid_manager.get_distance_in_cells(aim, _corpses[i]["position"])
+		if d <= ITS_ALIVE_REACH and d < best_dist:
 			best_dist = d
 			best_idx = i
 	if best_idx < 0:
-		add_battle_log("ITS ALIVE!!!!! fizzles — no corpse to raise.", Color(0.7, 0.7, 0.7))
+		add_battle_log("ITS ALIVE!!!!! fizzles — no corpse within %d squares of that spot." % ITS_ALIVE_REACH, Color(0.7, 0.7, 0.7))
 		return
 	var corpse = _corpses[best_idx]
 	_corpses.remove_at(best_idx)
@@ -13718,26 +13744,12 @@ func _on_player_damage_taken(_amount: int) -> void:
 			if vortexes.size() > 0:
 				tr_stats.hit_streak = 0
 				for dv_card in vortexes:
-					var spun = enemy_spawner.get_enemies_in_radius(player.position, 1.5)
-					var dv_kills := 0
-					for dv_en in spun:
-						if dv_en and is_instance_valid(dv_en) and not dv_en.is_dead:
-							dv_en.take_damage(15, true)
-							if dv_en.is_dead:
-								dv_kills += 1
-					add_battle_log("Death Vortex! 15 damage to %d enem%s" % [spun.size(), "y" if spun.size() == 1 else "ies"], Color(0.9, 0.3, 0.3))
-					if dv_kills > 0 and deck_manager.discard_pile.has(dv_card):
-						deck_manager.discard_pile.erase(dv_card)
-						deck_manager.add_card_to_hand(dv_card)
-						add_battle_log("The Vortex returns to your hand!", Color(0.9, 0.5, 0.3))
-		# Psionic Flow, guard mode: an ally (self in solo) was struck within reach.
+					_fire_instant_site_effect(dv_card, {})
+		# Psionic Flow, guard mode: you (an ally to yourself) were struck.
 		if deck_manager and tr_stats.last_attacker and is_instance_valid(tr_stats.last_attacker):
 			var pf_guard = deck_manager.trigger_reactions("psionic_flow")
-			for _pfg in pf_guard:
-				tr_stats.heal(8)
-				if tr_stats.last_attacker.has_method("knockback"):
-					tr_stats.last_attacker.knockback(player.position, 1)
-				add_battle_log("Psionic Flow guards: 8 restored, attacker shoved!", Color(0.6, 0.7, 1.0))
+			for pfg_card in pf_guard:
+				_fire_instant_site_effect(pfg_card, {"mode": "guard", "victim": player, "attacker": tr_stats.last_attacker})
 		# Wooden Plank: the hit that drops you below half health starts a
 		# trickle of Regen.
 		if pct < 0.5 and prev_pct >= 0.5:
@@ -13778,7 +13790,107 @@ func _on_ally_damage_taken(_amount: int, victim) -> void:
 	if cover_reactions.size() > 0:
 		add_battle_log("Cover! Ally's damage mitigated.", Color(0.5, 0.85, 1.0))
 		_refresh_unit_tracker()
+	# Psionic Flow, guard mode: "when an ally takes damage within 3 squares".
+	if Vector3(diff.x, 0, diff.z).length() <= 3.0:
+		var pf_guard = defender_deck.trigger_reactions("psionic_flow")
+		var v_stats = victim.get_stats() if victim.has_method("get_stats") else null
+		for pfg_card in pf_guard:
+			_fire_instant_site_effect(pfg_card, {"mode": "guard", "victim": victim, "attacker": v_stats.last_attacker if v_stats else null})
+		if pf_guard.size() > 0:
+			_refresh_unit_tracker()
 
+## The trigger-site half of an instant: what fires alongside the card's own
+## execute() when its reaction goes off. Every site routes through here so
+## Lethal Recall can replay the whole effect, not just the execute half.
+## ctx: target (Enemy / Player / null), mode ("attack"/"guard" for Psionic
+## Flow), victim + attacker (guard mode), replay (true from Lethal Recall).
+func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
+	if card == null:
+		return
+	var target = ctx.get("target")
+	if target != null and not is_instance_valid(target):
+		target = null
+	if card.card_id != "lethal_recall" and not bool(ctx.get("replay", false)):
+		_last_played_card = card
+		_last_played_target = target
+	var stats = player.get_stats()
+	match card.card_id:
+		"vengeful_shield":
+			# The armor lands in execute; the counter-stun is the site's.
+			_stun_nearest_enemy(1.5)  # melee range, per the card text
+		"hard_helmet":
+			var hh_victim: Enemy = target if target is Enemy else _get_nearest_enemy()
+			if hh_victim:
+				hh_victim.take_damage(2, true)
+				add_battle_log("Hard Helmet clonks %s for 2!" % hh_victim.enemy_name, Color(0.8, 0.7, 0.4))
+		"reapers_taking":
+			# Teleport beside the victim and cut for 20 (35 at Lv.3). A replay
+			# with no victim picks the weakest enemy within 5 squares.
+			var rt_enemy: Enemy = target if target is Enemy else _weakest_enemy_within(5)
+			if rt_enemy == null or rt_enemy.is_dead or not grid_manager:
+				return
+			var rt_cell: Vector2i = grid_manager.world_to_grid(rt_enemy.position)
+			for rt_off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var rt_c: Vector2i = rt_cell + rt_off
+				if not (rt_c in player.blocked_tiles) and not (rt_c in _living_enemy_cells()):
+					if player.has_method("blink_to"):
+						player.blink_to(grid_manager.grid_to_world(rt_c))
+					break
+			var rt_dmg: int = 35 if (card.granted_by_item and card.granted_by_item.item_level >= 3) else 20
+			rt_enemy.take_damage(rt_dmg, true)
+			add_battle_log("Reaper's Taking! The scythe crosses the field — %d damage to %s!" % [rt_dmg, rt_enemy.enemy_name], Color(0.4, 0.7, 1.0))
+		"death_vortex":
+			var spun = enemy_spawner.get_enemies_in_radius(player.position, 1.5)
+			var dv_kills := 0
+			for dv_en in spun:
+				if dv_en and is_instance_valid(dv_en) and not dv_en.is_dead:
+					dv_en.take_damage(15, true)
+					if dv_en.is_dead:
+						dv_kills += 1
+			add_battle_log("Death Vortex! 15 damage to %d enem%s" % [spun.size(), "y" if spun.size() == 1 else "ies"], Color(0.9, 0.3, 0.3))
+			if dv_kills > 0 and deck_manager.discard_pile.has(card):
+				deck_manager.discard_pile.erase(card)
+				deck_manager.add_card_to_hand(card)
+				add_battle_log("The Vortex returns to your hand!", Color(0.9, 0.5, 0.3))
+		"polymorph":
+			var pm_enemy: Enemy = target if target is Enemy else _get_nearest_enemy()
+			if pm_enemy and not pm_enemy.is_dead:
+				pm_enemy.apply_debuff("polymorph", 5)
+				add_battle_log("Polymorph! %s is a pig for 5 tempo!" % pm_enemy.enemy_name, Color(1.0, 0.6, 0.8))
+		"psionic_flow":
+			var mode: String = str(ctx.get("mode", "attack" if target is Enemy else "guard"))
+			if mode == "attack":
+				var pf_target: Enemy = target if target is Enemy else _get_nearest_enemy()
+				if pf_target and not pf_target.is_dead:
+					pf_target.take_damage(8, true)
+					if pf_target.has_method("knockback"):
+						pf_target.knockback(player.position, 1)
+					add_battle_log("Psionic Flow: +8 damage, target shoved back!", Color(0.6, 0.7, 1.0))
+			else:
+				var victim = ctx.get("victim", player)
+				if victim == null or not is_instance_valid(victim):
+					victim = player
+				var v_stats = victim.get_stats() if victim.has_method("get_stats") else stats
+				if v_stats:
+					v_stats.heal(8)
+				var attacker = ctx.get("attacker")
+				if attacker and is_instance_valid(attacker) and attacker.has_method("knockback"):
+					attacker.knockback(victim.position, 1)
+				add_battle_log("Psionic Flow guards: 8 restored, attacker shoved!", Color(0.6, 0.7, 1.0))
+		_:
+			pass  # execute() carries the whole effect (Feed into the Pain, Preemptive Answer, Tight Rope…)
+
+## The lowest-health living enemy within `tiles` of the player (null if none).
+func _weakest_enemy_within(tiles: int) -> Enemy:
+	var best: Enemy = null
+	var best_hp := INF
+	if not grid_manager or not enemy_spawner:
+		return null
+	for e in enemy_spawner.get_living_enemies():
+		if grid_manager.get_distance_in_cells(player.position, e.position) <= tiles and e.current_health < best_hp:
+			best_hp = e.current_health
+			best = e
+	return best
 
 func _on_card_on_draw_triggered(card: Card) -> void:
 	match card.on_draw_effect:

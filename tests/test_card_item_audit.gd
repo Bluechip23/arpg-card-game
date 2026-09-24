@@ -178,7 +178,100 @@ func _run() -> void:
 	girdle.level_up()
 	_check(girdle.determination_bonus == 3, "Girdle of Aphrodite keeps +3 DET at Lv.3 (%d)" % girdle.determination_bonus)
 
+	await _round_two(stats, dm, bm, dummy)
+
 	main.queue_free()
 	await process_frame
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
+
+func _round_two(stats, dm, bm, dummy: Enemy) -> void:
+	print("-- Instant site effects (what Lethal Recall replays) --")
+	var chickens: Array = []
+	for e in main.enemy_spawner.get_living_enemies():
+		if e.enemy_type == Enemy.EnemyType.DUMMY:
+			chickens.append(e)
+	var far: Enemy = chickens[0]
+	far.position = main.player.position + Vector3(4, 0, 0)
+	far.current_health = far.max_health
+	main._fire_instant_site_effect(Card.create_reapers_taking(), {"target": far})
+	var reach: float = Vector2(main.player.position.x - far.position.x, main.player.position.z - far.position.z).length()
+	_check(reach <= 1.6, "Reaper's Taking teleports the player beside the victim (%.1f away)" % reach)
+	_check(far.current_health == far.max_health - 20, "…and cuts for 20 (%d/%d)" % [far.current_health, far.max_health])
+	far.is_stunned = false
+	main._fire_instant_site_effect(Card.create_vengeful_shield(), {"target": far})
+	_check(far.is_stunned, "Vengeful Shield's site effect stuns the adjacent attacker")
+	_check(main._last_played_card != null and main._last_played_card.card_id == "vengeful_shield", "the site records the instant for Lethal Recall")
+	var ally = main._dojo_allies[0]
+	var a_st = ally.get_stats()
+	a_st.current_health = 100
+	main._fire_instant_site_effect(Card.create_psionic_flow(), {"mode": "guard", "victim": ally, "attacker": far})
+	_check(a_st.current_health >= 108, "Psionic Flow guard mode heals the struck ALLY at least 8 (%d)" % a_st.current_health)
+
+	print("-- Trick Shot bounces between enemies --")
+	var other: Enemy = chickens[1]
+	other.current_health = other.max_health
+	other.position = far.position + Vector3(1, 0, 0)
+	var shot := Card.create_trick_shot()
+	shot.rng_selected_index = 0  # the first bounce is pre-rolled to hit
+	shot.execute(far, stats, dm, 0.0, 0.0, bm)
+	_check(other.current_health < other.max_health, "the bounce lands on a DIFFERENT enemy")
+
+	print("-- Item Mastery moves the real cards --")
+	var inv = main.player.get_inventory()
+	var sword := ItemData.create_wooden_sword()
+	inv.equip_item(sword, 0)
+	var splinter: Card = null
+	for c in dm.draw_pile + dm.discard_pile + dm.hand:
+		if c.card_id == "splinter":
+			splinter = c
+	_check(splinter != null, "the equipped Wooden Sword grants a real Splinter into the deck")
+	if splinter:
+		dm.hand.erase(splinter)
+		if not dm.draw_pile.has(splinter) and not dm.discard_pile.has(splinter):
+			dm.draw_pile.append(splinter)
+		var deck_before: int = dm.draw_pile.size() + dm.discard_pile.size() + dm.hand.size()
+		main._apply_card_world_effects(Card.create_item_mastery(), null)
+		var deck_after: int = dm.draw_pile.size() + dm.discard_pile.size() + dm.hand.size()
+		_check(dm.hand.has(splinter) and not dm.draw_pile.has(splinter), "Item Mastery moves the granted card into hand")
+		_check(deck_after == deck_before, "…without duplicating anything (%d → %d cards)" % [deck_before, deck_after])
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+
+	print("-- It's Alive raises the corpse at the aim --")
+	main._corpses.clear()
+	main._frankensteins.clear()
+	var corpse_pos: Vector3 = main.player.position + Vector3(-3, 0, 0)
+	main._corpses.append({"cell": main.grid_manager.world_to_grid(corpse_pos), "position": corpse_pos})
+	main._resurrect_frankenstein(main.player.position + Vector3(3, 0, -3))
+	_check(main._frankensteins.is_empty() and main._corpses.size() == 1, "aiming far from the corpse fizzles")
+	main._resurrect_frankenstein(corpse_pos)
+	_check(main._frankensteins.size() == 1 and main._corpses.is_empty(), "aiming at the corpse raises it")
+	main._clear_frankensteins()
+
+	print("-- Odds boosts last until a chance card is played --")
+	stats.next_odds_boost = 100.0
+	var tt := Card.create_try_this()
+	tt.roll_rng([], stats.get_chance_boost() + stats.next_odds_boost)
+	_check(not tt.rng_binary_succeeded(), "House Money keeps Try This from backfiring (its chance is a downside)")
+	var oops2 := Card.create_oops()
+	oops2.roll_rng([], 100.0)
+	_check(oops2.rng_selected_index == 0, "a +100 boost makes Oops's best outcome (5 hits) certain")
+	dm.hand.clear()
+	main._on_hand_updated()
+	_check(is_equal_approx(stats.next_odds_boost, 100.0), "a hand refresh does not spend the boost")
+	stats.next_odds_boost = 0.0
+
+	print("-- Living Armor tops Regen up to the Fortify mark --")
+	for buff in bm.buffs.duplicate():
+		bm.remove_buff(buff.buff_type)
+	bm.apply_buff(Buff.create_regen(3, 15, "test"))
+	bm.apply_buff(Buff.create_fortify(20, "test"))
+	_check(bm.get_buff(Buff.BuffType.FORTIFY).value == 3, "Fortify stamps the Regen you had (3) as its number")
+	bm.remove_buff(Buff.BuffType.REGEN)
+	Card.create_living_armor().execute(null, stats, dm, 0.0, 0.0, bm)
+	var regen = bm.get_buff(Buff.BuffType.REGEN)
+	_check(regen != null and regen.value == 3, "Living Armor brings Regen back to 3")
+	Card.create_living_armor().execute(null, stats, dm, 0.0, 0.0, bm)
+	_check(bm.get_buff(Buff.BuffType.REGEN).value == 3, "…and never past the mark")
+	for buff in bm.buffs.duplicate():
+		bm.remove_buff(buff.buff_type)

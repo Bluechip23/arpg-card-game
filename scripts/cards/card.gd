@@ -266,6 +266,7 @@ var cycles_in_hand: int = 0  # How many tempo cycles card has been in hand
 # Binary (1 entry): rolls success/fail for that single percentage
 # Multi (2+ entries): weighted random picks which outcome triggers
 var rng_outcomes_data: Array = []
+var chance_is_downside: bool = false  # the rolled "chance" is a BAD outcome (Try This): odds boosts lower it
 var rng_selected_index: int = -1  # -1=not rolled, >=0=which outcome won, -2=binary fail
 var sticky: int = 0  # Uses before card auto-discards (0 = normal)
 var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
@@ -455,6 +456,10 @@ func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 	# Delfins Deterministic Round Shield: cards slotted into it roll better.
 	chance_boost += float(get_on_self_bonus().get("chance_boost", 0.0))
 
+	# A card whose "chance" is a downside (Try This's backfire) is helped by a
+	# LOWER roll: boosts push the bad outcome away instead of toward it.
+	if chance_is_downside:
+		chance_boost = -chance_boost
 	if rng_outcomes_data.size() == 1:
 		# Binary: single percentage, success or fail
 		var roll = randf() * 100.0
@@ -465,12 +470,33 @@ func roll_rng(enemies: Array = [], chance_boost: float = 0.0) -> void:
 			rng_selected_index = -2  # Fail
 		print("[CARD] %s RNG: %.0f%% (boosted from %.0f%%) → %s" % [card_name, effective_percent, rng_outcomes_data[0].percent, "SUCCESS" if rng_selected_index == 0 else "FAIL"])
 	elif rng_outcomes_data.size() > 1:
-		# Multi-outcome: weighted random selection
+		# Multi-outcome: weighted random selection. A boost moves weight from
+		# the last (worst) outcome onto the first (best) — House Money's +100
+		# makes the best outcome certain.
+		var weights: Array = []
+		for o in rng_outcomes_data:
+			weights.append(float(o.percent))
+		if chance_boost > 0.0:
+			# Drain the worst outcomes first, feeding the best: +100 leaves
+			# nothing but the best.
+			var remaining: float = chance_boost
+			for i in range(weights.size() - 1, 0, -1):
+				var take: float = minf(remaining, weights[i])
+				weights[i] -= take
+				weights[0] += take
+				remaining -= take
+				if remaining <= 0.0:
+					break
+		elif chance_boost < 0.0:
+			# A penalty drains the best outcome into the worst.
+			var give: float = minf(-chance_boost, weights[0])
+			weights[0] -= give
+			weights[weights.size() - 1] += give
 		var roll = randf() * 100.0
 		var cumulative = 0.0
 		rng_selected_index = rng_outcomes_data.size() - 1
-		for i in range(rng_outcomes_data.size()):
-			cumulative += rng_outcomes_data[i].percent
+		for i in range(weights.size()):
+			cumulative += weights[i]
 			if roll < cumulative:
 				rng_selected_index = i
 				break
@@ -1329,6 +1355,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 					_gauntlet_bonus_applied += bs_bonus
 					print("[CARD] %s: +%d damage (%.0f%% of %d mana)" % [bs_w.item_name, bs_bonus, bs_w.spell_damage_per_mana_percent, bs_cost])
 		# Purge Wrath: the armed percent lands on this attack, then clears.
+		if is_offensive() and player_stats.pending_wrath_flat > 0:
+			_gauntlet_bonus_applied += player_stats.pending_wrath_flat
+			print("[CARD] Purge Wrath: +%d flat (banked Wrath)" % player_stats.pending_wrath_flat)
+			player_stats.pending_wrath_flat = 0
 		if is_offensive() and player_stats.pending_wrath_percent > 0:
 			var pwp_bonus: int = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * player_stats.pending_wrath_percent / 100.0)
 			_gauntlet_bonus_applied += pwp_bonus
@@ -1610,8 +1640,11 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			if player_stats and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
 				for pw_w in player_stats.inventory.equipped_weapons:
 					if pw_w and pw_w.wrath_weapon and pw_w.wrath > 0:
+						# The flat Wrath bonus rides the next attack as well —
+						# banked here, since the counter is zeroed right away.
 						player_stats.pending_wrath_percent += pw_w.wrath
-						print("[CARD] Purge Wrath: next attack +%d%% — Wrath purged" % pw_w.wrath)
+						player_stats.pending_wrath_flat += floori(pw_w.wrath * pw_w.rider_scale())
+						print("[CARD] Purge Wrath: next attack +%d%% and +%d flat — Wrath purged" % [pw_w.wrath, pw_w.wrath])
 						pw_w.wrath = 0
 		"stance_switch":
 			# Mits of Chingiz: strip 10 armor, then 2 Vulnerable either way.
@@ -2911,8 +2944,12 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 	# 80% bounce chance, -20% per bounce; each bounce repeats the attack's damage.
 	# The FIRST bounce honors the pre-rolled outcome shown on the card preview;
 	# later bounces roll live at the decayed odds.
+	# Each bounce leaps to the nearest enemy NOT yet hit by this shot; with no
+	# fresh enemy in the field, the arrow drops.
 	var bounce_chance = 80.0
 	var bounces = 0
+	var hit_so_far: Array = [target]
+	var current = target
 	while true:
 		var bounce_hits: bool
 		if bounces == 0 and has_been_rolled():
@@ -2921,14 +2958,39 @@ func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManage
 			bounce_hits = randf() * 100.0 < bounce_chance
 		if not bounce_hits:
 			break
+		var next_target = _nearest_other_enemy(current, hit_so_far)
+		if next_target == null:
+			print("[CARD] Trick Shot: no other enemy to bounce to")
+			break
 		bounces += 1
-		if target and target.has_method("take_damage"):
-			target.take_damage(total_damage, true, damage_type)
-			last_damage_dealt += total_damage
+		next_target.take_damage(total_damage, true, damage_type)
+		last_damage_dealt += total_damage
+		hit_so_far.append(next_target)
+		current = next_target
 		bounce_chance -= 20.0
 		if bounce_chance <= 0:
 			break
 	print("[CARD] Trick Shot! Dealt %d damage, bounced %d times (%d each)" % [total_damage, bounces, total_damage])
+
+## The living enemy nearest `from` that is not in `exclude` (Trick Shot's
+## bounces). Enemies are siblings under the battle scene, so the field is
+## reached through the target's parent.
+static func _nearest_other_enemy(from, exclude: Array):
+	if from == null or not is_instance_valid(from) or not (from is Node3D):
+		return null
+	var scene = from.get_parent()
+	if scene == null or not ("enemy_spawner" in scene) or scene.enemy_spawner == null:
+		return null
+	var best = null
+	var best_d := INF
+	for e in scene.enemy_spawner.get_living_enemies():
+		if e in exclude or not is_instance_valid(e):
+			continue
+		var d: float = from.position.distance_to(e.position)
+		if d < best_d:
+			best_d = d
+			best = e
+	return best
 
 func _execute_surrounding_ice(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
@@ -3842,6 +3904,7 @@ static func create_try_this() -> Card:
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.rng_outcomes_data = [{percent = 10.0}]
+	card.chance_is_downside = true  # the 10% is the backfire
 	card.target_types = ["ally"]
 	card.is_ranged = true
 	card.range_modifier = 3
@@ -5548,14 +5611,20 @@ func _execute_gargle_and_spit(player_stats: PlayerStats, buff_mgr: BuffManager =
 	print("[CARD] Gargle and Spit! Healed %d and +1 strength for 20 tempo" % heal_amount)
 
 func _execute_living_armor(buff_mgr: BuffManager) -> void:
-	## Gain Regen equal to your current stacks of Fortify.
+	## Top your Regen up to your Fortify's number — the Regen you had when the
+	## Fortify began (BuffManager stamps it on the buff).
 	if not buff_mgr:
 		return
 	var fort = buff_mgr.get_buff(Buff.BuffType.FORTIFY)
-	var stacks = fort.stacks if fort else 0
-	if stacks > 0:
-		buff_mgr.apply_buff(Buff.create_regen(stacks, 15, "Living Armor"))
-	print("[CARD] Living Armor! Regen %d (= Fortify stacks)" % stacks)
+	if fort == null:
+		print("[CARD] Living Armor: no Fortify to match")
+		return
+	var mark: int = fort.value
+	var regen = buff_mgr.get_buff(Buff.BuffType.REGEN)
+	var have: int = regen.value if regen else 0
+	if mark > have:
+		buff_mgr.apply_buff(Buff.create_regen(mark - have, 15, "Living Armor"))
+	print("[CARD] Living Armor! Regen %d -> %d (Fortify mark %d)" % [have, maxi(have, mark), mark])
 
 func _execute_multi_hit(target, hits: int, player_stats: PlayerStats, damage_reduction_pct: float, buff_mgr: BuffManager, crit_step: int) -> int:
 	## Deal base_damage to a single target `hits` times. crit_step adds that much
@@ -6378,7 +6447,7 @@ static func create_living_armor() -> Card:
 	var card = Card.new()
 	card.card_id = "living_armor"
 	card.card_name = "Living Armor"
-	card.description = "Gain regen until it is equal to your fortify."
+	card.description = "Gain Regen until it matches your Fortify's number (the Regen you had when the Fortify began)."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 30
