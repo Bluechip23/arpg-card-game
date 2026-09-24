@@ -1757,19 +1757,20 @@ func _setup_armor_shield() -> void:
 	badge.mouse_filter = Control.MOUSE_FILTER_STOP
 	badge.tooltip_text = "Armor: regular + unerring. Hits and decay eat the unerring shell first."
 	badge.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	# The old badge overhung the 22px HP bar by 3px top and bottom (28 tall).
-	# Keep the top edge, extend the bottom past the gap and the unerring bar.
-	var badge_h: float = 28.0 + STAT_BAR_GAP + UNERRING_BAR_HEIGHT
-	var badge_w: float = 26.0 * badge_h / 28.0
+	# Span the HP bar (22) plus the gap and the unerring bar beneath it, with
+	# a 2px overhang top and bottom; the width follows the height at the tall
+	# shield glyph's 22:24 silhouette ratio.
+	var badge_h: float = 22.0 + STAT_BAR_GAP + UNERRING_BAR_HEIGHT + 4.0
+	var badge_w: float = badge_h * 22.0 / 24.0
 	badge.offset_left = 6.0
 	badge.offset_right = 6.0 + badge_w
-	badge.offset_top = -14.0
-	badge.offset_bottom = -14.0 + badge_h
+	badge.offset_top = -13.0
+	badge.offset_bottom = -13.0 + badge_h
 	wrapper.add_child(badge)
 
 	var tex := TextureRect.new()
-	tex.texture = UIGlyphs.get_glyph("shield")
-	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex.texture = UIGlyphs.get_glyph("shield_tall")
+	tex.stretch_mode = TextureRect.STRETCH_SCALE
 	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tex.set_anchors_preset(Control.PRESET_FULL_RECT)

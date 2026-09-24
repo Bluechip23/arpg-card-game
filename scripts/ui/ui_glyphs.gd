@@ -21,6 +21,7 @@ static func get_glyph(key: String) -> Texture2D:
 		"stop_sign": _draw_stop_sign(img)
 		"play": _draw_play(img)
 		"shield": _draw_shield(img)
+		"shield_tall": _draw_shield_tall(img)
 		"cage": _draw_cage(img)
 		"raindrop": _draw_raindrop(img)
 		"mana_plus": _draw_mana_plus(img)
@@ -215,6 +216,27 @@ static func _draw_shield(img: Image) -> void:
 				col = rim
 			_px(img, px, py, col)
 	_line(img, 12, 5, 12, 18, rim, 1.0)
+
+static func _draw_shield_tall(img: Image) -> void:
+	## The HUD armor badge: the same kite shield drawn edge to edge of its
+	## cell, so a badge sized to span the HP and unerring bars is filled by
+	## the shield itself rather than by the cell's padding.
+	var steel := Color(0.45, 0.55, 0.75)
+	var rim := Color(0.75, 0.8, 0.9)
+	for py in range(0, SZ):
+		var w: int
+		if py <= 12:
+			w = 11
+		else:
+			w = 11 - (py - 12)
+		if w <= 0:
+			continue
+		for px in range(12 - w, 12 + w):
+			var col := steel
+			if py == 0 or px == 12 - w or px == 11 + w or (py > 12 and py == 23 - (11 - w)):
+				col = rim
+			_px(img, px, py, col)
+	_line(img, 12, 2, 12, 20, rim, 1.0)
 
 static func _draw_cage(img: Image) -> void:
 	## Birdcage: domed top, vertical bars, solid base.
