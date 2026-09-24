@@ -7445,6 +7445,8 @@ func _cryonics_end(p) -> void:
 ## Friendship: link both players' stats so heals are shared and incoming damage
 ## is split 50/50 (handled inside PlayerStats.heal/take_damage on pre-modifier
 ## amounts, so each side applies its own amplification/penalty).
+const FRIENDSHIP_TEMPO := 5  # the bond's timer (no duration was designed; 5 for now)
+
 func _link_friendship() -> void:
 	if _friendship_linked:
 		return
@@ -7458,6 +7460,21 @@ func _link_friendship() -> void:
 		s2.friendship_partner = s1
 		s2.friendship_partner_debuff = _p1_player.get_debuff_manager()
 		s2.friendship_partner_buff = _p1_player.get_buff_manager()
+	schedule_delayed_effect(FRIENDSHIP_TEMPO, _unlink_friendship, "friendship")
+
+func _unlink_friendship() -> void:
+	if not _friendship_linked:
+		return
+	_friendship_linked = false
+	for p in [_p1_player, _p2_player]:
+		if p == null or not is_instance_valid(p):
+			continue
+		var s = p.get_stats()
+		if s:
+			s.friendship_partner = null
+			s.friendship_partner_debuff = null
+			s.friendship_partner_buff = null
+	add_battle_log("Friendship fades.", Color(0.8, 0.6, 0.9))
 
 ## Misery Loves Company: if armed, spread every damage-over-time debuff on the
 ## player and any hit enemy across all the hit enemies (topping each up to the
@@ -10063,7 +10080,7 @@ func _on_armor_gained_spiked(amount: int) -> void:
 				_spiked_armor_accum -= g.armor_gain_thorns_threshold
 				var bm = player.get_buff_manager()
 				if bm:
-					bm.apply_buff(Buff.create_thorns(g.armor_gain_thorns_amount, 15, g.item_name))
+					bm.apply_buff(Buff.create_thorns(g.armor_gain_thorns_amount, 5, g.item_name))
 					add_battle_log("%s: +%d thorns!" % [g.item_name, g.armor_gain_thorns_amount], Color(0.8, 0.7, 0.5))
 			return
 
@@ -10148,13 +10165,13 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 		"well_placed_guard":
 			var bm2 = player.get_buff_manager()
 			if bm2:
-				bm2.apply_buff(Buff.create_thorns(5, 15, "Well placed guard"))
+				bm2.apply_buff(Buff.create_thorns(5, 5, "Well placed guard"))
 				add_battle_log("Well placed guard: +5 thorns", Color(0.8, 0.7, 0.5))
 		"imbue_tree":
 			var bm3 = player.get_buff_manager()
 			if bm3:
 				bm3.apply_buff(Buff.create_regen(5, 15, "imbue tree"))
-				bm3.apply_buff(Buff.create_thorns(10, 15, "imbue tree"))
+				bm3.apply_buff(Buff.create_thorns(10, 5, "imbue tree"))
 				add_battle_log("imbue tree: +5 regen, +10 thorns", Color(0.5, 0.9, 0.5))
 		_:
 			print("[MAIN] Unknown gauntlet world skill: %s" % effect_id)
@@ -10225,7 +10242,7 @@ func _shield_on_cycle_passives() -> void:
 		if shield.regen_per_cycle > 0:
 			buff_mgr.apply_buff(Buff.create_regen(shield.regen_per_cycle, 15, shield.item_name))
 		if shield.thorns_per_cycle > 0:
-			buff_mgr.apply_buff(Buff.create_thorns(shield.thorns_per_cycle, 15, shield.item_name))
+			buff_mgr.apply_buff(Buff.create_thorns(shield.thorns_per_cycle, 5, shield.item_name))
 
 ## A draw overflowed a full hand. Every equipped Overdraw rider collects.
 #endregion
@@ -11514,11 +11531,11 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Roar knocked back %d enemies" % nearby.size())
 
 		"taunt":
-			# Force nearby enemies to target this player for 2 turns
+			# Force nearby enemies to target this player for 5 tempo
 			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
 			for enemy in nearby:
-				enemy.apply_taunt(player, 10)
-			print("[MAIN] Taunted %d enemies for 2 turns" % nearby.size())
+				enemy.apply_taunt(player, 5)
+			print("[MAIN] Taunted %d enemies for 5 tempo" % nearby.size())
 
 		"charge":
 			# Move player forward 5 spaces, damaging enemies and interacting with obstacles

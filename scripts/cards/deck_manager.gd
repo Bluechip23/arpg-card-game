@@ -360,7 +360,7 @@ func draw_card() -> Card:
 
 	# In-hand tempo reduction (Boots of Speed) lasts until played or discarded —
 	# a card can only re-enter the hand through a draw, so a fresh draw is clean.
-	card.temp_hand_tempo_reduction = 0
+	card.clear_temp_mods()
 
 	# Feral Evocation: conversion only holds while the card stays in hand — a
 	# card re-entering through a draw is back to its printed element.
@@ -515,6 +515,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				return { "played": false, "half_tempo": false }
 
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +1m per prior play
+	mana_cost -= card.temp_mana_discount  # timed passive discount (Ancestral Aid)
 	if card.card_type == Card.CardType.ATTACK:
 		mana_cost -= next_attack_mana_discount
 
@@ -945,6 +946,7 @@ func process_turn() -> void:
 
 	# Process Erase: tick down erase timers on all cards and delete expired ones
 	_process_erase_timers()
+	_process_temp_mods()
 
 	# Djinn Wishes: every wish held in hand sears its holder once per cycle.
 	if player_stats:
@@ -993,6 +995,19 @@ func _process_erase_timers() -> void:
 						hand_changed = true
 					print("[DECK] Erased '%s' from %s (Erase: %d tempo expired)" % [card.card_name, pile_info["name"], card.erase_tempo])
 	if hand_changed:
+		hand_updated.emit()
+
+func _process_temp_mods() -> void:
+	## Timed in-hand tweaks (Ancestral Aid, Clean Exchange, Keep Them Guessing)
+	## run out after their tempo — 5 for now, so they expire at the next cycle.
+	var changed := false
+	for card in hand:
+		if card.temp_mod_tempo_left > 0:
+			card.temp_mod_tempo_left -= 5
+			if card.temp_mod_tempo_left <= 0:
+				card.clear_temp_mods()
+				changed = true
+	if changed:
 		hand_updated.emit()
 
 func get_peaked_card() -> Card:
@@ -1086,7 +1101,7 @@ func discard_card_from_hand(card: Card) -> bool:
 	if idx < 0:
 		return false
 	hand.remove_at(idx)
-	card.temp_hand_tempo_reduction = 0  # in-hand reduction ends on discard
+	card.clear_temp_mods()  # in-hand tweaks end on discard
 	discard_pile.append(card)
 	discards_this_cycle += 1
 	card_discarded.emit(card)

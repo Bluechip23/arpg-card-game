@@ -387,8 +387,8 @@ func _build_grid() -> void:
 		[NodeType.KEYSTONE, "Wild Abandon", "Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_amplify"}],
 		# --- Conversion keystones (ids 130-133). Ungated for now; final placement
 		# and any stat gates come with the null-node / layout pass. ---
-		[NodeType.KEYSTONE, "Sanguine Barrier", "Keystone: life steal no longer heals — stolen life becomes temporary HP instead.", {"keystone": "lifesteal_temp_hp"}],
-		[NodeType.KEYSTONE, "Living Bulwark", "Keystone: armor you would gain becomes temporary HP instead.", {"keystone": "armor_temp_hp"}],
+		[NodeType.KEYSTONE, "Sanguine Barrier", "Keystone: life steal no longer heals — stolen life becomes temporary HP (5 tempo) instead.", {"keystone": "lifesteal_temp_hp"}],
+		[NodeType.KEYSTONE, "Living Bulwark", "Keystone: armor you would gain becomes temporary HP (5 tempo) instead.", {"keystone": "armor_temp_hp"}],
 		[NodeType.KEYSTONE, "Arcane Blood", "Keystone: damage is split evenly between health and mana. If mana runs dry, health takes the rest — and death still comes only at 0 HP.", {"keystone": "mana_blood"}],
 		[NodeType.KEYSTONE, "Willspring", "Keystone: Determination now answers to your mana instead of your health — your stats swing as mana drains, not HP.", {"keystone": "det_mana"}],
 	]

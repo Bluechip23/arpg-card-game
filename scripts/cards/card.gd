@@ -384,6 +384,28 @@ var granted_by_item = null  # Reference to the ItemData that granted this card (
 # the card is played or discarded (cleared when the card leaves the hand and
 # again defensively on redraw), never a permanent change to the card.
 var temp_hand_tempo_reduction: int = 0
+# Timed in-hand tweaks from passives (Ancestral Aid, Clean Exchange, Keep Them
+# Guessing): a mana discount, a block bonus and a tempo cut that expire
+# together after temp_mod_tempo_left tempo (5 for now — the placeholder timer
+# for effects whose design never stated one) or when the card leaves the hand.
+var temp_mana_discount: int = 0
+var temp_block_bonus: int = 0
+var temp_mod_tempo_left: int = 0
+
+func apply_temp_mod(mana_off: int, tempo_off: int, block_on: int, tempo: int = 5) -> void:
+	temp_mana_discount += mana_off
+	temp_hand_tempo_reduction += tempo_off
+	temp_block_bonus += block_on
+	block += block_on
+	temp_mod_tempo_left = maxi(temp_mod_tempo_left, tempo)
+
+func clear_temp_mods() -> void:
+	if temp_block_bonus != 0:
+		block -= temp_block_bonus
+	temp_hand_tempo_reduction = 0
+	temp_mana_discount = 0
+	temp_block_bonus = 0
+	temp_mod_tempo_left = 0
 
 # --- Shared statics (moved up from the factory tail so all class state lives together) ---
 static var _factory_map: Dictionary = {}  # card_id -> factory method name
@@ -1126,7 +1148,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		# Studded belt: the long-dead on_self_thorns finally fires — slotted
 		# plays grant thorns.
 		if int(on_self.get("thorns", 0)) > 0 and buff_mgr:
-			buff_mgr.apply_buff(Buff.create_thorns(int(on_self["thorns"]), 15, slotted_in_item.item_name))
+			buff_mgr.apply_buff(Buff.create_thorns(int(on_self["thorns"]), 5, slotted_in_item.item_name))
 		# Slotted Sash: offensive cards +damage; defense cards +armor.
 		if int(on_self.get("offensive_damage", 0)) > 0 and is_offensive():
 			_gauntlet_bonus_applied += int(on_self["offensive_damage"])
@@ -1244,7 +1266,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		# (_colored_slot_discard) where the hand picker exists.
 		# Sword Breaker: a slotted play locks your armor down.
 		if int(on_self.get("fortify", 0)) > 0 and buff_mgr:
-			buff_mgr.apply_buff(Buff.create_fortify(15, slotted_in_item.item_name))
+			buff_mgr.apply_buff(Buff.create_fortify(5, slotted_in_item.item_name))
 		# Presence of Mind: extra block measured against the mana pool itself.
 		# Non-block cards get it as direct armor (nothing reads their `block`).
 		if on_self.get("block_max_mana_percent", 0.0) > 0.0 and player_stats:
@@ -1469,7 +1491,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"tight_rope":
 			# Boots of the Balancer instant: fired by the below-20%-health trigger.
 			if player_stats:
-				player_stats.add_temp_health(20, 15)
+				player_stats.add_temp_health(20, 5)
 			if buff_mgr:
 				buff_mgr.apply_buff(Buff.create_strengthen(15, 1, "Tight Rope"))
 			print("[CARD] Tight Rope: +20 temp health, +15 damage on next attack")
@@ -1633,7 +1655,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			if buff_mgr:
 				buff_mgr.apply_buff(Buff.create_strengthen(20, 4, "Feed into the Pain"))
 			if player_stats:
-				player_stats.add_temp_health(25, 15)
+				player_stats.add_temp_health(25, 5)
 			print("[CARD] Feed into the Pain: Strengthen 20 for 4 attacks, +25 temp HP")
 		"purge_wrath":
 			# Fallen's Wrath: arm the next attack with +Wrath% and reset the counter.
@@ -2204,6 +2226,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 						if sw.rider_fizzles():
 							print("[CARD] %s: off-hand %s fizzles" % [sw.item_name, str(sw_pair[0])])
 							continue
+						# Silence is timed, not stacked: "1 Silence" reads as one
+						# 5-tempo silence (Circe's Wand).
+						if str(sw_pair[0]) == "silenced":
+							sw_amt *= 5
 						target.apply_debuff(str(sw_pair[0]), sw_amt)
 						print("[CARD] %s: applied %d %s on hit" % [sw.item_name, sw_amt, str(sw_pair[0])])
 		# Colored slots (Mauls Sabre): the slot's debuff payload, plus the
@@ -3440,8 +3466,8 @@ func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = nu
 
 func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("silenced", 15)
-		target.apply_debuff("choke_dot", 3)
+		target.apply_debuff("silenced", 5)
+		target.apply_debuff("choke_dot", 1)
 		# The grip squeezes with your own strength: each round deals HALF a
 		# basic attack's damage, locked in at cast time.
 		if player_stats and "choke_dot_damage" in target:
@@ -3552,7 +3578,7 @@ static func create_taunt() -> Card:
 	var card = Card.new()
 	card.card_id = "taunt"
 	card.card_name = "Taunt"
-	card.description = "Taunt enemies around you. They must target you."
+	card.description = "Taunt enemies around you for 5 tempo. They must target you."
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
 	card.mana_cost = 40
@@ -3664,7 +3690,7 @@ static func create_morphine() -> Card:
 	var card = Card.new()
 	card.card_id = "morphine"
 	card.card_name = "Morphine"
-	card.description = "Gain 4 temp HP. After 3 turns, lose it and take 2 damage."
+	card.description = "Gain 4 temp HP. After 3 cycles (15 tempo), lose it and take 2 damage."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 30
@@ -4421,7 +4447,7 @@ static func create_choke() -> Card:
 	card.card_id = "choke"
 	card.school = CardSchool.SPELL
 	card.card_name = "Choke"
-	card.description = "Silence enemy. Deals half your auto attack damage every round."
+	card.description = "Silence the enemy for 5 tempo. At the end of the cycle it takes half your auto attack damage."
 	card.damage = 0
 	card.base_damage = 0
 	card.card_type = CardType.ATTACK
@@ -4468,7 +4494,7 @@ static func create_sweeping_disarm() -> Card:
 	var card = Card.new()
 	card.card_id = "sweeping_disarm"
 	card.card_name = "Sweeping Disarm"
-	card.description = "Surrounding enemies are disarmed. Deal 3 damage."
+	card.description = "Surrounding enemies are disarmed for 5 tempo. Deal 3 damage."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 20
@@ -4486,7 +4512,7 @@ static func create_consecutive_snap() -> Card:
 	var card = Card.new()
 	card.card_id = "consecutive_snap"
 	card.card_name = "Consecutive Snap"
-	card.description = "3 damage. Each reuse: +9 damage, -10m/-1t cost."
+	card.description = "3 damage. Sticky 3. Each reuse: +9 damage, -10m/-1t cost."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 30
@@ -6190,7 +6216,7 @@ static func create_vengeful_shield() -> Card:
 	var card = Card.new()
 	card.card_id = "vengeful_shield"
 	card.card_name = "Vengeful Shield"
-	card.description = "Instant. When taking damage that exposes the player, stun an enemy within melee range and gain 5 armor."
+	card.description = "Instant. When taking damage that exposes the player, stun an enemy within melee range for 5 tempo and gain 5 armor."
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0
@@ -6253,7 +6279,7 @@ static func create_vines() -> Card:
 	card.card_id = "vines"
 	card.school = CardSchool.SPELL
 	card.card_name = "Vines"
-	card.description = "Summon vines holding an enemy in place for 3 turns. Deal 4 damage per turn the enemy is held still."
+	card.description = "Summon vines holding an enemy in place for 3 cycles. Deal 4 damage per cycle the enemy is held still."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 20
@@ -6589,7 +6615,7 @@ static func create_friendship() -> Card:
 	card.card_id = "friendship"
 	card.school = CardSchool.SPELL
 	card.card_name = "Friendship"
-	card.description = "Choose two allies. When one heals, they both heal. When one takes damage, they split it."
+	card.description = "Choose two allies. For 5 tempo, when one heals, they both heal, and when one takes damage, they split it."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 30
@@ -6880,7 +6906,7 @@ static func create_poof_and_weave() -> Card:
 	var card = Card.new()
 	card.card_id = "poof_and_weave"
 	card.card_name = "Poof and Weave"
-	card.description = "Become invisible, gain 10 armor and draw a card."
+	card.description = "Become invisible for 5 tempo, gain 10 armor and draw a card."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 40
@@ -7059,7 +7085,7 @@ static func create_tight_rope() -> Card:
 	var card = Card.new()
 	card.card_id = "tight_rope"
 	card.card_name = "Tight Rope"
-	card.description = "Instant. When a hit puts you below 20% health, gain 20 temp health and +15 damage on your next attack."
+	card.description = "Instant. When a hit puts you below 20% health, gain 20 temp health for 5 tempo and +15 damage on your next attack."
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0
@@ -7272,7 +7298,7 @@ static func create_feed_into_the_pain() -> Card:
 	var card = Card.new()
 	card.card_id = "feed_into_the_pain"
 	card.card_name = "Feed into the Pain"
-	card.description = "Instant: when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP."
+	card.description = "Instant: when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP for 5 tempo."
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Instant"
 	card.mana_cost = 0
@@ -7765,7 +7791,7 @@ static func create_cupids_golden_arrow() -> Card:
 	var card = Card.new()
 	card.card_id = "cupids_golden_arrow"
 	card.card_name = "Golden"
-	card.description = "Deal 10 damage and apply 2 Vulnerable. 50% chance to taunt the enemy, forcing it toward you. An enemy carrying both the Golden and Lead marks turns into a tree for 4 tempo: it cannot act, and regrows 3 health on each of its first 3 tempo."
+	card.description = "Deal 10 damage and apply 2 Vulnerable. 50% chance to taunt the enemy for 5 tempo, forcing it toward you. An enemy carrying both the Golden and Lead marks turns into a tree for 4 tempo: it cannot act, and regrows 3 health on each of its first 3 tempo."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 45
@@ -7784,7 +7810,7 @@ static func create_cupids_lead_arrow() -> Card:
 	var card = Card.new()
 	card.card_id = "cupids_lead_arrow"
 	card.card_name = "Lead"
-	card.description = "Deal 10 damage and apply 2 Weaken. 50% chance to send the enemy fleeing away from you. An enemy carrying both the Golden and Lead marks turns into a tree for 4 tempo: it cannot act, and regrows 3 health on each of its first 3 tempo."
+	card.description = "Deal 10 damage and apply 2 Weaken. 50% chance to send the enemy fleeing away from you for 5 tempo. An enemy carrying both the Golden and Lead marks turns into a tree for 4 tempo: it cannot act, and regrows 3 health on each of its first 3 tempo."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 45
@@ -8236,7 +8262,7 @@ static func create_crops() -> Card:
 	var card = Card.new()
 	card.card_id = "crops"
 	card.card_name = "Crops"
-	card.description = "Grow 5 berry bushels at random within 8 squares of you. An ally who walks over one eats it for 20 life and 20 mana."
+	card.description = "Grow 5 berry bushels at random within 8 squares of you. An ally who walks over one eats it for 20 life and 20 mana. Bushels stay until eaten."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.school = CardSchool.SPELL

@@ -67,12 +67,12 @@ func _initialize() -> void:
 			scroll_idx = i
 	_check(not inv.equip_from_storage(scroll_idx, 0), "Return Scroll cannot be equipped")
 
-	# --- Manage Deck: adding a carried card goes to the DISCARD pile ---
+	# --- Manage Deck: adding a carried card shuffles it into the DRAW pile ---
 	var dm = load("res://scripts/cards/deck_manager.gd").new()
 	inv.stored_cards.append(Card.create_provider())
 	_check(inv.add_card_to_deck(0, dm), "add_card_to_deck succeeds")
-	_check(dm.discard_pile.size() == 1 and dm.discard_pile[0].card_id == "provider",
-		"added card landed in the discard pile")
+	_check(dm.draw_pile.size() == 1 and dm.draw_pile[0].card_id == "provider" and dm.discard_pile.is_empty(),
+		"added card landed in the draw pile")
 	_check(inv.get_stored_card_count() == 0, "card left the inventory")
 
 	# --- Destroying storage: items go, the Return Scroll refuses ---

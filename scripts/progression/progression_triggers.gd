@@ -589,8 +589,9 @@ func _trigger_skill_tree_on_discard(card: Card) -> void:
 			if not candidates.is_empty():
 				stats.st_ktg_discard_count = 0
 				var target_card: Card = candidates[randi() % candidates.size()]
-				target_card.tempo_cost = maxi(0, target_card.tempo_cost - 3)
-				main.add_battle_log("Keep Them Guessing: %s -3t" % target_card.card_name, Color(0.9, 0.3, 0.3))
+				# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+				target_card.apply_temp_mod(0, mini(3, target_card.tempo_cost), 0)
+				main.add_battle_log("Keep Them Guessing: %s -3t for 5 tempo" % target_card.card_name, Color(0.9, 0.3, 0.3))
 
 ## Instants (reactions) fire from hand without being "played" — the card-play
 ## hooks never see them, so their passives listen here.
@@ -718,15 +719,18 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		var last_was_defense = _last_played_card.card_type == Card.CardType.DEFENSE
 		if (drawn_is_defense and last_was_attack) or (drawn_is_attack and last_was_defense):
 			var ce_msg := ""
-			if card.tempo_cost > 0:
-				card.tempo_cost -= 1
+			var ce_tempo: int = 1 if card.tempo_cost > 0 else 0
+			var ce_block: int = 0
+			if ce_tempo > 0:
 				ce_msg = "-1t"
 			if drawn_is_defense:
-				var ce_block: int = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
-				card.block += ce_block
+				ce_block = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
 				ce_msg += (", " if ce_msg != "" else "") + "+%d block" % ce_block
+			if ce_tempo > 0 or ce_block > 0:
+				# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+				card.apply_temp_mod(0, ce_tempo, ce_block)
 			if ce_msg != "":
-				main.add_battle_log("Clean Exchange: %s %s" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
+				main.add_battle_log("Clean Exchange: %s %s for 5 tempo" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
 
 	# From the Hip: if an attack card, discount the most recently drawn card's
 	# mana (rank-scaled 10..75m) and, at high ranks, tempo (1..2t)
@@ -829,7 +833,7 @@ func _trigger_skill_tree_on_crit(target) -> void:
 			stats.st_eye_scrape_last_tempo = main.tempo_manager.get_global_tempo()
 			var buff_mgr = main.player.get_buff_manager()
 			if buff_mgr:
-				buff_mgr.apply_buff(Buff.create_invisible(10, "Eye Scrape"))
+				buff_mgr.apply_buff(Buff.create_invisible(5, "Eye Scrape"))
 				main._set_player_invisible(true)
 				main.add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
 
@@ -896,7 +900,7 @@ func _trigger_skill_tree_on_displacement() -> void:
 			var buff_mgr = main.player.get_buff_manager()
 			if buff_mgr:
 				stats.st_nysm_last_tempo = main.tempo_manager.get_global_tempo()
-				buff_mgr.apply_buff(Buff.create_invisible(10, "Now You See Me"))
+				buff_mgr.apply_buff(Buff.create_invisible(5, "Now You See Me"))
 				main._set_player_invisible(true)
 				main.add_battle_log("Now You See Me: Invisibility!", Color(0.8, 0.4, 0.9))
 
@@ -1059,9 +1063,9 @@ func _trigger_skill_tree_brad_on_heal() -> void:
 			var vc_lvl: int = stats.get_passive_level("vines_codependence")
 			var vc_thorns: int = PassiveScaling.value("vines_codependence", "thorns", vc_lvl)
 			var vc_regen: int = PassiveScaling.value("vines_codependence", "regen", vc_lvl)
-			buff_mgr.apply_buff(Buff.new(Buff.BuffType.THORNS, vc_thorns, 30))
+			buff_mgr.apply_buff(Buff.create_thorns(vc_thorns, 5, "Vines Codependence"))
 			if vc_regen > 0:
-				buff_mgr.apply_buff(Buff.create_regen(vc_regen, 15, "Vines Codependence"))
+				buff_mgr.apply_buff(Buff.create_regen(vc_regen, 5, "Vines Codependence"))
 				main.add_battle_log("Vines Codependence: +%d thorns, +%d regen" % [vc_thorns, vc_regen], Color(0.4, 0.9, 0.4))
 			else:
 				main.add_battle_log("Vines Codependence: +%d thorns" % vc_thorns, Color(0.4, 0.9, 0.4))
@@ -1117,7 +1121,8 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 				if attacks.size() > 0:
 					var target_card = attacks[randi() % attacks.size()]
 					var applied = mini(aa_discount, target_card.mana_cost)
-					target_card.mana_cost -= applied
+					# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+					target_card.apply_temp_mod(applied, 0, 0)
 					main.add_battle_log("Ancestral Aid: %s -%dm (offense)" % [target_card.card_name, applied], Color(0.4, 0.9, 0.4))
 			elif defense_count > attack_count:
 				stats.heal(aa_heal)

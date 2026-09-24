@@ -91,8 +91,12 @@ func _test_keep_them_guessing(stats, pt) -> void:
 	_check(stats.st_ktg_discard_count == 0, "a played card passing the discard pile does not count")
 	for _i in range(required):
 		dm.non_play_discard.emit(Card.create_block())
-	_check(slash.tempo_cost == 0 and stats.st_ktg_discard_count == 0,
-		"%d true discards cut a hand card by 3 tempo (Slash 3 → 0) and reset the count" % required)
+	_check(slash.tempo_cost == 3 and slash.temp_hand_tempo_reduction == 3 and slash.temp_mod_tempo_left == 5 \
+			and stats.st_ktg_discard_count == 0,
+		"%d true discards cut a hand card by 3 tempo for 5 tempo (Slash 3 → 0, printed cost untouched) and reset the count" % required)
+	dm._process_temp_mods()
+	_check(slash.temp_hand_tempo_reduction == 0 and slash.temp_mod_tempo_left == 0,
+		"the Keep Them Guessing cut expires after 5 tempo")
 
 func _test_quick_step(stats, pt) -> void:
 	print("-- Quick Step --")
@@ -115,8 +119,12 @@ func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	var base_block: int = block.block
 	var base_tempo: int = block.tempo_cost
 	pt._trigger_skill_tree_on_draw(block)
-	_check(block.block == base_block + PassiveScaling.value("clean_exchange", "block", 15) and block.tempo_cost == base_tempo - 1,
-		"drawing a Defense after playing an Attack: -1t and rank-15 block")
+	_check(block.block == base_block + PassiveScaling.value("clean_exchange", "block", 15) \
+			and block.tempo_cost == base_tempo and block.temp_hand_tempo_reduction == 1 and block.temp_mod_tempo_left == 5,
+		"drawing a Defense after playing an Attack: -1t and rank-15 block, both timed (5 tempo)")
+	block.clear_temp_mods()
+	_check(block.block == base_block and block.temp_hand_tempo_reduction == 0,
+		"clearing the Clean Exchange tweak restores the printed block and tempo")
 	_grant(stats, "mad_scientist")
 	var bm = main.player.get_buff_manager()
 	for b in bm.buffs.duplicate():

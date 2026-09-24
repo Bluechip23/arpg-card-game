@@ -54,7 +54,7 @@ func _build_legend() -> void:
 
 	# Buffs Section
 	_add_section_header("BUFFS")
-	_add_keyword("Thorns", "Deal X damage back to attackers, lose 1 thorn per hit", Color(0.8, 0.4, 0.8))
+	_add_keyword("Thorns", "Deal X damage back to attackers, lose 1 thorn per hit. Fade after 5 tempo unless the card says otherwise", Color(0.8, 0.4, 0.8))
 	_add_keyword("Focused", "Gain 10 extra mana per cycle", Color(0.4, 0.6, 1.0))
 	_add_keyword("Regen", "Heal X HP per cycle, lose 1 regen per cycle", Color(0.4, 1.0, 0.4))
 	_add_keyword("Blessed", "Draw X additional card(s) per cycle for Y cycles", Color(1.0, 0.9, 0.5))
