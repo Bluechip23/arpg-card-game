@@ -118,6 +118,11 @@ func play_animation(action: String, direction: CharacterAnimator.Direction = Cha
 	if _figure:
 		_figure.play_action(action, direction)
 
+func set_weapon_kind(kind: String, has_shield: bool) -> void:
+	## What the figure is holding (weapon layer + attack animation).
+	if _figure and _figure.has_method("set_weapon_kind"):
+		_figure.set_weapon_kind(kind, has_shield)
+
 func face_toward(world_pos: Vector3) -> void:
 	## Aim the figure exactly at a world point (used so attacks line up with the
 	## precise target rather than snapping to a cardinal direction).

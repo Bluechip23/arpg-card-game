@@ -3779,6 +3779,16 @@ func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
 	_update_block_button_visibility()
 	_update_attack_button_text()
+	_sync_figure_weapons()
+
+func _sync_figure_weapons() -> void:
+	## Each figure carries the weapon category it holds (layer + animation).
+	for p in _all_players():
+		if not is_instance_valid(p) or not p.has_method("set_weapon_kind"):
+			continue
+		var inv = p.get_inventory() if p.has_method("get_inventory") else null
+		if inv:
+			p.set_weapon_kind(inv.held_weapon_kind(), inv.has_shield_equipped())
 
 #endregion
 #region PASSIVE TRAY
@@ -4107,6 +4117,7 @@ func select_character(character: CharacterData) -> void:
 	# Rebuild gauntlet skill UI whenever equipment changes (e.g. equipping from side panel)
 	if inventory and not inventory.equipment_changed.is_connected(_on_equipment_changed):
 		inventory.equipment_changed.connect(_on_equipment_changed)
+	_sync_figure_weapons()
 	_on_hand_updated()
 	update_deck_info()
 	update_peaked_display()

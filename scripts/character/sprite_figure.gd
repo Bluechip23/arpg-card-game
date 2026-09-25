@@ -55,9 +55,12 @@ const PIXEL_SIZE := 0.03125
 # from the pack's layer-order guide.
 const WEAPON_FRONT_CELLS := [Vector2i(2, 1), Vector2i(3, 1)]
 
-## Card actions that read as heavy chops — these swing the axe; every other
-## attack-flavoured action swings the sword.
+## Card actions that read as heavy chops — these use the second, heavier
+## slash (with the held weapon); every other attack-flavoured action uses
+## the first slash, or the thrust / bow / cast the held weapon calls for.
 const AXE_ACTIONS := ["heavy_swing", "attack_heavy", "shed_weight", "wear_down"]
+## Shield-flavoured attacks: the pack's shield-bash frames, when a shield is held.
+const SHIELD_BASH_ACTIONS := ["shield_slam", "shield_bash", "bash", "bouncing_shield"]
 const GUARD_ACTIONS := ["block", "defend", "parry", "cover", "barricade", "harden",
 		"hold_the_line", "hunker_down", "approach_stance", "magic_barrier", "vengeful_shield"]
 const HOP_ACTIONS := ["roll", "dodge", "bob_and_weave", "heroic_leap", "rise"]
@@ -71,6 +74,16 @@ var _npc_sprite: Sprite3D = null
 var _weapon_back: Sprite3D = null
 var _weapon_front: Sprite3D = null
 var _weapon_textures := {}
+# The held weapon's category (see Inventory.held_weapon_kind) picks the
+# weapon layer and the attack animation; a shield adds the shield layer.
+var _weapon_kind := "none"
+var _has_shield := false
+var _shield_back: Sprite3D = null
+var _shield_front: Sprite3D = null
+var _shield_texture: Texture2D = null
+var _show_weapon := true   # false = bare-handed / ranged swing: no weapon layer
+var _show_shield := false
+var _shield_bash := false
 var _doll_page_textures := {}
 
 var _frames: Array = []
@@ -96,6 +109,8 @@ func setup(character_name: String, _sprite_path: String = "") -> void:
 	_npc_sprite = null
 	_weapon_back = null
 	_weapon_front = null
+	_shield_back = null
+	_shield_front = null
 	_weapon_textures.clear()
 	_doll_page_textures.clear()
 	_frames = []
@@ -147,10 +162,12 @@ func _setup_doll(outfit: String, hair: String, hat: String = "") -> void:
 	# cell centre — so the centred sprite lifts 12px for feet to touch ground.
 	var y := 12.0 * PIXEL_SIZE
 	var layer_count: int = _doll_page_textures["p1"].size()
+	_shield_back = _make_sprite(64, y, -0.03)
 	_weapon_back = _make_sprite(64, y, -0.02)
 	for i in range(layer_count):
 		_doll_layers.append(_make_sprite(64, y, 0.01 * i))
 	_weapon_front = _make_sprite(64, y, 0.05)
+	_shield_front = _make_sprite(64, y, 0.06)
 	_load_weapons()
 
 
@@ -158,18 +175,35 @@ func _setup_npc(sheet_path: String) -> void:
 	_mode = "npc"
 	# NPC bodies fill their 32px cell to the bottom edge.
 	var y := 16.0 * PIXEL_SIZE
+	_shield_back = _make_sprite(64, y - 4.0 * PIXEL_SIZE, -0.03)
 	_weapon_back = _make_sprite(64, y - 4.0 * PIXEL_SIZE, -0.02)
 	_npc_sprite = _make_sprite(32, y, 0.0)
 	_npc_sprite.texture = load(sheet_path)
 	_weapon_front = _make_sprite(64, y - 4.0 * PIXEL_SIZE, 0.05)
+	_shield_front = _make_sprite(64, y - 4.0 * PIXEL_SIZE, 0.06)
 	_load_weapons()
 
 
 func _load_weapons() -> void:
+	## The pack's one-handed weapon layers: sword, axe and mace (the mace
+	## stands in for hammers). Daggers and spears borrow the sword layer with
+	## the thrust frames; bows and magic weapons have no carried layer yet.
 	_weapon_textures["sword"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_sw01_v01.png" % SEED)
 	_weapon_textures["axe"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_ax01_v01.png" % SEED)
+	_weapon_textures["mace"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_mc01_v01.png" % SEED)
+	_shield_texture = load("%s/char_a_pONE3/7tlb/char_a_pONE3_7tlb_sh01_v01.png" % SEED)
+	_shield_back.texture = _shield_texture
+	_shield_front.texture = _shield_texture
 	_weapon_back.visible = false
 	_weapon_front.visible = false
+	_shield_back.visible = false
+	_shield_front.visible = false
+
+
+## Tell the figure what it is holding (called whenever equipment changes).
+func set_weapon_kind(kind: String, has_shield: bool) -> void:
+	_weapon_kind = kind if kind != "" else "none"
+	_has_shield = has_shield
 
 
 func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
@@ -204,16 +238,21 @@ func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
 
 func play_action(action: String, direction: int = CharacterAnimator.Direction.SOUTH) -> void:
 	set_facing(direction)
+	# A held shield turns shield-flavoured attacks into the pack's shield
+	# bash (its bespoke effect, if any, still plays on top).
+	if _has_shield and action in SHIELD_BASH_ACTIONS:
+		_play("attack_shield_bash")
+		if _fx and ActionFX.handles(action):
+			_fx.play(action)
+		return
 	# Bespoke per-card effects first: ActionFX supplies the signature visual
 	# (icicle, fireball, flying pig, …) and we play a matching body motion.
 	if _fx and ActionFX.handles(action):
 		_play_body(ActionFX.body_for(action))
 		_fx.play(action)
 		return
-	if action in AXE_ACTIONS:
-		_play("attack_axe")
-	elif _is_attack(action):
-		_play("attack_sword")
+	if action in AXE_ACTIONS or _is_attack(action):
+		_play_weapon_attack(action in AXE_ACTIONS)
 	elif action in GUARD_ACTIONS:
 		_guard_fx()
 	elif action in HOP_ACTIONS:
@@ -227,6 +266,30 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 		# Casts, buffs, taunts, item use, … — a readable generic "do something".
 		flash(Color(1.0, 1.0, 0.8))
 		_bounce_fx()
+
+
+## The attack the held weapon calls for. Heavy chops use the pack's second
+## slash; daggers and spears thrust; a bow looses an arrow; magic weapons
+## cast (no carried sprite exists for those yet); bare hands swing empty.
+func _play_weapon_attack(heavy: bool) -> void:
+	match _weapon_kind:
+		"bow":
+			_bounce_fx()
+			if _fx:
+				_fx.play("bow_shot")
+		"wand", "tome", "staff":
+			flash(Color(0.8, 0.85, 1.0))
+			_bounce_fx()
+		"axe":
+			_play("attack_axe")
+		"hammer":
+			_play("attack_hammer")
+		"dagger", "spear":
+			_play("attack_thrust")
+		"none":
+			_play("attack_unarmed")
+		_:
+			_play("attack_sword2" if heavy else "attack_sword")
 
 
 func _is_attack(action: String) -> bool:
@@ -464,21 +527,37 @@ func _play(anim: String, _force: bool = false) -> void:
 			_hide_weapon()
 		"attack_sword":
 			_start_attack("sword", 0)
+		"attack_sword2":
+			_start_attack("sword", 4)
 		"attack_axe":
 			_start_attack("axe", 4)
+		"attack_hammer":
+			_start_attack("mace", 4)
+		"attack_thrust":
+			_start_attack("sword", 0, 4)
+		"attack_unarmed":
+			_start_attack("", 0)
+		"attack_shield_bash":
+			_start_attack("", 4, 4, true)
 	_apply_frame()
 
 
-func _start_attack(weapon: String, col0: int) -> void:
+## pONE3 layout: top half = slash 1 (cols 0-3) and slash 2 (cols 4-7),
+## bottom half (row_off 4) = thrust (cols 0-3) and shield bash (cols 4-7).
+func _start_attack(weapon: String, col0: int, row_off: int = 0, shield_bash: bool = false) -> void:
 	_looping = false
 	_attacking = true
 	if _mode == "doll":
 		_set_doll_page("pONE3")
 	_frames = []
 	for i in range(4):
-		_frames.append({"col": col0 + i, "row": DOLL_ROW[facing], "t": ATTACK_TIMES[i]})
-	_weapon_back.texture = _weapon_textures[weapon]
-	_weapon_front.texture = _weapon_textures[weapon]
+		_frames.append({"col": col0 + i, "row": DOLL_ROW[facing] + row_off, "t": ATTACK_TIMES[i]})
+	_show_weapon = weapon != "" and _weapon_textures.has(weapon)
+	if _show_weapon:
+		_weapon_back.texture = _weapon_textures[weapon]
+		_weapon_front.texture = _weapon_textures[weapon]
+	_show_shield = _has_shield and _shield_texture != null and _shield_back != null
+	_shield_bash = shield_bash
 
 
 func _set_doll_page(page: String) -> void:
@@ -491,6 +570,9 @@ func _hide_weapon() -> void:
 	if _weapon_back:
 		_weapon_back.visible = false
 		_weapon_front.visible = false
+	if _shield_back:
+		_shield_back.visible = false
+		_shield_front.visible = false
 	if _npc_sprite:
 		_npc_sprite.position.x = 0.0
 		_npc_sprite.position.z = 0.0
@@ -527,13 +609,20 @@ func _apply_frame() -> void:
 	_frame_i = clampi(_frame_i, 0, _frames.size() - 1)
 	var f: Dictionary = _frames[_frame_i]
 	if _attacking:
-		var row: int = DOLL_ROW[facing]
-		var in_front := Vector2i(row, f["col"]) in WEAPON_FRONT_CELLS
-		_weapon_front.visible = in_front
-		_weapon_back.visible = not in_front
+		var row: int = f["row"]
+		var in_front := Vector2i(row % 4, f["col"]) in WEAPON_FRONT_CELLS
+		_weapon_front.visible = _show_weapon and in_front
+		_weapon_back.visible = _show_weapon and not in_front
 		var rect := Rect2(f["col"] * 64, row * 64, 64, 64)
 		_weapon_front.region_rect = rect
 		_weapon_back.region_rect = rect
+		if _shield_back:
+			# The shield rides behind the body except when it is the thing
+			# swinging (shield bash).
+			_shield_front.visible = _show_shield and _shield_bash
+			_shield_back.visible = _show_shield and not _shield_bash
+			_shield_front.region_rect = rect
+			_shield_back.region_rect = rect
 		if _mode == "doll":
 			for s in _doll_layers:
 				s.region_rect = rect

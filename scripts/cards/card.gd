@@ -337,12 +337,15 @@ var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool)
 var keywords: Array = []  # of String
 
 ## Conditional keyword: the card is melee or ranged depending on the weapon
-## in hand — a bow or a magic weapon (wand, tome, staff) makes it Ranged 5,
-## a melee weapon (or bare hands) makes it melee — instead of a fixed
-## is_ranged. DeckManager resolves it as the card enters the hand and again
+## in hand — a bow makes it Ranged 5, a melee weapon (or bare hands) makes it
+## melee — instead of a fixed is_ranged. The basic Attack card alone also
+## goes ranged with a magic weapon (conditional_magic_ranged). DeckManager resolves it as the card enters the hand and again
 ## whenever equipment changes (apply_conditional_range). Playing it ranged
 ## costs CONDITIONAL_RANGED_TEMPO_PENALTY extra tempo.
 var conditional_range: bool = false
+## Only the basic Attack card also counts a magic weapon (wand, tome, staff)
+## as ranged; other Conditional cards go by the bow alone.
+var conditional_magic_ranged: bool = false
 const CONDITIONAL_RANGED_TEMPO_PENALTY := 1
 
 ## range_modifier for cards that reach anywhere on the field (Communal
@@ -2607,6 +2610,7 @@ static func create_slash() -> Card:
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
 	card.conditional_range = true
+	card.conditional_magic_ranged = true
 	card.keywords = ["attack", "offensive", "conditional"]
 	return card
 
@@ -4048,7 +4052,7 @@ static func create_exacerbate_wounds() -> Card:
 	card.mana_cost = 0
 	card.tempo_cost = 7
 	card.target_types = ["enemy"]
-	card.conditional_range = true  # Melee with a blade, ranged (+1 tempo) with a bow or magic weapon
+	card.conditional_range = true  # Melee with a blade, ranged (+1 tempo) with a bow
 	card.keywords = ["attack", "offensive", "conditional"]
 	return card
 

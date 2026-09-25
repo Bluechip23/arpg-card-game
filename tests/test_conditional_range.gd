@@ -77,20 +77,23 @@ func _initialize() -> void:
 	_check(not inv.holds_ranged_weapon(), "bow unequipped")
 	_check(not drawn.is_ranged and not added.is_ranged, "unequipping the bow flips both back to melee")
 
-	# Magic weapons count as ranged too: a wand and a staff both make the
-	# Attack card play at Ranged 5.
+	# Magic weapons make the basic ATTACK card ranged — and only it: other
+	# Conditional cards still go by the bow alone.
 	var wand := ItemData.create_wand_of_clarity()
 	_check(inv.equip_item(wand, 0), "wand equips")
-	_check(inv.holds_ranged_weapon(), "a wand counts as a ranged weapon")
+	_check(inv.holds_magic_weapon() and not inv.holds_ranged_weapon(), "a wand is a magic weapon, not a ranged one")
 	var atk_in_hand := Card.create_slash()
 	dm.add_card_to_hand(atk_in_hand)
 	_check(atk_in_hand.is_ranged and atk_in_hand.get_effective_range() == 5, "Attack drawn with a wand in hand is Ranged 5")
+	_check(not drawn.is_ranged and not added.is_ranged, "Exacerbate Wounds stays melee with a wand")
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 	var staff := ItemData.create_magic_staff()
 	_check(inv.equip_item(staff, 0), "staff equips")
-	_check(inv.holds_ranged_weapon() and atk_in_hand.is_ranged, "a staff keeps the Attack card ranged")
+	_check(inv.holds_magic_weapon() and atk_in_hand.is_ranged, "a staff keeps the Attack card ranged")
+	_check(inv.held_weapon_kind() == "staff", "the held weapon kind reads staff")
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
-	_check(not inv.holds_ranged_weapon() and not atk_in_hand.is_ranged, "bare hands: the Attack card is melee again")
+	_check(not inv.holds_magic_weapon() and not atk_in_hand.is_ranged, "bare hands: the Attack card is melee again")
+	_check(inv.held_weapon_kind() == "none", "bare hands read as no weapon kind")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

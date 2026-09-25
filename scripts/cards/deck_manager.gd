@@ -62,7 +62,9 @@ func connect_inventory(inv) -> void:
 func _apply_conditional_range(card: Card) -> void:
 	## Resolve a Conditional card's melee/ranged state from the held weapon.
 	if card and card.conditional_range:
-		card.apply_conditional_range(inventory != null and inventory.holds_ranged_weapon())
+		var ranged: bool = inventory != null and (inventory.holds_ranged_weapon() \
+			or (card.conditional_magic_ranged and inventory.holds_magic_weapon()))
+		card.apply_conditional_range(ranged)
 
 func refresh_conditional_ranges() -> void:
 	## Re-resolve every Conditional card in hand (weapon swapped).
