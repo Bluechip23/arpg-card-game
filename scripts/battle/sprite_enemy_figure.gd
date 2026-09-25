@@ -433,6 +433,25 @@ func _measure_ground_rows() -> float:
 
 ## Drawn size of the current frame in world units (width, height): the
 ## opaque bounds of the region, through the rig scale. For portrait cameras.
+## A still of exactly what the battlefield shows right now (the current sheet
+## cell, before tint/flip), for the tracker squares and the inspect portrait.
+func portrait_texture() -> Texture2D:
+	if _sprite == null or _sprite.texture == null:
+		return null
+	var at := AtlasTexture.new()
+	at.atlas = _sprite.texture
+	at.region = _sprite.region_rect
+	return at
+
+
+func portrait_tint() -> Color:
+	return _tint
+
+
+func portrait_flipped() -> bool:
+	return _sprite != null and _sprite.flip_h
+
+
 func portrait_extent() -> Vector2:
 	if _sprite == null or _sprite.texture == null:
 		return Vector2(1.0, 1.5)

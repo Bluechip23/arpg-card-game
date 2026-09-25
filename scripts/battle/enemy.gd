@@ -1041,6 +1041,21 @@ func _setup_sprite() -> void:
 	if outline:
 		outline.visible = false
 
+## The enemy's picture as it stands on the field (null for the generic brute
+## tiers, which have no sprite).
+func get_portrait_texture() -> Texture2D:
+	if _enemy_figure and _enemy_figure.has_method("portrait_texture"):
+		return _enemy_figure.portrait_texture()
+	return null
+
+func get_portrait_tint() -> Color:
+	if _enemy_figure and _enemy_figure.has_method("portrait_tint"):
+		return _enemy_figure.portrait_tint()
+	return Color.WHITE
+
+func is_portrait_flipped() -> bool:
+	return _enemy_figure != null and _enemy_figure.has_method("portrait_flipped") and _enemy_figure.portrait_flipped()
+
 func _on_enemy_animation_finished(anim_name: String) -> void:
 	if _enemy_animator and anim_name != "stance" and anim_name != "walking":
 		_enemy_animator.play("stance", CharacterAnimator.Direction.SOUTH)
