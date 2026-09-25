@@ -70,6 +70,27 @@ var _current_vendor_node: StaticBody3D = null
 var _mold_selection: ItemData = null  # Blacksmith: mythic awaiting its confirming second click
 var _olorin_tutorial: OlorinTutorial = null  # Olorin's in-town lessons (A Mythic Find)
 
+# --- Town HUD: the same top-right icon bar as the battlefield, so the
+# player can manage character, passives, quests, deck and settings from
+# home. The hand stays hidden — there is nothing to play in town.
+const HudIconBarScript = preload("res://scripts/ui/hud_icon_bar.gd")
+const CharacterPanelScene = preload("res://scenes/character/character_panel.tscn")
+const SkillTreeScene = preload("res://scenes/progression/skill_tree.tscn")
+const SphereGridScene = preload("res://scenes/progression/sphere_grid.tscn")
+const HelpPanelScene = preload("res://scenes/ui/help_panel.tscn")
+var hud_icon_bar = null
+var character_panel = null
+var skill_tree_ui = null
+var sphere_grid_ui = null
+var sphere_inventory: SphereInventory = null
+var progression_triggers: ProgressionTriggers = null
+var help_panel = null
+var _quest_log_panel: PanelContainer = null
+var _quest_log_list: VBoxContainer = null
+var _deck_panel: PanelContainer = null
+var _deck_list: VBoxContainer = null
+var _deck_counts_label: Label = null
+
 # Stash UI state
 var _stash_panel: PanelContainer = null
 var _stash_open: bool = false
@@ -243,6 +264,9 @@ func _ready() -> void:
 	_camera_pan = Vector3.ZERO
 	_update_camera()
 
+	# The top-right menu bar (character, level, quests, help, deck).
+	_setup_town_hud()
+
 	# Coming home: bank the satchel, weather any struck trial, first-time
 	# flute hand-off. Shown as a notice overlay once the town is up.
 	_arrive_home()
@@ -387,6 +411,22 @@ func _input(event: InputEvent) -> void:
 					_close_stash_ui()
 				elif vendor_open:
 					_close_vendor()
+				elif _quest_log_panel and _quest_log_panel.visible:
+					_quest_log_panel.visible = false
+				elif _deck_panel and _deck_panel.visible:
+					_deck_panel.visible = false
+				elif help_panel and help_panel.visible:
+					help_panel.visible = false
+					help_panel.closed.emit()
+			KEY_I:
+				if not (_modal_open or vendor_open or _stash_open) and character_panel:
+					character_panel.toggle_panel()
+			KEY_L:
+				if not (_modal_open or vendor_open or _stash_open) and skill_tree_ui:
+					skill_tree_ui.toggle_panel()
+			KEY_H:
+				if not (_modal_open or vendor_open or _stash_open):
+					_on_hud_help_pressed()
 			KEY_COMMA:
 				_camera_distance = min(CAMERA_ZOOM_MAX, _camera_distance + CAMERA_ZOOM_STEP)  # closer
 				_update_camera()
@@ -3081,6 +3121,17 @@ func _departure_progression() -> Dictionary:
 	# Re-snapshot the inventory from the live object: consumable counters
 	# (culling stones, mythic molds) are plain ints, so — unlike the shared
 	# item arrays — changes made in town would otherwise be lost.
+	# Passives and the sphere grid can be spent from the town HUD: carry the
+	# live tree/grid objects and the sphere counts forward.
+	if skill_tree_ui and skill_tree_ui.skill_tree:
+		saved_progression["skill_tree"] = skill_tree_ui.skill_tree
+	if sphere_grid_ui and sphere_grid_ui.sphere_grid:
+		saved_progression["sphere_grid"] = sphere_grid_ui.sphere_grid
+	if sphere_inventory:
+		saved_progression["sphere_inventory"] = {
+			"spheres": sphere_inventory.spheres.duplicate(),
+			"retrospective_tokens": sphere_inventory.retrospective_tokens,
+		}
 	var live_inv = player.get_inventory() if player.has_method("get_inventory") else null
 	if live_inv:
 		saved_progression["inventory"] = {
@@ -3187,25 +3238,310 @@ func _create_town_hall_npc() -> void:
 	$Vendors.add_child(hall)
 	print("[TOWN] Created Town Hall at position %s" % hall.position)
 
+# ============================================
+# TOWN HUD (top-right menu bar)
+# ============================================
+
+func _setup_town_hud() -> void:
+	var ui = $UI as CanvasLayer
+	var stats = player.get_stats()
+	var inv = player.get_inventory() if player.has_method("get_inventory") else null
+
+	# Character / inventory window (equipment, backpack, card slots).
+	character_panel = CharacterPanelScene.instantiate()
+	add_child(character_panel)
+	character_panel.connect_stats(stats, inv, null, player.get_buff_manager(), player.get_debuff_manager())
+
+	# Level progress: the skill tree with its sphere-grid tab. Points are
+	# spent through the same triggers the battlefield uses.
+	sphere_inventory = SphereInventory.new()
+	sphere_inventory.name = "SphereInventory"
+	add_child(sphere_inventory)
+	if player_progression.has("sphere_inventory"):
+		var sp_data: Dictionary = player_progression["sphere_inventory"]
+		sphere_inventory.load_spheres(sp_data.get("spheres", {}))
+		sphere_inventory.retrospective_tokens = int(sp_data.get("retrospective_tokens", 0))
+
+	sphere_grid_ui = SphereGridScene.instantiate()
+	add_child(sphere_grid_ui)
+	sphere_grid_ui.player_stats = stats
+	if player_progression.get("sphere_grid", null) != null:
+		sphere_grid_ui.sphere_grid = player_progression["sphere_grid"]
+	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
+
+	skill_tree_ui = SkillTreeScene.instantiate()
+	add_child(skill_tree_ui)
+	skill_tree_ui.player_stats = stats
+	skill_tree_ui.sphere_inventory = sphere_inventory
+	skill_tree_ui.connect_sphere_grid(sphere_grid_ui)
+	var tree: SkillTreeData = player_progression.get("skill_tree", null)
+	if tree == null and starting_character:
+		tree = SkillTreeData.create_tree_for(starting_character.get_base_character(), 20, starting_character.archetypes)
+		if player_progression.has("skill_tree_choices"):
+			tree.apply_choices(player_progression["skill_tree_choices"])
+	if tree != null:
+		skill_tree_ui.set_skill_tree(tree)
+		skill_tree_ui.set_player_level(stats.current_level if stats else 1)
+
+	progression_triggers = ProgressionTriggers.new()
+	progression_triggers.name = "ProgressionTriggers"
+	progression_triggers.init(self)
+	add_child(progression_triggers)
+	sphere_grid_ui.node_unlocked.connect(progression_triggers._on_sphere_grid_node_unlocked)
+	skill_tree_ui.stats_allocated.connect(progression_triggers._on_skill_tree_stats_allocated)
+
+	# Help + settings.
+	help_panel = HelpPanelScene.instantiate()
+	add_child(help_panel)
+
+	# The icon bar itself.
+	hud_icon_bar = HudIconBarScript.new()
+	hud_icon_bar.name = "HudIconBar"
+	ui.add_child(hud_icon_bar)
+	hud_icon_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	hud_icon_bar.offset_left = -360.0
+	hud_icon_bar.offset_top = 8.0
+	hud_icon_bar.offset_right = -8.0
+	hud_icon_bar.offset_bottom = 46.0
+	hud_icon_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	hud_icon_bar.alignment = BoxContainer.ALIGNMENT_END
+	hud_icon_bar.character_pressed.connect(func(): character_panel.toggle_panel())
+	hud_icon_bar.level_pressed.connect(func():
+		skill_tree_ui.toggle_panel()
+		_refresh_hud_notifications())
+	hud_icon_bar.quest_pressed.connect(_toggle_quest_log)
+	hud_icon_bar.help_pressed.connect(_on_hud_help_pressed)
+	hud_icon_bar.deck_pressed.connect(_toggle_deck_panel)
+	_refresh_hud_notifications()
+
+func _on_hud_help_pressed() -> void:
+	if help_panel == null:
+		return
+	if help_panel.visible:
+		help_panel.visible = false
+		help_panel.closed.emit()
+	else:
+		help_panel.show_panel(0)
+
+## Battle-log shim for the shared progression triggers: in town the line
+## goes to the console (there is no combat log to write to).
+func add_battle_log(text: String, _color = null) -> void:
+	print("[TOWN] %s" % text)
+
+func _refresh_hud_notifications() -> void:
+	if hud_icon_bar == null:
+		return
+	var stats = player.get_stats()
+	hud_icon_bar.set_level_notify(stats != null and (stats.unspent_stat_points > 0 or stats.unspent_passive_points > 0))
+	hud_icon_bar.set_quest_notify(false)
+
+func _update_flash_button() -> void:
+	pass  # no flash row in town
+
+func _make_hud_side_panel(title_text: String) -> Dictionary:
+	## A centred-right window with a title, a scrolling list and a Close button.
+	var ui = $UI as CanvasLayer
+	var p = PanelContainer.new()
+	ui.add_child(p)
+	p.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	p.offset_left = -330.0
+	p.offset_top = -260.0
+	p.offset_right = -10.0
+	p.offset_bottom = 260.0
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.15, 0.96)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.4, 0.4, 0.5)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 10.0
+	style.content_margin_right = 10.0
+	style.content_margin_top = 10.0
+	style.content_margin_bottom = 10.0
+	p.add_theme_stylebox_override("panel", style)
+	var vbox = VBoxContainer.new()
+	p.add_child(vbox)
+	var title = Label.new()
+	title.text = title_text
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	vbox.add_child(title)
+	var sub = Label.new()
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.add_theme_font_size_override("font_size", 13)
+	sub.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
+	vbox.add_child(sub)
+	vbox.add_child(HSeparator.new())
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+	var list = VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.pressed.connect(func(): p.visible = false)
+	vbox.add_child(close_btn)
+	p.visible = false
+	return {"panel": p, "list": list, "sub": sub}
+
+func _toggle_quest_log() -> void:
+	if _quest_log_panel == null:
+		var made := _make_hud_side_panel("Quest Journal")
+		_quest_log_panel = made["panel"]
+		_quest_log_list = made["list"]
+		made["sub"].visible = false
+	_quest_log_panel.visible = not _quest_log_panel.visible
+	if _quest_log_panel.visible:
+		_refresh_quest_log()
+
+func _refresh_quest_log() -> void:
+	for child in _quest_log_list.get_children():
+		child.queue_free()
+	if quest_manager == null:
+		return
+	var active = quest_manager.get_active_quests()
+	var completed = quest_manager.get_completed_quests()
+	if active.size() > 0:
+		_quest_log_list.add_child(_quest_header("Active Quests", Color(1.0, 0.85, 0.3)))
+		for q in active:
+			_quest_log_list.add_child(_quest_entry(q))
+	if completed.size() > 0:
+		_quest_log_list.add_child(HSeparator.new())
+		_quest_log_list.add_child(_quest_header("Completed Quests", Color(0.5, 0.8, 0.5)))
+		for q in completed:
+			_quest_log_list.add_child(_quest_entry(q))
+	if active.is_empty() and completed.is_empty():
+		var none = Label.new()
+		none.text = "No quests yet. Talk to the folk around the plaza."
+		none.add_theme_font_size_override("font_size", 14)
+		none.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		_quest_log_list.add_child(none)
+
+func _quest_header(text: String, color: Color) -> Label:
+	var h = Label.new()
+	h.text = text
+	h.add_theme_font_size_override("font_size", 16)
+	h.add_theme_color_override("font_color", color)
+	return h
+
+func _quest_entry(quest) -> PanelContainer:
+	var p = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.14, 0.8)
+	style.border_width_left = 1
+	style.border_color = Color(0.3, 0.3, 0.4)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	p.add_theme_stylebox_override("panel", style)
+	var vbox = VBoxContainer.new()
+	p.add_child(vbox)
+	var name_lbl = Label.new()
+	name_lbl.text = quest.name
+	name_lbl.add_theme_font_size_override("font_size", 15)
+	name_lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5) if quest.is_complete else Color(1.0, 0.9, 0.6))
+	vbox.add_child(name_lbl)
+	var desc = Label.new()
+	desc.text = quest.description
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.add_theme_font_size_override("font_size", 12)
+	desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	vbox.add_child(desc)
+	for o in quest.objectives:
+		var line = Label.new()
+		var done: bool = o.current >= o.count
+		var text: String = o.label if o.label != "" else "%s %s" % [o.type, o.target]
+		if o.count > 1:
+			text += " (%d/%d)" % [mini(o.current, o.count), o.count]
+		line.text = ("  ✓ " if done else "  • ") + text
+		line.add_theme_font_size_override("font_size", 12)
+		line.add_theme_color_override("font_color", Color(0.5, 0.9, 0.5) if done else Color(0.85, 0.85, 0.9))
+		vbox.add_child(line)
+	return p
+
+func _toggle_deck_panel() -> void:
+	if _deck_panel == null:
+		var made := _make_hud_side_panel("Deck Contents")
+		_deck_panel = made["panel"]
+		_deck_list = made["list"]
+		_deck_counts_label = made["sub"]
+	_deck_panel.visible = not _deck_panel.visible
+	if _deck_panel.visible:
+		_refresh_deck_panel()
+
+func _town_deck_card_ids() -> Array:
+	## The cards that will be in the battle deck: the carried deck snapshot
+	## when one exists (it is what the battlefield rebuilds from), else the
+	## character's purchase list.
+	var state: Dictionary = _deck_state()
+	if state.is_empty():
+		return _get_current_deck_card_ids()
+	var ids: Array = []
+	for pile in ["hand", "draw_pile", "discard_pile", "jail_pile", "maintained"]:
+		for e in state.get(pile, []):
+			ids.append(e.get("id", "") if e is Dictionary else str(e))
+	return ids
+
+func _refresh_deck_panel() -> void:
+	for child in _deck_list.get_children():
+		child.queue_free()
+	var counts: Dictionary = {}
+	var names: Dictionary = {}
+	for cid in _town_deck_card_ids():
+		if cid == "":
+			continue
+		counts[cid] = int(counts.get(cid, 0)) + 1
+		if not names.has(cid):
+			var c = Card.create_by_id(cid)
+			names[cid] = c.card_name if c else cid.capitalize()
+	var total := 0
+	for cid in counts:
+		total += counts[cid]
+	_deck_counts_label.text = "Deck: %d / %d\nBuy and cull cards at the Card Dealer." % [total, DeckManager.MAX_DECK_SIZE]
+	var ordered: Array = counts.keys()
+	ordered.sort_custom(func(a, b): return names[a] < names[b])
+	for cid in ordered:
+		var row = Label.new()
+		row.text = "%s (%d)" % [names[cid], counts[cid]]
+		row.add_theme_font_size_override("font_size", 14)
+		row.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		_deck_list.add_child(row)
+
 func _create_dojo() -> void:
-	## The Dojo: a low timber hall on the plaza's east side. Interacting steps
-	## straight into the training interior (main.tscn, interior "dojo").
+	## The Dojo's master: a ninja (hood, face mask, red headband, all black)
+	## standing on the plaza's east side. Talking to him steps straight into
+	## the training interior (main.tscn, interior "dojo").
 	var dojo = StaticBody3D.new()
 	dojo.name = "Dojo"
 	dojo.position = grid_manager.grid_to_world(Vector2i(18, 9))
 
-	_npc_box(dojo, "Base", Vector3(0, 0.7, 0), Vector3(3.0, 1.4, 2.4), Color(0.62, 0.5, 0.36))
-	_npc_box(dojo, "Roof", Vector3(0, 1.65, 0), Vector3(3.5, 0.45, 2.9), Color(0.3, 0.2, 0.16))
-	_npc_box(dojo, "Ridge", Vector3(0, 1.95, 0), Vector3(3.7, 0.12, 0.5), Color(0.22, 0.15, 0.12))
-	_npc_box(dojo, "Door", Vector3(0, 0.5, 1.22), Vector3(0.9, 1.0, 0.08), Color(0.25, 0.17, 0.1))
-	_npc_box(dojo, "Lantern", Vector3(-1.1, 1.25, 1.24), Vector3(0.22, 0.32, 0.06), Color(0.9, 0.55, 0.2))
-	_npc_box(dojo, "Lantern2", Vector3(1.1, 1.25, 1.24), Vector3(0.22, 0.32, 0.06), Color(0.9, 0.55, 0.2))
+	var fig = Sprite3D.new()
+	fig.name = "Figure"
+	fig.texture = load("res://assets/sprites/generated/npcs/ninja.png")
+	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	fig.shaded = false
+	fig.pixel_size = 0.03125
+	var ninja_scale := 1.15
+	fig.scale = Vector3(ninja_scale, ninja_scale, ninja_scale)
+	fig.position = Vector3(0, 32.0 * 0.03125 * 0.5 * ninja_scale, 0)
+	dojo.add_child(fig)
+	BlobShadow.attach(dojo, 0.55)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(3.2, 2.0, 2.6)
+	shape.size = Vector3(1.4, 1.8, 1.4)
 	collision.shape = shape
-	collision.position = Vector3(0, 1.0, 0)
+	collision.position = Vector3(0, 0.9, 0)
 	dojo.add_child(collision)
 
 	var label = Label3D.new()
@@ -3214,7 +3550,7 @@ func _create_dojo() -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(0.95, 0.75, 0.55)
 	label.outline_size = 8
-	label.position = Vector3(0, 2.5, 0)
+	label.position = Vector3(0, 2.2, 0)
 	WorldText.crisp(label)
 	dojo.add_child(label)
 

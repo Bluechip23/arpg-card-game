@@ -267,7 +267,7 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
-		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
+		[NodeType.COMBAT_BONUS, "Unerring +2", "Unerring armor cap +2 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)"],
 		[NodeType.COMBAT_BONUS, "Resist +1%", "Reduce all incoming damage by 1%"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.COMBAT_BONUS, "Heal +1", "Heal cards restore +1 additional HP"],
@@ -316,7 +316,7 @@ func _build_grid() -> void:
 		# domain now (brain points). Node kept as a connector; refill with a
 		# body-flavored AGI keystone later.
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
+		[NodeType.COMBAT_BONUS, "Unerring +2", "Unerring armor cap +2 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%", {"req": {"stat": "dexterity", "value": 20}}],
@@ -336,7 +336,7 @@ func _build_grid() -> void:
 		[NodeType.HEALTH, "HP +30", "Max Health +30"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
-		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
+		[NodeType.COMBAT_BONUS, "Unerring +3", "Unerring armor cap +3 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)"],
 	]
 	for entry in r5_labels:
 		ring5_types.append(entry)

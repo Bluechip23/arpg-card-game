@@ -638,13 +638,16 @@ func _make_prop_sprite(role: String, scale: float = 1.0, k: int = 0, lift: float
 	return sprite
 
 
-## The animated glowing-cave totem that marks every waypoint / portal.
+## The glowing-cave totem that marks every waypoint / portal. It holds one
+## still frame: discovered portals read as lit, undiscovered ones as dim
+## (a modulate difference), with no looping animation.
 static func make_waypoint_totem(tint: Color, scale: float = 0.5) -> Sprite3D:
 	var totem := SheetAnimSprite.new()
 	totem.texture = load("res://assets/sprites/craftpix/tileset_glowing_cave/Totem_animation.png")
 	totem.hframes = 6
 	totem.vframes = 2
-	totem.fps = 8.0
+	totem.fps = 0.0
+	totem.frame = 0
 	totem.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	totem.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	totem.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -4815,8 +4818,8 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 		_:
 			tint = Color8(0xb6, 0xc5, 0xc5)  # STEEL_6
 	# The glowing-cave totem stands on the mound, tinted per destination and
-	# dimmed until discovered.
-	var pillar := make_waypoint_totem(Color(1, 1, 1).lerp(tint, 0.55) * Color(1, 1, 1, 0.85))
+	# lowlit until discovered (it lights up in discover_waypoint).
+	var pillar := make_waypoint_totem((Color(1, 1, 1).lerp(tint, 0.55) * Color(1, 1, 1, 0.85)).darkened(0.45))
 	wp_root.add_child(pillar)
 
 	# Label
@@ -4877,7 +4880,7 @@ func discover_waypoint(index: int) -> bool:
 	# Visual change: the ring lights up to full strength once activated
 	var pillar = waypoint_nodes[index]["pillar_mesh"] as Sprite3D
 	if pillar:
-		pillar.modulate = Color(pillar.modulate.lightened(0.35), 1.0)
+		pillar.modulate = Color(pillar.modulate.lightened(0.55), 1.0)
 	# Update interact label text
 	var lbl = waypoint_nodes[index]["label_node"] as Label3D
 	if lbl:

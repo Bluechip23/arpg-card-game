@@ -7,8 +7,8 @@ extends Control
 ## cooldown fade out while recharging (like the gauntlet skill circles) and
 ## solidify when ready. Cooldown-less passives stay solid.
 
-const BOX_W := 15.0   # 1/3 of the original 44x54 tray boxes
-const BOX_H := 18.0
+const BOX_W := 30.0   # 2/3 of the original 44x54 tray boxes (doubled from 15x18)
+const BOX_H := 36.0
 const TRIM := Color(0.85, 0.7, 0.35)  # gold, same as the gauntlet skill rim
 # Preloaded (not the UiTheme autoload identifier) so headless test runs
 # without autoloads can still compile this script.
@@ -20,6 +20,7 @@ var stats: PlayerStats = null
 var tempo_manager: TempoManager = null
 
 var _wrapped_desc: String = ""
+var _raw_desc: String = ""
 var _icon: Texture2D = null  # Craftpix skill icon (letter fallback when null)
 var _on_cooldown := false
 var _elapsed := 0
@@ -31,6 +32,7 @@ func _ready() -> void:
 func setup(id: String, p_name: String, description: String, p_stats: PlayerStats, p_tempo: TempoManager) -> void:
 	passive_id = id
 	display_name = p_name if p_name != "" else id.capitalize()
+	_raw_desc = description
 	_wrapped_desc = UiThemeScript.wrap_text(description) if description != "" else ""
 	stats = p_stats
 	tempo_manager = p_tempo
@@ -50,8 +52,10 @@ func update_display() -> void:
 func _refresh_tooltip(st: Dictionary) -> void:
 	var lvl: int = stats.get_passive_level(passive_id) if stats else 0
 	var tip := "%s — lvl %d" % [display_name, lvl]
-	if _wrapped_desc != "":
-		tip += "\n" + _wrapped_desc
+	if _raw_desc != "":
+		# What the passive does at THIS rank — the 1→15 ranges stay in the tree.
+		var at_rank: String = PassiveScaling.describe_at_rank(passive_id, _raw_desc, maxi(1, lvl))
+		tip += "\n" + UiThemeScript.wrap_text(at_rank)
 	if st.has_cooldown:
 		tip += "\nCooldown: %d tempo" % st.total
 		if _on_cooldown:
@@ -73,7 +77,7 @@ func _draw() -> void:
 	# to the tooltip — nothing else fits legibly at 1/3 scale; the fade alone
 	# signals "recharging".
 	var letter := display_name.left(1).to_upper()
-	var letter_size := 9
+	var letter_size := 18
 	var sw := font.get_string_size(letter, HORIZONTAL_ALIGNMENT_CENTER, -1, letter_size)
-	draw_string(font, Vector2(size.x / 2.0 - sw.x / 2.0, size.y / 2.0 + 3.5), letter,
+	draw_string(font, Vector2(size.x / 2.0 - sw.x / 2.0, size.y / 2.0 + 7.0), letter,
 		HORIZONTAL_ALIGNMENT_CENTER, -1, letter_size, Color(0.95, 0.92, 0.85))
