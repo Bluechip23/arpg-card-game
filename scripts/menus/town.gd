@@ -614,10 +614,11 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 		return
 
 	if info["type"] == "card_dealer":
-		# Show culling stone and paper feather counts
+		# Show gold, culling stone and paper feather counts
 		var inventory = player.get_inventory() if player.has_method("get_inventory") else null
 		var stones = inventory.get_culling_stone_count() if inventory else 0
 		var feathers = inventory.get_paper_feather_count() if inventory else 0
+		_add_info_label("Gold: %d" % _player_gold(), Color(1.0, 0.85, 0.3))
 		_add_info_label("Culling Stones: %d" % stones, Color(0.8, 0.5, 1.0))
 		_add_info_label("Paper Feathers: %d" % feathers, Color(1.0, 0.85, 0.4))
 
@@ -627,10 +628,19 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 		for card in all_cards:
 			_add_vendor_card_row(card, false)
 
-		# Show the player's full deck (base + starting + purchased - removed)
+		# Loose cards in the backpack sell for gold outright.
+		if inventory and inventory.stored_cards.size() > 0:
+			_add_section_separator("Your Cards — sell for gold (%d)" % inventory.stored_cards.size())
+			for i in range(inventory.stored_cards.size()):
+				var loose: Card = inventory.stored_cards[i]
+				if loose:
+					_add_vendor_card_row(loose, true, i, true)
+
+		# Cards IN the deck must be culled first (a Culling Stone moves the
+		# card to the backpack); they can be sold from there.
 		var deck_ids = _get_current_deck_card_ids()
 		if deck_ids.size() > 0:
-			_add_section_separator("Your Deck (%d cards)" % deck_ids.size())
+			_add_section_separator("Your Deck (%d cards) — cull to the backpack, then sell" % deck_ids.size())
 			for i in range(deck_ids.size()):
 				var card = _create_card_from_id(deck_ids[i])
 				if card:
@@ -641,6 +651,8 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 			_populate_blacksmith_forge()
 
 		# Item shops: show shop inventory
+		if info["type"] in ["armory", "accessory"]:
+			_add_info_label("Gold: %d" % _player_gold(), Color(1.0, 0.85, 0.3))
 		var shop_items = _get_vendor_items(info["type"])
 		for item in shop_items:
 			_add_vendor_item_row(item)
@@ -775,12 +787,20 @@ func _create_card_from_id(card_id: String) -> Card:
 				return card
 	return null
 
-func _add_vendor_card_row(card: Card, is_sell: bool, sell_index: int = -1) -> void:
+func _add_vendor_card_row(card: Card, is_sell: bool, sell_index: int = -1, loose: bool = false) -> void:
+	## Shop row: a card for sale (price), a loose backpack card (sells for
+	## gold), or a deck card (cull with a Culling Stone).
 	var btn = Button.new()
 	btn.custom_minimum_size.y = 40
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
-	var prefix = "[SELL] " if is_sell else ""
+	var prefix := ""
+	if is_sell and loose:
+		prefix = "[SELL %dg] " % card.sell_value()
+	elif is_sell:
+		prefix = "[CULL] "
+	else:
+		prefix = "[%dg] " % card.gold_value()
 	btn.text = "  %s%s   [%s]   %dM %dT   %s" % [prefix, card.card_name, card.card_type_name, card.mana_cost, card.tempo_cost, card.description]
 	btn.add_theme_font_size_override("font_size", 13)
 
@@ -814,11 +834,72 @@ func _add_vendor_card_row(card: Card, is_sell: bool, sell_index: int = -1) -> vo
 	btn.add_theme_color_override("font_color", type_color)
 	btn.add_theme_color_override("font_hover_color", type_color.lightened(0.2))
 
-	if is_sell:
+	if is_sell and loose:
+		btn.pressed.connect(_on_sell_loose_card_clicked.bind(card, sell_index))
+	elif is_sell:
 		btn.pressed.connect(_on_sell_card_clicked.bind(card, sell_index))
 	else:
 		btn.pressed.connect(_on_buy_card_clicked.bind(card))
 	vendor_item_list.add_child(btn)
+
+func _player_gold() -> int:
+	var stats = player.get_stats() if player else null
+	return stats.gold if stats else 0
+
+## Selling a loose backpack card: confirm, then gold in, card gone.
+func _on_sell_loose_card_clicked(card: Card, index: int) -> void:
+	var price: int = card.sell_value()
+	_show_confirm_modal(
+		"Sell Card",
+		"Sell %s for %d gold?" % [card.card_name, price],
+		Color(0.85, 0.65, 0.25),
+		func():
+			var inv = player.get_inventory() if player.has_method("get_inventory") else null
+			var stats = player.get_stats() if player else null
+			if inv and stats and index >= 0 and index < inv.stored_cards.size() and inv.stored_cards[index] == card:
+				inv.remove_stored_card(index)
+				stats.gain_gold(price)
+				print("[TOWN] Sold card %s for %d gold" % [card.card_name, price])
+			_close_confirm_modal()
+			_refresh_vendor_panel())
+
+## Copies of a card the player owns while in town: the carried deck plus
+## every socket in their gear (a socketed copy still counts).
+func _town_copies_owned(card_id: String) -> int:
+	var n := 0
+	for cid in _town_deck_card_ids():
+		if cid == card_id:
+			n += 1
+	var inv = player.get_inventory() if player.has_method("get_inventory") else null
+	if inv and inv.has_method("get_all_socketed_cards"):
+		for c in inv.get_all_socketed_cards():
+			if c and c.card_id == card_id:
+				n += 1
+	return n
+
+func _town_mythic_cards_owned() -> int:
+	var n := 0
+	for cid in _town_deck_card_ids():
+		if Card.CARD_RARITIES.get(cid, Card.Rarity.COMMON) == Card.Rarity.MYTHIC:
+			n += 1
+	var inv = player.get_inventory() if player.has_method("get_inventory") else null
+	if inv and inv.has_method("get_all_socketed_cards"):
+		for c in inv.get_all_socketed_cards():
+			if c and c.get_rarity() == Card.Rarity.MYTHIC:
+				n += 1
+	return n
+
+## "" when the deck can take another copy of this card, else the reason.
+func _town_copy_block_reason(card: Card) -> String:
+	var cap: int = Card.max_deck_copies(card.card_id)
+	if cap >= 0 and _town_copies_owned(card.card_id) >= cap:
+		return "You already own %d %s (the %s limit, deck and sockets together)." % [cap, card.card_name, card.get_rarity_name().to_lower()]
+	if card.get_rarity() == Card.Rarity.MYTHIC:
+		var inv = player.get_inventory() if player.has_method("get_inventory") else null
+		var allowed: int = inv.get_mythic_capacity() if inv else 0
+		if _town_mythic_cards_owned() >= allowed:
+			return "Your level allows %d mythic card(s) in the deck." % allowed
+	return ""
 
 func _get_card_type_color(card: Card) -> Color:
 	match card.card_type:
@@ -895,7 +976,8 @@ func _add_sell_item_row(item: ItemData, slot_type: int, slot_index: int) -> void
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	var location = "equipped" if slot_type >= 0 else "stored"
-	btn.text = "  [SELL] %s   [%s %s]   (%s)" % [item.get_display_name(), item.get_rarity_name(), item.get_type_name(), location]
+	var socketed := "" if item.slotted_cards.is_empty() else "  +%d card(s)" % item.slotted_cards.size()
+	btn.text = "  [SELL %dg] %s   [%s %s]   (%s)%s" % [_item_sale_total(item), item.get_display_name(), item.get_rarity_name(), item.get_type_name(), location, socketed]
 	btn.add_theme_font_size_override("font_size", 13)
 
 	var normal = StyleBoxFlat.new()
@@ -1504,13 +1586,13 @@ func _show_detail_modal(item: ItemData, is_sell: bool = false, slot_type: int = 
 
 	var action_btn = Button.new()
 	if is_sell:
-		action_btn.text = "Sell"
+		action_btn.text = "Sell for %d gold" % _item_sale_total(item)
 		action_btn.custom_minimum_size = Vector2(120, 36)
 		action_btn.add_theme_font_size_override("font_size", 16)
 		_style_action_button(action_btn, Color(0.5, 0.2, 0.1), Color(0.65, 0.3, 0.15), Color(0.8, 0.4, 0.2))
 		action_btn.pressed.connect(_on_sell_item_confirmed)
 	else:
-		action_btn.text = "Buy"
+		action_btn.text = "Buy for %d gold" % item.gold_value()
 		action_btn.custom_minimum_size = Vector2(120, 36)
 		action_btn.add_theme_font_size_override("font_size", 16)
 		_style_action_button(action_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
@@ -1561,6 +1643,13 @@ func _on_buy_pressed() -> void:
 		_close_detail_modal()
 		return
 
+	var buyer = player.get_stats() if player else null
+	var price: int = _detail_item.gold_value()
+	if buyer == null or buyer.gold < price:
+		_close_detail_modal()
+		_show_town_notice("The Shop", ["%s costs %d gold; you have %d." % [_detail_item.item_name, price, _player_gold()]])
+		return
+
 	# Try to equip directly into the matching slot type
 	var equipped = false
 	var item_type = _detail_item.item_type
@@ -1580,12 +1669,32 @@ func _on_buy_pressed() -> void:
 			equipped = true
 		else:
 			print("[TOWN] Inventory full! Cannot buy %s" % _detail_item.item_name)
+	if equipped:
+		buyer.spend_gold(price)  # only pay once the item has somewhere to go
 
 	_close_detail_modal()
 	_refresh_vendor_panel()
 
 func _on_sell_item_clicked(item: ItemData, slot_type: int, slot_index: int) -> void:
+	# An item with cards in its sockets sells the cards with it — warn first.
+	if item.slotted_cards.size() > 0:
+		_show_confirm_modal(
+			"Sell Item and Cards",
+			"Selling an item with a card will sell both the card and item. Are you sure you want to proceed?",
+			Color(0.85, 0.5, 0.25),
+			func():
+				_close_confirm_modal()
+				_show_detail_modal(item, true, slot_type, slot_index))
+		return
 	_show_detail_modal(item, true, slot_type, slot_index)
+
+## What a sale pays: the item plus every card socketed in it.
+func _item_sale_total(item: ItemData) -> int:
+	var total: int = item.sell_value()
+	for c in item.slotted_cards:
+		if c:
+			total += c.sell_value()
+	return total
 
 func _on_sell_item_confirmed() -> void:
 	if not _detail_item:
@@ -1597,14 +1706,12 @@ func _on_sell_item_confirmed() -> void:
 		_close_detail_modal()
 		return
 
-	# Enchanted cards live ON the item — selling it would destroy them
-	# silently (the same invariant the Item Forge enforces for fodder).
-	# The player must unslot the cards first.
-	if _detail_item.slotted_cards.size() > 0:
-		print("[TOWN] Cannot sell %s — it holds %d enchanted card(s). Unslot them first." % [
-			_detail_item.item_name, _detail_item.slotted_cards.size()])
-		_close_detail_modal()
-		return
+	# Socketed cards go with the item (the player was warned on the way in).
+	var payout: int = _item_sale_total(_detail_item)
+	var seller = player.get_stats() if player else null
+	if seller:
+		seller.gain_gold(payout)
+		print("[TOWN] Sold %s for %d gold" % [_detail_item.item_name, payout])
 
 	if _detail_sell_slot_type >= 0:
 		# Equipped item — unequip it
@@ -1766,7 +1873,7 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 			action_btn.disabled = true
 			_style_action_button(action_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
 		else:
-			action_btn.text = "Add to Deck"
+			action_btn.text = "Buy for %d gold" % card.gold_value()
 			_style_action_button(action_btn, Color(0.15, 0.4, 0.15), Color(0.2, 0.55, 0.2), Color(0.3, 0.7, 0.3))
 		action_btn.custom_minimum_size = Vector2(140, 36)
 		action_btn.add_theme_font_size_override("font_size", 14)
@@ -1795,6 +1902,17 @@ func _on_buy_card_confirmed() -> void:
 	if _get_current_deck_card_ids().size() >= DeckManager.MAX_DECK_SIZE:
 		print("[TOWN] Deck is full (%d) — remove a card first" % DeckManager.MAX_DECK_SIZE)
 		_close_detail_modal()
+		return
+	var block := _town_copy_block_reason(_detail_card)
+	if block != "":
+		_close_detail_modal()
+		_show_town_notice("The Card Dealer", [block])
+		return
+	var buyer = player.get_stats() if player else null
+	var price: int = _detail_card.gold_value()
+	if buyer == null or not buyer.spend_gold(price):
+		_close_detail_modal()
+		_show_town_notice("The Card Dealer", ["%s costs %d gold; you have %d." % [_detail_card.card_name, price, _player_gold()]])
 		return
 
 	starting_character.purchased_card_ids.append(_detail_card.card_id)
@@ -1876,8 +1994,7 @@ func _on_cull_stone_confirmed() -> void:
 		return
 
 	var inventory = player.get_inventory() if player.has_method("get_inventory") else null
-	if not inventory or not inventory.use_culling_stone():
-		print("[TOWN] No culling stones! Cannot remove card from deck.")
+	if not inventory:
 		_close_confirm_modal()
 		return
 
@@ -1887,6 +2004,20 @@ func _on_cull_stone_confirmed() -> void:
 		return
 
 	var card_id = deck_ids[_pending_cull_index]
+
+	# The culled card lands in the backpack (sell it or slot it later), so
+	# there must be room for it before the stone is spent.
+	if inventory.is_storage_full():
+		_close_confirm_modal()
+		_show_town_notice("The Card Dealer", ["Your backpack is full — the culled card would have nowhere to go."])
+		return
+	if not inventory.use_culling_stone():
+		print("[TOWN] No culling stones! Cannot remove card from deck.")
+		_close_confirm_modal()
+		return
+	var culled := _create_card_from_id(card_id)
+	if culled:
+		inventory.store_card(culled)
 
 	# The deck snapshot (when one exists) is what the deck is rebuilt from
 	# after town — cull there too or the card comes right back.

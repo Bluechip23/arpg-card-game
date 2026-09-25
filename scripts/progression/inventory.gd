@@ -2532,6 +2532,18 @@ func get_all_items_with_card_slots() -> Array[ItemData]:
 				result.append(item)
 	return result
 
+## Every card socketed in gear the player owns — equipped AND carried items.
+## Copy caps count these (a mythic socketed in a helm is still your copy).
+func get_all_socketed_cards() -> Array:
+	var result: Array = get_all_slotted_cards()
+	for item in stored_items:
+		if item:
+			result.append_array(item.slotted_cards)
+	for item in stash_items:
+		if item:
+			result.append_array(item.slotted_cards)
+	return result
+
 func get_all_slotted_cards() -> Array:
 	## Returns all cards currently slotted in any equipped item.
 	var result: Array = []

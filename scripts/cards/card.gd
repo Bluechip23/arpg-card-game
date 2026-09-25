@@ -58,13 +58,35 @@ enum Rarity { BASIC, COMMON, RARE, LEGENDARY, MYTHIC }
 # How many copies of one card a deck may hold, by rarity. -1 = unlimited
 # (spam all the Slashes you like); rarer cards are capped so build-defining
 # effects stay singular. First-pass numbers — balance later.
+## Copies of the SAME card a player may own across the deck and every item
+## socket (a card socketed in gear counts). Basics and commons are unlimited.
+## Mythic cards are also capped as a group: the deck may hold as many mythic
+## cards as the character's level allows mythic items (Inventory.get_mythic_capacity).
 const MAX_COPIES_BY_RARITY := {
 	Rarity.BASIC: -1,
 	Rarity.COMMON: -1,
-	Rarity.RARE: 3,
-	Rarity.LEGENDARY: 1,
+	Rarity.RARE: 4,
+	Rarity.LEGENDARY: 2,
 	Rarity.MYTHIC: 1,
 }
+
+## Shop prices by rarity (placeholder economy — tune freely). Selling pays half.
+const GOLD_VALUE_BY_RARITY := {
+	Rarity.BASIC: 10,
+	Rarity.COMMON: 25,
+	Rarity.RARE: 75,
+	Rarity.LEGENDARY: 200,
+	Rarity.MYTHIC: 500,
+}
+
+static func gold_value_of(cid: String) -> int:
+	return int(GOLD_VALUE_BY_RARITY.get(CARD_RARITIES.get(cid, Rarity.COMMON), 25))
+
+func gold_value() -> int:
+	return Card.gold_value_of(card_id)
+
+func sell_value() -> int:
+	return maxi(1, floori(gold_value() / 2.0))
 
 ## Deck copy cap for a card id (-1 = unlimited).
 static func max_deck_copies(cid: String) -> int:

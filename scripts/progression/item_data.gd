@@ -552,6 +552,22 @@ func get_appearance_texture() -> Texture2D:
 # RARITY & FORGE LEVEL HELPERS
 # ============================================
 
+## Shop prices by rarity (placeholder economy — tune freely); a forged item
+## is worth half again per level. Selling pays half.
+const GOLD_VALUE_BY_RARITY := {
+	Rarity.COMMON: 40,
+	Rarity.RARE: 120,
+	Rarity.LEGENDARY: 350,
+	Rarity.MYTHIC: 900,
+}
+
+func gold_value() -> int:
+	var base: int = int(GOLD_VALUE_BY_RARITY.get(rarity, 40))
+	return int(round(base * (1.0 + 0.5 * float(maxi(0, item_level - 1)))))
+
+func sell_value() -> int:
+	return maxi(1, floori(gold_value() / 2.0))
+
 func get_rarity_name() -> String:
 	match rarity:
 		Rarity.COMMON: return "Common"

@@ -445,8 +445,11 @@ Your character grows along several permanent axes:
   - **Null nodes** — small connectors that grant nothing; the toll paid on the road to something bigger.
   - **Constellations** — completing certain node patterns grants an extra bonus. A node can only be connected to one constellation, so choose wisely.
 - **Path abilities** — each character has 4 "paths" (archetypes) of leveled passives (e.g. Cory: Monk, Druid, Lurker, and Atrophist). See below.
-- **Deck crafting** — buy cards from vendors, and use consumables to sculpt the deck:
-  - **Culling Stones** permanently remove a card from your deck.
+- **Deck crafting** — buy cards from the Card Dealer (priced by rarity: Basic 10, Common 25, Rare 75, Legendary 200, Mythic 500 gold), and use consumables to sculpt the deck:
+  - **Copy limits** — Basics and Commons are unlimited; up to 4 of the same Rare, 2 of the same Legendary, 1 of the same Mythic. A copy socketed in an item counts. Mythic cards as a group follow the mythic-item allowance (one per 15 levels).
+  - **Selling** — loose cards in the backpack sell to the Card Dealer for half their price. A card in your deck has to be culled to the backpack first.
+  - **Culling Stones** remove a card from your deck into your backpack (where it can be sold or socketed).
+  - **Items** sell at their shop for half their price (forged levels add value). Selling an item with socketed cards sells the cards with it, after a warning.
   - **Paper Feathers** — a card-crafting consumable (their new role is being redesigned).
   - **Origami Swans** are earned by destroying cards; 20 swans convert into a Paper Feather.
 - **Equipment** — loot, vendors, and quest rewards across all acts.
