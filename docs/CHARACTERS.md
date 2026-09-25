@@ -1,7 +1,7 @@
 # Character Playstyle Write-Ups
 
 Every character starts from the exact same place: the same stat pool, the same 11-card deck
-(4 Slash, 4 Block, 1 Draw, 1 Energy, 1 Heal), the same hand size, and **no equipment**. All
+(3 Attack, 3 Block, 2 Draw, 1 Energy, 1 Heal), the same hand size, and **no equipment**. All
 cards are neutral — no card is locked to a character (skill trees may grant specific cards as
 level-up picks, but anything one character can obtain, any character can use). What separates
 the five is *how their kit wants to be played*: the conditions their passives reward, the gear

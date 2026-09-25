@@ -90,6 +90,7 @@ func _build_legend() -> void:
 	_add_section_header("RANGE")
 	_add_keyword("Melee", "Card must be used at close range (default for all cards)", Color(0.9, 0.6, 0.3))
 	_add_keyword("Ranged", "Card can be used at distance. Base range = 5 tiles. Ranged +X = 5+X, Ranged -X = 5-X", Color(0.3, 0.8, 0.9))
+	_add_keyword("Conditional", "Takes the reach of the weapon in hand: melee with a melee weapon (sword, axe, dagger, hammer, spear) or bare hands; Ranged 5 with a bow or a magic weapon (wand, tome, staff). Costs +1 tempo while it plays as ranged", Color(0.6, 0.8, 0.7))
 
 	# AOE Section
 	_add_section_header("AOE (AREA OF EFFECT)")

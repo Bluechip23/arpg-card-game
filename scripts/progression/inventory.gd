@@ -385,10 +385,14 @@ func relink_slotted_cards(deck_manager) -> void:
 
 ## True while a bow is in hand — the weapon that turns Conditional cards
 ## ranged. Wands, staves, and thrown weapons are not ranged weapons here.
+## True when the hands hold a weapon that attacks at range: a bow, or a
+## magic weapon (wand, tome, staff). Conditional cards read this to decide
+## whether they play as melee or Ranged 5.
 func holds_ranged_weapon() -> bool:
 	for w in equipped_weapons:
 		if w != null and w.item_type == ItemData.ItemType.WEAPON \
-				and w.weapon_subtype == ItemData.WeaponSubtype.BOW:
+				and w.weapon_subtype in [ItemData.WeaponSubtype.BOW, ItemData.WeaponSubtype.WAND,
+					ItemData.WeaponSubtype.TOME, ItemData.WeaponSubtype.STAFF]:
 			return true
 	return false
 
