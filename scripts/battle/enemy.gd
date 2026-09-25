@@ -142,6 +142,10 @@ var armor_break_incoming: bool = false
 # Status effects applied by player cards (duration in tempo cycles, 1 cycle = 5 global tempo)
 var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
+# Mad Scientist (Defense→Poison): physical defense lowered by this % for a
+# few tempo — physical hits land that much harder while it lasts.
+var phys_defense_debuff_percent: float = 0.0
+var phys_defense_debuff_tempo: int = 0
 var attack_reduction: int = 0
 var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
 # Slowed (enemy version): each MOVEMENT ACTION costs extra tempo
@@ -1619,9 +1623,9 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.ZOMBIE: "Slow, beefy undead.\nAt range ≤1: Attacks (5 dmg, 6 tempo).\nOtherwise: shambles toward player (3 spaces / 8 tempo).",
 		EnemyType.WEREWOLF: "Bear-sized grey beast with armor-piercing claws. Resists 25% physical/fire/lightning.\nClaw (5 tempo): 10 damage, +3 vs armor; a debuffed target is raked a SECOND time for half. Each consecutive claw on the same target arms 1 tempo faster (5, 4, 3...); switching targets resets it.\nMove (3 tempo): 3 spaces.",
 		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
-		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest player-side unit on the map — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
+		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
 		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
-		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely. Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside every unit hit.\nMove (5 tempo): 5 spaces.",
+		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely. Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
 		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (saps 1 damage per tempo — charged 5 per cycle — until played, then is erased).",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
@@ -1649,13 +1653,13 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.INFLAMED_MINOTAUR: "A smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off: 10 damage + 2 Burn, lingers 15 tempo) — and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap.\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, on a hit over 20 damage): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (1 cycle after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.",
 		# --- Heavens (design mock-ups — stats & moves TBD) ---
 		EnemyType.CHERUB: "An adult cupid — winged archer with a bow.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace. Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to each unit hit — cast reaches 5 squares, each bound arcs 4 from the last unit struck.\nMove (3 tempo): 8 spaces.",
+		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace. Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to everyone it hits — cast reaches 5 squares, each bound arcs 4 from the last one struck.\nMove (3 tempo): 8 spaces.",
 		EnemyType.CORRUPTED_ARCHANGEL: "Black eyes and long black hair, white wings and robes, wielding a black two-handed sword.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
 		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 5 damage; 25% chance to disarm you (5 tempo).\nMove (2 tempo): 2 spaces.",
 		EnemyType.SEWER_CROC: "Armoured ambush predator (20 armor).\nBite (6 tempo): 12 damage.\nMove (5 tempo): 2 spaces.",
 		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor).\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.",
-		EnemyType.SWARM: "A single unit made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
+		EnemyType.SWARM: "A single creature made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 		EnemyType.RING_WRAITH: "The Precious: hunts the ring-bearer through the shadow world. Shadow form does not hide you from these.\nAttack (2 tempo): 15 damage.\nMove (4 tempo): 5 spaces.\nResummons on death — grants no XP.",
 		EnemyType.DUMMY: "The Dojo's training dummy (a chicken, for morale). Stands still, never strikes, and a killing blow only refills it — grants no XP, drops nothing.",
 	}
@@ -2028,9 +2032,17 @@ func _tick_timed_statuses(amount: int) -> void:
 	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
 		or frozen_tempo > 0 or stun_tempo > 0 \
-		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0
+		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0 \
+		or phys_defense_debuff_tempo > 0
 	if not any:
 		return
+
+	if phys_defense_debuff_tempo > 0:
+		phys_defense_debuff_tempo -= amount
+		if phys_defense_debuff_tempo <= 0:
+			phys_defense_debuff_tempo = 0
+			phys_defense_debuff_percent = 0.0
+			print("[%s] Lowered physical defense expired" % enemy_name)
 
 	if taunt_tempo > 0:
 		taunt_tempo -= amount
@@ -3646,7 +3658,7 @@ func _on_necro_summon_died(_e: Enemy) -> void:
 ## --- Bone Dragon ---
 
 func _try_breath_swarm(target_node: Node3D) -> bool:
-	## 12 damage down a 6-tile line; a Swarm hatches beside every unit hit.
+	## 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.
 	if is_disarmed or is_silenced:
 		return _try_move(target_node)
 	if not grid_manager:
@@ -4616,9 +4628,12 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# ignore_armor hits bypass resistances too (Neither Man nor Beast).
 	if not ignore_armor:
 		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
+		if damage_type == DamageTypes.Type.PHYSICAL and phys_defense_debuff_tempo > 0:
+			type_resist -= phys_defense_debuff_percent  # lowered defense: below 0 is a vulnerability
 		if type_resist != 0.0:
 			# Negative resist = vulnerability: the hit lands harder (Treant vs fire).
-			amount = floori(amount * (1.0 - minf(type_resist, 90.0) / 100.0))
+			# Percent math before the divide keeps 100 * 115% at exactly 115.
+			amount = floori(amount * (100.0 - minf(type_resist, 90.0)) / 100.0)
 
 	# Raw post-resist size of this hit, for the elite threshold reactions
 	# (Ifrit backflip, Minotaur leap, Djinn wishes, bear strengthen).
@@ -4934,6 +4949,13 @@ func hide_damage_preview() -> void:
 # ============================================
 # STATUS EFFECTS
 # ============================================
+
+## Lower physical defense by `percent` for `tempo` (a stronger application
+## replaces a weaker one; the timer refreshes either way).
+func apply_phys_defense_debuff(percent: float, tempo: int) -> void:
+	phys_defense_debuff_percent = maxf(phys_defense_debuff_percent, percent)
+	phys_defense_debuff_tempo = maxi(phys_defense_debuff_tempo, tempo)
+	print("[%s] Physical defense -%.0f%% for %d tempo" % [enemy_name, phys_defense_debuff_percent, phys_defense_debuff_tempo])
 
 func apply_taunt(taunter: Node3D, tempo: int) -> void:
 	taunt_target = taunter
@@ -5451,7 +5473,7 @@ func _update_status_indicators() -> void:
 		var node = _create_status_circle(eff["name"], eff["color"], eff["stacks"], circle_size)
 		node.position = Vector3(start_x + i * spacing, 0, 0)
 		_status_container.add_child(node)
-		_status_nodes.append({"node": node})
+		_status_nodes.append({"node": node, "name": eff["name"]})
 
 	# Overflow indicator "+"
 	if has_overflow:
@@ -5463,6 +5485,106 @@ func _update_status_indicators() -> void:
 		plus_label.position = Vector3(start_x + show_count * spacing, 0, 0)
 		_status_container.add_child(plus_label)
 		_status_nodes.append({"node": plus_label})
+
+## The status circles as hover targets: world position + effect name.
+func get_status_hover_targets() -> Array:
+	var out: Array = []
+	for entry in _status_nodes:
+		var n = entry.get("node")
+		if entry.get("name", "") != "" and n and is_instance_valid(n):
+			out.append({"pos": n.global_position, "name": entry["name"]})
+	return out
+
+## Hover text for one status circle: what it does and what is left, read
+## live off the enemy's own counters.
+func get_effect_tooltip(eff_name: String) -> Dictionary:
+	var desc := ""
+	var remaining := ""
+	var color := Color.WHITE
+	for eff in get_active_effects():
+		if eff["name"] == eff_name:
+			color = eff["color"]
+			break
+	match eff_name:
+		"Taunt":
+			desc = "Must attack whoever taunted it."
+			remaining = "Remaining: %d tempo" % taunt_tempo
+		"Fear":
+			desc = "Flees away from the source of its fear."
+			remaining = "Remaining: %d tempo" % fear_tempo
+		"Tree":
+			desc = "Turned into a tree: cannot act; regrows 3 health on each of its first 3 tempo."
+			remaining = "Remaining: %d tempo" % tree_tempo
+		"Cupid":
+			desc = "Struck by a Cupid arrow. Carrying both the Golden and Lead marks turns it into a tree."
+			remaining = "Marks: %d of 2" % ((1 if cupid_golden else 0) + (1 if cupid_lead else 0))
+		"Weaken":
+			desc = "Deals 30% less damage; each attack burns a stack."
+			remaining = ("Stacks: %d" % weaken_stacks) if weaken_stacks > 0 else "While inside the zone"
+		"Wear Down":
+			desc = "Its attacks deal %d less damage." % attack_reduction
+			remaining = "Remaining: %d tempo" % wear_down_tempo
+		"Slow":
+			desc = "Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack."
+			remaining = "Stacks: %d" % slow_stacks
+		"Cursed":
+			desc = "Deals 20% less damage and takes 20% of its own damage."
+			remaining = "Remaining: %d tempo" % cursed_tempo
+		"Disarm":
+			desc = "Cannot attack."
+			remaining = "Remaining: %d tempo" % disarmed_tempo
+		"Disarmed":
+			desc = "Its next attacks are skipped."
+			remaining = "Attacks skipped: %d" % disarmed_attacks
+		"Marked":
+			desc = "Takes extra damage from your attacks."
+			remaining = "Remaining: %d tempo" % marked_tempo
+		"Silenced":
+			desc = "Cannot cast spells."
+			remaining = "Remaining: %d tempo" % silenced_tempo
+		"Choke":
+			desc = "Takes %d damage at the end of each cycle." % choke_dot_damage
+			remaining = "Ticks left: %d" % choke_dot_stacks
+		"Exposed":
+			desc = "Its armor was broken through — a hit got past it."
+			remaining = "Until it gains armor again"
+		"Stun":
+			desc = "Cannot take any actions."
+			remaining = "Remaining: %d tempo" % stun_tempo
+		"Polymorph":
+			desc = "A pig: it can only walk and make basic melee attacks."
+			remaining = "Remaining: %d tempo" % polymorph_tempo
+		"Frozen":
+			desc = "Cannot act at all."
+			remaining = "Remaining: %d tempo" % frozen_tempo
+		"Burn":
+			desc = "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage."
+			remaining = "Stacks: %d" % burn_stacks
+		"Cold":
+			desc = "At 5 stacks it becomes Frozen for 1 cycle."
+			remaining = "Stacks: %d of 5" % cold_stacks
+		"Poison":
+			desc = "Takes %d damage per cycle, loses 1 poison each cycle." % poison_stacks
+			remaining = "Stacks: %d" % poison_stacks
+		"Shock":
+			desc = "Arcs %d damage to itself and nearby enemies each cycle, loses 1 per cycle." % shock_stacks
+			remaining = "Stacks: %d" % shock_stacks
+		"Bleed":
+			desc = "Takes damage per tile moved; each damage removes a stack."
+			remaining = "Stacks: %d" % bleed_stacks
+		"Narashimha":
+			desc = "Its healing is capped by the Mane of Narashimha."
+			remaining = "Remaining: %d tempo" % narashimha_tempo
+		"Vulnerable":
+			desc = "Takes 30% more damage on the next hits; each hit burns a stack."
+			remaining = "Stacks: %d" % vulnerable_stacks
+		"Rooted":
+			desc = "Cannot move."
+			remaining = "Remaining: %d tempo" % rooted_tempo
+		_:
+			desc = ""
+			remaining = ""
+	return {"desc": desc, "remaining": remaining, "color": color}
 
 func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: float) -> Node3D:
 	## A small colored circle above the enemy's head with the effect's glyph on

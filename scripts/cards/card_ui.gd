@@ -94,15 +94,17 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	_update_description()
 
 	# Calculate displayed mana cost with debuff modifiers
-	var display_mana = card.mana_cost
-	var display_tempo = card.tempo_cost + card.get_conditional_tempo_penalty()
+	var display_mana = maxi(0, card.mana_cost - card.temp_mana_discount)  # timed passive discount
+	# In-hand tempo cuts (Boots of Speed, Spark, Keep Them Guessing, Clean
+	# Exchange) show on the card while they last.
+	var display_tempo = maxi(0, card.tempo_cost + card.get_conditional_tempo_penalty() - card.temp_hand_tempo_reduction)
 	var is_hexed = false
 	var is_locked = false
 	var is_dex_proc = false
 
 	# Dex proc preview: show reduced mana and half tempo for attack cards
 	if dex_proc_active and card.card_type == Card.CardType.ATTACK:
-		display_mana = max(0, display_mana - 2)
+		display_mana = max(0, display_mana - 20)  # the proc's real discount (x10 mana scale)
 		display_tempo = display_tempo / 2
 		# Pocket Knife: additional -2 tempo and resolve on first tick
 		if pocket_knife:

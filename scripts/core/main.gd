@@ -250,6 +250,7 @@ var _p2_deck_panel: PanelContainer = null
 var _p2_deck_card_preview: PanelContainer = null
 
 var deck_list_panel: PanelContainer = null
+var _deck_counts_label: Label = null
 var deck_list_container: VBoxContainer = null
 var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
@@ -568,6 +569,8 @@ func _ready() -> void:
 	move_dialog.confirmed.connect(_on_move_confirmed)
 	move_dialog.cancelled.connect(_on_move_cancelled)
 	move_dialog.lock_in_requested.connect(_on_move_lock_in)
+	# The Yes/No box never sits under the hand or the bottom-left action column.
+	move_dialog.avoid_rects_provider = _move_dialog_avoid_rects
 	
 	# Enemy spawner
 	enemy_spawner.initialize(grid_manager, player)
@@ -769,6 +772,7 @@ var _minimap_refresh_accum: float = 0.0
 func _process(delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
+	_update_status_icon_hover()
 	_update_self_target_hover()
 	_update_damage_preview()
 	_update_loot_hover()
@@ -944,6 +948,61 @@ func _update_damage_preview() -> void:
 	if _damage_preview_enemy and is_instance_valid(_damage_preview_enemy):
 		_damage_preview_enemy.hide_damage_preview()
 		_damage_preview_enemy = null
+
+# Hovering a status circle above an enemy opens the same hover window the
+# HUD badges use: what the effect does and how long is left (live).
+var _status_hover_anchor: Control = null
+var _status_hover_key: String = ""
+
+func _update_status_icon_hover() -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or enemy_spawner == null:
+		return
+	var mouse: Vector2 = get_viewport().get_mouse_position()
+	var best_enemy: Enemy = null
+	var best_name := ""
+	var best_sp := Vector2.ZERO
+	var best_d := 14.0  # px from the circle's centre
+	for e in enemy_spawner.get_living_enemies():
+		if not is_instance_valid(e) or not e.has_method("get_status_hover_targets"):
+			continue
+		for t in e.get_status_hover_targets():
+			var wp: Vector3 = t["pos"]
+			if cam.is_position_behind(wp):
+				continue
+			var sp: Vector2 = cam.unproject_position(wp)
+			var d: float = sp.distance_to(mouse)
+			if d < best_d:
+				best_d = d
+				best_enemy = e
+				best_name = t["name"]
+				best_sp = sp
+	var key := "" if best_enemy == null else "%d:%s" % [best_enemy.get_instance_id(), best_name]
+	if key == _status_hover_key:
+		if best_enemy and _status_hover_anchor:
+			_status_hover_anchor.global_position = best_sp - Vector2(10, 10)
+		return
+	if _status_hover_anchor and is_instance_valid(_status_hover_anchor):
+		StatusHoverPopup.hide_for(_status_hover_anchor)
+	_status_hover_key = key
+	if best_enemy == null:
+		return
+	if _status_hover_anchor == null or not is_instance_valid(_status_hover_anchor):
+		_status_hover_anchor = Control.new()
+		_status_hover_anchor.name = "StatusHoverAnchor"
+		_status_hover_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_status_hover_anchor.size = Vector2(20, 20)
+		$UI.add_child(_status_hover_anchor)
+	_status_hover_anchor.global_position = best_sp - Vector2(10, 10)
+	var tip: Dictionary = best_enemy.get_effect_tooltip(best_name)
+	var en := best_enemy
+	var nm := best_name
+	StatusHoverPopup.show_for(_status_hover_anchor, "%s — %s" % [nm, en.enemy_name], tip.get("color", Color.WHITE),
+		str(tip.get("desc", "")),
+		func() -> String:
+			if not is_instance_valid(en):
+				return ""
+			return str(en.get_effect_tooltip(nm).get("remaining", "")))
 
 func _update_battlefield_enemy_hover() -> void:
 	## Check if mouse is hovering over a battlefield enemy and highlight its panel entry.
@@ -2395,6 +2454,14 @@ func _setup_deck_list_panel() -> void:
 	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
 	vbox.add_child(title)
 
+	# "Deck: 10 / 12" for the player's own cards, then how many more ride
+	# along from gear (slotted into items, granted by items).
+	_deck_counts_label = Label.new()
+	_deck_counts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_deck_counts_label.add_theme_font_size_override("font_size", 13)
+	_deck_counts_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
+	vbox.add_child(_deck_counts_label)
+
 	var sep = HSeparator.new()
 	vbox.add_child(sep)
 
@@ -2466,12 +2533,27 @@ func _populate_deck_list() -> void:
 	all_cards.append_array(deck_manager.discard_pile)
 	all_cards.append_array(deck_manager.jail_pile)
 
+	var item_counts: Dictionary = {}  # name -> copies that belong to gear
 	for card in all_cards:
+		var from_gear: bool = card.slotted_in_item != null or card.granted_by_item != null
 		if card.card_name in card_counts:
 			card_counts[card.card_name] += 1
 		else:
 			card_counts[card.card_name] = 1
 			card_refs[card.card_name] = card
+		if from_gear:
+			item_counts[card.card_name] = int(item_counts.get(card.card_name, 0)) + 1
+
+	# Own cards vs the ones gear brings along.
+	if _deck_counts_label:
+		var own: int = deck_manager.get_deck_size()
+		var granted := 0
+		for c in all_cards + deck_manager.maintained_cards:
+			if c and c.slotted_in_item == null and c.granted_by_item != null:
+				granted += 1
+		var inv = player.get_inventory() if player else null
+		var slotted: int = inv.get_all_slotted_cards().size() if inv else 0
+		_deck_counts_label.text = "Deck: %d / %d\nSlotted in items: %d   Granted by items: %d" % [own, deck_manager.get_max_deck_size(), slotted, granted]
 
 	# Sort by name
 	var names = card_counts.keys()
@@ -2481,7 +2563,10 @@ func _populate_deck_list() -> void:
 		var count = card_counts[card_name]
 		var card_ref = card_refs[card_name]
 		var entry = Button.new()
+		var gear_n: int = int(item_counts.get(card_name, 0))
 		entry.text = "%s (%d)" % [card_name, count]
+		if gear_n > 0:
+			entry.text += "  [%d from items]" % gear_n if gear_n < count else "  [from items]"
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		entry.flat = true
 		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
@@ -2509,16 +2594,24 @@ func _open_manage_deck_panel() -> void:
 	_md_pending_cull = ""
 	manage_deck_panel.visible = true
 	_refresh_manage_deck_panel()
+	_center_panel_on_screen.call_deferred(manage_deck_panel)
+
+func _center_panel_on_screen(p: Control) -> void:
+	## Explicit centering (anchors alone left this panel off screen).
+	if p == null or not is_instance_valid(p):
+		return
+	p.reset_size()
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	p.position = ((vp - p.size) / 2.0).floor()
 
 func _build_manage_deck_panel() -> void:
 	var ui = $UI as CanvasLayer
 	manage_deck_panel = PanelContainer.new()
 	manage_deck_panel.name = "ManageDeckPanel"
 	ui.add_child(manage_deck_panel)
-	manage_deck_panel.set_anchors_preset(Control.PRESET_CENTER)
-	manage_deck_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	manage_deck_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	manage_deck_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	manage_deck_panel.custom_minimum_size = Vector2(580, 500)
+	manage_deck_panel.z_index = 250  # above hovered hand cards
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.1, 0.15, 0.97)
 	style.border_width_left = 2
@@ -4158,6 +4251,16 @@ func _movement_locked() -> bool:
 func _notify_movement_locked() -> void:
 	add_battle_log("Committed! Your action is still ticking — cancel queued actions (▾ by the tempo bar) to bail out.", Color(1.0, 0.6, 0.3))
 
+func _move_dialog_avoid_rects() -> Array:
+	## Screen areas the move confirm box must stay clear of.
+	var rects: Array = []
+	var hand_area := get_node_or_null("UI/HandArea") as Control
+	if hand_area:
+		rects.append(hand_area.get_global_rect())
+	if _action_vbox and is_instance_valid(_action_vbox):
+		rects.append(_action_vbox.get_global_rect())
+	return rects
+
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	if _movement_locked():
 		_notify_movement_locked()
@@ -4609,9 +4712,7 @@ func _open_trade_ui(a: Player, b: Player) -> void:
 func _player_at_position(world_pos: Vector3) -> Player:
 	var best: Player = null
 	var best_d := 1.2  # within ~1 tile of the click
-	for p in _all_players() + _dojo_allies:
-		if not is_instance_valid(p):
-			continue
+	for p in _all_allies():
 		var d := Vector2(p.position.x - world_pos.x, p.position.z - world_pos.z).length()
 		if d < best_d:
 			best_d = d
@@ -4622,6 +4723,17 @@ func _all_players() -> Array:
 	if is_multiplayer and _p2_player:
 		return [_p1_player, _p2_player]
 	return [player]
+
+## "Ally" means every friendly character on the board, the player included:
+## the party plus the dojo's practice allies. Every ally-targeted effect
+## (heals, auras, Hold the Line, Psionic Flow...) enumerates through here.
+## Frankenstein's Monsters are not Player nodes and keep their own hooks.
+func _all_allies() -> Array:
+	var out: Array = []
+	for p in _all_players() + _dojo_allies:
+		if is_instance_valid(p):
+			out.append(p)
+	return out
 
 # ---- Co-op downed / revive / defeat ----
 
@@ -6333,10 +6445,10 @@ func _on_player_armor_gained(_amount: int) -> void:
 		player.show_armor_gained()
 
 func _on_player_armor_changed(_current: int) -> void:
-	## The shield reads TOTAL armor (regular + unerring), whatever pool moved.
+	## The shield reads REGULAR armor only; unerring armor has its own grey bar.
 	var stats = player.get_stats() if player else null
 	if _armor_shield_label and stats:
-		_armor_shield_label.text = "%d" % stats.get_total_armor()
+		_armor_shield_label.text = "%d" % stats.current_armor
 	_update_unerring_bar()
 
 func _on_player_unerring_changed(_current: int, _cap: int) -> void:
@@ -7083,7 +7195,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 			# Shocked: arc the accumulated damage to nearby allies (within 2 tiles).
 			var ally_dmg: int = debuff_result.get("ally_damage", 0)
 			if ally_dmg > 0:
-				for ally in _all_players():
+				for ally in _all_allies():
 					if ally == player or not is_instance_valid(ally):
 						continue
 					var shock_diff = player.position - ally.position
@@ -7154,7 +7266,7 @@ func _process_maintained_card_effects() -> void:
 		var halo_heal: int = maintained_result["total_heal"]
 		if stats:
 			halo_heal = stats.boost_performed_heal(halo_heal)
-		for ally in _all_players():
+		for ally in _all_allies():
 			if not is_instance_valid(ally) or not ally.get_stats():
 				continue
 			var halo_diff = ally.position - player.position
@@ -7304,7 +7416,7 @@ func _process_healthy_bliss_cards() -> void:
 					# Blood Libation boosts the caster's performed heal ONCE for the sweep
 					heal_amt = stats.boost_performed_heal(heal_amt)
 					add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
-				for ally in _all_players():
+				for ally in _all_allies():
 					if not is_instance_valid(ally):
 						continue
 					var ally_stats = ally.get_stats()
@@ -7436,6 +7548,8 @@ func _cryonics_end(p) -> void:
 ## Friendship: link both players' stats so heals are shared and incoming damage
 ## is split 50/50 (handled inside PlayerStats.heal/take_damage on pre-modifier
 ## amounts, so each side applies its own amplification/penalty).
+const FRIENDSHIP_TEMPO := 5  # the bond's timer (no duration was designed; 5 for now)
+
 func _link_friendship() -> void:
 	if _friendship_linked:
 		return
@@ -7449,6 +7563,21 @@ func _link_friendship() -> void:
 		s2.friendship_partner = s1
 		s2.friendship_partner_debuff = _p1_player.get_debuff_manager()
 		s2.friendship_partner_buff = _p1_player.get_buff_manager()
+	schedule_delayed_effect(FRIENDSHIP_TEMPO, _unlink_friendship, "friendship")
+
+func _unlink_friendship() -> void:
+	if not _friendship_linked:
+		return
+	_friendship_linked = false
+	for p in [_p1_player, _p2_player]:
+		if p == null or not is_instance_valid(p):
+			continue
+		var s = p.get_stats()
+		if s:
+			s.friendship_partner = null
+			s.friendship_partner_debuff = null
+			s.friendship_partner_buff = null
+	add_battle_log("Friendship fades.", Color(0.8, 0.6, 0.9))
 
 ## Misery Loves Company: if armed, spread every damage-over-time debuff on the
 ## player and any hit enemy across all the hit enemies (topping each up to the
@@ -8508,9 +8637,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	if card.card_id == "reckless_strike":
 		for i in range(2):
 			var wound = Card.create_minor_wounds()
-			deck_manager.discard_pile.append(wound)
-		add_battle_log("Reckless Strike: 2 Minor Wounds added to deck!", Color(1.0, 0.5, 0.3))
-		print("[MAIN] Reckless Strike: added 2 Minor Wounds to discard pile")
+			deck_manager.shuffle_card_into_draw_pile(wound)
+		add_battle_log("Reckless Strike: 2 Minor Wounds shuffled into your deck!", Color(1.0, 0.5, 0.3))
+		print("[MAIN] Reckless Strike: shuffled 2 Minor Wounds into the draw pile")
 
 	if card.card_id == "collect_arrows":
 		var collected = 0
@@ -9338,7 +9467,7 @@ func _check_berry_bushels() -> void:
 	## 20 mana — and "ally" includes the player. One bushel, one meal.
 	if _berry_bushels.is_empty() or not grid_manager:
 		return
-	for bb_p in _all_players():
+	for bb_p in _all_allies():
 		if not is_instance_valid(bb_p) or not bb_p.has_method("get_stats"):
 			continue
 		var bb_stats = bb_p.get_stats()
@@ -9409,7 +9538,7 @@ func _update_grounding_discount() -> void:
 			if gd_e and is_instance_valid(gd_e) and gd_e.shock_stacks > 0 \
 					and grid_manager.get_distance_in_cells(player.position, gd_e.position) <= 10:
 				gd_shock += gd_e.shock_stacks
-		for gd_ally in _all_players():
+		for gd_ally in _all_allies():
 			if is_instance_valid(gd_ally) and gd_ally.has_method("get_debuff_manager") \
 					and grid_manager.get_distance_in_cells(player.position, gd_ally.position) <= 10:
 				var gd_adm = gd_ally.get_debuff_manager()
@@ -9975,7 +10104,7 @@ func _ring_note_big_hit(damage: int) -> void:
 ## Allies inside a cloud (2-square radius) stay invisible and hold +10% crit.
 func _update_smoke_zones(amount: int) -> void:
 	# Reset the smoke crit; re-applied below for anyone still inside a cloud.
-	for p in _all_players():
+	for p in _all_allies():
 		if is_instance_valid(p) and p.get_stats():
 			p.get_stats().aura_crit_bonus = 0.0
 	if _smoke_zones.is_empty():
@@ -9983,7 +10112,7 @@ func _update_smoke_zones(amount: int) -> void:
 	var survivors: Array = []
 	for zone in _smoke_zones:
 		zone["tempo"] -= amount
-		for p in _all_players():
+		for p in _all_allies():
 			if not is_instance_valid(p) or not p.get_stats():
 				continue
 			if grid_manager.get_distance_in_cells(zone["position"], p.position) <= 2:
@@ -10054,7 +10183,7 @@ func _on_armor_gained_spiked(amount: int) -> void:
 				_spiked_armor_accum -= g.armor_gain_thorns_threshold
 				var bm = player.get_buff_manager()
 				if bm:
-					bm.apply_buff(Buff.create_thorns(g.armor_gain_thorns_amount, 15, g.item_name))
+					bm.apply_buff(Buff.create_thorns(g.armor_gain_thorns_amount, 5, g.item_name))
 					add_battle_log("%s: +%d thorns!" % [g.item_name, g.armor_gain_thorns_amount], Color(0.8, 0.7, 0.5))
 			return
 
@@ -10139,13 +10268,13 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 		"well_placed_guard":
 			var bm2 = player.get_buff_manager()
 			if bm2:
-				bm2.apply_buff(Buff.create_thorns(5, 15, "Well placed guard"))
+				bm2.apply_buff(Buff.create_thorns(5, 5, "Well placed guard"))
 				add_battle_log("Well placed guard: +5 thorns", Color(0.8, 0.7, 0.5))
 		"imbue_tree":
 			var bm3 = player.get_buff_manager()
 			if bm3:
 				bm3.apply_buff(Buff.create_regen(5, 15, "imbue tree"))
-				bm3.apply_buff(Buff.create_thorns(10, 15, "imbue tree"))
+				bm3.apply_buff(Buff.create_thorns(10, 5, "imbue tree"))
 				add_battle_log("imbue tree: +5 regen, +10 thorns", Color(0.5, 0.9, 0.5))
 		_:
 			print("[MAIN] Unknown gauntlet world skill: %s" % effect_id)
@@ -10197,7 +10326,7 @@ func _on_curse_of_the_living_shared(amount: int) -> void:
 	if amount <= 0:
 		return
 	var healed_any := 0
-	for ally in _all_players():
+	for ally in _all_allies():
 		if ally == player or not is_instance_valid(ally) or not ally.get_stats():
 			continue
 		ally.get_stats().heal(amount, true)
@@ -10216,7 +10345,7 @@ func _shield_on_cycle_passives() -> void:
 		if shield.regen_per_cycle > 0:
 			buff_mgr.apply_buff(Buff.create_regen(shield.regen_per_cycle, 15, shield.item_name))
 		if shield.thorns_per_cycle > 0:
-			buff_mgr.apply_buff(Buff.create_thorns(shield.thorns_per_cycle, 15, shield.item_name))
+			buff_mgr.apply_buff(Buff.create_thorns(shield.thorns_per_cycle, 5, shield.item_name))
 
 ## A draw overflowed a full hand. Every equipped Overdraw rider collects.
 #endregion
@@ -10456,6 +10585,7 @@ func _helm_on_cycle_passives() -> void:
 	var jordan_rate := 0.0
 	var jordan_threshold := 0
 	var greaves_regen := 0
+	var greaves_mana := 0
 	var greaves_radius := 0
 	var greaves_resist := 0.0
 	for boot in inv.equipped_boots:
@@ -10464,17 +10594,18 @@ func _helm_on_cycle_passives() -> void:
 			jordan_threshold = boot.missing_life_threshold
 		if boot and boot.ally_regen_per_cycle > 0 and greaves_regen == 0:
 			greaves_regen = boot.ally_regen_per_cycle
+			greaves_mana = boot.ally_mana_per_cycle
 			greaves_radius = boot.ally_regen_radius
 			greaves_resist = boot.ally_physical_resist
 
 	# Guardian Greaves aura: allies (players and summons) within the radius are
 	# healed and given mana each cycle; players also hold 5% physical resist
 	# while inside. Resist is presence-based — reset first, then re-applied.
-	for ally in _all_players():
+	for ally in _all_allies():
 		if is_instance_valid(ally) and ally.get_stats():
 			ally.get_stats().aura_physical_resist = 0.0
 	if greaves_regen > 0 and grid_manager:
-		for ally in _all_players():
+		for ally in _all_allies():
 			if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > greaves_radius:
 				continue
 			var a_st = ally.get_stats()
@@ -10483,7 +10614,7 @@ func _helm_on_cycle_passives() -> void:
 				a_st._passive_heal = true
 				a_st.heal(greaves_regen)
 				a_st._passive_heal = false
-				a_st.gain_mana(greaves_regen * 10)  # "6 mana" on the design scale = 60 in code
+				a_st.gain_mana(greaves_mana)
 				a_st.aura_physical_resist = greaves_resist
 		for m in _frankensteins:
 			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
@@ -10919,7 +11050,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# restored. At item Lv.3 the restore doubles to 40%/40%.
 			var mend_pct := 0.4 if (card.granted_by_item and card.granted_by_item.item_level >= 3) else 0.2
 			var mend_healed := 0
-			for ally in _all_players():
+			for ally in _all_allies():
 				if not is_instance_valid(ally) or grid_manager.get_distance_in_cells(player.position, ally.position) > 4:
 					continue
 				var a_st = ally.get_stats()
@@ -11040,7 +11171,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						gr_e.shock_stacks = 0
 						if gr_e.has_method("_update_status_indicators"):
 							gr_e._update_status_indicators()
-			for gr_ally in _all_players():
+			for gr_ally in _all_allies():
 				if not is_instance_valid(gr_ally) or not gr_ally.has_method("get_debuff_manager"):
 					continue
 				if grid_manager.get_distance_in_cells(player.position, gr_ally.position) > 10:
@@ -11503,11 +11634,11 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Roar knocked back %d enemies" % nearby.size())
 
 		"taunt":
-			# Force nearby enemies to target this player for 2 turns
+			# Force nearby enemies to target this player for 5 tempo
 			var nearby = enemy_spawner.get_enemies_in_radius(player.position, card.aoe_range)
 			for enemy in nearby:
-				enemy.apply_taunt(player, 10)
-			print("[MAIN] Taunted %d enemies for 2 turns" % nearby.size())
+				enemy.apply_taunt(player, 5)
+			print("[MAIN] Taunted %d enemies for 5 tempo" % nearby.size())
 
 		"charge":
 			# Move player forward 5 spaces, damaging enemies and interacting with obstacles
@@ -11680,7 +11811,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"hold_the_line":
 			# All allies gain 5 armor, +2 determination, +2 strength.
-			for ally in _all_players():
+			for ally in _all_allies():
 				var a_st = ally.get_stats() if is_instance_valid(ally) else null
 				if a_st:
 					a_st.add_armor(5)
@@ -11852,6 +11983,13 @@ func _input(event: InputEvent) -> void:
 			if _try_disarm_trap():
 				return
 			chest_loot_ui._try_interact_chest()
+			return
+
+		# Space: the quick way to the basic attack (arms it like the button;
+		# pressing again disarms).
+		if event.keycode == KEY_SPACE:
+			_on_attack_pressed()
+			get_viewport().set_input_as_handled()
 			return
 
 		# TAB: in co-op, switch which character you control; otherwise quest/map menu.
@@ -13693,7 +13831,7 @@ func _on_apply_overflow(overflow_name: String) -> void:
 		"Overcharge: +2 Health (∞)":
 			effect = OverflowEffect.create_overcharge_health(2, -1, "Test")
 		"Overcharge: +2 Mana (∞)":
-			effect = OverflowEffect.create_overcharge_mana(2, -1, "Test")
+			effect = OverflowEffect.create_overcharge_mana(20, -1, "Test")
 		"Overcharge: +2 Armor (3)":
 			effect = OverflowEffect.create_overcharge_armor(2, 3, "Test")
 		"Overcharge: 3 Dmg All (3)":
@@ -13768,21 +13906,28 @@ func _on_player_damage_taken(_amount: int) -> void:
 		_refresh_unit_tracker()
 
 func _on_ally_damage_taken(_amount: int, victim) -> void:
-	## Co-op: the PARTNER took damage. If the other player holds Cover and is
-	## within 2 tiles, their reaction mitigates it — the ally is restored by the
-	## defender's hand size (post-damage approximation of "reduce it").
+	## An ALLY took damage: the co-op partner, or a dojo practice ally. If the
+	## defender holds Cover and is within 2 tiles, their reaction mitigates it —
+	## the ally is restored by the defender's hand size (post-damage
+	## approximation of "reduce it").
 	if not is_instance_valid(victim):
 		return
-	var defender = _p1_player if victim == _p2_player else _p2_player
-	if defender == null or not is_instance_valid(defender):
+	var defender = null
+	var defender_deck = null
+	if victim in _dojo_allies:
+		defender = player
+		defender_deck = deck_manager
+	else:
+		defender = _p1_player if victim == _p2_player else _p2_player
+		defender_deck = _p1_deck_manager if defender == _p1_player else _p2_deck_manager
+	if defender == null or not is_instance_valid(defender) or defender_deck == null:
 		return
 	var diff = defender.position - victim.position
-	if Vector3(diff.x, 0, diff.z).length() > 2.0:
+	if Vector3(diff.x, 0, diff.z).length() > 3.0:
 		return
-	var defender_deck = _p1_deck_manager if defender == _p1_player else _p2_deck_manager
-	if defender_deck == null:
-		return
-	var cover_reactions = defender_deck.trigger_reactions("on_ally_damage_taken")
+	var cover_reactions: Array = []
+	if Vector3(diff.x, 0, diff.z).length() <= 2.0:
+		cover_reactions = defender_deck.trigger_reactions("on_ally_damage_taken")
 	for card in cover_reactions:
 		# player_stats = the VICTIM (who gets the mitigation); deck = defender's
 		# (whose hand size sets the amount).
@@ -14582,6 +14727,8 @@ func _spawn_dojo_ally(cell: Vector2i) -> void:
 	var stats = ally.get_stats()
 	stats.health_damage_taken.connect(ally.spawn_damage_number)
 	stats.healed.connect(ally.spawn_heal_number)
+	# The dog is an ally: Cover and Psionic Flow (guard) answer its wounds.
+	stats.damage_taken.connect(_on_ally_damage_taken.bind(ally))
 
 	# Health / armor readout over its head; a lethal hit refills it.
 	var readout := Label3D.new()

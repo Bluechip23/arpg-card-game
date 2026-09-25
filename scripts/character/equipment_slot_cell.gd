@@ -292,3 +292,5 @@ func _notification(what: int) -> void:
 	# Hovering an equipped item opens its description (no click needed).
 	if what == NOTIFICATION_MOUSE_ENTER and item and _panel and _panel.has_method("_on_equipped_item_hovered"):
 		_panel._on_equipped_item_hovered(item, item_type, slot_index)
+	elif what == NOTIFICATION_MOUSE_EXIT and item and _panel and _panel.has_method("_on_item_hover_exited"):
+		_panel._on_item_hover_exited(self, item)

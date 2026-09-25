@@ -15,8 +15,13 @@ signal lock_in_requested(target_position: Vector3, spaces: int)
 var lock_in_button: Button = null
 var pending_position: Vector3
 var pending_spaces: int
+## Callable() -> Array[Rect2]: screen areas the box must not cover (the hand,
+## the bottom-left action column). Set by main.
+var avoid_rects_provider: Callable = Callable()
 
 func _ready() -> void:
+	# Draw above the main UI layer (layer 1) so Yes/No are always clickable.
+	layer = 20
 	# Add the co-op "Lock In Movement" option beside Yes/No.
 	lock_in_button = Button.new()
 	lock_in_button.text = "Lock In Movement"
@@ -37,15 +42,29 @@ func show_dialog(target_pos: Vector3, spaces: int, allow_lock_in: bool = false) 
 	if lock_in_button:
 		lock_in_button.visible = allow_lock_in
 	panel.visible = true
-	
+	panel.reset_size()
+
 	# Position dialog near mouse
 	var mouse_pos = get_viewport().get_mouse_position()
 	panel.position = mouse_pos + Vector2(20, -50)
-	
+
+	# Never over the hand or the action column: slide up, then right.
+	if avoid_rects_provider.is_valid():
+		for r in avoid_rects_provider.call():
+			var rect: Rect2 = r
+			if rect.intersects(Rect2(panel.position, panel.size)):
+				panel.position.y = rect.position.y - panel.size.y - 6
+			if rect.intersects(Rect2(panel.position, panel.size)):
+				panel.position.x = rect.end.x + 8
+
 	# Keep on screen
 	var screen_size = get_viewport().get_visible_rect().size
 	if panel.position.x + panel.size.x > screen_size.x:
 		panel.position.x = screen_size.x - panel.size.x - 10
+	if panel.position.y + panel.size.y > screen_size.y:
+		panel.position.y = screen_size.y - panel.size.y - 10
+	if panel.position.x < 10:
+		panel.position.x = 10
 	if panel.position.y < 0:
 		panel.position.y = 10
 

@@ -417,7 +417,7 @@ var keystone_armor_temp_hp: bool = false
 var keystone_mana_blood: bool = false
 # Willspring: Determination's swing is driven by mana percentage, not health.
 var keystone_det_mana: bool = false
-const CONVERSION_TEMP_HP_TEMPO: int = 15  # duration of keystone-converted temp HP
+const CONVERSION_TEMP_HP_TEMPO: int = 5  # duration of keystone-converted temp HP (no design timer yet; 5 for now)
 var _det_vitality_hp_applied: int = 0    # HP currently granted by Bulwark Soul (re-synced as DET changes)
 const DET_VITALITY_HP_PER_POINT: int = 2
 const DET_AMPLIFY_FACTOR: float = 1.5    # Wild Abandon: ×1.5 to the determination swing

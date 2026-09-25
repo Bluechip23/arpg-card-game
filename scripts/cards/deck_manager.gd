@@ -327,6 +327,14 @@ func shuffle_draw_pile() -> void:
 	brain_peek_depth = 0  # Shuffling scrambles everything the player had scried
 	deck_shuffled.emit()
 
+## Slips one card into a random spot of the draw pile. This is NOT a full
+## shuffle: the player's scried order stays and deck_shuffled does not fire, so
+## "add a card to your deck" effects never feed shuffle-triggered passives.
+func shuffle_card_into_draw_pile(card: Card) -> void:
+	if card == null:
+		return
+	draw_pile.insert(randi() % (draw_pile.size() + 1), card)
+
 func shuffle_discard_into_draw() -> void:
 	if discard_pile.size() == 0:
 		return
@@ -352,7 +360,7 @@ func draw_card() -> Card:
 
 	# In-hand tempo reduction (Boots of Speed) lasts until played or discarded —
 	# a card can only re-enter the hand through a draw, so a fresh draw is clean.
-	card.temp_hand_tempo_reduction = 0
+	card.clear_temp_mods()
 
 	# Feral Evocation: conversion only holds while the card stays in hand — a
 	# card re-entering through a draw is back to its printed element.
@@ -507,6 +515,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				return { "played": false, "half_tempo": false }
 
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +1m per prior play
+	mana_cost -= card.temp_mana_discount  # timed passive discount (Ancestral Aid)
 	if card.card_type == Card.CardType.ATTACK:
 		mana_cost -= next_attack_mana_discount
 
@@ -937,6 +946,7 @@ func process_turn() -> void:
 
 	# Process Erase: tick down erase timers on all cards and delete expired ones
 	_process_erase_timers()
+	_process_temp_mods()
 
 	# Djinn Wishes: every wish held in hand sears its holder once per cycle.
 	if player_stats:
@@ -987,6 +997,19 @@ func _process_erase_timers() -> void:
 	if hand_changed:
 		hand_updated.emit()
 
+func _process_temp_mods() -> void:
+	## Timed in-hand tweaks (Ancestral Aid, Clean Exchange, Keep Them Guessing)
+	## run out after their tempo — 5 for now, so they expire at the next cycle.
+	var changed := false
+	for card in hand:
+		if card.temp_mod_tempo_left > 0:
+			card.temp_mod_tempo_left -= 5
+			if card.temp_mod_tempo_left <= 0:
+				card.clear_temp_mods()
+				changed = true
+	if changed:
+		hand_updated.emit()
+
 func get_peaked_card() -> Card:
 	return peaked_card
 
@@ -1019,16 +1042,20 @@ func can_add_copy(card_id: String) -> bool:
 	var cap := Card.max_deck_copies(card_id)
 	return cap < 0 or count_copies_in_deck(card_id) < cap
 
-func add_card_to_deck_from_id(card_id: String) -> bool:
-	## Creates a card from its ID and adds it to the discard pile (available next shuffle).
-	## Used by the sphere grid when unlocking card nodes.
+func add_card_to_deck_from_id(card_id: String, to_draw_pile: bool = true) -> bool:
+	## Creates a card from its ID and shuffles it into the DRAW pile — "shuffle
+	## into your deck" always means the draw pile unless a card says "discard
+	## pile" (pass to_draw_pile = false for those).
 	if not can_add_copy(card_id):
 		print("[DECK] Copy limit reached for %s (%d max) — not added" % [card_id, Card.max_deck_copies(card_id)])
 		return false
 	var card = _create_card_from_id(card_id)
 	if card:
-		discard_pile.append(card)
-		print("[DECK] Sphere grid unlocked card: %s (added to discard pile)" % card.card_name)
+		if to_draw_pile:
+			shuffle_card_into_draw_pile(card)
+		else:
+			discard_pile.append(card)
+		print("[DECK] Added card: %s (to %s)" % [card.card_name, "draw pile" if to_draw_pile else "discard pile"])
 		return true
 	print("[DECK] WARNING: Sphere grid tried to unlock unknown card: %s" % card_id)
 	return false
@@ -1074,7 +1101,7 @@ func discard_card_from_hand(card: Card) -> bool:
 	if idx < 0:
 		return false
 	hand.remove_at(idx)
-	card.temp_hand_tempo_reduction = 0  # in-hand reduction ends on discard
+	card.clear_temp_mods()  # in-hand tweaks end on discard
 	discard_pile.append(card)
 	discards_this_cycle += 1
 	card_discarded.emit(card)

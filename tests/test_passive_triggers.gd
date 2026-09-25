@@ -91,8 +91,12 @@ func _test_keep_them_guessing(stats, pt) -> void:
 	_check(stats.st_ktg_discard_count == 0, "a played card passing the discard pile does not count")
 	for _i in range(required):
 		dm.non_play_discard.emit(Card.create_block())
-	_check(slash.tempo_cost == 0 and stats.st_ktg_discard_count == 0,
-		"%d true discards cut a hand card by 3 tempo (Slash 3 → 0) and reset the count" % required)
+	_check(slash.tempo_cost == 3 and slash.temp_hand_tempo_reduction == 3 and slash.temp_mod_tempo_left == 5 \
+			and stats.st_ktg_discard_count == 0,
+		"%d true discards cut a hand card by 3 tempo for 5 tempo (Slash 3 → 0, printed cost untouched) and reset the count" % required)
+	dm._process_temp_mods()
+	_check(slash.temp_hand_tempo_reduction == 0 and slash.temp_mod_tempo_left == 0,
+		"the Keep Them Guessing cut expires after 5 tempo")
 
 func _test_quick_step(stats, pt) -> void:
 	print("-- Quick Step --")
@@ -115,8 +119,12 @@ func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	var base_block: int = block.block
 	var base_tempo: int = block.tempo_cost
 	pt._trigger_skill_tree_on_draw(block)
-	_check(block.block == base_block + PassiveScaling.value("clean_exchange", "block", 15) and block.tempo_cost == base_tempo - 1,
-		"drawing a Defense after playing an Attack: -1t and rank-15 block")
+	_check(block.block == base_block + PassiveScaling.value("clean_exchange", "block", 15) \
+			and block.tempo_cost == base_tempo and block.temp_hand_tempo_reduction == 1 and block.temp_mod_tempo_left == 5,
+		"drawing a Defense after playing an Attack: -1t and rank-15 block, both timed (5 tempo)")
+	block.clear_temp_mods()
+	_check(block.block == base_block and block.temp_hand_tempo_reduction == 0,
+		"clearing the Clean Exchange tweak restores the printed block and tempo")
 	_grant(stats, "mad_scientist")
 	var bm = main.player.get_buff_manager()
 	for b in bm.buffs.duplicate():
@@ -125,6 +133,21 @@ func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	var potion := Card.create_healing_potion()
 	pt._trigger_skill_tree_on_card_play(potion, main.player)
 	_check(bm.get_buff(Buff.BuffType.REGEN) != null, "Utility then a potion: Mad Scientist adds regen")
+	# Defense → Poison: a timed physical-defense drop, not an armor strip.
+	var ms_dummy: Enemy = dummy
+	ms_dummy.current_armor = 10
+	pt._trigger_skill_tree_on_card_play(Card.create_block(), ms_dummy)
+	var ms_poison := Card.create_poison_bomb()
+	if ms_poison:
+		pt._trigger_skill_tree_on_card_play(ms_poison, ms_dummy)
+		_check(ms_dummy.phys_defense_debuff_percent == 15.0 and ms_dummy.phys_defense_debuff_tempo == 5 and ms_dummy.current_armor == 10,
+			"Defense then a poison potion: -15%% physical defense for 5 tempo, armor untouched (got %.0f%% / %dt / %d armor)" % [ms_dummy.phys_defense_debuff_percent, ms_dummy.phys_defense_debuff_tempo, ms_dummy.current_armor])
+		var ms_hp: int = ms_dummy.current_health
+		ms_dummy.current_armor = 0
+		ms_dummy.take_damage(100, true)
+		_check(ms_hp - ms_dummy.current_health == 115, "a 100 physical hit lands for 115 while defense is lowered (got %d)" % (ms_hp - ms_dummy.current_health))
+		ms_dummy._tick_timed_statuses(5)
+		_check(ms_dummy.phys_defense_debuff_tempo == 0 and ms_dummy.phys_defense_debuff_percent == 0.0, "the lowered defense expires after 5 tempo")
 
 func _test_self_reliance(stats, pt) -> void:
 	print("-- Self Reliance --")

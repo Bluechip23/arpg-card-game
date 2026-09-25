@@ -376,7 +376,8 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var consecutive_attack_draw: int = 0        # draw a card after X consecutive attacks (Cyde Livingstons Sneakers 5)
 @export var fire_trail_damage: int = 0              # >0 enables the fire trail; spots deal INT/5 damage (Elemental Trail Blazers)
 @export var fire_trail_tempo: int = 0               # how long a fire spot persists (Elemental Trail Blazers 3)
-@export var ally_regen_per_cycle: int = 0           # heal+mana per cycle to allies in radius (Guardian Greaves 10)
+@export var ally_regen_per_cycle: int = 0           # health per cycle to allies in radius (Guardian Greaves 6)
+@export var ally_mana_per_cycle: int = 0            # mana per cycle to allies in radius (Guardian Greaves 60)
 @export var ally_regen_radius: int = 0              # aura radius in tiles (Guardian Greaves 4)
 @export var ally_physical_resist: float = 0.0       # % physical resist to allies in radius (Guardian Greaves 5)
 
@@ -1382,7 +1383,7 @@ static func create_boots_of_the_balancer() -> ItemData:
 	item.level_3_description = "+16 health, +4 WIS, +6 STR, +3 DET. On-self: gain 5 armor for each 6% health you are missing. Grants two copies of Tight rope."
 	_set_appearance(item, "boots_of_the_balancer",
 		"The thin, flexible shoes a tightrope walker works in.")
-	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health and 15 Strengthen. Upgraded: each 6% missing health; Tight rope gains a second copy."
+	item.description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health for 5 tempo and 15 Strengthen on your next attack. Upgraded: each 6% missing health; Tight rope gains a second copy."
 	return item
 
 static func create_hermes_boots() -> ItemData:
@@ -1420,14 +1421,15 @@ static func create_guardian_greaves() -> ItemData:
 	item.wisdom_bonus = 4
 	item.strength_bonus = 5
 	item.ally_regen_per_cycle = 6
+	item.ally_mana_per_cycle = 60
 	item.ally_regen_radius = 4
 	item.ally_physical_resist = 5.0
 	var guardian_cards: Array[String] = ["mend"]
 	item.granted_card_ids = guardian_cards
 	# Mend restoring 40%/40% at Lv.3 is read live off item_level (see the mend
 	# world effect in main.gd); no field changes at Lv.3.
-	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, restore 6 health and 6 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
-	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, restore 6 health and 6 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	item.level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, restore 6 health and 60 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance while they stay inside. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+	item.description = "+5 INT, +4 WIS, +5 STR. Each cycle, restore 6 health and 60 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance while they stay inside. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
 	# Modelled on DOTA 2's Guardian Greaves.
 	_set_appearance(item, "guardian_greaves",
 		"Holy plate warboots, steel banded in gold and winged at the ankle, with a healing light spilling out of the seams.")
@@ -1576,7 +1578,7 @@ static func create_gravity_gauntlets() -> ItemData:
 	item.agility_bonus = 2
 	item.on_self_root_offensive = 1  # hold for 1 cycle (5 tempo)
 	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2, 15)
-	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 tempo CD)."
+	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place for 5 tempo (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 tempo CD)."
 	return item
 
 static func create_spiked_mitts() -> ItemData:
@@ -1889,7 +1891,7 @@ static func create_shadow_obi() -> ItemData:
 	item.cheap_card_zap_damage = 3
 	var so_cards: Array[String] = ["poof_and_weave"]
 	item.granted_card_ids = so_cards
-	item.description = "+8 AGI, +4 DEX. On-self: +5 damage while invisible. Playing a card that costs less than 2 tempo deals 3 damage to a random enemy. Grants Poof and Weave: become invisible, gain 10 armor and draw a card (40 mana, 5 tempo)."
+	item.description = "+8 AGI, +4 DEX. On-self: +5 damage while invisible. Playing a card that costs less than 2 tempo deals 3 damage to a random enemy. Grants Poof and Weave: become invisible for 5 tempo, gain 10 armor and draw a card (40 mana, 5 tempo)."
 	return item
 
 static func create_belt_of_scrolls() -> ItemData:
@@ -2088,7 +2090,7 @@ static func create_hammer_of_ajax() -> ItemData:
 	item.on_self_max_hp_damage_percent = 10.0
 	var ha_cards: Array[String] = ["feed_into_the_pain"]
 	item.granted_card_ids = ha_cards
-	item.description = "+8 DET, +8 STR, -2 AGI. On-self: +damage equal to 10% of your max health. Grants Feed into the Pain (instant): when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP."
+	item.description = "+8 DET, +8 STR, -2 AGI. On-self: +damage equal to 10% of your max health. Grants Feed into the Pain (instant): when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP for 5 tempo."
 	return item
 
 static func create_laurentius_lost_spear() -> ItemData:
@@ -2609,7 +2611,7 @@ static func create_cupids_bow() -> ItemData:
 	item.intelligence_bonus = 4
 	var cb_cards: Array[String] = ["cupids_golden_arrow", "cupids_lead_arrow"]
 	item.granted_card_ids = cb_cards
-	item.description = "+3 WIS, +5 STR, +4 INT. Grants Golden — 10 damage, 2 Vulnerable, 50% chance to taunt the enemy toward you — and Lead — 10 damage, 2 Weaken, 50% chance to send the enemy fleeing (each 45 mana, 3 tempo). An enemy struck by both arrows turns into a tree for 4 tempo: it keeps every buff and debuff, cannot act, and regenerates 3 health on each of its first 3 tempo."
+	item.description = "+3 WIS, +5 STR, +4 INT. Grants Golden — 10 damage, 2 Vulnerable, 50% chance to taunt the enemy toward you for 5 tempo — and Lead — 10 damage, 2 Weaken, 50% chance to send the enemy fleeing for 5 tempo (each 45 mana, 3 tempo). An enemy struck by both arrows turns into a tree for 4 tempo: it keeps every buff and debuff, cannot act, and regenerates 3 health on each of its first 3 tempo."
 	return item
 
 static func create_the_rapid_recurve() -> ItemData:
@@ -2784,7 +2786,7 @@ static func create_sword_breaker() -> ItemData:
 	item.blocked_melee_tempo_tax = 2
 	var sb_cards: Array[String] = ["song_of_a_swords_sing"]
 	item.granted_card_ids = sb_cards
-	item.description = "+3 DEX, +3 DET, +25 health, +25 mana. 3 card slots. On-self: gain 4 armor and Fortify — your armor stops decaying. Melee damage your armor swallows whole costs that enemy 2 extra tempo on its next melee attack. Grants Song of a Swords Sing: Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (35 mana, 3 tempo)."
+	item.description = "+3 DEX, +3 DET, +25 health, +25 mana. 3 card slots. On-self: gain 4 armor and Fortify for 5 tempo — your armor stops decaying. Melee damage your armor swallows whole costs that enemy 2 extra tempo on its next melee attack. Grants Song of a Swords Sing: Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (35 mana, 3 tempo)."
 	return item
 
 static func create_coffin_lid() -> ItemData:
@@ -3102,10 +3104,10 @@ static func create_circes_wand_of_cauldron_stirring() -> ItemData:
 	item.granted_card_ids = cw_cards
 	var cw_cards_l3: Array[String] = ["polymorph", "polymorph", "polymorph"]
 	item.level_3_overrides = {"granted_card_ids": cw_cards_l3}
-	item.level_3_description = "+9 WIS, -5 STR, +21 mana. 1 card slot. Your damaging attacks apply 1 Silence. Grants THREE copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
+	item.level_3_description = "+9 WIS, -5 STR, +21 mana. 1 card slot. Your damaging attacks Silence the enemy for 5 tempo. Grants THREE copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
 	_set_appearance(item, "circes_wand_of_cauldron_stirring",
 		"A thin tree branch with smaller living branches coiled around its length — the sorceress's wand exactly as the tale tells it.")
-	item.description = "+8 WIS, -5 STR, +20 mana. 1 card slot. Your damaging attacks apply 1 Silence. Grants TWO copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
+	item.description = "+8 WIS, -5 STR, +20 mana. 1 card slot. Your damaging attacks Silence the enemy for 5 tempo. Grants TWO copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
 	return item
 
 static func create_reaper_scythe() -> ItemData:

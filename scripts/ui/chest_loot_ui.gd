@@ -50,11 +50,13 @@ func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) ->
 	overlay.color = Color(0, 0, 0, 0.55)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.gui_input.connect(_on_chest_overlay_input)
+	overlay.z_index = 300  # hovered hand cards raise to 200 — the window stays above them
 	ui.add_child(overlay)
 
 	# Modal panel
 	main._chest_modal = PanelContainer.new()
 	main._chest_modal.name = "ChestModal"
+	main._chest_modal.z_index = 301
 	main._chest_modal.custom_minimum_size = Vector2(420, 0)
 	main._chest_modal.set_anchors_preset(Control.PRESET_CENTER)
 	main._chest_modal.grow_horizontal = Control.GROW_DIRECTION_BOTH

@@ -2303,8 +2303,8 @@ func add_card_to_deck(card_index: int, dm) -> bool:
 	if card == null:
 		return false
 	if dm:
-		dm.discard_pile.append(card)
-		print("[INVENTORY] Card '%s' added to discard pile from inventory" % card.card_name)
+		dm.shuffle_card_into_draw_pile(card)
+		print("[INVENTORY] Card '%s' shuffled into the draw pile from inventory" % card.card_name)
 		return true
 	# If no deck manager, put card back
 	stored_cards.insert(card_index, card)

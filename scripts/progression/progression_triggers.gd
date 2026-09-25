@@ -366,8 +366,8 @@ func _on_constellation_replaced(old_id: String, _new_id: String) -> void:
 	# Reverse stat bonuses for constellations that granted direct stats
 	match old_id:
 		"mind_weaver":
-			stats.sphere_bonus_mana -= 3
-			stats.max_mana -= 3
+			stats.sphere_bonus_mana -= 30
+			stats.max_mana -= 30
 			stats.current_mana = min(stats.current_mana, stats.get_available_max_mana())
 			stats.mana_changed.emit(stats.current_mana, stats.max_mana)
 		"windwalker":
@@ -424,8 +424,8 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"description": "Arcane Current: Spell cards deal +5 bonus damage"
 			})
 		"mind_weaver":
-			# On spell cast: 20% draw a card. +3 max mana
-			stats.apply_sphere_grid_mana(3)
+			# On spell cast: 20% draw a card. +30 max mana
+			stats.apply_sphere_grid_mana(30)
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_spell_cast", "effect": "draw_card",
 				"value": 1, "chance": 0.20,
@@ -435,17 +435,17 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 			# +1 movement, first card after moving costs 1 less
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_move", "effect": "reduce_cost",
-				"value": 1, "chance": 1.0,
-				"description": "Windwalker: First card after moving costs 1 less"
+				"value": 10, "chance": 1.0,
+				"description": "Windwalker: First card after moving costs 10 less"
 			})
 			# +1 movement via agility
 			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
 		"storm_runner":
-			# +1 movement, gain 2 mana on move
+			# +1 movement, gain 20 mana on move
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_move", "effect": "gain_mana",
-				"value": 2, "chance": 1.0,
-				"description": "Storm Runner: Gain 2 mana on each move"
+				"value": 20, "chance": 1.0,
+				"description": "Storm Runner: Gain 20 mana on each move"
 			})
 			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
 		"sages_insight":
@@ -589,8 +589,9 @@ func _trigger_skill_tree_on_discard(card: Card) -> void:
 			if not candidates.is_empty():
 				stats.st_ktg_discard_count = 0
 				var target_card: Card = candidates[randi() % candidates.size()]
-				target_card.tempo_cost = maxi(0, target_card.tempo_cost - 3)
-				main.add_battle_log("Keep Them Guessing: %s -3t" % target_card.card_name, Color(0.9, 0.3, 0.3))
+				# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+				target_card.apply_temp_mod(0, mini(3, target_card.tempo_cost), 0)
+				main.add_battle_log("Keep Them Guessing: %s -3t for 5 tempo" % target_card.card_name, Color(0.9, 0.3, 0.3))
 
 ## Instants (reactions) fire from hand without being "played" — the card-play
 ## hooks never see them, so their passives listen here.
@@ -665,7 +666,9 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		var last_type = _last_played_card.card_type
 		var buff_mgr = target.get_buff_manager() if target is Player else main.player.get_buff_manager()
 		var is_heal_outcome = card.heal_amount > 0
-		var is_poison_outcome = false
+		# A poison potion (Poison Bomb) is a poison outcome on its own; before,
+		# only a Poisoned-Blood-flipped heal ever reached the poison branch.
+		var is_poison_outcome = "poison" in card.card_id
 
 		# Poisoned Blood flips heal → poison outcome (regen = poison)
 		if buff_mgr and buff_mgr.has_poisoned_blood() and card.heal_amount > 0:
@@ -695,12 +698,12 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 					target.apply_debuff("poison", ms_poison)
 					main.add_battle_log("Mad Scientist: +%d poison stacks!" % ms_poison, Color(0.4, 0.9, 0.4))
 			elif last_type == Card.CardType.DEFENSE:
-				# Defense → Poison: lower enemy physical defense by a rank-scaled % (1..15)
-				if target and target is Enemy and target.current_armor > 0:
+				# Defense → Poison: lower enemy physical defense by a rank-scaled %
+				# (1..15) for 5 tempo (no timer was designed; 5 for now).
+				if target and target is Enemy:
 					var ms_def: int = PassiveScaling.value("mad_scientist", "phys_defense", ms_lvl)
-					var armor_loss = max(1, floori(target.current_armor * ms_def / 100.0))
-					target.reduce_armor(armor_loss)
-					main.add_battle_log("Mad Scientist: -%d armor! (-%d%%)" % [armor_loss, ms_def], Color(0.4, 0.9, 0.4))
+					target.apply_phys_defense_debuff(float(ms_def), 5)
+					main.add_battle_log("Mad Scientist: -%d%% physical defense for 5 tempo!" % ms_def, Color(0.4, 0.9, 0.4))
 
 	_last_played_card = card
 
@@ -718,15 +721,18 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		var last_was_defense = _last_played_card.card_type == Card.CardType.DEFENSE
 		if (drawn_is_defense and last_was_attack) or (drawn_is_attack and last_was_defense):
 			var ce_msg := ""
-			if card.tempo_cost > 0:
-				card.tempo_cost -= 1
+			var ce_tempo: int = 1 if card.tempo_cost > 0 else 0
+			var ce_block: int = 0
+			if ce_tempo > 0:
 				ce_msg = "-1t"
 			if drawn_is_defense:
-				var ce_block: int = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
-				card.block += ce_block
+				ce_block = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
 				ce_msg += (", " if ce_msg != "" else "") + "+%d block" % ce_block
+			if ce_tempo > 0 or ce_block > 0:
+				# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+				card.apply_temp_mod(0, ce_tempo, ce_block)
 			if ce_msg != "":
-				main.add_battle_log("Clean Exchange: %s %s" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
+				main.add_battle_log("Clean Exchange: %s %s for 5 tempo" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
 
 	# From the Hip: if an attack card, discount the most recently drawn card's
 	# mana (rank-scaled 10..75m) and, at high ranks, tempo (1..2t)
@@ -829,7 +835,7 @@ func _trigger_skill_tree_on_crit(target) -> void:
 			stats.st_eye_scrape_last_tempo = main.tempo_manager.get_global_tempo()
 			var buff_mgr = main.player.get_buff_manager()
 			if buff_mgr:
-				buff_mgr.apply_buff(Buff.create_invisible(10, "Eye Scrape"))
+				buff_mgr.apply_buff(Buff.create_invisible(5, "Eye Scrape"))
 				main._set_player_invisible(true)
 				main.add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
 
@@ -896,7 +902,7 @@ func _trigger_skill_tree_on_displacement() -> void:
 			var buff_mgr = main.player.get_buff_manager()
 			if buff_mgr:
 				stats.st_nysm_last_tempo = main.tempo_manager.get_global_tempo()
-				buff_mgr.apply_buff(Buff.create_invisible(10, "Now You See Me"))
+				buff_mgr.apply_buff(Buff.create_invisible(5, "Now You See Me"))
 				main._set_player_invisible(true)
 				main.add_battle_log("Now You See Me: Invisibility!", Color(0.8, 0.4, 0.9))
 
@@ -1059,9 +1065,9 @@ func _trigger_skill_tree_brad_on_heal() -> void:
 			var vc_lvl: int = stats.get_passive_level("vines_codependence")
 			var vc_thorns: int = PassiveScaling.value("vines_codependence", "thorns", vc_lvl)
 			var vc_regen: int = PassiveScaling.value("vines_codependence", "regen", vc_lvl)
-			buff_mgr.apply_buff(Buff.new(Buff.BuffType.THORNS, vc_thorns, 30))
+			buff_mgr.apply_buff(Buff.create_thorns(vc_thorns, 5, "Vines Codependence"))
 			if vc_regen > 0:
-				buff_mgr.apply_buff(Buff.create_regen(vc_regen, 15, "Vines Codependence"))
+				buff_mgr.apply_buff(Buff.create_regen(vc_regen, 5, "Vines Codependence"))
 				main.add_battle_log("Vines Codependence: +%d thorns, +%d regen" % [vc_thorns, vc_regen], Color(0.4, 0.9, 0.4))
 			else:
 				main.add_battle_log("Vines Codependence: +%d thorns" % vc_thorns, Color(0.4, 0.9, 0.4))
@@ -1117,7 +1123,8 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 				if attacks.size() > 0:
 					var target_card = attacks[randi() % attacks.size()]
 					var applied = mini(aa_discount, target_card.mana_cost)
-					target_card.mana_cost -= applied
+					# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+					target_card.apply_temp_mod(applied, 0, 0)
 					main.add_battle_log("Ancestral Aid: %s -%dm (offense)" % [target_card.card_name, applied], Color(0.4, 0.9, 0.4))
 			elif defense_count > attack_count:
 				stats.heal(aa_heal)
