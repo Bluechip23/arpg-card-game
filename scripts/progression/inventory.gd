@@ -405,6 +405,13 @@ func holds_magic_weapon() -> bool:
 			return true
 	return false
 
+## The first non-shield weapon in hand (null for bare hands).
+func get_held_weapon() -> ItemData:
+	for w in equipped_weapons:
+		if w != null and w.item_type == ItemData.ItemType.WEAPON and not _is_shield(w):
+			return w
+	return null
+
 ## The carried weapon's category, for the figure's weapon layer and attack
 ## animation: "sword", "axe", "dagger", "hammer", "spear", "bow", "wand",
 ## "tome", "staff", or "none" for bare hands. Shields don't count (see

@@ -61,6 +61,31 @@ const WEAPON_FRONT_CELLS := [Vector2i(2, 1), Vector2i(3, 1)]
 const AXE_ACTIONS := ["heavy_swing", "attack_heavy", "shed_weight", "wear_down"]
 ## Shield-flavoured attacks: the pack's shield-bash frames, when a shield is held.
 const SHIELD_BASH_ACTIONS := ["shield_slam", "shield_bash", "bash", "bouncing_shield"]
+
+## Held-item art for the categories the character base has no weapon layer
+## for, from the Craftpix weapon icon packs. Each entry names the icon (or a
+## region of the Weapons sheet) and the angle the art is drawn at (degrees,
+## 0 = pointing east, 45 = up-right) so it can be turned to face the target.
+## The item sits flat under the plan-view camera, which lets it point any way.
+const WEAPON_ICON_DIR := "res://assets/sprites/craftpix/weapon_icons"
+const WEAPON_SHEET := "res://assets/sprites/craftpix/armor_weapons_icons/Weapons.png"
+const KIND_ART := {
+	"dagger": {"icon": "icon_11", "angle": 45.0, "scale": 0.5},
+	"spear": {"sheet": true, "region": Rect2(64, 48, 32, 16), "angle": 0.0, "scale": 1.1},
+	"bow": {"icon": "icon_31", "angle": 45.0, "scale": 0.7},
+	"wand": {"icon": "icon_91", "angle": 45.0, "scale": 0.5},
+	"staff": {"icon": "icon_93", "angle": 45.0, "scale": 0.8},
+	"tome": {"icon": "icon_92", "angle": 45.0, "scale": 0.55},
+}
+const ART_SCALE := 0.6       # an item's own 32px picture, held
+const ARROW_ICON := "icon_43"
+const ARROW_ANGLE := 45.0
+const ARROW_SCALE := 0.6
+## Under the plan-view camera "up the screen" is north (-Z): the held item is
+## pushed north so it draws at hand height on the upright body sprite.
+const HAND_LIFT := 0.36
+const ARROW_FLIGHT := 2.4   # world units the arrow travels
+const ARROW_TIME := 0.3
 const GUARD_ACTIONS := ["block", "defend", "parry", "cover", "barricade", "harden",
 		"hold_the_line", "hunker_down", "approach_stance", "magic_barrier", "vengeful_shield"]
 const HOP_ACTIONS := ["roll", "dodge", "bob_and_weave", "heroic_leap", "rise"]
@@ -84,6 +109,10 @@ var _shield_texture: Texture2D = null
 var _show_weapon := true   # false = bare-handed / ranged swing: no weapon layer
 var _show_shield := false
 var _shield_bash := false
+var _held: Sprite3D = null        # icon-pack item in hand (dagger, spear, bow, wand…)
+var _held_angle := 45.0
+var _held_tween: Tween = null
+var _weapon_art: Texture2D = null  # the equipped item's own picture (mythics), if any
 var _doll_page_textures := {}
 
 var _frames: Array = []
@@ -111,6 +140,7 @@ func setup(character_name: String, _sprite_path: String = "") -> void:
 	_weapon_front = null
 	_shield_back = null
 	_shield_front = null
+	_held = null
 	_weapon_textures.clear()
 	_doll_page_textures.clear()
 	_frames = []
@@ -186,8 +216,8 @@ func _setup_npc(sheet_path: String) -> void:
 
 func _load_weapons() -> void:
 	## The pack's one-handed weapon layers: sword, axe and mace (the mace
-	## stands in for hammers). Daggers and spears borrow the sword layer with
-	## the thrust frames; bows and magic weapons have no carried layer yet.
+	## stands in for hammers). Daggers, spears, bows, wands, tomes and staffs
+	## are drawn from the icon packs instead (see KIND_ART).
 	_weapon_textures["sword"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_sw01_v01.png" % SEED)
 	_weapon_textures["axe"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_ax01_v01.png" % SEED)
 	_weapon_textures["mace"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_mc01_v01.png" % SEED)
@@ -201,9 +231,156 @@ func _load_weapons() -> void:
 
 
 ## Tell the figure what it is holding (called whenever equipment changes).
-func set_weapon_kind(kind: String, has_shield: bool) -> void:
+## `art` is the item's own picture when it has one; it replaces the category
+## icon for the categories drawn from the icon packs.
+func set_weapon_kind(kind: String, has_shield: bool, art: Texture2D = null) -> void:
 	_weapon_kind = kind if kind != "" else "none"
 	_has_shield = has_shield
+	_weapon_art = art
+
+
+# --- Held items from the icon packs -----------------------------------------
+
+func _ensure_held() -> Sprite3D:
+	if _held and is_instance_valid(_held):
+		return _held
+	if _rig == null:
+		return null
+	_held = _flat_sprite()
+	_held.name = "HeldItem"
+	_held.visible = false
+	_rig.add_child(_held)
+	return _held
+
+
+## A sprite lying flat on the ground plane: under the near-top-down camera it
+## reads exactly like a billboard, but can be turned to point any direction.
+func _flat_sprite() -> Sprite3D:
+	var s := Sprite3D.new()
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.pixel_size = PIXEL_SIZE
+	s.rotation = Vector3(-PI / 2.0, 0.0, 0.0)
+	s.shaded = false
+	s.no_depth_test = true
+	s.render_priority = 5
+	return s
+
+
+## Point a flat sprite whose art is drawn at `art_angle` along `dir`.
+static func _aim_flat(s: Sprite3D, dir: Vector3, art_angle: float) -> void:
+	var angle_d := rad_to_deg(atan2(-dir.z, dir.x))
+	s.rotation = Vector3(-PI / 2.0, deg_to_rad(angle_d - art_angle), 0.0)
+
+
+func _present_held(kind: String) -> bool:
+	var s := _ensure_held()
+	if s == null:
+		return false
+	if _weapon_art != null:
+		s.texture = _weapon_art
+		s.region_enabled = false
+		s.scale = Vector3.ONE * ART_SCALE
+		_held_angle = 45.0
+		return true
+	if not KIND_ART.has(kind):
+		return false
+	var cfg: Dictionary = KIND_ART[kind]
+	if cfg.get("sheet", false):
+		s.texture = load(WEAPON_SHEET)
+		s.region_enabled = true
+		s.region_rect = cfg["region"]
+	else:
+		s.texture = load("%s/%s.png" % [WEAPON_ICON_DIR, cfg["icon"]])
+		s.region_enabled = false
+	s.scale = Vector3.ONE * float(cfg.get("scale", 1.0))
+	_held_angle = float(cfg["angle"])
+	return true
+
+
+## The hand: a little ahead of the body and to its right, at chest height.
+func _hand_pos(extra_forward: float = 0.0) -> Vector3:
+	var fwd := _forward_vec()
+	var right := Vector3(-fwd.z, 0, fwd.x)
+	return fwd * (0.22 + extra_forward) + right * 0.12 + Vector3(0, 0.5, -HAND_LIFT)
+
+
+func _place_held(extra_forward: float = 0.0) -> void:
+	_held.position = _hand_pos(extra_forward)
+	_aim_flat(_held, _forward_vec(), _held_angle)
+	_held.visible = true
+
+
+func _kill_held_tween() -> void:
+	if _held_tween and _held_tween.is_valid():
+		_held_tween.kill()
+	_held_tween = null
+
+
+func _hide_held() -> void:
+	if _held and is_instance_valid(_held):
+		_held.visible = false
+
+
+## Dagger / spear: the blade darts out along the facing and back.
+func _held_thrust(kind: String, reach: float) -> void:
+	if not _present_held(kind):
+		return
+	_kill_held_tween()
+	_place_held()
+	var start := _held.position
+	var fwd := _forward_vec()
+	_held_tween = create_tween()
+	_held_tween.tween_property(_held, "position", start + fwd * reach, 0.1) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_held_tween.tween_interval(0.06)
+	_held_tween.tween_property(_held, "position", start, 0.12)
+	_held_tween.tween_callback(_hide_held)
+
+
+## Bow: draw back, then loose an arrow from the icon pack toward the facing.
+func _held_shoot() -> void:
+	if not _present_held("bow"):
+		return
+	_kill_held_tween()
+	_place_held()
+	var start := _held.position
+	var fwd := _forward_vec()
+	_held_tween = create_tween()
+	_held_tween.tween_property(_held, "position", start - fwd * 0.08, 0.12)
+	_held_tween.tween_callback(_shoot_icon_arrow)
+	_held_tween.tween_property(_held, "position", start + fwd * 0.04, 0.05)
+	_held_tween.tween_interval(0.25)
+	_held_tween.tween_callback(_hide_held)
+
+
+func _shoot_icon_arrow() -> void:
+	var a := _flat_sprite()
+	a.texture = load("%s/%s.png" % [WEAPON_ICON_DIR, ARROW_ICON])
+	a.scale = Vector3.ONE * ARROW_SCALE
+	var fwd := _forward_vec()
+	# Outside the rig so a hop doesn't carry the arrow with it.
+	a.position = (_rig.position if _rig else Vector3.ZERO) + _hand_pos(0.1)
+	_aim_flat(a, fwd, ARROW_ANGLE)
+	add_child(a)
+	var tw := a.create_tween()
+	tw.tween_property(a, "position", a.position + fwd * ARROW_FLIGHT, ARROW_TIME) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(a.queue_free)
+
+
+## Wand / tome / staff: raise the focus, then lower it.
+func _held_cast(kind: String) -> void:
+	if not _present_held(kind):
+		return
+	_kill_held_tween()
+	_place_held()
+	var start := _held.position
+	_held_tween = create_tween()
+	_held_tween.tween_property(_held, "position", start + Vector3(0, 0.14, 0) - _forward_vec() * 0.05, 0.12) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_held_tween.tween_interval(0.1)
+	_held_tween.tween_property(_held, "position", start, 0.15)
+	_held_tween.tween_callback(_hide_held)
 
 
 func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
@@ -275,17 +452,21 @@ func _play_weapon_attack(heavy: bool) -> void:
 	match _weapon_kind:
 		"bow":
 			_bounce_fx()
-			if _fx:
-				_fx.play("bow_shot")
+			_held_shoot()
 		"wand", "tome", "staff":
 			flash(Color(0.8, 0.85, 1.0))
 			_bounce_fx()
+			_held_cast(_weapon_kind)
 		"axe":
 			_play("attack_axe")
 		"hammer":
 			_play("attack_hammer")
-		"dagger", "spear":
+		"dagger":
 			_play("attack_thrust")
+			_held_thrust("dagger", 0.45)
+		"spear":
+			_play("attack_thrust")
+			_held_thrust("spear", 0.8)
 		"none":
 			_play("attack_unarmed")
 		_:
@@ -534,7 +715,7 @@ func _play(anim: String, _force: bool = false) -> void:
 		"attack_hammer":
 			_start_attack("mace", 4)
 		"attack_thrust":
-			_start_attack("sword", 0, 4)
+			_start_attack("", 0, 4)  # the icon-pack item in hand does the stabbing
 		"attack_unarmed":
 			_start_attack("", 0)
 		"attack_shield_bash":

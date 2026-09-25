@@ -3788,7 +3788,9 @@ func _sync_figure_weapons() -> void:
 			continue
 		var inv = p.get_inventory() if p.has_method("get_inventory") else null
 		if inv:
-			p.set_weapon_kind(inv.held_weapon_kind(), inv.has_shield_equipped())
+			var held = inv.get_held_weapon()
+			var art: Texture2D = held.get_appearance_texture() if held and held.has_appearance_art() else null
+			p.set_weapon_kind(inv.held_weapon_kind(), inv.has_shield_equipped(), art)
 
 #endregion
 #region PASSIVE TRAY
