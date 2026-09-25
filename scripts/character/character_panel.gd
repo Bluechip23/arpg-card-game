@@ -29,6 +29,7 @@ var deck_manager = null  # DeckManager - untyped to avoid circular dependency
 # Detail side panel state
 var _detail_panel: PanelContainer = null
 var _detail_item: ItemData = null
+var _detail_pinned: bool = false  # clicked open: stays until Close / another click
 var _detail_item_type: ItemData.ItemType = ItemData.ItemType.HELM
 var _detail_slot_index: int = -1
 var _detail_storage_index: int = -1  # >= 0 means stored item, -1 means equipped
@@ -1233,6 +1234,22 @@ func _make_section_header(text: String) -> Label:
 
 func _on_equipped_item_clicked(item: ItemData, item_type: ItemData.ItemType, slot_index: int) -> void:
 	_show_detail_panel(item, item_type, slot_index, -1)
+	_detail_pinned = true
+
+func _hover_details_blocked() -> bool:
+	## A pinned window or the card-slot manager keeps hover from swapping panels.
+	return _detail_pinned or (_card_slot_panel != null and is_instance_valid(_card_slot_panel))
+
+func _on_item_hover_exited(cell: Control, item: ItemData) -> void:
+	## Hover windows are tooltips: gone the moment the mouse leaves the item
+	## (unless it was clicked open). Checked a frame later so moving onto one
+	## of the cell's own children doesn't count as leaving.
+	await get_tree().process_frame
+	if _detail_pinned or _detail_item != item:
+		return
+	if is_instance_valid(cell) and cell.get_global_rect().has_point(cell.get_global_mouse_position()):
+		return
+	_close_detail_panel()
 
 func _main_node() -> Node:
 	## The live Main scene. Not "/root/Main": after entering an interior the
@@ -1251,12 +1268,16 @@ func _main_node() -> Node:
 	return best
 
 func _on_stored_item_hovered(item: ItemData, storage_index: int) -> void:
-	## Hover shows the item's description; clicking still works too.
+	## Hover shows the item's description (a tooltip); click pins it open.
+	if _hover_details_blocked():
+		return
 	if _detail_item == item and _detail_panel and is_instance_valid(_detail_panel):
 		return
 	_show_detail_panel(item, item.item_type, -1, storage_index)
 
 func _on_equipped_item_hovered(item: ItemData, item_type: ItemData.ItemType, slot_index: int) -> void:
+	if _hover_details_blocked():
+		return
 	if _detail_item == item and _detail_panel and is_instance_valid(_detail_panel):
 		return
 	_show_detail_panel(item, item_type, slot_index, -1)
@@ -1272,6 +1293,7 @@ func _on_stored_item_right_clicked(item: ItemData, _storage_index: int) -> void:
 
 func _on_stored_item_clicked(item: ItemData, storage_index: int) -> void:
 	_show_detail_panel(item, item.item_type, -1, storage_index)
+	_detail_pinned = true
 
 func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index: int, storage_index: int) -> void:
 	_close_detail_panel()
@@ -1579,6 +1601,7 @@ func _close_detail_panel() -> void:
 	if _detail_panel and is_instance_valid(_detail_panel):
 		_detail_panel.queue_free()
 	_detail_panel = null
+	_detail_pinned = false
 	_detail_item = null
 	_detail_slot_index = -1
 	_detail_storage_index = -1

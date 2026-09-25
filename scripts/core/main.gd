@@ -250,6 +250,7 @@ var _p2_deck_panel: PanelContainer = null
 var _p2_deck_card_preview: PanelContainer = null
 
 var deck_list_panel: PanelContainer = null
+var _deck_counts_label: Label = null
 var deck_list_container: VBoxContainer = null
 var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
@@ -568,6 +569,8 @@ func _ready() -> void:
 	move_dialog.confirmed.connect(_on_move_confirmed)
 	move_dialog.cancelled.connect(_on_move_cancelled)
 	move_dialog.lock_in_requested.connect(_on_move_lock_in)
+	# The Yes/No box never sits under the hand or the bottom-left action column.
+	move_dialog.avoid_rects_provider = _move_dialog_avoid_rects
 	
 	# Enemy spawner
 	enemy_spawner.initialize(grid_manager, player)
@@ -769,6 +772,7 @@ var _minimap_refresh_accum: float = 0.0
 func _process(delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
+	_update_status_icon_hover()
 	_update_self_target_hover()
 	_update_damage_preview()
 	_update_loot_hover()
@@ -944,6 +948,61 @@ func _update_damage_preview() -> void:
 	if _damage_preview_enemy and is_instance_valid(_damage_preview_enemy):
 		_damage_preview_enemy.hide_damage_preview()
 		_damage_preview_enemy = null
+
+# Hovering a status circle above an enemy opens the same hover window the
+# HUD badges use: what the effect does and how long is left (live).
+var _status_hover_anchor: Control = null
+var _status_hover_key: String = ""
+
+func _update_status_icon_hover() -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or enemy_spawner == null:
+		return
+	var mouse: Vector2 = get_viewport().get_mouse_position()
+	var best_enemy: Enemy = null
+	var best_name := ""
+	var best_sp := Vector2.ZERO
+	var best_d := 14.0  # px from the circle's centre
+	for e in enemy_spawner.get_living_enemies():
+		if not is_instance_valid(e) or not e.has_method("get_status_hover_targets"):
+			continue
+		for t in e.get_status_hover_targets():
+			var wp: Vector3 = t["pos"]
+			if cam.is_position_behind(wp):
+				continue
+			var sp: Vector2 = cam.unproject_position(wp)
+			var d: float = sp.distance_to(mouse)
+			if d < best_d:
+				best_d = d
+				best_enemy = e
+				best_name = t["name"]
+				best_sp = sp
+	var key := "" if best_enemy == null else "%d:%s" % [best_enemy.get_instance_id(), best_name]
+	if key == _status_hover_key:
+		if best_enemy and _status_hover_anchor:
+			_status_hover_anchor.global_position = best_sp - Vector2(10, 10)
+		return
+	if _status_hover_anchor and is_instance_valid(_status_hover_anchor):
+		StatusHoverPopup.hide_for(_status_hover_anchor)
+	_status_hover_key = key
+	if best_enemy == null:
+		return
+	if _status_hover_anchor == null or not is_instance_valid(_status_hover_anchor):
+		_status_hover_anchor = Control.new()
+		_status_hover_anchor.name = "StatusHoverAnchor"
+		_status_hover_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_status_hover_anchor.size = Vector2(20, 20)
+		$UI.add_child(_status_hover_anchor)
+	_status_hover_anchor.global_position = best_sp - Vector2(10, 10)
+	var tip: Dictionary = best_enemy.get_effect_tooltip(best_name)
+	var en := best_enemy
+	var nm := best_name
+	StatusHoverPopup.show_for(_status_hover_anchor, "%s — %s" % [nm, en.enemy_name], tip.get("color", Color.WHITE),
+		str(tip.get("desc", "")),
+		func() -> String:
+			if not is_instance_valid(en):
+				return ""
+			return str(en.get_effect_tooltip(nm).get("remaining", "")))
 
 func _update_battlefield_enemy_hover() -> void:
 	## Check if mouse is hovering over a battlefield enemy and highlight its panel entry.
@@ -2395,6 +2454,14 @@ func _setup_deck_list_panel() -> void:
 	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
 	vbox.add_child(title)
 
+	# "Deck: 10 / 12" for the player's own cards, then how many more ride
+	# along from gear (slotted into items, granted by items).
+	_deck_counts_label = Label.new()
+	_deck_counts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_deck_counts_label.add_theme_font_size_override("font_size", 13)
+	_deck_counts_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
+	vbox.add_child(_deck_counts_label)
+
 	var sep = HSeparator.new()
 	vbox.add_child(sep)
 
@@ -2466,12 +2533,27 @@ func _populate_deck_list() -> void:
 	all_cards.append_array(deck_manager.discard_pile)
 	all_cards.append_array(deck_manager.jail_pile)
 
+	var item_counts: Dictionary = {}  # name -> copies that belong to gear
 	for card in all_cards:
+		var from_gear: bool = card.slotted_in_item != null or card.granted_by_item != null
 		if card.card_name in card_counts:
 			card_counts[card.card_name] += 1
 		else:
 			card_counts[card.card_name] = 1
 			card_refs[card.card_name] = card
+		if from_gear:
+			item_counts[card.card_name] = int(item_counts.get(card.card_name, 0)) + 1
+
+	# Own cards vs the ones gear brings along.
+	if _deck_counts_label:
+		var own: int = deck_manager.get_deck_size()
+		var granted := 0
+		for c in all_cards + deck_manager.maintained_cards:
+			if c and c.slotted_in_item == null and c.granted_by_item != null:
+				granted += 1
+		var inv = player.get_inventory() if player else null
+		var slotted: int = inv.get_all_slotted_cards().size() if inv else 0
+		_deck_counts_label.text = "Deck: %d / %d\nSlotted in items: %d   Granted by items: %d" % [own, deck_manager.get_max_deck_size(), slotted, granted]
 
 	# Sort by name
 	var names = card_counts.keys()
@@ -2481,7 +2563,10 @@ func _populate_deck_list() -> void:
 		var count = card_counts[card_name]
 		var card_ref = card_refs[card_name]
 		var entry = Button.new()
+		var gear_n: int = int(item_counts.get(card_name, 0))
 		entry.text = "%s (%d)" % [card_name, count]
+		if gear_n > 0:
+			entry.text += "  [%d from items]" % gear_n if gear_n < count else "  [from items]"
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		entry.flat = true
 		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
@@ -2509,16 +2594,24 @@ func _open_manage_deck_panel() -> void:
 	_md_pending_cull = ""
 	manage_deck_panel.visible = true
 	_refresh_manage_deck_panel()
+	_center_panel_on_screen.call_deferred(manage_deck_panel)
+
+func _center_panel_on_screen(p: Control) -> void:
+	## Explicit centering (anchors alone left this panel off screen).
+	if p == null or not is_instance_valid(p):
+		return
+	p.reset_size()
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	p.position = ((vp - p.size) / 2.0).floor()
 
 func _build_manage_deck_panel() -> void:
 	var ui = $UI as CanvasLayer
 	manage_deck_panel = PanelContainer.new()
 	manage_deck_panel.name = "ManageDeckPanel"
 	ui.add_child(manage_deck_panel)
-	manage_deck_panel.set_anchors_preset(Control.PRESET_CENTER)
-	manage_deck_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	manage_deck_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	manage_deck_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	manage_deck_panel.custom_minimum_size = Vector2(580, 500)
+	manage_deck_panel.z_index = 250  # above hovered hand cards
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.1, 0.15, 0.97)
 	style.border_width_left = 2
@@ -4157,6 +4250,16 @@ func _movement_locked() -> bool:
 
 func _notify_movement_locked() -> void:
 	add_battle_log("Committed! Your action is still ticking — cancel queued actions (▾ by the tempo bar) to bail out.", Color(1.0, 0.6, 0.3))
+
+func _move_dialog_avoid_rects() -> Array:
+	## Screen areas the move confirm box must stay clear of.
+	var rects: Array = []
+	var hand_area := get_node_or_null("UI/HandArea") as Control
+	if hand_area:
+		rects.append(hand_area.get_global_rect())
+	if _action_vbox and is_instance_valid(_action_vbox):
+		rects.append(_action_vbox.get_global_rect())
+	return rects
 
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	if _movement_locked():
@@ -6342,10 +6445,10 @@ func _on_player_armor_gained(_amount: int) -> void:
 		player.show_armor_gained()
 
 func _on_player_armor_changed(_current: int) -> void:
-	## The shield reads TOTAL armor (regular + unerring), whatever pool moved.
+	## The shield reads REGULAR armor only; unerring armor has its own grey bar.
 	var stats = player.get_stats() if player else null
 	if _armor_shield_label and stats:
-		_armor_shield_label.text = "%d" % stats.get_total_armor()
+		_armor_shield_label.text = "%d" % stats.current_armor
 	_update_unerring_bar()
 
 func _on_player_unerring_changed(_current: int, _cap: int) -> void:
@@ -11880,6 +11983,13 @@ func _input(event: InputEvent) -> void:
 			if _try_disarm_trap():
 				return
 			chest_loot_ui._try_interact_chest()
+			return
+
+		# Space: the quick way to the basic attack (arms it like the button;
+		# pressing again disarms).
+		if event.keycode == KEY_SPACE:
+			_on_attack_pressed()
+			get_viewport().set_input_as_handled()
 			return
 
 		# TAB: in co-op, switch which character you control; otherwise quest/map menu.
