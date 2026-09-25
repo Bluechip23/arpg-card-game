@@ -96,5 +96,27 @@ const PROPS := {
 }
 
 
+## A billboard sprite of one prop variant, feet on the origin, the way the
+## dungeon dresses its rooms — shared so town, loot and portals use the same
+## pixel-art props instead of primitive meshes.
+static func make_sprite(role: String, scale: float = 1.0, k: int = 0, lift: float = CameraView.SPRITE_LIFT) -> Sprite3D:
+	if not has(role):
+		return null
+	var cfg: Dictionary = PROPS[role]
+	var v: Dictionary = cfg["variants"][k % cfg["variants"].size()]
+	var sprite := Sprite3D.new()
+	sprite.texture = load(v["path"])
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = 0.03125
+	sprite.centered = false
+	sprite.offset = Vector2(-float(v["w"]) * 0.5, 0)
+	var sc: float = scale * float(cfg["scale"])
+	sprite.scale = Vector3(sc, sc, sc)
+	sprite.position = Vector3(0, lift, 0)
+	return sprite
+
 static func has(role: String) -> bool:
 	return PROPS.has(role)

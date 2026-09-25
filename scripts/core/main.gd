@@ -13621,38 +13621,10 @@ func spawn_town_portal(at = null) -> void:
 	portal_root.position = Vector3(spot.x, 0, spot.z)
 
 	# Swirling purple oval — a flattened torus standing upright.
-	var ring = MeshInstance3D.new()
-	var torus = TorusMesh.new()
-	torus.inner_radius = 0.55
-	torus.outer_radius = 0.75
-	ring.mesh = torus
-	ring.rotation_degrees = Vector3(90, 0, 0)
-	ring.position = Vector3(0, 1.1, 0)
-	var ring_mat = StandardMaterial3D.new()
-	ring_mat.albedo_color = Color(0.6, 0.25, 0.95)
-	ring_mat.emission_enabled = true
-	ring_mat.emission = Color(0.55, 0.2, 0.9)
-	ring_mat.emission_energy_multiplier = 1.6
-	ring.material_override = ring_mat
-	portal_root.add_child(ring)
-
-	# Glowing translucent film inside the ring.
-	var film = MeshInstance3D.new()
-	var disc = CylinderMesh.new()
-	disc.top_radius = 0.58
-	disc.bottom_radius = 0.58
-	disc.height = 0.05
-	film.mesh = disc
-	film.rotation_degrees = Vector3(90, 0, 0)
-	film.position = Vector3(0, 1.1, 0)
-	var film_mat = StandardMaterial3D.new()
-	film_mat.albedo_color = Color(0.75, 0.45, 1.0, 0.55)
-	film_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	film_mat.emission_enabled = true
-	film_mat.emission = Color(0.7, 0.4, 1.0)
-	film_mat.emission_energy_multiplier = 1.2
-	film.material_override = film_mat
-	portal_root.add_child(film)
+	# The same glowing-cave totem as every other portal, in the Return
+	# Scroll's purple, so portals share one look.
+	var pillar := DungeonManager.make_waypoint_totem(Color(1, 1, 1).lerp(Color(0.6, 0.25, 0.95), 0.6))
+	portal_root.add_child(pillar)
 
 	var label = Label3D.new()
 	label.text = "Town Portal"
@@ -14154,31 +14126,23 @@ func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
 	_check_loot_pickup()
 
 func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
-	## A dropped sack with the contents peeking out, under a pulsing glint so
-	## it reads as lootable from the battle camera.
-	var sack := _loot_mesh(drop, _mesh_sphere(0.13), Vector3(0, 0.09, 0), Color(0.45, 0.33, 0.2))
-	sack.scale = Vector3(1.0, 0.75, 1.0)
-	_loot_mesh(drop, _mesh_box(Vector3(0.05, 0.04, 0.05)), Vector3(0.02, 0.19, 0), Color(0.35, 0.25, 0.15))  # tied neck
-	if int(loot.get("gold", 0)) > 0:
-		for i in range(3):
-			var coin := _loot_mesh(drop, _mesh_cyl(0.035, 0.012), Vector3(-0.12 + i * 0.05, 0.015, 0.12 + (i % 2) * 0.04), Color(0.92, 0.78, 0.28), true)
-			coin.rotation_degrees = Vector3(8 * i, 30 * i, 0)
+	## The pack's dropped sack (a different sack per pile), with a small glint
+	## pulsing above it and a gentle bob so it reads as lootable. What is
+	## inside is listed by the hover tooltip and the loot menu.
+	var k: int = int(abs(drop.position.x * 7.0 + drop.position.z * 13.0))
+	var sack := CraftpixProps.make_sprite("goods_sack", 0.85, k)
+	if sack:
+		drop.add_child(sack)
+	else:
+		_loot_mesh(drop, _mesh_sphere(0.13), Vector3(0, 0.09, 0), Color(0.45, 0.33, 0.2))
+	# A mythic in the sack glows purple, a pack shows its tier, anything else gold.
+	var glint_color := Color(1.0, 0.95, 0.6)
 	var item: ItemData = loot.get("item")
-	if item:
-		_loot_mesh(drop, _mesh_box(Vector3(0.1, 0.08, 0.06)), Vector3(0.13, 0.05, -0.04), Color(0.62, 0.66, 0.72))  # gear glinting out of the sack
-	var card: Card = loot.get("card")
-	if card:
-		var c := _loot_mesh(drop, _mesh_box(Vector3(0.11, 0.15, 0.012)), Vector3(-0.13, 0.1, -0.05), Color(0.92, 0.9, 0.84), true)
-		c.rotation_degrees = Vector3(-14, 24, 0)
-	if loot.get("card_pack") != null:
-		# A sealed pack: a fat card-shaped box in its tier color.
-		var pack := CardPack.create(loot["card_pack"])
-		var p := _loot_mesh(drop, _mesh_box(Vector3(0.13, 0.17, 0.05)), Vector3(0.14, 0.12, 0.08), pack.get_tier_color(), true)
-		p.rotation_degrees = Vector3(-10, -20, 0)
-	if int(loot.get("culling_stones", 0)) > 0:
-		_loot_mesh(drop, _mesh_sphere(0.05), Vector3(0.0, 0.05, -0.13), Color(0.55, 0.3, 0.75), true)
-	# Pulsing glint above the pile + a gentle bob, looping until picked up.
-	var glint := _loot_mesh(drop, _mesh_sphere(0.035), Vector3(0, 0.32, 0), Color(1.0, 0.95, 0.6), true)
+	if item and item.rarity == ItemData.Rarity.MYTHIC:
+		glint_color = Color(0.85, 0.45, 1.0)
+	elif loot.get("card_pack") != null:
+		glint_color = CardPack.create(loot["card_pack"]).get_tier_color()
+	var glint := _loot_mesh(drop, _mesh_sphere(0.035), Vector3(0, 1.1, 0), glint_color, true)
 	var tw := drop.create_tween().set_loops()
 	tw.tween_property(glint, "scale", Vector3.ONE * 1.6, 0.5).set_trans(Tween.TRANS_SINE)
 	tw.parallel().tween_property(drop, "position:y", drop.position.y + 0.04, 0.5).set_trans(Tween.TRANS_SINE)

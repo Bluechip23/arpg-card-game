@@ -20,6 +20,12 @@ func _process(_delta: float) -> bool:
 	var out := "/tmp/town.png"
 	if args.size() > 0:
 		out = args[0]
+	if _frames == 20:
+		# Whole plaza in frame: zoom all the way out and look at its centre.
+		_town._camera_distance = CameraView.ZOOM_MIN
+		_town._camera_focus = Vector3(10.5, 0, 7.5)
+		_town._camera_pan = Vector3.ZERO
+		_town._update_camera()
 	if _frames == 40:
 		get_root().get_texture().get_image().save_png(out)
 		print("[capture] saved %s" % out)

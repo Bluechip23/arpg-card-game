@@ -2315,6 +2315,81 @@ func _unify_town_style() -> void:
 		gmat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 		gmat.roughness = 1.0
 		ground.set_surface_override_material(0, gmat)
+	_dress_countryside()
+
+## The plaza sits in the field biome: the same grass fill as World 1 under
+## and around it, with the field pack's trees, bushes, rocks and flowers
+## scattered outside the cobbles so the town stops floating in a void.
+func _dress_countryside() -> void:
+	var root := Node3D.new()
+	root.name = "Countryside"
+	add_child(root)
+	var grass := MeshInstance3D.new()
+	var gm := PlaneMesh.new()
+	gm.size = Vector2(72, 52)
+	grass.mesh = gm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.92, 0.95, 0.85)
+	mat.albedo_texture = load("res://assets/textures/craftpix/floor_grass_field.png")
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	mat.roughness = 1.0
+	grass.material_override = mat
+	grass.position = Vector3(10, -0.02, 6)
+	root.add_child(grass)
+
+	# Plaza bounds (grid 0..20 x 0..12 in world units) plus a clear margin.
+	var plaza := Rect2(-1.0, -1.0, 22.0, 14.0)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7311
+	var roles := [
+		["field_tree", 0.28], ["field_tree_small", 0.16], ["field_tree_fruit", 0.06],
+		["field_bush", 0.16], ["field_rock", 0.1], ["field_flower", 0.12],
+		["field_tuft", 0.08], ["field_shroom", 0.03], ["field_ruin", 0.01],
+	]
+	var placed: Array = []
+	for _i in range(260):
+		var p := Vector2(rng.randf_range(-24.0, 44.0), rng.randf_range(-18.0, 30.0))
+		if plaza.has_point(p):
+			continue
+		# Thin out near the cobbles, thicken toward the horizon.
+		var dist := maxf(0.0, maxf(plaza.position.x - p.x, p.x - plaza.end.x))
+		dist = maxf(dist, maxf(plaza.position.y - p.y, p.y - plaza.end.y))
+		if rng.randf() > clampf(0.25 + dist * 0.09, 0.0, 0.95):
+			continue
+		var too_close := false
+		for q in placed:
+			if q.distance_to(p) < 1.1:
+				too_close = true
+				break
+		if too_close:
+			continue
+		var roll := rng.randf()
+		var acc := 0.0
+		var role := "field_bush"
+		for r in roles:
+			acc += r[1]
+			if roll <= acc:
+				role = r[0]
+				break
+		var sprite := CraftpixProps.make_sprite(role, 1.0, rng.randi_range(0, 7))
+		if sprite == null:
+			continue
+		sprite.position = Vector3(p.x, CameraView.SPRITE_LIFT, p.y)
+		root.add_child(sprite)
+		placed.append(p)
+
+## Pixel-crisp triplanar stone/ground material (the dungeon's _pixel_mat).
+func _town_pixel_mat(texture_path: String, tint: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1, 1, 1).lerp(tint, 0.5)
+	mat.albedo_texture = load(texture_path)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	mat.roughness = 1.0
+	return mat
 
 func _npc_box(parent: Node3D, n: String, pos: Vector3, size: Vector3, c: Color, rot := Vector3.ZERO) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
@@ -2401,79 +2476,57 @@ func _dress_town() -> void:
 	add_child(dressing)
 	for lamp_pos in [Vector3(1.2, 0, 1.2), Vector3(18.8, 0, 10.8), Vector3(1.2, 0, 10.8)]:
 		_build_lamp(dressing, lamp_pos)
-	# Barrels beside the blacksmith, crates by the armory
-	_build_barrel(dressing, Vector3(2.6, 0, 3.4))
-	_build_barrel(dressing, Vector3(2.9, 0, 4.1))
-	var crate := _npc_box(dressing, "Crate", Vector3(9.4, 0.25, 2.2), Vector3(0.5, 0.5, 0.5), Color(0.45, 0.33, 0.2))
-	crate.rotation_degrees = Vector3(0, 18, 0)
-	_npc_box(dressing, "Crate2", Vector3(9.5, 0.7, 2.25), Vector3(0.38, 0.38, 0.38), Color(0.5, 0.38, 0.24), Vector3(0, -12, 0))
+	# Barrels beside the blacksmith, crates by the armory — the pack's props.
+	for spec in [["goods_barrel", 0, Vector3(2.6, 0, 3.4)], ["goods_barrel", 1, Vector3(3.2, 0, 4.0)],
+			["goods_crate", 0, Vector3(9.4, 0, 2.2)], ["goods_crate", 1, Vector3(10.0, 0, 2.5)]]:
+		var prop := CraftpixProps.make_sprite(spec[0], 1.0, spec[1])
+		if prop:
+			prop.position += spec[2]
+			dressing.add_child(prop)
 
 
 func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 	var stall := Node3D.new()
 	stall.name = "Stall"
 	vendor.add_child(stall)
-	var wood := Color(0.4, 0.29, 0.17)
-	var wood2 := Color(0.32, 0.22, 0.13)
-	var canvas := Color(0.88, 0.84, 0.74)
-	# Corner posts + counter
-	for sx in [-1, 1]:
-		_npc_box(stall, "Post%d" % sx, Vector3(0.8 * sx, 1.0, -0.3), Vector3(0.12, 2.0, 0.12), wood)
-	_npc_box(stall, "Counter", Vector3(0, 0.5, 0.45), Vector3(1.7, 0.12, 0.5), wood)
-	_npc_box(stall, "CounterFront", Vector3(0, 0.25, 0.62), Vector3(1.7, 0.4, 0.08), wood2)
-	# Striped awning sloping down over the counter
-	for i in range(4):
-		var c := awning if i % 2 == 0 else canvas
-		_npc_box(stall, "Awning%d" % i, Vector3(-0.63 + i * 0.42, 1.92, 0.25), Vector3(0.43, 0.05, 1.3), c, Vector3(-16, 0, 0))
+	# The pack's market props instead of primitive boxes: a goods table is
+	# every vendor's counter (tinted in the shop's colour), and each trade
+	# gets its own display beside it.
+	var table := CraftpixProps.make_sprite("goods_table", 1.0, 0 if vn in ["Blacksmith", "CardDealer"] else 1)
+	if table:
+		table.position += Vector3(0, 0, 0.55)
+		table.modulate = Color(1, 1, 1).lerp(awning, 0.25)
+		stall.add_child(table)
 	match vn:
 		"Blacksmith":
-			# Anvil on a stump beside the counter, with a forge ember glow
-			_npc_cyl(stall, "Stump", Vector3(-1.3, 0.25, 0.7), 0.22, 0.26, 0.5, wood2)
-			_npc_box(stall, "AnvilBody", Vector3(-1.3, 0.62, 0.7), Vector3(0.4, 0.22, 0.2), Color(0.35, 0.36, 0.4))
-			_npc_cyl(stall, "AnvilHorn", Vector3(-1.05, 0.62, 0.7), 0.03, 0.09, 0.24, Color(0.35, 0.36, 0.4), Vector3(0, 0, -90))
-			var ember := _npc_box(stall, "Forge", Vector3(0.3, 0.6, 0.35), Vector3(0.3, 0.08, 0.22), Color(1.0, 0.45, 0.1))
-			var em := ember.material_override as StandardMaterial3D
-			em.emission_enabled = true
-			em.emission = Color(1.0, 0.4, 0.08)
-			em.emission_energy_multiplier = 1.3
-			_npc_cyl(stall, "Hammer", Vector3(-0.4, 0.62, 0.45), 0.02, 0.02, 0.3, wood, Vector3(0, 0, 70))
-			_npc_box(stall, "HammerHead", Vector3(-0.54, 0.64, 0.45), Vector3(0.1, 0.09, 0.09), Color(0.5, 0.52, 0.56))
+			var barrel := CraftpixProps.make_sprite("goods_barrel", 1.0, 0)
+			if barrel:
+				barrel.position += Vector3(-1.1, 0, 0.5)
+				stall.add_child(barrel)
+			var pile := CraftpixProps.make_sprite("goods_pile", 1.0, 0)
+			if pile:
+				pile.position += Vector3(1.1, 0, 0.6)
+				stall.add_child(pile)
 		"Armory":
-			# Armour stand wearing a breastplate and helm
-			_npc_cyl(stall, "StandPost", Vector3(-0.4, 0.95, 0.1), 0.04, 0.05, 0.9, wood2)
-			_npc_box(stall, "Breastplate", Vector3(-0.4, 1.05, 0.12), Vector3(0.42, 0.5, 0.24), Color(0.62, 0.66, 0.72))
-			_npc_sphere(stall, "Helm", Vector3(-0.4, 1.45, 0.1), 0.16, Color(0.55, 0.58, 0.64))
-			_npc_box(stall, "ShieldDisp", Vector3(0.45, 0.85, 0.3), Vector3(0.36, 0.5, 0.06), Color(0.28, 0.4, 0.62), Vector3(8, 0, 0))
-			_npc_box(stall, "ShieldTrim", Vector3(0.45, 0.85, 0.34), Vector3(0.08, 0.42, 0.02), Color(0.75, 0.78, 0.84), Vector3(8, 0, 0))
+			var rack := CraftpixProps.make_sprite("goods_rack", 1.0, 0)
+			if rack:
+				rack.position += Vector3(-1.1, 0, 0.2)
+				stall.add_child(rack)
+			var rack2 := CraftpixProps.make_sprite("goods_rack", 1.0, 1)
+			if rack2:
+				rack2.position += Vector3(1.1, 0, 0.2)
+				stall.add_child(rack2)
 		"CardDealer":
-			# A hand of cards fanned on the counter and a stacked deck
-			for i in range(3):
-				_npc_box(stall, "Card%d" % i, Vector3(-0.25 + i * 0.25, 0.58, 0.42), Vector3(0.18, 0.015, 0.26), Color(0.92, 0.9, 0.84), Vector3(0, -14 + i * 14, 0))
-				_npc_box(stall, "CardFace%d" % i, Vector3(-0.25 + i * 0.25, 0.59, 0.42), Vector3(0.13, 0.012, 0.2), Color(0.42, 0.18, 0.36), Vector3(0, -14 + i * 14, 0))
-			_npc_box(stall, "Deck", Vector3(0.55, 0.6, 0.5), Vector3(0.2, 0.1, 0.28), Color(0.55, 0.25, 0.45))
+			var crate := CraftpixProps.make_sprite("goods_crate", 1.0, 1)
+			if crate:
+				crate.position += Vector3(1.1, 0, 0.5)
+				stall.add_child(crate)
 		"AccessoryShop":
-			# A jewel cushion with rings and gems catching the light
-			_npc_box(stall, "Cushion", Vector3(0, 0.6, 0.45), Vector3(0.6, 0.08, 0.4), Color(0.35, 0.12, 0.2))
-			var ring := MeshInstance3D.new()
-			ring.name = "GoldRing"
-			var tor := TorusMesh.new()
-			tor.inner_radius = 0.03
-			tor.outer_radius = 0.09
-			ring.mesh = tor
-			ring.position = Vector3(-0.15, 0.68, 0.45)
-			var gold_m := StandardMaterial3D.new()
-			gold_m.albedo_color = Color(0.9, 0.75, 0.3)
-			gold_m.metallic = 0.0  # no modern specular pop
-			gold_m.roughness = 0.3
-			ring.material_override = gold_m
-			stall.add_child(ring)
-			for g in range(3):
-				var gem := _npc_sphere(stall, "Gem%d" % g, Vector3(0.08 + g * 0.13, 0.66, 0.42 + (g % 2) * 0.08), 0.04, [Color(0.85, 0.2, 0.25), Color(0.2, 0.5, 0.85), Color(0.25, 0.7, 0.4)][g])
-				var gm := gem.material_override as StandardMaterial3D
-				gm.emission_enabled = true
-				gm.emission = gm.albedo_color
-				gm.emission_energy_multiplier = 0.5
-
+			var sack := CraftpixProps.make_sprite("goods_sack", 1.0, 2)
+			if sack:
+				sack.position += Vector3(-1.1, 0, 0.5)
+				stall.add_child(sack)
+	return
 
 func _build_stash_chest(stash: Node3D) -> void:
 	# Same 16-bit chest billboard the dungeons use, scaled up for the stash.
@@ -2712,6 +2765,7 @@ func _create_town_waypoint() -> void:
 	mound_mat.roughness = 1.0
 	mound.material_override = mound_mat
 	mound.position = Vector3(0, DungeonManager.WAYPOINT_MOUND_HEIGHT * 0.5, 0)
+	mound.visible = false  # the totem stands on the plaza itself; no dirt mound
 	_town_waypoint_node.add_child(mound)
 
 	# Pixel rune-ring on the mound's top, matching the dungeon waypoints.
@@ -3290,37 +3344,10 @@ func _spawn_return_portal() -> void:
 	portal_root.name = "ReturnPortal"
 	portal_root.position = grid_manager.snap_to_grid(player.position + Vector3(2.0, 0, 1.0))
 
-	var ring = MeshInstance3D.new()
-	var torus = TorusMesh.new()
-	torus.inner_radius = 0.55
-	torus.outer_radius = 0.75
-	ring.mesh = torus
-	ring.rotation_degrees = Vector3(90, 0, 0)
-	ring.position = Vector3(0, 1.1, 0)
-	var ring_mat = StandardMaterial3D.new()
-	ring_mat.albedo_color = Color(0.6, 0.25, 0.95)
-	ring_mat.emission_enabled = true
-	ring_mat.emission = Color(0.55, 0.2, 0.9)
-	ring_mat.emission_energy_multiplier = 1.6
-	ring.material_override = ring_mat
-	portal_root.add_child(ring)
-
-	var film = MeshInstance3D.new()
-	var disc = CylinderMesh.new()
-	disc.top_radius = 0.58
-	disc.bottom_radius = 0.58
-	disc.height = 0.05
-	film.mesh = disc
-	film.rotation_degrees = Vector3(90, 0, 0)
-	film.position = Vector3(0, 1.1, 0)
-	var film_mat = StandardMaterial3D.new()
-	film_mat.albedo_color = Color(0.75, 0.45, 1.0, 0.55)
-	film_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	film_mat.emission_enabled = true
-	film_mat.emission = Color(0.7, 0.4, 1.0)
-	film_mat.emission_energy_multiplier = 1.2
-	film.material_override = film_mat
-	portal_root.add_child(film)
+	# The glowing-cave totem in the Return Scroll's purple (matches the
+	# battle-side portal and the transport portal's look).
+	var pillar := DungeonManager.make_waypoint_totem(Color(1, 1, 1).lerp(Color(0.6, 0.25, 0.95), 0.6))
+	portal_root.add_child(pillar)
 
 	var label = Label3D.new()
 	label.text = "Your Portal"
@@ -3344,11 +3371,30 @@ func _create_town_hall_npc() -> void:
 	hall.name = "TownHall"
 	hall.position = grid_manager.grid_to_world(Vector2i(10, 12))
 
-	# A squat stone hall with a timber roof and banner — chunky primitives,
-	# same language as the market stalls.
-	_npc_box(hall, "Base", Vector3(0, 0.8, 0), Vector3(3.2, 1.6, 2.2), Color(0.52, 0.5, 0.48))
-	_npc_box(hall, "Roof", Vector3(0, 1.85, 0), Vector3(3.6, 0.5, 2.6), Color(0.4, 0.26, 0.16))
-	_npc_box(hall, "Door", Vector3(0, 0.55, 1.12), Vector3(0.7, 1.1, 0.08), Color(0.3, 0.2, 0.12))
+	# The same stone-and-slate structure the overworld's buildings use, with
+	# the pack's archway for a door and a gold banner beside it.
+	var body := MeshInstance3D.new()
+	var body_mesh := BoxMesh.new()
+	body_mesh.size = Vector3(3.2, 1.6, 2.2)
+	body.mesh = body_mesh
+	body.material_override = _town_pixel_mat("res://assets/textures/craftpix/wall_undead.png", Color(0.62, 0.58, 0.52))
+	body.position = Vector3(0, 0.8, 0)
+	hall.add_child(body)
+	var roof := MeshInstance3D.new()
+	var roof_mesh := PrismMesh.new()
+	roof_mesh.size = Vector3(2.4, 0.8, 3.4)
+	roof_mesh.left_to_right = 0.5
+	roof.mesh = roof_mesh
+	# Seen from the plan-view camera a building IS its roof: warm timber
+	# shingles so it reads as a hall, not a dark slab.
+	roof.material_override = _town_pixel_mat("res://assets/textures/craftpix/wall_field.png", Color(0.62, 0.36, 0.2))
+	roof.rotation_degrees.y = 90.0
+	roof.position = Vector3(0, 1.6 + 0.4, 0)
+	hall.add_child(roof)
+	var door := CraftpixProps.make_sprite("gate_small", 1.15)
+	if door:
+		door.position = Vector3(0, CameraView.SPRITE_LIFT, 1.1 + 0.42)
+		hall.add_child(door)
 	_npc_box(hall, "Banner", Vector3(1.2, 1.5, 1.14), Vector3(0.5, 0.9, 0.04), Color(0.75, 0.62, 0.28))
 
 	var collision = CollisionShape3D.new()

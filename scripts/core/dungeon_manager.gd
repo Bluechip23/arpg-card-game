@@ -3791,11 +3791,18 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 
 	# The footprint's own ground: its tiles are walls for pathing, so the
 	# autotile floor skips them and the backdrop showed through the structure.
+	# The footprint's tiles are blocked (no room floor is laid there), so the
+	# site lays its own: built sites (buildings, the graveyard) pave it in
+	# the tinted stone; a cave mouth, sewer grate or forest trail gets the
+	# biome's plain ground so it sits in the field rather than on a slab.
 	var ground = MeshInstance3D.new()
 	var gmesh = PlaneMesh.new()
 	gmesh.size = Vector2(fp_w, fp_d)
 	ground.mesh = gmesh
-	ground.material_override = _pixel_mat(floor_texture_path(), get_palette().get("floor_a", Color(0.5, 0.5, 0.45)))
+	if kind in ["building", "graveyard"]:
+		ground.material_override = _pixel_mat(floor_texture_path(), get_palette().get("floor_a", Color(0.5, 0.5, 0.45)))
+	else:
+		ground.material_override = _pixel_mat(floor_texture_path(), Color(1, 1, 1))
 	ground.position = Vector3(0, 0.006, 0)
 	site_root.add_child(ground)
 
@@ -4035,14 +4042,22 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## dark — the manhole/grate the player climbs down to reach the sewers.
 	var brick = _pixel_mat(CP_TEX + "/wall_cave.png", Color(0.36, 0.38, 0.36))  # dark cave stone
 
-	# Squat stone surround.
+	# A low stone kerb around the shaft — seen from above it is a small dark
+	# square the pack's archway opens out of, not a slab the size of a room.
 	var block = MeshInstance3D.new()
 	var bmesh = BoxMesh.new()
-	bmesh.size = Vector3(fp_w - 0.3, 1.3, fp_d - 0.4)
+	bmesh.size = Vector3(1.6, 0.35, 1.2)
 	block.mesh = bmesh
 	block.material_override = brick
-	block.position = Vector3(0, 0.65, -0.2)
+	block.position = Vector3(0, 0.17, fp_d / 2.0 - 0.9)
 	root.add_child(block)
+	# The field pack's rocks pile up around the kerb so the headworks reads
+	# as part of the ground it sits in.
+	for spec in [[-1.0, -0.6, 0], [1.0, -0.4, 1], [-0.7, 0.5, 2], [0.9, 0.6, 3]]:
+		var rock := _make_prop_sprite("field_rock", 0.5, spec[2])
+		if rock:
+			rock.position = Vector3(spec[0], CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.9 + spec[1])
+			root.add_child(rock)
 
 	# The dark descending mouth: the pack's stone archway.
 	var mouth := _make_prop_sprite("gate_small", 1.2)
@@ -4801,6 +4816,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	mound.mesh = mound_mesh
 	mound.material_override = _pixel_mat(trail_texture_path(), Color(0.62, 0.5, 0.36))
 	mound.position = Vector3(0, WAYPOINT_MOUND_HEIGHT * 0.5, 0)
+	mound.visible = false  # the totem stands on the ground; no dirt mound
 	wp_root.add_child(mound)
 
 	# Waypoint visual: chunky pixel rune-ring laid flat on the mound's top,
