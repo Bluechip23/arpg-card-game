@@ -5,8 +5,8 @@ extends Node3D
 ## Each grid cell is 1x1 world unit. The grid lies on the XZ plane at Y=0.
 
 @export var grid_size: float = 1.0  # Size of each grid cell in world units
-@export var grid_color: Color = Color(0.03, 0.03, 0.02, 0.36)  # dark edge of each cell line
-@export var grid_light: Color = Color(1.0, 1.0, 0.92, 0.26)  # light edge, so lines read on dark cobbles too
+@export var grid_color: Color = Color(0.03, 0.03, 0.02, 0.22)  # dark edge of each cell line — a thin tinted stroke
+@export var grid_light: Color = Color(1.0, 1.0, 0.92, 0.07)  # faint light edge, just enough to read on dark cobbles
 
 var grid_width: int = 20   # Number of cells wide (X axis)
 var grid_height: int = 12  # Number of cells deep (Z axis)
