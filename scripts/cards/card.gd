@@ -234,7 +234,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 }
 
 @export var card_id: String = "slash"
-@export var card_name: String = "Slash"
+@export var card_name: String = "Attack"
 @export var description: String = "10 damage"
 @export var card_type: CardType = CardType.ATTACK
 @export var card_type_name: String = "Attack"
@@ -337,11 +337,15 @@ var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool)
 var keywords: Array = []  # of String
 
 ## Conditional keyword: the card is melee or ranged depending on the weapon
-## in hand — a bow makes it ranged, anything else melee — instead of a fixed
-## is_ranged. DeckManager resolves it as the card enters the hand and again
+## in hand — a bow makes it Ranged 5, a melee weapon (or bare hands) makes it
+## melee — instead of a fixed is_ranged. The basic Attack card alone also
+## goes ranged with a magic weapon (conditional_magic_ranged). DeckManager resolves it as the card enters the hand and again
 ## whenever equipment changes (apply_conditional_range). Playing it ranged
 ## costs CONDITIONAL_RANGED_TEMPO_PENALTY extra tempo.
 var conditional_range: bool = false
+## Only the basic Attack card also counts a magic weapon (wand, tome, staff)
+## as ranged; other Conditional cards go by the bow alone.
+var conditional_magic_ranged: bool = false
 const CONDITIONAL_RANGED_TEMPO_PENALTY := 1
 
 ## range_modifier for cards that reach anywhere on the field (Communal
@@ -2586,31 +2590,15 @@ func jail_burden() -> void:
 # ============================================
 
 # Factory methods
-static func create_basic_attack(damage_amount: int) -> Card:
-	## Creates a temporary card used for tracking basic attacks in the ticked tempo system.
-	var card = Card.new()
-	card.card_id = "basic_attack"
-	card.card_name = "Basic Attack"
-	card.description = "Basic melee attack"
-	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
-	card.mana_cost = 0
-	card.tempo_cost = 5
-	card.resolve_tick = 1
-	card.damage = damage_amount
-	card.base_damage = damage_amount
-	card.block = 0
-	card.base_block = 0
-	card.heal_amount = 0
-	card.target_types = ["enemy"]
-	card.keywords = ["attack", "offensive"]
-	return card
-
+## The basic Attack card. Its id stays "slash" so saved decks, the basic
+## deck list and purchase records keep resolving; only the name changed.
+## Conditional: it takes the reach of the weapon in hand (melee with a
+## melee weapon, Ranged 5 with a bow or a magic weapon).
 static func create_slash() -> Card:
 	var card = Card.new()
 	card.card_id = "slash"
-	card.card_name = "Slash"
-	card.description = "10 damage"
+	card.card_name = "Attack"
+	card.description = "10 damage. Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 20
@@ -2621,7 +2609,9 @@ static func create_slash() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["enemy"]
-	card.keywords = ["attack", "offensive", "melee"]
+	card.conditional_range = true
+	card.conditional_magic_ranged = true
+	card.keywords = ["attack", "offensive", "conditional"]
 	return card
 
 static func create_block() -> Card:

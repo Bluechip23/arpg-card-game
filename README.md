@@ -149,7 +149,7 @@ Your deck is your moveset. Cards move between several zones during combat:
 
 - **Draw pile** — face-down deck. When empty, the discard pile shuffles back in.
 - **Hand** — cards you can play. Hand size = 4 + Wisdom bonus + equipment bonuses.
-- **Starting deck** — every character begins with the same 10 cards: 3 Slash, 3 Block, 2 Draw, 1 Energy, 1 Heal.
+- **Starting deck** — every character begins with the same 10 cards: 3 Attack, 3 Block, 2 Draw, 1 Energy, 1 Heal. Attack is Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon.
 - **Deck cap** — 12 cards of your own. Cards slotted into or granted by items ride along on top of that, so your gear is where a build's extra cards live.
 - **Discard pile** — where played and discarded cards go, awaiting reshuffle.
 - **Jail** — cards locked away for a set amount of tempo. Jailed cards can't be played; when their time expires they're released to the discard pile.
@@ -423,7 +423,7 @@ Once slotted, these keywords govern moving a card between items:
 
 Five playable characters. All of them:
 
-- start with the **identical basic deck** (4 Slash, 4 Block, 1 Draw, 1 Energy, 1 Heal) — no character-specific starting cards,
+- start with the **identical basic deck** (3 Attack, 3 Block, 2 Draw, 1 Energy, 1 Heal) — no character-specific starting cards,
 - start with **no equipment** — every item is found, bought, or earned in the world,
 - allocate the same starting stat pool,
 - have **one item specialty**: a slot layout that favors a particular equipment type (e.g. Brad's chest pieces weigh 20% less and Ryan gets −1 mana cost on belt cards),

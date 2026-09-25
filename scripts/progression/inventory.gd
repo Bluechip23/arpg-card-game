@@ -385,12 +385,53 @@ func relink_slotted_cards(deck_manager) -> void:
 
 ## True while a bow is in hand — the weapon that turns Conditional cards
 ## ranged. Wands, staves, and thrown weapons are not ranged weapons here.
+## True when the hands hold a bow. Conditional cards read this to decide
+## whether they play as melee or Ranged 5.
 func holds_ranged_weapon() -> bool:
 	for w in equipped_weapons:
 		if w != null and w.item_type == ItemData.ItemType.WEAPON \
 				and w.weapon_subtype == ItemData.WeaponSubtype.BOW:
 			return true
 	return false
+
+## True when the hands hold a magic weapon (wand, tome, staff). Only the
+## basic Attack card treats these as ranged; every other Conditional card
+## goes by the bow alone.
+func holds_magic_weapon() -> bool:
+	for w in equipped_weapons:
+		if w != null and w.item_type == ItemData.ItemType.WEAPON \
+				and w.weapon_subtype in [ItemData.WeaponSubtype.WAND, ItemData.WeaponSubtype.TOME,
+					ItemData.WeaponSubtype.STAFF]:
+			return true
+	return false
+
+## The first non-shield weapon in hand (null for bare hands).
+func get_held_weapon() -> ItemData:
+	for w in equipped_weapons:
+		if w != null and w.item_type == ItemData.ItemType.WEAPON and not _is_shield(w):
+			return w
+	return null
+
+## The carried weapon's category, for the figure's weapon layer and attack
+## animation: "sword", "axe", "dagger", "hammer", "spear", "bow", "wand",
+## "tome", "staff", or "none" for bare hands. Shields don't count (see
+## has_shield_equipped).
+func held_weapon_kind() -> String:
+	for w in equipped_weapons:
+		if w == null or w.item_type != ItemData.ItemType.WEAPON or _is_shield(w):
+			continue
+		match w.weapon_subtype:
+			ItemData.WeaponSubtype.SWORD: return "sword"
+			ItemData.WeaponSubtype.AXE: return "axe"
+			ItemData.WeaponSubtype.DAGGER: return "dagger"
+			ItemData.WeaponSubtype.HAMMER: return "hammer"
+			ItemData.WeaponSubtype.POLEARM: return "spear"
+			ItemData.WeaponSubtype.BOW: return "bow"
+			ItemData.WeaponSubtype.WAND: return "wand"
+			ItemData.WeaponSubtype.TOME: return "tome"
+			ItemData.WeaponSubtype.STAFF: return "staff"
+			_: return "sword"
+	return "none"
 
 ## Bows and magic staffs are two-hand-only: never sharable with another hand
 ## item. (A quiver may ride along with a bow; a staff shares with nothing.)

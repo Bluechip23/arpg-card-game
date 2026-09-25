@@ -1556,7 +1556,7 @@ func _refresh_action_queue() -> void:
 		row.add_theme_constant_override("separation", 6)
 
 		var name_lbl := Label.new()
-		var action_name: String = "Basic Attack" if entry["data"].get("is_basic_attack", false) else card.card_name
+		var action_name: String = card.card_name
 		if is_multiplayer and entry.get("owner_index", 0) == 1:
 			action_name += "  (P2)"
 		name_lbl.text = action_name
@@ -2145,7 +2145,7 @@ func _on_attack_pressed() -> void:
 			aoe_indicator.hide_indicator()
 		update_card_highlights()
 	_set_basic_attack_pending(true)
-	add_battle_log("Basic Attack armed — click an enemy in melee range.", Color(1.0, 0.85, 0.4))
+	add_battle_log("Attack armed — click an enemy in melee range.", Color(1.0, 0.85, 0.4))
 
 func _set_basic_attack_pending(pending: bool) -> void:
 	_basic_attack_pending = pending
@@ -2249,7 +2249,7 @@ func _execute_basic_attack(target: Enemy) -> void:
 				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
 		if debuff_mgr:
 			debuff_mgr.on_attack()
-		add_battle_log("Basic Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
+		add_battle_log("Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
 		print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 		_ring_note_big_hit(damage)
 	elif tempo_cost <= 0:
@@ -2263,13 +2263,21 @@ func _execute_basic_attack(target: Enemy) -> void:
 		# Proc-bonus attack: don't count towards next cycle
 		if debuff_mgr:
 			debuff_mgr.on_attack()
-		add_battle_log("Basic Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
+		add_battle_log("Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
 		print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 		_ring_note_big_hit(damage)
 	else:
 		# Queue basic attack through the ticked tempo system.
 		# Damage resolves on tick 1; remaining ticks are cooldown.
-		var basic_card = Card.create_basic_attack(damage)
+		# The swing rides the ticker as an Attack card (no separate "Basic
+		# Attack" card exists any more): the queue only needs a carrier with
+		# the swing's damage; the data dict below drives the resolution.
+		var basic_card = Card.create_slash()
+		basic_card.mana_cost = 0
+		basic_card.tempo_cost = tempo_cost
+		basic_card.damage = damage
+		basic_card.base_damage = damage
+		basic_card.resolve_tick = 1
 		var resolve_tick = 1
 
 		# Store in the pending resolve queue (same as regular cards)
@@ -2287,10 +2295,10 @@ func _execute_basic_attack(target: Enemy) -> void:
 		_pending_resolve_queue.append(resolve_entry)
 
 		# Start ticked tempo
-		_update_tick_bar(0, tempo_cost, resolve_tick, "Basic Attack")
+		_update_tick_bar(0, tempo_cost, resolve_tick, "Attack")
 		tempo_manager.add_card_tempo(tempo_cost, basic_card, resolve_tick, _active_index)
 
-		add_battle_log("Winding up Basic Attack on %s (resolves tick %d/%d)" % [target.enemy_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
+		add_battle_log("Winding up Attack on %s (resolves tick %d/%d)" % [target.enemy_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
 		print("[MAIN] Basic Attack queued: %d damage to %s (%d tempo, resolve tick %d)" % [damage, target.enemy_name, tempo_cost, resolve_tick])
 
 #endregion
@@ -3771,6 +3779,18 @@ func _on_equipment_changed() -> void:
 	_setup_gauntlet_skills_ui()
 	_update_block_button_visibility()
 	_update_attack_button_text()
+	_sync_figure_weapons()
+
+func _sync_figure_weapons() -> void:
+	## Each figure carries the weapon category it holds (layer + animation).
+	for p in _all_players():
+		if not is_instance_valid(p) or not p.has_method("set_weapon_kind"):
+			continue
+		var inv = p.get_inventory() if p.has_method("get_inventory") else null
+		if inv:
+			var held = inv.get_held_weapon()
+			var art: Texture2D = held.get_appearance_texture() if held and held.has_appearance_art() else null
+			p.set_weapon_kind(inv.held_weapon_kind(), inv.has_shield_equipped(), art)
 
 #endregion
 #region PASSIVE TRAY
@@ -4099,6 +4119,7 @@ func select_character(character: CharacterData) -> void:
 	# Rebuild gauntlet skill UI whenever equipment changes (e.g. equipping from side panel)
 	if inventory and not inventory.equipment_changed.is_connected(_on_equipment_changed):
 		inventory.equipment_changed.connect(_on_equipment_changed)
+	_sync_figure_weapons()
 	_on_hand_updated()
 	update_deck_info()
 	update_peaked_display()
@@ -8540,7 +8561,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		var target_name = ""
 		if target is Enemy and is_instance_valid(target):
 			target_name = target.enemy_name
-		add_battle_log("Basic Attack: %d damage to %s" % [damage, target_name], Color(0.4, 1.0, 0.5))
+		add_battle_log("Attack: %d damage to %s" % [damage, target_name], Color(0.4, 1.0, 0.5))
 		print("[MAIN] Basic Attack resolved: dealt %d damage to %s" % [damage, target_name])
 		return
 

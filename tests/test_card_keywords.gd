@@ -35,15 +35,17 @@ func _initialize() -> void:
 			_check_card(card)
 
 	# Rank-scaled generated cards take a parameter, so build them by hand.
-	for card in [Card.create_basic_attack(5), Card.create_energy_barrier(), Card.create_magic_barrier(),
+	for card in [Card.create_energy_barrier(), Card.create_magic_barrier(),
 			Card.create_mana_surge(), Card.create_shepherds_mark()]:
 		if not card.keywords.is_empty():
 			_check_card(card)
 
 	# has_keyword is the lookup items/passives use.
-	var slash := Card.create_slash()
-	if not (slash.has_keyword("melee") and slash.has_keyword("attack") and not slash.has_keyword("ranged")):
-		_fail("has_keyword: Slash should be attack+melee, not ranged")
+	var attack := Card.create_slash()
+	if not (attack.has_keyword("conditional") and attack.has_keyword("attack") and not attack.has_keyword("ranged") and not attack.has_keyword("melee")):
+		_fail("has_keyword: Attack should be attack+conditional, with no fixed melee/ranged tag")
+	if attack.card_name != "Attack":
+		_fail("the basic attack card is named Attack")
 
 	print("  checked %d keyworded cards" % checked)
 	if checked < 150:
