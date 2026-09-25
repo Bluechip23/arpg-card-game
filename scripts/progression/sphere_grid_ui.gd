@@ -1154,10 +1154,6 @@ func _on_unlock_pressed() -> void:
 	if node.node_type == SphereGrid.NodeType.RETROSPECTIVE:
 		sphere_inventory.add_retrospective_token()
 
-	# Grant feather (paper feather for card removal) if this was a feather node
-	if node.node_type == SphereGrid.NodeType.FEATHER:
-		pass  # Handled by progression_triggers via node_unlocked signal
-
 	# Check for constellations that are now ready (but require confirmation)
 	_check_pending_constellations()
 

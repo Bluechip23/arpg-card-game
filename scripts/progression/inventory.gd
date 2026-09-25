@@ -115,8 +115,7 @@ var stored_cards: Array = []  # Array of Card objects
 
 # Consumables
 var culling_stones: int = 99  # Used to permanently remove cards from deck
-var paper_feathers: int = 3  # Card-crafting consumable (role being redesigned)
-var origami_swans: int = 0  # 20 origami swans = 1 Paper Feather (crafted by Olorin)
+var origami_swans: int = 0  # destroying a card folds it into a swan; 20 swans = 1 Culling Stone
 var mythic_molds: int = 0  # 2 Mythic Pieces = 1 Mold; redeem for any mythic at the Blacksmith
 var mythic_pieces: int = 0  # a mythic melded down at the Blacksmith; two pour into one Mold
 
@@ -2369,22 +2368,29 @@ func use_culling_stone() -> bool:
 	return true
 
 #endregion
-#region PAPER FEATHERS & ORIGAMI SWANS
+#region ORIGAMI SWANS
 # ============================================
-# PAPER FEATHERS & ORIGAMI SWANS
+# ORIGAMI SWANS
 # ============================================
 
-func get_paper_feather_count() -> int:
-	return paper_feathers
+const SWANS_PER_CULLING_STONE := 20
 
-func add_origami_swans(amount: int) -> void:
+func get_origami_swan_count() -> int:
+	return origami_swans
+
+## Destroying a card folds it into an Origami Swan; every 20 swans become a
+## Culling Stone. Returns how many stones the batch completed.
+func add_origami_swans(amount: int) -> int:
 	origami_swans += amount
 	print("[INVENTORY] Gained %d Origami Swan(s) (%d total)" % [amount, origami_swans])
-	# Auto-convert: 20 swans = 1 Paper Feather
-	while origami_swans >= 20:
-		origami_swans -= 20
-		paper_feathers += 1
-		print("[INVENTORY] Converted 20 Origami Swans into 1 Paper Feather! (%d feathers, %d swans remaining)" % [paper_feathers, origami_swans])
+	var stones := 0
+	while origami_swans >= SWANS_PER_CULLING_STONE:
+		origami_swans -= SWANS_PER_CULLING_STONE
+		culling_stones += 1
+		stones += 1
+		print("[INVENTORY] 20 Origami Swans became a Culling Stone! (%d stones, %d swans left)" % [culling_stones, origami_swans])
+	storage_changed.emit()
+	return stones
 
 #endregion
 #region MYTHIC MOLDS

@@ -201,6 +201,7 @@ func _ready() -> void:
 				inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
 				inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 				inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
+				inv.origami_swans = inv_data.get("origami_swans", inv.origami_swans)
 				inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
 				inv.mythic_pieces = inv_data.get("mythic_pieces", inv.mythic_pieces)
 				inv.equipment_changed.emit()
@@ -617,10 +618,10 @@ func _open_vendor(vendor_node: StaticBody3D) -> void:
 		# Show gold, culling stone and paper feather counts
 		var inventory = player.get_inventory() if player.has_method("get_inventory") else null
 		var stones = inventory.get_culling_stone_count() if inventory else 0
-		var feathers = inventory.get_paper_feather_count() if inventory else 0
+		var swans = inventory.get_origami_swan_count() if inventory else 0
 		_add_info_label("Gold: %d" % _player_gold(), Color(1.0, 0.85, 0.3))
 		_add_info_label("Culling Stones: %d" % stones, Color(0.8, 0.5, 1.0))
-		_add_info_label("Paper Feathers: %d" % feathers, Color(1.0, 0.85, 0.4))
+		_add_info_label("Origami Swans: %d / %d (destroy cards to fold them; 20 make a Culling Stone)" % [swans, Inventory.SWANS_PER_CULLING_STONE], Color(0.9, 0.9, 1.0))
 
 		# Card shop: show all available cards for purchase
 		_add_section_separator("Available Cards")
@@ -3277,6 +3278,7 @@ func _departure_progression() -> Dictionary:
 			"stored_cards": live_inv.stored_cards.duplicate(),
 			"stash_items": live_inv.stash_items.duplicate(),
 			"culling_stones": live_inv.culling_stones,
+			"origami_swans": live_inv.origami_swans,
 			"mythic_molds": live_inv.mythic_molds,
 			"mythic_pieces": live_inv.mythic_pieces,
 		}

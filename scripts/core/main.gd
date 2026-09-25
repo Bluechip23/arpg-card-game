@@ -14521,6 +14521,7 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
 			inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
+			inv.origami_swans = inv_data.get("origami_swans", inv.origami_swans)
 			inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
 			inv.mythic_pieces = inv_data.get("mythic_pieces", inv.mythic_pieces)
 			inv.ensure_return_scroll()  # older saves predate the scroll
@@ -14574,6 +14575,7 @@ func _save_player_progression() -> Dictionary:
 			"stored_cards": inv.stored_cards.duplicate(),
 			"stash_items": inv.stash_items.duplicate(),
 			"culling_stones": inv.culling_stones,
+			"origami_swans": inv.origami_swans,
 			"mythic_molds": inv.mythic_molds,
 			"mythic_pieces": inv.mythic_pieces,
 			"rack_items": inv.rack_items.duplicate(),

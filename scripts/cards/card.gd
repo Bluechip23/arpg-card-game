@@ -387,7 +387,7 @@ var on_discard_effect: String = ""  # Description of the on-discard effect
 var in_hand_debuff: String = ""  # Debuff applied while this card is in hand (e.g., "slowed_2")
 var in_hand_buff: String = ""  # Buff applied while this card is in hand (Enchantment cards)
 
-# Card upgrade system (Paper Feather upgrades)
+# Card upgrade system (item-forge upgrades)
 
 # Card-item slot system
 enum SlotCompatibility { PICKY, PLIABLE }
@@ -2606,9 +2606,9 @@ func jail_burden() -> void:
 		print("[CARD] %s burden reset! Jailed for %d tempo" % [card_name, burden_jail_duration])
 
 #endregion
-#region CARD UPGRADE SYSTEM (Paper Feather)
+#region CARD UPGRADE SYSTEM
 # ============================================
-# CARD UPGRADE SYSTEM (Paper Feather)
+# CARD UPGRADE SYSTEM
 # ============================================
 
 # Factory methods

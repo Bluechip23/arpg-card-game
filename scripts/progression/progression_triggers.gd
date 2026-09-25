@@ -139,10 +139,11 @@ func _apply_sphere_grid_node(node) -> void:
 				main.add_battle_log("Sphere Grid: Obtained Culling Stone!", Color(0.8, 0.5, 1.0))
 
 		SphereGrid.NodeType.FEATHER:
+			# Retired node type (old saves): pays out as a Culling Stone.
 			var inventory = main.player.get_inventory()
 			if inventory:
-				inventory.paper_feathers += 1
-				main.add_battle_log("Sphere Grid: Obtained Paper Feather!", Color(0.95, 0.85, 0.5))
+				inventory.culling_stones += 1
+				main.add_battle_log("Sphere Grid: Obtained Culling Stone!", Color(0.8, 0.5, 1.0))
 
 	print("[MAIN] Sphere grid node %d applied: [%s] %s" % [node.id, SphereGrid.NodeType.keys()[node.node_type], node.label])
 

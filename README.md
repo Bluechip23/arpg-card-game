@@ -450,8 +450,7 @@ Your character grows along several permanent axes:
   - **Selling** — loose cards in the backpack sell to the Card Dealer for half their price. A card in your deck has to be culled to the backpack first.
   - **Culling Stones** remove a card from your deck into your backpack (where it can be sold or socketed).
   - **Items** sell at their shop for half their price (forged levels add value). Selling an item with socketed cards sells the cards with it, after a warning.
-  - **Paper Feathers** — a card-crafting consumable (their new role is being redesigned).
-  - **Origami Swans** are earned by destroying cards; 20 swans convert into a Paper Feather.
+  - **Origami Swans** — destroying a card in your inventory folds it into a swan; 20 swans become a Culling Stone.
 - **Equipment** — loot, vendors, and quest rewards across all acts.
 - **Story** — a four-act journey (Earth → Hell → Heaven → a final return to Earth). Everything above carries forward between acts; nothing resets.
 

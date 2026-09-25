@@ -59,7 +59,7 @@ static func to_disk(live: Dictionary, stats_override: Dictionary = {}) -> Dictio
 
 const _ITEM_LISTS := ["equipped_helms", "equipped_chests", "equipped_rings", "equipped_belts",
 	"equipped_boots", "equipped_gauntlets", "equipped_weapons", "stored_items", "stash_items", "rack_items"]
-const _INT_FIELDS := ["culling_stones", "mythic_molds", "mythic_pieces", "rack_cooldown_tempo"]
+const _INT_FIELDS := ["culling_stones", "origami_swans", "mythic_molds", "mythic_pieces", "rack_cooldown_tempo"]
 
 static func _item_to_disk(item) -> Variant:
 	if not (item is ItemData):
