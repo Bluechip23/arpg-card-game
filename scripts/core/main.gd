@@ -773,6 +773,7 @@ func _process(delta: float) -> void:
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
 	_update_status_icon_hover()
+	_update_loot_menu_presence()
 	_update_self_target_hover()
 	_update_damage_preview()
 	_update_loot_hover()
@@ -14218,9 +14219,16 @@ func _mesh_cyl(r: float, h: float) -> CylinderMesh:
 	c.height = h
 	return c
 
+## Loot keys scooped up the moment a player steps on the pile (currency and
+## consumables); everything else waits in the loot menu for a click.
+const LOOT_AUTO_KEYS := ["gold", "culling_stones", "holy_water"]
+const LOOT_CHOICE_KEYS := ["item", "card", "card_pack"]
+
 func _check_loot_pickup() -> void:
-	## Any player standing on a loot pile's tile scoops it up. Tempo-free by
-	## design: there is deliberately no add_tempo anywhere in this path.
+	## Any player standing on a loot pile's tile takes its gold and
+	## consumables at once; items, cards and packs open the loot menu so the
+	## player chooses what to carry. Tempo-free by design: there is
+	## deliberately no add_tempo anywhere in this path.
 	if _loot_drops.is_empty():
 		return
 	for p in _all_players():
@@ -14231,11 +14239,193 @@ func _check_loot_pickup() -> void:
 		while i < _loot_drops.size():
 			var entry: Dictionary = _loot_drops[i]
 			if entry["cell"] == pcell:
-				_loot_drops.remove_at(i)
-				_collect_loot(entry["loot"], p)
-				_pop_loot_drop(entry["node"])
+				var loot: Dictionary = entry["loot"]
+				var auto: Dictionary = {}
+				for k in LOOT_AUTO_KEYS:
+					if int(loot.get(k, 0)) > 0:
+						auto[k] = loot[k]
+						loot.erase(k)
+				if not auto.is_empty():
+					_collect_loot(auto, p)
+				if _loot_has_choices(loot):
+					_open_loot_menu(entry, p)
+					i += 1
+				else:
+					_loot_drops.remove_at(i)
+					if _loot_menu_entry == entry:
+						_close_loot_menu()
+					_pop_loot_drop(entry["node"])
 			else:
 				i += 1
+
+func _loot_has_choices(loot: Dictionary) -> bool:
+	for k in LOOT_CHOICE_KEYS:
+		if loot.get(k) != null:
+			return true
+	return false
+
+# ---- Loot menu: pick what to carry off a pile -------------------------------
+
+var _loot_menu: PanelContainer = null
+var _loot_menu_list: VBoxContainer = null
+var _loot_menu_entry: Dictionary = {}
+var _loot_menu_looter: Player = null
+
+func _open_loot_menu(entry: Dictionary, looter: Player) -> void:
+	_ensure_loot_menu()
+	_loot_menu_entry = entry
+	_loot_menu_looter = looter
+	_refresh_loot_menu()
+	_loot_menu.visible = true
+
+func _close_loot_menu() -> void:
+	_loot_menu_entry = {}
+	_loot_menu_looter = null
+	if _loot_menu and is_instance_valid(_loot_menu):
+		_loot_menu.visible = false
+		for child in _loot_menu_list.get_children():
+			StatusHoverPopup.hide_for(child)
+
+func _ensure_loot_menu() -> void:
+	if _loot_menu and is_instance_valid(_loot_menu):
+		return
+	var ui = $UI as CanvasLayer
+	_loot_menu = PanelContainer.new()
+	_loot_menu.name = "LootMenu"
+	_loot_menu.z_index = 250
+	ui.add_child(_loot_menu)
+	# Left of centre, clear of the tracker above and the action column below.
+	_loot_menu.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	_loot_menu.offset_left = 12.0
+	_loot_menu.offset_top = -40.0
+	_loot_menu.offset_right = 300.0
+	_loot_menu.offset_bottom = 40.0
+	_loot_menu.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.09, 0.06, 0.96)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.85, 0.7, 0.3)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	_loot_menu.add_theme_stylebox_override("panel", style)
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	_loot_menu.add_child(vbox)
+	var title = Label.new()
+	title.text = "Loot"
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
+	vbox.add_child(title)
+	_loot_menu_list = VBoxContainer.new()
+	_loot_menu_list.add_theme_constant_override("separation", 4)
+	vbox.add_child(_loot_menu_list)
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	vbox.add_child(row)
+	var all_btn = Button.new()
+	all_btn.text = "Loot All"
+	all_btn.focus_mode = Control.FOCUS_NONE
+	all_btn.pressed.connect(_loot_take_all)
+	row.add_child(all_btn)
+	var leave_btn = Button.new()
+	leave_btn.text = "Leave"
+	leave_btn.focus_mode = Control.FOCUS_NONE
+	leave_btn.pressed.connect(_close_loot_menu)
+	row.add_child(leave_btn)
+	_loot_menu.visible = false
+
+func _refresh_loot_menu() -> void:
+	for child in _loot_menu_list.get_children():
+		StatusHoverPopup.hide_for(child)
+		child.queue_free()
+	if _loot_menu_entry.is_empty():
+		return
+	var loot: Dictionary = _loot_menu_entry["loot"]
+	for key in LOOT_CHOICE_KEYS:
+		if loot.get(key) == null:
+			continue
+		var info: Dictionary = _loot_entry_info(key, loot[key])
+		var row = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		var name_lbl = Label.new()
+		name_lbl.text = info["name"]
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lbl.add_theme_font_size_override("font_size", 14)
+		name_lbl.add_theme_color_override("font_color", info["color"])
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(name_lbl)
+		var take = Button.new()
+		take.text = "Loot"
+		take.focus_mode = Control.FOCUS_NONE
+		take.pressed.connect(_loot_take.bind(key))
+		row.add_child(take)
+		# Hovering the row explains the thing before it is taken.
+		row.mouse_entered.connect(func(): StatusHoverPopup.show_for(row, info["name"], info["color"], info["desc"], Callable(), info.get("extra", "")))
+		row.mouse_exited.connect(func(): StatusHoverPopup.hide_for(row))
+		_loot_menu_list.add_child(row)
+
+## Name, colour and description for one loot entry.
+func _loot_entry_info(key: String, value) -> Dictionary:
+	match key:
+		"item":
+			var item: ItemData = value
+			var stats_text: String = chest_loot_ui._build_chest_item_stats(item) if chest_loot_ui else ""
+			return {"name": "%s (%s %s)" % [item.get_display_name(), item.get_rarity_name(), item.get_type_name()],
+				"color": item.get_rarity_color(), "desc": item.description, "extra": stats_text}
+		"card":
+			var card: Card = value
+			return {"name": "%s (%s card)" % [card.card_name, card.get_rarity_name()],
+				"color": Color(0.85, 0.9, 1.0), "desc": card.description,
+				"extra": "%s · %d mana · %d tempo" % [card.card_type_name, card.mana_cost, card.tempo_cost]}
+		"card_pack":
+			var pack := CardPack.create(value)
+			return {"name": pack.get_display_name(), "color": pack.get_tier_color(),
+				"desc": "A sealed pack of cards. It rips open when looted and the cards go to your inventory."}
+	return {"name": str(key), "color": Color.WHITE, "desc": ""}
+
+func _loot_take(key: String) -> void:
+	if _loot_menu_entry.is_empty() or _loot_menu_looter == null or not is_instance_valid(_loot_menu_looter):
+		_close_loot_menu()
+		return
+	var loot: Dictionary = _loot_menu_entry["loot"]
+	if loot.get(key) == null:
+		return
+	var piece: Dictionary = {key: loot[key]}
+	loot.erase(key)
+	_collect_loot(piece, _loot_menu_looter)
+	if _loot_has_choices(loot):
+		_refresh_loot_menu()
+	else:
+		var entry := _loot_menu_entry
+		_loot_drops.erase(entry)
+		_pop_loot_drop(entry["node"])
+		_close_loot_menu()
+
+func _loot_take_all() -> void:
+	for key in LOOT_CHOICE_KEYS:
+		if _loot_menu_entry.is_empty():
+			return
+		if _loot_menu_entry["loot"].get(key) != null:
+			_loot_take(key)
+
+## The menu belongs to the tile: walking off it puts the menu away (the pile
+## stays where it was, still holding whatever was not taken).
+func _update_loot_menu_presence() -> void:
+	if _loot_menu_entry.is_empty():
+		return
+	if _loot_menu_looter == null or not is_instance_valid(_loot_menu_looter) \
+			or grid_manager.world_to_grid(_loot_menu_looter.position) != _loot_menu_entry["cell"]:
+		_close_loot_menu()
 
 # ---- Mythic reveal ceremony -------------------------------------------------
 
@@ -14340,7 +14530,7 @@ func _update_loot_hover() -> void:
 			_loot_tooltip.visible = false
 		return
 	_ensure_loot_tooltip()
-	_loot_tooltip_label.text = "Loot (walk over to pick up)\n" + _loot_summary(hovered["loot"])
+	_loot_tooltip_label.text = "Loot (walk over: gold is yours, the rest you choose)\n" + _loot_summary(hovered["loot"])
 	_loot_tooltip.visible = true
 	# Beside the cursor, kept on screen
 	var mouse_pos = get_viewport().get_mouse_position()
