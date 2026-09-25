@@ -432,6 +432,8 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 		_play_weapon_attack(action in AXE_ACTIONS)
 	elif action in GUARD_ACTIONS:
 		_guard_fx()
+		if _has_shield:
+			_play("guard_shield")  # Block & co. raise the shield
 	elif action in HOP_ACTIONS:
 		_hop_fx()
 	elif action.begins_with("hit") or action == "stunned":
@@ -720,7 +722,23 @@ func _play(anim: String, _force: bool = false) -> void:
 			_start_attack("", 0)
 		"attack_shield_bash":
 			_start_attack("", 4, 4, true)
+		"guard_shield":
+			_start_guard()
 	_apply_frame()
+
+
+## The pack's block frame (shield-bash column 1) held for a beat with the
+## shield in front: what Block and the other guard cards show while a
+## shield is in hand. Weapons and shields stay sheathed at every other time.
+func _start_guard() -> void:
+	_looping = false
+	_attacking = true
+	if _mode == "doll":
+		_set_doll_page("pONE3")
+	_frames = [{"col": 4, "row": DOLL_ROW[facing] + 4, "t": 0.45}]
+	_show_weapon = false
+	_show_shield = _has_shield and _shield_texture != null and _shield_back != null
+	_shield_bash = true
 
 
 ## pONE3 layout: top half = slash 1 (cols 0-3) and slash 2 (cols 4-7),
