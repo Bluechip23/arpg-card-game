@@ -54,8 +54,9 @@ func _run() -> void:
 	_check(player.preview_path_cells(player.position, 0).is_empty(),
 		"the tile the player stands on previews as no route")
 
-	# A wall between the player and the target: the Manhattan budget the
-	# right-click grants runs out before the detour reaches the target.
+	# A wall between the player and the target: a budget smaller than the
+	# detour cuts the route, while the whole-route budget a right-click
+	# grants (main's ROUTE_BUDGET) walks the detour all the way there.
 	var wall: Array[Vector2i] = []
 	for z in range(0, 4):
 		wall.append(Vector2i(4, z))
@@ -63,10 +64,13 @@ func _run() -> void:
 	var far_target := gm.grid_to_world(Vector2i(6, 2))
 	var budget := gm.get_distance_in_cells(player.position, far_target)
 	route = player.preview_path_cells(far_target, budget)
-	_check(route.size() == budget, "walled route is cut to the movement budget (%d tiles)" % budget)
+	_check(route.size() == budget, "walled route is cut to a short budget (%d tiles)" % budget)
 	_check(route[route.size() - 1] != Vector2i(6, 2), "…and so stops short of the target")
 	for c in route:
 		_check(c not in wall, "route never crosses the wall (%s)" % [c])
+	route = player.preview_path_cells(far_target, 100000)
+	_check(route.size() > budget, "the whole-route budget takes the detour (%d tiles)" % route.size())
+	_check(route[route.size() - 1] == Vector2i(6, 2), "…and reaches the clicked tile")
 	player.blocked_tiles = []
 
 	# An enemy on the target: the route ends one tile short, like the move would.

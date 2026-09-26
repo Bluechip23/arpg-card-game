@@ -105,6 +105,7 @@ const armor_decay_per_cycle: int = 2
 # sphere nodes ("Unerring +1"), item stats (unerring_cap_bonus) and whatever
 # else raises equipment_unerring_cap / sphere_bonus_unerring_cap.
 signal unerring_changed(current: int, cap: int)
+signal carry_changed(load: int, capacity: int)  # carried weight or carry capacity moved
 const BASE_UNERRING_CAP: int = 6
 var unerring_armor: int = 0
 var sphere_bonus_unerring_cap: int = 0
@@ -1144,12 +1145,14 @@ func get_strength_damage_bonus() -> int:
 func set_carry_load(weight: int) -> void:
 	current_carry_load = weight
 	print("[STATS] Carry load: %d / %d" % [current_carry_load, get_carry_capacity()])
+	carry_changed.emit(current_carry_load, get_carry_capacity())
 
 func set_two_hand_state(active: bool, damage_bonus: int) -> void:
 	two_hand_active = active
 	two_hand_damage_bonus = damage_bonus
 	print("[STATS] Two-handing %s (+%d damage), capacity %d" % [
 		"ON" if active else "off", damage_bonus, get_carry_capacity()])
+	carry_changed.emit(current_carry_load, get_carry_capacity())
 
 func is_overburdened() -> bool:
 	return current_carry_load > get_carry_capacity()

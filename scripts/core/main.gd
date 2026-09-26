@@ -350,6 +350,8 @@ var _mana_bar: ProgressBar = null
 var _xp_bar: ProgressBar = null
 var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
+var _carry_bar: ProgressBar = null
+var _carry_bar_label: Label = null
 var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
@@ -847,9 +849,9 @@ func _update_move_path_cursor() -> void:
 		move_path_cursor.hide_cursor()
 		return
 
-	# Same budget the right-click handler grants: Manhattan distance to the tile.
-	var spaces := grid_manager.get_distance_in_cells(player.position, target_world)
-	move_path_cursor.show_path(target_cell, player.preview_path_cells(target_world, spaces))
+	# The whole route: a move order walks every tile of it (see the
+	# right-click handler), so the preview never stops short of the cursor.
+	move_path_cursor.show_path(target_cell, player.preview_path_cells(target_world, ROUTE_BUDGET))
 
 func _update_hand_hover() -> void:
 	if _card_ui_instances.is_empty():
@@ -1660,7 +1662,7 @@ func _setup_stat_bars() -> void:
 	stat_container.offset_left = 122.0
 	stat_container.offset_top = 8.0
 	stat_container.offset_right = 332.0
-	stat_container.offset_bottom = 130.0
+	stat_container.offset_bottom = 130.0 + CARRY_BAR_HEIGHT + STAT_BAR_GAP
 	stat_container.add_theme_constant_override("separation", 4)
 
 	# --- HP Bar (red) — armour shown as a shield badge to its right ---
@@ -1685,6 +1687,12 @@ func _setup_stat_bars() -> void:
 	_mana_reserve_tip.name = "ManaReserveTooltip"
 	_mana_bar.get_parent().add_child(_mana_reserve_tip)
 	_setup_mana_regen_drop()
+
+	# --- Carry bar (leather brown, half height): carried weight / capacity ---
+	var carry_pair = _create_stat_bar_with_label(stat_container, "CarryBar", Color(0.55, 0.4, 0.22), Color(0.22, 0.16, 0.09), CARRY_BAR_HEIGHT)
+	_carry_bar = carry_pair[0]
+	_carry_bar_label = carry_pair[1]
+	_carry_bar_label.add_theme_font_size_override("font_size", 9)
 
 	# --- XP Bar (gold) — right under mana, a quarter of the normal height ---
 	var xp_pair = _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05), 6)
@@ -1804,6 +1812,7 @@ func _update_mana_regen_indicator() -> void:
 		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
 
 const UNERRING_BAR_HEIGHT := 11  # half the 22px HP bar
+const CARRY_BAR_HEIGHT := 11     # same: carried weight / capacity under mana
 const STAT_BAR_GAP := 4          # the StatBarsContainer's separation
 
 func _setup_armor_shield() -> void:
@@ -1852,11 +1861,11 @@ func _setup_armor_shield() -> void:
 func _reposition_status_bars() -> void:
 	## Stack the debuff and buff rows directly beneath the (thin) XP bar, close
 	## to it, instead of floating out to the right of the health bar.
-	# HP(22) + 4 + Unerring(11) + 4 + Mana(22) + 4 + XP(6) starting at y=8
-	# -> bottom of XP at y=81.
+	# HP(22) + 4 + Unerring(11) + 4 + Mana(22) + 4 + Carry(11) + 4 + XP(6)
+	# starting at y=8 -> bottom of XP at y=96.
 	var left := 122.0
 	var right := 122.0 + 360.0
-	var top := 69.0 + UNERRING_BAR_HEIGHT + STAT_BAR_GAP
+	var top := 69.0 + UNERRING_BAR_HEIGHT + STAT_BAR_GAP + CARRY_BAR_HEIGHT + STAT_BAR_GAP
 	if debuff_bar:
 		debuff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		debuff_bar.offset_left = left
@@ -4054,6 +4063,9 @@ func select_character(character: CharacterData) -> void:
 	quiver_ui.connect_overflow_manager(overflow_manager)
 	player.get_stats().health_changed.connect(_on_player_health_changed)
 	player.get_stats().mana_changed.connect(_on_player_mana_changed)
+	player.get_stats().carry_changed.connect(_on_player_carry_changed)
+	player.get_stats().stats_updated.connect(_refresh_carry_bar)
+	_refresh_carry_bar()
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
 	player.get_stats().unerring_changed.connect(_on_player_unerring_changed)
 	player.get_stats().armor_gained.connect(_on_player_armor_gained)
@@ -4282,6 +4294,16 @@ func _move_dialog_avoid_rects() -> Array:
 	if _action_vbox and is_instance_valid(_action_vbox):
 		rects.append(_action_vbox.get_global_rect())
 	return rects
+
+## Movement budget that never cuts a route short (the real route is always
+## far shorter than this).
+const ROUTE_BUDGET := 100000
+
+## Tiles the character would actually walk to reach `target_world`: the BFS
+## route trimmed off any taken tile at its end. 0 when there is no route, the
+## tile is the one they stand on, or they cannot move.
+func _route_length(target_world: Vector3) -> int:
+	return player.preview_path_cells(target_world, ROUTE_BUDGET).size()
 
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	if _movement_locked():
@@ -6460,6 +6482,22 @@ func _on_player_mana_changed(current: float, max_mana: int) -> void:
 	if _mana_bar_label:
 		_mana_bar_label.text = "%d/%d" % [int(current), max_mana]
 	_update_mana_regen_indicator()
+
+func _on_player_carry_changed(load: int, capacity: int) -> void:
+	if _carry_bar:
+		_carry_bar.max_value = maxi(capacity, 1)
+		_carry_bar.value = mini(load, capacity)
+		var fill: StyleBoxFlat = _carry_bar.get_theme_stylebox("fill")
+		if fill:
+			fill.bg_color = Color(0.75, 0.2, 0.15) if load > capacity else Color(0.55, 0.4, 0.22)
+	if _carry_bar_label:
+		_carry_bar_label.text = "Carry %d/%d" % [load, capacity]
+
+## Capacity follows strength, so any stat change re-reads it.
+func _refresh_carry_bar() -> void:
+	var stats = player.get_stats() if player else null
+	if stats:
+		_on_player_carry_changed(stats.current_carry_load, stats.get_carry_capacity())
 
 func _on_player_armor_gained(_amount: int) -> void:
 	## Armour gained from any source — pop the overhead armour icon.
@@ -12273,10 +12311,18 @@ func _input(event: InputEvent) -> void:
 				_notify_movement_locked()
 				return
 
-			var spaces = grid_manager.get_distance_in_cells(player.position, mouse_pos)
-
+			# A move order walks the whole route to the clicked tile: the tempo
+			# it costs is the route's real length, not the straight-line
+			# distance, so a winding cave corridor or a detour round a tree
+			# never leaves the character stranded short of where they clicked.
+			var spaces := _route_length(mouse_pos)
 			if spaces == 0:
-				print("[INPUT] Already at that location")
+				if grid_manager.world_to_grid(mouse_pos) == grid_manager.world_to_grid(player.position):
+					print("[INPUT] Already at that location")
+				elif not player.get_debuff_manager().can_move():
+					add_battle_log("Cannot move — Stunned or Rooted!", Color(1.0, 0.4, 0.4))
+				else:
+					add_battle_log("No path there.", Color(1.0, 0.6, 0.3))
 			elif is_multiplayer and _p2_player:
 				# Co-op: always offer the dialog (even a single step) so the move can
 				# be locked in and executed together with the partner's.
@@ -14494,7 +14540,7 @@ func _update_loot_hover() -> void:
 			_loot_tooltip.visible = false
 		return
 	_ensure_loot_tooltip()
-	_loot_tooltip_label.text = "Loot (walk over: gold is yours, the rest you choose)\n" + _loot_summary(hovered["loot"])
+	_loot_tooltip_label.text = "Loot\n" + _loot_summary(hovered["loot"])
 	_loot_tooltip.visible = true
 	# Beside the cursor, kept on screen
 	var mouse_pos = get_viewport().get_mouse_position()
