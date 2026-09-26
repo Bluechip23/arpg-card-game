@@ -122,6 +122,17 @@ billboard.
   plus 16 edge-mask tiles whose transition bands are still painted from
   the palette. Cutting the packs' own edge pieces into those mask columns
   is the next step, as is scattering the `Details.png` grass overlays.
+- **Cliff strips.** `tools/extract_craftpix_cliffs.py` cuts each pack's
+  cliff face — the fringe row where the plateau top hangs over the rock
+  and the base row where the rock meets lower ground — as a 6×2 sheet of
+  16px pieces (`cliff_<biome>.png`: left end, four middles, right end per
+  row). The wall autotile (`DungeonManager._build_cliff_walls`) draws every
+  wall tile from four such quads: the biome's ground sheet as the plateau
+  cap with painted outlines on floor-facing sides, and the strip along
+  south-facing edges. Field, forest, cave (sewers too), desert, cursed and
+  undead have strips; Frostreach borrows the undead rock under its snow
+  cap. The forest and desert packs only round single-row ledges, so their
+  face ends carry a small mid-face seam.
 - **Props.** `tools/build_craftpix_props.py` crops the packs' separate prop
   PNGs (light-shadow variants) to tight sprites under
   `assets/textures/craftpix/props/` and writes the `CraftpixProps`
