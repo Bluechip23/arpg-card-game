@@ -4878,6 +4878,8 @@ var _rescue_npcs: Array = []      # RescueNpc nodes placed for active quests
 var _follower: RescueNpc = null   # the one currently trailing the player
 
 const WOODCUTTER_SHEET := "res://assets/sprites/NPCpackage2/npc man B v02.png"
+const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"  # the same old wanderer as in town
+var _field_olorin: RescueNpc = null  # Olorin at the Transport Portal on the first trip out of town
 const PARTNER_SHEET := "res://assets/sprites/NPCpackage2/npc girl v03.png"
 
 func _ground_pos(cell: Vector2i) -> Vector3:
@@ -4905,6 +4907,35 @@ func _place_quest_npcs() -> void:
 		for s in dungeon_manager.site_nodes:
 			if s["id"] == "graveyard_0":
 				dungeon_manager.place_feather_trail(s["grid_pos"])
+
+## Olorin waits beside the Transport Portal the first time the player steps
+## out of town, and reads them the screen (OlorinTutorial.show_field_tour).
+## He stays for that visit so the tour can be heard again with Shift; once
+## it has been heard, later trips find the portal empty.
+func _place_field_olorin() -> void:
+	_field_olorin = null
+	if sandbox_mode or olorin == null or dungeon_manager == null:
+		return
+	if current_interior_id != "" or current_world_level != 1:
+		return
+	if olorin.has_seen(OlorinTutorial.FIELD_TOUR_ID):
+		return
+	var cell: Vector2i = dungeon_manager.pick_free_cell_near(dungeon_manager.player_start, 2)
+	if cell.x < 0:
+		return
+	var npc := RescueNpc.new()
+	npc.setup("npc_olorin", "Olorin", OLORIN_SHEET, "[Shift] Talk")
+	add_child(npc)
+	npc.place_at(_ground_pos(cell), cell)
+	_rescue_npcs.append(npc)
+	_field_olorin = npc
+	# Let the HUD lay itself out before he points at it.
+	get_tree().create_timer(0.8).timeout.connect(_start_field_tour)
+	print("[MAIN] Olorin waits at the portal (%s)" % [cell])
+
+func _start_field_tour() -> void:
+	if olorin and _field_olorin and is_instance_valid(_field_olorin):
+		olorin.show_field_tour()
 
 func _spawn_rescue_npc(id: String, display_name: String, sheet: String, room_kind: String) -> RescueNpc:
 	var cell: Vector2i = dungeon_manager.pick_room_cell(room_kind)
@@ -4975,6 +5006,10 @@ func _try_interact_rescue_npc() -> bool:
 	var npc := _nearby_rescue_npc(grid_manager.world_to_grid(player.position))
 	if npc == null:
 		return false
+	if npc == _field_olorin:
+		if olorin:
+			olorin.show_field_tour(true)
+		return true
 	if npc.depot:
 		_send_satchel_home_at_depot(npc)
 		return true
@@ -12433,6 +12468,7 @@ func _setup_dungeon() -> void:
 	quest_manager.world_level = current_world_level
 	# Quest NPCs live in the world only while their quest needs them.
 	_place_quest_npcs()
+	_place_field_olorin()
 
 	# Setup minimap
 	minimap_tab_ui._setup_minimap()
