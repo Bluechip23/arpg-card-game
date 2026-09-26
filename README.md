@@ -326,7 +326,7 @@ What drops depends on the source. Tougher enemies skew toward better loot (weigh
 
 **Mythics play by their own rules.** Chests hold only commons and rares, and mythics never come from the regular loot table — they come from the per-act **pity system** ("mythic creep"): each act all-but-guarantees one mythic per character. Until it drops, every story kill raises the chance (starting at 0.2%, +0.05% per kill — it typically lands around kill 60 and is near-certain by 150). Once the act's mythic has dropped, mythic chances return to a small per-kill baseline (mid 0.2%, elite 1%, boss 5% — trash enemies never roll one). **Act 1 is the exception:** after its one guaranteed mythic, act 1 never drops another for that character, chests included.
 
-**Cards drop by rarity too.** Every card carries a rarity from the design sheet (Common, Rare, Legendary, Mythic), and a card drop rolls its rarity first, then a random card of that rarity. Chests use the middle row; enemies use their loot tier (weights, roughly percentages):
+**Card drops roll by type, then rarity.** A card drop first rolls the card's type from the design sheet's type column (Attack 32, Utility 30, Defense 20, Power 7, Reaction 7, Enchantment 4), then its rarity within that type, then a random card of both. Chests use the middle row for rarity; enemies use their loot tier (weights, roughly percentages):
 
 | Source | Common | Rare | Legendary | Mythic |
 |---|---|---|---|---|

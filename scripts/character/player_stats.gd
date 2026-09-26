@@ -110,9 +110,21 @@ const BASE_UNERRING_CAP: int = 6
 var unerring_armor: int = 0
 var sphere_bonus_unerring_cap: int = 0
 var equipment_unerring_cap: int = 0
+var maintained_unerring_cap: int = 0   # Forever Armor while maintained
+var maintained_thorns: int = 0         # Barbed Exterior while maintained: never wear down, never removed
 
 func get_unerring_cap() -> int:
-	return maxi(0, BASE_UNERRING_CAP + sphere_bonus_unerring_cap + equipment_unerring_cap)
+	return maxi(0, BASE_UNERRING_CAP + sphere_bonus_unerring_cap + equipment_unerring_cap + maintained_unerring_cap)
+
+## Forever Armor's share of the cap: set while the card is maintained,
+## cleared when it leaves. Dropping the cap sheds any shell above it.
+func set_maintained_unerring_cap(amount: int) -> void:
+	if maintained_unerring_cap == amount:
+		return
+	maintained_unerring_cap = amount
+	if unerring_armor > get_unerring_cap():
+		unerring_armor = get_unerring_cap()
+	unerring_changed.emit(unerring_armor, get_unerring_cap())
 
 ## Everything standing between a hit and your health: regular armor plus the
 ## unerring shell. HUD, enemies and cards that ask "how much armor" read this.

@@ -77,12 +77,22 @@ const ENEMY_ITEM_WEIGHTS := {
 	},
 }
 
-# ---- Card rarity weights ----------------------------------------------------
-# Cards drop by their rarity (the design sheet's rarity column). Chests and
-# any source without a tier use CARD_WEIGHTS; enemies use their loot tier's
-# row, so a boss is where the legendary and mythic cards live. All cards
-# are obtainable through play — rarity only shapes how often. The Basic
-# tier holds only tokens and status cards now, so it never drops.
+# ---- Card drops ---------------------------------------------------------------
+# A card drop rolls its TYPE first — the sheet's type column: attacks and
+# utility cards are the bread and butter, defenses next, powers, reactions
+# and enchantments the rare finds — then its rarity within that type
+# (CARD_WEIGHTS for chests and packs, the loot tier's row for kills), then a
+# card of that type and rarity. All cards are obtainable through play; the
+# Basic tier holds only tokens and status cards now, so it never drops.
+const CARD_TYPE_WEIGHTS := {
+	Card.CardType.ATTACK: 32,
+	Card.CardType.UTILITY: 30,
+	Card.CardType.DEFENSE: 20,
+	Card.CardType.POWER: 7,
+	Card.CardType.REACTION: 7,
+	Card.CardType.ENCHANTMENT: 4,
+}
+
 const CARD_WEIGHTS := {
 	Card.Rarity.COMMON: 68,
 	Card.Rarity.RARE: 24,
@@ -259,11 +269,17 @@ static func apply_early_pity(character, loot: Dictionary,
 		if has_item:
 			character.early_item_drops += 1
 
-## One card off a card-rarity table (CARD_WEIGHTS unless a tier's row is
-## passed). A tier with no droppable card falls back to the commons.
+## One card: type off CARD_TYPE_WEIGHTS, then rarity off `weights`
+## (CARD_WEIGHTS unless a tier's row is passed), then a card of both. A type
+## with no card of that rarity keeps the rarity and takes any type (so a
+## pack never falls below its tier's range); only a rarity with no card at
+## all falls back to the commons.
 static func roll_card(weights: Dictionary = CARD_WEIGHTS, rng: RandomNumberGenerator = null) -> Card:
+	var type = roll_weighted(CARD_TYPE_WEIGHTS, rng)
 	var rarity = roll_weighted(weights, rng)
-	var ids = Card.get_droppable_ids_of_rarity(rarity)
+	var ids = Card.get_droppable_ids_of_type_and_rarity(type, rarity)
+	if ids.is_empty():
+		ids = Card.get_droppable_ids_of_rarity(rarity)
 	if ids.is_empty():
 		ids = Card.get_droppable_ids_of_rarity(Card.Rarity.COMMON)
 	ids.sort()

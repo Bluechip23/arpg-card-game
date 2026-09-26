@@ -327,6 +327,7 @@ const CARD_RARITIES := {
 	"mirror_mirror": Rarity.MYTHIC, "misery_loves_company": Rarity.MYTHIC,
 	"peshtigos_kiss": Rarity.MYTHIC, "shield_of_growth": Rarity.MYTHIC,
 	"tighten_string": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
+	"composed_reaction": Rarity.BASIC,
 	# --- Off the sheet: item-granted kits, tokens and status cards (86) ---
 	"djinn_wish": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC,
 	"splinter": Rarity.BASIC,
@@ -377,7 +378,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true,
 	"biscuit": true, "energy_ball": true, "quick_arrow": true, "prepare": true,
 	"energy_barrier": true, "mana_surge": true, "magic_barrier": true, "shepherds_mark": true,
-	"paralysis": true, "release_soul": true,
+	"paralysis": true, "release_soul": true, "composed_reaction": true,
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
 	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
@@ -466,6 +467,7 @@ var has_on_draw: bool = false  # Card triggers an effect when drawn
 var on_draw_effect: String = ""  # Description of the on-draw effect
 var discard_on_draw: bool = false  # If true, card is discarded immediately after on-draw effect
 var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
+var auto_maintain: bool = false  # Non-Power card that is maintained the moment it is played (Barbed Exterior, Forever Armor)
 var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
 var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
@@ -2187,7 +2189,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		"forever_armor":
 			_execute_forever_armor(player_stats, buff_mgr)
 		"composed_response":
-			_execute_composed_response(player_stats, buff_mgr)
+			_execute_composed_response(deck_manager)
+		"composed_reaction":
+			_execute_composed_reaction(player_stats)
 		"hunker_down":
 			_execute_hunker_down(buff_mgr)
 		"energy_barrier":
@@ -5758,29 +5762,32 @@ func _execute_harden(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
 		buff_mgr.apply_buff(Buff.create_resilient(10, 15, "Harden", DamageTypes.Type.PHYSICAL))
 	print("[CARD] Harden! +%d armor, 10%% physical resistance for 15 tempo" % block)
 
-func _execute_barbed_exterior(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
-	## Armor (card.block) plus 4 Thorns for 10 tempo.
+func _execute_barbed_exterior(player_stats: PlayerStats, _buff_mgr: BuffManager) -> void:
+	## Maintained: 5 thorns that neither wear down per hit nor can be removed.
+	## They live on PlayerStats.maintained_thorns and last while the card is
+	## maintained (main re-syncs them whenever the maintained pile changes).
 	if player_stats:
-		player_stats.add_armor(block)
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_thorns(4, 10, "Barbed Exterior"))
-	print("[CARD] Barbed Exterior! +%d armor, 4 thorns for 10 tempo" % block)
+		player_stats.maintained_thorns = 5
+	print("[CARD] Barbed Exterior! 5 permanent thorns while maintained")
 
-func _execute_forever_armor(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
-	## Armor (card.block) plus Fortify (no armor decay) for 15 tempo.
+func _execute_forever_armor(player_stats: PlayerStats, _buff_mgr: BuffManager) -> void:
+	## Maintained: +6 to the unerring armor cap while the card is maintained.
 	if player_stats:
-		player_stats.add_armor(block)
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_fortify(15, "Forever Armor"))
-	print("[CARD] Forever Armor! +%d armor, no decay for 15 tempo" % block)
+		player_stats.set_maintained_unerring_cap(6)
+	print("[CARD] Forever Armor! +6 max unerring armor while maintained")
 
-func _execute_composed_response(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
-	## Armor (card.block) plus Brace 30% for the next 2 attacks.
+func _execute_composed_response(deck_manager) -> void:
+	## Overflow 5: the next five overflows each create a Composed Reaction.
+	if deck_manager and deck_manager.overflow_manager:
+		deck_manager.overflow_manager.add_overflow_effect(
+			OverflowEffect.create_overcharge("Composed Reaction", "composed_reaction", 1, 5, "Composed Response"))
+	print("[CARD] Composed Response! Overflow 5: each overflow makes a Composed Reaction")
+
+func _execute_composed_reaction(player_stats: PlayerStats) -> void:
+	## The armor half; main deals the 5 damage to an enemy in melee range.
 	if player_stats:
 		player_stats.add_armor(block)
-	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_brace(30, 2, "Composed Response"))
-	print("[CARD] Composed Response! +%d armor, Brace 30%% for 2 attacks" % block)
+	print("[CARD] Composed Reaction! +%d armor" % block)
 
 func _execute_hunker_down(buff_mgr: BuffManager) -> void:
 	## Fortify (armor does not decay) for 30 tempo.
@@ -6868,31 +6875,34 @@ static func create_fireball() -> Card:
 	return card
 
 static func create_peshtigos_kiss() -> Card:
-	## The firestorm: a point-and-click blaze that burns everything near it,
-	## and burns those already alight twice as hard.
+	## The firestorm. The floor around the chosen point erupts: 10 damage to
+	## every enemy in the flames, +5 for each enemy standing in them. The
+	## area's diameter is INT / 8 (rounded down; never smaller than the tile
+	## itself). The flames go out at once unless the card is maintained —
+	## main asks after the play — and while it burns, enemies in the flames
+	## take half that damage every 5 tempo.
 	var card = Card.new()
 	card.card_id = "peshtigos_kiss"
 	card.element = "red"
 	card.school = CardSchool.SPELL
 	card.card_name = "Peshtigo's Kiss"
-	card.description = "Ranged 6. 14 damage and 5 burn to every enemy within 2 squares of the point; enemies already burning take 6 more."
+	card.description = "Erupt the floor around the point in flames: 10 damage to each enemy in them, +5 for each enemy in the flames. Diameter: your INT / 8. The flames go out at once unless you Maintain the card (you are asked after playing); while they burn, enemies in them take half damage every 5 tempo."
 	card.is_fire_spell = true
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
-	card.mana_cost = 90
-	card.tempo_cost = 7
-	card.damage = 14
-	card.base_damage = 14
+	card.mana_cost = 60
+	card.tempo_cost = 5
+	card.maintain_cost = 60  # reserved only if the player chooses to keep the flames
+	card.damage = 10
+	card.base_damage = 10
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
 	card.is_ranged = true
-	card.range_modifier = 1
 	card.is_aoe = true
 	card.aoe_shape = "circle"
-	card.aoe_range = 2.0
+	card.aoe_range = 0.5  # main sizes it from INT when the card is selected
 	card.target_types = ["point"]
-	card.resolve_tick = 5
 	card.keywords = ["attack", "spell", "ranged", "offensive", "aoe", "point"]
 	return card
 
@@ -6900,15 +6910,17 @@ static func create_barbed_exterior() -> Card:
 	var card = Card.new()
 	card.card_id = "barbed_exterior"
 	card.card_name = "Barbed Exterior"
-	card.description = "Gain 4 armor and 4 Thorns for 10 tempo."
+	card.description = "Maintain: 5 thorns that never wear down and cannot be removed."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 20
-	card.tempo_cost = 3
+	card.tempo_cost = 4
+	card.maintain_cost = 20
+	card.auto_maintain = true
 	card.damage = 0
 	card.base_damage = 0
-	card.block = 4
-	card.base_block = 4
+	card.block = 0
+	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
 	card.keywords = ["utility", "self"]
@@ -6918,15 +6930,17 @@ static func create_forever_armor() -> Card:
 	var card = Card.new()
 	card.card_id = "forever_armor"
 	card.card_name = "Forever Armor"
-	card.description = "Gain 6 armor. Your armor does not decay for 15 tempo."
+	card.description = "Maintain: +6 max unerring armor."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
-	card.mana_cost = 25
+	card.mana_cost = 20
 	card.tempo_cost = 4
+	card.maintain_cost = 20
+	card.auto_maintain = true
 	card.damage = 0
 	card.base_damage = 0
-	card.block = 6
-	card.base_block = 6
+	card.block = 0
+	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
 	card.keywords = ["utility", "self"]
@@ -6936,18 +6950,41 @@ static func create_composed_response() -> Card:
 	var card = Card.new()
 	card.card_id = "composed_response"
 	card.card_name = "Composed Response"
-	card.description = "Gain 3 armor and Brace: the next 2 attacks against you deal 30% less damage."
+	card.description = "Gain Overflow 5: each overflow creates a Composed Reaction in your hand — when you are attacked, gain 5 armor and deal 5 damage to an enemy in melee range."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
-	card.mana_cost = 15
+	card.mana_cost = 30
 	card.tempo_cost = 2
 	card.damage = 0
 	card.base_damage = 0
-	card.block = 3
-	card.base_block = 3
+	card.block = 0
+	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
 	card.keywords = ["utility", "self"]
+	return card
+
+## The token Composed Response's overflow makes: a reaction that fires when
+## the player takes damage. Lingers, since it is born into a full hand.
+static func create_composed_reaction() -> Card:
+	var card = Card.new()
+	card.card_id = "composed_reaction"
+	card.card_name = "Composed Reaction"
+	card.description = "Instant: when you are attacked, gain 5 armor and deal 5 damage to an enemy in melee range."
+	card.card_type = CardType.REACTION
+	card.card_type_name = "Reaction"
+	card.mana_cost = 0
+	card.tempo_cost = 0
+	card.damage = 5
+	card.base_damage = 5
+	card.block = 5
+	card.base_block = 5
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	card.reaction_trigger = "on_damage_taken"
+	card.linger = true
+	card.shop_excluded = true
+	card.keywords = ["reaction", "self"]
 	return card
 
 static func create_spark() -> Card:
@@ -8585,6 +8622,25 @@ static func get_droppable_ids_of_rarity(r: Rarity) -> Array:
 	var ids: Array = []
 	for cid in CARD_RARITIES:
 		if CARD_RARITIES[cid] == r and not DROP_EXCLUDED_CARD_IDS.has(cid):
+			ids.append(cid)
+	return ids
+
+static var _type_index: Dictionary = {}  # card_id -> CardType, droppable cards only
+
+## Droppable card ids of one CardType and one rarity (see DropRates: a card
+## drop rolls its type first, then its rarity). Types are read off each
+## droppable card once and cached.
+static func get_droppable_ids_of_type_and_rarity(type: int, r: Rarity) -> Array:
+	if _type_index.is_empty():
+		for cid in CARD_RARITIES:
+			if DROP_EXCLUDED_CARD_IDS.has(cid):
+				continue
+			var c := create_by_id(cid)
+			if c != null:
+				_type_index[cid] = int(c.card_type)
+	var ids: Array = []
+	for cid in CARD_RARITIES:
+		if CARD_RARITIES[cid] == r and _type_index.get(cid, -1) == type:
 			ids.append(cid)
 	return ids
 

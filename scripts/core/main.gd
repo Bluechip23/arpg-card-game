@@ -80,6 +80,8 @@ const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
 var _spirit_bows: Array = []     # Bow of Budding Blasts: maintained spirit bow + budded turrets
 const SpiritBowScript = preload("res://scripts/battle/spirit_bow_summon.gd")
 var _mark_zones: Array = []      # Territorial Mark: {cells: Array[Vector2i], tempo, nodes}
+var _flame_zones: Array = []     # Peshtigo's Kiss: {cells: Array[Vector2i], card: Card, nodes}
+var _maintain_prompt: CanvasLayer = null  # "Maintain X?" question after a card that may be kept
 var _clones: Array = []          # Draupnir: duplicates of the bearer (live until killed — no battle-end cleanup)
 const CloneScript = preload("res://scripts/battle/summoned_clone.gd")
 var _wraiths: Array = []         # The Precious: the hostile hunters, on the field only during shadow form
@@ -546,6 +548,7 @@ func _ready() -> void:
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
+	deck_manager.maintained_changed.connect(_sync_maintained_passives)
 	overflow_manager.overdraw_processed.connect(_on_overdraw_processed)
 	overflow_manager.overflow_effects_changed.connect(func():
 		if _hand_info_popup and _hand_info_popup.visible:
@@ -6129,6 +6132,8 @@ func _on_all_enemies_defeated() -> void:
 	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
 	_clear_mark_zones()
+	_clear_flame_zones()
+	_sync_maintained_passives()
 	# Spell weapons: no element remap or pollination survives the wave, and
 	# unpicked berries wilt with it.
 	Card.active_element_remap = ""
@@ -7352,6 +7357,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		player.resume_movement()
 func _process_maintained_card_effects() -> void:
 	## Process ongoing effects from maintained Power cards each tempo cycle.
+	_burn_flame_zones()
 	var maintained_result = deck_manager.process_maintained_cards()
 	var stats = player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
@@ -7993,6 +7999,8 @@ func select_card(index: int) -> void:
 
 	# Show AOE indicator if applicable
 	var card = deck_manager.hand[selected_card_index]
+	if card.card_id == "peshtigos_kiss":
+		card.aoe_range = _peshtigo_radius()
 	if card.is_aoe and aoe_indicator:
 		aoe_indicator.update_indicator(card.aoe_shape, card.aoe_range)
 		# Only a circle that lands where you click sits at the cursor. Lines
@@ -9737,6 +9745,183 @@ func _territorial_mark_cells(from_cell: Vector2i, to_cell: Vector2i) -> Array:
 				cells.append(Vector2i(x, y))
 	return cells
 
+# ---- Peshtigo's Kiss: the flames ------------------------------------------
+
+## Radius of the flames: the sheet's diameter is INT / 8 rounded down, never
+## smaller than the tile the spell lands on.
+func _peshtigo_radius() -> float:
+	var stats = player.get_stats() if player else null
+	var diameter: int = int(stats.intelligence / 8) if stats else 1
+	return maxf(0.5, diameter / 2.0)
+
+func _flame_cells(center: Vector2i) -> Array:
+	var radius := _peshtigo_radius()
+	var reach := int(ceil(radius))
+	var cells: Array = []
+	for dx in range(-reach, reach + 1):
+		for dz in range(-reach, reach + 1):
+			if Vector2(dx, dz).length() <= radius + 0.001:
+				cells.append(center + Vector2i(dx, dz))
+	return cells
+
+func _enemies_in_cells(cells: Array) -> Array:
+	var out: Array = []
+	for en in enemy_spawner.get_living_enemies():
+		if grid_manager.world_to_grid(en.position) in cells:
+			out.append(en)
+	return out
+
+## Ask whether to keep the flames burning. Yes maintains the card (its mana
+## stays reserved, the flames stay lit); No lets them go out at once.
+func _offer_to_maintain(card: Card, cells: Array) -> void:
+	_close_maintain_prompt()
+	if not deck_manager.can_maintain(card):
+		add_battle_log("Not enough free mana to keep the flames burning.", Color(1.0, 0.6, 0.3))
+		return
+	_maintain_prompt = CanvasLayer.new()
+	_maintain_prompt.layer = 20
+	add_child(_maintain_prompt)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.07, 0.05, 0.96)
+	style.border_color = Color(1.0, 0.55, 0.2)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", style)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_maintain_prompt.add_child(panel)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+	var lbl := Label.new()
+	lbl.text = "Maintain %s? (reserves %d mana)" % [card.card_name, card.maintain_cost]
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(lbl)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	vbox.add_child(row)
+	var yes := Button.new()
+	yes.text = "Maintain"
+	yes.custom_minimum_size = Vector2(110, 32)
+	yes.pressed.connect(func():
+		_close_maintain_prompt()
+		# Light the flames first: maintaining re-syncs the maintained pile,
+		# and a maintained Peshtigo with nothing burning is dismissed.
+		_create_flame_zone(cells, card)
+		if deck_manager.maintain_card(card):
+			add_battle_log("The flames keep burning.", Color(1.0, 0.55, 0.2))
+		else:
+			_sync_maintained_passives()
+	)
+	row.add_child(yes)
+	var no := Button.new()
+	no.text = "Let it go out"
+	no.custom_minimum_size = Vector2(110, 32)
+	no.pressed.connect(func():
+		_close_maintain_prompt()
+	)
+	row.add_child(no)
+
+func _close_maintain_prompt() -> void:
+	if _maintain_prompt and is_instance_valid(_maintain_prompt):
+		_maintain_prompt.queue_free()
+	_maintain_prompt = null
+
+func _create_flame_zone(cells: Array, card: Card) -> void:
+	var nodes: Array = []
+	for c in cells:
+		var n := _make_flame_visual(grid_manager.grid_to_world(c))
+		add_child(n)
+		nodes.append(n)
+	_flame_zones.append({"cells": cells, "card": card, "nodes": nodes})
+
+## A burning tile: a translucent ember disc.
+func _make_flame_visual(world_pos: Vector3) -> Node3D:
+	var node := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.4
+	mesh.bottom_radius = 0.46
+	mesh.height = 0.1
+	node.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.45, 0.1, 0.45)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.35, 0.05)
+	mat.emission_energy_multiplier = 0.9
+	node.material_override = mat
+	node.position = Vector3(world_pos.x, 0.06, world_pos.z)
+	return node
+
+func _clear_flame_zones() -> void:
+	for z in _flame_zones:
+		for n in z["nodes"]:
+			if is_instance_valid(n):
+				n.queue_free()
+	_flame_zones.clear()
+
+## Every cycle: enemies standing in maintained flames take half the spell's
+## damage (10 + 5 per enemy in them, through the spell pipeline).
+func _burn_flame_zones() -> void:
+	if _flame_zones.is_empty():
+		return
+	var stats = player.get_stats()
+	for z in _flame_zones:
+		var hit := _enemies_in_cells(z["cells"])
+		if hit.is_empty():
+			continue
+		var full: int = (stats.get_effective_spell_damage(10) if stats else 10) + 5 * hit.size()
+		var half: int = maxi(1, full / 2)
+		for en in hit:
+			en.take_damage(half, true)
+		add_battle_log("The flames burn %d enemies for %d" % [hit.size(), half], Color(1.0, 0.5, 0.2))
+
+## Re-read the maintained pile: Barbed Exterior's thorns and Forever
+## Armor's cap exist only while their cards are maintained, and Peshtigo's
+## flames go out when their card leaves the pile.
+func _sync_maintained_passives() -> void:
+	var stats = player.get_stats() if player else null
+	if stats == null:
+		return
+	var barbed := false
+	var forever := false
+	for c in deck_manager.maintained_cards:
+		if c.card_id == "barbed_exterior":
+			barbed = true
+		elif c.card_id == "forever_armor":
+			forever = true
+	stats.maintained_thorns = 5 if barbed else 0
+	stats.set_maintained_unerring_cap(6 if forever else 0)
+	var survivors: Array = []
+	for z in _flame_zones:
+		if deck_manager.maintained_cards.has(z["card"]):
+			survivors.append(z)
+		else:
+			for n in z["nodes"]:
+				if is_instance_valid(n):
+					n.queue_free()
+	_flame_zones = survivors
+	# A maintained Peshtigo with no flames (the level changed under it) is
+	# just reserved mana: let it go.
+	for i in range(deck_manager.maintained_cards.size() - 1, -1, -1):
+		var c: Card = deck_manager.maintained_cards[i]
+		if c.card_id == "peshtigos_kiss":
+			var lit := false
+			for z in _flame_zones:
+				if z["card"] == c:
+					lit = true
+			if not lit:
+				deck_manager.dismiss_maintained_card(i)
+				return  # dismiss re-syncs
+
 func _create_mark_zone(cells: Array, tempo: int) -> void:
 	var nodes: Array = []
 	for c in cells:
@@ -11208,21 +11393,19 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
 
 		"peshtigos_kiss":
-			# The firestorm: damage + 5 burn to everything within the circle;
-			# anything already burning takes 6 more as the flames feed on it.
+			# The floor around the point erupts: 10 (+5 per enemy in the
+			# flames) to each enemy in them. Then the player is asked whether
+			# to maintain the card; kept, the flames stay and burn each cycle.
 			var pk_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
-			var pk_dmg = card.last_damage_dealt
-			var pk_hit = enemy_spawner.get_enemies_in_radius(pk_center, card.aoe_range if card.aoe_range > 0 else 2.0)
-			var pk_fed := 0
+			var pk_cells := _flame_cells(grid_manager.world_to_grid(pk_center))
+			var pk_hit := _enemies_in_cells(pk_cells)
+			var pk_dmg: int = card.last_damage_dealt + 5 * pk_hit.size()
 			for en in pk_hit:
-				var extra: int = 6 if en.has_debuff_type("burn") else 0
-				if extra > 0:
-					pk_fed += 1
-				en.take_damage(pk_dmg + extra, true)
-				en.apply_debuff("burn", 5)
+				en.take_damage(pk_dmg, true)
 			_apply_misery_spread(pk_hit)
-			add_battle_log("Peshtigo's Kiss! %d damage + 5 burn to %d enemies (%d fed the flames)" % [pk_dmg, pk_hit.size(), pk_fed], Color(1.0, 0.45, 0.15))
-			print("[MAIN] Peshtigo's Kiss hit %d enemies for %d (+5 burn, %d already burning)" % [pk_hit.size(), pk_dmg, pk_fed])
+			add_battle_log("Peshtigo's Kiss! %d damage to %d enemies in the flames" % [pk_dmg, pk_hit.size()], Color(1.0, 0.45, 0.15))
+			print("[MAIN] Peshtigo's Kiss: %d enemies in %d flame tiles, %d damage each" % [pk_hit.size(), pk_cells.size(), pk_dmg])
+			_offer_to_maintain(card, pk_cells)
 
 		"crops":
 			# Shepherds Crook: 5 berry bushels at random open cells within 8
@@ -13054,6 +13237,10 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 	match effect_id:
+		"composed_reaction":
+			# Composed Response: the overflow becomes a reaction card in hand.
+			deck_manager.add_card_to_hand(Card.create_composed_reaction())
+			add_battle_log("Composed Reaction readied.", Color(0.7, 0.85, 1.0))
 		"damage_all":
 			var enemies = enemy_spawner.get_living_enemies()
 			for enemy in enemies:
@@ -13940,6 +14127,18 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var triggered = deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		if card.card_id == "composed_reaction":
+			# The other half of the reaction: 5 damage to an enemy in melee range.
+			var cr_nearest: Enemy = null
+			var cr_best := INF
+			for e in enemy_spawner.get_enemies_in_radius(player.position, 1.5):
+				var d: float = (e.position - player.position).length()
+				if d < cr_best:
+					cr_best = d
+					cr_nearest = e
+			if cr_nearest:
+				cr_nearest.take_damage(card.damage, true)
+				add_battle_log("Composed Reaction: +%d armor, %d damage to %s" % [card.block, card.damage, cr_nearest.enemy_name], Color(0.7, 0.85, 1.0))
 	# Tight Rope: fires only on the hit that dropped the player below 20% health.
 	var tr_stats = player.get_stats()
 	if tr_stats and tr_stats.max_health > 0:
