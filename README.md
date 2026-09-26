@@ -326,6 +326,17 @@ What drops depends on the source. Tougher enemies skew toward better loot (weigh
 
 **Mythics play by their own rules.** Chests hold only commons and rares, and mythics never come from the regular loot table — they come from the per-act **pity system** ("mythic creep"): each act all-but-guarantees one mythic per character. Until it drops, every story kill raises the chance (starting at 0.2%, +0.05% per kill — it typically lands around kill 60 and is near-certain by 150). Once the act's mythic has dropped, mythic chances return to a small per-kill baseline (mid 0.2%, elite 1%, boss 5% — trash enemies never roll one). **Act 1 is the exception:** after its one guaranteed mythic, act 1 never drops another for that character, chests included.
 
+**Cards drop by rarity too.** Every card carries a rarity from the design sheet (Common, Rare, Legendary, Mythic), and a card drop rolls its rarity first, then a random card of that rarity. Chests use the middle row; enemies use their loot tier (weights, roughly percentages):
+
+| Source | Common | Rare | Legendary | Mythic |
+|---|---|---|---|---|
+| Trash enemies | 80 | 17 | 3 | — |
+| Mid-tier enemies, chests | 68 | 24 | 7 | 1 |
+| Elites | 50 | 35 | 12 | 3 |
+| Bosses | 30 | 45 | 20 | 5 |
+
+Card packs roll their contents the same way, by pack tier. Tokens and status cards (Sprinkle, Minor Wounds, Paralysis…) never drop.
+
 **Chests are salted per character.** Every chest rolls its contents from the world, its index, and a loot seed rolled once per character, so two characters never open identical chests while one character revisiting a chest always finds what they left in it. The act-1 starter chest always holds a card and a common item.
 
 **Early-game pity.** A fresh character's first kills lean generous: until three cards and three items have dropped from kills, any kill that rolled neither gets a second 35% roll for a card or a common item, so the deck and kit start growing within the first few fights.
@@ -399,7 +410,7 @@ Items and cards are deeply linked: some items **grant cards** to your deck while
 
 Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** when played.
 
-**Slot labels decide where a card may go.** Every card can sit in your 12-card deck. A card with one or more slot labels (**Pocket**, **Crown**, **Gem**, **Swift**, **Buckler**, **Fist**, **Arrow**) can *also* be enchanted into a matching slot: belts take Pocket, helms Crown, rings Gem, boots Swift, shields Buckler, gauntlets Fist, bows and quivers Arrow, chest armor Bulwark, and every weapon its own — Sword, Axe, Dagger, Hammer, Spear, Wand, Tome, Staff. A card can carry several labels (Crown / Gem / Pocket fits helms, rings and belts). A card with **no label is deck-only** and can never be slotted. **Engrave** is the wrinkle on top: an Engrave card exists *only* in a slot, never in the bare deck.
+**Slot labels decide where a card may go.** Every card can sit in your 12-card deck. A card with one or more slot labels (**Pocket**, **Crown**, **Gem**, **Swift**, **Buckler**, **Fist**, **Arrow**, **Bulwark**, or a weapon's own label) can *also* be enchanted into a matching slot: belts take Pocket, helms Crown, rings Gem, boots Swift, shields Buckler, gauntlets Fist, bows and quivers Arrow, chest armor Bulwark, and every weapon its own — Sword, Axe, Dagger, Hammer, Spear, Wand, Tome, Staff. A card can carry several labels (Crown / Gem / Pocket fits helms, rings and belts). A card with **no label is deck-only** and can never be slotted. **Engrave** is the wrinkle on top: an Engrave card exists *only* in a slot, never in the bare deck.
 
 Once slotted, these keywords govern moving a card between items:
 
@@ -445,7 +456,7 @@ Your character grows along several permanent axes:
   - **Null nodes** — small connectors that grant nothing; the toll paid on the road to something bigger.
   - **Constellations** — completing certain node patterns grants an extra bonus. A node can only be connected to one constellation, so choose wisely.
 - **Path abilities** — each character has 4 "paths" (archetypes) of leveled passives (e.g. Cory: Monk, Druid, Lurker, and Atrophist). See below.
-- **Deck crafting** — buy cards from the Card Dealer (priced by rarity: Basic 10, Common 25, Rare 75, Legendary 200, Mythic 500 gold), and use consumables to sculpt the deck:
+- **Deck crafting** — buy cards from the Card Dealer (priced by rarity: Common 25, Rare 75, Legendary 200, Mythic 500 gold), and use consumables to sculpt the deck:
   - **Copy limits** — Basics and Commons are unlimited; up to 4 of the same Rare, 2 of the same Legendary, 1 of the same Mythic. A copy socketed in an item counts. Mythic cards as a group follow the mythic-item allowance (one per 15 levels).
   - **Selling** — loose cards in the backpack sell to the Card Dealer for half their price. A card in your deck has to be culled to the backpack first.
   - **Culling Stones** remove a card from your deck into your backpack (where it can be sold or socketed).

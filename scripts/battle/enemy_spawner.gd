@@ -236,7 +236,7 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 		if randf() < DropRates.PACK_CHANCE_OF_CARD_DROP:
 			loot["card_pack"] = DropRates.roll_weighted(DropRates.PACK_TIER_WEIGHTS)
 		else:
-			loot["card"] = _get_random_loot_card()
+			loot["card"] = _get_random_loot_card(enemy.enemy_type)
 
 	return loot
 
@@ -324,13 +324,10 @@ func _get_random_loot_item(type: Enemy.EnemyType) -> ItemData:
 		pool = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
 	return pool[randi() % pool.size()]
 
-func _get_random_loot_card() -> Card:
-	## Rarity-weighted over every droppable card (see Card.CARD_RARITIES).
-	var rarity = DropRates.roll_weighted(DropRates.CARD_WEIGHTS)
-	var ids = Card.get_droppable_ids_of_rarity(rarity)
-	if ids.is_empty():
-		ids = Card.get_droppable_ids_of_rarity(Card.Rarity.BASIC)
-	return Card.create_by_id(ids[randi() % ids.size()])
+func _get_random_loot_card(type: Enemy.EnemyType) -> Card:
+	## Rarity-weighted by the enemy's loot tier (DropRates.ENEMY_CARD_WEIGHTS)
+	## over every droppable card (Card.CARD_RARITIES).
+	return DropRates.roll_card(DropRates.ENEMY_CARD_WEIGHTS[get_loot_tier(type)])
 
 # ============================================
 # SPATIAL QUERIES

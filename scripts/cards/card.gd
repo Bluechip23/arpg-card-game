@@ -79,6 +79,175 @@ const GOLD_VALUE_BY_RARITY := {
 	Rarity.MYTHIC: 500,
 }
 
+## Slot labels from the design sheet's slots column: the item slots each
+## card may be enchanted into. Applied whenever a factory assigns the card
+## id (see the card_id setter), so every creation path agrees. Cards off
+## the sheet keep the labels their factories set.
+const CARD_SLOT_LABELS := {
+	"absorb_essence": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.TOME],
+	"adrenaline_shot": [CardKeyword.DAGGER],
+	"anticipation": [CardKeyword.FIST, CardKeyword.POCKET],
+	"approach": [CardKeyword.BULWARK, CardKeyword.BUCKLER],
+	"armor_break": [CardKeyword.HAMMER],
+	"armor_patch": [CardKeyword.BULWARK, CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.TOME, CardKeyword.CROWN],
+	"armored_discipline": [CardKeyword.CROWN, CardKeyword.SWORD],
+	"barbed_exterior": [CardKeyword.CROWN, CardKeyword.AXE],
+	"barricade": [],
+	"best_offense": [CardKeyword.BULWARK],
+	"biscuit": [],
+	"blade_barrage": [CardKeyword.SWORD, CardKeyword.DAGGER],
+	"blink": [CardKeyword.SWIFT],
+	"block": [],
+	"bloodlust": [CardKeyword.AXE],
+	"bob_and_weave": [CardKeyword.POCKET, CardKeyword.DAGGER, CardKeyword.SWIFT, CardKeyword.SPEAR],
+	"bottomless_quiver": [CardKeyword.ARROW],
+	"charge": [],
+	"choke": [CardKeyword.FIST],
+	"collect_arrows": [CardKeyword.ARROW],
+	"communal_donation": [CardKeyword.DAGGER, CardKeyword.CROWN, CardKeyword.WAND, CardKeyword.STAFF],
+	"composed_response": [CardKeyword.SPEAR],
+	"consecutive_snap": [CardKeyword.FIST],
+	"cover": [CardKeyword.SPEAR, CardKeyword.SWIFT],
+	"cryonics": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.SWORD],
+	"cultish_wounds": [CardKeyword.CROWN, CardKeyword.DAGGER],
+	"dagger_throw": [CardKeyword.POCKET, CardKeyword.DAGGER],
+	"deep_pockets": [CardKeyword.POCKET],
+	"defensive_awareness": [CardKeyword.SWIFT, CardKeyword.SPEAR, CardKeyword.BUCKLER],
+	"demonic_rage": [CardKeyword.AXE, CardKeyword.HAMMER, CardKeyword.SWORD],
+	"discard": [CardKeyword.POCKET, CardKeyword.DAGGER],
+	"down_but_not_out": [CardKeyword.GEM, CardKeyword.FIST, CardKeyword.CROWN],
+	"down_town": [CardKeyword.ARROW],
+	"draw": [CardKeyword.POCKET, CardKeyword.FIST, CardKeyword.SWIFT, CardKeyword.ARROW],
+	"elixir": [CardKeyword.POCKET],
+	"empower": [CardKeyword.ARROW],
+	"enchanted_quiver": [CardKeyword.ARROW],
+	"enchantment_attack": [CardKeyword.GEM],
+	"enchantment_defense": [CardKeyword.GEM],
+	"enchantment_mana_regen": [CardKeyword.GEM],
+	"enchantment_movement": [CardKeyword.GEM],
+	"energy_ball": [],
+	"energy_barrier": [],
+	"exacerbate_wounds": [CardKeyword.AXE, CardKeyword.DAGGER],
+	"exhausted_assault": [CardKeyword.AXE],
+	"exposed_artery": [CardKeyword.DAGGER, CardKeyword.AXE, CardKeyword.SWORD],
+	"fireball": [CardKeyword.STAFF],
+	"forever_armor": [CardKeyword.CROWN, CardKeyword.BUCKLER, CardKeyword.SWORD],
+	"fortify_alliance": [CardKeyword.WAND, CardKeyword.HAMMER],
+	"fountain_of_life": [CardKeyword.CROWN, CardKeyword.AXE],
+	"friendship": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.GEM, CardKeyword.SWORD],
+	"gain_mana": [CardKeyword.GEM],
+	"gargle_and_spit": [CardKeyword.POCKET],
+	"gift_from_the_phoenix": [CardKeyword.GEM],
+	"give_in": [],
+	"god_of_thunder": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.TOME, CardKeyword.HAMMER],
+	"gulped_potion": [CardKeyword.POCKET],
+	"halo": [CardKeyword.CROWN],
+	"harden": [CardKeyword.BULWARK, CardKeyword.SPEAR],
+	"harness_lightning": [CardKeyword.HAMMER, CardKeyword.STAFF],
+	"heal": [CardKeyword.POCKET, CardKeyword.WAND],
+	"healing_potion": [CardKeyword.POCKET],
+	"healthy_bliss": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.HAMMER],
+	"healthy_habit": [CardKeyword.POCKET, CardKeyword.SWORD],
+	"heavy_swing": [CardKeyword.HAMMER, CardKeyword.AXE, CardKeyword.SPEAR],
+	"heroic_leap": [CardKeyword.SWORD, CardKeyword.BUCKLER, CardKeyword.HAMMER],
+	"hold_the_line": [CardKeyword.BULWARK, CardKeyword.CROWN, CardKeyword.SWORD],
+	"hope_this_works": [CardKeyword.SWORD],
+	"house_money": [],
+	"hunker_down": [CardKeyword.BULWARK, CardKeyword.BUCKLER],
+	"if_pigs_could_fly": [],
+	"internal_combustion": [CardKeyword.WAND, CardKeyword.TOME, CardKeyword.STAFF, CardKeyword.BUCKLER],
+	"item_mastery": [CardKeyword.AXE, CardKeyword.SWORD],
+	"lady_luck": [CardKeyword.GEM],
+	"last_breath": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.AXE],
+	"lead_arrow": [CardKeyword.ARROW],
+	"lethal_recall": [CardKeyword.SPEAR, CardKeyword.SWIFT],
+	"life_steal": [CardKeyword.DAGGER, CardKeyword.SWORD],
+	"life_swap": [CardKeyword.WAND, CardKeyword.TOME, CardKeyword.STAFF, CardKeyword.AXE],
+	"lightly_dazed": [],
+	"living_armor": [CardKeyword.BUCKLER, CardKeyword.FIST],
+	"loaded_die": [CardKeyword.FIST, CardKeyword.GEM],
+	"magic_barrier": [CardKeyword.GEM, CardKeyword.WAND, CardKeyword.SWORD],
+	"mana_surge": [CardKeyword.WAND, CardKeyword.HAMMER],
+	"mark": [CardKeyword.ARROW, CardKeyword.AXE, CardKeyword.DAGGER],
+	"meditate": [],
+	"meister_of_faustmesser": [CardKeyword.POCKET],
+	"minor_wounds": [],
+	"mirror_mirror": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.CROWN],
+	"misery_loves_company": [CardKeyword.FIST, CardKeyword.HAMMER],
+	"morphine": [],
+	"multishot": [CardKeyword.ARROW],
+	"oops": [CardKeyword.DAGGER],
+	"parry": [CardKeyword.SWIFT, CardKeyword.SWORD],
+	"patience": [CardKeyword.SPEAR],
+	"peshtigos_kiss": [CardKeyword.STAFF, CardKeyword.WAND],
+	"petey_the_pet_rock": [CardKeyword.POCKET],
+	"poisoned_blood": [CardKeyword.POCKET, CardKeyword.WAND],
+	"poke": [CardKeyword.POCKET],
+	"potion_of_continuance": [CardKeyword.POCKET],
+	"premeditated": [CardKeyword.AXE, CardKeyword.DAGGER, CardKeyword.SPEAR],
+	"preparation": [CardKeyword.HAMMER, CardKeyword.FIST],
+	"prepare": [CardKeyword.FIST, CardKeyword.POCKET],
+	"provider": [CardKeyword.CROWN, CardKeyword.WAND],
+	"push": [CardKeyword.FIST, CardKeyword.SPEAR],
+	"quick_arrow": [],
+	"quick_shot": [CardKeyword.ARROW, CardKeyword.POCKET],
+	"raged_circulation": [CardKeyword.AXE, CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.SWORD],
+	"reckless_strike": [CardKeyword.AXE, CardKeyword.HAMMER, CardKeyword.SWORD],
+	"release_tension": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.TOME],
+	"reload": [CardKeyword.ARROW],
+	"repelled_block": [CardKeyword.SPEAR, CardKeyword.BUCKLER],
+	"reposition": [CardKeyword.SWIFT, CardKeyword.FIST, CardKeyword.SPEAR],
+	"rise": [],
+	"risk_it": [CardKeyword.SWORD],
+	"roar": [CardKeyword.BULWARK],
+	"roll": [CardKeyword.GEM, CardKeyword.SPEAR],
+	"round_em_up": [],
+	"savage_strike": [CardKeyword.AXE, CardKeyword.SWORD],
+	"self_infliction": [CardKeyword.AXE, CardKeyword.DAGGER, CardKeyword.SWORD],
+	"shadows": [CardKeyword.POCKET, CardKeyword.WAND, CardKeyword.SWIFT],
+	"shed_weight": [CardKeyword.SWIFT, CardKeyword.SWORD, CardKeyword.SPEAR],
+	"shepherds_mark": [],
+	"shield_of_growth": [CardKeyword.FIST, CardKeyword.BULWARK, CardKeyword.BUCKLER],
+	"shield_ready": [CardKeyword.BUCKLER],
+	"shield_slam": [CardKeyword.BUCKLER],
+	"shuriken": [CardKeyword.POCKET, CardKeyword.ARROW],
+	"shuriken_pouch": [CardKeyword.POCKET, CardKeyword.ARROW],
+	"sky_attack": [CardKeyword.ARROW, CardKeyword.WAND],
+	"sky_fall": [CardKeyword.ARROW, CardKeyword.WAND],
+	"slash": [],
+	"smith_thy_soul": [CardKeyword.BULWARK, CardKeyword.STAFF],
+	"snowballs_chance": [CardKeyword.CROWN, CardKeyword.WAND, CardKeyword.STAFF],
+	"spark": [],
+	"specific_strike": [CardKeyword.DAGGER, CardKeyword.SWORD],
+	"spider_senses": [CardKeyword.SPEAR, CardKeyword.SWIFT],
+	"spirit_arrow": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.ARROW],
+	"succumb": [CardKeyword.CROWN, CardKeyword.FIST],
+	"surrounding_ice": [CardKeyword.STAFF],
+	"swap": [CardKeyword.SWIFT],
+	"sweeping_disarm": [CardKeyword.SWORD, CardKeyword.SPEAR],
+	"taunt": [CardKeyword.SWORD],
+	"the_lights_favor": [CardKeyword.POCKET, CardKeyword.WAND, CardKeyword.GEM, CardKeyword.STAFF, CardKeyword.TOME],
+	"thrown_stone": [CardKeyword.POCKET, CardKeyword.ARROW],
+	"tighten_string": [CardKeyword.ARROW, CardKeyword.WAND, CardKeyword.STAFF],
+	"tower_shield": [CardKeyword.BUCKLER],
+	"trick_shot": [CardKeyword.ARROW],
+	"trip": [CardKeyword.SPEAR],
+	"try_this": [CardKeyword.FIST, CardKeyword.SWORD],
+	"turtle_up": [CardKeyword.BULWARK],
+	"understanding": [CardKeyword.SPEAR, CardKeyword.DAGGER],
+	"vengeful_shield": [CardKeyword.BUCKLER],
+	"vines": [CardKeyword.AXE, CardKeyword.WAND, CardKeyword.STAFF],
+	"volatile_mixture": [CardKeyword.POCKET],
+	"wear_down": [CardKeyword.HAMMER],
+	"worms_armageddon": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.AXE],
+	"worst_that_could_happen": [CardKeyword.HAMMER],
+}
+
+## Engrave cards from the sheet: they exist only inside an item slot.
+const CARD_ENGRAVED := {
+	"shield_slam": true, "succumb": true, "cover": true, "absorb_essence": true, "fireball": true, "vengeful_shield": true, "shield_ready": true,
+}
+
 static func gold_value_of(cid: String) -> int:
 	return int(GOLD_VALUE_BY_RARITY.get(CARD_RARITIES.get(cid, Rarity.COMMON), 25))
 
@@ -94,122 +263,109 @@ static func max_deck_copies(cid: String) -> int:
 	return int(MAX_COPIES_BY_RARITY.get(r, -1))
 
 const CARD_RARITIES := {
-	# --- Basic (24) ---
-	"slash": Rarity.BASIC, "block": Rarity.BASIC, "discard": Rarity.BASIC,
-	"draw": Rarity.BASIC, "empower": Rarity.BASIC, "heal": Rarity.BASIC,
-	"gain_mana": Rarity.BASIC, "healing_potion": Rarity.BASIC, "dagger_throw": Rarity.BASIC,
-	"wear_down": Rarity.BASIC, "poke": Rarity.BASIC, "parry": Rarity.BASIC,
-	"approach": Rarity.BASIC, "shuriken": Rarity.BASIC, "quick_shot": Rarity.BASIC,
-	"quick_arrow": Rarity.BASIC, "push": Rarity.BASIC, "lightly_dazed": Rarity.BASIC,
+	# The design sheet's rarity column (name / id / type / slots / rarity):
+	# every droppable card. Basic is retired for these — the Attack card is
+	# Common like any other starter.
+	# --- Common (92) ---
+	"adrenaline_shot": Rarity.COMMON, "approach": Rarity.COMMON, "armor_break": Rarity.COMMON,
+	"armor_patch": Rarity.COMMON, "barricade": Rarity.COMMON, "best_offense": Rarity.COMMON,
+	"biscuit": Rarity.COMMON, "blink": Rarity.COMMON, "block": Rarity.COMMON,
+	"bob_and_weave": Rarity.COMMON, "charge": Rarity.COMMON, "choke": Rarity.COMMON,
+	"communal_donation": Rarity.COMMON, "consecutive_snap": Rarity.COMMON,
+	"cultish_wounds": Rarity.COMMON, "dagger_throw": Rarity.COMMON, "deep_pockets": Rarity.COMMON,
+	"defensive_awareness": Rarity.COMMON, "demonic_rage": Rarity.COMMON, "discard": Rarity.COMMON,
+	"down_but_not_out": Rarity.COMMON, "down_town": Rarity.COMMON, "draw": Rarity.COMMON,
+	"elixir": Rarity.COMMON, "empower": Rarity.COMMON, "enchantment_attack": Rarity.COMMON,
+	"enchantment_defense": Rarity.COMMON, "enchantment_mana_regen": Rarity.COMMON,
+	"enchantment_movement": Rarity.COMMON, "energy_ball": Rarity.COMMON,
+	"energy_barrier": Rarity.COMMON, "exacerbate_wounds": Rarity.COMMON,
+	"fortify_alliance": Rarity.COMMON, "friendship": Rarity.COMMON, "gain_mana": Rarity.COMMON,
+	"give_in": Rarity.COMMON, "gulped_potion": Rarity.COMMON, "heal": Rarity.COMMON,
+	"healing_potion": Rarity.COMMON, "healthy_bliss": Rarity.COMMON, "healthy_habit": Rarity.COMMON,
+	"heavy_swing": Rarity.COMMON, "hold_the_line": Rarity.COMMON, "hope_this_works": Rarity.COMMON,
+	"house_money": Rarity.COMMON, "lead_arrow": Rarity.COMMON, "life_steal": Rarity.COMMON,
+	"lightly_dazed": Rarity.COMMON, "loaded_die": Rarity.COMMON, "magic_barrier": Rarity.COMMON,
+	"mana_surge": Rarity.COMMON, "mark": Rarity.COMMON, "minor_wounds": Rarity.COMMON,
+	"morphine": Rarity.COMMON, "parry": Rarity.COMMON, "patience": Rarity.COMMON,
+	"petey_the_pet_rock": Rarity.COMMON, "poke": Rarity.COMMON, "premeditated": Rarity.COMMON,
+	"preparation": Rarity.COMMON, "prepare": Rarity.COMMON, "push": Rarity.COMMON,
+	"quick_arrow": Rarity.COMMON, "quick_shot": Rarity.COMMON, "raged_circulation": Rarity.COMMON,
+	"reload": Rarity.COMMON, "repelled_block": Rarity.COMMON, "reposition": Rarity.COMMON,
+	"roar": Rarity.COMMON, "round_em_up": Rarity.COMMON, "savage_strike": Rarity.COMMON,
+	"shepherds_mark": Rarity.COMMON, "shuriken": Rarity.COMMON, "sky_attack": Rarity.COMMON,
+	"sky_fall": Rarity.COMMON, "slash": Rarity.COMMON, "smith_thy_soul": Rarity.COMMON,
+	"spark": Rarity.COMMON, "specific_strike": Rarity.COMMON, "spirit_arrow": Rarity.COMMON,
+	"surrounding_ice": Rarity.COMMON, "swap": Rarity.COMMON, "sweeping_disarm": Rarity.COMMON,
+	"taunt": Rarity.COMMON, "the_lights_favor": Rarity.COMMON, "trick_shot": Rarity.COMMON,
+	"trip": Rarity.COMMON, "try_this": Rarity.COMMON, "turtle_up": Rarity.COMMON,
+	"understanding": Rarity.COMMON, "volatile_mixture": Rarity.COMMON, "wear_down": Rarity.COMMON,
+	# --- Rare (30) ---
+	"anticipation": Rarity.RARE, "barbed_exterior": Rarity.RARE, "blade_barrage": Rarity.RARE,
+	"bloodlust": Rarity.RARE, "collect_arrows": Rarity.RARE, "composed_response": Rarity.RARE,
+	"cryonics": Rarity.RARE, "exhausted_assault": Rarity.RARE, "exposed_artery": Rarity.RARE,
+	"forever_armor": Rarity.RARE, "gargle_and_spit": Rarity.RARE, "harden": Rarity.RARE,
+	"heroic_leap": Rarity.RARE, "hunker_down": Rarity.RARE, "living_armor": Rarity.RARE,
+	"multishot": Rarity.RARE, "poisoned_blood": Rarity.RARE, "potion_of_continuance": Rarity.RARE,
+	"provider": Rarity.RARE, "reckless_strike": Rarity.RARE, "release_tension": Rarity.RARE,
+	"shield_ready": Rarity.RARE, "shuriken_pouch": Rarity.RARE, "snowballs_chance": Rarity.RARE,
+	"spider_senses": Rarity.RARE, "succumb": Rarity.RARE, "thrown_stone": Rarity.RARE,
+	"tower_shield": Rarity.RARE, "vines": Rarity.RARE, "worst_that_could_happen": Rarity.RARE,
+	# --- Legendary (26) ---
+	"absorb_essence": Rarity.LEGENDARY, "bottomless_quiver": Rarity.LEGENDARY,
+	"cover": Rarity.LEGENDARY, "enchanted_quiver": Rarity.LEGENDARY, "fireball": Rarity.LEGENDARY,
+	"fountain_of_life": Rarity.LEGENDARY, "gift_from_the_phoenix": Rarity.LEGENDARY,
+	"halo": Rarity.LEGENDARY, "harness_lightning": Rarity.LEGENDARY,
+	"if_pigs_could_fly": Rarity.LEGENDARY, "internal_combustion": Rarity.LEGENDARY,
+	"item_mastery": Rarity.LEGENDARY, "lady_luck": Rarity.LEGENDARY, "last_breath": Rarity.LEGENDARY,
+	"lethal_recall": Rarity.LEGENDARY, "meditate": Rarity.LEGENDARY,
+	"meister_of_faustmesser": Rarity.LEGENDARY, "oops": Rarity.LEGENDARY, "rise": Rarity.LEGENDARY,
+	"risk_it": Rarity.LEGENDARY, "roll": Rarity.LEGENDARY, "self_infliction": Rarity.LEGENDARY,
+	"shadows": Rarity.LEGENDARY, "shed_weight": Rarity.LEGENDARY, "shield_slam": Rarity.LEGENDARY,
+	"vengeful_shield": Rarity.LEGENDARY,
+	# --- Mythic (9) ---
+	"armored_discipline": Rarity.MYTHIC, "god_of_thunder": Rarity.MYTHIC, "life_swap": Rarity.MYTHIC,
+	"mirror_mirror": Rarity.MYTHIC, "misery_loves_company": Rarity.MYTHIC,
+	"peshtigos_kiss": Rarity.MYTHIC, "shield_of_growth": Rarity.MYTHIC,
+	"tighten_string": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
+	# --- Off the sheet: item-granted kits, tokens and status cards (86) ---
 	"djinn_wish": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC,
-	"thrown_stone": Rarity.BASIC, "minor_wounds": Rarity.BASIC, "energy_ball": Rarity.BASIC,
-	"armor_patch": Rarity.BASIC, "spark": Rarity.BASIC, "splinter": Rarity.BASIC,
-	# --- Common (48) ---
-	"blink": Rarity.COMMON, "taunt": Rarity.COMMON, "life_steal": Rarity.COMMON,
-	"roar": Rarity.COMMON, "armor_break": Rarity.COMMON, "trick_shot": Rarity.COMMON,
-	"risk_it": Rarity.COMMON, "biscuit": Rarity.COMMON, "loaded_die": Rarity.COMMON,
-	"oops": Rarity.COMMON, "hope_this_works": Rarity.COMMON, "raged_circulation": Rarity.COMMON,
-	"poisoned_blood": Rarity.COMMON, "elixir": Rarity.COMMON, "reposition": Rarity.COMMON,
-	"premeditated": Rarity.COMMON, "mark": Rarity.COMMON, "rise": Rarity.COMMON,
-	"reload": Rarity.COMMON, "barricade": Rarity.COMMON, "sky_attack": Rarity.COMMON,
-	"fleet_etching": Rarity.COMMON, "regal_etching": Rarity.COMMON,
-	"mixed_bag": Rarity.COMMON, "trip": Rarity.COMMON, "choke": Rarity.COMMON,
-	"defensive_awareness": Rarity.COMMON, "sweeping_disarm": Rarity.COMMON, "consecutive_snap": Rarity.COMMON,
-	"swap": Rarity.COMMON, "meditate": Rarity.COMMON, "potion_of_continuance": Rarity.COMMON,
-	"spider_senses": Rarity.COMMON, "gulped_potion": Rarity.COMMON, "energy_barrier": Rarity.COMMON,
-	"collect_arrows": Rarity.COMMON, "self_infliction": Rarity.COMMON, "bob_and_weave": Rarity.COMMON,
-	"cover": Rarity.COMMON, "fortify_alliance": Rarity.COMMON, "shield_ready": Rarity.COMMON,
-	"healthy_habit": Rarity.COMMON, "anticipation": Rarity.COMMON, "prepare": Rarity.COMMON,
-	"meister_of_faustmesser": Rarity.COMMON, "give_in": Rarity.COMMON, "provider": Rarity.COMMON,
-	"healthy_bliss": Rarity.COMMON, "patience": Rarity.COMMON, "gargle_and_spit": Rarity.COMMON,
-	# --- Rare (67) ---
-	"life_swap": Rarity.RARE, "charge": Rarity.RARE, "heroic_leap": Rarity.RARE,
-	"morphine": Rarity.RARE, "turtle_up": Rarity.RARE, "hold_the_line": Rarity.RARE,
-	"surrounding_ice": Rarity.RARE, "worst_that_could_happen": Rarity.RARE, "house_money": Rarity.RARE,
-	"try_this": Rarity.RARE, "snowballs_chance": Rarity.RARE,
-	"shadows": Rarity.RARE, "preparation": Rarity.RARE, "exacerbate_wounds": Rarity.RARE,
-	"volatile_mixture": Rarity.RARE, "understanding": Rarity.RARE, "shuriken_pouch": Rarity.RARE,
-	"enchanted_quiver": Rarity.RARE, "tighten_string": Rarity.RARE, "down_town": Rarity.RARE,
-	"sky_fall": Rarity.RARE, "lead_arrow": Rarity.RARE, "last_breath": Rarity.RARE,
-	"bottomless_quiver": Rarity.RARE, "round_em_up": Rarity.RARE,
-	"halo": Rarity.RARE, "armored_discipline": Rarity.RARE,
-	"reckless_strike": Rarity.RARE, "blade_barrage": Rarity.RARE, "cultish_wounds": Rarity.RARE,
-	"fountain_of_life": Rarity.RARE, "absorb_essence": Rarity.RARE, "communal_donation": Rarity.RARE,
-	"repelled_block": Rarity.RARE, "shield_of_growth": Rarity.RARE, "mana_surge": Rarity.RARE,
-	"magic_barrier": Rarity.RARE, "shepherds_mark": Rarity.RARE, "bloodlust": Rarity.RARE,
-	"lethal_recall": Rarity.RARE, "smith_thy_soul": Rarity.RARE, "down_but_not_out": Rarity.RARE,
-	"enchantment_defense": Rarity.RARE, "enchantment_attack": Rarity.RARE, "enchantment_movement": Rarity.RARE,
-	"enchantment_mana_regen": Rarity.RARE, "harness_lightning": Rarity.RARE, "best_offense": Rarity.RARE,
-	"vengeful_shield": Rarity.RARE, "release_tension": Rarity.RARE, "vines": Rarity.RARE,
-	"savage_strike": Rarity.RARE, "savage_strike_copy": Rarity.RARE, "heavy_swing": Rarity.RARE,
-	"shed_weight": Rarity.RARE, "living_armor": Rarity.RARE, "the_lights_favor": Rarity.RARE,
-	"hunker_down": Rarity.RARE, "harden": Rarity.RARE, "roll": Rarity.RARE,
-	"cryonics": Rarity.RARE, "friendship": Rarity.RARE, "multishot": Rarity.RARE,
-	"specific_strike": Rarity.RARE, "spirit_arrow": Rarity.RARE,
-	# --- Legendary (13) ---
-	"lady_luck": Rarity.LEGENDARY, "demonic_rage": Rarity.LEGENDARY, "item_mastery": Rarity.LEGENDARY,
-	"deep_pockets": Rarity.LEGENDARY, "misery_loves_company": Rarity.LEGENDARY, "exposed_artery": Rarity.LEGENDARY,
-	"internal_combustion": Rarity.LEGENDARY, "shield_slam": Rarity.LEGENDARY, "tower_shield": Rarity.LEGENDARY,
-	"succumb": Rarity.LEGENDARY, "fireball": Rarity.LEGENDARY, "adrenaline_shot": Rarity.LEGENDARY,
-	"exhausted_assault": Rarity.LEGENDARY,
-	# Helm-granted (item pass 1)
-	"twenty_twenty": Rarity.LEGENDARY, "its_alive": Rarity.LEGENDARY,
-	# --- Mythic (8) ---
-	"if_pigs_could_fly": Rarity.MYTHIC, "gift_from_the_phoenix": Rarity.MYTHIC, "petey_the_pet_rock": Rarity.MYTHIC,
-	"mirror_mirror": Rarity.MYTHIC, "god_of_thunder": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
-	"sprinkle": Rarity.MYTHIC, "sprinkle_bomb": Rarity.MYTHIC,
-	# Helm-granted (item pass 1)
-	"neither_man_nor_beast": Rarity.MYTHIC, "resourceful_replenish": Rarity.MYTHIC,
-	"out_of_guesses": Rarity.MYTHIC,
-	# Boot-granted (item pass 1)
-	"shiv": Rarity.RARE,
-	# Boot-granted (item pass 2)
-	"shift": Rarity.LEGENDARY, "donate_cleats": Rarity.LEGENDARY,
-	"terrain_formation": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
-	"tight_rope": Rarity.MYTHIC, "mend": Rarity.MYTHIC,
-	# Gauntlet-granted
-	"stance_switch": Rarity.LEGENDARY, "switch_kick": Rarity.LEGENDARY,
-	"return_cut": Rarity.LEGENDARY, "smoke_bomb": Rarity.MYTHIC,
-	# Belt-granted
-	"serene_center": Rarity.LEGENDARY, "stone_encase": Rarity.LEGENDARY,
-	"m_for_mini": Rarity.LEGENDARY, "hemotoxins": Rarity.LEGENDARY,
-	"poof_and_weave": Rarity.LEGENDARY, "healing_tonic": Rarity.LEGENDARY,
-	"poison_bomb": Rarity.RARE,
-	"chain_lightning": Rarity.MYTHIC, "ice_grenade": Rarity.MYTHIC, "fire_punch": Rarity.MYTHIC,
-	"gift_from_the_gods": Rarity.MYTHIC,
-	"protection_from_alnitak": Rarity.MYTHIC, "balance_of_alnilam": Rarity.MYTHIC,
-	"crack_of_mintaka": Rarity.MYTHIC,
-	# Chest-granted
-	"clang_up": Rarity.RARE, "negotiate": Rarity.RARE,
-	"detonova": Rarity.LEGENDARY, "mind_mend": Rarity.LEGENDARY,
-	"deep_breaths": Rarity.LEGENDARY, "vined_encasing": Rarity.LEGENDARY,
-	"adimantium_wall": Rarity.MYTHIC, "preemptive_answer": Rarity.MYTHIC,
-	"ragnarok": Rarity.MYTHIC,
-	# Weapon-granted
-	"hard_helmet": Rarity.COMMON, "slice": Rarity.COMMON,
-	"death_vortex": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY,
-	"feed_into_the_pain": Rarity.LEGENDARY, "psionic_flow": Rarity.LEGENDARY,
-	"purge_wrath": Rarity.LEGENDARY, "sanguine_the_penguin": Rarity.LEGENDARY,
-	"wrath_of_the_sea": Rarity.MYTHIC, "monk_of_the_night": Rarity.MYTHIC,
-	# Ranged-item-granted (ranged pass 1)
-	"improvised_ammo": Rarity.LEGENDARY,
-	"cupids_golden_arrow": Rarity.LEGENDARY, "cupids_lead_arrow": Rarity.LEGENDARY,
-	"territorial_mark": Rarity.MYTHIC, "balistic_arrow": Rarity.MYTHIC,
-	"close_is_favored": Rarity.MYTHIC, "spirit_bow": Rarity.MYTHIC,
-	# Ring-granted (rings pass 1)
-	"tricks_of_alberich": Rarity.MYTHIC, "the_nibelung_curse": Rarity.MYTHIC,
-	# Shield-granted (shields pass 1)
-	"huck": Rarity.LEGENDARY, "rain_of_arrows": Rarity.LEGENDARY,
-	"song_of_a_swords_sing": Rarity.LEGENDARY, "curse_of_the_living": Rarity.LEGENDARY,
-	"bark_up": Rarity.LEGENDARY, "cinquedea": Rarity.LEGENDARY,
-	"mage_shield": Rarity.MYTHIC, "reverberate_regrowth": Rarity.MYTHIC,
-	"bouncing_shield": Rarity.MYTHIC, "mind_over_matter": Rarity.MYTHIC,
-	# Spell-weapon-granted (spell weapons pass 1)
-	"element_pollination": Rarity.LEGENDARY,
-	"from_the_ashes": Rarity.MYTHIC, "polymorph": Rarity.MYTHIC,
-	"reapers_taking": Rarity.MYTHIC,
-	"clear_mind": Rarity.LEGENDARY, "grounding": Rarity.LEGENDARY,
-	"defensive_sacrifice": Rarity.LEGENDARY, "crops": Rarity.LEGENDARY,
+	"splinter": Rarity.BASIC,
+	"fleet_etching": Rarity.COMMON, "hard_helmet": Rarity.COMMON, "mixed_bag": Rarity.COMMON,
+	"regal_etching": Rarity.COMMON, "slice": Rarity.COMMON,
+	"clang_up": Rarity.RARE, "negotiate": Rarity.RARE, "poison_bomb": Rarity.RARE,
+	"savage_strike_copy": Rarity.RARE, "shiv": Rarity.RARE,
+	"bark_up": Rarity.LEGENDARY, "cinquedea": Rarity.LEGENDARY, "clear_mind": Rarity.LEGENDARY,
+	"crops": Rarity.LEGENDARY, "cupids_golden_arrow": Rarity.LEGENDARY,
+	"cupids_lead_arrow": Rarity.LEGENDARY, "curse_of_the_living": Rarity.LEGENDARY,
+	"death_vortex": Rarity.LEGENDARY, "deep_breaths": Rarity.LEGENDARY,
+	"defensive_sacrifice": Rarity.LEGENDARY, "detonova": Rarity.LEGENDARY,
+	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY,
+	"element_pollination": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
+	"feed_into_the_pain": Rarity.LEGENDARY, "grounding": Rarity.LEGENDARY,
+	"healing_tonic": Rarity.LEGENDARY, "hemotoxins": Rarity.LEGENDARY, "huck": Rarity.LEGENDARY,
+	"improvised_ammo": Rarity.LEGENDARY, "its_alive": Rarity.LEGENDARY,
+	"m_for_mini": Rarity.LEGENDARY, "mind_mend": Rarity.LEGENDARY, "poof_and_weave": Rarity.LEGENDARY,
+	"psionic_flow": Rarity.LEGENDARY, "purge_wrath": Rarity.LEGENDARY,
+	"rain_of_arrows": Rarity.LEGENDARY, "return_cut": Rarity.LEGENDARY,
+	"sanguine_the_penguin": Rarity.LEGENDARY, "serene_center": Rarity.LEGENDARY,
+	"shift": Rarity.LEGENDARY, "song_of_a_swords_sing": Rarity.LEGENDARY,
+	"stance_switch": Rarity.LEGENDARY, "stone_encase": Rarity.LEGENDARY,
+	"switch_kick": Rarity.LEGENDARY, "terrain_formation": Rarity.LEGENDARY,
+	"twenty_twenty": Rarity.LEGENDARY, "vined_encasing": Rarity.LEGENDARY,
+	"adimantium_wall": Rarity.MYTHIC, "balance_of_alnilam": Rarity.MYTHIC,
+	"balistic_arrow": Rarity.MYTHIC, "bouncing_shield": Rarity.MYTHIC,
+	"chain_lightning": Rarity.MYTHIC, "close_is_favored": Rarity.MYTHIC,
+	"crack_of_mintaka": Rarity.MYTHIC, "fire_punch": Rarity.MYTHIC, "from_the_ashes": Rarity.MYTHIC,
+	"gift_from_the_gods": Rarity.MYTHIC, "ice_grenade": Rarity.MYTHIC, "mage_shield": Rarity.MYTHIC,
+	"mend": Rarity.MYTHIC, "mind_over_matter": Rarity.MYTHIC, "monk_of_the_night": Rarity.MYTHIC,
+	"neither_man_nor_beast": Rarity.MYTHIC, "out_of_guesses": Rarity.MYTHIC,
+	"polymorph": Rarity.MYTHIC, "preemptive_answer": Rarity.MYTHIC,
+	"protection_from_alnitak": Rarity.MYTHIC, "ragnarok": Rarity.MYTHIC,
+	"reapers_taking": Rarity.MYTHIC, "resourceful_replenish": Rarity.MYTHIC,
+	"reverberate_regrowth": Rarity.MYTHIC, "smoke_bomb": Rarity.MYTHIC, "spirit_bow": Rarity.MYTHIC,
+	"sprinkle": Rarity.MYTHIC, "sprinkle_bomb": Rarity.MYTHIC, "territorial_mark": Rarity.MYTHIC,
+	"the_nibelung_curse": Rarity.MYTHIC, "tight_rope": Rarity.MYTHIC,
+	"tricks_of_alberich": Rarity.MYTHIC, "wrath_of_the_sea": Rarity.MYTHIC,
 }
 
 # Cards that never appear in random drops: item-conjured tokens (Sprinkle,
@@ -255,7 +411,15 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"defensive_sacrifice": true, "crops": true,
 }
 
-@export var card_id: String = "slash"
+@export var card_id: String = "slash":
+	set(v):
+		card_id = v
+		# The sheet's slot labels and Engrave flag ride on the id, whichever
+		# factory or clone assigned it.
+		if CARD_SLOT_LABELS.has(v):
+			slot_labels = CARD_SLOT_LABELS[v].duplicate()
+		if CARD_ENGRAVED.has(v):
+			requires_engraving = true
 @export var card_name: String = "Attack"
 @export var description: String = "10 damage"
 @export var card_type: CardType = CardType.ATTACK
@@ -2018,6 +2182,12 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_tower_shield(player_stats, buff_mgr)
 		"harden":
 			_execute_harden(player_stats, buff_mgr)
+		"barbed_exterior":
+			_execute_barbed_exterior(player_stats, buff_mgr)
+		"forever_armor":
+			_execute_forever_armor(player_stats, buff_mgr)
+		"composed_response":
+			_execute_composed_response(player_stats, buff_mgr)
 		"hunker_down":
 			_execute_hunker_down(buff_mgr)
 		"energy_barrier":
@@ -2040,7 +2210,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 			_execute_give_in(player_stats, deck_manager)
 		"shed_weight":
 			_execute_shed_weight(deck_manager)
-		"fireball":
+		"fireball", "peshtigos_kiss":
 			_compute_attack_damage(player_stats, true)   # AOE + burn applied in main
 		"spirit_arrow", "balistic_arrow":
 			_compute_attack_damage(player_stats, false)   # pierced line applied in main
@@ -2811,7 +2981,6 @@ static func create_healing_potion() -> Card:
 	card.base_block = 0
 	card.heal_amount = 5
 	card.target_types = ["self"]
-	card.card_keyword = CardKeyword.POCKET
 	card.keywords = ["utility", "self"]
 	return card
 
@@ -2831,7 +3000,6 @@ static func create_dagger_throw() -> Card:
 	card.is_ranged = true
 	card.target_types = ["enemy"]
 	card.heal_amount = 0
-	card.card_keyword = CardKeyword.POCKET
 	card.range_modifier = -1
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card
@@ -3641,7 +3809,6 @@ static func create_poke() -> Card:
 	card.damage = 2
 	card.base_damage = 2
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.FIST
 	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
@@ -3850,7 +4017,6 @@ static func create_loaded_die() -> Card:
 	card.description = "Next card with a probability has +10% higher chance."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
-	card.card_keyword = CardKeyword.GEM
 	card.mana_cost = 10
 	card.tempo_cost = 1
 	card.target_types = ["self"]
@@ -4217,7 +4383,6 @@ static func create_quick_shot() -> Card:
 	card.base_damage = 2
 	card.is_ranged = true
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.ARROW
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
@@ -4274,7 +4439,6 @@ static func create_down_town() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 7
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.ARROW
 	card.keywords = ["attack", "offensive"]
 	return card
 
@@ -4308,7 +4472,6 @@ static func create_sky_fall() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 7
 	card.target_types = ["point"]
-	card.card_keyword = CardKeyword.ARROW
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
@@ -4325,7 +4488,6 @@ static func create_sky_attack() -> Card:
 	card.base_damage = 10
 	card.is_ranged = true
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.ARROW
 	card.range_modifier = -3
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card
@@ -4345,7 +4507,6 @@ static func create_lead_arrow() -> Card:
 	card.is_ranged = true
 	card.requires_high_ground = true
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.ARROW
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
@@ -4363,7 +4524,6 @@ static func create_last_breath() -> Card:
 	card.is_ranged = true
 	card.range_modifier = 0
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.ARROW
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
@@ -4397,7 +4557,6 @@ static func create_quick_arrow() -> Card:
 	card.base_damage = 4
 	card.is_ranged = true
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.ARROW
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
@@ -4450,7 +4609,6 @@ static func create_trip() -> Card:
 	card.damage = 5
 	card.base_damage = 5
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.FIST
 	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
@@ -4469,7 +4627,6 @@ static func create_choke() -> Card:
 	card.sticky = 3
 	card.is_ranged = true
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.FIST
 	card.keywords = ["spell", "offensive"]
 	return card
 
@@ -4485,7 +4642,6 @@ static func create_push() -> Card:
 	card.is_ranged = false
 	card.range_modifier = 0
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.FIST
 	card.keywords = ["utility", "melee"]
 	return card
 
@@ -4516,7 +4672,6 @@ static func create_sweeping_disarm() -> Card:
 	card.is_aoe = true
 	card.aoe_shape = "circle"
 	card.target_types = ["all_nearby"]
-	card.card_keyword = CardKeyword.FIST
 	card.keywords = ["attack", "offensive", "melee"]
 	return card
 
@@ -4535,7 +4690,6 @@ static func create_consecutive_snap() -> Card:
 	card.is_ranged = true
 	card.range_modifier = -2
 	card.target_types = ["enemy"]
-	card.card_keyword = CardKeyword.FIST
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card
 
@@ -4734,7 +4888,6 @@ static func create_gulped_potion() -> Card:
 	card.heal_amount = 1
 	card.sticky = 3
 	card.target_types = ["self", "ally"]
-	card.card_keyword = CardKeyword.POCKET
 	card.is_ranged = true
 	card.range_modifier = -2
 	card.keywords = ["utility", "ally", "ranged"]
@@ -5074,7 +5227,6 @@ static func create_bob_and_weave() -> Card:
 	card.base_block = 5
 	card.heal_amount = 0
 	card.target_types = ["self"]
-	card.card_keyword = CardKeyword.FIST
 	card.keywords = ["defense", "self"]
 	return card
 
@@ -5605,6 +5757,30 @@ func _execute_harden(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_resilient(10, 15, "Harden", DamageTypes.Type.PHYSICAL))
 	print("[CARD] Harden! +%d armor, 10%% physical resistance for 15 tempo" % block)
+
+func _execute_barbed_exterior(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
+	## Armor (card.block) plus 4 Thorns for 10 tempo.
+	if player_stats:
+		player_stats.add_armor(block)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_thorns(4, 10, "Barbed Exterior"))
+	print("[CARD] Barbed Exterior! +%d armor, 4 thorns for 10 tempo" % block)
+
+func _execute_forever_armor(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
+	## Armor (card.block) plus Fortify (no armor decay) for 15 tempo.
+	if player_stats:
+		player_stats.add_armor(block)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_fortify(15, "Forever Armor"))
+	print("[CARD] Forever Armor! +%d armor, no decay for 15 tempo" % block)
+
+func _execute_composed_response(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
+	## Armor (card.block) plus Brace 30% for the next 2 attacks.
+	if player_stats:
+		player_stats.add_armor(block)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_brace(30, 2, "Composed Response"))
+	print("[CARD] Composed Response! +%d armor, Brace 30%% for 2 attacks" % block)
 
 func _execute_hunker_down(buff_mgr: BuffManager) -> void:
 	## Fortify (armor does not decay) for 30 tempo.
@@ -6691,6 +6867,89 @@ static func create_fireball() -> Card:
 	card.keywords = ["spell", "ranged", "offensive", "point"]
 	return card
 
+static func create_peshtigos_kiss() -> Card:
+	## The firestorm: a point-and-click blaze that burns everything near it,
+	## and burns those already alight twice as hard.
+	var card = Card.new()
+	card.card_id = "peshtigos_kiss"
+	card.element = "red"
+	card.school = CardSchool.SPELL
+	card.card_name = "Peshtigo's Kiss"
+	card.description = "Ranged 6. 14 damage and 5 burn to every enemy within 2 squares of the point; enemies already burning take 6 more."
+	card.is_fire_spell = true
+	card.card_type = CardType.ATTACK
+	card.card_type_name = "Attack"
+	card.mana_cost = 90
+	card.tempo_cost = 7
+	card.damage = 14
+	card.base_damage = 14
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.is_ranged = true
+	card.range_modifier = 1
+	card.is_aoe = true
+	card.aoe_shape = "circle"
+	card.aoe_range = 2.0
+	card.target_types = ["point"]
+	card.resolve_tick = 5
+	card.keywords = ["attack", "spell", "ranged", "offensive", "aoe", "point"]
+	return card
+
+static func create_barbed_exterior() -> Card:
+	var card = Card.new()
+	card.card_id = "barbed_exterior"
+	card.card_name = "Barbed Exterior"
+	card.description = "Gain 4 armor and 4 Thorns for 10 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 20
+	card.tempo_cost = 3
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 4
+	card.base_block = 4
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
+	return card
+
+static func create_forever_armor() -> Card:
+	var card = Card.new()
+	card.card_id = "forever_armor"
+	card.card_name = "Forever Armor"
+	card.description = "Gain 6 armor. Your armor does not decay for 15 tempo."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 25
+	card.tempo_cost = 4
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 6
+	card.base_block = 6
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
+	return card
+
+static func create_composed_response() -> Card:
+	var card = Card.new()
+	card.card_id = "composed_response"
+	card.card_name = "Composed Response"
+	card.description = "Gain 3 armor and Brace: the next 2 attacks against you deal 30% less damage."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Utility"
+	card.mana_cost = 15
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 3
+	card.base_block = 3
+	card.heal_amount = 0
+	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
+	return card
+
 static func create_spark() -> Card:
 	var card = Card.new()
 	card.card_id = "spark"
@@ -7693,7 +7952,6 @@ static func create_spirit_arrow() -> Card:
 	card.is_aoe = true
 	card.aoe_shape = "line"
 	card.aoe_range = 100.0  # pierces the full line, not just 1.5 tiles
-	card.card_keyword = CardKeyword.ARROW
 	card.target_types = ["point"]
 	card.keywords = ["attack", "offensive", "ranged"]
 	return card

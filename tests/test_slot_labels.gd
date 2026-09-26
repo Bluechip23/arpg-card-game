@@ -59,7 +59,7 @@ func _initialize() -> void:
 	_check(staff.can_slot_card(staff_card), "a Staff card slots into a staff")
 
 	# Several labels: any of them opens its slot.
-	var multi := Card.create_heal()
+	var multi := Card.create_charge()  # deck-only on the sheet: a clean slate
 	multi.add_slot_labels([Card.CardKeyword.CROWN, Card.CardKeyword.GEM, Card.CardKeyword.POCKET])
 	_check(multi.slot_label_names() == "Crown / Gem / Pocket", "labels display joined (%s)" % multi.slot_label_names())
 	_check(helm.can_slot_card(multi) and ring.can_slot_card(multi) and belt.can_slot_card(multi),

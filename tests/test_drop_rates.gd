@@ -203,16 +203,20 @@ func _test_card_rarities() -> void:
 			orphaned.append(cid)
 	_check(orphaned.is_empty(), "every rarity label maps to a real card %s" % str(orphaned))
 
-	# Droppable pools exist for each tier and exclude the token/status cards.
-	for r in [Card.Rarity.BASIC, Card.Rarity.COMMON, Card.Rarity.RARE,
-			Card.Rarity.LEGENDARY, Card.Rarity.MYTHIC]:
+	# Droppable pools exist for each rarity the sheet uses and exclude the
+	# token/status cards; the Basic tier is tokens only and never drops.
+	for r in [Card.Rarity.COMMON, Card.Rarity.RARE, Card.Rarity.LEGENDARY, Card.Rarity.MYTHIC]:
 		var pool = Card.get_droppable_ids_of_rarity(r)
 		_check(pool.size() > 0, "card rarity tier %d has %d droppable card(s)" % [r, pool.size()])
 		for excluded in Card.DROP_EXCLUDED_CARD_IDS:
 			_check(not pool.has(excluded), "%s stays out of drop pools" % excluded)
+	_check(Card.get_droppable_ids_of_rarity(Card.Rarity.BASIC).is_empty(), "no Basic card drops")
+	for table in [DropRates.CARD_WEIGHTS, DropRates.PACK_CARD_WEIGHTS[ItemData.Rarity.COMMON],
+			DropRates.ENEMY_CARD_WEIGHTS[DropRates.TIER_BOSS]]:
+		_check(not table.has(Card.Rarity.BASIC), "no card table rolls the Basic tier")
 
 	# Spot checks.
-	_check(Card.create_slash().get_rarity() == Card.Rarity.BASIC, "Slash is Basic")
+	_check(Card.create_slash().get_rarity() == Card.Rarity.COMMON, "the Attack card is Common")
 	_check(Card.create_fireball().get_rarity() == Card.Rarity.LEGENDARY, "Fireball is Legendary")
 	_check(Card.create_worms_armageddon().get_rarity() == Card.Rarity.MYTHIC, "Worm's Armageddon is Mythic")
 	_check(Card.create_by_id("fireball") != null and Card.create_by_id("fireball").card_id == "fireball",

@@ -46,7 +46,7 @@ func open(rng: RandomNumberGenerator = null) -> Array:
 		var rarity = DropRates.roll_weighted(weights, rng)
 		var ids: Array = Card.get_droppable_ids_of_rarity(rarity)
 		if ids.is_empty():
-			ids = Card.get_droppable_ids_of_rarity(Card.Rarity.BASIC)
+			ids = Card.get_droppable_ids_of_rarity(Card.Rarity.COMMON)
 		var pick: int = (rng.randi() if rng else randi()) % ids.size()
 		cards.append(Card.create_by_id(ids[pick]))
 	return cards

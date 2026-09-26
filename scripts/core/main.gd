@@ -11207,6 +11207,23 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
 			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
 
+		"peshtigos_kiss":
+			# The firestorm: damage + 5 burn to everything within the circle;
+			# anything already burning takes 6 more as the flames feed on it.
+			var pk_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var pk_dmg = card.last_damage_dealt
+			var pk_hit = enemy_spawner.get_enemies_in_radius(pk_center, card.aoe_range if card.aoe_range > 0 else 2.0)
+			var pk_fed := 0
+			for en in pk_hit:
+				var extra: int = 6 if en.has_debuff_type("burn") else 0
+				if extra > 0:
+					pk_fed += 1
+				en.take_damage(pk_dmg + extra, true)
+				en.apply_debuff("burn", 5)
+			_apply_misery_spread(pk_hit)
+			add_battle_log("Peshtigo's Kiss! %d damage + 5 burn to %d enemies (%d fed the flames)" % [pk_dmg, pk_hit.size(), pk_fed], Color(1.0, 0.45, 0.15))
+			print("[MAIN] Peshtigo's Kiss hit %d enemies for %d (+5 burn, %d already burning)" % [pk_hit.size(), pk_dmg, pk_fed])
+
 		"crops":
 			# Shepherds Crook: 5 berry bushels at random open cells within 8
 			# squares. They last until an ally eats them; enemies trample past.

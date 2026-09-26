@@ -78,14 +78,37 @@ const ENEMY_ITEM_WEIGHTS := {
 }
 
 # ---- Card rarity weights ----------------------------------------------------
-# One table for every card source (enemies and chests). All cards are
-# obtainable through play — rarity only shapes how often.
+# Cards drop by their rarity (the design sheet's rarity column). Chests and
+# any source without a tier use CARD_WEIGHTS; enemies use their loot tier's
+# row, so a boss is where the legendary and mythic cards live. All cards
+# are obtainable through play — rarity only shapes how often. The Basic
+# tier holds only tokens and status cards now, so it never drops.
 const CARD_WEIGHTS := {
-	Card.Rarity.BASIC: 38,
-	Card.Rarity.COMMON: 34,
-	Card.Rarity.RARE: 20,
-	Card.Rarity.LEGENDARY: 6,
-	Card.Rarity.MYTHIC: 2,
+	Card.Rarity.COMMON: 68,
+	Card.Rarity.RARE: 24,
+	Card.Rarity.LEGENDARY: 7,
+	Card.Rarity.MYTHIC: 1,
+}
+
+const ENEMY_CARD_WEIGHTS := {
+	TIER_TRASH: {
+		Card.Rarity.COMMON: 80,
+		Card.Rarity.RARE: 17,
+		Card.Rarity.LEGENDARY: 3,
+	},
+	TIER_MID: CARD_WEIGHTS,
+	TIER_ELITE: {
+		Card.Rarity.COMMON: 50,
+		Card.Rarity.RARE: 35,
+		Card.Rarity.LEGENDARY: 12,
+		Card.Rarity.MYTHIC: 3,
+	},
+	TIER_BOSS: {
+		Card.Rarity.COMMON: 30,
+		Card.Rarity.RARE: 45,
+		Card.Rarity.LEGENDARY: 20,
+		Card.Rarity.MYTHIC: 5,
+	},
 }
 
 # ---- Card packs ---------------------------------------------------------------
@@ -114,16 +137,14 @@ const PACK_CARD_COUNT := {
 # expensive end of whatever range the tier offers.
 const PACK_CARD_WEIGHTS := {
 	ItemData.Rarity.COMMON: {
-		Card.Rarity.BASIC: 45,
-		Card.Rarity.COMMON: 38,
-		Card.Rarity.RARE: 15,
-		Card.Rarity.LEGENDARY: 2,
+		Card.Rarity.COMMON: 78,
+		Card.Rarity.RARE: 19,
+		Card.Rarity.LEGENDARY: 3,
 	},
 	ItemData.Rarity.RARE: {
-		Card.Rarity.BASIC: 20,
-		Card.Rarity.COMMON: 42,
-		Card.Rarity.RARE: 30,
-		Card.Rarity.LEGENDARY: 7,
+		Card.Rarity.COMMON: 58,
+		Card.Rarity.RARE: 32,
+		Card.Rarity.LEGENDARY: 9,
 		Card.Rarity.MYTHIC: 1,
 	},
 	ItemData.Rarity.LEGENDARY: {
@@ -221,7 +242,7 @@ static func apply_early_pity(character, loot: Dictionary,
 		if not has_card:
 			var roll: float = rng.randf() if rng else randf()
 			if roll < EARLY_PITY_CARD_CHANCE:
-				loot["card"] = _roll_card(rng)
+				loot["card"] = roll_card(CARD_WEIGHTS, rng)
 				has_card = true
 		if has_card:
 			character.early_card_drops += 1
@@ -238,12 +259,13 @@ static func apply_early_pity(character, loot: Dictionary,
 		if has_item:
 			character.early_item_drops += 1
 
-## One card off the shared card-rarity table.
-static func _roll_card(rng: RandomNumberGenerator = null) -> Card:
-	var rarity = roll_weighted(CARD_WEIGHTS, rng)
+## One card off a card-rarity table (CARD_WEIGHTS unless a tier's row is
+## passed). A tier with no droppable card falls back to the commons.
+static func roll_card(weights: Dictionary = CARD_WEIGHTS, rng: RandomNumberGenerator = null) -> Card:
+	var rarity = roll_weighted(weights, rng)
 	var ids = Card.get_droppable_ids_of_rarity(rarity)
 	if ids.is_empty():
-		ids = Card.get_droppable_ids_of_rarity(Card.Rarity.BASIC)
+		ids = Card.get_droppable_ids_of_rarity(Card.Rarity.COMMON)
 	ids.sort()
 	var idx: int = rng.randi() % ids.size() if rng else randi() % ids.size()
 	return Card.create_by_id(ids[idx])
