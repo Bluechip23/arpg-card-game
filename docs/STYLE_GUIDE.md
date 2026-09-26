@@ -29,8 +29,8 @@ conforms to them.
 - **Depth is sorting.** The one degree of tilt puts anything further south
   0.017 units nearer the camera, so billboards y-sort by row for free. Every
   billboard sprite is lifted `CameraView.SPRITE_LIFT` (0.3) off the ground,
-  above any wall slab or plateau (walls are 0.06 slabs; `ELEV_STEP` is
-  0.06), so terrain can never draw over a figure. Height barely moves a
+  above any wall or plateau (walls are flat autotiled quads; `ELEV_STEP`
+  is 0.06), so terrain can never draw over a figure. Height barely moves a
   point on screen; head-up labels and bars therefore sit *north* of the
   feet, and world heights map to screen-up at `HEIGHT_ON_SCREEN` (cos 65°,
   the factor the old three-quarter view had) so nothing moved.
@@ -128,9 +128,15 @@ conforms to them.
   whole MultiMesh of stones as one object), which is what buried the player
   under the scenery. Only true translucency (blob shadows, fog, portals,
   water film) stays alpha-blended.
-- Walls are flat slabs (0.06) carrying the pack's cliff-face fill on top;
-  under the plan camera that is all that is seen, and a slab can never draw
-  over a figure standing beside it (§0).
+- Walls are drawn the way the packs draw cliffs: a flat autotiled mesh on
+  the ground plane (`DungeonManager._build_cliff_walls`). Every wall tile is
+  four 16px quads — the biome's ground sheet as a plateau cap, outlined on
+  the sides that face floor, and along every south-facing edge the pack's
+  own cliff face (fringe over base, rounded ends) from the strips cut by
+  `tools/extract_craftpix_cliffs.py`. The whole wall mass is capped, so a
+  level reads as one plateau world. Nothing rises above the floor, so a
+  wall can never draw over a figure standing beside it (§0). Building and
+  dojo interiors keep their crisp 0.06 box walls.
 - MonsterKit flyer cells (bee, hawk, bat, carpet, sword) have painted shadows
   in-art — those kinds skip the shadow node (no doubles). Craftpix character
   packs ship every sheet twice; always use `Without_shadow/` and let the blob

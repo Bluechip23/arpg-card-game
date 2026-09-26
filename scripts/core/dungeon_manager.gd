@@ -1814,12 +1814,23 @@ func _min_adjacent_floor_elevation(x: int, z: int) -> int:
 	return 0 if min_elev == 99 else min_elev
 
 func _build_walls() -> void:
-	## Rock walls with varied heights and shades. Walls beside elevated terrain
-	## grow taller so high ground stays properly enclosed.
+	## Rock walls drawn the way the packs draw cliffs: a flat autotiled mesh
+	## on the ground plane. Every wall tile beside floor is four 16px quads —
+	## a plateau cap cut from the biome's ground sheet with painted outlines
+	## on the sides that face floor, and along every south-facing edge the
+	## pack's own cliff face (fringe over base, or a single ledge row) from
+	## the cliff strip cut by tools/extract_craftpix_cliffs.py. Nothing
+	## rises above the floor, so nothing can draw over a character standing
+	## beside it under the plan camera (CameraView). The rest of the wall
+	## mass is capped too, so the level reads as one plateau world rather
+	## than rooms cut into a void. Man-made interiors keep their crisp box
+	## walls.
 	var pal = get_palette()
-	var is_building = interior_kind == "building"
+	var is_building = interior_kind == "building" or interior_kind == "dojo"
+	if not is_building:
+		_build_cliff_walls()
+		return
 	var items: Array = []
-	var skirt_items: Array = []
 	var site_tiles = _all_site_footprint_tiles()
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -1829,34 +1840,288 @@ func _build_walls() -> void:
 				continue
 			if site_tiles.has(Vector2i(x, z)):
 				continue  # Site structures draw their own exteriors
-			var n = _tile_noise(x, z, 23)
-			var height: float
-			# Walls are a slab, not a box: under the plan camera (CameraView)
-			# only the top is seen, and it carries the pack's cliff-face fill.
-			# Anything tall would sit nearer the camera than a character
-			# standing beside it and draw over their head.
-			height = WALL_HEIGHT + _max_adjacent_floor_elevation(x, z) * ELEV_STEP
+			var height: float = WALL_HEIGHT + _max_adjacent_floor_elevation(x, z) * ELEV_STEP
 			var col: Color = pal["wall_a"].lerp(pal["wall_b"], _tile_noise(x, z, 31))
 			var xform = Transform3D(
 				Basis.from_scale(Vector3(1.0, height, 1.0)),
 				Vector3(x + 0.5, height / 2.0, z + 0.5)
 			)
 			items.append({"xform": xform, "color": col})
-			# Painted contact band where the wall meets the walkable ground.
-			var base_y = _min_adjacent_floor_elevation(x, z) * ELEV_STEP
-			skirt_items.append({
-				"xform": Transform3D(
-					Basis.from_scale(Vector3(1.16, 0.045, 1.16)),
-					Vector3(x + 0.5, base_y + 0.0225, z + 0.5)
-				),
-				"color": pal["ground"],
-			})
-	# Interior building walls stay crisp and man-made; natural rock is rounded.
-	var wall_mesh: Mesh = BoxMesh.new() if is_building else _chamfered_unit_box(0.14, 0.42)
-	_add_multimesh(wall_mesh, items, true, 0.95, wall_texture_path())
-	if not is_building:
-		_add_multimesh(BoxMesh.new(), skirt_items, false)
+	_add_multimesh(BoxMesh.new(), items, true, 0.95, wall_texture_path())
 	print("[DUNGEON] Built %d wall segments (%s %dx%d)" % [items.size(), get_location_name(), GRID_W, GRID_H])
+
+
+## ---------------------------------------------------------------------------
+## CLIFF WALLS. The wall atlas is 16px cells in one row:
+##   0..3   cap fill variants (biome ground sheet, sun-lit like raised ground)
+##   4..7   cap edge N / E / S / W (outline on that side)
+##   8..11  cap outer corner NW / NE / SE / SW
+##   12..15 cap inner corner NW / NE / SE / SW (a nick where a floor tile
+##          touches only diagonally)
+##   16..21 face fringe L, M1..M4, R      (cliff strip row 0)
+##   22..27 face base   L, M1..M4, R      (cliff strip row 1)
+##   28..31 lower-ground fill (the floor sheet as is) drawn under every face
+##          tile so the pieces' transparent tufts and drips show ground, not
+##          the backdrop
+## Face rows per biome: 2 = fringe over base (a 32px face), 1 = the strip's
+## first row is a single 16px ledge drawn under 16px of cap.
+const WALL_CELL := 16
+const WALL_ATLAS_CELLS := 32
+const WALL_CAP_FILL := 0
+const WALL_CAP_EDGE := 4
+const WALL_CAP_OUTER := 8
+const WALL_CAP_INNER := 12
+const WALL_FACE_FRINGE := 16
+const WALL_FACE_BASE := 22
+const WALL_FACE_MIDS := 4
+const WALL_UNDER := 28
+var _wall_atlas_cache: Dictionary = {}
+
+
+## The cliff strip for this location (see tools/extract_craftpix_cliffs.py).
+func cliff_strip_path() -> String:
+	match interior_kind:
+		"sewer", "cave":
+			return CP_TEX + "/cliff_cave.png"
+		"forest":
+			return CP_TEX + "/cliff_forest.png"
+	match world_level:
+		4:
+			return CP_TEX + "/cliff_cursed.png"
+		5:
+			return CP_TEX + "/cliff_undead.png"
+		2:
+			return CP_TEX + "/cliff_desert.png"
+		3:
+			return CP_TEX + "/cliff_undead.png"  # grey barrow rock under the frost palette
+	return CP_TEX + "/cliff_field.png"
+
+
+## How many 16px rows the biome's cliff face is: the forest and desert packs
+## draw single-row ledges, the rest a fringe row over a base row.
+func cliff_face_rows() -> int:
+	return 2
+
+
+## The plateau top of a wall mass: the ground sheet whose colour the pack's
+## cliff lip is drawn against.
+func cap_texture_path() -> String:
+	match interior_kind:
+		"sewer", "cave":
+			return CP_TEX + "/floor_cave.png"  # solid dark rock
+	if world_level == 2:
+		return CP_TEX + "/floor_desert_sand.png"  # the sandstone ledge wears a sand top
+	return floor_texture_path()
+
+
+func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
+	var key: String = str(pal.get("name", "")) + "|" + interior_kind + "|" + str(world_level)
+	if _wall_atlas_cache.has(key):
+		return _wall_atlas_cache[key]
+	var n := WALL_CELL
+	var img := Image.create(n * WALL_ATLAS_CELLS, n, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var underground := _sheet_image(floor_texture_path())
+	var cap := _sheet_image(cap_texture_path())
+	var is_rock := interior_kind == "cave" or interior_kind == "sewer"
+	if not is_rock:
+		cap.adjust_bcs(1.1, 1.0, 1.0)  # sun-lit like raised ground
+	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
+	# Outline colours follow the pack art: a dark line the colour of the
+	# ground's own shadow, then a lit rim.
+	var dark: Color = floor_b.darkened(0.45)
+	var light: Color = Color(1.0, 0.98, 0.85).lerp(pal.get("floor_a", floor_b), 0.5)
+	if is_rock:
+		dark = Color(0.03, 0.025, 0.03)
+		light = pal.get("wall_a", Color(0.3, 0.28, 0.26)).darkened(0.1)
+	for v in range(4):
+		img.blit_rect(underground, Rect2i(v * n, 2 * n, n, n), Vector2i((WALL_UNDER + v) * n, 0))
+	# Cap fill variants: four 16px windows of the ground sheet's first row.
+	for v in range(4):
+		img.blit_rect(cap, Rect2i(v * n, 0, n, n), Vector2i((WALL_CAP_FILL + v) * n, 0))
+	# Edge, outer-corner and inner-corner cells: fill plus painted outline.
+	# Outline = 2px dark line on the open side, 1px light rim inside it.
+	for k in range(12):
+		var cell := WALL_CAP_EDGE + k
+		img.blit_rect(cap, Rect2i((k % 4) * n, n, n, n), Vector2i(cell * n, 0))
+		var sides: Array = []
+		var inner := -1
+		if k < 4:
+			sides = [k]  # N, E, S, W
+		elif k < 8:
+			sides = [[0, 3], [0, 1], [2, 1], [2, 3]][k - 4]  # NW, NE, SE, SW
+		else:
+			inner = k - 8  # NW, NE, SE, SW nick
+		for py in range(n):
+			for px in range(n):
+				var d := 99
+				for sd in sides:
+					var dist: int
+					match sd:
+						0: dist = py
+						1: dist = n - 1 - px
+						2: dist = n - 1 - py
+						_: dist = px
+					d = mini(d, dist)
+				if inner >= 0:
+					# A 2px nick in the corner that touches the diagonal floor.
+					var cx := px if (inner == 0 or inner == 3) else n - 1 - px
+					var cy := py if (inner == 0 or inner == 1) else n - 1 - py
+					d = maxi(cx, cy)
+				if d == 0:
+					img.set_pixel(cell * n + px, py, dark)
+				elif d == 1:
+					img.set_pixel(cell * n + px, py, light)
+	# Face pieces straight from the cliff strip.
+	var strip_path := cliff_strip_path()
+	var strip: Image = null
+	if ResourceLoader.exists(strip_path):
+		var tex: Texture2D = load(strip_path)
+		strip = tex.get_image() if tex else null
+	if strip != null:
+		if strip.is_compressed():
+			strip.decompress()
+		if strip.get_format() != Image.FORMAT_RGBA8:
+			strip.convert(Image.FORMAT_RGBA8)
+		for c in range(6):
+			img.blit_rect(strip, Rect2i(c * n, 0, n, n), Vector2i((WALL_FACE_FRINGE + c) * n, 0))
+			img.blit_rect(strip, Rect2i(c * n, n, n, n), Vector2i((WALL_FACE_BASE + c) * n, 0))
+	else:
+		# No strip: the cobbled wall fill with a dark base line, so a missing
+		# file can never leave holes.
+		var fill := _sheet_image(wall_texture_path())
+		for c in range(6):
+			img.blit_rect(fill, Rect2i((c % 4) * n, 0, n, n), Vector2i((WALL_FACE_FRINGE + c) * n, 0))
+			img.blit_rect(fill, Rect2i((c % 4) * n, n, n, n), Vector2i((WALL_FACE_BASE + c) * n, 0))
+			for px in range(n):
+				img.set_pixel((WALL_FACE_BASE + c) * n + px, n - 1, dark)
+				img.set_pixel((WALL_FACE_BASE + c) * n + px, n - 2, dark)
+	var tex := ImageTexture.create_from_image(img)
+	_wall_atlas_cache[key] = tex
+	return tex
+
+
+func _is_floor_at(x: int, z: int) -> bool:
+	if x < 0 or x >= GRID_W or z < 0 or z >= GRID_H:
+		return false
+	return grid[x][z] == Tile.FLOOR
+
+
+## A wall tile whose south neighbour is floor shows the cliff face.
+func _is_face_tile(x: int, z: int) -> bool:
+	if x < 0 or x >= GRID_W or z < 0 or z >= GRID_H:
+		return false
+	return grid[x][z] == Tile.WALL and _is_floor_at(x, z + 1)
+
+
+static func _add_wall_quad(st: SurfaceTool, u0: float, cw: float, ax: float, y: float, az: float) -> void:
+	var u1 := u0 + cw
+	var a := Vector3(ax, y, az)
+	var b := Vector3(ax + 0.5, y, az)
+	var c := Vector3(ax + 0.5, y, az + 0.5)
+	var d := Vector3(ax, y, az + 0.5)
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(u0, 0)); st.add_vertex(a)
+	st.set_uv(Vector2(u1, 0)); st.add_vertex(b)
+	st.set_uv(Vector2(u1, 1)); st.add_vertex(c)
+	st.set_uv(Vector2(u0, 0)); st.add_vertex(a)
+	st.set_uv(Vector2(u1, 1)); st.add_vertex(c)
+	st.set_uv(Vector2(u0, 1)); st.add_vertex(d)
+
+
+func _build_cliff_walls() -> void:
+	var pal = get_palette()
+	var atlas := _make_wall_atlas(pal)
+	var rows := cliff_face_rows()
+	var site_tiles = _all_site_footprint_tiles()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var cw := 1.0 / WALL_ATLAS_CELLS
+	var count := 0
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.WALL:
+				continue
+			if site_tiles.has(Vector2i(x, z)):
+				continue  # Site structures draw their own exteriors
+			var y: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.012
+			var face := _is_face_tile(x, z)
+			var n_f := _is_floor_at(x, z - 1)
+			var e_f := _is_floor_at(x + 1, z)
+			var w_f := _is_floor_at(x - 1, z)
+			var ne_f := _is_floor_at(x + 1, z - 1)
+			var nw_f := _is_floor_at(x - 1, z - 1)
+			var se_f := _is_floor_at(x + 1, z + 1)
+			var sw_f := _is_floor_at(x - 1, z + 1)
+			# The face runs on while the neighbour is a face tile too; it
+			# ends (rounded L / R piece) against floor or a wall that turns.
+			var l_end := not _is_face_tile(x - 1, z)
+			var r_end := not _is_face_tile(x + 1, z)
+			if face:
+				# Lower ground under the face so its cut-outs show ground.
+				for qy in range(2):
+					for qx in range(2):
+						var ucell := WALL_UNDER + int(_tile_noise(x * 2 + qx, z * 2 + qy, 59) * 4) % 4
+						_add_wall_quad(st, ucell * cw, cw, x + qx * 0.5, y - 0.004, z + qy * 0.5)
+			for qy in range(2):
+				for qx in range(2):
+					var cell := -1
+					var face_quad := face and (rows == 2 or qy == 1)
+					if face_quad:
+						var row_base := WALL_FACE_FRINGE if (rows == 2 and qy == 0) else WALL_FACE_BASE
+						if rows == 1:
+							row_base = WALL_FACE_FRINGE  # single ledge row lives in row 0
+						var col: int
+						if qx == 0 and l_end:
+							col = 0
+						elif qx == 1 and r_end:
+							col = WALL_FACE_MIDS + 1
+						else:
+							col = 1 + int(_tile_noise(x * 2 + qx, z * 2 + qy, 53) * WALL_FACE_MIDS) % WALL_FACE_MIDS
+						cell = row_base + col
+					else:
+						# Cap quad: outline on the sides that face floor.
+						var open_v := n_f if qy == 0 else false   # S is never floor on a cap quad
+						var open_h := w_f if qx == 0 else e_f
+						var diag: bool
+						if qy == 0:
+							diag = nw_f if qx == 0 else ne_f
+						else:
+							diag = sw_f if qx == 0 else se_f
+						if rows == 1 and face and qy == 0:
+							open_v = n_f
+						if open_v and open_h:
+							cell = WALL_CAP_OUTER + (0 if qx == 0 else 1)  # NW / NE
+						elif open_v:
+							cell = WALL_CAP_EDGE + 0  # N
+						elif open_h:
+							cell = WALL_CAP_EDGE + (3 if qx == 0 else 1)  # W / E
+						elif diag:
+							var corner := 0
+							if qy == 0:
+								corner = 0 if qx == 0 else 1
+							else:
+								corner = 3 if qx == 0 else 2
+							cell = WALL_CAP_INNER + corner
+						else:
+							cell = WALL_CAP_FILL + int(_tile_noise(x * 2 + qx, z * 2 + qy, 57) * 4) % 4
+					_add_wall_quad(st, cell * cw, cw, x + qx * 0.5, y, z + qy * 0.5)
+			count += 1
+	if count == 0:
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = "CliffWalls"
+	mi.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = atlas
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	mat.alpha_scissor_threshold = 0.5
+	mat.roughness = 1.0
+	mat.albedo_color = Color(1, 1, 1).lerp(pal["floor_a"], _tint_weight(floor_texture_path()))
+	mi.material_override = mat
+	_visuals_root.add_child(mi)
+	print("[DUNGEON] Built %d cliff wall tiles (%s %dx%d)" % [count, get_location_name(), GRID_W, GRID_H])
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
 	for dx in [-1, 0, 1]:
