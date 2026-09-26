@@ -2143,7 +2143,7 @@ func _update_storage_grid() -> void:
 	stones_hbox.add_child(stones_spacer)
 
 	var stones_label = Label.new()
-	stones_label.text = "Culling Stones: %d" % inventory.get_culling_stone_count()
+	stones_label.text = "Culling Stones: %d   Swans: %d/%d" % [inventory.get_culling_stone_count(), inventory.get_origami_swan_count(), Inventory.SWANS_PER_CULLING_STONE]
 	stones_label.add_theme_font_size_override("font_size", 10)
 	stones_label.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 	stones_hbox.add_child(stones_label)
@@ -2429,7 +2429,7 @@ func _show_card_confirm_modal(card: Card) -> void:
 	destroy_btn.custom_minimum_size = Vector2(90, 30)
 	destroy_btn.add_theme_font_size_override("font_size", 11)
 	destroy_btn.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4))
-	destroy_btn.tooltip_text = "Permanently destroy this card."
+	destroy_btn.tooltip_text = "Fold this card into an Origami Swan (20 swans = 1 Culling Stone)."
 	destroy_btn.pressed.connect(_on_card_destroy_pressed.bind(destroy_btn))
 	btn_row.add_child(destroy_btn)
 
@@ -2464,9 +2464,13 @@ func _on_card_destroy_pressed(btn: Button) -> void:
 	if _pending_card and _pending_card_index >= 0 and inventory:
 		var card_name = _pending_card.card_name
 		if inventory.remove_stored_card(_pending_card_index) != null:
+			# The card is folded into an Origami Swan; 20 swans = 1 Culling Stone.
+			var stones: int = inventory.add_origami_swans(1)
 			var main_node = _main_node()
 			if main_node and main_node.has_method("add_battle_log"):
-				main_node.add_battle_log("Destroyed card: %s" % card_name, Color(1.0, 0.5, 0.4))
+				main_node.add_battle_log("Folded %s into an Origami Swan (%d/%d)." % [card_name, inventory.get_origami_swan_count(), Inventory.SWANS_PER_CULLING_STONE], Color(0.9, 0.9, 1.0))
+				if stones > 0:
+					main_node.add_battle_log("20 swans became a Culling Stone!", Color(0.8, 0.5, 1.0))
 	_pending_card = null
 	_pending_card_index = -1
 	_dismiss_card_confirm_modal()

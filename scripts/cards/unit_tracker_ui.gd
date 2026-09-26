@@ -120,7 +120,7 @@ func refresh() -> void:
 			top_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			group_box.add_child(top_row)
 
-			var header_square = _create_group_square(type_name, enemies_arr.size())
+			var header_square = _create_group_square(type_name, enemies_arr.size(), enemies_arr[0])
 			header_square.gui_input.connect(_on_group_click.bind(type_name))
 			top_row.add_child(header_square)
 
@@ -241,8 +241,28 @@ func update_tempo_bars() -> void:
 # GROUP SQUARE (for multiple of same type)
 # ============================================
 
-func _create_group_square(type_name: String, count: int) -> PanelContainer:
-	## Clickable square with type abbreviation.
+## The enemy's own picture, scaled to fill a square (nearest, so it stays
+## crisp). Null when the enemy has no sprite (generic brute tiers).
+func _portrait_rect(enemy: Enemy, sz: float) -> TextureRect:
+	if enemy == null or not is_instance_valid(enemy) or not enemy.has_method("get_portrait_texture"):
+		return null
+	var tex: Texture2D = enemy.get_portrait_texture()
+	if tex == null:
+		return null
+	var rect := TextureRect.new()
+	rect.texture = tex
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.custom_minimum_size = Vector2(sz - 6, sz - 6)
+	rect.modulate = enemy.get_portrait_tint()
+	rect.flip_h = enemy.is_portrait_flipped()
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rect
+
+
+func _create_group_square(type_name: String, count: int, sample: Enemy = null) -> PanelContainer:
+	## Clickable square showing the type's picture (abbreviation when none).
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(SQUARE_SIZE, SQUARE_SIZE)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -261,15 +281,19 @@ func _create_group_square(type_name: String, count: int) -> PanelContainer:
 	style.corner_radius_bottom_right = 4
 	panel.add_theme_stylebox_override("panel", style)
 
-	# Type abbreviation centered
-	var type_lbl = Label.new()
-	type_lbl.text = type_name.left(3).to_upper()
-	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	type_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	type_lbl.add_theme_font_size_override("font_size", 14)
-	type_lbl.add_theme_color_override("font_color", color)
-	type_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(type_lbl)
+	var pic := _portrait_rect(sample, SQUARE_SIZE)
+	if pic != null:
+		panel.add_child(pic)
+	else:
+		# Type abbreviation centered
+		var type_lbl = Label.new()
+		type_lbl.text = type_name.left(3).to_upper()
+		type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		type_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		type_lbl.add_theme_font_size_override("font_size", 14)
+		type_lbl.add_theme_color_override("font_color", color)
+		type_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(type_lbl)
 
 	return panel
 
@@ -323,14 +347,18 @@ func _create_portrait_square(enemy: Enemy, sz: float) -> PanelContainer:
 	panel.set_meta("enemy_ref", enemy)
 	panel.set_meta("base_border_color", color)
 
-	var type_lbl = Label.new()
-	type_lbl.text = _get_type_name(enemy).left(3).to_upper()
-	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	type_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	type_lbl.add_theme_font_size_override("font_size", int(sz * 0.3))
-	type_lbl.add_theme_color_override("font_color", color)
-	type_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(type_lbl)
+	var pic := _portrait_rect(enemy, sz)
+	if pic != null:
+		panel.add_child(pic)
+	else:
+		var type_lbl = Label.new()
+		type_lbl.text = _get_type_name(enemy).left(3).to_upper()
+		type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		type_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		type_lbl.add_theme_font_size_override("font_size", int(sz * 0.3))
+		type_lbl.add_theme_color_override("font_color", color)
+		type_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(type_lbl)
 
 	# Hover signals
 	panel.mouse_entered.connect(_on_portrait_hover.bind(enemy))

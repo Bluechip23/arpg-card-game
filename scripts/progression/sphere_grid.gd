@@ -14,7 +14,7 @@ enum NodeType {
 	CULLING_STONE, # Grants a culling stone to remove a card from deck
 	RETROSPECTIVE, # Grants ability to pick from a previously skipped skill tree option
 	COMBAT_BONUS,  # Neutral combat stat boost (Block, Thorns, Damage, Heal Power, Crit, Armor, etc.)
-	FEATHER,       # Grants a feather to remove a card from deck (alternative to culling stone)
+	FEATHER,       # Retired (Paper Feathers are gone); kept so saved node types keep their numbers
 	NULL_NODE,     # Pure connective tissue: no effect, smaller, a sunk cost on the path
 	KEYSTONE,      # Build-defining synergy node (keystone_id selects the mechanic)
 	FREE_STAT      # Banks unspent stat points the player allocates freely (like a level-up)
@@ -301,7 +301,7 @@ func _build_grid() -> void:
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
-		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
+		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
@@ -380,7 +380,7 @@ func _build_grid() -> void:
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.HEALTH, "HP +35", "Max Health +35"],
 		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
-		[NodeType.FEATHER, "Feather", "Grants 1 Feather to remove a card from your deck"],
+		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.MANA, "Mana +20", "Max Mana +20"],
 		[NodeType.KEYSTONE, "Killing Rhythm", "Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.", {"req": {"stat": "dexterity", "value": 18}, "keystone": "dex_flat_damage"}],
 		[NodeType.KEYSTONE, "Unbroken Will", "Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.", {"req": {"stat": "determination", "value": 15}, "keystone": "det_floor"}],

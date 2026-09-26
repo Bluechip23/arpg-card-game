@@ -1030,19 +1030,50 @@ func get_draw_pile_size() -> int:
 func get_discard_pile_size() -> int:
 	return discard_pile.size()
 
+## Copies of a card the player owns: every deck pile, maintained cards, and
+## every socket in their gear (a socketed copy is still a copy).
 func count_copies_in_deck(card_id: String) -> int:
 	var n := 0
-	for pile in [draw_pile, discard_pile, hand, jail_pile]:
+	for pile in [draw_pile, discard_pile, hand, jail_pile, maintained_cards]:
 		for c in pile:
-			if c.card_id == card_id:
+			if c and c.card_id == card_id:
+				n += 1
+	if inventory and inventory.has_method("get_all_socketed_cards"):
+		for c in inventory.get_all_socketed_cards():
+			if c and c.card_id == card_id:
 				n += 1
 	return n
 
-## Rarity-based copy limit (see Card.MAX_COPIES_BY_RARITY): true when the deck
-## has room for one more copy of this card.
+## Mythic cards owned as a group (deck piles + sockets), for the level cap.
+func count_mythic_cards() -> int:
+	var n := 0
+	for pile in [draw_pile, discard_pile, hand, jail_pile, maintained_cards]:
+		for c in pile:
+			if c and c.get_rarity() == Card.Rarity.MYTHIC:
+				n += 1
+	if inventory and inventory.has_method("get_all_socketed_cards"):
+		for c in inventory.get_all_socketed_cards():
+			if c and c.get_rarity() == Card.Rarity.MYTHIC:
+				n += 1
+	return n
+
+## How many mythic cards the deck may hold: the same per-level allowance as
+## mythic items (see Inventory.get_mythic_capacity).
+func mythic_card_capacity() -> int:
+	if inventory and inventory.has_method("get_mythic_capacity"):
+		return inventory.get_mythic_capacity()
+	return 0
+
+## Rarity-based copy limit (see Card.MAX_COPIES_BY_RARITY) plus the mythic
+## group cap: true when the deck has room for one more copy of this card.
 func can_add_copy(card_id: String) -> bool:
 	var cap := Card.max_deck_copies(card_id)
-	return cap < 0 or count_copies_in_deck(card_id) < cap
+	if cap >= 0 and count_copies_in_deck(card_id) >= cap:
+		return false
+	if Card.CARD_RARITIES.get(card_id, Card.Rarity.COMMON) == Card.Rarity.MYTHIC \
+			and count_mythic_cards() >= mythic_card_capacity():
+		return false
+	return true
 
 func add_card_to_deck_from_id(card_id: String, to_draw_pile: bool = true) -> bool:
 	## Creates a card from its ID and shuffles it into the DRAW pile — "shuffle

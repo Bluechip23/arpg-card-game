@@ -123,6 +123,21 @@ func _build_portrait() -> void:
 		_portrait_holder.add_child(block)
 		return
 
+	# The enemy's own field sprite, blown up crisp — the same picture the
+	# tracker square shows and the battlefield draws.
+	var tex: Texture2D = _enemy.get_portrait_texture() if _enemy.has_method("get_portrait_texture") else null
+	if tex != null:
+		var rect := TextureRect.new()
+		rect.texture = tex
+		rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.custom_minimum_size = Vector2(180, 150)
+		rect.modulate = _enemy.get_portrait_tint()
+		rect.flip_h = _enemy.is_portrait_flipped()
+		_portrait_holder.add_child(rect)
+		return
+
 	var container = SubViewportContainer.new()
 	container.stretch = true
 	container.custom_minimum_size = Vector2(180, 150)
