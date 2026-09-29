@@ -213,6 +213,13 @@ func _setup_tab_menu() -> void:
 	card_inv_tab_btn.pressed.connect(_on_tab_card_inv_pressed)
 	tab_hbox.add_child(card_inv_tab_btn)
 
+	var tutorials_tab_btn = Button.new()
+	tutorials_tab_btn.text = "Tutorials"
+	tutorials_tab_btn.custom_minimum_size = Vector2(110, 32)
+	tutorials_tab_btn.add_theme_font_size_override("font_size", 16)
+	tutorials_tab_btn.pressed.connect(_on_tab_tutorials_pressed)
+	tab_hbox.add_child(tutorials_tab_btn)
+
 	# World label
 	var world_lbl = Label.new()
 	world_lbl.text = main.get_location_label()
@@ -261,6 +268,17 @@ func _setup_tab_menu() -> void:
 	main._tab_card_inv_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card_inv_scroll.add_child(main._tab_card_inv_container)
 
+	# Tutorials content (hidden by default — tab 3)
+	var tutorials_scroll = ScrollContainer.new()
+	tutorials_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tutorials_scroll.custom_minimum_size = Vector2(0, 400)
+	tutorials_scroll.visible = false
+	vbox.add_child(tutorials_scroll)
+
+	main._tab_tutorials_container = VBoxContainer.new()
+	main._tab_tutorials_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tutorials_scroll.add_child(main._tab_tutorials_container)
+
 	# Close button
 	var close_btn = Button.new()
 	close_btn.text = "Close [Tab]"
@@ -299,6 +317,10 @@ func _on_tab_card_inv_pressed() -> void:
 	main._tab_menu_current_tab = 2
 	_refresh_tab_menu()
 
+func _on_tab_tutorials_pressed() -> void:
+	main._tab_menu_current_tab = 3
+	_refresh_tab_menu()
+
 func _refresh_tab_menu() -> void:
 	if not main._tab_quest_container or not main._tab_map_container:
 		return
@@ -308,6 +330,8 @@ func _refresh_tab_menu() -> void:
 	main._tab_quest_container.get_parent().visible = false
 	if main._tab_card_inv_container:
 		main._tab_card_inv_container.get_parent().visible = false
+	if main._tab_tutorials_container:
+		main._tab_tutorials_container.get_parent().visible = false
 
 	if main._tab_menu_current_tab == 0:
 		# Dungeon Map tab
@@ -322,6 +346,55 @@ func _refresh_tab_menu() -> void:
 		if main._tab_card_inv_container:
 			main._tab_card_inv_container.get_parent().visible = true
 			_refresh_card_inventory()
+	elif main._tab_menu_current_tab == 3:
+		# Tutorials tab
+		if main._tab_tutorials_container:
+			main._tab_tutorials_container.get_parent().visible = true
+			_refresh_tutorials()
+
+## Every lesson Olorin gives, beat by beat, exactly as he speaks it — seen
+## or not. Lessons the character has already heard are marked.
+func _refresh_tutorials() -> void:
+	var box: VBoxContainer = main._tab_tutorials_container
+	for child in box.get_children():
+		child.queue_free()
+	var header = Label.new()
+	header.text = "Tutorials — Olorin's lessons"
+	header.add_theme_font_size_override("font_size", 18)
+	header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	box.add_child(header)
+	box.add_child(HSeparator.new())
+	var seen: Array = []
+	if "current_character" in main and main.current_character:
+		seen = main.current_character.seen_tutorial_ids
+	for lesson in OlorinTutorial.LESSONS:
+		var title = Label.new()
+		var heard: bool = seen.has(lesson["id"])
+		title.text = "%s%s" % [lesson["title"], "" if heard else "  (not yet heard)"]
+		title.add_theme_font_size_override("font_size", 16)
+		title.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0) if heard else Color(0.55, 0.55, 0.65))
+		box.add_child(title)
+		var speaker = Label.new()
+		speaker.text = str(lesson.get("speaker", OlorinTutorial.OLORIN_SPEAKER))
+		speaker.add_theme_font_size_override("font_size", 12)
+		speaker.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		box.add_child(speaker)
+		for beat in lesson["beats"]:
+			if lesson["beats"].size() > 1:
+				var beat_title = Label.new()
+				beat_title.text = "— %s —" % beat["title"]
+				beat_title.add_theme_font_size_override("font_size", 13)
+				beat_title.add_theme_color_override("font_color", Color(0.85, 0.75, 0.5))
+				box.add_child(beat_title)
+			for p in beat["paragraphs"]:
+				var para = Label.new()
+				para.text = str(p)
+				para.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				para.add_theme_font_size_override("font_size", 13)
+				para.add_theme_color_override("font_color", Color(0.88, 0.88, 0.9))
+				para.custom_minimum_size = Vector2(680, 0)
+				box.add_child(para)
+		box.add_child(HSeparator.new())
 
 func _refresh_quest_log() -> void:
 	for child in main._tab_quest_container.get_children():

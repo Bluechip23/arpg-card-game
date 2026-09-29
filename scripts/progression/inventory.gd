@@ -1155,6 +1155,35 @@ func on_attacked_by(attacker, in_melee: bool) -> void:
 				attacker.enemy_name if "enemy_name" in attacker else "the attacker",
 				rr_w.melee_retaliate_shock])
 
+## Ring passives that build toward a proc, for the HUD tray: the counter
+## key on the ring, its threshold, and the sentence the tooltip shows.
+const RING_COUNTER_RULES := {
+	"Heal Stone": {"key": "heal", "total": 5, "desc": "Every 5 healing received zaps a random enemy within 5 squares for 2."},
+	"Gold Band": {"key": "shield", "total": 5, "desc": "Every 5 armor gained zaps a random enemy within 5 squares for 2."},
+	"Emerald": {"key": "poison", "total": 5, "desc": "Every 5 Poison applied zaps a random enemy within 5 squares for 2."},
+	"Harnessed Sun": {"key": "burn", "total": 25, "desc": "Every 25 Burn applied cleanses one of your debuffs."},
+	"Ring of Nibelung": {"key": "heals", "total": 5, "desc": "Every 5 heals forge a Nibelung Curse worth the healing summed."},
+	"Ring of Stone Hide": {"key": "block", "total": 100, "desc": "Every 100 armor gained counts toward the hide."},
+	"The Precious": {"key": "hits", "total": 4, "desc": "Every 4th hit taken drags you into shadow form."},
+	"Draupnir": {"key": "hits", "total": 9, "desc": "Every 9th hit taken splits you in two."},
+	"Captain Planets Circlet": {"key": "planet", "total": 5, "desc": "Burn, Cold, Silence, Strengthen and Regen together: heal 15, draw 3, gain Fireball and Rise."},
+}
+
+## The equipped rings' tallies for the HUD tray: one entry per ring with a
+## rule above — {id, name, description, count, total, item}.
+func get_ring_counter_boxes() -> Array:
+	var out: Array = []
+	for i in range(equipped_rings.size()):
+		var r = equipped_rings[i]
+		if r == null or not RING_COUNTER_RULES.has(r.item_name):
+			continue
+		var rule: Dictionary = RING_COUNTER_RULES[r.item_name]
+		var raw = r.ring_counters.get(rule["key"], 0)
+		var count: int = raw.size() if raw is Dictionary else int(raw)
+		out.append({"id": "ring_%d_%s" % [i, rule["key"]], "name": r.item_name,
+			"description": rule["desc"], "count": count, "total": int(rule["total"]), "item": r})
+	return out
+
 func on_healed(amount: int = 0) -> void:
 	if amount <= 0:
 		return

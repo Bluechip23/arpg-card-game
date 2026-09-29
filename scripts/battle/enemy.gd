@@ -3088,9 +3088,7 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 func _try_hydra_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
 		return _try_move(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage + strength, "Strike")
 		turn_completed.emit()
 		return true
@@ -3106,9 +3104,7 @@ func _try_hydra_heal() -> bool:
 func _try_goblin_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
 		return _try_move(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Strike")
 		turn_completed.emit()
 		return true
@@ -3118,9 +3114,7 @@ func _try_ember(target_node: Node3D) -> bool:
 	## Fire Goblin Mage: ranged ember — damage plus 1 burn.
 	if is_disarmed or is_silenced:
 		return _try_move(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Ember")
 		_apply_burn_to_player(target_node, 1)
 		turn_completed.emit()
@@ -3132,9 +3126,7 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 	## burn are only dealt if the player walks into it (handled by Main).
 	if is_disarmed or is_silenced:
 		return _try_move(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist > attack_range:
+	if not _in_attack_range(target_node):
 		return _try_move(target_node)
 	if not grid_manager:
 		turn_completed.emit()
@@ -3192,9 +3184,12 @@ func _apply_burn_to_player(player_node: Node3D, stacks: int) -> void:
 # FOREST ACT — ACTIONS & HELPERS
 # ============================================
 
+## Reach is measured in grid steps (no diagonals), the same distance the
+## choosers use to pick an attack, so a swing lined up at arm's length
+## cannot land on a target that stepped diagonally away — and a melee
+## reach of 1.5 means the four neighbouring tiles, never the corners.
 func _in_attack_range(target_node: Node3D) -> bool:
-	var diff = target_node.position - position
-	return Vector3(diff.x, 0, diff.z).length() <= attack_range
+	return _get_cell_distance(target_node) <= int(attack_range)
 
 func _apply_player_debuff(player_node: Node3D, debuff) -> void:
 	if player_node and player_node.has_method("get_debuff_manager"):
@@ -3949,9 +3944,7 @@ func _try_attack(target_node: Node3D) -> bool:
 		disarmed_attacks -= 1
 		print("[%s] Disarmed for this attack! (%d left)" % [enemy_name, disarmed_attacks])
 		return _try_move(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Attack")
 		turn_completed.emit()
 		return true
@@ -3968,9 +3961,7 @@ func _try_move(target_node: Node3D) -> bool:
 func _try_bite(target_node: Node3D) -> bool:
 	if is_disarmed:
 		return _try_move(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Bite")
 		turn_completed.emit()
 		return true
@@ -3987,9 +3978,7 @@ func _try_scurry(target_node: Node3D) -> bool:
 func _try_kick(target_node: Node3D) -> bool:
 	if is_disarmed:
 		return _try_move(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, maxi(1, roundi(6 * _pps_dmg)), "Kick")
 		turn_completed.emit()
 		return true
@@ -3998,9 +3987,7 @@ func _try_kick(target_node: Node3D) -> bool:
 func _try_smash(target_node: Node3D) -> bool:
 	if is_disarmed:
 		return _try_move(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, maxi(1, roundi(14 * _pps_dmg)), "Smash")
 		# Inject Lightly Dazed card into player's hand
 		if target_node.has_method("get_deck_manager"):
@@ -4017,9 +4004,7 @@ func _try_shoot(target_node: Node3D) -> bool:
 	if is_disarmed:
 		print("[%s] Disarmed - cannot shoot!" % enemy_name)
 		return _try_get_into_range(target_node)
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Arrow Shot")
 		turn_completed.emit()
 		return true
@@ -4046,9 +4031,7 @@ func _try_scurry_away(target_node: Node3D) -> bool:
 
 func _try_get_into_range(target_node: Node3D) -> bool:
 	## Archer Rat: Move 2 tiles toward target to get into shooting range.
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	if flat_dist <= attack_range:
+	if _in_attack_range(target_node):
 		# Already in range, shoot instead
 		return _try_shoot(target_node)
 
@@ -4058,6 +4041,7 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 		var player_cell = grid_manager.world_to_grid(target_node.position)
 		_start_path(_build_greedy_path(position, player_cell, tiles))
 	else:
+		var diff = target_node.position - position
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		target_position = position + direction * (tiles * 1.0)
 		is_moving = true
