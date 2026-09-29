@@ -46,7 +46,7 @@ func _initialize() -> void:
 	# --- Deck copy limits ---
 	_check(Card.max_deck_copies("slash") == -1, "slash (basic) is unlimited")
 	_check(Card.max_deck_copies("fireball") == 2, "fireball (legendary) caps at 2")
-	_check(Card.max_deck_copies("charge") == 4, "charge (rare) caps at 4")
+	_check(Card.max_deck_copies("harden") == 4, "harden (rare) caps at 4")
 	_check(Card.max_deck_copies("mirror_mirror") == 1, "mirror mirror (mythic) caps at 1")
 
 	# A deck manager wired to a real inventory so socketed copies count too.
@@ -74,16 +74,16 @@ func _initialize() -> void:
 	_check(dm.can_add_copy("slash"), "21st slash is still welcome")
 	_check(dm.count_copies_in_deck("slash") == 20, "copies counted across the deck")
 
-	# Socketed copies count: three Charges in the deck plus one in a helm's
+	# Socketed copies count: three Hardens in the deck plus one in a helm's
 	# socket is the rare cap of four.
 	for _i in range(3):
-		dm.discard_pile.append(Card.create_by_id("charge"))
-	_check(dm.can_add_copy("charge"), "three rares leave room for a fourth")
+		dm.discard_pile.append(Card.create_by_id("harden"))
+	_check(dm.can_add_copy("harden"), "three rares leave room for a fourth")
 	var helm := ItemData.create_thick_steel_helm()
-	helm.slotted_cards.append(Card.create_by_id("charge"))
+	helm.slotted_cards.append(Card.create_by_id("harden"))
 	inv.stored_items.append(helm)
-	_check(dm.count_copies_in_deck("charge") == 4, "a copy socketed in a carried item counts (got %d)" % dm.count_copies_in_deck("charge"))
-	_check(not dm.can_add_copy("charge"), "the socketed copy fills the rare cap")
+	_check(dm.count_copies_in_deck("harden") == 4, "a copy socketed in a carried item counts (got %d)" % dm.count_copies_in_deck("harden"))
+	_check(not dm.can_add_copy("harden"), "the socketed copy fills the rare cap")
 
 	# Mythic cards as a group follow the mythic-item allowance (level / 15).
 	stats.current_level = 1
@@ -94,7 +94,7 @@ func _initialize() -> void:
 	_check(not dm.can_add_copy("mirror_mirror"), "the same mythic never has a second copy")
 	_check(dm.can_add_copy("god_of_thunder"), "a different mythic fits under the allowance")
 	helm.slotted_cards.append(Card.create_by_id("god_of_thunder"))
-	_check(dm.count_mythic_cards() == 2 and not dm.can_add_copy("if_pigs_could_fly"), "a mythic socketed in gear uses up the allowance")
+	_check(dm.count_mythic_cards() == 2 and not dm.can_add_copy("life_swap"), "a mythic socketed in gear uses up the allowance")
 
 	dm.queue_free()
 	inv.queue_free()

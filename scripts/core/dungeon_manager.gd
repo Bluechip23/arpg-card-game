@@ -4724,12 +4724,7 @@ func _get_random_item(rng: RandomNumberGenerator) -> ItemData:
 func _get_random_card(rng: RandomNumberGenerator) -> Card:
 	## Rarity-weighted over every droppable card (see Card.CARD_RARITIES),
 	## deterministic per chest via the seeded rng.
-	var rarity = DropRates.roll_weighted(DropRates.CARD_WEIGHTS, rng)
-	var ids = Card.get_droppable_ids_of_rarity(rarity)
-	if ids.is_empty():
-		ids = Card.get_droppable_ids_of_rarity(Card.Rarity.BASIC)
-	ids.sort()  # discovery order isn't guaranteed — sort so the seed is stable
-	return Card.create_by_id(ids[rng.randi() % ids.size()])
+	return DropRates.roll_card(DropRates.CARD_WEIGHTS, rng)
 
 # ============================================
 # SPAWN ZONES (derived from rooms; difficulty scales with world + depth)

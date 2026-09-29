@@ -51,6 +51,8 @@ func _dump_cards() -> Array:
 			"requires_high_ground": card.requires_high_ground,
 			"keywords": card.keywords,
 			"slot_labels": card.slot_label_names(),
+			"engrave": card.requires_engraving,
+			"rarity": card.get_rarity_name(),
 			"school": ["physical", "spell", "trap"][card.school as int],
 			"range": card.get_effective_range(),
 			"infinite_range": card.is_ranged and card.range_modifier >= Card.INFINITE_RANGE,

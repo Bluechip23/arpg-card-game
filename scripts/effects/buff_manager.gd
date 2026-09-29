@@ -357,7 +357,10 @@ func _sync_generic(key: String, present: bool, display_name: String, desc: Strin
 
 func get_thorns_damage() -> int:
 	var thorns = get_buff(Buff.BuffType.THORNS)
-	return thorns.value if thorns else 0
+	var fixed: int = 0
+	if owner_stats and "maintained_thorns" in owner_stats:
+		fixed = owner_stats.maintained_thorns
+	return (thorns.value if thorns else 0) + fixed
 
 func on_attacked(attacker) -> void:
 	# Sphere grid passive thorns (permanent, doesn't decay)
@@ -367,6 +370,13 @@ func on_attacked(attacker) -> void:
 	if sphere_thorns > 0 and attacker and attacker.has_method("take_damage"):
 		attacker.take_damage(sphere_thorns)
 		print("[BUFF] Sphere Grid thorns deals %d damage to attacker!" % sphere_thorns)
+	# Barbed Exterior (maintained): fixed thorns that never wear down.
+	var fixed_thorns = 0
+	if owner_stats and "maintained_thorns" in owner_stats:
+		fixed_thorns = owner_stats.maintained_thorns
+	if fixed_thorns > 0 and attacker and attacker.has_method("take_damage"):
+		attacker.take_damage(fixed_thorns)
+		print("[BUFF] Barbed Exterior thorns deals %d damage to attacker!" % fixed_thorns)
 
 	# Buff-based thorns (temporary, decays per hit)
 	var thorns = get_buff(Buff.BuffType.THORNS)

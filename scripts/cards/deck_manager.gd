@@ -16,6 +16,7 @@ signal card_erased(card: Card)
 # forced discards, on-draw dumps, triggered instants, jail releases, expiring
 # enchantments. Ryan's Ladder Work counts these toward his opening strike.
 signal non_play_discard(card: Card)
+signal maintained_changed  # a card entered or left the maintained pile
 
 
 var draw_pile: Array[Card] = []
@@ -186,6 +187,7 @@ func restore_deck_state(state: Dictionary) -> void:
 			player_stats.reserve_mana(card.maintain_cost)
 	expel_unslotted_engraved()
 	hand_updated.emit()
+	maintained_changed.emit()
 	print("[DECK] Restored deck state: hand=%d, draw=%d, discard=%d, jail=%d" % [hand.size(), draw_pile.size(), discard_pile.size(), jail_pile.size()])
 
 ## Engrave: a card that is not slotted into an item may not sit in ANY deck
@@ -773,12 +775,14 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if inventory:
 			inventory.on_card_played(card)
 
-	# Power cards with maintain go to the maintained pile instead of discard
-	if card.card_type == Card.CardType.POWER and card.maintain_cost > 0:
+	# Power cards with maintain (and the few utility cards that maintain on
+	# play) go to the maintained pile instead of discard
+	if card.maintain_cost > 0 and (card.card_type == Card.CardType.POWER or card.auto_maintain):
 		maintained_cards.append(card)
 		if player_stats:
 			player_stats.reserve_mana(card.maintain_cost)
 		print("[DECK] %s maintained! Reserving %dM. Active maintains: %d" % [card.card_name, card.maintain_cost, maintained_cards.size()])
+		maintained_changed.emit()
 	# Sticky cards stay in hand until played enough times
 	elif card.sticky > 0:
 		card.consecutive_uses += 1
@@ -1264,6 +1268,30 @@ func process_maintained_cards() -> Dictionary:
 				result["self_damage"] += 1
 	return result
 
+## Whether a card could be maintained now: its reserve fits under the mana
+## the player has left unreserved.
+func can_maintain(card: Card) -> bool:
+	if card.maintain_cost <= 0:
+		return false
+	if player_stats == null:
+		return true
+	return player_stats.get_available_max_mana() >= card.maintain_cost
+
+## Maintain a card the player chose to keep after it resolved (Peshtigo's
+## Kiss): it leaves the discard pile for the maintained pile and reserves
+## its mana. Returns false when the reserve does not fit.
+func maintain_card(card: Card) -> bool:
+	if not can_maintain(card):
+		return false
+	discard_pile.erase(card)
+	if not maintained_cards.has(card):
+		maintained_cards.append(card)
+	if player_stats:
+		player_stats.reserve_mana(card.maintain_cost)
+	print("[DECK] %s maintained on request. Reserving %dM." % [card.card_name, card.maintain_cost])
+	maintained_changed.emit()
+	return true
+
 func break_all_maintained_cards() -> void:
 	## Discard all maintained cards and release all reserved mana.
 	## Called when player's mana drops to 0.
@@ -1276,6 +1304,7 @@ func break_all_maintained_cards() -> void:
 		print("[DECK] Maintained card discarded: %s (released %dM)" % [card.card_name, card.maintain_cost])
 	maintained_cards.clear()
 	# Note: PlayerStats already reset maintained_mana to 0 when it emitted the signal
+	maintained_changed.emit()
 
 func dismiss_maintained_card(index: int) -> void:
 	## Player voluntarily dismisses a maintained card to free up mana.
@@ -1288,4 +1317,5 @@ func dismiss_maintained_card(index: int) -> void:
 	if player_stats:
 		player_stats.release_mana(card.maintain_cost)
 	print("[DECK] Dismissed maintained card: %s (freed %dM)" % [card.card_name, card.maintain_cost])
+	maintained_changed.emit()
 #endregion

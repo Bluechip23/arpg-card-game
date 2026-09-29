@@ -80,6 +80,8 @@ const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
 var _spirit_bows: Array = []     # Bow of Budding Blasts: maintained spirit bow + budded turrets
 const SpiritBowScript = preload("res://scripts/battle/spirit_bow_summon.gd")
 var _mark_zones: Array = []      # Territorial Mark: {cells: Array[Vector2i], tempo, nodes}
+var _flame_zones: Array = []     # Peshtigo's Kiss: {cells: Array[Vector2i], card: Card, nodes}
+var _maintain_prompt: CanvasLayer = null  # "Maintain X?" question after a card that may be kept
 var _clones: Array = []          # Draupnir: duplicates of the bearer (live until killed — no battle-end cleanup)
 const CloneScript = preload("res://scripts/battle/summoned_clone.gd")
 var _wraiths: Array = []         # The Precious: the hostile hunters, on the field only during shadow form
@@ -350,6 +352,8 @@ var _mana_bar: ProgressBar = null
 var _xp_bar: ProgressBar = null
 var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
+var _carry_bar: ProgressBar = null
+var _carry_bar_label: Label = null
 var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
@@ -544,6 +548,7 @@ func _ready() -> void:
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
 	quiver_ui.quiver_card_targeting_selected.connect(_on_quiver_card_targeting_selected)
 	overflow_manager.overcharge_triggered.connect(_on_overcharge_triggered)
+	deck_manager.maintained_changed.connect(_sync_maintained_passives)
 	overflow_manager.overdraw_processed.connect(_on_overdraw_processed)
 	overflow_manager.overflow_effects_changed.connect(func():
 		if _hand_info_popup and _hand_info_popup.visible:
@@ -847,9 +852,9 @@ func _update_move_path_cursor() -> void:
 		move_path_cursor.hide_cursor()
 		return
 
-	# Same budget the right-click handler grants: Manhattan distance to the tile.
-	var spaces := grid_manager.get_distance_in_cells(player.position, target_world)
-	move_path_cursor.show_path(target_cell, player.preview_path_cells(target_world, spaces))
+	# The whole route: a move order walks every tile of it (see the
+	# right-click handler), so the preview never stops short of the cursor.
+	move_path_cursor.show_path(target_cell, player.preview_path_cells(target_world, ROUTE_BUDGET))
 
 func _update_hand_hover() -> void:
 	if _card_ui_instances.is_empty():
@@ -1660,7 +1665,7 @@ func _setup_stat_bars() -> void:
 	stat_container.offset_left = 122.0
 	stat_container.offset_top = 8.0
 	stat_container.offset_right = 332.0
-	stat_container.offset_bottom = 130.0
+	stat_container.offset_bottom = 130.0 + CARRY_BAR_HEIGHT + STAT_BAR_GAP
 	stat_container.add_theme_constant_override("separation", 4)
 
 	# --- HP Bar (red) — armour shown as a shield badge to its right ---
@@ -1685,6 +1690,12 @@ func _setup_stat_bars() -> void:
 	_mana_reserve_tip.name = "ManaReserveTooltip"
 	_mana_bar.get_parent().add_child(_mana_reserve_tip)
 	_setup_mana_regen_drop()
+
+	# --- Carry bar (leather brown, half height): carried weight / capacity ---
+	var carry_pair = _create_stat_bar_with_label(stat_container, "CarryBar", Color(0.55, 0.4, 0.22), Color(0.22, 0.16, 0.09), CARRY_BAR_HEIGHT)
+	_carry_bar = carry_pair[0]
+	_carry_bar_label = carry_pair[1]
+	_carry_bar_label.add_theme_font_size_override("font_size", 9)
 
 	# --- XP Bar (gold) — right under mana, a quarter of the normal height ---
 	var xp_pair = _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05), 6)
@@ -1804,6 +1815,7 @@ func _update_mana_regen_indicator() -> void:
 		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
 
 const UNERRING_BAR_HEIGHT := 11  # half the 22px HP bar
+const CARRY_BAR_HEIGHT := 11     # same: carried weight / capacity under mana
 const STAT_BAR_GAP := 4          # the StatBarsContainer's separation
 
 func _setup_armor_shield() -> void:
@@ -1852,11 +1864,11 @@ func _setup_armor_shield() -> void:
 func _reposition_status_bars() -> void:
 	## Stack the debuff and buff rows directly beneath the (thin) XP bar, close
 	## to it, instead of floating out to the right of the health bar.
-	# HP(22) + 4 + Unerring(11) + 4 + Mana(22) + 4 + XP(6) starting at y=8
-	# -> bottom of XP at y=81.
+	# HP(22) + 4 + Unerring(11) + 4 + Mana(22) + 4 + Carry(11) + 4 + XP(6)
+	# starting at y=8 -> bottom of XP at y=96.
 	var left := 122.0
 	var right := 122.0 + 360.0
-	var top := 69.0 + UNERRING_BAR_HEIGHT + STAT_BAR_GAP
+	var top := 69.0 + UNERRING_BAR_HEIGHT + STAT_BAR_GAP + CARRY_BAR_HEIGHT + STAT_BAR_GAP
 	if debuff_bar:
 		debuff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		debuff_bar.offset_left = left
@@ -4054,6 +4066,9 @@ func select_character(character: CharacterData) -> void:
 	quiver_ui.connect_overflow_manager(overflow_manager)
 	player.get_stats().health_changed.connect(_on_player_health_changed)
 	player.get_stats().mana_changed.connect(_on_player_mana_changed)
+	player.get_stats().carry_changed.connect(_on_player_carry_changed)
+	player.get_stats().stats_updated.connect(_refresh_carry_bar)
+	_refresh_carry_bar()
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
 	player.get_stats().unerring_changed.connect(_on_player_unerring_changed)
 	player.get_stats().armor_gained.connect(_on_player_armor_gained)
@@ -4282,6 +4297,16 @@ func _move_dialog_avoid_rects() -> Array:
 	if _action_vbox and is_instance_valid(_action_vbox):
 		rects.append(_action_vbox.get_global_rect())
 	return rects
+
+## Movement budget that never cuts a route short (the real route is always
+## far shorter than this).
+const ROUTE_BUDGET := 100000
+
+## Tiles the character would actually walk to reach `target_world`: the BFS
+## route trimmed off any taken tile at its end. 0 when there is no route, the
+## tile is the one they stand on, or they cannot move.
+func _route_length(target_world: Vector3) -> int:
+	return player.preview_path_cells(target_world, ROUTE_BUDGET).size()
 
 func _on_move_confirmed(target_pos: Vector3, spaces: int) -> void:
 	if _movement_locked():
@@ -4856,6 +4881,8 @@ var _rescue_npcs: Array = []      # RescueNpc nodes placed for active quests
 var _follower: RescueNpc = null   # the one currently trailing the player
 
 const WOODCUTTER_SHEET := "res://assets/sprites/NPCpackage2/npc man B v02.png"
+const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"  # the same old wanderer as in town
+var _field_olorin: RescueNpc = null  # Olorin at the Transport Portal on the first trip out of town
 const PARTNER_SHEET := "res://assets/sprites/NPCpackage2/npc girl v03.png"
 
 func _ground_pos(cell: Vector2i) -> Vector3:
@@ -4883,6 +4910,35 @@ func _place_quest_npcs() -> void:
 		for s in dungeon_manager.site_nodes:
 			if s["id"] == "graveyard_0":
 				dungeon_manager.place_feather_trail(s["grid_pos"])
+
+## Olorin waits beside the Transport Portal the first time the player steps
+## out of town, and reads them the screen (OlorinTutorial.show_field_tour).
+## He stays for that visit so the tour can be heard again with Shift; once
+## it has been heard, later trips find the portal empty.
+func _place_field_olorin() -> void:
+	_field_olorin = null
+	if sandbox_mode or olorin == null or dungeon_manager == null:
+		return
+	if current_interior_id != "" or current_world_level != 1:
+		return
+	if olorin.has_seen(OlorinTutorial.FIELD_TOUR_ID):
+		return
+	var cell: Vector2i = dungeon_manager.pick_free_cell_near(dungeon_manager.player_start, 2)
+	if cell.x < 0:
+		return
+	var npc := RescueNpc.new()
+	npc.setup("npc_olorin", "Olorin", OLORIN_SHEET, "[Shift] Talk")
+	add_child(npc)
+	npc.place_at(_ground_pos(cell), cell)
+	_rescue_npcs.append(npc)
+	_field_olorin = npc
+	# Let the HUD lay itself out before he points at it.
+	get_tree().create_timer(0.8).timeout.connect(_start_field_tour)
+	print("[MAIN] Olorin waits at the portal (%s)" % [cell])
+
+func _start_field_tour() -> void:
+	if olorin and _field_olorin and is_instance_valid(_field_olorin):
+		olorin.show_field_tour()
 
 func _spawn_rescue_npc(id: String, display_name: String, sheet: String, room_kind: String) -> RescueNpc:
 	var cell: Vector2i = dungeon_manager.pick_room_cell(room_kind)
@@ -4953,6 +5009,10 @@ func _try_interact_rescue_npc() -> bool:
 	var npc := _nearby_rescue_npc(grid_manager.world_to_grid(player.position))
 	if npc == null:
 		return false
+	if npc == _field_olorin:
+		if olorin:
+			olorin.show_field_tour(true)
+		return true
 	if npc.depot:
 		_send_satchel_home_at_depot(npc)
 		return true
@@ -6072,6 +6132,8 @@ func _on_all_enemies_defeated() -> void:
 	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
 	_clear_mark_zones()
+	_clear_flame_zones()
+	_sync_maintained_passives()
 	# Spell weapons: no element remap or pollination survives the wave, and
 	# unpicked berries wilt with it.
 	Card.active_element_remap = ""
@@ -6460,6 +6522,22 @@ func _on_player_mana_changed(current: float, max_mana: int) -> void:
 	if _mana_bar_label:
 		_mana_bar_label.text = "%d/%d" % [int(current), max_mana]
 	_update_mana_regen_indicator()
+
+func _on_player_carry_changed(load: int, capacity: int) -> void:
+	if _carry_bar:
+		_carry_bar.max_value = maxi(capacity, 1)
+		_carry_bar.value = mini(load, capacity)
+		var fill: StyleBoxFlat = _carry_bar.get_theme_stylebox("fill")
+		if fill:
+			fill.bg_color = Color(0.75, 0.2, 0.15) if load > capacity else Color(0.55, 0.4, 0.22)
+	if _carry_bar_label:
+		_carry_bar_label.text = "Carry %d/%d" % [load, capacity]
+
+## Capacity follows strength, so any stat change re-reads it.
+func _refresh_carry_bar() -> void:
+	var stats = player.get_stats() if player else null
+	if stats:
+		_on_player_carry_changed(stats.current_carry_load, stats.get_carry_capacity())
 
 func _on_player_armor_gained(_amount: int) -> void:
 	## Armour gained from any source — pop the overhead armour icon.
@@ -7279,6 +7357,7 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		player.resume_movement()
 func _process_maintained_card_effects() -> void:
 	## Process ongoing effects from maintained Power cards each tempo cycle.
+	_burn_flame_zones()
 	var maintained_result = deck_manager.process_maintained_cards()
 	var stats = player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
@@ -7920,6 +7999,8 @@ func select_card(index: int) -> void:
 
 	# Show AOE indicator if applicable
 	var card = deck_manager.hand[selected_card_index]
+	if card.card_id == "peshtigos_kiss":
+		card.aoe_range = _peshtigo_radius()
 	if card.is_aoe and aoe_indicator:
 		aoe_indicator.update_indicator(card.aoe_shape, card.aoe_range)
 		# Only a circle that lands where you click sits at the cursor. Lines
@@ -9664,6 +9745,183 @@ func _territorial_mark_cells(from_cell: Vector2i, to_cell: Vector2i) -> Array:
 				cells.append(Vector2i(x, y))
 	return cells
 
+# ---- Peshtigo's Kiss: the flames ------------------------------------------
+
+## Radius of the flames: the sheet's diameter is INT / 8 rounded down, never
+## smaller than the tile the spell lands on.
+func _peshtigo_radius() -> float:
+	var stats = player.get_stats() if player else null
+	var diameter: int = int(stats.intelligence / 8) if stats else 1
+	return maxf(0.5, diameter / 2.0)
+
+func _flame_cells(center: Vector2i) -> Array:
+	var radius := _peshtigo_radius()
+	var reach := int(ceil(radius))
+	var cells: Array = []
+	for dx in range(-reach, reach + 1):
+		for dz in range(-reach, reach + 1):
+			if Vector2(dx, dz).length() <= radius + 0.001:
+				cells.append(center + Vector2i(dx, dz))
+	return cells
+
+func _enemies_in_cells(cells: Array) -> Array:
+	var out: Array = []
+	for en in enemy_spawner.get_living_enemies():
+		if grid_manager.world_to_grid(en.position) in cells:
+			out.append(en)
+	return out
+
+## Ask whether to keep the flames burning. Yes maintains the card (its mana
+## stays reserved, the flames stay lit); No lets them go out at once.
+func _offer_to_maintain(card: Card, cells: Array) -> void:
+	_close_maintain_prompt()
+	if not deck_manager.can_maintain(card):
+		add_battle_log("Not enough free mana to keep the flames burning.", Color(1.0, 0.6, 0.3))
+		return
+	_maintain_prompt = CanvasLayer.new()
+	_maintain_prompt.layer = 20
+	add_child(_maintain_prompt)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.07, 0.05, 0.96)
+	style.border_color = Color(1.0, 0.55, 0.2)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", style)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_maintain_prompt.add_child(panel)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+	var lbl := Label.new()
+	lbl.text = "Maintain %s? (reserves %d mana)" % [card.card_name, card.maintain_cost]
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(lbl)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	vbox.add_child(row)
+	var yes := Button.new()
+	yes.text = "Maintain"
+	yes.custom_minimum_size = Vector2(110, 32)
+	yes.pressed.connect(func():
+		_close_maintain_prompt()
+		# Light the flames first: maintaining re-syncs the maintained pile,
+		# and a maintained Peshtigo with nothing burning is dismissed.
+		_create_flame_zone(cells, card)
+		if deck_manager.maintain_card(card):
+			add_battle_log("The flames keep burning.", Color(1.0, 0.55, 0.2))
+		else:
+			_sync_maintained_passives()
+	)
+	row.add_child(yes)
+	var no := Button.new()
+	no.text = "Let it go out"
+	no.custom_minimum_size = Vector2(110, 32)
+	no.pressed.connect(func():
+		_close_maintain_prompt()
+	)
+	row.add_child(no)
+
+func _close_maintain_prompt() -> void:
+	if _maintain_prompt and is_instance_valid(_maintain_prompt):
+		_maintain_prompt.queue_free()
+	_maintain_prompt = null
+
+func _create_flame_zone(cells: Array, card: Card) -> void:
+	var nodes: Array = []
+	for c in cells:
+		var n := _make_flame_visual(grid_manager.grid_to_world(c))
+		add_child(n)
+		nodes.append(n)
+	_flame_zones.append({"cells": cells, "card": card, "nodes": nodes})
+
+## A burning tile: a translucent ember disc.
+func _make_flame_visual(world_pos: Vector3) -> Node3D:
+	var node := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.4
+	mesh.bottom_radius = 0.46
+	mesh.height = 0.1
+	node.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.45, 0.1, 0.45)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.35, 0.05)
+	mat.emission_energy_multiplier = 0.9
+	node.material_override = mat
+	node.position = Vector3(world_pos.x, 0.06, world_pos.z)
+	return node
+
+func _clear_flame_zones() -> void:
+	for z in _flame_zones:
+		for n in z["nodes"]:
+			if is_instance_valid(n):
+				n.queue_free()
+	_flame_zones.clear()
+
+## Every cycle: enemies standing in maintained flames take half the spell's
+## damage (10 + 5 per enemy in them, through the spell pipeline).
+func _burn_flame_zones() -> void:
+	if _flame_zones.is_empty():
+		return
+	var stats = player.get_stats()
+	for z in _flame_zones:
+		var hit := _enemies_in_cells(z["cells"])
+		if hit.is_empty():
+			continue
+		var full: int = (stats.get_effective_spell_damage(10) if stats else 10) + 5 * hit.size()
+		var half: int = maxi(1, full / 2)
+		for en in hit:
+			en.take_damage(half, true)
+		add_battle_log("The flames burn %d enemies for %d" % [hit.size(), half], Color(1.0, 0.5, 0.2))
+
+## Re-read the maintained pile: Barbed Exterior's thorns and Forever
+## Armor's cap exist only while their cards are maintained, and Peshtigo's
+## flames go out when their card leaves the pile.
+func _sync_maintained_passives() -> void:
+	var stats = player.get_stats() if player else null
+	if stats == null:
+		return
+	var barbed := false
+	var forever := false
+	for c in deck_manager.maintained_cards:
+		if c.card_id == "barbed_exterior":
+			barbed = true
+		elif c.card_id == "forever_armor":
+			forever = true
+	stats.maintained_thorns = 5 if barbed else 0
+	stats.set_maintained_unerring_cap(6 if forever else 0)
+	var survivors: Array = []
+	for z in _flame_zones:
+		if deck_manager.maintained_cards.has(z["card"]):
+			survivors.append(z)
+		else:
+			for n in z["nodes"]:
+				if is_instance_valid(n):
+					n.queue_free()
+	_flame_zones = survivors
+	# A maintained Peshtigo with no flames (the level changed under it) is
+	# just reserved mana: let it go.
+	for i in range(deck_manager.maintained_cards.size() - 1, -1, -1):
+		var c: Card = deck_manager.maintained_cards[i]
+		if c.card_id == "peshtigos_kiss":
+			var lit := false
+			for z in _flame_zones:
+				if z["card"] == c:
+					lit = true
+			if not lit:
+				deck_manager.dismiss_maintained_card(i)
+				return  # dismiss re-syncs
+
 func _create_mark_zone(cells: Array, tempo: int) -> void:
 	var nodes: Array = []
 	for c in cells:
@@ -11134,6 +11392,21 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			add_battle_log("Fireball! %d damage + 3 burn to %d enemies" % [fb_dmg, fb_hit.size()], Color(1.0, 0.5, 0.2))
 			print("[MAIN] Fireball hit %d enemies for %d (+3 burn)" % [fb_hit.size(), fb_dmg])
 
+		"peshtigos_kiss":
+			# The floor around the point erupts: 10 (+5 per enemy in the
+			# flames) to each enemy in them. Then the player is asked whether
+			# to maintain the card; kept, the flames stay and burn each cycle.
+			var pk_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var pk_cells := _flame_cells(grid_manager.world_to_grid(pk_center))
+			var pk_hit := _enemies_in_cells(pk_cells)
+			var pk_dmg: int = card.last_damage_dealt + 5 * pk_hit.size()
+			for en in pk_hit:
+				en.take_damage(pk_dmg, true)
+			_apply_misery_spread(pk_hit)
+			add_battle_log("Peshtigo's Kiss! %d damage to %d enemies in the flames" % [pk_dmg, pk_hit.size()], Color(1.0, 0.45, 0.15))
+			print("[MAIN] Peshtigo's Kiss: %d enemies in %d flame tiles, %d damage each" % [pk_hit.size(), pk_cells.size(), pk_dmg])
+			_offer_to_maintain(card, pk_cells)
+
 		"crops":
 			# Shepherds Crook: 5 berry bushels at random open cells within 8
 			# squares. They last until an ally eats them; enemies trample past.
@@ -12273,10 +12546,18 @@ func _input(event: InputEvent) -> void:
 				_notify_movement_locked()
 				return
 
-			var spaces = grid_manager.get_distance_in_cells(player.position, mouse_pos)
-
+			# A move order walks the whole route to the clicked tile: the tempo
+			# it costs is the route's real length, not the straight-line
+			# distance, so a winding cave corridor or a detour round a tree
+			# never leaves the character stranded short of where they clicked.
+			var spaces := _route_length(mouse_pos)
 			if spaces == 0:
-				print("[INPUT] Already at that location")
+				if grid_manager.world_to_grid(mouse_pos) == grid_manager.world_to_grid(player.position):
+					print("[INPUT] Already at that location")
+				elif not player.get_debuff_manager().can_move():
+					add_battle_log("Cannot move — Stunned or Rooted!", Color(1.0, 0.4, 0.4))
+				else:
+					add_battle_log("No path there.", Color(1.0, 0.6, 0.3))
 			elif is_multiplayer and _p2_player:
 				# Co-op: always offer the dialog (even a single step) so the move can
 				# be locked in and executed together with the partner's.
@@ -12387,6 +12668,7 @@ func _setup_dungeon() -> void:
 	quest_manager.world_level = current_world_level
 	# Quest NPCs live in the world only while their quest needs them.
 	_place_quest_npcs()
+	_place_field_olorin()
 
 	# Setup minimap
 	minimap_tab_ui._setup_minimap()
@@ -12955,6 +13237,10 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 	match effect_id:
+		"composed_reaction":
+			# Composed Response: the overflow becomes a reaction card in hand.
+			deck_manager.add_card_to_hand(Card.create_composed_reaction())
+			add_battle_log("Composed Reaction readied.", Color(0.7, 0.85, 1.0))
 		"damage_all":
 			var enemies = enemy_spawner.get_living_enemies()
 			for enemy in enemies:
@@ -13841,6 +14127,18 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var triggered = deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		if card.card_id == "composed_reaction":
+			# The other half of the reaction: 5 damage to an enemy in melee range.
+			var cr_nearest: Enemy = null
+			var cr_best := INF
+			for e in enemy_spawner.get_enemies_in_radius(player.position, 1.5):
+				var d: float = (e.position - player.position).length()
+				if d < cr_best:
+					cr_best = d
+					cr_nearest = e
+			if cr_nearest:
+				cr_nearest.take_damage(card.damage, true)
+				add_battle_log("Composed Reaction: +%d armor, %d damage to %s" % [card.block, card.damage, cr_nearest.enemy_name], Color(0.7, 0.85, 1.0))
 	# Tight Rope: fires only on the hit that dropped the player below 20% health.
 	var tr_stats = player.get_stats()
 	if tr_stats and tr_stats.max_health > 0:
@@ -14494,7 +14792,7 @@ func _update_loot_hover() -> void:
 			_loot_tooltip.visible = false
 		return
 	_ensure_loot_tooltip()
-	_loot_tooltip_label.text = "Loot (walk over: gold is yours, the rest you choose)\n" + _loot_summary(hovered["loot"])
+	_loot_tooltip_label.text = "Loot\n" + _loot_summary(hovered["loot"])
 	_loot_tooltip.visible = true
 	# Beside the cursor, kept on screen
 	var mouse_pos = get_viewport().get_mouse_position()
