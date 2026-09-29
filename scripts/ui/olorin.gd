@@ -54,16 +54,101 @@ func show_tutorial(tutorial_id: String, title: String, paragraphs: Array, force:
 	return true
 
 # ----- Specific tutorial beats -------------------------------------------------
+#
+# Every lesson's text lives in LESSONS so the Tutorials tab can list them
+# all, seen or not, broken down beat by beat exactly as Olorin speaks them.
 
-func show_combat_intro() -> void:
-	show_tutorial(
-		"combat_intro",
-		"Olorin's Counsel",
-		[
+const LESSONS := [
+	{"id": "field_tour", "title": "The Road Out — Olorin reads the screen", "beats": [
+		{"title": "The Road Out", "paragraphs": [
+			"\"Ah — there you are. I felt you cross the gate before I saw you; the grass leans toward a traveller the way a dog leans toward its master.\"",
+			"\"Before you go further, let me show you how this world keeps time, and how to read what your eyes are given.\"",
+		]},
+		{"title": "Tempo", "paragraphs": [
+			"\"Nothing here waits its turn. The world runs on TEMPO — a clock that moves only when you act. Every card you play, every tile you walk, every breath you wait spends some, and as it passes your foes take their own steps.\"",
+			"\"This counter is your action ticking down. A card's ticks glow green; the gold mark is the moment it lands. Until it lands you are committed — no walking off mid-swing.\"",
+			"\"The arrows beside it set how fast the ticks run, the stop sign holds everything, and the small arrow opens your queue, where an action whose tempo has not yet begun can still be called back.\"",
+		]},
+		{"title": "Your Measure", "paragraphs": [
+			"\"To the left, your measure. Red is your health. The grey sliver under it is unerring armor — the shell some gear regrows on its own — and the shield beside them counts the armor you raise yourself.\"",
+			"\"Blue is mana, the well your cards drink from. It refills a little every five tempo; the drop counts down to the next.\"",
+			"\"Brown is what you carry against what your strength can bear — overload it and it turns red. The thin gold line is experience, your level beside it. And the map fills in as you walk.\"",
+		]},
+		{"title": "The Journal", "paragraphs": [
+			"\"Top right. The figure opens your character — gear, stats, the cards you hold. The rising arrow is your level, and the points waiting to be spent. The scroll is your quest journal, the box your deck, and the question mark a book of everything I have ever told you, should your memory fail before mine does.\"",
+		]},
+		{"title": "Your Hands", "paragraphs": [
+			"\"Bottom left, what you can do without a card. The stack at the top is your draw pile — cards come to your hand on their own as tempo passes. The sword is a plain attack, five tempo of it; the raised hand waits a single tempo; the stop sign holds the world still.\"",
+			"\"And the shield you carry can be raised, for five tempo more.\"",
+		]},
+		{"title": "Flash", "paragraphs": [
+			"\"The bolt is FLASH — quickness of the body. One point for every point of Agility, refilled every three cycles.\"",
+			"\"The boots make each step spend flash instead of tempo, three a tile. The crouching figure buys a sidestep for a little block — or, with a hand free, a quick cut at the nearest foe. The crossed daggers hurry your next attack along, five points a tick.\"",
+		]},
+		{"title": "Brain", "paragraphs": [
+			"\"The brain is Wisdom's pool — a point for every point of Wisdom, refilled every five cycles. The eye shows you the next card of your draw pile; the card with the plus draws one outright.\"",
+			"\"Each use in a window costs more than the last, so spend them with intent.\"",
+		]},
+		{"title": "The Road Out", "paragraphs": [
+			"\"That is the reading of it. I will keep to the portal a while, should you want it told again.\"",
+			"\"Now go. The grass has been restless for days, and I would know why.\"",
+		]},
+	]},
+	{"id": "combat_intro", "title": "Olorin's Counsel — the first battle", "beats": [
+		{"title": "Olorin's Counsel", "paragraphs": [
 			"\"Steady now. Battle here flows on tempo — every move, every card spends it, and your foes act as it passes.\"",
 			"\"Play cards from your hand, mind your mana, and use the ground to your advantage. I will be near when there is more to learn.\"",
-		]
-	)
+		]},
+	]},
+	{"id": "item_levels_intro", "title": "A Rare Find — the first mythic", "beats": [
+		{"title": "A Rare Find", "paragraphs": [
+			"\"Hold a moment — do you see what that rat was carrying? That glow... a MYTHIC. Rarest of all that falls, and I have never known one to fall so early.\"",
+			"\"Take it up, and mind it well. We will speak of it when you are next in town.\"",
+		]},
+	]},
+	{"id": "doughnut_keep", "title": "A Rare Find — keeping the doughnut", "speaker": "You", "beats": [
+		{"title": "A Rare Find", "paragraphs": [
+			"\"I do not think I can wield this...\"",
+			"\"I'll keep it, and show Olorin what I have found.\"",
+			"New quest: A Mythic Find — show the Bladed Doughnut to Olorin in town.",
+		]},
+	]},
+	{"id": "mythic_lesson", "title": "The Bladed Doughnut — rarities, the forge and mythics", "beats": [
+		{"title": "The Bladed Doughnut", "paragraphs": [
+			"\"So it is true — a MYTHIC, from the first rat you ever felled. Let me see it... a Bladed Doughnut. Sit; there is much to know about such things.\"",
+			"\"Items come in five rarities: Basic, Common, Rare, Legendary, and — rarest of all — Mythic. Every item drops at level 1. Find more copies of the SAME item, and the Blacksmith in town will forge them together to raise its level.\"",
+			"\"Basic, Common, and Rare items climb only in STATS, and cap at level 2. The forge asks three spare copies — four found in all — and every stat the item offers grows.\"",
+			"\"Legendary and Mythic items reach level 3, and most carry a SKILL baked into them. One spare copy forges level 2 — a pure stat boost. Two more — four found in all — forge level 3, where the skill transforms into its true, build-defining form. This doughnut conjures a Sprinkle on every kill; at level 3 the Sprinkle becomes a bomb.\"",
+			"\"But hear me: you will not be able to equip this for quite some time. A mythic answers only to a seasoned hand — level fifteen at the least, and every fifteen levels after lets you bear one more.\"",
+			"\"So take it to the Blacksmith. He can meld it down for you into a Mythic Piece. Two such pieces make a Mythic Mold, and a mold recreates any mythic you have ever owned — on the day you are ready to wield it. Nothing mythic is ever wasted, in the right hands.\"",
+		]},
+	]},
+	{"id": "mythic_find_farewell", "title": "A Mentor's Gift — card slots and item cards", "beats": [
+		{"title": "A Mentor's Gift", "paragraphs": [
+			"\"Melded down, and the piece kept safe? Good. When a second joins it, the Blacksmith will pour you a mold — and that doughnut can come back to you the day you can wield it.\"",
+			"\"A lesson deserves a fee, and a mentor is no thief — so take this Wooden Sword. No stats to speak of; its worth is in the teaching.\"",
+			"\"See the CARD SLOT carved into it? Items can hold cards — the Blacksmith will enchant one in for you. A slotted card gains the item's ON-SELF bonus. This sword's reads 'attacks deal +1 damage', so any attack card slotted into it strikes 1 harder.\"",
+			"\"Some items also PROVIDE cards outright. While the sword is equipped, its card Splinter joins your deck — 20 mana, 2 tempo, range 3, and it leaves a Bleed that wounds the enemy for every tile it moves. Unequip the sword, and Splinter leaves with it.\"",
+			"\"Good luck with your adventures, sir.\"",
+		]},
+	]},
+]
+
+## One lesson's paragraphs (a single-beat lesson) by id.
+static func lesson_paragraphs(id: String, beat: int = 0) -> Array:
+	for l in LESSONS:
+		if l["id"] == id:
+			return l["beats"][beat]["paragraphs"]
+	return []
+
+static func lesson_title(id: String, beat: int = 0) -> String:
+	for l in LESSONS:
+		if l["id"] == id:
+			return l["beats"][beat]["title"]
+	return ""
+
+func show_combat_intro() -> void:
+	show_tutorial("combat_intro", lesson_title("combat_intro"), lesson_paragraphs("combat_intro"))
 
 # ----- First-room tutorial (the Bladed Doughnut) --------------------------------
 #
@@ -76,29 +161,13 @@ func show_combat_intro() -> void:
 ## Beat 1 — the first rat drops a mythic; Olorin points it out and asks the
 ## player to bring it to him.
 func show_item_levels_intro() -> void:
-	show_tutorial(
-		"item_levels_intro",
-		"A Rare Find",
-		[
-			"\"Hold a moment — do you see what that rat was carrying? That glow... a MYTHIC. Rarest of all that falls, and I have never known one to fall so early.\"",
-			"\"Take it up, and mind it well. We will speak of it when you are next in town.\"",
-		]
-	)
+	show_tutorial("item_levels_intro", lesson_title("item_levels_intro"), lesson_paragraphs("item_levels_intro"))
 
 ## Beat 2 — the player claims the doughnut and thinks better of wielding it.
 ## Spoken in the character's own voice; main opens the quest alongside it.
 func show_doughnut_keep_thought(character_name: String) -> void:
-	show_tutorial(
-		"doughnut_keep",
-		"A Rare Find",
-		[
-			"\"I do not think I can wield this...\"",
-			"\"I'll keep it, and show Olorin what I have found.\"",
-			"New quest: A Mythic Find — show the Bladed Doughnut to Olorin in town.",
-		],
-		false,
-		character_name if character_name != "" else "You"
-	)
+	show_tutorial("doughnut_keep", lesson_title("doughnut_keep"), lesson_paragraphs("doughnut_keep"),
+		false, character_name if character_name != "" else "You")
 
 ## Beat 3 — in town, the doughnut in hand: Olorin's lesson on rarities, the
 ## forge, mythic levels and skills, and why it must go to the Blacksmith.
@@ -106,19 +175,8 @@ func show_mythic_lesson() -> void:
 	if _active or has_seen("mythic_lesson"):
 		return
 	_mark_seen("mythic_lesson")
-	_build_dialog(
-		"The Bladed Doughnut",
-		[
-			"\"So it is true — a MYTHIC, from the first rat you ever felled. Let me see it... a Bladed Doughnut. Sit; there is much to know about such things.\"",
-			"\"Items come in five rarities: Basic, Common, Rare, Legendary, and — rarest of all — Mythic. Every item drops at level 1. Find more copies of the SAME item, and the Blacksmith in town will forge them together to raise its level.\"",
-			"\"Basic, Common, and Rare items climb only in STATS, and cap at level 2. The forge asks three spare copies — four found in all — and every stat the item offers grows.\"",
-			"\"Legendary and Mythic items reach level 3, and most carry a SKILL baked into them. One spare copy forges level 2 — a pure stat boost. Two more — four found in all — forge level 3, where the skill transforms into its true, build-defining form. This doughnut conjures a Sprinkle on every kill; at level 3 the Sprinkle becomes a bomb.\"",
-			"\"But hear me: you will not be able to equip this for quite some time. A mythic answers only to a seasoned hand — level fifteen at the least, and every fifteen levels after lets you bear one more.\"",
-			"\"So take it to the Blacksmith. He can meld it down for you into a Mythic Piece. Two such pieces make a Mythic Mold, and a mold recreates any mythic you have ever owned — on the day you are ready to wield it. Nothing mythic is ever wasted, in the right hands.\"",
-		],
-		DoughnutIcon.new(),
-		1  # the doughnut, held up to the light
-	)
+	_build_dialog(lesson_title("mythic_lesson"), lesson_paragraphs("mythic_lesson"),
+		DoughnutIcon.new(), 1)  # the doughnut, held up to the light
 
 ## Beat 4 — the quest is turned in: Olorin pays for the lesson with the
 ## Wooden Sword (card slots, on-self bonuses, and item-granted cards).
@@ -126,16 +184,7 @@ func show_mythic_find_farewell() -> void:
 	if _active or has_seen("mythic_find_farewell"):
 		return
 	_mark_seen("mythic_find_farewell")
-	_build_dialog(
-		"A Mentor's Gift",
-		[
-			"\"Melded down, and the piece kept safe? Good. When a second joins it, the Blacksmith will pour you a mold — and that doughnut can come back to you the day you can wield it.\"",
-			"\"A lesson deserves a fee, and a mentor is no thief — so take this Wooden Sword. No stats to speak of; its worth is in the teaching.\"",
-			"\"See the CARD SLOT carved into it? Items can hold cards — the Blacksmith will enchant one in for you. A slotted card gains the item's ON-SELF bonus. This sword's reads 'attacks deal +1 damage', so any attack card slotted into it strikes 1 harder.\"",
-			"\"Some items also PROVIDE cards outright. While the sword is equipped, its card Splinter joins your deck — 20 mana, 2 tempo, range 3, and it leaves a Bleed that wounds the enemy for every tile it moves. Unequip the sword, and Splinter leaves with it.\"",
-			"\"Good luck with your adventures, sir.\"",
-		]
-	)
+	_build_dialog(lesson_title("mythic_find_farewell"), lesson_paragraphs("mythic_find_farewell"))
 
 func is_busy() -> bool:
 	return _active
@@ -182,41 +231,17 @@ func show_field_tour(force: bool = false) -> bool:
 		var br = m._action_vbox.get_node_or_null("BrainRow")
 		if br:
 			brain_row.append(br)
-	var hands_text := "\"Bottom left, what you can do without a card. The stack at the top is your draw pile — cards come to your hand on their own as tempo passes. The sword is a plain attack, five tempo of it; the raised hand waits a single tempo; the stop sign holds the world still.\""
-	if "_block_button" in m and m._block_button and m._block_button.visible:
-		hands_text += " \"And the shield you carry can be raised, for five tempo more.\""
-	var steps: Array = [
-		{"title": "The Road Out", "focus": [], "paragraphs": [
-			"\"Ah — there you are. I felt you cross the gate before I saw you; the grass leans toward a traveller the way a dog leans toward its master.\"",
-			"\"Before you go further, let me show you how this world keeps time, and how to read what your eyes are given.\"",
-		]},
-		{"title": "Tempo", "focus": counter, "paragraphs": [
-			"\"Nothing here waits its turn. The world runs on TEMPO — a clock that moves only when you act. Every card you play, every tile you walk, every breath you wait spends some, and as it passes your foes take their own steps.\"",
-			"\"This counter is your action ticking down. A card's ticks glow green; the gold mark is the moment it lands. Until it lands you are committed — no walking off mid-swing.\"",
-			"\"The arrows beside it set how fast the ticks run, the stop sign holds everything, and the small arrow opens your queue, where an action whose tempo has not yet begun can still be called back.\"",
-		]},
-		{"title": "Your Measure", "focus": bars, "paragraphs": [
-			"\"To the left, your measure. Red is your health. The grey sliver under it is unerring armor — the shell some gear regrows on its own — and the shield beside them counts the armor you raise yourself.\"",
-			"\"Blue is mana, the well your cards drink from. It refills a little every five tempo; the drop counts down to the next.\"",
-			"\"Brown is what you carry against what your strength can bear — overload it and it turns red. The thin gold line is experience, your level beside it. And the map fills in as you walk.\"",
-		]},
-		{"title": "The Journal", "focus": icons, "paragraphs": [
-			"\"Top right. The figure opens your character — gear, stats, the cards you hold. The rising arrow is your level, and the points waiting to be spent. The scroll is your quest journal, the box your deck, and the question mark a book of everything I have ever told you, should your memory fail before mine does.\"",
-		]},
-		{"title": "Your Hands", "focus": column, "paragraphs": [hands_text]},
-		{"title": "Flash", "focus": flash_row, "paragraphs": [
-			"\"The bolt is FLASH — quickness of the body. One point for every point of Agility, refilled every three cycles.\"",
-			"\"The boots make each step spend flash instead of tempo, three a tile. The crouching figure buys a sidestep for a little block — or, with a hand free, a quick cut at the nearest foe. The crossed daggers hurry your next attack along, five points a tick.\"",
-		]},
-		{"title": "Brain", "focus": brain_row, "paragraphs": [
-			"\"The brain is Wisdom's pool — a point for every point of Wisdom, refilled every five cycles. The eye shows you the next card of your draw pile; the card with the plus draws one outright.\"",
-			"\"Each use in a window costs more than the last, so spend them with intent.\"",
-		]},
-		{"title": "The Road Out", "focus": [], "paragraphs": [
-			"\"That is the reading of it. I will keep to the portal a while, should you want it told again.\"",
-			"\"Now go. The grass has been restless for days, and I would know why.\"",
-		]},
-	]
+	var focus_by_beat: Array = [[], counter, bars, icons, column, flash_row, brain_row, []]
+	var steps: Array = []
+	var beats: Array = LESSONS[0]["beats"]
+	for i in range(beats.size()):
+		var paragraphs: Array = beats[i]["paragraphs"].duplicate()
+		if beats[i]["title"] == "Your Hands":
+			# The shield line only when a shield is actually carried.
+			var has_shield: bool = "_block_button" in m and m._block_button and m._block_button.visible
+			if not has_shield:
+				paragraphs.resize(1)
+		steps.append({"title": beats[i]["title"], "focus": focus_by_beat[i], "paragraphs": paragraphs})
 	return show_tour(FIELD_TOUR_ID, steps, force)
 
 ## A guided tour: several beats, each lighting the Controls in its `focus`

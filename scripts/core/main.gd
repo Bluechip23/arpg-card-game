@@ -132,7 +132,8 @@ const MINIMAP_PIXEL_SCALE: int = 4
 # Tab menu (quest log / map)
 var _tab_menu_panel: PanelContainer = null
 var _tab_menu_visible: bool = false
-var _tab_menu_current_tab: int = 0  # 0=map, 1=quest log, 2=card inventory
+var _tab_menu_current_tab: int = 0  # 0=map, 1=quest log, 2=card inventory, 3=tutorials
+var _tab_tutorials_container: VBoxContainer = null
 var _tab_quest_container: VBoxContainer = null
 var _tab_map_container: VBoxContainer = null
 var _tab_map_texture_rect: TextureRect = null
@@ -3789,6 +3790,7 @@ func _on_ring_triggered_visual(_ring: ItemData, _effect: String, owner_player: P
 		owner_player.show_ring_trigger()
 
 func _on_equipment_changed() -> void:
+	_update_passive_display_ui()
 	_setup_gauntlet_skills_ui()
 	_update_block_button_visibility()
 	_update_attack_button_text()
@@ -3841,12 +3843,19 @@ func _update_passive_display_ui() -> void:
 	var stats = player.get_stats()
 	if not stats:
 		return
-	# Rebuild when the set of active passives changes (allocation, save load);
-	# otherwise just refresh each box's cooldown state.
+	# Rebuild when the set of active passives changes (allocation, save
+	# load, a ring equipped); otherwise just refresh each box's state. Ring
+	# passives that build toward a proc (Heal Stone's "every 5 healing")
+	# sit in the same tray with their tally on the box.
+	var inv = player.get_inventory()
+	var ring_boxes: Array = inv.get_ring_counter_boxes() if inv else []
+	var wanted: Array = Array(stats.skill_tree_passives).duplicate()
+	for rb in ring_boxes:
+		wanted.append(rb["id"])
 	var built: Array = []
 	for child in passive_display_container.get_children():
 		built.append(child.passive_id)
-	if built != Array(stats.skill_tree_passives):
+	if built != wanted:
 		for child in passive_display_container.get_children():
 			passive_display_container.remove_child(child)
 			child.queue_free()
@@ -3855,9 +3864,26 @@ func _update_passive_display_ui() -> void:
 			var info: Dictionary = _get_passive_info(pid)
 			passive_display_container.add_child(box)
 			box.setup(pid, info.get("name", ""), info.get("description", ""), stats, tempo_manager)
+		for rb in ring_boxes:
+			var rbox := PassiveBoxUI.new()
+			passive_display_container.add_child(rbox)
+			var item = rb["item"]
+			var icon: Texture2D = null
+			if item and item.has_method("get_icon_texture"):
+				icon = item.get_icon_texture()
+			rbox.setup_counter(rb["id"], rb["name"], rb["description"],
+				_ring_counter_provider.bind(item, rb["name"]), icon)
 	else:
 		for child in passive_display_container.get_children():
 			child.update_display()
+
+## The live tally for one ring's tray box.
+func _ring_counter_provider(item, ring_name: String) -> Dictionary:
+	if item == null or not Inventory.RING_COUNTER_RULES.has(ring_name):
+		return {"count": 0, "total": 0}
+	var rule: Dictionary = Inventory.RING_COUNTER_RULES[ring_name]
+	var raw = item.ring_counters.get(rule["key"], 0)
+	return {"count": raw.size() if raw is Dictionary else int(raw), "total": int(rule["total"])}
 
 ## Name/description lookup for a skill-tree passive, built once from every
 ## character's tree (ids are unique across characters, and the union keeps the
@@ -5774,6 +5800,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Skill-tree cooldowns and intervals with exact tempo values tick here too.
 	if progression_triggers:
 		progression_triggers._trigger_skill_tree_on_tempo(amount)
+	_update_passive_display_ui()
 	for tick_p in _all_players():
 		if not is_instance_valid(tick_p):
 			continue
@@ -6480,6 +6507,7 @@ func _on_turn_ended(turn_number: int) -> void:
 	update_deck_info()
 
 func _on_player_health_changed(current: int, max_hp: int) -> void:
+	_update_passive_display_ui()
 	if _hp_bar:
 		_hp_bar.max_value = max_hp
 		_hp_bar.value = current

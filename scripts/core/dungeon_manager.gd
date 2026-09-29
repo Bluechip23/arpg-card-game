@@ -657,7 +657,9 @@ static func make_waypoint_totem(tint: Color, scale: float = 0.5) -> Sprite3D:
 	totem.offset = Vector2(-48, 0)  # 96px frames, feet on the origin
 	totem.modulate = tint
 	totem.scale = Vector3(scale, scale, scale)
-	totem.position = Vector3(0, WAYPOINT_MOUND_HEIGHT + CameraView.SPRITE_LIFT, 0)
+	# A hair under the figures' lift: on the same tile a character draws in
+	# front of the totem instead of vanishing behind it.
+	totem.position = Vector3(0, CameraView.SPRITE_LIFT - 0.01, 0)
 	return totem
 
 
@@ -1903,15 +1905,9 @@ func cliff_face_rows() -> int:
 	return 2
 
 
-## The plateau top of a wall mass: the ground sheet whose colour the pack's
-## cliff lip is drawn against.
+## The top of a wall mass: the pack's cliff rock (shaded in _make_wall_atlas).
 func cap_texture_path() -> String:
-	match interior_kind:
-		"sewer", "cave":
-			return CP_TEX + "/floor_cave.png"  # solid dark rock
-	if world_level == 2:
-		return CP_TEX + "/floor_desert_sand.png"  # the sandstone ledge wears a sand top
-	return floor_texture_path()
+	return wall_texture_path()
 
 
 func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
@@ -1922,10 +1918,12 @@ func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
 	var img := Image.create(n * WALL_ATLAS_CELLS, n, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	var underground := _sheet_image(floor_texture_path())
+	# The cap is the pack's cliff rock, shaded down: a wall mass has to read
+	# as solid from above, and a ground-coloured cap left thin walls looking
+	# like floor the player could not step onto.
 	var cap := _sheet_image(cap_texture_path())
 	var is_rock := interior_kind == "cave" or interior_kind == "sewer"
-	if not is_rock:
-		cap.adjust_bcs(1.1, 1.0, 1.0)  # sun-lit like raised ground
+	cap.adjust_bcs(0.55 if is_rock else 0.72, 1.0, 0.85)
 	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
 	# Outline colours follow the pack art: a dark line the colour of the
 	# ground's own shadow, then a lit rim.
