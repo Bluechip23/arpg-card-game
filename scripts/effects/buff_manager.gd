@@ -304,7 +304,7 @@ func sync_flag_buffs() -> void:
 			exw = Buff.create_elixir(0, "Elixir")
 			apply_buff(exw)
 		exw.stacks = elixir_window
-		exw.description = "Poison applied to you heals you instead (%d tempo left)" % elixir_window
+		exw.description = "Your poison cards heal instead (%d tempo left)" % elixir_window
 	elif elixir_on:
 		var ex = get_buff(Buff.BuffType.ELIXIR)
 		if ex == null:

@@ -22,9 +22,8 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 	debuffs.clear()
 
 func apply_debuff(debuff: Debuff) -> void:
-	# Elixir: while its window is open, poison applied to you heals instead.
-	if debuff.debuff_type == Debuff.DebuffType.POISON and owner_stats \
-			and "elixir_tempo" in owner_stats and owner_stats.elixir_tempo > 0:
+	# Elixir: poison from a card played under Elixir heals instead.
+	if debuff.debuff_type == Debuff.DebuffType.POISON and Card.elixir_poison_heals and owner_stats:
 		var ex_heal: int = maxi(1, debuff.value)
 		owner_stats.heal(ex_heal)
 		print("[DEBUFF] Elixir: %d poison became %d healing" % [debuff.value, ex_heal])

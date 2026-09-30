@@ -7693,6 +7693,16 @@ func _process_enchantment_cycles() -> void:
 ## Healthy Bliss's payload: heal ALL allies — every party member, not just
 ## the card holder (also what Lethal Recall replays).
 func _healthy_bliss_heal(card: Card) -> void:
+	# Poisoned Blood turns this heal card's sweep into damage too.
+	var hb_bm = player.get_buff_manager()
+	var hb_poisoned: bool = hb_bm != null and hb_bm.has_poisoned_blood()
+	if hb_poisoned:
+		hb_bm.consume_poisoned_blood()
+		PlayerStats.heal_to_damage = true
+	_healthy_bliss_sweep(card)
+	PlayerStats.heal_to_damage = false
+
+func _healthy_bliss_sweep(card: Card) -> void:
 	var stats = player.get_stats()
 	var heal_amt = card.heal_amount
 	if stats:
@@ -7849,9 +7859,11 @@ func _harness_lightning_tick() -> void:
 		var hl_dmg: int = hl_stats.get_effective_spell_damage(4) if hl_stats else 4
 		in_range[randi() % in_range.size()].take_damage(hl_dmg, true)
 
-func _cryonics_heal(p) -> void:
+func _cryonics_heal(p, poisoned: bool = false) -> void:
 	if is_instance_valid(p) and p.get_stats():
+		PlayerStats.heal_to_damage = poisoned  # cast under Poisoned Blood: the thaw hurts
 		p.get_stats().heal(3)
+		PlayerStats.heal_to_damage = false
 
 func _cryonics_end(p) -> void:
 	if is_instance_valid(p):
@@ -12336,7 +12348,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if ice_dm:
 				ice_dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 15))
 			for cyc in range(1, 4):
-				schedule_delayed_effect(cyc * 5, _cryonics_heal.bind(ice_target), "cryonics")
+				schedule_delayed_effect(cyc * 5, _cryonics_heal.bind(ice_target, PlayerStats.heal_to_damage), "cryonics")
 			schedule_delayed_effect(15, _cryonics_end.bind(ice_target), "cryonics_end")
 			if is_multiplayer and _active_index == ice_idx and not _downed.get(1 - ice_idx, false):
 				_switch_active_player()
@@ -12634,10 +12646,15 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			print("[MAIN] Absorb Essence: dealt 1 damage to %d things. Energy Ball in 10 tempo (damage: %d)" % [absorb_total_damage, absorb_total_damage])
 
 		"communal_donation":
+			_donation_heal_to_damage = PlayerStats.heal_to_damage
 			_open_donation_panel()
 
 	# Premeditated: a card that targeted the exposed enemy but dealt it no
 	# damage still delivers the +15 it carried.
+	# Empower's mark is spent once the play (and this damage) has resolved.
+	card.draw_empowered = false
+	Card.elixir_poison_heals = false
+	PlayerStats.heal_to_damage = false
 	var pm_t = card.premeditated_target
 	card.premeditated_target = null
 	if pm_t != null and is_instance_valid(pm_t) and pm_t.bonus_damage_next_hit > 0 and not pm_t.is_dead:
@@ -14145,6 +14162,8 @@ func _setup_donation_panel() -> void:
 
 	_donation_panel.visible = false
 
+var _donation_heal_to_damage: bool = false  # Communal Donation was cast under Poisoned Blood
+
 func _get_ally_names() -> Array:
 	## Returns names of all living allies that can receive healing.
 	var names: Array = []
@@ -14268,7 +14287,8 @@ func _on_donation_confirmed() -> void:
 	add_battle_log("Communal Donation: sacrificed %d HP!" % self_damage, Color(1.0, 0.3, 0.3))
 	print("[MAIN] Communal Donation: player took %d self-damage" % self_damage)
 
-	# Distribute healing to allies
+	# Distribute healing to allies (as damage, if cast under Poisoned Blood)
+	PlayerStats.heal_to_damage = _donation_heal_to_damage
 	var total_healed = 0
 	for entry in _donation_ally_sliders:
 		var heal_amount = int(entry["slider"].value)
@@ -14289,6 +14309,8 @@ func _on_donation_confirmed() -> void:
 		total_healed += heal_amount
 		print("[MAIN] Communal Donation: healed %s for %d" % [ally_name, heal_amount])
 
+	PlayerStats.heal_to_damage = false
+	_donation_heal_to_damage = false
 	var wasted = self_damage - total_healed
 	if wasted > 0:
 		add_battle_log("Communal Donation: %d HP unallocated (wasted)" % wasted, Color(0.7, 0.7, 0.3))
@@ -14724,17 +14746,20 @@ func _on_player_damage_taken(_amount: int) -> void:
 		_refresh_unit_tracker()
 
 ## Cover: PlayerStats.incoming_mitigation_hook. Before a hit lands on any
-## ally (the player included), each defender within 2 squares holding Cover
+## ally (the player and summons included), each defender within 2 squares holding Cover
 ## fires it and soaks the hit by their hand size — Cover itself counted.
 ## Returns the total soaked; straight damage reduction, not a heal.
-func _cover_mitigation(victim_stats: PlayerStats, amount: int) -> int:
-	if amount <= 0 or victim_stats == null:
+func _cover_mitigation(victim_ref, amount: int) -> int:
+	if amount <= 0 or victim_ref == null:
 		return 0
 	var victim = null
-	for a in _all_allies():
-		if a.has_method("get_stats") and a.get_stats() == victim_stats:
-			victim = a
-			break
+	if victim_ref is PlayerStats:
+		for a in _all_allies():
+			if a.has_method("get_stats") and a.get_stats() == victim_ref:
+				victim = a
+				break
+	elif victim_ref is Node3D and victim_ref in _all_summons():
+		victim = victim_ref  # a summon: allies include NPCs and summons
 	if victim == null:
 		return 0
 	var soaked := 0

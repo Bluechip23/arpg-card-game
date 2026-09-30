@@ -125,6 +125,10 @@ func move_to_cell(cell: Vector2i) -> void:
 func take_damage(amount: int) -> void:
 	if is_dead or burrowed:
 		return  # Untargetable while burrowed
+	# Cover: a defender within 2 squares soaks the hit by their hand size.
+	amount = PlayerStats.apply_cover(self, amount)
+	if amount <= 0:
+		return
 	health -= amount
 	_update_health_label()
 	if health <= 0:

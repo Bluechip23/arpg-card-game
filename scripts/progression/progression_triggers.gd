@@ -672,7 +672,7 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		var is_poison_outcome = "poison" in card.card_id
 
 		# Poisoned Blood flips heal → poison outcome (regen = poison)
-		if buff_mgr and buff_mgr.has_poisoned_blood() and card.heal_amount > 0:
+		if PlayerStats.heal_to_damage and card.is_heal_card():
 			is_heal_outcome = false
 			is_poison_outcome = true
 

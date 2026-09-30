@@ -39,7 +39,7 @@ func _run() -> void:
 
 	print("-- Factory numbers --")
 	var blk := Card.create_block()
-	_check(blk.block == 5 and blk.mana_cost == 10 and blk.tempo_cost == 2, "Block: 5 armor for 1 mana, 2 tempo")
+	_check(blk.block == 8 and blk.mana_cost == 20 and blk.tempo_cost == 2, "Block: 8 armor for 2 mana, 2 tempo")
 	var roar := Card.create_roar()
 	_check(roar.mana_cost == 20 and roar.tempo_cost == 0 and is_equal_approx(roar.aoe_range, 3.5), "Roar: 2 mana, 0 tempo, within 3 squares")
 	_check(Card.create_armored_discipline().maintain_cost == 50, "Armored Discipline holds 5M")
@@ -78,6 +78,38 @@ func _run() -> void:
 	_check(covered == maxi(0, plain - 3), "Cover soaks the hand size, itself included (%d -> %d)" % [plain, covered])
 	_check(not dm.hand.has(cover) and dm.discard_pile.has(cover), "Cover fires and is discarded")
 	dm.hand.clear()
+
+	print("-- Cover protects summons too --")
+	dm.hand.clear()
+	var sum_cover := Card.create_cover()
+	dm.hand.append(sum_cover)
+	dm.hand.append(Card.create_draw())
+	main._spawn_summon(20, main.player.position, "skeleton")
+	var sk = main._skeletons.back() if main._skeletons.size() > 0 else null
+	if sk:
+		var sk_hp: int = sk.health
+		sk.take_damage(5)
+		_check(sk.health == sk_hp - 3, "a summon beside you takes 5 - 2 (hand size) = 3 (%d)" % (sk_hp - sk.health))
+	else:
+		_check(false, "could not spawn a skeleton to test Cover on summons")
+	dm.hand.clear()
+
+	print("-- Poisoned Blood turns every heal card into damage --")
+	stats.max_health = maxi(stats.max_health, 100)
+	stats.current_health = 50
+	stats.current_armor = 0
+	bm.apply_buff(Buff.create_poisoned_blood(5, "Test"))
+	Card.create_the_lights_favor().execute(main.player, stats, dm, 0.0, 0.0, bm)
+	_check(stats.current_health < 50, "The Light's Favor (not a routed heal) hurts under Poisoned Blood (%d)" % stats.current_health)
+	stats.current_health = 50
+	Card.create_biscuit().execute(null, stats, dm, 0.0, 0.0, bm)
+	_check(stats.current_health < 50, "Biscuit's full heal lands as damage (%d)" % stats.current_health)
+	PlayerStats.heal_to_damage = false
+	bm.remove_buff(Buff.BuffType.POISONED_BLOOD)
+	stats.current_health = 50
+	Card.create_healing_potion().execute(null, stats, dm, 0.0, 0.0, bm)
+	_check(stats.current_health > 50, "with it gone, heals heal again")
+	stats.current_health = stats.max_health
 
 	print("-- Timed Stagger / Slow --")
 	dbm.clear_all_debuffs()
@@ -118,14 +150,31 @@ func _run() -> void:
 	stats.empowered_cards_remaining = 0
 	dm.hand.clear()
 
-	print("-- Elixir --")
-	stats.current_health = maxi(1, stats.max_health - 20)
-	var hp_e: int = stats.current_health
+	print("-- Elixir: your poison cards heal instead --")
 	Card.create_elixir().execute(null, stats, dm, 0.0, 0.0, bm)
-	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 3, 15))
-	_check(not dbm.has_debuff(Debuff.DebuffType.POISON) and stats.current_health > hp_e,
-		"poison applied during Elixir heals instead")
+	if dummy:
+		dummy.poison_stacks = 0
+		dummy.current_health = maxi(1, dummy.max_health - 40)
+		var dhp: int = dummy.current_health
+		Card.create_by_id("hemotoxins").execute(dummy, stats, dm, 0.0, 0.0, bm)
+		_check(dummy.poison_stacks == 0 and dummy.current_health > dhp, "a poison card under Elixir heals its target")
+	Card.elixir_poison_heals = false
 	stats.elixir_tempo = 0
+	if dummy:
+		Card.create_by_id("hemotoxins").execute(dummy, stats, dm, 0.0, 0.0, bm)
+		_check(dummy.poison_stacks > 0, "without Elixir it poisons again")
+		dummy.poison_stacks = 0
+
+	print("-- Empower reaches hard-coded attacks --")
+	var trip_plain := Card.create_trip()
+	trip_plain.execute(dummy, stats, dm, 0.0, 0.0, null)
+	var trip_emp := Card.create_trip()
+	trip_emp.draw_empowered = true
+	trip_emp.execute(dummy, stats, dm, 0.0, 0.0, null)
+	_check(trip_emp.last_damage_dealt >= trip_plain.last_damage_dealt + 3, "Trip gains Empower's +3 (%d vs %d)" % [trip_emp.last_damage_dealt, trip_plain.last_damage_dealt])
+	_check(trip_emp.bonus_damage == 0, "the +3 does not stick to the card")
+	if dummy:
+		dummy.tripped_tempo = 0
 
 	print("-- Parry: 10% physical, one attack --")
 	bm.remove_buff(Buff.BuffType.BRACE)

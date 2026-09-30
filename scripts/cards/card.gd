@@ -613,6 +613,10 @@ static var _factory_map: Dictionary = {}  # card_id -> factory method name
 # Shock/Poison it lands on an enemy is swapped to this element's debuff
 # ("" = off). Main sets it around the play; Enemy.apply_debuff reads it.
 static var active_element_remap: String = ""
+# Elixir: while the playing character's Elixir is up, the poison this play
+# would apply heals its target instead. Set by execute() for every play;
+# main clears it once the play's world effects resolve.
+static var elixir_poison_heals: bool = false
 # Element Pollination (Elemental Weaver maintain): recomputed by main every
 # tempo tick off the maintained pile; enemies read it during debuff ticking.
 static var element_pollination_active: bool = false
@@ -1253,6 +1257,35 @@ func get_effect_draw_count() -> int:
 
 
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+	# Empower: an attack drawn under Empower carries +3 into bonus_damage for
+	# the whole resolution, so every damage path (hard-coded ones like Trip
+	# included) picks it up. main reads draw_empowered for the damage it deals
+	# in world effects and clears the mark once they resolve.
+	Card.elixir_poison_heals = player_stats != null and player_stats.elixir_tempo > 0
+	# Poisoned Blood: a heal card spends one charge and every heal it performs
+	# becomes damage for this play.
+	PlayerStats.heal_to_damage = false
+	if is_heal_card() and buff_mgr and buff_mgr.has_poisoned_blood():
+		buff_mgr.consume_poisoned_blood()
+		PlayerStats.heal_to_damage = true
+		print("[CARD] Poisoned Blood: %s heals as damage" % card_name)
+	var empower_added := 0
+	if draw_empowered and card_type == CardType.ATTACK and player_stats:
+		empower_added = player_stats.empower_damage_bonus
+		bonus_damage += empower_added
+	_execute_card(target, player_stats, deck_manager, damage_reduction_pct, self_damage_percent, buff_mgr)
+	bonus_damage -= empower_added
+
+## Heal cards for Poisoned Blood: anything with a heal number, plus the
+## sheet cards whose healing is computed (Biscuit, Meditate, Hope This
+## Works, Down but not out, Release Tension, Communal Donation).
+const HEAL_CARD_IDS := ["biscuit", "meditate", "hope_this_works", "down_but_not_out",
+	"release_tension", "communal_donation"]
+
+func is_heal_card() -> bool:
+	return heal_amount > 0 or card_id in HEAL_CARD_IDS
+
+func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	last_damage_dealt = 0
 
 	# Premeditated: the first card to target an exposed-by-Premeditated enemy
@@ -1291,10 +1324,9 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		if randf() < player_stats.blind_miss_chance:
 			print("[CARD] %s missed — blinded!" % card_name)
 			return
-	# Empower marks the next attack cards DRAWN (DeckManager.draw_card); the
-	# mark pays out +3 damage when the card is played, then clears.
-	var is_empowered = draw_empowered and card_type == CardType.ATTACK
-	draw_empowered = false
+	# Empower's +3 already rides in bonus_damage (see execute); the executors'
+	# own is_empowered branch stays off so it is never counted twice.
+	var is_empowered = false
 	# Burgonet / Thick Steel: "+X armor on every armor-granting defense card".
 	# Armed here and spent by the first armor the card grants (PlayerStats.
 	# add_armor), so cards that add armor outside _execute_block get it too.
@@ -2725,25 +2757,18 @@ func _execute_blink(_player_node) -> void:
 	print("[CARD] Blinked!")
 
 func _execute_heal_with_poison_check(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# General healing logic: while Poisoned Blood is active the heal becomes
-	# damage on whoever it lands on — an enemy, an ally, or yourself —
-	# burning one Poisoned Blood charge per converted heal.
-	if buff_mgr and buff_mgr.has_poisoned_blood():
+	# Under Poisoned Blood (PlayerStats.heal_to_damage, armed in execute) a heal
+	# aimed at an enemy strikes it; on you or an ally, heal() itself turns the
+	# heal into damage.
+	if PlayerStats.heal_to_damage and target and target.has_method("take_damage") and not target.has_method("get_stats"):
 		var dmg = heal_amount
 		if player_stats:
 			dmg = player_stats.get_effective_heal_amount(heal_amount)
-		if target and target.has_method("take_damage") and not target.has_method("get_stats"):
-			target.take_damage(dmg, true)
-		elif target and target.has_method("get_stats") and target.get_stats():
-			target.get_stats().take_damage(dmg)
-		elif player_stats:
-			player_stats.take_damage(dmg)
-		buff_mgr.consume_poisoned_blood()
+		target.take_damage(dmg, true)
 		print("[CARD] Poisoned Blood: %s dealt %d damage!" % [card_name, dmg])
-	else:
-		if player_stats:
-			player_stats.heal(heal_amount)
-			print("[CARD] %s restored health!" % card_name)
+	elif player_stats:
+		player_stats.heal(heal_amount)
+		print("[CARD] %s restored health!" % card_name)
 
 func is_jailed() -> bool:
 	return jail_time_remaining > 0
@@ -2859,15 +2884,15 @@ static func create_block() -> Card:
 	var card = Card.new()
 	card.card_id = "block"
 	card.card_name = "Block"
-	card.description = "5 armor"
+	card.description = "8 armor"
 	card.card_type = CardType.DEFENSE
 	card.card_type_name = "Defense"
-	card.mana_cost = 10
+	card.mana_cost = 20
 	card.tempo_cost = 2  # Standard defense
 	card.damage = 0
 	card.base_damage = 0
-	card.block = 5
-	card.base_block = 5
+	card.block = 8
+	card.base_block = 8
 	card.heal_amount = 0
 	card.target_types = ["self"]
 	card.keywords = ["defense", "self"]
@@ -3276,8 +3301,11 @@ func _execute_risk_it(player_stats: PlayerStats, deck_manager = null) -> void:
 
 func _execute_biscuit(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if player_stats:
-		player_stats.current_health = player_stats.max_health
-		player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
+		if PlayerStats.heal_to_damage:
+			player_stats.heal(player_stats.max_health - player_stats.current_health)
+		else:
+			player_stats.current_health = player_stats.max_health
+			player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_strengthen(3, 3, "Biscuit"))
 	print("[CARD] Biscuit! Fully healed and +3 damage for 3 attacks")
@@ -3407,13 +3435,13 @@ func _execute_poisoned_blood(player_stats: PlayerStats, buff_mgr: BuffManager = 
 	print("[CARD] Poisoned Blood! Your next 5 heal cards deal damage instead")
 
 func _execute_elixir(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# For the next 25 tempo, any poison applied to you heals you instead.
+	# For the next 25 tempo, the poison your cards apply heals instead.
 	if player_stats:
 		player_stats.elixir_tempo = maxi(player_stats.elixir_tempo, PlayerStats.ELIXIR_TEMPO)
 	# Surface it as a visible active effect in the buff bar.
 	if buff_mgr:
 		buff_mgr.sync_flag_buffs()
-	print("[CARD] Elixir! Poison applied to you heals you for 25 tempo")
+	print("[CARD] Elixir! Your poison cards heal instead for 25 tempo")
 
 func _execute_shadows(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -3788,8 +3816,11 @@ func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
 	if player_stats:
 		var target_hp = floori(player_stats.max_health * 0.8)
 		if player_stats.current_health < target_hp:
-			player_stats.current_health = target_hp
-			player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
+			if PlayerStats.heal_to_damage:
+				player_stats.heal(target_hp - player_stats.current_health)
+			else:
+				player_stats.current_health = target_hp
+				player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
 	# Glut 5 (card.glut_tempo): no card plays for the next 5 tempo.
 	print("[CARD] Meditate! Hand refreshed, healed to 80%, Glut 5")
 
@@ -4254,7 +4285,7 @@ static func create_poisoned_blood() -> Card:
 	var card = Card.new()
 	card.card_id = "poisoned_blood"
 	card.card_name = "Poisoned Blood"
-	card.description = "Heal cards now apply damage instead for 5 instances (allies and yourself included)."
+	card.description = "Heal cards now apply damage instead for 5 instances (allies, summons and yourself included)."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
@@ -4267,7 +4298,7 @@ static func create_elixir() -> Card:
 	var card = Card.new()
 	card.card_id = "elixir"
 	card.card_name = "Elixir"
-	card.description = "Poison cards now heal instead: for 25 tempo, any poison applied to you heals you instead."
+	card.description = "Poison cards now heal instead: for 25 tempo, the poison your cards apply heals its target instead."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 10
@@ -5385,7 +5416,7 @@ static func create_cover() -> Card:
 	var card = Card.new()
 	card.card_id = "cover"
 	card.card_name = "Cover"
-	card.description = "Instant: When you or an ally within 2 spaces takes damage, reduce it by the number of cards in your hand (Cover included)."
+	card.description = "Instant: When you or an ally (summons included) within 2 spaces takes damage, reduce it by the number of cards in your hand (Cover included)."
 	card.card_type = CardType.REACTION
 	card.card_type_name = "Reaction"
 	card.mana_cost = 0

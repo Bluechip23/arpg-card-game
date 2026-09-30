@@ -35,6 +35,18 @@ var character_data: CharacterData
 ## character; invalid (no battle scene) means nothing is soaked.
 static var incoming_mitigation_hook: Callable = Callable()
 
+## What's left of `amount` after Cover — for PlayerStats and for summons
+## (their take_damage passes the summon node itself as the victim).
+## Poisoned Blood: while a heal card resolves under it, every heal that card
+## performs lands as damage instead (on you, allies and summons alike).
+## Card.execute sets it for the play; main clears it when the play resolves.
+static var heal_to_damage: bool = false
+
+static func apply_cover(victim, amount: int) -> int:
+	if amount <= 0 or not incoming_mitigation_hook.is_valid():
+		return amount
+	return maxi(0, amount - int(incoming_mitigation_hook.call(victim, amount)))
+
 # Friendship link: when set, this character shares heals with and splits incoming
 # damage 50/50 with the partner. Amounts are passed pre-modifier so each side
 # applies its own amplification/penalty. _friendship_echo guards against echo
@@ -1751,8 +1763,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 
 	# Cover: a defender within 2 squares (you included) soaks the hit by
 	# their hand size, before armor ever sees it.
-	if remaining > 0 and incoming_mitigation_hook.is_valid():
-		remaining = maxi(0, remaining - int(incoming_mitigation_hook.call(self, remaining)))
+	remaining = PlayerStats.apply_cover(self, remaining)
 
 	# Iron Bastion: chance to shrug off part of the hit.
 	if damage_proc_reduction_chance > 0.0 and remaining > 0 and randf() < damage_proc_reduction_chance:
@@ -2063,6 +2074,10 @@ func boost_performed_heal(amount: int) -> int:
 	return amount
 
 func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) -> void:
+	if PlayerStats.heal_to_damage and amount > 0:
+		print("[STATS] Poisoned Blood: a %d heal lands as damage" % amount)
+		take_damage(amount)
+		return
 	# Solemn Independence: block ally healing while active
 	if from_ally and solemn_active:
 		return

@@ -5,7 +5,7 @@ Generated from the card factories, `Card.execute`, and the handling in `main.gd`
 Costs are the code's raw numbers (the sheet writes mana in tens). Range is the base 5 plus the card's modifier; melee cards have none. Slots are the sheet's slot labels; **Engrave** marks a card that exists only inside an item slot.
 
 
-**240 cards, 36 with something to look at.** The flagged cards are listed first, then every card by type.
+**240 cards, 34 with something to look at.** The flagged cards are listed first, then every card by type.
 
 
 ## Cards whose code and text disagree
@@ -21,7 +21,6 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **Composed Response** (`composed_response`): Minor: the reaction fires on 'on_damage_taken' (the player actually loses HP/armor), so an attack that deals no damage does not set it off.
 - **Crack of Mintaka** (`crack_of_mintaka`): If the player discards fewer cards than the distance the damage is lost but the discards still happen — description implies the enemy must be 'within that many squares' so this is consistent, just harsh.
 - **Element Pollination** (`element_pollination`): Minor wording: 'Shock freezes at 5 stacks like Cold' is implemented as a 5-tempo STUN (is_stunned), whereas Cold at 5 stacks sets is_frozen; functionally similar but a different status.
-- **Empower** (`empower`): partial: attack cards with custom damage helpers (Trip, Thrown Stone, Energy Ball, Fire Punch, Shuriken, etc.) can be drawn empowered — spending a charge, and the damage preview shows +3 — but their helpers never add the +3.
 - **Enchantment: Attack** (`enchantment_attack`): Minor: the +3 applies to everything that goes through the effective-damage pipeline (basic attacks, INT-scaled ticks, etc.), not only to 'cards'.
 - **Energy Ball** (`energy_ball`): description says 'Deal X damage where X = total damage done by Absorb Essence', but the code then runs X through get_effective_spell_damage so INT/spell bonuses and crits scale it above X (minor).
 - **Exacerbate Wounds** (`exacerbate_wounds`): Sheet says 'Attack, Melee' but the card is Conditional: ranged (base 5, +1 tempo) when holding a bow (deck_manager.gd:63).
@@ -34,7 +33,6 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **Life Swap** (`life_swap`): Description does not mention that the swap can never drop HP below 1 or exceed max pools (code clamps both).
 - **Living Armor** (`living_armor`): Minor: the Regen granted expires after 15 tempo (create_regen default duration) — not stated in the description.
 - **Poison Bomb** (`poison_bomb`): range 6 is not enforced: point-target cards play via play_selected_card(player) with no distance check (only Blink is range-checked) and the world effect uses the raw click position, so the cloud can be placed anywhere.
-- **Poisoned Blood** (`poisoned_blood`): Partial: only heal cards routed through _execute_heal_with_poison_check (heal, healing_potion, healing_tonic, deep_breaths, gulped_potion) convert; other heal cards (e.g. The Light's Favor, Provider, Hope This Works, Fortify Alliance) still heal and burn no charge.
 - **Push** (`push`): Minor: description says 'a unit' but target_types is ['enemy'] — allies cannot be pushed.
 - **Rain of Arrows** (`rain_of_arrows`): If the card were ever played from hand it does nothing (no execute branch, no world-effect branch) — NOT IMPLEMENTED as a playable card; only the shield Overdraw hardcode (flat 10, radius 3) exists.
 - **Shuriken** (`shuriken`): description says 'Deal 3 damage' — code deals _card_player_damage (3 plus STR and other flat bonuses), not a flat 3 (minor).
@@ -323,9 +321,9 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **Best Offense is a Good Defense** (`best_offense`) — Common · 40 mana, 4 tempo · range melee · targets self · slots: Bulwark · sheet: Defense, self
   - Card text: Gain 3 Smith for 25 tempo. If holding no attack cards, gain 6 Smith instead.
   - Code: _execute_best_offense: scans the hand; if no CardType.ATTACK card is held smith=6, else 3; applies Buff.create_smith(smith, 25) to the caster's buff manager (Smith grants that much armor at each cycle start, buff_manager.gd:188). Self only.
-- **Block** (`block`) — Common · 10 mana, 2 tempo · range melee · targets self · slots: deck only · sheet: Defense, self
-  - Card text: 5 armor
-  - Code: execute() 'block' -> _execute_block: player_stats.add_armor(5) (Burgonet/Thick Steel defense bonus applies inside add_armor; Empower now marks only attack cards, so it no longer reduces this). Self, 10 mana / 2 tempo.
+- **Block** (`block`) — Common · 20 mana, 2 tempo · range melee · targets self · slots: deck only · sheet: Defense, self
+  - Card text: 8 armor
+  - Code: execute() 'block' -> _execute_block: player_stats.add_armor(8) (Burgonet/Thick Steel defense bonus applies inside add_armor; Empower now marks only attack cards, so it no longer reduces this). Self, 20 mana / 2 tempo.
 - **Bob and Weave** (`bob_and_weave`) — Common · 20 mana, 1 tempo · range melee · targets self · slots: Pocket / Dagger / Swift / Spear · sheet: Defense, self
   - Card text: Gain 5 armor and draw a card.
   - Code: _execute_bob_and_weave: player_stats.add_armor(base_block=5) then deck_manager.draw_card(). Self only. (Uses base_block rather than block, so slot/on-self block riders added to `block` in execute() are ignored by this card; the enchantment/sphere block bonus still applies inside add_armor.)
@@ -465,12 +463,11 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Draw a card
   - Code: execute() -> _execute_draw (card.gd:2680): deck_manager.draw_card() once. Self target, 0 mana / 1 tempo.
 - **Elixir** (`elixir`) — Common · 10 mana, 2 tempo · range melee · targets self · slots: Pocket · sheet: Utility
-  - Card text: Poison cards now heal instead: for 25 tempo, any poison applied to you heals you instead.
-  - Code: execute() -> _execute_elixir: player_stats.elixir_tempo = max(elixir_tempo, ELIXIR_TEMPO = 25), ticking down per tempo in PlayerStats.process_tempo, plus buff bar sync. While the window is open DebuffManager.apply_debuff turns any incoming POISON debuff into owner_stats.heal(max(1, value)) instead of applying it. Self, 10 mana/2 tempo.
+  - Card text: Poison cards now heal instead: for 25 tempo, the poison your cards apply heals its target instead.
+  - Code: execute() -> _execute_elixir: player_stats.elixir_tempo = max(elixir_tempo, ELIXIR_TEMPO = 25), ticking down per tempo in PlayerStats.process_tempo, plus buff bar sync. Card.execute sets the static Card.elixir_poison_heals for every play made while the caster's window is open (main clears it when the play resolves); during that play Enemy.apply_debuff('poison') regenerates the enemy by the stacks instead, and DebuffManager.apply_debuff turns POISON on a player into heal(max(1, value)). Self, 10 mana/2 tempo.
 - **Empower** (`empower`) — Common · 10 mana, 2 tempo · range melee · targets self · slots: Arrow · sheet: Utility, self
   - Card text: Next 2 attack cards drawn gain +3 damage
-  - Code: execute() -> _execute_empower -> player_stats.apply_empower(2). DeckManager.draw_card: each ATTACK card drawn while Empower is up spends a charge (consume_empower) and is marked draw_empowered (the mark resets on every draw). When a marked card is played, Card.execute treats it as empowered and clears the mark; helpers that take is_empowered (_execute_slash and everything routed through it, Dagger Throw, Premeditated, Reckless Strike, Savage Strike) add empower_damage_bonus (3). Non-attack draws and defense cards are untouched. Self, melee.
-  - **Mismatch:** partial: attack cards with custom damage helpers (Trip, Thrown Stone, Energy Ball, Fire Punch, Shuriken, etc.) can be drawn empowered — spending a charge, and the damage preview shows +3 — but their helpers never add the +3.
+  - Code: execute() -> _execute_empower -> player_stats.apply_empower(2). DeckManager.draw_card: each ATTACK card drawn while Empower is up spends a charge (consume_empower) and is marked draw_empowered (the mark resets on every draw). When a marked card is played, Card.execute adds empower_damage_bonus (3) to bonus_damage for the whole resolution, so every attack's damage path picks it up (Trip, Thrown Stone, Shuriken and other hard-coded helpers included); main's world-effect damage reads the mark too and clears it once the play resolves. Non-attack draws and defense cards are untouched. Self, melee.
 - **Enchanted Quiver** (`enchanted_quiver`) — Legendary · 40 mana, 5 tempo · range melee · targets self · slots: Arrow · sheet: Utility
   - Card text: Next 3 ranged attacks create a free 0-cost Quick Arrow (4 damage) in your hand.
   - Code: execute() -> _execute_enchanted_quiver sets buff_mgr.enchanted_quiver_charges = 3. In main.gd after each card play (line ~8720), if charges > 0 and the played card was a ranged ATTACK (is_ranged and card_type == ATTACK) a Quick Arrow (0 mana, 2 tempo, 4 damage, ranged 5) is appended to the hand and one charge is spent. 40 mana / 5 tempo.
@@ -587,9 +584,8 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: In 15 tempo, draw 3 cards.
   - Code: execute() passes; main 'patience' (main.gd:11360): schedule_delayed_effect(15, _patience_delayed) which draws 3 cards after 15 tempo. delay_tempo=15 on the card only drives the 'Delay' keyword display. Self, 20 mana, 3 tempo.
 - **Poisoned Blood** (`poisoned_blood`) — Rare · 10 mana, 2 tempo · range melee · targets self · slots: Pocket / Wand · sheet: Utility, self
-  - Card text: Heal cards now apply damage instead for 5 instances (allies and yourself included).
-  - Code: execute() -> _execute_poisoned_blood applies a 5-charge POISONED_BLOOD buff. main.gd click handling lets heal cards (heal_amount > 0) additionally target enemies while the buff holds. _execute_heal_with_poison_check now converts every heal while a charge remains: get_effective_heal_amount(heal_amount) is dealt as damage to whoever it lands on — an enemy, an ally's stats, or the caster — and burns one charge. Self, 10 mana / 2 tempo.
-  - **Mismatch:** Partial: only heal cards routed through _execute_heal_with_poison_check (heal, healing_potion, healing_tonic, deep_breaths, gulped_potion) convert; other heal cards (e.g. The Light's Favor, Provider, Hope This Works, Fortify Alliance) still heal and burn no charge.
+  - Card text: Heal cards now apply damage instead for 5 instances (allies, summons and yourself included).
+  - Code: execute() -> _execute_poisoned_blood applies a 5-charge POISONED_BLOOD buff. main.gd click handling lets heal cards (heal_amount > 0) additionally target enemies while the buff holds. Every heal card (Card.is_heal_card: heal_amount > 0, plus Biscuit, Meditate, Hope This Works, Down but not out, Release Tension, Communal Donation) played while a charge remains spends one charge in Card.execute and sets PlayerStats.heal_to_damage for that play: every PlayerStats.heal and summon heal it performs lands as take_damage instead (Biscuit's and Meditate's direct health sets route through heal too); heals aimed at an enemy strike it (_execute_heal_with_poison_check). Healthy Bliss's timed sweep, Communal Donation's panel and Cryonics' delayed thaw carry the flag they were cast with. Self, 10 mana / 2 tempo.
 - **Poof and Weave** (`poof_and_weave`) — Legendary · 40 mana, 5 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
   - Card text: Become invisible for 5 tempo, gain 10 armor and draw a card.
   - Code: execute() `pass`; main 'poof_and_weave': Buff.create_invisible(5) + _set_player_invisible(true), add_armor(10), draw_card(). Self, 40 mana, 5 tempo.
@@ -747,8 +743,8 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Instant: when an enemy gets within melee range, deal 13 damage to it. This card is erased.
   - Code: Reaction (reaction_trigger 'on_enemy_melee_range', erase_on_play). Conjured into hand by Belthronding (item_data.gd:2690 on_self_conjure_on_play_id). main._check_melee_range_reactions (main.gd:9988, called each tempo at 5839) looks for the first living enemy within 1 cell of the player; if found, trigger_reactions fires every such card and execute(adj,...) -> _execute_slash (card.gd:2221) deals base 13 through the physical pipeline (+STR, crit, strengthen) to that enemy. The card is then erased from the discard pile (card_erased).
 - **Cover** (`cover`) — Legendary · 0 mana, 2 tempo · range melee · targets ally · slots: Spear / Swift — Engrave · sheet: Reaction
-  - Card text: Instant: When you or an ally within 2 spaces takes damage, reduce it by the number of cards in your hand (Cover included).
-  - Code: Reaction 'on_ally_damage_taken', now a true pre-hit mitigation: main installs _cover_mitigation as PlayerStats.incoming_mitigation_hook, which PlayerStats.take_damage calls before armor (after flat equipment reduction) for any ally (you, co-op partner, dojo ally). Every player within 2.0 world units of the victim holding Cover fires it (trigger_reactions: all copies) and the hit is reduced by that defender's hand size counted before Cover left it (Cover included; each further copy counts one less). Each fired Cover charges its 2 tempo afterwards (deferred add_tempo) and is recorded for Lethal Recall. _execute_cover only logs.
+  - Card text: Instant: When you or an ally (summons included) within 2 spaces takes damage, reduce it by the number of cards in your hand (Cover included).
+  - Code: Reaction 'on_ally_damage_taken', now a true pre-hit mitigation: main installs _cover_mitigation as PlayerStats.incoming_mitigation_hook, which PlayerStats.take_damage calls before armor (after flat equipment reduction) for any ally (you, co-op partner, dojo ally); every summon's take_damage calls it too through PlayerStats.apply_cover. Every player within 2.0 world units of the victim holding Cover fires it (trigger_reactions: all copies) and the hit is reduced by that defender's hand size counted before Cover left it (Cover included; each further copy counts one less). Each fired Cover charges its 2 tempo afterwards (deferred add_tempo) and is recorded for Lethal Recall. _execute_cover only logs.
 - **Death Vortex** (`death_vortex`) — Legendary · 0 mana, 0 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
   - Card text: Instant: after you are hit 5 times, spin — 15 damage to all adjacent enemies. If the Vortex kills, it returns to your hand.
   - Code: REACTION, reaction_trigger='on_hit_streak_5'. main._on_player_damage_taken increments stats.hit_streak per damaging hit; at 5 it calls trigger_reactions('on_hit_streak_5') (all copies in hand fire, streak resets) and _fire_instant_site_effect 'death_vortex': flat 15 damage to every living enemy within radius 1.5 of the player, misery spread over them; if any died the card is pulled from the discard pile back into hand. 0 cost.

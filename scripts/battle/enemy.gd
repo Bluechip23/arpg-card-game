@@ -5093,6 +5093,11 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			and debuff_name != Card.active_element_remap:
 		print("[%s] Feral Evocation: %s becomes %s" % [enemy_name, debuff_name, Card.active_element_remap])
 		debuff_name = Card.active_element_remap
+	# Elixir: poison from a card played under Elixir heals instead.
+	if debuff_name == "poison" and Card.elixir_poison_heals and value > 0:
+		_regenerate(value)
+		print("[%s] Elixir: %d poison became healing" % [enemy_name, value])
+		return
 	last_debuff_was_new = not has_debuff_type(debuff_name)
 	match debuff_name:
 		"stun":
