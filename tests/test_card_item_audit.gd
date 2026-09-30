@@ -47,7 +47,7 @@ func _run() -> void:
 	Card.create_draw().execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(stats.empowered_cards_remaining == 2, "a utility card spends no Empower charge")
 	Card.create_slash().execute(dummy, stats, dm, 0.0, 0.0, bm)
-	_check(stats.empowered_cards_remaining == 1, "an attack spends one")
+	_check(stats.empowered_cards_remaining == 2, "playing an attack spends none (drawing one does)")
 	stats.empowered_cards_remaining = 0
 
 	print("-- Burgonet / Thick Steel on every armor-granting defense card --")
@@ -149,7 +149,7 @@ func _run() -> void:
 	print("-- Small card fixes --")
 	var tonic := Card.create_healing_tonic()
 	_check(tonic.is_ranged and tonic.get_effective_range() == 5, "Healing Tonic reaches 5 squares")
-	_check(Card.create_healthy_bliss().card_type == Card.CardType.UNPLAYABLE, "Healthy Bliss cannot be played from hand")
+	_check(Card.create_healthy_bliss().card_type == Card.CardType.REACTION, "Healthy Bliss is an instant that fires from hand on its timer")
 	dm.hand.clear()
 	var shed := Card.create_shed_weight()
 	var slash := Card.create_slash()

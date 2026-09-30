@@ -22,15 +22,37 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 	debuffs.clear()
 
 func apply_debuff(debuff: Debuff) -> void:
+	# Elixir: poison from a card played under Elixir heals instead.
+	if debuff.debuff_type == Debuff.DebuffType.POISON and Card.elixir_poison_heals and owner_stats:
+		var ex_heal: int = maxi(1, debuff.value)
+		owner_stats.heal(ex_heal)
+		print("[DEBUFF] Elixir: %d poison became %d healing" % [debuff.value, ex_heal])
+		return
 	# Stack-driven debuffs never expire by the clock — their stacks are burned
 	# by what they react to (movement, damage, card plays), mirroring Burn.
+	# A clock-timed Slowed/Staggered (Approach, Tower Shield) keeps its duration.
 	match debuff.debuff_type:
 		Debuff.DebuffType.BURN, Debuff.DebuffType.BLEED, Debuff.DebuffType.SLOWED, \
 		Debuff.DebuffType.STAGGERED, Debuff.DebuffType.WEIGHTED, Debuff.DebuffType.CLUMSY, \
 		Debuff.DebuffType.WEAKENED:
-			debuff.duration = -1
+			if not debuff.clock_timed:
+				debuff.duration = -1
 
 	var existing = get_debuff(debuff.debuff_type)
+	# Timed and stack-driven copies of the same debuff never merge: the timed
+	# one lives on the clock, the stack one on its stacks — keep the longer
+	# clock, or let the stacks ride on top of an existing timer.
+	if existing and existing.clock_timed != debuff.clock_timed:
+		if debuff.clock_timed:
+			# A timer over stacks: become timed for at least that long.
+			existing.clock_timed = true
+			existing.duration = debuff.duration
+			existing.value = maxi(existing.value, 1)
+			existing._set_name_and_description()
+			debuffs_changed.emit()
+			return
+		# Stacks over a timer: the timer already covers it.
+		return
 	# Hexed never merges: each hex is its own instance claiming its own card
 	# in hand, so several cards can be hexed at once (Necromancer Bolt hexes 2).
 	if debuff.debuff_type == Debuff.DebuffType.HEXED:
@@ -283,7 +305,7 @@ func is_slowed() -> bool:
 ## also prices the tile at Debuff.SLOWED_TEMPO_PER_TILE instead of 1.
 func consume_slowed_stack() -> void:
 	var slowed = get_debuff(Debuff.DebuffType.SLOWED)
-	if slowed == null:
+	if slowed == null or slowed.clock_timed:
 		return
 	slowed.value -= 1
 	slowed._set_name_and_description()
@@ -333,7 +355,7 @@ func on_card_played(is_attack_card: bool) -> void:
 		if not entry[1]:
 			continue
 		var d = get_debuff(entry[0])
-		if d == null:
+		if d == null or d.clock_timed:
 			continue
 		d.value -= 1
 		d._set_name_and_description()

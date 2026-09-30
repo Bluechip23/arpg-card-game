@@ -80,7 +80,7 @@ const PASSIVE_POOL_DEFAULT := ["rpg_47", "game_5", "pack_17", "game_88", "rpg_41
 # ---------------------------------------------------------------------------
 const CARDS := {
 	# Melee / physical attacks
-	"slash": "pack_82", "slice": "pack_84", "heavy_swing": "rpg_92",
+	"slash": "pack_82", "basic_attack": "pack_82", "slice": "pack_84", "heavy_swing": "rpg_92",
 	"savage_strike": "pack_95", "savage_strike_copy": "pack_95",
 	"reckless_strike": "rpg_69", "poke": "rpg_35",
 	"shiv": "pack_92", "dagger_throw": "pack_85", "cinquedea": "pack_85",

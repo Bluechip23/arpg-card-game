@@ -49,6 +49,21 @@ func apply_buff(buff: Buff) -> void:
 	# Check if buff already exists (refresh or stack)
 	var existing = get_buff(buff.buff_type)
 	
+	# Timed and per-attack Strengthen meet: the damage stacks and the clock
+	# wins (every attack gets it until the timer ends).
+	if existing and buff.buff_type == Buff.BuffType.STRENGTHEN \
+			and existing.is_charge_based() != buff.is_charge_based():
+		existing.value += buff.value
+		existing.stacks += 1
+		existing.duration = maxi(buff.duration if not buff.is_charge_based() else 0,
+			existing.duration if not existing.is_charge_based() else 0)
+		existing.charges = -1
+		existing._set_name_and_description()
+		_recompute_might()
+		buff_applied.emit(buff)
+		buffs_changed.emit()
+		return
+
 	if existing:
 		# Refresh duration/charges to higher value
 		if buff.is_charge_based():
@@ -282,7 +297,15 @@ func sync_flag_buffs() -> void:
 	## badges. Safe to call any time — it adds/updates/removes to match state.
 	# Elixir — stack state lives on owner_stats (one stack per poison tick healed).
 	var elixir_on: bool = owner_stats != null and "elixir_stacks" in owner_stats and owner_stats.elixir_stacks > 0
-	if elixir_on:
+	var elixir_window: int = int(owner_stats.elixir_tempo) if owner_stats != null and "elixir_tempo" in owner_stats else 0
+	if elixir_window > 0:
+		var exw = get_buff(Buff.BuffType.ELIXIR)
+		if exw == null:
+			exw = Buff.create_elixir(0, "Elixir")
+			apply_buff(exw)
+		exw.stacks = elixir_window
+		exw.description = "Your poison cards heal instead (%d tempo left)" % elixir_window
+	elif elixir_on:
 		var ex = get_buff(Buff.BuffType.ELIXIR)
 		if ex == null:
 			ex = Buff.create_elixir(owner_stats.elixir_stacks, "Elixir")
@@ -629,9 +652,12 @@ func _execute_cleanse(count: int) -> void:
 # DAMAGE REDUCTION QUERIES (Brace, Resilient)
 # ============================================
 
-func consume_brace() -> int:
-	# Returns percent damage reduction and uses charge
+func consume_brace(damage_type: int = -1) -> int:
+	# Returns percent damage reduction and uses charge. A typed Brace (Parry =
+	# Physical) waits for a hit of its type.
 	var brace = get_buff(Buff.BuffType.BRACE)
+	if brace and brace.damage_type != -1 and damage_type != -1 and brace.damage_type != damage_type:
+		return 0
 	if brace:
 		var percent = brace.value
 		if brace.use_charge():
@@ -660,7 +686,7 @@ func calculate_damage_reduction(incoming_damage: int, damage_type: int = -1) -> 
 		print("[BUFF] Resilient reduces damage by %d%% (%d)" % [resilient_percent, reduction])
 
 	# Brace: percentage reduction second (charge-based, consumes a charge)
-	var brace_percent = consume_brace()
+	var brace_percent = consume_brace(damage_type)
 	if brace_percent > 0:
 		var reduction = floori(damage * brace_percent / 100.0)
 		damage -= reduction

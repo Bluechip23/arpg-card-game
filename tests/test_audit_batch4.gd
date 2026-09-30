@@ -16,21 +16,21 @@ func _check(cond: bool, msg: String) -> void:
 func _initialize() -> void:
 	print("=== Audit batch 4 test ===")
 
-	# --- D1: every maintain card uses the plain tag and reserves its mana cost ---
+	# --- D1: every maintain card names its reserve on its face ("Maintain 3M:")
+	# and reserves exactly that much (x10 mana scale) ---
 	var maintain_cards := [
 		Card.create_halo(),
 		Card.create_armored_discipline(),
 		Card.create_cultish_wounds(),
 		Card.create_fountain_of_life(),
 	]
-	var num_maintain := RegEx.create_from_string("Maintain \\d")
+	var num_maintain := RegEx.create_from_string("^Maintain (\\d+)M:")
 	for card in maintain_cards:
-		_check(card.maintain_cost == card.mana_cost,
-			"%s reserve (%d) equals its mana cost (%d)" % [card.card_name, card.maintain_cost, card.mana_cost])
-		_check(card.description.begins_with("Maintain:"),
-			"%s description starts with the plain 'Maintain:' tag" % card.card_name)
-		_check(num_maintain.search(card.description) == null,
-			"%s description carries no numeric maintain cost" % card.card_name)
+		var m := num_maintain.search(card.description)
+		_check(m != null, "%s description starts with 'Maintain XM:'" % card.card_name)
+		if m:
+			_check(card.maintain_cost == int(m.get_string(1)) * 10,
+				"%s reserve (%d) matches its face (%sM)" % [card.card_name, card.maintain_cost, m.get_string(1)])
 
 	# --- D1: Halo's face now scales the right number (the heal, not the cost) ---
 	var halo = Card.create_halo()
