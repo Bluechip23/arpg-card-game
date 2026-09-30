@@ -214,11 +214,22 @@ func _process_skip(card: Card, effect: OverflowEffect) -> void:
 		remove_overflow_effect(effect)
 
 func _process_quiver(card: Card, effect: OverflowEffect) -> void:
-	# Bottomless Quiver: attack cards go to quiver, non-attacks are discarded
+	# Bottomless Quiver: attack cards go to the Manifest zone, where they can be
+	# played later at full cost; non-attacks are discarded. Every overflowed
+	# card spends a charge, attack or not.
 	if card.card_type == Card.CardType.ATTACK:
-		quiver_zone.append(card)
-		quiver_changed.emit()
-		print("[OVERFLOW] Bottomless Quiver: %s stored in quiver (%d cards)" % [card.card_name, quiver_zone.size()])
+		manifest_zone.append({
+			"card": card,
+			"effect": effect,
+			"manifest_name": card.card_name,
+			"manifest_id": "quiver_card",
+			"manifest_description": card.description,
+			"manifest_value": 0,
+			"mana_cost": card.mana_cost,
+			"tempo_cost": card.tempo_cost,
+		})
+		manifest_card_added.emit(card.card_name, card)
+		print("[OVERFLOW] Bottomless Quiver: %s manifested (%d in the zone)" % [card.card_name, manifest_zone.size()])
 	else:
 		if deck_manager:
 			deck_manager.discard_pile.append(card)
@@ -255,6 +266,9 @@ func _process_overcharge(effect: OverflowEffect) -> void:
 			# Damage is dealt by main via the unconditional emit below — a second
 			# emit here double-fired the AoE (audit fix).
 			print("[OVERFLOW] Overcharge: %d Damage to All" % effect.effect_value)
+		"composed_reaction":
+			# Main adds the Whirling Weapon to the hand off the emit below.
+			print("[OVERFLOW] Overcharge: Whirling Weapon")
 		_:
 			print("[OVERFLOW] Unknown overcharge effect: %s" % effect.overcharge_effect_id)
 	
@@ -293,6 +307,16 @@ func activate_manifest(index: int, target = null) -> Dictionary:
 	
 	overflow_effects_changed.emit()
 	return result
+
+## Take a stored card out of the Manifest zone without discarding it (a
+## Bottomless Quiver attack being played at full cost). False when absent.
+func remove_manifest_card(card: Card) -> bool:
+	for i in range(manifest_zone.size()):
+		if manifest_zone[i]["card"] == card:
+			manifest_zone.remove_at(i)
+			overflow_effects_changed.emit()
+			return true
+	return false
 
 # ============================================
 # QUIVER ZONE FUNCTIONS

@@ -1422,11 +1422,10 @@ func _trigger_skill_tree_stephen_on_dex_proc() -> void:
 	# and loop forever.
 	if stats.has_skill_tree_passive("dominate") and stats.st_dominate_cooldown <= 0:
 		stats.st_dominate_cooldown = 5
-		var free_attack = Card.create_slash()
+		# The sheet's Basic Attack card, at Dominate's own 30m/0t price.
+		var free_attack = Card.create_basic_attack()
 		free_attack.mana_cost = 30
 		free_attack.tempo_cost = 0
-		free_attack.card_name = "Dominate Strike"
-		free_attack.description = "Basic attack from Dominate (30m/0t)"
 		main.deck_manager.hand.append(free_attack)
 		main.deck_manager.hand_updated.emit()
 		var dom_str: int = PassiveScaling.value("dominate", "strengthen", stats.get_passive_level("dominate"))

@@ -45,6 +45,7 @@ func _build_legend() -> void:
 	_add_keyword("Hexed", "A random card costs +X mana until played; multiple hexes can sit on different cards at once", Color(0.6, 0.0, 0.6))
 	_add_keyword("Locked", "One random card cannot be played", Color(0.3, 0.3, 0.3))
 	_add_keyword("Rooted", "Cannot move", Color(0.4, 0.25, 0.1))
+	_add_keyword("Tripped", "Moves 4 fewer tiles per move (no step if that leaves none)", Color(0.5, 0.7, 1.0))
 	_add_keyword("Clumsy", "30% chance to discard a random card when playing; each card played burns a stack", Color(0.9, 0.6, 0.2))
 	_add_keyword("Vulnerable", "Take 30% more damage on next X attack(s), lose 1 stack per hit", Color(1.0, 0.3, 0.3))
 	_add_keyword("Exposed", "Your armor was broken through — a hit got past it", Color(0.9, 0.7, 0.5))
