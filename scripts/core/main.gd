@@ -2159,7 +2159,7 @@ func _on_attack_pressed() -> void:
 			aoe_indicator.hide_indicator()
 		update_card_highlights()
 	_set_basic_attack_pending(true)
-	add_battle_log("Attack armed — click an enemy in melee range.", Color(1.0, 0.85, 0.4))
+	add_battle_log("Attack armed — click an enemy within reach.", Color(1.0, 0.85, 0.4))
 
 func _set_basic_attack_pending(pending: bool) -> void:
 	_basic_attack_pending = pending
@@ -2184,13 +2184,17 @@ func _execute_basic_attack(target: Enemy) -> void:
 			add_battle_log("Cannot attack — Disarmed!", Color(1.0, 0.4, 0.4))
 			return
 
-	# Melee reach is ~1.5 tiles. Out of range = the swing simply doesn't happen.
-	var diff = player.position - target.position
-	var dist = Vector3(diff.x, 0, diff.z).length()
-	if dist > 1.5:
-		var tiles = _get_distance_to_target(target)
-		add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [target.enemy_name, tiles], Color(1.0, 0.4, 0.4))
-		print("[MAIN] Basic Attack - %s out of melee range" % target.enemy_name)
+	# Reach: the next tile with a melee weapon; a bow shoots the auto attack
+	# out to 5 tiles (the Attack card's Conditional rule), paying a tempo
+	# for the draw. Out of range = the swing simply doesn't happen.
+	var reach := _basic_attack_reach()
+	var tiles = _get_distance_to_target(target)
+	if tiles > reach:
+		if reach > 1:
+			add_battle_log("Out of range! %s is %d tiles away (bow reaches %d)" % [target.enemy_name, tiles, reach], Color(1.0, 0.4, 0.4))
+		else:
+			add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [target.enemy_name, tiles], Color(1.0, 0.4, 0.4))
+		print("[MAIN] Basic Attack - %s out of reach (%d > %d)" % [target.enemy_name, tiles, reach])
 		return
 
 	_set_basic_attack_pending(false)
@@ -2222,8 +2226,8 @@ func _execute_basic_attack(target: Enemy) -> void:
 		if reduction > 0.0:
 			damage = max(1, floori(damage * (1.0 - reduction)))
 
-	# Tempo cost
-	var tempo_cost = 5
+	# Tempo cost (a bow's draw adds one, like the Attack card when ranged)
+	var tempo_cost = _basic_attack_tempo()
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
 
@@ -7922,6 +7926,18 @@ func _get_basic_attack_display_damage() -> int:
 			damage += inv.get_single_hand_weight_damage_bonus()
 	return damage
 
+## Auto attack reach in tiles: 1 in melee, 5 with a bow.
+func _basic_attack_reach() -> int:
+	var inv = player.get_inventory() if player else null
+	return 5 if inv and inv.holds_ranged_weapon() else 1
+
+## Auto attack tempo: 5, plus the Attack card's ranged penalty with a bow.
+func _basic_attack_tempo() -> int:
+	var inv = player.get_inventory() if player else null
+	if inv and inv.holds_ranged_weapon():
+		return 5 + Card.CONDITIONAL_RANGED_TEMPO_PENALTY
+	return 5
+
 func _update_attack_button_text() -> void:
 	## Refreshes the auto attack button: the red damage number beside the
 	## sword, the tempo cost / attacks-until-proc readout, and the proc glow.
@@ -7932,14 +7948,19 @@ func _update_attack_button_text() -> void:
 
 		if _attack_damage_label:
 			_attack_damage_label.text = str(_get_basic_attack_display_damage())
+		var base_tempo := _basic_attack_tempo()
 		if proc_active:
-			var proc_tempo = 5 / 2  # Halved
+			var proc_tempo = base_tempo / 2  # Halved
 			var btn_inv = player.get_inventory()
 			if btn_inv and btn_inv.has_pocket_knife_equipped():
 				proc_tempo = maxi(0, proc_tempo - 2)
 			_attack_tempo_label.text = "%dT (PROC)" % proc_tempo
 		else:
-			_attack_tempo_label.text = "5T (%d)" % proc_count
+			_attack_tempo_label.text = "%dT (%d)" % [base_tempo, proc_count]
+		if _attack_button:
+			var reach := _basic_attack_reach()
+			_attack_button.tooltip_text = "Auto attack [~]: %d base + STR modifier damage. Costs %d tempo. Press ~ or click, then click an enemy within %s." % [
+				PlayerStats.BASIC_ATTACK_BASE_DAMAGE, base_tempo, "melee range" if reach == 1 else "%d tiles (bow)" % reach]
 
 		# Glow red when the dex proc is active (next attack benefits from it)
 		if proc_active:
