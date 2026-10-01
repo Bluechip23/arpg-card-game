@@ -560,10 +560,6 @@ var in_hand_buff: String = ""  # Buff applied while this card is in hand (Enchan
 # Card upgrade system (item-forge upgrades)
 
 # Card-item slot system
-enum SlotCompatibility { PICKY, PLIABLE }
-var slot_compatibility: SlotCompatibility = SlotCompatibility.PICKY  # Picky = same item type only, Pliable = any item type
-var source_item_type: int = -1  # ItemData.ItemType the card was first extracted from (-1 = no restriction yet)
-var is_molded: bool = false  # Card is locked into the item and cannot be extracted
 var slotted_in_item = null  # Reference to the ItemData this card is slotted in (null = not slotted)
 # Engrave: the card only exists inside an item — unslotted it may not sit in
 # ANY deck zone (DeckManager.expel_unslotted_engraved sweeps it into the card
@@ -650,16 +646,6 @@ func get_on_self_bonus() -> Dictionary:
 	if slotted_in_item and slotted_in_item.has_method("get_on_self_bonus"):
 		return slotted_in_item.get_on_self_bonus()
 	return {"damage": 0, "block": 0, "heal": 0, "mana_reduction": 0}
-
-func get_slot_keyword() -> String:
-	if is_molded:
-		return "Molded"
-	match slot_compatibility:
-		SlotCompatibility.PICKY:
-			return "Picky"
-		SlotCompatibility.PLIABLE:
-			return "Pliable"
-	return "Picky"
 
 ## How many KINDS of debuff an enemy is carrying — stacks within one kind count
 ## once (Song of a Swords Sing: "1 burn, 1 frost, 1 disarm = 3; 3 disarm = 1").
@@ -1159,9 +1145,6 @@ static func get_keyword_definitions() -> Dictionary:
 		# Card-Item Slots
 		"enchant": "Places a card into an item's card slot",
 		"extract": "Removes a card from an item's card slot",
-		"molded": "Card is locked into the item and cannot be extracted",
-		"picky": "Card can only be re-equipped to same item type",
-		"pliable": "Card can be re-equipped to any item type",
 		# Card Keywords
 		"arrow": "Requires a bow/quiver to slot. Ranged bow attack card",
 		"pocket": "Small items like daggers and potions. Slots into belts",
