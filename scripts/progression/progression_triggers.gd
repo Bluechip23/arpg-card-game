@@ -713,6 +713,13 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 	if not stats:
 		return
 
+	# Self Reliance: a discount earned with no paid card in hand lands on the
+	# first paid card drawn.
+	if stats.st_self_reliance_discount and stats.has_skill_tree_passive("self_reliance") \
+			and card.mana_cost - card.temp_mana_discount > 0:
+		stats.st_self_reliance_discount = false
+		_self_reliance_apply(stats, card)
+
 	# Clean Exchange: draw Defense after playing Attack (or vice versa) → drawn
 	# card gets -1t, and a drawn Defense card also gains rank-scaled block (1..8)
 	if stats.has_skill_tree_passive("clean_exchange") and _last_played_card:
@@ -796,14 +803,48 @@ func _trigger_skill_tree_on_attack(card: Card, target) -> void:
 		target.take_damage(lw_bonus, true)
 		main.add_battle_log("Ladder Work: opening strike +%d!" % lw_bonus, Color(0.3, 0.7, 1.0))
 
-	# Solemn Independence: +5%..12% bonus attack damage (rank-scaled) while
-	# surrounded (3+ enemies w/in 2)
-	if stats.has_skill_tree_passive("solemn_independence") and target and target is Enemy and _solemn_surrounded():
-		var si_pct: int = PassiveScaling.value("solemn_independence", "damage_percent", stats.get_passive_level("solemn_independence"))
-		if card.last_damage_dealt > 0:
-			var si_bonus = maxi(1, ceili(card.last_damage_dealt * si_pct / 100.0))
-			target.take_damage(si_bonus, true)
-			main.add_battle_log("Solemn Independence: +%d damage (%d%%)!" % [si_bonus, si_pct], Color(0.8, 0.4, 0.9))
+	# (Solemn Independence's +5%..12% attack damage is a hit modifier — see
+	# modify_player_hit — so it rides every enemy an AoE touches.)
+
+## Re-read "surrounded" (3+ enemies within 2 tiles) for Solemn Independence.
+## Called on every cycle, every movement and every kill so the heal block
+## and the damage bonus track positioning together.
+func refresh_solemn() -> void:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats:
+		return
+	if stats.has_skill_tree_passive("solemn_independence"):
+		stats.solemn_active = _solemn_surrounded()
+	elif stats.solemn_active:
+		stats.solemn_active = false
+
+## Skill-tree percentage modifiers on the player's direct hits (cards,
+## gauntlet skills, the auto attack — DoT ticks never come through here).
+## Set on every enemy as Enemy.player_hit_modifier; runs inside
+## Enemy.take_damage before armor, once per enemy hit, so AoEs scale on
+## each target they touch.
+func modify_player_hit(enemy: Enemy, amount: int) -> int:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats or amount <= 0 or enemy == null:
+		return amount
+	var out := amount
+	# Eat (Cory): +1% damage per percentage point the enemy sits below the
+	# rank-scaled threshold (11%..39%), judged on its health before the hit.
+	if stats.has_skill_tree_passive("eat") and enemy.max_health > 0:
+		var eat_threshold := float(PassiveScaling.value("eat", "threshold_percent", stats.get_passive_level("eat")))
+		var pre_pct := 100.0 * float(enemy.current_health) / float(enemy.max_health)
+		if pre_pct < eat_threshold:
+			var bonus_pct := eat_threshold - pre_pct
+			# Integer math (hundredths of a percent) so 10 × 1.20 is 12, not 11.999.
+			out = (out * (10000 + roundi(bonus_pct * 100.0))) / 10000
+			main.add_battle_log("Eat: +%d%% damage on weakened prey" % roundi(bonus_pct), Color(0.3, 0.7, 1.0))
+	# Solemn Independence (Brad): +5%..12% on every attack while surrounded.
+	if stats.has_skill_tree_passive("solemn_independence"):
+		stats.solemn_active = _solemn_surrounded()
+		if stats.solemn_active:
+			var si_pct: int = PassiveScaling.value("solemn_independence", "damage_percent", stats.get_passive_level("solemn_independence"))
+			out = (out * (100 + si_pct) + 99) / 100  # ceil, in integers
+	return out
 
 func _solemn_surrounded() -> bool:
 	## True when 3 or more living enemies are within 2 tiles of the player.
@@ -859,14 +900,11 @@ func _trigger_skill_tree_on_cycle() -> void:
 	# Solemn Independence: while surrounded (3+ enemies w/in 2), +1..8 armor/cycle
 	# (rank-scaled) and block ally healing (the flag is read in PlayerStats.heal).
 	# Refresh it each cycle so the "cannot be healed by allies" clause tracks positioning.
-	if stats.has_skill_tree_passive("solemn_independence"):
-		stats.solemn_active = _solemn_surrounded()
-		if stats.solemn_active:
-			var si_armor: int = PassiveScaling.value("solemn_independence", "armor", stats.get_passive_level("solemn_independence"))
-			stats.add_armor(si_armor)
-			main.add_battle_log("Solemn Independence: +%d armor (surrounded)" % si_armor, Color(0.4, 0.9, 0.4))
-	elif stats.solemn_active:
-		stats.solemn_active = false
+	refresh_solemn()
+	if stats.has_skill_tree_passive("solemn_independence") and stats.solemn_active:
+		var si_armor: int = PassiveScaling.value("solemn_independence", "armor", stats.get_passive_level("solemn_independence"))
+		stats.add_armor(si_armor)
+		main.add_battle_log("Solemn Independence: +%d armor (surrounded)" % si_armor, Color(0.4, 0.9, 0.4))
 
 	# Let's Dance: gain armor AND deal damage to the nearest enemy within 3,
 	# both equal to spaces moved / divisor (rank-scaled 8..1), rounded down
@@ -963,12 +1001,29 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 				var dmg = stats.get_effective_physical_damage(0)
 				var kills = 0
 				for enemy in enemies:
-					enemy.take_damage(dmg, true)
+					_brad_passive_hit(enemy, dmg)
 					if not enemy.is_alive():
 						kills += 1
 				if kills > 0:
 					stats.gain_mana(kills * 10)
 				main.add_battle_log("Enraged Will: AOE swing for %d! (+%d mana)" % [dmg, kills * 10], Color(0.9, 0.3, 0.3))
+
+## A hit Brad's passives deal on their own (Enraged Will's swing, In the
+## Trenches' free attack): lands like an attack and life steals like one.
+func _brad_passive_hit(enemy: Enemy, dmg: int) -> void:
+	if enemy == null or not is_instance_valid(enemy):
+		return
+	enemy.take_damage(dmg, true)
+	brad_life_steal(dmg)
+
+## Life Steal (Brad): "all attacks" — cards run it in Card.execute; the auto
+## attack and passive-generated hits call this with the damage they dealt.
+func brad_life_steal(dealt: int) -> void:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats or dealt <= 0 or not stats.has_skill_tree_passive("life_steal"):
+		return
+	var ls_pct: float = PassiveScaling.value("life_steal", "percent", stats.get_passive_level("life_steal"))
+	stats.apply_life_steal(max(1, floori(dealt * ls_pct / 100.0)))
 
 func _trigger_skill_tree_brad_on_attacked(attacker) -> void:
 	var stats = main.player.get_stats()
@@ -982,11 +1037,9 @@ func _trigger_skill_tree_brad_on_attacked(attacker) -> void:
 		_itt_try_refresh_charges(stats)
 		if stats.st_itt_charges > 0:
 			if attacker and attacker.has_method("knockback"):
-				stats.st_itt_charges -= 1
+				_itt_spend_charge(stats)
 				attacker.knockback(main.player.position)
 				main.add_battle_log("In the Trenches: knocked back %s! (%d charge(s) left)" % [attacker.enemy_name, stats.st_itt_charges], Color(0.3, 0.7, 1.0))
-				if stats.st_itt_charges <= 0:
-					stats.st_itt_last_used_tempo = main.tempo_manager.get_global_tempo()
 
 func _trigger_skill_tree_brad_itt_on_enter(enemy: Enemy) -> void:
 	## In the Trenches: free attack when an enemy enters an adjacent square (consumes 1 charge)
@@ -998,14 +1051,12 @@ func _trigger_skill_tree_brad_itt_on_enter(enemy: Enemy) -> void:
 	_itt_try_refresh_charges(stats)
 	if stats.st_itt_charges <= 0:
 		return
-	stats.st_itt_charges -= 1
+	_itt_spend_charge(stats)
 	# Free attack at 50%..120% damage (rank-scaled: -50%..+20%).
 	var itt_mod: int = PassiveScaling.value("in_the_trenches", "damage_mod", stats.get_passive_level("in_the_trenches"))
 	var dmg = maxi(1, roundi(stats.get_effective_physical_damage(0) * (100 + itt_mod) / 100.0))
-	enemy.take_damage(dmg, true)
+	_brad_passive_hit(enemy, dmg)
 	main.add_battle_log("In the Trenches: free attack on %s for %d! (%d charge(s) left)" % [enemy.enemy_name, dmg, stats.st_itt_charges], Color(0.3, 0.7, 1.0))
-	if stats.st_itt_charges <= 0:
-		stats.st_itt_last_used_tempo = main.tempo_manager.get_global_tempo()
 
 ## Melee reach: the attacker stands on a neighbouring tile (diagonals included).
 func _is_adjacent_to_player(attacker) -> bool:
@@ -1014,12 +1065,25 @@ func _is_adjacent_to_player(attacker) -> bool:
 	var diff: Vector3 = attacker.position - main.player.position
 	return Vector2(diff.x, diff.z).length() <= 1.5
 
+const ITT_MAX_CHARGES := 2
+const ITT_RECHARGE_TEMPO := 10
+
+func _itt_spend_charge(stats: PlayerStats) -> void:
+	## The free attack and the knockback draw from one pool of 2; each spent
+	## charge comes back on its own 10 tempo later.
+	stats.st_itt_charges -= 1
+	stats.st_itt_spent.append(main.tempo_manager.get_global_tempo())
+
 func _itt_try_refresh_charges(stats: PlayerStats) -> void:
-	## Refresh In the Trenches charges if 10 tempo has passed since last exhaustion.
-	if stats.st_itt_charges <= 0:
-		var elapsed = main.tempo_manager.get_global_tempo() - stats.st_itt_last_used_tempo
-		if elapsed >= 10:
-			stats.st_itt_charges = 2
+	## Return every In the Trenches charge whose 10 tempo have passed.
+	var now: int = main.tempo_manager.get_global_tempo()
+	var still_out: Array = []
+	for t in stats.st_itt_spent:
+		if now - t >= ITT_RECHARGE_TEMPO:
+			stats.st_itt_charges = mini(ITT_MAX_CHARGES, stats.st_itt_charges + 1)
+		else:
+			still_out.append(t)
+	stats.st_itt_spent = still_out
 
 func _trigger_skill_tree_brad_on_defense_card_play(card: Card) -> void:
 	var stats = main.player.get_stats()
@@ -1032,9 +1096,9 @@ func _trigger_skill_tree_brad_on_defense_card_play(card: Card) -> void:
 		stats.st_defense_cards_played += 1
 		if stats.st_defense_cards_played >= wp_required:
 			stats.st_defense_cards_played = 0
-			# Refund 1 mana and 1 tempo
+			# Refund 10 mana (code units) and wind the clock back 1 tempo
 			stats.gain_mana(10)
-			main.tempo_manager.add_tempo(-1)
+			main.tempo_manager.refund_tempo(1)
 			main.add_battle_log("Way of the Plate: -10m/-1t refund!", Color(0.3, 0.7, 1.0))
 
 	# Pristine Armor: +1..5 armor on defense cards, +3..14 bonus for 3 in a row (rank-scaled)
@@ -1074,9 +1138,10 @@ func _trigger_skill_tree_brad_on_heal() -> void:
 				main.add_battle_log("Vines Codependence: +%d thorns" % vc_thorns, Color(0.4, 0.9, 0.4))
 
 	# Redemption: healing (self or ally) → 1%..15% crit chance (rank-scaled)
-	# on the next attack. Direct heals only — regen and life steal ticks
-	# would otherwise re-arm it on every attack.
-	if not stats._passive_heal:
+	# on the next attack. Direct heals Brad performs only — regen and life
+	# steal ticks would re-arm it on every attack, and a heal an ally gave
+	# him is not his doing.
+	if not stats._passive_heal and not stats.last_heal_from_ally:
 		_redemption_arm(stats)
 
 func _trigger_skill_tree_brad_on_heal_ally(_ally_name: String) -> void:
@@ -1087,12 +1152,12 @@ func _trigger_skill_tree_brad_on_heal_ally(_ally_name: String) -> void:
 	_redemption_arm(stats)
 
 func _redemption_arm(stats: PlayerStats) -> void:
+	## Arms its own crit number for the next attack roll (BuffManager.roll_crit
+	## adds it on top of Enlightened rather than merging the two).
 	if stats.has_skill_tree_passive("redemption"):
-		var buff_mgr = main.player.get_buff_manager()
-		if buff_mgr:
-			var rd_crit: int = PassiveScaling.value("redemption", "crit_chance", stats.get_passive_level("redemption"))
-			buff_mgr.apply_buff(Buff.create_enlightened(rd_crit, 1, "Redemption"))
-			main.add_battle_log("Redemption: +%d%% crit on next attack!" % rd_crit, Color(0.8, 0.4, 0.9))
+		var rd_crit: int = PassiveScaling.value("redemption", "crit_chance", stats.get_passive_level("redemption"))
+		stats.st_redemption_crit = rd_crit
+		main.add_battle_log("Redemption: +%d%% crit on next attack!" % rd_crit, Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_brad_on_cycle() -> void:
 	var stats = main.player.get_stats()
@@ -1130,10 +1195,7 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 			elif defense_count > attack_count:
 				stats.heal(aa_heal)
 				main.add_battle_log("Ancestral Aid: +%d HP (defense)" % aa_heal, Color(0.4, 0.9, 0.4))
-			else:
-				# Tied — small heal
-				stats.heal(1)
-				main.add_battle_log("Ancestral Aid: +1 HP (balanced)", Color(0.4, 0.9, 0.4))
+			# A tied hand does nothing.
 
 	# Directed Strength is checked at attack time, not per-cycle
 
@@ -1455,31 +1517,42 @@ func _trigger_skill_tree_cory_on_mana_gain(amount: int, is_regen: bool) -> void:
 			main.deck_manager.hand_updated.emit()
 			main.add_battle_log("Energy Barrier: defense card added to hand!", Color(0.9, 0.3, 0.3))
 
+## Put Self Reliance's discount on a random card in hand that still costs
+## mana. Returns false when no card can take it.
+func _self_reliance_discount_hand(stats: PlayerStats) -> bool:
+	var paid: Array[Card] = []
+	for c in main.deck_manager.hand:
+		if c.mana_cost - c.temp_mana_discount > 0:
+			paid.append(c)
+	if paid.is_empty():
+		return false
+	_self_reliance_apply(stats, paid[randi() % paid.size()])
+	return true
+
+func _self_reliance_apply(stats: PlayerStats, card: Card) -> void:
+	var sr_discount: int = PassiveScaling.value("self_reliance", "mana_discount", stats.get_passive_level("self_reliance"))
+	var sr_applied: int = mini(sr_discount, card.mana_cost - card.temp_mana_discount)
+	card.apply_hand_discount(sr_applied)
+	main.deck_manager.hand_updated.emit()
+	main.add_battle_log("Self Reliance: %s costs -%dm" % [card.card_name, sr_applied], Color(0.9, 0.3, 0.3))
+
 func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Self Reliance: 3 cards in one tempo cycle → the NEXT card gets a rank-scaled
-	# mana discount (10..80m, capped at the card's cost). Consume BEFORE tracking
-	# this play so the discount earned by the 3rd card never applies to that same
-	# 3rd card.
-	if stats.st_self_reliance_discount and card.mana_cost > 0:
-		var sr_discount: int = PassiveScaling.value("self_reliance", "mana_discount", stats.get_passive_level("self_reliance"))
-		var sr_applied: int = mini(sr_discount, card.mana_cost)
-		stats.gain_mana(sr_applied)  # Refund as discount
-		stats.st_self_reliance_discount = false
-		# The discount is earned by three cards; the count starts over so the
-		# NEXT three earn the next one (not every card after the third).
-		stats.st_cards_this_cycle.clear()
-		main.add_battle_log("Self Reliance: -%dm applied!" % sr_applied, Color(0.9, 0.3, 0.3))
-
+	# Self Reliance: the 3rd card played in one tempo cycle puts a rank-scaled
+	# mana discount (10..80m, capped at the card's cost) on a random paid card
+	# in hand, where it sits until that card is played. It is a cost cut on
+	# the card, not mana gained (so Energy Barrier never counts it). The count
+	# starts over so the NEXT three earn the next one.
 	if stats.has_skill_tree_passive("self_reliance"):
 		stats.st_cards_this_cycle.append(card.card_type_name)
-		if stats.st_cards_this_cycle.size() >= 3 and not stats.st_self_reliance_discount:
-			stats.st_self_reliance_discount = true
-			var sr_next: int = PassiveScaling.value("self_reliance", "mana_discount", stats.get_passive_level("self_reliance"))
-			main.add_battle_log("Self Reliance: next card costs -%dm!" % sr_next, Color(0.9, 0.3, 0.3))
+		if stats.st_cards_this_cycle.size() >= 3:
+			stats.st_cards_this_cycle.clear()
+			if not _self_reliance_discount_hand(stats):
+				# Nothing in hand can take it: the next paid card drawn does.
+				stats.st_self_reliance_discount = true
 
 	# Budding: track card types (no back-to-back same type)
 	if stats.has_skill_tree_passive("budding"):
@@ -1565,18 +1638,11 @@ func _trigger_skill_tree_cory_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
-	# Eat: +1% damage for each percentage point the enemy is below the
-	# rank-scaled threshold (11%..39%). Judged against the enemy's health
-	# BEFORE this hit landed.
-	if stats.has_skill_tree_passive("eat") and target is Enemy and is_instance_valid(target) \
-			and target.is_alive() and card.last_damage_dealt > 0:
-		var eat_threshold := float(PassiveScaling.value("eat", "threshold_percent", stats.get_passive_level("eat")))
-		var pre_health = mini(target.max_health, target.current_health + card.last_damage_dealt)
-		var pre_pct = 100.0 * float(pre_health) / float(target.max_health)
-		if pre_pct < eat_threshold:
-			var bonus_pct = eat_threshold - pre_pct
-			bonus += maxi(1, floori(card.last_damage_dealt * bonus_pct / 100.0))
-			main.add_battle_log("Eat: +%d%% damage (+%d) on weakened prey!" % [roundi(bonus_pct), bonus], Color(0.3, 0.7, 1.0))
+	# (Eat's +1% damage per point below the threshold is a hit modifier — see
+	# modify_player_hit — so cards, gauntlet skills and the auto attack all
+	# carry it, and DoT ticks never do.)
+	if card == null or target == null:
+		return 0
 
 	return bonus
 

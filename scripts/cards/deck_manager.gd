@@ -889,6 +889,11 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 		if dex_flat_bonus > 0:
 			card.bonus_damage += dex_flat_bonus
 
+	# While an ally's card resolves on the partner's stats, every heal it
+	# performs is an ally heal (Solemn Independence, Redemption read this).
+	var ally_cast: bool = effect_stats != null and effect_stats != player_stats
+	if ally_cast:
+		effect_stats._ally_cast = true
 	card.execute(target, effect_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 
 	if dex_flat_bonus > 0:
@@ -901,6 +906,8 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 		if player_stats.consume_free_hand_echo():
 			card.execute(target, effect_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 			print("[DECK] Free hand echo: %s strikes twice!" % card.card_name)
+	if ally_cast:
+		effect_stats._ally_cast = false
 
 	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
 		debuff_mgr.on_attack()

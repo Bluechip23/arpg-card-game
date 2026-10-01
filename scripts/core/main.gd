@@ -2257,6 +2257,7 @@ func _execute_basic_attack(target: Enemy) -> void:
 		if player.has_method("play_animation"):
 			player.play_animation("attack_slash", _facing_dir_toward(target))
 		target.take_damage(damage, true)
+		progression_triggers.brad_life_steal(damage)
 		if buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
 			progression_triggers._trigger_skill_tree_on_crit(target)
@@ -2265,6 +2266,7 @@ func _execute_basic_attack(target: Enemy) -> void:
 			stats.register_attack()
 			if stats.consume_free_hand_echo() and is_instance_valid(target):
 				target.take_damage(damage, true)
+				progression_triggers.brad_life_steal(damage)
 				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
 		if debuff_mgr:
 			debuff_mgr.on_attack()
@@ -2276,6 +2278,7 @@ func _execute_basic_attack(target: Enemy) -> void:
 		if player.has_method("play_animation"):
 			player.play_animation("attack_slash", _facing_dir_toward(target))
 		target.take_damage(damage, true)
+		progression_triggers.brad_life_steal(damage)
 		if buff_mgr and buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
 			progression_triggers._trigger_skill_tree_on_crit(target)
@@ -4308,6 +4311,12 @@ func _on_player_move_completed() -> void:
 	_update_fog_of_war()
 	# Sphere grid passive triggers for movement
 	progression_triggers._trigger_sphere_passives("on_move", {})
+	# Walking up to (or away from) an enemy is an entry/exit of melee range
+	# too (Territorial Death), and may change whether Brad is surrounded.
+	if enemy_spawner:
+		for en in enemy_spawner.get_living_enemies():
+			_update_enemy_melee_state(en, false)
+	progression_triggers.refresh_solemn()
 
 func _movement_locked() -> bool:
 	## While the active character's own action ticks run (card or basic
@@ -6071,6 +6080,8 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.movement_completed.connect(_on_enemy_movement_completed)
 	enemy.barricade_attacked.connect(_on_enemy_barricade_attacked)
 	enemy.channel_broken.connect(_on_enemy_channel_broken)
+	# Skill-tree % modifiers on the player's direct hits (Eat, Solemn Independence).
+	enemy.player_hit_modifier = Callable(progression_triggers, "modify_player_hit")
 	# Give enemy a reference to dungeon_manager for elevation lookups
 	if dungeon_manager:
 		enemy.dungeon_manager = dungeon_manager
@@ -6191,18 +6202,25 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 	if dungeon_manager and is_instance_valid(enemy) and not enemy.is_dead:
 		_trigger_terrain_traps_for(grid_manager.world_to_grid(enemy.position), enemy, false)
 
-	# Cory: Territorial Death — check if enemy entered or left melee range
+	_update_enemy_melee_state(enemy, true)
+	progression_triggers.refresh_solemn()
+
+## Melee-range edge detection for the passives that watch it. Territorial
+## Death fires whether the enemy or Cory did the moving; In the Trenches'
+## free attack only when the ENEMY steps in (`enemy_moved`).
+func _update_enemy_melee_state(enemy: Enemy, enemy_moved: bool) -> void:
+	if enemy == null or not is_instance_valid(enemy) or enemy.is_dead:
+		return
 	var dist = player.position.distance_to(enemy.position)
 	var in_melee = dist <= 1.8  # Slightly larger than 1.5 to catch edge cases
 	var enemy_id = enemy.get_instance_id()
 	var was_in_melee = _enemy_melee_state.get(enemy_id, false)
 	_enemy_melee_state[enemy_id] = in_melee
 	if in_melee and not was_in_melee:
-		# Enemy entered melee range
 		progression_triggers._trigger_skill_tree_cory_on_enemy_enter_melee(enemy)
-		progression_triggers._trigger_skill_tree_brad_itt_on_enter(enemy)
+		if enemy_moved:
+			progression_triggers._trigger_skill_tree_brad_itt_on_enter(enemy)
 	elif was_in_melee and not in_melee:
-		# Enemy left melee range — also triggers Territorial Death
 		progression_triggers._trigger_skill_tree_cory_on_enemy_leave_melee(enemy)
 
 func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
@@ -6253,6 +6271,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	progression_triggers._trigger_sphere_passives("on_kill", {"target": enemy})
 	# Cory: Eat — heal on kill
 	progression_triggers._trigger_skill_tree_cory_on_kill(enemy)
+	progression_triggers.refresh_solemn()
 	# Quest tracking: what died, where, and whether the active player held
 	# the high ground when it did (The High Road).
 	if quest_manager:
@@ -9014,6 +9033,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 				player.face_toward(target.position)
 		var damage = data["basic_attack_damage"]
 		target.take_damage(damage, true)
+		progression_triggers.brad_life_steal(damage)
 
 		var ba_buff_mgr = player.get_buff_manager()
 		var ba_debuff_mgr = player.get_debuff_manager()
@@ -9030,6 +9050,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			ba_stats.register_attack()
 			if ba_stats.consume_free_hand_echo() and is_instance_valid(target):
 				target.take_damage(damage, true)
+				progression_triggers.brad_life_steal(damage)
 				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
 
 		if ba_debuff_mgr:
@@ -10289,7 +10310,7 @@ func _burn_flame_zones() -> void:
 		var full: int = (stats.get_effective_spell_damage(10) if stats else 10) + 5 * hit.size()
 		var half: int = maxi(1, full / 2)
 		for en in hit:
-			en.take_damage(half, true)
+			en.take_damage(half, false)  # a burn tick, not a hit: no on-hit riders
 		add_battle_log("The flames burn %d enemies for %d" % [hit.size(), half], Color(1.0, 0.5, 0.2))
 
 ## Re-read the maintained pile: Barbed Exterior's thorns and Forever
@@ -15751,7 +15772,6 @@ func _setup_dojo() -> void:
 	_setup_dojo_reset_button()
 	_setup_dojo_bar_dragging()
 	add_battle_log("The Dojo: hit the chickens, heal the dogs. Nothing here follows you out.", Color(0.8, 0.8, 0.95))
-	add_battle_log("Drag the HP / mana bars to set them; Reset restores everything.", Color(0.6, 0.6, 0.75))
 
 func _spawn_dojo_dummy(cell: Vector2i) -> void:
 	var world = grid_manager.grid_to_world(cell)

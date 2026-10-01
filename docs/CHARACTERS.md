@@ -156,7 +156,7 @@ just targets — they are literally his sustain.
 
 His second axis is *throughput*. Cory wants to play a lot of cards, of every type: playing an
 attack, a utility, and a defense in any order heals him and grants temp HP (5→19 of each,
-*Budding*), three cards inside one tempo cycle discounts the next one (*Self Reliance*),
+*Budding*), the third card inside one tempo cycle cuts the cost of a random card still in hand (*Self Reliance*),
 emptying his hand draws 4 fresh cards (*Regrowth*, cooldown 25→11 tempo), and shuffling his
 deck grants 10→24 armor and the same damage buff (*Circle of Life*). Even **Meditate** (discard everything, redraw, heal to 80%) plays into the
 reset loop. Nothing in the kit wants you to sit on cards.
@@ -173,7 +173,7 @@ that grows +9 and gets cheaper each reuse, rewarding repetition), **Defensive Aw
 (armor per nearby enemy — he *wants* to be surrounded), **Misery Loves Company** (spread every
 debuff on the board with one AOE), **Release Tension** (cash debuffs in for healing),
 **Exposed Artery** (scales off missing health, finishing what the attrition started), with
-*Eat* turning him into a genuine closer — +1% damage for every percentage point the enemy sits
+*Eat* turning him into a genuine closer — every direct hit (card, gauntlet skill or auto attack, never a DoT tick) deals +1% for every percentage point the enemy sits
 below a rank-scaled 11%→39% threshold, plus a heal of 1%→15% of his max HP on every kill — and
 *Serial Killer* making him invisible to any enemy that drops below 11%→25%, with the ambush
 out of that invisibility landing as a guaranteed crit (and revealing him). *Expel Negativity*
@@ -206,9 +206,9 @@ cards spend the pile: **Shield Slam** (damage based on current armor, lose half)
 **Internal Combustion** (sacrifice half your armor for AOE damage), **Tower Shield** (+40
 armor at the cost of being staggered), **Shield of Growth** (converts incoming damage *into*
 armor). Armor in, armor out. Being swarmed is a buff — *Solemn Independence* grants +5%→12%
-bonus attack damage and armor-per-cycle when 3+ enemies are close (at the cost of ally
-healing), and *In the Trenches* gives free attacks and knockbacks against anyone who steps
-adjacent.
+on every hit (each enemy an AoE touches) and armor-per-cycle when 3+ enemies are close (at the cost of all ally
+healing, from any source), and *In the Trenches* gives free attacks and knockbacks against anyone who steps
+adjacent — two charges shared between the two, each returning 10 tempo after it is spent.
 
 **Gear identity:** Brad's slot identity is the **War Rack** — gear strapped across his back
 that swaps *wholesale* with everything in his hands mid-fight. The free exchange (25-tempo

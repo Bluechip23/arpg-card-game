@@ -154,17 +154,23 @@ func _test_self_reliance(stats, pt) -> void:
 	_grant(stats, "self_reliance")
 	stats.st_cards_this_cycle.clear()
 	stats.st_self_reliance_discount = false
+	main.deck_manager.hand.clear()
+	var held := Card.create_peshtigos_kiss()
+	main.deck_manager.hand.append(held)
+	var mana_before: int = stats.current_mana
+	var gains_before: int = stats.st_mana_gain_counter
 	for _i in range(3):
 		pt._trigger_skill_tree_cory_on_card_play(Card.create_slash())
-	_check(stats.st_self_reliance_discount, "three cards in a cycle arm the discount")
-	stats.current_mana = 0
-	pt._trigger_skill_tree_cory_on_card_play(Card.create_slash())
-	_check(not stats.st_self_reliance_discount and stats.st_cards_this_cycle.size() == 1,
-		"the 4th card spends it and starts the next count of three")
-	pt._trigger_skill_tree_cory_on_card_play(Card.create_slash())
-	_check(not stats.st_self_reliance_discount, "the 5th card does not re-arm it on its own")
-	pt._trigger_skill_tree_cory_on_card_play(Card.create_slash())
-	_check(stats.st_self_reliance_discount, "the 6th card (three since the discount) arms the next one")
+	_check(held.temp_mana_discount == 60, "the third card in a cycle cuts the held 60m card by its whole cost (got %d)" % held.temp_mana_discount)
+	_check(stats.current_mana == mana_before and stats.st_mana_gain_counter == gains_before, "…as a cost cut, not mana gained")
+	_check(not stats.st_self_reliance_discount and stats.st_cards_this_cycle.is_empty(), "nothing is owed and the next three start counting")
+	main.deck_manager.hand.clear()
+	for _i in range(3):
+		pt._trigger_skill_tree_cory_on_card_play(Card.create_slash())
+	_check(stats.st_self_reliance_discount, "with no paid card in hand the discount waits")
+	var drawn := Card.create_peshtigos_kiss()
+	pt._trigger_skill_tree_on_draw(drawn)
+	_check(drawn.temp_mana_discount == 60 and not stats.st_self_reliance_discount, "…and lands on the next paid card drawn")
 
 func _test_adjacency(stats, pt, dummy: Enemy) -> void:
 	print("-- Melee-only reactions --")
@@ -230,12 +236,15 @@ func _test_heal_gating(stats, pt) -> void:
 	var bm = main.player.get_buff_manager()
 	for b in bm.buffs.duplicate():
 		bm.remove_buff(b.buff_type)
+	stats.st_redemption_crit = 0
+	stats.last_heal_from_ally = false
 	stats._passive_heal = true
 	pt._trigger_skill_tree_brad_on_heal()
 	stats._passive_heal = false
-	_check(bm.get_buff(Buff.BuffType.ENLIGHTENED) == null, "a regen / life-steal tick does not arm Redemption")
+	_check(stats.st_redemption_crit == 0, "a regen / life-steal tick does not arm Redemption")
 	pt._trigger_skill_tree_brad_on_heal()
-	_check(bm.get_buff(Buff.BuffType.ENLIGHTENED) != null, "a direct heal arms it")
+	_check(stats.st_redemption_crit == 15, "a direct heal arms it")
+	stats.st_redemption_crit = 0
 	for b in bm.buffs.duplicate():
 		bm.remove_buff(b.buff_type)
 	_grant(stats, "whispers_of_the_flock")
@@ -255,7 +264,8 @@ func _test_heal_gating(stats, pt) -> void:
 		if c.card_id == "shepherds_mark":
 			held = true
 	_check(held, "healing an ally with a card generates one")
-	_check(bm.get_buff(Buff.BuffType.ENLIGHTENED) != null, "…and arms Redemption too")
+	_check(stats.st_redemption_crit == 15, "…and arms Redemption too")
+	stats.st_redemption_crit = 0
 
 func _test_enlightened() -> void:
 	print("-- Enlightened keeps the surer crit --")

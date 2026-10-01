@@ -260,8 +260,8 @@ static func create_brad() -> CharacterData:
 		]},
 		{"name": "The Fallen", "description": "Once a child of god, your mistakes have left you deserted. You have devoted yourself to find a way back.", "abilities": [
 			{"name": "Point to Prove", "description": "When being stunned or disarmed, you have the option to sacrifice health to ignore the ailment"},
-			{"name": "Redemption", "description": "When healing an ally, 10% crit chance"},
-			{"name": "Solemn Independence", "description": "When 3+ enemies are within 2 tiles: +5 damage on all attacks, +5 armor per tempo cycle, but cannot be healed by allies"},
+			{"name": "Redemption", "description": "When you heal (self or ally), gain crit chance on your next attack"},
+			{"name": "Solemn Independence", "description": "When 3+ enemies are within 2 tiles: +5%→12% damage on every hit, +1→8 armor per tempo cycle, but cannot be healed by allies"},
 		]},
 	]
 	data.passive_description = "Chest items weigh 20% less"

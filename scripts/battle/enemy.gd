@@ -106,6 +106,7 @@ var max_armor: int = 0
 var current_armor: int = 0
 var is_exposed: bool = false          # True once armor has been broken to 0
 var last_player_hit_damage: int = 0   # Raw damage of the player's most recent hit (for on-expose passives)
+var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree % mods on the player's direct hits (set by main)
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
 var premeditated_card_bonus: int = 0  # Premeditated: +15 onto the next card that targets this enemy
 var target: Node3D = null
@@ -4649,6 +4650,12 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 			# Negative resist = vulnerability: the hit lands harder (Treant vs fire).
 			# Percent math before the divide keeps 100 * 115% at exactly 115.
 			amount = floori(amount * (100.0 - minf(type_resist, 90.0)) / 100.0)
+
+	# Skill-tree hit modifiers (Cory's Eat, Brad's Solemn Independence): a
+	# percentage on the player's direct hits — cards, gauntlet skills, the
+	# auto attack — never on DoT ticks, which pass from_player = false.
+	if from_player and player_hit_modifier.is_valid():
+		amount = int(player_hit_modifier.call(self, amount))
 
 	# Raw post-resist size of this hit, for the elite threshold reactions
 	# (Ifrit backflip, Minotaur leap, Djinn wishes, bear strengthen).

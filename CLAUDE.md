@@ -30,6 +30,12 @@ This distinction is critical and must guide every design and implementation deci
 
 When adding new features or mechanics, always ask: "Does this support a persistent, story-driven RPG experience?" If a mechanic feels like it belongs in a roguelike (temporary buffs that reset between runs, random reward pools, death-and-restart loops), rethink the approach.
 
+## Open Design Notes
+
+Things the designer asked to be raised again when the related system is reworked:
+
+- **Buff / debuff rework → revisit Cory's *Wither*.** It adds "+1 charge" via `enemy.apply_debuff(name, 1)`, which is a no-op on timer-style debuffs (stun, silence, root, curse) and shortens Disarm / Mark instead of extending them, and it fires on debuffs from any source, not only Cory's. Decide what a charge means per debuff when the debuff model changes.
+
 ## Narrative Canon
 
 The story, world, and characters are documented in [`docs/STORY.md`](docs/STORY.md) — the canonical worldbuilding bible (Olorin, the four Acts, the bestiary, the City end-game, and how the narrative maps to existing systems). Read it before adding story, quest, world-theme, or enemy content, and keep it updated when story decisions are made.

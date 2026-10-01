@@ -63,6 +63,8 @@ var sanguine_stacks: int = 0
 # Solemn Independence: set true by the cycle trigger while 3+ enemies are within 2
 # tiles — grants combat bonuses but blocks ally healing.
 var solemn_active: bool = false
+var last_heal_from_ally: bool = false  # set as `healed` fires: was this heal performed by an ally?
+var _ally_cast: bool = false           # an ally's card is resolving on these stats (deck_manager)
 
 #region BASE CORE STATS (before determination modifier)
 # ============================================
@@ -519,7 +521,8 @@ var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense car
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
 var st_ancestral_cycle_counter: int = 0  # Ancestral Aid: counts cycles toward the every-5-cycles trigger
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
-var st_itt_last_used_tempo: int = -100 # In the Trenches: global tempo when charges were last exhausted
+var st_itt_spent: Array = []           # In the Trenches: global tempo each spent charge was used (each returns 10 later)
+var st_redemption_crit: int = 0        # Redemption: crit % armed for the next attack roll (on top of Enlightened)
 
 # Stephen passive tracking
 var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive attack cards played
@@ -540,7 +543,7 @@ var st_expel_charges: int = 2          # Expel Negativity: shared charge pool (2
 var st_expel_last_used_tempo: int = -100  # Expel Negativity: global tempo when charges were last exhausted
 var st_enraged_will_last_tempo: int = -100  # Enraged Will: global tempo of the last AOE swing (10 tempo cooldown)
 var st_cards_this_cycle: Array[String] = []  # Self Reliance: card types played this tempo cycle
-var st_self_reliance_discount: bool = false   # Self Reliance: next card costs -10m
+var st_self_reliance_discount: bool = false   # Self Reliance: a discount is owed but no paid card was in hand to take it
 var st_budding_types: Array[String] = []     # Budding: card types played (no back-to-back)
 var st_budding_last_type: String = ""         # Budding: last card type to prevent back-to-back
 var st_serial_killer_enemies: Dictionary = {} # Serial Killer: enemies already triggered (enemy_id -> true)
@@ -2074,11 +2077,11 @@ func boost_performed_heal(amount: int) -> int:
 	return amount
 
 func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) -> void:
-	if PlayerStats.heal_to_damage and amount > 0:
-		print("[STATS] Poisoned Blood: a %d heal lands as damage" % amount)
-		take_damage(amount)
-		return
-	# Solemn Independence: block ally healing while active
+	# A heal that arrives through an ally's card counts as an ally heal
+	# whatever the executor passed.
+	if _ally_cast:
+		from_ally = true
+	# Solemn Independence: block ally healing from any source while active
 	if from_ally and solemn_active:
 		return
 	# Friendship: the partner receives the same base heal (their modifiers apply).
@@ -2113,6 +2116,7 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 	current_health = min(current_health, max_health)
 	var actual_heal = current_health - old_health
 	health_changed.emit(current_health, max_health)
+	last_heal_from_ally = from_ally
 	if actual_heal > 0:
 		healed.emit(actual_heal)
 

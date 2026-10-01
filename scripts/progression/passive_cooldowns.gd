@@ -41,9 +41,11 @@ const _REMAINING := {
 	"whispers_of_the_flock": "st_whispers_cooldown",
 }
 
-# passive_id -> [charges property, last-exhausted-tempo property]
+# passive_id -> [charges property, recharge-tracking property]. The tracker is
+# either the global tempo the pool was exhausted at (refills as a whole) or
+# an Array of the tempo each spent charge was used (charges return one by one).
 const _CHARGES := {
-	"in_the_trenches": ["st_itt_charges", "st_itt_last_used_tempo"],
+	"in_the_trenches": ["st_itt_charges", "st_itt_spent"],
 	"expel_negativity": ["st_expel_charges", "st_expel_last_used_tempo"],
 }
 
@@ -69,9 +71,20 @@ static func status(passive_id: String, stats, tempo_manager) -> Dictionary:
 		# lazy in progression_triggers, so elapsed >= total counts as ready
 		# even before the charges variable is refilled.
 		var charges: int = int(stats.get(_CHARGES[passive_id][0]))
-		var elapsed: int = now - int(stats.get(_CHARGES[passive_id][1]))
-		out.on_cooldown = charges <= 0 and elapsed < cd_total
-		out.elapsed = clampi(elapsed, 0, cd_total)
+		var tracker = stats.get(_CHARGES[passive_id][1])
+		if tracker is Array:
+			# Per-charge recharge: recharging while any charge is out; the bar
+			# follows the oldest spent charge (the next one back).
+			var oldest: int = now
+			for t in tracker:
+				oldest = mini(oldest, int(t))
+			var elapsed_c: int = now - oldest
+			out.on_cooldown = tracker.size() > 0 and elapsed_c < cd_total
+			out.elapsed = clampi(elapsed_c, 0, cd_total) if tracker.size() > 0 else cd_total
+		else:
+			var elapsed: int = now - int(tracker)
+			out.on_cooldown = charges <= 0 and elapsed < cd_total
+			out.elapsed = clampi(elapsed, 0, cd_total)
 	elif _REMAINING.has(passive_id):
 		var remaining: int = int(stats.get(_REMAINING[passive_id]))
 		out.on_cooldown = remaining > 0

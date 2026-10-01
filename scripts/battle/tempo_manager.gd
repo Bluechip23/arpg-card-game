@@ -273,6 +273,17 @@ func add_tempo(amount: int) -> void:
 	tempo_changed.emit(current_tempo, tempo_threshold)
 	_check_threshold()
 
+## Give tempo back (The Way of the Plate's refund): winds the clock back by
+## `amount`, never past zero. Nothing else resolves — it only delays the
+## next cycle boundary.
+func refund_tempo(amount: int) -> void:
+	if amount <= 0:
+		return
+	global_tempo = maxi(0, global_tempo - amount)
+	current_tempo = maxi(0, current_tempo - amount)
+	print("[TEMPO] -%d tempo (refund) → %d in cycle | %d global" % [amount, current_tempo, global_tempo])
+	tempo_changed.emit(current_tempo, tempo_threshold)
+
 ## Start ticked processing for a card. Wraps start_card_ticks.
 func add_card_tempo(tempo_cost: int, card: Card = null, resolve_tick: int = 1, owner_id: int = 0) -> void:
 	last_tempo_source = "card"

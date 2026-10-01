@@ -594,6 +594,11 @@ func apply_temp_mod(mana_off: int, tempo_off: int, block_on: int, tempo: int = 5
 	block += block_on
 	temp_mod_tempo_left = maxi(temp_mod_tempo_left, tempo)
 
+## An untimed in-hand mana discount (Self Reliance): it rides the card until
+## it is played or leaves the hand, and stacks with the timed tweaks above.
+func apply_hand_discount(mana_off: int) -> void:
+	temp_mana_discount += mana_off
+
 func clear_temp_mods() -> void:
 	if temp_block_bonus != 0:
 		block -= temp_block_bonus

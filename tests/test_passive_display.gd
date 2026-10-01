@@ -53,13 +53,15 @@ func _initialize() -> void:
 	stats.st_itt_charges = 1
 	st = PassiveCooldowns.status("in_the_trenches", stats, tm)
 	_check(not st.on_cooldown, "in_the_trenches solid while charges remain")
+	stats.st_itt_spent = [15]
+	st = PassiveCooldowns.status("in_the_trenches", stats, tm)
+	_check(st.on_cooldown and st.total == 10 and st.elapsed == 5, "in_the_trenches recharging while a charge is out (got %d/%d)" % [st.elapsed, st.total])
 	stats.st_itt_charges = 0
-	stats.st_itt_last_used_tempo = 15
+	stats.st_itt_spent = [5, 15]  # the oldest (15 tempo ago >= 10) is back: lazy refill counts as ready
 	st = PassiveCooldowns.status("in_the_trenches", stats, tm)
-	_check(st.on_cooldown and st.total == 10 and st.elapsed == 5, "in_the_trenches recharging when pool empty (got %d/%d)" % [st.elapsed, st.total])
-	stats.st_itt_last_used_tempo = 5  # 15 tempo ago >= 10: lazy refill counts as ready
-	st = PassiveCooldowns.status("in_the_trenches", stats, tm)
-	_check(not st.on_cooldown, "in_the_trenches ready once refill window has passed")
+	_check(not st.on_cooldown, "in_the_trenches ready once the oldest spent charge's window has passed")
+	stats.st_itt_spent = []
+	stats.st_itt_charges = 2
 
 	# --- PassiveBoxUI reflects the cooldown state ---
 	var box := PassiveBoxUI.new()
