@@ -554,7 +554,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When enemies enter or leave melee range, re-apply 1 random debuff they already have. Cooldown 15→1 tempo (scales with rank)",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 13, slot = 0, archetype = "Monk", name = "Self Reliance",
-			description = "When you play 3 cards in a single tempo cycle, your next card costs -10m→-80m (scales with rank)",
+			description = "When you play 3 cards in a single tempo cycle, a random card in your hand costs -10m→-80m (scales with rank)",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 14, slot = 2, archetype = "Atrophist", name = "Death as Lifeblood",
 			description = "Every cycle, regenerate 1→5 HP for each enemy within 2 squares of you, counting up to 3→12 enemies (scales with rank)",

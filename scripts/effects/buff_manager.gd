@@ -507,6 +507,11 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var ebs_crit = 0
 	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats:
 		ebs_crit = owner_stats.st_exposed_blind_spot_crit
+	# Redemption (Brad): armed by a heal he performed, spent on this roll —
+	# its own number on top of any Enlightened, never merged into it.
+	var rd_crit = 0
+	if owner_stats and "st_redemption_crit" in owner_stats:
+		rd_crit = owner_stats.st_redemption_crit
 	# Tactician's Eye (WIS keystone): crit chance scaling with cards in hand.
 	var hand_crit = 0
 	if owner_stats and owner_stats.has_method("get_hand_size_crit_bonus"):
@@ -516,7 +521,7 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var keen_buff = get_buff(Buff.BuffType.KEEN)
 	if keen_buff:
 		keen_crit = keen_buff.value
-	var total_chance = innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit + hand_crit + keen_crit
+	var total_chance = innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit + rd_crit + hand_crit + keen_crit
 	if total_chance <= 0:
 		return false
 
@@ -526,6 +531,8 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	# Consume Exposed Blind Spot bonus after rolling (win or lose)
 	if ebs_crit > 0 and owner_stats:
 		owner_stats.st_exposed_blind_spot_crit = 0
+	if rd_crit > 0 and owner_stats:
+		owner_stats.st_redemption_crit = 0
 
 	# Enlightened is "+X% crit for the next Y ATTACKS": every attack roll spends
 	# a charge, crit or not. (Consuming only on successful crits let the buff
