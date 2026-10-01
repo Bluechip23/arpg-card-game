@@ -80,7 +80,10 @@ func _set_name_and_description() -> void:
 			description = "%d%% crit chance for the next %d attacks (re-applying refreshes to the higher count, never adds)" % [value, charges]
 		BuffType.STRENGTHEN:
 			buff_name = "Strengthen"
-			description = "+%d damage on next %d attacks" % [value, charges]
+			if charges < 0 and duration > 0:
+				description = "+%d damage on every attack (%d tempo)" % [value, duration]
+			else:
+				description = "+%d damage on next %d attacks" % [value, charges]
 		BuffType.BOLSTER:
 			buff_name = "Bolster"
 			description = "+%d armor next %d times you gain armor" % [value, charges]
@@ -177,6 +180,9 @@ func use_charge() -> bool:
 	return false
 
 func is_charge_based() -> bool:
+	# A timed Strengthen (no charges, a clock) ticks down like any timed buff.
+	if buff_type == BuffType.STRENGTHEN and charges < 0 and duration > 0:
+		return false
 	match buff_type:
 		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, \
 		BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, \
@@ -281,6 +287,14 @@ static func create_enlightened(crit_chance: int = 25, attacks: int = 3, source: 
 static func create_strengthen(extra_damage: int = 3, attacks: int = 3, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.STRENGTHEN, extra_damage, -1, attacks)
 	buff.source_name = source
+	return buff
+
+## Strengthen on the clock (Bloodlust, Succumb): +X damage on EVERY attack
+## until the tempo runs out, rather than on the next N attacks.
+static func create_strengthen_timed(extra_damage: int, tempo: int, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.STRENGTHEN, extra_damage, tempo, -1)
+	buff.source_name = source
+	buff._set_name_and_description()
 	return buff
 
 static func create_bolster(extra_armor: int = 2, times: int = 3, source: String = "") -> Buff:

@@ -36,6 +36,7 @@ var next_attack_half_tempo: bool = false
 var next_attack_mana_discount: int = 0
 var prep_utility_discount: int = 0  # Preparation: reduces next utility card cost
 var prep_utility_charges: int = 0   # How many more utility cards get the discount
+var prep_utility_persist: bool = false  # Preparation: the discount waits for utility cards; other plays don't break it
 var discards_this_cycle: int = 0  # Cards that reached the discard pile since the last cycle (plays included)
 var true_discards_this_cycle: int = 0  # Cards DISCARDED (never played) since the last cycle — Exacerbate Wounds
 var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
@@ -371,8 +372,14 @@ func draw_card() -> Card:
 	if card.has_meta("feral_color"):
 		card.remove_meta("feral_color")
 
+	# Empower: the next attack cards drawn carry +3 damage until played.
+	card.draw_empowered = false
+	if card.card_type == Card.CardType.ATTACK and player_stats \
+			and player_stats.is_empowered() and player_stats.consume_empower():
+		card.draw_empowered = true
+
 	# Reset enchantment cycle counter when drawn into hand
-	if card.card_type == Card.CardType.ENCHANTMENT:
+	if card.card_type == Card.CardType.ENCHANTMENT or card.card_id == "healthy_bliss":
 		card.cycles_in_hand = 0
 
 	# Reset sticky card state when drawn into hand
@@ -702,15 +709,18 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		next_attack_half_tempo = false
 		next_attack_mana_discount = 0
 
-	# Preparation chain: consume a charge when utility played, clear if non-utility or depleted
+	# Preparation chain: consume a charge when utility played. Preparation's
+	# own discount waits for the next utility cards whenever they come; the
+	# passive "next card" discounts still clear on a non-utility play.
 	if prep_utility_discount > 0:
 		if card.card_type == Card.CardType.UTILITY:
 			prep_utility_charges -= 1
 			if prep_utility_charges <= 0:
 				prep_utility_discount = 0
 				prep_utility_charges = 0
+				prep_utility_persist = false
 				print("[DECK] Preparation charges depleted")
-		else:
+		elif not prep_utility_persist:
 			prep_utility_discount = 0
 			prep_utility_charges = 0
 			print("[DECK] Preparation chain broken (non-utility played)")
@@ -1176,6 +1186,28 @@ func trigger_reactions(trigger_type: String) -> Array[Card]:
 	if triggered.size() > 0:
 		hand_updated.emit()
 	return triggered
+
+## Fire one specific reaction card sitting in hand (a timer-driven instant
+## like Healthy Bliss, whose copies each keep their own clock). Same
+## bookkeeping as trigger_reactions. False when it is not in hand or Silence
+## stops a spell instant.
+func fire_reaction(card: Card) -> bool:
+	var i := hand.find(card)
+	if i < 0:
+		return false
+	if card.school == Card.CardSchool.SPELL and debuff_manager \
+			and debuff_manager.has_method("can_play_spell_cards") \
+			and not debuff_manager.can_play_spell_cards():
+		print("[DECK] Silenced — spell reaction %s cannot fire" % card.card_name)
+		return false
+	hand.remove_at(i)
+	discard_pile.append(card)
+	reaction_triggered.emit(card)
+	true_discards_this_cycle += 1
+	non_play_discard.emit(card)
+	hand_updated.emit()
+	print("[DECK] Reaction triggered: %s" % card.card_name)
+	return true
 
 ## Fire exactly ONE reaction card of the given trigger from hand, jailing it
 ## for jail_tempo instead of discarding — Polymorph's 25-tempo cooldown, so a

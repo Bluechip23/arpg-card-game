@@ -37,13 +37,13 @@ Built in **Godot 4.6**.
 5. [Resources: Health, Mana, Armor](#resources-health-mana-armor)
 6. [Cards](#cards)
 7. [Card Effects & Keywords](#card-effects--keywords)
-8. [Buffs](#buffs)
-9. [Debuffs](#debuffs)
-10. [Equipment & Inventory](#equipment--inventory)
-11. [Weapon & Equipment Swapping](#weapon--equipment-swapping)
-12. [Cards Slotted Into Items](#cards-slotted-into-items)
-13. [Characters](#characters)
-14. [Progression](#progression)
+8. [Equipment & Inventory](#equipment--inventory)
+9. [Weapon & Equipment Swapping](#weapon--equipment-swapping)
+10. [Cards Slotted Into Items](#cards-slotted-into-items)
+11. [Characters](#characters)
+12. [Progression](#progression)
+13. [The In-Game Menus](#the-in-game-menus)
+14. [Design References](#design-references)
 
 ---
 
@@ -89,6 +89,8 @@ Recruited NPCs are part of the same fabric: allies found on the journey (startin
 - **Timed buff/debuff durations tick down with raw tempo**, not in cycle chunks — a 3-tempo stun lasts exactly 3 tempo. Charge/stack-driven effects ignore the clock entirely and burn on what they react to (attacks, moves, cards played, hits taken).
 - By default, **card draws** trigger every 25 tempo (5 cycles).
 
+Enemy reach is measured in **grid steps, never diagonals** — the same measure enemies use to pick their moves. A wererat on your corner tile cannot bite you, and a swing lined up on a player who then steps away closes the distance instead of landing.
+
 Because enemies act on tempo, a cheap fast card and an expensive slow card dictate how the game will play out. **ENEMIES CAN TAKE MULTIPLE ACTIONS IN A ROW.** In other words, if you play a card worth 8 tempo, while it ticks, an enemy who attacks every 4 tempo will hit you twice.
 
 ---
@@ -121,7 +123,7 @@ Your life total. Every character starts the story with **10 health** and gains *
 
 **Healing Fountains.** Stone basins of holy water stand in every world and interior, two on the surface and one below. Stand beside one and press Shift. *Drink* restores you to full health but spends the fountain's blessing, and the basin runs dry until you pour in a vial of **Holy Water**, a currency enemies drop (rarely from trash, often from elites, always from bosses). *Bathe in the light* blesses you with +20% incoming XP for your next 20 kills, once per fountain, ever (a second fountain refreshes the count; it never stacks). Fountain state persists with the world, like chests.
 
-**Quests.** Olorin (and the Sellsword) hand out quests with several objectives each: kills by type and zone, kills from high ground, carrying a currency to hand in, disarming traps, breaking an enemy's channel, finding and escorting someone, a shrine choice, or answering a trial. Quests unlock in chains and by act, several teach a mechanic (the log shows a Tip), and turn-ins can grant gold, XP, story flags (the Town Well, the Lumber Mill, a free recruit, the hidden graveyard) and permanent stat bonuses. The Quest Log lives under Tab.
+**Quests.** Olorin (and the Sellsword) hand out quests with several objectives each: kills by type and zone, kills from high ground, carrying a currency to hand in, disarming traps, breaking an enemy's channel, finding and escorting someone, a shrine choice, or answering a trial. Quests unlock in chains and by act, several teach a mechanic (the log shows a Tip), and turn-ins can grant gold, XP, story flags (the Town Well, the Lumber Mill, a free recruit, the hidden graveyard) and permanent stat bonuses. The Quest Log lives under Tab (see [The In-Game Menus](#the-in-game-menus)).
 
 **The Dojo.** A training hall on the town plaza's east side. Inside stand four dummies in a square: two chickens on the **enemy side** (hit them, poison them, burn them; a killing blow only refills them) and two dogs on the **ally side** (heal them, armor them, buff them). Damage and heal numbers float exactly as they do in a real fight, the tempo ticker runs, and mana regenerates on its cycle. A **Reset** button beside Wait restores full health, mana and armor, clears buffs and debuffs, zeroes the clock, refreshes the dummies and deals back the hand you walked in with. Click or drag along the HP or mana bar to set either wherever you like (for Determination thresholds and low-health effects). Nothing done in the dojo leaves it: on the way out the game hands town the exact deck, hand, stats and inventory you walked in with, and the skill tree and sphere grid are locked while you train.
 
@@ -200,96 +202,13 @@ Mechanics that appear on cards:
 | **On-Draw / On-Discard** | Triggers an effect when drawn / discarded. |
 | **In-Hand** | Applies a persistent effect while the card sits in your hand. |
 | **Linger** | Status card that can exceed your hand size limit. While it lingers, normal draws overflow. |
-| **Empower** | Affects your next cards: +3 damage for attacks, −3 block for defense. |
+| **Empower** | Marks your next 2 attack cards drawn; a marked card deals +3 damage when played. Defense cards are untouched. |
 | **Reach** | Adds 1 tile to melee attack range. |
 | **Conditional** | Melee or ranged depending on the weapon in hand: a bow makes the card ranged (and costs +1 tempo to play), anything else makes it melee. Replaces a fixed melee/ranged tag (Exacerbate Wounds). |
 | **AOE** | Hits multiple targets in a shape (cone, circle, or line). |
 | **Engrave** | The card exists only inside an item's card slot: it cannot join the bare deck, and leaves it the moment it is extracted. |
 
 Some cards carry **RNG outcomes**. When the **card is drawn** the player is told if the card will be successful or a failure. **Holding the card for a certain amount of tempo will re roll this outcome**. The player will see the new outcome as well. Chance-boosting effects tilt these rolls in your favor.
-
----
-
-## Buffs
-
-Positive effects. Three lifetime models, and every buff uses exactly one:
-
-- **Duration buffs tick down with raw tempo** — a 15-tempo buff lasts exactly 15 tempo, not "3 cycles."
-- **Charge buffs ignore the clock** and burn one charge per event they react to (an attack, an armor gain, a move, a cycle). They last as long as their charges do.
-- **Per-cycle value buffs** (Regen, Smith) trigger once per cycle and their value **decays by 1 each cycle** — Regen 5 heals 5, then 4, then 3… and expires at 0.
-
-Reapplying a charge buff generally adds or extends charges rather than raising the magnitude (Enlightened is the loudest example: stacks extend how many attacks it covers, never the %). Sphere-grid **amp nodes** can make specific buffs arrive stronger (+charges, +value, or +% depending on the buff).
-
-| Buff | Effect |
-|---|---|
-| **Thorns** | Deal X damage back to attackers; lose 1 thorn per hit taken. |
-| **Focused** | Gain 10 extra mana per cycle. |
-| **Regen** | Heal X HP per cycle; X decays by 1 each cycle. |
-| **Blessed** | Draw X additional card(s) per cycle for Y cycles — each cycle burns a charge. |
-| **Fortify** | Armor does not decay while this lasts. |
-| **Enlightened** | +X% crit chance for the next Y attacks — every attack burns a charge, crit or not. Most sources grant 10%; rank-scaled sources (e.g. Brad's Redemption) grant their own %. A 100% source is a guaranteed crit. Reapplying extends the attacks, never raises the %. |
-| **Strengthen** | +X damage on the next Y attacks — each attack burns a charge. |
-| **Bolster** | +X armor the next Y times you gain armor — each gain burns a charge. |
-| **Haste** | +X tempo-free tiles on your next Y moves — each non-flash move burns a charge (flash-point moves are exempt). |
-| **Cleanse** | Remove X negative effect(s) instantly. |
-| **Smith** | Gain X armor per cycle; X decays by 1 each cycle (Regen, but for armor). |
-| **Steady** | Your next action adds no tempo — each action burns a charge. |
-| **Brace** | Reduce incoming attack damage by X% for Y attacks — each incoming attack burns a charge. |
-| **Resilient** | Reduce all incoming damage by X%, draining by tempo (can be limited to one damage type). |
-| **Life Steal** | Your next attack heals you for the damage dealt (some sources heal a % of the damage instead). |
-| **Invisible** | Cannot be targeted by enemies for X tempo. |
-| **Keen** | +X% crit chance for Y tempo (unlike Enlightened, purely time-based). |
-| **Might** | +X Strength for Y tempo. |
-| **Morphine** | Temp HP is active; when it expires, lose the remaining temp HP and take 2 damage. |
-| **Wear Down** | Your attacks reduce the target's attack by 1 (stacking) while this lasts. |
-| **Armor Break** | Your next attack deals double damage to armor only (no health damage). |
-| **Shield Ready** | Gain X more armor after Y tempo (a delayed armor payout). |
-| **Repelled Block** | If the next melee attack is fully blocked by armor, negate it and push the enemy back 4 tiles. |
-| **Shield of Growth** | All damage taken increases your armor by that amount while this lasts. |
-| **Phoenix Grace** | When HP drops below 50%: heal to 80% and apply 5 burn to the nearest enemy — one charge per rescue. |
-| **Demonic Rage** | Your next Y mana costs are paid with health instead of mana. |
-| **Poisoned Blood** | Your next Y heal cards deal damage to enemies instead of healing (this also flips potion outcomes, e.g. for Ryan's Mad Scientist). |
-| **Elixir** | Your next Y poison ticks heal you instead of hurting you — one stack per tick. |
-
----
-
-## Debuffs
-
-Negative effects, applied by enemies and hazards (and occasionally self-inflicted by powerful cards). The same two lifetime models as buffs:
-
-- **Timed debuffs tick down with raw tempo** (Stun 3 = exactly 3 tempo of lockout).
-- **Stack-driven debuffs never expire by the clock** — their stacks burn on what they react to (a tile moved, a card played, a hit taken, a cycle passing).
-
-For stack-driven debuffs, the stack **count** is the only per-application knob — how hard each stack hits is fixed (Slowed always costs 3 tempo per tile, Staggered always adds 15 mana per attack card, Weighted always adds 2 tempo per card, Linked always shares 20%, Clumsy is always a 30% discard chance, Blind is always an 80% miss chance). **Cleanse** removes debuffs instantly; character passives can also interact with them (Brad's *Point to Prove* offers to buy off a Stun/Disarm with a rank-scaled % of max HP; Cory's kit re-applies, transfers, and feeds on them). Enemies run the same debuff vocabulary — Inebriate and Slowed behave identically for players and enemies, and Cory's Wither can add a bonus charge to whatever you land.
-
-| Debuff | Effect |
-|---|---|
-| **Bleed** | Take 1 damage per tile moved; each point of damage removes a stack. |
-| **Stun** | Cannot take any actions for X tempo. |
-| **Disarm** | Cannot play attack cards for X tempo. |
-| **Silence** | Cannot play spell cards for X tempo. |
-| **Burn** | Damage doubles each cycle (1, 2, 4, 8…); one stack per cycle. |
-| **Poison** | Take X damage per cycle; lose 1 stack per cycle. |
-| **Inebriate** | Movement direction is randomized for X tempo. |
-| **Cursed** | Deal 20% less damage, and deal 20% of your damage to yourself. |
-| **Frozen** | Cannot play cards for X tempo. |
-| **Cuffed** | Cannot draw cards for X tempo. |
-| **Shocked** | Deal X damage to nearby allies per cycle; loses 1 stack per cycle. |
-| **Slowed** | Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack. |
-| **Staggered** | Attack cards cost 15 more mana; each attack card played burns a stack. |
-| **Drain** | Lose mana per cycle; loses 1 stack per cycle. |
-| **Weighted** | Cards cost 2 more tempo; each card played burns a stack. |
-| **Hexed** | One random card in hand costs +X mana. |
-| **Locked** | One random card in hand cannot be played. |
-| **Rooted** | Cannot move for X tempo. |
-| **Tethered** | Cannot move more than 5 tiles from where it was applied. |
-| **Magnetized** | Pulled X tiles toward the nearest enemy each cycle. |
-| **Linked** | Share 20% of damage taken with your ally (co-op partner); drains by tempo. |
-| **Clumsy** | 30% chance to discard a random card whenever you play one; each card played burns a stack. |
-| **Vulnerable** | Take 30% more damage on the next X attack(s) — one stack per hit. |
-| **Brittle** | Armor decays an extra 2 per cycle. |
-| **Cold** | Stacking. At 5 stacks, become Frozen. |
-| **Blind** | 80% chance for your attacks to miss; drains by tempo. |
 
 ---
 
@@ -300,6 +219,8 @@ For stack-driven debuffs, the stack **count** is the only per-application knob �
 Characters equip items into typed slots: **Helm, Chest, Rings, Belt, Boots, Gauntlets, Weapons/Hands**. Quivers occupy a hand slot. Slot counts vary by character (see [Characters](#characters)).
 
 Items grant stat bonuses, resource bonuses, hand size, weapon damage, and special effects. Each item has a general theme, although they do not always follow them specifically.
+
+**Ring tallies.** Rings whose passive builds toward a proc (Heal Stone, Gold Band, Emerald, Harnessed Sun, Ring of Nibelung, Ring of Stone Hide, The Precious, Draupnir, Captain Planets Circlet) get a box in the passive tray showing the running count against the threshold — e.g. Gold Band's "every 5 armor gained zaps a random enemy" reads 3/5 — refreshed on every heal, equipment change and tempo tick.
 
 ### Rarity & drops
 
@@ -413,13 +334,10 @@ Items with card slots can have cards **Enchanted** into them (and **Extracted** 
 
 **Slot labels decide where a card may go.** Every card can sit in your 12-card deck. A card with one or more slot labels (**Pocket**, **Crown**, **Gem**, **Swift**, **Buckler**, **Fist**, **Arrow**, **Bulwark**, or a weapon's own label) can *also* be enchanted into a matching slot: belts take Pocket, helms Crown, rings Gem, boots Swift, shields Buckler, gauntlets Fist, bows and quivers Arrow, chest armor Bulwark, and every weapon its own — Sword, Axe, Dagger, Hammer, Spear, Wand, Tome, Staff. A card can carry several labels (Crown / Gem / Pocket fits helms, rings and belts). A card with **no label is deck-only** and can never be slotted. **Engrave** is the wrinkle on top: an Engrave card exists *only* in a slot, never in the bare deck.
 
-Once slotted, these keywords govern moving a card between items:
+Every slotted card can be extracted, and once out it may be re-slotted into any item its labels allow — the labels alone decide where a card can go. A card can only live in one item at a time, and cards an item grants on its own can never be slotted anywhere.
 
-| Keyword | Meaning |
+| Label | Meaning |
 |---|---|
-| **Pliable** | After extraction the card may be re-slotted into any item type its labels allow. |
-| **Picky** | Once extracted from an item, the card can only be re-slotted into the *same item type*. (Default) |
-| **Molded** | Card is permanently locked into the item and cannot be extracted. |
 | **Arrow** | Bow/quiver cards. |
 | **Pocket** | Slots into belts. Generally daggers, potions, or other small items. |
 | **Gem** | Slots into rings. |
@@ -483,3 +401,28 @@ Path passives are not one-time picks — they are **leveled**, point by point, o
 - **Where the numbers live.** The full rank 1→15 tables for every passive are in `scripts/progression/passive_scaling.gd` (one table per passive, one entry per rank); the passive names, archetypes and descriptions live in `scripts/progression/skill_tree_data.gd` (the single source of truth — there is no separate design sheet), and the in-game tooltips show each passive's rank-1→15 range.
 
 The character's **innate passive** (the item-specialty one, like Brad's lighter chest pieces or Jeremy's ring-trigger double) is separate — it is always on and does not take points.
+
+---
+
+## The In-Game Menus
+
+Press **Tab** to open the journal, which holds four tabs:
+
+- **World Map** — a map of the world as you have explored it.
+- **Quest Log** — active and finished quests, their objectives, and any Tip a quest teaches.
+- **Card Inventory** — loose cards you are carrying, ready to add to the deck or slot into an item.
+- **Tutorials** — every one of Olorin's lessons, listed beat by beat exactly as he speaks them. Lessons this character has not heard yet are marked, so you can read ahead or revisit one you skipped.
+
+---
+
+## Design References
+
+The README covers how the game plays. For the exact numbers, see the generated references in `docs/` — each lists what the code actually does beside the design text, with any mismatches flagged at the top:
+
+| Document | Covers |
+|---|---|
+| [`docs/CARD_REFERENCE.md`](docs/CARD_REFERENCE.md) | All 240 cards: costs, range, slot labels, and the real behaviour of each card's code. |
+| [`docs/ITEM_REFERENCE.md`](docs/ITEM_REFERENCE.md) | All 189 items: coded stats, special effects, and what each item level changes. |
+| [`docs/PASSIVE_REFERENCE.md`](docs/PASSIVE_REFERENCE.md) | All 60 skill-tree passives: design text, implemented behaviour, and rank 1→15 scaling. |
+| [`docs/STORY.md`](docs/STORY.md) | The narrative canon: Olorin, the four Acts, the bestiary, and the City end-game. |
+| [`docs/CHARACTERS.md`](docs/CHARACTERS.md) | The playable characters. |

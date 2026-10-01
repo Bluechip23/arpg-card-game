@@ -29,6 +29,24 @@ signal action_points_spent(pool: String, amount: int)
 
 var character_data: CharacterData
 
+## Board-level damage mitigation (Cover): main installs a callable
+## (victim: PlayerStats, amount: int) -> int that returns how much of an
+## incoming hit a nearby defender's reaction soaks. Shared by every
+## character; invalid (no battle scene) means nothing is soaked.
+static var incoming_mitigation_hook: Callable = Callable()
+
+## What's left of `amount` after Cover — for PlayerStats and for summons
+## (their take_damage passes the summon node itself as the victim).
+## Poisoned Blood: while a heal card resolves under it, every heal that card
+## performs lands as damage instead (on you, allies and summons alike).
+## Card.execute sets it for the play; main clears it when the play resolves.
+static var heal_to_damage: bool = false
+
+static func apply_cover(victim, amount: int) -> int:
+	if amount <= 0 or not incoming_mitigation_hook.is_valid():
+		return amount
+	return maxi(0, amount - int(incoming_mitigation_hook.call(victim, amount)))
+
 # Friendship link: when set, this character shares heals with and splits incoming
 # damage 50/50 with the partner. Amounts are passed pre-modifier so each side
 # applies its own amplification/penalty. _friendship_echo guards against echo
@@ -183,6 +201,8 @@ func get_chance_boost() -> float:
 		total += float(PassiveScaling.value("tricks_of_death", "chance", get_passive_level("tricks_of_death")))
 	return total
 var elixir_stacks: int = 0  # Elixir: next N poison ticks heal instead of hurting (1 stack per tick)
+var elixir_tempo: int = 0   # Elixir card: while > 0, any poison applied to you heals you instead
+const ELIXIR_TEMPO := 25    # the Elixir card's window (the span its old 5 ticks covered)
 var is_blinded: bool = false      # Blind (e.g. Giant Hawk): attacks may miss
 var blind_tempo: int = 0
 const blind_miss_chance: float = 0.8
@@ -1572,6 +1592,8 @@ func get_effective_heal_amount(base_heal: int) -> int:
 ## Called every global tempo advance. Handles mana regen on its own interval.
 func process_tempo(amount: int) -> void:
 	_tick_temp_determination(amount)
+	if elixir_tempo > 0:
+		elixir_tempo = max(0, elixir_tempo - amount)
 	# Ring pass timers run on raw tempo.
 	if invulnerable_tempo > 0:
 		invulnerable_tempo = max(0, invulnerable_tempo - amount)
@@ -1741,6 +1763,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# after the percentage resists so it is worth the most against chip damage.
 	if equipment_flat_damage_reduction > 0 and remaining > 0:
 		remaining = maxi(0, remaining - equipment_flat_damage_reduction)
+
+	# Cover: a defender within 2 squares (you included) soaks the hit by
+	# their hand size, before armor ever sees it.
+	remaining = PlayerStats.apply_cover(self, remaining)
 
 	# Iron Bastion: chance to shrug off part of the hit.
 	if damage_proc_reduction_chance > 0.0 and remaining > 0 and randf() < damage_proc_reduction_chance:

@@ -108,6 +108,7 @@ var is_exposed: bool = false          # True once armor has been broken to 0
 var last_player_hit_damage: int = 0   # Raw damage of the player's most recent hit (for on-expose passives)
 var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree % mods on the player's direct hits (set by main)
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
+var premeditated_card_bonus: int = 0  # Premeditated: +15 onto the next card that targets this enemy
 var target: Node3D = null
 var is_moving: bool = false
 var target_position: Vector3
@@ -162,7 +163,7 @@ var is_disarmed: bool = false   # Cannot attack when disarmed
 var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
 var is_marked: bool = false    # Takes extra damage from player attacks
 var marked_tempo: int = 0      # Remaining tempo for mark
-const MARKED_BONUS_DAMAGE := 3  # Flat bonus the player's attacks gain vs a marked target
+const MARKED_BONUS_PERCENT := 15  # Mark: the player's attacks deal +15% to a marked target
 var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when silenced
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
 var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per cycle, lose 1 stack per cycle
@@ -182,6 +183,8 @@ var bleed_stacks: int = 0      # Bleed: 1 damage per tile moved; each damage rem
 var vulnerable_stacks: int = 0   # Vulnerable: next hit from the player deals +30%; 1 stack consumed per hit
 var weaken_stacks: int = 0       # Weaken: this enemy deals -30% damage; 1 stack consumed per attack
 var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can still attack/cast
+var tripped_tempo: int = 0       # Tripped (Trip): move actions cover TRIP_MOVE_PENALTY fewer tiles
+const TRIP_MOVE_PENALTY := 4
 var disarmed_attacks: int = 0    # Disarm-for-N-attacks (Switch Kick): skip that many attack actions
 var narashimha_tempo: int = 0    # Narashimha (Mane of Narashimha): cycles the heal cap holds for
 var narashimha_heal_cap: int = -1  # health ceiling while active — the NMnB damage cannot be healed back (-1 = unset)
@@ -2140,6 +2143,13 @@ func _tick_timed_statuses(amount: int) -> void:
 			print("[%s] Root released" % enemy_name)
 			debuff_expired.emit(self, "root")
 
+	if tripped_tempo > 0:
+		tripped_tempo -= amount
+		if tripped_tempo <= 0:
+			tripped_tempo = 0
+			print("[%s] Back on its feet" % enemy_name)
+			debuff_expired.emit(self, "trip")
+
 	if narashimha_tempo > 0:
 		narashimha_tempo -= amount
 		if narashimha_tempo <= 0:
@@ -2292,7 +2302,7 @@ static func debuff_key_for_effect(effect_name: String) -> String:
 		"Slow": "slow", "Cursed": "cursed", "Disarm": "disarmed", "Marked": "marked",
 		"Silenced": "silenced", "Choke": "choke_dot", "Stun": "stun", "Polymorph": "polymorph",
 		"Frozen": "cold", "Burn": "burn", "Cold": "cold", "Poison": "poison", "Shock": "shock",
-		"Bleed": "bleed", "Vulnerable": "vulnerable", "Weaken": "weaken", "Rooted": "root",
+		"Bleed": "bleed", "Vulnerable": "vulnerable", "Weaken": "weaken", "Rooted": "root", "Tripped": "trip",
 		"Disarmed": "disarm_attacks", "Narashimha": "narashimha",
 	}
 	return str(KEYS.get(effect_name, ""))
@@ -4572,6 +4582,12 @@ func move_towards_target(pos: Vector3) -> void:
 	var tiles = int(move_distance)
 	if tiles < 1:
 		tiles = 1
+	# Tripped: movement -4 while it lasts; nothing left means no step at all.
+	if tripped_tempo > 0:
+		tiles -= TRIP_MOVE_PENALTY
+		if tiles < 1:
+			print("[%s] Tripped - cannot move!" % enemy_name)
+			return
 	# Slowed no longer trims tiles — it taxes the move action's tempo instead
 	# (see _check_and_fire_actions), matching the player's Slowed.
 
@@ -4684,8 +4700,9 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 
 	# Marked (Mark card): the player's attacks deal bonus damage to this target.
 	if from_player and is_marked:
-		amount += MARKED_BONUS_DAMAGE
-		print("[%s] Marked: +%d damage!" % [enemy_name, MARKED_BONUS_DAMAGE])
+		var mark_bonus: int = ceili(amount * MARKED_BONUS_PERCENT / 100.0)
+		amount += mark_bonus
+		print("[%s] Marked: +%d damage!" % [enemy_name, mark_bonus])
 
 	# Void resistance (Mane of Narashimha aura): resistances lowered, so the
 	# player's hits land for extra damage while the enemy is inside the aura.
@@ -5065,6 +5082,7 @@ func has_debuff_type(debuff_name: String) -> bool:
 		"vulnerable": return vulnerable_stacks > 0
 		"weaken": return weaken_stacks > 0
 		"root": return rooted_tempo > 0
+		"trip": return tripped_tempo > 0
 		"cursed": return cursed_tempo > 0
 		"disarm_attacks": return disarmed_attacks > 0
 		"narashimha": return narashimha_tempo > 0
@@ -5082,6 +5100,11 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			and debuff_name != Card.active_element_remap:
 		print("[%s] Feral Evocation: %s becomes %s" % [enemy_name, debuff_name, Card.active_element_remap])
 		debuff_name = Card.active_element_remap
+	# Elixir: poison from a card played under Elixir heals instead.
+	if debuff_name == "poison" and Card.elixir_poison_heals and value > 0:
+		_regenerate(value)
+		print("[%s] Elixir: %d poison became healing" % [enemy_name, value])
+		return
 	last_debuff_was_new = not has_debuff_type(debuff_name)
 	match debuff_name:
 		"stun":
@@ -5148,6 +5171,10 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"weaken":
 			weaken_stacks += value
 			print("[%s] Weakened! Stacks: %d (-30%% damage dealt)" % [enemy_name, weaken_stacks])
+		"trip":
+			# value is the duration in raw tempo; movement -TRIP_MOVE_PENALTY
+			tripped_tempo = max(tripped_tempo, value)
+			print("[%s] Tripped! Movement -%d for %d tempo" % [enemy_name, TRIP_MOVE_PENALTY, tripped_tempo])
 		"root":
 			# value is the hold in raw tempo; can attack and cast, cannot move
 			rooted_tempo = max(rooted_tempo, value + int(_player_sphere_amp("sphere_root_amp")))
@@ -5394,6 +5421,8 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
 	if slow_stacks > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
+	if tripped_tempo > 0:
+		effects.append({"name": "Tripped", "color": Color(0.5, 0.7, 1.0), "stacks": tripped_tempo})
 	if cursed_tempo > 0:
 		effects.append({"name": "Cursed", "color": Color(0.3, 0.0, 0.3), "stacks": cursed_tempo})
 	if is_disarmed and disarmed_tempo > 0:

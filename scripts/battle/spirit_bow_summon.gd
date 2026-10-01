@@ -133,6 +133,9 @@ func get_health_percent() -> float:
 	return float(health) / float(max_health) if max_health > 0 else 0.0
 
 func heal(amount: int) -> void:
+	if PlayerStats.heal_to_damage and amount > 0:
+		take_damage(amount)  # Poisoned Blood: the heal lands as damage
+		return
 	if is_dead or amount <= 0:
 		return
 	health = min(max_health, health + amount)
@@ -140,6 +143,12 @@ func heal(amount: int) -> void:
 
 func take_damage(amount: int) -> void:
 	if is_dead:
+		return
+	# Cover: a defender within 2 squares soaks the hit by their hand size.
+	# (A hit Cover fully soaks never lands — not even on a bud.)
+	var incoming := amount
+	amount = PlayerStats.apply_cover(self, amount)
+	if amount <= 0 and incoming > 0:
 		return
 	# Any source of damage kills a bud instantly.
 	health -= max_health if is_bud else amount

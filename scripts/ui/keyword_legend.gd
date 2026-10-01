@@ -45,6 +45,7 @@ func _build_legend() -> void:
 	_add_keyword("Hexed", "A random card costs +X mana until played; multiple hexes can sit on different cards at once", Color(0.6, 0.0, 0.6))
 	_add_keyword("Locked", "One random card cannot be played", Color(0.3, 0.3, 0.3))
 	_add_keyword("Rooted", "Cannot move", Color(0.4, 0.25, 0.1))
+	_add_keyword("Tripped", "Moves 4 fewer tiles per move (no step if that leaves none)", Color(0.5, 0.7, 1.0))
 	_add_keyword("Clumsy", "30% chance to discard a random card when playing; each card played burns a stack", Color(0.9, 0.6, 0.2))
 	_add_keyword("Vulnerable", "Take 30% more damage on next X attack(s), lose 1 stack per hit", Color(1.0, 0.3, 0.3))
 	_add_keyword("Exposed", "Your armor was broken through — a hit got past it", Color(0.9, 0.7, 0.5))
@@ -102,7 +103,6 @@ func _build_legend() -> void:
 	_add_section_header("CARD-ITEM SLOTS")
 	_add_keyword("Enchant", "Places a card into an item's card slot. Card is removed from the deck. Card keyword must match item type", Color(0.8, 0.6, 1.0))
 	_add_keyword("Extract", "Removes a card from an item's card slot and returns it to the discard pile", Color(1.0, 0.4, 0.4))
-	_add_keyword("Molded", "Card is locked into the item and cannot be removed (extracted)", Color(0.6, 0.6, 0.6))
 	_add_keyword("On-Self", "Bonus effects that apply to cards slotted in that specific item, on top of the item's base bonuses", Color(0.6, 0.9, 0.6))
 
 	# Movement Section

@@ -209,9 +209,6 @@ Rings have passive effects that trigger on events:
 - Some items have card slots where you can enchant cards
 - Enchanted cards are removed from your deck and placed in the item
 - Items may have On-Self bonuses (+damage, +block, +heal, -mana cost) for slotted cards
-- Molded cards are locked in and cannot be extracted
-- Picky cards can only re-equip to the same item type
-- Pliable cards can re-equip to any item type
 - Some cards will be limited to which items they can be slotted in
 	- Arrow - Can on be on quivers
 	- Gem - can only be placed in gem slots
