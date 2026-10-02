@@ -1844,7 +1844,6 @@ func _open_card_slot_panel(item: ItemData) -> void:
 			row_hbox.add_theme_constant_override("separation", 6)
 
 			var card_label = Label.new()
-			var tag = " [Molded]" if card.is_molded else " [%s]" % card.get_slot_keyword()
 			# Colored slots (Mauls Sabre): name and tint the slot's color.
 			var color_prefix := ""
 			var label_color := Color(0.7, 0.55, 0.9)
@@ -1853,34 +1852,33 @@ func _open_card_slot_panel(item: ItemData) -> void:
 				match str(item.slot_colors[i]):
 					"blue": label_color = Color(0.5, 0.7, 1.0)
 					"red": label_color = Color(1.0, 0.5, 0.5)
-			card_label.text = "%s%s%s" % [color_prefix, card.card_name, tag]
+			card_label.text = "%s%s" % [color_prefix, card.card_name]
 			card_label.add_theme_font_size_override("font_size", 12)
 			card_label.add_theme_color_override("font_color", label_color)
 			card_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			row_hbox.add_child(card_label)
 
-			if not card.is_molded:
-				var remove_btn = Button.new()
-				remove_btn.text = "Remove"
-				remove_btn.add_theme_font_size_override("font_size", 11)
-				remove_btn.custom_minimum_size = Vector2(70, 24)
-				var btn_style = StyleBoxFlat.new()
-				btn_style.bg_color = Color(0.35, 0.15, 0.15)
-				btn_style.border_color = Color(0.7, 0.35, 0.35)
-				btn_style.border_width_left = 1
-				btn_style.border_width_right = 1
-				btn_style.border_width_top = 1
-				btn_style.border_width_bottom = 1
-				btn_style.corner_radius_top_left = 3
-				btn_style.corner_radius_top_right = 3
-				btn_style.corner_radius_bottom_left = 3
-				btn_style.corner_radius_bottom_right = 3
-				remove_btn.add_theme_stylebox_override("normal", btn_style)
-				var btn_hover = btn_style.duplicate()
-				btn_hover.bg_color = Color(0.45, 0.2, 0.2)
-				remove_btn.add_theme_stylebox_override("hover", btn_hover)
-				remove_btn.pressed.connect(_on_unslot_card.bind(item, i))
-				row_hbox.add_child(remove_btn)
+			var remove_btn = Button.new()
+			remove_btn.text = "Remove"
+			remove_btn.add_theme_font_size_override("font_size", 11)
+			remove_btn.custom_minimum_size = Vector2(70, 24)
+			var btn_style = StyleBoxFlat.new()
+			btn_style.bg_color = Color(0.35, 0.15, 0.15)
+			btn_style.border_color = Color(0.7, 0.35, 0.35)
+			btn_style.border_width_left = 1
+			btn_style.border_width_right = 1
+			btn_style.border_width_top = 1
+			btn_style.border_width_bottom = 1
+			btn_style.corner_radius_top_left = 3
+			btn_style.corner_radius_top_right = 3
+			btn_style.corner_radius_bottom_left = 3
+			btn_style.corner_radius_bottom_right = 3
+			remove_btn.add_theme_stylebox_override("normal", btn_style)
+			var btn_hover = btn_style.duplicate()
+			btn_hover.bg_color = Color(0.45, 0.2, 0.2)
+			remove_btn.add_theme_stylebox_override("hover", btn_hover)
+			remove_btn.pressed.connect(_on_unslot_card.bind(item, i))
+			row_hbox.add_child(remove_btn)
 
 			vbox.add_child(row_hbox)
 
@@ -2075,12 +2073,7 @@ func _build_item_effect_text(item: ItemData) -> String:
 	if item.has_card_slots():
 		lines.append("[Card Slots] %d/%d" % [item.slotted_cards.size(), item.card_slots])
 		for card in item.slotted_cards:
-			var tags = ""
-			if card.is_molded:
-				tags = " (Molded)"
-			else:
-				tags = " (%s)" % card.get_slot_keyword()
-			lines.append("  > %s%s" % [card.card_name, tags])
+			lines.append("  > %s" % card.card_name)
 	return "\n".join(lines)
 
 # ============================================

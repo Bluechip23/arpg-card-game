@@ -738,10 +738,6 @@ func can_slot_card(card) -> bool:
 	# slotted into another.
 	if card.slotted_in_item != null:
 		return false
-	# Check Picky compatibility: card must go into same item type it came from
-	if card.slot_compatibility == 0 and card.source_item_type >= 0:  # PICKY = 0
-		if card.source_item_type != item_type:
-			return false
 	# Feral Evocation: each colored slot takes only a card of its element —
 	# red Burn, blue Cold, yellow Shock, green Poison. The lowest FREE slot's
 	# color is the gate (an unslotted middle element can be refilled).
@@ -816,9 +812,6 @@ func unslot_card(card_index: int):
 	if card_index < 0 or card_index >= slotted_cards.size():
 		return null
 	var card = slotted_cards[card_index]
-	if card.is_molded:
-		print("[ITEM] %s: cannot remove '%s' - card is Molded!" % [item_name, card.card_name])
-		return null
 	slotted_cards.remove_at(card_index)
 	card.slotted_in_item = null
 	if card.has_meta("slot_color_index"):
@@ -827,9 +820,6 @@ func unslot_card(card_index: int):
 	if card.get_meta("ally_target_granted", false):
 		card.target_types.erase("ally")
 		card.remove_meta("ally_target_granted")
-	# Track source item type for Picky cards
-	if card.source_item_type < 0:
-		card.source_item_type = item_type
 	print("[ITEM] %s: unslotted card '%s' (%d/%d slots)" % [item_name, card.card_name, slotted_cards.size(), card_slots])
 	return card
 
@@ -932,11 +922,10 @@ func get_card_slot_summary() -> String:
 	parts.append("Slots: %d/%d" % [slotted_cards.size(), card_slots])
 	for i in range(slotted_cards.size()):
 		var card = slotted_cards[i]
-		var suffix = " [Molded]" if card.is_molded else ""
 		var color_tag := ""
 		if i < slot_colors.size():
 			color_tag = "[%s] " % str(slot_colors[i]).capitalize()
-		parts.append("  - %s%s%s" % [color_tag, card.card_name, suffix])
+		parts.append("  - %s%s" % [color_tag, card.card_name])
 	if on_self_damage > 0:
 		parts.append("On-Self: +%d damage" % on_self_damage)
 	if on_self_block > 0:

@@ -2478,7 +2478,7 @@ func use_mythic_mold() -> bool:
 
 func enchant_card(card: Card, item: ItemData) -> bool:
 	## Puts a card into an item's card slot (Enchant).
-	## Validates Picky/Pliable compatibility and slot availability.
+	## Validates slot labels and slot availability.
 	## The card remains in the deck and can still be played normally.
 	if not item.has_card_slots():
 		print("[INVENTORY] %s has no card slots!" % item.item_name)
@@ -2488,7 +2488,7 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 		if item.get_free_card_slots() <= 0:
 			print("[INVENTORY] %s has no free card slots! (%d/%d)" % [item.item_name, item.slotted_cards.size(), item.card_slots])
 		else:
-			print("[INVENTORY] Card '%s' is Picky and cannot be slotted into %s (requires %s)" % [card.card_name, item.get_type_name(), ItemData.ItemType.keys()[card.source_item_type] if card.source_item_type >= 0 else "any"])
+			print("[INVENTORY] Card '%s' cannot be slotted into %s" % [card.card_name, item.get_type_name()])
 		return false
 
 	# Slot the card into the item (card stays in the deck)
@@ -2512,19 +2512,12 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) -> Card:
 	## Extracts a card from an item (Extract).
 	## Removes the card from the item's slot. Card remains in the deck as before.
-	## Returns the extracted card, or null if card is Molded (cannot be extracted).
+	## Returns the extracted card, or null for an invalid slot index.
 	if card_index < 0 or card_index >= item.slotted_cards.size():
 		print("[INVENTORY] Invalid card slot index %d for %s" % [card_index, item.item_name])
 		return null
 
 	var card = item.slotted_cards[card_index]
-	if card.is_molded:
-		print("[INVENTORY] Cannot extract '%s' from %s - card is Molded!" % [card.card_name, item.item_name])
-		return null
-
-	# Track source item type for Picky re-enchanting
-	if card.source_item_type < 0:
-		card.source_item_type = item.item_type
 	card.slotted_in_item = null
 	item.slotted_cards.remove_at(card_index)
 

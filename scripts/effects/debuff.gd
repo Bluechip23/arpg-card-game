@@ -54,6 +54,10 @@ var source_name: String = "" # What applied this debuff
 
 # For tracking
 var stacks: int = 1          # Some debuffs can stack
+## A normally stack-driven debuff (Slowed, Staggered) that instead lasts a
+## set number of tempo (Approach, Tower Shield): the clock expires it and
+## nothing burns its stacks.
+var clock_timed: bool = false
 var affected_card_index: int = -1  # For Hexed/Locked - which card in hand is affected
 
 func _init(type: DebuffType, val: int = 0, dur: int = 15) -> void:
@@ -107,10 +111,16 @@ func _set_name_and_description() -> void:
 			description = "Arc %d damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle" % value
 		DebuffType.SLOWED:
 			debuff_name = "Slowed"
-			description = "Movement costs %d tempo per tile; each tile burns a stack (%d left)" % [SLOWED_TEMPO_PER_TILE, value]
+			if clock_timed:
+				description = "Movement costs %d tempo per tile (%d tempo left)" % [SLOWED_TEMPO_PER_TILE, duration]
+			else:
+				description = "Movement costs %d tempo per tile; each tile burns a stack (%d left)" % [SLOWED_TEMPO_PER_TILE, value]
 		DebuffType.STAGGERED:
 			debuff_name = "Staggered"
-			description = "Attack cards cost %d more mana; each attack card burns a stack (%d left)" % [STAGGERED_MANA, value]
+			if clock_timed:
+				description = "Attack cards cost %d more mana (%d tempo left)" % [STAGGERED_MANA, duration]
+			else:
+				description = "Attack cards cost %d more mana; each attack card burns a stack (%d left)" % [STAGGERED_MANA, value]
 		DebuffType.DRAIN:
 			debuff_name = "Drain"
 			description = "Lose 10 mana per cycle, lose 1 drain per cycle"
@@ -152,6 +162,8 @@ func advance_time(amount: int) -> bool:
 	if duration < 0:
 		return false
 	duration -= amount
+	if clock_timed:
+		_set_name_and_description()
 	return duration <= 0
 
 func get_icon_color() -> Color:
@@ -189,6 +201,14 @@ func get_short_display() -> String:
 
 static func create(type: DebuffType, val: int = 0, dur: int = 15) -> Debuff:
 	return Debuff.new(type, val, dur)
+
+## Slowed or Staggered on the clock instead of by stacks.
+static func create_timed(type: DebuffType, tempo: int, source: String = "") -> Debuff:
+	var debuff = Debuff.new(type, 1, tempo)
+	debuff.clock_timed = true
+	debuff.source_name = source
+	debuff._set_name_and_description()
+	return debuff
 
 static func create_slowed(stacks_count: int = 2, source: String = "") -> Debuff:
 	# Stack-driven: each tile moved costs SLOWED_TEMPO_PER_TILE tempo and burns
