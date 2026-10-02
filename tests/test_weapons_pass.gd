@@ -84,9 +84,9 @@ func _test_stephen_swap_perk() -> void:
 	get_root().add_child(inv)
 	inv.initialize("Stephen")
 	inv.connect_player_stats(stats)
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 1,
-		"Stephen swaps weapons for 1 tempo")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST) == 8,
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 2,
+		"Stephen swaps weapons for 1 + 1 tempo")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST) == 9,
 		"armor still costs Stephen full price")
 	# Build switch: a weapons-only difference is free.
 	var sword = ItemData.create_short_sword()
@@ -105,8 +105,8 @@ func _test_stephen_swap_perk() -> void:
 	# Everyone else pays the old rates.
 	var stats2 = _mk_stats()
 	var inv2 = _mk_inv(stats2)
-	_check(inv2.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 2,
-		"Ryan still swaps weapons for 2")
+	_check(inv2.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 3,
+		"Ryan still swaps weapons for 2 + 1")
 	stats2.free()
 	inv2.free()
 

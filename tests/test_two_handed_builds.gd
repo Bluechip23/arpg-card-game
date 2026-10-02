@@ -98,16 +98,16 @@ func _initialize() -> void:
 	_check(inv.get_total_weight() == 134, "carried weight is sword + shield (130 + 4)")
 
 	# --- Swap tempo costs ---
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.HELM) == 2, "helm swap costs 2")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.RING) == 2, "ring swap costs 2")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 2, "hand swap costs 2")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.GAUNTLETS) == 3, "gauntlet swap costs 3")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.BELT) == 3, "belt swap costs 3")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.BOOTS) == 3, "boots swap costs 3")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST) == 8, "chest swap costs 8")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.HELM, true) == 1, "helm unequip-only costs 1")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.BOOTS, true) == 1, "boots unequip-only costs 1")
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST, true) == 4, "chest unequip-only costs 4")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.HELM) == 3, "helm swap costs 2 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.RING) == 3, "ring swap costs 2 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 3, "hand swap costs 2 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.GAUNTLETS) == 4, "gauntlet swap costs 3 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.BELT) == 4, "belt swap costs 3 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.BOOTS) == 4, "boots swap costs 3 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST) == 9, "chest swap costs 8 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.HELM, true) == 2, "helm unequip-only costs 1 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.BOOTS, true) == 2, "boots unequip-only costs 1 + 1")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST, true) == 5, "chest unequip-only costs 4 + 1")
 
 	# --- Builds: first switch copies current gear; edits round-trip ---
 	# Current state: greatsword slot 0 (one-handed), shield slot 1.
@@ -123,7 +123,7 @@ func _initialize() -> void:
 	_check(r0["success"], "switch back to build I succeeds")
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 1) == shield, "build I re-equips the shield")
 	_check(inv.two_handed_slot == -1, "build I holds the sword one-handed")
-	_check(r0["tempo_cost"] == 2, "re-equipping the shield cost 2 tempo (hand slot)")
+	_check(r0["tempo_cost"] == 3, "re-equipping the shield cost 3 tempo (hand slot)")
 
 	var r2: Dictionary = inv.switch_build(1)
 	_check(r2["success"], "switch to build II succeeds again")

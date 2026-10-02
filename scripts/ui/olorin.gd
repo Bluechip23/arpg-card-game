@@ -89,6 +89,14 @@ const LESSONS := [
 			"\"The brain is Wisdom's pool — a point for every point of Wisdom, refilled every five cycles. The eye shows you the next card of your draw pile; the card with the plus draws one outright.\"",
 			"\"Each use in a window costs more than the last, so spend them with intent.\"",
 		]},
+		{"title": "Your Cards", "paragraphs": [
+			"\"Last, the cards themselves. Every card has a TYPE, and the type says what it is for. ATTACK cards wound. DEFENSE cards raise armor or turn a blow aside. UTILITY cards do the rest — draw, heal, move, strengthen. A POWER is held up with mana for as long as you keep it. A REACTION waits in your hand and springs on its own when its moment comes. An ENCHANTMENT is never played at all: it works by being held, and leaves when it is spent.\"",
+			"\"Each card also says how far it reaches. MELEE is the next tile. RANGED is five tiles unless the card says otherwise. And a few are CONDITIONAL — they take the reach of whatever weapon is in your hand.\"",
+		]},
+		{"title": "Offensive", "paragraphs": [
+			"\"Above the types sits a broader word: OFFENSIVE. Anything that wounds is offensive — every attack card, and every spell or trick that deals damage.\"",
+			"\"It branches two ways. An ATTACK is the body's work, and grows with your strength. A SPELL is the mind's, grows with your intellect, and drinks deeper from your mana. When gear or a passive speaks of OFFENSIVE cards, it means the whole family; when it names attacks or spells, it means that branch alone.\"",
+		]},
 		{"title": "The Road Out", "paragraphs": [
 			"\"That is the reading of it. I will keep to the portal a while, should you want it told again.\"",
 			"\"Now go. The grass has been restless for days, and I would know why.\"",
@@ -231,7 +239,11 @@ func show_field_tour(force: bool = false) -> bool:
 		var br = m._action_vbox.get_node_or_null("BrainRow")
 		if br:
 			brain_row.append(br)
-	var focus_by_beat: Array = [[], counter, bars, icons, column, flash_row, brain_row, []]
+	var hand: Array = []
+	var hand_area = m.get_node_or_null("UI/HandArea")
+	if hand_area:
+		hand.append(hand_area)
+	var focus_by_beat: Array = [[], counter, bars, icons, column, flash_row, brain_row, hand, hand, []]
 	var steps: Array = []
 	var beats: Array = LESSONS[0]["beats"]
 	for i in range(beats.size()):
@@ -294,10 +306,13 @@ func _tour_next() -> void:
 	if _tour_panel and is_instance_valid(_tour_panel):
 		_tour_panel.queue_free()
 	var last := _tour_index == _tour_steps.size() - 1
+	# A tour of several beats can be left at any beat but the last.
 	_tour_panel = _build_panel(str(step.get("title", "")), step.get("paragraphs", []), null, -1,
-			OLORIN_SPEAKER, "Farewell" if last else "Continue", _tour_next)
+			OLORIN_SPEAKER, "Farewell" if last else "Continue", _tour_next,
+			"" if last else "Skip", _close)
 	_layer.add_child(_tour_panel)
 	_anchor_beside(_tour_panel, hole)
+	_keep_on_screen(_tour_panel)
 
 ## The screen rectangle covering every visible Control in `focus`, padded.
 ## Rect2() (empty) when nothing is lit.
@@ -364,6 +379,19 @@ func _anchor_beside(panel: Control, hole: Rect2) -> void:
 			panel.offset_top = 0.0
 			panel.offset_bottom = 0.0
 			panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+## A tall dialog anchored above a lit area can run off the top of the
+## screen; once it has a size, slide it down to the margin (over the lit
+## area if it must) rather than lose its first lines.
+func _keep_on_screen(panel: Control) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if panel == null or not is_instance_valid(panel) or panel != _tour_panel:
+		return
+	var top: float = panel.global_position.y
+	if top < TOUR_MARGIN:
+		panel.offset_top += TOUR_MARGIN - top
+		panel.offset_bottom += TOUR_MARGIN - top
 
 ## Dims the screen except for `hole`, which keeps a thin gold frame.
 class SpotlightOverlay extends Control:
@@ -451,7 +479,8 @@ func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_
 ## The arcane-blue speech panel: speaker line, title, paragraphs, an optional
 ## inline picture, and one button that runs `on_button`.
 func _build_panel(title: String, paragraphs: Array, icon: Control, icon_after_paragraph: int,
-		speaker_name: String, button_text: String, on_button: Callable) -> PanelContainer:
+		speaker_name: String, button_text: String, on_button: Callable,
+		secondary_text: String = "", on_secondary: Callable = Callable()) -> PanelContainer:
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(520, 0)
 
@@ -504,26 +533,39 @@ func _build_panel(title: String, paragraphs: Array, icon: Control, icon_after_pa
 
 	vbox.add_child(HSeparator.new())
 
-	var continue_btn = Button.new()
-	continue_btn.text = button_text
-	continue_btn.custom_minimum_size = Vector2(140, 36)
-	continue_btn.add_theme_font_size_override("font_size", 15)
-	continue_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var buttons = HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	buttons.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(buttons)
+	if secondary_text != "" and on_secondary.is_valid():
+		var skip_btn = _panel_button(secondary_text, Color(0.12, 0.13, 0.2), Color(0.35, 0.4, 0.55))
+		skip_btn.name = "SkipButton"
+		skip_btn.pressed.connect(on_secondary)
+		buttons.add_child(skip_btn)
+	var continue_btn = _panel_button(button_text, Color(0.15, 0.25, 0.45), Color(0.4, 0.6, 1.0))
+	continue_btn.name = "ContinueButton"
+	continue_btn.pressed.connect(on_button)
+	buttons.add_child(continue_btn)
+	return panel
+
+static func _panel_button(text: String, bg: Color, border: Color) -> Button:
+	var btn = Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(140, 36)
+	btn.add_theme_font_size_override("font_size", 15)
 	var normal = StyleBoxFlat.new()
-	normal.bg_color = Color(0.15, 0.25, 0.45)
+	normal.bg_color = bg
 	normal.border_width_left = 2
 	normal.border_width_right = 2
 	normal.border_width_top = 2
 	normal.border_width_bottom = 2
-	normal.border_color = Color(0.4, 0.6, 1.0)
+	normal.border_color = border
 	normal.corner_radius_top_left = 6
 	normal.corner_radius_top_right = 6
 	normal.corner_radius_bottom_left = 6
 	normal.corner_radius_bottom_right = 6
-	continue_btn.add_theme_stylebox_override("normal", normal)
-	continue_btn.pressed.connect(on_button)
-	vbox.add_child(continue_btn)
-	return panel
+	btn.add_theme_stylebox_override("normal", normal)
+	return btn
 
 func _close() -> void:
 	if _resume_on_close:

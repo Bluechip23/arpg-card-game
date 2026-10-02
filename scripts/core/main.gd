@@ -2378,13 +2378,28 @@ func _is_in_combat() -> bool:
 			return true
 	return false
 
-func _on_swap_tempo_spent(cost: int, action: String) -> void:
-	## Changing gear mid-fight advances the clock like Basic Block / Wait does.
-	## The character panel emits this for every swap; free out of combat.
+func _on_swap_tempo_spent(cost: int, action: String, item_type: int = -1) -> void:
+	## Changing gear mid-fight advances the clock like Basic Block / Wait does
+	## and costs half the character's mana. The character panel emits this for
+	## every swap; free out of combat. The swap's tempo never moves the mana
+	## regen countdown, so a swap cannot buy a regen tick. Stephen's weapon
+	## swaps keep his discount: tempo only, no mana.
 	if cost <= 0 or not _is_in_combat():
 		return
+	var stats = player.get_stats() if player else null
+	var inv = player.get_inventory() if player else null
+	var mana := 0
+	if stats and inv and inv.swap_costs_mana(item_type):
+		mana = inv.get_swap_mana_cost()
+		if mana > 0:
+			stats.spend_mana(mana)
+	if stats:
+		stats.regen_frozen_tempo += cost
 	tempo_manager.add_tempo(cost)
-	add_battle_log("%s — %d tempo" % [action, cost], Color(0.85, 0.75, 0.5))
+	if mana > 0:
+		add_battle_log("%s — %d tempo, %d mana" % [action, cost, mana], Color(0.85, 0.75, 0.5))
+	else:
+		add_battle_log("%s — %d tempo" % [action, cost], Color(0.85, 0.75, 0.5))
 
 func _on_rack_button_pressed() -> void:
 	## Brad's War Rack: free exchange when the cooldown is ready (and the
@@ -14493,14 +14508,15 @@ func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
 	# melee finish on their own cell), scoop it up immediately.
 	_check_loot_pickup()
 
+const LOOT_BAG_TEXTURE := "res://assets/textures/craftpix/ui/icon_bag.png"
+
 func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
-	## The pack's dropped sack (a different sack per pile), with a small glint
-	## pulsing above it and a gentle bob so it reads as lootable. What is
-	## inside is listed by the hover tooltip and the loot menu.
-	var k: int = int(abs(drop.position.x * 7.0 + drop.position.z * 13.0))
-	var sack := CraftpixProps.make_sprite("goods_sack", 0.85, k)
-	if sack:
-		drop.add_child(sack)
+	## One money bag marks every drop — the sign that an enemy left loot —
+	## with a small glint pulsing above it and a gentle bob. What is inside
+	## is listed by the hover tooltip and the loot menu.
+	var bag := _money_bag_sprite()
+	if bag:
+		drop.add_child(bag)
 	else:
 		_loot_mesh(drop, _mesh_sphere(0.13), Vector3(0, 0.09, 0), Color(0.45, 0.33, 0.2))
 	# A mythic in the sack glows purple, a pack shows its tier, anything else gold.
@@ -14517,6 +14533,22 @@ func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 	tw.tween_property(glint, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_SINE)
 	tw.parallel().tween_property(drop, "position:y", drop.position.y, 0.5).set_trans(Tween.TRANS_SINE)
 	drop.set_meta("bob_tween", tw)
+
+## The pack's money-bag icon as a ground billboard (32 texels, one tile wide).
+func _money_bag_sprite() -> Sprite3D:
+	if not ResourceLoader.exists(LOOT_BAG_TEXTURE):
+		return null
+	var sprite := Sprite3D.new()
+	sprite.texture = load(LOOT_BAG_TEXTURE)
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = CameraView.PIXEL_SIZE
+	sprite.centered = false
+	sprite.offset = Vector2(-16.0, 0.0)
+	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
+	return sprite
 
 func _loot_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissive := false) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
@@ -14626,12 +14658,13 @@ func _ensure_loot_menu() -> void:
 	_loot_menu.name = "LootMenu"
 	_loot_menu.z_index = 250
 	ui.add_child(_loot_menu)
-	# Left of centre, clear of the tracker above and the action column below.
-	_loot_menu.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	_loot_menu.offset_left = 12.0
+	# Dead centre of the screen, growing outward from the middle.
+	_loot_menu.set_anchors_preset(Control.PRESET_CENTER)
+	_loot_menu.offset_left = -150.0
 	_loot_menu.offset_top = -40.0
-	_loot_menu.offset_right = 300.0
+	_loot_menu.offset_right = 150.0
 	_loot_menu.offset_bottom = 40.0
+	_loot_menu.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_loot_menu.grow_vertical = Control.GROW_DIRECTION_BOTH
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.09, 0.06, 0.96)

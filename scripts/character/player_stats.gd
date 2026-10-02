@@ -94,6 +94,10 @@ var temp_hand_modifier: int = 0    # card effects (Try This, etc.)
 const mana_regen_tempo_interval: float = 5.0
 ## Accumulator for tempo-based mana regen
 var _tempo_until_mana_regen: float = 0.0
+## Tempo that must not move the regen countdown (gear swaps): main adds the
+## swap's cost here just before advancing the clock, and process_tempo
+## skips that much of the next advance.
+var regen_frozen_tempo: int = 0
 
 var current_armor: int = 0
 const armor_decay_per_cycle: int = 2
@@ -1592,7 +1596,12 @@ func process_tempo(amount: int) -> void:
 		temp_mana_tempo_remaining = max(0, temp_mana_tempo_remaining - amount)
 		if temp_mana_tempo_remaining <= 0:
 			_expire_temp_mana()
-	_tempo_until_mana_regen -= float(amount)
+	var regen_amount: int = amount
+	if regen_frozen_tempo > 0:
+		var frozen: int = mini(regen_frozen_tempo, amount)
+		regen_frozen_tempo -= frozen
+		regen_amount -= frozen
+	_tempo_until_mana_regen -= float(regen_amount)
 	if _tempo_until_mana_regen <= 0.0:
 		_tempo_until_mana_regen += mana_regen_tempo_interval
 		var mana_regen = get_effective_mana_regen()

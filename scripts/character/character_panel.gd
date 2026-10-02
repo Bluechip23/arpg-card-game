@@ -8,7 +8,7 @@ signal card_slotted(card: Card, item: ItemData)
 signal card_unslotted(card: Card, item: ItemData)
 ## Emitted after any gear change with its tempo price (equip/unequip/two-hand/
 ## build switch). main.gd charges it on the tempo clock — but only in combat.
-signal swap_tempo_spent(cost: int, action: String)
+signal swap_tempo_spent(cost: int, action: String, item_type: int)
 
 # Preloaded so this panel doesn't depend on the newer cell class_names being in
 # Godot's global class cache on first run (matches the pattern in main.gd).
@@ -159,7 +159,7 @@ func _split_windows() -> void:
 		bbtn.custom_minimum_size = Vector2(30, 26)
 		bbtn.focus_mode = Control.FOCUS_NONE
 		bbtn.add_theme_font_size_override("font_size", 13)
-		bbtn.tooltip_text = "Switch to equipment build %s\n(swaps cost tempo in combat)" % BUILD_NUMERALS[i]
+		bbtn.tooltip_text = "Switch to equipment build %s\n(in combat: tempo per changed slot and half your mana)" % BUILD_NUMERALS[i]
 		bbtn.pressed.connect(_on_build_pressed.bind(i))
 		inv_header.add_child(bbtn)
 		_build_buttons.append(bbtn)
@@ -1101,7 +1101,7 @@ func _on_build_pressed(index: int) -> void:
 	if result.get("success", false):
 		var cost: int = result.get("tempo_cost", 0)
 		if cost > 0:
-			swap_tempo_spent.emit(cost, "Swapped to build %s" % BUILD_NUMERALS[index])
+			swap_tempo_spent.emit(cost, "Swapped to build %s" % BUILD_NUMERALS[index], -1)
 		var missing: Array = result.get("missing", [])
 		if missing.size() > 0:
 			_flash_inventory_message("Build %s missing: %s" % [BUILD_NUMERALS[index], ", ".join(missing)])
@@ -1149,7 +1149,7 @@ func _on_rack_exchange_pressed() -> void:
 	if result.get("success", false):
 		var cost: int = result.get("tempo_cost", 0)
 		if cost > 0:
-			swap_tempo_spent.emit(cost, "War Rack exchange")
+			swap_tempo_spent.emit(cost, "War Rack exchange", -1)
 	else:
 		_flash_inventory_message(result.get("reason", "Can't exchange"))
 	_refresh_rack_row()
@@ -1177,7 +1177,7 @@ func _handle_item_drop_on_slot(data: Dictionary, target_type: int, target_slot: 
 	if src == "storage":
 		var item: ItemData = data.get("item")
 		if inventory.equip_from_storage(data.get("storage_index"), target_slot):
-			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type), "Equipped %s" % item.item_name)
+			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type), "Equipped %s" % item.item_name, item.item_type)
 		else:
 			_flash_inventory_message("Can't equip %s — too heavy or slot blocked" % item.item_name)
 	elif src == "equipped":
@@ -1186,7 +1186,7 @@ func _handle_item_drop_on_slot(data: Dictionary, target_type: int, target_slot: 
 			return
 		if _move_equipped(target_type, from_slot, target_slot):
 			var moved: ItemData = data.get("item")
-			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(moved.item_type), "Moved %s" % moved.item_name)
+			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(moved.item_type), "Moved %s" % moved.item_name, moved.item_type)
 	update_display()
 
 ## Move (or swap) an equipped item between two slots of the same type.
@@ -1213,7 +1213,7 @@ func _handle_item_drop_on_storage(data: Dictionary) -> void:
 	if data.get("source") == "equipped":
 		var item: ItemData = data.get("item")
 		if inventory.unequip_to_storage(data.get("item_type"), data.get("slot_index")):
-			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type, true), "Unequipped %s" % item.item_name)
+			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type, true), "Unequipped %s" % item.item_name, item.item_type)
 		update_display()
 
 func _make_separator() -> HSeparator:
@@ -1460,7 +1460,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 			else:
 				th_text = "Wield Two-Handed (+%d damage)" % th_bonus
 		var th_btn = _make_action_button(th_text, Color(0.3, 0.24, 0.1), Color(0.85, 0.7, 0.3))
-		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 70%% and occupies a second hand slot.\nCosts %d tempo in combat." % inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON)
+		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 70%% and occupies a second hand slot.\nIn combat: %d tempo%s." % [inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), "" if inventory.weapon_swap_discount else " and half your mana"]
 		th_btn.pressed.connect(_on_toggle_two_handed)
 		vbox.add_child(th_btn)
 
@@ -1528,7 +1528,7 @@ func _on_unequip_item() -> void:
 
 	var item = _detail_item
 	if inventory.unequip_to_storage(_detail_item_type, _detail_slot_index):
-		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type, true), "Unequipped %s" % item.item_name)
+		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type, true), "Unequipped %s" % item.item_name, item.item_type)
 	_close_detail_panel()
 	update_display()
 
@@ -1543,7 +1543,7 @@ func _on_toggle_two_handed() -> void:
 			action = "Gripped %s two-handed" % item.item_name
 		else:
 			action = "Released %s to one hand" % item.item_name
-		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), action)
+		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), action, ItemData.ItemType.WEAPON)
 	else:
 		if enable:
 			_flash_inventory_message("Can't two-hand %s — needs a free hand slot and enough capacity" % item.item_name)

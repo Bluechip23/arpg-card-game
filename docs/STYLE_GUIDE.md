@@ -84,7 +84,11 @@ conforms to them.
   the Mana Seed convention and every generated asset must reproduce it —
   a ramp that only changes value is a defect.
 - Budgets: any single generated sprite/tile ≤ **15 colors + transparency**.
-  Purchased sheets are exempt (audited, not enforced).
+  Purchased sheets are exempt (audited, not enforced). Generated **item
+  icons** (the mythic art, `tools/generate_mythic_icons.py`) follow the
+  Craftpix icon packs they sit beside instead: a near-black, hue-tinted
+  outline, a bright upper-left rim with one white glint, two shadow bands
+  toward the lower right, punchy saturation, ≤ 22 colors.
 
 ## 3. Light
 
@@ -183,7 +187,8 @@ conforms to them.
 Blur, bloom, glow, soft particles, gaussian/gradient shadows, smooth alpha
 falloff, mipmapped or filtered pixel textures, fractional sprite scaling,
 engine-cast sprite shadows, hue-less value-only ramps, pure `#000000`
-outlines on generated art (reference art's own outlines are exempt).
+outlines on generated art (reference art's own outlines are exempt; the
+icon ink above is tinted, never `#000000`).
 
 ## 8. UI (deferred milestone)
 

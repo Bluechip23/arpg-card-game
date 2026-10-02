@@ -381,13 +381,13 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 
 ### Equipment builds (loadouts I / II / III)
 
-You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **Every changed slot costs tempo**:
+You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **In combat, every changed slot costs tempo, and any paid gear change (swap, removal, build switch, paid War Rack exchange) also costs half the mana you are holding.** That tempo never advances the mana regen countdown, so a swap can't buy a regen tick. Out of combat, gear changes are free. Changing gear mid-fight is meant to hurt; Stephen's weapon swaps (tempo only, at a discount) and Brad's free War Rack exchange are the exceptions.
 
 | Slot | Swap cost (tempo) | Remove-only |
 |---|---|---|
-| Helm, Ring, Hand items | 2 | 1 |
-| Gauntlets, Belt, Boots | 3 | 1 |
-| Chest | 8 | 4 |
+| Helm, Ring, Hand items | 3 (Stephen's hands: 2) | 2 (Stephen's hands: 1) |
+| Gauntlets, Belt, Boots | 4 | 2 |
+| Chest | 9 | 5 |
 
 The switch validates the end state as a whole (weight, storage space) before anything moves — you'll never get stranded half-dressed.
 
