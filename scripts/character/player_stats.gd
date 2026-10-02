@@ -2093,6 +2093,13 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 	# Solemn Independence: block ally healing from any source while active
 	if from_ally and solemn_active:
 		return
+	# Poisoned Blood (PlayerStats.heal_to_damage, armed by the heal card's
+	# execute): the healing lands as damage on whoever it was meant for.
+	if heal_to_damage and amount > 0:
+		var poisoned: int = get_effective_heal_amount(amount)
+		print("[STATS] Poisoned Blood: %d healing becomes damage" % poisoned)
+		take_damage(poisoned)
+		return
 	# Friendship: the partner receives the same base heal (their modifiers apply).
 	if friendship_partner and not _friendship_echo and amount > 0:
 		_friendship_echo = true
