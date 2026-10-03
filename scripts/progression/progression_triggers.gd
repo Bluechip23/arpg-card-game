@@ -726,9 +726,10 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 	# Clean Exchange: draw Defense after playing Attack (or vice versa) → drawn
 	# card gets -1t, and a drawn Defense card also gains rank-scaled block (1..8)
 	if stats.has_skill_tree_passive("clean_exchange") and _last_played_card:
+		# "Offensive" is the rider: Attack cards and offensive-tagged spells.
 		var drawn_is_defense = card.card_type == Card.CardType.DEFENSE
-		var drawn_is_attack = card.card_type == Card.CardType.ATTACK
-		var last_was_attack = _last_played_card.card_type == Card.CardType.ATTACK
+		var drawn_is_attack = card.is_offensive()
+		var last_was_attack = _last_played_card.is_offensive()
 		var last_was_defense = _last_played_card.card_type == Card.CardType.DEFENSE
 		if (drawn_is_defense and last_was_attack) or (drawn_is_attack and last_was_defense):
 			var ce_msg := ""
@@ -1277,18 +1278,22 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
+	# "Damage" and "offensive" in Stephen's text mean the OFFENSIVE rider:
+	# Attack cards and offensive-tagged spells alike. Scouted and Skilled
+	# Momentum speak of attacks and stay Attack-type only.
+	var offensive: bool = card.is_offensive()
+
 	# Deadly: rank-scaled +2..16 damage (and +2%..30% crit damage, applied via
-	# st_deadly_crit_active) when the target has no allies within 2 tiles
-	if stats.has_skill_tree_passive("deadly") and _deadly_isolated(target):
-		var deadly_dmg: int = PassiveScaling.value("deadly", "damage", stats.get_passive_level("deadly"))
-		bonus += deadly_dmg
-		main.add_battle_log("Deadly: +%d damage (isolated target)" % deadly_dmg, Color(0.9, 0.3, 0.3))
+	# st_deadly_crit_active) when the target has no allies within 2 cells
+	if offensive:
+		bonus += deadly_flat_bonus(target)
 
 	# Eagle Eye: ranged offensive cards deal additional damage based on their
-	# range (rank-scaled 100%..142% of the card's range)
-	if stats.has_skill_tree_passive("eagle_eye") and card.is_ranged and card.is_offensive():
+	# range (rank-scaled 100%..142% of the card's full range: the base 5, its
+	# own modifier, and every in-play range bonus on top)
+	if stats.has_skill_tree_passive("eagle_eye") and card.is_ranged and offensive:
 		var ee_mult: int = PassiveScaling.value("eagle_eye", "multiplier", stats.get_passive_level("eagle_eye"))
-		var ee_range: int = maxi(1, 5 + card.range_modifier)
+		var ee_range: int = maxi(1, main._ranged_card_max_range(card))
 		var ee_bonus: int = maxi(1, roundi(ee_range * ee_mult / 100.0))
 		bonus += ee_bonus
 		main.add_battle_log("Eagle Eye: +%d damage (range %d)" % [ee_bonus, ee_range], Color(0.4, 0.9, 0.4))
@@ -1329,21 +1334,47 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 				and main.tempo_manager.get_global_tempo() - stats.st_skilled_momentum_last_tempo >= 5:
 			stats.st_consecutive_attacks = 0
 			stats.st_skilled_momentum_last_tempo = main.tempo_manager.get_global_tempo()
-			# Deal the card's damage again
-			if target and target.has_method("take_damage"):
-				var extra_dmg = card.last_damage_dealt if card.last_damage_dealt > 0 else stats.get_effective_physical_damage(card.base_damage)
-				target.take_damage(extra_dmg, true)
-				main.add_battle_log("Skilled Momentum: double strike for %d!" % extra_dmg, Color(0.9, 0.3, 0.3))
+			# The card is played again, in full (its own crit roll, riders and
+			# debuffs), for no tempo: main runs the second execution.
+			stats.st_skilled_momentum_echo = true
+			main.add_battle_log("Skilled Momentum: %s plays twice!" % card.card_name, Color(0.9, 0.3, 0.3))
 
-	# Swing for the Fences: cards with >4 tempo cost deal their tempo cost times
-	# a rank-scaled multiplier (100%..380%) as additional damage
+	# Swing for the Fences: ANY card with >4 tempo cost deals its tempo cost
+	# times a rank-scaled multiplier (100%..380%) as additional damage — to
+	# the card's enemy target, or to the nearest enemy when it has none.
 	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
 		var sf_mult: int = PassiveScaling.value("swing_for_the_fences", "multiplier", stats.get_passive_level("swing_for_the_fences"))
 		var sf_bonus: int = maxi(1, roundi(card.tempo_cost * sf_mult / 100.0))
-		bonus += sf_bonus
-		main.add_battle_log("Swing for the Fences: +%d damage!" % sf_bonus, Color(0.8, 0.4, 0.9))
+		if target is Enemy and is_instance_valid(target):
+			bonus += sf_bonus
+			main.add_battle_log("Swing for the Fences: +%d damage!" % sf_bonus, Color(0.8, 0.4, 0.9))
+		else:
+			var sf_target = main._get_nearest_enemy()
+			if sf_target and sf_target.has_method("take_damage"):
+				sf_target.take_damage(sf_bonus, true)
+				main.add_battle_log("Swing for the Fences: %d damage to %s!" % [sf_bonus, sf_target.enemy_name], Color(0.8, 0.4, 0.9))
 
 	return bonus
+
+## Deadly's flat bonus for a hit on `target` (0 when the passive is absent
+## or the target has company). The auto attack reads this too.
+func deadly_flat_bonus(target) -> int:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats or not stats.has_skill_tree_passive("deadly") or not _deadly_isolated(target):
+		return 0
+	var deadly_dmg: int = PassiveScaling.value("deadly", "damage", stats.get_passive_level("deadly"))
+	main.add_battle_log("Deadly: +%d damage (isolated target)" % deadly_dmg, Color(0.9, 0.3, 0.3))
+	return deadly_dmg
+
+## Arm an attack's crit roll: Deadly's crit damage vs an isolated target and
+## the Attack-only gate Exposed Blind Spot reads. The auto attack calls this
+## around its roll; cards go through arm_pre_attack_passives.
+func arm_basic_attack_roll(target) -> void:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats:
+		return
+	stats.st_pre_attack_is_attack = true
+	stats.st_deadly_crit_active = stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
 
 func _deadly_isolated(target) -> bool:
 	## Deadly: true when the target has no living allies within 2 tiles of it.
@@ -1352,7 +1383,11 @@ func _deadly_isolated(target) -> bool:
 	if not main.enemy_spawner:
 		return true
 	for enemy in main.enemy_spawner.get_living_enemies():
-		if enemy != target and target.position.distance_to(enemy.position) <= 2.0:
+		if enemy == target:
+			continue
+		# Grid cells, as every other "within N spaces" is measured (height ignored).
+		var cells: int = main.grid_manager.get_distance_in_cells(target.position, enemy.position) if main.grid_manager else int(round(target.position.distance_to(enemy.position)))
+		if cells <= 2:
 			return false
 	return true
 
@@ -1364,10 +1399,13 @@ func arm_pre_attack_passives(card: Card, target) -> void:
 	if not stats:
 		return
 	var is_attack: bool = card != null and card.card_type == Card.CardType.ATTACK
+	var is_offensive: bool = card != null and card.is_offensive()
+	# Exposed Blind Spot's crit is spent by an Attack's roll only.
+	stats.st_pre_attack_is_attack = is_attack
 
 	# Deadly (Stephen): rank-scaled bonus crit damage vs a target with no allies
-	# within 2 tiles.
-	stats.st_deadly_crit_active = is_attack \
+	# within 2 cells — on any offensive card, attack or spell.
+	stats.st_deadly_crit_active = is_offensive \
 		and stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
 
 	# Scouted (Stephen): the scouted strike carries rank-scaled bonus crit damage.
@@ -1400,6 +1438,7 @@ func clear_pre_attack_passives() -> void:
 	if stats:
 		stats.st_deadly_crit_active = false
 		stats.st_scouted_crit_active = false
+		stats.st_pre_attack_is_attack = false
 
 func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
 	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
@@ -1436,8 +1475,9 @@ func _trigger_skill_tree_stephen_on_attacked(attacker) -> void:
 				non_attack_count += 1
 		if non_attack_count > 0:
 			var ebs_per: float = PassiveScaling.value("exposed_blind_spot", "crit_per_card", stats.get_passive_level("exposed_blind_spot"))
-			stats.st_exposed_blind_spot_crit = maxi(1, roundi(non_attack_count * ebs_per))
-			main.add_battle_log("Exposed Blind Spot: +%d%% crit on next attack!" % stats.st_exposed_blind_spot_crit, Color(0.3, 0.7, 1.0))
+			# Exactly as written (1.25%/card stays 1.25); a new strike overwrites.
+			stats.st_exposed_blind_spot_crit = non_attack_count * ebs_per
+			main.add_battle_log("Exposed Blind Spot: +%.2f%% crit on next attack!" % stats.st_exposed_blind_spot_crit, Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 	var stats = main.player.get_stats()
@@ -1454,16 +1494,22 @@ func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 		var lr_cooldown: int = PassiveScaling.value("lethal_resourcefulness", "cooldown", stats.get_passive_level("lethal_resourcefulness"))
 		if card.card_type != Card.CardType.ATTACK and main.deck_manager.hand.size() <= 3 \
 				and main.tempo_manager.get_global_tempo() - stats.st_lethal_last_tempo >= lr_cooldown:
-			var target = main._get_nearest_enemy()
-			if target and target.has_method("take_damage"):
-				var dist = main.player.position.distance_to(target.position)
-				if dist <= 2.0:  # Melee range
-					stats.st_lethal_last_tempo = main.tempo_manager.get_global_tempo()
-					stats.st_lethal_resource_attacking = true
-					var dmg = stats.get_effective_physical_damage(0)
-					target.take_damage(dmg, true)
-					main.add_battle_log("Lethal Resourcefulness: free attack for %d!" % dmg, Color(0.3, 0.7, 1.0))
-					stats.st_lethal_resource_attacking = false
+			# A real auto attack — the weapon decides the reach (a bow shoots 5,
+			# a blade the next tile) — at the nearest enemy inside it, for no tempo.
+			var reach: int = main._basic_attack_reach()
+			var target = null
+			var best: int = reach + 1
+			for e in main.enemy_spawner.get_living_enemies():
+				var d: int = main._get_distance_to_target(e)
+				if d <= reach and d < best:
+					best = d
+					target = e
+			if target:
+				stats.st_lethal_last_tempo = main.tempo_manager.get_global_tempo()
+				stats.st_lethal_resource_attacking = true
+				main.add_battle_log("Lethal Resourcefulness: free attack on %s!" % target.enemy_name, Color(0.3, 0.7, 1.0))
+				main._execute_basic_attack(target, true)
+				stats.st_lethal_resource_attacking = false
 
 func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
 	var stats = main.player.get_stats()
@@ -1473,16 +1519,18 @@ func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
 	# Patience is a Virtue: on receiving Glut, deal the Glut amount times a
 	# rank-scaled multiplier (10%..290%) to a melee enemy, then halve the Glut.
 	# Normal rounding: .5 rounds up.
+	# Any Glut, from any card; the nearest enemy anywhere takes the damage,
+	# and the Glut is halved whether or not an enemy stood to take it.
 	if stats.has_skill_tree_passive("patience_is_a_virtue") and glut_amount > 0:
+		var pv_mult: int = PassiveScaling.value("patience_is_a_virtue", "multiplier", stats.get_passive_level("patience_is_a_virtue"))
+		var pv_damage: int = maxi(1, roundi(glut_amount * pv_mult / 100.0))
 		var target = main._get_nearest_enemy()
+		main.glut_tempo_remaining = max(0, main.glut_tempo_remaining / 2)
 		if target and target.has_method("take_damage"):
-			var dist = main.player.position.distance_to(target.position)
-			if dist <= 2.0:  # Melee range
-				var pv_mult: int = PassiveScaling.value("patience_is_a_virtue", "multiplier", stats.get_passive_level("patience_is_a_virtue"))
-				var pv_damage: int = maxi(1, roundi(glut_amount * pv_mult / 100.0))
-				target.take_damage(pv_damage, true)
-				main.glut_tempo_remaining = max(0, main.glut_tempo_remaining / 2)
-				main.add_battle_log("Patience is a Virtue: %d damage, Glut halved!" % pv_damage, Color(0.8, 0.4, 0.9))
+			target.take_damage(pv_damage, true)
+			main.add_battle_log("Patience is a Virtue: %d damage to %s, Glut halved!" % [pv_damage, target.enemy_name], Color(0.8, 0.4, 0.9))
+		else:
+			main.add_battle_log("Patience is a Virtue: Glut halved.", Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_stephen_on_dex_proc() -> void:
 	var stats = main.player.get_stats()

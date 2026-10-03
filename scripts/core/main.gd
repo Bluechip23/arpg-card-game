@@ -2175,7 +2175,9 @@ func _set_basic_attack_pending(pending: bool) -> void:
 ## The armed basic attack fires at the clicked enemy. The range check happens
 ## HERE, against the enemy the player chose — never auto-picked, and never
 ## walking the player into range.
-func _execute_basic_attack(target: Enemy) -> void:
+## `free`: a passive's free auto attack (Lethal Resourcefulness) — lands at
+## once for no tempo, like Steady, through the same pipeline otherwise.
+func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	var stats = player.get_stats()
 	if not stats:
 		return
@@ -2219,11 +2221,16 @@ func _execute_basic_attack(target: Enemy) -> void:
 		if ba_inv:
 			damage += ba_inv.get_single_hand_weight_damage_bonus()
 
+	# Deadly (Stephen): the auto attack is damage too — flat bonus and crit
+	# damage vs an isolated target; the roll counts as an Attack's.
+	damage += progression_triggers.deadly_flat_bonus(target)
+	progression_triggers.arm_basic_attack_roll(target)
 	var buff_mgr = player.get_buff_manager()
 	if buff_mgr:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
 			damage = Card.crit_multiply(damage, stats, target)
+	progression_triggers.clear_pre_attack_passives()
 
 	# Debuff damage reduction
 	if debuff_mgr:
@@ -2256,8 +2263,8 @@ func _execute_basic_attack(target: Enemy) -> void:
 		_on_hand_updated()
 		_update_attack_button_text()
 
-	if buff_mgr and buff_mgr.consume_steady():
-		# Steady: resolve immediately with no tempo
+	if free or (buff_mgr and buff_mgr.consume_steady()):
+		# Steady (or a passive's free swing): resolve immediately with no tempo
 		if player.has_method("play_animation"):
 			player.play_animation("attack_slash", _facing_dir_toward(target))
 		target.take_damage(damage, true)
@@ -9151,13 +9158,16 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	PlayerStats.harnessed_mult = 1.0
 	if card.card_type == Card.CardType.ATTACK:
 		progression_triggers._trigger_skill_tree_on_attack(card, target)
-		var brad_bonus = progression_triggers._trigger_skill_tree_brad_on_attack(card, target)
-		var stephen_bonus = progression_triggers._trigger_skill_tree_stephen_on_attack(card, target)
-		var cory_bonus = progression_triggers._trigger_skill_tree_cory_on_attack(card, target)
-		if (brad_bonus + stephen_bonus + cory_bonus) > 0 and target and target.has_method("take_damage"):
-			target.take_damage(brad_bonus + stephen_bonus + cory_bonus, true)
 		if card.is_ranged:
 			progression_triggers._trigger_skill_tree_stephen_on_ranged_attack(card, target)
+	# Bonus-damage passives see every card: each gates itself (Deadly and
+	# Eagle Eye on the offensive rider, Swing for the Fences on tempo,
+	# Scouted and Skilled Momentum on Attack cards).
+	var brad_bonus = progression_triggers._trigger_skill_tree_brad_on_attack(card, target) if card.card_type == Card.CardType.ATTACK else 0
+	var stephen_bonus = progression_triggers._trigger_skill_tree_stephen_on_attack(card, target)
+	var cory_bonus = progression_triggers._trigger_skill_tree_cory_on_attack(card, target) if card.card_type == Card.CardType.ATTACK else 0
+	if (brad_bonus + stephen_bonus + cory_bonus) > 0 and target is Enemy and is_instance_valid(target) and not target.is_dead:
+		target.take_damage(brad_bonus + stephen_bonus + cory_bonus, true)
 	if card.card_type == Card.CardType.DEFENSE:
 		progression_triggers._trigger_skill_tree_brad_on_defense_card_play(card)
 	else:
@@ -9179,6 +9189,22 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Apply world effects (knockback, movement, AOE)
 	_apply_card_world_effects(card, target)
+	# Skilled Momentum (Stephen): the attack plays a second time, in full —
+	# its own crit roll, riders and debuffs — for no tempo. One-shot buffs
+	# (Strengthen) were spent by the first play, as separate attacks should.
+	var sm_stats = player.get_stats()
+	if sm_stats and sm_stats.st_skilled_momentum_echo:
+		sm_stats.st_skilled_momentum_echo = false
+		if not (target is Enemy) or (is_instance_valid(target) and not target.is_dead):
+			if data.get("harnessed_power_applied", false):
+				PlayerStats.harnessed_mult = float(data.get("harnessed_mult", 1.0))
+			progression_triggers.arm_pre_attack_passives(card, target)
+			deck_manager.execute_deferred_card(card, target, player)
+			progression_triggers.clear_pre_attack_passives()
+			_apply_card_world_effects(card, target)
+			PlayerStats.harnessed_mult = 1.0
+			if card.last_damage_dealt > 0:
+				add_battle_log("%s again — %d damage" % [card.card_name, card.last_damage_dealt], Color(0.9, 0.3, 0.3))
 
 	# Undo temporary card modifications (tighten, high ground, harnessed power)
 	_undo_card_temp_mods(card, data)
@@ -11485,6 +11511,29 @@ func _helm_crit_fire_cone(target) -> void:
 		if not hit.is_empty():
 			add_battle_log("%s breathes fire! %d damage to %d enemies" % [helm.item_name, dmg, hit.size()], Color(1.0, 0.5, 0.1))
 
+## A ranged card's full reach right now: the base 5, its own modifier and
+## every in-play bonus (Tighten String, high ground, Scouted, sphere Range,
+## helm). The range check and Eagle Eye both read this.
+func _ranged_card_max_range(card: Card) -> int:
+	var max_range: int = 5 + card.range_modifier
+	# Tighten String: +6 range on ranged attacks
+	var buff_mgr = player.get_buff_manager() if player else null
+	if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
+		max_range += 6
+	# High Ground: +2 range
+	if card.card_type == Card.CardType.ATTACK and player and _is_on_high_ground(player.position):
+		max_range += 2
+	var st_stats = player.get_stats() if player else null
+	# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
+	if st_stats and st_stats.st_scouted_bonus_active:
+		max_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
+	# Sphere grid "Range +X" nodes
+	if st_stats and st_stats.sphere_bonus_range > 0:
+		max_range += st_stats.sphere_bonus_range
+	# Helm on-self range (Dragon Skull/Monocle) + 20/20 maintain
+	max_range += _helm_range_bonus(card)
+	return max_range
+
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node3D:
 		return true
@@ -11498,26 +11547,7 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 	var flat_dist = Vector3(diff.x, 0, diff.z).length()
 	var distance_tiles = flat_dist / grid_manager.grid_size
 	if card.is_ranged:
-		var max_range = 5 + card.range_modifier
-		# Tighten String: +6 range on ranged attacks
-		var buff_mgr = player.get_buff_manager() if player else null
-		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
-			max_range += 6
-		# High Ground: +2 range
-		if card.card_type == Card.CardType.ATTACK and _is_on_high_ground(player.position):
-			max_range += 2
-		# (Eagle Eye no longer grants range — it now deals range-scaled bonus
-		# damage on ranged offensive cards.)
-		var st_stats = player.get_stats()
-		# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
-		if st_stats and st_stats.st_scouted_bonus_active:
-			max_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
-		# Sphere grid "Range +X" nodes
-		if st_stats and st_stats.sphere_bonus_range > 0:
-			max_range += st_stats.sphere_bonus_range
-		# Helm on-self range (Dragon Skull/Monocle) + 20/20 maintain
-		max_range += _helm_range_bonus(card)
-		return distance_tiles <= max_range + 0.5  # Small tolerance
+		return distance_tiles <= _ranged_card_max_range(card) + 0.5  # Small tolerance
 	else:
 		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square.
 		# Dragon Skull's "+1 range on ANY offensive card" extends melee reach too

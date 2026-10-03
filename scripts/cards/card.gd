@@ -2770,10 +2770,12 @@ func get_burden_mana_cost() -> int:
 		return mana_cost + burden_plays * 10
 	return mana_cost
 
-## "Offensive card" as the item specs use the term: anything that deals damage,
-## not just CardType.ATTACK — a damaging utility/spell counts too.
+## "Offensive" is a rider on the card, not a property of dealing damage:
+## every Attack card carries it, and any other card (a spell, a utility)
+## only when the sheet tags it `offensive`. A damaging utility without the
+## tag is not offensive. Items and passives that say "offensive" read this.
 func is_offensive() -> bool:
-	return card_type == CardType.ATTACK or damage > 0 or base_damage > 0
+	return card_type == CardType.ATTACK or has_keyword("offensive")
 
 func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost
